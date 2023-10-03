@@ -137,7 +137,7 @@ type Instrument struct {
 	FairPrice                      float64   `json:"fairPrice"`
 	Front                          string    `json:"front"`
 	FundingBaseSymbol              string    `json:"fundingBaseSymbol"`
-	FundingInterval                string    `json:"fundingInterval"`
+	FundingInterval                time.Time `json:"fundingInterval"`
 	FundingPremiumSymbol           string    `json:"fundingPremiumSymbol"`
 	FundingQuoteSymbol             string    `json:"fundingQuoteSymbol"`
 	FundingRate                    float64   `json:"fundingRate"`

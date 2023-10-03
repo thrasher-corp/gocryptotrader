@@ -20,7 +20,7 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 
 ## Current Features for currencyconverterapi
 
-+ Fetches up to date curency data from [Currency Converter API](https://free.currencyconverterapi.com/)
++ Fetches up to date currency data from [Currency Converter API](https://free.currencyconverterapi.com/)
 
 ### How to enable
 

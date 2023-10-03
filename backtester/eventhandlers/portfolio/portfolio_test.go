@@ -23,6 +23,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/binance"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
 	gctkline "github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	gctorder "github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
@@ -599,7 +600,7 @@ func TestOnSignal(t *testing.T) {
 		t.Errorf("received: %v, expected: %v", err, errNoPortfolioSettings)
 	}
 	exchangeSettings := &Settings{}
-	exchangeSettings.FuturesTracker, err = gctorder.SetupMultiPositionTracker(&gctorder.MultiPositionTrackerSetup{
+	exchangeSettings.FuturesTracker, err = futures.SetupMultiPositionTracker(&futures.MultiPositionTrackerSetup{
 		Exchange:           testExchange,
 		Asset:              asset.Futures,
 		Pair:               cp,
@@ -795,8 +796,8 @@ func TestCalculatePNL(t *testing.T) {
 		Base: &event.Base{},
 	}
 	err := p.UpdatePNL(ev, decimal.Zero)
-	if !errors.Is(err, gctorder.ErrNotFuturesAsset) {
-		t.Errorf("received: %v, expected: %v", err, gctorder.ErrNotFuturesAsset)
+	if !errors.Is(err, futures.ErrNotFuturesAsset) {
+		t.Errorf("received: %v, expected: %v", err, futures.ErrNotFuturesAsset)
 	}
 
 	exch := &binance.Binance{}
@@ -837,7 +838,7 @@ func TestCalculatePNL(t *testing.T) {
 		Pair:      pair,
 		OrderID:   "lol",
 	}
-	mpt, err := gctorder.SetupMultiPositionTracker(&gctorder.MultiPositionTrackerSetup{
+	mpt, err := futures.SetupMultiPositionTracker(&futures.MultiPositionTrackerSetup{
 		Exchange:           testExchange,
 		Asset:              ev.AssetType,
 		Pair:               ev.Pair(),
@@ -933,8 +934,8 @@ func TestTrackFuturesOrder(t *testing.T) {
 	_, err = p.TrackFuturesOrder(&fill.Fill{
 		Order: od,
 	}, fundPair)
-	if !errors.Is(err, gctorder.ErrNotFuturesAsset) {
-		t.Errorf("received '%v' expected '%v", err, gctorder.ErrNotFuturesAsset)
+	if !errors.Is(err, futures.ErrNotFuturesAsset) {
+		t.Errorf("received '%v' expected '%v", err, futures.ErrNotFuturesAsset)
 	}
 
 	od.AssetType = asset.Futures
@@ -1119,7 +1120,7 @@ func TestGetLatestPNLForEvent(t *testing.T) {
 		t.Fatalf("received '%v' expected '%v'", err, expectedError)
 	}
 
-	mpt, err := gctorder.SetupMultiPositionTracker(&gctorder.MultiPositionTrackerSetup{
+	mpt, err := futures.SetupMultiPositionTracker(&futures.MultiPositionTrackerSetup{
 		Exchange:           testExchange,
 		Asset:              ev.AssetType,
 		Pair:               ev.Pair(),
@@ -1175,8 +1176,8 @@ func TestGetFuturesSettingsFromEvent(t *testing.T) {
 	_, err = p.getFuturesSettingsFromEvent(&fill.Fill{
 		Base: b,
 	})
-	if !errors.Is(err, gctorder.ErrNotFuturesAsset) {
-		t.Fatalf("received '%v' expected '%v'", err, gctorder.ErrNotFuturesAsset)
+	if !errors.Is(err, futures.ErrNotFuturesAsset) {
+		t.Fatalf("received '%v' expected '%v'", err, futures.ErrNotFuturesAsset)
 	}
 	b.Exchange = testExchange
 	b.CurrencyPair = currency.NewPair(currency.BTC, currency.USDT)
@@ -1214,7 +1215,7 @@ func TestGetUnrealisedPNL(t *testing.T) {
 		Pair:               currency.NewPair(currency.BTC, currency.USDT),
 		CollateralCurrency: currency.USDT,
 		Offset:             1,
-		Result: gctorder.PNLResult{
+		Result: futures.PNLResult{
 			Time:                  time.Now(),
 			UnrealisedPNL:         leet,
 			RealisedPNLBeforeFees: decimal.NewFromInt(1338),
@@ -1246,7 +1247,7 @@ func TestGetRealisedPNL(t *testing.T) {
 		Pair:               currency.NewPair(currency.BTC, currency.USDT),
 		CollateralCurrency: currency.USDT,
 		Offset:             1,
-		Result: gctorder.PNLResult{
+		Result: futures.PNLResult{
 			Time:                  time.Now(),
 			UnrealisedPNL:         leet,
 			RealisedPNLBeforeFees: decimal.NewFromInt(1338),
@@ -1278,7 +1279,7 @@ func TestGetExposure(t *testing.T) {
 		Pair:               currency.NewPair(currency.BTC, currency.USDT),
 		CollateralCurrency: currency.USDT,
 		Offset:             1,
-		Result: gctorder.PNLResult{
+		Result: futures.PNLResult{
 			Time:                  time.Now(),
 			UnrealisedPNL:         leet,
 			RealisedPNLBeforeFees: decimal.NewFromInt(1338),
@@ -1303,7 +1304,7 @@ func TestGetCollateralCurrency(t *testing.T) {
 		Pair:               currency.NewPair(currency.BTC, currency.USDT),
 		CollateralCurrency: currency.USDT,
 		Offset:             1,
-		Result: gctorder.PNLResult{
+		Result: futures.PNLResult{
 			Time:                  time.Now(),
 			UnrealisedPNL:         leet,
 			RealisedPNLBeforeFees: decimal.NewFromInt(1338),
@@ -1329,7 +1330,7 @@ func TestGetDirection(t *testing.T) {
 		Pair:               currency.NewPair(currency.BTC, currency.USDT),
 		CollateralCurrency: currency.USDT,
 		Offset:             1,
-		Result: gctorder.PNLResult{
+		Result: futures.PNLResult{
 			Time:                  time.Now(),
 			UnrealisedPNL:         leet,
 			RealisedPNLBeforeFees: decimal.NewFromInt(1338),
@@ -1475,7 +1476,7 @@ func TestCreateLiquidationOrdersForExchange(t *testing.T) {
 		Price:     1337,
 	}
 
-	mpt, err := gctorder.SetupMultiPositionTracker(&gctorder.MultiPositionTrackerSetup{
+	mpt, err := futures.SetupMultiPositionTracker(&futures.MultiPositionTrackerSetup{
 		Exchange:           testExchange,
 		Asset:              od.AssetType,
 		Pair:               cp,
@@ -1535,7 +1536,7 @@ func TestCreateLiquidationOrdersForExchange(t *testing.T) {
 func TestGetPositionStatus(t *testing.T) {
 	t.Parallel()
 	p := PNLSummary{
-		Result: gctorder.PNLResult{
+		Result: futures.PNLResult{
 			Status: gctorder.Rejected,
 		},
 	}
@@ -1583,8 +1584,8 @@ func TestCheckLiquidationStatus(t *testing.T) {
 
 	pnl := &PNLSummary{}
 	err = p.CheckLiquidationStatus(ev, collat, pnl)
-	if !errors.Is(err, gctorder.ErrNotFuturesAsset) {
-		t.Errorf("received '%v', expected '%v'", err, gctorder.ErrNotFuturesAsset)
+	if !errors.Is(err, futures.ErrNotFuturesAsset) {
+		t.Errorf("received '%v', expected '%v'", err, futures.ErrNotFuturesAsset)
 	}
 
 	pnl.Asset = asset.Futures
@@ -1611,7 +1612,7 @@ func TestCheckLiquidationStatus(t *testing.T) {
 		Pair:      pair,
 		OrderID:   "lol",
 	}
-	mpt, err := gctorder.SetupMultiPositionTracker(&gctorder.MultiPositionTrackerSetup{
+	mpt, err := futures.SetupMultiPositionTracker(&futures.MultiPositionTrackerSetup{
 		Exchange:           testExchange,
 		Asset:              ev.AssetType,
 		Pair:               ev.Pair(),

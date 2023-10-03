@@ -19,6 +19,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	gctexchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
 	gctorder "github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
@@ -56,7 +57,7 @@ type Handler interface {
 	ViewHoldingAtTimePeriod(common.Event) (*holdings.Holding, error)
 	SetHoldingsForTimestamp(*holdings.Holding) error
 	UpdateHoldings(data.Event, funding.IFundReleaser) error
-	GetPositions(common.Event) ([]gctorder.Position, error)
+	GetPositions(common.Event) ([]futures.Position, error)
 	TrackFuturesOrder(fill.Event, funding.IFundReleaser) (*PNLSummary, error)
 	UpdatePNL(common.Event, decimal.Decimal) error
 	GetLatestPNLForEvent(common.Event) (*PNLSummary, error)
@@ -86,7 +87,7 @@ type Settings struct {
 	HoldingsSnapshots map[int64]*holdings.Holding
 	ComplianceManager compliance.Manager
 	Exchange          gctexchange.IBotExchange
-	FuturesTracker    *gctorder.MultiPositionTracker
+	FuturesTracker    *futures.MultiPositionTracker
 }
 
 // PNLSummary holds a PNL result along with
@@ -97,7 +98,7 @@ type PNLSummary struct {
 	Pair               currency.Pair
 	CollateralCurrency currency.Code
 	Offset             int64
-	Result             gctorder.PNLResult
+	Result             futures.PNLResult
 }
 
 // IPNL defines an interface for an implementation

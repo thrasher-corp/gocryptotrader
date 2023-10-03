@@ -10,7 +10,7 @@ import (
 	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
-	gctorder "github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
 )
 
 // Setup creates a portfolio manager instance and sets private fields
@@ -79,7 +79,7 @@ func (p *Portfolio) SetCurrencySettingsMap(setup *exchange.Settings) error {
 		if err != nil {
 			return err
 		}
-		futureTrackerSetup := &gctorder.MultiPositionTrackerSetup{
+		futureTrackerSetup := &futures.MultiPositionTrackerSetup{
 			Exchange:                  name,
 			Asset:                     setup.Asset,
 			Pair:                      setup.Pair,
@@ -91,8 +91,8 @@ func (p *Portfolio) SetCurrencySettingsMap(setup *exchange.Settings) error {
 		if setup.UseExchangePNLCalculation {
 			futureTrackerSetup.ExchangePNLCalculation = setup.Exchange
 		}
-		var tracker *gctorder.MultiPositionTracker
-		tracker, err = gctorder.SetupMultiPositionTracker(futureTrackerSetup)
+		var tracker *futures.MultiPositionTracker
+		tracker, err = futures.SetupMultiPositionTracker(futureTrackerSetup)
 		if err != nil {
 			return err
 		}

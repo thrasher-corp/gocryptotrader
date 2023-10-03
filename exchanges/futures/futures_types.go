@@ -1,4 +1,4 @@
-package order
+package futures
 
 import (
 	"context"
@@ -13,6 +13,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/collateral"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
 var (
@@ -140,20 +141,20 @@ type PositionTracker struct {
 	contractPair       currency.Pair
 	underlying         currency.Code
 	exposure           decimal.Decimal
-	openingDirection   Side
+	openingDirection   order.Side
 	openingPrice       decimal.Decimal
 	openingSize        decimal.Decimal
 	openingDate        time.Time
-	latestDirection    Side
+	latestDirection    order.Side
 	latestPrice        decimal.Decimal
 	lastUpdated        time.Time
 	unrealisedPNL      decimal.Decimal
 	realisedPNL        decimal.Decimal
-	status             Status
+	status             order.Status
 	closingPrice       decimal.Decimal
 	closingDate        time.Time
-	shortPositions     []Detail
-	longPositions      []Detail
+	shortPositions     []order.Detail
+	longPositions      []order.Detail
 	pnlHistory         []PNLResult
 	fundingRateDetails *fundingrate.Rates
 }
@@ -167,7 +168,7 @@ type PositionTrackerSetup struct {
 	EntryPrice                decimal.Decimal
 	Underlying                currency.Code
 	CollateralCurrency        currency.Code
-	Side                      Side
+	Side                      order.Side
 	UseExchangePNLCalculation bool
 	OfflineCalculation        bool
 	PNLCalculator             PNLCalculation
@@ -189,7 +190,7 @@ type CollateralCalculator struct {
 	CalculateOffline   bool
 	CollateralCurrency currency.Code
 	Asset              asset.Item
-	Side               Side
+	Side               order.Side
 	USDPrice           decimal.Decimal
 	IsLiquidating      bool
 	IsForNewPosition   bool
@@ -221,21 +222,21 @@ type PNLCalculatorRequest struct {
 	Fee              decimal.Decimal
 	PNLHistory       []PNLResult
 	Exposure         decimal.Decimal
-	OrderDirection   Side
-	OpeningDirection Side
-	CurrentDirection Side
+	OrderDirection   order.Side
+	OpeningDirection order.Side
+	CurrentDirection order.Side
 }
 
 // PNLResult stores a PNL result from a point in time
 type PNLResult struct {
-	Status                Status
+	Status                order.Status
 	Time                  time.Time
 	UnrealisedPNL         decimal.Decimal
 	RealisedPNLBeforeFees decimal.Decimal
 	RealisedPNL           decimal.Decimal
 	Price                 decimal.Decimal
 	Exposure              decimal.Decimal
-	Direction             Side
+	Direction             order.Side
 	Fee                   decimal.Decimal
 	IsLiquidated          bool
 	// Is event is supposed to show that something has happened and it isn't just tracking in time
@@ -251,17 +252,17 @@ type Position struct {
 	CollateralCurrency currency.Code
 	RealisedPNL        decimal.Decimal
 	UnrealisedPNL      decimal.Decimal
-	Status             Status
+	Status             order.Status
 	OpeningDate        time.Time
 	OpeningPrice       decimal.Decimal
 	OpeningSize        decimal.Decimal
-	OpeningDirection   Side
+	OpeningDirection   order.Side
 	LatestPrice        decimal.Decimal
 	LatestSize         decimal.Decimal
-	LatestDirection    Side
+	LatestDirection    order.Side
 	LastUpdated        time.Time
 	CloseDate          time.Time
-	Orders             []Detail
+	Orders             []order.Detail
 	PNLHistory         []PNLResult
 	FundingRates       fundingrate.Rates
 }
@@ -275,6 +276,7 @@ type PositionSummaryRequest struct {
 
 	// offline calculation requirements below
 	CalculateOffline          bool
+	Direction                 order.Side
 	FreeCollateral            decimal.Decimal
 	TotalCollateral           decimal.Decimal
 	CurrentPrice              decimal.Decimal
@@ -289,7 +291,6 @@ type PositionSummaryRequest struct {
 	OpeningPrice      decimal.Decimal
 	OpeningSize       decimal.Decimal
 	Leverage          decimal.Decimal
-	Direction         Side
 	TotalAccountValue decimal.Decimal
 }
 
@@ -299,7 +300,7 @@ type PositionDetails struct {
 	Exchange string
 	Asset    asset.Item
 	Pair     currency.Pair
-	Orders   []Detail
+	Orders   []order.Detail
 }
 
 // PositionsRequest defines the request to
@@ -318,9 +319,10 @@ type PositionsRequest struct {
 // PositionResponse are used to track open positions
 // in the order manager
 type PositionResponse struct {
-	Pair   currency.Pair
-	Asset  asset.Item
-	Orders []Detail
+	Pair                   currency.Pair
+	Asset                  asset.Item
+	ContractSettlementType ContractSettlementType
+	Orders                 []order.Detail
 }
 
 // PositionSummary returns basic details on an open position
@@ -353,6 +355,9 @@ type PositionSummary struct {
 	CollateralUsed               decimal.Decimal
 	MarkPrice                    decimal.Decimal
 	CurrentSize                  decimal.Decimal
+	ContractSize                 decimal.Decimal
+	ContractMultiplier           decimal.Decimal
+	ContractSettlementType       ContractSettlementType
 	AverageOpenPrice             decimal.Decimal
 	PositionPNL                  decimal.Decimal
 	MaintenanceMarginFraction    decimal.Decimal

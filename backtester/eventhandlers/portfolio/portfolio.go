@@ -21,6 +21,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
 	gctorder "github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
@@ -359,7 +360,7 @@ func (p *Portfolio) getComplianceManager(exchangeName string, a asset.Item, cp c
 }
 
 // GetPositions returns all futures positions for an event's exchange, asset, pair
-func (p *Portfolio) GetPositions(e common.Event) ([]gctorder.Position, error) {
+func (p *Portfolio) GetPositions(e common.Event) ([]futures.Position, error) {
 	settings, err := p.getFuturesSettingsFromEvent(e)
 	if err != nil {
 		return nil, err
@@ -368,14 +369,14 @@ func (p *Portfolio) GetPositions(e common.Event) ([]gctorder.Position, error) {
 }
 
 // GetLatestPosition returns all futures positions for an event's exchange, asset, pair
-func (p *Portfolio) GetLatestPosition(e common.Event) (*gctorder.Position, error) {
+func (p *Portfolio) GetLatestPosition(e common.Event) (*futures.Position, error) {
 	settings, err := p.getFuturesSettingsFromEvent(e)
 	if err != nil {
 		return nil, err
 	}
 	positions := settings.FuturesTracker.GetPositions()
 	if len(positions) == 0 {
-		return nil, fmt.Errorf("%w %v %v %v", gctorder.ErrPositionNotFound, e.GetExchange(), e.GetAssetType(), e.Pair())
+		return nil, fmt.Errorf("%w %v %v %v", futures.ErrPositionNotFound, e.GetExchange(), e.GetAssetType(), e.Pair())
 	}
 	return &positions[len(positions)-1], nil
 }
@@ -388,7 +389,7 @@ func (p *Portfolio) UpdatePNL(e common.Event, closePrice decimal.Decimal) error 
 		return err
 	}
 	_, err = settings.FuturesTracker.UpdateOpenPositionUnrealisedPNL(closePrice.InexactFloat64(), e.GetTime())
-	if err != nil && !errors.Is(err, gctorder.ErrPositionClosed) {
+	if err != nil && !errors.Is(err, futures.ErrPositionClosed) {
 		return err
 	}
 
@@ -409,7 +410,7 @@ func (p *Portfolio) TrackFuturesOrder(ev fill.Event, fund funding.IFundReleaser)
 		return nil, gctorder.ErrSubmissionIsNil
 	}
 	if !detail.AssetType.IsFutures() {
-		return nil, fmt.Errorf("order '%v' %w", detail.OrderID, gctorder.ErrNotFuturesAsset)
+		return nil, fmt.Errorf("order '%v' %w", detail.OrderID, futures.ErrNotFuturesAsset)
 	}
 
 	collateralReleaser, err := fund.CollateralReleaser()
@@ -502,7 +503,7 @@ func (p *Portfolio) CheckLiquidationStatus(ev data.Event, collateralReader fundi
 	if !position.Status.IsInactive() &&
 		pnl.Result.UnrealisedPNL.IsNegative() &&
 		pnl.Result.UnrealisedPNL.Abs().GreaterThan(availableFunds) {
-		return gctorder.ErrPositionLiquidated
+		return futures.ErrPositionLiquidated
 	}
 
 	return nil
@@ -598,7 +599,7 @@ func (p *Portfolio) getFuturesSettingsFromEvent(e common.Event) (*Settings, erro
 		return nil, common.ErrNilEvent
 	}
 	if !e.GetAssetType().IsFutures() {
-		return nil, gctorder.ErrNotFuturesAsset
+		return nil, futures.ErrNotFuturesAsset
 	}
 	settings, err := p.getSettings(e.GetExchange(), e.GetAssetType(), e.Pair())
 	if err != nil {
