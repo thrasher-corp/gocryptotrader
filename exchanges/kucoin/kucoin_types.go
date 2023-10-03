@@ -815,7 +815,7 @@ type WsSpotTicker struct {
 }
 
 // WsSpotTickerDetail represents the detail of a spot ticker data.
-// This represents all websocket ticker information pushed as a result of susbcription to /market/snapshot:{symbol}, and /market/snapshot:{currency,market}
+// This represents all websocket ticker information pushed as a result of subscription to /market/snapshot:{symbol}, and /market/snapshot:{currency,market}
 type WsSpotTickerDetail struct {
 	AveragePrice     float64              `json:"averagePrice"`
 	BaseCurrency     string               `json:"baseCurrency"`

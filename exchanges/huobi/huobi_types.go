@@ -721,7 +721,7 @@ type MarginAccountBalance struct {
 // SpotNewOrderRequestParams holds the params required to place
 // an order
 type SpotNewOrderRequestParams struct {
-	AccountID int                           `json:"account-id,string"` // Account ID, obtained using the accounts method. Curency trades use the accountid of the ‘spot’ account; for loan asset transactions, please use the accountid of the ‘margin’ account.
+	AccountID int                           `json:"account-id,string"` // Account ID, obtained using the accounts method. Currency trades use the accountid of the ‘spot’ account; for loan asset transactions, please use the accountid of the ‘margin’ account.
 	Amount    float64                       `json:"amount"`            // The limit price indicates the quantity of the order, the market price indicates how much to buy when the order is paid, and the market price indicates how much the coin is sold when the order is sold.
 	Price     float64                       `json:"price"`             // Order price, market price does not use  this parameter
 	Source    string                        `json:"source"`            // Order source, api: API call, margin-api: loan asset transaction
@@ -769,7 +769,7 @@ var (
 	// SpotNewOrderRequestTypeBuyLimit buy limit order
 	SpotNewOrderRequestTypeBuyLimit = SpotNewOrderRequestParamsType("buy-limit")
 
-	// SpotNewOrderRequestTypeSellLimit sell lmit order
+	// SpotNewOrderRequestTypeSellLimit sell limit order
 	SpotNewOrderRequestTypeSellLimit = SpotNewOrderRequestParamsType("sell-limit")
 )
 

@@ -67,7 +67,7 @@ func (ll *linkedList) load(items Items, stack *stack, tn time.Time) {
 	}
 
 	// Push has references to dangling nodes that need to be removed and pushed
-	// back onto stack for re-use
+	// back onto stack for reuse
 	var push *Node
 	// Cleave unused reference chain from main chain
 	if prev == nil {
