@@ -12,6 +12,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/core"
@@ -779,59 +780,59 @@ func TestGetCounterparties(t *testing.T) {
 	}
 }
 
-const createRFQInputJSON = `{"anonymous": true,"counterparties":["Trader1","Trader2"],"clRfqId":"rfq01","legs":[{"sz":"25","side":"buy","instId":"BTCUSD-221208-100000-C"},{"sz":"150","side":"buy","instId":"ETH-USDT","tgtCcy":"base_ccy"}]}`
+const createRfqInputJSON = `{"anonymous": true,"counterparties":["Trader1","Trader2"],"clRfqId":"rfq01","legs":[{"sz":"25","side":"buy","instId":"BTCUSD-221208-100000-C"},{"sz":"150","side":"buy","instId":"ETH-USDT","tgtCcy":"base_ccy"}]}`
 
-func TestCreateRFQ(t *testing.T) {
+func TestCreateRfq(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
 
-	var input CreateRFQInput
-	if err := json.Unmarshal([]byte(createRFQInputJSON), &input); err != nil {
-		t.Error("Okx Decerializing to CreateRFQInput", err)
+	var input CreateRfqInput
+	if err := json.Unmarshal([]byte(createRfqInputJSON), &input); err != nil {
+		t.Error("Okx Decerializing to CreateRfqInput", err)
 	}
-	if _, err := ok.CreateRFQ(contextGenerate(), input); err != nil {
-		t.Error("Okx CreateRFQ() error", err)
+	if _, err := ok.CreateRfq(contextGenerate(), input); err != nil {
+		t.Error("Okx CreateRfq() error", err)
 	}
 }
 
-func TestCancelRFQ(t *testing.T) {
+func TestCancelRfq(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
 
-	_, err := ok.CancelRFQ(contextGenerate(), CancelRFQRequestParam{})
-	if err != nil && !errors.Is(err, errMissingRFQIDANDClientSuppliedRFQID) {
-		t.Errorf("Okx CancelRFQ() expecting %v, but found %v", errMissingRFQIDANDClientSuppliedRFQID, err)
+	_, err := ok.CancelRfq(contextGenerate(), CancelRfqRequestParam{})
+	if err != nil && !errors.Is(err, errMissingRfqIDAndClientRfqID) {
+		t.Errorf("Okx CancelRfq() expecting %v, but found %v", errMissingRfqIDAndClientRfqID, err)
 	}
-	_, err = ok.CancelRFQ(contextGenerate(), CancelRFQRequestParam{
-		ClientSuppliedRFQID: "somersdjskfjsdkfjxvxv",
+	_, err = ok.CancelRfq(context.Background(), CancelRfqRequestParam{
+		ClientRfqID: "somersdjskfjsdkfjxvxv",
 	})
 	if err != nil {
-		t.Error("Okx CancelRFQ() error", err)
+		t.Error("Okx CancelRfq() error", err)
 	}
 }
 
-func TestMultipleCancelRFQ(t *testing.T) {
+func TestMultipleCancelRfq(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
 
-	_, err := ok.CancelMultipleRFQs(contextGenerate(), CancelRFQRequestsParam{})
-	if err != nil && !errors.Is(err, errMissingRFQIDANDClientSuppliedRFQID) {
-		t.Errorf("Okx CancelMultipleRFQs() expecting %v, but found %v", errMissingRFQIDANDClientSuppliedRFQID, err)
+	_, err := ok.CancelMultipleRfqs(contextGenerate(), CancelRfqRequestsParam{})
+	if err != nil && !errors.Is(err, errMissingRfqIDAndClientRfqID) {
+		t.Errorf("Okx CancelMultipleRfqs() expecting %v, but found %v", errMissingRfqIDAndClientRfqID, err)
 	}
-	_, err = ok.CancelMultipleRFQs(contextGenerate(), CancelRFQRequestsParam{
-		ClientSuppliedRFQID: []string{"somersdjskfjsdkfjxvxv"},
+	_, err = ok.CancelMultipleRfqs(contextGenerate(), CancelRfqRequestsParam{
+		ClientRfqIDs: []string{"somersdjskfjsdkfjxvxv"},
 	})
 	if err != nil {
-		t.Error("Okx CancelMultipleRFQs() error", err)
+		t.Error("Okx CancelMultipleRfqs() error", err)
 	}
 }
 
-func TestCancelAllRFQs(t *testing.T) {
+func TestCancelAllRfqs(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
 
-	if _, err := ok.CancelAllRFQs(contextGenerate()); err != nil {
-		t.Errorf("%s CancelAllRFQs() error %v", ok.Name, err)
+	if _, err := ok.CancelAllRfqs(contextGenerate()); err != nil {
+		t.Errorf("%s CancelAllRfqs() error %v", ok.Name, err)
 	}
 }
 
@@ -915,7 +916,7 @@ func TestCancelQuote(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
 
-	if _, err := ok.CancelQuote(contextGenerate(), CancelQuoteRequestParams{}); err != nil && !errors.Is(err, errMissingQuoteIDOrClientSuppliedQuoteID) {
+	if _, err := ok.CancelQuote(contextGenerate(), CancelQuoteRequestParams{}); err != nil && !errors.Is(err, errMissingQuoteIDOrClientQuoteID) {
 		t.Error("Okx CancelQuote() error", err)
 	}
 	if _, err := ok.CancelQuote(contextGenerate(), CancelQuoteRequestParams{
@@ -924,7 +925,7 @@ func TestCancelQuote(t *testing.T) {
 		t.Error("Okx CancelQuote() error", err)
 	}
 	if _, err := ok.CancelQuote(contextGenerate(), CancelQuoteRequestParams{
-		ClientSuppliedQuoteID: "1234",
+		ClientQuoteID: "1234",
 	}); err != nil {
 		t.Error("Okx CancelQuote() error", err)
 	}
@@ -934,7 +935,7 @@ func TestCancelMultipleQuote(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
 
-	if _, err := ok.CancelMultipleQuote(contextGenerate(), CancelQuotesRequestParams{}); err != nil && !errors.Is(errMissingEitherQuoteIDAOrClientSuppliedQuoteIDs, err) {
+	if _, err := ok.CancelMultipleQuote(contextGenerate(), CancelQuotesRequestParams{}); err != nil && !errors.Is(errMissingEitherQuoteIDAOrClientQuoteIDs, err) {
 		t.Error("Okx CancelQuote() error", err)
 	}
 	if _, err := ok.CancelMultipleQuote(contextGenerate(), CancelQuotesRequestParams{
@@ -958,7 +959,7 @@ func TestCancelAllQuotes(t *testing.T) {
 	}
 }
 
-func TestGetRFQs(t *testing.T) {
+func TestGetRfqs(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
 
@@ -980,14 +981,14 @@ func TestGetQuotes(t *testing.T) {
 	}
 }
 
-func TestGetRFQTrades(t *testing.T) {
+func TestGetRfqTrades(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
 
-	if _, err := ok.GetRFQTrades(contextGenerate(), &RFQTradesRequestParams{
+	if _, err := ok.GetRfqTrades(contextGenerate(), &RfqTradesRequestParams{
 		Limit: 1,
 	}); err != nil {
-		t.Error("Okx GetRFQTrades() error", err)
+		t.Error("Okx GetRfqTrades() error", err)
 	}
 }
 
@@ -1227,8 +1228,8 @@ func TestEstimateQuote(t *testing.T) {
 		BaseCurrency:  "BTC",
 		QuoteCurrency: "USDT",
 		Side:          "sell",
-		RFQAmount:     30,
-		RFQSzCurrency: "USDT",
+		RfqAmount:     30,
+		RfqSzCurrency: "USDT",
 	}); err != nil {
 		t.Error("Okx EstimateQuote() error", err)
 	}
@@ -1883,28 +1884,22 @@ func TestUpdateTradablePairs(t *testing.T) {
 func TestUpdateOrderExecutionLimits(t *testing.T) {
 	t.Parallel()
 
-	type limitTest struct {
-		pair currency.Pair
-	}
-
-	tests := map[asset.Item][]limitTest{
+	tests := map[asset.Item][]currency.Pair{
 		asset.Spot: {
-			{currency.NewPair(currency.ETH, currency.USDT)},
-			{currency.NewPair(currency.BTC, currency.USDT)},
+			currency.NewPair(currency.ETH, currency.USDT),
+			currency.NewPair(currency.BTC, currency.USDT),
 		},
 		asset.Margin: {
-			{currency.NewPair(currency.ETH, currency.USDT)},
-			{currency.NewPair(currency.ETH, currency.BTC)},
+			currency.NewPair(currency.ETH, currency.USDT),
+			currency.NewPair(currency.ETH, currency.BTC),
 		},
 	}
 
 	for _, a := range []asset.Item{asset.PerpetualSwap, asset.Futures, asset.Options} {
 		pairs, err := ok.FetchTradablePairs(context.Background(), a)
-		if err != nil {
-			t.Errorf("Error fetching dated %s pairs for test: %v", a, err)
+		if assert.NoErrorf(t, err, "FetchTradablePairs should not error for %s", a) {
+			tests[a] = []currency.Pair{pairs[0]}
 		}
-
-		tests[a] = []limitTest{{pairs[0]}}
 	}
 
 	for _, a := range ok.GetAssetTypes(false) {
@@ -1913,19 +1908,11 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 			continue
 		}
 
-		for _, tt := range tests[a] {
-			limits, err := ok.GetOrderExecutionLimits(a, tt.pair)
-			if err != nil {
-				t.Errorf("Okx GetOrderExecutionLimits() error during TestUpdateOrderExecutionLimits; Asset: %s Pair: %s Err: %v", a, tt.pair, err)
-				continue
-			}
-
-			if got := limits.PriceStepIncrementSize; got <= 0 {
-				t.Errorf("Okx UpdateOrderExecutionLimits wrong PriceStepIncrementSize; Asset: %s Pair: %s Got: %v", a, tt.pair, got)
-			}
-
-			if got := limits.MinimumBaseAmount; got <= 0 {
-				t.Errorf("Okx UpdateOrderExecutionLimits wrong MinAmount; Pair: %s Got: %v", tt.pair, got)
+		for _, p := range tests[a] {
+			limits, err := ok.GetOrderExecutionLimits(a, p)
+			if assert.NoError(t, err, "GetOrderExecutionLimits should not error") {
+				assert.Positivef(t, limits.PriceStepIncrementSize, "PriceStepIncrementSize should be positive for %s", p)
+				assert.Positivef(t, limits.MinimumBaseAmount, "PriceStepIncrementSize should be positive for %s", p)
 			}
 		}
 	}
@@ -2552,7 +2539,7 @@ const rfqsPushDataJSON = `{"arg": {"channel": "account-greeks","ccy": "BTC"},"da
 func TestRfqs(t *testing.T) {
 	t.Parallel()
 	if err := ok.WsHandleData([]byte(rfqsPushDataJSON)); err != nil {
-		t.Error("Okx RFQS Push Data error", err)
+		t.Error("Okx Rfqs Push Data error", err)
 	}
 }
 
