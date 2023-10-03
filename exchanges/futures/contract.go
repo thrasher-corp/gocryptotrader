@@ -33,7 +33,7 @@ type ContractSettlementType uint8
 
 // ContractSettlementType definitions
 const (
-	UnsetDirectionType ContractSettlementType = iota
+	UnsetSettlementType ContractSettlementType = iota
 	Linear
 	Inverse
 	Quanto
@@ -43,7 +43,7 @@ const (
 // String returns the string representation of a contract direction type
 func (d ContractSettlementType) String() string {
 	switch d {
-	case UnsetDirectionType:
+	case UnsetSettlementType:
 		return "unset"
 	case Linear:
 		return "linear"

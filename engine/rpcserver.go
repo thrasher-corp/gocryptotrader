@@ -4498,7 +4498,7 @@ func (s *RPCServer) GetFuturesPositionsSummary(ctx context.Context, r *gctrpc.Ge
 	if !stats.IsolatedEquity.IsZero() {
 		positionStats.IsolatedEquity = stats.IsolatedEquity.String()
 	}
-	if stats.ContractSettlementType != futures.UnsetDirectionType {
+	if stats.ContractSettlementType != futures.UnsetSettlementType {
 		positionStats.ContractSettlementType = stats.ContractSettlementType.String()
 	}
 	if !stats.IsolatedLiabilities.IsZero() {
