@@ -78,7 +78,7 @@ func TestCalculateFundingStatistics(t *testing.T) {
 		t.Errorf("received %v expected %v", err, funding.ErrUSDTrackingDisabled)
 	}
 
-	cs := make(map[key.ExchangePairAssetKey]*CurrencyPairStatistic)
+	cs := make(map[key.ExchangePairAsset]*CurrencyPairStatistic)
 	_, err = CalculateFundingStatistics(f, cs, decimal.Zero, gctkline.OneHour)
 	if !errors.Is(err, nil) {
 		t.Errorf("received %v expected %v", err, nil)
@@ -100,7 +100,7 @@ func TestCalculateFundingStatistics(t *testing.T) {
 	if !errors.Is(err, nil) {
 		t.Errorf("received %v expected %v", err, nil)
 	}
-	cs[key.ExchangePairAssetKey{
+	cs[key.ExchangePairAsset{
 		Exchange: "binance",
 		Base:     currency.LTC.Item,
 		Quote:    currency.USD.Item,
@@ -118,7 +118,7 @@ func TestCalculateFundingStatistics(t *testing.T) {
 	if !errors.Is(err, nil) {
 		t.Errorf("received %v expected %v", err, nil)
 	}
-	cs[key.ExchangePairAssetKey{
+	cs[key.ExchangePairAsset{
 		Exchange: "binance",
 		Base:     currency.LTC.Item,
 		Quote:    currency.USD.Item,

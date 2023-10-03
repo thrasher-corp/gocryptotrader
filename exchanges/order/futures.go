@@ -20,7 +20,7 @@ import (
 // to track futures orders
 func SetupPositionController() PositionController {
 	return PositionController{
-		multiPositionTrackers: make(map[key.ExchangePairAssetKey]*MultiPositionTracker),
+		multiPositionTrackers: make(map[key.ExchangePairAsset]*MultiPositionTracker),
 	}
 }
 
@@ -41,7 +41,7 @@ func (c *PositionController) TrackNewOrder(d *Detail) error {
 	}
 	c.m.Lock()
 	defer c.m.Unlock()
-	exchMap, ok := c.multiPositionTrackers[key.ExchangePairAssetKey{
+	exchMap, ok := c.multiPositionTrackers[key.ExchangePairAsset{
 		Exchange: d.Exchange,
 		Base:     d.Pair.Base.Item,
 		Quote:    d.Pair.Quote.Item,
@@ -57,7 +57,7 @@ func (c *PositionController) TrackNewOrder(d *Detail) error {
 		if err != nil {
 			return err
 		}
-		c.multiPositionTrackers[key.ExchangePairAssetKey{
+		c.multiPositionTrackers[key.ExchangePairAsset{
 			Exchange: d.Exchange,
 			Base:     d.Pair.Base.Item,
 			Quote:    d.Pair.Quote.Item,
@@ -86,7 +86,7 @@ func (c *PositionController) SetCollateralCurrency(exch string, item asset.Item,
 	c.m.Lock()
 	defer c.m.Unlock()
 
-	tracker := c.multiPositionTrackers[key.ExchangePairAssetKey{
+	tracker := c.multiPositionTrackers[key.ExchangePairAsset{
 		Exchange: exch,
 		Base:     pair.Base.Item,
 		Quote:    pair.Quote.Item,
@@ -119,7 +119,7 @@ func (c *PositionController) GetPositionsForExchange(exch string, item asset.Ite
 	}
 	c.m.Lock()
 	defer c.m.Unlock()
-	tracker := c.multiPositionTrackers[key.ExchangePairAssetKey{
+	tracker := c.multiPositionTrackers[key.ExchangePairAsset{
 		Exchange: exch,
 		Base:     pair.Base.Item,
 		Quote:    pair.Quote.Item,
@@ -147,7 +147,7 @@ func (c *PositionController) TrackFundingDetails(d *fundingrate.Rates) error {
 	}
 	c.m.Lock()
 	defer c.m.Unlock()
-	tracker := c.multiPositionTrackers[key.ExchangePairAssetKey{
+	tracker := c.multiPositionTrackers[key.ExchangePairAsset{
 		Exchange: d.Exchange,
 		Base:     d.Pair.Base.Item,
 		Quote:    d.Pair.Quote.Item,
@@ -187,7 +187,7 @@ func (c *PositionController) GetOpenPosition(exch string, item asset.Item, pair 
 	}
 	c.m.Lock()
 	defer c.m.Unlock()
-	tracker := c.multiPositionTrackers[key.ExchangePairAssetKey{
+	tracker := c.multiPositionTrackers[key.ExchangePairAsset{
 		Exchange: exch,
 		Base:     pair.Base.Item,
 		Quote:    pair.Quote.Item,
@@ -244,7 +244,7 @@ func (c *PositionController) UpdateOpenPositionUnrealisedPNL(exch string, item a
 	}
 	c.m.Lock()
 	defer c.m.Unlock()
-	tracker := c.multiPositionTrackers[key.ExchangePairAssetKey{
+	tracker := c.multiPositionTrackers[key.ExchangePairAsset{
 		Exchange: exch,
 		Base:     pair.Base.Item,
 		Quote:    pair.Quote.Item,
@@ -341,7 +341,7 @@ func (c *PositionController) ClearPositionsForExchange(exch string, item asset.I
 	c.m.Lock()
 	defer c.m.Unlock()
 
-	tracker := c.multiPositionTrackers[key.ExchangePairAssetKey{
+	tracker := c.multiPositionTrackers[key.ExchangePairAsset{
 		Exchange: exch,
 		Base:     pair.Base.Item,
 		Quote:    pair.Quote.Item,
@@ -364,7 +364,7 @@ func (c *PositionController) ClearPositionsForExchange(exch string, item asset.I
 	if err != nil {
 		return err
 	}
-	c.multiPositionTrackers[key.ExchangePairAssetKey{
+	c.multiPositionTrackers[key.ExchangePairAsset{
 		Exchange: exch,
 		Base:     pair.Base.Item,
 		Quote:    pair.Quote.Item,

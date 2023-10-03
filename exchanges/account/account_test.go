@@ -469,7 +469,7 @@ func TestUpdate(t *testing.T) {
 		t.Fatal("account should be loaded")
 	}
 
-	b, ok := acc.SubAccounts[Credentials{Key: "AAAAA"}][key.SubAccountCurrencyAssetKey{
+	b, ok := acc.SubAccounts[Credentials{Key: "AAAAA"}][key.SubAccountCurrencyAsset{
 		SubAccount: "1337",
 		Currency:   currency.BTC.Item,
 		Asset:      asset.Spot,

@@ -69,13 +69,13 @@ func TestEvaluateOrder(t *testing.T) {
 		},
 	}
 	h := []holdings.Holding{}
-	r.CurrencySettings = make(map[key.ExchangePairAssetKey]*CurrencySettings)
+	r.CurrencySettings = make(map[key.ExchangePairAsset]*CurrencySettings)
 	_, err = r.EvaluateOrder(o, h, compliance.Snapshot{})
 	if !errors.Is(err, errNoCurrencySettings) {
 		t.Error(err)
 	}
 
-	r.CurrencySettings[key.ExchangePairAssetKey{
+	r.CurrencySettings[key.ExchangePairAsset{
 		Exchange: e,
 		Base:     p.Base.Item,
 		Quote:    p.Quote.Item,
@@ -99,7 +99,7 @@ func TestEvaluateOrder(t *testing.T) {
 		Pair: currency.NewPair(currency.DOGE, currency.USDT),
 	})
 	o.Leverage = decimal.NewFromFloat(1.1)
-	r.CurrencySettings[key.ExchangePairAssetKey{
+	r.CurrencySettings[key.ExchangePairAsset{
 		Exchange: e,
 		Base:     p.Base.Item,
 		Quote:    p.Quote.Item,
@@ -116,7 +116,7 @@ func TestEvaluateOrder(t *testing.T) {
 	}
 
 	r.MaximumLeverage = decimal.NewFromInt(33)
-	r.CurrencySettings[key.ExchangePairAssetKey{
+	r.CurrencySettings[key.ExchangePairAsset{
 		Exchange: e,
 		Base:     p.Base.Item,
 		Quote:    p.Quote.Item,
@@ -128,7 +128,7 @@ func TestEvaluateOrder(t *testing.T) {
 	}
 
 	r.MaximumLeverage = decimal.NewFromInt(33)
-	r.CurrencySettings[key.ExchangePairAssetKey{
+	r.CurrencySettings[key.ExchangePairAsset{
 		Exchange: e,
 		Base:     p.Base.Item,
 		Quote:    p.Quote.Item,
@@ -149,7 +149,7 @@ func TestEvaluateOrder(t *testing.T) {
 	}
 
 	h = append(h, holdings.Holding{Pair: p, BaseValue: decimal.NewFromInt(1337)}, holdings.Holding{Pair: p, BaseValue: decimal.NewFromFloat(1337.42)})
-	r.CurrencySettings[key.ExchangePairAssetKey{
+	r.CurrencySettings[key.ExchangePairAsset{
 		Exchange: e,
 		Base:     p.Base.Item,
 		Quote:    p.Quote.Item,

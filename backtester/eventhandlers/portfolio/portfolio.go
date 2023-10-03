@@ -55,7 +55,7 @@ func (p *Portfolio) OnSignal(ev signal.Event, exchangeSettings *exchange.Setting
 		return o, errInvalidDirection
 	}
 
-	lookup := p.exchangeAssetPairPortfolioSettings[key.ExchangePairAssetKey{
+	lookup := p.exchangeAssetPairPortfolioSettings[key.ExchangePairAsset{
 		Exchange: ev.GetExchange(),
 		Base:     ev.Pair().Base.Item,
 		Quote:    ev.Pair().Quote.Item,
@@ -239,7 +239,7 @@ func (p *Portfolio) OnFill(ev fill.Event, funds funding.IFundReleaser) (fill.Eve
 	if ev == nil {
 		return nil, common.ErrNilEvent
 	}
-	lookup := p.exchangeAssetPairPortfolioSettings[key.ExchangePairAssetKey{
+	lookup := p.exchangeAssetPairPortfolioSettings[key.ExchangePairAsset{
 		Exchange: ev.GetExchange(),
 		Base:     ev.Pair().Base.Item,
 		Quote:    ev.Pair().Quote.Item,
@@ -309,7 +309,7 @@ func (p *Portfolio) addComplianceSnapshot(fillEvent fill.Event) error {
 
 // GetLatestOrderSnapshotForEvent gets orders related to the event
 func (p *Portfolio) GetLatestOrderSnapshotForEvent(ev common.Event) (compliance.Snapshot, error) {
-	eapSettings, ok := p.exchangeAssetPairPortfolioSettings[key.ExchangePairAssetKey{
+	eapSettings, ok := p.exchangeAssetPairPortfolioSettings[key.ExchangePairAsset{
 		Exchange: ev.GetExchange(),
 		Base:     ev.Pair().Base.Item,
 		Quote:    ev.Pair().Quote.Item,
@@ -346,7 +346,7 @@ func (p *Portfolio) GetLatestComplianceSnapshot(exchangeName string, a asset.Ite
 
 // getComplianceManager returns the order snapshots for a given exchange, asset, pair
 func (p *Portfolio) getComplianceManager(exchangeName string, a asset.Item, cp currency.Pair) (*compliance.Manager, error) {
-	lookup := p.exchangeAssetPairPortfolioSettings[key.ExchangePairAssetKey{
+	lookup := p.exchangeAssetPairPortfolioSettings[key.ExchangePairAsset{
 		Exchange: exchangeName,
 		Base:     cp.Base.Item,
 		Quote:    cp.Quote.Item,
@@ -614,7 +614,7 @@ func (p *Portfolio) getFuturesSettingsFromEvent(e common.Event) (*Settings, erro
 
 func (p *Portfolio) getSettings(exch string, item asset.Item, pair currency.Pair) (*Settings, error) {
 	exch = strings.ToLower(exch)
-	settings, ok := p.exchangeAssetPairPortfolioSettings[key.ExchangePairAssetKey{
+	settings, ok := p.exchangeAssetPairPortfolioSettings[key.ExchangePairAsset{
 		Exchange: exch,
 		Base:     pair.Base.Item,
 		Quote:    pair.Quote.Item,

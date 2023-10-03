@@ -193,7 +193,7 @@ func (bt *BackTest) SetupFromConfig(cfg *config.Config, templatePath, output str
 	}
 
 	portfolioRisk := &risk.Risk{
-		CurrencySettings: make(map[key.ExchangePairAssetKey]*risk.CurrencySettings),
+		CurrencySettings: make(map[key.ExchangePairAsset]*risk.CurrencySettings),
 	}
 
 	bt.Funding = funds
@@ -233,7 +233,7 @@ func (bt *BackTest) SetupFromConfig(cfg *config.Config, templatePath, output str
 				err)
 		}
 		if portfolioRisk.CurrencySettings == nil {
-			portfolioRisk.CurrencySettings = make(map[key.ExchangePairAssetKey]*risk.CurrencySettings)
+			portfolioRisk.CurrencySettings = make(map[key.ExchangePairAsset]*risk.CurrencySettings)
 		}
 
 		var curr currency.Pair
@@ -260,7 +260,7 @@ func (bt *BackTest) SetupFromConfig(cfg *config.Config, templatePath, output str
 			portSet.MaximumOrdersWithLeverageRatio = cfg.CurrencySettings[i].FuturesDetails.Leverage.MaximumOrdersWithLeverageRatio
 			portSet.MaxLeverageRate = cfg.CurrencySettings[i].FuturesDetails.Leverage.MaximumOrderLeverageRate
 		}
-		portfolioRisk.CurrencySettings[key.ExchangePairAssetKey{
+		portfolioRisk.CurrencySettings[key.ExchangePairAsset{
 			Exchange: cfg.CurrencySettings[i].ExchangeName,
 			Base:     cfg.CurrencySettings[i].Base.Item,
 			Quote:    cfg.CurrencySettings[i].Quote.Item,
@@ -397,7 +397,7 @@ func (bt *BackTest) SetupFromConfig(cfg *config.Config, templatePath, output str
 		StrategyNickname:            cfg.Nickname,
 		StrategyDescription:         bt.Strategy.Description(),
 		StrategyGoal:                cfg.Goal,
-		ExchangeAssetPairStatistics: make(map[key.ExchangePairAssetKey]*statistics.CurrencyPairStatistic),
+		ExchangeAssetPairStatistics: make(map[key.ExchangePairAsset]*statistics.CurrencyPairStatistic),
 		RiskFreeRate:                cfg.StatisticSettings.RiskFreeRate,
 		CandleInterval:              cfg.DataSettings.Interval,
 		FundManager:                 bt.Funding,

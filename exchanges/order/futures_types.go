@@ -85,7 +85,7 @@ type TotalCollateralResponse struct {
 // the position controller and its all tracked happily
 type PositionController struct {
 	m                     sync.Mutex
-	multiPositionTrackers map[key.ExchangePairAssetKey]*MultiPositionTracker
+	multiPositionTrackers map[key.ExchangePairAsset]*MultiPositionTracker
 	updated               time.Time
 }
 

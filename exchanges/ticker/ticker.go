@@ -23,7 +23,7 @@ var (
 
 func init() {
 	service = new(Service)
-	service.Tickers = make(map[key.ExchangePairAssetKey]*Ticker)
+	service.Tickers = make(map[key.ExchangePairAsset]*Ticker)
 	service.Exchange = make(map[string]uuid.UUID)
 	service.mux = dispatch.GetNewMux(nil)
 }
@@ -34,7 +34,7 @@ func SubscribeTicker(exchange string, p currency.Pair, a asset.Item) (dispatch.P
 	exchange = strings.ToLower(exchange)
 	service.mu.Lock()
 	defer service.mu.Unlock()
-	tick, ok := service.Tickers[key.ExchangePairAssetKey{
+	tick, ok := service.Tickers[key.ExchangePairAsset{
 		Exchange: exchange,
 		Base:     p.Base.Item,
 		Quote:    p.Quote.Item,
@@ -77,7 +77,7 @@ func GetTicker(exchange string, p currency.Pair, a asset.Item) (*Price, error) {
 	exchange = strings.ToLower(exchange)
 	service.mu.Lock()
 	defer service.mu.Unlock()
-	tick, ok := service.Tickers[key.ExchangePairAssetKey{
+	tick, ok := service.Tickers[key.ExchangePairAsset{
 		Exchange: exchange,
 		Base:     p.Base.Item,
 		Quote:    p.Quote.Item,
@@ -161,7 +161,7 @@ func ProcessTicker(p *Price) error {
 // update updates ticker price
 func (s *Service) update(p *Price) error {
 	name := strings.ToLower(p.ExchangeName)
-	mapKey := key.ExchangePairAssetKey{
+	mapKey := key.ExchangePairAsset{
 		Exchange: name,
 		Base:     p.Pair.Base.Item,
 		Quote:    p.Pair.Quote.Item,

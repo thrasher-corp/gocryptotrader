@@ -45,7 +45,7 @@ func SubscribeToExchangeOrderbooks(exchange string) (dispatch.Pipe, error) {
 // Update stores orderbook data
 func (s *Service) Update(b *Base) error {
 	name := strings.ToLower(b.Exchange)
-	mapKey := key.PairAssetKey{
+	mapKey := key.PairAsset{
 		Base:  b.Pair.Base.Item,
 		Quote: b.Pair.Quote.Item,
 		Asset: b.Asset,
@@ -60,7 +60,7 @@ func (s *Service) Update(b *Base) error {
 			return err
 		}
 		m1 = Exchange{
-			m:  make(map[key.PairAssetKey]*Depth),
+			m:  make(map[key.PairAsset]*Depth),
 			ID: id,
 		}
 		s.books[name] = m1
@@ -91,7 +91,7 @@ func (s *Service) DeployDepth(exchange string, p currency.Pair, a asset.Item) (*
 	if !a.IsValid() {
 		return nil, errAssetTypeNotSet
 	}
-	mapKey := key.PairAssetKey{
+	mapKey := key.PairAsset{
 		Base:  p.Base.Item,
 		Quote: p.Quote.Item,
 		Asset: a,
@@ -106,7 +106,7 @@ func (s *Service) DeployDepth(exchange string, p currency.Pair, a asset.Item) (*
 			return nil, err
 		}
 		m1 = Exchange{
-			m:  make(map[key.PairAssetKey]*Depth),
+			m:  make(map[key.PairAsset]*Depth),
 			ID: id,
 		}
 		s.books[strings.ToLower(exchange)] = m1
@@ -133,7 +133,7 @@ func (s *Service) GetDepth(exchange string, p currency.Pair, a asset.Item) (*Dep
 			errCannotFindOrderbook, exchange)
 	}
 
-	book, ok := m1.m[key.PairAssetKey{
+	book, ok := m1.m[key.PairAsset{
 		Base:  p.Base.Item,
 		Quote: p.Quote.Item,
 		Asset: a,
@@ -164,7 +164,7 @@ func (s *Service) Retrieve(exchange string, p currency.Pair, a asset.Item) (*Bas
 			errCannotFindOrderbook,
 			exchange)
 	}
-	book, ok := m1.m[key.PairAssetKey{
+	book, ok := m1.m[key.PairAsset{
 		Base:  p.Base.Item,
 		Quote: p.Quote.Item,
 		Asset: a,

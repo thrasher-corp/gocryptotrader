@@ -37,7 +37,7 @@ func (p *Portfolio) Reset() error {
 	if p == nil {
 		return gctcommon.ErrNilPointer
 	}
-	p.exchangeAssetPairPortfolioSettings = make(map[key.ExchangePairAssetKey]*Settings)
+	p.exchangeAssetPairPortfolioSettings = make(map[key.ExchangePairAsset]*Settings)
 	p.riskFreeRate = decimal.Zero
 	p.sizeManager = nil
 	p.riskManager = nil
@@ -60,7 +60,7 @@ func (p *Portfolio) SetCurrencySettingsMap(setup *exchange.Settings) error {
 	}
 
 	if p.exchangeAssetPairPortfolioSettings == nil {
-		p.exchangeAssetPairPortfolioSettings = make(map[key.ExchangePairAssetKey]*Settings)
+		p.exchangeAssetPairPortfolioSettings = make(map[key.ExchangePairAsset]*Settings)
 	}
 	name := strings.ToLower(setup.Exchange.GetName())
 
@@ -98,7 +98,7 @@ func (p *Portfolio) SetCurrencySettingsMap(setup *exchange.Settings) error {
 		}
 		settings.FuturesTracker = tracker
 	}
-	p.exchangeAssetPairPortfolioSettings[key.ExchangePairAssetKey{
+	p.exchangeAssetPairPortfolioSettings[key.ExchangePairAsset{
 		Exchange: name,
 		Base:     setup.Pair.Base.Item,
 		Quote:    setup.Pair.Quote.Item,

@@ -182,7 +182,7 @@ func GetBalance(exch, subAccount string, creds *Credentials, ai asset.Item, c cu
 			exch, creds, errNoCredentialBalances)
 	}
 
-	bal, ok := subAccounts[key.SubAccountCurrencyAssetKey{
+	bal, ok := subAccounts[key.SubAccountCurrencyAsset{
 		SubAccount: subAccount,
 		Currency:   c.Item,
 		Asset:      ai,
@@ -219,7 +219,7 @@ func (s *Service) Update(incoming *Holdings, creds *Credentials) error {
 		}
 		accounts = &Accounts{
 			ID:          id,
-			SubAccounts: make(map[Credentials]map[key.SubAccountCurrencyAssetKey]*ProtectedBalance),
+			SubAccounts: make(map[Credentials]map[key.SubAccountCurrencyAsset]*ProtectedBalance),
 		}
 		s.exchangeAccounts[exch] = accounts
 	}
@@ -244,24 +244,24 @@ func (s *Service) Update(incoming *Holdings, creds *Credentials) error {
 		}
 		incoming.Accounts[x].Credentials.creds = cpy
 
-		var subAccounts map[key.SubAccountCurrencyAssetKey]*ProtectedBalance
+		var subAccounts map[key.SubAccountCurrencyAsset]*ProtectedBalance
 		subAccounts, ok = accounts.SubAccounts[*creds]
 		if !ok {
-			subAccounts = make(map[key.SubAccountCurrencyAssetKey]*ProtectedBalance)
+			subAccounts = make(map[key.SubAccountCurrencyAsset]*ProtectedBalance)
 			accounts.SubAccounts[*creds] = subAccounts
 		}
 
 		for y := range incoming.Accounts[x].Currencies {
 			// Note: Sub accounts are case sensitive and an account "name" is
 			// different to account "naMe".
-			bal, ok := subAccounts[key.SubAccountCurrencyAssetKey{
+			bal, ok := subAccounts[key.SubAccountCurrencyAsset{
 				SubAccount: incoming.Accounts[x].ID,
 				Currency:   incoming.Accounts[x].Currencies[y].Currency.Item,
 				Asset:      incoming.Accounts[x].AssetType,
 			}]
 			if !ok || bal == nil {
 				bal = &ProtectedBalance{}
-				subAccounts[key.SubAccountCurrencyAssetKey{
+				subAccounts[key.SubAccountCurrencyAsset{
 					SubAccount: incoming.Accounts[x].ID,
 					Currency:   incoming.Accounts[x].Currencies[y].Currency.Item,
 					Asset:      incoming.Accounts[x].AssetType,

@@ -235,7 +235,7 @@ func TestGenerateReport(t *testing.T) {
 			},
 			StrategyName: "testStrat",
 			RiskFreeRate: decimal.NewFromFloat(0.03),
-			ExchangeAssetPairStatistics: map[key.ExchangePairAssetKey]*statistics.CurrencyPairStatistic{
+			ExchangeAssetPairStatistics: map[key.ExchangePairAsset]*statistics.CurrencyPairStatistic{
 				{
 					Base:     p.Base.Item,
 					Quote:    p.Quote.Item,
@@ -339,8 +339,8 @@ func TestEnhanceCandles(t *testing.T) {
 		t.Errorf("received: %v, expected: %v", err, nil)
 	}
 
-	d.Statistics.ExchangeAssetPairStatistics = make(map[key.ExchangePairAssetKey]*statistics.CurrencyPairStatistic)
-	d.Statistics.ExchangeAssetPairStatistics[key.ExchangePairAssetKey{
+	d.Statistics.ExchangeAssetPairStatistics = make(map[key.ExchangePairAsset]*statistics.CurrencyPairStatistic)
+	d.Statistics.ExchangeAssetPairStatistics[key.ExchangePairAsset{
 		Exchange: testExchange,
 		Base:     currency.BTC.Item,
 		Quote:    currency.USDT.Item,
@@ -404,7 +404,7 @@ func TestEnhanceCandles(t *testing.T) {
 		t.Errorf("received: %v, expected: %v", err, nil)
 	}
 
-	d.Statistics.ExchangeAssetPairStatistics[key.ExchangePairAssetKey{
+	d.Statistics.ExchangeAssetPairStatistics[key.ExchangePairAsset{
 		Exchange: testExchange,
 		Base:     currency.BTC.Item,
 		Quote:    currency.USDT.Item,
@@ -426,7 +426,7 @@ func TestEnhanceCandles(t *testing.T) {
 		t.Errorf("received: %v, expected: %v", err, nil)
 	}
 
-	d.Statistics.ExchangeAssetPairStatistics[key.ExchangePairAssetKey{
+	d.Statistics.ExchangeAssetPairStatistics[key.ExchangePairAsset{
 		Exchange: testExchange,
 		Base:     currency.BTC.Item,
 		Quote:    currency.USDT.Item,
@@ -451,7 +451,7 @@ func TestEnhanceCandles(t *testing.T) {
 		t.Errorf("received: %v, expected: %v", err, nil)
 	}
 
-	d.Statistics.ExchangeAssetPairStatistics[key.ExchangePairAssetKey{
+	d.Statistics.ExchangeAssetPairStatistics[key.ExchangePairAsset{
 		Exchange: testExchange,
 		Base:     currency.BTC.Item,
 		Quote:    currency.USDT.Item,

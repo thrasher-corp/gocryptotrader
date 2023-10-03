@@ -33,7 +33,7 @@ func (s *Statistic) Reset() error {
 	s.EndDate = time.Time{}
 	s.CandleInterval = 0
 	s.RiskFreeRate = decimal.Zero
-	s.ExchangeAssetPairStatistics = make(map[key.ExchangePairAssetKey]*CurrencyPairStatistic)
+	s.ExchangeAssetPairStatistics = make(map[key.ExchangePairAsset]*CurrencyPairStatistic)
 	s.CurrencyStatistics = nil
 	s.TotalBuyOrders = 0
 	s.TotalLongOrders = 0
@@ -62,9 +62,9 @@ func (s *Statistic) SetEventForOffset(ev common.Event) error {
 	a := ev.GetAssetType()
 	p := ev.Pair()
 	if s.ExchangeAssetPairStatistics == nil {
-		s.ExchangeAssetPairStatistics = make(map[key.ExchangePairAssetKey]*CurrencyPairStatistic)
+		s.ExchangeAssetPairStatistics = make(map[key.ExchangePairAsset]*CurrencyPairStatistic)
 	}
-	mapKey := key.ExchangePairAssetKey{
+	mapKey := key.ExchangePairAsset{
 		Exchange: ex,
 		Base:     p.Base.Item,
 		Quote:    p.Quote.Item,
@@ -138,7 +138,7 @@ func (s *Statistic) AddHoldingsForTime(h *holdings.Holding) error {
 	if s.ExchangeAssetPairStatistics == nil {
 		return errExchangeAssetPairStatsUnset
 	}
-	lookup := s.ExchangeAssetPairStatistics[key.ExchangePairAssetKey{
+	lookup := s.ExchangeAssetPairStatistics[key.ExchangePairAsset{
 		Exchange: h.Exchange,
 		Base:     h.Pair.Base.Item,
 		Quote:    h.Pair.Quote.Item,
@@ -164,7 +164,7 @@ func (s *Statistic) AddPNLForTime(pnl *portfolio.PNLSummary) error {
 	if s.ExchangeAssetPairStatistics == nil {
 		return errExchangeAssetPairStatsUnset
 	}
-	lookup := s.ExchangeAssetPairStatistics[key.ExchangePairAssetKey{
+	lookup := s.ExchangeAssetPairStatistics[key.ExchangePairAsset{
 		Exchange: pnl.Exchange,
 		Base:     pnl.Pair.Base.Item,
 		Quote:    pnl.Pair.Quote.Item,
@@ -197,7 +197,7 @@ func (s *Statistic) AddComplianceSnapshotForTime(c *compliance.Snapshot, e commo
 	exch := e.GetExchange()
 	a := e.GetAssetType()
 	p := e.Pair()
-	lookup := s.ExchangeAssetPairStatistics[key.ExchangePairAssetKey{
+	lookup := s.ExchangeAssetPairStatistics[key.ExchangePairAsset{
 		Exchange: exch,
 		Base:     p.Base.Item,
 		Quote:    p.Quote.Item,

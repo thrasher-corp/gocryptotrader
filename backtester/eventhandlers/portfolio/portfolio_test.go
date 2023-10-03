@@ -34,7 +34,7 @@ var leet = decimal.NewFromInt(1337)
 func TestReset(t *testing.T) {
 	t.Parallel()
 	p := &Portfolio{
-		exchangeAssetPairPortfolioSettings: make(map[key.ExchangePairAssetKey]*Settings),
+		exchangeAssetPairPortfolioSettings: make(map[key.ExchangePairAsset]*Settings),
 	}
 	err := p.Reset()
 	if !errors.Is(err, nil) {
@@ -673,7 +673,7 @@ func TestGetSnapshotAtTime(t *testing.T) {
 		t.Errorf("received: %v, expected: %v", err, nil)
 	}
 	tt := time.Now()
-	s, ok := p.exchangeAssetPairPortfolioSettings[key.ExchangePairAssetKey{
+	s, ok := p.exchangeAssetPairPortfolioSettings[key.ExchangePairAsset{
 		Exchange: testExchange,
 		Base:     cp.Base.Item,
 		Quote:    cp.Quote.Item,
@@ -732,7 +732,7 @@ func TestGetLatestSnapshot(t *testing.T) {
 	if !errors.Is(err, nil) {
 		t.Errorf("received: %v, expected: %v", err, nil)
 	}
-	s, ok := p.exchangeAssetPairPortfolioSettings[key.ExchangePairAssetKey{
+	s, ok := p.exchangeAssetPairPortfolioSettings[key.ExchangePairAsset{
 		Exchange: testExchange,
 		Base:     cp.Base.Item,
 		Quote:    cp.Quote.Item,
@@ -852,8 +852,8 @@ func TestCalculatePNL(t *testing.T) {
 		FuturesTracker: mpt,
 	}
 
-	p.exchangeAssetPairPortfolioSettings = make(map[key.ExchangePairAssetKey]*Settings)
-	p.exchangeAssetPairPortfolioSettings[key.ExchangePairAssetKey{
+	p.exchangeAssetPairPortfolioSettings = make(map[key.ExchangePairAsset]*Settings)
+	p.exchangeAssetPairPortfolioSettings[key.ExchangePairAsset{
 		Exchange: testExchange,
 		Base:     pair.Base.Item,
 		Quote:    pair.Quote.Item,
@@ -1134,8 +1134,8 @@ func TestGetLatestPNLForEvent(t *testing.T) {
 		FuturesTracker: mpt,
 	}
 
-	p.exchangeAssetPairPortfolioSettings = make(map[key.ExchangePairAssetKey]*Settings)
-	p.exchangeAssetPairPortfolioSettings[key.ExchangePairAssetKey{
+	p.exchangeAssetPairPortfolioSettings = make(map[key.ExchangePairAsset]*Settings)
+	p.exchangeAssetPairPortfolioSettings[key.ExchangePairAsset{
 		Exchange: testExchange,
 		Base:     ev.Pair().Base.Item,
 		Quote:    ev.Pair().Quote.Item,
@@ -1494,8 +1494,8 @@ func TestCreateLiquidationOrdersForExchange(t *testing.T) {
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v', expected '%v'", err, nil)
 	}
-	p.exchangeAssetPairPortfolioSettings = make(map[key.ExchangePairAssetKey]*Settings)
-	p.exchangeAssetPairPortfolioSettings[key.ExchangePairAssetKey{
+	p.exchangeAssetPairPortfolioSettings = make(map[key.ExchangePairAsset]*Settings)
+	p.exchangeAssetPairPortfolioSettings[key.ExchangePairAsset{
 		Exchange: testExchange,
 		Base:     ev.Pair().Base.Item,
 		Quote:    ev.Pair().Quote.Item,
@@ -1630,8 +1630,8 @@ func TestCheckLiquidationStatus(t *testing.T) {
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v', expected '%v'", err, nil)
 	}
-	p.exchangeAssetPairPortfolioSettings = make(map[key.ExchangePairAssetKey]*Settings)
-	p.exchangeAssetPairPortfolioSettings[key.ExchangePairAssetKey{
+	p.exchangeAssetPairPortfolioSettings = make(map[key.ExchangePairAsset]*Settings)
+	p.exchangeAssetPairPortfolioSettings[key.ExchangePairAsset{
 		Exchange: testExchange,
 		Base:     ev.Pair().Base.Item,
 		Quote:    ev.Pair().Quote.Item,

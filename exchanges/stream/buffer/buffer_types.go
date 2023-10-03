@@ -29,7 +29,7 @@ type Config struct {
 // Orderbook defines a local cache of orderbooks for amending, appending
 // and deleting changes and updates the main store for a stream
 type Orderbook struct {
-	ob                    map[key.PairAssetKey]*orderbookHolder
+	ob                    map[key.PairAsset]*orderbookHolder
 	obBufferLimit         int
 	bufferEnabled         bool
 	sortBuffer            bool

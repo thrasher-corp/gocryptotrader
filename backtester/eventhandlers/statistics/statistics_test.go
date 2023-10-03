@@ -86,7 +86,7 @@ func TestAddDataEventForTime(t *testing.T) {
 	if s.ExchangeAssetPairStatistics == nil {
 		t.Error("expected not nil")
 	}
-	if len(s.ExchangeAssetPairStatistics[key.ExchangePairAssetKey{
+	if len(s.ExchangeAssetPairStatistics[key.ExchangePairAsset{
 		Exchange: exch,
 		Base:     p.Base.Item,
 		Quote:    p.Quote.Item,
@@ -111,7 +111,7 @@ func TestAddSignalEventForTime(t *testing.T) {
 	if !errors.Is(err, common.ErrNilEvent) {
 		t.Errorf("received: %v, expected: %v", err, common.ErrNilEvent)
 	}
-	s.ExchangeAssetPairStatistics = make(map[key.ExchangePairAssetKey]*CurrencyPairStatistic)
+	s.ExchangeAssetPairStatistics = make(map[key.ExchangePairAsset]*CurrencyPairStatistic)
 	b := &event.Base{}
 	err = s.SetEventForOffset(&signal.Signal{
 		Base: b,
@@ -160,7 +160,7 @@ func TestAddExchangeEventForTime(t *testing.T) {
 	if !errors.Is(err, common.ErrNilEvent) {
 		t.Errorf("received: %v, expected: %v", err, common.ErrNilEvent)
 	}
-	s.ExchangeAssetPairStatistics = make(map[key.ExchangePairAssetKey]*CurrencyPairStatistic)
+	s.ExchangeAssetPairStatistics = make(map[key.ExchangePairAsset]*CurrencyPairStatistic)
 	b := &event.Base{}
 
 	b.Exchange = exch
@@ -209,7 +209,7 @@ func TestAddFillEventForTime(t *testing.T) {
 	if !errors.Is(err, common.ErrNilEvent) {
 		t.Errorf("received: %v, expected: %v", err, common.ErrNilEvent)
 	}
-	s.ExchangeAssetPairStatistics = make(map[key.ExchangePairAssetKey]*CurrencyPairStatistic)
+	s.ExchangeAssetPairStatistics = make(map[key.ExchangePairAsset]*CurrencyPairStatistic)
 	b := &event.Base{}
 	err = s.SetEventForOffset(&fill.Fill{
 		Base: b,
@@ -261,7 +261,7 @@ func TestAddHoldingsForTime(t *testing.T) {
 	if !errors.Is(err, errExchangeAssetPairStatsUnset) {
 		t.Errorf("received: %v, expected: %v", err, errExchangeAssetPairStatsUnset)
 	}
-	s.ExchangeAssetPairStatistics = make(map[key.ExchangePairAssetKey]*CurrencyPairStatistic)
+	s.ExchangeAssetPairStatistics = make(map[key.ExchangePairAsset]*CurrencyPairStatistic)
 	err = s.AddHoldingsForTime(&holdings.Holding{})
 	if !errors.Is(err, errCurrencyStatisticsUnset) {
 		t.Errorf("received: %v, expected: %v", err, errCurrencyStatisticsUnset)
@@ -330,7 +330,7 @@ func TestAddComplianceSnapshotForTime(t *testing.T) {
 	if !errors.Is(err, errExchangeAssetPairStatsUnset) {
 		t.Errorf("received: %v, expected: %v", err, errExchangeAssetPairStatsUnset)
 	}
-	s.ExchangeAssetPairStatistics = make(map[key.ExchangePairAssetKey]*CurrencyPairStatistic)
+	s.ExchangeAssetPairStatistics = make(map[key.ExchangePairAsset]*CurrencyPairStatistic)
 	b := &event.Base{}
 	err = s.AddComplianceSnapshotForTime(&compliance.Snapshot{}, &fill.Fill{Base: b})
 	if !errors.Is(err, errCurrencyStatisticsUnset) {
@@ -732,13 +732,13 @@ func TestCalculateTheResults(t *testing.T) {
 		t.Errorf("received: %v, expected: %v", err, nil)
 	}
 
-	mapKey1 := key.ExchangePairAssetKey{
+	mapKey1 := key.ExchangePairAsset{
 		Exchange: exch,
 		Base:     p.Base.Item,
 		Quote:    p.Quote.Item,
 		Asset:    a,
 	}
-	mapKey2 := key.ExchangePairAssetKey{
+	mapKey2 := key.ExchangePairAsset{
 		Exchange: exch,
 		Base:     p2.Base.Item,
 		Quote:    p2.Quote.Item,

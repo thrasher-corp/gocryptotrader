@@ -50,7 +50,7 @@ type Service struct {
 // Exchange defines a holder for the exchange specific depth items with a
 // specific ID associated with that exchange
 type Exchange struct {
-	m  map[key.PairAssetKey]*Depth
+	m  map[key.PairAsset]*Depth
 	ID uuid.UUID
 }
 
