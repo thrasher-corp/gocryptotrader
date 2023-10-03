@@ -40,7 +40,7 @@ const (
 	LinearOrInverse
 )
 
-// String returns the string representation of a contract direction type
+// String returns the string representation of a contract settlement type
 func (d ContractSettlementType) String() string {
 	switch d {
 	case UnsetSettlementType:

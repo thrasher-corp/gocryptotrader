@@ -2450,12 +2450,12 @@ func (b *Binance) GetFuturesPositionSummary(ctx context.Context, req *futures.Po
 		if err != nil {
 			return nil, err
 		}
-		var direction futures.ContractSettlementType
+		var contractSettlementType futures.ContractSettlementType
 		for i := range contracts {
 			if !contracts[i].Name.Equal(fPair) {
 				continue
 			}
-			direction = contracts[i].SettlementType
+			contractSettlementType = contracts[i].SettlementType
 			break
 		}
 
@@ -2512,7 +2512,7 @@ func (b *Binance) GetFuturesPositionSummary(ctx context.Context, req *futures.Po
 			MarginType:                   marginType,
 			CollateralMode:               collateralMode,
 			Currency:                     c,
-			ContractSettlementType:       direction,
+			ContractSettlementType:       contractSettlementType,
 			IsolatedMargin:               decimal.NewFromFloat(isolatedMargin),
 			Leverage:                     decimal.NewFromFloat(leverage),
 			MaintenanceMarginRequirement: decimal.NewFromFloat(maintenanceMargin),
@@ -2616,12 +2616,12 @@ func (b *Binance) GetFuturesPositionSummary(ctx context.Context, req *futures.Po
 		if err != nil {
 			return nil, err
 		}
-		var settlementType futures.ContractSettlementType
+		var contractSettlementType futures.ContractSettlementType
 		for i := range contracts {
 			if !contracts[i].Name.Equal(fPair) {
 				continue
 			}
-			settlementType = contracts[i].SettlementType
+			contractSettlementType = contracts[i].SettlementType
 			break
 		}
 
@@ -2630,7 +2630,7 @@ func (b *Binance) GetFuturesPositionSummary(ctx context.Context, req *futures.Po
 			Asset:                        req.Asset,
 			MarginType:                   marginType,
 			CollateralMode:               collateralMode,
-			ContractSettlementType:       settlementType,
+			ContractSettlementType:       contractSettlementType,
 			Currency:                     currency.NewCode(accountAsset.Asset),
 			IsolatedMargin:               decimal.NewFromFloat(isolatedMargin),
 			NotionalSize:                 decimal.NewFromFloat(positionSize).Mul(decimal.NewFromFloat(markPrice)),

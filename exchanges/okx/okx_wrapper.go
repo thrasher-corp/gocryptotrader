@@ -1854,13 +1854,13 @@ func (ok *Okx) GetFuturesPositionSummary(ctx context.Context, req *futures.Posit
 		return nil, err
 	}
 	multiplier := 1.0
-	var direction futures.ContractSettlementType
+	var contractSettlementType futures.ContractSettlementType
 	for i := range contracts {
 		if !contracts[i].Name.Equal(fPair) {
 			continue
 		}
 		multiplier = contracts[i].Multiplier
-		direction = contracts[i].SettlementType
+		contractSettlementType = contracts[i].SettlementType
 		break
 	}
 
@@ -1952,7 +1952,7 @@ func (ok *Okx) GetFuturesPositionSummary(ctx context.Context, req *futures.Posit
 		CurrentSize:                  positionSummary.QuantityOfPosition.Decimal().Mul(decimal.NewFromFloat(multiplier)),
 		ContractSize:                 positionSummary.QuantityOfPosition.Decimal(),
 		ContractMultiplier:           decimal.NewFromFloat(multiplier),
-		ContractSettlementType:       direction,
+		ContractSettlementType:       contractSettlementType,
 		AverageOpenPrice:             positionSummary.AveragePrice.Decimal(),
 		PositionPNL:                  positionSummary.UPNL.Decimal(),
 		MaintenanceMarginFraction:    positionSummary.MarginRatio.Decimal(),
