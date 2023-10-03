@@ -20,7 +20,7 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 
 ## Current Features for openexchangerates
 
-+ Fetches up to date curency data from [Open Exchange Rates](https://openexchangerates.org/)
++ Fetches up to date currency data from [Open Exchange Rates](https://openexchangerates.org/)
 
 ### How to enable
 
