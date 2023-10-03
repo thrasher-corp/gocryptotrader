@@ -20,6 +20,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/collateral"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -2380,7 +2381,7 @@ func (b *Binance) marginTypeToString(mt margin.Type) (string, error) {
 
 // GetFuturesPositionSummary returns the account's position summary for the asset type and pair
 // it can be used to calculate potential positions
-func (b *Binance) GetFuturesPositionSummary(ctx context.Context, req *order.PositionSummaryRequest) (*order.PositionSummary, error) {
+func (b *Binance) GetFuturesPositionSummary(ctx context.Context, req *futures.PositionSummaryRequest) (*futures.PositionSummary, error) {
 	if req == nil {
 		return nil, fmt.Errorf("%w GetFuturesPositionSummary", common.ErrNilPointer)
 	}
@@ -2444,6 +2445,20 @@ func (b *Binance) GetFuturesPositionSummary(ctx context.Context, req *order.Posi
 			marginType = margin.Isolated
 		}
 
+		var contracts []futures.Contract
+		contracts, err = b.GetFuturesContractDetails(ctx, req.Asset)
+		if err != nil {
+			return nil, err
+		}
+		var contractSettlementType futures.ContractSettlementType
+		for i := range contracts {
+			if !contracts[i].Name.Equal(fPair) {
+				continue
+			}
+			contractSettlementType = contracts[i].SettlementType
+			break
+		}
+
 		var c currency.Code
 		if collateralMode == collateral.SingleMode {
 			var collateralAsset *UAsset
@@ -2488,15 +2503,16 @@ func (b *Binance) GetFuturesPositionSummary(ctx context.Context, req *order.Posi
 			relevantPosition = &positionsInfo[i]
 		}
 		if relevantPosition == nil {
-			return nil, fmt.Errorf("%w %v %v", order.ErrNoPositionsFound, req.Asset, req.Pair)
+			return nil, fmt.Errorf("%w %v %v", futures.ErrNoPositionsFound, req.Asset, req.Pair)
 		}
 
-		return &order.PositionSummary{
+		return &futures.PositionSummary{
 			Pair:                         req.Pair,
 			Asset:                        req.Asset,
 			MarginType:                   marginType,
 			CollateralMode:               collateralMode,
 			Currency:                     c,
+			ContractSettlementType:       contractSettlementType,
 			IsolatedMargin:               decimal.NewFromFloat(isolatedMargin),
 			Leverage:                     decimal.NewFromFloat(leverage),
 			MaintenanceMarginRequirement: decimal.NewFromFloat(maintenanceMargin),
@@ -2574,7 +2590,7 @@ func (b *Binance) GetFuturesPositionSummary(ctx context.Context, req *order.Posi
 			return nil, err
 		}
 		if len(positionsInfo) == 0 {
-			return nil, fmt.Errorf("%w %v", order.ErrNoPositionsFound, fPair)
+			return nil, fmt.Errorf("%w %v", futures.ErrNoPositionsFound, fPair)
 		}
 		var relevantPosition *FuturesPositionInformation
 		for i := range positionsInfo {
@@ -2584,7 +2600,7 @@ func (b *Binance) GetFuturesPositionSummary(ctx context.Context, req *order.Posi
 			relevantPosition = &positionsInfo[i]
 		}
 		if relevantPosition == nil {
-			return nil, fmt.Errorf("%w %v %v", order.ErrNoPositionsFound, req.Asset, req.Pair)
+			return nil, fmt.Errorf("%w %v %v", futures.ErrNoPositionsFound, req.Asset, req.Pair)
 		}
 		liquidationPrice = relevantPosition.LiquidationPrice
 		markPrice = relevantPosition.MarkPrice
@@ -2595,11 +2611,26 @@ func (b *Binance) GetFuturesPositionSummary(ctx context.Context, req *order.Posi
 			mmf = decimal.NewFromFloat(maintenanceMargin).Div(tc).Mul(decimal.NewFromInt(100))
 		}
 
-		return &order.PositionSummary{
+		var contracts []futures.Contract
+		contracts, err = b.GetFuturesContractDetails(ctx, req.Asset)
+		if err != nil {
+			return nil, err
+		}
+		var contractSettlementType futures.ContractSettlementType
+		for i := range contracts {
+			if !contracts[i].Name.Equal(fPair) {
+				continue
+			}
+			contractSettlementType = contracts[i].SettlementType
+			break
+		}
+
+		return &futures.PositionSummary{
 			Pair:                         req.Pair,
 			Asset:                        req.Asset,
 			MarginType:                   marginType,
 			CollateralMode:               collateralMode,
+			ContractSettlementType:       contractSettlementType,
 			Currency:                     currency.NewCode(accountAsset.Asset),
 			IsolatedMargin:               decimal.NewFromFloat(isolatedMargin),
 			NotionalSize:                 decimal.NewFromFloat(positionSize).Mul(decimal.NewFromFloat(markPrice)),
@@ -2623,7 +2654,7 @@ func (b *Binance) GetFuturesPositionSummary(ctx context.Context, req *order.Posi
 }
 
 // GetFuturesPositionOrders returns the orders for futures positions
-func (b *Binance) GetFuturesPositionOrders(ctx context.Context, req *order.PositionsRequest) ([]order.PositionResponse, error) {
+func (b *Binance) GetFuturesPositionOrders(ctx context.Context, req *futures.PositionsRequest) ([]futures.PositionResponse, error) {
 	if req == nil {
 		return nil, fmt.Errorf("%w GetFuturesPositionOrders", common.ErrNilPointer)
 	}
@@ -2634,14 +2665,14 @@ func (b *Binance) GetFuturesPositionOrders(ctx context.Context, req *order.Posit
 		if req.RespectOrderHistoryLimits {
 			req.StartDate = time.Now().Add(-b.Features.Supports.MaximumOrderHistory)
 		} else {
-			return nil, fmt.Errorf("%w max lookup %v", order.ErrOrderHistoryTooLarge, time.Now().Add(-b.Features.Supports.MaximumOrderHistory))
+			return nil, fmt.Errorf("%w max lookup %v", futures.ErrOrderHistoryTooLarge, time.Now().Add(-b.Features.Supports.MaximumOrderHistory))
 		}
 	}
 	if req.EndDate.IsZero() {
 		req.EndDate = time.Now()
 	}
 
-	var resp []order.PositionResponse
+	var resp []futures.PositionResponse
 	sd := req.StartDate
 	switch req.Asset {
 	case asset.USDTMarginedFutures:
@@ -2656,7 +2687,7 @@ func (b *Binance) GetFuturesPositionOrders(ctx context.Context, req *order.Posit
 				return nil, err
 			}
 			for y := range result {
-				currencyPosition := order.PositionResponse{
+				currencyPosition := futures.PositionResponse{
 					Asset: req.Asset,
 					Pair:  req.Pairs[x],
 				}
@@ -2722,7 +2753,7 @@ func (b *Binance) GetFuturesPositionOrders(ctx context.Context, req *order.Posit
 			if err != nil {
 				return nil, err
 			}
-			currencyPosition := order.PositionResponse{
+			currencyPosition := futures.PositionResponse{
 				Asset: req.Asset,
 				Pair:  req.Pairs[x],
 			}
@@ -2816,7 +2847,7 @@ func (b *Binance) GetLeverage(ctx context.Context, item asset.Item, pair currenc
 			return -1, err
 		}
 		if len(resp) == 0 {
-			return -1, fmt.Errorf("%w %v %v", order.ErrPositionNotFound, item, pair)
+			return -1, fmt.Errorf("%w %v %v", futures.ErrPositionNotFound, item, pair)
 		}
 		// leverage is the same across positions
 		return resp[0].Leverage, nil
@@ -2826,11 +2857,92 @@ func (b *Binance) GetLeverage(ctx context.Context, item asset.Item, pair currenc
 			return -1, err
 		}
 		if len(resp) == 0 {
-			return -1, fmt.Errorf("%w %v %v", order.ErrPositionNotFound, item, pair)
+			return -1, fmt.Errorf("%w %v %v", futures.ErrPositionNotFound, item, pair)
 		}
 		// leverage is the same across positions
 		return resp[0].Leverage, nil
 	default:
 		return -1, fmt.Errorf("%w %v", asset.ErrNotSupported, item)
 	}
+}
+
+// GetFuturesContractDetails returns details about futures contracts
+func (b *Binance) GetFuturesContractDetails(ctx context.Context, item asset.Item) ([]futures.Contract, error) {
+	if !item.IsFutures() {
+		return nil, futures.ErrNotFuturesAsset
+	}
+	switch item {
+	case asset.USDTMarginedFutures:
+		ei, err := b.UExchangeInfo(ctx)
+		if err != nil {
+			return nil, err
+		}
+		resp := make([]futures.Contract, 0, len(ei.Symbols))
+		for i := range ei.Symbols {
+			var cp currency.Pair
+			cp, err = currency.NewPairFromStrings(ei.Symbols[i].BaseAsset, ei.Symbols[i].Symbol[len(ei.Symbols[i].BaseAsset):])
+			if err != nil {
+				return nil, err
+			}
+
+			var ct futures.ContractType
+			var ed time.Time
+			if cp.Quote.Equal(currency.USDT) || cp.Quote.Equal(currency.BUSD) {
+				ct = futures.Perpetual
+			} else {
+				ct = futures.Quarterly
+				ed = ei.Symbols[i].DeliveryDate.Time()
+			}
+			resp = append(resp, futures.Contract{
+				Exchange:       b.Name,
+				Name:           cp,
+				Underlying:     currency.NewPair(currency.NewCode(ei.Symbols[i].BaseAsset), currency.NewCode(ei.Symbols[i].QuoteAsset)),
+				Asset:          item,
+				SettlementType: futures.Linear,
+				StartDate:      ei.Symbols[i].OnboardDate.Time(),
+				EndDate:        ed,
+				IsActive:       ei.Symbols[i].Status == "TRADING",
+				Status:         ei.Symbols[i].Status,
+				MarginCurrency: currency.NewCode(ei.Symbols[i].MarginAsset),
+				Type:           ct,
+			})
+		}
+		return resp, nil
+	case asset.CoinMarginedFutures:
+		ei, err := b.FuturesExchangeInfo(ctx)
+		if err != nil {
+			return nil, err
+		}
+		resp := make([]futures.Contract, 0, len(ei.Symbols))
+		for i := range ei.Symbols {
+			var cp currency.Pair
+			cp, err = currency.NewPairFromString(ei.Symbols[i].Symbol)
+			if err != nil {
+				return nil, err
+			}
+
+			var ct futures.ContractType
+			var ed time.Time
+			if cp.Quote.Equal(currency.PERP) {
+				ct = futures.Perpetual
+			} else {
+				ct = futures.Quarterly
+				ed = ei.Symbols[i].DeliveryDate.Time()
+			}
+			resp = append(resp, futures.Contract{
+				Exchange:       b.Name,
+				Name:           cp,
+				Underlying:     currency.NewPair(currency.NewCode(ei.Symbols[i].BaseAsset), currency.NewCode(ei.Symbols[i].QuoteAsset)),
+				Asset:          item,
+				StartDate:      ei.Symbols[i].OnboardDate.Time(),
+				EndDate:        ed,
+				IsActive:       ei.Symbols[i].ContractStatus == "TRADING",
+				MarginCurrency: currency.NewCode(ei.Symbols[i].MarginAsset),
+				SettlementType: futures.Inverse,
+				Type:           ct,
+			})
+		}
+		return resp, nil
+	}
+	return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, item)
 }

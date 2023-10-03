@@ -14,6 +14,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/signal"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
 	gctkline "github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
@@ -313,7 +314,7 @@ func TestAnalysePNLGrowth(t *testing.T) {
 			Exchange: e,
 			Asset:    a,
 			Pair:     p,
-			Result: order.PNLResult{
+			Result: futures.PNLResult{
 				Time:          time.Now(),
 				UnrealisedPNL: decimal.NewFromInt(1),
 				RealisedPNL:   decimal.NewFromInt(2),
@@ -334,7 +335,7 @@ func TestAnalysePNLGrowth(t *testing.T) {
 			Exchange: e,
 			Asset:    a,
 			Pair:     p,
-			Result: order.PNLResult{
+			Result: futures.PNLResult{
 				Time:          time.Now(),
 				UnrealisedPNL: decimal.NewFromFloat(0.5),
 				RealisedPNL:   decimal.NewFromInt(1),

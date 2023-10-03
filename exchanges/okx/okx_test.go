@@ -21,6 +21,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/collateral"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -3148,13 +3149,13 @@ func TestInstrument(t *testing.T) {
 	if i.Category != "1" {
 		t.Error("expected 1 category")
 	}
-	if i.ContractMultiplier != "1" {
+	if i.ContractMultiplier != 1 {
 		t.Error("expected 1 contract multiplier")
 	}
 	if i.ContractType != "linear" {
 		t.Error("expected linear contract type")
 	}
-	if i.ContractValue != "0.0001" {
+	if i.ContractValue.Float64() != 0.0001 {
 		t.Error("expected 0.0001 contract value")
 	}
 	if i.ContractValueCurrency != currency.BTC.String() {
@@ -3169,7 +3170,8 @@ func TestInstrument(t *testing.T) {
 	if i.InstrumentID != "BTC-USDC-SWAP" {
 		t.Error("expected BTC-USDC-SWAP instrument ID")
 	}
-	if i.InstrumentType != asset.PerpetualSwap {
+	swap := ok.GetInstrumentTypeFromAssetItem(asset.PerpetualSwap)
+	if i.InstrumentType != swap {
 		t.Error("expected SWAP instrument type")
 	}
 	if i.MaxLeverage != 125 {
@@ -3438,7 +3440,7 @@ func TestGetPositionSummary(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = ok.GetFuturesPositionSummary(contextGenerate(), &order.PositionSummaryRequest{
+	_, err = ok.GetFuturesPositionSummary(contextGenerate(), &futures.PositionSummaryRequest{
 		Asset:          asset.PerpetualSwap,
 		Pair:           pp[0],
 		UnderlyingPair: currency.EMPTYPAIR,
@@ -3451,7 +3453,7 @@ func TestGetPositionSummary(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = ok.GetFuturesPositionSummary(contextGenerate(), &order.PositionSummaryRequest{
+	_, err = ok.GetFuturesPositionSummary(contextGenerate(), &futures.PositionSummaryRequest{
 		Asset:          asset.Futures,
 		Pair:           pp[0],
 		UnderlyingPair: currency.EMPTYPAIR,
@@ -3460,13 +3462,13 @@ func TestGetPositionSummary(t *testing.T) {
 		t.Error(err)
 	}
 
-	_, err = ok.GetFuturesPositionSummary(contextGenerate(), &order.PositionSummaryRequest{
+	_, err = ok.GetFuturesPositionSummary(contextGenerate(), &futures.PositionSummaryRequest{
 		Asset:          asset.Spot,
 		Pair:           pp[0],
 		UnderlyingPair: currency.NewBTCUSDT(),
 	})
-	if !errors.Is(err, order.ErrNotFuturesAsset) {
-		t.Errorf("received '%v', expected '%v'", err, order.ErrNotFuturesAsset)
+	if !errors.Is(err, futures.ErrNotFuturesAsset) {
+		t.Errorf("received '%v', expected '%v'", err, futures.ErrNotFuturesAsset)
 	}
 }
 
@@ -3477,7 +3479,7 @@ func TestGetFuturesPositions(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = ok.GetFuturesPositionOrders(contextGenerate(), &order.PositionsRequest{
+	_, err = ok.GetFuturesPositionOrders(contextGenerate(), &futures.PositionsRequest{
 		Asset:     asset.Futures,
 		Pairs:     []currency.Pair{pp[0]},
 		StartDate: time.Now().Add(time.Hour * 24 * -7),
@@ -3486,12 +3488,12 @@ func TestGetFuturesPositions(t *testing.T) {
 		t.Error(err)
 	}
 
-	_, err = ok.GetFuturesPositionOrders(contextGenerate(), &order.PositionsRequest{
+	_, err = ok.GetFuturesPositionOrders(contextGenerate(), &futures.PositionsRequest{
 		Asset:     asset.Spot,
 		Pairs:     []currency.Pair{pp[0]},
 		StartDate: time.Now().Add(time.Hour * 24 * -7),
 	})
-	if !errors.Is(err, order.ErrNotFuturesAsset) {
+	if !errors.Is(err, futures.ErrNotFuturesAsset) {
 		t.Errorf("received '%v', expected '%v'", err, asset.ErrNotSupported)
 	}
 }
@@ -3564,5 +3566,26 @@ func TestSetLeverage(t *testing.T) {
 	err = ok.SetLeverage(contextGenerate(), asset.Spot, pp[0], margin.Multi, 5, order.UnknownSide)
 	if !errors.Is(err, asset.ErrNotSupported) {
 		t.Errorf("received '%v', expected '%v'", err, asset.ErrNotSupported)
+	}
+}
+
+func TestGetFuturesContractDetails(t *testing.T) {
+	t.Parallel()
+	_, err := ok.GetFuturesContractDetails(context.Background(), asset.Spot)
+	if !errors.Is(err, futures.ErrNotFuturesAsset) {
+		t.Error(err)
+	}
+	_, err = ok.GetFuturesContractDetails(context.Background(), asset.USDTMarginedFutures)
+	if !errors.Is(err, asset.ErrNotSupported) {
+		t.Error(err)
+	}
+
+	_, err = ok.GetFuturesContractDetails(context.Background(), asset.Futures)
+	if !errors.Is(err, nil) {
+		t.Error(err)
+	}
+	_, err = ok.GetFuturesContractDetails(context.Background(), asset.PerpetualSwap)
+	if !errors.Is(err, nil) {
+		t.Error(err)
 	}
 }

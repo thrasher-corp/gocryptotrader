@@ -13,6 +13,7 @@ import (
 	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
 	gctkline "github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	gctorder "github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
@@ -115,7 +116,7 @@ func TestCreatePNLCharts(t *testing.T) {
 		Events: []statistics.DataAtOffset{
 			{
 				PNL: &portfolio.PNLSummary{
-					Result: gctorder.PNLResult{
+					Result: futures.PNLResult{
 						Time:                  tt,
 						UnrealisedPNL:         decimal.NewFromInt(1337),
 						RealisedPNLBeforeFees: decimal.NewFromInt(1337),
@@ -182,7 +183,7 @@ func TestCreateFuturesSpotDiffChart(t *testing.T) {
 				Time:      tt,
 				DataEvent: &evkline.Kline{Close: decimal.NewFromInt(1337)},
 				PNL: &portfolio.PNLSummary{
-					Result: gctorder.PNLResult{
+					Result: futures.PNLResult{
 						Time:                  tt,
 						UnrealisedPNL:         decimal.NewFromInt(1337),
 						RealisedPNLBeforeFees: decimal.NewFromInt(1337),
@@ -205,7 +206,7 @@ func TestCreateFuturesSpotDiffChart(t *testing.T) {
 				Time:      tt,
 				DataEvent: &evkline.Kline{Close: decimal.NewFromInt(1337)},
 				PNL: &portfolio.PNLSummary{
-					Result: gctorder.PNLResult{
+					Result: futures.PNLResult{
 						Time:                  tt,
 						UnrealisedPNL:         decimal.NewFromInt(1337),
 						RealisedPNLBeforeFees: decimal.NewFromInt(1337),

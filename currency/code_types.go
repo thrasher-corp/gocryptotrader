@@ -3015,6 +3015,9 @@ var (
 	MHC              = NewCode("MHC")
 	OXEN             = NewCode("OXEN")
 	STETH            = NewCode("STETH")
+	SWAP             = NewCode("SWAP")
+	PI               = NewCode("PI")
+	FI               = NewCode("FI")
 
 	stables = Currencies{
 		USDT,
