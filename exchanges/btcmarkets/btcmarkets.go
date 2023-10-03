@@ -645,7 +645,7 @@ func (b *BTCMarkets) FetchDepositAddress(ctx context.Context, curr currency.Code
 		request.Auth); err != nil {
 		return nil, err
 	}
-	if curr == currency.XRP {
+	if curr.Equal(currency.XRP) {
 		splitStr := "?dt="
 		if !strings.Contains(resp.Address, splitStr) {
 			return nil, errors.New("unable to find split string for XRP")

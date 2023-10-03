@@ -250,6 +250,7 @@ type FuturesInstrumentData struct {
 		Symbol          string  `json:"symbol"`
 		FutureType      string  `json:"type"`
 		Underlying      string  `json:"underlying"`
+		OpeningDate     string  `json:"openingDate"`
 		LastTradingTime string  `json:"lastTradingTime"`
 		TickSize        float64 `json:"tickSize"`
 		ContractSize    float64 `json:"contractSize"`

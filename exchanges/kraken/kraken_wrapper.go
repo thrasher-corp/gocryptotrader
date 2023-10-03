@@ -18,6 +18,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
@@ -429,7 +430,7 @@ func (k *Kraken) FetchTradablePairs(ctx context.Context, a asset.Item) (currency
 			pairs = append(pairs, pair)
 		}
 	case asset.Futures:
-		symbols, err := k.GetFuturesMarkets(ctx)
+		symbols, err := k.GetInstruments(ctx)
 		if err != nil {
 			return nil, err
 		}
@@ -1691,4 +1692,87 @@ func (k *Kraken) GetServerTime(ctx context.Context, _ asset.Item) (time.Time, er
 		return time.Time{}, err
 	}
 	return time.Parse("Mon, 02 Jan 06 15:04:05 -0700", st.Rfc1123)
+}
+
+// GetFuturesContractDetails returns details about futures contracts
+func (k *Kraken) GetFuturesContractDetails(ctx context.Context, item asset.Item) ([]futures.Contract, error) {
+	if !item.IsFutures() {
+		return nil, futures.ErrNotFuturesAsset
+	}
+	if !k.SupportsAsset(item) {
+		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, item)
+	}
+	result, err := k.GetInstruments(ctx)
+	if err != nil {
+		return nil, err
+	}
+	resp := make([]futures.Contract, len(result.Instruments))
+	for i := range result.Instruments {
+		var cp, underlying currency.Pair
+		var underlyingStr string
+		cp, err = currency.NewPairFromString(result.Instruments[i].Symbol)
+		if err != nil {
+			return nil, err
+		}
+		var symbolToSplit string
+		if result.Instruments[i].Underlying != "" {
+			symbolToSplit = result.Instruments[i].Underlying
+		} else {
+			symbolToSplit = result.Instruments[i].Symbol
+		}
+
+		underlyingBase := strings.Split(symbolToSplit, "_")
+		if len(underlyingBase) <= 1 {
+			underlyingStr = symbolToSplit
+		} else {
+			underlyingStr = underlyingBase[1]
+		}
+		usdIndex := strings.Index(underlyingStr, "usd")
+		underlying, err = currency.NewPairFromStrings(underlyingStr[0:usdIndex], underlyingStr[usdIndex:])
+		if err != nil {
+			return nil, err
+		}
+
+		var s, e time.Time
+		if result.Instruments[i].OpeningDate != "" {
+			s, err = time.Parse(time.RFC3339, result.Instruments[i].OpeningDate)
+			if err != nil {
+				return nil, err
+			}
+		}
+		var ct futures.ContractType
+		if result.Instruments[i].LastTradingTime == "" || item == asset.PerpetualSwap {
+			ct = futures.Perpetual
+		} else {
+			e, err = time.Parse(time.RFC3339, result.Instruments[i].LastTradingTime)
+			if err != nil {
+				return nil, err
+			}
+			switch {
+			// three day is used for generosity for contract date ranges
+			case e.Sub(s) <= kline.OneMonth.Duration()+kline.ThreeDay.Duration():
+				ct = futures.Monthly
+			case e.Sub(s) <= kline.ThreeMonth.Duration()+kline.ThreeDay.Duration():
+				ct = futures.Quarterly
+			default:
+				ct = futures.SemiAnnually
+			}
+		}
+		contractSettlementType := futures.Linear
+		if cp.Base.Equal(currency.PI) || cp.Base.Equal(currency.FI) {
+			contractSettlementType = futures.Inverse
+		}
+		resp[i] = futures.Contract{
+			Exchange:       k.Name,
+			Name:           cp,
+			Underlying:     underlying,
+			Asset:          item,
+			StartDate:      s,
+			EndDate:        e,
+			SettlementType: contractSettlementType,
+			IsActive:       result.Instruments[i].Tradable,
+			Type:           ct,
+		}
+	}
+	return resp, nil
 }
