@@ -15,6 +15,11 @@ import (
 // CalculateResults calculates all statistics for the exchange, asset, currency pair
 func (c *CurrencyPairStatistic) CalculateResults(riskFreeRate decimal.Decimal) error {
 	first := c.Events[0]
+	if first.DataEvent == nil {
+		// you can call stop while a backtester run is running
+		// if the first data event isn't present, then it hasn't been properly run
+		return errNoDataAtOffset
+	}
 	sep := fmt.Sprintf("%v %v %v |\t", first.DataEvent.GetExchange(), first.DataEvent.GetAssetType(), first.DataEvent.Pair())
 
 	firstPrice := first.ClosePrice

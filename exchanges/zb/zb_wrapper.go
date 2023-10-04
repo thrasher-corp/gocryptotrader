@@ -16,6 +16,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
@@ -31,12 +32,12 @@ import (
 // GetDefaultConfig returns a default exchange config
 func (z *ZB) GetDefaultConfig(ctx context.Context) (*config.Exchange, error) {
 	z.SetDefaults()
-	exchCfg := new(config.Exchange)
-	exchCfg.Name = z.Name
-	exchCfg.HTTPTimeout = exchange.DefaultHTTPTimeout
-	exchCfg.BaseCurrencies = z.BaseCurrencies
+	exchCfg, err := z.GetStandardConfig()
+	if err != nil {
+		return nil, err
+	}
 
-	err := z.SetupDefaults(exchCfg)
+	err = z.SetupDefaults(exchCfg)
 	if err != nil {
 		return nil, err
 	}
@@ -175,14 +176,13 @@ func (z *ZB) Setup(exch *config.Exchange) error {
 	}
 
 	err = z.Websocket.Setup(&stream.WebsocketSetup{
-		ExchangeConfig:         exch,
-		DefaultURL:             zbWebsocketAPI,
-		RunningURL:             wsRunningURL,
-		Connector:              z.WsConnect,
-		GenerateSubscriptions:  z.GenerateDefaultSubscriptions,
-		ConnectionMonitorDelay: exch.ConnectionMonitorDelay,
-		Subscriber:             z.Subscribe,
-		Features:               &z.Features.Supports.WebsocketCapabilities,
+		ExchangeConfig:        exch,
+		DefaultURL:            zbWebsocketAPI,
+		RunningURL:            wsRunningURL,
+		Connector:             z.WsConnect,
+		GenerateSubscriptions: z.GenerateDefaultSubscriptions,
+		Subscriber:            z.Subscribe,
+		Features:              &z.Features.Supports.WebsocketCapabilities,
 	})
 	if err != nil {
 		return err
@@ -1146,4 +1146,9 @@ func (z *ZB) GetAvailableTransferChains(ctx context.Context, cryptocurrency curr
 		availableChains[x] = chains[x].Blockchain
 	}
 	return availableChains, nil
+}
+
+// GetFuturesContractDetails returns all contracts from the exchange by asset type
+func (z *ZB) GetFuturesContractDetails(context.Context, asset.Item) ([]futures.Contract, error) {
+	return nil, common.ErrFunctionNotSupported
 }

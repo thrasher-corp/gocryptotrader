@@ -15,6 +15,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
@@ -30,12 +31,12 @@ import (
 // GetDefaultConfig returns a default exchange config
 func (o *Okcoin) GetDefaultConfig(ctx context.Context) (*config.Exchange, error) {
 	o.SetDefaults()
-	exchCfg := new(config.Exchange)
-	exchCfg.Name = o.Name
-	exchCfg.HTTPTimeout = exchange.DefaultHTTPTimeout
-	exchCfg.BaseCurrencies = o.BaseCurrencies
+	exchCfg, err := o.GetStandardConfig()
+	if err != nil {
+		return nil, err
+	}
 
-	err := o.Setup(exchCfg)
+	err = o.SetupDefaults(exchCfg)
 	if err != nil {
 		return nil, err
 	}
@@ -175,16 +176,15 @@ func (o *Okcoin) Setup(exch *config.Exchange) error {
 		return err
 	}
 	err = o.Websocket.Setup(&stream.WebsocketSetup{
-		ExchangeConfig:         exch,
-		DefaultURL:             wsEndpoint,
-		RunningURL:             wsEndpoint,
-		RunningURLAuth:         okcoinPrivateWebsocketURL,
-		Connector:              o.WsConnect,
-		Subscriber:             o.Subscribe,
-		Unsubscriber:           o.Unsubscribe,
-		GenerateSubscriptions:  o.GenerateDefaultSubscriptions,
-		ConnectionMonitorDelay: exch.ConnectionMonitorDelay,
-		Features:               &o.Features.Supports.WebsocketCapabilities,
+		ExchangeConfig:        exch,
+		DefaultURL:            wsEndpoint,
+		RunningURL:            wsEndpoint,
+		RunningURLAuth:        okcoinPrivateWebsocketURL,
+		Connector:             o.WsConnect,
+		Subscriber:            o.Subscribe,
+		Unsubscriber:          o.Unsubscribe,
+		GenerateSubscriptions: o.GenerateDefaultSubscriptions,
+		Features:              &o.Features.Supports.WebsocketCapabilities,
 	})
 	if err != nil {
 		return err
@@ -1255,4 +1255,9 @@ func (o *Okcoin) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) e
 		return fmt.Errorf("%s Error loading %s exchange limits: %v", o.Name, a, err)
 	}
 	return nil
+}
+
+// GetFuturesContractDetails returns all contracts from the exchange by asset type
+func (o *Okcoin) GetFuturesContractDetails(context.Context, asset.Item) ([]futures.Contract, error) {
+	return nil, common.ErrFunctionNotSupported
 }

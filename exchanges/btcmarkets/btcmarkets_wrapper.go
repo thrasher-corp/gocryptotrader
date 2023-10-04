@@ -18,6 +18,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
@@ -36,12 +37,12 @@ var errFailedToConvertToCandle = errors.New("cannot convert time series data to 
 // GetDefaultConfig returns a default exchange config
 func (b *BTCMarkets) GetDefaultConfig(ctx context.Context) (*config.Exchange, error) {
 	b.SetDefaults()
-	exchCfg := new(config.Exchange)
-	exchCfg.Name = b.Name
-	exchCfg.HTTPTimeout = exchange.DefaultHTTPTimeout
-	exchCfg.BaseCurrencies = b.BaseCurrencies
+	exchCfg, err := b.GetStandardConfig()
+	if err != nil {
+		return nil, err
+	}
 
-	err := b.SetupDefaults(exchCfg)
+	err = b.SetupDefaults(exchCfg)
 	if err != nil {
 		return nil, err
 	}
@@ -176,15 +177,14 @@ func (b *BTCMarkets) Setup(exch *config.Exchange) error {
 	}
 
 	err = b.Websocket.Setup(&stream.WebsocketSetup{
-		ExchangeConfig:         exch,
-		DefaultURL:             btcMarketsWSURL,
-		RunningURL:             wsURL,
-		Connector:              b.WsConnect,
-		Subscriber:             b.Subscribe,
-		Unsubscriber:           b.Unsubscribe,
-		GenerateSubscriptions:  b.generateDefaultSubscriptions,
-		ConnectionMonitorDelay: exch.ConnectionMonitorDelay,
-		Features:               &b.Features.Supports.WebsocketCapabilities,
+		ExchangeConfig:        exch,
+		DefaultURL:            btcMarketsWSURL,
+		RunningURL:            wsURL,
+		Connector:             b.WsConnect,
+		Subscriber:            b.Subscribe,
+		Unsubscriber:          b.Unsubscribe,
+		GenerateSubscriptions: b.generateDefaultSubscriptions,
+		Features:              &b.Features.Supports.WebsocketCapabilities,
 		OrderbookBufferConfig: buffer.Config{
 			SortBuffer:          true,
 			UpdateIDProgression: true,
@@ -1218,4 +1218,9 @@ func convertToKlineCandle(candle *[6]string) (kline.Candle, error) {
 		return elem, err
 	}
 	return elem, nil
+}
+
+// GetFuturesContractDetails returns all contracts from the exchange by asset type
+func (b *BTCMarkets) GetFuturesContractDetails(context.Context, asset.Item) ([]futures.Contract, error) {
+	return nil, common.ErrFunctionNotSupported
 }

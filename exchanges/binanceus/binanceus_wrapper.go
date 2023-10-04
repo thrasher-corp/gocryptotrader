@@ -16,6 +16,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
@@ -32,12 +33,12 @@ import (
 // GetDefaultConfig returns a default exchange config
 func (bi *Binanceus) GetDefaultConfig(ctx context.Context) (*config.Exchange, error) {
 	bi.SetDefaults()
-	exchCfg := new(config.Exchange)
-	exchCfg.Name = bi.Name
-	exchCfg.HTTPTimeout = exchange.DefaultHTTPTimeout
-	exchCfg.BaseCurrencies = bi.BaseCurrencies
+	exchCfg, err := bi.GetStandardConfig()
+	if err != nil {
+		return nil, err
+	}
 
-	err := bi.SetupDefaults(exchCfg)
+	err = bi.SetupDefaults(exchCfg)
 	if err != nil {
 		return nil, err
 	}
@@ -188,15 +189,14 @@ func (bi *Binanceus) Setup(exch *config.Exchange) error {
 	}
 
 	err = bi.Websocket.Setup(&stream.WebsocketSetup{
-		ExchangeConfig:         exch,
-		DefaultURL:             binanceusDefaultWebsocketURL,
-		RunningURL:             ePoint,
-		Connector:              bi.WsConnect,
-		Subscriber:             bi.Subscribe,
-		Unsubscriber:           bi.Unsubscribe,
-		GenerateSubscriptions:  bi.GenerateSubscriptions,
-		ConnectionMonitorDelay: exch.ConnectionMonitorDelay,
-		Features:               &bi.Features.Supports.WebsocketCapabilities,
+		ExchangeConfig:        exch,
+		DefaultURL:            binanceusDefaultWebsocketURL,
+		RunningURL:            ePoint,
+		Connector:             bi.WsConnect,
+		Subscriber:            bi.Subscribe,
+		Unsubscriber:          bi.Unsubscribe,
+		GenerateSubscriptions: bi.GenerateSubscriptions,
+		Features:              &bi.Features.Supports.WebsocketCapabilities,
 		OrderbookBufferConfig: buffer.Config{
 			SortBuffer:            true,
 			SortBufferByUpdateIDs: true,
@@ -986,4 +986,9 @@ func (bi *Binanceus) GetAvailableTransferChains(ctx context.Context, cryptocurre
 		}
 	}
 	return availableChains, nil
+}
+
+// GetFuturesContractDetails returns all contracts from the exchange by asset type
+func (bi *Binanceus) GetFuturesContractDetails(context.Context, asset.Item) ([]futures.Contract, error) {
+	return nil, common.ErrFunctionNotSupported
 }

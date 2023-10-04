@@ -1048,23 +1048,23 @@ func (c *Config) CheckExchangeConfigValues() error {
 				log.Warnf(log.ConfigMgr,
 					"Exchange %s Websocket response check timeout value not set, defaulting to %v.",
 					c.Exchanges[i].Name,
-					defaultWebsocketResponseCheckTimeout)
-				c.Exchanges[i].WebsocketResponseCheckTimeout = defaultWebsocketResponseCheckTimeout
+					DefaultWebsocketResponseCheckTimeout)
+				c.Exchanges[i].WebsocketResponseCheckTimeout = DefaultWebsocketResponseCheckTimeout
 			}
 
 			if c.Exchanges[i].WebsocketResponseMaxLimit <= 0 {
 				log.Warnf(log.ConfigMgr,
 					"Exchange %s Websocket response max limit value not set, defaulting to %v.",
 					c.Exchanges[i].Name,
-					defaultWebsocketResponseMaxLimit)
-				c.Exchanges[i].WebsocketResponseMaxLimit = defaultWebsocketResponseMaxLimit
+					DefaultWebsocketResponseMaxLimit)
+				c.Exchanges[i].WebsocketResponseMaxLimit = DefaultWebsocketResponseMaxLimit
 			}
 			if c.Exchanges[i].WebsocketTrafficTimeout <= 0 {
 				log.Warnf(log.ConfigMgr,
 					"Exchange %s Websocket response traffic timeout value not set, defaulting to %v.",
 					c.Exchanges[i].Name,
-					defaultWebsocketTrafficTimeout)
-				c.Exchanges[i].WebsocketTrafficTimeout = defaultWebsocketTrafficTimeout
+					DefaultWebsocketTrafficTimeout)
+				c.Exchanges[i].WebsocketTrafficTimeout = DefaultWebsocketTrafficTimeout
 			}
 			if c.Exchanges[i].Orderbook.WebsocketBufferLimit <= 0 {
 				log.Warnf(log.ConfigMgr,
@@ -1427,6 +1427,9 @@ func (c *Config) CheckOrderManagerConfig() {
 		c.OrderManager.Enabled = convert.BoolPtr(true)
 		c.OrderManager.ActivelyTrackFuturesPositions = true
 	}
+	if c.OrderManager.RespectOrderHistoryLimits == nil {
+		c.OrderManager.RespectOrderHistoryLimits = convert.BoolPtr(true)
+	}
 	if c.OrderManager.ActivelyTrackFuturesPositions && c.OrderManager.FuturesTrackingSeekDuration >= 0 {
 		// one isn't likely to have a perpetual futures order open
 		// for longer than a year
@@ -1548,7 +1551,7 @@ func migrateConfig(configFile, targetDir string) (string, error) {
 // ReadConfigFromFile reads the configuration from the given file
 // if target file is encrypted, prompts for encryption key
 // Also - if not in dryrun mode - it checks if the configuration needs to be encrypted
-// and stores the file as encrypted, if necessary (prompting for enryption key)
+// and stores the file as encrypted, if necessary (prompting for encryption key)
 func (c *Config) ReadConfigFromFile(configPath string, dryrun bool) error {
 	defaultPath, _, err := GetFilePath(configPath)
 	if err != nil {

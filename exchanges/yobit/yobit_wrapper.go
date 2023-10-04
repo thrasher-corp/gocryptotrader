@@ -17,6 +17,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
@@ -31,12 +32,12 @@ import (
 // GetDefaultConfig returns a default exchange config
 func (y *Yobit) GetDefaultConfig(ctx context.Context) (*config.Exchange, error) {
 	y.SetDefaults()
-	exchCfg := new(config.Exchange)
-	exchCfg.Name = y.Name
-	exchCfg.HTTPTimeout = exchange.DefaultHTTPTimeout
-	exchCfg.BaseCurrencies = y.BaseCurrencies
+	exchCfg, err := y.GetStandardConfig()
+	if err != nil {
+		return nil, err
+	}
 
-	err := y.SetupDefaults(exchCfg)
+	err = y.SetupDefaults(exchCfg)
 	if err != nil {
 		return nil, err
 	}
@@ -560,7 +561,7 @@ func (y *Yobit) GetOrderInfo(ctx context.Context, orderID string, _ currency.Pai
 
 // GetDepositAddress returns a deposit address for a specified currency
 func (y *Yobit) GetDepositAddress(ctx context.Context, cryptocurrency currency.Code, _, _ string) (*deposit.Address, error) {
-	if cryptocurrency == currency.XRP {
+	if cryptocurrency.Equal(currency.XRP) {
 		// {"success":1,"return":{"status":"online","blocks":65778672,"address":996707783,"processed_amount":0.00000000,"server_time":1629425030}}
 		return nil, errors.New("XRP isn't supported as the API does not return a valid address")
 	}
@@ -759,4 +760,9 @@ func (y *Yobit) GetServerTime(ctx context.Context, _ asset.Item) (time.Time, err
 		return time.Time{}, err
 	}
 	return time.Unix(info.ServerTime, 0), nil
+}
+
+// GetFuturesContractDetails returns all contracts from the exchange by asset type
+func (y *Yobit) GetFuturesContractDetails(context.Context, asset.Item) ([]futures.Contract, error) {
+	return nil, common.ErrFunctionNotSupported
 }

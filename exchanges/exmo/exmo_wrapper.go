@@ -17,6 +17,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
@@ -31,12 +32,12 @@ import (
 // GetDefaultConfig returns a default exchange config
 func (e *EXMO) GetDefaultConfig(ctx context.Context) (*config.Exchange, error) {
 	e.SetDefaults()
-	exchCfg := new(config.Exchange)
-	exchCfg.Name = e.Name
-	exchCfg.HTTPTimeout = exchange.DefaultHTTPTimeout
-	exchCfg.BaseCurrencies = e.BaseCurrencies
+	exchCfg, err := e.GetStandardConfig()
+	if err != nil {
+		return nil, err
+	}
 
-	err := e.SetupDefaults(exchCfg)
+	err = e.SetupDefaults(exchCfg)
 	if err != nil {
 		return nil, err
 	}
@@ -831,4 +832,9 @@ func (e *EXMO) GetAvailableTransferChains(ctx context.Context, cryptocurrency cu
 	}
 
 	return availChains, nil
+}
+
+// GetFuturesContractDetails returns all contracts from the exchange by asset type
+func (e *EXMO) GetFuturesContractDetails(context.Context, asset.Item) ([]futures.Contract, error) {
+	return nil, common.ErrFunctionNotSupported
 }

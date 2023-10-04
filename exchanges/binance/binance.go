@@ -105,6 +105,8 @@ const (
 	flexibleLoanCollateralAssetsData = "/sapi/v1/loan/flexible/collateral/data"
 
 	defaultRecvWindow = 5 * time.Second
+
+	errUnexpectedPairFormat = "unexpected pair format"
 )
 
 var (
@@ -910,6 +912,9 @@ func (b *Binance) SendAuthHTTPRequest(ctx context.Context, ePath exchange.URL, m
 		if !errCap.Success && errCap.Message != "" && errCap.Code != 200 {
 			return errors.New(errCap.Message)
 		}
+	}
+	if result == nil {
+		return nil
 	}
 	return json.Unmarshal(interim, result)
 }

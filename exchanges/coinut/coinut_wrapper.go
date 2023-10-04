@@ -17,6 +17,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
@@ -33,12 +34,12 @@ import (
 // GetDefaultConfig returns a default exchange config
 func (c *COINUT) GetDefaultConfig(ctx context.Context) (*config.Exchange, error) {
 	c.SetDefaults()
-	exchCfg := new(config.Exchange)
-	exchCfg.Name = c.Name
-	exchCfg.HTTPTimeout = exchange.DefaultHTTPTimeout
-	exchCfg.BaseCurrencies = c.BaseCurrencies
+	exchCfg, err := c.GetStandardConfig()
+	if err != nil {
+		return nil, err
+	}
 
-	err := c.SetupDefaults(exchCfg)
+	err = c.SetupDefaults(exchCfg)
 	if err != nil {
 		return nil, err
 	}
@@ -153,15 +154,14 @@ func (c *COINUT) Setup(exch *config.Exchange) error {
 	}
 
 	err = c.Websocket.Setup(&stream.WebsocketSetup{
-		ExchangeConfig:         exch,
-		DefaultURL:             coinutWebsocketURL,
-		RunningURL:             wsRunningURL,
-		Connector:              c.WsConnect,
-		Subscriber:             c.Subscribe,
-		Unsubscriber:           c.Unsubscribe,
-		GenerateSubscriptions:  c.GenerateDefaultSubscriptions,
-		ConnectionMonitorDelay: exch.ConnectionMonitorDelay,
-		Features:               &c.Features.Supports.WebsocketCapabilities,
+		ExchangeConfig:        exch,
+		DefaultURL:            coinutWebsocketURL,
+		RunningURL:            wsRunningURL,
+		Connector:             c.WsConnect,
+		Subscriber:            c.Subscribe,
+		Unsubscriber:          c.Unsubscribe,
+		GenerateSubscriptions: c.GenerateDefaultSubscriptions,
+		Features:              &c.Features.Supports.WebsocketCapabilities,
 		OrderbookBufferConfig: buffer.Config{
 			SortBuffer:            true,
 			SortBufferByUpdateIDs: true,
@@ -1192,5 +1192,10 @@ func (c *COINUT) GetHistoricCandles(_ context.Context, _ currency.Pair, _ asset.
 
 // GetHistoricCandlesExtended returns candles between a time period for a set time interval
 func (c *COINUT) GetHistoricCandlesExtended(_ context.Context, _ currency.Pair, _ asset.Item, _ kline.Interval, _, _ time.Time) (*kline.Item, error) {
+	return nil, common.ErrFunctionNotSupported
+}
+
+// GetFuturesContractDetails returns all contracts from the exchange by asset type
+func (c *COINUT) GetFuturesContractDetails(context.Context, asset.Item) ([]futures.Contract, error) {
 	return nil, common.ErrFunctionNotSupported
 }

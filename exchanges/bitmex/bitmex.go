@@ -672,7 +672,7 @@ func (b *Bitmex) ConfirmWithdrawal(ctx context.Context, token string) (Transacti
 		&info)
 }
 
-// GetCryptoDepositAddress returns a deposit address for a cryptocurency
+// GetCryptoDepositAddress returns a deposit address for a cryptocurrency
 func (b *Bitmex) GetCryptoDepositAddress(ctx context.Context, cryptoCurrency string) (string, error) {
 	var address string
 	if !strings.EqualFold(cryptoCurrency, currency.XBT.String()) {

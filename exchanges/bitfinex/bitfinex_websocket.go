@@ -43,7 +43,6 @@ func (b *Bitfinex) WsConnect() error {
 	if !b.Websocket.IsEnabled() || !b.IsEnabled() {
 		return errors.New(stream.WebsocketNotEnabled)
 	}
-
 	var dialer websocket.Dialer
 	err := b.Websocket.Conn.Dial(&dialer, http.Header{})
 	if err != nil {
@@ -54,7 +53,6 @@ func (b *Bitfinex) WsConnect() error {
 
 	b.Websocket.Wg.Add(1)
 	go b.wsReadData(b.Websocket.Conn)
-
 	if b.Websocket.CanUseAuthenticatedEndpoints() {
 		err = b.Websocket.AuthConn.Dial(&dialer, http.Header{})
 		if err != nil {
@@ -78,7 +76,7 @@ func (b *Bitfinex) WsConnect() error {
 
 	b.Websocket.Wg.Add(1)
 	go b.WsDataHandler()
-	return nil
+	return b.ConfigureWS()
 }
 
 // wsReadData receives and passes on websocket messages for processing
@@ -1525,13 +1523,46 @@ func (b *Bitfinex) WsUpdateOrderbook(p currency.Pair, assetType asset.Item, book
 				err)
 		}
 
-		err = validateCRC32(ob, checkme.Token)
-		if err != nil {
+		if err = validateCRC32(ob, checkme.Token); err != nil {
+			log.Errorf(log.WebsocketMgr, "%s websocket orderbook update error, will resubscribe orderbook: %v", b.Name, err)
+			if suberr := b.resubOrderbook(p, assetType); suberr != nil {
+				log.Errorf(log.ExchangeSys, "%s error resubscribing orderbook: %v", b.Name, suberr)
+			}
 			return err
 		}
 	}
 
 	return b.Websocket.Orderbook.Update(&orderbookUpdate)
+}
+
+// resubOrderbook resubscribes the orderbook after a consistency error, probably a failed checksum,
+// which forces a fresh snapshot. If we don't do this the orderbook will keep erroring and drifting.
+func (b *Bitfinex) resubOrderbook(p currency.Pair, assetType asset.Item) error {
+	if err := b.Websocket.Orderbook.FlushOrderbook(p, assetType); err != nil {
+		return err
+	}
+
+	c, err := b.chanForSub(wsBook, assetType, p)
+	if err != nil {
+		return err
+	}
+	return b.Websocket.ResubscribeToChannel(c)
+}
+
+// chanForSub returns an existing channel subscription for a given channel/asset/pair
+func (b *Bitfinex) chanForSub(cName string, assetType asset.Item, pair currency.Pair) (*stream.ChannelSubscription, error) {
+	want := &stream.ChannelSubscription{
+		Channel:  cName,
+		Currency: pair,
+		Asset:    assetType,
+	}
+	subs := b.Websocket.GetSubscriptions()
+	for i := range subs {
+		if subs[i].Equal(want) {
+			return &subs[i], nil
+		}
+	}
+	return nil, errSubNotFound
 }
 
 // GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
@@ -1598,14 +1629,6 @@ func (b *Bitfinex) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription,
 
 // Subscribe sends a websocket message to receive data from the channel
 func (b *Bitfinex) Subscribe(channelsToSubscribe []stream.ChannelSubscription) error {
-	checksum := make(map[string]interface{})
-	checksum["event"] = "conf"
-	checksum["flags"] = bitfinexChecksumFlag + bitfinexWsSequenceFlag
-	err := b.Websocket.Conn.SendJSONMessage(checksum)
-	if err != nil {
-		return err
-	}
-
 	var errs error
 	for i := range channelsToSubscribe {
 		req := make(map[string]interface{})
@@ -1627,6 +1650,14 @@ func (b *Bitfinex) Subscribe(channelsToSubscribe []stream.ChannelSubscription) e
 		b.Websocket.AddSuccessfulSubscriptions(channelsToSubscribe[i])
 	}
 	return errs
+}
+
+// ConfigureWS to send checksums and sequence numbers
+func (b *Bitfinex) ConfigureWS() error {
+	return b.Websocket.Conn.SendJSONMessage(map[string]interface{}{
+		"event": "conf",
+		"flags": bitfinexChecksumFlag + bitfinexWsSequenceFlag,
+	})
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel

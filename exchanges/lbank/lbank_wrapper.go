@@ -16,6 +16,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
@@ -30,12 +31,12 @@ import (
 // GetDefaultConfig returns a default exchange config
 func (l *Lbank) GetDefaultConfig(ctx context.Context) (*config.Exchange, error) {
 	l.SetDefaults()
-	exchCfg := new(config.Exchange)
-	exchCfg.Name = l.Name
-	exchCfg.HTTPTimeout = exchange.DefaultHTTPTimeout
-	exchCfg.BaseCurrencies = l.BaseCurrencies
+	exchCfg, err := l.GetStandardConfig()
+	if err != nil {
+		return nil, err
+	}
 
-	err := l.SetupDefaults(exchCfg)
+	err = l.SetupDefaults(exchCfg)
 	if err != nil {
 		return nil, err
 	}
@@ -1018,4 +1019,9 @@ func (l *Lbank) GetStatus(status int64) order.Status {
 		log.Errorf(log.Global, "%s Unhandled Order Status '%v'", l.GetName(), status)
 	}
 	return oStatus
+}
+
+// GetFuturesContractDetails returns all contracts from the exchange by asset type
+func (l *Lbank) GetFuturesContractDetails(context.Context, asset.Item) ([]futures.Contract, error) {
+	return nil, common.ErrFunctionNotSupported
 }

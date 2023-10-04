@@ -7,6 +7,7 @@ import (
 	"github.com/gofrs/uuid"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
 )
 
 // var error definitions
@@ -19,16 +20,17 @@ var (
 	ErrPairIsEmpty                = errors.New("order pair is empty")
 	ErrAssetNotSet                = errors.New("order asset type is not set")
 	ErrSideIsInvalid              = errors.New("order side is invalid")
+	ErrCollateralInvalid          = errors.New("collateral type is invalid")
 	ErrTypeIsInvalid              = errors.New("order type is invalid")
 	ErrAmountIsInvalid            = errors.New("order amount is equal or less than zero")
 	ErrPriceMustBeSetIfLimitOrder = errors.New("order price must be set if limit order type is desired")
 	ErrOrderIDNotSet              = errors.New("order id or client order id is not set")
+	ErrSubmitLeverageNotSupported = errors.New("leverage is not supported via order submission")
 	ErrClientOrderIDNotSupported  = errors.New("client order id not supported")
 	ErrUnsupportedOrderType       = errors.New("unsupported order type")
 	// ErrNoRates is returned when no margin rates are returned when they are expected
-	ErrNoRates = errors.New("no rates")
-
-	errCannotLiquidate = errors.New("cannot liquidate position")
+	ErrNoRates         = errors.New("no rates")
+	ErrCannotLiquidate = errors.New("cannot liquidate position")
 )
 
 // Submit contains all properties of an order that may be required
@@ -64,6 +66,14 @@ type Submit struct {
 	TriggerPrice  float64
 	ClientID      string // TODO: Shift to credentials
 	ClientOrderID string
+
+	// The system will first borrow you funds at the optimal interest rate and then place an order for you.
+	// see kucoin_wrapper.go
+	AutoBorrow bool
+
+	// MarginType such as isolated or cross margin for when an exchange
+	// supports margin type definition when submitting an order eg okx
+	MarginType margin.Type
 	// RetrieveFees use if an API submit order response does not return fees
 	// enabling this will perform additional request(s) to retrieve them
 	// and set it in the SubmitResponse
@@ -71,6 +81,9 @@ type Submit struct {
 	// RetrieveFeeDelay some exchanges take time to properly save order data
 	// and cannot retrieve fees data immediately
 	RetrieveFeeDelay time.Duration
+
+	// Hidden when enabled orders not displaying in order book.
+	Hidden bool
 	// TradeMode specifies the trading mode for margin and non-margin orders: see okcoin_wrapper.go
 	TradeMode string
 }
@@ -103,6 +116,10 @@ type SubmitResponse struct {
 	Fee         float64
 	FeeAsset    currency.Code
 	Cost        float64
+
+	BorrowSize  float64
+	LoanApplyID string
+	MarginType  margin.Type
 }
 
 // Modify contains all properties of an order
@@ -165,6 +182,7 @@ type Detail struct {
 	Leverage             float64
 	Price                float64
 	Amount               float64
+	ContractAmount       float64
 	LimitPriceUpper      float64
 	LimitPriceLower      float64
 	TriggerPrice         float64
@@ -191,6 +209,7 @@ type Detail struct {
 	CloseTime            time.Time
 	LastUpdated          time.Time
 	Pair                 currency.Pair
+	MarginType           margin.Type
 	Trades               []TradeHistory
 }
 
@@ -226,6 +245,7 @@ type Cancel struct {
 	Side          Side
 	AssetType     asset.Item
 	Pair          currency.Pair
+	MarginType    margin.Type
 }
 
 // CancelAllResponse returns the status from attempting to

@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/dispatch"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -292,13 +293,8 @@ func TestGetBalance(t *testing.T) {
 	}
 
 	_, err = GetBalance("bruh", "1337", happyCredentials, asset.Futures, currency.BTC)
-	if !errors.Is(err, errAssetHoldingsNotFound) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errAssetHoldingsNotFound)
-	}
-
-	_, err = GetBalance("bruh", "1337", happyCredentials, asset.Spot, currency.BTC)
-	if !errors.Is(err, errNoBalanceFound) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errNoBalanceFound)
+	if !errors.Is(err, errNoExchangeSubAccountBalances) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errNoExchangeSubAccountBalances)
 	}
 
 	err = Process(&Holdings{
@@ -473,7 +469,11 @@ func TestUpdate(t *testing.T) {
 		t.Fatal("account should be loaded")
 	}
 
-	b, ok := acc.SubAccounts[Credentials{Key: "AAAAA"}]["1337"][asset.Spot][currency.BTC.Item]
+	b, ok := acc.SubAccounts[Credentials{Key: "AAAAA"}][key.SubAccountCurrencyAsset{
+		SubAccount: "1337",
+		Currency:   currency.BTC.Item,
+		Asset:      asset.Spot,
+	}]
 	if !ok {
 		t.Fatal("account should be loaded")
 	}
