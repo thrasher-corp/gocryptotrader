@@ -11,6 +11,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/data/kline"
 	"github.com/thrasher-corp/gocryptotrader/backtester/funding"
 	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/engine"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -77,10 +78,10 @@ func TestCalculateFundingStatistics(t *testing.T) {
 		t.Errorf("received %v expected %v", err, funding.ErrUSDTrackingDisabled)
 	}
 
-	cs := make(map[string]map[asset.Item]map[*currency.Item]map[*currency.Item]*CurrencyPairStatistic)
+	cs := make(map[key.ExchangePairAsset]*CurrencyPairStatistic)
 	_, err = CalculateFundingStatistics(f, cs, decimal.Zero, gctkline.OneHour)
-	if !errors.Is(err, errNoRelevantStatsFound) {
-		t.Errorf("received %v expected %v", err, errNoRelevantStatsFound)
+	if !errors.Is(err, nil) {
+		t.Errorf("received %v expected %v", err, nil)
 	}
 
 	f, err = funding.SetupFundingManager(&engine.ExchangeManager{}, true, false, false)
@@ -99,10 +100,12 @@ func TestCalculateFundingStatistics(t *testing.T) {
 	if !errors.Is(err, nil) {
 		t.Errorf("received %v expected %v", err, nil)
 	}
-	cs["binance"] = make(map[asset.Item]map[*currency.Item]map[*currency.Item]*CurrencyPairStatistic)
-	cs["binance"][asset.Spot] = make(map[*currency.Item]map[*currency.Item]*CurrencyPairStatistic)
-	cs["binance"][asset.Spot][currency.LTC.Item] = make(map[*currency.Item]*CurrencyPairStatistic)
-	cs["binance"][asset.Spot][currency.LTC.Item][currency.USD.Item] = &CurrencyPairStatistic{}
+	cs[key.ExchangePairAsset{
+		Exchange: "binance",
+		Base:     currency.LTC.Item,
+		Quote:    currency.USD.Item,
+		Asset:    asset.Spot,
+	}] = &CurrencyPairStatistic{}
 	_, err = CalculateFundingStatistics(f, cs, decimal.Zero, gctkline.OneHour)
 	if !errors.Is(err, errMissingSnapshots) {
 		t.Errorf("received %v expected %v", err, errMissingSnapshots)
@@ -115,9 +118,12 @@ func TestCalculateFundingStatistics(t *testing.T) {
 	if !errors.Is(err, nil) {
 		t.Errorf("received %v expected %v", err, nil)
 	}
-	cs["binance"][asset.Spot][currency.BTC.Item] = make(map[*currency.Item]*CurrencyPairStatistic)
-	cs["binance"][asset.Spot][currency.BTC.Item][currency.USDT.Item] = &CurrencyPairStatistic{}
-
+	cs[key.ExchangePairAsset{
+		Exchange: "binance",
+		Base:     currency.LTC.Item,
+		Quote:    currency.USD.Item,
+		Asset:    asset.Spot,
+	}] = &CurrencyPairStatistic{}
 	_, err = CalculateFundingStatistics(f, cs, decimal.Zero, gctkline.OneHour)
 	if !errors.Is(err, nil) {
 		t.Errorf("received %v expected %v", err, nil)

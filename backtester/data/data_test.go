@@ -10,6 +10,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/event"
 	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	gctkline "github.com/thrasher-corp/gocryptotrader/exchanges/kline"
@@ -37,7 +38,12 @@ func TestSetDataForCurrency(t *testing.T) {
 	if d.data == nil {
 		t.Error("expected not nil")
 	}
-	if d.data[exch][a][p.Base.Item][p.Quote.Item] != nil {
+	if d.data[key.ExchangePairAsset{
+		Exchange: exch,
+		Base:     p.Base.Item,
+		Quote:    p.Quote.Item,
+		Asset:    a,
+	}] != nil {
 		t.Error("expected nil")
 	}
 }

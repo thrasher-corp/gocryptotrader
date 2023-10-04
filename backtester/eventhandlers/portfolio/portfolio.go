@@ -18,9 +18,10 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/signal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/funding"
 	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
-	"github.com/thrasher-corp/gocryptotrader/config"
+	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
 	gctorder "github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
@@ -55,7 +56,12 @@ func (p *Portfolio) OnSignal(ev signal.Event, exchangeSettings *exchange.Setting
 		return o, errInvalidDirection
 	}
 
-	lookup := p.exchangeAssetPairPortfolioSettings[ev.GetExchange()][ev.GetAssetType()][ev.Pair().Base.Item][ev.Pair().Quote.Item]
+	lookup := p.exchangeAssetPairPortfolioSettings[key.ExchangePairAsset{
+		Exchange: ev.GetExchange(),
+		Base:     ev.Pair().Base.Item,
+		Quote:    ev.Pair().Quote.Item,
+		Asset:    ev.GetAssetType(),
+	}]
 	if lookup == nil {
 		return nil, fmt.Errorf("%w for %v %v %v",
 			errNoPortfolioSettings,
@@ -234,7 +240,12 @@ func (p *Portfolio) OnFill(ev fill.Event, funds funding.IFundReleaser) (fill.Eve
 	if ev == nil {
 		return nil, common.ErrNilEvent
 	}
-	lookup := p.exchangeAssetPairPortfolioSettings[ev.GetExchange()][ev.GetAssetType()][ev.Pair().Base.Item][ev.Pair().Quote.Item]
+	lookup := p.exchangeAssetPairPortfolioSettings[key.ExchangePairAsset{
+		Exchange: ev.GetExchange(),
+		Base:     ev.Pair().Base.Item,
+		Quote:    ev.Pair().Quote.Item,
+		Asset:    ev.GetAssetType(),
+	}]
 	if lookup == nil {
 		return nil, fmt.Errorf("%w for %v %v %v", errNoPortfolioSettings, ev.GetExchange(), ev.GetAssetType(), ev.Pair())
 	}
@@ -298,25 +309,24 @@ func (p *Portfolio) addComplianceSnapshot(fillEvent fill.Event) error {
 }
 
 // GetLatestOrderSnapshotForEvent gets orders related to the event
-func (p *Portfolio) GetLatestOrderSnapshotForEvent(e common.Event) (compliance.Snapshot, error) {
-	eapSettings, ok := p.exchangeAssetPairPortfolioSettings[e.GetExchange()][e.GetAssetType()][e.Pair().Base.Item][e.Pair().Quote.Item]
+func (p *Portfolio) GetLatestOrderSnapshotForEvent(ev common.Event) (compliance.Snapshot, error) {
+	eapSettings, ok := p.exchangeAssetPairPortfolioSettings[key.ExchangePairAsset{
+		Exchange: ev.GetExchange(),
+		Base:     ev.Pair().Base.Item,
+		Quote:    ev.Pair().Quote.Item,
+		Asset:    ev.GetAssetType(),
+	}]
 	if !ok {
-		return compliance.Snapshot{}, fmt.Errorf("%w for %v %v %v", errNoPortfolioSettings, e.GetExchange(), e.GetAssetType(), e.Pair())
+		return compliance.Snapshot{}, fmt.Errorf("%w for %v %v %v", errNoPortfolioSettings, ev.GetExchange(), ev.GetAssetType(), ev.Pair())
 	}
 	return eapSettings.ComplianceManager.GetLatestSnapshot(), nil
 }
 
 // GetLatestOrderSnapshots returns the latest snapshots from all stored pair data
 func (p *Portfolio) GetLatestOrderSnapshots() ([]compliance.Snapshot, error) {
-	var resp []compliance.Snapshot
-	for _, exchangeMap := range p.exchangeAssetPairPortfolioSettings {
-		for _, assetMap := range exchangeMap {
-			for _, baseMap := range assetMap {
-				for _, quoteMap := range baseMap {
-					resp = append(resp, quoteMap.ComplianceManager.GetLatestSnapshot())
-				}
-			}
-		}
+	resp := make([]compliance.Snapshot, 0, len(p.exchangeAssetPairPortfolioSettings))
+	for _, d := range p.exchangeAssetPairPortfolioSettings {
+		resp = append(resp, d.ComplianceManager.GetLatestSnapshot())
 	}
 	if len(resp) == 0 {
 		return nil, errNoPortfolioSettings
@@ -337,7 +347,12 @@ func (p *Portfolio) GetLatestComplianceSnapshot(exchangeName string, a asset.Ite
 
 // getComplianceManager returns the order snapshots for a given exchange, asset, pair
 func (p *Portfolio) getComplianceManager(exchangeName string, a asset.Item, cp currency.Pair) (*compliance.Manager, error) {
-	lookup := p.exchangeAssetPairPortfolioSettings[exchangeName][a][cp.Base.Item][cp.Quote.Item]
+	lookup := p.exchangeAssetPairPortfolioSettings[key.ExchangePairAsset{
+		Exchange: exchangeName,
+		Base:     cp.Base.Item,
+		Quote:    cp.Quote.Item,
+		Asset:    a,
+	}]
 	if lookup == nil {
 		return nil, fmt.Errorf("%w for %v %v %v could not retrieve compliance manager", errNoPortfolioSettings, exchangeName, a, cp)
 	}
@@ -345,7 +360,7 @@ func (p *Portfolio) getComplianceManager(exchangeName string, a asset.Item, cp c
 }
 
 // GetPositions returns all futures positions for an event's exchange, asset, pair
-func (p *Portfolio) GetPositions(e common.Event) ([]gctorder.Position, error) {
+func (p *Portfolio) GetPositions(e common.Event) ([]futures.Position, error) {
 	settings, err := p.getFuturesSettingsFromEvent(e)
 	if err != nil {
 		return nil, err
@@ -354,14 +369,14 @@ func (p *Portfolio) GetPositions(e common.Event) ([]gctorder.Position, error) {
 }
 
 // GetLatestPosition returns all futures positions for an event's exchange, asset, pair
-func (p *Portfolio) GetLatestPosition(e common.Event) (*gctorder.Position, error) {
+func (p *Portfolio) GetLatestPosition(e common.Event) (*futures.Position, error) {
 	settings, err := p.getFuturesSettingsFromEvent(e)
 	if err != nil {
 		return nil, err
 	}
 	positions := settings.FuturesTracker.GetPositions()
 	if len(positions) == 0 {
-		return nil, fmt.Errorf("%w %v %v %v", gctorder.ErrPositionNotFound, e.GetExchange(), e.GetAssetType(), e.Pair())
+		return nil, fmt.Errorf("%w %v %v %v", futures.ErrPositionNotFound, e.GetExchange(), e.GetAssetType(), e.Pair())
 	}
 	return &positions[len(positions)-1], nil
 }
@@ -374,7 +389,7 @@ func (p *Portfolio) UpdatePNL(e common.Event, closePrice decimal.Decimal) error 
 		return err
 	}
 	_, err = settings.FuturesTracker.UpdateOpenPositionUnrealisedPNL(closePrice.InexactFloat64(), e.GetTime())
-	if err != nil && !errors.Is(err, gctorder.ErrPositionClosed) {
+	if err != nil && !errors.Is(err, futures.ErrPositionClosed) {
 		return err
 	}
 
@@ -395,7 +410,7 @@ func (p *Portfolio) TrackFuturesOrder(ev fill.Event, fund funding.IFundReleaser)
 		return nil, gctorder.ErrSubmissionIsNil
 	}
 	if !detail.AssetType.IsFutures() {
-		return nil, fmt.Errorf("order '%v' %w", detail.OrderID, gctorder.ErrNotFuturesAsset)
+		return nil, fmt.Errorf("order '%v' %w", detail.OrderID, futures.ErrNotFuturesAsset)
 	}
 
 	collateralReleaser, err := fund.CollateralReleaser()
@@ -488,7 +503,7 @@ func (p *Portfolio) CheckLiquidationStatus(ev data.Event, collateralReader fundi
 	if !position.Status.IsInactive() &&
 		pnl.Result.UnrealisedPNL.IsNegative() &&
 		pnl.Result.UnrealisedPNL.Abs().GreaterThan(availableFunds) {
-		return gctorder.ErrPositionLiquidated
+		return futures.ErrPositionLiquidated
 	}
 
 	return nil
@@ -503,80 +518,75 @@ func (p *Portfolio) CreateLiquidationOrdersForExchange(ev data.Event, funds fund
 		return nil, fmt.Errorf("%w, requires funding manager", gctcommon.ErrNilPointer)
 	}
 	var closingOrders []order.Event
-	assetPairSettings, ok := p.exchangeAssetPairPortfolioSettings[ev.GetExchange()]
-	if !ok {
-		return nil, config.ErrExchangeNotFound
-	}
-	for item, baseMap := range assetPairSettings {
-		for b, quoteMap := range baseMap {
-			for q, settings := range quoteMap {
-				switch {
-				case item.IsFutures():
-					positions := settings.FuturesTracker.GetPositions()
-					if len(positions) == 0 {
-						continue
-					}
-					pos := positions[len(positions)-1]
-					if !pos.LatestSize.IsPositive() {
-						continue
-					}
-					direction := gctorder.Short
-					if pos.LatestDirection == gctorder.Short {
-						direction = gctorder.Long
-					}
-					closingOrders = append(closingOrders, &order.Order{
-						Base: &event.Base{
-							Offset:         ev.GetOffset(),
-							Exchange:       pos.Exchange,
-							Time:           ev.GetTime(),
-							Interval:       ev.GetInterval(),
-							CurrencyPair:   pos.Pair,
-							UnderlyingPair: ev.GetUnderlyingPair(),
-							AssetType:      pos.Asset,
-							Reasons:        []string{"LIQUIDATED"},
-						},
-						Direction:           direction,
-						Status:              gctorder.Liquidated,
-						ClosePrice:          ev.GetClosePrice(),
-						Amount:              pos.LatestSize,
-						AllocatedFunds:      pos.LatestSize,
-						OrderType:           gctorder.Market,
-						LiquidatingPosition: true,
-					})
-				case item == asset.Spot:
-					allFunds, err := funds.GetAllFunding()
-					if err != nil {
-						return nil, err
-					}
-					for i := range allFunds {
-						if allFunds[i].Asset.IsFutures() {
-							continue
-						}
-						if allFunds[i].Currency.IsFiatCurrency() || allFunds[i].Currency.IsStableCurrency() {
-							// close orders for assets
-							// funding manager will zero for fiat/stable
-							continue
-						}
-						cp := currency.NewPair(b.Currency(), q.Currency())
-						closingOrders = append(closingOrders, &order.Order{
-							Base: &event.Base{
-								Offset:       ev.GetOffset(),
-								Exchange:     ev.GetExchange(),
-								Time:         ev.GetTime(),
-								Interval:     ev.GetInterval(),
-								CurrencyPair: cp,
-								AssetType:    item,
-								Reasons:      []string{"LIQUIDATED"},
-							},
-							Direction:           gctorder.Sell,
-							Status:              gctorder.Liquidated,
-							Amount:              allFunds[i].Available,
-							OrderType:           gctorder.Market,
-							AllocatedFunds:      allFunds[i].Available,
-							LiquidatingPosition: true,
-						})
-					}
+	for mapKey, settings := range p.exchangeAssetPairPortfolioSettings {
+		if !mapKey.MatchesExchange(ev.GetExchange()) {
+			continue
+		}
+		switch {
+		case mapKey.Asset.IsFutures():
+			positions := settings.FuturesTracker.GetPositions()
+			if len(positions) == 0 {
+				continue
+			}
+			pos := positions[len(positions)-1]
+			if !pos.LatestSize.IsPositive() {
+				continue
+			}
+			direction := gctorder.Short
+			if pos.LatestDirection == gctorder.Short {
+				direction = gctorder.Long
+			}
+			closingOrders = append(closingOrders, &order.Order{
+				Base: &event.Base{
+					Offset:         ev.GetOffset(),
+					Exchange:       pos.Exchange,
+					Time:           ev.GetTime(),
+					Interval:       ev.GetInterval(),
+					CurrencyPair:   pos.Pair,
+					UnderlyingPair: ev.GetUnderlyingPair(),
+					AssetType:      pos.Asset,
+					Reasons:        []string{"LIQUIDATED"},
+				},
+				Direction:           direction,
+				Status:              gctorder.Liquidated,
+				ClosePrice:          ev.GetClosePrice(),
+				Amount:              pos.LatestSize,
+				AllocatedFunds:      pos.LatestSize,
+				OrderType:           gctorder.Market,
+				LiquidatingPosition: true,
+			})
+		case mapKey.Asset == asset.Spot:
+			allFunds, err := funds.GetAllFunding()
+			if err != nil {
+				return nil, err
+			}
+			for i := range allFunds {
+				if allFunds[i].Asset.IsFutures() {
+					continue
 				}
+				if allFunds[i].Currency.IsFiatCurrency() || allFunds[i].Currency.IsStableCurrency() {
+					// close orders for assets
+					// funding manager will zero for fiat/stable
+					continue
+				}
+				cp := currency.NewPair(mapKey.Base.Currency(), mapKey.Quote.Currency())
+				closingOrders = append(closingOrders, &order.Order{
+					Base: &event.Base{
+						Offset:       ev.GetOffset(),
+						Exchange:     ev.GetExchange(),
+						Time:         ev.GetTime(),
+						Interval:     ev.GetInterval(),
+						CurrencyPair: cp,
+						AssetType:    mapKey.Asset,
+						Reasons:      []string{"LIQUIDATED"},
+					},
+					Direction:           gctorder.Sell,
+					Status:              gctorder.Liquidated,
+					Amount:              allFunds[i].Available,
+					OrderType:           gctorder.Market,
+					AllocatedFunds:      allFunds[i].Available,
+					LiquidatingPosition: true,
+				})
 			}
 		}
 	}
@@ -589,7 +599,7 @@ func (p *Portfolio) getFuturesSettingsFromEvent(e common.Event) (*Settings, erro
 		return nil, common.ErrNilEvent
 	}
 	if !e.GetAssetType().IsFutures() {
-		return nil, gctorder.ErrNotFuturesAsset
+		return nil, futures.ErrNotFuturesAsset
 	}
 	settings, err := p.getSettings(e.GetExchange(), e.GetAssetType(), e.Pair())
 	if err != nil {
@@ -605,7 +615,12 @@ func (p *Portfolio) getFuturesSettingsFromEvent(e common.Event) (*Settings, erro
 
 func (p *Portfolio) getSettings(exch string, item asset.Item, pair currency.Pair) (*Settings, error) {
 	exch = strings.ToLower(exch)
-	settings, ok := p.exchangeAssetPairPortfolioSettings[exch][item][pair.Base.Item][pair.Quote.Item]
+	settings, ok := p.exchangeAssetPairPortfolioSettings[key.ExchangePairAsset{
+		Exchange: exch,
+		Base:     pair.Base.Item,
+		Quote:    pair.Quote.Item,
+		Asset:    item,
+	}]
 	if !ok {
 		return nil, fmt.Errorf("%w for %v %v %v", errNoPortfolioSettings, exch, item, pair)
 	}
@@ -657,20 +672,15 @@ func (p *Portfolio) UpdateHoldings(e data.Event, funds funding.IFundReleaser) er
 // GetLatestHoldingsForAllCurrencies will return the current holdings for all loaded currencies
 // this is useful to assess the position of your entire portfolio in order to help with risk decisions
 func (p *Portfolio) GetLatestHoldingsForAllCurrencies() []holdings.Holding {
-	var resp []holdings.Holding
-	for _, exchangeMap := range p.exchangeAssetPairPortfolioSettings {
-		for _, assetMap := range exchangeMap {
-			for _, baseMap := range assetMap {
-				for _, quoteMap := range baseMap {
-					holds, err := quoteMap.GetLatestHoldings()
-					if err != nil {
-						continue
-					}
-					resp = append(resp, *holds)
-				}
-			}
+	resp := make([]holdings.Holding, 0, len(p.exchangeAssetPairPortfolioSettings))
+	for _, d := range p.exchangeAssetPairPortfolioSettings {
+		holds, err := d.GetLatestHoldings()
+		if err != nil {
+			continue
 		}
+		resp = append(resp, *holds)
 	}
+
 	return resp
 }
 

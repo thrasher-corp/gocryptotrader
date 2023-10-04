@@ -20,7 +20,7 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 
 ## Current Features for currencylayer
 
-+ Fetches up to date curency data from [Currency Layer](https://currencylayer.com/)
++ Fetches up to date currency data from [Currency Layer](https://currencylayer.com/)
 
 ### How to enable
 
