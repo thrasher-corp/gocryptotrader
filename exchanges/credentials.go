@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"reflect"
 	"strings"
 
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
@@ -21,7 +22,7 @@ var (
 	// completely empty but an attempt at retrieving credentials was made to
 	// undertake an authenticated HTTP request.
 	ErrCredentialsAreEmpty = errors.New("credentials are empty")
-
+	// Errors related to API requirements and failures
 	errRequiresAPIKey            = errors.New("requires API key but default/empty one set")
 	errRequiresAPISecret         = errors.New("requires API secret but default/empty one set")
 	errRequiresAPIPEMKey         = errors.New("requires API PEM key but default/empty one set")
@@ -30,53 +31,42 @@ var (
 	errContextCredentialsFailure = errors.New("context credentials type assertion failure")
 )
 
-// SetKey sets new key for the default credentials
-func (a *API) SetKey(key string) {
+// initializeCredentials initializes the credentials
+func (a *API) initializeCredentials() {
 	a.credMu.Lock()
 	defer a.credMu.Unlock()
 	if a.credentials == nil {
 		a.credentials = &account.Credentials{}
 	}
+}
+
+// SetKey sets new key for the default credentials
+func (a *API) SetKey(key string) {
+	a.initializeCredentials()
 	a.credentials.Key = key
 }
 
 // SetSecret sets new secret for the default credentials
 func (a *API) SetSecret(secret string) {
-	a.credMu.Lock()
-	defer a.credMu.Unlock()
-	if a.credentials == nil {
-		a.credentials = &account.Credentials{}
-	}
+	a.initializeCredentials()
 	a.credentials.Secret = secret
 }
 
 // SetClientID sets new clientID for the default credentials
 func (a *API) SetClientID(clientID string) {
-	a.credMu.Lock()
-	defer a.credMu.Unlock()
-	if a.credentials == nil {
-		a.credentials = &account.Credentials{}
-	}
+	a.initializeCredentials()
 	a.credentials.ClientID = clientID
 }
 
 // SetPEMKey sets pem key for the default credentials
 func (a *API) SetPEMKey(pem string) {
-	a.credMu.Lock()
-	defer a.credMu.Unlock()
-	if a.credentials == nil {
-		a.credentials = &account.Credentials{}
-	}
+	a.initializeCredentials()
 	a.credentials.PEMKey = pem
 }
 
 // SetSubAccount sets sub account for the default credentials
 func (a *API) SetSubAccount(sub string) {
-	a.credMu.Lock()
-	defer a.credMu.Unlock()
-	if a.credentials == nil {
-		a.credentials = &account.Credentials{}
-	}
+	a.initializeCredentials()
 	a.credentials.SubAccount = sub
 }
 
@@ -199,11 +189,7 @@ func (b *Base) VerifyAPICredentials(creds *account.Credentials) error {
 
 // SetCredentials is a method that sets the current API keys for the exchange
 func (b *Base) SetCredentials(apiKey, apiSecret, clientID, subaccount, pemKey, oneTimePassword string) {
-	b.API.credMu.Lock()
-	defer b.API.credMu.Unlock()
-	if b.API.credentials == nil {
-		b.API.credentials = &account.Credentials{}
-	}
+	b.API.initializeCredentials()
 	b.API.credentials.Key = apiKey
 	b.API.credentials.ClientID = clientID
 	b.API.credentials.SubAccount = subaccount
@@ -231,28 +217,27 @@ func (b *Base) SetCredentials(apiKey, apiSecret, clientID, subaccount, pemKey, o
 func (b *Base) SetAPICredentialDefaults() {
 	b.API.credMu.Lock()
 	defer b.API.credMu.Unlock()
+
 	// Exchange hardcoded settings take precedence and overwrite the config settings
 	if b.Config.API.CredentialsValidator == nil {
 		b.Config.API.CredentialsValidator = new(config.APICredentialsValidatorConfig)
 	}
-	if b.Config.API.CredentialsValidator.RequiresKey != b.API.CredentialsValidator.RequiresKey {
-		b.Config.API.CredentialsValidator.RequiresKey = b.API.CredentialsValidator.RequiresKey
+
+	// Updating credential validation requirements
+	creditRequirements := map[string]bool{
+		"RequiresKey":                b.API.CredentialsValidator.RequiresKey,
+		"RequiresSecret":             b.API.CredentialsValidator.RequiresSecret,
+		"RequiresBase64DecodeSecret": b.API.CredentialsValidator.RequiresBase64DecodeSecret,
+		"RequiresClientID":           b.API.CredentialsValidator.RequiresClientID,
+		"RequiresPEM":                b.API.CredentialsValidator.RequiresPEM,
 	}
 
-	if b.Config.API.CredentialsValidator.RequiresSecret != b.API.CredentialsValidator.RequiresSecret {
-		b.Config.API.CredentialsValidator.RequiresSecret = b.API.CredentialsValidator.RequiresSecret
-	}
-
-	if b.Config.API.CredentialsValidator.RequiresBase64DecodeSecret != b.API.CredentialsValidator.RequiresBase64DecodeSecret {
-		b.Config.API.CredentialsValidator.RequiresBase64DecodeSecret = b.API.CredentialsValidator.RequiresBase64DecodeSecret
-	}
-
-	if b.Config.API.CredentialsValidator.RequiresClientID != b.API.CredentialsValidator.RequiresClientID {
-		b.Config.API.CredentialsValidator.RequiresClientID = b.API.CredentialsValidator.RequiresClientID
-	}
-
-	if b.Config.API.CredentialsValidator.RequiresPEM != b.API.CredentialsValidator.RequiresPEM {
-		b.Config.API.CredentialsValidator.RequiresPEM = b.API.CredentialsValidator.RequiresPEM
+	// Updating credential validation requirements
+	for requirement, value := range creditRequirements {
+		field := reflect.ValueOf(b.Config.API.CredentialsValidator).Elem().FieldByName(requirement)
+		if field.IsValid() && field.CanSet() && field.Bool() != value {
+			field.SetBool(value)
+		}
 	}
 }
 
