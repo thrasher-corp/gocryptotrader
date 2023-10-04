@@ -44,9 +44,9 @@ func (co *CoinbaseInternational) GetDefaultConfig(ctx context.Context) (*config.
 	return exchCfg, nil
 }
 
-// SetDefaults sets the basic defaults for Coinbaseinternational
+// SetDefaults sets the basic defaults for CoinbaseInternational
 func (co *CoinbaseInternational) SetDefaults() {
-	co.Name = "Coinbaseinternational"
+	co.Name = "CoinbaseInternational"
 	co.Enabled = true
 	co.Verbose = true
 	co.API.CredentialsValidator.RequiresKey = true
@@ -124,7 +124,7 @@ func (co *CoinbaseInternational) SetDefaults() {
 		exchange.RestSpot: coinbaseInternationalAPIURL,
 		// exchange.WebsocketSpot: coinbaseinternationalWSAPIURL,
 	})
-	co.Websocket = stream.NewWrapper()
+	co.Websocket = stream.New()
 	co.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	co.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
 	co.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
@@ -144,55 +144,10 @@ func (co *CoinbaseInternational) Setup(exch *config.Exchange) error {
 	if err != nil {
 		return err
 	}
-
-	/*
-		if co.IsAssetWebsocketSupported(asset.Spot) {
-			wsRunningEndpoint, err := co.API.Endpoints.GetURL(exchange.WebsocketSpot)
-			if err != nil {
-				return err
-			}
-
-			// If websocket is supported, please fill out the following
-
-			err = co.Websocket.Setup(&stream.WebsocketWrapperSetup{
-				ExchangeConfig:         exch,
-				ConnectionMonitorDelay: exch.ConnectionMonitorDelay,
-				Features:               &co.Features.Supports.WebsocketCapabilities,
-				OrderbookBufferConfig: buffer.Config{
-					SortBuffer:            true,
-					SortBufferByUpdateIDs: true,
-				},
-				TradeFeed: co.Features.Enabled.TradeFeed,
-			})
-			if err != nil {
-				return err
-			}
-			var spotWebsocket *stream.Websocket
-			spotWebsocket, err = co.Websocket.AddWebsocket(&stream.WebsocketSetup{
-				DefaultURL:            coinbaseinternationalDefaultWebsocketURL,
-				RunningURL:            wsRunningEndpoint,
-				Connector:             co.WsConnect,
-				Subscriber:            co.Subscribe,
-				Unsubscriber:          co.Unsubscribe,
-				GenerateSubscriptions: co.GenerateSubscriptions,
-				AssetType:             asset.Spot,
-			})
-			if err != nil {
-				return err
-			}
-			return spotWebsocket.SetupNewConnection(stream.ConnectionSetup{
-				URL:                  coinbaseinternationalDefaultWebsocketURL,
-				ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
-				ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
-				RateLimit:            wsRateLimitMilliseconds,
-				AssetType:            asset.Spot,
-			})
-		}
-	*/
 	return nil
 }
 
-// Start starts the Coinbaseinternational go routine
+// Start starts the CoinbaseInternational go routine
 func (co *CoinbaseInternational) Start(ctx context.Context, wg *sync.WaitGroup) error {
 	if wg == nil {
 		return fmt.Errorf("%T %w", wg, common.ErrNilPointer)
@@ -205,7 +160,7 @@ func (co *CoinbaseInternational) Start(ctx context.Context, wg *sync.WaitGroup) 
 	return nil
 }
 
-// Run implements the Coinbaseinternational wrapper
+// Run implements the CoinbaseInternational wrapper
 func (co *CoinbaseInternational) Run(ctx context.Context) {
 	if co.Verbose {
 		log.Debugf(log.ExchangeSys,

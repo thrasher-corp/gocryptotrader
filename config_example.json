@@ -262,6 +262,45 @@
  },
  "exchanges": [
     {
+        "name": "CoinbaseInternational",
+        "enabled": true,
+        "verbose": true,
+        "httpTimeout": 0,
+        "websocketResponseCheckTimeout": 0,
+        "websocketResponseMaxLimit": 0,
+        "websocketTrafficTimeout": 0,
+        "connectionMonitorDelay": 0,
+        "baseCurrencies": "",
+        "currencyPairs": {
+            "bypassConfigFormatUpgrades": false,
+            "requestFormat": {
+            "uppercase": true
+            },
+            "configFormat": {
+            "uppercase": true,
+            "delimiter": "-"
+            },
+            "useGlobalFormat": true,
+            "pairs": {}
+        },
+        "api": {
+            "authenticatedSupport": false,
+            "authenticatedWebsocketApiSupport": false,
+            "credentials": {
+            "key": "Key",
+            "secret": "Secret"
+            },
+            "urlEndpoints": null
+        },
+        "features": null,
+        "orderbook": {
+            "verificationBypass": false,
+            "websocketBufferLimit": 0,
+            "websocketBufferEnabled": false,
+            "publishPeriod": null
+        }
+    },
+    {
         "name": "Okx",
         "enabled": true,
         "verbose": false,

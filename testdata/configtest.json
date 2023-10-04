@@ -242,7 +242,7 @@
  },
  "exchanges": [
     {
-        "name": "Coinbaseinternational",
+        "name": "CoinbaseInternational",
         "enabled": true,
         "verbose": false,
         "httpTimeout": 0,

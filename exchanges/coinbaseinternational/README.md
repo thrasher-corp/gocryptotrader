@@ -1,5 +1,5 @@
 
-# GoCryptoTrader Coinbaseinternational Exchange Wrapper
+# GoCryptoTrader CoinbaseInternational Exchange Wrapper
 
 <img src="/common/gctlogo.png?raw=true" width="350px" height="350px" hspace="70">
 
@@ -9,7 +9,7 @@ An exchange interface wrapper for the GoCryptoTrader application.
 
 You can track ideas, planned features and what's in progress on this Trello board: [https://trello.com/b/ZAhMhpOy/gocryptotrader](https://trello.com/b/ZAhMhpOy/gocryptotrader).
 
-## Current Coinbaseinternational Exchange Features
+## Current CoinbaseInternational Exchange Features
 
 + REST Support 
 + Websocket Support 
