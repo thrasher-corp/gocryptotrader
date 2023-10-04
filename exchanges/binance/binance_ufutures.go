@@ -57,11 +57,13 @@ const (
 	ufuturesModifyMargin          = "/fapi/v1/positionMargin"
 	ufuturesMarginChangeHistory   = "/fapi/v1/positionMargin/history"
 	ufuturesPositionInfo          = "/fapi/v2/positionRisk"
+	ufuturesCommissionRate        = "/fapi/v1/commissionRate"
 	ufuturesAccountTradeList      = "/fapi/v1/userTrades"
 	ufuturesIncomeHistory         = "/fapi/v1/income"
 	ufuturesNotionalBracket       = "/fapi/v1/leverageBracket"
 	ufuturesUsersForceOrders      = "/fapi/v1/forceOrders"
 	ufuturesADLQuantile           = "/fapi/v1/adlQuantile"
+	uFuturesMultiAssetsMargin     = "/fapi/v1/multiAssetsMargin"
 )
 
 // UServerTime gets the server time
@@ -168,7 +170,7 @@ func (b *Binance) URecentTrades(ctx context.Context, symbol currency.Pair, fromI
 	if fromID != "" {
 		params.Set("fromID", fromID)
 	}
-	if limit > 0 && limit < 1000 {
+	if limit > 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	return resp, b.SendHTTPRequest(ctx, exchange.RestUSDTMargined, ufuturesRecentTrades+params.Encode(), uFuturesDefaultRate, &resp)
@@ -186,7 +188,7 @@ func (b *Binance) UFuturesHistoricalTrades(ctx context.Context, symbol currency.
 	if fromID != "" {
 		params.Set("fromID", fromID)
 	}
-	if limit > 0 && limit < 1000 {
+	if limit > 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodGet, ufuturesHistoricalTrades, params, uFuturesHistoricalTradesRate, &resp)
@@ -204,7 +206,7 @@ func (b *Binance) UCompressedTrades(ctx context.Context, symbol currency.Pair, f
 	if fromID != "" {
 		params.Set("fromID", fromID)
 	}
-	if limit > 0 && limit < 1000 {
+	if limit > 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	if !startTime.IsZero() && !endTime.IsZero() {
@@ -229,7 +231,7 @@ func (b *Binance) UKlineData(ctx context.Context, symbol currency.Pair, interval
 		return nil, errors.New("invalid interval")
 	}
 	params.Set("interval", interval)
-	if limit > 0 && limit <= 1500 {
+	if limit > 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	if !startTime.IsZero() && !endTime.IsZero() {
@@ -489,7 +491,7 @@ func (b *Binance) UOpenInterestStats(ctx context.Context, symbol currency.Pair, 
 		return resp, errors.New("invalid period")
 	}
 	params.Set("period", period)
-	if limit > 0 && limit < 1000 {
+	if limit > 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	if !startTime.IsZero() && !endTime.IsZero() {
@@ -515,7 +517,7 @@ func (b *Binance) UTopAcccountsLongShortRatio(ctx context.Context, symbol curren
 		return resp, errors.New("invalid period")
 	}
 	params.Set("period", period)
-	if limit > 0 && limit < 500 {
+	if limit > 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	if !startTime.IsZero() && !endTime.IsZero() {
@@ -541,7 +543,7 @@ func (b *Binance) UTopPostionsLongShortRatio(ctx context.Context, symbol currenc
 		return resp, errors.New("invalid period")
 	}
 	params.Set("period", period)
-	if limit > 0 && limit < 500 {
+	if limit > 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	if !startTime.IsZero() && !endTime.IsZero() {
@@ -567,7 +569,7 @@ func (b *Binance) UGlobalLongShortRatio(ctx context.Context, symbol currency.Pai
 		return resp, errors.New("invalid period")
 	}
 	params.Set("period", period)
-	if limit > 0 && limit < 500 {
+	if limit > 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	if !startTime.IsZero() && !endTime.IsZero() {
@@ -593,7 +595,7 @@ func (b *Binance) UTakerBuySellVol(ctx context.Context, symbol currency.Pair, pe
 		return resp, errors.New("invalid period")
 	}
 	params.Set("period", period)
-	if limit > 0 && limit < 500 {
+	if limit > 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	if !startTime.IsZero() && !endTime.IsZero() {
@@ -859,14 +861,13 @@ func (b *Binance) UAllAccountOrders(ctx context.Context, symbol currency.Pair, o
 	if orderID != 0 {
 		params.Set("orderId", strconv.FormatInt(orderID, 10))
 	}
-	if limit > 0 && limit < 1000 {
+	if limit > 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
-	if !startTime.IsZero() && !endTime.IsZero() {
-		if startTime.After(endTime) {
-			return resp, errors.New("startTime cannot be after endTime")
-		}
+	if !startTime.IsZero() {
 		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+	}
+	if !endTime.IsZero() {
 		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
 	}
 	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodGet, ufuturesAllOrders, params, uFuturesGetAllOrdersRate, &resp)
@@ -885,7 +886,7 @@ func (b *Binance) UAccountInformationV2(ctx context.Context) (UAccountInformatio
 }
 
 // UChangeInitialLeverageRequest sends a request to change account's initial leverage
-func (b *Binance) UChangeInitialLeverageRequest(ctx context.Context, symbol currency.Pair, leverage int64) (UChangeInitialLeverage, error) {
+func (b *Binance) UChangeInitialLeverageRequest(ctx context.Context, symbol currency.Pair, leverage float64) (UChangeInitialLeverage, error) {
 	var resp UChangeInitialLeverage
 	params := url.Values{}
 	symbolValue, err := b.FormatSymbol(symbol, asset.USDTMarginedFutures)
@@ -896,7 +897,7 @@ func (b *Binance) UChangeInitialLeverageRequest(ctx context.Context, symbol curr
 	if leverage < 1 || leverage > 125 {
 		return resp, errors.New("invalid leverage")
 	}
-	params.Set("leverage", strconv.FormatInt(leverage, 10))
+	params.Set("leverage", strconv.FormatFloat(leverage, 'f', -1, 64))
 	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodPost, ufuturesChangeInitialLeverage, params, uFuturesDefaultRate, &resp)
 }
 
@@ -924,16 +925,14 @@ func (b *Binance) UModifyIsolatedPositionMarginReq(ctx context.Context, symbol c
 		return resp, err
 	}
 	params.Set("symbol", symbolValue)
-	if positionSide != "" {
-		if !common.StringDataCompare(validPositionSide, positionSide) {
-			return resp, errors.New("invalid margin changeType")
-		}
-	}
 	cType, ok := validMarginChange[changeType]
 	if !ok {
 		return resp, errors.New("invalid margin changeType")
 	}
 	params.Set("type", strconv.FormatInt(cType, 10))
+	if positionSide != "" {
+		params.Set("positionSide", positionSide)
+	}
 	params.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
 	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodPost, ufuturesModifyMargin, params, uFuturesDefaultRate, &resp)
 }
@@ -952,7 +951,7 @@ func (b *Binance) UPositionMarginChangeHistory(ctx context.Context, symbol curre
 		return resp, errors.New("invalid margin changeType")
 	}
 	params.Set("type", strconv.FormatInt(cType, 10))
-	if limit > 0 && limit < 500 {
+	if limit > 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	if !startTime.IsZero() && !endTime.IsZero() {
@@ -979,6 +978,20 @@ func (b *Binance) UPositionsInfoV2(ctx context.Context, symbol currency.Pair) ([
 	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodGet, ufuturesPositionInfo, params, uFuturesDefaultRate, &resp)
 }
 
+// UGetCommissionRates returns the commission rates for USDTMarginedFutures
+func (b *Binance) UGetCommissionRates(ctx context.Context, symbol currency.Pair) ([]UPositionInformationV2, error) {
+	var resp []UPositionInformationV2
+	params := url.Values{}
+	if !symbol.IsEmpty() {
+		symbolValue, err := b.FormatSymbol(symbol, asset.USDTMarginedFutures)
+		if err != nil {
+			return resp, err
+		}
+		params.Set("symbol", symbolValue)
+	}
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodGet, ufuturesCommissionRate, params, uFuturesDefaultRate, &resp)
+}
+
 // UAccountTradesHistory gets account's trade history data for USDTMarginedFutures
 func (b *Binance) UAccountTradesHistory(ctx context.Context, symbol currency.Pair, fromID string, limit int64, startTime, endTime time.Time) ([]UAccountTradeHistory, error) {
 	var resp []UAccountTradeHistory
@@ -991,7 +1004,7 @@ func (b *Binance) UAccountTradesHistory(ctx context.Context, symbol currency.Pai
 	if fromID != "" {
 		params.Set("fromID", fromID)
 	}
-	if limit > 0 && limit < 1000 {
+	if limit > 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	if !startTime.IsZero() && !endTime.IsZero() {
@@ -1019,7 +1032,7 @@ func (b *Binance) UAccountIncomeHistory(ctx context.Context, symbol currency.Pai
 		}
 		params.Set("incomeType", incomeType)
 	}
-	if limit > 0 && limit < 1000 {
+	if limit > 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	if !startTime.IsZero() && !endTime.IsZero() {
@@ -1079,7 +1092,7 @@ func (b *Binance) UAccountForcedOrders(ctx context.Context, symbol currency.Pair
 		}
 		params.Set("autoCloseType", autoCloseType)
 	}
-	if limit > 0 && limit < 1000 {
+	if limit > 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	if !startTime.IsZero() && !endTime.IsZero() {
@@ -1139,4 +1152,20 @@ func (b *Binance) FetchUSDTMarginExchangeLimits(ctx context.Context) ([]order.Mi
 		})
 	}
 	return limits, nil
+}
+
+// SetAssetsMode sets the current asset margin type, true for multi, false for single
+func (b *Binance) SetAssetsMode(ctx context.Context, multiMargin bool) error {
+	params := url.Values{
+		"multiAssetsMargin": {strconv.FormatBool(multiMargin)},
+	}
+	return b.SendAuthHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodPost, uFuturesMultiAssetsMargin, params, uFuturesDefaultRate, nil)
+}
+
+// GetAssetsMode returns the current asset margin type, true for multi, false for single
+func (b *Binance) GetAssetsMode(ctx context.Context) (bool, error) {
+	var result struct {
+		MultiAssetsMargin bool `json:"multiAssetsMargin"`
+	}
+	return result.MultiAssetsMargin, b.SendAuthHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodGet, uFuturesMultiAssetsMargin, nil, uFuturesDefaultRate, &result)
 }

@@ -92,6 +92,8 @@ const (
 	cFuturesAccountInformationRate
 	cFuturesOrderbookTickerAllRate
 	cFuturesOrdersDefaultRate
+	uFuturesMultiAssetMarginRate
+	uFuturesSetMultiAssetMarginRate
 )
 
 // RateLimit implements the request.Limiter interface
@@ -211,6 +213,10 @@ func (r *RateLimit) Limit(ctx context.Context, f request.EndpointLimit) error {
 		limiter, tokens = r.CFuturesRate, 20
 	case cFuturesDefaultRate:
 		limiter, tokens = r.CFuturesRate, 1
+	case uFuturesMultiAssetMarginRate:
+		limiter, tokens = r.UFuturesRate, 30
+	case uFuturesSetMultiAssetMarginRate:
+		limiter, tokens = r.UFuturesRate, 1
 	default:
 		limiter, tokens = r.SpotRate, 1
 	}

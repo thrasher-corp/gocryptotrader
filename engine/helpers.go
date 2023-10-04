@@ -48,6 +48,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/huobi"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/itbit"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kraken"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/kucoin"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/lbank"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/okcoin"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/okx"
@@ -159,13 +160,7 @@ func (bot *Engine) SetSubsystem(subSystemName string, enable bool) error {
 	case OrderManagerName:
 		if enable {
 			if bot.OrderManager == nil {
-				bot.OrderManager, err = SetupOrderManager(
-					bot.ExchangeManager,
-					bot.CommunicationsManager,
-					&bot.ServicesWG,
-					bot.Config.OrderManager.Verbose,
-					bot.Config.OrderManager.ActivelyTrackFuturesPositions,
-					bot.Config.OrderManager.FuturesTrackingSeekDuration)
+				bot.OrderManager, err = SetupOrderManager(bot.ExchangeManager, bot.CommunicationsManager, &bot.ServicesWG, &bot.Config.OrderManager)
 				if err != nil {
 					return err
 				}
@@ -1041,6 +1036,8 @@ func NewSupportedExchangeByName(name string) (exchange.IBotExchange, error) {
 		return new(itbit.ItBit), nil
 	case "kraken":
 		return new(kraken.Kraken), nil
+	case "kucoin":
+		return new(kucoin.Kucoin), nil
 	case "lbank":
 		return new(lbank.Lbank), nil
 	case "okcoin":
