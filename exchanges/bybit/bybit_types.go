@@ -984,3 +984,50 @@ type ListOfTickers struct {
 	Category string   `json:"category"`
 	List     []Ticker `json:"list"`
 }
+
+// GetInstrumentInfoResponse holds instrument info
+type GetInstrumentInfoResponse struct {
+	Category       string           `json:"category"`
+	List           []InstrumentInfo `json:"list"`
+	NextPageCursor string           `json:"nextPageCursor"`
+}
+
+// InstrumentInfo holds all instrument info across
+// spot, linear, option types
+type InstrumentInfo struct {
+	Symbol          string                  `json:"symbol"`
+	ContractType    string                  `json:"contractType"`
+	Innovation      string                  `json:"innovation"`
+	MarginTrading   string                  `json:"marginTrading"`
+	Status          string                  `json:"status"`
+	BaseCoin        string                  `json:"baseCoin"`
+	QuoteCoin       string                  `json:"quoteCoin"`
+	OptionsType     string                  `json:"optionsType"`
+	LaunchTime      convert.StringToFloat64 `json:"launchTime"`
+	DeliveryTime    convert.StringToFloat64 `json:"deliveryTime"`
+	DeliveryFeeRate convert.StringToFloat64 `json:"deliveryFeeRate"`
+	PriceScale      convert.StringToFloat64 `json:"priceScale"`
+	LeverageFilter  struct {
+		MinLeverage  convert.StringToFloat64 `json:"minLeverage"`
+		MaxLeverage  convert.StringToFloat64 `json:"maxLeverage"`
+		LeverageStep convert.StringToFloat64 `json:"leverageStep"`
+	} `json:"leverageFilter"`
+	PriceFilter struct {
+		MinPrice convert.StringToFloat64 `json:"minPrice"`
+		MaxPrice convert.StringToFloat64 `json:"maxPrice"`
+		TickSize convert.StringToFloat64 `json:"tickSize"`
+	} `json:"priceFilter"`
+	LotSizeFilter struct {
+		MaxOrderQty         convert.StringToFloat64 `json:"maxOrderQty"`
+		MinOrderQty         convert.StringToFloat64 `json:"minOrderQty"`
+		QtyStep             convert.StringToFloat64 `json:"qtyStep"`
+		PostOnlyMaxOrderQty convert.StringToFloat64 `json:"postOnlyMaxOrderQty"`
+		BasePrecision       convert.StringToFloat64 `json:"basePrecision"`
+		QuotePrecision      convert.StringToFloat64 `json:"quotePrecision"`
+		MinOrderAmt         convert.StringToFloat64 `json:"minOrderAmt"`
+		MaxOrderAmt         convert.StringToFloat64 `json:"maxOrderAmt"`
+	} `json:"lotSizeFilter"`
+	UnifiedMarginTrade bool   `json:"unifiedMarginTrade"`
+	FundingInterval    int64  `json:"fundingInterval"`
+	SettleCoin         string `json:"settleCoin"`
+}

@@ -9,6 +9,7 @@ import (
 
 	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
+	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/log"
@@ -148,8 +149,12 @@ func (d *Data) enhanceCandles() error {
 			Watermark: fmt.Sprintf("%s - %s - %s", cases.Title(language.English).String(lookup.Exchange), lookup.Asset.String(), lookup.Pair.Upper()),
 		}
 
-		statsForCandles :=
-			d.Statistics.ExchangeAssetPairStatistics[lookup.Exchange][lookup.Asset][lookup.Pair.Base.Item][lookup.Pair.Quote.Item]
+		statsForCandles := d.Statistics.ExchangeAssetPairStatistics[key.ExchangePairAsset{
+			Exchange: lookup.Exchange,
+			Base:     lookup.Pair.Base.Item,
+			Quote:    lookup.Pair.Quote.Item,
+			Asset:    lookup.Asset,
+		}]
 		if statsForCandles == nil {
 			continue
 		}

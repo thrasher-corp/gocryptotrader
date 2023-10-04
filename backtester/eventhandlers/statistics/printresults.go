@@ -74,41 +74,35 @@ func (s *Statistic) PrintAllEventsChronologically() {
 	log.Infoln(common.Statistics, common.CMDColours.H1+"------------------Events-------------------------------------"+common.CMDColours.Default)
 	var errs error
 	var results []eventOutputHolder
-	for _, exchangeMap := range s.ExchangeAssetPairStatistics {
-		for _, assetMap := range exchangeMap {
-			for _, baseMap := range assetMap {
-				for _, currencyStatistic := range baseMap {
-					for i := range currencyStatistic.Events {
-						var result string
-						var tt time.Time
-						var err error
-						switch {
-						case currencyStatistic.Events[i].FillEvent != nil:
-							result, err = s.CreateLog(currencyStatistic.Events[i].FillEvent)
-							if err != nil {
-								errs = gctcommon.AppendError(errs, err)
-								continue
-							}
-							tt = currencyStatistic.Events[i].FillEvent.GetTime()
-						case currencyStatistic.Events[i].SignalEvent != nil:
-							result, err = s.CreateLog(currencyStatistic.Events[i].SignalEvent)
-							if err != nil {
-								errs = gctcommon.AppendError(errs, err)
-								continue
-							}
-							tt = currencyStatistic.Events[i].SignalEvent.GetTime()
-						case currencyStatistic.Events[i].DataEvent != nil:
-							result, err = s.CreateLog(currencyStatistic.Events[i].DataEvent)
-							if err != nil {
-								errs = gctcommon.AppendError(errs, err)
-								continue
-							}
-							tt = currencyStatistic.Events[i].DataEvent.GetTime()
-						}
-						results = addEventOutputToTime(results, tt, result)
-					}
+	for _, currencyStatistic := range s.ExchangeAssetPairStatistics {
+		for i := range currencyStatistic.Events {
+			var result string
+			var tt time.Time
+			var err error
+			switch {
+			case currencyStatistic.Events[i].FillEvent != nil:
+				result, err = s.CreateLog(currencyStatistic.Events[i].FillEvent)
+				if err != nil {
+					errs = gctcommon.AppendError(errs, err)
+					continue
 				}
+				tt = currencyStatistic.Events[i].FillEvent.GetTime()
+			case currencyStatistic.Events[i].SignalEvent != nil:
+				result, err = s.CreateLog(currencyStatistic.Events[i].SignalEvent)
+				if err != nil {
+					errs = gctcommon.AppendError(errs, err)
+					continue
+				}
+				tt = currencyStatistic.Events[i].SignalEvent.GetTime()
+			case currencyStatistic.Events[i].DataEvent != nil:
+				result, err = s.CreateLog(currencyStatistic.Events[i].DataEvent)
+				if err != nil {
+					errs = gctcommon.AppendError(errs, err)
+					continue
+				}
+				tt = currencyStatistic.Events[i].DataEvent.GetTime()
 			}
+			results = addEventOutputToTime(results, tt, result)
 		}
 	}
 
@@ -206,12 +200,18 @@ func (s *Statistic) CreateLog(data common.Event) (string, error) {
 }
 
 // PrintResults outputs all calculated statistics to the command line
-func (c *CurrencyPairStatistic) PrintResults(e string, a asset.Item, p currency.Pair, usingExchangeLevelFunding bool) {
+func (c *CurrencyPairStatistic) PrintResults(e string, a asset.Item, p currency.Pair, usingExchangeLevelFunding bool) error {
+	if len(c.Events) == 0 {
+		return errCurrencyStatisticsUnset
+	}
 	sort.Slice(c.Events, func(i, j int) bool {
 		return c.Events[i].Time.Before(c.Events[j].Time)
 	})
 	last := c.Events[len(c.Events)-1]
 	first := c.Events[0]
+	if first.DataEvent == nil {
+		return errNoDataAtOffset
+	}
 	c.StartingClosePrice.Value = first.DataEvent.GetClosePrice()
 	c.StartingClosePrice.Time = first.Time
 	c.EndingClosePrice.Value = last.DataEvent.GetClosePrice()
@@ -302,6 +302,7 @@ func (c *CurrencyPairStatistic) PrintResults(e string, a asset.Item, p currency.
 		log.Infof(common.CurrencyStatistics, "%s Final Unrealised PNL: %s", sep, convert.DecimalToHumanFriendlyString(unrealised.PNL, 8, ".", ","))
 		log.Infof(common.CurrencyStatistics, "%s Final Realised PNL: %s", sep, convert.DecimalToHumanFriendlyString(realised.PNL, 8, ".", ","))
 	}
+	return nil
 }
 
 // PrintResults outputs all calculated funding statistics to the command line

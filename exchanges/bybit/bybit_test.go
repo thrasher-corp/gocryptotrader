@@ -12,6 +12,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
@@ -2931,12 +2932,12 @@ func TestGetUSDCContracts(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err = b.GetUSDCContracts(context.Background(), pair, "next", 1500)
+	_, err = b.GetUSDCContracts(context.Background(), pair, "next", "", 1500)
 	if err != nil {
 		t.Error(err)
 	}
 
-	_, err = b.GetUSDCContracts(context.Background(), currency.EMPTYPAIR, "", 0)
+	_, err = b.GetUSDCContracts(context.Background(), currency.EMPTYPAIR, "", "", 0)
 	if err != nil {
 		t.Error(err)
 	}
@@ -3480,5 +3481,106 @@ func TestForceFileStandard(t *testing.T) {
 	}
 	if t.Failed() {
 		t.Fatal("Please use convert.StringToFloat64 type instead of `float64` and remove `,string` as strings can be empty in unmarshal process. Then call the Float64() method.")
+	}
+}
+
+func TestGetInstrumentInfo(t *testing.T) {
+	t.Parallel()
+	_, err := b.GetInstrumentInfo(context.Background(), "linear", "", "", "", "", 1000)
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = b.GetInstrumentInfo(context.Background(), "spot", "", "", "", "", 1000)
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = b.GetInstrumentInfo(context.Background(), "inverse", "", "", "", "", 1000)
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = b.GetInstrumentInfo(context.Background(), "option", "", "", "BTC", "", 1000)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetFuturesContractDetails(t *testing.T) {
+	t.Parallel()
+	_, err := b.GetFuturesContractDetails(context.Background(), asset.Spot)
+	if !errors.Is(err, futures.ErrNotFuturesAsset) {
+		t.Error(err)
+	}
+	_, err = b.GetFuturesContractDetails(context.Background(), asset.PerpetualContract)
+	if !errors.Is(err, asset.ErrNotSupported) {
+		t.Error(err)
+	}
+
+	_, err = b.GetFuturesContractDetails(context.Background(), asset.CoinMarginedFutures)
+	if !errors.Is(err, nil) {
+		t.Error(err)
+	}
+	_, err = b.GetFuturesContractDetails(context.Background(), asset.USDCMarginedFutures)
+	if !errors.Is(err, nil) {
+		t.Error(err)
+	}
+	_, err = b.GetFuturesContractDetails(context.Background(), asset.USDTMarginedFutures)
+	if !errors.Is(err, nil) {
+		t.Error(err)
+	}
+}
+
+func TestGetContractLength(t *testing.T) {
+	t.Parallel()
+	_, err := getContractLength(-1)
+	if !errors.Is(err, errInvalidContractLength) {
+		t.Error(err)
+	}
+
+	cl, err := getContractLength(time.Hour)
+	if !errors.Is(err, nil) {
+		t.Error(err)
+	}
+	if cl != futures.Weekly {
+		t.Error("expected weekly")
+	}
+
+	cl, err = getContractLength(time.Hour * 24 * 14)
+	if !errors.Is(err, nil) {
+		t.Error(err)
+	}
+	if cl != futures.Fortnightly {
+		t.Error("expected fortnightly")
+	}
+
+	cl, err = getContractLength(time.Hour * 24 * 30 * 3)
+	if !errors.Is(err, nil) {
+		t.Error(err)
+	}
+	if cl != futures.Quarterly {
+		t.Error("expected quarterly")
+	}
+
+	cl, err = getContractLength(time.Hour * 24 * 30 * 6)
+	if !errors.Is(err, nil) {
+		t.Error(err)
+	}
+	if cl != futures.HalfYearly {
+		t.Error("expected half yearly")
+	}
+
+	cl, err = getContractLength(time.Hour * 24 * 30 * 9)
+	if !errors.Is(err, nil) {
+		t.Error(err)
+	}
+	if cl != futures.NineMonthly {
+		t.Error("expected nine monthly")
+	}
+
+	cl, err = getContractLength(time.Hour * 24 * 30 * 12)
+	if !errors.Is(err, nil) {
+		t.Error(err)
+	}
+	if cl != futures.SemiAnnually {
+		t.Error("expected semi annually")
 	}
 }

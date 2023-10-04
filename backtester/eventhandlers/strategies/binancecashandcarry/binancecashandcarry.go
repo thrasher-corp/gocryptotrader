@@ -17,6 +17,7 @@ import (
 	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
@@ -77,7 +78,7 @@ func (s *Strategy) OnSimultaneousSignals(d []data.Handler, f funding.IFundingTra
 		if err != nil {
 			return nil, err
 		}
-		var pos []order.Position
+		var pos []futures.Position
 		pos, err = p.GetPositions(latestFuture)
 		if err != nil {
 			return nil, err
@@ -167,7 +168,7 @@ func (s *Strategy) CloseAllPositions(holdings []holdings.Holding, prices []data.
 
 // createSignals creates signals based on the relationships between
 // futures and spot signals
-func (s *Strategy) createSignals(pos []order.Position, spotSignal, futuresSignal *signal.Signal, diffBetweenFuturesSpot decimal.Decimal, isLastEvent bool) ([]signal.Event, error) {
+func (s *Strategy) createSignals(pos []futures.Position, spotSignal, futuresSignal *signal.Signal, diffBetweenFuturesSpot decimal.Decimal, isLastEvent bool) ([]signal.Event, error) {
 	if spotSignal == nil {
 		return nil, fmt.Errorf("%w missing spot signal", gctcommon.ErrNilPointer)
 	}

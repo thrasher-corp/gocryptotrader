@@ -39,6 +39,7 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 | Huobi.Pro | Yes | Yes | NA |
 | ItBit | Yes | NA | No |
 | Kraken | Yes | Yes | NA |
+| Kucoin | Yes | Yes | NA |
 | Lbank | Yes | No | NA |
 | Okcoin | Yes | Yes | No |
 | Okx | Yes | Yes | NA |
@@ -143,14 +144,14 @@ Binaries will be published once the codebase reaches a stable condition.
 
 |User|Contribution Amount|
 |--|--|
-| [thrasher-](https://github.com/thrasher-) | 682 |
-| [shazbert](https://github.com/shazbert) | 299 |
-| [gloriousCode](https://github.com/gloriousCode) | 217 |
-| [dependabot[bot]](https://github.com/apps/dependabot) | 202 |
+| [thrasher-](https://github.com/thrasher-) | 683 |
+| [shazbert](https://github.com/shazbert) | 301 |
+| [gloriousCode](https://github.com/gloriousCode) | 219 |
+| [dependabot[bot]](https://github.com/apps/dependabot) | 207 |
 | [dependabot-preview[bot]](https://github.com/apps/dependabot-preview) | 88 |
 | [xtda](https://github.com/xtda) | 47 |
+| [gbjk](https://github.com/gbjk) | 35 |
 | [lrascao](https://github.com/lrascao) | 27 |
-| [gbjk](https://github.com/gbjk) | 26 |
 | [Rots](https://github.com/Rots) | 15 |
 | [vazha](https://github.com/vazha) | 15 |
 | [ydm](https://github.com/ydm) | 15 |
@@ -162,12 +163,12 @@ Binaries will be published once the codebase reaches a stable condition.
 | [geseq](https://github.com/geseq) | 8 |
 | [Beadko](https://github.com/Beadko) | 6 |
 | [TaltaM](https://github.com/TaltaM) | 6 |
+| [samuael](https://github.com/samuael) | 6 |
 | [dackroyd](https://github.com/dackroyd) | 5 |
 | [cranktakular](https://github.com/cranktakular) | 5 |
 | [khcchiu](https://github.com/khcchiu) | 5 |
-| [samuael](https://github.com/samuael) | 5 |
+| [yangrq1018](https://github.com/yangrq1018) | 4 |
 | [woshidama323](https://github.com/woshidama323) | 3 |
-| [yangrq1018](https://github.com/yangrq1018) | 3 |
 | [crackcomm](https://github.com/crackcomm) | 3 |
 | [azhang](https://github.com/azhang) | 2 |
 | [andreygrehov](https://github.com/andreygrehov) | 2 |

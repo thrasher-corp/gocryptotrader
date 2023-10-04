@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/dispatch"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -95,7 +96,6 @@ func GetHoldings(exch string, creds *Credentials, assetType asset.Item) (Holding
 		return Holdings{}, fmt.Errorf("%s %s %w", exch, assetType, errExchangeHoldingsNotFound)
 	}
 
-	var accountsHoldings []SubAccount
 	subAccountHoldings, ok := accounts.SubAccounts[*creds]
 	if !ok {
 		return Holdings{}, fmt.Errorf("%s %s %s %w",
@@ -105,44 +105,39 @@ func GetHoldings(exch string, creds *Credentials, assetType asset.Item) (Holding
 			errNoCredentialBalances)
 	}
 
-	for subAccount, assetHoldings := range subAccountHoldings {
-		for ai, currencyHoldings := range assetHoldings {
-			if ai != assetType {
-				continue
-			}
-			var currencyBalances = make([]Balance, len(currencyHoldings))
-			target := 0
-			for item, balance := range currencyHoldings {
-				balance.m.Lock()
-				currencyBalances[target] = Balance{
-					Currency:               currency.Code{Item: item, UpperCase: true},
-					Total:                  balance.total,
-					Hold:                   balance.hold,
-					Free:                   balance.free,
-					AvailableWithoutBorrow: balance.availableWithoutBorrow,
-					Borrowed:               balance.borrowed,
-				}
-				balance.m.Unlock()
-				target++
-			}
-
-			if len(currencyBalances) == 0 {
-				continue
-			}
-
-			cpy := *creds
-			if cpy.SubAccount == "" {
-				cpy.SubAccount = subAccount
-			}
-
-			accountsHoldings = append(accountsHoldings, SubAccount{
-				Credentials: Protected{creds: cpy},
-				ID:          subAccount,
-				AssetType:   ai,
-				Currencies:  currencyBalances,
-			})
-			break
+	var currencyBalances = make([]Balance, 0, len(subAccountHoldings))
+	accountsHoldings := make([]SubAccount, 0, len(subAccountHoldings))
+	for mapKey, assetHoldings := range subAccountHoldings {
+		if mapKey.Asset != assetType {
+			continue
 		}
+		assetHoldings.m.Lock()
+		currencyBalances = append(currencyBalances, Balance{
+			Currency:               currency.Code{Item: mapKey.Currency, UpperCase: true},
+			Total:                  assetHoldings.total,
+			Hold:                   assetHoldings.hold,
+			Free:                   assetHoldings.free,
+			AvailableWithoutBorrow: assetHoldings.availableWithoutBorrow,
+			Borrowed:               assetHoldings.borrowed,
+		})
+		assetHoldings.m.Unlock()
+
+		if len(currencyBalances) == 0 {
+			continue
+		}
+
+		cpy := *creds
+		if cpy.SubAccount == "" {
+			cpy.SubAccount = mapKey.SubAccount
+		}
+
+		accountsHoldings = append(accountsHoldings, SubAccount{
+			Credentials: Protected{creds: cpy},
+			ID:          mapKey.SubAccount,
+			AssetType:   mapKey.Asset,
+			Currencies:  currencyBalances,
+		})
+		break
 	}
 
 	if len(accountsHoldings) == 0 {
@@ -187,22 +182,14 @@ func GetBalance(exch, subAccount string, creds *Credentials, ai asset.Item, c cu
 			exch, creds, errNoCredentialBalances)
 	}
 
-	assetBalances, ok := subAccounts[subAccount]
-	if !ok {
-		return nil, fmt.Errorf("%s %s %w",
-			exch, subAccount, errNoExchangeSubAccountBalances)
-	}
-
-	currencyBalances, ok := assetBalances[ai]
-	if !ok {
-		return nil, fmt.Errorf("%s %s %s %w",
-			exch, subAccount, ai, errAssetHoldingsNotFound)
-	}
-
-	bal, ok := currencyBalances[c.Item]
+	bal, ok := subAccounts[key.SubAccountCurrencyAsset{
+		SubAccount: subAccount,
+		Currency:   c.Item,
+		Asset:      ai,
+	}]
 	if !ok {
 		return nil, fmt.Errorf("%s %s %s %s %w",
-			exch, subAccount, ai, c, errNoBalanceFound)
+			exch, subAccount, ai, c, errNoExchangeSubAccountBalances)
 	}
 	return bal, nil
 }
@@ -232,7 +219,7 @@ func (s *Service) Update(incoming *Holdings, creds *Credentials) error {
 		}
 		accounts = &Accounts{
 			ID:          id,
-			SubAccounts: make(map[Credentials]map[string]map[asset.Item]map[*currency.Item]*ProtectedBalance),
+			SubAccounts: make(map[Credentials]map[key.SubAccountCurrencyAsset]*ProtectedBalance),
 		}
 		s.exchangeAccounts[exch] = accounts
 	}
@@ -257,34 +244,28 @@ func (s *Service) Update(incoming *Holdings, creds *Credentials) error {
 		}
 		incoming.Accounts[x].Credentials.creds = cpy
 
-		var subAccounts map[string]map[asset.Item]map[*currency.Item]*ProtectedBalance
+		var subAccounts map[key.SubAccountCurrencyAsset]*ProtectedBalance
 		subAccounts, ok = accounts.SubAccounts[*creds]
 		if !ok {
-			subAccounts = make(map[string]map[asset.Item]map[*currency.Item]*ProtectedBalance)
+			subAccounts = make(map[key.SubAccountCurrencyAsset]*ProtectedBalance)
 			accounts.SubAccounts[*creds] = subAccounts
 		}
 
-		var accountAssets map[asset.Item]map[*currency.Item]*ProtectedBalance
-		accountAssets, ok = subAccounts[incoming.Accounts[x].ID]
-		if !ok {
-			accountAssets = make(map[asset.Item]map[*currency.Item]*ProtectedBalance)
+		for y := range incoming.Accounts[x].Currencies {
 			// Note: Sub accounts are case sensitive and an account "name" is
 			// different to account "naMe".
-			subAccounts[incoming.Accounts[x].ID] = accountAssets
-		}
-
-		var currencyBalances map[*currency.Item]*ProtectedBalance
-		currencyBalances, ok = accountAssets[incoming.Accounts[x].AssetType]
-		if !ok {
-			currencyBalances = make(map[*currency.Item]*ProtectedBalance)
-			accountAssets[incoming.Accounts[x].AssetType] = currencyBalances
-		}
-
-		for y := range incoming.Accounts[x].Currencies {
-			bal := currencyBalances[incoming.Accounts[x].Currencies[y].Currency.Item]
-			if bal == nil {
+			bal, ok := subAccounts[key.SubAccountCurrencyAsset{
+				SubAccount: incoming.Accounts[x].ID,
+				Currency:   incoming.Accounts[x].Currencies[y].Currency.Item,
+				Asset:      incoming.Accounts[x].AssetType,
+			}]
+			if !ok || bal == nil {
 				bal = &ProtectedBalance{}
-				currencyBalances[incoming.Accounts[x].Currencies[y].Currency.Item] = bal
+				subAccounts[key.SubAccountCurrencyAsset{
+					SubAccount: incoming.Accounts[x].ID,
+					Currency:   incoming.Accounts[x].Currencies[y].Currency.Item,
+					Asset:      incoming.Accounts[x].AssetType,
+				}] = bal
 			}
 			bal.load(incoming.Accounts[x].Currencies[y])
 		}

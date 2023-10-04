@@ -390,7 +390,7 @@ func getInternationalBankWithdrawalFee(c currency.Code, amount float64, bankTran
 			fee = 0.03 * amount
 		}
 	case exchange.Qiwi:
-		if c == currency.RUR {
+		if c.Equal(currency.RUR) {
 			fee = 0.04 * amount
 		}
 	case exchange.Capitalist:
@@ -425,7 +425,7 @@ func getInternationalBankDepositFee(c currency.Code, bankTransactionType exchang
 			fee = 0
 		}
 	case exchange.Qiwi:
-		if c == currency.RUR {
+		if c.Equal(currency.RUR) {
 			fee = 0
 		}
 	case exchange.Capitalist:
