@@ -72,14 +72,6 @@ var defaultSubscribedChannels = []string{
 }
 var authenticatedChannels = []string{krakenWsOwnTrades, krakenWsOpenOrders}
 
-var cancelOrdersStatusMutex sync.Mutex
-var cancelOrdersStatus = make(map[int64]*struct {
-	Total        int    // total count of orders in wsCancelOrders request
-	Successful   int    // numbers of Successfully canceled orders in wsCancelOrders request
-	Unsuccessful int    // numbers of Unsuccessfully canceled orders in wsCancelOrders request
-	Error        string // if at least one of requested order return fail, store error here
-})
-
 // WsConnect initiates a websocket connection
 func (k *Kraken) WsConnect() error {
 	if !k.Websocket.IsEnabled() || !k.IsEnabled() {
@@ -173,26 +165,6 @@ func (k *Kraken) wsReadData(comms chan stream.Response) {
 	}
 }
 
-// awaitForCancelOrderResponses used to wait until all responses will received for appropriate CancelOrder request
-// success param = was the response from Kraken successful or not
-func isAwaitingCancelOrderResponses(requestID int64, success bool) bool {
-	cancelOrdersStatusMutex.Lock()
-	if stat, ok := cancelOrdersStatus[requestID]; ok {
-		if success {
-			cancelOrdersStatus[requestID].Successful++
-		} else {
-			cancelOrdersStatus[requestID].Unsuccessful++
-		}
-
-		if stat.Successful+stat.Unsuccessful != stat.Total {
-			cancelOrdersStatusMutex.Unlock()
-			return true
-		}
-	}
-	cancelOrdersStatusMutex.Unlock()
-	return false
-}
-
 func (k *Kraken) wsHandleData(respRaw []byte) error {
 	if strings.HasPrefix(string(respRaw), "[") {
 		var dataResponse WebsocketDataResponse
@@ -244,35 +216,12 @@ func (k *Kraken) wsHandleData(respRaw []byte) error {
 	case stream.Pong, krakenWsHeartbeat:
 		return nil
 	case krakenWsCancelOrderStatus:
-		var status WsCancelOrderResponse
-		err := json.Unmarshal(respRaw, &status)
+		id, err := jsonparser.GetInt(respRaw, "reqid")
 		if err != nil {
-			return fmt.Errorf("%s - err %s unable to parse WsCancelOrderResponse: %s",
-				k.Name,
-				err,
-				respRaw)
+			return fmt.Errorf("%w 'reqid': %w from message: %s", errParsingWSField, err, respRaw)
 		}
-
-		success := true
-		if status.Status == "error" {
-			success = false
-			cancelOrdersStatusMutex.Lock()
-			if _, ok := cancelOrdersStatus[status.RequestID]; ok {
-				if cancelOrdersStatus[status.RequestID].Error == "" { // save the first error, if any
-					cancelOrdersStatus[status.RequestID].Error = status.ErrorMessage
-				}
-			}
-			cancelOrdersStatusMutex.Unlock()
-		}
-
-		if isAwaitingCancelOrderResponses(status.RequestID, success) {
-			return nil
-		}
-
-		// all responses handled, return results stored in cancelOrdersStatus
-		if status.RequestID > 0 && !k.Websocket.Match.IncomingWithData(status.RequestID, respRaw) {
-			return fmt.Errorf("can't send ws incoming data to Matched channel with RequestID: %d",
-				status.RequestID)
+		if !k.Websocket.Match.IncomingWithData(id, respRaw) {
+			return fmt.Errorf("%v cancel order listener not found", id)
 		}
 	case krakenWsCancelAllOrderStatus:
 		var status WsCancelOrderResponse
@@ -1403,43 +1352,59 @@ func (k *Kraken) wsAddOrder(request *WsAddOrderRequest) (string, error) {
 	return resp.TransactionID, nil
 }
 
-// wsCancelOrders cancels one or more open orders passed in orderIDs param
+// wsCancelOrders cancels open orders concurrently
+// It does not use the multiple txId facility of the cancelOrder API because the errors are not specific
 func (k *Kraken) wsCancelOrders(orderIDs []string) error {
+	wg := sync.WaitGroup{}
+	wg.Add(len(orderIDs))
+	errC := make(chan error, len(orderIDs))
+	for _, id := range orderIDs {
+		go func(id string) {
+			defer wg.Done()
+			if err := k.wsCancelOrder(id); err != nil {
+				errC <- err
+			}
+		}(id)
+	}
+
+	wg.Wait()
+	close(errC)
+
+	var errs error
+	for err := range errC {
+		errs = common.AppendError(errs, err)
+	}
+
+	return errs
+}
+
+// wsCancelOrder cancels an open orders
+func (k *Kraken) wsCancelOrder(orderID string) error {
 	id := k.Websocket.AuthConn.GenerateMessageID(false)
 	request := WsCancelOrderRequest{
 		Event:          krakenWsCancelOrder,
 		Token:          authToken,
-		TransactionIDs: orderIDs,
+		TransactionIDs: []string{orderID},
 		RequestID:      id,
 	}
 
-	cancelOrdersStatus[id] = &struct {
-		Total        int
-		Successful   int
-		Unsuccessful int
-		Error        string
-	}{
-		Total: len(orderIDs),
-	}
-
-	defer delete(cancelOrdersStatus, id)
-
-	_, err := k.Websocket.AuthConn.SendMessageReturnResponse(id, request)
+	resp, err := k.Websocket.AuthConn.SendMessageReturnResponse(id, request)
 	if err != nil {
-		return err
+		return fmt.Errorf("%w %s: %w", errCancellingOrder, orderID, err)
 	}
 
-	successful := cancelOrdersStatus[id].Successful
-
-	if cancelOrdersStatus[id].Error != "" || len(orderIDs) != successful { // strange Kraken logic ...
-		var reason string
-		if cancelOrdersStatus[id].Error != "" {
-			reason = fmt.Sprintf(" Reason: %s", cancelOrdersStatus[id].Error)
-		}
-		return fmt.Errorf("%s cancelled %d out of %d orders.%s",
-			k.Name, successful, len(orderIDs), reason)
+	if status, pErr := jsonparser.GetUnsafeString(resp, "status"); pErr != nil {
+		return fmt.Errorf("%w 'status': %w from message: %s", errParsingWSField, pErr, resp)
+	} else if status == "ok" {
+		return nil
 	}
-	return nil
+
+	err = errUnknownError
+	if msg, pErr := jsonparser.GetUnsafeString(resp, "errorMessage"); pErr == nil && msg != "" {
+		err = errors.New(msg)
+	}
+
+	return fmt.Errorf("%w %s: %w", errCancellingOrder, orderID, err)
 }
 
 // wsCancelAllOrders cancels all opened orders

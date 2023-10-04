@@ -85,6 +85,9 @@ var (
 	errNoRequestID              = errors.New("no RequestID in response")
 	errMaxDepthMissing          = errors.New("max depth missing for orderbook subscription")
 	errTimeframeMissing         = errors.New("timeframe missing for candle subscription")
+	errParsingWSField           = errors.New("error parsing WS field")
+	errUnknownError             = errors.New("unknown error")
+	errCancellingOrder          = errors.New("error cancelling order")
 )
 
 // GenericResponse stores general response data for functions that only return success
