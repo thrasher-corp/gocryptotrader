@@ -31,42 +31,38 @@ var (
 	errContextCredentialsFailure = errors.New("context credentials type assertion failure")
 )
 
-// initializeCredentials initializes the credentials
-func (a *API) initializeCredentials() {
-	a.credMu.Lock()
-	defer a.credMu.Unlock()
-	if a.credentials == nil {
-		a.credentials = &account.Credentials{}
-	}
-}
-
 // SetKey sets new key for the default credentials
 func (a *API) SetKey(key string) {
-	a.initializeCredentials()
+	a.credMu.Lock()
+	defer a.credMu.Unlock()
 	a.credentials.Key = key
 }
 
 // SetSecret sets new secret for the default credentials
 func (a *API) SetSecret(secret string) {
-	a.initializeCredentials()
+	a.credMu.Lock()
+	defer a.credMu.Unlock()
 	a.credentials.Secret = secret
 }
 
 // SetClientID sets new clientID for the default credentials
 func (a *API) SetClientID(clientID string) {
-	a.initializeCredentials()
+	a.credMu.Lock()
+	defer a.credMu.Unlock()
 	a.credentials.ClientID = clientID
 }
 
 // SetPEMKey sets pem key for the default credentials
 func (a *API) SetPEMKey(pem string) {
-	a.initializeCredentials()
+	a.credMu.Lock()
+	defer a.credMu.Unlock()
 	a.credentials.PEMKey = pem
 }
 
 // SetSubAccount sets sub account for the default credentials
 func (a *API) SetSubAccount(sub string) {
-	a.initializeCredentials()
+	a.credMu.Lock()
+	defer a.credMu.Unlock()
 	a.credentials.SubAccount = sub
 }
 
@@ -106,10 +102,10 @@ func (b *Base) AreCredentialsValid(ctx context.Context) bool {
 func (b *Base) GetDefaultCredentials() *account.Credentials {
 	b.API.credMu.RLock()
 	defer b.API.credMu.RUnlock()
-	if b.API.credentials == nil {
+	if b.API.credentials == (account.Credentials{}) {
 		return nil
 	}
-	creds := *b.API.credentials
+	creds := b.API.credentials
 	return &creds
 }
 
@@ -132,7 +128,8 @@ func (b *Base) GetCredentials(ctx context.Context) (*account.Credentials, error)
 		return creds, nil
 	}
 
-	err := b.CheckCredentials(b.API.credentials, false)
+	creds := b.API.credentials
+	err := b.CheckCredentials(&creds, false)
 	if err != nil {
 		// NOTE: Return empty credentials on error to limit panic on websocket
 		// handling.
@@ -141,7 +138,6 @@ func (b *Base) GetCredentials(ctx context.Context) (*account.Credentials, error)
 	subAccountOverride, ok := ctx.Value(account.ContextSubAccountFlag).(string)
 	b.API.credMu.RLock()
 	defer b.API.credMu.RUnlock()
-	creds := *b.API.credentials
 	if ok {
 		creds.SubAccount = subAccountOverride
 	}
@@ -189,7 +185,8 @@ func (b *Base) VerifyAPICredentials(creds *account.Credentials) error {
 
 // SetCredentials is a method that sets the current API keys for the exchange
 func (b *Base) SetCredentials(apiKey, apiSecret, clientID, subaccount, pemKey, oneTimePassword string) {
-	b.API.initializeCredentials()
+	b.API.credMu.Lock()
+	defer b.API.credMu.Unlock()
 	b.API.credentials.Key = apiKey
 	b.API.credentials.ClientID = clientID
 	b.API.credentials.SubAccount = subaccount
