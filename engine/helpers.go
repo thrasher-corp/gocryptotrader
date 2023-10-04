@@ -1058,10 +1058,10 @@ func NewSupportedExchangeByName(name string) (exchange.IBotExchange, error) {
 	}
 }
 
-// GetDefaultExchangeByName returns a defaulted exchange by its name if it exists.
-// This will allocate a new exchange and setup the default config for it. This
-// will automatically fetch available pairs.
-func GetDefaultExchangeByName(ctx context.Context, name string) (exchange.IBotExchange, error) {
+// NewExchangeByNameWithDefaults returns a defaulted exchange by its name if it
+// exists. This will allocate a new exchange and setup the default config for it.
+// This will automatically fetch available pairs.
+func NewExchangeByNameWithDefaults(ctx context.Context, name string) (exchange.IBotExchange, error) {
 	exch, err := NewSupportedExchangeByName(name)
 	if err != nil {
 		return nil, err

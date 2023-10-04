@@ -1371,10 +1371,10 @@ func TestNewSupportedExchangeByName(t *testing.T) {
 	}
 }
 
-func TestGetDefaultExchangeByName(t *testing.T) {
+func TestNewExchangeByNameWithDefaults(t *testing.T) {
 	t.Parallel()
 
-	_, err := GetDefaultExchangeByName(context.Background(), "meow")
+	_, err := NewExchangeByNameWithDefaults(context.Background(), "meow")
 	if !errors.Is(err, ErrExchangeNotFound) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, ErrExchangeNotFound)
 	}
@@ -1385,7 +1385,7 @@ func TestGetDefaultExchangeByName(t *testing.T) {
 		wg.Add(1)
 		go func(x int) {
 			defer wg.Done()
-			exch, err := GetDefaultExchangeByName(context.Background(), exchange.Exchanges[x])
+			exch, err := NewExchangeByNameWithDefaults(context.Background(), exchange.Exchanges[x])
 			if err != nil {
 				ch <- err
 				return
