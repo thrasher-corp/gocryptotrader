@@ -119,6 +119,17 @@ func (ku *Kucoin) SetDefaults() {
 				KlineFetching:          true,
 				GetOrder:               true,
 			},
+			FuturesCapabilities: exchange.FuturesCapabilities{
+				Positions:                 true,
+				Leverage:                  true,
+				CollateralMode:            true,
+				FundingRates:              true,
+				MaximumFundingRateHistory: kline.ThreeMonth.Duration(),
+				FundingRateFrequency:      kline.EightHour.Duration(),
+				FundingRateBatching: map[asset.Item]bool{
+					asset.Futures: true,
+				},
+			},
 			WithdrawPermissions: exchange.AutoWithdrawCrypto,
 		},
 		Enabled: exchange.FeaturesEnabled{
@@ -1566,6 +1577,65 @@ func (ku *Kucoin) GetFuturesContractDetails(ctx context.Context, item asset.Item
 }
 
 // GetLatestFundingRates returns the latest funding rates data
+
+// GetLatestFundingRates returns the latest funding rates data
 func (ku *Kucoin) GetLatestFundingRates(ctx context.Context, r *fundingrate.LatestRateRequest) ([]fundingrate.LatestRateResponse, error) {
-	return nil, common.ErrNotYetImplemented
+	if r == nil {
+		return nil, fmt.Errorf("%w LatestRateRequest", common.ErrNilPointer)
+	}
+	if r.Asset != asset.Futures {
+		return nil, fmt.Errorf("%w %v", futures.ErrNotPerpetualFuture, r.Asset)
+	}
+	var resp []fundingrate.LatestRateResponse
+	if r.Pair.IsEmpty() {
+		fPair, err := ku.FormatExchangeCurrency(r.Pair, r.Asset)
+		if err != nil {
+			return nil, err
+		}
+		rate, err := ku.GetFuturesCurrentFundingRate(ctx, fPair.String())
+		if err != nil {
+			return nil, err
+		}
+		resp = []fundingrate.LatestRateResponse{
+			{
+				Exchange:              ku.Name,
+				Asset:                 r.Asset,
+				Pair:                  r.Pair,
+				LatestRate:            fundingrate.Rate{},
+				PredictedUpcomingRate: fundingrate.Rate{},
+				TimeOfNextRate:        time.Time{},
+				TimeChecked:           time.Time{},
+			},
+		}
+	} else {
+		contracts, err := ku.GetFuturesOpenContracts(ctx)
+		if err != nil {
+			return nil, err
+		}
+
+		resp = make([]fundingrate.LatestRateResponse, len(contracts))
+		for i := range contracts {
+			var cp currency.Pair
+			cp, err = currency.NewPairFromStrings(contracts[i].BaseCurrency, contracts[i].Symbol[len(contracts[i].BaseCurrency):])
+			if err != nil {
+				return nil, err
+			}
+			resp[i] = fundingrate.LatestRateResponse{
+				Exchange: ku.Name,
+				Asset:    r.Asset,
+				Pair:     cp,
+				LatestRate: fundingrate.Rate{
+					Time: time.Time{},
+					Rate: decimal.Decimal{},
+				},
+				PredictedUpcomingRate: fundingrate.Rate{
+					Time: time.Time{},
+					Rate: decimal.Decimal{},
+				},
+				TimeOfNextRate: time.Time{},
+				TimeChecked:    time.Now(),
+			}
+		}
+	}
+	return resp, nil
 }
