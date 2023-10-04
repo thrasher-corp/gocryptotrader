@@ -4,9 +4,9 @@ import (
 	"sync"
 	"time"
 
+	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
 
 // syncBase stores information
@@ -18,16 +18,10 @@ type syncBase struct {
 	NumErrors        int
 }
 
-// currencyPairKey is the map key for the sync agents
-type currencyPairKey struct {
-	Exchange  string
-	AssetType asset.Item
-	Pair      currency.Pair
-}
-
 // currencyPairSyncAgent stores the sync agent info
 type currencyPairSyncAgent struct {
-	currencyPairKey
+	Key      key.ExchangePairAsset
+	Pair     currency.Pair
 	Created  time.Time
 	trackers []*syncBase
 	locks    []sync.Mutex
@@ -47,8 +41,8 @@ type SyncManager struct {
 	initSyncWG                     sync.WaitGroup
 	inService                      sync.WaitGroup
 
-	currencyPairs            map[currencyPairKey]*currencyPairSyncAgent
-	tickerBatchLastRequested map[string]map[asset.Item]time.Time
+	currencyPairs            map[key.ExchangePairAsset]*currencyPairSyncAgent
+	tickerBatchLastRequested map[key.ExchangeAsset]time.Time
 
 	remoteConfig    *config.RemoteControlConfig
 	config          config.SyncManagerConfig

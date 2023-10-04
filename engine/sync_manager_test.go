@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -314,9 +315,8 @@ func TestSyncManagerWebsocketUpdate(t *testing.T) {
 		t.Fatalf("received %v, but expected: %v", err, errCouldNotSyncNewData)
 	}
 
-	m.add(currencyPairKey{
-		AssetType: asset.Spot,
-		Pair:      currency.EMPTYPAIR.Format(currency.PairFormat{Uppercase: true}),
+	m.add(key.ExchangePairAsset{
+		Asset: asset.Spot,
 	}, syncBase{})
 	m.initSyncWG.Add(3)
 	// orderbook match

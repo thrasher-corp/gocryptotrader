@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -86,8 +87,8 @@ func SetupSyncManager(c *config.SyncManagerConfig, exchangeManager iExchangeMana
 		websocketRoutineManagerEnabled: websocketRoutineManagerEnabled,
 		fiatDisplayCurrency:            c.FiatDisplayCurrency,
 		format:                         *c.PairFormatDisplay,
-		tickerBatchLastRequested:       make(map[string]map[asset.Item]time.Time),
-		currencyPairs:                  make(map[currencyPairKey]*currencyPairSyncAgent),
+		tickerBatchLastRequested:       make(map[key.ExchangeAsset]time.Time),
+		currencyPairs:                  make(map[key.ExchangePairAsset]*currencyPairSyncAgent),
 	}
 
 	log.Debugf(log.SyncMgr,
@@ -175,10 +176,11 @@ func (m *SyncManager) Start() error {
 				continue
 			}
 			for i := range enabledPairs {
-				k := currencyPairKey{
-					AssetType: assetTypes[y],
-					Exchange:  exchangeName,
-					Pair:      enabledPairs[i].Format(currency.PairFormat{Uppercase: true}),
+				k := key.ExchangePairAsset{
+					Asset:    assetTypes[y],
+					Exchange: exchangeName,
+					Base:     enabledPairs[i].Base.Item,
+					Quote:    enabledPairs[i].Quote.Item,
 				}
 				if e := m.get(k); e != nil {
 					continue
@@ -248,22 +250,23 @@ func (m *SyncManager) Stop() error {
 	return nil
 }
 
-func (m *SyncManager) get(k currencyPairKey) *currencyPairSyncAgent {
+func (m *SyncManager) get(k key.ExchangePairAsset) *currencyPairSyncAgent {
 	m.mux.Lock()
 	defer m.mux.Unlock()
 
 	return m.currencyPairs[k]
 }
 
-func newCurrencyPairSyncAgent(k currencyPairKey) *currencyPairSyncAgent {
+func newCurrencyPairSyncAgent(k key.ExchangePairAsset) *currencyPairSyncAgent {
 	return &currencyPairSyncAgent{
-		currencyPairKey: k,
-		Created:         time.Now(),
-		locks:           make([]sync.Mutex, SyncItemTrade+1),
-		trackers:        make([]*syncBase, SyncItemTrade+1),
+		Key:      k,
+		Pair:     currency.NewPair(k.Base.Currency(), k.Quote.Currency()),
+		Created:  time.Now(),
+		locks:    make([]sync.Mutex, SyncItemTrade+1),
+		trackers: make([]*syncBase, SyncItemTrade+1),
 	}
 }
-func (m *SyncManager) add(k currencyPairKey, s syncBase) *currencyPairSyncAgent {
+func (m *SyncManager) add(k key.ExchangePairAsset, s syncBase) *currencyPairSyncAgent {
 	m.mux.Lock()
 	defer m.mux.Unlock()
 
@@ -288,7 +291,9 @@ func (m *SyncManager) add(k currencyPairKey, s syncBase) *currencyPairSyncAgent 
 		if m.config.Verbose {
 			log.Debugf(log.SyncMgr,
 				"%s: Added ticker sync item %v: using websocket: %v using REST: %v",
-				c.Exchange, m.FormatCurrency(c.Pair).String(), c.trackers[SyncItemTicker].IsUsingWebsocket,
+				c.Key.Exchange,
+				m.FormatCurrency(c.Pair),
+				c.trackers[SyncItemTicker].IsUsingWebsocket,
 				c.trackers[SyncItemTicker].IsUsingREST)
 		}
 		if atomic.LoadInt32(&m.initSyncCompleted) != 1 {
@@ -301,7 +306,9 @@ func (m *SyncManager) add(k currencyPairKey, s syncBase) *currencyPairSyncAgent 
 		if m.config.Verbose {
 			log.Debugf(log.SyncMgr,
 				"%s: Added orderbook sync item %v: using websocket: %v using REST: %v",
-				c.Exchange, m.FormatCurrency(c.Pair).String(), c.trackers[SyncItemOrderbook].IsUsingWebsocket,
+				k.Exchange,
+				m.FormatCurrency(c.Pair),
+				c.trackers[SyncItemOrderbook].IsUsingWebsocket,
 				c.trackers[SyncItemOrderbook].IsUsingREST)
 		}
 		if atomic.LoadInt32(&m.initSyncCompleted) != 1 {
@@ -314,7 +321,9 @@ func (m *SyncManager) add(k currencyPairKey, s syncBase) *currencyPairSyncAgent 
 		if m.config.Verbose {
 			log.Debugf(log.SyncMgr,
 				"%s: Added trade sync item %v: using websocket: %v using REST: %v",
-				c.Exchange, m.FormatCurrency(c.Pair).String(), c.trackers[SyncItemTrade].IsUsingWebsocket,
+				k.Exchange,
+				m.FormatCurrency(c.Pair),
+				c.trackers[SyncItemTrade].IsUsingWebsocket,
 				c.trackers[SyncItemTrade].IsUsingREST)
 		}
 		if atomic.LoadInt32(&m.initSyncCompleted) != 1 {
@@ -324,7 +333,7 @@ func (m *SyncManager) add(k currencyPairKey, s syncBase) *currencyPairSyncAgent 
 	}
 
 	if m.currencyPairs == nil {
-		m.currencyPairs = make(map[currencyPairKey]*currencyPairSyncAgent)
+		m.currencyPairs = make(map[key.ExchangePairAsset]*currencyPairSyncAgent)
 	}
 
 	m.currencyPairs[k] = c
@@ -362,15 +371,22 @@ func (m *SyncManager) WebsocketUpdate(exchangeName string, p currency.Pair, a as
 		return fmt.Errorf("%v %w", syncType, errUnknownSyncItem)
 	}
 
-	k := currencyPairKey{
-		AssetType: a,
-		Exchange:  exchangeName,
-		Pair:      p.Format(currency.PairFormat{Uppercase: true}),
+	k := key.ExchangePairAsset{
+		Asset:    a,
+		Exchange: exchangeName,
+		Base:     p.Base.Item,
+		Quote:    p.Quote.Item,
 	}
 
 	c, exists := m.currencyPairs[k]
 	if !exists {
-		return fmt.Errorf("%w for %s %s %s %s", errCouldNotSyncNewData, k.Exchange, k.Pair, k.AssetType, syncType)
+		return fmt.Errorf("%w for %s %s %s %s %s",
+			errCouldNotSyncNewData,
+			k.Exchange,
+			k.Base,
+			k.Quote,
+			k.Asset,
+			syncType)
 	}
 
 	c.locks[syncType].Lock()
@@ -387,9 +403,9 @@ func (m *SyncManager) WebsocketUpdate(exchangeName string, p currency.Pair, a as
 		if m.config.LogSwitchProtocolEvents {
 			log.Warnf(log.SyncMgr,
 				"%s %s %s: %s Websocket re-enabled, switching from rest to websocket",
-				c.Exchange,
+				k.Exchange,
 				m.FormatCurrency(c.Pair),
-				strings.ToUpper(c.AssetType.String()),
+				strings.ToUpper(k.Asset.String()),
 				syncType,
 			)
 		}
@@ -416,7 +432,7 @@ func (m *SyncManager) update(c *currencyPairSyncAgent, syncType syncItemType, er
 		removedCounter++
 		if m.config.LogInitialSyncEvents {
 			log.Debugf(log.SyncMgr, "%s %s sync complete %v [%d/%d].",
-				c.Exchange,
+				c.Key.Exchange,
 				syncType,
 				m.FormatCurrency(c.Pair),
 				removedCounter,
@@ -492,10 +508,11 @@ func (m *SyncManager) worker() {
 							return
 						}
 
-						k := currencyPairKey{
-							AssetType: assetTypes[y],
-							Exchange:  exchangeName,
-							Pair:      enabledPairs[i].Format(currency.PairFormat{Uppercase: true}),
+						k := key.ExchangePairAsset{
+							Asset:    assetTypes[y],
+							Exchange: exchangeName,
+							Base:     enabledPairs[i].Base.Item,
+							Quote:    enabledPairs[i].Quote.Item,
 						}
 						c := m.get(k)
 						if c == nil {
@@ -541,9 +558,9 @@ func (m *SyncManager) syncTicker(c *currencyPairSyncAgent, e exchange.IBotExchan
 		if m.config.LogSwitchProtocolEvents {
 			log.Warnf(log.SyncMgr,
 				"%s %s %s: No ticker update after %s, switching from websocket to rest",
-				c.Exchange,
+				c.Key.Exchange,
 				m.FormatCurrency(c.Pair),
-				strings.ToUpper(c.AssetType.String()),
+				strings.ToUpper(c.Key.Asset.String()),
 				m.config.TimeoutWebsocket,
 			)
 		}
@@ -555,12 +572,15 @@ func (m *SyncManager) syncTicker(c *currencyPairSyncAgent, e exchange.IBotExchan
 
 		if e.SupportsRESTTickerBatchUpdates() {
 			m.mux.Lock()
-			batchLastDone, ok := m.tickerBatchLastRequested[e.GetName()][c.AssetType]
+			batchLastDone, ok := m.tickerBatchLastRequested[key.ExchangeAsset{
+				Exchange: c.Key.Exchange,
+				Asset:    c.Key.Asset,
+			}]
 			if !ok {
-				if _, ok = m.tickerBatchLastRequested[exchangeName]; !ok {
-					m.tickerBatchLastRequested[exchangeName] = make(map[asset.Item]time.Time)
-				}
-				m.tickerBatchLastRequested[exchangeName][c.AssetType] = time.Time{}
+				m.tickerBatchLastRequested[key.ExchangeAsset{
+					Exchange: c.Key.Exchange,
+					Asset:    c.Key.Asset,
+				}] = time.Time{}
 			}
 			m.mux.Unlock()
 
@@ -569,11 +589,14 @@ func (m *SyncManager) syncTicker(c *currencyPairSyncAgent, e exchange.IBotExchan
 				if m.config.Verbose {
 					log.Debugf(log.SyncMgr, "Initialising %s REST ticker batching", exchangeName)
 				}
-				err = e.UpdateTickers(context.TODO(), c.AssetType)
+				err = e.UpdateTickers(context.TODO(), c.Key.Asset)
 				if err == nil {
-					result, err = e.FetchTicker(context.TODO(), c.Pair, c.AssetType)
+					result, err = e.FetchTicker(context.TODO(), c.Pair, c.Key.Asset)
 				}
-				m.tickerBatchLastRequested[exchangeName][c.AssetType] = time.Now()
+				m.tickerBatchLastRequested[key.ExchangeAsset{
+					Exchange: c.Key.Exchange,
+					Asset:    c.Key.Asset,
+				}] = time.Now()
 				m.mux.Unlock()
 			} else {
 				if m.config.Verbose {
@@ -581,17 +604,17 @@ func (m *SyncManager) syncTicker(c *currencyPairSyncAgent, e exchange.IBotExchan
 				}
 				result, err = e.FetchTicker(context.TODO(),
 					c.Pair,
-					c.AssetType)
+					c.Key.Asset)
 			}
 		} else {
 			result, err = e.UpdateTicker(context.TODO(),
 				c.Pair,
-				c.AssetType)
+				c.Key.Asset)
 		}
 		m.PrintTickerSummary(result, "REST", err)
 		if err == nil {
 			if m.remoteConfig.WebsocketRPC.Enabled {
-				relayWebsocketEvent(result, "ticker_update", c.AssetType.String(), exchangeName)
+				relayWebsocketEvent(result, "ticker_update", c.Key.Asset.String(), exchangeName)
 			}
 		}
 		updateErr := m.update(c, SyncItemTicker, err)
@@ -619,9 +642,9 @@ func (m *SyncManager) syncOrderbook(c *currencyPairSyncAgent, e exchange.IBotExc
 		if m.config.LogSwitchProtocolEvents {
 			log.Warnf(log.SyncMgr,
 				"%s %s %s: No orderbook update after %s, switching from websocket to rest",
-				c.Exchange,
-				m.FormatCurrency(c.Pair).String(),
-				strings.ToUpper(c.AssetType.String()),
+				c.Key.Exchange,
+				m.FormatCurrency(c.Pair),
+				strings.ToUpper(c.Key.Asset.String()),
 				m.config.TimeoutWebsocket,
 			)
 		}
@@ -630,11 +653,11 @@ func (m *SyncManager) syncOrderbook(c *currencyPairSyncAgent, e exchange.IBotExc
 	if s.IsUsingREST && time.Since(s.LastUpdated) > m.config.TimeoutREST {
 		result, err := e.UpdateOrderbook(context.TODO(),
 			c.Pair,
-			c.AssetType)
+			c.Key.Asset)
 		m.PrintOrderbookSummary(result, "REST", err)
 		if err == nil {
 			if m.remoteConfig.WebsocketRPC.Enabled {
-				relayWebsocketEvent(result, "orderbook_update", c.AssetType.String(), e.GetName())
+				relayWebsocketEvent(result, "orderbook_update", c.Key.Asset.String(), e.GetName())
 			}
 		}
 		updateErr := m.update(c, SyncItemOrderbook, err)
@@ -774,11 +797,11 @@ func (m *SyncManager) PrintTickerSummary(result *ticker.Price, protocol string, 
 
 // FormatCurrency is a method that formats and returns a currency pair
 // based on the user currency display preferences
-func (m *SyncManager) FormatCurrency(p currency.Pair) currency.Pair {
+func (m *SyncManager) FormatCurrency(cp currency.Pair) string {
 	if m == nil || atomic.LoadInt32(&m.started) == 0 {
-		return p
+		return ""
 	}
-	return p.Format(m.format)
+	return m.format.Format(cp)
 }
 
 const (
