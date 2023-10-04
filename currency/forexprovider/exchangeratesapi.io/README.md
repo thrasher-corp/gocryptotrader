@@ -20,7 +20,7 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 
 ## Current Features for exchangeratesapi.io
 
-+ Fetches up to date curency data from [Exchange rates API]("http://exchangeratesapi.io")
++ Fetches up to date currency data from [Exchange rates API]("http://exchangeratesapi.io")
 
 ### How to enable
 

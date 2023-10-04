@@ -20,7 +20,7 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 
 ## Current Features for fixer.io
 
-+ Fetches up to date curency data from [Fixer.io](https://fixer.io/)
++ Fetches up to date currency data from [Fixer.io](https://fixer.io/)
 
 ### How to enable
 

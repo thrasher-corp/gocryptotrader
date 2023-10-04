@@ -58,7 +58,7 @@ type Contract struct {
 	MarkPrice               float64              `json:"markPrice"`
 	IndexPrice              float64              `json:"indexPrice"`
 	LastTradePrice          float64              `json:"lastTradePrice"`
-	NextFundingRateTime     float64              `json:"nextFundingRateTime"`
+	NextFundingRateTime     int64                `json:"nextFundingRateTime"`
 	MaxLeverage             float64              `json:"maxLeverage"`
 	SourceExchanges         []string             `json:"sourceExchanges"`
 	PremiumsSymbol1M        string               `json:"premiumsSymbol1M"`

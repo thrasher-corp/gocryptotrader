@@ -436,7 +436,7 @@ func getInternationalBankWithdrawalFee(c currency.Code, bankTransactionType exch
 		fee = 40
 	} else if (bankTransactionType == exchange.SEPA ||
 		bankTransactionType == exchange.WireTransfer) &&
-		c == currency.EUR {
+		c.Equal(currency.EUR) {
 		fee = 1
 	}
 	return fee

@@ -21,6 +21,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/collateral"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -359,8 +360,8 @@ func (ok *Okx) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) err
 		limits[x] = order.MinMaxLevel{
 			Pair:                   pair,
 			Asset:                  a,
-			PriceStepIncrementSize: insts[x].TickSize,
-			MinimumBaseAmount:      insts[x].MinimumOrderSize,
+			PriceStepIncrementSize: insts[x].TickSize.Float64(),
+			MinimumBaseAmount:      insts[x].MinimumOrderSize.Float64(),
 		}
 	}
 
@@ -812,14 +813,14 @@ func (ok *Okx) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitR
 	}
 
 	var orderRequest = &PlaceOrderRequestParam{
-		InstrumentID:          instrumentID,
-		TradeMode:             tradeMode,
-		Side:                  sideType,
-		OrderType:             s.Type.Lower(),
-		Amount:                amount,
-		ClientSupplierOrderID: s.ClientOrderID,
-		Price:                 s.Price,
-		QuantityType:          targetCurrency,
+		InstrumentID:  instrumentID,
+		TradeMode:     tradeMode,
+		Side:          sideType,
+		OrderType:     s.Type.Lower(),
+		Amount:        amount,
+		ClientOrderID: s.ClientOrderID,
+		Price:         s.Price,
+		QuantityType:  targetCurrency,
 	}
 	switch s.Type.Lower() {
 	case OkxOrderLimit, OkxOrderPostOnly, OkxOrderFOK, OkxOrderIOC:
@@ -886,10 +887,10 @@ func (ok *Okx) ModifyOrder(ctx context.Context, action *order.Modify) (*order.Mo
 		return nil, err
 	}
 	amendRequest := AmendOrderRequestParams{
-		InstrumentID:          instrumentID,
-		NewQuantity:           action.Amount,
-		OrderID:               action.OrderID,
-		ClientSuppliedOrderID: action.ClientOrderID,
+		InstrumentID:  instrumentID,
+		NewQuantity:   action.Amount,
+		OrderID:       action.OrderID,
+		ClientOrderID: action.ClientOrderID,
 	}
 	if ok.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
 		_, err = ok.WsAmendOrder(&amendRequest)
@@ -919,9 +920,9 @@ func (ok *Okx) CancelOrder(ctx context.Context, ord *order.Cancel) error {
 	}
 	instrumentID := pairFormat.Format(ord.Pair)
 	req := CancelOrderRequestParam{
-		InstrumentID:          instrumentID,
-		OrderID:               ord.OrderID,
-		ClientSupplierOrderID: ord.ClientOrderID,
+		InstrumentID:  instrumentID,
+		OrderID:       ord.OrderID,
+		ClientOrderID: ord.ClientOrderID,
 	}
 	if ok.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
 		_, err = ok.WsCancelOrder(req)
@@ -964,9 +965,9 @@ func (ok *Okx) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*order.
 			return nil, err
 		}
 		cancelOrderParams[x] = CancelOrderRequestParam{
-			InstrumentID:          instrumentID,
-			OrderID:               ord.OrderID,
-			ClientSupplierOrderID: ord.ClientOrderID,
+			InstrumentID:  instrumentID,
+			OrderID:       ord.OrderID,
+			ClientOrderID: ord.ClientOrderID,
 		}
 	}
 	var canceledOrders []OrderData
@@ -1032,25 +1033,25 @@ ordersLoop:
 		switch {
 		case orderCancellation.OrderID != "" || orderCancellation.ClientOrderID != "":
 			if myOrders[x].OrderID == orderCancellation.OrderID ||
-				myOrders[x].ClientSupplierOrderID == orderCancellation.ClientOrderID {
+				myOrders[x].ClientOrderID == orderCancellation.ClientOrderID {
 				cancelAllOrdersRequestParams[x] = CancelOrderRequestParam{
-					OrderID:               myOrders[x].OrderID,
-					ClientSupplierOrderID: myOrders[x].ClientSupplierOrderID,
+					OrderID:       myOrders[x].OrderID,
+					ClientOrderID: myOrders[x].ClientOrderID,
 				}
 				break ordersLoop
 			}
 		case orderCancellation.Side == order.Buy || orderCancellation.Side == order.Sell:
 			if myOrders[x].Side == order.Buy || myOrders[x].Side == order.Sell {
 				cancelAllOrdersRequestParams[x] = CancelOrderRequestParam{
-					OrderID:               myOrders[x].OrderID,
-					ClientSupplierOrderID: myOrders[x].ClientSupplierOrderID,
+					OrderID:       myOrders[x].OrderID,
+					ClientOrderID: myOrders[x].ClientOrderID,
 				}
 				continue
 			}
 		default:
 			cancelAllOrdersRequestParams[x] = CancelOrderRequestParam{
-				OrderID:               myOrders[x].OrderID,
-				ClientSupplierOrderID: myOrders[x].ClientSupplierOrderID,
+				OrderID:       myOrders[x].OrderID,
+				ClientOrderID: myOrders[x].ClientOrderID,
 			}
 		}
 	}
@@ -1128,7 +1129,7 @@ func (ok *Okx) GetOrderInfo(ctx context.Context, orderID string, pair currency.P
 		Amount:         orderDetail.Size.Float64(),
 		Exchange:       ok.Name,
 		OrderID:        orderDetail.OrderID,
-		ClientOrderID:  orderDetail.ClientSupplierOrderID,
+		ClientOrderID:  orderDetail.ClientOrderID,
 		Side:           orderDetail.Side,
 		Type:           orderType,
 		Pair:           pair,
@@ -1293,7 +1294,7 @@ allOrders:
 				FeeAsset:        currency.NewCode(orderList[i].FeeCurrency),
 				Exchange:        ok.Name,
 				OrderID:         orderList[i].OrderID,
-				ClientOrderID:   orderList[i].ClientSupplierOrderID,
+				ClientOrderID:   orderList[i].ClientOrderID,
 				Type:            oType,
 				Side:            orderSide,
 				Status:          orderStatus,
@@ -1394,7 +1395,7 @@ allOrders:
 					FeeAsset:             currency.NewCode(orderList[i].FeeCurrency),
 					Exchange:             ok.Name,
 					OrderID:              orderList[i].OrderID,
-					ClientOrderID:        orderList[i].ClientSupplierOrderID,
+					ClientOrderID:        orderList[i].ClientOrderID,
 					Type:                 oType,
 					Side:                 orderSide,
 					Status:               orderStatus,
@@ -1624,7 +1625,7 @@ func (ok *Okx) GetFundingRates(ctx context.Context, r *fundingrate.RatesRequest)
 			return nil, fmt.Errorf("%w earliest date is %v", fundingrate.ErrFundingRateOutsideLimits, maxLookback)
 		}
 		if r.EndDate.Before(maxLookback) {
-			return nil, order.ErrGetFundingDataRequired
+			return nil, futures.ErrGetFundingDataRequired
 		}
 		r.StartDate = maxLookback
 	}
@@ -1831,7 +1832,7 @@ func (ok *Okx) ChangePositionMargin(ctx context.Context, req *margin.PositionCha
 }
 
 // GetFuturesPositionSummary returns position summary details for an active position
-func (ok *Okx) GetFuturesPositionSummary(ctx context.Context, req *order.PositionSummaryRequest) (*order.PositionSummary, error) {
+func (ok *Okx) GetFuturesPositionSummary(ctx context.Context, req *futures.PositionSummaryRequest) (*futures.PositionSummary, error) {
 	if req == nil {
 		return nil, fmt.Errorf("%w PositionSummaryRequest", common.ErrNilPointer)
 	}
@@ -1846,6 +1847,23 @@ func (ok *Okx) GetFuturesPositionSummary(ctx context.Context, req *order.Positio
 		return nil, err
 	}
 	instrumentType := ok.GetInstrumentTypeFromAssetItem(req.Asset)
+
+	var contracts []futures.Contract
+	contracts, err = ok.GetFuturesContractDetails(ctx, req.Asset)
+	if err != nil {
+		return nil, err
+	}
+	multiplier := 1.0
+	var contractSettlementType futures.ContractSettlementType
+	for i := range contracts {
+		if !contracts[i].Name.Equal(fPair) {
+			continue
+		}
+		multiplier = contracts[i].Multiplier
+		contractSettlementType = contracts[i].SettlementType
+		break
+	}
+
 	positionSummaries, err := ok.GetPositions(ctx, instrumentType, fPair.String(), "")
 	if err != nil {
 		return nil, err
@@ -1906,16 +1924,17 @@ func (ok *Okx) GetFuturesPositionSummary(ctx context.Context, req *order.Positio
 	if err != nil {
 		return nil, err
 	}
-	return &order.PositionSummary{
-		Pair:                         req.Pair,
-		Asset:                        req.Asset,
-		MarginType:                   marginMode,
-		CollateralMode:               collateralMode,
-		Currency:                     currency.NewCode(positionSummary.Currency),
-		AvailableEquity:              availableEquity,
-		CashBalance:                  cashBalance,
-		DiscountEquity:               discountEquity,
-		EquityUSD:                    equityUSD,
+	return &futures.PositionSummary{
+		Pair:            req.Pair,
+		Asset:           req.Asset,
+		MarginType:      marginMode,
+		CollateralMode:  collateralMode,
+		Currency:        currency.NewCode(positionSummary.Currency),
+		AvailableEquity: availableEquity,
+		CashBalance:     cashBalance,
+		DiscountEquity:  discountEquity,
+		EquityUSD:       equityUSD,
+
 		IsolatedEquity:               isolatedEquity,
 		IsolatedLiabilities:          isolatedLiabilities,
 		IsolatedUPL:                  isolatedUnrealisedProfit,
@@ -1930,7 +1949,10 @@ func (ok *Okx) GetFuturesPositionSummary(ctx context.Context, req *order.Positio
 		EstimatedLiquidationPrice:    positionSummary.LiquidationPrice.Decimal(),
 		CollateralUsed:               positionSummary.Margin.Decimal(),
 		MarkPrice:                    positionSummary.MarkPrice.Decimal(),
-		CurrentSize:                  positionSummary.QuantityOfPosition.Decimal(), // TODO: add field(s) for contract amount vs quote amount
+		CurrentSize:                  positionSummary.QuantityOfPosition.Decimal().Mul(decimal.NewFromFloat(multiplier)),
+		ContractSize:                 positionSummary.QuantityOfPosition.Decimal(),
+		ContractMultiplier:           decimal.NewFromFloat(multiplier),
+		ContractSettlementType:       contractSettlementType,
 		AverageOpenPrice:             positionSummary.AveragePrice.Decimal(),
 		PositionPNL:                  positionSummary.UPNL.Decimal(),
 		MaintenanceMarginFraction:    positionSummary.MarginRatio.Decimal(),
@@ -1942,7 +1964,7 @@ func (ok *Okx) GetFuturesPositionSummary(ctx context.Context, req *order.Positio
 }
 
 // GetFuturesPositionOrders returns the orders for futures positions
-func (ok *Okx) GetFuturesPositionOrders(ctx context.Context, req *order.PositionsRequest) ([]order.PositionResponse, error) {
+func (ok *Okx) GetFuturesPositionOrders(ctx context.Context, req *futures.PositionsRequest) ([]futures.PositionResponse, error) {
 	if req == nil {
 		return nil, fmt.Errorf("%w PositionSummaryRequest", common.ErrNilPointer)
 	}
@@ -1953,22 +1975,43 @@ func (ok *Okx) GetFuturesPositionOrders(ctx context.Context, req *order.Position
 		if req.RespectOrderHistoryLimits {
 			req.StartDate = time.Now().Add(-ok.Features.Supports.MaximumOrderHistory)
 		} else {
-			return nil, fmt.Errorf("%w max lookup %v", order.ErrOrderHistoryTooLarge, time.Now().Add(-ok.Features.Supports.MaximumOrderHistory))
+			return nil, fmt.Errorf("%w max lookup %v", futures.ErrOrderHistoryTooLarge, time.Now().Add(-ok.Features.Supports.MaximumOrderHistory))
 		}
 	}
-	if err := common.StartEndTimeCheck(req.StartDate, req.EndDate); err != nil {
+	err := common.StartEndTimeCheck(req.StartDate, req.EndDate)
+	if err != nil {
 		return nil, err
 	}
-	resp := make([]order.PositionResponse, len(req.Pairs))
+	resp := make([]futures.PositionResponse, len(req.Pairs))
+	var contracts []futures.Contract
+	contracts, err = ok.GetFuturesContractDetails(ctx, req.Asset)
+	if err != nil {
+		return nil, err
+	}
 	for i := range req.Pairs {
 		fPair, err := ok.FormatExchangeCurrency(req.Pairs[i], req.Asset)
 		if err != nil {
 			return nil, err
 		}
 		instrumentType := ok.GetInstrumentTypeFromAssetItem(req.Asset)
-		resp[i] = order.PositionResponse{
-			Pair:  req.Pairs[i],
-			Asset: req.Asset,
+
+		multiplier := 1.0
+		var contractSettlementType futures.ContractSettlementType
+		if req.Asset.IsFutures() {
+			for j := range contracts {
+				if !contracts[j].Name.Equal(fPair) {
+					continue
+				}
+				multiplier = contracts[j].Multiplier
+				contractSettlementType = contracts[j].SettlementType
+				break
+			}
+		}
+
+		resp[i] = futures.PositionResponse{
+			Pair:                   req.Pairs[i],
+			Asset:                  req.Asset,
+			ContractSettlementType: contractSettlementType,
 		}
 
 		var positions []OrderDetail
@@ -2013,17 +2056,22 @@ func (ok *Okx) GetFuturesPositionOrders(ctx context.Context, req *order.Position
 			if orderStatus != order.Filled {
 				remainingAmount = orderAmount.Float64() - positions[j].AccumulatedFillSize.Float64()
 			}
+			cost := positions[j].AveragePrice.Float64() * positions[j].AccumulatedFillSize.Float64()
+			if multiplier != 1 {
+				cost *= multiplier
+			}
 			resp[i].Orders = append(resp[i].Orders, order.Detail{
 				Price:                positions[j].Price.Float64(),
 				AverageExecutedPrice: positions[j].AveragePrice.Float64(),
-				Amount:               orderAmount.Float64(), // TODO: add field(s) for contract amount vs quote amount
+				Amount:               orderAmount.Float64() * multiplier,
+				ContractAmount:       orderAmount.Float64(),
 				ExecutedAmount:       positions[j].AccumulatedFillSize.Float64(),
 				RemainingAmount:      remainingAmount,
 				Fee:                  positions[j].TransactionFee.Float64(),
 				FeeAsset:             currency.NewCode(positions[j].FeeCurrency),
 				Exchange:             ok.Name,
 				OrderID:              positions[j].OrderID,
-				ClientOrderID:        positions[j].ClientSupplierOrderID,
+				ClientOrderID:        positions[j].ClientOrderID,
 				Type:                 oType,
 				Side:                 orderSide,
 				Status:               orderStatus,
@@ -2031,7 +2079,7 @@ func (ok *Okx) GetFuturesPositionOrders(ctx context.Context, req *order.Position
 				Date:                 positions[j].CreationTime,
 				LastUpdated:          positions[j].UpdateTime,
 				Pair:                 req.Pairs[i],
-				Cost:                 positions[j].AveragePrice.Float64() * positions[j].AccumulatedFillSize.Float64(),
+				Cost:                 cost,
 				CostAsset:            currency.NewCode(positions[j].RebateCurrency),
 			})
 		}
@@ -2103,7 +2151,7 @@ func (ok *Okx) GetLeverage(ctx context.Context, item asset.Item, pair currency.P
 			return -1, err
 		}
 		if len(lev) == 0 {
-			return -1, fmt.Errorf("%w %v %v %s", order.ErrPositionNotFound, item, pair, marginType)
+			return -1, fmt.Errorf("%w %v %v %s", futures.ErrPositionNotFound, item, pair, marginType)
 		}
 		if inspectLeverage {
 			for i := range lev {
@@ -2118,4 +2166,66 @@ func (ok *Okx) GetLeverage(ctx context.Context, item asset.Item, pair currency.P
 	default:
 		return -1, fmt.Errorf("%w %v", asset.ErrNotSupported, item)
 	}
+}
+
+// GetFuturesContractDetails returns details about futures contracts
+func (ok *Okx) GetFuturesContractDetails(ctx context.Context, item asset.Item) ([]futures.Contract, error) {
+	if !item.IsFutures() {
+		return nil, futures.ErrNotFuturesAsset
+	}
+	if !ok.SupportsAsset(item) || item == asset.Options {
+		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, item)
+	}
+	instType := ok.GetInstrumentTypeFromAssetItem(item)
+	result, err := ok.GetInstruments(ctx, &InstrumentsFetchParams{
+		InstrumentType: instType,
+	})
+	if err != nil {
+		return nil, err
+	}
+	resp := make([]futures.Contract, len(result))
+	for i := range result {
+		var cp, underlying currency.Pair
+		underlying, err = currency.NewPairFromString(result[i].Underlying)
+		if err != nil {
+			return nil, err
+		}
+		cp, err = currency.NewPairFromString(result[i].InstrumentID)
+		if err != nil {
+			return nil, err
+		}
+		settleCurr := currency.NewCode(result[i].SettlementCurrency)
+		var ct futures.ContractType
+		if item == asset.PerpetualSwap {
+			ct = futures.Perpetual
+		} else {
+			switch result[i].Alias {
+			case "this_week", "next_week":
+				ct = futures.Weekly
+			case "quarter", "next_quarter":
+				ct = futures.Quarterly
+			}
+		}
+		contractSettlementType := futures.Linear
+		if result[i].SettlementCurrency == result[i].BaseCurrency {
+			contractSettlementType = futures.Inverse
+		}
+		resp[i] = futures.Contract{
+			Exchange:             ok.Name,
+			Name:                 cp,
+			Underlying:           underlying,
+			Asset:                item,
+			StartDate:            result[i].ListTime.Time,
+			EndDate:              result[i].ExpTime.Time,
+			IsActive:             result[i].State == "live",
+			Status:               result[i].State,
+			Type:                 ct,
+			SettlementType:       contractSettlementType,
+			SettlementCurrencies: currency.Currencies{settleCurr},
+			MarginCurrency:       settleCurr,
+			Multiplier:           result[i].ContractValue.Float64(),
+			MaxLeverage:          result[i].MaxLeverage.Float64(),
+		}
+	}
+	return resp, nil
 }

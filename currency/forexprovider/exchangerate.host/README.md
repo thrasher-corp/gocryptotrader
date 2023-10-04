@@ -20,7 +20,7 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 
 ## Current Features for exchangerate.host
 
-+ Fetches up to date curency data from [ExchangeRate.host API]("https://exchangerate.host")
++ Fetches up to date currency data from [ExchangeRate.host API]("https://exchangerate.host")
 
 ### How to enable
 

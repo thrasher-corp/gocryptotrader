@@ -26,6 +26,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/collateral"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -916,12 +917,12 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 			Response:   marginRateHistoryResponse,
 		})
 
-		positionSummaryRequest := &order.PositionSummaryRequest{
+		positionSummaryRequest := &futures.PositionSummaryRequest{
 			Asset: assetTypes[i],
 			Pair:  p,
 		}
-		var positionSummaryResponse *order.PositionSummary
-		positionSummaryResponse, err = e.GetFuturesPositionSummary(context.TODO(), positionSummaryRequest)
+		var positionSummaryResponse *futures.PositionSummary
+		positionSummaryResponse, err = e.GetPositionSummary(context.TODO(), positionSummaryRequest)
 		msg = ""
 		if err != nil {
 			msg = err.Error()
@@ -934,7 +935,7 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 			Response:   jsonifyInterface([]interface{}{positionSummaryResponse}),
 		})
 
-		calculatePNLRequest := &order.PNLCalculatorRequest{
+		calculatePNLRequest := &futures.PNLCalculatorRequest{
 			Pair:             p,
 			Underlying:       p.Base,
 			Asset:            assetTypes[i],
@@ -946,7 +947,7 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 			EntryAmount:      decimal.NewFromInt(1337),
 			PreviousPrice:    decimal.NewFromInt(1337),
 		}
-		var calculatePNLResponse *order.PNLResult
+		var calculatePNLResponse *futures.PNLResult
 		calculatePNLResponse, err = e.CalculatePNL(context.TODO(), calculatePNLRequest)
 		msg = ""
 		if err != nil {
@@ -960,7 +961,7 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 			Response:   jsonifyInterface([]interface{}{calculatePNLResponse}),
 		})
 
-		collateralCalculator := &order.CollateralCalculator{
+		collateralCalculator := &futures.CollateralCalculator{
 			CollateralCurrency: p.Quote,
 			Asset:              assetTypes[i],
 			Side:               testOrderSide,
@@ -983,10 +984,10 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 			Response:   jsonifyInterface([]interface{}{scaleCollateralResponse}),
 		})
 
-		totalCollateralCalculator := &order.TotalCollateralCalculator{
-			CollateralAssets: []order.CollateralCalculator{*collateralCalculator},
+		totalCollateralCalculator := &futures.TotalCollateralCalculator{
+			CollateralAssets: []futures.CollateralCalculator{*collateralCalculator},
 		}
-		var calculateTotalCollateralResponse *order.TotalCollateralResponse
+		var calculateTotalCollateralResponse *futures.TotalCollateralResponse
 		calculateTotalCollateralResponse, err = e.CalculateTotalCollateral(context.TODO(), totalCollateralCalculator)
 		msg = ""
 		if err != nil {
@@ -1000,8 +1001,8 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 			Response:   jsonifyInterface([]interface{}{calculateTotalCollateralResponse}),
 		})
 
-		var futuresPositionsResponse []order.PositionResponse
-		futuresPositionsRequest := &order.PositionsRequest{
+		var futuresPositionsResponse []futures.PositionResponse
+		futuresPositionsRequest := &futures.PositionsRequest{
 			Asset:     assetTypes[i],
 			Pairs:     currency.Pairs{p},
 			StartDate: time.Now().Add(-time.Hour),
@@ -1030,14 +1031,14 @@ func jsonifyInterface(params []interface{}) json.RawMessage {
 }
 
 func loadConfig() (Config, error) {
-	var config Config
+	var cfg Config
 	keys, err := os.ReadFile("wrapperconfig.json")
 	if err != nil {
-		return config, err
+		return cfg, err
 	}
 
-	err = json.Unmarshal(keys, &config)
-	return config, err
+	err = json.Unmarshal(keys, &cfg)
+	return cfg, err
 }
 
 func saveConfig(config *Config) {
@@ -1097,17 +1098,20 @@ func outputToHTML(exchangeResponses []ExchangeResponses) {
 	}
 
 	log.Printf("Outputting to: %v", filepath.Join(dir, fmt.Sprintf("%v.html", outputFileName)))
-	file, err := os.Create(filepath.Join(dir, fmt.Sprintf("%v.html", outputFileName)))
+	f, err := os.Create(filepath.Join(dir, fmt.Sprintf("%v.html", outputFileName)))
 	if err != nil {
 		log.Print(err)
 		return
 	}
 
-	err = tmpl.Execute(file, exchangeResponses)
+	err = tmpl.Execute(f, exchangeResponses)
 	if err != nil {
 		log.Print(err)
 	}
-	file.Close()
+	err = f.Close()
+	if err != nil {
+		log.Print(err)
+	}
 }
 
 func outputToConsole(exchangeResponses []ExchangeResponses) {
