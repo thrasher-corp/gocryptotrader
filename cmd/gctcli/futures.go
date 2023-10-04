@@ -9,6 +9,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/collateral"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/gctrpc"
@@ -568,7 +569,7 @@ func getManagedPosition(c *cli.Context) error {
 		}
 	}
 
-	err = order.CheckFundingRatePrerequisites(getFundingData, includePredictedRate, includeFundingEntries)
+	err = futures.CheckFundingRatePrerequisites(getFundingData, includePredictedRate, includeFundingEntries)
 	if err != nil {
 		return err
 	}
@@ -646,7 +647,7 @@ func getAllManagedPositions(c *cli.Context) error {
 		}
 	}
 
-	err = order.CheckFundingRatePrerequisites(getFundingData, includePredictedRate, includeFundingEntries)
+	err = futures.CheckFundingRatePrerequisites(getFundingData, includePredictedRate, includeFundingEntries)
 	if err != nil {
 		return err
 	}

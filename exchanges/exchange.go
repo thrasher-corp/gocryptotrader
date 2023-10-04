@@ -20,6 +20,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/collateral"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/currencystate"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -46,6 +47,9 @@ const (
 )
 
 var (
+	// ErrExchangeNameIsEmpty is returned when the exchange name is empty
+	ErrExchangeNameIsEmpty = errors.New("exchange name is empty")
+
 	errEndpointStringNotFound            = errors.New("endpoint string not found")
 	errConfigPairFormatRequiresDelimiter = errors.New("config pair format requires delimiter")
 	errSymbolCannotBeMatched             = errors.New("symbol cannot be matched")
@@ -1467,7 +1471,7 @@ func (b *Base) HasAssetTypeAccountSegregation() bool {
 }
 
 // GetPositionSummary returns stats for a future position
-func (b *Base) GetPositionSummary(context.Context, *order.PositionSummaryRequest) (*order.PositionSummary, error) {
+func (b *Base) GetPositionSummary(context.Context, *futures.PositionSummaryRequest) (*futures.PositionSummary, error) {
 	return nil, common.ErrNotYetImplemented
 }
 
@@ -1634,19 +1638,19 @@ func (b *Base) GetStandardConfig() (*config.Exchange, error) {
 // It will also determine whether the position is considered to be liquidated
 // For live trading, an overriding function may wish to confirm the liquidation by
 // requesting the status of the asset
-func (b *Base) CalculatePNL(context.Context, *order.PNLCalculatorRequest) (*order.PNLResult, error) {
+func (b *Base) CalculatePNL(context.Context, *futures.PNLCalculatorRequest) (*futures.PNLResult, error) {
 	return nil, common.ErrNotYetImplemented
 }
 
 // ScaleCollateral is an overridable function to determine how much
 // collateral is usable in futures positions
-func (b *Base) ScaleCollateral(context.Context, *order.CollateralCalculator) (*collateral.ByCurrency, error) {
+func (b *Base) ScaleCollateral(context.Context, *futures.CollateralCalculator) (*collateral.ByCurrency, error) {
 	return nil, common.ErrNotYetImplemented
 }
 
 // CalculateTotalCollateral takes in n collateral calculators to determine an overall
 // standing in a singular currency
-func (b *Base) CalculateTotalCollateral(_ context.Context, _ *order.TotalCollateralCalculator) (*order.TotalCollateralResponse, error) {
+func (b *Base) CalculateTotalCollateral(_ context.Context, _ *futures.TotalCollateralCalculator) (*futures.TotalCollateralResponse, error) {
 	return nil, common.ErrNotYetImplemented
 }
 
@@ -1668,7 +1672,7 @@ func (b *Base) GetMarginRatesHistory(context.Context, *margin.RateHistoryRequest
 }
 
 // GetFuturesPositionSummary returns stats for a future position
-func (b *Base) GetFuturesPositionSummary(context.Context, *order.PositionSummaryRequest) (*order.PositionSummary, error) {
+func (b *Base) GetFuturesPositionSummary(context.Context, *futures.PositionSummaryRequest) (*futures.PositionSummary, error) {
 	return nil, common.ErrNotYetImplemented
 }
 
@@ -1678,12 +1682,12 @@ func (b *Base) GetFundingPaymentDetails(context.Context, *fundingrate.RatesReque
 }
 
 // GetFuturesPositions returns futures positions for all currencies
-func (b *Base) GetFuturesPositions(context.Context, *order.PositionsRequest) ([]order.PositionDetails, error) {
+func (b *Base) GetFuturesPositions(context.Context, *futures.PositionsRequest) ([]futures.PositionDetails, error) {
 	return nil, common.ErrNotYetImplemented
 }
 
 // GetFuturesPositionOrders returns futures positions orders
-func (b *Base) GetFuturesPositionOrders(context.Context, *order.PositionsRequest) ([]order.PositionResponse, error) {
+func (b *Base) GetFuturesPositionOrders(context.Context, *futures.PositionsRequest) ([]futures.PositionResponse, error) {
 	return nil, common.ErrNotYetImplemented
 }
 

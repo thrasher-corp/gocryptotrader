@@ -31,7 +31,7 @@ type Storage struct {
 	defaultBaseCurrency Code
 	// DefaultFiatCurrencies has the default minimum of FIAT values
 	defaultFiatCurrencies Currencies
-	// DefaultCryptoCurrencies has the default minimum of crytpocurrency values
+	// DefaultCryptoCurrencies has the default minimum of cryptocurrency values
 	defaultCryptoCurrencies Currencies
 	// FiatExchangeMarkets defines an interface to access FX data for fiat
 	// currency rates

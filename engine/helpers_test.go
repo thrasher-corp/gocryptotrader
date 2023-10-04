@@ -9,10 +9,13 @@ import (
 	"crypto/x509/pkix"
 	"encoding/pem"
 	"errors"
+	"fmt"
 	"math/big"
 	"net"
 	"os"
 	"path/filepath"
+	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -1345,5 +1348,63 @@ func TestCheckAndGenCerts(t *testing.T) {
 	}
 	if err = CheckCerts(tempDir); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestNewSupportedExchangeByName(t *testing.T) {
+	t.Parallel()
+
+	for x := range exchange.Exchanges {
+		exch, err := NewSupportedExchangeByName(exchange.Exchanges[x])
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		if exch == nil {
+			t.Fatalf("received nil exchange")
+		}
+	}
+
+	_, err := NewSupportedExchangeByName("")
+	if !errors.Is(err, ErrExchangeNotFound) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, ErrExchangeNotFound)
+	}
+}
+
+func TestNewExchangeByNameWithDefaults(t *testing.T) {
+	t.Parallel()
+
+	_, err := NewExchangeByNameWithDefaults(context.Background(), "meow")
+	if !errors.Is(err, ErrExchangeNotFound) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, ErrExchangeNotFound)
+	}
+
+	ch := make(chan error, len(exchange.Exchanges))
+	wg := sync.WaitGroup{}
+	for x := range exchange.Exchanges {
+		wg.Add(1)
+		go func(x int) {
+			defer wg.Done()
+			exch, err := NewExchangeByNameWithDefaults(context.Background(), exchange.Exchanges[x])
+			if err != nil {
+				ch <- err
+				return
+			}
+
+			if !strings.EqualFold(exch.GetName(), exchange.Exchanges[x]) {
+				ch <- fmt.Errorf("received: '%v' but expected: '%v'", exch.GetName(), exchange.Exchanges[x])
+			}
+		}(x)
+	}
+	wg.Wait()
+
+outta:
+	for {
+		select {
+		case err := <-ch:
+			t.Error(err)
+		default:
+			break outta
+		}
 	}
 }

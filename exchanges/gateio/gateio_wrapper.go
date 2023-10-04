@@ -19,6 +19,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
@@ -1984,6 +1986,124 @@ func (g *Gateio) checkInstrumentAvailabilityInSpot(instrument currency.Pair) (bo
 		return false, err
 	}
 	return availables.Contains(instrument, true), nil
+}
+
+// GetFuturesContractDetails returns details about futures contracts
+func (g *Gateio) GetFuturesContractDetails(ctx context.Context, item asset.Item) ([]futures.Contract, error) {
+	if !item.IsFutures() {
+		return nil, futures.ErrNotFuturesAsset
+	}
+	if !g.SupportsAsset(item) {
+		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, item)
+	}
+	switch item {
+	case asset.Futures:
+		settlePairs := []string{"btc", "usdt", "usd"}
+		var resp []futures.Contract
+		for k := range settlePairs {
+			contracts, err := g.GetAllFutureContracts(ctx, settlePairs[k])
+			if err != nil {
+				return nil, err
+			}
+			contractsToAdd := make([]futures.Contract, len(contracts))
+			for j := range contracts {
+				var name currency.Pair
+				name, err = currency.NewPairFromString(contracts[j].Name)
+				if err != nil {
+					return nil, err
+				}
+				settlePair := currency.NewCode(settlePairs[k])
+				contractSettlementType := futures.Linear
+				switch {
+				case name.Base.Equal(currency.BTC) && settlePair.Equal(currency.BTC):
+					contractSettlementType = futures.Inverse
+				case !name.Base.Equal(settlePair) && !settlePair.Equal(currency.USDT):
+					contractSettlementType = futures.Quanto
+				}
+				c := futures.Contract{
+					Exchange:             g.Name,
+					Name:                 name,
+					Underlying:           name,
+					Asset:                item,
+					IsActive:             !contracts[j].InDelisting,
+					Type:                 futures.Perpetual,
+					SettlementType:       contractSettlementType,
+					SettlementCurrencies: currency.Currencies{settlePair},
+					Multiplier:           contracts[j].QuantoMultiplier.Float64(),
+					MaxLeverage:          contracts[j].LeverageMax.Float64(),
+				}
+				if contracts[j].FundingRate > 0 {
+					c.LatestRate = fundingrate.Rate{
+						Time: contracts[j].FundingNextApply.Time().Add(-time.Duration(contracts[j].FundingInterval) * time.Second),
+						Rate: contracts[j].FundingRate.Decimal(),
+					}
+				}
+				contractsToAdd[j] = c
+			}
+			resp = append(resp, contractsToAdd...)
+		}
+		return resp, nil
+	case asset.DeliveryFutures:
+		settlePairs := []string{"btc", "usdt"}
+		var resp []futures.Contract
+		for k := range settlePairs {
+			contracts, err := g.GetAllDeliveryContracts(ctx, settlePairs[k])
+			if err != nil {
+				return nil, err
+			}
+			contractsToAdd := make([]futures.Contract, len(contracts))
+			for j := range contracts {
+				var name, underlying currency.Pair
+				name, err = currency.NewPairFromString(contracts[j].Name)
+				if err != nil {
+					return nil, err
+				}
+				underlying, err = currency.NewPairFromString(contracts[j].Underlying)
+				if err != nil {
+					return nil, err
+				}
+				var ct futures.ContractType
+				// no start information, inferring it based on contract type
+				// gateio also reuses contracts for kline data, cannot use a lookup to see the first trade
+				var s, e time.Time
+				e = contracts[j].ExpireTime.Time()
+				switch contracts[j].Cycle {
+				case "WEEKLY":
+					ct = futures.Weekly
+					s = e.Add(-kline.OneWeek.Duration())
+				case "BI-WEEKLY":
+					ct = futures.Fortnightly
+					s = e.Add(-kline.TwoWeek.Duration())
+				case "QUARTERLY":
+					ct = futures.Quarterly
+					s = e.Add(-kline.ThreeMonth.Duration())
+				case "BI-QUARTERLY":
+					ct = futures.HalfYearly
+					s = e.Add(-kline.SixMonth.Duration())
+				default:
+					ct = futures.LongDated
+				}
+				contractsToAdd[j] = futures.Contract{
+					Exchange:             g.Name,
+					Name:                 name,
+					Underlying:           underlying,
+					Asset:                item,
+					StartDate:            s,
+					EndDate:              e,
+					SettlementType:       futures.Linear,
+					IsActive:             !contracts[j].InDelisting,
+					Type:                 ct,
+					SettlementCurrencies: currency.Currencies{currency.NewCode(settlePairs[k])},
+					MarginCurrency:       currency.Code{},
+					Multiplier:           contracts[j].QuantoMultiplier.Float64(),
+					MaxLeverage:          contracts[j].LeverageMax.Float64(),
+				}
+			}
+			resp = append(resp, contractsToAdd...)
+		}
+		return resp, nil
+	}
+	return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, item)
 }
 
 // UpdateOrderExecutionLimits sets exchange executions for a required asset type

@@ -36,6 +36,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/collateral"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -959,21 +960,21 @@ func (s *RPCServer) GetOrders(ctx context.Context, r *gctrpc.GetOrdersRequest) (
 		return nil, err
 	}
 
-	request := &order.MultiOrderRequest{
+	req := &order.MultiOrderRequest{
 		Pairs:     []currency.Pair{cp},
 		AssetType: a,
 		Type:      order.AnyType,
 		Side:      order.AnySide,
 	}
 	if !start.IsZero() {
-		request.StartTime = start
+		req.StartTime = start
 	}
 	if !end.IsZero() {
-		request.EndTime = end
+		req.EndTime = end
 	}
 
 	var resp []order.Detail
-	resp, err = exch.GetActiveOrders(ctx, request)
+	resp, err = exch.GetActiveOrders(ctx, req)
 	if err != nil {
 		return nil, err
 	}
@@ -1475,11 +1476,11 @@ func (s *RPCServer) CancelBatchOrders(ctx context.Context, r *gctrpc.CancelBatch
 
 	status := make(map[string]string)
 	orders := strings.Split(r.OrdersId, ",")
-	request := make([]order.Cancel, len(orders))
+	req := make([]order.Cancel, len(orders))
 	for x := range orders {
 		orderID := orders[x]
 		status[orderID] = order.Cancelled.String()
-		request[x] = order.Cancel{
+		req[x] = order.Cancel{
 			AccountID:     r.AccountId,
 			OrderID:       orderID,
 			Side:          side,
@@ -1490,7 +1491,7 @@ func (s *RPCServer) CancelBatchOrders(ctx context.Context, r *gctrpc.CancelBatch
 	}
 
 	// TODO: Change to order manager
-	_, err = exch.CancelBatchOrders(ctx, request)
+	_, err = exch.CancelBatchOrders(ctx, req)
 	if err != nil {
 		return nil, err
 	}
@@ -1705,7 +1706,7 @@ func (s *RPCServer) WithdrawCryptocurrencyFunds(ctx context.Context, r *gctrpc.W
 		return nil, err
 	}
 
-	request := &withdraw.Request{
+	req := &withdraw.Request{
 		Exchange:    r.Exchange,
 		Amount:      r.Amount,
 		Currency:    currency.NewCode(strings.ToUpper(r.Currency)),
@@ -1734,7 +1735,7 @@ func (s *RPCServer) WithdrawCryptocurrencyFunds(ctx context.Context, r *gctrpc.W
 		if errOTP != nil {
 			return nil, errOTP
 		}
-		request.OneTimePassword = codeNum
+		req.OneTimePassword = codeNum
 	}
 
 	if exchCfg.API.Credentials.PIN != "" {
@@ -1742,12 +1743,12 @@ func (s *RPCServer) WithdrawCryptocurrencyFunds(ctx context.Context, r *gctrpc.W
 		if err != nil {
 			return nil, errPin
 		}
-		request.PIN = pinCode
+		req.PIN = pinCode
 	}
 
-	request.TradePassword = exchCfg.API.Credentials.TradePassword
+	req.TradePassword = exchCfg.API.Credentials.TradePassword
 
-	resp, err := s.Engine.WithdrawManager.SubmitWithdrawal(ctx, request)
+	resp, err := s.Engine.WithdrawManager.SubmitWithdrawal(ctx, req)
 	if err != nil {
 		return nil, err
 	}
@@ -1778,7 +1779,7 @@ func (s *RPCServer) WithdrawFiatFunds(ctx context.Context, r *gctrpc.WithdrawFia
 		}
 	}
 
-	request := &withdraw.Request{
+	req := &withdraw.Request{
 		Exchange:    r.Exchange,
 		Amount:      r.Amount,
 		Currency:    currency.NewCode(strings.ToUpper(r.Currency)),
@@ -1804,7 +1805,7 @@ func (s *RPCServer) WithdrawFiatFunds(ctx context.Context, r *gctrpc.WithdrawFia
 		if err != nil {
 			return nil, errOTP
 		}
-		request.OneTimePassword = codeNum
+		req.OneTimePassword = codeNum
 	}
 
 	if exchCfg.API.Credentials.PIN != "" {
@@ -1812,12 +1813,12 @@ func (s *RPCServer) WithdrawFiatFunds(ctx context.Context, r *gctrpc.WithdrawFia
 		if err != nil {
 			return nil, errPIN
 		}
-		request.PIN = pinCode
+		req.PIN = pinCode
 	}
 
-	request.TradePassword = exchCfg.API.Credentials.TradePassword
+	req.TradePassword = exchCfg.API.Credentials.TradePassword
 
-	resp, err := s.Engine.WithdrawManager.SubmitWithdrawal(ctx, request)
+	resp, err := s.Engine.WithdrawManager.SubmitWithdrawal(ctx, req)
 	if err != nil {
 		return nil, err
 	}
@@ -4223,7 +4224,7 @@ func (s *RPCServer) CurrencyStateTradingPair(_ context.Context, r *gctrpc.Curren
 		ai)
 }
 
-func (s *RPCServer) buildFuturePosition(position *order.Position, getFundingPayments, includeFundingRates, includeOrders, includePredictedRate bool) *gctrpc.FuturePosition {
+func (s *RPCServer) buildFuturePosition(position *futures.Position, getFundingPayments, includeFundingRates, includeOrders, includePredictedRate bool) *gctrpc.FuturePosition {
 	response := &gctrpc.FuturePosition{
 		Exchange: position.Exchange,
 		Asset:    position.Asset.String(),
@@ -4313,7 +4314,7 @@ func (s *RPCServer) GetManagedPosition(_ context.Context, r *gctrpc.GetManagedPo
 	if r == nil {
 		return nil, fmt.Errorf("%w GetManagedPositionRequest", common.ErrNilPointer)
 	}
-	if err := order.CheckFundingRatePrerequisites(r.GetFundingPayments, r.IncludePredictedRate, r.GetFundingPayments); err != nil {
+	if err := futures.CheckFundingRatePrerequisites(r.GetFundingPayments, r.IncludePredictedRate, r.GetFundingPayments); err != nil {
 		return nil, err
 	}
 	if r.Pair == nil {
@@ -4341,7 +4342,7 @@ func (s *RPCServer) GetManagedPosition(_ context.Context, r *gctrpc.GetManagedPo
 		return nil, err
 	}
 	if !ai.IsFutures() {
-		return nil, fmt.Errorf("%w '%v'", order.ErrNotFuturesAsset, ai)
+		return nil, fmt.Errorf("%w '%v'", futures.ErrNotFuturesAsset, ai)
 	}
 	cp, err = currency.NewPairFromStrings(r.Pair.Base, r.Pair.Quote)
 	if err != nil {
@@ -4366,7 +4367,7 @@ func (s *RPCServer) GetAllManagedPositions(_ context.Context, r *gctrpc.GetAllMa
 	if r == nil {
 		return nil, fmt.Errorf("%w GetAllManagedPositionsRequest", common.ErrNilPointer)
 	}
-	if err := order.CheckFundingRatePrerequisites(r.GetFundingPayments, r.IncludePredictedRate, r.GetFundingPayments); err != nil {
+	if err := futures.CheckFundingRatePrerequisites(r.GetFundingPayments, r.IncludePredictedRate, r.GetFundingPayments); err != nil {
 		return nil, err
 	}
 	positions, err := s.OrderManager.GetAllOpenFuturesPositions()
@@ -4408,7 +4409,7 @@ func (s *RPCServer) GetFuturesPositionsSummary(ctx context.Context, r *gctrpc.Ge
 		return nil, err
 	}
 	if !ai.IsFutures() {
-		return nil, fmt.Errorf("%s %w", ai, order.ErrNotFuturesAsset)
+		return nil, fmt.Errorf("%s %w", ai, futures.ErrNotFuturesAsset)
 	}
 	enabledPairs, err := exch.GetEnabledPairs(ai)
 	if err != nil {
@@ -4427,8 +4428,8 @@ func (s *RPCServer) GetFuturesPositionsSummary(ctx context.Context, r *gctrpc.Ge
 		}
 	}
 
-	var stats *order.PositionSummary
-	stats, err = exch.GetFuturesPositionSummary(ctx, &order.PositionSummaryRequest{
+	var stats *futures.PositionSummary
+	stats, err = exch.GetFuturesPositionSummary(ctx, &futures.PositionSummaryRequest{
 		Asset:          ai,
 		Pair:           cp,
 		UnderlyingPair: underlying,
@@ -4452,6 +4453,12 @@ func (s *RPCServer) GetFuturesPositionsSummary(ctx context.Context, r *gctrpc.Ge
 	}
 	if !stats.CurrentSize.IsZero() {
 		positionStats.CurrentSize = stats.CurrentSize.String()
+	}
+	if !stats.ContractMultiplier.IsZero() {
+		positionStats.ContractMultiplier = stats.ContractMultiplier.String()
+	}
+	if !stats.ContractSize.IsZero() {
+		positionStats.ContractSize = stats.ContractSize.String()
 	}
 	if !stats.AverageOpenPrice.IsZero() {
 		positionStats.AverageOpenPrice = stats.AverageOpenPrice.String()
@@ -4491,6 +4498,9 @@ func (s *RPCServer) GetFuturesPositionsSummary(ctx context.Context, r *gctrpc.Ge
 	}
 	if !stats.IsolatedEquity.IsZero() {
 		positionStats.IsolatedEquity = stats.IsolatedEquity.String()
+	}
+	if stats.ContractSettlementType != futures.UnsetSettlementType {
+		positionStats.ContractSettlementType = stats.ContractSettlementType.String()
 	}
 	if !stats.IsolatedLiabilities.IsZero() {
 		positionStats.IsolatedLiabilities = stats.IsolatedLiabilities.String()
@@ -4546,7 +4556,7 @@ func (s *RPCServer) GetFuturesPositionsOrders(ctx context.Context, r *gctrpc.Get
 		return nil, err
 	}
 	if !ai.IsFutures() {
-		return nil, fmt.Errorf("%s %w", ai, order.ErrNotFuturesAsset)
+		return nil, fmt.Errorf("%s %w", ai, futures.ErrNotFuturesAsset)
 	}
 	enabledPairs, err := exch.GetEnabledPairs(ai)
 	if err != nil {
@@ -4574,7 +4584,7 @@ func (s *RPCServer) GetFuturesPositionsOrders(ctx context.Context, r *gctrpc.Get
 		return nil, err
 	}
 
-	positionDetails, err := exch.GetFuturesPositionOrders(ctx, &order.PositionsRequest{
+	positionDetails, err := exch.GetFuturesPositionOrders(ctx, &futures.PositionsRequest{
 		Asset:                     ai,
 		Pairs:                     currency.Pairs{cp},
 		StartDate:                 start,
@@ -4596,27 +4606,29 @@ func (s *RPCServer) GetFuturesPositionsOrders(ctx context.Context, r *gctrpc.Get
 				Base:      positionDetails[i].Pair.Base.String(),
 				Quote:     positionDetails[i].Pair.Quote.String(),
 			},
-			Orders: make([]*gctrpc.OrderDetails, len(positionDetails[i].Orders)),
+			ContractSettlementType: positionDetails[i].ContractSettlementType.String(),
+			Orders:                 make([]*gctrpc.OrderDetails, len(positionDetails[i].Orders)),
 		}
 		for j := range positionDetails[i].Orders {
 			anyOrders = true
 			details.Orders[j] = &gctrpc.OrderDetails{
-				Exchange:      exch.GetName(),
-				Id:            positionDetails[i].Orders[j].OrderID,
-				ClientOrderId: positionDetails[i].Orders[j].ClientOrderID,
-				BaseCurrency:  positionDetails[i].Orders[j].Pair.Base.String(),
-				QuoteCurrency: positionDetails[i].Orders[j].Pair.Quote.String(),
-				AssetType:     positionDetails[i].Orders[j].AssetType.String(),
-				OrderSide:     positionDetails[i].Orders[j].Side.String(),
-				OrderType:     positionDetails[i].Orders[j].Type.String(),
-				CreationTime:  positionDetails[i].Orders[j].Date.Format(common.SimpleTimeFormatWithTimezone),
-				UpdateTime:    positionDetails[i].Orders[j].LastUpdated.Format(common.SimpleTimeFormatWithTimezone),
-				Status:        positionDetails[i].Orders[j].Status.String(),
-				Price:         positionDetails[i].Orders[j].Price,
-				Amount:        positionDetails[i].Orders[j].Amount,
-				OpenVolume:    positionDetails[i].Orders[j].RemainingAmount,
-				Fee:           positionDetails[i].Orders[j].Fee,
-				Cost:          positionDetails[i].Orders[j].Cost,
+				Exchange:       exch.GetName(),
+				Id:             positionDetails[i].Orders[j].OrderID,
+				ClientOrderId:  positionDetails[i].Orders[j].ClientOrderID,
+				BaseCurrency:   positionDetails[i].Orders[j].Pair.Base.String(),
+				QuoteCurrency:  positionDetails[i].Orders[j].Pair.Quote.String(),
+				AssetType:      positionDetails[i].Orders[j].AssetType.String(),
+				OrderSide:      positionDetails[i].Orders[j].Side.String(),
+				OrderType:      positionDetails[i].Orders[j].Type.String(),
+				CreationTime:   positionDetails[i].Orders[j].Date.Format(common.SimpleTimeFormatWithTimezone),
+				UpdateTime:     positionDetails[i].Orders[j].LastUpdated.Format(common.SimpleTimeFormatWithTimezone),
+				Status:         positionDetails[i].Orders[j].Status.String(),
+				Price:          positionDetails[i].Orders[j].Price,
+				Amount:         positionDetails[i].Orders[j].Amount,
+				OpenVolume:     positionDetails[i].Orders[j].RemainingAmount,
+				Fee:            positionDetails[i].Orders[j].Fee,
+				Cost:           positionDetails[i].Orders[j].Cost,
+				ContractAmount: positionDetails[i].Orders[j].ContractAmount,
 			}
 		}
 		positions[i] = details
@@ -4654,7 +4666,7 @@ func (s *RPCServer) GetFundingRates(ctx context.Context, r *gctrpc.GetFundingRat
 		return nil, err
 	}
 	if !a.IsFutures() {
-		return nil, fmt.Errorf("%s %w", a, order.ErrNotFuturesAsset)
+		return nil, fmt.Errorf("%s %w", a, futures.ErrNotFuturesAsset)
 	}
 	start := time.Now().AddDate(0, -1, 0)
 	end := time.Now()
@@ -4770,7 +4782,7 @@ func (s *RPCServer) GetLatestFundingRate(ctx context.Context, r *gctrpc.GetLates
 		return nil, err
 	}
 	if !a.IsFutures() {
-		return nil, fmt.Errorf("%s %w", a, order.ErrNotFuturesAsset)
+		return nil, fmt.Errorf("%s %w", a, futures.ErrNotFuturesAsset)
 	}
 
 	cp, err := exch.MatchSymbolWithAvailablePairs(r.Pair.Base+r.Pair.Quote, a, false)
@@ -4845,7 +4857,7 @@ func (s *RPCServer) GetCollateral(ctx context.Context, r *gctrpc.GetCollateralRe
 		return nil, err
 	}
 	if !a.IsFutures() {
-		return nil, fmt.Errorf("%s %w", a, order.ErrNotFuturesAsset)
+		return nil, fmt.Errorf("%s %w", a, futures.ErrNotFuturesAsset)
 	}
 	ai, err := exch.FetchAccountInfo(ctx, a)
 	if err != nil {
@@ -4884,11 +4896,11 @@ func (s *RPCServer) GetCollateral(ctx context.Context, r *gctrpc.GetCollateralRe
 		}
 	}
 
-	calculators := make([]order.CollateralCalculator, 0, len(acc.Currencies))
+	calculators := make([]futures.CollateralCalculator, 0, len(acc.Currencies))
 	for i := range acc.Currencies {
 		total := decimal.NewFromFloat(acc.Currencies[i].Total)
 		free := decimal.NewFromFloat(acc.Currencies[i].AvailableWithoutBorrow)
-		cal := order.CollateralCalculator{
+		cal := futures.CollateralCalculator{
 			CalculateOffline:   r.CalculateOffline,
 			CollateralCurrency: acc.Currencies[i].Currency,
 			Asset:              a,
@@ -4916,7 +4928,7 @@ func (s *RPCServer) GetCollateral(ctx context.Context, r *gctrpc.GetCollateralRe
 		calculators = append(calculators, cal)
 	}
 
-	calc := &order.TotalCollateralCalculator{
+	calc := &futures.TotalCollateralCalculator{
 		CollateralAssets: calculators,
 		CalculateOffline: r.CalculateOffline,
 		FetchPositions:   true,

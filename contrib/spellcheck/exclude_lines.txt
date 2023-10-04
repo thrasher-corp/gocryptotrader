@@ -20,3 +20,5 @@
 	wsBalanceUpdate                        = "bu"
 		"59512": errors.New("unable to set up this permission for ND brokers sub accounts. by default, all ND sub accounts can transfer funds out"),
 	currency.MIS:        0.002,
+	SHFT             = NewCode("SHFT")
+	currency.SHFT:     84,

@@ -18,6 +18,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/collateral"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -278,8 +279,8 @@ var (
 	orderCancelsParam           = reflect.TypeOf((*[]order.Cancel)(nil)).Elem()
 	getOrdersRequestParam       = reflect.TypeOf((**order.MultiOrderRequest)(nil)).Elem()
 	positionChangeRequestParam  = reflect.TypeOf((**margin.PositionChangeRequest)(nil)).Elem()
-	positionSummaryRequestParam = reflect.TypeOf((**order.PositionSummaryRequest)(nil)).Elem()
-	positionsRequestParam       = reflect.TypeOf((**order.PositionsRequest)(nil)).Elem()
+	positionSummaryRequestParam = reflect.TypeOf((**futures.PositionSummaryRequest)(nil)).Elem()
+	positionsRequestParam       = reflect.TypeOf((**futures.PositionsRequest)(nil)).Elem()
 )
 
 // generateMethodArg determines the argument type and returns a pre-made
@@ -485,13 +486,13 @@ func generateMethodArg(ctx context.Context, t *testing.T, argGenerator *MethodAr
 			NewAllocatedMargin:      1338,
 		})
 	case argGenerator.MethodInputType.AssignableTo(positionSummaryRequestParam):
-		input = reflect.ValueOf(&order.PositionSummaryRequest{
+		input = reflect.ValueOf(&futures.PositionSummaryRequest{
 			Asset:     argGenerator.AssetParams.Asset,
 			Pair:      argGenerator.AssetParams.Pair,
 			Direction: order.Buy,
 		})
 	case argGenerator.MethodInputType.AssignableTo(positionsRequestParam):
-		input = reflect.ValueOf(&order.PositionsRequest{
+		input = reflect.ValueOf(&futures.PositionsRequest{
 			Asset:                     argGenerator.AssetParams.Asset,
 			Pairs:                     currency.Pairs{argGenerator.AssetParams.Pair},
 			StartDate:                 argGenerator.Start,
@@ -577,6 +578,8 @@ var unsupportedExchangeNames = []string{
 	"bitflyer", // Bitflyer has many "ErrNotYetImplemented, which is true, but not what we care to test for here
 	"bittrex",  // the api is about to expire in March, and we haven't updated it yet
 	"itbit",    // itbit has no way of retrieving pair data
+	"btse",     // 	TODO rm once timeout issues resolved
+	"poloniex", // 	outdated API // TODO rm once updated
 }
 
 // cryptoChainPerExchange holds the deposit address chain per exchange
@@ -600,6 +603,7 @@ var acceptableErrors = []error{
 	context.DeadlineExceeded,             // If the context deadline is exceeded, it is not an error as only blockedCIExchanges use expired contexts by design
 	order.ErrPairIsEmpty,                 // Is thrown when the empty pair and asset scenario for an order submission is sent in the Validate() function
 	deposit.ErrAddressNotFound,           // Is thrown when an address is not found due to the exchange requiring valid API keys
+	futures.ErrNotFuturesAsset,           // Is thrown when a futures function receives a non-futures asset
 	currency.ErrSymbolStringEmpty,        // Is thrown when a symbol string is empty for blank MatchSymbol func checks
 }
 
