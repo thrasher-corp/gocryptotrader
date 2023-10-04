@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"reflect"
 	"strings"
 
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
@@ -220,22 +219,7 @@ func (b *Base) SetAPICredentialDefaults() {
 		b.Config.API.CredentialsValidator = new(config.APICredentialsValidatorConfig)
 	}
 
-	// Updating credential validation requirements
-	creditRequirements := map[string]bool{
-		"RequiresKey":                b.API.CredentialsValidator.RequiresKey,
-		"RequiresSecret":             b.API.CredentialsValidator.RequiresSecret,
-		"RequiresBase64DecodeSecret": b.API.CredentialsValidator.RequiresBase64DecodeSecret,
-		"RequiresClientID":           b.API.CredentialsValidator.RequiresClientID,
-		"RequiresPEM":                b.API.CredentialsValidator.RequiresPEM,
-	}
-
-	// Updating credential validation requirements
-	for requirement, value := range creditRequirements {
-		field := reflect.ValueOf(b.Config.API.CredentialsValidator).Elem().FieldByName(requirement)
-		if field.IsValid() && field.CanSet() && field.Bool() != value {
-			field.SetBool(value)
-		}
-	}
+	*b.Config.API.CredentialsValidator = b.API.CredentialsValidator
 }
 
 // IsWebsocketAuthenticationSupported returns whether the exchange supports

@@ -186,7 +186,7 @@ func TestVerifyAPICredentials(t *testing.T) {
 	setupBase := func(tData *tester) *Base {
 		b := &Base{
 			API: API{
-				CredentialsValidator: CredentialsValidator{
+				CredentialsValidator: config.APICredentialsValidatorConfig{
 					RequiresKey:                tData.RequiresKey,
 					RequiresSecret:             tData.RequiresSecret,
 					RequiresClientID:           tData.RequiresClientID,
@@ -243,7 +243,7 @@ func TestCheckCredentials(t *testing.T) {
 			name: "Test credentials failure",
 			base: &Base{
 				API: API{
-					CredentialsValidator: CredentialsValidator{RequiresKey: true},
+					CredentialsValidator: config.APICredentialsValidatorConfig{RequiresKey: true},
 					credentials:          account.Credentials{OneTimePassword: "wow"},
 				},
 			},
@@ -254,7 +254,7 @@ func TestCheckCredentials(t *testing.T) {
 			base: &Base{
 				LoadedByConfig: true,
 				API: API{
-					CredentialsValidator: CredentialsValidator{RequiresKey: true},
+					CredentialsValidator: config.APICredentialsValidatorConfig{RequiresKey: true},
 					credentials:          account.Credentials{Key: "k3y"},
 				},
 			},
@@ -266,7 +266,7 @@ func TestCheckCredentials(t *testing.T) {
 				LoadedByConfig: true,
 				API: API{
 					AuthenticatedSupport: true,
-					CredentialsValidator: CredentialsValidator{RequiresKey: true},
+					CredentialsValidator: config.APICredentialsValidatorConfig{RequiresKey: true},
 					credentials:          account.Credentials{},
 				},
 			},
@@ -276,7 +276,7 @@ func TestCheckCredentials(t *testing.T) {
 			name: "Test base64 decoded invalid credentials",
 			base: &Base{
 				API: API{
-					CredentialsValidator: CredentialsValidator{RequiresBase64DecodeSecret: true},
+					CredentialsValidator: config.APICredentialsValidatorConfig{RequiresBase64DecodeSecret: true},
 					credentials:          account.Credentials{Secret: "invalid"},
 				},
 			},
@@ -286,7 +286,7 @@ func TestCheckCredentials(t *testing.T) {
 			name: "Test base64 decoded valid credentials",
 			base: &Base{
 				API: API{
-					CredentialsValidator: CredentialsValidator{RequiresBase64DecodeSecret: true},
+					CredentialsValidator: config.APICredentialsValidatorConfig{RequiresBase64DecodeSecret: true},
 					credentials:          account.Credentials{Secret: "aGVsbG8gd29ybGQ="},
 				},
 			},
@@ -298,7 +298,7 @@ func TestCheckCredentials(t *testing.T) {
 			base: &Base{
 				API: API{
 					AuthenticatedSupport: true,
-					CredentialsValidator: CredentialsValidator{RequiresKey: true},
+					CredentialsValidator: config.APICredentialsValidatorConfig{RequiresKey: true},
 					credentials:          account.Credentials{Key: "k3y"},
 				},
 			},
