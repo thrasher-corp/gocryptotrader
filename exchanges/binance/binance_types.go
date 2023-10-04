@@ -43,7 +43,7 @@ type ExchangeInfo struct {
 	Code       int       `json:"code"`
 	Msg        string    `json:"msg"`
 	Timezone   string    `json:"timezone"`
-	Servertime time.Time `json:"serverTime"`
+	ServerTime time.Time `json:"serverTime"`
 	RateLimits []struct {
 		RateLimitType string `json:"rateLimitType"`
 		Interval      string `json:"interval"`

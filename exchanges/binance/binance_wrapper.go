@@ -17,9 +17,12 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/collateral"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
@@ -120,8 +123,9 @@ func (b *Binance) SetDefaults() {
 	}
 	b.Features = exchange.Features{
 		Supports: exchange.FeaturesSupported{
-			REST:      true,
-			Websocket: true,
+			REST:                true,
+			Websocket:           true,
+			MaximumOrderHistory: kline.OneDay.Duration() * 7,
 			RESTCapabilities: protocol.Features{
 				TickerBatching:                 true,
 				TickerFetching:                 true,
@@ -165,6 +169,9 @@ func (b *Binance) SetDefaults() {
 				Intervals:  true,
 			},
 			FuturesCapabilities: exchange.FuturesCapabilities{
+				Positions:            true,
+				Leverage:             true,
+				CollateralMode:       true,
 				FundingRates:         true,
 				FundingRateFrequency: kline.EightHour.Duration(),
 			},
@@ -972,6 +979,9 @@ func (b *Binance) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Subm
 	var orderID string
 	status := order.New
 	var trades []order.TradeHistory
+	if s.Leverage != 0 && s.Leverage != 1 {
+		return nil, fmt.Errorf("%w received '%v'", order.ErrSubmitLeverageNotSupported, s.Leverage)
+	}
 	switch s.AssetType {
 	case asset.Spot, asset.Margin:
 		var sideType string
@@ -1618,7 +1628,7 @@ func (b *Binance) GetOrderHistory(ctx context.Context, req *order.MultiOrderRequ
 					return nil, fmt.Errorf("can only fetch orders 30 days out")
 				}
 				orderHistory, err = b.GetAllFuturesOrders(ctx,
-					req.Pairs[i], "", req.StartTime, req.EndTime, 0, 0)
+					req.Pairs[i], currency.EMPTYPAIR, req.StartTime, req.EndTime, 0, 0)
 				if err != nil {
 					return nil, err
 				}
@@ -1628,7 +1638,7 @@ func (b *Binance) GetOrderHistory(ctx context.Context, req *order.MultiOrderRequ
 					return nil, err
 				}
 				orderHistory, err = b.GetAllFuturesOrders(ctx,
-					req.Pairs[i], "", time.Time{}, time.Time{}, fromID, 0)
+					req.Pairs[i], currency.EMPTYPAIR, time.Time{}, time.Time{}, fromID, 0)
 				if err != nil {
 					return nil, err
 				}
@@ -2051,7 +2061,7 @@ func (b *Binance) GetServerTime(ctx context.Context, ai asset.Item) (time.Time, 
 		if err != nil {
 			return time.Time{}, err
 		}
-		return info.Servertime, nil
+		return info.ServerTime, nil
 	case asset.CoinMarginedFutures:
 		info, err := b.FuturesExchangeInfo(ctx)
 		if err != nil {
@@ -2259,4 +2269,680 @@ func (b *Binance) IsPerpetualFutureCurrency(a asset.Item, cp currency.Pair) (boo
 		}
 	}
 	return false, nil
+}
+
+// SetCollateralMode sets the account's collateral mode for the asset type
+func (b *Binance) SetCollateralMode(ctx context.Context, a asset.Item, collateralMode collateral.Mode) error {
+	if a != asset.USDTMarginedFutures {
+		return fmt.Errorf("%w %v", asset.ErrNotSupported, a)
+	}
+	if collateralMode != collateral.MultiMode && collateralMode != collateral.SingleMode {
+		return fmt.Errorf("%w %v", order.ErrCollateralInvalid, collateralMode)
+	}
+	return b.SetAssetsMode(ctx, collateralMode == collateral.MultiMode)
+}
+
+// GetCollateralMode returns the account's collateral mode for the asset type
+func (b *Binance) GetCollateralMode(ctx context.Context, a asset.Item) (collateral.Mode, error) {
+	if a != asset.USDTMarginedFutures {
+		return collateral.UnknownMode, fmt.Errorf("%w %v", asset.ErrNotSupported, a)
+	}
+	isMulti, err := b.GetAssetsMode(ctx)
+	if err != nil {
+		return collateral.UnknownMode, err
+	}
+	if isMulti {
+		return collateral.MultiMode, nil
+	}
+	return collateral.SingleMode, nil
+}
+
+// SetMarginType sets the default margin type for when opening a new position
+func (b *Binance) SetMarginType(ctx context.Context, item asset.Item, pair currency.Pair, tp margin.Type) error {
+	if item != asset.USDTMarginedFutures && item != asset.CoinMarginedFutures {
+		return fmt.Errorf("%w %v", asset.ErrNotSupported, item)
+	}
+	if !tp.Valid() {
+		return fmt.Errorf("%w %v", margin.ErrInvalidMarginType, tp)
+	}
+	mt, err := b.marginTypeToString(tp)
+	if err != nil {
+		return err
+	}
+	switch item {
+	case asset.CoinMarginedFutures:
+		_, err = b.FuturesChangeMarginType(ctx, pair, mt)
+	case asset.USDTMarginedFutures:
+		err = b.UChangeInitialMarginType(ctx, pair, mt)
+	}
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// ChangePositionMargin will modify a position/currencies margin parameters
+func (b *Binance) ChangePositionMargin(ctx context.Context, req *margin.PositionChangeRequest) (*margin.PositionChangeResponse, error) {
+	if req == nil {
+		return nil, fmt.Errorf("%w PositionChangeRequest", common.ErrNilPointer)
+	}
+	if req.Asset != asset.USDTMarginedFutures && req.Asset != asset.CoinMarginedFutures {
+		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, req.Asset)
+	}
+	if req.NewAllocatedMargin == 0 {
+		return nil, fmt.Errorf("%w %v %v", margin.ErrNewAllocatedMarginRequired, req.Asset, req.Pair)
+	}
+	if req.OriginalAllocatedMargin == 0 {
+		return nil, fmt.Errorf("%w %v %v", margin.ErrOriginalPositionMarginRequired, req.Asset, req.Pair)
+	}
+	if req.MarginType == margin.Multi {
+		return nil, fmt.Errorf("%w %v %v", margin.ErrMarginTypeUnsupported, req.Asset, req.Pair)
+	}
+
+	marginType := "add"
+	if req.NewAllocatedMargin < req.OriginalAllocatedMargin {
+		marginType = "reduce"
+	}
+	var side string
+	if req.MarginSide != "" {
+		side = req.MarginSide
+	}
+	var err error
+	switch req.Asset {
+	case asset.CoinMarginedFutures:
+		_, err = b.ModifyIsolatedPositionMargin(ctx, req.Pair, side, marginType, req.NewAllocatedMargin)
+	case asset.USDTMarginedFutures:
+		_, err = b.UModifyIsolatedPositionMarginReq(ctx, req.Pair, side, marginType, req.NewAllocatedMargin)
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	return &margin.PositionChangeResponse{
+		Exchange:        b.Name,
+		Pair:            req.Pair,
+		Asset:           req.Asset,
+		MarginType:      req.MarginType,
+		AllocatedMargin: req.NewAllocatedMargin,
+	}, nil
+}
+
+// marginTypeToString converts the GCT margin type to Binance's string
+func (b *Binance) marginTypeToString(mt margin.Type) (string, error) {
+	switch mt {
+	case margin.Isolated:
+		return margin.Isolated.Upper(), nil
+	case margin.Multi:
+		return "CROSSED", nil
+	}
+	return "", fmt.Errorf("%w %v", margin.ErrInvalidMarginType, mt)
+}
+
+// GetFuturesPositionSummary returns the account's position summary for the asset type and pair
+// it can be used to calculate potential positions
+func (b *Binance) GetFuturesPositionSummary(ctx context.Context, req *futures.PositionSummaryRequest) (*futures.PositionSummary, error) {
+	if req == nil {
+		return nil, fmt.Errorf("%w GetFuturesPositionSummary", common.ErrNilPointer)
+	}
+	if req.CalculateOffline {
+		return nil, common.ErrCannotCalculateOffline
+	}
+	fPair, err := b.FormatExchangeCurrency(req.Pair, req.Asset)
+	if err != nil {
+		return nil, err
+	}
+	switch req.Asset {
+	case asset.USDTMarginedFutures:
+		ai, err := b.UAccountInformationV2(ctx)
+		if err != nil {
+			return nil, err
+		}
+		collateralMode := collateral.SingleMode
+		if ai.MultiAssetsMargin {
+			collateralMode = collateral.MultiMode
+		}
+		var accountPosition *UPosition
+		var leverage, maintenanceMargin, initialMargin,
+			liquidationPrice, markPrice, positionSize,
+			collateralTotal, collateralUsed, collateralAvailable,
+			pnl, openPrice, isolatedMargin float64
+
+		for i := range ai.Positions {
+			if ai.Positions[i].Symbol != fPair.String() {
+				continue
+			}
+			accountPosition = &ai.Positions[i]
+			break
+		}
+		if accountPosition == nil {
+			return nil, fmt.Errorf("%w %v %v position info", currency.ErrCurrencyNotFound, req.Asset, req.Pair)
+		}
+
+		var usdtAsset, busdAsset *UAsset
+		for i := range ai.Assets {
+			if usdtAsset != nil && busdAsset != nil {
+				break
+			}
+			if strings.EqualFold(ai.Assets[i].Asset, currency.USDT.Item.Symbol) {
+				usdtAsset = &ai.Assets[i]
+				continue
+			}
+			if strings.EqualFold(ai.Assets[i].Asset, currency.BUSD.Item.Symbol) {
+				busdAsset = &ai.Assets[i]
+			}
+		}
+		if usdtAsset == nil && busdAsset == nil {
+			return nil, fmt.Errorf("%w %v %v asset info", currency.ErrCurrencyNotFound, req.Asset, req.Pair)
+		}
+
+		leverage = accountPosition.Leverage
+		openPrice = accountPosition.EntryPrice
+		maintenanceMargin = accountPosition.MaintenanceMargin
+		initialMargin = accountPosition.PositionInitialMargin
+		marginType := margin.Multi
+		if accountPosition.Isolated {
+			marginType = margin.Isolated
+		}
+
+		var contracts []futures.Contract
+		contracts, err = b.GetFuturesContractDetails(ctx, req.Asset)
+		if err != nil {
+			return nil, err
+		}
+		var contractSettlementType futures.ContractSettlementType
+		for i := range contracts {
+			if !contracts[i].Name.Equal(fPair) {
+				continue
+			}
+			contractSettlementType = contracts[i].SettlementType
+			break
+		}
+
+		var c currency.Code
+		if collateralMode == collateral.SingleMode {
+			var collateralAsset *UAsset
+			if strings.Contains(accountPosition.Symbol, usdtAsset.Asset) {
+				collateralAsset = usdtAsset
+			} else if strings.Contains(accountPosition.Symbol, busdAsset.Asset) {
+				collateralAsset = busdAsset
+			}
+			collateralTotal = collateralAsset.WalletBalance
+			collateralAvailable = collateralAsset.AvailableBalance
+			pnl = collateralAsset.UnrealizedProfit
+			c = currency.NewCode(collateralAsset.Asset)
+			if marginType == margin.Multi {
+				isolatedMargin = collateralAsset.CrossUnPnl
+				collateralUsed = collateralTotal + isolatedMargin
+			} else {
+				isolatedMargin = accountPosition.IsolatedWallet
+				collateralUsed = isolatedMargin
+			}
+		} else if collateralMode == collateral.MultiMode {
+			collateralTotal = ai.TotalWalletBalance
+			collateralUsed = ai.TotalWalletBalance - ai.AvailableBalance
+			collateralAvailable = ai.AvailableBalance
+			pnl = accountPosition.UnrealisedProfit
+		}
+
+		var maintenanceMarginFraction decimal.Decimal
+		if collateralTotal != 0 {
+			maintenanceMarginFraction = decimal.NewFromFloat(maintenanceMargin).Div(decimal.NewFromFloat(collateralTotal)).Mul(decimal.NewFromInt32(100))
+		}
+
+		// binance so fun, some prices exclusively here
+		positionsInfo, err := b.UPositionsInfoV2(ctx, fPair)
+		if err != nil {
+			return nil, err
+		}
+		var relevantPosition *UPositionInformationV2
+		for i := range positionsInfo {
+			if positionsInfo[i].Symbol != fPair.String() {
+				continue
+			}
+			relevantPosition = &positionsInfo[i]
+		}
+		if relevantPosition == nil {
+			return nil, fmt.Errorf("%w %v %v", futures.ErrNoPositionsFound, req.Asset, req.Pair)
+		}
+
+		return &futures.PositionSummary{
+			Pair:                         req.Pair,
+			Asset:                        req.Asset,
+			MarginType:                   marginType,
+			CollateralMode:               collateralMode,
+			Currency:                     c,
+			ContractSettlementType:       contractSettlementType,
+			IsolatedMargin:               decimal.NewFromFloat(isolatedMargin),
+			Leverage:                     decimal.NewFromFloat(leverage),
+			MaintenanceMarginRequirement: decimal.NewFromFloat(maintenanceMargin),
+			InitialMarginRequirement:     decimal.NewFromFloat(initialMargin),
+			EstimatedLiquidationPrice:    decimal.NewFromFloat(liquidationPrice),
+			CollateralUsed:               decimal.NewFromFloat(collateralUsed),
+			MarkPrice:                    decimal.NewFromFloat(markPrice),
+			CurrentSize:                  decimal.NewFromFloat(positionSize),
+			AverageOpenPrice:             decimal.NewFromFloat(openPrice),
+			PositionPNL:                  decimal.NewFromFloat(pnl),
+			MaintenanceMarginFraction:    maintenanceMarginFraction,
+			FreeCollateral:               decimal.NewFromFloat(collateralAvailable),
+			TotalCollateral:              decimal.NewFromFloat(collateralTotal),
+			NotionalSize:                 decimal.NewFromFloat(positionSize).Mul(decimal.NewFromFloat(markPrice)),
+		}, nil
+	case asset.CoinMarginedFutures:
+		ai, err := b.GetFuturesAccountInfo(ctx)
+		if err != nil {
+			return nil, err
+		}
+		collateralMode := collateral.SingleMode
+		var leverage, maintenanceMargin, initialMargin,
+			liquidationPrice, markPrice, positionSize,
+			collateralTotal, collateralUsed, collateralAvailable,
+			pnl, openPrice, isolatedMargin float64
+
+		var accountPosition *FuturesAccountInformationPosition
+		for i := range ai.Positions {
+			if ai.Positions[i].Symbol != fPair.String() {
+				continue
+			}
+			accountPosition = &ai.Positions[i]
+			break
+		}
+		if accountPosition == nil {
+			return nil, fmt.Errorf("%w %v %v position info", currency.ErrCurrencyNotFound, req.Asset, req.Pair)
+		}
+		var accountAsset *FuturesAccountAsset
+		for i := range ai.Assets {
+			// TODO: utilise contract data to discern the underlying currency
+			// instead of having a user provide it
+			if ai.Assets[i].Asset != req.UnderlyingPair.Base.Upper().String() {
+				continue
+			}
+			accountAsset = &ai.Assets[i]
+			break
+		}
+		if accountAsset == nil {
+			return nil, fmt.Errorf("could not get asset info: %w %v %v, please verify underlying pair: '%v'", currency.ErrCurrencyNotFound, req.Asset, req.Pair, req.UnderlyingPair)
+		}
+
+		leverage = accountPosition.Leverage
+		openPrice = accountPosition.EntryPrice
+		maintenanceMargin = accountPosition.MaintenanceMargin
+		initialMargin = accountPosition.PositionInitialMargin
+		marginType := margin.Multi
+		if accountPosition.Isolated {
+			marginType = margin.Isolated
+		}
+		collateralTotal = accountAsset.WalletBalance
+		frozenBalance := decimal.NewFromFloat(accountAsset.WalletBalance).Sub(decimal.NewFromFloat(accountAsset.AvailableBalance))
+		collateralAvailable = accountAsset.AvailableBalance
+		pnl = accountAsset.UnrealizedProfit
+		if marginType == margin.Multi {
+			isolatedMargin = accountAsset.CrossUnPNL
+			collateralUsed = collateralTotal + isolatedMargin
+		} else {
+			isolatedMargin = accountPosition.IsolatedWallet
+			collateralUsed = isolatedMargin
+		}
+
+		// binance so fun, some prices exclusively here
+		positionsInfo, err := b.FuturesPositionsInfo(ctx, "", req.Pair.Base.String())
+		if err != nil {
+			return nil, err
+		}
+		if len(positionsInfo) == 0 {
+			return nil, fmt.Errorf("%w %v", futures.ErrNoPositionsFound, fPair)
+		}
+		var relevantPosition *FuturesPositionInformation
+		for i := range positionsInfo {
+			if positionsInfo[i].Symbol != fPair.String() {
+				continue
+			}
+			relevantPosition = &positionsInfo[i]
+		}
+		if relevantPosition == nil {
+			return nil, fmt.Errorf("%w %v %v", futures.ErrNoPositionsFound, req.Asset, req.Pair)
+		}
+		liquidationPrice = relevantPosition.LiquidationPrice
+		markPrice = relevantPosition.MarkPrice
+		positionSize = relevantPosition.PositionAmount
+		var mmf, tc decimal.Decimal
+		if collateralTotal != 0 {
+			tc = decimal.NewFromFloat(collateralTotal)
+			mmf = decimal.NewFromFloat(maintenanceMargin).Div(tc).Mul(decimal.NewFromInt(100))
+		}
+
+		var contracts []futures.Contract
+		contracts, err = b.GetFuturesContractDetails(ctx, req.Asset)
+		if err != nil {
+			return nil, err
+		}
+		var contractSettlementType futures.ContractSettlementType
+		for i := range contracts {
+			if !contracts[i].Name.Equal(fPair) {
+				continue
+			}
+			contractSettlementType = contracts[i].SettlementType
+			break
+		}
+
+		return &futures.PositionSummary{
+			Pair:                         req.Pair,
+			Asset:                        req.Asset,
+			MarginType:                   marginType,
+			CollateralMode:               collateralMode,
+			ContractSettlementType:       contractSettlementType,
+			Currency:                     currency.NewCode(accountAsset.Asset),
+			IsolatedMargin:               decimal.NewFromFloat(isolatedMargin),
+			NotionalSize:                 decimal.NewFromFloat(positionSize).Mul(decimal.NewFromFloat(markPrice)),
+			Leverage:                     decimal.NewFromFloat(leverage),
+			MaintenanceMarginRequirement: decimal.NewFromFloat(maintenanceMargin),
+			InitialMarginRequirement:     decimal.NewFromFloat(initialMargin),
+			EstimatedLiquidationPrice:    decimal.NewFromFloat(liquidationPrice),
+			CollateralUsed:               decimal.NewFromFloat(collateralUsed),
+			MarkPrice:                    decimal.NewFromFloat(markPrice),
+			CurrentSize:                  decimal.NewFromFloat(positionSize),
+			AverageOpenPrice:             decimal.NewFromFloat(openPrice),
+			PositionPNL:                  decimal.NewFromFloat(pnl),
+			MaintenanceMarginFraction:    mmf,
+			FreeCollateral:               decimal.NewFromFloat(collateralAvailable),
+			TotalCollateral:              tc,
+			FrozenBalance:                frozenBalance,
+		}, nil
+	default:
+		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, req.Asset)
+	}
+}
+
+// GetFuturesPositionOrders returns the orders for futures positions
+func (b *Binance) GetFuturesPositionOrders(ctx context.Context, req *futures.PositionsRequest) ([]futures.PositionResponse, error) {
+	if req == nil {
+		return nil, fmt.Errorf("%w GetFuturesPositionOrders", common.ErrNilPointer)
+	}
+	if len(req.Pairs) == 0 {
+		return nil, currency.ErrCurrencyPairsEmpty
+	}
+	if time.Since(req.StartDate) > b.Features.Supports.MaximumOrderHistory+time.Hour {
+		if req.RespectOrderHistoryLimits {
+			req.StartDate = time.Now().Add(-b.Features.Supports.MaximumOrderHistory)
+		} else {
+			return nil, fmt.Errorf("%w max lookup %v", futures.ErrOrderHistoryTooLarge, time.Now().Add(-b.Features.Supports.MaximumOrderHistory))
+		}
+	}
+	if req.EndDate.IsZero() {
+		req.EndDate = time.Now()
+	}
+
+	var resp []futures.PositionResponse
+	sd := req.StartDate
+	switch req.Asset {
+	case asset.USDTMarginedFutures:
+		var orderLimit = 1000
+		for x := range req.Pairs {
+			fPair, err := b.FormatExchangeCurrency(req.Pairs[x], req.Asset)
+			if err != nil {
+				return nil, err
+			}
+			result, err := b.UPositionsInfoV2(ctx, fPair)
+			if err != nil {
+				return nil, err
+			}
+			for y := range result {
+				currencyPosition := futures.PositionResponse{
+					Asset: req.Asset,
+					Pair:  req.Pairs[x],
+				}
+				for {
+					var orders []UFuturesOrderData
+					orders, err = b.UAllAccountOrders(ctx, fPair, 0, int64(orderLimit), sd, req.EndDate)
+					if err != nil {
+						return nil, err
+					}
+					for i := range orders {
+						if orders[i].Time.After(req.EndDate) {
+							continue
+						}
+						orderVars := compatibleOrderVars(orders[i].Side, orders[i].Status, orders[i].OrderType)
+						var mt margin.Type
+						mt, err = margin.StringToMarginType(result[y].MarginType)
+						if err != nil {
+							if !errors.Is(err, margin.ErrInvalidMarginType) {
+								return nil, err
+							}
+						}
+						currencyPosition.Orders = append(currencyPosition.Orders, order.Detail{
+							ReduceOnly:           orders[i].ClosePosition,
+							Price:                orders[i].Price,
+							Amount:               orders[i].ExecutedQty,
+							TriggerPrice:         orders[i].ActivatePrice,
+							AverageExecutedPrice: orders[i].AvgPrice,
+							ExecutedAmount:       orders[i].ExecutedQty,
+							RemainingAmount:      orders[i].OrigQty - orders[i].ExecutedQty,
+							CostAsset:            req.Pairs[x].Quote,
+							Leverage:             result[y].Leverage,
+							Exchange:             b.Name,
+							OrderID:              strconv.FormatInt(orders[i].OrderID, 10),
+							ClientOrderID:        orders[i].ClientOrderID,
+							Type:                 orderVars.OrderType,
+							Side:                 orderVars.Side,
+							Status:               orderVars.Status,
+							AssetType:            asset.USDTMarginedFutures,
+							Date:                 orders[i].Time,
+							LastUpdated:          orders[i].UpdateTime,
+							Pair:                 req.Pairs[x],
+							MarginType:           mt,
+						})
+					}
+					if len(orders) < orderLimit {
+						break
+					}
+					sd = currencyPosition.Orders[len(currencyPosition.Orders)-1].Date
+				}
+				resp = append(resp, currencyPosition)
+			}
+		}
+	case asset.CoinMarginedFutures:
+		var orderLimit = 100
+		for x := range req.Pairs {
+			fPair, err := b.FormatExchangeCurrency(req.Pairs[x], req.Asset)
+			if err != nil {
+				return nil, err
+			}
+			// "pair" for coinmarginedfutures is the pair.Base
+			// eg ADAUSD_PERP the pair is ADAUSD
+			result, err := b.FuturesPositionsInfo(ctx, "", fPair.Base.String())
+			if err != nil {
+				return nil, err
+			}
+			currencyPosition := futures.PositionResponse{
+				Asset: req.Asset,
+				Pair:  req.Pairs[x],
+			}
+			for y := range result {
+				if result[y].PositionAmount == 0 {
+					continue
+				}
+				for {
+					var orders []FuturesOrderData
+					orders, err = b.GetAllFuturesOrders(ctx, fPair, currency.EMPTYPAIR, sd, req.EndDate, 0, int64(orderLimit))
+					if err != nil {
+						return nil, err
+					}
+					for i := range orders {
+						if orders[i].Time.After(req.EndDate) {
+							continue
+						}
+						var orderPair currency.Pair
+						orderPair, err = currency.NewPairFromString(orders[i].Pair)
+						if err != nil {
+							return nil, err
+						}
+						orderVars := compatibleOrderVars(orders[i].Side, orders[i].Status, orders[i].OrderType)
+						var mt margin.Type
+						mt, err = margin.StringToMarginType(result[y].MarginType)
+						if err != nil {
+							if !errors.Is(err, margin.ErrInvalidMarginType) {
+								return nil, err
+							}
+						}
+						currencyPosition.Orders = append(currencyPosition.Orders, order.Detail{
+							ReduceOnly:           orders[i].ClosePosition,
+							Price:                orders[i].Price,
+							Amount:               orders[i].ExecutedQty,
+							TriggerPrice:         orders[i].ActivatePrice,
+							AverageExecutedPrice: orders[i].AvgPrice,
+							ExecutedAmount:       orders[i].ExecutedQty,
+							RemainingAmount:      orders[i].OrigQty - orders[i].ExecutedQty,
+							Leverage:             result[y].Leverage,
+							CostAsset:            orderPair.Base,
+							Exchange:             b.Name,
+							OrderID:              strconv.FormatInt(orders[i].OrderID, 10),
+							ClientOrderID:        orders[i].ClientOrderID,
+							Type:                 orderVars.OrderType,
+							Side:                 orderVars.Side,
+							Status:               orderVars.Status,
+							AssetType:            asset.CoinMarginedFutures,
+							Date:                 orders[i].Time,
+							LastUpdated:          orders[i].UpdateTime,
+							Pair:                 req.Pairs[x],
+							MarginType:           mt,
+						})
+					}
+					if len(orders) < orderLimit {
+						break
+					}
+					sd = currencyPosition.Orders[len(currencyPosition.Orders)-1].Date
+				}
+				resp = append(resp, currencyPosition)
+			}
+		}
+	default:
+		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, req.Asset)
+	}
+	return resp, nil
+}
+
+// SetLeverage sets the account's initial leverage for the asset type and pair
+func (b *Binance) SetLeverage(ctx context.Context, item asset.Item, pair currency.Pair, _ margin.Type, amount float64, _ order.Side) error {
+	switch item {
+	case asset.USDTMarginedFutures:
+		_, err := b.UChangeInitialLeverageRequest(ctx, pair, amount)
+		return err
+	case asset.CoinMarginedFutures:
+		_, err := b.FuturesChangeInitialLeverage(ctx, pair, amount)
+		return err
+	default:
+		return fmt.Errorf("%w %v", asset.ErrNotSupported, item)
+	}
+}
+
+// GetLeverage gets the account's initial leverage for the asset type and pair
+func (b *Binance) GetLeverage(ctx context.Context, item asset.Item, pair currency.Pair, _ margin.Type, _ order.Side) (float64, error) {
+	if pair.IsEmpty() {
+		return -1, currency.ErrCurrencyPairEmpty
+	}
+	switch item {
+	case asset.USDTMarginedFutures:
+		resp, err := b.UPositionsInfoV2(ctx, pair)
+		if err != nil {
+			return -1, err
+		}
+		if len(resp) == 0 {
+			return -1, fmt.Errorf("%w %v %v", futures.ErrPositionNotFound, item, pair)
+		}
+		// leverage is the same across positions
+		return resp[0].Leverage, nil
+	case asset.CoinMarginedFutures:
+		resp, err := b.FuturesPositionsInfo(ctx, "", pair.Base.String())
+		if err != nil {
+			return -1, err
+		}
+		if len(resp) == 0 {
+			return -1, fmt.Errorf("%w %v %v", futures.ErrPositionNotFound, item, pair)
+		}
+		// leverage is the same across positions
+		return resp[0].Leverage, nil
+	default:
+		return -1, fmt.Errorf("%w %v", asset.ErrNotSupported, item)
+	}
+}
+
+// GetFuturesContractDetails returns details about futures contracts
+func (b *Binance) GetFuturesContractDetails(ctx context.Context, item asset.Item) ([]futures.Contract, error) {
+	if !item.IsFutures() {
+		return nil, futures.ErrNotFuturesAsset
+	}
+	switch item {
+	case asset.USDTMarginedFutures:
+		ei, err := b.UExchangeInfo(ctx)
+		if err != nil {
+			return nil, err
+		}
+		resp := make([]futures.Contract, 0, len(ei.Symbols))
+		for i := range ei.Symbols {
+			var cp currency.Pair
+			cp, err = currency.NewPairFromStrings(ei.Symbols[i].BaseAsset, ei.Symbols[i].Symbol[len(ei.Symbols[i].BaseAsset):])
+			if err != nil {
+				return nil, err
+			}
+
+			var ct futures.ContractType
+			var ed time.Time
+			if cp.Quote.Equal(currency.USDT) || cp.Quote.Equal(currency.BUSD) {
+				ct = futures.Perpetual
+			} else {
+				ct = futures.Quarterly
+				ed = ei.Symbols[i].DeliveryDate.Time()
+			}
+			resp = append(resp, futures.Contract{
+				Exchange:       b.Name,
+				Name:           cp,
+				Underlying:     currency.NewPair(currency.NewCode(ei.Symbols[i].BaseAsset), currency.NewCode(ei.Symbols[i].QuoteAsset)),
+				Asset:          item,
+				SettlementType: futures.Linear,
+				StartDate:      ei.Symbols[i].OnboardDate.Time(),
+				EndDate:        ed,
+				IsActive:       ei.Symbols[i].Status == "TRADING",
+				Status:         ei.Symbols[i].Status,
+				MarginCurrency: currency.NewCode(ei.Symbols[i].MarginAsset),
+				Type:           ct,
+			})
+		}
+		return resp, nil
+	case asset.CoinMarginedFutures:
+		ei, err := b.FuturesExchangeInfo(ctx)
+		if err != nil {
+			return nil, err
+		}
+		resp := make([]futures.Contract, 0, len(ei.Symbols))
+		for i := range ei.Symbols {
+			var cp currency.Pair
+			cp, err = currency.NewPairFromString(ei.Symbols[i].Symbol)
+			if err != nil {
+				return nil, err
+			}
+
+			var ct futures.ContractType
+			var ed time.Time
+			if cp.Quote.Equal(currency.PERP) {
+				ct = futures.Perpetual
+			} else {
+				ct = futures.Quarterly
+				ed = ei.Symbols[i].DeliveryDate.Time()
+			}
+			resp = append(resp, futures.Contract{
+				Exchange:       b.Name,
+				Name:           cp,
+				Underlying:     currency.NewPair(currency.NewCode(ei.Symbols[i].BaseAsset), currency.NewCode(ei.Symbols[i].QuoteAsset)),
+				Asset:          item,
+				StartDate:      ei.Symbols[i].OnboardDate.Time(),
+				EndDate:        ed,
+				IsActive:       ei.Symbols[i].ContractStatus == "TRADING",
+				MarginCurrency: currency.NewCode(ei.Symbols[i].MarginAsset),
+				SettlementType: futures.Inverse,
+				Type:           ct,
+			})
+		}
+		return resp, nil
+	}
+	return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, item)
 }

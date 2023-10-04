@@ -302,7 +302,7 @@ func (o *orderbookManager) completeInitialSync(pair currency.Pair) error {
 			asset.Spot)
 	}
 	if !state.initialSync {
-		return fmt.Errorf("initital sync already set to false for %s %s",
+		return fmt.Errorf("initial sync already set to false for %s %s",
 			pair,
 			asset.Spot)
 	}

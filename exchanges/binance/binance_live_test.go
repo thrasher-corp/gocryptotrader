@@ -28,6 +28,7 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		log.Fatal("Binance Setup() init error", err)
 	}
+
 	binanceConfig.API.AuthenticatedSupport = true
 	binanceConfig.API.Credentials.Key = apiKey
 	binanceConfig.API.Credentials.Secret = apiSecret

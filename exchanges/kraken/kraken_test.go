@@ -22,6 +22,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
@@ -413,7 +414,7 @@ func TestGetFuturesOrderbook(t *testing.T) {
 
 func TestGetFuturesMarkets(t *testing.T) {
 	t.Parallel()
-	_, err := k.GetFuturesMarkets(context.Background())
+	_, err := k.GetInstruments(context.Background())
 	if err != nil {
 		t.Error(err)
 	}
@@ -2223,5 +2224,22 @@ func TestWsOrderbookMax10Depth(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
+	}
+}
+
+func TestGetFuturesContractDetails(t *testing.T) {
+	t.Parallel()
+	_, err := k.GetFuturesContractDetails(context.Background(), asset.Spot)
+	if !errors.Is(err, futures.ErrNotFuturesAsset) {
+		t.Error(err)
+	}
+	_, err = k.GetFuturesContractDetails(context.Background(), asset.USDTMarginedFutures)
+	if !errors.Is(err, asset.ErrNotSupported) {
+		t.Error(err)
+	}
+
+	_, err = k.GetFuturesContractDetails(context.Background(), asset.Futures)
+	if !errors.Is(err, nil) {
+		t.Error(err)
 	}
 }

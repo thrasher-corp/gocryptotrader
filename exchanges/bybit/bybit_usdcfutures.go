@@ -97,7 +97,7 @@ func (by *Bybit) GetUSDCFuturesOrderbook(ctx context.Context, symbol currency.Pa
 }
 
 // GetUSDCContracts gets all contract information for USDCMarginedFutures.
-func (by *Bybit) GetUSDCContracts(ctx context.Context, symbol currency.Pair, direction string, limit int64) ([]USDCContract, error) {
+func (by *Bybit) GetUSDCContracts(ctx context.Context, symbol currency.Pair, direction, status string, limit int64) ([]USDCContract, error) {
 	resp := struct {
 		Data []USDCContract `json:"result"`
 		USDCError
@@ -111,11 +111,13 @@ func (by *Bybit) GetUSDCContracts(ctx context.Context, symbol currency.Pair, dir
 		}
 		params.Set("symbol", symbolValue)
 	}
-
 	if direction != "" {
 		params.Set("direction", direction)
 	}
-	if limit > 0 && limit <= 200 {
+	if status != "" {
+		params.Set("status", status)
+	}
+	if limit > 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 
@@ -169,7 +171,7 @@ func (by *Bybit) GetUSDCKlines(ctx context.Context, symbol currency.Pair, period
 	}
 	params.Set("startTime", strconv.FormatInt(startTime.Unix(), 10))
 
-	if limit > 0 && limit <= 200 {
+	if limit > 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	return resp.Data, by.SendHTTPRequest(ctx, exchange.RestUSDCMargined, common.EncodeURLValues(usdcfuturesGetKlines, params), usdcPublicRate, &resp)
@@ -202,7 +204,7 @@ func (by *Bybit) GetUSDCMarkPriceKlines(ctx context.Context, symbol currency.Pai
 	}
 	params.Set("startTime", strconv.FormatInt(startTime.Unix(), 10))
 
-	if limit > 0 && limit <= 200 {
+	if limit > 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	return resp.Data, by.SendHTTPRequest(ctx, exchange.RestUSDCMargined, common.EncodeURLValues(usdcfuturesGetMarkPriceKlines, params), usdcPublicRate, &resp)
@@ -235,7 +237,7 @@ func (by *Bybit) GetUSDCIndexPriceKlines(ctx context.Context, symbol currency.Pa
 	}
 	params.Set("startTime", strconv.FormatInt(startTime.Unix(), 10))
 
-	if limit > 0 && limit <= 200 {
+	if limit > 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	return resp.Data, by.SendHTTPRequest(ctx, exchange.RestUSDCMargined, common.EncodeURLValues(usdcfuturesGetIndexPriceKlines, params), usdcPublicRate, &resp)
@@ -268,7 +270,7 @@ func (by *Bybit) GetUSDCPremiumIndexKlines(ctx context.Context, symbol currency.
 	}
 	params.Set("startTime", strconv.FormatInt(startTime.Unix(), 10))
 
-	if limit > 0 && limit <= 200 {
+	if limit > 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	return resp.Data, by.SendHTTPRequest(ctx, exchange.RestUSDCMargined, common.EncodeURLValues(usdcfuturesGetPremiumIndexKlines, params), usdcPublicRate, &resp)
@@ -296,7 +298,7 @@ func (by *Bybit) GetUSDCOpenInterest(ctx context.Context, symbol currency.Pair, 
 	}
 	params.Set("period", period)
 
-	if limit > 0 && limit <= 200 {
+	if limit > 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	return resp.Data, by.SendHTTPRequest(ctx, exchange.RestUSDCMargined, common.EncodeURLValues(usdcfuturesGetOpenInterest, params), usdcPublicRate, &resp)
@@ -319,7 +321,7 @@ func (by *Bybit) GetUSDCLargeOrders(ctx context.Context, symbol currency.Pair, l
 	}
 	params.Set("symbol", symbolValue)
 
-	if limit > 0 && limit <= 100 {
+	if limit > 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	return resp.Data, by.SendHTTPRequest(ctx, exchange.RestUSDCMargined, common.EncodeURLValues(usdcfuturesGetLargeOrders, params), usdcPublicRate, &resp)
@@ -347,7 +349,7 @@ func (by *Bybit) GetUSDCAccountRatio(ctx context.Context, symbol currency.Pair, 
 	}
 	params.Set("period", period)
 
-	if limit > 0 && limit <= 500 {
+	if limit > 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	return resp.Data, by.SendHTTPRequest(ctx, exchange.RestUSDCMargined, common.EncodeURLValues(usdcfuturesGetAccountRatio, params), usdcPublicRate, &resp)
@@ -378,7 +380,7 @@ func (by *Bybit) GetUSDCLatestTrades(ctx context.Context, symbol currency.Pair, 
 		params.Set("symbol", symbolValue)
 	}
 
-	if limit > 0 && limit <= 500 {
+	if limit > 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	return resp.Result.Data, by.SendHTTPRequest(ctx, exchange.RestUSDCMargined, common.EncodeURLValues(usdcfuturesGetLatestTrades, params), usdcPublicRate, &resp)
@@ -749,7 +751,7 @@ func (by *Bybit) GetUSDCTradeHistory(ctx context.Context, symbol currency.Pair, 
 		req["direction"] = direction
 	}
 
-	if limit > 0 && limit <= 50 {
+	if limit > 0 {
 		req["limit"] = strconv.FormatInt(limit, 10)
 	}
 
@@ -792,7 +794,7 @@ func (by *Bybit) GetUSDCTransactionLog(ctx context.Context, startTime, endTime t
 		req["direction"] = direction
 	}
 
-	if limit > 0 && limit <= 50 {
+	if limit > 0 {
 		req["limit"] = strconv.FormatInt(limit, 10)
 	}
 
@@ -875,7 +877,7 @@ func (by *Bybit) GetUSDCPosition(ctx context.Context, symbol currency.Pair, cate
 		req["direction"] = direction
 	}
 
-	if limit > 0 && limit <= 50 {
+	if limit > 0 {
 		req["limit"] = strconv.FormatInt(limit, 10)
 	}
 
@@ -939,7 +941,7 @@ func (by *Bybit) GetUSDCSettlementHistory(ctx context.Context, symbol currency.P
 		req["direction"] = direction
 	}
 
-	if limit > 0 && limit <= 50 {
+	if limit > 0 {
 		req["limit"] = strconv.FormatInt(limit, 10)
 	}
 
