@@ -304,6 +304,7 @@ message OrderDetails {
   double fee = 15;
   double cost = 16;
   repeated TradeHistory trades = 17;
+  double contract_amount = 18;
 }
 
 message TradeHistory {
@@ -1058,24 +1059,27 @@ message FuturesPositionStats {
   string collateral_used = 4;
   string mark_price = 5;
   string current_size = 6;
-  string break_even_price = 7;
-  string average_open_price = 8;
-  string recent_pnl = 9;
-  string margin_fraction = 10;
-  string free_collateral = 11;
-  string total_collateral = 12;
-  string frozen_balance = 13;
-  string equity_of_currency = 14;
-  string available_equity = 15;
-  string cash_balance = 16;
-  string discount_equity = 17;
-  string equity_usd = 18;
-  string isolated_equity = 19;
-  string isolated_liabilities = 20;
-  string isolated_upl = 21;
-  string notional_leverage = 22;
-  string total_equity = 23;
-  string strategy_equity = 24;
+  string contract_size = 7;
+  string contract_multiplier = 8;
+  string contract_settlement_type = 9;
+  string break_even_price = 10;
+  string average_open_price = 11;
+  string recent_pnl = 12;
+  string margin_fraction = 13;
+  string free_collateral = 14;
+  string total_collateral = 15;
+  string frozen_balance = 16;
+  string equity_of_currency = 17;
+  string available_equity = 18;
+  string cash_balance = 19;
+  string discount_equity = 20;
+  string equity_usd = 21;
+  string isolated_equity = 22;
+  string isolated_liabilities = 23;
+  string isolated_upl = 24;
+  string notional_leverage = 25;
+  string total_equity = 26;
+  string strategy_equity = 27;
 }
 
 message FuturePosition {
@@ -1094,9 +1098,10 @@ message FuturePosition {
   string realised_pnl = 13;
   string closing_date = 14;
   int64 order_count = 15;
-  repeated OrderDetails orders = 16;
-  FuturesPositionStats position_stats = 17;
-  FundingData funding_data = 18;
+  string contract_settlement_type = 16;
+  repeated OrderDetails orders = 17;
+  FuturesPositionStats position_stats = 18;
+  FundingData funding_data = 19;
 }
 
 message GetManagedPositionRequest {

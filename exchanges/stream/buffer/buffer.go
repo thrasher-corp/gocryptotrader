@@ -6,6 +6,7 @@ import (
 	"sort"
 	"time"
 
+	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -61,7 +62,7 @@ func (w *Orderbook) Setup(exchangeConfig *config.Exchange, c *Config, dataHandle
 	w.updateEntriesByID = c.UpdateEntriesByID
 	w.exchangeName = exchangeConfig.Name
 	w.dataHandler = dataHandler
-	w.ob = make(map[Key]*orderbookHolder)
+	w.ob = make(map[key.PairAsset]*orderbookHolder)
 	w.verbose = exchangeConfig.Verbose
 
 	// set default publish period if missing
@@ -94,7 +95,7 @@ func (w *Orderbook) Update(u *orderbook.Update) error {
 	}
 	w.mtx.RLock()
 	defer w.mtx.RUnlock()
-	book, ok := w.ob[Key{Base: u.Pair.Base.Item, Quote: u.Pair.Quote.Item, Asset: u.Asset}]
+	book, ok := w.ob[key.PairAsset{Base: u.Pair.Base.Item, Quote: u.Pair.Quote.Item, Asset: u.Asset}]
 	if !ok {
 		return fmt.Errorf("%w for Exchange %s CurrencyPair: %s AssetType: %s",
 			errDepthNotFound,
@@ -319,17 +320,17 @@ func (w *Orderbook) LoadSnapshot(book *orderbook.Base) error {
 		return err
 	}
 
-	key := Key{Base: book.Pair.Base.Item, Quote: book.Pair.Quote.Item, Asset: book.Asset}
+	bookKey := key.PairAsset{Base: book.Pair.Base.Item, Quote: book.Pair.Quote.Item, Asset: book.Asset}
 
 	w.mtx.RLock()
-	holder, ok := w.ob[key]
+	holder, ok := w.ob[bookKey]
 	if !ok {
 		waitForMainLock := make(chan struct{})
 		go func() { w.mtx.Lock(); close(waitForMainLock) }()
 		w.mtx.RUnlock() // Release read
 		<-waitForMainLock
 		// Re-check if orderbook has been created.
-		holder, ok = w.ob[key]
+		holder, ok = w.ob[bookKey]
 		if !ok {
 			// Associate orderbook pointer with local exchange depth map
 			var depth *orderbook.Depth
@@ -350,7 +351,7 @@ func (w *Orderbook) LoadSnapshot(book *orderbook.Base) error {
 			}
 
 			holder = &orderbookHolder{ob: depth, buffer: &buffer, ticker: ticker}
-			w.ob[key] = holder
+			w.ob[bookKey] = holder
 			w.mtx.Unlock()
 		} else {
 			w.mtx.Unlock()
@@ -412,7 +413,7 @@ func (w *Orderbook) LoadSnapshot(book *orderbook.Base) error {
 func (w *Orderbook) GetOrderbook(p currency.Pair, a asset.Item) (*orderbook.Base, error) {
 	w.mtx.RLock()
 	defer w.mtx.RUnlock()
-	book, ok := w.ob[Key{Base: p.Base.Item, Quote: p.Quote.Item, Asset: a}]
+	book, ok := w.ob[key.PairAsset{Base: p.Base.Item, Quote: p.Quote.Item, Asset: a}]
 	if !ok {
 		return nil, fmt.Errorf("%s %s %s %w", w.exchangeName, p, a, errDepthNotFound)
 	}
@@ -423,7 +424,7 @@ func (w *Orderbook) GetOrderbook(p currency.Pair, a asset.Item) (*orderbook.Base
 // connection is lost and reconnected
 func (w *Orderbook) FlushBuffer() {
 	w.mtx.Lock()
-	w.ob = make(map[Key]*orderbookHolder)
+	w.ob = make(map[key.PairAsset]*orderbookHolder)
 	w.mtx.Unlock()
 }
 
@@ -431,7 +432,7 @@ func (w *Orderbook) FlushBuffer() {
 func (w *Orderbook) FlushOrderbook(p currency.Pair, a asset.Item) error {
 	w.mtx.Lock()
 	defer w.mtx.Unlock()
-	book, ok := w.ob[Key{Base: p.Base.Item, Quote: p.Quote.Item, Asset: a}]
+	book, ok := w.ob[key.PairAsset{Base: p.Base.Item, Quote: p.Quote.Item, Asset: a}]
 	if !ok {
 		return fmt.Errorf("cannot flush orderbook %s %s %s %w",
 			w.exchangeName,

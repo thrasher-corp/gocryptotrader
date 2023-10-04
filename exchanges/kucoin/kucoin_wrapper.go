@@ -9,6 +9,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -16,6 +17,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -1499,4 +1502,65 @@ func (ku *Kucoin) GetAvailableTransferChains(ctx context.Context, cryptocurrency
 func (ku *Kucoin) ValidateAPICredentials(ctx context.Context, assetType asset.Item) error {
 	_, err := ku.UpdateAccountInfo(ctx, assetType)
 	return ku.CheckTransientError(err)
+}
+
+// GetFuturesContractDetails returns details about futures contracts
+func (ku *Kucoin) GetFuturesContractDetails(ctx context.Context, item asset.Item) ([]futures.Contract, error) {
+	if !item.IsFutures() {
+		return nil, futures.ErrNotFuturesAsset
+	}
+	if !ku.SupportsAsset(item) || item != asset.Futures {
+		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, item)
+	}
+
+	contracts, err := ku.GetFuturesOpenContracts(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	resp := make([]futures.Contract, len(contracts))
+	for i := range contracts {
+		var cp, underlying currency.Pair
+		underlying, err = currency.NewPairFromStrings(contracts[i].BaseCurrency, contracts[i].QuoteCurrency)
+		if err != nil {
+			return nil, err
+		}
+		cp, err = currency.NewPairFromStrings(contracts[i].BaseCurrency, contracts[i].Symbol[len(contracts[i].BaseCurrency):])
+		if err != nil {
+			return nil, err
+		}
+		settleCurr := currency.NewCode(contracts[i].SettleCurrency)
+		var ct futures.ContractType
+		if contracts[i].ContractType == "FFWCSX" {
+			ct = futures.Perpetual
+		} else {
+			ct = futures.Quarterly
+		}
+		contractSettlementType := futures.Linear
+		if contracts[i].IsInverse {
+			contractSettlementType = futures.Inverse
+		}
+		timeOfCurrentFundingRate := time.Now().Add((time.Duration(contracts[i].NextFundingRateTime) * time.Millisecond) - time.Hour*8).Truncate(time.Hour).UTC()
+		resp[i] = futures.Contract{
+			Exchange:             ku.Name,
+			Name:                 cp,
+			Underlying:           underlying,
+			SettlementCurrencies: currency.Currencies{settleCurr},
+			MarginCurrency:       settleCurr,
+			Asset:                item,
+			StartDate:            contracts[i].FirstOpenDate.Time(),
+			EndDate:              contracts[i].ExpireDate.Time(),
+			IsActive:             !strings.EqualFold(contracts[i].Status, "closed"),
+			Status:               contracts[i].Status,
+			Multiplier:           contracts[i].Multiplier,
+			MaxLeverage:          contracts[i].MaxLeverage,
+			SettlementType:       contractSettlementType,
+			LatestRate: fundingrate.Rate{
+				Rate: decimal.NewFromFloat(contracts[i].FundingFeeRate),
+				Time: timeOfCurrentFundingRate, // kucoin pays every 8 hours
+			},
+			Type: ct,
+		}
+	}
+	return resp, nil
 }

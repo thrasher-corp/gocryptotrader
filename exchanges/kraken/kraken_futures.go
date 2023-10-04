@@ -72,8 +72,8 @@ func (k *Kraken) GetFuturesTrades(ctx context.Context, symbol currency.Pair, to,
 	return &resp, k.SendHTTPRequest(ctx, exchange.RestFuturesSupplementary, futuresPublicTrades+"/"+symbolValue+"/executions?"+params.Encode(), &resp)
 }
 
-// GetFuturesMarkets gets a list of futures markets and their data
-func (k *Kraken) GetFuturesMarkets(ctx context.Context) (FuturesInstrumentData, error) {
+// GetInstruments gets a list of futures markets and their data
+func (k *Kraken) GetInstruments(ctx context.Context) (FuturesInstrumentData, error) {
 	var resp FuturesInstrumentData
 	return resp, k.SendHTTPRequest(ctx, exchange.RestFutures, futuresInstruments, &resp)
 }

@@ -6,7 +6,7 @@ import (
 	"strings"
 
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
 )
 
 var (
@@ -29,7 +29,7 @@ func isFuturesAsset(a string) error {
 		return err
 	}
 	if !i.IsFutures() {
-		return fmt.Errorf("%w '%s'", order.ErrNotFuturesAsset, a)
+		return fmt.Errorf("%w '%s'", futures.ErrNotFuturesAsset, a)
 	}
 	return nil
 }

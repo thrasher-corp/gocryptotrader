@@ -97,7 +97,7 @@ func (by *Bybit) GetUSDCFuturesOrderbook(ctx context.Context, symbol currency.Pa
 }
 
 // GetUSDCContracts gets all contract information for USDCMarginedFutures.
-func (by *Bybit) GetUSDCContracts(ctx context.Context, symbol currency.Pair, direction string, limit int64) ([]USDCContract, error) {
+func (by *Bybit) GetUSDCContracts(ctx context.Context, symbol currency.Pair, direction, status string, limit int64) ([]USDCContract, error) {
 	resp := struct {
 		Data []USDCContract `json:"result"`
 		USDCError
@@ -111,9 +111,11 @@ func (by *Bybit) GetUSDCContracts(ctx context.Context, symbol currency.Pair, dir
 		}
 		params.Set("symbol", symbolValue)
 	}
-
 	if direction != "" {
 		params.Set("direction", direction)
+	}
+	if status != "" {
+		params.Set("status", status)
 	}
 	if limit > 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))

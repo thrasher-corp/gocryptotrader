@@ -17,6 +17,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/collateral"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -3033,7 +3034,7 @@ func TestGetPositionSummary(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 
 	bb := currency.NewBTCUSDT()
-	_, err := b.GetFuturesPositionSummary(context.Background(), &order.PositionSummaryRequest{
+	_, err := b.GetFuturesPositionSummary(context.Background(), &futures.PositionSummaryRequest{
 		Asset: asset.USDTMarginedFutures,
 		Pair:  bb,
 	})
@@ -3042,7 +3043,7 @@ func TestGetPositionSummary(t *testing.T) {
 	}
 
 	bb.Quote = currency.BUSD
-	_, err = b.GetFuturesPositionSummary(context.Background(), &order.PositionSummaryRequest{
+	_, err = b.GetFuturesPositionSummary(context.Background(), &futures.PositionSummaryRequest{
 		Asset: asset.USDTMarginedFutures,
 		Pair:  bb,
 	})
@@ -3055,7 +3056,7 @@ func TestGetPositionSummary(t *testing.T) {
 		t.Fatal(err)
 	}
 	bb.Quote = currency.USD
-	_, err = b.GetFuturesPositionSummary(context.Background(), &order.PositionSummaryRequest{
+	_, err = b.GetFuturesPositionSummary(context.Background(), &futures.PositionSummaryRequest{
 		Asset:          asset.CoinMarginedFutures,
 		Pair:           p,
 		UnderlyingPair: bb,
@@ -3064,7 +3065,7 @@ func TestGetPositionSummary(t *testing.T) {
 		t.Error(err)
 	}
 
-	_, err = b.GetFuturesPositionSummary(context.Background(), &order.PositionSummaryRequest{
+	_, err = b.GetFuturesPositionSummary(context.Background(), &futures.PositionSummaryRequest{
 		Asset:          asset.Spot,
 		Pair:           p,
 		UnderlyingPair: bb,
@@ -3077,7 +3078,7 @@ func TestGetPositionSummary(t *testing.T) {
 func TestGetFuturesPositionOrders(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
-	_, err := b.GetFuturesPositionOrders(context.Background(), &order.PositionsRequest{
+	_, err := b.GetFuturesPositionOrders(context.Background(), &futures.PositionsRequest{
 		Asset:                     asset.USDTMarginedFutures,
 		Pairs:                     []currency.Pair{currency.NewBTCUSDT()},
 		StartDate:                 time.Now().Add(-time.Hour * 24 * 70),
@@ -3091,7 +3092,7 @@ func TestGetFuturesPositionOrders(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = b.GetFuturesPositionOrders(context.Background(), &order.PositionsRequest{
+	_, err = b.GetFuturesPositionOrders(context.Background(), &futures.PositionsRequest{
 		Asset:                     asset.CoinMarginedFutures,
 		Pairs:                     []currency.Pair{p},
 		StartDate:                 time.Now().Add(time.Hour * 24 * -70),
@@ -3403,6 +3404,28 @@ func TestFlexibleCollateralAssetsData(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	if _, err := b.FlexibleCollateralAssetsData(context.Background(), currency.EMPTYCODE); err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetFuturesContractDetails(t *testing.T) {
+	t.Parallel()
+	_, err := b.GetFuturesContractDetails(context.Background(), asset.Spot)
+	if !errors.Is(err, futures.ErrNotFuturesAsset) {
+		t.Error(err)
+	}
+	_, err = b.GetFuturesContractDetails(context.Background(), asset.Futures)
+	if !errors.Is(err, asset.ErrNotSupported) {
+		t.Error(err)
+	}
+
+	_, err = b.GetFuturesContractDetails(context.Background(), asset.USDTMarginedFutures)
+	if !errors.Is(err, nil) {
+		t.Error(err)
+	}
+
+	_, err = b.GetFuturesContractDetails(context.Background(), asset.CoinMarginedFutures)
+	if !errors.Is(err, nil) {
 		t.Error(err)
 	}
 }

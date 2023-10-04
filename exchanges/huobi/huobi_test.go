@@ -18,6 +18,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
@@ -2755,6 +2756,27 @@ func TestGetWithdrawalsHistory(t *testing.T) {
 
 	_, err := h.GetWithdrawalsHistory(context.Background(), currency.BTC, asset.Spot)
 	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetFuturesContractDetails(t *testing.T) {
+	t.Parallel()
+	_, err := h.GetFuturesContractDetails(context.Background(), asset.Spot)
+	if !errors.Is(err, futures.ErrNotFuturesAsset) {
+		t.Error(err)
+	}
+	_, err = h.GetFuturesContractDetails(context.Background(), asset.USDTMarginedFutures)
+	if !errors.Is(err, asset.ErrNotSupported) {
+		t.Error(err)
+	}
+
+	_, err = h.GetFuturesContractDetails(context.Background(), asset.CoinMarginedFutures)
+	if !errors.Is(err, nil) {
+		t.Error(err)
+	}
+	_, err = h.GetFuturesContractDetails(context.Background(), asset.Futures)
+	if !errors.Is(err, nil) {
 		t.Error(err)
 	}
 }

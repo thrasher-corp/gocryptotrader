@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/dispatch"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -44,6 +45,12 @@ func SubscribeToExchangeOrderbooks(exchange string) (dispatch.Pipe, error) {
 // Update stores orderbook data
 func (s *Service) Update(b *Base) error {
 	name := strings.ToLower(b.Exchange)
+	mapKey := key.PairAsset{
+		Base:  b.Pair.Base.Item,
+		Quote: b.Pair.Quote.Item,
+		Asset: b.Asset,
+	}
+
 	s.mu.Lock()
 	m1, ok := s.books[name]
 	if !ok {
@@ -53,29 +60,16 @@ func (s *Service) Update(b *Base) error {
 			return err
 		}
 		m1 = Exchange{
-			m:  make(map[asset.Item]map[*currency.Item]map[*currency.Item]*Depth),
+			m:  make(map[key.PairAsset]*Depth),
 			ID: id,
 		}
 		s.books[name] = m1
 	}
-
-	m2, ok := m1.m[b.Asset]
-	if !ok {
-		m2 = make(map[*currency.Item]map[*currency.Item]*Depth)
-		m1.m[b.Asset] = m2
-	}
-
-	m3, ok := m2[b.Pair.Base.Item]
-	if !ok {
-		m3 = make(map[*currency.Item]*Depth)
-		m2[b.Pair.Base.Item] = m3
-	}
-
-	book, ok := m3[b.Pair.Quote.Item]
+	book, ok := m1.m[mapKey]
 	if !ok {
 		book = NewDepth(m1.ID)
 		book.AssignOptions(b)
-		m3[b.Pair.Quote.Item] = book
+		m1.m[mapKey] = book
 	}
 	err := book.LoadSnapshot(b.Bids, b.Asks, b.LastUpdateID, b.LastUpdated, true)
 	s.mu.Unlock()
@@ -97,6 +91,12 @@ func (s *Service) DeployDepth(exchange string, p currency.Pair, a asset.Item) (*
 	if !a.IsValid() {
 		return nil, errAssetTypeNotSet
 	}
+	mapKey := key.PairAsset{
+		Base:  p.Base.Item,
+		Quote: p.Quote.Item,
+		Asset: a,
+	}
+
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	m1, ok := s.books[strings.ToLower(exchange)]
@@ -106,28 +106,18 @@ func (s *Service) DeployDepth(exchange string, p currency.Pair, a asset.Item) (*
 			return nil, err
 		}
 		m1 = Exchange{
-			m:  make(map[asset.Item]map[*currency.Item]map[*currency.Item]*Depth),
+			m:  make(map[key.PairAsset]*Depth),
 			ID: id,
 		}
 		s.books[strings.ToLower(exchange)] = m1
 	}
-	m2, ok := m1.m[a]
-	if !ok {
-		m2 = make(map[*currency.Item]map[*currency.Item]*Depth)
-		m1.m[a] = m2
-	}
-	m3, ok := m2[p.Base.Item]
-	if !ok {
-		m3 = make(map[*currency.Item]*Depth)
-		m2[p.Base.Item] = m3
-	}
-	book, ok := m3[p.Quote.Item]
+	book, ok := m1.m[mapKey]
 	if !ok {
 		book = NewDepth(m1.ID)
 		book.exchange = exchange
 		book.pair = p
 		book.asset = a
-		m3[p.Quote.Item] = book
+		m1.m[mapKey] = book
 	}
 	return book, nil
 }
@@ -143,21 +133,11 @@ func (s *Service) GetDepth(exchange string, p currency.Pair, a asset.Item) (*Dep
 			errCannotFindOrderbook, exchange)
 	}
 
-	m2, ok := m1.m[a]
-	if !ok {
-		return nil, fmt.Errorf("%w associated with asset type %s",
-			errCannotFindOrderbook,
-			a)
-	}
-
-	m3, ok := m2[p.Base.Item]
-	if !ok {
-		return nil, fmt.Errorf("%w associated with base currency %s",
-			errCannotFindOrderbook,
-			p.Base)
-	}
-
-	book, ok := m3[p.Quote.Item]
+	book, ok := m1.m[key.PairAsset{
+		Base:  p.Base.Item,
+		Quote: p.Quote.Item,
+		Asset: a,
+	}]
 	if !ok {
 		return nil, fmt.Errorf("%w associated with base currency %s",
 			errCannotFindOrderbook,
@@ -175,6 +155,7 @@ func (s *Service) Retrieve(exchange string, p currency.Pair, a asset.Item) (*Bas
 	if !a.IsValid() {
 		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, a)
 	}
+
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	m1, ok := s.books[strings.ToLower(exchange)]
@@ -183,19 +164,11 @@ func (s *Service) Retrieve(exchange string, p currency.Pair, a asset.Item) (*Bas
 			errCannotFindOrderbook,
 			exchange)
 	}
-	m2, ok := m1.m[a]
-	if !ok {
-		return nil, fmt.Errorf("%w associated with asset type %s",
-			errCannotFindOrderbook,
-			a)
-	}
-	m3, ok := m2[p.Base.Item]
-	if !ok {
-		return nil, fmt.Errorf("%w associated with base currency %s",
-			errCannotFindOrderbook,
-			p.Base)
-	}
-	book, ok := m3[p.Quote.Item]
+	book, ok := m1.m[key.PairAsset{
+		Base:  p.Base.Item,
+		Quote: p.Quote.Item,
+		Asset: a,
+	}]
 	if !ok {
 		return nil, fmt.Errorf("%w associated with base currency %s",
 			errCannotFindOrderbook,
