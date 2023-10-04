@@ -16,6 +16,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
@@ -437,7 +438,7 @@ func (by *Bybit) FetchTradablePairs(ctx context.Context, a asset.Item) (currency
 		}
 		return pairs, nil
 	case asset.USDCMarginedFutures:
-		allPairs, err := by.GetUSDCContracts(ctx, currency.EMPTYPAIR, "", 0)
+		allPairs, err := by.GetUSDCContracts(ctx, currency.EMPTYPAIR, "", "", 1000)
 		if err != nil {
 			return nil, err
 		}
@@ -2162,7 +2163,11 @@ func (by *Bybit) extractCurrencyPair(symbol string, item asset.Item) (currency.P
 	if err != nil {
 		return currency.EMPTYPAIR, err
 	}
-	return pairs.DeriveFrom(symbol)
+	pair, err := pairs.DeriveFrom(symbol)
+	if err != nil {
+		return currency.EMPTYPAIR, err
+	}
+	return pair, nil
 }
 
 // UpdateOrderExecutionLimits sets exchange executions for a required asset type
@@ -2207,4 +2212,269 @@ func (by *Bybit) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) e
 		return fmt.Errorf("%s %w", a, asset.ErrNotSupported)
 	}
 	return by.LoadLimits(limits)
+}
+
+// GetFuturesContractDetails returns details about futures contracts
+func (by *Bybit) GetFuturesContractDetails(ctx context.Context, item asset.Item) ([]futures.Contract, error) {
+	if !item.IsFutures() {
+		return nil, futures.ErrNotFuturesAsset
+	}
+	if !by.SupportsAsset(item) {
+		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, item)
+	}
+
+	inverseContracts, err := by.GetInstrumentInfo(ctx, "inverse", "", "", "", "", 1000)
+	if err != nil {
+		return nil, err
+	}
+
+	switch item {
+	case asset.CoinMarginedFutures:
+		resp := make([]futures.Contract, 0, len(inverseContracts.List))
+		for i := range inverseContracts.List {
+			if inverseContracts.List[i].SettleCoin == "USDT" || inverseContracts.List[i].SettleCoin == "USDC" {
+				continue
+			}
+			var cp, underlying currency.Pair
+			splitCoin := strings.Split(inverseContracts.List[i].Symbol, inverseContracts.List[i].BaseCoin)
+			if len(splitCoin) <= 1 {
+				continue
+			}
+
+			cp, err = currency.NewPairFromStrings(inverseContracts.List[i].BaseCoin, splitCoin[1])
+			if err != nil {
+				return nil, err
+			}
+
+			underlying, err = currency.NewPairFromStrings(inverseContracts.List[i].BaseCoin, inverseContracts.List[i].QuoteCoin)
+			if err != nil {
+				return nil, err
+			}
+			contractType := strings.ToLower(inverseContracts.List[i].ContractType)
+			var s, e time.Time
+			if inverseContracts.List[i].LaunchTime > 0 {
+				s = time.UnixMilli(int64(inverseContracts.List[i].LaunchTime.Float64()))
+			}
+			if inverseContracts.List[i].DeliveryTime > 0 {
+				e = time.UnixMilli(int64(inverseContracts.List[i].DeliveryTime.Float64()))
+			}
+
+			var ct futures.ContractType
+			switch contractType {
+			case "inverseperpetual":
+				ct = futures.Perpetual
+			case "inversefutures":
+				ct, err = getContractLength(e.Sub(s))
+				if err != nil {
+					return nil, fmt.Errorf("%w %v %v %v %v-%v", err, by.Name, item, cp, s, e)
+				}
+			default:
+				if by.Verbose {
+					log.Warnf(log.ExchangeSys, "%v unhandled contract type for %v %v %v-%v", by.Name, item, cp, s, e)
+				}
+				ct = futures.Unknown
+			}
+
+			resp = append(resp, futures.Contract{
+				Exchange:             by.Name,
+				Name:                 cp,
+				Underlying:           underlying,
+				Asset:                item,
+				StartDate:            s,
+				EndDate:              e,
+				SettlementType:       futures.Inverse,
+				IsActive:             strings.EqualFold(inverseContracts.List[i].Status, "trading"),
+				Status:               inverseContracts.List[i].Status,
+				Type:                 ct,
+				SettlementCurrencies: currency.Currencies{currency.NewCode(inverseContracts.List[i].SettleCoin)},
+				MaxLeverage:          inverseContracts.List[i].LeverageFilter.MaxLeverage.Float64(),
+			})
+		}
+		return resp, nil
+	case asset.USDCMarginedFutures:
+		linearContracts, err := by.GetInstrumentInfo(ctx, "linear", "", "", "", "", 1000)
+		if err != nil {
+			return nil, err
+		}
+		resp := make([]futures.Contract, 0, len(inverseContracts.List)+len(linearContracts.List))
+
+		var instruments []InstrumentInfo
+		for i := range linearContracts.List {
+			if linearContracts.List[i].SettleCoin != "USDC" {
+				continue
+			}
+			instruments = append(instruments, linearContracts.List[i])
+		}
+		for i := range inverseContracts.List {
+			if inverseContracts.List[i].SettleCoin != "USDC" {
+				continue
+			}
+			instruments = append(instruments, inverseContracts.List[i])
+		}
+		for i := range instruments {
+			var cp, underlying currency.Pair
+			underlying, err = currency.NewPairFromStrings(instruments[i].BaseCoin, instruments[i].QuoteCoin)
+			if err != nil {
+				return nil, err
+			}
+			contractType := strings.ToLower(instruments[i].ContractType)
+			var s, e time.Time
+			if instruments[i].LaunchTime > 0 {
+				s = time.UnixMilli(int64(instruments[i].LaunchTime.Float64()))
+			}
+			if instruments[i].DeliveryTime > 0 {
+				e = time.UnixMilli(int64(instruments[i].DeliveryTime.Float64()))
+			}
+
+			var ct futures.ContractType
+			switch contractType {
+			case "linearperpetual":
+				ct = futures.Perpetual
+				splitCoin := strings.Split(instruments[i].Symbol, instruments[i].BaseCoin)
+				if len(splitCoin) <= 1 {
+					continue
+				}
+				cp, err = currency.NewPairFromStrings(instruments[i].BaseCoin, splitCoin[1])
+				if err != nil {
+					return nil, err
+				}
+			case "linearfutures":
+				ct, err = getContractLength(e.Sub(s))
+				if err != nil {
+					return nil, fmt.Errorf("%w %v %v %v %v-%v", err, by.Name, item, cp, s, e)
+				}
+				cp, err = currency.NewPairFromString(instruments[i].Symbol)
+				if err != nil {
+					return nil, err
+				}
+			default:
+				if by.Verbose {
+					log.Warnf(log.ExchangeSys, "%v unhandled contract type for %v %v %v-%v", by.Name, item, cp, s, e)
+				}
+				ct = futures.Unknown
+				cp, err = currency.NewPairFromString(instruments[i].Symbol)
+				if err != nil {
+					return nil, err
+				}
+			}
+
+			resp = append(resp, futures.Contract{
+				Exchange:             by.Name,
+				Name:                 cp,
+				Underlying:           underlying,
+				Asset:                item,
+				StartDate:            s,
+				EndDate:              e,
+				SettlementType:       futures.Linear,
+				IsActive:             strings.EqualFold(instruments[i].Status, "trading"),
+				Status:               instruments[i].Status,
+				Type:                 ct,
+				SettlementCurrencies: currency.Currencies{currency.USDC},
+				MaxLeverage:          instruments[i].LeverageFilter.MaxLeverage.Float64(),
+				Multiplier:           instruments[i].LeverageFilter.LeverageStep.Float64(),
+			})
+		}
+		return resp, nil
+	case asset.USDTMarginedFutures:
+		linearContracts, err := by.GetInstrumentInfo(ctx, "linear", "", "", "", "", 1000)
+		if err != nil {
+			return nil, err
+		}
+		resp := make([]futures.Contract, 0, len(inverseContracts.List)+len(linearContracts.List))
+
+		var instruments []InstrumentInfo
+		for i := range linearContracts.List {
+			if linearContracts.List[i].SettleCoin != "USDT" {
+				continue
+			}
+			instruments = append(instruments, linearContracts.List[i])
+		}
+		for i := range inverseContracts.List {
+			if inverseContracts.List[i].SettleCoin != "USDT" {
+				continue
+			}
+			instruments = append(instruments, inverseContracts.List[i])
+		}
+		for i := range instruments {
+			splitCoin := strings.Split(instruments[i].Symbol, instruments[i].BaseCoin)
+			if len(splitCoin) <= 1 {
+				continue
+			}
+			var cp, underlying currency.Pair
+			cp, err = currency.NewPairFromStrings(instruments[i].BaseCoin, splitCoin[1])
+			if err != nil {
+				return nil, err
+			}
+
+			underlying, err = currency.NewPairFromStrings(instruments[i].BaseCoin, instruments[i].QuoteCoin)
+			if err != nil {
+				return nil, err
+			}
+			contractType := strings.ToLower(instruments[i].ContractType)
+			var s, e time.Time
+			if instruments[i].LaunchTime > 0 {
+				s = time.UnixMilli(int64(instruments[i].LaunchTime.Float64()))
+			}
+			if instruments[i].DeliveryTime > 0 {
+				e = time.UnixMilli(int64(instruments[i].DeliveryTime.Float64()))
+			}
+
+			var ct futures.ContractType
+			switch contractType {
+			case "linearperpetual":
+				ct = futures.Perpetual
+			case "linearfutures":
+				ct, err = getContractLength(e.Sub(s))
+				if err != nil {
+					return nil, fmt.Errorf("%w %v %v %v %v-%v", err, by.Name, item, cp, s, e)
+				}
+			default:
+				if by.Verbose {
+					log.Warnf(log.ExchangeSys, "%v unhandled contract type for %v %v %v-%v", by.Name, item, cp, s, e)
+				}
+				ct = futures.Unknown
+			}
+
+			resp = append(resp, futures.Contract{
+				Exchange:             by.Name,
+				Name:                 cp,
+				Underlying:           underlying,
+				Asset:                item,
+				StartDate:            s,
+				EndDate:              e,
+				SettlementType:       futures.Linear,
+				IsActive:             strings.EqualFold(instruments[i].Status, "trading"),
+				Status:               instruments[i].Status,
+				Type:                 ct,
+				SettlementCurrencies: currency.Currencies{currency.USDT},
+				MaxLeverage:          instruments[i].LeverageFilter.MaxLeverage.Float64(),
+				Multiplier:           instruments[i].LeverageFilter.LeverageStep.Float64(),
+			})
+		}
+		return resp, nil
+	}
+
+	return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, item)
+}
+
+func getContractLength(contractLength time.Duration) (futures.ContractType, error) {
+	if contractLength <= 0 {
+		return futures.Unknown, errInvalidContractLength
+	}
+	var ct futures.ContractType
+	switch {
+	case contractLength > 0 && contractLength <= kline.OneWeek.Duration()+kline.ThreeDay.Duration():
+		ct = futures.Weekly
+	case contractLength <= kline.TwoWeek.Duration()+kline.ThreeDay.Duration():
+		ct = futures.Fortnightly
+	case contractLength <= kline.ThreeMonth.Duration()+kline.ThreeWeek.Duration():
+		ct = futures.Quarterly
+	case contractLength <= kline.SixMonth.Duration()+kline.ThreeWeek.Duration():
+		ct = futures.HalfYearly
+	case contractLength <= kline.NineMonth.Duration()+kline.ThreeWeek.Duration():
+		ct = futures.NineMonthly
+	default:
+		ct = futures.SemiAnnually
+	}
+	return ct, nil
 }

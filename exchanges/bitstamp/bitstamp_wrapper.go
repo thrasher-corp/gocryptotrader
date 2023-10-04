@@ -17,6 +17,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
@@ -1009,9 +1010,9 @@ func (b *Bitstamp) GetHistoricCandlesExtended(ctx context.Context, pair currency
 		}
 
 		for i := range candles.Data.OHLCV {
-			timstamp := time.Unix(candles.Data.OHLCV[i].Timestamp, 0)
-			if timstamp.Before(req.RangeHolder.Ranges[x].Start.Time) ||
-				timstamp.After(req.RangeHolder.Ranges[x].End.Time) {
+			timestamp := time.Unix(candles.Data.OHLCV[i].Timestamp, 0)
+			if timestamp.Before(req.RangeHolder.Ranges[x].Start.Time) ||
+				timestamp.After(req.RangeHolder.Ranges[x].End.Time) {
 				continue
 			}
 			timeSeries = append(timeSeries, kline.Candle{
@@ -1030,4 +1031,9 @@ func (b *Bitstamp) GetHistoricCandlesExtended(ctx context.Context, pair currency
 // GetServerTime returns the current exchange server time.
 func (b *Bitstamp) GetServerTime(_ context.Context, _ asset.Item) (time.Time, error) {
 	return time.Time{}, common.ErrFunctionNotSupported
+}
+
+// GetFuturesContractDetails returns all contracts from the exchange by asset type
+func (b *Bitstamp) GetFuturesContractDetails(context.Context, asset.Item) ([]futures.Contract, error) {
+	return nil, common.ErrFunctionNotSupported
 }

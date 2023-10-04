@@ -123,7 +123,7 @@ type TradeHistory struct {
 	Timestamp float64 `json:"timestamp"`
 }
 
-// DepositAddress stores a curency deposit address
+// DepositAddress stores a currency deposit address
 type DepositAddress struct {
 	Success int `json:"success"`
 	Return  struct {

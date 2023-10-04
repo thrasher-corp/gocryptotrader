@@ -17,6 +17,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
@@ -1135,4 +1136,9 @@ func (p *Poloniex) GetAvailableTransferChains(ctx context.Context, cryptocurrenc
 // GetServerTime returns the current exchange server time.
 func (p *Poloniex) GetServerTime(ctx context.Context, _ asset.Item) (time.Time, error) {
 	return p.GetTimestamp(ctx)
+}
+
+// GetFuturesContractDetails returns all contracts from the exchange by asset type
+func (p *Poloniex) GetFuturesContractDetails(context.Context, asset.Item) ([]futures.Contract, error) {
+	return nil, common.ErrFunctionNotSupported
 }

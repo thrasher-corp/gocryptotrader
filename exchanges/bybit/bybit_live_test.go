@@ -1,4 +1,4 @@
-//go:build mock_test_off
+//go:build !mock_test_off
 
 // This will build if build tag mock_test_off is parsed and will do live testing
 // using all tests in (exchange)_test.go
@@ -32,7 +32,7 @@ func TestMain(m *testing.M) {
 	bybitConfig.API.Credentials.Key = apiKey
 	bybitConfig.API.Credentials.Secret = apiSecret
 	b.SetDefaults()
-	b.Websocket = sharedtestvalues.NewTestWebsocket()
+	b.Websocket = sharedtestvalues.NewTestWrapperWebsocket()
 	err = b.Setup(bybitConfig)
 	if err != nil {
 		log.Fatal("Bybit setup error", err)

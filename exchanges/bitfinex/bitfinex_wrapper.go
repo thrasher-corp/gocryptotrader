@@ -18,6 +18,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
@@ -940,7 +941,7 @@ func (b *Bitfinex) GetDepositAddress(ctx context.Context, c currency.Code, accou
 		accountID = "funding"
 	}
 
-	if c == currency.USDT {
+	if c.Equal(currency.USDT) {
 		// USDT is UST on Bitfinex
 		c = currency.NewCode("UST")
 	}
@@ -981,7 +982,7 @@ func (b *Bitfinex) WithdrawCryptocurrencyFunds(ctx context.Context, withdrawRequ
 	}
 
 	tmpCurr := withdrawRequest.Currency
-	if tmpCurr == currency.USDT {
+	if tmpCurr.Equal(currency.USDT) {
 		// USDT is UST on Bitfinex
 		tmpCurr = currency.NewCode("UST")
 	}
@@ -1273,7 +1274,7 @@ func (b *Bitfinex) fixCasing(in currency.Pair, a asset.Item) (string, error) {
 
 	y := in.Base.String()
 	if (y[0] != checkString[0] && y[0] != checkString[1]) ||
-		(y[0] == checkString[1] && y[1] == checkString[1]) || in.Base == currency.TNB {
+		(y[0] == checkString[1] && y[1] == checkString[1]) || in.Base.Equal(currency.TNB) {
 		if cFmt.Quote.IsEmpty() {
 			return string(checkString[0]) + cFmt.Base.Upper().String(), nil
 		}
@@ -1295,7 +1296,7 @@ func (b *Bitfinex) GetAvailableTransferChains(ctx context.Context, cryptocurrenc
 		return nil, err
 	}
 
-	if cryptocurrency == currency.USDT {
+	if cryptocurrency.Equal(currency.USDT) {
 		// USDT is UST on Bitfinex
 		cryptocurrency = currency.NewCode("UST")
 	}
@@ -1310,4 +1311,9 @@ func (b *Bitfinex) GetAvailableTransferChains(ctx context.Context, cryptocurrenc
 // GetServerTime returns the current exchange server time.
 func (b *Bitfinex) GetServerTime(_ context.Context, _ asset.Item) (time.Time, error) {
 	return time.Time{}, common.ErrFunctionNotSupported
+}
+
+// GetFuturesContractDetails returns all contracts from the exchange by asset type
+func (b *Bitfinex) GetFuturesContractDetails(context.Context, asset.Item) ([]futures.Contract, error) {
+	return nil, common.ErrFunctionNotSupported
 }

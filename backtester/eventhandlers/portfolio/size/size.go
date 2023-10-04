@@ -9,6 +9,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/exchange"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/order"
 	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
 	gctorder "github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
@@ -29,7 +30,7 @@ func (s *Size) SizeOrder(o order.Event, amountAvailable decimal.Decimal, cs *exc
 	}
 
 	if fde := o.GetFillDependentEvent(); fde != nil && fde.MatchOrderAmount() {
-		scalingInfo, err := cs.Exchange.ScaleCollateral(context.TODO(), &gctorder.CollateralCalculator{
+		scalingInfo, err := cs.Exchange.ScaleCollateral(context.TODO(), &futures.CollateralCalculator{
 			CalculateOffline:   true,
 			CollateralCurrency: o.Pair().Base,
 			Asset:              fde.GetAssetType(),
