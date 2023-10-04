@@ -14,6 +14,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/order"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/signal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/funding"
+	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	gctkline "github.com/thrasher-corp/gocryptotrader/exchanges/kline"
@@ -34,28 +35,28 @@ var (
 // Statistic holds all statistical information for a backtester run, from drawdowns to ratios.
 // Any currency specific information is handled in currencystatistics
 type Statistic struct {
-	StrategyName                string                                                                                 `json:"strategy-name"`
-	StrategyDescription         string                                                                                 `json:"strategy-description"`
-	StrategyNickname            string                                                                                 `json:"strategy-nickname"`
-	StrategyGoal                string                                                                                 `json:"strategy-goal"`
-	StartDate                   time.Time                                                                              `json:"start-date"`
-	EndDate                     time.Time                                                                              `json:"end-date"`
-	CandleInterval              gctkline.Interval                                                                      `json:"candle-interval"`
-	RiskFreeRate                decimal.Decimal                                                                        `json:"risk-free-rate"`
-	ExchangeAssetPairStatistics map[string]map[asset.Item]map[*currency.Item]map[*currency.Item]*CurrencyPairStatistic `json:"exchange-asset-pair-statistics"`
-	CurrencyStatistics          []*CurrencyPairStatistic                                                               `json:"currency-statistics"`
-	TotalBuyOrders              int64                                                                                  `json:"total-buy-orders"`
-	TotalLongOrders             int64                                                                                  `json:"total-long-orders"`
-	TotalShortOrders            int64                                                                                  `json:"total-short-orders"`
-	TotalSellOrders             int64                                                                                  `json:"total-sell-orders"`
-	TotalOrders                 int64                                                                                  `json:"total-orders"`
-	BiggestDrawdown             *FinalResultsHolder                                                                    `json:"biggest-drawdown,omitempty"`
-	BestStrategyResults         *FinalResultsHolder                                                                    `json:"best-start-results,omitempty"`
-	BestMarketMovement          *FinalResultsHolder                                                                    `json:"best-market-movement,omitempty"`
-	WasAnyDataMissing           bool                                                                                   `json:"was-any-data-missing"`
-	FundingStatistics           *FundingStatistics                                                                     `json:"funding-statistics"`
-	FundManager                 funding.IFundingManager                                                                `json:"-"`
-	HasCollateral               bool                                                                                   `json:"has-collateral"`
+	StrategyName                string                                           `json:"strategy-name"`
+	StrategyDescription         string                                           `json:"strategy-description"`
+	StrategyNickname            string                                           `json:"strategy-nickname"`
+	StrategyGoal                string                                           `json:"strategy-goal"`
+	StartDate                   time.Time                                        `json:"start-date"`
+	EndDate                     time.Time                                        `json:"end-date"`
+	CandleInterval              gctkline.Interval                                `json:"candle-interval"`
+	RiskFreeRate                decimal.Decimal                                  `json:"risk-free-rate"`
+	ExchangeAssetPairStatistics map[key.ExchangePairAsset]*CurrencyPairStatistic `json:"-"`
+	CurrencyStatistics          []*CurrencyPairStatistic                         `json:"currency-statistics"`
+	TotalBuyOrders              int64                                            `json:"total-buy-orders"`
+	TotalLongOrders             int64                                            `json:"total-long-orders"`
+	TotalShortOrders            int64                                            `json:"total-short-orders"`
+	TotalSellOrders             int64                                            `json:"total-sell-orders"`
+	TotalOrders                 int64                                            `json:"total-orders"`
+	BiggestDrawdown             *FinalResultsHolder                              `json:"biggest-drawdown,omitempty"`
+	BestStrategyResults         *FinalResultsHolder                              `json:"best-start-results,omitempty"`
+	BestMarketMovement          *FinalResultsHolder                              `json:"best-market-movement,omitempty"`
+	WasAnyDataMissing           bool                                             `json:"was-any-data-missing"`
+	FundingStatistics           *FundingStatistics                               `json:"funding-statistics"`
+	FundManager                 funding.IFundingManager                          `json:"-"`
+	HasCollateral               bool                                             `json:"has-collateral"`
 }
 
 // FinalResultsHolder holds important stats about a currency's performance

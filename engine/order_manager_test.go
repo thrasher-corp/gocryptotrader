@@ -16,6 +16,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
@@ -120,17 +121,18 @@ func (f omfExchange) ModifyOrder(_ context.Context, action *order.Modify) (*orde
 	return modResp, nil
 }
 
-func (f omfExchange) GetFuturesPositionOrders(_ context.Context, req *order.PositionsRequest) ([]order.PositionResponse, error) {
+func (f omfExchange) GetFuturesPositions(_ context.Context, req *futures.PositionsRequest) ([]futures.PositionDetails, error) {
 	id, err := uuid.NewV4()
 	if err != nil {
 		return nil, err
 	}
-	resp := make([]order.PositionResponse, len(req.Pairs))
+	resp := make([]futures.PositionDetails, len(req.Pairs))
 	tt := time.Now()
 	for i := range req.Pairs {
-		resp[i] = order.PositionResponse{
-			Asset: req.Asset,
-			Pair:  req.Pairs[i],
+		resp[i] = futures.PositionDetails{
+			Exchange: f.GetName(),
+			Asset:    req.Asset,
+			Pair:     req.Pairs[i],
 			Orders: []order.Detail{
 				{
 					Exchange:        f.GetName(),
@@ -857,7 +859,7 @@ func TestProcessOrders(t *testing.T) {
 		}
 	}
 
-	m.orderStore.futuresPositionController = order.SetupPositionController()
+	m.orderStore.futuresPositionController = futures.SetupPositionController()
 	if err = m.orderStore.add(&order.Detail{
 		Exchange:    testExchange,
 		Pair:        pairs[0],
@@ -1149,15 +1151,15 @@ func TestGetFuturesPositionsForExchange(t *testing.T) {
 		t.Errorf("received '%v', expected '%v'", err, ErrSubSystemNotStarted)
 	}
 	o.started = 1
-	o.orderStore.futuresPositionController = order.SetupPositionController()
+	o.orderStore.futuresPositionController = futures.SetupPositionController()
 	_, err = o.GetFuturesPositionsForExchange("test", asset.Spot, cp)
-	if !errors.Is(err, order.ErrNotFuturesAsset) {
-		t.Errorf("received '%v', expected '%v'", err, order.ErrNotFuturesAsset)
+	if !errors.Is(err, futures.ErrNotFuturesAsset) {
+		t.Errorf("received '%v', expected '%v'", err, futures.ErrNotFuturesAsset)
 	}
 
 	_, err = o.GetFuturesPositionsForExchange("test", asset.Futures, cp)
-	if !errors.Is(err, order.ErrPositionNotFound) {
-		t.Errorf("received '%v', expected '%v'", err, order.ErrPositionNotFound)
+	if !errors.Is(err, futures.ErrPositionNotFound) {
+		t.Errorf("received '%v', expected '%v'", err, futures.ErrPositionNotFound)
 	}
 
 	err = o.orderStore.futuresPositionController.TrackNewOrder(&order.Detail{
@@ -1196,15 +1198,15 @@ func TestClearFuturesPositionsForExchange(t *testing.T) {
 		t.Errorf("received '%v', expected '%v'", err, ErrSubSystemNotStarted)
 	}
 	o.started = 1
-	o.orderStore.futuresPositionController = order.SetupPositionController()
+	o.orderStore.futuresPositionController = futures.SetupPositionController()
 	err = o.ClearFuturesTracking("test", asset.Spot, cp)
-	if !errors.Is(err, order.ErrNotFuturesAsset) {
-		t.Errorf("received '%v', expected '%v'", err, order.ErrNotFuturesAsset)
+	if !errors.Is(err, futures.ErrNotFuturesAsset) {
+		t.Errorf("received '%v', expected '%v'", err, futures.ErrNotFuturesAsset)
 	}
 
 	err = o.ClearFuturesTracking("test", asset.Futures, cp)
-	if !errors.Is(err, order.ErrPositionNotFound) {
-		t.Errorf("received '%v', expected '%v'", err, order.ErrPositionNotFound)
+	if !errors.Is(err, futures.ErrPositionNotFound) {
+		t.Errorf("received '%v', expected '%v'", err, futures.ErrPositionNotFound)
 	}
 
 	err = o.orderStore.futuresPositionController.TrackNewOrder(&order.Detail{
@@ -1247,15 +1249,15 @@ func TestUpdateOpenPositionUnrealisedPNL(t *testing.T) {
 		t.Errorf("received '%v', expected '%v'", err, ErrSubSystemNotStarted)
 	}
 	o.started = 1
-	o.orderStore.futuresPositionController = order.SetupPositionController()
+	o.orderStore.futuresPositionController = futures.SetupPositionController()
 	_, err = o.UpdateOpenPositionUnrealisedPNL("test", asset.Spot, cp, 1, time.Now())
-	if !errors.Is(err, order.ErrNotFuturesAsset) {
-		t.Errorf("received '%v', expected '%v'", err, order.ErrNotFuturesAsset)
+	if !errors.Is(err, futures.ErrNotFuturesAsset) {
+		t.Errorf("received '%v', expected '%v'", err, futures.ErrNotFuturesAsset)
 	}
 
 	_, err = o.UpdateOpenPositionUnrealisedPNL("test", asset.Futures, cp, 1, time.Now())
-	if !errors.Is(err, order.ErrPositionNotFound) {
-		t.Errorf("received '%v', expected '%v'", err, order.ErrPositionNotFound)
+	if !errors.Is(err, futures.ErrPositionNotFound) {
+		t.Errorf("received '%v', expected '%v'", err, futures.ErrPositionNotFound)
 	}
 
 	err = o.orderStore.futuresPositionController.TrackNewOrder(&order.Detail{
@@ -1386,7 +1388,7 @@ func TestUpdateExisting(t *testing.T) {
 	s.Orders[strings.ToLower(testExchange)] = []*order.Detail{
 		od,
 	}
-	s.futuresPositionController = order.SetupPositionController()
+	s.futuresPositionController = futures.SetupPositionController()
 	err = s.futuresPositionController.TrackNewOrder(od)
 	if !errors.Is(err, nil) {
 		t.Errorf("received '%v', expected '%v'", err, nil)
@@ -1456,10 +1458,10 @@ func TestGetAllOpenFuturesPositions(t *testing.T) {
 
 	o.started = 1
 	o.activelyTrackFuturesPositions = true
-	o.orderStore.futuresPositionController = order.SetupPositionController()
+	o.orderStore.futuresPositionController = futures.SetupPositionController()
 	_, err = o.GetAllOpenFuturesPositions()
-	if !errors.Is(err, order.ErrNoPositionsFound) {
-		t.Errorf("received '%v', expected '%v'", err, order.ErrNoPositionsFound)
+	if !errors.Is(err, futures.ErrNoPositionsFound) {
+		t.Errorf("received '%v', expected '%v'", err, futures.ErrNoPositionsFound)
 	}
 
 	o = nil
@@ -1485,8 +1487,8 @@ func TestGetOpenFuturesPosition(t *testing.T) {
 
 	o.started = 1
 	_, err = o.GetOpenFuturesPosition(testExchange, asset.Spot, cp)
-	if !errors.Is(err, order.ErrNotFuturesAsset) {
-		t.Errorf("received '%v', expected '%v'", err, order.ErrNotFuturesAsset)
+	if !errors.Is(err, futures.ErrNotFuturesAsset) {
+		t.Errorf("received '%v', expected '%v'", err, futures.ErrNotFuturesAsset)
 	}
 
 	em := NewExchangeManager()
@@ -1532,13 +1534,13 @@ func TestGetOpenFuturesPosition(t *testing.T) {
 	o.started = 1
 
 	_, err = o.GetOpenFuturesPosition(testExchange, asset.Spot, cp)
-	if !errors.Is(err, order.ErrNotFuturesAsset) {
-		t.Errorf("received '%v', expected '%v'", err, order.ErrNotFuturesAsset)
+	if !errors.Is(err, futures.ErrNotFuturesAsset) {
+		t.Errorf("received '%v', expected '%v'", err, futures.ErrNotFuturesAsset)
 	}
 
 	_, err = o.GetOpenFuturesPosition(testExchange, asset.Futures, cp)
-	if !errors.Is(err, order.ErrPositionNotFound) {
-		t.Errorf("received '%v', expected '%v'", err, order.ErrPositionNotFound)
+	if !errors.Is(err, futures.ErrPositionNotFound) {
+		t.Errorf("received '%v', expected '%v'", err, futures.ErrPositionNotFound)
 	}
 
 	err = o.orderStore.futuresPositionController.TrackNewOrder(&order.Detail{
@@ -1626,7 +1628,7 @@ func TestProcessFuturesPositions(t *testing.T) {
 		t.Errorf("received '%v', expected '%v'", err, common.ErrNilPointer)
 	}
 
-	position := &order.PositionResponse{
+	position := &futures.PositionResponse{
 		Asset:  asset.Spot,
 		Pair:   cp,
 		Orders: nil,
@@ -1650,8 +1652,8 @@ func TestProcessFuturesPositions(t *testing.T) {
 		*od,
 	}
 	err = o.processFuturesPositions(fakeExchange, position)
-	if !errors.Is(err, order.ErrNotFuturesAsset) {
-		t.Errorf("received '%v', expected '%v'", err, order.ErrNotFuturesAsset)
+	if !errors.Is(err, futures.ErrNotFuturesAsset) {
+		t.Errorf("received '%v', expected '%v'", err, futures.ErrNotFuturesAsset)
 	}
 
 	position.Orders[0].AssetType = asset.Futures

@@ -242,7 +242,7 @@ type WithdrawalAddress struct {
 	Reason  string  `json:"reason"`
 }
 
-// ErrorCapture is a generlized error response from the server
+// ErrorCapture is a generalized error response from the server
 type ErrorCapture struct {
 	Result  string `json:"result"`
 	Reason  string `json:"reason"`
