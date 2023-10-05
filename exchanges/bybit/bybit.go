@@ -91,6 +91,7 @@ var (
 	errAPIKeyIsNotUnified                      = errors.New("api key is not unified")
 	errEndpointAvailableForNormalAPIKeyHolders = errors.New("endpoint available for normal API key holders only")
 	errOrderSideRequired                       = errors.New("order side is required")
+	errInvalidContractLength                   = errors.New("contract length cannot be less than or equal to zero")
 )
 
 var (

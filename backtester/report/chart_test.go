@@ -11,8 +11,10 @@ import (
 	evkline "github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/kline"
 	"github.com/thrasher-corp/gocryptotrader/backtester/funding"
 	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
 	gctkline "github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	gctorder "github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
@@ -107,15 +109,17 @@ func TestCreatePNLCharts(t *testing.T) {
 	tt := time.Now()
 	var d Data
 	d.Statistics = &statistics.Statistic{}
-	d.Statistics.ExchangeAssetPairStatistics = make(map[string]map[asset.Item]map[*currency.Item]map[*currency.Item]*statistics.CurrencyPairStatistic)
-	d.Statistics.ExchangeAssetPairStatistics[testExchange] = make(map[asset.Item]map[*currency.Item]map[*currency.Item]*statistics.CurrencyPairStatistic)
-	d.Statistics.ExchangeAssetPairStatistics[testExchange][asset.Spot] = make(map[*currency.Item]map[*currency.Item]*statistics.CurrencyPairStatistic)
-	d.Statistics.ExchangeAssetPairStatistics[testExchange][asset.Spot][currency.BTC.Item] = make(map[*currency.Item]*statistics.CurrencyPairStatistic)
-	d.Statistics.ExchangeAssetPairStatistics[testExchange][asset.Spot][currency.BTC.Item][currency.USDT.Item] = &statistics.CurrencyPairStatistic{
+	d.Statistics.ExchangeAssetPairStatistics = make(map[key.ExchangePairAsset]*statistics.CurrencyPairStatistic)
+	d.Statistics.ExchangeAssetPairStatistics[key.ExchangePairAsset{
+		Exchange: testExchange,
+		Base:     currency.BTC.Item,
+		Quote:    currency.USDT.Item,
+		Asset:    asset.Spot,
+	}] = &statistics.CurrencyPairStatistic{
 		Events: []statistics.DataAtOffset{
 			{
 				PNL: &portfolio.PNLSummary{
-					Result: gctorder.PNLResult{
+					Result: futures.PNLResult{
 						Time:                  tt,
 						UnrealisedPNL:         decimal.NewFromInt(1337),
 						RealisedPNLBeforeFees: decimal.NewFromInt(1337),
@@ -171,18 +175,20 @@ func TestCreateFuturesSpotDiffChart(t *testing.T) {
 	cp2 := currency.NewPair(currency.BTC, currency.DOGE)
 	var d Data
 	d.Statistics = &statistics.Statistic{}
-	d.Statistics.ExchangeAssetPairStatistics = make(map[string]map[asset.Item]map[*currency.Item]map[*currency.Item]*statistics.CurrencyPairStatistic)
-	d.Statistics.ExchangeAssetPairStatistics[testExchange] = make(map[asset.Item]map[*currency.Item]map[*currency.Item]*statistics.CurrencyPairStatistic)
-	d.Statistics.ExchangeAssetPairStatistics[testExchange][asset.Spot] = make(map[*currency.Item]map[*currency.Item]*statistics.CurrencyPairStatistic)
-	d.Statistics.ExchangeAssetPairStatistics[testExchange][asset.Spot][currency.BTC.Item] = make(map[*currency.Item]*statistics.CurrencyPairStatistic)
-	d.Statistics.ExchangeAssetPairStatistics[testExchange][asset.Spot][currency.BTC.Item][currency.USD.Item] = &statistics.CurrencyPairStatistic{
+	d.Statistics.ExchangeAssetPairStatistics = make(map[key.ExchangePairAsset]*statistics.CurrencyPairStatistic)
+	d.Statistics.ExchangeAssetPairStatistics[key.ExchangePairAsset{
+		Exchange: testExchange,
+		Base:     currency.BTC.Item,
+		Quote:    currency.USD.Item,
+		Asset:    asset.Spot,
+	}] = &statistics.CurrencyPairStatistic{
 		Currency: cp,
 		Events: []statistics.DataAtOffset{
 			{
 				Time:      tt,
 				DataEvent: &evkline.Kline{Close: decimal.NewFromInt(1337)},
 				PNL: &portfolio.PNLSummary{
-					Result: gctorder.PNLResult{
+					Result: futures.PNLResult{
 						Time:                  tt,
 						UnrealisedPNL:         decimal.NewFromInt(1337),
 						RealisedPNLBeforeFees: decimal.NewFromInt(1337),
@@ -195,9 +201,12 @@ func TestCreateFuturesSpotDiffChart(t *testing.T) {
 			},
 		},
 	}
-	d.Statistics.ExchangeAssetPairStatistics[testExchange][asset.Futures] = make(map[*currency.Item]map[*currency.Item]*statistics.CurrencyPairStatistic)
-	d.Statistics.ExchangeAssetPairStatistics[testExchange][asset.Futures][currency.BTC.Item] = make(map[*currency.Item]*statistics.CurrencyPairStatistic)
-	d.Statistics.ExchangeAssetPairStatistics[testExchange][asset.Futures][currency.BTC.Item][currency.DOGE.Item] = &statistics.CurrencyPairStatistic{
+	d.Statistics.ExchangeAssetPairStatistics[key.ExchangePairAsset{
+		Exchange: testExchange,
+		Base:     currency.BTC.Item,
+		Quote:    currency.DOGE.Item,
+		Asset:    asset.Futures,
+	}] = &statistics.CurrencyPairStatistic{
 		UnderlyingPair: cp,
 		Currency:       cp2,
 		Events: []statistics.DataAtOffset{
@@ -205,7 +214,7 @@ func TestCreateFuturesSpotDiffChart(t *testing.T) {
 				Time:      tt,
 				DataEvent: &evkline.Kline{Close: decimal.NewFromInt(1337)},
 				PNL: &portfolio.PNLSummary{
-					Result: gctorder.PNLResult{
+					Result: futures.PNLResult{
 						Time:                  tt,
 						UnrealisedPNL:         decimal.NewFromInt(1337),
 						RealisedPNLBeforeFees: decimal.NewFromInt(1337),

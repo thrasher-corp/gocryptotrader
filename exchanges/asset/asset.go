@@ -12,6 +12,8 @@ var (
 	ErrNotSupported = errors.New("unsupported asset type")
 	// ErrNotEnabled is an error for an asset not enabled
 	ErrNotEnabled = errors.New("asset type not enabled")
+	// ErrInvalidAsset is returned when the assist isn't valid
+	ErrInvalidAsset = errors.New("asset is invalid")
 )
 
 // Item stores the asset type
@@ -40,13 +42,11 @@ const (
 	USDCMarginedFutures
 	Options
 
-	// added to represent linear futures, and inverse futures trading in bybit v5 exchange
-	// for derivative (perpetual or futures).
-	Linear
-	Inverse
+	// Added to represent a USDT and USDC based linear derivatives(futures/perpetual) assets in Bybit V5.
+	LinearContract
 
-	futuresFlag   = PerpetualContract | PerpetualSwap | Futures | DeliveryFutures | UpsideProfitContract | DownsideProfitContract | CoinMarginedFutures | USDTMarginedFutures | USDCMarginedFutures | Linear | Inverse
-	supportedFlag = Spot | Margin | CrossMargin | MarginFunding | Index | Binary | PerpetualContract | PerpetualSwap | Futures | DeliveryFutures | UpsideProfitContract | DownsideProfitContract | CoinMarginedFutures | USDTMarginedFutures | USDCMarginedFutures | Options | Linear | Inverse
+	futuresFlag   = PerpetualContract | PerpetualSwap | Futures | DeliveryFutures | UpsideProfitContract | DownsideProfitContract | CoinMarginedFutures | USDTMarginedFutures | USDCMarginedFutures | LinearContract
+	supportedFlag = Spot | Margin | CrossMargin | MarginFunding | Index | Binary | PerpetualContract | PerpetualSwap | Futures | DeliveryFutures | UpsideProfitContract | DownsideProfitContract | CoinMarginedFutures | USDTMarginedFutures | USDCMarginedFutures | Options | LinearContract
 
 	spot                   = "spot"
 	margin                 = "margin"
@@ -66,11 +66,10 @@ const (
 	usdcMarginedFutures    = "usdcmarginedfutures"
 	options                = "options"
 	linear                 = "linear"
-	inverse                = "inverse"
 )
 
 var (
-	supportedList = Items{Spot, Margin, CrossMargin, MarginFunding, Index, Binary, PerpetualContract, PerpetualSwap, Futures, DeliveryFutures, UpsideProfitContract, DownsideProfitContract, CoinMarginedFutures, USDTMarginedFutures, USDCMarginedFutures, Options, Linear, Inverse}
+	supportedList = Items{Spot, Margin, CrossMargin, MarginFunding, Index, Binary, PerpetualContract, PerpetualSwap, Futures, DeliveryFutures, UpsideProfitContract, DownsideProfitContract, CoinMarginedFutures, USDTMarginedFutures, USDCMarginedFutures, Options, LinearContract}
 )
 
 // Supported returns a list of supported asset types
@@ -113,10 +112,8 @@ func (a Item) String() string {
 		return usdcMarginedFutures
 	case Options:
 		return options
-	case Linear:
+	case LinearContract:
 		return linear
-	case Inverse:
-		return inverse
 	default:
 		return ""
 	}
@@ -219,9 +216,7 @@ func New(input string) (Item, error) {
 	case options, "option":
 		return Options, nil
 	case linear:
-		return Linear, nil
-	case inverse:
-		return Inverse, nil
+		return LinearContract, nil
 	default:
 		return 0, fmt.Errorf("%w '%v', only supports %s",
 			ErrNotSupported,

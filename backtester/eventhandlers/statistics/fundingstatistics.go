@@ -8,15 +8,14 @@ import (
 	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/funding"
 	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/common/key"
 	gctmath "github.com/thrasher-corp/gocryptotrader/common/math"
-	"github.com/thrasher-corp/gocryptotrader/currency"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	gctkline "github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 )
 
 // CalculateFundingStatistics calculates funding statistics for total USD strategy results
 // along with individual funding item statistics
-func CalculateFundingStatistics(funds funding.IFundingManager, currStats map[string]map[asset.Item]map[*currency.Item]map[*currency.Item]*CurrencyPairStatistic, riskFreeRate decimal.Decimal, interval gctkline.Interval) (*FundingStatistics, error) {
+func CalculateFundingStatistics(funds funding.IFundingManager, currStats map[key.ExchangePairAsset]*CurrencyPairStatistic, riskFreeRate decimal.Decimal, interval gctkline.Interval) (*FundingStatistics, error) {
 	if currStats == nil {
 		return nil, gctcommon.ErrNilPointer
 	}
@@ -31,28 +30,25 @@ func CalculateFundingStatistics(funds funding.IFundingManager, currStats map[str
 		Report: report,
 	}
 	for i := range report.Items {
-		exchangeAssetStats, ok := currStats[report.Items[i].Exchange][report.Items[i].Asset]
-		if !ok {
-			if report.Items[i].AppendedViaAPI {
-				// items added via API may not have been processed along with typical events
-				// are not relevant to calculating statistics
-				continue
-			}
-			return nil, fmt.Errorf("%w for %v %v",
-				errNoRelevantStatsFound,
-				report.Items[i].Exchange,
-				report.Items[i].Asset)
-		}
 		var relevantStats []relatedCurrencyPairStatistics
-		for b, baseMap := range exchangeAssetStats {
-			for q, v := range baseMap {
-				if b.Currency().Equal(report.Items[i].Currency) {
-					relevantStats = append(relevantStats, relatedCurrencyPairStatistics{isBaseCurrency: true, stat: v})
+		for k, v := range currStats {
+			if !k.MatchesExchangeAsset(report.Items[0].Exchange, report.Items[0].Asset) {
+				if report.Items[i].AppendedViaAPI {
+					// items added via API may not have been processed along with typical events
+					// are not relevant to calculating statistics
 					continue
 				}
-				if q.Currency().Equal(report.Items[i].Currency) {
-					relevantStats = append(relevantStats, relatedCurrencyPairStatistics{stat: v})
-				}
+				return nil, fmt.Errorf("%w for %v %v",
+					errNoRelevantStatsFound,
+					report.Items[i].Exchange,
+					report.Items[i].Asset)
+			}
+			if k.Base.Currency().Equal(report.Items[i].Currency) {
+				relevantStats = append(relevantStats, relatedCurrencyPairStatistics{isBaseCurrency: true, stat: v})
+				continue
+			}
+			if k.Quote.Currency().Equal(report.Items[i].Currency) {
+				relevantStats = append(relevantStats, relatedCurrencyPairStatistics{stat: v})
 			}
 		}
 		var fundingStat *FundingItemStatistics

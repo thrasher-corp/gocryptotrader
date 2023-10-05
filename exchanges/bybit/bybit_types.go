@@ -56,10 +56,14 @@ type InstrumentsInfo struct {
 	NextPageCursor string           `json:"nextPageCursor"`
 }
 
-// InstrumentInfo represents detailed data for symbol.
+// InstrumentInfo holds all instrument info across
+// spot, linear, option types
 type InstrumentInfo struct {
 	Symbol          string                  `json:"symbol"`
 	ContractType    string                  `json:"contractType"`
+	Innovation      string                  `json:"innovation"`
+	MarginTrading   string                  `json:"marginTrading"`
+	OptionsType     string                  `json:"optionsType"`
 	Status          string                  `json:"status"`
 	BaseCoin        string                  `json:"baseCoin"`
 	QuoteCoin       string                  `json:"quoteCoin"`
@@ -82,6 +86,10 @@ type InstrumentInfo struct {
 		MinOrderQty         convert.StringToFloat64 `json:"minOrderQty"`
 		QtyStep             convert.StringToFloat64 `json:"qtyStep"`
 		PostOnlyMaxOrderQty convert.StringToFloat64 `json:"postOnlyMaxOrderQty"`
+		BasePrecision       convert.StringToFloat64 `json:"basePrecision"`
+		QuotePrecision      convert.StringToFloat64 `json:"quotePrecision"`
+		MinOrderAmt         convert.StringToFloat64 `json:"minOrderAmt"`
+		MaxOrderAmt         convert.StringToFloat64 `json:"maxOrderAmt"`
 	} `json:"lotSizeFilter"`
 	UnifiedMarginTrade bool   `json:"unifiedMarginTrade"`
 	FundingInterval    int64  `json:"fundingInterval"`

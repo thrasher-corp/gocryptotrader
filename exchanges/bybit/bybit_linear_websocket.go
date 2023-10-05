@@ -11,7 +11,7 @@ import (
 
 // WsLinearConnect connects to linear a websocket feed
 func (by *Bybit) WsLinearConnect() error {
-	if !by.Websocket.IsEnabled() || !by.IsEnabled() || !by.IsAssetWebsocketSupported(asset.Linear) {
+	if !by.Websocket.IsEnabled() || !by.IsEnabled() || !by.IsAssetWebsocketSupported(asset.LinearContract) {
 		return errWebsocketNotEnabled
 	}
 	by.Websocket.Conn.SetURL(linearPublic)
@@ -27,7 +27,7 @@ func (by *Bybit) WsLinearConnect() error {
 	})
 
 	by.Websocket.Wg.Add(1)
-	go by.wsReadData(asset.Linear, by.Websocket.Conn)
+	go by.wsReadData(asset.LinearContract, by.Websocket.Conn)
 	if by.IsWebsocketAuthenticationSupported() {
 		err = by.WsAuth(context.TODO())
 		if err != nil {
@@ -42,7 +42,7 @@ func (by *Bybit) WsLinearConnect() error {
 func (by *Bybit) GenerateLinearDefaultSubscriptions() ([]stream.ChannelSubscription, error) {
 	var subscriptions []stream.ChannelSubscription
 	var channels = []string{chanOrderbook, chanPublicTrade, chanPublicTicker}
-	pairs, err := by.GetEnabledPairs(asset.Linear)
+	pairs, err := by.GetEnabledPairs(asset.LinearContract)
 	if err != nil {
 		return nil, err
 	}
@@ -52,7 +52,7 @@ func (by *Bybit) GenerateLinearDefaultSubscriptions() ([]stream.ChannelSubscript
 				stream.ChannelSubscription{
 					Channel:  channels[x],
 					Currency: pairs[z],
-					Asset:    asset.Linear,
+					Asset:    asset.LinearContract,
 				})
 		}
 	}
@@ -70,7 +70,7 @@ func (by *Bybit) LinearUnsubscribe(channelSubscriptions []stream.ChannelSubscrip
 }
 
 func (by *Bybit) handleLinearPayloadSubscription(operation string, channelSubscriptions []stream.ChannelSubscription) error {
-	payloads, err := by.handleSubscriptions(asset.Linear, operation, channelSubscriptions)
+	payloads, err := by.handleSubscriptions(asset.LinearContract, operation, channelSubscriptions)
 	if err != nil {
 		return err
 	}

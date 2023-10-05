@@ -5547,6 +5547,9 @@
           "type": "string",
           "format": "int64"
         },
+        "contractSettlementType": {
+          "type": "string"
+        },
         "orders": {
           "type": "array",
           "items": {
@@ -5581,6 +5584,15 @@
           "type": "string"
         },
         "currentSize": {
+          "type": "string"
+        },
+        "contractSize": {
+          "type": "string"
+        },
+        "contractMultiplier": {
+          "type": "string"
+        },
+        "contractSettlementType": {
           "type": "string"
         },
         "breakEvenPrice": {
@@ -6780,6 +6792,10 @@
             "type": "object",
             "$ref": "#/definitions/gctrpcTradeHistory"
           }
+        },
+        "contractAmount": {
+          "type": "number",
+          "format": "double"
         }
       }
     },

@@ -14,6 +14,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -66,14 +67,14 @@ func (by *Bybit) SetDefaults() {
 		log.Errorf(log.ExchangeSys, "%v %v", asset.Spot, err)
 	}
 	linearPairStore := currency.PairStore{RequestFormat: requestFormat, ConfigFormat: configFmt}
-	err = by.StoreAssetPairFormat(asset.Linear, linearPairStore)
+	err = by.StoreAssetPairFormat(asset.LinearContract, linearPairStore)
 	if err != nil {
-		log.Errorf(log.ExchangeSys, "%v %v", asset.Linear, err)
+		log.Errorf(log.ExchangeSys, "%v %v", asset.LinearContract, err)
 	}
 	inversePairStore := currency.PairStore{RequestFormat: requestFormat, ConfigFormat: configFmt}
-	err = by.StoreAssetPairFormat(asset.Inverse, inversePairStore)
+	err = by.StoreAssetPairFormat(asset.CoinMarginedFutures, inversePairStore)
 	if err != nil {
-		log.Errorf(log.ExchangeSys, "%v %v", asset.Inverse, err)
+		log.Errorf(log.ExchangeSys, "%v %v", asset.CoinMarginedFutures, err)
 	}
 	optionPairStore := currency.PairStore{RequestFormat: &currency.PairFormat{Uppercase: true, Delimiter: currency.DashDelimiter}, ConfigFormat: &currency.PairFormat{Uppercase: true, Delimiter: currency.DashDelimiter}}
 	err = by.StoreAssetPairFormat(asset.Options, optionPairStore)
@@ -81,12 +82,12 @@ func (by *Bybit) SetDefaults() {
 		log.Errorf(log.ExchangeSys, "%v %v", asset.Options, err)
 	}
 
-	err = by.DisableAssetWebsocketSupport(asset.Inverse)
+	err = by.DisableAssetWebsocketSupport(asset.CoinMarginedFutures)
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
 
-	err = by.DisableAssetWebsocketSupport(asset.Linear)
+	err = by.DisableAssetWebsocketSupport(asset.LinearContract)
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
@@ -293,7 +294,7 @@ func (by *Bybit) Run(ctx context.Context) {
 func (by *Bybit) FetchTradablePairs(ctx context.Context, a asset.Item) (currency.Pairs, error) {
 	var pair currency.Pair
 	switch a {
-	case asset.Spot, asset.Linear, asset.Inverse:
+	case asset.Spot, asset.LinearContract, asset.CoinMarginedFutures:
 		allPairs, err := by.GetInstruments(ctx, getCategoryName(a), "", "Trading", "", "", 0)
 		if err != nil {
 			return nil, err
@@ -331,7 +332,7 @@ func (by *Bybit) FetchTradablePairs(ctx context.Context, a asset.Item) (currency
 
 func getCategoryName(a asset.Item) string {
 	switch a {
-	case asset.Spot, asset.Linear, asset.Inverse:
+	case asset.Spot, asset.LinearContract, asset.CoinMarginedFutures:
 		return a.String()
 	case asset.Options:
 		return "option"
@@ -365,7 +366,7 @@ func (by *Bybit) UpdateTickers(ctx context.Context, assetType asset.Item) error 
 	}
 	var ticks *TickerData
 	switch assetType {
-	case asset.Spot, asset.Linear, asset.Inverse, asset.Options:
+	case asset.Spot, asset.LinearContract, asset.CoinMarginedFutures, asset.Options:
 		var baseCoin string
 		if assetType == asset.Options {
 			baseCoin = "BTC"
@@ -454,7 +455,7 @@ func (by *Bybit) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType
 	}
 
 	switch assetType {
-	case asset.Spot, asset.Linear, asset.Inverse, asset.Options:
+	case asset.Spot, asset.LinearContract, asset.CoinMarginedFutures, asset.Options:
 		orderbookNew, err = by.GetOrderBook(ctx, getCategoryName(assetType), formattedPair.String(), 0)
 	default:
 		return nil, fmt.Errorf("%s %w", assetType, asset.ErrNotSupported)
@@ -491,7 +492,7 @@ func (by *Bybit) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType
 
 func getAccountType(a asset.Item) string {
 	switch a {
-	case asset.Spot, asset.Linear, asset.Options:
+	case asset.Spot, asset.LinearContract, asset.Options:
 		return "UNIFIED"
 	default:
 		return "CONTRACT"
@@ -505,7 +506,7 @@ func (by *Bybit) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (a
 	var accountType string
 	info.Exchange = by.Name
 	switch assetType {
-	case asset.Spot, asset.Options, asset.Linear:
+	case asset.Spot, asset.Options, asset.LinearContract:
 		switch by.AccountType {
 		case accountTypeUnified:
 			accountType = "UNIFIED"
@@ -516,7 +517,7 @@ func (by *Bybit) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (a
 				accountType = "CONTRACT"
 			}
 		}
-	case asset.Inverse:
+	case asset.CoinMarginedFutures:
 		accountType = "CONTRACT"
 	default:
 		return info, fmt.Errorf("%s %w", assetType, asset.ErrNotSupported)
@@ -578,7 +579,7 @@ func (by *Bybit) GetAccountFundingHistory(_ context.Context) ([]exchange.Funding
 // GetWithdrawalsHistory returns previous withdrawals data
 func (by *Bybit) GetWithdrawalsHistory(ctx context.Context, c currency.Code, a asset.Item) ([]exchange.WithdrawalHistory, error) {
 	switch a {
-	case asset.Spot, asset.Options, asset.Linear, asset.Inverse:
+	case asset.Spot, asset.Options, asset.LinearContract, asset.CoinMarginedFutures:
 		withdrawals, err := by.GetWithdrawalRecords(ctx, c, "", "2", "", time.Time{}, time.Time{}, 0)
 		if err != nil {
 			return nil, err
@@ -615,7 +616,7 @@ func (by *Bybit) GetRecentTrades(ctx context.Context, p currency.Pair, assetType
 	}
 	var tradeData *TradingHistory
 	switch assetType {
-	case asset.Spot, asset.Linear, asset.Inverse:
+	case asset.Spot, asset.LinearContract, asset.CoinMarginedFutures:
 		tradeData, err = by.GetPublicTradingHistory(ctx, getCategoryName(assetType), formattedPair.String(), "", "", limit)
 	case asset.Options:
 		tradeData, err = by.GetPublicTradingHistory(ctx, getCategoryName(assetType), formattedPair.String(), formattedPair.Base.String(), "", limit)
@@ -667,7 +668,7 @@ func (by *Bybit) GetHistoricTrades(ctx context.Context, p currency.Pair, assetTy
 	}
 	var tradeHistoryResponse *TradingHistory
 	switch assetType {
-	case asset.Spot, asset.Linear, asset.Inverse:
+	case asset.Spot, asset.LinearContract, asset.CoinMarginedFutures:
 		tradeHistoryResponse, err = by.GetPublicTradingHistory(ctx, getCategoryName(assetType), p.String(), "", "", limit)
 		if err != nil {
 			return nil, err
@@ -732,7 +733,7 @@ func (by *Bybit) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Submi
 	}
 	status := order.New
 	switch s.AssetType {
-	case asset.Spot, asset.Options, asset.Linear, asset.Inverse:
+	case asset.Spot, asset.Options, asset.LinearContract, asset.CoinMarginedFutures:
 		var response *OrderResponse
 		arg := &PlaceOrderParams{
 			Category:        getCategoryName(s.AssetType),
@@ -809,7 +810,7 @@ func (by *Bybit) ModifyOrder(ctx context.Context, action *order.Modify) (*order.
 		return nil, err
 	}
 	switch action.AssetType {
-	case asset.Spot, asset.Linear, asset.Inverse, asset.Options:
+	case asset.Spot, asset.LinearContract, asset.CoinMarginedFutures, asset.Options:
 		arg := &AmendOrderParams{
 			Category:             getCategoryName(action.AssetType),
 			Symbol:               action.Pair,
@@ -851,7 +852,7 @@ func (by *Bybit) CancelOrder(ctx context.Context, ord *order.Cancel) error {
 	}
 	var err error
 	switch ord.AssetType {
-	case asset.Spot, asset.Linear, asset.Inverse, asset.Options:
+	case asset.Spot, asset.LinearContract, asset.CoinMarginedFutures, asset.Options:
 		_, err = by.CancelTradeOrder(ctx, &CancelOrderParams{
 			Category:    getCategoryName(ord.AssetType),
 			Symbol:      ord.Pair,
@@ -925,7 +926,7 @@ func (by *Bybit) CancelAllOrders(ctx context.Context, orderCancellation *order.C
 	var cancelAllOrdersResponse order.CancelAllResponse
 	cancelAllOrdersResponse.Status = make(map[string]string)
 	switch orderCancellation.AssetType {
-	case asset.Spot, asset.Linear, asset.Inverse, asset.Options:
+	case asset.Spot, asset.LinearContract, asset.CoinMarginedFutures, asset.Options:
 		activeOrder, err := by.CancelAllTradeOrders(ctx, &CancelAllOrdersParam{
 			Category: getCategoryName(orderCancellation.AssetType),
 			Symbol:   orderCancellation.Pair,
@@ -953,7 +954,7 @@ func (by *Bybit) GetOrderInfo(ctx context.Context, orderID string, pair currency
 	}
 
 	switch assetType {
-	case asset.Spot, asset.Linear, asset.Inverse, asset.Options:
+	case asset.Spot, asset.LinearContract, asset.CoinMarginedFutures, asset.Options:
 		resp, err := by.GetOpenOrders(ctx, getCategoryName(asset.Spot), pair.String(), "", "", orderID, "", "", "", 0, 1)
 		if err != nil {
 			return nil, err
@@ -1082,7 +1083,7 @@ func (by *Bybit) GetActiveOrders(ctx context.Context, req *order.MultiOrderReque
 	}
 	var orders []order.Detail
 	switch req.AssetType {
-	case asset.Spot, asset.Linear, asset.Inverse, asset.Options:
+	case asset.Spot, asset.LinearContract, asset.CoinMarginedFutures, asset.Options:
 		openOrders, err := by.GetOpenOrders(ctx, getCategoryName(req.AssetType), symbol, "", "", req.FromOrderID, "", "", "", 0, 50)
 		if err != nil {
 			return nil, err
@@ -1133,7 +1134,7 @@ func (by *Bybit) GetOrderHistory(ctx context.Context, req *order.MultiOrderReque
 	}
 	var orders []order.Detail
 	switch req.AssetType {
-	case asset.Linear, asset.Inverse, asset.Options:
+	case asset.LinearContract, asset.CoinMarginedFutures, asset.Options:
 		resp, err := by.GetTradeOrderHistory(ctx, getCategoryName(req.AssetType), "", req.FromOrderID, "", "", "", "", "", "", req.StartTime, req.EndTime, 50)
 		if err != nil {
 			return nil, err
@@ -1305,7 +1306,7 @@ func (by *Bybit) GetHistoricCandles(ctx context.Context, pair currency.Pair, a a
 
 	var timeSeries []kline.Candle
 	switch req.Asset {
-	case asset.Spot, asset.Inverse, asset.Linear:
+	case asset.Spot, asset.CoinMarginedFutures, asset.LinearContract:
 		var candles []KlineItem
 		candles, err = by.GetKlines(ctx, getCategoryName(req.Asset), req.RequestFormatted.String(), req.ExchangeInterval, req.Start, req.End, req.RequestLimit)
 		if err != nil {
@@ -1339,7 +1340,7 @@ func (by *Bybit) GetHistoricCandlesExtended(ctx context.Context, pair currency.P
 	timeSeries := make([]kline.Candle, 0, req.Size())
 	for x := range req.RangeHolder.Ranges {
 		switch req.Asset {
-		case asset.Spot, asset.Linear, asset.Inverse:
+		case asset.Spot, asset.LinearContract, asset.CoinMarginedFutures:
 			var klineItems []KlineItem
 			klineItems, err = by.GetKlines(ctx,
 				getCategoryName(req.Asset),
@@ -1386,7 +1387,7 @@ func (by *Bybit) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) e
 	}
 	var instrumentsInfo *InstrumentsInfo
 	switch a {
-	case asset.Spot, asset.Linear, asset.Inverse:
+	case asset.Spot, asset.LinearContract, asset.CoinMarginedFutures:
 		instrumentsInfo, err = by.GetInstruments(ctx, getCategoryName(a), "", "", "", "", 400)
 		if err != nil {
 			return err
@@ -1428,7 +1429,7 @@ func (by *Bybit) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) e
 // SetLeverage sets the account's initial leverage for the asset type and pair
 func (by *Bybit) SetLeverage(ctx context.Context, item asset.Item, pair currency.Pair, _ margin.Type, amount float64, orderSide order.Side) error {
 	switch item {
-	case asset.Linear, asset.Inverse:
+	case asset.LinearContract, asset.CoinMarginedFutures:
 		symbol, err := by.FormatSymbol(pair, item)
 		if err != nil {
 			return err
@@ -1451,4 +1452,31 @@ func (by *Bybit) SetLeverage(ctx context.Context, item asset.Item, pair currency
 	default:
 		return fmt.Errorf("%w %v", asset.ErrNotSupported, item)
 	}
+}
+
+// GetFuturesContractDetails returns details about futures contracts
+func (by *Bybit) GetFuturesContractDetails(ctx context.Context, item asset.Item) ([]futures.Contract, error) {
+	return nil, common.ErrFunctionNotSupported
+}
+
+func getContractLength(contractLength time.Duration) (futures.ContractType, error) {
+	if contractLength <= 0 {
+		return futures.Unknown, errInvalidContractLength
+	}
+	var ct futures.ContractType
+	switch {
+	case contractLength > 0 && contractLength <= kline.OneWeek.Duration()+kline.ThreeDay.Duration():
+		ct = futures.Weekly
+	case contractLength <= kline.TwoWeek.Duration()+kline.ThreeDay.Duration():
+		ct = futures.Fortnightly
+	case contractLength <= kline.ThreeMonth.Duration()+kline.ThreeWeek.Duration():
+		ct = futures.Quarterly
+	case contractLength <= kline.SixMonth.Duration()+kline.ThreeWeek.Duration():
+		ct = futures.HalfYearly
+	case contractLength <= kline.NineMonth.Duration()+kline.ThreeWeek.Duration():
+		ct = futures.NineMonthly
+	default:
+		ct = futures.SemiAnnually
+	}
+	return ct, nil
 }

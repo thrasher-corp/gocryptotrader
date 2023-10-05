@@ -10,7 +10,7 @@ import (
 
 // WsInverseConnect connects to inverse websocket feed
 func (by *Bybit) WsInverseConnect() error {
-	if !by.Websocket.IsEnabled() || !by.IsEnabled() || !by.IsAssetWebsocketSupported(asset.Inverse) {
+	if !by.Websocket.IsEnabled() || !by.IsEnabled() || !by.IsAssetWebsocketSupported(asset.CoinMarginedFutures) {
 		return errWebsocketNotEnabled
 	}
 	by.Websocket.Conn.SetURL(inversePublic)
@@ -26,7 +26,7 @@ func (by *Bybit) WsInverseConnect() error {
 	})
 
 	by.Websocket.Wg.Add(1)
-	go by.wsReadData(asset.Inverse, by.Websocket.Conn)
+	go by.wsReadData(asset.CoinMarginedFutures, by.Websocket.Conn)
 	return nil
 }
 
@@ -34,7 +34,7 @@ func (by *Bybit) WsInverseConnect() error {
 func (by *Bybit) GenerateInverseDefaultSubscriptions() ([]stream.ChannelSubscription, error) {
 	var subscriptions []stream.ChannelSubscription
 	var channels = []string{chanOrderbook, chanPublicTrade, chanPublicTicker}
-	pairs, err := by.GetEnabledPairs(asset.Inverse)
+	pairs, err := by.GetEnabledPairs(asset.CoinMarginedFutures)
 	if err != nil {
 		return nil, err
 	}
@@ -44,7 +44,7 @@ func (by *Bybit) GenerateInverseDefaultSubscriptions() ([]stream.ChannelSubscrip
 				stream.ChannelSubscription{
 					Channel:  channels[x],
 					Currency: pairs[z],
-					Asset:    asset.Inverse,
+					Asset:    asset.CoinMarginedFutures,
 				})
 		}
 	}
@@ -62,7 +62,7 @@ func (by *Bybit) InverseUnsubscribe(channelSubscriptions []stream.ChannelSubscri
 }
 
 func (by *Bybit) handleInversePayloadSubscription(operation string, channelSubscriptions []stream.ChannelSubscription) error {
-	payloads, err := by.handleSubscriptions(asset.Inverse, operation, channelSubscriptions)
+	payloads, err := by.handleSubscriptions(asset.CoinMarginedFutures, operation, channelSubscriptions)
 	if err != nil {
 		return err
 	}

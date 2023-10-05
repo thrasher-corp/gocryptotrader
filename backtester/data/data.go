@@ -7,6 +7,7 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
@@ -14,7 +15,7 @@ import (
 // NewHandlerHolder returns a new HandlerHolder
 func NewHandlerHolder() *HandlerHolder {
 	return &HandlerHolder{
-		data: make(map[string]map[asset.Item]map[*currency.Item]map[*currency.Item]Handler),
+		data: make(map[key.ExchangePairAsset]Handler),
 	}
 }
 
@@ -26,28 +27,15 @@ func (h *HandlerHolder) SetDataForCurrency(e string, a asset.Item, p currency.Pa
 	h.m.Lock()
 	defer h.m.Unlock()
 	if h.data == nil {
-		h.data = make(map[string]map[asset.Item]map[*currency.Item]map[*currency.Item]Handler)
+		h.data = make(map[key.ExchangePairAsset]Handler)
 	}
 	e = strings.ToLower(e)
-	m1, ok := h.data[e]
-	if !ok {
-		m1 = make(map[asset.Item]map[*currency.Item]map[*currency.Item]Handler)
-		h.data[e] = m1
-	}
-
-	m2, ok := m1[a]
-	if !ok {
-		m2 = make(map[*currency.Item]map[*currency.Item]Handler)
-		m1[a] = m2
-	}
-
-	m3, ok := m2[p.Base.Item]
-	if !ok {
-		m3 = make(map[*currency.Item]Handler)
-		m2[p.Base.Item] = m3
-	}
-
-	m3[p.Quote.Item] = k
+	h.data[key.ExchangePairAsset{
+		Exchange: e,
+		Base:     p.Base.Item,
+		Quote:    p.Quote.Item,
+		Asset:    a,
+	}] = k
 	return nil
 }
 
@@ -58,15 +46,9 @@ func (h *HandlerHolder) GetAllData() ([]Handler, error) {
 	}
 	h.m.Lock()
 	defer h.m.Unlock()
-	var resp []Handler
-	for _, exchMap := range h.data {
-		for _, assetMap := range exchMap {
-			for _, baseMap := range assetMap {
-				for _, handler := range baseMap {
-					resp = append(resp, handler)
-				}
-			}
-		}
+	resp := make([]Handler, 0, len(h.data))
+	for _, handler := range h.data {
+		resp = append(resp, handler)
 	}
 	return resp, nil
 }
@@ -84,7 +66,12 @@ func (h *HandlerHolder) GetDataForCurrency(ev common.Event) (Handler, error) {
 	exch := ev.GetExchange()
 	a := ev.GetAssetType()
 	p := ev.Pair()
-	handler, ok := h.data[exch][a][p.Base.Item][p.Quote.Item]
+	handler, ok := h.data[key.ExchangePairAsset{
+		Exchange: exch,
+		Base:     p.Base.Item,
+		Quote:    p.Quote.Item,
+		Asset:    a,
+	}]
 	if !ok {
 		return nil, fmt.Errorf("%s %s %s %w", exch, a, p, ErrHandlerNotFound)
 	}
@@ -98,7 +85,7 @@ func (h *HandlerHolder) Reset() error {
 	}
 	h.m.Lock()
 	defer h.m.Unlock()
-	h.data = make(map[string]map[asset.Item]map[*currency.Item]map[*currency.Item]Handler)
+	h.data = make(map[key.ExchangePairAsset]Handler)
 	return nil
 }
 

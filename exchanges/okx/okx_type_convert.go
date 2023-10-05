@@ -102,48 +102,6 @@ func (t *okxTime) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-// UnmarshalJSON deserializes JSON, and timestamp information.
-func (a *Instrument) UnmarshalJSON(data []byte) error {
-	type Alias Instrument
-	chil := &struct {
-		*Alias
-		ListTime                        okxTime           `json:"listTime"`
-		ExpTime                         okxTime           `json:"expTime"`
-		InstrumentType                  okxAssetType      `json:"instType"`
-		MaxLeverage                     okxNumericalValue `json:"lever"`
-		TickSize                        okxNumericalValue `json:"tickSz"`
-		LotSize                         okxNumericalValue `json:"lotSz"`
-		MinimumOrderSize                okxNumericalValue `json:"minSz"`
-		MaxQuantityOfSpotLimitOrder     okxNumericalValue `json:"maxLmtSz"`
-		MaxQuantityOfMarketLimitOrder   okxNumericalValue `json:"maxMktSz"`
-		MaxQuantityOfSpotTwapLimitOrder okxNumericalValue `json:"maxTwapSz"`
-		MaxSpotIcebergSize              okxNumericalValue `json:"maxIcebergSz"`
-		MaxTriggerSize                  okxNumericalValue `json:"maxTriggerSz"`
-		MaxStopSize                     okxNumericalValue `json:"maxStopSz"`
-	}{
-		Alias: (*Alias)(a),
-	}
-	if err := json.Unmarshal(data, chil); err != nil {
-		return err
-	}
-
-	a.ListTime = chil.ListTime.Time
-	a.ExpTime = chil.ExpTime.Time
-	a.InstrumentType = chil.InstrumentType.Item
-	a.MaxLeverage = chil.MaxLeverage.Float64()
-	a.TickSize = chil.TickSize.Float64()
-	a.LotSize = chil.LotSize.Float64()
-	a.MinimumOrderSize = chil.MinimumOrderSize.Float64()
-	a.MaxQuantityOfSpotLimitOrder = chil.MaxQuantityOfSpotLimitOrder.Float64()
-	a.MaxQuantityOfMarketLimitOrder = chil.MaxQuantityOfMarketLimitOrder.Float64()
-	a.MaxQuantityOfSpotTwapLimitOrder = chil.MaxQuantityOfSpotTwapLimitOrder.Float64()
-	a.MaxSpotIcebergSize = chil.MaxSpotIcebergSize.Float64()
-	a.MaxTriggerSize = chil.MaxTriggerSize.Float64()
-	a.MaxStopSize = chil.MaxStopSize.Float64()
-
-	return nil
-}
-
 // UnmarshalJSON decoder for OpenInterestResponse instance.
 func (a *OpenInterest) UnmarshalJSON(data []byte) error {
 	type Alias OpenInterest

@@ -618,7 +618,7 @@ func (by *Bybit) wsProcessPublicTicker(assetType asset.Item, resp *WebsocketResp
 			return nil
 		}
 		return nil
-	case asset.Linear, asset.Inverse:
+	case asset.LinearContract, asset.CoinMarginedFutures:
 		var result WsLinearTicker
 		err := json.Unmarshal(resp.Data, &result)
 		if err != nil {
@@ -715,7 +715,7 @@ func (by *Bybit) updateSpotTickerInformation(result *WsSpotTicker, cp currency.P
 func (by *Bybit) updateTickerInformation(result *WsLinearTicker, cp currency.Pair) (*ticker.Price, error) {
 	var tickerData *ticker.Price
 	var err error
-	tickerData, err = ticker.GetTicker(by.Name, cp, asset.Linear)
+	tickerData, err = ticker.GetTicker(by.Name, cp, asset.LinearContract)
 	if err != nil {
 		return nil, err
 	}
