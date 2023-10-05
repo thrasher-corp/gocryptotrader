@@ -48,7 +48,6 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		log.Fatal(err)
 	}
-
 	os.Exit(m.Run())
 }
 
@@ -134,7 +133,7 @@ func TestCreateOrder(t *testing.T) {
 func TestGetOpenOrders(t *testing.T) {
 	t.Parallel()
 	// sharedtestvalues.SkipTestIfCredentialsUnset(t, )
-	_, err := co.GetOpenOrders(context.Background(), "", "", "BTC-USDT", "", "", time.Time{}, 0, 0)
+	_, err := co.GetOpenOrders(context.Background(), "", "", "BTC-PERP", "", "", time.Time{}, 0, 0)
 	if err != nil {
 		t.Error(err)
 	}
