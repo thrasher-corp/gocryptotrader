@@ -68230,6 +68230,23 @@
      }
     }
    ]
+  },
+  "/api/v2/websockets_token/": {
+   "POST": [
+    {
+     "data": {
+         "token": "HorseWalksIntoBarBtenderLongFace",
+         "valid_sec": 60,
+         "user_id": 1337210
+     },
+     "bodyParams": "key=1\u0026nonce=2\u0026signature=SIGGYMSIGGY",
+     "headers": {
+      "Content-Type": [
+       "application/x-www-form-urlencoded"
+      ]
+     }
+    }
+   ]
   }
  }
 }
