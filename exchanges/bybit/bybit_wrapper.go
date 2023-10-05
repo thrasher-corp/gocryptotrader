@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"sort"
+	"strings"
 	"sync"
 	"time"
 
@@ -67,9 +68,13 @@ func (by *Bybit) SetDefaults() {
 		log.Errorf(log.ExchangeSys, "%v %v", asset.Spot, err)
 	}
 	linearPairStore := currency.PairStore{RequestFormat: requestFormat, ConfigFormat: configFmt}
-	err = by.StoreAssetPairFormat(asset.LinearContract, linearPairStore)
+	err = by.StoreAssetPairFormat(asset.USDTMarginedFutures, linearPairStore)
 	if err != nil {
-		log.Errorf(log.ExchangeSys, "%v %v", asset.LinearContract, err)
+		log.Errorf(log.ExchangeSys, "%v %v", asset.USDTMarginedFutures, err)
+	}
+	err = by.StoreAssetPairFormat(asset.USDCMarginedFutures, linearPairStore)
+	if err != nil {
+		log.Errorf(log.ExchangeSys, "%v %v", asset.USDCMarginedFutures, err)
 	}
 	inversePairStore := currency.PairStore{RequestFormat: requestFormat, ConfigFormat: configFmt}
 	err = by.StoreAssetPairFormat(asset.CoinMarginedFutures, inversePairStore)
@@ -86,8 +91,11 @@ func (by *Bybit) SetDefaults() {
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
-
-	err = by.DisableAssetWebsocketSupport(asset.LinearContract)
+	err = by.DisableAssetWebsocketSupport(asset.USDTMarginedFutures)
+	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
+	}
+	err = by.DisableAssetWebsocketSupport(asset.USDCMarginedFutures)
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
@@ -293,46 +301,66 @@ func (by *Bybit) Run(ctx context.Context) {
 // FetchTradablePairs returns a list of the exchanges tradable pairs
 func (by *Bybit) FetchTradablePairs(ctx context.Context, a asset.Item) (currency.Pairs, error) {
 	var pair currency.Pair
+	allPairs, err := by.GetInstruments(ctx, getCategoryName(a), "", "Trading", "", "", 0)
+	if err != nil {
+		return nil, err
+	}
+	pairs := make([]currency.Pair, 0, len(allPairs.List))
 	switch a {
-	case asset.Spot, asset.LinearContract, asset.CoinMarginedFutures:
-		allPairs, err := by.GetInstruments(ctx, getCategoryName(a), "", "Trading", "", "", 0)
-		if err != nil {
-			return nil, err
-		}
-		pairs := make([]currency.Pair, len(allPairs.List))
+	case asset.Spot, asset.Options:
 		for x := range allPairs.List {
 			pair, err = currency.NewPairFromString(allPairs.List[x].Symbol)
 			if err != nil {
 				return nil, err
 			}
-			pairs[x] = pair
+			pairs = append(pairs, pair)
 		}
-		return pairs, nil
-	case asset.Options:
-		baseCoins := []string{"BTC"}
-		pairs := []currency.Pair{}
-		for b := range baseCoins {
-			allPairs, err := by.GetInstruments(ctx, getCategoryName(a), "", "Trading", baseCoins[b], "", 0)
+	case asset.CoinMarginedFutures:
+		for x := range allPairs.List {
+			if allPairs.List[x].Status != "Trading" || allPairs.List[x].QuoteCoin != "USD" {
+				continue
+			}
+			pair, err = currency.NewPairFromString(allPairs.List[x].Symbol)
 			if err != nil {
 				return nil, err
 			}
-			for x := range allPairs.List {
-				pair, err = currency.NewPairFromString(allPairs.List[x].Symbol)
-				if err != nil {
-					return nil, err
-				}
-				pairs = append(pairs, pair)
-			}
+			pairs = append(pairs, pair)
 		}
-		return pairs, nil
+	case asset.USDCMarginedFutures:
+		for x := range allPairs.List {
+			if allPairs.List[x].Status != "Trading" || allPairs.List[x].QuoteCoin != "USD" {
+				continue
+			}
+			pair, err = currency.NewPairFromString(allPairs.List[x].Symbol)
+			if err != nil {
+				return nil, err
+			}
+			pairs = append(pairs, pair)
+		}
+	case asset.USDTMarginedFutures:
+		for x := range allPairs.List {
+			if allPairs.List[x].Status != "Trading" || allPairs.List[x].QuoteCoin != "USDT" {
+				continue
+			}
+			pair, err = currency.NewPairFromString(allPairs.List[x].Symbol)
+			if err != nil {
+				return nil, err
+			}
+			pairs = append(pairs, pair)
+		}
 	default:
 		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, a)
 	}
+	return pairs, nil
 }
 
 func getCategoryName(a asset.Item) string {
 	switch a {
-	case asset.Spot, asset.LinearContract, asset.CoinMarginedFutures:
+	case asset.CoinMarginedFutures:
+		return "inverse"
+	case asset.USDTMarginedFutures, asset.USDCMarginedFutures:
+		return "linear"
+	case asset.Spot:
 		return a.String()
 	case asset.Options:
 		return "option"
@@ -366,7 +394,8 @@ func (by *Bybit) UpdateTickers(ctx context.Context, assetType asset.Item) error 
 	}
 	var ticks *TickerData
 	switch assetType {
-	case asset.Spot, asset.LinearContract, asset.CoinMarginedFutures, asset.Options:
+	case asset.Spot, asset.USDCMarginedFutures,
+		asset.USDTMarginedFutures, asset.CoinMarginedFutures, asset.Options:
 		var baseCoin string
 		if assetType == asset.Options {
 			baseCoin = "BTC"
@@ -455,7 +484,10 @@ func (by *Bybit) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType
 	}
 
 	switch assetType {
-	case asset.Spot, asset.LinearContract, asset.CoinMarginedFutures, asset.Options:
+	case asset.Spot, asset.USDTMarginedFutures,
+		asset.USDCMarginedFutures,
+		asset.CoinMarginedFutures,
+		asset.Options:
 		orderbookNew, err = by.GetOrderBook(ctx, getCategoryName(assetType), formattedPair.String(), 0)
 	default:
 		return nil, fmt.Errorf("%s %w", assetType, asset.ErrNotSupported)
@@ -490,23 +522,17 @@ func (by *Bybit) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType
 	return orderbook.Get(by.Name, formattedPair, assetType)
 }
 
-func getAccountType(a asset.Item) string {
-	switch a {
-	case asset.Spot, asset.LinearContract, asset.Options:
-		return "UNIFIED"
-	default:
-		return "CONTRACT"
-	}
-}
-
 // UpdateAccountInfo retrieves balances for all enabled currencies
+// TODO: check
 func (by *Bybit) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
 	var info account.Holdings
 	var acc account.SubAccount
 	var accountType string
 	info.Exchange = by.Name
 	switch assetType {
-	case asset.Spot, asset.Options, asset.LinearContract:
+	case asset.Spot, asset.Options,
+		asset.USDCMarginedFutures,
+		asset.USDTMarginedFutures:
 		switch by.AccountType {
 		case accountTypeUnified:
 			accountType = "UNIFIED"
@@ -579,7 +605,7 @@ func (by *Bybit) GetAccountFundingHistory(_ context.Context) ([]exchange.Funding
 // GetWithdrawalsHistory returns previous withdrawals data
 func (by *Bybit) GetWithdrawalsHistory(ctx context.Context, c currency.Code, a asset.Item) ([]exchange.WithdrawalHistory, error) {
 	switch a {
-	case asset.Spot, asset.Options, asset.LinearContract, asset.CoinMarginedFutures:
+	case asset.Spot, asset.Options, asset.USDTMarginedFutures, asset.USDCMarginedFutures, asset.CoinMarginedFutures:
 		withdrawals, err := by.GetWithdrawalRecords(ctx, c, "", "2", "", time.Time{}, time.Time{}, 0)
 		if err != nil {
 			return nil, err
@@ -616,7 +642,7 @@ func (by *Bybit) GetRecentTrades(ctx context.Context, p currency.Pair, assetType
 	}
 	var tradeData *TradingHistory
 	switch assetType {
-	case asset.Spot, asset.LinearContract, asset.CoinMarginedFutures:
+	case asset.Spot, asset.USDTMarginedFutures, asset.USDCMarginedFutures, asset.CoinMarginedFutures:
 		tradeData, err = by.GetPublicTradingHistory(ctx, getCategoryName(assetType), formattedPair.String(), "", "", limit)
 	case asset.Options:
 		tradeData, err = by.GetPublicTradingHistory(ctx, getCategoryName(assetType), formattedPair.String(), formattedPair.Base.String(), "", limit)
@@ -668,7 +694,7 @@ func (by *Bybit) GetHistoricTrades(ctx context.Context, p currency.Pair, assetTy
 	}
 	var tradeHistoryResponse *TradingHistory
 	switch assetType {
-	case asset.Spot, asset.LinearContract, asset.CoinMarginedFutures:
+	case asset.Spot, asset.USDTMarginedFutures, asset.USDCMarginedFutures, asset.CoinMarginedFutures:
 		tradeHistoryResponse, err = by.GetPublicTradingHistory(ctx, getCategoryName(assetType), p.String(), "", "", limit)
 		if err != nil {
 			return nil, err
@@ -733,7 +759,7 @@ func (by *Bybit) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Submi
 	}
 	status := order.New
 	switch s.AssetType {
-	case asset.Spot, asset.Options, asset.LinearContract, asset.CoinMarginedFutures:
+	case asset.Spot, asset.Options, asset.USDTMarginedFutures, asset.USDCMarginedFutures, asset.CoinMarginedFutures:
 		var response *OrderResponse
 		arg := &PlaceOrderParams{
 			Category:        getCategoryName(s.AssetType),
@@ -810,7 +836,7 @@ func (by *Bybit) ModifyOrder(ctx context.Context, action *order.Modify) (*order.
 		return nil, err
 	}
 	switch action.AssetType {
-	case asset.Spot, asset.LinearContract, asset.CoinMarginedFutures, asset.Options:
+	case asset.Spot, asset.USDTMarginedFutures, asset.USDCMarginedFutures, asset.CoinMarginedFutures, asset.Options:
 		arg := &AmendOrderParams{
 			Category:             getCategoryName(action.AssetType),
 			Symbol:               action.Pair,
@@ -852,7 +878,7 @@ func (by *Bybit) CancelOrder(ctx context.Context, ord *order.Cancel) error {
 	}
 	var err error
 	switch ord.AssetType {
-	case asset.Spot, asset.LinearContract, asset.CoinMarginedFutures, asset.Options:
+	case asset.Spot, asset.USDTMarginedFutures, asset.USDCMarginedFutures, asset.CoinMarginedFutures, asset.Options:
 		_, err = by.CancelTradeOrder(ctx, &CancelOrderParams{
 			Category:    getCategoryName(ord.AssetType),
 			Symbol:      ord.Pair,
@@ -926,7 +952,7 @@ func (by *Bybit) CancelAllOrders(ctx context.Context, orderCancellation *order.C
 	var cancelAllOrdersResponse order.CancelAllResponse
 	cancelAllOrdersResponse.Status = make(map[string]string)
 	switch orderCancellation.AssetType {
-	case asset.Spot, asset.LinearContract, asset.CoinMarginedFutures, asset.Options:
+	case asset.Spot, asset.USDTMarginedFutures, asset.USDCMarginedFutures, asset.CoinMarginedFutures, asset.Options:
 		activeOrder, err := by.CancelAllTradeOrders(ctx, &CancelAllOrdersParam{
 			Category: getCategoryName(orderCancellation.AssetType),
 			Symbol:   orderCancellation.Pair,
@@ -954,7 +980,7 @@ func (by *Bybit) GetOrderInfo(ctx context.Context, orderID string, pair currency
 	}
 
 	switch assetType {
-	case asset.Spot, asset.LinearContract, asset.CoinMarginedFutures, asset.Options:
+	case asset.Spot, asset.USDTMarginedFutures, asset.USDCMarginedFutures, asset.CoinMarginedFutures, asset.Options:
 		resp, err := by.GetOpenOrders(ctx, getCategoryName(asset.Spot), pair.String(), "", "", orderID, "", "", "", 0, 1)
 		if err != nil {
 			return nil, err
@@ -1083,7 +1109,7 @@ func (by *Bybit) GetActiveOrders(ctx context.Context, req *order.MultiOrderReque
 	}
 	var orders []order.Detail
 	switch req.AssetType {
-	case asset.Spot, asset.LinearContract, asset.CoinMarginedFutures, asset.Options:
+	case asset.Spot, asset.USDTMarginedFutures, asset.USDCMarginedFutures, asset.CoinMarginedFutures, asset.Options:
 		openOrders, err := by.GetOpenOrders(ctx, getCategoryName(req.AssetType), symbol, "", "", req.FromOrderID, "", "", "", 0, 50)
 		if err != nil {
 			return nil, err
@@ -1134,7 +1160,7 @@ func (by *Bybit) GetOrderHistory(ctx context.Context, req *order.MultiOrderReque
 	}
 	var orders []order.Detail
 	switch req.AssetType {
-	case asset.LinearContract, asset.CoinMarginedFutures, asset.Options:
+	case asset.USDTMarginedFutures, asset.USDCMarginedFutures, asset.CoinMarginedFutures, asset.Options:
 		resp, err := by.GetTradeOrderHistory(ctx, getCategoryName(req.AssetType), "", req.FromOrderID, "", "", "", "", "", "", req.StartTime, req.EndTime, 50)
 		if err != nil {
 			return nil, err
@@ -1306,7 +1332,7 @@ func (by *Bybit) GetHistoricCandles(ctx context.Context, pair currency.Pair, a a
 
 	var timeSeries []kline.Candle
 	switch req.Asset {
-	case asset.Spot, asset.CoinMarginedFutures, asset.LinearContract:
+	case asset.Spot, asset.CoinMarginedFutures, asset.USDTMarginedFutures, asset.USDCMarginedFutures:
 		var candles []KlineItem
 		candles, err = by.GetKlines(ctx, getCategoryName(req.Asset), req.RequestFormatted.String(), req.ExchangeInterval, req.Start, req.End, req.RequestLimit)
 		if err != nil {
@@ -1340,7 +1366,7 @@ func (by *Bybit) GetHistoricCandlesExtended(ctx context.Context, pair currency.P
 	timeSeries := make([]kline.Candle, 0, req.Size())
 	for x := range req.RangeHolder.Ranges {
 		switch req.Asset {
-		case asset.Spot, asset.LinearContract, asset.CoinMarginedFutures:
+		case asset.Spot, asset.USDTMarginedFutures, asset.USDCMarginedFutures, asset.CoinMarginedFutures:
 			var klineItems []KlineItem
 			klineItems, err = by.GetKlines(ctx,
 				getCategoryName(req.Asset),
@@ -1387,7 +1413,7 @@ func (by *Bybit) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) e
 	}
 	var instrumentsInfo *InstrumentsInfo
 	switch a {
-	case asset.Spot, asset.LinearContract, asset.CoinMarginedFutures:
+	case asset.Spot, asset.USDTMarginedFutures, asset.USDCMarginedFutures, asset.CoinMarginedFutures:
 		instrumentsInfo, err = by.GetInstruments(ctx, getCategoryName(a), "", "", "", "", 400)
 		if err != nil {
 			return err
@@ -1429,7 +1455,7 @@ func (by *Bybit) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) e
 // SetLeverage sets the account's initial leverage for the asset type and pair
 func (by *Bybit) SetLeverage(ctx context.Context, item asset.Item, pair currency.Pair, _ margin.Type, amount float64, orderSide order.Side) error {
 	switch item {
-	case asset.LinearContract, asset.CoinMarginedFutures:
+	case asset.USDTMarginedFutures, asset.USDCMarginedFutures, asset.CoinMarginedFutures:
 		symbol, err := by.FormatSymbol(pair, item)
 		if err != nil {
 			return err
@@ -1456,7 +1482,238 @@ func (by *Bybit) SetLeverage(ctx context.Context, item asset.Item, pair currency
 
 // GetFuturesContractDetails returns details about futures contracts
 func (by *Bybit) GetFuturesContractDetails(ctx context.Context, item asset.Item) ([]futures.Contract, error) {
-	return nil, common.ErrFunctionNotSupported
+	if !item.IsFutures() {
+		return nil, futures.ErrNotFuturesAsset
+	}
+	if !by.SupportsAsset(item) {
+		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, item)
+	}
+
+	inverseContracts, err := by.GetInstruments(ctx, getCategoryName(item), "", "", "", "", 1000)
+	if err != nil {
+		return nil, err
+	}
+
+	switch item {
+	case asset.CoinMarginedFutures:
+		resp := make([]futures.Contract, 0, len(inverseContracts.List))
+		for i := range inverseContracts.List {
+			if inverseContracts.List[i].SettleCoin == "USDT" || inverseContracts.List[i].SettleCoin == "USDC" {
+				continue
+			}
+			var cp, underlying currency.Pair
+			splitCoin := strings.Split(inverseContracts.List[i].Symbol, inverseContracts.List[i].BaseCoin)
+			if len(splitCoin) <= 1 {
+				continue
+			}
+
+			cp, err = currency.NewPairFromStrings(inverseContracts.List[i].BaseCoin, splitCoin[1])
+			if err != nil {
+				return nil, err
+			}
+
+			underlying, err = currency.NewPairFromStrings(inverseContracts.List[i].BaseCoin, inverseContracts.List[i].QuoteCoin)
+			if err != nil {
+				return nil, err
+			}
+			contractType := strings.ToLower(inverseContracts.List[i].ContractType)
+			var s, e time.Time
+			if inverseContracts.List[i].LaunchTime.Time().UnixMilli() > 0 {
+				s = inverseContracts.List[i].LaunchTime.Time()
+			}
+			if inverseContracts.List[i].DeliveryTime.Time().UnixMilli() > 0 {
+				e = inverseContracts.List[i].DeliveryTime.Time()
+			}
+
+			var ct futures.ContractType
+			switch contractType {
+			case "inverseperpetual":
+				ct = futures.Perpetual
+			case "inversefutures":
+				ct, err = getContractLength(e.Sub(s))
+				if err != nil {
+					return nil, fmt.Errorf("%w %v %v %v %v-%v", err, by.Name, item, cp, inverseContracts.List[i].LaunchTime.Time(), inverseContracts.List[i].DeliveryTime)
+				}
+			default:
+				if by.Verbose {
+					log.Warnf(log.ExchangeSys, "%v unhandled contract type for %v %v %v-%v", by.Name, item, cp, s, e)
+				}
+				ct = futures.Unknown
+			}
+
+			resp = append(resp, futures.Contract{
+				Exchange:             by.Name,
+				Name:                 cp,
+				Underlying:           underlying,
+				Asset:                item,
+				StartDate:            s,
+				EndDate:              e,
+				SettlementType:       futures.Inverse,
+				IsActive:             strings.EqualFold(inverseContracts.List[i].Status, "trading"),
+				Status:               inverseContracts.List[i].Status,
+				Type:                 ct,
+				SettlementCurrencies: currency.Currencies{currency.NewCode(inverseContracts.List[i].SettleCoin)},
+				MaxLeverage:          inverseContracts.List[i].LeverageFilter.MaxLeverage.Float64(),
+			})
+		}
+		return resp, nil
+	case asset.USDCMarginedFutures:
+		linearContracts, err := by.GetInstruments(ctx, "linear", "", "", "", "", 1000)
+		if err != nil {
+			return nil, err
+		}
+		resp := make([]futures.Contract, 0, len(inverseContracts.List)+len(linearContracts.List))
+
+		var instruments []InstrumentInfo
+		for i := range linearContracts.List {
+			if linearContracts.List[i].SettleCoin != "USDC" {
+				continue
+			}
+			instruments = append(instruments, linearContracts.List[i])
+		}
+		for i := range inverseContracts.List {
+			if inverseContracts.List[i].SettleCoin != "USDC" {
+				continue
+			}
+			instruments = append(instruments, inverseContracts.List[i])
+		}
+		for i := range instruments {
+			var cp, underlying currency.Pair
+			underlying, err = currency.NewPairFromStrings(instruments[i].BaseCoin, instruments[i].QuoteCoin)
+			if err != nil {
+				return nil, err
+			}
+			contractType := strings.ToLower(instruments[i].ContractType)
+
+			var ct futures.ContractType
+			switch contractType {
+			case "linearperpetual":
+				ct = futures.Perpetual
+				splitCoin := strings.Split(instruments[i].Symbol, instruments[i].BaseCoin)
+				if len(splitCoin) <= 1 {
+					continue
+				}
+				cp, err = currency.NewPairFromStrings(instruments[i].BaseCoin, splitCoin[1])
+				if err != nil {
+					return nil, err
+				}
+			case "linearfutures":
+				ct, err = getContractLength(instruments[i].DeliveryTime.Time().Sub(instruments[i].LaunchTime.Time()))
+				if err != nil {
+					return nil, fmt.Errorf("%w %v %v %v %v-%v", err, by.Name, item, cp, instruments[i].LaunchTime.Time(), instruments[i].DeliveryTime.Time())
+				}
+				cp, err = currency.NewPairFromString(instruments[i].Symbol)
+				if err != nil {
+					return nil, err
+				}
+			default:
+				if by.Verbose {
+					log.Warnf(log.ExchangeSys, "%v unhandled contract type for %v %v %v-%v", by.Name, item, cp, instruments[i].LaunchTime.Time(), instruments[i].DeliveryTime.Time())
+				}
+				ct = futures.Unknown
+				cp, err = currency.NewPairFromString(instruments[i].Symbol)
+				if err != nil {
+					return nil, err
+				}
+			}
+
+			resp = append(resp, futures.Contract{
+				Exchange:             by.Name,
+				Name:                 cp,
+				Underlying:           underlying,
+				Asset:                item,
+				StartDate:            instruments[i].LaunchTime.Time(),
+				EndDate:              instruments[i].DeliveryTime.Time(),
+				SettlementType:       futures.Linear,
+				IsActive:             strings.EqualFold(instruments[i].Status, "trading"),
+				Status:               instruments[i].Status,
+				Type:                 ct,
+				SettlementCurrencies: currency.Currencies{currency.USDC},
+				MaxLeverage:          instruments[i].LeverageFilter.MaxLeverage.Float64(),
+				Multiplier:           instruments[i].LeverageFilter.LeverageStep.Float64(),
+			})
+		}
+		return resp, nil
+	case asset.USDTMarginedFutures:
+		linearContracts, err := by.GetInstruments(ctx, "linear", "", "", "", "", 1000)
+		if err != nil {
+			return nil, err
+		}
+		resp := make([]futures.Contract, 0, len(inverseContracts.List)+len(linearContracts.List))
+
+		var instruments []InstrumentInfo
+		for i := range linearContracts.List {
+			if linearContracts.List[i].SettleCoin != "USDT" {
+				continue
+			}
+			instruments = append(instruments, linearContracts.List[i])
+		}
+		for i := range inverseContracts.List {
+			if inverseContracts.List[i].SettleCoin != "USDT" {
+				continue
+			}
+			instruments = append(instruments, inverseContracts.List[i])
+		}
+		for i := range instruments {
+			splitCoin := strings.Split(instruments[i].Symbol, instruments[i].BaseCoin)
+			if len(splitCoin) <= 1 {
+				continue
+			}
+			var cp, underlying currency.Pair
+			cp, err = currency.NewPairFromStrings(instruments[i].BaseCoin, splitCoin[1])
+			if err != nil {
+				return nil, err
+			}
+
+			underlying, err = currency.NewPairFromStrings(instruments[i].BaseCoin, instruments[i].QuoteCoin)
+			if err != nil {
+				return nil, err
+			}
+			contractType := strings.ToLower(instruments[i].ContractType)
+			var s, e time.Time
+			if !instruments[i].LaunchTime.Time().IsZero() {
+				s = instruments[i].LaunchTime.Time()
+			}
+			if !instruments[i].DeliveryTime.Time().IsZero() {
+				e = instruments[i].DeliveryTime.Time()
+			}
+
+			var ct futures.ContractType
+			switch contractType {
+			case "linearperpetual":
+				ct = futures.Perpetual
+			case "linearfutures":
+				ct, err = getContractLength(e.Sub(s))
+				if err != nil {
+					return nil, fmt.Errorf("%w %v %v %v %v-%v", err, by.Name, item, cp, s, e)
+				}
+			default:
+				if by.Verbose {
+					log.Warnf(log.ExchangeSys, "%v unhandled contract type for %v %v %v-%v", by.Name, item, cp, s, e)
+				}
+				ct = futures.Unknown
+			}
+
+			resp = append(resp, futures.Contract{
+				Exchange:             by.Name,
+				Name:                 cp,
+				Underlying:           underlying,
+				Asset:                item,
+				StartDate:            s,
+				EndDate:              e,
+				SettlementType:       futures.Linear,
+				IsActive:             strings.EqualFold(instruments[i].Status, "trading"),
+				Status:               instruments[i].Status,
+				Type:                 ct,
+				SettlementCurrencies: currency.Currencies{currency.USDT},
+				MaxLeverage:          instruments[i].LeverageFilter.MaxLeverage.Float64(),
+				Multiplier:           instruments[i].LeverageFilter.LeverageStep.Float64(),
+			})
+		}
+		return resp, nil
+	}
+
+	return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, item)
 }
 
 func getContractLength(contractLength time.Duration) (futures.ContractType, error) {

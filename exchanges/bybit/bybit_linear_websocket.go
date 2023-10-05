@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"github.com/gorilla/websocket"
+	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 )
@@ -42,18 +43,29 @@ func (by *Bybit) WsLinearConnect() error {
 func (by *Bybit) GenerateLinearDefaultSubscriptions() ([]stream.ChannelSubscription, error) {
 	var subscriptions []stream.ChannelSubscription
 	var channels = []string{chanOrderbook, chanPublicTrade, chanPublicTicker}
-	pairs, err := by.GetEnabledPairs(asset.LinearContract)
+	pairs, err := by.GetEnabledPairs(asset.USDTMarginedFutures)
 	if err != nil {
 		return nil, err
 	}
-	for z := range pairs {
-		for x := range channels {
-			subscriptions = append(subscriptions,
-				stream.ChannelSubscription{
-					Channel:  channels[x],
-					Currency: pairs[z],
-					Asset:    asset.LinearContract,
-				})
+	linearPairMap := map[asset.Item]currency.Pairs{
+		asset.USDTMarginedFutures: pairs,
+	}
+	usdcPairs, err := by.GetEnabledPairs(asset.USDCMarginedFutures)
+	if err != nil {
+		return nil, err
+	}
+	linearPairMap[asset.USDCMarginedFutures] = usdcPairs
+	pairs = append(pairs, usdcPairs...)
+	for a := range linearPairMap {
+		for p := range linearPairMap[a] {
+			for x := range channels {
+				subscriptions = append(subscriptions,
+					stream.ChannelSubscription{
+						Channel:  channels[x],
+						Currency: pairs[p],
+						Asset:    a,
+					})
+			}
 		}
 	}
 	return subscriptions, nil
@@ -70,7 +82,7 @@ func (by *Bybit) LinearUnsubscribe(channelSubscriptions []stream.ChannelSubscrip
 }
 
 func (by *Bybit) handleLinearPayloadSubscription(operation string, channelSubscriptions []stream.ChannelSubscription) error {
-	payloads, err := by.handleSubscriptions(asset.LinearContract, operation, channelSubscriptions)
+	payloads, err := by.handleSubscriptions(asset.USDTMarginedFutures, operation, channelSubscriptions)
 	if err != nil {
 		return err
 	}

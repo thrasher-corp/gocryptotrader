@@ -65,7 +65,6 @@ const (
 	usdtMarginedFutures    = "usdtmarginedfutures"
 	usdcMarginedFutures    = "usdcmarginedfutures"
 	options                = "options"
-	linear                 = "linear"
 )
 
 var (
@@ -112,8 +111,6 @@ func (a Item) String() string {
 		return usdcMarginedFutures
 	case Options:
 		return options
-	case LinearContract:
-		return linear
 	default:
 		return ""
 	}
@@ -215,8 +212,6 @@ func New(input string) (Item, error) {
 		return USDCMarginedFutures, nil
 	case options, "option":
 		return Options, nil
-	case linear:
-		return LinearContract, nil
 	default:
 		return 0, fmt.Errorf("%w '%v', only supports %s",
 			ErrNotSupported,

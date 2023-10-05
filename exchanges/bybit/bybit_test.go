@@ -183,7 +183,7 @@ func TestUpdateTicker(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = b.UpdateTicker(context.Background(), linearTradablePair, asset.LinearContract)
+	_, err = b.UpdateTicker(context.Background(), linearTradablePair, asset.USDTMarginedFutures)
 	if err != nil {
 		t.Error(err)
 	}
@@ -203,7 +203,7 @@ func TestUpdateOrderbook(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = b.UpdateOrderbook(context.Background(), linearTradablePair, asset.LinearContract)
+	_, err = b.UpdateOrderbook(context.Background(), linearTradablePair, asset.USDCMarginedFutures)
 	if err != nil {
 		t.Error(err)
 	}
@@ -295,7 +295,7 @@ func TestGetHistoricCandles(t *testing.T) {
 		t.Error(err)
 	}
 
-	_, err = b.GetHistoricCandles(context.Background(), linearTradablePair, asset.LinearContract, kline.OneDay, start, end)
+	_, err = b.GetHistoricCandles(context.Background(), linearTradablePair, asset.USDTMarginedFutures, kline.OneDay, start, end)
 	if err != nil {
 		t.Error(err)
 	}
@@ -327,7 +327,7 @@ func TestGetHistoricCandlesExtended(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = b.GetHistoricCandlesExtended(context.Background(), linearTradablePair, asset.LinearContract, kline.OneDay, startTime, end)
+	_, err = b.GetHistoricCandlesExtended(context.Background(), linearTradablePair, asset.USDTMarginedFutures, kline.OneDay, startTime, end)
 	if err != nil {
 		t.Error(err)
 	}
@@ -353,7 +353,7 @@ func TestCancelOrder(t *testing.T) {
 	}
 	err = b.CancelOrder(context.Background(), &order.Cancel{
 		Exchange:  b.Name,
-		AssetType: asset.LinearContract,
+		AssetType: asset.USDTMarginedFutures,
 		Pair:      linearTradablePair,
 		OrderID:   "1234"})
 	if err != nil {
@@ -388,7 +388,7 @@ func TestCancelAllOrders(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = b.CancelAllOrders(context.Background(), &order.Cancel{Exchange: b.Name, AssetType: asset.LinearContract, Pair: linearTradablePair})
+	_, err = b.CancelAllOrders(context.Background(), &order.Cancel{Exchange: b.Name, AssetType: asset.USDTMarginedFutures, Pair: linearTradablePair})
 	if err != nil {
 		t.Error(err)
 	}
@@ -418,7 +418,7 @@ func TestGetOrderInfo(t *testing.T) {
 		t.Error(err)
 	}
 	_, err = b.GetOrderInfo(context.Background(),
-		"12234", linearTradablePair, asset.LinearContract)
+		"12234", linearTradablePair, asset.USDTMarginedFutures)
 	if err != nil {
 		t.Error(err)
 	}
@@ -450,7 +450,7 @@ func TestGetActiveOrders(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	var getOrdersRequestLinear = order.MultiOrderRequest{Pairs: currency.Pairs{linearTradablePair}, AssetType: asset.LinearContract, Side: order.AnySide, Type: order.AnyType}
+	var getOrdersRequestLinear = order.MultiOrderRequest{Pairs: currency.Pairs{linearTradablePair}, AssetType: asset.USDTMarginedFutures, Side: order.AnySide, Type: order.AnyType}
 	_, err = b.GetActiveOrders(context.Background(), &getOrdersRequestLinear)
 	if err != nil {
 		t.Error(err)
@@ -485,7 +485,7 @@ func TestGetOrderHistory(t *testing.T) {
 	}
 	var getOrdersRequestUMF = order.MultiOrderRequest{
 		Pairs:     currency.Pairs{linearTradablePair},
-		AssetType: asset.LinearContract,
+		AssetType: asset.USDTMarginedFutures,
 		Type:      order.AnyType,
 		Side:      order.AnySide,
 	}
@@ -566,9 +566,9 @@ func TestUpdateTickers(t *testing.T) {
 	if err != nil {
 		t.Fatalf("%v %v\n", asset.Spot, err)
 	}
-	err = b.UpdateTickers(ctx, asset.LinearContract)
+	err = b.UpdateTickers(ctx, asset.USDTMarginedFutures)
 	if err != nil {
-		t.Fatalf("%v %v\n", asset.LinearContract, err)
+		t.Fatalf("%v %v\n", asset.USDTMarginedFutures, err)
 	}
 	err = b.UpdateTickers(ctx, asset.CoinMarginedFutures)
 	if err != nil {
@@ -708,7 +708,7 @@ func TestGetDeliveryPrice(t *testing.T) {
 
 func TestUpdateOrderExecutionLimits(t *testing.T) {
 	t.Parallel()
-	err := b.UpdateOrderExecutionLimits(context.Background(), asset.USDCMarginedFutures)
+	err := b.UpdateOrderExecutionLimits(context.Background(), asset.Futures)
 	if !errors.Is(err, asset.ErrNotSupported) {
 		t.Fatalf("received: %v expected: %v", err, asset.ErrNotSupported)
 	}
@@ -2748,32 +2748,39 @@ func TestGetBrokerEarning(t *testing.T) {
 func instantiateTradablePairs() error {
 	err := b.UpdateTradablePairs(context.Background(), true)
 	if err != nil {
+		panic(err)
 		return err
 	}
 	tradables, err := b.GetEnabledPairs(asset.Spot)
 	if err != nil {
+		panic(err)
 		return err
 	}
 	format, err := b.GetPairFormat(asset.Spot, true)
 	if err != nil {
+		panic(err)
 		return err
 	}
 	spotTradablePair = tradables[0].Format(format)
-	tradables, err = b.GetEnabledPairs(asset.LinearContract)
+	tradables, err = b.GetEnabledPairs(asset.USDTMarginedFutures)
 	if err != nil {
+		panic(err)
 		return err
 	}
-	format, err = b.GetPairFormat(asset.LinearContract, true)
+	format, err = b.GetPairFormat(asset.USDTMarginedFutures, true)
 	if err != nil {
+		panic(err)
 		return err
 	}
 	linearTradablePair = tradables[0].Format(format)
 	tradables, err = b.GetEnabledPairs(asset.CoinMarginedFutures)
 	if err != nil {
+		panic(err)
 		return err
 	}
 	format, err = b.GetPairFormat(asset.CoinMarginedFutures, true)
 	if err != nil {
+		panic(err)
 		return err
 	}
 	inverseTradablePair = tradables[0].Format(format)
@@ -2844,7 +2851,7 @@ func TestGetRecentTrades(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = b.GetRecentTrades(context.Background(), linearTradablePair, asset.LinearContract)
+	_, err = b.GetRecentTrades(context.Background(), linearTradablePair, asset.USDTMarginedFutures)
 	if err != nil {
 		t.Error(err)
 	}
@@ -2876,7 +2883,7 @@ func TestGetHistoricTrades(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = b.GetHistoricTrades(context.Background(), linearTradablePair, asset.LinearContract, time.Time{}, time.Time{})
+	_, err = b.GetHistoricTrades(context.Background(), linearTradablePair, asset.USDTMarginedFutures, time.Time{}, time.Time{})
 	if err != nil {
 		t.Error(err)
 	}
@@ -2902,7 +2909,7 @@ func TestCancelBatchOrders(t *testing.T) {
 		AssetType: asset.Spot}, {
 		OrderID:   "1",
 		Pair:      linearTradablePair,
-		AssetType: asset.LinearContract}}
+		AssetType: asset.USDTMarginedFutures}}
 	_, err := b.CancelBatchOrders(context.Background(), orderCancellationParams)
 	if !errors.Is(err, asset.ErrNotSupported) {
 		t.Errorf("expected %v, got %v", asset.ErrNotSupported, err)
@@ -3028,7 +3035,7 @@ func TestSetLeverage(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
 	ctx := context.Background()
 	b.Verbose = true
-	err := b.SetLeverage(ctx, asset.LinearContract, linearTradablePair, margin.Multi, 5, order.Buy)
+	err := b.SetLeverage(ctx, asset.USDTMarginedFutures, linearTradablePair, margin.Multi, 5, order.Buy)
 	if err != nil {
 		t.Error(err)
 	}
@@ -3038,7 +3045,7 @@ func TestSetLeverage(t *testing.T) {
 		t.Errorf("received '%v', expected '%v'", err, errOrderSideRequired)
 	}
 
-	err = b.SetLeverage(ctx, asset.LinearContract, linearTradablePair, margin.Isolated, 5, order.Buy)
+	err = b.SetLeverage(ctx, asset.USDTMarginedFutures, linearTradablePair, margin.Isolated, 5, order.Buy)
 	if err != nil {
 		t.Error(err)
 	}
@@ -3048,7 +3055,7 @@ func TestSetLeverage(t *testing.T) {
 		t.Error(err)
 	}
 
-	err = b.SetLeverage(ctx, asset.LinearContract, linearTradablePair, margin.Isolated, 5, order.CouldNotBuy)
+	err = b.SetLeverage(ctx, asset.USDTMarginedFutures, linearTradablePair, margin.Isolated, 5, order.CouldNotBuy)
 	if !errors.Is(err, order.ErrSideIsInvalid) {
 		t.Errorf("received '%v', expected '%v'", err, order.ErrSideIsInvalid)
 	}
