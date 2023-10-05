@@ -663,6 +663,8 @@ const (
 	wsEventUnsubscribed                    = "unsubscribed"
 	wsEventAuth                            = "auth"
 	wsEventError                           = "error"
+	wsEventConf                            = "conf"
+	wsEventInfo                            = "info"
 )
 
 // WsAuthRequest container for WS auth request

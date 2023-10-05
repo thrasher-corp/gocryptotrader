@@ -476,6 +476,17 @@ func (b *Bitfinex) handleWSEvent(respRaw []byte) error {
 			}
 			return fmt.Errorf("WS auth subscription error; Status: %s Error Code: %d", status, errCode)
 		}
+	case wsEventInfo:
+		// Nothing to do with info for now.
+		// version or platform.status might be useful in the future.
+	case wsEventConf:
+		status, err := jsonparser.GetUnsafeString(respRaw, "status")
+		if err != nil {
+			return fmt.Errorf("error parsing WS configure channel event status: %w from message: %s", err, respRaw)
+		}
+		if status != "OK" {
+			return fmt.Errorf("WS configure channel error; Status: %s", status)
+		}
 	default:
 		return fmt.Errorf("unknown WS event msg: %s", respRaw)
 	}
