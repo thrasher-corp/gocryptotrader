@@ -594,7 +594,7 @@ func (m *OrderManager) processSubmittedOrder(newOrderResp *order.SubmitResponse)
 		detail = m.orderStore.getByDetail(detail)
 	} else if err != nil {
 		// Non-fatal error: Unable to store order, but error does not need to be returned to caller
-		log.Errorf(log.OrderMgr, "unable to add %v order %v to orderStore: %s", detail.Exchange, detail.OrderID, err)
+		log.Errorf(log.OrderMgr, "Unable to add %v order %v to orderStore: %s", detail.Exchange, detail.OrderID, err)
 	}
 
 	msg := fmt.Sprintf("Exchange %s submitted order ID=%v [Ours: %v] pair=%v price=%v amount=%v quoteAmount=%v side=%v type=%v for time %v.",
