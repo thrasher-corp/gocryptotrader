@@ -3205,4 +3205,5 @@ type Book5Data struct {
 	Bids           [][4]string `json:"bids"`
 	InstrumentID   string      `json:"instId"`
 	TimestampMilli int64       `json:"ts,string"`
+	SequenceID     int64       `json:"seqId"`
 }
