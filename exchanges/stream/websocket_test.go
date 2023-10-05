@@ -1399,7 +1399,7 @@ func TestLatency(t *testing.T) {
 	}
 }
 
-func TestChecksubscriptions(t *testing.T) {
+func TestCheckSubscriptions(t *testing.T) {
 	t.Parallel()
 	ws := Websocket{}
 	err := ws.checkSubscriptions(nil)
