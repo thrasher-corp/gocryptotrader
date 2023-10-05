@@ -3019,6 +3019,8 @@ var (
 	SWAP             = NewCode("SWAP")
 	PI               = NewCode("PI")
 	FI               = NewCode("FI")
+	USDM             = NewCode("USDM")
+	USDTM            = NewCode("USDTM")
 
 	stables = Currencies{
 		USDT,
