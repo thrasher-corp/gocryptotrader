@@ -2748,39 +2748,32 @@ func TestGetBrokerEarning(t *testing.T) {
 func instantiateTradablePairs() error {
 	err := b.UpdateTradablePairs(context.Background(), true)
 	if err != nil {
-		panic(err)
 		return err
 	}
 	tradables, err := b.GetEnabledPairs(asset.Spot)
 	if err != nil {
-		panic(err)
 		return err
 	}
 	format, err := b.GetPairFormat(asset.Spot, true)
 	if err != nil {
-		panic(err)
 		return err
 	}
 	spotTradablePair = tradables[0].Format(format)
 	tradables, err = b.GetEnabledPairs(asset.USDTMarginedFutures)
 	if err != nil {
-		panic(err)
 		return err
 	}
 	format, err = b.GetPairFormat(asset.USDTMarginedFutures, true)
 	if err != nil {
-		panic(err)
 		return err
 	}
 	linearTradablePair = tradables[0].Format(format)
 	tradables, err = b.GetEnabledPairs(asset.CoinMarginedFutures)
 	if err != nil {
-		panic(err)
 		return err
 	}
 	format, err = b.GetPairFormat(asset.CoinMarginedFutures, true)
 	if err != nil {
-		panic(err)
 		return err
 	}
 	inverseTradablePair = tradables[0].Format(format)
@@ -2855,7 +2848,7 @@ func TestGetRecentTrades(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = b.GetRecentTrades(context.Background(), spotTradablePair, asset.CoinMarginedFutures)
+	_, err = b.GetRecentTrades(context.Background(), spotTradablePair, asset.Futures)
 	if !errors.Is(err, asset.ErrNotSupported) {
 		t.Error(err)
 	}
