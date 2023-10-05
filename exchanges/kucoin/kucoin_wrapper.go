@@ -1760,7 +1760,6 @@ func (ku *Kucoin) SetLeverage(ctx context.Context, item asset.Item, pair currenc
 }
 
 // SetMarginType sets the default margin type for when opening a new position
-// okx allows this to be set with an order, however this sets a default
 func (ku *Kucoin) SetMarginType(_ context.Context, _ asset.Item, _ currency.Pair, _ margin.Type) error {
 	return fmt.Errorf("%w must be set via website", common.ErrFunctionNotSupported)
 }
@@ -1804,5 +1803,62 @@ func (ku *Kucoin) ChangePositionMargin(ctx context.Context, r *margin.PositionCh
 		Asset:           r.Asset,
 		AllocatedMargin: resp.PosMargin,
 		MarginType:      r.MarginType,
+	}, nil
+}
+
+// GetFuturesPositionSummary returns position summary details for an active position
+func (ku *Kucoin) GetFuturesPositionSummary(ctx context.Context, r *futures.PositionSummaryRequest) (*futures.PositionSummary, error) {
+	if r == nil {
+		return nil, fmt.Errorf("%w HistoricalRatesRequest", common.ErrNilPointer)
+	}
+	if r.Asset != asset.Futures {
+		return nil, fmt.Errorf("%w %v", futures.ErrNotPerpetualFuture, r.Asset)
+	}
+	if r.Pair.IsEmpty() {
+		return nil, currency.ErrCurrencyPairEmpty
+	}
+	fPair, err := ku.FormatExchangeCurrency(r.Pair, r.Asset)
+	if err != nil {
+		return nil, err
+	}
+	pos, err := ku.GetFuturesPosition(ctx, fPair.String())
+	if err != nil {
+		return nil, err
+	}
+	return &futures.PositionSummary{
+		Pair:                         r.Pair,
+		Asset:                        r.Asset,
+		MarginType:                   0,
+		CollateralMode:               0,
+		Currency:                     currency.Code{},
+		AvailableEquity:              decimal.Decimal{},
+		CashBalance:                  decimal.Decimal{},
+		DiscountEquity:               decimal.Decimal{},
+		EquityUSD:                    decimal.Decimal{},
+		IsolatedEquity:               decimal.Decimal{},
+		IsolatedLiabilities:          decimal.Decimal{},
+		IsolatedUPL:                  decimal.Decimal{},
+		NotionalLeverage:             decimal.Decimal{},
+		TotalEquity:                  decimal.Decimal{},
+		StrategyEquity:               decimal.Decimal{},
+		IsolatedMargin:               decimal.Decimal{},
+		NotionalSize:                 decimal.Decimal{},
+		Leverage:                     decimal.Decimal{},
+		MaintenanceMarginRequirement: decimal.Decimal{},
+		InitialMarginRequirement:     decimal.Decimal{},
+		EstimatedLiquidationPrice:    decimal.Decimal{},
+		CollateralUsed:               decimal.Decimal{},
+		MarkPrice:                    decimal.Decimal{},
+		CurrentSize:                  decimal.Decimal{},
+		ContractSize:                 decimal.Decimal{},
+		ContractMultiplier:           decimal.Decimal{},
+		ContractSettlementType:       0,
+		AverageOpenPrice:             decimal.Decimal{},
+		PositionPNL:                  decimal.Decimal{},
+		MaintenanceMarginFraction:    decimal.Decimal{},
+		FreeCollateral:               decimal.Decimal{},
+		TotalCollateral:              decimal.Decimal{},
+		FrozenBalance:                decimal.Decimal{},
+		EquityOfCurrency:             decimal.Decimal{},
 	}, nil
 }
