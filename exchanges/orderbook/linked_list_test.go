@@ -2009,7 +2009,7 @@ func TestGetQuoteAmountFromNominalSlippage(t *testing.T) {
 				t.Fatalf("%s received: '%v' but expected: '%v'", tt.Name, err, tt.ExpectedError)
 			}
 			if !quote.IsEqual(tt.ExpectedShift) {
-				t.Fatalf("%s quote received: '%+v' but expected: '%+v'",
+				t.Fatalf("%s quote received: \n'%+v' \nbut expected: \n'%+v'",
 					tt.Name, quote, tt.ExpectedShift)
 			}
 		})

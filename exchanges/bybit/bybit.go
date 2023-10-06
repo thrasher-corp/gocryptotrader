@@ -44,6 +44,7 @@ const (
 	bybitLastTradedPrice  = "/spot/quote/v1/ticker/price"
 	bybitBestBidAskPrice  = "/spot/quote/v1/ticker/book_ticker"
 	bybitGetTickersV5     = "/v5/market/tickers"
+	bybitInstrumentInfoV5 = "/v5/market/instruments-info"
 
 	// Authenticated endpoints
 	bybitSpotOrder                = "/spot/v1/order" // create, query, cancel
@@ -64,8 +65,9 @@ const (
 )
 
 var (
-	errCategoryNotSet = errors.New("category not set")
-	errBaseNotSet     = errors.New("base coin not set when category is option")
+	errCategoryNotSet        = errors.New("category not set")
+	errBaseNotSet            = errors.New("base coin not set when category is option")
+	errInvalidContractLength = errors.New("contract length cannot be less than or equal to zero")
 )
 
 // GetAllSpotPairs gets all pairs on the exchange
@@ -174,7 +176,7 @@ func (by *Bybit) GetTrades(ctx context.Context, symbol string, limit int64) ([]T
 	params.Set("symbol", symbol)
 
 	strLimit := "60" // default limit
-	if limit > 0 && limit < 60 {
+	if limit > 0 {
 		strLimit = strconv.FormatInt(limit, 10)
 	}
 	params.Set("limit", strLimit)
@@ -453,6 +455,53 @@ func (by *Bybit) GetTickersV5(ctx context.Context, category, symbol, baseCoin st
 	}{}
 
 	err := by.SendHTTPRequest(ctx, exchange.RestSpot, bybitGetTickersV5+"?"+val.Encode(), publicSpotRate, &result)
+	if err != nil {
+		return nil, err
+	}
+
+	return result.Data, nil
+}
+
+// GetInstrumentInfo Query for the instrument specification of online trading pairs
+// https://bybit-exchange.github.io/docs/v5/market/instrument
+func (by *Bybit) GetInstrumentInfo(ctx context.Context, category, symbol, status, baseCoin, cursor string, limit int64) (*GetInstrumentInfoResponse, error) {
+	if category == "" {
+		return nil, errCategoryNotSet
+	}
+
+	if category == "option" && baseCoin == "" {
+		return nil, errBaseNotSet
+	}
+
+	val := url.Values{}
+	val.Set("category", category)
+
+	if symbol != "" {
+		val.Set("symbol", symbol)
+	}
+
+	if status != "" {
+		val.Set("status", status)
+	}
+
+	if baseCoin != "" {
+		val.Set("baseCoin", baseCoin)
+	}
+
+	if cursor != "" {
+		val.Set("cursor", cursor)
+	}
+
+	if limit > 0 {
+		val.Set("limit", strconv.FormatInt(limit, 10))
+	}
+
+	result := struct {
+		Data *GetInstrumentInfoResponse `json:"result"`
+		Error
+	}{}
+
+	err := by.SendHTTPRequest(ctx, exchange.RestSpot, bybitInstrumentInfoV5+"?"+val.Encode(), publicSpotRate, &result)
 	if err != nil {
 		return nil, err
 	}

@@ -21,6 +21,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	gctexchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
 	gctorder "github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
@@ -356,7 +357,7 @@ func (bt *BackTest) processSimultaneousDataEvents() error {
 					log.Warnf(common.LiveStrategy, "%v %v", latestData.GetOffset(), err)
 				}
 				continue
-			case errors.Is(err, gctorder.ErrPositionLiquidated):
+			case errors.Is(err, futures.ErrPositionLiquidated):
 				return nil
 			default:
 				log.Errorln(common.Backtester, err)
@@ -420,11 +421,11 @@ func (bt *BackTest) updateStatsForDataEvent(ev data.Event, funds funding.IFundRe
 
 		err = bt.Portfolio.UpdatePNL(ev, ev.GetClosePrice())
 		if err != nil {
-			if errors.Is(err, gctorder.ErrPositionNotFound) {
+			if errors.Is(err, futures.ErrPositionNotFound) {
 				// if there is no position yet, there's nothing to update
 				return nil
 			}
-			if !errors.Is(err, gctorder.ErrPositionLiquidated) {
+			if !errors.Is(err, futures.ErrPositionLiquidated) {
 				return fmt.Errorf("UpdatePNL %v", err)
 			}
 		}
@@ -440,7 +441,7 @@ func (bt *BackTest) updateStatsForDataEvent(ev data.Event, funds funding.IFundRe
 		if bt.LiveDataHandler == nil || (bt.LiveDataHandler != nil && !bt.LiveDataHandler.IsRealOrders()) {
 			err = bt.Portfolio.CheckLiquidationStatus(ev, cr, pnl)
 			if err != nil {
-				if errors.Is(err, gctorder.ErrPositionLiquidated) {
+				if errors.Is(err, futures.ErrPositionLiquidated) {
 					liquidErr := bt.triggerLiquidationsForExchange(ev, pnl)
 					if liquidErr != nil {
 						return liquidErr
@@ -620,6 +621,9 @@ func (bt *BackTest) Stop() error {
 		if err != nil {
 			log.Errorf(common.Backtester, "Could not close all positions on stop: %s", err)
 		}
+	}
+	if !bt.hasProcessedAnEvent {
+		return nil
 	}
 	err := bt.Statistic.CalculateAllResults()
 	if err != nil {

@@ -181,7 +181,7 @@ const (
 
 	// Block Trading
 	rfqCounterparties       = "rfq/counterparties"
-	rfqCreateRFQ            = "rfq/create-rfq"
+	rfqCreateRfq            = "rfq/create-rfq"
 	rfqCancelRfq            = "rfq/cancel-rfq"
 	rfqCancelRfqs           = "rfq/cancel-batch-rfqs"
 	rfqCancelAllRfqs        = "rfq/cancel-all-rfqs"
@@ -242,103 +242,105 @@ const (
 )
 
 var (
-	errNo24HrTradeVolumeFound                        = errors.New("no trade record found in the 24 trade volume ")
-	errOracleInformationNotFound                     = errors.New("oracle information not found")
-	errExchangeInfoNotFound                          = errors.New("exchange information not found")
-	errIndexComponentNotFound                        = errors.New("unable to fetch index components")
-	errMissingRequiredArgInstType                    = errors.New("invalid required argument instrument type")
-	errLimitValueExceedsMaxOf100                     = errors.New("limit value exceeds the maximum value 100")
-	errMissingInstrumentID                           = errors.New("missing instrument id")
-	errFundingRateHistoryNotFound                    = errors.New("funding rate history not found")
-	errMissingRequiredUnderlying                     = errors.New("error missing required parameter underlying")
-	errMissingRequiredParamInstID                    = errors.New("missing required parameter instrument id")
-	errLiquidationOrderResponseNotFound              = errors.New("liquidation order not found")
-	errEitherInstIDOrCcyIsRequired                   = errors.New("either parameter instId or ccy is required")
-	errIncorrectRequiredParameterTradeMode           = errors.New("unacceptable required argument, trade mode")
-	errInterestRateAndLoanQuotaNotFound              = errors.New("interest rate and loan quota not found")
-	errUnderlyingsForSpecifiedInstTypeNofFound       = errors.New("underlyings for the specified instrument id is not found")
-	errInsuranceFundInformationNotFound              = errors.New("insurance fund information not found")
-	errMissingExpiryTimeParameter                    = errors.New("missing expiry date parameter")
-	errInvalidTradeModeValue                         = errors.New("invalid trade mode value")
-	errInvalidOrderType                              = errors.New("invalid order type")
-	errInvalidAmount                                 = errors.New("unacceptable quantity to buy or sell")
-	errMissingClientOrderIDOrOrderID                 = errors.New("client supplier order id or order id is missing")
-	errInvalidNewSizeOrPriceInformation              = errors.New("invalid the new size or price information")
-	errMissingNewSize                                = errors.New("missing the order size information")
-	errMissingMarginMode                             = errors.New("missing required param margin mode \"mgnMode\"")
-	errInvalidTriggerPrice                           = errors.New("invalid trigger price value")
-	errInvalidPriceLimit                             = errors.New("invalid price limit value")
-	errMissingIntervalValue                          = errors.New("missing interval value")
-	errMissingTakeProfitTriggerPrice                 = errors.New("missing take profit trigger price")
-	errMissingTakeProfitOrderPrice                   = errors.New("missing take profit order price")
-	errMissingSizeLimit                              = errors.New("missing required parameter \"szLimit\"")
-	errMissingEitherAlgoIDOrState                    = errors.New("either algo id or order state is required")
-	errUnacceptableAmount                            = errors.New("amount must be greater than 0")
-	errInvalidCurrencyValue                          = errors.New("invalid currency value")
-	errInvalidDepositAmount                          = errors.New("invalid deposit amount")
-	errMissingResponseBody                           = errors.New("error missing response body")
-	errMissingValidWithdrawalID                      = errors.New("missing valid withdrawal id")
-	errNoValidResponseFromServer                     = errors.New("no valid response from server")
-	errInstrumentTypeRequired                        = errors.New("instrument type required")
-	errInvalidInstrumentType                         = errors.New("invalid instrument type")
-	errMissingValidGreeksType                        = errors.New("missing valid greeks type")
-	errMissingIsolatedMarginTradingSetting           = errors.New("missing isolated margin trading setting, isolated margin trading settings automatic:Auto transfers autonomy:Manual transfers")
-	errInvalidOrderSide                              = errors.New("invalid order side")
-	errInvalidCounterParties                         = errors.New("missing counter parties")
-	errInvalidLegs                                   = errors.New("no legs are provided")
-	errMissingRFQIDANDClientSuppliedRFQID            = errors.New("missing rfq id or client supplied rfq id")
-	errMissingRfqIDOrQuoteID                         = errors.New("either RFQ ID or Quote ID is missing")
-	errMissingRfqID                                  = errors.New("error missing rfq id")
-	errMissingLegs                                   = errors.New("missing legs")
-	errMissingSizeOfQuote                            = errors.New("missing size of quote leg")
-	errMossingLegsQuotePrice                         = errors.New("error missing quote price")
-	errMissingQuoteIDOrClientSuppliedQuoteID         = errors.New("missing quote id or client supplied quote id")
-	errMissingEitherQuoteIDAOrClientSuppliedQuoteIDs = errors.New("missing either quote ids or client supplied quote ids")
-	errMissingRequiredParameterSubaccountName        = errors.New("missing required parameter subaccount name")
-	errInvalidTransferAmount                         = errors.New("unacceptable transfer amount")
-	errInvalidSubaccount                             = errors.New("invalid account type")
-	errMissingDestinationSubaccountName              = errors.New("missing destination subaccount name")
-	errMissingInitialSubaccountName                  = errors.New("missing initial subaccount name")
-	errMissingAlgoOrderType                          = errors.New("missing algo order type \"grid\": Spot grid, \"contract_grid\": Contract grid")
-	errInvalidMaximumPrice                           = errors.New("invalid maximum price")
-	errInvalidMinimumPrice                           = errors.New("invalid minimum price")
-	errInvalidGridQuantity                           = errors.New("invalid grid quantity (grid number)")
-	errMissingSize                                   = errors.New("missing required argument, size")
-	errMissingRequiredArgumentDirection              = errors.New("missing required argument, direction")
-	errRequiredParameterMissingLeverage              = errors.New("missing required parameter, leverage")
-	errMissingAlgoOrderID                            = errors.New("missing algo orders id")
-	errMissingValidStopType                          = errors.New("invalid grid order stop type, only values are \"1\" and \"2\" ")
-	errMissingSubOrderType                           = errors.New("missing sub order type")
-	errMissingQuantity                               = errors.New("invalid quantity to buy or sell")
-	errDepositAddressNotFound                        = errors.New("deposit address with the specified currency code and chain not found")
-	errMissingAtLeast1CurrencyPair                   = errors.New("at least one currency is required to fetch order history")
-	errNoCandlestickDataFound                        = errors.New("no candlesticks data found")
-	errInvalidWebsocketEvent                         = errors.New("invalid websocket event")
-	errMissingValidChannelInformation                = errors.New("missing channel information")
-	errNilArgument                                   = errors.New("nil argument is not acceptable")
-	errNoOrderParameterPassed                        = errors.New("no order parameter was passed")
-	errMaxRFQOrdersToCancel                          = errors.New("no more than 100 RFQ cancel order parameter is allowed")
-	errMalformedData                                 = errors.New("malformed data")
-	errInvalidUnderlying                             = errors.New("invalid underlying")
-	errMissingRequiredParameter                      = errors.New("missing required parameter")
-	errMissingMakerInstrumentSettings                = errors.New("missing maker instrument settings")
-	errInvalidSubAccountName                         = errors.New("invalid sub-account name")
-	errInvalidAPIKey                                 = errors.New("invalid api key")
-	errInvalidAlgoID                                 = errors.New("invalid algo id")
-	errInvalidMarginTypeAdjust                       = errors.New("invalid margin type adjust, only 'add' and 'reduce' are allowed")
-	errInvalidAlgoOrderType                          = errors.New("invalid algo order type")
-	errEmptyArgument                                 = errors.New("empty argument")
-	errInvalidIPAddress                              = errors.New("invalid ip address")
-	errInvalidAPIKeyPermission                       = errors.New("invalid API Key permission")
-	errInvalidResponseParam                          = errors.New("invalid response parameter, response must be non-nil pointer")
-	errEmptyPlaceOrderResponse                       = errors.New("empty place order response")
-	errTooManyArgument                               = errors.New("too many cancel request params")
-	errIncompleteCurrencyPair                        = errors.New("incomplete currency pair")
-	errInvalidDuration                               = errors.New("invalid grid contract duration, only '7D', '30D', and '180D' are allowed")
-	errInvalidProtocolType                           = errors.New("invalid protocol type, only 'staking' and 'defi' allowed")
-	errExceedLimit                                   = errors.New("limit exceeded")
-	errOnlyThreeMonthsSupported                      = errors.New("only three months of trade data retrieval supported")
-	errNoInstrumentFound                             = errors.New("no instrument found")
+	errNo24HrTradeVolumeFound                  = errors.New("no trade record found in the 24 trade volume ")
+	errOracleInformationNotFound               = errors.New("oracle information not found")
+	errExchangeInfoNotFound                    = errors.New("exchange information not found")
+	errIndexComponentNotFound                  = errors.New("unable to fetch index components")
+	errMissingRequiredArgInstType              = errors.New("invalid required argument instrument type")
+	errLimitValueExceedsMaxOf100               = errors.New("limit value exceeds the maximum value 100")
+	errMissingInstrumentID                     = errors.New("missing instrument id")
+	errFundingRateHistoryNotFound              = errors.New("funding rate history not found")
+	errMissingRequiredUnderlying               = errors.New("error missing required parameter underlying")
+	errMissingRequiredParamInstID              = errors.New("missing required parameter instrument id")
+	errLiquidationOrderResponseNotFound        = errors.New("liquidation order not found")
+	errEitherInstIDOrCcyIsRequired             = errors.New("either parameter instId or ccy is required")
+	errIncorrectRequiredParameterTradeMode     = errors.New("unacceptable required argument, trade mode")
+	errInterestRateAndLoanQuotaNotFound        = errors.New("interest rate and loan quota not found")
+	errUnderlyingsForSpecifiedInstTypeNofFound = errors.New("underlyings for the specified instrument id is not found")
+	errInsuranceFundInformationNotFound        = errors.New("insurance fund information not found")
+	errMissingExpiryTimeParameter              = errors.New("missing expiry date parameter")
+	errInvalidTradeModeValue                   = errors.New("invalid trade mode value")
+	errInvalidOrderType                        = errors.New("invalid order type")
+	errInvalidAmount                           = errors.New("unacceptable quantity to buy or sell")
+	errMissingClientOrderIDOrOrderID           = errors.New("client order id or order id is missing")
+	errInvalidNewSizeOrPriceInformation        = errors.New("invalid the new size or price information")
+	errMissingNewSize                          = errors.New("missing the order size information")
+	errMissingMarginMode                       = errors.New("missing required param margin mode \"mgnMode\"")
+	errInvalidTriggerPrice                     = errors.New("invalid trigger price value")
+	errInvalidPriceLimit                       = errors.New("invalid price limit value")
+	errMissingIntervalValue                    = errors.New("missing interval value")
+	errMissingTakeProfitTriggerPrice           = errors.New("missing take profit trigger price")
+	errMissingTakeProfitOrderPrice             = errors.New("missing take profit order price")
+	errMissingSizeLimit                        = errors.New("missing required parameter \"szLimit\"")
+	errMissingEitherAlgoIDOrState              = errors.New("either algo id or order state is required")
+	errUnacceptableAmount                      = errors.New("amount must be greater than 0")
+	errInvalidCurrencyValue                    = errors.New("invalid currency value")
+	errInvalidDepositAmount                    = errors.New("invalid deposit amount")
+	errMissingResponseBody                     = errors.New("error missing response body")
+	errMissingValidWithdrawalID                = errors.New("missing valid withdrawal id")
+	errNoValidResponseFromServer               = errors.New("no valid response from server")
+	errInstrumentTypeRequired                  = errors.New("instrument type required")
+	errInvalidInstrumentType                   = errors.New("invalid instrument type")
+	errMissingValidGreeksType                  = errors.New("missing valid greeks type")
+	errMissingIsolatedMarginTradingSetting     = errors.New("missing isolated margin trading setting, isolated margin trading settings automatic:Auto transfers autonomy:Manual transfers")
+	errInvalidOrderSide                        = errors.New("invalid order side")
+	errOrderSideRequired                       = errors.New("order side required")
+	errInvalidCounterParties                   = errors.New("missing counter parties")
+	errInvalidLegs                             = errors.New("no legs are provided")
+	errMissingRfqIDAndClientRfqID              = errors.New("missing rfq id or client rfq id")
+	errMissingRfqIDOrQuoteID                   = errors.New("either Rfq ID or Quote ID is missing")
+	errMissingRfqID                            = errors.New("error missing rfq id")
+	errMissingLegs                             = errors.New("missing legs")
+	errMissingSizeOfQuote                      = errors.New("missing size of quote leg")
+	errMossingLegsQuotePrice                   = errors.New("error missing quote price")
+	errMissingQuoteIDOrClientQuoteID           = errors.New("missing quote id or client quote id")
+	errMissingEitherQuoteIDAOrClientQuoteIDs   = errors.New("missing either quote ids or client quote ids")
+	errMissingRequiredParameterSubaccountName  = errors.New("missing required parameter subaccount name")
+	errInvalidTransferAmount                   = errors.New("unacceptable transfer amount")
+	errInvalidSubaccount                       = errors.New("invalid account type")
+	errMissingDestinationSubaccountName        = errors.New("missing destination subaccount name")
+	errMissingInitialSubaccountName            = errors.New("missing initial subaccount name")
+	errMissingAlgoOrderType                    = errors.New("missing algo order type \"grid\": Spot grid, \"contract_grid\": Contract grid")
+	errInvalidMaximumPrice                     = errors.New("invalid maximum price")
+	errInvalidMinimumPrice                     = errors.New("invalid minimum price")
+	errInvalidGridQuantity                     = errors.New("invalid grid quantity (grid number)")
+	errMissingSize                             = errors.New("missing required argument, size")
+	errMissingRequiredArgumentDirection        = errors.New("missing required argument, direction")
+	errRequiredParameterMissingLeverage        = errors.New("missing required parameter, leverage")
+	errMissingAlgoOrderID                      = errors.New("missing algo orders id")
+	errMissingValidStopType                    = errors.New("invalid grid order stop type, only values are \"1\" and \"2\" ")
+	errMissingSubOrderType                     = errors.New("missing sub order type")
+	errMissingQuantity                         = errors.New("invalid quantity to buy or sell")
+	errDepositAddressNotFound                  = errors.New("deposit address with the specified currency code and chain not found")
+	errMissingAtLeast1CurrencyPair             = errors.New("at least one currency is required to fetch order history")
+	errNoCandlestickDataFound                  = errors.New("no candlesticks data found")
+	errInvalidWebsocketEvent                   = errors.New("invalid websocket event")
+	errMissingValidChannelInformation          = errors.New("missing channel information")
+	errNilArgument                             = errors.New("nil argument is not acceptable")
+	errNoOrderParameterPassed                  = errors.New("no order parameter was passed")
+	errMaxRfqOrdersToCancel                    = errors.New("no more than 100 Rfq cancel order parameter is allowed")
+	errMalformedData                           = errors.New("malformed data")
+	errInvalidUnderlying                       = errors.New("invalid underlying")
+	errMissingRequiredParameter                = errors.New("missing required parameter")
+	errMissingMakerInstrumentSettings          = errors.New("missing maker instrument settings")
+	errInvalidSubAccountName                   = errors.New("invalid sub-account name")
+	errInvalidAPIKey                           = errors.New("invalid api key")
+	errInvalidAlgoID                           = errors.New("invalid algo id")
+	errInvalidMarginTypeAdjust                 = errors.New("invalid margin type adjust, only 'add' and 'reduce' are allowed")
+	errInvalidAlgoOrderType                    = errors.New("invalid algo order type")
+	errEmptyArgument                           = errors.New("empty argument")
+	errInvalidIPAddress                        = errors.New("invalid ip address")
+	errInvalidAPIKeyPermission                 = errors.New("invalid API Key permission")
+	errInvalidResponseParam                    = errors.New("invalid response parameter, response must be non-nil pointer")
+	errEmptyPlaceOrderResponse                 = errors.New("empty place order response")
+	errTooManyArgument                         = errors.New("too many cancel request params")
+	errIncompleteCurrencyPair                  = errors.New("incomplete currency pair")
+	errInvalidDuration                         = errors.New("invalid grid contract duration, only '7D', '30D', and '180D' are allowed")
+	errInvalidProtocolType                     = errors.New("invalid protocol type, only 'staking' and 'defi' allowed")
+	errExceedLimit                             = errors.New("limit exceeded")
+	errOnlyThreeMonthsSupported                = errors.New("only three months of trade data retrieval supported")
+	errOnlyOneResponseExpected                 = errors.New("one response item expected")
+	errNoInstrumentFound                       = errors.New("no instrument found")
 )
 
 /************************************ MarketData Endpoints *************************************************/
@@ -481,8 +483,8 @@ func (ok *Okx) CancelSingleOrder(ctx context.Context, arg CancelOrderRequestPara
 	if arg.InstrumentID == "" {
 		return nil, errMissingInstrumentID
 	}
-	if arg.OrderID == "" && arg.ClientSupplierOrderID == "" {
-		return nil, fmt.Errorf("either order id or client supplier id is required")
+	if arg.OrderID == "" && arg.ClientOrderID == "" {
+		return nil, fmt.Errorf("either order id or client id is required")
 	}
 	var resp []OrderData
 	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, cancelOrderEPL, http.MethodPost, cancelTradeOrder, &arg, &resp, true)
@@ -506,8 +508,8 @@ func (ok *Okx) CancelMultipleOrders(ctx context.Context, args []CancelOrderReque
 		if arg.InstrumentID == "" {
 			return nil, errMissingInstrumentID
 		}
-		if arg.OrderID == "" && arg.ClientSupplierOrderID == "" {
-			return nil, fmt.Errorf("either order id or client supplier id is required")
+		if arg.OrderID == "" && arg.ClientOrderID == "" {
+			return nil, fmt.Errorf("either order id or client id is required")
 		}
 	}
 	var resp []OrderData
@@ -533,7 +535,7 @@ func (ok *Okx) AmendOrder(ctx context.Context, arg *AmendOrderRequestParams) (*O
 	if arg.InstrumentID == "" {
 		return nil, errMissingInstrumentID
 	}
-	if arg.ClientSuppliedOrderID == "" && arg.OrderID == "" {
+	if arg.ClientOrderID == "" && arg.OrderID == "" {
 		return nil, errMissingClientOrderIDOrOrderID
 	}
 	if arg.NewQuantity < 0 && arg.NewPrice < 0 {
@@ -556,7 +558,7 @@ func (ok *Okx) AmendMultipleOrders(ctx context.Context, args []AmendOrderRequest
 		if args[x].InstrumentID == "" {
 			return nil, errMissingInstrumentID
 		}
-		if args[x].ClientSuppliedOrderID == "" && args[x].OrderID == "" {
+		if args[x].ClientOrderID == "" && args[x].OrderID == "" {
 			return nil, errMissingClientOrderIDOrOrderID
 		}
 		if args[x].NewQuantity < 0 && args[x].NewPrice < 0 {
@@ -599,12 +601,12 @@ func (ok *Okx) GetOrderDetail(ctx context.Context, arg *OrderDetailRequestParam)
 	}
 	params.Set("instId", arg.InstrumentID)
 	switch {
-	case arg.OrderID == "" && arg.ClientSupplierOrderID == "":
+	case arg.OrderID == "" && arg.ClientOrderID == "":
 		return nil, errMissingClientOrderIDOrOrderID
-	case arg.ClientSupplierOrderID == "":
+	case arg.ClientOrderID == "":
 		params.Set("ordId", arg.OrderID)
 	default:
-		params.Set("clOrdId", arg.ClientSupplierOrderID)
+		params.Set("clOrdId", arg.ClientOrderID)
 	}
 	var resp []OrderDetail
 	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, getOrderDetEPL, http.MethodGet, common.EncodeURLValues(tradeOrder, params), nil, &resp, true)
@@ -904,7 +906,7 @@ func (ok *Okx) cancelAlgoOrder(ctx context.Context, args []AlgoOrderCancelParams
 }
 
 // GetAlgoOrderList retrieves a list of untriggered Algo orders under the current account.
-func (ok *Okx) GetAlgoOrderList(ctx context.Context, orderType, algoOrderID, clientSuppliedOrderID, instrumentType, instrumentID string, after, before time.Time, limit int64) ([]AlgoOrderResponse, error) {
+func (ok *Okx) GetAlgoOrderList(ctx context.Context, orderType, algoOrderID, clientOrderID, instrumentType, instrumentID string, after, before time.Time, limit int64) ([]AlgoOrderResponse, error) {
 	params := url.Values{}
 	orderType = strings.ToLower(orderType)
 	if orderType == "" {
@@ -915,8 +917,8 @@ func (ok *Okx) GetAlgoOrderList(ctx context.Context, orderType, algoOrderID, cli
 	if algoOrderID != "" {
 		params.Set("algoId", algoOrderID)
 	}
-	if clientSuppliedOrderID != "" {
-		params.Set("clOrdId", clientSuppliedOrderID)
+	if clientOrderID != "" {
+		params.Set("clOrdId", clientOrderID)
 	}
 	instrumentType = strings.ToUpper(instrumentType)
 	if instrumentType != "" {
@@ -1063,16 +1065,16 @@ func (ok *Okx) GetCounterparties(ctx context.Context) ([]CounterpartiesResponse,
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getCounterpartiesEPL, http.MethodGet, rfqCounterparties, nil, &resp, true)
 }
 
-// CreateRFQ Creates a new RFQ
-func (ok *Okx) CreateRFQ(ctx context.Context, arg CreateRFQInput) (*RFQResponse, error) {
+// CreateRfq Creates a new Rfq
+func (ok *Okx) CreateRfq(ctx context.Context, arg CreateRfqInput) (*RfqResponse, error) {
 	if len(arg.CounterParties) == 0 {
 		return nil, errInvalidCounterParties
 	}
 	if len(arg.Legs) == 0 {
 		return nil, errInvalidLegs
 	}
-	var resp []RFQResponse
-	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, createRfqEPL, http.MethodPost, rfqCreateRFQ, &arg, &resp, true)
+	var resp []RfqResponse
+	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, createRfqEPL, http.MethodPost, rfqCreateRfq, &arg, &resp, true)
 	if err != nil {
 		return nil, err
 	}
@@ -1082,12 +1084,12 @@ func (ok *Okx) CreateRFQ(ctx context.Context, arg CreateRFQInput) (*RFQResponse,
 	return nil, errNoValidResponseFromServer
 }
 
-// CancelRFQ Cancel an existing active RFQ that you has previously created.
-func (ok *Okx) CancelRFQ(ctx context.Context, arg CancelRFQRequestParam) (*CancelRFQResponse, error) {
-	if arg.RfqID == "" && arg.ClientSuppliedRFQID == "" {
-		return nil, errMissingRFQIDANDClientSuppliedRFQID
+// CancelRfq Cancel an existing active Rfq that you has previously created.
+func (ok *Okx) CancelRfq(ctx context.Context, arg CancelRfqRequestParam) (*CancelRfqResponse, error) {
+	if arg.RfqID == "" && arg.ClientRfqID == "" {
+		return nil, errMissingRfqIDAndClientRfqID
 	}
-	var resp []CancelRFQResponse
+	var resp []CancelRfqResponse
 	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, cancelRfqEPL, http.MethodPost, rfqCancelRfq, &arg, &resp, true)
 	if err != nil {
 		return nil, err
@@ -1098,19 +1100,19 @@ func (ok *Okx) CancelRFQ(ctx context.Context, arg CancelRFQRequestParam) (*Cance
 	return nil, errNoValidResponseFromServer
 }
 
-// CancelMultipleRFQs cancel multiple active RFQs in a single batch. Maximum 100 RFQ orders can be canceled at a time.
-func (ok *Okx) CancelMultipleRFQs(ctx context.Context, arg CancelRFQRequestsParam) ([]CancelRFQResponse, error) {
-	if len(arg.RfqID) == 0 && len(arg.ClientSuppliedRFQID) == 0 {
-		return nil, errMissingRFQIDANDClientSuppliedRFQID
-	} else if len(arg.RfqID)+len(arg.ClientSuppliedRFQID) > 100 {
-		return nil, errMaxRFQOrdersToCancel
+// CancelMultipleRfqs cancel multiple active Rfqs in a single batch. Maximum 100 Rfq orders can be canceled at a time.
+func (ok *Okx) CancelMultipleRfqs(ctx context.Context, arg CancelRfqRequestsParam) ([]CancelRfqResponse, error) {
+	if len(arg.RfqIDs) == 0 && len(arg.ClientRfqIDs) == 0 {
+		return nil, errMissingRfqIDAndClientRfqID
+	} else if len(arg.RfqIDs)+len(arg.ClientRfqIDs) > 100 {
+		return nil, errMaxRfqOrdersToCancel
 	}
-	var resp []CancelRFQResponse
+	var resp []CancelRfqResponse
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, cancelMultipleRfqEPL, http.MethodPost, rfqCancelRfqs, &arg, &resp, true)
 }
 
-// CancelAllRFQs cancels all active RFQs.
-func (ok *Okx) CancelAllRFQs(ctx context.Context) (time.Time, error) {
+// CancelAllRfqs cancels all active Rfqs.
+func (ok *Okx) CancelAllRfqs(ctx context.Context) (time.Time, error) {
 	var resp []TimestampResponse
 	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, cancelAllRfqsEPL, http.MethodPost, rfqCancelAllRfqs, nil, &resp, true)
 	if err != nil {
@@ -1122,7 +1124,7 @@ func (ok *Okx) CancelAllRFQs(ctx context.Context) (time.Time, error) {
 	return time.Time{}, errNoValidResponseFromServer
 }
 
-// ExecuteQuote executes a Quote. It is only used by the creator of the RFQ
+// ExecuteQuote executes a Quote. It is only used by the creator of the Rfq
 func (ok *Okx) ExecuteQuote(ctx context.Context, arg ExecuteQuoteParams) (*ExecuteQuoteResponse, error) {
 	if arg.RfqID == "" || arg.QuoteID == "" {
 		return nil, errMissingRfqIDOrQuoteID
@@ -1138,7 +1140,7 @@ func (ok *Okx) ExecuteQuote(ctx context.Context, arg ExecuteQuoteParams) (*Execu
 	return nil, errNoValidResponseFromServer
 }
 
-// SetQuoteProducts customize the products which makers want to quote and receive RFQs for, and the corresponding price and size limit.
+// SetQuoteProducts customize the products which makers want to quote and receive Rfqs for, and the corresponding price and size limit.
 func (ok *Okx) SetQuoteProducts(ctx context.Context, args []SetQuoteProductParam) (*SetQuoteProductsResult, error) {
 	if len(args) == 0 {
 		return nil, errEmptyArgument
@@ -1187,8 +1189,8 @@ func (ok *Okx) ResetMMPStatus(ctx context.Context) (time.Time, error) {
 	return time.Time{}, errNoValidResponseFromServer
 }
 
-// CreateQuote allows the user to Quote an RFQ that they are a counterparty to. The user MUST quote
-// the entire RFQ and not part of the legs or part of the quantity. Partial quoting or partial fills are not allowed.
+// CreateQuote allows the user to Quote an Rfq that they are a counterparty to. The user MUST quote
+// the entire Rfq and not part of the legs or part of the quantity. Partial quoting or partial fills are not allowed.
 func (ok *Okx) CreateQuote(ctx context.Context, arg CreateQuoteParams) (*QuoteResponse, error) {
 	switch {
 	case arg.RfqID == "":
@@ -1221,12 +1223,12 @@ func (ok *Okx) CreateQuote(ctx context.Context, arg CreateQuoteParams) (*QuoteRe
 	return nil, errNoValidResponseFromServer
 }
 
-// CancelQuote cancels an existing active quote you have created in response to an RFQ.
+// CancelQuote cancels an existing active quote you have created in response to an Rfq.
 // rfqCancelQuote = "rfq/cancel-quote"
 func (ok *Okx) CancelQuote(ctx context.Context, arg CancelQuoteRequestParams) (*CancelQuoteResponse, error) {
 	var resp []CancelQuoteResponse
-	if arg.ClientSuppliedQuoteID == "" && arg.QuoteID == "" {
-		return nil, errMissingQuoteIDOrClientSuppliedQuoteID
+	if arg.ClientQuoteID == "" && arg.QuoteID == "" {
+		return nil, errMissingQuoteIDOrClientQuoteID
 	}
 	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, cancelQuoteEPL, http.MethodPost, rfqCancelQuote, &arg, &resp, true)
 	if err != nil {
@@ -1240,8 +1242,8 @@ func (ok *Okx) CancelQuote(ctx context.Context, arg CancelQuoteRequestParams) (*
 
 // CancelMultipleQuote cancel multiple active Quotes in a single batch. Maximum 100 quote orders can be canceled at a time.
 func (ok *Okx) CancelMultipleQuote(ctx context.Context, arg CancelQuotesRequestParams) ([]CancelQuoteResponse, error) {
-	if len(arg.QuoteIDs) == 0 && len(arg.ClientSuppliedQuoteIDs) == 0 {
-		return nil, errMissingEitherQuoteIDAOrClientSuppliedQuoteIDs
+	if len(arg.QuoteIDs) == 0 && len(arg.ClientQuoteIDs) == 0 {
+		return nil, errMissingEitherQuoteIDAOrClientQuoteIDs
 	}
 	var resp []CancelQuoteResponse
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, cancelMultipleQuotesEPL, http.MethodPost, rfqCancelBatchQuotes, &arg, &resp, true)
@@ -1260,8 +1262,8 @@ func (ok *Okx) CancelAllQuotes(ctx context.Context) (time.Time, error) {
 	return time.Time{}, errMissingResponseBody
 }
 
-// GetRfqs retrieves details of RFQs that the user is a counterparty to (either as the creator or the receiver of the RFQ).
-func (ok *Okx) GetRfqs(ctx context.Context, arg *RfqRequestParams) ([]RFQResponse, error) {
+// GetRfqs retrieves details of Rfqs that the user is a counterparty to (either as the creator or the receiver of the Rfq).
+func (ok *Okx) GetRfqs(ctx context.Context, arg *RfqRequestParams) ([]RfqResponse, error) {
 	if arg == nil {
 		return nil, errNilArgument
 	}
@@ -1269,8 +1271,8 @@ func (ok *Okx) GetRfqs(ctx context.Context, arg *RfqRequestParams) ([]RFQRespons
 	if arg.RfqID != "" {
 		params.Set("rfqId", arg.RfqID)
 	}
-	if arg.ClientSuppliedRfqID != "" {
-		params.Set("clRfqId", arg.ClientSuppliedRfqID)
+	if arg.ClientRfqID != "" {
+		params.Set("clRfqId", arg.ClientRfqID)
 	}
 	if arg.State != "" {
 		params.Set("state", strings.ToLower(arg.State))
@@ -1284,7 +1286,7 @@ func (ok *Okx) GetRfqs(ctx context.Context, arg *RfqRequestParams) ([]RFQRespons
 	if arg.Limit > 0 {
 		params.Set("limit", strconv.FormatInt(arg.Limit, 10))
 	}
-	var resp []RFQResponse
+	var resp []RfqResponse
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getRfqsEPL, http.MethodGet, common.EncodeURLValues(rfqRfqs, params), nil, &resp, true)
 }
 
@@ -1297,14 +1299,14 @@ func (ok *Okx) GetQuotes(ctx context.Context, arg *QuoteRequestParams) ([]QuoteR
 	if arg.RfqID != "" {
 		params.Set("rfqId", arg.RfqID)
 	}
-	if arg.ClientSuppliedRfqID != "" {
-		params.Set("clRfqId", arg.ClientSuppliedRfqID)
+	if arg.ClientRfqID != "" {
+		params.Set("clRfqId", arg.ClientRfqID)
 	}
 	if arg.QuoteID != "" {
 		params.Set("quoteId", arg.QuoteID)
 	}
-	if arg.ClientSuppliedQuoteID != "" {
-		params.Set("clQuoteId", arg.ClientSuppliedQuoteID)
+	if arg.ClientQuoteID != "" {
+		params.Set("clQuoteId", arg.ClientQuoteID)
 	}
 	if arg.State != "" {
 		params.Set("state", strings.ToLower(arg.State))
@@ -1322,8 +1324,8 @@ func (ok *Okx) GetQuotes(ctx context.Context, arg *QuoteRequestParams) ([]QuoteR
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getQuotesEPL, http.MethodGet, common.EncodeURLValues(rfqQuotes, params), nil, &resp, true)
 }
 
-// GetRFQTrades retrieves the executed trades that the user is a counterparty to (either as the creator or the receiver).
-func (ok *Okx) GetRFQTrades(ctx context.Context, arg *RFQTradesRequestParams) ([]RfqTradeResponse, error) {
+// GetRfqTrades retrieves the executed trades that the user is a counterparty to (either as the creator or the receiver).
+func (ok *Okx) GetRfqTrades(ctx context.Context, arg *RfqTradesRequestParams) ([]RfqTradeResponse, error) {
 	if arg == nil {
 		return nil, errNilArgument
 	}
@@ -1331,14 +1333,14 @@ func (ok *Okx) GetRFQTrades(ctx context.Context, arg *RFQTradesRequestParams) ([
 	if arg.RfqID != "" {
 		params.Set("rfqId", arg.RfqID)
 	}
-	if arg.ClientSuppliedRfqID != "" {
-		params.Set("clRfqId", arg.ClientSuppliedRfqID)
+	if arg.ClientRfqID != "" {
+		params.Set("clRfqId", arg.ClientRfqID)
 	}
 	if arg.QuoteID != "" {
 		params.Set("quoteId", arg.QuoteID)
 	}
-	if arg.ClientSuppliedQuoteID != "" {
-		params.Set("clQuoteId", arg.ClientSuppliedQuoteID)
+	if arg.ClientQuoteID != "" {
+		params.Set("clQuoteId", arg.ClientQuoteID)
 	}
 	if arg.State != "" {
 		params.Set("state", strings.ToLower(arg.State))
@@ -1785,10 +1787,10 @@ func (ok *Okx) EstimateQuote(ctx context.Context, arg *EstimateQuoteRequestInput
 	if arg.Side != order.Buy.Lower() && arg.Side != order.Sell.Lower() {
 		return nil, errInvalidOrderSide
 	}
-	if arg.RFQAmount <= 0 {
+	if arg.RfqAmount <= 0 {
 		return nil, errors.New("missing rfq amount")
 	}
-	if arg.RFQSzCurrency == "" {
+	if arg.RfqSzCurrency == "" {
 		return nil, errors.New("missing rfq currency")
 	}
 	var resp []EstimateQuoteResponse
@@ -1819,7 +1821,7 @@ func (ok *Okx) ConvertTrade(ctx context.Context, arg *ConvertTradeInput) (*Conve
 		return nil, errInvalidOrderSide
 	}
 	if arg.Size <= 0 {
-		return nil, errors.New("quote amount should be more than 0 and RFQ amount")
+		return nil, errors.New("quote amount should be more than 0 and Rfq amount")
 	}
 	if arg.SizeCurrency == "" {
 		return nil, errors.New("missing size currency")
@@ -1859,9 +1861,9 @@ func (ok *Okx) GetConvertHistory(ctx context.Context, before, after time.Time, l
 
 /********************************** Account endpoints ***************************************************/
 
-// GetNonZeroBalances retrieves a list of assets (with non-zero balance), remaining balance, and available amount in the trading account.
+// AccountBalance retrieves a list of assets (with non-zero balance), remaining balance, and available amount in the trading account.
 // Interest-free quota and discount rates are public data and not displayed on the account interface.
-func (ok *Okx) GetNonZeroBalances(ctx context.Context, currency string) ([]Account, error) {
+func (ok *Okx) AccountBalance(ctx context.Context, currency string) ([]Account, error) {
 	var resp []Account
 	params := url.Values{}
 	if currency != "" {
@@ -2010,26 +2012,12 @@ func (ok *Okx) SetPositionMode(ctx context.Context, positionMode string) (string
 	return "", errNoValidResponseFromServer
 }
 
-// SetLeverage sets a leverage setting for instrument id.
-func (ok *Okx) SetLeverage(ctx context.Context, arg SetLeverageInput) (*SetLeverageResponse, error) {
+// SetLeverageRate sets a leverage setting for instrument id.
+func (ok *Okx) SetLeverageRate(ctx context.Context, arg SetLeverageInput) (*SetLeverageResponse, error) {
 	if arg.InstrumentID == "" && arg.Currency == "" {
 		return nil, errors.New("either instrument id or currency is required")
 	}
-	if arg.Leverage < 0 {
-		return nil, errors.New("missing leverage")
-	}
-	if arg.InstrumentID == "" && arg.MarginMode == TradeModeIsolated {
-		return nil, errors.New("only can be cross if ccy is passed")
-	}
-	if arg.MarginMode != TradeModeCross && arg.MarginMode != TradeModeIsolated {
-		return nil, errors.New("only applicable to \"isolated\" margin mode of FUTURES/SWAP allowed")
-	}
 	arg.PositionSide = strings.ToLower(arg.PositionSide)
-	if arg.PositionSide != positionSideLong &&
-		arg.PositionSide != positionSideShort &&
-		arg.MarginMode == "isolated" {
-		return nil, errors.New("\"long\" \"short\" Only applicable to isolated margin mode of FUTURES/SWAP")
-	}
 	var resp []SetLeverageResponse
 	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, setLeverageEPL, http.MethodPost, accountSetLeverage, &arg, &resp, true)
 	if err != nil {
@@ -2107,7 +2095,7 @@ func (ok *Okx) IncreaseDecreaseMargin(ctx context.Context, arg IncreaseDecreaseM
 		return nil, errors.New("missing valid amount")
 	}
 	var resp []IncreaseDecreaseMargin
-	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, increaseOrDecreaseMarginEPL, http.MethodGet, accountPositionMarginBalance, &arg, &resp, true)
+	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, increaseOrDecreaseMarginEPL, http.MethodPost, accountPositionMarginBalance, &arg, &resp, true)
 	if err != nil {
 		return nil, err
 	}
@@ -2117,8 +2105,8 @@ func (ok *Okx) IncreaseDecreaseMargin(ctx context.Context, arg IncreaseDecreaseM
 	return nil, errNoValidResponseFromServer
 }
 
-// GetLeverage retrieves leverage data for different instrument id or margin mode.
-func (ok *Okx) GetLeverage(ctx context.Context, instrumentID, marginMode string) ([]LeverageResponse, error) {
+// GetLeverageRate retrieves leverage data for different instrument id or margin mode.
+func (ok *Okx) GetLeverageRate(ctx context.Context, instrumentID, marginMode string) ([]LeverageResponse, error) {
 	params := url.Values{}
 	if instrumentID != "" {
 		params.Set("instId", instrumentID)
@@ -3054,10 +3042,6 @@ func (ok *Okx) GetInstrumentTypeFromAssetItem(a asset.Item) string {
 		return okxInstTypeSwap
 	case asset.Options:
 		return okxInstTypeOption
-	case asset.Spot:
-		return okxInstTypeSpot
-	case asset.Futures:
-		return okxInstTypeFutures
 	default:
 		return strings.ToUpper(a.String())
 	}
@@ -3461,10 +3445,8 @@ func (ok *Okx) GetFundingRateHistory(ctx context.Context, instrumentID string, b
 	if !after.IsZero() {
 		params.Set("after", strconv.FormatInt(after.UnixMilli(), 10))
 	}
-	if limit > 0 && limit <= 100 {
+	if limit > 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
-	} else if limit > 100 {
-		return nil, errLimitValueExceedsMaxOf100
 	}
 	var resp []FundingRateResponse
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getFundingRateHistoryEPL, http.MethodGet, common.EncodeURLValues(publicFundingRateHistory, params), nil, &resp, false)

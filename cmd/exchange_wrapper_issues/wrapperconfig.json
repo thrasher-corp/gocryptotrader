@@ -136,6 +136,11 @@
    "secret": "Secret",
    "otpSecret": "-"
   },
+  "kucoin":{
+    "key": "Key",
+    "secret": "Secret",
+    "otpSecret": "-"
+  },
   "lbank": {
    "key": "Key",
    "secret": "Secret",

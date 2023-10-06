@@ -95,6 +95,8 @@ func (d *Depth) Retrieve() (*Base, error) {
 
 // LoadSnapshot flushes the bids and asks with a snapshot
 func (d *Depth) LoadSnapshot(bids, asks []Item, lastUpdateID int64, lastUpdated time.Time, updateByREST bool) error {
+	d.m.Lock()
+	defer d.m.Unlock()
 	if lastUpdated.IsZero() {
 		return fmt.Errorf("%s %s %s %w",
 			d.exchange,
@@ -102,7 +104,6 @@ func (d *Depth) LoadSnapshot(bids, asks []Item, lastUpdateID int64, lastUpdated 
 			d.asset,
 			errLastUpdatedNotSet)
 	}
-	d.m.Lock()
 	d.lastUpdateID = lastUpdateID
 	d.lastUpdated = lastUpdated
 	d.restSnapshot = updateByREST
@@ -110,7 +111,6 @@ func (d *Depth) LoadSnapshot(bids, asks []Item, lastUpdateID int64, lastUpdated 
 	d.asks.load(asks, d.stack, lastUpdated)
 	d.validationError = nil
 	d.Alert()
-	d.m.Unlock()
 	return nil
 }
 
@@ -150,6 +150,8 @@ func (d *Depth) IsValid() bool {
 // UpdateBidAskByPrice updates the bid and ask spread by supplied updates, this
 // will trim total length of depth level to a specified supplied number
 func (d *Depth) UpdateBidAskByPrice(update *Update) error {
+	d.m.Lock()
+	defer d.m.Unlock()
 	if update.UpdateTime.IsZero() {
 		return fmt.Errorf("%s %s %s %w",
 			d.exchange,
@@ -157,7 +159,6 @@ func (d *Depth) UpdateBidAskByPrice(update *Update) error {
 			d.asset,
 			errLastUpdatedNotSet)
 	}
-	d.m.Lock()
 	if len(update.Bids) != 0 {
 		d.bids.updateInsertByPrice(update.Bids, d.stack, d.options.maxDepth, update.UpdateTime)
 	}
@@ -165,12 +166,14 @@ func (d *Depth) UpdateBidAskByPrice(update *Update) error {
 		d.asks.updateInsertByPrice(update.Asks, d.stack, d.options.maxDepth, update.UpdateTime)
 	}
 	d.updateAndAlert(update)
-	d.m.Unlock()
 	return nil
 }
 
 // UpdateBidAskByID amends details by ID
 func (d *Depth) UpdateBidAskByID(update *Update) error {
+	d.m.Lock()
+	defer d.m.Unlock()
+
 	if update.UpdateTime.IsZero() {
 		return fmt.Errorf("%s %s %s %w",
 			d.exchange,
@@ -178,8 +181,7 @@ func (d *Depth) UpdateBidAskByID(update *Update) error {
 			d.asset,
 			errLastUpdatedNotSet)
 	}
-	d.m.Lock()
-	defer d.m.Unlock()
+
 	if len(update.Bids) != 0 {
 		err := d.bids.updateByID(update.Bids)
 		if err != nil {
@@ -198,6 +200,8 @@ func (d *Depth) UpdateBidAskByID(update *Update) error {
 
 // DeleteBidAskByID deletes a price level by ID
 func (d *Depth) DeleteBidAskByID(update *Update, bypassErr bool) error {
+	d.m.Lock()
+	defer d.m.Unlock()
 	if update.UpdateTime.IsZero() {
 		return fmt.Errorf("%s %s %s %w",
 			d.exchange,
@@ -205,8 +209,6 @@ func (d *Depth) DeleteBidAskByID(update *Update, bypassErr bool) error {
 			d.asset,
 			errLastUpdatedNotSet)
 	}
-	d.m.Lock()
-	defer d.m.Unlock()
 	if len(update.Bids) != 0 {
 		err := d.bids.deleteByID(update.Bids, d.stack, bypassErr, update.UpdateTime)
 		if err != nil {
@@ -225,6 +227,8 @@ func (d *Depth) DeleteBidAskByID(update *Update, bypassErr bool) error {
 
 // InsertBidAskByID inserts new updates
 func (d *Depth) InsertBidAskByID(update *Update) error {
+	d.m.Lock()
+	defer d.m.Unlock()
 	if update.UpdateTime.IsZero() {
 		return fmt.Errorf("%s %s %s %w",
 			d.exchange,
@@ -232,8 +236,6 @@ func (d *Depth) InsertBidAskByID(update *Update) error {
 			d.asset,
 			errLastUpdatedNotSet)
 	}
-	d.m.Lock()
-	defer d.m.Unlock()
 	if len(update.Bids) != 0 {
 		err := d.bids.insertUpdates(update.Bids, d.stack)
 		if err != nil {
@@ -252,6 +254,8 @@ func (d *Depth) InsertBidAskByID(update *Update) error {
 
 // UpdateInsertByID updates or inserts by ID at current price level.
 func (d *Depth) UpdateInsertByID(update *Update) error {
+	d.m.Lock()
+	defer d.m.Unlock()
 	if update.UpdateTime.IsZero() {
 		return fmt.Errorf("%s %s %s %w",
 			d.exchange,
@@ -259,8 +263,6 @@ func (d *Depth) UpdateInsertByID(update *Update) error {
 			d.asset,
 			errLastUpdatedNotSet)
 	}
-	d.m.Lock()
-	defer d.m.Unlock()
 	if len(update.Bids) != 0 {
 		err := d.bids.updateInsertByID(update.Bids, d.stack)
 		if err != nil {

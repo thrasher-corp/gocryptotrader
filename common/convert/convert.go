@@ -2,6 +2,7 @@ package convert
 
 import (
 	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"math"
@@ -232,13 +233,66 @@ func (f StringToFloat64) MarshalJSON() ([]byte, error) {
 }
 
 // Float64 returns the float64 value of the FloatString.
-func (f *StringToFloat64) Float64() float64 {
-	return float64(*f)
+func (f StringToFloat64) Float64() float64 {
+	return float64(f)
 }
 
 // Decimal returns the decimal value of the FloatString
 // Warning: this does not handle big numbers as the underlying
 // is still a float
-func (f *StringToFloat64) Decimal() decimal.Decimal {
-	return decimal.NewFromFloat(float64(*f))
+func (f StringToFloat64) Decimal() decimal.Decimal {
+	return decimal.NewFromFloat(float64(f))
+}
+
+// ExchangeTime provides timestamp to time conversion method.
+type ExchangeTime time.Time
+
+// UnmarshalJSON is custom type json unmarshaller for ExchangeTime
+func (k *ExchangeTime) UnmarshalJSON(data []byte) error {
+	var timestamp interface{}
+	err := json.Unmarshal(data, &timestamp)
+	if err != nil {
+		return err
+	}
+	var standard int64
+	switch value := timestamp.(type) {
+	case string:
+		if value == "" {
+			// Setting the time to zero value because some timestamp fields could return an empty string while there is no error
+			// So, in such cases, Time returns zero timestamp.
+			break
+		}
+		standard, err = strconv.ParseInt(value, 10, 64)
+		if err != nil {
+			return err
+		}
+	case int64:
+		standard = value
+	case float64:
+		// Warning: converting float64 to int64 instance may create loss of precision in the timestamp information.
+		// be aware or consider customizing this section if found necessary.
+		standard = int64(value)
+	case nil:
+		// for some exchange timestamp fields, if the timestamp information is not specified,
+		// the data is 'nil' instead of zero value string or integer value.
+	default:
+		return fmt.Errorf("unsupported timestamp type %T", timestamp)
+	}
+
+	switch {
+	case standard == 0:
+		*k = ExchangeTime(time.Time{})
+	case standard >= 1e13:
+		*k = ExchangeTime(time.Unix(standard/1e9, standard%1e9))
+	case standard > 9999999999:
+		*k = ExchangeTime(time.UnixMilli(standard))
+	default:
+		*k = ExchangeTime(time.Unix(standard, 0))
+	}
+	return nil
+}
+
+// Time returns a time.Time instance from ExchangeTime instance object.
+func (k ExchangeTime) Time() time.Time {
+	return time.Time(k)
 }

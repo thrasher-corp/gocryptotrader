@@ -1073,12 +1073,12 @@ func TestConvertToNewInterval(t *testing.T) {
 
 	err = old.addPadding(tn, tn.AddDate(0, 0, 9), false)
 	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
+		t.Fatalf("received '%v' expected '%v'", err, nil)
 	}
 
 	newCandle, err = old.ConvertToNewInterval(newInterval)
 	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
+		t.Fatalf("received '%v' expected '%v'", err, nil)
 	}
 
 	if len(newCandle.Candles) != 3 {

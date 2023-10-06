@@ -18,6 +18,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/signal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/funding"
 	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/engine"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -85,7 +86,12 @@ func TestAddDataEventForTime(t *testing.T) {
 	if s.ExchangeAssetPairStatistics == nil {
 		t.Error("expected not nil")
 	}
-	if len(s.ExchangeAssetPairStatistics[exch][a][p.Base.Item][p.Quote.Item].Events) != 1 {
+	if len(s.ExchangeAssetPairStatistics[key.ExchangePairAsset{
+		Exchange: exch,
+		Base:     p.Base.Item,
+		Quote:    p.Quote.Item,
+		Asset:    a,
+	}].Events) != 1 {
 		t.Error("expected 1 event")
 	}
 }
@@ -105,7 +111,7 @@ func TestAddSignalEventForTime(t *testing.T) {
 	if !errors.Is(err, common.ErrNilEvent) {
 		t.Errorf("received: %v, expected: %v", err, common.ErrNilEvent)
 	}
-	s.ExchangeAssetPairStatistics = make(map[string]map[asset.Item]map[*currency.Item]map[*currency.Item]*CurrencyPairStatistic)
+	s.ExchangeAssetPairStatistics = make(map[key.ExchangePairAsset]*CurrencyPairStatistic)
 	b := &event.Base{}
 	err = s.SetEventForOffset(&signal.Signal{
 		Base: b,
@@ -154,7 +160,7 @@ func TestAddExchangeEventForTime(t *testing.T) {
 	if !errors.Is(err, common.ErrNilEvent) {
 		t.Errorf("received: %v, expected: %v", err, common.ErrNilEvent)
 	}
-	s.ExchangeAssetPairStatistics = make(map[string]map[asset.Item]map[*currency.Item]map[*currency.Item]*CurrencyPairStatistic)
+	s.ExchangeAssetPairStatistics = make(map[key.ExchangePairAsset]*CurrencyPairStatistic)
 	b := &event.Base{}
 
 	b.Exchange = exch
@@ -203,7 +209,7 @@ func TestAddFillEventForTime(t *testing.T) {
 	if !errors.Is(err, common.ErrNilEvent) {
 		t.Errorf("received: %v, expected: %v", err, common.ErrNilEvent)
 	}
-	s.ExchangeAssetPairStatistics = make(map[string]map[asset.Item]map[*currency.Item]map[*currency.Item]*CurrencyPairStatistic)
+	s.ExchangeAssetPairStatistics = make(map[key.ExchangePairAsset]*CurrencyPairStatistic)
 	b := &event.Base{}
 	err = s.SetEventForOffset(&fill.Fill{
 		Base: b,
@@ -255,7 +261,7 @@ func TestAddHoldingsForTime(t *testing.T) {
 	if !errors.Is(err, errExchangeAssetPairStatsUnset) {
 		t.Errorf("received: %v, expected: %v", err, errExchangeAssetPairStatsUnset)
 	}
-	s.ExchangeAssetPairStatistics = make(map[string]map[asset.Item]map[*currency.Item]map[*currency.Item]*CurrencyPairStatistic)
+	s.ExchangeAssetPairStatistics = make(map[key.ExchangePairAsset]*CurrencyPairStatistic)
 	err = s.AddHoldingsForTime(&holdings.Holding{})
 	if !errors.Is(err, errCurrencyStatisticsUnset) {
 		t.Errorf("received: %v, expected: %v", err, errCurrencyStatisticsUnset)
@@ -324,7 +330,7 @@ func TestAddComplianceSnapshotForTime(t *testing.T) {
 	if !errors.Is(err, errExchangeAssetPairStatsUnset) {
 		t.Errorf("received: %v, expected: %v", err, errExchangeAssetPairStatsUnset)
 	}
-	s.ExchangeAssetPairStatistics = make(map[string]map[asset.Item]map[*currency.Item]map[*currency.Item]*CurrencyPairStatistic)
+	s.ExchangeAssetPairStatistics = make(map[key.ExchangePairAsset]*CurrencyPairStatistic)
 	b := &event.Base{}
 	err = s.AddComplianceSnapshotForTime(&compliance.Snapshot{}, &fill.Fill{Base: b})
 	if !errors.Is(err, errCurrencyStatisticsUnset) {
@@ -726,10 +732,22 @@ func TestCalculateTheResults(t *testing.T) {
 		t.Errorf("received: %v, expected: %v", err, nil)
 	}
 
-	s.ExchangeAssetPairStatistics[exch][a][p.Base.Item][p.Quote.Item].Events[1].Holdings.QuoteInitialFunds = eleet
-	s.ExchangeAssetPairStatistics[exch][a][p.Base.Item][p.Quote.Item].Events[1].Holdings.TotalValue = eleeet
-	s.ExchangeAssetPairStatistics[exch][a][p2.Base.Item][p2.Quote.Item].Events[1].Holdings.QuoteInitialFunds = eleet
-	s.ExchangeAssetPairStatistics[exch][a][p2.Base.Item][p2.Quote.Item].Events[1].Holdings.TotalValue = eleeet
+	mapKey1 := key.ExchangePairAsset{
+		Exchange: exch,
+		Base:     p.Base.Item,
+		Quote:    p.Quote.Item,
+		Asset:    a,
+	}
+	mapKey2 := key.ExchangePairAsset{
+		Exchange: exch,
+		Base:     p2.Base.Item,
+		Quote:    p2.Quote.Item,
+		Asset:    a,
+	}
+	s.ExchangeAssetPairStatistics[mapKey1].Events[1].Holdings.QuoteInitialFunds = eleet
+	s.ExchangeAssetPairStatistics[mapKey1].Events[1].Holdings.TotalValue = eleeet
+	s.ExchangeAssetPairStatistics[mapKey2].Events[1].Holdings.QuoteInitialFunds = eleet
+	s.ExchangeAssetPairStatistics[mapKey2].Events[1].Holdings.TotalValue = eleeet
 
 	funds, err := funding.SetupFundingManager(&engine.ExchangeManager{}, false, false, false)
 	if !errors.Is(err, nil) {

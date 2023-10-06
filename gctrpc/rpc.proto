@@ -304,6 +304,7 @@ message OrderDetails {
   double fee = 15;
   double cost = 16;
   repeated TradeHistory trades = 17;
+  double contract_amount = 18;
 }
 
 message TradeHistory {
@@ -346,6 +347,7 @@ message SubmitOrderRequest {
   double price = 6;
   string client_id = 7;
   string asset_type = 8;
+  string margin_type = 9;
 }
 
 message Trades {
@@ -366,6 +368,7 @@ message SimulateOrderRequest {
   CurrencyPair pair = 2;
   double amount = 3;
   string side = 4;
+  string margin_type = 5;
 }
 
 message SimulateOrderResponse {
@@ -1056,12 +1059,27 @@ message FuturesPositionStats {
   string collateral_used = 4;
   string mark_price = 5;
   string current_size = 6;
-  string break_even_price = 7;
-  string average_open_price = 8;
-  string recent_pnl = 9;
-  string margin_fraction = 10;
-  string free_collateral = 11;
-  string total_collateral = 12;
+  string contract_size = 7;
+  string contract_multiplier = 8;
+  string contract_settlement_type = 9;
+  string break_even_price = 10;
+  string average_open_price = 11;
+  string recent_pnl = 12;
+  string margin_fraction = 13;
+  string free_collateral = 14;
+  string total_collateral = 15;
+  string frozen_balance = 16;
+  string equity_of_currency = 17;
+  string available_equity = 18;
+  string cash_balance = 19;
+  string discount_equity = 20;
+  string equity_usd = 21;
+  string isolated_equity = 22;
+  string isolated_liabilities = 23;
+  string isolated_upl = 24;
+  string notional_leverage = 25;
+  string total_equity = 26;
+  string strategy_equity = 27;
 }
 
 message FuturePosition {
@@ -1080,9 +1098,10 @@ message FuturePosition {
   string realised_pnl = 13;
   string closing_date = 14;
   int64 order_count = 15;
-  repeated OrderDetails orders = 16;
-  FuturesPositionStats position_stats = 17;
-  FundingData funding_data = 18;
+  string contract_settlement_type = 16;
+  repeated OrderDetails orders = 17;
+  FuturesPositionStats position_stats = 18;
+  FundingData funding_data = 19;
 }
 
 message GetManagedPositionRequest {
@@ -1106,29 +1125,141 @@ message GetManagedPositionsResponse {
   repeated FuturePosition positions = 1;
 }
 
-message GetFuturesPositionsRequest {
+message GetFuturesPositionsSummaryRequest {
   string exchange = 1;
   string asset = 2;
   CurrencyPair pair = 3;
-  string start_date = 4;
-  string end_date = 5;
-  string status = 6;
-  int64 position_limit = 7;
-  bool overwrite = 8;
-  bool get_position_stats = 9;
-  bool include_full_order_data = 10;
-  bool get_funding_payments = 11;
-  bool include_full_funding_rates = 12;
-  bool include_predicted_rate = 13;
+  CurrencyPair underlying_pair = 4;
 }
 
-message GetFuturesPositionsResponse {
-  int64 total_orders = 1;
-  string sub_account = 2;
-  string total_realised_pnl = 3;
-  string total_unrealised_pnl = 4;
-  string total_pnl = 5;
+message GetFuturesPositionsSummaryResponse {
+  string exchange = 1;
+  string asset = 2;
+  CurrencyPair pair = 3;
+  FuturesPositionStats position_stats = 4;
+}
+
+message GetFuturesPositionsOrdersRequest {
+  string exchange = 1;
+  string asset = 2;
+  CurrencyPair pair = 3;
+  CurrencyPair underlying_pair = 4;
+  string start_date = 5;
+  string end_date = 6;
+  bool respect_order_history_limits = 7;
+  bool sync_with_order_manager = 8;
+}
+
+message GetFuturesPositionsOrdersResponse {
   repeated FuturePosition positions = 6;
+}
+
+message GetCollateralModeRequest {
+  string exchange = 1;
+  string asset = 2;
+}
+
+message GetCollateralModeResponse {
+  string exchange = 1;
+  string asset = 2;
+  string collateral_mode = 3;
+}
+
+message SetCollateralModeRequest {
+  string exchange = 1;
+  string asset = 2;
+  string collateral_mode = 3;
+}
+
+message SetCollateralModeResponse {
+  string exchange = 1;
+  string asset = 2;
+  bool success = 3;
+}
+
+message GetMarginTypeRequest {
+  string exchange = 1;
+  string asset = 2;
+  CurrencyPair pair = 3;
+}
+
+message GetMarginTypeResponse {
+  string exchange = 1;
+  string asset = 2;
+  CurrencyPair pair = 3;
+  string margin_type = 4;
+}
+
+message ChangePositionMarginRequest {
+  string exchange = 1;
+  string asset = 2;
+  CurrencyPair pair = 3;
+  string margin_type = 4;
+  double original_allocated_margin = 5;
+  double new_allocated_margin = 6;
+  string margin_side = 7;
+}
+
+message ChangePositionMarginResponse {
+  string exchange = 1;
+  string asset = 2;
+  CurrencyPair pair = 3;
+  string margin_type = 4;
+  double new_allocated_margin = 5;
+  string margin_side = 6;
+}
+
+message SetMarginTypeRequest {
+  string exchange = 1;
+  string asset = 2;
+  CurrencyPair pair = 3;
+  string margin_type = 4;
+}
+
+message SetMarginTypeResponse {
+  string exchange = 1;
+  string asset = 2;
+  CurrencyPair pair = 3;
+  bool success = 4;
+}
+
+message GetLeverageRequest {
+  string exchange = 1;
+  string asset = 2;
+  CurrencyPair pair = 3;
+  CurrencyPair underlying_pair = 4;
+  string margin_type = 5;
+  string order_side = 6;
+}
+
+message GetLeverageResponse {
+  string exchange = 1;
+  string asset = 2;
+  CurrencyPair pair = 3;
+  CurrencyPair underlying_pair = 4;
+  string margin_type = 5;
+  double leverage = 6;
+  string order_side = 7;
+}
+
+message SetLeverageRequest {
+  string exchange = 1;
+  string asset = 2;
+  CurrencyPair pair = 3;
+  CurrencyPair underlying_pair = 4;
+  string margin_type = 5;
+  double leverage = 6;
+  string order_side = 7;
+}
+
+message SetLeverageResponse {
+  string exchange = 1;
+  string asset = 2;
+  CurrencyPair pair = 3;
+  CurrencyPair underlying_pair = 4;
+  string margin_type = 5;
+  string order_side = 6;
+  bool success = 7;
 }
 
 message GetCollateralRequest {
@@ -1844,8 +1975,11 @@ service GoCryptoTraderService {
   rpc CurrencyStateTradingPair(CurrencyStateTradingPairRequest) returns (GenericResponse) {
     option (google.api.http) = {get: "/v1/currencystatetradingpair"};
   }
-  rpc GetFuturesPositions(GetFuturesPositionsRequest) returns (GetFuturesPositionsResponse) {
-    option (google.api.http) = {get: "/v1/getfuturespositions"};
+  rpc GetFuturesPositionsSummary(GetFuturesPositionsSummaryRequest) returns (GetFuturesPositionsSummaryResponse) {
+    option (google.api.http) = {get: "/v1/getfuturespositionssummary"};
+  }
+  rpc GetFuturesPositionsOrders(GetFuturesPositionsOrdersRequest) returns (GetFuturesPositionsOrdersResponse) {
+    option (google.api.http) = {get: "/v1/getfuturespositionsorders"};
   }
   rpc GetCollateral(GetCollateralRequest) returns (GetCollateralResponse) {
     option (google.api.http) = {get: "/v1/getcollateral"};
@@ -1879,5 +2013,35 @@ service GoCryptoTraderService {
   }
   rpc GetOrderbookAmountByImpact(GetOrderbookAmountByImpactRequest) returns (GetOrderbookAmountByImpactResponse) {
     option (google.api.http) = {get: "/v1/getorderbookamountbyimpact"};
+  }
+  rpc GetCollateralMode(GetCollateralModeRequest) returns (GetCollateralModeResponse) {
+    option (google.api.http) = {get: "/v1/getcollateralmode"};
+  }
+  rpc GetLeverage(GetLeverageRequest) returns (GetLeverageResponse) {
+    option (google.api.http) = {get: "/v1/getleverage"};
+  }
+  rpc SetCollateralMode(SetCollateralModeRequest) returns (SetCollateralModeResponse) {
+    option (google.api.http) = {
+      post: "/v1/getcollateralmode"
+      body: "*"
+    };
+  }
+  rpc SetMarginType(SetMarginTypeRequest) returns (SetMarginTypeResponse) {
+    option (google.api.http) = {
+      post: "/v1/getmargintype"
+      body: "*"
+    };
+  }
+  rpc SetLeverage(SetLeverageRequest) returns (SetLeverageResponse) {
+    option (google.api.http) = {
+      post: "/v1/getleverage"
+      body: "*"
+    };
+  }
+  rpc ChangePositionMargin(ChangePositionMarginRequest) returns (ChangePositionMarginResponse) {
+    option (google.api.http) = {
+      post: "/v1/changepositionmargin"
+      body: "*"
+    };
   }
 }
