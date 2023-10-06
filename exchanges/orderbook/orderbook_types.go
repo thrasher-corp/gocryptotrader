@@ -20,18 +20,19 @@ const (
 
 // Vars for the orderbook package
 var (
-	errExchangeNameUnset   = errors.New("orderbook exchange name not set")
-	errPairNotSet          = errors.New("orderbook currency pair not set")
-	errAssetTypeNotSet     = errors.New("orderbook asset type not set")
-	errCannotFindOrderbook = errors.New("cannot find orderbook(s)")
-	errPriceNotSet         = errors.New("price cannot be zero")
-	errAmountInvalid       = errors.New("amount cannot be less or equal to zero")
-	errPriceOutOfOrder     = errors.New("pricing out of order")
-	errIDOutOfOrder        = errors.New("ID out of order")
-	errDuplication         = errors.New("price duplication")
-	errIDDuplication       = errors.New("id duplication")
-	errPeriodUnset         = errors.New("funding rate period is unset")
-	errNotEnoughLiquidity  = errors.New("not enough liquidity")
+	errExchangeNameUnset    = errors.New("orderbook exchange name not set")
+	errPairNotSet           = errors.New("orderbook currency pair not set")
+	errAssetTypeNotSet      = errors.New("orderbook asset type not set")
+	errCannotFindOrderbook  = errors.New("cannot find orderbook(s)")
+	errPriceNotSet          = errors.New("price cannot be zero")
+	errAmountInvalid        = errors.New("amount cannot be less or equal to zero")
+	errPriceOutOfOrder      = errors.New("pricing out of order")
+	errIDOutOfOrder         = errors.New("ID out of order")
+	errDuplication          = errors.New("price duplication")
+	errIDDuplication        = errors.New("id duplication")
+	errPeriodUnset          = errors.New("funding rate period is unset")
+	errNotEnoughLiquidity   = errors.New("not enough liquidity")
+	errChecksumStringNotSet = errors.New("checksum string not set")
 )
 
 var service = Service{
@@ -107,6 +108,10 @@ type Base struct {
 	// should remove any items that are outside of this scope. Bittrex and
 	// Kraken utilise this field.
 	MaxDepth int
+	// ChecksumStringRequired defines if the checksum is built from the raw
+	// string representations of the price and amount. This helps alleviate any
+	// potential rounding issues.
+	ChecksumStringRequired bool
 }
 
 type byOBPrice []Item
@@ -116,17 +121,18 @@ func (a byOBPrice) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
 func (a byOBPrice) Less(i, j int) bool { return a[i].Price < a[j].Price }
 
 type options struct {
-	exchange         string
-	pair             currency.Pair
-	asset            asset.Item
-	lastUpdated      time.Time
-	lastUpdateID     int64
-	priceDuplication bool
-	isFundingRate    bool
-	VerifyOrderbook  bool
-	restSnapshot     bool
-	idAligned        bool
-	maxDepth         int
+	exchange               string
+	pair                   currency.Pair
+	asset                  asset.Item
+	lastUpdated            time.Time
+	lastUpdateID           int64
+	priceDuplication       bool
+	isFundingRate          bool
+	VerifyOrderbook        bool
+	restSnapshot           bool
+	idAligned              bool
+	checksumStringRequired bool
+	maxDepth               int
 }
 
 // Action defines a set of differing states required to implement an incoming

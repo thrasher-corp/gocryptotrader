@@ -878,12 +878,13 @@ func (k *Kraken) wsProcessOrderBook(channelData *WebsocketChannelData, data map[
 // wsProcessOrderBookPartial creates a new orderbook entry for a given currency pair
 func (k *Kraken) wsProcessOrderBookPartial(channelData *WebsocketChannelData, askData, bidData []interface{}) error {
 	base := orderbook.Base{
-		Pair:            channelData.Pair,
-		Asset:           asset.Spot,
-		VerifyOrderbook: k.CanVerifyOrderbook,
-		Bids:            make(orderbook.Items, len(bidData)),
-		Asks:            make(orderbook.Items, len(askData)),
-		MaxDepth:        channelData.MaxDepth,
+		Pair:                   channelData.Pair,
+		Asset:                  asset.Spot,
+		VerifyOrderbook:        k.CanVerifyOrderbook,
+		Bids:                   make(orderbook.Items, len(bidData)),
+		Asks:                   make(orderbook.Items, len(askData)),
+		MaxDepth:               channelData.MaxDepth,
+		ChecksumStringRequired: true,
 	}
 	// Kraken ob data is timestamped per price, GCT orderbook data is
 	// timestamped per entry using the highest last update time, we can attempt
