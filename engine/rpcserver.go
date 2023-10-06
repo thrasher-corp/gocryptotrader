@@ -4462,8 +4462,8 @@ func (s *RPCServer) GetFuturesPositionsSummary(ctx context.Context, r *gctrpc.Ge
 	if !stats.AverageOpenPrice.IsZero() {
 		positionStats.AverageOpenPrice = stats.AverageOpenPrice.String()
 	}
-	if !stats.PositionPNL.IsZero() {
-		positionStats.RecentPnl = stats.PositionPNL.String()
+	if !stats.UnrealisedPNL.IsZero() {
+		positionStats.RecentPnl = stats.UnrealisedPNL.String()
 	}
 	if !stats.MaintenanceMarginFraction.IsZero() {
 		positionStats.MarginFraction = stats.MaintenanceMarginFraction.String()

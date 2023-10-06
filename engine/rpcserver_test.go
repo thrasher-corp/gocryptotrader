@@ -70,7 +70,7 @@ func (f fExchange) GetFuturesPositionSummary(context.Context, *futures.PositionS
 		MarkPrice:                    leet,
 		CurrentSize:                  leet,
 		AverageOpenPrice:             leet,
-		PositionPNL:                  leet,
+		UnrealisedPNL:                leet,
 		MaintenanceMarginFraction:    leet,
 		FreeCollateral:               leet,
 		TotalCollateral:              leet,

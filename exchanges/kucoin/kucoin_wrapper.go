@@ -1825,40 +1825,56 @@ func (ku *Kucoin) GetFuturesPositionSummary(ctx context.Context, r *futures.Posi
 	if err != nil {
 		return nil, err
 	}
+	marginType := margin.Isolated
+	if pos.CrossMode {
+		marginType = margin.Multi
+	}
+	contracts, err := ku.GetFuturesContractDetails(ctx, r.Asset)
+	if err != nil {
+		return nil, err
+	}
+	var multiplier, contractSize float64
+	var settlementType futures.ContractSettlementType
+	for i := range contracts {
+		if !contracts[i].Name.Equal(fPair) {
+			continue
+		}
+		multiplier = contracts[i].Multiplier
+		contractSize = multiplier * pos.CurrentQty
+		settlementType = contracts[i].SettlementType
+	}
+
+	ao, err := ku.GetFuturesAccountOverview(ctx, fPair.String())
+	if err != nil {
+		return nil, err
+	}
+
 	return &futures.PositionSummary{
 		Pair:                         r.Pair,
 		Asset:                        r.Asset,
-		MarginType:                   0,
-		CollateralMode:               0,
-		Currency:                     currency.Code{},
-		AvailableEquity:              decimal.Decimal{},
-		CashBalance:                  decimal.Decimal{},
-		DiscountEquity:               decimal.Decimal{},
-		EquityUSD:                    decimal.Decimal{},
-		IsolatedEquity:               decimal.Decimal{},
-		IsolatedLiabilities:          decimal.Decimal{},
-		IsolatedUPL:                  decimal.Decimal{},
-		NotionalLeverage:             decimal.Decimal{},
-		TotalEquity:                  decimal.Decimal{},
-		StrategyEquity:               decimal.Decimal{},
-		IsolatedMargin:               decimal.Decimal{},
-		NotionalSize:                 decimal.Decimal{},
-		Leverage:                     decimal.Decimal{},
-		MaintenanceMarginRequirement: decimal.Decimal{},
-		InitialMarginRequirement:     decimal.Decimal{},
-		EstimatedLiquidationPrice:    decimal.Decimal{},
-		CollateralUsed:               decimal.Decimal{},
-		MarkPrice:                    decimal.Decimal{},
-		CurrentSize:                  decimal.Decimal{},
-		ContractSize:                 decimal.Decimal{},
-		ContractMultiplier:           decimal.Decimal{},
-		ContractSettlementType:       0,
-		AverageOpenPrice:             decimal.Decimal{},
-		PositionPNL:                  decimal.Decimal{},
-		MaintenanceMarginFraction:    decimal.Decimal{},
-		FreeCollateral:               decimal.Decimal{},
-		TotalCollateral:              decimal.Decimal{},
-		FrozenBalance:                decimal.Decimal{},
-		EquityOfCurrency:             decimal.Decimal{},
+		MarginType:                   marginType,
+		CollateralMode:               collateral.MultiMode,
+		Currency:                     currency.NewCode(pos.SettleCurrency),
+		StartDate:                    pos.OpeningTimestamp.Time(),
+		AvailableEquity:              decimal.NewFromFloat(ao.AccountEquity),
+		MarginBalance:                decimal.NewFromFloat(ao.MarginBalance),
+		NotionalSize:                 decimal.NewFromFloat(pos.MarkValue),
+		Leverage:                     decimal.NewFromFloat(pos.RealLeverage),
+		MaintenanceMarginRequirement: decimal.NewFromFloat(pos.MaintMarginReq),
+		InitialMarginRequirement:     decimal.NewFromFloat(pos.PosInit),
+		EstimatedLiquidationPrice:    decimal.NewFromFloat(pos.LiquidationPrice),
+		CollateralUsed:               decimal.NewFromFloat(pos.PosCost),
+		MarkPrice:                    decimal.NewFromFloat(pos.MarkPrice),
+		CurrentSize:                  decimal.NewFromFloat(pos.CurrentQty),
+		ContractSize:                 decimal.NewFromFloat(contractSize),
+		ContractMultiplier:           decimal.NewFromFloat(multiplier),
+		ContractSettlementType:       settlementType,
+		AverageOpenPrice:             decimal.NewFromFloat(pos.AvgEntryPrice),
+		UnrealisedPNL:                decimal.NewFromFloat(pos.UnrealisedPnl),
+		RealisedPNL:                  decimal.NewFromFloat(pos.RealisedPnl),
+		MaintenanceMarginFraction:    decimal.NewFromFloat(pos.MaintMarginReq),
+		FreeCollateral:               decimal.NewFromFloat(ao.AvailableBalance),
+		TotalCollateral:              decimal.NewFromFloat(ao.AccountEquity),
+		FrozenBalance:                decimal.NewFromFloat(ao.FrozenFunds),
 	}, nil
 }
