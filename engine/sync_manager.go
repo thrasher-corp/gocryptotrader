@@ -610,6 +610,13 @@ func (m *syncManager) syncOrderbook(c *currencyPairSyncAgent, e exchange.IBotExc
 		e.SupportsREST() &&
 		time.Since(s.LastUpdated) > m.config.TimeoutWebsocket &&
 		time.Since(c.Created) > m.config.TimeoutWebsocket {
+		if w, err := e.GetWebsocket(); err != nil && w.IsConnected() {
+			// With an active websocket connection, we can assume the orderbook
+			// is being updated via the websocket connection, It could be very
+			// illiquid. There is no need to fall over to rest.
+			s.LastUpdated = time.Now()
+			return
+		}
 		// Downgrade to REST
 		s.IsUsingWebsocket = false
 		s.IsUsingREST = true
