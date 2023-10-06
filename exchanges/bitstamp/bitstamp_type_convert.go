@@ -44,7 +44,7 @@ func (t *microTimestamp) UnmarshalJSON(data []byte) error {
 		return err
 	}
 
-	if len(s) >= 10 && strconv.IntSize == 32 {
+	if strconv.IntSize == 32 && len(s) >= 10 {
 		i, err := strconv.ParseInt(s, 10, 64)
 		if err != nil {
 			return err
