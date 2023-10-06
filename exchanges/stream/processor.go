@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"sync"
 
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
@@ -73,6 +74,9 @@ func NewProcessor(maxChanBuffer int, dataHandler chan interface{}) (*Processor, 
 // will block until a slot is available. This tries to alleviate websocket
 // reader blocking issues.
 func (w *Processor) QueueFunction(key Key, fn func() error) error {
+	if w == nil {
+		return fmt.Errorf("%T: %w", w, common.ErrNilPointer)
+	}
 	if key == (Key{}) {
 		return errKeyEmpty
 	}

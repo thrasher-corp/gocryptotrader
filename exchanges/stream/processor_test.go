@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
 
@@ -49,8 +50,14 @@ func TestNewProcessor(t *testing.T) {
 func TestProcessorQueueFunction(t *testing.T) {
 	t.Parallel()
 
+	var proc *Processor
+	err := proc.QueueFunction(Key{}, nil)
+	if !errors.Is(err, common.ErrNilPointer) {
+		t.Fatalf("received: %v, expected: %v", err, common.ErrNilPointer)
+	}
+
 	happyDataHandler := make(chan interface{}) // unbuffered to block error
-	proc, err := NewProcessor(defaultChannelBufferSize, happyDataHandler)
+	proc, err = NewProcessor(defaultChannelBufferSize, happyDataHandler)
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: %v, expected: %v", err, nil)
 	}
