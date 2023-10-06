@@ -1123,13 +1123,17 @@ func (k *Kraken) wsProcessOrderBookUpdate(channelData *WebsocketChannelData, ask
 func validateCRC32(b *orderbook.Base, token uint32) error {
 	var checkStr strings.Builder
 	for i := 0; i < 10 && i < len(b.Asks); i++ {
-		checkStr.WriteString(trim(b.Asks[i].StrPrice))
-		checkStr.WriteString(trim(b.Asks[i].StrAmount))
+		_, err := checkStr.WriteString(trim(b.Asks[i].StrPrice + trim(b.Asks[i].StrAmount)))
+		if err != nil {
+			return err
+		}
 	}
 
 	for i := 0; i < 10 && i < len(b.Bids); i++ {
-		checkStr.WriteString(trim(b.Bids[i].StrPrice))
-		checkStr.WriteString(trim(b.Bids[i].StrAmount))
+		_, err := checkStr.WriteString(trim(b.Bids[i].StrPrice) + trim(b.Bids[i].StrAmount))
+		if err != nil {
+			return err
+		}
 	}
 
 	if check := crc32.ChecksumIEEE([]byte(checkStr.String())); check != token {
