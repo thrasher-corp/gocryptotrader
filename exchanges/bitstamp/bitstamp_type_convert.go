@@ -44,13 +44,22 @@ func (t *microTimestamp) UnmarshalJSON(data []byte) error {
 		return err
 	}
 
+	if strconv.IntSize == 32 {
+		i, err := strconv.ParseInt(s, 10, 64)
+		if err != nil {
+			return err
+		}
+		*t = microTimestamp(time.UnixMicro(i))
+		return nil
+	}
+
+	// Has Fast path optimisation when int == 64
 	i, err := strconv.Atoi(s)
 	if err != nil {
 		return err
 	}
 
 	*t = microTimestamp(time.UnixMicro(int64(i)))
-
 	return nil
 }
 
