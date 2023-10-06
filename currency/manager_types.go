@@ -15,7 +15,7 @@ type PairsManager struct {
 	LastUpdated                int64       `json:"lastUpdated,omitempty"`
 	Pairs                      FullStore   `json:"pairs"`
 	matcher                    map[key]*Pair
-	m                          sync.RWMutex
+	mutex                      sync.RWMutex
 }
 
 // FullStore holds all supported asset types with the enabled and available
