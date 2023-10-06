@@ -1878,3 +1878,25 @@ func (ku *Kucoin) GetFuturesPositionSummary(ctx context.Context, r *futures.Posi
 		FrozenBalance:                decimal.NewFromFloat(ao.FrozenFunds),
 	}, nil
 }
+
+func (ku *Kucoin) GetFuturesPositionOrders(ctx context.Context, r *futures.PositionsRequest) ([]futures.PositionResponse, error) {
+	if r == nil {
+		return nil, fmt.Errorf("%w HistoricalRatesRequest", common.ErrNilPointer)
+	}
+	if r.Asset != asset.Futures {
+		return nil, fmt.Errorf("%w %v", futures.ErrNotPerpetualFuture, r.Asset)
+	}
+	if len(r.Pairs) == 0 {
+		return nil, currency.ErrCurrencyPairEmpty
+	}
+	err := common.StartEndTimeCheck(r.StartDate, r.EndDate)
+	if err != nil {
+		return nil, err
+	}
+	positionOrders, err := ku.GetFuturesOrders(ctx, "", fPair.String(), "", "", r.StartDate, r.EndDate)
+	if err != nil {
+		return nil, err
+	}
+
+	return nil, nil
+}
