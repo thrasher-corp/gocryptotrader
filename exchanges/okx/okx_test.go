@@ -2532,7 +2532,7 @@ func TestOrderPushData(t *testing.T) {
 				case 3:
 					assert.Equal(t, "620258920632008725", v.OrderID, "OrderID")
 					assert.Equal(t, 10.0, v.QuoteAmount, "QuoteAmount")
-					assert.Equal(t, 0.0, v.Amount, "Amount")
+					assert.Equal(t, 0.00038127046945832905, v.Amount, "Amount")
 					assert.Equal(t, 0.010000249968, v.Fee, "Fee")
 					assert.Equal(t, 0.0, v.RemainingAmount, "RemainingAmount")
 					assert.Equal(t, 0.00038128, v.ExecutedAmount, "ExecutedAmount")
