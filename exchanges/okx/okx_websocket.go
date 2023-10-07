@@ -1055,22 +1055,33 @@ func (ok *Okx) wsProcessOrders(respRaw []byte) error {
 		if err != nil {
 			return err
 		}
+
 		avgPrice := response.Data[x].AveragePrice.Float64()
 		orderAmount := response.Data[x].Size.Float64()
+		execAmount := response.Data[x].AccumulatedFillSize.Float64()
+
 		var quoteAmount float64
 		if response.Data[x].SizeType == "quote_ccy" {
 			// Size is quote amount.
 			quoteAmount = orderAmount
-			if avgPrice > 0 {
-				orderAmount /= avgPrice
+			if orderStatus == order.Filled {
+				// We prefer to take execAmount over calculating from quoteAmount / avgPrice
+				// because it avoids rounding issues
+				orderAmount = execAmount
 			} else {
-				// Size not in Base, and we can't derive a sane value for it
-				orderAmount = 0
+				if avgPrice > 0 {
+					orderAmount /= avgPrice
+				} else {
+					// Size not in Base, and we can't derive a sane value for it
+					orderAmount = 0
+				}
 			}
 		}
+
 		var remainingAmount float64
-		execAmount := response.Data[x].AccumulatedFillSize.Float64()
-		if orderAmount > 0 {
+		// Float64 rounding may lead to execAmount > orderAmount by a tiny fraction
+		// noting that the order can be fully executed before it's marked as status Filled
+		if orderStatus != order.Filled && orderAmount > execAmount {
 			remainingAmount = orderAmount - execAmount
 		}
 
