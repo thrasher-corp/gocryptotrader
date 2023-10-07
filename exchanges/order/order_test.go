@@ -2053,7 +2053,7 @@ func TestSideUnmarshal(t *testing.T) {
 	var s Side
 	assert.Nil(t, s.UnmarshalJSON([]byte(`"SELL"`)), "Quoted valid side okay")
 	assert.Equal(t, Sell, s, "Correctly set order Side")
-	assert.ErrorIs(t, s.UnmarshalJSON([]byte(`"STEAL"`)), errUnrecognisedOrderSide, "Quoted invalid side errors")
+	assert.ErrorIs(t, s.UnmarshalJSON([]byte(`"STEAL"`)), ErrSideIsInvalid, "Quoted invalid side errors")
 	var jErr *json.UnmarshalTypeError
 	assert.ErrorAs(t, s.UnmarshalJSON([]byte(`14`)), &jErr, "non-string valid json is rejected")
 }
