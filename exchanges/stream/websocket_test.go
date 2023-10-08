@@ -574,6 +574,40 @@ func TestResubscribe(t *testing.T) {
 	assert.NoError(t, ws.ResubscribeToChannel(&channel[0]), "Resubscribe should not error now the channel is subscribed")
 }
 
+// TestPendingSubscriptions tests AddPendingSubscription and IsPending
+func TestPendingSubscriptions(t *testing.T) {
+	t.Parallel()
+	ws := New()
+
+	c := &ChannelSubscription{Key: 42, Channel: "Gophers"}
+	assert.ErrorIs(t, ws.SetSubscriptionPending(c), ErrSubscriptionNotFound, "Setting an imaginary sub should error")
+
+	assert.NoError(t, ws.AddPendingSubscription(c), "Adding first subscription should not error")
+	found := ws.GetSubscription(42)
+	assert.NotNil(t, found, "Should find the subscription")
+	assert.True(t, found.pending, "Subscription should be pending")
+	assert.ErrorIs(t, ws.AddPendingSubscription(c), ErrSubscriptionPending, "Adding an already pending sub should error")
+	assert.ErrorIs(t, ws.SetSubscriptionPending(c), ErrSubscriptionPending, "Setting an already pending sub should error")
+
+	ws.AddSuccessfulSubscriptions(*c)
+	found = ws.GetSubscription(42)
+	assert.NotNil(t, found, "Should find the subscription")
+	assert.False(t, found.pending, "Subscription should no longer be pending")
+}
+
+// TestRemoveSubscription tests removing a subscription
+func TestRemoveSubscription(t *testing.T) {
+	t.Parallel()
+	ws := New()
+
+	c := &ChannelSubscription{Key: 42, Channel: "Unite!"}
+	assert.NoError(t, ws.AddPendingSubscription(c), "Adding first subscription should not error")
+	assert.NotNil(t, ws.GetSubscription(42), "Added subscription should be findable")
+
+	ws.RemoveSubscription(c)
+	assert.Nil(t, ws.GetSubscription(42), "Remove should have removed the sub")
+}
+
 // TestConnectionMonitorNoConnection logic test
 func TestConnectionMonitorNoConnection(t *testing.T) {
 	t.Parallel()

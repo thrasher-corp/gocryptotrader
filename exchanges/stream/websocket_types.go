@@ -22,7 +22,7 @@ const (
 	UnhandledMessage                   = " - Unhandled websocket message: "
 )
 
-type subscriptionMap map[any]ChannelSubscription
+type subscriptionMap map[any]*ChannelSubscription
 
 // Websocket defines a return type for websocket connections via the interface
 // wrapper for routine processing

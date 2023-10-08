@@ -45,6 +45,7 @@ type ChannelSubscription struct {
 	Currency currency.Pair
 	Asset    asset.Item
 	Params   map[string]interface{}
+	pending  bool
 }
 
 // ConnectionSetup defines variables for an individual stream connection
