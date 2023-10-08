@@ -35,7 +35,7 @@ func setFeeBuilder() *exchange.FeeBuilder {
 	return &exchange.FeeBuilder{
 		Amount:        5,
 		FeeType:       exchange.CryptocurrencyTradeFee,
-		Pair:          currency.NewPair(currency.BTC, currency.LTC),
+		Pair:          currency.NewPair(currency.LTC, currency.BTC),
 		PurchasePrice: 1800,
 	}
 }
@@ -151,6 +151,46 @@ func TestGetFee(t *testing.T) {
 	feeBuilder.FiatCurrency = currency.HKD
 	if _, err := b.GetFee(context.Background(), feeBuilder); err != nil {
 		t.Error(err)
+	}
+}
+
+func TestGetAccountTradingFee(t *testing.T) {
+	t.Parallel()
+
+	if !mockTests {
+		sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	}
+
+	fee, err := b.GetAccountTradingFee(context.Background(), currency.NewPair(currency.LTC, currency.BTC))
+	if assert.NoError(t, err, "GetAccountTradingFee should not error") {
+		if mockTests {
+			assert.Positive(t, fee.Fees.Maker, "Maker should be positive")
+			assert.Positive(t, fee.Fees.Taker, "Taker should be positive")
+		}
+		assert.NotEmpty(t, fee.Symbol, "Symbol should not be empty")
+		assert.Equal(t, fee.Symbol, "ltcbtc", "Symbol should be correct")
+	}
+
+}
+
+func TestGetAccountTradingFees(t *testing.T) {
+	t.Parallel()
+
+	if !mockTests {
+		sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	}
+
+	fees, err := b.GetAccountTradingFees(context.Background())
+	if assert.NoError(t, err, "GetAccountTradingFee should not error") {
+
+		if assert.Positive(t, len(fees), "Should get back multiple fees") {
+			fee := fees[0]
+			assert.NotEmpty(t, fee.Symbol, "Should get back a symbol")
+			if mockTests {
+				assert.Positive(t, fee.Fees.Maker, "Maker should be positive")
+				assert.Positive(t, fee.Fees.Taker, "Taker should be positive")
+			}
+		}
 	}
 }
 
