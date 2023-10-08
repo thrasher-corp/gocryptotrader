@@ -2,14 +2,17 @@ package coinbaseinternational
 
 import (
 	"context"
+	"errors"
 	"log"
 	"os"
 	"testing"
 	"time"
 
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 )
@@ -48,6 +51,7 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		log.Fatal(err)
 	}
+	co.SetClientProxyAddress("http://ci:bE8OJv9gknuYbuiseFLL@35.77.58.161:3128")
 	os.Exit(m.Run())
 }
 
@@ -185,4 +189,135 @@ func TestGetPortfolioDetails(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
+}
+
+func TestGetPortfolioSummary(t *testing.T) {
+	t.Parallel()
+	co.Verbose = true
+	_, err := co.GetPortfolioSummary(context.Background(), "", "5189861793641175")
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestListPortfolioBalances(t *testing.T) {
+	t.Parallel()
+	co.Verbose = true
+	_, err := co.ListPortfolioBalances(context.Background(), "892e8c7c-e979-4cad-b61b-55a197932cf1", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestGetPortfolioAssetBalance(t *testing.T) {
+	t.Parallel()
+	co.Verbose = true
+	_, err := co.GetPortfolioAssetBalance(context.Background(), "892e8c7c-e979-4cad-b61b-55a197932cf1", "", currency.BTC)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestPortfolioPosition(t *testing.T) {
+	t.Parallel()
+	co.Verbose = true
+	_, err := co.ListPortfolioPositions(context.Background(), "892e8c7c-e979-4cad-b61b-55a197932cf1", "")
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetPortfolioInstrumentPosition(t *testing.T) {
+	t.Parallel()
+	co.Verbose = true
+	cp, err := currency.NewPairFromString("BTC-PERP")
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = co.GetPortfolioInstrumentPosition(context.Background(), "892e8c7c-e979-4cad-b61b-55a197932cf1", "", cp)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestListPortfolioFills(t *testing.T) {
+	t.Parallel()
+	_, err := co.ListPortfolioFills(context.Background(), "892e8c7c-e979-4cad-b61b-55a197932cf1", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestListMatchingTransfers(t *testing.T) {
+	t.Parallel()
+	_, err := co.ListMatchingTransfers(context.Background(), "", "", "", "ALL", 10, 0, time.Now().Add(-time.Hour*24*10), time.Now())
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetTransfer(t *testing.T) {
+	t.Parallel()
+	_, err := co.GetTransfer(context.Background(), "12345")
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestWithdrawToCryptoAddress(t *testing.T) {
+	t.Parallel()
+	_, err := co.WithdrawToCryptoAddress(context.Background(), nil)
+	if !errors.Is(err, common.ErrNilPointer) {
+		t.Errorf("expected %v, got %v", common.ErrNilPointer, err)
+	}
+	_, err = co.WithdrawToCryptoAddress(context.Background(), &WithdrawCryptoParams{
+		Portfolio:       "892e8c7c-e979-4cad-b61b-55a197932cf1",
+		AssetIdentifier: "291efb0f-2396-4d41-ad03-db3b2311cb2c",
+		Amount:          1200,
+		Address:         "1234HGJHGHGHGJ",
+	})
+	if !errors.Is(err, common.ErrNilPointer) {
+		t.Errorf("expected %v, got %v", common.ErrNilPointer, err)
+	}
+}
+
+func TestCreateCryptoAddress(t *testing.T) {
+	t.Parallel()
+	_, err := co.CreateCryptoAddress(context.Background(), nil)
+	if !errors.Is(err, common.ErrNilPointer) {
+		t.Errorf("expected %v, got %v", common.ErrNilPointer, err)
+	}
+	_, err = co.CreateCryptoAddress(context.Background(), &CryptoAddressParam{
+		Portfolio:       "892e8c7c-e979-4cad-b61b-55a197932cf1",
+		AssetIdentifier: "291efb0f-2396-4d41-ad03-db3b2311cb2c",
+		NetworkArnID:    "networks/ethereum-mainnet/assets/313ef8a9-ae5a-5f2f-8a56-572c0e2a4d5a",
+	})
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestFetchTradablePairs(t *testing.T) {
+	t.Parallel()
+	_, err := co.FetchTradablePairs(context.Background(), asset.Spot)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestUpdateTradablePairs(t *testing.T) {
+	t.Parallel()
+	err := co.UpdateTradablePairs(context.Background(), true)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestWsConnect(t *testing.T) {
+	t.Parallel()
+	err := co.WsConnect()
+	if err != nil {
+		t.Fatal(err)
+	}
+	time.Sleep(time.Second * 23)
 }

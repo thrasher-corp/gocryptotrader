@@ -254,25 +254,52 @@
         "currencyPairs": {
             "bypassConfigFormatUpgrades": false,
             "requestFormat": {
-            "uppercase": true
+                "uppercase": true,
+                "delimiter": "-"
+
             },
             "configFormat": {
-            "uppercase": true,
-            "delimiter": "-"
+                "uppercase": true,
+                "delimiter": "-"
             },
             "useGlobalFormat": true,
-            "pairs": {}
+            "assetTypes": [
+                "spot"
+            ],
+            "pairs": {
+                "spot":{
+                    "assetEnabled":true,
+                    "enabled": "XRP-PERP,ETH-PERP,BTC-PERP,LTC-PERP",
+                    "available": "XRP-PERP,ETH-PERP,BTC-PERP,LTC-PERP"
+                }
+            }
         },
         "api": {
-            "authenticatedSupport": false,
-            "authenticatedWebsocketApiSupport": false,
+            "authenticatedSupport": true,
+            "authenticatedWebsocketApiSupport": true,
             "credentials": {
             "key": "Key",
             "secret": "Secret"
-            },
+            },  
             "urlEndpoints": null
         },
-        "features": null,
+        "features": {
+            "supports": {
+                "restAPI": true,
+                "restCapabilities": {
+                    "autoPairUpdates": true
+                },
+                "websocketAPI": true,
+                "websocketCapabilities": {}
+            },
+            "enabled": {
+                "autoPairUpdates": true,
+                "websocketAPI": true,
+                "saveTradeData": false,
+                "tradeFeed": false,
+                "fillsFeed": false
+            }
+        },
         "orderbook": {
             "verificationBypass": false,
             "websocketBufferLimit": 0,

@@ -35,8 +35,12 @@ const (
 )
 
 var (
-	errArgumentMustBeInterface = errors.New("argument must be an interface")
-	errMissingPortfolioID      = errors.New("missing portfolio identification")
+	errArgumentMustBeInterface   = errors.New("argument must be an interface")
+	errMissingPortfolioID        = errors.New("missing portfolio identification")
+	errNetworkArnID              = errors.New("identifies the blockchain network")
+	errMissingTransferID         = errors.New("missing transfer ID")
+	errAddressIsRequired         = errors.New("err: missing address")
+	errAssetIdentifierIsRequired = errors.New("err: asset identified is required")
 )
 
 // Start implementing public and private exchange API funcs below
@@ -217,7 +221,7 @@ func (co *CoinbaseInternational) CancelTradeOrder(ctx context.Context, orderID s
 	return &resp, co.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodDelete, "orders/"+orderID, nil, nil, &resp, true)
 }
 
-//  ----- 	------------------------------- ------------------------------- ------------------------------- ------------------------------- ------------------------------- ------------------------------- ------------------------------- -------------------------------
+//  ----- 	------------------------------- ------------------------------- ------------------------------
 
 // GetAllUserPortfolios returns all of the user's portfolios.
 func (co *CoinbaseInternational) GetAllUserPortfolios(ctx context.Context) ([]PortfolioItem, error) {
@@ -234,6 +238,184 @@ func (co *CoinbaseInternational) GetPortfolioDetails(ctx context.Context, portfo
 		return nil, errMissingPortfolioID
 	}
 	return &resp, co.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "portfolios/"+portfolioID+"/detail", nil, nil, &resp, true)
+}
+
+// GetPortfolioSummary retrieves the high level overview of a portfolio.
+func (co *CoinbaseInternational) GetPortfolioSummary(ctx context.Context, portfolioUUID, portfolioID string) (*PortfolioSummary, error) {
+	var resp PortfolioSummary
+	var path string
+	switch {
+	case portfolioUUID != "":
+		path = "portfolios/" + portfolioUUID + "/summary"
+	case portfolioID != "":
+		path = "portfolios/" + portfolioID + "/summary"
+	default:
+		return nil, errMissingPortfolioID
+	}
+	return &resp, co.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, nil, &resp, true)
+}
+
+// ListPortfolioBalances returns all of the balances for a given portfolio.
+func (co *CoinbaseInternational) ListPortfolioBalances(ctx context.Context, portfolioUUID, portfolioID string) ([]PortfolioBalance, error) {
+	var resp []PortfolioBalance
+	var path string
+	switch {
+	case portfolioUUID != "":
+		path = "portfolios/" + portfolioUUID + "/balances"
+	case portfolioID != "":
+		path = "portfolios/" + portfolioID + "/balances"
+	default:
+		return nil, errMissingPortfolioID
+	}
+	return resp, co.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, nil, &resp, true)
+}
+
+// GetPortfolioAssetBalance retrieves the balance for a given portfolio and asset.
+func (co *CoinbaseInternational) GetPortfolioAssetBalance(ctx context.Context, portfolioUUID, portfolioID string, ccy currency.Code) (*PortfolioBalance, error) {
+	var resp PortfolioBalance
+	if ccy.IsEmpty() {
+		return nil, currency.ErrCurrencyCodeEmpty
+	}
+	var path string
+	switch {
+	case portfolioUUID != "":
+		path = "portfolios/" + portfolioUUID + "/balances/" + ccy.String()
+	case portfolioID != "":
+		path = "portfolios/" + portfolioID + "/balances/" + ccy.String()
+	default:
+		return nil, errMissingPortfolioID
+	}
+	return &resp, co.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, nil, &resp, true)
+}
+
+// ListPortfolioPositions returns all of the positions for a given portfolio.
+func (co *CoinbaseInternational) ListPortfolioPositions(ctx context.Context, portfolioUUID, portfolioID string) ([]PortfolioPosition, error) {
+	var resp []PortfolioPosition
+	var path string
+	switch {
+	case portfolioUUID != "":
+		path = "portfolios/" + portfolioUUID + "/positions"
+	case portfolioID != "":
+		path = "portfolios/" + portfolioID + "/positions"
+	default:
+		return nil, errMissingPortfolioID
+	}
+	return resp, co.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, nil, &resp, true)
+}
+
+// GetPortfolioInstrumentPosition retrieves the position for a given portfolio and symbol.
+func (co *CoinbaseInternational) GetPortfolioInstrumentPosition(ctx context.Context, portfolioUUID, portfolioID string, instrument currency.Pair) (*PortfolioPosition, error) {
+	var resp PortfolioPosition
+	if instrument.IsEmpty() {
+		return nil, currency.ErrCurrencyPairEmpty
+	}
+	var path string
+	switch {
+	case portfolioUUID != "":
+		path = "portfolios/" + portfolioUUID + "/positions/" + instrument.String()
+	case portfolioID != "":
+		path = "portfolios/" + portfolioID + "/positions/" + instrument.String()
+	default:
+		return nil, errMissingPortfolioID
+	}
+	return &resp, co.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, nil, &resp, true)
+}
+
+// ListPortfolioFills returns all of the fills for a given portfolio.
+func (co *CoinbaseInternational) ListPortfolioFills(ctx context.Context, portfolioUUID, portfolioID string) ([]PortfolioFill, error) {
+	var resp []PortfolioFill
+	var path string
+	switch {
+	case portfolioUUID != "":
+		path = "portfolios/" + portfolioUUID + "/fills"
+	case portfolioID != "":
+		path = "portfolios/" + portfolioID + "/fills"
+	default:
+		return nil, errMissingPortfolioID
+	}
+	return resp, co.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, nil, &resp, true)
+}
+
+// ----------------------------------------------------------------
+
+// ListMatchingTransfers represents a list of transfer based on the query
+// type: possible values DEPOSIT, WITHDRAW, REBATE, STIPEND
+// status: possible value PROCESSED, NEW, FAILED, STARTED
+
+func (co *CoinbaseInternational) ListMatchingTransfers(ctx context.Context, portfolioUUID, portfolioID, status, transferType string, resultLimit, resultOffset int64, timeFrom, timeTo time.Time) ([]Transfers, error) {
+	var resp []Transfers
+	params := url.Values{}
+	switch {
+	case portfolioUUID != "":
+		params.Set("portfolio", portfolioUUID)
+	case portfolioID != "":
+		params.Set("portfolio", portfolioID)
+	}
+	if resultOffset > 0 {
+		params.Set("result_offset", strconv.FormatInt(resultOffset, 10))
+	}
+	if resultLimit > 0 {
+		params.Set("result_limit", strconv.FormatInt(resultLimit, 10))
+	}
+	if status != "" {
+		params.Set("status", status)
+	}
+	if transferType != "" {
+		params.Set("type", status)
+	}
+	if !timeFrom.IsZero() {
+		params.Set("time_from", timeFrom.String())
+	}
+	if !timeTo.IsZero() {
+		params.Set("time_to", timeTo.String())
+	}
+	return resp, co.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "transfers", params, nil, &resp, true)
+}
+
+// GetTransfer returns a single transfer instance
+func (co *CoinbaseInternational) GetTransfer(ctx context.Context, transferID string) (*FundTransfer, error) {
+	if transferID == "" {
+		return nil, errMissingTransferID
+	}
+	var resp FundTransfer
+	return &resp, co.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "transfers/"+transferID, nil, nil, &resp, true)
+}
+
+// WithdrawToCryptoAddress withdraws a crypto fund to crypto address
+func (co *CoinbaseInternational) WithdrawToCryptoAddress(ctx context.Context, arg *WithdrawCryptoParams) (*WithdrawalResponse, error) {
+	if arg == nil {
+		return nil, common.ErrNilPointer
+	}
+	if arg.Address == "" {
+		return nil, errAddressIsRequired
+	}
+	if arg.Amount < 0 {
+		return nil, order.ErrAmountIsInvalid
+	}
+	if arg.AssetIdentifier == "" {
+		return nil, errAssetIdentifierIsRequired
+	}
+	var resp WithdrawalResponse
+	return &resp, co.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "transfers/withdraw", nil, arg, &resp, true)
+}
+
+// CreateCryptoAddress created a new crypto address
+func (co *CoinbaseInternational) CreateCryptoAddress(ctx context.Context, arg *CryptoAddressParam) (*CryptoAddressInfo, error) {
+	if arg == nil {
+		return nil, common.ErrNilPointer
+	}
+	if arg.AssetIdentifier == "" {
+		return nil, errAssetIdentifierIsRequired
+	}
+	if arg.Portfolio == "" {
+		return nil, errMissingPortfolioID
+	}
+	if arg.NetworkArnID == "" {
+		return nil, errNetworkArnID
+	}
+	var resp CryptoAddressInfo
+	return &resp, co.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "transfers/address", nil, arg, &resp, true)
+
 }
 
 // SendHTTPRequest sends a public HTTP request.

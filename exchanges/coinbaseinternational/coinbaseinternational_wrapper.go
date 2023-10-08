@@ -19,6 +19,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/buffer"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
@@ -72,21 +73,12 @@ func (co *CoinbaseInternational) SetDefaults() {
 	// contracts require a dash as a delimiter rather than an underscore. You
 	// can use this example below:
 
-	fmt1 := currency.PairStore{
-		RequestFormat: &currency.PairFormat{Uppercase: true},
-		ConfigFormat:  &currency.PairFormat{Uppercase: true},
+	fmt := currency.PairStore{
+		RequestFormat: &currency.PairFormat{Uppercase: true, Delimiter: currency.DashDelimiter},
+		ConfigFormat:  &currency.PairFormat{Uppercase: true, Delimiter: currency.DashDelimiter},
 	}
 
-	fmt2 := currency.PairStore{
-		RequestFormat: &currency.PairFormat{Uppercase: true},
-		ConfigFormat:  &currency.PairFormat{Uppercase: true, Delimiter: ":"},
-	}
-
-	err = co.StoreAssetPairFormat(asset.Spot, fmt1)
-	if err != nil {
-		log.Errorln(log.ExchangeSys, err)
-	}
-	err = co.StoreAssetPairFormat(asset.Margin, fmt2)
+	err = co.StoreAssetPairFormat(asset.Spot, fmt)
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
@@ -121,8 +113,8 @@ func (co *CoinbaseInternational) SetDefaults() {
 	// NOTE: SET THE URLs HERE
 	co.API.Endpoints = co.NewEndpoints()
 	co.API.Endpoints.SetDefaultEndpoints(map[exchange.URL]string{
-		exchange.RestSpot: coinbaseInternationalAPIURL,
-		// exchange.WebsocketSpot: coinbaseinternationalWSAPIURL,
+		exchange.RestSpot:      coinbaseInternationalAPIURL,
+		exchange.WebsocketSpot: coinbaseinternationalWSAPIURL,
 	})
 	co.Websocket = stream.New()
 	co.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
@@ -144,7 +136,32 @@ func (co *CoinbaseInternational) Setup(exch *config.Exchange) error {
 	if err != nil {
 		return err
 	}
-	return nil
+	wsRunningEndpoint, err := co.API.Endpoints.GetURL(exchange.WebsocketSpot)
+	if err != nil {
+		return err
+	}
+
+	err = co.Websocket.Setup(&stream.WebsocketSetup{
+		ExchangeConfig:        exch,
+		DefaultURL:            coinbaseinternationalWSAPIURL,
+		RunningURL:            wsRunningEndpoint,
+		Connector:             co.WsConnect,
+		Subscriber:            co.Subscribe,
+		Unsubscriber:          co.Unsubscribe,
+		GenerateSubscriptions: co.GenerateDefaultSubscriptions,
+		Features:              &co.Features.Supports.WebsocketCapabilities,
+		OrderbookBufferConfig: buffer.Config{
+			SortBuffer:            true,
+			SortBufferByUpdateIDs: true,
+		},
+	})
+	if err != nil {
+		return err
+	}
+	return co.Websocket.SetupNewConnection(stream.ConnectionSetup{
+		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
+		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
+	})
 }
 
 // Start starts the CoinbaseInternational go routine
@@ -185,8 +202,25 @@ func (co *CoinbaseInternational) Run(ctx context.Context) {
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs
 func (co *CoinbaseInternational) FetchTradablePairs(ctx context.Context, a asset.Item) (currency.Pairs, error) {
-	// Implement fetching the exchange available pairs if supported
-	return nil, nil
+	if !co.SupportsAsset(a) {
+		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, a)
+	}
+	instruments, err := co.GetInstruments(ctx)
+	if err != nil {
+		return nil, err
+	}
+	pairs := make([]currency.Pair, 0, len(instruments))
+	for x := range instruments {
+		if instruments[x].TradingState != "TRADING" {
+			continue
+		}
+		cp, err := currency.NewPairFromString(instruments[x].Symbol)
+		if err != nil {
+			return nil, err
+		}
+		pairs = append(pairs, cp)
+	}
+	return pairs, nil
 }
 
 // UpdateTradablePairs updates the exchanges available pairs and stores
