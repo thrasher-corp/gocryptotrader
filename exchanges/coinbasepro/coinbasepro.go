@@ -1000,7 +1000,7 @@ func getInternationalBankWithdrawalFee(c currency.Code) float64 {
 
 	if c.Equal(currency.USD) {
 		fee = 25
-	} else if c == currency.EUR {
+	} else if c.Equal(currency.EUR) {
 		fee = 0.15
 	}
 
@@ -1012,7 +1012,7 @@ func getInternationalBankDepositFee(c currency.Code) float64 {
 
 	if c.Equal(currency.USD) {
 		fee = 10
-	} else if c == currency.EUR {
+	} else if c.Equal(currency.EUR) {
 		fee = 0.15
 	}
 

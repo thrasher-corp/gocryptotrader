@@ -27,10 +27,37 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/binance"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/binanceus"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/bitfinex"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/bitflyer"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/bithumb"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/bitmex"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/bitstamp"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/bittrex"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/btcmarkets"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/btse"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/bybit"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/coinbasepro"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/coinut"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/exmo"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/gateio"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/gemini"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/hitbtc"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/huobi"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/itbit"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/kraken"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/kucoin"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/lbank"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/okcoin"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/okx"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/poloniex"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stats"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/yobit"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/zb"
 	"github.com/thrasher-corp/gocryptotrader/gctscript/vm"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
@@ -133,13 +160,7 @@ func (bot *Engine) SetSubsystem(subSystemName string, enable bool) error {
 	case OrderManagerName:
 		if enable {
 			if bot.OrderManager == nil {
-				bot.OrderManager, err = SetupOrderManager(
-					bot.ExchangeManager,
-					bot.CommunicationsManager,
-					&bot.ServicesWG,
-					bot.Config.OrderManager.Verbose,
-					bot.Config.OrderManager.ActivelyTrackFuturesPositions,
-					bot.Config.OrderManager.FuturesTrackingSeekDuration)
+				bot.OrderManager, err = SetupOrderManager(bot.ExchangeManager, bot.CommunicationsManager, &bot.ServicesWG, &bot.Config.OrderManager)
 				if err != nil {
 					return err
 				}
@@ -968,4 +989,87 @@ func genCert(targetDir string) error {
 
 	log.Infof(log.Global, "gRPC TLS key.pem and cert.pem files written to %s\n", targetDir)
 	return nil
+}
+
+// NewSupportedExchangeByName helps create a new exchange to be loaded that is
+// supported by GCT. This function will return an error if the exchange is not
+// supported.
+func NewSupportedExchangeByName(name string) (exchange.IBotExchange, error) {
+	switch strings.ToLower(name) {
+	case "binanceus":
+		return new(binanceus.Binanceus), nil
+	case "binance":
+		return new(binance.Binance), nil
+	case "bitfinex":
+		return new(bitfinex.Bitfinex), nil
+	case "bitflyer":
+		return new(bitflyer.Bitflyer), nil
+	case "bithumb":
+		return new(bithumb.Bithumb), nil
+	case "bitmex":
+		return new(bitmex.Bitmex), nil
+	case "bitstamp":
+		return new(bitstamp.Bitstamp), nil
+	case "bittrex":
+		return new(bittrex.Bittrex), nil
+	case "btc markets":
+		return new(btcmarkets.BTCMarkets), nil
+	case "btse":
+		return new(btse.BTSE), nil
+	case "bybit":
+		return new(bybit.Bybit), nil
+	case "coinut":
+		return new(coinut.COINUT), nil
+	case "exmo":
+		return new(exmo.EXMO), nil
+	case "coinbasepro":
+		return new(coinbasepro.CoinbasePro), nil
+	case "gateio":
+		return new(gateio.Gateio), nil
+	case "gemini":
+		return new(gemini.Gemini), nil
+	case "hitbtc":
+		return new(hitbtc.HitBTC), nil
+	case "huobi":
+		return new(huobi.HUOBI), nil
+	case "itbit":
+		return new(itbit.ItBit), nil
+	case "kraken":
+		return new(kraken.Kraken), nil
+	case "kucoin":
+		return new(kucoin.Kucoin), nil
+	case "lbank":
+		return new(lbank.Lbank), nil
+	case "okcoin":
+		return new(okcoin.Okcoin), nil
+	case "okx":
+		return new(okx.Okx), nil
+	case "poloniex":
+		return new(poloniex.Poloniex), nil
+	case "yobit":
+		return new(yobit.Yobit), nil
+	case "zb":
+		return new(zb.ZB), nil
+	default:
+		return nil, fmt.Errorf("'%s', %w", name, ErrExchangeNotFound)
+	}
+}
+
+// NewExchangeByNameWithDefaults returns a defaulted exchange by its name if it
+// exists. This will allocate a new exchange and setup the default config for it.
+// This will automatically fetch available pairs.
+func NewExchangeByNameWithDefaults(ctx context.Context, name string) (exchange.IBotExchange, error) {
+	exch, err := NewSupportedExchangeByName(name)
+	if err != nil {
+		return nil, err
+	}
+	defaultConfig, err := exch.GetDefaultConfig(ctx)
+	if err != nil {
+		return nil, err
+	}
+	err = exch.Setup(defaultConfig)
+	if err != nil {
+		return nil, err
+	}
+	return exch, nil
 }

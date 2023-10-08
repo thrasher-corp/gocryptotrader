@@ -698,14 +698,13 @@ func TestGetHistoricCandles(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	end = time.Now()
 	start = end.AddDate(0, 0, -30)
 	_, err = b.GetHistoricCandles(context.Background(), pair, asset.Spot, kline.OneHour, start, end)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	end = time.Now()
+	end = time.Now().Add(-kline.OneDay.Duration())
 	start = end.AddDate(0, 0, -1).Add(time.Minute * 5)
 	_, err = b.GetHistoricCandles(context.Background(), pair, asset.Spot, kline.FiveMin, start, end)
 	if err != nil {

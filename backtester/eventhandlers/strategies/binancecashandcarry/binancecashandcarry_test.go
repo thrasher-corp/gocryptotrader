@@ -19,6 +19,7 @@ import (
 	gctcommon "github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
 	gctkline "github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	gctorder "github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
@@ -216,7 +217,7 @@ func TestCreateSignals(t *testing.T) {
 	}
 
 	// targeting second case:
-	pos := []gctorder.Position{
+	pos := []futures.Position{
 		{
 			Status: gctorder.Open,
 		},
@@ -315,8 +316,8 @@ type portfolerino struct {
 }
 
 // GetPositions overrides default implementation
-func (p portfolerino) GetPositions(common.Event) ([]gctorder.Position, error) {
-	return []gctorder.Position{
+func (p portfolerino) GetPositions(common.Event) ([]futures.Position, error) {
+	return []futures.Position{
 		{
 			Exchange:           exchangeName,
 			Asset:              asset.Spot,

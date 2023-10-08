@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/gofrs/uuid"
+	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/dispatch"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -25,7 +26,7 @@ var (
 
 // Service holds ticker information for each individual exchange
 type Service struct {
-	Tickers  map[string]map[*currency.Item]map[*currency.Item]map[asset.Item]*Ticker
+	Tickers  map[key.ExchangePairAsset]*Ticker
 	Exchange map[string]uuid.UUID
 	mux      *dispatch.Mux
 	mu       sync.Mutex

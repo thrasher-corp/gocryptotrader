@@ -8,32 +8,6 @@ import (
 	"time"
 
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/binance"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/binanceus"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/bitfinex"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/bitflyer"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/bithumb"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/bitmex"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/bitstamp"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/bittrex"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/btcmarkets"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/btse"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/bybit"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/coinbasepro"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/coinut"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/exmo"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/gateio"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/gemini"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/hitbtc"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/huobi"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/itbit"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/kraken"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/lbank"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/okcoin"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/okx"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/poloniex"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/yobit"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/zb"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
@@ -147,74 +121,19 @@ func (m *ExchangeManager) GetExchangeByName(exchangeName string) (exchange.IBotE
 func (m *ExchangeManager) NewExchangeByName(name string) (exchange.IBotExchange, error) {
 	nameLower := strings.ToLower(name)
 	_, err := m.GetExchangeByName(nameLower)
-	if err != nil && !errors.Is(err, ErrExchangeNotFound) {
-		return nil, fmt.Errorf("exchange manager: %s %w", name, err)
-	}
-	if err == nil {
+	if err != nil {
+		if !errors.Is(err, ErrExchangeNotFound) {
+			return nil, fmt.Errorf("exchange manager: %s %w", name, err)
+		}
+	} else {
 		return nil, fmt.Errorf("exchange manager: %s %w", name, ErrExchangeAlreadyLoaded)
 	}
 
-	var exch exchange.IBotExchange
-	switch nameLower {
-	case "binanceus":
-		exch = new(binanceus.Binanceus)
-	case "binance":
-		exch = new(binance.Binance)
-	case "bitfinex":
-		exch = new(bitfinex.Bitfinex)
-	case "bitflyer":
-		exch = new(bitflyer.Bitflyer)
-	case "bithumb":
-		exch = new(bithumb.Bithumb)
-	case "bitmex":
-		exch = new(bitmex.Bitmex)
-	case "bitstamp":
-		exch = new(bitstamp.Bitstamp)
-	case "bittrex":
-		exch = new(bittrex.Bittrex)
-	case "btc markets":
-		exch = new(btcmarkets.BTCMarkets)
-	case "btse":
-		exch = new(btse.BTSE)
-	case "bybit":
-		exch = new(bybit.Bybit)
-	case "coinut":
-		exch = new(coinut.COINUT)
-	case "exmo":
-		exch = new(exmo.EXMO)
-	case "coinbasepro":
-		exch = new(coinbasepro.CoinbasePro)
-	case "gateio":
-		exch = new(gateio.Gateio)
-	case "gemini":
-		exch = new(gemini.Gemini)
-	case "hitbtc":
-		exch = new(hitbtc.HitBTC)
-	case "huobi":
-		exch = new(huobi.HUOBI)
-	case "itbit":
-		exch = new(itbit.ItBit)
-	case "kraken":
-		exch = new(kraken.Kraken)
-	case "lbank":
-		exch = new(lbank.Lbank)
-	case "okcoin":
-		exch = new(okcoin.Okcoin)
-	case "okx":
-		exch = new(okx.Okx)
-	case "poloniex":
-		exch = new(poloniex.Poloniex)
-	case "yobit":
-		exch = new(yobit.Yobit)
-	case "zb":
-		exch = new(zb.ZB)
-	default:
-		if m.Builder != nil {
-			return m.Builder.NewExchangeByName(nameLower)
-		}
-		return nil, fmt.Errorf("exchange manager: %s, %w", nameLower, ErrExchangeNotFound)
+	if m.Builder != nil {
+		return m.Builder.NewExchangeByName(nameLower)
 	}
-	return exch, nil
+
+	return NewSupportedExchangeByName(nameLower)
 }
 
 // Shutdown shuts down all exchanges and unloads them

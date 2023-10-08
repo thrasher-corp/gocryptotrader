@@ -17,6 +17,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
@@ -33,12 +34,12 @@ import (
 // GetDefaultConfig returns a default exchange config
 func (p *Poloniex) GetDefaultConfig(ctx context.Context) (*config.Exchange, error) {
 	p.SetDefaults()
-	exchCfg := new(config.Exchange)
-	exchCfg.Name = p.Name
-	exchCfg.HTTPTimeout = exchange.DefaultHTTPTimeout
-	exchCfg.BaseCurrencies = p.BaseCurrencies
+	exchCfg, err := p.GetStandardConfig()
+	if err != nil {
+		return nil, err
+	}
 
-	err := p.SetupDefaults(exchCfg)
+	err = p.SetupDefaults(exchCfg)
 	if err != nil {
 		return nil, err
 	}
@@ -185,15 +186,14 @@ func (p *Poloniex) Setup(exch *config.Exchange) error {
 	}
 
 	err = p.Websocket.Setup(&stream.WebsocketSetup{
-		ExchangeConfig:         exch,
-		DefaultURL:             poloniexWebsocketAddress,
-		RunningURL:             wsRunningURL,
-		Connector:              p.WsConnect,
-		Subscriber:             p.Subscribe,
-		Unsubscriber:           p.Unsubscribe,
-		GenerateSubscriptions:  p.GenerateDefaultSubscriptions,
-		ConnectionMonitorDelay: exch.ConnectionMonitorDelay,
-		Features:               &p.Features.Supports.WebsocketCapabilities,
+		ExchangeConfig:        exch,
+		DefaultURL:            poloniexWebsocketAddress,
+		RunningURL:            wsRunningURL,
+		Connector:             p.WsConnect,
+		Subscriber:            p.Subscribe,
+		Unsubscriber:          p.Unsubscribe,
+		GenerateSubscriptions: p.GenerateDefaultSubscriptions,
+		Features:              &p.Features.Supports.WebsocketCapabilities,
 		OrderbookBufferConfig: buffer.Config{
 			SortBuffer:            true,
 			SortBufferByUpdateIDs: true,
@@ -1129,4 +1129,9 @@ func (p *Poloniex) GetAvailableTransferChains(ctx context.Context, cryptocurrenc
 // GetServerTime returns the current exchange server time.
 func (p *Poloniex) GetServerTime(ctx context.Context, _ asset.Item) (time.Time, error) {
 	return p.GetTimestamp(ctx)
+}
+
+// GetFuturesContractDetails returns all contracts from the exchange by asset type
+func (p *Poloniex) GetFuturesContractDetails(context.Context, asset.Item) ([]futures.Contract, error) {
+	return nil, common.ErrFunctionNotSupported
 }

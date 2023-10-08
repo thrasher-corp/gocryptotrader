@@ -216,7 +216,7 @@ func (w *WebsocketConnection) IsConnected() bool {
 func (w *WebsocketConnection) ReadMessage() Response {
 	mType, resp, err := w.Connection.ReadMessage()
 	if err != nil {
-		if isDisconnectionError(err) {
+		if IsDisconnectionError(err) {
 			if w.setConnectedStatus(false) {
 				// NOTE: When w.setConnectedStatus() returns true the underlying
 				// state was changed and this infers that the connection was
@@ -293,7 +293,7 @@ func (w *WebsocketConnection) GenerateMessageID(highPrec bool) int64 {
 		max = 2e12
 		min = 1e12
 	}
-	// utlization of hard coded positive numbers and default crypto/rand
+	// utilization of hard coded positive numbers and default crypto/rand
 	// io.reader will panic on error instead of returning
 	randomNumber, err := rand.Int(rand.Reader, big.NewInt(max-min+1))
 	if err != nil {

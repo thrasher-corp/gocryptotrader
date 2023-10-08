@@ -16,6 +16,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
@@ -32,12 +33,12 @@ import (
 // GetDefaultConfig returns a default exchange config
 func (c *CoinbasePro) GetDefaultConfig(ctx context.Context) (*config.Exchange, error) {
 	c.SetDefaults()
-	exchCfg := new(config.Exchange)
-	exchCfg.Name = c.Name
-	exchCfg.HTTPTimeout = exchange.DefaultHTTPTimeout
-	exchCfg.BaseCurrencies = c.BaseCurrencies
+	exchCfg, err := c.GetStandardConfig()
+	if err != nil {
+		return nil, err
+	}
 
-	err := c.SetupDefaults(exchCfg)
+	err = c.SetupDefaults(exchCfg)
 	if err != nil {
 		return nil, err
 	}
@@ -172,20 +173,20 @@ func (c *CoinbasePro) Setup(exch *config.Exchange) error {
 	}
 
 	err = c.Websocket.Setup(&stream.WebsocketSetup{
-		ExchangeConfig:         exch,
-		DefaultURL:             coinbaseproWebsocketURL,
-		RunningURL:             wsRunningURL,
-		Connector:              c.WsConnect,
-		Subscriber:             c.Subscribe,
-		Unsubscriber:           c.Unsubscribe,
-		GenerateSubscriptions:  c.GenerateDefaultSubscriptions,
-		ConnectionMonitorDelay: exch.ConnectionMonitorDelay,
-		Features:               &c.Features.Supports.WebsocketCapabilities,
+		ExchangeConfig:        exch,
+		DefaultURL:            coinbaseproWebsocketURL,
+		RunningURL:            wsRunningURL,
+		Connector:             c.WsConnect,
+		Subscriber:            c.Subscribe,
+		Unsubscriber:          c.Unsubscribe,
+		GenerateSubscriptions: c.GenerateDefaultSubscriptions,
+		Features:              &c.Features.Supports.WebsocketCapabilities,
 		OrderbookBufferConfig: buffer.Config{
 			SortBuffer: true,
 		},
 	})
 	if err != nil {
+		fmt.Println("COINBASE ISSUE")
 		return err
 	}
 
@@ -981,4 +982,9 @@ func (c *CoinbasePro) GetServerTime(ctx context.Context, _ asset.Item) (time.Tim
 		return time.Time{}, err
 	}
 	return st.ISO, nil
+}
+
+// GetFuturesContractDetails returns all contracts from the exchange by asset type
+func (c *CoinbasePro) GetFuturesContractDetails(context.Context, asset.Item) ([]futures.Contract, error) {
+	return nil, common.ErrFunctionNotSupported
 }

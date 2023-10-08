@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
+	"github.com/stretchr/testify/assert"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/core"
@@ -35,7 +36,7 @@ const (
 
 var b = &Bitfinex{}
 var wsAuthExecuted bool
-var btcusdPair currency.Pair
+var btcusdPair = currency.NewPair(currency.BTC, currency.USD)
 
 func TestMain(m *testing.M) {
 	b.SetDefaults()
@@ -64,11 +65,6 @@ func TestMain(m *testing.M) {
 		b.API.AuthenticatedWebsocketSupport = true
 	}
 	b.WebsocketSubdChannels = make(map[int]*stream.ChannelSubscription)
-
-	btcusdPair, err = currency.NewPairFromString("BTCUSD")
-	if err != nil {
-		log.Fatal(err)
-	}
 
 	os.Exit(m.Run())
 }
@@ -1853,4 +1849,21 @@ func TestCancelMultipleOrdersV2(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
+}
+
+func TestChanForSub(t *testing.T) {
+	t.Parallel()
+	p := currency.NewPairWithDelimiter("DOGE", "XLM", "-")
+	s, err := b.chanForSub(wsBook, asset.Spot, p)
+	assert.ErrorIs(t, err, errSubNotFound, "Correct error returned when stream when sub not found")
+	assert.Nil(t, s, "No stream returned when sub not found")
+
+	// Add a spare sub to ensure we don't get only-answer-is-right syndrome
+	b.Websocket.AddSuccessfulSubscriptions(stream.ChannelSubscription{Asset: asset.Spot, Currency: btcusdPair, Channel: wsTicker})
+
+	want := stream.ChannelSubscription{Asset: asset.Spot, Currency: p, Channel: wsBook}
+	b.Websocket.AddSuccessfulSubscriptions(want)
+	s, err = b.chanForSub(wsBook, asset.Spot, p)
+	assert.Nil(t, err, "No error returned when sub found")
+	assert.EqualValues(t, want, *s, "Correct Sub found")
 }
