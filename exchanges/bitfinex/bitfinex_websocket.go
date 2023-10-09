@@ -499,7 +499,9 @@ func (b *Bitfinex) handleWSChecksum(chanID int, d []interface{}) error {
 	} else { //nolint:revive // using lexical variable requires else statement
 		token = int(f)
 	}
-
+	if len(d) < 4 {
+		return errNoSeqNo
+	}
 	var seqNo int64
 	if f, ok := d[3].(float64); !ok {
 		return common.GetTypeAssertError("float64", d[3], "seqNo")
@@ -525,12 +527,13 @@ func (b *Bitfinex) handleWSBookUpdate(ctx context.Context, c *stream.ChannelSubs
 	if len(obSnapBundle) == 0 {
 		return errors.New("no data within orderbook snapshot")
 	}
-
+	if len(d) < 3 {
+		return errNoSeqNo
+	}
 	sequenceNo, ok := d[2].(float64)
 	if !ok {
 		return errors.New("type assertion failure")
 	}
-
 	var fundingRate bool
 	switch id := obSnapBundle[0].(type) {
 	case []interface{}:
