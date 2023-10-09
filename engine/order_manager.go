@@ -602,6 +602,14 @@ func (m *OrderManager) processSubmittedOrder(newOrderResp *order.SubmitResponse)
 		return nil, err
 	}
 
+	if err := m.orderStore.add(detail.CopyToPointer()); errors.Is(err, ErrOrdersAlreadyExists) {
+		// Streamed by ws before we got here. Details from ws supersede since they are more recent.
+		detail = m.orderStore.getByDetail(detail)
+	} else if err != nil {
+		// Non-fatal error: Unable to store order, but error does not need to be returned to caller
+		log.Errorf(log.OrderMgr, "Unable to add %v order %v to orderStore: %s", detail.Exchange, detail.OrderID, err)
+	}
+
 	msg := fmt.Sprintf("Exchange %s submitted order ID=%v [Ours: %v] pair=%v price=%v amount=%v quoteAmount=%v side=%v type=%v for time %v.",
 		detail.Exchange,
 		detail.OrderID,
@@ -619,13 +627,7 @@ func (m *OrderManager) processSubmittedOrder(newOrderResp *order.SubmitResponse)
 		m.orderStore.commsManager.PushEvent(base.Event{Type: "order", Message: msg})
 	}
 
-	err = m.orderStore.add(detail.CopyToPointer())
-	if err != nil {
-		return nil, fmt.Errorf("unable to add %v order %v to orderStore: %s",
-			detail.Exchange, detail.OrderID, err)
-	}
-
-	return &OrderSubmitResponse{Detail: detail, InternalOrderID: id.String()}, nil
+	return &OrderSubmitResponse{Detail: detail, InternalOrderID: detail.InternalOrderID.String()}, nil
 }
 
 // processOrders iterates over all exchange orders via API
@@ -1065,18 +1067,24 @@ func (s *store) upsert(od *order.Detail) (*OrderUpsertResponse, error) {
 
 // exists verifies if the orderstore contains the provided order
 func (s *store) exists(det *order.Detail) bool {
+	return s.getByDetail(det) != nil
+}
+
+// getByDetail fetches an order from the store and returns it
+// returns nil if not found
+func (s *store) getByDetail(det *order.Detail) *order.Detail {
 	if det == nil {
-		return false
+		return nil
 	}
 	s.m.RLock()
 	defer s.m.RUnlock()
 	exchangeOrders := s.Orders[strings.ToLower(det.Exchange)]
-	for x := range exchangeOrders {
-		if exchangeOrders[x].OrderID == det.OrderID {
-			return true
+	for _, o := range exchangeOrders {
+		if o.OrderID == det.OrderID {
+			return o.CopyToPointer()
 		}
 	}
-	return false
+	return nil
 }
 
 // Add Adds an order to the orderStore for tracking the lifecycle
@@ -1084,19 +1092,24 @@ func (s *store) add(det *order.Detail) error {
 	if det == nil {
 		return errNilOrder
 	}
+
 	name := strings.ToLower(det.Exchange)
-	_, err := s.exchangeManager.GetExchangeByName(name)
-	if err != nil {
+	if _, err := s.exchangeManager.GetExchangeByName(name); err != nil {
 		return err
 	}
-	if s.exists(det) { // TODO: Error on conflict; remove unnecessary locking.
-		return ErrOrdersAlreadyExists
+
+	s.m.Lock()
+	defer s.m.Unlock()
+
+	// Inline copy of getByDetail to avoid possible lock races
+	for _, o := range s.Orders[name] {
+		if o.OrderID == det.OrderID {
+			return ErrOrdersAlreadyExists
+		}
 	}
 
 	// Untracked websocket orders will not have internalIDs yet
 	det.GenerateInternalOrderID()
-	s.m.Lock()
-	defer s.m.Unlock()
 	s.Orders[name] = append(s.Orders[name], det)
 	if !det.AssetType.IsFutures() {
 		return nil

@@ -14,6 +14,7 @@ var (
 	errSetCannotBeEmpty = errors.New("set cannot be empty")
 	errSubNotFound      = errors.New("could not find matching subscription")
 	errTypeAssert       = errors.New("type assertion failed")
+	errNoSeqNo          = errors.New("no sequence number")
 )
 
 // AccountV2Data stores account v2 data
