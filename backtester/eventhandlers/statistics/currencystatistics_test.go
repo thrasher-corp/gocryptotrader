@@ -14,6 +14,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/signal"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
 	gctkline "github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
@@ -156,7 +157,7 @@ func TestCalculateResults(t *testing.T) {
 	}
 }
 
-func TestPrintResults(_ *testing.T) {
+func TestPrintResults(t *testing.T) {
 	cs := CurrencyPairStatistic{}
 	tt1 := time.Now()
 	tt2 := time.Now().Add(gctkline.OneDay.Duration())
@@ -248,7 +249,10 @@ func TestPrintResults(_ *testing.T) {
 	}
 
 	cs.Events = append(cs.Events, ev, ev2)
-	cs.PrintResults(exch, a, p, true)
+	err := cs.PrintResults(exch, a, p, true)
+	if err != nil {
+		t.Error(err)
+	}
 }
 
 func TestCalculateHighestCommittedFunds(t *testing.T) {
@@ -313,7 +317,7 @@ func TestAnalysePNLGrowth(t *testing.T) {
 			Exchange: e,
 			Asset:    a,
 			Pair:     p,
-			Result: order.PNLResult{
+			Result: futures.PNLResult{
 				Time:          time.Now(),
 				UnrealisedPNL: decimal.NewFromInt(1),
 				RealisedPNL:   decimal.NewFromInt(2),
@@ -334,7 +338,7 @@ func TestAnalysePNLGrowth(t *testing.T) {
 			Exchange: e,
 			Asset:    a,
 			Pair:     p,
-			Result: order.PNLResult{
+			Result: futures.PNLResult{
 				Time:          time.Now(),
 				UnrealisedPNL: decimal.NewFromFloat(0.5),
 				RealisedPNL:   decimal.NewFromInt(1),

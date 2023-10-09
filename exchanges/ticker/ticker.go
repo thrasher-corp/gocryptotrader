@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/gofrs/uuid"
+	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/dispatch"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -22,7 +23,7 @@ var (
 
 func init() {
 	service = new(Service)
-	service.Tickers = make(map[string]map[*currency.Item]map[*currency.Item]map[asset.Item]*Ticker)
+	service.Tickers = make(map[key.ExchangePairAsset]*Ticker)
 	service.Exchange = make(map[string]uuid.UUID)
 	service.mux = dispatch.GetNewMux(nil)
 }
@@ -33,8 +34,12 @@ func SubscribeTicker(exchange string, p currency.Pair, a asset.Item) (dispatch.P
 	exchange = strings.ToLower(exchange)
 	service.mu.Lock()
 	defer service.mu.Unlock()
-
-	tick, ok := service.Tickers[exchange][p.Base.Item][p.Quote.Item][a]
+	tick, ok := service.Tickers[key.ExchangePairAsset{
+		Exchange: exchange,
+		Base:     p.Base.Item,
+		Quote:    p.Quote.Item,
+		Asset:    a,
+	}]
 	if !ok {
 		return dispatch.Pipe{}, fmt.Errorf("ticker item not found for %s %s %s",
 			exchange,
@@ -72,30 +77,18 @@ func GetTicker(exchange string, p currency.Pair, a asset.Item) (*Price, error) {
 	exchange = strings.ToLower(exchange)
 	service.mu.Lock()
 	defer service.mu.Unlock()
-	m1, ok := service.Tickers[exchange]
+	tick, ok := service.Tickers[key.ExchangePairAsset{
+		Exchange: exchange,
+		Base:     p.Base.Item,
+		Quote:    p.Quote.Item,
+		Asset:    a,
+	}]
 	if !ok {
-		return nil, fmt.Errorf("no tickers for %s exchange", exchange)
+		return nil, fmt.Errorf("no tickers associated with asset type %s %s %s",
+			exchange, p, a)
 	}
 
-	m2, ok := m1[p.Base.Item]
-	if !ok {
-		return nil, fmt.Errorf("no tickers associated with base currency %s",
-			p.Base)
-	}
-
-	m3, ok := m2[p.Quote.Item]
-	if !ok {
-		return nil, fmt.Errorf("no tickers associated with quote currency %s",
-			p.Quote)
-	}
-
-	t, ok := m3[a]
-	if !ok {
-		return nil, fmt.Errorf("no tickers associated with asset type %s",
-			a)
-	}
-
-	cpy := t.Price // Don't let external functions have access to underlying
+	cpy := tick.Price // Don't let external functions have access to underlying
 	return &cpy, nil
 }
 
@@ -103,20 +96,10 @@ func GetTicker(exchange string, p currency.Pair, a asset.Item) (*Price, error) {
 func FindLast(p currency.Pair, a asset.Item) (float64, error) {
 	service.mu.Lock()
 	defer service.mu.Unlock()
-	for _, m1 := range service.Tickers {
-		m2, ok := m1[p.Base.Item]
-		if !ok {
+	for mapKey, t := range service.Tickers {
+		if !mapKey.MatchesPairAsset(p, a) {
 			continue
 		}
-		m3, ok := m2[p.Quote.Item]
-		if !ok {
-			continue
-		}
-		t, ok := m3[a]
-		if !ok {
-			continue
-		}
-
 		if t.Last == 0 {
 			return 0, errInvalidTicker
 		}
@@ -178,27 +161,14 @@ func ProcessTicker(p *Price) error {
 // update updates ticker price
 func (s *Service) update(p *Price) error {
 	name := strings.ToLower(p.ExchangeName)
+	mapKey := key.ExchangePairAsset{
+		Exchange: name,
+		Base:     p.Pair.Base.Item,
+		Quote:    p.Pair.Quote.Item,
+		Asset:    p.AssetType,
+	}
 	s.mu.Lock()
-
-	m1, ok := service.Tickers[name]
-	if !ok {
-		m1 = make(map[*currency.Item]map[*currency.Item]map[asset.Item]*Ticker)
-		service.Tickers[name] = m1
-	}
-
-	m2, ok := m1[p.Pair.Base.Item]
-	if !ok {
-		m2 = make(map[*currency.Item]map[asset.Item]*Ticker)
-		m1[p.Pair.Base.Item] = m2
-	}
-
-	m3, ok := m2[p.Pair.Quote.Item]
-	if !ok {
-		m3 = make(map[asset.Item]*Ticker)
-		m2[p.Pair.Quote.Item] = m3
-	}
-
-	t, ok := m3[p.AssetType]
+	t, ok := service.Tickers[mapKey]
 	if !ok || t == nil {
 		newTicker := &Ticker{}
 		err := s.setItemID(newTicker, p, name)
@@ -206,7 +176,7 @@ func (s *Service) update(p *Price) error {
 			s.mu.Unlock()
 			return err
 		}
-		m3[p.AssetType] = newTicker
+		service.Tickers[mapKey] = newTicker
 		s.mu.Unlock()
 		return nil
 	}

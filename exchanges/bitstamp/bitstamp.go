@@ -31,6 +31,7 @@ const (
 	bitstampAPIEURUSD             = "eur_usd"
 	bitstampAPIBalance            = "balance"
 	bitstampAPIUserTransactions   = "user_transactions"
+	bitstampAPIOHLC               = "ohlc"
 	bitstampAPIOpenOrders         = "open_orders"
 	bitstampAPIOrderStatus        = "order_status"
 	bitstampAPICancelOrder        = "cancel_order"
@@ -43,7 +44,12 @@ const (
 	bitstampAPITransferFromMain   = "transfer-from-main"
 	bitstampAPIReturnType         = "string"
 	bitstampAPITradingPairsInfo   = "trading-pairs-info"
-	bitstampOHLC                  = "ohlc"
+	bitstampAPIWSAuthToken        = "websockets_token"
+	bitstampAPIWSTrades           = "live_trades"
+	bitstampAPIWSOrders           = "live_orders"
+	bitstampAPIWSOrderbook        = "order_book"
+	bitstampAPIWSMyOrders         = "my_orders"
+	bitstampAPIWSMyTrades         = "my_trades"
 
 	bitstampRateInterval = time.Minute * 10
 	bitstampRequestRate  = 8000
@@ -517,7 +523,7 @@ func (b *Bitstamp) OHLC(ctx context.Context, currency string, start, end time.Ti
 	if !end.IsZero() {
 		v.Add("end", strconv.FormatInt(end.Unix(), 10))
 	}
-	return resp, b.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues("/v"+bitstampAPIVersion+"/"+bitstampOHLC+"/"+currency, v), &resp)
+	return resp, b.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues("/v"+bitstampAPIVersion+"/"+bitstampAPIOHLC+"/"+currency, v), &resp)
 }
 
 // TransferAccountBalance transfers funds from either a main or sub account

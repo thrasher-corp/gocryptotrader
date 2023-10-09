@@ -624,7 +624,7 @@ func getOfflineTradeFee(price, amount float64) float64 {
 
 func calculateCryptocurrencyDepositFee(c currency.Code, amount float64) float64 {
 	var fee float64
-	if c == currency.BTC {
+	if c.Equal(currency.BTC) {
 		fee = 0.0006
 	}
 	return fee * amount

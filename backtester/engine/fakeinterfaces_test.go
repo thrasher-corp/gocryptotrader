@@ -20,6 +20,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
 	gctkline "github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	gctorder "github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
@@ -35,7 +36,7 @@ func (f fakeFolio) GetLatestComplianceSnapshot(string, asset.Item, currency.Pair
 	return &compliance.Snapshot{}, nil
 }
 
-func (f fakeFolio) GetPositions(common.Event) ([]gctorder.Position, error) {
+func (f fakeFolio) GetPositions(common.Event) ([]futures.Position, error) {
 	return nil, nil
 }
 

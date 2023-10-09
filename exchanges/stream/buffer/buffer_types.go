@@ -4,8 +4,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/thrasher-corp/gocryptotrader/currency"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 )
 
@@ -30,7 +29,7 @@ type Config struct {
 // Orderbook defines a local cache of orderbooks for amending, appending
 // and deleting changes and updates the main store for a stream
 type Orderbook struct {
-	ob                    map[Key]*orderbookHolder
+	ob                    map[key.PairAsset]*orderbookHolder
 	obBufferLimit         int
 	bufferEnabled         bool
 	sortBuffer            bool
@@ -66,11 +65,4 @@ type orderbookHolder struct {
 	// currency.
 	ticker   *time.Ticker
 	updateID int64
-}
-
-// Key defines a unique orderbook key for a specific pair and asset
-type Key struct {
-	Base  *currency.Item
-	Quote *currency.Item
-	Asset asset.Item
 }

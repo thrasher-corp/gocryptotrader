@@ -37,7 +37,7 @@ var (
 // wss://wsapi-na.coinut.com
 // wss://wsapi-eu.coinut.com
 
-// WsConnect intiates a websocket connection
+// WsConnect initiates a websocket connection
 func (c *COINUT) WsConnect() error {
 	if !c.Websocket.IsEnabled() || !c.IsEnabled() {
 		return errors.New(stream.WebsocketNotEnabled)

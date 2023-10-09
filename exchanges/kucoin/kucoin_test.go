@@ -14,6 +14,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -1673,7 +1674,7 @@ func TestFetchOrderbook(t *testing.T) {
 }
 
 func TestGetHistoricCandles(t *testing.T) {
-	startTime := time.Now().Add(-time.Hour * 4)
+	startTime := time.Now().Add(-time.Hour * 48)
 	endTime := time.Now().Add(-time.Hour * 3)
 	var err error
 	_, err = ku.GetHistoricCandles(context.Background(), futuresTradablePair, asset.Futures, kline.OneHour, startTime, endTime)
@@ -1691,7 +1692,7 @@ func TestGetHistoricCandles(t *testing.T) {
 }
 
 func TestGetHistoricCandlesExtended(t *testing.T) {
-	startTime := time.Now().Add(-time.Hour * 4)
+	startTime := time.Now().Add(-time.Hour * 48)
 	endTime := time.Now().Add(-time.Hour * 1)
 	var err error
 	_, err = ku.GetHistoricCandlesExtended(context.Background(), spotTradablePair, asset.Spot, kline.OneHour, startTime, endTime)
@@ -2416,6 +2417,22 @@ func TestSeedLocalCache(t *testing.T) {
 	}
 	err = ku.SeedLocalCache(context.Background(), pair, asset.Margin)
 	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetFuturesContractDetails(t *testing.T) {
+	t.Parallel()
+	_, err := ku.GetFuturesContractDetails(context.Background(), asset.Spot)
+	if !errors.Is(err, futures.ErrNotFuturesAsset) {
+		t.Error(err)
+	}
+	_, err = ku.GetFuturesContractDetails(context.Background(), asset.USDTMarginedFutures)
+	if !errors.Is(err, asset.ErrNotSupported) {
+		t.Error(err)
+	}
+	_, err = ku.GetFuturesContractDetails(context.Background(), asset.Futures)
+	if !errors.Is(err, nil) {
 		t.Error(err)
 	}
 }
