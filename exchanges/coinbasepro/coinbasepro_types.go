@@ -33,12 +33,12 @@ type Product struct {
 
 // Ticker holds basic ticker information
 type Ticker struct {
-	TradeID int64     `json:"trade_id"`
 	Ask     float64   `json:"ask,string"`
 	Bid     float64   `json:"bid,string"`
+	Volume  float64   `json:"volume,string"`
+	TradeID int32     `json:"trade_id"`
 	Price   float64   `json:"price,string"`
 	Size    float64   `json:"size,string"`
-	Volume  float64   `json:"volume,string"`
 	Time    time.Time `json:"time"`
 }
 
@@ -78,7 +78,7 @@ type Currency struct {
 	MinSize       float64  `json:"min_size,string"`
 	Status        string   `json:"status"`
 	Message       string   `json:"message"`
-	MaxPrecision  float64  `json:"max_precision"`
+	MaxPrecision  float64  `json:"max_precision,string"`
 	ConvertibleTo []string `json:"convertible_to"`
 	Details       struct {
 		Type                  string   `json:"type"`
@@ -410,15 +410,51 @@ type CoinbaseAccounts struct {
 type Report struct {
 	ID          string    `json:"id"`
 	Type        string    `json:"type"`
-	Status      string    `json:"status"`
 	CreatedAt   time.Time `json:"created_at"`
 	CompletedAt time.Time `json:"completed_at"`
 	ExpiresAt   time.Time `json:"expires_at"`
+	Status      string    `json:"status"`
+	UserID      string    `json:"user_id"`
 	FileURL     string    `json:"file_url"`
 	Params      struct {
 		StartDate time.Time `json:"start_date"`
 		EndDate   time.Time `json:"end_date"`
+		Format    string    `json:"format"`
+		ProductID string    `json:"product_id"`
+		AccountID string    `json:"account_id"`
+		ProfileID string    `json:"profile_id"`
+		Email     string    `json:"email"`
+		User      struct {
+			ID                      string        `json:"id"`
+			CreatedAt               time.Time     `json:"created_at"`
+			ActiveAt                time.Time     `json:"active_at"`
+			Name                    string        `json:"name"`
+			Email                   string        `json:"email"`
+			Roles                   []interface{} `json:"roles"`
+			IsBanned                bool          `json:"is_banned"`
+			UserType                string        `json:"user_type"`
+			FulfillsNewRequirements bool          `json:"fulfills_new_requirements"`
+			Flags                   interface{}   `json:"flags"`
+			Details                 interface{}   `json:"details"`
+			Preferences             struct {
+				PreferredMarket              string    `json:"preferred_market"`
+				MarginTermsCompletedInUTC    time.Time `json:"margin_terms_completed_in_utc"`
+				MarginTutorialCompletedInUTC time.Time `json:"margin_tutorial_completed_in_utc"`
+			} `json:"preferences"`
+			HasDefault                bool      `json:"has_default"`
+			StateCode                 string    `json:"state_code"`
+			CBDataFromCache           bool      `json:"cb_data_from_cache"`
+			TwoFactorMethod           string    `json:"two_factor_method"`
+			LegalName                 string    `json:"legal_name"`
+			TermsAccepted             time.Time `json:"terms_accepted"`
+			HasClawbackPaymentPending bool      `json:"has_clawback_payment_pending"`
+			HasRestrictedAssets       bool      `json:"has_restricted_assets"`
+		} `json:"user"`
+		NewYorkState   bool      `json:"new_york_state"`
+		DateTime       time.Time `json:"date_time"`
+		GroupByProfile bool      `json:"group_by_profile"`
 	} `json:"params"`
+	FileCount uint64 `json:"file_count"`
 }
 
 // Volume type contains trailing volume information
@@ -429,64 +465,13 @@ type Volume struct {
 	RecordedAt     string  `json:"recorded_at"`
 }
 
-// // OrderL1L2 is a type used in layer conversion
-// type OrderL1L2 struct {
-// 	Price     float64
-// 	Amount    float64
-// 	NumOrders float64
-// }
+// InterOrderDetail is used to make intermediary orderbook handling easier
+type InterOrderDetail [][3]interface{}
 
-// // OrderL3 is a type used in layer conversion
-// type OrderL3 struct {
-// 	Price   float64
-// 	Amount  float64
-// 	OrderID string
-// }
-
-// // OrderbookL1L2 holds level 1 and 2 order book information
-// type OrderbookL1L2 struct {
-// 	Bids        []OrderL1L2 `json:"bids"`
-// 	Asks        []OrderL1L2 `json:"asks"`
-// 	Sequence    float64     `json:"sequence"`
-// 	AuctionMode bool        `json:"auction_mode"`
-// 	Auction     struct {
-// 		OpenPrice    float64   `json:"open_price,string"`
-// 		OpenSize     float64   `json:"open_size,string"`
-// 		BestBidPrice float64   `json:"best_bid_price,string"`
-// 		BestBidSize  float64   `json:"best_bid_size,string"`
-// 		BestAskPrice float64   `json:"best_ask_price,string"`
-// 		BestAskSize  float64   `json:"best_ask_size,string"`
-// 		AuctionState string    `json:"auction_state"`
-// 		CanOpen      string    `json:"can_open"`
-// 		Time         time.Time `json:"time"`
-// 	}
-// 	Time time.Time `json:"time"`
-// }
-
-// // OrderbookL3 holds level 3 order book information
-// type OrderbookL3 struct {
-// 	Bids        []OrderL3 `json:"bids"`
-// 	Asks        []OrderL3 `json:"asks"`
-// 	Sequence    float64   `json:"sequence"`
-// 	AuctionMode bool      `json:"auction_mode"`
-// 	Auction     struct {
-// 		OpenPrice    float64   `json:"open_price,string"`
-// 		OpenSize     float64   `json:"open_size,string"`
-// 		BestBidPrice float64   `json:"best_bid_price,string"`
-// 		BestBidSize  float64   `json:"best_bid_size,string"`
-// 		BestAskPrice float64   `json:"best_ask_price,string"`
-// 		BestAskSize  float64   `json:"best_ask_size,string"`
-// 		AuctionState string    `json:"auction_state"`
-// 		CanOpen      string    `json:"can_open"`
-// 		Time         time.Time `json:"time"`
-// 	}
-// 	Time time.Time `json:"time"`
-// }
-
-// // OrderbookResponse is a generalized response for order books
+// OrderbookIntermediaryResponse is used while processing the orderbook
 type OrderbookIntermediaryResponse struct {
-	Bids        [][3]interface{} `json:"bids"`
-	Asks        [][3]interface{} `json:"asks"`
+	Bids        InterOrderDetail `json:"bids"`
+	Asks        InterOrderDetail `json:"asks"`
 	Sequence    float64          `json:"sequence"`
 	AuctionMode bool             `json:"auction_mode"`
 	Auction     struct {
@@ -503,6 +488,7 @@ type OrderbookIntermediaryResponse struct {
 	Time time.Time `json:"time"`
 }
 
+// GenOrderDetail is a subtype used for the orderbook
 type GenOrderDetail struct {
 	Price     float64
 	Amount    float64
@@ -510,6 +496,7 @@ type GenOrderDetail struct {
 	OrderID   string
 }
 
+// OrderbookResponse is the final state of the orderbook
 type OrderbookFinalResponse struct {
 	Bids        []GenOrderDetail `json:"bids"`
 	Asks        []GenOrderDetail `json:"asks"`
@@ -831,4 +818,23 @@ type SignedPrices struct {
 	Messages   []string `json:"messages"`
 	Signatures []string `json:"signatures"`
 	Prices     PriceMap `json:"prices"`
+}
+
+type Profile struct {
+	ID        string    `json:"id"`
+	UserID    string    `json:"user_id"`
+	Name      string    `json:"name"`
+	Active    bool      `json:"active"`
+	IsDefault bool      `json:"is_default"`
+	CreatedAt time.Time `json:"created_at"`
+}
+
+type CreateReportResponse struct {
+	ID     string `json:"id"`
+	Type   string `json:"type"`
+	Status string `json:"status"`
+}
+
+type ReportBalanceStruct struct {
+	DateTime string
 }

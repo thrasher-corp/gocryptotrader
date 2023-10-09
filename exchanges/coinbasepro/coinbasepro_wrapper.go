@@ -325,37 +325,37 @@ func (c *CoinbasePro) UpdateTradablePairs(ctx context.Context, forceUpdate bool)
 func (c *CoinbasePro) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
 	var response account.Holdings
 	response.Exchange = c.Name
-	accountBalance, err := c.GetAccounts(ctx)
-	if err != nil {
-		return response, err
-	}
+	// accountBalance, err := c.GetAccounts(ctx)
+	// if err != nil {
+	// 	return response, err
+	// }
 
-	accountCurrencies := make(map[string][]account.Balance)
-	for i := range accountBalance {
-		profileID := accountBalance[i].ProfileID
-		currencies := accountCurrencies[profileID]
-		accountCurrencies[profileID] = append(currencies, account.Balance{
-			Currency: currency.NewCode(accountBalance[i].Currency),
-			Total:    accountBalance[i].Balance,
-			Hold:     accountBalance[i].Hold,
-			Free:     accountBalance[i].Available, /*
-				AvailableWithoutBorrow: accountBalance[i].Available - accountBalance[i].FundedAmount,
-				Borrowed:               accountBalance[i].FundedAmount,*/
-		})
-	}
+	// accountCurrencies := make(map[string][]account.Balance)
+	// for i := range accountBalance {
+	// 	profileID := accountBalance[i].ProfileID
+	// 	currencies := accountCurrencies[profileID]
+	// 	accountCurrencies[profileID] = append(currencies, account.Balance{
+	// 		Currency: currency.NewCode(accountBalance[i].Currency),
+	// 		Total:    accountBalance[i].Balance,
+	// 		Hold:     accountBalance[i].Hold,
+	// 		Free:     accountBalance[i].Available,
+	// 			AvailableWithoutBorrow: accountBalance[i].Available - accountBalance[i].FundedAmount,
+	// 			Borrowed:               accountBalance[i].FundedAmount,
+	// 	})
+	// }
 
-	if response.Accounts, err = account.CollectBalances(accountCurrencies, assetType); err != nil {
-		return account.Holdings{}, err
-	}
+	// if response.Accounts, err = account.CollectBalances(accountCurrencies, assetType); err != nil {
+	// 	return account.Holdings{}, err
+	// }
 
-	creds, err := c.GetCredentials(ctx)
-	if err != nil {
-		return account.Holdings{}, err
-	}
-	err = account.Process(&response, creds)
-	if err != nil {
-		return account.Holdings{}, err
-	}
+	// creds, err := c.GetCredentials(ctx)
+	// if err != nil {
+	// 	return account.Holdings{}, err
+	// }
+	// err = account.Process(&response, creds)
+	// if err != nil {
+	// 	return account.Holdings{}, err
+	// }
 
 	return response, nil
 }
@@ -505,7 +505,7 @@ func (c *CoinbasePro) GetRecentTrades(ctx context.Context, p currency.Pair, asse
 		return nil, err
 	}
 	var tradeData []Trade
-	tradeData, err = c.GetTrades(ctx, p.String())
+	// tradeData, err = c.GetTrades(ctx, p.String())
 	if err != nil {
 		return nil, err
 	}
@@ -705,18 +705,18 @@ func (c *CoinbasePro) WithdrawFiatFunds(ctx context.Context, withdrawRequest *wi
 	if err := withdrawRequest.Validate(); err != nil {
 		return nil, err
 	}
-	paymentMethods, err := c.GetPayMethods(ctx)
-	if err != nil {
-		return nil, err
-	}
+	// paymentMethods, err := c.GetPayMethods(ctx)
+	// if err != nil {
+	// 	return nil, err
+	// }
 
 	selectedWithdrawalMethod := PaymentMethod{}
-	for i := range paymentMethods {
-		if withdrawRequest.Fiat.Bank.BankName == paymentMethods[i].Name {
-			selectedWithdrawalMethod = paymentMethods[i]
-			break
-		}
-	}
+	// for i := range paymentMethods {
+	// 	if withdrawRequest.Fiat.Bank.BankName == paymentMethods[i].Name {
+	// 		selectedWithdrawalMethod = paymentMethods[i]
+	// 		break
+	// 	}
+	// }
 	if selectedWithdrawalMethod.ID == "" {
 		return nil, fmt.Errorf("could not find payment method '%v'. Check the name via the website and try again", withdrawRequest.Fiat.Bank.BankName)
 	}
@@ -726,12 +726,13 @@ func (c *CoinbasePro) WithdrawFiatFunds(ctx context.Context, withdrawRequest *wi
 	// 	withdrawRequest.Currency.String(),
 	// 	selectedWithdrawalMethod.ID)
 	// if err != nil {
-	return nil, err
+	// return nil, err
 	// }
 
 	// return &withdraw.ExchangeResponse{
 	// 	Status: resp.ID,
 	// }, nil
+	return nil, common.ErrFunctionNotSupported
 }
 
 // WithdrawFiatFundsToInternationalBank returns a withdrawal ID when a
@@ -907,65 +908,67 @@ func (c *CoinbasePro) GetOrderHistory(ctx context.Context, req *order.MultiOrder
 // GetHistoricCandles returns a set of candle between two time periods for a
 // designated time period
 func (c *CoinbasePro) GetHistoricCandles(ctx context.Context, pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error) {
-	req, err := c.GetKlineRequest(pair, a, interval, start, end, false)
-	if err != nil {
-		return nil, err
-	}
+	// req, err := c.GetKlineRequest(pair, a, interval, start, end, false)
+	// if err != nil {
+	// 	return nil, err
+	// }
 
-	history, err := c.GetHistoricRates(ctx,
-		req.RequestFormatted.String(),
-		start.Format(time.RFC3339),
-		end.Format(time.RFC3339),
-		int64(req.ExchangeInterval.Duration().Seconds()))
-	if err != nil {
-		return nil, err
-	}
+	// history, err := c.GetHistoricRates(ctx,
+	// 	req.RequestFormatted.String(),
+	// 	start.Format(time.RFC3339),
+	// 	end.Format(time.RFC3339),
+	// 	int64(req.ExchangeInterval.Duration().Seconds()))
+	// if err != nil {
+	// 	return nil, err
+	// }
 
-	timeSeries := make([]kline.Candle, len(history))
-	for x := range history {
-		timeSeries[x] = kline.Candle{
-			Time:   history[x].Time,
-			Low:    history[x].Low,
-			High:   history[x].High,
-			Open:   history[x].Open,
-			Close:  history[x].Close,
-			Volume: history[x].Volume,
-		}
-	}
-	return req.ProcessResponse(timeSeries)
+	// timeSeries := make([]kline.Candle, len(history))
+	// for x := range history {
+	// 	timeSeries[x] = kline.Candle{
+	// 		Time:   history[x].Time,
+	// 		Low:    history[x].Low,
+	// 		High:   history[x].High,
+	// 		Open:   history[x].Open,
+	// 		Close:  history[x].Close,
+	// 		Volume: history[x].Volume,
+	// 	}
+	// }
+	// return req.ProcessResponse(timeSeries)
+	return nil, common.ErrFunctionNotSupported
 }
 
 // GetHistoricCandlesExtended returns candles between a time period for a set time interval
 func (c *CoinbasePro) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error) {
-	req, err := c.GetKlineExtendedRequest(pair, a, interval, start, end)
-	if err != nil {
-		return nil, err
-	}
+	// req, err := c.GetKlineExtendedRequest(pair, a, interval, start, end)
+	// if err != nil {
+	// 	return nil, err
+	// }
 
-	timeSeries := make([]kline.Candle, 0, req.Size())
-	for x := range req.RangeHolder.Ranges {
-		var history []History
-		history, err = c.GetHistoricRates(ctx,
-			req.RequestFormatted.String(),
-			req.RangeHolder.Ranges[x].Start.Time.Format(time.RFC3339),
-			req.RangeHolder.Ranges[x].End.Time.Format(time.RFC3339),
-			int64(req.ExchangeInterval.Duration().Seconds()))
-		if err != nil {
-			return nil, err
-		}
+	// timeSeries := make([]kline.Candle, 0, req.Size())
+	// for x := range req.RangeHolder.Ranges {
+	// 	var history []History
+	// 	history, err = c.GetHistoricRates(ctx,
+	// 		req.RequestFormatted.String(),
+	// 		req.RangeHolder.Ranges[x].Start.Time.Format(time.RFC3339),
+	// 		req.RangeHolder.Ranges[x].End.Time.Format(time.RFC3339),
+	// 		int64(req.ExchangeInterval.Duration().Seconds()))
+	// 	if err != nil {
+	// 		return nil, err
+	// 	}
 
-		for i := range history {
-			timeSeries = append(timeSeries, kline.Candle{
-				Time:   history[i].Time,
-				Low:    history[i].Low,
-				High:   history[i].High,
-				Open:   history[i].Open,
-				Close:  history[i].Close,
-				Volume: history[i].Volume,
-			})
-		}
-	}
-	return req.ProcessResponse(timeSeries)
+	// 	for i := range history {
+	// 		timeSeries = append(timeSeries, kline.Candle{
+	// 			Time:   history[i].Time,
+	// 			Low:    history[i].Low,
+	// 			High:   history[i].High,
+	// 			Open:   history[i].Open,
+	// 			Close:  history[i].Close,
+	// 			Volume: history[i].Volume,
+	// 		})
+	// 	}
+	// }
+	// return req.ProcessResponse(timeSeries)
+	return nil, common.ErrFunctionNotSupported
 }
 
 // ValidateAPICredentials validates current credentials used for wrapper

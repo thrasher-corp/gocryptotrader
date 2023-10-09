@@ -20,7 +20,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
@@ -87,7 +86,6 @@ func TestStart(t *testing.T) {
 
 func TestGetAccounts(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, c)
-	var resp []AccountResponse
 	resp, err := c.GetAccounts(context.Background())
 	if err != nil {
 		t.Error("CoinBasePro GetAccounts() error", err)
@@ -114,7 +112,7 @@ func TestGetAccount(t *testing.T) {
 	if err != nil {
 		t.Error("CoinBasePro GetAccount() error", err)
 	}
-	if shortResp != longResp[0] {
+	if *shortResp != longResp[0] {
 		t.Error("CoinBasePro GetAccount() error, mismatched responses")
 	}
 }
@@ -125,11 +123,10 @@ func TestGetHolds(t *testing.T) {
 	if err != nil {
 		t.Error("CoinBasePro GetAccounts() error", err)
 	}
-	result, err := c.GetHolds(context.Background(), accID[0].ID, pageNone, "", 2)
+	_, err = c.GetHolds(context.Background(), accID[0].ID, pageNone, "", 2)
 	if err != nil {
 		t.Error("CoinBasePro GetHolds() error", err)
 	}
-	t.Logf("%+v", result)
 }
 
 func TestGetAccountLedger(t *testing.T) {
@@ -137,10 +134,6 @@ func TestGetAccountLedger(t *testing.T) {
 	accID, err := c.GetAccounts(context.Background())
 	if err != nil {
 		t.Error("CoinBasePro GetAccounts() error", err)
-	}
-	_, err = c.GetAccountLedger(context.Background(), accID[0].ID, pageNone, "", "", time.Time{}, time.Time{}, 2)
-	if err == nil {
-		t.Error("CoinBasePro GetAccountLedger() error, expected error due to invalid time range")
 	}
 	_, err = c.GetAccountLedger(context.Background(), accID[0].ID, pageBefore, "", "a",
 		time.Unix(1, 1), time.Now(), 3)
@@ -193,11 +186,10 @@ func TestDeleteAddress(t *testing.T) {
 
 func TestGetCoinbaseWallets(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, c)
-	res, err := c.GetCoinbaseAccounts(context.Background())
+	_, err := c.GetCoinbaseAccounts(context.Background())
 	if err != nil {
 		t.Error("CoinBasePro GetCoinbaseAccounts() error", err)
 	}
-	log.Printf("%+v", res)
 }
 
 func TestGenerateCryptoAddress(t *testing.T) {
@@ -432,6 +424,10 @@ func TestGetProducts(t *testing.T) {
 }
 
 func TestGetProduct(t *testing.T) {
+	_, err := c.GetProduct(context.Background(), "")
+	if err == nil {
+		t.Error("Coinbase, GetProduct() Error, expected an error due to nonexistent pair")
+	}
 	resp, err := c.GetProduct(context.Background(), "BTC-USD")
 	if err != nil {
 		t.Error("Coinbase, GetProduct() Error:", err)
@@ -442,57 +438,168 @@ func TestGetProduct(t *testing.T) {
 }
 
 func TestGetOrderbook(t *testing.T) {
-	resp, err := c.GetOrderbook(context.Background(), testPair.String(), 1)
-	if err != nil {
-		t.Error(err)
+	_, err := c.GetOrderbook(context.Background(), "", 1)
+	if err == nil {
+		t.Error("Coinbase, GetOrderbook() Error, expected an error due to nonexistent pair")
 	}
-	log.Printf("%+v", resp)
-	resp, err = c.GetOrderbook(context.Background(), testPair.String(), 3)
-	if err != nil {
-		t.Error(err)
+	_, err = c.GetOrderbook(context.Background(), "There's no way this doesn't cause an error", 1)
+	if err == nil {
+		t.Error("Coinbase, GetOrderbook() Error, expected an error due to invalid pair")
 	}
-	log.Printf("%+v", resp)
+	_, err = c.GetOrderbook(context.Background(), testPair.String(), 1)
+	if err != nil {
+		t.Error("Coinbase, GetOrderbook() Error", err)
+	}
+	_, err = c.GetOrderbook(context.Background(), testPair.String(), 3)
+	if err != nil {
+		t.Error("Coinbase, GetOrderbook() Error", err)
+	}
+}
+
+func TestGetHistoricRates(t *testing.T) {
+	_, err := c.GetHistoricRates(context.Background(), "", 0, time.Time{}, time.Time{})
+	if err == nil {
+		t.Error("Coinbase, GetHistoricRates() Error, expected an error due to nonexistent pair")
+	}
+	_, err = c.GetHistoricRates(context.Background(), testPair.String(), 0, time.Now(), time.Unix(1, 1))
+	if err == nil {
+		t.Error("Coinbase, GetHistoricRates() Error, expected an error due to invalid time")
+	}
+	_, err = c.GetHistoricRates(context.Background(), testPair.String(), 2<<60-2<<20, time.Time{}, time.Time{})
+	if err == nil {
+		t.Error("Coinbase, GetHistoricRates() Error, expected an error due to invalid granularity")
+	}
+	_, err = c.GetHistoricRates(context.Background(), "Invalid pair.woof", 60, time.Time{}, time.Time{})
+	if err == nil {
+		t.Error("Coinbase, GetHistoricRates() Error, expected an error due to invalid pair")
+	}
+	resp, err := c.GetHistoricRates(context.Background(), testPair.String(), 0, time.Unix(1, 1), time.Now())
+	if err != nil {
+		t.Error("Coinbase, GetHistoricRates() Error", err)
+	}
+	if resp[0].High == 0 {
+		t.Error("Coinbase, GetHistoricRates() Error, expected non-zero value")
+	}
+}
+
+func TestGetStats(t *testing.T) {
+	_, err := c.GetStats(context.Background(), "")
+	if err == nil {
+		t.Error("Coinbase, GetStats() Error, expected an error due to nonexistent pair")
+	}
+	_, err = c.GetStats(context.Background(), testPair.String())
+	if err != nil {
+		t.Error("GetStats() error", err)
+	}
 }
 
 func TestGetTicker(t *testing.T) {
-	_, err := c.GetTicker(context.Background(), testPair.String())
+	_, err := c.GetTicker(context.Background(), "")
+	if err == nil {
+		t.Error("Coinbase, GetTicker() Error, expected an error due to nonexistent pair")
+	}
+	_, err = c.GetTicker(context.Background(), testPair.String())
 	if err != nil {
 		t.Error("GetTicker() error", err)
 	}
 }
 
 func TestGetTrades(t *testing.T) {
-	_, err := c.GetTrades(context.Background(), testPair.String())
+	_, err := c.GetTrades(context.Background(), "", "", "", 1)
+	if err == nil {
+		t.Error("Coinbase, GetTrades() Error, expected an error due to nonexistent pair")
+	}
+	_, err = c.GetTrades(context.Background(), testPair.String(), "", "", 1)
 	if err != nil {
 		t.Error("GetTrades() error", err)
 	}
 }
 
-func TestGetHistoricRatesGranularityCheck(t *testing.T) {
-	end := time.Now()
-	start := end.Add(-time.Hour * 2)
-	_, err := c.GetHistoricCandles(context.Background(),
-		testPair, asset.Spot, kline.OneHour, start, end)
+func TestGetProfiles(t *testing.T) {
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, c)
+	active := true
+	_, err := c.GetProfiles(context.Background(), &active)
 	if err != nil {
-		t.Fatal(err)
+		t.Error("GetProfiles() error", err)
 	}
 }
 
-func TestCoinbasePro_GetHistoricCandlesExtended(t *testing.T) {
-	start := time.Unix(1546300800, 0)
-	end := time.Unix(1577836799, 0)
-
-	_, err := c.GetHistoricCandlesExtended(context.Background(),
-		testPair, asset.Spot, kline.OneDay, start, end)
+func TestCreateAProfile(t *testing.T) {
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, c, canManipulateRealOrders)
+	_, err := c.CreateAProfile(context.Background(), "")
+	if err == nil {
+		t.Error("Coinbase, CreateAProfile() Error, expected an error due to empty name")
+	}
+	// The names 'default' and 'margin' are reserved, so consider using those for tests
+	_, err = c.CreateAProfile(context.Background(), "GCT Test Profile")
 	if err != nil {
-		t.Fatal(err)
+		t.Error("CreateAProfile() error", err)
 	}
 }
 
-func TestGetStats(t *testing.T) {
-	_, err := c.GetStats(context.Background(), testPair.String())
+func TestTransferBetweenProfiles(t *testing.T) {
+	sharedtestvalues.SkipTestIfCannotManipulateOrders(t, c, canManipulateRealOrders)
+	_, err := c.TransferBetweenProfiles(context.Background(), "", "", "", 0)
+	if err == nil {
+		t.Error("Coinbase, TransferBetweenProfiles() Error, expected an error due to empty fields")
+	}
+	_, err = c.TransferBetweenProfiles(context.Background(), "this test", "has not", "been implemented", 0)
+	if err == nil {
+		t.Error("Coinbase, TransferBetweenProfiles() Error, expected an error due to un-implemented test")
+	}
+}
+
+func TestGetProfileByID(t *testing.T) {
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, c)
+	resp, err := c.GetProfiles(context.Background(), nil)
 	if err != nil {
-		t.Error("GetStats() error", err)
+		t.Error("GetProfiles() error", err)
+	}
+	active := true
+	resp2, err := c.GetProfileByID(context.Background(), resp[0].ID, &active)
+	if err != nil {
+		t.Error("GetProfileByID() error", err)
+	}
+	if resp2.ID != resp[0].ID {
+		t.Error("GetProfileByID() error, expected matching ID's")
+	}
+}
+
+func TestRenameProfile(t *testing.T) {
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, c, canManipulateRealOrders)
+	_, err := c.RenameProfile(context.Background(), "", "")
+	if err == nil {
+		t.Error("Coinbase, RenameProfile() Error, expected an error due to empty fields")
+	}
+	_, err = c.RenameProfile(context.Background(), "this test has", "not been implemented")
+	if err == nil {
+		t.Error("Coinbase, RenameProfile() Error, expected an error due to un-implemented test")
+	}
+}
+
+func TestDeleteProfile(t *testing.T) {
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, c, canManipulateRealOrders)
+	_, err := c.DeleteProfile(context.Background(), "", "")
+	if err == nil {
+		t.Error("Coinbase, DeleteProfile() Error, expected an error due to empty fields")
+	}
+	_, err = c.DeleteProfile(context.Background(), "this test has", "not been implemented")
+	if err == nil {
+		t.Error("Coinbase, DeleteProfile() Error, expected an error due to un-implemented test")
+	}
+}
+
+func TestGetReport(t *testing.T) {
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, c)
+	prof, err := c.GetProfiles(context.Background(), nil)
+	if err != nil {
+		t.Error("GetProfiles() error", err)
+	}
+	c.Verbose = true
+	resp, err := c.GetReports(context.Background(), prof[0].ID, "account", time.Time{}, 1000, false)
+	log.Printf("%+v", resp)
+	if err != nil {
+		t.Error("GetReport() error", err)
 	}
 }
 
@@ -1460,3 +1567,76 @@ func TestPrepareAddAddress(t *testing.T) {
 		t.Errorf("CoinBasePro PrepareAddAddress(), Expected: %v, Received: %v", expectedResult, result)
 	}
 }
+
+func TestOrderbookHelper(t *testing.T) {
+	t.Parallel()
+	req := make(InterOrderDetail, 1)
+	req[0][0] = true
+	req[0][1] = false
+	req[0][2] = true
+
+	_, err := OrderbookHelper(req, 2)
+	if err == nil {
+		t.Error("CoinBasePro OrderbookHelper(), expected unable to type assert price error")
+	}
+	req[0][0] = "egg"
+	_, err = OrderbookHelper(req, 2)
+	if err == nil {
+		t.Error("CoinBasePro OrderbookHelper(), expected invalid ParseFloat error")
+	}
+	req[0][0] = "1.1"
+	_, err = OrderbookHelper(req, 2)
+	if err == nil {
+		t.Error("CoinBasePro OrderbookHelper(), expected unable to type assert amount error")
+	}
+	req[0][1] = "meow"
+	_, err = OrderbookHelper(req, 2)
+	if err == nil {
+		t.Error("CoinBasePro OrderbookHelper(), expected invalid ParseFloat error")
+	}
+	req[0][1] = "2.2"
+	_, err = OrderbookHelper(req, 2)
+	if err == nil {
+		t.Error("CoinBasePro OrderbookHelper(), expected unable to type assert number of orders error")
+	}
+	req[0][2] = 3.3
+	_, err = OrderbookHelper(req, 2)
+	if err != nil {
+		t.Error("CoinBasePro OrderbookHelper() error", err)
+	}
+	_, err = OrderbookHelper(req, 3)
+	if err == nil {
+		t.Error("CoinBasePro OrderbookHelper(), expected unable to type assert order ID error")
+	}
+	req[0][2] = "woof"
+	_, err = OrderbookHelper(req, 3)
+	if err != nil {
+		t.Error("CoinBasePro OrderbookHelper() error", err)
+	}
+
+	log.Printf("Err: %v", err)
+}
+
+// 8837708	       143.0 ns/op	      24 B/op	       5 allocs/op
+// func BenchmarkXxx(b *testing.B) {
+// 	for x := 0; x < b.N; x++ {
+// 		_ = strconv.FormatInt(60, 10)
+// 		_ = strconv.FormatInt(300, 10)
+// 		_ = strconv.FormatInt(900, 10)
+// 		_ = strconv.FormatInt(3600, 10)
+// 		_ = strconv.FormatInt(21600, 10)
+// 		_ = strconv.FormatInt(86400, 10)
+// 	}
+// }
+
+// 8350056	       154.3 ns/op	      24 B/op	       5 allocs/op
+// func BenchmarkXxx2(b *testing.B) {
+// 	for x := 0; x < b.N; x++ {
+// 		_ = strconv.Itoa(60)
+// 		_ = strconv.Itoa(300)
+// 		_ = strconv.Itoa(900)
+// 		_ = strconv.Itoa(3600)
+// 		_ = strconv.Itoa(21600)
+// 		_ = strconv.Itoa(86400)
+// 	}
+// }
