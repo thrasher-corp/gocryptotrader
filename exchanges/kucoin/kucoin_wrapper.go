@@ -131,6 +131,7 @@ func (ku *Kucoin) SetDefaults() {
 					asset.Futures: true,
 				},
 			},
+			MaximumOrderHistory: kline.OneDay.Duration() * 7,
 			WithdrawPermissions: exchange.AutoWithdrawCrypto,
 		},
 		Enabled: exchange.FeaturesEnabled{
@@ -1582,14 +1583,6 @@ func (ku *Kucoin) GetLatestFundingRates(ctx context.Context, r *fundingrate.Late
 	if r == nil {
 		return nil, fmt.Errorf("%w LatestRateRequest", common.ErrNilPointer)
 	}
-	is, err := ku.IsPerpetualFutureCurrency(r.Asset, r.Pair)
-	if err != nil {
-		return nil, err
-	}
-	if !is {
-		return nil, fmt.Errorf("%w %s %v", futures.ErrNotPerpetualFuture, r.Asset, r.Pair)
-	}
-	var resp []fundingrate.LatestRateResponse
 	if r.Pair.IsEmpty() {
 		contracts, err := ku.GetFuturesOpenContracts(ctx)
 		if err != nil {
@@ -1599,7 +1592,7 @@ func (ku *Kucoin) GetLatestFundingRates(ctx context.Context, r *fundingrate.Late
 			log.Warnf(log.ExchangeSys, "%s predicted rate for all currencies requires an additional %v requests", ku.Name, len(contracts))
 		}
 		timeChecked := time.Now()
-		resp = make([]fundingrate.LatestRateResponse, len(contracts))
+		resp := make([]fundingrate.LatestRateResponse, len(contracts))
 		for i := range contracts {
 			timeOfNextFundingRate := time.Now().Add(time.Duration(contracts[i].NextFundingRateTime) * time.Millisecond).Truncate(time.Hour).UTC()
 			var cp currency.Pair
@@ -1631,131 +1624,66 @@ func (ku *Kucoin) GetLatestFundingRates(ctx context.Context, r *fundingrate.Late
 			}
 			resp[i] = rate
 		}
-	} else {
-		fPair, err := ku.FormatExchangeCurrency(r.Pair, r.Asset)
-		if err != nil {
-			return nil, err
-		}
-		var fr *FuturesFundingRate
-		fr, err = ku.GetFuturesCurrentFundingRate(ctx, fPair.String())
-		if err != nil {
-			return nil, err
-		}
-		rate := fundingrate.LatestRateResponse{
-			Exchange: ku.Name,
-			Asset:    r.Asset,
-			Pair:     r.Pair,
-			LatestRate: fundingrate.Rate{
-				Time: fr.TimePoint.Time(),
-				Rate: decimal.NewFromFloat(fr.Value),
-			},
-			TimeOfNextRate: fr.TimePoint.Time().Add(ku.Features.Supports.FuturesCapabilities.FundingRateFrequency).Truncate(time.Hour).UTC(),
-			TimeChecked:    time.Now(),
-		}
-		if r.IncludePredictedRate {
-			rate.PredictedUpcomingRate = fundingrate.Rate{
-				Time: rate.TimeOfNextRate,
-				Rate: decimal.NewFromFloat(fr.PredictedValue),
-			}
-		}
-		resp = append(resp, rate)
+		return resp, nil
 	}
-	return resp, nil
-}
-
-// IsPerpetualFutureCurrency ensures a given asset and currency is a perpetual future
-func (ku *Kucoin) IsPerpetualFutureCurrency(a asset.Item, cp currency.Pair) (bool, error) {
-	return a == asset.Futures && (cp.Quote.Equal(currency.USDTM) || cp.Quote.Equal(currency.USDM)), nil
-}
-
-// GetHistoricalFundingRates returns funding rates for a given asset and currency for a time period
-func (ku *Kucoin) GetHistoricalFundingRates(ctx context.Context, r *fundingrate.HistoricalRatesRequest) (*fundingrate.HistoricalRates, error) {
-	if r == nil {
-		return nil, fmt.Errorf("%w HistoricalRatesRequest", common.ErrNilPointer)
-	}
-	if r.Asset != asset.Futures {
-		return nil, fmt.Errorf("%w %v", futures.ErrNotPerpetualFuture, r.Asset)
-	}
-	if r.Pair.IsEmpty() {
-		return nil, currency.ErrCurrencyPairEmpty
-	}
-	err := common.StartEndTimeCheck(r.StartDate, r.EndDate)
-	if err != nil {
-		return nil, err
-	}
+	resp := make([]fundingrate.LatestRateResponse, 1)
 	is, err := ku.IsPerpetualFutureCurrency(r.Asset, r.Pair)
 	if err != nil {
 		return nil, err
 	}
 	if !is {
-		return nil, fmt.Errorf("%w %v", futures.ErrNotPerpetualFuture, r.Pair)
+		return nil, fmt.Errorf("%w %s %v", futures.ErrNotPerpetualFuture, r.Asset, r.Pair)
 	}
-
 	fPair, err := ku.FormatExchangeCurrency(r.Pair, r.Asset)
 	if err != nil {
 		return nil, err
 	}
-	resp := &fundingrate.HistoricalRates{
-		Exchange:  ku.Name,
-		Asset:     r.Asset,
-		Pair:      r.Pair,
-		StartDate: r.StartDate,
-		EndDate:   r.EndDate,
+	var fr *FuturesFundingRate
+	fr, err = ku.GetFuturesCurrentFundingRate(ctx, fPair.String())
+	if err != nil {
+		return nil, err
 	}
-	var offset int64
-	for {
-		var fundingHistory *FuturesFundingHistoryResponse
-		fundingHistory, err = ku.GetFuturesFundingHistory(ctx, fPair.String(), offset, 10, false, true, r.StartDate, r.EndDate)
-		if err != nil {
-			return nil, err
-		}
-		for i := range fundingHistory.DataList {
-			if resp.PaymentCurrency.IsEmpty() {
-				resp.PaymentCurrency = currency.NewCode(fundingHistory.DataList[i].SettleCurrency)
-			}
-			fr := fundingrate.Rate{
-				Time: fundingHistory.DataList[i].Time.Time(),
-				Rate: decimal.NewFromFloat(fundingHistory.DataList[i].FundingRate),
-			}
-			if r.IncludePayments {
-				fr.Payment = decimal.NewFromFloat(fundingHistory.DataList[i].Funding)
-			}
-			resp.FundingRates = append(resp.FundingRates, fr)
-		}
-		if !fundingHistory.HasMore || len(fundingHistory.DataList) < 10 {
-			resp.TimeOfNextRate = resp.FundingRates[len(resp.FundingRates)-1].Time.Add(ku.Features.Supports.FuturesCapabilities.FundingRateFrequency).Truncate(time.Hour).UTC()
-			break
-		}
-		offset++
+	rate := fundingrate.LatestRateResponse{
+		Exchange: ku.Name,
+		Asset:    r.Asset,
+		Pair:     r.Pair,
+		LatestRate: fundingrate.Rate{
+			Time: fr.TimePoint.Time(),
+			Rate: decimal.NewFromFloat(fr.Value),
+		},
+		TimeOfNextRate: fr.TimePoint.Time().Add(ku.Features.Supports.FuturesCapabilities.FundingRateFrequency).Truncate(time.Hour).UTC(),
+		TimeChecked:    time.Now(),
 	}
 	if r.IncludePredictedRate {
-		var latestRates []fundingrate.LatestRateResponse
-		latestRates, err = ku.GetLatestFundingRates(ctx, &fundingrate.LatestRateRequest{
-			Asset:                r.Asset,
-			Pair:                 r.Pair,
-			IncludePredictedRate: r.IncludePredictedRate,
-		})
-		if err != nil {
-			return nil, err
+		rate.PredictedUpcomingRate = fundingrate.Rate{
+			Time: rate.TimeOfNextRate,
+			Rate: decimal.NewFromFloat(fr.PredictedValue),
 		}
-		if len(latestRates) != 1 {
-			return nil, fmt.Errorf("expected 1 rate, received %v", len(latestRates))
-		}
-		resp.LatestRate = latestRates[0].LatestRate
-		resp.PredictedUpcomingRate = latestRates[0].PredictedUpcomingRate
-		resp.TimeOfNextRate = latestRates[0].TimeOfNextRate
 	}
-
+	resp[0] = rate
 	return resp, nil
 }
 
+// IsPerpetualFutureCurrency ensures a given asset and currency is a perpetual future
+func (ku *Kucoin) IsPerpetualFutureCurrency(a asset.Item, cp currency.Pair) (bool, error) {
+	if a != asset.Futures || (!cp.Quote.Equal(currency.USDTM) && !cp.Quote.Equal(currency.USDM)) {
+		return false, fmt.Errorf("%w - %v %v", futures.ErrNotPerpetualFuture, a, cp)
+	}
+	return true, nil
+}
+
+// GetHistoricalFundingRates returns funding rates for a given asset and currency for a time period
+func (ku *Kucoin) GetHistoricalFundingRates(_ context.Context, _ *fundingrate.HistoricalRatesRequest) (*fundingrate.HistoricalRates, error) {
+	return nil, common.ErrFunctionNotSupported
+}
+
 // GetLeverage gets the account's initial leverage for the asset type and pair
-func (ku *Kucoin) GetLeverage(ctx context.Context, item asset.Item, pair currency.Pair, marginType margin.Type, orderSide order.Side) (float64, error) {
+func (ku *Kucoin) GetLeverage(_ context.Context, _ asset.Item, _ currency.Pair, _ margin.Type, _ order.Side) (float64, error) {
 	return -1, fmt.Errorf("%w leverage is set during order placement, view orders to view leverage", common.ErrFunctionNotSupported)
 }
 
 // SetLeverage sets the account's initial leverage for the asset type and pair
-func (ku *Kucoin) SetLeverage(ctx context.Context, item asset.Item, pair currency.Pair, marginType margin.Type, amount float64, orderSide order.Side) error {
+func (ku *Kucoin) SetLeverage(_ context.Context, _ asset.Item, _ currency.Pair, _ margin.Type, _ float64, _ order.Side) error {
 	return fmt.Errorf("%w leverage is set during order placement", common.ErrFunctionNotSupported)
 }
 
@@ -1770,7 +1698,7 @@ func (ku *Kucoin) SetCollateralMode(_ context.Context, _ asset.Item, _ collatera
 }
 
 // GetCollateralMode returns the collateral type for your account
-func (ku *Kucoin) GetCollateralMode(ctx context.Context, item asset.Item) (collateral.Mode, error) {
+func (ku *Kucoin) GetCollateralMode(_ context.Context, _ asset.Item) (collateral.Mode, error) {
 	return collateral.UnknownMode, fmt.Errorf("%w only via website", common.ErrFunctionNotSupported)
 }
 
@@ -1780,7 +1708,7 @@ func (ku *Kucoin) ChangePositionMargin(ctx context.Context, r *margin.PositionCh
 		return nil, fmt.Errorf("%w HistoricalRatesRequest", common.ErrNilPointer)
 	}
 	if r.Asset != asset.Futures {
-		return nil, fmt.Errorf("%w %v", futures.ErrNotPerpetualFuture, r.Asset)
+		return nil, fmt.Errorf("%w %v", futures.ErrNotFuturesAsset, r.Asset)
 	}
 	if r.Pair.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
@@ -1796,6 +1724,9 @@ func (ku *Kucoin) ChangePositionMargin(ctx context.Context, r *margin.PositionCh
 	resp, err := ku.AddMargin(ctx, fPair.String(), fmt.Sprintf("%s%v%v", r.Pair, r.NewAllocatedMargin, time.Now().Unix()), r.NewAllocatedMargin)
 	if err != nil {
 		return nil, err
+	}
+	if resp == nil {
+		return nil, fmt.Errorf("%s - %s", ku.Name, "no response received")
 	}
 	return &margin.PositionChangeResponse{
 		Exchange:        ku.Name,
@@ -1879,6 +1810,7 @@ func (ku *Kucoin) GetFuturesPositionSummary(ctx context.Context, r *futures.Posi
 	}, nil
 }
 
+// GetFuturesPositionOrders returns the orders for futures positions
 func (ku *Kucoin) GetFuturesPositionOrders(ctx context.Context, r *futures.PositionsRequest) ([]futures.PositionResponse, error) {
 	if r == nil {
 		return nil, fmt.Errorf("%w HistoricalRatesRequest", common.ErrNilPointer)
@@ -1893,10 +1825,59 @@ func (ku *Kucoin) GetFuturesPositionOrders(ctx context.Context, r *futures.Posit
 	if err != nil {
 		return nil, err
 	}
-	positionOrders, err := ku.GetFuturesOrders(ctx, "", fPair.String(), "", "", r.StartDate, r.EndDate)
-	if err != nil {
-		return nil, err
+	if !r.EndDate.IsZero() && r.EndDate.Sub(r.StartDate) > ku.Features.Supports.MaximumOrderHistory {
+		if r.RespectOrderHistoryLimits {
+			r.StartDate = time.Now().Add(-ku.Features.Supports.MaximumOrderHistory)
+		} else {
+			return nil, fmt.Errorf("%w max lookup %v", futures.ErrOrderHistoryTooLarge, time.Now().Add(-ku.Features.Supports.MaximumOrderHistory))
+		}
+	}
+	resp := make([]futures.PositionResponse, len(r.Pairs))
+	for x := range r.Pairs {
+		fPair, err := ku.FormatExchangeCurrency(r.Pairs[x], r.Asset)
+		if err != nil {
+			return nil, err
+		}
+		positionOrders, err := ku.GetFuturesOrders(ctx, "", fPair.String(), "", "", r.StartDate, r.EndDate)
+		if err != nil {
+			return nil, err
+		}
+		resp[x].Orders = make([]order.Detail, len(positionOrders.Items))
+		for y := range positionOrders.Items {
+			side, err := order.StringToOrderSide(positionOrders.Items[y].Side)
+			if err != nil {
+				return nil, err
+			}
+			oType, err := order.StringToOrderType(positionOrders.Items[y].OrderType)
+			if err != nil {
+				return nil, fmt.Errorf("asset type: %v err: %w", r.Asset, err)
+			}
+			oStatus, err := order.StringToOrderStatus(positionOrders.Items[y].Status)
+			if err != nil {
+				return nil, fmt.Errorf("asset type: %v err: %w", r.Asset, err)
+			}
+			resp[x].Orders[y] = order.Detail{
+				Leverage:        positionOrders.Items[y].Leverage,
+				Price:           positionOrders.Items[y].Price,
+				Amount:          positionOrders.Items[y].Size,
+				ContractAmount:  positionOrders.Items[y].Size,
+				ExecutedAmount:  positionOrders.Items[y].FilledSize,
+				RemainingAmount: positionOrders.Items[y].Size - positionOrders.Items[y].FilledSize,
+				CostAsset:       currency.NewCode(positionOrders.Items[y].SettleCurrency),
+				Exchange:        ku.Name,
+				OrderID:         positionOrders.Items[y].ID,
+				ClientOrderID:   positionOrders.Items[y].ClientOid,
+				Type:            oType,
+				Side:            side,
+				Status:          oStatus,
+				AssetType:       asset.Futures,
+				Date:            positionOrders.Items[y].CreatedAt.Time(),
+				CloseTime:       positionOrders.Items[y].EndAt.Time(),
+				LastUpdated:     positionOrders.Items[y].UpdatedAt.Time(),
+				Pair:            fPair,
+			}
+		}
 	}
 
-	return nil, nil
+	return resp, nil
 }

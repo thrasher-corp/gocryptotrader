@@ -2521,10 +2521,10 @@ func TestGetFuturesPositions(t *testing.T) {
 	}
 }
 
-func TestGetFundingPaymentDetails(t *testing.T) {
+func TestGetHistoricalFundingRates(t *testing.T) {
 	t.Parallel()
 	var b Base
-	if _, err := b.GetFundingPaymentDetails(context.Background(), nil); !errors.Is(err, common.ErrNotYetImplemented) {
+	if _, err := b.GetHistoricalFundingRates(context.Background(), nil); !errors.Is(err, common.ErrNotYetImplemented) {
 		t.Errorf("received: %v, expected: %v", err, common.ErrNotYetImplemented)
 	}
 }
