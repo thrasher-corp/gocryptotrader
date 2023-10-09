@@ -188,7 +188,6 @@
                     }
                 }
             ],
-        
             "queryString": "",
             "bodyParams": "key=&nonce=1696325404980771000&signature=85B2B7E60567E352241BD98BDD08C0A435C2A77CB8F386739DD471BFFFA6C660",
             "headers": {

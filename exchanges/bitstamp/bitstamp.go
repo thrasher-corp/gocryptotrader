@@ -105,8 +105,13 @@ func (b *Bitstamp) getTradingFee(ctx context.Context, feeBuilder *exchange.FeeBu
 // GetAccountTradingFee returns a TradingFee for a pair
 func (b *Bitstamp) GetAccountTradingFee(ctx context.Context, pair currency.Pair) (TradingFees, error) {
 	path := bitstampAPITradingFees + "/" + strings.ToLower(pair.String())
+
 	var resp TradingFees
+	if pair.IsEmpty() {
+		return resp, currency.ErrCurrencyPairEmpty
+	}
 	err := b.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, path, true, nil, &resp)
+
 	return resp, err
 }
 

@@ -171,6 +171,8 @@ func TestGetAccountTradingFee(t *testing.T) {
 		assert.Equal(t, fee.Symbol, "ltcbtc", "Symbol should be correct")
 	}
 
+	_, err = b.GetAccountTradingFee(context.Background(), currency.EMPTYPAIR)
+	assert.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "Should get back the right error")
 }
 
 func TestGetAccountTradingFees(t *testing.T) {
