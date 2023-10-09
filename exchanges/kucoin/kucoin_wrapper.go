@@ -1832,12 +1832,24 @@ func (ku *Kucoin) GetFuturesPositionOrders(ctx context.Context, r *futures.Posit
 			return nil, fmt.Errorf("%w max lookup %v", futures.ErrOrderHistoryTooLarge, time.Now().Add(-ku.Features.Supports.MaximumOrderHistory))
 		}
 	}
+	contracts, err := ku.GetFuturesContractDetails(ctx, r.Asset)
+	if err != nil {
+		return nil, err
+	}
 	resp := make([]futures.PositionResponse, len(r.Pairs))
 	for x := range r.Pairs {
+		var multiplier float64
 		fPair, err := ku.FormatExchangeCurrency(r.Pairs[x], r.Asset)
 		if err != nil {
 			return nil, err
 		}
+		for i := range contracts {
+			if !contracts[i].Name.Equal(fPair) {
+				continue
+			}
+			multiplier = contracts[i].Multiplier
+		}
+
 		positionOrders, err := ku.GetFuturesOrders(ctx, "", fPair.String(), "", "", r.StartDate, r.EndDate)
 		if err != nil {
 			return nil, err
@@ -1859,7 +1871,7 @@ func (ku *Kucoin) GetFuturesPositionOrders(ctx context.Context, r *futures.Posit
 			resp[x].Orders[y] = order.Detail{
 				Leverage:        positionOrders.Items[y].Leverage,
 				Price:           positionOrders.Items[y].Price,
-				Amount:          positionOrders.Items[y].Size,
+				Amount:          positionOrders.Items[y].Size * multiplier,
 				ContractAmount:  positionOrders.Items[y].Size,
 				ExecutedAmount:  positionOrders.Items[y].FilledSize,
 				RemainingAmount: positionOrders.Items[y].Size - positionOrders.Items[y].FilledSize,
@@ -1878,6 +1890,5 @@ func (ku *Kucoin) GetFuturesPositionOrders(ctx context.Context, r *futures.Posit
 			}
 		}
 	}
-
 	return resp, nil
 }
