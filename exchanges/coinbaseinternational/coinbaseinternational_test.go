@@ -15,6 +15,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 )
 
 // Please supply your own keys here to do authenticated endpoint testing
@@ -320,4 +321,24 @@ func TestWsConnect(t *testing.T) {
 		t.Fatal(err)
 	}
 	time.Sleep(time.Second * 23)
+}
+
+func TestGenerateSubscriptionPayload(t *testing.T) {
+	t.Parallel()
+	payload, err := co.GenerateSubscriptionPayload([]stream.ChannelSubscription{}, "SUBSCRIBE")
+	if !errors.Is(err, errEmptyArgument) {
+		t.Fatalf("expected %v, got %v", errEmptyArgument, err)
+	}
+	payload, err = co.GenerateSubscriptionPayload([]stream.ChannelSubscription{
+		{Channel: cnlFunding, Currency: currency.Pair{Base: currency.BTC, Delimiter: "-", Quote: currency.USDT}},
+		{Channel: cnlFunding, Currency: currency.Pair{Base: currency.BTC, Delimiter: "-", Quote: currency.USDC}},
+		{Channel: cnlInstruments, Currency: currency.Pair{Base: currency.BTC, Delimiter: "-", Quote: currency.USDT}},
+		{Channel: cnlInstruments, Currency: currency.Pair{Base: currency.BTC, Delimiter: "-", Quote: currency.USDC}},
+		{Channel: cnlMatch, Currency: currency.Pair{Base: currency.BTC, Delimiter: "-", Quote: currency.USDT}},
+	}, "SUBSCRIBE")
+	if err != nil {
+		t.Fatal(err)
+	} else if len(payload) != 2 {
+		t.Fatalf("expected payload of length %d, got %d", 2, len(payload))
+	}
 }

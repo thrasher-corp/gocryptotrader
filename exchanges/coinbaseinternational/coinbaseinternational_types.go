@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
+	"github.com/thrasher-corp/gocryptotrader/currency"
 )
 
 // AssetItemInfo represents a single an asset item instance.
@@ -342,25 +343,122 @@ type CryptoAddressInfo struct {
 	NetworkArnID string `json:"network_arn_id"`
 }
 
-// ChannelSubscription holds channel subscription information
-type ChannelSubscription struct {
-	Type       string   `json:"type"` // SUBSCRIBE or UNSUBSCRIBE
-	ProductIds []string `json:"product_ids"`
-	Channels   []string `json:"channels"`
-	Time       string   `json:"time"`
-	Key        string   `json:"key,string"`
-	Passphrase string   `json:"passphrase,string"`
-	Signature  string   `json:"signature,string"`
+// SubscriptionInput holds channel subscription information
+type SubscriptionInput struct {
+	Type           string         `json:"type"` // SUBSCRIBE or UNSUBSCRIBE
+	ProductIDPairs currency.Pairs `json:"-"`
+	ProductIDs     []string       `json:"product_ids"`
+	Channels       []string       `json:"channels"`
+	Time           string         `json:"time"`
+	Key            string         `json:"key,string,omitempty"`
+	Passphrase     string         `json:"passphrase,string,omitempty"`
+	Signature      string         `json:"signature,string,omitempty"`
 }
 
 // SubscriptionRespnse represents a subscription response
 type SubscriptionRespnse struct {
-	Channels []struct {
-		Name       string   `json:"name"`
-		ProductIds []string `json:"product_ids"`
-	} `json:"channels"`
-	Authenticated bool      `json:"authenticated"`
-	Channel       string    `json:"channel"`
-	Type          string    `json:"type"`
-	Time          time.Time `json:"time"`
+	Channels      []SubscribedChannel `json:"channels,omitempty"`
+	Authenticated bool                `json:"authenticated,omitempty"`
+	Channel       string              `json:"channel,omitempty"`
+	Type          string              `json:"type,omitempty"`
+	Time          time.Time           `json:"time,omitempty"`
+
+	// Error message and failure reason information.
+	Message string `json:"message,omitempty"`
+	Reason  string `json:"reason,omitempty"`
+}
+
+// SubscribedChannel represents a subscribed channel name and product ID(instrument) list.
+type SubscribedChannel struct {
+	Name       string   `json:"name"`
+	ProductIDs []string `json:"product_ids"`
+}
+
+// WsInstrument holds response information to websocket
+type WsInstrument struct {
+	Sequence            int64     `json:"sequence"`
+	ProductID           string    `json:"product_id"`
+	InstrumentType      string    `json:"instrument_type"`
+	BaseAssetName       string    `json:"base_asset_name"`
+	QuoteAssetName      string    `json:"quote_asset_name"`
+	BaseIncrement       string    `json:"base_increment"`
+	QuoteIncrement      string    `json:"quote_increment"`        // 30 day average daily traded vol, updated daily
+	AvgDailyQuantity    string    `json:"avg_daily_quantity"`     // 30 day avg daily traded notional amt in USDC, updated daily
+	AvgDailyVolume      string    `json:"avg_daily_volume"`       // Max leverage allowed when trading on margin, in margin fraction
+	Total30DayQuantity  string    `json:"total_30_day_quantity"`  // 30 day total traded vol, updated daily
+	Total30DayVolume    string    `json:"total_30_day_volume"`    // 30 day total traded notional amt in USDC, updated daily
+	Total24HourQuantity string    `json:"total_24_hour_quantity"` // 24 hr total traded vol, updated hourly
+	Total24HourVolume   string    `json:"total_24_hour_volume"`   // 24 hr total traded notional amt in USDC, updated hourly
+	BaseImf             string    `json:"base_imf"`               // Smallest qty allowed to place an order
+	MinQuantity         string    `json:"min_quantity"`           // Max size allowed for a position
+	PositionSizeLimit   string    `json:"position_size_limit"`
+	FundingInterval     string    `json:"funding_interval"` // Time in nanoseconds between funding intervals
+	TradingState        string    `json:"trading_state"`    // ALLOWED: offline, trading, paused
+	LastUpdateTime      time.Time `json:"last_update_time"`
+	Time                time.Time `json:"time"` // Gateway timestamp
+	Channel             string    `json:"channel"`
+	Type                string    `json:"type"`
+}
+
+// WsMatch holds push data information through the channel MATCH.
+type WsMatch struct {
+	Sequence   int64     `json:"sequence"`
+	ProductID  string    `json:"product_id"`
+	Time       time.Time `json:"time"`
+	MatchID    string    `json:"match_id"`
+	TradeQty   string    `json:"trade_qty"`
+	TradePrice string    `json:"trade_price"`
+	Channel    string    `json:"channel"`
+	Type       string    `json:"type"`
+}
+
+// WsFunding holds push data information through the FUNDING channel.
+type WsFunding struct {
+	Sequence    int64     `json:"sequence"`
+	ProductID   string    `json:"product_id"`
+	Time        time.Time `json:"time"`
+	FundingRate string    `json:"funding_rate"`
+	IsFinal     bool      `json:"is_final"`
+	Channel     string    `json:"channel"`
+	Type        string    `json:"type"`
+}
+
+// WsRisk holds push data information through the RISK channel.
+type WsRisk struct {
+	Sequence        int64     `json:"sequence"`
+	ProductID       string    `json:"product_id"`
+	Time            time.Time `json:"time"`
+	LimitUp         string    `json:"limit_up"`
+	LimitDown       string    `json:"limit_down"`
+	IndexPrice      string    `json:"index_price"`
+	MarkPrice       string    `json:"mark_price"`
+	SettlementPrice string    `json:"settlement_price"`
+	Channel         string    `json:"channel"`
+	Type            string    `json:"type"`
+}
+
+// WsOrderbookLevel1 holds Level-1 orderbook information
+type WsOrderbookLevel1 struct {
+	Sequence  int64     `json:"sequence"`
+	ProductID string    `json:"product_id"`
+	Time      time.Time `json:"time"`
+	BidPrice  string    `json:"bid_price"`
+	BidQty    string    `json:"bid_qty"`
+	Channel   string    `json:"channel"`
+	Type      string    `json:"type"`
+	AskPrice  string    `json:"ask_price,omitempty"`
+	AskQty    string    `json:"ask_qty,omitempty"`
+}
+
+type WsOrderbookLevel2 struct {
+	Sequence  int64       `json:"sequence"`
+	ProductID string      `json:"product_id"`
+	Time      time.Time   `json:"time"`
+	Asks      [][2]string `json:"asks"`
+	Bids      [][2]string `json:"bids"`
+	Channel   string      `json:"channel"`
+	Type      string      `json:"type"` // Possible values: UPDATE and SNAPSHOT
+
+	// Changes when the data is UPDATE
+	Changes [][3]string `json:"changes"`
 }

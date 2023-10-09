@@ -2,13 +2,16 @@ package coinbaseinternational
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"strconv"
 	"time"
 
 	"github.com/gorilla/websocket"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
+	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/log"
@@ -51,17 +54,13 @@ func (co *CoinbaseInternational) WsConnect() error {
 	})
 	co.Websocket.Wg.Add(1)
 	go co.wsReadData(co.Websocket.Conn)
-	subscription := &ChannelSubscription{
+
+	return co.handleSubscription([]SubscriptionInput{{
 		Type:       "SUBSCRIBE",
-		ProductIds: []string{"BTC-PERP"},
+		ProductIDs: []string{"BTC-PERP"},
 		Channels:   []string{"LEVEL2"},
 		Time:       strconv.FormatInt(time.Now().Unix(), 10),
-	}
-	err = co.signSubscriptionPayload(subscription)
-	if err != nil {
-		return err
-	}
-	return co.Websocket.Conn.SendJSONMessage(subscription)
+	}}, true)
 }
 
 // wsReadData gets and passes on websocket messages for processing
@@ -88,23 +87,203 @@ func (co *CoinbaseInternational) wsReadData(conn stream.Connection) {
 }
 
 func (co *CoinbaseInternational) wsHandleData(respRaw []byte) error {
-	println(string(respRaw))
-	switch "" {
+	var resp SubscriptionRespnse
+	err := json.Unmarshal(respRaw, &resp)
+	if err != nil {
+		return err
+	}
+	switch resp.Type {
+	case "SUBSCRIBE":
+		subsccefulySubscribedChannels := []stream.ChannelSubscription{}
+		for x := range resp.Channels {
+			pairs, err := currency.NewPairsFromStrings(resp.Channels[x].ProductIDs)
+			if err != nil {
+				return err
+			}
+			for p := range pairs {
+				subsccefulySubscribedChannels = append(subsccefulySubscribedChannels,
+					stream.ChannelSubscription{
+						Channel:  resp.Channels[x].Name,
+						Currency: pairs[p],
+					})
+			}
+		}
+		co.Websocket.AddSuccessfulSubscriptions(subsccefulySubscribedChannels...)
+	case "UNSUBSCRIBE":
+		subsccefulySubscribedChannels := []stream.ChannelSubscription{}
+		for x := range resp.Channels {
+			pairs, err := currency.NewPairsFromStrings(resp.Channels[x].ProductIDs)
+			if err != nil {
+				return err
+			}
+			for p := range pairs {
+				subsccefulySubscribedChannels = append(subsccefulySubscribedChannels,
+					stream.ChannelSubscription{
+						Channel:  resp.Channels[x].Name,
+						Currency: pairs[p],
+					})
+			}
+		}
+		co.Websocket.RemoveSuccessfulUnsubscriptions(subsccefulySubscribedChannels...)
+	case "REJECT":
+		return fmt.Errorf("%s %v message: %s, reason: %s  ", resp.Channel, resp.Type, resp.Message, resp.Reason)
+	default: //  SNAPSHOT and UPDATE
+	}
+	switch resp.Channel {
 	case cnlInstruments:
+		return co.processInstruments(respRaw)
 	case cnlMatch:
+		return co.processMatch(respRaw)
 	case cnlFunding:
+		return co.processFunding(respRaw)
 	case cnlRisk:
+		return co.processRisk(respRaw)
 	case cnlOrderbookLevel1:
+		return co.processOrderbookLevel1(respRaw)
 	case cnlOrderbookLevel2:
+		return co.processOrderbookLevel2(respRaw)
+	default:
+		co.Websocket.DataHandler <- stream.UnhandledMessageWarning{
+			Message: string(respRaw),
+		}
+		return fmt.Errorf("unhandled message: %s", string(respRaw))
+	}
+}
+
+func (co *CoinbaseInternational) processOrderbookLevel2(respRaw []byte) error {
+	var resp []WsOrderbookLevel2
+	err := json.Unmarshal(respRaw, &resp)
+	if err != nil {
+		return err
+	}
+	// TODO:
+	return nil
+}
+
+func (co *CoinbaseInternational) processOrderbookLevel1(respRaw []byte) error {
+	var resp []WsOrderbookLevel1
+	err := json.Unmarshal(respRaw, &resp)
+	if err != nil {
+		return err
+	}
+	// TODO:
+	return nil
+}
+
+func (co *CoinbaseInternational) processRisk(respRaw []byte) error {
+	var resp WsRisk
+	err := json.Unmarshal(respRaw, &resp)
+	if err != nil {
+		return err
+	}
+	// TODO:
+	return nil
+}
+
+func (co *CoinbaseInternational) processFunding(respRaw []byte) error {
+	var resp WsFunding
+	err := json.Unmarshal(respRaw, &resp)
+	if err != nil {
+		return err
+	}
+	// TODO;
+	return nil
+}
+
+func (co *CoinbaseInternational) processMatch(respRaw []byte) error {
+	var resp WsMatch
+	err := json.Unmarshal(respRaw, &resp)
+	if err != nil {
+		return err
+	}
+	// TODO:
+	return nil
+}
+
+func (co *CoinbaseInternational) processInstruments(respRaw []byte) error {
+	var resp WsInstrument
+	err := json.Unmarshal(respRaw, &resp)
+	if err != nil {
+		return err
+	}
+	// TODO:
+	return nil
+}
+
+// GenerateSubscriptionPayload generates a subscription payloads list.
+func (co *CoinbaseInternational) GenerateSubscriptionPayload(subscriptions []stream.ChannelSubscription, operation string) ([]SubscriptionInput, error) {
+	if len(subscriptions) == 0 {
+		return nil, errEmptyArgument
+	}
+	channelPairsMap := make(map[string]currency.Pairs)
+	for x := range subscriptions {
+		_, okay := channelPairsMap[subscriptions[x].Channel]
+		if !okay {
+			channelPairsMap[subscriptions[x].Channel] = currency.Pairs{}
+		}
+		channelPairsMap[subscriptions[x].Channel] = channelPairsMap[subscriptions[x].Channel].Add(subscriptions[x].Currency)
+	}
+	format, err := co.GetPairFormat(asset.Spot, true)
+	if err != nil {
+		return nil, err
+	}
+	payloads := make([]SubscriptionInput, 0, len(channelPairsMap))
+	var payload *SubscriptionInput
+	first := true
+	for key, mPairs := range channelPairsMap {
+		if first {
+			first = false
+			payload = &SubscriptionInput{
+				Channels: []string{
+					key,
+				},
+				ProductIDs:     mPairs.Strings(),
+				ProductIDPairs: mPairs,
+				Type:           operation,
+			}
+			continue
+		}
+		diff, err := payload.ProductIDPairs.FindDifferences(mPairs, format)
+		if err != nil {
+			return nil, err
+		}
+		if len(diff.New) > 0 || len(diff.Remove) > 0 {
+			payloads = append(payloads, *payload)
+			payload = &SubscriptionInput{
+				Type: operation,
+				Channels: []string{
+					key,
+				},
+				ProductIDs:     mPairs.Strings(),
+				ProductIDPairs: mPairs,
+			}
+			continue
+		}
+		payload.Channels = append(payload.Channels, key)
+	}
+	payloads = append(payloads, *payload)
+	return payloads, nil
+}
+
+func (co *CoinbaseInternational) handleSubscription(payload []SubscriptionInput, authenticate bool) error {
+	var err error
+	for x := range payload {
+		if authenticate {
+			payload[x].Time = strconv.FormatInt(time.Now().Unix(), 10)
+			err = co.signSubscriptionPayload(&payload[x])
+			if err != nil {
+				return err
+			}
+		}
+		err = co.Websocket.Conn.SendJSONMessage(payload[x])
+		if err != nil {
+			return err
+		}
 	}
 	return nil
 }
 
-func (co *CoinbaseInternational) handleSubscription(payload []ChannelSubscription) error {
-	return nil
-}
-
-func (co *CoinbaseInternational) signSubscriptionPayload(body *ChannelSubscription) error {
+func (co *CoinbaseInternational) signSubscriptionPayload(body *SubscriptionInput) error {
 	creds, err := co.GetCredentials(context.Background())
 	if err != nil {
 		return err
@@ -126,6 +305,7 @@ func (co *CoinbaseInternational) signSubscriptionPayload(body *ChannelSubscripti
 	return nil
 }
 
+// GenerateDefaultSubscriptions generates default subscription
 func (co *CoinbaseInternational) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, error) {
 	enabledPairs, err := co.GetEnabledPairs(asset.Spot)
 	if err != nil {
@@ -144,10 +324,20 @@ func (co *CoinbaseInternational) GenerateDefaultSubscriptions() ([]stream.Channe
 	return subscriptions, nil
 }
 
+// Subscribe subscribe to channels
 func (co *CoinbaseInternational) Subscribe(subscriptions []stream.ChannelSubscription) error {
-	return nil
+	subscriptionPayloads, err := co.GenerateSubscriptionPayload(subscriptions, "SUBSCRIBE")
+	if err != nil {
+		return err
+	}
+	return co.handleSubscription(subscriptionPayloads, false)
 }
 
+// Unsubscribe unsubscribe to channels
 func (co *CoinbaseInternational) Unsubscribe(subscriptions []stream.ChannelSubscription) error {
-	return nil
+	subscriptionPayloads, err := co.GenerateSubscriptionPayload(subscriptions, "UNSUBSCRIBE")
+	if err != nil {
+		return err
+	}
+	return co.handleSubscription(subscriptionPayloads, false)
 }

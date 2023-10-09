@@ -41,6 +41,7 @@ var (
 	errMissingTransferID         = errors.New("missing transfer ID")
 	errAddressIsRequired         = errors.New("err: missing address")
 	errAssetIdentifierIsRequired = errors.New("err: asset identified is required")
+	errEmptyArgument             = errors.New("err: empty argument")
 )
 
 // Start implementing public and private exchange API funcs below
