@@ -186,7 +186,7 @@ func TestVerifyAPICredentials(t *testing.T) {
 	setupBase := func(tData *tester) *Base {
 		b := &Base{
 			API: API{
-				CredentialsValidator: CredentialsValidator{
+				CredentialsValidator: config.APICredentialsValidatorConfig{
 					RequiresKey:                tData.RequiresKey,
 					RequiresSecret:             tData.RequiresSecret,
 					RequiresClientID:           tData.RequiresClientID,
@@ -211,7 +211,7 @@ func TestVerifyAPICredentials(t *testing.T) {
 		t.Run("", func(t *testing.T) {
 			t.Parallel()
 			b := setupBase(&tc)
-			if err := b.VerifyAPICredentials(b.API.credentials); !errors.Is(err, tc.Expected) {
+			if err := b.VerifyAPICredentials(&b.API.credentials); !errors.Is(err, tc.Expected) {
 				t.Errorf("Test %d: expected: %v: got %v", x+1, tc.Expected, err)
 			}
 			if tc.CheckBase64DecodedOutput {
@@ -236,7 +236,6 @@ func TestCheckCredentials(t *testing.T) {
 			name: "Test SkipAuthCheck",
 			base: &Base{
 				SkipAuthCheck: true,
-				API:           API{credentials: &account.Credentials{}},
 			},
 			expectedErr: nil,
 		},
@@ -244,8 +243,8 @@ func TestCheckCredentials(t *testing.T) {
 			name: "Test credentials failure",
 			base: &Base{
 				API: API{
-					CredentialsValidator: CredentialsValidator{RequiresKey: true},
-					credentials:          &account.Credentials{OneTimePassword: "wow"},
+					CredentialsValidator: config.APICredentialsValidatorConfig{RequiresKey: true},
+					credentials:          account.Credentials{OneTimePassword: "wow"},
 				},
 			},
 			expectedErr: errRequiresAPIKey,
@@ -255,8 +254,8 @@ func TestCheckCredentials(t *testing.T) {
 			base: &Base{
 				LoadedByConfig: true,
 				API: API{
-					CredentialsValidator: CredentialsValidator{RequiresKey: true},
-					credentials:          &account.Credentials{Key: "k3y"},
+					CredentialsValidator: config.APICredentialsValidatorConfig{RequiresKey: true},
+					credentials:          account.Credentials{Key: "k3y"},
 				},
 			},
 			expectedErr: ErrAuthenticationSupportNotEnabled,
@@ -267,8 +266,8 @@ func TestCheckCredentials(t *testing.T) {
 				LoadedByConfig: true,
 				API: API{
 					AuthenticatedSupport: true,
-					CredentialsValidator: CredentialsValidator{RequiresKey: true},
-					credentials:          &account.Credentials{},
+					CredentialsValidator: config.APICredentialsValidatorConfig{RequiresKey: true},
+					credentials:          account.Credentials{},
 				},
 			},
 			expectedErr: ErrCredentialsAreEmpty,
@@ -277,8 +276,8 @@ func TestCheckCredentials(t *testing.T) {
 			name: "Test base64 decoded invalid credentials",
 			base: &Base{
 				API: API{
-					CredentialsValidator: CredentialsValidator{RequiresBase64DecodeSecret: true},
-					credentials:          &account.Credentials{Secret: "invalid"},
+					CredentialsValidator: config.APICredentialsValidatorConfig{RequiresBase64DecodeSecret: true},
+					credentials:          account.Credentials{Secret: "invalid"},
 				},
 			},
 			expectedErr: errBase64DecodeFailure,
@@ -287,8 +286,8 @@ func TestCheckCredentials(t *testing.T) {
 			name: "Test base64 decoded valid credentials",
 			base: &Base{
 				API: API{
-					CredentialsValidator: CredentialsValidator{RequiresBase64DecodeSecret: true},
-					credentials:          &account.Credentials{Secret: "aGVsbG8gd29ybGQ="},
+					CredentialsValidator: config.APICredentialsValidatorConfig{RequiresBase64DecodeSecret: true},
+					credentials:          account.Credentials{Secret: "aGVsbG8gd29ybGQ="},
 				},
 			},
 			checkBase64Output: true,
@@ -299,8 +298,8 @@ func TestCheckCredentials(t *testing.T) {
 			base: &Base{
 				API: API{
 					AuthenticatedSupport: true,
-					CredentialsValidator: CredentialsValidator{RequiresKey: true},
-					credentials:          &account.Credentials{Key: "k3y"},
+					CredentialsValidator: config.APICredentialsValidatorConfig{RequiresKey: true},
+					credentials:          account.Credentials{Key: "k3y"},
 				},
 			},
 			expectedErr: nil,
@@ -311,7 +310,7 @@ func TestCheckCredentials(t *testing.T) {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			if err := tc.base.CheckCredentials(tc.base.API.credentials, false); !errors.Is(err, tc.expectedErr) {
+			if err := tc.base.CheckCredentials(&tc.base.API.credentials, false); !errors.Is(err, tc.expectedErr) {
 				t.Errorf("%s: received '%v' but expected '%v'", tc.name, err, tc.expectedErr)
 			}
 			if tc.checkBase64Output {
