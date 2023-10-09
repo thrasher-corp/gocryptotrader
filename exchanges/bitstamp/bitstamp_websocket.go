@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
@@ -12,6 +13,7 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
@@ -25,7 +27,19 @@ const (
 	hbInterval    = 8 * time.Second         // Connection monitor defaults to 10s inactivity
 )
 
-var hbMsg = []byte(`{"event":"bts:heartbeat"}`)
+var (
+	hbMsg = []byte(`{"event":"bts:heartbeat"}`)
+
+	defaultSubChannels = []string{
+		bitstampAPIWSTrades,
+		bitstampAPIWSOrderbook,
+	}
+
+	defaultAuthSubChannels = []string{
+		bitstampAPIWSMyOrders,
+		bitstampAPIWSMyTrades,
+	}
+)
 
 // WsConnect connects to a websocket feed
 func (b *Bitstamp) WsConnect() error {
@@ -65,17 +79,19 @@ func (b *Bitstamp) wsReadData() {
 		if resp.Raw == nil {
 			return
 		}
-		err := b.wsHandleData(resp.Raw)
-		if err != nil {
+		if err := b.wsHandleData(resp.Raw); err != nil {
 			b.Websocket.DataHandler <- err
 		}
 	}
 }
 
 func (b *Bitstamp) wsHandleData(respRaw []byte) error {
-	var wsResponse websocketResponse
-	err := json.Unmarshal(respRaw, &wsResponse)
-	if err != nil {
+	wsResponse := &websocketResponse{}
+	if err := json.Unmarshal(respRaw, wsResponse); err != nil {
+		return err
+	}
+
+	if err := b.parseChannelName(wsResponse); err != nil {
 		return err
 	}
 
@@ -101,91 +117,19 @@ func (b *Bitstamp) wsHandleData(respRaw []byte) error {
 			}
 		}() // Connection monitor will reconnect
 	case "data":
-		wsOrderBookTemp := websocketOrderBookResponse{}
-		err := json.Unmarshal(respRaw, &wsOrderBookTemp)
-		if err != nil {
-			return err
-		}
-		var currencyPair string
-		splitter := strings.Split(wsResponse.Channel, currency.UnderscoreDelimiter)
-		if len(splitter) == 3 {
-			currencyPair = splitter[2]
-		} else {
-			return errWSPairParsingError
-		}
-		pFmt, err := b.GetPairFormat(asset.Spot, true)
-		if err != nil {
-			return err
-		}
-
-		enabledPairs, err := b.GetEnabledPairs(asset.Spot)
-		if err != nil {
-			return err
-		}
-
-		p, err := currency.NewPairFromFormattedPairs(currencyPair, enabledPairs, pFmt)
-		if err != nil {
-			return err
-		}
-
-		err = b.wsUpdateOrderbook(&wsOrderBookTemp.Data, p, asset.Spot)
-		if err != nil {
+		if err := b.handleWSOrderbook(wsResponse, respRaw); err != nil {
 			return err
 		}
 	case "trade":
-		if !b.IsSaveTradeDataEnabled() {
-			return nil
-		}
-		wsTradeTemp := websocketTradeResponse{}
-		err := json.Unmarshal(respRaw, &wsTradeTemp)
-		if err != nil {
+		if err := b.handleWSTrade(wsResponse, respRaw); err != nil {
 			return err
 		}
-
-		var currencyPair string
-		splitter := strings.Split(wsResponse.Channel, currency.UnderscoreDelimiter)
-		if len(splitter) == 3 {
-			currencyPair = splitter[2]
-		} else {
-			return errWSPairParsingError
-		}
-		pFmt, err := b.GetPairFormat(asset.Spot, true)
-		if err != nil {
-			return err
-		}
-
-		enabledPairs, err := b.GetEnabledPairs(asset.Spot)
-		if err != nil {
-			return err
-		}
-
-		p, err := currency.NewPairFromFormattedPairs(currencyPair, enabledPairs, pFmt)
-		if err != nil {
-			return err
-		}
-
-		side := order.Buy
-		if wsTradeTemp.Data.Type == 1 {
-			side = order.Sell
-		}
-		var a asset.Item
-		a, err = b.GetPairAssetType(p)
-		if err != nil {
-			return err
-		}
-		return trade.AddTradesToBuffer(b.Name, trade.Data{
-			Timestamp:    time.Unix(wsTradeTemp.Data.Timestamp, 0),
-			CurrencyPair: p,
-			AssetType:    a,
-			Exchange:     b.Name,
-			Price:        wsTradeTemp.Data.Price,
-			Amount:       wsTradeTemp.Data.Amount,
-			Side:         side,
-			TID:          strconv.FormatInt(wsTradeTemp.Data.ID, 10),
-		})
 	case "order_created", "order_deleted", "order_changed":
-		if b.Verbose {
-			log.Debugf(log.ExchangeSys, "%v - Websocket order acknowledgement", b.Name)
+		// Only process MyOrders, not orders from the LiveOrder channel
+		if wsResponse.channelType == bitstampAPIWSMyOrders {
+			if err := b.handleWSOrder(wsResponse, respRaw); err != nil {
+				return err
+			}
 		}
 	default:
 		b.Websocket.DataHandler <- stream.UnhandledMessageWarning{Message: b.Name + stream.UnhandledMessage + string(respRaw)}
@@ -193,23 +137,128 @@ func (b *Bitstamp) wsHandleData(respRaw []byte) error {
 	return nil
 }
 
+func (b *Bitstamp) handleWSOrderbook(wsResp *websocketResponse, msg []byte) error {
+	if wsResp.pair.IsEmpty() {
+		return errWSPairParsingError
+	}
+
+	wsOrderBookTemp := websocketOrderBookResponse{}
+	err := json.Unmarshal(msg, &wsOrderBookTemp)
+	if err != nil {
+		return err
+	}
+
+	return b.wsUpdateOrderbook(&wsOrderBookTemp.Data, wsResp.pair, asset.Spot)
+}
+
+func (b *Bitstamp) handleWSTrade(wsResp *websocketResponse, msg []byte) error {
+	if !b.IsSaveTradeDataEnabled() {
+		return nil
+	}
+
+	if wsResp.pair.IsEmpty() {
+		return errWSPairParsingError
+	}
+
+	wsTradeTemp := websocketTradeResponse{}
+	if err := json.Unmarshal(msg, &wsTradeTemp); err != nil {
+		return err
+	}
+
+	side := order.Buy
+	if wsTradeTemp.Data.Type == 1 {
+		side = order.Sell
+	}
+	return trade.AddTradesToBuffer(b.Name, trade.Data{
+		Timestamp:    time.Unix(wsTradeTemp.Data.Timestamp, 0),
+		CurrencyPair: wsResp.pair,
+		AssetType:    asset.Spot,
+		Exchange:     b.Name,
+		Price:        wsTradeTemp.Data.Price,
+		Amount:       wsTradeTemp.Data.Amount,
+		Side:         side,
+		TID:          strconv.FormatInt(wsTradeTemp.Data.ID, 10),
+	})
+}
+
+func (b *Bitstamp) handleWSOrder(wsResp *websocketResponse, msg []byte) error {
+	r := &websocketOrderResponse{}
+	if err := json.Unmarshal(msg, &r); err != nil {
+		return err
+	}
+
+	if r.Order.ID == 0 && r.Order.ClientOrderID == "" {
+		return fmt.Errorf("unable to parse an order id from order msg: %s", msg)
+	}
+
+	var status order.Status
+	switch wsResp.Event {
+	case "order_created":
+		status = order.New
+	case "order_changed":
+		if r.Order.ExecutedAmount > 0 {
+			status = order.PartiallyFilled
+		}
+	case "order_deleted":
+		if r.Order.RemainingAmount == 0 && r.Order.Amount > 0 {
+			status = order.Filled
+		} else {
+			status = order.Cancelled
+		}
+	}
+
+	// r.Order.ExecutedAmount is an atomic partial fill amount; We want total
+	executedAmount := r.Order.Amount - r.Order.RemainingAmount
+
+	d := &order.Detail{
+		Price:           r.Order.Price,
+		Amount:          r.Order.Amount,
+		RemainingAmount: r.Order.RemainingAmount,
+		ExecutedAmount:  executedAmount,
+		Exchange:        b.Name,
+		OrderID:         r.Order.IDStr,
+		ClientOrderID:   r.Order.ClientOrderID,
+		Side:            r.Order.Side.Side(),
+		Status:          status,
+		AssetType:       asset.Spot,
+		Date:            r.Order.Microtimestamp.Time(),
+		Pair:            wsResp.pair,
+	}
+
+	b.Websocket.DataHandler <- d
+
+	return nil
+}
+
 func (b *Bitstamp) generateDefaultSubscriptions() ([]stream.ChannelSubscription, error) {
-	var channels = []string{"live_trades_", "order_book_"}
 	enabledCurrencies, err := b.GetEnabledPairs(asset.Spot)
 	if err != nil {
 		return nil, err
 	}
 	var subscriptions []stream.ChannelSubscription
-	for i := range channels {
-		for j := range enabledCurrencies {
-			p, err := b.FormatExchangeCurrency(enabledCurrencies[j], asset.Spot)
-			if err != nil {
-				return nil, err
-			}
+	for i := range enabledCurrencies {
+		p, err := b.FormatExchangeCurrency(enabledCurrencies[i], asset.Spot)
+		if err != nil {
+			return nil, err
+		}
+		for j := range defaultSubChannels {
 			subscriptions = append(subscriptions, stream.ChannelSubscription{
-				Channel: channels[i] + p.String(),
-				Asset:   asset.Spot,
+				Channel:  defaultSubChannels[j] + "_" + p.String(),
+				Asset:    asset.Spot,
+				Currency: p,
 			})
+		}
+		if b.Websocket.CanUseAuthenticatedEndpoints() {
+			for j := range defaultAuthSubChannels {
+				subscriptions = append(subscriptions, stream.ChannelSubscription{
+					Channel:  defaultAuthSubChannels[j] + "_" + p.String(),
+					Asset:    asset.Spot,
+					Currency: p,
+					Params: map[string]interface{}{
+						"auth": struct{}{},
+					},
+				})
+			}
 		}
 	}
 	return subscriptions, nil
@@ -218,12 +267,29 @@ func (b *Bitstamp) generateDefaultSubscriptions() ([]stream.ChannelSubscription,
 // Subscribe sends a websocket message to receive data from the channel
 func (b *Bitstamp) Subscribe(channelsToSubscribe []stream.ChannelSubscription) error {
 	var errs error
+	var auth *WebsocketAuthResponse
+
+	for i := range channelsToSubscribe {
+		if _, ok := channelsToSubscribe[i].Params["auth"]; ok {
+			var err error
+			auth, err = b.FetchWSAuth(context.TODO())
+			if err != nil {
+				errs = common.AppendError(errs, err)
+			}
+			break
+		}
+	}
+
 	for i := range channelsToSubscribe {
 		req := websocketEventRequest{
 			Event: "bts:subscribe",
 			Data: websocketData{
 				Channel: channelsToSubscribe[i].Channel,
 			},
+		}
+		if _, ok := channelsToSubscribe[i].Params["auth"]; ok && auth != nil {
+			req.Data.Channel = "private-" + req.Data.Channel + "-" + strconv.Itoa(int(auth.UserID))
+			req.Data.Auth = auth.Token
 		}
 		err := b.Websocket.Conn.SendJSONMessage(req)
 		if err != nil {
@@ -232,6 +298,7 @@ func (b *Bitstamp) Subscribe(channelsToSubscribe []stream.ChannelSubscription) e
 		}
 		b.Websocket.AddSuccessfulSubscriptions(channelsToSubscribe[i])
 	}
+
 	return errs
 }
 
@@ -343,4 +410,48 @@ func (b *Bitstamp) seedOrderBook(ctx context.Context) error {
 		}
 	}
 	return nil
+}
+
+// FetchWSAuth Retrieves a userID and auth-token from REST for subscribing to a websocket channel
+// The token life-expectancy is only about 60s; use it immediately and do not store it
+func (b *Bitstamp) FetchWSAuth(ctx context.Context) (*WebsocketAuthResponse, error) {
+	resp := &WebsocketAuthResponse{}
+	err := b.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, bitstampAPIWSAuthToken, true, nil, resp)
+	if err != nil {
+		return nil, fmt.Errorf("error fetching auth token: %w", err)
+	}
+	return resp, nil
+}
+
+// parseChannel splits the ws response channel and sets the channel type and pair
+func (b *Bitstamp) parseChannelName(r *websocketResponse) error {
+	if r.Channel == "" {
+		return nil
+	}
+
+	chanName := r.Channel
+	authParts := strings.Split(r.Channel, "-")
+	switch len(authParts) {
+	case 1:
+		// Not an auth channel
+	case 3:
+		chanName = authParts[1]
+	default:
+		return fmt.Errorf("channel name does not contain exactly 0 or 2 hyphens: %v", r.Channel)
+	}
+
+	parts := strings.Split(chanName, "_")
+	if len(parts) != 3 {
+		return fmt.Errorf("%w: channel name does not contain exactly 2 underscores: %v", errWSPairParsingError, r.Channel)
+	}
+
+	r.channelType = parts[0] + "_" + parts[1]
+	symbol := parts[2]
+
+	enabledPairs, err := b.GetEnabledPairs(asset.Spot)
+	if err == nil {
+		r.pair, err = enabledPairs.DeriveFrom(symbol)
+	}
+
+	return err
 }
