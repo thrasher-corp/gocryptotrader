@@ -30,9 +30,6 @@ const (
 	apiSecret               = ""
 	passPhrase              = ""
 	canManipulateRealOrders = false
-
-	assetNotEnabled              = "asset %v not enabled"
-	spotAndMarginAssetNotEnabled = "neither spot nor margin asset is enabled"
 )
 
 var (
@@ -1964,7 +1961,7 @@ var websocketPushDatas = map[string]string{
 
 func TestPushData(t *testing.T) {
 	for key, val := range websocketPushDatas {
-		err := ku.wsHandleData([]byte(val))
+		err := ku.wsHandleData(context.Background(), []byte(val))
 		if err != nil {
 			t.Errorf("%s: %v", key, err)
 		}
@@ -2255,7 +2252,7 @@ func setupWS() {
 	if !sharedtestvalues.AreAPICredentialsSet(ku) {
 		ku.Websocket.SetCanUseAuthenticatedEndpoints(false)
 	}
-	err := ku.WsConnect()
+	err := ku.WsConnect(context.Background())
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -2403,7 +2400,7 @@ func TestProcessOrderbook(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	err = ku.wsHandleData([]byte(orderbookLevel5PushData))
+	err = ku.wsHandleData(context.Background(), []byte(orderbookLevel5PushData))
 	if err != nil {
 		t.Error(err)
 	}

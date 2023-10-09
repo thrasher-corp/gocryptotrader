@@ -105,7 +105,7 @@ func (ku *Kucoin) checkRequiredSubscriptionID(id string) bool {
 }
 
 // WsConnect creates a new websocket connection.
-func (ku *Kucoin) WsConnect() error {
+func (ku *Kucoin) WsConnect(ctx context.Context) error {
 	if !ku.Websocket.IsEnabled() || !ku.IsEnabled() {
 		return errors.New(stream.WebsocketNotEnabled)
 	}
@@ -114,19 +114,19 @@ func (ku *Kucoin) WsConnect() error {
 	dialer.HandshakeTimeout = ku.Config.HTTPTimeout
 	dialer.Proxy = http.ProxyFromEnvironment
 	var instances *WSInstanceServers
-	_, err := ku.GetCredentials(context.Background())
+	_, err := ku.GetCredentials(ctx)
 	if err != nil {
 		ku.Websocket.SetCanUseAuthenticatedEndpoints(false)
 	}
 	if ku.Websocket.CanUseAuthenticatedEndpoints() {
-		instances, err = ku.GetAuthenticatedInstanceServers(context.Background())
+		instances, err = ku.GetAuthenticatedInstanceServers(ctx)
 		if err != nil {
 			ku.Websocket.DataHandler <- err
 			ku.Websocket.SetCanUseAuthenticatedEndpoints(false)
 		}
 	}
 	if instances == nil {
-		instances, err = ku.GetInstanceServers(context.Background())
+		instances, err = ku.GetInstanceServers(ctx)
 		if err != nil {
 			return err
 		}
@@ -140,7 +140,7 @@ func (ku *Kucoin) WsConnect() error {
 		return fmt.Errorf("%v - Unable to connect to Websocket. Error: %s", ku.Name, err)
 	}
 	ku.Websocket.Wg.Add(1)
-	go ku.wsReadData()
+	go ku.wsReadData(ctx)
 	if err != nil {
 		return err
 	}
@@ -189,21 +189,21 @@ func (ku *Kucoin) GetAuthenticatedInstanceServers(ctx context.Context) (*WSInsta
 }
 
 // wsReadData receives and passes on websocket messages for processing
-func (ku *Kucoin) wsReadData() {
+func (ku *Kucoin) wsReadData(ctx context.Context) {
 	defer ku.Websocket.Wg.Done()
 	for {
 		resp := ku.Websocket.Conn.ReadMessage()
 		if resp.Raw == nil {
 			return
 		}
-		err := ku.wsHandleData(resp.Raw)
+		err := ku.wsHandleData(ctx, resp.Raw)
 		if err != nil {
 			ku.Websocket.DataHandler <- err
 		}
 	}
 }
 
-func (ku *Kucoin) wsHandleData(respData []byte) error {
+func (ku *Kucoin) wsHandleData(ctx context.Context, respData []byte) error {
 	resp := WsPushData{}
 	err := json.Unmarshal(respData, &resp)
 	if err != nil {
@@ -290,7 +290,7 @@ func (ku *Kucoin) wsHandleData(respData []byte) error {
 				return err
 			}
 			var orderbooks *orderbook.Base
-			orderbooks, err = ku.FetchOrderbook(context.Background(), cp, asset.Futures)
+			orderbooks, err = ku.FetchOrderbook(ctx, cp, asset.Futures)
 			if err != nil {
 				return err
 			}
@@ -299,7 +299,7 @@ func (ku *Kucoin) wsHandleData(respData []byte) error {
 				return err
 			}
 		}
-		return ku.processFuturesOrderbookLevel2(resp.Data, topicInfo[1])
+		return ku.processFuturesOrderbookLevel2(ctx, resp.Data, topicInfo[1])
 	case strings.HasPrefix(futuresExecutionDataChannel, topicInfo[0]):
 		var response WsFuturesExecutionData
 		return ku.processData(resp.Data, &response)
@@ -316,7 +316,7 @@ func (ku *Kucoin) wsHandleData(respData []byte) error {
 			if err != nil {
 				return err
 			}
-			orderbooks, err := ku.FetchOrderbook(context.Background(), cp, asset.Futures)
+			orderbooks, err := ku.FetchOrderbook(ctx, cp, asset.Futures)
 			if err != nil {
 				return err
 			}
@@ -541,12 +541,12 @@ func (ku *Kucoin) processFuturesOrderbookLevel5(respData []byte, instrument stri
 	})
 }
 
-func (ku *Kucoin) processFuturesOrderbookLevel2(respData []byte, instrument string) error {
+func (ku *Kucoin) processFuturesOrderbookLevel2(ctx context.Context, respData []byte, instrument string) error {
 	resp := WsFuturesOrderbokInfo{}
 	if err := json.Unmarshal(respData, &resp); err != nil {
 		return err
 	}
-	detail, err := ku.GetFuturesPartOrderbook100(context.Background(), instrument)
+	detail, err := ku.GetFuturesPartOrderbook100(ctx, instrument)
 	if err != nil {
 		return err
 	}
@@ -977,13 +977,13 @@ func (ku *Kucoin) processMarketSnapshot(respData []byte, instrument string) erro
 }
 
 // Subscribe sends a websocket message to receive data from the channel
-func (ku *Kucoin) Subscribe(subscriptions []stream.ChannelSubscription) error {
+func (ku *Kucoin) Subscribe(_ context.Context, subscriptions []stream.ChannelSubscription) error {
 	return ku.handleSubscriptions(subscriptions, "subscribe")
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
-func (ku *Kucoin) Unsubscribe(subscriptions []stream.ChannelSubscription) error {
-	return ku.handleSubscriptions(subscriptions, "unsubscribe")
+func (ku *Kucoin) Unsubscribe(_ context.Context, unsubscriptions []stream.ChannelSubscription) error {
+	return ku.handleSubscriptions(unsubscriptions, "unsubscribe")
 }
 
 func (ku *Kucoin) handleSubscriptions(subscriptions []stream.ChannelSubscription, operation string) error {
