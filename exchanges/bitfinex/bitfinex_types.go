@@ -478,10 +478,11 @@ type Fee struct {
 
 // WebsocketBook holds booking information
 type WebsocketBook struct {
-	ID     int64
-	Price  float64
-	Amount float64
-	Period int64
+	ID                   int64
+	Price                float64
+	Amount               float64
+	AmountRepresentation string
+	Period               int64
 }
 
 // WebsocketTrade holds trade information

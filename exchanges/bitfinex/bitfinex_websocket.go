@@ -195,7 +195,7 @@ func (b *Bitfinex) wsHandleData(respRaw []byte) error {
 
 		if chanID != 0 {
 			if c, ok := b.WebsocketSubdChannels[chanID]; ok {
-				return b.handleWSChannelUpdate(c, chanID, eventType, d)
+				return b.handleWSChannelUpdate(c, chanID, eventType, d, respRaw)
 			}
 			return fmt.Errorf("unable to locate chanID: %d", chanID)
 		}
@@ -469,7 +469,7 @@ func (b *Bitfinex) wsHandleData(respRaw []byte) error {
 	return nil
 }
 
-func (b *Bitfinex) handleWSChannelUpdate(c *stream.ChannelSubscription, chanID int, eventType string, d []interface{}) error {
+func (b *Bitfinex) handleWSChannelUpdate(c *stream.ChannelSubscription, chanID int, eventType string, d []interface{}, raw []byte) error {
 	if eventType == wsChecksum {
 		return b.handleWSChecksum(chanID, d)
 	}
@@ -480,7 +480,7 @@ func (b *Bitfinex) handleWSChannelUpdate(c *stream.ChannelSubscription, chanID i
 
 	switch c.Channel {
 	case wsBook:
-		return b.handleWSBookUpdate(c, chanID, d)
+		return b.handleWSBookUpdate(c, chanID, d, raw)
 	case wsCandles:
 		return b.handleWSCandleUpdate(c, d)
 	case wsTicker:
@@ -516,7 +516,7 @@ func (b *Bitfinex) handleWSChecksum(chanID int, d []interface{}) error {
 	return nil
 }
 
-func (b *Bitfinex) handleWSBookUpdate(c *stream.ChannelSubscription, chanID int, d []interface{}) error {
+func (b *Bitfinex) handleWSBookUpdate(c *stream.ChannelSubscription, chanID int, d []interface{}, raw []byte) error {
 	var newOrderbook []WebsocketBook
 	obSnapBundle, ok := d[1].([]interface{})
 	if !ok {
@@ -534,6 +534,16 @@ func (b *Bitfinex) handleWSBookUpdate(c *stream.ChannelSubscription, chanID int,
 	var fundingRate bool
 	switch id := obSnapBundle[0].(type) {
 	case []interface{}:
+		var preserve []json.RawMessage
+		if err := json.Unmarshal(raw, &preserve); err != nil {
+			return err
+		}
+
+		var preservedAmountStrings []json.RawMessage
+		if err := json.Unmarshal(preserve[1], &preservedAmountStrings); err != nil {
+			return err
+		}
+
 		for i := range obSnapBundle {
 			data, ok := obSnapBundle[i].([]interface{})
 			if !ok {
@@ -557,16 +567,23 @@ func (b *Bitfinex) handleWSBookUpdate(c *stream.ChannelSubscription, chanID int,
 				if !okFunding {
 					return errors.New("type assertion failed for orderbook funding data")
 				}
+
+				amountString := strings.Split(string(preservedAmountStrings[i]), ",")[3]
 				newOrderbook = append(newOrderbook, WebsocketBook{
-					ID:     int64(id),
-					Period: int64(pricePeriod),
-					Price:  rateAmount,
-					Amount: amount})
+					ID:                   int64(id),
+					Period:               int64(pricePeriod),
+					Price:                rateAmount,
+					Amount:               amount,
+					AmountRepresentation: amountString[:len(amountString)-1], // cleans off the `]` at the end
+				})
 			} else {
+				amountString := strings.Split(string(preservedAmountStrings[i]), ",")[2]
 				newOrderbook = append(newOrderbook, WebsocketBook{
-					ID:     int64(id),
-					Price:  pricePeriod,
-					Amount: rateAmount})
+					ID:                   int64(id),
+					Price:                pricePeriod,
+					Amount:               rateAmount,
+					AmountRepresentation: amountString[:len(amountString)-1], // cleans off the `]` at the end
+				})
 			}
 		}
 		if err := b.WsInsertSnapshot(c.Currency, c.Asset, newOrderbook, fundingRate); err != nil {
@@ -589,16 +606,24 @@ func (b *Bitfinex) handleWSBookUpdate(c *stream.ChannelSubscription, chanID int,
 			if !okSnap {
 				return errors.New("type assertion failed for orderbook amount snapshot data")
 			}
+
+			amountString := strings.Split(string(raw), ",")[4]
 			newOrderbook = append(newOrderbook, WebsocketBook{
-				ID:     int64(id),
-				Period: int64(pricePeriod),
-				Price:  amountRate,
-				Amount: amount})
+				ID:                   int64(id),
+				Period:               int64(pricePeriod),
+				Price:                amountRate,
+				Amount:               amount,
+				AmountRepresentation: amountString[:len(amountString)-1], // cleans off the `]` at the end
+			})
 		} else {
+			// This is the as a raw string representation of the amount, captures exp. notation
+			amountString := strings.Split(string(raw), ",")[3]
 			newOrderbook = append(newOrderbook, WebsocketBook{
-				ID:     int64(id),
-				Price:  pricePeriod,
-				Amount: amountRate})
+				ID:                   int64(id),
+				Price:                pricePeriod,
+				Amount:               amountRate,
+				AmountRepresentation: amountString[:len(amountString)-1], // cleans off the `]` at the end
+			})
 		}
 
 		if err := b.WsUpdateOrderbook(c.Currency, c.Asset, newOrderbook, chanID, int64(sequenceNo), fundingRate); err != nil {
@@ -1413,10 +1438,11 @@ func (b *Bitfinex) WsInsertSnapshot(p currency.Pair, assetType asset.Item, books
 	book.Asks = make(orderbook.Items, 0, len(books))
 	for i := range books {
 		item := orderbook.Item{
-			ID:     books[i].ID,
-			Amount: books[i].Amount,
-			Price:  books[i].Price,
-			Period: books[i].Period,
+			ID:        books[i].ID,
+			Amount:    books[i].Amount,
+			Price:     books[i].Price,
+			Period:    books[i].Period,
+			StrAmount: books[i].AmountRepresentation,
 		}
 		if fundingRate {
 			if item.Amount < 0 {
@@ -1458,10 +1484,11 @@ func (b *Bitfinex) WsUpdateOrderbook(p currency.Pair, assetType asset.Item, book
 
 	for i := range book {
 		item := orderbook.Item{
-			ID:     book[i].ID,
-			Amount: book[i].Amount,
-			Price:  book[i].Price,
-			Period: book[i].Period,
+			ID:        book[i].ID,
+			Amount:    book[i].Amount,
+			Price:     book[i].Price,
+			Period:    book[i].Period,
+			StrAmount: book[i].AmountRepresentation,
 		}
 
 		if book[i].Price > 0 {
@@ -2005,32 +2032,14 @@ func validateCRC32(book *orderbook.Base, token int) error {
 		}
 	}
 
-	// ensure '-' (negative amount) is passed back to string buffer as
-	// this is needed for calcs - These get swapped if funding rate
-	bidmod := float64(1)
-	if book.IsFundingRate {
-		bidmod = -1
-	}
-
-	askMod := float64(-1)
-	if book.IsFundingRate {
-		askMod = 1
-	}
-
 	var check strings.Builder
 	for i := 0; i < 25; i++ {
 		if i < len(bids) {
-			check.WriteString(strconv.FormatInt(bids[i].ID, 10))
-			check.WriteString(":")
-			check.WriteString(strconv.FormatFloat(bidmod*bids[i].Amount, 'f', -1, 64))
-			check.WriteString(":")
+			check.WriteString(strconv.FormatInt(bids[i].ID, 10) + ":" + bids[i].StrAmount + ":")
 		}
 
 		if i < len(asks) {
-			check.WriteString(strconv.FormatInt(asks[i].ID, 10))
-			check.WriteString(":")
-			check.WriteString(strconv.FormatFloat(askMod*asks[i].Amount, 'f', -1, 64))
-			check.WriteString(":")
+			check.WriteString(strconv.FormatInt(asks[i].ID, 10) + ":" + asks[i].StrAmount + ":")
 		}
 	}
 
