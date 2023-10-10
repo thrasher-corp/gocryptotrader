@@ -184,7 +184,6 @@ func TestGetAccountTradingFees(t *testing.T) {
 
 	fees, err := b.GetAccountTradingFees(context.Background())
 	if assert.NoError(t, err, "GetAccountTradingFee should not error") {
-
 		if assert.Positive(t, len(fees), "Should get back multiple fees") {
 			fee := fees[0]
 			assert.NotEmpty(t, fee.Symbol, "Should get back a symbol")
