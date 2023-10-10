@@ -26,12 +26,14 @@ const (
 var (
 	// ErrSubscriptionNotFound defines an error when a subscription is not found
 	ErrSubscriptionNotFound = errors.New("subscription not found")
+	// ErrSubscribedAlready defines an error when a channel is already subscribed
+	ErrSubscribedAlready = errors.New("duplicate subscription")
 	// ErrSubscriptionFailure defines an error when a subscription fails
 	ErrSubscriptionFailure = errors.New("subscription failure")
 	// ErrUnsubscribeFailure defines an error when a unsubscribe fails
 	ErrUnsubscribeFailure = errors.New("unsubscribe failure")
-	// ErrSubscriptionPending defines an error when a subscription is already pending an operation result
-	ErrSubscriptionPending = errors.New("subscription update already happening")
+	// ErrChannelInStateAlready defines an error when a subscription channel is already in a new state
+	ErrChannelInStateAlready = errors.New("channel already in state")
 	// ErrAlreadyDisabled is returned when you double-disable the websocket
 	ErrAlreadyDisabled = errors.New("websocket already disabled")
 	// ErrNotConnected defines an error when websocket is not connected
@@ -928,33 +930,28 @@ func (w *Websocket) SubscribeToChannels(channels []ChannelSubscription) error {
 	return nil
 }
 
-// AddPendingSubscription adds a subscription to the subscription lists, or updates it if it exists.
-// The pending operation could be subscribe or unsubscribe. The purpose of setting this state is to block other similar operations
-// If the subscription already exists then the state is changed to pending but no other fields are merged
-// Returns error if the subscription is already pending
-func (w *Websocket) AddPendingSubscription(c *ChannelSubscription) error {
+// AddSubscription adds a subscription to the subscription lists
+// Unlike AddSubscriptions this method will error if the subscription already exists
+func (w *Websocket) AddSubscription(c *ChannelSubscription) error {
 	w.subscriptionMutex.Lock()
 	defer w.subscriptionMutex.Unlock()
 	if w.subscriptions == nil {
 		w.subscriptions = subscriptionMap{}
 	}
 	key := c.EnsureKeyed()
-	p, ok := w.subscriptions[key]
-	if !ok {
-		n := *c // Fresh copy; we don't want to use the pointer we were given and allow encapsulation/locks to be bypassed
-		p = &n
-		w.subscriptions[key] = p
+	if _, ok := w.subscriptions[key]; ok {
+		return ErrSubscribedAlready
 	}
-	if p.pending {
-		return ErrSubscriptionPending
-	}
-	p.pending = true
+
+	n := *c // Fresh copy; we don't want to use the pointer we were given and allow encapsulation/locks to be bypassed
+	w.subscriptions[key] = &n
+
 	return nil
 }
 
-// SetSubscriptionPending sets an existing subscription to be Pending
-// returns an error if the subscription is not found or if it's already Pending
-func (w *Websocket) SetSubscriptionPending(c *ChannelSubscription) error {
+// SetSubscriptionState sets an existing subscription state
+// returns an error if the subscription is not found, or the new state is already set
+func (w *Websocket) SetSubscriptionState(c *ChannelSubscription, state ChannelState) error {
 	w.subscriptionMutex.Lock()
 	defer w.subscriptionMutex.Unlock()
 	if w.subscriptions == nil {
@@ -965,10 +962,10 @@ func (w *Websocket) SetSubscriptionPending(c *ChannelSubscription) error {
 	if !ok {
 		return ErrSubscriptionNotFound
 	}
-	if p.pending {
-		return ErrSubscriptionPending
+	if state == p.State {
+		return ErrChannelInStateAlready
 	}
-	p.pending = true
+	p.State = state
 	return nil
 }
 
@@ -990,7 +987,7 @@ func (w *Websocket) AddSuccessfulSubscriptions(channels ...ChannelSubscription) 
 	for _, cN := range channels {
 		c := cN // cN is an iteration var; Not safe to make a pointer to
 		key := c.EnsureKeyed()
-		c.pending = false
+		c.State = ChannelSubscribed
 		w.subscriptions[key] = &c
 	}
 }
