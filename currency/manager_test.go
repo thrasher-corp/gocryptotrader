@@ -5,6 +5,8 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
@@ -670,5 +672,40 @@ func TestEnsureOnePairEnabled(t *testing.T) {
 	_, _, err = pm.EnsureOnePairEnabled()
 	if !errors.Is(err, ErrCurrencyPairsEmpty) {
 		t.Errorf("received: '%v' but expected: '%v'", err, ErrCurrencyPairsEmpty)
+	}
+}
+
+func TestLoad(t *testing.T) {
+	t.Parallel()
+	base := PairsManager{}
+	fmt1 := &PairFormat{Uppercase: true}
+	fmt2 := &PairFormat{Uppercase: true, Delimiter: DashDelimiter}
+	p := NewPair(BTC, USDT)
+	tt := int64(1337)
+	seed := PairsManager{
+		LastUpdated:     tt,
+		UseGlobalFormat: true,
+		ConfigFormat:    fmt1,
+		RequestFormat:   fmt2,
+		Pairs: map[asset.Item]*PairStore{
+			asset.Futures: {
+				AssetEnabled: convert.BoolPtr(true),
+				Available:    []Pair{p},
+			},
+			asset.Options: {
+				AssetEnabled: convert.BoolPtr(false),
+				Available:    []Pair{},
+			},
+		},
+	}
+
+	assert.ErrorIs(t, base.Load(nil), common.ErrNilPointer, "Load nil should error")
+	if assert.NoError(t, base.Load(&seed), "Loading from seed should not error") {
+		assert.True(t, *base.Pairs[asset.Futures].AssetEnabled, "Futures AssetEnabled should be true")
+		assert.True(t, base.Pairs[asset.Futures].Available.Contains(p, true), "Futures Available Pairs should contain BTCUSDT")
+		assert.False(t, *base.Pairs[asset.Options].AssetEnabled, "Options AssetEnabled should be false")
+		assert.Equal(t, tt, base.LastUpdated, "Last Updated should be correct")
+		assert.Equal(t, fmt1.Uppercase, base.ConfigFormat.Uppercase, "ConfigFormat Uppercase should be correct")
+		assert.Equal(t, fmt2.Delimiter, base.RequestFormat.Delimiter, "RequestFormat Delimiter should be correct")
 	}
 }
