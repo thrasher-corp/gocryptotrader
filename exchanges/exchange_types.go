@@ -213,9 +213,10 @@ type API struct {
 
 	Endpoints *Endpoints
 
-	credentials *account.Credentials
+	credentials account.Credentials
 	credMu      sync.RWMutex
 
+<<<<<<< HEAD
 	CredentialsValidator CredentialsValidator
 }
 
@@ -228,6 +229,9 @@ type CredentialsValidator struct {
 	RequiresClientID           bool
 	RequiresBase64DecodeSecret bool
 	RequiresPrivateKey         bool
+=======
+	CredentialsValidator config.APICredentialsValidatorConfig
+>>>>>>> 233a65a7785a61ed60fe46c75cef1b82971c4ebf
 }
 
 // Base stores the individual exchange information
