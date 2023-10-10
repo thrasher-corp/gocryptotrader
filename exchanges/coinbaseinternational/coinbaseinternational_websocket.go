@@ -13,6 +13,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
@@ -156,7 +157,65 @@ func (co *CoinbaseInternational) processOrderbookLevel2(respRaw []byte) error {
 	if err != nil {
 		return err
 	}
-	// TODO:
+	for x := range resp {
+		asks := make([]orderbook.Item, 0, len(resp[x].Asks))
+		bids := make([]orderbook.Item, 0, len(resp[x].Bids))
+		for a := range resp[x].Asks {
+			price, err := strconv.ParseFloat(resp[x].Asks[a][0], 64)
+			if err != nil {
+				return err
+			}
+			amount, err := strconv.ParseFloat(resp[x].Asks[a][1], 64)
+			if err != nil {
+				return err
+			}
+			asks[x] = orderbook.Item{Amount: amount, Price: price}
+		}
+		for b := range resp[x].Bids {
+			price, err := strconv.ParseFloat(resp[x].Bids[b][0], 64)
+			if err != nil {
+				return err
+			}
+			amount, err := strconv.ParseFloat(resp[x].Bids[b][1], 64)
+			if err != nil {
+				return err
+			}
+			bids[x] = orderbook.Item{Amount: amount, Price: price}
+		}
+		pair, err := currency.NewPairFromString(resp[x].ProductID)
+		if err != nil {
+			return err
+		}
+		if resp[x].Type == "UPDATE" {
+			var update = orderbook.Update{
+				UpdateID:   resp[x].Sequence,
+				UpdateTime: resp[x].Time,
+				Asset:      asset.Spot,
+				Action:     orderbook.Amend,
+				Bids:       bids,
+				Asks:       asks,
+				Pair:       pair,
+			}
+			err = co.Websocket.Orderbook.Update(&update)
+			if err != nil {
+				return err
+			}
+		} else {
+			base := orderbook.Base{
+				LastUpdateID: resp[x].Sequence,
+				Bids:         bids,
+				Asks:         asks,
+				Pair:         pair,
+				Exchange:     co.Name,
+				Asset:        asset.Spot,
+				LastUpdated:  resp[x].Time,
+			}
+			err = co.Websocket.Orderbook.LoadSnapshot(&base)
+			if err != nil {
+				return err
+			}
+		}
+	}
 	return nil
 }
 
@@ -166,47 +225,81 @@ func (co *CoinbaseInternational) processOrderbookLevel1(respRaw []byte) error {
 	if err != nil {
 		return err
 	}
-	// TODO:
+	for x := range resp {
+		pair, err := currency.NewPairFromString(resp[x].ProductID)
+		if err != nil {
+			return err
+		}
+		if resp[x].Type == "UPDATE" {
+			update := orderbook.Update{
+				Pair:       pair,
+				Asset:      asset.Spot,
+				UpdateTime: resp[x].Time,
+				Action:     orderbook.Amend,
+				UpdateID:   resp[x].Sequence,
+				Asks:       []orderbook.Item{{Price: resp[x].AskPrice.Float64(), Amount: resp[x].AskQty.Float64()}},
+				Bids:       []orderbook.Item{{Price: resp[x].BidPrice.Float64(), Amount: resp[x].BidQty.Float64()}},
+			}
+			err = co.Websocket.Orderbook.Update(&update)
+			if err != nil {
+				return err
+			}
+		} else {
+			base := orderbook.Base{
+				Pair:         pair,
+				Exchange:     co.Name,
+				Asset:        asset.Spot,
+				LastUpdated:  resp[x].Time,
+				LastUpdateID: resp[x].Sequence,
+				Asks:         []orderbook.Item{{Price: resp[x].AskPrice.Float64(), Amount: resp[x].AskQty.Float64()}},
+				Bids:         []orderbook.Item{{Price: resp[x].BidPrice.Float64(), Amount: resp[x].BidQty.Float64()}},
+			}
+			err = co.Websocket.Orderbook.LoadSnapshot(&base)
+			if err != nil {
+				return err
+			}
+		}
+	}
 	return nil
 }
 
 func (co *CoinbaseInternational) processRisk(respRaw []byte) error {
-	var resp WsRisk
+	var resp []WsRisk
 	err := json.Unmarshal(respRaw, &resp)
 	if err != nil {
 		return err
 	}
-	// TODO:
+	co.Websocket.DataHandler <- resp
 	return nil
 }
 
 func (co *CoinbaseInternational) processFunding(respRaw []byte) error {
-	var resp WsFunding
+	var resp []WsFunding
 	err := json.Unmarshal(respRaw, &resp)
 	if err != nil {
 		return err
 	}
-	// TODO;
+	co.Websocket.DataHandler <- resp
 	return nil
 }
 
 func (co *CoinbaseInternational) processMatch(respRaw []byte) error {
-	var resp WsMatch
+	var resp []WsMatch
 	err := json.Unmarshal(respRaw, &resp)
 	if err != nil {
 		return err
 	}
-	// TODO:
+	co.Websocket.DataHandler <- resp
 	return nil
 }
 
 func (co *CoinbaseInternational) processInstruments(respRaw []byte) error {
-	var resp WsInstrument
+	var resp []WsInstrument
 	err := json.Unmarshal(respRaw, &resp)
 	if err != nil {
 		return err
 	}
-	// TODO:
+	co.Websocket.DataHandler <- resp
 	return nil
 }
 

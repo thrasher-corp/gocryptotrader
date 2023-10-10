@@ -439,15 +439,15 @@ type WsRisk struct {
 
 // WsOrderbookLevel1 holds Level-1 orderbook information
 type WsOrderbookLevel1 struct {
-	Sequence  int64     `json:"sequence"`
-	ProductID string    `json:"product_id"`
-	Time      time.Time `json:"time"`
-	BidPrice  string    `json:"bid_price"`
-	BidQty    string    `json:"bid_qty"`
-	Channel   string    `json:"channel"`
-	Type      string    `json:"type"`
-	AskPrice  string    `json:"ask_price,omitempty"`
-	AskQty    string    `json:"ask_qty,omitempty"`
+	Sequence  int64                   `json:"sequence"`
+	ProductID string                  `json:"product_id"`
+	Time      time.Time               `json:"time"`
+	BidPrice  convert.StringToFloat64 `json:"bid_price"`
+	BidQty    convert.StringToFloat64 `json:"bid_qty"`
+	Channel   string                  `json:"channel"`
+	Type      string                  `json:"type"`
+	AskPrice  convert.StringToFloat64 `json:"ask_price,omitempty"`
+	AskQty    convert.StringToFloat64 `json:"ask_qty,omitempty"`
 }
 
 type WsOrderbookLevel2 struct {
