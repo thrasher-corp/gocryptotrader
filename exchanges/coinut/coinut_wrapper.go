@@ -1199,3 +1199,8 @@ func (c *COINUT) GetHistoricCandlesExtended(_ context.Context, _ currency.Pair, 
 func (c *COINUT) GetFuturesContractDetails(context.Context, asset.Item) ([]futures.Contract, error) {
 	return nil, common.ErrFunctionNotSupported
 }
+
+// UpdateOrderExecutionLimits updates order execution limits
+func (c *COINUT) UpdateOrderExecutionLimits(_ context.Context, _ asset.Item) error {
+	return common.ErrNotYetImplemented
+}

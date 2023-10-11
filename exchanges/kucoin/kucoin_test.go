@@ -30,9 +30,6 @@ const (
 	apiSecret               = ""
 	passPhrase              = ""
 	canManipulateRealOrders = false
-
-	assetNotEnabled              = "asset %v not enabled"
-	spotAndMarginAssetNotEnabled = "neither spot nor margin asset is enabled"
 )
 
 var (

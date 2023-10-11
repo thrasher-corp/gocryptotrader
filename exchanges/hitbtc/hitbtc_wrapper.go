@@ -998,3 +998,8 @@ func (h *HitBTC) GetHistoricCandlesExtended(ctx context.Context, pair currency.P
 func (h *HitBTC) GetFuturesContractDetails(context.Context, asset.Item) ([]futures.Contract, error) {
 	return nil, common.ErrFunctionNotSupported
 }
+
+// UpdateOrderExecutionLimits updates order execution limits
+func (h *HitBTC) UpdateOrderExecutionLimits(_ context.Context, _ asset.Item) error {
+	return common.ErrNotYetImplemented
+}

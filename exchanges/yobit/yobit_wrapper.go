@@ -766,3 +766,8 @@ func (y *Yobit) GetServerTime(ctx context.Context, _ asset.Item) (time.Time, err
 func (y *Yobit) GetFuturesContractDetails(context.Context, asset.Item) ([]futures.Contract, error) {
 	return nil, common.ErrFunctionNotSupported
 }
+
+// UpdateOrderExecutionLimits updates order execution limits
+func (y *Yobit) UpdateOrderExecutionLimits(_ context.Context, _ asset.Item) error {
+	return common.ErrNotYetImplemented
+}

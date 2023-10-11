@@ -1065,3 +1065,8 @@ func (b *Bittrex) GetHistoricCandlesExtended(_ context.Context, _ currency.Pair,
 func (b *Bittrex) GetFuturesContractDetails(context.Context, asset.Item) ([]futures.Contract, error) {
 	return nil, common.ErrFunctionNotSupported
 }
+
+// UpdateOrderExecutionLimits updates order execution limits
+func (b *Bittrex) UpdateOrderExecutionLimits(_ context.Context, _ asset.Item) error {
+	return common.ErrNotYetImplemented
+}

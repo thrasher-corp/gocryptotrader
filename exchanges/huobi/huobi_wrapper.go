@@ -2196,3 +2196,8 @@ func (h *HUOBI) GetFuturesContractDetails(ctx context.Context, item asset.Item) 
 	}
 	return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, item)
 }
+
+// UpdateOrderExecutionLimits updates order execution limits
+func (h *HUOBI) UpdateOrderExecutionLimits(_ context.Context, _ asset.Item) error {
+	return common.ErrNotYetImplemented
+}

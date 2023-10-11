@@ -1564,3 +1564,8 @@ func (ku *Kucoin) GetFuturesContractDetails(ctx context.Context, item asset.Item
 	}
 	return resp, nil
 }
+
+// UpdateOrderExecutionLimits updates order execution limits
+func (ku *Kucoin) UpdateOrderExecutionLimits(_ context.Context, _ asset.Item) error {
+	return common.ErrNotYetImplemented
+}

@@ -1135,3 +1135,8 @@ func (p *Poloniex) GetServerTime(ctx context.Context, _ asset.Item) (time.Time, 
 func (p *Poloniex) GetFuturesContractDetails(context.Context, asset.Item) ([]futures.Contract, error) {
 	return nil, common.ErrFunctionNotSupported
 }
+
+// UpdateOrderExecutionLimits updates order execution limits
+func (p *Poloniex) UpdateOrderExecutionLimits(_ context.Context, _ asset.Item) error {
+	return common.ErrNotYetImplemented
+}

@@ -1241,3 +1241,8 @@ func (b *Bitmex) GetFuturesContractDetails(ctx context.Context, item asset.Item)
 	}
 	return resp, nil
 }
+
+// UpdateOrderExecutionLimits updates order execution limits
+func (b *Bitmex) UpdateOrderExecutionLimits(_ context.Context, _ asset.Item) error {
+	return common.ErrNotYetImplemented
+}

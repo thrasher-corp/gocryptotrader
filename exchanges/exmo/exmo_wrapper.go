@@ -838,3 +838,8 @@ func (e *EXMO) GetAvailableTransferChains(ctx context.Context, cryptocurrency cu
 func (e *EXMO) GetFuturesContractDetails(context.Context, asset.Item) ([]futures.Contract, error) {
 	return nil, common.ErrFunctionNotSupported
 }
+
+// UpdateOrderExecutionLimits updates order execution limits
+func (e *EXMO) UpdateOrderExecutionLimits(_ context.Context, _ asset.Item) error {
+	return common.ErrNotYetImplemented
+}

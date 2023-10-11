@@ -992,3 +992,8 @@ func (bi *Binanceus) GetAvailableTransferChains(ctx context.Context, cryptocurre
 func (bi *Binanceus) GetFuturesContractDetails(context.Context, asset.Item) ([]futures.Contract, error) {
 	return nil, common.ErrFunctionNotSupported
 }
+
+// UpdateOrderExecutionLimits updates order execution limits
+func (bi *Binanceus) UpdateOrderExecutionLimits(_ context.Context, _ asset.Item) error {
+	return common.ErrNotYetImplemented
+}

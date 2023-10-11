@@ -698,3 +698,8 @@ func (i *ItBit) GetHistoricCandlesExtended(_ context.Context, _ currency.Pair, _
 func (i *ItBit) GetFuturesContractDetails(context.Context, asset.Item) ([]futures.Contract, error) {
 	return nil, common.ErrFunctionNotSupported
 }
+
+// UpdateOrderExecutionLimits updates order execution limits
+func (i *ItBit) UpdateOrderExecutionLimits(_ context.Context, _ asset.Item) error {
+	return common.ErrNotYetImplemented
+}

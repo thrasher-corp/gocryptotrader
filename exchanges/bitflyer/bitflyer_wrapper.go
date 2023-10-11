@@ -504,3 +504,8 @@ func (b *Bitflyer) GetHistoricCandlesExtended(_ context.Context, _ currency.Pair
 func (b *Bitflyer) GetFuturesContractDetails(context.Context, asset.Item) ([]futures.Contract, error) {
 	return nil, common.ErrFunctionNotSupported
 }
+
+// UpdateOrderExecutionLimits updates order execution limits
+func (b *Bitflyer) UpdateOrderExecutionLimits(_ context.Context, _ asset.Item) error {
+	return common.ErrNotYetImplemented
+}

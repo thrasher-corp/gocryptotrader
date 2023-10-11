@@ -482,3 +482,8 @@ func (a *Alphapoint) GetHistoricCandlesExtended(_ context.Context, _ currency.Pa
 func (a *Alphapoint) GetFuturesContractDetails(context.Context, asset.Item) ([]futures.Contract, error) {
 	return nil, common.ErrFunctionNotSupported
 }
+
+// UpdateOrderExecutionLimits updates order execution limits
+func (a *Alphapoint) UpdateOrderExecutionLimits(_ context.Context, _ asset.Item) error {
+	return common.ErrNotYetImplemented
+}
