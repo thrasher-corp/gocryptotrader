@@ -9,6 +9,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -2431,5 +2433,42 @@ func TestGetFuturesContractDetails(t *testing.T) {
 	_, err = ku.GetFuturesContractDetails(context.Background(), asset.Futures)
 	if !errors.Is(err, nil) {
 		t.Error(err)
+	}
+}
+func TestUpdateOrderExecutionLimits(t *testing.T) {
+	t.Parallel()
+
+	err := ku.UpdateOrderExecutionLimits(context.Background(), asset.Binary)
+	if !errors.Is(err, asset.ErrNotSupported) {
+		t.Fatalf("Received %v, expected %v", err, asset.ErrNotSupported)
+	}
+
+	err = ku.UpdateOrderExecutionLimits(context.Background(), asset.Futures)
+	if !errors.Is(err, common.ErrNotYetImplemented) {
+		t.Fatalf("Received %v, expected %v", err, common.ErrNotYetImplemented)
+	}
+
+	err = ku.UpdateOrderExecutionLimits(context.Background(), asset.Margin)
+	if !errors.Is(err, common.ErrNotYetImplemented) {
+		t.Fatalf("Received %v, expected %v", err, common.ErrNotYetImplemented)
+	}
+
+	err = ku.UpdateOrderExecutionLimits(context.Background(), asset.Spot)
+	if !errors.Is(err, nil) {
+		t.Fatalf("Received %v, expected %v", err, nil)
+	}
+
+	avail, err := ku.GetAvailablePairs(asset.Spot)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	for x := range avail {
+		lim, err := ku.GetOrderExecutionLimits(asset.Spot, avail[x])
+		if err != nil {
+			t.Fatalf("%v %s", err, avail[x])
+		}
+
+		assert.NotEmpty(t, lim, "limit cannot be empty")
 	}
 }

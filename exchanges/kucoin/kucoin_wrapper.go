@@ -1566,6 +1566,39 @@ func (ku *Kucoin) GetFuturesContractDetails(ctx context.Context, item asset.Item
 }
 
 // UpdateOrderExecutionLimits updates order execution limits
-func (ku *Kucoin) UpdateOrderExecutionLimits(_ context.Context, _ asset.Item) error {
-	return common.ErrNotYetImplemented
+func (ku *Kucoin) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) error {
+	if !ku.SupportsAsset(a) {
+		return fmt.Errorf("%w %v", asset.ErrNotSupported, a)
+	}
+
+	switch a {
+	case asset.Spot:
+		symbols, err := ku.GetSymbols(ctx, "")
+		if err != nil {
+			return err
+		}
+
+		limits := make([]order.MinMaxLevel, len(symbols))
+		for x := range symbols {
+			var pair currency.Pair
+			pair, err = currency.NewPairFromString(symbols[x].Name)
+			if err != nil {
+				return err
+			}
+			limits[x] = order.MinMaxLevel{
+				Pair:                    pair,
+				Asset:                   a,
+				AmountStepIncrementSize: symbols[x].BaseIncrement,
+				QuoteStepIncrementSize:  symbols[x].QuoteIncrement,
+				PriceStepIncrementSize:  symbols[x].PriceIncrement,
+				MinimumBaseAmount:       symbols[x].BaseMinSize,
+				MaximumBaseAmount:       symbols[x].BaseMaxSize,
+				MinimumQuoteAmount:      symbols[x].QuoteMinSize,
+				MaximumQuoteAmount:      symbols[x].QuoteMaxSize,
+			}
+		}
+		return ku.LoadLimits(limits)
+	}
+
+	return fmt.Errorf("%w for asset type %s", common.ErrNotYetImplemented, a)
 }
