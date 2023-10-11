@@ -2435,6 +2435,7 @@ func TestGetFuturesContractDetails(t *testing.T) {
 		t.Error(err)
 	}
 }
+
 func TestUpdateOrderExecutionLimits(t *testing.T) {
 	t.Parallel()
 
