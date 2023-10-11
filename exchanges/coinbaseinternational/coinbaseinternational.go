@@ -28,10 +28,6 @@ type CoinbaseInternational struct {
 const (
 	coinbaseInternationalAPIURL = "https://api.international.coinbase.com"
 	coinbaseAPIVersion          = "/api/v1"
-
-	// Public endpoints
-
-	// Authenticated endpoints
 )
 
 var (
@@ -43,10 +39,6 @@ var (
 	errAssetIdentifierIsRequired = errors.New("err: asset identified is required")
 	errEmptyArgument             = errors.New("err: empty argument")
 )
-
-// Start implementing public and private exchange API funcs below
-
-// --------------------------------------  Assets  --------------------------
 
 // ListAssets returns a list of all supported assets.
 func (co *CoinbaseInternational) ListAssets(ctx context.Context) ([]AssetItemInfo, error) {
@@ -115,8 +107,8 @@ func (co *CoinbaseInternational) GetInstrumentDetails(ctx context.Context, instr
 }
 
 // GetQuotePerInstrument retrieves the current quote for a specific instrument.
-func (co *CoinbaseInternational) GetQuotePerInstrument(ctx context.Context, instrumentName, instrumentUUID, instrumentID string) (*InstrumentQuoteInformation, error) {
-	var resp InstrumentQuoteInformation
+func (co *CoinbaseInternational) GetQuotePerInstrument(ctx context.Context, instrumentName, instrumentUUID, instrumentID string) (*QuoteInformation, error) {
+	var resp QuoteInformation
 	path := "instruments/"
 	switch {
 	case instrumentName != "":
@@ -200,6 +192,8 @@ func (co *CoinbaseInternational) CancelOrders(ctx context.Context, portfolioID, 
 	var resp []OrderItem
 	return resp, co.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodDelete, "orders", params, nil, &resp, true)
 }
+
+// ERROR:
 
 // ModifyOpenOrder modifies an open order.
 func (co *CoinbaseInternational) ModifyOpenOrder(ctx context.Context, orderID string) (*OrderItem, error) {

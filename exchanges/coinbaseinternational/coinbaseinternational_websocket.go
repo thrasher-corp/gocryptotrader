@@ -67,7 +67,6 @@ func (co *CoinbaseInternational) WsConnect() error {
 // wsReadData gets and passes on websocket messages for processing
 func (co *CoinbaseInternational) wsReadData(conn stream.Connection) {
 	defer co.Websocket.Wg.Done()
-
 	for {
 		select {
 		case <-co.Websocket.ShutdownC:
@@ -78,7 +77,6 @@ func (co *CoinbaseInternational) wsReadData(conn stream.Connection) {
 				log.Warnf(log.WebsocketMgr, "%s Received empty message\n", co.Name)
 				return
 			}
-
 			err := co.wsHandleData(resp.Raw)
 			if err != nil {
 				co.Websocket.DataHandler <- err
@@ -387,7 +385,7 @@ func (co *CoinbaseInternational) signSubscriptionPayload(body *SubscriptionInput
 		return err
 	}
 	hmac, err = crypto.GetHMAC(crypto.HashSHA256,
-		[]byte(body.Time+", "+creds.Key+", "+"CBINTLMD, "+creds.ClientID),
+		[]byte(body.Time+","+creds.Key+","+"CBINTLMD,"+creds.ClientID),
 		secretBytes)
 	if err != nil {
 		return err

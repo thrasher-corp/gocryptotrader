@@ -314,6 +314,18 @@ func TestUpdateTradablePairs(t *testing.T) {
 	}
 }
 
+func TestUpdateTicker(t *testing.T) {
+	t.Parallel()
+	pair, err := currency.NewPairFromString("BTC-PERP")
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = co.UpdateTicker(context.Background(), pair, asset.Spot)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
 func TestWsConnect(t *testing.T) {
 	t.Parallel()
 	err := co.WsConnect()

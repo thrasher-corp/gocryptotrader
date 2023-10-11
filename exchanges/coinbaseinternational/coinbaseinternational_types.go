@@ -65,8 +65,8 @@ type InstrumentInfo struct {
 	InitialMarginAdv    float64 `json:"initial_margin_adv"`
 }
 
-// InstrumentQuoteInformation represents a quote information
-type InstrumentQuoteInformation struct {
+// QuoteInformation represents a instrument quote information
+type QuoteInformation struct {
 	BestBidPrice     float64              `json:"best_bid_price"`
 	BestBidSize      float64              `json:"best_bid_size"`
 	BestAskPrice     float64              `json:"best_ask_price"`
@@ -101,28 +101,28 @@ type OrderRequestParams struct {
 
 // TradeOrder represents a single order
 type TradeOrder struct {
-	OrderID        int64     `json:"order_id"`
-	ClientOrderID  string    `json:"client_order_id"`
-	Side           string    `json:"side"`
-	InstrumentID   int64     `json:"instrument_id"`
-	InstrumentUUID string    `json:"instrument_uuid"`
-	Symbol         string    `json:"symbol"`
-	PortfolioID    int64     `json:"portfolio_id"`
-	PortfolioUUID  string    `json:"portfolio_uuid"`
-	Type           string    `json:"type"`
-	Price          float64   `json:"price"`
-	StopPrice      float64   `json:"stop_price"`
-	Size           float64   `json:"size"`
-	Tif            string    `json:"tif"`
-	ExpireTime     time.Time `json:"expire_time"`
-	StpMode        string    `json:"stp_mode"`
-	EventType      string    `json:"event_type"`
-	OrderStatus    string    `json:"order_status"`
-	LeavesQty      string    `json:"leaves_qty"`
-	ExecQty        string    `json:"exec_qty"`
-	AvgPrice       string    `json:"avg_price"`
-	Message        string    `json:"message"`
-	Fee            string    `json:"fee"`
+	OrderID        int64                   `json:"order_id"`
+	ClientOrderID  string                  `json:"client_order_id"`
+	Side           string                  `json:"side"`
+	InstrumentID   int64                   `json:"instrument_id"`
+	InstrumentUUID string                  `json:"instrument_uuid"`
+	Symbol         string                  `json:"symbol"`
+	PortfolioID    int64                   `json:"portfolio_id"`
+	PortfolioUUID  string                  `json:"portfolio_uuid"`
+	Type           string                  `json:"type"`
+	Price          float64                 `json:"price"`
+	StopPrice      float64                 `json:"stop_price"`
+	Size           float64                 `json:"size"`
+	Tif            string                  `json:"tif"`
+	ExpireTime     time.Time               `json:"expire_time"`
+	StpMode        string                  `json:"stp_mode"`
+	EventType      string                  `json:"event_type"`
+	OrderStatus    string                  `json:"order_status"`
+	LeavesQty      convert.StringToFloat64 `json:"leaves_qty"`
+	ExecQty        convert.StringToFloat64 `json:"exec_qty"`
+	AvgPrice       convert.StringToFloat64 `json:"avg_price"`
+	Message        string                  `json:"message"`
+	Fee            convert.StringToFloat64 `json:"fee"`
 }
 
 // OrderItemDetail represents an open order detail.
@@ -161,7 +161,8 @@ type OrderItem struct {
 	Fee            convert.StringToFloat64 `json:"fee"`
 }
 
-// PortfolioItem represents a user portfolio item.
+// PortfolioItem represents a user portfolio item
+// and transaction fee information.
 type PortfolioItem struct {
 	PortfolioID    string  `json:"portfolio_id"`
 	PortfolioUUID  string  `json:"portfolio_uuid"`

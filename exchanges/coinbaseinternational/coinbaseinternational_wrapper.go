@@ -3,6 +3,7 @@ package coinbaseinternational
 import (
 	"context"
 	"fmt"
+	"strconv"
 	"sync"
 	"time"
 
@@ -53,26 +54,12 @@ func (co *CoinbaseInternational) SetDefaults() {
 	co.Verbose = true
 	co.API.CredentialsValidator.RequiresKey = true
 	co.API.CredentialsValidator.RequiresSecret = true
-
-	// If using only one pair format for request and configuration, across all
-	// supported asset types either SPOT and FUTURES etc. You can use the
-	// example below:
-
-	// Request format denotes what the pair as a string will be, when you send
-	// a request to an exchange.
-	requestFmt := &currency.PairFormat{ /*Set pair request formatting details here for e.g.*/ Uppercase: true, Delimiter: ":"}
-	// Config format denotes what the pair as a string will be, when saved to
-	// the config.json file.
-	configFmt := &currency.PairFormat{ /*Set pair request formatting details here*/ }
-	err := co.SetGlobalPairsManager(requestFmt, configFmt /*multiple assets can be set here using the asset package ie asset.Spot*/)
+	requestFmt := &currency.PairFormat{Uppercase: true, Delimiter: ":"}
+	configFmt := &currency.PairFormat{}
+	err := co.SetGlobalPairsManager(requestFmt, configFmt)
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
-
-	// If assets require multiple differences in formatting for request and
-	// configuration, another exchange method can be be used e.g. futures
-	// contracts require a dash as a delimiter rather than an underscore. You
-	// can use this example below:
 
 	fmt := currency.PairStore{
 		RequestFormat: &currency.PairFormat{Uppercase: true, Delimiter: currency.DashDelimiter},
@@ -84,7 +71,6 @@ func (co *CoinbaseInternational) SetDefaults() {
 		log.Errorln(log.ExchangeSys, err)
 	}
 
-	// Fill out the capabilities/features that the exchange supports
 	co.Features = exchange.Features{
 		Supports: exchange.FeaturesSupported{
 			REST:      true,
@@ -104,14 +90,12 @@ func (co *CoinbaseInternational) SetDefaults() {
 			AutoPairUpdates: true,
 		},
 	}
-	// NOTE: SET THE EXCHANGES RATE LIMIT HERE
 	co.Requester, err = request.New(co.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout))
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
 
-	// NOTE: SET THE URLs HERE
 	co.API.Endpoints = co.NewEndpoints()
 	co.API.Endpoints.SetDefaultEndpoints(map[exchange.URL]string{
 		exchange.RestSpot:      coinbaseInternationalAPIURL,
@@ -244,63 +228,39 @@ func (co *CoinbaseInternational) UpdateTradablePairs(ctx context.Context, forceU
 
 // UpdateTicker updates and returns the ticker for a currency pair
 func (co *CoinbaseInternational) UpdateTicker(ctx context.Context, p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
-	// NOTE: EXAMPLE FOR GETTING TICKER PRICE
-	/*
-		tickerPrice := new(ticker.Price)
-		tick, err := co.GetTicker(p.String())
-		if err != nil {
-			return tickerPrice, err
-		}
-		tickerPrice = &ticker.Price{
-			High:    tick.High,
-			Low:     tick.Low,
-			Bid:     tick.Bid,
-			Ask:     tick.Ask,
-			Open:    tick.Open,
-			Close:   tick.Close,
-			Pair:    p,
-		}
-		err = ticker.ProcessTicker(co.Name, tickerPrice, assetType)
-		if err != nil {
-			return tickerPrice, err
-		}
-	*/
+	if assetType != asset.Spot {
+		return nil, fmt.Errorf("%w asset type %v", asset.ErrNotSupported, asset.Spot)
+	}
+	if p.IsEmpty() {
+		return nil, currency.ErrCurrencyPairEmpty
+	}
+	tick, err := co.GetQuotePerInstrument(ctx, p.String(), "", "")
+	tickerPrice := &ticker.Price{
+		High:         tick.LimitUp,
+		Low:          tick.LimitDown,
+		Bid:          tick.BestBidPrice,
+		BidSize:      tick.BestBidSize,
+		Ask:          tick.BestAskPrice,
+		AskSize:      tick.BestAskSize,
+		Open:         tick.MarkPrice,
+		Close:        tick.SettlementPrice,
+		LastUpdated:  tick.Timestamp.Time(),
+		Volume:       tick.TradeQty / tick.TradePrice, // TODO: if the volume is representing the quote volume,  then the base quentity is the quote volume divided by the trade price.
+		QuoteVolume:  tick.TradeQty,
+		ExchangeName: co.Name,
+		AssetType:    asset.Spot,
+		Pair:         p,
+	}
+	err = ticker.ProcessTicker(tickerPrice)
+	if err != nil {
+		return tickerPrice, err
+	}
 	return ticker.GetTicker(co.Name, p, assetType)
 }
 
 // UpdateTickers updates all currency pairs of a given asset type
 func (co *CoinbaseInternational) UpdateTickers(ctx context.Context, assetType asset.Item) error {
-	// NOTE: EXAMPLE FOR GETTING TICKER PRICE
-	/*
-			tick, err := co.GetTickers()
-			if err != nil {
-				return err
-			}
-		    for y := range tick {
-		        cp, err := currency.NewPairFromString(tick[y].Symbol)
-		        if err != nil {
-		            return err
-		        }
-		        err = ticker.ProcessTicker(&ticker.Price{
-		            Last:         tick[y].LastPrice,
-		            High:         tick[y].HighPrice,
-		            Low:          tick[y].LowPrice,
-		            Bid:          tick[y].BidPrice,
-		            Ask:          tick[y].AskPrice,
-		            Volume:       tick[y].Volume,
-		            QuoteVolume:  tick[y].QuoteVolume,
-		            Open:         tick[y].OpenPrice,
-		            Close:        tick[y].PrevClosePrice,
-		            Pair:         cp,
-		            ExchangeName: b.Name,
-		            AssetType:    assetType,
-		        })
-		        if err != nil {
-		            return err
-		        }
-		    }
-	*/
-	return nil
+	return common.ErrFunctionNotSupported
 }
 
 // FetchTicker returns the ticker for a currency pair
@@ -364,8 +324,6 @@ func (co *CoinbaseInternational) UpdateOrderbook(ctx context.Context, pair curre
 
 // UpdateAccountInfo retrieves balances for all enabled currencies
 func (co *CoinbaseInternational) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
-	// If fetching requires more than one asset type please set
-	// HasAssetTypeAccountSegregation to true in RESTCapabilities above.
 	return account.Holdings{}, common.ErrNotYetImplemented
 }
 
@@ -415,16 +373,44 @@ func (co *CoinbaseInternational) SubmitOrder(ctx context.Context, s *order.Submi
 	if err := s.Validate(); err != nil {
 		return nil, err
 	}
-	// When an order has been submitted you can use this helpful constructor to
-	// return. Please add any additional order details to the
-	// order.SubmitResponse if you think they are applicable.
-	// resp, err := s.DeriveSubmitResponse( /*newOrderID*/)
-	// if err != nil {
-	// 	return nil, nil
-	// }
-	// resp.Date = exampleTime // e.g. If this is supplied by the exchanges API.
-	// return resp, nil
-	return nil, common.ErrNotYetImplemented
+	oType, err := orderTypeString(s.Type)
+	if err != nil {
+		return nil, err
+	}
+	response, err := co.CreateOrder(ctx, &OrderRequestParams{
+		ClientOrderID: s.ClientOrderID,
+		Side:          s.Side.String(),
+		BaseSize:      s.Amount,
+		Instrument:    s.Pair.String(),
+		OrderType:     oType,
+		Price:         s.Price,
+		StopPrice:     s.TriggerPrice,
+		PostOnly:      s.PostOnly,
+	})
+	if err != nil {
+		return nil, err
+	}
+	oStatus, err := order.StringToOrderStatus(response.OrderStatus)
+	if err != nil {
+		return nil, err
+	}
+	return &order.SubmitResponse{
+		Exchange:      co.Name,
+		Type:          s.Type,
+		Side:          s.Side,
+		Pair:          s.Pair,
+		AssetType:     asset.Spot,
+		PostOnly:      s.PostOnly,
+		ReduceOnly:    s.ReduceOnly,
+		Leverage:      s.Leverage,
+		Price:         response.Price,
+		Amount:        response.Size,
+		TriggerPrice:  response.StopPrice,
+		ClientOrderID: response.ClientOrderID,
+		Status:        oStatus,
+		OrderID:       strconv.FormatInt(response.OrderID, 10),
+		Fee:           response.Fee.Float64(),
+	}, nil
 }
 
 // ModifyOrder will allow of changing orderbook placement and limit to
@@ -433,23 +419,64 @@ func (co *CoinbaseInternational) ModifyOrder(ctx context.Context, action *order.
 	if err := action.Validate(); err != nil {
 		return nil, err
 	}
-	// When an order has been modified you can use this helpful constructor to
-	// return. Please add any additional order details to the
-	// order.ModifyResponse if you think they are applicable.
-	// resp, err := action.DeriveModifyResponse()
+	var orderID string
+	switch {
+	case action.OrderID != "":
+		orderID = action.OrderID
+	case action.ClientOrderID != "":
+		orderID = action.ClientOrderID
+	}
+
+	// ERROR:
+	response, err := co.ModifyOpenOrder(ctx, orderID)
+	if err != nil {
+		return nil, err
+	}
+	// oType, err := order.StringToOrderType(response.Type)
 	// if err != nil {
-	// 	return nil, nil
+	// 	return nil, err
 	// }
-	// resp.OrderID = maybeANewOrderID // e.g. If this is supplied by the exchanges API.
-	return nil, common.ErrNotYetImplemented
+	// oSide, err := order.StringToOrderSide(response.Side)
+	// if err != nil {
+	// 	return nil, err
+	// }
+	// oStatus, err := order.StringToOrderStatus(response.OrderStatus)
+	// if err != nil {
+	// 	return nil, err
+	// }
+	// return &order.ModifyResponse{
+	// 	Exchange:        co.Name,
+	// 	OrderID:         strconv.FormatInt(response.OrderID, 10),
+	// 	ClientOrderID:   response.ClientOrderID,
+	// 	Pair:            action.Pair,
+	// 	Type:            oType,
+	// 	Side:            oSide,
+	// 	Status:          oStatus,
+	// 	AssetType:       asset.Spot,
+	// 	Price:           response.Price,
+	// 	Amount:          response.Size,
+	// 	TriggerPrice:    response.StopPrice,
+	// 	RemainingAmount: response.Size - response.ExecQty.Float64(),
+	// }, nil
+	resp, err := action.DeriveModifyResponse()
+	if err != nil {
+		return nil, nil
+	}
+	resp.OrderID = strconv.FormatInt(response.OrderID, 10)
+	return resp, nil
 }
 
 // CancelOrder cancels an order by its corresponding ID number
 func (co *CoinbaseInternational) CancelOrder(ctx context.Context, ord *order.Cancel) error {
-	// if err := ord.Validate(ord.StandardCancel()); err != nil {
-	//	 return err
-	// }
-	return common.ErrNotYetImplemented
+	err := ord.Validate(ord.StandardCancel())
+	if err != nil {
+		return err
+	}
+	_, err = co.CancelTradeOrder(ctx, ord.OrderID)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 // CancelBatchOrders cancels orders by their corresponding ID numbers
@@ -459,15 +486,50 @@ func (co *CoinbaseInternational) CancelBatchOrders(ctx context.Context, orders [
 
 // CancelAllOrders cancels all orders associated with a currency pair
 func (co *CoinbaseInternational) CancelAllOrders(ctx context.Context, orderCancellation *order.Cancel) (order.CancelAllResponse, error) {
-	// if err := orderCancellation.Validate(); err != nil {
-	//	 return err
-	// }
 	return order.CancelAllResponse{}, common.ErrNotYetImplemented
 }
 
 // GetOrderInfo returns order information based on order ID
 func (co *CoinbaseInternational) GetOrderInfo(ctx context.Context, orderID string, pair currency.Pair, assetType asset.Item) (*order.Detail, error) {
-	return nil, common.ErrNotYetImplemented
+	resp, err := co.GetOrderDetails(ctx, orderID)
+	if err != nil {
+		return nil, err
+	}
+	oType, err := order.StringToOrderType(resp.Type)
+	if err != nil {
+		return nil, err
+	}
+	oSide, err := order.StringToOrderSide(resp.Side)
+	if err != nil {
+		return nil, err
+	}
+	oStatus, err := order.StringToOrderStatus(resp.OrderStatus)
+	if err != nil {
+		return nil, err
+	}
+	pair, err = currency.NewPairFromString(resp.Symbol)
+	if err != nil {
+		return nil, err
+	}
+	return &order.Detail{
+		Price:                resp.Price,
+		Amount:               resp.Size,
+		Exchange:             co.Name,
+		TriggerPrice:         resp.StopPrice,
+		AverageExecutedPrice: resp.AvgPrice.Float64(),
+		QuoteAmount:          resp.Size * resp.AvgPrice.Float64(),
+		ExecutedAmount:       resp.ExecQty.Float64(),
+		RemainingAmount:      resp.Size - resp.ExecQty.Float64(),
+		Fee:                  resp.Fee.Float64(),
+		OrderID:              strconv.FormatInt(resp.OrderID, 10),
+		ClientOrderID:        resp.ClientOrderID,
+		Type:                 oType,
+		Side:                 oSide,
+		Status:               oStatus,
+		AssetType:            asset.Spot,
+		CloseTime:            resp.ExpireTime,
+		Pair:                 pair,
+	}, nil
 }
 
 // GetDepositAddress returns a deposit address for a specified currency
@@ -478,50 +540,106 @@ func (co *CoinbaseInternational) GetDepositAddress(ctx context.Context, c curren
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is
 // submitted
 func (co *CoinbaseInternational) WithdrawCryptocurrencyFunds(ctx context.Context, withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
-	// if err := withdrawRequest.Validate(); err != nil {
-	//	return nil, err
-	// }
-	return nil, common.ErrNotYetImplemented
+	if err := withdrawRequest.Validate(); err != nil {
+		return nil, err
+	}
+	resp, err := co.WithdrawToCryptoAddress(ctx, &WithdrawCryptoParams{
+		Portfolio:       withdrawRequest.ClientOrderID,
+		AssetIdentifier: withdrawRequest.Currency.String(),
+		Amount:          withdrawRequest.Amount,
+		Address:         withdrawRequest.Crypto.Address,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return &withdraw.ExchangeResponse{
+		Name: co.Name,
+		ID:   resp.Idem,
+	}, nil
 }
 
 // WithdrawFiatFunds returns a withdrawal ID when a withdrawal is
 // submitted
 func (co *CoinbaseInternational) WithdrawFiatFunds(ctx context.Context, withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
-	// if err := withdrawRequest.Validate(); err != nil {
-	//	return nil, err
-	// }
 	return nil, common.ErrNotYetImplemented
 }
 
 // WithdrawFiatFundsToInternationalBank returns a withdrawal ID when a withdrawal is
 // submitted
 func (co *CoinbaseInternational) WithdrawFiatFundsToInternationalBank(ctx context.Context, withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
-	// if err := withdrawRequest.Validate(); err != nil {
-	//	return nil, err
-	// }
 	return nil, common.ErrNotYetImplemented
 }
 
 // GetActiveOrders retrieves any orders that are active/open
 func (co *CoinbaseInternational) GetActiveOrders(ctx context.Context, getOrdersRequest *order.MultiOrderRequest) (order.FilteredOrders, error) {
-	// if err := getOrdersRequest.Validate(); err != nil {
-	//	return nil, err
-	// }
-	return nil, common.ErrNotYetImplemented
+	if err := getOrdersRequest.Validate(); err != nil {
+		return nil, err
+	}
+	var instrument string
+	if len(getOrdersRequest.Pairs) == 1 {
+		instrument = getOrdersRequest.Pairs[0].String()
+	}
+	response, err := co.GetOpenOrders(ctx, "", "", instrument, "", "", getOrdersRequest.StartTime, 0, 0)
+	if err != nil {
+		return nil, err
+	}
+	orders := make([]order.Detail, 0, len(response.Results))
+	for x := range response.Results {
+		oType, err := order.StringToOrderType(response.Results[x].Type)
+		if err != nil {
+			return nil, err
+		}
+		oSide, err := order.StringToOrderSide(response.Results[x].Side)
+		if err != nil {
+			return nil, err
+		}
+		oStatus, err := order.StringToOrderStatus(response.Results[x].OrderStatus)
+		if err != nil {
+			return nil, err
+		}
+		var pair currency.Pair
+		pair, err = currency.NewPairFromString(response.Results[x].Symbol)
+		if err != nil {
+			return nil, err
+		}
+		if len(getOrdersRequest.Pairs) != 0 && getOrdersRequest.Pairs.Contains(pair, true) {
+			continue
+		}
+		orders = append(orders, order.Detail{
+			Amount:               response.Results[x].Size,
+			Price:                response.Results[x].Price,
+			TriggerPrice:         response.Results[x].StopPrice,
+			AverageExecutedPrice: response.Results[x].AvgPrice.Float64(),
+			QuoteAmount:          response.Results[x].Size * response.Results[x].AvgPrice.Float64(),
+			RemainingAmount:      response.Results[x].Size - response.Results[x].ExecQty.Float64(),
+			OrderID:              strconv.FormatInt(response.Results[x].OrderID, 10),
+			ExecutedAmount:       response.Results[x].ExecQty.Float64(),
+			Fee:                  response.Results[x].Fee.Float64(),
+			ClientOrderID:        response.Results[x].ClientOrderID,
+			CloseTime:            response.Results[x].ExpireTime,
+			Exchange:             co.Name,
+			Type:                 oType,
+			Side:                 oSide,
+			Status:               oStatus,
+			AssetType:            asset.Spot,
+			Pair:                 pair,
+		})
+	}
+	return orders, nil
 }
 
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
 func (co *CoinbaseInternational) GetOrderHistory(ctx context.Context, getOrdersRequest *order.MultiOrderRequest) (order.FilteredOrders, error) {
-	// if err := getOrdersRequest.Validate(); err != nil {
-	//	return nil, err
-	// }
+	if err := getOrdersRequest.Validate(); err != nil {
+		return nil, err
+	}
 	return nil, common.ErrNotYetImplemented
 }
 
 // GetFeeByType returns an estimate of fee based on the type of transaction
 func (co *CoinbaseInternational) GetFeeByType(ctx context.Context, feeBuilder *exchange.FeeBuilder) (float64, error) {
-	return 0, common.ErrNotYetImplemented
+	return 0, common.ErrFunctionNotSupported
 }
 
 // ValidateAPICredentials validates current credentials used for wrapper
