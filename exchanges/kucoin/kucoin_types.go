@@ -778,11 +778,12 @@ type WSConnMessages struct {
 
 // WsSubscriptionInput represents a subscription information structure.
 type WsSubscriptionInput struct {
-	ID             string `json:"id"`
-	Type           string `json:"type"`
-	Topic          string `json:"topic"`
-	PrivateChannel bool   `json:"privateChannel"`
-	Response       bool   `json:"response,omitempty"`
+	ID              string `json:"id"`
+	Type            string `json:"type"`
+	Topic           string `json:"topic"`
+	PrivateChannel  bool   `json:"privateChannel"`
+	Response        bool   `json:"response,omitempty"`
+	subscriberCount int    // internal use to track outbound batching
 }
 
 // WsPushData represents a push data from a server.
