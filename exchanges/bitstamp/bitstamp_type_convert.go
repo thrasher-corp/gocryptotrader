@@ -44,12 +44,12 @@ func (t *microTimestamp) UnmarshalJSON(data []byte) error {
 		return err
 	}
 
-	i, err := strconv.Atoi(s)
+	i, err := strconv.ParseInt(s, 10, 64)
 	if err != nil {
 		return err
 	}
 
-	*t = microTimestamp(time.UnixMicro(int64(i)))
+	*t = microTimestamp(time.UnixMicro(i))
 
 	return nil
 }
