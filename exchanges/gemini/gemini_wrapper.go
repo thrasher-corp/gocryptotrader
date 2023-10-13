@@ -293,7 +293,12 @@ func (g *Gemini) FetchTradablePairs(ctx context.Context, a asset.Item) (currency
 		if !strings.EqualFold(details[i].Status, "open") {
 			continue
 		}
-		cp, err := currency.NewPairFromStrings(details[i].BaseCurrency, details[i].QuoteCurrency)
+		if strings.ToLower(details[i].ContractType) != "vanilla" {
+			// TODO: add support for futures
+			continue
+		}
+
+		cp, err := currency.NewPairFromStrings(details[i].BaseCurrency, details[i].Symbol[len(details[i].BaseCurrency):])
 		if err != nil {
 			return nil, err
 		}
