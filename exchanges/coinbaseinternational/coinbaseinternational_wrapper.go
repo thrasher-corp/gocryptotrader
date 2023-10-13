@@ -427,37 +427,16 @@ func (co *CoinbaseInternational) ModifyOrder(ctx context.Context, action *order.
 		orderID = action.ClientOrderID
 	}
 
-	// ERROR:
-	response, err := co.ModifyOpenOrder(ctx, orderID)
+	response, err := co.ModifyOpenOrder(ctx, orderID, &ModifyOrderParam{
+		ClientOrderID: action.ClientOrderID,
+		Portfolio:     "",
+		Price:         action.Price,
+		StopPrice:     action.TriggerPrice,
+		Size:          action.Amount,
+	})
 	if err != nil {
 		return nil, err
 	}
-	// oType, err := order.StringToOrderType(response.Type)
-	// if err != nil {
-	// 	return nil, err
-	// }
-	// oSide, err := order.StringToOrderSide(response.Side)
-	// if err != nil {
-	// 	return nil, err
-	// }
-	// oStatus, err := order.StringToOrderStatus(response.OrderStatus)
-	// if err != nil {
-	// 	return nil, err
-	// }
-	// return &order.ModifyResponse{
-	// 	Exchange:        co.Name,
-	// 	OrderID:         strconv.FormatInt(response.OrderID, 10),
-	// 	ClientOrderID:   response.ClientOrderID,
-	// 	Pair:            action.Pair,
-	// 	Type:            oType,
-	// 	Side:            oSide,
-	// 	Status:          oStatus,
-	// 	AssetType:       asset.Spot,
-	// 	Price:           response.Price,
-	// 	Amount:          response.Size,
-	// 	TriggerPrice:    response.StopPrice,
-	// 	RemainingAmount: response.Size - response.ExecQty.Float64(),
-	// }, nil
 	resp, err := action.DeriveModifyResponse()
 	if err != nil {
 		return nil, nil
@@ -472,7 +451,7 @@ func (co *CoinbaseInternational) CancelOrder(ctx context.Context, ord *order.Can
 	if err != nil {
 		return err
 	}
-	_, err = co.CancelTradeOrder(ctx, ord.OrderID)
+	_, err = co.CancelTradeOrder(ctx, ord.OrderID, ord.ClientOrderID, ord.AccountID, "")
 	if err != nil {
 		return err
 	}

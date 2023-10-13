@@ -359,8 +359,8 @@ func (co *CoinbaseInternational) GenerateSubscriptionPayload(subscriptions []str
 func (co *CoinbaseInternational) handleSubscription(payload []SubscriptionInput, authenticate bool) error {
 	var err error
 	for x := range payload {
+		payload[x].Time = strconv.FormatInt(time.Now().Unix(), 10)
 		if authenticate {
-			payload[x].Time = strconv.FormatInt(time.Now().Unix(), 10)
 			err = co.signSubscriptionPayload(&payload[x])
 			if err != nil {
 				return err
@@ -385,7 +385,7 @@ func (co *CoinbaseInternational) signSubscriptionPayload(body *SubscriptionInput
 		return err
 	}
 	hmac, err = crypto.GetHMAC(crypto.HashSHA256,
-		[]byte(body.Time+","+creds.Key+","+"CBINTLMD,"+creds.ClientID),
+		[]byte(body.Time+creds.Key+"CBINTLMD"+creds.ClientID),
 		secretBytes)
 	if err != nil {
 		return err

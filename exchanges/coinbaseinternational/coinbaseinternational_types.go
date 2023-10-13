@@ -84,10 +84,10 @@ type QuoteInformation struct {
 
 // OrderRequestParams represents a request paramter for creating order.
 type OrderRequestParams struct {
-	ClientOrderID string  `json:"client_order_id,omitempty"`
+	ClientOrderID string  `json:"client_order_id"`
 	Side          string  `json:"side,omitempty"`
 	BaseSize      float64 `json:"size,omitempty,string"`
-	TimeInForce   string  `json:"tif,omitempty"`
+	TimeInForce   string  `json:"tif,omitempty"`        // Possible values: [GTC, IOC, GTT]
 	Instrument    string  `json:"instrument,omitempty"` // The name, ID, or UUID of the instrument the order wants to transact
 	OrderType     string  `json:"type,omitempty"`
 	Price         float64 `json:"price,omitempty,string"`
@@ -135,6 +135,15 @@ type OrderItemDetail struct {
 	Results []OrderItem `json:"results"`
 }
 
+// ModifyOrderParam holds update parameters to modify an order.
+type ModifyOrderParam struct {
+	ClientOrderID string  `json:"client_order_id,omitempty"`
+	Portfolio     string  `json:"portfolio,omitempty"`
+	Price         float64 `json:"price,omitempty,string"`
+	StopPrice     float64 `json:"stop_price,omitempty,string"`
+	Size          float64 `json:"size,omitempty,string"`
+}
+
 // OrderItem represents a single order item.
 type OrderItem struct {
 	OrderID        int64                   `json:"order_id"`
@@ -164,15 +173,15 @@ type OrderItem struct {
 // PortfolioItem represents a user portfolio item
 // and transaction fee information.
 type PortfolioItem struct {
-	PortfolioID    string  `json:"portfolio_id"`
-	PortfolioUUID  string  `json:"portfolio_uuid"`
-	Name           string  `json:"name"`
-	UserUUID       string  `json:"user_uuid"`
-	MakerFeeRate   float64 `json:"maker_fee_rate"`
-	TakerFeeRate   float64 `json:"taker_fee_rate"`
-	TradingLock    string  `json:"trading_lock"`
-	BorrowDisabled string  `json:"borrow_disabled"`
-	IsLSP          string  `json:"is_lsp"` // Indicates if the portfolio is setup to take liquidation assignments
+	PortfolioID    string                  `json:"portfolio_id"`
+	PortfolioUUID  string                  `json:"portfolio_uuid"`
+	Name           string                  `json:"name"`
+	UserUUID       string                  `json:"user_uuid"`
+	MakerFeeRate   convert.StringToFloat64 `json:"maker_fee_rate"`
+	TakerFeeRate   convert.StringToFloat64 `json:"taker_fee_rate"`
+	TradingLock    bool                    `json:"trading_lock"`
+	BorrowDisabled bool                    `json:"borrow_disabled"`
+	IsLSP          bool                    `json:"is_lsp"` // Indicates if the portfolio is setup to take liquidation assignments
 }
 
 // PortfolioDetail represents a portfolio detail.
@@ -351,9 +360,9 @@ type SubscriptionInput struct {
 	ProductIDs     []string       `json:"product_ids"`
 	Channels       []string       `json:"channels"`
 	Time           string         `json:"time"`
-	Key            string         `json:"key,string,omitempty"`
-	Passphrase     string         `json:"passphrase,string,omitempty"`
-	Signature      string         `json:"signature,string,omitempty"`
+	Key            string         `json:"key,omitempty"`
+	Passphrase     string         `json:"passphrase,omitempty"`
+	Signature      string         `json:"signature,omitempty"`
 }
 
 // SubscriptionRespnse represents a subscription response

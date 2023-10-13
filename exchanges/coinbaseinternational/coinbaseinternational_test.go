@@ -52,7 +52,6 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	co.SetClientProxyAddress("http://ci:bE8OJv9gknuYbuiseFLL@35.77.58.161:3128")
 	os.Exit(m.Run())
 }
 
@@ -120,15 +119,44 @@ func TestCreateOrder(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	co.Verbose = true
 	_, err = co.CreateOrder(context.Background(), &OrderRequestParams{
 		Side:       "BUY",
 		BaseSize:   1,
-		Instrument: "BTC-USDT",
+		Instrument: "BTC-PERP",
+		OrderType:  orderType,
+	})
+	if !errors.Is(err, order.ErrPriceBelowMin) {
+		t.Fatalf("expected %v, got %v", order.ErrAmountBelowMin, err)
+	}
+	_, err = co.CreateOrder(context.Background(), &OrderRequestParams{
+		Side:       "BUY",
+		BaseSize:   1,
+		Instrument: "BTC-PERP",
 		OrderType:  orderType,
 		Price:      12345.67,
-		ExpireTime: "",
-		PostOnly:   true,
+	})
+	if !errors.Is(err, order.ErrOrderIDNotSet) {
+		t.Fatalf("expected %v, got %v", order.ErrOrderIDNotSet, err)
+	}
+	_, err = co.CreateOrder(context.Background(), &OrderRequestParams{
+		Side:       "BUY",
+		BaseSize:   1,
+		Instrument: "BTC-PERP",
+		OrderType:  orderType,
+	})
+	if !errors.Is(err, order.ErrPriceBelowMin) {
+		t.Fatalf("expected %v, got %v", order.ErrPriceBelowMin, err)
+	}
+	_, err = co.CreateOrder(context.Background(), &OrderRequestParams{
+		ClientOrderID: "123442",
+		Side:          "BUY",
+		BaseSize:      1,
+		Instrument:    "BTC-PERP",
+		OrderType:     orderType,
+		Price:         12345.67,
+		ExpireTime:    "",
+		PostOnly:      true,
+		TimeInForce:   "GTC",
 	})
 	if err != nil {
 		t.Error(err)
@@ -154,7 +182,15 @@ func TestCancelOrders(t *testing.T) {
 
 func TestModifyOpenOrder(t *testing.T) {
 	t.Parallel()
-	_, err := co.ModifyOpenOrder(context.Background(), "1234")
+	_, err := co.ModifyOpenOrder(context.Background(), "1234", &ModifyOrderParam{})
+	if !errors.Is(err, common.ErrNilPointer) {
+		t.Errorf("expected %v, got %v", common.ErrNilPointer, err)
+	}
+	_, err = co.ModifyOpenOrder(context.Background(), "1234", &ModifyOrderParam{
+		Price:     1234,
+		StopPrice: 1239,
+		Size:      1,
+	})
 	if err != nil {
 		t.Error(err)
 	}
@@ -170,7 +206,15 @@ func TestGetOrderDetails(t *testing.T) {
 
 func TestCancelOrder(t *testing.T) {
 	t.Parallel()
-	_, err := co.CancelTradeOrder(context.Background(), "1234")
+	_, err := co.CancelTradeOrder(context.Background(), "", "", "", "")
+	if !errors.Is(err, order.ErrOrderIDNotSet) {
+		t.Errorf("expected %v, got %v", order.ErrOrderIDNotSet, err)
+	}
+	_, err = co.CancelTradeOrder(context.Background(), "order-id", "", "", "")
+	if !errors.Is(err, errMissingPortfolioID) {
+		t.Errorf("expected %v, got %v", errMissingPortfolioID, err)
+	}
+	_, err = co.CancelTradeOrder(context.Background(), "1234", "", "12344232", "")
 	if err != nil {
 		t.Error(err)
 	}
@@ -194,7 +238,6 @@ func TestGetPortfolioDetails(t *testing.T) {
 
 func TestGetPortfolioSummary(t *testing.T) {
 	t.Parallel()
-	co.Verbose = true
 	_, err := co.GetPortfolioSummary(context.Background(), "", "5189861793641175")
 	if err != nil {
 		t.Error(err)
@@ -203,7 +246,6 @@ func TestGetPortfolioSummary(t *testing.T) {
 
 func TestListPortfolioBalances(t *testing.T) {
 	t.Parallel()
-	co.Verbose = true
 	_, err := co.ListPortfolioBalances(context.Background(), "892e8c7c-e979-4cad-b61b-55a197932cf1", "")
 	if err != nil {
 		t.Fatal(err)
@@ -212,7 +254,6 @@ func TestListPortfolioBalances(t *testing.T) {
 
 func TestGetPortfolioAssetBalance(t *testing.T) {
 	t.Parallel()
-	co.Verbose = true
 	_, err := co.GetPortfolioAssetBalance(context.Background(), "892e8c7c-e979-4cad-b61b-55a197932cf1", "", currency.BTC)
 	if err != nil {
 		t.Error(err)
@@ -221,7 +262,6 @@ func TestGetPortfolioAssetBalance(t *testing.T) {
 
 func TestPortfolioPosition(t *testing.T) {
 	t.Parallel()
-	co.Verbose = true
 	_, err := co.ListPortfolioPositions(context.Background(), "892e8c7c-e979-4cad-b61b-55a197932cf1", "")
 	if err != nil {
 		t.Error(err)
@@ -230,7 +270,6 @@ func TestPortfolioPosition(t *testing.T) {
 
 func TestGetPortfolioInstrumentPosition(t *testing.T) {
 	t.Parallel()
-	co.Verbose = true
 	cp, err := currency.NewPairFromString("BTC-PERP")
 	if err != nil {
 		t.Fatal(err)

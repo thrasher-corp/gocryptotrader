@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/url"
 	"reflect"
@@ -38,6 +39,7 @@ var (
 	errAddressIsRequired         = errors.New("err: missing address")
 	errAssetIdentifierIsRequired = errors.New("err: asset identified is required")
 	errEmptyArgument             = errors.New("err: empty argument")
+	errTimeInForceRequired       = errors.New("err: time_in_force is required")
 )
 
 // ListAssets returns a list of all supported assets.
@@ -125,7 +127,7 @@ func (co *CoinbaseInternational) GetQuotePerInstrument(ctx context.Context, inst
 
 // CreateOrder creates a new order.
 func (co *CoinbaseInternational) CreateOrder(ctx context.Context, arg *OrderRequestParams) (*TradeOrder, error) {
-	if arg == nil {
+	if arg == nil || *arg == (OrderRequestParams{}) {
 		return nil, common.ErrNilPointer
 	}
 	if arg.Side == "" {
@@ -139,6 +141,12 @@ func (co *CoinbaseInternational) CreateOrder(ctx context.Context, arg *OrderRequ
 	}
 	if arg.OrderType == "" {
 		return nil, order.ErrUnsupportedOrderType
+	}
+	if arg.ClientOrderID == "" {
+		return nil, fmt.Errorf("%w, client_order_id is required", order.ErrOrderIDNotSet)
+	}
+	if arg.TimeInForce == "" {
+		return nil, errTimeInForceRequired
 	}
 	var resp TradeOrder
 	return &resp, co.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "orders", nil, arg, &resp, true)
@@ -193,15 +201,16 @@ func (co *CoinbaseInternational) CancelOrders(ctx context.Context, portfolioID, 
 	return resp, co.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodDelete, "orders", params, nil, &resp, true)
 }
 
-// ERROR:
-
 // ModifyOpenOrder modifies an open order.
-func (co *CoinbaseInternational) ModifyOpenOrder(ctx context.Context, orderID string) (*OrderItem, error) {
+func (co *CoinbaseInternational) ModifyOpenOrder(ctx context.Context, orderID string, arg *ModifyOrderParam) (*OrderItem, error) {
 	if orderID == "" {
 		return nil, order.ErrOrderIDNotSet
 	}
+	if arg == (&ModifyOrderParam{}) {
+		return nil, fmt.Errorf("%w, empty modification parameter", common.ErrNilPointer)
+	}
 	var resp OrderItem
-	return &resp, co.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodPut, "orders/"+orderID, nil, nil, &resp, true)
+	return &resp, co.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodPut, "orders/"+orderID, nil, arg, &resp, true)
 }
 
 // GetOrderDetails retrieves a single order. The order retrieved can be either active or inactive.
@@ -211,9 +220,25 @@ func (co *CoinbaseInternational) GetOrderDetails(ctx context.Context, orderID st
 }
 
 // CancelTradeOrder cancels a single open order.
-func (co *CoinbaseInternational) CancelTradeOrder(ctx context.Context, orderID string) (*OrderItem, error) {
+func (co *CoinbaseInternational) CancelTradeOrder(ctx context.Context, orderID, clientOrderID, portfolioID, portfolioUUID string) (*OrderItem, error) {
+	switch {
+	case orderID != "":
+	case clientOrderID != "":
+		orderID = clientOrderID
+	default:
+		return nil, order.ErrOrderIDNotSet
+	}
+	params := url.Values{}
+	switch {
+	case portfolioID != "":
+		params.Set("portfolio", portfolioID)
+	case portfolioUUID != "":
+		params.Set("portfolio", portfolioUUID)
+	default:
+		return nil, errMissingPortfolioID
+	}
 	var resp OrderItem
-	return &resp, co.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodDelete, "orders/"+orderID, nil, nil, &resp, true)
+	return &resp, co.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodDelete, "orders/"+orderID, params, nil, &resp, true)
 }
 
 //  ----- 	------------------------------- ------------------------------- ------------------------------
@@ -417,6 +442,7 @@ func (co *CoinbaseInternational) CreateCryptoAddress(ctx context.Context, arg *C
 func (co *CoinbaseInternational) SendHTTPRequest(ctx context.Context, ep exchange.URL, method, path string, params url.Values, data, result interface{}, authenticated bool) error {
 	endpoint, err := co.API.Endpoints.GetURL(ep)
 	if err != nil {
+		panic(err)
 		return err
 	}
 	urlPath := endpoint + coinbaseAPIVersion + "/" + path
@@ -428,6 +454,7 @@ func (co *CoinbaseInternational) SendHTTPRequest(ctx context.Context, ep exchang
 	if authenticated {
 		creds, err = co.GetCredentials(ctx)
 		if err != nil {
+			panic(err)
 			return err
 		}
 		requestType = request.AuthenticatedRequest
@@ -439,6 +466,7 @@ func (co *CoinbaseInternational) SendHTTPRequest(ctx context.Context, ep exchang
 	} else if value != (reflect.Value{}) && !value.IsNil() {
 		payload, err = json.Marshal(data)
 		if err != nil {
+			panic(err)
 			return err
 		}
 	}
@@ -456,12 +484,14 @@ func (co *CoinbaseInternational) SendHTTPRequest(ctx context.Context, ep exchang
 			var hmac []byte
 			secretBytes, err := crypto.Base64Decode(creds.Secret)
 			if err != nil {
+				panic(err)
 				return nil, err
 			}
 			hmac, err = crypto.GetHMAC(crypto.HashSHA256,
 				[]byte(signatureString),
 				secretBytes)
 			if err != nil {
+				panic(err)
 				return nil, err
 			}
 			headers["CB-ACCESS-SIGN"] = crypto.Base64Encode(hmac)
