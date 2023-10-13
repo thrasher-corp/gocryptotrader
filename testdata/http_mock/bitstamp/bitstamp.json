@@ -148,6 +148,56 @@
     }
    ]
   },
+  "/api/v2/fees/trading/ltcbtc/": {
+    "POST": [
+        {
+            "data": {
+                "currency_pair": "ltcbtc",
+                "fees": 
+                    {
+                        "maker": "0.3",
+                        "taker": "0.2"
+                    }
+            },
+            "queryString": "",
+            "bodyParams": "key=\u0026nonce=1690610275327495000\u0026signature=B619E1AEF317B95D3BB28025F36EEF94CABCDE425CE3E13E8A1861C0A9777F2A",
+            "headers": {
+                "Content-Type": [
+                    "application/x-www-form-urlencoded"
+                ]
+            }
+        }
+    ]
+},
+"/api/v2/fees/trading/": {
+    "POST": [
+        {
+            "data": [
+                {
+                "currency_pair":"ltcbtc",
+                "fees": {
+                        "maker": "0.3",
+                        "taker": "0.2"
+                    }
+                },
+                {
+                "currency_pair":"btcusd",
+                "fees": {
+                        "maker": "0.3",
+                        "taker": "0.2"
+                    }
+                }
+            ],
+            "queryString": "",
+            "bodyParams": "key=&nonce=1696325404980771000&signature=85B2B7E60567E352241BD98BDD08C0A435C2A77CB8F386739DD471BFFFA6C660",
+            "headers": {
+                "Content-Type": [
+                    "application/x-www-form-urlencoded"
+                ]
+            }
+        }
+    ]
+  },
   "/api/v2/buy/market/btcusd/": {
    "POST": [
     {

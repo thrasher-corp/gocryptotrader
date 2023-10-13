@@ -26,9 +26,15 @@ func TestMain(m *testing.M) {
 		log.Fatal("Bitstamp Setup() init error", err)
 	}
 	bitstampConfig.API.AuthenticatedSupport = true
-	bitstampConfig.API.Credentials.Key = apiKey
-	bitstampConfig.API.Credentials.Secret = apiSecret
-	bitstampConfig.API.Credentials.ClientID = customerID
+	if apiKey != "" {
+		bitstampConfig.API.Credentials.Key = apiKey
+	}
+	if apiSecret != "" {
+		bitstampConfig.API.Credentials.Secret = apiSecret
+	}
+	if customerID != "" {
+		bitstampConfig.API.Credentials.ClientID = customerID
+	}
 	b.SetDefaults()
 	b.Websocket = sharedtestvalues.NewTestWebsocket()
 	err = b.Setup(bitstampConfig)
