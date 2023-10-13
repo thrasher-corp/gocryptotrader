@@ -260,7 +260,12 @@ func (g *Gemini) Run(ctx context.Context) {
 			}
 		}
 	}
-
+	if err := g.UpdateOrderExecutionLimits(ctx, asset.Spot); err != nil {
+		log.Errorf(log.ExchangeSys,
+			"%s failed to set exchange order execution limits. Err: %v",
+			g.Name,
+			err)
+	}
 	if !g.GetEnabledFeatures().AutoPairUpdates && !forceUpdate {
 		return
 	}
