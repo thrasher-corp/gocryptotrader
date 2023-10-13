@@ -65,8 +65,16 @@ func (g *Gemini) GetSymbols(ctx context.Context) ([]string, error) {
 // GetSymbolDetails returns extra symbol details
 // use symbol "all" to get everything
 func (g *Gemini) GetSymbolDetails(ctx context.Context, symbol string) ([]SymbolDetails, error) {
-	var details []SymbolDetails
-	return details, g.SendHTTPRequest(ctx, exchange.RestSpot, "/v"+geminiAPIVersion+"/"+geminiSymbolDetails+"/"+symbol, &details)
+	if symbol == "all" {
+		var details []SymbolDetails
+		return details, g.SendHTTPRequest(ctx, exchange.RestSpot, "/v"+geminiAPIVersion+"/"+geminiSymbolDetails+"/"+symbol, &details)
+	}
+	var details SymbolDetails
+	err := g.SendHTTPRequest(ctx, exchange.RestSpot, "/v"+geminiAPIVersion+"/"+geminiSymbolDetails+"/"+symbol, &details)
+	if err != nil {
+		return nil, err
+	}
+	return []SymbolDetails{details}, nil
 }
 
 // GetTicker returns information about recent trading activity for the symbol

@@ -3645,6 +3645,28 @@
     }
    ]
   },
+  "/v1/symbols/details/btcusd": {
+   "GET": [
+    {
+     "data": {
+      "base_currency": "BTC",
+      "contract_price_currency": "USD",
+      "contract_type": "vanilla",
+      "min_order_size": "0.00001",
+      "product_type": "spot",
+      "quote_currency": "USD",
+      "quote_increment": 0.01,
+      "status": "open",
+      "symbol": "BTCUSD",
+      "tick_size": 1e-8,
+      "wrap_enabled": false
+     },
+     "queryString": "",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
   "/v1/trades/BTCUSD": {
    "GET": [
     {

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"sort"
+	"strings"
 	"sync"
 	"time"
 
@@ -312,7 +313,7 @@ func (b *Bittrex) UpdateTickers(ctx context.Context, a asset.Item) error {
 	}
 	for x := range tickers {
 		for y := range summaries {
-			if summaries[y].Symbol != tickers[x].Symbol {
+			if !strings.EqualFold(summaries[y].Symbol, tickers[x].Symbol) {
 				continue
 			}
 			var pair currency.Pair

@@ -1266,6 +1266,10 @@ func TestGetSymbolDetails(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
+	_, err = g.GetSymbolDetails(context.Background(), "btcusd")
+	if err != nil {
+		t.Error(err)
+	}
 }
 
 func TestSetExchangeOrderExecutionLimits(t *testing.T) {
