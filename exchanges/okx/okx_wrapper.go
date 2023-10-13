@@ -214,14 +214,15 @@ func (ok *Okx) Setup(exch *config.Exchange) error {
 		return err
 	}
 	if err := ok.Websocket.Setup(&stream.WebsocketSetup{
-		ExchangeConfig:        exch,
-		DefaultURL:            okxAPIWebsocketPublicURL,
-		RunningURL:            wsRunningEndpoint,
-		Connector:             ok.WsConnect,
-		Subscriber:            ok.Subscribe,
-		Unsubscriber:          ok.Unsubscribe,
-		GenerateSubscriptions: ok.GenerateDefaultSubscriptions,
-		Features:              &ok.Features.Supports.WebsocketCapabilities,
+		ExchangeConfig:                         exch,
+		DefaultURL:                             okxAPIWebsocketPublicURL,
+		RunningURL:                             wsRunningEndpoint,
+		Connector:                              ok.WsConnect,
+		Subscriber:                             ok.Subscribe,
+		Unsubscriber:                           ok.Unsubscribe,
+		GenerateSubscriptions:                  ok.GenerateDefaultSubscriptions,
+		Features:                               &ok.Features.Supports.WebsocketCapabilities,
+		MaxWebsocketSubscriptionsPerConnection: 240,
 		OrderbookBufferConfig: buffer.Config{
 			Checksum: ok.CalculateUpdateOrderbookChecksum,
 		},

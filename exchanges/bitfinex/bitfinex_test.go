@@ -1255,7 +1255,7 @@ func TestWsOrderBook(t *testing.T) {
 		t.Error(err)
 	}
 	pressXToJSON = `[23405,[7617,52.98726298,7617.1,53.601795929999994,-550.9,-0.0674,7617,8318.92961981,8257.8,7500]]`
-	assert.NotPanics(t, func() { err = b.wsHandleData([]byte(pressXToJSON)) }, "handleWSBookUpdate should not panic when seqNo is not configured to be sent")
+	assert.NotPanics(t, func() { err = b.wsHandleData(context.Background(), []byte(pressXToJSON)) }, "handleWSBookUpdate should not panic when seqNo is not configured to be sent")
 	assert.ErrorIs(t, err, errNoSeqNo, "handleWSBookUpdate should send correct error")
 }
 

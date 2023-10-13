@@ -107,54 +107,47 @@ func (m *WebsocketRoutineManager) websocketRoutine() {
 	if err != nil {
 		log.Errorf(log.WebsocketMgr, "websocket routine manager cannot get exchanges: %v", err)
 	}
-	wg := sync.WaitGroup{}
-	wg.Add(len(exchanges))
-	for i := range exchanges {
-		go func(i int) {
-			defer wg.Done()
-			if exchanges[i].SupportsWebsocket() {
-				if m.verbose {
-					log.Debugf(log.WebsocketMgr,
-						"Exchange %s websocket support: Yes Enabled: %v",
-						exchanges[i].GetName(),
-						common.IsEnabled(exchanges[i].IsWebsocketEnabled()),
-					)
-				}
-
-				ws, err := exchanges[i].GetWebsocket()
-				if err != nil {
-					log.Errorf(
-						log.WebsocketMgr,
-						"Exchange %s GetWebsocket error: %s",
-						exchanges[i].GetName(),
-						err,
-					)
-					return
-				}
-
-				if ws.IsEnabled() {
-					err = ws.Connect(context.TODO(), stream.AutoSubscribe)
-					if err != nil {
-						log.Errorf(log.WebsocketMgr, "%v", err)
-					}
-
-					err = m.websocketDataReceiver(ws)
-					if err != nil {
-						log.Errorf(log.WebsocketMgr, "%v", err)
-					}
-
-					err = ws.FlushChannels(context.TODO())
-					if err != nil {
-						log.Errorf(log.WebsocketMgr, "Failed to subscribe: %v", err)
-					}
-				}
-			} else if m.verbose {
-				log.Debugf(log.WebsocketMgr,
-					"Exchange %s websocket support: No",
-					exchanges[i].GetName(),
-				)
+	var wg sync.WaitGroup
+	for _, exch := range exchanges {
+		if !exch.SupportsWebsocket() {
+			if m.verbose {
+				log.Debugf(log.WebsocketMgr, "Exchange %s websocket support: No",
+					exch.GetName())
 			}
-		}(i)
+			continue
+		}
+
+		if m.verbose {
+			log.Debugf(log.WebsocketMgr, "Exchange %s websocket support: Yes Enabled: %v",
+				exch.GetName(),
+				common.IsEnabled(exch.IsWebsocketEnabled()))
+		}
+
+		ws, err := exch.GetWebsocket()
+		if err != nil {
+			log.Errorf(log.WebsocketMgr, "Exchange %s GetWebsocket error: %s",
+				exch.GetName(),
+				err)
+			continue
+		}
+
+		if !ws.IsEnabled() {
+			continue
+		}
+
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			err = ws.Connect(context.TODO(), stream.AutoSubscribe)
+			if err != nil {
+				log.Errorf(log.WebsocketMgr, "%v", err)
+			}
+
+			err = m.websocketDataReceiver(ws)
+			if err != nil {
+				log.Errorf(log.WebsocketMgr, "%v", err)
+			}
+		}()
 	}
 	wg.Wait()
 }
