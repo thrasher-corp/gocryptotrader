@@ -759,16 +759,29 @@ func TestCheckAlignment(t *testing.T) {
 			Period: 1337,
 		},
 	}
-	err := checkAlignment(itemWithFunding, true, true, false, dsc, "Bitfinex")
+	err := checkAlignment(itemWithFunding, true, true, false, false, dsc, "Bitfinex")
 	if err != nil {
 		t.Error(err)
 	}
-	err = checkAlignment(itemWithFunding, false, true, false, dsc, "Bitfinex")
+	err = checkAlignment(itemWithFunding, false, true, false, false, dsc, "Bitfinex")
 	if !errors.Is(err, errPriceNotSet) {
 		t.Fatalf("received: %v but expected: %v", err, errPriceNotSet)
 	}
-	err = checkAlignment(itemWithFunding, true, true, false, dsc, "Binance")
+	err = checkAlignment(itemWithFunding, true, true, false, false, dsc, "Binance")
 	if !errors.Is(err, errPriceNotSet) {
 		t.Fatalf("received: %v but expected: %v", err, errPriceNotSet)
+	}
+
+	itemWithFunding[0].Price = 1337
+	err = checkAlignment(itemWithFunding, true, true, false, true, dsc, "Binance")
+	if !errors.Is(err, errChecksumStringNotSet) {
+		t.Fatalf("received: %v but expected: %v", err, errChecksumStringNotSet)
+	}
+
+	itemWithFunding[0].StrAmount = "1337.0000000"
+	itemWithFunding[0].StrPrice = "1337.0000000"
+	err = checkAlignment(itemWithFunding, true, true, false, true, dsc, "Binance")
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: %v but expected: %v", err, nil)
 	}
 }
