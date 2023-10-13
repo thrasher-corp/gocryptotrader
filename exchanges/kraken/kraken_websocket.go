@@ -878,12 +878,13 @@ func (k *Kraken) wsProcessOrderBook(ctx context.Context, channelData *WebsocketC
 // wsProcessOrderBookPartial creates a new orderbook entry for a given currency pair
 func (k *Kraken) wsProcessOrderBookPartial(channelData *WebsocketChannelData, askData, bidData []interface{}) error {
 	base := orderbook.Base{
-		Pair:            channelData.Pair,
-		Asset:           asset.Spot,
-		VerifyOrderbook: k.CanVerifyOrderbook,
-		Bids:            make(orderbook.Items, len(bidData)),
-		Asks:            make(orderbook.Items, len(askData)),
-		MaxDepth:        channelData.MaxDepth,
+		Pair:                   channelData.Pair,
+		Asset:                  asset.Spot,
+		VerifyOrderbook:        k.CanVerifyOrderbook,
+		Bids:                   make(orderbook.Items, len(bidData)),
+		Asks:                   make(orderbook.Items, len(askData)),
+		MaxDepth:               channelData.MaxDepth,
+		ChecksumStringRequired: true,
 	}
 	// Kraken ob data is timestamped per price, GCT orderbook data is
 	// timestamped per entry using the highest last update time, we can attempt
@@ -897,21 +898,35 @@ func (k *Kraken) wsProcessOrderBookPartial(channelData *WebsocketChannelData, as
 		if len(asks) < 3 {
 			return errors.New("unexpected asks length")
 		}
-		price, err := strconv.ParseFloat(asks[0].(string), 64)
+		priceStr, ok := asks[0].(string)
+		if !ok {
+			return common.GetTypeAssertError("string", asks[0], "price")
+		}
+		price, err := strconv.ParseFloat(priceStr, 64)
 		if err != nil {
 			return err
 		}
-		amount, err := strconv.ParseFloat(asks[1].(string), 64)
+		amountStr, ok := asks[1].(string)
+		if !ok {
+			return common.GetTypeAssertError("string", asks[1], "amount")
+		}
+		amount, err := strconv.ParseFloat(amountStr, 64)
 		if err != nil {
 			return err
 		}
-		timeData, err := strconv.ParseFloat(asks[2].(string), 64)
+		tdStr, ok := asks[2].(string)
+		if !ok {
+			return common.GetTypeAssertError("string", asks[2], "time")
+		}
+		timeData, err := strconv.ParseFloat(tdStr, 64)
 		if err != nil {
 			return err
 		}
 		base.Asks[i] = orderbook.Item{
-			Amount: amount,
-			Price:  price,
+			Amount:    amount,
+			StrAmount: amountStr,
+			Price:     price,
+			StrPrice:  priceStr,
 		}
 		askUpdatedTime := convert.TimeFromUnixTimestampDecimal(timeData)
 		if highestLastUpdate.Before(askUpdatedTime) {
@@ -927,22 +942,36 @@ func (k *Kraken) wsProcessOrderBookPartial(channelData *WebsocketChannelData, as
 		if len(bids) < 3 {
 			return errors.New("unexpected bids length")
 		}
-		price, err := strconv.ParseFloat(bids[0].(string), 64)
+		priceStr, ok := bids[0].(string)
+		if !ok {
+			return common.GetTypeAssertError("string", bids[0], "price")
+		}
+		price, err := strconv.ParseFloat(priceStr, 64)
 		if err != nil {
 			return err
 		}
-		amount, err := strconv.ParseFloat(bids[1].(string), 64)
+		amountStr, ok := bids[1].(string)
+		if !ok {
+			return common.GetTypeAssertError("string", bids[1], "amount")
+		}
+		amount, err := strconv.ParseFloat(amountStr, 64)
 		if err != nil {
 			return err
 		}
-		timeData, err := strconv.ParseFloat(bids[2].(string), 64)
+		tdStr, ok := bids[2].(string)
+		if !ok {
+			return common.GetTypeAssertError("string", bids[2], "time")
+		}
+		timeData, err := strconv.ParseFloat(tdStr, 64)
 		if err != nil {
 			return err
 		}
 
 		base.Bids[i] = orderbook.Item{
-			Amount: amount,
-			Price:  price,
+			Amount:    amount,
+			StrAmount: amountStr,
+			Price:     price,
+			StrPrice:  priceStr,
 		}
 
 		bidUpdateTime := convert.TimeFromUnixTimestampDecimal(timeData)
@@ -968,7 +997,6 @@ func (k *Kraken) wsProcessOrderBookUpdate(channelData *WebsocketChannelData, ask
 	// price and amount as there is no set standard between currency pairs. This
 	// is calculated per update as opposed to snapshot because changes to
 	// decimal amounts could occur at any time.
-	var priceDP, amtDP int
 	var highestLastUpdate time.Time
 	// Ask data is not always sent
 	for i := range askData {
@@ -1008,28 +1036,15 @@ func (k *Kraken) wsProcessOrderBookUpdate(channelData *WebsocketChannelData, ask
 		}
 
 		update.Asks[i] = orderbook.Item{
-			Amount: amount,
-			Price:  price,
+			Amount:    amount,
+			StrAmount: amountStr,
+			Price:     price,
+			StrPrice:  priceStr,
 		}
 
 		askUpdatedTime := convert.TimeFromUnixTimestampDecimal(timeData)
 		if highestLastUpdate.Before(askUpdatedTime) {
 			highestLastUpdate = askUpdatedTime
-		}
-
-		if i == len(askData)-1 {
-			pSplit := strings.Split(priceStr, ".")
-			if len(pSplit) != 2 {
-				return errors.New("incorrect decimal data returned for price")
-			}
-
-			priceDP = len(pSplit[1])
-			aSplit := strings.Split(amountStr, ".")
-			if len(aSplit) != 2 {
-				return errors.New("incorrect decimal data returned for amount")
-			}
-
-			amtDP = len(aSplit[1])
 		}
 	}
 
@@ -1071,28 +1086,15 @@ func (k *Kraken) wsProcessOrderBookUpdate(channelData *WebsocketChannelData, ask
 		}
 
 		update.Bids[i] = orderbook.Item{
-			Amount: amount,
-			Price:  price,
+			Amount:    amount,
+			StrAmount: amountStr,
+			Price:     price,
+			StrPrice:  priceStr,
 		}
 
 		bidUpdatedTime := convert.TimeFromUnixTimestampDecimal(timeData)
 		if highestLastUpdate.Before(bidUpdatedTime) {
 			highestLastUpdate = bidUpdatedTime
-		}
-
-		if i == len(bidData)-1 {
-			pSplit := strings.Split(priceStr, ".")
-			if len(pSplit) != 2 {
-				return errors.New("incorrect decimal data returned for price")
-			}
-
-			priceDP = len(pSplit[1])
-			aSplit := strings.Split(amountStr, ".")
-			if len(aSplit) != 2 {
-				return errors.New("incorrect decimal data returned for amount")
-			}
-
-			amtDP = len(aSplit[1])
 		}
 	}
 	update.UpdateTime = highestLastUpdate
@@ -1115,29 +1117,23 @@ func (k *Kraken) wsProcessOrderBookUpdate(channelData *WebsocketChannelData, ask
 		return err
 	}
 
-	return validateCRC32(book, uint32(token), priceDP, amtDP)
+	return validateCRC32(book, uint32(token))
 }
 
-func validateCRC32(b *orderbook.Base, token uint32, decPrice, decAmount int) error {
-	if decPrice == 0 || decAmount == 0 {
-		return fmt.Errorf("%s %s trailing decimal count not calculated",
-			b.Pair,
-			b.Asset)
-	}
-
+func validateCRC32(b *orderbook.Base, token uint32) error {
 	var checkStr strings.Builder
 	for i := 0; i < 10 && i < len(b.Asks); i++ {
-		priceStr := trim(strconv.FormatFloat(b.Asks[i].Price, 'f', decPrice, 64))
-		checkStr.WriteString(priceStr)
-		amountStr := trim(strconv.FormatFloat(b.Asks[i].Amount, 'f', decAmount, 64))
-		checkStr.WriteString(amountStr)
+		_, err := checkStr.WriteString(trim(b.Asks[i].StrPrice + trim(b.Asks[i].StrAmount)))
+		if err != nil {
+			return err
+		}
 	}
 
 	for i := 0; i < 10 && i < len(b.Bids); i++ {
-		priceStr := trim(strconv.FormatFloat(b.Bids[i].Price, 'f', decPrice, 64))
-		checkStr.WriteString(priceStr)
-		amountStr := trim(strconv.FormatFloat(b.Bids[i].Amount, 'f', decAmount, 64))
-		checkStr.WriteString(amountStr)
+		_, err := checkStr.WriteString(trim(b.Bids[i].StrPrice) + trim(b.Bids[i].StrAmount))
+		if err != nil {
+			return err
+		}
 	}
 
 	if check := crc32.ChecksumIEEE([]byte(checkStr.String())); check != token {
