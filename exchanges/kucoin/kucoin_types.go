@@ -13,6 +13,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 )
 
+const maxSubscriptionsPerBatch = 100
+
 var (
 	validPeriods = []string{
 		"1min", "3min", "5min", "15min", "30min", "1hour", "2hour", "4hour", "6hour", "8hour", "12hour", "1day", "1week",
@@ -33,7 +35,6 @@ var (
 	errSizeOrFundIsRequired      = errors.New("at least one required among size and funds")
 	errInvalidLeverage           = errors.New("invalid leverage value")
 	errInvalidClientOrderID      = errors.New("invalid client order ID")
-	errCurrencyPairNotEnabled    = errors.New("currency pair not enabled")
 
 	subAccountRegExp           = regexp.MustCompile("^[a-zA-Z0-9]{7-32}$")
 	subAccountPassphraseRegExp = regexp.MustCompile("^[a-zA-Z0-9]{7-24}$")
@@ -1496,4 +1497,10 @@ type MarginOrderParam struct {
 	Iceberg             bool          `json:"iceberg,omitempty"`
 	VisibleSize         float64       `json:"visibleSize,omitempty,string"`
 	Funds               float64       `json:"funds,string,omitempty"`
+}
+
+// Batcher defines a slice of WsSubscriptionInput that will be used to subscribe
+// to the websocket channel.
+type Batcher struct {
+	outbound []WsSubscriptionInput
 }

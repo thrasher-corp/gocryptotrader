@@ -204,7 +204,6 @@ func (ku *Kucoin) wsReadData() {
 }
 
 func (ku *Kucoin) wsHandleData(respData []byte) error {
-	// fmt.Println("raw data:", string(respData))
 	resp := WsPushData{}
 	err := json.Unmarshal(respData, &resp)
 	if err != nil {
@@ -1000,7 +999,6 @@ func (ku *Kucoin) handleSubscriptions(subscriptions []stream.ChannelSubscription
 	}
 	var errs error
 	for x := range payloads {
-		fmt.Println(payloads[x])
 		err = ku.Websocket.Conn.SendJSONMessage(payloads[x])
 		if err != nil {
 			errs = common.AppendError(errs, err)
@@ -1241,10 +1239,6 @@ func (ku *Kucoin) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, 
 	return subscriptions, nil
 }
 
-type Batcher struct {
-	outbound []WsSubscriptionInput
-}
-
 func (ku *Kucoin) generatePayloads(subscriptions []stream.ChannelSubscription, operation string) ([]WsSubscriptionInput, error) {
 	batch := map[string]*Batcher{
 		marketOrderbookLevel2to5Channel: nil,
@@ -1303,7 +1297,7 @@ func (ku *Kucoin) generatePayloads(subscriptions []stream.ChannelSubscription, o
 						},
 					}
 				} else {
-					if batcher.outbound[len(batcher.outbound)-1].subscriberCount == 100 {
+					if batcher.outbound[len(batcher.outbound)-1].subscriberCount == maxSubscriptionsPerBatch {
 						batcher.outbound = append(batcher.outbound, WsSubscriptionInput{
 							ID:              strconv.FormatInt(ku.Websocket.Conn.GenerateMessageID(false), 10),
 							Type:            operation,
@@ -1414,6 +1408,7 @@ func (ku *Kucoin) generatePayloads(subscriptions []stream.ChannelSubscription, o
 		}
 	}
 
+	// Add batched channels to payloads
 	for _, batcher := range batch {
 		if batcher != nil {
 			payloads = append(payloads, batcher.outbound...)
