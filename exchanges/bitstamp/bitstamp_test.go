@@ -33,10 +33,10 @@ var b = &Bitstamp{}
 
 func setFeeBuilder() *exchange.FeeBuilder {
 	return &exchange.FeeBuilder{
-		Amount:        1,
+		Amount:        5,
 		FeeType:       exchange.CryptocurrencyTradeFee,
-		Pair:          currency.NewPair(currency.BTC, currency.LTC),
-		PurchasePrice: 1,
+		Pair:          currency.NewPair(currency.LTC, currency.BTC),
+		PurchasePrice: 1800,
 	}
 }
 
@@ -99,8 +99,21 @@ func TestGetFee(t *testing.T) {
 	// CryptocurrencyTradeFee IsMaker
 	feeBuilder = setFeeBuilder()
 	feeBuilder.IsMaker = true
-	if _, err := b.GetFee(context.Background(), feeBuilder); err != nil {
+	fee, err := b.GetFee(context.Background(), feeBuilder)
+	if err != nil {
 		t.Error(err)
+	} else if expected := 0.003 * feeBuilder.PurchasePrice * feeBuilder.Amount; fee != expected {
+		t.Errorf("Bitstamp GetFee wrong Maker fee; Pair: %s Expected: %v Got: %v", feeBuilder.Pair, expected, fee)
+	}
+
+	// CryptocurrencyTradeFee IsTaker
+	feeBuilder = setFeeBuilder()
+	feeBuilder.IsMaker = false
+	fee, err = b.GetFee(context.Background(), feeBuilder)
+	if err != nil {
+		t.Error(err)
+	} else if expected := 0.002 * feeBuilder.PurchasePrice * feeBuilder.Amount; fee != expected {
+		t.Errorf("Bitstamp GetFee wrong Taker fee; Pair: %s Expected: %v Got: %v", feeBuilder.Pair, expected, fee)
 	}
 
 	// CryptocurrencyTradeFee Negative purchase price
@@ -141,28 +154,44 @@ func TestGetFee(t *testing.T) {
 	}
 }
 
-func TestCalculateTradingFee(t *testing.T) {
+func TestGetAccountTradingFee(t *testing.T) {
 	t.Parallel()
 
-	newBalance := make(Balances)
-	newBalance["BTC"] = Balance{
-		USDFee: 1,
-		EURFee: 0,
+	if !mockTests {
+		sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	}
 
-	if resp := b.CalculateTradingFee(currency.BTC, currency.USD, 0, 0, newBalance); resp != 0 {
-		t.Error("GetFee() error")
-	}
-	if resp := b.CalculateTradingFee(currency.BTC, currency.USD, 2, 2, newBalance); resp != float64(4) {
-		t.Errorf("GetFee() error. Expected: %f, Received: %f", float64(4), resp)
-	}
-	if resp := b.CalculateTradingFee(currency.BTC, currency.EUR, 2, 2, newBalance); resp != float64(0) {
-		t.Errorf("GetFee() error. Expected: %f, Received: %f", float64(0), resp)
+	fee, err := b.GetAccountTradingFee(context.Background(), currency.NewPair(currency.LTC, currency.BTC))
+	if assert.NoError(t, err, "GetAccountTradingFee should not error") {
+		if mockTests {
+			assert.Positive(t, fee.Fees.Maker, "Maker should be positive")
+			assert.Positive(t, fee.Fees.Taker, "Taker should be positive")
+		}
+		assert.NotEmpty(t, fee.Symbol, "Symbol should not be empty")
+		assert.Equal(t, fee.Symbol, "ltcbtc", "Symbol should be correct")
 	}
 
-	dummy1, dummy2 := currency.NewCode(""), currency.NewCode("")
-	if resp := b.CalculateTradingFee(dummy1, dummy2, 0, 0, newBalance); resp != 0 {
-		t.Error("GetFee() error")
+	_, err = b.GetAccountTradingFee(context.Background(), currency.EMPTYPAIR)
+	assert.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "Should get back the right error")
+}
+
+func TestGetAccountTradingFees(t *testing.T) {
+	t.Parallel()
+
+	if !mockTests {
+		sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	}
+
+	fees, err := b.GetAccountTradingFees(context.Background())
+	if assert.NoError(t, err, "GetAccountTradingFee should not error") {
+		if assert.Positive(t, len(fees), "Should get back multiple fees") {
+			fee := fees[0]
+			assert.NotEmpty(t, fee.Symbol, "Should get back a symbol")
+			if mockTests {
+				assert.Positive(t, fee.Fees.Maker, "Maker should be positive")
+				assert.Positive(t, fee.Fees.Taker, "Taker should be positive")
+			}
+		}
 	}
 }
 
@@ -287,14 +316,12 @@ func TestGetBalance(t *testing.T) {
 				Balance:       1337.42,
 				Reserved:      1295.00,
 				WithdrawalFee: 5.0,
-				USDFee:        0,
 			},
 			"BTC": {
 				Available:     9.1,
 				Balance:       11.2,
 				Reserved:      2.1,
 				WithdrawalFee: 0.00050000,
-				USDFee:        0.25,
 			},
 		} {
 			if got, ok := bal[k]; !ok {
@@ -311,9 +338,6 @@ func TestGetBalance(t *testing.T) {
 				}
 				if got.WithdrawalFee != e.WithdrawalFee {
 					t.Errorf("Incorrect WithdrawalFee for %s; Expected: %v Got: %v", k, e.WithdrawalFee, got.WithdrawalFee)
-				}
-				if got.USDFee != e.USDFee {
-					t.Errorf("Incorrect USDFee for %s; Expected: %v Got: %v", k, e.USDFee, got.USDFee)
 				}
 			}
 		}
