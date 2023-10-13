@@ -1,6 +1,7 @@
 package gemini
 
 import (
+	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 )
 
@@ -27,6 +28,21 @@ type Ticker struct {
 		ETH       float64
 		Timestamp int64
 	}
+}
+
+// SymbolDetails contains additional symbol details
+type SymbolDetails struct {
+	Symbol                string                  `json:"symbol"`
+	BaseCurrency          string                  `json:"base_currency"`
+	QuoteCurrency         string                  `json:"quote_currency"`
+	TickSize              float64                 `json:"tick_size"`
+	QuoteIncrement        float64                 `json:"quote_increment"`
+	MinOrderSize          convert.StringToFloat64 `json:"min_order_size"`
+	Status                string                  `json:"status"`
+	WrapEnabled           bool                    `json:"wrap_enabled"`
+	ProductType           string                  `json:"product_type"`
+	ContractType          string                  `json:"contract_type"`
+	ContractPriceCurrency string                  `json:"contract_price_currency"`
 }
 
 // TickerV2 holds returned ticker data from the exchange

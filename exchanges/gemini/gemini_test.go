@@ -1259,3 +1259,30 @@ func TestGetOrderInfo(t *testing.T) {
 		t.Error(err)
 	}
 }
+
+func TestGetSymbolDetails(t *testing.T) {
+	t.Parallel()
+	_, err := g.GetSymbolDetails(context.Background(), "all")
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestSetExchangeOrderExecutionLimits(t *testing.T) {
+	t.Parallel()
+	err := g.UpdateOrderExecutionLimits(context.Background(), asset.Spot)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = g.UpdateOrderExecutionLimits(context.Background(), asset.Futures)
+	if !errors.Is(err, asset.ErrNotSupported) {
+		t.Fatal(err)
+	}
+	limit, err := g.GetOrderExecutionLimits(asset.Spot, currency.NewBTCUSD())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if limit == (order.MinMaxLevel{}) {
+		t.Fatal("exchange limit should be loaded")
+	}
+}
