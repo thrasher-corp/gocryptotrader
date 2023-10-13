@@ -359,15 +359,8 @@ func (ok *Okx) Unsubscribe(channelsToUnsubscribe []stream.ChannelSubscription) e
 // handleSubscription sends a subscription and unsubscription information thought the websocket endpoint.
 // as of the okx, exchange this endpoint sends subscription and unsubscription messages but with a list of json objects.
 func (ok *Okx) handleSubscription(operation string, subscriptions []stream.ChannelSubscription) error {
-	request := WSSubscriptionInformationList{
-		Operation: operation,
-		Arguments: []SubscriptionInfo{},
-	}
-
-	authRequests := WSSubscriptionInformationList{
-		Operation: operation,
-		Arguments: []SubscriptionInfo{},
-	}
+	request := WSSubscriptionInformationList{Operation: operation}
+	authRequests := WSSubscriptionInformationList{Operation: operation}
 	ok.WsRequestSemaphore <- 1
 	defer func() { <-ok.WsRequestSemaphore }()
 	var channels []stream.ChannelSubscription
@@ -650,8 +643,9 @@ func (ok *Okx) WsHandleData(respRaw []byte) error {
 		okxChannelPriceLimit:
 		var response WsMarkPrice
 		return ok.wsProcessPushData(respRaw, &response)
+	case okxChannelOrderBooks5:
+		return ok.wsProcessOrderbook5(respRaw)
 	case okxChannelOrderBooks,
-		okxChannelOrderBooks5,
 		okxChannelOrderBooks50TBT,
 		okxChannelBBOTBT,
 		okxChannelOrderBooksTBT:
@@ -738,11 +732,74 @@ func (ok *Okx) wsProcessIndexCandles(respRaw []byte) error {
 	return nil
 }
 
+// wsProcessOrderbook5 processes orderbook data
+func (ok *Okx) wsProcessOrderbook5(data []byte) error {
+	var resp WsOrderbook5
+	err := json.Unmarshal(data, &resp)
+	if err != nil {
+		return err
+	}
+
+	if len(resp.Data) != 1 {
+		return fmt.Errorf("%s - no data returned", ok.Name)
+	}
+
+	assets, err := ok.GetAssetsFromInstrumentTypeOrID("", resp.Argument.InstrumentID)
+	if err != nil {
+		return err
+	}
+
+	pair, err := ok.GetPairFromInstrumentID(resp.Argument.InstrumentID)
+	if err != nil {
+		return err
+	}
+
+	asks := make([]orderbook.Item, len(resp.Data[0].Asks))
+	for x := range resp.Data[0].Asks {
+		asks[x].Price, err = strconv.ParseFloat(resp.Data[0].Asks[x][0], 64)
+		if err != nil {
+			return err
+		}
+
+		asks[x].Amount, err = strconv.ParseFloat(resp.Data[0].Asks[x][1], 64)
+		if err != nil {
+			return err
+		}
+	}
+
+	bids := make([]orderbook.Item, len(resp.Data[0].Bids))
+	for x := range resp.Data[0].Bids {
+		bids[x].Price, err = strconv.ParseFloat(resp.Data[0].Bids[x][0], 64)
+		if err != nil {
+			return err
+		}
+
+		bids[x].Amount, err = strconv.ParseFloat(resp.Data[0].Bids[x][1], 64)
+		if err != nil {
+			return err
+		}
+	}
+
+	for x := range assets {
+		err = ok.Websocket.Orderbook.LoadSnapshot(&orderbook.Base{
+			Asset:           assets[x],
+			Asks:            asks,
+			Bids:            bids,
+			LastUpdated:     time.UnixMilli(resp.Data[0].TimestampMilli),
+			Pair:            pair,
+			Exchange:        ok.Name,
+			VerifyOrderbook: ok.CanVerifyOrderbook})
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // wsProcessOrderBooks processes "snapshot" and "update" order book
 func (ok *Okx) wsProcessOrderBooks(data []byte) error {
 	var response WsOrderBook
-	var err error
-	err = json.Unmarshal(data, &response)
+	err := json.Unmarshal(data, &response)
 	if err != nil {
 		return err
 	}
@@ -1276,10 +1333,6 @@ func (ok *Okx) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, err
 				Channel: subs[c],
 			})
 		}
-	}
-	if len(subscriptions) >= 240 {
-		log.Warnf(log.WebsocketMgr, "OKx has 240 subscription limit, only subscribing within limit. Requested %v", len(subscriptions))
-		subscriptions = subscriptions[:239]
 	}
 	return subscriptions, nil
 }
