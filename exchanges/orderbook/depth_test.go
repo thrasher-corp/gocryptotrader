@@ -92,17 +92,18 @@ func TestRetrieve(t *testing.T) {
 	d.asks.load([]Item{{Price: 1337}}, d.stack, time.Now())
 	d.bids.load([]Item{{Price: 1337}}, d.stack, time.Now())
 	d.options = options{
-		exchange:         "THE BIG ONE!!!!!!",
-		pair:             currency.NewPair(currency.THETA, currency.USD),
-		asset:            asset.DownsideProfitContract,
-		lastUpdated:      time.Now(),
-		lastUpdateID:     1337,
-		priceDuplication: true,
-		isFundingRate:    true,
-		VerifyOrderbook:  true,
-		restSnapshot:     true,
-		idAligned:        true,
-		maxDepth:         10,
+		exchange:               "THE BIG ONE!!!!!!",
+		pair:                   currency.NewPair(currency.THETA, currency.USD),
+		asset:                  asset.DownsideProfitContract,
+		lastUpdated:            time.Now(),
+		lastUpdateID:           1337,
+		priceDuplication:       true,
+		isFundingRate:          true,
+		VerifyOrderbook:        true,
+		restSnapshot:           true,
+		idAligned:              true,
+		maxDepth:               10,
+		checksumStringRequired: true,
 	}
 
 	// If we add anymore options to the options struct later this will complain
