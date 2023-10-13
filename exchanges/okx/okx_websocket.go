@@ -1009,18 +1009,13 @@ func (ok *Okx) wsProcessTrades(data []byte) error {
 		if err != nil {
 			return err
 		}
-		var side order.Side
-		side, err = order.StringToOrderSide(response.Data[i].Side)
-		if err != nil {
-			return err
-		}
 		for j := range assets {
 			trades = append(trades, trade.Data{
 				Amount:       response.Data[i].Quantity,
 				AssetType:    assets[j],
 				CurrencyPair: pair,
 				Exchange:     ok.Name,
-				Side:         side,
+				Side:         response.Data[i].Side,
 				Timestamp:    response.Data[i].Timestamp.Time(),
 				TID:          response.Data[i].TradeID,
 				Price:        response.Data[i].Price,
@@ -1060,40 +1055,62 @@ func (ok *Okx) wsProcessOrders(respRaw []byte) error {
 		if err != nil {
 			return err
 		}
+
 		avgPrice := response.Data[x].AveragePrice.Float64()
-		orderAmount := response.Data[x].Size
+		orderAmount := response.Data[x].Size.Float64()
+		execAmount := response.Data[x].AccumulatedFillSize.Float64()
+
 		var quoteAmount float64
-		if response.Data[x].QuantityType == "quote_ccy" {
+		if response.Data[x].SizeType == "quote_ccy" {
 			// Size is quote amount.
 			quoteAmount = orderAmount
-			if avgPrice > 0 {
-				orderAmount /= avgPrice
+			if orderStatus == order.Filled {
+				// We prefer to take execAmount over calculating from quoteAmount / avgPrice
+				// because it avoids rounding issues
+				orderAmount = execAmount
 			} else {
-				// Size not in Base, and we can't derive a sane value for it
-				orderAmount = 0
+				if avgPrice > 0 {
+					orderAmount /= avgPrice
+				} else {
+					// Size not in Base, and we can't derive a sane value for it
+					orderAmount = 0
+				}
 			}
 		}
+
 		var remainingAmount float64
-		if orderStatus != order.Filled {
-			remainingAmount = orderAmount - response.Data[x].AccumulatedFillSize.Float64()
+		// Float64 rounding may lead to execAmount > orderAmount by a tiny fraction
+		// noting that the order can be fully executed before it's marked as status Filled
+		if orderStatus != order.Filled && orderAmount > execAmount {
+			remainingAmount = orderAmount - execAmount
 		}
-		ok.Websocket.DataHandler <- &order.Detail{
-			Price:                response.Data[x].Price,
+
+		d := &order.Detail{
 			Amount:               orderAmount,
-			QuoteAmount:          quoteAmount,
-			ExecutedAmount:       response.Data[x].AccumulatedFillSize.Float64(),
-			RemainingAmount:      remainingAmount,
+			AssetType:            a,
 			AverageExecutedPrice: avgPrice,
-			Exchange:             ok.Name,
-			OrderID:              response.Data[x].OrderID,
 			ClientOrderID:        response.Data[x].ClientOrderID,
-			Type:                 orderType,
+			Date:                 response.Data[x].CreationTime.Time(),
+			Exchange:             ok.Name,
+			ExecutedAmount:       execAmount,
+			Fee:                  0.0 - response.Data[x].Fee.Float64(),
+			FeeAsset:             response.Data[x].FeeCurrency,
+			OrderID:              response.Data[x].OrderID,
+			Pair:                 pair,
+			Price:                response.Data[x].Price.Float64(),
+			QuoteAmount:          quoteAmount,
+			RemainingAmount:      remainingAmount,
 			Side:                 response.Data[x].Side,
 			Status:               orderStatus,
-			AssetType:            a,
-			Date:                 response.Data[x].CreationTime,
-			Pair:                 pair,
+			Type:                 orderType,
 		}
+		if orderStatus == order.Filled {
+			d.CloseTime = response.Data[x].FillTime.Time()
+			if d.Amount == 0 {
+				d.Amount = d.ExecutedAmount
+			}
+		}
+		ok.Websocket.DataHandler <- d
 	}
 	return nil
 }
