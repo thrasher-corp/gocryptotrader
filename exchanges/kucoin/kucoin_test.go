@@ -30,9 +30,6 @@ const (
 	apiSecret               = ""
 	passPhrase              = ""
 	canManipulateRealOrders = false
-
-	assetNotEnabled              = "asset %v not enabled"
-	spotAndMarginAssetNotEnabled = "neither spot nor margin asset is enabled"
 )
 
 var (
@@ -2162,8 +2159,8 @@ func TestGeneratePayloads(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	if len(payload) != len(subscriptions) {
-		t.Error("derived payload is not same as generated channel subscription instances")
+	if len(payload) >= len(subscriptions) {
+		t.Error("due to batching payload should be a reduction to the subscription list")
 	}
 }
 
