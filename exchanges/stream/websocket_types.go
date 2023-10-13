@@ -94,6 +94,10 @@ type Websocket struct {
 	// Latency reporter
 	ExchangeLevelReporter Reporter
 
+	// MaxSubScriptionsPerConnection defines the maximum number of
+	// subscriptions per connection that is allowed by the exchange.
+	MaxSubscriptionsPerConnection int
+
 	Processor *Processor
 }
 
@@ -116,6 +120,10 @@ type WebsocketSetup struct {
 
 	// Fill data config values
 	FillsFeed bool
+
+	// MaxWebsocketSubscriptionsPerConnection defines the maximum number of
+	// subscriptions per connection that is allowed by the exchange.
+	MaxWebsocketSubscriptionsPerConnection int
 }
 
 // WebsocketConnection contains all the data needed to send a message to a WS

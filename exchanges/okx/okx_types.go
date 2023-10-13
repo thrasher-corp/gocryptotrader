@@ -3189,3 +3189,21 @@ type wsSubscriptionParameters struct {
 	Underlying     bool
 	Currency       bool
 }
+
+// WsOrderbook5 stores the orderbook data for orderbook 5 websocket
+type WsOrderbook5 struct {
+	Argument struct {
+		Channel      string `json:"channel"`
+		InstrumentID string `json:"instId"`
+	} `json:"arg"`
+	Data []Book5Data `json:"data"`
+}
+
+// Book5Data stores the orderbook data for orderbook 5 websocket
+type Book5Data struct {
+	Asks           [][4]string `json:"asks"`
+	Bids           [][4]string `json:"bids"`
+	InstrumentID   string      `json:"instId"`
+	TimestampMilli int64       `json:"ts,string"`
+	SequenceID     int64       `json:"seqId"`
+}
