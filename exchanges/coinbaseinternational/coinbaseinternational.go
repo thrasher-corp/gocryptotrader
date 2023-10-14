@@ -10,6 +10,7 @@ import (
 	"net/url"
 	"reflect"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -50,7 +51,6 @@ func (co *CoinbaseInternational) ListAssets(ctx context.Context) ([]AssetItemInf
 
 // GetAssetDetails retrieves information for a specific asset.
 func (co *CoinbaseInternational) GetAssetDetails(ctx context.Context, assetName currency.Code, assetUUID, assetID string) (*AssetItemInfo, error) {
-	var resp AssetItemInfo
 	path := "assets/"
 	switch {
 	case !assetName.IsEmpty():
@@ -62,12 +62,12 @@ func (co *CoinbaseInternational) GetAssetDetails(ctx context.Context, assetName 
 	default:
 		return nil, errors.New("missing asset information; ")
 	}
+	var resp AssetItemInfo
 	return &resp, co.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, nil, &resp, false)
 }
 
 // GetSupportedNetworkPerAsset returns a list of supported networks and network information for a specific asset.
 func (co *CoinbaseInternational) GetSupportedNetworksPerAsset(ctx context.Context, assetName currency.Code, assetUUID, assetID string) ([]AssetInfoWithSupportedNetwork, error) {
-	var resp []AssetInfoWithSupportedNetwork
 	path := "assets/"
 	switch {
 	case !assetName.IsEmpty():
@@ -80,10 +80,9 @@ func (co *CoinbaseInternational) GetSupportedNetworksPerAsset(ctx context.Contex
 		return nil, errors.New("missing asset information; ")
 	}
 	path += "/networks"
+	var resp []AssetInfoWithSupportedNetwork
 	return resp, co.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, nil, &resp, false)
 }
-
-// -------------------------------------- Instrument Information ----------------------------------------------------------
 
 // GetInstruments returns all of the instruments available for trading.
 func (co *CoinbaseInternational) GetInstruments(ctx context.Context) ([]InstrumentInfo, error) {
@@ -93,7 +92,6 @@ func (co *CoinbaseInternational) GetInstruments(ctx context.Context) ([]Instrume
 
 // GetInstrumentDetails retrieves market information for a specific instrument.
 func (co *CoinbaseInternational) GetInstrumentDetails(ctx context.Context, instrumentName, instrumentUUID, instrumentID string) (*InstrumentInfo, error) {
-	var resp InstrumentInfo
 	path := "instruments/"
 	switch {
 	case instrumentName != "":
@@ -105,12 +103,12 @@ func (co *CoinbaseInternational) GetInstrumentDetails(ctx context.Context, instr
 	default:
 		return nil, errors.New("instrument information is required")
 	}
+	var resp InstrumentInfo
 	return &resp, co.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, nil, &resp, false)
 }
 
 // GetQuotePerInstrument retrieves the current quote for a specific instrument.
 func (co *CoinbaseInternational) GetQuotePerInstrument(ctx context.Context, instrumentName, instrumentUUID, instrumentID string) (*QuoteInformation, error) {
-	var resp QuoteInformation
 	path := "instruments/"
 	switch {
 	case instrumentName != "":
@@ -122,7 +120,9 @@ func (co *CoinbaseInternational) GetQuotePerInstrument(ctx context.Context, inst
 	default:
 		return nil, errors.New("instrument information is required")
 	}
-	return &resp, co.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, nil, &resp, false)
+	println("Path: ", path+"/quote")
+	var resp QuoteInformation
+	return &resp, co.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path+"/quote", nil, nil, &resp, false)
 }
 
 // CreateOrder creates a new order.
@@ -154,7 +154,6 @@ func (co *CoinbaseInternational) CreateOrder(ctx context.Context, arg *OrderRequ
 
 // GetOpenOrders returns a list of active orders resting on the order book matching the requested criteria. Does not return any rejected, cancelled, or fully filled orders as they are not active.
 func (co *CoinbaseInternational) GetOpenOrders(ctx context.Context, portfolioUUID, portfolioID, instrument, clientOrderID, eventType string, RefDateTime time.Time, resultOffset, resultLimit int64) (*OrderItemDetail, error) {
-	var resp OrderItemDetail
 	params := url.Values{}
 	switch {
 	case portfolioID != "":
@@ -180,6 +179,7 @@ func (co *CoinbaseInternational) GetOpenOrders(ctx context.Context, portfolioUUI
 	if resultLimit > 0 {
 		params.Set("result_limit", strconv.FormatInt(resultLimit, 10))
 	}
+	var resp OrderItemDetail
 	return &resp, co.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "orders", params, nil, &resp, true)
 }
 
@@ -241,8 +241,6 @@ func (co *CoinbaseInternational) CancelTradeOrder(ctx context.Context, orderID, 
 	return &resp, co.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodDelete, "orders/"+orderID, params, nil, &resp, true)
 }
 
-//  ----- 	------------------------------- ------------------------------- ------------------------------
-
 // GetAllUserPortfolios returns all of the user's portfolios.
 func (co *CoinbaseInternational) GetAllUserPortfolios(ctx context.Context) ([]PortfolioItem, error) {
 	var resp []PortfolioItem
@@ -251,18 +249,17 @@ func (co *CoinbaseInternational) GetAllUserPortfolios(ctx context.Context) ([]Po
 
 // GetPortfolioDetails retrieves the summary, positions, and balances of a portfolio.
 func (co *CoinbaseInternational) GetPortfolioDetails(ctx context.Context, portfolioID, portfolioUUID string) (*PortfolioDetail, error) {
-	var resp PortfolioDetail
 	if portfolioID == "" {
 		portfolioID = portfolioUUID
 	} else if portfolioUUID == "" {
 		return nil, errMissingPortfolioID
 	}
+	var resp PortfolioDetail
 	return &resp, co.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "portfolios/"+portfolioID+"/detail", nil, nil, &resp, true)
 }
 
 // GetPortfolioSummary retrieves the high level overview of a portfolio.
 func (co *CoinbaseInternational) GetPortfolioSummary(ctx context.Context, portfolioUUID, portfolioID string) (*PortfolioSummary, error) {
-	var resp PortfolioSummary
 	var path string
 	switch {
 	case portfolioUUID != "":
@@ -272,12 +269,12 @@ func (co *CoinbaseInternational) GetPortfolioSummary(ctx context.Context, portfo
 	default:
 		return nil, errMissingPortfolioID
 	}
+	var resp PortfolioSummary
 	return &resp, co.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, nil, &resp, true)
 }
 
 // ListPortfolioBalances returns all of the balances for a given portfolio.
 func (co *CoinbaseInternational) ListPortfolioBalances(ctx context.Context, portfolioUUID, portfolioID string) ([]PortfolioBalance, error) {
-	var resp []PortfolioBalance
 	var path string
 	switch {
 	case portfolioUUID != "":
@@ -287,12 +284,12 @@ func (co *CoinbaseInternational) ListPortfolioBalances(ctx context.Context, port
 	default:
 		return nil, errMissingPortfolioID
 	}
+	var resp []PortfolioBalance
 	return resp, co.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, nil, &resp, true)
 }
 
 // GetPortfolioAssetBalance retrieves the balance for a given portfolio and asset.
 func (co *CoinbaseInternational) GetPortfolioAssetBalance(ctx context.Context, portfolioUUID, portfolioID string, ccy currency.Code) (*PortfolioBalance, error) {
-	var resp PortfolioBalance
 	if ccy.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
@@ -305,12 +302,12 @@ func (co *CoinbaseInternational) GetPortfolioAssetBalance(ctx context.Context, p
 	default:
 		return nil, errMissingPortfolioID
 	}
+	var resp PortfolioBalance
 	return &resp, co.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, nil, &resp, true)
 }
 
 // ListPortfolioPositions returns all of the positions for a given portfolio.
 func (co *CoinbaseInternational) ListPortfolioPositions(ctx context.Context, portfolioUUID, portfolioID string) ([]PortfolioPosition, error) {
-	var resp []PortfolioPosition
 	var path string
 	switch {
 	case portfolioUUID != "":
@@ -320,12 +317,12 @@ func (co *CoinbaseInternational) ListPortfolioPositions(ctx context.Context, por
 	default:
 		return nil, errMissingPortfolioID
 	}
+	var resp []PortfolioPosition
 	return resp, co.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, nil, &resp, true)
 }
 
 // GetPortfolioInstrumentPosition retrieves the position for a given portfolio and symbol.
 func (co *CoinbaseInternational) GetPortfolioInstrumentPosition(ctx context.Context, portfolioUUID, portfolioID string, instrument currency.Pair) (*PortfolioPosition, error) {
-	var resp PortfolioPosition
 	if instrument.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
@@ -338,12 +335,12 @@ func (co *CoinbaseInternational) GetPortfolioInstrumentPosition(ctx context.Cont
 	default:
 		return nil, errMissingPortfolioID
 	}
+	var resp PortfolioPosition
 	return &resp, co.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, nil, &resp, true)
 }
 
 // ListPortfolioFills returns all of the fills for a given portfolio.
 func (co *CoinbaseInternational) ListPortfolioFills(ctx context.Context, portfolioUUID, portfolioID string) ([]PortfolioFill, error) {
-	var resp []PortfolioFill
 	var path string
 	switch {
 	case portfolioUUID != "":
@@ -353,17 +350,15 @@ func (co *CoinbaseInternational) ListPortfolioFills(ctx context.Context, portfol
 	default:
 		return nil, errMissingPortfolioID
 	}
+	var resp []PortfolioFill
 	return resp, co.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, nil, &resp, true)
 }
-
-// ----------------------------------------------------------------
 
 // ListMatchingTransfers represents a list of transfer based on the query
 // type: possible values DEPOSIT, WITHDRAW, REBATE, STIPEND
 // status: possible value PROCESSED, NEW, FAILED, STARTED
 
-func (co *CoinbaseInternational) ListMatchingTransfers(ctx context.Context, portfolioUUID, portfolioID, status, transferType string, resultLimit, resultOffset int64, timeFrom, timeTo time.Time) ([]Transfers, error) {
-	var resp []Transfers
+func (co *CoinbaseInternational) ListMatchingTransfers(ctx context.Context, portfolioUUID, portfolioID, status, transferType string, resultLimit, resultOffset int64, timeFrom, timeTo time.Time) (*Transfers, error) {
 	params := url.Values{}
 	switch {
 	case portfolioUUID != "":
@@ -389,7 +384,8 @@ func (co *CoinbaseInternational) ListMatchingTransfers(ctx context.Context, port
 	if !timeTo.IsZero() {
 		params.Set("time_to", timeTo.String())
 	}
-	return resp, co.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "transfers", params, nil, &resp, true)
+	var resp Transfers
+	return &resp, co.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "transfers", params, nil, &resp, true)
 }
 
 // GetTransfer returns a single transfer instance
@@ -442,7 +438,6 @@ func (co *CoinbaseInternational) CreateCryptoAddress(ctx context.Context, arg *C
 func (co *CoinbaseInternational) SendHTTPRequest(ctx context.Context, ep exchange.URL, method, path string, params url.Values, data, result interface{}, authenticated bool) error {
 	endpoint, err := co.API.Endpoints.GetURL(ep)
 	if err != nil {
-		panic(err)
 		return err
 	}
 	urlPath := endpoint + coinbaseAPIVersion + "/" + path
@@ -454,7 +449,6 @@ func (co *CoinbaseInternational) SendHTTPRequest(ctx context.Context, ep exchang
 	if authenticated {
 		creds, err = co.GetCredentials(ctx)
 		if err != nil {
-			panic(err)
 			return err
 		}
 		requestType = request.AuthenticatedRequest
@@ -466,7 +460,6 @@ func (co *CoinbaseInternational) SendHTTPRequest(ctx context.Context, ep exchang
 	} else if value != (reflect.Value{}) && !value.IsNil() {
 		payload, err = json.Marshal(data)
 		if err != nil {
-			panic(err)
 			return err
 		}
 	}
@@ -484,14 +477,12 @@ func (co *CoinbaseInternational) SendHTTPRequest(ctx context.Context, ep exchang
 			var hmac []byte
 			secretBytes, err := crypto.Base64Decode(creds.Secret)
 			if err != nil {
-				panic(err)
 				return nil, err
 			}
 			hmac, err = crypto.GetHMAC(crypto.HashSHA256,
 				[]byte(signatureString),
 				secretBytes)
 			if err != nil {
-				panic(err)
 				return nil, err
 			}
 			headers["CB-ACCESS-SIGN"] = crypto.Base64Encode(hmac)
@@ -519,4 +510,53 @@ func orderTypeString(oType order.Type) (string, error) {
 	default:
 		return "", order.ErrUnsupportedOrderType
 	}
+}
+
+// GetFee returns an estimate of fee based on type of transaction
+func (co *CoinbaseInternational) GetFee(ctx context.Context, feeBuilder *exchange.FeeBuilder) (float64, error) {
+	var fee float64
+	var err error
+	switch feeBuilder.FeeType {
+	case exchange.CryptocurrencyTradeFee:
+		fee, err = co.calculateTradingFee(
+			ctx,
+			feeBuilder.Pair.Base,
+			feeBuilder.Pair.Quote,
+			feeBuilder.PurchasePrice,
+			feeBuilder.Amount,
+			feeBuilder.IsMaker)
+		if err != nil {
+			return 0, err
+		}
+	case exchange.OfflineTradeFee:
+		fee = getOfflineTradeFee(feeBuilder.Pair, feeBuilder.PurchasePrice, feeBuilder.Amount)
+	}
+	if fee < 0 {
+		fee = 0
+	}
+	return fee, nil
+}
+
+func (co *CoinbaseInternational) calculateTradingFee(ctx context.Context, base, quote currency.Code, purchasePrice, amount float64, isMaker bool) (float64, error) {
+	fees, err := co.GetAllUserPortfolios(ctx)
+	if err != nil {
+		return 0, err
+	}
+	for x := range fees {
+		if strings.EqualFold(fees[x].Name, currency.Pair{Base: base, Delimiter: "-", Quote: quote}.String()) {
+			if isMaker {
+				return fees[x].MakerFeeRate.Float64() * amount * purchasePrice, nil
+			}
+			return fees[x].TakerFeeRate.Float64() * amount * purchasePrice, nil
+		}
+	}
+	if isMaker {
+		return 0.018 * amount * purchasePrice, nil
+	}
+	return 0.02 * amount * purchasePrice, nil
+}
+
+// getOfflineTradeFee calculates the worst case-scenario trading fee
+func getOfflineTradeFee(c currency.Pair, price, amount float64) float64 {
+	return 0.02 * price * amount
 }

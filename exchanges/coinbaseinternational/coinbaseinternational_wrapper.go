@@ -2,6 +2,7 @@ package coinbaseinternational
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"strconv"
 	"sync"
@@ -235,32 +236,69 @@ func (co *CoinbaseInternational) UpdateTicker(ctx context.Context, p currency.Pa
 		return nil, currency.ErrCurrencyPairEmpty
 	}
 	tick, err := co.GetQuotePerInstrument(ctx, p.String(), "", "")
-	tickerPrice := &ticker.Price{
-		High:         tick.LimitUp,
-		Low:          tick.LimitDown,
-		Bid:          tick.BestBidPrice,
-		BidSize:      tick.BestBidSize,
-		Ask:          tick.BestAskPrice,
-		AskSize:      tick.BestAskSize,
-		Open:         tick.MarkPrice,
-		Close:        tick.SettlementPrice,
-		LastUpdated:  tick.Timestamp.Time(),
-		Volume:       tick.TradeQty / tick.TradePrice, // TODO: if the volume is representing the quote volume,  then the base quentity is the quote volume divided by the trade price.
-		QuoteVolume:  tick.TradeQty,
+	if err != nil {
+		return nil, err
+	}
+	val, _ := json.Marshal(tick)
+	println(string(val))
+	err = ticker.ProcessTicker(&ticker.Price{
+		High:         tick.LimitUp.Float64(),
+		Low:          tick.LimitDown.Float64(),
+		Bid:          tick.BestBidPrice.Float64(),
+		BidSize:      tick.BestBidSize.Float64(),
+		Ask:          tick.BestAskPrice.Float64(),
+		AskSize:      tick.BestAskSize.Float64(),
+		Open:         tick.MarkPrice.Float64(),
+		Close:        tick.SettlementPrice.Float64(),
+		LastUpdated:  tick.Timestamp,
+		Volume:       tick.TradeQty.Float64() / tick.TradePrice.Float64(), // TODO: if the volume is representing the quote volume,  then the base quentity is the quote volume divided by the trade price.
+		QuoteVolume:  tick.TradeQty.Float64(),
 		ExchangeName: co.Name,
 		AssetType:    asset.Spot,
 		Pair:         p,
-	}
-	err = ticker.ProcessTicker(tickerPrice)
+	})
 	if err != nil {
-		return tickerPrice, err
+		return nil, err
 	}
-	return ticker.GetTicker(co.Name, p, assetType)
+	return ticker.GetTicker(co.Name, p, asset.Spot)
 }
 
 // UpdateTickers updates all currency pairs of a given asset type
 func (co *CoinbaseInternational) UpdateTickers(ctx context.Context, assetType asset.Item) error {
-	return common.ErrFunctionNotSupported
+	if assetType != asset.Spot {
+		return fmt.Errorf("%w asset type %v", asset.ErrNotSupported, assetType)
+	}
+	var tick *QuoteInformation
+	enabledPairs, err := co.GetEnabledPairs(asset.Spot)
+	if err != nil {
+		return err
+	}
+	for x := range enabledPairs {
+		tick, err = co.GetQuotePerInstrument(ctx, enabledPairs[x].String(), "", "")
+		if err != nil {
+			return err
+		}
+		err = ticker.ProcessTicker(&ticker.Price{
+			High:         tick.LimitUp.Float64(),
+			Low:          tick.LimitDown.Float64(),
+			Bid:          tick.BestBidPrice.Float64(),
+			BidSize:      tick.BestBidSize.Float64(),
+			Ask:          tick.BestAskPrice.Float64(),
+			AskSize:      tick.BestAskSize.Float64(),
+			Open:         tick.MarkPrice.Float64(),
+			Close:        tick.SettlementPrice.Float64(),
+			LastUpdated:  tick.Timestamp,
+			Volume:       tick.TradeQty.Float64() / tick.TradePrice.Float64(), // TODO: if the volume is representing the quote volume,  then the base quentity is the quote volume divided by the trade price.
+			QuoteVolume:  tick.TradeQty.Float64(),
+			ExchangeName: co.Name,
+			AssetType:    asset.Spot,
+			Pair:         enabledPairs[x],
+		})
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // FetchTicker returns the ticker for a currency pair
@@ -290,67 +328,126 @@ func (co *CoinbaseInternational) UpdateOrderbook(ctx context.Context, pair curre
 		VerifyOrderbook: co.CanVerifyOrderbook,
 	}
 
-	// NOTE: UPDATE ORDERBOOK EXAMPLE
-	/*
-		orderbookNew, err := co.GetOrderBook(exchange.FormatExchangeCurrency(co.Name, p).String(), 1000)
-		if err != nil {
-			return book, err
-		}
-
-		book.Bids = make([]orderbook.Item, len(orderbookNew.Bids))
-		for x := range orderbookNew.Bids {
-			book.Bids[x] = orderbook.Item{
-				Amount: orderbookNew.Bids[x].Quantity,
-				Price: orderbookNew.Bids[x].Price,
-			}
-		}
-
-		book.Asks = make([]orderbook.Item, len(orderbookNew.Asks))
-		for x := range orderbookNew.Asks {
-			book.Asks[x] = orderbook.Item{
-				Amount: orderBookNew.Asks[x].Quantity,
-				Price: orderBookNew.Asks[x].Price,
-			}
-		}
-	*/
-
-	err := book.Process()
+	format, err := co.GetPairFormat(asset.Spot, true)
+	if err != nil {
+		return nil, err
+	}
+	orderbookNew, err := co.GetQuotePerInstrument(ctx, pair.Format(format).String(), "", "")
 	if err != nil {
 		return book, err
 	}
 
+	book.Bids = []orderbook.Item{{
+		Amount: orderbookNew.BestBidSize.Float64(),
+		Price:  orderbookNew.BestBidPrice.Float64(),
+	}}
+	book.Asks = []orderbook.Item{{
+		Amount: orderbookNew.BestAskSize.Float64(),
+		Price:  orderbookNew.BestAskPrice.Float64(),
+	}}
+	err = book.Process()
+	if err != nil {
+		return book, err
+	}
 	return orderbook.Get(co.Name, pair, assetType)
 }
 
 // UpdateAccountInfo retrieves balances for all enabled currencies
 func (co *CoinbaseInternational) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
-	return account.Holdings{}, common.ErrNotYetImplemented
+	if assetType != asset.Spot {
+		return account.Holdings{}, asset.ErrNotSupported
+	}
+	portfolios, err := co.GetAllUserPortfolios(ctx)
+	if err != nil {
+		return account.Holdings{}, err
+	}
+	holdings := account.Holdings{
+		Exchange: co.Name,
+		Accounts: make([]account.SubAccount, len(portfolios)),
+	}
+	var balances []PortfolioBalance
+	for p := range portfolios {
+		balances, err = co.ListPortfolioBalances(ctx, portfolios[p].PortfolioUUID, portfolios[p].PortfolioID)
+		if err != nil {
+			return account.Holdings{}, err
+		}
+		holdings.Accounts[p] = account.SubAccount{
+			AssetType:  asset.Spot,
+			ID:         portfolios[p].PortfolioID,
+			Currencies: make([]account.Balance, len(balances)),
+		}
+		for b := range balances {
+			holdings.Accounts[p].Currencies[b] = account.Balance{
+				Currency:               currency.NewCode(balances[b].AssetName),
+				Total:                  balances[b].Quantity.Float64(),
+				Hold:                   balances[b].Hold.Float64(),
+				Free:                   balances[b].Quantity.Float64() - balances[b].Hold.Float64(),
+				AvailableWithoutBorrow: balances[b].MaxWithdrawAmount.Float64(),
+				Borrowed:               balances[b].CollateralValue.Float64(), // TODO: amount to be borrowed
+			}
+		}
+	}
+	return holdings, nil
 }
 
 // FetchAccountInfo retrieves balances for all enabled currencies
 func (co *CoinbaseInternational) FetchAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
-	// Example implementation below:
-	// 	creds, err := co.GetCredentials(ctx)
-	// 	if err != nil {
-	// 		return account.Holdings{}, err
-	// 	}
-	// 	acc, err := account.GetHoldings(co.Name, creds, assetType)
-	// 	if err != nil {
-	// 		return co.UpdateAccountInfo(ctx, assetType)
-	// 	}
-	// 	return acc, nil
-	return account.Holdings{}, common.ErrNotYetImplemented
+	creds, err := co.GetCredentials(ctx)
+	if err != nil {
+		return account.Holdings{}, err
+	}
+	acc, err := account.GetHoldings(co.Name, creds, assetType)
+	if err != nil {
+		return co.UpdateAccountInfo(ctx, assetType)
+	}
+	return acc, nil
 }
 
 // GetFundingHistory returns funding history, deposits and
 // withdrawals
 func (co *CoinbaseInternational) GetAccountFundingHistory(ctx context.Context) ([]exchange.FundingHistory, error) {
-	return nil, common.ErrNotYetImplemented
+	history, err := co.ListMatchingTransfers(ctx, "", "", "", "", 0, 0, time.Time{}, time.Time{})
+	if err != nil {
+		return nil, err
+	}
+	resp := make([]exchange.FundingHistory, len(history.Results))
+	for j := range history.Results {
+		resp[j] = exchange.FundingHistory{
+			ExchangeName: co.Name,
+			Status:       history.Results[j].Status,
+			Timestamp:    history.Results[j].CreatedAt,
+			Currency:     history.Results[j].Asset,
+			Amount:       history.Results[j].Amount,
+			TransferType: history.Results[j].Type,
+			CryptoTxID:   history.Results[j].TransferUUID,
+			CryptoChain:  history.Results[j].NetworkName,
+		}
+	}
+	return resp, nil
 }
 
 // GetWithdrawalsHistory returns previous withdrawals data
 func (co *CoinbaseInternational) GetWithdrawalsHistory(ctx context.Context, c currency.Code, a asset.Item) ([]exchange.WithdrawalHistory, error) {
-	return nil, common.ErrNotYetImplemented
+	if a != asset.Spot {
+		return nil, asset.ErrNotSupported
+	}
+	history, err := co.ListMatchingTransfers(ctx, "", "", "", "WITHDRAW", 0, 0, time.Time{}, time.Time{})
+	if err != nil {
+		return nil, err
+	}
+	resp := make([]exchange.WithdrawalHistory, len(history.Results))
+	for j := range history.Results {
+		resp[j] = exchange.WithdrawalHistory{
+			Status:       history.Results[j].Status,
+			Timestamp:    history.Results[j].CreatedAt,
+			Currency:     history.Results[j].Asset,
+			Amount:       history.Results[j].Amount,
+			TransferType: history.Results[j].Type,
+			CryptoTxID:   history.Results[j].TransferUUID,
+			CryptoChain:  history.Results[j].NetworkName,
+		}
+	}
+	return resp, nil
 }
 
 // GetRecentTrades returns the most recent trades for a currency and asset
@@ -426,7 +523,6 @@ func (co *CoinbaseInternational) ModifyOrder(ctx context.Context, action *order.
 	case action.ClientOrderID != "":
 		orderID = action.ClientOrderID
 	}
-
 	response, err := co.ModifyOpenOrder(ctx, orderID, &ModifyOrderParam{
 		ClientOrderID: action.ClientOrderID,
 		Portfolio:     "",
@@ -495,8 +591,8 @@ func (co *CoinbaseInternational) GetOrderInfo(ctx context.Context, orderID strin
 		Amount:               resp.Size,
 		Exchange:             co.Name,
 		TriggerPrice:         resp.StopPrice,
-		AverageExecutedPrice: resp.AvgPrice.Float64(),
-		QuoteAmount:          resp.Size * resp.AvgPrice.Float64(),
+		AverageExecutedPrice: resp.AveragePrice.Float64(),
+		QuoteAmount:          resp.Size * resp.AveragePrice.Float64(),
 		ExecutedAmount:       resp.ExecQty.Float64(),
 		RemainingAmount:      resp.Size - resp.ExecQty.Float64(),
 		Fee:                  resp.Fee.Float64(),
@@ -588,8 +684,8 @@ func (co *CoinbaseInternational) GetActiveOrders(ctx context.Context, getOrdersR
 			Amount:               response.Results[x].Size,
 			Price:                response.Results[x].Price,
 			TriggerPrice:         response.Results[x].StopPrice,
-			AverageExecutedPrice: response.Results[x].AvgPrice.Float64(),
-			QuoteAmount:          response.Results[x].Size * response.Results[x].AvgPrice.Float64(),
+			AverageExecutedPrice: response.Results[x].AveragePrice.Float64(),
+			QuoteAmount:          response.Results[x].Size * response.Results[x].AveragePrice.Float64(),
 			RemainingAmount:      response.Results[x].Size - response.Results[x].ExecQty.Float64(),
 			OrderID:              strconv.FormatInt(response.Results[x].OrderID, 10),
 			ExecutedAmount:       response.Results[x].ExecQty.Float64(),
@@ -610,15 +706,19 @@ func (co *CoinbaseInternational) GetActiveOrders(ctx context.Context, getOrdersR
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
 func (co *CoinbaseInternational) GetOrderHistory(ctx context.Context, getOrdersRequest *order.MultiOrderRequest) (order.FilteredOrders, error) {
-	if err := getOrdersRequest.Validate(); err != nil {
-		return nil, err
-	}
 	return nil, common.ErrNotYetImplemented
 }
 
 // GetFeeByType returns an estimate of fee based on the type of transaction
 func (co *CoinbaseInternational) GetFeeByType(ctx context.Context, feeBuilder *exchange.FeeBuilder) (float64, error) {
-	return 0, common.ErrFunctionNotSupported
+	if feeBuilder == nil {
+		return 0, fmt.Errorf("%T %w", feeBuilder, common.ErrNilPointer)
+	}
+	if !co.AreCredentialsValid(ctx) && // TODO check connection status
+		feeBuilder.FeeType == exchange.CryptocurrencyTradeFee {
+		feeBuilder.FeeType = exchange.OfflineTradeFee
+	}
+	return co.GetFee(ctx, feeBuilder)
 }
 
 // ValidateAPICredentials validates current credentials used for wrapper

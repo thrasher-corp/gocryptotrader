@@ -67,19 +67,19 @@ type InstrumentInfo struct {
 
 // QuoteInformation represents a instrument quote information
 type QuoteInformation struct {
-	BestBidPrice     float64              `json:"best_bid_price"`
-	BestBidSize      float64              `json:"best_bid_size"`
-	BestAskPrice     float64              `json:"best_ask_price"`
-	BestAskSize      float64              `json:"best_ask_size"`
-	TradePrice       float64              `json:"trade_price"`
-	TradeQty         float64              `json:"trade_qty"`
-	IndexPrice       float64              `json:"index_price"`
-	MarkPrice        float64              `json:"mark_price"`
-	SettlementPrice  float64              `json:"settlement_price"`
-	LimitUp          float64              `json:"limit_up"`
-	LimitDown        float64              `json:"limit_down"`
-	PredictedFunding float64              `json:"predicted_funding"`
-	Timestamp        convert.ExchangeTime `json:"timestamp"`
+	BestBidPrice     convert.StringToFloat64 `json:"best_bid_price"`
+	BestBidSize      convert.StringToFloat64 `json:"best_bid_size"`
+	BestAskPrice     convert.StringToFloat64 `json:"best_ask_price"`
+	BestAskSize      convert.StringToFloat64 `json:"best_ask_size"`
+	TradePrice       convert.StringToFloat64 `json:"trade_price"`
+	TradeQty         convert.StringToFloat64 `json:"trade_qty"`
+	IndexPrice       convert.StringToFloat64 `json:"index_price"`
+	MarkPrice        convert.StringToFloat64 `json:"mark_price"`
+	SettlementPrice  convert.StringToFloat64 `json:"settlement_price"`
+	LimitUp          convert.StringToFloat64 `json:"limit_up"`
+	LimitDown        convert.StringToFloat64 `json:"limit_down"`
+	PredictedFunding convert.StringToFloat64 `json:"predicted_funding"`
+	Timestamp        time.Time               `json:"timestamp"`
 }
 
 // OrderRequestParams represents a request paramter for creating order.
@@ -113,7 +113,7 @@ type TradeOrder struct {
 	Price          float64                 `json:"price"`
 	StopPrice      float64                 `json:"stop_price"`
 	Size           float64                 `json:"size"`
-	Tif            string                  `json:"tif"`
+	TimeInForce    string                  `json:"tif"`
 	ExpireTime     time.Time               `json:"expire_time"`
 	StpMode        string                  `json:"stp_mode"`
 	EventType      string                  `json:"event_type"`
@@ -158,14 +158,14 @@ type OrderItem struct {
 	Price          float64                 `json:"price"`
 	StopPrice      float64                 `json:"stop_price"`
 	Size           float64                 `json:"size"`
-	Tif            string                  `json:"tif"`
+	TimeInForce    string                  `json:"tif"`
 	ExpireTime     time.Time               `json:"expire_time"`
 	StpMode        string                  `json:"stp_mode"`
 	EventType      string                  `json:"event_type"`
 	OrderStatus    string                  `json:"order_status"`
-	LeavesQty      convert.StringToFloat64 `json:"leaves_qty"`
+	LeavesQuantity convert.StringToFloat64 `json:"leaves_qty"`
 	ExecQty        convert.StringToFloat64 `json:"exec_qty"`
-	AvgPrice       convert.StringToFloat64 `json:"avg_price"`
+	AveragePrice   convert.StringToFloat64 `json:"avg_price"`
 	Message        string                  `json:"message"`
 	Fee            convert.StringToFloat64 `json:"fee"`
 }
@@ -244,14 +244,14 @@ type PortfolioSummary struct {
 
 // PortfolioBalance represents a portfolio balance instance.
 type PortfolioBalance struct {
-	AssetID           string  `json:"asset_id"`
-	AssetUUID         string  `json:"asset_uuid"`
-	AssetName         string  `json:"asset_name"`
-	Quantity          float64 `json:"quantity"`
-	Hold              float64 `json:"hold"`
-	TransferHold      float64 `json:"transfer_hold"`
-	CollateralValue   float64 `json:"collateral_value"`
-	MaxWithdrawAmount float64 `json:"max_withdraw_amount"`
+	AssetID           string                  `json:"asset_id"`
+	AssetUUID         string                  `json:"asset_uuid"`
+	AssetName         string                  `json:"asset_name"`
+	Quantity          convert.StringToFloat64 `json:"quantity"`
+	Hold              convert.StringToFloat64 `json:"hold"`
+	TransferHold      convert.StringToFloat64 `json:"transfer_hold"`
+	CollateralValue   convert.StringToFloat64 `json:"collateral_value"`
+	MaxWithdrawAmount convert.StringToFloat64 `json:"max_withdraw_amount"`
 }
 
 // PortfolioPosition represents a portfolio positions instance.
@@ -315,7 +315,7 @@ type Transfers struct {
 // FundTransfer represents a fund transfer instance.
 type FundTransfer struct {
 	TransferUUID string    `json:"transfer_uuid"`
-	Type         string    `json:"type"`
+	Type         string    `json:"type"` // TODO: ?
 	Amount       float64   `json:"amount"`
 	Asset        string    `json:"asset"`
 	Status       string    `json:"status"`

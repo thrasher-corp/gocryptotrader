@@ -365,6 +365,14 @@ func TestUpdateTicker(t *testing.T) {
 	}
 }
 
+func TestUpdateTickers(t *testing.T) {
+	t.Parallel()
+	err := co.UpdateTickers(context.Background(), asset.Spot)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
 func TestWsConnect(t *testing.T) {
 	t.Parallel()
 	err := co.WsConnect()
@@ -391,5 +399,64 @@ func TestGenerateSubscriptionPayload(t *testing.T) {
 		t.Fatal(err)
 	} else if len(payload) != 2 {
 		t.Fatalf("expected payload of length %d, got %d", 2, len(payload))
+	}
+}
+
+func TestUpdateOrderbook(t *testing.T) {
+	t.Parallel()
+	pair, err := currency.NewPairFromString("BTC-PERP")
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = co.UpdateOrderbook(context.Background(), pair, asset.Spot)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestUpdateAccountInfo(t *testing.T) {
+	t.Parallel()
+	_, err := co.UpdateAccountInfo(context.Background(), asset.Futures)
+	if !errors.Is(err, asset.ErrNotSupported) {
+		t.Fatalf("expected %v, got %v", asset.ErrNotSupported, err)
+	}
+	_, err = co.UpdateAccountInfo(context.Background(), asset.Spot)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestGetAccountFundingHistory(t *testing.T) {
+	t.Parallel()
+	_, err := co.GetAccountFundingHistory(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestGetWithdrawalsHistory(t *testing.T) {
+	t.Parallel()
+	_, err := co.GetWithdrawalsHistory(context.Background(), currency.BTC, asset.Spot)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestGetFeeByType(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, co)
+	if _, er := co.GetFeeByType(context.Background(), &exchange.FeeBuilder{
+		IsMaker: true,
+		Pair:    currency.NewPair(currency.USD, currency.BTC),
+		FeeType: exchange.CryptocurrencyTradeFee,
+	}); er != nil {
+		t.Error("CoinbaseInternational GetFeeByType() error", er)
+	}
+	if _, er := co.GetFeeByType(context.Background(), &exchange.FeeBuilder{
+		IsMaker: true,
+		Pair:    currency.NewPair(currency.USD, currency.BTC),
+		FeeType: exchange.CryptocurrencyWithdrawalFee,
+	}); er != nil {
+		t.Error("CoinbaseInternational GetFeeByType() error", er)
 	}
 }
