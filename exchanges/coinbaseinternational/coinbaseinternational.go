@@ -120,7 +120,6 @@ func (co *CoinbaseInternational) GetQuotePerInstrument(ctx context.Context, inst
 	default:
 		return nil, errors.New("instrument information is required")
 	}
-	println("Path: ", path+"/quote")
 	var resp QuoteInformation
 	return &resp, co.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path+"/quote", nil, nil, &resp, false)
 }

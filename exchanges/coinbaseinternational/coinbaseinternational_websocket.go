@@ -30,10 +30,10 @@ const (
 )
 
 var defaultSubscriptions = []string{
-	// cnlInstruments,
-	// cnlMatch,
-	// cnlFunding,
-	// cnlRisk,
+	cnlInstruments,
+	cnlMatch,
+	cnlFunding,
+	cnlRisk,
 	cnlOrderbookLevel2,
 }
 
@@ -60,7 +60,6 @@ func (co *CoinbaseInternational) WsConnect() error {
 		Type:       "SUBSCRIBE",
 		ProductIDs: []string{"BTC-PERP"},
 		Channels:   []string{"LEVEL2"},
-		Time:       strconv.FormatInt(time.Now().Unix(), 10),
 	}}, true)
 }
 
@@ -86,7 +85,6 @@ func (co *CoinbaseInternational) wsReadData(conn stream.Connection) {
 }
 
 func (co *CoinbaseInternational) wsHandleData(respRaw []byte) error {
-	println("Message: ", string(respRaw))
 	var resp SubscriptionRespnse
 	err := json.Unmarshal(respRaw, &resp)
 	if err != nil {
@@ -367,8 +365,6 @@ func (co *CoinbaseInternational) handleSubscription(payload []SubscriptionInput,
 				return err
 			}
 		}
-		val, _ := json.Marshal(payload[x])
-		println(string(val))
 		err = co.Websocket.Conn.SendJSONMessage(payload[x])
 		if err != nil {
 			return err
@@ -387,9 +383,8 @@ func (co *CoinbaseInternational) signSubscriptionPayload(body *SubscriptionInput
 	if err != nil {
 		return err
 	}
-	println(body.Time + "," + creds.Key + "," + "CBINTLMD," + creds.ClientID)
 	hmac, err = crypto.GetHMAC(crypto.HashSHA256,
-		[]byte(body.Time+","+creds.Key+","+"CBINTLMD,"+creds.ClientID),
+		[]byte(body.Time+creds.Key+"CBINTLMD"+creds.ClientID),
 		secretBytes)
 	if err != nil {
 		return err
