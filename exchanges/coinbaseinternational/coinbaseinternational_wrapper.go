@@ -55,6 +55,9 @@ func (co *CoinbaseInternational) SetDefaults() {
 	co.Verbose = true
 	co.API.CredentialsValidator.RequiresKey = true
 	co.API.CredentialsValidator.RequiresSecret = true
+	co.API.CredentialsValidator.RequiresClientID = true
+	co.API.CredentialsValidator.RequiresBase64DecodeSecret = true
+
 	requestFmt := &currency.PairFormat{Uppercase: true, Delimiter: ":"}
 	configFmt := &currency.PairFormat{}
 	err := co.SetGlobalPairsManager(requestFmt, configFmt)

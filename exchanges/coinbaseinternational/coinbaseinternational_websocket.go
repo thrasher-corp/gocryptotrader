@@ -90,6 +90,7 @@ func (co *CoinbaseInternational) wsHandleData(respRaw []byte) error {
 	if err != nil {
 		return err
 	}
+
 	switch resp.Type {
 	case "SUBSCRIBE":
 		subsccefulySubscribedChannels := []stream.ChannelSubscription{}
@@ -379,13 +380,9 @@ func (co *CoinbaseInternational) signSubscriptionPayload(body *SubscriptionInput
 		return err
 	}
 	var hmac []byte
-	secretBytes, err := crypto.Base64Decode(creds.Secret)
-	if err != nil {
-		return err
-	}
 	hmac, err = crypto.GetHMAC(crypto.HashSHA256,
 		[]byte(body.Time+creds.Key+"CBINTLMD"+creds.ClientID),
-		secretBytes)
+		[]byte(creds.Secret))
 	if err != nil {
 		return err
 	}
