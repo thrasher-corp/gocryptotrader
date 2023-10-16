@@ -318,6 +318,11 @@ func (by *Bybit) wsHandleData(assetType asset.Item, respRaw []byte) error {
 				}
 			}
 		case "ping", "pong":
+		default:
+			by.Websocket.DataHandler <- stream.UnhandledMessageWarning{
+				Message: string(respRaw),
+			}
+			return nil
 		}
 		return nil
 	}
@@ -691,9 +696,7 @@ func (by *Bybit) wsProcessPublicTicker(assetType asset.Item, resp *WebsocketResp
 }
 
 func (by *Bybit) updateSpotTickerInformation(result *WsSpotTicker, cp currency.Pair) (*ticker.Price, error) {
-	var tickerData *ticker.Price
-	var err error
-	tickerData, err = ticker.GetTicker(by.Name, cp, asset.Spot)
+	tickerData, err := ticker.GetTicker(by.Name, cp, asset.Spot)
 	if err != nil {
 		return nil, err
 	}
@@ -713,9 +716,7 @@ func (by *Bybit) updateSpotTickerInformation(result *WsSpotTicker, cp currency.P
 }
 
 func (by *Bybit) updateTickerInformation(result *WsLinearTicker, cp currency.Pair) (*ticker.Price, error) {
-	var tickerData *ticker.Price
-	var err error
-	tickerData, err = ticker.GetTicker(by.Name, cp, asset.LinearContract)
+	tickerData, err := ticker.GetTicker(by.Name, cp, asset.LinearContract)
 	if err != nil {
 		return nil, err
 	}
@@ -747,9 +748,7 @@ func (by *Bybit) updateTickerInformation(result *WsLinearTicker, cp currency.Pai
 }
 
 func (by *Bybit) updateOptionsTickerInformation(result *WsOptionTicker, cp currency.Pair) (*ticker.Price, error) {
-	var tickerData *ticker.Price
-	var err error
-	tickerData, err = ticker.GetTicker(by.Name, cp, asset.Options)
+	tickerData, err := ticker.GetTicker(by.Name, cp, asset.Options)
 	if err != nil {
 		return nil, err
 	}
@@ -820,14 +819,13 @@ func (by *Bybit) wsProcessOrderbook(assetType asset.Item, resp *WebsocketRespons
 	if err != nil {
 		return err
 	}
+	var size, price float64
 	asks := make([]orderbook.Item, len(result.Asks))
 	for i := range result.Asks {
-		var price float64
 		price, err = strconv.ParseFloat(result.Asks[i][0], 64)
 		if err != nil {
 			return err
 		}
-		var size float64
 		size, err = strconv.ParseFloat(result.Asks[i][1], 64)
 		if err != nil {
 			return err
@@ -836,12 +834,10 @@ func (by *Bybit) wsProcessOrderbook(assetType asset.Item, resp *WebsocketRespons
 	}
 	bids := make([]orderbook.Item, len(result.Bids))
 	for i := range result.Bids {
-		var price float64
 		price, err = strconv.ParseFloat(result.Bids[i][0], 64)
 		if err != nil {
 			return err
 		}
-		var size float64
 		size, err = strconv.ParseFloat(result.Bids[i][1], 64)
 		if err != nil {
 			return err

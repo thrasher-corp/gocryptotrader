@@ -37,7 +37,6 @@ func (by *Bybit) GetDefaultConfig(ctx context.Context) (*config.Exchange, error)
 	exchCfg.Name = by.Name
 	exchCfg.HTTPTimeout = exchange.DefaultHTTPTimeout
 	exchCfg.BaseCurrencies = by.BaseCurrencies
-
 	err := by.SetupDefaults(exchCfg)
 	if err != nil {
 		return nil, err
@@ -288,7 +287,7 @@ func (by *Bybit) Run(ctx context.Context) {
 		return
 	}
 
-	by.checkAccountType(ctx)
+	by.RetrieveAndSetAccountType(ctx)
 	err := by.UpdateTradablePairs(ctx, false)
 	if err != nil {
 		log.Errorf(log.ExchangeSys,
@@ -301,7 +300,14 @@ func (by *Bybit) Run(ctx context.Context) {
 // FetchTradablePairs returns a list of the exchanges tradable pairs
 func (by *Bybit) FetchTradablePairs(ctx context.Context, a asset.Item) (currency.Pairs, error) {
 	var pair currency.Pair
-	allPairs, err := by.GetInstruments(ctx, getCategoryName(a), "", "Trading", "", "", 0)
+	var category string
+	switch a {
+	case asset.Spot, asset.Options, asset.CoinMarginedFutures, asset.USDCMarginedFutures, asset.USDTMarginedFutures:
+		category = getCategoryName(a)
+	default:
+		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, a)
+	}
+	allPairs, err := by.GetInstruments(ctx, category, "", "Trading", "", "", 0)
 	if err != nil {
 		return nil, err
 	}
@@ -328,7 +334,7 @@ func (by *Bybit) FetchTradablePairs(ctx context.Context, a asset.Item) (currency
 		}
 	case asset.USDCMarginedFutures:
 		for x := range allPairs.List {
-			if allPairs.List[x].Status != "Trading" || allPairs.List[x].QuoteCoin != "USD" {
+			if allPairs.List[x].Status != "Trading" || allPairs.List[x].QuoteCoin != "USDC" {
 				continue
 			}
 			pair, err = currency.NewPairFromString(allPairs.List[x].Symbol)
@@ -348,8 +354,6 @@ func (by *Bybit) FetchTradablePairs(ctx context.Context, a asset.Item) (currency
 			}
 			pairs = append(pairs, pair)
 		}
-	default:
-		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, a)
 	}
 	return pairs, nil
 }
@@ -523,7 +527,6 @@ func (by *Bybit) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType
 }
 
 // UpdateAccountInfo retrieves balances for all enabled currencies
-// TODO: check
 func (by *Bybit) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
 	var info account.Holdings
 	var acc account.SubAccount
@@ -1283,17 +1286,17 @@ func (by *Bybit) GetFeeByType(ctx context.Context, feeBuilder *exchange.FeeBuild
 				return 0, err
 			}
 		}
-		results, err := by.GetFeeRate(ctx, getCategoryName(assets[0]), pairString, baseCoin)
+		accountFee, err := by.GetFeeRate(ctx, getCategoryName(assets[0]), pairString, baseCoin)
 		if err != nil {
 			return 0, err
 		}
-		if len(results) == 0 {
+		if len(accountFee.List) == 0 {
 			return 0, fmt.Errorf("no fee builder found for currency pair %s", pairString)
 		}
 		if feeBuilder.IsMaker {
-			return results[0].Maker.Float64() * feeBuilder.Amount, nil
+			return accountFee.List[0].Maker.Float64() * feeBuilder.Amount, nil
 		}
-		return results[0].Taker.Float64() * feeBuilder.Amount * feeBuilder.PurchasePrice, nil
+		return accountFee.List[0].Taker.Float64() * feeBuilder.Amount * feeBuilder.PurchasePrice, nil
 	}
 }
 

@@ -12,6 +12,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -28,7 +29,7 @@ const (
 
 var b = &Bybit{}
 
-var spotTradablePair, linearTradablePair, inverseTradablePair, optionsTradablePair currency.Pair
+var spotTradablePair, usdcMarginedTradablePair, usdtMarginedTradablePair, inverseTradablePair, optionsTradablePair currency.Pair
 
 func TestStart(t *testing.T) {
 	t.Parallel()
@@ -78,7 +79,11 @@ func TestGetKlines(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = b.GetKlines(context.Background(), "linear", linearTradablePair.String(), kline.FiveMin, s, e, 5)
+	_, err = b.GetKlines(context.Background(), "linear", usdtMarginedTradablePair.String(), kline.FiveMin, s, e, 5)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = b.GetKlines(context.Background(), "linear", usdcMarginedTradablePair.String(), kline.FiveMin, s, e, 5)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -100,7 +105,11 @@ func TestGetMarkPriceKline(t *testing.T) {
 		s = time.UnixMilli(1693077167971)
 		e = time.UnixMilli(1693080767971)
 	}
-	_, err := b.GetMarkPriceKline(context.Background(), "linear", linearTradablePair.String(), kline.FiveMin, s, e, 5)
+	_, err := b.GetMarkPriceKline(context.Background(), "linear", usdtMarginedTradablePair.String(), kline.FiveMin, s, e, 5)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = b.GetMarkPriceKline(context.Background(), "linear", usdcMarginedTradablePair.String(), kline.FiveMin, s, e, 5)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -122,7 +131,11 @@ func TestGetIndexPriceKline(t *testing.T) {
 		s = time.UnixMilli(1693077165571)
 		e = time.UnixMilli(1693080765571)
 	}
-	_, err := b.GetIndexPriceKline(context.Background(), "linear", linearTradablePair.String(), kline.FiveMin, s, e, 5)
+	_, err := b.GetIndexPriceKline(context.Background(), "linear", usdtMarginedTradablePair.String(), kline.FiveMin, s, e, 5)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = b.GetIndexPriceKline(context.Background(), "linear", usdcMarginedTradablePair.String(), kline.FiveMin, s, e, 5)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -142,7 +155,11 @@ func TestGetOrderBook(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = b.GetOrderBook(context.Background(), "linear", linearTradablePair.String(), 100)
+	_, err = b.GetOrderBook(context.Background(), "linear", usdtMarginedTradablePair.String(), 100)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = b.GetOrderBook(context.Background(), "linear", usdcMarginedTradablePair.String(), 100)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -158,7 +175,11 @@ func TestGetOrderBook(t *testing.T) {
 
 func TestGetRiskLimit(t *testing.T) {
 	t.Parallel()
-	_, err := b.GetRiskLimit(context.Background(), "linear", linearTradablePair.String())
+	_, err := b.GetRiskLimit(context.Background(), "linear", usdtMarginedTradablePair.String())
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = b.GetRiskLimit(context.Background(), "linear", usdcMarginedTradablePair.String())
 	if err != nil {
 		t.Error(err)
 	}
@@ -183,7 +204,11 @@ func TestUpdateTicker(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = b.UpdateTicker(context.Background(), linearTradablePair, asset.USDTMarginedFutures)
+	_, err = b.UpdateTicker(context.Background(), usdtMarginedTradablePair, asset.USDTMarginedFutures)
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = b.UpdateTicker(context.Background(), usdcMarginedTradablePair, asset.USDCMarginedFutures)
 	if err != nil {
 		t.Error(err)
 	}
@@ -203,7 +228,11 @@ func TestUpdateOrderbook(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = b.UpdateOrderbook(context.Background(), linearTradablePair, asset.USDCMarginedFutures)
+	_, err = b.UpdateOrderbook(context.Background(), usdcMarginedTradablePair, asset.USDCMarginedFutures)
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = b.UpdateOrderbook(context.Background(), usdtMarginedTradablePair, asset.USDTMarginedFutures)
 	if err != nil {
 		t.Error(err)
 	}
@@ -295,7 +324,11 @@ func TestGetHistoricCandles(t *testing.T) {
 		t.Error(err)
 	}
 
-	_, err = b.GetHistoricCandles(context.Background(), linearTradablePair, asset.USDTMarginedFutures, kline.OneDay, start, end)
+	_, err = b.GetHistoricCandles(context.Background(), usdtMarginedTradablePair, asset.USDTMarginedFutures, kline.OneDay, start, end)
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = b.GetHistoricCandles(context.Background(), usdcMarginedTradablePair, asset.USDCMarginedFutures, kline.OneDay, start, end)
 	if err != nil {
 		t.Error(err)
 	}
@@ -327,7 +360,7 @@ func TestGetHistoricCandlesExtended(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = b.GetHistoricCandlesExtended(context.Background(), linearTradablePair, asset.USDTMarginedFutures, kline.OneDay, startTime, end)
+	_, err = b.GetHistoricCandlesExtended(context.Background(), usdtMarginedTradablePair, asset.USDTMarginedFutures, kline.OneDay, time.UnixMilli(1692889428738), time.UnixMilli(1693145028738))
 	if err != nil {
 		t.Error(err)
 	}
@@ -354,7 +387,7 @@ func TestCancelOrder(t *testing.T) {
 	err = b.CancelOrder(context.Background(), &order.Cancel{
 		Exchange:  b.Name,
 		AssetType: asset.USDTMarginedFutures,
-		Pair:      linearTradablePair,
+		Pair:      usdtMarginedTradablePair,
 		OrderID:   "1234"})
 	if err != nil {
 		t.Error(err)
@@ -388,7 +421,7 @@ func TestCancelAllOrders(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = b.CancelAllOrders(context.Background(), &order.Cancel{Exchange: b.Name, AssetType: asset.USDTMarginedFutures, Pair: linearTradablePair})
+	_, err = b.CancelAllOrders(context.Background(), &order.Cancel{Exchange: b.Name, AssetType: asset.USDTMarginedFutures, Pair: usdtMarginedTradablePair})
 	if err != nil {
 		t.Error(err)
 	}
@@ -418,7 +451,7 @@ func TestGetOrderInfo(t *testing.T) {
 		t.Error(err)
 	}
 	_, err = b.GetOrderInfo(context.Background(),
-		"12234", linearTradablePair, asset.USDTMarginedFutures)
+		"12234", usdtMarginedTradablePair, asset.USDTMarginedFutures)
 	if err != nil {
 		t.Error(err)
 	}
@@ -450,7 +483,7 @@ func TestGetActiveOrders(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	var getOrdersRequestLinear = order.MultiOrderRequest{Pairs: currency.Pairs{linearTradablePair}, AssetType: asset.USDTMarginedFutures, Side: order.AnySide, Type: order.AnyType}
+	var getOrdersRequestLinear = order.MultiOrderRequest{Pairs: currency.Pairs{usdtMarginedTradablePair}, AssetType: asset.USDTMarginedFutures, Side: order.AnySide, Type: order.AnyType}
 	_, err = b.GetActiveOrders(context.Background(), &getOrdersRequestLinear)
 	if err != nil {
 		t.Error(err)
@@ -484,11 +517,17 @@ func TestGetOrderHistory(t *testing.T) {
 		t.Error(err)
 	}
 	var getOrdersRequestUMF = order.MultiOrderRequest{
-		Pairs:     currency.Pairs{linearTradablePair},
+		Pairs:     currency.Pairs{usdtMarginedTradablePair},
 		AssetType: asset.USDTMarginedFutures,
 		Type:      order.AnyType,
 		Side:      order.AnySide,
 	}
+	_, err = b.GetOrderHistory(context.Background(), &getOrdersRequestUMF)
+	if err != nil {
+		t.Error(err)
+	}
+	getOrdersRequestUMF.Pairs = currency.Pairs{usdcMarginedTradablePair}
+	getOrdersRequestUMF.AssetType = asset.USDCMarginedFutures
 	_, err = b.GetOrderHistory(context.Background(), &getOrdersRequestUMF)
 	if err != nil {
 		t.Error(err)
@@ -618,7 +657,11 @@ func TestGetFundingRateHistory(t *testing.T) {
 	if !errors.Is(err, errInvalidCategory) {
 		t.Errorf("expected %v, got %v", errInvalidCategory, err)
 	}
-	_, err = b.GetFundingRateHistory(context.Background(), "linear", linearTradablePair.String(), time.Time{}, time.Time{}, 100)
+	_, err = b.GetFundingRateHistory(context.Background(), "linear", usdtMarginedTradablePair.String(), time.Time{}, time.Time{}, 100)
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = b.GetFundingRateHistory(context.Background(), "linear", usdcMarginedTradablePair.String(), time.Time{}, time.Time{}, 100)
 	if err != nil {
 		t.Error(err)
 	}
@@ -638,7 +681,11 @@ func TestGetPublicTradingHistory(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = b.GetPublicTradingHistory(context.Background(), "linear", linearTradablePair.String(), "", "", 30)
+	_, err = b.GetPublicTradingHistory(context.Background(), "linear", usdtMarginedTradablePair.String(), "", "", 30)
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = b.GetPublicTradingHistory(context.Background(), "linear", usdcMarginedTradablePair.String(), "", "", 30)
 	if err != nil {
 		t.Error(err)
 	}
@@ -658,7 +705,11 @@ func TestGetOpenInterest(t *testing.T) {
 	if !errors.Is(err, errInvalidCategory) {
 		t.Errorf("expected %v, got %v", errInvalidCategory, err)
 	}
-	_, err = b.GetOpenInterest(context.Background(), "linear", linearTradablePair.String(), "5min", time.Time{}, time.Time{}, 0, "")
+	_, err = b.GetOpenInterest(context.Background(), "linear", usdtMarginedTradablePair.String(), "5min", time.Time{}, time.Time{}, 0, "")
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = b.GetOpenInterest(context.Background(), "linear", usdcMarginedTradablePair.String(), "5min", time.Time{}, time.Time{}, 0, "")
 	if err != nil {
 		t.Error(err)
 	}
@@ -703,6 +754,18 @@ func TestGetDeliveryPrice(t *testing.T) {
 	_, err := b.GetDeliveryPrice(context.Background(), "spot", spotTradablePair.String(), "", "", 200)
 	if !errors.Is(err, errInvalidCategory) {
 		t.Errorf("expected %v, but found %v", errInvalidCategory, err)
+	}
+	_, err = b.GetDeliveryPrice(context.Background(), "linear", "", "", "", 200)
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = b.GetDeliveryPrice(context.Background(), "inverse", "", "", "", 200)
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = b.GetDeliveryPrice(context.Background(), "option", "", "BTC", "", 200)
+	if err != nil {
+		t.Error(err)
 	}
 }
 
@@ -839,13 +902,13 @@ func TestPlaceOrder(t *testing.T) {
 	}
 	// USDT Perp open long position (one-way mode)
 	arg = &PlaceOrderParams{Category: "linear",
-		Symbol: linearTradablePair, Side: "Buy", OrderType: "Limit", OrderQuantity: 1, Price: 25000, TimeInForce: "GTC", PositionIdx: 0, OrderLinkID: "usdt-test-01", ReduceOnly: false, TakeProfitPrice: 28000, StopLossPrice: 20000, TpslMode: "Partial", TpOrderType: "Limit", SlOrderType: "Limit", TpLimitPrice: 27500, SlLimitPrice: 20500}
+		Symbol: usdcMarginedTradablePair, Side: "Buy", OrderType: "Limit", OrderQuantity: 1, Price: 25000, TimeInForce: "GTC", PositionIdx: 0, OrderLinkID: "usdt-test-01", ReduceOnly: false, TakeProfitPrice: 28000, StopLossPrice: 20000, TpslMode: "Partial", TpOrderType: "Limit", SlOrderType: "Limit", TpLimitPrice: 27500, SlLimitPrice: 20500}
 	_, err = b.PlaceOrder(context.Background(), arg)
 	if err != nil {
 		t.Error(err)
 	}
 	// USDT Perp close long position (one-way mode)
-	arg = &PlaceOrderParams{Category: "linear", Symbol: linearTradablePair, Side: "Sell",
+	arg = &PlaceOrderParams{Category: "linear", Symbol: usdtMarginedTradablePair, Side: "Sell",
 		OrderType: "Limit", OrderQuantity: 1, Price: 3000, TimeInForce: "GTC", PositionIdx: 0, OrderLinkID: "usdt-test-02", ReduceOnly: true}
 	_, err = b.PlaceOrder(context.Background(), arg)
 	if err != nil {
@@ -1174,7 +1237,7 @@ func TestGetPositionInfo(t *testing.T) {
 	if !errors.Is(err, errInvalidCategory) {
 		t.Fatalf("expected %v, got %v", errInvalidCategory, err)
 	}
-	_, err = b.GetPositionInfo(context.Background(), "linear", linearTradablePair.String(), "", "", "", 20)
+	_, err = b.GetPositionInfo(context.Background(), "linear", usdtMarginedTradablePair.String(), "", "", "", 20)
 	if err != nil {
 		t.Error(err)
 	}
@@ -1237,15 +1300,15 @@ func TestSwitchTradeMode(t *testing.T) {
 	if !errors.Is(err, errSymbolMissing) {
 		t.Fatalf("expected %v, got %v", errSymbolMissing, err)
 	}
-	err = b.SwitchTradeMode(context.Background(), &SwitchTradeModeParams{Category: "linear", Symbol: linearTradablePair.String()})
+	err = b.SwitchTradeMode(context.Background(), &SwitchTradeModeParams{Category: "linear", Symbol: usdtMarginedTradablePair.String()})
 	if !errors.Is(err, errInvalidLeverage) {
 		t.Fatalf("expected %v, got %v", errInvalidLeverage, err)
 	}
-	err = b.SwitchTradeMode(context.Background(), &SwitchTradeModeParams{Category: "linear", Symbol: linearTradablePair.String(), SellLeverage: 3, BuyLeverage: 3, TradeMode: 2})
+	err = b.SwitchTradeMode(context.Background(), &SwitchTradeModeParams{Category: "linear", Symbol: usdcMarginedTradablePair.String(), SellLeverage: 3, BuyLeverage: 3, TradeMode: 2})
 	if !errors.Is(err, errInvalidTradeModeValue) {
 		t.Fatalf("expected %v, got %v", errInvalidTradeModeValue, err)
 	}
-	err = b.SwitchTradeMode(context.Background(), &SwitchTradeModeParams{Category: "linear", Symbol: linearTradablePair.String(), SellLeverage: 3, BuyLeverage: 3, TradeMode: 1})
+	err = b.SwitchTradeMode(context.Background(), &SwitchTradeModeParams{Category: "linear", Symbol: usdtMarginedTradablePair.String(), SellLeverage: 3, BuyLeverage: 3, TradeMode: 1})
 	if err != nil {
 		t.Error(err)
 	}
@@ -1307,7 +1370,7 @@ func TestSwitchPositionMode(t *testing.T) {
 	if !errors.Is(err, errEitherSymbolOrCoinRequired) {
 		t.Fatalf("expected %v, got %v", errInvalidCategory, err)
 	}
-	err = b.SwitchPositionMode(context.Background(), &SwitchPositionModeParams{Category: "linear", Symbol: linearTradablePair, PositionMode: 3})
+	err = b.SwitchPositionMode(context.Background(), &SwitchPositionModeParams{Category: "linear", Symbol: usdtMarginedTradablePair, PositionMode: 3})
 	if err != nil {
 		t.Error(err)
 	}
@@ -1338,7 +1401,7 @@ func TestSetRiskLimit(t *testing.T) {
 	_, err = b.SetRiskLimit(context.Background(), &SetRiskLimitParam{
 		Category:     "linear",
 		RiskID:       1234,
-		Symbol:       linearTradablePair,
+		Symbol:       usdtMarginedTradablePair,
 		PositionMode: 0,
 	})
 	if err != nil {
@@ -1362,7 +1425,26 @@ func TestSetTradingStop(t *testing.T) {
 	}
 	err = b.SetTradingStop(context.Background(), &TradingStopParams{
 		Category:                 "linear",
-		Symbol:                   linearTradablePair,
+		Symbol:                   usdtMarginedTradablePair,
+		TakeProfit:               "0.5",
+		StopLoss:                 "0.2",
+		TakeProfitTriggerType:    "MarkPrice",
+		StopLossTriggerType:      "IndexPrice",
+		TakeProfitOrStopLossMode: "Partial",
+		TakeProfitOrderType:      "Limit",
+		StopLossOrderType:        "Limit",
+		TakeProfitSize:           50,
+		StopLossSize:             50,
+		TakeProfitLimitPrice:     0.49,
+		StopLossLimitPrice:       0.21,
+		PositionIndex:            0,
+	})
+	if err != nil {
+		t.Error(err)
+	}
+	err = b.SetTradingStop(context.Background(), &TradingStopParams{
+		Category:                 "linear",
+		Symbol:                   usdcMarginedTradablePair,
 		TakeProfit:               "0.5",
 		StopLoss:                 "0.2",
 		TakeProfitTriggerType:    "MarkPrice",
@@ -2767,7 +2849,16 @@ func instantiateTradablePairs() error {
 	if err != nil {
 		return err
 	}
-	linearTradablePair = tradables[0].Format(format)
+	usdtMarginedTradablePair = tradables[0].Format(format)
+	tradables, err = b.GetEnabledPairs(asset.USDCMarginedFutures)
+	if err != nil {
+		return err
+	}
+	format, err = b.GetPairFormat(asset.USDCMarginedFutures, true)
+	if err != nil {
+		return err
+	}
+	usdcMarginedTradablePair = tradables[0].Format(format)
 	tradables, err = b.GetEnabledPairs(asset.CoinMarginedFutures)
 	if err != nil {
 		return err
@@ -2844,7 +2935,11 @@ func TestGetRecentTrades(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = b.GetRecentTrades(context.Background(), linearTradablePair, asset.USDTMarginedFutures)
+	_, err = b.GetRecentTrades(context.Background(), usdtMarginedTradablePair, asset.USDTMarginedFutures)
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = b.GetRecentTrades(context.Background(), usdcMarginedTradablePair, asset.USDCMarginedFutures)
 	if err != nil {
 		t.Error(err)
 	}
@@ -2876,7 +2971,11 @@ func TestGetHistoricTrades(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = b.GetHistoricTrades(context.Background(), linearTradablePair, asset.USDTMarginedFutures, time.Time{}, time.Time{})
+	_, err = b.GetHistoricTrades(context.Background(), usdtMarginedTradablePair, asset.USDTMarginedFutures, time.Time{}, time.Time{})
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = b.GetHistoricTrades(context.Background(), usdcMarginedTradablePair, asset.USDCMarginedFutures, time.Time{}, time.Time{})
 	if err != nil {
 		t.Error(err)
 	}
@@ -2901,7 +3000,7 @@ func TestCancelBatchOrders(t *testing.T) {
 		Pair:      spotTradablePair,
 		AssetType: asset.Spot}, {
 		OrderID:   "1",
-		Pair:      linearTradablePair,
+		Pair:      usdtMarginedTradablePair,
 		AssetType: asset.USDTMarginedFutures}}
 	_, err := b.CancelBatchOrders(context.Background(), orderCancellationParams)
 	if !errors.Is(err, asset.ErrNotSupported) {
@@ -2930,7 +3029,6 @@ func TestWsConnect(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	time.Sleep(time.Second * 23)
 }
 func TestWsLinearConnect(t *testing.T) {
 	t.Parallel()
@@ -2961,7 +3059,6 @@ func TestWsOptionsConnect(t *testing.T) {
 	if err != nil && !errors.Is(err, errWebsocketNotEnabled) {
 		t.Error(err)
 	}
-	time.Sleep(time.Second * 23)
 }
 
 var pushDataMap = map[string]string{
@@ -3011,7 +3108,7 @@ func TestGetFeeByTypeOfflineTradeFee(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	feeBuilder.Pair = linearTradablePair
+	feeBuilder.Pair = usdtMarginedTradablePair
 	_, err = b.GetFeeByType(context.Background(), feeBuilder)
 	if err != nil {
 		t.Fatal(err)
@@ -3028,7 +3125,11 @@ func TestSetLeverage(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
 	ctx := context.Background()
 	b.Verbose = true
-	err := b.SetLeverage(ctx, asset.USDTMarginedFutures, linearTradablePair, margin.Multi, 5, order.Buy)
+	err := b.SetLeverage(ctx, asset.USDTMarginedFutures, usdtMarginedTradablePair, margin.Multi, 5, order.Buy)
+	if err != nil {
+		t.Error(err)
+	}
+	err = b.SetLeverage(ctx, asset.USDCMarginedFutures, usdcMarginedTradablePair, margin.Multi, 5, order.Buy)
 	if err != nil {
 		t.Error(err)
 	}
@@ -3038,7 +3139,7 @@ func TestSetLeverage(t *testing.T) {
 		t.Errorf("received '%v', expected '%v'", err, errOrderSideRequired)
 	}
 
-	err = b.SetLeverage(ctx, asset.USDTMarginedFutures, linearTradablePair, margin.Isolated, 5, order.Buy)
+	err = b.SetLeverage(ctx, asset.USDTMarginedFutures, usdtMarginedTradablePair, margin.Isolated, 5, order.Buy)
 	if err != nil {
 		t.Error(err)
 	}
@@ -3048,7 +3149,7 @@ func TestSetLeverage(t *testing.T) {
 		t.Error(err)
 	}
 
-	err = b.SetLeverage(ctx, asset.USDTMarginedFutures, linearTradablePair, margin.Isolated, 5, order.CouldNotBuy)
+	err = b.SetLeverage(ctx, asset.USDTMarginedFutures, usdtMarginedTradablePair, margin.Isolated, 5, order.CouldNotBuy)
 	if !errors.Is(err, order.ErrSideIsInvalid) {
 		t.Errorf("received '%v', expected '%v'", err, order.ErrSideIsInvalid)
 	}
@@ -3059,10 +3160,50 @@ func TestSetLeverage(t *testing.T) {
 	}
 }
 
-func TestWsConnecting(t *testing.T) {
-	err := b.WsConnect()
-	if err != nil {
+func TestGetFuturesContractDetails(t *testing.T) {
+	t.Parallel()
+	_, err := b.GetFuturesContractDetails(context.Background(), asset.Spot)
+	if !errors.Is(err, futures.ErrNotFuturesAsset) {
 		t.Error(err)
 	}
-	time.Sleep(time.Second * 25)
+	_, err = b.GetFuturesContractDetails(context.Background(), asset.CoinMarginedFutures)
+	if !errors.Is(err, nil) {
+		t.Error(err)
+	}
+	_, err = b.GetFuturesContractDetails(context.Background(), asset.USDTMarginedFutures)
+	if !errors.Is(err, nil) {
+		t.Error(err)
+	}
+	_, err = b.GetFuturesContractDetails(context.Background(), asset.USDCMarginedFutures)
+	if !errors.Is(err, nil) {
+		t.Error(err)
+	}
+}
+
+func TestFetchTradablePairs(t *testing.T) {
+	t.Parallel()
+	_, err := b.FetchTradablePairs(context.Background(), asset.Spot)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = b.FetchTradablePairs(context.Background(), asset.CoinMarginedFutures)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = b.FetchTradablePairs(context.Background(), asset.USDTMarginedFutures)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = b.FetchTradablePairs(context.Background(), asset.USDCMarginedFutures)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = b.FetchTradablePairs(context.Background(), asset.Options)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = b.FetchTradablePairs(context.Background(), asset.Futures)
+	if !errors.Is(err, asset.ErrNotSupported) {
+		t.Errorf("expected %v, got %v", asset.ErrNotSupported, err)
+	}
 }

@@ -104,6 +104,7 @@ var (
 		ThreeHour,
 		FourHour,
 		SixHour,
+		SevenHour,
 		EightHour,
 		TwelveHour,
 		OneDay,

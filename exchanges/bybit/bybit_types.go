@@ -98,11 +98,13 @@ type InstrumentInfo struct {
 
 // RestResponse represents a REST response instance.
 type RestResponse struct {
-	RetCode    int64                `json:"retCode"`
-	RetMsg     string               `json:"retMsg"`
-	Result     interface{}          `json:"result"`
-	RetExtInfo json.RawMessage      `json:"retExtInfo"`
-	Time       convert.ExchangeTime `json:"time"`
+	RetCode    int64       `json:"retCode"`
+	RetMsg     string      `json:"retMsg"`
+	Result     interface{} `json:"result"`
+	RetExtInfo struct {
+		List []ErrorMessage `json:"list"`
+	} `json:"retExtInfo"`
+	Time convert.ExchangeTime `json:"time"`
 }
 
 // KlineResponse represents a kline item list instance as an array of string.
@@ -445,10 +447,6 @@ type BatchOrderResponse struct {
 	OrderID     string               `json:"orderId"`
 	OrderLinkID string               `json:"orderLinkId"`
 	CreateAt    convert.ExchangeTime `json:"createAt"`
-}
-
-type errorMessages struct {
-	List []ErrorMessage `json:"list"`
 }
 
 // ErrorMessage represents an error message item

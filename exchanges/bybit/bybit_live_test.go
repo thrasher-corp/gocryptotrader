@@ -1,4 +1,4 @@
-//go:build !mock_test_off
+//go:build mock_test_off
 
 // This will build if build tag mock_test_off is parsed and will do live testing
 // using all tests in (exchange)_test.go
@@ -62,6 +62,6 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		log.Fatalf("%s %v", b.Name, err)
 	}
-	b.checkAccountType(context.Background())
+	b.RetrieveAndSetAccountType(context.Background())
 	os.Exit(m.Run())
 }
