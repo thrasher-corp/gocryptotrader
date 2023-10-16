@@ -834,7 +834,7 @@ func (bot *Engine) LoadExchange(name string, wg *sync.WaitGroup) error {
 			exchCfg.WebsocketSubscriptions.Unauthenticated = make(map[string][]string)
 		}
 		for k, v := range base.WebsocketSubscriptions.Unauthenticated {
-			base.WebsocketSubscriptions.Unauthenticated[k] = v
+			exchCfg.WebsocketSubscriptions.Unauthenticated[k.String()] = v
 		}
 		for k, v := range base.DefaultWebsocketSubscriptions.Unauthenticated {
 			if len(base.WebsocketSubscriptions.Unauthenticated[k]) == 0 {
@@ -849,7 +849,7 @@ func (bot *Engine) LoadExchange(name string, wg *sync.WaitGroup) error {
 			exchCfg.WebsocketSubscriptions.Authenticated = make(map[string][]string)
 		}
 		for k, v := range base.WebsocketSubscriptions.Authenticated {
-			base.WebsocketSubscriptions.Authenticated[k] = v
+			exchCfg.WebsocketSubscriptions.Authenticated[k.String()] = v
 		}
 		for k, v := range base.DefaultWebsocketSubscriptions.Authenticated {
 			if len(base.WebsocketSubscriptions.Authenticated[k]) == 0 {
