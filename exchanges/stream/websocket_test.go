@@ -554,7 +554,15 @@ func TestSubscribeUnsubscribe(t *testing.T) {
 func TestResubscribe(t *testing.T) {
 	t.Parallel()
 	ws := *New()
-	err := ws.Setup(defaultSetup)
+
+	wackedOutSetup := *defaultSetup
+	wackedOutSetup.MaxWebsocketSubscriptionsPerConnection = -1
+	err := ws.Setup(&wackedOutSetup)
+	if !errors.Is(err, errInvalidMaxSubscriptions) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errInvalidMaxSubscriptions)
+	}
+
+	err = ws.Setup(defaultSetup)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1388,5 +1396,34 @@ func TestLatency(t *testing.T) {
 
 	if r.name != exch {
 		t.Errorf("expected %v, got %v", exch, r.name)
+	}
+}
+
+func TestCheckSubscriptions(t *testing.T) {
+	t.Parallel()
+	ws := Websocket{}
+	err := ws.checkSubscriptions(nil)
+	if !errors.Is(err, errNoSubscriptionsSupplied) {
+		t.Fatalf("received: %v, but expected: %v", err, errNoSubscriptionsSupplied)
+	}
+
+	ws.MaxSubscriptionsPerConnection = 1
+
+	err = ws.checkSubscriptions([]ChannelSubscription{{}, {}})
+	if !errors.Is(err, errSubscriptionsExceedsLimit) {
+		t.Fatalf("received: %v, but expected: %v", err, errSubscriptionsExceedsLimit)
+	}
+
+	ws.MaxSubscriptionsPerConnection = 2
+
+	ws.subscriptions = []ChannelSubscription{{Channel: "test"}}
+	err = ws.checkSubscriptions([]ChannelSubscription{{Channel: "test"}})
+	if !errors.Is(err, errChannelSubscriptionAlreadySubscribed) {
+		t.Fatalf("received: %v, but expected: %v", err, errChannelSubscriptionAlreadySubscribed)
+	}
+
+	err = ws.checkSubscriptions([]ChannelSubscription{{}})
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: %v, but expected: %v", err, nil)
 	}
 }

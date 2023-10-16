@@ -29,6 +29,7 @@ const (
 	bitstampAPIOrderbook          = "order_book"
 	bitstampAPITransactions       = "transactions"
 	bitstampAPIEURUSD             = "eur_usd"
+	bitstampAPITradingFees        = "fees/trading"
 	bitstampAPIBalance            = "balance"
 	bitstampAPIUserTransactions   = "user_transactions"
 	bitstampAPIOHLC               = "ohlc"
@@ -67,15 +68,11 @@ func (b *Bitstamp) GetFee(ctx context.Context, feeBuilder *exchange.FeeBuilder) 
 
 	switch feeBuilder.FeeType {
 	case exchange.CryptocurrencyTradeFee:
-		balance, err := b.GetBalance(ctx)
+		tradingFee, err := b.getTradingFee(ctx, feeBuilder)
 		if err != nil {
-			return 0, err
+			return 0, fmt.Errorf("error getting trading fee: %w", err)
 		}
-		fee = b.CalculateTradingFee(feeBuilder.Pair.Base,
-			feeBuilder.Pair.Quote,
-			feeBuilder.PurchasePrice,
-			feeBuilder.Amount,
-			balance)
+		fee = tradingFee
 	case exchange.CryptocurrencyDepositFee:
 		fee = 0
 	case exchange.InternationalBankDepositFee:
@@ -89,6 +86,41 @@ func (b *Bitstamp) GetFee(ctx context.Context, feeBuilder *exchange.FeeBuilder) 
 		fee = 0
 	}
 	return fee, nil
+}
+
+// GetTradingFee returns a trading fee based on a currency
+func (b *Bitstamp) getTradingFee(ctx context.Context, feeBuilder *exchange.FeeBuilder) (float64, error) {
+	tradingFees, err := b.GetAccountTradingFee(ctx, feeBuilder.Pair)
+	if err != nil {
+		return 0, err
+	}
+	fees := tradingFees.Fees
+	fee := fees.Taker
+	if feeBuilder.IsMaker {
+		fee = fees.Maker
+	}
+	return fee / 100 * feeBuilder.PurchasePrice * feeBuilder.Amount, nil
+}
+
+// GetAccountTradingFee returns a TradingFee for a pair
+func (b *Bitstamp) GetAccountTradingFee(ctx context.Context, pair currency.Pair) (TradingFees, error) {
+	path := bitstampAPITradingFees + "/" + strings.ToLower(pair.String())
+
+	var resp TradingFees
+	if pair.IsEmpty() {
+		return resp, currency.ErrCurrencyPairEmpty
+	}
+	err := b.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, path, true, nil, &resp)
+
+	return resp, err
+}
+
+// GetAccountTradingFees returns a slice of TradingFee
+func (b *Bitstamp) GetAccountTradingFees(ctx context.Context) ([]TradingFees, error) {
+	path := bitstampAPITradingFees
+	var resp []TradingFees
+	err := b.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, path, true, nil, &resp)
+	return resp, err
 }
 
 // getOfflineTradeFee calculates the worst case-scenario trading fee
@@ -117,22 +149,6 @@ func getInternationalBankDepositFee(amount float64) float64 {
 		return 300
 	}
 	return fee
-}
-
-// CalculateTradingFee returns fee on a currency pair
-func (b *Bitstamp) CalculateTradingFee(base, quote currency.Code, purchasePrice, amount float64, balances Balances) float64 {
-	var fee float64
-	if v, ok := balances[base.String()]; ok {
-		switch quote {
-		case currency.BTC:
-			fee = v.BTCFee
-		case currency.USD:
-			fee = v.USDFee
-		case currency.EUR:
-			fee = v.EURFee
-		}
-	}
-	return fee * purchasePrice * amount
 }
 
 // GetTicker returns ticker information
@@ -250,21 +266,6 @@ func (b *Bitstamp) GetBalance(ctx context.Context) (Balances, error) {
 			Balance:       bal,
 			Reserved:      reserved,
 			WithdrawalFee: withdrawalFee,
-		}
-		switch strings.ToUpper(curr) {
-		case currency.USD.String():
-			eurFee, _ := strconv.ParseFloat(balance[curr+"eur_fee"], 64)
-			currBalance.EURFee = eurFee
-		case currency.EUR.String():
-			usdFee, _ := strconv.ParseFloat(balance[curr+"usd_fee"], 64)
-			currBalance.USDFee = usdFee
-		default:
-			btcFee, _ := strconv.ParseFloat(balance[curr+"btc_fee"], 64)
-			currBalance.BTCFee = btcFee
-			eurFee, _ := strconv.ParseFloat(balance[curr+"eur_fee"], 64)
-			currBalance.EURFee = eurFee
-			usdFee, _ := strconv.ParseFloat(balance[curr+"usd_fee"], 64)
-			currBalance.USDFee = usdFee
 		}
 		balances[strings.ToUpper(curr)] = currBalance
 	}
