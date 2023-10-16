@@ -236,6 +236,7 @@ var Exchanges = []string{
 	"bittrex",
 	"btc markets",
 	"btse",
+	"coinbaseinternational",
 	"coinbasepro",
 	"coinut",
 	"exmo",

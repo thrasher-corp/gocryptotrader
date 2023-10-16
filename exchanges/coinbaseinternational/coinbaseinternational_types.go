@@ -359,7 +359,7 @@ type SubscriptionInput struct {
 	ProductIDPairs currency.Pairs `json:"-"`
 	ProductIDs     []string       `json:"product_ids"`
 	Channels       []string       `json:"channels"`
-	Time           string         `json:"time"`
+	Time           string         `json:"time,omitempty"`
 	Key            string         `json:"key,omitempty"`
 	Passphrase     string         `json:"passphrase,omitempty"`
 	Signature      string         `json:"signature,omitempty"`

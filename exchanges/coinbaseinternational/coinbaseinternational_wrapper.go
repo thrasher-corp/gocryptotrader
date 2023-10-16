@@ -2,7 +2,6 @@ package coinbaseinternational
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"strconv"
 	"sync"
@@ -54,10 +53,9 @@ func (co *CoinbaseInternational) SetDefaults() {
 	co.Enabled = true
 	co.Verbose = true
 	co.API.CredentialsValidator.RequiresKey = true
-	co.API.CredentialsValidator.RequiresSecret = true
 	co.API.CredentialsValidator.RequiresClientID = true
+	co.API.CredentialsValidator.RequiresSecret = true
 	co.API.CredentialsValidator.RequiresBase64DecodeSecret = true
-
 	requestFmt := &currency.PairFormat{Uppercase: true, Delimiter: ":"}
 	configFmt := &currency.PairFormat{}
 	err := co.SetGlobalPairsManager(requestFmt, configFmt)
@@ -235,6 +233,10 @@ func (co *CoinbaseInternational) UpdateTicker(ctx context.Context, p currency.Pa
 	if assetType != asset.Spot {
 		return nil, fmt.Errorf("%w asset type %v", asset.ErrNotSupported, asset.Spot)
 	}
+	format, err := co.GetPairFormat(asset.Spot, true)
+	if err != nil {
+		return nil, err
+	}
 	if p.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
@@ -242,8 +244,6 @@ func (co *CoinbaseInternational) UpdateTicker(ctx context.Context, p currency.Pa
 	if err != nil {
 		return nil, err
 	}
-	val, _ := json.Marshal(tick)
-	println(string(val))
 	err = ticker.ProcessTicker(&ticker.Price{
 		High:         tick.LimitUp.Float64(),
 		Low:          tick.LimitDown.Float64(),
@@ -258,7 +258,7 @@ func (co *CoinbaseInternational) UpdateTicker(ctx context.Context, p currency.Pa
 		QuoteVolume:  tick.TradeQty.Float64(),
 		ExchangeName: co.Name,
 		AssetType:    asset.Spot,
-		Pair:         p,
+		Pair:         p.Format(format),
 	})
 	if err != nil {
 		return nil, err
@@ -293,9 +293,9 @@ func (co *CoinbaseInternational) UpdateTickers(ctx context.Context, assetType as
 			LastUpdated:  tick.Timestamp,
 			Volume:       tick.TradeQty.Float64() / tick.TradePrice.Float64(), // TODO: if the volume is representing the quote volume,  then the base quentity is the quote volume divided by the trade price.
 			QuoteVolume:  tick.TradeQty.Float64(),
-			ExchangeName: co.Name,
-			AssetType:    asset.Spot,
 			Pair:         enabledPairs[x],
+			AssetType:    asset.Spot,
+			ExchangeName: co.Name,
 		})
 		if err != nil {
 			return err
@@ -330,7 +330,6 @@ func (co *CoinbaseInternational) UpdateOrderbook(ctx context.Context, pair curre
 		Asset:           assetType,
 		VerifyOrderbook: co.CanVerifyOrderbook,
 	}
-
 	format, err := co.GetPairFormat(asset.Spot, true)
 	if err != nil {
 		return nil, err
@@ -339,7 +338,6 @@ func (co *CoinbaseInternational) UpdateOrderbook(ctx context.Context, pair curre
 	if err != nil {
 		return book, err
 	}
-
 	book.Bids = []orderbook.Item{{
 		Amount: orderbookNew.BestBidSize.Float64(),
 		Price:  orderbookNew.BestBidPrice.Float64(),
@@ -417,13 +415,13 @@ func (co *CoinbaseInternational) GetAccountFundingHistory(ctx context.Context) (
 	for j := range history.Results {
 		resp[j] = exchange.FundingHistory{
 			ExchangeName: co.Name,
-			Status:       history.Results[j].Status,
+			CryptoTxID:   history.Results[j].TransferUUID,
+			CryptoChain:  history.Results[j].NetworkName,
 			Timestamp:    history.Results[j].CreatedAt,
+			Status:       history.Results[j].Status,
 			Currency:     history.Results[j].Asset,
 			Amount:       history.Results[j].Amount,
 			TransferType: history.Results[j].Type,
-			CryptoTxID:   history.Results[j].TransferUUID,
-			CryptoChain:  history.Results[j].NetworkName,
 		}
 	}
 	return resp, nil

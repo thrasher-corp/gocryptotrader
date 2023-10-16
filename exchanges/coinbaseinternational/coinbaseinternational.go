@@ -356,7 +356,6 @@ func (co *CoinbaseInternational) ListPortfolioFills(ctx context.Context, portfol
 // ListMatchingTransfers represents a list of transfer based on the query
 // type: possible values DEPOSIT, WITHDRAW, REBATE, STIPEND
 // status: possible value PROCESSED, NEW, FAILED, STARTED
-
 func (co *CoinbaseInternational) ListMatchingTransfers(ctx context.Context, portfolioUUID, portfolioID, status, transferType string, resultLimit, resultOffset int64, timeFrom, timeTo time.Time) (*Transfers, error) {
 	params := url.Values{}
 	switch {

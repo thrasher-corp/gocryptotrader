@@ -12,6 +12,7 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
@@ -60,7 +61,7 @@ func (co *CoinbaseInternational) WsConnect() error {
 		Type:       "SUBSCRIBE",
 		ProductIDs: []string{"BTC-PERP"},
 		Channels:   []string{"LEVEL2"},
-	}}, true)
+	}})
 }
 
 // wsReadData gets and passes on websocket messages for processing
@@ -156,8 +157,11 @@ func (co *CoinbaseInternational) processOrderbookLevel2(respRaw []byte) error {
 		return err
 	}
 	for x := range resp {
+		pair, err := currency.NewPairFromString(resp[x].ProductID)
+		if err != nil {
+			return err
+		}
 		asks := make([]orderbook.Item, 0, len(resp[x].Asks))
-		bids := make([]orderbook.Item, 0, len(resp[x].Bids))
 		for a := range resp[x].Asks {
 			price, err := strconv.ParseFloat(resp[x].Asks[a][0], 64)
 			if err != nil {
@@ -169,6 +173,7 @@ func (co *CoinbaseInternational) processOrderbookLevel2(respRaw []byte) error {
 			}
 			asks[x] = orderbook.Item{Amount: amount, Price: price}
 		}
+		bids := make([]orderbook.Item, 0, len(resp[x].Bids))
 		for b := range resp[x].Bids {
 			price, err := strconv.ParseFloat(resp[x].Bids[b][0], 64)
 			if err != nil {
@@ -179,10 +184,6 @@ func (co *CoinbaseInternational) processOrderbookLevel2(respRaw []byte) error {
 				return err
 			}
 			bids[x] = orderbook.Item{Amount: amount, Price: price}
-		}
-		pair, err := currency.NewPairFromString(resp[x].ProductID)
-		if err != nil {
-			return err
 		}
 		if resp[x].Type == "UPDATE" {
 			var update = orderbook.Update{
@@ -356,12 +357,17 @@ func (co *CoinbaseInternational) GenerateSubscriptionPayload(subscriptions []str
 	return payloads, nil
 }
 
-func (co *CoinbaseInternational) handleSubscription(payload []SubscriptionInput, authenticate bool) error {
+func (co *CoinbaseInternational) handleSubscription(payload []SubscriptionInput) error {
 	var err error
+	var authenticate bool
+	creds, err := co.GetCredentials(context.Background())
+	if err == nil && co.Websocket.CanUseAuthenticatedEndpoints() {
+		authenticate = true
+	}
 	for x := range payload {
 		payload[x].Time = strconv.FormatInt(time.Now().Unix(), 10)
 		if authenticate {
-			err = co.signSubscriptionPayload(&payload[x])
+			err = co.signSubscriptionPayload(creds, &payload[x])
 			if err != nil {
 				return err
 			}
@@ -374,13 +380,9 @@ func (co *CoinbaseInternational) handleSubscription(payload []SubscriptionInput,
 	return nil
 }
 
-func (co *CoinbaseInternational) signSubscriptionPayload(body *SubscriptionInput) error {
-	creds, err := co.GetCredentials(context.Background())
-	if err != nil {
-		return err
-	}
+func (co *CoinbaseInternational) signSubscriptionPayload(creds *account.Credentials, body *SubscriptionInput) error {
 	var hmac []byte
-	hmac, err = crypto.GetHMAC(crypto.HashSHA256,
+	hmac, err := crypto.GetHMAC(crypto.HashSHA256,
 		[]byte(body.Time+creds.Key+"CBINTLMD"+creds.ClientID),
 		[]byte(creds.Secret))
 	if err != nil {
@@ -417,7 +419,7 @@ func (co *CoinbaseInternational) Subscribe(subscriptions []stream.ChannelSubscri
 	if err != nil {
 		return err
 	}
-	return co.handleSubscription(subscriptionPayloads, false)
+	return co.handleSubscription(subscriptionPayloads)
 }
 
 // Unsubscribe unsubscribe to channels
@@ -426,5 +428,5 @@ func (co *CoinbaseInternational) Unsubscribe(subscriptions []stream.ChannelSubsc
 	if err != nil {
 		return err
 	}
-	return co.handleSubscription(subscriptionPayloads, false)
+	return co.handleSubscription(subscriptionPayloads)
 }
