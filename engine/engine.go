@@ -829,6 +829,36 @@ func (bot *Engine) LoadExchange(name string, wg *sync.WaitGroup) error {
 	}
 
 	base := exch.GetBase()
+	if len(base.WebsocketSubscriptions.Unauthenticated) > 0 {
+		if exchCfg.WebsocketSubscriptions.Unauthenticated == nil {
+			exchCfg.WebsocketSubscriptions.Unauthenticated = make(map[string][]string)
+		}
+		for k, v := range base.WebsocketSubscriptions.Unauthenticated {
+			base.WebsocketSubscriptions.Unauthenticated[k] = v
+		}
+		for k, v := range base.DefaultWebsocketSubscriptions.Unauthenticated {
+			if len(base.WebsocketSubscriptions.Unauthenticated[k]) == 0 {
+				exchCfg.WebsocketSubscriptions.Unauthenticated[k.String()] = v
+			}
+		}
+
+	}
+
+	if len(base.WebsocketSubscriptions.Authenticated) > 0 {
+		if exchCfg.WebsocketSubscriptions.Authenticated == nil {
+			exchCfg.WebsocketSubscriptions.Authenticated = make(map[string][]string)
+		}
+		for k, v := range base.WebsocketSubscriptions.Authenticated {
+			base.WebsocketSubscriptions.Authenticated[k] = v
+		}
+		for k, v := range base.DefaultWebsocketSubscriptions.Authenticated {
+			if len(base.WebsocketSubscriptions.Authenticated[k]) == 0 {
+				exchCfg.WebsocketSubscriptions.Authenticated[k.String()] = v
+			} else {
+				exchCfg.WebsocketSubscriptions.Authenticated[k.String()] = v
+			}
+		}
+	}
 	if base.API.AuthenticatedSupport ||
 		base.API.AuthenticatedWebsocketSupport {
 		assetTypes := base.GetAssetTypes(false)

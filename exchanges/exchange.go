@@ -578,6 +578,31 @@ func (b *Base) SetupDefaults(exch *config.Exchange) error {
 		}
 	}
 
+	if len(exch.WebsocketSubscriptions.Unauthenticated) > 0 {
+		if b.WebsocketSubscriptions.Unauthenticated == nil {
+			b.WebsocketSubscriptions.Unauthenticated = make(map[asset.Item][]string)
+		}
+		for k, v := range exch.WebsocketSubscriptions.Unauthenticated {
+			item, err := asset.New(k)
+			if err != nil {
+				return err
+			}
+			b.WebsocketSubscriptions.Unauthenticated[item] = v
+		}
+	}
+	if len(exch.WebsocketSubscriptions.Authenticated) > 0 {
+		if b.WebsocketSubscriptions.Authenticated == nil {
+			b.WebsocketSubscriptions.Authenticated = make(map[asset.Item][]string)
+		}
+		for k, v := range exch.WebsocketSubscriptions.Authenticated {
+			item, err := asset.New(k)
+			if err != nil {
+				return err
+			}
+			b.WebsocketSubscriptions.Authenticated[item] = v
+		}
+	}
+
 	b.HTTPDebugging = exch.HTTPDebugging
 	b.BypassConfigFormatUpgrades = exch.CurrencyPairs.BypassConfigFormatUpgrades
 	err = b.SetHTTPClientUserAgent(exch.HTTPUserAgent)

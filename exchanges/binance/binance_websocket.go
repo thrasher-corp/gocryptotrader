@@ -549,7 +549,6 @@ func (b *Binance) UpdateLocalBuffer(wsdp *WebsocketDepthStream) (bool, error) {
 
 // GenerateSubscriptions generates the default subscription set
 func (b *Binance) GenerateSubscriptions() ([]stream.ChannelSubscription, error) {
-	var channels = []string{"@ticker", "@trade", "@kline_1m", "@depth@100ms"}
 	var subscriptions []stream.ChannelSubscription
 	assets := b.GetAssetTypes(true)
 	for x := range assets {
@@ -558,18 +557,23 @@ func (b *Binance) GenerateSubscriptions() ([]stream.ChannelSubscription, error) 
 			if err != nil {
 				return nil, err
 			}
-
+			if _, ok := b.WebsocketSubscriptions.Unauthenticated[asset.Spot]; !ok {
+				return nil, nil
+			}
+			subs := b.WebsocketSubscriptions.Unauthenticated[asset.Spot]
 			for y := range pairs {
-				for z := range channels {
+				for z := range subs {
 					lp := pairs[y].Lower()
 					lp.Delimiter = ""
 					subscriptions = append(subscriptions, stream.ChannelSubscription{
-						Channel:  lp.String() + channels[z],
+						Channel:  lp.String() + subs[z],
 						Currency: pairs[y],
 						Asset:    assets[x],
 					})
 				}
 			}
+		} else if _, ok := b.WebsocketSubscriptions.Unauthenticated[assets[x]]; ok {
+			log.Warnf(log.WebsocketMgr, "only spot markets supported for Binance websocket, skipping '%v'", b.WebsocketSubscriptions.Unauthenticated[assets[x]])
 		}
 	}
 	return subscriptions, nil

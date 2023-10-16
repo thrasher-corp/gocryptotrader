@@ -163,6 +163,38 @@ func (ku *Kucoin) SetDefaults() {
 	ku.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	ku.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
 	ku.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
+	ku.DefaultWebsocketSubscriptions.Unauthenticated = map[asset.Item][]string{
+		asset.Spot: {
+			marketTickerChannel,
+			marketMatchChannel,
+			marketOrderbookLevel2Channels,
+		},
+		asset.Margin: {
+			marketTickerChannel,
+			marketMatchChannel,
+			marketOrderbookLevel2Channels,
+			marginFundingbookChangeChannel,
+		},
+		asset.Futures: {
+			futuresTickerV2Channel,
+			futuresOrderbookLevel2Depth50Channel,
+		},
+	}
+	ku.DefaultWebsocketSubscriptions.Authenticated = map[asset.Item][]string{
+		asset.Spot: {
+			accountBalanceChannel,
+		},
+		asset.Margin: {
+			marginPositionChannel,
+			marginLoanChannel,
+		},
+		asset.Futures: {
+			futuresTradeOrdersBySymbolChannel,
+			futuresTradeOrderChannel,
+			futuresStopOrdersLifecycleEventChannel,
+			futuresAccountBalanceEventChannel,
+		},
+	}
 }
 
 // Setup takes in the supplied exchange configuration details and sets params
@@ -204,6 +236,14 @@ func (ku *Kucoin) Setup(exch *config.Exchange) error {
 	if err != nil {
 		return err
 	}
+
+	if len(ku.WebsocketSubscriptions.Unauthenticated) == 0 {
+		ku.WebsocketSubscriptions.Unauthenticated = ku.DefaultWebsocketSubscriptions.Unauthenticated
+	}
+	if len(ku.WebsocketSubscriptions.Authenticated) == 0 {
+		ku.WebsocketSubscriptions.Authenticated = ku.DefaultWebsocketSubscriptions.Authenticated
+	}
+
 	return ku.Websocket.SetupNewConnection(stream.ConnectionSetup{
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,

@@ -184,6 +184,7 @@ type Exchange struct {
 	WebsocketResponseCheckTimeout time.Duration          `json:"websocketResponseCheckTimeout"`
 	WebsocketResponseMaxLimit     time.Duration          `json:"websocketResponseMaxLimit"`
 	WebsocketTrafficTimeout       time.Duration          `json:"websocketTrafficTimeout"`
+	WebsocketSubscriptions        WebsocketSubscriptions `json:"websocketSubscriptions"`
 	ConnectionMonitorDelay        time.Duration          `json:"connectionMonitorDelay"`
 	ProxyAddress                  string                 `json:"proxyAddress,omitempty"`
 	BaseCurrencies                currency.Currencies    `json:"baseCurrencies"`
@@ -212,6 +213,12 @@ type Exchange struct {
 	SupportsAutoPairUpdates          *bool                `json:"supportsAutoPairUpdates,omitempty"`
 	Websocket                        *bool                `json:"websocket,omitempty"`
 	WebsocketURL                     *string              `json:"websocketUrl,omitempty"`
+}
+
+// WebsocketSubscriptions holds the websocket subscriptions for an exchange
+type WebsocketSubscriptions struct {
+	Authenticated   map[string][]string `json:"authenticatedSubscriptions"`
+	Unauthenticated map[string][]string `json:"unauthenticatedSubscriptions"`
 }
 
 // Profiler defines the profiler configuration to enable pprof

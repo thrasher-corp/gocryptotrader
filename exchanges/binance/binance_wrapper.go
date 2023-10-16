@@ -65,6 +65,7 @@ func (b *Binance) SetDefaults() {
 	b.Verbose = true
 	b.API.CredentialsValidator.RequiresKey = true
 	b.API.CredentialsValidator.RequiresSecret = true
+
 	b.SetValues()
 
 	fmt1 := currency.PairStore{
@@ -223,6 +224,10 @@ func (b *Binance) SetDefaults() {
 	b.Websocket = stream.New()
 	b.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	b.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
+
+	b.DefaultWebsocketSubscriptions.Unauthenticated = map[asset.Item][]string{
+		asset.Spot: {"@ticker", "@trade", "@kline_1m", "@depth@100ms"},
+	}
 }
 
 // Setup takes in the supplied exchange configuration details and sets params
@@ -243,6 +248,7 @@ func (b *Binance) Setup(exch *config.Exchange) error {
 	if err != nil {
 		return err
 	}
+
 	err = b.Websocket.Setup(&stream.WebsocketSetup{
 		ExchangeConfig:        exch,
 		DefaultURL:            binanceDefaultWebsocketURL,
@@ -260,6 +266,13 @@ func (b *Binance) Setup(exch *config.Exchange) error {
 	})
 	if err != nil {
 		return err
+	}
+
+	if len(b.WebsocketSubscriptions.Authenticated) > 0 || len(exch.WebsocketSubscriptions.Authenticated) > 0 {
+		return fmt.Errorf("%w %v only allows customisable unauthenticated subscriptions", common.ErrFunctionNotSupported)
+	}
+	if len(b.WebsocketSubscriptions.Unauthenticated) == 0 {
+		b.WebsocketSubscriptions.Unauthenticated = b.DefaultWebsocketSubscriptions.Unauthenticated
 	}
 
 	return b.Websocket.SetupNewConnection(stream.ConnectionSetup{

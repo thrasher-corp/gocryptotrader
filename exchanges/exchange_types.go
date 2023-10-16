@@ -234,6 +234,8 @@ type Base struct {
 	WebsocketResponseMaxLimit     time.Duration
 	WebsocketOrderbookBufferLimit int64
 	Websocket                     *stream.Websocket
+	WebsocketSubscriptions        WebsocketSubscriptions
+	DefaultWebsocketSubscriptions WebsocketSubscriptions
 	*request.Requester
 	Config        *config.Exchange
 	settingsMutex sync.RWMutex
@@ -245,6 +247,12 @@ type Base struct {
 
 	AssetWebsocketSupport
 	*currencystate.States
+}
+
+// WebsocketSubscriptions holds the websocket subscriptions for an exchange
+type WebsocketSubscriptions struct {
+	Authenticated   map[asset.Item][]string
+	Unauthenticated map[asset.Item][]string
 }
 
 // url lookup consts

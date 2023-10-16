@@ -1030,41 +1030,31 @@ func (ku *Kucoin) getChannelsAssetType(channelName string) (asset.Item, error) {
 // GenerateDefaultSubscriptions Adds default subscriptions to websocket.
 func (ku *Kucoin) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, error) {
 	channels := []string{}
-	if ku.CurrencyPairs.IsAssetEnabled(asset.Spot) == nil || ku.CurrencyPairs.IsAssetEnabled(asset.Margin) == nil {
-		channels = append(channels,
-			marketTickerChannel,
-			marketMatchChannel,
-			marketOrderbookLevel2Channels)
+	if ku.CurrencyPairs.IsAssetEnabled(asset.Spot) == nil {
+		channels = append(channels, ku.WebsocketSubscriptions.Unauthenticated[asset.Spot]...)
 	}
 	if ku.CurrencyPairs.IsAssetEnabled(asset.Margin) == nil {
-		channels = append(channels,
-			marginFundingbookChangeChannel)
+		marginChannels := ku.WebsocketSubscriptions.Unauthenticated[asset.Margin]
+		for j := range marginChannels {
+			if common.StringDataContains(channels, marginChannels[j]) {
+				continue
+			}
+			channels = append(channels, marginChannels[j])
+		}
 	}
 	if ku.CurrencyPairs.IsAssetEnabled(asset.Futures) == nil {
-		channels = append(channels,
-			futuresTickerV2Channel,
-			futuresOrderbookLevel2Depth50Channel)
+		channels = append(channels, ku.WebsocketSubscriptions.Unauthenticated[asset.Futures]...)
 	}
 	var subscriptions []stream.ChannelSubscription
 	if ku.Websocket.CanUseAuthenticatedEndpoints() {
 		if ku.CurrencyPairs.IsAssetEnabled(asset.Spot) == nil {
-			channels = append(channels,
-				accountBalanceChannel,
-			)
+			channels = append(channels, ku.WebsocketSubscriptions.Authenticated[asset.Spot]...)
 		}
 		if ku.CurrencyPairs.IsAssetEnabled(asset.Margin) == nil {
-			channels = append(channels,
-				marginPositionChannel,
-				marginLoanChannel,
-			)
+			channels = append(channels, ku.WebsocketSubscriptions.Authenticated[asset.Margin]...)
 		}
 		if ku.CurrencyPairs.IsAssetEnabled(asset.Futures) == nil {
-			channels = append(channels,
-				// futures authenticated channels
-				futuresTradeOrdersBySymbolChannel,
-				futuresTradeOrderChannel,
-				futuresStopOrdersLifecycleEventChannel,
-				futuresAccountBalanceEventChannel)
+			channels = append(channels, ku.WebsocketSubscriptions.Authenticated[asset.Futures]...)
 		}
 	}
 	var err error
