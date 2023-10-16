@@ -753,14 +753,15 @@ func (c *CoinbasePro) WithdrawFiatFundsToInternationalBank(ctx context.Context, 
 
 // GetFeeByType returns an estimate of fee based on type of transaction
 func (c *CoinbasePro) GetFeeByType(ctx context.Context, feeBuilder *exchange.FeeBuilder) (float64, error) {
-	if feeBuilder == nil {
-		return 0, fmt.Errorf("%T %w", feeBuilder, common.ErrNilPointer)
-	}
-	if !c.AreCredentialsValid(ctx) && // Todo check connection status
-		feeBuilder.FeeType == exchange.CryptocurrencyTradeFee {
-		feeBuilder.FeeType = exchange.OfflineTradeFee
-	}
-	return c.GetFee(ctx, feeBuilder)
+	// if feeBuilder == nil {
+	// 	return 0, fmt.Errorf("%T %w", feeBuilder, common.ErrNilPointer)
+	// }
+	// if !c.AreCredentialsValid(ctx) && // Todo check connection status
+	// 	feeBuilder.FeeType == exchange.CryptocurrencyTradeFee {
+	// 	feeBuilder.FeeType = exchange.OfflineTradeFee
+	// }
+	// return c.GetFee(ctx, feeBuilder)
+	return 99999, errors.New(common.ErrFunctionNotSupported.Error())
 }
 
 // GetActiveOrders retrieves any orders that are active/open
@@ -980,11 +981,12 @@ func (c *CoinbasePro) ValidateAPICredentials(ctx context.Context, assetType asse
 
 // GetServerTime returns the current exchange server time.
 func (c *CoinbasePro) GetServerTime(ctx context.Context, _ asset.Item) (time.Time, error) {
-	st, err := c.GetCurrentServerTime(ctx)
-	if err != nil {
-		return time.Time{}, err
-	}
-	return st.ISO, nil
+	// st, err := c.GetCurrentServerTime(ctx)
+	// if err != nil {
+	// 	return time.Time{}, err
+	// }
+	// return st.ISO, nil
+	return time.Time{}, errors.New(common.ErrFunctionNotSupported.Error())
 }
 
 // GetFuturesContractDetails returns all contracts from the exchange by asset type
