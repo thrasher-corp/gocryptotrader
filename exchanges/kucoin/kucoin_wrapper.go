@@ -366,23 +366,19 @@ func (ku *Kucoin) UpdateTickers(ctx context.Context, assetType asset.Item) error
 		if err != nil {
 			return err
 		}
-		pairs, err := ku.GetEnabledPairs(assetType)
-		if err != nil {
-			return err
-		}
 		for t := range ticks.Tickers {
 			pair, err := currency.NewPairFromString(ticks.Tickers[t].Symbol)
 			if err != nil {
 				return err
-			}
-			if !pairs.Contains(pair, true) {
-				continue
 			}
 			assets, err := ku.listOfAssetsCurrencyPairEnabledFor(pair)
 			if err != nil {
 				return err
 			}
 			for x := range assets {
+				if assets[x] != assetType {
+					continue
+				}
 				err = ticker.ProcessTicker(&ticker.Price{
 					Last:         ticks.Tickers[t].Last,
 					High:         ticks.Tickers[t].High,
