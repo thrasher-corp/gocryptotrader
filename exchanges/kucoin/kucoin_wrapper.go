@@ -234,6 +234,16 @@ func (ku *Kucoin) Run(ctx context.Context) {
 		ku.PrintEnabledPairs()
 	}
 
+	assetTypes := ku.GetAssetTypes(false)
+	for i := range assetTypes {
+		if err := ku.UpdateOrderExecutionLimits(ctx, assetTypes[i]); err != nil && !errors.Is(err, common.ErrNotYetImplemented) {
+			log.Errorf(log.ExchangeSys,
+				"%s failed to set exchange order execution limits. Err: %v",
+				ku.Name,
+				err)
+		}
+	}
+
 	if !ku.GetEnabledFeatures().AutoPairUpdates {
 		return
 	}
