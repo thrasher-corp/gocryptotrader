@@ -2,6 +2,7 @@ package bybit
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"sync"
 	"testing"
@@ -731,11 +732,11 @@ func TestGetHistoricalValatility(t *testing.T) {
 		end = time.UnixMilli(1693080759395)
 		start = time.UnixMilli(1690488759395)
 	}
-	_, err := b.GetHistoricalValatility(context.Background(), "option", "", 123, start, end)
+	_, err := b.GetHistoricalVolatility(context.Background(), "option", "", 123, start, end)
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = b.GetHistoricalValatility(context.Background(), "spot", "", 123, start, end)
+	_, err = b.GetHistoricalVolatility(context.Background(), "spot", "", 123, start, end)
 	if !errors.Is(err, errInvalidCategory) {
 		t.Errorf("expected %v, but found %v", errInvalidCategory, err)
 	}
@@ -1081,26 +1082,56 @@ func TestPlaceBatchOrder(t *testing.T) {
 		Category: "option",
 		Request: []BatchOrderItemParam{
 			{
-				Symbol:        optionsTradablePair,
-				OrderType:     "Limit",
-				Side:          "Buy",
-				OrderQuantity: 1,
-				OrderIv:       6,
-				TimeInForce:   "GTC",
-				OrderLinkID:   "option-test-001",
-				Mmp:           false,
-				ReduceOnly:    false,
+				Symbol:                optionsTradablePair,
+				OrderType:             "Limit",
+				Side:                  "Buy",
+				OrderQuantity:         1,
+				OrderIv:               6,
+				TimeInForce:           "GTC",
+				OrderLinkID:           "option-test-001",
+				MarketMakerProtection: false,
+				ReduceOnly:            false,
 			},
 			{
-				Symbol:        optionsTradablePair,
-				OrderType:     "Limit",
-				Side:          "Sell",
-				OrderQuantity: 2,
-				Price:         700,
-				TimeInForce:   "GTC",
-				OrderLinkID:   "option-test-001",
-				Mmp:           false,
-				ReduceOnly:    false,
+				Symbol:                optionsTradablePair,
+				OrderType:             "Limit",
+				Side:                  "Sell",
+				OrderQuantity:         2,
+				Price:                 700,
+				TimeInForce:           "GTC",
+				OrderLinkID:           "option-test-001",
+				MarketMakerProtection: false,
+				ReduceOnly:            false,
+			},
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = b.PlaceBatchOrder(context.Background(), &PlaceBatchOrderParam{
+		Category: "linear",
+		Request: []BatchOrderItemParam{
+			{
+				Symbol:                optionsTradablePair,
+				OrderType:             "Limit",
+				Side:                  "Buy",
+				OrderQuantity:         1,
+				OrderIv:               6,
+				TimeInForce:           "GTC",
+				OrderLinkID:           "linear-test-001",
+				MarketMakerProtection: false,
+				ReduceOnly:            false,
+			},
+			{
+				Symbol:                optionsTradablePair,
+				OrderType:             "Limit",
+				Side:                  "Sell",
+				OrderQuantity:         2,
+				Price:                 700,
+				TimeInForce:           "GTC",
+				OrderLinkID:           "linear-test-001",
+				MarketMakerProtection: false,
+				ReduceOnly:            false,
 			},
 		},
 	})
@@ -3022,13 +3053,14 @@ func TestCancelBatchOrders(t *testing.T) {
 
 func TestWsConnect(t *testing.T) {
 	t.Parallel()
-	if mockTests {
-		t.Skip("skipping websocket function for mock testing")
-	}
+	// if mockTests {
+	// 	t.Skip("skipping websocket function for mock testing")
+	// }
 	err := b.WsConnect()
 	if err != nil {
 		t.Error(err)
 	}
+	time.Sleep(time.Second * 5)
 }
 func TestWsLinearConnect(t *testing.T) {
 	t.Parallel()
@@ -3205,5 +3237,40 @@ func TestFetchTradablePairs(t *testing.T) {
 	_, err = b.FetchTradablePairs(context.Background(), asset.Futures)
 	if !errors.Is(err, asset.ErrNotSupported) {
 		t.Errorf("expected %v, got %v", asset.ErrNotSupported, err)
+	}
+}
+
+func TestDeltaUpdateOrderbook(t *testing.T) {
+	t.Parallel()
+	data := `{"topic":"orderbook.50.WEMIXUSDT","ts":1697573183768,"type":"snapshot","data":{"s":"WEMIXUSDT","b":[["0.9511","260.703"],["0.9677","0"]],"a":[],"u":3119516,"seq":14126848493}}`
+	err := b.wsHandleData(asset.Spot, []byte(data))
+	if err != nil {
+		t.Fatal(err)
+	}
+	update := `{"topic":"orderbook.50.WEMIXUSDT","ts":1697573183768,"type":"delta","data":{"s":"WEMIXUSDT","b":[["0.9511","260.703"],["0.9677","0"]],"a":[],"u":3119516,"seq":14126848493}}`
+	var wsResponse WebsocketResponse
+	err = json.Unmarshal([]byte(update), &wsResponse)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = b.wsProcessOrderbook(asset.Spot, &wsResponse)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestGetLongShortRatio(t *testing.T) {
+	t.Parallel()
+	_, err := b.GetLongShortRatio(context.Background(), "linear", "BTCUSDT", kline.FiveMin, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = b.GetLongShortRatio(context.Background(), "inverse", "BTCUSDT", kline.FiveMin, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = b.GetLongShortRatio(context.Background(), "spot", "BTCUSDT", kline.FiveMin, 0)
+	if !errors.Is(err, errInvalidCategory) {
+		t.Fatalf("expected %v, got %v", errInvalidCategory, err)
 	}
 }

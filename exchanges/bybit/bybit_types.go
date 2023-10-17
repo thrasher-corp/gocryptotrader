@@ -420,19 +420,36 @@ type PlaceBatchOrderParam struct {
 
 // BatchOrderItemParam represents a batch order place parameter.
 type BatchOrderItemParam struct {
-	Category          string        `json:"category,omitempty"`
-	Symbol            currency.Pair `json:"symbol,omitempty"`
-	OrderType         string        `json:"orderType,omitempty"`
-	Side              string        `json:"side,omitempty"`
-	OrderQuantity     float64       `json:"qty,string,omitempty"`
-	Price             float64       `json:"price,string,omitempty"`
-	OrderIv           int64         `json:"orderIv,omitempty,string"`
-	TimeInForce       string        `json:"timeInForce,omitempty"`
-	OrderLinkID       string        `json:"orderLinkId,omitempty"`
-	Mmp               bool          `json:"mmp,omitempty"`
-	ReduceOnly        bool          `json:"reduceOnly,omitempty"`
-	ImpliedVolatility string        `json:"iv,omitempty"`
-	SMPType           string        `json:"smpType,omitempty"`
+	Category         string        `json:"category,omitempty"`
+	Symbol           currency.Pair `json:"symbol,omitempty"`
+	OrderType        string        `json:"orderType,omitempty"`
+	Side             string        `json:"side,omitempty"`
+	OrderQuantity    float64       `json:"qty,string,omitempty"`
+	Price            float64       `json:"price,string,omitempty"`
+	TriggerDirection int64         `json:"triggerDirection,omitempty"`
+	TriggerPrice     int64         `json:"triggerPrice,omitempty"`
+	TriggerBy        string        `json:"triggerBy,omitempty"` // Possible values:  LastPrice, IndexPrice, and MarkPrice
+	OrderIv          int64         `json:"orderIv,omitempty,string"`
+	TimeInForce      string        `json:"timeInForce,omitempty"`
+
+	// PositionIndex Used to identify positions in different position modes. Under hedge-mode,
+	// this param is required (USDT perps have hedge mode)
+	// 0: one-way mode 1: hedge-mode Buy side 2: hedge-mode Sell side
+	PositionIndex         int64  `json:"positionIdx,omitempty"`
+	OrderLinkID           string `json:"orderLinkId,omitempty"`
+	TakeProfit            string `json:"takeProfit,omitempty"`  // Take profit price, valid for linear
+	StopLoss              string `json:"stopLoss,omitempty"`    // Stop loss price, valid for linear
+	TakeProfitTriggerBy   string `json:"tpTriggerBy,omitempty"` // MarkPrice, IndexPrice, default: LastPrice. Valid for linear
+	StopLossTriggerBy     string `json:"slTriggerBy,omitempty"` // MarkPrice, IndexPrice, default: LastPrice
+	ReduceOnly            bool   `json:"reduceOnly,omitempty"`
+	CloseOnTrigger        bool   `json:"closeOnTrigger,omitempty"`
+	SMPType               string `json:"smpType,omitempty"`
+	MarketMakerProtection bool   `json:"mmp,omitempty"`
+	TPSLMode              string `json:"tpslMode,omitempty"`
+	TakeProfitLimitPrice  string `json:"tpLimitPrice,omitempty"`
+	StopLossLimitPrice    string `json:"slLimitPrice,omitempty"`
+	TakeProfitOrderType   string `json:"tpOrderType,omitempty"`
+	StopLossOrderType     string `json:"slOrderType,omitempty"`
 }
 
 // BatchOrdersList represents a list trade orders.
@@ -1908,4 +1925,12 @@ type GreeksResponse struct {
 type PingMessage struct {
 	Operation string `json:"op"`
 	RequestID string `json:"req_id"`
+}
+
+// InstrumentInfoItem represents an instrument long short ratio information.
+type InstrumentInfoItem struct {
+	Symbol    string                  `json:"symbol"`
+	BuyRatio  convert.StringToFloat64 `json:"buyRatio"`
+	SellRatio convert.StringToFloat64 `json:"sellRatio"`
+	Timestamp convert.ExchangeTime    `json:"timestamp"`
 }

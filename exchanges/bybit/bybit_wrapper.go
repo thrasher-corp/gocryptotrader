@@ -162,7 +162,7 @@ func (by *Bybit) SetDefaults() {
 					kline.IntervalCapacity{Interval: kline.TwoHour},
 					kline.IntervalCapacity{Interval: kline.FourHour},
 					kline.IntervalCapacity{Interval: kline.SixHour},
-					kline.IntervalCapacity{Interval: kline.TwelveHour},
+					kline.IntervalCapacity{Interval: kline.SevenHour},
 					kline.IntervalCapacity{Interval: kline.OneDay},
 					kline.IntervalCapacity{Interval: kline.OneWeek},
 					kline.IntervalCapacity{Interval: kline.OneMonth},
