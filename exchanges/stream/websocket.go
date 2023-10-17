@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
@@ -48,6 +49,10 @@ var (
 	errWebsocketConnectorUnset              = errors.New("websocket connector function not set")
 	errWebsocketSubscriptionsGeneratorUnset = errors.New("websocket subscriptions generator function needs to be set")
 	errClosedConnection                     = errors.New("use of closed network connection")
+	errSubscriptionsExceedsLimit            = errors.New("subscriptions exceeds limit")
+	errInvalidMaxSubscriptions              = errors.New("max subscriptions cannot be less than 0")
+	errNoSubscriptionsSupplied              = errors.New("no subscriptions supplied")
+	errChannelSubscriptionAlreadySubscribed = errors.New("channel subscription already subscribed")
 )
 
 var globalReporter Reporter
@@ -169,6 +174,11 @@ func (w *Websocket) Setup(s *WebsocketSetup) error {
 	w.Trade.Setup(w.exchangeName, s.TradeFeed, w.DataHandler)
 	w.Fills.Setup(s.FillsFeed, w.DataHandler)
 
+	if s.MaxWebsocketSubscriptionsPerConnection < 0 {
+		return fmt.Errorf("%s %w", w.exchangeName, errInvalidMaxSubscriptions)
+	}
+	w.MaxSubscriptionsPerConnection = s.MaxWebsocketSubscriptionsPerConnection
+
 	w.Processor, err = NewProcessor(defaultChannelBufferSize, w.DataHandler)
 	return err
 }
@@ -278,11 +288,18 @@ func (w *Websocket) Connect() error {
 
 	subs, err := w.GenerateSubs() // regenerate state on new connection
 	if err != nil {
-		return fmt.Errorf("%v %w: %v", w.exchangeName, ErrSubscriptionFailure, err)
+		return fmt.Errorf("%s websocket: %w", w.exchangeName, common.AppendError(ErrSubscriptionFailure, err))
+	}
+	if len(subs) == 0 {
+		return nil
+	}
+	err = w.checkSubscriptions(subs)
+	if err != nil {
+		return fmt.Errorf("%s websocket: %w", w.exchangeName, common.AppendError(ErrSubscriptionFailure, err))
 	}
 	err = w.Subscriber(subs)
 	if err != nil {
-		return fmt.Errorf("%v %w: %v", w.exchangeName, ErrSubscriptionFailure, err)
+		return fmt.Errorf("%s websocket: %w", w.exchangeName, common.AppendError(ErrSubscriptionFailure, err))
 	}
 	return nil
 }
@@ -908,24 +925,13 @@ func (w *Websocket) ResubscribeToChannel(subscribedChannel *ChannelSubscription)
 
 // SubscribeToChannels appends supplied channels to channelsToSubscribe
 func (w *Websocket) SubscribeToChannels(channels []ChannelSubscription) error {
-	if len(channels) == 0 {
-		return fmt.Errorf("%s websocket: cannot subscribe no channels supplied",
-			w.exchangeName)
+	err := w.checkSubscriptions(channels)
+	if err != nil {
+		return fmt.Errorf("%s websocket: %w", w.exchangeName, common.AppendError(ErrSubscriptionFailure, err))
 	}
-	w.subscriptionMutex.Lock()
-	for x := range channels {
-		for y := range w.subscriptions {
-			if channels[x].Equal(&w.subscriptions[y]) {
-				w.subscriptionMutex.Unlock()
-				return fmt.Errorf("%s websocket: %v already subscribed",
-					w.exchangeName,
-					channels[x])
-			}
-		}
-	}
-	w.subscriptionMutex.Unlock()
-	if err := w.Subscriber(channels); err != nil {
-		return fmt.Errorf("%v %w: %v", w.exchangeName, ErrSubscriptionFailure, err)
+	err = w.Subscriber(channels)
+	if err != nil {
+		return fmt.Errorf("%s websocket: %w", w.exchangeName, common.AppendError(ErrSubscriptionFailure, err))
 	}
 	return nil
 }
@@ -1004,6 +1010,34 @@ func checkWebsocketURL(s string) error {
 	}
 	if u.Scheme != "ws" && u.Scheme != "wss" {
 		return fmt.Errorf("cannot set %w %s", errInvalidWebsocketURL, s)
+	}
+	return nil
+}
+
+// checkSubscriptions checks subscriptions against the max subscription limit
+// and if the subscription already exists.
+func (w *Websocket) checkSubscriptions(subs []ChannelSubscription) error {
+	if len(subs) == 0 {
+		return errNoSubscriptionsSupplied
+	}
+
+	w.subscriptionMutex.Lock()
+	defer w.subscriptionMutex.Unlock()
+
+	if w.MaxSubscriptionsPerConnection > 0 && len(w.subscriptions)+len(subs) > w.MaxSubscriptionsPerConnection {
+		return fmt.Errorf("%w: current subscriptions: %v, incoming subscriptions: %v, max subscriptions per connection: %v - please reduce enabled pairs",
+			errSubscriptionsExceedsLimit,
+			len(w.subscriptions),
+			len(subs),
+			w.MaxSubscriptionsPerConnection)
+	}
+
+	for x := range subs {
+		for y := range w.subscriptions {
+			if subs[x].Equal(&w.subscriptions[y]) {
+				return fmt.Errorf("%w for %+v", errChannelSubscriptionAlreadySubscribed, subs[x])
+			}
+		}
 	}
 	return nil
 }

@@ -1,7 +1,6 @@
 package kraken
 
 import (
-	"bufio"
 	"context"
 	"errors"
 	"fmt"
@@ -1819,58 +1818,14 @@ func TestWsOwnTrades(t *testing.T) {
 
 func TestWsOpenOrders(t *testing.T) {
 	t.Parallel()
-	pairs := currency.Pairs{
-		currency.Pair{Base: currency.XBT, Quote: currency.USD},
-		currency.Pair{Base: currency.XBT, Quote: currency.USDT},
-	}
-	k := Kraken{
-		Base: exchange.Base{
-			Name: "dummy",
-			CurrencyPairs: currency.PairsManager{
-				Pairs: map[asset.Item]*currency.PairStore{
-					asset.Spot: {
-						Available: pairs,
-						Enabled:   pairs,
-						ConfigFormat: &currency.PairFormat{
-							Uppercase: true,
-							Delimiter: currency.DashDelimiter,
-						},
-					},
-				},
-			},
-			Websocket: &stream.Websocket{
-				Wg:          new(sync.WaitGroup),
-				DataHandler: make(chan interface{}, 128),
-			},
-		},
-	}
-
-	k.API.Endpoints = k.NewEndpoints()
-
-	fixture, err := os.Open("testdata/wsOpenTrades.json")
-	defer func() { assert.Nil(t, fixture.Close()) }()
-	if err != nil {
-		t.Errorf("Error opening test fixture 'testdata/wsOpenTrades.json': %v", err)
-		return
-	}
-
-	s := bufio.NewScanner(fixture)
-	for s.Scan() {
-		if err = k.wsHandleData(s.Bytes()); err != nil {
-			t.Errorf("Error in wsHandleData; err: '%v', msg: '%v'", err, s.Bytes())
-		}
-	}
-	if err := s.Err(); err != nil {
-		t.Error(err)
-	}
-
+	n := new(Kraken)
+	sharedtestvalues.TestFixtureToDataHandler(t, k, n, "testdata/wsOpenTrades.json", n.wsHandleData)
 	seen := 0
-
 	for reading := true; reading; {
 		select {
 		default:
 			reading = false
-		case resp := <-k.Websocket.DataHandler:
+		case resp := <-n.Websocket.DataHandler:
 			seen++
 			switch v := resp.(type) {
 			case *order.Detail:
@@ -2085,28 +2040,29 @@ func TestGetHistoricTrades(t *testing.T) {
 
 var testOb = orderbook.Base{
 	Asks: []orderbook.Item{
-		{Price: 0.05005, Amount: 0.00000500},
-		{Price: 0.05010, Amount: 0.00000500},
-		{Price: 0.05015, Amount: 0.00000500},
-		{Price: 0.05020, Amount: 0.00000500},
-		{Price: 0.05025, Amount: 0.00000500},
-		{Price: 0.05030, Amount: 0.00000500},
-		{Price: 0.05035, Amount: 0.00000500},
-		{Price: 0.05040, Amount: 0.00000500},
-		{Price: 0.05045, Amount: 0.00000500},
-		{Price: 0.05050, Amount: 0.00000500},
+		// NOTE: 0.00000500 float64 == 0.000005
+		{Price: 0.05005, StrPrice: "0.05005", Amount: 0.00000500, StrAmount: "0.00000500"},
+		{Price: 0.05010, StrPrice: "0.05010", Amount: 0.00000500, StrAmount: "0.00000500"},
+		{Price: 0.05015, StrPrice: "0.05015", Amount: 0.00000500, StrAmount: "0.00000500"},
+		{Price: 0.05020, StrPrice: "0.05020", Amount: 0.00000500, StrAmount: "0.00000500"},
+		{Price: 0.05025, StrPrice: "0.05025", Amount: 0.00000500, StrAmount: "0.00000500"},
+		{Price: 0.05030, StrPrice: "0.05030", Amount: 0.00000500, StrAmount: "0.00000500"},
+		{Price: 0.05035, StrPrice: "0.05035", Amount: 0.00000500, StrAmount: "0.00000500"},
+		{Price: 0.05040, StrPrice: "0.05040", Amount: 0.00000500, StrAmount: "0.00000500"},
+		{Price: 0.05045, StrPrice: "0.05045", Amount: 0.00000500, StrAmount: "0.00000500"},
+		{Price: 0.05050, StrPrice: "0.05050", Amount: 0.00000500, StrAmount: "0.00000500"},
 	},
 	Bids: []orderbook.Item{
-		{Price: 0.05000, Amount: 0.00000500},
-		{Price: 0.04995, Amount: 0.00000500},
-		{Price: 0.04990, Amount: 0.00000500},
-		{Price: 0.04980, Amount: 0.00000500},
-		{Price: 0.04975, Amount: 0.00000500},
-		{Price: 0.04970, Amount: 0.00000500},
-		{Price: 0.04965, Amount: 0.00000500},
-		{Price: 0.04960, Amount: 0.00000500},
-		{Price: 0.04955, Amount: 0.00000500},
-		{Price: 0.04950, Amount: 0.00000500},
+		{Price: 0.05000, StrPrice: "0.05000", Amount: 0.00000500, StrAmount: "0.00000500"},
+		{Price: 0.04995, StrPrice: "0.04995", Amount: 0.00000500, StrAmount: "0.00000500"},
+		{Price: 0.04990, StrPrice: "0.04990", Amount: 0.00000500, StrAmount: "0.00000500"},
+		{Price: 0.04980, StrPrice: "0.04980", Amount: 0.00000500, StrAmount: "0.00000500"},
+		{Price: 0.04975, StrPrice: "0.04975", Amount: 0.00000500, StrAmount: "0.00000500"},
+		{Price: 0.04970, StrPrice: "0.04970", Amount: 0.00000500, StrAmount: "0.00000500"},
+		{Price: 0.04965, StrPrice: "0.04965", Amount: 0.00000500, StrAmount: "0.00000500"},
+		{Price: 0.04960, StrPrice: "0.04960", Amount: 0.00000500, StrAmount: "0.00000500"},
+		{Price: 0.04955, StrPrice: "0.04955", Amount: 0.00000500, StrAmount: "0.00000500"},
+		{Price: 0.04950, StrPrice: "0.04950", Amount: 0.00000500, StrAmount: "0.00000500"},
 	},
 }
 
@@ -2124,7 +2080,7 @@ func TestChecksumCalculation(t *testing.T) {
 		t.Errorf("expected %s but received %s", expected, v)
 	}
 
-	err := validateCRC32(&testOb, krakenAPIDocChecksum, 5, 8)
+	err := validateCRC32(&testOb, krakenAPIDocChecksum)
 	if err != nil {
 		t.Error(err)
 	}

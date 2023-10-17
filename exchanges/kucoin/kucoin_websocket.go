@@ -204,6 +204,7 @@ func (ku *Kucoin) wsReadData() {
 }
 
 func (ku *Kucoin) wsHandleData(respData []byte) error {
+	// fmt.Println("raw data:", string(respData))
 	resp := WsPushData{}
 	err := json.Unmarshal(respData, &resp)
 	if err != nil {
@@ -213,6 +214,9 @@ func (ku *Kucoin) wsHandleData(respData []byte) error {
 			if !ku.Websocket.Match.IncomingWithData(resp.ID, respData) {
 				return fmt.Errorf("can not match subscription message with signature ID:%s", resp.ID)
 			}
+		}
+		if resp.Type == "error" {
+			return fmt.Errorf("error message received ID:%s message:%s", resp.ID, resp.Data)
 		}
 		return nil
 	}
@@ -996,6 +1000,7 @@ func (ku *Kucoin) handleSubscriptions(subscriptions []stream.ChannelSubscription
 	}
 	var errs error
 	for x := range payloads {
+		fmt.Println(payloads[x])
 		err = ku.Websocket.Conn.SendJSONMessage(payloads[x])
 		if err != nil {
 			errs = common.AppendError(errs, err)
@@ -1032,9 +1037,10 @@ func (ku *Kucoin) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, 
 	channels := []string{}
 	if ku.CurrencyPairs.IsAssetEnabled(asset.Spot) == nil || ku.CurrencyPairs.IsAssetEnabled(asset.Margin) == nil {
 		channels = append(channels,
-			marketTickerChannel,
 			marketMatchChannel,
-			marketOrderbookLevel2Channels)
+			marketAllTickersChannel,         // This allows more subscriptions on the orderbook channel for this specific connection.
+			marketOrderbookLevel2to5Channel, // This does not require a REST request to get the orderbook.
+		)
 	}
 	if ku.CurrencyPairs.IsAssetEnabled(asset.Margin) == nil {
 		channels = append(channels,
@@ -1106,7 +1112,8 @@ func (ku *Kucoin) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, 
 			marketTickerSnapshotForCurrencyChannel,
 			marketOrderbookLevel2to5Channel,
 			marketOrderbokLevel2To50Channel,
-			marketTickerChannel:
+			marketTickerChannel,
+			marketMatchChannel:
 			subscribedPairsMap := map[string]bool{}
 			for b := range spotPairs {
 				if okay := subscribedPairsMap[spotPairs[b].String()]; okay {
@@ -1131,8 +1138,7 @@ func (ku *Kucoin) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, 
 				subscribedPairsMap[marginPairs[b].String()] = true
 			}
 		case indexPriceIndicatorChannel,
-			markPriceIndicatorChannel,
-			marketMatchChannel:
+			markPriceIndicatorChannel:
 			pairs := currency.Pairs{}
 			for p := range spotPairs {
 				pairs = pairs.Add(spotPairs[p])
@@ -1235,7 +1241,17 @@ func (ku *Kucoin) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, 
 	return subscriptions, nil
 }
 
+type Batcher struct {
+	outbound []WsSubscriptionInput
+}
+
 func (ku *Kucoin) generatePayloads(subscriptions []stream.ChannelSubscription, operation string) ([]WsSubscriptionInput, error) {
+	batch := map[string]*Batcher{
+		marketOrderbookLevel2to5Channel: nil,
+		marketTickerChannel:             nil,
+		marketMatchChannel:              nil,
+	}
+
 	payloads := make([]WsSubscriptionInput, 0, len(subscriptions))
 	marketTickerSnapshotForCurrencyChannelCurrencyFilter := map[currency.Code]int{}
 	for x := range subscriptions {
@@ -1272,12 +1288,43 @@ func (ku *Kucoin) generatePayloads(subscriptions []stream.ChannelSubscription, o
 				}
 				symbols = subscriptions[x].Currency.String()
 			}
-			payloads = append(payloads, WsSubscriptionInput{
-				ID:       strconv.FormatInt(ku.Websocket.Conn.GenerateMessageID(false), 10),
-				Type:     operation,
-				Topic:    fmt.Sprintf(subscriptions[x].Channel, symbols),
-				Response: true,
-			})
+
+			if batcher, canBatch := batch[subscriptions[x].Channel]; canBatch {
+				if batcher == nil {
+					batch[subscriptions[x].Channel] = &Batcher{
+						outbound: []WsSubscriptionInput{
+							{
+								ID:              strconv.FormatInt(ku.Websocket.Conn.GenerateMessageID(false), 10),
+								Type:            operation,
+								Topic:           fmt.Sprintf(subscriptions[x].Channel, symbols),
+								Response:        true,
+								subscriberCount: 1,
+							},
+						},
+					}
+				} else {
+					if batcher.outbound[len(batcher.outbound)-1].subscriberCount == 100 {
+						batcher.outbound = append(batcher.outbound, WsSubscriptionInput{
+							ID:              strconv.FormatInt(ku.Websocket.Conn.GenerateMessageID(false), 10),
+							Type:            operation,
+							Topic:           fmt.Sprintf(subscriptions[x].Channel, symbols),
+							Response:        true,
+							subscriberCount: 1,
+						})
+					} else {
+						prev := &batcher.outbound[len(batcher.outbound)-1]
+						prev.Topic += "," + symbols
+						prev.subscriberCount++
+					}
+				}
+			} else {
+				payloads = append(payloads, WsSubscriptionInput{
+					ID:       strconv.FormatInt(ku.Websocket.Conn.GenerateMessageID(false), 10),
+					Type:     operation,
+					Topic:    fmt.Sprintf(subscriptions[x].Channel, symbols),
+					Response: true,
+				})
+			}
 		case marketAllTickersChannel,
 			privateSpotTradeOrders,
 			accountBalanceChannel,
@@ -1366,6 +1413,13 @@ func (ku *Kucoin) generatePayloads(subscriptions []stream.ChannelSubscription, o
 			})
 		}
 	}
+
+	for _, batcher := range batch {
+		if batcher != nil {
+			payloads = append(payloads, batcher.outbound...)
+		}
+	}
+
 	return payloads, nil
 }
 
