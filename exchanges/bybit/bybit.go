@@ -2608,7 +2608,7 @@ func (by *Bybit) RetrieveAndSetAccountType(ctx context.Context) {
 	by.AccountType = uint8(accInfo.Unified)
 }
 
-// GetLongShortRatio retrives Long Short Ratio of an instrument.
+// GetLongShortRatio retrieves long short ratio of an instrument.
 func (by *Bybit) GetLongShortRatio(ctx context.Context, category, symbol string, interval kline.Interval, limit int64) ([]InstrumentInfoItem, error) {
 	if category == "" {
 		return nil, errCategoryNotSet

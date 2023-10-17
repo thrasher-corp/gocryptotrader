@@ -28,9 +28,11 @@ const (
 	canManipulateRealOrders = false
 )
 
-var b = &Bybit{}
+var (
+	b = &Bybit{}
 
-var spotTradablePair, usdcMarginedTradablePair, usdtMarginedTradablePair, inverseTradablePair, optionsTradablePair currency.Pair
+	spotTradablePair, usdcMarginedTradablePair, usdtMarginedTradablePair, inverseTradablePair, optionsTradablePair currency.Pair
+)
 
 func TestStart(t *testing.T) {
 	t.Parallel()
@@ -3053,9 +3055,9 @@ func TestCancelBatchOrders(t *testing.T) {
 
 func TestWsConnect(t *testing.T) {
 	t.Parallel()
-	// if mockTests {
-	// 	t.Skip("skipping websocket function for mock testing")
-	// }
+	if mockTests {
+		t.Skip("skipping websocket function for mock testing")
+	}
 	err := b.WsConnect()
 	if err != nil {
 		t.Error(err)
