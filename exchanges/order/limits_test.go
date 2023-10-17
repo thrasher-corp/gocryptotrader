@@ -166,8 +166,8 @@ func TestGetOrderExecutionLimits(t *testing.T) {
 	}
 
 	_, err = e.GetOrderExecutionLimits(asset.Futures, ltcusd)
-	if !errors.Is(err, errExchangeLimitAsset) {
-		t.Fatalf("expected error %v but received %v", errExchangeLimitAsset, err)
+	if !errors.Is(err, ErrCannotValidateAsset) {
+		t.Fatalf("expected error %v but received %v", ErrCannotValidateAsset, err)
 	}
 
 	_, err = e.GetOrderExecutionLimits(asset.Spot, ltcusd)

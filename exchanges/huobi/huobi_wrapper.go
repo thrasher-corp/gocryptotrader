@@ -2223,15 +2223,20 @@ func (h *HUOBI) GetLatestFundingRates(ctx context.Context, r *fundingrate.Latest
 	if err != nil {
 		return nil, err
 	}
+	var ft, nft time.Time
+	nft = time.UnixMilli(rateResp.NextFundingTime)
+	if rateResp.FundingTime == 0 && rateResp.NextFundingTime > 0 {
+		ft = nft.Add(-h.Features.Supports.FuturesCapabilities.FundingRateFrequency)
+	}
 	rate := fundingrate.LatestRateResponse{
 		Exchange: h.Name,
 		Asset:    r.Asset,
 		Pair:     r.Pair,
 		LatestRate: fundingrate.Rate{
-			Time: time.UnixMilli(rateResp.FundingTime),
+			Time: ft,
 			Rate: decimal.NewFromFloat(rateResp.FundingRate),
 		},
-		TimeOfNextRate: time.UnixMilli(rateResp.NextFundingTime),
+		TimeOfNextRate: nft,
 		TimeChecked:    time.Now(),
 	}
 	if r.IncludePredictedRate {
