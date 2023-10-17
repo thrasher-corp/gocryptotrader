@@ -225,11 +225,11 @@ func (b *Base) Verify() error {
 			len(b.Bids),
 			len(b.Asks))
 	}
-	err := checkAlignment(b.Bids, b.IsFundingRate, b.PriceDuplication, b.IDAlignment, dsc, b.Exchange)
+	err := checkAlignment(b.Bids, b.IsFundingRate, b.PriceDuplication, b.IDAlignment, b.ChecksumStringRequired, dsc, b.Exchange)
 	if err != nil {
 		return fmt.Errorf(bidLoadBookFailure, b.Exchange, b.Pair, b.Asset, err)
 	}
-	err = checkAlignment(b.Asks, b.IsFundingRate, b.PriceDuplication, b.IDAlignment, asc, b.Exchange)
+	err = checkAlignment(b.Asks, b.IsFundingRate, b.PriceDuplication, b.IDAlignment, b.ChecksumStringRequired, asc, b.Exchange)
 	if err != nil {
 		return fmt.Errorf(askLoadBookFailure, b.Exchange, b.Pair, b.Asset, err)
 	}
@@ -257,7 +257,7 @@ var dsc = func(current Item, previous Item) error {
 }
 
 // checkAlignment validates full orderbook
-func checkAlignment(depth Items, fundingRate, priceDuplication, isIDAligned bool, c checker, exch string) error {
+func checkAlignment(depth Items, fundingRate, priceDuplication, isIDAligned, requiresChecksumString bool, c checker, exch string) error {
 	for i := range depth {
 		if depth[i].Price == 0 {
 			switch {
@@ -273,6 +273,10 @@ func checkAlignment(depth Items, fundingRate, priceDuplication, isIDAligned bool
 		if fundingRate && depth[i].Period == 0 {
 			return errPeriodUnset
 		}
+		if requiresChecksumString && (depth[i].StrAmount == "" || depth[i].StrPrice == "") {
+			return errChecksumStringNotSet
+		}
+
 		if i != 0 {
 			prev := i - 1
 			if err := c(depth[i], depth[prev]); err != nil {
