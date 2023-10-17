@@ -9,12 +9,12 @@ import (
 
 var (
 	// items holds stat items
-	items     []item
+	items     []Item
 	statMutex sync.RWMutex
 )
 
-// item holds various fields for storing currency pair stats
-type item struct {
+// Item holds various fields for storing currency pair stats
+type Item struct {
 	Exchange  string
 	Pair      currency.Pair
 	AssetType asset.Item
@@ -23,7 +23,7 @@ type item struct {
 }
 
 // byPrice allows sorting by price
-type byPrice []item
+type byPrice []Item
 
 // byVolume allows sorting by volume
-type byVolume []item
+type byVolume []Item

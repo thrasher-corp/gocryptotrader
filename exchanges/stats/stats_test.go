@@ -17,7 +17,7 @@ func TestLenByPrice(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	localItems := []item{
+	localItems := []Item{
 		{
 			Exchange:  testExchange,
 			Pair:      p,
@@ -38,7 +38,7 @@ func TestLessByPrice(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	localItems := []item{
+	localItems := []Item{
 		{
 			Exchange:  "alphapoint",
 			Pair:      p,
@@ -69,7 +69,7 @@ func TestSwapByPrice(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	localItems := []item{
+	localItems := []Item{
 		{
 			Exchange:  "bitstamp",
 			Pair:      p,
@@ -98,7 +98,7 @@ func TestLenByVolume(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	localItems := []item{
+	localItems := []Item{
 		{
 			Exchange:  "bitstamp",
 			Pair:      p,
@@ -126,7 +126,7 @@ func TestLessByVolume(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	localItems := []item{
+	localItems := []Item{
 		{
 			Exchange:  "bitstamp",
 			Pair:      p,
@@ -153,7 +153,7 @@ func TestSwapByVolume(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	localItems := []item{
+	localItems := []Item{
 		{
 			Exchange:  "bitstamp",
 			Pair:      p,
