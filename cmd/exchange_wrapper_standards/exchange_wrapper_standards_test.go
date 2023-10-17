@@ -504,7 +504,7 @@ func generateMethodArg(ctx context.Context, t *testing.T, argGenerator *MethodAr
 	case argGenerator.MethodInputType.AssignableTo(int64Param):
 		input = reflect.ValueOf(1337)
 	case argGenerator.MethodInputType.AssignableTo(float64Param):
-		input = reflect.ValueOf(13.37)
+		input = reflect.ValueOf(1337.0)
 	case argGenerator.MethodInputType.AssignableTo(latestRateRequest):
 		input = reflect.ValueOf(&fundingrate.LatestRateRequest{
 			Asset:                argGenerator.AssetParams.Asset,

@@ -2463,13 +2463,13 @@ func TestGetLatestFundingRates(t *testing.T) {
 func TestIsPerpetualFutureCurrency(t *testing.T) {
 	t.Parallel()
 	is, err := ku.IsPerpetualFutureCurrency(asset.Spot, currency.EMPTYPAIR)
-	assert.ErrorIs(t, err, futures.ErrNotPerpetualFuture)
+	assert.NoError(t, err)
 	assert.False(t, is)
 	is, err = ku.IsPerpetualFutureCurrency(asset.Futures, currency.EMPTYPAIR)
-	assert.Error(t, err, futures.ErrNotPerpetualFuture)
+	assert.NoError(t, err)
 	assert.False(t, is)
 	is, err = ku.IsPerpetualFutureCurrency(asset.Futures, currency.NewPair(currency.XBT, currency.EOS))
-	assert.ErrorIs(t, err, futures.ErrNotPerpetualFuture)
+	assert.NoError(t, err)
 	assert.False(t, is)
 	is, err = ku.IsPerpetualFutureCurrency(asset.Futures, currency.NewPair(currency.XBT, currency.USDTM))
 	assert.NoError(t, err)
@@ -2481,7 +2481,6 @@ func TestIsPerpetualFutureCurrency(t *testing.T) {
 
 func TestChangePositionMargin(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, ku, canManipulateRealOrders)
 	_, err := ku.ChangePositionMargin(context.Background(), nil)
 	assert.ErrorIs(t, err, common.ErrNilPointer)
 
@@ -2497,6 +2496,7 @@ func TestChangePositionMargin(t *testing.T) {
 	_, err = ku.ChangePositionMargin(context.Background(), req)
 	assert.ErrorIs(t, err, margin.ErrMarginTypeUnsupported)
 
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, ku, canManipulateRealOrders)
 	req.MarginType = margin.Isolated
 	_, err = ku.ChangePositionMargin(context.Background(), req)
 	assert.Error(t, err)
@@ -2508,7 +2508,6 @@ func TestChangePositionMargin(t *testing.T) {
 
 func TestGetFuturesPositionSummary(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, ku)
 	_, err := ku.GetFuturesPositionSummary(context.Background(), nil)
 	assert.ErrorIs(t, err, common.ErrNilPointer)
 
@@ -2520,6 +2519,7 @@ func TestGetFuturesPositionSummary(t *testing.T) {
 	_, err = ku.GetFuturesPositionSummary(context.Background(), req)
 	assert.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, ku, canManipulateRealOrders)
 	req.Pair = currency.NewPair(currency.XBT, currency.USDTM)
 	_, err = ku.GetFuturesPositionSummary(context.Background(), req)
 	assert.ErrorIs(t, err, nil)
@@ -2527,7 +2527,6 @@ func TestGetFuturesPositionSummary(t *testing.T) {
 
 func TestGetFuturesPositionOrders(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, ku)
 	_, err := ku.GetFuturesPositionOrders(context.Background(), nil)
 	assert.ErrorIs(t, err, common.ErrNilPointer)
 
@@ -2545,6 +2544,7 @@ func TestGetFuturesPositionOrders(t *testing.T) {
 	_, err = ku.GetFuturesPositionOrders(context.Background(), req)
 	assert.ErrorIs(t, err, common.ErrDateUnset)
 
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, ku, canManipulateRealOrders)
 	req.EndDate = time.Now()
 	req.StartDate = req.EndDate.Add(-time.Hour * 24 * 7)
 	_, err = ku.GetFuturesPositionOrders(context.Background(), req)

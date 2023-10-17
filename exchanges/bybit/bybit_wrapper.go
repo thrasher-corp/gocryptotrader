@@ -2427,5 +2427,5 @@ func (by *Bybit) IsPerpetualFutureCurrency(a asset.Item, p currency.Pair) (bool,
 // GetLatestFundingRates returns the latest funding rates data
 func (by *Bybit) GetLatestFundingRates(context.Context, *fundingrate.LatestRateRequest) ([]fundingrate.LatestRateResponse, error) {
 	// TODO: implement with v5 API upgrade
-	return nil, common.ErrFunctionNotSupported
+	return nil, common.ErrNotYetImplemented
 }

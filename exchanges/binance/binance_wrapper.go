@@ -1990,7 +1990,7 @@ func (b *Binance) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) 
 		err = fmt.Errorf("%w %v", asset.ErrNotSupported, a)
 	}
 	if err != nil {
-		return fmt.Errorf("cannot update exchange execution limits: %v", err)
+		return fmt.Errorf("cannot update exchange execution limits: %w", err)
 	}
 	return b.LoadLimits(limits)
 }
@@ -2088,14 +2088,6 @@ func (b *Binance) GetLatestFundingRates(ctx context.Context, r *fundingrate.Late
 	fPair := r.Pair
 	var err error
 	if !fPair.IsEmpty() {
-		var isPerp bool
-		isPerp, err = b.IsPerpetualFutureCurrency(r.Asset, r.Pair)
-		if err != nil {
-			return nil, err
-		}
-		if !isPerp {
-			return nil, fmt.Errorf("%w %v %v", futures.ErrNotPerpetualFuture, r.Asset, r.Pair)
-		}
 		var format currency.PairFormat
 		format, err = b.GetPairFormat(r.Asset, true)
 		if err != nil {
@@ -2124,7 +2116,13 @@ func (b *Binance) GetLatestFundingRates(ctx context.Context, r *fundingrate.Late
 			if err != nil {
 				return nil, err
 			}
-			if mp[i].NextFundingTime == 0 {
+
+			var isPerp bool
+			isPerp, err = b.IsPerpetualFutureCurrency(r.Asset, cp)
+			if err != nil {
+				return nil, err
+			}
+			if !isPerp {
 				continue
 			}
 			nft := time.UnixMilli(mp[len(mp)-1].NextFundingTime)
@@ -2160,7 +2158,12 @@ func (b *Binance) GetLatestFundingRates(ctx context.Context, r *fundingrate.Late
 			if err != nil {
 				return nil, err
 			}
-			if mp[i].NextFundingTime == 0 {
+			var isPerp bool
+			isPerp, err = b.IsPerpetualFutureCurrency(r.Asset, cp)
+			if err != nil {
+				return nil, err
+			}
+			if !isPerp {
 				continue
 			}
 			nft := time.UnixMilli(mp[len(mp)-1].NextFundingTime)
@@ -2470,7 +2473,7 @@ func (b *Binance) GetFuturesPositionSummary(ctx context.Context, req *futures.Po
 		var leverage, maintenanceMargin, initialMargin,
 			liquidationPrice, markPrice, positionSize,
 			collateralTotal, collateralUsed, collateralAvailable,
-			pnl, openPrice, isolatedMargin float64
+			unrealisedPNL, openPrice, isolatedMargin float64
 
 		for i := range ai.Positions {
 			if ai.Positions[i].Symbol != fPair.String() {
@@ -2533,7 +2536,7 @@ func (b *Binance) GetFuturesPositionSummary(ctx context.Context, req *futures.Po
 			}
 			collateralTotal = collateralAsset.WalletBalance
 			collateralAvailable = collateralAsset.AvailableBalance
-			pnl = collateralAsset.UnrealizedProfit
+			unrealisedPNL = collateralAsset.UnrealizedProfit
 			c = currency.NewCode(collateralAsset.Asset)
 			if marginType == margin.Multi {
 				isolatedMargin = collateralAsset.CrossUnPnl
@@ -2546,7 +2549,7 @@ func (b *Binance) GetFuturesPositionSummary(ctx context.Context, req *futures.Po
 			collateralTotal = ai.TotalWalletBalance
 			collateralUsed = ai.TotalWalletBalance - ai.AvailableBalance
 			collateralAvailable = ai.AvailableBalance
-			pnl = accountPosition.UnrealisedProfit
+			unrealisedPNL = accountPosition.UnrealisedProfit
 		}
 
 		var maintenanceMarginFraction decimal.Decimal
@@ -2586,7 +2589,7 @@ func (b *Binance) GetFuturesPositionSummary(ctx context.Context, req *futures.Po
 			MarkPrice:                    decimal.NewFromFloat(markPrice),
 			CurrentSize:                  decimal.NewFromFloat(positionSize),
 			AverageOpenPrice:             decimal.NewFromFloat(openPrice),
-			UnrealisedPNL:                decimal.NewFromFloat(pnl),
+			UnrealisedPNL:                decimal.NewFromFloat(unrealisedPNL),
 			MaintenanceMarginFraction:    maintenanceMarginFraction,
 			FreeCollateral:               decimal.NewFromFloat(collateralAvailable),
 			TotalCollateral:              decimal.NewFromFloat(collateralTotal),

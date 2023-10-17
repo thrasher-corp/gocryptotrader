@@ -2869,7 +2869,7 @@ func TestGetFundingRates(t *testing.T) {
 
 func TestGetLatestFundingRates(t *testing.T) {
 	t.Parallel()
-	cp := currency.NewPair(currency.SUSHI, currency.USDT)
+	cp := currency.NewPair(currency.BTC, currency.USDT)
 	_, err := b.GetLatestFundingRates(context.Background(), &fundingrate.LatestRateRequest{
 		Asset:                asset.USDTMarginedFutures,
 		Pair:                 cp,
@@ -2886,7 +2886,6 @@ func TestGetLatestFundingRates(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-
 	_, err = b.GetLatestFundingRates(context.Background(), &fundingrate.LatestRateRequest{
 		Asset: asset.CoinMarginedFutures,
 	})

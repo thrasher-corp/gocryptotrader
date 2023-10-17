@@ -3448,13 +3448,10 @@ func TestGetLatestFundingRates(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	resp, err := g.GetLatestFundingRates(context.Background(), &fundingrate.LatestRateRequest{
+	_, err = g.GetLatestFundingRates(context.Background(), &fundingrate.LatestRateRequest{
 		Asset: asset.Futures,
 	})
 	if err != nil {
 		t.Error(err)
-	}
-	for i := range resp {
-		t.Log(resp[i])
 	}
 }

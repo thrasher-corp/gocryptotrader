@@ -1256,9 +1256,7 @@ func (b *Bitmex) GetLatestFundingRates(ctx context.Context, r *fundingrate.Lates
 	if r == nil {
 		return nil, fmt.Errorf("%w LatestRateRequest", common.ErrNilPointer)
 	}
-	if isPerp, _ := b.IsPerpetualFutureCurrency(r.Asset, r.Pair); !isPerp {
-		return nil, fmt.Errorf("%w %v %v", futures.ErrNotPerpetualFuture, r.Asset, r.Pair)
-	}
+
 	if r.IncludePredictedRate {
 		return nil, fmt.Errorf("%w IncludePredictedRate", common.ErrFunctionNotSupported)
 	}
@@ -1303,6 +1301,14 @@ func (b *Bitmex) GetLatestFundingRates(ctx context.Context, r *fundingrate.Lates
 				continue
 			}
 			return nil, err
+		}
+		var isPerp bool
+		isPerp, err = b.IsPerpetualFutureCurrency(r.Asset, cp)
+		if err != nil {
+			return nil, err
+		}
+		if !isPerp {
+			continue
 		}
 		resp = append(resp, fundingrate.LatestRateResponse{
 			Exchange: b.Name,

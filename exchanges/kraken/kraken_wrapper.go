@@ -1821,6 +1821,14 @@ func (k *Kraken) GetLatestFundingRates(ctx context.Context, r *fundingrate.Lates
 		if !r.Pair.IsEmpty() && !r.Pair.Equal(pair) {
 			continue
 		}
+		var isPerp bool
+		isPerp, err = k.IsPerpetualFutureCurrency(r.Asset, pair)
+		if err != nil {
+			return nil, err
+		}
+		if !isPerp {
+			continue
+		}
 		rate := fundingrate.LatestRateResponse{
 			Exchange: k.Name,
 			Asset:    r.Asset,

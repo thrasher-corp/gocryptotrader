@@ -1134,11 +1134,12 @@ func (p *Poloniex) GetServerTime(ctx context.Context, _ asset.Item) (time.Time, 
 
 // GetFuturesContractDetails returns all contracts from the exchange by asset type
 func (p *Poloniex) GetFuturesContractDetails(context.Context, asset.Item) ([]futures.Contract, error) {
-	return nil, common.ErrFunctionNotSupported
+	// TODO: implement with API upgrade
+	return nil, common.ErrNotYetImplemented
 }
 
 // GetLatestFundingRates returns the latest funding rates data
 func (p *Poloniex) GetLatestFundingRates(context.Context, *fundingrate.LatestRateRequest) ([]fundingrate.LatestRateResponse, error) {
 	// TODO: implement with API upgrade
-	return nil, common.ErrFunctionNotSupported
+	return nil, common.ErrNotYetImplemented
 }

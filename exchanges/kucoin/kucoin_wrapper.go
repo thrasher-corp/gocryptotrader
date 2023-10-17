@@ -1600,6 +1600,14 @@ func (ku *Kucoin) GetLatestFundingRates(ctx context.Context, r *fundingrate.Late
 			if err != nil {
 				return nil, err
 			}
+			var isPerp bool
+			isPerp, err = ku.IsPerpetualFutureCurrency(r.Asset, cp)
+			if err != nil {
+				return nil, err
+			}
+			if !isPerp {
+				continue
+			}
 			rate := fundingrate.LatestRateResponse{
 				Exchange: ku.Name,
 				Asset:    r.Asset,
@@ -1666,10 +1674,7 @@ func (ku *Kucoin) GetLatestFundingRates(ctx context.Context, r *fundingrate.Late
 
 // IsPerpetualFutureCurrency ensures a given asset and currency is a perpetual future
 func (ku *Kucoin) IsPerpetualFutureCurrency(a asset.Item, cp currency.Pair) (bool, error) {
-	if a != asset.Futures || (!cp.Quote.Equal(currency.USDTM) && !cp.Quote.Equal(currency.USDM)) {
-		return false, fmt.Errorf("%w - %v %v", futures.ErrNotPerpetualFuture, a, cp)
-	}
-	return true, nil
+	return a == asset.Futures && (cp.Quote.Equal(currency.USDTM) || cp.Quote.Equal(currency.USDM)), nil
 }
 
 // GetHistoricalFundingRates returns funding rates for a given asset and currency for a time period

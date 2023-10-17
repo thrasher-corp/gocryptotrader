@@ -1311,5 +1311,5 @@ func (b *Bitfinex) GetFuturesContractDetails(context.Context, asset.Item) ([]fut
 // GetLatestFundingRates returns the latest funding rates data
 func (b *Bitfinex) GetLatestFundingRates(context.Context, *fundingrate.LatestRateRequest) ([]fundingrate.LatestRateResponse, error) {
 	// TODO: Add futures support for Bitfinex
-	return nil, common.ErrFunctionNotSupported
+	return nil, common.ErrNotYetImplemented
 }

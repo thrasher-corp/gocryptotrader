@@ -1578,15 +1578,19 @@ func (ok *Okx) GetLatestFundingRates(ctx context.Context, r *fundingrate.LatestR
 	if r.Asset != asset.PerpetualSwap {
 		return nil, fmt.Errorf("%w %v", futures.ErrNotPerpetualFuture, r.Asset)
 	}
+	if r.Pair.IsEmpty() {
+		return nil, fmt.Errorf("%w, pair required", currency.ErrCurrencyPairEmpty)
+	}
 	format, err := ok.GetPairFormat(r.Asset, true)
 	if err != nil {
 		return nil, err
 	}
 	fPair := r.Pair.Format(format)
 	pairRate := fundingrate.LatestRateResponse{
-		Exchange: ok.Name,
-		Asset:    r.Asset,
-		Pair:     fPair,
+		TimeChecked: time.Now(),
+		Exchange:    ok.Name,
+		Asset:       r.Asset,
+		Pair:        fPair,
 	}
 	fr, err := ok.GetSingleFundingRate(ctx, fPair.String())
 	if err != nil {

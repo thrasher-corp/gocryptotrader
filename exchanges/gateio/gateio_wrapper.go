@@ -2222,6 +2222,14 @@ func (g *Gateio) GetLatestFundingRates(ctx context.Context, r *fundingrate.Lates
 			if !pairs.Contains(cp, false) {
 				continue
 			}
+			var isPerp bool
+			isPerp, err = g.IsPerpetualFutureCurrency(r.Asset, cp)
+			if err != nil {
+				return nil, err
+			}
+			if !isPerp {
+				continue
+			}
 			resp = append(resp, contractToFundingRate(g.Name, r.Asset, cp, &contracts[j], r.IncludePredictedRate))
 		}
 	}
