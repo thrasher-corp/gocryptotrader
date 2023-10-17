@@ -2088,6 +2088,14 @@ func (b *Binance) GetLatestFundingRates(ctx context.Context, r *fundingrate.Late
 	fPair := r.Pair
 	var err error
 	if !fPair.IsEmpty() {
+		var isPerp bool
+		isPerp, err = b.IsPerpetualFutureCurrency(r.Asset, r.Pair)
+		if err != nil {
+			return nil, err
+		}
+		if !isPerp {
+			return nil, fmt.Errorf("%w %v %v", futures.ErrNotPerpetualFuture, r.Asset, r.Pair)
+		}
 		var format currency.PairFormat
 		format, err = b.GetPairFormat(r.Asset, true)
 		if err != nil {
@@ -2103,23 +2111,40 @@ func (b *Binance) GetLatestFundingRates(ctx context.Context, r *fundingrate.Late
 		if err != nil {
 			return nil, err
 		}
-		resp := make([]fundingrate.LatestRateResponse, len(mp))
+		var ep currency.Pairs
+		ep, err = b.GetEnabledPairs(r.Asset)
+		if err != nil {
+			return nil, err
+		}
+
+		resp := make([]fundingrate.LatestRateResponse, 0, len(mp))
 		for i := range mp {
 			var cp currency.Pair
-			cp, err = currency.NewPairFromString(mp[i].Symbol)
+			cp, err = ep.DeriveFrom(mp[i].Symbol)
 			if err != nil {
 				return nil, err
 			}
-			resp[i] = fundingrate.LatestRateResponse{
-				Exchange: b.Name,
-				Asset:    r.Asset,
-				Pair:     cp,
+			if mp[i].NextFundingTime == 0 {
+				continue
+			}
+			nft := time.UnixMilli(mp[len(mp)-1].NextFundingTime)
+			rate := fundingrate.LatestRateResponse{
+				TimeChecked: time.Now(),
+				Exchange:    b.Name,
+				Asset:       r.Asset,
+				Pair:        cp,
 				LatestRate: fundingrate.Rate{
 					Time: time.UnixMilli(mp[i].Time).Truncate(b.Features.Supports.FuturesCapabilities.FundingRateFrequency),
 					Rate: decimal.NewFromFloat(mp[i].LastFundingRate),
 				},
-				TimeOfNextRate: time.UnixMilli(mp[len(mp)-1].NextFundingTime),
 			}
+			if nft.Year() == rate.TimeChecked.Year() {
+				rate.TimeOfNextRate = nft
+			}
+			resp = append(resp, rate)
+		}
+		if len(resp) == 0 {
+			return nil, fmt.Errorf("%w %v %v", futures.ErrNotPerpetualFuture, r.Asset, r.Pair)
 		}
 		return resp, nil
 	case asset.CoinMarginedFutures:
@@ -2128,23 +2153,34 @@ func (b *Binance) GetLatestFundingRates(ctx context.Context, r *fundingrate.Late
 		if err != nil {
 			return nil, err
 		}
-		resp := make([]fundingrate.LatestRateResponse, len(mp))
+		resp := make([]fundingrate.LatestRateResponse, 0, len(mp))
 		for i := range mp {
 			var cp currency.Pair
 			cp, err = currency.NewPairFromString(mp[i].Symbol)
 			if err != nil {
 				return nil, err
 			}
-			resp[i] = fundingrate.LatestRateResponse{
-				Exchange: b.Name,
-				Asset:    r.Asset,
-				Pair:     cp,
+			if mp[i].NextFundingTime == 0 {
+				continue
+			}
+			nft := time.UnixMilli(mp[len(mp)-1].NextFundingTime)
+			rate := fundingrate.LatestRateResponse{
+				TimeChecked: time.Now(),
+				Exchange:    b.Name,
+				Asset:       r.Asset,
+				Pair:        cp,
 				LatestRate: fundingrate.Rate{
 					Time: time.UnixMilli(mp[i].Time).Truncate(b.Features.Supports.FuturesCapabilities.FundingRateFrequency),
 					Rate: mp[i].LastFundingRate.Decimal(),
 				},
-				TimeOfNextRate: time.UnixMilli(mp[len(mp)-1].NextFundingTime),
 			}
+			if nft.Year() == rate.TimeChecked.Year() {
+				rate.TimeOfNextRate = nft
+			}
+			resp = append(resp, rate)
+		}
+		if len(resp) == 0 {
+			return nil, fmt.Errorf("%w %v %v", futures.ErrNotPerpetualFuture, r.Asset, r.Pair)
 		}
 		return resp, nil
 	}

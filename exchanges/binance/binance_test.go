@@ -2869,21 +2869,24 @@ func TestGetFundingRates(t *testing.T) {
 
 func TestGetLatestFundingRates(t *testing.T) {
 	t.Parallel()
+	cp := currency.NewPair(currency.SUSHI, currency.USDT)
 	_, err := b.GetLatestFundingRates(context.Background(), &fundingrate.LatestRateRequest{
 		Asset:                asset.USDTMarginedFutures,
-		Pair:                 currency.NewPair(currency.BTC, currency.USDT),
+		Pair:                 cp,
 		IncludePredictedRate: true,
 	})
 	if !errors.Is(err, common.ErrFunctionNotSupported) {
 		t.Error(err)
 	}
+	b.CurrencyPairs.EnablePair(asset.USDTMarginedFutures, cp)
 	_, err = b.GetLatestFundingRates(context.Background(), &fundingrate.LatestRateRequest{
 		Asset: asset.USDTMarginedFutures,
-		Pair:  currency.NewPair(currency.BTC, currency.USDT),
+		Pair:  cp,
 	})
 	if err != nil {
 		t.Error(err)
 	}
+
 	_, err = b.GetLatestFundingRates(context.Background(), &fundingrate.LatestRateRequest{
 		Asset: asset.CoinMarginedFutures,
 	})

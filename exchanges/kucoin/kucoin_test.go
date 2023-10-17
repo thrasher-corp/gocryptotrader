@@ -1187,14 +1187,10 @@ func TestGetFuturesPremiumIndex(t *testing.T) {
 
 func TestGetFuturesCurrentFundingRate(t *testing.T) {
 	t.Parallel()
-	ku.Verbose = true
-	resp, err := ku.GetFuturesCurrentFundingRate(context.Background(), "XBTUSDTM")
+	_, err := ku.GetFuturesCurrentFundingRate(context.Background(), "XBTUSDTM")
 	if err != nil {
 		t.Error("GetFuturesCurrentFundingRate() error", err)
 	}
-	t.Log(resp.TimePoint.Time().UTC())
-	t.Log(resp.TimePoint.Time().UTC().Add(time.Hour * 8))
-	time.Sleep(time.Second)
 }
 
 func TestGetFuturesServerTime(t *testing.T) {

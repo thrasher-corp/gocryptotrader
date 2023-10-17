@@ -1739,7 +1739,11 @@ func (k *Kraken) GetFuturesContractDetails(ctx context.Context, item asset.Item)
 		} else {
 			underlyingStr = underlyingBase[1]
 		}
-		usdIndex := strings.Index(underlyingStr, "usd")
+		usdIndex := strings.Index(strings.ToLower(underlyingStr), "usd")
+		if usdIndex <= 0 {
+			log.Warnf(log.ExchangeSys, "%v unable to find USD index in %v to process contract", k.Name, underlyingStr)
+			continue
+		}
 		underlying, err = currency.NewPairFromStrings(underlyingStr[0:usdIndex], underlyingStr[usdIndex:])
 		if err != nil {
 			return nil, err
@@ -1838,5 +1842,5 @@ func (k *Kraken) GetLatestFundingRates(ctx context.Context, r *fundingrate.Lates
 
 // IsPerpetualFutureCurrency ensures a given asset and currency is a perpetual future
 func (k *Kraken) IsPerpetualFutureCurrency(a asset.Item, cp currency.Pair) (bool, error) {
-	return cp.Base.Equal(currency.NewCode("pf")) && a == asset.Futures, nil
+	return cp.Base.Equal(currency.PF) && a == asset.Futures, nil
 }

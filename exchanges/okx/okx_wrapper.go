@@ -1548,7 +1548,7 @@ func (ok *Okx) getInstrumentsForOptions(ctx context.Context) ([]Instrument, erro
 // getInstrumentsForAsset returns the instruments for an asset type
 func (ok *Okx) getInstrumentsForAsset(ctx context.Context, a asset.Item) ([]Instrument, error) {
 	if !ok.SupportsAsset(a) {
-		return nil, fmt.Errorf("asset type of %s is not supported by %s", a, ok.Name)
+		return nil, fmt.Errorf("%w: %v", asset.ErrNotSupported, a)
 	}
 
 	var instType string

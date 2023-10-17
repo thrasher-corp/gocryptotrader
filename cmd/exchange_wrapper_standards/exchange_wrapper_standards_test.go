@@ -539,10 +539,7 @@ var excludedMethodNames = map[string]struct{}{
 	"FlushWebsocketChannels":         {}, // Unnecessary websocket test
 	"UnsubscribeToWebsocketChannels": {}, // Unnecessary websocket test
 	"SubscribeToWebsocketChannels":   {}, // Unnecessary websocket test
-	"GetOrderExecutionLimits":        {}, // Not widely supported/implemented feature
 	"UpdateCurrencyStates":           {}, // Not widely supported/implemented feature
-	"UpdateOrderExecutionLimits":     {}, // Not widely supported/implemented feature
-	"CheckOrderExecutionLimits":      {}, // Not widely supported/implemented feature
 	"CanTradePair":                   {}, // Not widely supported/implemented feature
 	"CanTrade":                       {}, // Not widely supported/implemented feature
 	"CanWithdraw":                    {}, // Not widely supported/implemented feature
@@ -597,6 +594,7 @@ var cryptoChainPerExchange = map[string]string{
 // acceptable errors do not throw test errors, see below for why
 var acceptableErrors = []error{
 	common.ErrFunctionNotSupported,       // Shows API cannot perform function and developer has recognised this
+	common.ErrNotYetImplemented,          // Shows API can perform function but developer has not implemented it yet
 	asset.ErrNotSupported,                // Shows that valid and invalid asset types are handled
 	request.ErrAuthRequestFailed,         // We must set authenticated requests properly in order to understand and better handle auth failures
 	order.ErrUnsupportedOrderType,        // Should be returned if an ordertype like ANY is requested and the implementation knows to throw this specific error
@@ -610,6 +608,10 @@ var acceptableErrors = []error{
 	deposit.ErrAddressNotFound,           // Is thrown when an address is not found due to the exchange requiring valid API keys
 	futures.ErrNotFuturesAsset,           // Is thrown when a futures function receives a non-futures asset
 	futures.ErrNotPerpetualFuture,        // Is thrown when a futures function receives a non-perpetual future
+	order.ErrExchangeLimitNotLoaded,      // Is thrown when the limits aren't loaded for a particular exchange, asset, pair
+	order.ErrCannotValidateAsset,         // Is thrown when attempting to get order limits from an asset that is not yet loaded
+	order.ErrCannotValidateBaseCurrency,  // Is thrown when attempting to get order limits from an base currency that is not yet loaded
+	order.ErrCannotValidateQuoteCurrency, // Is thrown when attempting to get order limits from an quote currency that is not yet loaded
 }
 
 // warningErrors will t.Log(err) when thrown to diagnose things, but not necessarily suggest
