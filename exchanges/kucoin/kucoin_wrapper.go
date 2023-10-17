@@ -292,7 +292,9 @@ func (ku *Kucoin) FetchTradablePairs(ctx context.Context, assetType asset.Item) 
 			if !myPairs[x].EnableTrading {
 				continue
 			}
-			cp, err = currency.NewPairFromString(strings.ToUpper(myPairs[x].Name))
+			// Symbol field must be used to generate pair as this is the symbol
+			// to fetch data from the API. e.g. BSV-USDT name is BCHSV-USDT as symbol.
+			cp, err = currency.NewPairFromString(strings.ToUpper(myPairs[x].Symbol))
 			if err != nil {
 				return nil, err
 			}
@@ -1593,7 +1595,7 @@ func (ku *Kucoin) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) 
 	limits := make([]order.MinMaxLevel, len(symbols))
 	for x := range symbols {
 		var pair currency.Pair
-		pair, err = currency.NewPairFromString(symbols[x].Name)
+		pair, err = currency.NewPairFromString(symbols[x].Symbol)
 		if err != nil {
 			return err
 		}
