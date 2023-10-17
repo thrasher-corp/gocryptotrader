@@ -76,6 +76,7 @@ type TickerData struct {
 	LastTradeRate float64 `json:"lastTradeRate,string"`
 	BidRate       float64 `json:"bidRate,string"`
 	AskRate       float64 `json:"askRate,string"`
+	UpdatedAt     time.Time
 }
 
 // TradeData stores trades data

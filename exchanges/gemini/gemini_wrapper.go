@@ -290,7 +290,8 @@ func (g *Gemini) FetchTradablePairs(ctx context.Context, a asset.Item) (currency
 	}
 	pairs := make([]currency.Pair, 0, len(details))
 	for i := range details {
-		if !strings.EqualFold(details[i].Status, "open") {
+		status := strings.ToLower(details[i].Status)
+		if status != "open" && status != "limit_only" {
 			continue
 		}
 		if !strings.EqualFold(details[i].ContractType, "vanilla") {
@@ -935,7 +936,8 @@ func (g *Gemini) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) e
 	}
 	resp := make([]order.MinMaxLevel, 0, len(details))
 	for i := range details {
-		if !strings.EqualFold(details[i].Status, "open") {
+		status := strings.ToLower(details[i].Status)
+		if status != "open" && status != "limit_only" {
 			continue
 		}
 		cp, err := currency.NewPairFromStrings(details[i].BaseCurrency, details[i].QuoteCurrency)
@@ -943,11 +945,11 @@ func (g *Gemini) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) e
 			return err
 		}
 		resp = append(resp, order.MinMaxLevel{
-			Pair:                   cp,
-			Asset:                  a,
-			PriceStepIncrementSize: details[i].TickSize,
-			MinimumBaseAmount:      details[i].MinOrderSize.Float64(),
-			QuoteStepIncrementSize: details[i].QuoteIncrement,
+			Pair:                    cp,
+			Asset:                   a,
+			AmountStepIncrementSize: details[i].TickSize,
+			MinimumBaseAmount:       details[i].MinOrderSize.Float64(),
+			QuoteStepIncrementSize:  details[i].QuoteIncrement,
 		})
 	}
 	return g.LoadLimits(resp)

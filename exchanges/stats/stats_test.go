@@ -12,11 +12,12 @@ const (
 )
 
 func TestLenByPrice(t *testing.T) {
+	t.Parallel()
 	p, err := currency.NewPairFromStrings("BTC", "USD")
 	if err != nil {
 		t.Fatal(err)
 	}
-	Items = []Item{
+	localItems := []Item{
 		{
 			Exchange:  testExchange,
 			Pair:      p,
@@ -26,17 +27,18 @@ func TestLenByPrice(t *testing.T) {
 		},
 	}
 
-	if ByPrice.Len(Items) < 1 {
+	if byPrice.Len(localItems) < 1 {
 		t.Error("stats LenByPrice() length not correct.")
 	}
 }
 
 func TestLessByPrice(t *testing.T) {
+	t.Parallel()
 	p, err := currency.NewPairFromStrings("BTC", "USD")
 	if err != nil {
 		t.Fatal(err)
 	}
-	Items = []Item{
+	localItems := []Item{
 		{
 			Exchange:  "alphapoint",
 			Pair:      p,
@@ -53,20 +55,21 @@ func TestLessByPrice(t *testing.T) {
 		},
 	}
 
-	if !ByPrice.Less(Items, 1, 0) {
+	if !byPrice.Less(localItems, 1, 0) {
 		t.Error("stats LessByPrice() incorrect return.")
 	}
-	if ByPrice.Less(Items, 0, 1) {
+	if byPrice.Less(localItems, 0, 1) {
 		t.Error("stats LessByPrice() incorrect return.")
 	}
 }
 
 func TestSwapByPrice(t *testing.T) {
+	t.Parallel()
 	p, err := currency.NewPairFromStrings("BTC", "USD")
 	if err != nil {
 		t.Fatal(err)
 	}
-	Items = []Item{
+	localItems := []Item{
 		{
 			Exchange:  "bitstamp",
 			Pair:      p,
@@ -83,31 +86,91 @@ func TestSwapByPrice(t *testing.T) {
 		},
 	}
 
-	ByPrice.Swap(Items, 0, 1)
-	if Items[0].Exchange != "bitfinex" || Items[1].Exchange != "bitstamp" {
+	byPrice.Swap(localItems, 0, 1)
+	if localItems[0].Exchange != "bitfinex" || localItems[1].Exchange != "bitstamp" {
 		t.Error("stats SwapByPrice did not swap values.")
 	}
 }
 
 func TestLenByVolume(t *testing.T) {
-	if ByVolume.Len(Items) != 2 {
+	t.Parallel()
+	p, err := currency.NewPairFromStrings("BTC", "USD")
+	if err != nil {
+		t.Fatal(err)
+	}
+	localItems := []Item{
+		{
+			Exchange:  "bitstamp",
+			Pair:      p,
+			AssetType: asset.Spot,
+			Price:     1324,
+			Volume:    5,
+		},
+		{
+			Exchange:  "bitfinex",
+			Pair:      p,
+			AssetType: asset.Spot,
+			Price:     7863,
+			Volume:    20,
+		},
+	}
+
+	if byVolume.Len(localItems) != 2 {
 		t.Error("stats lenByVolume did not swap values.")
 	}
 }
 
 func TestLessByVolume(t *testing.T) {
-	if !ByVolume.Less(Items, 1, 0) {
-		t.Error("stats LessByVolume() incorrect return.")
+	t.Parallel()
+	p, err := currency.NewPairFromStrings("BTC", "USD")
+	if err != nil {
+		t.Fatal(err)
 	}
-	if ByVolume.Less(Items, 0, 1) {
-		t.Error("stats LessByVolume() incorrect return.")
+	localItems := []Item{
+		{
+			Exchange:  "bitstamp",
+			Pair:      p,
+			AssetType: asset.Spot,
+			Price:     1324,
+			Volume:    5,
+		},
+		{
+			Exchange:  "bitfinex",
+			Pair:      p,
+			AssetType: asset.Spot,
+			Price:     7863,
+			Volume:    20,
+		},
+	}
+	if !byVolume.Less(localItems, 0, 1) {
+		t.Error("localItems[0].Volume should be less than localItems[1].Volume")
 	}
 }
 
 func TestSwapByVolume(t *testing.T) {
-	ByPrice.Swap(Items, 0, 1)
-
-	if Items[1].Exchange != "bitfinex" || Items[0].Exchange != "bitstamp" {
+	t.Parallel()
+	p, err := currency.NewPairFromStrings("BTC", "USD")
+	if err != nil {
+		t.Fatal(err)
+	}
+	localItems := []Item{
+		{
+			Exchange:  "bitstamp",
+			Pair:      p,
+			AssetType: asset.Spot,
+			Price:     1324,
+			Volume:    5,
+		},
+		{
+			Exchange:  "bitfinex",
+			Pair:      p,
+			AssetType: asset.Spot,
+			Price:     7863,
+			Volume:    20,
+		},
+	}
+	byVolume.Swap(localItems, 0, 1)
+	if localItems[0].Exchange != "bitfinex" || localItems[1].Exchange != "bitstamp" {
 		t.Error("stats SwapByVolume did not swap values.")
 	}
 }

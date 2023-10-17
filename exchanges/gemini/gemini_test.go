@@ -1282,11 +1282,19 @@ func TestSetExchangeOrderExecutionLimits(t *testing.T) {
 	if !errors.Is(err, asset.ErrNotSupported) {
 		t.Fatal(err)
 	}
-	limit, err := g.GetOrderExecutionLimits(asset.Spot, currency.NewBTCUSD())
+
+	availPairs, err := g.GetAvailablePairs(asset.Spot)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if limit == (order.MinMaxLevel{}) {
-		t.Fatal("exchange limit should be loaded")
+	for x := range availPairs {
+		var limit order.MinMaxLevel
+		limit, err = g.GetOrderExecutionLimits(asset.Spot, availPairs[x])
+		if err != nil {
+			t.Fatal(err, availPairs[x])
+		}
+		if limit == (order.MinMaxLevel{}) {
+			t.Fatal("exchange limit should be loaded")
+		}
 	}
 }
