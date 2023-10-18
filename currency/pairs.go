@@ -303,7 +303,8 @@ func (p Pairs) GetRandomPair() (Pair, error) {
 }
 
 // DeriveFrom matches symbol string to the available pairs list when no
-// delimiter is supplied.
+// delimiter is supplied. WARNING: This is not optimised and should only be used
+// for one off processes.
 func (p Pairs) DeriveFrom(symbol string) (Pair, error) {
 	if len(p) == 0 {
 		return EMPTYPAIR, ErrCurrencyPairsEmpty

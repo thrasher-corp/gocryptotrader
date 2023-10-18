@@ -78,17 +78,18 @@ func (d *Depth) Retrieve() (*Base, error) {
 		return nil, d.validationError
 	}
 	return &Base{
-		Bids:             d.bids.retrieve(0),
-		Asks:             d.asks.retrieve(0),
-		Exchange:         d.exchange,
-		Asset:            d.asset,
-		Pair:             d.pair,
-		LastUpdated:      d.lastUpdated,
-		LastUpdateID:     d.lastUpdateID,
-		PriceDuplication: d.priceDuplication,
-		IsFundingRate:    d.isFundingRate,
-		VerifyOrderbook:  d.VerifyOrderbook,
-		MaxDepth:         d.maxDepth,
+		Bids:                   d.bids.retrieve(0),
+		Asks:                   d.asks.retrieve(0),
+		Exchange:               d.exchange,
+		Asset:                  d.asset,
+		Pair:                   d.pair,
+		LastUpdated:            d.lastUpdated,
+		LastUpdateID:           d.lastUpdateID,
+		PriceDuplication:       d.priceDuplication,
+		IsFundingRate:          d.isFundingRate,
+		VerifyOrderbook:        d.VerifyOrderbook,
+		MaxDepth:               d.maxDepth,
+		ChecksumStringRequired: d.checksumStringRequired,
 	}, nil
 }
 
@@ -282,17 +283,18 @@ func (d *Depth) UpdateInsertByID(update *Update) error {
 func (d *Depth) AssignOptions(b *Base) {
 	d.m.Lock()
 	d.options = options{
-		exchange:         b.Exchange,
-		pair:             b.Pair,
-		asset:            b.Asset,
-		lastUpdated:      b.LastUpdated,
-		lastUpdateID:     b.LastUpdateID,
-		priceDuplication: b.PriceDuplication,
-		isFundingRate:    b.IsFundingRate,
-		VerifyOrderbook:  b.VerifyOrderbook,
-		restSnapshot:     b.RestSnapshot,
-		idAligned:        b.IDAlignment,
-		maxDepth:         b.MaxDepth,
+		exchange:               b.Exchange,
+		pair:                   b.Pair,
+		asset:                  b.Asset,
+		lastUpdated:            b.LastUpdated,
+		lastUpdateID:           b.LastUpdateID,
+		priceDuplication:       b.PriceDuplication,
+		isFundingRate:          b.IsFundingRate,
+		VerifyOrderbook:        b.VerifyOrderbook,
+		restSnapshot:           b.RestSnapshot,
+		idAligned:              b.IDAlignment,
+		maxDepth:               b.MaxDepth,
+		checksumStringRequired: b.ChecksumStringRequired,
 	}
 	d.m.Unlock()
 }
