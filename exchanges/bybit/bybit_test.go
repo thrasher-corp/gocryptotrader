@@ -1075,7 +1075,7 @@ func TestPlaceBatchOrder(t *testing.T) {
 		t.Fatalf("expected %v, got %v", errCategoryNotSet, err)
 	}
 	_, err = b.PlaceBatchOrder(context.Background(), &PlaceBatchOrderParam{
-		Category: "spot",
+		Category: "linear",
 	})
 	if !errors.Is(err, errNoOrderPassed) {
 		t.Fatalf("expected %v, got %v", errNoOrderPassed, err)
@@ -1148,31 +1148,29 @@ func TestBatchAmendOrder(t *testing.T) {
 		t.Skip("skipping authenticated function for mock testing")
 	}
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
-	_, err := b.BatchAmendOrder(context.Background(), nil)
+	_, err := b.BatchAmendOrder(context.Background(), "linear", nil)
 	if !errors.Is(err, errNilArgument) {
 		t.Fatalf("expected %v, got %v", errNilArgument, err)
 	}
-	_, err = b.BatchAmendOrder(context.Background(), &BatchAmendOrderParams{})
+	_, err = b.BatchAmendOrder(context.Background(), "", []BatchAmendOrderParamItem{
+		{
+			Symbol:                 optionsTradablePair,
+			OrderImpliedVolatility: "6.8",
+			OrderID:                "b551f227-7059-4fb5-a6a6-699c04dbd2f2",
+		}})
 	if !errors.Is(err, errCategoryNotSet) {
 		t.Fatalf("expected %v, got %v", errCategoryNotSet, err)
 	}
-	_, err = b.BatchAmendOrder(context.Background(), &BatchAmendOrderParams{Category: "spot"})
-	if !errors.Is(err, errNoOrderPassed) {
-		t.Fatalf("expected %v, got %v", errNoOrderPassed, err)
-	}
-	_, err = b.BatchAmendOrder(context.Background(), &BatchAmendOrderParams{
-		Category: "option",
-		Request: []BatchAmendOrderParamItem{
-			{
-				Symbol:                 optionsTradablePair,
-				OrderImpliedVolatility: "6.8",
-				OrderID:                "b551f227-7059-4fb5-a6a6-699c04dbd2f2",
-			},
-			{
-				Symbol:  optionsTradablePair,
-				Price:   650,
-				OrderID: "fa6a595f-1a57-483f-b9d3-30e9c8235a52",
-			},
+	_, err = b.BatchAmendOrder(context.Background(), "option", []BatchAmendOrderParamItem{
+		{
+			Symbol:                 optionsTradablePair,
+			OrderImpliedVolatility: "6.8",
+			OrderID:                "b551f227-7059-4fb5-a6a6-699c04dbd2f2",
+		},
+		{
+			Symbol:  optionsTradablePair,
+			Price:   650,
+			OrderID: "fa6a595f-1a57-483f-b9d3-30e9c8235a52",
 		},
 	})
 	if err != nil {

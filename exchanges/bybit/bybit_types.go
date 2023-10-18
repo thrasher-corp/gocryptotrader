@@ -407,9 +407,13 @@ type CancelAllResponse struct {
 type CancelAllOrdersParam struct {
 	Category    string        `json:"category"`
 	Symbol      currency.Pair `json:"symbol"`
-	OrderFilter string        `json:"orderFilter,omitempty"` // Valid for spot only. Order,tpslOrder. If not passed, Order by default
 	BaseCoin    string        `json:"baseCoin,omitempty"`
 	SettleCoin  string        `json:"settleCoin,omitempty"`
+	OrderFilter string        `json:"orderFilter,omitempty"` // Valid for spot only. Order,tpslOrder. If not passed, Order by default
+
+	// Possible value: Stop. Only used for category=linear or inverse and orderFilter=StopOrder,
+	// you can cancel conditional orders except TP/SL order and Trailing stop orders with this param
+	StopOrderType string `json:"stopOrderType,omitempty"`
 }
 
 // PlaceBatchOrderParam represents a parameter for placing batch orders

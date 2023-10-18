@@ -534,13 +534,13 @@ func (by *Bybit) PlaceOrder(ctx context.Context, arg *PlaceOrderParams) (*OrderR
 		return nil, order.ErrAmountBelowMin
 	}
 	switch arg.TriggerDirection {
-	case 0, 1, 2:
+	case 0, 1, 2: // 0: None, 1: triggered when market price rises to triggerPrice, 2: triggered when market price falls to triggerPrice
 	default:
 		return nil, fmt.Errorf("%w, triggerDirection: %d", errInvalidTriggerDirection, arg.TriggerDirection)
 	}
 	if arg.OrderFilter != "" && arg.Category == cSpot {
 		switch arg.OrderFilter {
-		case "Order", "tpslOrder":
+		case "Order", "tpslOrder", "StopOrder":
 		default:
 			return nil, fmt.Errorf("%w, orderFilter=%s", errInvalidOrderFilter, arg.OrderFilter)
 		}
@@ -643,6 +643,9 @@ func (by *Bybit) CancelAllTradeOrders(ctx context.Context, arg *CancelAllOrdersP
 	if err != nil {
 		return nil, err
 	}
+	if arg.OrderFilter != "" && (arg.Category != "linear" && arg.Category != "inverse") {
+		return nil, fmt.Errorf("%w, only used for category=linear or inverse", errInvalidOrderFilter)
+	}
 	var resp CancelAllResponse
 	return resp.List, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, "/v5/order/cancel-all", nil, arg, &resp, calcelAllEPL)
 }
@@ -695,7 +698,10 @@ func (by *Bybit) PlaceBatchOrder(ctx context.Context, arg *PlaceBatchOrderParam)
 	if arg == nil {
 		return nil, errNilArgument
 	}
-	if arg.Category != cOption && arg.Category != cLinear {
+	switch {
+	case arg.Category == "":
+		return nil, errCategoryNotSet
+	case arg.Category != cOption && arg.Category != cLinear:
 		return nil, fmt.Errorf("%w, only 'option' and 'linear' categories are allowed", errInvalidCategory)
 	}
 	if len(arg.Request) == 0 {
@@ -723,26 +729,29 @@ func (by *Bybit) PlaceBatchOrder(ctx context.Context, arg *PlaceBatchOrderParam)
 }
 
 // BatchAmendOrder represents a batch amend order.
-func (by *Bybit) BatchAmendOrder(ctx context.Context, arg *BatchAmendOrderParams) (*BatchOrderResponse, error) {
-	if arg == nil {
+func (by *Bybit) BatchAmendOrder(ctx context.Context, category string, args []BatchAmendOrderParamItem) (*BatchOrderResponse, error) {
+	if len(args) == 0 {
 		return nil, errNilArgument
 	}
-	if arg.Category != cOption {
+	switch {
+	case category == "":
+		return nil, errCategoryNotSet
+	case category != cOption:
 		return nil, fmt.Errorf("%w, only 'option' category is allowed", errInvalidCategory)
 	}
-	if len(arg.Request) == 0 {
-		return nil, errNoOrderPassed
-	}
-	for a := range arg.Request {
-		if arg.Request[a].OrderID == "" && arg.Request[a].OrderLinkID == "" {
+	for a := range args {
+		if args[a].OrderID == "" && args[a].OrderLinkID == "" {
 			return nil, errEitherOrderIDOROrderLinkIDRequired
 		}
-		if arg.Request[a].Symbol.IsEmpty() {
+		if args[a].Symbol.IsEmpty() {
 			return nil, currency.ErrCurrencyPairEmpty
 		}
 	}
 	var resp *BatchOrderResponse
-	return resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, "/v5/order/amend-batch", nil, arg, &resp, amendBatchOrderEPL)
+	return resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, "/v5/order/amend-batch", nil, &BatchAmendOrderParams{
+		Category: category,
+		Request:  args,
+	}, &resp, amendBatchOrderEPL)
 }
 
 // CancelBatchOrder cancel more than one open order in a single request.
