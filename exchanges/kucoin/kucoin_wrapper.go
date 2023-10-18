@@ -1329,7 +1329,7 @@ func (ku *Kucoin) GetFeeByType(ctx context.Context, feeBuilder *exchange.FeeBuil
 	switch feeBuilder.FeeType {
 	case exchange.CryptocurrencyWithdrawalFee,
 		exchange.CryptocurrencyTradeFee:
-		fee, err := ku.GetTradingFee(ctx, feeBuilder.Pair.String())
+		fee, err := ku.GetTradingFee(ctx, currency.Pairs{feeBuilder.Pair})
 		if err != nil {
 			return 0, err
 		}

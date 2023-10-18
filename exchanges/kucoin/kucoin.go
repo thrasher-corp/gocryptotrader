@@ -137,6 +137,8 @@ const (
 	kucoinTradingFee = "/v1/trade-fees"
 )
 
+var errMaximumOf10Symbols = errors.New("maximum of 10 symbols")
+
 // GetSymbols gets pairs details on the exchange
 func (ku *Kucoin) GetSymbols(ctx context.Context, ccy string) ([]SymbolInfo, error) {
 	params := url.Values{}
@@ -1643,13 +1645,16 @@ func (ku *Kucoin) GetBasicFee(ctx context.Context, currencyType string) (*Fees, 
 }
 
 // GetTradingFee get fee rate of trading pairs
-func (ku *Kucoin) GetTradingFee(ctx context.Context, symbols string) ([]Fees, error) {
-	params := url.Values{}
-	if symbols != "" {
-		params.Set("symbols", symbols)
+func (ku *Kucoin) GetTradingFee(ctx context.Context, pairs currency.Pairs) ([]Fees, error) {
+	if len(pairs) == 0 {
+		return nil, currency.ErrCurrencyPairsEmpty
 	}
+	if len(pairs) > 10 {
+		return nil, errMaximumOf10Symbols
+	}
+	path := kucoinTradingFee + "?symbols=" + pairs.Upper().Join()
 	var resp []Fees
-	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, defaultSpotEPL, http.MethodGet, common.EncodeURLValues(kucoinTradingFee, params), nil, &resp)
+	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, defaultSpotEPL, http.MethodGet, path, nil, &resp)
 }
 
 // SendHTTPRequest sends an unauthenticated HTTP request

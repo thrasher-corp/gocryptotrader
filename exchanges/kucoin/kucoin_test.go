@@ -30,9 +30,6 @@ const (
 	apiSecret               = ""
 	passPhrase              = ""
 	canManipulateRealOrders = false
-
-	assetNotEnabled              = "asset %v not enabled"
-	spotAndMarginAssetNotEnabled = "neither spot nor margin asset is enabled"
 )
 
 var (
@@ -1090,9 +1087,39 @@ func TestGetTradingFee(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ku)
 
-	_, err := ku.GetTradingFee(context.Background(), "BTC-USDT")
+	_, err := ku.GetTradingFee(context.Background(), nil)
+	if !errors.Is(err, currency.ErrCurrencyPairsEmpty) {
+		t.Fatalf("received %v, expected %v", err, currency.ErrCurrencyPairsEmpty)
+	}
+
+	avail, err := ku.GetAvailablePairs(asset.Spot)
 	if err != nil {
-		t.Error("GetTradingFee() error", err)
+		t.Fatal(err)
+	}
+
+	pairs := currency.Pairs{avail[0]}
+	btcusdTradingFee, err := ku.GetTradingFee(context.Background(), pairs)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received %v, expected %v", err, nil)
+	}
+
+	if len(btcusdTradingFee) != 1 {
+		t.Error("GetTradingFee() error, expected 1 pair")
+	}
+
+	pairs = append(pairs, avail[1:11]...)
+	_, err = ku.GetTradingFee(context.Background(), pairs)
+	if !errors.Is(err, errMaximumOf10Symbols) {
+		t.Fatalf("received %v, expected %v", err, errMaximumOf10Symbols)
+	}
+
+	got, err := ku.GetTradingFee(context.Background(), pairs[:10])
+	if !errors.Is(err, nil) {
+		t.Fatalf("received %v, expected %v", err, nil)
+	}
+
+	if len(got) != 10 {
+		t.Error("GetTradingFee() error, expected 10 pairss")
 	}
 }
 
