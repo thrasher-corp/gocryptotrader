@@ -87,26 +87,27 @@ var (
 // prestart management of Portfolio, Communications, Webserver and Enabled
 // Exchanges
 type Config struct {
-	Name                 string                    `json:"name"`
-	DataDirectory        string                    `json:"dataDirectory"`
-	EncryptConfig        int                       `json:"encryptConfig"`
-	GlobalHTTPTimeout    time.Duration             `json:"globalHTTPTimeout"`
-	Database             database.Config           `json:"database"`
-	Logging              log.Config                `json:"logging"`
-	SyncManagerConfig    SyncManagerConfig         `json:"syncManager"`
-	ConnectionMonitor    ConnectionMonitorConfig   `json:"connectionMonitor"`
-	OrderManager         OrderManager              `json:"orderManager"`
-	DataHistoryManager   DataHistoryManager        `json:"dataHistoryManager"`
-	CurrencyStateManager CurrencyStateManager      `json:"currencyStateManager"`
-	Profiler             Profiler                  `json:"profiler"`
-	NTPClient            NTPClientConfig           `json:"ntpclient"`
-	GCTScript            gctscript.Config          `json:"gctscript"`
-	Currency             currency.Config           `json:"currencyConfig"`
-	Communications       base.CommunicationsConfig `json:"communications"`
-	RemoteControl        RemoteControlConfig       `json:"remoteControl"`
-	Portfolio            portfolio.Base            `json:"portfolioAddresses"`
-	Exchanges            []Exchange                `json:"exchanges"`
-	BankAccounts         []banking.Account         `json:"bankAccounts"`
+	Name                             string                    `json:"name"`
+	DataDirectory                    string                    `json:"dataDirectory"`
+	EncryptConfig                    int                       `json:"encryptConfig"`
+	GlobalHTTPTimeout                time.Duration             `json:"globalHTTPTimeout"`
+	Database                         database.Config           `json:"database"`
+	Logging                          log.Config                `json:"logging"`
+	SyncManagerConfig                SyncManagerConfig         `json:"syncManager"`
+	FeeSynchronisationManagerEnabled *bool                     `json:"feeSynchronisationManagerEnabled"`
+	ConnectionMonitor                ConnectionMonitorConfig   `json:"connectionMonitor"`
+	OrderManager                     OrderManager              `json:"orderManager"`
+	DataHistoryManager               DataHistoryManager        `json:"dataHistoryManager"`
+	CurrencyStateManager             CurrencyStateManager      `json:"currencyStateManager"`
+	Profiler                         Profiler                  `json:"profiler"`
+	NTPClient                        NTPClientConfig           `json:"ntpclient"`
+	GCTScript                        gctscript.Config          `json:"gctscript"`
+	Currency                         currency.Config           `json:"currencyConfig"`
+	Communications                   base.CommunicationsConfig `json:"communications"`
+	RemoteControl                    RemoteControlConfig       `json:"remoteControl"`
+	Portfolio                        portfolio.Base            `json:"portfolioAddresses"`
+	Exchanges                        []Exchange                `json:"exchanges"`
+	BankAccounts                     []banking.Account         `json:"bankAccounts"`
 
 	// Deprecated config settings, will be removed at a future date
 	Webserver           *WebserverConfig      `json:"webserver,omitempty"`

@@ -269,6 +269,10 @@ func validateSettings(b *Engine, s *Settings, flagSet FlagSet) {
 				err)
 		}
 	}
+
+	if b.Config.FeeSynchronisationManagerEnabled != nil && *b.Config.FeeSynchronisationManagerEnabled {
+		b.Settings.EnableFeeSychronisationManager = true
+	}
 }
 
 // PrintLoadedSettings logs loaded settings.
@@ -580,6 +584,12 @@ func (bot *Engine) Start() error {
 					CurrencyStateManagementName,
 					err)
 			}
+		}
+	}
+
+	if bot.Settings.EnableFeeSychronisationManager {
+		if err := bot.StartFeeSynchronisationManager(context.TODO()); err != nil {
+			gctlog.Errorf(gctlog.Global, "Fee synchronisation manager unable to start: %s", err)
 		}
 	}
 

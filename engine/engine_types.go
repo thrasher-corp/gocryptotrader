@@ -31,35 +31,36 @@ type Settings struct {
 
 // CoreSettings defines settings related to core engine operations
 type CoreSettings struct {
-	EnableDryRun                bool
-	EnableAllExchanges          bool
-	EnableAllPairs              bool
-	EnableCoinmarketcapAnalysis bool
-	EnablePortfolioManager      bool
-	EnableDataHistoryManager    bool
-	PortfolioManagerDelay       time.Duration
-	EnableGRPC                  bool
-	EnableGRPCProxy             bool
-	EnableGRPCShutdown          bool
-	EnableWebsocketRPC          bool
-	EnableDeprecatedRPC         bool
-	EnableCommsRelayer          bool
-	EnableExchangeSyncManager   bool
-	EnableDepositAddressManager bool
-	EnableEventManager          bool
-	EnableOrderManager          bool
-	EnableConnectivityMonitor   bool
-	EnableDatabaseManager       bool
-	EnableGCTScriptManager      bool
-	EnableNTPClient             bool
-	EnableWebsocketRoutine      bool
-	EnableCurrencyStateManager  bool
-	EventManagerDelay           time.Duration
-	EnableFuturesTracking       bool
-	Verbose                     bool
-	EnableDispatcher            bool
-	DispatchMaxWorkerAmount     int
-	DispatchJobsLimit           int
+	EnableDryRun                   bool
+	EnableAllExchanges             bool
+	EnableAllPairs                 bool
+	EnableCoinmarketcapAnalysis    bool
+	EnablePortfolioManager         bool
+	EnableDataHistoryManager       bool
+	PortfolioManagerDelay          time.Duration
+	EnableGRPC                     bool
+	EnableGRPCProxy                bool
+	EnableGRPCShutdown             bool
+	EnableWebsocketRPC             bool
+	EnableDeprecatedRPC            bool
+	EnableCommsRelayer             bool
+	EnableExchangeSyncManager      bool
+	EnableDepositAddressManager    bool
+	EnableEventManager             bool
+	EnableOrderManager             bool
+	EnableConnectivityMonitor      bool
+	EnableDatabaseManager          bool
+	EnableGCTScriptManager         bool
+	EnableNTPClient                bool
+	EnableWebsocketRoutine         bool
+	EnableCurrencyStateManager     bool
+	EnableFeeSychronisationManager bool
+	EventManagerDelay              time.Duration
+	EnableFuturesTracking          bool
+	Verbose                        bool
+	EnableDispatcher               bool
+	DispatchMaxWorkerAmount        int
+	DispatchJobsLimit              int
 }
 
 // ExchangeSyncerSettings defines settings for the exchange pair synchronisation

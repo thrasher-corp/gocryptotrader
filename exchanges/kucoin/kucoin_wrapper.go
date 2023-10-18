@@ -1570,6 +1570,14 @@ func (ku *Kucoin) GetFuturesContractDetails(ctx context.Context, item asset.Item
 func (ku *Kucoin) SynchroniseFees(ctx context.Context, a asset.Item) error {
 	const defaultFeeRequestWindow = 10
 
+	if !ku.SupportsAsset(a) {
+		return fmt.Errorf("%w %v", asset.ErrNotSupported, a)
+	}
+
+	if a != asset.Spot {
+		return common.ErrNotYetImplemented
+	}
+
 	enabled, err := ku.Base.GetEnabledPairs(a)
 	if err != nil {
 		return err
@@ -1586,7 +1594,7 @@ func (ku *Kucoin) SynchroniseFees(ctx context.Context, a asset.Item) error {
 			break
 		}
 
-		batch, err := ku.GetTradingFee(request.WithVerbose(ctx), enabled[left:right])
+		batch, err := ku.GetTradingFee(ctx, enabled[left:right])
 		if err != nil {
 			return err
 		}

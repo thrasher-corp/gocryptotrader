@@ -9,11 +9,14 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/fee"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
@@ -2461,5 +2464,39 @@ func TestGetFuturesContractDetails(t *testing.T) {
 	_, err = ku.GetFuturesContractDetails(context.Background(), asset.Futures)
 	if !errors.Is(err, nil) {
 		t.Error(err)
+	}
+}
+
+func TestSynchroniseFees(t *testing.T) {
+	t.Parallel()
+	err := ku.SynchroniseFees(context.Background(), asset.Binary)
+	if !errors.Is(err, asset.ErrNotSupported) {
+		t.Error(err)
+	}
+
+	err = ku.SynchroniseFees(context.Background(), asset.Futures)
+	if !errors.Is(err, common.ErrNotYetImplemented) {
+		t.Error(err)
+	}
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, ku)
+
+	err = ku.SynchroniseFees(context.Background(), asset.Spot)
+	if err != nil {
+		t.Error(err)
+	}
+
+	enabled, err := ku.GetEnabledPairs(asset.Spot)
+	if err != nil {
+		t.Error(err)
+	}
+
+	for x := range enabled {
+		var rates fee.Rates
+		rates, err = ku.GetPercentageFeeRates(enabled[x], asset.Spot)
+		if err != nil {
+			t.Fatal(err)
+		}
+		assert.NotEmpty(t, rates, "fee rates should not be empty")
 	}
 }

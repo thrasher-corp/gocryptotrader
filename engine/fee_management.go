@@ -15,17 +15,21 @@ import (
 func (e *Engine) StartFeeSynchronisationManager(ctx context.Context) error {
 	go func() {
 		timer := time.NewTimer(0)
+		firstRun := true
 		for range timer.C {
+			log.Infof(log.ExchangeSys, "Synchronisinng exchange fees for %d exchanges\n", len(e.GetExchanges()))
 			exchs := e.GetExchanges()
 			for i := range exchs {
 				if !exchs[i].IsRESTAuthenticationSupported() && !exchs[i].IsWebsocketAuthenticationSupported() {
 					continue
 				}
 
-				err := exchs[i].UpdateTradablePairs(ctx, false)
-				if err != nil {
-					log.Errorf(log.ExchangeSys, "Failed to update tradable pairs for %s: %v\n", exchs[i].GetName(), err)
-					continue
+				if !firstRun {
+					err := exchs[i].UpdateTradablePairs(ctx, false)
+					if err != nil {
+						log.Errorf(log.ExchangeSys, "Failed to update tradable pairs for %s: %v\n", exchs[i].GetName(), err)
+						continue
+					}
 				}
 
 				assets := exchs[i].GetAssetTypes(true)
@@ -37,6 +41,8 @@ func (e *Engine) StartFeeSynchronisationManager(ctx context.Context) error {
 				}
 			}
 			timer.Reset(time.Until(time.Now().Truncate(time.Hour).Add(time.Hour))) // Sync once per hour
+			firstRun = false
+			log.Infoln(log.ExchangeSys, "Exchange fee synchronisation has been completed.")
 		}
 	}()
 	return nil

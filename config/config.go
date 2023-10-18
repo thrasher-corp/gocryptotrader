@@ -753,6 +753,16 @@ func (c *Config) CheckSyncManagerConfig() {
 	}
 }
 
+// CheckFeeSynchronisationManagerEnabled checks to see if the fee sync manager
+// is not set and then defaults it to true.
+func (c *Config) CheckFeeSynchronisationManagerEnabled() {
+	m.Lock()
+	defer m.Unlock()
+	if c.FeeSynchronisationManagerEnabled == nil {
+		c.FeeSynchronisationManagerEnabled = convert.BoolPtr(true)
+	}
+}
+
 // GetEnabledPairs returns a list of currency pairs for a specific exchange
 func (c *Config) GetEnabledPairs(exchName string, assetType asset.Item) (currency.Pairs, error) {
 	exchCfg, err := c.GetExchangeConfig(exchName)
@@ -1791,6 +1801,7 @@ func (c *Config) CheckConfig() error {
 	c.CheckBankAccountConfig()
 	c.CheckRemoteControlConfig()
 	c.CheckSyncManagerConfig()
+	c.CheckFeeSynchronisationManagerEnabled()
 
 	err = c.CheckCurrencyConfigValues()
 	if err != nil {
