@@ -17,6 +17,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/collateral"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/currencystate"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/fee"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
@@ -1730,4 +1731,15 @@ func (b *Base) SetLeverage(_ context.Context, _ asset.Item, _ currency.Pair, _ m
 // GetLeverage gets the account's initial leverage for the asset type and pair
 func (b *Base) GetLeverage(_ context.Context, _ asset.Item, _ currency.Pair, _ margin.Type, _ order.Side) (float64, error) {
 	return -1, common.ErrNotYetImplemented
+}
+
+// SynchroniseFees updates the fee schedule for the exchange
+func (b *Base) SynchroniseFees(ctx context.Context, a asset.Item) error {
+	return common.ErrNotYetImplemented
+}
+
+// GetPercentageFeeRates returns the maker and taker percentage fee rates for
+// the asset.
+func (b *Base) GetPercentageFeeRates(pair currency.Pair, a asset.Item) (fee.Rates, error) {
+	return fee.Rates{}, common.ErrNotYetImplemented
 }

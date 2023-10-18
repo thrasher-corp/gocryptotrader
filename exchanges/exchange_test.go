@@ -3089,3 +3089,17 @@ func TestGetStandardConfig(t *testing.T) {
 		t.Fatalf("received: '%v' but expected: '%v'", cfg.WebsocketTrafficTimeout, config.DefaultWebsocketTrafficTimeout)
 	}
 }
+
+func TestSynchroniseFees(t *testing.T) {
+	t.Parallel()
+	if err := (&Base{}).SynchroniseFees(context.Background(), asset.Spot); !errors.Is(err, common.ErrNotYetImplemented) {
+		t.Errorf("received: %v, expected: %v", err, common.ErrNotYetImplemented)
+	}
+}
+
+func TestGetPercentageFeeRates(t *testing.T) {
+	t.Parallel()
+	if _, err := (&Base{}).GetPercentageFeeRates(currency.EMPTYPAIR, asset.Spot); !errors.Is(err, common.ErrNotYetImplemented) {
+		t.Errorf("received: %v, expected: %v", err, common.ErrNotYetImplemented)
+	}
+}

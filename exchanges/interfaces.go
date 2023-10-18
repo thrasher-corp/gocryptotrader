@@ -12,6 +12,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/collateral"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/currencystate"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/fee"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
@@ -48,7 +49,14 @@ type IBotExchange interface {
 	GetAssetTypes(enabled bool) asset.Items
 	GetRecentTrades(ctx context.Context, p currency.Pair, a asset.Item) ([]trade.Data, error)
 	GetHistoricTrades(ctx context.Context, p currency.Pair, a asset.Item, startTime, endTime time.Time) ([]trade.Data, error)
+
 	GetFeeByType(ctx context.Context, f *FeeBuilder) (float64, error)
+	// SynchroniseFees updates the fee schedule for the exchange
+	SynchroniseFees(ctx context.Context, a asset.Item) error
+	// GetPercentageFeeRates returns the maker and taker percentage fee rates
+	// for the asset
+	GetPercentageFeeRates(pair currency.Pair, a asset.Item) (fee.Rates, error)
+
 	GetLastPairsUpdateTime() int64
 	GetWithdrawPermissions() uint32
 	FormatWithdrawPermissions() string

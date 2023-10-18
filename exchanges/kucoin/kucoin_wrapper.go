@@ -17,6 +17,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/fee"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
@@ -1563,4 +1564,52 @@ func (ku *Kucoin) GetFuturesContractDetails(ctx context.Context, item asset.Item
 		}
 	}
 	return resp, nil
+}
+
+// SynchroniseFees updates the fee schedule for the exchange
+func (ku *Kucoin) SynchroniseFees(ctx context.Context, a asset.Item) error {
+	const defaultFeeRequestWindow = 10
+
+	enabled, err := ku.Base.GetEnabledPairs(a)
+	if err != nil {
+		return err
+	}
+
+	var fees []Fees
+	for left := 0; left < len(enabled); left += defaultFeeRequestWindow {
+		right := left + defaultFeeRequestWindow
+		if right > len(enabled) {
+			right = len(enabled)
+		}
+
+		if len(enabled[left:right]) == 0 {
+			break
+		}
+
+		batch, err := ku.GetTradingFee(request.WithVerbose(ctx), enabled[left:right])
+		if err != nil {
+			return err
+		}
+
+		fees = append(fees, batch...)
+	}
+
+	for x := range fees {
+		var pair currency.Pair
+		pair, err = currency.NewPairFromString(fees[x].Symbol)
+		if err != nil {
+			return err
+		}
+		if !enabled.Contains(pair, true) {
+			continue
+		}
+		fee.Load(ku.Name, pair, a, fees[x].MakerFeeRate, fees[x].TakerFeeRate)
+	}
+	return nil
+}
+
+// GetPercentageFeeRates returns the maker and taker percentage fee rates for
+// the asset.
+func (ku *Kucoin) GetPercentageFeeRates(pair currency.Pair, a asset.Item) (fee.Rates, error) {
+	return fee.RetrievePercentageRates(ku.Name, pair, a)
 }
