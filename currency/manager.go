@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
@@ -29,9 +30,12 @@ var (
 	ErrPairManagerNotInitialised = errors.New("pair manager not initialised")
 	// ErrAssetNotFound is returned when an asset does not exist in the pairstore
 	ErrAssetNotFound = errors.New("asset type not found in pair store")
+	// ErrSymbolStringEmpty is an error when a symbol string is empty
+	ErrSymbolStringEmpty = errors.New("symbol string is empty")
 
-	errPairStoreIsNil  = errors.New("pair store is nil")
-	errPairFormatIsNil = errors.New("pair format is nil")
+	errPairStoreIsNil   = errors.New("pair store is nil")
+	errPairFormatIsNil  = errors.New("pair format is nil")
+	errPairMatcherIsNil = errors.New("pair matcher is nil")
 )
 
 // GetAssetTypes returns a list of stored asset types
@@ -64,6 +68,24 @@ func (p *PairsManager) Get(a asset.Item) (*PairStore, error) {
 	return c.copy()
 }
 
+// Match returns a currency pair based on the supplied symbol and asset type
+func (p *PairsManager) Match(symbol string, a asset.Item) (Pair, error) {
+	if symbol == "" {
+		return EMPTYPAIR, ErrSymbolStringEmpty
+	}
+	symbol = strings.ToLower(symbol)
+	p.mutex.RLock()
+	defer p.mutex.RUnlock()
+	if p.matcher == nil {
+		return EMPTYPAIR, errPairMatcherIsNil
+	}
+	pair, ok := p.matcher[key{symbol, a}]
+	if !ok {
+		return EMPTYPAIR, fmt.Errorf("%w for %v %v", ErrPairNotFound, symbol, a)
+	}
+	return *pair, nil
+}
+
 // Store stores a new currency pair config based on its asset type
 func (p *PairsManager) Store(a asset.Item, ps *PairStore) error {
 	if !a.IsValid() {
@@ -78,6 +100,14 @@ func (p *PairsManager) Store(a asset.Item, ps *PairStore) error {
 		p.Pairs = make(map[asset.Item]*PairStore)
 	}
 	p.Pairs[a] = cpy
+	if p.matcher == nil {
+		p.matcher = make(map[key]*Pair)
+	}
+	for x := range cpy.Available {
+		p.matcher[key{
+			Symbol: cpy.Available[x].Base.Lower().String() + cpy.Available[x].Quote.Lower().String(),
+			Asset:  a}] = &cpy.Available[x]
+	}
 	p.mutex.Unlock()
 	return nil
 }
@@ -85,6 +115,14 @@ func (p *PairsManager) Store(a asset.Item, ps *PairStore) error {
 // Delete deletes a map entry based on the supplied asset type
 func (p *PairsManager) Delete(a asset.Item) {
 	p.mutex.Lock()
+	vals, ok := p.Pairs[a]
+	if !ok {
+		p.mutex.Unlock()
+		return
+	}
+	for x := range vals.Available {
+		delete(p.matcher, key{Symbol: vals.Available[x].Base.Lower().String() + vals.Available[x].Quote.Lower().String(), Asset: a})
+	}
 	delete(p.Pairs, a)
 	p.mutex.Unlock()
 }
@@ -187,6 +225,15 @@ func (p *PairsManager) StorePairs(a asset.Item, pairs Pairs, enabled bool) error
 		pairStore.Enabled = cpy
 	} else {
 		pairStore.Available = cpy
+
+		if p.matcher == nil {
+			p.matcher = make(map[key]*Pair)
+		}
+		for x := range pairStore.Available {
+			p.matcher[key{
+				Symbol: pairStore.Available[x].Base.Lower().String() + pairStore.Available[x].Quote.Lower().String(),
+				Asset:  a}] = &pairStore.Available[x]
+		}
 	}
 
 	return nil
@@ -285,14 +332,14 @@ func (p *PairsManager) EnablePair(a asset.Item, pair Pair) error {
 	return nil
 }
 
-// IsAssetPairEnabled checks if a pair is enabled for an enabled asset type
-func (p *PairsManager) IsAssetPairEnabled(a asset.Item, pair Pair) error {
+// IsPairEnabled checks if a pair is enabled for an enabled asset type
+func (p *PairsManager) IsPairEnabled(pair Pair, a asset.Item) (bool, error) {
 	if !a.IsValid() {
-		return fmt.Errorf("%s %w", a, asset.ErrNotSupported)
+		return false, fmt.Errorf("%s %w", a, asset.ErrNotSupported)
 	}
 
 	if pair.IsEmpty() {
-		return ErrCurrencyPairEmpty
+		return false, ErrCurrencyPairEmpty
 	}
 
 	p.mutex.RLock()
@@ -300,20 +347,12 @@ func (p *PairsManager) IsAssetPairEnabled(a asset.Item, pair Pair) error {
 
 	pairStore, err := p.getPairStoreRequiresLock(a)
 	if err != nil {
-		return err
+		return false, err
 	}
-
 	if pairStore.AssetEnabled == nil {
-		return fmt.Errorf("%s %w", a, ErrAssetIsNil)
+		return false, fmt.Errorf("%s %w", a, ErrAssetIsNil)
 	}
-	if !*pairStore.AssetEnabled {
-		return fmt.Errorf("%s %w", a, asset.ErrNotEnabled)
-	}
-	if !pairStore.Enabled.Contains(pair, true) {
-		return fmt.Errorf("%s %w", pair, ErrPairNotFound)
-	}
-
-	return nil
+	return *pairStore.AssetEnabled && pairStore.Enabled.Contains(pair, true), nil
 }
 
 // IsAssetEnabled checks to see if an asset is enabled
