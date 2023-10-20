@@ -82,7 +82,7 @@ type QuoteInformation struct {
 	Timestamp        time.Time               `json:"timestamp"`
 }
 
-// OrderRequestParams represents a request paramter for creating order.
+// OrderRequestParams represents a request parameter for creating order.
 type OrderRequestParams struct {
 	ClientOrderID string  `json:"client_order_id"`
 	Side          string  `json:"side,omitempty"`
@@ -460,6 +460,7 @@ type WsOrderbookLevel1 struct {
 	AskQty    convert.StringToFloat64 `json:"ask_qty,omitempty"`
 }
 
+// WsOrderbookLevel2 holds Level-2 orderbook information.
 type WsOrderbookLevel2 struct {
 	Sequence  int64       `json:"sequence"`
 	ProductID string      `json:"product_id"`

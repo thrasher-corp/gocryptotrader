@@ -66,7 +66,7 @@ func (co *CoinbaseInternational) GetAssetDetails(ctx context.Context, assetName 
 	return &resp, co.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, nil, &resp, false)
 }
 
-// GetSupportedNetworkPerAsset returns a list of supported networks and network information for a specific asset.
+// GetSupportedNetworksPerAsset returns a list of supported networks and network information for a specific asset.
 func (co *CoinbaseInternational) GetSupportedNetworksPerAsset(ctx context.Context, assetName currency.Code, assetUUID, assetID string) ([]AssetInfoWithSupportedNetwork, error) {
 	path := "assets/"
 	switch {
@@ -152,7 +152,7 @@ func (co *CoinbaseInternational) CreateOrder(ctx context.Context, arg *OrderRequ
 }
 
 // GetOpenOrders returns a list of active orders resting on the order book matching the requested criteria. Does not return any rejected, cancelled, or fully filled orders as they are not active.
-func (co *CoinbaseInternational) GetOpenOrders(ctx context.Context, portfolioUUID, portfolioID, instrument, clientOrderID, eventType string, RefDateTime time.Time, resultOffset, resultLimit int64) (*OrderItemDetail, error) {
+func (co *CoinbaseInternational) GetOpenOrders(ctx context.Context, portfolioUUID, portfolioID, instrument, clientOrderID, eventType string, refDateTime time.Time, resultOffset, resultLimit int64) (*OrderItemDetail, error) {
 	params := url.Values{}
 	switch {
 	case portfolioID != "":
@@ -169,8 +169,8 @@ func (co *CoinbaseInternational) GetOpenOrders(ctx context.Context, portfolioUUI
 	if eventType != "" {
 		params.Set("event_type", eventType)
 	}
-	if !RefDateTime.IsZero() {
-		params.Set("ref_datetime", RefDateTime.String())
+	if !refDateTime.IsZero() {
+		params.Set("ref_datetime", refDateTime.String())
 	}
 	if resultOffset > 0 {
 		params.Set("result_offset", strconv.FormatInt(resultOffset, 10))
@@ -429,7 +429,6 @@ func (co *CoinbaseInternational) CreateCryptoAddress(ctx context.Context, arg *C
 	}
 	var resp CryptoAddressInfo
 	return &resp, co.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "transfers/address", nil, arg, &resp, true)
-
 }
 
 // SendHTTPRequest sends a public HTTP request.
@@ -527,7 +526,7 @@ func (co *CoinbaseInternational) GetFee(ctx context.Context, feeBuilder *exchang
 			return 0, err
 		}
 	case exchange.OfflineTradeFee:
-		fee = getOfflineTradeFee(feeBuilder.Pair, feeBuilder.PurchasePrice, feeBuilder.Amount)
+		fee = getOfflineTradeFee(feeBuilder.PurchasePrice, feeBuilder.Amount)
 	}
 	if fee < 0 {
 		fee = 0
@@ -555,6 +554,6 @@ func (co *CoinbaseInternational) calculateTradingFee(ctx context.Context, base, 
 }
 
 // getOfflineTradeFee calculates the worst case-scenario trading fee
-func getOfflineTradeFee(c currency.Pair, price, amount float64) float64 {
+func getOfflineTradeFee(price, amount float64) float64 {
 	return 0.02 * price * amount
 }

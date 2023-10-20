@@ -161,13 +161,14 @@ func (co *CoinbaseInternational) processOrderbookLevel2(respRaw []byte) error {
 		if err != nil {
 			return err
 		}
+		var price, amount float64
 		asks := make([]orderbook.Item, 0, len(resp[x].Asks))
 		for a := range resp[x].Asks {
-			price, err := strconv.ParseFloat(resp[x].Asks[a][0], 64)
+			price, err = strconv.ParseFloat(resp[x].Asks[a][0], 64)
 			if err != nil {
 				return err
 			}
-			amount, err := strconv.ParseFloat(resp[x].Asks[a][1], 64)
+			amount, err = strconv.ParseFloat(resp[x].Asks[a][1], 64)
 			if err != nil {
 				return err
 			}
@@ -175,11 +176,11 @@ func (co *CoinbaseInternational) processOrderbookLevel2(respRaw []byte) error {
 		}
 		bids := make([]orderbook.Item, 0, len(resp[x].Bids))
 		for b := range resp[x].Bids {
-			price, err := strconv.ParseFloat(resp[x].Bids[b][0], 64)
+			price, err = strconv.ParseFloat(resp[x].Bids[b][0], 64)
 			if err != nil {
 				return err
 			}
-			amount, err := strconv.ParseFloat(resp[x].Bids[b][1], 64)
+			amount, err = strconv.ParseFloat(resp[x].Bids[b][1], 64)
 			if err != nil {
 				return err
 			}

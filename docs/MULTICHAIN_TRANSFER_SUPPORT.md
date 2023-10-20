@@ -55,6 +55,7 @@ $ ./gctcli withdrawcryptofunds --exchange=binance --currency=USDT --address=TJU9
 | BTSE | No | No | Only through website |
 | Bybit | Yes | Yes | |
 | CoinbasePro | No | No | No|
+| CoinbaseInternational | No | Yes | No |
 | COINUT | No | No | NA |
 | Exmo | Yes | Yes | Addresses must be created via their website first |
 | GateIO | Yes | Yes | |

@@ -55,16 +55,6 @@ func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
 
-// Ensures that this exchange package is compatible with IBotExchange
-func TestInterface(t *testing.T) {
-	var e exchange.IBotExchange
-	if e = new(CoinbaseInternational); e == nil {
-		t.Fatal("unable to allocate exchange")
-	}
-}
-
-// Implement tests for API endpoints below
-
 func TestListAssets(t *testing.T) {
 	t.Parallel()
 	_, err := co.ListAssets(context.Background())
@@ -115,6 +105,7 @@ func TestGetQuotePerInstrument(t *testing.T) {
 
 func TestCreateOrder(t *testing.T) {
 	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, co, canManipulateRealOrders)
 	orderType, err := orderTypeString(order.Limit)
 	if err != nil {
 		t.Fatal(err)
@@ -165,7 +156,7 @@ func TestCreateOrder(t *testing.T) {
 
 func TestGetOpenOrders(t *testing.T) {
 	t.Parallel()
-	// sharedtestvalues.SkipTestIfCredentialsUnset(t, )
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, co)
 	_, err := co.GetOpenOrders(context.Background(), "", "", "BTC-PERP", "", "", time.Time{}, 0, 0)
 	if err != nil {
 		t.Error(err)
@@ -174,6 +165,7 @@ func TestGetOpenOrders(t *testing.T) {
 
 func TestCancelOrders(t *testing.T) {
 	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, co, canManipulateRealOrders)
 	_, err := co.CancelOrders(context.Background(), "1234", "", "")
 	if err != nil {
 		t.Error(err)
@@ -182,6 +174,7 @@ func TestCancelOrders(t *testing.T) {
 
 func TestModifyOpenOrder(t *testing.T) {
 	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, co, canManipulateRealOrders)
 	_, err := co.ModifyOpenOrder(context.Background(), "1234", &ModifyOrderParam{})
 	if !errors.Is(err, common.ErrNilPointer) {
 		t.Errorf("expected %v, got %v", common.ErrNilPointer, err)
@@ -198,6 +191,7 @@ func TestModifyOpenOrder(t *testing.T) {
 
 func TestGetOrderDetails(t *testing.T) {
 	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, co)
 	_, err := co.GetOrderDetails(context.Background(), "1234")
 	if err != nil {
 		t.Error(err)
@@ -206,6 +200,7 @@ func TestGetOrderDetails(t *testing.T) {
 
 func TestCancelOrder(t *testing.T) {
 	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, co, canManipulateRealOrders)
 	_, err := co.CancelTradeOrder(context.Background(), "", "", "", "")
 	if !errors.Is(err, order.ErrOrderIDNotSet) {
 		t.Errorf("expected %v, got %v", order.ErrOrderIDNotSet, err)
@@ -222,6 +217,7 @@ func TestCancelOrder(t *testing.T) {
 
 func TestListAllUserPortfolios(t *testing.T) {
 	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, co)
 	_, err := co.GetAllUserPortfolios(context.Background())
 	if err != nil {
 		t.Error(err)
@@ -230,6 +226,7 @@ func TestListAllUserPortfolios(t *testing.T) {
 
 func TestGetPortfolioDetails(t *testing.T) {
 	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, co)
 	_, err := co.GetPortfolioDetails(context.Background(), "", "1234")
 	if err != nil {
 		t.Error(err)
@@ -238,6 +235,7 @@ func TestGetPortfolioDetails(t *testing.T) {
 
 func TestGetPortfolioSummary(t *testing.T) {
 	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, co)
 	_, err := co.GetPortfolioSummary(context.Background(), "", "5189861793641175")
 	if err != nil {
 		t.Error(err)
@@ -246,6 +244,7 @@ func TestGetPortfolioSummary(t *testing.T) {
 
 func TestListPortfolioBalances(t *testing.T) {
 	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, co)
 	_, err := co.ListPortfolioBalances(context.Background(), "892e8c7c-e979-4cad-b61b-55a197932cf1", "")
 	if err != nil {
 		t.Fatal(err)
@@ -254,6 +253,7 @@ func TestListPortfolioBalances(t *testing.T) {
 
 func TestGetPortfolioAssetBalance(t *testing.T) {
 	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, co)
 	_, err := co.GetPortfolioAssetBalance(context.Background(), "892e8c7c-e979-4cad-b61b-55a197932cf1", "", currency.BTC)
 	if err != nil {
 		t.Error(err)
@@ -262,6 +262,7 @@ func TestGetPortfolioAssetBalance(t *testing.T) {
 
 func TestPortfolioPosition(t *testing.T) {
 	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, co)
 	_, err := co.ListPortfolioPositions(context.Background(), "892e8c7c-e979-4cad-b61b-55a197932cf1", "")
 	if err != nil {
 		t.Error(err)
@@ -270,6 +271,7 @@ func TestPortfolioPosition(t *testing.T) {
 
 func TestGetPortfolioInstrumentPosition(t *testing.T) {
 	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, co)
 	cp, err := currency.NewPairFromString("BTC-PERP")
 	if err != nil {
 		t.Fatal(err)
@@ -282,6 +284,7 @@ func TestGetPortfolioInstrumentPosition(t *testing.T) {
 
 func TestListPortfolioFills(t *testing.T) {
 	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, co)
 	_, err := co.ListPortfolioFills(context.Background(), "892e8c7c-e979-4cad-b61b-55a197932cf1", "")
 	if err != nil {
 		t.Fatal(err)
@@ -290,6 +293,7 @@ func TestListPortfolioFills(t *testing.T) {
 
 func TestListMatchingTransfers(t *testing.T) {
 	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, co)
 	_, err := co.ListMatchingTransfers(context.Background(), "", "", "", "ALL", 10, 0, time.Now().Add(-time.Hour*24*10), time.Now())
 	if err != nil {
 		t.Error(err)
@@ -298,6 +302,7 @@ func TestListMatchingTransfers(t *testing.T) {
 
 func TestGetTransfer(t *testing.T) {
 	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, co)
 	_, err := co.GetTransfer(context.Background(), "12345")
 	if err != nil {
 		t.Error(err)
@@ -310,6 +315,7 @@ func TestWithdrawToCryptoAddress(t *testing.T) {
 	if !errors.Is(err, common.ErrNilPointer) {
 		t.Errorf("expected %v, got %v", common.ErrNilPointer, err)
 	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, co, canManipulateRealOrders)
 	_, err = co.WithdrawToCryptoAddress(context.Background(), &WithdrawCryptoParams{
 		Portfolio:       "892e8c7c-e979-4cad-b61b-55a197932cf1",
 		AssetIdentifier: "291efb0f-2396-4d41-ad03-db3b2311cb2c",
@@ -327,6 +333,7 @@ func TestCreateCryptoAddress(t *testing.T) {
 	if !errors.Is(err, common.ErrNilPointer) {
 		t.Errorf("expected %v, got %v", common.ErrNilPointer, err)
 	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, co, canManipulateRealOrders)
 	_, err = co.CreateCryptoAddress(context.Background(), &CryptoAddressParam{
 		Portfolio:       "892e8c7c-e979-4cad-b61b-55a197932cf1",
 		AssetIdentifier: "291efb0f-2396-4d41-ad03-db3b2311cb2c",
@@ -384,11 +391,11 @@ func TestWsConnect(t *testing.T) {
 
 func TestGenerateSubscriptionPayload(t *testing.T) {
 	t.Parallel()
-	payload, err := co.GenerateSubscriptionPayload([]stream.ChannelSubscription{}, "SUBSCRIBE")
+	_, err := co.GenerateSubscriptionPayload([]stream.ChannelSubscription{}, "SUBSCRIBE")
 	if !errors.Is(err, errEmptyArgument) {
 		t.Fatalf("expected %v, got %v", errEmptyArgument, err)
 	}
-	payload, err = co.GenerateSubscriptionPayload([]stream.ChannelSubscription{
+	payload, err := co.GenerateSubscriptionPayload([]stream.ChannelSubscription{
 		{Channel: cnlFunding, Currency: currency.Pair{Base: currency.BTC, Delimiter: "-", Quote: currency.USDT}},
 		{Channel: cnlFunding, Currency: currency.Pair{Base: currency.BTC, Delimiter: "-", Quote: currency.USDC}},
 		{Channel: cnlInstruments, Currency: currency.Pair{Base: currency.BTC, Delimiter: "-", Quote: currency.USDT}},
@@ -420,6 +427,7 @@ func TestUpdateAccountInfo(t *testing.T) {
 	if !errors.Is(err, asset.ErrNotSupported) {
 		t.Fatalf("expected %v, got %v", asset.ErrNotSupported, err)
 	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, co)
 	_, err = co.UpdateAccountInfo(context.Background(), asset.Spot)
 	if err != nil {
 		t.Fatal(err)
@@ -428,6 +436,7 @@ func TestUpdateAccountInfo(t *testing.T) {
 
 func TestGetAccountFundingHistory(t *testing.T) {
 	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, co)
 	_, err := co.GetAccountFundingHistory(context.Background())
 	if err != nil {
 		t.Fatal(err)
@@ -436,6 +445,7 @@ func TestGetAccountFundingHistory(t *testing.T) {
 
 func TestGetWithdrawalsHistory(t *testing.T) {
 	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, co)
 	_, err := co.GetWithdrawalsHistory(context.Background(), currency.BTC, asset.Spot)
 	if err != nil {
 		t.Fatal(err)
@@ -445,18 +455,20 @@ func TestGetWithdrawalsHistory(t *testing.T) {
 func TestGetFeeByType(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, co)
-	if _, er := co.GetFeeByType(context.Background(), &exchange.FeeBuilder{
+	_, err := co.GetFeeByType(context.Background(), &exchange.FeeBuilder{
 		IsMaker: true,
 		Pair:    currency.NewPair(currency.USD, currency.BTC),
 		FeeType: exchange.CryptocurrencyTradeFee,
-	}); er != nil {
-		t.Error("CoinbaseInternational GetFeeByType() error", er)
+	})
+	if err != nil {
+		t.Error("CoinbaseInternational GetFeeByType() error", err)
 	}
-	if _, er := co.GetFeeByType(context.Background(), &exchange.FeeBuilder{
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, co)
+	if _, err = co.GetFeeByType(context.Background(), &exchange.FeeBuilder{
 		IsMaker: true,
 		Pair:    currency.NewPair(currency.USD, currency.BTC),
 		FeeType: exchange.CryptocurrencyWithdrawalFee,
-	}); er != nil {
-		t.Error("CoinbaseInternational GetFeeByType() error", er)
+	}); err != nil {
+		t.Error("CoinbaseInternational GetFeeByType() error", err)
 	}
 }

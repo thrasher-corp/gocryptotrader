@@ -36,7 +36,10 @@ func (co *CoinbaseInternational) GetDefaultConfig(ctx context.Context) (*config.
 	exchCfg.HTTPTimeout = exchange.DefaultHTTPTimeout
 	exchCfg.BaseCurrencies = co.BaseCurrencies
 
-	co.SetupDefaults(exchCfg)
+	err := co.SetupDefaults(exchCfg)
+	if err != nil {
+		return nil, err
+	}
 
 	if co.Features.Supports.RESTCapabilities.AutoPairUpdates {
 		err := co.UpdateTradablePairs(ctx, true)
@@ -72,18 +75,35 @@ func (co *CoinbaseInternational) SetDefaults() {
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
-
 	co.Features = exchange.Features{
 		Supports: exchange.FeaturesSupported{
 			REST:      true,
 			Websocket: true,
 			RESTCapabilities: protocol.Features{
-				TickerFetching:    true,
-				OrderbookFetching: true,
+				TickerFetching:         true,
+				OrderbookFetching:      true,
+				AutoPairUpdates:        true,
+				AccountBalance:         true,
+				CryptoWithdrawal:       true,
+				GetOrder:               true,
+				GetOrders:              true,
+				CancelOrders:           true,
+				CancelOrder:            true,
+				SubmitOrder:            true,
+				SubmitOrders:           true,
+				ModifyOrder:            true,
+				WithdrawalHistory:      true,
+				UserTradeHistory:       true,
+				TradeFee:               true,
+				AccountInfo:            true,
+				AuthenticatedEndpoints: true,
 			},
 			WebsocketCapabilities: protocol.Features{
-				TickerFetching:    true,
-				OrderbookFetching: true,
+				TickerFetching:         true,
+				OrderbookFetching:      true,
+				Subscribe:              true,
+				Unsubscribe:            true,
+				AuthenticatedEndpoints: true,
 			},
 			WithdrawPermissions: exchange.AutoWithdrawCrypto |
 				exchange.AutoWithdrawFiat,
@@ -99,10 +119,13 @@ func (co *CoinbaseInternational) SetDefaults() {
 	}
 
 	co.API.Endpoints = co.NewEndpoints()
-	co.API.Endpoints.SetDefaultEndpoints(map[exchange.URL]string{
+	err = co.API.Endpoints.SetDefaultEndpoints(map[exchange.URL]string{
 		exchange.RestSpot:      coinbaseInternationalAPIURL,
 		exchange.WebsocketSpot: coinbaseinternationalWSAPIURL,
 	})
+	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
+	}
 	co.Websocket = stream.New()
 	co.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	co.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
@@ -404,7 +427,7 @@ func (co *CoinbaseInternational) FetchAccountInfo(ctx context.Context, assetType
 	return acc, nil
 }
 
-// GetFundingHistory returns funding history, deposits and
+// GetAccountFundingHistory returns funding history, deposits and
 // withdrawals
 func (co *CoinbaseInternational) GetAccountFundingHistory(ctx context.Context) ([]exchange.FundingHistory, error) {
 	history, err := co.ListMatchingTransfers(ctx, "", "", "", "", 0, 0, time.Time{}, time.Time{})
@@ -428,7 +451,7 @@ func (co *CoinbaseInternational) GetAccountFundingHistory(ctx context.Context) (
 }
 
 // GetWithdrawalsHistory returns previous withdrawals data
-func (co *CoinbaseInternational) GetWithdrawalsHistory(ctx context.Context, c currency.Code, a asset.Item) ([]exchange.WithdrawalHistory, error) {
+func (co *CoinbaseInternational) GetWithdrawalsHistory(ctx context.Context, _ currency.Code, a asset.Item) ([]exchange.WithdrawalHistory, error) {
 	if a != asset.Spot {
 		return nil, asset.ErrNotSupported
 	}
@@ -452,17 +475,17 @@ func (co *CoinbaseInternational) GetWithdrawalsHistory(ctx context.Context, c cu
 }
 
 // GetRecentTrades returns the most recent trades for a currency and asset
-func (co *CoinbaseInternational) GetRecentTrades(ctx context.Context, p currency.Pair, assetType asset.Item) ([]trade.Data, error) {
+func (co *CoinbaseInternational) GetRecentTrades(_ context.Context, _ currency.Pair, _ asset.Item) ([]trade.Data, error) {
 	return nil, common.ErrNotYetImplemented
 }
 
 // GetHistoricTrades returns historic trade data within the timeframe provided
-func (co *CoinbaseInternational) GetHistoricTrades(ctx context.Context, p currency.Pair, assetType asset.Item, timestampStart, timestampEnd time.Time) ([]trade.Data, error) {
+func (co *CoinbaseInternational) GetHistoricTrades(context.Context, currency.Pair, asset.Item, time.Time, time.Time) ([]trade.Data, error) {
 	return nil, common.ErrNotYetImplemented
 }
 
 // GetServerTime returns the current exchange server time.
-func (co *CoinbaseInternational) GetServerTime(ctx context.Context, a asset.Item) (time.Time, error) {
+func (co *CoinbaseInternational) GetServerTime(_ context.Context, _ asset.Item) (time.Time, error) {
 	return time.Time{}, common.ErrNotYetImplemented
 }
 
@@ -536,7 +559,7 @@ func (co *CoinbaseInternational) ModifyOrder(ctx context.Context, action *order.
 	}
 	resp, err := action.DeriveModifyResponse()
 	if err != nil {
-		return nil, nil
+		return nil, err
 	}
 	resp.OrderID = strconv.FormatInt(response.OrderID, 10)
 	return resp, nil
@@ -556,17 +579,17 @@ func (co *CoinbaseInternational) CancelOrder(ctx context.Context, ord *order.Can
 }
 
 // CancelBatchOrders cancels orders by their corresponding ID numbers
-func (co *CoinbaseInternational) CancelBatchOrders(ctx context.Context, orders []order.Cancel) (*order.CancelBatchResponse, error) {
+func (co *CoinbaseInternational) CancelBatchOrders(context.Context, []order.Cancel) (*order.CancelBatchResponse, error) {
 	return nil, common.ErrNotYetImplemented
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
-func (co *CoinbaseInternational) CancelAllOrders(ctx context.Context, orderCancellation *order.Cancel) (order.CancelAllResponse, error) {
+func (co *CoinbaseInternational) CancelAllOrders(context.Context, *order.Cancel) (order.CancelAllResponse, error) {
 	return order.CancelAllResponse{}, common.ErrNotYetImplemented
 }
 
 // GetOrderInfo returns order information based on order ID
-func (co *CoinbaseInternational) GetOrderInfo(ctx context.Context, orderID string, pair currency.Pair, assetType asset.Item) (*order.Detail, error) {
+func (co *CoinbaseInternational) GetOrderInfo(ctx context.Context, orderID string, pair currency.Pair, _ asset.Item) (*order.Detail, error) {
 	resp, err := co.GetOrderDetails(ctx, orderID)
 	if err != nil {
 		return nil, err
@@ -583,9 +606,11 @@ func (co *CoinbaseInternational) GetOrderInfo(ctx context.Context, orderID strin
 	if err != nil {
 		return nil, err
 	}
-	pair, err = currency.NewPairFromString(resp.Symbol)
+	newPair, err := currency.NewPairFromString(resp.Symbol)
 	if err != nil {
 		return nil, err
+	} else if !newPair.Equal(pair) {
+		return nil, fmt.Errorf("expected pair %v, got %v", pair, newPair)
 	}
 	return &order.Detail{
 		Price:                resp.Price,
@@ -609,7 +634,7 @@ func (co *CoinbaseInternational) GetOrderInfo(ctx context.Context, orderID strin
 }
 
 // GetDepositAddress returns a deposit address for a specified currency
-func (co *CoinbaseInternational) GetDepositAddress(ctx context.Context, c currency.Code, accountID string, chain string) (*deposit.Address, error) {
+func (co *CoinbaseInternational) GetDepositAddress(context.Context, currency.Code, string, string) (*deposit.Address, error) {
 	return nil, common.ErrNotYetImplemented
 }
 
@@ -636,13 +661,13 @@ func (co *CoinbaseInternational) WithdrawCryptocurrencyFunds(ctx context.Context
 
 // WithdrawFiatFunds returns a withdrawal ID when a withdrawal is
 // submitted
-func (co *CoinbaseInternational) WithdrawFiatFunds(ctx context.Context, withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
+func (co *CoinbaseInternational) WithdrawFiatFunds(context.Context, *withdraw.Request) (*withdraw.ExchangeResponse, error) {
 	return nil, common.ErrNotYetImplemented
 }
 
 // WithdrawFiatFundsToInternationalBank returns a withdrawal ID when a withdrawal is
 // submitted
-func (co *CoinbaseInternational) WithdrawFiatFundsToInternationalBank(ctx context.Context, withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
+func (co *CoinbaseInternational) WithdrawFiatFundsToInternationalBank(context.Context, *withdraw.Request) (*withdraw.ExchangeResponse, error) {
 	return nil, common.ErrNotYetImplemented
 }
 
@@ -706,7 +731,7 @@ func (co *CoinbaseInternational) GetActiveOrders(ctx context.Context, getOrdersR
 
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
-func (co *CoinbaseInternational) GetOrderHistory(ctx context.Context, getOrdersRequest *order.MultiOrderRequest) (order.FilteredOrders, error) {
+func (co *CoinbaseInternational) GetOrderHistory(context.Context, *order.MultiOrderRequest) (order.FilteredOrders, error) {
 	return nil, common.ErrNotYetImplemented
 }
 
@@ -729,12 +754,12 @@ func (co *CoinbaseInternational) ValidateAPICredentials(ctx context.Context, ass
 }
 
 // GetHistoricCandles returns candles between a time period for a set time interval
-func (co *CoinbaseInternational) GetHistoricCandles(ctx context.Context, pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error) {
+func (co *CoinbaseInternational) GetHistoricCandles(context.Context, currency.Pair, asset.Item, kline.Interval, time.Time, time.Time) (*kline.Item, error) {
 	return nil, common.ErrNotYetImplemented
 }
 
 // GetHistoricCandlesExtended returns candles between a time period for a set time interval
-func (co *CoinbaseInternational) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error) {
+func (co *CoinbaseInternational) GetHistoricCandlesExtended(context.Context, currency.Pair, asset.Item, kline.Interval, time.Time, time.Time) (*kline.Item, error) {
 	return nil, common.ErrNotYetImplemented
 }
 
