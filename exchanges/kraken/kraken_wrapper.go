@@ -1727,7 +1727,7 @@ func (k *Kraken) GetFuturesContractDetails(ctx context.Context, item asset.Item)
 		} else {
 			underlyingStr = underlyingBase[1]
 		}
-		usdIndex := strings.Index(strings.ToLower(underlyingStr), "usd")
+		usdIndex := strings.LastIndex(strings.ToLower(underlyingStr), "usd")
 		if usdIndex <= 0 {
 			log.Warnf(log.ExchangeSys, "%v unable to find USD index in %v to process contract", k.Name, underlyingStr)
 			continue
@@ -1736,7 +1736,6 @@ func (k *Kraken) GetFuturesContractDetails(ctx context.Context, item asset.Item)
 		if err != nil {
 			return nil, err
 		}
-
 		var s, e time.Time
 		if result.Instruments[i].OpeningDate != "" {
 			s, err = time.Parse(time.RFC3339, result.Instruments[i].OpeningDate)
