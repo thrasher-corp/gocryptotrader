@@ -10,7 +10,7 @@ import (
 var (
 	// items holds stat items
 	items     []Item
-	statMutex sync.RWMutex
+	statMutex sync.Mutex
 )
 
 // Item holds various fields for storing currency pair stats

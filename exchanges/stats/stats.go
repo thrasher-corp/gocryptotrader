@@ -40,8 +40,8 @@ func Add(exchange string, p currency.Pair, a asset.Item, price, volume float64) 
 	return nil
 }
 
-// Append adds or updates the Item stats for a specific
-// currency pair and asset type
+// Append adds the Item stats for a specific currency pair and asset type
+// if it doesn't exist
 func Append(exchange string, p currency.Pair, a asset.Item, price, volume float64) {
 	statMutex.Lock()
 	defer statMutex.Unlock()
@@ -76,8 +76,8 @@ func alreadyExistsRequiresLock(exchange string, p currency.Pair, assetType asset
 // AlreadyExists checks to see if Item info already exists
 // for a specific currency pair and asset type
 func AlreadyExists(exchange string, p currency.Pair, assetType asset.Item, price, volume float64) bool {
-	statMutex.RLock()
-	defer statMutex.RUnlock()
+	statMutex.Lock()
+	defer statMutex.Unlock()
 	return alreadyExistsRequiresLock(exchange, p, assetType, price, volume)
 }
 
@@ -86,8 +86,8 @@ func AlreadyExists(exchange string, p currency.Pair, assetType asset.Item, price
 // highest
 func SortExchangesByVolume(p currency.Pair, assetType asset.Item, reverse bool) []Item {
 	var result []Item
-	statMutex.RLock()
-	defer statMutex.RUnlock()
+	statMutex.Lock()
+	defer statMutex.Unlock()
 	for x := range items {
 		if items[x].Pair.EqualIncludeReciprocal(p) &&
 			items[x].AssetType == assetType {
@@ -108,8 +108,8 @@ func SortExchangesByVolume(p currency.Pair, assetType asset.Item, reverse bool) 
 // highest
 func SortExchangesByPrice(p currency.Pair, assetType asset.Item, reverse bool) []Item {
 	var result []Item
-	statMutex.RLock()
-	defer statMutex.RUnlock()
+	statMutex.Lock()
+	defer statMutex.Unlock()
 	for x := range items {
 		if items[x].Pair.EqualIncludeReciprocal(p) &&
 			items[x].AssetType == assetType {
