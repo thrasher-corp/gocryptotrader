@@ -8,13 +8,14 @@ import (
 
 // PairsManager manages asset pairs
 type PairsManager struct {
-	BypassConfigFormatUpgrades bool         `json:"bypassConfigFormatUpgrades"`
-	RequestFormat              *PairFormat  `json:"requestFormat,omitempty"`
-	ConfigFormat               *PairFormat  `json:"configFormat,omitempty"`
-	UseGlobalFormat            bool         `json:"useGlobalFormat,omitempty"`
-	LastUpdated                int64        `json:"lastUpdated,omitempty"`
-	Pairs                      FullStore    `json:"pairs"`
-	mutex                      sync.RWMutex `json:"-"`
+	BypassConfigFormatUpgrades bool        `json:"bypassConfigFormatUpgrades"`
+	RequestFormat              *PairFormat `json:"requestFormat,omitempty"`
+	ConfigFormat               *PairFormat `json:"configFormat,omitempty"`
+	UseGlobalFormat            bool        `json:"useGlobalFormat,omitempty"`
+	LastUpdated                int64       `json:"lastUpdated,omitempty"`
+	Pairs                      FullStore   `json:"pairs"`
+	matcher                    map[key]*Pair
+	mutex                      sync.RWMutex
 }
 
 // FullStore holds all supported asset types with the enabled and available
@@ -36,4 +37,10 @@ type PairFormat struct {
 	Delimiter string `json:"delimiter,omitempty"`
 	Separator string `json:"separator,omitempty"`
 	Index     string `json:"index,omitempty"`
+}
+
+// key is used to store the asset type and symbol in a map
+type key struct {
+	Symbol string
+	Asset  asset.Item
 }

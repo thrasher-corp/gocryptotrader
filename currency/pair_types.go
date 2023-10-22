@@ -1,6 +1,8 @@
 package currency
 
 // Pair holds currency pair information
+// NOTE: UnmarshalJSON allows string conversion to Pair type but only if there
+// is a delimiter present in the string, otherwise it will return an error.
 type Pair struct {
 	Delimiter string `json:"delimiter,omitempty"`
 	Base      Code   `json:"base,omitempty"`
