@@ -62,8 +62,8 @@ func (co *CoinbaseInternational) GetAssetDetails(ctx context.Context, assetName 
 	default:
 		return nil, errors.New("missing asset information; ")
 	}
-	var resp AssetItemInfo
-	return &resp, co.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, nil, &resp, false)
+	var resp *AssetItemInfo
+	return resp, co.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, nil, &resp, false)
 }
 
 // GetSupportedNetworksPerAsset returns a list of supported networks and network information for a specific asset.
@@ -103,8 +103,8 @@ func (co *CoinbaseInternational) GetInstrumentDetails(ctx context.Context, instr
 	default:
 		return nil, errors.New("instrument information is required")
 	}
-	var resp InstrumentInfo
-	return &resp, co.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, nil, &resp, false)
+	var resp *InstrumentInfo
+	return resp, co.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, nil, &resp, false)
 }
 
 // GetQuotePerInstrument retrieves the current quote for a specific instrument.
@@ -120,8 +120,8 @@ func (co *CoinbaseInternational) GetQuotePerInstrument(ctx context.Context, inst
 	default:
 		return nil, errors.New("instrument information is required")
 	}
-	var resp QuoteInformation
-	return &resp, co.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path+"/quote", nil, nil, &resp, false)
+	var resp *QuoteInformation
+	return resp, co.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path+"/quote", nil, nil, &resp, false)
 }
 
 // CreateOrder creates a new order.
@@ -147,8 +147,8 @@ func (co *CoinbaseInternational) CreateOrder(ctx context.Context, arg *OrderRequ
 	if arg.TimeInForce == "" {
 		return nil, errTimeInForceRequired
 	}
-	var resp TradeOrder
-	return &resp, co.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "orders", nil, arg, &resp, true)
+	var resp *TradeOrder
+	return resp, co.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "orders", nil, arg, &resp, true)
 }
 
 // GetOpenOrders returns a list of active orders resting on the order book matching the requested criteria. Does not return any rejected, cancelled, or fully filled orders as they are not active.
@@ -178,8 +178,8 @@ func (co *CoinbaseInternational) GetOpenOrders(ctx context.Context, portfolioUUI
 	if resultLimit > 0 {
 		params.Set("result_limit", strconv.FormatInt(resultLimit, 10))
 	}
-	var resp OrderItemDetail
-	return &resp, co.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "orders", params, nil, &resp, true)
+	var resp *OrderItemDetail
+	return resp, co.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "orders", params, nil, &resp, true)
 }
 
 // CancelOrders cancels all orders matching the requested criteria.
@@ -208,14 +208,14 @@ func (co *CoinbaseInternational) ModifyOpenOrder(ctx context.Context, orderID st
 	if arg == (&ModifyOrderParam{}) {
 		return nil, fmt.Errorf("%w, empty modification parameter", common.ErrNilPointer)
 	}
-	var resp OrderItem
-	return &resp, co.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodPut, "orders/"+orderID, nil, arg, &resp, true)
+	var resp *OrderItem
+	return resp, co.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodPut, "orders/"+orderID, nil, arg, &resp, true)
 }
 
 // GetOrderDetails retrieves a single order. The order retrieved can be either active or inactive.
 func (co *CoinbaseInternational) GetOrderDetails(ctx context.Context, orderID string) (*OrderItem, error) {
-	var resp OrderItem
-	return &resp, co.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "orders/"+orderID, nil, nil, &resp, true)
+	var resp *OrderItem
+	return resp, co.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "orders/"+orderID, nil, nil, &resp, true)
 }
 
 // CancelTradeOrder cancels a single open order.
@@ -236,8 +236,8 @@ func (co *CoinbaseInternational) CancelTradeOrder(ctx context.Context, orderID, 
 	default:
 		return nil, errMissingPortfolioID
 	}
-	var resp OrderItem
-	return &resp, co.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodDelete, "orders/"+orderID, params, nil, &resp, true)
+	var resp *OrderItem
+	return resp, co.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodDelete, "orders/"+orderID, params, nil, &resp, true)
 }
 
 // GetAllUserPortfolios returns all of the user's portfolios.
@@ -253,8 +253,8 @@ func (co *CoinbaseInternational) GetPortfolioDetails(ctx context.Context, portfo
 	} else if portfolioUUID == "" {
 		return nil, errMissingPortfolioID
 	}
-	var resp PortfolioDetail
-	return &resp, co.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "portfolios/"+portfolioID+"/detail", nil, nil, &resp, true)
+	var resp *PortfolioDetail
+	return resp, co.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "portfolios/"+portfolioID+"/detail", nil, nil, &resp, true)
 }
 
 // GetPortfolioSummary retrieves the high level overview of a portfolio.
@@ -268,8 +268,8 @@ func (co *CoinbaseInternational) GetPortfolioSummary(ctx context.Context, portfo
 	default:
 		return nil, errMissingPortfolioID
 	}
-	var resp PortfolioSummary
-	return &resp, co.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, nil, &resp, true)
+	var resp *PortfolioSummary
+	return resp, co.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, nil, &resp, true)
 }
 
 // ListPortfolioBalances returns all of the balances for a given portfolio.
@@ -301,8 +301,8 @@ func (co *CoinbaseInternational) GetPortfolioAssetBalance(ctx context.Context, p
 	default:
 		return nil, errMissingPortfolioID
 	}
-	var resp PortfolioBalance
-	return &resp, co.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, nil, &resp, true)
+	var resp *PortfolioBalance
+	return resp, co.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, nil, &resp, true)
 }
 
 // ListPortfolioPositions returns all of the positions for a given portfolio.
@@ -334,8 +334,8 @@ func (co *CoinbaseInternational) GetPortfolioInstrumentPosition(ctx context.Cont
 	default:
 		return nil, errMissingPortfolioID
 	}
-	var resp PortfolioPosition
-	return &resp, co.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, nil, &resp, true)
+	var resp *PortfolioPosition
+	return resp, co.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, nil, &resp, true)
 }
 
 // ListPortfolioFills returns all of the fills for a given portfolio.
@@ -382,8 +382,8 @@ func (co *CoinbaseInternational) ListMatchingTransfers(ctx context.Context, port
 	if !timeTo.IsZero() {
 		params.Set("time_to", timeTo.String())
 	}
-	var resp Transfers
-	return &resp, co.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "transfers", params, nil, &resp, true)
+	var resp *Transfers
+	return resp, co.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "transfers", params, nil, &resp, true)
 }
 
 // GetTransfer returns a single transfer instance
@@ -391,8 +391,8 @@ func (co *CoinbaseInternational) GetTransfer(ctx context.Context, transferID str
 	if transferID == "" {
 		return nil, errMissingTransferID
 	}
-	var resp FundTransfer
-	return &resp, co.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "transfers/"+transferID, nil, nil, &resp, true)
+	var resp *FundTransfer
+	return resp, co.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "transfers/"+transferID, nil, nil, &resp, true)
 }
 
 // WithdrawToCryptoAddress withdraws a crypto fund to crypto address
@@ -409,8 +409,8 @@ func (co *CoinbaseInternational) WithdrawToCryptoAddress(ctx context.Context, ar
 	if arg.AssetIdentifier == "" {
 		return nil, errAssetIdentifierIsRequired
 	}
-	var resp WithdrawalResponse
-	return &resp, co.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "transfers/withdraw", nil, arg, &resp, true)
+	var resp *WithdrawalResponse
+	return resp, co.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "transfers/withdraw", nil, arg, &resp, true)
 }
 
 // CreateCryptoAddress created a new crypto address
@@ -427,8 +427,8 @@ func (co *CoinbaseInternational) CreateCryptoAddress(ctx context.Context, arg *C
 	if arg.NetworkArnID == "" {
 		return nil, errNetworkArnID
 	}
-	var resp CryptoAddressInfo
-	return &resp, co.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "transfers/address", nil, arg, &resp, true)
+	var resp *CryptoAddressInfo
+	return resp, co.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "transfers/address", nil, arg, &resp, true)
 }
 
 // SendHTTPRequest sends a public HTTP request.
