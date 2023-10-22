@@ -4328,10 +4328,18 @@ func (ok *Okx) GetAssetsFromInstrumentTypeOrID(instType, instrumentID string) ([
 	switch {
 	case len(splitSymbol) == 2:
 		resp := make([]asset.Item, 0, 2)
-		if err := ok.CurrencyPairs.IsAssetPairEnabled(asset.Spot, pair); err == nil {
+		enabled, err := ok.IsPairEnabled(pair, asset.Spot)
+		if err != nil {
+			return nil, err
+		}
+		if enabled {
 			resp = append(resp, asset.Spot)
 		}
-		if err := ok.CurrencyPairs.IsAssetPairEnabled(asset.Margin, pair); err == nil {
+		enabled, err = ok.IsPairEnabled(pair, asset.Margin)
+		if err != nil {
+			return nil, err
+		}
+		if enabled {
 			resp = append(resp, asset.Margin)
 		}
 		if len(resp) > 0 {
@@ -4340,15 +4348,27 @@ func (ok *Okx) GetAssetsFromInstrumentTypeOrID(instType, instrumentID string) ([
 	case len(splitSymbol) > 2:
 		switch splitSymbol[len(splitSymbol)-1] {
 		case "SWAP", "swap":
-			if err := ok.CurrencyPairs.IsAssetPairEnabled(asset.PerpetualSwap, pair); err == nil {
+			enabled, err := ok.IsPairEnabled(pair, asset.PerpetualSwap)
+			if err != nil {
+				return nil, err
+			}
+			if enabled {
 				return []asset.Item{asset.PerpetualSwap}, nil
 			}
 		case "C", "P", "c", "p":
-			if err := ok.CurrencyPairs.IsAssetPairEnabled(asset.Options, pair); err == nil {
+			enabled, err := ok.IsPairEnabled(pair, asset.Options)
+			if err != nil {
+				return nil, err
+			}
+			if enabled {
 				return []asset.Item{asset.Options}, nil
 			}
 		default:
-			if err := ok.CurrencyPairs.IsAssetPairEnabled(asset.Futures, pair); err == nil {
+			enabled, err := ok.IsPairEnabled(pair, asset.Futures)
+			if err != nil {
+				return nil, err
+			}
+			if enabled {
 				return []asset.Item{asset.Futures}, nil
 			}
 		}

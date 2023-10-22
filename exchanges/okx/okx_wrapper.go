@@ -214,14 +214,15 @@ func (ok *Okx) Setup(exch *config.Exchange) error {
 		return err
 	}
 	if err := ok.Websocket.Setup(&stream.WebsocketSetup{
-		ExchangeConfig:        exch,
-		DefaultURL:            okxAPIWebsocketPublicURL,
-		RunningURL:            wsRunningEndpoint,
-		Connector:             ok.WsConnect,
-		Subscriber:            ok.Subscribe,
-		Unsubscriber:          ok.Unsubscribe,
-		GenerateSubscriptions: ok.GenerateDefaultSubscriptions,
-		Features:              &ok.Features.Supports.WebsocketCapabilities,
+		ExchangeConfig:                         exch,
+		DefaultURL:                             okxAPIWebsocketPublicURL,
+		RunningURL:                             wsRunningEndpoint,
+		Connector:                              ok.WsConnect,
+		Subscriber:                             ok.Subscribe,
+		Unsubscriber:                           ok.Unsubscribe,
+		GenerateSubscriptions:                  ok.GenerateDefaultSubscriptions,
+		Features:                               &ok.Features.Supports.WebsocketCapabilities,
+		MaxWebsocketSubscriptionsPerConnection: 240,
 		OrderbookBufferConfig: buffer.Config{
 			Checksum: ok.CalculateUpdateOrderbookChecksum,
 		},
@@ -684,18 +685,13 @@ func (ok *Okx) GetRecentTrades(ctx context.Context, p currency.Pair, assetType a
 	}
 
 	resp := make([]trade.Data, len(tradeData))
-	var side order.Side
 	for x := range tradeData {
-		side, err = order.StringToOrderSide(tradeData[x].Side)
-		if err != nil {
-			return nil, err
-		}
 		resp[x] = trade.Data{
 			TID:          tradeData[x].TradeID,
 			Exchange:     ok.Name,
 			CurrencyPair: p,
 			AssetType:    assetType,
-			Side:         side,
+			Side:         tradeData[x].Side,
 			Price:        tradeData[x].Price,
 			Amount:       tradeData[x].Quantity,
 			Timestamp:    tradeData[x].Timestamp.Time(),
@@ -744,11 +740,6 @@ allTrades:
 				// reached end of trades to crawl
 				break allTrades
 			}
-			var tradeSide order.Side
-			tradeSide, err = order.StringToOrderSide(trades[i].Side)
-			if err != nil {
-				return nil, err
-			}
 			resp = append(resp, trade.Data{
 				TID:          trades[i].TradeID,
 				Exchange:     ok.Name,
@@ -757,7 +748,7 @@ allTrades:
 				Price:        trades[i].Price,
 				Amount:       trades[i].Quantity,
 				Timestamp:    trades[i].Timestamp.Time(),
-				Side:         tradeSide,
+				Side:         trades[i].Side,
 			})
 		}
 		tradeIDEnd = trades[len(trades)-1].TradeID
