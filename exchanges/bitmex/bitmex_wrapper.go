@@ -373,11 +373,7 @@ func (b *Bitmex) UpdateTickers(ctx context.Context, a asset.Item) error {
 		return err
 	}
 
-	enabled, err := b.GetEnabledPairs(a)
-	if err != nil {
-		return err
-	}
-
+	var enabled bool
 instruments:
 	for j := range tick {
 		var pair currency.Pair
@@ -386,7 +382,7 @@ instruments:
 			if tick[j].Typ != futuresID {
 				continue instruments
 			}
-			pair, err = enabled.DeriveFrom(tick[j].Symbol)
+			pair, enabled, err = b.MatchSymbolCheckEnabled(tick[j].Symbol, a, false)
 		case asset.Index:
 			switch tick[j].Typ {
 			case bitMEXBasketIndexID,
@@ -401,23 +397,27 @@ instruments:
 			// contain an underscore. Calling DeriveFrom will then error and
 			// the instruments will be missed.
 			tick[j].Symbol = strings.Replace(tick[j].Symbol, currency.UnderscoreDelimiter, "", 1)
-			pair, err = enabled.DeriveFrom(tick[j].Symbol)
+			pair, enabled, err = b.MatchSymbolCheckEnabled(tick[j].Symbol, a, false)
 		case asset.PerpetualContract:
 			if tick[j].Typ != perpetualContractID {
 				continue instruments
 			}
-			pair, err = enabled.DeriveFrom(tick[j].Symbol)
+			pair, enabled, err = b.MatchSymbolCheckEnabled(tick[j].Symbol, a, false)
 		case asset.Spot:
 			if tick[j].Typ != spotID {
 				continue instruments
 			}
 			tick[j].Symbol = strings.Replace(tick[j].Symbol, currency.UnderscoreDelimiter, "", 1)
-			pair, err = enabled.DeriveFrom(tick[j].Symbol)
+			pair, enabled, err = b.MatchSymbolCheckEnabled(tick[j].Symbol, a, false)
 		}
+
 		if err != nil {
 			if !errors.Is(err, currency.ErrPairNotFound) {
 				return err
 			}
+		}
+
+		if !enabled {
 			continue
 		}
 

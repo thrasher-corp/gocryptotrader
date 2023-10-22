@@ -2121,11 +2121,6 @@ func (g *Gateio) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) e
 		return fmt.Errorf("%s %w", a, asset.ErrNotSupported)
 	}
 
-	avail, err := g.GetAvailablePairs(a)
-	if err != nil {
-		return err
-	}
-
 	var limits []order.MinMaxLevel
 	switch a {
 	case asset.Spot:
@@ -2141,7 +2136,7 @@ func (g *Gateio) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) e
 				continue
 			}
 			var pair currency.Pair
-			pair, err = avail.DeriveFrom(strings.ReplaceAll(pairsData[x].ID, "_", ""))
+			pair, err = g.MatchSymbolWithAvailablePairs(pairsData[x].ID, a, true)
 			if err != nil {
 				return err
 			}
