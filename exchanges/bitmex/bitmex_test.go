@@ -1102,6 +1102,7 @@ func TestGetHistoricTrades(t *testing.T) {
 }
 
 func TestUpdateTicker(t *testing.T) {
+	t.Parallel()
 	cp := currency.NewPair(currency.ETH, currency.USD)
 	_, err := b.UpdateTicker(context.Background(), cp, asset.PerpetualContract)
 	if err != nil {

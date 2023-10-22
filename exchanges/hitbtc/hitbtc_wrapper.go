@@ -299,9 +299,9 @@ func (h *HitBTC) FetchTradablePairs(ctx context.Context, _ asset.Item) (currency
 
 	pairs := make([]currency.Pair, len(symbols))
 	for x := range symbols {
-		quote := strings.Replace(symbols[x].ID, symbols[x].BaseCurrency, "", 1)
+		index := strings.Index(symbols[x].ID, symbols[x].QuoteCurrency)
 		var pair currency.Pair
-		pair, err = currency.NewPairFromStrings(symbols[x].BaseCurrency, quote)
+		pair, err = currency.NewPairFromStrings(symbols[x].ID[:index], symbols[x].ID[index:])
 		if err != nil {
 			return nil, err
 		}
@@ -330,23 +330,18 @@ func (h *HitBTC) UpdateTickers(ctx context.Context, a asset.Item) error {
 	if err != nil {
 		return err
 	}
-	avail, err := h.GetAvailablePairs(a)
-	if err != nil {
-		return err
-	}
-
-	enabled, err := h.GetEnabledPairs(a)
-	if err != nil {
-		return err
-	}
 
 	for x := range tick {
-		pair, err := avail.DeriveFrom(tick[x].Symbol)
+		var pair currency.Pair
+		var enabled bool
+		pair, enabled, err = h.MatchSymbolCheckEnabled(tick[x].Symbol, a, false)
 		if err != nil {
-			return err
+			if !errors.Is(err, currency.ErrPairNotFound) {
+				return err
+			}
 		}
 
-		if !enabled.Contains(pair, true) {
+		if !enabled {
 			continue
 		}
 

@@ -40,7 +40,7 @@ func (by *Bybit) WsFuturesConnect() error {
 	}
 	futuresWebsocket, err := by.Websocket.GetAssetWebsocket(asset.Futures)
 	if err != nil {
-		return err
+		return fmt.Errorf("%w asset type: %v", err, asset.Futures)
 	}
 	var dialer websocket.Dialer
 	err = futuresWebsocket.Conn.Dial(&dialer, http.Header{})
@@ -60,15 +60,46 @@ func (by *Bybit) WsFuturesConnect() error {
 	if by.Verbose {
 		log.Debugf(log.ExchangeSys, "%s Connected to Websocket.\n", by.Name)
 	}
+
 	go by.wsFuturesReadData()
-	if by.Websocket.CanUseAuthenticatedEndpoints() {
+	if by.IsWebsocketAuthenticationSupported() {
 		err = by.WsFuturesAuth(context.TODO())
 		if err != nil {
 			by.Websocket.DataHandler <- err
 			by.Websocket.SetCanUseAuthenticatedEndpoints(false)
 		}
 	}
+
 	return nil
+}
+
+// WsFuturesAuth sends an authentication message to receive auth data
+func (by *Bybit) WsFuturesAuth(ctx context.Context) error {
+	futuresWebsocket, err := by.Websocket.GetAssetWebsocket(asset.Futures)
+	if err != nil {
+		return fmt.Errorf("%w asset type: %v", err, asset.Futures)
+	}
+	creds, err := by.GetCredentials(ctx)
+	if err != nil {
+		return err
+	}
+
+	intNonce := (time.Now().Unix() + 1) * 1000
+	strNonce := strconv.FormatInt(intNonce, 10)
+	hmac, err := crypto.GetHMAC(
+		crypto.HashSHA256,
+		[]byte("GET/realtime"+strNonce),
+		[]byte(creds.Secret),
+	)
+	if err != nil {
+		return err
+	}
+	sign := crypto.HexEncodeToString(hmac)
+	req := Authenticate{
+		Operation: "auth",
+		Args:      []interface{}{creds.Key, intNonce, sign},
+	}
+	return futuresWebsocket.Conn.SendJSONMessage(req)
 }
 
 // GenerateFuturesDefaultSubscriptions returns channel subscriptions for futures instruments
@@ -133,35 +164,6 @@ func (by *Bybit) GenerateFuturesDefaultSubscriptions() ([]stream.ChannelSubscrip
 	return subscriptions, nil
 }
 
-// WsFuturesAuth sends an authentication message to receive auth data
-func (by *Bybit) WsFuturesAuth(ctx context.Context) error {
-	futuresWebsocket, err := by.Websocket.GetAssetWebsocket(asset.Futures)
-	if err != nil {
-		return fmt.Errorf("%w asset type: %v", err, asset.Futures)
-	}
-	creds, err := by.GetCredentials(ctx)
-	if err != nil {
-		return err
-	}
-
-	intNonce := (time.Now().Unix() + 1) * 1000
-	strNonce := strconv.FormatInt(intNonce, 10)
-	hmac, err := crypto.GetHMAC(
-		crypto.HashSHA256,
-		[]byte("GET/realtime"+strNonce),
-		[]byte(creds.Secret),
-	)
-	if err != nil {
-		return err
-	}
-	sign := crypto.HexEncodeToString(hmac)
-	req := Authenticate{
-		Operation: "auth",
-		Args:      []interface{}{creds.Key, intNonce, sign},
-	}
-	return futuresWebsocket.Conn.SendJSONMessage(req)
-}
-
 // SubscribeFutures sends a websocket message to receive data from the channel
 func (by *Bybit) SubscribeFutures(channelsToSubscribe []stream.ChannelSubscription) error {
 	futuresWebsocket, err := by.Websocket.GetAssetWebsocket(asset.Futures)
@@ -171,13 +173,9 @@ func (by *Bybit) SubscribeFutures(channelsToSubscribe []stream.ChannelSubscripti
 	var errs error
 	for i := range channelsToSubscribe {
 		var sub WsFuturesReq
-		sub.Topic = wsSubscribe
+		sub.Topic = subscribe
 
 		sub.Args = append(sub.Args, formatArgs(channelsToSubscribe[i].Channel, channelsToSubscribe[i].Params))
-		switch channelsToSubscribe[i].Channel {
-		case wsOrder25, wsKlineV2, wsInstrument, wsOrder200:
-			sub.Args[0] += dot + channelsToSubscribe[i].Currency.String()
-		}
 		err := futuresWebsocket.Conn.SendJSONMessage(sub)
 		if err != nil {
 			errs = common.AppendError(errs, err)
@@ -197,7 +195,7 @@ func (by *Bybit) UnsubscribeFutures(channelsToUnsubscribe []stream.ChannelSubscr
 	var errs error
 	for i := range channelsToUnsubscribe {
 		var unSub WsFuturesReq
-		unSub.Topic = wsUnsubscribe
+		unSub.Topic = unsubscribe
 
 		formattedPair, err := by.FormatExchangeCurrency(channelsToUnsubscribe[i].Currency, asset.Futures)
 		if err != nil {
@@ -222,11 +220,12 @@ func (by *Bybit) wsFuturesReadData() {
 		log.Errorf(log.ExchangeSys, "%v asset type: %v", err, asset.Futures)
 		return
 	}
-	futuresWebsocket.Wg.Add(1)
-	defer futuresWebsocket.Wg.Done()
+	by.Websocket.Wg.Add(1)
+	defer by.Websocket.Wg.Done()
+
 	for {
 		select {
-		case <-futuresWebsocket.ShutdownC:
+		case <-by.Websocket.ShutdownC:
 			return
 		default:
 			resp := futuresWebsocket.Conn.ReadMessage()
@@ -251,9 +250,7 @@ func (by *Bybit) wsFuturesHandleData(respRaw []byte) error {
 
 	t, ok := multiStreamData["topic"].(string)
 	if !ok {
-		if by.Verbose {
-			log.Warnf(log.ExchangeSys, "%s Asset Type %v Received unhandled message on websocket: %v\n", by.Name, asset.Futures, multiStreamData)
-		}
+		log.Errorf(log.ExchangeSys, "%s Received unhandle message on websocket: %v\n", by.Name, multiStreamData)
 		return nil
 	}
 
@@ -274,28 +271,21 @@ func (by *Bybit) wsFuturesHandleData(respRaw []byte) error {
 				}
 
 				var p currency.Pair
-				p, err = currency.NewPairFromString(response.Data[0].Symbol)
+				p, err = by.MatchSymbolWithAvailablePairs(response.OBData[0].Symbol, asset.Futures, false)
 				if err != nil {
 					return err
 				}
-				var format currency.PairFormat
-				format, err = by.GetPairFormat(asset.Futures, false)
-				if err != nil {
-					return err
-				}
-				p = p.Format(format)
-				if err != nil {
-					return err
-				}
-				err = by.processOrderbook(response.Data,
+
+				err = by.processOrderbook(response.OBData,
 					response.Type,
 					p,
 					asset.Futures)
 				if err != nil {
 					return err
 				}
+
 			case wsOperationDelta:
-				var response WsFuturesDeltaOrderbook
+				var response WsCoinDeltaOrderbook
 				err = json.Unmarshal(respRaw, &response)
 				if err != nil {
 					return err
@@ -303,7 +293,7 @@ func (by *Bybit) wsFuturesHandleData(respRaw []byte) error {
 
 				if len(response.OBData.Delete) > 0 {
 					var p currency.Pair
-					p, err = currency.NewPairFromString(response.OBData.Delete[0].Symbol)
+					p, err = by.MatchSymbolWithAvailablePairs(response.OBData.Delete[0].Symbol, asset.Futures, false)
 					if err != nil {
 						return err
 					}
@@ -318,7 +308,7 @@ func (by *Bybit) wsFuturesHandleData(respRaw []byte) error {
 
 				if len(response.OBData.Update) > 0 {
 					var p currency.Pair
-					p, err = currency.NewPairFromString(response.OBData.Update[0].Symbol)
+					p, err = by.MatchSymbolWithAvailablePairs(response.OBData.Update[0].Symbol, asset.Futures, false)
 					if err != nil {
 						return err
 					}
@@ -334,7 +324,7 @@ func (by *Bybit) wsFuturesHandleData(respRaw []byte) error {
 
 				if len(response.OBData.Insert) > 0 {
 					var p currency.Pair
-					p, err = currency.NewPairFromString(response.OBData.Insert[0].Symbol)
+					p, err = by.MatchSymbolWithAvailablePairs(response.OBData.Insert[0].Symbol, asset.Futures, false)
 					if err != nil {
 						return err
 					}
@@ -366,7 +356,7 @@ func (by *Bybit) wsFuturesHandleData(respRaw []byte) error {
 		trades := make([]trade.Data, len(response.TradeData))
 		for i := range response.TradeData {
 			var p currency.Pair
-			p, err = by.extractCurrencyPair(response.TradeData[0].Symbol, asset.Futures)
+			p, err = by.MatchSymbolWithAvailablePairs(response.TradeData[0].Symbol, asset.Futures, false)
 			if err != nil {
 				return err
 			}
@@ -386,7 +376,7 @@ func (by *Bybit) wsFuturesHandleData(respRaw []byte) error {
 				CurrencyPair: p,
 				AssetType:    asset.Futures,
 				Side:         oSide,
-				Price:        response.TradeData[i].Price.Float64(),
+				Price:        response.TradeData[i].Price,
 				Amount:       response.TradeData[i].Size,
 				Timestamp:    response.TradeData[i].Time,
 			}
@@ -402,7 +392,7 @@ func (by *Bybit) wsFuturesHandleData(respRaw []byte) error {
 		}
 
 		var p currency.Pair
-		p, err = currency.NewPairFromString(topics[len(topics)-1])
+		p, err = by.MatchSymbolWithAvailablePairs(topics[len(topics)-1], asset.Futures, false)
 		if err != nil {
 			return err
 		}
@@ -412,11 +402,11 @@ func (by *Bybit) wsFuturesHandleData(respRaw []byte) error {
 				Pair:       p,
 				AssetType:  asset.Futures,
 				Exchange:   by.Name,
-				OpenPrice:  response.KlineData[i].Open.Float64(),
-				HighPrice:  response.KlineData[i].High.Float64(),
-				LowPrice:   response.KlineData[i].Low.Float64(),
-				ClosePrice: response.KlineData[i].Close.Float64(),
-				Volume:     response.KlineData[i].Volume.Float64(),
+				OpenPrice:  response.KlineData[i].Open,
+				HighPrice:  response.KlineData[i].High,
+				LowPrice:   response.KlineData[i].Low,
+				ClosePrice: response.KlineData[i].Close,
+				Volume:     response.KlineData[i].Volume,
 				Timestamp:  response.KlineData[i].Timestamp.Time(),
 			}
 		}
@@ -430,19 +420,21 @@ func (by *Bybit) wsFuturesHandleData(respRaw []byte) error {
 				if err != nil {
 					return err
 				}
+
 				var p currency.Pair
-				p, err = currency.NewPairFromString(response.Ticker.Symbol)
+				p, err = by.MatchSymbolWithAvailablePairs(response.Ticker.Symbol, asset.Futures, false)
 				if err != nil {
 					return err
 				}
+
 				by.Websocket.DataHandler <- &ticker.Price{
 					ExchangeName: by.Name,
 					Last:         response.Ticker.LastPrice.Float64(),
 					High:         response.Ticker.HighPrice24h.Float64(),
 					Low:          response.Ticker.LowPrice24h.Float64(),
-					Bid:          response.Ticker.BidPrice.Float64(),
-					Ask:          response.Ticker.AskPrice.Float64(),
-					Volume:       response.Ticker.GetVolume24h(),
+					Bid:          response.Ticker.BidPrice,
+					Ask:          response.Ticker.AskPrice,
+					Volume:       response.Ticker.Volume24h,
 					Close:        response.Ticker.PrevPrice24h.Float64(),
 					LastUpdated:  response.Ticker.UpdateAt,
 					AssetType:    asset.Futures,
@@ -459,18 +451,19 @@ func (by *Bybit) wsFuturesHandleData(respRaw []byte) error {
 				if len(response.Data.Delete) > 0 {
 					for x := range response.Data.Delete {
 						var p currency.Pair
-						p, err = by.extractCurrencyPair(response.Data.Delete[x].Symbol, asset.Futures)
+						p, err = by.MatchSymbolWithAvailablePairs(response.Data.Delete[x].Symbol, asset.Futures, false)
 						if err != nil {
 							return err
 						}
+
 						by.Websocket.DataHandler <- &ticker.Price{
 							ExchangeName: by.Name,
 							Last:         response.Data.Delete[x].LastPrice.Float64(),
 							High:         response.Data.Delete[x].HighPrice24h.Float64(),
 							Low:          response.Data.Delete[x].LowPrice24h.Float64(),
-							Bid:          response.Data.Delete[x].BidPrice.Float64(),
-							Ask:          response.Data.Delete[x].AskPrice.Float64(),
-							Volume:       response.Data.Delete[x].GetVolume24h(),
+							Bid:          response.Data.Delete[x].BidPrice,
+							Ask:          response.Data.Delete[x].AskPrice,
+							Volume:       response.Data.Delete[x].Volume24h,
 							Close:        response.Data.Delete[x].PrevPrice24h.Float64(),
 							LastUpdated:  response.Data.Delete[x].UpdateAt,
 							AssetType:    asset.Futures,
@@ -482,7 +475,7 @@ func (by *Bybit) wsFuturesHandleData(respRaw []byte) error {
 				if len(response.Data.Update) > 0 {
 					for x := range response.Data.Update {
 						var p currency.Pair
-						p, err = by.extractCurrencyPair(response.Data.Update[x].Symbol, asset.Futures)
+						p, err = by.MatchSymbolWithAvailablePairs(response.Data.Update[x].Symbol, asset.Futures, false)
 						if err != nil {
 							return err
 						}
@@ -492,9 +485,9 @@ func (by *Bybit) wsFuturesHandleData(respRaw []byte) error {
 							Last:         response.Data.Update[x].LastPrice.Float64(),
 							High:         response.Data.Update[x].HighPrice24h.Float64(),
 							Low:          response.Data.Update[x].LowPrice24h.Float64(),
-							Bid:          response.Data.Update[x].BidPrice.Float64(),
-							Ask:          response.Data.Update[x].AskPrice.Float64(),
-							Volume:       response.Data.Update[x].GetVolume24h(),
+							Bid:          response.Data.Update[x].BidPrice,
+							Ask:          response.Data.Update[x].AskPrice,
+							Volume:       response.Data.Update[x].Volume24h,
 							Close:        response.Data.Update[x].PrevPrice24h.Float64(),
 							LastUpdated:  response.Data.Update[x].UpdateAt,
 							AssetType:    asset.Futures,
@@ -506,7 +499,7 @@ func (by *Bybit) wsFuturesHandleData(respRaw []byte) error {
 				if len(response.Data.Insert) > 0 {
 					for x := range response.Data.Insert {
 						var p currency.Pair
-						p, err = by.extractCurrencyPair(response.Data.Insert[x].Symbol, asset.Futures)
+						p, err = by.MatchSymbolWithAvailablePairs(response.Data.Insert[x].Symbol, asset.Futures, false)
 						if err != nil {
 							return err
 						}
@@ -516,9 +509,9 @@ func (by *Bybit) wsFuturesHandleData(respRaw []byte) error {
 							Last:         response.Data.Insert[x].LastPrice.Float64(),
 							High:         response.Data.Insert[x].HighPrice24h.Float64(),
 							Low:          response.Data.Insert[x].LowPrice24h.Float64(),
-							Bid:          response.Data.Insert[x].BidPrice.Float64(),
-							Ask:          response.Data.Insert[x].AskPrice.Float64(),
-							Volume:       response.Data.Insert[x].GetVolume24h(),
+							Bid:          response.Data.Insert[x].BidPrice,
+							Ask:          response.Data.Insert[x].AskPrice,
+							Volume:       response.Data.Insert[x].Volume24h,
 							Close:        response.Data.Insert[x].PrevPrice24h.Float64(),
 							LastUpdated:  response.Data.Insert[x].UpdateAt,
 							AssetType:    asset.Futures,
@@ -557,7 +550,7 @@ func (by *Bybit) wsFuturesHandleData(respRaw []byte) error {
 
 		for i := range response.Data {
 			var p currency.Pair
-			p, err = currency.NewPairFromString(response.Data[i].Symbol)
+			p, err = by.MatchSymbolWithAvailablePairs(response.Data[i].Symbol, asset.Futures, false)
 			if err != nil {
 				return err
 			}
@@ -611,7 +604,7 @@ func (by *Bybit) wsFuturesHandleData(respRaw []byte) error {
 		}
 		for x := range response.Data {
 			var p currency.Pair
-			p, err = currency.NewPairFromString(response.Data[x].Symbol)
+			p, err = by.MatchSymbolWithAvailablePairs(response.Data[x].Symbol, asset.Futures, false)
 			if err != nil {
 				return err
 			}
@@ -673,7 +666,7 @@ func (by *Bybit) wsFuturesHandleData(respRaw []byte) error {
 		}
 		for x := range response.Data {
 			var p currency.Pair
-			p, err = currency.NewPairFromString(response.Data[x].Symbol)
+			p, err = by.MatchSymbolWithAvailablePairs(response.Data[x].Symbol, asset.Futures, false)
 			if err != nil {
 				return err
 			}

@@ -581,24 +581,24 @@ type TradeResp struct {
 
 // ClosedTrades stores closed trades
 type ClosedTrades struct {
-	ID                   int64     `json:"id"`
-	UserID               int64     `json:"user_id"`
-	Symbol               string    `json:"symbol"`
-	OrderID              string    `json:"order_id"`
-	OrderSide            string    `json:"side"`
-	Qty                  float64   `json:"qty"`
-	OrderPrice           float64   `json:"order_price"`
-	OrderType            string    `json:"order_type"`
-	ExecutionType        string    `json:"exec_type"`
-	ClosedSize           float64   `json:"closed_size"`
-	CumulativeEntryValue float64   `json:"cum_entry_value"`
-	AvgEntryPrice        float64   `json:"avg_entry_price"`
-	CumulativeExitValue  float64   `json:"cum_exit_value"`
-	AvgEntryValue        float64   `json:"avg_exit_price"`
-	ClosedProfitLoss     float64   `json:"closed_pnl"`
-	FillCount            int64     `json:"fill_count"`
-	Leverage             float64   `json:"leverage"`
-	CreatedAt            bybitTime `json:"created_at"`
+	ID                   int64                `json:"id"`
+	UserID               int64                `json:"user_id"`
+	Symbol               string               `json:"symbol"`
+	OrderID              string               `json:"order_id"`
+	OrderSide            string               `json:"side"`
+	Qty                  float64              `json:"qty"`
+	OrderPrice           float64              `json:"order_price"`
+	OrderType            string               `json:"order_type"`
+	ExecutionType        string               `json:"exec_type"`
+	ClosedSize           float64              `json:"closed_size"`
+	CumulativeEntryValue float64              `json:"cum_entry_value"`
+	AvgEntryPrice        float64              `json:"avg_entry_price"`
+	CumulativeExitValue  float64              `json:"cum_exit_value"`
+	AvgEntryValue        float64              `json:"avg_exit_price"`
+	ClosedProfitLoss     float64              `json:"closed_pnl"`
+	FillCount            int64                `json:"fill_count"`
+	Leverage             float64              `json:"leverage"`
+	CreatedAt            convert.ExchangeTime `json:"created_at"`
 }
 
 // FundingFee stores funding fee
@@ -705,7 +705,7 @@ type USDCContract struct {
 	Status        string                  `json:"status"`
 	BaseCoin      string                  `json:"baseCoin"`
 	QuoteCoin     string                  `json:"quoteCoin"`
-	DeliveryTime  bybitTime               `json:"deliveryTime"`
+	DeliveryTime  convert.ExchangeTime    `json:"deliveryTime"`
 	TakerFeeRate  convert.StringToFloat64 `json:"takerFeeRate"`
 	MakerFeeRate  convert.StringToFloat64 `json:"makerFeeRate"`
 	MinLeverage   convert.StringToFloat64 `json:"minLeverage"`
@@ -748,7 +748,7 @@ type USDCSymbol struct {
 type USDCKlineBase struct {
 	Symbol   string                  `json:"symbol"`
 	Period   string                  `json:"period"`
-	OpenTime bybitTime               `json:"openTime"`
+	OpenTime convert.ExchangeTime    `json:"openTime"`
 	Open     convert.StringToFloat64 `json:"open"`
 	High     convert.StringToFloat64 `json:"high"`
 	Low      convert.StringToFloat64 `json:"low"`
@@ -765,24 +765,24 @@ type USDCKline struct {
 // USDCOpenInterest stores open interest data
 type USDCOpenInterest struct {
 	Symbol       string                  `json:"symbol"`
-	Timestamp    bybitTime               `json:"timestamp"`
+	Timestamp    convert.ExchangeTime    `json:"timestamp"`
 	OpenInterest convert.StringToFloat64 `json:"openInterest"`
 }
 
 // USDCLargeOrder stores large order data
 type USDCLargeOrder struct {
-	Symbol    string    `json:"symbol"`
-	Side      string    `json:"side"`
-	Timestamp bybitTime `json:"timestamp"`
-	Value     float64   `json:"value"`
+	Symbol    string               `json:"symbol"`
+	Side      string               `json:"side"`
+	Timestamp convert.ExchangeTime `json:"timestamp"`
+	Value     float64              `json:"value"`
 }
 
 // USDCAccountRatio stores long-short ratio data
 type USDCAccountRatio struct {
-	Symbol    string    `json:"symbol"`
-	BuyRatio  float64   `json:"buyRatio"`
-	SellRatio float64   `json:"sellRatio"`
-	Timestamp bybitTime `json:"timestamp"`
+	Symbol    string               `json:"symbol"`
+	BuyRatio  float64              `json:"buyRatio"`
+	SellRatio float64              `json:"sellRatio"`
+	Timestamp convert.ExchangeTime `json:"timestamp"`
 }
 
 // USDCTrade stores trade data
@@ -790,7 +790,7 @@ type USDCTrade struct {
 	ID         string                  `json:"id"`
 	Symbol     string                  `json:"symbol"`
 	Side       string                  `json:"side"`
-	Timestamp  bybitTime               `json:"time"`
+	Timestamp  convert.ExchangeTime    `json:"time"`
 	OrderPrice convert.StringToFloat64 `json:"orderPrice"`
 	OrderQty   convert.StringToFloat64 `json:"orderQty"`
 }
@@ -832,7 +832,7 @@ type USDCOrder struct {
 	TakeProfit      convert.StringToFloat64 `json:"takeProfit"`
 	StopLoss        convert.StringToFloat64 `json:"stopLoss"`
 	TriggerPrice    convert.StringToFloat64 `json:"triggerPrice"`
-	CreatedAt       bybitTime               `json:"createdAt"`
+	CreatedAt       convert.ExchangeTime    `json:"createdAt"`
 }
 
 // USDCOrderHistory stores order history
@@ -841,7 +841,7 @@ type USDCOrderHistory struct {
 	CashFlow    string                  `json:"cashFlow"`
 	LeavesQty   convert.StringToFloat64 `json:"leavesQty"` // Est. unfilled order qty
 	RealisedPnl convert.StringToFloat64 `json:"realisedPnl"`
-	UpdatedAt   bybitTime               `json:"updatedAt"`
+	UpdatedAt   convert.ExchangeTime    `json:"updatedAt"`
 }
 
 // USDCTradeHistory stores trade history
@@ -857,13 +857,13 @@ type USDCTradeHistory struct {
 	ExecFee          convert.StringToFloat64 `json:"execFee"`
 	FeeRate          convert.StringToFloat64 `json:"feeRate"`
 	ExecValue        convert.StringToFloat64 `json:"execValue"`
-	TradeTime        bybitTime               `json:"tradeTime"`
+	TradeTime        convert.ExchangeTime    `json:"tradeTime"`
 	LastLiquidityInd string                  `json:"lastLiquidityInd"`
 }
 
 // USDCTxLog stores transaction log data
 type USDCTxLog struct {
-	TransactionTime bybitTime               `json:"transactionTime"`
+	TransactionTime convert.ExchangeTime    `json:"transactionTime"`
 	Symbol          string                  `json:"symbol"`
 	Type            string                  `json:"type"`
 	Side            string                  `json:"side"`
@@ -930,8 +930,8 @@ type USDCPosition struct {
 	StopLoss            convert.StringToFloat64 `json:"stopLoss"`
 	OrderMargin         convert.StringToFloat64 `json:"orderMargin"`
 	SessionAvgPrice     convert.StringToFloat64 `json:"sessionAvgPrice"`
-	CreatedAt           bybitTime               `json:"createdAt"`
-	UpdatedAt           bybitTime               `json:"updatedAt"`
+	CreatedAt           convert.ExchangeTime    `json:"createdAt"`
+	UpdatedAt           convert.ExchangeTime    `json:"updatedAt"`
 	TpSLMode            string                  `json:"tpSLMode"`
 	Side                string                  `json:"side"`
 	BustPrice           string                  `json:"bustPrice"`
@@ -943,7 +943,7 @@ type USDCPosition struct {
 type USDCSettlementHistory struct {
 	Symbol          string                  `json:"symbol"`
 	Side            string                  `json:"side"`
-	Time            bybitTime               `json:"time"`
+	Time            convert.ExchangeTime    `json:"time"`
 	Size            convert.StringToFloat64 `json:"size"`
 	SessionAvgPrice convert.StringToFloat64 `json:"sessionAvgPrice"`
 	MarkPrice       convert.StringToFloat64 `json:"markPrice"`
@@ -965,7 +965,7 @@ type USDCRiskLimit struct {
 // USDCFundingInfo store USDC funding data
 type USDCFundingInfo struct {
 	Symbol string                  `json:"symbol"`
-	Time   bybitTime               `json:"fundingRateTimestamp"`
+	Time   convert.ExchangeTime    `json:"fundingRateTimestamp"`
 	Rate   convert.StringToFloat64 `json:"fundingRate"`
 }
 

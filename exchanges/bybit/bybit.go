@@ -164,7 +164,7 @@ func (by *Bybit) GetMergedOrderBook(ctx context.Context, symbol string, scale, d
 func (by *Bybit) GetTrades(ctx context.Context, symbol string, limit int64) ([]TradeItem, error) {
 	resp := struct {
 		Data []struct {
-			Time         bybitTime               `json:"time"`
+			Time         convert.ExchangeTime    `json:"time"`
 			IsBuyerMaker bool                    `json:"isBuyerMaker"`
 			Price        convert.StringToFloat64 `json:"price"`
 			Quantity     convert.StringToFloat64 `json:"qty"`

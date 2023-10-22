@@ -2,7 +2,6 @@ package bybit
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"strings"
 	"sync"
@@ -1965,60 +1964,6 @@ func TestSetRiskLimit(t *testing.T) {
 	}
 }
 
-// Miscellaneous
-
-func TestTimeUnmarshalJSON(t *testing.T) {
-	t.Parallel()
-	bybitTimeInst := &struct {
-		Timestamp bybitTime `json:"ts"`
-	}{}
-	data1 := `{ "ts" : "1685523612777"}`
-	resultTime := time.UnixMilli(1685523612777)
-	err := json.Unmarshal([]byte(data1), bybitTimeInst)
-	if err != nil {
-		t.Fatal(err)
-	} else if bybitTimeInst.Timestamp.Time().UnixMilli() != resultTime.UnixMilli() {
-		t.Errorf("found %v, but expected %v", bybitTimeInst.Timestamp.Time(), resultTime)
-	}
-	data2 := `{ "ts" : "1685523612"}`
-	resultTime = time.Unix(1685523612, 0)
-	err = json.Unmarshal([]byte(data2), bybitTimeInst)
-	if err != nil {
-		t.Fatal(err)
-	} else if !bybitTimeInst.Timestamp.Time().Equal(resultTime) {
-		t.Errorf("found %v, but expected %v", bybitTimeInst.Timestamp.Time(), resultTime)
-	}
-	data3 := `{ "ts" : ""}`
-	resultTime = time.Time{}
-	err = json.Unmarshal([]byte(data3), bybitTimeInst)
-	if err != nil {
-		t.Fatal(err)
-	} else if !bybitTimeInst.Timestamp.Time().Equal(resultTime) {
-		t.Errorf("found %v, but expected %v", bybitTimeInst.Timestamp.Time(), resultTime)
-	}
-	data4 := `{"ts":"1685523612781790000"}`
-	resultTime = time.Unix((int64(1685523612781790000) / 1e9), int64(1685523612781790000)%1e9)
-	err = json.Unmarshal([]byte(data4), bybitTimeInst)
-	if err != nil {
-		t.Fatal(err)
-	} else if bybitTimeInst.Timestamp.Time().UnixMilli() != resultTime.UnixMilli() {
-		t.Errorf("found %v, but expected %v", bybitTimeInst.Timestamp.Time(), resultTime)
-	}
-	data5 := `{ "ts" : 1685523612777}`
-	resultTime = time.UnixMilli(1685523612777)
-	err = json.Unmarshal([]byte(data5), bybitTimeInst)
-	if err != nil {
-		t.Fatal(err)
-	} else if bybitTimeInst.Timestamp.Time().UnixMilli() != resultTime.UnixMilli() {
-		t.Errorf("found %v, but expected %v", bybitTimeInst.Timestamp.Time(), resultTime.String())
-	}
-	data6 := `{ "ts" : "abcdef"}`
-	err = json.Unmarshal([]byte(data6), bybitTimeInst)
-	if err == nil {
-		t.Errorf("expecting an error, but got nil")
-	}
-}
-
 // test cases for Wrapper
 func TestUpdateTicker(t *testing.T) {
 	t.Parallel()
@@ -2049,7 +1994,7 @@ func TestUpdateTicker(t *testing.T) {
 	var pairs currency.Pairs
 	if mockTests {
 		var pair2 currency.Pair
-		pair2, err = currency.NewPairFromString("BTCUSD-U23")
+		pair2, err = currency.NewPairFromString("BTCUSD-Z23")
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -2237,7 +2182,7 @@ func TestGetHistoricCandles(t *testing.T) {
 	}
 	var pair2 currency.Pair
 	if mockTests {
-		pair2, err = currency.NewPairFromString("BTCUSD-U23")
+		pair2, err = currency.NewPairFromString("BTCUSD-Z23")
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -2299,7 +2244,7 @@ func TestGetHistoricCandlesExtended(t *testing.T) {
 	}
 	var pair2 currency.Pair
 	if mockTests {
-		pair2, err = currency.NewPairFromString("BTCUSD-U23")
+		pair2, err = currency.NewPairFromString("BTCUSD-Z23")
 		if err != nil {
 			t.Fatal(err)
 		}

@@ -1,6 +1,7 @@
 package order
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"reflect"
@@ -10,6 +11,7 @@ import (
 	"time"
 
 	"github.com/gofrs/uuid"
+	"github.com/stretchr/testify/assert"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -2044,4 +2046,14 @@ func TestAdjustQuoteAmount(t *testing.T) {
 	if s.QuoteAmount != 5.22222222 {
 		t.Fatalf("received: '%v' but expected: '%v'", s.Amount, 5.22222222)
 	}
+}
+
+func TestSideUnmarshal(t *testing.T) {
+	t.Parallel()
+	var s Side
+	assert.Nil(t, s.UnmarshalJSON([]byte(`"SELL"`)), "Quoted valid side okay")
+	assert.Equal(t, Sell, s, "Correctly set order Side")
+	assert.ErrorIs(t, s.UnmarshalJSON([]byte(`"STEAL"`)), ErrSideIsInvalid, "Quoted invalid side errors")
+	var jErr *json.UnmarshalTypeError
+	assert.ErrorAs(t, s.UnmarshalJSON([]byte(`14`)), &jErr, "non-string valid json is rejected")
 }
