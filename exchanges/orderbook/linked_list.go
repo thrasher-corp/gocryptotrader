@@ -100,8 +100,10 @@ updates:
 				// Only apply changes when zero values are not present, Bitmex
 				// for example sends 0 price values.
 				tip.Value.Price = updts[x].Price
+				tip.Value.StrPrice = updts[x].StrPrice
 			}
 			tip.Value.Amount = updts[x].Amount
+			tip.Value.StrAmount = updts[x].StrAmount
 			continue updates
 		}
 		return fmt.Errorf("update error: %w ID: %d not found",
@@ -190,7 +192,7 @@ func (ll *linkedList) updateInsertByPrice(updts Items, stack *stack, maxChainLen
 	for x := range updts {
 		for tip := &ll.head; ; tip = &(*tip).Next {
 			if *tip == nil {
-				insertHeadSpecific(ll, updts[x], stack)
+				insertHeadSpecific(ll, &updts[x], stack)
 				break
 			}
 			if (*tip).Value.Price == updts[x].Price { // Match check
@@ -198,6 +200,7 @@ func (ll *linkedList) updateInsertByPrice(updts Items, stack *stack, maxChainLen
 					stack.Push(deleteAtTip(ll, tip), tn)
 				} else { // Amend current amount value
 					(*tip).Value.Amount = updts[x].Amount
+					(*tip).Value.StrAmount = updts[x].StrAmount
 				}
 				break // Continue updates
 			}
@@ -208,7 +211,7 @@ func (ll *linkedList) updateInsertByPrice(updts Items, stack *stack, maxChainLen
 				// to a non-existent price level (OTC/Hidden order) so we can
 				// break instantly and reduce the traversal of the entire chain.
 				if updts[x].Amount > 0 {
-					insertAtTip(ll, tip, updts[x], stack)
+					insertAtTip(ll, tip, &updts[x], stack)
 				}
 				break // Continue updates
 			}
@@ -217,7 +220,7 @@ func (ll *linkedList) updateInsertByPrice(updts Items, stack *stack, maxChainLen
 				// This check below is just a catch all in the event the above
 				// zero value check fails
 				if updts[x].Amount > 0 {
-					insertAtTail(ll, tip, updts[x], stack)
+					insertAtTail(ll, tip, &updts[x], stack)
 				}
 				break
 			}
@@ -255,7 +258,9 @@ updates:
 					if tip.Next == nil {
 						// no movement needed just a re-adjustment
 						tip.Value.Price = updts[x].Price
+						tip.Value.StrPrice = updts[x].StrPrice
 						tip.Value.Amount = updts[x].Amount
+						tip.Value.StrAmount = updts[x].StrAmount
 						continue updates
 					}
 					// bookmark tip to move this node to correct price level
@@ -264,6 +269,7 @@ updates:
 				}
 				// no price change, amend amount and continue update
 				tip.Value.Amount = updts[x].Amount
+				tip.Value.StrAmount = updts[x].StrAmount
 				continue updates // continue to next update
 			}
 
@@ -305,7 +311,7 @@ updates:
 			}
 
 			if tip.Next == nil {
-				if shiftBookmark(tip, &bookmark, &ll.head, updts[x]) {
+				if shiftBookmark(tip, &bookmark, &ll.head, &updts[x]) {
 					continue updates
 				}
 			}
@@ -352,7 +358,7 @@ func (ll *linkedList) insertUpdates(updts Items, stack *stack, comp comparison) 
 			}
 
 			if (*tip).Next == nil { // Tail
-				insertAtTail(ll, tip, updts[x], stack)
+				insertAtTail(ll, tip, &updts[x], stack)
 				break // Continue updates
 			}
 			prev = *tip
@@ -778,9 +784,9 @@ func deleteAtTip(ll *linkedList, tip **Node) *Node {
 }
 
 // insertAtTip inserts at a tip target (can inline)
-func insertAtTip(ll *linkedList, tip **Node, updt Item, stack *stack) {
+func insertAtTip(ll *linkedList, tip **Node, updt *Item, stack *stack) {
 	n := stack.Pop()
-	n.Value = updt
+	n.Value = *updt
 	n.Next = *tip
 	n.Prev = (*tip).Prev
 	if (*tip).Prev == nil { // Tip is at head
@@ -797,9 +803,9 @@ func insertAtTip(ll *linkedList, tip **Node, updt Item, stack *stack) {
 }
 
 // insertAtTail inserts at tail end of node chain (can inline)
-func insertAtTail(ll *linkedList, tip **Node, updt Item, stack *stack) {
+func insertAtTail(ll *linkedList, tip **Node, updt *Item, stack *stack) {
 	n := stack.Pop()
-	n.Value = updt
+	n.Value = *updt
 	// Reference tip to new node
 	(*tip).Next = n
 	// Reference new node with current tip
@@ -810,9 +816,9 @@ func insertAtTail(ll *linkedList, tip **Node, updt Item, stack *stack) {
 // insertHeadSpecific inserts at head specifically there might be an instance
 // where the liquidity on an exchange does fall to zero through a streaming
 // endpoint then it comes back online. (can inline)
-func insertHeadSpecific(ll *linkedList, updt Item, stack *stack) {
+func insertHeadSpecific(ll *linkedList, updt *Item, stack *stack) {
 	n := stack.Pop()
-	n.Value = updt
+	n.Value = *updt
 	ll.head = n
 	ll.length++
 }
@@ -842,12 +848,12 @@ func insertNodeAtBookmark(ll *linkedList, bookmark, n *Node) {
 
 // shiftBookmark moves a bookmarked node to the tip's next position or if nil,
 // sets tip as bookmark (can inline)
-func shiftBookmark(tip *Node, bookmark, head **Node, updt Item) bool {
+func shiftBookmark(tip *Node, bookmark, head **Node, updt *Item) bool {
 	if *bookmark == nil { // End of the chain and no bookmark set
 		*bookmark = tip // Set tip to bookmark so we can set a new node there
 		return false
 	}
-	(*bookmark).Value = updt
+	(*bookmark).Value = *updt
 	(*bookmark).Next.Prev = (*bookmark).Prev
 	if (*bookmark).Prev == nil { // Bookmark is at head
 		*head = (*bookmark).Next
