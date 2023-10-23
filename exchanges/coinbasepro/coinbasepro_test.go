@@ -31,9 +31,9 @@ var (
 
 // Please supply your APIKeys here for better testing
 const (
-	apiKey                  = "2a77ecc0a721e8b7b481d6a2fcdeea5d"
-	apiSecret               = "m/Ty7P9WvZsTn7Qu/hUqDGy85v1ow8irUSQRgSQ7jEag2QU0evyHjUr3Jv7bNpYG3iLHl92zHYe+GuDYGWGXxw=="
-	clientID                = "se9b47msd8" // passphrase you made at API CREATION
+	apiKey                  = ""
+	apiSecret               = ""
+	clientID                = "" // passphrase you made at API CREATION
 	canManipulateRealOrders = true
 	testingInSandbox        = true
 )
