@@ -32,7 +32,6 @@ func TestMain(m *testing.M) {
 	if isAppVeyor() || is32BitJob() {
 		return
 	}
-	request.MaxRequestJobs = 200
 	os.Exit(m.Run())
 }
 

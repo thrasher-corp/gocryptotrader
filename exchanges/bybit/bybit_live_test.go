@@ -11,7 +11,6 @@ import (
 	"testing"
 
 	"github.com/thrasher-corp/gocryptotrader/config"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 )
 
@@ -37,7 +36,6 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		log.Fatal("Bybit setup error", err)
 	}
-	request.MaxRequestJobs = 100
 	b.Websocket.DataHandler = sharedtestvalues.GetWebsocketInterfaceChannelOverride()
 	log.Printf(sharedtestvalues.LiveTesting, b.Name)
 	err = b.UpdateTradablePairs(context.Background(), true)
