@@ -11,8 +11,8 @@ import (
 // Coinbasepro rate limit conts
 const (
 	coinbaseproRateInterval = time.Second
-	coinbaseproAuthRate     = 5
-	coinbaseproUnauthRate   = 2
+	coinbaseproAuthRate     = 10
+	coinbaseproUnauthRate   = 10
 )
 
 // RateLimit implements the request.Limiter interface

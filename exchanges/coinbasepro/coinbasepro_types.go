@@ -6,10 +6,11 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 )
 
-// Product holds product information
+// Product holds product information, returned by GetAllProducts and GetProductByID
 type Product struct {
 	ID                        string  `json:"id"`
 	BaseCurrency              string  `json:"base_currency"`
@@ -31,7 +32,7 @@ type Product struct {
 	HighBidLimitPercentage    string  `json:"high_bid_limit_percentage"`
 }
 
-// Ticker holds basic ticker information
+// Ticker holds basic ticker information, returned by GetTicker
 type Ticker struct {
 	Ask     float64   `json:"ask,string"`
 	Bid     float64   `json:"bid,string"`
@@ -42,7 +43,7 @@ type Ticker struct {
 	Time    time.Time `json:"time"`
 }
 
-// Trade holds executed trade information
+// Trade holds executed trade information, returned by GetTrades
 type Trade struct {
 	TradeID int64     `json:"trade_id"`
 	Price   float64   `json:"price,string"`
@@ -51,7 +52,7 @@ type Trade struct {
 	Side    string    `json:"side"`
 }
 
-// History holds historic rate information
+// History holds historic rate information, returned by GetHistoricRates
 type History struct {
 	Time   time.Time
 	Low    float64
@@ -61,7 +62,7 @@ type History struct {
 	Volume float64
 }
 
-// Stats holds last 24 hr data for coinbasepro
+// Stats holds 30 day and 24 hr data for a currency pair, returned by GetStats
 type Stats struct {
 	Open        float64 `json:"open,string"`
 	High        float64 `json:"high,string"`
@@ -71,7 +72,7 @@ type Stats struct {
 	Volume30Day float64 `json:"volume_30day,string"`
 }
 
-// Currency holds singular currency product information
+// Currency holds information on a currency, returned by GetAllCurrencies and GetCurrencyByID
 type Currency struct {
 	ID            string   `json:"id"`
 	Name          string   `json:"name"`
@@ -109,12 +110,13 @@ type Currency struct {
 }
 
 // ServerTime holds current requested server time information
-type ServerTime struct {
-	ISO   time.Time `json:"iso"`
-	Epoch float64   `json:"epoch"`
-}
+// type ServerTime struct {
+// 	ISO   time.Time `json:"iso"`
+// 	Epoch float64   `json:"epoch"`
+// }
 
-// AccountResponse holds the details for the trading accounts
+// AccountResponse holds details for a trading account, returned by GetAllAccounts
+// and GetAccountByID
 type AccountResponse struct {
 	ID             string  `json:"id"`
 	Currency       string  `json:"currency"`
@@ -126,7 +128,7 @@ type AccountResponse struct {
 	PendingDeposit string  `json:"pending_deposit"`
 }
 
-// AccountLedgerResponse holds account history information
+// AccountLedgerResponse holds account history information, returned by GetAccountLedger
 type AccountLedgerResponse struct {
 	ID        string    `json:"id"`
 	Amount    float64   `json:"amount,string"`
@@ -140,17 +142,18 @@ type AccountLedgerResponse struct {
 	} `json:"details"`
 }
 
-// AccountHolds contains the hold information about an account
+// AccountHolds contains information on a hold, returned by GetHolds
 type AccountHolds struct {
 	ID        string    `json:"id"`
 	CreatedAt time.Time `json:"created_at"`
+	Amount    float64   `json:"amount,string"`
 	UpdatedAt time.Time `json:"updated_at"`
 	Type      string    `json:"type"`
 	Reference string    `json:"ref"`
 }
 
-// GeneralizedOrderResponse is the generalized return type across order
-// placement and information collation
+// GeneralizedOrderResponse contains information on an order, returned by GetAllOrders,
+// PlaceOrder, and GetOrderByID
 type GeneralizedOrderResponse struct {
 	ID             string    `json:"id"`
 	Price          float64   `json:"price,string"`
@@ -181,85 +184,85 @@ type GeneralizedOrderResponse struct {
 }
 
 // Funding holds funding data
-type Funding struct {
-	ID            string    `json:"id"`
-	OrderID       string    `json:"order_id"`
-	ProfileID     string    `json:"profile_id"`
-	Amount        float64   `json:"amount,string"`
-	Status        string    `json:"status"`
-	CreatedAt     time.Time `json:"created_at"`
-	Currency      string    `json:"currency"`
-	RepaidAmount  float64   `json:"repaid_amount"`
-	DefaultAmount float64   `json:"default_amount,string"`
-	RepaidDefault bool      `json:"repaid_default"`
-}
+// type Funding struct {
+// 	ID            string    `json:"id"`
+// 	OrderID       string    `json:"order_id"`
+// 	ProfileID     string    `json:"profile_id"`
+// 	Amount        float64   `json:"amount,string"`
+// 	Status        string    `json:"status"`
+// 	CreatedAt     time.Time `json:"created_at"`
+// 	Currency      string    `json:"currency"`
+// 	RepaidAmount  float64   `json:"repaid_amount"`
+// 	DefaultAmount float64   `json:"default_amount,string"`
+// 	RepaidDefault bool      `json:"repaid_default"`
+// }
 
 // MarginTransfer holds margin transfer details
-type MarginTransfer struct {
-	CreatedAt       time.Time `json:"created_at"`
-	ID              string    `json:"id"`
-	UserID          string    `json:"user_id"`
-	ProfileID       string    `json:"profile_id"`
-	MarginProfileID string    `json:"margin_profile_id"`
-	Type            string    `json:"type"`
-	Amount          float64   `json:"amount,string"`
-	Currency        string    `json:"currency"`
-	AccountID       string    `json:"account_id"`
-	MarginAccountID string    `json:"margin_account_id"`
-	MarginProductID string    `json:"margin_product_id"`
-	Status          string    `json:"status"`
-	Nonce           int       `json:"nonce"`
-}
+// type MarginTransfer struct {
+// 	CreatedAt       time.Time `json:"created_at"`
+// 	ID              string    `json:"id"`
+// 	UserID          string    `json:"user_id"`
+// 	ProfileID       string    `json:"profile_id"`
+// 	MarginProfileID string    `json:"margin_profile_id"`
+// 	Type            string    `json:"type"`
+// 	Amount          float64   `json:"amount,string"`
+// 	Currency        string    `json:"currency"`
+// 	AccountID       string    `json:"account_id"`
+// 	MarginAccountID string    `json:"margin_account_id"`
+// 	MarginProductID string    `json:"margin_product_id"`
+// 	Status          string    `json:"status"`
+// 	Nonce           int       `json:"nonce"`
+// }
 
 // AccountOverview holds account information returned from position
-type AccountOverview struct {
-	Status  string `json:"status"`
-	Funding struct {
-		MaxFundingValue   float64 `json:"max_funding_value,string"`
-		FundingValue      float64 `json:"funding_value,string"`
-		OldestOutstanding struct {
-			ID        string    `json:"id"`
-			OrderID   string    `json:"order_id"`
-			CreatedAt time.Time `json:"created_at"`
-			Currency  string    `json:"currency"`
-			AccountID string    `json:"account_id"`
-			Amount    float64   `json:"amount,string"`
-		} `json:"oldest_outstanding"`
-	} `json:"funding"`
-	Accounts struct {
-		LTC Account `json:"LTC"`
-		ETH Account `json:"ETH"`
-		USD Account `json:"USD"`
-		BTC Account `json:"BTC"`
-	} `json:"accounts"`
-	MarginCall struct {
-		Active bool    `json:"active"`
-		Price  float64 `json:"price,string"`
-		Side   string  `json:"side"`
-		Size   float64 `json:"size,string"`
-		Funds  float64 `json:"funds,string"`
-	} `json:"margin_call"`
-	UserID    string `json:"user_id"`
-	ProfileID string `json:"profile_id"`
-	Position  struct {
-		Type       string  `json:"type"`
-		Size       float64 `json:"size,string"`
-		Complement float64 `json:"complement,string"`
-		MaxSize    float64 `json:"max_size,string"`
-	} `json:"position"`
-	ProductID string `json:"product_id"`
-}
+// type AccountOverview struct {
+// 	Status  string `json:"status"`
+// 	Funding struct {
+// 		MaxFundingValue   float64 `json:"max_funding_value,string"`
+// 		FundingValue      float64 `json:"funding_value,string"`
+// 		OldestOutstanding struct {
+// 			ID        string    `json:"id"`
+// 			OrderID   string    `json:"order_id"`
+// 			CreatedAt time.Time `json:"created_at"`
+// 			Currency  string    `json:"currency"`
+// 			AccountID string    `json:"account_id"`
+// 			Amount    float64   `json:"amount,string"`
+// 		} `json:"oldest_outstanding"`
+// 	} `json:"funding"`
+// 	Accounts struct {
+// 		LTC Account `json:"LTC"`
+// 		ETH Account `json:"ETH"`
+// 		USD Account `json:"USD"`
+// 		BTC Account `json:"BTC"`
+// 	} `json:"accounts"`
+// 	MarginCall struct {
+// 		Active bool    `json:"active"`
+// 		Price  float64 `json:"price,string"`
+// 		Side   string  `json:"side"`
+// 		Size   float64 `json:"size,string"`
+// 		Funds  float64 `json:"funds,string"`
+// 	} `json:"margin_call"`
+// 	UserID    string `json:"user_id"`
+// 	ProfileID string `json:"profile_id"`
+// 	Position  struct {
+// 		Type       string  `json:"type"`
+// 		Size       float64 `json:"size,string"`
+// 		Complement float64 `json:"complement,string"`
+// 		MaxSize    float64 `json:"max_size,string"`
+// 	} `json:"position"`
+// 	ProductID string `json:"product_id"`
+// }
 
 // Account is a sub-type for account overview
-type Account struct {
-	ID            string  `json:"id"`
-	Balance       float64 `json:"balance,string"`
-	Hold          float64 `json:"hold,string"`
-	FundedAmount  float64 `json:"funded_amount,string"`
-	DefaultAmount float64 `json:"default_amount,string"`
-}
+// type Account struct {
+// 	ID            string  `json:"id"`
+// 	Balance       float64 `json:"balance,string"`
+// 	Hold          float64 `json:"hold,string"`
+// 	FundedAmount  float64 `json:"funded_amount,string"`
+// 	DefaultAmount float64 `json:"default_amount,string"`
+// }
 
-// PaymentMethod holds payment method information
+// PaymentMethod holds payment method information, returned by GetPayMethods
 type PaymentMethod struct {
 	ID           string    `json:"id"`
 	Type         string    `json:"type"`
@@ -326,15 +329,18 @@ type PaymentMethod struct {
 }
 
 // LimitInfo is a sub-type for payment method
-type LimitInfo struct {
-	PeriodInDays int `json:"period_in_days"`
-	Total        struct {
-		Amount   float64 `json:"amount,string"`
-		Currency string  `json:"currency"`
-	} `json:"total"`
-}
+// type LimitInfo struct {
+// 	PeriodInDays int `json:"period_in_days"`
+// 	Total        struct {
+// 		Amount   float64 `json:"amount,string"`
+// 		Currency string  `json:"currency"`
+// 	} `json:"total"`
+// }
 
-// DepositWithdrawalInfo holds returned deposit information
+// DepositWithdrawalInfo holds information provided when depositing or
+// withdrawing from payment methods. Returned by DepositViaCoinbase,
+// DepositViaPaymentMethod, WithdrawViaCoinbase, WithdrawCrypto, and
+// WithdrawViaPaymentMethod
 type DepositWithdrawalInfo struct {
 	ID       string    `json:"id"`
 	Amount   float64   `json:"amount,string"`
@@ -344,7 +350,7 @@ type DepositWithdrawalInfo struct {
 	Subtotal float64   `json:"subtotal,string"`
 }
 
-// CoinbaseAccounts holds coinbase account information
+// CoinbaseAccounts holds coinbase account information, returned by GetCoinbaseWallets
 type CoinbaseAccounts struct {
 	ID                     string  `json:"id"`
 	Name                   string  `json:"name"`
@@ -406,7 +412,8 @@ type CoinbaseAccounts struct {
 	HoldCurrency        string  `json:"hold_currency"`
 }
 
-// Report holds historical information
+// Report holds information on user-generated reports, returned by GetAllReports
+// and GetReportByID
 type Report struct {
 	ID          string    `json:"id"`
 	Type        string    `json:"type"`
@@ -432,10 +439,12 @@ type Report struct {
 			Email                   string        `json:"email"`
 			Roles                   []interface{} `json:"roles"`
 			IsBanned                bool          `json:"is_banned"`
+			Permissions             interface{}   `json:"permissions"`
 			UserType                string        `json:"user_type"`
 			FulfillsNewRequirements bool          `json:"fulfills_new_requirements"`
 			Flags                   interface{}   `json:"flags"`
 			Details                 interface{}   `json:"details"`
+			OauthClient             string        `json:"oauth_client"`
 			Preferences             struct {
 				PreferredMarket              string    `json:"preferred_market"`
 				MarginTermsCompletedInUTC    time.Time `json:"margin_terms_completed_in_utc"`
@@ -458,12 +467,12 @@ type Report struct {
 }
 
 // Volume type contains trailing volume information
-type Volume struct {
-	ProductID      string  `json:"product_id"`
-	ExchangeVolume float64 `json:"exchange_volume,string"`
-	Volume         float64 `json:"volume,string"`
-	RecordedAt     string  `json:"recorded_at"`
-}
+// type Volume struct {
+// 	ProductID      string  `json:"product_id"`
+// 	ExchangeVolume float64 `json:"exchange_volume,string"`
+// 	Volume         float64 `json:"volume,string"`
+// 	RecordedAt     string  `json:"recorded_at"`
+// }
 
 // InterOrderDetail is used to make intermediary orderbook handling easier
 type InterOrderDetail [][3]interface{}
@@ -488,7 +497,7 @@ type OrderbookIntermediaryResponse struct {
 	Time time.Time `json:"time"`
 }
 
-// GenOrderDetail is a subtype used for the orderbook
+// GenOrderDetail is a subtype used for the final state of the orderbook
 type GenOrderDetail struct {
 	Price     float64
 	Amount    float64
@@ -496,7 +505,7 @@ type GenOrderDetail struct {
 	OrderID   string
 }
 
-// OrderbookResponse is the final state of the orderbook
+// OrderbookResponse is the final state of the orderbook, returned by GetOrderbook
 type OrderbookFinalResponse struct {
 	Bids        []GenOrderDetail `json:"bids"`
 	Asks        []GenOrderDetail `json:"asks"`
@@ -516,7 +525,7 @@ type OrderbookFinalResponse struct {
 	Time time.Time `json:"time"`
 }
 
-// FillResponse contains fill information from the exchange
+// FillResponse contains fill information, returned by GetFills
 type FillResponse struct {
 	TradeID         int32     `json:"trade_id"`
 	ProductID       string    `json:"product_id"`
@@ -665,18 +674,19 @@ type wsStatus struct {
 }
 
 // RequestParamsTimeForceType Time in force
-type RequestParamsTimeForceType string
+// type RequestParamsTimeForceType string
 
-var (
-	// CoinbaseRequestParamsTimeGTC GTC
-	CoinbaseRequestParamsTimeGTC = RequestParamsTimeForceType("GTC")
+// var (
+// 	// CoinbaseRequestParamsTimeGTC GTC
+// 	CoinbaseRequestParamsTimeGTC = RequestParamsTimeForceType("GTC")
 
-	// CoinbaseRequestParamsTimeIOC IOC
-	CoinbaseRequestParamsTimeIOC = RequestParamsTimeForceType("IOC")
-)
+// 	// CoinbaseRequestParamsTimeIOC IOC
+// 	CoinbaseRequestParamsTimeIOC = RequestParamsTimeForceType("IOC")
+// )
 
-// TransferHistory returns wallet transfer history
-type TransferHistory struct {
+// TransferResponse contains information on a transfer, returned by GetAccountTransfers,
+// GetAllTransfers, and GetTransferByID
+type TransferResponse struct {
 	ID          string    `json:"id"`
 	Type        string    `json:"type"`
 	CreatedAt   time.Time `json:"created_at"`
@@ -692,18 +702,22 @@ type TransferHistory struct {
 	UserNonce int64 `json:"user_nonce"`
 }
 
+// TravelRule contains information on a travel rule, returned by GetTravelRules
+// and CreateTravelRule
 type TravelRule struct {
-	ID            string `json:"id"`
-	CreatedAt     string `json:"created_at"`
-	Address       string `json:"address"`
-	OriginName    string `json:"originator_name"`
-	OriginCountry string `json:"originator_country"`
+	ID            string    `json:"id"`
+	CreatedAt     time.Time `json:"created_at"`
+	Address       string    `json:"address"`
+	OriginName    string    `json:"originator_name"`
+	OriginCountry string    `json:"originator_country"`
 }
 
+// Params is used within functions to make the setting of parameters easier
 type Params struct {
 	urlVals url.Values
 }
 
+// GetAddressResponse contains information on addresses, returned by GetAddressBook
 type GetAddressResponse struct {
 	ID                 string    `json:"id"`
 	Address            string    `json:"address"`
@@ -716,10 +730,13 @@ type GetAddressResponse struct {
 	VASPID             string    `json:"vasp_id"`
 }
 
+// To is part of the struct expected by the exchange for the AddAddresses function
 type To struct {
 	Address        string `json:"address"`
 	DestinationTag string `json:"destination_tag"`
 }
+
+// AddAddressRequest is the struct expected by the exchange for the AddAddresses function
 type AddAddressRequest struct {
 	Currency           string `json:"currency"`
 	To                 `json:"to"`
@@ -730,6 +747,8 @@ type AddAddressRequest struct {
 	// but doesn't explain what they do. Investigate more later.
 }
 
+// AddAddressResponse contains information on the addresses just added, returned by
+// AddAddresses
 type AddAddressResponse struct {
 	ID          string `json:"id"`
 	Address     string `json:"address"`
@@ -750,6 +769,8 @@ type AddAddressResponse struct {
 	VaspID                       string    `json:"vasp_id"`
 }
 
+// CryptoAddressResponse contains information on the one-time address generated for
+// depositing crypto, returned by GenerateCryptoAddress
 type CryptoAddressResponse struct {
 	ID          string `json:"id"`
 	Address     string `json:"address"`
@@ -775,6 +796,8 @@ type CryptoAddressResponse struct {
 	CallbackURL    string `json:"callback_url"`
 }
 
+// ConvertResponse contains information about a completed currency conversion, returned
+// by ConvertCurrency and GetConversionByID
 type ConvertResponse struct {
 	ID            string `json:"id"`
 	Amount        string `json:"amount"`
@@ -784,17 +807,22 @@ type ConvertResponse struct {
 	To            string `json:"to"`
 }
 
+// WithdrawalFeeEstimate is the exchange's estimate of the fee for a withdrawal, returned
+// by GetWithdrawalFeeEstimate
 type WithdrawalFeeEstimate struct {
 	Fee              string `json:"fee"`
 	FeeBeforeSubsidy string `json:"fee_before_subsidy"`
 }
 
+// FeeResponse contains current taker and maker fee rates, as well as 30-day trailing
+// volume. Returned by GetFees
 type FeeResponse struct {
 	TakerFeeRate float64 `json:"taker_fee_rate,string"`
 	MakerFeeRate float64 `json:"maker_fee_rate,string"`
 	USDVolume    float64 `json:"usd_volume,string"`
 }
 
+// PriceMap is used to properly unmarshal the response from GetSignedPrices
 type PriceMap map[string]float64
 
 func (pm *PriceMap) UnmarshalJSON(data []byte) error {
@@ -813,6 +841,9 @@ func (pm *PriceMap) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
+// SignedPrices contains cryptographically signed prices, alongside other information
+// necessary for them to be posted on-chain using Compound's Open Oracle smart contract.
+// Returned by GetSignedPrices
 type SignedPrices struct {
 	Timestamp  string   `json:"timestamp"`
 	Messages   []string `json:"messages"`
@@ -820,6 +851,8 @@ type SignedPrices struct {
 	Prices     PriceMap `json:"prices"`
 }
 
+// Profile contains information on a profile. Returned by GetAllProfiles, CreateAProfile,
+// GetProfileByID, and RenameProfile
 type Profile struct {
 	ID        string    `json:"id"`
 	UserID    string    `json:"user_id"`
@@ -829,12 +862,92 @@ type Profile struct {
 	CreatedAt time.Time `json:"created_at"`
 }
 
+// CreateReportResponse contains information on a newly-created report, returned by
+// CreateReport
 type CreateReportResponse struct {
 	ID     string `json:"id"`
 	Type   string `json:"type"`
 	Status string `json:"status"`
 }
 
+// ReportBalanceStruct is used internally when crafting a CreateReport request
 type ReportBalanceStruct struct {
 	DateTime string
+}
+
+// ReportFillsTaxStruct is used internally when crafting a CreateReport request
+type ReportFillsTaxStruct struct {
+	StartDate string
+	EndDate   string
+	ProductID string
+}
+
+// ReportAccountStruct is used internally when crafting a CreateReport request
+type ReportAccountStruct struct {
+	StartDate string
+	EndDate   string
+	AccountID string
+}
+
+// ExchangeLimits contains information on payment method transfer limits, returned
+// by GetExchangeLimits
+type ExchangeLimits struct {
+	TransferLimits struct {
+		Buy              interface{} `json:"buy"`
+		Sell             interface{} `json:"sell"`
+		ExchangeWithdraw interface{} `json:"exchange_withdraw"`
+		Ach              []struct {
+			Max          float64 `json:"max,string"`
+			Remaining    float64 `json:"remaining,string"`
+			PeriodInDays int32   `json:"period_in_days"`
+		} `json:"ach"`
+		AchNoBalance         interface{} `json:"ach_no_balance"`
+		CreditDebitCard      interface{} `json:"credit_debit_card"`
+		Secure3DBuy          interface{} `json:"secure3d_buy"`
+		PaypalBuy            interface{} `json:"paypal_buy"`
+		PaypalWithdrawal     interface{} `json:"paypal_withdrawal"`
+		IdealDeposit         interface{} `json:"ideal_deposit"`
+		SofortDeposit        interface{} `json:"sofort_deposit"`
+		InstantAchWithdrawal interface{} `json:"instant_ach_withdrawal"`
+	} `json:"transfer_limits"`
+	LimitCurrency string `json:"limit_currency"`
+}
+
+// WrappedAssetResponse contains information on a wrapped asset, returned by
+// GetWrappedAssetByID
+type WrappedAssetResponse struct {
+	ID                string                  `json:"id"`
+	CirculatingSupply float64                 `json:"circulating_supply,string"`
+	TotalSupply       float64                 `json:"total_supply,string"`
+	ConversionRate    float64                 `json:"conversion_rate,string"`
+	APY               convert.StringToFloat64 `json:"apy"`
+}
+
+// AllWrappedAssetResponse contains information on all wrapped assets, returned by
+// GetAllWrappedAssets
+type AllWrappedAssetResponse struct {
+	WrappedAssetResponse []struct{} `json:"wrapped_assets"`
+}
+
+// StakeWrap contains information on a stake wrap, returned by GetAllStakeWraps and
+// GetStakeWrapByID
+type StakeWrap struct {
+	ID             string    `json:"id"`
+	FromAmount     float64   `json:"from_amount,string"`
+	ToAmount       float64   `json:"to_amount,string"`
+	FromAccountID  string    `json:"from_account_id"`
+	ToAccountID    string    `json:"to_account_id"`
+	FromCurrency   string    `json:"from_currency"`
+	ToCurrency     string    `json:"to_currency"`
+	Status         string    `json:"status"`
+	ConversionRate float64   `json:"conversion_rate,string"`
+	CreatedAt      time.Time `json:"created_at"`
+	CompletedAt    time.Time `json:"completed_at"`
+	CanceledAt     time.Time `json:"canceled_at"`
+}
+
+// WrappedAssetConversionRate contains the conversion rate for a wrapped asset, returned
+// by GetWrappedAssetConversionRate
+type WrappedAssetConversionRate struct {
+	Amount float64 `json:"amount,string"`
 }

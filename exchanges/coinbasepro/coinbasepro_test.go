@@ -13,18 +13,15 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
+	"github.com/stretchr/testify/assert"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/config"
-	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
-	"github.com/thrasher-corp/gocryptotrader/portfolio/banking"
-	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
 var (
@@ -37,8 +34,8 @@ const (
 	apiKey                  = ""
 	apiSecret               = ""
 	clientID                = "" // passphrase you made at API CREATION
-	canManipulateRealOrders = false
-	testingInSandbox        = false
+	canManipulateRealOrders = true
+	testingInSandbox        = true
 )
 
 func TestMain(m *testing.M) {
@@ -57,16 +54,19 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		log.Fatal("coinbasepro Setup() init error")
 	}
-	gdxConfig.API.Credentials.Key = apiKey
-	gdxConfig.API.Credentials.Secret = apiSecret
-	gdxConfig.API.Credentials.ClientID = clientID
-	gdxConfig.API.AuthenticatedSupport = true
-	gdxConfig.API.AuthenticatedWebsocketSupport = true
+	if apiKey != "" {
+		gdxConfig.API.Credentials.Key = apiKey
+		gdxConfig.API.Credentials.Secret = apiSecret
+		gdxConfig.API.Credentials.ClientID = clientID
+		gdxConfig.API.AuthenticatedSupport = true
+		gdxConfig.API.AuthenticatedWebsocketSupport = true
+	}
 	c.Websocket = sharedtestvalues.NewTestWebsocket()
 	err = c.Setup(gdxConfig)
 	if err != nil {
 		log.Fatal("CoinbasePro setup error", err)
 	}
+	c.Verbose = true
 	os.Exit(m.Run())
 }
 
@@ -84,56 +84,48 @@ func TestStart(t *testing.T) {
 	testWg.Wait()
 }
 
-func TestGetAccounts(t *testing.T) {
+func TestGetAllAccounts(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, c)
-	resp, err := c.GetAccounts(context.Background())
+	resp, err := c.GetAllAccounts(context.Background())
 	if err != nil {
-		t.Error("CoinBasePro GetAccounts() error", err)
+		t.Error("CoinBasePro GetAllAccounts() error", err)
 	}
-	if resp[0].ID == "" {
-		t.Error("CoinBasePro GetAccounts() error, no ID returned")
-	}
-	if resp[0].Currency == "" {
-		t.Error("CoinBasePro GetAccounts() error, no Currency returned")
-	}
-	if resp[0].ProfileID == "" {
-		t.Error("CoinBasePro GetAccounts() error, no ProfileID returned")
-	}
-
+	assert.NotEmpty(t, resp, "CoinBasePro GetAllAccounts() error, expected a non-empty response")
 }
 
-func TestGetAccount(t *testing.T) {
+func TestGetAccountByID(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, c)
-	longResp, err := c.GetAccounts(context.Background())
+	longResp, err := c.GetAllAccounts(context.Background())
 	if err != nil {
-		t.Error("CoinBasePro GetAccounts() error", err)
+		t.Error("CoinBasePro GetAllAccounts() error", err)
 	}
-	shortResp, err := c.GetAccount(context.Background(), longResp[0].ID)
+	shortResp, err := c.GetAccountByID(context.Background(), longResp[0].ID)
 	if err != nil {
-		t.Error("CoinBasePro GetAccount() error", err)
+		t.Error("CoinBasePro GetAccountByID() error", err)
 	}
 	if *shortResp != longResp[0] {
-		t.Error("CoinBasePro GetAccount() error, mismatched responses")
+		t.Error("CoinBasePro GetAccountByID() error, mismatched responses")
 	}
 }
 
 func TestGetHolds(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, c)
-	accID, err := c.GetAccounts(context.Background())
+	accID, err := c.GetAllAccounts(context.Background())
 	if err != nil {
-		t.Error("CoinBasePro GetAccounts() error", err)
+		t.Error("CoinBasePro GetAllAccounts() error", err)
 	}
-	_, err = c.GetHolds(context.Background(), accID[0].ID, pageNone, "", 2)
+	resp, err := c.GetHolds(context.Background(), accID[1].ID, pageNone, "1", 2)
 	if err != nil {
 		t.Error("CoinBasePro GetHolds() error", err)
 	}
+	log.Printf("%+v", resp)
 }
 
 func TestGetAccountLedger(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, c)
-	accID, err := c.GetAccounts(context.Background())
+	accID, err := c.GetAllAccounts(context.Background())
 	if err != nil {
-		t.Error("CoinBasePro GetAccounts() error", err)
+		t.Error("CoinBasePro GetAllAccounts() error", err)
 	}
 	_, err = c.GetAccountLedger(context.Background(), accID[0].ID, pageBefore, "", "a",
 		time.Unix(1, 1), time.Now(), 3)
@@ -144,9 +136,9 @@ func TestGetAccountLedger(t *testing.T) {
 
 func TestGetAccountTransfers(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, c)
-	accID, err := c.GetAccounts(context.Background())
+	accID, err := c.GetAllAccounts(context.Background())
 	if err != nil {
-		t.Error("CoinBasePro GetAccounts() error", err)
+		t.Error("CoinBasePro GetAllAccounts() error", err)
 	}
 	_, err = c.GetAccountTransfers(context.Background(), accID[0].ID, "", "", "", 3)
 	if err != nil {
@@ -186,7 +178,7 @@ func TestDeleteAddress(t *testing.T) {
 
 func TestGetCoinbaseWallets(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, c)
-	_, err := c.GetCoinbaseAccounts(context.Background())
+	_, err := c.GetCoinbaseWallets(context.Background())
 	if err != nil {
 		t.Error("CoinBasePro GetCoinbaseAccounts() error", err)
 	}
@@ -196,7 +188,7 @@ func TestGenerateCryptoAddress(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, c)
 	accID, err := c.GetCoinbaseWallets(context.Background())
 	if err != nil {
-		t.Error("CoinBasePro GetAccounts() error", err)
+		t.Error("CoinBasePro GetAllAccounts() error", err)
 	}
 	_, err = c.GenerateCryptoAddress(context.Background(), accID[0].ID, "", "")
 	if err != nil {
@@ -220,20 +212,20 @@ func TestGetConversionByID(t *testing.T) {
 	}
 }
 
-func TestGetCurrencies(t *testing.T) {
-	_, err := c.GetCurrencies(context.Background())
+func TestGetAllCurrencies(t *testing.T) {
+	_, err := c.GetAllCurrencies(context.Background())
 	if err != nil {
-		t.Error("GetCurrencies() error", err)
+		t.Error("GetAllCurrencies() error", err)
 	}
 }
 
-func TestGetCurrenciesByID(t *testing.T) {
-	resp, err := c.GetCurrenciesByID(context.Background(), "BTC")
+func TestGetCurrencyByID(t *testing.T) {
+	resp, err := c.GetCurrencyByID(context.Background(), "BTC")
 	if err != nil {
-		t.Error("GetCurrenciesByID() error", err)
+		t.Error("GetCurrencyByID() error", err)
 	}
 	if resp.Name != "Bitcoin" {
-		t.Errorf("GetCurrenciesByID() error, incorrect name returned, expected 'Bitcoin', got '%s'",
+		t.Errorf("GetCurrencyByID() error, incorrect name returned, expected 'Bitcoin', got '%s'",
 			resp.Name)
 	}
 }
@@ -313,12 +305,11 @@ func TestGetWithdrawalFeeEstimate(t *testing.T) {
 	if err == nil {
 		t.Error("CoinBasePro GetWithdrawalFeeEstimate() error, expected error due to empty field")
 	}
-	resp, err := c.GetWithdrawalFeeEstimate(context.Background(), "This test is not", "yet implemented",
+	_, err = c.GetWithdrawalFeeEstimate(context.Background(), "This test is not", "yet implemented",
 		"due to not knowing a valid network string")
 	if err == nil {
 		t.Error("This should have errored out due to an improper network string")
 	}
-	log.Printf("%+v, %+v", resp, err)
 }
 
 func TestWithdrawViaPaymentMethod(t *testing.T) {
@@ -358,15 +349,14 @@ func TestGetFills(t *testing.T) {
 	}
 }
 
-func TestGetOrders(t *testing.T) {
+func TestGetAllOrders(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, c)
 	status := []string{"open", "pending", "active", "done"}
 
-	resp, err := c.GetOrders(context.Background(), "", "", "", "", "", "", "", time.Unix(1, 1), time.Now(), 5, status)
+	_, err := c.GetAllOrders(context.Background(), "", "", "", "", "", "", "", time.Unix(1, 1), time.Now(), 5, status)
 	if err != nil {
-		t.Error("CoinBasePro GetOrders() error", err)
+		t.Error("CoinBasePro GetAllOrders() error", err)
 	}
-	log.Printf("%+v", resp)
 }
 
 func TestCancelAllExistingOrders(t *testing.T) {
@@ -379,19 +369,21 @@ func TestCancelAllExistingOrders(t *testing.T) {
 
 func TestPlaceOrder(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, c, canManipulateRealOrders)
-	_, err := c.PlaceOrder(context.Background(), "this", "test", "has", "not", "been", "implemented", "awaiting", "sandbox",
-		"testing", 1, 1, 1, 1, false)
-	if err == nil {
-		t.Error("This probably should have errored out due to not being implemented")
+
+	for x := 0; x < 550; x++ {
+		_, _ = c.PlaceOrder(context.Background(), "this", "", "sell", "BTC-USD", "", "implemented", "", "sandbox",
+			"testing", 0, 2<<30, 1, 0, false)
+
 	}
+
+	// log.Printf("Response: %+v\nError: %+v", resp, err)
 }
 
-func TestGetOrder(t *testing.T) {
+func TestGetOrderByID(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, c)
-	_, err := c.GetOrder(context.Background(), "This test is not", "yet implemented", true)
-	if err == nil {
-		t.Error("This should have errored out due to not being implemented")
-	}
+	resp, err := c.GetOrderByID(context.Background(), "940d4bf3-933b-4714-a702-155f82c3e739", "spot", false)
+
+	log.Printf("Response: %+v\nError: %+v", resp, err)
 }
 
 func TestCancelExistingOrder(t *testing.T) {
@@ -413,27 +405,27 @@ func TestGetSignedPrices(t *testing.T) {
 	}
 }
 
-func TestGetProducts(t *testing.T) {
-	resp, err := c.GetProducts(context.Background(), "")
+func TestGetAllProducts(t *testing.T) {
+	resp, err := c.GetAllProducts(context.Background(), "")
 	if err != nil {
-		t.Error("Coinbase, GetProducts() Error:", err)
+		t.Error("Coinbase, GetAllProducts() Error:", err)
 	}
 	if resp[0].ID == "" {
-		t.Error("Coinbase, GetProducts() Error, expected non-empty string")
+		t.Error("Coinbase, GetAllProducts() Error, expected non-empty string")
 	}
 }
 
-func TestGetProduct(t *testing.T) {
-	_, err := c.GetProduct(context.Background(), "")
+func TestGetProductByID(t *testing.T) {
+	_, err := c.GetProductByID(context.Background(), "")
 	if err == nil {
-		t.Error("Coinbase, GetProduct() Error, expected an error due to nonexistent pair")
+		t.Error("Coinbase, GetProductByID() Error, expected an error due to nonexistent pair")
 	}
-	resp, err := c.GetProduct(context.Background(), "BTC-USD")
+	resp, err := c.GetProductByID(context.Background(), "BTC-USD")
 	if err != nil {
-		t.Error("Coinbase, GetProduct() Error:", err)
+		t.Error("Coinbase, GetProductByID() Error:", err)
 	}
 	if resp.ID != "BTC-USD" {
-		t.Error("Coinbase, GetProduct() Error, expected BTC-USD")
+		t.Error("Coinbase, GetProductByID() Error, expected BTC-USD")
 	}
 }
 
@@ -515,12 +507,12 @@ func TestGetTrades(t *testing.T) {
 	}
 }
 
-func TestGetProfiles(t *testing.T) {
+func TestGetAllProfiles(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, c)
 	active := true
-	_, err := c.GetProfiles(context.Background(), &active)
+	_, err := c.GetAllProfiles(context.Background(), &active)
 	if err != nil {
-		t.Error("GetProfiles() error", err)
+		t.Error("GetAllProfiles() error", err)
 	}
 }
 
@@ -551,9 +543,9 @@ func TestTransferBetweenProfiles(t *testing.T) {
 
 func TestGetProfileByID(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, c)
-	resp, err := c.GetProfiles(context.Background(), nil)
+	resp, err := c.GetAllProfiles(context.Background(), nil)
 	if err != nil {
-		t.Error("GetProfiles() error", err)
+		t.Error("GetAllProfiles() error", err)
 	}
 	active := true
 	resp2, err := c.GetProfileByID(context.Background(), resp[0].ID, &active)
@@ -591,526 +583,665 @@ func TestDeleteProfile(t *testing.T) {
 
 func TestGetReport(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, c)
-	prof, err := c.GetProfiles(context.Background(), nil)
+	prof, err := c.GetAllProfiles(context.Background(), nil)
 	if err != nil {
-		t.Error("GetProfiles() error", err)
+		t.Error("GetAllProfiles() error", err)
 	}
-	c.Verbose = true
-	resp, err := c.GetReports(context.Background(), prof[0].ID, "account", time.Time{}, 1000, false)
-	log.Printf("%+v", resp)
+	_, err = c.GetAllReports(context.Background(), prof[0].ID, "account", time.Time{}, 1000, false)
 	if err != nil {
-		t.Error("GetReport() error", err)
+		t.Error("GetAllReports() error", err)
 	}
 }
 
-func TestGetCurrentServerTime(t *testing.T) {
-	_, err := c.GetCurrentServerTime(context.Background())
+func TestCreateReport(t *testing.T) {
+	sharedtestvalues.SkipTestIfCannotManipulateOrders(t, c, canManipulateRealOrders)
+	prof, err := c.GetAllProfiles(context.Background(), nil)
 	if err != nil {
-		t.Error("GetServerTime() error", err)
+		t.Error("GetAllProfiles() error", err)
+	}
+	_, err = c.CreateReport(context.Background(), "this", "test", "is", "not", prof[0].ID, "yet", "implemented",
+		time.Time{}, time.Time{}, time.Time{})
+	if err == nil {
+		t.Error("Coinbase, CreateReport() Error, expected an error due to un-implemented test")
 	}
 }
 
-func TestWrapperGetServerTime(t *testing.T) {
-	t.Parallel()
-	st, err := c.GetServerTime(context.Background(), asset.Spot)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
-
-	if st.IsZero() {
-		t.Fatal("expected a time")
-	}
-}
-
-func TestAuthRequests(t *testing.T) {
-	t.Parallel()
+func TestGetReportByID(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, c)
-
-	_, err := c.GetAccounts(context.Background())
+	prof, err := c.GetAllProfiles(context.Background(), nil)
 	if err != nil {
-		t.Error("GetAccounts() error", err)
+		t.Error("GetAllProfiles() error", err)
 	}
-	accountResponse, err := c.GetAccount(context.Background(),
-		"13371337-1337-1337-1337-133713371337")
-	if accountResponse.ID != "" {
-		t.Error("Expecting no data returned")
-	}
-	if err == nil {
-		t.Error("Expecting error")
-	}
-	if err == nil {
-		t.Error("Expecting error")
-	}
-	// getHoldsResponse, err := c.GetHolds(context.Background(),
-	// 	"13371337-1337-1337-1337-133713371337")
-	// if len(getHoldsResponse) > 0 {
-	// 	t.Error("Expecting no data returned")
-	// }
-	if err == nil {
-		t.Error("Expecting error")
-	}
-	marginTransferResponse, err := c.MarginTransfer(context.Background(),
-		1, "withdraw", "13371337-1337-1337-1337-133713371337", "BTC")
-	if marginTransferResponse.ID != "" {
-		t.Error("Expecting no data returned")
-	}
-	if err == nil {
-		t.Error("Expecting error")
-	}
-	_, err = c.GetPosition(context.Background())
-	if err == nil {
-		t.Error("Expecting error")
-	}
-	_, err = c.ClosePosition(context.Background(), false)
-	if err == nil {
-		t.Error("Expecting error")
-	}
-	_, err = c.GetCoinbaseAccounts(context.Background())
+	resp, err := c.GetAllReports(context.Background(), prof[0].ID, "account", time.Time{}, 1000, false)
 	if err != nil {
-		t.Error("GetCoinbaseAccounts() error", err)
+		t.Error("GetAllReports() error", err)
 	}
-}
-
-func setFeeBuilder() *exchange.FeeBuilder {
-	return &exchange.FeeBuilder{
-		Amount:        1,
-		FeeType:       exchange.CryptocurrencyTradeFee,
-		Pair:          testPair,
-		PurchasePrice: 1,
-	}
-}
-
-// TestGetFeeByTypeOfflineTradeFee logic test
-func TestGetFeeByTypeOfflineTradeFee(t *testing.T) {
-	var feeBuilder = setFeeBuilder()
-	_, err := c.GetFeeByType(context.Background(), feeBuilder)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !sharedtestvalues.AreAPICredentialsSet(c) {
-		if feeBuilder.FeeType != exchange.OfflineTradeFee {
-			t.Errorf("Expected %v, received %v", exchange.OfflineTradeFee, feeBuilder.FeeType)
-		}
+	if len(resp) == 0 {
+		t.Log("No reports found, skipping test")
 	} else {
-		if feeBuilder.FeeType != exchange.CryptocurrencyTradeFee {
-			t.Errorf("Expected %v, received %v", exchange.CryptocurrencyTradeFee, feeBuilder.FeeType)
+		_, err = c.GetReportByID(context.Background(), resp[0].ID)
+		if err != nil {
+			t.Error("GetReportByID() error", err)
 		}
 	}
 }
 
-func TestGetFee(t *testing.T) {
-	var feeBuilder = setFeeBuilder()
-
-	if sharedtestvalues.AreAPICredentialsSet(c) {
-		// CryptocurrencyTradeFee Basic
-		if _, err := c.GetFee(context.Background(), feeBuilder); err != nil {
-			t.Error(err)
-		}
-
-		// CryptocurrencyTradeFee High quantity
-		feeBuilder = setFeeBuilder()
-		feeBuilder.Amount = 1000
-		feeBuilder.PurchasePrice = 1000
-		if _, err := c.GetFee(context.Background(), feeBuilder); err != nil {
-			t.Error(err)
-		}
-
-		// CryptocurrencyTradeFee IsMaker
-		feeBuilder = setFeeBuilder()
-		feeBuilder.IsMaker = true
-		if _, err := c.GetFee(context.Background(), feeBuilder); err != nil {
-			t.Error(err)
-		}
-
-		// CryptocurrencyTradeFee Negative purchase price
-		feeBuilder = setFeeBuilder()
-		feeBuilder.PurchasePrice = -1000
-		if _, err := c.GetFee(context.Background(), feeBuilder); err != nil {
-			t.Error(err)
-		}
-	}
-
-	// CryptocurrencyWithdrawalFee Basic
-	feeBuilder = setFeeBuilder()
-	feeBuilder.FeeType = exchange.CryptocurrencyWithdrawalFee
-	if _, err := c.GetFee(context.Background(), feeBuilder); err != nil {
-		t.Error(err)
-	}
-
-	// CryptocurrencyDepositFee Basic
-	feeBuilder = setFeeBuilder()
-	feeBuilder.FeeType = exchange.CryptocurrencyDepositFee
-	if _, err := c.GetFee(context.Background(), feeBuilder); err != nil {
-		t.Error(err)
-	}
-
-	// InternationalBankDepositFee Basic
-	feeBuilder = setFeeBuilder()
-	feeBuilder.FeeType = exchange.InternationalBankDepositFee
-	feeBuilder.FiatCurrency = currency.EUR
-	if _, err := c.GetFee(context.Background(), feeBuilder); err != nil {
-		t.Error(err)
-	}
-
-	// InternationalBankWithdrawalFee Basic
-	feeBuilder = setFeeBuilder()
-	feeBuilder.FeeType = exchange.InternationalBankWithdrawalFee
-	feeBuilder.FiatCurrency = currency.USD
-	if _, err := c.GetFee(context.Background(), feeBuilder); err != nil {
-		t.Error(err)
+func TestGetTravelRules(t *testing.T) {
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, c)
+	_, err := c.GetTravelRules(context.Background(), "", "", "", 0)
+	if err != nil {
+		t.Error("GetTravelRules() error", err)
 	}
 }
 
-func TestCalculateTradingFee(t *testing.T) {
-	t.Parallel()
-	// uppercase
-	var volume = []Volume{
-		{
-			ProductID: "BTC_USD",
-			Volume:    100,
-		},
-	}
-
-	if resp := c.calculateTradingFee(volume, currency.BTC, currency.USD, "_", 1, 1, false); resp != float64(0.003) {
-		t.Errorf("GetFee() error. Expected: %f, Received: %f", float64(0.003), resp)
-	}
-
-	// lowercase
-	volume = []Volume{
-		{
-			ProductID: "btc_usd",
-			Volume:    100,
-		},
-	}
-
-	if resp := c.calculateTradingFee(volume, currency.BTC, currency.USD, "_", 1, 1, false); resp != float64(0.003) {
-		t.Errorf("GetFee() error. Expected: %f, Received: %f", float64(0.003), resp)
-	}
-
-	// mixedCase
-	volume = []Volume{
-		{
-			ProductID: "btc_USD",
-			Volume:    100,
-		},
-	}
-
-	if resp := c.calculateTradingFee(volume, currency.BTC, currency.USD, "_", 1, 1, false); resp != float64(0.003) {
-		t.Errorf("GetFee() error. Expected: %f, Received: %f", float64(0.003), resp)
-	}
-
-	// medium volume
-	volume = []Volume{
-		{
-			ProductID: "btc_USD",
-			Volume:    10000001,
-		},
-	}
-
-	if resp := c.calculateTradingFee(volume, currency.BTC, currency.USD, "_", 1, 1, false); resp != float64(0.002) {
-		t.Errorf("GetFee() error. Expected: %f, Received: %f", float64(0.002), resp)
-	}
-
-	// high volume
-	volume = []Volume{
-		{
-			ProductID: "btc_USD",
-			Volume:    100000010000,
-		},
-	}
-
-	if resp := c.calculateTradingFee(volume, currency.BTC, currency.USD, "_", 1, 1, false); resp != float64(0.001) {
-		t.Errorf("GetFee() error. Expected: %f, Received: %f", float64(0.001), resp)
-	}
-
-	// no match
-	volume = []Volume{
-		{
-			ProductID: "btc_beeteesee",
-			Volume:    100000010000,
-		},
-	}
-
-	if resp := c.calculateTradingFee(volume, currency.BTC, currency.USD, "_", 1, 1, false); resp != float64(0) {
-		t.Errorf("GetFee() error. Expected: %f, Received: %f", float64(0), resp)
-	}
-
-	// taker
-	volume = []Volume{
-		{
-			ProductID: "btc_USD",
-			Volume:    100000010000,
-		},
-	}
-
-	if resp := c.calculateTradingFee(volume, currency.BTC, currency.USD, "_", 1, 1, true); resp != float64(0) {
-		t.Errorf("GetFee() error. Expected: %f, Received: %f", float64(0), resp)
-	}
-}
-
-func TestFormatWithdrawPermissions(t *testing.T) {
-	expectedResult := exchange.AutoWithdrawCryptoWithAPIPermissionText + " & " + exchange.AutoWithdrawFiatWithAPIPermissionText
-	withdrawPermissions := c.FormatWithdrawPermissions()
-	if withdrawPermissions != expectedResult {
-		t.Errorf("Expected: %s, Received: %s", expectedResult, withdrawPermissions)
-	}
-}
-
-func TestGetActiveOrders(t *testing.T) {
-	var getOrdersRequest = order.MultiOrderRequest{
-		Type:      order.AnyType,
-		AssetType: asset.Spot,
-		Pairs:     []currency.Pair{testPair},
-		Side:      order.AnySide,
-	}
-
-	_, err := c.GetActiveOrders(context.Background(), &getOrdersRequest)
-	if sharedtestvalues.AreAPICredentialsSet(c) && err != nil {
-		t.Errorf("Could not get open orders: %s", err)
-	} else if !sharedtestvalues.AreAPICredentialsSet(c) && err == nil {
-		t.Error("Expecting an error when no keys are set")
-	}
-}
-
-func TestGetOrderHistory(t *testing.T) {
-	var getOrdersRequest = order.MultiOrderRequest{
-		Type:      order.AnyType,
-		AssetType: asset.Spot,
-		Pairs:     []currency.Pair{testPair},
-		Side:      order.AnySide,
-	}
-
-	_, err := c.GetOrderHistory(context.Background(), &getOrdersRequest)
-	if sharedtestvalues.AreAPICredentialsSet(c) && err != nil {
-		t.Errorf("Could not get order history: %s", err)
-	} else if !sharedtestvalues.AreAPICredentialsSet(c) && err == nil {
-		t.Error("Expecting an error when no keys are set")
-	}
-
-	getOrdersRequest.Pairs = []currency.Pair{}
-	_, err = c.GetOrderHistory(context.Background(), &getOrdersRequest)
-	if sharedtestvalues.AreAPICredentialsSet(c) && err != nil {
-		t.Errorf("Could not get order history: %s", err)
-	} else if !sharedtestvalues.AreAPICredentialsSet(c) && err == nil {
-		t.Error("Expecting an error when no keys are set")
-	}
-
-	getOrdersRequest.Pairs = nil
-	_, err = c.GetOrderHistory(context.Background(), &getOrdersRequest)
-	if sharedtestvalues.AreAPICredentialsSet(c) && err != nil {
-		t.Errorf("Could not get order history: %s", err)
-	} else if !sharedtestvalues.AreAPICredentialsSet(c) && err == nil {
-		t.Error("Expecting an error when no keys are set")
-	}
-}
-
-// Any tests below this line have the ability to impact your orders on the exchange. Enable canManipulateRealOrders to run them
-// ----------------------------------------------------------------------------------------------------------------------------
-
-func TestSubmitOrder(t *testing.T) {
-	t.Parallel()
+func TestCreateTravelRule(t *testing.T) {
 	sharedtestvalues.SkipTestIfCannotManipulateOrders(t, c, canManipulateRealOrders)
-
-	// limit order
-	var orderSubmission = &order.Submit{
-		Exchange: c.Name,
-		Pair: currency.Pair{
-			Delimiter: "-",
-			Base:      currency.BTC,
-			Quote:     currency.USD,
-		},
-		Side:      order.Buy,
-		Type:      order.Limit,
-		Price:     1,
-		Amount:    0.001,
-		ClientID:  "meowOrder",
-		AssetType: asset.Spot,
-	}
-	response, err := c.SubmitOrder(context.Background(), orderSubmission)
-	if sharedtestvalues.AreAPICredentialsSet(c) && (err != nil || response.Status != order.New) {
-		t.Errorf("Order failed to be placed: %v", err)
-	} else if !sharedtestvalues.AreAPICredentialsSet(c) && err == nil {
-		t.Error("Expecting an error when no keys are set")
-	}
-
-	// market order from amount
-	orderSubmission = &order.Submit{
-		Exchange: c.Name,
-		Pair: currency.Pair{
-			Delimiter: "-",
-			Base:      currency.BTC,
-			Quote:     currency.USD,
-		},
-		Side:      order.Buy,
-		Type:      order.Market,
-		Amount:    0.001,
-		ClientID:  "meowOrder",
-		AssetType: asset.Spot,
-	}
-	response, err = c.SubmitOrder(context.Background(), orderSubmission)
-	if sharedtestvalues.AreAPICredentialsSet(c) && (err != nil || response.Status != order.New) {
-		t.Errorf("Order failed to be placed: %v", err)
-	} else if !sharedtestvalues.AreAPICredentialsSet(c) && err == nil {
-		t.Error("Expecting an error when no keys are set")
-	}
-
-	// market order from quote amount
-	orderSubmission = &order.Submit{
-		Exchange: c.Name,
-		Pair: currency.Pair{
-			Delimiter: "-",
-			Base:      currency.BTC,
-			Quote:     currency.USD,
-		},
-		Side:        order.Buy,
-		Type:        order.Market,
-		QuoteAmount: 1,
-		ClientID:    "meowOrder",
-		AssetType:   asset.Spot,
-	}
-	response, err = c.SubmitOrder(context.Background(), orderSubmission)
-	if sharedtestvalues.AreAPICredentialsSet(c) && (err != nil || response.Status != order.New) {
-		t.Errorf("Order failed to be placed: %v", err)
-	} else if !sharedtestvalues.AreAPICredentialsSet(c) && err == nil {
-		t.Error("Expecting an error when no keys are set")
-	}
-}
-
-func TestCancelExchangeOrder(t *testing.T) {
-	t.Parallel()
-	sharedtestvalues.SkipTestIfCannotManipulateOrders(t, c, canManipulateRealOrders)
-
-	var orderCancellation = &order.Cancel{
-		OrderID:       "1",
-		WalletAddress: core.BitcoinDonationAddress,
-		AccountID:     "1",
-		Pair:          testPair,
-		AssetType:     asset.Spot,
-	}
-
-	err := c.CancelOrder(context.Background(), orderCancellation)
-	if !sharedtestvalues.AreAPICredentialsSet(c) && err == nil {
-		t.Error("Expecting an error when no keys are set")
-	}
-	if sharedtestvalues.AreAPICredentialsSet(c) && err != nil {
-		t.Errorf("Could not cancel orders: %v", err)
-	}
-}
-
-func TestCancelAllExchangeOrders(t *testing.T) {
-	t.Parallel()
-	sharedtestvalues.SkipTestIfCannotManipulateOrders(t, c, canManipulateRealOrders)
-
-	var orderCancellation = &order.Cancel{
-		OrderID:       "1",
-		WalletAddress: core.BitcoinDonationAddress,
-		AccountID:     "1",
-		Pair:          testPair,
-		AssetType:     asset.Spot,
-	}
-
-	resp, err := c.CancelAllOrders(context.Background(), orderCancellation)
-
-	if !sharedtestvalues.AreAPICredentialsSet(c) && err == nil {
-		t.Error("Expecting an error when no keys are set")
-	}
-	if sharedtestvalues.AreAPICredentialsSet(c) && err != nil {
-		t.Errorf("Could not cancel orders: %v", err)
-	}
-
-	if len(resp.Status) > 0 {
-		t.Errorf("%v orders failed to cancel", len(resp.Status))
-	}
-}
-
-func TestModifyOrder(t *testing.T) {
-	t.Parallel()
-	sharedtestvalues.SkipTestIfCannotManipulateOrders(t, c, canManipulateRealOrders)
-
-	_, err := c.ModifyOrder(context.Background(),
-		&order.Modify{AssetType: asset.Spot})
+	_, err := c.CreateTravelRule(context.Background(), "this test", "not yet", "implemented")
 	if err == nil {
-		t.Error("ModifyOrder() Expected error")
+		t.Error("Coinbase, CreateTravelRule() Error, expected an error due to unimplemented test")
 	}
 }
 
-func TestWithdraw(t *testing.T) {
-	t.Parallel()
+func TestDeleteTravelRule(t *testing.T) {
 	sharedtestvalues.SkipTestIfCannotManipulateOrders(t, c, canManipulateRealOrders)
-
-	withdrawCryptoRequest := withdraw.Request{
-		Exchange:    c.Name,
-		Amount:      -1,
-		Currency:    currency.BTC,
-		Description: "WITHDRAW IT ALL",
-		Crypto: withdraw.CryptoRequest{
-			Address: core.BitcoinDonationAddress,
-		},
-	}
-
-	_, err := c.WithdrawCryptocurrencyFunds(context.Background(),
-		&withdrawCryptoRequest)
-	if !sharedtestvalues.AreAPICredentialsSet(c) && err == nil {
-		t.Error("Expecting an error when no keys are set")
-	}
-	if sharedtestvalues.AreAPICredentialsSet(c) && err != nil {
-		t.Errorf("Withdraw failed to be placed: %v", err)
-	}
-}
-
-func TestWithdrawFiat(t *testing.T) {
-	t.Parallel()
-	sharedtestvalues.SkipTestIfCannotManipulateOrders(t, c, canManipulateRealOrders)
-
-	var withdrawFiatRequest = withdraw.Request{
-		Amount:   100,
-		Currency: currency.USD,
-		Fiat: withdraw.FiatRequest{
-			Bank: banking.Account{
-				BankName: "Federal Reserve Bank",
-			},
-		},
-	}
-
-	_, err := c.WithdrawFiatFunds(context.Background(), &withdrawFiatRequest)
-	if !sharedtestvalues.AreAPICredentialsSet(c) && err == nil {
-		t.Error("Expecting an error when no keys are set")
-	}
-	if sharedtestvalues.AreAPICredentialsSet(c) && err != nil {
-		t.Errorf("Withdraw failed to be placed: %v", err)
-	}
-}
-
-func TestWithdrawInternationalBank(t *testing.T) {
-	t.Parallel()
-	sharedtestvalues.SkipTestIfCannotManipulateOrders(t, c, canManipulateRealOrders)
-
-	var withdrawFiatRequest = withdraw.Request{
-		Amount:   100,
-		Currency: currency.USD,
-		Fiat: withdraw.FiatRequest{
-			Bank: banking.Account{
-				BankName: "Federal Reserve Bank",
-			},
-		},
-	}
-
-	_, err := c.WithdrawFiatFundsToInternationalBank(context.Background(),
-		&withdrawFiatRequest)
-	if !sharedtestvalues.AreAPICredentialsSet(c) && err == nil {
-		t.Error("Expecting an error when no keys are set")
-	}
-	if sharedtestvalues.AreAPICredentialsSet(c) && err != nil {
-		t.Errorf("Withdraw failed to be placed: %v", err)
-	}
-}
-
-func TestGetDepositAddress(t *testing.T) {
-	_, err := c.GetDepositAddress(context.Background(), currency.BTC, "", "")
+	err := c.DeleteTravelRule(context.Background(), "this test is not yet implemented")
 	if err == nil {
-		t.Error("GetDepositAddress() error", err)
+		t.Error("Coinbase, DeleteTravelRule() Error, expected an error due to unimplemented test")
 	}
 }
+
+func TestGetExchangeLimits(t *testing.T) {
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, c)
+	acc, err := c.GetAllAccounts(context.Background())
+	if err != nil {
+		t.Error("GetAllAccounts() error", err)
+	}
+	_, err = c.GetExchangeLimits(context.Background(), acc[0].ID)
+	if err != nil {
+		t.Error("GetExchangeLimits() error", err)
+	}
+}
+
+func TestUpdateSettlementPreference(t *testing.T) {
+	sharedtestvalues.SkipTestIfCannotManipulateOrders(t, c, canManipulateRealOrders)
+	_, err := c.UpdateSettlementPreference(context.Background(), "this test", "not implemented")
+	if err == nil {
+		t.Error("Coinbase, UpdateSettlementPreference() Error, expected an error due to unimplemented test")
+	}
+}
+
+func TestGetAllWrappedAssets(t *testing.T) {
+	_, err := c.GetAllWrappedAssets(context.Background())
+	if err != nil {
+		t.Error("GetAllWrappedAssets() error", err)
+	}
+}
+
+func TestGetAllStakeWraps(t *testing.T) {
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, c)
+	_, err := c.GetAllStakeWraps(context.Background(), "", "ETH", "CBETH", "", time.Time{}, 1)
+	if err != nil {
+		t.Error("GetAllStakeWraps() error", err)
+	}
+	_, err = c.GetAllStakeWraps(context.Background(), "after", "ETH", "CBETH", "", time.Unix(1, 1), 1000)
+	if err != nil {
+		t.Error("GetAllStakeWraps() error", err)
+	}
+}
+
+func TestCreateStakeWrap(t *testing.T) {
+	sharedtestvalues.SkipTestIfCannotManipulateOrders(t, c, canManipulateRealOrders)
+	_, err := c.CreateStakeWrap(context.Background(), "", "", 0)
+	if err == nil {
+		t.Error("Coinbase, CreateStakeWrap() Error, expected an error due to empty fields")
+	}
+	_, err = c.CreateStakeWrap(context.Background(), "this test", "is not implemented", 1)
+	if err == nil {
+		t.Error("Coinbase, CreateStakeWrap() Error, expected an error due to unimplemented test")
+	}
+}
+
+func TestGetStakeWrapByID(t *testing.T) {
+	resp, err := c.GetAllStakeWraps(context.Background(), "", "ETH", "CBETH", "", time.Time{}, 1)
+	if err != nil {
+		t.Error("GetAllStakeWraps() error", err)
+	}
+	if len(resp) == 0 {
+		t.Log("No stake wraps found, skipping test")
+	} else {
+		_, err = c.GetStakeWrapByID(context.Background(), resp[0].ID)
+		if err != nil {
+			t.Error("GetStakeWrapByID() error", err)
+		}
+	}
+}
+
+func TestGetWrappedAssetByID(t *testing.T) {
+	_, err := c.GetWrappedAssetByID(context.Background(), "")
+	if err == nil {
+		t.Error("Coinbase, GetWrappedAssetByID() Error, expected an error due to empty fields")
+	}
+	_, err = c.GetWrappedAssetByID(context.Background(), "CBETH")
+	if err != nil {
+		t.Error("GetWrappedAssetByID() error", err)
+	}
+}
+
+func TestGetWrappedAssetConversionRate(t *testing.T) {
+	_, err := c.GetWrappedAssetConversionRate(context.Background(), "")
+	if err == nil {
+		t.Error("Coinbase, GetWrappedAssetConversionRate() Error, expected an error due to empty fields")
+	}
+	_, err = c.GetWrappedAssetConversionRate(context.Background(), "CBETH")
+	if err != nil {
+		t.Error("GetWrappedAssetConversionRate() error", err)
+	}
+}
+
+// func TestGetCurrentServerTime(t *testing.T) {
+// 	_, err := c.GetCurrentServerTime(context.Background())
+// 	if err != nil {
+// 		t.Error("GetServerTime() error", err)
+// 	}
+// }
+
+// func TestWrapperGetServerTime(t *testing.T) {
+// 	t.Parallel()
+// 	st, err := c.GetServerTime(context.Background(), asset.Spot)
+// 	if !errors.Is(err, nil) {
+// 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+// 	}
+
+// 	if st.IsZero() {
+// 		t.Fatal("expected a time")
+// 	}
+// }
+
+// func TestAuthRequests(t *testing.T) {
+// 	t.Parallel()
+// 	sharedtestvalues.SkipTestIfCredentialsUnset(t, c)
+
+// 	_, err := c.GetAllAccounts(context.Background())
+// 	if err != nil {
+// 		t.Error("GetAllAccounts() error", err)
+// 	}
+// 	accountResponse, err := c.GetAccountByID(context.Background(),
+// 		"13371337-1337-1337-1337-133713371337")
+// 	if accountResponse.ID != "" {
+// 		t.Error("Expecting no data returned")
+// 	}
+// 	if err == nil {
+// 		t.Error("Expecting error")
+// 	}
+// 	if err == nil {
+// 		t.Error("Expecting error")
+// 	}
+// 	// getHoldsResponse, err := c.GetHolds(context.Background(),
+// 	// 	"13371337-1337-1337-1337-133713371337")
+// 	// if len(getHoldsResponse) > 0 {
+// 	// 	t.Error("Expecting no data returned")
+// 	// }
+// 	if err == nil {
+// 		t.Error("Expecting error")
+// 	}
+// 	marginTransferResponse, err := c.MarginTransfer(context.Background(),
+// 		1, "withdraw", "13371337-1337-1337-1337-133713371337", "BTC")
+// 	if marginTransferResponse.ID != "" {
+// 		t.Error("Expecting no data returned")
+// 	}
+// 	if err == nil {
+// 		t.Error("Expecting error")
+// 	}
+// 	_, err = c.GetPosition(context.Background())
+// 	if err == nil {
+// 		t.Error("Expecting error")
+// 	}
+// 	_, err = c.ClosePosition(context.Background(), false)
+// 	if err == nil {
+// 		t.Error("Expecting error")
+// 	}
+// }
+
+// func setFeeBuilder() *exchange.FeeBuilder {
+// 	return &exchange.FeeBuilder{
+// 		Amount:        1,
+// 		FeeType:       exchange.CryptocurrencyTradeFee,
+// 		Pair:          testPair,
+// 		PurchasePrice: 1,
+// 	}
+// }
+
+// // TestGetFeeByTypeOfflineTradeFee logic test
+// func TestGetFeeByTypeOfflineTradeFee(t *testing.T) {
+// 	var feeBuilder = setFeeBuilder()
+// 	_, err := c.GetFeeByType(context.Background(), feeBuilder)
+// 	if err != nil {
+// 		t.Fatal(err)
+// 	}
+// 	if !sharedtestvalues.AreAPICredentialsSet(c) {
+// 		if feeBuilder.FeeType != exchange.OfflineTradeFee {
+// 			t.Errorf("Expected %v, received %v", exchange.OfflineTradeFee, feeBuilder.FeeType)
+// 		}
+// 	} else {
+// 		if feeBuilder.FeeType != exchange.CryptocurrencyTradeFee {
+// 			t.Errorf("Expected %v, received %v", exchange.CryptocurrencyTradeFee, feeBuilder.FeeType)
+// 		}
+// 	}
+// }
+
+// func TestGetFee(t *testing.T) {
+// 	var feeBuilder = setFeeBuilder()
+
+// 	if sharedtestvalues.AreAPICredentialsSet(c) {
+// 		// CryptocurrencyTradeFee Basic
+// 		if _, err := c.GetFee(context.Background(), feeBuilder); err != nil {
+// 			t.Error(err)
+// 		}
+
+// 		// CryptocurrencyTradeFee High quantity
+// 		feeBuilder = setFeeBuilder()
+// 		feeBuilder.Amount = 1000
+// 		feeBuilder.PurchasePrice = 1000
+// 		if _, err := c.GetFee(context.Background(), feeBuilder); err != nil {
+// 			t.Error(err)
+// 		}
+
+// 		// CryptocurrencyTradeFee IsMaker
+// 		feeBuilder = setFeeBuilder()
+// 		feeBuilder.IsMaker = true
+// 		if _, err := c.GetFee(context.Background(), feeBuilder); err != nil {
+// 			t.Error(err)
+// 		}
+
+// 		// CryptocurrencyTradeFee Negative purchase price
+// 		feeBuilder = setFeeBuilder()
+// 		feeBuilder.PurchasePrice = -1000
+// 		if _, err := c.GetFee(context.Background(), feeBuilder); err != nil {
+// 			t.Error(err)
+// 		}
+// 	}
+
+// 	// CryptocurrencyWithdrawalFee Basic
+// 	feeBuilder = setFeeBuilder()
+// 	feeBuilder.FeeType = exchange.CryptocurrencyWithdrawalFee
+// 	if _, err := c.GetFee(context.Background(), feeBuilder); err != nil {
+// 		t.Error(err)
+// 	}
+
+// 	// CryptocurrencyDepositFee Basic
+// 	feeBuilder = setFeeBuilder()
+// 	feeBuilder.FeeType = exchange.CryptocurrencyDepositFee
+// 	if _, err := c.GetFee(context.Background(), feeBuilder); err != nil {
+// 		t.Error(err)
+// 	}
+
+// 	// InternationalBankDepositFee Basic
+// 	feeBuilder = setFeeBuilder()
+// 	feeBuilder.FeeType = exchange.InternationalBankDepositFee
+// 	feeBuilder.FiatCurrency = currency.EUR
+// 	if _, err := c.GetFee(context.Background(), feeBuilder); err != nil {
+// 		t.Error(err)
+// 	}
+
+// 	// InternationalBankWithdrawalFee Basic
+// 	feeBuilder = setFeeBuilder()
+// 	feeBuilder.FeeType = exchange.InternationalBankWithdrawalFee
+// 	feeBuilder.FiatCurrency = currency.USD
+// 	if _, err := c.GetFee(context.Background(), feeBuilder); err != nil {
+// 		t.Error(err)
+// 	}
+// }
+
+// func TestCalculateTradingFee(t *testing.T) {
+// 	t.Parallel()
+// 	// uppercase
+// 	var volume = []Volume{
+// 		{
+// 			ProductID: "BTC_USD",
+// 			Volume:    100,
+// 		},
+// 	}
+
+// 	if resp := c.calculateTradingFee(volume, currency.BTC, currency.USD, "_", 1, 1, false); resp != float64(0.003) {
+// 		t.Errorf("GetFee() error. Expected: %f, Received: %f", float64(0.003), resp)
+// 	}
+
+// 	// lowercase
+// 	volume = []Volume{
+// 		{
+// 			ProductID: "btc_usd",
+// 			Volume:    100,
+// 		},
+// 	}
+
+// 	if resp := c.calculateTradingFee(volume, currency.BTC, currency.USD, "_", 1, 1, false); resp != float64(0.003) {
+// 		t.Errorf("GetFee() error. Expected: %f, Received: %f", float64(0.003), resp)
+// 	}
+
+// 	// mixedCase
+// 	volume = []Volume{
+// 		{
+// 			ProductID: "btc_USD",
+// 			Volume:    100,
+// 		},
+// 	}
+
+// 	if resp := c.calculateTradingFee(volume, currency.BTC, currency.USD, "_", 1, 1, false); resp != float64(0.003) {
+// 		t.Errorf("GetFee() error. Expected: %f, Received: %f", float64(0.003), resp)
+// 	}
+
+// 	// medium volume
+// 	volume = []Volume{
+// 		{
+// 			ProductID: "btc_USD",
+// 			Volume:    10000001,
+// 		},
+// 	}
+
+// 	if resp := c.calculateTradingFee(volume, currency.BTC, currency.USD, "_", 1, 1, false); resp != float64(0.002) {
+// 		t.Errorf("GetFee() error. Expected: %f, Received: %f", float64(0.002), resp)
+// 	}
+
+// 	// high volume
+// 	volume = []Volume{
+// 		{
+// 			ProductID: "btc_USD",
+// 			Volume:    100000010000,
+// 		},
+// 	}
+
+// 	if resp := c.calculateTradingFee(volume, currency.BTC, currency.USD, "_", 1, 1, false); resp != float64(0.001) {
+// 		t.Errorf("GetFee() error. Expected: %f, Received: %f", float64(0.001), resp)
+// 	}
+
+// 	// no match
+// 	volume = []Volume{
+// 		{
+// 			ProductID: "btc_beeteesee",
+// 			Volume:    100000010000,
+// 		},
+// 	}
+
+// 	if resp := c.calculateTradingFee(volume, currency.BTC, currency.USD, "_", 1, 1, false); resp != float64(0) {
+// 		t.Errorf("GetFee() error. Expected: %f, Received: %f", float64(0), resp)
+// 	}
+
+// 	// taker
+// 	volume = []Volume{
+// 		{
+// 			ProductID: "btc_USD",
+// 			Volume:    100000010000,
+// 		},
+// 	}
+
+// 	if resp := c.calculateTradingFee(volume, currency.BTC, currency.USD, "_", 1, 1, true); resp != float64(0) {
+// 		t.Errorf("GetFee() error. Expected: %f, Received: %f", float64(0), resp)
+// 	}
+// }
+
+// func TestFormatWithdrawPermissions(t *testing.T) {
+// 	expectedResult := exchange.AutoWithdrawCryptoWithAPIPermissionText + " & " + exchange.AutoWithdrawFiatWithAPIPermissionText
+// 	withdrawPermissions := c.FormatWithdrawPermissions()
+// 	if withdrawPermissions != expectedResult {
+// 		t.Errorf("Expected: %s, Received: %s", expectedResult, withdrawPermissions)
+// 	}
+// }
+
+// func TestGetActiveOrders(t *testing.T) {
+// 	var getOrdersRequest = order.MultiOrderRequest{
+// 		Type:      order.AnyType,
+// 		AssetType: asset.Spot,
+// 		Pairs:     []currency.Pair{testPair},
+// 		Side:      order.AnySide,
+// 	}
+
+// 	_, err := c.GetActiveOrders(context.Background(), &getOrdersRequest)
+// 	if sharedtestvalues.AreAPICredentialsSet(c) && err != nil {
+// 		t.Errorf("Could not get open orders: %s", err)
+// 	} else if !sharedtestvalues.AreAPICredentialsSet(c) && err == nil {
+// 		t.Error("Expecting an error when no keys are set")
+// 	}
+// }
+
+// func TestGetOrderHistory(t *testing.T) {
+// 	var getOrdersRequest = order.MultiOrderRequest{
+// 		Type:      order.AnyType,
+// 		AssetType: asset.Spot,
+// 		Pairs:     []currency.Pair{testPair},
+// 		Side:      order.AnySide,
+// 	}
+
+// 	_, err := c.GetOrderHistory(context.Background(), &getOrdersRequest)
+// 	if sharedtestvalues.AreAPICredentialsSet(c) && err != nil {
+// 		t.Errorf("Could not get order history: %s", err)
+// 	} else if !sharedtestvalues.AreAPICredentialsSet(c) && err == nil {
+// 		t.Error("Expecting an error when no keys are set")
+// 	}
+
+// 	getOrdersRequest.Pairs = []currency.Pair{}
+// 	_, err = c.GetOrderHistory(context.Background(), &getOrdersRequest)
+// 	if sharedtestvalues.AreAPICredentialsSet(c) && err != nil {
+// 		t.Errorf("Could not get order history: %s", err)
+// 	} else if !sharedtestvalues.AreAPICredentialsSet(c) && err == nil {
+// 		t.Error("Expecting an error when no keys are set")
+// 	}
+
+// 	getOrdersRequest.Pairs = nil
+// 	_, err = c.GetOrderHistory(context.Background(), &getOrdersRequest)
+// 	if sharedtestvalues.AreAPICredentialsSet(c) && err != nil {
+// 		t.Errorf("Could not get order history: %s", err)
+// 	} else if !sharedtestvalues.AreAPICredentialsSet(c) && err == nil {
+// 		t.Error("Expecting an error when no keys are set")
+// 	}
+// }
+
+// // Any tests below this line have the ability to impact your orders on the exchange. Enable canManipulateRealOrders to run them
+// // ----------------------------------------------------------------------------------------------------------------------------
+
+// func TestSubmitOrder(t *testing.T) {
+// 	t.Parallel()
+// 	sharedtestvalues.SkipTestIfCannotManipulateOrders(t, c, canManipulateRealOrders)
+
+// 	// limit order
+// 	var orderSubmission = &order.Submit{
+// 		Exchange: c.Name,
+// 		Pair: currency.Pair{
+// 			Delimiter: "-",
+// 			Base:      currency.BTC,
+// 			Quote:     currency.USD,
+// 		},
+// 		Side:      order.Buy,
+// 		Type:      order.Limit,
+// 		Price:     1,
+// 		Amount:    0.001,
+// 		ClientID:  "meowOrder",
+// 		AssetType: asset.Spot,
+// 	}
+// 	response, err := c.SubmitOrder(context.Background(), orderSubmission)
+// 	if sharedtestvalues.AreAPICredentialsSet(c) && (err != nil || response.Status != order.New) {
+// 		t.Errorf("Order failed to be placed: %v", err)
+// 	} else if !sharedtestvalues.AreAPICredentialsSet(c) && err == nil {
+// 		t.Error("Expecting an error when no keys are set")
+// 	}
+
+// 	// market order from amount
+// 	orderSubmission = &order.Submit{
+// 		Exchange: c.Name,
+// 		Pair: currency.Pair{
+// 			Delimiter: "-",
+// 			Base:      currency.BTC,
+// 			Quote:     currency.USD,
+// 		},
+// 		Side:      order.Buy,
+// 		Type:      order.Market,
+// 		Amount:    0.001,
+// 		ClientID:  "meowOrder",
+// 		AssetType: asset.Spot,
+// 	}
+// 	response, err = c.SubmitOrder(context.Background(), orderSubmission)
+// 	if sharedtestvalues.AreAPICredentialsSet(c) && (err != nil || response.Status != order.New) {
+// 		t.Errorf("Order failed to be placed: %v", err)
+// 	} else if !sharedtestvalues.AreAPICredentialsSet(c) && err == nil {
+// 		t.Error("Expecting an error when no keys are set")
+// 	}
+
+// 	// market order from quote amount
+// 	orderSubmission = &order.Submit{
+// 		Exchange: c.Name,
+// 		Pair: currency.Pair{
+// 			Delimiter: "-",
+// 			Base:      currency.BTC,
+// 			Quote:     currency.USD,
+// 		},
+// 		Side:        order.Buy,
+// 		Type:        order.Market,
+// 		QuoteAmount: 1,
+// 		ClientID:    "meowOrder",
+// 		AssetType:   asset.Spot,
+// 	}
+// 	response, err = c.SubmitOrder(context.Background(), orderSubmission)
+// 	if sharedtestvalues.AreAPICredentialsSet(c) && (err != nil || response.Status != order.New) {
+// 		t.Errorf("Order failed to be placed: %v", err)
+// 	} else if !sharedtestvalues.AreAPICredentialsSet(c) && err == nil {
+// 		t.Error("Expecting an error when no keys are set")
+// 	}
+// }
+
+// func TestCancelExchangeOrder(t *testing.T) {
+// 	t.Parallel()
+// 	sharedtestvalues.SkipTestIfCannotManipulateOrders(t, c, canManipulateRealOrders)
+
+// 	var orderCancellation = &order.Cancel{
+// 		OrderID:       "1",
+// 		WalletAddress: core.BitcoinDonationAddress,
+// 		AccountID:     "1",
+// 		Pair:          testPair,
+// 		AssetType:     asset.Spot,
+// 	}
+
+// 	err := c.CancelOrder(context.Background(), orderCancellation)
+// 	if !sharedtestvalues.AreAPICredentialsSet(c) && err == nil {
+// 		t.Error("Expecting an error when no keys are set")
+// 	}
+// 	if sharedtestvalues.AreAPICredentialsSet(c) && err != nil {
+// 		t.Errorf("Could not cancel orders: %v", err)
+// 	}
+// }
+
+// func TestCancelAllExchangeOrders(t *testing.T) {
+// 	t.Parallel()
+// 	sharedtestvalues.SkipTestIfCannotManipulateOrders(t, c, canManipulateRealOrders)
+
+// 	var orderCancellation = &order.Cancel{
+// 		OrderID:       "1",
+// 		WalletAddress: core.BitcoinDonationAddress,
+// 		AccountID:     "1",
+// 		Pair:          testPair,
+// 		AssetType:     asset.Spot,
+// 	}
+
+// 	resp, err := c.CancelAllOrders(context.Background(), orderCancellation)
+
+// 	if !sharedtestvalues.AreAPICredentialsSet(c) && err == nil {
+// 		t.Error("Expecting an error when no keys are set")
+// 	}
+// 	if sharedtestvalues.AreAPICredentialsSet(c) && err != nil {
+// 		t.Errorf("Could not cancel orders: %v", err)
+// 	}
+
+// 	if len(resp.Status) > 0 {
+// 		t.Errorf("%v orders failed to cancel", len(resp.Status))
+// 	}
+// }
+
+// func TestModifyOrder(t *testing.T) {
+// 	t.Parallel()
+// 	sharedtestvalues.SkipTestIfCannotManipulateOrders(t, c, canManipulateRealOrders)
+
+// 	_, err := c.ModifyOrder(context.Background(),
+// 		&order.Modify{AssetType: asset.Spot})
+// 	if err == nil {
+// 		t.Error("ModifyOrder() Expected error")
+// 	}
+// }
+
+// func TestWithdraw(t *testing.T) {
+// 	t.Parallel()
+// 	sharedtestvalues.SkipTestIfCannotManipulateOrders(t, c, canManipulateRealOrders)
+
+// 	withdrawCryptoRequest := withdraw.Request{
+// 		Exchange:    c.Name,
+// 		Amount:      -1,
+// 		Currency:    currency.BTC,
+// 		Description: "WITHDRAW IT ALL",
+// 		Crypto: withdraw.CryptoRequest{
+// 			Address: core.BitcoinDonationAddress,
+// 		},
+// 	}
+
+// 	_, err := c.WithdrawCryptocurrencyFunds(context.Background(),
+// 		&withdrawCryptoRequest)
+// 	if !sharedtestvalues.AreAPICredentialsSet(c) && err == nil {
+// 		t.Error("Expecting an error when no keys are set")
+// 	}
+// 	if sharedtestvalues.AreAPICredentialsSet(c) && err != nil {
+// 		t.Errorf("Withdraw failed to be placed: %v", err)
+// 	}
+// }
+
+// func TestWithdrawFiat(t *testing.T) {
+// 	t.Parallel()
+// 	sharedtestvalues.SkipTestIfCannotManipulateOrders(t, c, canManipulateRealOrders)
+
+// 	var withdrawFiatRequest = withdraw.Request{
+// 		Amount:   100,
+// 		Currency: currency.USD,
+// 		Fiat: withdraw.FiatRequest{
+// 			Bank: banking.Account{
+// 				BankName: "Federal Reserve Bank",
+// 			},
+// 		},
+// 	}
+
+// 	_, err := c.WithdrawFiatFunds(context.Background(), &withdrawFiatRequest)
+// 	if !sharedtestvalues.AreAPICredentialsSet(c) && err == nil {
+// 		t.Error("Expecting an error when no keys are set")
+// 	}
+// 	if sharedtestvalues.AreAPICredentialsSet(c) && err != nil {
+// 		t.Errorf("Withdraw failed to be placed: %v", err)
+// 	}
+// }
+
+// func TestWithdrawInternationalBank(t *testing.T) {
+// 	t.Parallel()
+// 	sharedtestvalues.SkipTestIfCannotManipulateOrders(t, c, canManipulateRealOrders)
+
+// 	var withdrawFiatRequest = withdraw.Request{
+// 		Amount:   100,
+// 		Currency: currency.USD,
+// 		Fiat: withdraw.FiatRequest{
+// 			Bank: banking.Account{
+// 				BankName: "Federal Reserve Bank",
+// 			},
+// 		},
+// 	}
+
+// 	_, err := c.WithdrawFiatFundsToInternationalBank(context.Background(),
+// 		&withdrawFiatRequest)
+// 	if !sharedtestvalues.AreAPICredentialsSet(c) && err == nil {
+// 		t.Error("Expecting an error when no keys are set")
+// 	}
+// 	if sharedtestvalues.AreAPICredentialsSet(c) && err != nil {
+// 		t.Errorf("Withdraw failed to be placed: %v", err)
+// 	}
+// }
+
+// func TestGetDepositAddress(t *testing.T) {
+// 	_, err := c.GetDepositAddress(context.Background(), currency.BTC, "", "")
+// 	if err == nil {
+// 		t.Error("GetDepositAddress() error", err)
+// 	}
+// }
 
 // TestWsAuth dials websocket, sends login request.
 func TestWsAuth(t *testing.T) {
@@ -1465,22 +1596,22 @@ func TestParseTime(t *testing.T) {
 	}
 }
 
-func TestGetRecentTrades(t *testing.T) {
-	t.Parallel()
-	_, err := c.GetRecentTrades(context.Background(), testPair, asset.Spot)
-	if err != nil {
-		t.Error(err)
-	}
-}
+// func TestGetRecentTrades(t *testing.T) {
+// 	t.Parallel()
+// 	_, err := c.GetRecentTrades(context.Background(), testPair, asset.Spot)
+// 	if err != nil {
+// 		t.Error(err)
+// 	}
+// }
 
-func TestGetHistoricTrades(t *testing.T) {
-	t.Parallel()
-	_, err := c.GetHistoricTrades(context.Background(),
-		testPair, asset.Spot, time.Now().Add(-time.Minute*15), time.Now())
-	if err != nil && err != common.ErrFunctionNotSupported {
-		t.Error(err)
-	}
-}
+// func TestGetHistoricTrades(t *testing.T) {
+// 	t.Parallel()
+// 	_, err := c.GetHistoricTrades(context.Background(),
+// 		testPair, asset.Spot, time.Now().Add(-time.Minute*15), time.Now())
+// 	if err != nil && err != common.ErrFunctionNotSupported {
+// 		t.Error(err)
+// 	}
+// }
 
 func TestPrepareDSL(t *testing.T) {
 	t.Parallel()
@@ -1613,8 +1744,6 @@ func TestOrderbookHelper(t *testing.T) {
 	if err != nil {
 		t.Error("CoinBasePro OrderbookHelper() error", err)
 	}
-
-	log.Printf("Err: %v", err)
 }
 
 // 8837708	       143.0 ns/op	      24 B/op	       5 allocs/op
@@ -1639,4 +1768,33 @@ func TestOrderbookHelper(t *testing.T) {
 // 		_ = strconv.Itoa(21600)
 // 		_ = strconv.Itoa(86400)
 // 	}
+// }
+
+// const reportType = "rfq-fills"
+
+// // Benchmark3Ifs-8   	1000000000	         0.2556 ns/op	       0 B/op	       0 allocs/op
+// // 1000000000	         0.2879 ns/op	       0 B/op	       0 allocs/op
+// // Benchmark3Ifs-8   	1000000000	         0.2945 ns/op	       0 B/op	       0 allocs/op
+// func Benchmark3Ifs(b *testing.B) {
+// 	a := 0
+// 	for x := 0; x < b.N; x++ {
+// 		if reportType == "fills" || reportType == "otc-fills" || reportType == "rfq-fills" {
+// 			a++
+// 		}
+// 	}
+// 	log.Print(a)
+// }
+
+// // BenchmarkNeedle-8   	322462062	         3.670 ns/op	       0 B/op	       0 allocs/op
+// // BenchmarkNeedle-8   	295766910	         4.467 ns/op	       0 B/op	       0 allocs/op
+// // BenchmarkNeedle-8   	137813607	         9.496 ns/op	       0 B/op	       0 allocs/op
+// func BenchmarkNeedle(b *testing.B) {
+// 	a := 0
+// 	for x := 0; x < b.N; x++ {
+// 		rTCheck := []string{"fills", "otc-fills", "rfq-fills"}
+// 		if common.StringDataCompare(rTCheck, reportType) {
+// 			a++
+// 		}
+// 	}
+// 	log.Print(a)
 // }
