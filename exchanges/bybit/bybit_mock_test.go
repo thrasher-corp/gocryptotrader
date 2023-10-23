@@ -12,6 +12,7 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/mock"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
@@ -80,23 +81,23 @@ func TestMain(m *testing.M) {
 			log.Fatal(err)
 		}
 	}
-	spotTradablePair, err = currency.NewPairFromString("BTCUSDT")
+	spotTradablePair, err = b.extractCurrencyPair("BTCUSDT", asset.Spot, true)
 	if err != nil {
 		log.Fatal(err)
 	}
-	usdtMarginedTradablePair, err = currency.NewPairFromString("10000LADYSUSDT")
+	usdtMarginedTradablePair, err = b.extractCurrencyPair("10000LADYSUSDT", asset.USDTMarginedFutures, true)
 	if err != nil {
 		log.Fatal(err)
 	}
-	usdcMarginedTradablePair, err = currency.NewPairFromString("ETHPERP")
+	usdcMarginedTradablePair, err = b.extractCurrencyPair("ETHPERP", asset.USDCMarginedFutures, true)
 	if err != nil {
 		log.Fatal(err)
 	}
-	inverseTradablePair, err = currency.NewPairFromString("ADAUSD")
+	inverseTradablePair, err = b.extractCurrencyPair("ADAUSD", asset.CoinMarginedFutures, true)
 	if err != nil {
 		log.Fatal(err)
 	}
-	optionsTradablePair, err = currency.NewPairFromString("BTC-29DEC23-80000-C")
+	optionsTradablePair, err = b.extractCurrencyPair("BTC-29DEC23-80000-C", asset.Options, true)
 	if err != nil {
 		log.Fatal(err)
 	}

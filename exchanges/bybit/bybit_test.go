@@ -680,23 +680,35 @@ func TestGetFundingRateHistory(t *testing.T) {
 
 func TestGetPublicTradingHistory(t *testing.T) {
 	t.Parallel()
-	_, err := b.GetPublicTradingHistory(context.Background(), "spot", spotTradablePair.String(), "", "", 30)
+	var usdtMarginedSymbol, usdcMarginedSymbol, coinMarginedSymbol, optionsSymbol string
+	if mockTests {
+		usdtMarginedSymbol = "10000LADYSUSDT"
+		usdcMarginedSymbol = "BNBPERP"
+		coinMarginedSymbol = "ADAUSD"
+		optionsSymbol = "BTC-29DEC23-80000-C"
+	} else {
+		usdtMarginedSymbol = usdtMarginedTradablePair.String()
+		usdcMarginedSymbol = usdcMarginedTradablePair.String()
+		coinMarginedSymbol = inverseTradablePair.String()
+		optionsSymbol = optionsTradablePair.String()
+	}
+	_, err := b.GetPublicTradingHistory(context.Background(), "spot", "BTCUSDT", "", "", 30)
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = b.GetPublicTradingHistory(context.Background(), "linear", usdtMarginedTradablePair.String(), "", "", 30)
+	_, err = b.GetPublicTradingHistory(context.Background(), "linear", usdtMarginedSymbol, "", "", 30)
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = b.GetPublicTradingHistory(context.Background(), "linear", usdcMarginedTradablePair.String(), "", "", 30)
+	_, err = b.GetPublicTradingHistory(context.Background(), "linear", usdcMarginedSymbol, "", "", 30)
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = b.GetPublicTradingHistory(context.Background(), "inverse", inverseTradablePair.String(), "", "", 30)
+	_, err = b.GetPublicTradingHistory(context.Background(), "inverse", coinMarginedSymbol, "", "", 30)
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = b.GetPublicTradingHistory(context.Background(), "option", optionsTradablePair.String(), "BTC", "", 30)
+	_, err = b.GetPublicTradingHistory(context.Background(), "option", optionsSymbol, "BTC", "", 30)
 	if err != nil {
 		t.Error(err)
 	}
@@ -704,19 +716,29 @@ func TestGetPublicTradingHistory(t *testing.T) {
 
 func TestGetOpenInterest(t *testing.T) {
 	t.Parallel()
+	var usdtMarginedSymbol, usdcMarginedSymbol, coinMarginedSymbol string
+	if mockTests {
+		usdtMarginedSymbol = "10000LADYSUSDT"
+		usdcMarginedSymbol = "BNBPERP"
+		coinMarginedSymbol = "ADAUSD"
+	} else {
+		usdtMarginedSymbol = usdtMarginedTradablePair.String()
+		usdcMarginedSymbol = usdcMarginedTradablePair.String()
+		coinMarginedSymbol = inverseTradablePair.String()
+	}
 	_, err := b.GetOpenInterest(context.Background(), "spot", spotTradablePair.String(), "5min", time.Time{}, time.Time{}, 0, "")
 	if !errors.Is(err, errInvalidCategory) {
 		t.Errorf("expected %v, got %v", errInvalidCategory, err)
 	}
-	_, err = b.GetOpenInterest(context.Background(), "linear", usdtMarginedTradablePair.String(), "5min", time.Time{}, time.Time{}, 0, "")
+	_, err = b.GetOpenInterest(context.Background(), "linear", usdtMarginedSymbol, "5min", time.Time{}, time.Time{}, 0, "")
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = b.GetOpenInterest(context.Background(), "linear", usdcMarginedTradablePair.String(), "5min", time.Time{}, time.Time{}, 0, "")
+	_, err = b.GetOpenInterest(context.Background(), "linear", usdcMarginedSymbol, "5min", time.Time{}, time.Time{}, 0, "")
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = b.GetOpenInterest(context.Background(), "inverse", inverseTradablePair.String(), "5min", time.Time{}, time.Time{}, 0, "")
+	_, err = b.GetOpenInterest(context.Background(), "inverse", coinMarginedSymbol, "5min", time.Time{}, time.Time{}, 0, "")
 	if err != nil {
 		t.Error(err)
 	}
@@ -1500,11 +1522,11 @@ func TestSetAutoAddMargin(t *testing.T) {
 		t.Skip("skipping authenticated function for mock testing")
 	}
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
-	err := b.SetAutoAddMargin(context.Background(), &AddRemoveMarginParams{
+	err := b.SetAutoAddMargin(context.Background(), &AutoAddMarginParam{
 		Category:      "inverse",
 		Symbol:        inverseTradablePair,
 		AutoAddmargin: 0,
-		PositionMode:  2,
+		PositionIndex: 2,
 	})
 	if err != nil {
 		t.Error(err)
@@ -1516,11 +1538,11 @@ func TestAddOrReduceMargin(t *testing.T) {
 		t.Skip("skipping authenticated function for mock testing")
 	}
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
-	_, err := b.AddOrReduceMargin(context.Background(), &AddRemoveMarginParams{
+	_, err := b.AddOrReduceMargin(context.Background(), &AddOrReduceMarginParam{
 		Category:      "inverse",
 		Symbol:        inverseTradablePair,
-		AutoAddmargin: 0,
-		PositionMode:  2,
+		Margin:        -10,
+		PositionIndex: 2,
 	})
 	if err != nil {
 		t.Error(err)
@@ -1533,7 +1555,7 @@ func TestGetExecution(t *testing.T) {
 		t.Skip("skipping authenticated function for mock testing")
 	}
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
-	_, err := b.GetExecution(context.Background(), "spot", "", "", "", "", "", time.Time{}, time.Time{}, 0)
+	_, err := b.GetExecution(context.Background(), "spot", "", "", "", "", "Trade", "", time.Time{}, time.Time{}, 0)
 	if err != nil {
 		t.Fatal(err)
 	}

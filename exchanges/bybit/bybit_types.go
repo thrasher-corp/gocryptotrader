@@ -533,9 +533,6 @@ type PositionInfoList struct {
 
 // PositionInfo represents a position info item.
 type PositionInfo struct {
-	PositionIndex    int64                   `json:"positionIdx"`
-	RiskID           int64                   `json:"riskId"`
-	RiskLimitValue   string                  `json:"riskLimitValue"`
 	Symbol           string                  `json:"symbol"`
 	Side             string                  `json:"side"`
 	Size             convert.StringToFloat64 `json:"size"`
@@ -544,7 +541,7 @@ type PositionInfo struct {
 	TradeMode        int64                   `json:"tradeMode"`
 	PositionStatus   string                  `json:"positionStatus"`
 	AutoAddMargin    int64                   `json:"autoAddMargin"`
-	AdlRankIndicator int64                   `json:"adlRankIndicator"`
+	ADLRankIndicator int64                   `json:"adlRankIndicator"`
 	Leverage         convert.StringToFloat64 `json:"leverage"`
 	PositionBalance  convert.StringToFloat64 `json:"positionBalance"`
 	MarkPrice        convert.StringToFloat64 `json:"markPrice"`
@@ -557,9 +554,21 @@ type PositionInfo struct {
 	StopLoss         convert.StringToFloat64 `json:"stopLoss"`
 	TrailingStop     convert.StringToFloat64 `json:"trailingStop"`
 	UnrealisedPnl    convert.StringToFloat64 `json:"unrealisedPnl"`
-	CumRealisedPnl   convert.StringToFloat64 `json:"cumRealisedPnl"`
-	CreatedTime      convert.ExchangeTime    `json:"createdTime"`
-	UpdatedTime      convert.ExchangeTime    `json:"updatedTime"`
+	PositionIndex    int64                   `json:"positionIdx"`
+	RiskID           int64                   `json:"riskId"`
+	RiskLimitValue   string                  `json:"riskLimitValue"`
+
+	// Futures & Perp: it is the all time cumulative realised P&L
+	// Option: it is the realised P&L when you hold that position
+	CumRealisedPnl convert.StringToFloat64 `json:"cumRealisedPnl"`
+	CreatedTime    convert.ExchangeTime    `json:"createdTime"`
+	UpdatedTime    convert.ExchangeTime    `json:"updatedTime"`
+
+	// Cross sequence, used to associate each fill and each position update
+	// Different symbols may have the same seq, please use seq + symbol to check unique
+	// Returns "-1" if the symbol has never been traded
+	// Returns the seq updated by the last transaction when there are settings like leverage, risk limit
+	Sequence int64 `json:"seq"`
 }
 
 // SetLeverageParams parameters to set the leverage.
@@ -617,13 +626,13 @@ type RiskLimitResponse struct {
 // TradingStopParams take profit, stop loss or trailing stop for the position.
 type TradingStopParams struct {
 	Category                 string        `json:"category"`
-	Symbol                   currency.Pair `json:"symbol"` // Symbol name. Either symbol or coin is required. symbol has a higher priority
-	TakeProfit               string        `json:"takeProfit,omitempty"`
-	StopLoss                 string        `json:"stopLoss,omitempty"`
-	TrailingStop             string        `json:"trailingStop,omitempty"`
+	Symbol                   currency.Pair `json:"symbol"`                 // Symbol name. Either symbol or coin is required. symbol has a higher priority
+	TakeProfit               string        `json:"takeProfit,omitempty"`   // Cannot be less than 0, 0 means cancel TP
+	StopLoss                 string        `json:"stopLoss,omitempty"`     // Cannot be less than 0, 0 means cancel SL
+	TrailingStop             string        `json:"trailingStop,omitempty"` // Trailing stop by price distance. Cannot be less than 0, 0 means cancel TS
 	TakeProfitTriggerType    string        `json:"tpTriggerBy,omitempty"`
 	StopLossTriggerType      string        `json:"slTriggerBy,omitempty"`
-	ActivePrice              string        `json:"activePrice,omitempty"`
+	ActivePrice              float64       `json:"activePrice,omitempty,string"`
 	TakeProfitOrStopLossMode string        `json:"tpslMode,omitempty"`
 	TakeProfitOrderType      string        `json:"tpOrderType,omitempty"`
 	StopLossOrderType        string        `json:"slOrderType,omitempty"`
@@ -634,12 +643,23 @@ type TradingStopParams struct {
 	PositionIndex            int64         `json:"positionIdx,omitempty"`
 }
 
-// AddRemoveMarginParams represents parameters for auto add margin
-type AddRemoveMarginParams struct {
-	Category      string        `json:"category,omitempty"`
-	Symbol        currency.Pair `json:"symbol,omitempty"`
-	AutoAddmargin int64         `json:"autoAddmargin,string,omitempty"`
-	PositionMode  int64         `json:"positionIdx,string,omitempty"`
+// AutoAddMarginParam represents parameters for auto add margin
+type AutoAddMarginParam struct {
+	Category      string        `json:"category"`
+	Symbol        currency.Pair `json:"symbol"`
+	AutoAddmargin int64         `json:"autoAddmargin,string"` // Turn on/off. 0: off. 1: on
+
+	// Positions in different position modes.
+	// 0: one-way mode, 1: hedge-mode Buy side, 2: hedge-mode Sell side
+	PositionIndex int64 `json:"positionIdx,omitempty,string"`
+}
+
+// AddOrReduceMarginParam holds manually add or reduce margin for isolated margin position parameters.
+type AddOrReduceMarginParam struct {
+	Category      string        `json:"category"`
+	Symbol        currency.Pair `json:"symbol"`
+	Margin        int64         `json:"margin,string"` // Add or reduce. To add, then 10; To reduce, then -10. Support up to 4 decimal
+	PositionIndex int64         `json:"positionIdx"`   // Same as PositionIndex value in AutoAddMarginParam
 }
 
 // AddOrReduceMargin represents a add or reduce margin response.
@@ -1202,8 +1222,8 @@ type SubUIDAPIResponse struct {
 	DeadlineDay   int64     `json:"deadlineDay"`
 	ExpiredAt     time.Time `json:"expiredAt"`
 	CreatedAt     time.Time `json:"createdAt"`
-	Unified       int64     `json:"unified"`
-	Uta           int64     `json:"uta"`
+	IsUnified     int64     `json:"unified"` // Whether the account to which the account upgrade to unified margin account.
+	UTA           int64     `json:"uta"`     // Whether the account to which the account upgrade to unified trade account.
 	UserID        int64     `json:"userID"`
 	InviterID     int64     `json:"inviterID"`
 	VipLevel      string    `json:"vipLevel"`

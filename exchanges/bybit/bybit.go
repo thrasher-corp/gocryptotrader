@@ -44,8 +44,8 @@ const (
 
 	cSpot, cLinear, cOption, cInverse = "spot", "linear", "option", "inverse"
 
-	accountTypeUnified = 0
-	accountTypeNormal  = 1
+	accountTypeNormal  = 0 // 0: regular account
+	accountTypeUnified = 1 // 1: unified trade account
 )
 
 var (
@@ -588,12 +588,15 @@ func (by *Bybit) CancelTradeOrder(ctx context.Context, arg *CancelOrderParams) (
 	if arg.Symbol.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
-	if arg.OrderFilter != "" && arg.Category == cSpot {
+	switch {
+	case arg.OrderFilter != "" && arg.Category == cSpot:
 		switch arg.OrderFilter {
 		case "Order", "tpslOrder":
 		default:
 			return nil, fmt.Errorf("%w, orderFilter=%s", errInvalidOrderFilter, arg.OrderFilter)
 		}
+	case arg.OrderFilter != "":
+		return nil, fmt.Errorf("%w, orderFilter is valid for 'spot' only", errInvalidCategory)
 	}
 	var resp *OrderResponse
 	return resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, "/v5/order/cancel", nil, arg, &resp, cancelOrderEPL)
@@ -965,9 +968,9 @@ func (by *Bybit) SetTradingStop(ctx context.Context, arg *TradingStopParams) err
 		return errNilArgument
 	}
 	switch arg.Category {
+	case cLinear, cInverse:
 	case "":
 		return errCategoryNotSet
-	case cLinear, cInverse:
 	default:
 		return fmt.Errorf("%w, category: %s", errInvalidCategory, arg.Category)
 	}
@@ -978,7 +981,7 @@ func (by *Bybit) SetTradingStop(ctx context.Context, arg *TradingStopParams) err
 }
 
 // SetAutoAddMargin sets auto add margin
-func (by *Bybit) SetAutoAddMargin(ctx context.Context, arg *AddRemoveMarginParams) error {
+func (by *Bybit) SetAutoAddMargin(ctx context.Context, arg *AutoAddMarginParam) error {
 	if arg == nil {
 		return errNilArgument
 	}
@@ -995,14 +998,14 @@ func (by *Bybit) SetAutoAddMargin(ctx context.Context, arg *AddRemoveMarginParam
 	if arg.AutoAddmargin != 0 && arg.AutoAddmargin != 1 {
 		return errInvalidAutoAddMarginValue
 	}
-	if arg.PositionMode < 0 || arg.PositionMode > 2 {
+	if arg.PositionIndex < 0 || arg.PositionIndex > 2 {
 		return errInvalidPositionMode
 	}
 	return by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, "/v5/position/set-auto-add-margin", nil, arg, &struct{}{}, defaultEPL)
 }
 
 // AddOrReduceMargin manually add or reduce margin for isolated margin position
-func (by *Bybit) AddOrReduceMargin(ctx context.Context, arg *AddRemoveMarginParams) (*AddOrReduceMargin, error) {
+func (by *Bybit) AddOrReduceMargin(ctx context.Context, arg *AddOrReduceMarginParam) (*AddOrReduceMargin, error) {
 	if arg == nil {
 		return nil, errNilArgument
 	}
@@ -1016,10 +1019,10 @@ func (by *Bybit) AddOrReduceMargin(ctx context.Context, arg *AddRemoveMarginPara
 	if arg.Symbol.IsEmpty() {
 		return nil, errSymbolMissing
 	}
-	if arg.AutoAddmargin != 0 && arg.AutoAddmargin != 1 {
+	if arg.Margin != 10 && arg.Margin != -10 {
 		return nil, errInvalidAutoAddMarginValue
 	}
-	if arg.PositionMode < 0 || arg.PositionMode > 2 {
+	if arg.PositionIndex < 0 || arg.PositionIndex > 2 {
 		return nil, errInvalidPositionMode
 	}
 	var resp *AddOrReduceMargin
@@ -1027,7 +1030,8 @@ func (by *Bybit) AddOrReduceMargin(ctx context.Context, arg *AddRemoveMarginPara
 }
 
 // GetExecution retrieves users' execution records, sorted by execTime in descending order. However, for Normal spot, they are sorted by execId in descending order.
-func (by *Bybit) GetExecution(ctx context.Context, category, symbol, orderID, orderLinkID, baseCoin, cursor string, startTime, endTime time.Time, limit int64) (*ExecutionResponse, error) {
+// Execution Type possible values: 'Trade', 'AdlTrade' Auto-Deleveraging, 'Funding' Funding fee, 'BustTrade' Liquidation, 'Delivery' USDC futures delivery, 'BlockTrade'
+func (by *Bybit) GetExecution(ctx context.Context, category, symbol, orderID, orderLinkID, baseCoin, executionType, cursor string, startTime, endTime time.Time, limit int64) (*ExecutionResponse, error) {
 	params, err := fillCategoryAndSymbol(category, symbol, true)
 	if err != nil {
 		return nil, err
@@ -1049,6 +1053,9 @@ func (by *Bybit) GetExecution(ctx context.Context, category, symbol, orderID, or
 	}
 	if !endTime.IsZero() {
 		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
+	}
+	if executionType != "" {
+		params.Set("execType", executionType)
 	}
 	if cursor != "" {
 		params.Set("cursor", cursor)
@@ -2611,10 +2618,10 @@ func getSign(sign, secret string) (string, error) {
 func (by *Bybit) RetrieveAndSetAccountType(ctx context.Context) {
 	accInfo, err := by.GetAPIKeyInformation(ctx)
 	if err != nil {
-		log.Warnf(log.ExchangeSys, "RetrieveAndSetAccountType: %v", err)
+		log.Errorf(log.ExchangeSys, "RetrieveAndSetAccountType: %v", err)
 		return
 	}
-	by.AccountType = uint8(accInfo.Unified)
+	by.AccountType = uint8(accInfo.UTA) // 0：regular account; 1：unified trade account
 }
 
 // GetLongShortRatio retrieves long short ratio of an instrument.
