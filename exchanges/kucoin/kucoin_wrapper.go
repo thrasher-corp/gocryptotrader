@@ -903,11 +903,8 @@ func (ku *Kucoin) GetOrderInfo(ctx context.Context, orderID string, pair currenc
 		if err != nil {
 			return nil, err
 		}
-		enabledPairs, err := ku.GetEnabledPairs(asset.Futures)
-		if err != nil {
-			return nil, err
-		}
-		nPair, err := enabledPairs.DeriveFrom(orderDetail.Symbol)
+		var nPair currency.Pair
+		nPair, err = ku.MatchSymbolWithAvailablePairs(orderDetail.Symbol, assetType, true)
 		if err != nil {
 			return nil, err
 		}
@@ -1079,21 +1076,18 @@ func (ku *Kucoin) GetActiveOrders(ctx context.Context, getOrdersRequest *order.M
 		if err != nil {
 			return nil, err
 		}
-		var enabledPairs currency.Pairs
-		enabledPairs, err = ku.GetEnabledPairs(asset.Futures)
-		if err != nil {
-			return nil, err
-		}
 		for x := range futuresOrders.Items {
 			if !futuresOrders.Items[x].IsActive {
 				continue
 			}
-			dPair, err := enabledPairs.DeriveFrom(futuresOrders.Items[x].Symbol)
+			var dPair currency.Pair
+			var isEnabled bool
+			dPair, isEnabled, err = ku.MatchSymbolCheckEnabled(futuresOrders.Items[x].Symbol, getOrdersRequest.AssetType, true)
 			if err != nil {
-				if errors.Is(err, currency.ErrPairNotFound) {
-					continue
-				}
 				return nil, err
+			}
+			if !isEnabled {
+				continue
 			}
 			for i := range getOrdersRequest.Pairs {
 				if !getOrdersRequest.Pairs[i].Equal(dPair) {
@@ -1138,8 +1132,6 @@ func (ku *Kucoin) GetActiveOrders(ctx context.Context, getOrdersRequest *order.M
 		if err != nil {
 			return nil, err
 		}
-		var enabledPairs currency.Pairs
-		enabledPairs, err = ku.GetEnabledPairs(asset.Futures)
 		if err != nil {
 			return nil, err
 		}
@@ -1147,12 +1139,14 @@ func (ku *Kucoin) GetActiveOrders(ctx context.Context, getOrdersRequest *order.M
 			if !spotOrders.Items[x].IsActive {
 				continue
 			}
-			dPair, err := enabledPairs.DeriveFrom(spotOrders.Items[x].Symbol)
+			var dPair currency.Pair
+			var isEnabled bool
+			dPair, isEnabled, err = ku.MatchSymbolCheckEnabled(spotOrders.Items[x].Symbol, getOrdersRequest.AssetType, true)
 			if err != nil {
-				if errors.Is(err, currency.ErrPairNotFound) {
-					continue
-				}
 				return nil, err
+			}
+			if !isEnabled {
+				continue
 			}
 			if len(getOrdersRequest.Pairs) > 0 && !getOrdersRequest.Pairs.Contains(dPair, true) {
 				continue
@@ -1233,23 +1227,19 @@ func (ku *Kucoin) GetOrderHistory(ctx context.Context, getOrdersRequest *order.M
 				}
 			}
 		}
-		var enabledPairs currency.Pairs
-		enabledPairs, err = ku.GetEnabledPairs(asset.Futures)
-		if err != nil {
-			return nil, err
-		}
 		orders = make(order.FilteredOrders, 0, len(futuresOrders.Items))
 		for i := range orders {
 			orderSide, err = order.StringToOrderSide(futuresOrders.Items[i].Side)
 			if err != nil {
 				return nil, err
 			}
-			pair, err = enabledPairs.DeriveFrom(futuresOrders.Items[i].Symbol)
+			var isEnabled bool
+			pair, isEnabled, err = ku.MatchSymbolCheckEnabled(futuresOrders.Items[i].Symbol, getOrdersRequest.AssetType, true)
 			if err != nil {
-				if errors.Is(err, currency.ErrPairNotFound) {
-					continue
-				}
 				return nil, err
+			}
+			if !isEnabled {
+				continue
 			}
 			oType, err = order.StringToOrderType(futuresOrders.Items[i].OrderType)
 			if err != nil {
@@ -1592,7 +1582,7 @@ func (ku *Kucoin) GetLatestFundingRates(ctx context.Context, r *fundingrate.Late
 			log.Warnf(log.ExchangeSys, "%s predicted rate for all currencies requires an additional %v requests", ku.Name, len(contracts))
 		}
 		timeChecked := time.Now()
-		resp := make([]fundingrate.LatestRateResponse, len(contracts))
+		resp := make([]fundingrate.LatestRateResponse, 0, len(contracts))
 		for i := range contracts {
 			timeOfNextFundingRate := time.Now().Add(time.Duration(contracts[i].NextFundingRateTime) * time.Millisecond).Truncate(time.Hour).UTC()
 			var cp currency.Pair
@@ -1630,7 +1620,7 @@ func (ku *Kucoin) GetLatestFundingRates(ctx context.Context, r *fundingrate.Late
 					Rate: decimal.NewFromFloat(fr.PredictedValue),
 				}
 			}
-			resp[i] = rate
+			resp = append(resp, rate)
 		}
 		return resp, nil
 	}

@@ -2794,14 +2794,20 @@ func TestGetLatestFundingRates(t *testing.T) {
 	}
 
 	_, err = h.GetLatestFundingRates(context.Background(), &fundingrate.LatestRateRequest{
-		Asset: asset.CoinMarginedFutures,
+		Asset:                asset.CoinMarginedFutures,
+		Pair:                 currency.NewPair(currency.BTC, currency.USD),
+		IncludePredictedRate: true,
 	})
-	if !errors.Is(err, currency.ErrCurrencyPairEmpty) {
+	if err != nil {
 		t.Error(err)
+	}
+
+	err = h.CurrencyPairs.EnablePair(asset.CoinMarginedFutures, currency.NewPair(currency.BTC, currency.USD))
+	if err != nil && !errors.Is(err, currency.ErrAssetAlreadyEnabled) {
+		t.Fatal(err)
 	}
 	_, err = h.GetLatestFundingRates(context.Background(), &fundingrate.LatestRateRequest{
 		Asset:                asset.CoinMarginedFutures,
-		Pair:                 currency.NewPair(currency.BTC, currency.USD),
 		IncludePredictedRate: true,
 	})
 	if err != nil {
@@ -2825,5 +2831,13 @@ func TestIsPerpetualFutureCurrency(t *testing.T) {
 	}
 	if !is {
 		t.Error("expected true")
+	}
+}
+
+func TestGetSwapFundingRates(t *testing.T) {
+	t.Parallel()
+	_, err := h.GetSwapFundingRates(context.Background())
+	if err != nil {
+		t.Error(err)
 	}
 }

@@ -3300,7 +3300,7 @@ func TestGetLatestFundingRate(t *testing.T) {
 	}
 }
 
-func TestGetFundingRates(t *testing.T) {
+func TestGetHistoricalFundingRates(t *testing.T) {
 	t.Parallel()
 	cp, err := currency.NewPairFromString("BTC-USD-SWAP")
 	if err != nil {

@@ -543,6 +543,12 @@ type LiquidationOrdersData struct {
 	} `json:"data"`
 }
 
+// SwapFundingRatesResponse holds funding rates and data response
+type SwapFundingRatesResponse struct {
+	Response
+	Data []FundingRatesData `json:"data"`
+}
+
 // FundingRatesData stores funding rates data
 type FundingRatesData struct {
 	EstimatedRate   float64 `json:"estimated_rate,string"`

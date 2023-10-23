@@ -372,12 +372,9 @@ func (b *Bitfinex) UpdateTickers(ctx context.Context, a asset.Item) error {
 
 	for key, val := range tickerNew {
 		pair, enabled, err := b.MatchSymbolCheckEnabled(key[1:], a, true)
-		if err != nil {
-			if !errors.Is(err, currency.ErrPairNotFound) {
-				return err
-			}
+		if err != nil && !errors.Is(err, currency.ErrPairNotFound) {
+			return err
 		}
-
 		if !enabled {
 			continue
 		}

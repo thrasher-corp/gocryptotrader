@@ -1597,13 +1597,14 @@ func (ok *Okx) GetLatestFundingRates(ctx context.Context, r *fundingrate.LatestR
 		return nil, err
 	}
 	pairRate.LatestRate = fundingrate.Rate{
-		Time: fr.FundingTime.Time(),
+		// okx funding rate is settlement time, not when it started
+		Time: fr.FundingTime.Time().Add(-ok.Features.Supports.FuturesCapabilities.FundingRateFrequency),
 		Rate: fr.FundingRate.Decimal(),
 	}
 	if r.IncludePredictedRate {
 		pairRate.TimeOfNextRate = fr.NextFundingTime.Time()
 		pairRate.PredictedUpcomingRate = fundingrate.Rate{
-			Time: fr.NextFundingTime.Time(),
+			Time: fr.NextFundingTime.Time().Add(-ok.Features.Supports.FuturesCapabilities.FundingRateFrequency),
 			Rate: fr.NextFundingRate.Decimal(),
 		}
 	}

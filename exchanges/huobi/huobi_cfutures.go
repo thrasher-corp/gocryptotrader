@@ -20,6 +20,7 @@ const (
 	// Coin Margined Swap (perpetual futures) endpoints
 	huobiSwapMarkets                     = "/swap-api/v1/swap_contract_info"
 	huobiSwapFunding                     = "/swap-api/v1/swap_funding_rate"
+	huobiSwapBatchFunding                = "/swap-api/v1/swap_batch_funding_rate"
 	huobiSwapIndexPriceInfo              = "/swap-api/v1/swap_index"
 	huobiSwapPriceLimitation             = "/swap-api/v1/swap_price_limit"
 	huobiSwapOpenInterestInfo            = "/swap-api/v1/swap_open_interest"
@@ -989,8 +990,8 @@ func (h *HUOBI) GetSwapMarkets(ctx context.Context, contract currency.Pair) ([]S
 	return result.Data, err
 }
 
-// GetSwapFundingRates gets funding rates data
-func (h *HUOBI) GetSwapFundingRates(ctx context.Context, contract currency.Pair) (FundingRatesData, error) {
+// GetSwapFundingRate gets funding rate data for one currency
+func (h *HUOBI) GetSwapFundingRate(ctx context.Context, contract currency.Pair) (FundingRatesData, error) {
 	vals := url.Values{}
 	codeValue, err := h.FormatSymbol(contract, asset.CoinMarginedFutures)
 	if err != nil {
@@ -1007,4 +1008,11 @@ func (h *HUOBI) GetSwapFundingRates(ctx context.Context, contract currency.Pair)
 		return FundingRatesData{}, errors.New(result.ErrorMessage)
 	}
 	return result.Data, err
+}
+
+// GetSwapFundingRates gets funding rates data
+func (h *HUOBI) GetSwapFundingRates(ctx context.Context) (SwapFundingRatesResponse, error) {
+	var result SwapFundingRatesResponse
+	err := h.SendHTTPRequest(ctx, exchange.RestFutures, huobiSwapBatchFunding, &result)
+	return result, err
 }

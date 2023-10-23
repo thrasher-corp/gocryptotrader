@@ -1265,9 +1265,18 @@ func TestGetLatestFundingRates(t *testing.T) {
 		Pair:                 currency.NewPair(currency.BTC, currency.USDT),
 		IncludePredictedRate: true,
 	})
+	if !errors.Is(err, common.ErrFunctionNotSupported) {
+		t.Error(err)
+	}
+
+	_, err = b.GetLatestFundingRates(context.Background(), &fundingrate.LatestRateRequest{
+		Asset: asset.Futures,
+		Pair:  currency.NewPair(currency.BTC, currency.KLAY),
+	})
 	if !errors.Is(err, futures.ErrNotPerpetualFuture) {
 		t.Error(err)
 	}
+
 	_, err = b.GetLatestFundingRates(context.Background(), &fundingrate.LatestRateRequest{
 		Asset: asset.PerpetualContract,
 	})

@@ -411,12 +411,9 @@ instruments:
 			pair, enabled, err = b.MatchSymbolCheckEnabled(tick[j].Symbol, a, false)
 		}
 
-		if err != nil {
-			if !errors.Is(err, currency.ErrPairNotFound) {
-				return err
-			}
+		if err != nil && !errors.Is(err, currency.ErrPairNotFound) {
+			return err
 		}
-
 		if !enabled {
 			continue
 		}
@@ -1261,22 +1258,25 @@ func (b *Bitmex) GetLatestFundingRates(ctx context.Context, r *fundingrate.Lates
 		return nil, fmt.Errorf("%w IncludePredictedRate", common.ErrFunctionNotSupported)
 	}
 
+	count := "1"
+	if r.Pair.IsEmpty() {
+		count = "500"
+	} else {
+		isPerp, err := b.IsPerpetualFutureCurrency(r.Asset, r.Pair)
+		if err != nil {
+			return nil, err
+		}
+		if !isPerp {
+			return nil, fmt.Errorf("%w %v %v", futures.ErrNotPerpetualFuture, r.Asset, r.Pair)
+		}
+	}
+
 	format, err := b.GetPairFormat(r.Asset, true)
 	if err != nil {
 		return nil, err
 	}
-	count := "1"
-	if r.Pair.IsEmpty() {
-		count = "500"
-	}
-
 	fPair := format.Format(r.Pair)
 	rates, err := b.GetFullFundingHistory(ctx, fPair, count, "", "", "", true, time.Time{}, time.Time{})
-	if err != nil {
-		return nil, err
-	}
-
-	pairs, err := b.GetEnabledPairs(r.Asset)
 	if err != nil {
 		return nil, err
 	}
@@ -1290,17 +1290,18 @@ func (b *Bitmex) GetLatestFundingRates(ctx context.Context, r *fundingrate.Lates
 		}
 		latestRateSymbol[rates[i].Symbol] = true
 		var nr time.Time
-		var cp currency.Pair
 		nr, err = time.Parse(time.RFC3339, rates[i].FundingInterval)
 		if err != nil {
 			return nil, err
 		}
-		cp, err = pairs.DeriveFrom(rates[i].Symbol)
-		if err != nil {
-			if errors.Is(err, currency.ErrPairNotFound) {
-				continue
-			}
+		var cp currency.Pair
+		var isEnabled bool
+		cp, isEnabled, err = b.MatchSymbolCheckEnabled(rates[i].Symbol, r.Asset, false)
+		if err != nil && !errors.Is(err, currency.ErrPairNotFound) {
 			return nil, err
+		}
+		if !isEnabled {
+			continue
 		}
 		var isPerp bool
 		isPerp, err = b.IsPerpetualFutureCurrency(r.Asset, cp)
@@ -1318,7 +1319,7 @@ func (b *Bitmex) GetLatestFundingRates(ctx context.Context, r *fundingrate.Lates
 				Time: rates[i].Timestamp,
 				Rate: decimal.NewFromFloat(rates[i].FundingRate),
 			},
-			TimeOfNextRate: rates[i].Timestamp.Add(time.Duration(nr.Nanosecond())),
+			TimeOfNextRate: rates[i].Timestamp.Add(time.Duration(nr.Hour()) * time.Hour),
 			TimeChecked:    time.Now(),
 		})
 	}

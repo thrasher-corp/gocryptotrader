@@ -2103,20 +2103,17 @@ func (b *Binance) GetLatestFundingRates(ctx context.Context, r *fundingrate.Late
 		if err != nil {
 			return nil, err
 		}
-		var ep currency.Pairs
-		ep, err = b.GetEnabledPairs(r.Asset)
-		if err != nil {
-			return nil, err
-		}
-
 		resp := make([]fundingrate.LatestRateResponse, 0, len(mp))
 		for i := range mp {
 			var cp currency.Pair
-			cp, err = ep.DeriveFrom(mp[i].Symbol)
-			if err != nil {
+			var isEnabled bool
+			cp, isEnabled, err = b.MatchSymbolCheckEnabled(mp[i].Symbol, r.Asset, true)
+			if err != nil && !errors.Is(err, currency.ErrPairNotFound) {
 				return nil, err
 			}
-
+			if !isEnabled {
+				continue
+			}
 			var isPerp bool
 			isPerp, err = b.IsPerpetualFutureCurrency(r.Asset, cp)
 			if err != nil {
@@ -2125,7 +2122,7 @@ func (b *Binance) GetLatestFundingRates(ctx context.Context, r *fundingrate.Late
 			if !isPerp {
 				continue
 			}
-			nft := time.UnixMilli(mp[len(mp)-1].NextFundingTime)
+			nft := time.UnixMilli(mp[i].NextFundingTime)
 			rate := fundingrate.LatestRateResponse{
 				TimeChecked: time.Now(),
 				Exchange:    b.Name,
@@ -2166,7 +2163,7 @@ func (b *Binance) GetLatestFundingRates(ctx context.Context, r *fundingrate.Late
 			if !isPerp {
 				continue
 			}
-			nft := time.UnixMilli(mp[len(mp)-1].NextFundingTime)
+			nft := time.UnixMilli(mp[i].NextFundingTime)
 			rate := fundingrate.LatestRateResponse{
 				TimeChecked: time.Now(),
 				Exchange:    b.Name,

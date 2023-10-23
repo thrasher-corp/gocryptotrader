@@ -1250,20 +1250,16 @@ func (b *BTSE) GetLatestFundingRates(ctx context.Context, r *fundingrate.LatestR
 		return nil, err
 	}
 
-	pairs, err := b.GetEnabledPairs(r.Asset)
-	if err != nil {
-		return nil, err
-	}
-
 	resp := make([]fundingrate.LatestRateResponse, 0, len(rates))
 	for i := range rates {
 		var cp currency.Pair
-		cp, err = pairs.DeriveFrom(rates[i].Symbol)
-		if err != nil {
-			if errors.Is(err, currency.ErrPairNotFound) {
-				continue
-			}
+		var isEnabled bool
+		cp, isEnabled, err = b.MatchSymbolCheckEnabled(rates[i].Symbol, r.Asset, true)
+		if err != nil && !errors.Is(err, currency.ErrPairNotFound) {
 			return nil, err
+		}
+		if !isEnabled {
+			continue
 		}
 		var isPerp bool
 		isPerp, err = b.IsPerpetualFutureCurrency(r.Asset, cp)

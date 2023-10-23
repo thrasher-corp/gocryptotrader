@@ -1802,9 +1802,12 @@ func (k *Kraken) GetLatestFundingRates(ctx context.Context, r *fundingrate.Lates
 		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, r.Asset)
 	}
 	if !r.Pair.IsEmpty() {
-		err := k.CurrencyPairs.IsAssetPairEnabled(r.Asset, r.Pair)
-		if err != nil {
+		_, isEnabled, err := k.MatchSymbolCheckEnabled(r.Pair.String(), r.Asset, r.Pair.Delimiter != "")
+		if err != nil && !errors.Is(err, currency.ErrPairNotFound) {
 			return nil, err
+		}
+		if !isEnabled {
+			return nil, fmt.Errorf("%w %v", currency.ErrPairNotEnabled, r.Pair)
 		}
 	}
 
