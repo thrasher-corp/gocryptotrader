@@ -39,7 +39,6 @@ var (
 	// ErrAuthRequestFailed is a wrapping error to denote that it's an auth request that failed
 	ErrAuthRequestFailed = errors.New("authenticated request failed")
 
-	errMaxRequestJobs         = errors.New("max request jobs reached")
 	errRequestFunctionIsNil   = errors.New("request function is nil")
 	errRequestItemNil         = errors.New("request item is nil")
 	errInvalidPath            = errors.New("invalid path")
