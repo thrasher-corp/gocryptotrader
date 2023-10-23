@@ -1380,6 +1380,9 @@ func TestNewExchangeByNameWithDefaults(t *testing.T) {
 		name := exchange.Exchanges[x]
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
+			if isCITest() && common.StringDataContains(blockedCIExchanges, name) {
+				t.Skipf("skipping %s due to CI test restrictions", name)
+			}
 			if common.StringDataContains(unsupportedDefaultConfigExchanges, name) {
 				t.Skipf("skipping %s unsupported", name)
 			}
