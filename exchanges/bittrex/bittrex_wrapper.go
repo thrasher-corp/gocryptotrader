@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"sort"
+	"strings"
 	"sync"
 	"time"
 
@@ -88,6 +89,7 @@ func (b *Bittrex) SetDefaults() {
 			Websocket: true,
 			RESTCapabilities: protocol.Features{
 				TickerFetching:      true,
+				TickerBatching:      true,
 				KlineFetching:       true,
 				TradeFetching:       true,
 				OrderbookFetching:   true,
@@ -298,8 +300,36 @@ func (b *Bittrex) UpdateTradablePairs(ctx context.Context, forceUpdate bool) err
 }
 
 // UpdateTickers updates the ticker for all currency pairs of a given asset type
-func (b *Bittrex) UpdateTickers(_ context.Context, _ asset.Item) error {
-	return common.ErrFunctionNotSupported
+func (b *Bittrex) UpdateTickers(ctx context.Context, a asset.Item) error {
+	if a != asset.Spot {
+		return fmt.Errorf("%w %v", asset.ErrNotSupported, a)
+	}
+	tickers, err := b.GetTickers(ctx)
+	if err != nil {
+		return err
+	}
+	summaries, err := b.GetMarketSummaries(ctx)
+	if err != nil {
+		return err
+	}
+	for x := range tickers {
+		for y := range summaries {
+			if !strings.EqualFold(summaries[y].Symbol, tickers[x].Symbol) {
+				continue
+			}
+			var pair currency.Pair
+			pair, err = currency.NewPairFromString(tickers[x].Symbol)
+			if err != nil {
+				return err
+			}
+			tickerPrice := b.constructTicker(tickers[x], &summaries[y], pair, a)
+			err = ticker.ProcessTicker(tickerPrice)
+			if err != nil {
+				return err
+			}
+		}
+	}
+	return nil
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair
