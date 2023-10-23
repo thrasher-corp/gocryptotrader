@@ -1380,17 +1380,16 @@ func TestNewExchangeByNameWithDefaults(t *testing.T) {
 		name := exchange.Exchanges[x]
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
-			if common.StringDataContains(unsupportedDefaultConfigExchanges, exchange.Exchanges[x]) {
+			if common.StringDataContains(unsupportedDefaultConfigExchanges, name) {
 				t.Skipf("skipping %s unsupported", name)
 			}
-			exch, err := NewExchangeByNameWithDefaults(context.Background(), exchange.Exchanges[x])
+			exch, err := NewExchangeByNameWithDefaults(context.Background(), name)
 			if err != nil {
 				t.Error(err)
 			}
-			if !strings.EqualFold(exch.GetName(), exchange.Exchanges[x]) {
-				t.Errorf("received: '%v' but expected: '%v'", exch.GetName(), exchange.Exchanges[x])
+			if !strings.EqualFold(exch.GetName(), name) {
+				t.Errorf("received: '%v' but expected: '%v'", exch.GetName(), name)
 			}
 		})
-
 	}
 }

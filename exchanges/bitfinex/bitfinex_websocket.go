@@ -187,7 +187,7 @@ func (b *Bitfinex) wsHandleData(respRaw []byte) error {
 		var chanID int
 		if f, ok := d[0].(float64); !ok {
 			return common.GetTypeAssertError("float64", d[0], "chanID")
-		} else { //nolint:revive // using lexical variable requires else statement
+		} else {
 			chanID = int(f)
 		}
 
