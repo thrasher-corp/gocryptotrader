@@ -2879,7 +2879,7 @@ func TestGetLatestFundingRates(t *testing.T) {
 		t.Error(err)
 	}
 	err = b.CurrencyPairs.EnablePair(asset.USDTMarginedFutures, cp)
-	if err != nil && !errors.Is(err, currency.ErrAssetAlreadyEnabled) {
+	if err != nil && !errors.Is(err, currency.ErrPairAlreadyEnabled) {
 		t.Fatal(err)
 	}
 	_, err = b.GetLatestFundingRates(context.Background(), &fundingrate.LatestRateRequest{

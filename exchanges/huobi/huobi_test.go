@@ -2803,7 +2803,7 @@ func TestGetLatestFundingRates(t *testing.T) {
 	}
 
 	err = h.CurrencyPairs.EnablePair(asset.CoinMarginedFutures, currency.NewPair(currency.BTC, currency.USD))
-	if err != nil && !errors.Is(err, currency.ErrAssetAlreadyEnabled) {
+	if err != nil && !errors.Is(err, currency.ErrPairAlreadyEnabled) {
 		t.Fatal(err)
 	}
 	_, err = h.GetLatestFundingRates(context.Background(), &fundingrate.LatestRateRequest{
