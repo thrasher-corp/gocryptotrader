@@ -83,7 +83,7 @@ func (c *CoinbasePro) GetAllAccounts(ctx context.Context) ([]AccountResponse, er
 	var resp []AccountResponse
 
 	return resp,
-		c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, coinbaseproAccounts, nil, &resp)
+		c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, coinbaseproAccounts, nil, &resp, nil)
 }
 
 // GetAccountByID returns information for a single account
@@ -92,33 +92,41 @@ func (c *CoinbasePro) GetAccountByID(ctx context.Context, accountID string) (*Ac
 	resp := AccountResponse{}
 
 	return &resp,
-		c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, &resp)
+		c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, &resp, nil)
 }
 
 // GetHolds returns information on the holds of an account
-func (c *CoinbasePro) GetHolds(ctx context.Context, accountID, direction, step string, limit int64) ([]AccountHolds, error) {
+func (c *CoinbasePro) GetHolds(ctx context.Context, accountID, direction, step string, limit int64) ([]AccountHolds, ReturnedPaginationHeaders, error) {
 	path := fmt.Sprintf("%s/%s/%s", coinbaseproAccounts, accountID, coinbaseproHolds)
 
 	var params Params
 	params.urlVals = url.Values{}
+	// Warning: This endpoint doesn't seem to properly support pagination, the headers
+	// indicating the cursor position are never actually present. Still, it's handled
+	// as if it works, in case it gets fixed.
 	params.PrepareDSL(direction, step, limit)
 
 	path = common.EncodeURLValues(path, params.urlVals)
 
 	var resp []AccountHolds
+	retH := http.Header{}
 
-	return resp,
-		c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, &resp)
+	err := c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, &resp, &retH)
+
+	rph := ReturnedPaginationHeaders{before: retH.Get("CB-BEFORE"), after: retH.Get("CB-AFTER")}
+
+	return resp, rph, err
 }
 
 // GetAccountLedger returns a list of ledger activity
-func (c *CoinbasePro) GetAccountLedger(ctx context.Context, accountID, direction, step, pID string, startDate, endDate time.Time, limit int64) ([]AccountLedgerResponse, error) {
+func (c *CoinbasePro) GetAccountLedger(ctx context.Context, accountID, direction, step, pID string, startDate, endDate time.Time, limit int64) ([]AccountLedgerResponse, ReturnedPaginationHeaders, error) {
 	var params Params
 	params.urlVals = url.Values{}
+	var rph ReturnedPaginationHeaders
 
 	err := params.PrepareDateString(startDate, endDate)
 	if err != nil {
-		return nil, err
+		return nil, rph, err
 	}
 
 	path := fmt.Sprintf("%s/%s/%s", coinbaseproAccounts, accountID, coinbaseproLedger)
@@ -132,13 +140,18 @@ func (c *CoinbasePro) GetAccountLedger(ctx context.Context, accountID, direction
 	path = common.EncodeURLValues(path, params.urlVals)
 
 	var resp []AccountLedgerResponse
+	retH := http.Header{}
 
-	return resp, c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, &resp)
+	err = c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, &resp, &retH)
+
+	rph = ReturnedPaginationHeaders{before: retH.Get("CB-BEFORE"), after: retH.Get("CB-AFTER")}
+
+	return resp, rph, err
 }
 
 // GetAccountTransfers returns a history of withdrawal and or deposit
 // transactions for a single account
-func (c *CoinbasePro) GetAccountTransfers(ctx context.Context, accountID, direction, step, transferType string, limit int64) ([]TransferResponse, error) {
+func (c *CoinbasePro) GetAccountTransfers(ctx context.Context, accountID, direction, step, transferType string, limit int64) ([]TransferResponse, ReturnedPaginationHeaders, error) {
 	path := fmt.Sprintf("%s/%s/%s", coinbaseproAccounts, accountID, coinbaseproTransfers)
 
 	var params Params
@@ -150,9 +163,13 @@ func (c *CoinbasePro) GetAccountTransfers(ctx context.Context, accountID, direct
 	path = common.EncodeURLValues(path, params.urlVals)
 
 	var resp []TransferResponse
+	retH := http.Header{}
 
-	return resp,
-		c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, &resp)
+	err := c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, &resp, &retH)
+
+	rph := ReturnedPaginationHeaders{before: retH.Get("CB-BEFORE"), after: retH.Get("CB-AFTER")}
+
+	return resp, rph, err
 }
 
 // GetAddressBook returns all addresses stored in the address book
@@ -160,25 +177,28 @@ func (c *CoinbasePro) GetAddressBook(ctx context.Context) ([]GetAddressResponse,
 	var resp []GetAddressResponse
 
 	return resp,
-		c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, coinbaseproAddressBook, nil, &resp)
+		c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, coinbaseproAddressBook, nil, &resp, nil)
 }
 
 // AddAddresses adds new addresses to the address book
 func (c *CoinbasePro) AddAddresses(ctx context.Context, req []AddAddressRequest) ([]AddAddressResponse, error) {
 	params := make(map[string]interface{})
 	params["addresses"] = req
+	// The documentation also prompts us to add in an arbitrary amount of strings
+	// into the parameters, without specifying what they're for. Adding some seemed
+	// to do nothing
 
 	var resp []AddAddressResponse
 
 	return resp,
-		c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, coinbaseproAddressBook, params, &resp)
+		c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, coinbaseproAddressBook, params, &resp, nil)
 }
 
 // DeleteAddress deletes an address from the address book
 func (c *CoinbasePro) DeleteAddress(ctx context.Context, addressID string) error {
 	path := fmt.Sprintf("%s/%s", coinbaseproAddressBook, addressID)
 
-	return c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodDelete, path, nil, nil)
+	return c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodDelete, path, nil, nil, nil)
 }
 
 // GetCoinbaseWallets returns all of the user's available Coinbase wallets
@@ -186,7 +206,7 @@ func (c *CoinbasePro) GetCoinbaseWallets(ctx context.Context) ([]CoinbaseAccount
 	var resp []CoinbaseAccounts
 
 	return resp,
-		c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, coinbaseproCoinbaseAccounts, nil, &resp)
+		c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, coinbaseproCoinbaseAccounts, nil, &resp, nil)
 }
 
 // GenerateCryptoAddress generates a one-time address for deposting crypto
@@ -201,7 +221,7 @@ func (c *CoinbasePro) GenerateCryptoAddress(ctx context.Context, accountID, prof
 	resp := CryptoAddressResponse{}
 
 	return &resp,
-		c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, path, params, &resp)
+		c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, path, params, &resp, nil)
 }
 
 // ConvertCurrency converts between two currencies in the specified profile
@@ -212,7 +232,7 @@ func (c *CoinbasePro) ConvertCurrency(ctx context.Context, profileID, from, to, 
 	resp := ConvertResponse{}
 
 	return resp,
-		c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, coinbaseproConversions, params, &resp)
+		c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, coinbaseproConversions, params, &resp, nil)
 }
 
 // GetConversionByID returns the details of a past conversion, given its ID
@@ -226,7 +246,7 @@ func (c *CoinbasePro) GetConversionByID(ctx context.Context, conversionID, profi
 	resp := ConvertResponse{}
 
 	return resp,
-		c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, &resp)
+		c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, &resp, nil)
 }
 
 // GetAllCurrencies returns a list of currencies known by the exchange
@@ -257,7 +277,7 @@ func (c *CoinbasePro) DepositViaCoinbase(ctx context.Context, profileID, currenc
 	resp := DepositWithdrawalInfo{}
 
 	return resp,
-		c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, coinbaseproDepositCoinbase, params, &resp)
+		c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, coinbaseproDepositCoinbase, params, &resp, nil)
 }
 
 // DepositViaPaymentMethod deposits funds from a payment method. SEPA is not allowed
@@ -269,7 +289,7 @@ func (c *CoinbasePro) DepositViaPaymentMethod(ctx context.Context, profileID, pa
 	resp := DepositWithdrawalInfo{}
 
 	return resp,
-		c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, coinbaseproPaymentMethodDeposit, params, &resp)
+		c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, coinbaseproPaymentMethodDeposit, params, &resp, nil)
 }
 
 // GetPayMethods returns a full list of payment methods
@@ -277,12 +297,12 @@ func (c *CoinbasePro) GetPayMethods(ctx context.Context) ([]PaymentMethod, error
 	var resp []PaymentMethod
 
 	return resp,
-		c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, coinbaseproPaymentMethod, nil, &resp)
+		c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, coinbaseproPaymentMethod, nil, &resp, nil)
 }
 
 // GetAllTransfers returns all in-progress and completed transfers in and out of any
 // of the user's accounts
-func (c *CoinbasePro) GetAllTransfers(ctx context.Context, profileID, direction, step, transferType string, limit int64) ([]TransferResponse, error) {
+func (c *CoinbasePro) GetAllTransfers(ctx context.Context, profileID, direction, step, transferType string, limit int64) ([]TransferResponse, ReturnedPaginationHeaders, error) {
 	var params Params
 	params.urlVals = url.Values{}
 	params.urlVals.Set("profile_id", profileID)
@@ -291,9 +311,13 @@ func (c *CoinbasePro) GetAllTransfers(ctx context.Context, profileID, direction,
 	path := common.EncodeURLValues(coinbaseproTransfers, params.urlVals)
 
 	resp := []TransferResponse{}
+	retH := http.Header{}
 
-	return resp,
-		c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, &resp)
+	err := c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, &resp, &retH)
+
+	rph := ReturnedPaginationHeaders{before: retH.Get("CB-BEFORE"), after: retH.Get("CB-AFTER")}
+
+	return resp, rph, err
 }
 
 // GetTransferByID returns information on a single transfer when provided with its ID
@@ -302,7 +326,7 @@ func (c *CoinbasePro) GetTransferByID(ctx context.Context, transferID string) (*
 	resp := TransferResponse{}
 
 	return &resp,
-		c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, &resp)
+		c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, &resp, nil)
 }
 
 // SendTravelInfoForTransfer sends travel rule information for a transfer
@@ -315,7 +339,7 @@ func (c *CoinbasePro) SendTravelInfoForTransfer(ctx context.Context, transferID,
 	var resp string
 
 	return resp,
-		c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, path, params, &resp)
+		c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, path, params, &resp, nil)
 }
 
 // WithdrawViaCoinbase withdraws funds to a coinbase account.
@@ -327,7 +351,7 @@ func (c *CoinbasePro) WithdrawViaCoinbase(ctx context.Context, profileID, accoun
 	resp := DepositWithdrawalInfo{}
 
 	return resp,
-		c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, coinbaseproWithdrawalCoinbase, req, &resp)
+		c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, coinbaseproWithdrawalCoinbase, req, &resp, nil)
 }
 
 // WithdrawCrypto withdraws funds to a crypto address
@@ -342,7 +366,7 @@ func (c *CoinbasePro) WithdrawCrypto(ctx context.Context, profileID, currency, c
 	resp := DepositWithdrawalInfo{}
 
 	return resp,
-		c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, coinbaseproWithdrawalCrypto, req, &resp)
+		c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, coinbaseproWithdrawalCrypto, req, &resp, nil)
 }
 
 // GetWithdrawalFeeEstimate has Coinbase estimate the fee for withdrawing in a certain
@@ -363,7 +387,7 @@ func (c *CoinbasePro) GetWithdrawalFeeEstimate(ctx context.Context, currency, cr
 	path := common.EncodeURLValues(coinbaseproFeeEstimate, params.urlVals)
 
 	return resp,
-		c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, &resp)
+		c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, &resp, nil)
 }
 
 // WithdrawViaPaymentMethod withdraws funds to a payment method
@@ -375,7 +399,7 @@ func (c *CoinbasePro) WithdrawViaPaymentMethod(ctx context.Context, profileID, p
 	resp := DepositWithdrawalInfo{}
 
 	return resp,
-		c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, coinbaseproWithdrawalPaymentMethod, req, &resp)
+		c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, coinbaseproWithdrawalPaymentMethod, req, &resp, nil)
 }
 
 // GetFees returns your current maker & taker fee rates, as well as your 30-day
@@ -384,7 +408,7 @@ func (c *CoinbasePro) GetFees(ctx context.Context) (FeeResponse, error) {
 	resp := FeeResponse{}
 
 	return resp,
-		c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, coinbaseproFees, nil, &resp)
+		c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, coinbaseproFees, nil, &resp, nil)
 }
 
 // GetFills returns information of recent fills on the specified profile
@@ -413,7 +437,7 @@ func (c *CoinbasePro) GetFills(ctx context.Context, orderID, currencyPair, direc
 
 	var resp []FillResponse
 
-	return resp, c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, &resp)
+	return resp, c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, &resp, nil)
 }
 
 // GetAllOrders lists all open or unsettled orders
@@ -443,7 +467,7 @@ func (c *CoinbasePro) GetAllOrders(ctx context.Context, profileID, currencyPair,
 
 	var resp []GeneralizedOrderResponse
 
-	return resp, c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, &resp)
+	return resp, c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, &resp, nil)
 }
 
 // CancelAllExistingOrders attempts to cancel all open orders. The exchange warns that
@@ -458,7 +482,7 @@ func (c *CoinbasePro) CancelAllExistingOrders(ctx context.Context, profileID, cu
 
 	var resp []string
 
-	return resp, c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodDelete, path, nil, &resp)
+	return resp, c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodDelete, path, nil, &resp, nil)
 }
 
 // PlaceOrder places either a limit, market, or stop order
@@ -491,7 +515,7 @@ func (c *CoinbasePro) PlaceOrder(ctx context.Context, profileID, orderType, side
 	}
 
 	return &resp,
-		c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, coinbaseproOrders, req, &resp)
+		c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, coinbaseproOrders, req, &resp, nil)
 }
 
 // GetOrderByID returns a single order by order id.
@@ -515,7 +539,7 @@ func (c *CoinbasePro) GetOrderByID(ctx context.Context, orderID, marketType stri
 	path := fmt.Sprintf("%s/%s", coinbaseproOrders, orderID)
 	path = common.EncodeURLValues(path, param.urlVals)
 
-	return &resp, c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, &resp)
+	return &resp, c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, &resp, nil)
 }
 
 // CancelExistingOrder cancels order by orderID
@@ -535,7 +559,7 @@ func (c *CoinbasePro) CancelExistingOrder(ctx context.Context, orderID, profileI
 
 	path = common.EncodeURLValues(path, param.urlVals)
 
-	return resp, c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodDelete, path, nil, nil)
+	return resp, c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodDelete, path, nil, nil, nil)
 }
 
 // GetSignedPrices returns some cryptographically signed prices ready to be
@@ -544,7 +568,7 @@ func (c *CoinbasePro) GetSignedPrices(ctx context.Context) (SignedPrices, error)
 	resp := SignedPrices{}
 
 	return resp,
-		c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, coinbaseproOracle, nil, &resp)
+		c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, coinbaseproOracle, nil, &resp, nil)
 }
 
 // GetAllProducts returns information on all currency pairs that are available for trading
@@ -720,12 +744,12 @@ func (c *CoinbasePro) GetAllProfiles(ctx context.Context, active *bool) ([]Profi
 		params.urlVals.Set("active", strconv.FormatBool(*active))
 	}
 
-	var profiles []Profile
+	var resp []Profile
 
 	path := common.EncodeURLValues(coinbaseproProfiles, params.urlVals)
 
-	return profiles,
-		c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, &profiles)
+	return resp,
+		c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, &resp, nil)
 }
 
 // CreateAProfile creates a new profile, failing if no name is provided,
@@ -739,7 +763,7 @@ func (c *CoinbasePro) CreateAProfile(ctx context.Context, name string) (Profile,
 	req := map[string]interface{}{"name": name}
 
 	return resp,
-		c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, coinbaseproProfiles, req, &resp)
+		c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, coinbaseproProfiles, req, &resp, nil)
 }
 
 // TransferBetweenProfiles transfers an amount of currency from one profile to another
@@ -755,7 +779,7 @@ func (c *CoinbasePro) TransferBetweenProfiles(ctx context.Context, from, to, cur
 	path := fmt.Sprintf("%s/%s", coinbaseproProfiles, coinbaseproTransfer)
 
 	return resp,
-		c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, path, req, &resp)
+		c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, path, req, &resp, nil)
 }
 
 // GetProfileByID returns information on a single profile, provided its ID
@@ -771,7 +795,7 @@ func (c *CoinbasePro) GetProfileByID(ctx context.Context, profileID string, acti
 	path = common.EncodeURLValues(path, params.urlVals)
 
 	return resp,
-		c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, &resp)
+		c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, &resp, nil)
 }
 
 // RenameProfile renames a profile, provided its ID
@@ -786,7 +810,7 @@ func (c *CoinbasePro) RenameProfile(ctx context.Context, profileID, newName stri
 	path := fmt.Sprintf("%s/%s", coinbaseproProfiles, profileID)
 
 	return resp,
-		c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPut, path, req, &resp)
+		c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPut, path, req, &resp, nil)
 }
 
 // DeleteProfile deletes a profile and transfers its funds to a specified
@@ -802,7 +826,7 @@ func (c *CoinbasePro) DeleteProfile(ctx context.Context, profileID, transferTo s
 	path := fmt.Sprintf("%s/%s/%s", coinbaseproProfiles, profileID, coinbaseproDeactivate)
 
 	return resp,
-		c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodDelete, path, req, &resp)
+		c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodDelete, path, req, &resp, nil)
 }
 
 // GetAllReports returns a list of all user-generated reports
@@ -824,7 +848,7 @@ func (c *CoinbasePro) GetAllReports(ctx context.Context, profileID string, repor
 	path := common.EncodeURLValues(coinbaseproReports, params.urlVals)
 
 	return resp,
-		c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, &resp)
+		c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, &resp, nil)
 }
 
 // CreateReport creates a new report
@@ -854,7 +878,7 @@ func (c *CoinbasePro) CreateReport(ctx context.Context, reportType, year, format
 			EndDate: endDate.Format(time.RFC3339), ProductID: productID}
 	}
 	return resp,
-		c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, coinbaseproReports, req, &resp)
+		c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, coinbaseproReports, req, &resp, nil)
 }
 
 // GetReportByID returns a single report, provided its ID
@@ -867,7 +891,7 @@ func (c *CoinbasePro) GetReportByID(ctx context.Context, reportID string) (Repor
 	path := fmt.Sprintf("%s/%s", coinbaseproReports, reportID)
 
 	return resp,
-		c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, &resp)
+		c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, &resp, nil)
 }
 
 // GetTravelRules returns a list of all travel rule information
@@ -881,7 +905,7 @@ func (c *CoinbasePro) GetTravelRules(ctx context.Context, direction, step, addre
 
 	path := common.EncodeURLValues(coinbaseproTravelRules, params.urlVals)
 
-	return resp, c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, &resp)
+	return resp, c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, &resp, nil)
 }
 
 // CreateTravelRule creates a travel rule entry
@@ -892,7 +916,7 @@ func (c *CoinbasePro) CreateTravelRule(ctx context.Context, address, originName,
 		"originator_country": originCountry}
 
 	return resp,
-		c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, coinbaseproTravelRules, req, &resp)
+		c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, coinbaseproTravelRules, req, &resp, nil)
 }
 
 // DeleteTravelRule deletes a travel rule entry
@@ -903,7 +927,7 @@ func (c *CoinbasePro) DeleteTravelRule(ctx context.Context, address string) erro
 
 	path := fmt.Sprintf("%s/%s", coinbaseproTravelRules, address)
 
-	return c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodDelete, path, nil, nil)
+	return c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodDelete, path, nil, nil, nil)
 }
 
 // GetExchangeLimits returns information on payment method transfer limits,
@@ -914,7 +938,7 @@ func (c *CoinbasePro) GetExchangeLimits(ctx context.Context, userID string) (Exc
 	path := fmt.Sprintf("%s/%s", coinbaseproUsers, userID)
 
 	return resp,
-		c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, &resp)
+		c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, &resp, nil)
 }
 
 // UpdateSettlementPreference updates whether one wants their funds to
@@ -931,7 +955,7 @@ func (c *CoinbasePro) UpdateSettlementPreference(ctx context.Context, userID, pr
 	var resp string
 
 	return resp,
-		c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPut, path, req, &resp)
+		c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPut, path, req, &resp, nil)
 }
 
 // GetAllWrappedAssets returns information on all supported wrapped assets
@@ -965,7 +989,7 @@ func (c *CoinbasePro) GetAllStakeWraps(ctx context.Context, direction, from, to,
 	path = common.EncodeURLValues(path, params.urlVals)
 
 	return resp,
-		c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, &resp)
+		c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, &resp, nil)
 }
 
 // CreateStakeWrap stakes and wraps from one currency to another, under the profile
@@ -982,7 +1006,7 @@ func (c *CoinbasePro) CreateStakeWrap(ctx context.Context, from, to string, amou
 	path := fmt.Sprintf("%s/%s", coinbaseproWrappedAssets, coinbaseproStakeWraps)
 
 	return resp,
-		c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, path, req, &resp)
+		c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, path, req, &resp, nil)
 }
 
 // GetStakeWrapByID returns details of a single stake-wrap
@@ -996,7 +1020,7 @@ func (c *CoinbasePro) GetStakeWrapByID(ctx context.Context, stakeWrapID string) 
 	path := fmt.Sprintf("%s/%s/%s", coinbaseproWrappedAssets, coinbaseproStakeWraps, stakeWrapID)
 
 	return resp,
-		c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, &resp)
+		c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, &resp, nil)
 }
 
 // GetWrappedAssetByID returns details of a single wrapped asset
@@ -1113,7 +1137,7 @@ func (c *CoinbasePro) SendHTTPRequest(ctx context.Context, ep exchange.URL, path
 }
 
 // SendAuthenticatedHTTPRequest sends an authenticated HTTP request
-func (c *CoinbasePro) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.URL, method, path string, params map[string]interface{}, result interface{}) (err error) {
+func (c *CoinbasePro) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.URL, method, path string, params map[string]interface{}, result interface{}, returnHead *http.Header) (err error) {
 	creds, err := c.GetCredentials(ctx)
 	if err != nil {
 		return err
@@ -1122,8 +1146,6 @@ func (c *CoinbasePro) SendAuthenticatedHTTPRequest(ctx context.Context, ep excha
 	if err != nil {
 		return err
 	}
-
-	returnHead := http.Header{}
 
 	newRequest := func() (*request.Item, error) {
 		payload := []byte("")
@@ -1162,11 +1184,10 @@ func (c *CoinbasePro) SendAuthenticatedHTTPRequest(ctx context.Context, ep excha
 			Verbose:        c.Verbose,
 			HTTPDebugging:  c.HTTPDebugging,
 			HTTPRecording:  c.HTTPRecording,
-			HeaderResponse: &returnHead,
+			HeaderResponse: returnHead,
 		}, nil
 	}
 	err = c.SendPayload(ctx, request.Unset, newRequest, request.AuthenticatedRequest)
-	fmt.Printf("Header returned: %+v\n", returnHead)
 	return err
 }
 

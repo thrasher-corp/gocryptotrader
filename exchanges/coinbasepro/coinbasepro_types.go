@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/url"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
@@ -83,6 +84,7 @@ type Currency struct {
 	ConvertibleTo []string `json:"convertible_to"`
 	Details       struct {
 		Type                  string   `json:"type"`
+		Symbol                string   `json:"symbol"`
 		NetworkConfirmations  int32    `json:"network_confirmations"`
 		SortOrder             int32    `json:"sort_order"`
 		CryptoAddressLink     string   `json:"crypto_address_link"`
@@ -136,9 +138,11 @@ type AccountLedgerResponse struct {
 	Balance   float64   `json:"balance,string"`
 	Type      string    `json:"type"`
 	Details   struct {
-		CoinbaseAccountID       string `json:"coinbase_account_id"`
-		CoinbaseTransactionID   string `json:"coinbase_transaction_id"`
-		CoinbasePaymentMethodID string `json:"coinbase_payment_method_id"`
+		OrderID      string `json:"order_id"`
+		ProductID    string `json:"product_id"`
+		TradeID      string `json:"trade_id"`
+		TransferID   string `json:"transfer_id"`
+		TransferType string `json:"transfer_type"`
 	} `json:"details"`
 }
 
@@ -262,6 +266,19 @@ type GeneralizedOrderResponse struct {
 // 	DefaultAmount float64 `json:"default_amount,string"`
 // }
 
+// AmCur is a sub-type used in LimitStruct
+type AmCur struct {
+	Amount   float64 `json:"amount,string"`
+	Currency string  `json:"currency"`
+}
+
+// LimitStruct is a sub-type used in PaymentMethod
+type LimitStruct struct {
+	PeriodInDays int   `json:"period_in_days"`
+	Total        AmCur `json:"total"`
+	Remaining    AmCur `json:"remaining"`
+}
+
 // PaymentMethod holds payment method information, returned by GetPayMethods
 type PaymentMethod struct {
 	ID           string    `json:"id"`
@@ -278,8 +295,11 @@ type PaymentMethod struct {
 	ResourcePath string    `json:"resource_path"`
 	Verified     bool      `json:"verified"`
 	Limits       struct {
-		Type string `json:"type"`
-		Name string `json:"name"`
+		Type       string        `json:"type"`
+		Name       string        `json:"name"`
+		Buy        []LimitStruct `json:"buy"`
+		InstantBuy []LimitStruct `json:"instant_buy"`
+		Sell       []LimitStruct `json:"sell"`
 	} `json:"limits"`
 	AllowBuy      bool `json:"allow_buy"`
 	AllowSell     bool `json:"allow_sell"`
@@ -324,8 +344,8 @@ type PaymentMethod struct {
 	} `json:"picker_data"`
 	HoldBusinessDays   int64  `json:"hold_business_days"`
 	HoldDays           int64  `json:"hold_days"`
-	VerificationMethod string `json:"verificationMethod"`
-	CDVStatus          string `json:"cdvStatus"`
+	VerificationMethod string `json:"verification_method"`
+	CDVStatus          string `json:"cdv_status"`
 }
 
 // LimitInfo is a sub-type for payment method
@@ -387,17 +407,14 @@ type CoinbaseAccounts struct {
 		Reference      string `json:"reference"`
 	} `json:"swift_deposit_information"`
 	SepaDepositInformation struct {
-		Iban        string `json:"iban"`
-		Swift       string `json:"swift"`
-		BankName    string `json:"bank_name"`
-		BankAddress string `json:"bank_address"`
-		BankCountry struct {
-			Name string `json:"name"`
-			Code string `json:"code"`
-		} `json:"bank_country"`
-		AccountName    string `json:"account_name"`
-		AccountAddress string `json:"account_address"`
-		Reference      string `json:"reference"`
+		Iban            string `json:"iban"`
+		Swift           string `json:"swift"`
+		BankName        string `json:"bank_name"`
+		BankAddress     string `json:"bank_address"`
+		BankCountryName string `json:"bank_country_name"`
+		AccountName     string `json:"account_name"`
+		AccountAddress  string `json:"account_address"`
+		Reference       string `json:"reference"`
 	} `json:"sepa_deposit_information"`
 	UkDepositInformation struct {
 		SortCode      string `json:"sort_code"`
@@ -687,19 +704,46 @@ type wsStatus struct {
 // TransferResponse contains information on a transfer, returned by GetAccountTransfers,
 // GetAllTransfers, and GetTransferByID
 type TransferResponse struct {
-	ID          string    `json:"id"`
-	Type        string    `json:"type"`
-	CreatedAt   time.Time `json:"created_at"`
-	CompletedAt time.Time `json:"completed_at"`
-	CanceledAt  time.Time `json:"canceled_at"`
-	ProcessedAt time.Time `json:"processed_at"`
-	Amount      float64   `json:"amount,string"`
+	ID          string   `json:"id"`
+	Type        string   `json:"type"`
+	CreatedAt   ExchTime `json:"created_at"`
+	CompletedAt ExchTime `json:"completed_at"`
+	CanceledAt  ExchTime `json:"canceled_at"`
+	ProcessedAt ExchTime `json:"processed_at"`
+	AccountID   string   `json:"account_id"`
+	UserID      string   `json:"user_id"`
+	Amount      float64  `json:"amount,string"`
 	Details     struct {
-		CoinbaseAccountID       string `json:"coinbase_account_id"`
-		CoinbaseTransactionID   string `json:"coinbase_transaction_id"`
-		CoinbasePaymentMethodID string `json:"coinbase_payment_method_id"`
+		CoinbasePayoutAt          time.Time `json:"coinbase_payout_at"`
+		CoinbaseAccountID         string    `json:"coinbase_account_id"`
+		CoinbaseTransactionID     string    `json:"coinbase_transaction_id"`
+		CoinbaseDepositID         string    `json:"coinbase_deposit_id"`
+		CoinbasePaymentMethodID   string    `json:"coinbase_payment_method_id"`
+		CoinbasePaymentMethodType string    `json:"coinbase_payment_method_type"`
 	} `json:"details"`
-	UserNonce int64 `json:"user_nonce"`
+	UserNonce int64  `json:"user_nonce"`
+	ProfileID string `json:"profile_id"`
+	Currency  string `json:"currency"`
+	Idem      string `json:"idem"`
+}
+
+type ExchTime time.Time
+
+func (t *ExchTime) UnmarshalJSON(b []byte) error {
+	s := strings.Trim(string(b), `"`)
+	if s == " " || s == "null" {
+		return nil
+	}
+	tt, err := time.Parse("2006-01-02 15:04:05.999999-07", s)
+	if err != nil {
+		return err
+	}
+	*t = ExchTime(tt)
+	return nil
+}
+
+func (t ExchTime) String() string {
+	return time.Time(t).String()
 }
 
 // TravelRule contains information on a travel rule, returned by GetTravelRules
@@ -743,8 +787,6 @@ type AddAddressRequest struct {
 	Label              string `json:"label"`
 	VerifiedSelfHosted bool   `json:"is_verified_self_hosted_wallet"`
 	VaspID             string `json:"vasp_id"`
-	// TODO: It also lets us add an arbitrary amount of strings under this object,
-	// but doesn't explain what they do. Investigate more later.
 }
 
 // AddAddressResponse contains information on the addresses just added, returned by
@@ -778,14 +820,15 @@ type CryptoAddressResponse struct {
 		Address        string `json:"address"`
 		DestinationTag string `json:"destination_tag"`
 	} `json:"address_info"`
-	Name         string    `json:"name"`
-	CreatedAt    time.Time `json:"created_at"`
-	UpdatedAt    time.Time `json:"updated_at"`
-	Network      string    `json:"network"`
-	URIScheme    string    `json:"uri_scheme"`
-	Resource     string    `json:"resource"`
-	ResourcePath string    `json:"resource_path"`
-	Warnings     []struct {
+	Name                   string    `json:"name"`
+	CreatedAt              time.Time `json:"created_at"`
+	UpdatedAt              time.Time `json:"updated_at"`
+	Network                string    `json:"network"`
+	URIScheme              string    `json:"uri_scheme"`
+	Resource               string    `json:"resource"`
+	ResourcePath           string    `json:"resource_path"`
+	ExchangeDepositAddress bool      `json:"exchange_deposit_address"`
+	Warnings               []struct {
 		Title    string `json:"title"`
 		Details  string `json:"details"`
 		ImageURL string `json:"image_url"`
@@ -810,8 +853,8 @@ type ConvertResponse struct {
 // WithdrawalFeeEstimate is the exchange's estimate of the fee for a withdrawal, returned
 // by GetWithdrawalFeeEstimate
 type WithdrawalFeeEstimate struct {
-	Fee              string `json:"fee"`
-	FeeBeforeSubsidy string `json:"fee_before_subsidy"`
+	Fee              float64 `json:"fee"`
+	FeeBeforeSubsidy float64 `json:"fee_before_subsidy"`
 }
 
 // FeeResponse contains current taker and maker fee rates, as well as 30-day trailing
@@ -950,4 +993,11 @@ type StakeWrap struct {
 // by GetWrappedAssetConversionRate
 type WrappedAssetConversionRate struct {
 	Amount float64 `json:"amount,string"`
+}
+
+// ReturnedPaginationHeaders contains the pagination headers returned by the exchange,
+// returned by GetHolds, GetAccountLedger,
+type ReturnedPaginationHeaders struct {
+	before string
+	after  string
 }

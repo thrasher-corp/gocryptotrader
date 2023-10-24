@@ -34,9 +34,12 @@ const (
 	apiKey                  = ""
 	apiSecret               = ""
 	clientID                = "" // passphrase you made at API CREATION
-	canManipulateRealOrders = true
+	canManipulateRealOrders = false
 	testingInSandbox        = true
 )
+
+// Donation address
+const testAddress = "bc1qk0jareu4jytc0cfrhr5wgshsq8282awpavfahc"
 
 func TestMain(m *testing.M) {
 	c.SetDefaults()
@@ -99,6 +102,9 @@ func TestGetAccountByID(t *testing.T) {
 	if err != nil {
 		t.Error("CoinBasePro GetAllAccounts() error", err)
 	}
+	if len(longResp) == 0 {
+		t.Fatal("CoinBasePro GetAllAccounts() error, expected a non-empty response")
+	}
 	shortResp, err := c.GetAccountByID(context.Background(), longResp[0].ID)
 	if err != nil {
 		t.Error("CoinBasePro GetAccountByID() error", err)
@@ -114,11 +120,13 @@ func TestGetHolds(t *testing.T) {
 	if err != nil {
 		t.Error("CoinBasePro GetAllAccounts() error", err)
 	}
-	resp, err := c.GetHolds(context.Background(), accID[1].ID, pageNone, "1", 2)
+	if len(accID) == 0 {
+		t.Fatal("CoinBasePro GetAllAccounts() error, expected a non-empty response")
+	}
+	_, _, err = c.GetHolds(context.Background(), accID[1].ID, pageNone, "2", 2)
 	if err != nil {
 		t.Error("CoinBasePro GetHolds() error", err)
 	}
-	log.Printf("%+v", resp)
 }
 
 func TestGetAccountLedger(t *testing.T) {
@@ -127,8 +135,15 @@ func TestGetAccountLedger(t *testing.T) {
 	if err != nil {
 		t.Error("CoinBasePro GetAllAccounts() error", err)
 	}
-	_, err = c.GetAccountLedger(context.Background(), accID[0].ID, pageBefore, "", "a",
-		time.Unix(1, 1), time.Now(), 3)
+	_, _, err = c.GetAccountLedger(context.Background(), "", pageNone, "", "", time.Unix(2, 2), time.Unix(1, 1), 0)
+	if err == nil {
+		t.Error("CoinBasePro GetAccountLedger() error, expected an error due to invalid times")
+	}
+	if len(accID) == 0 {
+		t.Fatal("CoinBasePro GetAllAccounts() error, expected a non-empty response")
+	}
+	_, _, err = c.GetAccountLedger(context.Background(), accID[1].ID, pageNone, "1177507600", "a",
+		time.Unix(1, 1), time.Now(), 1000)
 	if err != nil {
 		t.Error("CoinBasePro GetAccountLedger() error", err)
 	}
@@ -140,7 +155,10 @@ func TestGetAccountTransfers(t *testing.T) {
 	if err != nil {
 		t.Error("CoinBasePro GetAllAccounts() error", err)
 	}
-	_, err = c.GetAccountTransfers(context.Background(), accID[0].ID, "", "", "", 3)
+	if len(accID) == 0 {
+		t.Fatal("CoinBasePro GetAllAccounts() error, expected a non-empty response")
+	}
+	_, _, err = c.GetAccountTransfers(context.Background(), accID[1].ID, "", "", "", 3)
 	if err != nil {
 		t.Error(err)
 	}
@@ -148,29 +166,45 @@ func TestGetAccountTransfers(t *testing.T) {
 
 func TestGetAddressBook(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, c)
-	_, err := c.GetAddressBook(context.Background())
+	resp, err := c.GetAddressBook(context.Background())
 	if err != nil {
 		t.Error("CoinBasePro GetAddressBook() error", err)
 	}
+	assert.NotEmpty(t, resp, "CoinBasePro GetAddressBook() error, expected a non-empty response")
 }
 
 func TestAddAddresses(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, c, canManipulateRealOrders)
 	var req [1]AddAddressRequest
 	var err error
-	req[0], err = PrepareAddAddress("this test", "is not", "properly", "implemented", "Coinbase", false)
+	req[0], err = PrepareAddAddress("BTC", testAddress, "", "implemented", "Coinbase", false)
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = c.AddAddresses(context.Background(), req[:])
+	resp, err := c.AddAddresses(context.Background(), req[:])
 	if err != nil {
 		t.Error("CoinBasePro AddAddresses() error", err)
 	}
+	assert.NotEmpty(t, resp, "CoinBasePro AddAddresses() error, expected a non-empty response")
 }
 
 func TestDeleteAddress(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, c, canManipulateRealOrders)
-	err := c.DeleteAddress(context.Background(), "Test not properly implemented")
+	var req [1]AddAddressRequest
+	var err error
+	req[0], err = PrepareAddAddress("BTC", testAddress, "", "implemented", "Coinbase", false)
+	if err != nil {
+		t.Error(err)
+	}
+	resp, err := c.AddAddresses(context.Background(), req[:])
+	if err != nil {
+		t.Error("CoinBasePro AddAddresses() error", err)
+	}
+	if len(resp) == 0 {
+		t.Fatal("CoinBasePro AddAddresses() error, expected a non-empty response")
+	}
+
+	err = c.DeleteAddress(context.Background(), resp[0].ID)
 	if err != nil {
 		t.Error("CoinBasePro DeleteAddress() error", err)
 	}
@@ -178,10 +212,11 @@ func TestDeleteAddress(t *testing.T) {
 
 func TestGetCoinbaseWallets(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, c)
-	_, err := c.GetCoinbaseWallets(context.Background())
+	resp, err := c.GetCoinbaseWallets(context.Background())
 	if err != nil {
 		t.Error("CoinBasePro GetCoinbaseAccounts() error", err)
 	}
+	assert.NotEmpty(t, resp, "CoinBasePro GetCoinbaseWallets() error, expected a non-empty response")
 }
 
 func TestGenerateCryptoAddress(t *testing.T) {
@@ -190,26 +225,52 @@ func TestGenerateCryptoAddress(t *testing.T) {
 	if err != nil {
 		t.Error("CoinBasePro GetAllAccounts() error", err)
 	}
-	_, err = c.GenerateCryptoAddress(context.Background(), accID[0].ID, "", "")
+	if len(accID) == 0 {
+		t.Fatal("CoinBasePro GetAllAccounts() error, expected a non-empty response")
+	}
+	resp, err := c.GenerateCryptoAddress(context.Background(), accID[0].ID, "", "")
 	if err != nil {
 		t.Error("CoinBasePro GenerateCryptoAddress() error", err)
 	}
+	assert.NotEmpty(t, resp, "CoinBasePro GenerateCryptoAddress() error, expected a non-empty response")
 }
 
 func TestConvertCurrency(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, c, canManipulateRealOrders)
-	_, err := c.ConvertCurrency(context.Background(), "This test", " is not", "implemented", "quite yet", 0)
+	actBool := true
+	profID, err := c.GetAllProfiles(context.Background(), &actBool)
+	if err != nil {
+		t.Error("CoinBasePro GetAllProfiles() error", err)
+	}
+	if len(profID) == 0 {
+		t.Fatal("CoinBasePro GetAllProfiles() error, expected a non-empty response")
+	}
+	resp, err := c.ConvertCurrency(context.Background(), profID[0].ID, "USD", "USDC", "", 1)
 	if err != nil {
 		t.Error("CoinBasePro ConvertCurrency() error", err)
 	}
+	assert.NotEmpty(t, resp, "CoinBasePro ConvertCurrency() error, expected a non-empty response")
 }
 
 func TestGetConversionByID(t *testing.T) {
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, c)
-	_, err := c.GetConversionByID(context.Background(), "Test not", "implemented yet")
-	if err == nil {
-		t.Error("This really should have failed since a proper ID wasn't supplied.")
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, c, canManipulateRealOrders)
+	actBool := true
+	profID, err := c.GetAllProfiles(context.Background(), &actBool)
+	if err != nil {
+		t.Error("CoinBasePro GetAllProfiles() error", err)
 	}
+	if len(profID) == 0 {
+		t.Fatal("CoinBasePro GetAllProfiles() error, expected a non-empty response")
+	}
+	resp, err := c.ConvertCurrency(context.Background(), profID[0].ID, "USD", "USDC", "", 1)
+	if err != nil {
+		t.Error("CoinBasePro ConvertCurrency() error", err)
+	}
+	resp2, err := c.GetConversionByID(context.Background(), resp.ID, profID[0].ID)
+	if err != nil {
+		t.Error("CoinBasePro GetConversionByID() error", err)
+	}
+	assert.NotEmpty(t, resp2, "CoinBasePro GetConversionByID() error, expected a non-empty response")
 }
 
 func TestGetAllCurrencies(t *testing.T) {
@@ -232,18 +293,48 @@ func TestGetCurrencyByID(t *testing.T) {
 
 func TestDepositViaCoinbase(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, c, canManipulateRealOrders)
-	_, err := c.DepositViaCoinbase(context.Background(), "This test", "is not", "yet implemented", 1)
+	accID, err := c.GetCoinbaseWallets(context.Background())
+	if err != nil {
+		t.Error("CoinBasePro GetCoinbaseWallets() error", err)
+	}
+	if len(accID) == 0 {
+		t.Fatal("CoinBasePro GetCoinbaseWallets() error, expected a non-empty response")
+	}
+	resp, err := c.DepositViaCoinbase(context.Background(), "", "BTC", accID[1].ID, 1)
 	if err != nil {
 		t.Error("CoinBasePro DepositViaCoinbase() error", err)
 	}
+	log.Printf("%+v", resp)
 }
 
 func TestDepositViaPaymentMethod(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, c, canManipulateRealOrders)
-	_, err := c.DepositViaPaymentMethod(context.Background(), "This test", "is not", "yet implemented", 1)
+	profID, err := c.GetAllProfiles(context.Background(), nil)
 	if err != nil {
-		t.Error("CoinBasePro DepositViaPaymentMethod() error", err)
+		t.Error("CoinBasePro GetAllProfiles() error", err)
 	}
+	payID, err := c.GetPayMethods(context.Background())
+	if err != nil {
+		t.Error("CoinBasePro GetPayMethods() error", err)
+	}
+	for i := range payID {
+		if payID[i].Type == "ach_bank_account" || payID[i].Type == "wire" || payID[i].Type == "fedwire" ||
+			payID[i].Type == "fiat_account" {
+			// The intention here is to use a payment method that isn't SEPA, but I'm not sure how they
+			// denote that.
+			resp, err := c.DepositViaPaymentMethod(context.Background(), profID[0].ID, payID[i].ID, "USD", 1)
+			if err != nil {
+				t.Error("CoinBasePro DepositViaPaymentMethod() error", err)
+			}
+			log.Printf("%+v", resp)
+		}
+	}
+
+	// resp, err := c.DepositViaPaymentMethod(context.Background(), profID[0].ID, idToUse, "USD", 1)
+	// if err != nil {
+	// 	t.Error("CoinBasePro DepositViaPaymentMethod() error", err)
+	// }
+	// log.Printf("%+v", resp)
 }
 
 func TestGetPayMethods(t *testing.T) {
@@ -256,7 +347,7 @@ func TestGetPayMethods(t *testing.T) {
 
 func TestGetAllTransfers(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, c)
-	_, err := c.GetAllTransfers(context.Background(), "", "", "", "", 3)
+	_, _, err := c.GetAllTransfers(context.Background(), "", "", "", "", 3)
 	if err != nil {
 		t.Error("CoinBasePro GetAllTransfers() error", err)
 	}
@@ -264,23 +355,59 @@ func TestGetAllTransfers(t *testing.T) {
 
 func TestGetTransferByID(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, c)
-	_, err := c.GetTransferByID(context.Background(), "Not yet implemented")
-	if err == nil {
-		t.Error("This really should have failed since a proper ID wasn't supplied.")
+	resp, _, err := c.GetAllTransfers(context.Background(), "", "", "", "", 3)
+	if err != nil {
+		t.Error("CoinBasePro GetAllTransfers() error", err)
+	}
+	if len(resp) == 0 {
+		t.Log("TestGetTransferByID skipped due to there being zero transfers.")
+	} else {
+		_, err = c.GetTransferByID(context.Background(), resp[0].ID)
+		if err != nil {
+			t.Error("CoinBasePro GetTransferByID() error", err)
+		}
 	}
 }
 
 func TestSendTravelInfoForTransfer(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, c, canManipulateRealOrders)
-	_, err := c.SendTravelInfoForTransfer(context.Background(), "This test", "is not", "yet implemented")
+	resp, _, err := c.GetAllTransfers(context.Background(), "", "", "", "", 1000)
 	if err != nil {
-		t.Error("CoinBasePro SendTravelInfoForTransfer() error", err)
+		t.Error("CoinBasePro GetAllTransfers() error", err)
+	}
+	if len(resp) == 0 {
+		t.Log("TestSendTravelInfoForTransfer skipped due to there being zero pending transfers.")
+	} else {
+		var tID string
+		var zeroValue ExchTime
+		for i := range resp {
+			if resp[i].CompletedAt == zeroValue && resp[i].CanceledAt == zeroValue &&
+				resp[i].ProcessedAt == zeroValue {
+				tID = resp[i].ID
+				break
+			}
+		}
+		if tID == "" {
+			t.Log("TestSendTravelInfoForTransfer skipped due to there being zero pending transfers.")
+		} else {
+			_, err = c.SendTravelInfoForTransfer(context.Background(), tID, "GoCryptoTrader", "AU")
+			if err != nil {
+				t.Error("CoinBasePro SendTravelInfoForTransfer() error", err)
+			}
+		}
 	}
 }
 
 func TestWithdrawViaCoinbase(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, c, canManipulateRealOrders)
-	_, err := c.WithdrawViaCoinbase(context.Background(), "This test", "is not", "yet implemented", 1)
+	accID, err := c.GetCoinbaseWallets(context.Background())
+	if err != nil {
+		t.Error("CoinBasePro GetCoinbaseWallets() error", err)
+	}
+	if len(accID) == 0 {
+		t.Fatal("CoinBasePro GetCoinbaseWallets() error, expected a non-empty response")
+	}
+	_, err = c.WithdrawViaCoinbase(context.Background(), "", accID[1].ID, "BTC", 1)
 	if err != nil {
 		t.Error("CoinBasePro WithdrawViaCoinbase() error", err)
 	}
@@ -288,7 +415,7 @@ func TestWithdrawViaCoinbase(t *testing.T) {
 
 func TestWithdrawCrypto(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, c, canManipulateRealOrders)
-	_, err := c.WithdrawCrypto(context.Background(), "This", "test", "is", "not", "implemented", "yet", 1,
+	_, err := c.WithdrawCrypto(context.Background(), "This", "BTC", testAddress, "", "yet", "bitcoin", 1,
 		false, false, 2)
 	if err != nil {
 		t.Error("CoinBasePro WithdrawCrypto() error", err)
@@ -305,10 +432,9 @@ func TestGetWithdrawalFeeEstimate(t *testing.T) {
 	if err == nil {
 		t.Error("CoinBasePro GetWithdrawalFeeEstimate() error, expected error due to empty field")
 	}
-	_, err = c.GetWithdrawalFeeEstimate(context.Background(), "This test is not", "yet implemented",
-		"due to not knowing a valid network string")
-	if err == nil {
-		t.Error("This should have errored out due to an improper network string")
+	_, err = c.GetWithdrawalFeeEstimate(context.Background(), "BTC", testAddress, "bitcoin")
+	if err != nil {
+		t.Error("CoinBasePro GetWithdrawalFeeEstimate() error", err)
 	}
 }
 
@@ -371,9 +497,12 @@ func TestPlaceOrder(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, c, canManipulateRealOrders)
 
 	for x := 0; x < 550; x++ {
-		_, _ = c.PlaceOrder(context.Background(), "this", "", "sell", "BTC-USD", "", "implemented", "", "sandbox",
+		resp, err := c.PlaceOrder(context.Background(), "this", "", "sell", "BTC-USD", "", "implemented", "", "sandbox",
 			"testing", 0, 2<<30, 1, 0, false)
-
+		if err != nil {
+			log.Printf("Damn, there was an error: %s", err)
+		}
+		log.Printf("The response is: %+v", resp)
 	}
 
 	// log.Printf("Response: %+v\nError: %+v", resp, err)
