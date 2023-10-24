@@ -24,6 +24,8 @@ const (
 )
 
 var (
+	// ErrSubscriptionNotFound defines an error when a subscription is not found
+	ErrSubscriptionNotFound = errors.New("subscription not found")
 	// ErrSubscriptionFailure defines an error when a subscription fails
 	ErrSubscriptionFailure = errors.New("subscription failure")
 	// ErrUnsubscribeFailure defines an error when a unsubscribe fails
@@ -54,7 +56,6 @@ var (
 	errInvalidMaxSubscriptions              = errors.New("max subscriptions cannot be less than 0")
 	errNoSubscriptionsSupplied              = errors.New("no subscriptions supplied")
 	errChannelAlreadySubscribed             = errors.New("channel already subscribed")
-	errSubscriptionNotFound                 = errors.New("subscription not found in list")
 )
 
 var globalReporter Reporter
@@ -898,7 +899,7 @@ func (w *Websocket) UnsubscribeChannels(channels []ChannelSubscription) error {
 		key := channels[i].EnsureKeyed()
 		if _, ok := w.subscriptions[key]; !ok {
 			w.subscriptionMutex.RUnlock()
-			return fmt.Errorf("%s websocket: %w: %+v", w.exchangeName, errSubscriptionNotFound, channels[i])
+			return fmt.Errorf("%s websocket: %w: %+v", w.exchangeName, ErrSubscriptionNotFound, channels[i])
 		}
 	}
 	w.subscriptionMutex.RUnlock()

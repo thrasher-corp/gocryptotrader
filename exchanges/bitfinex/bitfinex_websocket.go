@@ -148,6 +148,9 @@ func (b *Bitfinex) wsHandleData(respRaw []byte) error {
 			if c := b.Websocket.GetSubscription(chanID); c != nil {
 				return b.handleWSChannelUpdate(c, eventType, d)
 			}
+			if b.Verbose {
+				log.Warnf(log.ExchangeSys, "%s %s; dropped WS message: %s", b.Name, stream.ErrSubscriptionNotFound, respRaw)
+			}
 			// We didn't have a mapping for this chanID; This probably means we have unsubscribed OR
 			// received our first message before processing the sub chanID
 			// In either case it's okay. No point in erroring because there's nothing we can do about it, and it happens often
