@@ -32,7 +32,7 @@ var (
 	errMissingOrderbookSequence  = errors.New("missing orderbook sequence")
 	errSizeOrFundIsRequired      = errors.New("at least one required among size and funds")
 	errInvalidLeverage           = errors.New("invalid leverage value")
-	errInvalidClientOrderID      = errors.New("invalid client order ID")
+	errInvalidClientOrderID      = errors.New("no client order ID supplied, this endpoint requires a uuid or similar string")
 	errCurrencyPairNotEnabled    = errors.New("currency pair not enabled")
 
 	subAccountRegExp           = regexp.MustCompile("^[a-zA-Z0-9]{7-32}$")
@@ -1495,4 +1495,12 @@ type MarginOrderParam struct {
 	Iceberg             bool          `json:"iceberg,omitempty"`
 	VisibleSize         float64       `json:"visibleSize,omitempty,string"`
 	Funds               float64       `json:"funds,string,omitempty"`
+}
+
+// SpotOrderResponse defines the response for when a spot order is sent.
+type SpotOrderResponse struct {
+	Data struct {
+		OrderID string `json:"orderId"`
+	} `json:"data"`
+	Error
 }

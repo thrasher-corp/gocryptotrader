@@ -814,6 +814,7 @@ func (ku *Kucoin) GetServiceStatus(ctx context.Context) (*ServiceStatus, error) 
 // Note: use this only for SPOT trades
 func (ku *Kucoin) PostOrder(ctx context.Context, arg *SpotOrderParam) (string, error) {
 	if arg.ClientOrderID == "" {
+		// NOTE: 128 bit max length character string. UUID recommended.
 		return "", errInvalidClientOrderID
 	}
 	if arg.Side == "" {
@@ -840,11 +841,8 @@ func (ku *Kucoin) PostOrder(ctx context.Context, arg *SpotOrderParam) (string, e
 	default:
 		return "", fmt.Errorf("%w %s", order.ErrTypeIsInvalid, arg.OrderType)
 	}
-	resp := struct {
-		OrderID string `json:"orderId"`
-		Error
-	}{}
-	return resp.OrderID, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, placeOrderEPL, http.MethodPost, kucoinPostOrder, &arg, &resp)
+	var resp SpotOrderResponse
+	return resp.Data.OrderID, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, placeOrderEPL, http.MethodPost, kucoinPostOrder, &arg, &resp)
 }
 
 // PostMarginOrder used to place two types of margin orders: limit and market

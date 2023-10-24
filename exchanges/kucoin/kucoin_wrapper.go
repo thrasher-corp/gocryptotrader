@@ -734,9 +734,6 @@ func (ku *Kucoin) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Subm
 		}
 		return s.DeriveSubmitResponse(o)
 	case asset.Spot:
-		if s.ClientID != "" && s.ClientOrderID == "" {
-			s.ClientOrderID = s.ClientID
-		}
 		o, err := ku.PostOrder(ctx, &SpotOrderParam{
 			ClientOrderID: s.ClientOrderID, Side: sideString,
 			Symbol: s.Pair, OrderType: s.Type.Lower(), Size: s.Amount,
