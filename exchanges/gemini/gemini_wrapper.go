@@ -7,6 +7,7 @@ import (
 	"net/url"
 	"sort"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -259,7 +260,12 @@ func (g *Gemini) Run(ctx context.Context) {
 			}
 		}
 	}
-
+	if err := g.UpdateOrderExecutionLimits(ctx, asset.Spot); err != nil {
+		log.Errorf(log.ExchangeSys,
+			"%s failed to set exchange order execution limits. Err: %v",
+			g.Name,
+			err)
+	}
 	if !g.GetEnabledFeatures().AutoPairUpdates && !forceUpdate {
 		return
 	}
@@ -278,26 +284,26 @@ func (g *Gemini) FetchTradablePairs(ctx context.Context, a asset.Item) (currency
 		return nil, asset.ErrNotSupported
 	}
 
-	symbols, err := g.GetSymbols(ctx)
+	details, err := g.GetSymbolDetails(ctx, "all")
 	if err != nil {
 		return nil, err
 	}
-
-	pairs := make([]currency.Pair, len(symbols))
-	for x := range symbols {
-		var pair currency.Pair
-		switch len(symbols[x]) {
-		case 8:
-			pair, err = currency.NewPairFromStrings(symbols[x][0:5], symbols[x][5:])
-		case 7:
-			pair, err = currency.NewPairFromStrings(symbols[x][0:4], symbols[x][4:])
-		default:
-			pair, err = currency.NewPairFromStrings(symbols[x][0:3], symbols[x][3:])
+	pairs := make([]currency.Pair, 0, len(details))
+	for i := range details {
+		status := strings.ToLower(details[i].Status)
+		if status != "open" && status != "limit_only" {
+			continue
 		}
+		if !strings.EqualFold(details[i].ContractType, "vanilla") {
+			// TODO: add support for futures
+			continue
+		}
+
+		cp, err := currency.NewPairFromStrings(details[i].BaseCurrency, details[i].Symbol[len(details[i].BaseCurrency):])
 		if err != nil {
 			return nil, err
 		}
-		pairs[x] = pair
+		pairs = append(pairs, cp)
 	}
 	return pairs, nil
 }
@@ -919,7 +925,32 @@ func (g *Gemini) GetFuturesContractDetails(context.Context, asset.Item) ([]futur
 	return nil, common.ErrFunctionNotSupported
 }
 
-// UpdateOrderExecutionLimits updates order execution limits
-func (g *Gemini) UpdateOrderExecutionLimits(_ context.Context, _ asset.Item) error {
-	return common.ErrNotYetImplemented
+// UpdateOrderExecutionLimits sets exchange executions for a required asset type
+func (g *Gemini) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) error {
+	if a != asset.Spot {
+		return fmt.Errorf("%w %v", asset.ErrNotSupported, a)
+	}
+	details, err := g.GetSymbolDetails(ctx, "all")
+	if err != nil {
+		return fmt.Errorf("cannot update exchange execution limits: %w", err)
+	}
+	resp := make([]order.MinMaxLevel, 0, len(details))
+	for i := range details {
+		status := strings.ToLower(details[i].Status)
+		if status != "open" && status != "limit_only" {
+			continue
+		}
+		cp, err := currency.NewPairFromStrings(details[i].BaseCurrency, details[i].QuoteCurrency)
+		if err != nil {
+			return err
+		}
+		resp = append(resp, order.MinMaxLevel{
+			Pair:                    cp,
+			Asset:                   a,
+			AmountStepIncrementSize: details[i].TickSize,
+			MinimumBaseAmount:       details[i].MinOrderSize.Float64(),
+			QuoteStepIncrementSize:  details[i].QuoteIncrement,
+		})
+	}
+	return g.LoadLimits(resp)
 }

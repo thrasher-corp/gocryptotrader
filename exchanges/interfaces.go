@@ -97,6 +97,18 @@ type IBotExchange interface {
 	CurrencyStateManagement
 	FuturesManagement
 	MarginManagement
+
+	// MatchSymbolWithAvailablePairs returns a currency pair based on the supplied
+	// symbol and asset type. If the string is expected to have a delimiter this
+	// will attempt to screen it out.
+	MatchSymbolWithAvailablePairs(symbol string, a asset.Item, hasDelimiter bool) (currency.Pair, error)
+	// MatchSymbolCheckEnabled returns a currency pair based on the supplied symbol
+	// and asset type against the available pairs list. If the string is expected to
+	// have a delimiter this will attempt to screen it out. It will also check if
+	// the pair is enabled.
+	MatchSymbolCheckEnabled(symbol string, a asset.Item, hasDelimiter bool) (pair currency.Pair, enabled bool, err error)
+	// IsPairEnabled checks if a pair is enabled for an enabled asset type
+	IsPairEnabled(pair currency.Pair, a asset.Item) (bool, error)
 }
 
 // OrderManagement defines functionality for order management

@@ -81,11 +81,3 @@ const (
 	ForwardSlashDelimiter = "/"
 	ColonDelimiter        = ":"
 )
-
-// delimiters is a delimiter list
-var delimiters = []string{
-	DashDelimiter,
-	UnderscoreDelimiter,
-	ForwardSlashDelimiter,
-	ColonDelimiter,
-}
