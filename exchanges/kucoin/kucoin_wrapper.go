@@ -289,7 +289,7 @@ func (ku *Kucoin) FetchTradablePairs(ctx context.Context, assetType asset.Item) 
 		}
 		pairs := make(currency.Pairs, 0, len(myPairs))
 		for x := range myPairs {
-			if !myPairs[x].EnableTrading {
+			if !myPairs[x].EnableTrading || (assetType == asset.Margin && !myPairs[x].IsMarginEnabled) {
 				continue
 			}
 			// Symbol field must be used to generate pair as this is the symbol
@@ -1583,33 +1583,57 @@ func (ku *Kucoin) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) 
 		return fmt.Errorf("%w %v", asset.ErrNotSupported, a)
 	}
 
-	if a != asset.Spot {
-		return fmt.Errorf("%w for asset type %s", common.ErrNotYetImplemented, a)
-	}
-
-	symbols, err := ku.GetSymbols(ctx, "")
-	if err != nil {
-		return err
-	}
-
-	limits := make([]order.MinMaxLevel, len(symbols))
-	for x := range symbols {
-		var pair currency.Pair
-		pair, err = currency.NewPairFromString(symbols[x].Symbol)
+	var limits []order.MinMaxLevel
+	switch a {
+	case asset.Spot, asset.Margin:
+		symbols, err := ku.GetSymbols(ctx, "")
 		if err != nil {
 			return err
 		}
-		limits[x] = order.MinMaxLevel{
-			Pair:                    pair,
-			Asset:                   a,
-			AmountStepIncrementSize: symbols[x].BaseIncrement,
-			QuoteStepIncrementSize:  symbols[x].QuoteIncrement,
-			PriceStepIncrementSize:  symbols[x].PriceIncrement,
-			MinimumBaseAmount:       symbols[x].BaseMinSize,
-			MaximumBaseAmount:       symbols[x].BaseMaxSize,
-			MinimumQuoteAmount:      symbols[x].QuoteMinSize,
-			MaximumQuoteAmount:      symbols[x].QuoteMaxSize,
+		limits = make([]order.MinMaxLevel, 0, len(symbols))
+		for x := range symbols {
+			if a == asset.Margin && !symbols[x].IsMarginEnabled {
+				continue
+			}
+			var pair currency.Pair
+			pair, err = currency.NewPairFromString(symbols[x].Symbol)
+			if err != nil {
+				return err
+			}
+			limits = append(limits, order.MinMaxLevel{
+				Pair:                    pair,
+				Asset:                   a,
+				AmountStepIncrementSize: symbols[x].BaseIncrement,
+				QuoteStepIncrementSize:  symbols[x].QuoteIncrement,
+				PriceStepIncrementSize:  symbols[x].PriceIncrement,
+				MinimumBaseAmount:       symbols[x].BaseMinSize,
+				MaximumBaseAmount:       symbols[x].BaseMaxSize,
+				MinimumQuoteAmount:      symbols[x].QuoteMinSize,
+				MaximumQuoteAmount:      symbols[x].QuoteMaxSize,
+			})
+		}
+	case asset.Futures:
+		contract, err := ku.GetFuturesOpenContracts(ctx)
+		if err != nil {
+			return err
+		}
+		limits = make([]order.MinMaxLevel, len(contract))
+		for x := range contract {
+			var pair currency.Pair
+			pair, err = currency.NewPairFromString(contract[x].Symbol)
+			if err != nil {
+				return err
+			}
+			limits[x] = order.MinMaxLevel{
+				Pair:                    pair,
+				Asset:                   a,
+				AmountStepIncrementSize: contract[x].LotSize,
+				QuoteStepIncrementSize:  contract[x].TickSize,
+				MaximumBaseAmount:       contract[x].MaxOrderQty,
+				MaximumQuoteAmount:      contract[x].MaxPrice,
+			}
 		}
 	}
+
 	return ku.LoadLimits(limits)
 }

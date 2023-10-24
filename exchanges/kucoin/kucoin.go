@@ -138,10 +138,11 @@ const (
 )
 
 // GetSymbols gets pairs details on the exchange
-func (ku *Kucoin) GetSymbols(ctx context.Context, ccy string) ([]SymbolInfo, error) {
+// For market details see endpoint: https://www.kucoin.com/docs/rest/spot-trading/market-data/get-market-list
+func (ku *Kucoin) GetSymbols(ctx context.Context, market string) ([]SymbolInfo, error) {
 	params := url.Values{}
-	if ccy != "" {
-		params.Set("market", ccy)
+	if market != "" {
+		params.Set("market", market)
 	}
 	var resp []SymbolInfo
 	return resp, ku.SendHTTPRequest(ctx, exchange.RestSpot, defaultSpotEPL, common.EncodeURLValues(kucoinGetSymbols, params), &resp)

@@ -4,13 +4,13 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log"
 	"os"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -80,14 +80,16 @@ func TestMain(m *testing.M) {
 // Spot asset test cases starts from here
 func TestGetSymbols(t *testing.T) {
 	t.Parallel()
-	_, err := ku.GetSymbols(context.Background(), "")
+	symbols, err := ku.GetSymbols(context.Background(), "")
 	if err != nil {
 		t.Error("GetSymbols() error", err)
 	}
-	_, err = ku.GetSymbols(context.Background(), currency.BTC.String())
+	assert.NotEmpty(t, symbols, "should return all available spot/margin symbols")
+	symbols, err = ku.GetSymbols(context.Background(), "ETF")
 	if err != nil {
 		t.Error("GetSymbols() error", err)
 	}
+	assert.NotEmpty(t, symbols, "should return all available futures symbols")
 }
 
 func TestGetTicker(t *testing.T) {
@@ -2444,32 +2446,28 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 		t.Fatalf("Received %v, expected %v", err, asset.ErrNotSupported)
 	}
 
-	err = ku.UpdateOrderExecutionLimits(context.Background(), asset.Futures)
-	if !errors.Is(err, common.ErrNotYetImplemented) {
-		t.Fatalf("Received %v, expected %v", err, common.ErrNotYetImplemented)
-	}
+	ku.Verbose = true
 
-	err = ku.UpdateOrderExecutionLimits(context.Background(), asset.Margin)
-	if !errors.Is(err, common.ErrNotYetImplemented) {
-		t.Fatalf("Received %v, expected %v", err, common.ErrNotYetImplemented)
-	}
-
-	err = ku.UpdateOrderExecutionLimits(context.Background(), asset.Spot)
-	if !errors.Is(err, nil) {
-		t.Fatalf("Received %v, expected %v", err, nil)
-	}
-
-	avail, err := ku.GetAvailablePairs(asset.Spot)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	for x := range avail {
-		lim, err := ku.GetOrderExecutionLimits(asset.Spot, avail[x])
-		if err != nil {
-			t.Fatalf("%v %s", err, avail[x])
+	assets := []asset.Item{asset.Futures}
+	for x := range assets {
+		fmt.Println("ASSETS:", assets[x])
+		err = ku.UpdateOrderExecutionLimits(context.Background(), assets[x])
+		if !errors.Is(err, nil) {
+			t.Fatalf("Received %v, expected %v", err, nil)
 		}
 
-		assert.NotEmpty(t, lim, "limit cannot be empty")
+		avail, err := ku.GetAvailablePairs(assets[x])
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		for y := range avail {
+			lim, err := ku.GetOrderExecutionLimits(assets[x], avail[y])
+			if err != nil {
+				t.Fatalf("%v %s %v", err, avail[y], assets[x])
+			}
+
+			assert.NotEmpty(t, lim, "limit cannot be empty")
+		}
 	}
 }
