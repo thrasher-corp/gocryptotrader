@@ -44,7 +44,7 @@ type Websocket struct {
 	runningURL                   string
 	runningURLAuth               string
 	exchangeName                 string
-	m                            sync.RWMutex
+	m                            sync.Mutex
 	fieldMutex                   sync.RWMutex
 	connector                    func() error
 
