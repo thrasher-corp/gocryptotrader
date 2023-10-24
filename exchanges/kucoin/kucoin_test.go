@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"log"
 	"os"
 	"testing"
@@ -2446,27 +2445,23 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 		t.Fatalf("Received %v, expected %v", err, asset.ErrNotSupported)
 	}
 
-	ku.Verbose = true
-
-	assets := []asset.Item{asset.Futures}
+	assets := []asset.Item{asset.Margin}
 	for x := range assets {
-		fmt.Println("ASSETS:", assets[x])
 		err = ku.UpdateOrderExecutionLimits(context.Background(), assets[x])
 		if !errors.Is(err, nil) {
-			t.Fatalf("Received %v, expected %v", err, nil)
+			t.Fatalf("received %v, expected %v", err, nil)
 		}
 
-		avail, err := ku.GetAvailablePairs(assets[x])
+		enabled, err := ku.GetEnabledPairs(assets[x])
 		if err != nil {
 			t.Fatal(err)
 		}
 
-		for y := range avail {
-			lim, err := ku.GetOrderExecutionLimits(assets[x], avail[y])
+		for y := range enabled {
+			lim, err := ku.GetOrderExecutionLimits(assets[x], enabled[y])
 			if err != nil {
-				t.Fatalf("%v %s %v", err, avail[y], assets[x])
+				t.Fatalf("%v %s %v", err, enabled[y], assets[x])
 			}
-
 			assert.NotEmpty(t, lim, "limit cannot be empty")
 		}
 	}

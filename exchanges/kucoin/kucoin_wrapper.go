@@ -1595,10 +1595,12 @@ func (ku *Kucoin) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) 
 			if a == asset.Margin && !symbols[x].IsMarginEnabled {
 				continue
 			}
-			var pair currency.Pair
-			pair, err = currency.NewPairFromString(symbols[x].Symbol)
+			pair, enabled, err := ku.MatchSymbolCheckEnabled(symbols[x].Symbol, a, true)
 			if err != nil {
 				return err
+			}
+			if !enabled {
+				continue
 			}
 			limits = append(limits, order.MinMaxLevel{
 				Pair:                    pair,
@@ -1617,21 +1619,23 @@ func (ku *Kucoin) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) 
 		if err != nil {
 			return err
 		}
-		limits = make([]order.MinMaxLevel, len(contract))
+		limits = make([]order.MinMaxLevel, 0, len(contract))
 		for x := range contract {
-			var pair currency.Pair
-			pair, err = currency.NewPairFromString(contract[x].Symbol)
+			pair, enabled, err := ku.MatchSymbolCheckEnabled(contract[x].Symbol, a, false)
 			if err != nil {
 				return err
 			}
-			limits[x] = order.MinMaxLevel{
+			if !enabled {
+				continue
+			}
+			limits = append(limits, order.MinMaxLevel{
 				Pair:                    pair,
 				Asset:                   a,
 				AmountStepIncrementSize: contract[x].LotSize,
 				QuoteStepIncrementSize:  contract[x].TickSize,
 				MaximumBaseAmount:       contract[x].MaxOrderQty,
 				MaximumQuoteAmount:      contract[x].MaxPrice,
-			}
+			})
 		}
 	}
 
