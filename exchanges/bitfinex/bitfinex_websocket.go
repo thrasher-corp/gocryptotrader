@@ -135,12 +135,11 @@ func (b *Bitfinex) wsHandleData(respRaw []byte) error {
 	case map[string]interface{}:
 		return b.handleWSEvent(respRaw)
 	case []interface{}:
-		var chanID int
-		if f, ok := d[0].(float64); !ok {
+		chanIDFloat, ok := d[0].(float64)
+		if !ok {
 			return common.GetTypeAssertError("float64", d[0], "chanID")
-		} else { //nolint:revive // using lexical variable requires else statement
-			chanID = int(f)
 		}
+		chanID := int(chanIDFloat)
 
 		eventType, hasEventType := d[1].(string)
 
@@ -158,7 +157,7 @@ func (b *Bitfinex) wsHandleData(respRaw []byte) error {
 		}
 
 		if !hasEventType {
-			return errors.New("WS message without eventType or chanID")
+			return errors.New("WS message without eventType")
 		}
 
 		switch eventType {
@@ -433,13 +432,7 @@ func (b *Bitfinex) handleWSEvent(respRaw []byte) error {
 	}
 	switch event {
 	case wsEventSubscribed:
-		subID, err := jsonparser.GetUnsafeString(respRaw, "subId")
-		if err != nil {
-			return fmt.Errorf("%w 'subId': %w from message: %s", errParsingWSField, err, respRaw)
-		}
-		if !b.Websocket.Match.IncomingWithData("subscribe:"+subID, respRaw) {
-			return fmt.Errorf("%v channel subscribe listener not found", subID)
-		}
+		return b.handleWSSubscribed(respRaw)
 	case wsEventUnsubscribed:
 		chanID, err := jsonparser.GetUnsafeString(respRaw, "chanId")
 		if err != nil {
@@ -494,6 +487,39 @@ func (b *Bitfinex) handleWSEvent(respRaw []byte) error {
 		return fmt.Errorf("unknown WS event msg: %s", respRaw)
 	}
 
+	return nil
+}
+
+// handleWSSubscribed parses a subscription response and registers the chanID key immediately, before updating subscribeToChan via IncomingWithData chan
+// handleWS* happens sequentially, so by rekeying on chanID immediately we ensure the first message is not dropped
+func (b *Bitfinex) handleWSSubscribed(respRaw []byte) error {
+	subID, err := jsonparser.GetUnsafeString(respRaw, "subId")
+	if err != nil {
+		return fmt.Errorf("%w 'subId': %w from message: %s", errParsingWSField, err, respRaw)
+	}
+
+	c := b.Websocket.GetSubscription(subID)
+	if c == nil {
+		return fmt.Errorf("%w: %w subID: %s", stream.ErrSubscriptionFailure, stream.ErrSubscriptionNotFound, subID)
+	}
+
+	chanID, err := jsonparser.GetInt(respRaw, "chanId")
+	if err != nil {
+		return fmt.Errorf("%w: %w 'chanId': %w; Channel: %s Pair: %s", stream.ErrSubscriptionFailure, errParsingWSField, err, c.Channel, c.Currency)
+	}
+
+	// Note: chanID's int type avoids conflicts with the string type subID key because of the type difference
+	c.Key = int(chanID)
+
+	// subscribeToChan removes the old subID keyed Subscription
+	b.Websocket.AddSuccessfulSubscriptions(*c)
+
+	if b.Verbose {
+		log.Debugf(log.ExchangeSys, "%s Subscribed to Channel: %s Pair: %s ChannelID: %d\n", b.Name, c.Channel, c.Currency, chanID)
+	}
+	if !b.Websocket.Match.IncomingWithData("subscribe:"+subID, respRaw) {
+		return fmt.Errorf("%v channel subscribe listener not found", subID)
+	}
 	return nil
 }
 
@@ -1681,9 +1707,23 @@ func (b *Bitfinex) subscribeToChan(c *stream.ChannelSubscription) error {
 		return fmt.Errorf("%w: %w; Channel: %s Pair: %s", stream.ErrSubscriptionFailure, err, c.Channel, c.Currency)
 	}
 
-	// Although docs only mention this for wsBook, it works for all chans
+	// subId is a single round-trip identifier that provides linking sub requests to chanIDs
+	// Although docs only mention subId for wsBook, it works for all chans
 	subID := strconv.FormatInt(b.Websocket.Conn.GenerateMessageID(false), 10)
 	req["subId"] = subID
+
+	// Add a temporary Key so we can find this Sub when we get the resp without delay or context switch
+	// Otherwise we might drop the first messages after the subscribed resp
+	c.Key = subID // Note subID string type avoids conflicts with later chanID key
+
+	c.State = stream.ChannelSubscribing
+	err = b.Websocket.AddSubscription(c)
+	if err != nil {
+		return fmt.Errorf("%w Channel: %s Pair: %s Error: %w", stream.ErrSubscriptionFailure, c.Channel, c.Currency, err)
+	}
+
+	// Always remove the temporary subscription keyed by subID
+	defer b.Websocket.RemoveSubscription(c)
 
 	respRaw, err := b.Websocket.Conn.SendMessageReturnResponse("subscribe:"+subID, req)
 	if err != nil {
@@ -1694,17 +1734,6 @@ func (b *Bitfinex) subscribeToChan(c *stream.ChannelSubscription) error {
 		wErr := fmt.Errorf("%w: %w; Channel: %s Pair: %s", stream.ErrSubscriptionFailure, err, c.Channel, c.Currency)
 		b.Websocket.DataHandler <- wErr
 		return wErr
-	}
-
-	chanID, err := jsonparser.GetInt(respRaw, "chanId")
-	if err != nil {
-		return fmt.Errorf("%w: %w 'chanId': %w; Channel: %s Pair: %s", stream.ErrSubscriptionFailure, errParsingWSField, err, c.Channel, c.Currency)
-	}
-
-	c.Key = int(chanID)
-	b.Websocket.AddSuccessfulSubscriptions(*c)
-	if b.Verbose {
-		log.Debugf(log.ExchangeSys, "%s Subscribed to Channel: %s Pair: %s ChannelID: %d\n", b.Name, c.Channel, c.Currency, chanID)
 	}
 
 	return nil
