@@ -725,3 +725,23 @@ func TestGetHistoricCandlesExtended(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestGetTickers(t *testing.T) {
+	t.Parallel()
+	_, err := b.GetTickers(context.Background())
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestUpdateTickers(t *testing.T) {
+	t.Parallel()
+	err := b.UpdateTickers(context.Background(), asset.Spot)
+	if err != nil {
+		t.Error(err)
+	}
+	err = b.UpdateTickers(context.Background(), asset.Futures)
+	if !errors.Is(err, asset.ErrNotSupported) {
+		t.Fatal(err)
+	}
+}
