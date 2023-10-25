@@ -1515,7 +1515,7 @@ func TestMatchFilter(t *testing.T) {
 		tt := tt
 		t.Run(fmt.Sprintf("%v", num), func(t *testing.T) {
 			t.Parallel()
-			if tt.o.MatchFilter(&tt.f) != tt.expectedResult {
+			if tt.o.MatchFilter(tt.f) != tt.expectedResult {
 				t.Errorf("tests[%v] failed", num)
 			}
 		})
