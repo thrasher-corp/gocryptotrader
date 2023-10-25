@@ -19,17 +19,17 @@ type AssetItemInfo struct {
 
 // AssetInfoWithSupportedNetwork represents network information for a specific asset.
 type AssetInfoWithSupportedNetwork struct {
-	AssetID          int64   `json:"asset_id"`
-	AssetUUID        string  `json:"asset_uuid"`
-	AssetName        string  `json:"asset_name"`
-	IsDefault        string  `json:"is_default"`
-	NetworkName      string  `json:"network_name"`
-	DisplayName      string  `json:"display_name"`
-	NetworkArnID     string  `json:"network_arn_id"`
-	MinWithdrawalAmt float64 `json:"min_withdrawal_amt"`
-	MaxWithdrawalAmt float64 `json:"max_withdrawal_amt"`
-	NetworkConfirms  int64   `json:"network_confirms"`
-	ProcessingTime   int64   `json:"processing_time"`
+	AssetID             string                  `json:"asset_id"`
+	AssetUUID           string                  `json:"asset_uuid"`
+	AssetName           string                  `json:"asset_name"`
+	NetworkName         string                  `json:"network_name"`
+	DisplayName         string                  `json:"display_name"`
+	NetworkArnID        string                  `json:"network_arn_id"`
+	MinWithdrawalAmount convert.StringToFloat64 `json:"min_withdrawal_amt"`
+	MaxWithdrawalAmount convert.StringToFloat64 `json:"max_withdrawal_amt"`
+	NetworkConfirms     int64                   `json:"network_confirms"`
+	ProcessingTime      convert.ExchangeTime    `json:"processing_time"`
+	IsDefault           bool                    `json:"is_default"`
 }
 
 // InstrumentInfo represents an instrument detail for specific instrument id.
@@ -146,7 +146,7 @@ type ModifyOrderParam struct {
 
 // OrderItem represents a single order item.
 type OrderItem struct {
-	OrderID        int64                   `json:"order_id"`
+	OrderID        string                  `json:"order_id"`
 	ClientOrderID  string                  `json:"client_order_id"`
 	Side           string                  `json:"side"`
 	InstrumentID   string                  `json:"instrument_id"`

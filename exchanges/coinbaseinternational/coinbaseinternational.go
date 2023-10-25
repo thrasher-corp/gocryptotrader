@@ -33,14 +33,15 @@ const (
 )
 
 var (
-	errArgumentMustBeInterface   = errors.New("argument must be an interface")
-	errMissingPortfolioID        = errors.New("missing portfolio identification")
-	errNetworkArnID              = errors.New("identifies the blockchain network")
-	errMissingTransferID         = errors.New("missing transfer ID")
-	errAddressIsRequired         = errors.New("err: missing address")
-	errAssetIdentifierIsRequired = errors.New("err: asset identified is required")
-	errEmptyArgument             = errors.New("err: empty argument")
-	errTimeInForceRequired       = errors.New("err: time_in_force is required")
+	errArgumentMustBeInterface      = errors.New("argument must be an interface")
+	errMissingPortfolioID           = errors.New("missing portfolio identification")
+	errNetworkArnID                 = errors.New("identifies the blockchain network")
+	errMissingTransferID            = errors.New("missing transfer ID")
+	errAddressIsRequired            = errors.New("err: missing address")
+	errAssetIdentifierRequired      = errors.New("err: asset identified is required")
+	errEmptyArgument                = errors.New("err: empty argument")
+	errTimeInForceRequired          = errors.New("err: time_in_force is required")
+	errInstrumentIdentifierRequired = errors.New("instrument information is required")
 )
 
 // ListAssets returns a list of all supported assets.
@@ -60,7 +61,7 @@ func (co *CoinbaseInternational) GetAssetDetails(ctx context.Context, assetName 
 	case assetID != "":
 		path += assetID
 	default:
-		return nil, errors.New("missing asset information; ")
+		return nil, errAssetIdentifierRequired
 	}
 	var resp *AssetItemInfo
 	return resp, co.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, nil, &resp, false)
@@ -77,11 +78,10 @@ func (co *CoinbaseInternational) GetSupportedNetworksPerAsset(ctx context.Contex
 	case assetID != "":
 		path += assetID
 	default:
-		return nil, errors.New("missing asset information; ")
+		return nil, errAssetIdentifierRequired
 	}
-	path += "/networks"
 	var resp []AssetInfoWithSupportedNetwork
-	return resp, co.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, nil, &resp, false)
+	return resp, co.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path+"/networks", nil, nil, &resp, false)
 }
 
 // GetInstruments returns all of the instruments available for trading.
@@ -101,7 +101,7 @@ func (co *CoinbaseInternational) GetInstrumentDetails(ctx context.Context, instr
 	case instrumentID != "":
 		path += instrumentID
 	default:
-		return nil, errors.New("instrument information is required")
+		return nil, errInstrumentIdentifierRequired
 	}
 	var resp *InstrumentInfo
 	return resp, co.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, nil, &resp, false)
@@ -118,7 +118,7 @@ func (co *CoinbaseInternational) GetQuotePerInstrument(ctx context.Context, inst
 	case instrumentID != "":
 		path += instrumentID
 	default:
-		return nil, errors.New("instrument information is required")
+		return nil, errInstrumentIdentifierRequired
 	}
 	var resp *QuoteInformation
 	return resp, co.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path+"/quote", nil, nil, &resp, false)
@@ -212,8 +212,8 @@ func (co *CoinbaseInternational) ModifyOpenOrder(ctx context.Context, orderID st
 	return resp, co.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodPut, "orders/"+orderID, nil, arg, &resp, true)
 }
 
-// GetOrderDetails retrieves a single order. The order retrieved can be either active or inactive.
-func (co *CoinbaseInternational) GetOrderDetails(ctx context.Context, orderID string) (*OrderItem, error) {
+// GetOrderDetail retrieves a single order. The order retrieved can be either active or inactive.
+func (co *CoinbaseInternational) GetOrderDetail(ctx context.Context, orderID string) (*OrderItem, error) {
 	var resp *OrderItem
 	return resp, co.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "orders/"+orderID, nil, nil, &resp, true)
 }
@@ -407,7 +407,7 @@ func (co *CoinbaseInternational) WithdrawToCryptoAddress(ctx context.Context, ar
 		return nil, order.ErrAmountIsInvalid
 	}
 	if arg.AssetIdentifier == "" {
-		return nil, errAssetIdentifierIsRequired
+		return nil, errAssetIdentifierRequired
 	}
 	var resp *WithdrawalResponse
 	return resp, co.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "transfers/withdraw", nil, arg, &resp, true)
@@ -419,7 +419,7 @@ func (co *CoinbaseInternational) CreateCryptoAddress(ctx context.Context, arg *C
 		return nil, common.ErrNilPointer
 	}
 	if arg.AssetIdentifier == "" {
-		return nil, errAssetIdentifierIsRequired
+		return nil, errAssetIdentifierRequired
 	}
 	if arg.Portfolio == "" {
 		return nil, errMissingPortfolioID

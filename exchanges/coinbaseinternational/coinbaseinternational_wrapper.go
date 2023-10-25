@@ -2,6 +2,7 @@ package coinbaseinternational
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strconv"
 	"sync"
@@ -498,6 +499,15 @@ func (co *CoinbaseInternational) SubmitOrder(ctx context.Context, s *order.Submi
 	if err != nil {
 		return nil, err
 	}
+
+	// TODO: possible value GTT is not represented by the order.Submit
+	// therefore we could not represent 'GTT'
+	var tif string
+	if s.ImmediateOrCancel {
+		tif = "IOC"
+	} else {
+		tif = "GTC"
+	}
 	response, err := co.CreateOrder(ctx, &OrderRequestParams{
 		ClientOrderID: s.ClientOrderID,
 		Side:          s.Side.String(),
@@ -507,6 +517,7 @@ func (co *CoinbaseInternational) SubmitOrder(ctx context.Context, s *order.Submi
 		Price:         s.Price,
 		StopPrice:     s.TriggerPrice,
 		PostOnly:      s.PostOnly,
+		TimeInForce:   tif,
 	})
 	if err != nil {
 		return nil, err
@@ -561,7 +572,7 @@ func (co *CoinbaseInternational) ModifyOrder(ctx context.Context, action *order.
 	if err != nil {
 		return nil, err
 	}
-	resp.OrderID = strconv.FormatInt(response.OrderID, 10)
+	resp.OrderID = response.OrderID
 	return resp, nil
 }
 
@@ -584,13 +595,34 @@ func (co *CoinbaseInternational) CancelBatchOrders(context.Context, []order.Canc
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
-func (co *CoinbaseInternational) CancelAllOrders(context.Context, *order.Cancel) (order.CancelAllResponse, error) {
-	return order.CancelAllResponse{}, common.ErrNotYetImplemented
+func (co *CoinbaseInternational) CancelAllOrders(ctx context.Context, action *order.Cancel) (order.CancelAllResponse, error) {
+	if action.AssetType != asset.Spot {
+		return order.CancelAllResponse{}, fmt.Errorf("%w asset type %v", asset.ErrNotSupported, action.AssetType)
+	}
+	if action.AccountID == "" {
+		return order.CancelAllResponse{}, errors.New("missing account ID")
+	}
+	format, err := co.GetPairFormat(asset.Spot, true)
+	if err != nil {
+		return order.CancelAllResponse{}, err
+	}
+	canceled, err := co.CancelOrders(ctx, action.AccountID, "", format.Format(action.Pair))
+	if err != nil {
+		return order.CancelAllResponse{}, err
+	}
+	response := order.CancelAllResponse{
+		Status: make(map[string]string, len(canceled)),
+		Count:  int64(len(canceled)),
+	}
+	for a := range canceled {
+		response.Status[canceled[a].OrderID] = canceled[a].OrderStatus
+	}
+	return response, nil
 }
 
 // GetOrderInfo returns order information based on order ID
 func (co *CoinbaseInternational) GetOrderInfo(ctx context.Context, orderID string, pair currency.Pair, _ asset.Item) (*order.Detail, error) {
-	resp, err := co.GetOrderDetails(ctx, orderID)
+	resp, err := co.GetOrderDetail(ctx, orderID)
 	if err != nil {
 		return nil, err
 	}
@@ -622,7 +654,7 @@ func (co *CoinbaseInternational) GetOrderInfo(ctx context.Context, orderID strin
 		ExecutedAmount:       resp.ExecQty.Float64(),
 		RemainingAmount:      resp.Size - resp.ExecQty.Float64(),
 		Fee:                  resp.Fee.Float64(),
-		OrderID:              strconv.FormatInt(resp.OrderID, 10),
+		OrderID:              resp.OrderID,
 		ClientOrderID:        resp.ClientOrderID,
 		Type:                 oType,
 		Side:                 oSide,
@@ -636,6 +668,20 @@ func (co *CoinbaseInternational) GetOrderInfo(ctx context.Context, orderID strin
 // GetDepositAddress returns a deposit address for a specified currency
 func (co *CoinbaseInternational) GetDepositAddress(context.Context, currency.Code, string, string) (*deposit.Address, error) {
 	return nil, common.ErrNotYetImplemented
+}
+
+// GetAvailableTransferChains returns the available transfer blockchains for the specific
+// cryptocurrency
+func (co *CoinbaseInternational) GetAvailableTransferChains(ctx context.Context, cryptocurrency currency.Code) ([]string, error) {
+	info, err := co.GetSupportedNetworksPerAsset(ctx, cryptocurrency, "", "")
+	if err != nil {
+		return nil, err
+	}
+	availableChains := make([]string, len(info))
+	for x := range info {
+		availableChains[x] = info[x].NetworkName
+	}
+	return availableChains, nil
 }
 
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is
@@ -673,9 +719,6 @@ func (co *CoinbaseInternational) WithdrawFiatFundsToInternationalBank(context.Co
 
 // GetActiveOrders retrieves any orders that are active/open
 func (co *CoinbaseInternational) GetActiveOrders(ctx context.Context, getOrdersRequest *order.MultiOrderRequest) (order.FilteredOrders, error) {
-	if err := getOrdersRequest.Validate(); err != nil {
-		return nil, err
-	}
 	var instrument string
 	if len(getOrdersRequest.Pairs) == 1 {
 		instrument = getOrdersRequest.Pairs[0].String()
@@ -713,7 +756,7 @@ func (co *CoinbaseInternational) GetActiveOrders(ctx context.Context, getOrdersR
 			AverageExecutedPrice: response.Results[x].AveragePrice.Float64(),
 			QuoteAmount:          response.Results[x].Size * response.Results[x].AveragePrice.Float64(),
 			RemainingAmount:      response.Results[x].Size - response.Results[x].ExecQty.Float64(),
-			OrderID:              strconv.FormatInt(response.Results[x].OrderID, 10),
+			OrderID:              response.Results[x].OrderID,
 			ExecutedAmount:       response.Results[x].ExecQty.Float64(),
 			Fee:                  response.Results[x].Fee.Float64(),
 			ClientOrderID:        response.Results[x].ClientOrderID,

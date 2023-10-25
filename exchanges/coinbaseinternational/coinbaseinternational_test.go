@@ -16,6 +16,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
+	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
 // Please supply your own keys here to do authenticated endpoint testing
@@ -73,7 +74,7 @@ func TestGetAssetDetails(t *testing.T) {
 
 func TestGetSupportedNetworksPerAsset(t *testing.T) {
 	t.Parallel()
-	_, err := co.GetSupportedNetworksPerAsset(context.Background(), currency.BTC, "", "")
+	_, err := co.GetSupportedNetworksPerAsset(context.Background(), currency.USDC, "", "")
 	if err != nil {
 		t.Error(err)
 	}
@@ -192,13 +193,13 @@ func TestModifyOpenOrder(t *testing.T) {
 func TestGetOrderDetails(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, co)
-	_, err := co.GetOrderDetails(context.Background(), "1234")
+	_, err := co.GetOrderDetail(context.Background(), "1234")
 	if err != nil {
 		t.Error(err)
 	}
 }
 
-func TestCancelOrder(t *testing.T) {
+func TestCancelTradeOrder(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, co, canManipulateRealOrders)
 	_, err := co.CancelTradeOrder(context.Background(), "", "", "", "")
@@ -409,6 +410,18 @@ func TestGenerateSubscriptionPayload(t *testing.T) {
 	}
 }
 
+func TestFetchOrderBook(t *testing.T) {
+	t.Parallel()
+	pair, err := currency.NewPairFromString("BTC-PERP")
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = co.FetchOrderbook(context.Background(), pair, asset.Spot)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
 func TestUpdateOrderbook(t *testing.T) {
 	t.Parallel()
 	pair, err := currency.NewPairFromString("BTC-PERP")
@@ -431,6 +444,15 @@ func TestUpdateAccountInfo(t *testing.T) {
 	_, err = co.UpdateAccountInfo(context.Background(), asset.Spot)
 	if err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestFetchAccountInfo(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, co)
+	_, err := co.FetchAccountInfo(context.Background(), asset.Spot)
+	if err != nil {
+		t.Error(err)
 	}
 }
 
@@ -470,5 +492,139 @@ func TestGetFeeByType(t *testing.T) {
 		FeeType: exchange.CryptocurrencyWithdrawalFee,
 	}); err != nil {
 		t.Error("CoinbaseInternational GetFeeByType() error", err)
+	}
+}
+
+func TestGetAvailableTransferChains(t *testing.T) {
+	t.Parallel()
+	_, err := co.GetAvailableTransferChains(context.Background(), currency.USDC)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestSubmitOrder(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, co, canManipulateRealOrders)
+	cp, err := currency.NewPairFromString("BTC-PERP")
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = co.SubmitOrder(context.Background(), &order.Submit{
+		Exchange:      co.Name,
+		Pair:          cp,
+		Side:          order.Buy,
+		Type:          order.Limit,
+		Price:         0.0001,
+		Amount:        10,
+		ClientID:      "newOrder",
+		ClientOrderID: "my-new-order-id",
+		AssetType:     asset.Spot,
+	})
+	if err != nil {
+		t.Error(err)
+	}
+}
+func TestModifyOrder(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, co, canManipulateRealOrders)
+	cp, err := currency.NewPairFromString("BTC-PERP")
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = co.ModifyOrder(context.Background(), &order.Modify{
+		Exchange:  "CoinbaseInternational",
+		OrderID:   "1337",
+		Price:     10000,
+		Amount:    10,
+		Side:      order.Sell,
+		Pair:      cp,
+		AssetType: asset.CoinMarginedFutures,
+	})
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestCancelOrder(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, co, canManipulateRealOrders)
+	cp, err := currency.NewPairFromString("BTC-PERP")
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = co.CancelOrder(context.Background(), &order.Cancel{
+		Exchange:  "CoinbaseInternational",
+		AssetType: asset.Spot,
+		Pair:      cp,
+		OrderID:   "1234",
+		AccountID: "Someones SubAccount",
+	})
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestCancelAllOrders(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, co, canManipulateRealOrders)
+	_, err := co.CancelAllOrders(context.Background(),
+		&order.Cancel{AssetType: asset.Spot})
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = co.CancelAllOrders(context.Background(),
+		&order.Cancel{
+			Exchange:  "CoinbaseInternational",
+			AssetType: asset.Spot,
+			AccountID: "Sub-account Samuael",
+			Pair: currency.Pair{
+				Delimiter: "-",
+				Base:      currency.BTC,
+				Quote:     currency.USD,
+			},
+		})
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetOrderInfo(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, co)
+	pair, err := currency.NewPairFromString("BTC-PERP")
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = co.GetOrderInfo(context.Background(), "12234", pair, asset.Spot)
+	if err != nil {
+		t.Error(err)
+	}
+}
+func TestWithdrawCryptocurrencyFunds(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, co, canManipulateRealOrders)
+	_, err := co.WithdrawCryptocurrencyFunds(context.Background(), &withdraw.Request{
+		Exchange: co.Name,
+		Amount:   10,
+		Currency: currency.LTC,
+		Crypto: withdraw.CryptoRequest{
+			Chain:      currency.LTC.String(),
+			Address:    "3CDJNfdWX8m2NwuGUV3nhXHXEeLygMXoAj",
+			AddressTag: "",
+		}})
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestGetActiveOrders(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, co)
+	_, err := co.GetActiveOrders(context.Background(), &order.MultiOrderRequest{
+		AssetType: asset.Spot,
+	})
+	if err != nil {
+		t.Fatal(err)
 	}
 }
