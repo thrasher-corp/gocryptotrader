@@ -734,10 +734,29 @@ func (ku *Kucoin) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Subm
 		}
 		return s.DeriveSubmitResponse(o)
 	case asset.Spot:
+		timeInForce := ""
+		if s.Type == order.Limit {
+			switch {
+			case s.FillOrKill:
+				timeInForce = "FOK"
+			case s.ImmediateOrCancel:
+				timeInForce = "IOC"
+			case s.PostOnly:
+			default:
+				timeInForce = "GTC"
+			}
+		}
 		o, err := ku.PostOrder(ctx, &SpotOrderParam{
-			ClientOrderID: s.ClientOrderID, Side: sideString,
-			Symbol: s.Pair, OrderType: s.Type.Lower(), Size: s.Amount,
-			Price: s.Price, PostOnly: s.PostOnly, Hidden: s.Hidden})
+			ClientOrderID: s.ClientOrderID,
+			Side:          sideString,
+			Symbol:        s.Pair,
+			OrderType:     s.Type.Lower(),
+			Size:          s.Amount,
+			Price:         s.Price,
+			PostOnly:      s.PostOnly,
+			Hidden:        s.Hidden,
+			TimeInForce:   timeInForce,
+		})
 		if err != nil {
 			return nil, err
 		}
