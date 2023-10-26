@@ -1723,7 +1723,7 @@ func (b *Bitfinex) subscribeToChan(c *stream.ChannelSubscription) error {
 	}
 
 	// Always remove the temporary subscription keyed by subID
-	defer b.Websocket.RemoveSubscription(c)
+	defer b.Websocket.RemoveSubscriptions(*c)
 
 	respRaw, err := b.Websocket.Conn.SendMessageReturnResponse("subscribe:"+subID, req)
 	if err != nil {
@@ -1818,7 +1818,7 @@ func (b *Bitfinex) unsubscribeFromChan(c *stream.ChannelSubscription) error {
 		return wErr
 	}
 
-	b.Websocket.RemoveSuccessfulUnsubscriptions(*c)
+	b.Websocket.RemoveSubscriptions(*c)
 
 	return nil
 }

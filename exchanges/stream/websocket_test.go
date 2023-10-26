@@ -509,7 +509,7 @@ func TestSubscribeUnsubscribe(t *testing.T) {
 		return nil
 	}
 	fnUnsub := func(unsubs []ChannelSubscription) error {
-		ws.RemoveSuccessfulUnsubscriptions(unsubs...)
+		ws.RemoveSubscriptions(unsubs...)
 		return nil
 	}
 	ws.Subscriber = fnSub
@@ -561,7 +561,7 @@ func TestResubscribe(t *testing.T) {
 		return nil
 	}
 	fnUnsub := func(unsubs []ChannelSubscription) error {
-		ws.RemoveSuccessfulUnsubscriptions(unsubs...)
+		ws.RemoveSubscriptions(unsubs...)
 		return nil
 	}
 	ws.Subscriber = fnSub
@@ -600,8 +600,8 @@ func TestSubscriptionState(t *testing.T) {
 	assert.Equal(t, found.State, ChannelUnsubscribing, "Subscription should be unsubscribing state")
 }
 
-// TestRemoveSubscription tests removing a subscription
-func TestRemoveSubscription(t *testing.T) {
+// TestRemoveSubscriptions tests removing a subscription
+func TestRemoveSubscriptions(t *testing.T) {
 	t.Parallel()
 	ws := New()
 
@@ -609,7 +609,7 @@ func TestRemoveSubscription(t *testing.T) {
 	assert.NoError(t, ws.AddSubscription(c), "Adding first subscription should not error")
 	assert.NotNil(t, ws.GetSubscription(42), "Added subscription should be findable")
 
-	ws.RemoveSubscription(c)
+	ws.RemoveSubscriptions(*c)
 	assert.Nil(t, ws.GetSubscription(42), "Remove should have removed the sub")
 }
 

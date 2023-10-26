@@ -973,13 +973,6 @@ func (w *Websocket) SetSubscriptionState(c *ChannelSubscription, state ChannelSt
 	return nil
 }
 
-// RemoveSubscription removes subscriptions from the subscription list
-// It is a duplicate of RemoveSuccessfulUnsubscriptions for shorterm naming clarity
-// We should harmonise Add* and Remove* to not imply sub state in these method names
-func (w *Websocket) RemoveSubscription(c *ChannelSubscription) {
-	w.RemoveSuccessfulUnsubscriptions(*c)
-}
-
 // AddSuccessfulSubscriptions adds subscriptions to the subscription lists that
 // has been successfully subscribed
 func (w *Websocket) AddSuccessfulSubscriptions(channels ...ChannelSubscription) {
@@ -996,9 +989,8 @@ func (w *Websocket) AddSuccessfulSubscriptions(channels ...ChannelSubscription) 
 	}
 }
 
-// RemoveSuccessfulUnsubscriptions removes subscriptions from the subscription
-// list that has been successfulling unsubscribed
-func (w *Websocket) RemoveSuccessfulUnsubscriptions(channels ...ChannelSubscription) {
+// RemoveSubscriptions removes subscriptions from the subscription list
+func (w *Websocket) RemoveSubscriptions(channels ...ChannelSubscription) {
 	w.subscriptionMutex.Lock()
 	defer w.subscriptionMutex.Unlock()
 	if w.subscriptions == nil {
