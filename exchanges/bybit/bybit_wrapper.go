@@ -324,7 +324,7 @@ func (by *Bybit) FetchTradablePairs(ctx context.Context, a asset.Item) (currency
 	switch a {
 	case asset.Spot, asset.Options:
 		for x := range allPairs.List {
-			pair, err = currency.NewPairFromString(allPairs.List[x].Symbol)
+			pair, err = currency.NewPairFromStrings(allPairs.List[x].BaseCoin, allPairs.List[x].Symbol[len(allPairs.List[x].BaseCoin):])
 			if err != nil {
 				return nil, err
 			}
@@ -1222,7 +1222,7 @@ func (by *Bybit) GetOrderHistory(ctx context.Context, req *order.MultiOrderReque
 			}
 
 			var pair currency.Pair
-			pair, err = by.extractCurrencyPair(resp.List[i].Symbol, req.AssetType, false)
+			pair, err = by.ExtractCurrencyPair(resp.List[i].Symbol, req.AssetType, false)
 			if err != nil {
 				return nil, err
 			}
@@ -1268,7 +1268,7 @@ func (by *Bybit) GetOrderHistory(ctx context.Context, req *order.MultiOrderReque
 				log.Errorf(log.ExchangeSys, "%s %v", by.Name, err)
 			}
 			var pair currency.Pair
-			pair, err = by.extractCurrencyPair(resp.List[i].Symbol, req.AssetType, false)
+			pair, err = by.ExtractCurrencyPair(resp.List[i].Symbol, req.AssetType, false)
 			if err != nil {
 				return nil, err
 			}
@@ -1654,7 +1654,7 @@ func (by *Bybit) GetFuturesContractDetails(ctx context.Context, item asset.Item)
 				if err != nil {
 					return nil, fmt.Errorf("%w %v %v %v %v-%v", err, by.Name, item, cp, instruments[i].LaunchTime.Time(), instruments[i].DeliveryTime.Time())
 				}
-				cp, err = by.extractCurrencyPair(instruments[i].Symbol, item, false)
+				cp, err = by.ExtractCurrencyPair(instruments[i].Symbol, item, false)
 				if err != nil {
 					return nil, err
 				}
@@ -1663,7 +1663,7 @@ func (by *Bybit) GetFuturesContractDetails(ctx context.Context, item asset.Item)
 					log.Warnf(log.ExchangeSys, "%v unhandled contract type for %v %v %v-%v", by.Name, item, cp, instruments[i].LaunchTime.Time(), instruments[i].DeliveryTime.Time())
 				}
 				ct = futures.Unknown
-				cp, err = by.extractCurrencyPair(instruments[i].Symbol, item, false)
+				cp, err = by.ExtractCurrencyPair(instruments[i].Symbol, item, false)
 				if err != nil {
 					return nil, err
 				}
@@ -1790,19 +1790,20 @@ func getContractLength(contractLength time.Duration) (futures.ContractType, erro
 	return ct, nil
 }
 
-func (by *Bybit) extractCurrencyPair(symbol string, assetType asset.Item, request bool) (currency.Pair, error) {
+// ExtractCurrencyPair extracts the currency pair equivalent of provided pair string.
+func (by *Bybit) ExtractCurrencyPair(symbol string, assetType asset.Item, request bool) (currency.Pair, error) {
 	format, err := by.GetPairFormat(assetType, request)
 	if err != nil {
 		return currency.EMPTYPAIR, err
 	}
 	var pair currency.Pair
 	switch assetType {
-	case asset.Spot, asset.Options, asset.USDCMarginedFutures:
+	case asset.Options, asset.USDCMarginedFutures:
 		pair, err = currency.NewPairFromString(symbol)
 		if err != nil {
 			return currency.EMPTYPAIR, err
 		}
-	case asset.USDTMarginedFutures, asset.CoinMarginedFutures:
+	case asset.Spot, asset.USDTMarginedFutures, asset.CoinMarginedFutures:
 		pair, err = by.MatchSymbolWithAvailablePairs(symbol, assetType, true)
 		if err != nil {
 			return currency.EMPTYPAIR, err

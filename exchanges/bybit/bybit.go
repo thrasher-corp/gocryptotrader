@@ -591,7 +591,7 @@ func (by *Bybit) CancelTradeOrder(ctx context.Context, arg *CancelOrderParams) (
 	switch {
 	case arg.OrderFilter != "" && arg.Category == cSpot:
 		switch arg.OrderFilter {
-		case "Order", "tpslOrder":
+		case "Order", "tpslOrder", "StopOrder":
 		default:
 			return nil, fmt.Errorf("%w, orderFilter=%s", errInvalidOrderFilter, arg.OrderFilter)
 		}

@@ -731,22 +731,22 @@ type ClosedProfitAndLossResponse struct {
 	Category       string `json:"category"`
 	List           []struct {
 		Symbol              string                  `json:"symbol"`
-		OrderType           string                  `json:"orderType"`
-		Leverage            string                  `json:"leverage"`
-		UpdatedTime         convert.ExchangeTime    `json:"updatedTime"`
-		Side                string                  `json:"side"`
 		OrderID             string                  `json:"orderId"`
-		ClosedPnl           string                  `json:"closedPnl"`
-		AvgEntryPrice       convert.StringToFloat64 `json:"avgEntryPrice"`
+		Side                string                  `json:"side"`
 		Quantity            convert.StringToFloat64 `json:"qty"`
-		CumulatedEntryValue string                  `json:"cumEntryValue"`
-		CreatedTime         convert.ExchangeTime    `json:"createdTime"`
 		OrderPrice          convert.StringToFloat64 `json:"orderPrice"`
-		ClosedSize          convert.StringToFloat64 `json:"closedSize"`
-		AvgExitPrice        convert.StringToFloat64 `json:"avgExitPrice"`
+		OrderType           string                  `json:"orderType"`
 		ExecutionType       string                  `json:"execType"`
-		FillCount           convert.StringToFloat64 `json:"fillCount"`
+		ClosedSize          convert.StringToFloat64 `json:"closedSize"`
+		CumulatedEntryValue string                  `json:"cumEntryValue"`
+		AvgEntryPrice       convert.StringToFloat64 `json:"avgEntryPrice"`
 		CumulatedExitValue  string                  `json:"cumExitValue"`
+		AvgExitPrice        convert.StringToFloat64 `json:"avgExitPrice"`
+		ClosedPnl           string                  `json:"closedPnl"`
+		FillCount           convert.StringToFloat64 `json:"fillCount"`
+		Leverage            string                  `json:"leverage"`
+		CreatedTime         convert.ExchangeTime    `json:"createdTime"`
+		UpdatedTime         convert.ExchangeTime    `json:"updatedTime"`
 	} `json:"list"`
 }
 
@@ -867,27 +867,34 @@ type UnifiedAccountUpgradeResponse struct {
 type BorrowHistory struct {
 	NextPageCursor string `json:"nextPageCursor"`
 	List           []struct {
-		CreatedTime               convert.ExchangeTime    `json:"createdTime"`
-		CostExemption             string                  `json:"costExemption"`
-		InterestBearingBorrowSize string                  `json:"InterestBearingBorrowSize"`
 		Currency                  string                  `json:"currency"`
-		HourlyBorrowRate          convert.StringToFloat64 `json:"hourlyBorrowRate"`
+		CreatedTime               convert.ExchangeTime    `json:"createdTime"`
 		BorrowCost                convert.StringToFloat64 `json:"borrowCost"`
+		HourlyBorrowRate          convert.StringToFloat64 `json:"hourlyBorrowRate"`
+		InterestBearingBorrowSize convert.StringToFloat64 `json:"InterestBearingBorrowSize"`
+		CostExemption             string                  `json:"costExemption"`
+		BorrowAmount              convert.StringToFloat64 `json:"borrowAmount"`
+		UnrealisedLoss            convert.StringToFloat64 `json:"unrealisedLoss"`
+		FreeBorrowdAmount         convert.StringToFloat64 `json:"freeBorrowedAmount"`
 	} `json:"list"`
 }
 
 // CollateralInfo represents collateral information of the current unified margin account.
 type CollateralInfo struct {
 	List []struct {
-		BorrowAmount        convert.StringToFloat64 `json:"borrowAmount"`
-		AvailableToBorrow   string                  `json:"availableToBorrow"`
-		FreeBorrowingAmount convert.StringToFloat64 `json:"freeBorrowingAmount"`
-		Borrowable          bool                    `json:"borrowable"`
 		Currency            string                  `json:"currency"`
-		MaxBorrowingAmount  convert.StringToFloat64 `json:"maxBorrowingAmount"`
 		HourlyBorrowRate    convert.StringToFloat64 `json:"hourlyBorrowRate"`
+		MaxBorrowingAmount  convert.StringToFloat64 `json:"maxBorrowingAmount"`
+		FreeBorrowingAmount convert.StringToFloat64 `json:"freeBorrowingAmount"`
+		FreeBorrowingLimit  convert.StringToFloat64 `json:"freeBorrowingLimit"`
+		FreeBorrowAmount    convert.StringToFloat64 `json:"freeBorrowAmount"` // The amount of borrowing within your total borrowing amount that is exempt from interest charges
+		BorrowAmount        convert.StringToFloat64 `json:"borrowAmount"`
+		AvailableToBorrow   convert.StringToFloat64 `json:"availableToBorrow"`
+		Borrowable          bool                    `json:"borrowable"`
+		BorrowUsageRate     convert.StringToFloat64 `json:"borrowUsageRate"`
 		MarginCollateral    bool                    `json:"marginCollateral"`
-		CollateralRatio     convert.StringToFloat64 `json:"collateralRatio"`
+		CollateralSwitch    bool                    `json:"collateralSwitch"`
+		CollateralRatio     convert.StringToFloat64 `json:"collateralRatio"` // Collateral ratio
 	} `json:"list"`
 }
 
@@ -911,12 +918,13 @@ type FeeRate struct {
 
 // AccountInfo represents margin mode account information.
 type AccountInfo struct {
-	MarginMode          string               `json:"marginMode"`
-	UpdatedTime         convert.ExchangeTime `json:"updatedTime"`
 	UnifiedMarginStatus int64                `json:"unifiedMarginStatus"`
-	DcpStatus           string               `json:"dcpStatus"`
+	MarginMode          string               `json:"marginMode"` // ISOLATED_MARGIN, REGULAR_MARGIN, PORTFOLIO_MARGIN
+	DcpStatus           string               `json:"dcpStatus"`  // Disconnected-CancelAll-Prevention status: ON, OFF
 	TimeWindow          int64                `json:"timeWindow"`
 	SmpGroup            int64                `json:"smpGroup"`
+	IsMasterTrader      bool                 `json:"isMasterTrader"`
+	UpdatedTime         convert.ExchangeTime `json:"updatedTime"`
 }
 
 // SetMarginModeResponse represents a response for setting margin mode.

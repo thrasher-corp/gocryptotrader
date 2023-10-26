@@ -81,23 +81,23 @@ func TestMain(m *testing.M) {
 			log.Fatal(err)
 		}
 	}
-	spotTradablePair, err = b.extractCurrencyPair("BTCUSDT", asset.Spot, true)
+	spotTradablePair, err = b.ExtractCurrencyPair("BTCUSDT", asset.Spot, true)
 	if err != nil {
 		log.Fatal(err)
 	}
-	usdtMarginedTradablePair, err = b.extractCurrencyPair("10000LADYSUSDT", asset.USDTMarginedFutures, true)
+	usdtMarginedTradablePair, err = b.ExtractCurrencyPair("10000LADYSUSDT", asset.USDTMarginedFutures, true)
 	if err != nil {
 		log.Fatal(err)
 	}
-	usdcMarginedTradablePair, err = b.extractCurrencyPair("ETHPERP", asset.USDCMarginedFutures, true)
+	usdcMarginedTradablePair, err = b.ExtractCurrencyPair("ETHPERP", asset.USDCMarginedFutures, true)
 	if err != nil {
 		log.Fatal(err)
 	}
-	inverseTradablePair, err = b.extractCurrencyPair("ADAUSD", asset.CoinMarginedFutures, true)
+	inverseTradablePair, err = b.ExtractCurrencyPair("ADAUSD", asset.CoinMarginedFutures, true)
 	if err != nil {
 		log.Fatal(err)
 	}
-	optionsTradablePair, err = b.extractCurrencyPair("BTC-29DEC23-80000-C", asset.Options, true)
+	optionsTradablePair, err = b.ExtractCurrencyPair("BTC-29DEC23-80000-C", asset.Options, true)
 	if err != nil {
 		log.Fatal(err)
 	}

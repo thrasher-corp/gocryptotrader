@@ -3296,3 +3296,14 @@ func TestGetLongShortRatio(t *testing.T) {
 		t.Fatalf("expected %v, got %v", errInvalidCategory, err)
 	}
 }
+
+func TestExtractCurrencyPair(t *testing.T) {
+	t.Parallel()
+	dogeUSDT := currency.Pair{Base: currency.DOGE, Quote: currency.USDT}
+	pair, err := b.ExtractCurrencyPair("DOGEUSDT", asset.Spot, false)
+	if err != nil {
+		t.Fatal(err)
+	} else if !pair.Equal(dogeUSDT) {
+		t.Fatalf("expecting %v, got %v", dogeUSDT, pair)
+	}
+}
