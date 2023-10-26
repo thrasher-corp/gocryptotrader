@@ -465,20 +465,15 @@ func (co *CoinbaseInternational) SendHTTPRequest(ctx context.Context, ep exchang
 		headers := make(map[string]string)
 		headers["Content-Type"] = "application/json"
 		headers["Accept"] = "application/json"
-
 		if authenticated {
 			headers["CB-ACCESS-KEY"] = creds.Key
 			headers["CB-ACCESS-PASSPHRASE"] = creds.ClientID
 			headers["CB-ACCESS-TIMESTAMP"] = strconv.FormatInt(timestamp.Unix(), 10)
 			signatureString := headers["CB-ACCESS-TIMESTAMP"] + method + coinbaseAPIVersion + "/" + path + string(payload)
 			var hmac []byte
-			secretBytes, err := crypto.Base64Decode(creds.Secret)
-			if err != nil {
-				return nil, err
-			}
 			hmac, err = crypto.GetHMAC(crypto.HashSHA256,
 				[]byte(signatureString),
-				secretBytes)
+				[]byte(creds.Secret))
 			if err != nil {
 				return nil, err
 			}

@@ -324,15 +324,33 @@ type FundTransfer struct {
 	UpdatedAt    time.Time `json:"updated_at"`
 }
 
+// WithdrawToCoinbaseINTXParam holds withdraw funds parameters.
+type WithdrawToCoinbaseINTXParam struct {
+	ProfileID         string        `json:"profile_id"`
+	Amount            float64       `json:"amount,omitempty,string"`
+	CoinbaseAccountID string        `json:"coinbase_account_id,omitempty"`
+	Currency          currency.Code `json:"currency"`
+}
+
+// WithdrawToCoinbaseResponse represents a response after withdrawing to coinbase account.
+type WithdrawToCoinbaseResponse struct {
+	ID       string                  `json:"id"`
+	Amount   convert.StringToFloat64 `json:"amount"`
+	Fee      convert.StringToFloat64 `json:"fee"`
+	Currency string                  `json:"currency"`
+	PayoutAt string                  `json:"payout_at"`
+	Subtotal string                  `json:"subtotal"`
+}
+
 // WithdrawCryptoParams holds crypto fund withdrawal information.
 type WithdrawCryptoParams struct {
-	Portfolio            string  `json:"portfolio"` // Identifies the portfolio by UUID
-	AssetIdentifier      string  `json:"asset"`     // Identifies the asset by name
+	Portfolio            string  `json:"portfolio,omitempty"` // Identifies the portfolio by UUID
+	AssetIdentifier      string  `json:"asset"`               // Identifies the asset by name
 	Amount               float64 `json:"amount,string"`
-	AddNetworkFeeToTotal bool    `json:"add_network_fee_to_total"` // if true, deducts network fee from the portfolio, otherwise deduct fee from the withdrawal
-	NetworkArnID         string  `json:"network_arn_id"`           // Identifies the blockchain network
+	AddNetworkFeeToTotal bool    `json:"add_network_fee_to_total,omitempty"` // if true, deducts network fee from the portfolio, otherwise deduct fee from the withdrawal
+	NetworkArnID         string  `json:"network_arn_id,omitempty"`           // Identifies the blockchain network
 	Address              string  `json:"address"`
-	Nonce                string  `json:"nonce"`
+	Nonce                string  `json:"nonce,omitempty"`
 }
 
 // WithdrawalResponse holds crypto withdrawal ID information

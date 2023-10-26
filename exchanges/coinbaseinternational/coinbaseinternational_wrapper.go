@@ -2,7 +2,6 @@ package coinbaseinternational
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"strconv"
 	"sync"
@@ -60,19 +59,10 @@ func (co *CoinbaseInternational) SetDefaults() {
 	co.API.CredentialsValidator.RequiresClientID = true
 	co.API.CredentialsValidator.RequiresSecret = true
 	co.API.CredentialsValidator.RequiresBase64DecodeSecret = true
-	requestFmt := &currency.PairFormat{Uppercase: true, Delimiter: ":"}
-	configFmt := &currency.PairFormat{}
-	err := co.SetGlobalPairsManager(requestFmt, configFmt)
-	if err != nil {
-		log.Errorln(log.ExchangeSys, err)
-	}
-
-	fmt := currency.PairStore{
+	err := co.StoreAssetPairFormat(asset.Spot, currency.PairStore{
 		RequestFormat: &currency.PairFormat{Uppercase: true, Delimiter: currency.DashDelimiter},
 		ConfigFormat:  &currency.PairFormat{Uppercase: true, Delimiter: currency.DashDelimiter},
-	}
-
-	err = co.StoreAssetPairFormat(asset.Spot, fmt)
+	})
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
@@ -91,10 +81,8 @@ func (co *CoinbaseInternational) SetDefaults() {
 				CancelOrders:           true,
 				CancelOrder:            true,
 				SubmitOrder:            true,
-				SubmitOrders:           true,
 				ModifyOrder:            true,
 				WithdrawalHistory:      true,
-				UserTradeHistory:       true,
 				TradeFee:               true,
 				AccountInfo:            true,
 				AuthenticatedEndpoints: true,
@@ -151,7 +139,6 @@ func (co *CoinbaseInternational) Setup(exch *config.Exchange) error {
 	if err != nil {
 		return err
 	}
-
 	err = co.Websocket.Setup(&stream.WebsocketSetup{
 		ExchangeConfig:        exch,
 		DefaultURL:            coinbaseinternationalWSAPIURL,
@@ -600,7 +587,7 @@ func (co *CoinbaseInternational) CancelAllOrders(ctx context.Context, action *or
 		return order.CancelAllResponse{}, fmt.Errorf("%w asset type %v", asset.ErrNotSupported, action.AssetType)
 	}
 	if action.AccountID == "" {
-		return order.CancelAllResponse{}, errors.New("missing account ID")
+		return order.CancelAllResponse{}, fmt.Errorf("%w (account ID)", errMissingPortfolioID)
 	}
 	format, err := co.GetPairFormat(asset.Spot, true)
 	if err != nil {
