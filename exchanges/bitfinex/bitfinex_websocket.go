@@ -491,7 +491,7 @@ func (b *Bitfinex) handleWSEvent(respRaw []byte) error {
 }
 
 // handleWSSubscribed parses a subscription response and registers the chanID key immediately, before updating subscribeToChan via IncomingWithData chan
-// handleWS* happens sequentially, so by rekeying on chanID immediately we ensure the first message is not dropped
+// wsHandleData happens sequentially, so by rekeying on chanID immediately we ensure the first message is not dropped
 func (b *Bitfinex) handleWSSubscribed(respRaw []byte) error {
 	subID, err := jsonparser.GetUnsafeString(respRaw, "subId")
 	if err != nil {
