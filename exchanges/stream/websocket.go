@@ -60,6 +60,7 @@ var (
 	errInvalidMaxSubscriptions              = errors.New("max subscriptions cannot be less than 0")
 	errNoSubscriptionsSupplied              = errors.New("no subscriptions supplied")
 	errChannelAlreadySubscribed             = errors.New("channel already subscribed")
+	errInvalidChannelState                  = errors.New("invalid Channel state")
 )
 
 var globalReporter Reporter
@@ -964,6 +965,9 @@ func (w *Websocket) SetSubscriptionState(c *ChannelSubscription, state ChannelSt
 	}
 	if state == p.State {
 		return ErrChannelInStateAlready
+	}
+	if state > ChannelUnsubscribing {
+		return errInvalidChannelState
 	}
 	p.State = state
 	return nil

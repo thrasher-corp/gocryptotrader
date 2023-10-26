@@ -588,6 +588,7 @@ func TestSubscriptionState(t *testing.T) {
 	assert.Equal(t, ChannelSubscribing, found.State, "Subscription should be Subscribing")
 	assert.ErrorIs(t, ws.AddSubscription(c), ErrSubscribedAlready, "Adding an already existing sub should error")
 	assert.ErrorIs(t, ws.SetSubscriptionState(c, ChannelSubscribing), ErrChannelInStateAlready, "Setting Same state should error")
+	assert.ErrorIs(t, ws.SetSubscriptionState(c, ChannelUnsubscribing+1), errInvalidChannelState, "Setting an invalid state should error")
 
 	ws.AddSuccessfulSubscriptions(*c)
 	found = ws.GetSubscription(42)

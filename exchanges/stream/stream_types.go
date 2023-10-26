@@ -39,7 +39,7 @@ type DefaultChannelKey struct {
 }
 
 // ChannelState tracks the status of a subscription channel
-type ChannelState int
+type ChannelState uint8
 
 const (
 	ChannelStateUnknown  ChannelState = iota // ChannelStateUnknown means subscription state is not registered, but doesn't imply Inactive
