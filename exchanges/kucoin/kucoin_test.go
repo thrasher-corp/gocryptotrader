@@ -1119,7 +1119,7 @@ func TestGetTradingFee(t *testing.T) {
 	}
 
 	if len(got) != 10 {
-		t.Error("GetTradingFee() error, expected 10 pairss")
+		t.Error("GetTradingFee() error, expected 10 pairs")
 	}
 }
 
