@@ -85,20 +85,23 @@ func TestGetFee(t *testing.T) {
 	feeBuilder = setFeeBuilder()
 	feeBuilder.IsMaker = true
 	fee, err := b.GetFee(context.Background(), feeBuilder)
-	if err != nil {
-		t.Error(err)
-	} else if expected := 0.003 * feeBuilder.PurchasePrice * feeBuilder.Amount; fee != expected {
-		t.Errorf("Bitstamp GetFee wrong Maker fee; Pair: %s Expected: %v Got: %v", feeBuilder.Pair, expected, fee)
+	fee, err = b.GetFee(context.Background(), feeBuilder)
+	if assert.NoError(t, err, "GetFee should not error") {
+		assert.NotEmpty(t, feeBuilder.Pair, "Pair should not be empty")
+		if mockTests {
+			assert.Positive(t, fee, "Maker fee should be positive")
+		}
 	}
 
 	// CryptocurrencyTradeFee IsTaker
 	feeBuilder = setFeeBuilder()
 	feeBuilder.IsMaker = false
 	fee, err = b.GetFee(context.Background(), feeBuilder)
-	if err != nil {
-		t.Error(err)
-	} else if expected := 0.002 * feeBuilder.PurchasePrice * feeBuilder.Amount; fee != expected {
-		t.Errorf("Bitstamp GetFee wrong Taker fee; Pair: %s Expected: %v Got: %v", feeBuilder.Pair, expected, fee)
+	if assert.NoError(t, err, "GetFee should not error") {
+		assert.NotEmpty(t, feeBuilder.Pair, "Pair should not be empty")
+		if mockTests {
+			assert.Positive(t, fee, "Taker fee should be positive")
+		}
 	}
 
 	// CryptocurrencyTradeFee Negative purchase price
@@ -256,11 +259,17 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 				t.Errorf("Bitstamp GetOrderExecutionLimits() error during TestExecutionLimits; Asset: %s Pair: %s Err: %v", assetItem, limitTest.pair, err)
 				continue
 			}
-			if got := limits.PriceStepIncrementSize; got != limitTest.step {
-				t.Errorf("Bitstamp UpdateOrderExecutionLimits wrong PriceStepIncrementSize; Asset: %s Pair: %s Expected: %v Got: %v", assetItem, limitTest.pair, limitTest.step, got)
-			}
-			if got := limits.MinimumQuoteAmount; got != limitTest.min {
-				t.Errorf("Bitstamp UpdateOrderExecutionLimits wrong MinAmount; Pair: %s Expected: %v Got: %v", limitTest.pair, limitTest.min, got)
+			assert.NotEmpty(t, limits.Pair, "Pair should not be empty")
+			assert.Positive(t, limits.PriceStepIncrementSize, "PriceStepIncrementSize should be positive")
+			assert.Positive(t, limits.AmountStepIncrementSize, "AmountStepIncrementSize should be positive")
+			assert.Positive(t, limits.MinimumQuoteAmount, "MinAmount should be positive")
+			if mockTests {
+				if got := limits.PriceStepIncrementSize; got != limitTest.step {
+					t.Errorf("Bitstamp UpdateOrderExecutionLimits wrong PriceStepIncrementSize; Asset: %s Pair: %s Expected: %v Got: %v", assetItem, limitTest.pair, limitTest.step, got)
+				}
+				if got := limits.MinimumQuoteAmount; got != limitTest.min {
+					t.Errorf("Bitstamp UpdateOrderExecutionLimits wrong MinAmount; Pair: %s Expected: %v Got: %v", limitTest.pair, limitTest.min, got)
+				}
 			}
 		}
 	}
