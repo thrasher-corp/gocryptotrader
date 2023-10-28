@@ -678,7 +678,7 @@ func (co *CoinbaseInternational) WithdrawCryptocurrencyFunds(ctx context.Context
 		return nil, err
 	}
 	resp, err := co.WithdrawToCryptoAddress(ctx, &WithdrawCryptoParams{
-		Portfolio:       withdrawRequest.ClientOrderID,
+		Portfolio:       withdrawRequest.PortfolioID,
 		AssetIdentifier: withdrawRequest.Currency.String(),
 		Amount:          withdrawRequest.Amount,
 		Address:         withdrawRequest.Crypto.Address,

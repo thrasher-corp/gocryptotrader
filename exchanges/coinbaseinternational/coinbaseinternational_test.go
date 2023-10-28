@@ -569,9 +569,10 @@ func TestWithdrawCryptocurrencyFunds(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, co, canManipulateRealOrders)
 	_, err := co.WithdrawCryptocurrencyFunds(context.Background(), &withdraw.Request{
-		Exchange: co.Name,
-		Amount:   10,
-		Currency: currency.LTC,
+		Exchange:    co.Name,
+		Amount:      10,
+		Currency:    currency.LTC,
+		PortfolioID: "1234564",
 		Crypto: withdraw.CryptoRequest{
 			Chain:      currency.LTC.String(),
 			Address:    "3CDJNfdWX8m2NwuGUV3nhXHXEeLygMXoAj",

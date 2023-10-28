@@ -91,6 +91,9 @@ type Request struct {
 	Amount      float64       `json:"amount"`
 	Type        RequestType   `json:"type"`
 
+	// PortfolioID used exclusively in CoinbaseInternational
+	PortfolioID string `json:"portfolio"`
+
 	// Used exclusively in Binance.US
 	ClientOrderID string `json:"clientID"`
 
