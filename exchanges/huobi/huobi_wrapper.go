@@ -1058,7 +1058,7 @@ func (h *HUOBI) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Submit
 			// It is important to note that the above methods will not guarantee the order to be filled in 100%.
 			// The system will obtain the optimal N price at that moment and place the order.
 			oType = "optimal_20"
-			if s.ImmediateOrCancel {
+			if s.TimeInForce == order.IOC {
 				oType = "optimal_20_ioc"
 			}
 		case order.Limit:

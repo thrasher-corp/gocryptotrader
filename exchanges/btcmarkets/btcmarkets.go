@@ -376,13 +376,12 @@ func (b *BTCMarkets) formatOrderSide(o order.Side) (string, error) {
 
 // getTimeInForce returns a string depending on the options in order.Submit
 func (b *BTCMarkets) getTimeInForce(s *order.Submit) string {
-	if s.ImmediateOrCancel {
-		return immediateOrCancel
+	switch s.TimeInForce {
+	case order.IOC, order.FOK:
+		return s.TimeInForce.String()
+	default:
+		return "" // GTC (good till cancelled, default value)
 	}
-	if s.FillOrKill {
-		return fillOrKill
-	}
-	return "" // GTC (good till cancelled, default value)
 }
 
 // NewOrder requests a new order and returns an ID

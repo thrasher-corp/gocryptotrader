@@ -44,9 +44,8 @@ type Submit struct {
 	Pair      currency.Pair
 	AssetType asset.Item
 
-	// Time in force values ------ TODO: Time In Force uint8
-	ImmediateOrCancel bool
-	FillOrKill        bool
+	// TimeInForce holds time in force values
+	TimeInForce TimeInForce
 
 	PostOnly bool
 	// ReduceOnly reduces a position instead of opening an opposing
@@ -96,17 +95,16 @@ type SubmitResponse struct {
 	Pair      currency.Pair
 	AssetType asset.Item
 
-	ImmediateOrCancel bool
-	FillOrKill        bool
-	PostOnly          bool
-	ReduceOnly        bool
-	Leverage          float64
-	Price             float64
-	Amount            float64
-	QuoteAmount       float64
-	TriggerPrice      float64
-	ClientID          string
-	ClientOrderID     string
+	TimeInForce   TimeInForce
+	PostOnly      bool
+	ReduceOnly    bool
+	Leverage      float64
+	Price         float64
+	Amount        float64
+	QuoteAmount   float64
+	TriggerPrice  float64
+	ClientID      string
+	ClientOrderID string
 
 	LastUpdated time.Time
 	Date        time.Time
@@ -137,11 +135,11 @@ type Modify struct {
 	Pair          currency.Pair
 
 	// Change fields
-	ImmediateOrCancel bool
-	PostOnly          bool
-	Price             float64
-	Amount            float64
-	TriggerPrice      float64
+	TimeInForce  TimeInForce
+	PostOnly     bool
+	Price        float64
+	Amount       float64
+	TriggerPrice float64
 }
 
 // ModifyResponse is an order modifying return type
@@ -157,11 +155,11 @@ type ModifyResponse struct {
 	AssetType     asset.Item
 
 	// Fields that will be copied over from Modify
-	ImmediateOrCancel bool
-	PostOnly          bool
-	Price             float64
-	Amount            float64
-	TriggerPrice      float64
+	TimeInForce  TimeInForce
+	PostOnly     bool
+	Price        float64
+	Amount       float64
+	TriggerPrice float64
 
 	// Fields that need to be handled in scope after DeriveModifyResponse()
 	// if applicable
@@ -174,9 +172,8 @@ type ModifyResponse struct {
 // Each exchange has their own requirements, so not all fields
 // are required to be populated
 type Detail struct {
-	ImmediateOrCancel    bool
 	HiddenOrder          bool
-	FillOrKill           bool
+	TimeInForce          TimeInForce
 	PostOnly             bool
 	ReduceOnly           bool
 	Leverage             float64
@@ -369,6 +366,23 @@ const (
 	CouldNotCloseShort
 	CouldNotCloseLong
 	MissingData
+)
+
+// TimeInForce enforces a standard for time-in-force values accross the code base.
+type TimeInForce uint8
+
+const (
+	UnknownTIF     TimeInForce = 0
+	GoodTillCancel TimeInForce = iota
+	GoodTillTime
+	FOK // FOK represents FillOrKill, used shorter version as the FillOrKill name is reserved for order type value.
+	IOC // IOC represents ImmediateOrCancel, used shorter version as the ImmediateOrCancel name is reserved for order type value.
+
+	supportedTimeInForceFlag = UnknownTIF | GoodTillCancel | GoodTillTime | FOK | IOC
+)
+
+var (
+	supportedTIFItems = []TimeInForce{GoodTillCancel, GoodTillTime, FOK, IOC}
 )
 
 // ByPrice used for sorting orders by price

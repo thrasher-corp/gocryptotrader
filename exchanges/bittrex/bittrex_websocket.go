@@ -602,23 +602,29 @@ func (b *Bittrex) WsProcessUpdateOrder(data *OrderUpdateMessage) error {
 			Err:      err,
 		}
 	}
-
+	timeInForce, err := order.StringToTimeInForce(data.Delta.TimeInForce)
+	if err != nil {
+		b.Websocket.DataHandler <- order.ClassificationError{
+			Exchange: b.Name,
+			OrderID:  data.Delta.ID,
+			Err:      err,
+		}
+	}
 	b.Websocket.DataHandler <- &order.Detail{
-		ImmediateOrCancel: data.Delta.TimeInForce == string(ImmediateOrCancel),
-		FillOrKill:        data.Delta.TimeInForce == string(GoodTilCancelled),
-		PostOnly:          data.Delta.TimeInForce == string(PostOnlyGoodTilCancelled),
-		Price:             data.Delta.Limit,
-		Amount:            data.Delta.Quantity,
-		RemainingAmount:   data.Delta.Quantity - data.Delta.FillQuantity,
-		ExecutedAmount:    data.Delta.FillQuantity,
-		Exchange:          b.Name,
-		OrderID:           data.Delta.ID,
-		Type:              orderType,
-		Side:              orderSide,
-		Status:            orderStatus,
-		AssetType:         asset.Spot,
-		Date:              data.Delta.CreatedAt,
-		Pair:              pair,
+		TimeInForce:     timeInForce,
+		PostOnly:        data.Delta.TimeInForce == string(PostOnlyGoodTilCancelled),
+		Price:           data.Delta.Limit,
+		Amount:          data.Delta.Quantity,
+		RemainingAmount: data.Delta.Quantity - data.Delta.FillQuantity,
+		ExecutedAmount:  data.Delta.FillQuantity,
+		Exchange:        b.Name,
+		OrderID:         data.Delta.ID,
+		Type:            orderType,
+		Side:            orderSide,
+		Status:          orderStatus,
+		AssetType:       asset.Spot,
+		Date:            data.Delta.CreatedAt,
+		Pair:            pair,
 	}
 	return nil
 }

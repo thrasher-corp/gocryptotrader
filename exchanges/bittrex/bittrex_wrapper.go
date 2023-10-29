@@ -698,9 +698,9 @@ func (b *Bittrex) GetOrderInfo(ctx context.Context, orderID string, _ currency.P
 
 // ConstructOrderDetail constructs an order detail item from the underlying data
 func (b *Bittrex) ConstructOrderDetail(orderData *OrderData) (*order.Detail, error) {
-	immediateOrCancel := false
-	if orderData.TimeInForce == string(ImmediateOrCancel) {
-		immediateOrCancel = true
+	timeInForce, err := order.StringToTimeInForce(orderData.TimeInForce)
+	if err != nil {
+		timeInForce = order.UnknownTIF
 	}
 
 	format, err := b.GetPairFormat(asset.Spot, false)
@@ -743,17 +743,17 @@ func (b *Bittrex) ConstructOrderDetail(orderData *OrderData) (*order.Detail, err
 	}
 
 	return &order.Detail{
-		ImmediateOrCancel: immediateOrCancel,
-		Amount:            orderData.Quantity,
-		ExecutedAmount:    orderData.FillQuantity,
-		RemainingAmount:   orderData.Quantity - orderData.FillQuantity,
-		Price:             orderData.Limit,
-		Date:              orderData.CreatedAt,
-		OrderID:           orderData.ID,
-		Exchange:          b.Name,
-		Type:              orderType,
-		Pair:              orderPair,
-		Status:            orderStatus,
+		TimeInForce:     timeInForce,
+		Amount:          orderData.Quantity,
+		ExecutedAmount:  orderData.FillQuantity,
+		RemainingAmount: orderData.Quantity - orderData.FillQuantity,
+		Price:           orderData.Limit,
+		Date:            orderData.CreatedAt,
+		OrderID:         orderData.ID,
+		Exchange:        b.Name,
+		Type:            orderType,
+		Pair:            orderPair,
+		Status:          orderStatus,
 	}, nil
 }
 

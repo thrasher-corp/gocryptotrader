@@ -37,7 +37,7 @@ var (
 	// ErrOrderNotFound is returned when no order is found
 	ErrOrderNotFound = errors.New("order not found")
 
-	errTimeInForceConflict      = errors.New("multiple time in force options applied")
+	errInvalidTimeInForce       = errors.New("invalid time in force value provided")
 	errUnrecognisedOrderType    = errors.New("unrecognised order type")
 	errUnrecognisedOrderStatus  = errors.New("unrecognised order status")
 	errExchangeNameUnset        = errors.New("exchange name unset")
@@ -82,8 +82,8 @@ func (s *Submit) Validate(opt ...validate.Checker) error {
 		return ErrTypeIsInvalid
 	}
 
-	if s.ImmediateOrCancel && s.FillOrKill {
-		return errTimeInForceConflict
+	if !s.TimeInForce.IsValid() {
+		return errInvalidTimeInForce
 	}
 
 	if s.Amount == 0 && s.QuoteAmount == 0 {
@@ -124,16 +124,12 @@ func (d *Detail) UpdateOrderFromDetail(m *Detail) error {
 	}
 
 	var updated bool
-	if d.ImmediateOrCancel != m.ImmediateOrCancel {
-		d.ImmediateOrCancel = m.ImmediateOrCancel
+	if d.TimeInForce != m.TimeInForce {
+		d.TimeInForce = m.TimeInForce
 		updated = true
 	}
 	if d.HiddenOrder != m.HiddenOrder {
 		d.HiddenOrder = m.HiddenOrder
-		updated = true
-	}
-	if d.FillOrKill != m.FillOrKill {
-		d.FillOrKill = m.FillOrKill
 		updated = true
 	}
 	if m.Price > 0 && m.Price != d.Price {
@@ -291,8 +287,8 @@ func (d *Detail) UpdateOrderFromModifyResponse(m *ModifyResponse) {
 		d.OrderID = m.OrderID
 		updated = true
 	}
-	if d.ImmediateOrCancel != m.ImmediateOrCancel {
-		d.ImmediateOrCancel = m.ImmediateOrCancel
+	if d.TimeInForce != m.TimeInForce && m.TimeInForce != UnknownTIF {
+		d.TimeInForce = m.TimeInForce
 		updated = true
 	}
 	if m.Price > 0 && m.Price != d.Price {
@@ -467,18 +463,17 @@ func (s *Submit) DeriveSubmitResponse(orderID string) (*SubmitResponse, error) {
 		Pair:      s.Pair,
 		AssetType: s.AssetType,
 
-		ImmediateOrCancel: s.ImmediateOrCancel,
-		FillOrKill:        s.FillOrKill,
-		PostOnly:          s.PostOnly,
-		ReduceOnly:        s.ReduceOnly,
-		Leverage:          s.Leverage,
-		Price:             s.Price,
-		Amount:            s.Amount,
-		QuoteAmount:       s.QuoteAmount,
-		TriggerPrice:      s.TriggerPrice,
-		ClientID:          s.ClientID,
-		ClientOrderID:     s.ClientOrderID,
-		MarginType:        s.MarginType,
+		TimeInForce:   s.TimeInForce,
+		PostOnly:      s.PostOnly,
+		ReduceOnly:    s.ReduceOnly,
+		Leverage:      s.Leverage,
+		Price:         s.Price,
+		Amount:        s.Amount,
+		QuoteAmount:   s.QuoteAmount,
+		TriggerPrice:  s.TriggerPrice,
+		ClientID:      s.ClientID,
+		ClientOrderID: s.ClientOrderID,
+		MarginType:    s.MarginType,
 
 		LastUpdated: time.Now(),
 		Date:        time.Now(),
@@ -560,17 +555,16 @@ func (s *SubmitResponse) DeriveDetail(internal uuid.UUID) (*Detail, error) {
 		Pair:      s.Pair,
 		AssetType: s.AssetType,
 
-		ImmediateOrCancel: s.ImmediateOrCancel,
-		FillOrKill:        s.FillOrKill,
-		PostOnly:          s.PostOnly,
-		ReduceOnly:        s.ReduceOnly,
-		Leverage:          s.Leverage,
-		Price:             s.Price,
-		Amount:            s.Amount,
-		QuoteAmount:       s.QuoteAmount,
-		TriggerPrice:      s.TriggerPrice,
-		ClientID:          s.ClientID,
-		ClientOrderID:     s.ClientOrderID,
+		TimeInForce:   s.TimeInForce,
+		PostOnly:      s.PostOnly,
+		ReduceOnly:    s.ReduceOnly,
+		Leverage:      s.Leverage,
+		Price:         s.Price,
+		Amount:        s.Amount,
+		QuoteAmount:   s.QuoteAmount,
+		TriggerPrice:  s.TriggerPrice,
+		ClientID:      s.ClientID,
+		ClientOrderID: s.ClientOrderID,
 
 		InternalOrderID: internal,
 
@@ -620,18 +614,18 @@ func (m *Modify) DeriveModifyResponse() (*ModifyResponse, error) {
 		return nil, errOrderDetailIsNil
 	}
 	return &ModifyResponse{
-		Exchange:          m.Exchange,
-		OrderID:           m.OrderID,
-		ClientOrderID:     m.ClientOrderID,
-		Type:              m.Type,
-		Side:              m.Side,
-		AssetType:         m.AssetType,
-		Pair:              m.Pair,
-		ImmediateOrCancel: m.ImmediateOrCancel,
-		PostOnly:          m.PostOnly,
-		Price:             m.Price,
-		Amount:            m.Amount,
-		TriggerPrice:      m.TriggerPrice,
+		Exchange:      m.Exchange,
+		OrderID:       m.OrderID,
+		ClientOrderID: m.ClientOrderID,
+		Type:          m.Type,
+		Side:          m.Side,
+		AssetType:     m.AssetType,
+		Pair:          m.Pair,
+		TimeInForce:   m.TimeInForce,
+		PostOnly:      m.PostOnly,
+		Price:         m.Price,
+		Amount:        m.Amount,
+		TriggerPrice:  m.TriggerPrice,
 	}, nil
 }
 
@@ -693,6 +687,22 @@ func (t Type) String() string {
 		return "OPTIMAL_LIMIT_IOC"
 	case OCO:
 		return "OCO"
+	default:
+		return "UNKNOWN"
+	}
+}
+
+// String implements the stringer interface.
+func (t TimeInForce) String() string {
+	switch t {
+	case IOC:
+		return "IOC"
+	case GoodTillCancel:
+		return "GTC"
+	case GoodTillTime:
+		return "GTT"
+	case FOK:
+		return "FOK"
 	default:
 		return "UNKNOWN"
 	}
@@ -1157,6 +1167,34 @@ func StringToOrderStatus(status string) (Status, error) {
 	default:
 		return UnknownStatus, fmt.Errorf("'%s' %w", status, errUnrecognisedOrderStatus)
 	}
+}
+
+// StringToTimeInForce converts time in force string value to TimeInForce instance.
+func StringToTimeInForce(timeInForce string) (TimeInForce, error) {
+	timeInForce = strings.ToUpper(timeInForce)
+	switch timeInForce {
+	case "IOC", "IMMEDIATEORCANCEL", "IMMEDIATE_OR_CANCEL":
+		return IOC, nil
+	case "GTC", "GOODTILLCANCEL", "GOOD_TIL_CANCELLED":
+		return GoodTillCancel, nil
+	case "GTT", "GOODTILLTIME":
+		return GoodTillTime, nil
+	case "FOK", "FILLORKILL", "FILL_OR_KILL":
+		return FOK, nil
+	default:
+		return UnknownTIF, errInvalidTimeInForce
+	}
+}
+
+// Supported returns a list of supported time in force types
+func Supported() []TimeInForce {
+	return supportedTIFItems
+}
+
+// IsValid returns whether or not the supplied time in force value is valid or
+// not
+func (a TimeInForce) IsValid() bool {
+	return a == UnknownTIF || supportedTimeInForceFlag&a == a
 }
 
 func (o *ClassificationError) Error() string {

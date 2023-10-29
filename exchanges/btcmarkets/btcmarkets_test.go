@@ -987,12 +987,12 @@ func TestGetTimeInForce(t *testing.T) {
 		t.Fatal("unexpected value")
 	}
 
-	f = b.getTimeInForce(&order.Submit{ImmediateOrCancel: true})
+	f = b.getTimeInForce(&order.Submit{TimeInForce: order.IOC})
 	if f != immediateOrCancel {
 		t.Fatalf("received: '%v' but expected: '%v'", f, immediateOrCancel)
 	}
 
-	f = b.getTimeInForce(&order.Submit{FillOrKill: true})
+	f = b.getTimeInForce(&order.Submit{TimeInForce: order.FOK})
 	if f != fillOrKill {
 		t.Fatalf("received: '%v' but expected: '%v'", f, fillOrKill)
 	}

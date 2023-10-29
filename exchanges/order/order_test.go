@@ -62,15 +62,14 @@ func TestSubmit_Validate(t *testing.T) {
 			},
 		}, // valid pair but invalid order side
 		{
-			ExpectedErr: errTimeInForceConflict,
+			ExpectedErr: errInvalidTimeInForce,
 			Submit: &Submit{
-				Exchange:          "test",
-				Pair:              testPair,
-				AssetType:         asset.Spot,
-				Side:              Ask,
-				Type:              Market,
-				ImmediateOrCancel: true,
-				FillOrKill:        true,
+				Exchange:    "test",
+				Pair:        testPair,
+				AssetType:   asset.Spot,
+				Side:        Ask,
+				Type:        Market,
+				TimeInForce: TimeInForce(89),
 			},
 		},
 		{
@@ -998,24 +997,24 @@ func TestUpdateOrderFromModifyResponse(t *testing.T) {
 	}
 
 	om := ModifyResponse{
-		ImmediateOrCancel: true,
-		PostOnly:          true,
-		Price:             1,
-		Amount:            1,
-		TriggerPrice:      1,
-		RemainingAmount:   1,
-		Exchange:          "1",
-		Type:              1,
-		Side:              1,
-		Status:            1,
-		AssetType:         1,
-		LastUpdated:       updated,
-		Pair:              pair,
+		TimeInForce:     IOC,
+		PostOnly:        true,
+		Price:           1,
+		Amount:          1,
+		TriggerPrice:    1,
+		RemainingAmount: 1,
+		Exchange:        "1",
+		Type:            1,
+		Side:            1,
+		Status:          1,
+		AssetType:       1,
+		LastUpdated:     updated,
+		Pair:            pair,
 	}
 
 	od.UpdateOrderFromModifyResponse(&om)
 
-	if !od.ImmediateOrCancel {
+	if od.TimeInForce == UnknownTIF {
 		t.Error("Failed to update")
 	}
 	if !od.PostOnly {
@@ -1084,34 +1083,33 @@ func TestUpdateOrderFromDetail(t *testing.T) {
 	}
 
 	om := &Detail{
-		ImmediateOrCancel: true,
-		HiddenOrder:       true,
-		FillOrKill:        true,
-		PostOnly:          true,
-		Leverage:          1,
-		Price:             1,
-		Amount:            1,
-		LimitPriceUpper:   1,
-		LimitPriceLower:   1,
-		TriggerPrice:      1,
-		QuoteAmount:       1,
-		ExecutedAmount:    1,
-		RemainingAmount:   1,
-		Fee:               1,
-		Exchange:          "1",
-		InternalOrderID:   id,
-		OrderID:           "1",
-		AccountID:         "1",
-		ClientID:          "1",
-		ClientOrderID:     "DukeOfWombleton",
-		WalletAddress:     "1",
-		Type:              1,
-		Side:              1,
-		Status:            1,
-		AssetType:         1,
-		LastUpdated:       updated,
-		Pair:              pair,
-		Trades:            []TradeHistory{},
+		TimeInForce:     GoodTillCancel,
+		HiddenOrder:     true,
+		PostOnly:        true,
+		Leverage:        1,
+		Price:           1,
+		Amount:          1,
+		LimitPriceUpper: 1,
+		LimitPriceLower: 1,
+		TriggerPrice:    1,
+		QuoteAmount:     1,
+		ExecutedAmount:  1,
+		RemainingAmount: 1,
+		Fee:             1,
+		Exchange:        "1",
+		InternalOrderID: id,
+		OrderID:         "1",
+		AccountID:       "1",
+		ClientID:        "1",
+		ClientOrderID:   "DukeOfWombleton",
+		WalletAddress:   "1",
+		Type:            1,
+		Side:            1,
+		Status:          1,
+		AssetType:       1,
+		LastUpdated:     updated,
+		Pair:            pair,
+		Trades:          []TradeHistory{},
 	}
 
 	od = &Detail{Exchange: "test"}
@@ -1128,13 +1126,10 @@ func TestUpdateOrderFromDetail(t *testing.T) {
 	if od.InternalOrderID != id {
 		t.Error("Failed to initialize the internal order ID")
 	}
-	if !od.ImmediateOrCancel {
+	if od.TimeInForce != GoodTillCancel {
 		t.Error("Failed to update")
 	}
 	if !od.HiddenOrder {
-		t.Error("Failed to update")
-	}
-	if !od.FillOrKill {
 		t.Error("Failed to update")
 	}
 	if !od.PostOnly {
@@ -2061,4 +2056,28 @@ func TestSideUnmarshal(t *testing.T) {
 	assert.ErrorIs(t, s.UnmarshalJSON([]byte(`"STEAL"`)), ErrSideIsInvalid, "Quoted invalid side errors")
 	var jErr *json.UnmarshalTypeError
 	assert.ErrorAs(t, s.UnmarshalJSON([]byte(`14`)), &jErr, "non-string valid json is rejected")
+}
+
+func TestSupported(t *testing.T) {
+	t.Parallel()
+	s := Supported()
+	if len(supportedTIFItems) != len(s) {
+		t.Fatal("TestSupported mismatched lengths")
+	}
+	for i := 0; i < len(supportedTIFItems); i++ {
+		if s[i] != supportedTIFItems[i] {
+			t.Fatal("TestSupported returned an unexpected result")
+		}
+	}
+}
+
+func TestIsValid(t *testing.T) {
+	t.Parallel()
+	if TimeInForce(50).IsValid() {
+		t.Fatal("TestIsValid returned an unexpected result")
+	}
+
+	if !GoodTillCancel.IsValid() {
+		t.Fatal("TestIsValid returned an unexpected result")
+	}
 }
