@@ -368,9 +368,10 @@ const (
 	MissingData
 )
 
-// TimeInForce enforces a standard for time-in-force values accross the code base.
+// TimeInForce enforces a standard for time-in-force values across the code base.
 type TimeInForce uint8
 
+// TimeInForce types
 const (
 	UnknownTIF     TimeInForce = 0
 	GoodTillCancel TimeInForce = iota

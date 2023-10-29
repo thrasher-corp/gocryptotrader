@@ -569,13 +569,13 @@ func (c *CoinbasePro) SubmitOrder(ctx context.Context, s *order.Submit) (*order.
 		}
 		orderID, err = c.PlaceLimitOrder(ctx,
 			"",
-			s.Price,
-			s.Amount,
 			s.Side.Lower(),
 			timeInForce,
 			"",
 			fPair.String(),
 			"",
+			s.Price,
+			s.Amount,
 			false)
 	default:
 		err = fmt.Errorf("%w %v", order.ErrUnsupportedOrderType, s.Type)

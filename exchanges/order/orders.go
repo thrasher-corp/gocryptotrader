@@ -1193,8 +1193,8 @@ func Supported() []TimeInForce {
 
 // IsValid returns whether or not the supplied time in force value is valid or
 // not
-func (a TimeInForce) IsValid() bool {
-	return a == UnknownTIF || supportedTimeInForceFlag&a == a
+func (t TimeInForce) IsValid() bool {
+	return t == UnknownTIF || supportedTimeInForceFlag&t == t
 }
 
 func (o *ClassificationError) Error() string {
