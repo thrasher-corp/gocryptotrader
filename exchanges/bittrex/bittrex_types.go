@@ -19,11 +19,11 @@ type TimeInForce string
 
 // All order status types
 const (
-	GoodTilCancelled         TimeInForce = "GOOD_TIL_CANCELLED"
-	ImmediateOrCancel        TimeInForce = "IMMEDIATE_OR_CANCEL"
-	FillOrKill               TimeInForce = "FILL_OR_KILL"
-	PostOnlyGoodTilCancelled TimeInForce = "POST_ONLY_GOOD_TIL_CANCELLED"
-	BuyNow                   TimeInForce = "BUY_NOW"
+	GoodTilCancelled         = "GOOD_TIL_CANCELLED"
+	ImmediateOrCancel        = "IMMEDIATE_OR_CANCEL"
+	FillOrKill               = "FILL_OR_KILL"
+	PostOnlyGoodTilCancelled = "POST_ONLY_GOOD_TIL_CANCELLED"
+	BuyNow                   = "BUY_NOW"
 )
 
 // OrderData holds order data
