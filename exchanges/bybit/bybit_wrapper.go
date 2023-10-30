@@ -324,6 +324,9 @@ func (by *Bybit) FetchTradablePairs(ctx context.Context, a asset.Item) (currency
 	switch a {
 	case asset.Spot, asset.Options:
 		for x := range allPairs.List {
+			if allPairs.List[x].Status != "Trading" {
+				continue
+			}
 			pair, err = currency.NewPairFromStrings(allPairs.List[x].BaseCoin, allPairs.List[x].Symbol[len(allPairs.List[x].BaseCoin):])
 			if err != nil {
 				return nil, err
@@ -571,8 +574,13 @@ func (by *Bybit) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (a
 		return info, err
 	}
 	currencyBalance := []account.Balance{}
+	reservedPairs := make(map[string]struct{})
 	for i := range balances.List {
 		for c := range balances.List[i].Coin {
+			_, okay := reservedPairs[balances.List[i].Coin[c].Coin]
+			if okay {
+				continue
+			}
 			balance := account.Balance{
 				Currency: currency.NewCode(balances.List[i].Coin[c].Coin),
 				Total:    balances.List[i].TotalWalletBalance.Float64(),
@@ -583,6 +591,7 @@ func (by *Bybit) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (a
 			if assetType == asset.Spot && balances.List[i].Coin[c].AvailableBalanceForSpot.Float64() != 0 {
 				balance.Free = balances.List[i].Coin[c].AvailableBalanceForSpot.Float64()
 			}
+			reservedPairs[balances.List[i].Coin[c].Coin] = struct{}{}
 			currencyBalance = append(currencyBalance, balance)
 		}
 	}
@@ -1045,7 +1054,7 @@ func (by *Bybit) GetOrderInfo(ctx context.Context, orderID string, pair currency
 			Pair:           pair,
 			Cost:           resp.List[0].CumulativeExecQuantity.Float64() * resp.List[0].AveragePrice.Float64(),
 			AssetType:      assetType,
-			Status:         getOrderStatus(resp.List[0].OrderStatus),
+			Status:         StringToOrderStatus(resp.List[0].OrderStatus),
 			Price:          resp.List[0].Price.Float64(),
 			ExecutedAmount: resp.List[0].CumulativeExecQuantity.Float64(),
 			Date:           resp.List[0].CreatedTime.Time(),
@@ -1177,7 +1186,7 @@ func (by *Bybit) GetActiveOrders(ctx context.Context, req *order.MultiOrderReque
 						Side:                 getSide(openOrders.List[x].Side),
 						Type:                 orderType,
 						Price:                openOrders.List[x].Price.Float64(),
-						Status:               getOrderStatus(openOrders.List[x].OrderStatus),
+						Status:               StringToOrderStatus(openOrders.List[x].OrderStatus),
 						Pair:                 req.Pairs[i],
 						AssetType:            req.AssetType,
 						LastUpdated:          openOrders.List[x].UpdatedTime.Time(),
@@ -1205,10 +1214,14 @@ func (by *Bybit) GetOrderHistory(ctx context.Context, req *order.MultiOrderReque
 	if err != nil {
 		return nil, err
 	}
+	limit := int64(200)
+	if req.AssetType == asset.Options {
+		limit = 25
+	}
 	var orders []order.Detail
 	switch req.AssetType {
 	case asset.USDTMarginedFutures, asset.USDCMarginedFutures, asset.CoinMarginedFutures, asset.Options:
-		resp, err := by.GetTradeOrderHistory(ctx, getCategoryName(req.AssetType), "", req.FromOrderID, "", "", "", "", "", "", req.StartTime, req.EndTime, 50)
+		resp, err := by.GetTradeOrderHistory(ctx, getCategoryName(req.AssetType), "", req.FromOrderID, "", "", "", "", "", "", req.StartTime, req.EndTime, limit)
 		if err != nil {
 			return nil, err
 		}
@@ -1242,7 +1255,7 @@ func (by *Bybit) GetOrderHistory(ctx context.Context, req *order.MultiOrderReque
 				Type:                 orderType,
 				Price:                resp.List[i].Price.Float64(),
 				Pair:                 pair,
-				Status:               getOrderStatus(resp.List[i].OrderStatus),
+				Status:               StringToOrderStatus(resp.List[i].OrderStatus),
 				ReduceOnly:           resp.List[i].ReduceOnly,
 				TriggerPrice:         resp.List[i].TriggerPrice.Float64(),
 				AverageExecutedPrice: resp.List[i].AveragePrice.Float64(),
@@ -1255,7 +1268,7 @@ func (by *Bybit) GetOrderHistory(ctx context.Context, req *order.MultiOrderReque
 			orders = append(orders, detail)
 		}
 	case asset.Spot:
-		resp, err := by.GetTradeOrderHistory(ctx, getCategoryName(req.AssetType), "", req.FromOrderID, "", "", "", "", "", "", req.StartTime, req.EndTime, 50)
+		resp, err := by.GetTradeOrderHistory(ctx, getCategoryName(req.AssetType), "", req.FromOrderID, "", "", "", "", "", "", req.StartTime, req.EndTime, limit)
 		if err != nil {
 			return nil, err
 		}
@@ -1289,7 +1302,7 @@ func (by *Bybit) GetOrderHistory(ctx context.Context, req *order.MultiOrderReque
 				Type:                 orderType,
 				Price:                resp.List[i].Price.Float64(),
 				Pair:                 pair,
-				Status:               getOrderStatus(resp.List[i].OrderStatus),
+				Status:               StringToOrderStatus(resp.List[i].OrderStatus),
 				ReduceOnly:           resp.List[i].ReduceOnly,
 				TriggerPrice:         resp.List[i].TriggerPrice.Float64(),
 				AverageExecutedPrice: resp.List[i].AveragePrice.Float64(),
@@ -1798,12 +1811,8 @@ func (by *Bybit) ExtractCurrencyPair(symbol string, assetType asset.Item, reques
 	}
 	var pair currency.Pair
 	switch assetType {
-	case asset.Options, asset.USDCMarginedFutures:
-		pair, err = currency.NewPairFromString(symbol)
-		if err != nil {
-			return currency.EMPTYPAIR, err
-		}
-	case asset.Spot, asset.USDTMarginedFutures, asset.CoinMarginedFutures:
+	case asset.Options, asset.USDCMarginedFutures, asset.Spot,
+		asset.USDTMarginedFutures, asset.CoinMarginedFutures:
 		pair, err = by.MatchSymbolWithAvailablePairs(symbol, assetType, true)
 		if err != nil {
 			return currency.EMPTYPAIR, err

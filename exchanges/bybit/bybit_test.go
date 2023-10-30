@@ -420,7 +420,7 @@ func TestCancelAllOrders(t *testing.T) {
 		t.Skip("skipping authenticated function for mock testing")
 	}
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
-	_, err := b.CancelAllOrders(context.Background(), &order.Cancel{AssetType: asset.Spot})
+	_, err := b.CancelAllOrders(context.Background(), &order.Cancel{AssetType: asset.Spot, Pair: spotTradablePair})
 	if err != nil {
 		t.Error(err)
 	}
@@ -436,7 +436,7 @@ func TestCancelAllOrders(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = b.CancelAllOrders(context.Background(), &order.Cancel{Exchange: b.Name, AssetType: asset.Futures})
+	_, err = b.CancelAllOrders(context.Background(), &order.Cancel{Exchange: b.Name, AssetType: asset.Futures, Pair: spotTradablePair})
 	if !errors.Is(err, asset.ErrNotSupported) {
 		t.Errorf("expected %v, but found %v", asset.ErrNotSupported, err)
 	}
@@ -3305,5 +3305,49 @@ func TestExtractCurrencyPair(t *testing.T) {
 		t.Fatal(err)
 	} else if !pair.Equal(dogeUSDT) {
 		t.Fatalf("expecting %v, got %v", dogeUSDT, pair)
+	}
+}
+
+func TestStringToOrderStatus(t *testing.T) {
+	t.Parallel()
+	input := []struct {
+		OrderStatus string
+		Expectation order.Status
+	}{
+		{
+			OrderStatus: "",
+			Expectation: order.UnknownStatus,
+		},
+		{
+			OrderStatus: "UNKNOWN",
+			Expectation: order.UnknownStatus,
+		},
+		{
+			OrderStatus: "Cancelled",
+			Expectation: order.Cancelled,
+		},
+		{
+			OrderStatus: "ACTIVE",
+			Expectation: order.Active,
+		},
+		{
+			OrderStatus: "NEW",
+			Expectation: order.New,
+		},
+		{
+			OrderStatus: "FILLED",
+			Expectation: order.Filled,
+		},
+		{
+			OrderStatus: "UNTRIGGERED",
+			Expectation: order.Pending,
+		},
+	}
+	var oStatus order.Status
+	for x := range input {
+		oStatus = StringToOrderStatus(input[x].OrderStatus)
+		if oStatus != input[x].Expectation {
+			t.Fatalf("expected %v, got %v", input[x].Expectation, oStatus)
+		}
 	}
 }

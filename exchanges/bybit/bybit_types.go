@@ -1225,20 +1225,20 @@ type SubUIDAPIResponse struct {
 	Secret      string              `json:"secret"`
 	Permissions map[string][]string `json:"permissions"`
 
-	IPS           []string  `json:"ips"`
-	Type          int64     `json:"type"`
-	DeadlineDay   int64     `json:"deadlineDay"`
-	ExpiredAt     time.Time `json:"expiredAt"`
-	CreatedAt     time.Time `json:"createdAt"`
-	IsUnified     int64     `json:"unified"` // Whether the account to which the account upgrade to unified margin account.
-	UTA           int64     `json:"uta"`     // Whether the account to which the account upgrade to unified trade account.
-	UserID        int64     `json:"userID"`
-	InviterID     int64     `json:"inviterID"`
-	VipLevel      string    `json:"vipLevel"`
-	MktMakerLevel string    `json:"mktMakerLevel"`
-	AffiliateID   int64     `json:"affiliateID"`
-	RsaPublicKey  string    `json:"rsaPublicKey"`
-	IsMaster      bool      `json:"isMaster"`
+	IPS                   []string  `json:"ips"`
+	Type                  int64     `json:"type"`
+	DeadlineDay           int64     `json:"deadlineDay"`
+	ExpiredAt             time.Time `json:"expiredAt"`
+	CreatedAt             time.Time `json:"createdAt"`
+	IsMarginUnified       int64     `json:"unified"` // Whether the account to which the account upgrade to unified margin account.
+	IsUnifiedTradeAccount int64     `json:"uta"`     // Whether the account to which the account upgrade to unified trade account.
+	UserID                int64     `json:"userID"`
+	InviterID             int64     `json:"inviterID"`
+	VipLevel              string    `json:"vipLevel"`
+	MktMakerLevel         string    `json:"mktMakerLevel"`
+	AffiliateID           int64     `json:"affiliateID"`
+	RsaPublicKey          string    `json:"rsaPublicKey"`
+	IsMaster              bool      `json:"isMaster"`
 }
 
 // WalletType represents available wallet types for the master account or sub account

@@ -425,7 +425,7 @@ func (by *Bybit) wsProcessOrder(assetType asset.Item, resp *WebsocketResponse) e
 			Pair:           cp,
 			Cost:           result[x].CumExecQty.Float64() * result[x].AvgPrice.Float64(),
 			AssetType:      assetType,
-			Status:         getOrderStatus(result[x].OrderStatus),
+			Status:         StringToOrderStatus(result[x].OrderStatus),
 			Price:          result[x].Price.Float64(),
 			ExecutedAmount: result[x].CumExecQty.Float64(),
 			Date:           result[x].CreatedTime.Time(),

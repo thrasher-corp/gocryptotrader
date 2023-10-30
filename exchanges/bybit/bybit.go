@@ -10,6 +10,7 @@ import (
 	"net/url"
 	"reflect"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -2585,22 +2586,32 @@ func getSide(side string) order.Side {
 	}
 }
 
-func getOrderStatus(status string) order.Status {
+// StringToOrderStatus returns order status from string
+func StringToOrderStatus(status string) order.Status {
+	status = strings.ToUpper(status)
 	switch status {
+	case "CREATED":
+		return order.Open
 	case "NEW":
 		return order.New
-	case "PARTIALLY_FILLED":
-		return order.PartiallyFilled
-	case "FILLED":
-		return order.Filled
-	case "CANCELED":
-		return order.Cancelled
-	case "PENDING_CANCEL":
-		return order.PendingCancel
-	case "PENDING_NEW":
-		return order.Pending
 	case "REJECTED":
 		return order.Rejected
+	case "PARTIALLYFILLED", "PARTIALLY_FILLED":
+		return order.PartiallyFilled
+	case "PARTIALLYFILLEDCANCELED", "PENDING_CANCEL":
+		return order.PartiallyCancelled
+	case "FILLED":
+		return order.Filled
+	case "CANCELED", "CANCELLED":
+		return order.Cancelled
+	case "UNTRIGGERED":
+		return order.Pending
+	case "TRIGGERED":
+		return order.Open
+	case "DEACTIVATED":
+		return order.Closed
+	case "ACTIVE":
+		return order.Active
 	default:
 		return order.UnknownStatus
 	}
@@ -2621,7 +2632,7 @@ func (by *Bybit) RetrieveAndSetAccountType(ctx context.Context) {
 		log.Errorf(log.ExchangeSys, "RetrieveAndSetAccountType: %v", err)
 		return
 	}
-	by.AccountType = uint8(accInfo.UTA) // 0：regular account; 1：unified trade account
+	by.AccountType = uint8(accInfo.IsUnifiedTradeAccount) // 0：regular account; 1：unified trade account
 }
 
 // GetLongShortRatio retrieves long short ratio of an instrument.
