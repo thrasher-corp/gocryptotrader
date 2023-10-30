@@ -819,7 +819,7 @@ func (k *Kraken) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Submi
 	status := order.New
 	switch s.AssetType {
 	case asset.Spot:
-		timeInForce := order.GoodTillCancel.String()
+		timeInForce := order.GTC.String()
 		if s.TimeInForce == order.IOC {
 			timeInForce = s.TimeInForce.String()
 		}

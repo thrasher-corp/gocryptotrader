@@ -62,7 +62,7 @@ func TestSubmit_Validate(t *testing.T) {
 			},
 		}, // valid pair but invalid order side
 		{
-			ExpectedErr: errInvalidTimeInForce,
+			ExpectedErr: ErrInvalidTimeInForce,
 			Submit: &Submit{
 				Exchange:    "test",
 				Pair:        testPair,
@@ -1083,7 +1083,7 @@ func TestUpdateOrderFromDetail(t *testing.T) {
 	}
 
 	om := &Detail{
-		TimeInForce:     GoodTillCancel,
+		TimeInForce:     GTC,
 		HiddenOrder:     true,
 		PostOnly:        true,
 		Leverage:        1,
@@ -1126,7 +1126,7 @@ func TestUpdateOrderFromDetail(t *testing.T) {
 	if od.InternalOrderID != id {
 		t.Error("Failed to initialize the internal order ID")
 	}
-	if od.TimeInForce != GoodTillCancel {
+	if od.TimeInForce != GTC {
 		t.Error("Failed to update")
 	}
 	if !od.HiddenOrder {
@@ -2058,26 +2058,33 @@ func TestSideUnmarshal(t *testing.T) {
 	assert.ErrorAs(t, s.UnmarshalJSON([]byte(`14`)), &jErr, "non-string valid json is rejected")
 }
 
-func TestSupported(t *testing.T) {
-	t.Parallel()
-	s := Supported()
-	if len(supportedTIFItems) != len(s) {
-		t.Fatal("TestSupported mismatched lengths")
-	}
-	for i := 0; i < len(supportedTIFItems); i++ {
-		if s[i] != supportedTIFItems[i] {
-			t.Fatal("TestSupported returned an unexpected result")
-		}
-	}
-}
-
 func TestIsValid(t *testing.T) {
 	t.Parallel()
 	if TimeInForce(50).IsValid() {
 		t.Fatal("TestIsValid returned an unexpected result")
 	}
 
-	if !GoodTillCancel.IsValid() {
+	if !GTC.IsValid() {
 		t.Fatal("TestIsValid returned an unexpected result")
+	}
+}
+
+func TestStringToTimeInForce(t *testing.T) {
+	t.Parallel()
+	_, err := StringToTimeInForce("Unknown")
+	if !errors.Is(err, ErrInvalidTimeInForce) {
+		t.Fatalf("expected %v, got %v", ErrInvalidTimeInForce, err)
+	}
+	_, err = StringToTimeInForce("GoodTillCancel")
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = StringToTimeInForce("")
+	if !errors.Is(err, ErrInvalidTimeInForce) {
+		t.Fatalf("expected %v, got %v", ErrInvalidTimeInForce, err)
+	}
+	_, err = StringToTimeInForce("IOC")
+	if err != nil {
+		t.Fatal(err)
 	}
 }

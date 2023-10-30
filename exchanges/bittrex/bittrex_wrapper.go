@@ -627,7 +627,7 @@ func (b *Bittrex) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Subm
 		formattedPair.String(),
 		s.Side.String(),
 		s.Type.String(),
-		GoodTilCancelled,
+		timeInForceToString(s.TimeInForce),
 		s.Price,
 		s.Amount,
 		0.0)
@@ -698,10 +698,7 @@ func (b *Bittrex) GetOrderInfo(ctx context.Context, orderID string, _ currency.P
 
 // ConstructOrderDetail constructs an order detail item from the underlying data
 func (b *Bittrex) ConstructOrderDetail(orderData *OrderData) (*order.Detail, error) {
-	timeInForce, err := order.StringToTimeInForce(orderData.TimeInForce)
-	if err != nil {
-		timeInForce = order.UnknownTIF
-	}
+	timeInForce, _ := timeInForceFromString(orderData.TimeInForce)
 
 	format, err := b.GetPairFormat(asset.Spot, false)
 	if err != nil {
@@ -1094,4 +1091,34 @@ func (b *Bittrex) GetHistoricCandlesExtended(_ context.Context, _ currency.Pair,
 // GetFuturesContractDetails returns all contracts from the exchange by asset type
 func (b *Bittrex) GetFuturesContractDetails(context.Context, asset.Item) ([]futures.Contract, error) {
 	return nil, common.ErrFunctionNotSupported
+}
+
+func timeInForceFromString(s string) (order.TimeInForce, error) {
+	switch s {
+	case "GOOD_TIL_CANCELLED":
+		return order.GTC, nil
+	case "IMMEDIATE_OR_CANCEL":
+		return order.IOC, nil
+	case "FILL_OR_KILL":
+		return order.FOK, nil
+	case "POST_ONLY_GOOD_TIL_CANCELLED":
+		return order.PostOnlyGTC, nil
+	default:
+		return order.UnknownTIF, order.ErrInvalidTimeInForce
+	}
+}
+
+// timeInForceToString returns string given TimeInForce instance
+func timeInForceToString(t order.TimeInForce) string {
+	switch t {
+	case order.IOC:
+		return "IMMEDIATE_OR_CANCEL"
+	case order.FOK:
+		return "FILL_OR_KILL"
+	case order.PostOnlyGTC:
+		return order.PostOnlyGTC.String()
+	default:
+		// The exchange Uses GTC as a default TimeInForce value
+		return goodTilCancelled
+	}
 }

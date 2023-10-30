@@ -36,8 +36,9 @@ var (
 	ErrUnableToPlaceOrder = errors.New("order not placed")
 	// ErrOrderNotFound is returned when no order is found
 	ErrOrderNotFound = errors.New("order not found")
+	// ErrInvalidTimeInForce is returned when an invalid time-in-force value is provided
+	ErrInvalidTimeInForce = errors.New("invalid time in force value provided")
 
-	errInvalidTimeInForce       = errors.New("invalid time in force value provided")
 	errUnrecognisedOrderType    = errors.New("unrecognised order type")
 	errUnrecognisedOrderStatus  = errors.New("unrecognised order status")
 	errExchangeNameUnset        = errors.New("exchange name unset")
@@ -83,7 +84,7 @@ func (s *Submit) Validate(opt ...validate.Checker) error {
 	}
 
 	if !s.TimeInForce.IsValid() {
-		return errInvalidTimeInForce
+		return ErrInvalidTimeInForce
 	}
 
 	if s.Amount == 0 && s.QuoteAmount == 0 {
@@ -697,12 +698,15 @@ func (t TimeInForce) String() string {
 	switch t {
 	case IOC:
 		return "IOC"
-	case GoodTillCancel:
+	case GTC:
 		return "GTC"
-	case GoodTillTime:
+	case GTT:
 		return "GTT"
 	case FOK:
 		return "FOK"
+	case PostOnlyGTC:
+		// Added in Bittrex exchange to represent PostOnly and GTC
+		return "POST_ONLY_GOOD_TIL_CANCELLED"
 	default:
 		return "UNKNOWN"
 	}
@@ -1175,20 +1179,17 @@ func StringToTimeInForce(timeInForce string) (TimeInForce, error) {
 	switch timeInForce {
 	case "IOC", "IMMEDIATEORCANCEL", "IMMEDIATE_OR_CANCEL":
 		return IOC, nil
-	case "GTC", "GOODTILLCANCEL", "GOOD_TIL_CANCELLED":
-		return GoodTillCancel, nil
-	case "GTT", "GOODTILLTIME":
-		return GoodTillTime, nil
+	case "GTC", "GOODTILLCANCEL", "GOOD_TIL_CANCELLED", "GOOD_TILL_CANCELLED":
+		return GTC, nil
+	case "GTT", "GOODTILLTIME", "GOOD_TIL_TIME":
+		return GTT, nil
 	case "FOK", "FILLORKILL", "FILL_OR_KILL":
 		return FOK, nil
+	case "POST_ONLY_GOOD_TIL_CANCELLED", "POST_ONLY_GOOD_TILL_CANCELLED":
+		return PostOnlyGTC, nil
 	default:
-		return UnknownTIF, errInvalidTimeInForce
+		return UnknownTIF, fmt.Errorf("%w, tif=%s", ErrInvalidTimeInForce, timeInForce)
 	}
-}
-
-// Supported returns a list of supported time in force types
-func Supported() []TimeInForce {
-	return supportedTIFItems
 }
 
 // IsValid returns whether or not the supplied time in force value is valid or

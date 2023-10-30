@@ -9,22 +9,14 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 )
 
+const (
+	goodTilCancelled = "GOOD_TIL_CANCELLED"
+)
+
 // CancelOrderRequest holds request data for CancelOrder
 type CancelOrderRequest struct {
 	OrderID int64 `json:"orderId,string"`
 }
-
-// TimeInForce defines timeInForce types
-type TimeInForce string
-
-// All order status types
-const (
-	GoodTilCancelled         = "GOOD_TIL_CANCELLED"
-	ImmediateOrCancel        = "IMMEDIATE_OR_CANCEL"
-	FillOrKill               = "FILL_OR_KILL"
-	PostOnlyGoodTilCancelled = "POST_ONLY_GOOD_TIL_CANCELLED"
-	BuyNow                   = "BUY_NOW"
-)
 
 // OrderData holds order data
 type OrderData struct {

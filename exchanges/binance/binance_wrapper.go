@@ -990,7 +990,7 @@ func (b *Binance) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Subm
 		} else {
 			sideType = order.Sell.String()
 		}
-		timeInForce := order.GoodTillCancel.String()
+		timeInForce := order.GTC.String()
 		var requestParamsOrderType RequestParamsOrderType
 		switch s.Type {
 		case order.Market:

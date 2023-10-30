@@ -602,7 +602,7 @@ func (b *Bittrex) WsProcessUpdateOrder(data *OrderUpdateMessage) error {
 			Err:      err,
 		}
 	}
-	timeInForce, err := order.StringToTimeInForce(data.Delta.TimeInForce)
+	timeInForce, err := timeInForceFromString(data.Delta.TimeInForce)
 	if err != nil {
 		b.Websocket.DataHandler <- order.ClassificationError{
 			Exchange: b.Name,
@@ -612,7 +612,7 @@ func (b *Bittrex) WsProcessUpdateOrder(data *OrderUpdateMessage) error {
 	}
 	b.Websocket.DataHandler <- &order.Detail{
 		TimeInForce:     timeInForce,
-		PostOnly:        data.Delta.TimeInForce == PostOnlyGoodTilCancelled,
+		PostOnly:        data.Delta.TimeInForce == order.PostOnlyGTC.String(),
 		Price:           data.Delta.Limit,
 		Amount:          data.Delta.Quantity,
 		RemainingAmount: data.Delta.Quantity - data.Delta.FillQuantity,

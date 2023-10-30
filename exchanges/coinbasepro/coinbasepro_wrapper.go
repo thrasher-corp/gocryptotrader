@@ -563,7 +563,7 @@ func (c *CoinbasePro) SubmitOrder(ctx context.Context, s *order.Submit) (*order.
 			fPair.String(),
 			"")
 	case order.Limit:
-		timeInForce := order.GoodTillCancel.String()
+		timeInForce := order.GTC.String()
 		if s.TimeInForce == order.IOC {
 			timeInForce = order.IOC.String()
 		}

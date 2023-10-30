@@ -136,7 +136,7 @@ func (b *Bittrex) GetMarketHistory(ctx context.Context, currency string) ([]Trad
 }
 
 // Order places an order
-func (b *Bittrex) Order(ctx context.Context, marketName, side, orderType string, timeInForce TimeInForce, price, amount, ceiling float64) (OrderData, error) {
+func (b *Bittrex) Order(ctx context.Context, marketName, side, orderType, timeInForce string, price, amount, ceiling float64) (OrderData, error) {
 	req := make(map[string]interface{})
 	req["marketSymbol"] = marketName
 	req["direction"] = side
@@ -151,7 +151,7 @@ func (b *Bittrex) Order(ctx context.Context, marketName, side, orderType string,
 	if timeInForce != "" {
 		req["timeInForce"] = timeInForce
 	} else {
-		req["timeInForce"] = GoodTilCancelled
+		req["timeInForce"] = goodTilCancelled
 	}
 	var resp OrderData
 	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, submitOrder, nil, req, &resp, nil)
