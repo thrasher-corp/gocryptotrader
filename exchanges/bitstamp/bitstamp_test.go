@@ -607,40 +607,42 @@ func TestWithdrawFiat(t *testing.T) {
 	t.Parallel()
 
 	if !mockTests {
-		sharedtestvalues.SkipTestIfCannotManipulateOrders(t, b, canManipulateRealOrders)
+		sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
 	}
 
 	var withdrawFiatRequest = withdraw.Request{
 		Fiat: withdraw.FiatRequest{
 			Bank: banking.Account{
-				AccountName:    "Satoshi Nakamoto",
-				AccountNumber:  "12345",
-				BankAddress:    "123 Fake St",
-				BankPostalCity: "Tarry Town",
-				BankCountry:    "AU",
-				BankName:       "Federal Reserve Bank",
-				SWIFTCode:      "CTBAAU2S",
-				BankPostalCode: "2088",
-				IBAN:           "IT60X0542811101000000123456",
+				SupportedExchanges:  b.Name,
+				Enabled:             true,
+				AccountName:         "Satoshi Nakamoto",
+				AccountNumber:       "12345",
+				BankAddress:         "123 Fake St",
+				BankPostalCity:      "Tarry Town",
+				BankCountry:         "AU",
+				BankName:            "Federal Reserve Bank",
+				SWIFTCode:           "CTBAAU2S",
+				BankPostalCode:      "2088",
+				IBAN:                "IT60X0542811101000000123456",
+				SupportedCurrencies: "USD",
 			},
 			WireCurrency:             currency.USD.String(),
 			RequiresIntermediaryBank: false,
 			IsExpressWire:            false,
 		},
-		Amount:      -1,
+		Amount:      10,
 		Currency:    currency.USD,
 		Description: "WITHDRAW IT ALL",
 	}
 
 	_, err := b.WithdrawFiatFunds(context.Background(), &withdrawFiatRequest)
-	switch {
-	case !sharedtestvalues.AreAPICredentialsSet(b) && err == nil && !mockTests:
-		t.Error("Expecting an error when no keys are set")
-	case sharedtestvalues.AreAPICredentialsSet(b) && err != nil && !mockTests:
-		t.Errorf("Withdraw failed to be placed: %v", err)
-	case mockTests && err == nil:
-		t.Error("Expecting an error until QA pass is completed")
+	if mockTests {
+		assert.Positive(t, withdrawFiatRequest.Amount, "Amount should be positive")
+		assert.NotEmpty(t, withdrawFiatRequest.Currency, "Currency should not be empty")
+		assert.NotEmpty(t, withdrawFiatRequest.Fiat.Bank, "Bank details must not be empty")
+		assert.NotEmpty(t, withdrawFiatRequest.Fiat.WireCurrency, "WireCurrency details should not be empty")
 	}
+	assert.ErrorContains(t, err, "amount: [You have only 0.00 USD available. Check your account balance for details.]")
 }
 
 func TestWithdrawInternationalBank(t *testing.T) {
@@ -653,15 +655,18 @@ func TestWithdrawInternationalBank(t *testing.T) {
 	var withdrawFiatRequest = withdraw.Request{
 		Fiat: withdraw.FiatRequest{
 			Bank: banking.Account{
-				AccountName:    "Satoshi Nakamoto",
-				AccountNumber:  "12345",
-				BankAddress:    "123 Fake St",
-				BankPostalCity: "Tarry Town",
-				BankCountry:    "AU",
-				BankName:       "Federal Reserve Bank",
-				SWIFTCode:      "CTBAAU2S",
-				BankPostalCode: "2088",
-				IBAN:           "IT60X0542811101000000123456",
+				SupportedExchanges:  b.Name,
+				Enabled:             true,
+				AccountName:         "Satoshi Nakamoto",
+				AccountNumber:       "12345",
+				BankAddress:         "123 Fake St",
+				BankPostalCity:      "Tarry Town",
+				BankCountry:         "AU",
+				BankName:            "Federal Reserve Bank",
+				SWIFTCode:           "CTBAAU2S",
+				BankPostalCode:      "2088",
+				IBAN:                "IT60X0542811101000000123456",
+				SupportedCurrencies: "USD",
 			},
 			WireCurrency:                  currency.USD.String(),
 			RequiresIntermediaryBank:      false,
@@ -673,21 +678,20 @@ func TestWithdrawInternationalBank(t *testing.T) {
 			IntermediaryBankName:          "Federal Reserve Bank",
 			IntermediaryBankPostalCode:    "2088",
 		},
-		Amount:      -1,
+		Amount:      50,
 		Currency:    currency.USD,
 		Description: "WITHDRAW IT ALL",
 	}
 
 	_, err := b.WithdrawFiatFundsToInternationalBank(context.Background(),
 		&withdrawFiatRequest)
-	switch {
-	case !sharedtestvalues.AreAPICredentialsSet(b) && err == nil && !mockTests:
-		t.Error("Expecting an error when no keys are set")
-	case sharedtestvalues.AreAPICredentialsSet(b) && err != nil && !mockTests:
-		t.Errorf("Withdraw failed to be placed: %v", err)
-	case mockTests && err == nil:
-		t.Error("Expecting an error until QA pass is completed")
+	if mockTests {
+		assert.Positive(t, withdrawFiatRequest.Amount, "Amount should be positive")
+		assert.NotEmpty(t, withdrawFiatRequest.Currency, "Currency should not be empty")
+		assert.NotEmpty(t, withdrawFiatRequest.Fiat.Bank, "Bank details must not be empty")
+		assert.NotEmpty(t, withdrawFiatRequest.Fiat.WireCurrency, "WireCurrency details should not be empty")
 	}
+	assert.ErrorContains(t, err, "amount: [You have only 0.00 USD available. Check your account balance for details.]")
 }
 
 func TestGetDepositAddress(t *testing.T) {
