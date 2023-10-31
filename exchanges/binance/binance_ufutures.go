@@ -29,7 +29,7 @@ const (
 	ufuturesCompressedTrades   = "/fapi/v1/aggTrades?"
 	ufuturesKlineData          = "/fapi/v1/klines?"
 	ufuturesMarkPrice          = "/fapi/v1/premiumIndex?"
-	ufuturesFundingRateHistory = "/fapi/v1/fundingRate"
+	ufuturesFundingRateHistory = "/fapi/v1/fundingRate?"
 	ufuturesFundingRateInfo    = "/fapi/v1/fundingInfo?"
 	ufuturesTickerPriceStats   = "/fapi/v1/ticker/24hr?"
 	ufuturesSymbolPriceTicker  = "/fapi/v1/ticker/price?"
