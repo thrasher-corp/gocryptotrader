@@ -130,8 +130,10 @@ func (b *BTSE) SetDefaults() {
 				Intervals:  true,
 			},
 			FuturesCapabilities: exchange.FuturesCapabilities{
-				FundingRates:         true,
-				FundingRateFrequency: kline.OneHour.Duration(),
+				FundingRates: true,
+				SupportedFundingRateFrequencies: map[kline.Interval]bool{
+					kline.OneHour: true,
+				},
 				FundingRateBatching: map[asset.Item]bool{
 					asset.Futures: true,
 				},

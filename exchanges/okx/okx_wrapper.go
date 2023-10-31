@@ -137,7 +137,9 @@ func (ok *Okx) SetDefaults() {
 				CollateralMode:            true,
 				FundingRates:              true,
 				MaximumFundingRateHistory: kline.ThreeMonth.Duration(),
-				FundingRateFrequency:      kline.EightHour.Duration(),
+				SupportedFundingRateFrequencies: map[kline.Interval]bool{
+					kline.EightHour: true,
+				},
 			},
 		},
 		Enabled: exchange.FeaturesEnabled{
@@ -1596,15 +1598,22 @@ func (ok *Okx) GetLatestFundingRates(ctx context.Context, r *fundingrate.LatestR
 	if err != nil {
 		return nil, err
 	}
+	var fri time.Duration
+	if len(ok.Features.Supports.FuturesCapabilities.SupportedFundingRateFrequencies) == 1 {
+		// can infer funding rate interval from the only funding rate frequency defined
+		for k := range ok.Features.Supports.FuturesCapabilities.SupportedFundingRateFrequencies {
+			fri = k.Duration()
+		}
+	}
 	pairRate.LatestRate = fundingrate.Rate{
 		// okx funding rate is settlement time, not when it started
-		Time: fr.FundingTime.Time().Add(-ok.Features.Supports.FuturesCapabilities.FundingRateFrequency),
+		Time: fr.FundingTime.Time().Add(-fri),
 		Rate: fr.FundingRate.Decimal(),
 	}
 	if r.IncludePredictedRate {
 		pairRate.TimeOfNextRate = fr.NextFundingTime.Time()
 		pairRate.PredictedUpcomingRate = fundingrate.Rate{
-			Time: fr.NextFundingTime.Time().Add(-ok.Features.Supports.FuturesCapabilities.FundingRateFrequency),
+			Time: fr.NextFundingTime.Time().Add(-fri),
 			Rate: fr.NextFundingRate.Decimal(),
 		}
 	}
@@ -1703,6 +1712,13 @@ func (ok *Okx) GetHistoricalFundingRates(ctx context.Context, r *fundingrate.His
 			if sd.Equal(r.EndDate) || sd.After(r.EndDate) {
 				break
 			}
+			var fri time.Duration
+			if len(ok.Features.Supports.FuturesCapabilities.SupportedFundingRateFrequencies) == 1 {
+				// can infer funding rate interval from the only funding rate frequency defined
+				for k := range ok.Features.Supports.FuturesCapabilities.SupportedFundingRateFrequencies {
+					fri = k.Duration()
+				}
+			}
 			var billDetails []BillsDetailResponse
 			billDetails, err = billDetailsFunc(ctx, &BillsDetailQueryParameter{
 				InstrumentType: ok.GetInstrumentTypeFromAssetItem(r.Asset),
@@ -1716,7 +1732,7 @@ func (ok *Okx) GetHistoricalFundingRates(ctx context.Context, r *fundingrate.His
 				return nil, err
 			}
 			for i := range billDetails {
-				if index, okay := mti[billDetails[i].Timestamp.Time().Truncate(ok.Features.Supports.FuturesCapabilities.FundingRateFrequency).Unix()]; okay {
+				if index, okay := mti[billDetails[i].Timestamp.Time().Truncate(fri).Unix()]; okay {
 					pairRate.FundingRates[index].Payment = billDetails[i].ProfitAndLoss.Decimal()
 					continue
 				}

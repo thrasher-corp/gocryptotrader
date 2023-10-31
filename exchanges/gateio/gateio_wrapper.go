@@ -115,8 +115,11 @@ func (g *Gateio) SetDefaults() {
 				Intervals: true,
 			},
 			FuturesCapabilities: exchange.FuturesCapabilities{
-				FundingRates:         true,
-				FundingRateFrequency: kline.EightHour.Duration(),
+				FundingRates: true,
+				SupportedFundingRateFrequencies: map[kline.Interval]bool{
+					kline.FourHour:  true,
+					kline.EightHour: true,
+				},
 				FundingRateBatching: map[asset.Item]bool{
 					asset.Futures: true,
 				},

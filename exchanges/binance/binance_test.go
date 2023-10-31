@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -3417,14 +3418,24 @@ func TestGetFuturesContractDetails(t *testing.T) {
 	if !errors.Is(err, asset.ErrNotSupported) {
 		t.Error(err)
 	}
-
 	_, err = b.GetFuturesContractDetails(context.Background(), asset.USDTMarginedFutures)
 	if !errors.Is(err, nil) {
 		t.Error(err)
 	}
-
 	_, err = b.GetFuturesContractDetails(context.Background(), asset.CoinMarginedFutures)
 	if !errors.Is(err, nil) {
 		t.Error(err)
 	}
+}
+
+func TestGetFundingRateInfo(t *testing.T) {
+	t.Parallel()
+	_, err := b.GetFundingRateInfo(context.Background())
+	assert.NoError(t, err)
+}
+
+func TestUGetFundingRateInfo(t *testing.T) {
+	t.Parallel()
+	_, err := b.UGetFundingRateInfo(context.Background())
+	assert.NoError(t, err)
 }

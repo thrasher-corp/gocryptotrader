@@ -126,7 +126,9 @@ func (ku *Kucoin) SetDefaults() {
 				CollateralMode:            true,
 				FundingRates:              true,
 				MaximumFundingRateHistory: kline.ThreeMonth.Duration(),
-				FundingRateFrequency:      kline.EightHour.Duration(),
+				SupportedFundingRateFrequencies: map[kline.Interval]bool{
+					kline.EightHour: true,
+				},
 				FundingRateBatching: map[asset.Item]bool{
 					asset.Futures: true,
 				},
@@ -1543,7 +1545,14 @@ func (ku *Kucoin) GetFuturesContractDetails(ctx context.Context, item asset.Item
 		if contracts[i].IsInverse {
 			contractSettlementType = futures.Inverse
 		}
-		timeOfCurrentFundingRate := time.Now().Add((time.Duration(contracts[i].NextFundingRateTime) * time.Millisecond) - ku.Features.Supports.FuturesCapabilities.FundingRateFrequency).Truncate(time.Hour).UTC()
+		var fri time.Duration
+		if len(ku.Features.Supports.FuturesCapabilities.SupportedFundingRateFrequencies) == 1 {
+			// can infer funding rate interval from the only funding rate frequency defined
+			for k := range ku.Features.Supports.FuturesCapabilities.SupportedFundingRateFrequencies {
+				fri = k.Duration()
+			}
+		}
+		timeOfCurrentFundingRate := time.Now().Add((time.Duration(contracts[i].NextFundingRateTime) * time.Millisecond) - fri).Truncate(time.Hour).UTC()
 		resp[i] = futures.Contract{
 			Exchange:             ku.Name,
 			Name:                 cp,
@@ -1573,6 +1582,13 @@ func (ku *Kucoin) GetLatestFundingRates(ctx context.Context, r *fundingrate.Late
 	if r == nil {
 		return nil, fmt.Errorf("%w LatestRateRequest", common.ErrNilPointer)
 	}
+	var fri time.Duration
+	if len(ku.Features.Supports.FuturesCapabilities.SupportedFundingRateFrequencies) == 1 {
+		// can infer funding rate interval from the only funding rate frequency defined
+		for k := range ku.Features.Supports.FuturesCapabilities.SupportedFundingRateFrequencies {
+			fri = k.Duration()
+		}
+	}
 	if r.Pair.IsEmpty() {
 		contracts, err := ku.GetFuturesOpenContracts(ctx)
 		if err != nil {
@@ -1598,12 +1614,13 @@ func (ku *Kucoin) GetLatestFundingRates(ctx context.Context, r *fundingrate.Late
 			if !isPerp {
 				continue
 			}
+
 			rate := fundingrate.LatestRateResponse{
 				Exchange: ku.Name,
 				Asset:    r.Asset,
 				Pair:     cp,
 				LatestRate: fundingrate.Rate{
-					Time: timeOfNextFundingRate.Add(-ku.Features.Supports.FuturesCapabilities.FundingRateFrequency),
+					Time: timeOfNextFundingRate.Add(-fri),
 					Rate: decimal.NewFromFloat(contracts[i].FundingFeeRate),
 				},
 				TimeOfNextRate: timeOfNextFundingRate,
@@ -1649,7 +1666,7 @@ func (ku *Kucoin) GetLatestFundingRates(ctx context.Context, r *fundingrate.Late
 			Time: fr.TimePoint.Time(),
 			Rate: decimal.NewFromFloat(fr.Value),
 		},
-		TimeOfNextRate: fr.TimePoint.Time().Add(ku.Features.Supports.FuturesCapabilities.FundingRateFrequency).Truncate(time.Hour).UTC(),
+		TimeOfNextRate: fr.TimePoint.Time().Add(fri).Truncate(time.Hour).UTC(),
 		TimeChecked:    time.Now(),
 	}
 	if r.IncludePredictedRate {

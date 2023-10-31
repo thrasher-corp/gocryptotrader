@@ -148,8 +148,10 @@ func (h *HUOBI) SetDefaults() {
 				Intervals: true,
 			},
 			FuturesCapabilities: exchange.FuturesCapabilities{
-				FundingRates:         true,
-				FundingRateFrequency: kline.EightHour.Duration(),
+				FundingRates: true,
+				SupportedFundingRateFrequencies: map[kline.Interval]bool{
+					kline.EightHour: true,
+				},
 				FundingRateBatching: map[asset.Item]bool{
 					asset.CoinMarginedFutures: true,
 				},
@@ -2257,12 +2259,19 @@ func (h *HUOBI) GetLatestFundingRates(ctx context.Context, r *fundingrate.Latest
 		var ft, nft time.Time
 		nft = time.UnixMilli(rates[i].NextFundingTime)
 		ft = time.UnixMilli(rates[i].FundingTime)
+		var fri time.Duration
+		if len(h.Features.Supports.FuturesCapabilities.SupportedFundingRateFrequencies) == 1 {
+			// can infer funding rate interval from the only funding rate frequency defined
+			for k := range h.Features.Supports.FuturesCapabilities.SupportedFundingRateFrequencies {
+				fri = k.Duration()
+			}
+		}
 		if rates[i].FundingTime == 0 {
-			ft = nft.Add(-h.Features.Supports.FuturesCapabilities.FundingRateFrequency)
+			ft = nft.Add(-fri)
 		}
 		if ft.After(time.Now()) {
-			ft = ft.Add(-h.Features.Supports.FuturesCapabilities.FundingRateFrequency)
-			nft = nft.Add(-h.Features.Supports.FuturesCapabilities.FundingRateFrequency)
+			ft = ft.Add(-fri)
+			nft = nft.Add(-fri)
 		}
 		rate := fundingrate.LatestRateResponse{
 			Exchange: h.Name,

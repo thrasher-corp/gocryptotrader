@@ -154,8 +154,10 @@ func (b *Bitfinex) SetDefaults() {
 				Intervals:  true,
 			},
 			FuturesCapabilities: exchange.FuturesCapabilities{
-				FundingRates:         true,
-				FundingRateFrequency: kline.EightHour.Duration(),
+				FundingRates: true,
+				SupportedFundingRateFrequencies: map[kline.Interval]bool{
+					kline.EightHour: true,
+				},
 				FundingRateBatching: map[asset.Item]bool{
 					asset.Margin: true,
 				},

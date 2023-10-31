@@ -138,8 +138,10 @@ func (b *Bitmex) SetDefaults() {
 				FundingRateFetching:    false, // supported but not implemented // TODO when multi-websocket support added
 			},
 			FuturesCapabilities: exchange.FuturesCapabilities{
-				FundingRates:         true,
-				FundingRateFrequency: kline.EightHour.Duration(),
+				FundingRates: true,
+				SupportedFundingRateFrequencies: map[kline.Interval]bool{
+					kline.EightHour: true,
+				},
 				FundingRateBatching: map[asset.Item]bool{
 					asset.PerpetualContract: true,
 				},

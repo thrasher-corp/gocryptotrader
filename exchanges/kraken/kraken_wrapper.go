@@ -160,8 +160,10 @@ func (k *Kraken) SetDefaults() {
 				Intervals:  true,
 			},
 			FuturesCapabilities: exchange.FuturesCapabilities{
-				FundingRates:         true,
-				FundingRateFrequency: kline.FourHour.Duration(),
+				FundingRates: true,
+				SupportedFundingRateFrequencies: map[kline.Interval]bool{
+					kline.FourHour: true,
+				},
 				FundingRateBatching: map[asset.Item]bool{
 					asset.Futures: true,
 				},
