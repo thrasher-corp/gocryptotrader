@@ -1928,10 +1928,10 @@ func TestParallelChanOp(t *testing.T) {
 		{Channel: "spin"},
 		{Channel: "charm"},
 	}
-	var testErr error
-	run := make(chan struct{}, 5)
+	run := make(chan struct{}, len(c)*2)
+	errC := make(chan error, 1)
 	go func() {
-		testErr = b.parallelChanOp(c, func(c *stream.ChannelSubscription) error {
+		errC <- b.parallelChanOp(c, func(c *stream.ChannelSubscription) error {
 			time.Sleep(300 * time.Millisecond)
 			run <- struct{}{}
 			switch c.Channel {
@@ -1940,18 +1940,16 @@ func TestParallelChanOp(t *testing.T) {
 			}
 			return nil
 		})
-		close(run)
 	}()
-	f := func(c *assert.CollectT) {
-		assert.ErrorContains(c, testErr, "violent", "Should get a violent error")
-		assert.ErrorContains(c, testErr, "spin", "Should get a spin error")
+	f := func(ct *assert.CollectT) {
+		if assert.Len(ct, errC, 1, "Should eventually have an error") {
+			err := <-errC
+			assert.ErrorContains(ct, err, "violent", "Should get a violent error")
+			assert.ErrorContains(ct, err, "spin", "Should get a spin error")
+		}
 	}
 	assert.EventuallyWithT(t, f, 500*time.Millisecond, 50*time.Millisecond, "ParallelChanOp should complete within 500ms not 5*300ms")
-	got := 0
-	for range run {
-		got++
-	}
-	assert.Equal(t, got, 5, "Every channel was run to completion")
+	assert.Len(t, run, len(c), "Every channel was run to completion")
 }
 
 // setupWs is a helper function to connect both auth and normal websockets
