@@ -8,10 +8,10 @@ import (
 	"golang.org/x/time/rate"
 )
 
-// Coinbasepro rate limit conts
+// Coinbasepro rate limit constants
 const (
 	coinbaseproRateInterval = time.Second
-	coinbaseproAuthRate     = 10
+	coinbaseproAuthRate     = 30
 	coinbaseproUnauthRate   = 10
 )
 

@@ -461,20 +461,31 @@ type Report struct {
 			FulfillsNewRequirements bool          `json:"fulfills_new_requirements"`
 			Flags                   interface{}   `json:"flags"`
 			Details                 interface{}   `json:"details"`
+			DefaultProfileID        string        `json:"default_profile_id"`
 			OauthClient             string        `json:"oauth_client"`
 			Preferences             struct {
 				PreferredMarket              string    `json:"preferred_market"`
 				MarginTermsCompletedInUTC    time.Time `json:"margin_terms_completed_in_utc"`
 				MarginTutorialCompletedInUTC time.Time `json:"margin_tutorial_completed_in_utc"`
 			} `json:"preferences"`
-			HasDefault                bool      `json:"has_default"`
-			StateCode                 string    `json:"state_code"`
-			CBDataFromCache           bool      `json:"cb_data_from_cache"`
-			TwoFactorMethod           string    `json:"two_factor_method"`
-			LegalName                 string    `json:"legal_name"`
-			TermsAccepted             time.Time `json:"terms_accepted"`
-			HasClawbackPaymentPending bool      `json:"has_clawback_payment_pending"`
-			HasRestrictedAssets       bool      `json:"has_restricted_assets"`
+			HasDefault                bool        `json:"has_default"`
+			OrgID                     interface{} `json:"org_id"`
+			IsBrokerage               bool        `json:"is_brokerage"`
+			TaxDomain                 string      `json:"tax_domain"`
+			ProfileLimit              uint16      `json:"profile_limit"`
+			APIKeyLimit               uint16      `json:"api_key_limit"`
+			ConnectionLimit           uint16      `json:"connection_limit"`
+			RateLimit                 uint16      `json:"rate_limit"`
+			GlobalConnectionLimit     uint16      `json:"global_connection_limit"`
+			SettlementPreference      interface{} `json:"settlement_preference"`
+			PrimeLendingEntityID      interface{} `json:"prime_lending_entity_id"`
+			StateCode                 string      `json:"state_code"`
+			CBDataFromCache           bool        `json:"cb_data_from_cache"`
+			TwoFactorMethod           string      `json:"two_factor_method"`
+			LegalName                 string      `json:"legal_name"`
+			TermsAccepted             time.Time   `json:"terms_accepted"`
+			HasClawbackPaymentPending bool        `json:"has_clawback_payment_pending"`
+			HasRestrictedAssets       bool        `json:"has_restricted_assets"`
 		} `json:"user"`
 		NewYorkState   bool      `json:"new_york_state"`
 		DateTime       time.Time `json:"date_time"`
@@ -915,43 +926,55 @@ type CreateReportResponse struct {
 
 // ReportBalanceStruct is used internally when crafting a CreateReport request
 type ReportBalanceStruct struct {
-	DateTime string
+	DateTime string `json:"datetime"`
 }
 
 // ReportFillsTaxStruct is used internally when crafting a CreateReport request
 type ReportFillsTaxStruct struct {
-	StartDate string
-	EndDate   string
-	ProductID string
+	StartDate string `json:"start_date"`
+	EndDate   string `json:"end_date"`
+	ProductID string `json:"product_id"`
 }
 
 // ReportAccountStruct is used internally when crafting a CreateReport request
 type ReportAccountStruct struct {
-	StartDate string
-	EndDate   string
-	AccountID string
+	StartDate string `json:"start_date"`
+	EndDate   string `json:"end_date"`
+	AccountID string `json:"account_id"`
+}
+
+// MaxRemSubStruct is a sub-type used in CurListSubStruct, which is itself used in ExchangeLimits
+type MaxRemSubStruct struct {
+	Max       float64 `json:"max"`
+	Remaining float64 `json:"remaining"`
+}
+
+// CurListSubStruct is a sub-type used in ExchangeLimits
+type CurListSubStruct struct {
+	USD MaxRemSubStruct `json:"usd"`
+	EUR MaxRemSubStruct `json:"eur"`
+	GBP MaxRemSubStruct `json:"gbp"`
+	BTC MaxRemSubStruct `json:"btc"`
+	ETH MaxRemSubStruct `json:"eth"`
 }
 
 // ExchangeLimits contains information on payment method transfer limits, returned
 // by GetExchangeLimits
 type ExchangeLimits struct {
 	TransferLimits struct {
-		Buy              interface{} `json:"buy"`
-		Sell             interface{} `json:"sell"`
-		ExchangeWithdraw interface{} `json:"exchange_withdraw"`
-		Ach              []struct {
-			Max          float64 `json:"max,string"`
-			Remaining    float64 `json:"remaining,string"`
-			PeriodInDays int32   `json:"period_in_days"`
-		} `json:"ach"`
-		AchNoBalance         interface{} `json:"ach_no_balance"`
-		CreditDebitCard      interface{} `json:"credit_debit_card"`
-		Secure3DBuy          interface{} `json:"secure3d_buy"`
-		PaypalBuy            interface{} `json:"paypal_buy"`
-		PaypalWithdrawal     interface{} `json:"paypal_withdrawal"`
-		IdealDeposit         interface{} `json:"ideal_deposit"`
-		SofortDeposit        interface{} `json:"sofort_deposit"`
-		InstantAchWithdrawal interface{} `json:"instant_ach_withdrawal"`
+		Buy                  CurListSubStruct `json:"buy"`
+		Sell                 CurListSubStruct `json:"sell"`
+		ExchangeWithdraw     CurListSubStruct `json:"exchange_withdraw"`
+		Ach                  CurListSubStruct `json:"ach"`
+		InstantBuy           CurListSubStruct `json:"instant_buy"`
+		AchNoBalance         CurListSubStruct `json:"ach_no_balance"`
+		CreditDebitCard      CurListSubStruct `json:"credit_debit_card"`
+		Secure3DBuy          CurListSubStruct `json:"secure3d_buy"`
+		PaypalBuy            CurListSubStruct `json:"paypal_buy"`
+		PaypalWithdrawal     CurListSubStruct `json:"paypal_withdrawal"`
+		IdealDeposit         CurListSubStruct `json:"ideal_deposit"`
+		SofortDeposit        CurListSubStruct `json:"sofort_deposit"`
+		InstantAchWithdrawal CurListSubStruct `json:"instant_ach_withdrawal"`
 	} `json:"transfer_limits"`
 	LimitCurrency string `json:"limit_currency"`
 }
@@ -969,7 +992,7 @@ type WrappedAssetResponse struct {
 // AllWrappedAssetResponse contains information on all wrapped assets, returned by
 // GetAllWrappedAssets
 type AllWrappedAssetResponse struct {
-	WrappedAssetResponse []struct{} `json:"wrapped_assets"`
+	WrappedAssetResponse []WrappedAssetResponse `json:"wrapped_assets"`
 }
 
 // StakeWrap contains information on a stake wrap, returned by GetAllStakeWraps and

@@ -60,7 +60,7 @@ func (c *CoinbasePro) SetDefaults() {
 	c.Verbose = true
 	c.API.CredentialsValidator.RequiresKey = true
 	c.API.CredentialsValidator.RequiresSecret = true
-	c.API.CredentialsValidator.RequiresClientID = true
+	// c.API.CredentialsValidator.RequiresClientID = true
 	c.API.CredentialsValidator.RequiresBase64DecodeSecret = true
 
 	requestFmt := &currency.PairFormat{Delimiter: currency.DashDelimiter, Uppercase: true}

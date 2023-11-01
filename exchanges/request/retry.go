@@ -21,7 +21,7 @@ func DefaultRetryPolicy(resp *http.Response, err error) (bool, error) {
 	}
 
 	if resp.StatusCode == http.StatusTooManyRequests {
-		return true, nil
+		return false, nil
 	}
 
 	if resp.Header.Get(headerRetryAfter) != "" {
