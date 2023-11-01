@@ -453,7 +453,6 @@ func (by *Bybit) UpdateTickers(ctx context.Context, assetType asset.Item) error 
 			}
 		}
 	case asset.Options:
-		println("Enabled Pairs:", len(enabled), enabled.Join())
 		for x := range enabled {
 			ticks, err = by.GetTickers(ctx, getCategoryName(assetType), format.Format(enabled[x]), "", time.Time{})
 			if err != nil {
