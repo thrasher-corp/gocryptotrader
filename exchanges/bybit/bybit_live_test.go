@@ -14,6 +14,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
+	gctlog "github.com/thrasher-corp/gocryptotrader/log"
 )
 
 var mockTests = false
@@ -57,11 +58,13 @@ func TestMain(m *testing.M) {
 			log.Fatal(err)
 		}
 	}
-
 	err = instantiateTradablePairs()
 	if err != nil {
 		log.Fatalf("%s %v", b.Name, err)
 	}
-	b.RetrieveAndSetAccountType(context.Background())
+	err = b.RetrieveAndSetAccountType(context.Background())
+	if err != nil {
+		gctlog.Errorf(gctlog.ExchangeSys, "RetrieveAndSetAccountType: %v", err)
+	}
 	os.Exit(m.Run())
 }

@@ -219,6 +219,9 @@ func TestUpdateTicker(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
+	if mockTests {
+		t.Skip("skipping options ticker mock testing as it depends on updated pairs")
+	}
 	_, err = b.UpdateTicker(context.Background(), optionsTradablePair, asset.Options)
 	if err != nil {
 		t.Error(err)
@@ -326,7 +329,6 @@ func TestGetHistoricCandles(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-
 	_, err = b.GetHistoricCandles(context.Background(), usdtMarginedTradablePair, asset.USDTMarginedFutures, kline.OneDay, start, end)
 	if err != nil {
 		t.Error(err)
@@ -335,15 +337,13 @@ func TestGetHistoricCandles(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-
 	_, err = b.GetHistoricCandles(context.Background(), inverseTradablePair, asset.CoinMarginedFutures, kline.OneHour, start, end)
 	if err != nil {
 		t.Error(err)
 	}
-
 	_, err = b.GetHistoricCandles(context.Background(), optionsTradablePair, asset.Options, kline.OneHour, start, end)
 	if !errors.Is(err, asset.ErrNotSupported) {
-		t.Errorf("expected %v, got %v", err, asset.ErrNotSupported)
+		t.Errorf("expected %v, got %v", asset.ErrNotSupported, err)
 	}
 }
 
@@ -616,6 +616,9 @@ func TestUpdateTickers(t *testing.T) {
 	if err != nil {
 		t.Fatalf("%v %v\n", asset.CoinMarginedFutures, err)
 	}
+	if mockTests {
+		t.Skip("skipping options ticker mock testing as it depends on updated pairs")
+	}
 	err = b.UpdateTickers(ctx, asset.Options)
 	if err != nil {
 		t.Fatalf("%v %v\n", asset.Options, err)
@@ -628,9 +631,9 @@ func TestGetTickersV5(t *testing.T) {
 	if !errors.Is(err, errInvalidCategory) {
 		t.Errorf("expected %v, got %v", errInvalidCategory, err)
 	}
-	_, err = b.GetTickers(context.Background(), "option", optionsTradablePair.String(), "", time.Time{})
-	if !errors.Is(err, errBaseNotSet) {
-		t.Fatalf("expected: %v, received: %v", errBaseNotSet, err)
+	_, err = b.GetTickers(context.Background(), "option", "BTC-28JUN24-70000-C", "", time.Time{})
+	if err != nil {
+		t.Fatal(err)
 	}
 	_, err = b.GetTickers(context.Background(), "spot", "", "", time.Time{})
 	if err != nil {
@@ -1819,7 +1822,6 @@ func TestSetMMP(t *testing.T) {
 	if !errors.Is(err, errNilArgument) {
 		t.Fatalf("found %v, expected %v", err, errNilArgument)
 	}
-	b.Verbose = true
 	err = b.SetMMP(context.Background(), &MMPRequestParam{
 		BaseCoin:           "ETH",
 		TimeWindowMS:       5000,
@@ -3178,7 +3180,6 @@ func TestSetLeverage(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
 	ctx := context.Background()
-	b.Verbose = true
 	err := b.SetLeverage(ctx, asset.USDTMarginedFutures, usdtMarginedTradablePair, margin.Multi, 5, order.Buy)
 	if err != nil {
 		t.Error(err)
@@ -3349,5 +3350,13 @@ func TestStringToOrderStatus(t *testing.T) {
 		if oStatus != input[x].Expectation {
 			t.Fatalf("expected %v, got %v", input[x].Expectation, oStatus)
 		}
+	}
+}
+
+func TestRetrieveAndSetAccountType(t *testing.T) {
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	err := b.RetrieveAndSetAccountType(context.Background())
+	if err != nil {
+		t.Fatal(err)
 	}
 }

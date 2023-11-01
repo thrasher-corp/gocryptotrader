@@ -25,7 +25,7 @@ const (
 	shortSide                 = Short | Sell | Ask
 	longSide                  = Long | Buy | Bid
 
-	inactiveStatuses = Filled | Cancelled | InsufficientBalance | MarketUnavailable | Rejected | PartiallyCancelled | Expired | Closed | AnyStatus | Cancelling | Liquidated
+	inactiveStatuses = Filled | Cancelled | InsufficientBalance | MarketUnavailable | Rejected | PartiallyCancelled | PartiallyFilledCancelled | Expired | Closed | AnyStatus | Cancelling | Liquidated
 	activeStatuses   = Active | Open | PartiallyFilled | New | PendingCancel | Hidden | AutoDeleverage | Pending
 	notPlaced        = InsufficientBalance | MarketUnavailable | Rejected
 )
@@ -787,6 +787,8 @@ func (s Status) String() string {
 		return "PARTIALLY_CANCELLED"
 	case PartiallyFilled:
 		return "PARTIALLY_FILLED"
+	case PartiallyFilledCancelled:
+		return "PARTIALLY_FILLED_CANCELED"
 	case Filled:
 		return "FILLED"
 	case Cancelled:
@@ -1135,6 +1137,8 @@ func StringToOrderStatus(status string) (Status, error) {
 		return Filled, nil
 	case PartiallyCancelled.String(), "PARTIALLY CANCELLED", "ORDER_PARTIALLY_TRANSACTED":
 		return PartiallyCancelled, nil
+	case PartiallyFilledCancelled.String(), "PARTIALLYFILLEDCANCELED":
+		return PartiallyFilledCancelled, nil
 	case Open.String():
 		return Open, nil
 	case Closed.String():

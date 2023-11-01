@@ -172,7 +172,7 @@ func (by *Bybit) SetDefaults() {
 					kline.IntervalCapacity{Interval: kline.OneWeek},
 					kline.IntervalCapacity{Interval: kline.OneMonth},
 				),
-				GlobalResultLimit: 200,
+				GlobalResultLimit: 1000,
 			},
 		},
 	}
@@ -292,8 +292,11 @@ func (by *Bybit) Run(ctx context.Context) {
 		return
 	}
 
-	by.RetrieveAndSetAccountType(ctx)
-	err := by.UpdateTradablePairs(ctx, false)
+	err := by.RetrieveAndSetAccountType(ctx)
+	if err != nil {
+		log.Errorf(log.ExchangeSys, "RetrieveAndSetAccountType: %v", err)
+	}
+	err = by.UpdateTradablePairs(ctx, false)
 	if err != nil {
 		log.Errorf(log.ExchangeSys,
 			"%s failed to update tradable pairs. Err: %s",
@@ -312,7 +315,7 @@ func (by *Bybit) FetchTradablePairs(ctx context.Context, a asset.Item) (currency
 	default:
 		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, a)
 	}
-	allPairs, err := by.GetInstruments(ctx, category, "", "Trading", "", "", 0)
+	allPairs, err := by.GetInstruments(ctx, category, "", "Trading", "", "", int64(by.Features.Enabled.Kline.GlobalResultLimit))
 	if err != nil {
 		return nil, err
 	}
@@ -327,10 +330,12 @@ func (by *Bybit) FetchTradablePairs(ctx context.Context, a asset.Item) (currency
 			if allPairs.List[x].Status != "Trading" {
 				continue
 			}
-			pair, err = currency.NewPairFromStrings(allPairs.List[x].BaseCoin, allPairs.List[x].Symbol[len(allPairs.List[x].BaseCoin):])
+			quote := strings.TrimPrefix(allPairs.List[x].Symbol[len(allPairs.List[x].BaseCoin):], currency.DashDelimiter)
+			pair, err = currency.NewPairFromStrings(allPairs.List[x].BaseCoin, quote)
 			if err != nil {
 				return nil, err
 			}
+
 			pairs = append(pairs, pair)
 		}
 	case asset.CoinMarginedFutures:
@@ -415,12 +420,9 @@ func (by *Bybit) UpdateTickers(ctx context.Context, assetType asset.Item) error 
 	var ticks *TickerData
 	switch assetType {
 	case asset.Spot, asset.USDCMarginedFutures,
-		asset.USDTMarginedFutures, asset.CoinMarginedFutures, asset.Options:
-		var baseCoin string
-		if assetType == asset.Options {
-			baseCoin = "BTC"
-		}
-		ticks, err = by.GetTickers(ctx, getCategoryName(assetType), "", baseCoin, time.Time{})
+		asset.USDTMarginedFutures,
+		asset.CoinMarginedFutures:
+		ticks, err = by.GetTickers(ctx, getCategoryName(assetType), "", "", time.Time{})
 		if err != nil {
 			return err
 		}
@@ -448,6 +450,40 @@ func (by *Bybit) UpdateTickers(ctx context.Context, assetType asset.Item) error 
 			})
 			if err != nil {
 				return err
+			}
+		}
+	case asset.Options:
+		println("Enabled Pairs:", len(enabled), enabled.Join())
+		for x := range enabled {
+			ticks, err = by.GetTickers(ctx, getCategoryName(assetType), format.Format(enabled[x]), "", time.Time{})
+			if err != nil {
+				return err
+			}
+			for x := range ticks.List {
+				var pair currency.Pair
+				pair, err = by.MatchSymbolWithAvailablePairs(ticks.List[x].Symbol, assetType, true)
+				if err != nil {
+					continue
+				}
+				if !enabled.Contains(pair, true) {
+					continue
+				}
+				err = ticker.ProcessTicker(&ticker.Price{
+					Last:         ticks.List[x].LastPrice.Float64(),
+					High:         ticks.List[x].HighPrice24H.Float64(),
+					Low:          ticks.List[x].LowPrice24H.Float64(),
+					Bid:          ticks.List[x].Bid1Price.Float64(),
+					BidSize:      ticks.List[x].Bid1Size.Float64(),
+					Ask:          ticks.List[x].Ask1Price.Float64(),
+					AskSize:      ticks.List[x].Ask1Size.Float64(),
+					Volume:       ticks.List[x].Volume24H.Float64(),
+					Pair:         pair.Format(format),
+					ExchangeName: by.Name,
+					AssetType:    assetType,
+				})
+				if err != nil {
+					return err
+				}
 			}
 		}
 	default:
@@ -507,7 +543,7 @@ func (by *Bybit) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType
 		asset.USDCMarginedFutures,
 		asset.CoinMarginedFutures,
 		asset.Options:
-		if assetType == asset.USDCMarginedFutures && !strings.EqualFold(p.Quote.String(), "PERP") {
+		if assetType == asset.USDCMarginedFutures && !p.Quote.Equal(currency.PERP) {
 			p.Delimiter = currency.DashDelimiter
 		}
 		orderbookNew, err = by.GetOrderBook(ctx, getCategoryName(assetType), p.String(), 0)
@@ -577,10 +613,6 @@ func (by *Bybit) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (a
 	reservedPairs := make(map[string]struct{})
 	for i := range balances.List {
 		for c := range balances.List[i].Coin {
-			_, okay := reservedPairs[balances.List[i].Coin[c].Coin]
-			if okay {
-				continue
-			}
 			balance := account.Balance{
 				Currency: currency.NewCode(balances.List[i].Coin[c].Coin),
 				Total:    balances.List[i].TotalWalletBalance.Float64(),
@@ -670,7 +702,7 @@ func (by *Bybit) GetRecentTrades(ctx context.Context, p currency.Pair, assetType
 	var tradeData *TradingHistory
 	switch assetType {
 	case asset.Spot, asset.USDTMarginedFutures, asset.USDCMarginedFutures, asset.CoinMarginedFutures:
-		if assetType == asset.USDCMarginedFutures && !strings.EqualFold(p.Quote.String(), "PERP") {
+		if assetType == asset.USDCMarginedFutures && !p.Quote.Equal(currency.PERP) {
 			formattedPair.Delimiter = currency.DashDelimiter
 		}
 		tradeData, err = by.GetPublicTradingHistory(ctx, getCategoryName(assetType), formattedPair.String(), "", "", limit)
@@ -725,7 +757,7 @@ func (by *Bybit) GetHistoricTrades(ctx context.Context, p currency.Pair, assetTy
 	var tradeHistoryResponse *TradingHistory
 	switch assetType {
 	case asset.Spot, asset.USDTMarginedFutures, asset.USDCMarginedFutures, asset.CoinMarginedFutures:
-		if assetType == asset.USDCMarginedFutures && !strings.EqualFold(p.Quote.String(), "PERP") {
+		if assetType == asset.USDCMarginedFutures && !p.Quote.Equal(currency.PERP) {
 			p.Delimiter = currency.DashDelimiter
 		}
 		tradeHistoryResponse, err = by.GetPublicTradingHistory(ctx, getCategoryName(assetType), p.String(), "", "", limit)
@@ -793,7 +825,7 @@ func (by *Bybit) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Submi
 	status := order.New
 	switch s.AssetType {
 	case asset.Spot, asset.Options, asset.USDTMarginedFutures, asset.USDCMarginedFutures, asset.CoinMarginedFutures:
-		if s.AssetType == asset.USDCMarginedFutures && !strings.EqualFold(formattedPair.Quote.String(), "PERP") {
+		if s.AssetType == asset.USDCMarginedFutures && !formattedPair.Quote.Equal(currency.PERP) {
 			formattedPair.Delimiter = currency.DashDelimiter
 		}
 		var response *OrderResponse
@@ -873,7 +905,7 @@ func (by *Bybit) ModifyOrder(ctx context.Context, action *order.Modify) (*order.
 	}
 	switch action.AssetType {
 	case asset.Spot, asset.USDTMarginedFutures, asset.USDCMarginedFutures, asset.CoinMarginedFutures, asset.Options:
-		if action.AssetType == asset.USDCMarginedFutures && !strings.EqualFold(action.Pair.Quote.String(), "PERP") {
+		if action.AssetType == asset.USDCMarginedFutures && !action.Pair.Quote.Equal(currency.PERP) {
 			action.Pair.Delimiter = currency.DashDelimiter
 		}
 		arg := &AmendOrderParams{
@@ -918,7 +950,7 @@ func (by *Bybit) CancelOrder(ctx context.Context, ord *order.Cancel) error {
 	var err error
 	switch ord.AssetType {
 	case asset.Spot, asset.USDTMarginedFutures, asset.USDCMarginedFutures, asset.CoinMarginedFutures, asset.Options:
-		if ord.AssetType == asset.USDCMarginedFutures && !strings.EqualFold(ord.Pair.Quote.String(), "PERP") {
+		if ord.AssetType == asset.USDCMarginedFutures && !ord.Pair.Quote.Equal(currency.PERP) {
 			ord.Pair.Delimiter = currency.DashDelimiter
 		}
 		_, err = by.CancelTradeOrder(ctx, &CancelOrderParams{
@@ -995,7 +1027,7 @@ func (by *Bybit) CancelAllOrders(ctx context.Context, orderCancellation *order.C
 	cancelAllOrdersResponse.Status = make(map[string]string)
 	switch orderCancellation.AssetType {
 	case asset.Spot, asset.USDTMarginedFutures, asset.USDCMarginedFutures, asset.CoinMarginedFutures, asset.Options:
-		if orderCancellation.AssetType == asset.USDCMarginedFutures && !strings.EqualFold(orderCancellation.Pair.Quote.String(), "PERP") {
+		if orderCancellation.AssetType == asset.USDCMarginedFutures && !orderCancellation.Pair.Quote.Equal(currency.PERP) {
 			orderCancellation.Pair.Delimiter = currency.DashDelimiter
 		}
 		activeOrder, err := by.CancelAllTradeOrders(ctx, &CancelAllOrdersParam{
@@ -1030,7 +1062,7 @@ func (by *Bybit) GetOrderInfo(ctx context.Context, orderID string, pair currency
 
 	switch assetType {
 	case asset.Spot, asset.USDTMarginedFutures, asset.USDCMarginedFutures, asset.CoinMarginedFutures, asset.Options:
-		if assetType == asset.USDCMarginedFutures && !strings.EqualFold(pair.Quote.String(), "PERP") {
+		if assetType == asset.USDCMarginedFutures && !pair.Quote.Equal(currency.PERP) {
 			pair.Delimiter = currency.DashDelimiter
 		}
 		resp, err := by.GetOpenOrders(ctx, getCategoryName(asset.Spot), pair.String(), "", "", orderID, "", "", "", 0, 1)
@@ -1145,7 +1177,7 @@ func (by *Bybit) GetActiveOrders(ctx context.Context, req *order.MultiOrderReque
 	}
 
 	if len(req.Pairs) == 0 && req.AssetType != asset.Spot {
-		return nil, fmt.Errorf("GetActiveOrders: zero pairs found")
+		return nil, fmt.Errorf("pairs required for asset %v", req.AssetType)
 	}
 
 	var symbol string
@@ -1158,7 +1190,7 @@ func (by *Bybit) GetActiveOrders(ctx context.Context, req *order.MultiOrderReque
 		if err != nil {
 			return nil, err
 		}
-		if req.AssetType == asset.USDCMarginedFutures && !strings.EqualFold(req.Pairs[0].Quote.String(), "PERP") {
+		if req.AssetType == asset.USDCMarginedFutures && !req.Pairs[0].Quote.Equal(currency.PERP) {
 			req.Pairs[0].Delimiter = currency.DashDelimiter
 		}
 		symbol = req.Pairs[0].String()
@@ -1218,6 +1250,10 @@ func (by *Bybit) GetOrderHistory(ctx context.Context, req *order.MultiOrderReque
 	if req.AssetType == asset.Options {
 		limit = 25
 	}
+	format, err := by.GetPairFormat(req.AssetType, false)
+	if err != nil {
+		return nil, err
+	}
 	var orders []order.Detail
 	switch req.AssetType {
 	case asset.USDTMarginedFutures, asset.USDCMarginedFutures, asset.CoinMarginedFutures, asset.Options:
@@ -1235,7 +1271,7 @@ func (by *Bybit) GetOrderHistory(ctx context.Context, req *order.MultiOrderReque
 			}
 
 			var pair currency.Pair
-			pair, err = by.ExtractCurrencyPair(resp.List[i].Symbol, req.AssetType, false)
+			pair, err = by.MatchSymbolWithAvailablePairs(resp.List[i].Symbol, req.AssetType, true)
 			if err != nil {
 				return nil, err
 			}
@@ -1254,7 +1290,7 @@ func (by *Bybit) GetOrderHistory(ctx context.Context, req *order.MultiOrderReque
 				Side:                 side,
 				Type:                 orderType,
 				Price:                resp.List[i].Price.Float64(),
-				Pair:                 pair,
+				Pair:                 pair.Format(format),
 				Status:               StringToOrderStatus(resp.List[i].OrderStatus),
 				ReduceOnly:           resp.List[i].ReduceOnly,
 				TriggerPrice:         resp.List[i].TriggerPrice.Float64(),
@@ -1281,7 +1317,7 @@ func (by *Bybit) GetOrderHistory(ctx context.Context, req *order.MultiOrderReque
 				log.Errorf(log.ExchangeSys, "%s %v", by.Name, err)
 			}
 			var pair currency.Pair
-			pair, err = by.ExtractCurrencyPair(resp.List[i].Symbol, req.AssetType, false)
+			pair, err = by.MatchSymbolWithAvailablePairs(resp.List[i].Symbol, req.AssetType, true)
 			if err != nil {
 				return nil, err
 			}
@@ -1301,7 +1337,7 @@ func (by *Bybit) GetOrderHistory(ctx context.Context, req *order.MultiOrderReque
 				Side:                 side,
 				Type:                 orderType,
 				Price:                resp.List[i].Price.Float64(),
-				Pair:                 pair,
+				Pair:                 pair.Format(format),
 				Status:               StringToOrderStatus(resp.List[i].OrderStatus),
 				ReduceOnly:           resp.List[i].ReduceOnly,
 				TriggerPrice:         resp.List[i].TriggerPrice.Float64(),
@@ -1393,7 +1429,7 @@ func (by *Bybit) GetHistoricCandles(ctx context.Context, pair currency.Pair, a a
 	var timeSeries []kline.Candle
 	switch req.Asset {
 	case asset.Spot, asset.CoinMarginedFutures, asset.USDTMarginedFutures, asset.USDCMarginedFutures:
-		if a == asset.USDCMarginedFutures && !strings.EqualFold(pair.Quote.String(), "PERP") {
+		if a == asset.USDCMarginedFutures && !pair.Quote.Equal(currency.PERP) {
 			pair.Delimiter = currency.DashDelimiter
 		}
 		var candles []KlineItem
@@ -1430,7 +1466,7 @@ func (by *Bybit) GetHistoricCandlesExtended(ctx context.Context, pair currency.P
 	for x := range req.RangeHolder.Ranges {
 		switch req.Asset {
 		case asset.Spot, asset.USDTMarginedFutures, asset.USDCMarginedFutures, asset.CoinMarginedFutures:
-			if req.Asset == asset.USDCMarginedFutures && !strings.EqualFold(req.RequestFormatted.Quote.String(), "PERP") {
+			if req.Asset == asset.USDCMarginedFutures && !req.RequestFormatted.Quote.Equal(currency.PERP) {
 				req.RequestFormatted.Delimiter = currency.DashDelimiter
 			}
 			var klineItems []KlineItem
@@ -1524,7 +1560,7 @@ func (by *Bybit) SetLeverage(ctx context.Context, item asset.Item, pair currency
 		if err != nil {
 			return err
 		}
-		if item == asset.USDCMarginedFutures && !strings.EqualFold(pair.Quote.String(), "PERP") {
+		if item == asset.USDCMarginedFutures && !pair.Quote.Equal(currency.PERP) {
 			pair.Delimiter = currency.DashDelimiter
 		}
 		params := &SetLeverageParams{
@@ -1556,6 +1592,10 @@ func (by *Bybit) GetFuturesContractDetails(ctx context.Context, item asset.Item)
 		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, item)
 	}
 	inverseContracts, err := by.GetInstruments(ctx, getCategoryName(item), "", "", "", "", 1000)
+	if err != nil {
+		return nil, err
+	}
+	format, err := by.GetPairFormat(item, false)
 	if err != nil {
 		return nil, err
 	}
@@ -1608,7 +1648,7 @@ func (by *Bybit) GetFuturesContractDetails(ctx context.Context, item asset.Item)
 
 			resp = append(resp, futures.Contract{
 				Exchange:             by.Name,
-				Name:                 cp,
+				Name:                 cp.Format(format),
 				Underlying:           underlying,
 				Asset:                item,
 				StartDate:            s,
@@ -1667,7 +1707,7 @@ func (by *Bybit) GetFuturesContractDetails(ctx context.Context, item asset.Item)
 				if err != nil {
 					return nil, fmt.Errorf("%w %v %v %v %v-%v", err, by.Name, item, cp, instruments[i].LaunchTime.Time(), instruments[i].DeliveryTime.Time())
 				}
-				cp, err = by.ExtractCurrencyPair(instruments[i].Symbol, item, false)
+				cp, err = by.MatchSymbolWithAvailablePairs(instruments[i].Symbol, item, true)
 				if err != nil {
 					return nil, err
 				}
@@ -1676,7 +1716,7 @@ func (by *Bybit) GetFuturesContractDetails(ctx context.Context, item asset.Item)
 					log.Warnf(log.ExchangeSys, "%v unhandled contract type for %v %v %v-%v", by.Name, item, cp, instruments[i].LaunchTime.Time(), instruments[i].DeliveryTime.Time())
 				}
 				ct = futures.Unknown
-				cp, err = by.ExtractCurrencyPair(instruments[i].Symbol, item, false)
+				cp, err = by.MatchSymbolWithAvailablePairs(instruments[i].Symbol, item, true)
 				if err != nil {
 					return nil, err
 				}
@@ -1684,7 +1724,7 @@ func (by *Bybit) GetFuturesContractDetails(ctx context.Context, item asset.Item)
 
 			resp = append(resp, futures.Contract{
 				Exchange:             by.Name,
-				Name:                 cp,
+				Name:                 cp.Format(format),
 				Underlying:           underlying,
 				Asset:                item,
 				StartDate:            instruments[i].LaunchTime.Time(),
@@ -1761,7 +1801,7 @@ func (by *Bybit) GetFuturesContractDetails(ctx context.Context, item asset.Item)
 
 			resp = append(resp, futures.Contract{
 				Exchange:             by.Name,
-				Name:                 cp,
+				Name:                 cp.Format(format),
 				Underlying:           underlying,
 				Asset:                item,
 				StartDate:            s,
@@ -1810,13 +1850,9 @@ func (by *Bybit) ExtractCurrencyPair(symbol string, assetType asset.Item, reques
 		return currency.EMPTYPAIR, err
 	}
 	var pair currency.Pair
-	switch assetType {
-	case asset.Options, asset.USDCMarginedFutures, asset.Spot,
-		asset.USDTMarginedFutures, asset.CoinMarginedFutures:
-		pair, err = by.MatchSymbolWithAvailablePairs(symbol, assetType, true)
-		if err != nil {
-			return currency.EMPTYPAIR, err
-		}
+	pair, err = by.MatchSymbolWithAvailablePairs(symbol, assetType, true)
+	if err != nil {
+		return currency.EMPTYPAIR, err
 	}
 	return pair.Format(format), nil
 }

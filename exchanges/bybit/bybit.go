@@ -22,7 +22,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
-	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
 // Bybit is the overarching type across this package
@@ -317,7 +316,7 @@ func (by *Bybit) GetTickers(ctx context.Context, category, symbol, baseCoin stri
 	if err != nil {
 		return nil, err
 	}
-	if category == cOption && baseCoin == "" {
+	if category == cOption && symbol == "" && baseCoin == "" {
 		return nil, errBaseNotSet
 	}
 	if baseCoin != "" {
@@ -364,7 +363,7 @@ func (by *Bybit) GetPublicTradingHistory(ctx context.Context, category, symbol, 
 	if err != nil {
 		return nil, err
 	}
-	if category == cOption && baseCoin == "" {
+	if category == cOption && symbol == "" && baseCoin == "" {
 		return nil, errBaseNotSet
 	}
 	if baseCoin != "" {
@@ -2598,8 +2597,10 @@ func StringToOrderStatus(status string) order.Status {
 		return order.Rejected
 	case "PARTIALLYFILLED", "PARTIALLY_FILLED":
 		return order.PartiallyFilled
-	case "PARTIALLYFILLEDCANCELED", "PENDING_CANCEL":
-		return order.PartiallyCancelled
+	case "PARTIALLYFILLEDCANCELED":
+		return order.PartiallyFilledCancelled
+	case "PENDING_CANCEL":
+		return order.PendingCancel
 	case "FILLED":
 		return order.Filled
 	case "CANCELED", "CANCELLED":
@@ -2626,13 +2627,13 @@ func getSign(sign, secret string) (string, error) {
 }
 
 // RetrieveAndSetAccountType retrieve to set account type information
-func (by *Bybit) RetrieveAndSetAccountType(ctx context.Context) {
+func (by *Bybit) RetrieveAndSetAccountType(ctx context.Context) error {
 	accInfo, err := by.GetAPIKeyInformation(ctx)
 	if err != nil {
-		log.Errorf(log.ExchangeSys, "RetrieveAndSetAccountType: %v", err)
-		return
+		return err
 	}
 	by.AccountType = uint8(accInfo.IsUnifiedTradeAccount) // 0：regular account; 1：unified trade account
+	return nil
 }
 
 // GetLongShortRatio retrieves long short ratio of an instrument.

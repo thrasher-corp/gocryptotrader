@@ -314,6 +314,7 @@ const (
 	Active
 	PartiallyCancelled
 	PartiallyFilled
+	PartiallyFilledCancelled
 	Filled
 	Cancelled
 	PendingCancel

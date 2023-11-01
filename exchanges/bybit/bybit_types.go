@@ -186,6 +186,17 @@ type TickerItem struct {
 	Ask1Price              convert.StringToFloat64 `json:"ask1Price"`
 	Bid1Size               convert.StringToFloat64 `json:"bid1Size"`
 	Basis                  convert.StringToFloat64 `json:"basis"`
+	Bid1Iv                 convert.StringToFloat64 `json:"bid1Iv"`
+	Ask1Iv                 convert.StringToFloat64 `json:"ask1Iv"`
+	MarkIv                 convert.StringToFloat64 `json:"markIv"`
+	UnderlyingPrice        convert.StringToFloat64 `json:"underlyingPrice"`
+	TotalVolume            convert.StringToFloat64 `json:"totalVolume"`
+	TotalTurnover          convert.StringToFloat64 `json:"totalTurnover"`
+	Delta                  convert.StringToFloat64 `json:"delta"`
+	Gamma                  convert.StringToFloat64 `json:"gamma"`
+	Vega                   convert.StringToFloat64 `json:"vega"`
+	Theta                  convert.StringToFloat64 `json:"theta"`
+	Change24Hour           convert.StringToFloat64 `json:"change24h"`
 }
 
 // FundingRateHistory represents a funding rate history for a category.
