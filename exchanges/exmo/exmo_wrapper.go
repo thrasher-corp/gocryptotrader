@@ -207,6 +207,9 @@ func (e *EXMO) UpdateTradablePairs(ctx context.Context, forceUpdate bool) error 
 
 // UpdateTickers updates the ticker for all currency pairs of a given asset type
 func (e *EXMO) UpdateTickers(ctx context.Context, a asset.Item) error {
+	if !e.SupportsAsset(a) {
+		return fmt.Errorf("%w: %v", asset.ErrNotSupported, a)
+	}
 	result, err := e.GetTicker(ctx)
 	if err != nil {
 		return err

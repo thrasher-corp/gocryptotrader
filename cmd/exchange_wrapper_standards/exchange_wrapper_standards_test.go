@@ -111,6 +111,7 @@ func setupExchange(ctx context.Context, t *testing.T, name string, cfg *config.C
 
 	// Add +1 to len to verify that exchanges can handle requests with unset pairs and assets
 	assetPairs := make([]assetPair, 0, len(assets)+1)
+assets:
 	for j := range assets {
 		var pairs currency.Pairs
 		pairs, err = b.CurrencyPairs.GetPairs(assets[j], false)
@@ -132,6 +133,12 @@ func setupExchange(ctx context.Context, t *testing.T, name string, cfg *config.C
 		p, err = b.FormatExchangeCurrency(p, assets[j])
 		if err != nil {
 			t.Fatalf("Cannot setup %v asset %v FormatExchangeCurrency %v", name, assets[j], err)
+		}
+		for x := range unsupportedAssets {
+			if assets[j] == unsupportedAssets[x] {
+				// this asset cannot handle disrupt formatting
+				continue assets
+			}
 		}
 		p, err = disruptFormatting(t, p)
 		if err != nil {
@@ -324,8 +331,8 @@ func generateMethodArg(ctx context.Context, t *testing.T, argGenerator *MethodAr
 	case argGenerator.MethodInputType.AssignableTo(feeBuilderParam):
 		input = reflect.ValueOf(&exchange.FeeBuilder{
 			FeeType:       exchange.OfflineTradeFee,
-			Amount:        1337,
-			PurchasePrice: 1337,
+			Amount:        150,
+			PurchasePrice: 150,
 			Pair:          argGenerator.AssetParams.Pair,
 		})
 	case argGenerator.MethodInputType.AssignableTo(currencyPairParam):
@@ -427,7 +434,7 @@ func generateMethodArg(ctx context.Context, t *testing.T, argGenerator *MethodAr
 			Side:              order.Buy,
 			Pair:              argGenerator.AssetParams.Pair,
 			AssetType:         argGenerator.AssetParams.Asset,
-			Price:             1337,
+			Price:             150,
 			Amount:            1,
 			ClientID:          "1337",
 			ClientOrderID:     "13371337",
@@ -440,7 +447,7 @@ func generateMethodArg(ctx context.Context, t *testing.T, argGenerator *MethodAr
 			Side:              order.Buy,
 			Pair:              argGenerator.AssetParams.Pair,
 			AssetType:         argGenerator.AssetParams.Asset,
-			Price:             1337,
+			Price:             150,
 			Amount:            1,
 			ClientOrderID:     "13371337",
 			OrderID:           "1337",
@@ -484,8 +491,8 @@ func generateMethodArg(ctx context.Context, t *testing.T, argGenerator *MethodAr
 			Pair:                    argGenerator.AssetParams.Pair,
 			Asset:                   argGenerator.AssetParams.Asset,
 			MarginType:              margin.Isolated,
-			OriginalAllocatedMargin: 1337,
-			NewAllocatedMargin:      1338,
+			OriginalAllocatedMargin: 150,
+			NewAllocatedMargin:      151,
 		})
 	case argGenerator.MethodInputType.AssignableTo(positionSummaryRequestParam):
 		input = reflect.ValueOf(&futures.PositionSummaryRequest{
@@ -504,9 +511,9 @@ func generateMethodArg(ctx context.Context, t *testing.T, argGenerator *MethodAr
 	case argGenerator.MethodInputType.AssignableTo(orderSideParam):
 		input = reflect.ValueOf(order.Long)
 	case argGenerator.MethodInputType.AssignableTo(int64Param):
-		input = reflect.ValueOf(1337)
+		input = reflect.ValueOf(150)
 	case argGenerator.MethodInputType.AssignableTo(float64Param):
-		input = reflect.ValueOf(1337.0)
+		input = reflect.ValueOf(150.0)
 	case argGenerator.MethodInputType.AssignableTo(latestRateRequest):
 		input = reflect.ValueOf(&fundingrate.LatestRateRequest{
 			Asset:                argGenerator.AssetParams.Asset,
@@ -574,6 +581,12 @@ var excludedMethodNames = map[string]struct{}{
 var blockedCIExchanges = []string{
 	"binance", // binance API is banned from executing within the US where github Actions is ran
 	"bybit",   // bybit API is banned from executing within the US where github Actions is ran
+}
+
+// unsupportedAssets contains assets that cannot handle
+// normal processing for testing. This is to be used very sparingly
+var unsupportedAssets = []asset.Item{
+	asset.Index,
 }
 
 var unsupportedExchangeNames = []string{
