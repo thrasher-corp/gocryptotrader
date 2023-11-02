@@ -9,8 +9,20 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
 
-// ErrFundingRateOutsideLimits is returned when a funding rate is outside the allowed date range
-var ErrFundingRateOutsideLimits = errors.New("funding rate outside limits")
+var (
+	// ErrFundingRateOutsideLimits is returned when a funding rate is outside the allowed date range
+	ErrFundingRateOutsideLimits = errors.New("funding rate outside limits")
+	// ErrPaymentCurrencyCannotBeEmpty is returned when a payment currency is not set
+	ErrPaymentCurrencyCannotBeEmpty = errors.New("payment currency cannot be empty")
+	// ErrIncludePaymentsNotSupported is returned when an exchange does not support
+	// including payments in the response.
+	ErrIncludePaymentsNotSupported = errors.New("include payments not supported")
+	// ErrIncludePredictedRateNotSupported is returned when an exchange does not support
+	// including predicted rates in the response.
+	ErrIncludePredictedRateNotSupported = errors.New("include predicted rate not supported")
+	// ErrNoFundingRatesFound is returned when no funding rates are found
+	ErrNoFundingRatesFound = errors.New("no funding rates found")
+)
 
 // HistoricalRatesRequest is used to request funding rate details for a position
 type HistoricalRatesRequest struct {
