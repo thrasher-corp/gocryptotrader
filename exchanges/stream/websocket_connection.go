@@ -22,7 +22,7 @@ import (
 // SendMessageReturnResponse will send a WS message to the connection and wait
 // for response
 func (w *WebsocketConnection) SendMessageReturnResponse(signature, request interface{}) ([]byte, error) {
-	m, err := w.Match.set(signature)
+	m, err := w.Match.Set(signature)
 	if err != nil {
 		return nil, err
 	}
