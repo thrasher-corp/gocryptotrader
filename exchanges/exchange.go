@@ -158,7 +158,35 @@ func (b *Base) SetFeatureDefaults() {
 			b.SetFillsFeedStatus(b.Config.Features.Enabled.FillsFeed)
 		}
 
+		b.SetSubscriptionsFromConfig()
+
 		b.Features.Enabled.AutoPairUpdates = b.Config.Features.Enabled.AutoPairUpdates
+	}
+}
+
+// SetSubscriptionsFromConfig sets the subscriptions from config
+// If the subscriptions config is empty then Config will be updated from the exchange subscriptions,
+// allowing e.SetDefaults to set default subscriptions for an exchange to update user's config
+// Subscriptions not Enabled are skipped, meaning that e.Features.Subscriptions only contains Enabled subscriptions
+func (b *Base) SetSubscriptionsFromConfig() {
+	b.settingsMutex.Lock()
+	defer b.settingsMutex.Unlock()
+	if len(b.Config.Features.Subscriptions) == 0 {
+		b.Config.Features.Subscriptions = b.Features.Subscriptions
+		return
+	}
+	b.Features.Subscriptions = []*subscription.Subscription{}
+	for _, s := range b.Config.Features.Subscriptions {
+		if s.Enabled {
+			b.Features.Subscriptions = append(b.Features.Subscriptions, s)
+		}
+	}
+	if b.Verbose {
+		names := make([]string, 0, len(b.Features.Subscriptions))
+		for _, s := range b.Features.Subscriptions {
+			names = append(names, s.Channel)
+		}
+		log.Debugf(log.ExchangeSys, "Set %v 'Subscriptions' to %v", b.Name, strings.Join(names, ", "))
 	}
 }
 

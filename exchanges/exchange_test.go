@@ -3271,11 +3271,27 @@ func TestGetCachedOpenInterest(t *testing.T) {
 	assert.NoError(t, err)
 }
 
-func TestSetEnabledSubscriptions(t *testing.T) {
+// TestSetSubscriptionsFromConfig tests the setting and loading of subscriptions from config and exchange defaults
+func TestSetSubscriptionsFromConfig(t *testing.T) {
 	t.Parallel()
-	b := Base{Name: "test"}
+	b := Base{
+		Config: &config.Exchange{
+			Features: &config.FeaturesConfig{},
+		},
+	}
+	subs := []*subscription.Subscription{
+		{Channel: subscription.CandlesChannel, Interval: kline.OneDay, Enabled: true},
+	}
+	b.Features.Subscriptions = subs
+	b.SetSubscriptionsFromConfig()
+	assert.ElementsMatch(t, subs, b.Config.Features.Subscriptions, "Config Subscriptions should be updated")
+	assert.ElementsMatch(t, subs, b.Features.Subscriptions, "Subscriptions should be the same")
 
-	_ = b
-
-	//
+	subs = []*subscription.Subscription{
+		{Channel: subscription.OrderbookChannel, Interval: kline.OneDay, Enabled: true},
+	}
+	b.Config.Features.Subscriptions = subs
+	b.SetSubscriptionsFromConfig()
+	assert.ElementsMatch(t, subs, b.Features.Subscriptions, "Subscriptions should be updated from Config")
+	assert.ElementsMatch(t, subs, b.Config.Features.Subscriptions, "Config Subscriptions should be the same")
 }
