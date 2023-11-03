@@ -16,6 +16,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
@@ -548,9 +549,9 @@ func (b *Binance) UpdateLocalBuffer(wsdp *WebsocketDepthStream) (bool, error) {
 }
 
 // GenerateSubscriptions generates the default subscription set
-func (b *Binance) GenerateSubscriptions() ([]stream.ChannelSubscription, error) {
+func (b *Binance) GenerateSubscriptions() ([]subscription.Subscription, error) {
 	var channels = []string{"@ticker", "@trade", "@kline_1m", "@depth@100ms"}
-	var subscriptions []stream.ChannelSubscription
+	var subscriptions []subscription.Subscription
 	assets := b.GetAssetTypes(true)
 	for x := range assets {
 		if assets[x] == asset.Spot {
@@ -563,7 +564,7 @@ func (b *Binance) GenerateSubscriptions() ([]stream.ChannelSubscription, error) 
 				for z := range channels {
 					lp := pairs[y].Lower()
 					lp.Delimiter = ""
-					subscriptions = append(subscriptions, stream.ChannelSubscription{
+					subscriptions = append(subscriptions, subscription.Subscription{
 						Channel:  lp.String() + channels[z],
 						Currency: pairs[y],
 						Asset:    assets[x],
@@ -576,7 +577,7 @@ func (b *Binance) GenerateSubscriptions() ([]stream.ChannelSubscription, error) 
 }
 
 // Subscribe subscribes to a set of channels
-func (b *Binance) Subscribe(channelsToSubscribe []stream.ChannelSubscription) error {
+func (b *Binance) Subscribe(channelsToSubscribe []subscription.Subscription) error {
 	payload := WsPayload{
 		Method: "SUBSCRIBE",
 	}
@@ -601,7 +602,7 @@ func (b *Binance) Subscribe(channelsToSubscribe []stream.ChannelSubscription) er
 }
 
 // Unsubscribe unsubscribes from a set of channels
-func (b *Binance) Unsubscribe(channelsToUnsubscribe []stream.ChannelSubscription) error {
+func (b *Binance) Unsubscribe(channelsToUnsubscribe []subscription.Subscription) error {
 	payload := WsPayload{
 		Method: "UNSUBSCRIBE",
 	}

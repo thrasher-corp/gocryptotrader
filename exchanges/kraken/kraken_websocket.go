@@ -20,6 +20,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
@@ -846,7 +847,7 @@ func (k *Kraken) wsProcessOrderBook(channelData *WebsocketChannelData, data map[
 		if err != nil {
 			outbound := channelData.Pair // Format required "XBT/USD"
 			outbound.Delimiter = "/"
-			go func(resub *stream.ChannelSubscription) {
+			go func(resub *subscription.Subscription) {
 				// This was locking the main websocket reader routine and a
 				// backlog occurred. So put this into it's own go routine.
 				errResub := k.Websocket.ResubscribeToChannel(resub)
@@ -856,7 +857,7 @@ func (k *Kraken) wsProcessOrderBook(channelData *WebsocketChannelData, data map[
 						resub,
 						errResub)
 				}
-			}(&stream.ChannelSubscription{
+			}(&subscription.Subscription{
 				Channel:  krakenWsOrderbook,
 				Currency: outbound,
 				Asset:    asset.Spot,
@@ -1209,16 +1210,16 @@ func (k *Kraken) wsProcessCandles(channelData *WebsocketChannelData, data []inte
 }
 
 // GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
-func (k *Kraken) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, error) {
+func (k *Kraken) GenerateDefaultSubscriptions() ([]subscription.Subscription, error) {
 	enabledCurrencies, err := k.GetEnabledPairs(asset.Spot)
 	if err != nil {
 		return nil, err
 	}
-	var subscriptions []stream.ChannelSubscription
+	var subscriptions []subscription.Subscription
 	for i := range defaultSubscribedChannels {
 		for j := range enabledCurrencies {
 			enabledCurrencies[j].Delimiter = "/"
-			subscriptions = append(subscriptions, stream.ChannelSubscription{
+			subscriptions = append(subscriptions, subscription.Subscription{
 				Channel:  defaultSubscribedChannels[i],
 				Currency: enabledCurrencies[j],
 				Asset:    asset.Spot,
@@ -1227,7 +1228,7 @@ func (k *Kraken) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, e
 	}
 	if k.Websocket.CanUseAuthenticatedEndpoints() {
 		for i := range authenticatedChannels {
-			subscriptions = append(subscriptions, stream.ChannelSubscription{
+			subscriptions = append(subscriptions, subscription.Subscription{
 				Channel: authenticatedChannels[i],
 			})
 		}
@@ -1236,7 +1237,7 @@ func (k *Kraken) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, e
 }
 
 // Subscribe sends a websocket message to receive data from the channel
-func (k *Kraken) Subscribe(channelsToSubscribe []stream.ChannelSubscription) error {
+func (k *Kraken) Subscribe(channelsToSubscribe []subscription.Subscription) error {
 	var subscriptions = make(map[string]*[]WebsocketSubscriptionEventRequest)
 channels:
 	for i := range channelsToSubscribe {
@@ -1298,7 +1299,7 @@ channels:
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
-func (k *Kraken) Unsubscribe(channelsToUnsubscribe []stream.ChannelSubscription) error {
+func (k *Kraken) Unsubscribe(channelsToUnsubscribe []subscription.Subscription) error {
 	var unsubs []WebsocketSubscriptionEventRequest
 channels:
 	for x := range channelsToUnsubscribe {

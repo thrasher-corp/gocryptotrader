@@ -736,9 +736,9 @@ func (f *FTX) WsConnect() error {
 
 ```go
 // GenerateDefaultSubscriptions generates default subscription
-func (f *FTX) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, error) {
-	var subscriptions []stream.ChannelSubscription
-	subscriptions = append(subscriptions, stream.ChannelSubscription{
+func (f *FTX) GenerateDefaultSubscriptions() ([]subscription.Subscription, error) {
+	var subscriptions []subscription.Subscription
+	subscriptions = append(subscriptions, subscription.Subscription{
 		Channel: wsMarkets,
 	})
 	// Ranges over available channels, pairs and asset types to produce a full
@@ -756,7 +756,7 @@ func (f *FTX) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, erro
 				"-")
 			for x := range channels {
 				subscriptions = append(subscriptions,
-					stream.ChannelSubscription{
+					subscription.Subscription{
 						Channel:  channels[x],
 						Currency: newPair,
 						Asset:    assets[a],
@@ -768,7 +768,7 @@ func (f *FTX) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, erro
 	if f.IsWebsocketAuthenticationSupported() {
 		var authchan = []string{wsOrders, wsFills}
 		for x := range authchan {
-			subscriptions = append(subscriptions, stream.ChannelSubscription{
+			subscriptions = append(subscriptions, subscription.Subscription{
 				Channel: authchan[x],
 			})
 		}
@@ -811,7 +811,7 @@ type WsSub struct {
 
 ```go
 // Subscribe sends a websocket message to receive data from the channel
-func (f *FTX) Subscribe(channelsToSubscribe []stream.ChannelSubscription) error {
+func (f *FTX) Subscribe(channelsToSubscribe []subscription.Subscription) error {
 	// For subscriptions we try to batch as much as possible to limit the amount
 	// of connection usage but sometimes this is not supported on the exchange 
 	// API.
@@ -1065,7 +1065,7 @@ func (f *FTX) WsAuth(ctx context.Context) error {
 
 ```go
 // Unsubscribe sends a websocket message to stop receiving data from the channel
-func (f *FTX) Unsubscribe(channelsToUnsubscribe []stream.ChannelSubscription) error {
+func (f *FTX) Unsubscribe(channelsToUnsubscribe []subscription.Subscription) error {
 	// As with subscribing we want to batch as much as possible, but sometimes this cannot be achieved due to API shortfalls. 
 	var errs common.Errors
 channels:

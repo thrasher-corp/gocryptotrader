@@ -19,6 +19,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
@@ -324,16 +325,16 @@ func (b *BTCMarkets) wsHandleData(respRaw []byte) error {
 	return nil
 }
 
-func (b *BTCMarkets) generateDefaultSubscriptions() ([]stream.ChannelSubscription, error) {
+func (b *BTCMarkets) generateDefaultSubscriptions() ([]subscription.Subscription, error) {
 	var channels = []string{wsOB, tick, tradeEndPoint}
 	enabledCurrencies, err := b.GetEnabledPairs(asset.Spot)
 	if err != nil {
 		return nil, err
 	}
-	var subscriptions []stream.ChannelSubscription
+	var subscriptions []subscription.Subscription
 	for i := range channels {
 		for j := range enabledCurrencies {
-			subscriptions = append(subscriptions, stream.ChannelSubscription{
+			subscriptions = append(subscriptions, subscription.Subscription{
 				Channel:  channels[i],
 				Currency: enabledCurrencies[j],
 				Asset:    asset.Spot,
@@ -343,7 +344,7 @@ func (b *BTCMarkets) generateDefaultSubscriptions() ([]stream.ChannelSubscriptio
 
 	if b.Websocket.CanUseAuthenticatedEndpoints() {
 		for i := range authChannels {
-			subscriptions = append(subscriptions, stream.ChannelSubscription{
+			subscriptions = append(subscriptions, subscription.Subscription{
 				Channel: authChannels[i],
 			})
 		}
@@ -352,7 +353,7 @@ func (b *BTCMarkets) generateDefaultSubscriptions() ([]stream.ChannelSubscriptio
 }
 
 // Subscribe sends a websocket message to receive data from the channel
-func (b *BTCMarkets) Subscribe(subs []stream.ChannelSubscription) error {
+func (b *BTCMarkets) Subscribe(subs []subscription.Subscription) error {
 	var payload WsSubscribe
 	if len(subs) > 1 {
 		// TODO: Expand this to stream package as this assumes that we are doing
@@ -407,7 +408,7 @@ func (b *BTCMarkets) Subscribe(subs []stream.ChannelSubscription) error {
 }
 
 // Unsubscribe sends a websocket message to manage and remove a subscription.
-func (b *BTCMarkets) Unsubscribe(subs []stream.ChannelSubscription) error {
+func (b *BTCMarkets) Unsubscribe(subs []subscription.Subscription) error {
 	payload := WsSubscribe{
 		MessageType: removeSubscription,
 		ClientType:  clientType,
@@ -436,7 +437,7 @@ func (b *BTCMarkets) Unsubscribe(subs []stream.ChannelSubscription) error {
 // ReSubscribeSpecificOrderbook removes the subscription and the subscribes
 // again to fetch a new snapshot in the event of a de-sync event.
 func (b *BTCMarkets) ReSubscribeSpecificOrderbook(pair currency.Pair) error {
-	sub := []stream.ChannelSubscription{{
+	sub := []subscription.Subscription{{
 		Channel:  wsOB,
 		Currency: pair,
 		Asset:    asset.Spot,

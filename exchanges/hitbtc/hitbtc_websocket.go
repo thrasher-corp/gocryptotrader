@@ -18,6 +18,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
@@ -465,15 +466,15 @@ func (h *HitBTC) WsProcessOrderbookUpdate(update *WsOrderbook) error {
 }
 
 // GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
-func (h *HitBTC) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, error) {
+func (h *HitBTC) GenerateDefaultSubscriptions() ([]subscription.Subscription, error) {
 	var channels = []string{"subscribeTicker",
 		"subscribeOrderbook",
 		"subscribeTrades",
 		"subscribeCandles"}
 
-	var subscriptions []stream.ChannelSubscription
+	var subscriptions []subscription.Subscription
 	if h.Websocket.CanUseAuthenticatedEndpoints() {
-		subscriptions = append(subscriptions, stream.ChannelSubscription{
+		subscriptions = append(subscriptions, subscription.Subscription{
 			Channel: "subscribeReports",
 		})
 	}
@@ -489,7 +490,7 @@ func (h *HitBTC) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, e
 			}
 
 			enabledCurrencies[j].Delimiter = ""
-			subscriptions = append(subscriptions, stream.ChannelSubscription{
+			subscriptions = append(subscriptions, subscription.Subscription{
 				Channel:  channels[i],
 				Currency: fPair,
 				Asset:    asset.Spot,
@@ -500,7 +501,7 @@ func (h *HitBTC) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, e
 }
 
 // Subscribe sends a websocket message to receive data from the channel
-func (h *HitBTC) Subscribe(channelsToSubscribe []stream.ChannelSubscription) error {
+func (h *HitBTC) Subscribe(channelsToSubscribe []subscription.Subscription) error {
 	var errs error
 	for i := range channelsToSubscribe {
 		subscribe := WsRequest{
@@ -532,7 +533,7 @@ func (h *HitBTC) Subscribe(channelsToSubscribe []stream.ChannelSubscription) err
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
-func (h *HitBTC) Unsubscribe(channelsToUnsubscribe []stream.ChannelSubscription) error {
+func (h *HitBTC) Unsubscribe(channelsToUnsubscribe []subscription.Subscription) error {
 	var errs error
 	for i := range channelsToUnsubscribe {
 		unsubscribeChannel := strings.Replace(channelsToUnsubscribe[i].Channel,

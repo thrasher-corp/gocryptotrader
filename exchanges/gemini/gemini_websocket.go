@@ -21,6 +21,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
@@ -62,7 +63,7 @@ func (g *Gemini) WsConnect() error {
 }
 
 // GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
-func (g *Gemini) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, error) {
+func (g *Gemini) GenerateDefaultSubscriptions() ([]subscription.Subscription, error) {
 	// See gemini_types.go for more subscription/candle vars
 	var channels = []string{
 		marketDataLevel2,
@@ -74,10 +75,10 @@ func (g *Gemini) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, e
 		return nil, err
 	}
 
-	var subscriptions []stream.ChannelSubscription
+	var subscriptions []subscription.Subscription
 	for x := range channels {
 		for y := range pairs {
-			subscriptions = append(subscriptions, stream.ChannelSubscription{
+			subscriptions = append(subscriptions, subscription.Subscription{
 				Channel:  channels[x],
 				Currency: pairs[y],
 				Asset:    asset.Spot,
@@ -88,7 +89,7 @@ func (g *Gemini) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, e
 }
 
 // Subscribe sends a websocket message to receive data from the channel
-func (g *Gemini) Subscribe(channelsToSubscribe []stream.ChannelSubscription) error {
+func (g *Gemini) Subscribe(channelsToSubscribe []subscription.Subscription) error {
 	channels := make([]string, 0, len(channelsToSubscribe))
 	for x := range channelsToSubscribe {
 		if common.StringDataCompareInsensitive(channels, channelsToSubscribe[x].Channel) {
@@ -132,7 +133,7 @@ func (g *Gemini) Subscribe(channelsToSubscribe []stream.ChannelSubscription) err
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
-func (g *Gemini) Unsubscribe(channelsToUnsubscribe []stream.ChannelSubscription) error {
+func (g *Gemini) Unsubscribe(channelsToUnsubscribe []subscription.Subscription) error {
 	channels := make([]string, 0, len(channelsToUnsubscribe))
 	for x := range channelsToUnsubscribe {
 		if common.StringDataCompareInsensitive(channels, channelsToUnsubscribe[x].Channel) {

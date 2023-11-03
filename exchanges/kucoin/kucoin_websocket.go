@@ -22,6 +22,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
@@ -916,16 +917,16 @@ func (ku *Kucoin) processMarketSnapshot(respData []byte) error {
 }
 
 // Subscribe sends a websocket message to receive data from the channel
-func (ku *Kucoin) Subscribe(subscriptions []stream.ChannelSubscription) error {
+func (ku *Kucoin) Subscribe(subscriptions []subscription.Subscription) error {
 	return ku.handleSubscriptions(subscriptions, "subscribe")
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
-func (ku *Kucoin) Unsubscribe(subscriptions []stream.ChannelSubscription) error {
+func (ku *Kucoin) Unsubscribe(subscriptions []subscription.Subscription) error {
 	return ku.handleSubscriptions(subscriptions, "unsubscribe")
 }
 
-func (ku *Kucoin) handleSubscriptions(subscriptions []stream.ChannelSubscription, operation string) error {
+func (ku *Kucoin) handleSubscriptions(subscriptions []subscription.Subscription, operation string) error {
 	if requiredSubscriptionIDS == nil {
 		requiredSubscriptionIDS = map[string]bool{}
 	}
@@ -967,7 +968,7 @@ func (ku *Kucoin) getChannelsAssetType(channelName string) (asset.Item, error) {
 }
 
 // GenerateDefaultSubscriptions Adds default subscriptions to websocket.
-func (ku *Kucoin) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, error) {
+func (ku *Kucoin) GenerateDefaultSubscriptions() ([]subscription.Subscription, error) {
 	channels := []string{}
 	if ku.CurrencyPairs.IsAssetEnabled(asset.Spot) == nil || ku.CurrencyPairs.IsAssetEnabled(asset.Margin) == nil {
 		channels = append(channels,
@@ -984,7 +985,7 @@ func (ku *Kucoin) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, 
 			futuresTickerV2Channel,
 			futuresOrderbookLevel2Depth50Channel)
 	}
-	var subscriptions []stream.ChannelSubscription
+	var subscriptions []subscription.Subscription
 	if ku.Websocket.CanUseAuthenticatedEndpoints() {
 		if ku.CurrencyPairs.IsAssetEnabled(asset.Spot) == nil {
 			channels = append(channels,
@@ -1037,7 +1038,7 @@ func (ku *Kucoin) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, 
 			spotMarketAdvancedChannel, privateSpotTradeOrders,
 			marketAllTickersChannel, futuresSystemAnnouncementChannel,
 			futuresAccountBalanceEventChannel:
-			subscriptions = append(subscriptions, stream.ChannelSubscription{
+			subscriptions = append(subscriptions, subscription.Subscription{
 				Channel: channels[x],
 			})
 		case marketTickerSnapshotChannel,
@@ -1051,7 +1052,7 @@ func (ku *Kucoin) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, 
 				if okay := subscribedPairsMap[spotPairs[b].String()]; okay {
 					continue
 				}
-				subscriptions = append(subscriptions, stream.ChannelSubscription{
+				subscriptions = append(subscriptions, subscription.Subscription{
 					Channel:  channels[x],
 					Asset:    asset.Spot,
 					Currency: spotPairs[b],
@@ -1062,7 +1063,7 @@ func (ku *Kucoin) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, 
 				if okay := subscribedPairsMap[marginPairs[b].String()]; okay {
 					continue
 				}
-				subscriptions = append(subscriptions, stream.ChannelSubscription{
+				subscriptions = append(subscriptions, subscription.Subscription{
 					Channel:  channels[x],
 					Asset:    asset.Margin,
 					Currency: marginPairs[b],
@@ -1079,7 +1080,7 @@ func (ku *Kucoin) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, 
 			for p := range marginPairs {
 				pairs = pairs.Add(marginPairs[p])
 			}
-			subscriptions = append(subscriptions, stream.ChannelSubscription{
+			subscriptions = append(subscriptions, subscription.Subscription{
 				Channel: channels[x],
 				Asset:   asset.Spot,
 				Params:  map[string]interface{}{"symbols": pairs.Join()},
@@ -1090,7 +1091,7 @@ func (ku *Kucoin) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, 
 				if okay := subscribedPairsMap[spotPairs[p].String()]; okay {
 					continue
 				}
-				subscriptions = append(subscriptions, stream.ChannelSubscription{
+				subscriptions = append(subscriptions, subscription.Subscription{
 					Channel:  channels[x],
 					Asset:    asset.Spot,
 					Currency: spotPairs[p],
@@ -1102,7 +1103,7 @@ func (ku *Kucoin) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, 
 				if okay := subscribedPairsMap[marginPairs[p].String()]; okay {
 					continue
 				}
-				subscriptions = append(subscriptions, stream.ChannelSubscription{
+				subscriptions = append(subscriptions, subscription.Subscription{
 					Channel:  channels[x],
 					Asset:    asset.Margin,
 					Currency: marginPairs[p],
@@ -1113,14 +1114,14 @@ func (ku *Kucoin) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, 
 		case marginLoanChannel:
 			for b := range marginPairs {
 				if !marginLoanCurrencyCheckMap[marginPairs[b].Quote] {
-					subscriptions = append(subscriptions, stream.ChannelSubscription{
+					subscriptions = append(subscriptions, subscription.Subscription{
 						Channel:  channels[x],
 						Currency: currency.Pair{Base: marginPairs[b].Quote},
 					})
 					marginLoanCurrencyCheckMap[marginPairs[b].Quote] = true
 				}
 				if !marginLoanCurrencyCheckMap[marginPairs[b].Base] {
-					subscriptions = append(subscriptions, stream.ChannelSubscription{
+					subscriptions = append(subscriptions, subscription.Subscription{
 						Channel:  channels[x],
 						Currency: currency.Pair{Base: marginPairs[b].Base},
 					})
@@ -1144,7 +1145,7 @@ func (ku *Kucoin) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, 
 				currencies += b.String() + ","
 			}
 			currencies = strings.TrimSuffix(currencies, ",")
-			subscriptions = append(subscriptions, stream.ChannelSubscription{
+			subscriptions = append(subscriptions, subscription.Subscription{
 				Channel: channels[x],
 				Params:  map[string]interface{}{"currencies": currencies},
 			})
@@ -1163,7 +1164,7 @@ func (ku *Kucoin) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, 
 				if err != nil {
 					continue
 				}
-				subscriptions = append(subscriptions, stream.ChannelSubscription{
+				subscriptions = append(subscriptions, subscription.Subscription{
 					Channel:  channels[x],
 					Asset:    asset.Futures,
 					Currency: futuresPairs[b],
@@ -1174,7 +1175,7 @@ func (ku *Kucoin) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, 
 	return subscriptions, nil
 }
 
-func (ku *Kucoin) generatePayloads(subscriptions []stream.ChannelSubscription, operation string) ([]WsSubscriptionInput, error) {
+func (ku *Kucoin) generatePayloads(subscriptions []subscription.Subscription, operation string) ([]WsSubscriptionInput, error) {
 	payloads := make([]WsSubscriptionInput, 0, len(subscriptions))
 	marketTickerSnapshotForCurrencyChannelCurrencyFilter := map[currency.Code]int{}
 	for x := range subscriptions {

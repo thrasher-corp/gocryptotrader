@@ -24,8 +24,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/buffer"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
@@ -2410,7 +2410,7 @@ func TestProcessMarketSnapshot(t *testing.T) {
 
 func TestSubscribeMarketSnapshot(t *testing.T) {
 	t.Parallel()
-	s := []stream.ChannelSubscription{
+	s := []subscription.Subscription{
 		{Channel: marketTickerSnapshotForCurrencyChannel,
 			Currency: currency.Pair{Base: currency.BTC}},
 	}

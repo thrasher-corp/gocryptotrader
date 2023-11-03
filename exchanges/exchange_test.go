@@ -22,6 +22,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/banking"
 )
@@ -1262,8 +1263,8 @@ func TestSetupDefaults(t *testing.T) {
 		DefaultURL:            "ws://something.com",
 		RunningURL:            "ws://something.com",
 		Connector:             func() error { return nil },
-		GenerateSubscriptions: func() ([]stream.ChannelSubscription, error) { return []stream.ChannelSubscription{}, nil },
-		Subscriber:            func(cs []stream.ChannelSubscription) error { return nil },
+		GenerateSubscriptions: func() ([]subscription.Subscription, error) { return []subscription.Subscription{}, nil },
+		Subscriber:            func(cs []subscription.Subscription) error { return nil },
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -1611,8 +1612,8 @@ func TestIsWebsocketEnabled(t *testing.T) {
 		DefaultURL:            "ws://something.com",
 		RunningURL:            "ws://something.com",
 		Connector:             func() error { return nil },
-		GenerateSubscriptions: func() ([]stream.ChannelSubscription, error) { return nil, nil },
-		Subscriber:            func(cs []stream.ChannelSubscription) error { return nil },
+		GenerateSubscriptions: func() ([]subscription.Subscription, error) { return nil, nil },
+		Subscriber:            func(cs []subscription.Subscription) error { return nil },
 	})
 	if err != nil {
 		t.Error(err)
@@ -3268,4 +3269,13 @@ func TestGetCachedOpenInterest(t *testing.T) {
 		Asset: asset.Futures,
 	})
 	assert.NoError(t, err)
+}
+
+func TestSetEnabledSubscriptions(t *testing.T) {
+	t.Parallel()
+	b := Base{Name: "test"}
+
+	_ = b
+
+	//
 }

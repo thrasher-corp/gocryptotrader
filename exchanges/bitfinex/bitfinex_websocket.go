@@ -23,6 +23,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
@@ -523,7 +524,7 @@ func (b *Bitfinex) handleWSSubscribed(respRaw []byte) error {
 	return nil
 }
 
-func (b *Bitfinex) handleWSChannelUpdate(c *stream.ChannelSubscription, eventType string, d []interface{}) error {
+func (b *Bitfinex) handleWSChannelUpdate(c *subscription.Subscription, eventType string, d []interface{}) error {
 	if eventType == wsChecksum {
 		return b.handleWSChecksum(c, d)
 	}
@@ -546,7 +547,7 @@ func (b *Bitfinex) handleWSChannelUpdate(c *stream.ChannelSubscription, eventTyp
 	return fmt.Errorf("%s unhandled channel update: %s", b.Name, c.Channel)
 }
 
-func (b *Bitfinex) handleWSChecksum(c *stream.ChannelSubscription, d []interface{}) error {
+func (b *Bitfinex) handleWSChecksum(c *subscription.Subscription, d []interface{}) error {
 	var token int
 	if f, ok := d[2].(float64); !ok {
 		return common.GetTypeAssertError("float64", d[2], "checksum")
@@ -577,7 +578,7 @@ func (b *Bitfinex) handleWSChecksum(c *stream.ChannelSubscription, d []interface
 	return nil
 }
 
-func (b *Bitfinex) handleWSBookUpdate(c *stream.ChannelSubscription, d []interface{}) error {
+func (b *Bitfinex) handleWSBookUpdate(c *subscription.Subscription, d []interface{}) error {
 	var newOrderbook []WebsocketBook
 	obSnapBundle, ok := d[1].([]interface{})
 	if !ok {
@@ -672,7 +673,7 @@ func (b *Bitfinex) handleWSBookUpdate(c *stream.ChannelSubscription, d []interfa
 	return nil
 }
 
-func (b *Bitfinex) handleWSCandleUpdate(c *stream.ChannelSubscription, d []interface{}) error {
+func (b *Bitfinex) handleWSCandleUpdate(c *subscription.Subscription, d []interface{}) error {
 	candleBundle, ok := d[1].([]interface{})
 	if !ok || len(candleBundle) == 0 {
 		return nil
@@ -746,7 +747,7 @@ func (b *Bitfinex) handleWSCandleUpdate(c *stream.ChannelSubscription, d []inter
 	return nil
 }
 
-func (b *Bitfinex) handleWSTickerUpdate(c *stream.ChannelSubscription, d []interface{}) error {
+func (b *Bitfinex) handleWSTickerUpdate(c *subscription.Subscription, d []interface{}) error {
 	tickerData, ok := d[1].([]interface{})
 	if !ok {
 		return errors.New("type assertion for tickerData")
@@ -819,7 +820,7 @@ func (b *Bitfinex) handleWSTickerUpdate(c *stream.ChannelSubscription, d []inter
 	return nil
 }
 
-func (b *Bitfinex) handleWSTradesUpdate(c *stream.ChannelSubscription, eventType string, d []interface{}) error {
+func (b *Bitfinex) handleWSTradesUpdate(c *subscription.Subscription, eventType string, d []interface{}) error {
 	if !b.IsSaveTradeDataEnabled() {
 		return nil
 	}
@@ -1508,7 +1509,7 @@ func (b *Bitfinex) WsInsertSnapshot(p currency.Pair, assetType asset.Item, books
 
 // WsUpdateOrderbook updates the orderbook list, removing and adding to the
 // orderbook sides
-func (b *Bitfinex) WsUpdateOrderbook(c *stream.ChannelSubscription, p currency.Pair, assetType asset.Item, book []WebsocketBook, sequenceNo int64, fundingRate bool) error {
+func (b *Bitfinex) WsUpdateOrderbook(c *subscription.Subscription, p currency.Pair, assetType asset.Item, book []WebsocketBook, sequenceNo int64, fundingRate bool) error {
 	orderbookUpdate := orderbook.Update{
 		Asset:      assetType,
 		Pair:       p,
@@ -1602,7 +1603,7 @@ func (b *Bitfinex) WsUpdateOrderbook(c *stream.ChannelSubscription, p currency.P
 // resubOrderbook resubscribes the orderbook after a consistency error, probably a failed checksum,
 // which forces a fresh snapshot. If we don't do this the orderbook will keep erroring and drifting.
 // Flushing the orderbook happens immediately, but the ReSub itself is a go routine to avoid blocking the WS data channel
-func (b *Bitfinex) resubOrderbook(c *stream.ChannelSubscription) {
+func (b *Bitfinex) resubOrderbook(c *subscription.Subscription) {
 	if err := b.Websocket.Orderbook.FlushOrderbook(c.Currency, c.Asset); err != nil {
 		log.Errorf(log.ExchangeSys, "%s error flushing orderbook: %v", b.Name, err)
 	}
@@ -1616,10 +1617,10 @@ func (b *Bitfinex) resubOrderbook(c *stream.ChannelSubscription) {
 }
 
 // GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
-func (b *Bitfinex) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, error) {
+func (b *Bitfinex) GenerateDefaultSubscriptions() ([]subscription.Subscription, error) {
 	var channels = []string{wsBook, wsTrades, wsTicker, wsCandles}
 
-	var subscriptions []stream.ChannelSubscription
+	var subscriptions []subscription.Subscription
 	assets := b.GetAssetTypes(true)
 	for i := range assets {
 		if !b.IsAssetWebsocketSupported(assets[i]) {
@@ -1642,7 +1643,7 @@ func (b *Bitfinex) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription,
 					params[CandlesPeriodKey] = "30"
 				}
 
-				subscriptions = append(subscriptions, stream.ChannelSubscription{
+				subscriptions = append(subscriptions, subscription.Subscription{
 					Channel:  channels[j],
 					Currency: enabledPairs[k],
 					Params:   params,
@@ -1664,23 +1665,23 @@ func (b *Bitfinex) ConfigureWS() error {
 }
 
 // Subscribe sends a websocket message to receive data from channels
-func (b *Bitfinex) Subscribe(channels []stream.ChannelSubscription) error {
+func (b *Bitfinex) Subscribe(channels []subscription.Subscription) error {
 	return b.parallelChanOp(channels, b.subscribeToChan)
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from channels
-func (b *Bitfinex) Unsubscribe(channels []stream.ChannelSubscription) error {
+func (b *Bitfinex) Unsubscribe(channels []subscription.Subscription) error {
 	return b.parallelChanOp(channels, b.unsubscribeFromChan)
 }
 
 // parallelChanOp performs a single method call in parallel across streams and waits to return any errors
-func (b *Bitfinex) parallelChanOp(channels []stream.ChannelSubscription, m func(*stream.ChannelSubscription) error) error {
+func (b *Bitfinex) parallelChanOp(channels []subscription.Subscription, m func(*subscription.Subscription) error) error {
 	wg := sync.WaitGroup{}
 	wg.Add(len(channels))
 	errC := make(chan error, len(channels))
 
 	for i := range channels {
-		go func(c *stream.ChannelSubscription) {
+		go func(c *subscription.Subscription) {
 			defer wg.Done()
 			if err := m(c); err != nil {
 				errC <- err
@@ -1701,7 +1702,7 @@ func (b *Bitfinex) parallelChanOp(channels []stream.ChannelSubscription, m func(
 
 // subscribeToChan handles a single subscription and parses the result
 // on success it adds the subscription to the websocket
-func (b *Bitfinex) subscribeToChan(c *stream.ChannelSubscription) error {
+func (b *Bitfinex) subscribeToChan(c *subscription.Subscription) error {
 	req, err := subscribeReq(c)
 	if err != nil {
 		return fmt.Errorf("%w: %w; Channel: %s Pair: %s", stream.ErrSubscriptionFailure, err, c.Channel, c.Currency)
@@ -1716,7 +1717,7 @@ func (b *Bitfinex) subscribeToChan(c *stream.ChannelSubscription) error {
 	// Otherwise we might drop the first messages after the subscribed resp
 	c.Key = subID // Note subID string type avoids conflicts with later chanID key
 
-	c.State = stream.ChannelSubscribing
+	c.State = subscription.SubscribingState
 	err = b.Websocket.AddSubscription(c)
 	if err != nil {
 		return fmt.Errorf("%w Channel: %s Pair: %s Error: %w", stream.ErrSubscriptionFailure, c.Channel, c.Currency, err)
@@ -1740,7 +1741,7 @@ func (b *Bitfinex) subscribeToChan(c *stream.ChannelSubscription) error {
 }
 
 // subscribeReq returns a map of request params for subscriptions
-func subscribeReq(c *stream.ChannelSubscription) (map[string]interface{}, error) {
+func subscribeReq(c *subscription.Subscription) (map[string]interface{}, error) {
 	req := map[string]interface{}{
 		"event":   "subscribe",
 		"channel": c.Channel,
@@ -1796,7 +1797,7 @@ func subscribeReq(c *stream.ChannelSubscription) (map[string]interface{}, error)
 }
 
 // unsubscribeFromChan sends a websocket message to stop receiving data from a channel
-func (b *Bitfinex) unsubscribeFromChan(c *stream.ChannelSubscription) error {
+func (b *Bitfinex) unsubscribeFromChan(c *subscription.Subscription) error {
 	chanID, ok := c.Key.(int)
 	if !ok {
 		return common.GetTypeAssertError("int", c.Key, "chanID")

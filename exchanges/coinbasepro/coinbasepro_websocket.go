@@ -19,6 +19,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 )
@@ -365,7 +366,7 @@ func (c *CoinbasePro) ProcessUpdate(update *WebsocketL2Update) error {
 }
 
 // GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
-func (c *CoinbasePro) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, error) {
+func (c *CoinbasePro) GenerateDefaultSubscriptions() ([]subscription.Subscription, error) {
 	var channels = []string{"heartbeat",
 		"level2_batch", /*Other orderbook feeds require authentication. This is batched in 50ms lots.*/
 		"ticker",
@@ -375,7 +376,7 @@ func (c *CoinbasePro) GenerateDefaultSubscriptions() ([]stream.ChannelSubscripti
 	if err != nil {
 		return nil, err
 	}
-	var subscriptions []stream.ChannelSubscription
+	var subscriptions []subscription.Subscription
 	for i := range channels {
 		if (channels[i] == "user" || channels[i] == "full") &&
 			!c.IsWebsocketAuthenticationSupported() {
@@ -387,7 +388,7 @@ func (c *CoinbasePro) GenerateDefaultSubscriptions() ([]stream.ChannelSubscripti
 			if err != nil {
 				return nil, err
 			}
-			subscriptions = append(subscriptions, stream.ChannelSubscription{
+			subscriptions = append(subscriptions, subscription.Subscription{
 				Channel:  channels[i],
 				Currency: fPair,
 				Asset:    asset.Spot,
@@ -398,7 +399,7 @@ func (c *CoinbasePro) GenerateDefaultSubscriptions() ([]stream.ChannelSubscripti
 }
 
 // Subscribe sends a websocket message to receive data from the channel
-func (c *CoinbasePro) Subscribe(channelsToSubscribe []stream.ChannelSubscription) error {
+func (c *CoinbasePro) Subscribe(channelsToSubscribe []subscription.Subscription) error {
 	var creds *account.Credentials
 	var err error
 	if c.IsWebsocketAuthenticationSupported() {
@@ -459,7 +460,7 @@ subscriptions:
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
-func (c *CoinbasePro) Unsubscribe(channelsToUnsubscribe []stream.ChannelSubscription) error {
+func (c *CoinbasePro) Unsubscribe(channelsToUnsubscribe []subscription.Subscription) error {
 	unsubscribe := WebsocketSubscribe{
 		Type: "unsubscribe",
 	}

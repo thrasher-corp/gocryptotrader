@@ -19,6 +19,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 )
@@ -133,11 +134,11 @@ func (by *Bybit) WsAuth(ctx context.Context) error {
 }
 
 // Subscribe sends a websocket message to receive data from the channel
-func (by *Bybit) Subscribe(channelsToSubscribe []stream.ChannelSubscription) error {
+func (by *Bybit) Subscribe(channelsToSubscribe []subscription.Subscription) error {
 	return by.handleSpotSubscription("subscribe", channelsToSubscribe)
 }
 
-func (by *Bybit) handleSubscriptions(assetType asset.Item, operation string, channelsToSubscribe []stream.ChannelSubscription) ([]SubscriptionArgument, error) {
+func (by *Bybit) handleSubscriptions(assetType asset.Item, operation string, channelsToSubscribe []subscription.Subscription) ([]SubscriptionArgument, error) {
 	var args []SubscriptionArgument
 	arg := SubscriptionArgument{
 		Operation: operation,
@@ -203,11 +204,11 @@ func (by *Bybit) handleSubscriptions(assetType asset.Item, operation string, cha
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
-func (by *Bybit) Unsubscribe(channelsToUnsubscribe []stream.ChannelSubscription) error {
+func (by *Bybit) Unsubscribe(channelsToUnsubscribe []subscription.Subscription) error {
 	return by.handleSpotSubscription("unsubscribe", channelsToUnsubscribe)
 }
 
-func (by *Bybit) handleSpotSubscription(operation string, channelsToSubscribe []stream.ChannelSubscription) error {
+func (by *Bybit) handleSpotSubscription(operation string, channelsToSubscribe []subscription.Subscription) error {
 	payloads, err := by.handleSubscriptions(asset.Spot, operation, channelsToSubscribe)
 	if err != nil {
 		return err
@@ -238,8 +239,8 @@ func (by *Bybit) handleSpotSubscription(operation string, channelsToSubscribe []
 }
 
 // GenerateDefaultSubscriptions generates default subscription
-func (by *Bybit) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, error) {
-	var subscriptions []stream.ChannelSubscription
+func (by *Bybit) GenerateDefaultSubscriptions() ([]subscription.Subscription, error) {
+	var subscriptions []subscription.Subscription
 	var channels = []string{
 		chanPublicTicker,
 		chanOrderbook,
@@ -265,14 +266,14 @@ func (by *Bybit) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, e
 			chanDCP,
 			chanWallet:
 			subscriptions = append(subscriptions,
-				stream.ChannelSubscription{
+				subscription.Subscription{
 					Channel: channels[x],
 					Asset:   asset.Spot,
 				})
 		default:
 			for z := range pairs {
 				subscriptions = append(subscriptions,
-					stream.ChannelSubscription{
+					subscription.Subscription{
 						Channel:  channels[x],
 						Currency: pairs[z],
 						Asset:    asset.Spot,
