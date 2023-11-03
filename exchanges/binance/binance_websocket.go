@@ -550,30 +550,54 @@ func (b *Binance) UpdateLocalBuffer(wsdp *WebsocketDepthStream) (bool, error) {
 
 // GenerateSubscriptions generates the default subscription set
 func (b *Binance) GenerateSubscriptions() ([]subscription.Subscription, error) {
-	var channels = []string{"@ticker", "@trade", "@kline_1m", "@depth@100ms"}
+	var channels = make([]string, 0, len(b.Features.Subscriptions))
+	for i := range b.Features.Subscriptions {
+		name, err := channelName(b.Features.Subscriptions[i])
+		if err != nil {
+			return nil, err
+		}
+		channels = append(channels, name)
+	}
 	var subscriptions []subscription.Subscription
-	assets := b.GetAssetTypes(true)
-	for x := range assets {
-		if assets[x] == asset.Spot {
-			pairs, err := b.GetEnabledPairs(assets[x])
-			if err != nil {
-				return nil, err
-			}
-
-			for y := range pairs {
-				for z := range channels {
-					lp := pairs[y].Lower()
-					lp.Delimiter = ""
-					subscriptions = append(subscriptions, subscription.Subscription{
-						Channel: lp.String() + channels[z],
-						Pair:    pairs[y],
-						Asset:   assets[x],
-					})
-				}
-			}
+	pairs, err := b.GetEnabledPairs(asset.Spot)
+	if err != nil {
+		return nil, err
+	}
+	for y := range pairs {
+		for z := range channels {
+			lp := pairs[y].Lower()
+			lp.Delimiter = ""
+			subscriptions = append(subscriptions, subscription.Subscription{
+				Channel: lp.String() + "@" + channels[z],
+				Pair:    pairs[y],
+				Asset:   asset.Spot,
+			})
 		}
 	}
 	return subscriptions, nil
+}
+
+// channelName converts a Subscription Config into binance format channel suffix
+func channelName(s *subscription.Subscription) (string, error) {
+	name, ok := subscriptionNames[s.Channel]
+	if !ok {
+		return name, fmt.Errorf("%w: %s", stream.ErrSubscriptionNotSupported, s.Channel)
+	}
+
+	switch s.Channel {
+	case subscription.OrderbookChannel:
+		if s.Levels != 0 {
+			name += "@" + strconv.Itoa(s.Levels)
+		}
+		if s.Interval.Duration() == time.Second {
+			name += "@1000ms"
+		} else {
+			name += "@" + s.Interval.Short()
+		}
+	case subscription.CandlesChannel:
+		name += "_" + s.Interval.Short()
+	}
+	return name, nil
 }
 
 // Subscribe subscribes to a set of channels

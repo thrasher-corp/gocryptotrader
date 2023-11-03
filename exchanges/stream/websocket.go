@@ -31,6 +31,8 @@ var (
 	ErrSubscribedAlready = errors.New("duplicate subscription")
 	// ErrSubscriptionFailure defines an error when a subscription fails
 	ErrSubscriptionFailure = errors.New("subscription failure")
+	// ErrSubscriptionNotSupported defines an error when a subscription channel is not supported by an exchange
+	ErrSubscriptionNotSupported = errors.New("subscription channel not supported ")
 	// ErrUnsubscribeFailure defines an error when a unsubscribe fails
 	ErrUnsubscribeFailure = errors.New("unsubscribe failure")
 	// ErrChannelInStateAlready defines an error when a subscription channel is already in a new state
