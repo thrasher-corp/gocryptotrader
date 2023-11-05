@@ -442,13 +442,13 @@ type WsMatch struct {
 
 // WsFunding holds push data information through the FUNDING channel.
 type WsFunding struct {
-	Sequence    int64     `json:"sequence"`
-	ProductID   string    `json:"product_id"`
-	Time        time.Time `json:"time"`
-	FundingRate string    `json:"funding_rate"`
-	IsFinal     bool      `json:"is_final"`
-	Channel     string    `json:"channel"`
-	Type        string    `json:"type"`
+	Sequence    int64                   `json:"sequence"`
+	ProductID   string                  `json:"product_id"`
+	Time        time.Time               `json:"time"`
+	FundingRate convert.StringToFloat64 `json:"funding_rate"`
+	IsFinal     bool                    `json:"is_final"`
+	Channel     string                  `json:"channel"`
+	Type        string                  `json:"type"`
 }
 
 // WsRisk holds push data information through the RISK channel.

@@ -10,10 +10,12 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
+	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/log"
@@ -124,7 +126,7 @@ func (co *CoinbaseInternational) wsHandleData(respRaw []byte) error {
 					})
 			}
 		}
-		co.Websocket.RemoveSuccessfulUnsubscriptions(subsccefulySubscribedChannels...)
+		co.Websocket.RemoveSubscriptions(subsccefulySubscribedChannels...)
 	case "REJECT":
 		return fmt.Errorf("%s %v message: %s, reason: %s  ", resp.Channel, resp.Type, resp.Message, resp.Reason)
 	default: //  SNAPSHOT and UPDATE
@@ -279,7 +281,14 @@ func (co *CoinbaseInternational) processFunding(respRaw []byte) error {
 	if err != nil {
 		return err
 	}
-	co.Websocket.DataHandler <- resp
+	fundingInfos := make([]fundingrate.Rate, len(resp))
+	for x := range resp {
+		fundingInfos[x] = fundingrate.Rate{
+			Time: resp[x].Time,
+			Rate: decimal.NewFromFloat(resp[x].FundingRate.Float64()),
+		}
+	}
+	co.Websocket.DataHandler <- fundingInfos
 	return nil
 }
 
