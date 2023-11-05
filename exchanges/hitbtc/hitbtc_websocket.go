@@ -558,7 +558,7 @@ func (h *HitBTC) Unsubscribe(channelsToUnsubscribe []stream.ChannelSubscription)
 			errs = common.AppendError(errs, err)
 			continue
 		}
-		h.Websocket.RemoveSuccessfulUnsubscriptions(channelsToUnsubscribe[i])
+		h.Websocket.RemoveSubscriptions(channelsToUnsubscribe[i])
 	}
 	if errs != nil {
 		return errs

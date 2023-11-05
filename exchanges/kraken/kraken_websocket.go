@@ -1347,7 +1347,7 @@ channels:
 				errs = common.AppendError(errs, err)
 				continue
 			}
-			k.Websocket.RemoveSuccessfulUnsubscriptions(unsubs[i].Channels...)
+			k.Websocket.RemoveSubscriptions(unsubs[i].Channels...)
 			continue
 		}
 
@@ -1356,7 +1356,7 @@ channels:
 			errs = common.AppendError(errs, err)
 			continue
 		}
-		k.Websocket.RemoveSuccessfulUnsubscriptions(unsubs[i].Channels...)
+		k.Websocket.RemoveSubscriptions(unsubs[i].Channels...)
 	}
 	return errs
 }

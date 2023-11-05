@@ -17,6 +17,8 @@ var (
 	ErrAssetAlreadyEnabled = errors.New("asset already enabled")
 	// ErrPairAlreadyEnabled returns when enabling a pair that is already enabled
 	ErrPairAlreadyEnabled = errors.New("pair already enabled")
+	// ErrPairNotEnabled returns when looking for a pair that is not enabled
+	ErrPairNotEnabled = errors.New("pair not enabled")
 	// ErrPairNotFound is returned when a currency pair is not found
 	ErrPairNotFound = errors.New("pair not found")
 	// ErrAssetIsNil is an error when the asset has not been populated by the
