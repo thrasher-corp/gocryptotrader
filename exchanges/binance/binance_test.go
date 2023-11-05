@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -2819,7 +2820,7 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 func TestGetFundingRates(t *testing.T) {
 	t.Parallel()
 	s, e := getTime()
-	_, err := b.GetFundingRates(context.Background(), &fundingrate.RatesRequest{
+	_, err := b.GetHistoricalFundingRates(context.Background(), &fundingrate.HistoricalRatesRequest{
 		Asset:                asset.USDTMarginedFutures,
 		Pair:                 currency.NewPair(currency.BTC, currency.USDT),
 		StartDate:            s,
@@ -2831,7 +2832,7 @@ func TestGetFundingRates(t *testing.T) {
 		t.Error(err)
 	}
 
-	_, err = b.GetFundingRates(context.Background(), &fundingrate.RatesRequest{
+	_, err = b.GetHistoricalFundingRates(context.Background(), &fundingrate.HistoricalRatesRequest{
 		Asset:           asset.USDTMarginedFutures,
 		Pair:            currency.NewPair(currency.BTC, currency.USDT),
 		StartDate:       s,
@@ -2842,7 +2843,7 @@ func TestGetFundingRates(t *testing.T) {
 		t.Error(err)
 	}
 
-	r := &fundingrate.RatesRequest{
+	r := &fundingrate.HistoricalRatesRequest{
 		Asset:     asset.USDTMarginedFutures,
 		Pair:      currency.NewPair(currency.BTC, currency.USDT),
 		StartDate: s,
@@ -2851,7 +2852,7 @@ func TestGetFundingRates(t *testing.T) {
 	if sharedtestvalues.AreAPICredentialsSet(b) {
 		r.IncludePayments = true
 	}
-	_, err = b.GetFundingRates(context.Background(), r)
+	_, err = b.GetHistoricalFundingRates(context.Background(), r)
 	if err != nil {
 		t.Error(err)
 	}
@@ -2861,37 +2862,36 @@ func TestGetFundingRates(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = b.GetFundingRates(context.Background(), r)
+	_, err = b.GetHistoricalFundingRates(context.Background(), r)
 	if err != nil {
 		t.Error(err)
 	}
 }
 
-func TestGetLatestFundingRate(t *testing.T) {
+func TestGetLatestFundingRates(t *testing.T) {
 	t.Parallel()
-	_, err := b.GetLatestFundingRate(context.Background(), &fundingrate.LatestRateRequest{
+	cp := currency.NewPair(currency.BTC, currency.USDT)
+	_, err := b.GetLatestFundingRates(context.Background(), &fundingrate.LatestRateRequest{
 		Asset:                asset.USDTMarginedFutures,
-		Pair:                 currency.NewPair(currency.BTC, currency.USDT),
+		Pair:                 cp,
 		IncludePredictedRate: true,
 	})
 	if !errors.Is(err, common.ErrFunctionNotSupported) {
 		t.Error(err)
 	}
-	_, err = b.GetLatestFundingRate(context.Background(), &fundingrate.LatestRateRequest{
+	err = b.CurrencyPairs.EnablePair(asset.USDTMarginedFutures, cp)
+	if err != nil && !errors.Is(err, currency.ErrPairAlreadyEnabled) {
+		t.Fatal(err)
+	}
+	_, err = b.GetLatestFundingRates(context.Background(), &fundingrate.LatestRateRequest{
 		Asset: asset.USDTMarginedFutures,
-		Pair:  currency.NewPair(currency.BTC, currency.USDT),
+		Pair:  cp,
 	})
 	if err != nil {
 		t.Error(err)
 	}
-
-	cp, err := currency.NewPairFromString("BTCUSD_PERP")
-	if err != nil {
-		t.Error(err)
-	}
-	_, err = b.GetLatestFundingRate(context.Background(), &fundingrate.LatestRateRequest{
+	_, err = b.GetLatestFundingRates(context.Background(), &fundingrate.LatestRateRequest{
 		Asset: asset.CoinMarginedFutures,
-		Pair:  cp,
 	})
 	if err != nil {
 		t.Error(err)
@@ -3418,14 +3418,24 @@ func TestGetFuturesContractDetails(t *testing.T) {
 	if !errors.Is(err, asset.ErrNotSupported) {
 		t.Error(err)
 	}
-
 	_, err = b.GetFuturesContractDetails(context.Background(), asset.USDTMarginedFutures)
 	if !errors.Is(err, nil) {
 		t.Error(err)
 	}
-
 	_, err = b.GetFuturesContractDetails(context.Background(), asset.CoinMarginedFutures)
 	if !errors.Is(err, nil) {
 		t.Error(err)
 	}
+}
+
+func TestGetFundingRateInfo(t *testing.T) {
+	t.Parallel()
+	_, err := b.GetFundingRateInfo(context.Background())
+	assert.NoError(t, err)
+}
+
+func TestUGetFundingRateInfo(t *testing.T) {
+	t.Parallel()
+	_, err := b.UGetFundingRateInfo(context.Background())
+	assert.NoError(t, err)
 }

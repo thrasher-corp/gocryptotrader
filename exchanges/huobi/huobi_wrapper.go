@@ -10,6 +10,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -17,6 +18,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -122,6 +124,8 @@ func (h *HUOBI) SetDefaults() {
 				MultiChainDeposits:             true,
 				MultiChainWithdrawals:          true,
 				HasAssetTypeAccountSegregation: true,
+				FundingRateFetching:            true,
+				PredictedFundingRate:           true,
 			},
 			WebsocketCapabilities: protocol.Features{
 				KlineFetching:          true,
@@ -135,11 +139,22 @@ func (h *HUOBI) SetDefaults() {
 				GetOrder:               true,
 				GetOrders:              true,
 				TickerFetching:         true,
+				FundingRateFetching:    false, // supported but not implemented // TODO when multi-websocket support added
+
 			},
 			WithdrawPermissions: exchange.AutoWithdrawCryptoWithSetup |
 				exchange.NoFiatWithdrawals,
 			Kline: kline.ExchangeCapabilitiesSupported{
 				Intervals: true,
+			},
+			FuturesCapabilities: exchange.FuturesCapabilities{
+				FundingRates: true,
+				SupportedFundingRateFrequencies: map[kline.Interval]bool{
+					kline.EightHour: true,
+				},
+				FundingRateBatching: map[asset.Item]bool{
+					asset.CoinMarginedFutures: true,
+				},
 			},
 		},
 		Enabled: exchange.FeaturesEnabled{
@@ -2195,4 +2210,92 @@ func (h *HUOBI) GetFuturesContractDetails(ctx context.Context, item asset.Item) 
 		return resp, nil
 	}
 	return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, item)
+}
+
+// GetLatestFundingRates returns the latest funding rates data
+func (h *HUOBI) GetLatestFundingRates(ctx context.Context, r *fundingrate.LatestRateRequest) ([]fundingrate.LatestRateResponse, error) {
+	if r == nil {
+		return nil, fmt.Errorf("%w LatestRateRequest", common.ErrNilPointer)
+	}
+	if r.Asset != asset.CoinMarginedFutures {
+		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, r.Asset)
+	}
+
+	var rates []FundingRatesData
+	if r.Pair.IsEmpty() {
+		batchRates, err := h.GetSwapFundingRates(ctx)
+		if err != nil {
+			return nil, err
+		}
+		rates = batchRates.Data
+	} else {
+		rateResp, err := h.GetSwapFundingRate(ctx, r.Pair)
+		if err != nil {
+			return nil, err
+		}
+		rates = append(rates, rateResp)
+	}
+	resp := make([]fundingrate.LatestRateResponse, 0, len(rates))
+	for i := range rates {
+		if rates[i].ContractCode == "" {
+			// formatting to match documentation
+			rates[i].ContractCode = rates[i].Symbol + "-USD"
+		}
+		cp, isEnabled, err := h.MatchSymbolCheckEnabled(rates[i].ContractCode, r.Asset, true)
+		if err != nil && !errors.Is(err, currency.ErrPairNotFound) {
+			return nil, err
+		}
+		if !isEnabled {
+			continue
+		}
+		var isPerp bool
+		isPerp, err = h.IsPerpetualFutureCurrency(r.Asset, cp)
+		if err != nil {
+			return nil, err
+		}
+		if !isPerp {
+			continue
+		}
+		var ft, nft time.Time
+		nft = time.UnixMilli(rates[i].NextFundingTime)
+		ft = time.UnixMilli(rates[i].FundingTime)
+		var fri time.Duration
+		if len(h.Features.Supports.FuturesCapabilities.SupportedFundingRateFrequencies) == 1 {
+			// can infer funding rate interval from the only funding rate frequency defined
+			for k := range h.Features.Supports.FuturesCapabilities.SupportedFundingRateFrequencies {
+				fri = k.Duration()
+			}
+		}
+		if rates[i].FundingTime == 0 {
+			ft = nft.Add(-fri)
+		}
+		if ft.After(time.Now()) {
+			ft = ft.Add(-fri)
+			nft = nft.Add(-fri)
+		}
+		rate := fundingrate.LatestRateResponse{
+			Exchange: h.Name,
+			Asset:    r.Asset,
+			Pair:     r.Pair,
+			LatestRate: fundingrate.Rate{
+				Time: ft,
+				Rate: decimal.NewFromFloat(rates[i].FundingRate),
+			},
+			TimeOfNextRate: nft,
+			TimeChecked:    time.Now(),
+		}
+		if r.IncludePredictedRate {
+			rate.PredictedUpcomingRate = fundingrate.Rate{
+				Time: rate.TimeOfNextRate,
+				Rate: decimal.NewFromFloat(rates[i].EstimatedRate),
+			}
+		}
+		resp = append(resp, rate)
+	}
+	return resp, nil
+}
+
+// IsPerpetualFutureCurrency ensures a given asset and currency is a perpetual future
+func (h *HUOBI) IsPerpetualFutureCurrency(a asset.Item, _ currency.Pair) (bool, error) {
+	return a == asset.CoinMarginedFutures, nil
 }

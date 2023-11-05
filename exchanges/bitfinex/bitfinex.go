@@ -21,7 +21,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
@@ -101,12 +100,16 @@ const (
 
 	bitfinexChecksumFlag   = 131072
 	bitfinexWsSequenceFlag = 65536
+
+	// CandlesTimeframeKey configures the timeframe in stream.ChannelSubscription.Params
+	CandlesTimeframeKey = "_timeframe"
+	// CandlesPeriodKey configures the aggregated period in stream.ChannelSubscription.Params
+	CandlesPeriodKey = "_period"
 )
 
 // Bitfinex is the overarching type across the bitfinex package
 type Bitfinex struct {
 	exchange.Base
-	WebsocketSubdChannels map[int]*stream.ChannelSubscription
 }
 
 // GetPlatformStatus returns the Bifinex platform status

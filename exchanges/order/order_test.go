@@ -1412,7 +1412,7 @@ func TestMatchFilter(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	filters := map[int]Filter{
+	filters := map[int]*Filter{
 		0:  {},
 		1:  {Exchange: "Binance"},
 		2:  {InternalOrderID: id},
@@ -1455,13 +1455,13 @@ func TestMatchFilter(t *testing.T) {
 	// empty filter tests
 	emptyFilter := filters[0]
 	for _, o := range orders {
-		if !o.MatchFilter(&emptyFilter) {
+		if !o.MatchFilter(emptyFilter) {
 			t.Error("empty filter should match everything")
 		}
 	}
 
 	tests := map[int]struct {
-		f              Filter
+		f              *Filter
 		o              Detail
 		expectedResult bool
 	}{
@@ -1510,7 +1510,7 @@ func TestMatchFilter(t *testing.T) {
 		tt := tt
 		t.Run(fmt.Sprintf("%v", num), func(t *testing.T) {
 			t.Parallel()
-			if tt.o.MatchFilter(&tt.f) != tt.expectedResult {
+			if tt.o.MatchFilter(tt.f) != tt.expectedResult {
 				t.Errorf("tests[%v] failed", num)
 			}
 		})

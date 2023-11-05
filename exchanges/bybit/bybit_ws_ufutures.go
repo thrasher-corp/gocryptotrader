@@ -123,7 +123,7 @@ func (by *Bybit) UnsubscribeUSDT(channelsToUnsubscribe []stream.ChannelSubscript
 			errs = common.AppendError(errs, err)
 			continue
 		}
-		by.Websocket.RemoveSuccessfulUnsubscriptions(channelsToUnsubscribe[i])
+		by.Websocket.RemoveSubscriptions(channelsToUnsubscribe[i])
 	}
 	if errs != nil {
 		return errs

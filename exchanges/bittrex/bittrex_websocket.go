@@ -363,7 +363,7 @@ func (b *Bittrex) unsubscribeSlice(channelsToUnsubscribe []stream.ChannelSubscri
 			errs = common.AppendError(errs, errors.New("unable to unsubscribe from "+channels[i]+" - error code "+response.Response[i].ErrorCode))
 			continue
 		}
-		b.Websocket.RemoveSuccessfulUnsubscriptions(channelsToUnsubscribe[i])
+		b.Websocket.RemoveSubscriptions(channelsToUnsubscribe[i])
 	}
 	return errs
 }
