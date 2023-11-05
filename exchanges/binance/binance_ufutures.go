@@ -30,6 +30,7 @@ const (
 	ufuturesKlineData          = "/fapi/v1/klines?"
 	ufuturesMarkPrice          = "/fapi/v1/premiumIndex?"
 	ufuturesFundingRateHistory = "/fapi/v1/fundingRate?"
+	ufuturesFundingRateInfo    = "/fapi/v1/fundingInfo?"
 	ufuturesTickerPriceStats   = "/fapi/v1/ticker/24hr?"
 	ufuturesSymbolPriceTicker  = "/fapi/v1/ticker/price?"
 	ufuturesSymbolOrderbook    = "/fapi/v1/ticker/bookTicker?"
@@ -377,6 +378,12 @@ func (b *Binance) UGetMarkPrice(ctx context.Context, symbol currency.Pair) ([]UM
 		return nil, err
 	}
 	return resp, nil
+}
+
+// UGetFundingRateInfo returns extra details about funding rates
+func (b *Binance) UGetFundingRateInfo(ctx context.Context) ([]FundingRateInfoResponse, error) {
+	var resp []FundingRateInfoResponse
+	return resp, b.SendHTTPRequest(ctx, exchange.RestUSDTMargined, ufuturesFundingRateInfo, uFuturesDefaultRate, &resp)
 }
 
 // UGetFundingHistory gets funding history for USDTMarginedFutures

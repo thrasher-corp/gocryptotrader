@@ -3360,3 +3360,22 @@ func TestRetrieveAndSetAccountType(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestIsPerpetualFutureCurrency(t *testing.T) {
+	t.Parallel()
+	enabled, err := b.GetEnabledPairs(asset.Futures)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for x := range enabled {
+		isPerp, err := b.IsPerpetualFutureCurrency(asset.Futures, enabled[x])
+		if err != nil {
+			t.Fatal(err)
+		}
+		if enabled[x].Quote.Equal(currency.PFC) && !isPerp {
+			t.Error("expected true")
+		} else if !enabled[x].Quote.Equal(currency.PFC) && isPerp {
+			t.Error("expected false")
+		}
+	}
+}
