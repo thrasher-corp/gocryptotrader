@@ -31,6 +31,7 @@ const (
 	cfuturesContinuousKline    = "/dapi/v1/continuousKlines?"
 	cfuturesIndexKline         = "/dapi/v1/indexPriceKlines?"
 	cfuturesMarkPriceKline     = "/dapi/v1/markPriceKlines?"
+	cfuturesFundingRateInfo    = "/dapi/v1/fundingInfo?"
 	cfuturesMarkPrice          = "/dapi/v1/premiumIndex?"
 	cfuturesFundingRateHistory = "/dapi/v1/fundingRate?"
 	cfuturesTickerPriceStats   = "/dapi/v1/ticker/24hr?"
@@ -234,6 +235,13 @@ func (b *Binance) GetIndexAndMarkPrice(ctx context.Context, symbol, pair string)
 		params.Set("pair", pair)
 	}
 	return resp, b.SendHTTPRequest(ctx, exchange.RestCoinMargined, cfuturesMarkPrice+params.Encode(), cFuturesIndexMarkPriceRate, &resp)
+}
+
+// GetFundingRateInfo returns extra details about funding rates
+func (b *Binance) GetFundingRateInfo(ctx context.Context) ([]FundingRateInfoResponse, error) {
+	params := url.Values{}
+	var resp []FundingRateInfoResponse
+	return resp, b.SendHTTPRequest(ctx, exchange.RestCoinMargined, cfuturesFundingRateInfo+params.Encode(), uFuturesDefaultRate, &resp)
 }
 
 // GetFuturesKlineData gets futures kline data for CoinMarginedFutures,

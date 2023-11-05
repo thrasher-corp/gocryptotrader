@@ -42,17 +42,19 @@ var (
 	// ErrMarketAmountExceedsStep is when the amount is not divisible by its
 	// step for a market order
 	ErrMarketAmountExceedsStep = errors.New("market order amount exceeds step limit")
+	// ErrCannotValidateAsset is thrown when the asset is not loaded
+	ErrCannotValidateAsset = errors.New("cannot check limit, asset not loaded")
+	// ErrCannotValidateBaseCurrency is thrown when the base currency is not loaded
+	ErrCannotValidateBaseCurrency = errors.New("cannot check limit, base currency not loaded")
+	// ErrCannotValidateQuoteCurrency is thrown when the quote currency is not loaded
+	ErrCannotValidateQuoteCurrency = errors.New("cannot check limit, quote currency not loaded")
 
-	errCannotValidateAsset         = errors.New("cannot check limit, asset not loaded")
-	errCannotValidateBaseCurrency  = errors.New("cannot check limit, base currency not loaded")
-	errCannotValidateQuoteCurrency = errors.New("cannot check limit, quote currency not loaded")
-	errExchangeLimitAsset          = errors.New("exchange limits not found for asset")
-	errExchangeLimitBase           = errors.New("exchange limits not found for base currency")
-	errExchangeLimitQuote          = errors.New("exchange limits not found for quote currency")
-	errCannotLoadLimit             = errors.New("cannot load limit, levels not supplied")
-	errInvalidPriceLevels          = errors.New("invalid price levels, cannot load limits")
-	errInvalidAmountLevels         = errors.New("invalid amount levels, cannot load limits")
-	errInvalidQuoteLevels          = errors.New("invalid quote levels, cannot load limits")
+	errExchangeLimitBase   = errors.New("exchange limits not found for base currency")
+	errExchangeLimitQuote  = errors.New("exchange limits not found for quote currency")
+	errCannotLoadLimit     = errors.New("cannot load limit, levels not supplied")
+	errInvalidPriceLevels  = errors.New("invalid price levels, cannot load limits")
+	errInvalidAmountLevels = errors.New("invalid amount levels, cannot load limits")
+	errInvalidQuoteLevels  = errors.New("invalid quote levels, cannot load limits")
 )
 
 // ExecutionLimits defines minimum and maximum values in relation to
@@ -171,7 +173,7 @@ func (e *ExecutionLimits) GetOrderExecutionLimits(a asset.Item, cp currency.Pair
 
 	m1, ok := e.m[a]
 	if !ok {
-		return MinMaxLevel{}, fmt.Errorf("%w %v", errExchangeLimitAsset, a)
+		return MinMaxLevel{}, fmt.Errorf("%w %v", ErrCannotValidateAsset, a)
 	}
 
 	m2, ok := m1[cp.Base.Item]
@@ -200,17 +202,17 @@ func (e *ExecutionLimits) CheckOrderExecutionLimits(a asset.Item, cp currency.Pa
 
 	m1, ok := e.m[a]
 	if !ok {
-		return errCannotValidateAsset
+		return ErrCannotValidateAsset
 	}
 
 	m2, ok := m1[cp.Base.Item]
 	if !ok {
-		return errCannotValidateBaseCurrency
+		return ErrCannotValidateBaseCurrency
 	}
 
 	limit, ok := m2[cp.Quote.Item]
 	if !ok {
-		return errCannotValidateQuoteCurrency
+		return ErrCannotValidateQuoteCurrency
 	}
 
 	err := limit.Conforms(price, amount, orderType)

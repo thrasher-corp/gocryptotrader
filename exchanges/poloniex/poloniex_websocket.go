@@ -669,6 +669,6 @@ func (p *Poloniex) Unsubscribe(unsub []stream.ChannelSubscription) error {
 			}
 		}
 	}
-	p.Websocket.RemoveSuccessfulUnsubscriptions(unsub...)
+	p.Websocket.RemoveSubscriptions(unsub...)
 	return nil
 }
