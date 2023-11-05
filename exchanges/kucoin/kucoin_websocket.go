@@ -232,7 +232,7 @@ func (ku *Kucoin) wsHandleData(respData []byte) error {
 		return ku.processTicker(resp.Data, instruments)
 	case strings.HasPrefix(marketTickerSnapshotChannel, topicInfo[0]) ||
 		strings.HasPrefix(marketTickerSnapshotForCurrencyChannel, topicInfo[0]):
-		return ku.processMarketSnapshot(resp.Data, topicInfo[1])
+		return ku.processMarketSnapshot(resp.Data)
 	case strings.HasPrefix(marketOrderbookLevel2Channels, topicInfo[0]):
 		return ku.processOrderbookWithDepth(respData, topicInfo[1])
 	case strings.HasPrefix(marketOrderbookLevel2to5Channel, topicInfo[0]),
@@ -941,13 +941,13 @@ func (ku *Kucoin) processOrderbook(respData []byte, symbol string) error {
 	return nil
 }
 
-func (ku *Kucoin) processMarketSnapshot(respData []byte, instrument string) error {
+func (ku *Kucoin) processMarketSnapshot(respData []byte) error {
 	response := WsSpotTicker{}
 	err := json.Unmarshal(respData, &response)
 	if err != nil {
 		return err
 	}
-	pair, err := currency.NewPairFromString(instrument)
+	pair, err := currency.NewPairFromString(response.Data.Symbol)
 	if err != nil {
 		return err
 	}
@@ -965,10 +965,12 @@ func (ku *Kucoin) processMarketSnapshot(respData []byte, instrument string) erro
 		LastUpdated:  response.Data.Datetime.Time(),
 	}
 	assetEnabledPairs := ku.listOfAssetsCurrencyPairEnabledFor(pair)
-	if assetEnabledPairs[asset.Spot] && ku.AssetWebsocketSupport.IsAssetWebsocketSupported(asset.Spot) && ku.CurrencyPairs.IsAssetEnabled(asset.Spot) == nil {
+	assetEnabledPairsSpot := assetEnabledPairs[asset.Spot] && ku.AssetWebsocketSupport.IsAssetWebsocketSupported(asset.Spot) && ku.CurrencyPairs.IsAssetEnabled(asset.Spot) == nil
+	assetEnabledPairsMargin := assetEnabledPairs[asset.Margin] && ku.AssetWebsocketSupport.IsAssetWebsocketSupported(asset.Margin) && ku.CurrencyPairs.IsAssetEnabled(asset.Margin) == nil
+	switch {
+	case assetEnabledPairsSpot:
 		ku.Websocket.DataHandler <- &spotTickerPrice
-	}
-	if assetEnabledPairs[asset.Margin] && ku.AssetWebsocketSupport.IsAssetWebsocketSupported(asset.Margin) && ku.CurrencyPairs.IsAssetEnabled(asset.Margin) == nil {
+	case assetEnabledPairsMargin:
 		marginTickerPrice := spotTickerPrice
 		marginTickerPrice.AssetType = asset.Margin
 		ku.Websocket.DataHandler <- &marginTickerPrice
