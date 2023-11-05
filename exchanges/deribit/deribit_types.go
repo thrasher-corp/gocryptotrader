@@ -132,8 +132,8 @@ type FundingChartData struct {
 // FundingRateHistory represents a funding rate history item
 type FundingRateHistory struct {
 	Timestamp      deribitMilliSecTime `json:"timestamp"`
-	IndexPrice     float64             `json:"index_price"`      // Price in base currency
-	PrevIndexPrice float64             `json:"prev_index_price"` // Price in base currency
+	IndexPrice     float64             `json:"index_price"`      // Index price in base currency
+	PrevIndexPrice float64             `json:"prev_index_price"` // Previous index price in base currency
 	Interest8H     float64             `json:"interest_8h"`      // 8hour interest rate
 	Interest1H     float64             `json:"interest_1h"`      // 1hour interest rate
 }

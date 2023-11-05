@@ -17,6 +17,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
@@ -2935,5 +2936,24 @@ func sleepUntilTradablePairsUpdated() {
 		time.Sleep(time.Millisecond * 100)
 		fetchTradablePairChan = make(chan struct{})
 		tradablePairsFetchedStatusLock.Unlock()
+	}
+}
+
+func TestGetLatestFundingRates(t *testing.T) {
+	t.Parallel()
+	_, err := d.GetLatestFundingRates(context.Background(), &fundingrate.LatestRateRequest{
+		Asset:                asset.USDTMarginedFutures,
+		Pair:                 currency.NewPair(currency.BTC, currency.USDT),
+		IncludePredictedRate: true,
+	})
+	if !errors.Is(err, asset.ErrNotSupported) {
+		t.Error(err)
+	}
+	_, err = d.GetLatestFundingRates(context.Background(), &fundingrate.LatestRateRequest{
+		Asset: asset.Futures,
+		Pair:  futuresTradablePair,
+	})
+	if err != nil {
+		t.Error(err)
 	}
 }

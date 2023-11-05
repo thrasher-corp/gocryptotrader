@@ -8,6 +8,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -15,6 +16,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -1210,4 +1212,48 @@ func (d *Deribit) AuthenticateWebsocket(ctx context.Context) error {
 // GetFuturesContractDetails returns all contracts from the exchange by asset type
 func (d *Deribit) GetFuturesContractDetails(context.Context, asset.Item) ([]futures.Contract, error) {
 	return nil, common.ErrFunctionNotSupported
+}
+
+// GetLatestFundingRates returns the latest funding rates data
+func (d *Deribit) GetLatestFundingRates(ctx context.Context, r *fundingrate.LatestRateRequest) ([]fundingrate.LatestRateResponse, error) {
+	if r == nil {
+		return nil, fmt.Errorf("%w LatestRateRequest", common.ErrNilPointer)
+	}
+	if !d.SupportsAsset(r.Asset) {
+		return nil, fmt.Errorf("%s %w", r.Asset, asset.ErrNotSupported)
+	}
+	var err error
+	if r.Pair.IsEmpty() {
+		return nil, currency.ErrCurrencyPairEmpty
+	}
+	format, err := d.GetPairFormat(r.Asset, true)
+	if err != nil {
+		return nil, err
+	}
+	r.Pair = r.Pair.Format(format)
+
+	var fri []FundingRateHistory
+	fri, err = d.GetFundingRateHistory(ctx, r.Pair.String(), time.Now().Add(-time.Hour*16), time.Now())
+	if err != nil {
+		return nil, err
+	}
+
+	resp := make([]fundingrate.LatestRateResponse, 0, len(fri))
+	for i := range fri {
+		rate := fundingrate.LatestRateResponse{
+			TimeChecked: time.Now(),
+			Exchange:    d.Name,
+			Asset:       r.Asset,
+			Pair:        r.Pair,
+			LatestRate: fundingrate.Rate{
+				Time: fri[i].Timestamp.Time(),
+				Rate: decimal.NewFromFloat(fri[i].Interest8H),
+			},
+		}
+		resp = append(resp, rate)
+	}
+	if len(resp) == 0 {
+		return nil, fmt.Errorf("%w %v %v", futures.ErrNotPerpetualFuture, r.Asset, r.Pair)
+	}
+	return resp, nil
 }
