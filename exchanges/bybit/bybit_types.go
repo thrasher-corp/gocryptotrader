@@ -717,8 +717,8 @@ type Execution struct {
 	Side                   string                  `json:"side"`
 	OrderID                string                  `json:"orderId"`
 	StopOrderType          string                  `json:"stopOrderType"`
-	LeavesQuantity         string                  `json:"leavesQty"`
-	ExecTime               string                  `json:"execTime"`
+	LeavesQuantity         convert.StringToFloat64 `json:"leavesQty"`
+	ExecTime               convert.ExchangeTime    `json:"execTime"`
 	IsMaker                bool                    `json:"isMaker"`
 	ExecFee                convert.StringToFloat64 `json:"execFee"`
 	FeeRate                convert.StringToFloat64 `json:"feeRate"`
@@ -728,7 +728,7 @@ type Execution struct {
 	MarkPrice              convert.StringToFloat64 `json:"markPrice"`
 	ExecPrice              convert.StringToFloat64 `json:"execPrice"`
 	MarkIv                 string                  `json:"markIv"`
-	OrderQuantity          string                  `json:"orderQty"`
+	OrderQuantity          convert.StringToFloat64 `json:"orderQty"`
 	ExecValue              string                  `json:"execValue"`
 	ExecType               string                  `json:"execType"`
 	OrderPrice             convert.StringToFloat64 `json:"orderPrice"`

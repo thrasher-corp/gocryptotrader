@@ -2,12 +2,14 @@ package bybit
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sort"
 	"strings"
 	"sync"
 	"time"
 
+	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -15,6 +17,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
@@ -1854,4 +1857,69 @@ func (by *Bybit) ExtractCurrencyPair(symbol string, assetType asset.Item, reques
 		return currency.EMPTYPAIR, err
 	}
 	return pair.Format(format), nil
+}
+
+// GetLatestFundingRates returns the latest funding rates data
+func (by *Bybit) GetLatestFundingRates(ctx context.Context, r *fundingrate.LatestRateRequest) ([]fundingrate.LatestRateResponse, error) {
+	if r == nil {
+		return nil, fmt.Errorf("%w LatestRateRequest", common.ErrNilPointer)
+	}
+	if r.IncludePredictedRate {
+		return nil, fmt.Errorf("%w IncludePredictedRate", common.ErrFunctionNotSupported)
+	}
+	var err error
+	if r.Pair.IsEmpty() {
+		return nil, currency.ErrCurrencyPairEmpty
+	}
+	var format currency.PairFormat
+	format, err = by.GetPairFormat(r.Asset, true)
+	if err != nil {
+		return nil, err
+	}
+	r.Pair = r.Pair.Format(format)
+
+	switch r.Asset {
+	case asset.USDCMarginedFutures,
+		asset.USDTMarginedFutures,
+		asset.CoinMarginedFutures:
+
+		var fRates *FundingRateHistory
+		fRates, err = by.GetFundingRateHistory(ctx, getCategoryName(r.Asset), r.Pair.String(), time.Time{}, time.Time{}, 0)
+		if err != nil {
+			return nil, err
+		}
+
+		resp := make([]fundingrate.LatestRateResponse, 0, len(fRates.List))
+		for i := range fRates.List {
+			var cp currency.Pair
+			var isEnabled bool
+			cp, isEnabled, err = by.MatchSymbolCheckEnabled(fRates.List[i].Symbol, r.Asset, true)
+			if err != nil && !errors.Is(err, currency.ErrPairNotFound) {
+				return nil, err
+			}
+			if !isEnabled {
+				continue
+			}
+
+			rate := fundingrate.LatestRateResponse{
+				TimeChecked: time.Now(),
+				Exchange:    by.Name,
+				Asset:       r.Asset,
+				Pair:        cp,
+				LatestRate: fundingrate.Rate{
+					Time: fRates.List[i].FundingRateTimestamp.Time(),
+					Rate: decimal.NewFromFloat((fRates.List[i].FundingRate.Float64())),
+				},
+			}
+			resp = append(resp, rate)
+		}
+		if len(resp) == 0 {
+			return nil, fmt.Errorf("%w %v %v", futures.ErrNotPerpetualFuture, r.Asset, r.Pair)
+		}
+		return resp, nil
+	case asset.Spot,
+		asset.Options:
+		return nil, fmt.Errorf("%w only 'linear' and 'inverse' categories are supported", errInvalidCategory)
+	}
+	return nil, fmt.Errorf("%s %w", r.Asset, asset.ErrNotSupported)
 }

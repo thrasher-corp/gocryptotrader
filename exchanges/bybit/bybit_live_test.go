@@ -38,6 +38,7 @@ func TestMain(m *testing.M) {
 	exchCfg.API.Credentials.Key = apiKey
 	exchCfg.API.Credentials.Secret = apiSecret
 	b.Websocket = sharedtestvalues.NewTestWebsocket()
+	b.HTTPRecording = true
 	request.MaxRequestJobs = 100
 	err = b.Setup(exchCfg)
 	if err != nil {

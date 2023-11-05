@@ -13,6 +13,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
@@ -3377,5 +3378,44 @@ func TestIsPerpetualFutureCurrency(t *testing.T) {
 		} else if !enabled[x].Quote.Equal(currency.PFC) && isPerp {
 			t.Error("expected false")
 		}
+	}
+}
+
+func TestGetLatestFundingRates(t *testing.T) {
+	t.Parallel()
+	_, err := b.GetLatestFundingRates(context.Background(), &fundingrate.LatestRateRequest{
+		Asset: asset.Futures,
+		Pair:  usdtMarginedTradablePair,
+	})
+	if !errors.Is(err, asset.ErrNotSupported) {
+		t.Error(err)
+	}
+	_, err = b.GetLatestFundingRates(context.Background(), &fundingrate.LatestRateRequest{
+		Asset: asset.Spot,
+		Pair:  spotTradablePair,
+	})
+	if !errors.Is(err, errInvalidCategory) {
+		t.Errorf("expected %v, got %v", errInvalidCategory, err)
+	}
+	_, err = b.GetLatestFundingRates(context.Background(), &fundingrate.LatestRateRequest{
+		Asset: asset.Options,
+		Pair:  optionsTradablePair,
+	})
+	if !errors.Is(err, errInvalidCategory) {
+		t.Errorf("expected %v, got %v", errInvalidCategory, err)
+	}
+	_, err = b.GetLatestFundingRates(context.Background(), &fundingrate.LatestRateRequest{
+		Asset: asset.USDTMarginedFutures,
+		Pair:  usdtMarginedTradablePair,
+	})
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = b.GetLatestFundingRates(context.Background(), &fundingrate.LatestRateRequest{
+		Asset: asset.USDCMarginedFutures,
+		Pair:  usdcMarginedTradablePair,
+	})
+	if err != nil {
+		t.Error(err)
 	}
 }
