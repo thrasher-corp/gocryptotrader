@@ -436,6 +436,6 @@ func (b *BTSE) Unsubscribe(channelsToUnsubscribe []stream.ChannelSubscription) e
 	if err != nil {
 		return err
 	}
-	spotWebsocket.RemoveSuccessfulUnsubscriptions(channelsToUnsubscribe...)
+	spotWebsocket.RemoveSubscriptions(channelsToUnsubscribe...)
 	return nil
 }

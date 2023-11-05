@@ -16,6 +16,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -966,5 +967,62 @@ func TestGetFuturesContractDetails(t *testing.T) {
 	_, err = b.GetFuturesContractDetails(context.Background(), asset.Futures)
 	if !errors.Is(err, nil) {
 		t.Error(err)
+	}
+}
+
+func TestGetLatestFundingRates(t *testing.T) {
+	t.Parallel()
+	_, err := b.GetLatestFundingRates(context.Background(), &fundingrate.LatestRateRequest{
+		Asset:                asset.USDTMarginedFutures,
+		Pair:                 currency.NewPair(currency.BTC, currency.USDT),
+		IncludePredictedRate: true,
+	})
+	if !errors.Is(err, asset.ErrNotSupported) {
+		t.Error(err)
+	}
+	_, err = b.GetLatestFundingRates(context.Background(), &fundingrate.LatestRateRequest{
+		Asset: asset.Futures,
+	})
+	if err != nil {
+		t.Error(err)
+	}
+
+	_, err = b.GetLatestFundingRates(context.Background(), &fundingrate.LatestRateRequest{
+		Asset: asset.Futures,
+		Pair:  testFUTURESPair,
+	})
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestIsPerpetualFutureCurrency(t *testing.T) {
+	t.Parallel()
+	isPerp, err := b.IsPerpetualFutureCurrency(asset.CoinMarginedFutures, currency.NewPair(currency.BTC, currency.USD))
+	if err != nil {
+		t.Error(err)
+	}
+	if isPerp {
+		t.Error("expected false")
+	}
+
+	isPerp, err = b.IsPerpetualFutureCurrency(asset.Futures, testFUTURESPair)
+	if err != nil {
+		t.Error(err)
+	}
+	if !isPerp {
+		t.Error("expected true")
+	}
+
+	cp, err := currency.NewPairFromString(testSPOTPair)
+	if err != nil {
+		t.Error(err)
+	}
+	isPerp, err = b.IsPerpetualFutureCurrency(asset.Futures, cp)
+	if err != nil {
+		t.Error(err)
+	}
+	if isPerp {
+		t.Error("expected false")
 	}
 }

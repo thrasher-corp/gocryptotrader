@@ -10,6 +10,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/config"
@@ -18,6 +19,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -131,20 +133,23 @@ func (k *Kraken) SetDefaults() {
 				MultiChainDeposits:             true,
 				MultiChainWithdrawals:          true,
 				HasAssetTypeAccountSegregation: true,
+				FundingRateFetching:            true,
+				PredictedFundingRate:           true,
 			},
 			WebsocketCapabilities: protocol.Features{
-				TickerFetching:     true,
-				TradeFetching:      true,
-				KlineFetching:      true,
-				OrderbookFetching:  true,
-				Subscribe:          true,
-				Unsubscribe:        true,
-				MessageCorrelation: true,
-				SubmitOrder:        true,
-				CancelOrder:        true,
-				CancelOrders:       true,
-				GetOrders:          true,
-				GetOrder:           true,
+				TickerFetching:      true,
+				TradeFetching:       true,
+				KlineFetching:       true,
+				OrderbookFetching:   true,
+				Subscribe:           true,
+				Unsubscribe:         true,
+				MessageCorrelation:  true,
+				SubmitOrder:         true,
+				CancelOrder:         true,
+				CancelOrders:        true,
+				GetOrders:           true,
+				GetOrder:            true,
+				FundingRateFetching: false, // has capability but is not supported // TODO when multi-websocket support added
 			},
 			WithdrawPermissions: exchange.AutoWithdrawCryptoWithSetup |
 				exchange.WithdrawCryptoWith2FA |
@@ -153,6 +158,15 @@ func (k *Kraken) SetDefaults() {
 			Kline: kline.ExchangeCapabilitiesSupported{
 				DateRanges: true,
 				Intervals:  true,
+			},
+			FuturesCapabilities: exchange.FuturesCapabilities{
+				FundingRates: true,
+				SupportedFundingRateFrequencies: map[kline.Interval]bool{
+					kline.FourHour: true,
+				},
+				FundingRateBatching: map[asset.Item]bool{
+					asset.Futures: true,
+				},
 			},
 		},
 		Enabled: exchange.FeaturesEnabled{
@@ -1744,12 +1758,15 @@ func (k *Kraken) GetFuturesContractDetails(ctx context.Context, item asset.Item)
 		} else {
 			underlyingStr = underlyingBase[1]
 		}
-		usdIndex := strings.Index(underlyingStr, "usd")
+		usdIndex := strings.LastIndex(strings.ToLower(underlyingStr), "usd")
+		if usdIndex <= 0 {
+			log.Warnf(log.ExchangeSys, "%v unable to find USD index in %v to process contract", k.Name, underlyingStr)
+			continue
+		}
 		underlying, err = currency.NewPairFromStrings(underlyingStr[0:usdIndex], underlyingStr[usdIndex:])
 		if err != nil {
 			return nil, err
 		}
-
 		var s, e time.Time
 		if result.Instruments[i].OpeningDate != "" {
 			s, err = time.Parse(time.RFC3339, result.Instruments[i].OpeningDate)
@@ -1792,4 +1809,67 @@ func (k *Kraken) GetFuturesContractDetails(ctx context.Context, item asset.Item)
 		}
 	}
 	return resp, nil
+}
+
+// GetLatestFundingRates returns the latest funding rates data
+func (k *Kraken) GetLatestFundingRates(ctx context.Context, r *fundingrate.LatestRateRequest) ([]fundingrate.LatestRateResponse, error) {
+	if r == nil {
+		return nil, fmt.Errorf("%w LatestRateRequest", common.ErrNilPointer)
+	}
+	if r.Asset != asset.Futures {
+		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, r.Asset)
+	}
+	if !r.Pair.IsEmpty() {
+		_, isEnabled, err := k.MatchSymbolCheckEnabled(r.Pair.String(), r.Asset, r.Pair.Delimiter != "")
+		if err != nil && !errors.Is(err, currency.ErrPairNotFound) {
+			return nil, err
+		}
+		if !isEnabled {
+			return nil, fmt.Errorf("%w %v", currency.ErrPairNotEnabled, r.Pair)
+		}
+	}
+
+	t, err := k.GetFuturesTickers(ctx)
+	if err != nil {
+		return nil, err
+	}
+	resp := make([]fundingrate.LatestRateResponse, 0, len(t.Tickers))
+	for i := range t.Tickers {
+		pair, err := currency.NewPairFromString(t.Tickers[i].Symbol)
+		if err != nil {
+			return nil, err
+		}
+		if !r.Pair.IsEmpty() && !r.Pair.Equal(pair) {
+			continue
+		}
+		var isPerp bool
+		isPerp, err = k.IsPerpetualFutureCurrency(r.Asset, pair)
+		if err != nil {
+			return nil, err
+		}
+		if !isPerp {
+			continue
+		}
+		rate := fundingrate.LatestRateResponse{
+			Exchange: k.Name,
+			Asset:    r.Asset,
+			Pair:     pair,
+			LatestRate: fundingrate.Rate{
+				Rate: decimal.NewFromFloat(t.Tickers[i].FundingRate),
+			},
+			TimeChecked: time.Now(),
+		}
+		if r.IncludePredictedRate {
+			rate.PredictedUpcomingRate = fundingrate.Rate{
+				Rate: decimal.NewFromFloat(t.Tickers[i].FundingRatePrediction),
+			}
+		}
+		resp = append(resp, rate)
+	}
+	return resp, nil
+}
+
+// IsPerpetualFutureCurrency ensures a given asset and currency is a perpetual future
+func (k *Kraken) IsPerpetualFutureCurrency(a asset.Item, cp currency.Pair) (bool, error) {
+	return cp.Base.Equal(currency.PF) && a == asset.Futures, nil
 }

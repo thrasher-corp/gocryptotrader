@@ -938,9 +938,9 @@ func (o *Okcoin) handleSubscriptions(operation string, subs []stream.ChannelSubs
 
 			if operation == "unsubscribe" {
 				if authenticatedChannelSubscription {
-					spotWebsocket.RemoveSuccessfulUnsubscriptions(authChannels...)
+					spotWebsocket.RemoveSubscriptions(authChannels...)
 				} else {
-					spotWebsocket.RemoveSuccessfulUnsubscriptions(channels...)
+					spotWebsocket.RemoveSubscriptions(channels...)
 				}
 			} else {
 				if authenticatedChannelSubscription {
@@ -980,7 +980,7 @@ func (o *Okcoin) handleSubscriptions(operation string, subs []stream.ChannelSubs
 		}
 	}
 	if operation == "unsubscribe" {
-		spotWebsocket.RemoveSuccessfulUnsubscriptions(channels...)
+		spotWebsocket.RemoveSubscriptions(channels...)
 	} else {
 		spotWebsocket.AddSuccessfulSubscriptions(channels...)
 	}

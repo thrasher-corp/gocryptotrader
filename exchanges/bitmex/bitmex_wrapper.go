@@ -123,6 +123,7 @@ func (b *Bitmex) SetDefaults() {
 				CryptoWithdrawal:    true,
 				TradeFee:            true,
 				CryptoWithdrawalFee: true,
+				FundingRateFetching: true,
 			},
 			WebsocketCapabilities: protocol.Features{
 				TradeFetching:          true,
@@ -134,6 +135,16 @@ func (b *Bitmex) SetDefaults() {
 				DeadMansSwitch:         true,
 				GetOrders:              true,
 				GetOrder:               true,
+				FundingRateFetching:    false, // supported but not implemented // TODO when multi-websocket support added
+			},
+			FuturesCapabilities: exchange.FuturesCapabilities{
+				FundingRates: true,
+				SupportedFundingRateFrequencies: map[kline.Interval]bool{
+					kline.EightHour: true,
+				},
+				FundingRateBatching: map[asset.Item]bool{
+					asset.PerpetualContract: true,
+				},
 			},
 			WithdrawPermissions: exchange.AutoWithdrawCryptoWithAPIPermission |
 				exchange.WithdrawCryptoWithEmail |
@@ -409,12 +420,9 @@ instruments:
 			pair, enabled, err = b.MatchSymbolCheckEnabled(tick[j].Symbol, a, false)
 		}
 
-		if err != nil {
-			if !errors.Is(err, currency.ErrPairNotFound) {
-				return err
-			}
+		if err != nil && !errors.Is(err, currency.ErrPairNotFound) {
+			return err
 		}
-
 		if !enabled {
 			continue
 		}
@@ -1247,4 +1255,87 @@ func (b *Bitmex) GetFuturesContractDetails(ctx context.Context, item asset.Item)
 		}
 	}
 	return resp, nil
+}
+
+// GetLatestFundingRates returns the latest funding rates data
+func (b *Bitmex) GetLatestFundingRates(ctx context.Context, r *fundingrate.LatestRateRequest) ([]fundingrate.LatestRateResponse, error) {
+	if r == nil {
+		return nil, fmt.Errorf("%w LatestRateRequest", common.ErrNilPointer)
+	}
+
+	if r.IncludePredictedRate {
+		return nil, fmt.Errorf("%w IncludePredictedRate", common.ErrFunctionNotSupported)
+	}
+
+	count := "1"
+	if r.Pair.IsEmpty() {
+		count = "500"
+	} else {
+		isPerp, err := b.IsPerpetualFutureCurrency(r.Asset, r.Pair)
+		if err != nil {
+			return nil, err
+		}
+		if !isPerp {
+			return nil, fmt.Errorf("%w %v %v", futures.ErrNotPerpetualFuture, r.Asset, r.Pair)
+		}
+	}
+
+	format, err := b.GetPairFormat(r.Asset, true)
+	if err != nil {
+		return nil, err
+	}
+	fPair := format.Format(r.Pair)
+	rates, err := b.GetFullFundingHistory(ctx, fPair, count, "", "", "", true, time.Time{}, time.Time{})
+	if err != nil {
+		return nil, err
+	}
+
+	resp := make([]fundingrate.LatestRateResponse, 0, len(rates))
+	// Bitmex returns historical rates from this endpoint, we only want the latest
+	latestRateSymbol := make(map[string]bool)
+	for i := range rates {
+		if _, ok := latestRateSymbol[rates[i].Symbol]; ok {
+			continue
+		}
+		latestRateSymbol[rates[i].Symbol] = true
+		var nr time.Time
+		nr, err = time.Parse(time.RFC3339, rates[i].FundingInterval)
+		if err != nil {
+			return nil, err
+		}
+		var cp currency.Pair
+		var isEnabled bool
+		cp, isEnabled, err = b.MatchSymbolCheckEnabled(rates[i].Symbol, r.Asset, false)
+		if err != nil && !errors.Is(err, currency.ErrPairNotFound) {
+			return nil, err
+		}
+		if !isEnabled {
+			continue
+		}
+		var isPerp bool
+		isPerp, err = b.IsPerpetualFutureCurrency(r.Asset, cp)
+		if err != nil {
+			return nil, err
+		}
+		if !isPerp {
+			continue
+		}
+		resp = append(resp, fundingrate.LatestRateResponse{
+			Exchange: b.Name,
+			Asset:    r.Asset,
+			Pair:     cp,
+			LatestRate: fundingrate.Rate{
+				Time: rates[i].Timestamp,
+				Rate: decimal.NewFromFloat(rates[i].FundingRate),
+			},
+			TimeOfNextRate: rates[i].Timestamp.Add(time.Duration(nr.Hour()) * time.Hour),
+			TimeChecked:    time.Now(),
+		})
+	}
+	return resp, nil
+}
+
+// IsPerpetualFutureCurrency ensures a given asset and currency is a perpetual future
+func (b *Bitmex) IsPerpetualFutureCurrency(a asset.Item, _ currency.Pair) (bool, error) {
+	return a == asset.PerpetualContract, nil
 }

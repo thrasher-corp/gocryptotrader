@@ -636,7 +636,7 @@ func (bi *Binanceus) Unsubscribe(channelsToUnsubscribe []stream.ChannelSubscript
 			return err
 		}
 	}
-	spotWebsocket.RemoveSuccessfulUnsubscriptions(channelsToUnsubscribe...)
+	spotWebsocket.RemoveSubscriptions(channelsToUnsubscribe...)
 	return nil
 }
 

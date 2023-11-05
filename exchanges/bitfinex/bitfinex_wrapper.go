@@ -18,6 +18,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -60,7 +61,6 @@ func (b *Bitfinex) SetDefaults() {
 	b.Name = "Bitfinex"
 	b.Enabled = true
 	b.Verbose = true
-	b.WebsocketSubdChannels = make(map[int]*stream.ChannelSubscription)
 	b.API.CredentialsValidator.RequiresKey = true
 	b.API.CredentialsValidator.RequiresSecret = true
 
@@ -126,6 +126,7 @@ func (b *Bitfinex) SetDefaults() {
 				MultiChainDeposits:                true,
 				MultiChainWithdrawals:             true,
 				MultiChainDepositRequiresChainSet: true,
+				FundingRateFetching:               true,
 			},
 			WebsocketCapabilities: protocol.Features{
 				AccountBalance:         true,
@@ -150,6 +151,15 @@ func (b *Bitfinex) SetDefaults() {
 			Kline: kline.ExchangeCapabilitiesSupported{
 				DateRanges: true,
 				Intervals:  true,
+			},
+			FuturesCapabilities: exchange.FuturesCapabilities{
+				FundingRates: true,
+				SupportedFundingRateFrequencies: map[kline.Interval]bool{
+					kline.EightHour: true,
+				},
+				FundingRateBatching: map[asset.Item]bool{
+					asset.Margin: true,
+				},
 			},
 		},
 		Enabled: exchange.FeaturesEnabled{
@@ -369,12 +379,9 @@ func (b *Bitfinex) UpdateTickers(ctx context.Context, a asset.Item) error {
 
 	for key, val := range tickerNew {
 		pair, enabled, err := b.MatchSymbolCheckEnabled(key[1:], a, true)
-		if err != nil {
-			if !errors.Is(err, currency.ErrPairNotFound) {
-				return err
-			}
+		if err != nil && !errors.Is(err, currency.ErrPairNotFound) {
+			return err
 		}
-
 		if !enabled {
 			continue
 		}
@@ -1316,4 +1323,10 @@ func (b *Bitfinex) GetServerTime(_ context.Context, _ asset.Item) (time.Time, er
 // GetFuturesContractDetails returns all contracts from the exchange by asset type
 func (b *Bitfinex) GetFuturesContractDetails(context.Context, asset.Item) ([]futures.Contract, error) {
 	return nil, common.ErrFunctionNotSupported
+}
+
+// GetLatestFundingRates returns the latest funding rates data
+func (b *Bitfinex) GetLatestFundingRates(context.Context, *fundingrate.LatestRateRequest) ([]fundingrate.LatestRateResponse, error) {
+	// TODO: Add futures support for Bitfinex
+	return nil, common.ErrNotYetImplemented
 }

@@ -1265,3 +1265,42 @@ func TestGetOrderInfo(t *testing.T) {
 		t.Error(err)
 	}
 }
+
+func TestGetSymbolDetails(t *testing.T) {
+	t.Parallel()
+	_, err := g.GetSymbolDetails(context.Background(), "all")
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = g.GetSymbolDetails(context.Background(), "btcusd")
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestSetExchangeOrderExecutionLimits(t *testing.T) {
+	t.Parallel()
+	err := g.UpdateOrderExecutionLimits(context.Background(), asset.Spot)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = g.UpdateOrderExecutionLimits(context.Background(), asset.Futures)
+	if !errors.Is(err, asset.ErrNotSupported) {
+		t.Fatal(err)
+	}
+
+	availPairs, err := g.GetAvailablePairs(asset.Spot)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for x := range availPairs {
+		var limit order.MinMaxLevel
+		limit, err = g.GetOrderExecutionLimits(asset.Spot, availPairs[x])
+		if err != nil {
+			t.Fatal(err, availPairs[x])
+		}
+		if limit == (order.MinMaxLevel{}) {
+			t.Fatal("exchange limit should be loaded")
+		}
+	}
+}

@@ -704,7 +704,7 @@ func (c *COINUT) Unsubscribe(channelToUnsubscribe []stream.ChannelSubscription) 
 				channelToUnsubscribe[i].Channel))
 			continue
 		}
-		spotWebsocket.RemoveSuccessfulUnsubscriptions(channelToUnsubscribe[i])
+		spotWebsocket.RemoveSubscriptions(channelToUnsubscribe[i])
 	}
 	return errs
 }

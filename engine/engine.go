@@ -36,7 +36,7 @@ type Engine struct {
 	apiServer               *apiServerManager
 	CommunicationsManager   *CommunicationManager
 	connectionManager       *connectionManager
-	currencyPairSyncer      *syncManager
+	currencyPairSyncer      *SyncManager
 	DatabaseManager         *DatabaseConnectionManager
 	DepositAddressManager   *DepositAddressManager
 	eventManager            *eventManager
@@ -513,7 +513,7 @@ func (bot *Engine) Start() error {
 			bot.Settings.SyncWorkersCount != config.DefaultSyncerWorkers {
 			cfg.NumWorkers = bot.Settings.SyncWorkersCount
 		}
-		if s, err := setupSyncManager(
+		if s, err := SetupSyncManager(
 			&cfg,
 			bot.ExchangeManager,
 			&bot.Config.RemoteControl,

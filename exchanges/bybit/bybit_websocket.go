@@ -179,7 +179,7 @@ func (by *Bybit) Unsubscribe(channelsToUnsubscribe []stream.ChannelSubscription)
 			errs = common.AppendError(errs, err)
 			continue
 		}
-		spotWebsocket.RemoveSuccessfulUnsubscriptions(channelsToUnsubscribe[i])
+		spotWebsocket.RemoveSubscriptions(channelsToUnsubscribe[i])
 	}
 	return errs
 }

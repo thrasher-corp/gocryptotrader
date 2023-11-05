@@ -732,7 +732,7 @@ func (g *Gateio) handleSubscription(event string, channelsToSubscribe []stream.C
 			if payloads[k].Event == "subscribe" {
 				spotWebsocket.AddSuccessfulSubscriptions(channelsToSubscribe[k])
 			} else {
-				spotWebsocket.RemoveSuccessfulUnsubscriptions(channelsToSubscribe[k])
+				spotWebsocket.RemoveSubscriptions(channelsToSubscribe[k])
 			}
 		}
 	}

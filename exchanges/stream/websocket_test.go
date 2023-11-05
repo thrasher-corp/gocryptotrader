@@ -8,6 +8,7 @@ import (
 	"errors"
 	"net"
 	"net/http"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -15,6 +16,7 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
+	"github.com/stretchr/testify/assert"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
@@ -49,6 +51,26 @@ type testRequestData struct {
 
 type testResponse struct {
 	RequestID int64 `json:"reqid,omitempty"`
+}
+
+type testSubKey struct {
+	Mood string
+}
+
+var defaultSetup = &WebsocketSetup{
+	DefaultURL:   "testDefaultURL",
+	RunningURL:   "wss://testRunningURL",
+	Connector:    func() error { return nil },
+	Subscriber:   func(_ []ChannelSubscription) error { return nil },
+	Unsubscriber: func(_ []ChannelSubscription) error { return nil },
+	GenerateSubscriptions: func() ([]ChannelSubscription, error) {
+		return []ChannelSubscription{
+			{Channel: "TestSub"},
+			{Channel: "TestSub2", Key: "purple"},
+			{Channel: "TestSub3", Key: testSubKey{"mauve"}},
+			{Channel: "TestSub4", Key: 42},
+		}, nil
+	},
 }
 
 type dodgyConnection struct {
@@ -495,55 +517,45 @@ func TestSubscribeUnsubscribe(t *testing.T) {
 		return nil
 	}
 	fnUnsub := func(unsubs []ChannelSubscription) error {
-		ws.RemoveSuccessfulUnsubscriptions(unsubs...)
+		ws.RemoveSubscriptions(unsubs...)
 		return nil
 	}
 	ws.Subscriber = fnSub
 	ws.Unsubscriber = fnUnsub
 
-	err = ws.UnsubscribeChannels(nil)
-	if err == nil {
-		t.Fatal("error cannot be nil")
-	}
-
-	// Generate test sub
 	subs, err := ws.GenerateSubs()
-	if err != nil {
-		t.Fatal(err)
+	assert.NoError(t, err, "Generating test subscriptions should not error")
+	assert.ErrorIs(t, ws.UnsubscribeChannels(nil), errNoSubscriptionsSupplied, "Unsubscribing from nil should error")
+	assert.ErrorIs(t, ws.UnsubscribeChannels(subs), ErrSubscriptionNotFound, "Unsubscribing should error when not subscribed")
+	assert.Nil(t, ws.GetSubscription(42), "GetSubscription on empty internal map should return")
+	assert.NoError(t, ws.SubscribeToChannels(subs), "Basic Subscribing should not error")
+	assert.Len(t, ws.GetSubscriptions(), 4, "Should have 4 subscriptions")
+	byDefKey := ws.GetSubscription(DefaultChannelKey{Channel: "TestSub"})
+	if assert.NotNil(t, byDefKey, "GetSubscription by default key should find a channel") {
+		assert.Equal(t, "TestSub", byDefKey.Channel, "GetSubscription by default key should return a pointer a copy of the right channel")
+		assert.NotSame(t, byDefKey, ws.subscriptions["TestSub"], "GetSubscription returns a fresh pointer")
 	}
-
-	// unsub when no subscribed channel
-	err = ws.UnsubscribeChannels(subs)
-	if err == nil {
-		t.Fatal("error cannot be nil")
+	if assert.NotNil(t, ws.GetSubscription("purple"), "GetSubscription by string key should find a channel") {
+		assert.Equal(t, "TestSub2", ws.GetSubscription("purple").Channel, "GetSubscription by string key should return a pointer a copy of the right channel")
 	}
-
-	err = ws.SubscribeToChannels(subs)
-	if err != nil {
-		t.Fatal(err)
+	if assert.NotNil(t, ws.GetSubscription(testSubKey{"mauve"}), "GetSubscription by type key should find a channel") {
+		assert.Equal(t, "TestSub3", ws.GetSubscription(testSubKey{"mauve"}).Channel, "GetSubscription by type key should return a pointer a copy of the right channel")
 	}
-
-	// subscribe when already subscribed
-	err = ws.SubscribeToChannels(subs)
-	if err == nil {
-		t.Fatal("error cannot be nil")
+	if assert.NotNil(t, ws.GetSubscription(42), "GetSubscription by int key should find a channel") {
+		assert.Equal(t, "TestSub4", ws.GetSubscription(42).Channel, "GetSubscription by int key should return a pointer a copy of the right channel")
 	}
-
-	// subscribe to nothing
-	err = ws.SubscribeToChannels(nil)
-	if err == nil {
-		t.Fatal("error cannot be nil")
-	}
-
-	err = ws.UnsubscribeChannels(subs)
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.Nil(t, ws.GetSubscription(nil), "GetSubscription by nil should return nil")
+	assert.Nil(t, ws.GetSubscription(45), "GetSubscription by invalid key should return nil")
+	assert.ErrorIs(t, ws.SubscribeToChannels(subs), errChannelAlreadySubscribed, "Subscribe should error when already subscribed")
+	assert.ErrorIs(t, ws.SubscribeToChannels(nil), errNoSubscriptionsSupplied, "Subscribe to nil should error")
+	assert.NoError(t, ws.UnsubscribeChannels(subs), "Unsubscribing should not error")
 }
 
+// TestResubscribe tests Resubscribing to existing subscriptions
 func TestResubscribe(t *testing.T) {
 	t.Parallel()
 	websocketWrapper := NewWrapper()
+	DefaultWrapperSetup.MaxWebsocketSubscriptionsPerConnection = -1
 	err := websocketWrapper.Setup(DefaultWrapperSetup)
 	if err != nil {
 		t.Fatal(err)
@@ -558,27 +570,74 @@ func TestResubscribe(t *testing.T) {
 		return nil
 	}
 	fnUnsub := func(unsubs []ChannelSubscription) error {
-		ws.RemoveSuccessfulUnsubscriptions(unsubs...)
+		ws.RemoveSubscriptions(unsubs...)
 		return nil
 	}
 	ws.Subscriber = fnSub
 	ws.Unsubscriber = fnUnsub
 
 	channel := []ChannelSubscription{{Channel: "resubTest"}}
-	err = ws.ResubscribeToChannel(&channel[0])
-	if err == nil {
-		t.Fatal("error cannot be nil")
-	}
 
-	err = ws.SubscribeToChannels(channel)
+	assert.ErrorIs(t, ws.ResubscribeToChannel(&channel[0]), ErrSubscriptionNotFound, "Resubscribe should error when channel isn't subscribed yet")
+	assert.NoError(t, ws.SubscribeToChannels(channel), "Subscribe should not error")
+	assert.NoError(t, ws.ResubscribeToChannel(&channel[0]), "Resubscribe should not error now the channel is subscribed")
+}
+
+// TestSubscriptionState tests Subscription state changes
+func TestSubscriptionState(t *testing.T) {
+	t.Parallel()
+	websocketWrapper := NewWrapper()
+	DefaultWrapperSetup.MaxWebsocketSubscriptionsPerConnection = -1
+	err := websocketWrapper.Setup(DefaultWrapperSetup)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ws, err := websocketWrapper.AddWebsocket(DefaultTestSetup)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	err = ws.ResubscribeToChannel(&channel[0])
+	c := &ChannelSubscription{Key: 42, Channel: "Gophers", State: ChannelSubscribing}
+	assert.ErrorIs(t, ws.SetSubscriptionState(c, ChannelUnsubscribing), ErrSubscriptionNotFound, "Setting an imaginary sub should error")
+
+	assert.NoError(t, ws.AddSubscription(c), "Adding first subscription should not error")
+	found := ws.GetSubscription(42)
+	assert.NotNil(t, found, "Should find the subscription")
+	assert.Equal(t, ChannelSubscribing, found.State, "Subscription should be Subscribing")
+	assert.ErrorIs(t, ws.AddSubscription(c), ErrSubscribedAlready, "Adding an already existing sub should error")
+	assert.ErrorIs(t, ws.SetSubscriptionState(c, ChannelSubscribing), ErrChannelInStateAlready, "Setting Same state should error")
+	assert.ErrorIs(t, ws.SetSubscriptionState(c, ChannelUnsubscribing+1), errInvalidChannelState, "Setting an invalid state should error")
+
+	ws.AddSuccessfulSubscriptions(*c)
+	found = ws.GetSubscription(42)
+	assert.NotNil(t, found, "Should find the subscription")
+	assert.Equal(t, found.State, ChannelSubscribed, "Subscription should be subscribed state")
+
+	assert.NoError(t, ws.SetSubscriptionState(c, ChannelUnsubscribing), "Setting Unsub state should not error")
+	found = ws.GetSubscription(42)
+	assert.Equal(t, found.State, ChannelUnsubscribing, "Subscription should be unsubscribing state")
+}
+
+// TestRemoveSubscriptions tests removing a subscription
+func TestRemoveSubscriptions(t *testing.T) {
+	t.Parallel()
+	websocketWrapper := NewWrapper()
+	DefaultWrapperSetup.MaxWebsocketSubscriptionsPerConnection = -1
+	err := websocketWrapper.Setup(DefaultWrapperSetup)
 	if err != nil {
-		t.Fatal("error cannot be nil")
+		t.Fatal(err)
 	}
+	ws, err := websocketWrapper.AddWebsocket(DefaultTestSetup)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	c := &ChannelSubscription{Key: 42, Channel: "Unite!"}
+	assert.NoError(t, ws.AddSubscription(c), "Adding first subscription should not error")
+	assert.NotNil(t, ws.GetSubscription(42), "Added subscription should be findable")
+
+	ws.RemoveSubscriptions(*c)
+	assert.Nil(t, ws.GetSubscription(42), "Remove should have removed the sub")
 }
 
 // TestConnectionMonitorNoConnection logic test
@@ -604,18 +663,64 @@ func TestConnectionMonitorNoConnection(t *testing.T) {
 	}
 }
 
-// TestSliceCopyDoesntImpactBoth logic test
-func TestGetSubscriptions(t *testing.T) {
+// TestGetSubscription logic test
+func TestGetSubscription(t *testing.T) {
 	t.Parallel()
+	assert.Nil(t, (*Websocket).GetSubscription(nil, "imaginary"), "GetSubscription on a nil Websocket should return nil")
+	assert.Nil(t, (&Websocket{}).GetSubscription("empty"), "GetSubscription on a Websocket with no sub map should return nil")
 	w := Websocket{
-		subscriptions: []ChannelSubscription{
-			{
+		subscriptions: subscriptionMap{
+			42: {
 				Channel: "hello3",
 			},
 		},
 	}
-	if !strings.EqualFold("hello3", w.GetSubscriptions()[0].Channel) {
-		t.Error("Subscriptions was not copied properly")
+	assert.Nil(t, w.GetSubscription(43), "GetSubscription with an invalid key should return nil")
+	c := w.GetSubscription(42)
+	if assert.NotNil(t, c, "GetSubscription with an valid key should return a channel") {
+		assert.Equal(t, "hello3", c.Channel, "GetSubscription should return the correct channel details")
+	}
+}
+
+// TestGetSubscriptions logic test
+func TestGetSubscriptions(t *testing.T) {
+	t.Parallel()
+	w := Websocket{
+		subscriptions: subscriptionMap{
+			42: {
+				Channel: "hello3",
+			},
+		},
+	}
+	assert.Equal(t, "hello3", w.GetSubscriptions()[0].Channel, "GetSubscriptions should return the correct channel details")
+}
+
+// TestEnsureKeyed logic test
+func TestEnsureKeyed(t *testing.T) {
+	t.Parallel()
+	c := ChannelSubscription{
+		Channel:  "candles",
+		Asset:    asset.Spot,
+		Currency: currency.NewPair(currency.BTC, currency.USDT),
+	}
+	k1, ok := c.EnsureKeyed().(DefaultChannelKey)
+	if assert.True(t, ok, "EnsureKeyed should return a DefaultChannelKey") {
+		assert.Exactly(t, k1, c.Key, "EnsureKeyed should set the same key")
+		assert.Equal(t, k1.Channel, c.Channel, "DefaultChannelKey channel should be correct")
+		assert.Equal(t, k1.Asset, c.Asset, "DefaultChannelKey asset should be correct")
+		assert.Equal(t, k1.Currency, c.Currency, "DefaultChannelKey currency should be correct")
+	}
+	type platypus string
+	c = ChannelSubscription{
+		Key:      platypus("Gerald"),
+		Channel:  "orderbook",
+		Asset:    asset.Margin,
+		Currency: currency.NewPair(currency.ETH, currency.USDC),
+	}
+	k2, ok := c.EnsureKeyed().(platypus)
+	if assert.True(t, ok, "EnsureKeyed should return a platypus") {
+		assert.Exactly(t, k2, c.Key, "EnsureKeyed should set the same key")
+		assert.EqualValues(t, "Gerald", k2, "key should have the correct value")
 	}
 }
 
@@ -1011,15 +1116,10 @@ func TestGetChannelDifference(t *testing.T) {
 		},
 	}
 	subs, unsubs := web.GetChannelDifference(newChans)
-	if len(subs) != 3 {
-		t.Fatal("error mismatch")
-	}
+	assert.Len(t, subs, 3, "Should get the correct number of subs")
+	assert.Len(t, unsubs, 0, "Should get the correct number of unsubs")
 
-	if len(unsubs) != 0 {
-		t.Fatal("error mismatch")
-	}
-
-	web.subscriptions = subs
+	web.AddSuccessfulSubscriptions(subs...)
 
 	flushedSubs := []ChannelSubscription{
 		{
@@ -1028,12 +1128,8 @@ func TestGetChannelDifference(t *testing.T) {
 	}
 
 	subs, unsubs = web.GetChannelDifference(flushedSubs)
-	if len(subs) != 0 {
-		t.Fatal("error mismatch")
-	}
-	if len(unsubs) != 2 {
-		t.Fatal("error mismatch")
-	}
+	assert.Len(t, subs, 0, "Should get the correct number of subs")
+	assert.Len(t, unsubs, 2, "Should get the correct number of unsubs")
 
 	flushedSubs = []ChannelSubscription{
 		{
@@ -1045,11 +1141,13 @@ func TestGetChannelDifference(t *testing.T) {
 	}
 
 	subs, unsubs = web.GetChannelDifference(flushedSubs)
-	if len(subs) != 1 {
-		t.Fatal("error mismatch")
+	if assert.Len(t, subs, 1, "Should get the correct number of subs") {
+		assert.Equal(t, subs[0].Channel, "Test4", "Should subscribe to the right channel")
 	}
-	if len(unsubs) != 2 {
-		t.Fatal("error mismatch")
+	if assert.Len(t, unsubs, 2, "Should get the correct number of unsubs") {
+		sort.Slice(unsubs, func(i, j int) bool { return unsubs[i].Channel <= unsubs[j].Channel })
+		assert.Equal(t, unsubs[0].Channel, "Test1", "Should unsubscribe from the right channels")
+		assert.Equal(t, unsubs[1].Channel, "Test3", "Should unsubscribe from the right channels")
 	}
 }
 
@@ -1167,9 +1265,7 @@ func TestFlushChannels(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	web.subscriptionMutex.Lock()
-	web.subscriptions = subs
-	web.subscriptionMutex.Unlock()
+	web.AddSuccessfulSubscriptions(subs...)
 	err = web.FlushChannels()
 	if err != nil {
 		t.Fatal(err)
@@ -1189,12 +1285,14 @@ func TestFlushChannels(t *testing.T) {
 		t.Fatal(err)
 	}
 	web.subscriptionMutex.Lock()
-	web.subscriptions = []ChannelSubscription{
-		{
+	web.subscriptions = subscriptionMap{
+		41: {
+			Key:      41,
 			Channel:  "match channel",
 			Currency: currency.NewPair(currency.BTC, currency.AUD),
 		},
-		{
+		42: {
+			Key:      42,
 			Channel:  "unsub channel",
 			Currency: currency.NewPair(currency.THETA, currency.USDT),
 		},
@@ -1399,10 +1497,10 @@ func TestCheckSubscriptions(t *testing.T) {
 
 	ws.MaxSubscriptionsPerConnection = 2
 
-	ws.subscriptions = []ChannelSubscription{{Channel: "test"}}
-	err = ws.checkSubscriptions([]ChannelSubscription{{Channel: "test"}})
-	if !errors.Is(err, errChannelSubscriptionAlreadySubscribed) {
-		t.Fatalf("received: %v, but expected: %v", err, errChannelSubscriptionAlreadySubscribed)
+	ws.subscriptions = subscriptionMap{42: {Key: 42, Channel: "test"}}
+	err = ws.checkSubscriptions([]ChannelSubscription{{Key: 42, Channel: "test"}})
+	if !errors.Is(err, errChannelAlreadySubscribed) {
+		t.Fatalf("received: %v, but expected: %v", err, errChannelAlreadySubscribed)
 	}
 
 	err = ws.checkSubscriptions([]ChannelSubscription{{}})

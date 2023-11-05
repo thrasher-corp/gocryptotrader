@@ -611,7 +611,7 @@ func (h *HUOBI) Unsubscribe(channelsToUnsubscribe []stream.ChannelSubscription) 
 				errs = common.AppendError(errs, err)
 				continue
 			}
-			spotWebsocket.RemoveSuccessfulUnsubscriptions(channelsToUnsubscribe[i])
+			spotWebsocket.RemoveSubscriptions(channelsToUnsubscribe[i])
 			continue
 		}
 		err := spotWebsocket.Conn.SendJSONMessage(WsRequest{
@@ -621,7 +621,7 @@ func (h *HUOBI) Unsubscribe(channelsToUnsubscribe []stream.ChannelSubscription) 
 			errs = common.AppendError(errs, err)
 			continue
 		}
-		spotWebsocket.RemoveSuccessfulUnsubscriptions(channelsToUnsubscribe[i])
+		spotWebsocket.RemoveSubscriptions(channelsToUnsubscribe[i])
 	}
 	if errs != nil {
 		return errs

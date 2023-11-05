@@ -339,7 +339,7 @@ func (b *Bitstamp) Unsubscribe(channelsToUnsubscribe []stream.ChannelSubscriptio
 			errs = common.AppendError(errs, err)
 			continue
 		}
-		spotWebsocket.RemoveSuccessfulUnsubscriptions(channelsToUnsubscribe[i])
+		spotWebsocket.RemoveSubscriptions(channelsToUnsubscribe[i])
 	}
 	return errs
 }

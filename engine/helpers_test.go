@@ -9,13 +9,11 @@ import (
 	"crypto/x509/pkix"
 	"encoding/pem"
 	"errors"
-	"fmt"
 	"math/big"
 	"net"
 	"os"
 	"path/filepath"
 	"strings"
-	"sync"
 	"testing"
 	"time"
 
@@ -1378,33 +1376,23 @@ func TestNewExchangeByNameWithDefaults(t *testing.T) {
 	if !errors.Is(err, ErrExchangeNotFound) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, ErrExchangeNotFound)
 	}
-
-	ch := make(chan error, len(exchange.Exchanges))
-	wg := sync.WaitGroup{}
 	for x := range exchange.Exchanges {
-		wg.Add(1)
-		go func(x int) {
-			defer wg.Done()
-			exch, err := NewExchangeByNameWithDefaults(context.Background(), exchange.Exchanges[x])
+		name := exchange.Exchanges[x]
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			if isCITest() && common.StringDataContains(blockedCIExchanges, name) {
+				t.Skipf("skipping %s due to CI test restrictions", name)
+			}
+			if common.StringDataContains(unsupportedDefaultConfigExchanges, name) {
+				t.Skipf("skipping %s unsupported", name)
+			}
+			exch, err := NewExchangeByNameWithDefaults(context.Background(), name)
 			if err != nil {
-				ch <- err
-				return
+				t.Error(err)
 			}
-
-			if !strings.EqualFold(exch.GetName(), exchange.Exchanges[x]) {
-				ch <- fmt.Errorf("received: '%v' but expected: '%v'", exch.GetName(), exchange.Exchanges[x])
+			if !strings.EqualFold(exch.GetName(), name) {
+				t.Errorf("received: '%v' but expected: '%v'", exch.GetName(), name)
 			}
-		}(x)
-	}
-	wg.Wait()
-
-outta:
-	for {
-		select {
-		case err := <-ch:
-			t.Error(err)
-		default:
-			break outta
-		}
+		})
 	}
 }

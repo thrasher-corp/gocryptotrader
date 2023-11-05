@@ -501,6 +501,6 @@ unsubscriptions:
 	if err != nil {
 		return err
 	}
-	spotWebsocket.RemoveSuccessfulUnsubscriptions(channelsToUnsubscribe...)
+	spotWebsocket.RemoveSubscriptions(channelsToUnsubscribe...)
 	return nil
 }

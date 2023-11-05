@@ -258,7 +258,7 @@ func (by *Bybit) UnsubscribeCoin(channelsToUnsubscribe []stream.ChannelSubscript
 			errs = common.AppendError(errs, err)
 			continue
 		}
-		cfuturesWebsocket.RemoveSuccessfulUnsubscriptions(channelsToUnsubscribe[i])
+		cfuturesWebsocket.RemoveSubscriptions(channelsToUnsubscribe[i])
 	}
 	return errs
 }
