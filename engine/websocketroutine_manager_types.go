@@ -14,6 +14,7 @@ var (
 	errNilWebsocketDataHandlerFunction = errors.New("websocket data handler function is nil")
 	errNilWebsocket                    = errors.New("websocket is nil")
 	errRoutineManagerNotStarted        = errors.New("websocket routine manager not started")
+	errUseAPointer                     = errors.New("could not process, pass to websocket routine manager as a pointer")
 )
 
 const (

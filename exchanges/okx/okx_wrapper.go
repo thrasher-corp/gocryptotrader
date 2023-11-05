@@ -111,6 +111,8 @@ func (ok *Okx) SetDefaults() {
 				DepositHistory:        true,
 				WithdrawalHistory:     true,
 				ModifyOrder:           true,
+				FundingRateFetching:   true,
+				PredictedFundingRate:  true,
 			},
 			WebsocketCapabilities: protocol.Features{
 				TickerFetching:         true,
@@ -135,7 +137,9 @@ func (ok *Okx) SetDefaults() {
 				CollateralMode:            true,
 				FundingRates:              true,
 				MaximumFundingRateHistory: kline.ThreeMonth.Duration(),
-				FundingRateFrequency:      kline.EightHour.Duration(),
+				SupportedFundingRateFrequencies: map[kline.Interval]bool{
+					kline.EightHour: true,
+				},
 			},
 		},
 		Enabled: exchange.FeaturesEnabled{
@@ -214,14 +218,15 @@ func (ok *Okx) Setup(exch *config.Exchange) error {
 		return err
 	}
 	if err := ok.Websocket.Setup(&stream.WebsocketSetup{
-		ExchangeConfig:        exch,
-		DefaultURL:            okxAPIWebsocketPublicURL,
-		RunningURL:            wsRunningEndpoint,
-		Connector:             ok.WsConnect,
-		Subscriber:            ok.Subscribe,
-		Unsubscriber:          ok.Unsubscribe,
-		GenerateSubscriptions: ok.GenerateDefaultSubscriptions,
-		Features:              &ok.Features.Supports.WebsocketCapabilities,
+		ExchangeConfig:                         exch,
+		DefaultURL:                             okxAPIWebsocketPublicURL,
+		RunningURL:                             wsRunningEndpoint,
+		Connector:                              ok.WsConnect,
+		Subscriber:                             ok.Subscribe,
+		Unsubscriber:                           ok.Unsubscribe,
+		GenerateSubscriptions:                  ok.GenerateDefaultSubscriptions,
+		Features:                               &ok.Features.Supports.WebsocketCapabilities,
+		MaxWebsocketSubscriptionsPerConnection: 240,
 		OrderbookBufferConfig: buffer.Config{
 			Checksum: ok.CalculateUpdateOrderbookChecksum,
 		},
@@ -684,18 +689,13 @@ func (ok *Okx) GetRecentTrades(ctx context.Context, p currency.Pair, assetType a
 	}
 
 	resp := make([]trade.Data, len(tradeData))
-	var side order.Side
 	for x := range tradeData {
-		side, err = order.StringToOrderSide(tradeData[x].Side)
-		if err != nil {
-			return nil, err
-		}
 		resp[x] = trade.Data{
 			TID:          tradeData[x].TradeID,
 			Exchange:     ok.Name,
 			CurrencyPair: p,
 			AssetType:    assetType,
-			Side:         side,
+			Side:         tradeData[x].Side,
 			Price:        tradeData[x].Price,
 			Amount:       tradeData[x].Quantity,
 			Timestamp:    tradeData[x].Timestamp.Time(),
@@ -744,11 +744,6 @@ allTrades:
 				// reached end of trades to crawl
 				break allTrades
 			}
-			var tradeSide order.Side
-			tradeSide, err = order.StringToOrderSide(trades[i].Side)
-			if err != nil {
-				return nil, err
-			}
 			resp = append(resp, trade.Data{
 				TID:          trades[i].TradeID,
 				Exchange:     ok.Name,
@@ -757,7 +752,7 @@ allTrades:
 				Price:        trades[i].Price,
 				Amount:       trades[i].Quantity,
 				Timestamp:    trades[i].Timestamp.Time(),
-				Side:         tradeSide,
+				Side:         trades[i].Side,
 			})
 		}
 		tradeIDEnd = trades[len(trades)-1].TradeID
@@ -1555,7 +1550,7 @@ func (ok *Okx) getInstrumentsForOptions(ctx context.Context) ([]Instrument, erro
 // getInstrumentsForAsset returns the instruments for an asset type
 func (ok *Okx) getInstrumentsForAsset(ctx context.Context, a asset.Item) ([]Instrument, error) {
 	if !ok.SupportsAsset(a) {
-		return nil, fmt.Errorf("asset type of %s is not supported by %s", a, ok.Name)
+		return nil, fmt.Errorf("%w: %v", asset.ErrNotSupported, a)
 	}
 
 	var instType string
@@ -1577,10 +1572,16 @@ func (ok *Okx) getInstrumentsForAsset(ctx context.Context, a asset.Item) ([]Inst
 	})
 }
 
-// GetLatestFundingRate returns the latest funding rate for a given asset and currency
-func (ok *Okx) GetLatestFundingRate(ctx context.Context, r *fundingrate.LatestRateRequest) (*fundingrate.LatestRateResponse, error) {
+// GetLatestFundingRates returns the latest funding rates data
+func (ok *Okx) GetLatestFundingRates(ctx context.Context, r *fundingrate.LatestRateRequest) ([]fundingrate.LatestRateResponse, error) {
 	if r == nil {
 		return nil, fmt.Errorf("%w LatestRateRequest", common.ErrNilPointer)
+	}
+	if r.Asset != asset.PerpetualSwap {
+		return nil, fmt.Errorf("%w %v", futures.ErrNotPerpetualFuture, r.Asset)
+	}
+	if r.Pair.IsEmpty() {
+		return nil, fmt.Errorf("%w, pair required", currency.ErrCurrencyPairEmpty)
 	}
 	format, err := ok.GetPairFormat(r.Asset, true)
 	if err != nil {
@@ -1588,32 +1589,41 @@ func (ok *Okx) GetLatestFundingRate(ctx context.Context, r *fundingrate.LatestRa
 	}
 	fPair := r.Pair.Format(format)
 	pairRate := fundingrate.LatestRateResponse{
-		Exchange: ok.Name,
-		Asset:    r.Asset,
-		Pair:     fPair,
+		TimeChecked: time.Now(),
+		Exchange:    ok.Name,
+		Asset:       r.Asset,
+		Pair:        fPair,
 	}
 	fr, err := ok.GetSingleFundingRate(ctx, fPair.String())
 	if err != nil {
 		return nil, err
 	}
+	var fri time.Duration
+	if len(ok.Features.Supports.FuturesCapabilities.SupportedFundingRateFrequencies) == 1 {
+		// can infer funding rate interval from the only funding rate frequency defined
+		for k := range ok.Features.Supports.FuturesCapabilities.SupportedFundingRateFrequencies {
+			fri = k.Duration()
+		}
+	}
 	pairRate.LatestRate = fundingrate.Rate{
-		Time: fr.FundingTime.Time(),
+		// okx funding rate is settlement time, not when it started
+		Time: fr.FundingTime.Time().Add(-fri),
 		Rate: fr.FundingRate.Decimal(),
 	}
 	if r.IncludePredictedRate {
 		pairRate.TimeOfNextRate = fr.NextFundingTime.Time()
 		pairRate.PredictedUpcomingRate = fundingrate.Rate{
-			Time: fr.NextFundingTime.Time(),
+			Time: fr.NextFundingTime.Time().Add(-fri),
 			Rate: fr.NextFundingRate.Decimal(),
 		}
 	}
-	return &pairRate, nil
+	return []fundingrate.LatestRateResponse{pairRate}, nil
 }
 
-// GetFundingRates returns funding rates for a given asset and currency for a time period
-func (ok *Okx) GetFundingRates(ctx context.Context, r *fundingrate.RatesRequest) (*fundingrate.Rates, error) {
+// GetHistoricalFundingRates returns funding rates for a given asset and currency for a time period
+func (ok *Okx) GetHistoricalFundingRates(ctx context.Context, r *fundingrate.HistoricalRatesRequest) (*fundingrate.HistoricalRates, error) {
 	if r == nil {
-		return nil, fmt.Errorf("%w RatesRequest", common.ErrNilPointer)
+		return nil, fmt.Errorf("%w HistoricalRatesRequest", common.ErrNilPointer)
 	}
 	requestLimit := 100
 	sd := r.StartDate
@@ -1634,7 +1644,7 @@ func (ok *Okx) GetFundingRates(ctx context.Context, r *fundingrate.RatesRequest)
 		return nil, err
 	}
 	fPair := r.Pair.Format(format)
-	pairRate := fundingrate.Rates{
+	pairRate := fundingrate.HistoricalRates{
 		Exchange:  ok.Name,
 		Asset:     r.Asset,
 		Pair:      fPair,
@@ -1702,6 +1712,13 @@ func (ok *Okx) GetFundingRates(ctx context.Context, r *fundingrate.RatesRequest)
 			if sd.Equal(r.EndDate) || sd.After(r.EndDate) {
 				break
 			}
+			var fri time.Duration
+			if len(ok.Features.Supports.FuturesCapabilities.SupportedFundingRateFrequencies) == 1 {
+				// can infer funding rate interval from the only funding rate frequency defined
+				for k := range ok.Features.Supports.FuturesCapabilities.SupportedFundingRateFrequencies {
+					fri = k.Duration()
+				}
+			}
 			var billDetails []BillsDetailResponse
 			billDetails, err = billDetailsFunc(ctx, &BillsDetailQueryParameter{
 				InstrumentType: ok.GetInstrumentTypeFromAssetItem(r.Asset),
@@ -1715,7 +1732,7 @@ func (ok *Okx) GetFundingRates(ctx context.Context, r *fundingrate.RatesRequest)
 				return nil, err
 			}
 			for i := range billDetails {
-				if index, okay := mti[billDetails[i].Timestamp.Time().Truncate(ok.Features.Supports.FuturesCapabilities.FundingRateFrequency).Unix()]; okay {
+				if index, okay := mti[billDetails[i].Timestamp.Time().Truncate(fri).Unix()]; okay {
 					pairRate.FundingRates[index].Payment = billDetails[i].ProfitAndLoss.Decimal()
 					continue
 				}
@@ -1954,7 +1971,7 @@ func (ok *Okx) GetFuturesPositionSummary(ctx context.Context, req *futures.Posit
 		ContractMultiplier:           decimal.NewFromFloat(multiplier),
 		ContractSettlementType:       contractSettlementType,
 		AverageOpenPrice:             positionSummary.AveragePrice.Decimal(),
-		PositionPNL:                  positionSummary.UPNL.Decimal(),
+		UnrealisedPNL:                positionSummary.UPNL.Decimal(),
 		MaintenanceMarginFraction:    positionSummary.MarginRatio.Decimal(),
 		FreeCollateral:               freeCollateral,
 		TotalCollateral:              totalCollateral,

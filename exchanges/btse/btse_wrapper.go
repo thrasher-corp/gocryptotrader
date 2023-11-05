@@ -114,6 +114,7 @@ func (b *BTSE) SetDefaults() {
 				FiatDepositFee:      true,
 				FiatWithdrawalFee:   true,
 				CryptoWithdrawalFee: true,
+				FundingRateFetching: true,
 			},
 			WebsocketCapabilities: protocol.Features{
 				OrderbookFetching: true,
@@ -127,6 +128,15 @@ func (b *BTSE) SetDefaults() {
 			Kline: kline.ExchangeCapabilitiesSupported{
 				DateRanges: true,
 				Intervals:  true,
+			},
+			FuturesCapabilities: exchange.FuturesCapabilities{
+				FundingRates: true,
+				SupportedFundingRateFrequencies: map[kline.Interval]bool{
+					kline.OneHour: true,
+				},
+				FundingRateBatching: map[asset.Item]bool{
+					asset.Futures: true,
+				},
 			},
 		},
 		Enabled: exchange.FeaturesEnabled{
@@ -1218,4 +1228,66 @@ func (b *BTSE) GetFuturesContractDetails(ctx context.Context, item asset.Item) (
 		resp = append(resp, c)
 	}
 	return resp, nil
+}
+
+// GetLatestFundingRates returns the latest funding rates data
+func (b *BTSE) GetLatestFundingRates(ctx context.Context, r *fundingrate.LatestRateRequest) ([]fundingrate.LatestRateResponse, error) {
+	if r == nil {
+		return nil, fmt.Errorf("%w LatestRateRequest", common.ErrNilPointer)
+	}
+	if r.Asset != asset.Futures {
+		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, r.Asset)
+	}
+	if r.IncludePredictedRate {
+		return nil, fmt.Errorf("%w IncludePredictedRate", common.ErrFunctionNotSupported)
+	}
+
+	format, err := b.GetPairFormat(r.Asset, true)
+	if err != nil {
+		return nil, err
+	}
+	fPair := format.Format(r.Pair)
+	rates, err := b.GetMarketSummary(ctx, fPair, false)
+	if err != nil {
+		return nil, err
+	}
+
+	resp := make([]fundingrate.LatestRateResponse, 0, len(rates))
+	for i := range rates {
+		var cp currency.Pair
+		var isEnabled bool
+		cp, isEnabled, err = b.MatchSymbolCheckEnabled(rates[i].Symbol, r.Asset, true)
+		if err != nil && !errors.Is(err, currency.ErrPairNotFound) {
+			return nil, err
+		}
+		if !isEnabled {
+			continue
+		}
+		var isPerp bool
+		isPerp, err = b.IsPerpetualFutureCurrency(r.Asset, cp)
+		if err != nil {
+			return nil, err
+		}
+		if !isPerp {
+			continue
+		}
+		tt := time.Now().Truncate(time.Hour)
+		resp = append(resp, fundingrate.LatestRateResponse{
+			Exchange: b.Name,
+			Asset:    r.Asset,
+			Pair:     cp,
+			LatestRate: fundingrate.Rate{
+				Time: time.Now().Truncate(time.Hour),
+				Rate: decimal.NewFromFloat(rates[i].FundingRate),
+			},
+			TimeOfNextRate: tt.Add(time.Hour),
+			TimeChecked:    time.Now(),
+		})
+	}
+	return resp, nil
+}
+
+// IsPerpetualFutureCurrency ensures a given asset and currency is a perpetual future
+func (b *BTSE) IsPerpetualFutureCurrency(a asset.Item, p currency.Pair) (bool, error) {
+	return a == asset.Futures && p.Quote.Equal(currency.PFC), nil
 }

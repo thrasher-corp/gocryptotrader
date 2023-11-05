@@ -1,8 +1,11 @@
 package order
 
 import (
+	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"reflect"
 	"sort"
 	"strings"
 	"time"
@@ -1062,6 +1065,18 @@ func StringToOrderSide(side string) (Side, error) {
 	default:
 		return UnknownSide, fmt.Errorf("'%s' %w", side, ErrSideIsInvalid)
 	}
+}
+
+// UnmarshalJSON parses the JSON-encoded order side and stores the result
+// It expects a quoted string input, and uses StringToOrderSide to parse it
+func (s *Side) UnmarshalJSON(data []byte) (err error) {
+	if !bytes.HasPrefix(data, []byte(`"`)) {
+		// Note that we don't need to worry about invalid JSON here, it wouldn't have made it past the deserialiser far
+		// TODO: Can use reflect.TypeFor[s]() when it's released, probably 1.21
+		return &json.UnmarshalTypeError{Value: string(data), Type: reflect.TypeOf(s), Offset: 1}
+	}
+	*s, err = StringToOrderSide(string(data[1 : len(data)-1])) // Remove quotes
+	return
 }
 
 // StringToOrderType for converting case insensitive order type

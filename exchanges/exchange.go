@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
@@ -1671,11 +1672,6 @@ func (b *Base) GetFuturesPositionSummary(context.Context, *futures.PositionSumma
 	return nil, common.ErrNotYetImplemented
 }
 
-// GetFundingPaymentDetails returns funding payment details for a future for a specific time period
-func (b *Base) GetFundingPaymentDetails(context.Context, *fundingrate.RatesRequest) (*fundingrate.Rates, error) {
-	return nil, common.ErrNotYetImplemented
-}
-
 // GetFuturesPositions returns futures positions for all currencies
 func (b *Base) GetFuturesPositions(context.Context, *futures.PositionsRequest) ([]futures.PositionDetails, error) {
 	return nil, common.ErrNotYetImplemented
@@ -1686,13 +1682,8 @@ func (b *Base) GetFuturesPositionOrders(context.Context, *futures.PositionsReque
 	return nil, common.ErrNotYetImplemented
 }
 
-// GetLatestFundingRate returns the latest funding rate based on request data
-func (b *Base) GetLatestFundingRate(context.Context, *fundingrate.LatestRateRequest) (*fundingrate.LatestRateResponse, error) {
-	return nil, common.ErrNotYetImplemented
-}
-
-// GetFundingRates returns funding rates based on request data
-func (b *Base) GetFundingRates(context.Context, *fundingrate.RatesRequest) (*fundingrate.Rates, error) {
+// GetHistoricalFundingRates returns historical funding rates for a future
+func (b *Base) GetHistoricalFundingRates(context.Context, *fundingrate.HistoricalRatesRequest) (*fundingrate.HistoricalRates, error) {
 	return nil, common.ErrNotYetImplemented
 }
 
@@ -1730,4 +1721,39 @@ func (b *Base) SetLeverage(_ context.Context, _ asset.Item, _ currency.Pair, _ m
 // GetLeverage gets the account's initial leverage for the asset type and pair
 func (b *Base) GetLeverage(_ context.Context, _ asset.Item, _ currency.Pair, _ margin.Type, _ order.Side) (float64, error) {
 	return -1, common.ErrNotYetImplemented
+}
+
+// MatchSymbolWithAvailablePairs returns a currency pair based on the supplied
+// symbol and asset type. If the string is expected to have a delimiter this
+// will attempt to screen it out.
+func (b *Base) MatchSymbolWithAvailablePairs(symbol string, a asset.Item, hasDelimiter bool) (currency.Pair, error) {
+	if hasDelimiter {
+		for x := range symbol {
+			if unicode.IsPunct(rune(symbol[x])) {
+				symbol = symbol[:x] + symbol[x+1:]
+				break
+			}
+		}
+	}
+	return b.CurrencyPairs.Match(symbol, a)
+}
+
+// MatchSymbolCheckEnabled returns a currency pair based on the supplied symbol
+// and asset type against the available pairs list. If the string is expected to
+// have a delimiter this will attempt to screen it out. It will also check if
+// the pair is enabled.
+func (b *Base) MatchSymbolCheckEnabled(symbol string, a asset.Item, hasDelimiter bool) (pair currency.Pair, enabled bool, err error) {
+	pair, err = b.MatchSymbolWithAvailablePairs(symbol, a, hasDelimiter)
+	if err != nil {
+		return pair, false, err
+	}
+
+	enabled, err = b.IsPairEnabled(pair, a)
+	return
+}
+
+// IsPairEnabled checks if a pair is enabled for an enabled asset type.
+// TODO: Optimisation map for enabled pair matching, instead of linear traversal.
+func (b *Base) IsPairEnabled(pair currency.Pair, a asset.Item) (bool, error) {
+	return b.CurrencyPairs.IsPairEnabled(pair, a)
 }
