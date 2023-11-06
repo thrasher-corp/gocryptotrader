@@ -6,7 +6,7 @@ require (
 	github.com/buger/jsonparser v1.1.1
 	github.com/d5/tengo/v2 v2.16.1
 	github.com/gofrs/uuid v4.4.0+incompatible
-	github.com/gorilla/mux v1.8.0
+	github.com/gorilla/mux v1.8.1
 	github.com/gorilla/websocket v1.5.1
 	github.com/grpc-ecosystem/go-grpc-middleware v1.4.0
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.18.0
