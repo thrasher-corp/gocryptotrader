@@ -1550,6 +1550,7 @@ func (by *Bybit) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) e
 			MaximumQuoteAmount:      instrumentsInfo.List[x].LotSizeFilter.MaxOrderQty.Float64() * instrumentsInfo.List[x].PriceFilter.MaxPrice.Float64(),
 		})
 	}
+	println(" Limits: ", len(limits))
 	return by.LoadLimits(limits)
 }
 

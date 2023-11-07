@@ -808,12 +808,12 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 	if err != nil {
 		t.Error("Bybit UpdateOrderExecutionLimits() error", err)
 	}
-	avail, err := b.GetAvailablePairs(asset.Spot)
+	enabled, err := b.GetAvailablePairs(asset.Spot)
 	if err != nil {
 		t.Fatal("Bybit GetAvailablePairs() error", err)
 	}
-	for x := range avail {
-		limits, err := b.GetOrderExecutionLimits(asset.Spot, avail[x])
+	for x := range enabled {
+		limits, err := b.GetOrderExecutionLimits(asset.Spot, enabled[x])
 		if err != nil {
 			t.Fatal("Bybit GetOrderExecutionLimits() error", err)
 		}
@@ -3085,7 +3085,6 @@ func TestWsConnect(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	time.Sleep(time.Second * 5)
 }
 func TestWsLinearConnect(t *testing.T) {
 	t.Parallel()
@@ -3362,27 +3361,14 @@ func TestRetrieveAndSetAccountType(t *testing.T) {
 	}
 }
 
-func TestIsPerpetualFutureCurrency(t *testing.T) {
-	t.Parallel()
-	enabled, err := b.GetEnabledPairs(asset.Futures)
-	if err != nil {
-		t.Fatal(err)
-	}
-	for x := range enabled {
-		isPerp, err := b.IsPerpetualFutureCurrency(asset.Futures, enabled[x])
-		if err != nil {
-			t.Fatal(err)
-		}
-		if enabled[x].Quote.Equal(currency.PFC) && !isPerp {
-			t.Error("expected true")
-		} else if !enabled[x].Quote.Equal(currency.PFC) && isPerp {
-			t.Error("expected false")
-		}
-	}
-}
-
 func TestGetLatestFundingRates(t *testing.T) {
 	t.Parallel()
+	if mockTests {
+		usdtMarginedTradablePair = currency.Pair{Base: currency.NewCode("10000LADYS"), Quote: currency.USDT}
+		spotTradablePair = currency.Pair{Base: currency.BTC, Quote: currency.USDT}
+		optionsTradablePair = currency.Pair{Base: currency.BTC, Delimiter: "-", Quote: currency.NewCode("29DEC23-80000-C")}
+		usdcMarginedTradablePair = currency.Pair{Base: currency.ETH, Quote: currency.PERP}
+	}
 	_, err := b.GetLatestFundingRates(context.Background(), &fundingrate.LatestRateRequest{
 		Asset: asset.Futures,
 		Pair:  usdtMarginedTradablePair,

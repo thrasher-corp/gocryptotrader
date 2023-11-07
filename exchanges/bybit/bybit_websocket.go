@@ -241,16 +241,16 @@ func (by *Bybit) handleSpotSubscription(operation string, channelsToSubscribe []
 func (by *Bybit) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, error) {
 	var subscriptions []stream.ChannelSubscription
 	var channels = []string{
-		chanPublicTicker,
+		// chanPublicTicker,
 		chanOrderbook,
-		chanPublicTrade,
+		// chanPublicTrade,
 	}
 	if by.Websocket.CanUseAuthenticatedEndpoints() {
 		channels = append(channels, []string{
-			chanPositions,
-			chanExecution,
-			chanOrder,
-			chanWallet,
+			// chanPositions,
+			// chanExecution,
+			// chanOrder,
+			// chanWallet,
 		}...)
 	}
 	pairs, err := by.GetEnabledPairs(asset.Spot)
@@ -844,12 +844,12 @@ func (by *Bybit) wsProcessOrderbook(assetType asset.Item, resp *WebsocketRespons
 	if len(asks) == 0 && len(bids) == 0 {
 		return nil
 	}
-	if resp.Type == "snapshot" {
+	if resp.Type == "snapshot" || result.UpdateID == 1 {
 		err = by.Websocket.Orderbook.LoadSnapshot(&orderbook.Base{
 			Pair:         cp,
 			Exchange:     by.Name,
 			Asset:        assetType,
-			LastUpdated:  result.UpdateTime.Time(),
+			LastUpdated:  resp.Timestamp.Time(),
 			LastUpdateID: result.Sequence,
 			Asks:         asks,
 			Bids:         bids,
@@ -864,7 +864,7 @@ func (by *Bybit) wsProcessOrderbook(assetType asset.Item, resp *WebsocketRespons
 			Bids:       bids,
 			Asset:      assetType,
 			UpdateID:   result.Sequence,
-			UpdateTime: result.UpdateTime.Time(),
+			UpdateTime: resp.Timestamp.Time(),
 		})
 		if err != nil {
 			return err

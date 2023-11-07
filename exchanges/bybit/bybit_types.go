@@ -1639,11 +1639,11 @@ type Orderbook struct {
 
 // WsOrderbookDetail represents an orderbook detail information.
 type WsOrderbookDetail struct {
-	Symbol     string               `json:"s"`
-	Bids       [][]string           `json:"b"`
-	Asks       [][]string           `json:"a"`
-	UpdateTime convert.ExchangeTime `json:"u"`
-	Sequence   int64                `json:"seq"`
+	Symbol   string     `json:"s"`
+	Bids     [][]string `json:"b"`
+	Asks     [][]string `json:"a"`
+	UpdateID int64      `json:"u"`
+	Sequence int64      `json:"seq"`
 }
 
 // SubscriptionResponse represents a subscription response.
