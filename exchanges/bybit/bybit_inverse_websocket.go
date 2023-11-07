@@ -43,9 +43,9 @@ func (by *Bybit) GenerateInverseDefaultSubscriptions() ([]subscription.Subscript
 		for x := range channels {
 			subscriptions = append(subscriptions,
 				subscription.Subscription{
-					Channel:  channels[x],
-					Currency: pairs[z],
-					Asset:    asset.CoinMarginedFutures,
+					Channel: channels[x],
+					Pair:    pairs[z],
+					Asset:   asset.CoinMarginedFutures,
 				})
 		}
 	}

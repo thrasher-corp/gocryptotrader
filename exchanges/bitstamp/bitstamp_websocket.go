@@ -244,17 +244,17 @@ func (b *Bitstamp) generateDefaultSubscriptions() ([]subscription.Subscription, 
 		}
 		for j := range defaultSubChannels {
 			subscriptions = append(subscriptions, subscription.Subscription{
-				Channel:  defaultSubChannels[j] + "_" + p.String(),
-				Asset:    asset.Spot,
-				Currency: p,
+				Channel: defaultSubChannels[j] + "_" + p.String(),
+				Asset:   asset.Spot,
+				Pair:    p,
 			})
 		}
 		if b.Websocket.CanUseAuthenticatedEndpoints() {
 			for j := range defaultAuthSubChannels {
 				subscriptions = append(subscriptions, subscription.Subscription{
-					Channel:  defaultAuthSubChannels[j] + "_" + p.String(),
-					Asset:    asset.Spot,
-					Currency: p,
+					Channel: defaultAuthSubChannels[j] + "_" + p.String(),
+					Asset:   asset.Spot,
+					Pair:    p,
 					Params: map[string]interface{}{
 						"auth": struct{}{},
 					},

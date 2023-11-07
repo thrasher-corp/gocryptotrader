@@ -62,9 +62,9 @@ func (by *Bybit) GenerateLinearDefaultSubscriptions() ([]subscription.Subscripti
 			for x := range channels {
 				subscriptions = append(subscriptions,
 					subscription.Subscription{
-						Channel:  channels[x],
-						Currency: pairs[p],
-						Asset:    a,
+						Channel: channels[x],
+						Pair:    pairs[p],
+						Asset:   a,
 					})
 			}
 		}

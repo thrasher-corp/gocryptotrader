@@ -50,9 +50,9 @@ func (by *Bybit) GenerateOptionsDefaultSubscriptions() ([]subscription.Subscript
 		for x := range channels {
 			subscriptions = append(subscriptions,
 				subscription.Subscription{
-					Channel:  channels[x],
-					Currency: pairs[z],
-					Asset:    asset.Options,
+					Channel: channels[x],
+					Pair:    pairs[z],
+					Asset:   asset.Options,
 				})
 		}
 	}

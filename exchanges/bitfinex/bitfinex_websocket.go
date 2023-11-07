@@ -506,7 +506,7 @@ func (b *Bitfinex) handleWSSubscribed(respRaw []byte) error {
 
 	chanID, err := jsonparser.GetInt(respRaw, "chanId")
 	if err != nil {
-		return fmt.Errorf("%w: %w 'chanId': %w; Channel: %s Pair: %s", stream.ErrSubscriptionFailure, errParsingWSField, err, c.Channel, c.Currency)
+		return fmt.Errorf("%w: %w 'chanId': %w; Channel: %s Pair: %s", stream.ErrSubscriptionFailure, errParsingWSField, err, c.Channel, c.Pair)
 	}
 
 	// Note: chanID's int type avoids conflicts with the string type subID key because of the type difference
@@ -516,7 +516,7 @@ func (b *Bitfinex) handleWSSubscribed(respRaw []byte) error {
 	b.Websocket.AddSuccessfulSubscriptions(*c)
 
 	if b.Verbose {
-		log.Debugf(log.ExchangeSys, "%s Subscribed to Channel: %s Pair: %s ChannelID: %d\n", b.Name, c.Channel, c.Currency, chanID)
+		log.Debugf(log.ExchangeSys, "%s Subscribed to Channel: %s Pair: %s ChannelID: %d\n", b.Name, c.Channel, c.Pair, chanID)
 	}
 	if !b.Websocket.Match.IncomingWithData("subscribe:"+subID, respRaw) {
 		return fmt.Errorf("%v channel subscribe listener not found", subID)
@@ -632,7 +632,7 @@ func (b *Bitfinex) handleWSBookUpdate(c *subscription.Subscription, d []interfac
 					Amount: rateAmount})
 			}
 		}
-		if err := b.WsInsertSnapshot(c.Currency, c.Asset, newOrderbook, fundingRate); err != nil {
+		if err := b.WsInsertSnapshot(c.Pair, c.Asset, newOrderbook, fundingRate); err != nil {
 			return fmt.Errorf("inserting snapshot error: %s",
 				err)
 		}
@@ -664,7 +664,7 @@ func (b *Bitfinex) handleWSBookUpdate(c *subscription.Subscription, d []interfac
 				Amount: amountRate})
 		}
 
-		if err := b.WsUpdateOrderbook(c, c.Currency, c.Asset, newOrderbook, int64(sequenceNo), fundingRate); err != nil {
+		if err := b.WsUpdateOrderbook(c, c.Pair, c.Asset, newOrderbook, int64(sequenceNo), fundingRate); err != nil {
 			return fmt.Errorf("updating orderbook error: %s",
 				err)
 		}
@@ -712,7 +712,7 @@ func (b *Bitfinex) handleWSCandleUpdate(c *subscription.Subscription, d []interf
 			}
 			klineData.Exchange = b.Name
 			klineData.AssetType = c.Asset
-			klineData.Pair = c.Currency
+			klineData.Pair = c.Pair
 			b.Websocket.DataHandler <- klineData
 		}
 	case float64:
@@ -741,7 +741,7 @@ func (b *Bitfinex) handleWSCandleUpdate(c *subscription.Subscription, d []interf
 		}
 		klineData.Exchange = b.Name
 		klineData.AssetType = c.Asset
-		klineData.Pair = c.Currency
+		klineData.Pair = c.Pair
 		b.Websocket.DataHandler <- klineData
 	}
 	return nil
@@ -755,7 +755,7 @@ func (b *Bitfinex) handleWSTickerUpdate(c *subscription.Subscription, d []interf
 
 	t := &ticker.Price{
 		AssetType:    c.Asset,
-		Pair:         c.Currency,
+		Pair:         c.Pair,
 		ExchangeName: b.Name,
 	}
 
@@ -936,7 +936,7 @@ func (b *Bitfinex) handleWSTradesUpdate(c *subscription.Subscription, eventType 
 		}
 		trades[i] = trade.Data{
 			TID:          strconv.FormatInt(tradeHolder[i].ID, 10),
-			CurrencyPair: c.Currency,
+			CurrencyPair: c.Pair,
 			Timestamp:    time.UnixMilli(tradeHolder[i].Timestamp),
 			Price:        price,
 			Amount:       newAmount,
@@ -1604,7 +1604,7 @@ func (b *Bitfinex) WsUpdateOrderbook(c *subscription.Subscription, p currency.Pa
 // which forces a fresh snapshot. If we don't do this the orderbook will keep erroring and drifting.
 // Flushing the orderbook happens immediately, but the ReSub itself is a go routine to avoid blocking the WS data channel
 func (b *Bitfinex) resubOrderbook(c *subscription.Subscription) {
-	if err := b.Websocket.Orderbook.FlushOrderbook(c.Currency, c.Asset); err != nil {
+	if err := b.Websocket.Orderbook.FlushOrderbook(c.Pair, c.Asset); err != nil {
 		log.Errorf(log.ExchangeSys, "%s error flushing orderbook: %v", b.Name, err)
 	}
 
@@ -1644,10 +1644,10 @@ func (b *Bitfinex) GenerateDefaultSubscriptions() ([]subscription.Subscription, 
 				}
 
 				subscriptions = append(subscriptions, subscription.Subscription{
-					Channel:  channels[j],
-					Currency: enabledPairs[k],
-					Params:   params,
-					Asset:    assets[i],
+					Channel: channels[j],
+					Pair:    enabledPairs[k],
+					Params:  params,
+					Asset:   assets[i],
 				})
 			}
 		}
@@ -1705,7 +1705,7 @@ func (b *Bitfinex) parallelChanOp(channels []subscription.Subscription, m func(*
 func (b *Bitfinex) subscribeToChan(c *subscription.Subscription) error {
 	req, err := subscribeReq(c)
 	if err != nil {
-		return fmt.Errorf("%w: %w; Channel: %s Pair: %s", stream.ErrSubscriptionFailure, err, c.Channel, c.Currency)
+		return fmt.Errorf("%w: %w; Channel: %s Pair: %s", stream.ErrSubscriptionFailure, err, c.Channel, c.Pair)
 	}
 
 	// subId is a single round-trip identifier that provides linking sub requests to chanIDs
@@ -1720,7 +1720,7 @@ func (b *Bitfinex) subscribeToChan(c *subscription.Subscription) error {
 	c.State = subscription.SubscribingState
 	err = b.Websocket.AddSubscription(c)
 	if err != nil {
-		return fmt.Errorf("%w Channel: %s Pair: %s Error: %w", stream.ErrSubscriptionFailure, c.Channel, c.Currency, err)
+		return fmt.Errorf("%w Channel: %s Pair: %s Error: %w", stream.ErrSubscriptionFailure, c.Channel, c.Pair, err)
 	}
 
 	// Always remove the temporary subscription keyed by subID
@@ -1728,11 +1728,11 @@ func (b *Bitfinex) subscribeToChan(c *subscription.Subscription) error {
 
 	respRaw, err := b.Websocket.Conn.SendMessageReturnResponse("subscribe:"+subID, req)
 	if err != nil {
-		return fmt.Errorf("%w: %w; Channel: %s Pair: %s", stream.ErrSubscriptionFailure, err, c.Channel, c.Currency)
+		return fmt.Errorf("%w: %w; Channel: %s Pair: %s", stream.ErrSubscriptionFailure, err, c.Channel, c.Pair)
 	}
 
 	if err = b.getErrResp(respRaw); err != nil {
-		wErr := fmt.Errorf("%w: %w; Channel: %s Pair: %s", stream.ErrSubscriptionFailure, err, c.Channel, c.Currency)
+		wErr := fmt.Errorf("%w: %w; Channel: %s Pair: %s", stream.ErrSubscriptionFailure, err, c.Channel, c.Pair)
 		b.Websocket.DataHandler <- wErr
 		return wErr
 	}
@@ -1764,13 +1764,13 @@ func subscribeReq(c *subscription.Subscription) (map[string]interface{}, error) 
 		prefix = "f"
 	}
 
-	needsDelimiter := c.Currency.Len() > 6
+	needsDelimiter := c.Pair.Len() > 6
 
 	var formattedPair string
 	if needsDelimiter {
-		formattedPair = c.Currency.Format(currency.PairFormat{Uppercase: true, Delimiter: ":"}).String()
+		formattedPair = c.Pair.Format(currency.PairFormat{Uppercase: true, Delimiter: ":"}).String()
 	} else {
-		formattedPair = currency.PairFormat{Uppercase: true}.Format(c.Currency)
+		formattedPair = currency.PairFormat{Uppercase: true}.Format(c.Pair)
 	}
 
 	if c.Channel == wsCandles {

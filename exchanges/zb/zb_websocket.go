@@ -290,9 +290,9 @@ func (z *ZB) GenerateDefaultSubscriptions() ([]subscription.Subscription, error)
 		for j := range enabledCurrencies {
 			enabledCurrencies[j].Delimiter = ""
 			subscriptions = append(subscriptions, subscription.Subscription{
-				Channel:  fmt.Sprintf(channels[i], enabledCurrencies[j].Lower().String()),
-				Currency: enabledCurrencies[j].Lower(),
-				Asset:    asset.Spot,
+				Channel: fmt.Sprintf(channels[i], enabledCurrencies[j].Lower().String()),
+				Pair:    enabledCurrencies[j].Lower(),
+				Asset:   asset.Spot,
 			})
 		}
 	}

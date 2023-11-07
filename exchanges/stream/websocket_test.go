@@ -1106,8 +1106,8 @@ func (g *GenSubs) generateSubs() ([]subscription.Subscription, error) {
 	superduperchannelsubs := make([]subscription.Subscription, len(g.EnabledPairs))
 	for i := range g.EnabledPairs {
 		superduperchannelsubs[i] = subscription.Subscription{
-			Channel:  "TEST:" + strconv.FormatInt(int64(i), 10),
-			Currency: g.EnabledPairs[i],
+			Channel: "TEST:" + strconv.FormatInt(int64(i), 10),
+			Pair:    g.EnabledPairs[i],
 		}
 	}
 	return superduperchannelsubs, nil
@@ -1227,14 +1227,14 @@ func TestFlushChannels(t *testing.T) {
 	web.subscriptionMutex.Lock()
 	web.subscriptions = subscriptionMap{
 		41: {
-			Key:      41,
-			Channel:  "match channel",
-			Currency: currency.NewPair(currency.BTC, currency.AUD),
+			Key:     41,
+			Channel: "match channel",
+			Pair:    currency.NewPair(currency.BTC, currency.AUD),
 		},
 		42: {
-			Key:      42,
-			Channel:  "unsub channel",
-			Currency: currency.NewPair(currency.THETA, currency.USDT),
+			Key:     42,
+			Channel: "unsub channel",
+			Pair:    currency.NewPair(currency.THETA, currency.USDT),
 		},
 	}
 	web.subscriptionMutex.Unlock()

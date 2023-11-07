@@ -376,9 +376,9 @@ func (b *BTSE) GenerateDefaultSubscriptions() ([]subscription.Subscription, erro
 	for i := range channels {
 		for j := range pairs {
 			subscriptions = append(subscriptions, subscription.Subscription{
-				Channel:  fmt.Sprintf(channels[i], pairs[j]),
-				Currency: pairs[j],
-				Asset:    asset.Spot,
+				Channel: fmt.Sprintf(channels[i], pairs[j]),
+				Pair:    pairs[j],
+				Asset:   asset.Spot,
 			})
 		}
 	}

@@ -1053,9 +1053,9 @@ func (ku *Kucoin) GenerateDefaultSubscriptions() ([]subscription.Subscription, e
 					continue
 				}
 				subscriptions = append(subscriptions, subscription.Subscription{
-					Channel:  channels[x],
-					Asset:    asset.Spot,
-					Currency: spotPairs[b],
+					Channel: channels[x],
+					Asset:   asset.Spot,
+					Pair:    spotPairs[b],
 				})
 				subscribedPairsMap[spotPairs[b].String()] = true
 			}
@@ -1064,9 +1064,9 @@ func (ku *Kucoin) GenerateDefaultSubscriptions() ([]subscription.Subscription, e
 					continue
 				}
 				subscriptions = append(subscriptions, subscription.Subscription{
-					Channel:  channels[x],
-					Asset:    asset.Margin,
-					Currency: marginPairs[b],
+					Channel: channels[x],
+					Asset:   asset.Margin,
+					Pair:    marginPairs[b],
 				})
 				subscribedPairsMap[marginPairs[b].String()] = true
 			}
@@ -1092,10 +1092,10 @@ func (ku *Kucoin) GenerateDefaultSubscriptions() ([]subscription.Subscription, e
 					continue
 				}
 				subscriptions = append(subscriptions, subscription.Subscription{
-					Channel:  channels[x],
-					Asset:    asset.Spot,
-					Currency: spotPairs[p],
-					Params:   map[string]interface{}{"interval": kline.FifteenMin},
+					Channel: channels[x],
+					Asset:   asset.Spot,
+					Pair:    spotPairs[p],
+					Params:  map[string]interface{}{"interval": kline.FifteenMin},
 				})
 				subscribedPairsMap[spotPairs[p].String()] = true
 			}
@@ -1104,10 +1104,10 @@ func (ku *Kucoin) GenerateDefaultSubscriptions() ([]subscription.Subscription, e
 					continue
 				}
 				subscriptions = append(subscriptions, subscription.Subscription{
-					Channel:  channels[x],
-					Asset:    asset.Margin,
-					Currency: marginPairs[p],
-					Params:   map[string]interface{}{"interval": kline.FifteenMin},
+					Channel: channels[x],
+					Asset:   asset.Margin,
+					Pair:    marginPairs[p],
+					Params:  map[string]interface{}{"interval": kline.FifteenMin},
 				})
 				subscribedPairsMap[marginPairs[p].String()] = true
 			}
@@ -1115,15 +1115,15 @@ func (ku *Kucoin) GenerateDefaultSubscriptions() ([]subscription.Subscription, e
 			for b := range marginPairs {
 				if !marginLoanCurrencyCheckMap[marginPairs[b].Quote] {
 					subscriptions = append(subscriptions, subscription.Subscription{
-						Channel:  channels[x],
-						Currency: currency.Pair{Base: marginPairs[b].Quote},
+						Channel: channels[x],
+						Pair:    currency.Pair{Base: marginPairs[b].Quote},
 					})
 					marginLoanCurrencyCheckMap[marginPairs[b].Quote] = true
 				}
 				if !marginLoanCurrencyCheckMap[marginPairs[b].Base] {
 					subscriptions = append(subscriptions, subscription.Subscription{
-						Channel:  channels[x],
-						Currency: currency.Pair{Base: marginPairs[b].Base},
+						Channel: channels[x],
+						Pair:    currency.Pair{Base: marginPairs[b].Base},
 					})
 					marginLoanCurrencyCheckMap[marginPairs[b].Base] = true
 				}
@@ -1165,9 +1165,9 @@ func (ku *Kucoin) GenerateDefaultSubscriptions() ([]subscription.Subscription, e
 					continue
 				}
 				subscriptions = append(subscriptions, subscription.Subscription{
-					Channel:  channels[x],
-					Asset:    asset.Futures,
-					Currency: futuresPairs[b],
+					Channel: channels[x],
+					Asset:   asset.Futures,
+					Pair:    futuresPairs[b],
 				})
 			}
 		}
@@ -1185,14 +1185,14 @@ func (ku *Kucoin) generatePayloads(subscriptions []subscription.Subscription, op
 		if err != nil {
 			return nil, err
 		}
-		if !subscriptions[x].Currency.IsEmpty() {
-			subscriptions[x].Currency, err = ku.FormatExchangeCurrency(subscriptions[x].Currency, a)
+		if !subscriptions[x].Pair.IsEmpty() {
+			subscriptions[x].Pair, err = ku.FormatExchangeCurrency(subscriptions[x].Pair, a)
 			if err != nil {
 				return nil, err
 			}
 		}
 		if subscriptions[x].Asset == asset.Futures {
-			subscriptions[x].Currency, err = ku.FormatExchangeCurrency(subscriptions[x].Currency, asset.Futures)
+			subscriptions[x].Pair, err = ku.FormatExchangeCurrency(subscriptions[x].Pair, asset.Futures)
 			if err != nil {
 				continue
 			}
@@ -1207,10 +1207,10 @@ func (ku *Kucoin) generatePayloads(subscriptions []subscription.Subscription, op
 			markPriceIndicatorChannel:
 			symbols, okay := subscriptions[x].Params["symbols"].(string)
 			if !okay {
-				if subscriptions[x].Currency.IsEmpty() {
+				if subscriptions[x].Pair.IsEmpty() {
 					return nil, errors.New("symbols not passed")
 				}
-				symbols = subscriptions[x].Currency.String()
+				symbols = subscriptions[x].Pair.String()
 			}
 			payloads = append(payloads, WsSubscriptionInput{
 				ID:       strconv.FormatInt(ku.Websocket.Conn.GenerateMessageID(false), 10),
@@ -1252,7 +1252,7 @@ func (ku *Kucoin) generatePayloads(subscriptions []subscription.Subscription, op
 			item := WsSubscriptionInput{
 				ID:       strconv.FormatInt(ku.Websocket.Conn.GenerateMessageID(false), 10),
 				Type:     operation,
-				Topic:    fmt.Sprintf(subscriptions[x].Channel, subscriptions[x].Currency.String()),
+				Topic:    fmt.Sprintf(subscriptions[x].Channel, subscriptions[x].Pair.String()),
 				Response: true,
 			}
 			switch subscriptions[x].Channel {
@@ -1266,20 +1266,20 @@ func (ku *Kucoin) generatePayloads(subscriptions []subscription.Subscription, op
 			// 3 means the Currency is used by both switch cases
 			// 2 means the currency is used by channel = marginLoanChannel
 			// 1 if used by marketTickerSnapshotForCurrencyChannel
-			if stat := marketTickerSnapshotForCurrencyChannelCurrencyFilter[subscriptions[x].Currency.Base]; stat == 3 || (stat == 2 && subscriptions[x].Channel == marginLoanChannel) || stat == 1 {
+			if stat := marketTickerSnapshotForCurrencyChannelCurrencyFilter[subscriptions[x].Pair.Base]; stat == 3 || (stat == 2 && subscriptions[x].Channel == marginLoanChannel) || stat == 1 {
 				continue
 			}
 			input := WsSubscriptionInput{}
 			if subscriptions[x].Channel == marginLoanChannel {
 				input.PrivateChannel = true
-				marketTickerSnapshotForCurrencyChannelCurrencyFilter[subscriptions[x].Currency.Base] += 2
+				marketTickerSnapshotForCurrencyChannelCurrencyFilter[subscriptions[x].Pair.Base] += 2
 			} else {
-				marketTickerSnapshotForCurrencyChannelCurrencyFilter[subscriptions[x].Currency.Base]++
+				marketTickerSnapshotForCurrencyChannelCurrencyFilter[subscriptions[x].Pair.Base]++
 				subscriptions[x].Channel += "%s"
 			}
 			input.ID = strconv.FormatInt(ku.Websocket.Conn.GenerateMessageID(false), 10)
 			input.Type = operation
-			input.Topic = fmt.Sprintf(subscriptions[x].Channel, subscriptions[x].Currency.Base.Upper().String())
+			input.Topic = fmt.Sprintf(subscriptions[x].Channel, subscriptions[x].Pair.Base.Upper().String())
 			input.Response = true
 			payloads = append(payloads, input)
 		case marketCandlesChannel:
@@ -1290,7 +1290,7 @@ func (ku *Kucoin) generatePayloads(subscriptions []subscription.Subscription, op
 			payloads = append(payloads, WsSubscriptionInput{
 				ID:       strconv.FormatInt(ku.Websocket.Conn.GenerateMessageID(false), 10),
 				Type:     operation,
-				Topic:    fmt.Sprintf(subscriptions[x].Channel, subscriptions[x].Currency.Upper().String(), interval),
+				Topic:    fmt.Sprintf(subscriptions[x].Channel, subscriptions[x].Pair.Upper().String(), interval),
 				Response: true,
 			})
 		case marginFundingbookChangeChannel:

@@ -335,9 +335,9 @@ func (b *BTCMarkets) generateDefaultSubscriptions() ([]subscription.Subscription
 	for i := range channels {
 		for j := range enabledCurrencies {
 			subscriptions = append(subscriptions, subscription.Subscription{
-				Channel:  channels[i],
-				Currency: enabledCurrencies[j],
-				Asset:    asset.Spot,
+				Channel: channels[i],
+				Pair:    enabledCurrencies[j],
+				Asset:   asset.Spot,
 			})
 		}
 	}
@@ -370,10 +370,10 @@ func (b *BTCMarkets) Subscribe(subs []subscription.Subscription) error {
 			authenticate = true
 		}
 		payload.Channels = append(payload.Channels, subs[i].Channel)
-		if subs[i].Currency.IsEmpty() {
+		if subs[i].Pair.IsEmpty() {
 			continue
 		}
-		pair := subs[i].Currency.String()
+		pair := subs[i].Pair.String()
 		if common.StringDataCompare(payload.MarketIDs, pair) {
 			continue
 		}
@@ -415,11 +415,11 @@ func (b *BTCMarkets) Unsubscribe(subs []subscription.Subscription) error {
 	}
 	for i := range subs {
 		payload.Channels = append(payload.Channels, subs[i].Channel)
-		if subs[i].Currency.IsEmpty() {
+		if subs[i].Pair.IsEmpty() {
 			continue
 		}
 
-		pair := subs[i].Currency.String()
+		pair := subs[i].Pair.String()
 		if common.StringDataCompare(payload.MarketIDs, pair) {
 			continue
 		}
@@ -438,9 +438,9 @@ func (b *BTCMarkets) Unsubscribe(subs []subscription.Subscription) error {
 // again to fetch a new snapshot in the event of a de-sync event.
 func (b *BTCMarkets) ReSubscribeSpecificOrderbook(pair currency.Pair) error {
 	sub := []subscription.Subscription{{
-		Channel:  wsOB,
-		Currency: pair,
-		Asset:    asset.Spot,
+		Channel: wsOB,
+		Pair:    pair,
+		Asset:   asset.Spot,
 	}}
 	if err := b.Unsubscribe(sub); err != nil {
 		return err

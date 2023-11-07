@@ -168,15 +168,15 @@ func (by *Bybit) handleSubscriptions(assetType asset.Item, operation string, cha
 	for i := range channelsToSubscribe {
 		switch channelsToSubscribe[i].Channel {
 		case chanOrderbook:
-			arg.Arguments = append(arg.Arguments, fmt.Sprintf("%s.%d.%s", channelsToSubscribe[i].Channel, 50, channelsToSubscribe[i].Currency.Format(pairFormat).String()))
+			arg.Arguments = append(arg.Arguments, fmt.Sprintf("%s.%d.%s", channelsToSubscribe[i].Channel, 50, channelsToSubscribe[i].Pair.Format(pairFormat).String()))
 		case chanPublicTrade, chanPublicTicker, chanLiquidation, chanLeverageTokenTicker, chanLeverageTokenNav:
-			arg.Arguments = append(arg.Arguments, channelsToSubscribe[i].Channel+"."+channelsToSubscribe[i].Currency.Format(pairFormat).String())
+			arg.Arguments = append(arg.Arguments, channelsToSubscribe[i].Channel+"."+channelsToSubscribe[i].Pair.Format(pairFormat).String())
 		case chanKline, chanLeverageTokenKline:
 			interval, err := intervalToString(kline.FiveMin)
 			if err != nil {
 				return nil, err
 			}
-			arg.Arguments = append(arg.Arguments, channelsToSubscribe[i].Channel+"."+interval+"."+channelsToSubscribe[i].Currency.Format(pairFormat).String())
+			arg.Arguments = append(arg.Arguments, channelsToSubscribe[i].Channel+"."+interval+"."+channelsToSubscribe[i].Pair.Format(pairFormat).String())
 		case chanPositions, chanExecution, chanOrder, chanWallet, chanGreeks, chanDCP:
 			if chanMap[channelsToSubscribe[i].Channel]&selectedChannels > 0 {
 				continue
@@ -274,9 +274,9 @@ func (by *Bybit) GenerateDefaultSubscriptions() ([]subscription.Subscription, er
 			for z := range pairs {
 				subscriptions = append(subscriptions,
 					subscription.Subscription{
-						Channel:  channels[x],
-						Currency: pairs[z],
-						Asset:    asset.Spot,
+						Channel: channels[x],
+						Pair:    pairs[z],
+						Asset:   asset.Spot,
 					})
 			}
 		}

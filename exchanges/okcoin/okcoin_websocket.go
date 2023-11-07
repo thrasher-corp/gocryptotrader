@@ -583,8 +583,8 @@ func (o *Okcoin) wsProcessOrderbook(respRaw []byte, obChannel string) error {
 // again to fetch a new snapshot in the event of a de-sync event.
 func (o *Okcoin) ReSubscribeSpecificOrderbook(obChannel string, p currency.Pair) error {
 	subscription := []subscription.Subscription{{
-		Channel:  obChannel,
-		Currency: p,
+		Channel: obChannel,
+		Pair:    p,
 	}}
 	if err := o.Unsubscribe(subscription); err != nil {
 		return err
@@ -800,8 +800,8 @@ func (o *Okcoin) GenerateDefaultSubscriptions() ([]subscription.Subscription, er
 			wsCandle2Dutc, wsCandle3Dutc, wsCandle5Dutc, wsCandle12Hutc, wsCandle6Hutc:
 			for p := range pairs {
 				subscriptions = append(subscriptions, subscription.Subscription{
-					Channel:  channels[s],
-					Currency: pairs[p],
+					Channel: channels[s],
+					Pair:    pairs[p],
 				})
 			}
 		case wsStatus:
@@ -835,9 +835,9 @@ func (o *Okcoin) GenerateDefaultSubscriptions() ([]subscription.Subscription, er
 		case wsOrder, wsOrdersAlgo, wsAlgoAdvance:
 			for p := range pairs {
 				subscriptions = append(subscriptions, subscription.Subscription{
-					Channel:  channels[s],
-					Currency: pairs[p],
-					Asset:    asset.Spot,
+					Channel: channels[s],
+					Pair:    pairs[p],
+					Asset:   asset.Spot,
 				})
 			}
 		default:
@@ -891,8 +891,8 @@ func (o *Okcoin) handleSubscriptions(operation string, subs []subscription.Subsc
 		if subs[i].Asset != asset.Empty {
 			argument["instType"] = strings.ToUpper(subs[i].Asset.String())
 		}
-		if !subs[i].Currency.IsEmpty() {
-			argument["instId"] = subs[i].Currency.String()
+		if !subs[i].Pair.IsEmpty() {
+			argument["instId"] = subs[i].Pair.String()
 		}
 		if authenticatedChannelSubscription {
 			authTemp.Arguments = append(authTemp.Arguments, argument)

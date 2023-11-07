@@ -542,12 +542,12 @@ func (p *Poloniex) WsProcessOrderbookUpdate(sequenceNumber float64, data []inter
 
 // GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
 func (p *Poloniex) GenerateDefaultSubscriptions() ([]subscription.Subscription, error) {
-	enabledCurrencies, err := p.GetEnabledPairs(asset.Spot)
+	enabledPairs, err := p.GetEnabledPairs(asset.Spot)
 	if err != nil {
 		return nil, err
 	}
 
-	subscriptions := make([]subscription.Subscription, 0, len(enabledCurrencies))
+	subscriptions := make([]subscription.Subscription, 0, len(enabledPairs))
 	subscriptions = append(subscriptions, subscription.Subscription{
 		Channel: strconv.FormatInt(wsTickerDataID, 10),
 	})
@@ -558,12 +558,12 @@ func (p *Poloniex) GenerateDefaultSubscriptions() ([]subscription.Subscription, 
 		})
 	}
 
-	for j := range enabledCurrencies {
-		enabledCurrencies[j].Delimiter = currency.UnderscoreDelimiter
+	for j := range enabledPairs {
+		enabledPairs[j].Delimiter = currency.UnderscoreDelimiter
 		subscriptions = append(subscriptions, subscription.Subscription{
-			Channel:  "orderbook",
-			Currency: enabledCurrencies[j],
-			Asset:    asset.Spot,
+			Channel: "orderbook",
+			Pair:    enabledPairs[j],
+			Asset:   asset.Spot,
 		})
 	}
 	return subscriptions, nil
@@ -599,7 +599,7 @@ channels:
 			sub[i].Channel):
 			subscriptionRequest.Channel = wsTickerDataID
 		default:
-			subscriptionRequest.Channel = sub[i].Currency.String()
+			subscriptionRequest.Channel = sub[i].Pair.String()
 		}
 
 		err := p.Websocket.Conn.SendJSONMessage(subscriptionRequest)
@@ -646,7 +646,7 @@ channels:
 			unsub[i].Channel):
 			unsubscriptionRequest.Channel = wsTickerDataID
 		default:
-			unsubscriptionRequest.Channel = unsub[i].Currency.String()
+			unsubscriptionRequest.Channel = unsub[i].Pair.String()
 		}
 		err := p.Websocket.Conn.SendJSONMessage(unsubscriptionRequest)
 		if err != nil {

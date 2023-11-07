@@ -601,16 +601,16 @@ func (c *COINUT) WsProcessOrderbookUpdate(update *WsOrderbookUpdate) error {
 func (c *COINUT) GenerateDefaultSubscriptions() ([]subscription.Subscription, error) {
 	var channels = []string{"inst_tick", "inst_order_book", "inst_trade"}
 	var subscriptions []subscription.Subscription
-	enabledCurrencies, err := c.GetEnabledPairs(asset.Spot)
+	enabledPairs, err := c.GetEnabledPairs(asset.Spot)
 	if err != nil {
 		return nil, err
 	}
 	for i := range channels {
-		for j := range enabledCurrencies {
+		for j := range enabledPairs {
 			subscriptions = append(subscriptions, subscription.Subscription{
-				Channel:  channels[i],
-				Currency: enabledCurrencies[j],
-				Asset:    asset.Spot,
+				Channel: channels[i],
+				Pair:    enabledPairs[j],
+				Asset:   asset.Spot,
 			})
 		}
 	}
@@ -621,7 +621,7 @@ func (c *COINUT) GenerateDefaultSubscriptions() ([]subscription.Subscription, er
 func (c *COINUT) Subscribe(channelsToSubscribe []subscription.Subscription) error {
 	var errs error
 	for i := range channelsToSubscribe {
-		fPair, err := c.FormatExchangeCurrency(channelsToSubscribe[i].Currency, asset.Spot)
+		fPair, err := c.FormatExchangeCurrency(channelsToSubscribe[i].Pair, asset.Spot)
 		if err != nil {
 			errs = common.AppendError(errs, err)
 			continue
@@ -650,7 +650,7 @@ func (c *COINUT) Subscribe(channelsToSubscribe []subscription.Subscription) erro
 func (c *COINUT) Unsubscribe(channelToUnsubscribe []subscription.Subscription) error {
 	var errs error
 	for i := range channelToUnsubscribe {
-		fPair, err := c.FormatExchangeCurrency(channelToUnsubscribe[i].Currency, asset.Spot)
+		fPair, err := c.FormatExchangeCurrency(channelToUnsubscribe[i].Pair, asset.Spot)
 		if err != nil {
 			errs = common.AppendError(errs, err)
 			continue

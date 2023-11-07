@@ -858,9 +858,9 @@ func (k *Kraken) wsProcessOrderBook(channelData *WebsocketChannelData, data map[
 						errResub)
 				}
 			}(&subscription.Subscription{
-				Channel:  krakenWsOrderbook,
-				Currency: outbound,
-				Asset:    asset.Spot,
+				Channel: krakenWsOrderbook,
+				Pair:    outbound,
+				Asset:   asset.Spot,
 			})
 			return err
 		}
@@ -1211,18 +1211,18 @@ func (k *Kraken) wsProcessCandles(channelData *WebsocketChannelData, data []inte
 
 // GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
 func (k *Kraken) GenerateDefaultSubscriptions() ([]subscription.Subscription, error) {
-	enabledCurrencies, err := k.GetEnabledPairs(asset.Spot)
+	enabledPairs, err := k.GetEnabledPairs(asset.Spot)
 	if err != nil {
 		return nil, err
 	}
 	var subscriptions []subscription.Subscription
 	for i := range defaultSubscribedChannels {
-		for j := range enabledCurrencies {
-			enabledCurrencies[j].Delimiter = "/"
+		for j := range enabledPairs {
+			enabledPairs[j].Delimiter = "/"
 			subscriptions = append(subscriptions, subscription.Subscription{
-				Channel:  defaultSubscribedChannels[i],
-				Currency: enabledCurrencies[j],
-				Asset:    asset.Spot,
+				Channel: defaultSubscribedChannels[i],
+				Pair:    enabledPairs[j],
+				Asset:   asset.Spot,
 			})
 		}
 	}
@@ -1248,7 +1248,7 @@ channels:
 		}
 
 		for j := range *s {
-			(*s)[j].Pairs = append((*s)[j].Pairs, channelsToSubscribe[i].Currency.String())
+			(*s)[j].Pairs = append((*s)[j].Pairs, channelsToSubscribe[i].Pair.String())
 			(*s)[j].Channels = append((*s)[j].Channels, channelsToSubscribe[i])
 			continue channels
 		}
@@ -1264,8 +1264,8 @@ channels:
 		if channelsToSubscribe[i].Channel == "book" {
 			outbound.Subscription.Depth = krakenWsOrderbookDepth
 		}
-		if !channelsToSubscribe[i].Currency.IsEmpty() {
-			outbound.Pairs = []string{channelsToSubscribe[i].Currency.String()}
+		if !channelsToSubscribe[i].Pair.IsEmpty() {
+			outbound.Pairs = []string{channelsToSubscribe[i].Pair.String()}
 		}
 		if common.StringDataContains(authenticatedChannels, channelsToSubscribe[i].Channel) {
 			outbound.Subscription.Token = authToken
@@ -1306,7 +1306,7 @@ channels:
 		for y := range unsubs {
 			if unsubs[y].Subscription.Name == channelsToUnsubscribe[x].Channel {
 				unsubs[y].Pairs = append(unsubs[y].Pairs,
-					channelsToUnsubscribe[x].Currency.String())
+					channelsToUnsubscribe[x].Pair.String())
 				unsubs[y].Channels = append(unsubs[y].Channels,
 					channelsToUnsubscribe[x])
 				continue channels
@@ -1326,7 +1326,7 @@ channels:
 
 		unsub := WebsocketSubscriptionEventRequest{
 			Event: krakenWsUnsubscribe,
-			Pairs: []string{channelsToUnsubscribe[x].Currency.String()},
+			Pairs: []string{channelsToUnsubscribe[x].Pair.String()},
 			Subscription: WebsocketSubscriptionData{
 				Name:  channelsToUnsubscribe[x].Channel,
 				Depth: depth,

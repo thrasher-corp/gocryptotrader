@@ -570,9 +570,9 @@ func (b *Bitmex) GenerateDefaultSubscriptions() ([]subscription.Subscription, er
 					continue
 				}
 				subscriptions = append(subscriptions, subscription.Subscription{
-					Channel:  channels[z] + ":" + pFmt.Format(contracts[y]),
-					Currency: contracts[y],
-					Asset:    assets[x],
+					Channel: channels[z] + ":" + pFmt.Format(contracts[y]),
+					Pair:    contracts[y],
+					Asset:   assets[x],
 				})
 			}
 		}
@@ -620,9 +620,9 @@ func (b *Bitmex) GenerateAuthenticatedSubscriptions() ([]subscription.Subscripti
 	for i := range channels {
 		for j := range contracts {
 			subscriptions = append(subscriptions, subscription.Subscription{
-				Channel:  channels[i] + ":" + pFmt.Format(contracts[j]),
-				Currency: contracts[j],
-				Asset:    asset.PerpetualContract,
+				Channel: channels[i] + ":" + pFmt.Format(contracts[j]),
+				Pair:    contracts[j],
+				Asset:   asset.PerpetualContract,
 			})
 		}
 	}

@@ -9,9 +9,9 @@ import (
 
 // DefaultKey is the fallback key for AddSuccessfulSubscriptions
 type DefaultKey struct {
-	Channel  string
-	Currency currency.Pair
-	Asset    asset.Item
+	Channel string
+	Pair    currency.Pair
+	Asset   asset.Item
 }
 
 // State tracks the status of a subscription channel
@@ -26,17 +26,17 @@ const (
 
 // Subscription container for streaming subscriptions
 type Subscription struct {
-	Key      any
-	Channel  string
-	Currency currency.Pair
-	Asset    asset.Item
-	Params   map[string]interface{}
-	State    State
+	Key     any
+	Channel string
+	Pair    currency.Pair
+	Asset   asset.Item
+	Params  map[string]interface{}
+	State   State
 }
 
 // String implements the Stringer interface for Subscription, giving a human representation of the subscription
 func (s *Subscription) String() string {
-	return fmt.Sprintf("%s %s %s", s.Channel, s.Asset, s.Currency)
+	return fmt.Sprintf("%s %s %s", s.Channel, s.Asset, s.Pair)
 }
 
 // EnsureKeyed sets the default key on a channel if it doesn't have one
@@ -44,9 +44,9 @@ func (s *Subscription) String() string {
 func (s *Subscription) EnsureKeyed() any {
 	if s.Key == nil {
 		s.Key = DefaultKey{
-			Channel:  s.Channel,
-			Asset:    s.Asset,
-			Currency: s.Currency,
+			Channel: s.Channel,
+			Asset:   s.Asset,
+			Pair:    s.Pair,
 		}
 	}
 	return s.Key

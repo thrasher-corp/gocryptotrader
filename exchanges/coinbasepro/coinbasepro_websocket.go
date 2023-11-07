@@ -372,7 +372,7 @@ func (c *CoinbasePro) GenerateDefaultSubscriptions() ([]subscription.Subscriptio
 		"ticker",
 		"user",
 		"matches"}
-	enabledCurrencies, err := c.GetEnabledPairs(asset.Spot)
+	enabledPairs, err := c.GetEnabledPairs(asset.Spot)
 	if err != nil {
 		return nil, err
 	}
@@ -382,16 +382,16 @@ func (c *CoinbasePro) GenerateDefaultSubscriptions() ([]subscription.Subscriptio
 			!c.IsWebsocketAuthenticationSupported() {
 			continue
 		}
-		for j := range enabledCurrencies {
-			fPair, err := c.FormatExchangeCurrency(enabledCurrencies[j],
+		for j := range enabledPairs {
+			fPair, err := c.FormatExchangeCurrency(enabledPairs[j],
 				asset.Spot)
 			if err != nil {
 				return nil, err
 			}
 			subscriptions = append(subscriptions, subscription.Subscription{
-				Channel:  channels[i],
-				Currency: fPair,
-				Asset:    asset.Spot,
+				Channel: channels[i],
+				Pair:    fPair,
+				Asset:   asset.Spot,
 			})
 		}
 	}
@@ -414,7 +414,7 @@ func (c *CoinbasePro) Subscribe(channelsToSubscribe []subscription.Subscription)
 	}
 	productIDs := make([]string, 0, len(channelsToSubscribe))
 	for i := range channelsToSubscribe {
-		p := channelsToSubscribe[i].Currency.String()
+		p := channelsToSubscribe[i].Pair.String()
 		if p != "" && !common.StringDataCompare(productIDs, p) {
 			// get all unique productIDs in advance as we generate by channels
 			productIDs = append(productIDs, p)
@@ -466,7 +466,7 @@ func (c *CoinbasePro) Unsubscribe(channelsToUnsubscribe []subscription.Subscript
 	}
 	productIDs := make([]string, 0, len(channelsToUnsubscribe))
 	for i := range channelsToUnsubscribe {
-		p := channelsToUnsubscribe[i].Currency.String()
+		p := channelsToUnsubscribe[i].Pair.String()
 		if p != "" && !common.StringDataCompare(productIDs, p) {
 			// get all unique productIDs in advance as we generate by channels
 			productIDs = append(productIDs, p)

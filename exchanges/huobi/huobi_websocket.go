@@ -537,8 +537,8 @@ func (h *HUOBI) GenerateDefaultSubscriptions() ([]subscription.Subscription, err
 			channel := fmt.Sprintf(channels[i],
 				enabledCurrencies[j].Lower().String())
 			subscriptions = append(subscriptions, subscription.Subscription{
-				Channel:  channel,
-				Currency: enabledCurrencies[j],
+				Channel: channel,
+				Pair:    enabledCurrencies[j],
 			})
 		}
 	}

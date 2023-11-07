@@ -1248,8 +1248,8 @@ func TestWebsocketSubscribe(t *testing.T) {
 	setupWsTests(t)
 	err := k.Subscribe([]subscription.Subscription{
 		{
-			Channel:  defaultSubscribedChannels[0],
-			Currency: currency.NewPairWithDelimiter("XBT", "USD", "/"),
+			Channel: defaultSubscribedChannels[0],
+			Pair:    currency.NewPairWithDelimiter("XBT", "USD", "/"),
 		},
 	})
 	if err != nil {

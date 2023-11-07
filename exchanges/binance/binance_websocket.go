@@ -565,9 +565,9 @@ func (b *Binance) GenerateSubscriptions() ([]subscription.Subscription, error) {
 					lp := pairs[y].Lower()
 					lp.Delimiter = ""
 					subscriptions = append(subscriptions, subscription.Subscription{
-						Channel:  lp.String() + channels[z],
-						Currency: pairs[y],
-						Asset:    assets[x],
+						Channel: lp.String() + channels[z],
+						Pair:    pairs[y],
+						Asset:   assets[x],
 					})
 				}
 			}

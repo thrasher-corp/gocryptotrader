@@ -432,10 +432,10 @@ func (ok *Okx) handleSubscription(operation string, subscriptions []subscription
 				if err != nil {
 					return err
 				}
-				if subscriptions[i].Currency.Base.String() == "" || subscriptions[i].Currency.Quote.String() == "" {
+				if subscriptions[i].Pair.Base.String() == "" || subscriptions[i].Pair.Quote.String() == "" {
 					return errIncompleteCurrencyPair
 				}
-				instrumentID = format.Format(subscriptions[i].Currency)
+				instrumentID = format.Format(subscriptions[i].Pair)
 			}
 		}
 		if arg.Channel == okxChannelInstruments ||
@@ -455,7 +455,7 @@ func (ok *Okx) handleSubscription(operation string, subscriptions []subscription
 			arg.Channel == okxChannelAlgoOrders ||
 			arg.Channel == okxChannelEstimatedPrice ||
 			arg.Channel == okxChannelOptSummary {
-			underlying, _ = ok.GetUnderlying(subscriptions[i].Currency, subscriptions[i].Asset)
+			underlying, _ = ok.GetUnderlying(subscriptions[i].Pair, subscriptions[i].Asset)
 		}
 		arg.InstrumentID = instrumentID
 		arg.Underlying = underlying
@@ -836,9 +836,9 @@ func (ok *Okx) wsProcessOrderBooks(data []byte) error {
 			if errors.Is(err, errInvalidChecksum) {
 				err = ok.Subscribe([]subscription.Subscription{
 					{
-						Channel:  response.Argument.Channel,
-						Asset:    assets[0],
-						Currency: pair,
+						Channel: response.Argument.Channel,
+						Asset:   assets[0],
+						Pair:    pair,
 					},
 				})
 				if err != nil {
@@ -1323,9 +1323,9 @@ func (ok *Okx) GenerateDefaultSubscriptions() ([]subscription.Subscription, erro
 				}
 				for p := range pairs {
 					subscriptions = append(subscriptions, subscription.Subscription{
-						Channel:  subs[c],
-						Asset:    assets[x],
-						Currency: pairs[p],
+						Channel: subs[c],
+						Asset:   assets[x],
+						Pair:    pairs[p],
 					})
 				}
 			}

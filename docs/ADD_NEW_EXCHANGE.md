@@ -758,7 +758,7 @@ func (f *FTX) GenerateDefaultSubscriptions() ([]subscription.Subscription, error
 				subscriptions = append(subscriptions,
 					subscription.Subscription{
 						Channel:  channels[x],
-						Currency: newPair,
+						Pair: newPair,
 						Asset:    assets[a],
 					})
 			}
@@ -827,13 +827,13 @@ channels:
 		case wsFills, wsOrders, wsMarkets:
 		// Authenticated wsFills && wsOrders or wsMarkets which is a channel subscription for the full set of tradable markets do not need a currency pair association. 
 		default:
-			a, err := f.GetPairAssetType(channelsToSubscribe[i].Currency)
+			a, err := f.GetPairAssetType(channelsToSubscribe[i].Pair)
 			if err != nil {
 				errs = append(errs, err)
 				continue channels
 			}
 			// Ensures our outbound currency pair is formatted correctly, sometimes our configuration format is different from what our request format needs to be.
-			formattedPair, err := f.FormatExchangeCurrency(channelsToSubscribe[i].Currency, a)
+			formattedPair, err := f.FormatExchangeCurrency(channelsToSubscribe[i].Pair, a)
 			if err != nil {
 				errs = append(errs, err)
 				continue channels
@@ -1076,13 +1076,13 @@ channels:
 		switch channelsToUnsubscribe[i].Channel {
 		case wsFills, wsOrders, wsMarkets:
 		default:
-			a, err := f.GetPairAssetType(channelsToUnsubscribe[i].Currency)
+			a, err := f.GetPairAssetType(channelsToUnsubscribe[i].Pair)
 			if err != nil {
 				errs = append(errs, err)
 				continue channels
 			}
 
-			formattedPair, err := f.FormatExchangeCurrency(channelsToUnsubscribe[i].Currency, a)
+			formattedPair, err := f.FormatExchangeCurrency(channelsToUnsubscribe[i].Pair, a)
 			if err != nil {
 				errs = append(errs, err)
 				continue channels
