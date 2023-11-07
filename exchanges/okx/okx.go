@@ -1933,7 +1933,7 @@ func (ok *Okx) GetAccountAndPositionRisk(ctx context.Context, instrumentType str
 
 // GetBillsDetailLast7Days The bill refers to all transaction records that result in changing the balance of an account. Pagination is supported, and the response is sorted with the most recent first. This endpoint can retrieve data from the last 7 days.
 func (ok *Okx) GetBillsDetailLast7Days(ctx context.Context, arg *BillsDetailQueryParameter) ([]BillsDetailResponse, error) {
-	return ok.GetBillsDetail(ctx, arg, accountBillsDetail)
+	return ok.GetBillsDetail(ctx, arg, accountBillsDetail, getBillsDetailsEPL)
 }
 
 // GetBillsDetail3Months retrieves the account’s bills.
@@ -1941,11 +1941,11 @@ func (ok *Okx) GetBillsDetailLast7Days(ctx context.Context, arg *BillsDetailQuer
 // Pagination is supported, and the response is sorted with most recent first.
 // This endpoint can retrieve data from the last 3 months.
 func (ok *Okx) GetBillsDetail3Months(ctx context.Context, arg *BillsDetailQueryParameter) ([]BillsDetailResponse, error) {
-	return ok.GetBillsDetail(ctx, arg, accountBillsDetailArchive)
+	return ok.GetBillsDetail(ctx, arg, accountBillsDetailArchive, getBillsDetailArchiveEPL)
 }
 
 // GetBillsDetail retrieves the bills of the account.
-func (ok *Okx) GetBillsDetail(ctx context.Context, arg *BillsDetailQueryParameter, route string) ([]BillsDetailResponse, error) {
+func (ok *Okx) GetBillsDetail(ctx context.Context, arg *BillsDetailQueryParameter, route string, epl request.EndpointLimit) ([]BillsDetailResponse, error) {
 	if arg == nil {
 		return nil, errNilArgument
 	}
@@ -1984,7 +1984,7 @@ func (ok *Okx) GetBillsDetail(ctx context.Context, arg *BillsDetailQueryParamete
 		params.Set("limit", strconv.FormatInt(arg.Limit, 10))
 	}
 	var resp []BillsDetailResponse
-	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getBillsDetailsEPL, http.MethodGet, common.EncodeURLValues(route, params), nil, &resp, true)
+	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, epl, http.MethodGet, common.EncodeURLValues(route, params), nil, &resp, true)
 }
 
 // GetAccountConfiguration retrieves current account configuration.
@@ -2119,6 +2119,38 @@ func (ok *Okx) GetLeverageRate(ctx context.Context, instrumentID, marginMode str
 	params.Set("mgnMode", marginMode)
 	var resp []LeverageResponse
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getLeverageEPL, http.MethodGet, common.EncodeURLValues(accountLeverageInfo, params), nil, &resp, true)
+}
+
+// GetLeverateEstimatedInfo retrieves leverage estimated information.
+func (ok *Okx) GetLeverateEstimatedInfo(ctx context.Context, instrumentType, marginMode, leverage, positionSide string, instrumentID currency.Pair, ccy currency.Code) ([]LeverageEstimatedInfo, error) {
+	if instrumentType == "" {
+		return nil, errMissingRequiredArgInstType
+	}
+	if marginMode == "" ||
+		(marginMode != TradeModeCross &&
+			marginMode != TradeModeIsolated) {
+		return nil, errMissingMarginMode
+	}
+	if leverage == "" {
+		return nil, errRequiredParameterMissingLeverage
+	}
+	if instrumentID.IsEmpty() && ccy.IsEmpty() {
+		return nil, errEitherInstIDOrCcyIsRequired
+	}
+	params := url.Values{}
+	params.Set("instType", instrumentType)
+	params.Set("lever", leverage)
+	params.Set("mgnMode", marginMode)
+	if !instrumentID.IsEmpty() {
+		params.Set("instId", instrumentID.String())
+	} else {
+		params.Set("ccy", ccy.String())
+	}
+	if positionSide != "" {
+		params.Set("posSide", positionSide)
+	}
+	var resp []LeverageEstimatedInfo
+	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getLeverateEstimatedInfoEPL, http.MethodGet, common.EncodeURLValues("account/adjust-leverage-info", params), nil, &resp, false)
 }
 
 // GetMaximumLoanOfInstrument returns list of maximum loan of instruments.
@@ -2277,6 +2309,62 @@ func (ok *Okx) IsolatedMarginTradingSettings(ctx context.Context, arg IsolatedMo
 		return &resp[0], nil
 	}
 	return nil, errNoValidResponseFromServer
+}
+
+// ManualBorrowAndRepayInQuickMarginMode creates a new manual borrow and repay
+func (ok *Okx) ManualBorrowAndRepayInQuickMarginMode(ctx context.Context, arg *BorrowAndRepay) (*BorrowAndRepay, error) {
+	if arg.Amount <= 0 {
+		return nil, errInvalidAmount
+	}
+	if arg.LoanCcy == "" {
+		return nil, currency.ErrCurrencyCodeEmpty
+	}
+	if arg.Side == "" {
+		return nil, fmt.Errorf("%w, possible values are 'borrow' and 'repay'", errInvalidOrderSide)
+	}
+	if arg.InstrumentID == "" {
+		return nil, errMissingInstrumentID
+	}
+	var resp []BorrowAndRepay
+	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, manualBorrowAndRepayEPL, http.MethodPost, "account/quick-margin-borrow-repay", arg, &resp, true)
+	if err != nil {
+		return nil, err
+	}
+	if len(resp) == 1 {
+		return &resp[0], nil
+	}
+	return nil, errNoValidResponseFromServer
+}
+
+// GetBorrowAndRepayHistoryInQuickMarginMode retrieves borrow and repay history in quick mergin mode.
+func (ok *Okx) GetBorrowAndRepayHistoryInQuickMarginMode(ctx context.Context, instrumentID currency.Pair, ccy currency.Code, side, afterPaginationID, beforePaginationID string, beginTime, endTime time.Time, limit int64) ([]BorrowRepayHistoryItem, error) {
+	params := url.Values{}
+	if !instrumentID.IsEmpty() {
+		params.Set("instId", instrumentID.String())
+	}
+	if !ccy.IsEmpty() {
+		params.Set("ccy", ccy.String())
+	}
+	if side != "" {
+		params.Set("side", side)
+	}
+	if afterPaginationID != "" {
+		params.Set("after", afterPaginationID)
+	}
+	if beforePaginationID != "" {
+		params.Set("before", beforePaginationID)
+	}
+	if !beginTime.IsZero() {
+		params.Set("begin", strconv.FormatInt(beginTime.UnixMilli(), 10))
+	}
+	if !endTime.IsZero() {
+		params.Set("end", strconv.FormatInt(endTime.UnixMilli(), 10))
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	var resp []BorrowRepayHistoryItem
+	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getBorrowAndRepayHistoryEPL, http.MethodGet, common.EncodeURLValues("account/quick-margin-borrow-repay-history", params), nil, &resp, true)
 }
 
 // GetMaximumWithdrawals retrieves the maximum transferable amount from trading account to funding account.

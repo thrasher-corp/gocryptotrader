@@ -1480,6 +1480,20 @@ type LeverageResponse struct {
 	Leverage     okxNumericalValue `json:"lever"`
 }
 
+// LeverageEstimatedInfo leverage estimated info response.
+type LeverageEstimatedInfo struct {
+	EstimatedAvailQuoteTrans string                  `json:"estAvailQuoteTrans"`
+	EstimatedAvailTrans      string                  `json:"estAvailTrans"`
+	EstimatedLiqPrice        convert.StringToFloat64 `json:"estLiqPx"`
+	EstimatedMaxAmount       convert.StringToFloat64 `json:"estMaxAmt"`
+	EstimatedMargin          string                  `json:"estMgn"`
+	EstimatedQuoteMaxAmount  convert.StringToFloat64 `json:"estQuoteMaxAmt"`
+	EstimatedQuoteMgn        string                  `json:"estQuoteMgn"`
+	ExistOrd                 bool                    `json:"existOrd"` // Whether there is pending orders
+	MaxLeverage              convert.StringToFloat64 `json:"maxLever"`
+	MinLeverage              convert.StringToFloat64 `json:"minLever"`
+}
+
 // MaximumLoanInstrument represents maximum loan of an instrument id.
 type MaximumLoanInstrument struct {
 	InstrumentID string     `json:"instId"`
@@ -1533,6 +1547,25 @@ type GreeksType struct {
 type IsolatedMode struct {
 	IsoMode        string `json:"isoMode"` // "automatic":Auto transfers "autonomy":Manual transfers
 	InstrumentType string `json:"type"`    // Instrument type "MARGIN" "CONTRACTS"
+}
+
+// BorrowAndRepay manual holds manual borrow and repay in quick margin mode.
+type BorrowAndRepay struct {
+	Amount       float64 `json:"amt,string"`
+	InstrumentID string  `json:"instId"`
+	LoanCcy      string  `json:"ccy"`
+	Side         string  `json:"side"` // possible values: 'borrow' and 'repay'
+}
+
+// BorrowRepayHistoryItem holds borrow or repay history item information
+type BorrowRepayHistoryItem struct {
+	InstID          string                  `json:"instId"`
+	Ccy             string                  `json:"ccy"`
+	Side            string                  `json:"side"`
+	AccBorrowAmount convert.StringToFloat64 `json:"accBorrowed"`
+	Amount          convert.StringToFloat64 `json:"amt"`
+	RefID           string                  `json:"refId"`
+	Timestamp       convert.ExchangeTime    `json:"ts"`
 }
 
 // MaximumWithdrawal represents maximum withdrawal amount query response.

@@ -101,6 +101,7 @@ type RateLimit struct {
 	GetPositionsHistory               *rate.Limiter
 	GetAccountAndPositionRisk         *rate.Limiter
 	GetBillsDetails                   *rate.Limiter
+	GetBillsDetailArchive             *rate.Limiter
 	GetAccountConfiguration           *rate.Limiter
 	SetPositionMode                   *rate.Limiter
 	SetLeverage                       *rate.Limiter
@@ -108,6 +109,7 @@ type RateLimit struct {
 	GetMaximumAvailableTradableAmount *rate.Limiter
 	IncreaseOrDecreaseMargin          *rate.Limiter
 	GetLeverage                       *rate.Limiter
+	GetLeverageEstimatedInfo          *rate.Limiter
 	GetTheMaximumLoanOfInstrument     *rate.Limiter
 	GetFeeRates                       *rate.Limiter
 	GetInterestAccruedData            *rate.Limiter
@@ -116,6 +118,8 @@ type RateLimit struct {
 	IsolatedMarginTradingSettings     *rate.Limiter
 	GetMaximumWithdrawals             *rate.Limiter
 	GetAccountRiskState               *rate.Limiter
+	ManualBorrowAndRepay              *rate.Limiter
+	GetBorrowAndRepayHistory          *rate.Limiter
 	VipLoansBorrowAnsRepay            *rate.Limiter
 	GetBorrowAnsRepayHistoryHistory   *rate.Limiter
 	GetBorrowInterestAndLimit         *rate.Limiter
@@ -275,7 +279,8 @@ const (
 	getPositionsRate                      = 10
 	getPositionsHistoryRate               = 1
 	getAccountAndPositionRiskRate         = 10
-	getBillsDetailsRate                   = 6
+	getBillsDetailsRate                   = 5
+	getBillsDetailArchiveRate             = 5
 	getAccountConfigurationRate           = 5
 	setPositionModeRate                   = 5
 	setLeverageRate                       = 20
@@ -283,6 +288,7 @@ const (
 	getMaximumAvailableTradableAmountRate = 20
 	increaseOrDecreaseMarginRate          = 20
 	getLeverageRate                       = 20
+	getLeverageEstimatedInfoRate          = 5
 	getTheMaximumLoanOfInstrumentRate     = 20
 	getFeeRatesRate                       = 5
 	getInterestAccruedDataRate            = 5
@@ -291,6 +297,8 @@ const (
 	isolatedMarginTradingSettingsRate     = 5
 	getMaximumWithdrawalsRate             = 20
 	getAccountRiskStateRate               = 10
+	manualBorrowAndRepayRate              = 5
+	getBorrowAndRepayHistoryRate          = 5
 	vipLoansBorrowAndRepayRate            = 6
 	getBorrowAnsRepayHistoryHistoryRate   = 5
 	getBorrowInterestAndLimitRate         = 5
@@ -445,6 +453,7 @@ const (
 	getPositionsHistoryEPL
 	getAccountAndPositionRiskEPL
 	getBillsDetailsEPL
+	getBillsDetailArchiveEPL
 	getAccountConfigurationEPL
 	setPositionModeEPL
 	setLeverageEPL
@@ -452,6 +461,7 @@ const (
 	getMaximumAvailableTradableAmountEPL
 	increaseOrDecreaseMarginEPL
 	getLeverageEPL
+	getLeverateEstimatedInfoEPL
 	getTheMaximumLoanOfInstrumentEPL
 	getFeeRatesEPL
 	getInterestAccruedDataEPL
@@ -460,6 +470,8 @@ const (
 	isolatedMarginTradingSettingsEPL
 	getMaximumWithdrawalsEPL
 	getAccountRiskStateEPL
+	manualBorrowAndRepayEPL
+	getBorrowAndRepayHistoryEPL
 	vipLoansBorrowAnsRepayEPL
 	getBorrowAnsRepayHistoryHistoryEPL
 	getBorrowInterestAndLimitEPL
@@ -680,6 +692,8 @@ func (r *RateLimit) Limit(ctx context.Context, f request.EndpointLimit) error {
 		return r.GetAccountAndPositionRisk.Wait(ctx)
 	case getBillsDetailsEPL:
 		return r.GetBillsDetails.Wait(ctx)
+	case getBillsDetailArchiveEPL:
+		return r.GetBillsDetailArchive.Wait(ctx)
 	case getAccountConfigurationEPL:
 		return r.GetAccountConfiguration.Wait(ctx)
 	case setPositionModeEPL:
@@ -694,6 +708,8 @@ func (r *RateLimit) Limit(ctx context.Context, f request.EndpointLimit) error {
 		return r.IncreaseOrDecreaseMargin.Wait(ctx)
 	case getLeverageEPL:
 		return r.GetLeverage.Wait(ctx)
+	case getLeverateEstimatedInfoEPL:
+		return r.GetLeverageEstimatedInfo.Wait(ctx)
 	case getTheMaximumLoanOfInstrumentEPL:
 		return r.GetTheMaximumLoanOfInstrument.Wait(ctx)
 	case getFeeRatesEPL:
@@ -710,6 +726,10 @@ func (r *RateLimit) Limit(ctx context.Context, f request.EndpointLimit) error {
 		return r.GetMaximumWithdrawals.Wait(ctx)
 	case getAccountRiskStateEPL:
 		return r.GetAccountRiskState.Wait(ctx)
+	case manualBorrowAndRepayEPL:
+		return r.ManualBorrowAndRepay.Wait(ctx)
+	case getBorrowAndRepayHistoryEPL:
+		return r.GetBorrowAndRepayHistory.Wait(ctx)
 	case vipLoansBorrowAnsRepayEPL:
 		return r.VipLoansBorrowAnsRepay.Wait(ctx)
 	case getBorrowAnsRepayHistoryHistoryEPL:
@@ -940,6 +960,7 @@ func SetRateLimit() *RateLimit {
 		GetPositionsHistory:               request.NewRateLimit(tenSecondsInterval, getPositionsHistoryRate),
 		GetAccountAndPositionRisk:         request.NewRateLimit(twoSecondsInterval, getAccountAndPositionRiskRate),
 		GetBillsDetails:                   request.NewRateLimit(oneSecondInterval, getBillsDetailsRate),
+		GetBillsDetailArchive:             request.NewRateLimit(twoSecondsInterval, getBillsDetailArchiveRate),
 		GetAccountConfiguration:           request.NewRateLimit(twoSecondsInterval, getAccountConfigurationRate),
 		SetPositionMode:                   request.NewRateLimit(twoSecondsInterval, setPositionModeRate),
 		SetLeverage:                       request.NewRateLimit(twoSecondsInterval, setLeverageRate),
@@ -947,6 +968,7 @@ func SetRateLimit() *RateLimit {
 		GetMaximumAvailableTradableAmount: request.NewRateLimit(twoSecondsInterval, getMaximumAvailableTradableAmountRate),
 		IncreaseOrDecreaseMargin:          request.NewRateLimit(twoSecondsInterval, increaseOrDecreaseMarginRate),
 		GetLeverage:                       request.NewRateLimit(twoSecondsInterval, getLeverageRate),
+		GetLeverageEstimatedInfo:          request.NewRateLimit(twoSecondsInterval, getLeverageEstimatedInfoRate),
 		GetTheMaximumLoanOfInstrument:     request.NewRateLimit(twoSecondsInterval, getTheMaximumLoanOfInstrumentRate),
 		GetFeeRates:                       request.NewRateLimit(twoSecondsInterval, getFeeRatesRate),
 		GetInterestAccruedData:            request.NewRateLimit(twoSecondsInterval, getInterestAccruedDataRate),
@@ -955,6 +977,8 @@ func SetRateLimit() *RateLimit {
 		IsolatedMarginTradingSettings:     request.NewRateLimit(twoSecondsInterval, isolatedMarginTradingSettingsRate),
 		GetMaximumWithdrawals:             request.NewRateLimit(twoSecondsInterval, getMaximumWithdrawalsRate),
 		GetAccountRiskState:               request.NewRateLimit(twoSecondsInterval, getAccountRiskStateRate),
+		ManualBorrowAndRepay:              request.NewRateLimit(twoSecondsInterval, manualBorrowAndRepayRate),
+		GetBorrowAndRepayHistory:          request.NewRateLimit(twoSecondsInterval, getBorrowAndRepayHistoryRate),
 		VipLoansBorrowAnsRepay:            request.NewRateLimit(oneSecondInterval, vipLoansBorrowAndRepayRate),
 		GetBorrowAnsRepayHistoryHistory:   request.NewRateLimit(twoSecondsInterval, getBorrowAnsRepayHistoryHistoryRate),
 		GetBorrowInterestAndLimit:         request.NewRateLimit(twoSecondsInterval, getBorrowInterestAndLimitRate),

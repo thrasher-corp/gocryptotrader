@@ -3685,3 +3685,35 @@ func TestWsProcessOrderbook5(t *testing.T) {
 		t.Errorf("expected %v, received %v", 5, len(got.Bids))
 	}
 }
+
+func TestGetLeverateEstimatedInfo(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
+	_, err := ok.GetLeverateEstimatedInfo(context.Background(), "SPOT", "cross", "1", "", currency.NewPair(currency.BTC, currency.USDT), currency.EMPTYCODE)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestManualBorrowAndRepayInQuickMarginMode(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
+	_, err := ok.ManualBorrowAndRepayInQuickMarginMode(context.Background(), &BorrowAndRepay{
+		Amount:       1,
+		InstrumentID: "BTC-USDT",
+		LoanCcy:      "USDT",
+		Side:         "borrow",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestGetBorrowAndRepayHistoryInQuickMarginMode(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
+	_, err := ok.GetBorrowAndRepayHistoryInQuickMarginMode(context.Background(), currency.EMPTYPAIR, currency.BTC, "borrow", "", "", time.Time{}, time.Time{}, 10)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
