@@ -61,7 +61,7 @@ func (c *CoinbasePro) SetDefaults() {
 	c.API.CredentialsValidator.RequiresKey = true
 	c.API.CredentialsValidator.RequiresSecret = true
 	// c.API.CredentialsValidator.RequiresClientID = true
-	c.API.CredentialsValidator.RequiresBase64DecodeSecret = true
+	c.API.CredentialsValidator.RequiresBase64DecodeSecret = false
 
 	requestFmt := &currency.PairFormat{Delimiter: currency.DashDelimiter, Uppercase: true}
 	configFmt := &currency.PairFormat{Delimiter: currency.DashDelimiter, Uppercase: true}
@@ -139,7 +139,7 @@ func (c *CoinbasePro) SetDefaults() {
 	}
 	c.API.Endpoints = c.NewEndpoints()
 	err = c.API.Endpoints.SetDefaultEndpoints(map[exchange.URL]string{
-		exchange.RestSpot:      coinbaseproAPIURL,
+		exchange.RestSpot:      coinbaseAPIURL,
 		exchange.RestSandbox:   coinbaseproSandboxAPIURL,
 		exchange.WebsocketSpot: coinbaseproWebsocketURL,
 	})
@@ -380,37 +380,37 @@ func (c *CoinbasePro) UpdateTickers(_ context.Context, _ asset.Item) error {
 
 // UpdateTicker updates and returns the ticker for a currency pair
 func (c *CoinbasePro) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Item) (*ticker.Price, error) {
-	fPair, err := c.FormatExchangeCurrency(p, a)
-	if err != nil {
-		return nil, err
-	}
+	// fPair, err := c.FormatExchangeCurrency(p, a)
+	// if err != nil {
+	// 	return nil, err
+	// }
 
-	tick, err := c.GetTicker(ctx, fPair.String())
-	if err != nil {
-		return nil, err
-	}
-	stats, err := c.GetStats(ctx, fPair.String())
-	if err != nil {
-		return nil, err
-	}
+	// tick, err := c.GetTicker(ctx, fPair.String())
+	// if err != nil {
+	// 	return nil, err
+	// }
+	// stats, err := c.GetStats(ctx, fPair.String())
+	// if err != nil {
+	// 	return nil, err
+	// }
 
-	tickerPrice := &ticker.Price{
-		Last:         stats.Last,
-		High:         stats.High,
-		Low:          stats.Low,
-		Bid:          tick.Bid,
-		Ask:          tick.Ask,
-		Volume:       tick.Volume,
-		Open:         stats.Open,
-		Pair:         p,
-		LastUpdated:  tick.Time,
-		ExchangeName: c.Name,
-		AssetType:    a}
+	// tickerPrice := &ticker.Price{
+	// 	Last:         stats.Last,
+	// 	High:         stats.High,
+	// 	Low:          stats.Low,
+	// 	Bid:          tick.Bid,
+	// 	Ask:          tick.Ask,
+	// 	Volume:       tick.Volume,
+	// 	Open:         stats.Open,
+	// 	Pair:         p,
+	// 	LastUpdated:  tick.Time,
+	// 	ExchangeName: c.Name,
+	// 	AssetType:    a}
 
-	err = ticker.ProcessTicker(tickerPrice)
-	if err != nil {
-		return tickerPrice, err
-	}
+	// err = ticker.ProcessTicker(tickerPrice)
+	// if err != nil {
+	// 	return tickerPrice, err
+	// }
 
 	return ticker.GetTicker(c.Name, p, a)
 }
@@ -770,7 +770,7 @@ func (c *CoinbasePro) GetActiveOrders(ctx context.Context, req *order.MultiOrder
 	if err != nil {
 		return nil, err
 	}
-	var respOrders []GeneralizedOrderResponse
+	var respOrders []GetOrderResponse
 	// var fPair currency.Pair
 	// for i := range req.Pairs {
 	// 	// fPair, err = c.FormatExchangeCurrency(req.Pairs[i], asset.Spot)
@@ -778,7 +778,7 @@ func (c *CoinbasePro) GetActiveOrders(ctx context.Context, req *order.MultiOrder
 	// 		return nil, err
 	// 	}
 
-	// 	var resp []GeneralizedOrderResponse
+	// 	var resp []GetOrderResponse
 	// 	// resp, err = c.GetOrders(ctx,
 	// 	// 	[]string{"open", "pending", "active"},
 	// 	// 	fPair.String())
@@ -807,16 +807,16 @@ func (c *CoinbasePro) GetActiveOrders(ctx context.Context, req *order.MultiOrder
 			return nil, err
 		}
 		var orderType order.Type
-		orderType, err = order.StringToOrderType(respOrders[i].Type)
+		// orderType, err = order.StringToOrderType(respOrders[i].Type)
 		if err != nil {
 			log.Errorf(log.ExchangeSys, "%s %v", c.Name, err)
 		}
 		orders[i] = order.Detail{
-			OrderID:        respOrders[i].ID,
-			Amount:         respOrders[i].Size,
+			// OrderID:        respOrders[i].ID,
+			// Amount:         respOrders[i].Size,
 			ExecutedAmount: respOrders[i].FilledSize,
 			Type:           orderType,
-			Date:           respOrders[i].CreatedAt,
+			Date:           respOrders[i].CreatedTime,
 			Side:           side,
 			Pair:           curr,
 			Exchange:       c.Name,
@@ -832,10 +832,10 @@ func (c *CoinbasePro) GetOrderHistory(ctx context.Context, req *order.MultiOrder
 	if err != nil {
 		return nil, err
 	}
-	var respOrders []GeneralizedOrderResponse
+	var respOrders []GetOrderResponse
 	// if len(req.Pairs) > 0 {
 	// var fPair currency.Pair
-	// var resp []GeneralizedOrderResponse
+	// var resp []GetOrderResponse
 	// for i := range req.Pairs {
 	// fPair, err = c.FormatExchangeCurrency(req.Pairs[i], asset.Spot)
 	// if err != nil {
@@ -878,27 +878,27 @@ func (c *CoinbasePro) GetOrderHistory(ctx context.Context, req *order.MultiOrder
 			log.Errorf(log.ExchangeSys, "%s %v", c.Name, err)
 		}
 		var orderType order.Type
-		orderType, err = order.StringToOrderType(respOrders[i].Type)
+		// orderType, err = order.StringToOrderType(respOrders[i].Type)
 		if err != nil {
 			log.Errorf(log.ExchangeSys, "%s %v", c.Name, err)
 		}
 		detail := order.Detail{
-			OrderID:         respOrders[i].ID,
-			Amount:          respOrders[i].Size,
-			ExecutedAmount:  respOrders[i].FilledSize,
-			RemainingAmount: respOrders[i].Size - respOrders[i].FilledSize,
-			Cost:            respOrders[i].ExecutedValue,
-			CostAsset:       curr.Quote,
-			Type:            orderType,
-			Date:            respOrders[i].CreatedAt,
-			CloseTime:       respOrders[i].DoneAt,
-			Fee:             respOrders[i].FillFees,
-			FeeAsset:        curr.Quote,
-			Side:            side,
-			Status:          orderStatus,
-			Pair:            curr,
-			Price:           respOrders[i].Price,
-			Exchange:        c.Name,
+			OrderID: respOrders[i].OrderID,
+			// Amount:          respOrders[i].Size,
+			ExecutedAmount: respOrders[i].FilledSize,
+			// RemainingAmount: respOrders[i].Size - respOrders[i].FilledSize,
+			// Cost:            respOrders[i].ExecutedValue,
+			CostAsset: curr.Quote,
+			Type:      orderType,
+			Date:      respOrders[i].CreatedTime,
+			// CloseTime:       respOrders[i].DoneAt,
+			// Fee:             respOrders[i].FillFees,
+			FeeAsset: curr.Quote,
+			Side:     side,
+			Status:   orderStatus,
+			Pair:     curr,
+			// Price:           respOrders[i].Price,
+			Exchange: c.Name,
 		}
 		detail.InferCostsAndTimes()
 		orders[i] = detail

@@ -11,37 +11,793 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 )
 
+// ValCur is a sub-struct used in the type Account
+type ValCur struct {
+	Value    float64 `json:"value,string"`
+	Currency string  `json:"currency"`
+}
+
+// Account holds details for a trading account, returned by GetAccountByID and used as
+// a sub-struct in the type AllAccountsResponse
+type Account struct {
+	UUID             string    `json:"uuid"`
+	Name             string    `json:"name"`
+	Currency         string    `json:"currency"`
+	AvailableBalance ValCur    `json:"available_balance"`
+	Default          bool      `json:"default"`
+	Active           bool      `json:"active"`
+	CreatedAt        time.Time `json:"created_at"`
+	UpdatedAt        time.Time `json:"updated_at"`
+	DeletedAt        time.Time `json:"deleted_at"`
+	Type             string    `json:"type"`
+	Ready            bool      `json:"ready"`
+	Hold             ValCur    `json:"hold"`
+}
+
+// AllAccountsResponse holds many Account structs, as well as pagination information,
+// returned by GetAllAccounts
+type AllAccountsResponse struct {
+	Accounts []Account `json:"accounts"`
+	HasNext  bool      `json:"has_next"`
+	Cursor   string    `json:"cursor"`
+	Size     uint8     `json:"size"`
+}
+
+// OneAccountResponse is a temporary struct used for unmarshalling in GetAccountByID
+type OneAccountResponse struct {
+	Account Account `json:"account"`
+}
+
+// PriSiz is a sub-struct used in the type BestBidAsk
+type PriSiz struct {
+	Price float64 `json:"price,string"`
+	Size  float64 `json:"size,string"`
+}
+
+// ProductBook holds bid and ask prices for a particular product, returned by GetProductBook
+// and used as a sub-struct in the type BestBidAsk
+type ProductBook struct {
+	ProductID string    `json:"product_id"`
+	Bids      []PriSiz  `json:"bids"`
+	Asks      []PriSiz  `json:"asks"`
+	Time      time.Time `json:"time"`
+}
+
+// BestBidAsk holds the best bid and ask prices for a variety of products, returned by
+// GetBestBidAsk
+type BestBidAsk struct {
+	Pricebooks []ProductBook `json:"pricebooks"`
+}
+
+// ProductBook holds bids and asks for a particular product, returned by GetProductBook
+type ProductBookResponse struct {
+	Pricebook ProductBook `json:"pricebook"`
+}
+
 // Product holds product information, returned by GetAllProducts and GetProductByID
 type Product struct {
-	ID                        string  `json:"id"`
-	BaseCurrency              string  `json:"base_currency"`
-	QuoteCurrency             string  `json:"quote_currency"`
-	QuoteIncrement            float64 `json:"quote_increment,string"`
+	ID                        string  `json:"product_id"`
+	Price                     float64 `json:"price,string"`
+	PricePercentageChange24H  float64 `json:"price_percentage_change_24h,string"`
+	Volume24H                 float64 `json:"volume_24h,string"`
+	VolumePercentageChange24H float64 `json:"volume_percentage_change_24h,string"`
 	BaseIncrement             float64 `json:"base_increment,string"`
-	DisplayName               string  `json:"display_name"`
-	MinimumMarketFunds        float64 `json:"min_market_funds,string"`
-	MarginEnabled             bool    `json:"margin_enabled"`
-	PostOnly                  bool    `json:"post_only"`
-	LimitOnly                 bool    `json:"limit_only"`
-	CancelOnly                bool    `json:"cancel_only"`
+	QuoteIncrement            float64 `json:"quote_increment,string"`
+	QuoteMinSize              float64 `json:"quote_min_size,string"`
+	QuoteMaxSize              float64 `json:"quote_max_size,string"`
+	BaseMinSize               float64 `json:"base_min_size,string"`
+	BaseMaxSize               float64 `json:"base_max_size,string"`
+	BaseName                  string  `json:"base_name"`
+	QuoteName                 string  `json:"quote_name"`
+	Watched                   bool    `json:"watched"`
+	IsDisabled                bool    `json:"is_disabled"`
+	New                       bool    `json:"new"`
 	Status                    string  `json:"status"`
-	StatusMessage             string  `json:"status_message"`
+	CancelOnly                bool    `json:"cancel_only"`
+	LimitOnly                 bool    `json:"limit_only"`
+	PostOnly                  bool    `json:"post_only"`
 	TradingDisabled           bool    `json:"trading_disabled"`
-	ForeignExchangeStableCoin bool    `json:"fx_stablecoin"`
-	MaxSlippagePercentage     float64 `json:"max_slippage_percentage,string"`
 	AuctionMode               bool    `json:"auction_mode"`
-	HighBidLimitPercentage    string  `json:"high_bid_limit_percentage"`
+	ProductType               string  `json:"product_type"`
+	QuoteCurrencyID           string  `json:"quote_currency_id"`
+	BaseCurrencyID            string  `json:"base_currency_id"`
+	FCMTradingSessionDetails  struct {
+		IsSessionOpen bool      `json:"is_session_open"`
+		OpenTime      time.Time `json:"open_time"`
+		CloseTime     time.Time `json:"close_time"`
+	} `json:"fcm_trading_session_details"`
+	MidMarketPrice       convert.StringToFloat64 `json:"mid_market_price"`
+	Alias                string                  `json:"alias"`
+	AliasTo              []string                `json:"alias_to"`
+	BaseDisplaySymbol    string                  `json:"base_display_symbol"`
+	QuoteDisplaySymbol   string                  `json:"quote_display_symbol"`
+	ViewOnly             bool                    `json:"view_only"`
+	PriceIncrement       float64                 `json:"price_increment,string"`
+	FutureProductDetails struct {
+		Venue                  string  `json:"venue"`
+		ContractCode           string  `json:"contract_code"`
+		ContractExpiry         string  `json:"contract_expiry"`
+		ContractSize           float64 `json:"contract_size,string"`
+		ContractRootUnit       string  `json:"contract_root_unit"`
+		GroupDescription       string  `json:"group_description"`
+		ContractExpiryTimezone string  `json:"contract_expiry_timezone"`
+		GroupShortDescription  string  `json:"group_short_description"`
+		RiskManagedBy          string  `json:"risk_managed_by"`
+		ContractExpiryType     string  `json:"contract_expiry_type"`
+		PerpetualDetails       struct {
+			OpenInterest float64   `json:"open_interest,string"`
+			FundingRate  float64   `json:"funding_rate,string"`
+			FundingTime  time.Time `json:"funding_time"`
+		} `json:"perpetual_details"`
+		ContractDisplayName string `json:"contract_display_name"`
+	} `json:"future_product_details"`
+}
+
+// AllProducts holds information on a lot of available currency pairs, returned by
+// GetAllProducts
+type AllProducts struct {
+	Products    []Product `json:"products"`
+	NumProducts int32     `json:"num_products"`
+}
+
+// UnixTimestamp is a type used to unmarshal unix timestamps returned from
+// the exchange
+type UnixTimestamp time.Time
+
+func (t *UnixTimestamp) UnmarshalJSON(b []byte) error {
+	var timestampStr string
+	err := json.Unmarshal(b, &timestampStr)
+	if err != nil {
+		return err
+	}
+	timestamp, err := strconv.ParseInt(timestampStr, 10, 64)
+	if err != nil {
+		return err
+	}
+	*t = UnixTimestamp(time.Unix(timestamp, 0))
+	return nil
+}
+
+func (t UnixTimestamp) String() string {
+	return time.Time(t).String()
+}
+
+// History holds historic rate information, returned by GetHistoricRates
+type History struct {
+	Candles []struct {
+		Start  UnixTimestamp `json:"start"`
+		Low    float64       `json:"low,string"`
+		High   float64       `json:"high,string"`
+		Open   float64       `json:"open,string"`
+		Close  float64       `json:"close,string"`
+		Volume float64       `json:"volume,string"`
+	} `json:"candles"`
 }
 
 // Ticker holds basic ticker information, returned by GetTicker
 type Ticker struct {
-	Ask     float64   `json:"ask,string"`
-	Bid     float64   `json:"bid,string"`
-	Volume  float64   `json:"volume,string"`
-	TradeID int32     `json:"trade_id"`
-	Price   float64   `json:"price,string"`
-	Size    float64   `json:"size,string"`
-	Time    time.Time `json:"time"`
+	Trades []struct {
+		TradeID   string                  `json:"trade_id"`
+		ProductID string                  `json:"product_id"`
+		Price     float64                 `json:"price,string"`
+		Size      float64                 `json:"size,string"`
+		Time      time.Time               `json:"time"`
+		Side      string                  `json:"side"`
+		Bid       convert.StringToFloat64 `json:"bid"`
+		Ask       convert.StringToFloat64 `json:"ask"`
+	} `json:"trades"`
+	BestBid float64 `json:"best_bid,string"`
+	BestAsk float64 `json:"best_ask,string"`
+}
+
+// MarketMarketIOC is a sub-struct used in the type OrderConfiguration
+type MarketMarketIOC struct {
+	QuoteSize string `json:"quote_size,omitempty"`
+	BaseSize  string `json:"base_size,omitempty"`
+}
+
+// LimitLimitGTC is a sub-struct used in the type OrderConfiguration
+type LimitLimitGTC struct {
+	BaseSize   string `json:"base_size"`
+	LimitPrice string `json:"limit_price"`
+	PostOnly   bool   `json:"post_only"`
+}
+
+// LimitLimitGTD is a sub-struct used in the type OrderConfiguration
+type LimitLimitGTD struct {
+	BaseSize   string    `json:"base_size"`
+	LimitPrice string    `json:"limit_price"`
+	EndTime    time.Time `json:"end_time"`
+	PostOnly   bool      `json:"post_only"`
+}
+
+// StopLimitStopLimitGTC is a sub-struct used in the type OrderConfiguration
+type StopLimitStopLimitGTC struct {
+	BaseSize      string `json:"base_size"`
+	LimitPrice    string `json:"limit_price"`
+	StopPrice     string `json:"stop_price"`
+	StopDirection string `json:"stop_direction"`
+}
+
+// StopLimitStopLimitGTD is a sub-struct used in the type OrderConfiguration
+type StopLimitStopLimitGTD struct {
+	BaseSize      string    `json:"base_size"`
+	LimitPrice    string    `json:"limit_price"`
+	StopPrice     string    `json:"stop_price"`
+	EndTime       time.Time `json:"end_time"`
+	StopDirection string    `json:"stop_direction"`
+}
+
+// OrderConfiguration is a struct used in the formation of requests for PlaceOrder
+type OrderConfiguration struct {
+	MarketMarketIOC       *MarketMarketIOC       `json:"market_market_ioc,omitempty"`
+	LimitLimitGTC         *LimitLimitGTC         `json:"limit_limit_gtc,omitempty"`
+	LimitLimitGTD         *LimitLimitGTD         `json:"limit_limit_gtd,omitempty"`
+	StopLimitStopLimitGTC *StopLimitStopLimitGTC `json:"stop_limit_stop_limit_gtc,omitempty"`
+	StopLimitStopLimitGTD *StopLimitStopLimitGTD `json:"stop_limit_stop_limit_gtd,omitempty"`
+}
+
+// PlaceOrderResp contains information on an order, returned by PlaceOrder
+type PlaceOrderResp struct {
+	Success         bool   `json:"success"`
+	FailureReason   string `json:"failure_reason"`
+	OrderID         string `json:"order_id"`
+	SuccessResponse struct {
+		OrderID       string `json:"order_id"`
+		ProductID     string `json:"product_id"`
+		Side          string `json:"side"`
+		ClientOrderID string `json:"client_oid"`
+	} `json:"success_response"`
+	ErrorResponse struct {
+		Error                 string `json:"error"`
+		Message               string `json:"message"`
+		ErrorDetails          string `json:"error_details"`
+		PreviewFailureReason  string `json:"preview_failure_reason"`
+		NewOrderFailureReason string `json:"new_order_failure_reason"`
+	} `json:"error_response"`
+	OrderConfiguration OrderConfiguration `json:"order_configuration"`
+}
+
+// CancelOrderResp contains information on attempted order cancellations, returned by
+// CancelOrders
+type CancelOrderResp struct {
+	Results []struct {
+		Success       bool   `json:"success"`
+		FailureReason string `json:"failure_reason"`
+		OrderID       string `json:"order_id"`
+	} `json:"results"`
+}
+
+// EditOrderPreviewResp contains information on the effects of editing an order,
+// returned by EditOrderPreview
+type EditOrderPreviewResp struct {
+	Slippage           float64 `json:"slippage,string"`
+	OrderTotal         float64 `json:"order_total,string"`
+	CommissionTotal    float64 `json:"commission_total,string"`
+	QuoteSize          float64 `json:"quote_size,string"`
+	BaseSize           float64 `json:"base_size,string"`
+	BestBid            float64 `json:"best_bid,string"`
+	BestAsk            float64 `json:"best_ask,string"`
+	AverageFilledPrice float64 `json:"average_filled_price,string"`
+}
+
+// GetOrderResponse contains information on an order, returned by GetOrderByID
+// and used in GetAllOrdersResp
+type GetOrderResponse struct {
+	OrderID               string             `json:"order_id"`
+	ProductID             string             `json:"product_id"`
+	UserID                string             `json:"user_id"`
+	OrderConfiguration    OrderConfiguration `json:"order_configuration"`
+	Side                  string             `json:"side"`
+	ClientOID             string             `json:"client_order_id"`
+	Status                string             `json:"status"`
+	TimeInForce           string             `json:"time_in_force"`
+	CreatedTime           time.Time          `json:"created_time"`
+	CompletionPercentage  float64            `json:"completion_percentage,string"`
+	FilledSize            float64            `json:"filled_size,string"`
+	AverageFilledPrice    float64            `json:"average_filled_price,string"`
+	Fee                   float64            `json:"fee,string"`
+	NumberOfFills         int64              `json:"num_fills,string"`
+	FilledValue           float64            `json:"filled_value,string"`
+	PendingCancel         bool               `json:"pending_cancel"`
+	SizeInQuote           bool               `json:"size_in_quote"`
+	TotalFees             float64            `json:"total_fees,string"`
+	SizeInclusiveOfFees   bool               `json:"size_inclusive_of_fees"`
+	TotalValueAfterFees   float64            `json:"total_value_after_fees,string"`
+	TriggerStatus         string             `json:"trigger_status"`
+	OrderType             string             `json:"order_type"`
+	RejectReason          string             `json:"reject_reason"`
+	Settled               bool               `json:"settled"`
+	ProductType           string             `json:"product_type"`
+	RejectMessage         string             `json:"reject_message"`
+	CancelMessage         string             `json:"cancel_message"`
+	OrderPlacementSource  string             `json:"order_placement_source"`
+	OutstandingHoldAmount float64            `json:"outstanding_hold_amount,string"`
+	IsLiquidation         bool               `json:"is_liquidation"`
+	LastFillTime          time.Time          `json:"last_fill_time"`
+	EditHistory           []struct {
+		Price                  float64   `json:"price,string"`
+		Size                   float64   `json:"size,string"`
+		ReplaceAcceptTimestamp time.Time `json:"replace_accept_timestamp"`
+	} `json:"edit_history"`
+}
+
+// FillResponse contains fill information, returned by GetFills
+type FillResponse struct {
+	Fills []struct {
+		EntryID            string    `json:"entry_id"`
+		TradeID            string    `json:"trade_id"`
+		OrderID            string    `json:"order_id"`
+		TradeTime          time.Time `json:"trade_time"`
+		TradeType          string    `json:"trade_type"`
+		Price              float64   `json:"price,string"`
+		Size               float64   `json:"size,string"`
+		Commission         float64   `json:"commission,string"`
+		ProductID          string    `json:"product_id"`
+		SequenceTimestamp  time.Time `json:"sequence_timestamp"`
+		LiquidityIndicator string    `json:"liquidity_indicator"`
+		SizeInQuote        bool      `json:"size_in_quote"`
+		UserID             string    `json:"user_id"`
+		Side               string    `json:"side"`
+	} `json:"fills"`
+	Cursor string `json:"cursor"`
+}
+
+// TransactionSummary contains a summary of transaction fees, volume, and the like. Returned
+// by GetTransactionSummary
+type TransactionSummary struct {
+	TotalVolume float64 `json:"total_volume"`
+	TotalFees   float64 `json:"total_fees"`
+	FeeTier     struct {
+		PricingTier  float64 `json:"pricing_tier,string"`
+		USDFrom      float64 `json:"usd_from,string"`
+		USDTo        float64 `json:"usd_to,string"`
+		TakerFeeRate float64 `json:"taker_fee_rate,string"`
+		MakerFeeRate float64 `json:"maker_fee_rate,string"`
+	}
+	MarginRate struct {
+		Value float64 `json:"value,string"`
+	}
+	GoodsAndServicesTax struct {
+		Rate float64 `json:"rate,string"`
+		Type string  `json:"type"`
+	}
+	AdvancedTradeOnlyVolume float64 `json:"advanced_trade_only_volume"`
+	AdvancedTradeOnlyFees   float64 `json:"advanced_trade_only_fees"`
+	CoinbaseProVolume       float64 `json:"coinbase_pro_volume"`
+	CoinbaseProFees         float64 `json:"coinbase_pro_fees"`
+}
+
+// GetAllOrdersResp contains information on a lot of orders, returned by GetAllOrders
+type GetAllOrdersResp struct {
+	Orders   []GetOrderResponse `json:"orders"`
+	Sequence int64              `json:"sequence,string"`
+	HasNext  bool               `json:"has_next"`
+	Cursor   string             `json:"cursor"`
+}
+
+// IDResource holds an ID, resource type, and associated data, used in ListNotificationsResponse,
+// TransactionData
+type IDResource struct {
+	ID           string `json:"id"`
+	Resource     string `json:"resource"`
+	ResourcePath string `json:"resource_path"`
+	Email        string `json:"email"`
+}
+
+// PaginationResp holds pagination information, used in ListNotificationsResponse,
+// GetAllWalletsResponse,
+type PaginationResp struct {
+	EndingBefore         string `json:"ending_before"`
+	StartingAfter        string `json:"starting_after"`
+	PreviousEndingBefore string `json:"previous_ending_before"`
+	NextStartingAfter    string `json:"next_starting_after"`
+	Limit                uint8  `json:"limit"`
+	Order                string `json:"order"`
+	PreviousURI          string `json:"previous_uri"`
+	NextURI              string `json:"next_uri"`
+}
+
+// PaginationInp holds information needed to engage in pagination with Sign in With
+// Coinbase. Used in ListNotifications, GetAllWallets, GetAllAddresses,
+type PaginationInp struct {
+	Limit         uint8
+	OrderAscend   bool
+	StartingAfter string
+	EndingBefore  string
+}
+
+// ListNotificationsResponse holds information on notifications that the user is subscribed
+// to. Returned by ListNotifications
+type ListNotificationsResponse struct {
+	Pagination PaginationResp `json:"pagination"`
+	Data       []struct {
+		ID   string `json:"id"`
+		Type string `json:"type"`
+		Data struct {
+			ID            string     `json:"id"`
+			Status        string     `json:"status"`
+			PaymentMethod IDResource `json:"payment_method"`
+			Transaction   IDResource `json:"transaction"`
+			Amount        struct {
+				Amount   float64 `json:"amount,string"`
+				Currency string  `json:"currency"`
+			}
+			Total struct {
+				Amount   float64 `json:"amount,string"`
+				Currency string  `json:"currency"`
+			}
+			Subtotal struct {
+				Amount   float64 `json:"amount,string"`
+				Currency string  `json:"currency"`
+			}
+			CreatedAt    time.Time `json:"created_at"`
+			UpdatedAt    time.Time `json:"updated_at"`
+			Resource     string    `json:"resource"`
+			ResourcePath string    `json:"resource_path"`
+			Committed    bool      `json:"committed"`
+			Instant      bool      `json:"instant"`
+			Fees         []struct {
+				Type   string `json:"type"`
+				Amount struct {
+					Amount   float64 `json:"amount,string"`
+					Currency string  `json:"currency"`
+				} `json:"amount"`
+			} `json:"fees"`
+			PayoutAt time.Time `json:"payout_at"`
+		} `json:"data"`
+		User             IDResource `json:"user"`
+		Account          IDResource `json:"account"`
+		DeliveryAttempts int32      `json:"delivery_attempts"`
+		CreatedAt        time.Time  `json:"created_at"`
+		Resource         string     `json:"resource"`
+		ResourcePath     string     `json:"resource_path"`
+	} `json:"data"`
+}
+
+// UserResponse holds information on a user, returned by GetUseByID and GetCurrentUser
+type UserResponse struct {
+	Data struct {
+		ID              string `json:"id"`
+		Name            string `json:"name"`
+		Username        string `json:"username"`
+		ProfileLocation string `json:"profile_location"`
+		ProfileBio      string `json:"profile_bio"`
+		ProfileURL      string `json:"profile_url"`
+		AvatarURL       string `json:"avatar_url"`
+		Resource        string `json:"resource"`
+		ResourcePath    string `json:"resource_path"`
+		LegacyID        string `json:"legacy_id"`
+		TimeZone        string `json:"time_zone"`
+		NativeCurrency  string `json:"native_currency"`
+		BitcoinUnit     string `json:"bitcoin_unit"`
+		State           string `json:"state"`
+		Country         struct {
+			Code       string `json:"code"`
+			Name       string `json:"name"`
+			IsInEurope bool   `json:"is_in_europe"`
+		} `json:"country"`
+		Nationality struct {
+			Code string `json:"code"`
+			Name string `json:"name"`
+		} `json:"nationality"`
+		RegionSupportsFiatTransfers           bool      `json:"region_supports_fiat_transfers"`
+		RegionSupportsCryptoToCryptoTransfers bool      `json:"region_supports_crypto_to_crypto_transfers"`
+		CreatedAt                             time.Time `json:"created_at"`
+		SupportsRewards                       bool      `json:"supports_rewards"`
+		Tiers                                 struct {
+			CompletedDescription string `json:"completed_description"`
+			UpgradeButtonText    string `json:"upgrade_button_text"`
+			Header               string `json:"header"`
+			Body                 string `json:"body"`
+		} `json:"tiers"`
+		ReferralMoney struct {
+			Amount            float64 `json:"amount,string"`
+			Currency          string  `json:"currency"`
+			CurrencySymbol    string  `json:"currency_symbol"`
+			ReferralThreshold float64 `json:"referral_threshold,string"`
+		} `json:"referral_money"`
+		HasBlockingBuyRestrictions            bool   `json:"has_blocking_buy_restrictions"`
+		HasMadeAPurchase                      bool   `json:"has_made_a_purchase"`
+		HasBuyDepositPaymentMethods           bool   `json:"has_buy_deposit_payment_methods"`
+		HasUnverifiedBuyDepositPaymentMethods bool   `json:"has_unverified_buy_deposit_payment_methods"`
+		NeedsKYCRemediation                   bool   `json:"needs_kyc_remediation"`
+		ShowInstantAchUx                      bool   `json:"show_instant_ach_ux"`
+		UserType                              string `json:"user_type"`
+		Email                                 string `json:"email"`
+	} `json:"data"`
+}
+
+// AuthResponse holds authentication information, returned by GetAuthInfo
+type AuthResponse struct {
+	Data struct {
+		Method    string   `json:"method"`
+		Scopes    []string `json:"scopes"`
+		OAuthMeta interface{}
+	} `json:"data"`
+}
+
+// WalletData holds wallet information, returned by in GenWalletResponse and GetAllWalletsResponse
+type WalletData struct {
+	ID       string `json:"id"`
+	Name     string `json:"name"`
+	Primary  bool   `json:"primary"`
+	Type     string `json:"type"`
+	Currency struct {
+		Code                string `json:"code"`
+		Name                string `json:"name"`
+		Color               string `json:"color"`
+		SortIndex           int32  `json:"sort_index"`
+		Exponent            int32  `json:"exponent"`
+		Type                string `json:"type"`
+		AddressRegex        string `json:"address_regex"`
+		AssetID             string `json:"asset_id"`
+		DestinationTagName  string `json:"destination_tag_name"`
+		DestinationTagRegex string `json:"destination_tag_regex"`
+		Slug                string `json:"slug"`
+	} `json:"currency"`
+	Balance struct {
+		Amount   float64 `json:"amount,string"`
+		Currency string  `json:"currency"`
+	} `json:"balance"`
+	CreatedAt        time.Time `json:"created_at"`
+	UpdatedAt        time.Time `json:"updated_at"`
+	Resource         string    `json:"resource"`
+	ResourcePath     string    `json:"resource_path"`
+	AllowDeposits    bool      `json:"allow_deposits"`
+	AllowWithdrawals bool      `json:"allow_withdrawals"`
+}
+
+// GenWalletResponse holds information on a single wallet, returned by CreateWallet,
+// GetWalletByID, and UpdateWalletName
+type GenWalletResponse struct {
+	Data WalletData `json:"data"`
+}
+
+// GetAllWalletsResponse holds information on many wallets, returned by GetAllWallets
+type GetAllWalletsResponse struct {
+	Pagination PaginationResp `json:"pagination"`
+	Data       []WalletData   `json:"data"`
+}
+
+// AddressData holds address information, used in GenAddrResponse and GetAllAddrResponse
+type AddressData struct {
+	ID          string `json:"id"`
+	Address     string `json:"address"`
+	AddressInfo struct {
+		Address        string `json:"address"`
+		DestinationTag string `json:"destination_tag"`
+	} `json:"address_info"`
+	Name         string    `json:"name"`
+	CreatedAt    time.Time `json:"created_at"`
+	UpdatedAt    time.Time `json:"updated_at"`
+	Network      string    `json:"network"`
+	URIScheme    string    `json:"uri_scheme"`
+	Resource     string    `json:"resource"`
+	ResourcePath string    `json:"resource_path"`
+	Warnings     []struct {
+		Type     string `json:"type"`
+		Title    string `json:"title"`
+		Details  string `json:"details"`
+		ImageURL string `json:"image_url"`
+		Options  []struct {
+			Text  string `json:"text"`
+			Style string `json:"style"`
+			ID    string `json:"id"`
+		} `json:"options"`
+	} `json:"warnings"`
+	QRCodeImageURL   string `json:"qr_code_image_url"`
+	AddressLabel     string `json:"address_label"`
+	DefaultReceive   bool   `json:"default_receive"`
+	DestinationTag   string `json:"destination_tag"`
+	DepositURI       string `json:"deposit_uri"`
+	CallbackURL      string `json:"callback_url"`
+	ShareAddressCopy struct {
+		Line1 string `json:"line1"`
+		Line2 string `json:"line2"`
+	} `json:"share_address_copy"`
+	ReceiveSubtitle string `json:"receive_subtitle"`
+	InlineWarning   struct {
+		Text    string `json:"text"`
+		Tooltip struct {
+			Title    string `json:"title"`
+			Subtitle string `json:"subtitle"`
+		} `json:"tooltip"`
+	} `json:"inline_warning"`
+}
+
+// GenAddrResponse holds information on a generated address, returned by CreateAddress and
+// GetAddressByID. Used in GetAllAddrResponse
+type GenAddrResponse struct {
+	Data AddressData `json:"data"`
+}
+
+// GetAllAddrResponse holds information on many addresses, returned by GetAllAddresses
+type GetAllAddrResponse struct {
+	Pagination PaginationResp `json:"pagination"`
+	Data       []AddressData  `json:"data"`
+}
+
+// AmCur is a sub-type used in TransactionData, LimitStruct
+type AmCur struct {
+	Amount   float64 `json:"amount,string"`
+	Currency string  `json:"currency"`
+}
+
+// TransactionData is a sub-type that holds information on a transaction. Used in
+// ManyTransactionsResp
+type TransactionData struct {
+	ID                string     `json:"id"`
+	Type              string     `json:"type"`
+	Status            string     `json:"status"`
+	Amount            AmCur      `json:"amount"`
+	NativeAmount      AmCur      `json:"native_amount"`
+	Description       string     `json:"description"`
+	CreatedAt         time.Time  `json:"created_at"`
+	UpdatedAt         time.Time  `json:"updated_at"`
+	Resource          string     `json:"resource"`
+	ResourcePath      string     `json:"resource_path"`
+	InstantExchange   bool       `json:"instant_exchange"`
+	Buy               IDResource `json:"buy"`
+	AdvancedTradeFill struct {
+		FillPrice  float64 `json:"fill_price,string"`
+		ProductID  string  `json:"product_id"`
+		OrderID    string  `json:"order_id"`
+		Commission float64 `json:"commission,string"`
+		OrderSide  string  `json:"order_side"`
+	} `json:"advanced_trade_fill"`
+	Details struct {
+		Title    string `json:"title"`
+		Subtitle string `json:"subtitle"`
+		// SubsidebarLabel string `json:"subsidebar_label"`
+		// Header  string `json:"header"`
+		// Health string `json:"health"`
+	} `json:"details"`
+	Network struct {
+		Status string `json:"status"`
+		// StatusDescription string `json:"status_description"`
+		Hash string `json:"hash"`
+		Name string `json:"name"`
+	} `json:"network"`
+	To      IDResource `json:"to"`
+	From    IDResource `json:"from"`
+	Address struct {
+	} `json:"address"`
+	Application struct {
+	} `json:"application"`
+}
+
+// ManyTransactionsResp holds information on many transactions. Returned by
+// GetAddressTransactions, ListTransactions
+type ManyTransactionsResp struct {
+	Pagination PaginationResp    `json:"pagination"`
+	Data       []TransactionData `json:"data"`
+}
+
+// GenTransactionResp holds information on one transaction. Returned by SendMoney,
+type GenTransactionResp struct {
+	Data TransactionData `json:"data"`
+}
+
+// DeposWithdrData is a sub-type that holds information on a deposit/withdrawal. Used in
+// GenDeposWithdrResp and ManyDeposWithdrResp
+type DeposWithdrData struct {
+	ID            string     `json:"id"`
+	Status        string     `json:"status"`
+	PaymentMethod IDResource `json:"payment_method"`
+	Transaction   IDResource `json:"transaction"`
+	Amount        AmCur      `json:"amount"`
+	Subtotal      AmCur      `json:"subtotal"`
+	CreatedAt     time.Time  `json:"created_at"`
+	UpdatedAt     time.Time  `json:"updated_at"`
+	Resource      string     `json:"resource"`
+	ResourcePath  string     `json:"resource_path"`
+	Committed     bool       `json:"committed"`
+	Fee           AmCur      `json:"fee"`
+	PayoutAt      time.Time  `json:"payout_at"`
+}
+
+// GenDeposWithdrResp holds information on a deposit. Returned by DepositFunds, CommitDeposit,
+// and GetDepositByID
+type GenDeposWithdrResp struct {
+	Data DeposWithdrData `json:"data"`
+}
+
+// ManyDeposWithdrResp holds information on many deposits. Returned by GetAllDeposits
+type ManyDeposWithdrResp struct {
+	Pagination PaginationResp    `json:"pagination"`
+	Data       []DeposWithdrData `json:"data"`
+}
+
+// PaymentMethodData is a sub-type that holds information on a payment method. Used in
+// GenPaymentMethodResp and GetAllPaymentMethodsResp
+type PaymentMethodData struct {
+	ID            string    `json:"id"`
+	Type          string    `json:"type"`
+	Name          string    `json:"name"`
+	Currency      string    `json:"currency"`
+	PrimaryBuy    bool      `json:"primary_buy"`
+	PrimarySell   bool      `json:"primary_sell"`
+	AllowBuy      bool      `json:"allow_buy"`
+	AllowSell     bool      `json:"allow_sell"`
+	AllowDeposit  bool      `json:"allow_deposit"`
+	AllowWithdraw bool      `json:"allow_withdraw"`
+	InstantBuy    bool      `json:"instant_buy"`
+	InstantSell   bool      `json:"instant_sell"`
+	CreatedAt     time.Time `json:"created_at"`
+	UpdatedAt     time.Time `json:"updated_at"`
+	Resource      string    `json:"resource"`
+	ResourcePath  string    `json:"resource_path"`
+	Limits        struct {
+		Type string `json:"type"`
+		Name string `json:"name"`
+	} `json:"limits"`
+	FiatAccount           IDResource `json:"fiat_account"`
+	Verified              bool       `json:"verified"`
+	MinimumPurchaseAmount AmCur      `json:"minimum_purchase_amount"`
+}
+
+// GetAllPaymentMethodsResp holds information on many payment methods. Returned by
+// GetAllPaymentMethods
+type GetAllPaymentMethodsResp struct {
+	Pagination PaginationResp      `json:"pagination"`
+	Data       []PaymentMethodData `json:"data"`
+}
+
+// GenPaymentMethodResp holds information on a payment method. Returned by
+// GetPaymentMethodByID
+type GenPaymentMethodResp struct {
+	Data PaymentMethodData `json:"data"`
+}
+
+// GetFiatCurrenciesResp holds information on fiat currencies. Returned by
+// GetFiatCurrencies
+type GetFiatCurrenciesResp struct {
+	Data []struct {
+		ID      string  `json:"id"`
+		Name    string  `json:"name"`
+		MinSize float64 `json:"min_size,string"`
+	}
+}
+
+// GetCryptocurrenciesResp holds information on cryptocurrencies. Returned by
+// GetCryptocurrencies
+type GetCryptocurrenciesResp struct {
+	Data []struct {
+		Code         string `json:"code"`
+		Name         string `json:"name"`
+		Color        string `json:"color"`
+		SortIndex    uint16 `json:"sort_index"`
+		Exponent     uint8  `json:"exponent"`
+		Type         string `json:"type"`
+		AddressRegex string `json:"address_regex"`
+		AssetID      string `json:"asset_id"`
+	}
+}
+
+// GetExchangeRatesResp holds information on exchange rates. Returned by GetExchangeRates
+type GetExchangeRatesResp struct {
+	Data struct {
+		Currency string                             `json:"currency"`
+		Rates    map[string]convert.StringToFloat64 `json:"rates"`
+	} `json:"data"`
+}
+
+// GetPriceResp holds information on a price. Returned by GetPrice
+type GetPriceResp struct {
+	Data struct {
+		Amount   float64 `json:"amount,string"`
+		Base     string  `json:"base"`
+		Currency string  `json:"currency"`
+	} `json:"data"`
+}
+
+// ServerTime holds current requested server time information
+type ServerTime struct {
+	Data struct {
+		ISO   time.Time `json:"iso"`
+		Epoch uint64    `json:"epoch"`
+	} `json:"data"`
 }
 
 // Trade holds executed trade information, returned by GetTrades
@@ -51,16 +807,6 @@ type Trade struct {
 	Size    float64   `json:"size,string"`
 	Time    time.Time `json:"time"`
 	Side    string    `json:"side"`
-}
-
-// History holds historic rate information, returned by GetHistoricRates
-type History struct {
-	Time   time.Time
-	Low    float64
-	High   float64
-	Open   float64
-	Close  float64
-	Volume float64
 }
 
 // Stats holds 30 day and 24 hr data for a currency pair, returned by GetStats
@@ -108,26 +854,7 @@ type Currency struct {
 		MaxWithdrawalAmount   float64 `json:"max_withdrawal_amount"`
 		NetworkConfirmations  int32   `json:"network_confirmations"`
 		ProcessingTimeSeconds int32   `json:"processing_time_seconds"`
-	}
-}
-
-// ServerTime holds current requested server time information
-// type ServerTime struct {
-// 	ISO   time.Time `json:"iso"`
-// 	Epoch float64   `json:"epoch"`
-// }
-
-// AccountResponse holds details for a trading account, returned by GetAllAccounts
-// and GetAccountByID
-type AccountResponse struct {
-	ID             string  `json:"id"`
-	Currency       string  `json:"currency"`
-	Balance        float64 `json:"balance,string"`
-	Hold           float64 `json:"hold,string"`
-	Available      float64 `json:"available,string"`
-	ProfileID      string  `json:"profile_id"`
-	TradingEnabled bool    `json:"trading_enabled"`
-	PendingDeposit string  `json:"pending_deposit"`
+	} `json:"supported_networks"`
 }
 
 // AccountLedgerResponse holds account history information, returned by GetAccountLedger
@@ -154,37 +881,6 @@ type AccountHolds struct {
 	UpdatedAt time.Time `json:"updated_at"`
 	Type      string    `json:"type"`
 	Reference string    `json:"ref"`
-}
-
-// GeneralizedOrderResponse contains information on an order, returned by GetAllOrders,
-// PlaceOrder, and GetOrderByID
-type GeneralizedOrderResponse struct {
-	ID             string    `json:"id"`
-	Price          float64   `json:"price,string"`
-	Size           float64   `json:"size,string"`
-	ProductID      string    `json:"product_id"`
-	ProfileID      string    `json:"profile_id"`
-	Side           string    `json:"side"`
-	Funds          float64   `json:"funds,string"`
-	SpecifiedFunds float64   `json:"specified_funds,string"`
-	Type           string    `json:"type"`
-	TimeInForce    string    `json:"time_in_force"`
-	ExpireTime     time.Time `json:"expire_time"`
-	PostOnly       bool      `json:"post_only"`
-	CreatedAt      time.Time `json:"created_at"`
-	DoneAt         time.Time `json:"done_at"`
-	DoneReason     string    `json:"done_reason"`
-	RejectReason   string    `json:"reject_reason"`
-	FillFees       float64   `json:"fill_fees,string"`
-	FilledSize     float64   `json:"filled_size,string"`
-	ExecutedValue  float64   `json:"executed_value,string"`
-	Status         string    `json:"status"`
-	Settled        bool      `json:"settled"`
-	Stop           string    `json:"stop"`
-	StopPrice      float64   `json:"stop_price,string"`
-	FundingAmount  float64   `json:"funding_amount,string"`
-	ClientOID      string    `json:"client_oid"`
-	MarketType     string    `json:"market_type"`
 }
 
 // Funding holds funding data
@@ -265,12 +961,6 @@ type GeneralizedOrderResponse struct {
 // 	FundedAmount  float64 `json:"funded_amount,string"`
 // 	DefaultAmount float64 `json:"default_amount,string"`
 // }
-
-// AmCur is a sub-type used in LimitStruct
-type AmCur struct {
-	Amount   float64 `json:"amount,string"`
-	Currency string  `json:"currency"`
-}
 
 // LimitStruct is a sub-type used in PaymentMethod
 type LimitStruct struct {
@@ -551,25 +1241,6 @@ type OrderbookFinalResponse struct {
 		Time         time.Time `json:"time"`
 	}
 	Time time.Time `json:"time"`
-}
-
-// FillResponse contains fill information, returned by GetFills
-type FillResponse struct {
-	TradeID         int32     `json:"trade_id"`
-	ProductID       string    `json:"product_id"`
-	OrderID         string    `json:"order_id"`
-	UserID          string    `json:"user_id"`
-	ProfileID       string    `json:"profile_id"`
-	Liquidity       string    `json:"liquidity"`
-	Price           float64   `json:"price,string"`
-	Size            float64   `json:"size,string"`
-	Fee             float64   `json:"fee,string"`
-	CreatedAt       time.Time `json:"created_at"`
-	Side            string    `json:"side"`
-	Settled         bool      `json:"settled"`
-	USDVolume       float64   `json:"usd_volume,string"`
-	MarketType      string    `json:"market_type"`
-	FundingCurrency string    `json:"funding_currency"`
 }
 
 // WebsocketSubscribe takes in subscription information
@@ -1016,11 +1687,4 @@ type StakeWrap struct {
 // by GetWrappedAssetConversionRate
 type WrappedAssetConversionRate struct {
 	Amount float64 `json:"amount,string"`
-}
-
-// ReturnedPaginationHeaders contains the pagination headers returned by the exchange,
-// returned by GetHolds, GetAccountLedger,
-type ReturnedPaginationHeaders struct {
-	before string
-	after  string
 }
