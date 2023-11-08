@@ -875,15 +875,6 @@ func TestSetQuoteProducts(t *testing.T) {
 	}
 }
 
-func TestResetMMPStatus(t *testing.T) {
-	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
-
-	if _, err := ok.ResetMMPStatus(contextGenerate()); err != nil && !strings.Contains(err.Error(), "No permission to use this API") {
-		t.Errorf("%s ResetMMPStatus() error %v", ok.Name, err)
-	}
-}
-
 func TestCreateQuote(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
@@ -3691,7 +3682,7 @@ func TestGetLeverateEstimatedInfo(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
 	_, err := ok.GetLeverateEstimatedInfo(context.Background(), "SPOT", "cross", "1", "", currency.NewPair(currency.BTC, currency.USDT), currency.EMPTYCODE)
 	if err != nil {
-		t.Fatal(err)
+		t.Error(err)
 	}
 }
 
@@ -3705,7 +3696,7 @@ func TestManualBorrowAndRepayInQuickMarginMode(t *testing.T) {
 		Side:         "borrow",
 	})
 	if err != nil {
-		t.Fatal(err)
+		t.Error(err)
 	}
 }
 
@@ -3714,6 +3705,106 @@ func TestGetBorrowAndRepayHistoryInQuickMarginMode(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
 	_, err := ok.GetBorrowAndRepayHistoryInQuickMarginMode(context.Background(), currency.EMPTYPAIR, currency.BTC, "borrow", "", "", time.Time{}, time.Time{}, 10)
 	if err != nil {
-		t.Fatal(err)
+		t.Error(err)
+	}
+}
+
+func TestGetVIPInterestAccruedData(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
+	_, err := ok.GetVIPInterestAccruedData(context.Background(), currency.ETH, "", time.Time{}, time.Time{}, 10)
+	if err != nil {
+		t.Error(err)
+	}
+}
+func TestGetVIPInterestDeductedData(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
+	_, err := ok.GetVIPInterestDeductedData(context.Background(), currency.ETH, "", time.Time{}, time.Time{}, 10)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetVIPLoanOrderList(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
+	_, err := ok.GetVIPLoanOrderList(context.Background(), "", "1", currency.BTC, time.Time{}, time.Now(), 20)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetVIPLoanOrderDetail(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
+	_, err := ok.GetVIPLoanOrderDetail(context.Background(), "123456", currency.BTC, time.Time{}, time.Time{}, 10)
+	if err != nil {
+		t.Error(err)
+	}
+}
+func TestSetRiskOffsetType(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
+	_, err := ok.SetRiskOffsetType(context.Background(), "3")
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestActivateOption(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
+	_, err := ok.ActivateOption(context.Background())
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestSetAutoLoan(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
+	_, err := ok.SetAutoLoan(context.Background(), true)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestSetAccountMode(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
+	_, err := ok.SetAccountMode(context.Background(), "1")
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestResetMMPStatus(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
+	if _, err := ok.ResetMMPStatus(contextGenerate(), "OPTION", "BTC-USD"); err != nil && !strings.Contains(err.Error(), "No permission to use this API") {
+		t.Errorf("%s ResetMMPStatus() error %v", ok.Name, err)
+	}
+}
+
+func TestSetMMP(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
+	if _, err := ok.SetMMP(context.Background(), &MMPConfig{
+		InstrumentFamily: "BTC-USD",
+		TimeInterval:     5000,
+		FrozenInterval:   2000,
+		QuantityLimit:    100,
+	}); err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetMMPConfig(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
+	_, err := ok.GetMMPConfig(context.Background(), "")
+	if err != nil {
+		t.Error(err)
 	}
 }

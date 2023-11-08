@@ -58,6 +58,8 @@ type RateLimit struct {
 	ExecuteQuote         *rate.Limiter
 	SetQuoteProducts     *rate.Limiter
 	RestMMPStatus        *rate.Limiter
+	SetMMP               *rate.Limiter
+	GetMMPConfig         *rate.Limiter
 	CreateQuote          *rate.Limiter
 	CancelQuote          *rate.Limiter
 	CancelMultipleQuotes *rate.Limiter
@@ -121,11 +123,19 @@ type RateLimit struct {
 	ManualBorrowAndRepay              *rate.Limiter
 	GetBorrowAndRepayHistory          *rate.Limiter
 	VipLoansBorrowAnsRepay            *rate.Limiter
-	GetBorrowAnsRepayHistoryHistory   *rate.Limiter
+	GetBorrowAndRepayHistoryHistory   *rate.Limiter
+	GetVIPInterestAccruedData         *rate.Limiter
+	GetVIPInterestDeductedData        *rate.Limiter
+	GetVIPLoanOrderList               *rate.Limiter
+	GetVIPLoanOrderDetail             *rate.Limiter
 	GetBorrowInterestAndLimit         *rate.Limiter
 	PositionBuilder                   *rate.Limiter
 	GetGreeks                         *rate.Limiter
 	GetPMLimitation                   *rate.Limiter
+	SetRiskOffsetType                 *rate.Limiter
+	ActivateOption                    *rate.Limiter
+	SetAutoLoan                       *rate.Limiter
+	SetAccountLevel                   *rate.Limiter
 	// Sub Account Endpoints
 	ViewSubaccountList                             *rate.Limiter
 	ResetSubAccountAPIKey                          *rate.Limiter
@@ -300,7 +310,11 @@ const (
 	manualBorrowAndRepayRate              = 5
 	getBorrowAndRepayHistoryRate          = 5
 	vipLoansBorrowAndRepayRate            = 6
-	getBorrowAnsRepayHistoryHistoryRate   = 5
+	getBorrowAndRepayHistoryHistoryRate   = 5
+	getVIPInterestAccruedDataRate         = 5
+	getVIPInterestDeductedDataRate        = 5
+	getVIPLoanOrderListRate               = 5
+	getVIPLoanOrderDetailRate             = 5
 	getBorrowInterestAndLimitRate         = 5
 	positionBuilderRate                   = 2
 	getGreeksRate                         = 10
@@ -414,6 +428,8 @@ const (
 	executeQuoteEPL
 	setQuoteProductsEPL
 	restMMPStatusEPL
+	setMMPEPL
+	getMMPConfigEPL
 	createQuoteEPL
 	cancelQuoteEPL
 	cancelMultipleQuotesEPL
@@ -474,10 +490,18 @@ const (
 	getBorrowAndRepayHistoryEPL
 	vipLoansBorrowAnsRepayEPL
 	getBorrowAnsRepayHistoryHistoryEPL
+	getVIPInterestAccruedDataEPL
+	getVIPInterestDeductedDataEPL
+	getVIPLoanOrderListEPL
+	getVIPLoanOrderDetailEPL
 	getBorrowInterestAndLimitEPL
 	positionBuilderEPL
 	getGreeksEPL
 	getPMLimitationEPL
+	setRiskOffsetLimiterEPL
+	activateOptionEPL
+	setAutoLoanEPL
+	setAccountLevelEPL
 	viewSubaccountListEPL
 	resetSubAccountAPIKeyEPL
 	getSubaccountTradingBalanceEPL
@@ -614,6 +638,10 @@ func (r *RateLimit) Limit(ctx context.Context, f request.EndpointLimit) error {
 		return r.SetQuoteProducts.Wait(ctx)
 	case restMMPStatusEPL:
 		return r.RestMMPStatus.Wait(ctx)
+	case setMMPEPL:
+		return r.SetMMP.Wait(ctx)
+	case getMMPConfigEPL:
+		return r.GetMMPConfig.Wait(ctx)
 	case createQuoteEPL:
 		return r.CreateQuote.Wait(ctx)
 	case cancelQuoteEPL:
@@ -733,7 +761,15 @@ func (r *RateLimit) Limit(ctx context.Context, f request.EndpointLimit) error {
 	case vipLoansBorrowAnsRepayEPL:
 		return r.VipLoansBorrowAnsRepay.Wait(ctx)
 	case getBorrowAnsRepayHistoryHistoryEPL:
-		return r.GetBorrowAnsRepayHistoryHistory.Wait(ctx)
+		return r.GetBorrowAndRepayHistoryHistory.Wait(ctx)
+	case getVIPInterestAccruedDataEPL:
+		return r.GetVIPInterestAccruedData.Wait(ctx)
+	case getVIPInterestDeductedDataEPL:
+		return r.GetVIPInterestDeductedData.Wait(ctx)
+	case getVIPLoanOrderListEPL:
+		return r.GetVIPLoanOrderList.Wait(ctx)
+	case getVIPLoanOrderDetailEPL:
+		return r.GetVIPLoanOrderDetail.Wait(ctx)
 	case getBorrowInterestAndLimitEPL:
 		return r.GetBorrowInterestAndLimit.Wait(ctx)
 	case positionBuilderEPL:
@@ -742,6 +778,14 @@ func (r *RateLimit) Limit(ctx context.Context, f request.EndpointLimit) error {
 		return r.GetGreeks.Wait(ctx)
 	case getPMLimitationEPL:
 		return r.GetPMLimitation.Wait(ctx)
+	case setRiskOffsetLimiterEPL:
+		return r.SetRiskOffsetType.Wait(ctx)
+	case activateOptionEPL:
+		return r.ActivateOption.Wait(ctx)
+	case setAutoLoanEPL:
+		return r.SetAutoLoan.Wait(ctx)
+	case setAccountLevelEPL:
+		return r.SetAccountLevel.Wait(ctx)
 	case viewSubaccountListEPL:
 		return r.ViewSubaccountList.Wait(ctx)
 	case resetSubAccountAPIKeyEPL:
@@ -918,6 +962,8 @@ func SetRateLimit() *RateLimit {
 		ExecuteQuote:         request.NewRateLimit(threeSecondsInterval, executeQuoteRate),
 		SetQuoteProducts:     request.NewRateLimit(twoSecondsInterval, setQuoteProducts),
 		RestMMPStatus:        request.NewRateLimit(twoSecondsInterval, restMMPStatus),
+		SetMMP:               request.NewRateLimit(tenSecondsInterval, 2),
+		GetMMPConfig:         request.NewRateLimit(twoSecondsInterval, 5),
 		CreateQuote:          request.NewRateLimit(twoSecondsInterval, createQuoteRate),
 		CancelQuote:          request.NewRateLimit(twoSecondsInterval, cancelQuoteRate),
 		CancelMultipleQuotes: request.NewRateLimit(twoSecondsInterval, cancelMultipleQuotesRate),
@@ -980,11 +1026,20 @@ func SetRateLimit() *RateLimit {
 		ManualBorrowAndRepay:              request.NewRateLimit(twoSecondsInterval, manualBorrowAndRepayRate),
 		GetBorrowAndRepayHistory:          request.NewRateLimit(twoSecondsInterval, getBorrowAndRepayHistoryRate),
 		VipLoansBorrowAnsRepay:            request.NewRateLimit(oneSecondInterval, vipLoansBorrowAndRepayRate),
-		GetBorrowAnsRepayHistoryHistory:   request.NewRateLimit(twoSecondsInterval, getBorrowAnsRepayHistoryHistoryRate),
+		GetBorrowAndRepayHistoryHistory:   request.NewRateLimit(twoSecondsInterval, getBorrowAndRepayHistoryHistoryRate),
+		GetVIPInterestAccruedData:         request.NewRateLimit(twoSecondsInterval, getVIPInterestAccruedDataRate),
+		GetVIPInterestDeductedData:        request.NewRateLimit(twoSecondsInterval, getVIPInterestDeductedDataRate),
+		GetVIPLoanOrderList:               request.NewRateLimit(twoSecondsInterval, getVIPLoanOrderListRate),
+		GetVIPLoanOrderDetail:             request.NewRateLimit(twoSecondsInterval, getVIPLoanOrderDetailRate),
 		GetBorrowInterestAndLimit:         request.NewRateLimit(twoSecondsInterval, getBorrowInterestAndLimitRate),
 		PositionBuilder:                   request.NewRateLimit(twoSecondsInterval, positionBuilderRate),
 		GetGreeks:                         request.NewRateLimit(twoSecondsInterval, getGreeksRate),
 		GetPMLimitation:                   request.NewRateLimit(twoSecondsInterval, getPMLimitation),
+		SetRiskOffsetType:                 request.NewRateLimit(twoSecondsInterval, 10),
+		ActivateOption:                    request.NewRateLimit(twoSecondsInterval, 5),
+		SetAutoLoan:                       request.NewRateLimit(twoSecondsInterval, 5),
+		SetAccountLevel:                   request.NewRateLimit(twoSecondsInterval, 5),
+
 		// Sub Account Endpoints
 
 		ViewSubaccountList:                             request.NewRateLimit(twoSecondsInterval, viewSubaccountListRate),

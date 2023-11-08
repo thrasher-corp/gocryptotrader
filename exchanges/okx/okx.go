@@ -279,6 +279,8 @@ var (
 	errMissingResponseBody                     = errors.New("error missing response body")
 	errMissingValidWithdrawalID                = errors.New("missing valid withdrawal id")
 	errNoValidResponseFromServer               = errors.New("no valid response from server")
+	errInstrumentFamilyRequired                = errors.New("instrument family is required")
+	errInvalidQuantityLimit                    = errors.New("invalid quantity limit")
 	errInstrumentTypeRequired                  = errors.New("instrument type required")
 	errInvalidInstrumentType                   = errors.New("invalid instrument type")
 	errMissingValidGreeksType                  = errors.New("missing valid greeks type")
@@ -1175,18 +1177,6 @@ func (ok *Okx) SetQuoteProducts(ctx context.Context, args []SetQuoteProductParam
 		return &resp[0], nil
 	}
 	return nil, errNoValidResponseFromServer
-}
-
-// ResetMMPStatus reset the MMP status to be inactive.
-func (ok *Okx) ResetMMPStatus(ctx context.Context) (time.Time, error) {
-	var resp []TimestampResponse
-	if err := ok.SendHTTPRequest(ctx, exchange.RestSpot, restMMPStatusEPL, http.MethodPost, mmpReset, nil, &resp, true); err != nil {
-		return time.Time{}, err
-	}
-	if len(resp) == 1 {
-		return resp[0].Timestamp.Time(), nil
-	}
-	return time.Time{}, errNoValidResponseFromServer
 }
 
 // CreateQuote allows the user to Quote an Rfq that they are a counterparty to. The user MUST quote
@@ -2425,6 +2415,106 @@ func (ok *Okx) GetBorrowAndRepayHistoryForVIPLoans(ctx context.Context, currency
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getBorrowAnsRepayHistoryHistoryEPL, http.MethodGet, common.EncodeURLValues(accountBorrowRepayHistory, params), nil, &resp, true)
 }
 
+// GetVIPInterestAccruedData retrieves VIP interest accrued data
+func (ok *Okx) GetVIPInterestAccruedData(ctx context.Context, ccy currency.Code, orderID string, after, before time.Time, limit int64) ([]VIPInterestData, error) {
+	params := url.Values{}
+	if !ccy.IsEmpty() {
+		params.Set("ccy", ccy.String())
+	}
+	if orderID != "" {
+		params.Set("ordId", orderID)
+	}
+	if !after.IsZero() {
+		params.Set("after", strconv.FormatInt(after.UnixMilli(), 10))
+	}
+	if !before.IsZero() {
+		params.Set("before", strconv.FormatInt(before.UnixMilli(), 10))
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	var resp []VIPInterestData
+	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getVIPInterestAccruedDataEPL, http.MethodGet, common.EncodeURLValues("account/vip-interest-accrued", params), nil, &resp, true)
+}
+
+// GetVIPInterestDeductedData retrieves a VIP interest deducted data
+func (ok *Okx) GetVIPInterestDeductedData(ctx context.Context, ccy currency.Code, orderID string, after, before time.Time, limit int64) ([]VIPInterestData, error) {
+	params := url.Values{}
+	if !ccy.IsEmpty() {
+		params.Set("ccy", ccy.String())
+	}
+	if orderID != "" {
+		params.Set("ordId", orderID)
+	}
+	if !after.IsZero() {
+		params.Set("after", strconv.FormatInt(after.UnixMilli(), 10))
+	}
+	if !before.IsZero() {
+		params.Set("before", strconv.FormatInt(before.UnixMilli(), 10))
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	var resp []VIPInterestData
+	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getVIPInterestDeductedDataEPL, http.MethodGet, common.EncodeURLValues("account/vip-interest-deducted", params), nil, &resp, true)
+}
+
+// GetVIPLoanOrderList retrieves VIP loan order list
+// state: possible values are 1:Borrowing 2:Borrowed 3:Repaying 4:Repaid 5:Borrow failed
+func (ok *Okx) GetVIPLoanOrderList(ctx context.Context, orderID, state string, ccy currency.Code, after, before time.Time, limit int64) ([]VIPLoanOrder, error) {
+	params := url.Values{}
+	if orderID != "" {
+		params.Set("ordId", orderID)
+	}
+	if state != "" {
+		params.Set("state", state)
+	}
+	if !ccy.IsEmpty() {
+		params.Set("ccy", ccy.String())
+	}
+	if !after.IsZero() {
+		params.Set("after", strconv.FormatInt(after.UnixMilli(), 10))
+	}
+	if !before.IsZero() {
+		params.Set("before", strconv.FormatInt(before.UnixMilli(), 10))
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	var resp []VIPLoanOrder
+	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getVIPLoanOrderListEPL, http.MethodGet, common.EncodeURLValues("account/vip-loan-order-list", params), nil, &resp, true)
+}
+
+// GetVIPLoanOrderDetail retrieves list of loan order details.
+func (ok *Okx) GetVIPLoanOrderDetail(ctx context.Context, orderID string, ccy currency.Code, after, before time.Time, limit int64) (*VIPLoanOrderDetail, error) {
+	params := url.Values{}
+	if orderID == "" {
+		return nil, order.ErrOrderIDNotSet
+	}
+	params.Set("ordId", orderID)
+	if !ccy.IsEmpty() {
+		params.Set("ccy", ccy.String())
+	}
+	if !after.IsZero() {
+		params.Set("after", strconv.FormatInt(after.UnixMilli(), 10))
+	}
+	if !before.IsZero() {
+		params.Set("before", strconv.FormatInt(before.UnixMilli(), 10))
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	var resp []VIPLoanOrderDetail
+	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, getVIPLoanOrderDetailEPL, http.MethodGet, common.EncodeURLValues("account/vip-loan-order-detail", params), nil, &resp, true)
+	if err != nil {
+		return nil, err
+	}
+	if len(resp) == 1 {
+		return &resp[0], nil
+	}
+	return nil, errNoValidResponseFromServer
+}
+
 // GetBorrowInterestAndLimit borrow interest and limit
 func (ok *Okx) GetBorrowInterestAndLimit(ctx context.Context, loanType int64, currency string) ([]BorrowInterestAndLimitResponse, error) {
 	params := url.Values{}
@@ -2469,6 +2559,126 @@ func (ok *Okx) GetPMLimitation(ctx context.Context, instrumentType, underlying s
 	params.Set("uly", underlying)
 	var resp []PMLimitationResponse
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getPMLimitationEPL, http.MethodGet, common.EncodeURLValues(accountPortfolioMarginLimitation, params), nil, &resp, true)
+}
+
+// SetRiskOffsetType configure the risk offset type in portfolio margin mode.
+// riskOffsetType possible values are:
+// 1: Spot-derivatives (USDT) risk offset
+// 2: Spot-derivatives (Crypto) risk offset
+// 3:Derivatives only mode
+func (ok *Okx) SetRiskOffsetType(ctx context.Context, riskOffsetType string) (*RiskOffsetType, error) {
+	if riskOffsetType == "" {
+		return nil, errors.New("missing risk offset type")
+	}
+	var resp []RiskOffsetType
+	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, setRiskOffsetLimiterEPL, http.MethodPost, "account/set-riskOffset-type", &map[string]string{"type": riskOffsetType}, &resp, true)
+	if err != nil {
+		return nil, err
+	}
+	if len(resp) == 1 {
+		return &resp[0], nil
+	}
+	return nil, errNoValidResponseFromServer
+}
+
+// ActivateOption activates option
+func (ok *Okx) ActivateOption(ctx context.Context) (time.Time, error) {
+	var resp []struct {
+		Ts convert.ExchangeTime `json:"ts"`
+	}
+	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, activateOptionEPL, http.MethodPost, "account/activate-option", nil, &resp, true)
+	if err != nil {
+		return time.Time{}, err
+	}
+	if len(resp) == 1 {
+		return resp[0].Ts.Time(), nil
+	}
+	return time.Time{}, errNoValidResponseFromServer
+}
+
+// SetAutoLoan only applicalbe to Multi-currency margin and Portfolio margin
+func (ok *Okx) SetAutoLoan(ctx context.Context, autoLoan bool) (*AutoLoan, error) {
+	var resp []AutoLoan
+	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, setAutoLoanEPL, http.MethodPost, "", &AutoLoan{AutoLoan: autoLoan}, &resp, true)
+	if err != nil {
+		return nil, err
+	}
+	if len(resp) == 1 {
+		return &resp[0], nil
+	}
+	return nil, errNoValidResponseFromServer
+}
+
+// SetAccountMode to set on the Web/App for the first set of every account mode.
+// Account mode 1: Simple mode 2: Single-currency margin mode  3: Multi-currency margin code  4: Portfolio margin mode
+func (ok *Okx) SetAccountMode(ctx context.Context, accountLevel string) (*AccountMode, error) {
+	var resp []AccountMode
+	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, setAccountLevelEPL, http.MethodPost, "account/set-account-level", nil, &resp, true)
+	if err != nil {
+		return nil, err
+	}
+	if len(resp) == 1 {
+		return &resp[0], nil
+	}
+	return nil, errNoValidResponseFromServer
+}
+
+// ResetMMPStatus reset the MMP status to be inactive.
+// you can unfreeze by this endpoint once MMP is triggered.
+// Only applicable to Option in Portfolio Margin mode, and MMP privilege is required.
+func (ok *Okx) ResetMMPStatus(ctx context.Context, instrumentType, instrumentFamily string) (*MMPStatusResponse, error) {
+	if instrumentFamily == "" {
+		return nil, errInstrumentFamilyRequired
+	}
+	arg := &struct {
+		InstrumentType   string `json:"instType,omitempty"`
+		InstrumentFamily string `json:"instFamily"`
+	}{
+		InstrumentType:   instrumentType,
+		InstrumentFamily: instrumentFamily,
+	}
+	var resp []MMPStatusResponse
+	if err := ok.SendHTTPRequest(ctx, exchange.RestSpot, restMMPStatusEPL, http.MethodPost, "account/mmp-reset", arg, &resp, true); err != nil {
+		return nil, err
+	}
+	if len(resp) == 1 {
+		return &resp[0], nil
+	}
+	return nil, errNoValidResponseFromServer
+}
+
+// SetMMP set MMP configure
+// Only applicable to Option in Portfolio Margin mode, and MMP privilege is required.
+func (ok *Okx) SetMMP(ctx context.Context, arg *MMPConfig) (*MMPConfig, error) {
+	if arg == nil || *arg == (MMPConfig{}) {
+		return nil, errNilArgument
+	}
+	if arg.InstrumentFamily == "" {
+		return nil, errInstrumentFamilyRequired
+	}
+	if arg.QuantityLimit <= 0 {
+		return nil, errInvalidQuantityLimit
+	}
+	var resp []MMPConfig
+	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, setMMPEPL, http.MethodPost, "account/mmp-config", arg, &resp, true)
+	if err != nil {
+		return nil, err
+	}
+	if len(resp) == 1 {
+		return &resp[0], nil
+	}
+	return nil, errNoValidResponseFromServer
+}
+
+// GetMMPConfig retrieves MMP configure information
+// Only applicable to Option in Portfolio Margin mode, and MMP privilege is required.
+func (ok *Okx) GetMMPConfig(ctx context.Context, instrumentFamily string) ([]MMPConfigDetail, error) {
+	params := url.Values{}
+	if instrumentFamily != "" {
+		params.Set("instFamily", instrumentFamily)
+	}
+	var resp []MMPConfigDetail
+	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getMMPConfigEPL, http.MethodGet, common.EncodeURLValues("account/mmp-config", params), nil, &resp, true)
 }
 
 /********************************** Subaccount Endpoints ***************************************************/

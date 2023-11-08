@@ -1532,6 +1532,40 @@ type InterestAccruedData struct {
 	LoanType     string           `json:"type"`
 }
 
+// InterestAccruedData holds interest accrued/deducted data
+type VIPInterestData struct {
+	Currency     string                  `json:"ccy"`
+	Interest     convert.StringToFloat64 `json:"interest"`
+	InterestRate convert.StringToFloat64 `json:"interestRate"`
+	Liability    convert.StringToFloat64 `json:"liab"`
+	OrderID      string                  `json:"ordId"`
+	Timestamp    convert.ExchangeTime    `json:"ts"`
+}
+
+// VIPLoanOrder holds VIP loan items
+type VIPLoanOrder struct {
+	BorrowAmount    convert.StringToFloat64 `json:"borrowAmt"`
+	Currency        string                  `json:"ccy"`
+	CurrentRate     convert.StringToFloat64 `json:"curRate"`
+	DueAmount       convert.StringToFloat64 `json:"dueAmt"`
+	NextRefreshTime convert.ExchangeTime    `json:"nextRefreshTime"`
+	OrderID         string                  `json:"ordId"`
+	OriginalRate    convert.StringToFloat64 `json:"origRate"`
+	RepayAmount     convert.StringToFloat64 `json:"repayAmt"`
+	State           string                  `json:"state"`
+	Timestamp       convert.ExchangeTime    `json:"ts"`
+}
+
+// VIPLoanOrderDetail holds vip loan order detail
+type VIPLoanOrderDetail struct {
+	Amount     convert.StringToFloat64 `json:"amt"`
+	Currency   string                  `json:"ccy"`
+	FailReason string                  `json:"failReason"`
+	Rate       convert.StringToFloat64 `json:"rate"`
+	Timestamp  convert.ExchangeTime    `json:"ts"`
+	Type       string                  `json:"type"` // Operation Type: 1:Borrow 2:Repayment 3:System Repayment 4:Interest Rate Refresh
+}
+
 // InterestRateResponse represents interest rate response.
 type InterestRateResponse struct {
 	InterestRate float64 `json:"interestRate,string"`
@@ -1732,6 +1766,29 @@ type CancelRfqResponse struct {
 // TimestampResponse holds timestamp response only.
 type TimestampResponse struct {
 	Timestamp okxUnixMilliTime `json:"ts"`
+}
+
+// MMPStatusResponse holds MMP reset status response
+type MMPStatusResponse struct {
+	Result bool `json:"result"`
+}
+
+// MMPConfig holds request/response structure to set Market Maker Protection (MMP)
+type MMPConfig struct {
+	InstrumentFamily string  `json:"instFamily"`
+	TimeInterval     int64   `json:"timeInterval,string"`
+	FrozenInterval   int64   `json:"frozenInterval,string"` // Frozen period (ms). "0" means the trade will remain frozen until you request "Reset MMP Status" to unfrozen
+	QuantityLimit    float64 `json:"qtyLimit,string"`
+}
+
+// MMPConfigDetail holds MMP config details.
+type MMPConfigDetail struct {
+	FrozenInterval   int64                   `json:"frozenInterval,string"`
+	InstrumentFamily string                  `json:"instFamily"`
+	MMPFrozen        bool                    `json:"mmpFrozen"`
+	MMPFrozenUntil   string                  `json:"mmpFrozenUntil"`
+	QuantityLimit    convert.StringToFloat64 `json:"qtyLimit"`
+	TimeInterval     int64                   `json:"timeInterval"`
 }
 
 // ExecuteQuoteParams represents Execute quote request params
@@ -2963,6 +3020,21 @@ type PMLimitationResponse struct {
 	MaximumSize  float64 `json:"maxSz,string"`
 	PositionType string  `json:"postType"`
 	Underlying   string  `json:"uly"`
+}
+
+// RiskOffsetType represents risk offset type value
+type RiskOffsetType struct {
+	Type string `json:"type"`
+}
+
+// AutoLoan holds auto loan information
+type AutoLoan struct {
+	AutoLoan bool `json:"autoLoan"`
+}
+
+// AccountMode holds account mode
+type AccountMode struct {
+	IsoMode string `json:"isoMode"`
 }
 
 // EasyConvertDetail represents easy convert currencies list and their detail.
