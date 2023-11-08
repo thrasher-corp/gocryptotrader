@@ -951,7 +951,13 @@ func (ku *Kucoin) processMarketSnapshot(respData []byte) error {
 	if err != nil {
 		return err
 	}
-	spotTickerPrice := ticker.Price{
+	assetEnabledPairs := ku.listOfAssetsCurrencyPairEnabledFor(pair)
+	assetEnabledPairsSpot := assetEnabledPairs[asset.Spot] && ku.AssetWebsocketSupport.IsAssetWebsocketSupported(asset.Spot) && ku.CurrencyPairs.IsAssetEnabled(asset.Spot) == nil
+	assetEnabledPairsMargin := assetEnabledPairs[asset.Margin] && ku.AssetWebsocketSupport.IsAssetWebsocketSupported(asset.Margin) && ku.CurrencyPairs.IsAssetEnabled(asset.Margin) == nil
+	if !assetEnabledPairsSpot && !assetEnabledPairsMargin {
+		return nil
+	}
+	ku.Websocket.DataHandler <- &ticker.Price{
 		ExchangeName: ku.Name,
 		AssetType:    asset.Spot,
 		Last:         response.Data.LastTradedPrice,
@@ -963,17 +969,6 @@ func (ku *Kucoin) processMarketSnapshot(respData []byte) error {
 		Open:         response.Data.Open,
 		Close:        response.Data.Close,
 		LastUpdated:  response.Data.Datetime.Time(),
-	}
-	assetEnabledPairs := ku.listOfAssetsCurrencyPairEnabledFor(pair)
-	assetEnabledPairsSpot := assetEnabledPairs[asset.Spot] && ku.AssetWebsocketSupport.IsAssetWebsocketSupported(asset.Spot) && ku.CurrencyPairs.IsAssetEnabled(asset.Spot) == nil
-	assetEnabledPairsMargin := assetEnabledPairs[asset.Margin] && ku.AssetWebsocketSupport.IsAssetWebsocketSupported(asset.Margin) && ku.CurrencyPairs.IsAssetEnabled(asset.Margin) == nil
-	switch {
-	case assetEnabledPairsSpot:
-		ku.Websocket.DataHandler <- &spotTickerPrice
-	case assetEnabledPairsMargin:
-		marginTickerPrice := spotTickerPrice
-		marginTickerPrice.AssetType = asset.Margin
-		ku.Websocket.DataHandler <- &marginTickerPrice
 	}
 	return nil
 }
