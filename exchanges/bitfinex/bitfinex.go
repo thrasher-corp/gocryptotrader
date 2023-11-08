@@ -174,7 +174,7 @@ func symbolMarginInfo(data []interface{}) ([]MarginInfoV2, error) {
 		if !check {
 			return nil, common.GetTypeAssertError("[]any", marginInfo[2], "MarginInfo.Data")
 		}
-		if len(marginInfo) < 4 {
+		if len(pairMarginInfo) < 4 {
 			return nil, errors.New("invalid data received")
 		}
 		if tempResp.TradableBalance, ok = pairMarginInfo[0].(float64); !ok {
