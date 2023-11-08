@@ -172,22 +172,22 @@ func symbolMarginInfo(data []interface{}) ([]MarginInfoV2, error) {
 		}
 		pairMarginInfo, check := marginInfo[2].([]any)
 		if !check {
-			return nil, common.GetTypeAssertError("[]any", marginInfo[2], "MarginInfo.Symbol")
+			return nil, common.GetTypeAssertError("[]any", marginInfo[2], "MarginInfo.Data")
 		}
-		if len(pairMarginInfo) < 4 {
+		if len(marginInfo) < 4 {
 			return nil, errors.New("invalid data received")
 		}
 		if tempResp.TradableBalance, ok = pairMarginInfo[0].(float64); !ok {
-			return nil, common.GetTypeAssertError("float64", pairMarginInfo[0], "MarginInfo.Symbol.TradableBalance")
+			return nil, common.GetTypeAssertError("float64", pairMarginInfo[0], "MarginInfo.Data.TradableBalance")
 		}
 		if tempResp.GrossBalance, ok = pairMarginInfo[1].(float64); !ok {
-			return nil, common.GetTypeAssertError("float64", pairMarginInfo[1], "MarginInfo.Symbol.GlossBalance")
+			return nil, common.GetTypeAssertError("float64", pairMarginInfo[1], "MarginInfo.Data.GlossBalance")
 		}
 		if tempResp.BestAskAmount, ok = pairMarginInfo[2].(float64); !ok {
-			return nil, common.GetTypeAssertError("float64", pairMarginInfo[2], "MarginInfo.Symbol.BestAskAmount")
+			return nil, common.GetTypeAssertError("float64", pairMarginInfo[2], "MarginInfo.Data.BestAskAmount")
 		}
 		if tempResp.BestBidAmount, ok = pairMarginInfo[3].(float64); !ok {
-			return nil, common.GetTypeAssertError("float64", pairMarginInfo[3], "MarginInfo.Symbol.BestBidAmount")
+			return nil, common.GetTypeAssertError("float64", pairMarginInfo[3], "MarginInfo.Data.BestBidAmount")
 		}
 		resp[x] = tempResp
 	}
@@ -646,52 +646,52 @@ func (b *Bitfinex) GetTickerBatch(ctx context.Context) (map[string]Ticker, error
 		var t Ticker
 		if len(response[x]) > 11 {
 			if t.FlashReturnRate, ok = response[x][1].(float64); !ok {
-				return nil, common.GetTypeAssertError("float64", response[x][1], "Ticker.Symbol.FlashReturnRate")
+				return nil, common.GetTypeAssertError("float64", response[x][1], "Ticker.Data.FlashReturnRate")
 			}
 			if t.Bid, ok = response[x][2].(float64); !ok {
-				return nil, common.GetTypeAssertError("float64", response[x][2], "Ticker.Symbol.Bid")
+				return nil, common.GetTypeAssertError("float64", response[x][2], "Ticker.Data.Bid")
 			}
 			var bidPeriod float64
 			bidPeriod, ok = response[x][3].(float64)
 			if !ok {
-				return nil, common.GetTypeAssertError("float64", response[x][3], "Ticker.Symbol.BidPeriod")
+				return nil, common.GetTypeAssertError("float64", response[x][3], "Ticker.Data.BidPeriod")
 			}
 			t.BidPeriod = int64(bidPeriod)
 			if t.BidSize, ok = response[x][4].(float64); !ok {
-				return nil, common.GetTypeAssertError("float64", response[x][4], "Ticker.Symbol.BidSize")
+				return nil, common.GetTypeAssertError("float64", response[x][4], "Ticker.Data.BidSize")
 			}
 			if t.Ask, ok = response[x][5].(float64); !ok {
-				return nil, common.GetTypeAssertError("float64", response[x][5], "Ticker.Symbol.Ask")
+				return nil, common.GetTypeAssertError("float64", response[x][5], "Ticker.Data.Ask")
 			}
 			var askPeriod float64
 			askPeriod, ok = response[x][6].(float64)
 			if !ok {
-				return nil, common.GetTypeAssertError("float64", response[x][6], "Ticker.Symbol.AskPeriod")
+				return nil, common.GetTypeAssertError("float64", response[x][6], "Ticker.Data.AskPeriod")
 			}
 			t.AskPeriod = int64(askPeriod)
 			if t.AskSize, ok = response[x][7].(float64); !ok {
-				return nil, common.GetTypeAssertError("float64", response[x][7], "Ticker.Symbol.AskSize")
+				return nil, common.GetTypeAssertError("float64", response[x][7], "Ticker.Data.AskSize")
 			}
 			if t.DailyChange, ok = response[x][8].(float64); !ok {
-				return nil, common.GetTypeAssertError("float64", response[x][8], "Ticker.Symbol.DailyChange")
+				return nil, common.GetTypeAssertError("float64", response[x][8], "Ticker.Data.DailyChange")
 			}
 			if t.DailyChangePerc, ok = response[x][9].(float64); !ok {
-				return nil, common.GetTypeAssertError("float64", response[x][9], "Ticker.Symbol.DailyChangePercentage")
+				return nil, common.GetTypeAssertError("float64", response[x][9], "Ticker.Data.DailyChangePercentage")
 			}
 			if t.Last, ok = response[x][10].(float64); !ok {
-				return nil, common.GetTypeAssertError("float64", response[x][10], "Ticker.Symbol.LastPrice")
+				return nil, common.GetTypeAssertError("float64", response[x][10], "Ticker.Data.LastPrice")
 			}
 			if t.Volume, ok = response[x][11].(float64); !ok {
-				return nil, common.GetTypeAssertError("float64", response[x][11], "Ticker.Symbol.DailyVolume")
+				return nil, common.GetTypeAssertError("float64", response[x][11], "Ticker.Data.DailyVolume")
 			}
 			if t.High, ok = response[x][12].(float64); !ok {
-				return nil, common.GetTypeAssertError("float64", response[x][12], "Ticker.Symbol.DailyHigh")
+				return nil, common.GetTypeAssertError("float64", response[x][12], "Ticker.Data.DailyHigh")
 			}
 			if t.Low, ok = response[x][13].(float64); !ok {
-				return nil, common.GetTypeAssertError("float64", response[x][13], "Ticker.Symbol.DailyLow")
+				return nil, common.GetTypeAssertError("float64", response[x][13], "Ticker.Data.DailyLow")
 			}
 			if t.FFRAmountAvailable, ok = response[x][16].(float64); !ok {
-				return nil, common.GetTypeAssertError("float64", response[x][16], "Ticker.Symbol.FFRAmountAvailable")
+				return nil, common.GetTypeAssertError("float64", response[x][16], "Ticker.Data.FFRAmountAvailable")
 			}
 
 			tickers[symbol] = t
