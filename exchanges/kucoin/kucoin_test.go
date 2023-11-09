@@ -9,11 +9,14 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
@@ -2421,15 +2424,137 @@ func TestSeedLocalCache(t *testing.T) {
 func TestGetFuturesContractDetails(t *testing.T) {
 	t.Parallel()
 	_, err := ku.GetFuturesContractDetails(context.Background(), asset.Spot)
-	if !errors.Is(err, futures.ErrNotFuturesAsset) {
-		t.Error(err)
-	}
+	assert.ErrorIs(t, err, futures.ErrNotFuturesAsset)
 	_, err = ku.GetFuturesContractDetails(context.Background(), asset.USDTMarginedFutures)
-	if !errors.Is(err, asset.ErrNotSupported) {
-		t.Error(err)
-	}
+	assert.ErrorIs(t, err, asset.ErrNotSupported)
 	_, err = ku.GetFuturesContractDetails(context.Background(), asset.Futures)
-	if !errors.Is(err, nil) {
-		t.Error(err)
+	assert.NoError(t, err)
+}
+
+func TestGetLatestFundingRates(t *testing.T) {
+	t.Parallel()
+	_, err := ku.GetLatestFundingRates(context.Background(), nil)
+	assert.ErrorIs(t, err, common.ErrNilPointer)
+
+	req := &fundingrate.LatestRateRequest{
+		Asset: asset.Futures,
+		Pair:  currency.NewPair(currency.BTC, currency.USD),
 	}
+	_, err = ku.GetLatestFundingRates(context.Background(), req)
+	assert.ErrorIs(t, err, futures.ErrNotPerpetualFuture)
+
+	req = &fundingrate.LatestRateRequest{
+		Asset: asset.Futures,
+		Pair:  currency.NewPair(currency.XBT, currency.USDTM),
+	}
+	resp, err := ku.GetLatestFundingRates(context.Background(), req)
+	assert.NoError(t, err)
+	assert.Len(t, resp, 1)
+
+	req = &fundingrate.LatestRateRequest{
+		Asset: asset.Futures,
+		Pair:  currency.EMPTYPAIR,
+	}
+	resp, err = ku.GetLatestFundingRates(context.Background(), req)
+	assert.NoError(t, err)
+	assert.NotEmpty(t, resp)
+}
+
+func TestIsPerpetualFutureCurrency(t *testing.T) {
+	t.Parallel()
+	is, err := ku.IsPerpetualFutureCurrency(asset.Spot, currency.EMPTYPAIR)
+	assert.NoError(t, err)
+	assert.False(t, is)
+	is, err = ku.IsPerpetualFutureCurrency(asset.Futures, currency.EMPTYPAIR)
+	assert.NoError(t, err)
+	assert.False(t, is)
+	is, err = ku.IsPerpetualFutureCurrency(asset.Futures, currency.NewPair(currency.XBT, currency.EOS))
+	assert.NoError(t, err)
+	assert.False(t, is)
+	is, err = ku.IsPerpetualFutureCurrency(asset.Futures, currency.NewPair(currency.XBT, currency.USDTM))
+	assert.NoError(t, err)
+	assert.True(t, is)
+	is, err = ku.IsPerpetualFutureCurrency(asset.Futures, currency.NewPair(currency.XBT, currency.USDM))
+	assert.NoError(t, err)
+	assert.True(t, is)
+}
+
+func TestChangePositionMargin(t *testing.T) {
+	t.Parallel()
+	_, err := ku.ChangePositionMargin(context.Background(), nil)
+	assert.ErrorIs(t, err, common.ErrNilPointer)
+
+	req := &margin.PositionChangeRequest{}
+	_, err = ku.ChangePositionMargin(context.Background(), req)
+	assert.ErrorIs(t, err, futures.ErrNotFuturesAsset)
+
+	req.Asset = asset.Futures
+	_, err = ku.ChangePositionMargin(context.Background(), req)
+	assert.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
+
+	req.Pair = currency.NewPair(currency.XBT, currency.USDTM)
+	_, err = ku.ChangePositionMargin(context.Background(), req)
+	assert.ErrorIs(t, err, margin.ErrMarginTypeUnsupported)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, ku, canManipulateRealOrders)
+	req.MarginType = margin.Isolated
+	_, err = ku.ChangePositionMargin(context.Background(), req)
+	assert.Error(t, err)
+
+	req.NewAllocatedMargin = 1337
+	_, err = ku.ChangePositionMargin(context.Background(), req)
+	assert.ErrorIs(t, err, nil)
+}
+
+func TestGetFuturesPositionSummary(t *testing.T) {
+	t.Parallel()
+	_, err := ku.GetFuturesPositionSummary(context.Background(), nil)
+	assert.ErrorIs(t, err, common.ErrNilPointer)
+
+	req := &futures.PositionSummaryRequest{}
+	_, err = ku.GetFuturesPositionSummary(context.Background(), req)
+	assert.ErrorIs(t, err, futures.ErrNotPerpetualFuture)
+
+	req.Asset = asset.Futures
+	_, err = ku.GetFuturesPositionSummary(context.Background(), req)
+	assert.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, ku, canManipulateRealOrders)
+	req.Pair = currency.NewPair(currency.XBT, currency.USDTM)
+	_, err = ku.GetFuturesPositionSummary(context.Background(), req)
+	assert.ErrorIs(t, err, nil)
+}
+
+func TestGetFuturesPositionOrders(t *testing.T) {
+	t.Parallel()
+	_, err := ku.GetFuturesPositionOrders(context.Background(), nil)
+	assert.ErrorIs(t, err, common.ErrNilPointer)
+
+	req := &futures.PositionsRequest{}
+	_, err = ku.GetFuturesPositionOrders(context.Background(), req)
+	assert.ErrorIs(t, err, futures.ErrNotPerpetualFuture)
+
+	req.Asset = asset.Futures
+	_, err = ku.GetFuturesPositionOrders(context.Background(), req)
+	assert.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
+
+	req.Pairs = currency.Pairs{
+		currency.NewPair(currency.XBT, currency.USDTM),
+	}
+	_, err = ku.GetFuturesPositionOrders(context.Background(), req)
+	assert.ErrorIs(t, err, common.ErrDateUnset)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, ku, canManipulateRealOrders)
+	req.EndDate = time.Now()
+	req.StartDate = req.EndDate.Add(-time.Hour * 24 * 7)
+	_, err = ku.GetFuturesPositionOrders(context.Background(), req)
+	assert.ErrorIs(t, err, nil)
+
+	req.StartDate = req.EndDate.Add(-time.Hour * 24 * 30)
+	_, err = ku.GetFuturesPositionOrders(context.Background(), req)
+	assert.ErrorIs(t, err, futures.ErrOrderHistoryTooLarge)
+
+	req.RespectOrderHistoryLimits = true
+	_, err = ku.GetFuturesPositionOrders(context.Background(), req)
+	assert.ErrorIs(t, err, nil)
 }

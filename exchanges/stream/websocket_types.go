@@ -32,6 +32,7 @@ const (
 
 // SubscriptionAllowed defines if the websocket should automatically subscribe
 type SubscriptionAllowed uint8
+type subscriptionMap map[any]*ChannelSubscription
 
 // Websocket defines a return type for websocket connections via the interface
 // wrapper for routine processing
@@ -54,11 +55,11 @@ type Websocket struct {
 	runningURLAuth               string
 	exchangeName                 string
 	m                            sync.Mutex
-	connectionMutex              sync.RWMutex
+	fieldMutex                   sync.RWMutex
 	connector                    func(ctx context.Context) error
 
-	subscriptionMutex sync.Mutex
-	subscriptions     []ChannelSubscription
+	subscriptionMutex sync.RWMutex
+	subscriptions     subscriptionMap
 	Subscribe         chan []ChannelSubscription
 	Unsubscribe       chan []ChannelSubscription
 

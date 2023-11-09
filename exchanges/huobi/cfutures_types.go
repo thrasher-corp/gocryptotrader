@@ -543,6 +543,12 @@ type LiquidationOrdersData struct {
 	} `json:"data"`
 }
 
+// SwapFundingRatesResponse holds funding rates and data response
+type SwapFundingRatesResponse struct {
+	Response
+	Data []FundingRatesData `json:"data"`
+}
+
 // FundingRatesData stores funding rates data
 type FundingRatesData struct {
 	EstimatedRate   float64 `json:"estimated_rate,string"`
@@ -550,8 +556,8 @@ type FundingRatesData struct {
 	ContractCode    string  `json:"contractCode"`
 	Symbol          string  `json:"symbol"`
 	FeeAsset        string  `json:"fee_asset"`
-	FundingTime     string  `json:"fundingTime"`
-	NextFundingTime string  `json:"next_funding_time"`
+	FundingTime     int64   `json:"fundingTime,string"`
+	NextFundingTime int64   `json:"next_funding_time,string"`
 }
 
 // HistoricalFundingRateData stores historical funding rates for perpetuals

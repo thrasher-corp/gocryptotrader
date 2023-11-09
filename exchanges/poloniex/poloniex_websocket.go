@@ -639,7 +639,7 @@ channels:
 				errs = common.AppendError(errs, err)
 				continue channels
 			}
-			p.Websocket.RemoveSuccessfulUnsubscriptions(unsub[i])
+			p.Websocket.RemoveSubscriptions(unsub[i])
 			continue channels
 		case strings.EqualFold(strconv.FormatInt(wsTickerDataID, 10),
 			unsub[i].Channel):
@@ -652,7 +652,7 @@ channels:
 			errs = common.AppendError(errs, err)
 			continue
 		}
-		p.Websocket.RemoveSuccessfulUnsubscriptions(unsub[i])
+		p.Websocket.RemoveSubscriptions(unsub[i])
 	}
 	if errs != nil {
 		return errs

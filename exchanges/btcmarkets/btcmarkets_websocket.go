@@ -429,7 +429,7 @@ func (b *BTCMarkets) Unsubscribe(_ context.Context, subs []stream.ChannelSubscri
 	if err != nil {
 		return err
 	}
-	b.Websocket.RemoveSuccessfulUnsubscriptions(subs...)
+	b.Websocket.RemoveSubscriptions(subs...)
 	return nil
 }
 

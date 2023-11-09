@@ -478,7 +478,7 @@ func (ok *Okx) handleSubscription(operation string, subscriptions []stream.Chann
 					return err
 				}
 				if operation == operationUnsubscribe {
-					ok.Websocket.RemoveSuccessfulUnsubscriptions(channels...)
+					ok.Websocket.RemoveSubscriptions(channels...)
 				} else {
 					ok.Websocket.AddSuccessfulSubscriptions(channels...)
 				}
@@ -500,7 +500,7 @@ func (ok *Okx) handleSubscription(operation string, subscriptions []stream.Chann
 					return err
 				}
 				if operation == operationUnsubscribe {
-					ok.Websocket.RemoveSuccessfulUnsubscriptions(channels...)
+					ok.Websocket.RemoveSubscriptions(channels...)
 				} else {
 					ok.Websocket.AddSuccessfulSubscriptions(channels...)
 				}
@@ -529,7 +529,7 @@ func (ok *Okx) handleSubscription(operation string, subscriptions []stream.Chann
 
 	if operation == operationUnsubscribe {
 		channels = append(channels, authChannels...)
-		ok.Websocket.RemoveSuccessfulUnsubscriptions(channels...)
+		ok.Websocket.RemoveSubscriptions(channels...)
 	} else {
 		channels = append(channels, authChannels...)
 		ok.Websocket.AddSuccessfulSubscriptions(channels...)

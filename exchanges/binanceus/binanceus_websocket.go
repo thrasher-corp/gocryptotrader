@@ -614,7 +614,7 @@ func (bi *Binanceus) Unsubscribe(_ context.Context, channelsToUnsubscribe []stre
 			return err
 		}
 	}
-	bi.Websocket.RemoveSuccessfulUnsubscriptions(channelsToUnsubscribe...)
+	bi.Websocket.RemoveSubscriptions(channelsToUnsubscribe...)
 	return nil
 }
 

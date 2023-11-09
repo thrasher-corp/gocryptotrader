@@ -92,6 +92,48 @@ func TestGet(t *testing.T) {
 	}
 }
 
+func TestPairsManagerMatch(t *testing.T) {
+	t.Parallel()
+
+	p := &PairsManager{}
+
+	_, err := p.Match("", 1337)
+	if !errors.Is(err, ErrSymbolStringEmpty) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, ErrSymbolStringEmpty)
+	}
+
+	_, err = p.Match("sillyBilly", 1337)
+	if !errors.Is(err, errPairMatcherIsNil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, errPairMatcherIsNil)
+	}
+
+	p = initTest(t)
+
+	_, err = p.Match("sillyBilly", 1337)
+	if !errors.Is(err, ErrPairNotFound) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, ErrPairNotFound)
+	}
+
+	_, err = p.Match("sillyBilly", asset.Spot)
+	if !errors.Is(err, ErrPairNotFound) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, ErrPairNotFound)
+	}
+
+	whatIgot, err := p.Match("bTCuSD", asset.Spot)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	whatIwant, err := NewPairFromString("btc-usd")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !whatIgot.Equal(whatIwant) {
+		t.Fatal("expected btc-usd")
+	}
+}
+
 func TestStore(t *testing.T) {
 	t.Parallel()
 	availPairs, err := NewPairsFromStrings([]string{"BTC-USD", "LTC-USD"})
@@ -531,43 +573,64 @@ func TestUnmarshalMarshal(t *testing.T) {
 	}
 }
 
-func TestIsAssetPairEnabled(t *testing.T) {
+func TestIsPairEnabled(t *testing.T) {
 	t.Parallel()
 	pm := initTest(t)
 	cp := NewPairWithDelimiter("BTC", "USD", "-")
-	err := pm.IsAssetPairEnabled(asset.Spot, cp)
+	enabled, err := pm.IsPairEnabled(cp, asset.Spot)
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}
 
-	err = pm.IsAssetPairEnabled(asset.Futures, cp)
-	if !errors.Is(err, asset.ErrNotEnabled) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, asset.ErrNotEnabled)
+	if !enabled {
+		t.Fatal("expected pair to be enabled")
+	}
+
+	enabled, err = pm.IsPairEnabled(NewPair(SAFE, MOONRISE), asset.Spot)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	if enabled {
+		t.Fatal("expected pair to be disabled")
+	}
+
+	enabled, err = pm.IsPairEnabled(cp, asset.Futures)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
+	}
+
+	if enabled {
+		t.Fatal("expected pair to be disabled because asset type is not enabled")
 	}
 
 	cp = NewPairWithDelimiter("XRP", "DOGE", "-")
-	err = pm.IsAssetPairEnabled(asset.Spot, cp)
-	if !errors.Is(err, ErrPairNotFound) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, ErrPairNotFound)
+	enabled, err = pm.IsPairEnabled(cp, asset.Spot)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}
 
-	err = pm.IsAssetPairEnabled(asset.PerpetualSwap, cp)
+	if enabled {
+		t.Fatal("expected pair to be disabled because pair not found in enabled list")
+	}
+
+	_, err = pm.IsPairEnabled(cp, asset.PerpetualSwap)
 	if !errors.Is(err, ErrAssetNotFound) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, ErrAssetNotFound)
 	}
 
-	err = pm.IsAssetPairEnabled(asset.Item(1337), cp)
+	_, err = pm.IsPairEnabled(cp, asset.Item(1337))
 	if !errors.Is(err, asset.ErrNotSupported) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, asset.ErrNotSupported)
 	}
 
 	pm.Pairs[asset.PerpetualSwap] = &PairStore{}
-	err = pm.IsAssetPairEnabled(asset.PerpetualSwap, cp)
+	_, err = pm.IsPairEnabled(cp, asset.PerpetualSwap)
 	if !errors.Is(err, ErrAssetIsNil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, ErrAssetIsNil)
 	}
 
-	err = pm.IsAssetPairEnabled(asset.PerpetualSwap, EMPTYPAIR)
+	_, err = pm.IsPairEnabled(EMPTYPAIR, asset.PerpetualSwap)
 	if !errors.Is(err, ErrCurrencyPairEmpty) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, ErrCurrencyPairEmpty)
 	}
