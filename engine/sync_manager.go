@@ -755,7 +755,8 @@ func (m *SyncManager) PrintTickerSummary(result *ticker.Price, protocol string, 
 		return
 	}
 
-	if result.Pair.Quote.IsFiatCurrency() &&
+	if currency.ForexEnabled() &&
+		result.Pair.Quote.IsFiatCurrency() &&
 		!result.Pair.Quote.Equal(m.fiatDisplayCurrency) &&
 		!m.fiatDisplayCurrency.IsEmpty() {
 		origCurrency := result.Pair.Quote.Upper()
@@ -854,7 +855,7 @@ func (m *SyncManager) PrintOrderbookSummary(result *orderbook.Base, protocol str
 
 	var bidValueResult, askValueResult string
 	switch {
-	case result.Pair.Quote.IsFiatCurrency() && !result.Pair.Quote.Equal(m.fiatDisplayCurrency) && !m.fiatDisplayCurrency.IsEmpty():
+	case currency.ForexEnabled() && result.Pair.Quote.IsFiatCurrency() && !result.Pair.Quote.Equal(m.fiatDisplayCurrency) && !m.fiatDisplayCurrency.IsEmpty():
 		origCurrency := result.Pair.Quote.Upper()
 		if bidsValue > 0 {
 			bidValueResult = printConvertCurrencyFormat(bidsValue, origCurrency, m.fiatDisplayCurrency)

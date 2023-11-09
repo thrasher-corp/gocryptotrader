@@ -37,32 +37,6 @@ func GetSupportedForexProviders() []string {
 	}
 }
 
-// NewDefaultFXProvider returns the default forex provider (currencyconverterAPI)
-func NewDefaultFXProvider() *ForexProviders {
-	handler := new(ForexProviders)
-	provider := new(exchangeratehost.ExchangeRateHost)
-	err := provider.Setup(base.Settings{
-		PrimaryProvider: true,
-		Enabled:         true,
-		Name:            "ExchangeRateHost",
-	})
-	if err != nil {
-		panic(err)
-	}
-
-	currencies, _ := provider.GetSupportedCurrencies()
-	providerBase := base.Provider{
-		Provider:            provider,
-		SupportedCurrencies: currencies,
-	}
-
-	handler.FXHandler = base.FXHandler{
-		Primary: providerBase,
-	}
-
-	return handler
-}
-
 // SetProvider sets provider to the FX handler
 func (f *ForexProviders) SetProvider(b base.IFXProvider) error {
 	currencies, err := b.GetSupportedCurrencies()

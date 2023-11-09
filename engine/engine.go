@@ -408,7 +408,7 @@ func (bot *Engine) Start() error {
 		&bot.Config.Currency,
 		bot.Settings.DataDir,
 	); err != nil {
-		gctlog.Errorf(gctlog.Global, "ExchangeSettings updater system failed to start %s", err)
+		gctlog.Errorf(gctlog.Global, "Currency Converter system failed to start %s", err)
 	}
 
 	if bot.Settings.EnableGRPC {
@@ -677,7 +677,7 @@ func (bot *Engine) Stop() {
 
 	err = currency.ShutdownStorageUpdater()
 	if err != nil {
-		gctlog.Errorf(gctlog.Global, "ExchangeSettings storage system. Error: %v", err)
+		gctlog.Errorf(gctlog.Global, "Currency Converter unable to stop. Error: %v", err)
 	}
 
 	if !bot.Settings.EnableDryRun {
