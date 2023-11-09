@@ -2469,7 +2469,6 @@ func TestSubscribeMarketSnapshot(t *testing.T) {
 	}
 	err := ku.Subscribe(s)
 	assert.NoError(t, err, "Subscribe to MarketSnapshot should not error")
-	time.Sleep(time.Second * 2)
 }
 func TestSeedLocalCache(t *testing.T) {
 	t.Parallel()

@@ -957,7 +957,7 @@ func (ku *Kucoin) processMarketSnapshot(respData []byte) error {
 	if !assetEnabledPairsSpot && !assetEnabledPairsMargin {
 		return nil
 	}
-	ku.Websocket.DataHandler <- &ticker.Price{
+	spotTickerPrice := ticker.Price{
 		ExchangeName: ku.Name,
 		AssetType:    asset.Spot,
 		Last:         response.Data.LastTradedPrice,
@@ -969,6 +969,13 @@ func (ku *Kucoin) processMarketSnapshot(respData []byte) error {
 		Open:         response.Data.Open,
 		Close:        response.Data.Close,
 		LastUpdated:  response.Data.Datetime.Time(),
+	}
+	if assetEnabledPairsSpot {
+		ku.Websocket.DataHandler <- &spotTickerPrice
+	} else if assetEnabledPairsMargin {
+		marginTickerPrice := spotTickerPrice
+		marginTickerPrice.AssetType = asset.Margin
+		ku.Websocket.DataHandler <- &marginTickerPrice
 	}
 	return nil
 }
