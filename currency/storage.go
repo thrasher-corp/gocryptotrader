@@ -73,6 +73,7 @@ func (s *Storage) SetDefaults() {
 		log.Errorf(log.Currency, "Currency Storage: Setting default cryptocurrencies error: %s", err)
 	}
 	s.SetupConversionRates()
+	s.fiatExchangeMarkets = nil
 }
 
 // ForexEnabled returns whether the currency system has any available forex providers enabled
@@ -85,6 +86,8 @@ func ForexEnabled() bool {
 // triggering rate limiters, it will also run a full cryptocurrency check
 // through coin market cap and expose analytics for exchange services
 func (s *Storage) RunUpdater(overrides BotOverrides, settings *Config, filePath string) error {
+	s.fiatExchangeMarkets = nil
+
 	if settings.FiatDisplayCurrency.IsEmpty() {
 		return errFiatDisplayCurrencyUnset
 	}
