@@ -697,12 +697,12 @@ func printCurrencyFormat(price float64, displayCurrency currency.Code) string {
 }
 
 func printConvertCurrencyFormat(origPrice float64, origCurrency, displayCurrency currency.Code) string {
-	var conv float64
+	var conv string
 	if origPrice > 0 {
-		var err error
-		conv, err = currency.ConvertFiat(origPrice, origCurrency, displayCurrency)
-		if err != nil {
-			log.Errorf(log.SyncMgr, "Failed to convert currency: %s", err)
+		if convFloat, err := currency.ConvertFiat(origPrice, origCurrency, displayCurrency); err != nil {
+			conv = "?.??"
+		} else {
+			conv = fmt.Sprintf("%.2f", convFloat)
 		}
 	}
 
@@ -718,7 +718,7 @@ func printConvertCurrencyFormat(origPrice float64, origCurrency, displayCurrency
 			err)
 	}
 
-	return fmt.Sprintf("%s%.2f %s (%s%.2f %s)",
+	return fmt.Sprintf("%s%s %s (%s%.2f %s)",
 		displaySymbol,
 		conv,
 		displayCurrency,
