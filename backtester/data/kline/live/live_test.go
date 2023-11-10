@@ -73,9 +73,7 @@ func TestLoadTrades(t *testing.T) {
 		ConfigFormat:  pFormat,
 	}
 	var data *gctkline.Item
-	// start is 10 mins in the past to ensure there are some trades to pull from the exchange
-	start := time.Now().Add(-time.Minute * 10)
-	data, err = LoadData(context.Background(), start, exch, common.DataTrade, interval.Duration(), cp, currency.EMPTYPAIR, a, true)
+	data, err = LoadData(context.Background(), time.Now().Add(-interval.Duration()*60), exch, common.DataTrade, interval.Duration(), cp, currency.EMPTYPAIR, a, true)
 	if err != nil {
 		t.Fatal(err)
 	}
