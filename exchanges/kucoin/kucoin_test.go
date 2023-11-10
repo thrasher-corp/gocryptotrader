@@ -2445,7 +2445,7 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 		t.Fatalf("Received %v, expected %v", err, asset.ErrNotSupported)
 	}
 
-	assets := []asset.Item{asset.Margin}
+	assets := []asset.Item{asset.Spot, asset.Futures, asset.Margin}
 	for x := range assets {
 		err = ku.UpdateOrderExecutionLimits(context.Background(), assets[x])
 		if !errors.Is(err, nil) {
