@@ -769,6 +769,19 @@ type TransactionDetailRequestParams struct {
 	Limit          int64     `json:"limit"`
 }
 
+// FillArchiveParam transaction detail param for 2 year.
+type FillArchiveParam struct {
+	Year    int64  `json:"year,string"`
+	Quarter string `json:"quarter"`
+}
+
+// ArchiveReference holds recently-filled transaction details archive link and timestamp information.
+type ArchiveReference struct {
+	FileHref  string               `json:"fileHref"`
+	State     string               `json:"state"`
+	Timestamp convert.ExchangeTime `json:"ts"`
+}
+
 // TransactionDetail holds ecently-filled transaction detail data.
 type TransactionDetail struct {
 	InstrumentType string           `json:"instType"`
@@ -3099,6 +3112,17 @@ type CurrencyOneClickRepay struct {
 	RepayCurrency string            `json:"repayCcy"`
 	Status        string            `json:"status"`
 	UpdateTime    time.Time         `json:"uTime"`
+}
+
+// CancelMMPResponse holds cancel MMP response result
+type CancelMMPResponse struct {
+	Result bool `json:"result"`
+}
+
+// CancelMMPAfterCountdownResponse returns list of
+type CancelMMPAfterCountdownResponse struct {
+	TriggerTime convert.ExchangeTime `json:"triggerTime"` // The time the cancellation is triggered. triggerTime=0 means Cancel All After is disabled.
+	Timestamp   convert.ExchangeTime `json:"ts"`          // The time the request is sent.
 }
 
 // SetQuoteProductParam represents set quote product request param

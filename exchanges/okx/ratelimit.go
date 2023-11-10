@@ -25,30 +25,34 @@ const (
 // RateLimit implements the request.Limiter interface
 type RateLimit struct {
 	// Trade Endpoints
-	PlaceOrder                  *rate.Limiter
-	PlaceMultipleOrders         *rate.Limiter
-	CancelOrder                 *rate.Limiter
-	CancelMultipleOrders        *rate.Limiter
-	AmendOrder                  *rate.Limiter
-	AmendMultipleOrders         *rate.Limiter
-	CloseDeposit                *rate.Limiter
-	GetOrderDetails             *rate.Limiter
-	GetOrderList                *rate.Limiter
-	GetOrderHistory7Days        *rate.Limiter
-	GetOrderHistory3Months      *rate.Limiter
-	GetTransactionDetail3Days   *rate.Limiter
-	GetTransactionDetail3Months *rate.Limiter
-	PlaceAlgoOrder              *rate.Limiter
-	CancelAlgoOrder             *rate.Limiter
-	CancelAdvanceAlgoOrder      *rate.Limiter
-	GetAlgoOrderList            *rate.Limiter
-	GetAlgoOrderHistory         *rate.Limiter
-	GetEasyConvertCurrencyList  *rate.Limiter
-	PlaceEasyConvert            *rate.Limiter
-	GetEasyConvertHistory       *rate.Limiter
-	GetOneClickRepayHistory     *rate.Limiter
-	OneClickRepayCurrencyList   *rate.Limiter
-	TradeOneClickRepay          *rate.Limiter
+	PlaceOrder                        *rate.Limiter
+	PlaceMultipleOrders               *rate.Limiter
+	CancelOrder                       *rate.Limiter
+	CancelMultipleOrders              *rate.Limiter
+	AmendOrder                        *rate.Limiter
+	AmendMultipleOrders               *rate.Limiter
+	CloseDeposit                      *rate.Limiter
+	GetOrderDetails                   *rate.Limiter
+	GetOrderList                      *rate.Limiter
+	GetOrderHistory7Days              *rate.Limiter
+	GetOrderHistory3Months            *rate.Limiter
+	GetTransactionDetail3Days         *rate.Limiter
+	GetTransactionDetail3Months       *rate.Limiter
+	SetTransactionDetail2YearInterval *rate.Limiter
+	GetTransactionDetailsLast2Year    *rate.Limiter
+	CancelAllAfterCountdown           *rate.Limiter
+	PlaceAlgoOrder                    *rate.Limiter
+	CancelAlgoOrder                   *rate.Limiter
+	CancelAdvanceAlgoOrder            *rate.Limiter
+	GetAlgoOrderList                  *rate.Limiter
+	GetAlgoOrderHistory               *rate.Limiter
+	GetEasyConvertCurrencyList        *rate.Limiter
+	PlaceEasyConvert                  *rate.Limiter
+	GetEasyConvertHistory             *rate.Limiter
+	GetOneClickRepayHistory           *rate.Limiter
+	OneClickRepayCurrencyList         *rate.Limiter
+	TradeOneClickRepay                *rate.Limiter
+	MassCancelMMPOrder                *rate.Limiter
 	// Block Trading endpoints
 	GetCounterparties    *rate.Limiter
 	CreateRfq            *rate.Limiter
@@ -213,189 +217,6 @@ type RateLimit struct {
 }
 
 const (
-	// Trade Endpoints
-	placeOrderRate                  = 60
-	placeMultipleOrdersRate         = 300
-	cancelOrderRate                 = 60
-	cancelMultipleOrdersRate        = 300
-	amendOrderRate                  = 60
-	amendMultipleOrdersRate         = 300
-	closeDepositions                = 20
-	getOrderDetails                 = 60
-	getOrderListRate                = 60
-	getOrderHistory7DaysRate        = 40
-	getOrderHistory3MonthsRate      = 20
-	getTransactionDetail3DaysRate   = 60
-	getTransactionDetail3MonthsRate = 10
-	placeAlgoOrderRate              = 20
-	cancelAlgoOrderRate             = 20
-	cancelAdvanceAlgoOrderRate      = 20
-	getAlgoOrderListRate            = 20
-	getAlgoOrderHistoryRate         = 20
-	getEasyConvertCurrencyListRate  = 1
-	placeEasyConvert                = 1
-	getEasyConvertHistory           = 1
-	oneClickRepayCurrencyList       = 1
-	tradeOneClickRepay              = 1
-	getOneClickRepayHistory         = 1
-	// Block Trading endpoints
-	getCounterpartiesRate    = 5
-	createRfqRate            = 5
-	cancelRfqRate            = 5
-	cancelMultipleRfqRate    = 2
-	cancelAllRfqsRate        = 2
-	executeQuoteRate         = 2
-	setQuoteProducts         = 5
-	restMMPStatus            = 5
-	createQuoteRate          = 50
-	cancelQuoteRate          = 50
-	cancelMultipleQuotesRate = 2
-	cancelAllQuotes          = 2
-	getRfqsRate              = 2
-	getQuotesRate            = 2
-	getTradesRate            = 5
-	getTradesHistoryRate     = 10
-	getPublicTradesRate      = 5
-	// Funding
-	getCurrenciesRate            = 6
-	getBalanceRate               = 6
-	getAccountAssetValuationRate = 1
-	fundsTransferRate            = 1
-	getFundsTransferStateRate    = 1
-	assetBillsDetailsRate        = 6
-	lightningDepositsRate        = 2
-	getDepositAddressRate        = 6
-	getDepositHistoryRate        = 6
-	withdrawalRate               = 6
-	lightningWithdrawalsRate     = 2
-	cancelWithdrawalRate         = 6
-	getWithdrawalHistoryRate     = 6
-	smallAssetsConvertRate       = 1
-	// Savings
-	getSavingBalanceRate          = 6
-	savingsPurchaseRedemptionRate = 6
-	setLendingRateRate            = 6
-	getLendingHistoryRate         = 6
-	getPublicBorrowInfoRate       = 6
-	getPublicBorrowHistoryRate    = 6
-	// Convert
-	getConvertCurrenciesRate   = 6
-	getConvertCurrencyPairRate = 6
-	estimateQuoteRate          = 10
-	convertTradeRate           = 10
-	getConvertHistoryRate      = 6
-	// Account
-	getAccountBalanceRate                 = 10
-	getPositionsRate                      = 10
-	getPositionsHistoryRate               = 1
-	getAccountAndPositionRiskRate         = 10
-	getBillsDetailsRate                   = 5
-	getBillsDetailArchiveRate             = 5
-	getAccountConfigurationRate           = 5
-	setPositionModeRate                   = 5
-	setLeverageRate                       = 20
-	getMaximumBuyOrSellAmountRate         = 20
-	getMaximumAvailableTradableAmountRate = 20
-	increaseOrDecreaseMarginRate          = 20
-	getLeverageRate                       = 20
-	getLeverageEstimatedInfoRate          = 5
-	getTheMaximumLoanOfInstrumentRate     = 20
-	getFeeRatesRate                       = 5
-	getInterestAccruedDataRate            = 5
-	getInterestRateRate                   = 5
-	setGreeksRate                         = 5
-	isolatedMarginTradingSettingsRate     = 5
-	getMaximumWithdrawalsRate             = 20
-	getAccountRiskStateRate               = 10
-	manualBorrowAndRepayRate              = 5
-	getBorrowAndRepayHistoryRate          = 5
-	vipLoansBorrowAndRepayRate            = 6
-	getBorrowAndRepayHistoryHistoryRate   = 5
-	getVIPInterestAccruedDataRate         = 5
-	getVIPInterestDeductedDataRate        = 5
-	getVIPLoanOrderListRate               = 5
-	getVIPLoanOrderDetailRate             = 5
-	getBorrowInterestAndLimitRate         = 5
-	positionBuilderRate                   = 2
-	getGreeksRate                         = 10
-	getPMLimitation                       = 10
-	// Sub Account Endpoints
-	viewSubaccountListRate                             = 2
-	resetSubAccountAPIKey                              = 1
-	getSubaccountTradingBalanceRate                    = 2
-	getSubaccountFundingBalanceRate                    = 2
-	historyOfSubaccountTransferRate                    = 6
-	masterAccountsManageTransfersBetweenSubaccountRate = 1
-	setPermissionOfTransferOutRate                     = 1
-	getCustodyTradingSubaccountListRate                = 1
-	gridTradingRate                                    = 20
-	amendGridAlgoOrderRate                             = 20
-	stopGridAlgoOrderRate                              = 20
-	getGridAlgoOrderListRate                           = 20
-	getGridAlgoOrderHistoryRate                        = 20
-	getGridAlgoOrderDetailsRate                        = 20
-	getGridAlgoSubOrdersRate                           = 20
-	getGridAlgoOrderPositionsRate                      = 20
-	spotGridWithdrawIncomeRate                         = 20
-	computeMarginBalance                               = 20
-	adjustMarginBalance                                = 20
-	getGridAIParameter                                 = 20
-	// Earn
-	getOffer                   = 3
-	purchase                   = 2
-	redeem                     = 2
-	cancelPurchaseOrRedemption = 2
-	getEarnActiveOrders        = 3
-	getFundingOrderHistory     = 3
-	// Market Data
-	getTickersRate               = 20
-	getIndexTickersRate          = 20
-	getOrderBookRate             = 20
-	getCandlesticksRate          = 40
-	getCandlesticksHistoryRate   = 20
-	getIndexCandlesticksRate     = 20
-	getMarkPriceCandlesticksRate = 20
-	getTradesRequestRate         = 100
-	get24HTotalVolumeRate        = 2
-	getOracleRate                = 1
-	getExchangeRateRequestRate   = 1
-	getIndexComponentsRate       = 20
-	getBlockTickersRate          = 20
-	getBlockTradesRate           = 20
-	// Public Data Endpoints
-	getInstrumentsRate                         = 20
-	getDeliveryExerciseHistoryRate             = 40
-	getOpenInterestRate                        = 20
-	getFundingRate                             = 20
-	getFundingRateHistoryRate                  = 20
-	getLimitPriceRate                          = 20
-	getOptionMarketDateRate                    = 20
-	getEstimatedDeliveryExercisePriceRate      = 10
-	getDiscountRateAndInterestFreeQuotaRate    = 2
-	getSystemTimeRate                          = 10
-	getLiquidationOrdersRate                   = 40
-	getMarkPriceRate                           = 10
-	getPositionTiersRate                       = 10
-	getInterestRateAndLoanQuotaRate            = 2
-	getInterestRateAndLoanQuoteForVIPLoansRate = 2
-	getUnderlyingRate                          = 20
-	getInsuranceFundRate                       = 10
-	unitConvertRate                            = 10
-	// Trading Data Endpoints
-	getSupportCoinRate                    = 5
-	getTakerVolumeRate                    = 5
-	getMarginLendingRatioRate             = 5
-	getLongShortRatioRate                 = 5
-	getContractsOpenInterestAndVolumeRate = 5
-	getOptionsOpenInterestAndVolumeRate   = 5
-	getPutCallRatioRate                   = 5
-	getOpenInterestAndVolumeRate          = 5
-	getTakerFlowRate                      = 5
-	// Status Endpoints
-	getEventStatusRate = 1
-)
-
-const (
 	placeOrderEPL request.EndpointLimit = iota
 	placeMultipleOrdersEPL
 	cancelOrderEPL
@@ -409,6 +230,9 @@ const (
 	getOrderHistory3MonthsEPL
 	getTransactionDetail3DaysEPL
 	getTransactionDetail3MonthsEPL
+	setTransactionDetail2YearIntervalEPL
+	getTransactionDetailLast2YearsEPL
+	cancelAllAfterCountdownEPL
 	placeAlgoOrderEPL
 	cancelAlgoOrderEPL
 	cancelAdvanceAlgoOrderEPL
@@ -420,6 +244,7 @@ const (
 	getOneClickRepayHistoryEPL
 	oneClickRepayCurrencyListEPL
 	tradeOneClickRepayEPL
+	massCancemMMPOrderEPL
 	getCounterpartiesEPL
 	createRfqEPL
 	cancelRfqEPL
@@ -600,6 +425,12 @@ func (r *RateLimit) Limit(ctx context.Context, f request.EndpointLimit) error {
 		return r.GetTransactionDetail3Days.Wait(ctx)
 	case getTransactionDetail3MonthsEPL:
 		return r.GetTransactionDetail3Months.Wait(ctx)
+	case setTransactionDetail2YearIntervalEPL:
+		return r.SetTransactionDetail2YearInterval.Wait(ctx)
+	case getTransactionDetailLast2YearsEPL:
+		return r.GetTransactionDetailsLast2Year.Wait(ctx)
+	case cancelAllAfterCountdownEPL:
+		return r.CancelAllAfterCountdown.Wait(ctx)
 	case placeAlgoOrderEPL:
 		return r.PlaceAlgoOrder.Wait(ctx)
 	case cancelAlgoOrderEPL:
@@ -622,6 +453,8 @@ func (r *RateLimit) Limit(ctx context.Context, f request.EndpointLimit) error {
 		return r.OneClickRepayCurrencyList.Wait(ctx)
 	case tradeOneClickRepayEPL:
 		return r.TradeOneClickRepay.Wait(ctx)
+	case massCancemMMPOrderEPL:
+		return r.MassCancelMMPOrder.Wait(ctx)
 	case getCounterpartiesEPL:
 		return r.GetCounterparties.Wait(ctx)
 	case createRfqEPL:
@@ -929,112 +762,116 @@ func (r *RateLimit) Limit(ctx context.Context, f request.EndpointLimit) error {
 func SetRateLimit() *RateLimit {
 	return &RateLimit{
 		// Trade Endpoints
-		PlaceOrder:                  request.NewRateLimit(twoSecondsInterval, placeOrderRate),
-		PlaceMultipleOrders:         request.NewRateLimit(twoSecondsInterval, placeMultipleOrdersRate),
-		CancelOrder:                 request.NewRateLimit(twoSecondsInterval, cancelOrderRate),
-		CancelMultipleOrders:        request.NewRateLimit(twoSecondsInterval, cancelMultipleOrdersRate),
-		AmendOrder:                  request.NewRateLimit(twoSecondsInterval, amendOrderRate),
-		AmendMultipleOrders:         request.NewRateLimit(twoSecondsInterval, amendMultipleOrdersRate),
-		CloseDeposit:                request.NewRateLimit(twoSecondsInterval, closeDepositions),
-		GetOrderDetails:             request.NewRateLimit(twoSecondsInterval, getOrderDetails),
-		GetOrderList:                request.NewRateLimit(twoSecondsInterval, getOrderListRate),
-		GetOrderHistory7Days:        request.NewRateLimit(twoSecondsInterval, getOrderHistory7DaysRate),
-		GetOrderHistory3Months:      request.NewRateLimit(twoSecondsInterval, getOrderHistory3MonthsRate),
-		GetTransactionDetail3Days:   request.NewRateLimit(twoSecondsInterval, getTransactionDetail3DaysRate),
-		GetTransactionDetail3Months: request.NewRateLimit(twoSecondsInterval, getTransactionDetail3MonthsRate),
-		PlaceAlgoOrder:              request.NewRateLimit(twoSecondsInterval, placeAlgoOrderRate),
-		CancelAlgoOrder:             request.NewRateLimit(twoSecondsInterval, cancelAlgoOrderRate),
-		CancelAdvanceAlgoOrder:      request.NewRateLimit(twoSecondsInterval, cancelAdvanceAlgoOrderRate),
-		GetAlgoOrderList:            request.NewRateLimit(twoSecondsInterval, getAlgoOrderListRate),
-		GetAlgoOrderHistory:         request.NewRateLimit(twoSecondsInterval, getAlgoOrderHistoryRate),
-		GetEasyConvertCurrencyList:  request.NewRateLimit(twoSecondsInterval, getEasyConvertCurrencyListRate),
-		PlaceEasyConvert:            request.NewRateLimit(twoSecondsInterval, placeEasyConvert),
-		GetEasyConvertHistory:       request.NewRateLimit(twoSecondsInterval, getEasyConvertHistory),
-		GetOneClickRepayHistory:     request.NewRateLimit(twoSecondsInterval, getOneClickRepayHistory),
-		OneClickRepayCurrencyList:   request.NewRateLimit(twoSecondsInterval, oneClickRepayCurrencyList),
-		TradeOneClickRepay:          request.NewRateLimit(twoSecondsInterval, tradeOneClickRepay),
+		PlaceOrder:                        request.NewRateLimit(twoSecondsInterval, 60),
+		PlaceMultipleOrders:               request.NewRateLimit(twoSecondsInterval, 4),
+		CancelOrder:                       request.NewRateLimit(twoSecondsInterval, 60),
+		CancelMultipleOrders:              request.NewRateLimit(twoSecondsInterval, 300),
+		AmendOrder:                        request.NewRateLimit(twoSecondsInterval, 60),
+		AmendMultipleOrders:               request.NewRateLimit(twoSecondsInterval, 4),
+		CloseDeposit:                      request.NewRateLimit(twoSecondsInterval, 20),
+		GetOrderDetails:                   request.NewRateLimit(twoSecondsInterval, 60),
+		GetOrderList:                      request.NewRateLimit(twoSecondsInterval, 60),
+		GetOrderHistory7Days:              request.NewRateLimit(twoSecondsInterval, 40),
+		GetOrderHistory3Months:            request.NewRateLimit(twoSecondsInterval, 20),
+		GetTransactionDetail3Days:         request.NewRateLimit(twoSecondsInterval, 60),
+		GetTransactionDetail3Months:       request.NewRateLimit(twoSecondsInterval, 10),
+		SetTransactionDetail2YearInterval: request.NewRateLimit(time.Hour*24, 5),
+		GetTransactionDetailsLast2Year:    request.NewRateLimit(twoSecondsInterval, 10),
+		CancelAllAfterCountdown:           request.NewRateLimit(oneSecondInterval, 1),
+		PlaceAlgoOrder:                    request.NewRateLimit(twoSecondsInterval, 20),
+		CancelAlgoOrder:                   request.NewRateLimit(twoSecondsInterval, 20),
+		CancelAdvanceAlgoOrder:            request.NewRateLimit(twoSecondsInterval, 20),
+		GetAlgoOrderList:                  request.NewRateLimit(twoSecondsInterval, 20),
+		GetAlgoOrderHistory:               request.NewRateLimit(twoSecondsInterval, 20),
+		GetEasyConvertCurrencyList:        request.NewRateLimit(twoSecondsInterval, 1),
+		PlaceEasyConvert:                  request.NewRateLimit(twoSecondsInterval, 1),
+		GetEasyConvertHistory:             request.NewRateLimit(twoSecondsInterval, 1),
+		GetOneClickRepayHistory:           request.NewRateLimit(twoSecondsInterval, 1),
+		OneClickRepayCurrencyList:         request.NewRateLimit(twoSecondsInterval, 1),
+		TradeOneClickRepay:                request.NewRateLimit(twoSecondsInterval, 1),
+		MassCancelMMPOrder:                request.NewRateLimit(twoSecondsInterval, 5),
 		// Block Trading endpoints
-		GetCounterparties:    request.NewRateLimit(twoSecondsInterval, getCounterpartiesRate),
-		CreateRfq:            request.NewRateLimit(twoSecondsInterval, createRfqRate),
-		CancelRfq:            request.NewRateLimit(twoSecondsInterval, cancelRfqRate),
-		CancelMultipleRfq:    request.NewRateLimit(twoSecondsInterval, cancelMultipleRfqRate),
-		CancelAllRfqs:        request.NewRateLimit(twoSecondsInterval, cancelAllRfqsRate),
-		ExecuteQuote:         request.NewRateLimit(threeSecondsInterval, executeQuoteRate),
-		SetQuoteProducts:     request.NewRateLimit(twoSecondsInterval, setQuoteProducts),
-		RestMMPStatus:        request.NewRateLimit(twoSecondsInterval, restMMPStatus),
+		GetCounterparties:    request.NewRateLimit(twoSecondsInterval, 5),
+		CreateRfq:            request.NewRateLimit(twoSecondsInterval, 5),
+		CancelRfq:            request.NewRateLimit(twoSecondsInterval, 5),
+		CancelMultipleRfq:    request.NewRateLimit(twoSecondsInterval, 2),
+		CancelAllRfqs:        request.NewRateLimit(twoSecondsInterval, 2),
+		ExecuteQuote:         request.NewRateLimit(threeSecondsInterval, 2),
+		SetQuoteProducts:     request.NewRateLimit(twoSecondsInterval, 5),
+		RestMMPStatus:        request.NewRateLimit(twoSecondsInterval, 5),
 		SetMMP:               request.NewRateLimit(tenSecondsInterval, 2),
 		GetMMPConfig:         request.NewRateLimit(twoSecondsInterval, 5),
-		CreateQuote:          request.NewRateLimit(twoSecondsInterval, createQuoteRate),
-		CancelQuote:          request.NewRateLimit(twoSecondsInterval, cancelQuoteRate),
-		CancelMultipleQuotes: request.NewRateLimit(twoSecondsInterval, cancelMultipleQuotesRate),
-		CancelAllQuotes:      request.NewRateLimit(twoSecondsInterval, cancelAllQuotes),
-		GetRfqs:              request.NewRateLimit(twoSecondsInterval, getRfqsRate),
-		GetQuotes:            request.NewRateLimit(twoSecondsInterval, getQuotesRate),
-		GetTrades:            request.NewRateLimit(twoSecondsInterval, getTradesRate),
-		GetTradesHistory:     request.NewRateLimit(twoSecondsInterval, getTradesHistoryRate),
-		GetPublicTrades:      request.NewRateLimit(twoSecondsInterval, getPublicTradesRate),
+		CreateQuote:          request.NewRateLimit(twoSecondsInterval, 50),
+		CancelQuote:          request.NewRateLimit(twoSecondsInterval, 50),
+		CancelMultipleQuotes: request.NewRateLimit(twoSecondsInterval, 2),
+		CancelAllQuotes:      request.NewRateLimit(twoSecondsInterval, 2),
+		GetRfqs:              request.NewRateLimit(twoSecondsInterval, 2),
+		GetQuotes:            request.NewRateLimit(twoSecondsInterval, 2),
+		GetTrades:            request.NewRateLimit(twoSecondsInterval, 5),
+		GetTradesHistory:     request.NewRateLimit(twoSecondsInterval, 10),
+		GetPublicTrades:      request.NewRateLimit(twoSecondsInterval, 5),
 		// Funding
-		GetCurrencies:            request.NewRateLimit(oneSecondInterval, getCurrenciesRate),
-		GetBalance:               request.NewRateLimit(oneSecondInterval, getBalanceRate),
-		GetAccountAssetValuation: request.NewRateLimit(twoSecondsInterval, getAccountAssetValuationRate),
-		FundsTransfer:            request.NewRateLimit(oneSecondInterval, fundsTransferRate),
-		GetFundsTransferState:    request.NewRateLimit(oneSecondInterval, getFundsTransferStateRate),
-		AssetBillsDetails:        request.NewRateLimit(oneSecondInterval, assetBillsDetailsRate),
-		LightningDeposits:        request.NewRateLimit(oneSecondInterval, lightningDepositsRate),
-		GetDepositAddress:        request.NewRateLimit(oneSecondInterval, getDepositAddressRate),
-		GetDepositHistory:        request.NewRateLimit(oneSecondInterval, getDepositHistoryRate),
-		Withdrawal:               request.NewRateLimit(oneSecondInterval, withdrawalRate),
-		LightningWithdrawals:     request.NewRateLimit(oneSecondInterval, lightningWithdrawalsRate),
-		CancelWithdrawal:         request.NewRateLimit(oneSecondInterval, cancelWithdrawalRate),
-		GetWithdrawalHistory:     request.NewRateLimit(oneSecondInterval, getWithdrawalHistoryRate),
-		SmallAssetsConvert:       request.NewRateLimit(oneSecondInterval, smallAssetsConvertRate),
-		GetSavingBalance:         request.NewRateLimit(oneSecondInterval, getSavingBalanceRate),
-		SavingsPurchaseRedempt:   request.NewRateLimit(oneSecondInterval, savingsPurchaseRedemptionRate),
-		SetLendingRate:           request.NewRateLimit(oneSecondInterval, setLendingRateRate),
-		GetLendingHistory:        request.NewRateLimit(oneSecondInterval, getLendingHistoryRate),
-		GetPublicBorrowInfo:      request.NewRateLimit(oneSecondInterval, getPublicBorrowInfoRate),
-		GetPublicBorrowHistory:   request.NewRateLimit(oneSecondInterval, getPublicBorrowHistoryRate),
+		GetCurrencies:            request.NewRateLimit(oneSecondInterval, 6),
+		GetBalance:               request.NewRateLimit(oneSecondInterval, 6),
+		GetAccountAssetValuation: request.NewRateLimit(twoSecondsInterval, 1),
+		FundsTransfer:            request.NewRateLimit(oneSecondInterval, 1),
+		GetFundsTransferState:    request.NewRateLimit(oneSecondInterval, 1),
+		AssetBillsDetails:        request.NewRateLimit(oneSecondInterval, 6),
+		LightningDeposits:        request.NewRateLimit(oneSecondInterval, 2),
+		GetDepositAddress:        request.NewRateLimit(oneSecondInterval, 6),
+		GetDepositHistory:        request.NewRateLimit(oneSecondInterval, 6),
+		Withdrawal:               request.NewRateLimit(oneSecondInterval, 6),
+		LightningWithdrawals:     request.NewRateLimit(oneSecondInterval, 2),
+		CancelWithdrawal:         request.NewRateLimit(oneSecondInterval, 6),
+		GetWithdrawalHistory:     request.NewRateLimit(oneSecondInterval, 6),
+		SmallAssetsConvert:       request.NewRateLimit(oneSecondInterval, 1),
+		GetSavingBalance:         request.NewRateLimit(oneSecondInterval, 6),
+		SavingsPurchaseRedempt:   request.NewRateLimit(oneSecondInterval, 6),
+		SetLendingRate:           request.NewRateLimit(oneSecondInterval, 6),
+		GetLendingHistory:        request.NewRateLimit(oneSecondInterval, 6),
+		GetPublicBorrowInfo:      request.NewRateLimit(oneSecondInterval, 6),
+		GetPublicBorrowHistory:   request.NewRateLimit(oneSecondInterval, 6),
 		// Convert
-		GetConvertCurrencies:   request.NewRateLimit(oneSecondInterval, getConvertCurrenciesRate),
-		GetConvertCurrencyPair: request.NewRateLimit(oneSecondInterval, getConvertCurrencyPairRate),
-		EstimateQuote:          request.NewRateLimit(oneSecondInterval, estimateQuoteRate),
-		ConvertTrade:           request.NewRateLimit(oneSecondInterval, convertTradeRate),
-		GetConvertHistory:      request.NewRateLimit(oneSecondInterval, getConvertHistoryRate),
+		GetConvertCurrencies:   request.NewRateLimit(oneSecondInterval, 6),
+		GetConvertCurrencyPair: request.NewRateLimit(oneSecondInterval, 6),
+		EstimateQuote:          request.NewRateLimit(oneSecondInterval, 10),
+		ConvertTrade:           request.NewRateLimit(oneSecondInterval, 10),
+		GetConvertHistory:      request.NewRateLimit(oneSecondInterval, 6),
 		// Account
-		GetAccountBalance:                 request.NewRateLimit(twoSecondsInterval, getAccountBalanceRate),
-		GetPositions:                      request.NewRateLimit(twoSecondsInterval, getPositionsRate),
-		GetPositionsHistory:               request.NewRateLimit(tenSecondsInterval, getPositionsHistoryRate),
-		GetAccountAndPositionRisk:         request.NewRateLimit(twoSecondsInterval, getAccountAndPositionRiskRate),
-		GetBillsDetails:                   request.NewRateLimit(oneSecondInterval, getBillsDetailsRate),
-		GetBillsDetailArchive:             request.NewRateLimit(twoSecondsInterval, getBillsDetailArchiveRate),
-		GetAccountConfiguration:           request.NewRateLimit(twoSecondsInterval, getAccountConfigurationRate),
-		SetPositionMode:                   request.NewRateLimit(twoSecondsInterval, setPositionModeRate),
-		SetLeverage:                       request.NewRateLimit(twoSecondsInterval, setLeverageRate),
-		GetMaximumBuyOrSellAmount:         request.NewRateLimit(twoSecondsInterval, getMaximumBuyOrSellAmountRate),
-		GetMaximumAvailableTradableAmount: request.NewRateLimit(twoSecondsInterval, getMaximumAvailableTradableAmountRate),
-		IncreaseOrDecreaseMargin:          request.NewRateLimit(twoSecondsInterval, increaseOrDecreaseMarginRate),
-		GetLeverage:                       request.NewRateLimit(twoSecondsInterval, getLeverageRate),
-		GetLeverageEstimatedInfo:          request.NewRateLimit(twoSecondsInterval, getLeverageEstimatedInfoRate),
-		GetTheMaximumLoanOfInstrument:     request.NewRateLimit(twoSecondsInterval, getTheMaximumLoanOfInstrumentRate),
-		GetFeeRates:                       request.NewRateLimit(twoSecondsInterval, getFeeRatesRate),
-		GetInterestAccruedData:            request.NewRateLimit(twoSecondsInterval, getInterestAccruedDataRate),
-		GetInterestRate:                   request.NewRateLimit(twoSecondsInterval, getInterestRateRate),
-		SetGreeks:                         request.NewRateLimit(twoSecondsInterval, setGreeksRate),
-		IsolatedMarginTradingSettings:     request.NewRateLimit(twoSecondsInterval, isolatedMarginTradingSettingsRate),
-		GetMaximumWithdrawals:             request.NewRateLimit(twoSecondsInterval, getMaximumWithdrawalsRate),
-		GetAccountRiskState:               request.NewRateLimit(twoSecondsInterval, getAccountRiskStateRate),
-		ManualBorrowAndRepay:              request.NewRateLimit(twoSecondsInterval, manualBorrowAndRepayRate),
-		GetBorrowAndRepayHistory:          request.NewRateLimit(twoSecondsInterval, getBorrowAndRepayHistoryRate),
-		VipLoansBorrowAnsRepay:            request.NewRateLimit(oneSecondInterval, vipLoansBorrowAndRepayRate),
-		GetBorrowAndRepayHistoryHistory:   request.NewRateLimit(twoSecondsInterval, getBorrowAndRepayHistoryHistoryRate),
-		GetVIPInterestAccruedData:         request.NewRateLimit(twoSecondsInterval, getVIPInterestAccruedDataRate),
-		GetVIPInterestDeductedData:        request.NewRateLimit(twoSecondsInterval, getVIPInterestDeductedDataRate),
-		GetVIPLoanOrderList:               request.NewRateLimit(twoSecondsInterval, getVIPLoanOrderListRate),
-		GetVIPLoanOrderDetail:             request.NewRateLimit(twoSecondsInterval, getVIPLoanOrderDetailRate),
-		GetBorrowInterestAndLimit:         request.NewRateLimit(twoSecondsInterval, getBorrowInterestAndLimitRate),
-		PositionBuilder:                   request.NewRateLimit(twoSecondsInterval, positionBuilderRate),
-		GetGreeks:                         request.NewRateLimit(twoSecondsInterval, getGreeksRate),
-		GetPMLimitation:                   request.NewRateLimit(twoSecondsInterval, getPMLimitation),
+		GetAccountBalance:                 request.NewRateLimit(twoSecondsInterval, 10),
+		GetPositions:                      request.NewRateLimit(twoSecondsInterval, 10),
+		GetPositionsHistory:               request.NewRateLimit(tenSecondsInterval, 1),
+		GetAccountAndPositionRisk:         request.NewRateLimit(twoSecondsInterval, 10),
+		GetBillsDetails:                   request.NewRateLimit(oneSecondInterval, 5),
+		GetBillsDetailArchive:             request.NewRateLimit(twoSecondsInterval, 5),
+		GetAccountConfiguration:           request.NewRateLimit(twoSecondsInterval, 5),
+		SetPositionMode:                   request.NewRateLimit(twoSecondsInterval, 5),
+		SetLeverage:                       request.NewRateLimit(twoSecondsInterval, 20),
+		GetMaximumBuyOrSellAmount:         request.NewRateLimit(twoSecondsInterval, 20),
+		GetMaximumAvailableTradableAmount: request.NewRateLimit(twoSecondsInterval, 20),
+		IncreaseOrDecreaseMargin:          request.NewRateLimit(twoSecondsInterval, 20),
+		GetLeverage:                       request.NewRateLimit(twoSecondsInterval, 20),
+		GetLeverageEstimatedInfo:          request.NewRateLimit(twoSecondsInterval, 5),
+		GetTheMaximumLoanOfInstrument:     request.NewRateLimit(twoSecondsInterval, 20),
+		GetFeeRates:                       request.NewRateLimit(twoSecondsInterval, 5),
+		GetInterestAccruedData:            request.NewRateLimit(twoSecondsInterval, 5),
+		GetInterestRate:                   request.NewRateLimit(twoSecondsInterval, 5),
+		SetGreeks:                         request.NewRateLimit(twoSecondsInterval, 5),
+		IsolatedMarginTradingSettings:     request.NewRateLimit(twoSecondsInterval, 5),
+		GetMaximumWithdrawals:             request.NewRateLimit(twoSecondsInterval, 20),
+		GetAccountRiskState:               request.NewRateLimit(twoSecondsInterval, 10),
+		ManualBorrowAndRepay:              request.NewRateLimit(twoSecondsInterval, 5),
+		GetBorrowAndRepayHistory:          request.NewRateLimit(twoSecondsInterval, 5),
+		VipLoansBorrowAnsRepay:            request.NewRateLimit(oneSecondInterval, 6),
+		GetBorrowAndRepayHistoryHistory:   request.NewRateLimit(twoSecondsInterval, 5),
+		GetVIPInterestAccruedData:         request.NewRateLimit(twoSecondsInterval, 5),
+		GetVIPInterestDeductedData:        request.NewRateLimit(twoSecondsInterval, 5),
+		GetVIPLoanOrderList:               request.NewRateLimit(twoSecondsInterval, 5),
+		GetVIPLoanOrderDetail:             request.NewRateLimit(twoSecondsInterval, 5),
+		GetBorrowInterestAndLimit:         request.NewRateLimit(twoSecondsInterval, 5),
+		PositionBuilder:                   request.NewRateLimit(twoSecondsInterval, 2),
+		GetGreeks:                         request.NewRateLimit(twoSecondsInterval, 10),
+		GetPMLimitation:                   request.NewRateLimit(twoSecondsInterval, 10),
 		SetRiskOffsetType:                 request.NewRateLimit(twoSecondsInterval, 10),
 		ActivateOption:                    request.NewRateLimit(twoSecondsInterval, 5),
 		SetAutoLoan:                       request.NewRateLimit(twoSecondsInterval, 5),
@@ -1042,86 +879,86 @@ func SetRateLimit() *RateLimit {
 
 		// Sub Account Endpoints
 
-		ViewSubaccountList:                             request.NewRateLimit(twoSecondsInterval, viewSubaccountListRate),
-		ResetSubAccountAPIKey:                          request.NewRateLimit(oneSecondInterval, resetSubAccountAPIKey),
-		GetSubaccountTradingBalance:                    request.NewRateLimit(twoSecondsInterval, getSubaccountTradingBalanceRate),
-		GetSubaccountFundingBalance:                    request.NewRateLimit(twoSecondsInterval, getSubaccountFundingBalanceRate),
-		HistoryOfSubaccountTransfer:                    request.NewRateLimit(oneSecondInterval, historyOfSubaccountTransferRate),
-		MasterAccountsManageTransfersBetweenSubaccount: request.NewRateLimit(oneSecondInterval, masterAccountsManageTransfersBetweenSubaccountRate),
-		SetPermissionOfTransferOut:                     request.NewRateLimit(oneSecondInterval, setPermissionOfTransferOutRate),
-		GetCustodyTradingSubaccountList:                request.NewRateLimit(oneSecondInterval, getCustodyTradingSubaccountListRate),
+		ViewSubaccountList:                             request.NewRateLimit(twoSecondsInterval, 2),
+		ResetSubAccountAPIKey:                          request.NewRateLimit(oneSecondInterval, 1),
+		GetSubaccountTradingBalance:                    request.NewRateLimit(twoSecondsInterval, 2),
+		GetSubaccountFundingBalance:                    request.NewRateLimit(twoSecondsInterval, 2),
+		HistoryOfSubaccountTransfer:                    request.NewRateLimit(oneSecondInterval, 6),
+		MasterAccountsManageTransfersBetweenSubaccount: request.NewRateLimit(oneSecondInterval, 1),
+		SetPermissionOfTransferOut:                     request.NewRateLimit(oneSecondInterval, 1),
+		GetCustodyTradingSubaccountList:                request.NewRateLimit(oneSecondInterval, 1),
 		// Grid Trading Endpoints
 
-		GridTrading:               request.NewRateLimit(twoSecondsInterval, gridTradingRate),
-		AmendGridAlgoOrder:        request.NewRateLimit(twoSecondsInterval, amendGridAlgoOrderRate),
-		StopGridAlgoOrder:         request.NewRateLimit(twoSecondsInterval, stopGridAlgoOrderRate),
-		GetGridAlgoOrderList:      request.NewRateLimit(twoSecondsInterval, getGridAlgoOrderListRate),
-		GetGridAlgoOrderHistory:   request.NewRateLimit(twoSecondsInterval, getGridAlgoOrderHistoryRate),
-		GetGridAlgoOrderDetails:   request.NewRateLimit(twoSecondsInterval, getGridAlgoOrderDetailsRate),
-		GetGridAlgoSubOrders:      request.NewRateLimit(twoSecondsInterval, getGridAlgoSubOrdersRate),
-		GetGridAlgoOrderPositions: request.NewRateLimit(twoSecondsInterval, getGridAlgoOrderPositionsRate),
-		SpotGridWithdrawIncome:    request.NewRateLimit(twoSecondsInterval, spotGridWithdrawIncomeRate),
-		ComputeMarginBalance:      request.NewRateLimit(twoSecondsInterval, computeMarginBalance),
-		AdjustMarginBalance:       request.NewRateLimit(twoSecondsInterval, adjustMarginBalance),
-		GetGridAIParameter:        request.NewRateLimit(twoSecondsInterval, getGridAIParameter),
+		GridTrading:               request.NewRateLimit(twoSecondsInterval, 20),
+		AmendGridAlgoOrder:        request.NewRateLimit(twoSecondsInterval, 20),
+		StopGridAlgoOrder:         request.NewRateLimit(twoSecondsInterval, 20),
+		GetGridAlgoOrderList:      request.NewRateLimit(twoSecondsInterval, 20),
+		GetGridAlgoOrderHistory:   request.NewRateLimit(twoSecondsInterval, 20),
+		GetGridAlgoOrderDetails:   request.NewRateLimit(twoSecondsInterval, 20),
+		GetGridAlgoSubOrders:      request.NewRateLimit(twoSecondsInterval, 20),
+		GetGridAlgoOrderPositions: request.NewRateLimit(twoSecondsInterval, 20),
+		SpotGridWithdrawIncome:    request.NewRateLimit(twoSecondsInterval, 20),
+		ComputeMarginBalance:      request.NewRateLimit(twoSecondsInterval, 20),
+		AdjustMarginBalance:       request.NewRateLimit(twoSecondsInterval, 20),
+		GetGridAIParameter:        request.NewRateLimit(twoSecondsInterval, 20),
 		// Earn
-		GetOffer:                   request.NewRateLimit(oneSecondInterval, getOffer),
-		Purchase:                   request.NewRateLimit(oneSecondInterval, purchase),
-		Redeem:                     request.NewRateLimit(oneSecondInterval, redeem),
-		CancelPurchaseOrRedemption: request.NewRateLimit(oneSecondInterval, cancelPurchaseOrRedemption),
-		GetEarnActiveOrders:        request.NewRateLimit(oneSecondInterval, getEarnActiveOrders),
-		GetFundingOrderHistory:     request.NewRateLimit(oneSecondInterval, getFundingOrderHistory),
+		GetOffer:                   request.NewRateLimit(oneSecondInterval, 3),
+		Purchase:                   request.NewRateLimit(oneSecondInterval, 2),
+		Redeem:                     request.NewRateLimit(oneSecondInterval, 2),
+		CancelPurchaseOrRedemption: request.NewRateLimit(oneSecondInterval, 2),
+		GetEarnActiveOrders:        request.NewRateLimit(oneSecondInterval, 3),
+		GetFundingOrderHistory:     request.NewRateLimit(oneSecondInterval, 3),
 		// Market Data
-		GetTickers:               request.NewRateLimit(twoSecondsInterval, getTickersRate),
-		GetIndexTickers:          request.NewRateLimit(twoSecondsInterval, getIndexTickersRate),
-		GetOrderBook:             request.NewRateLimit(twoSecondsInterval, getOrderBookRate),
-		GetCandlesticks:          request.NewRateLimit(twoSecondsInterval, getCandlesticksRate),
-		GetCandlesticksHistory:   request.NewRateLimit(twoSecondsInterval, getCandlesticksHistoryRate),
-		GetIndexCandlesticks:     request.NewRateLimit(twoSecondsInterval, getIndexCandlesticksRate),
-		GetMarkPriceCandlesticks: request.NewRateLimit(twoSecondsInterval, getMarkPriceCandlesticksRate),
-		GetTradesRequest:         request.NewRateLimit(twoSecondsInterval, getTradesRequestRate),
-		Get24HTotalVolume:        request.NewRateLimit(twoSecondsInterval, get24HTotalVolumeRate),
-		GetOracle:                request.NewRateLimit(fiveSecondsInterval, getOracleRate),
-		GetExchangeRateRequest:   request.NewRateLimit(twoSecondsInterval, getExchangeRateRequestRate),
-		GetIndexComponents:       request.NewRateLimit(twoSecondsInterval, getIndexComponentsRate),
-		GetBlockTickers:          request.NewRateLimit(twoSecondsInterval, getBlockTickersRate),
-		GetBlockTrades:           request.NewRateLimit(twoSecondsInterval, getBlockTradesRate),
+		GetTickers:               request.NewRateLimit(twoSecondsInterval, 20),
+		GetIndexTickers:          request.NewRateLimit(twoSecondsInterval, 20),
+		GetOrderBook:             request.NewRateLimit(twoSecondsInterval, 20),
+		GetCandlesticks:          request.NewRateLimit(twoSecondsInterval, 40),
+		GetCandlesticksHistory:   request.NewRateLimit(twoSecondsInterval, 20),
+		GetIndexCandlesticks:     request.NewRateLimit(twoSecondsInterval, 20),
+		GetMarkPriceCandlesticks: request.NewRateLimit(twoSecondsInterval, 20),
+		GetTradesRequest:         request.NewRateLimit(twoSecondsInterval, 100),
+		Get24HTotalVolume:        request.NewRateLimit(twoSecondsInterval, 2),
+		GetOracle:                request.NewRateLimit(fiveSecondsInterval, 1),
+		GetExchangeRateRequest:   request.NewRateLimit(twoSecondsInterval, 1),
+		GetIndexComponents:       request.NewRateLimit(twoSecondsInterval, 20),
+		GetBlockTickers:          request.NewRateLimit(twoSecondsInterval, 20),
+		GetBlockTrades:           request.NewRateLimit(twoSecondsInterval, 20),
 
 		// Public Data Endpoints
 
-		GetInstruments:                         request.NewRateLimit(twoSecondsInterval, getInstrumentsRate),
-		GetDeliveryExerciseHistory:             request.NewRateLimit(twoSecondsInterval, getDeliveryExerciseHistoryRate),
-		GetOpenInterest:                        request.NewRateLimit(twoSecondsInterval, getOpenInterestRate),
-		GetFunding:                             request.NewRateLimit(twoSecondsInterval, getFundingRate),
-		GetFundingRateHistory:                  request.NewRateLimit(twoSecondsInterval, getFundingRateHistoryRate),
-		GetLimitPrice:                          request.NewRateLimit(twoSecondsInterval, getLimitPriceRate),
-		GetOptionMarketDate:                    request.NewRateLimit(twoSecondsInterval, getOptionMarketDateRate),
-		GetEstimatedDeliveryExercisePrice:      request.NewRateLimit(twoSecondsInterval, getEstimatedDeliveryExercisePriceRate),
-		GetDiscountRateAndInterestFreeQuota:    request.NewRateLimit(twoSecondsInterval, getDiscountRateAndInterestFreeQuotaRate),
-		GetSystemTime:                          request.NewRateLimit(twoSecondsInterval, getSystemTimeRate),
-		GetLiquidationOrders:                   request.NewRateLimit(twoSecondsInterval, getLiquidationOrdersRate),
-		GetMarkPrice:                           request.NewRateLimit(twoSecondsInterval, getMarkPriceRate),
-		GetPositionTiers:                       request.NewRateLimit(twoSecondsInterval, getPositionTiersRate),
-		GetInterestRateAndLoanQuota:            request.NewRateLimit(twoSecondsInterval, getInterestRateAndLoanQuotaRate),
-		GetInterestRateAndLoanQuoteForVIPLoans: request.NewRateLimit(twoSecondsInterval, getInterestRateAndLoanQuoteForVIPLoansRate),
-		GetUnderlying:                          request.NewRateLimit(twoSecondsInterval, getUnderlyingRate),
-		GetInsuranceFund:                       request.NewRateLimit(twoSecondsInterval, getInsuranceFundRate),
-		UnitConvert:                            request.NewRateLimit(twoSecondsInterval, unitConvertRate),
+		GetInstruments:                         request.NewRateLimit(twoSecondsInterval, 20),
+		GetDeliveryExerciseHistory:             request.NewRateLimit(twoSecondsInterval, 40),
+		GetOpenInterest:                        request.NewRateLimit(twoSecondsInterval, 20),
+		GetFunding:                             request.NewRateLimit(twoSecondsInterval, 20),
+		GetFundingRateHistory:                  request.NewRateLimit(twoSecondsInterval, 20),
+		GetLimitPrice:                          request.NewRateLimit(twoSecondsInterval, 20),
+		GetOptionMarketDate:                    request.NewRateLimit(twoSecondsInterval, 20),
+		GetEstimatedDeliveryExercisePrice:      request.NewRateLimit(twoSecondsInterval, 10),
+		GetDiscountRateAndInterestFreeQuota:    request.NewRateLimit(twoSecondsInterval, 2),
+		GetSystemTime:                          request.NewRateLimit(twoSecondsInterval, 10),
+		GetLiquidationOrders:                   request.NewRateLimit(twoSecondsInterval, 40),
+		GetMarkPrice:                           request.NewRateLimit(twoSecondsInterval, 10),
+		GetPositionTiers:                       request.NewRateLimit(twoSecondsInterval, 10),
+		GetInterestRateAndLoanQuota:            request.NewRateLimit(twoSecondsInterval, 2),
+		GetInterestRateAndLoanQuoteForVIPLoans: request.NewRateLimit(twoSecondsInterval, 2),
+		GetUnderlying:                          request.NewRateLimit(twoSecondsInterval, 20),
+		GetInsuranceFund:                       request.NewRateLimit(twoSecondsInterval, 10),
+		UnitConvert:                            request.NewRateLimit(twoSecondsInterval, 10),
 
 		// Trading Data Endpoints
 
-		GetSupportCoin:                    request.NewRateLimit(twoSecondsInterval, getSupportCoinRate),
-		GetTakerVolume:                    request.NewRateLimit(twoSecondsInterval, getTakerVolumeRate),
-		GetMarginLendingRatio:             request.NewRateLimit(twoSecondsInterval, getMarginLendingRatioRate),
-		GetLongShortRatio:                 request.NewRateLimit(twoSecondsInterval, getLongShortRatioRate),
-		GetContractsOpenInterestAndVolume: request.NewRateLimit(twoSecondsInterval, getContractsOpenInterestAndVolumeRate),
-		GetOptionsOpenInterestAndVolume:   request.NewRateLimit(twoSecondsInterval, getOptionsOpenInterestAndVolumeRate),
-		GetPutCallRatio:                   request.NewRateLimit(twoSecondsInterval, getPutCallRatioRate),
-		GetOpenInterestAndVolume:          request.NewRateLimit(twoSecondsInterval, getOpenInterestAndVolumeRate),
-		GetTakerFlow:                      request.NewRateLimit(twoSecondsInterval, getTakerFlowRate),
+		GetSupportCoin:                    request.NewRateLimit(twoSecondsInterval, 5),
+		GetTakerVolume:                    request.NewRateLimit(twoSecondsInterval, 5),
+		GetMarginLendingRatio:             request.NewRateLimit(twoSecondsInterval, 5),
+		GetLongShortRatio:                 request.NewRateLimit(twoSecondsInterval, 5),
+		GetContractsOpenInterestAndVolume: request.NewRateLimit(twoSecondsInterval, 5),
+		GetOptionsOpenInterestAndVolume:   request.NewRateLimit(twoSecondsInterval, 5),
+		GetPutCallRatio:                   request.NewRateLimit(twoSecondsInterval, 5),
+		GetOpenInterestAndVolume:          request.NewRateLimit(twoSecondsInterval, 5),
+		GetTakerFlow:                      request.NewRateLimit(twoSecondsInterval, 5),
 
 		// Status Endpoints
 
-		GetEventStatus: request.NewRateLimit(fiveSecondsInterval, getEventStatusRate),
+		GetEventStatus: request.NewRateLimit(fiveSecondsInterval, 1),
 	}
 }

@@ -717,6 +717,33 @@ func (ok *Okx) GetTransactionDetailsLast3Months(ctx context.Context, arg *Transa
 	return ok.getTransactionDetails(ctx, arg, tradeFillsHistory, getTransactionDetail3MonthsEPL)
 }
 
+// SetTransactionDetailIntervalFor2Years to apply for recently-filled transaction details in the past 2 years except for last 3 months.
+// returns download link generation time
+func (ok *Okx) SetTransactionDetailIntervalFor2Years(ctx context.Context, arg *FillArchiveParam) (time.Time, error) {
+	if arg == nil || *arg == (FillArchiveParam{}) {
+		return time.Time{}, errNilArgument
+	}
+	resp := &struct {
+		Ts convert.ExchangeTime `json:"ts"`
+	}{}
+	return resp.Ts.Time(), ok.SendHTTPRequest(ctx, exchange.RestSpot, setTransactionDetail2YearIntervalEPL, http.MethodPost, "trade/fills-archive", arg, &resp, true)
+}
+
+// GetTransactionDetailsLast2Year retrieve recently-filled transaction details in the past 2 years except for last 3 months.
+func (ok *Okx) GetTransactionDetailsLast2Year(ctx context.Context, year int64, quarter string) ([]ArchiveReference, error) {
+	if year == 0 {
+		return nil, errors.New("year is required")
+	}
+	if quarter == "" {
+		return nil, errors.New("quarter is required; possible values are Q1, Q2, Q3, and Q4")
+	}
+	params := url.Values{}
+	params.Set("year", strconv.FormatInt(year, 10))
+	params.Set("quarter", quarter)
+	var resp []ArchiveReference
+	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getTransactionDetailLast2YearsEPL, http.MethodGet, common.EncodeURLValues("trade/fills-archive", params), nil, &resp, true)
+}
+
 // GetTransactionDetails retrieves recently-filled transaction details.
 func (ok *Okx) getTransactionDetails(ctx context.Context, arg *TransactionDetailRequestParams, route string, rateLimit request.EndpointLimit) ([]TransactionDetail, error) {
 	params := url.Values{}
@@ -1057,6 +1084,46 @@ func (ok *Okx) GetOneClickRepayHistory(ctx context.Context, after, before time.T
 	}
 	var resp []CurrencyOneClickRepay
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getOneClickRepayHistoryEPL, http.MethodGet, common.EncodeURLValues(oneClickRepayHistory, params), nil, &resp, true)
+}
+
+// MassCancelOrder cancel all the MMP pending orders of an instrument family.
+// Only applicable to Option in Portfolio Margin mode, and MMP privilege is required.
+func (ok *Okx) MassCancelOrder(ctx context.Context, instrumentType, instrumentFamily string) (*CancelMMPResponse, error) {
+	if instrumentType == "" {
+		return nil, errInstrumentTypeRequired
+	}
+	if instrumentFamily == "" {
+		return nil, errInstrumentFamilyRequired
+	}
+	params := url.Values{}
+	params.Set("instType", instrumentType)
+	params.Set("instFamily", instrumentFamily)
+	var resp []CancelMMPResponse
+	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, tradeOneClickRepayEPL, http.MethodPost, common.EncodeURLValues("trade/mass-cancel", params), nil, &resp, true)
+	if err != nil {
+		return nil, err
+	}
+	if len(resp) == 1 {
+		return &resp[0], nil
+	}
+	return nil, errNoValidResponseFromServer
+}
+
+// CancelAllMMPOrdersAfterCountdown cancel all MMP pending orders after the countdown timeout.
+// Only applicable to Option in Portfolio Margin mode, and MMP privilege is required.
+func (ok *Okx) CancelAllMMPOrdersAfterCountdown(ctx context.Context, timeout string) (*CancelMMPAfterCountdownResponse, error) {
+	if timeout == "" {
+		return nil, errors.New("countdown timeout is required")
+	}
+	var resp []CancelMMPAfterCountdownResponse
+	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, cancelAllAfterCountdownEPL, http.MethodGet, "/trade/cancel-all-after", &map[string]string{"timeOut": "1"}, &resp, true)
+	if err != nil {
+		return nil, err
+	}
+	if len(resp) == 1 {
+		return &resp[0], nil
+	}
+	return nil, errNoValidResponseFromServer
 }
 
 /*************************************** Block trading ********************************/

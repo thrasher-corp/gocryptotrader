@@ -599,6 +599,18 @@ func TestTransactionHistory(t *testing.T) {
 	}
 }
 
+func TestSetTransactionDetailIntervalFor2Years(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
+	_, err := ok.SetTransactionDetailIntervalFor2Years(context.Background(), &FillArchiveParam{
+		Year:    2022,
+		Quarter: "Q2",
+	})
+	if err != nil {
+		t.Error(err)
+	}
+}
+
 func TestStopOrder(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
@@ -3804,6 +3816,24 @@ func TestGetMMPConfig(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
 	_, err := ok.GetMMPConfig(context.Background(), "")
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestMassCancelOrder(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
+	_, err := ok.MassCancelOrder(context.Background(), "OPTION", "BTC-USD")
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestCancelAllMMPOrdersAfterCountdown(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
+	_, err := ok.CancelAllMMPOrdersAfterCountdown(context.Background(), "60")
 	if err != nil {
 		t.Error(err)
 	}
