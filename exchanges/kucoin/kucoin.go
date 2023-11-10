@@ -137,8 +137,6 @@ const (
 	kucoinTradingFee = "/v1/trade-fees"
 )
 
-var errMaximumOf10Symbols = errors.New("maximum of 10 symbols")
-
 // GetSymbols gets pairs details on the exchange
 func (ku *Kucoin) GetSymbols(ctx context.Context, ccy string) ([]SymbolInfo, error) {
 	params := url.Values{}
@@ -1645,12 +1643,10 @@ func (ku *Kucoin) GetBasicFee(ctx context.Context, currencyType string) (*Fees, 
 }
 
 // GetTradingFee get fee rate of trading pairs
+// WARNING: There is a limit of 10 currency pairs allowed to be requested per call.
 func (ku *Kucoin) GetTradingFee(ctx context.Context, pairs currency.Pairs) ([]Fees, error) {
 	if len(pairs) == 0 {
 		return nil, currency.ErrCurrencyPairsEmpty
-	}
-	if len(pairs) > 10 {
-		return nil, errMaximumOf10Symbols
 	}
 	path := kucoinTradingFee + "?symbols=" + pairs.Upper().Join()
 	var resp []Fees

@@ -1107,10 +1107,13 @@ func TestGetTradingFee(t *testing.T) {
 		t.Error("GetTradingFee() error, expected 1 pair")
 	}
 
+	// NOTE: Test below will error out from an external call as this
+	// will exceed the allowed pairs. If this doesn't not error then
+	// this endpoint will allow more items to be requested.
 	pairs = append(pairs, avail[1:11]...)
 	_, err = ku.GetTradingFee(context.Background(), pairs)
-	if !errors.Is(err, errMaximumOf10Symbols) {
-		t.Fatalf("received %v, expected %v", err, errMaximumOf10Symbols)
+	if errors.Is(err, nil) {
+		t.Fatalf("received %v, expected %v", err, nil)
 	}
 
 	got, err := ku.GetTradingFee(context.Background(), pairs[:10])
