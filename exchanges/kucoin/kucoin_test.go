@@ -86,11 +86,12 @@ func TestGetSymbols(t *testing.T) {
 		t.Error("GetSymbols() error", err)
 	}
 	assert.NotEmpty(t, symbols, "should return all available spot/margin symbols")
+	// Using market string reduces the scope of what is returned.
 	symbols, err = ku.GetSymbols(context.Background(), "ETF")
 	if err != nil {
 		t.Error("GetSymbols() error", err)
 	}
-	assert.NotEmpty(t, symbols, "should return all available futures symbols")
+	assert.NotEmpty(t, symbols, "should return all available ETF symbols")
 }
 
 func TestGetTicker(t *testing.T) {
