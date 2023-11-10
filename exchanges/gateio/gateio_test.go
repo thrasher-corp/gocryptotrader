@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log"
 	"os"
 	"strconv"
@@ -3491,8 +3492,8 @@ func TestGetHistoricalFundingRates(t *testing.T) {
 		IncludePayments:      true,
 		IncludePredictedRate: true,
 	})
-	if !errors.Is(err, fundingrate.ErrIncludePaymentsNotSupported) {
-		t.Fatalf("received: %v, expected: %v", err, fundingrate.ErrPaymentCurrencyCannotBeEmpty)
+	if !errors.Is(err, common.ErrNotYetImplemented) {
+		t.Fatalf("received: %v, expected: %v", err, common.ErrNotYetImplemented)
 	}
 
 	_, err = g.GetHistoricalFundingRates(context.Background(), &fundingrate.HistoricalRatesRequest{
@@ -3501,11 +3502,37 @@ func TestGetHistoricalFundingRates(t *testing.T) {
 		PaymentCurrency:      currency.USDT,
 		IncludePredictedRate: true,
 	})
-	if !errors.Is(err, fundingrate.ErrIncludePredictedRateNotSupported) {
-		t.Fatalf("received: %v, expected: %v", err, fundingrate.ErrPaymentCurrencyCannotBeEmpty)
+	if !errors.Is(err, common.ErrNotYetImplemented) {
+		t.Fatalf("received: %v, expected: %v", err, common.ErrNotYetImplemented)
+	}
+
+	_, err = g.GetHistoricalFundingRates(context.Background(), &fundingrate.HistoricalRatesRequest{
+		Asset:           asset.Futures,
+		Pair:            currency.NewPair(currency.ENJ, currency.USDT),
+		PaymentCurrency: currency.USDT,
+		StartDate:       time.Now().Add(time.Hour * 16),
+		EndDate:         time.Now(),
+	})
+	if !errors.Is(err, common.ErrStartAfterEnd) {
+		t.Fatalf("received: %v, expected: %v", err, common.ErrStartAfterEnd)
 	}
 
 	history, err := g.GetHistoricalFundingRates(context.Background(), &fundingrate.HistoricalRatesRequest{
+		Asset:           asset.Futures,
+		Pair:            currency.NewPair(currency.ENJ, currency.USDT),
+		PaymentCurrency: currency.USDT,
+		StartDate:       time.Now().Add(-time.Hour * 16),
+		EndDate:         time.Now(),
+	})
+	if !errors.Is(err, common.ErrStartAfterEnd) {
+		t.Fatalf("received: %v, expected: %v", err, common.ErrStartAfterEnd)
+	}
+
+	assert.NotEmpty(t, history, "should return values")
+
+	fmt.Println(len(history.FundingRates))
+
+	history, err = g.GetHistoricalFundingRates(context.Background(), &fundingrate.HistoricalRatesRequest{
 		Asset:           asset.Futures,
 		Pair:            currency.NewPair(currency.ENJ, currency.USDT),
 		PaymentCurrency: currency.USDT,

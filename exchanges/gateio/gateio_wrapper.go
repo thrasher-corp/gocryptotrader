@@ -2182,6 +2182,13 @@ func (g *Gateio) GetHistoricalFundingRates(ctx context.Context, r *fundingrate.H
 		return nil, currency.ErrCurrencyPairEmpty
 	}
 
+	if !r.StartDate.IsZero() && !r.EndDate.IsZero() {
+		err := common.StartEndTimeCheck(r.StartDate, r.EndDate)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	// NOTE: Opted to fail here as a misconfigured request will result in
 	// {"label":"CONTRACT_NOT_FOUND"} and rather not mutate request using
 	// quote currency as the settlement currency.
@@ -2190,11 +2197,11 @@ func (g *Gateio) GetHistoricalFundingRates(ctx context.Context, r *fundingrate.H
 	}
 
 	if r.IncludePayments {
-		return nil, fundingrate.ErrIncludePaymentsNotSupported
+		return nil, fmt.Errorf("include payments %w", common.ErrNotYetImplemented)
 	}
 
 	if r.IncludePredictedRate {
-		return nil, fundingrate.ErrIncludePredictedRateNotSupported
+		return nil, fmt.Errorf("include predicted rate %w", common.ErrNotYetImplemented)
 	}
 
 	fPair, err := g.FormatExchangeCurrency(r.Pair, r.Asset)
@@ -2202,7 +2209,7 @@ func (g *Gateio) GetHistoricalFundingRates(ctx context.Context, r *fundingrate.H
 		return nil, err
 	}
 
-	records, err := g.GetFutureFundingRates(ctx, r.PaymentCurrency.String(), fPair, 0 /*Defaults to returning maximum records*/)
+	records, err := g.GetFutureFundingRates(ctx, r.PaymentCurrency.String(), fPair, 1000)
 	if err != nil {
 		return nil, err
 	}
@@ -2212,7 +2219,7 @@ func (g *Gateio) GetHistoricalFundingRates(ctx context.Context, r *fundingrate.H
 	}
 
 	if !r.StartDate.IsZero() && !r.RespectHistoryLimits && r.StartDate.Before(records[len(records)-1].Timestamp.Time()) {
-		return nil, fundingrate.ErrFundingRateOutsideLimits
+		return nil, fmt.Errorf("%w start date requested: %v last returned record: %v", fundingrate.ErrFundingRateOutsideLimits, r.StartDate, records[len(records)-1].Timestamp.Time())
 	}
 
 	fundingRates := make([]fundingrate.Rate, 0, len(records))
@@ -2226,6 +2233,10 @@ func (g *Gateio) GetHistoricalFundingRates(ctx context.Context, r *fundingrate.H
 			Rate: decimal.NewFromFloat(records[i].Rate.Float64()),
 			Time: records[i].Timestamp.Time(),
 		})
+	}
+
+	if len(fundingRates) == 0 {
+		return nil, fundingrate.ErrNoFundingRatesFound
 	}
 
 	return &fundingrate.HistoricalRates{
