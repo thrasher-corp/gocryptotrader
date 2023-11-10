@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"log"
 	"os"
 	"strconv"
@@ -3529,8 +3528,6 @@ func TestGetHistoricalFundingRates(t *testing.T) {
 	}
 
 	assert.NotEmpty(t, history, "should return values")
-
-	fmt.Println(len(history.FundingRates))
 
 	history, err = g.GetHistoricalFundingRates(context.Background(), &fundingrate.HistoricalRatesRequest{
 		Asset:           asset.Futures,
