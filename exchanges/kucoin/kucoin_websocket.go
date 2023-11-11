@@ -972,7 +972,8 @@ func (ku *Kucoin) processMarketSnapshot(respData []byte) error {
 	}
 	if assetEnabledPairsSpot {
 		ku.Websocket.DataHandler <- &spotTickerPrice
-	} else if assetEnabledPairsMargin {
+	}
+	if assetEnabledPairsMargin {
 		marginTickerPrice := spotTickerPrice
 		marginTickerPrice.AssetType = asset.Margin
 		ku.Websocket.DataHandler <- &marginTickerPrice
