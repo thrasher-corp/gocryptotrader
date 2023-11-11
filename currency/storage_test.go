@@ -17,6 +17,8 @@ func TestMain(m *testing.M) {
 		os.Exit(1)
 	}
 
+	storage.fiatExchangeMarkets = newMockProvider()
+
 	t := m.Run()
 
 	err = os.RemoveAll(testhelpers.TempDir)
