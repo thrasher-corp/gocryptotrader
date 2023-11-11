@@ -43,7 +43,9 @@ type RateLimit struct {
 	CancelAllAfterCountdown           *rate.Limiter
 	PlaceAlgoOrder                    *rate.Limiter
 	CancelAlgoOrder                   *rate.Limiter
+	AmendAlgoOrder                    *rate.Limiter
 	CancelAdvanceAlgoOrder            *rate.Limiter
+	GetAlgoOrderDetail                *rate.Limiter
 	GetAlgoOrderList                  *rate.Limiter
 	GetAlgoOrderHistory               *rate.Limiter
 	GetEasyConvertCurrencyList        *rate.Limiter
@@ -152,6 +154,9 @@ type RateLimit struct {
 	GridTrading                                    *rate.Limiter
 	AmendGridAlgoOrder                             *rate.Limiter
 	StopGridAlgoOrder                              *rate.Limiter
+	ClosePositionForForContractGrid                *rate.Limiter
+	CancelClosePositionOrderForContractGrid        *rate.Limiter
+	InstantTriggerGridAlgoOrder                    *rate.Limiter
 	GetGridAlgoOrderList                           *rate.Limiter
 	GetGridAlgoOrderHistory                        *rate.Limiter
 	GetGridAlgoOrderDetails                        *rate.Limiter
@@ -235,7 +240,9 @@ const (
 	cancelAllAfterCountdownEPL
 	placeAlgoOrderEPL
 	cancelAlgoOrderEPL
+	amendAlgoOrderEPL
 	cancelAdvanceAlgoOrderEPL
+	getAlgoOrderDetailEPL
 	getAlgoOrderListEPL
 	getAlgoOrderHistoryEPL
 	getEasyConvertCurrencyListEPL
@@ -338,6 +345,9 @@ const (
 	gridTradingEPL
 	amendGridAlgoOrderEPL
 	stopGridAlgoOrderEPL
+	closePositionForForContractGridEPL
+	cancelClosePositionOrderForContractGridEPL
+	instantTriggerGridAlgoOrderEPL
 	getGridAlgoOrderListEPL
 	getGridAlgoOrderHistoryEPL
 	getGridAlgoOrderDetailsEPL
@@ -435,8 +445,12 @@ func (r *RateLimit) Limit(ctx context.Context, f request.EndpointLimit) error {
 		return r.PlaceAlgoOrder.Wait(ctx)
 	case cancelAlgoOrderEPL:
 		return r.CancelAlgoOrder.Wait(ctx)
+	case amendAlgoOrderEPL:
+		return r.AmendAlgoOrder.Wait(ctx)
 	case cancelAdvanceAlgoOrderEPL:
 		return r.CancelAdvanceAlgoOrder.Wait(ctx)
+	case getAlgoOrderDetailEPL:
+		return r.GetAlgoOrderDetail.Wait(ctx)
 	case getAlgoOrderListEPL:
 		return r.GetAlgoOrderList.Wait(ctx)
 	case getAlgoOrderHistoryEPL:
@@ -641,6 +655,12 @@ func (r *RateLimit) Limit(ctx context.Context, f request.EndpointLimit) error {
 		return r.AmendGridAlgoOrder.Wait(ctx)
 	case stopGridAlgoOrderEPL:
 		return r.StopGridAlgoOrder.Wait(ctx)
+	case closePositionForForContractGridEPL:
+		return r.ClosePositionForForContractGrid.Wait(ctx)
+	case cancelClosePositionOrderForContractGridEPL:
+		return r.CancelClosePositionOrderForContractGrid.Wait(ctx)
+	case instantTriggerGridAlgoOrderEPL:
+		return r.InstantTriggerGridAlgoOrder.Wait(ctx)
 	case getGridAlgoOrderListEPL:
 		return r.GetGridAlgoOrderList.Wait(ctx)
 	case getGridAlgoOrderHistoryEPL:
@@ -780,7 +800,9 @@ func SetRateLimit() *RateLimit {
 		CancelAllAfterCountdown:           request.NewRateLimit(oneSecondInterval, 1),
 		PlaceAlgoOrder:                    request.NewRateLimit(twoSecondsInterval, 20),
 		CancelAlgoOrder:                   request.NewRateLimit(twoSecondsInterval, 20),
+		AmendAlgoOrder:                    request.NewRateLimit(twoSecondsInterval, 20),
 		CancelAdvanceAlgoOrder:            request.NewRateLimit(twoSecondsInterval, 20),
+		GetAlgoOrderDetail:                request.NewRateLimit(twoSecondsInterval, 20),
 		GetAlgoOrderList:                  request.NewRateLimit(twoSecondsInterval, 20),
 		GetAlgoOrderHistory:               request.NewRateLimit(twoSecondsInterval, 20),
 		GetEasyConvertCurrencyList:        request.NewRateLimit(twoSecondsInterval, 1),
@@ -889,18 +911,21 @@ func SetRateLimit() *RateLimit {
 		GetCustodyTradingSubaccountList:                request.NewRateLimit(oneSecondInterval, 1),
 		// Grid Trading Endpoints
 
-		GridTrading:               request.NewRateLimit(twoSecondsInterval, 20),
-		AmendGridAlgoOrder:        request.NewRateLimit(twoSecondsInterval, 20),
-		StopGridAlgoOrder:         request.NewRateLimit(twoSecondsInterval, 20),
-		GetGridAlgoOrderList:      request.NewRateLimit(twoSecondsInterval, 20),
-		GetGridAlgoOrderHistory:   request.NewRateLimit(twoSecondsInterval, 20),
-		GetGridAlgoOrderDetails:   request.NewRateLimit(twoSecondsInterval, 20),
-		GetGridAlgoSubOrders:      request.NewRateLimit(twoSecondsInterval, 20),
-		GetGridAlgoOrderPositions: request.NewRateLimit(twoSecondsInterval, 20),
-		SpotGridWithdrawIncome:    request.NewRateLimit(twoSecondsInterval, 20),
-		ComputeMarginBalance:      request.NewRateLimit(twoSecondsInterval, 20),
-		AdjustMarginBalance:       request.NewRateLimit(twoSecondsInterval, 20),
-		GetGridAIParameter:        request.NewRateLimit(twoSecondsInterval, 20),
+		GridTrading:                             request.NewRateLimit(twoSecondsInterval, 20),
+		AmendGridAlgoOrder:                      request.NewRateLimit(twoSecondsInterval, 20),
+		StopGridAlgoOrder:                       request.NewRateLimit(twoSecondsInterval, 20),
+		ClosePositionForForContractGrid:         request.NewRateLimit(twoSecondsInterval, 20),
+		CancelClosePositionOrderForContractGrid: request.NewRateLimit(twoSecondsInterval, 20),
+		InstantTriggerGridAlgoOrder:             request.NewRateLimit(twoSecondsInterval, 20),
+		GetGridAlgoOrderList:                    request.NewRateLimit(twoSecondsInterval, 20),
+		GetGridAlgoOrderHistory:                 request.NewRateLimit(twoSecondsInterval, 20),
+		GetGridAlgoOrderDetails:                 request.NewRateLimit(twoSecondsInterval, 20),
+		GetGridAlgoSubOrders:                    request.NewRateLimit(twoSecondsInterval, 20),
+		GetGridAlgoOrderPositions:               request.NewRateLimit(twoSecondsInterval, 20),
+		SpotGridWithdrawIncome:                  request.NewRateLimit(twoSecondsInterval, 20),
+		ComputeMarginBalance:                    request.NewRateLimit(twoSecondsInterval, 20),
+		AdjustMarginBalance:                     request.NewRateLimit(twoSecondsInterval, 20),
+		GetGridAIParameter:                      request.NewRateLimit(twoSecondsInterval, 20),
 		// Earn
 		GetOffer:                   request.NewRateLimit(oneSecondInterval, 3),
 		Purchase:                   request.NewRateLimit(oneSecondInterval, 2),

@@ -3838,3 +3838,57 @@ func TestCancelAllMMPOrdersAfterCountdown(t *testing.T) {
 		t.Error(err)
 	}
 }
+
+func TestAmendAlgoOrder(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
+	_, err := ok.AmendAlgoOrder(context.Background(), &AmendAlgoOrderParam{
+		AlgoID:       "2510789768709120",
+		InstrumentID: "BTC-USDT-SWAP",
+		NewSize:      2,
+	})
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetAlgoOrderDetail(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
+	_, err := ok.GetAlgoOrderDetail(context.Background(), "1234231231423", "")
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestClosePositionForContractrid(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
+	_, err := ok.ClosePositionForContractrid(context.Background(), &ClosePositionParams{
+		AlgoID:                  "448965992920907776",
+		MarketCloseAllPositions: true,
+	})
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestCancelClosePositionOrderForContractGrid(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
+	if _, err := ok.CancelClosePositionOrderForContractGrid(context.Background(), &CancelClosePositionOrder{
+		AlgoID:  "448965992920907776",
+		OrderID: "570627699870375936",
+	}); err != nil {
+		t.Error(err)
+	}
+}
+
+func TestInstantTriggerGridAlgoOrder(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
+	_, err := ok.InstantTriggerGridAlgoOrder(context.Background(), "123456789")
+	if err != nil {
+		t.Error(err)
+	}
+}

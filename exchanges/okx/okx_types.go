@@ -860,6 +860,80 @@ type AlgoOrder struct {
 	StatusMsg  string `json:"sMsg"`
 }
 
+// AmendAlgoOrderParam request parameter to amend an algo order.
+type AmendAlgoOrderParam struct {
+	InstrumentID                  string  `json:"instId"`
+	AlgoID                        string  `json:"algoId,omitempty"`
+	ClientSuppliedAlgoOrderID     string  `json:"algoClOrdId,omitempty"`
+	CancelOrderWhenFail           bool    `json:"cxlOnFail,omitempty"` // Whether the order needs to be automatically canceled when the order amendment fails Valid options: false or true, the default is false.
+	RequestID                     string  `json:"reqId,omitempty"`
+	NewSize                       float64 `json:"newSz,omitempty,string"`
+	NewTakeProfitTriggerPrice     float64 `json:"newTpTriggerPx,omitempty,string"`
+	NewTakeProfitOrderPrice       float64 `json:"newTpOrdPx,omitempty,string"`
+	NewStopLossTriggerPrice       float64 `json:"newSlTriggerPx,omitempty,string"`
+	NewStopLossOrderPrice         float64 `json:"newSlOrdPx,omitempty,string"`  // Stop-loss order price If the price is -1, stop-loss will be executed at the market price.
+	NewTakeProfitTriggerPriceType string  `json:"newTpTriggerPxType,omitempty"` // Take-profit trigger price type'last': last price 'index': index price 'mark': mark price
+	NewStopLossTriggerPriceType   string  `json:"newSlTriggerPxType,omitempty"` //Stop-loss trigger price type 'last': last price  'index': index price  'mark': mark price
+}
+
+// AmendAlgoResponse holds response information of amending an algo order.
+type AmendAlgoResponse struct {
+	AlgoClientOrderID string `json:"algoClOrdId"`
+	AlgoID            string `json:"algoId"`
+	ReqID             string `json:"reqId"`
+	SCode             string `json:"sCode"`
+	SMsg              string `json:"sMsg"`
+}
+
+// AlgoOrderDetail represents an algo order detail.
+type AlgoOrderDetail struct {
+	InstrumentType          string                  `json:"instType"`
+	InstrumentID            string                  `json:"instId"`
+	OrderID                 string                  `json:"ordId"`
+	OrderIDList             []string                `json:"ordIdList"`
+	Currency                string                  `json:"ccy"`
+	ClientOrderID           string                  `json:"clOrdId"`
+	AlgoID                  string                  `json:"algoId"`
+	AttachAlgoOrds          []string                `json:"attachAlgoOrds"`
+	Size                    convert.StringToFloat64 `json:"sz"`
+	CloseFraction           string                  `json:"closeFraction"`
+	OrderType               string                  `json:"ordType"`
+	Side                    string                  `json:"side"`
+	PosSide                 string                  `json:"posSide"`
+	TradeMode               string                  `json:"tdMode"`
+	TargetCurrency          string                  `json:"tgtCcy"`
+	State                   string                  `json:"state"`
+	Leverage                convert.StringToFloat64 `json:"lever"`
+	TpTriggerPrice          convert.StringToFloat64 `json:"tpTriggerPx"`
+	TpTriggerPriceType      string                  `json:"tpTriggerPxType"`
+	TpOrdPrice              convert.StringToFloat64 `json:"tpOrdPx"`
+	SlTriggerPrice          convert.StringToFloat64 `json:"slTriggerPx"`
+	SlTriggerPriceType      string                  `json:"slTriggerPxType"`
+	TriggerPrice            convert.StringToFloat64 `json:"triggerPx"`
+	TriggerPriceType        string                  `json:"triggerPxType"`
+	OrderPrice              convert.StringToFloat64 `json:"ordPx"`
+	ActualSize              convert.StringToFloat64 `json:"actualSz"`
+	ActualPrice             convert.StringToFloat64 `json:"actualPx"`
+	ActualSide              string                  `json:"actualSide"`
+	PriceVar                string                  `json:"pxVar"`
+	PriceSpread             string                  `json:"pxSpread"`
+	PriceLimit              convert.StringToFloat64 `json:"pxLimit"`
+	SizeLimit               convert.StringToFloat64 `json:"szLimit"`
+	Tag                     string                  `json:"tag"`
+	TimeInterval            string                  `json:"timeInterval"`
+	CallbackRatio           string                  `json:"callbackRatio"`
+	CallbackSpread          string                  `json:"callbackSpread"`
+	ActivePrice             convert.StringToFloat64 `json:"activePx"`
+	MoveTriggerPrice        convert.StringToFloat64 `json:"moveTriggerPx"`
+	ReduceOnly              string                  `json:"reduceOnly"`
+	TriggerTime             convert.ExchangeTime    `json:"triggerTime"`
+	Last                    convert.StringToFloat64 `json:"last"` // Last filled price while placing
+	FailCode                string                  `json:"failCode"`
+	AlgoClOrdID             string                  `json:"algoClOrdId"`
+	AmendPriceOnTriggerType string                  `json:"amendPxOnTriggerType"`
+	CreationTime            convert.ExchangeTime    `json:"cTime"`
+}
+
 // AlgoOrderCancelParams algo order request parameter
 type AlgoOrderCancelParams struct {
 	AlgoOrderID  string `json:"algoId"`
@@ -2098,6 +2172,42 @@ type GridAlgoOrderIDResponse struct {
 	AlgoOrderID string `json:"algoId"`
 	SCode       string `json:"sCode"`
 	SMsg        string `json:"sMsg"`
+}
+
+// StopGridAlgoOrderParam holds stop grid algo order parameter
+type StopGridAlgoOrderParam struct {
+	AlgoID        string `json:"algoId"`
+	InstrumentID  string `json:"instId"`
+	StopType      string `json:"stopType"`
+	AlgoOrderType string `json:"algoOrdType"`
+}
+
+// ClosePositionParams holds close position parameters
+type ClosePositionParams struct {
+	AlgoID                  string  `json:"algoId"`
+	MarketCloseAllPositions bool    `json:"mktClose"` // true: Market close all position, false：Close part of position
+	Size                    float64 `json:"sz,omitempty,string"`
+	Price                   float64 `json:"px,omitempty,string"`
+}
+
+// ClosePositionContractGridResponse holds contract grid close position response data
+type ClosePositionContractGridResponse struct {
+	AlgoClientOrderID string `json:"algoClOrdId"`
+	AlgoID            string `json:"algoId"`
+	OrderID           string `json:"ordId"`
+	Tag               string `json:"tag"`
+}
+
+// CancelClosePositionOrder holds close position order parameter cancellation parameter
+type CancelClosePositionOrder struct {
+	AlgoID  string `json:"algoId"`
+	OrderID string `json:"ordId"` // Close position order ID
+}
+
+// TriggeredGridAlgoOrderInfo holds grid algo order info
+type TriggeredGridAlgoOrderInfo struct {
+	AlgoClientOrderID string `json:"algoClOrdId"`
+	AlgoID            string `json:"algoId"`
 }
 
 // GridAlgoOrderAmend represents amend algo order response

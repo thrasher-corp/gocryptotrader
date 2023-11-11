@@ -208,14 +208,13 @@ const (
 	usersEntrustSubaccountList   = "users/entrust-subaccount-list"
 
 	// Grid Trading Endpoints
-	gridOrderAlgo            = "tradingBot/grid/order-algo"
-	gridAmendOrderAlgo       = "tradingBot/grid/amend-order-algo"
-	gridAlgoOrderStop        = "tradingBot/grid/stop-order-algo"
-	gridAlgoOrders           = "tradingBot/grid/orders-algo-pending"
+	gridOrderAlgo      = "tradingBot/grid/order-algo"
+	gridAmendOrderAlgo = "tradingBot/grid/amend-order-algo"
+	gridAlgoOrderStop  = "tradingBot/grid/stop-order-algo"
+	gridAlgoOrders     = "tradingBot/grid/orders-algo-pending"
+
 	gridAlgoOrdersHistory    = "tradingBot/grid/orders-algo-history"
 	gridOrdersAlgoDetails    = "tradingBot/grid/orders-algo-details"
-	gridSuborders            = "tradingBot/grid/sub-orders"
-	gridPositions            = "tradingBot/grid/positions"
 	gridWithdrawalIncome     = "tradingBot/grid/withdraw-income"
 	gridComputeMarginBalance = "tradingBot/grid/compute-margin-balance"
 	gridMarginBalance        = "tradingBot/grid/margin-balance"
@@ -571,7 +570,7 @@ func (ok *Okx) AmendMultipleOrders(ctx context.Context, args []AmendOrderRequest
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, amendMultipleOrdersEPL, http.MethodPost, amendBatchOrders, &args, &resp, true)
 }
 
-// ClosePositions Close all positions of an instrument via a market order.
+// ClosePositions close all positions of an instrument via a market order.
 func (ok *Okx) ClosePositions(ctx context.Context, arg *ClosePositionsRequestParams) (*ClosePositionResponse, error) {
 	if arg.InstrumentID == "" {
 		return nil, errMissingInstrumentID
@@ -932,6 +931,49 @@ func (ok *Okx) cancelAlgoOrder(ctx context.Context, args []AlgoOrderCancelParams
 	}
 	resp := []AlgoOrder{}
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, rateLimit, http.MethodPost, route, &args, &resp, true)
+}
+
+// AmendAlgoOrder amend unfilled algo orders (Support stop order only, not including Move_order_stop order, Trigger order, Iceberg order, TWAP order, Trailing Stop order).
+// Only applicable to Futures and Perpetual swap.
+func (ok *Okx) AmendAlgoOrder(ctx context.Context, arg *AmendAlgoOrderParam) (*AmendAlgoResponse, error) {
+	if arg == nil || *arg == (AmendAlgoOrderParam{}) {
+		return nil, errNilArgument
+	}
+	if arg.InstrumentID == "" {
+		return nil, errMissingInstrumentID
+	}
+	if arg.AlgoID == "" || arg.ClientSuppliedAlgoOrderID == "" {
+		return nil, fmt.Errorf("%w eiither 'algoId' or 'algoClOrdId' is required", errMissingAlgoOrderID)
+	}
+
+	var resp []AmendAlgoResponse
+	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, amendAlgoOrderEPL, http.MethodGet, "trade/amend-algos", arg, &resp, true)
+	if err != nil {
+		return nil, err
+	}
+	if len(resp) == 1 {
+		return &resp[0], nil
+	}
+	return nil, errNoValidResponseFromServer
+}
+
+// GetAlgoOrderDetail retrieves algo order details.
+func (ok *Okx) GetAlgoOrderDetail(ctx context.Context, algoID, algoClientOrderID string) (*AlgoOrderDetail, error) {
+	if algoID == "" || algoClientOrderID == "" {
+		return nil, fmt.Errorf("%w eiither 'algoId' or 'algoClOrdId' is required", errMissingAlgoOrderID)
+	}
+	params := url.Values{}
+	params.Set("algoId", algoID)
+	params.Set("algoClOrdId", algoClientOrderID)
+	var resp []AlgoOrderDetail
+	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, getAlgoOrderDetailEPL, http.MethodGet, common.EncodeURLValues("trade/order-algo", params), nil, &resp, true)
+	if err != nil {
+		return nil, err
+	}
+	if len(resp) == 1 {
+		return &resp[0], nil
+	}
+	return nil, errNoValidResponseFromServer
 }
 
 // GetAlgoOrderList retrieves a list of untriggered Algo orders under the current account.
@@ -3012,6 +3054,66 @@ func (ok *Okx) StopGridAlgoOrder(ctx context.Context, arg []StopGridAlgoOrderReq
 	return resp, nil
 }
 
+// ClosePositionForContractrid close position when the contract grid stop type is 'keep position'.
+func (ok *Okx) ClosePositionForContractrid(ctx context.Context, arg *ClosePositionParams) (*ClosePositionContractGridResponse, error) {
+	if arg == nil || *arg == (ClosePositionParams{}) {
+		return nil, errNilArgument
+	}
+	if arg.AlgoID == "" {
+		return nil, errInvalidAlgoID
+	}
+	if !arg.MarketCloseAllPositions && arg.Size <= 0 {
+		return nil, errMissingSize
+	}
+	if !arg.MarketCloseAllPositions && arg.Price <= 0 {
+		return nil, errInvalidMinimumPrice
+	}
+	var resp []ClosePositionContractGridResponse
+	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, closePositionForForContractGridEPL, http.MethodPost, "tradingBot/grid/close-position", arg, &resp, true)
+	if err != nil {
+		return nil, err
+	}
+	if len(resp) == 1 {
+		return &resp[0], nil
+	}
+	return nil, errNoValidResponseFromServer
+}
+
+// CancelClosePositionOrderForContractGrid cancels close position order for contract grid
+func (ok *Okx) CancelClosePositionOrderForContractGrid(ctx context.Context, arg *CancelClosePositionOrder) (*ClosePositionContractGridResponse, error) {
+	if arg == nil || *arg == (CancelClosePositionOrder{}) {
+		return nil, errNilArgument
+	}
+	if arg.AlgoID == "" {
+		return nil, errMissingAlgoOrderID
+	}
+	if arg.OrderID == "" {
+		return nil, order.ErrOrderIDNotSet
+	}
+	var resp []ClosePositionContractGridResponse
+	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, cancelClosePositionOrderForContractGridEPL, http.MethodPost, "tradingBot/grid/cancel-close-order", arg, &resp, true)
+	if err != nil {
+		return nil, err
+	}
+	if len(resp) == 1 {
+		return &resp[0], nil
+	}
+	return nil, errNoValidResponseFromServer
+}
+
+// InstantTriggerGridAlgoOrder triggers grid algo order
+func (ok *Okx) InstantTriggerGridAlgoOrder(ctx context.Context, algoID string) (*TriggeredGridAlgoOrderInfo, error) {
+	var resp []TriggeredGridAlgoOrderInfo
+	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, instantTriggerGridAlgoOrderEPL, http.MethodPost, "tradingBot/grid/order-instant-trigger", &map[string]string{"algoId": algoID}, &resp, true)
+	if err != nil {
+		return nil, err
+	}
+	if len(resp) == 1 {
+		return &resp[0], nil
+	}
+	return nil, errNoValidResponseFromServer
+}
+
 // GetGridAlgoOrdersList retrieves list of pending grid algo orders with the complete data.
 func (ok *Okx) GetGridAlgoOrdersList(ctx context.Context, algoOrderType, algoID,
 	instrumentID, instrumentType,
@@ -3119,7 +3221,7 @@ func (ok *Okx) GetGridAlgoSubOrders(ctx context.Context, algoOrderType, algoID, 
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	var resp []GridAlgoOrderResponse
-	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getGridAlgoSubOrdersEPL, http.MethodGet, common.EncodeURLValues(gridSuborders, params), nil, &resp, true)
+	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getGridAlgoSubOrdersEPL, http.MethodGet, common.EncodeURLValues("tradingBot/grid/sub-orders", params), nil, &resp, true)
 }
 
 // GetGridAlgoOrderPositions retrieves grid algo order positions.
@@ -3134,7 +3236,7 @@ func (ok *Okx) GetGridAlgoOrderPositions(ctx context.Context, algoOrderType, alg
 	params.Set("algoOrdType", algoOrderType)
 	params.Set("algoId", algoID)
 	var resp []AlgoOrderPosition
-	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getGridAlgoOrderPositionsEPL, http.MethodGet, common.EncodeURLValues(gridPositions, params), nil, &resp, true)
+	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getGridAlgoOrderPositionsEPL, http.MethodGet, common.EncodeURLValues("tradingBot/grid/positions", params), nil, &resp, true)
 }
 
 // SpotGridWithdrawProfit returns the spot grid orders withdrawal profit given an instrument id.
