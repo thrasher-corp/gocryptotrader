@@ -873,7 +873,7 @@ type AmendAlgoOrderParam struct {
 	NewStopLossTriggerPrice       float64 `json:"newSlTriggerPx,omitempty,string"`
 	NewStopLossOrderPrice         float64 `json:"newSlOrdPx,omitempty,string"`  // Stop-loss order price If the price is -1, stop-loss will be executed at the market price.
 	NewTakeProfitTriggerPriceType string  `json:"newTpTriggerPxType,omitempty"` // Take-profit trigger price type'last': last price 'index': index price 'mark': mark price
-	NewStopLossTriggerPriceType   string  `json:"newSlTriggerPxType,omitempty"` //Stop-loss trigger price type 'last': last price  'index': index price  'mark': mark price
+	NewStopLossTriggerPriceType   string  `json:"newSlTriggerPxType,omitempty"` // Stop-loss trigger price type 'last': last price  'index': index price  'mark': mark price
 }
 
 // AmendAlgoResponse holds response information of amending an algo order.
@@ -1619,7 +1619,7 @@ type InterestAccruedData struct {
 	LoanType     string           `json:"type"`
 }
 
-// InterestAccruedData holds interest accrued/deducted data
+// VIPInterestData holds interest accrued/deducted data
 type VIPInterestData struct {
 	Currency     string                  `json:"ccy"`
 	Interest     convert.StringToFloat64 `json:"interest"`
@@ -3309,6 +3309,146 @@ type GridAIParameterResponse struct {
 	PerMaximumProfitRate float64 `json:"perMaxProfitRate,string"`
 	PerMinimumProfitRate float64 `json:"perMinProfitRate,string"`
 	RunType              string  `json:"runType"`
+}
+
+// InvestmentData holds investment data parameter
+type InvestmentData struct {
+	Amount   float64 `json:"amt,string"`
+	Currency string  `json:"ccy"`
+}
+
+// ComputeInvestmentDataParam holds parameter values for computing investment data
+type ComputeInvestmentDataParam struct {
+	InstrumentID   string           `json:"instId"`
+	AlgoOrderType  string           `json:"algoOrdType"` // Algo order type 'grid': Spot grid 'contract_grid': Contract grid
+	GridNumber     float64          `json:"gridNum,string"`
+	Direction      string           `json:"direction"` // Contract grid type 'long','short', 'neutral' Only applicable to contract grid
+	MaxPrice       float64          `json:"maxPx,string"`
+	MinPrice       float64          `json:"minPx,string"`
+	RunType        string           `json:"runType"` // Grid type 1: Arithmetic, 2: Geometric
+	Leverage       float64          `json:"lever,omitempty,string"`
+	BasePosition   bool             `json:"basePos"`
+	InvestmentData []InvestmentData `json:"investmentData"`
+}
+
+// InvestmentResult holds investment response
+type InvestmentResult struct {
+	MinInvestmentData []InvestmentData        `json:"minInvestmentData"`
+	SingleAmount      convert.StringToFloat64 `json:"singleAmt"`
+}
+
+// RSIBacktestingResponse holds response for relative strength index(RSI) backtesting
+type RSIBacktestingResponse struct {
+	TriggerNumber string `json:"triggerNum"`
+}
+
+// SignalBotOrderDetail holds detail of signal bot order.
+type SignalBotOrderDetail struct {
+	AlgoID               string                  `json:"algoId"`
+	ClientSuppliedAlgoID string                  `json:"algoClOrdId"`
+	AlgoOrderType        string                  `json:"algoOrdType"`
+	InstrumentType       string                  `json:"instType"`
+	InstrumentIds        []string                `json:"instIds"`
+	CreationTime         convert.ExchangeTime    `json:"cTime"`
+	UpdateTime           convert.ExchangeTime    `json:"uTime"`
+	State                string                  `json:"state"`
+	CancelType           string                  `json:"cancelType"`
+	TotalPnl             convert.StringToFloat64 `json:"totalPnl"`
+	ProfitAndLossRatio   convert.StringToFloat64 `json:"pnlRatio"`
+	TotalEq              convert.StringToFloat64 `json:"totalEq"`
+	FloatPnl             string                  `json:"floatPnl"`
+	FrozenBal            string                  `json:"frozenBal"`
+	AvailableBalance     convert.StringToFloat64 `json:"availBal"`
+	Lever                convert.StringToFloat64 `json:"lever"`
+	InvestAmount         convert.StringToFloat64 `json:"investAmt"`
+	SubOrdType           string                  `json:"subOrdType"`
+	Ratio                convert.StringToFloat64 `json:"ratio"`
+	EntrySettingParam    struct {
+		AllowMultipleEntry bool                    `json:"allowMultipleEntry"`
+		Amount             convert.StringToFloat64 `json:"amt"`
+		EntryType          string                  `json:"entryType"`
+		Ratio              convert.StringToFloat64 `json:"ratio"`
+	} `json:"entrySettingParam"`
+	ExitSettingParam struct {
+		StopLossPercentage   string `json:"slPct"`
+		TakeProfitPercentage string `json:"tpPct"`
+		TakeProfitSlType     string `json:"tpSlType"`
+	} `json:"exitSettingParam"`
+	SignalChanID     string `json:"signalChanId"`
+	SignalChanName   string `json:"signalChanName"`
+	SignalSourceType string `json:"signalSourceType"`
+
+	TotalPnlRatio convert.StringToFloat64 `json:"totalPnlRatio"`
+	RealizedPnl   string                  `json:"realizedPnl"`
+}
+
+// SignalBotPosition holds signal bot position information
+type SignalBotPosition struct {
+	AutoDecreaseLine             string                  `json:"adl"`
+	AlgoClientOrderID            string                  `json:"algoClOrdId"`
+	AlgoID                       string                  `json:"algoId"`
+	AveragePrice                 convert.StringToFloat64 `json:"avgPx"`
+	CreationTime                 convert.ExchangeTime    `json:"cTime"`
+	Currency                     string                  `json:"ccy"`
+	InitialMarginRequirement     string                  `json:"imr"`
+	InstrumentID                 string                  `json:"instId"`
+	InstrumentType               string                  `json:"instType"`
+	Last                         convert.StringToFloat64 `json:"last"`
+	Lever                        convert.StringToFloat64 `json:"lever"`
+	LiqPrice                     convert.StringToFloat64 `json:"liqPx"`
+	MarkPrice                    convert.StringToFloat64 `json:"markPx"`
+	MgnMode                      string                  `json:"mgnMode"`
+	MgnRatio                     convert.StringToFloat64 `json:"mgnRatio"` // Margin mode 'cross' 'isolated'
+	MaintenanceMarginRequirement string                  `json:"mmr"`
+	NotionalUsd                  string                  `json:"notionalUsd"`
+	Position                     string                  `json:"pos"`
+	PositionSide                 string                  `json:"posSide"` // Position side 'net'
+	UpdateTime                   convert.ExchangeTime    `json:"uTime"`
+	UnrealizedProfitAndLoss      string                  `json:"upl"`
+	UplRatio                     convert.StringToFloat64 `json:"uplRatio"` // Unrealized profit and loss ratio
+}
+
+// SubOrder holds signal bot sub orders
+type SubOrder struct {
+	AccountFillSize   string                  `json:"accFillSz"`
+	AlgoClientOrderID string                  `json:"algoClOrdId"`
+	AlgoID            string                  `json:"algoId"`
+	AlgoOrdType       string                  `json:"algoOrdType"`
+	AveragePrice      convert.StringToFloat64 `json:"avgPx"`
+	CreationTime      convert.ExchangeTime    `json:"cTime"`
+	Currency          string                  `json:"ccy"`
+	ClientOrderID     string                  `json:"clOrdId"`
+	CtVal             string                  `json:"ctVal"`
+	Fee               convert.StringToFloat64 `json:"fee"`
+	FeeCurrency       string                  `json:"feeCcy"`
+	InstrumentID      string                  `json:"instId"`
+	InstrumentType    string                  `json:"instType"`
+	Leverage          convert.StringToFloat64 `json:"lever"`
+	OrderID           string                  `json:"ordId"`
+	OrderType         string                  `json:"ordType"`
+	ProfitAndLoss     convert.StringToFloat64 `json:"pnl"`
+	PosSide           string                  `json:"posSide"`
+	Price             convert.StringToFloat64 `json:"px"`
+	Side              string                  `json:"side"`
+	State             string                  `json:"state"`
+	Size              convert.StringToFloat64 `json:"sz"`
+	Tag               string                  `json:"tag"`
+	TdMode            string                  `json:"tdMode"`
+	UpdateTime        convert.ExchangeTime    `json:"uTime"`
+}
+
+// SignalBotEventHistory holds history information for signal bot
+type SignalBotEventHistory struct {
+	AlertMsg         time.Time            `json:"alertMsg"`
+	AlgoID           string               `json:"algoId"`
+	EventCtime       convert.ExchangeTime `json:"eventCtime"`
+	EventProcessMsg  string               `json:"eventProcessMsg"`
+	EventStatus      string               `json:"eventStatus"`
+	EventUtime       convert.ExchangeTime `json:"eventUtime"`
+	EventType        string               `json:"eventType"`
+	TriggeredOrdData []struct {
+		ClientOrderID string `json:"clOrdId"`
+	} `json:"triggeredOrdData"`
 }
 
 // Offer represents an investment offer information for different 'staking' and 'defi' protocols

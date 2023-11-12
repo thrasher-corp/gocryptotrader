@@ -92,6 +92,7 @@ const (
 	okxChannelStructureBlockTrades = "struc-block-trades"
 	okxChannelSpotGridOrder        = "grid-orders-spot"
 	okxChannelGridOrdersContract   = "grid-orders-contract"
+	okxChannelMoonGridAlgoOrders   = "grid-orders-moon"
 	okxChannelGridPositions        = "grid-positions"
 	okcChannelGridSubOrders        = "grid-sub-orders"
 
@@ -393,6 +394,7 @@ func (ok *Okx) handleSubscription(operation string, subscriptions []stream.Chann
 			okxChannelStructureBlockTrades,
 			okxChannelSpotGridOrder,
 			okxChannelGridOrdersContract,
+			okxChannelMoonGridAlgoOrders,
 			okxChannelGridPositions,
 			okcChannelGridSubOrders:
 			authSubscription = true
@@ -445,6 +447,7 @@ func (ok *Okx) handleSubscription(operation string, subscriptions []stream.Chann
 			arg.Channel == okxChannelLiquidationWarning ||
 			arg.Channel == okxChannelSpotGridOrder ||
 			arg.Channel == okxChannelGridOrdersContract ||
+			arg.Channel == okxChannelMoonGridAlgoOrders ||
 			arg.Channel == okxChannelEstimatedPrice {
 			instrumentType = ok.GetInstrumentTypeFromAssetItem(subscriptions[i].Asset)
 		}

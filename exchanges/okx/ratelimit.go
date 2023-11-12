@@ -166,6 +166,15 @@ type RateLimit struct {
 	ComputeMarginBalance                           *rate.Limiter
 	AdjustMarginBalance                            *rate.Limiter
 	GetGridAIParameter                             *rate.Limiter
+	ComputeMinInvestment                           *rate.Limiter
+	RSIBackTesting                                 *rate.Limiter
+
+	// Signal Bot Trading
+	SignalBotOrderDetails *rate.Limiter
+	SignalBotPosition     *rate.Limiter
+	SignalBotSubOrders    *rate.Limiter
+	SignalBotEventHistory *rate.Limiter
+
 	// Earn
 	GetOffer                   *rate.Limiter
 	Purchase                   *rate.Limiter
@@ -357,6 +366,12 @@ const (
 	computeMarginBalanceEPL
 	adjustMarginBalanceEPL
 	getGridAIParameterEPL
+	computeMinInvestmentEPL
+	rsiBackTestingEPL
+	signalBotOrderDetailsEPL
+	signalBotOrderPositionsEPL
+	signalBotSubOrdersEPL
+	signalBotEventHistoryEPL
 	getOfferEPL
 	purchaseEPL
 	redeemEPL
@@ -679,6 +694,19 @@ func (r *RateLimit) Limit(ctx context.Context, f request.EndpointLimit) error {
 		return r.AdjustMarginBalance.Wait(ctx)
 	case getGridAIParameterEPL:
 		return r.GetGridAIParameter.Wait(ctx)
+	case computeMinInvestmentEPL:
+		return r.ComputeMinInvestment.Wait(ctx)
+	case rsiBackTestingEPL:
+		return r.RSIBackTesting.Wait(ctx)
+
+	case signalBotOrderDetailsEPL:
+		return r.SignalBotOrderDetails.Wait(ctx)
+	case signalBotOrderPositionsEPL:
+		return r.SignalBotPosition.Wait(ctx)
+	case signalBotSubOrdersEPL:
+		return r.SignalBotSubOrders.Wait(ctx)
+	case signalBotEventHistoryEPL:
+		return r.SignalBotEventHistory.Wait(ctx)
 	case getOfferEPL:
 		return r.GetOffer.Wait(ctx)
 	case purchaseEPL:
@@ -926,6 +954,15 @@ func SetRateLimit() *RateLimit {
 		ComputeMarginBalance:                    request.NewRateLimit(twoSecondsInterval, 20),
 		AdjustMarginBalance:                     request.NewRateLimit(twoSecondsInterval, 20),
 		GetGridAIParameter:                      request.NewRateLimit(twoSecondsInterval, 20),
+		ComputeMinInvestment:                    request.NewRateLimit(twoSecondsInterval, 20),
+		RSIBackTesting:                          request.NewRateLimit(twoSecondsInterval, 20),
+
+		// Signal Bot Trading
+		SignalBotOrderDetails: request.NewRateLimit(twoSecondsInterval, 20),
+		SignalBotPosition:     request.NewRateLimit(twoSecondsInterval, 20),
+		SignalBotSubOrders:    request.NewRateLimit(twoSecondsInterval, 20),
+		SignalBotEventHistory: request.NewRateLimit(twoSecondsInterval, 20),
+
 		// Earn
 		GetOffer:                   request.NewRateLimit(oneSecondInterval, 3),
 		Purchase:                   request.NewRateLimit(oneSecondInterval, 2),

@@ -3892,3 +3892,72 @@ func TestInstantTriggerGridAlgoOrder(t *testing.T) {
 		t.Error(err)
 	}
 }
+
+func TestComputeMinInvestment(t *testing.T) {
+	t.Parallel()
+	_, err := ok.ComputeMinInvestment(context.Background(), &ComputeInvestmentDataParam{
+		InstrumentID:  "ETH-USDT",
+		AlgoOrderType: "grid",
+		GridNumber:    50,
+		MaxPrice:      5000,
+		MinPrice:      3000,
+		RunType:       "1",
+		InvestmentData: []InvestmentData{
+			{
+				Amount:   0.01,
+				Currency: "ETH",
+			},
+			{
+				Amount:   100,
+				Currency: "USDT",
+			},
+		},
+	})
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestRSIBackTesting(t *testing.T) {
+	t.Parallel()
+	_, err := ok.RSIBackTesting(context.Background(), "BTC-USDT", "", "", 50, 14, kline.FiveMin)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestSignalBotTrading(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
+	_, err := ok.GetSignalBotOrderDetail(context.Background(), "contract", "623833708424069120")
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetSignalOrderPositions(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
+	_, err := ok.GetSignalOrderPositions(context.Background(), "contract", "623833708424069120")
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetSignalBotSubOrders(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
+	_, err := ok.GetSignalBotSubOrders(context.Background(), "623833708424069120", "contract", "filled", "", "", "", time.Time{}, time.Time{}, 0)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetSignalBotEventHistory(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
+	_, err := ok.GetSignalBotEventHistory(context.Background(), "12345", time.Time{}, time.Now(), 50)
+	if err != nil {
+		t.Error(err)
+	}
+}

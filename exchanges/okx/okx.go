@@ -723,9 +723,9 @@ func (ok *Okx) SetTransactionDetailIntervalFor2Years(ctx context.Context, arg *F
 		return time.Time{}, errNilArgument
 	}
 	resp := &struct {
-		Ts convert.ExchangeTime `json:"ts"`
+		Timestamp convert.ExchangeTime `json:"ts"`
 	}{}
-	return resp.Ts.Time(), ok.SendHTTPRequest(ctx, exchange.RestSpot, setTransactionDetail2YearIntervalEPL, http.MethodPost, "trade/fills-archive", arg, &resp, true)
+	return resp.Timestamp.Time(), ok.SendHTTPRequest(ctx, exchange.RestSpot, setTransactionDetail2YearIntervalEPL, http.MethodPost, "trade/fills-archive", arg, &resp, true)
 }
 
 // GetTransactionDetailsLast2Year retrieve recently-filled transaction details in the past 2 years except for last 3 months.
@@ -2693,14 +2693,14 @@ func (ok *Okx) SetRiskOffsetType(ctx context.Context, riskOffsetType string) (*R
 // ActivateOption activates option
 func (ok *Okx) ActivateOption(ctx context.Context) (time.Time, error) {
 	var resp []struct {
-		Ts convert.ExchangeTime `json:"ts"`
+		Timestamp convert.ExchangeTime `json:"ts"`
 	}
 	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, activateOptionEPL, http.MethodPost, "account/activate-option", nil, &resp, true)
 	if err != nil {
 		return time.Time{}, err
 	}
 	if len(resp) == 1 {
-		return resp[0].Ts.Time(), nil
+		return resp[0].Timestamp.Time(), nil
 	}
 	return time.Time{}, errNoValidResponseFromServer
 }
@@ -2722,7 +2722,7 @@ func (ok *Okx) SetAutoLoan(ctx context.Context, autoLoan bool) (*AutoLoan, error
 // Account mode 1: Simple mode 2: Single-currency margin mode  3: Multi-currency margin code  4: Portfolio margin mode
 func (ok *Okx) SetAccountMode(ctx context.Context, accountLevel string) (*AccountMode, error) {
 	var resp []AccountMode
-	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, setAccountLevelEPL, http.MethodPost, "account/set-account-level", nil, &resp, true)
+	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, setAccountLevelEPL, http.MethodPost, "account/set-account-level", &map[string]string{"acctLv": accountLevel}, &resp, true)
 	if err != nil {
 		return nil, err
 	}
@@ -3319,6 +3319,203 @@ func (ok *Okx) GetGridAIParameter(ctx context.Context, algoOrderType, instrument
 	}
 	var resp []GridAIParameterResponse
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getGridAIParameterEPL, http.MethodGet, common.EncodeURLValues(gridAIParams, params), nil, &resp, false)
+}
+
+// ComputeMinInvestment computes minimum investment
+func (ok *Okx) ComputeMinInvestment(ctx context.Context, arg *ComputeInvestmentDataParam) (*InvestmentResult, error) {
+	if arg.InstrumentID == "" {
+		return nil, errMissingInstrumentID
+	}
+	switch arg.AlgoOrderType {
+	case "grid", "contract_grid":
+	default:
+		return nil, errInvalidAlgoOrderType
+	}
+	if arg.MaxPrice <= 0 {
+		return nil, fmt.Errorf("%w, maxPrice = %f", order.ErrPriceBelowMin, arg.MaxPrice)
+	}
+	if arg.MinPrice < 0 {
+		return nil, fmt.Errorf("%w, minPrice = %f", order.ErrPriceBelowMin, arg.MaxPrice)
+	}
+	if arg.GridNumber == 0 {
+		return nil, fmt.Errorf("grid number is required")
+	}
+	if arg.RunType == "" {
+		return nil, fmt.Errorf("runType is required; possible values are 1: Arithmetic, 2: Geometric")
+	}
+	if arg.AlgoOrderType == "contract_grid" {
+		switch arg.Direction {
+		case "long", "short", "neutral":
+		default:
+			return nil, errors.New("invalid grid direction")
+		}
+		if arg.Leverage <= 0 {
+			return nil, errRequiredParameterMissingLeverage
+		}
+	}
+	for x := range arg.InvestmentData {
+		if arg.InvestmentData[x].Amount <= 0 {
+			return nil, fmt.Errorf("%w, investment amt = %f", errInvalidAmount, arg.InvestmentData[x].Amount)
+		}
+		if arg.InvestmentData[x].Currency == "" {
+			return nil, currency.ErrCurrencyCodeEmpty
+		}
+	}
+	var resp []InvestmentResult
+	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, computeMinInvestmentEPL, http.MethodPost, "tradingBot/grid/min-investment", arg, &resp, false)
+	if err != nil {
+		return nil, err
+	}
+	if len(resp) == 1 {
+		return &resp[0], nil
+	}
+	return nil, errNoValidResponseFromServer
+}
+
+// RSIBackTesting relative strength index(RSI) backtesting
+// Parameters:
+//
+//	TriggerCondition: possible values are "cross_up" "cross_down" "above" "below" "cross" Default is cross_down
+//
+// Threshold: The value should be an integer between 1 to 100
+func (ok *Okx) RSIBackTesting(ctx context.Context, instrumentID, triggerCondition, duration string, threshold, timePeriod int64, timeFrame kline.Interval) (*RSIBacktestingResponse, error) {
+	if instrumentID == "" {
+		return nil, errMissingInstrumentID
+	}
+	if threshold > 100 || threshold < 1 {
+		return nil, errors.New("threshold should be an integer between 1 to 100")
+	}
+	timeFrameString := ok.GetIntervalEnum(timeFrame, false)
+	if timeFrameString == "" {
+		return nil, errors.New("timeframe is required")
+	}
+	params := url.Values{}
+	params.Set("instId", instrumentID)
+	params.Set("timeframe", timeFrameString)
+	params.Set("thold", strconv.FormatInt(threshold, 10))
+	if timePeriod > 0 {
+		params.Set("timePeriod", strconv.FormatInt(timePeriod, 10))
+	}
+	if triggerCondition != "" {
+		params.Set("triggerCond", triggerCondition)
+	}
+	if duration != "" {
+		params.Set("duration", duration)
+	}
+	var resp []RSIBacktestingResponse
+	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, rsiBackTestingEPL, http.MethodGet, common.EncodeURLValues("tradingBot/public/rsi-back-testing", params), nil, &resp, false)
+	if err != nil {
+		return nil, err
+	}
+	if len(resp) == 1 {
+		return &resp[0], nil
+	}
+	return nil, errNoValidResponseFromServer
+}
+
+// ****************************************** Signal bot trading **************************************************
+
+// GetSignalBotOrderDetail create and customize your own signals while gaining access to a diverse selection of signals from top providers.
+// Empower your trading strategies and stay ahead of the game with our comprehensive signal trading platform.
+func (ok *Okx) GetSignalBotOrderDetail(ctx context.Context, algoOrderType, algoID string) (*SignalBotOrderDetail, error) {
+	if algoOrderType == "" {
+		return nil, errInvalidAlgoOrderType
+	}
+	if algoID == "" {
+		return nil, errInvalidAlgoID
+	}
+	params := url.Values{}
+	params.Set("algoId", algoID)
+	params.Set("algoOrdType", algoOrderType)
+	var resp []SignalBotOrderDetail
+	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, signalBotOrderDetailsEPL, http.MethodGet, "tradingBot/signal/orders-algo-details", nil, &resp, true)
+	if err != nil {
+		return nil, err
+	}
+	if len(resp) == 1 {
+		return &resp[0], nil
+	}
+	return nil, errNoValidResponseFromServer
+}
+
+// GetSignalOrderPositions retrieves signal bot order positions
+func (ok *Okx) GetSignalOrderPositions(ctx context.Context, algoOrderType, algoID string) (*SignalBotPosition, error) {
+	if algoOrderType == "" {
+		return nil, errInvalidAlgoOrderType
+	}
+	if algoID == "" {
+		return nil, errInvalidAlgoID
+	}
+	params := url.Values{}
+	params.Set("algoId", algoID)
+	params.Set("algoOrdType", algoOrderType)
+	var resp []SignalBotPosition
+	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, signalBotOrderPositionsEPL, http.MethodGet, common.EncodeURLValues("tradingBot/signal/positions", params), nil, &resp, true)
+	if err != nil {
+		return nil, err
+	}
+	if len(resp) == 1 {
+		return &resp[0], nil
+	}
+	return nil, errNoValidResponseFromServer
+}
+
+// GetSignalBotSubOrders retrieves historical filled sub orders and designated sub orders
+func (ok *Okx) GetSignalBotSubOrders(ctx context.Context, algoID, algoOrderType, subOrderType, clientOrderID, afterPaginationID, beforePaginationID string, begin, end time.Time, limit int64) ([]SubOrder, error) {
+	if algoID == "" {
+		return nil, errInvalidAlgoID
+	}
+	if algoOrderType == "" {
+		return nil, errInvalidAlgoOrderType
+	}
+	if subOrderType == "" && clientOrderID == "" {
+		return nil, errors.New("either client order ID or  sub-order state is required")
+	}
+	params := url.Values{}
+	params.Set("algoId", algoID)
+	params.Set("algoOrdType", algoOrderType)
+	if subOrderType != "" {
+		params.Set("type", subOrderType)
+	} else {
+		params.Set("clOrdId", clientOrderID)
+	}
+	if afterPaginationID != "" {
+		params.Set("after", afterPaginationID)
+	}
+	if beforePaginationID != "" {
+		params.Set("before", beforePaginationID)
+	}
+	if !begin.IsZero() {
+		params.Set("begin", strconv.FormatInt(begin.UnixMilli(), 10))
+	}
+	if !end.IsZero() {
+		params.Set("end", strconv.FormatInt(end.UnixMilli(), 10))
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	var resp []SubOrder
+	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, signalBotSubOrdersEPL, http.MethodGet, common.EncodeURLValues("tradingBot/signal/sub-orders", params), nil, &resp, true)
+}
+
+// GetSignalBotEventHistory retrieves signal bot event history
+func (ok *Okx) GetSignalBotEventHistory(ctx context.Context, algoID string, after, before time.Time, limit int64) ([]SignalBotEventHistory, error) {
+	if algoID == "" {
+		return nil, errInvalidAlgoID
+	}
+	params := url.Values{}
+	params.Set("algoId", algoID)
+	if !after.IsZero() {
+		params.Set("after", strconv.FormatInt(after.UnixMilli(), 10))
+	}
+	if !before.IsZero() {
+		params.Set("before", strconv.FormatInt(before.UnixMilli(), 10))
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	var resp []SignalBotEventHistory
+	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, signalBotEventHistoryEPL, http.MethodGet, common.EncodeURLValues("tradingBot/signal/event-history", params), nil, &resp, true)
 }
 
 // ****************************************** Earn **************************************************
