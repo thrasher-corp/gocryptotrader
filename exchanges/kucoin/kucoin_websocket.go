@@ -677,30 +677,27 @@ func (ku *Kucoin) processOrderChangeEvent(respData []byte) error {
 	if err != nil {
 		return err
 	}
-	orderChange := order.Detail{
-		Price:           response.Price,
-		Amount:          response.Size,
-		ExecutedAmount:  response.FilledSize,
-		RemainingAmount: response.RemainSize,
-		Exchange:        ku.Name,
-		OrderID:         response.OrderID,
-		ClientOrderID:   response.ClientOid,
-		Type:            oType,
-		Side:            side,
-		Status:          oStatus,
-		AssetType:       asset.Spot,
-		Date:            response.OrderTime.Time(),
-		LastUpdated:     response.Timestamp.Time(),
-		Pair:            pair,
-	}
-	assetPairEnabled := ku.listOfAssetsCurrencyPairEnabledFor(pair)
-	if assetPairEnabled[asset.Spot] && ku.CurrencyPairs.IsAssetEnabled(asset.Spot) == nil {
-		ku.Websocket.DataHandler <- &orderChange
-	}
-	if assetPairEnabled[asset.Margin] && ku.CurrencyPairs.IsAssetEnabled(asset.Margin) == nil {
-		marginOrderChange := orderChange
-		marginOrderChange.AssetType = asset.Margin
-		ku.Websocket.DataHandler <- &marginOrderChange
+	//should amend this function as we need to know the order type when we call it
+	for _, assetType := range ku.listOfAssetsCurrencyPairEnabledFor(pair) {
+		if ku.CurrencyPairs.IsAssetEnabled(assetType) != nil {
+			continue
+		}
+		ku.Websocket.DataHandler <- order.Detail{
+			Price:           response.Price,
+			Amount:          response.Size,
+			ExecutedAmount:  response.FilledSize,
+			RemainingAmount: response.RemainSize,
+			Exchange:        ku.Name,
+			OrderID:         response.OrderID,
+			ClientOrderID:   response.ClientOid,
+			Type:            oType,
+			Side:            side,
+			Status:          oStatus,
+			AssetType:       assetType,
+			Date:            response.OrderTime.Time(),
+			LastUpdated:     response.Timestamp.Time(),
+			Pair:            pair,
+		}
 	}
 	return nil
 }
@@ -724,26 +721,20 @@ func (ku *Kucoin) processTradeData(respData []byte, instrument string) error {
 	if err != nil {
 		return err
 	}
-	tradeData := trade.Data{
-		CurrencyPair: pair,
-		Timestamp:    response.Time.Time(),
-		Price:        response.Price,
-		Amount:       response.Size,
-		Side:         side,
-		Exchange:     ku.Name,
-		TID:          response.TradeID,
-		AssetType:    asset.Spot,
-	}
-	assetPairEnabled := ku.listOfAssetsCurrencyPairEnabledFor(pair)
-	if assetPairEnabled[asset.Spot] && ku.CurrencyPairs.IsAssetEnabled(asset.Spot) == nil {
-		err = ku.Websocket.Trade.Update(saveTradeData, tradeData)
-		if err != nil {
-			return err
+	for _, assetType := range ku.listOfAssetsCurrencyPairEnabledFor(pair) {
+		if ku.CurrencyPairs.IsAssetEnabled(assetType) != nil {
+			continue
 		}
-	}
-	if assetPairEnabled[asset.Margin] && ku.CurrencyPairs.IsAssetEnabled(asset.Margin) == nil {
-		tradeData.AssetType = asset.Margin
-		err := ku.Websocket.Trade.Update(saveTradeData, tradeData)
+		err = ku.Websocket.Trade.Update(saveTradeData, trade.Data{
+			CurrencyPair: pair,
+			Timestamp:    response.Time.Time(),
+			Price:        response.Price,
+			Amount:       response.Size,
+			Side:         side,
+			Exchange:     ku.Name,
+			TID:          response.TradeID,
+			AssetType:    assetType,
+		})
 		if err != nil {
 			return err
 		}
@@ -761,26 +752,22 @@ func (ku *Kucoin) processTicker(respData []byte, instrument string) error {
 	if err != nil {
 		return err
 	}
-	spotTickerPrice := ticker.Price{
-		AssetType:    asset.Spot,
-		Last:         response.Price,
-		LastUpdated:  response.Timestamp.Time(),
-		ExchangeName: ku.Name,
-		Pair:         pair,
-		Ask:          response.BestAsk,
-		Bid:          response.BestBid,
-		AskSize:      response.BestAskSize,
-		BidSize:      response.BestBidSize,
-		Volume:       response.Size,
-	}
-	assetEnabledPairs := ku.listOfAssetsCurrencyPairEnabledFor(pair)
-	if assetEnabledPairs[asset.Spot] && ku.AssetWebsocketSupport.IsAssetWebsocketSupported(asset.Spot) && ku.CurrencyPairs.IsAssetEnabled(asset.Spot) == nil {
-		ku.Websocket.DataHandler <- &spotTickerPrice
-	}
-	if assetEnabledPairs[asset.Margin] && ku.AssetWebsocketSupport.IsAssetWebsocketSupported(asset.Margin) && ku.CurrencyPairs.IsAssetEnabled(asset.Margin) == nil {
-		marginTickerPrice := spotTickerPrice
-		marginTickerPrice.AssetType = asset.Margin
-		ku.Websocket.DataHandler <- &marginTickerPrice
+	for _, assetType := range ku.listOfAssetsCurrencyPairEnabledFor(pair) {
+		if !ku.AssetWebsocketSupport.IsAssetWebsocketSupported(assetType) && ku.CurrencyPairs.IsAssetEnabled(assetType) != nil {
+			continue
+		}
+		ku.Websocket.DataHandler <- ticker.Price{
+			AssetType:    assetType,
+			Last:         response.Price,
+			LastUpdated:  response.Timestamp.Time(),
+			ExchangeName: ku.Name,
+			Pair:         pair,
+			Ask:          response.BestAsk,
+			Bid:          response.BestBid,
+			AskSize:      response.BestAskSize,
+			BidSize:      response.BestBidSize,
+			Volume:       response.Size,
+		}
 	}
 	return nil
 }
@@ -799,26 +786,23 @@ func (ku *Kucoin) processCandlesticks(respData []byte, instrument, intervalStrin
 	if err != nil {
 		return err
 	}
-	candlestickData := stream.KlineData{
-		Timestamp:  response.Time.Time(),
-		Pair:       pair,
-		AssetType:  asset.Spot,
-		Exchange:   ku.Name,
-		StartTime:  resp.Candles.StartTime,
-		Interval:   intervalString,
-		OpenPrice:  resp.Candles.OpenPrice,
-		ClosePrice: resp.Candles.ClosePrice,
-		HighPrice:  resp.Candles.HighPrice,
-		LowPrice:   resp.Candles.LowPrice,
-		Volume:     resp.Candles.TransactionVolume,
-	}
-	assetEnabledPairs := ku.listOfAssetsCurrencyPairEnabledFor(pair)
-	if assetEnabledPairs[asset.Spot] && ku.AssetWebsocketSupport.IsAssetWebsocketSupported(asset.Spot) && ku.CurrencyPairs.IsAssetEnabled(asset.Spot) == nil {
-		ku.Websocket.DataHandler <- candlestickData
-	}
-	if assetEnabledPairs[asset.Margin] && ku.AssetWebsocketSupport.IsAssetWebsocketSupported(asset.Margin) && ku.CurrencyPairs.IsAssetEnabled(asset.Margin) == nil {
-		candlestickData.AssetType = asset.Margin
-		ku.Websocket.DataHandler <- candlestickData
+	for _, assetType := range ku.listOfAssetsCurrencyPairEnabledFor(pair) {
+		if ku.CurrencyPairs.IsAssetEnabled(assetType) != nil {
+			continue
+		}
+		ku.Websocket.DataHandler <- stream.KlineData{
+			Timestamp:  response.Time.Time(),
+			Pair:       pair,
+			AssetType:  assetType,
+			Exchange:   ku.Name,
+			StartTime:  resp.Candles.StartTime,
+			Interval:   intervalString,
+			OpenPrice:  resp.Candles.OpenPrice,
+			ClosePrice: resp.Candles.ClosePrice,
+			HighPrice:  resp.Candles.HighPrice,
+			LowPrice:   resp.Candles.LowPrice,
+			Volume:     resp.Candles.TransactionVolume,
+		}
 	}
 	return nil
 }
@@ -836,28 +820,18 @@ func (ku *Kucoin) processOrderbookWithDepth(respData []byte, instrument string) 
 		return err
 	}
 	var init bool
-	assetEnabledPairs := ku.listOfAssetsCurrencyPairEnabledFor(pair)
-	if assetEnabledPairs[asset.Spot] && ku.CurrencyPairs.IsAssetEnabled(asset.Spot) == nil {
-		init, err = ku.UpdateLocalBuffer(result.Result, asset.Spot)
-		if err != nil {
-			if init {
-				return nil
-			}
-			return fmt.Errorf("%v - UpdateLocalCache for asset type: %v error: %s",
-				ku.Name,
-				asset.Spot,
-				err)
+	for _, assetType := range ku.listOfAssetsCurrencyPairEnabledFor(pair) {
+		if ku.CurrencyPairs.IsAssetEnabled(assetType) != nil {
+			continue
 		}
-	}
-	if assetEnabledPairs[asset.Margin] && ku.CurrencyPairs.IsAssetEnabled(asset.Margin) == nil {
-		init, err = ku.UpdateLocalBuffer(result.Result, asset.Margin)
+		init, err = ku.UpdateLocalBuffer(result.Result, assetType)
 		if err != nil {
 			if init {
 				return nil
 			}
 			return fmt.Errorf("%v - UpdateLocalCache for asset type: %v error: %s",
 				ku.Name,
-				asset.Margin,
+				assetType,
 				err)
 		}
 	}
@@ -913,28 +887,18 @@ func (ku *Kucoin) processOrderbook(respData []byte, symbol string) error {
 		return err
 	}
 	var init bool
-	assetEnabledPairs := ku.listOfAssetsCurrencyPairEnabledFor(pair)
-	if assetEnabledPairs[asset.Spot] && ku.CurrencyPairs.IsAssetEnabled(asset.Spot) == nil {
-		init, err = ku.UpdateLocalBuffer(response, asset.Spot)
-		if err != nil {
-			if init {
-				return nil
-			}
-			return fmt.Errorf("%v - UpdateLocalCache for asset type %v error: %s",
-				ku.Name,
-				asset.Spot,
-				err)
+	for _, assetType := range ku.listOfAssetsCurrencyPairEnabledFor(pair) {
+		if ku.CurrencyPairs.IsAssetEnabled(assetType) != nil {
+			continue
 		}
-	}
-	if assetEnabledPairs[asset.Margin] && ku.CurrencyPairs.IsAssetEnabled(asset.Margin) == nil {
-		init, err = ku.UpdateLocalBuffer(response, asset.Margin)
+		init, err = ku.UpdateLocalBuffer(response, assetType)
 		if err != nil {
 			if init {
 				return nil
 			}
 			return fmt.Errorf("%v - UpdateLocalCache for asset type %v error: %s",
 				ku.Name,
-				asset.Margin,
+				assetType,
 				err)
 		}
 	}
@@ -951,32 +915,23 @@ func (ku *Kucoin) processMarketSnapshot(respData []byte) error {
 	if err != nil {
 		return err
 	}
-	assetEnabledPairs := ku.listOfAssetsCurrencyPairEnabledFor(pair)
-	assetEnabledPairsSpot := assetEnabledPairs[asset.Spot] && ku.AssetWebsocketSupport.IsAssetWebsocketSupported(asset.Spot) && ku.CurrencyPairs.IsAssetEnabled(asset.Spot) == nil
-	assetEnabledPairsMargin := assetEnabledPairs[asset.Margin] && ku.AssetWebsocketSupport.IsAssetWebsocketSupported(asset.Margin) && ku.CurrencyPairs.IsAssetEnabled(asset.Margin) == nil
-	if !assetEnabledPairsSpot && !assetEnabledPairsMargin {
-		return nil
-	}
-	spotTickerPrice := ticker.Price{
-		ExchangeName: ku.Name,
-		AssetType:    asset.Spot,
-		Last:         response.Data.LastTradedPrice,
-		Pair:         pair,
-		Low:          response.Data.Low,
-		High:         response.Data.High,
-		QuoteVolume:  response.Data.VolValue,
-		Volume:       response.Data.Vol,
-		Open:         response.Data.Open,
-		Close:        response.Data.Close,
-		LastUpdated:  response.Data.Datetime.Time(),
-	}
-	if assetEnabledPairsSpot {
-		ku.Websocket.DataHandler <- &spotTickerPrice
-	}
-	if assetEnabledPairsMargin {
-		marginTickerPrice := spotTickerPrice
-		marginTickerPrice.AssetType = asset.Margin
-		ku.Websocket.DataHandler <- &marginTickerPrice
+	for _, assetType := range ku.listOfAssetsCurrencyPairEnabledFor(pair) {
+		if !ku.AssetWebsocketSupport.IsAssetWebsocketSupported(assetType) && ku.CurrencyPairs.IsAssetEnabled(assetType) != nil {
+			continue
+		}
+		ku.Websocket.DataHandler <- &ticker.Price{
+			ExchangeName: ku.Name,
+			AssetType:    assetType,
+			Last:         response.Data.LastTradedPrice,
+			Pair:         pair,
+			Low:          response.Data.Low,
+			High:         response.Data.High,
+			QuoteVolume:  response.Data.VolValue,
+			Volume:       response.Data.Vol,
+			Open:         response.Data.Open,
+			Close:        response.Data.Close,
+			LastUpdated:  response.Data.Datetime.Time(),
+		}
 	}
 	return nil
 }
@@ -1902,16 +1857,13 @@ func (o *orderbookManager) stopNeedsFetchingBook(pair currency.Pair, assetType a
 	return nil
 }
 
-func (ku *Kucoin) listOfAssetsCurrencyPairEnabledFor(cp currency.Pair) map[asset.Item]bool {
-	assetTypes := ku.CurrencyPairs.GetAssetTypes(true)
-	// we need this all asset types on the map even if their value is false
-	assetPairEnabled := map[asset.Item]bool{asset.Spot: false, asset.Futures: false, asset.Margin: false}
-	for i := range assetTypes {
-		pairs, err := ku.GetEnabledPairs(assetTypes[i])
-		if err != nil {
-			continue
+func (ku *Kucoin) listOfAssetsCurrencyPairEnabledFor(cp currency.Pair) []asset.Item {
+	assets := []asset.Item{}
+	for _, a := range ku.CurrencyPairs.GetAssetTypes(true) {
+		pairs, err := ku.GetEnabledPairs(a)
+		if err == nil && pairs.Contains(cp, true) {
+			assets = append(assets, a)
 		}
-		assetPairEnabled[assetTypes[i]] = pairs.Contains(cp, true)
 	}
-	return assetPairEnabled
+	return assets
 }
