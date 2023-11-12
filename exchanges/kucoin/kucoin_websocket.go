@@ -677,12 +677,12 @@ func (ku *Kucoin) processOrderChangeEvent(respData []byte) error {
 	if err != nil {
 		return err
 	}
-	//should amend this function as we need to know the order type when we call it
+	// should amend this function as we need to know the order type when we call it
 	for _, assetType := range ku.listOfAssetsCurrencyPairEnabledFor(pair) {
 		if ku.CurrencyPairs.IsAssetEnabled(assetType) != nil {
 			continue
 		}
-		ku.Websocket.DataHandler <- order.Detail{
+		ku.Websocket.DataHandler <- &order.Detail{
 			Price:           response.Price,
 			Amount:          response.Size,
 			ExecutedAmount:  response.FilledSize,
@@ -756,7 +756,7 @@ func (ku *Kucoin) processTicker(respData []byte, instrument string) error {
 		if !ku.AssetWebsocketSupport.IsAssetWebsocketSupported(assetType) && ku.CurrencyPairs.IsAssetEnabled(assetType) != nil {
 			continue
 		}
-		ku.Websocket.DataHandler <- ticker.Price{
+		ku.Websocket.DataHandler <- &ticker.Price{
 			AssetType:    assetType,
 			Last:         response.Price,
 			LastUpdated:  response.Timestamp.Time(),
