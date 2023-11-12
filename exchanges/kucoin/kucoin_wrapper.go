@@ -394,9 +394,6 @@ func (ku *Kucoin) UpdateTickers(ctx context.Context, assetType asset.Item) error
 				continue
 			}
 			for _, assetType := range ku.listOfAssetsCurrencyPairEnabledFor(pair) {
-				if ku.CurrencyPairs.IsAssetEnabled(assetType) != nil {
-					continue
-				}
 				err = ticker.ProcessTicker(&ticker.Price{
 					Last:         ticks.Tickers[t].Last,
 					High:         ticks.Tickers[t].High,
