@@ -1201,7 +1201,6 @@
     "websocketOrderbookBufferLimit": 5,
     "baseCurrencies": "USD",
     "currencyPairs": {
-     "useGlobalFormat": false,
      "assetTypes": [
       "spot",
       "margin",

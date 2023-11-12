@@ -241,16 +241,16 @@ func (by *Bybit) handleSpotSubscription(operation string, channelsToSubscribe []
 func (by *Bybit) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, error) {
 	var subscriptions []stream.ChannelSubscription
 	var channels = []string{
-		// chanPublicTicker,
+		chanPublicTicker,
 		chanOrderbook,
-		// chanPublicTrade,
+		chanPublicTrade,
 	}
 	if by.Websocket.CanUseAuthenticatedEndpoints() {
 		channels = append(channels, []string{
-			// chanPositions,
-			// chanExecution,
-			// chanOrder,
-			// chanWallet,
+			chanPositions,
+			chanExecution,
+			chanOrder,
+			chanWallet,
 		}...)
 	}
 	pairs, err := by.GetEnabledPairs(asset.Spot)

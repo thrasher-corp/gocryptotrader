@@ -14,7 +14,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
-	gctlog "github.com/thrasher-corp/gocryptotrader/log"
 )
 
 var mockTests = false

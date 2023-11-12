@@ -502,6 +502,15 @@ func TestGetActiveOrders(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
+	pairs, err := currency.NewPairsFromStrings([]string{"BTC_USDT", "BTC_ETH", "BTC_USDC"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	getOrdersRequestSpot = order.MultiOrderRequest{Pairs: pairs, AssetType: asset.Spot, Side: order.AnySide, Type: order.AnyType}
+	_, err = b.GetActiveOrders(context.Background(), &getOrdersRequestSpot)
+	if err != nil {
+		t.Error(err)
+	}
 }
 
 func TestGetOrderHistory(t *testing.T) {
@@ -752,7 +761,7 @@ func TestGetOpenInterest(t *testing.T) {
 	}
 }
 
-func TestGetHistoricalValatility(t *testing.T) {
+func TestGetHistoricalVolatility(t *testing.T) {
 	t.Parallel()
 	start := time.Now().Add(-time.Hour * 30 * 24)
 	end := time.Now()
@@ -3403,5 +3412,27 @@ func TestGetLatestFundingRates(t *testing.T) {
 	})
 	if err != nil {
 		t.Error(err)
+	}
+}
+
+func TestConstructOrderDetails(t *testing.T) {
+	t.Parallel()
+	const data = `[	{"orderId": "fd4300ae-7847-404e-b947-b46980a4d140","orderLinkId": "test-000005","blockTradeId": "","symbol": "ETHUSDT","price": "1600.00","qty": "0.10","side": "Buy","isLeverage": "","positionIdx": 1,"orderStatus": "New","cancelType": "UNKNOWN","rejectReason": "EC_NoError","avgPrice": "0","leavesQty": "0.10","leavesValue": "160","cumExecQty": "0.00","cumExecValue": "0","cumExecFee": "0","timeInForce": "GTC","orderType": "Limit","stopOrderType": "UNKNOWN","orderIv": "","triggerPrice": "0.00","takeProfit": "2500.00","stopLoss": "1500.00","tpTriggerBy": "LastPrice","slTriggerBy": "LastPrice","triggerDirection": 0,"triggerBy": "UNKNOWN","lastPriceOnCreated": "","reduceOnly": false,"closeOnTrigger": false,"smpType": "None",		"smpGroup": 0,"smpOrderId": "","tpslMode": "Full","tpLimitPrice": "","slLimitPrice": "","placeType": "","createdTime": "1684738540559","updatedTime": "1684738540561"}]`
+	var response []TradeOrder
+	err := json.Unmarshal([]byte(data), &response)
+	if err != nil {
+		t.Fatal(err)
+	}
+	orders, err := b.ConstructOrderDetails(response, asset.Spot, currency.Pair{Base: currency.BTC, Quote: currency.USDT}, currency.Pairs{})
+	if err != nil {
+		t.Fatal(err)
+	} else if len(orders) > 0 {
+		t.Errorf("expected order with length 0, got %d", len(orders))
+	}
+	orders, err = b.ConstructOrderDetails(response, asset.Spot, currency.EMPTYPAIR, currency.Pairs{})
+	if err != nil {
+		t.Fatal(err)
+	} else if len(orders) != 1 {
+		t.Errorf("expected order with length 1, got %d", len(orders))
 	}
 }
