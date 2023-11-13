@@ -202,22 +202,22 @@ func defaultMarginV2Info(data []interface{}) (MarginInfoV2, error) {
 	}
 	marginInfo, check := data[2].([]any)
 	if !check {
-		return resp, common.GetTypeAssertError("[]any", data[2], "MarginInfo.Symbol")
+		return resp, common.GetTypeAssertError("[]any", data[2], "MarginInfo.Data")
 	}
 	if len(marginInfo) < 4 {
 		return resp, errors.New("invalid data received")
 	}
 	if resp.TradableBalance, ok = marginInfo[0].(float64); !ok {
-		return resp, common.GetTypeAssertError("float64", marginInfo[0], "MarginInfo.Symbol.TradableBalance")
+		return resp, common.GetTypeAssertError("float64", marginInfo[0], "MarginInfo.Data.TradableBalance")
 	}
 	if resp.GrossBalance, ok = marginInfo[1].(float64); !ok {
-		return resp, common.GetTypeAssertError("float64", marginInfo[1], "MarginInfo.Symbol.GrossBalance")
+		return resp, common.GetTypeAssertError("float64", marginInfo[1], "MarginInfo.Data.GrossBalance")
 	}
 	if resp.BestAskAmount, ok = marginInfo[2].(float64); !ok {
-		return resp, common.GetTypeAssertError("float64", marginInfo[2], "MarginInfo.Symbol.BestAskAmount")
+		return resp, common.GetTypeAssertError("float64", marginInfo[2], "MarginInfo.Data.BestAskAmount")
 	}
 	if resp.BestBidAmount, ok = marginInfo[3].(float64); !ok {
-		return resp, common.GetTypeAssertError("float64", marginInfo[3], "MarginInfo.Symbol.BestBidAmount")
+		return resp, common.GetTypeAssertError("float64", marginInfo[3], "MarginInfo.Data.BestBidAmount")
 	}
 	return resp, nil
 }
