@@ -3451,6 +3451,116 @@ type SignalBotEventHistory struct {
 	} `json:"triggeredOrdData"`
 }
 
+// PlaceRecurringBuyOrderParam holds parameters for placing recurring order
+type PlaceRecurringBuyOrderParam struct {
+	Tag                       string              `json:"tag"`
+	ClientSuppliedAlgoOrderID string              `json:"algoClOrdId"`
+	StrategyName              string              `json:"stgyName"` // Custom name for trading bot
+	Amount                    float64             `json:"amt,string"`
+	RecurringList             []RecurringListItem `json:"recurringList"`
+	Period                    string              `json:"period"` // Period 'monthly' 'weekly' 'daily'
+
+	// Recurring buy date
+	// When the period is monthly, the value range is an integer of [1,28]
+	// When the period is weekly, the value range is an integer of [1,7]
+	// When the period is daily, the value is 1
+	RecurringDay       string `json:"recurringDay"`
+	RecurringTime      int64  `json:"recurringTime,string"` // Recurring buy time, the value range is an integer of [0,23]
+	TimeZone           string `json:"timeZone"`
+	TradeMode          string `json:"tdMode"` // Trading mode Margin mode: 'cross' Non-Margin mode: 'cash'
+	InvestmentCurrency string `json:"investmentCcy"`
+}
+
+// RecurringListItem holds recurring list item
+type RecurringListItem struct {
+	Currency currency.Code `json:"ccy"`
+	Ratio    float64       `json:"ratio,string"`
+}
+
+// RecurringListItemDetailed holds a detailed instance of recurring list item
+type RecurringListItemDetailed struct {
+	AveragePrice convert.StringToFloat64 `json:"avgPx"`
+	Currency     string                  `json:"ccy"`
+	Profit       convert.StringToFloat64 `json:"profit"`
+	Price        convert.StringToFloat64 `json:"px"`
+	Ratio        convert.StringToFloat64 `json:"ratio"`
+	TotalAmount  convert.StringToFloat64 `json:"totalAmt"`
+}
+
+// RecurringOrderResponse holds recurring order response.
+type RecurringOrderResponse struct {
+	AlgoID            string `json:"algoId"`
+	AlgoClientOrderID string `json:"algoClOrdId"`
+	SCode             string `json:"sCode"`
+	SMsg              string `json:"sMsg"`
+}
+
+// AmendRecurringOrderParam holds recurring order params.
+type AmendRecurringOrderParam struct {
+	AlgoID       string `json:"algoId"`
+	StrategyName string `json:"stgyName"`
+}
+
+// StopRecurringBuyOrder stop recurring order
+type StopRecurringBuyOrder struct {
+	AlgoID string `json:"algoId"`
+}
+
+// RecurringOrderItem holds recurring order info.
+type RecurringOrderItem struct {
+	AlgoClOrdID        string                  `json:"algoClOrdId"`
+	AlgoID             string                  `json:"algoId"`
+	AlgoOrdType        string                  `json:"algoOrdType"`
+	Amount             convert.StringToFloat64 `json:"amt"`
+	CreationTime       convert.ExchangeTime    `json:"cTime"`
+	Cycles             string                  `json:"cycles"`
+	InstrumentType     string                  `json:"instType"`
+	InvestmentAmount   string                  `json:"investmentAmt"`
+	InvestmentCurrency string                  `json:"investmentCcy"`
+	MarketCap          string                  `json:"mktCap"`
+	Period             string                  `json:"period"`
+	ProfitAndLossRatio convert.StringToFloat64 `json:"pnlRatio"`
+	RecurringDay       string                  `json:"recurringDay"`
+	RecurringList      []RecurringListItem     `json:"recurringList"`
+	RecurringTime      string                  `json:"recurringTime"`
+	State              string                  `json:"state"`
+	StgyName           string                  `json:"stgyName"`
+	Tag                string                  `json:"tag"`
+	TimeZone           string                  `json:"timeZone"`
+	TotalAnnRate       string                  `json:"totalAnnRate"`
+	TotalPnl           string                  `json:"totalPnl"`
+	UpdateTime         convert.ExchangeTime    `json:"uTime"`
+}
+
+// RecurringOrderDeail holds detailed information about recurring order
+type RecurringOrderDeail struct {
+	RecurringListItem
+	RecurringList []RecurringListItemDetailed `json:"recurringList"`
+}
+
+// RecurringBuySubOrder holds recurring buy sub order detail.
+type RecurringBuySubOrder struct {
+	AccFillSize     convert.StringToFloat64 `json:"accFillSz"`
+	AlgoClientOrdID string                  `json:"algoClOrdId"`
+	AlgoID          string                  `json:"algoId"`
+	AlgoOrderType   string                  `json:"algoOrdType"`
+	AveragePrice    convert.StringToFloat64 `json:"avgPx"`
+	CreationTime    convert.ExchangeTime    `json:"cTime"`
+	Fee             convert.StringToFloat64 `json:"fee"`
+	FeeCcy          string                  `json:"feeCcy"`
+	InstrumentID    string                  `json:"instId"`
+	InstrumentType  string                  `json:"instType"`
+	OrderID         string                  `json:"ordId"`
+	OrderType       string                  `json:"ordType"`
+	Price           convert.StringToFloat64 `json:"px"`
+	Side            string                  `json:"side"`
+	State           string                  `json:"state"`
+	Size            convert.StringToFloat64 `json:"sz"`
+	Tag             string                  `json:"tag"`
+	TradeMode       string                  `json:"tdMode"`
+	UpdateTime      convert.ExchangeTime    `json:"uTime"`
+}
+
 // Offer represents an investment offer information for different 'staking' and 'defi' protocols
 type Offer struct {
 	Currency     string            `json:"ccy"`

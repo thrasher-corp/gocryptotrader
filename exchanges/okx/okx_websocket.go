@@ -95,6 +95,7 @@ const (
 	okxChannelMoonGridAlgoOrders   = "grid-orders-moon"
 	okxChannelGridPositions        = "grid-positions"
 	okcChannelGridSubOrders        = "grid-sub-orders"
+	okcRecurringBuyChannel         = "algo-recurring-buy"
 
 	// Public channels
 	okxChannelInstruments     = "instruments"
@@ -396,11 +397,14 @@ func (ok *Okx) handleSubscription(operation string, subscriptions []stream.Chann
 			okxChannelGridOrdersContract,
 			okxChannelMoonGridAlgoOrders,
 			okxChannelGridPositions,
-			okcChannelGridSubOrders:
+			okcChannelGridSubOrders,
+			okcRecurringBuyChannel:
 			authSubscription = true
 		}
 
-		if arg.Channel == okxChannelGridPositions {
+		switch arg.Channel {
+		case okxChannelGridPositions,
+			okcRecurringBuyChannel:
 			algoID, _ = subscriptions[i].Params["algoId"].(string)
 		}
 

@@ -3961,3 +3961,88 @@ func TestGetSignalBotEventHistory(t *testing.T) {
 		t.Error(err)
 	}
 }
+
+func TestPlaceRecurringBuyOrder(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
+	_, err := ok.PlaceRecurringBuyOrder(context.Background(), &PlaceRecurringBuyOrderParam{
+		StrategyName: "BTC|ETH recurring buy monthly",
+		Amount:       100,
+		RecurringList: []RecurringListItem{
+			{
+				Currency: currency.BTC,
+				Ratio:    0.2,
+			},
+			{
+				Currency: currency.ETH,
+				Ratio:    0.8,
+			},
+		},
+		Period:             "monthly",
+		RecurringDay:       "1",
+		RecurringTime:      0,
+		TimeZone:           "8", // UTC +8
+		TradeMode:          "cross",
+		InvestmentCurrency: "USDT",
+	})
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestAmendRecurringBuyOrder(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
+	_, err := ok.AmendRecurringBuyOrder(context.Background(), &AmendRecurringOrderParam{
+		AlgoID:       "448965992920907776",
+		StrategyName: "stg1",
+	})
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestStopRecurringBuyOrder(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
+	_, err := ok.StopRecurringBuyOrder(context.Background(), []StopRecurringBuyOrder{{AlgoID: "1232323434234"}})
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetRecurringBuyOrderList(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
+	_, err := ok.GetRecurringBuyOrderList(context.Background(), "", time.Time{}, time.Time{}, 30)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetRecurringBuyOrderHistory(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
+	_, err := ok.GetRecurringBuyOrderHistory(context.Background(), "", time.Time{}, time.Time{}, 30)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetRecurringOrderDetails(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
+	_, err := ok.GetRecurringOrderDetails(context.Background(), "560473220642766848")
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetRecurringSubOrders(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
+	_, err := ok.GetRecurringSubOrders(context.Background(), "560473220642766848", "", time.Time{}, time.Now(), 0)
+	if err != nil {
+		t.Error(err)
+	}
+}

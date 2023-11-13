@@ -342,6 +342,7 @@ var (
 	errOnlyThreeMonthsSupported                = errors.New("only three months of trade data retrieval supported")
 	errOnlyOneResponseExpected                 = errors.New("one response item expected")
 	errNoInstrumentFound                       = errors.New("no instrument found")
+	errStrategyNameRequired                    = errors.New("strategy name required")
 )
 
 /************************************ MarketData Endpoints *************************************************/
@@ -3516,6 +3517,158 @@ func (ok *Okx) GetSignalBotEventHistory(ctx context.Context, algoID string, afte
 	}
 	var resp []SignalBotEventHistory
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, signalBotEventHistoryEPL, http.MethodGet, common.EncodeURLValues("tradingBot/signal/event-history", params), nil, &resp, true)
+}
+
+// ****************************************** Recurring Buy *****************************************
+
+// PlaceRecurringBuyOrder recurring buy is a strategy for investing a fixed amount in crypto at fixed intervals.
+// An appropriate recurring approach in volatile markets allows you to buy crypto at lower costs. Learn more
+// The API endpoints of Recurring buy require authentication.
+func (ok *Okx) PlaceRecurringBuyOrder(ctx context.Context, arg *PlaceRecurringBuyOrderParam) (*RecurringOrderResponse, error) {
+	if arg == nil {
+		return nil, errNilArgument
+	}
+	if arg.StrategyName == "" {
+		return nil, errStrategyNameRequired
+	}
+	if len(arg.RecurringList) == 0 {
+		return nil, errors.New("no recurring list is provided")
+	}
+	for x := range arg.RecurringList {
+		if arg.RecurringList[x].Currency.IsEmpty() {
+			return nil, currency.ErrCurrencyCodeEmpty
+		}
+	}
+	if arg.RecurringDay == "" {
+		return nil, errors.New("recurring day is required")
+	}
+	if arg.RecurringTime > 23 || arg.RecurringTime < 0 {
+		return nil, errors.New("recurring buy time, the value range is an integer with value between 0 and 23")
+	}
+	if arg.TradeMode == "" {
+		return nil, errInvalidTradeModeValue
+	}
+	var resp []RecurringOrderResponse
+	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, placeRecurringBuyOrderEPL, http.MethodPost, "tradingBot/recurring/order-algo", arg, &resp, true)
+	if err != nil {
+		return nil, err
+	}
+	if len(resp) == 1 {
+		return &resp[0], nil
+	}
+	return nil, errNoValidResponseFromServer
+}
+
+// AmendRecurringBuyOrder amends recurring order
+func (ok *Okx) AmendRecurringBuyOrder(ctx context.Context, arg *AmendRecurringOrderParam) (*RecurringOrderResponse, error) {
+	if arg == nil || (*arg) == (AmendRecurringOrderParam{}) {
+		return nil, errNilArgument
+	}
+	if arg.AlgoID == "" {
+		return nil, errInvalidAlgoID
+	}
+	if arg.StrategyName == "" {
+		return nil, errStrategyNameRequired
+	}
+	var resp []RecurringOrderResponse
+	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, amendRecurringBuyOrderEPL, http.MethodPost, "tradingBot/recurring/amend-order-algo", arg, &resp, true)
+	if err != nil {
+		return nil, err
+	}
+	if len(resp) == 1 {
+		return &resp[0], nil
+	}
+	return nil, errNoValidResponseFromServer
+}
+
+// StopRecurringBuyOrder stops recurring buy order. A maximum of 10 orders can be stopped per request.
+func (ok *Okx) StopRecurringBuyOrder(ctx context.Context, arg []StopRecurringBuyOrder) ([]RecurringOrderResponse, error) {
+	if len(arg) == 0 {
+		return nil, errNilArgument
+	}
+	for x := range arg {
+		if arg[x].AlgoID == "" {
+			return nil, errInvalidAlgoID
+		}
+	}
+	var resp []RecurringOrderResponse
+	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, stopRecurringBuyOrderEPL, http.MethodGet, "tradingBot/recurring/stop-order-algo", arg, &resp, true)
+}
+
+// GetRecurringBuyOrderList retrieves recurring buy order list.
+func (ok *Okx) GetRecurringBuyOrderList(ctx context.Context, algoID string, after, before time.Time, limit int64) ([]RecurringOrderItem, error) {
+	params := url.Values{}
+	if algoID != "" {
+		params.Set("algoId", algoID)
+	}
+	if !after.IsZero() {
+		params.Set("after", strconv.FormatInt(after.UnixMilli(), 10))
+	}
+	if !before.IsZero() {
+		params.Set("before", strconv.FormatInt(before.UnixMilli(), 10))
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	var resp []RecurringOrderItem
+	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getRecurringBuyOrderListEPL, http.MethodGet, common.EncodeURLValues("tradingBot/recurring/orders-algo-pending", params), nil, &resp, true)
+}
+
+// GetRecurringBuyOrderHistory retrieves recurring buy order history.
+func (ok *Okx) GetRecurringBuyOrderHistory(ctx context.Context, algoID string, after, before time.Time, limit int64) ([]RecurringOrderItem, error) {
+	params := url.Values{}
+	if algoID != "" {
+		params.Set("algoId", algoID)
+	}
+	if !after.IsZero() {
+		params.Set("after", strconv.FormatInt(after.UnixMilli(), 10))
+	}
+	if !before.IsZero() {
+		params.Set("before", strconv.FormatInt(before.UnixMilli(), 10))
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	var resp []RecurringOrderItem
+	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getRecurringBuyOrderHistoryEPL, http.MethodGet, common.EncodeURLValues("tradingBot/recurring/orders-algo-history", params), nil, &resp, true)
+}
+
+// GetRecurringOrderDetails retrieves a single recurring order detail.
+func (ok *Okx) GetRecurringOrderDetails(ctx context.Context, algoID string) (*RecurringOrderDeail, error) {
+	if algoID == "" {
+		return nil, errInvalidAlgoID
+	}
+	var resp []RecurringOrderDeail
+	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, getRecurringBuyOrderDetailEPL, http.MethodGet, "tradingBot/recurring/orders-algo-details?algoId="+algoID, nil, &resp, true)
+	if err != nil {
+		return nil, err
+	}
+	if len(resp) == 1 {
+		return &resp[0], nil
+	}
+	return nil, errNoValidResponseFromServer
+}
+
+// GetRecurringSubOrders retrieves recurring buy sub orders.
+func (ok *Okx) GetRecurringSubOrders(ctx context.Context, algoID, orderID string, after, before time.Time, limit int64) ([]RecurringBuySubOrder, error) {
+	params := url.Values{}
+	if algoID == "" {
+		return nil, errNilArgument
+	}
+	if orderID == "" {
+		return nil, errMissingAlgoOrderID
+	}
+	if !after.IsZero() {
+		params.Set("after", strconv.FormatInt(after.UnixMilli(), 10))
+	}
+	if !before.IsZero() {
+		params.Set("before", strconv.FormatInt(before.UnixMilli(), 10))
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	var resp []RecurringBuySubOrder
+	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getRecurringBuySubOrdersEPL, http.MethodGet, common.EncodeURLValues("tradingBot/recurring/sub-orders", params), nil, &resp, true)
 }
 
 // ****************************************** Earn **************************************************

@@ -175,6 +175,15 @@ type RateLimit struct {
 	SignalBotSubOrders    *rate.Limiter
 	SignalBotEventHistory *rate.Limiter
 
+	// Recurring Buy Order
+	PlaceRecurringBuyOrder      *rate.Limiter
+	AmendRecurringBuyOrder      *rate.Limiter
+	StopRecurringBuyOrder       *rate.Limiter
+	GetRecurringBuyOrder        *rate.Limiter
+	GetRecurringBuyOrderHistory *rate.Limiter
+	GetRecurringBuyOrderDetail  *rate.Limiter
+	GetRecurringBuySubOrders    *rate.Limiter
+
 	// Earn
 	GetOffer                   *rate.Limiter
 	Purchase                   *rate.Limiter
@@ -372,6 +381,13 @@ const (
 	signalBotOrderPositionsEPL
 	signalBotSubOrdersEPL
 	signalBotEventHistoryEPL
+	placeRecurringBuyOrderEPL
+	amendRecurringBuyOrderEPL
+	stopRecurringBuyOrderEPL
+	getRecurringBuyOrderListEPL
+	getRecurringBuyOrderHistoryEPL
+	getRecurringBuyOrderDetailEPL
+	getRecurringBuySubOrdersEPL
 	getOfferEPL
 	purchaseEPL
 	redeemEPL
@@ -707,6 +723,20 @@ func (r *RateLimit) Limit(ctx context.Context, f request.EndpointLimit) error {
 		return r.SignalBotSubOrders.Wait(ctx)
 	case signalBotEventHistoryEPL:
 		return r.SignalBotEventHistory.Wait(ctx)
+	case placeRecurringBuyOrderEPL:
+		return r.PlaceRecurringBuyOrder.Wait(ctx)
+	case amendRecurringBuyOrderEPL:
+		return r.AmendRecurringBuyOrder.Wait(ctx)
+	case stopRecurringBuyOrderEPL:
+		return r.StopRecurringBuyOrder.Wait(ctx)
+	case getRecurringBuyOrderListEPL:
+		return r.GetRecurringBuyOrder.Wait(ctx)
+	case getRecurringBuyOrderHistoryEPL:
+		return r.GetRecurringBuyOrderHistory.Wait(ctx)
+	case getRecurringBuyOrderDetailEPL:
+		return r.GetRecurringBuyOrderDetail.Wait(ctx)
+	case getRecurringBuySubOrdersEPL:
+		return r.GetRecurringBuySubOrders.Wait(ctx)
 	case getOfferEPL:
 		return r.GetOffer.Wait(ctx)
 	case purchaseEPL:
@@ -962,6 +992,15 @@ func SetRateLimit() *RateLimit {
 		SignalBotPosition:     request.NewRateLimit(twoSecondsInterval, 20),
 		SignalBotSubOrders:    request.NewRateLimit(twoSecondsInterval, 20),
 		SignalBotEventHistory: request.NewRateLimit(twoSecondsInterval, 20),
+
+		// Recurring Buy Order
+		PlaceRecurringBuyOrder:      request.NewRateLimit(twoSecondsInterval, 20),
+		AmendRecurringBuyOrder:      request.NewRateLimit(twoSecondsInterval, 20),
+		StopRecurringBuyOrder:       request.NewRateLimit(twoSecondsInterval, 20),
+		GetRecurringBuyOrder:        request.NewRateLimit(twoSecondsInterval, 20),
+		GetRecurringBuyOrderHistory: request.NewRateLimit(twoSecondsInterval, 20),
+		GetRecurringBuyOrderDetail:  request.NewRateLimit(twoSecondsInterval, 20),
+		GetRecurringBuySubOrders:    request.NewRateLimit(twoSecondsInterval, 20),
 
 		// Earn
 		GetOffer:                   request.NewRateLimit(oneSecondInterval, 3),
