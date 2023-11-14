@@ -2975,8 +2975,7 @@ func TestGetWithdrawalsHistory(t *testing.T) {
 		t.Skip("skipping authenticated function for mock testing")
 	}
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
-
-	_, err := b.GetWithdrawalsHistory(context.Background(), currency.BTC, asset.CoinMarginedFutures)
+	_, err := b.GetWithdrawalsHistory(context.Background(), currency.BTC, asset.Futures)
 	if !errors.Is(err, asset.ErrNotSupported) {
 		t.Errorf("expected %v, got %v", asset.ErrNotSupported, err)
 	}
