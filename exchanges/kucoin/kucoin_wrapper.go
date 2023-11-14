@@ -1952,7 +1952,7 @@ func (ku *Kucoin) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) 
 				continue
 			}
 			pair, enabled, err := ku.MatchSymbolCheckEnabled(symbols[x].Symbol, a, true)
-			if err != nil {
+			if err != nil && !errors.Is(err, currency.ErrPairNotFound) {
 				return err
 			}
 			if !enabled {
@@ -1978,7 +1978,7 @@ func (ku *Kucoin) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) 
 		limits = make([]order.MinMaxLevel, 0, len(contract))
 		for x := range contract {
 			pair, enabled, err := ku.MatchSymbolCheckEnabled(contract[x].Symbol, a, false)
-			if err != nil {
+			if err != nil && !errors.Is(err, currency.ErrPairNotFound) {
 				return err
 			}
 			if !enabled {
