@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/gofrs/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
@@ -563,7 +564,6 @@ func TestGetServiceStatus(t *testing.T) {
 
 func TestPostOrder(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, ku, canManipulateRealOrders)
 
 	// default order type is limit
 	_, err := ku.PostOrder(context.Background(), &SpotOrderParam{
@@ -571,43 +571,46 @@ func TestPostOrder(t *testing.T) {
 	if !errors.Is(err, errInvalidClientOrderID) {
 		t.Errorf("PostOrder() expected %v, but found %v", errInvalidClientOrderID, err)
 	}
+
+	customID, err := uuid.NewV4()
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	_, err = ku.PostOrder(context.Background(), &SpotOrderParam{
-		ClientOrderID: "5bd6e9286d99522a52e458de", Symbol: spotTradablePair,
+		ClientOrderID: customID.String(), Symbol: spotTradablePair,
 		OrderType: ""})
 	if !errors.Is(err, order.ErrSideIsInvalid) {
 		t.Errorf("PostOrder() expected %v, but found %v", order.ErrSideIsInvalid, err)
 	}
 	_, err = ku.PostOrder(context.Background(), &SpotOrderParam{
-		ClientOrderID: "5bd6e9286d99522a52e458de", Symbol: currency.EMPTYPAIR,
+		ClientOrderID: customID.String(), Symbol: currency.EMPTYPAIR,
 		Size: 0.1, Side: "buy", Price: 234565})
 	if !errors.Is(err, currency.ErrCurrencyPairEmpty) {
 		t.Errorf("PostOrder() expected %v, but found %v", currency.ErrCurrencyPairEmpty, err)
 	}
 	_, err = ku.PostOrder(context.Background(), &SpotOrderParam{
-		ClientOrderID: "5bd6e9286d99522a52e458de", Side: "buy",
+		ClientOrderID: customID.String(), Side: "buy",
 		Symbol:    spotTradablePair,
 		OrderType: "limit", Size: 0.1})
 	if !errors.Is(err, errInvalidPrice) {
 		t.Errorf("PostOrder() expected %v, but found %v", errInvalidPrice, err)
 	}
 	_, err = ku.PostOrder(context.Background(), &SpotOrderParam{
-		ClientOrderID: "5bd6e9286d99522a52e458de", Symbol: spotTradablePair, Side: "buy",
+		ClientOrderID: customID.String(), Symbol: spotTradablePair, Side: "buy",
 		OrderType: "limit", Price: 234565})
 	if !errors.Is(err, errInvalidSize) {
 		t.Errorf("PostOrder() expected %v, but found %v", errInvalidSize, err)
 	}
-	_, err = ku.PostOrder(context.Background(), &SpotOrderParam{
-		ClientOrderID: "5bd6e9286d99522a52e458de", Side: "buy",
-		Symbol: spotTradablePair, OrderType: "limit", Size: 0.1, Price: 234565})
-	if err != nil {
-		t.Error("PostOrder() error", err)
-	}
 
-	// market order
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, ku, canManipulateRealOrders)
 	_, err = ku.PostOrder(context.Background(), &SpotOrderParam{
-		ClientOrderID: "5bd6e9286d99522a52e458de", Side: "buy",
-		Symbol:    spotTradablePair,
-		OrderType: "market", Remark: "remark", Size: 0.1})
+		ClientOrderID: customID.String(),
+		Side:          "buy",
+		Symbol:        spotTradablePair,
+		OrderType:     "limit",
+		Size:          0.005,
+		Price:         1000})
 	if err != nil {
 		t.Error("PostOrder() error", err)
 	}

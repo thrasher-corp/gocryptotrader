@@ -761,13 +761,29 @@ func (ku *Kucoin) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Subm
 		}
 		return s.DeriveSubmitResponse(o)
 	case asset.Spot:
-		if s.ClientID != "" && s.ClientOrderID == "" {
-			s.ClientOrderID = s.ClientID
+		timeInForce := ""
+		if s.Type == order.Limit {
+			switch {
+			case s.FillOrKill:
+				timeInForce = "FOK"
+			case s.ImmediateOrCancel:
+				timeInForce = "IOC"
+			case s.PostOnly:
+			default:
+				timeInForce = "GTC"
+			}
 		}
 		o, err := ku.PostOrder(ctx, &SpotOrderParam{
-			ClientOrderID: s.ClientOrderID, Side: sideString,
-			Symbol: s.Pair, OrderType: s.Type.Lower(), Size: s.Amount,
-			Price: s.Price, PostOnly: s.PostOnly, Hidden: s.Hidden})
+			ClientOrderID: s.ClientOrderID,
+			Side:          sideString,
+			Symbol:        s.Pair,
+			OrderType:     s.Type.Lower(),
+			Size:          s.Amount,
+			Price:         s.Price,
+			PostOnly:      s.PostOnly,
+			Hidden:        s.Hidden,
+			TimeInForce:   timeInForce,
+		})
 		if err != nil {
 			return nil, err
 		}
@@ -1936,7 +1952,7 @@ func (ku *Kucoin) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) 
 				continue
 			}
 			pair, enabled, err := ku.MatchSymbolCheckEnabled(symbols[x].Symbol, a, true)
-			if err != nil {
+			if err != nil && !errors.Is(err, currency.ErrPairNotFound) {
 				return err
 			}
 			if !enabled {
@@ -1962,7 +1978,7 @@ func (ku *Kucoin) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) 
 		limits = make([]order.MinMaxLevel, 0, len(contract))
 		for x := range contract {
 			pair, enabled, err := ku.MatchSymbolCheckEnabled(contract[x].Symbol, a, false)
-			if err != nil {
+			if err != nil && !errors.Is(err, currency.ErrPairNotFound) {
 				return err
 			}
 			if !enabled {
