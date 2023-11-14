@@ -563,7 +563,6 @@ func TestGetServiceStatus(t *testing.T) {
 
 func TestPostOrder(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, ku, canManipulateRealOrders)
 
 	// default order type is limit
 	_, err := ku.PostOrder(context.Background(), &SpotOrderParam{
@@ -596,18 +595,15 @@ func TestPostOrder(t *testing.T) {
 	if !errors.Is(err, errInvalidSize) {
 		t.Errorf("PostOrder() expected %v, but found %v", errInvalidSize, err)
 	}
-	_, err = ku.PostOrder(context.Background(), &SpotOrderParam{
-		ClientOrderID: "5bd6e9286d99522a52e458de", Side: "buy",
-		Symbol: spotTradablePair, OrderType: "limit", Size: 0.1, Price: 234565})
-	if err != nil {
-		t.Error("PostOrder() error", err)
-	}
 
-	// market order
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, ku, canManipulateRealOrders)
 	_, err = ku.PostOrder(context.Background(), &SpotOrderParam{
-		ClientOrderID: "5bd6e9286d99522a52e458de", Side: "buy",
-		Symbol:    spotTradablePair,
-		OrderType: "market", Remark: "remark", Size: 0.1})
+		ClientOrderID: "5bd6e9286d99522a52e458de",
+		Side:          "buy",
+		Symbol:        spotTradablePair,
+		OrderType:     "limit",
+		Size:          0.005,
+		Price:         1000})
 	if err != nil {
 		t.Error("PostOrder() error", err)
 	}
