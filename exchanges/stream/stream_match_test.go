@@ -18,12 +18,12 @@ func TestMatch(t *testing.T) {
 		t.Fatal("should not be able to match")
 	}
 
-	m, err := nm.set("hello")
+	m, err := nm.Set("hello")
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	_, err = nm.set("hello")
+	_, err = nm.Set("hello")
 	if err == nil {
 		t.Fatal("error cannot be nil as this collision cannot occur")
 	}

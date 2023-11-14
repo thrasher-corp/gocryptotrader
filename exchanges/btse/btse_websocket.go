@@ -411,6 +411,6 @@ func (b *BTSE) Unsubscribe(channelsToUnsubscribe []stream.ChannelSubscription) e
 	if err != nil {
 		return err
 	}
-	b.Websocket.RemoveSuccessfulUnsubscriptions(channelsToUnsubscribe...)
+	b.Websocket.RemoveSubscriptions(channelsToUnsubscribe...)
 	return nil
 }

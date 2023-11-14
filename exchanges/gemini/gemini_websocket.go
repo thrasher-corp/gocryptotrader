@@ -171,7 +171,7 @@ func (g *Gemini) Unsubscribe(channelsToUnsubscribe []stream.ChannelSubscription)
 		return err
 	}
 
-	g.Websocket.RemoveSuccessfulUnsubscriptions(channelsToUnsubscribe...)
+	g.Websocket.RemoveSubscriptions(channelsToUnsubscribe...)
 	return nil
 }
 
