@@ -1064,7 +1064,7 @@ func (by *Bybit) GetOrderInfo(ctx context.Context, orderID string, pair currency
 		if assetType == asset.USDCMarginedFutures && !pair.Quote.Equal(currency.PERP) {
 			pair.Delimiter = currency.DashDelimiter
 		}
-		resp, err := by.GetOpenOrders(ctx, getCategoryName(asset.Spot), pair.String(), "", "", orderID, "", "", "", 0, 1)
+		resp, err := by.GetOpenOrders(ctx, getCategoryName(assetType), pair.String(), "", "", orderID, "", "", "", 0, 1)
 		if err != nil {
 			return nil, err
 		}
@@ -1075,21 +1075,26 @@ func (by *Bybit) GetOrderInfo(ctx context.Context, orderID string, pair currency
 		if err != nil {
 			return nil, err
 		}
+		remainingAmt := resp.List[0].LeavesQuantity.Float64()
+		if remainingAmt == 0 {
+			remainingAmt = resp.List[0].OrderQuantity.Float64() - resp.List[0].CumulativeExecQuantity.Float64()
+		}
 		return &order.Detail{
-			Amount:         resp.List[0].OrderQuantity.Float64(),
-			Exchange:       by.Name,
-			OrderID:        resp.List[0].OrderID,
-			ClientOrderID:  resp.List[0].OrderLinkID,
-			Side:           getSide(resp.List[0].Side),
-			Type:           orderType,
-			Pair:           pair,
-			Cost:           resp.List[0].CumulativeExecQuantity.Float64() * resp.List[0].AveragePrice.Float64(),
-			AssetType:      assetType,
-			Status:         StringToOrderStatus(resp.List[0].OrderStatus),
-			Price:          resp.List[0].Price.Float64(),
-			ExecutedAmount: resp.List[0].CumulativeExecQuantity.Float64(),
-			Date:           resp.List[0].CreatedTime.Time(),
-			LastUpdated:    resp.List[0].UpdatedTime.Time(),
+			Amount:          resp.List[0].OrderQuantity.Float64(),
+			Exchange:        by.Name,
+			OrderID:         resp.List[0].OrderID,
+			ClientOrderID:   resp.List[0].OrderLinkID,
+			Side:            getSide(resp.List[0].Side),
+			Type:            orderType,
+			Pair:            pair,
+			Cost:            resp.List[0].CumulativeExecQuantity.Float64() * resp.List[0].AveragePrice.Float64(),
+			AssetType:       assetType,
+			Status:          StringToOrderStatus(resp.List[0].OrderStatus),
+			Price:           resp.List[0].Price.Float64(),
+			ExecutedAmount:  resp.List[0].CumulativeExecQuantity.Float64(),
+			RemainingAmount: remainingAmt,
+			Date:            resp.List[0].CreatedTime.Time(),
+			LastUpdated:     resp.List[0].UpdatedTime.Time(),
 		}, nil
 	default:
 		return nil, fmt.Errorf("%s %w", assetType, asset.ErrNotSupported)
