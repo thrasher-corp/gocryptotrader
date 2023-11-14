@@ -8,49 +8,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
 
-// Item holds various fields for storing currency pair stats
-type Item struct {
-	Exchange  string
-	Pair      currency.Pair
-	AssetType asset.Item
-	Price     float64
-	Volume    float64
-}
-
-// Items var array
-var Items []Item
-
-// ByPrice allows sorting by price
-type ByPrice []Item
-
-func (b ByPrice) Len() int {
-	return len(b)
-}
-
-func (b ByPrice) Less(i, j int) bool {
-	return b[i].Price < b[j].Price
-}
-
-func (b ByPrice) Swap(i, j int) {
-	b[i], b[j] = b[j], b[i]
-}
-
-// ByVolume allows sorting by volume
-type ByVolume []Item
-
-func (b ByVolume) Len() int {
-	return len(b)
-}
-
-func (b ByVolume) Less(i, j int) bool {
-	return b[i].Volume < b[j].Volume
-}
-
-func (b ByVolume) Swap(i, j int) {
-	b[i], b[j] = b[j], b[i]
-}
-
-// Add adds or updates the item stats
+// Add adds or updates the Item stats
 func Add(exchange string, p currency.Pair, a asset.Item, price, volume float64) error {
 	if exchange == "" ||
 		a == asset.Empty ||
@@ -82,13 +40,14 @@ func Add(exchange string, p currency.Pair, a asset.Item, price, volume float64) 
 	return nil
 }
 
-// Append adds or updates the item stats for a specific
-// currency pair and asset type
+// Append adds the Item stats for a specific currency pair and asset type
+// if it doesn't exist
 func Append(exchange string, p currency.Pair, a asset.Item, price, volume float64) {
-	if AlreadyExists(exchange, p, a, price, volume) {
+	statMutex.Lock()
+	defer statMutex.Unlock()
+	if alreadyExistsRequiresLock(exchange, p, a, price, volume) {
 		return
 	}
-
 	i := Item{
 		Exchange:  exchange,
 		Pair:      p,
@@ -97,59 +56,95 @@ func Append(exchange string, p currency.Pair, a asset.Item, price, volume float6
 		Volume:    volume,
 	}
 
-	Items = append(Items, i)
+	items = append(items, i)
 }
 
-// AlreadyExists checks to see if item info already exists
-// for a specific currency pair and asset type
-func AlreadyExists(exchange string, p currency.Pair, assetType asset.Item, price, volume float64) bool {
-	for i := range Items {
-		if Items[i].Exchange == exchange &&
-			Items[i].Pair.EqualIncludeReciprocal(p) &&
-			Items[i].AssetType == assetType {
-			Items[i].Price, Items[i].Volume = price, volume
+// alreadyExistsRequiresLock checks to see if Item info already exists
+// requires a locking beforehand because of globals
+func alreadyExistsRequiresLock(exchange string, p currency.Pair, assetType asset.Item, price, volume float64) bool {
+	for i := range items {
+		if items[i].Exchange == exchange &&
+			items[i].Pair.EqualIncludeReciprocal(p) &&
+			items[i].AssetType == assetType {
+			items[i].Price, items[i].Volume = price, volume
 			return true
 		}
 	}
 	return false
 }
 
-// SortExchangesByVolume sorts item info by volume for a specific
+// AlreadyExists checks to see if Item info already exists
+// for a specific currency pair and asset type
+func AlreadyExists(exchange string, p currency.Pair, assetType asset.Item, price, volume float64) bool {
+	statMutex.Lock()
+	defer statMutex.Unlock()
+	return alreadyExistsRequiresLock(exchange, p, assetType, price, volume)
+}
+
+// SortExchangesByVolume sorts Item info by volume for a specific
 // currency pair and asset type. Reverse will reverse the order from lowest to
 // highest
 func SortExchangesByVolume(p currency.Pair, assetType asset.Item, reverse bool) []Item {
 	var result []Item
-	for x := range Items {
-		if Items[x].Pair.EqualIncludeReciprocal(p) &&
-			Items[x].AssetType == assetType {
-			result = append(result, Items[x])
+	statMutex.Lock()
+	defer statMutex.Unlock()
+	for x := range items {
+		if items[x].Pair.EqualIncludeReciprocal(p) &&
+			items[x].AssetType == assetType {
+			result = append(result, items[x])
 		}
 	}
 
 	if reverse {
-		sort.Sort(sort.Reverse(ByVolume(result)))
+		sort.Sort(sort.Reverse(byVolume(result)))
 	} else {
-		sort.Sort(ByVolume(result))
+		sort.Sort(byVolume(result))
 	}
 	return result
 }
 
-// SortExchangesByPrice sorts item info by volume for a specific
+// SortExchangesByPrice sorts Item info by volume for a specific
 // currency pair and asset type. Reverse will reverse the order from lowest to
 // highest
 func SortExchangesByPrice(p currency.Pair, assetType asset.Item, reverse bool) []Item {
 	var result []Item
-	for x := range Items {
-		if Items[x].Pair.EqualIncludeReciprocal(p) &&
-			Items[x].AssetType == assetType {
-			result = append(result, Items[x])
+	statMutex.Lock()
+	defer statMutex.Unlock()
+	for x := range items {
+		if items[x].Pair.EqualIncludeReciprocal(p) &&
+			items[x].AssetType == assetType {
+			result = append(result, items[x])
 		}
 	}
 
 	if reverse {
-		sort.Sort(sort.Reverse(ByPrice(result)))
+		sort.Sort(sort.Reverse(byPrice(result)))
 	} else {
-		sort.Sort(ByPrice(result))
+		sort.Sort(byPrice(result))
 	}
 	return result
+}
+
+func (b byPrice) Len() int {
+	return len(b)
+}
+
+func (b byPrice) Less(i, j int) bool {
+	return b[i].Price < b[j].Price
+}
+
+func (b byPrice) Swap(i, j int) {
+	b[i], b[j] = b[j], b[i]
+}
+
+func (b byVolume) Len() int {
+	return len(b)
+}
+
+func (b byVolume) Less(i, j int) bool {
+	return b[i].Volume < b[j].Volume
+}
+
+func (b byVolume) Swap(i, j int) {
+	b[i], b[j] = b[j], b[i]
 }

@@ -12,8 +12,8 @@ import (
 // ErrFundingRateOutsideLimits is returned when a funding rate is outside the allowed date range
 var ErrFundingRateOutsideLimits = errors.New("funding rate outside limits")
 
-// RatesRequest is used to request funding rate details for a position
-type RatesRequest struct {
+// HistoricalRatesRequest is used to request funding rate details for a position
+type HistoricalRatesRequest struct {
 	Asset asset.Item
 	Pair  currency.Pair
 	// PaymentCurrency is an optional parameter depending on exchange API
@@ -30,8 +30,8 @@ type RatesRequest struct {
 	RespectHistoryLimits bool
 }
 
-// Rates is used to return funding rate details for a position
-type Rates struct {
+// HistoricalRates is used to return funding rate details for a position
+type HistoricalRates struct {
 	Exchange              string
 	Asset                 asset.Item
 	Pair                  currency.Pair
@@ -60,6 +60,7 @@ type LatestRateResponse struct {
 	LatestRate            Rate
 	PredictedUpcomingRate Rate
 	TimeOfNextRate        time.Time
+	TimeChecked           time.Time
 }
 
 // Rate holds details for an individual funding rate

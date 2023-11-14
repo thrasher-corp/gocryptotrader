@@ -36,6 +36,7 @@ const (
 	getMarkets           = "/markets"
 	getMarketSummaries   = "/markets/summaries"
 	getTicker            = "/markets/%s/ticker"
+	getTickers           = "/markets/tickers"
 	getMarketSummary     = "/markets/%s/summary"
 	getMarketTrades      = "/markets/%s/trades"
 	getOrderbook         = "/markets/%s/orderbook?depth=%s"
@@ -87,8 +88,14 @@ func (b *Bittrex) GetTicker(ctx context.Context, marketName string) (TickerData,
 	return resp, b.SendHTTPRequest(ctx, exchange.RestSpot, fmt.Sprintf(getTicker, marketName), &resp, nil)
 }
 
+// GetTickers returns bittrex tickers
+func (b *Bittrex) GetTickers(ctx context.Context) ([]TickerData, error) {
+	var resp []TickerData
+	return resp, b.SendHTTPRequest(ctx, exchange.RestSpot, getTickers, &resp, nil)
+}
+
 // GetMarketSummaries is used to get the last 24 hour summary of all active
-// exchanges
+// currencies
 func (b *Bittrex) GetMarketSummaries(ctx context.Context) ([]MarketSummaryData, error) {
 	var resp []MarketSummaryData
 	return resp, b.SendHTTPRequest(ctx, exchange.RestSpot, getMarketSummaries, &resp, nil)
