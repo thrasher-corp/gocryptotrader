@@ -4046,3 +4046,86 @@ func TestGetRecurringSubOrders(t *testing.T) {
 		t.Error(err)
 	}
 }
+
+func TestGetExistingLeadingPositions(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
+	_, err := ok.GetExistingLeadingPositions(context.Background(), "SPOT", "BTC-USDT", time.Now(), time.Time{}, 0)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetLeadingPositionsHistory(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
+	_, err := ok.GetLeadingPositionsHistory(context.Background(), "OPTION", "", time.Time{}, time.Time{}, 0)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestPlaceLeadingStopOrder(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
+	_, err := ok.PlaceLeadingStopOrder(context.Background(), &TPSLOrderParam{
+		SubPositionID:          "1235454",
+		TakeProfitTriggerPrice: 123455})
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestCloseLeadingPosition(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
+	_, err := ok.CloseLeadingPosition(context.Background(), &CloseLeadingPositionParam{})
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetLeadingInstrument(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
+	_, err := ok.GetLeadingInstrument(context.Background(), "SWAP")
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestAmendLeadingInstruments(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
+	_, err := ok.AmendLeadingInstruments(context.Background(), "BTC-USDT-SWAP", "")
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetProfitSharingDetails(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
+	_, err := ok.GetProfitSharingDetails(context.Background(), "", time.Now(), time.Time{}, 0)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetTotalProfitSharing(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
+	_, err := ok.GetTotalProfitSharing(context.Background(), "SWAP")
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetUnrealizedProfitSharingDetails(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
+	_, err := ok.GetUnrealizedProfitSharingDetails(context.Background(), "SWAP")
+	if err != nil {
+		t.Error(err)
+	}
+}

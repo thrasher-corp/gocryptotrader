@@ -183,6 +183,13 @@ type RateLimit struct {
 	GetRecurringBuyOrderHistory *rate.Limiter
 	GetRecurringBuyOrderDetail  *rate.Limiter
 	GetRecurringBuySubOrders    *rate.Limiter
+	GetExistingLeadingPositions *rate.Limiter
+	GetLeadingPositionHistory   *rate.Limiter
+	PlaceLeadingStopOrder       *rate.Limiter
+	GetCloseLeadingPosition     *rate.Limiter
+	GetLeadingInstruments       *rate.Limiter
+	GetProfitSharingLimit       *rate.Limiter
+	GetTotalProfitSharing       *rate.Limiter
 
 	// Earn
 	GetOffer                   *rate.Limiter
@@ -388,6 +395,13 @@ const (
 	getRecurringBuyOrderHistoryEPL
 	getRecurringBuyOrderDetailEPL
 	getRecurringBuySubOrdersEPL
+	getExistingLeadingPositionsEPL
+	getLeadingPositionHistoryEPL
+	placeLeadingStopOrderEPL
+	closeLeadingPositionEPL
+	getLeadingInstrumentsEPL
+	getProfitSharingLimitEPL
+	getTotalProfitSharingEPL
 	getOfferEPL
 	purchaseEPL
 	redeemEPL
@@ -737,6 +751,20 @@ func (r *RateLimit) Limit(ctx context.Context, f request.EndpointLimit) error {
 		return r.GetRecurringBuyOrderDetail.Wait(ctx)
 	case getRecurringBuySubOrdersEPL:
 		return r.GetRecurringBuySubOrders.Wait(ctx)
+	case getExistingLeadingPositionsEPL:
+		return r.GetExistingLeadingPositions.Wait(ctx)
+	case getLeadingPositionHistoryEPL:
+		return r.GetLeadingPositionHistory.Wait(ctx)
+	case placeLeadingStopOrderEPL:
+		return r.PlaceLeadingStopOrder.Wait(ctx)
+	case closeLeadingPositionEPL:
+		return r.GetCloseLeadingPosition.Wait(ctx)
+	case getLeadingInstrumentsEPL:
+		return r.GetLeadingInstruments.Wait(ctx)
+	case getProfitSharingLimitEPL:
+		return r.GetProfitSharingLimit.Wait(ctx)
+	case getTotalProfitSharingEPL:
+		return r.GetTotalProfitSharing.Wait(ctx)
 	case getOfferEPL:
 		return r.GetOffer.Wait(ctx)
 	case purchaseEPL:
@@ -1001,6 +1029,13 @@ func SetRateLimit() *RateLimit {
 		GetRecurringBuyOrderHistory: request.NewRateLimit(twoSecondsInterval, 20),
 		GetRecurringBuyOrderDetail:  request.NewRateLimit(twoSecondsInterval, 20),
 		GetRecurringBuySubOrders:    request.NewRateLimit(twoSecondsInterval, 20),
+		GetExistingLeadingPositions: request.NewRateLimit(twoSecondsInterval, 20),
+		GetLeadingPositionHistory:   request.NewRateLimit(twoSecondsInterval, 20),
+		PlaceLeadingStopOrder:       request.NewRateLimit(twoSecondsInterval, 20),
+		GetCloseLeadingPosition:     request.NewRateLimit(twoSecondsInterval, 20),
+		GetLeadingInstruments:       request.NewRateLimit(twoSecondsInterval, 5),
+		GetProfitSharingLimit:       request.NewRateLimit(twoSecondsInterval, 5),
+		GetTotalProfitSharing:       request.NewRateLimit(twoSecondsInterval, 5),
 
 		// Earn
 		GetOffer:                   request.NewRateLimit(oneSecondInterval, 3),

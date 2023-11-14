@@ -3561,6 +3561,72 @@ type RecurringBuySubOrder struct {
 	UpdateTime      convert.ExchangeTime    `json:"uTime"`
 }
 
+// PositionInfo represents a positions detail.
+type PositionInfo struct {
+	InstrumentType    string                  `json:"instType"`
+	InstrumentID      string                  `json:"instId"`
+	AlgoID            string                  `json:"algoId"`
+	Lever             convert.StringToFloat64 `json:"lever"`
+	MgnMode           string                  `json:"mgnMode"`
+	OpenAvgPrice      convert.StringToFloat64 `json:"openAvgPx"`
+	OpenOrdID         string                  `json:"openOrdId"`
+	OpenTime          convert.ExchangeTime    `json:"openTime"`
+	PosSide           string                  `json:"posSide"`
+	SlTriggerPrice    convert.StringToFloat64 `json:"slTriggerPx"`
+	SubPos            string                  `json:"subPos"`
+	SubPosID          string                  `json:"subPosId"`
+	TpTriggerPrice    convert.StringToFloat64 `json:"tpTriggerPx"`
+	CloseAveragePrice convert.StringToFloat64 `json:"closeAvgPx"`
+	CloseTime         convert.ExchangeTime    `json:"closeTime"`
+}
+
+// TPSLOrderParam holds Take profit and stop loss order parameters.
+type TPSLOrderParam struct {
+	InstrumentType            string  `json:"instType"`
+	SubPositionID             string  `json:"subPosId"`
+	TakeProfitTriggerPrice    float64 `json:"tpTriggerPx,omitempty,string"`
+	StopLossTriggerPrice      float64 `json:"slTriggerPx,omitempty,string"`
+	TakePofitTriggerPriceType string  `json:"tpTriggerPriceType"` // last: last price, 'index': index price 'mark': mark price Default is 'last'
+	StopLossTriggerPriceType  string  `jsonL:"slTriggerPxType"`   // Stop-loss trigger price type 'last': last price 'index': index price 'mark': mark price Default is 'last'
+	Tag                       string  `json:"tag"`
+}
+
+// PositionIDInfo holds place positions information
+type PositionIDInfo struct {
+	SubPosID string `json:"subPosId"`
+	Tag      string `json:"tag"`
+}
+
+// CloseLeadingPositionParam request parameter for closing leading position
+type CloseLeadingPositionParam struct {
+	InstrumentType string `json:"instType"`
+	SubPositionID  string `json:"subPosId"`
+	Tag            string `json:"tag"`
+}
+
+// LeadingInstrumentItem represents leading instrument info and it's status
+type LeadingInstrumentItem struct {
+	Enabled      bool   `json:"enabled"`
+	InstrumentID string `json:"instId"`
+}
+
+// ProfitSharingItem holds profit sharing information
+type ProfitSharingItem struct {
+	Ccy                 string               `json:"ccy"`
+	NickName            string               `json:"nickName"`
+	ProfitSharingAmount string               `json:"profitSharingAmt"`
+	ProfitSharingID     string               `json:"profitSharingId"`
+	Timestamp           convert.ExchangeTime `json:"ts"`
+	InstrumentType      string               `json:"instType"`
+}
+
+// TotalProfitSharing holds information about total amount of profit shared since joining the platform.
+type TotalProfitSharing struct {
+	Currency                 string                  `json:"ccy"`
+	TotalProfitSharingAmount convert.StringToFloat64 `json:"totalProfitSharingAmt"`
+	InstrumentType           string                  `json:"instType"`
+}
+
 // Offer represents an investment offer information for different 'staking' and 'defi' protocols
 type Offer struct {
 	Currency     string            `json:"ccy"`

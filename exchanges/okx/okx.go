@@ -343,6 +343,7 @@ var (
 	errOnlyOneResponseExpected                 = errors.New("one response item expected")
 	errNoInstrumentFound                       = errors.New("no instrument found")
 	errStrategyNameRequired                    = errors.New("strategy name required")
+	errSubPositionIDRequired                   = errors.New("sub position id is required")
 )
 
 /************************************ MarketData Endpoints *************************************************/
@@ -3669,6 +3670,158 @@ func (ok *Okx) GetRecurringSubOrders(ctx context.Context, algoID, orderID string
 	}
 	var resp []RecurringBuySubOrder
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getRecurringBuySubOrdersEPL, http.MethodGet, common.EncodeURLValues("tradingBot/recurring/sub-orders", params), nil, &resp, true)
+}
+
+// ****************************************** Earn **************************************************
+
+// GetExistingLeadingPositions retrieves leading positions that are not closed.
+func (ok *Okx) GetExistingLeadingPositions(ctx context.Context, instrumentType, instrumentID string, before, after time.Time, limit int64) ([]PositionInfo, error) {
+	params := url.Values{}
+	if instrumentType != "" {
+		params.Set("instType", instrumentType)
+	}
+	if instrumentID != "" {
+		params.Set("instId", instrumentID)
+	}
+	if !before.IsZero() {
+		params.Set("before", strconv.FormatInt(before.UnixMilli(), 10))
+	}
+	if !after.IsZero() {
+		params.Set("after", strconv.FormatInt(after.UnixMilli(), 10))
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	var resp []PositionInfo
+	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getExistingLeadingPositionsEPL, http.MethodGet, common.EncodeURLValues("copytrading/current-subpositions", params), nil, &resp, true)
+}
+
+// GetLeadingPositionsHistory leading trader retrieves the completed leading position of the last 3 months.
+// Returns reverse chronological order with subPosId.
+func (ok *Okx) GetLeadingPositionsHistory(ctx context.Context, instrumentType, instrumentID string, before, after time.Time, limit int64) ([]PositionInfo, error) {
+	params := url.Values{}
+	if instrumentType != "" {
+		params.Set("instType", instrumentType)
+	}
+	if instrumentID != "" {
+		params.Set("instId", instrumentID)
+	}
+	if !before.IsZero() {
+		params.Set("before", strconv.FormatInt(before.UnixMilli(), 10))
+	}
+	if !after.IsZero() {
+		params.Set("after", strconv.FormatInt(after.UnixMilli(), 10))
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	var resp []PositionInfo
+	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getLeadingPositionHistoryEPL, http.MethodGet, common.EncodeURLValues("copytrading/subpositions-history", params), nil, &resp, true)
+}
+
+// PlaceLeadingStopOrder holds leading trader sets TP/SL for the current leading position that are not closed.
+func (ok *Okx) PlaceLeadingStopOrder(ctx context.Context, arg *TPSLOrderParam) (*PositionIDInfo, error) {
+	if arg == nil || *arg == (TPSLOrderParam{}) {
+		return nil, errNilArgument
+	}
+	if arg.SubPositionID == "" {
+		return nil, errSubPositionIDRequired
+	}
+	var resp []PositionIDInfo
+	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, placeLeadingStopOrderEPL, http.MethodGet, "copytrading/algo-order", arg, &resp, true)
+	if err != nil {
+		return nil, err
+	}
+	if len(resp) == 1 {
+		return &resp[0], nil
+	}
+	return nil, errNoValidResponseFromServer
+}
+
+// CloseLeadingPosition close a leading position once a time.
+func (ok *Okx) CloseLeadingPosition(ctx context.Context, arg *CloseLeadingPositionParam) (*PositionIDInfo, error) {
+	if arg == nil || *arg == (CloseLeadingPositionParam{}) {
+		return nil, errNilArgument
+	}
+	if arg.SubPositionID == "" {
+		return nil, errSubPositionIDRequired
+	}
+	var resp []PositionIDInfo
+	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, closeLeadingPositionEPL, http.MethodPost, "copytrading/close-subposition", arg, &resp, true)
+	if err != nil {
+		return nil, err
+	}
+	if len(resp) == 1 {
+		return &resp[0], nil
+	}
+	return nil, errNoValidResponseFromServer
+}
+
+// GetLeadingInstrument retrieves leading instruments
+func (ok *Okx) GetLeadingInstrument(ctx context.Context, instrumentType string) ([]LeadingInstrumentItem, error) {
+	params := url.Values{}
+	if instrumentType == "" {
+		params.Set("instType", instrumentType)
+	}
+	var resp []LeadingInstrumentItem
+	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getLeadingInstrumentsEPL, http.MethodGet, common.EncodeURLValues("copytrading/instruments", params), nil, &resp, true)
+}
+
+// AmendLeadingInstruments amend current leading instruments, need to set initial leading instruments while applying to become a leading trader.
+// All non-leading contracts can't have position or pending orders for the current request when setting non-leading contracts as leading contracts.
+func (ok *Okx) AmendLeadingInstruments(ctx context.Context, instrumentID, instrumentType string) ([]LeadingInstrumentItem, error) {
+	if instrumentID == "" {
+		return nil, errInstrumentTypeRequired
+	}
+	var resp []LeadingInstrumentItem
+	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getLeadingInstrumentsEPL, http.MethodPost, "copytrading/set-instruments", &struct {
+		InstrumentType string `json:"instType,omitempty"`
+		InstrumentID   string `json:"instId"`
+	}{
+		InstrumentID:   instrumentID,
+		InstrumentType: instrumentType,
+	}, &resp, true)
+}
+
+// GetProfitSharingDetails gets profits shared details for the last 3 months.
+func (ok *Okx) GetProfitSharingDetails(ctx context.Context, instrumentType string, before, after time.Time, limit int64) ([]ProfitSharingItem, error) {
+	params := url.Values{}
+	if instrumentType == "" {
+		return nil, errInstrumentTypeRequired
+	}
+	if !before.IsZero() {
+		params.Set("before", strconv.FormatInt(before.UnixMilli(), 10))
+	}
+	if !after.IsZero() {
+		params.Set("after", strconv.FormatInt(after.UnixMilli(), 10))
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	var resp []ProfitSharingItem
+	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getProfitSharingLimitEPL, http.MethodGet, common.EncodeURLValues("", params), nil, &resp, true)
+}
+
+// GetTotalProfitSharing gets the total amount of profit shared since joining the platform.
+// Instrument type 'SPOT' 'SWAP' It returns all types by default.
+func (ok *Okx) GetTotalProfitSharing(ctx context.Context, instrumentType string) ([]TotalProfitSharing, error) {
+	params := url.Values{}
+	if instrumentType != "" {
+		params.Set("instType", instrumentType)
+	}
+	var resp []TotalProfitSharing
+	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getTotalProfitSharingEPL, http.MethodGet, common.EncodeURLValues("copytrading/total-profit-sharing", params), nil, &resp, true)
+}
+
+// GetUnrealizedProfitSharingDetails gets leading trader gets the profit sharing details that are expected to be shared in the next settlement cycle.
+// The unrealized profit sharing details will update once there copy position is closed.
+func (ok *Okx) GetUnrealizedProfitSharingDetails(ctx context.Context, instrumentType string) ([]ProfitSharingItem, error) {
+	params := url.Values{}
+	if instrumentType != "" {
+		params.Set("instType", instrumentType)
+	}
+	var resp []ProfitSharingItem
+	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getTotalProfitSharingEPL, http.MethodGet, common.EncodeURLValues("copytrading/unrealized-profit-sharing-details", params), nil, &resp, true)
 }
 
 // ****************************************** Earn **************************************************
