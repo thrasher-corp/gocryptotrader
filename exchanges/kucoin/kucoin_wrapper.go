@@ -249,6 +249,16 @@ func (ku *Kucoin) Run(ctx context.Context) {
 		ku.PrintEnabledPairs()
 	}
 
+	assetTypes := ku.GetAssetTypes(false)
+	for i := range assetTypes {
+		if err := ku.UpdateOrderExecutionLimits(ctx, assetTypes[i]); err != nil && !errors.Is(err, common.ErrNotYetImplemented) {
+			log.Errorf(log.ExchangeSys,
+				"%s failed to set exchange order execution limits. Err: %v",
+				ku.Name,
+				err)
+		}
+	}
+
 	if !ku.GetEnabledFeatures().AutoPairUpdates {
 		return
 	}
@@ -294,10 +304,12 @@ func (ku *Kucoin) FetchTradablePairs(ctx context.Context, assetType asset.Item) 
 		}
 		pairs := make(currency.Pairs, 0, len(myPairs))
 		for x := range myPairs {
-			if !myPairs[x].EnableTrading {
+			if !myPairs[x].EnableTrading || (assetType == asset.Margin && !myPairs[x].IsMarginEnabled) {
 				continue
 			}
-			cp, err = currency.NewPairFromString(strings.ToUpper(myPairs[x].Name))
+			// Symbol field must be used to generate pair as this is the symbol
+			// to fetch data from the API. e.g. BSV-USDT name is BCHSV-USDT as symbol.
+			cp, err = currency.NewPairFromString(strings.ToUpper(myPairs[x].Symbol))
 			if err != nil {
 				return nil, err
 			}
@@ -1903,4 +1915,69 @@ func (ku *Kucoin) GetFuturesPositionOrders(ctx context.Context, r *futures.Posit
 		}
 	}
 	return resp, nil
+}
+
+// UpdateOrderExecutionLimits updates order execution limits
+func (ku *Kucoin) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) error {
+	if !ku.SupportsAsset(a) {
+		return fmt.Errorf("%w %v", asset.ErrNotSupported, a)
+	}
+
+	var limits []order.MinMaxLevel
+	switch a {
+	case asset.Spot, asset.Margin:
+		symbols, err := ku.GetSymbols(ctx, "")
+		if err != nil {
+			return err
+		}
+		limits = make([]order.MinMaxLevel, 0, len(symbols))
+		for x := range symbols {
+			if a == asset.Margin && !symbols[x].IsMarginEnabled {
+				continue
+			}
+			pair, enabled, err := ku.MatchSymbolCheckEnabled(symbols[x].Symbol, a, true)
+			if err != nil {
+				return err
+			}
+			if !enabled {
+				continue
+			}
+			limits = append(limits, order.MinMaxLevel{
+				Pair:                    pair,
+				Asset:                   a,
+				AmountStepIncrementSize: symbols[x].BaseIncrement,
+				QuoteStepIncrementSize:  symbols[x].QuoteIncrement,
+				PriceStepIncrementSize:  symbols[x].PriceIncrement,
+				MinimumBaseAmount:       symbols[x].BaseMinSize,
+				MaximumBaseAmount:       symbols[x].BaseMaxSize,
+				MinimumQuoteAmount:      symbols[x].QuoteMinSize,
+				MaximumQuoteAmount:      symbols[x].QuoteMaxSize,
+			})
+		}
+	case asset.Futures:
+		contract, err := ku.GetFuturesOpenContracts(ctx)
+		if err != nil {
+			return err
+		}
+		limits = make([]order.MinMaxLevel, 0, len(contract))
+		for x := range contract {
+			pair, enabled, err := ku.MatchSymbolCheckEnabled(contract[x].Symbol, a, false)
+			if err != nil {
+				return err
+			}
+			if !enabled {
+				continue
+			}
+			limits = append(limits, order.MinMaxLevel{
+				Pair:                    pair,
+				Asset:                   a,
+				AmountStepIncrementSize: contract[x].LotSize,
+				QuoteStepIncrementSize:  contract[x].TickSize,
+				MaximumBaseAmount:       contract[x].MaxOrderQty,
+				MaximumQuoteAmount:      contract[x].MaxPrice,
+			})
+		}
+	}
+
+	return ku.LoadLimits(limits)
 }

@@ -81,14 +81,17 @@ func TestMain(m *testing.M) {
 // Spot asset test cases starts from here
 func TestGetSymbols(t *testing.T) {
 	t.Parallel()
-	_, err := ku.GetSymbols(context.Background(), "")
+	symbols, err := ku.GetSymbols(context.Background(), "")
 	if err != nil {
 		t.Error("GetSymbols() error", err)
 	}
-	_, err = ku.GetSymbols(context.Background(), currency.BTC.String())
+	assert.NotEmpty(t, symbols, "should return all available spot/margin symbols")
+	// Using market string reduces the scope of what is returned.
+	symbols, err = ku.GetSymbols(context.Background(), "ETF")
 	if err != nil {
 		t.Error("GetSymbols() error", err)
 	}
+	assert.NotEmpty(t, symbols, "should return all available ETF symbols")
 }
 
 func TestGetTicker(t *testing.T) {
@@ -2557,4 +2560,34 @@ func TestGetFuturesPositionOrders(t *testing.T) {
 	req.RespectOrderHistoryLimits = true
 	_, err = ku.GetFuturesPositionOrders(context.Background(), req)
 	assert.ErrorIs(t, err, nil)
+}
+
+func TestUpdateOrderExecutionLimits(t *testing.T) {
+	t.Parallel()
+
+	err := ku.UpdateOrderExecutionLimits(context.Background(), asset.Binary)
+	if !errors.Is(err, asset.ErrNotSupported) {
+		t.Fatalf("Received %v, expected %v", err, asset.ErrNotSupported)
+	}
+
+	assets := []asset.Item{asset.Spot, asset.Futures, asset.Margin}
+	for x := range assets {
+		err = ku.UpdateOrderExecutionLimits(context.Background(), assets[x])
+		if !errors.Is(err, nil) {
+			t.Fatalf("received %v, expected %v", err, nil)
+		}
+
+		enabled, err := ku.GetEnabledPairs(assets[x])
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		for y := range enabled {
+			lim, err := ku.GetOrderExecutionLimits(assets[x], enabled[y])
+			if err != nil {
+				t.Fatalf("%v %s %v", err, enabled[y], assets[x])
+			}
+			assert.NotEmpty(t, lim, "limit cannot be empty")
+		}
+	}
 }

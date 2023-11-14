@@ -1205,3 +1205,8 @@ func (c *COINUT) GetFuturesContractDetails(context.Context, asset.Item) ([]futur
 func (c *COINUT) GetLatestFundingRates(context.Context, *fundingrate.LatestRateRequest) ([]fundingrate.LatestRateResponse, error) {
 	return nil, common.ErrFunctionNotSupported
 }
+
+// UpdateOrderExecutionLimits updates order execution limits
+func (c *COINUT) UpdateOrderExecutionLimits(_ context.Context, _ asset.Item) error {
+	return common.ErrNotYetImplemented
+}
