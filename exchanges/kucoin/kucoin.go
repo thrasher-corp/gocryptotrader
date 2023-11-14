@@ -842,7 +842,12 @@ func (ku *Kucoin) PostOrder(ctx context.Context, arg *SpotOrderParam) (string, e
 	default:
 		return "", fmt.Errorf("%w %s", order.ErrTypeIsInvalid, arg.OrderType)
 	}
-	var resp SpotOrderResponse
+	var resp struct {
+		Data struct {
+			OrderID string `json:"orderId"`
+		} `json:"data"`
+		Error
+	}
 	return resp.Data.OrderID, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, placeOrderEPL, http.MethodPost, kucoinPostOrder, &arg, &resp)
 }
 

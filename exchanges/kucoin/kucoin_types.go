@@ -1495,11 +1495,3 @@ type MarginOrderParam struct {
 	VisibleSize         float64       `json:"visibleSize,omitempty,string"`
 	Funds               float64       `json:"funds,string,omitempty"`
 }
-
-// SpotOrderResponse defines the response for when a spot order is sent.
-type SpotOrderResponse struct {
-	Data struct {
-		OrderID string `json:"orderId"`
-	} `json:"data"`
-	Error
-}
