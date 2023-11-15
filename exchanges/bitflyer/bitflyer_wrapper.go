@@ -510,3 +510,8 @@ func (b *Bitflyer) GetFuturesContractDetails(context.Context, asset.Item) ([]fut
 func (b *Bitflyer) GetLatestFundingRates(context.Context, *fundingrate.LatestRateRequest) ([]fundingrate.LatestRateResponse, error) {
 	return nil, common.ErrFunctionNotSupported
 }
+
+// UpdateOrderExecutionLimits updates order execution limits
+func (b *Bitflyer) UpdateOrderExecutionLimits(_ context.Context, _ asset.Item) error {
+	return common.ErrNotYetImplemented
+}
