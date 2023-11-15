@@ -704,3 +704,8 @@ func (i *ItBit) GetFuturesContractDetails(context.Context, asset.Item) ([]future
 func (i *ItBit) GetLatestFundingRates(context.Context, *fundingrate.LatestRateRequest) ([]fundingrate.LatestRateResponse, error) {
 	return nil, common.ErrFunctionNotSupported
 }
+
+// UpdateOrderExecutionLimits updates order execution limits
+func (i *ItBit) UpdateOrderExecutionLimits(_ context.Context, _ asset.Item) error {
+	return common.ErrNotYetImplemented
+}

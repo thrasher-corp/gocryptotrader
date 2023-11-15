@@ -1332,3 +1332,8 @@ func (b *Bitmex) GetLatestFundingRates(ctx context.Context, r *fundingrate.Lates
 func (b *Bitmex) IsPerpetualFutureCurrency(a asset.Item, _ currency.Pair) (bool, error) {
 	return a == asset.PerpetualContract, nil
 }
+
+// UpdateOrderExecutionLimits updates order execution limits
+func (b *Bitmex) UpdateOrderExecutionLimits(_ context.Context, _ asset.Item) error {
+	return common.ErrNotYetImplemented
+}
