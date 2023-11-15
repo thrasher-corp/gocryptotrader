@@ -553,5 +553,9 @@ func ({{.Variable}} *{{.CapitalName}}) GetLatestFundingRates(_ context.Context, 
 	return nil, common.ErrNotYetImplemented
 }
 
+// UpdateOrderExecutionLimits updates order execution limits
+func ({{.Variable}} *{{.CapitalName}}) UpdateOrderExecutionLimits(_ context.Context, _ asset.Item) error {
+	return common.ErrNotYetImplemented
+}
 
 {{end}}

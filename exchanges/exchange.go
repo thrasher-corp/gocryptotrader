@@ -1417,11 +1417,6 @@ func getURLTypeFromString(ep string) (URL, error) {
 	}
 }
 
-// UpdateOrderExecutionLimits updates order execution limits this is overridable
-func (b *Base) UpdateOrderExecutionLimits(_ context.Context, _ asset.Item) error {
-	return common.ErrNotYetImplemented
-}
-
 // DisableAssetWebsocketSupport disables websocket functionality for the
 // supplied asset item. In the case that websocket functionality has not yet
 // been implemented for that specific asset type. This is a base method to
