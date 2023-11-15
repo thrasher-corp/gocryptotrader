@@ -73,6 +73,8 @@ var (
 	// ErrNoResponse is returned when a response has no entries/is empty
 	// when one is expected
 	ErrNoResponse = errors.New("no response")
+	// ErrAPIKeyRequired is returned whenever any service requires an API key
+	ErrAPIKeyRequired = errors.New("API key is required")
 
 	errCannotSetInvalidTimeout = errors.New("cannot set new HTTP client with timeout that is equal or less than 0")
 	errUserAgentInvalid        = errors.New("cannot set invalid user agent")

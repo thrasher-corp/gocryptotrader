@@ -31,6 +31,7 @@ var (
 func (e *ExchangeRateHost) Setup(config base.Settings) error {
 	e.Name = config.Name
 	e.Enabled = config.Enabled
+	e.APIKey = config.APIKey
 	e.Verbose = config.Verbose
 	e.PrimaryProvider = config.PrimaryProvider
 	var err error
@@ -253,6 +254,13 @@ func (e *ExchangeRateHost) GetRates(baseCurrency, symbols string) (map[string]fl
 // SendHTTPRequest sends a typical get request
 func (e *ExchangeRateHost) SendHTTPRequest(endpoint string, v url.Values, result interface{}) error {
 	path := common.EncodeURLValues(exchangeRateHostURL+"/"+endpoint, v)
+
+	if e.APIKey == "" {
+		return common.ErrAPIKeyRequired
+	}
+
+	v.Set("access_key", e.APIKey)
+
 	item := &request.Item{
 		Method:  http.MethodGet,
 		Path:    path,
