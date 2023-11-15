@@ -2064,7 +2064,25 @@ func TestIsValid(t *testing.T) {
 		t.Fatal("TestIsValid returned an unexpected result")
 	}
 
+	if !IOC.IsValid() {
+		t.Fatal("TestIsValid returned an unexpected result")
+	}
+	if !GTT.IsValid() {
+		t.Fatal("TestIsValid returned an unexpected result")
+	}
 	if !GTC.IsValid() {
+		t.Fatal("TestIsValid returned an unexpected result")
+	}
+	if !FOK.IsValid() {
+		t.Fatal("TestIsValid returned an unexpected result")
+	}
+	if !PostOnlyGTC.IsValid() {
+		t.Fatal("TestIsValid returned an unexpected result")
+	}
+	if !UnknownTIF.IsValid() {
+		t.Fatal("TestIsValid returned an unexpected result")
+	}
+	if TimeInForce(22).IsValid() {
 		t.Fatal("TestIsValid returned an unexpected result")
 	}
 }
@@ -2075,10 +2093,39 @@ func TestStringToTimeInForce(t *testing.T) {
 	if !errors.Is(err, ErrInvalidTimeInForce) {
 		t.Fatalf("expected %v, got %v", ErrInvalidTimeInForce, err)
 	}
-	_, err = StringToTimeInForce("GoodTillCancel")
+	tif1, err := StringToTimeInForce("GoodTillCancel")
 	if err != nil {
 		t.Fatal(err)
 	}
+
+	tif, err := StringToTimeInForce("GOOD_TILL_CANCELED")
+	if err != nil {
+		t.Fatal(err)
+	} else if tif1 != tif {
+		t.Fatalf("unexpected result")
+	}
+
+	tif, err = StringToTimeInForce("FILLORKILL")
+	if err != nil {
+		t.Error(err)
+	} else if tif != FOK {
+		t.Fatalf("expected %v, got %v", FOK, tif)
+	}
+
+	tif, err = StringToTimeInForce("POST_ONLY_GOOD_TIL_CANCELLED")
+	if err != nil {
+		t.Fatal(err)
+	} else if tif != PostOnlyGTC {
+		t.Fatalf("expected %v, got %v", PostOnlyGTC, tif)
+	}
+
+	tif, err = StringToTimeInForce("immedIate_Or_Cancel")
+	if err != nil {
+		t.Fatal(err)
+	} else if tif != IOC {
+		t.Fatalf("expected %v, got %v", IOC, tif)
+	}
+
 	_, err = StringToTimeInForce("")
 	if !errors.Is(err, ErrInvalidTimeInForce) {
 		t.Fatalf("expected %v, got %v", ErrInvalidTimeInForce, err)
@@ -2086,5 +2133,22 @@ func TestStringToTimeInForce(t *testing.T) {
 	_, err = StringToTimeInForce("IOC")
 	if err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestString(t *testing.T) {
+	t.Parallel()
+	valMap := map[string]TimeInForce{
+		"IOC":                          IOC,
+		"GTC":                          GTC,
+		"GTT":                          GTT,
+		"FOK":                          FOK,
+		"POST_ONLY_GOOD_TIL_CANCELLED": PostOnlyGTC,
+		"UNKNOWN":                      UnknownTIF,
+	}
+	for x := range valMap {
+		if result := valMap[x].String(); x != result {
+			t.Fatalf("expected %v, got %v", x, result)
+		}
 	}
 }

@@ -380,11 +380,11 @@ const (
 	IOC                            // IOC represents ImmediateOrCancel
 	PostOnlyGTC                    // PostOnlyGCT represents PostOnlyGoodTilCancelled
 
-	supportedTimeInForceFlag = UnknownTIF | GTC | GTT | FOK | IOC
+	supportedTimeInForceFlag = UnknownTIF | GTC | GTT | FOK | IOC | PostOnlyGTC
 )
 
 var (
-	supportedTIFItems = []TimeInForce{GTC, GTT, FOK, IOC}
+	supportedTIFItems = []TimeInForce{GTC, GTT, FOK, IOC, PostOnlyGTC}
 )
 
 // ByPrice used for sorting orders by price

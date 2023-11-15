@@ -1177,15 +1177,15 @@ func StringToOrderStatus(status string) (Status, error) {
 func StringToTimeInForce(timeInForce string) (TimeInForce, error) {
 	timeInForce = strings.ToUpper(timeInForce)
 	switch timeInForce {
-	case "IOC", "IMMEDIATEORCANCEL", "IMMEDIATE_OR_CANCEL":
+	case "IMMEDIATEORCANCEL", "IMMEDIATE_OR_CANCEL", IOC.String():
 		return IOC, nil
-	case "GTC", "GOODTILLCANCEL", "GOOD_TIL_CANCELLED", "GOOD_TILL_CANCELLED":
+	case "GOODTILLCANCEL", "GOOD_TIL_CANCELLED", "GOOD_TILL_CANCELLED", "GOOD_TILL_CANCELED", GTC.String():
 		return GTC, nil
-	case "GTT", "GOODTILLTIME", "GOOD_TIL_TIME":
+	case "GOODTILLTIME", "GOOD_TIL_TIME", GTT.String():
 		return GTT, nil
-	case "FOK", "FILLORKILL", "FILL_OR_KILL":
+	case "FILLORKILL", "FILL_OR_KILL", FOK.String():
 		return FOK, nil
-	case "POST_ONLY_GOOD_TIL_CANCELLED", "POST_ONLY_GOOD_TILL_CANCELLED":
+	case "POST_ONLY_GOOD_TILL_CANCELLED", PostOnlyGTC.String():
 		return PostOnlyGTC, nil
 	default:
 		return UnknownTIF, fmt.Errorf("%w, tif=%s", ErrInvalidTimeInForce, timeInForce)
