@@ -11,7 +11,6 @@ import (
 	"testing"
 
 	"github.com/thrasher-corp/gocryptotrader/config"
-	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/mock"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
@@ -34,7 +33,7 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		log.Fatal("Bybit Setup() init error", err)
 	}
-	bybitConfig.Enabled = true
+
 	b.SkipAuthCheck = true
 	bybitConfig.API.AuthenticatedSupport = true
 	bybitConfig.API.Credentials.Key = apiKey
@@ -67,20 +66,6 @@ func TestMain(m *testing.M) {
 		log.Fatal("Bybit setup error", err)
 	}
 
-	// Turn on all pairs for testing
-	supportedAssets := b.GetAssetTypes(false)
-	for x := range supportedAssets {
-		var avail currency.Pairs
-		avail, err = b.GetAvailablePairs(supportedAssets[x])
-		if err != nil {
-			log.Fatal(err)
-		}
-
-		err = b.CurrencyPairs.StorePairs(supportedAssets[x], avail, true)
-		if err != nil {
-			log.Fatal(err)
-		}
-	}
 	spotTradablePair, err = b.ExtractCurrencyPair("BTCUSDT", asset.Spot, true)
 	if err != nil {
 		log.Fatal(err)

@@ -46,7 +46,7 @@ func (by *Bybit) GetDefaultConfig(ctx context.Context) (*config.Exchange, error)
 	}
 
 	if by.Features.Supports.RESTCapabilities.AutoPairUpdates {
-		err := by.UpdateTradablePairs(ctx, true)
+		err := by.UpdateTradablePairs(ctx, false)
 		if err != nil {
 			return nil, err
 		}
@@ -1459,14 +1459,13 @@ func (by *Bybit) ValidateAPICredentials(ctx context.Context, assetType asset.Ite
 
 // GetHistoricCandles returns candles between a time period for a set time interval
 func (by *Bybit) GetHistoricCandles(ctx context.Context, pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error) {
-	req, err := by.GetKlineRequest(pair, a, interval, start, end, false)
-	if err != nil {
-		return nil, err
-	}
-
-	var timeSeries []kline.Candle
-	switch req.Asset {
+	switch a {
 	case asset.Spot, asset.CoinMarginedFutures, asset.USDTMarginedFutures, asset.USDCMarginedFutures:
+		req, err := by.GetKlineRequest(pair, a, interval, start, end, false)
+		if err != nil {
+			return nil, err
+		}
+		var timeSeries []kline.Candle
 		if a == asset.USDCMarginedFutures && !pair.Quote.Equal(currency.PERP) {
 			pair.Delimiter = currency.DashDelimiter
 		}
@@ -1487,23 +1486,22 @@ func (by *Bybit) GetHistoricCandles(ctx context.Context, pair currency.Pair, a a
 				Volume: candles[x].TradeVolume,
 			}
 		}
+		return req.ProcessResponse(timeSeries)
 	default:
-		return nil, fmt.Errorf("%s %w", req.Asset, asset.ErrNotSupported)
+		return nil, fmt.Errorf("%s %w", a, asset.ErrNotSupported)
 	}
-	return req.ProcessResponse(timeSeries)
 }
 
 // GetHistoricCandlesExtended returns candles between a time period for a set time interval
 func (by *Bybit) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error) {
-	req, err := by.GetKlineExtendedRequest(pair, a, interval, start, end)
-	if err != nil {
-		return nil, err
-	}
-
-	timeSeries := make([]kline.Candle, 0, req.Size())
-	for x := range req.RangeHolder.Ranges {
-		switch req.Asset {
-		case asset.Spot, asset.USDTMarginedFutures, asset.USDCMarginedFutures, asset.CoinMarginedFutures:
+	switch a {
+	case asset.Spot, asset.USDTMarginedFutures, asset.USDCMarginedFutures, asset.CoinMarginedFutures:
+		req, err := by.GetKlineExtendedRequest(pair, a, interval, start, end)
+		if err != nil {
+			return nil, err
+		}
+		timeSeries := make([]kline.Candle, 0, req.Size())
+		for x := range req.RangeHolder.Ranges {
 			if req.Asset == asset.USDCMarginedFutures && !req.RequestFormatted.Quote.Equal(currency.PERP) {
 				req.RequestFormatted.Delimiter = currency.DashDelimiter
 			}
@@ -1529,11 +1527,11 @@ func (by *Bybit) GetHistoricCandlesExtended(ctx context.Context, pair currency.P
 					Volume: klineItems[i].TradeVolume,
 				})
 			}
-		default:
-			return nil, fmt.Errorf("%s %w", req.Asset, asset.ErrNotSupported)
 		}
+		return req.ProcessResponse(timeSeries)
+	default:
+		return nil, fmt.Errorf("%s %w", a, asset.ErrNotSupported)
 	}
-	return req.ProcessResponse(timeSeries)
 }
 
 // GetServerTime returns the current exchange server time.

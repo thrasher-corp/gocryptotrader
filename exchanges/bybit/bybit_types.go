@@ -1016,6 +1016,21 @@ type CoinBalances struct {
 	BizType     int    `json:"bizType"`
 	AccountID   string `json:"accountId"`
 	MemberID    string `json:"memberId"`
+	Balance     []struct {
+		Coin               string                  `json:"coin"`
+		WalletBalance      convert.StringToFloat64 `json:"walletBalance"`
+		TransferBalance    convert.StringToFloat64 `json:"transferBalance"`
+		Bonus              convert.StringToFloat64 `json:"bonus"`
+		TransferSafeAmount string                  `json:"transferSafeAmount"`
+	} `json:"balance"`
+}
+
+// CoinBalance represents coin balance for a specific asset type.
+type CoinBalance struct {
+	AccountType string `json:"accountType"`
+	BizType     int    `json:"bizType"`
+	AccountID   string `json:"accountId"`
+	MemberID    string `json:"memberId"`
 	Balance     struct {
 		Coin               string                  `json:"coin"`
 		WalletBalance      convert.StringToFloat64 `json:"walletBalance"`

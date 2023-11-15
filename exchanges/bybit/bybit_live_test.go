@@ -11,7 +11,6 @@ import (
 	"testing"
 
 	"github.com/thrasher-corp/gocryptotrader/config"
-	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	gctlog "github.com/thrasher-corp/gocryptotrader/log"
@@ -31,7 +30,6 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		log.Fatal(err)
 	}
-
 	exchCfg.Enabled = true
 	exchCfg.API.AuthenticatedSupport = true
 	exchCfg.API.AuthenticatedWebsocketSupport = true
@@ -42,21 +40,6 @@ func TestMain(m *testing.M) {
 	err = b.Setup(exchCfg)
 	if err != nil {
 		log.Fatal(err)
-	}
-
-	// Turn on all pairs for testing
-	supportedAssets := b.GetAssetTypes(false)
-	for x := range supportedAssets {
-		var avail currency.Pairs
-		avail, err = b.GetAvailablePairs(supportedAssets[x])
-		if err != nil {
-			log.Fatal(err)
-		}
-
-		err = b.CurrencyPairs.StorePairs(supportedAssets[x], avail, true)
-		if err != nil {
-			log.Fatal(err)
-		}
 	}
 	err = instantiateTradablePairs()
 	if err != nil {

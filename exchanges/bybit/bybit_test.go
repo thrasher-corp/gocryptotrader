@@ -49,8 +49,6 @@ func TestStart(t *testing.T) {
 	testWg.Wait()
 }
 
-// test cases for SPOT
-
 func TestGetInstrumentInfo(t *testing.T) {
 	t.Parallel()
 	_, err := b.GetInstruments(context.Background(), "spot", "", "", "", "", 0)
@@ -147,10 +145,6 @@ func TestGetIndexPriceKline(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = b.GetIndexPriceKline(context.Background(), "option", optionsTradablePair.String(), kline.FiveMin, s, e, 5)
-	if err == nil {
-		t.Fatalf("expected 'params error: Category is invalid', but found nil")
-	}
 }
 
 func TestGetOrderBook(t *testing.T) {
@@ -221,7 +215,10 @@ func TestUpdateTicker(t *testing.T) {
 		t.Error(err)
 	}
 	if mockTests {
-		t.Skip("skipping options ticker mock testing as it depends on updated pairs")
+		optionsTradablePair, err = b.ExtractCurrencyPair("BTC-28JUN24-70000-C", asset.Options, true)
+		if err != nil {
+			t.Fatal(err)
+		}
 	}
 	_, err = b.UpdateTicker(context.Background(), optionsTradablePair, asset.Options)
 	if err != nil {
@@ -370,7 +367,7 @@ func TestGetHistoricCandlesExtended(t *testing.T) {
 	}
 	_, err = b.GetHistoricCandlesExtended(context.Background(), optionsTradablePair, asset.Options, kline.FiveMin, startTime, end)
 	if !errors.Is(err, asset.ErrNotSupported) {
-		t.Errorf("found %v, expected %v", err, asset.ErrNotSupported)
+		t.Errorf("found '%v', expected '%v'", err, asset.ErrNotSupported)
 	}
 }
 
@@ -626,9 +623,6 @@ func TestUpdateTickers(t *testing.T) {
 	if err != nil {
 		t.Fatalf("%v %v\n", asset.CoinMarginedFutures, err)
 	}
-	if mockTests {
-		t.Skip("skipping options ticker mock testing as it depends on updated pairs")
-	}
 	err = b.UpdateTickers(ctx, asset.Options)
 	if err != nil {
 		t.Fatalf("%v %v\n", asset.Options, err)
@@ -809,6 +803,9 @@ func TestGetDeliveryPrice(t *testing.T) {
 
 func TestUpdateOrderExecutionLimits(t *testing.T) {
 	t.Parallel()
+	if mockTests {
+		t.Skip("skipping authenticated function for mock testing")
+	}
 	err := b.UpdateOrderExecutionLimits(context.Background(), asset.Futures)
 	if !errors.Is(err, asset.ErrNotSupported) {
 		t.Fatalf("received: %v expected: %v", err, asset.ErrNotSupported)
@@ -1043,10 +1040,9 @@ func TestCancelTradeOrder(t *testing.T) {
 
 func TestGetOpenOrders(t *testing.T) {
 	t.Parallel()
-	if mockTests {
-		t.Skip("skipping authenticated function for mock testing")
+	if !mockTests {
+		sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	}
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	_, err := b.GetOpenOrders(context.Background(), "", "", "", "", "", "", "", "", 0, 100)
 	if !errors.Is(err, errCategoryNotSet) {
 		t.Fatalf("expected %v, got %v", errCategoryNotSet, err)
@@ -1079,12 +1075,14 @@ func TestCancelAllTradeOrders(t *testing.T) {
 
 func TestGetTradeOrderHistory(t *testing.T) {
 	t.Parallel()
-	if mockTests {
-		t.Skip("skipping authenticated function for mock testing")
-	}
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	start := time.Now().Add(-time.Hour * 24 * 6)
 	end := time.Now()
+	if mockTests {
+		end = time.UnixMilli(1700058627109)
+		start = time.UnixMilli(1699540227109)
+	} else {
+		sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	}
 	_, err := b.GetTradeOrderHistory(context.Background(), "", "", "", "", "", "", "", "", "", start, end, 100)
 	if !errors.Is(err, errCategoryNotSet) {
 		t.Fatalf("expected %v, got %v", errCategoryNotSet, err)
@@ -1251,10 +1249,9 @@ func TestCancelBatchOrder(t *testing.T) {
 
 func TestGetBorrowQuota(t *testing.T) {
 	t.Parallel()
-	if mockTests {
-		t.Skip("skipping authenticated function for mock testing")
+	if !mockTests {
+		sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	}
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	_, err := b.GetBorrowQuota(context.Background(), "", "BTCUSDT", "Buy")
 	if !errors.Is(err, errCategoryNotSet) {
 		t.Fatalf("expected %v, got %v", errCategoryNotSet, err)
@@ -1291,10 +1288,9 @@ func TestSetDisconnectCancelAll(t *testing.T) {
 
 func TestGetPositionInfo(t *testing.T) {
 	t.Parallel()
-	if mockTests {
-		t.Skip("skipping authenticated function for mock testing")
+	if !mockTests {
+		sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	}
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	_, err := b.GetPositionInfo(context.Background(), "", "", "", "", "", 20)
 	if !errors.Is(err, errCategoryNotSet) {
 		t.Fatalf("expected %v, got %v", errCategoryNotSet, err)
@@ -1303,11 +1299,11 @@ func TestGetPositionInfo(t *testing.T) {
 	if !errors.Is(err, errInvalidCategory) {
 		t.Fatalf("expected %v, got %v", errInvalidCategory, err)
 	}
-	_, err = b.GetPositionInfo(context.Background(), "linear", usdtMarginedTradablePair.String(), "", "", "", 20)
+	_, err = b.GetPositionInfo(context.Background(), "linear", "BTCUSDT", "", "", "", 20)
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = b.GetPositionInfo(context.Background(), "option", optionsTradablePair.String(), "BTC", "", "", 20)
+	_, err = b.GetPositionInfo(context.Background(), "option", "BTC-28JUN24-70000-C", "BTC", "", "", 20)
 	if err != nil {
 		t.Error(err)
 	}
@@ -1564,10 +1560,9 @@ func TestAddOrReduceMargin(t *testing.T) {
 
 func TestGetExecution(t *testing.T) {
 	t.Parallel()
-	if mockTests {
-		t.Skip("skipping authenticated function for mock testing")
+	if !mockTests {
+		sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	}
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	_, err := b.GetExecution(context.Background(), "spot", "", "", "", "", "Trade", "", time.Time{}, time.Time{}, 0)
 	if err != nil {
 		t.Fatal(err)
@@ -1576,10 +1571,9 @@ func TestGetExecution(t *testing.T) {
 
 func TestGetClosedPnL(t *testing.T) {
 	t.Parallel()
-	if mockTests {
-		t.Skip("skipping authenticated function for mock testing")
+	if !mockTests {
+		sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	}
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	_, err := b.GetClosedPnL(context.Background(), "spot", "", "", time.Time{}, time.Time{}, 0)
 	if !errors.Is(err, errInvalidCategory) {
 		t.Fatalf("expected %v, got %v", err, errInvalidCategory)
@@ -1696,10 +1690,9 @@ func TestGetPreUpgradeUSDCSessionSettlement(t *testing.T) {
 
 func TestGetWalletBalance(t *testing.T) {
 	t.Parallel()
-	if mockTests {
-		t.Skip("skipping authenticated function for mock testing")
+	if !mockTests {
+		sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	}
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	_, err := b.GetWalletBalance(context.Background(), "UNIFIED", "")
 	if err != nil {
 		t.Fatal(err)
@@ -1720,10 +1713,9 @@ func TestUpgradeToUnifiedAccount(t *testing.T) {
 
 func TestGetBorrowHistory(t *testing.T) {
 	t.Parallel()
-	if mockTests {
-		t.Skip("skipping authenticated function for mock testing")
+	if !mockTests {
+		sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	}
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	_, err := b.GetBorrowHistory(context.Background(), "BTC", "", time.Time{}, time.Time{}, 0)
 	if err != nil {
 		t.Error(err)
@@ -1744,10 +1736,9 @@ func TestSetCollateralCoin(t *testing.T) {
 
 func TestGetCollateralInfo(t *testing.T) {
 	t.Parallel()
-	if mockTests {
-		t.Skip("skipping authenticated function for mock testing")
+	if !mockTests {
+		sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	}
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	_, err := b.GetCollateralInfo(context.Background(), "BTC")
 	if err != nil {
 		t.Error(err)
@@ -1756,10 +1747,9 @@ func TestGetCollateralInfo(t *testing.T) {
 
 func TestGetCoinGreeks(t *testing.T) {
 	t.Parallel()
-	if mockTests {
-		t.Skip("skipping authenticated function for mock testing")
+	if !mockTests {
+		sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	}
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	_, err := b.GetCoinGreeks(context.Background(), "BTC")
 	if err != nil {
 		t.Error(err)
@@ -1768,10 +1758,9 @@ func TestGetCoinGreeks(t *testing.T) {
 
 func TestGetFeeRate(t *testing.T) {
 	t.Parallel()
-	if mockTests {
-		t.Skip("skipping authenticated function for mock testing")
+	if !mockTests {
+		sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	}
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	_, err := b.GetFeeRate(context.Background(), "something", "", "BTC")
 	if !errors.Is(err, errInvalidCategory) {
 		t.Fatalf("expected %v, got %v", errInvalidCategory, err)
@@ -1784,10 +1773,9 @@ func TestGetFeeRate(t *testing.T) {
 
 func TestGetAccountInfo(t *testing.T) {
 	t.Parallel()
-	if mockTests {
-		t.Skip("skipping authenticated function for mock testing")
+	if !mockTests {
+		sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	}
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	_, err := b.GetAccountInfo(context.Background())
 	if err != nil {
 		t.Error(err)
@@ -1796,10 +1784,9 @@ func TestGetAccountInfo(t *testing.T) {
 
 func TestGetTransactionLog(t *testing.T) {
 	t.Parallel()
-	if mockTests {
-		t.Skip("skipping authenticated function for mock testing")
+	if !mockTests {
+		sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	}
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	_, err := b.GetTransactionLog(context.Background(), "option", "", "", "", time.Time{}, time.Time{}, 0)
 	if err != nil {
 		t.Error(err)
@@ -1862,10 +1849,9 @@ func TestResetMMP(t *testing.T) {
 
 func TestGetMMPState(t *testing.T) {
 	t.Parallel()
-	if mockTests {
-		t.Skip("skipping authenticated function for mock testing")
+	if !mockTests {
+		sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	}
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	_, err := b.GetMMPState(context.Background(), "BTC")
 	if err != nil {
 		t.Error(err)
@@ -1874,10 +1860,9 @@ func TestGetMMPState(t *testing.T) {
 
 func TestGetCoinExchangeRecords(t *testing.T) {
 	t.Parallel()
-	if mockTests {
-		t.Skip("skipping authenticated function for mock testing")
+	if !mockTests {
+		sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	}
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	_, err := b.GetCoinExchangeRecords(context.Background(), "", "", "", 20)
 	if err != nil {
 		t.Fatal(err)
@@ -1886,11 +1871,12 @@ func TestGetCoinExchangeRecords(t *testing.T) {
 
 func TestGetDeliveryRecord(t *testing.T) {
 	t.Parallel()
-	if mockTests {
-		t.Skip("skipping authenticated function for mock testing")
-	}
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	expiryTime := time.Now().Add(time.Hour * 40)
+	if !mockTests {
+		sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	} else {
+		expiryTime = time.UnixMilli(1700216290093)
+	}
 	_, err := b.GetDeliveryRecord(context.Background(), "spot", "", "", expiryTime, 20)
 	if !errors.Is(err, errInvalidCategory) {
 		t.Fatal(err)
@@ -1902,10 +1888,9 @@ func TestGetDeliveryRecord(t *testing.T) {
 }
 func TestGetUSDCSessionSettlement(t *testing.T) {
 	t.Parallel()
-	if mockTests {
-		t.Skip("skipping authenticated function for mock testing")
+	if !mockTests {
+		sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	}
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	_, err := b.GetUSDCSessionSettlement(context.Background(), "option", "", "", 10)
 	if !errors.Is(err, errInvalidCategory) {
 		t.Fatalf("expected %v, got %v", errInvalidCategory, err)
@@ -1918,10 +1903,9 @@ func TestGetUSDCSessionSettlement(t *testing.T) {
 
 func TestGetAssetInfo(t *testing.T) {
 	t.Parallel()
-	if mockTests {
-		t.Skip("skipping authenticated function for mock testing")
+	if !mockTests {
+		sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	}
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	_, err := b.GetAssetInfo(context.Background(), "", "BTC")
 	if !errors.Is(err, errMissingAccountType) {
 		t.Fatal(err)
@@ -1934,10 +1918,9 @@ func TestGetAssetInfo(t *testing.T) {
 
 func TestGetAllCoinBalance(t *testing.T) {
 	t.Parallel()
-	if mockTests {
-		t.Skip("skipping authenticated function for mock testing")
+	if !mockTests {
+		sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	}
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	_, err := b.GetAllCoinBalance(context.Background(), "", "", "", 0)
 	if !errors.Is(err, errMissingAccountType) {
 		t.Fatalf("expected %v, got %v", errMissingAccountType, err)
@@ -1950,10 +1933,9 @@ func TestGetAllCoinBalance(t *testing.T) {
 
 func TestGetSingleCoinBalance(t *testing.T) {
 	t.Parallel()
-	if mockTests {
-		t.Skip("skipping authenticated function for mock testing")
+	if !mockTests {
+		sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	}
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	_, err := b.GetSingleCoinBalance(context.Background(), "", "", "", 0, 0)
 	if !errors.Is(err, errMissingAccountType) {
 		t.Fatalf("expected %v, got %v", errMissingAccountType, err)
@@ -1966,10 +1948,9 @@ func TestGetSingleCoinBalance(t *testing.T) {
 
 func TestGetTransferableCoin(t *testing.T) {
 	t.Parallel()
-	if mockTests {
-		t.Skip("skipping authenticated function for mock testing")
+	if !mockTests {
+		sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	}
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	_, err := b.GetTransferableCoin(context.Background(), "SPOT", "OPTION")
 	if err != nil {
 		t.Fatal(err)
@@ -2034,15 +2015,17 @@ func TestCreateInternalTransfer(t *testing.T) {
 
 func TestGetInternalTransferRecords(t *testing.T) {
 	t.Parallel()
-	if mockTests {
-		t.Skip("skipping authenticated function for mock testing")
-	}
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	transferID, err := uuid.NewV7()
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = b.GetInternalTransferRecords(context.Background(), transferID.String(), currency.BTC.String(), "", "", time.Time{}, time.Time{}, 0)
+	transferIDString := transferID.String()
+	if !mockTests {
+		sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	} else {
+		transferIDString = "018bd458-dba0-728b-b5b6-ecd5bd296528"
+	}
+	_, err = b.GetInternalTransferRecords(context.Background(), transferIDString, currency.BTC.String(), "", "", time.Time{}, time.Time{}, 0)
 	if err != nil {
 		t.Error(err)
 	}
@@ -2050,10 +2033,9 @@ func TestGetInternalTransferRecords(t *testing.T) {
 
 func TestGetSubUID(t *testing.T) {
 	t.Parallel()
-	if mockTests {
-		t.Skip("skipping authenticated function for mock testing")
+	if !mockTests {
+		sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	}
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	_, err := b.GetSubUID(context.Background())
 	if err != nil {
 		t.Error(err)
@@ -2065,7 +2047,7 @@ func TestEnableUniversalTransferForSubUID(t *testing.T) {
 	if mockTests {
 		t.Skip("skipping authenticated function for mock testing")
 	}
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
 	err := b.EnableUniversalTransferForSubUID(context.Background())
 	if !errors.Is(err, errMembersIDsNotSet) {
 		t.Fatalf("expected %v, got %v", errMembersIDsNotSet, err)
@@ -2153,15 +2135,18 @@ func TestCreateUniversalTransfer(t *testing.T) {
 
 func TestGetUniversalTransferRecords(t *testing.T) {
 	t.Parallel()
-	if mockTests {
-		t.Skip("skipping authenticated function for mock testing")
+	var transferIDString string
+	if !mockTests {
+		sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+		transferID, err := uuid.NewV7()
+		if err != nil {
+			t.Fatal(err)
+		}
+		transferIDString = transferID.String()
+	} else {
+		transferIDString = "018bd461-cb9c-75ce-94d4-0d3f4d84c339"
 	}
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
-	transferID, err := uuid.NewV7()
-	if err != nil {
-		t.Fatal(err)
-	}
-	_, err = b.GetUniversalTransferRecords(context.Background(), transferID.String(), currency.BTC.String(), "", "", time.Time{}, time.Time{}, 0)
+	_, err := b.GetUniversalTransferRecords(context.Background(), transferIDString, currency.BTC.String(), "", "", time.Time{}, time.Time{}, 0)
 	if err != nil {
 		t.Error(err)
 	}
@@ -2169,10 +2154,9 @@ func TestGetUniversalTransferRecords(t *testing.T) {
 
 func TestGetAllowedDepositCoinInfo(t *testing.T) {
 	t.Parallel()
-	if mockTests {
-		t.Skip("skipping authenticated function for mock testing")
+	if !mockTests {
+		sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	}
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	_, err := b.GetAllowedDepositCoinInfo(context.Background(), "BTC", "", "", 0)
 	if err != nil {
 		t.Error(err)
@@ -2184,7 +2168,7 @@ func TestSetDepositAccount(t *testing.T) {
 	if mockTests {
 		t.Skip("skipping authenticated function for mock testing")
 	}
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
 	_, err := b.SetDepositAccount(context.Background(), "FUND")
 	if err != nil {
 		t.Error(err)
@@ -2193,10 +2177,9 @@ func TestSetDepositAccount(t *testing.T) {
 
 func TestGetDepositRecords(t *testing.T) {
 	t.Parallel()
-	if mockTests {
-		t.Skip("skipping authenticated function for mock testing")
+	if !mockTests {
+		sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	}
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	_, err := b.GetDepositRecords(context.Background(), "", "", time.Time{}, time.Time{}, 0)
 	if err != nil {
 		t.Error(err)
@@ -2217,10 +2200,9 @@ func TestGetSubDepositRecords(t *testing.T) {
 
 func TestInternalDepositRecords(t *testing.T) {
 	t.Parallel()
-	if mockTests {
-		t.Skip("skipping authenticated function for mock testing")
+	if !mockTests {
+		sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	}
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	_, err := b.GetInternalDepositRecordsOffChain(context.Background(), currency.ETH.String(), "", time.Time{}, time.Time{}, 8)
 	if err != nil {
 		t.Error(err)
@@ -2229,10 +2211,9 @@ func TestInternalDepositRecords(t *testing.T) {
 
 func TestGetMasterDepositAddress(t *testing.T) {
 	t.Parallel()
-	if mockTests {
-		t.Skip("skipping authenticated function for mock testing")
+	if !mockTests {
+		sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	}
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	_, err := b.GetMasterDepositAddress(context.Background(), currency.LTC, "")
 	if err != nil {
 		t.Error(err)
@@ -2253,10 +2234,9 @@ func TestGetSubDepositAddress(t *testing.T) {
 
 func TestGetCoinInfo(t *testing.T) {
 	t.Parallel()
-	if mockTests {
-		t.Skip("skipping authenticated function for mock testing")
+	if !mockTests {
+		sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	}
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	_, err := b.GetCoinInfo(context.Background(), currency.BTC)
 	if err != nil {
 		t.Error(err)
@@ -2265,10 +2245,9 @@ func TestGetCoinInfo(t *testing.T) {
 
 func TestGetWithdrawalRecords(t *testing.T) {
 	t.Parallel()
-	if mockTests {
-		t.Skip("skipping authenticated function for mock testing")
+	if !mockTests {
+		sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	}
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	_, err := b.GetWithdrawalRecords(context.Background(), currency.LTC, "", "", "", time.Time{}, time.Time{}, 10)
 	if err != nil {
 		t.Error(err)
@@ -2277,10 +2256,9 @@ func TestGetWithdrawalRecords(t *testing.T) {
 
 func TestGetWithdrawableAmount(t *testing.T) {
 	t.Parallel()
-	if mockTests {
-		t.Skip("skipping authenticated function for mock testing")
+	if !mockTests {
+		sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	}
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	_, err := b.GetWithdrawableAmount(context.Background(), currency.LTC)
 	if err != nil {
 		t.Error(err)
@@ -2991,10 +2969,6 @@ func TestGetRecentTrades(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = b.GetRecentTrades(context.Background(), optionsTradablePair, asset.Options)
-	if err != nil {
-		t.Error(err)
-	}
 	_, err = b.GetRecentTrades(context.Background(), inverseTradablePair, asset.CoinMarginedFutures)
 	if err != nil {
 		t.Error(err)
@@ -3009,6 +2983,14 @@ func TestGetRecentTrades(t *testing.T) {
 	}
 	_, err = b.GetRecentTrades(context.Background(), spotTradablePair, asset.Futures)
 	if !errors.Is(err, asset.ErrNotSupported) {
+		t.Error(err)
+	}
+	cp, err := b.ExtractCurrencyPair("BTC-29DEC23-80000-C", asset.Options, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = b.GetRecentTrades(context.Background(), cp, asset.Options)
+	if err != nil {
 		t.Error(err)
 	}
 }

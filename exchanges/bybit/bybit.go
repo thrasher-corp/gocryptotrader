@@ -1509,7 +1509,7 @@ func (by *Bybit) GetAllCoinBalance(ctx context.Context, accountType, memberID, c
 }
 
 // GetSingleCoinBalance retrieves the balance of a specific coin in a specific account type. Supports querying sub UID's balance.
-func (by *Bybit) GetSingleCoinBalance(ctx context.Context, accountType, coin, memberID string, withBonus, withTransferSafeAmount int64) (*CoinBalances, error) {
+func (by *Bybit) GetSingleCoinBalance(ctx context.Context, accountType, coin, memberID string, withBonus, withTransferSafeAmount int64) (*CoinBalance, error) {
 	params, err := fillCoinBalanceFetchParams(accountType, memberID, coin, withBonus, true)
 	if err != nil {
 		return nil, err
@@ -1517,7 +1517,7 @@ func (by *Bybit) GetSingleCoinBalance(ctx context.Context, accountType, coin, me
 	if withTransferSafeAmount > 0 {
 		params.Set("withTransferSafeAmount", strconv.FormatInt(withTransferSafeAmount, 10))
 	}
-	var resp *CoinBalances
+	var resp *CoinBalance
 	return resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/asset/transfer/query-account-coin-balance", params, nil, &resp, getAssetTransferQueryTransferCoinListEPL)
 }
 
