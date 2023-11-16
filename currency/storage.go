@@ -142,8 +142,7 @@ func (s *Storage) RunUpdater(overrides BotOverrides, settings *Config, filePath 
 			(settings.ForexProviders[i].Name == "CurrencyLayer" && overrides.CurrencyLayer) ||
 			(settings.ForexProviders[i].Name == "Fixer" && overrides.Fixer) ||
 			(settings.ForexProviders[i].Name == "OpenExchangeRates" && overrides.OpenExchangeRates) ||
-			(settings.ForexProviders[i].Name == "ExchangeRates" && overrides.ExchangeRates) ||
-			(settings.ForexProviders[i].Name == "ExchangeRateHost" && overrides.ExchangeRateHost)
+			(settings.ForexProviders[i].Name == "ExchangeRates" && overrides.ExchangeRates)
 
 		if !enabled {
 			continue

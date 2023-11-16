@@ -76,7 +76,7 @@ func TestRunUpdater(t *testing.T) {
 	}
 
 	// Exchanges which do not error with a bad APIKey on startup
-	for _, n := range []string{"OpenExchangeRates", "ExchangeRateHost"} {
+	for _, n := range []string{"OpenExchangeRates"} {
 		c.ForexProviders = AllFXSettings{{Name: n, Enabled: true, APIKey: ""}}
 		err = newStorage.RunUpdater(overideForProvider(n), c, tempDir)
 		assert.NoErrorf(t, err, "%s should not error and silently exit without running with no api keys", n)
@@ -92,7 +92,6 @@ func TestRunUpdater(t *testing.T) {
 	c.ForexProviders = AllFXSettings{
 		{Name: "ExchangeRates"}, // Old Default
 		{Name: "OpenExchangeRates", APIKey: "shazam?"},
-		{Name: "ExchangeRateHost"}, // Old Default
 	}
 
 	// Regression test for old defaults which were enabled when in settings and nothing else was enabled and configured
@@ -100,7 +99,6 @@ func TestRunUpdater(t *testing.T) {
 	assert.NoError(t, err, "RunUpdater should not error")
 	assert.Nil(t, newStorage.fiatExchangeMarkets, "Forex should not be enabled with no providers") // Proxy for testing ForexEnabled
 	assert.False(t, c.ForexProviders[0].Enabled, "Old Default ExchangeRates should not have defaulted to enabled with no enabled overrides")
-	assert.False(t, c.ForexProviders[2].Enabled, "Old Default ExchangeRateHost should not have defaulted to enabled with no enabled overrides")
 }
 
 func overideForProvider(n string) BotOverrides {
@@ -116,8 +114,6 @@ func overideForProvider(n string) BotOverrides {
 		b.OpenExchangeRates = true
 	case "ExchangeRates":
 		b.ExchangeRates = true
-	case "ExchangeRateHost":
-		b.ExchangeRateHost = true
 	}
 	return b
 }
