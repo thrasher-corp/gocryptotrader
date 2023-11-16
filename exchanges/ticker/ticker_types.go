@@ -48,6 +48,7 @@ type Price struct {
 	ExchangeName string        `json:"exchangeName"`
 	AssetType    asset.Item    `json:"assetType"`
 	LastUpdated  time.Time
+	OpenInterest float64
 
 	// Funding rate field variables
 	FlashReturnRate       float64

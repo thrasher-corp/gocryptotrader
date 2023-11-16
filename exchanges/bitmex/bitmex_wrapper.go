@@ -13,6 +13,7 @@ import (
 
 	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -145,6 +146,8 @@ func (b *Bitmex) SetDefaults() {
 				FundingRateBatching: map[asset.Item]bool{
 					asset.PerpetualContract: true,
 				},
+				OpenInterest:              true,
+				OpenInterestViaRestTicker: true,
 			},
 			WithdrawPermissions: exchange.AutoWithdrawCryptoWithAPIPermission |
 				exchange.WithdrawCryptoWithEmail |
@@ -431,6 +434,7 @@ instruments:
 			Pair:         pair,
 			LastUpdated:  tick[j].Timestamp,
 			ExchangeName: b.Name,
+			OpenInterest: tick[j].OpenInterest,
 			AssetType:    a})
 		if err != nil {
 			return err
@@ -1336,4 +1340,58 @@ func (b *Bitmex) IsPerpetualFutureCurrency(a asset.Item, _ currency.Pair) (bool,
 // UpdateOrderExecutionLimits updates order execution limits
 func (b *Bitmex) UpdateOrderExecutionLimits(_ context.Context, _ asset.Item) error {
 	return common.ErrNotYetImplemented
+}
+
+// GetOpenInterest returns the open interest rate for a given asset pair
+func (b *Bitmex) GetOpenInterest(ctx context.Context, k key.PairAsset) ([]futures.OpenInterest, error) {
+	if k.Asset == asset.Spot || k.Asset == asset.Index {
+		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, k.Asset)
+	}
+	if k.Pair().IsEmpty() {
+		ticks, err := b.GetActiveAndIndexInstruments(ctx)
+		if err != nil {
+			return nil, err
+		}
+		resp := make([]futures.OpenInterest, 0, len(ticks))
+		for i := range ticks {
+			_, enabled, err := b.MatchSymbolCheckEnabled(ticks[i].Symbol, k.Asset, false)
+			if err != nil && !errors.Is(err, currency.ErrPairNotFound) {
+				return nil, err
+			}
+			if !enabled {
+				continue
+			}
+			resp = append(resp, futures.OpenInterest{
+				K: key.ExchangePairAsset{
+					Exchange: b.Name,
+					Base:     k.Base,
+					Quote:    k.Quote,
+					Asset:    k.Asset,
+				},
+				OpenInterest: ticks[i].OpenInterest,
+			})
+		}
+		return resp, nil
+	}
+	symbol, err := b.FormatSymbol(k.Pair(), k.Asset)
+	if err != nil {
+		return nil, err
+	}
+	tick, err := b.GetActiveInstruments(ctx, &GenericRequestParams{Symbol: symbol})
+	if err != nil {
+		return nil, err
+	}
+	if len(tick) != 1 {
+		return nil, fmt.Errorf("%w %v", currency.ErrPairNotFound, k.Pair())
+	}
+
+	return []futures.OpenInterest{{
+		K: key.ExchangePairAsset{
+			Exchange: b.Name,
+			Base:     k.Base,
+			Quote:    k.Quote,
+			Asset:    k.Asset,
+		},
+		OpenInterest: tick[0].OpenInterest,
+	}}, nil
 }

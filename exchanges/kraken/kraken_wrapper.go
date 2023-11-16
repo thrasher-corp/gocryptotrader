@@ -13,6 +13,7 @@ import (
 	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
+	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -167,6 +168,8 @@ func (k *Kraken) SetDefaults() {
 				FundingRateBatching: map[asset.Item]bool{
 					asset.Futures: true,
 				},
+				OpenInterest:              true,
+				OpenInterestViaRestTicker: true,
 			},
 		},
 		Enabled: exchange.FeaturesEnabled{
@@ -544,6 +547,7 @@ func (k *Kraken) UpdateTickers(ctx context.Context, a asset.Item) error {
 				Ask:          t.Tickers[x].Ask,
 				Volume:       t.Tickers[x].Vol24h,
 				Open:         t.Tickers[x].Open24H,
+				OpenInterest: t.Tickers[x].OpenInterest,
 				Pair:         pair,
 				ExchangeName: k.Name,
 				AssetType:    a})
@@ -1855,4 +1859,49 @@ func (k *Kraken) GetLatestFundingRates(ctx context.Context, r *fundingrate.Lates
 // IsPerpetualFutureCurrency ensures a given asset and currency is a perpetual future
 func (k *Kraken) IsPerpetualFutureCurrency(a asset.Item, cp currency.Pair) (bool, error) {
 	return cp.Base.Equal(currency.PF) && a == asset.Futures, nil
+}
+
+// GetOpenInterest returns the open interest rate for a given asset pair
+func (k *Kraken) GetOpenInterest(ctx context.Context, pa key.PairAsset) ([]futures.OpenInterest, error) {
+	if pa.Asset != asset.Futures {
+		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, pa.Asset)
+	}
+	if pa.Pair().IsEmpty() {
+		ticks, err := k.GetFuturesTickers(ctx)
+		if err != nil {
+			return nil, err
+		}
+		resp := make([]futures.OpenInterest, 0, len(ticks.Tickers))
+		for i := range ticks.Tickers {
+
+			resp = append(resp, futures.OpenInterest{
+				K: key.ExchangePairAsset{
+					Exchange: k.Name,
+					Base:     pa.Base,
+					Quote:    pa.Quote,
+					Asset:    pa.Asset,
+				},
+				OpenInterest: ticks.Tickers[i].OpenInterest,
+			})
+		}
+		return resp, nil
+	}
+	symbol, err := k.FormatSymbol(pa.Pair(), pa.Asset)
+	if err != nil {
+		return nil, err
+	}
+	tick, err := k.GetFuturesTickerBySymbol(ctx, symbol)
+	if err != nil {
+		return nil, err
+	}
+
+	return []futures.OpenInterest{{
+		K: key.ExchangePairAsset{
+			Exchange: k.Name,
+			Base:     pa.Base,
+			Quote:    pa.Quote,
+			Asset:    pa.Asset,
+		},
+		OpenInterest: tick.Ticker.OpenInterest,
+	}}, nil
 }

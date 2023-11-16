@@ -12,6 +12,7 @@ import (
 
 	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -3101,4 +3102,47 @@ func (b *Binance) GetFuturesContractDetails(ctx context.Context, item asset.Item
 		return resp, nil
 	}
 	return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, item)
+}
+
+// GetOpenInterest returns the open interest rate for a given asset pair
+func (b *Binance) GetOpenInterest(ctx context.Context, k key.PairAsset) ([]futures.OpenInterest, error) {
+	if k.Pair().IsEmpty() {
+		return nil, fmt.Errorf("%w requires pair", common.ErrFunctionNotSupported)
+	}
+	switch k.Asset {
+	case asset.USDTMarginedFutures:
+		oi, err := b.UOpenInterest(ctx, k.Pair())
+		if err != nil {
+			return nil, err
+		}
+		return []futures.OpenInterest{
+			{
+				K: key.ExchangePairAsset{
+					Exchange: b.Name,
+					Base:     k.Base,
+					Quote:    k.Quote,
+					Asset:    k.Asset,
+				},
+				OpenInterest: oi.OpenInterest,
+			},
+		}, nil
+	case asset.CoinMarginedFutures:
+		oi, err := b.OpenInterest(ctx, k.Pair())
+		if err != nil {
+			return nil, err
+		}
+		return []futures.OpenInterest{
+			{
+				K: key.ExchangePairAsset{
+					Exchange: b.Name,
+					Base:     k.Base,
+					Quote:    k.Quote,
+					Asset:    k.Asset,
+				},
+				OpenInterest: oi.OpenInterest,
+			},
+		}, nil
+	default:
+		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, k.Asset)
+	}
 }
