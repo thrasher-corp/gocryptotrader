@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/core"
@@ -63,6 +64,24 @@ func TestMain(m *testing.M) {
 		log.Fatal(err)
 	}
 	os.Exit(m.Run())
+}
+
+func TestUpdateTradablePairs(t *testing.T) {
+	t.Parallel()
+	err := b.UpdateTradablePairs(context.Background(), true)
+	assert.NoError(t, err, "UpdateTradablePairs should not error")
+	expected := map[asset.Item][]string{
+		asset.Spot:    {"BTCUSD", "BTCUSDT", "ETHBTC", "M_PITUSD"},
+		asset.Futures: {"BTCPFC", "ETHPFC"},
+	}
+	for a, pairs := range expected {
+		for _, p := range pairs {
+			_, err = b.CurrencyPairs.Match(p, a)
+			assert.NoErrorf(t, err, "Should find pair %s for %s", p, a)
+		}
+	}
+	_, err = b.CurrencyPairs.Match("PITUSD", asset.Spot)
+	assert.ErrorIs(t, err, currency.ErrPairNotFound, "Should not find a PITUSD pair") // Instead we expected to find the M_PITUSD pair earlier
 }
 
 func TestStart(t *testing.T) {
@@ -539,9 +558,8 @@ func TestGetFee(t *testing.T) {
 	}
 
 	feeBuilder.FeeType = exchange.CryptocurrencyWithdrawalFee
-	if _, err := b.GetFee(context.Background(), feeBuilder); err != nil {
-		t.Error(err)
-	}
+	_, err = b.GetFee(context.Background(), feeBuilder)
+	assert.NoError(t, err, "fee builuder should not error for withdrawal")
 
 	feeBuilder.Pair.Base = currency.USDT
 	if _, err := b.GetFee(context.Background(), feeBuilder); err != nil {
@@ -559,9 +577,8 @@ func TestGetFee(t *testing.T) {
 	}
 
 	feeBuilder.FeeType = exchange.InternationalBankWithdrawalFee
-	if _, err := b.GetFee(context.Background(), feeBuilder); err != nil {
-		t.Error(err)
-	}
+	_, err = b.GetFee(context.Background(), feeBuilder)
+	assert.NoError(t, err, "fee builuder should not error for International withdrawals")
 
 	feeBuilder.Amount = 1000
 	if _, err := b.GetFee(context.Background(), feeBuilder); err != nil {
