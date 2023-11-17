@@ -86,8 +86,6 @@ func ForexEnabled() bool {
 // triggering rate limiters, it will also run a full cryptocurrency check
 // through coin market cap and expose analytics for exchange services
 func (s *Storage) RunUpdater(overrides BotOverrides, settings *Config, filePath string) error {
-	s.fiatExchangeMarkets = nil
-
 	if settings.FiatDisplayCurrency.IsEmpty() {
 		return errFiatDisplayCurrencyUnset
 	}
