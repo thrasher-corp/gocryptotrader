@@ -62,12 +62,12 @@ func TestRunUpdater(t *testing.T) {
 	// Exchanges which reject a bad APIKey
 	for _, n := range []string{"Fixer", "CurrencyConverter", "CurrencyLayer", "ExchangeRates"} {
 		c.ForexProviders = AllFXSettings{{Name: n, Enabled: true, APIKey: ""}}
-		err = newStorage.RunUpdater(overideForProvider(n), c, tempDir)
+		err = newStorage.RunUpdater(overrideForProvider(n), c, tempDir)
 		assert.NoErrorf(t, err, "%s should not error and silently exit without running with no api keys", n)
 		assert.Falsef(t, c.ForexProviders[0].Enabled, "%s should not be marked enabled with no api keys", n)
 		assert.Nil(t, newStorage.fiatExchangeMarkets, "Forex should not be enabled with no providers")
 		c.ForexProviders = AllFXSettings{{Name: n, Enabled: true, APIKey: "sudo shazam!"}}
-		err = newStorage.RunUpdater(overideForProvider(n), c, tempDir)
+		err = newStorage.RunUpdater(overrideForProvider(n), c, tempDir)
 		assert.Errorf(t, err, "%s should throw some provider originating error with a (hopefully) invalid api key", n)
 		assert.Truef(t, c.ForexProviders[0].Enabled, "%s should still be enabled after being chosen but failing", n)
 		assert.Nil(t, newStorage.fiatExchangeMarkets, "Forex should not be enabled when provider errored during startup")
@@ -78,11 +78,11 @@ func TestRunUpdater(t *testing.T) {
 	// Exchanges which do not error with a bad APIKey on startup
 	for _, n := range []string{"OpenExchangeRates"} {
 		c.ForexProviders = AllFXSettings{{Name: n, Enabled: true, APIKey: ""}}
-		err = newStorage.RunUpdater(overideForProvider(n), c, tempDir)
+		err = newStorage.RunUpdater(overrideForProvider(n), c, tempDir)
 		assert.NoErrorf(t, err, "%s should not error and silently exit without running with no api keys", n)
 		assert.Nil(t, newStorage.fiatExchangeMarkets, "Forex should not be enabled with no providers")
 		c.ForexProviders = AllFXSettings{{Name: n, Enabled: true, APIKey: "sudo shazam!"}}
-		err = newStorage.RunUpdater(overideForProvider(n), c, tempDir)
+		err = newStorage.RunUpdater(overrideForProvider(n), c, tempDir)
 		assert.NoError(t, err, "%s should not error on Setup with a bad apikey", n)
 		assert.NotNil(t, newStorage.fiatExchangeMarkets, "Forex should be enabled now we have a provider with a key")
 		err = newStorage.Shutdown()
@@ -101,7 +101,7 @@ func TestRunUpdater(t *testing.T) {
 	assert.False(t, c.ForexProviders[0].Enabled, "Old Default ExchangeRates should not have defaulted to enabled with no enabled overrides")
 }
 
-func overideForProvider(n string) BotOverrides {
+func overrideForProvider(n string) BotOverrides {
 	b := BotOverrides{}
 	switch n {
 	case "Fixer":
