@@ -537,6 +537,26 @@ func (e *multiError) Is(incoming error) bool {
 	return false
 }
 
+// ExcludeError returns a new error excluding any errors matching excl
+// For a standard error it will either return the error unchanged or nil
+// For multiError it will remove any errors matching excl and return the remaining errors or nil
+func ExcludeError(err, excl error) error {
+	mE, ok := err.(*multiError)
+	if !ok {
+		if errors.Is(err, excl) {
+			return nil
+		}
+		return err
+	}
+	var n error
+	for i := range mE.loadedErrors {
+		if !errors.Is(mE.loadedErrors[i], excl) {
+			n = AppendError(n, mE.loadedErrors[i])
+		}
+	}
+	return n
+}
+
 // StartEndTimeCheck provides some basic checks which occur
 // frequently in the codebase
 func StartEndTimeCheck(start, end time.Time) error {

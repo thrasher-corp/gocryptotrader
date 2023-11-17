@@ -321,29 +321,27 @@ func (b *BTSE) UpdateTickers(ctx context.Context, a asset.Item) error {
 	if err != nil {
 		return err
 	}
+	var errs error
 	for x := range tickers {
-		var pair currency.Pair
-		pair, err = currency.NewPairFromString(tickers[x].Symbol)
-		if err != nil {
-			return err
+		pair, err := currency.NewPairFromString(tickers[x].Symbol)
+		if err == nil {
+			err = ticker.ProcessTicker(&ticker.Price{
+				Pair:         pair,
+				Ask:          tickers[x].LowestAsk,
+				Bid:          tickers[x].HighestBid,
+				Low:          tickers[x].Low24Hr,
+				Last:         tickers[x].Last,
+				Volume:       tickers[x].Volume,
+				High:         tickers[x].High24Hr,
+				ExchangeName: b.Name,
+				AssetType:    a})
 		}
-
-		err = ticker.ProcessTicker(&ticker.Price{
-			Pair:         pair,
-			Ask:          tickers[x].LowestAsk,
-			Bid:          tickers[x].HighestBid,
-			Low:          tickers[x].Low24Hr,
-			Last:         tickers[x].Last,
-			Volume:       tickers[x].Volume,
-			High:         tickers[x].High24Hr,
-			ExchangeName: b.Name,
-			AssetType:    a})
 		if err != nil {
-			return err
+			errs = common.AppendError(errs, err)
 		}
 	}
 
-	return nil
+	return errs
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair

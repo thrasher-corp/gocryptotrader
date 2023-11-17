@@ -118,7 +118,7 @@ func (b *BTSE) GetTrades(ctx context.Context, symbol string, start, end time.Tim
 		urlValues.Add("end", strconv.FormatInt(end.Unix(), 10))
 	}
 	if !start.IsZero() && !end.IsZero() && start.After(end) {
-		return t, errors.New("start cannot be after end time")
+		return t, common.ErrStartAfterEnd
 	}
 	if beforeSerialID > 0 {
 		urlValues.Add("beforeSerialId", strconv.Itoa(beforeSerialID))
@@ -141,7 +141,7 @@ func (b *BTSE) GetOHLCV(ctx context.Context, symbol string, start, end time.Time
 
 	if !start.IsZero() && !end.IsZero() {
 		if start.After(end) {
-			return o, errors.New("start cannot be after end time")
+			return o, common.ErrStartAfterEnd
 		}
 		urlValues.Add("start", strconv.FormatInt(start.Unix(), 10))
 		urlValues.Add("end", strconv.FormatInt(end.Unix(), 10))
@@ -195,7 +195,7 @@ func (b *BTSE) GetWalletHistory(ctx context.Context, symbol string, start, end t
 	}
 	if !start.IsZero() && !end.IsZero() {
 		if start.After(end) || end.Before(start) {
-			return resp, errors.New("start cannot be after end time")
+			return resp, common.ErrStartAfterEnd
 		}
 		urlValues.Add("start", strconv.FormatInt(start.Unix(), 10))
 		urlValues.Add("end", strconv.FormatInt(end.Unix(), 10))

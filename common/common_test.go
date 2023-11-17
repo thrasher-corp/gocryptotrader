@@ -16,6 +16,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/thrasher-corp/gocryptotrader/common/file"
 )
 
@@ -880,4 +881,28 @@ func TestGenerateRandomString(t *testing.T) {
 	if sample != "" {
 		t.Error("GenerateRandomString() unexpected test validation result")
 	}
+}
+
+func TestMultiError(t *testing.T) {
+	t.Parallel()
+
+	e1 := errors.New("inconsistent gravity")
+	e2 := errors.New("barely marginal interest in your story")
+
+	err := AppendError(AppendError(AppendError(nil, e1), e2), e1)
+	assert.ErrorIs(t, err, e1, "Error should have inconsistent gravity")
+	assert.ErrorIs(t, err, e2, "Error should be bored by your witty tales")
+
+	err = ExcludeError(err, e1)
+	assert.ErrorIs(t, err, e2, "Error should still be bored")
+	me, ok := err.(*multiError)
+	if assert.True(t, ok, "Error should be a multiError") {
+		assert.Len(t, me.loadedErrors, 1, "Should only have 2 errors")
+	}
+
+	err = ExcludeError(err, e2)
+	assert.NoError(t, err, "Error should be empty")
+
+	err = ExcludeError(err, e2)
+	assert.NoError(t, err, "Excluding a nil error should be okay")
 }
