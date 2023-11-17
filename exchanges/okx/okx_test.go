@@ -135,6 +135,15 @@ func TestGetOrderBookDepth(t *testing.T) {
 	}
 }
 
+func TestGetOrderBooksLite(t *testing.T) {
+	t.Parallel()
+	ok.Verbose = true
+	_, err := ok.GetOrderBooksLite(contextGenerate(), "BTC-USDT")
+	if err != nil {
+		t.Error("OKX GetOrderBookLite() error", err)
+	}
+}
+
 func TestGetCandlesticks(t *testing.T) {
 	t.Parallel()
 	_, err := ok.GetCandlesticks(contextGenerate(), "BTC-USDT", kline.OneHour, time.Now().Add(-time.Minute*2), time.Now(), 2)
@@ -163,6 +172,22 @@ func TestGetTradeHistory(t *testing.T) {
 	t.Parallel()
 	if _, err := ok.GetTradesHistory(contextGenerate(), "BTC-USDT", "", "", 2); err != nil {
 		t.Error("Okx GetTradeHistory() error", err)
+	}
+}
+
+func TestGetoptionTradesByInstrumentFamily(t *testing.T) {
+	t.Parallel()
+	_, err := ok.GetOptionTradesByInstrumentFamily(context.Background(), "BTC-USD")
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetOptionTrades(t *testing.T) {
+	t.Parallel()
+	_, err := ok.GetOptionTrades(context.Background(), "", "BTC-USD", "C")
+	if err != nil {
+		t.Error(err)
 	}
 }
 
@@ -865,10 +890,18 @@ func TestExecuteQuote(t *testing.T) {
 	}
 }
 
-func TestSetQuoteProducts(t *testing.T) {
+func TestGetQuoteProducts(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
+	_, err := ok.GetQuoteProducts(context.Background())
+	if err != nil {
+		t.Error(err)
+	}
+}
 
+func TestSetQuoteProducts(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
 	if _, err := ok.SetQuoteProducts(contextGenerate(), []SetQuoteProductParam{
 		{
 			InstrumentType: "SWAP",
@@ -3221,7 +3254,7 @@ func TestInstrument(t *testing.T) {
 	if i.ContractValueCurrency != currency.BTC.String() {
 		t.Error("expected BTC contract value currency")
 	}
-	if !i.ExpTime.IsZero() {
+	if !i.ExpTime.Time().IsZero() {
 		t.Error("expected empty expiry time")
 	}
 	if i.InstrumentFamily != "BTC-USDC" {
@@ -3237,7 +3270,7 @@ func TestInstrument(t *testing.T) {
 	if i.MaxLeverage != 125 {
 		t.Error("expected 125 leverage")
 	}
-	if i.ListTime.UnixMilli() != 1666076190000 {
+	if i.ListTime.Time().UnixMilli() != 1666076190000 {
 		t.Error("expected 1666076190000 listing time")
 	}
 	if i.LotSize != 1 {
@@ -4125,6 +4158,60 @@ func TestGetUnrealizedProfitSharingDetails(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
 	_, err := ok.GetUnrealizedProfitSharingDetails(context.Background(), "SWAP")
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestPlaceSpreadOrder(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
+	_, err := ok.PlaceSpreadOrder(context.Background(), &SpreadOrderParam{
+		ClientOrderID: "12354123523",
+		Side:          "buy",
+		OrderType:     "limit",
+		Size:          1,
+		Price:         12345,
+	})
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestCancelSpreadOrder(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
+	_, err := ok.CancelSpreadOrder(context.Background(), "12345", "")
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestCancelAllSpreadOrders(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
+	_, err := ok.CancelAllSpreadOrders(context.Background(), "123456")
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestAmendSpreadOrder(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
+	_, err := ok.AmendSpreadOrder(context.Background(), &AmendSpreadOrderParam{
+		OrderID: "2510789768709120",
+		NewSize: 2,
+	})
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetSpreadOrderDetails(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
+	_, err := ok.GetSpreadOrderDetails(context.Background(), "1234567", "")
 	if err != nil {
 		t.Error(err)
 	}

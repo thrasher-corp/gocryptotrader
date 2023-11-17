@@ -56,25 +56,28 @@ type RateLimit struct {
 	TradeOneClickRepay                *rate.Limiter
 	MassCancelMMPOrder                *rate.Limiter
 	// Block Trading endpoints
-	GetCounterparties    *rate.Limiter
-	CreateRfq            *rate.Limiter
-	CancelRfq            *rate.Limiter
-	CancelMultipleRfq    *rate.Limiter
-	CancelAllRfqs        *rate.Limiter
-	ExecuteQuote         *rate.Limiter
-	SetQuoteProducts     *rate.Limiter
-	RestMMPStatus        *rate.Limiter
-	SetMMP               *rate.Limiter
-	GetMMPConfig         *rate.Limiter
-	CreateQuote          *rate.Limiter
-	CancelQuote          *rate.Limiter
-	CancelMultipleQuotes *rate.Limiter
-	CancelAllQuotes      *rate.Limiter
-	GetRfqs              *rate.Limiter
-	GetQuotes            *rate.Limiter
-	GetTrades            *rate.Limiter
-	GetTradesHistory     *rate.Limiter
-	GetPublicTrades      *rate.Limiter
+	GetCounterparties           *rate.Limiter
+	CreateRfq                   *rate.Limiter
+	CancelRfq                   *rate.Limiter
+	CancelMultipleRfqs          *rate.Limiter
+	CancelAllRfqs               *rate.Limiter
+	ExecuteQuote                *rate.Limiter
+	GetQuoteProducts            *rate.Limiter
+	SetQuoteProducts            *rate.Limiter
+	RestMMPStatus               *rate.Limiter
+	SetMMP                      *rate.Limiter
+	GetMMPConfig                *rate.Limiter
+	CreateQuote                 *rate.Limiter
+	CancelQuote                 *rate.Limiter
+	CancelMultipleQuotes        *rate.Limiter
+	CancelAllQuotes             *rate.Limiter
+	GetRfqs                     *rate.Limiter
+	GetQuotes                   *rate.Limiter
+	GetTrades                   *rate.Limiter
+	GetTradesHistory            *rate.Limiter
+	OptionInstrumentTradeFamily *rate.Limiter
+	OptionTrades                *rate.Limiter
+	GetPublicTrades             *rate.Limiter
 	// Funding
 	GetCurrencies            *rate.Limiter
 	GetBalance               *rate.Limiter
@@ -200,8 +203,10 @@ type RateLimit struct {
 	GetFundingOrderHistory     *rate.Limiter
 	// Market Data
 	GetTickers               *rate.Limiter
+	GetTicker                *rate.Limiter
 	GetIndexTickers          *rate.Limiter
 	GetOrderBook             *rate.Limiter
+	GetOrderBooksLite        *rate.Limiter
 	GetCandlesticks          *rate.Limiter
 	GetCandlesticksHistory   *rate.Limiter
 	GetIndexCandlesticks     *rate.Limiter
@@ -213,7 +218,15 @@ type RateLimit struct {
 	GetIndexComponents       *rate.Limiter
 	GetBlockTickers          *rate.Limiter
 	GetBlockTrades           *rate.Limiter
-	// Public Data Endpoints
+
+	// Spread Orders rate limiters
+	PlaceSpreadOrder      *rate.Limiter
+	CancelSpreadOrder     *rate.Limiter
+	CancelAllSpreadOrder  *rate.Limiter
+	AmendSpreadOrder      *rate.Limiter
+	GetSpreadOrderDetails *rate.Limiter
+
+	// Public Data endpoints rate limiters
 	GetInstruments                         *rate.Limiter
 	GetDeliveryExerciseHistory             *rate.Limiter
 	GetOpenInterest                        *rate.Limiter
@@ -283,6 +296,7 @@ const (
 	cancelMultipleRfqEPL
 	cancelAllRfqsEPL
 	executeQuoteEPL
+	getQuoteProductsEPL
 	setQuoteProductsEPL
 	restMMPStatusEPL
 	setMMPEPL
@@ -295,6 +309,8 @@ const (
 	getQuotesEPL
 	getTradesEPL
 	getTradesHistoryEPL
+	optionInstrumentTradeFamilyEPL
+	optionTradesEPL
 	getPublicTradesEPL
 	getCurrenciesEPL
 	getBalanceEPL
@@ -409,8 +425,10 @@ const (
 	getEarnActiveOrdersEPL
 	getFundingOrderHistoryEPL
 	getTickersEPL
+	getTickerEPL
 	getIndexTickersEPL
 	getOrderBookEPL
+	getOrderBookLiteEPL
 	getCandlesticksEPL
 	getTradesRequestEPL
 	get24HTotalVolumeEPL
@@ -419,6 +437,11 @@ const (
 	getIndexComponentsEPL
 	getBlockTickersEPL
 	getBlockTradesEPL
+	placeSpreadOrderEPL
+	cancelSpreadOrderEPL
+	cancelAllSpreadOrderEPL
+	amendSpreadOrderEPL
+	getSpreadOrderDetailsEPL
 	getInstrumentsEPL
 	getDeliveryExerciseHistoryEPL
 	getOpenInterestEPL
@@ -521,11 +544,13 @@ func (r *RateLimit) Limit(ctx context.Context, f request.EndpointLimit) error {
 	case cancelRfqEPL:
 		return r.CancelRfq.Wait(ctx)
 	case cancelMultipleRfqEPL:
-		return r.CancelMultipleRfq.Wait(ctx)
+		return r.CancelMultipleRfqs.Wait(ctx)
 	case cancelAllRfqsEPL:
 		return r.CancelAllRfqs.Wait(ctx)
 	case executeQuoteEPL:
 		return r.ExecuteQuote.Wait(ctx)
+	case getQuoteProductsEPL:
+		return r.GetQuoteProducts.Wait(ctx)
 	case setQuoteProductsEPL:
 		return r.SetQuoteProducts.Wait(ctx)
 	case restMMPStatusEPL:
@@ -550,6 +575,10 @@ func (r *RateLimit) Limit(ctx context.Context, f request.EndpointLimit) error {
 		return r.GetTrades.Wait(ctx)
 	case getTradesHistoryEPL:
 		return r.GetTradesHistory.Wait(ctx)
+	case optionInstrumentTradeFamilyEPL:
+		return r.OptionInstrumentTradeFamily.Wait(ctx)
+	case optionTradesEPL:
+		return r.OptionTrades.Wait(ctx)
 	case getPublicTradesEPL:
 		return r.GetPublicTrades.Wait(ctx)
 	case getCurrenciesEPL:
@@ -779,10 +808,14 @@ func (r *RateLimit) Limit(ctx context.Context, f request.EndpointLimit) error {
 		return r.GetFundingOrderHistory.Wait(ctx)
 	case getTickersEPL:
 		return r.GetTickers.Wait(ctx)
+	case getTickerEPL:
+		return r.GetTicker.Wait(ctx)
 	case getIndexTickersEPL:
 		return r.GetIndexTickers.Wait(ctx)
 	case getOrderBookEPL:
 		return r.GetOrderBook.Wait(ctx)
+	case getOrderBookLiteEPL:
+		return r.GetOrderBooksLite.Wait(ctx)
 	case getCandlesticksEPL:
 		return r.GetCandlesticks.Wait(ctx)
 	case getCandlestickHistoryEPL:
@@ -803,6 +836,16 @@ func (r *RateLimit) Limit(ctx context.Context, f request.EndpointLimit) error {
 		return r.GetBlockTickers.Wait(ctx)
 	case getBlockTradesEPL:
 		return r.GetBlockTrades.Wait(ctx)
+	case placeSpreadOrderEPL:
+		return r.PlaceSpreadOrder.Wait(ctx)
+	case cancelSpreadOrderEPL:
+		return r.CancelSpreadOrder.Wait(ctx)
+	case cancelAllSpreadOrderEPL:
+		return r.CancelAllSpreadOrder.Wait(ctx)
+	case amendSpreadOrderEPL:
+		return r.AmendSpreadOrder.Wait(ctx)
+	case getSpreadOrderDetailsEPL:
+		return r.GetSpreadOrderDetails.Wait(ctx)
 	case getInstrumentsEPL:
 		return r.GetInstruments.Wait(ctx)
 	case getDeliveryExerciseHistoryEPL:
@@ -899,25 +942,28 @@ func SetRateLimit() *RateLimit {
 		TradeOneClickRepay:                request.NewRateLimit(twoSecondsInterval, 1),
 		MassCancelMMPOrder:                request.NewRateLimit(twoSecondsInterval, 5),
 		// Block Trading endpoints
-		GetCounterparties:    request.NewRateLimit(twoSecondsInterval, 5),
-		CreateRfq:            request.NewRateLimit(twoSecondsInterval, 5),
-		CancelRfq:            request.NewRateLimit(twoSecondsInterval, 5),
-		CancelMultipleRfq:    request.NewRateLimit(twoSecondsInterval, 2),
-		CancelAllRfqs:        request.NewRateLimit(twoSecondsInterval, 2),
-		ExecuteQuote:         request.NewRateLimit(threeSecondsInterval, 2),
-		SetQuoteProducts:     request.NewRateLimit(twoSecondsInterval, 5),
-		RestMMPStatus:        request.NewRateLimit(twoSecondsInterval, 5),
-		SetMMP:               request.NewRateLimit(tenSecondsInterval, 2),
-		GetMMPConfig:         request.NewRateLimit(twoSecondsInterval, 5),
-		CreateQuote:          request.NewRateLimit(twoSecondsInterval, 50),
-		CancelQuote:          request.NewRateLimit(twoSecondsInterval, 50),
-		CancelMultipleQuotes: request.NewRateLimit(twoSecondsInterval, 2),
-		CancelAllQuotes:      request.NewRateLimit(twoSecondsInterval, 2),
-		GetRfqs:              request.NewRateLimit(twoSecondsInterval, 2),
-		GetQuotes:            request.NewRateLimit(twoSecondsInterval, 2),
-		GetTrades:            request.NewRateLimit(twoSecondsInterval, 5),
-		GetTradesHistory:     request.NewRateLimit(twoSecondsInterval, 10),
-		GetPublicTrades:      request.NewRateLimit(twoSecondsInterval, 5),
+		GetCounterparties:           request.NewRateLimit(twoSecondsInterval, 5),
+		CreateRfq:                   request.NewRateLimit(twoSecondsInterval, 5),
+		CancelRfq:                   request.NewRateLimit(twoSecondsInterval, 5),
+		CancelMultipleRfqs:          request.NewRateLimit(twoSecondsInterval, 2),
+		CancelAllRfqs:               request.NewRateLimit(twoSecondsInterval, 2),
+		ExecuteQuote:                request.NewRateLimit(threeSecondsInterval, 2),
+		GetQuoteProducts:            request.NewRateLimit(twoSecondsInterval, 5),
+		SetQuoteProducts:            request.NewRateLimit(twoSecondsInterval, 5),
+		RestMMPStatus:               request.NewRateLimit(twoSecondsInterval, 5),
+		SetMMP:                      request.NewRateLimit(tenSecondsInterval, 2),
+		GetMMPConfig:                request.NewRateLimit(twoSecondsInterval, 5),
+		CreateQuote:                 request.NewRateLimit(twoSecondsInterval, 50),
+		CancelQuote:                 request.NewRateLimit(twoSecondsInterval, 50),
+		CancelMultipleQuotes:        request.NewRateLimit(twoSecondsInterval, 2),
+		CancelAllQuotes:             request.NewRateLimit(twoSecondsInterval, 2),
+		GetRfqs:                     request.NewRateLimit(twoSecondsInterval, 2),
+		GetQuotes:                   request.NewRateLimit(twoSecondsInterval, 2),
+		GetTrades:                   request.NewRateLimit(twoSecondsInterval, 5),
+		GetTradesHistory:            request.NewRateLimit(twoSecondsInterval, 10),
+		OptionInstrumentTradeFamily: request.NewRateLimit(twoSecondsInterval, 20),
+		OptionTrades:                request.NewRateLimit(twoSecondsInterval, 20),
+		GetPublicTrades:             request.NewRateLimit(twoSecondsInterval, 5),
 		// Funding
 		GetCurrencies:            request.NewRateLimit(oneSecondInterval, 6),
 		GetBalance:               request.NewRateLimit(oneSecondInterval, 6),
@@ -1046,8 +1092,10 @@ func SetRateLimit() *RateLimit {
 		GetFundingOrderHistory:     request.NewRateLimit(oneSecondInterval, 3),
 		// Market Data
 		GetTickers:               request.NewRateLimit(twoSecondsInterval, 20),
+		GetTicker:                request.NewRateLimit(twoSecondsInterval, 20),
 		GetIndexTickers:          request.NewRateLimit(twoSecondsInterval, 20),
-		GetOrderBook:             request.NewRateLimit(twoSecondsInterval, 20),
+		GetOrderBook:             request.NewRateLimit(twoSecondsInterval, 40),
+		GetOrderBooksLite:        request.NewRateLimit(twoSecondsInterval, 6),
 		GetCandlesticks:          request.NewRateLimit(twoSecondsInterval, 40),
 		GetCandlesticksHistory:   request.NewRateLimit(twoSecondsInterval, 20),
 		GetIndexCandlesticks:     request.NewRateLimit(twoSecondsInterval, 20),
@@ -1059,6 +1107,13 @@ func SetRateLimit() *RateLimit {
 		GetIndexComponents:       request.NewRateLimit(twoSecondsInterval, 20),
 		GetBlockTickers:          request.NewRateLimit(twoSecondsInterval, 20),
 		GetBlockTrades:           request.NewRateLimit(twoSecondsInterval, 20),
+
+		// Spread Orders rate limiters
+		PlaceSpreadOrder:      request.NewRateLimit(twoSecondsInterval, 20),
+		CancelSpreadOrder:     request.NewRateLimit(twoSecondsInterval, 20),
+		CancelAllSpreadOrder:  request.NewRateLimit(twoSecondsInterval, 10),
+		AmendSpreadOrder:      request.NewRateLimit(twoSecondsInterval, 20),
+		GetSpreadOrderDetails: request.NewRateLimit(twoSecondsInterval, 20),
 
 		// Public Data Endpoints
 

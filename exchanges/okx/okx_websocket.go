@@ -101,6 +101,7 @@ const (
 	okxChannelInstruments     = "instruments"
 	okxChannelOpenInterest    = "open-interest"
 	okxChannelTrades          = "trades"
+	okxChannelAllTrades       = "trades-all"
 	okxChannelEstimatedPrice  = "estimated-price"
 	okxChannelMarkPrice       = "mark-price"
 	okxChannelPriceLimit      = "price-limit"
@@ -420,6 +421,7 @@ func (ok *Okx) handleSubscription(operation string, subscriptions []stream.Chann
 			arg.Channel == okxChannelOrderBooks50TBT ||
 			arg.Channel == okxChannelOrderBooksTBT ||
 			arg.Channel == okxChannelFundingRate ||
+			arg.Channel == okxChannelAllTrades ||
 			arg.Channel == okxChannelTrades {
 			if subscriptions[i].Params["instId"] != "" {
 				instrumentID, okay = subscriptions[i].Params["instId"].(string)
@@ -641,7 +643,8 @@ func (ok *Okx) WsHandleData(respRaw []byte) error {
 	case okxChannelOpenInterest:
 		var response WSOpenInterestResponse
 		return ok.wsProcessPushData(respRaw, &response)
-	case okxChannelTrades:
+	case okxChannelTrades,
+		okxChannelAllTrades:
 		return ok.wsProcessTrades(respRaw)
 	case okxChannelEstimatedPrice:
 		var response WsDeliveryEstimatedPrice

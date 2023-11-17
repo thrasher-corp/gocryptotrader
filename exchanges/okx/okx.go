@@ -109,7 +109,7 @@ const (
 	marketIndexComponents        = "market/index-components"
 	marketBlockTickers           = "market/block-tickers"
 	marketBlockTicker            = "market/block-ticker"
-	marketBlockTrades            = "market/block-trades"
+	marketBlockTrades            = "public/block-trades"
 
 	// Public endpoints
 	publicInstruments                 = "public/instruments"
@@ -263,6 +263,7 @@ var (
 	errInvalidAmount                           = errors.New("unacceptable quantity to buy or sell")
 	errMissingClientOrderIDOrOrderID           = errors.New("client order id or order id is missing")
 	errInvalidNewSizeOrPriceInformation        = errors.New("invalid the new size or price information")
+	errSizeOrPriceIsRequired                   = errors.New("either size or price is required")
 	errMissingNewSize                          = errors.New("missing the order size information")
 	errMissingMarginMode                       = errors.New("missing required param margin mode \"mgnMode\"")
 	errInvalidTriggerPrice                     = errors.New("invalid trigger price value")
@@ -279,6 +280,7 @@ var (
 	errMissingValidWithdrawalID                = errors.New("missing valid withdrawal id")
 	errNoValidResponseFromServer               = errors.New("no valid response from server")
 	errInstrumentFamilyRequired                = errors.New("instrument family is required")
+	errInstrumentIDorFamilyRequired            = errors.New("either instrumen id or instrument family is required")
 	errInvalidQuantityLimit                    = errors.New("invalid quantity limit")
 	errInstrumentTypeRequired                  = errors.New("instrument type required")
 	errInvalidInstrumentType                   = errors.New("invalid instrument type")
@@ -344,6 +346,7 @@ var (
 	errNoInstrumentFound                       = errors.New("no instrument found")
 	errStrategyNameRequired                    = errors.New("strategy name required")
 	errSubPositionIDRequired                   = errors.New("sub position id is required")
+	errSpreadIDMissing                         = errors.New("spread id is required")
 )
 
 /************************************ MarketData Endpoints *************************************************/
@@ -986,7 +989,6 @@ func (ok *Okx) GetAlgoOrderList(ctx context.Context, orderType, algoOrderID, cli
 		return nil, errors.New("order type is required")
 	}
 	params.Set("ordType", orderType)
-	var resp []AlgoOrderResponse
 	if algoOrderID != "" {
 		params.Set("algoId", algoOrderID)
 	}
@@ -1009,6 +1011,7 @@ func (ok *Okx) GetAlgoOrderList(ctx context.Context, orderType, algoOrderID, cli
 	if limit > 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
+	var resp []AlgoOrderResponse
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getAlgoOrderListEPL, http.MethodGet, common.EncodeURLValues(getAlgoOrders, params), nil, &resp, true)
 }
 
@@ -1019,7 +1022,6 @@ func (ok *Okx) GetAlgoOrderHistory(ctx context.Context, orderType, state, algoOr
 		return nil, errors.New("order type is required")
 	}
 	params.Set("ordType", strings.ToLower(orderType))
-	var resp []AlgoOrderResponse
 	if algoOrderID == "" &&
 		state != "effective" &&
 		state != "order_failed" &&
@@ -1047,6 +1049,7 @@ func (ok *Okx) GetAlgoOrderHistory(ctx context.Context, orderType, state, algoOr
 	if limit > 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
+	var resp []AlgoOrderResponse
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getAlgoOrderHistoryEPL, http.MethodGet, common.EncodeURLValues(algoOrderHistory, params), nil, &resp, true)
 }
 
@@ -1253,6 +1256,12 @@ func (ok *Okx) ExecuteQuote(ctx context.Context, arg ExecuteQuoteParams) (*Execu
 	return nil, errNoValidResponseFromServer
 }
 
+// GetQuoteProducts retrieve the products which makers want to quote and receive RFQs for, and the corresponding price and size limit.
+func (ok *Okx) GetQuoteProducts(ctx context.Context) ([]QuoteProduct, error) {
+	var resp []QuoteProduct
+	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getQuoteProductsEPL, http.MethodGet, "rfq/maker-instrument-settings", nil, &resp, true)
+}
+
 // SetQuoteProducts customize the products which makers want to quote and receive Rfqs for, and the corresponding price and size limit.
 func (ok *Okx) SetQuoteProducts(ctx context.Context, args []SetQuoteProductParam) (*SetQuoteProductsResult, error) {
 	if len(args) == 0 {
@@ -1327,10 +1336,10 @@ func (ok *Okx) CreateQuote(ctx context.Context, arg CreateQuoteParams) (*QuoteRe
 // CancelQuote cancels an existing active quote you have created in response to an Rfq.
 // rfqCancelQuote = "rfq/cancel-quote"
 func (ok *Okx) CancelQuote(ctx context.Context, arg CancelQuoteRequestParams) (*CancelQuoteResponse, error) {
-	var resp []CancelQuoteResponse
 	if arg.ClientQuoteID == "" && arg.QuoteID == "" {
 		return nil, errMissingQuoteIDOrClientQuoteID
 	}
+	var resp []CancelQuoteResponse
 	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, cancelQuoteEPL, http.MethodPost, rfqCancelQuote, &arg, &resp, true)
 	if err != nil {
 		return nil, err
@@ -1488,11 +1497,11 @@ func (ok *Okx) GetFundingCurrencies(ctx context.Context) ([]CurrencyResponse, er
 
 // GetBalance retrieves the funding account balances of all the assets and the amount that is available or on hold.
 func (ok *Okx) GetBalance(ctx context.Context, currency string) ([]AssetBalance, error) {
-	var resp []AssetBalance
 	params := url.Values{}
 	if currency != "" {
 		params.Set("ccy", currency)
 	}
+	var resp []AssetBalance
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getBalanceEPL, http.MethodGet, common.EncodeURLValues(assetBalance, params), nil, &resp, true)
 }
 
@@ -1510,7 +1519,6 @@ func (ok *Okx) GetAccountAssetValuation(ctx context.Context, currency string) ([
 // FundingTransfer transfer of funds between your funding account and trading account,
 // and from the master account to sub-accounts.
 func (ok *Okx) FundingTransfer(ctx context.Context, arg *FundingTransferRequestInput) ([]FundingTransferResponse, error) {
-	var resp []FundingTransferResponse
 	if arg == nil {
 		return nil, errors.New("argument can not be null")
 	}
@@ -1529,6 +1537,7 @@ func (ok *Okx) FundingTransfer(ctx context.Context, arg *FundingTransferRequestI
 	if arg.From == arg.To {
 		return nil, errors.New("parameter 'from' can not equal to parameter 'to'")
 	}
+	var resp []FundingTransferResponse
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, fundsTransferEPL, http.MethodPost, assetTransfer, arg, &resp, true)
 }
 
@@ -1638,7 +1647,6 @@ func (ok *Okx) Withdrawal(ctx context.Context, input *WithdrawalInput) (*Withdra
 	if input == nil {
 		return nil, errNilArgument
 	}
-	var resp []WithdrawalResponse
 	switch {
 	case input.Currency == "":
 		return nil, errInvalidCurrencyValue
@@ -1649,6 +1657,7 @@ func (ok *Okx) Withdrawal(ctx context.Context, input *WithdrawalInput) (*Withdra
 	case input.ToAddress == "":
 		return nil, errors.New("missing verified digital currency address \"toAddr\" information")
 	}
+	var resp []WithdrawalResponse
 	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, withdrawalEPL, http.MethodPost, assetWithdrawal, &input, &resp, true)
 	if err != nil {
 		return nil, err
@@ -1965,11 +1974,11 @@ func (ok *Okx) GetConvertHistory(ctx context.Context, before, after time.Time, l
 // AccountBalance retrieves a list of assets (with non-zero balance), remaining balance, and available amount in the trading account.
 // Interest-free quota and discount rates are public data and not displayed on the account interface.
 func (ok *Okx) AccountBalance(ctx context.Context, currency string) ([]Account, error) {
-	var resp []Account
 	params := url.Values{}
 	if currency != "" {
 		params.Set("ccy", currency)
 	}
+	var resp []Account
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getAccountBalanceEPL, http.MethodGet, common.EncodeURLValues(accountBalance, params), nil, &resp, true)
 }
 
@@ -2827,7 +2836,6 @@ func (ok *Okx) ResetSubAccountAPIKey(ctx context.Context, arg *SubAccountAPIKeyP
 	if arg.APIKey == "" {
 		return nil, errInvalidAPIKey
 	}
-	var resp []SubAccountAPIKeyResponse
 	if arg.IP != "" && net.ParseIP(arg.IP).To4() == nil {
 		return nil, errInvalidIPAddress
 	}
@@ -2847,6 +2855,7 @@ func (ok *Okx) ResetSubAccountAPIKey(ctx context.Context, arg *SubAccountAPIKeyP
 	} else if arg.APIKeyPermission != "read" && arg.APIKeyPermission != "withdraw" && arg.APIKeyPermission != "trade" && arg.APIKeyPermission != "read_only" {
 		return nil, errInvalidAPIKeyPermission
 	}
+	var resp []SubAccountAPIKeyResponse
 	if err := ok.SendHTTPRequest(ctx, exchange.RestSpot, resetSubAccountAPIKeyEPL, http.MethodPost, subAccountModifyAPIKey, &arg, &resp, true); err != nil {
 		return nil, err
 	}
@@ -3980,7 +3989,7 @@ func (ok *Okx) GetTicker(ctx context.Context, instrumentID string) (*TickerRespo
 		return nil, errors.New("missing required variable instType(instruction type) or instId( Instrument ID )")
 	}
 	var response []TickerResponse
-	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, getTickersEPL, http.MethodGet, common.EncodeURLValues(marketTicker, params), nil, &response, false)
+	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, getTickerEPL, http.MethodGet, common.EncodeURLValues(marketTicker, params), nil, &response, false)
 	if err != nil {
 		return nil, err
 	}
@@ -3992,7 +4001,6 @@ func (ok *Okx) GetTicker(ctx context.Context, instrumentID string) (*TickerRespo
 
 // GetIndexTickers Retrieves index tickers.
 func (ok *Okx) GetIndexTickers(ctx context.Context, quoteCurrency, instID string) ([]IndexTicker, error) {
-	response := []IndexTicker{}
 	if instID == "" && quoteCurrency == "" {
 		return nil, errors.New("missing required variable! param quoteCcy or instId has to be set")
 	}
@@ -4002,6 +4010,7 @@ func (ok *Okx) GetIndexTickers(ctx context.Context, quoteCurrency, instID string
 	} else if instID != "" {
 		params.Set("instId", instID)
 	}
+	response := []IndexTicker{}
 	return response, ok.SendHTTPRequest(ctx, exchange.RestSpot, getIndexTickersEPL, http.MethodGet, common.EncodeURLValues(indexTickers, params), nil, &response, false)
 }
 
@@ -4047,6 +4056,23 @@ func (ok *Okx) GetOrderBookDepth(ctx context.Context, instrumentID string, depth
 	}
 	var resp []OrderBookResponse
 	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, getOrderBookEPL, http.MethodGet, common.EncodeURLValues(marketBooks, params), nil, &resp, false)
+	if err != nil {
+		return nil, err
+	} else if len(resp) == 1 {
+		return &resp[0], nil
+	}
+	return nil, errNoValidResponseFromServer
+}
+
+// GetOrderBooksLite returns the recent order asks and bids before specified timestamp.
+func (ok *Okx) GetOrderBooksLite(ctx context.Context, instrumentID string) (*OrderBookResponse, error) {
+	if instrumentID == "" {
+		return nil, errNilArgument
+	}
+	params := url.Values{}
+	params.Set("instId", instrumentID)
+	var resp []OrderBookResponse
+	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, getOrderBookLiteEPL, http.MethodGet, common.EncodeURLValues("market/books-lite", params), nil, &resp, false)
 	if err != nil {
 		return nil, err
 	} else if len(resp) == 1 {
@@ -4139,7 +4165,6 @@ func (ok *Okx) GetCandlestickData(ctx context.Context, instrumentID string, inte
 		return nil, errMissingInstrumentID
 	}
 	params.Set("instId", instrumentID)
-	var resp [][7]string
 	params.Set("limit", strconv.FormatInt(limit, 10))
 	if !before.IsZero() {
 		params.Set("before", strconv.FormatInt(before.UnixMilli(), 10))
@@ -4151,6 +4176,7 @@ func (ok *Okx) GetCandlestickData(ctx context.Context, instrumentID string, inte
 	if bar != "" {
 		params.Set("bar", bar)
 	}
+	var resp [][7]string
 	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, rateLimit, http.MethodGet, common.EncodeURLValues(route, params), nil, &resp, false)
 	if err != nil {
 		return nil, err
@@ -4189,7 +4215,6 @@ func (ok *Okx) GetCandlestickData(ctx context.Context, instrumentID string, inte
 
 // GetTrades Retrieve the recent transactions of an instrument.
 func (ok *Okx) GetTrades(ctx context.Context, instrumentID string, limit int64) ([]TradeResponse, error) {
-	var resp []TradeResponse
 	params := url.Values{}
 	if instrumentID == "" {
 		return nil, errMissingInstrumentID
@@ -4198,12 +4223,12 @@ func (ok *Okx) GetTrades(ctx context.Context, instrumentID string, limit int64) 
 	if limit > 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
+	var resp []TradeResponse
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getTradesRequestEPL, http.MethodGet, common.EncodeURLValues(marketTrades, params), nil, &resp, false)
 }
 
 // GetTradesHistory retrieves the recent transactions of an instrument from the last 3 months with pagination.
 func (ok *Okx) GetTradesHistory(ctx context.Context, instrumentID, before, after string, limit int64) ([]TradeResponse, error) {
-	var resp []TradeResponse
 	params := url.Values{}
 	if instrumentID == "" {
 		return nil, errMissingInstrumentID
@@ -4218,7 +4243,37 @@ func (ok *Okx) GetTradesHistory(ctx context.Context, instrumentID, before, after
 	if limit > 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
+	var resp []TradeResponse
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getTradesHistoryEPL, http.MethodGet, common.EncodeURLValues(marketTradesHistory, params), nil, &resp, false)
+}
+
+// GetOptionTradesByInstrumentFamily retrieve the recent transactions of an instrument under same instFamily. The maximum is 100.
+func (ok *Okx) GetOptionTradesByInstrumentFamily(ctx context.Context, instrumentFamily string) ([]InstrumentFamilyTrade, error) {
+	if instrumentFamily == "" {
+		return nil, errInstrumentFamilyRequired
+	}
+	var resp []InstrumentFamilyTrade
+	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, optionInstrumentTradeFamilyEPL, http.MethodGet, "market/option/instrument-family-trades?instFamily="+instrumentFamily, nil, &resp, false)
+}
+
+// GetOptionTrades retrieves option trades
+// Option type, 'C': Call 'P': put
+func (ok *Okx) GetOptionTrades(ctx context.Context, instrumentID, instrumentFamily, optionType string) ([]OptionTrade, error) {
+	params := url.Values{}
+	if instrumentID == "" && instrumentFamily == "" {
+		return nil, errInstrumentIDorFamilyRequired
+	}
+	if instrumentID != "" {
+		params.Set("instId", instrumentID)
+	}
+	if instrumentFamily != "" {
+		params.Set("instFamily", instrumentFamily)
+	}
+	if optionType != "" {
+		params.Set("optType", optionType)
+	}
+	var resp []OptionTrade
+	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, optionTradesEPL, http.MethodGet, common.EncodeURLValues("public/option-trades", params), nil, &resp, false)
 }
 
 // Get24HTotalVolume The 24-hour trading volume is calculated on a rolling basis, using USD as the pricing unit.
@@ -4319,6 +4374,131 @@ func (ok *Okx) GetBlockTrades(ctx context.Context, instrumentID string) ([]Block
 	params.Set("instId", instrumentID)
 	var resp []BlockTrade
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getBlockTradesEPL, http.MethodGet, common.EncodeURLValues(marketBlockTrades, params), nil, &resp, false)
+}
+
+// ********************************************* Spread Trading ***********************************************
+
+// Spread Trading: As Introduced in the Okx exchange. URL: https://www.okx.com/docs-v5/en/#spread-trading-introduction
+
+// PlaceSpreadOrder places new spread order.
+func (ok *Okx) PlaceSpreadOrder(ctx context.Context, arg *SpreadOrderParam) (*SpreadOrderResponse, error) {
+	if arg == nil || *arg == (SpreadOrderParam{}) {
+		return nil, errNilArgument
+	}
+	if arg.SpreadID == "" {
+		return nil, errSpreadIDMissing
+	}
+	if arg.OrderType == "" {
+		return nil, fmt.Errorf("%w spread order type is required", order.ErrTypeIsInvalid)
+	}
+	if arg.Size <= 0 {
+		return nil, errMissingNewSize
+	}
+	if arg.Price <= 0 {
+		return nil, errInvalidMinimumPrice
+	}
+	arg.Side = strings.ToLower(arg.Side)
+	if arg.Side != "buy" && arg.Side != "sell" {
+		return nil, fmt.Errorf("%w %s", errInvalidOrderSide, arg.Side)
+	}
+	var resp []SpreadOrderResponse
+	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, placeSpreadOrderEPL, http.MethodGet, "sprd/order", arg, &resp, true)
+	if err != nil {
+		return nil, err
+	}
+	if len(resp) == 1 {
+		return &resp[0], nil
+	}
+	return nil, errNoValidResponseFromServer
+}
+
+// CancelSpreadOrder cancels an incomplete spread order
+func (ok *Okx) CancelSpreadOrder(ctx context.Context, orderID, clientOrderID string) (*SpreadOrderResponse, error) {
+	if orderID == "" && clientOrderID == "" {
+		return nil, errMissingClientOrderIDOrOrderID
+	}
+	arg := make(map[string]string)
+	if orderID != "" {
+		arg["ordId"] = orderID
+	}
+	if clientOrderID != "" {
+		arg["clOrdId"] = clientOrderID
+	}
+	var resp []SpreadOrderResponse
+	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, cancelSpreadOrderEPL, http.MethodPost, "sprd/cancel-order", arg, &resp, true)
+	if err != nil {
+		return nil, err
+	}
+	if len(resp) == 1 {
+		return &resp[0], nil
+	}
+	return nil, errNoValidResponseFromServer
+}
+
+// CancelAllSpreadOrders cancels all spread orders and return success message
+// spreadID is optional
+// the function returns success status and error message
+func (ok *Okx) CancelAllSpreadOrders(ctx context.Context, spreadID string) (bool, error) {
+	arg := make(map[string]string, 1)
+	if spreadID != "" {
+		arg["sprdId"] = spreadID
+	}
+	resp := []struct {
+		Result bool `json:"result"`
+	}{}
+	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, cancelAllSpreadOrderEPL, http.MethodPost, "sprd/mass-cancel", arg, &resp, true)
+	if err != nil {
+		return false, err
+	}
+	if len(resp) == 1 {
+		return resp[0].Result, nil
+	}
+	return false, errNoValidResponseFromServer
+}
+
+// AmendSpreadOrder amends incomplete spread order
+func (ok *Okx) AmendSpreadOrder(ctx context.Context, arg *AmendSpreadOrderParam) (*SpreadOrderResponse, error) {
+	if arg == nil || *arg == (AmendSpreadOrderParam{}) {
+		return nil, errNilArgument
+	}
+	if arg.OrderID == "" && arg.ClientOrderID == "" {
+		return nil, errMissingClientOrderIDOrOrderID
+	}
+	if arg.NewPrice == 0 && arg.NewSize == 0 {
+		return nil, errSizeOrPriceIsRequired
+	}
+	var resp []SpreadOrderResponse
+	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, amendSpreadOrderEPL, http.MethodPost, "sprd/amend-order", arg, &resp, true)
+	if err != nil {
+		return nil, err
+	}
+	if len(resp) == 1 {
+		return &resp[0], nil
+	}
+	return nil, errNoValidResponseFromServer
+}
+
+// GetSpreadOrderDetails retrieves spread order details.
+func (ok *Okx) GetSpreadOrderDetails(ctx context.Context, orderID, clientOrderID string) (*SpreadOrder, error) {
+	if orderID == "" && clientOrderID == "" {
+		return nil, errMissingClientOrderIDOrOrderID
+	}
+	params := url.Values{}
+	if orderID != "" {
+		params.Set("ordId", orderID)
+	}
+	if clientOrderID != "" {
+		params.Set("clOrdId", clientOrderID)
+	}
+	var resp []SpreadOrder
+	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, getSpreadOrderDetailsEPL, http.MethodGet, "sprd/order", nil, &resp, true)
+	if err != nil {
+		return nil, err
+	}
+	if len(resp) == 1 {
+		return &resp[0], nil
+	}
+	return nil, errNoValidResponseFromServer
 }
 
 /************************************ Public Data Endpoinst *************************************************/
@@ -4455,18 +4635,17 @@ func (ok *Okx) GetOptionMarketData(ctx context.Context, underlying string, expTi
 
 // GetEstimatedDeliveryPrice retrieves the estimated delivery price which will only have a return value one hour before the delivery/exercise.
 func (ok *Okx) GetEstimatedDeliveryPrice(ctx context.Context, instrumentID string) ([]DeliveryEstimatedPrice, error) {
-	var resp []DeliveryEstimatedPrice
 	params := url.Values{}
 	if instrumentID == "" {
 		return nil, errMissingRequiredParamInstID
 	}
 	params.Set("instId", instrumentID)
+	var resp []DeliveryEstimatedPrice
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getEstimatedDeliveryPriceEPL, http.MethodGet, common.EncodeURLValues(publicEstimatedPrice, params), nil, &resp, false)
 }
 
 // GetDiscountRateAndInterestFreeQuota retrieves discount rate level and interest-free quota.
 func (ok *Okx) GetDiscountRateAndInterestFreeQuota(ctx context.Context, currency string, discountLevel int8) ([]DiscountRate, error) {
-	var response []DiscountRate
 	params := url.Values{}
 	if currency != "" {
 		params.Set("ccy", currency)
@@ -4474,6 +4653,7 @@ func (ok *Okx) GetDiscountRateAndInterestFreeQuota(ctx context.Context, currency
 	if discountLevel > 0 {
 		params.Set("discountLv", strconv.Itoa(int(discountLevel)))
 	}
+	var response []DiscountRate
 	return response, ok.SendHTTPRequest(ctx, exchange.RestSpot, getDiscountRateAndInterestFreeQuotaEPL, http.MethodGet, common.EncodeURLValues(publicDiscountRate, params), nil, &response, false)
 }
 

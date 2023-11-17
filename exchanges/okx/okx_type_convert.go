@@ -38,53 +38,6 @@ func (a *okxNumericalValue) UnmarshalJSON(data []byte) error {
 // Float64 returns a float64 value for okxNumericalValue
 func (a *okxNumericalValue) Float64() float64 { return float64(*a) }
 
-type okxUnixMilliTime int64
-
-// UnmarshalJSON deserializes byte data to okxunixMilliTime instance.
-func (a *okxUnixMilliTime) UnmarshalJSON(data []byte) error {
-	var num string
-	err := json.Unmarshal(data, &num)
-	if err != nil {
-		return err
-	}
-	if num == "" {
-		return nil
-	}
-	value, err := strconv.ParseInt(num, 10, 64)
-	if err != nil {
-		return err
-	}
-	*a = okxUnixMilliTime(value)
-	return nil
-}
-
-// Time returns the time instance from unix value of integer.
-func (a *okxUnixMilliTime) Time() time.Time {
-	return time.UnixMilli(int64(*a))
-}
-
-type okxTime struct {
-	time.Time
-}
-
-// UnmarshalJSON deserializes byte data to okxTime instance.
-func (t *okxTime) UnmarshalJSON(data []byte) error {
-	var num string
-	err := json.Unmarshal(data, &num)
-	if err != nil {
-		return err
-	}
-	if num == "" {
-		return nil
-	}
-	value, err := strconv.ParseInt(num, 10, 64)
-	if err != nil {
-		return err
-	}
-	t.Time = time.UnixMilli(value)
-	return nil
-}
-
 // UnmarshalJSON decoder for OpenInterestResponse instance.
 func (a *OpenInterest) UnmarshalJSON(data []byte) error {
 	type Alias OpenInterest
