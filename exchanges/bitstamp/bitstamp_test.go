@@ -558,12 +558,13 @@ func TestWithdrawFiat(t *testing.T) {
 	_, err := b.WithdrawFiatFunds(context.Background(), &withdrawFiatRequest)
 	if mockTests {
 		assert.Equal(t, float64(10), withdrawFiatRequest.Amount, "Amount should match")
-		assert.Equal(t, currency.USD, withdrawFiatRequest.Currency, "Currency should match")
+		assert.Equal(t, currency.Code(currency.USD), withdrawFiatRequest.Currency, "Currency should match")
 		assert.NotEmpty(t, withdrawFiatRequest.Fiat.Bank, "Bank details must not be empty")
 		assert.NotEmpty(t, withdrawFiatRequest.Fiat.WireCurrency, "WireCurrency details should not be empty")
-		assert.Equal(t, currency.USD, withdrawFiatRequest.Fiat.WireCurrency, "WireCurrency should match")
+		assert.Equal(t, currency.USD.String(), withdrawFiatRequest.Fiat.WireCurrency, "WireCurrency should match")
+	} else {
+		assert.ErrorContains(t, err, "amount: [You have only 0.00 USD available. Check your account balance for details.]")
 	}
-	assert.ErrorContains(t, err, "amount: [You have only 0.00 USD available. Check your account balance for details.]")
 }
 
 func TestWithdrawInternationalBank(t *testing.T) {
