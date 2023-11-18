@@ -504,24 +504,21 @@ func TestModifyOrder(t *testing.T) {
 	assert.ErrorIs(t, err, common.ErrFunctionNotSupported)
 }
 
+// TODO Live test fix
 func TestWithdraw(t *testing.T) {
 	t.Parallel()
-
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
 	}
-
-	withdrawCryptoRequest := withdraw.Request{
+	_, err := b.WithdrawCryptocurrencyFunds(context.Background(), &withdraw.Request{
 		Exchange:    b.Name,
-		Amount:      -1,
+		Amount:      6,
 		Currency:    currency.BTC,
 		Description: "WITHDRAW IT ALL",
 		Crypto: withdraw.CryptoRequest{
 			Address: core.BitcoinDonationAddress,
 		},
-	}
-
-	_, err := b.WithdrawCryptocurrencyFunds(context.Background(), &withdrawCryptoRequest)
+	})
 	assert.NoError(t, err, "TestWithdraw should not error")
 
 }

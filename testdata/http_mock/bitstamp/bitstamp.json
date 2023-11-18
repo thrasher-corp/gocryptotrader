@@ -68260,12 +68260,7 @@
    "POST": [
     {
      "data": {
-      "status": "error",
-      "reason": {
-       "amount": [
-        "You have only 0.00 USD available. Check your account balance for details."
-       ]
-      }
+        "withdrawal_id": 1
      },
      "queryString": "",
      "bodyParams": "account_currency=USD\u0026address=123+Fake+St\u0026amount=50\u0026bank_address=123+Fake+St\u0026bank_city=Tarry+Town\u0026bank_country=AU\u0026bank_name=Federal+Reserve+Bank\u0026bank_postal_code=2088\u0026bic=CTBAAU2S\u0026city=Tarry+Town\u0026comment=WITHDRAW+IT+ALL\u0026country=AU\u0026currency=USD\u0026iban=IT60X0542811101000000123456\u0026key=\u0026name=Satoshi+Nakamoto\u0026nonce=1560404081220544346\u0026postal_code=2088\u0026signature=17C71D3A9175255D46D786E9709B815E6C1B450B0E4E60B622EF35F0AD966B70\u0026type=international",
@@ -68294,6 +68289,39 @@
     }
    ]
   },
+  "/api/v2/btc_withdrawal/": {
+    "POST": [
+     {
+      "data": {
+         "withdrawal_id": 1
+      },
+      "queryString": "",
+      "bodyParams": "address=bc1qk0jareu4jytc0cfrhr5wgshsq8282awpavfahc&amount=6&key=FUId9Nby1VbZrGgZHfzGbswd4CDcp6Ar&nonce=1700299173646350000&signature=5D7281469C1E57BDAE13FF2C967F69B95C51A4496BEB92F040BC7345D517B911",
+      "headers": {
+       "Content-Type": [
+        "application/x-www-form-urlencoded"
+       ]
+      }
+     },
+     {
+      "data": {
+       "status": "error",
+       "reason": {
+        "amount": [
+         "You have only 0.00 USD available. Check your account balance for details."
+        ]
+       }
+      },
+      "queryString": "",
+      "bodyParams": "account_currency=USD\u0026address=123+Fake+St\u0026amount=-1\u0026bic=CTBAAU2S\u0026city=Tarry+Town\u0026comment=WITHDRAW+IT+ALL\u0026country=AU\u0026iban=IT60X0542811101000000123456\u0026key=\u0026name=Satoshi+Nakamoto\u0026nonce=1560405334882045192\u0026postal_code=2088\u0026signature=1EB01441F5FB1FA1335EF5586D86F210101F641768C7568A4F9D592AA529628B\u0026type=sepa",
+      "headers": {
+       "Content-Type": [
+        "application/x-www-form-urlencoded"
+       ]
+      }
+     }
+    ]
+   },
   "/api/v2/xrp_address/": {
    "POST": [
     {
