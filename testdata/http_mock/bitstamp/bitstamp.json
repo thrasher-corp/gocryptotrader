@@ -68261,8 +68261,12 @@
     {
      "data": {
         "withdrawal_id": 1,
-            "reason": "The reason for the error.",
-            "status": "error"
+        "status": "error",
+        "reason": {
+         "amount": [
+          "You have only 0.00 USD available. Check your account balance for details."
+         ]
+        }
      },
      "queryString": "",
      "bodyParams": "account_currency=USD&address=123+Fake+St&amount=10&bic=CTBAAU2S&city=Tarry+Town&comment=WITHDRAW+IT+ALL&country=AU&iban=IT60X0542811101000000123456&key=FUId9Nby1VbZrGgZHfzGbswd4CDcp6Ar&name=Satoshi+Nakamoto&nonce=1700299995971938000&postal_code=2088&signature=8FAD96A92BBA8F4D6599906E1553B0186A8503F97FA1581C838B5049BB253DAE&type=sepa",
@@ -68274,6 +68278,7 @@
     },
     {
      "data": {
+        "withdrawal_id": 1,
       "status": "error",
       "reason": {
        "amount": [
@@ -68282,7 +68287,7 @@
       }
      },
      "queryString": "",
-     "bodyParams": "account_currency=USD\u0026address=123+Fake+St\u0026amount=-1\u0026bic=CTBAAU2S\u0026city=Tarry+Town\u0026comment=WITHDRAW+IT+ALL\u0026country=AU\u0026iban=IT60X0542811101000000123456\u0026key=\u0026name=Satoshi+Nakamoto\u0026nonce=1560405334882045192\u0026postal_code=2088\u0026signature=1EB01441F5FB1FA1335EF5586D86F210101F641768C7568A4F9D592AA529628B\u0026type=sepa",
+     "bodyParams": "account_currency=USD&address=123+Fake+St&amount=50&bank_address=123+Fake+St&bank_city=Tarry+Town&bank_country=AU&bank_name=Federal+Reserve+Bank&bank_postal_code=2088&bic=CTBAAU2S&city=Tarry+Town&comment=WITHDRAW+IT+ALL&country=AU&currency=USD&iban=IT60X0542811101000000123456&key=FUId9Nby1VbZrGgZHfzGbswd4CDcp6Ar&name=Satoshi+Nakamoto&nonce=1700301535927143000&postal_code=2088&signature=56886D87E0F1D4F3A197FC24B9D0CD1D17931B5E589ABF1D3B521AF3B45DBFEE&type=international",
      "headers": {
       "Content-Type": [
        "application/x-www-form-urlencoded"
