@@ -72,7 +72,25 @@
    "POST": [
     {
      "data": {
-      "error": "Order not found"
+        "id": 1458532827766784,
+        "datetime": "2022-01-31 14:43:15",
+        "type": "0",
+        "status": "Open",
+        "market": "BTC/USD",
+        "transactions": [
+            {
+                "tid": 1,
+                "price": "100.00",
+                "{from_currency}": "101.00",
+                "{to_currency}": "1",
+                "fee": "1.00",
+                "datetime": "2022-01-31 14:43:15",
+                "type": 0
+                }
+        ],
+        "amount_remaining": "100.00",
+        "client_order_id": "0.50000000",
+        "error": "Order not found"
      },
      "queryString": "",
      "bodyParams": "id=1337\u0026key=\u0026nonce=1560480481012757775\u0026signature=71E0C3A3B0CE4C96C9AC0C6519C3F4801A46C52C5C9BAAADB8642CE65F0CF385",
@@ -219,14 +237,40 @@
     }
    ]
   },
+  "/api/v2/buy/btcusd/": {
+    "POST": [
+     {
+      "data": {
+        "id": "1234123412341234",
+        "market": "BTC/USD",
+        "datetime": "2022-01-31 14:43:15.796000",
+        "type": "1",
+        "price": "2211.00",
+        "amount": "45",
+        "client_order_id": "123456789"
+        },
+      "queryString": "",
+      "bodyParams": "amount=10&key=FUId9Nby1VbZrGgZHfzGbswd4CDcp6Ar&nonce=1700279668250533000&price=1&signature=1A2DA09AF1C89492591BC21A25899558A3C41EB91A61BBE99926F570C8DE47E5",
+      "headers": {
+       "Content-Type": [
+        "application/x-www-form-urlencoded"
+       ]
+      }
+     }
+    ]
+   },
   "/api/v2/cancel_order/": {
    "POST": [
     {
      "data": {
-      "error": "Order not found"
+        "id": 1453282316578816,
+        "amount": 0.02035278,
+        "price": 2100.45,
+        "type": 0,
+        "market": "BTC/USD"
      },
      "queryString": "",
-     "bodyParams": "id=1234\u0026key=\u0026nonce=1560467884949723197\u0026signature=79D88FC2BC3AECBFDD27F70EF5DDBB485349F45129C58EE725BAEE0DF7818452",
+     "bodyParams": "id=1453282316578816\u0026key=\u0026nonce=1560467884949723197\u0026signature=79D88FC2BC3AECBFDD27F70EF5DDBB485349F45129C58EE725BAEE0DF7818452",
      "headers": {
       "Content-Type": [
        "application/x-www-form-urlencoded"
