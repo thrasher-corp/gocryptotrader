@@ -225,6 +225,13 @@ type RateLimit struct {
 	CancelAllSpreadOrder  *rate.Limiter
 	AmendSpreadOrder      *rate.Limiter
 	GetSpreadOrderDetails *rate.Limiter
+	GetActiveSpreadOrders *rate.Limiter
+	GetSpreadOrders7Days  *rate.Limiter
+	GetSpreadOrderTrades  *rate.Limiter
+	GetSpreads            *rate.Limiter
+	GetSpreadOrderBook    *rate.Limiter
+	GetSpreadTicker       *rate.Limiter
+	GetSpreadPublicTrades *rate.Limiter
 
 	// Public Data endpoints rate limiters
 	GetInstruments                         *rate.Limiter
@@ -442,6 +449,13 @@ const (
 	cancelAllSpreadOrderEPL
 	amendSpreadOrderEPL
 	getSpreadOrderDetailsEPL
+	getSpreadOrderTradesEPL
+	getSpreadsEPL
+	getSpreadOrderbookEPL
+	getSpreadTickerEPL
+	getSpreadPublicTradesEPL
+	getActiveSpreadOrdersEPL
+	getSpreadOrders7DaysEPL
 	getInstrumentsEPL
 	getDeliveryExerciseHistoryEPL
 	getOpenInterestEPL
@@ -846,6 +860,20 @@ func (r *RateLimit) Limit(ctx context.Context, f request.EndpointLimit) error {
 		return r.AmendSpreadOrder.Wait(ctx)
 	case getSpreadOrderDetailsEPL:
 		return r.GetSpreadOrderDetails.Wait(ctx)
+	case getSpreadOrderTradesEPL:
+		return r.GetSpreadOrderTrades.Wait(ctx)
+	case getSpreadsEPL:
+		return r.GetSpreads.Wait(ctx)
+	case getSpreadOrderbookEPL:
+		return r.GetSpreadOrderBook.Wait(ctx)
+	case getSpreadTickerEPL:
+		return r.GetSpreadTicker.Wait(ctx)
+	case getSpreadPublicTradesEPL:
+		return r.GetSpreadPublicTrades.Wait(ctx)
+	case getActiveSpreadOrdersEPL:
+		return r.GetActiveSpreadOrders.Wait(ctx)
+	case getSpreadOrders7DaysEPL:
+		return r.GetSpreadOrders7Days.Wait(ctx)
 	case getInstrumentsEPL:
 		return r.GetInstruments.Wait(ctx)
 	case getDeliveryExerciseHistoryEPL:
@@ -1114,6 +1142,13 @@ func SetRateLimit() *RateLimit {
 		CancelAllSpreadOrder:  request.NewRateLimit(twoSecondsInterval, 10),
 		AmendSpreadOrder:      request.NewRateLimit(twoSecondsInterval, 20),
 		GetSpreadOrderDetails: request.NewRateLimit(twoSecondsInterval, 20),
+		GetActiveSpreadOrders: request.NewRateLimit(twoSecondsInterval, 10),
+		GetSpreadOrders7Days:  request.NewRateLimit(twoSecondsInterval, 20),
+		GetSpreadOrderTrades:  request.NewRateLimit(twoSecondsInterval, 20),
+		GetSpreads:            request.NewRateLimit(twoSecondsInterval, 20),
+		GetSpreadOrderBook:    request.NewRateLimit(twoSecondsInterval, 20),
+		GetSpreadTicker:       request.NewRateLimit(twoSecondsInterval, 20),
+		GetSpreadPublicTrades: request.NewRateLimit(twoSecondsInterval, 20),
 
 		// Public Data Endpoints
 

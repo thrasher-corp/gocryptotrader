@@ -2492,6 +2492,82 @@ type SpreadOrder struct {
 	CreationTime      convert.ExchangeTime    `json:"cTime"`
 }
 
+// SpreadTrade holds spread trade transaction instance
+type SpreadTrade struct {
+	SpreadID      string                  `json:"sprdId"`
+	TradeID       string                  `json:"tradeId"`
+	OrderID       string                  `json:"ordId"`
+	ClientOrderID string                  `json:"clOrdId"`
+	Tag           string                  `json:"tag"`
+	FillPrice     convert.StringToFloat64 `json:"fillPx"`
+	FillSize      convert.StringToFloat64 `json:"fillSz"`
+	State         string                  `json:"state"`
+	Side          string                  `json:"side"`
+	ExecType      string                  `json:"execType"`
+	Timestamp     string                  `json:"ts"`
+	Legs          []struct {
+		InstrumentID string                  `json:"instId"`
+		Price        convert.StringToFloat64 `json:"px"`
+		Size         convert.StringToFloat64 `json:"sz"`
+		Side         string                  `json:"side"`
+		Fee          convert.StringToFloat64 `json:"fee"`
+		FeeCcy       string                  `json:"feeCcy"`
+		TradeID      string                  `json:"tradeId"`
+	} `json:"legs"`
+	Code string `json:"code"`
+	Msg  string `json:"msg"`
+}
+
+// SpreadTradeOrder retrieve all available spreads based on the request parameters.
+type SpreadTradeOrder struct {
+	SpreadID      string                  `json:"sprdId"`
+	SpreadType    string                  `json:"sprdType"`
+	State         string                  `json:"state"`
+	BaseCurrency  string                  `json:"baseCcy"`
+	SizeCurrency  string                  `json:"szCcy"`
+	QuoteCurrency string                  `json:"quoteCcy"`
+	TickSize      convert.StringToFloat64 `json:"tickSz"`
+	MinSize       convert.StringToFloat64 `json:"minSz"`
+	LotSize       convert.StringToFloat64 `json:"lotSz"`
+	ListTime      string                  `json:"listTime"`
+	Legs          []struct {
+		InstrumentID string `json:"instId"`
+		Side         string `json:"side"`
+	} `json:"legs"`
+	ExpTime    convert.ExchangeTime `json:"expTime"`
+	UpdateTime convert.ExchangeTime `json:"uTime"`
+}
+
+// SpreadOrderbook holds spread orderbook information.
+type SpreadOrderbook struct {
+	// Asks and Bids are [3]string; price, quantity, and # number of orders at the price
+	Asks      [][]string           `json:"asks"`
+	Bids      [][]string           `json:"bids"`
+	Timestamp convert.ExchangeTime `json:"ts"`
+}
+
+// SpreadTicker represents a ticker instance.
+type SpreadTicker struct {
+	SpreadID  string                  `json:"sprdId"`
+	Last      convert.StringToFloat64 `json:"last"`
+	LastSize  convert.StringToFloat64 `json:"lastSz"`
+	AskPrice  convert.StringToFloat64 `json:"askPx"`
+	AskSize   convert.StringToFloat64 `json:"askSz"`
+	BidPrice  convert.StringToFloat64 `json:"bidPx"`
+	BidSize   convert.StringToFloat64 `json:"bidSz"`
+	Timestamp convert.ExchangeTime    `json:"ts"`
+}
+
+// SpreadPublicTradeItem represents publicly available trade order instance
+type SpreadPublicTradeItem struct {
+	SprdID    string                  `json:"sprdId"`
+	Side      string                  `json:"side"`
+	Size      convert.StringToFloat64 `json:"sz"`
+	Price     convert.StringToFloat64 `json:"px"`
+	TradeID   string                  `json:"tradeId"`
+	Timestamp convert.ExchangeTime    `json:"ts"`
+}
+
 // UnitConvertResponse unit convert response.
 type UnitConvertResponse struct {
 	InstrumentID string  `json:"instId"`

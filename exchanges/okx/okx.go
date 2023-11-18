@@ -4501,6 +4501,147 @@ func (ok *Okx) GetSpreadOrderDetails(ctx context.Context, orderID, clientOrderID
 	return nil, errNoValidResponseFromServer
 }
 
+// GetActiveSpreadOrders retrieves list of incomplete spread orders.
+func (ok *Okx) GetActiveSpreadOrders(ctx context.Context, spreadID, orderType, state, beginID, endID string, limit int64) ([]SpreadOrder, error) {
+	params := url.Values{}
+	if spreadID != "" {
+		params.Set("sprdId", spreadID)
+	}
+	if orderType != "" {
+		params.Set("ordType", orderType)
+	}
+	if state != "" {
+		params.Set("state", state)
+	}
+	if beginID != "" {
+		params.Set("beginId", beginID)
+	}
+	if endID != "" {
+		params.Set("endId", endID)
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	var resp []SpreadOrder
+	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getActiveSpreadOrdersEPL, http.MethodGet, common.EncodeURLValues("sprd/orders-pending", params), nil, &resp, true)
+}
+
+// GetCompletedSpreadOrdersLast7Days retrieve the completed order data for the last 7 days, and the incomplete orders (filledSz =0 & state = canceled) that have been canceled are only reserved for 2 hours. Results are returned in counter chronological order.
+func (ok *Okx) GetCompletedSpreadOrdersLast7Days(ctx context.Context, spreadID, orderType, state, beginID, endID string, begin, end time.Time, limit int64) ([]SpreadOrder, error) {
+	params := url.Values{}
+	if spreadID != "" {
+		params.Set("sprdId", spreadID)
+	}
+	if orderType != "" {
+		params.Set("ordType", orderType)
+	}
+	if state != "" {
+		params.Set("state", state)
+	}
+	if beginID != "" {
+		params.Set("beginId", beginID)
+	}
+	if endID != "" {
+		params.Set("endId", endID)
+	}
+	if !begin.IsZero() {
+		params.Set("begin", strconv.FormatInt(begin.UnixMilli(), 10))
+	}
+	if !end.IsZero() {
+		params.Set("end", strconv.FormatInt(end.UnixMilli(), 10))
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	var resp []SpreadOrder
+	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getSpreadOrders7DaysEPL, http.MethodGet, common.EncodeURLValues("sprd/orders-history", params), nil, &resp, true)
+}
+
+// GetSpreadTradesOfLast7Days retrieve historical transaction details for the last 7 days. Results are returned in counter chronological order.
+func (ok *Okx) GetSpreadTradesOfLast7Days(ctx context.Context, spreadID, tradeID, orderID, beginID, endID string, begin, end time.Time, limit int64) ([]SpreadTrade, error) {
+	params := url.Values{}
+	if spreadID != "" {
+		params.Set("sprdId", spreadID)
+	}
+	if tradeID != "" {
+		params.Set("tradeId", tradeID)
+	}
+	if orderID != "" {
+		params.Set("ordId", orderID)
+	}
+	if beginID != "" {
+		params.Set("beginId", beginID)
+	}
+	if endID != "" {
+		params.Set("endId", endID)
+	}
+	if !begin.IsZero() {
+		params.Set("begin", strconv.FormatInt(begin.UnixMilli(), 10))
+	}
+	if !end.IsZero() {
+		params.Set("end", strconv.FormatInt(end.UnixMilli(), 10))
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	var resp []SpreadTrade
+	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getSpreadOrderTradesEPL, http.MethodGet, common.EncodeURLValues("sprd/trades", params), nil, &resp, true)
+}
+
+// GetPublicSpreads retrieve all available spreads based on the request parameters.
+func (ok *Okx) GetPublicSpreads(ctx context.Context, baseCurrency, instrumentID, spreadID, state string) ([]SpreadTradeOrder, error) {
+	params := url.Values{}
+	if baseCurrency != "" {
+		params.Set("baseCcy", baseCurrency)
+	}
+	if instrumentID != "" {
+		params.Set("instId", instrumentID)
+	}
+	if spreadID != "" {
+		params.Set("sprdId", spreadID)
+	}
+	if state != "" {
+		params.Set("state", state)
+	}
+	var resp []SpreadTradeOrder
+	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getSpreadsEPL, http.MethodGet, common.EncodeURLValues("sprd/spreads", params), nil, &resp, false)
+}
+
+// GetPublicSpreadOrderBooks retrieve the order book of the spread.
+func (ok *Okx) GetPublicSpreadOrderBooks(ctx context.Context, spreadID string, orderbookSize int64) ([]SpreadOrderbook, error) {
+	if spreadID == "" {
+		return nil, errSpreadIDMissing
+	}
+	params := url.Values{}
+	params.Set("sprdId", spreadID)
+	if orderbookSize != 0 {
+		params.Set("size", strconv.FormatInt(orderbookSize, 10))
+	}
+	var resp []SpreadOrderbook
+	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getSpreadOrderbookEPL, http.MethodGet, common.EncodeURLValues("sprd/books", params), nil, &resp, false)
+}
+
+// GetPublicSpreadTickers retrieve the latest price snapshot, best bid/ask price, and trading volume in the last 24 hours.
+func (ok *Okx) GetPublicSpreadTickers(ctx context.Context, spreadID string) ([]SpreadTicker, error) {
+	if spreadID == "" {
+		return nil, errSpreadIDMissing
+	}
+	params := url.Values{}
+	params.Set("sprdId", spreadID)
+	var resp []SpreadTicker
+	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getSpreadTickerEPL, http.MethodGet, common.EncodeURLValues("sprd/ticker", params), nil, &resp, false)
+}
+
+// GetPublicSpreadTrades retrieve the recent transactions of an instrument (at most 500 records per request). Results are returned in counter chronological order.
+func (ok *Okx) GetPublicSpreadTrades(ctx context.Context, spreadID string) ([]SpreadPublicTradeItem, error) {
+	params := url.Values{}
+	if spreadID != "" {
+		params.Set("sprdId", spreadID)
+	}
+	var resp []SpreadPublicTradeItem
+	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getSpreadPublicTradesEPL, http.MethodGet, common.EncodeURLValues("sprd/public-trades", params), nil, &resp, false)
+}
+
 /************************************ Public Data Endpoinst *************************************************/
 
 // GetInstruments Retrieve a list of instruments with open contracts.

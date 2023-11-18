@@ -4216,3 +4216,62 @@ func TestGetSpreadOrderDetails(t *testing.T) {
 		t.Error(err)
 	}
 }
+
+func TestGetActiveSpreadOrders(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
+	_, err := ok.GetActiveSpreadOrders(context.Background(), "", "post_only", "partially_filled", "", "", 10)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetCompletedSpreadOrdersLast7Days(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
+	_, err := ok.GetCompletedSpreadOrdersLast7Days(context.Background(), "", "limit", "canceled", "", "", time.Time{}, time.Time{}, 10)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetSpreadTradesOfLast7Days(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
+	_, err := ok.GetSpreadTradesOfLast7Days(context.Background(), "", "", "", "", "", time.Time{}, time.Time{}, 0)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetSpreads(t *testing.T) {
+	t.Parallel()
+	_, err := ok.GetPublicSpreads(context.Background(), "", "", "", "")
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetSpreadOrderBooks(t *testing.T) {
+	t.Parallel()
+	_, err := ok.GetPublicSpreadOrderBooks(context.Background(), "BTC-USDT_BTC-USDT-SWAP", 0)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetSpreadTickers(t *testing.T) {
+	t.Parallel()
+	_, err := ok.GetPublicSpreadTickers(context.Background(), "BTC-USDT_BTC-USDT-SWAP")
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetPublicSpreadTrades(t *testing.T) {
+	t.Parallel()
+	_, err := ok.GetPublicSpreadTrades(context.Background(), "")
+	if err != nil {
+		t.Error(err)
+	}
+}
