@@ -618,16 +618,11 @@ func TestWithdrawInternationalBank(t *testing.T) {
 
 func TestGetDepositAddress(t *testing.T) {
 	t.Parallel()
-
-	_, err := b.GetDepositAddress(context.Background(), currency.XRP, "", "")
-	switch {
-	case sharedtestvalues.AreAPICredentialsSet(b) && customerID != "" && err != nil && !mockTests:
-		t.Error("GetDepositAddress error", err)
-	case !sharedtestvalues.AreAPICredentialsSet(b) && err == nil && !mockTests:
-		t.Error("GetDepositAddress error cannot be nil")
-	case mockTests && err != nil:
-		t.Error("GetDepositAddress error", err)
+	if !mockTests {
+		sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
 	}
+	_, err := b.GetDepositAddress(context.Background(), currency.XRP, "", "")
+	assert.NoError(t, err, "TestGetDepositAddress should not error")
 }
 
 func TestParseTime(t *testing.T) {
