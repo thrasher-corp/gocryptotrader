@@ -72,15 +72,16 @@
    "POST": [
     {
      "data": {
-        "id": 1458532827766784,
+        "id": "1458532827766784",
         "datetime": "2022-01-31 14:43:15",
-        "type": "0",
+        "type": 0,
         "status": "Open",
         "market": "BTC/USD",
+        "price":"50.00",
         "transactions": [
             {
                 "tid": 1,
-                "price": "100.00",
+                "price": "50.00",
                 "{from_currency}": "101.00",
                 "{to_currency}": "1",
                 "fee": "1.00",
@@ -88,12 +89,10 @@
                 "type": 0
                 }
         ],
-        "amount_remaining": "100.00",
-        "client_order_id": "0.50000000",
-        "error": "Order not found"
+        "amount": "200.00"
      },
      "queryString": "",
-     "bodyParams": "id=1337\u0026key=\u0026nonce=1560480481012757775\u0026signature=71E0C3A3B0CE4C96C9AC0C6519C3F4801A46C52C5C9BAAADB8642CE65F0CF385",
+     "bodyParams": "id=1458532827766784&key=FUId9Nby1VbZrGgZHfzGbswd4CDcp6Ar&nonce=1700374285822027000&signature=0B7C759A57B10EC315CE3A53480EDC720BE9BCD2CCEA86313808914484483386",
      "headers": {
       "Content-Type": [
        "application/x-www-form-urlencoded"
