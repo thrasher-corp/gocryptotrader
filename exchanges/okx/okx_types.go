@@ -2,6 +2,7 @@ package okx
 
 import (
 	"encoding/json"
+	"errors"
 	"strconv"
 	"time"
 
@@ -71,6 +72,14 @@ type testNetKey string
 
 var testNetVal = testNetKey("testnet")
 
+type candlestickState int8
+
+// candlestickState represents index candlestick states.
+const (
+	StateUncompleted candlestickState = iota
+	StateCompleted
+)
+
 // Market Data Endpoints
 
 // TickerResponse represents the market data endpoint ticker detail
@@ -96,14 +105,14 @@ type TickerResponse struct {
 
 // IndexTicker represents Index ticker data.
 type IndexTicker struct {
-	InstID    string               `json:"instId"`
-	IdxPx     float64              `json:"idxPx,string"`
-	High24H   float64              `json:"high24h,string"`
-	SodUtc0   float64              `json:"sodUtc0,string"`
-	Open24H   float64              `json:"open24h,string"`
-	Low24H    float64              `json:"low24h,string"`
-	SodUtc8   float64              `json:"sodUtc8,string"`
-	Timestamp convert.ExchangeTime `json:"ts"`
+	InstID    string                  `json:"instId"`
+	IdxPx     convert.StringToFloat64 `json:"idxPx"`
+	High24H   convert.StringToFloat64 `json:"high24h"`
+	SodUtc0   convert.StringToFloat64 `json:"sodUtc0"`
+	Open24H   convert.StringToFloat64 `json:"open24h"`
+	Low24H    convert.StringToFloat64 `json:"low24h"`
+	SodUtc8   convert.StringToFloat64 `json:"sodUtc8"`
+	Timestamp convert.ExchangeTime    `json:"ts"`
 }
 
 // OrderBookResponse holds the order asks and bids at a specific timestamp
@@ -213,6 +222,67 @@ func (a *OrderBookResponse) GetBids() ([]OrderBid, error) {
 	return bids, nil
 }
 
+// IndexCandlestickSlices represents index candlestick history represented by a slice of string
+type IndexCandlestickSlices [][6]string
+
+// ExtractIndexCandlestick extracts IndexCandlestick instance from slice of string.
+func (a IndexCandlestickSlices) ExtractIndexCandlestick() ([]CandlestickHistoryItem, error) {
+	if len(a) == 0 {
+		return nil, errors.New("nil slice")
+	}
+	candles := make([]CandlestickHistoryItem, len(a))
+	for i := range a {
+		timestamp, err := strconv.ParseInt(a[i][0], 10, 64)
+		if err != nil {
+			return nil, err
+		}
+		candles[i] = CandlestickHistoryItem{
+			Timestamp: time.UnixMilli(timestamp),
+		}
+		candles[i].OpenPrice, err = strconv.ParseFloat(a[i][1], 64)
+		if err != nil {
+			return nil, err
+		}
+		candles[i].HighestPrice, err = strconv.ParseFloat(a[i][2], 64)
+		if err != nil {
+			return nil, err
+		}
+		candles[i].LowestPrice, err = strconv.ParseFloat(a[i][3], 64)
+		if err != nil {
+			return nil, err
+		}
+		candles[i].ClosePrice, err = strconv.ParseFloat(a[i][4], 64)
+		if err != nil {
+			return nil, err
+		}
+		if a[i][5] == "1" {
+			candles[i].Confirm = StateCompleted
+		} else {
+			candles[i].Confirm = StateUncompleted
+		}
+	}
+	return candles, nil
+}
+
+// EconomicCalendar represents macro-economic calendar data
+type EconomicCalendar struct {
+	Actual        string               `json:"actual"`
+	CalendarID    string               `json:"calendarId"`
+	Category      string               `json:"category"`
+	Currency      string               `json:"ccy"`
+	Date          convert.ExchangeTime `json:"date"`
+	DateSpan      string               `json:"dateSpan"`
+	Event         string               `json:"event"`
+	Forecast      string               `json:"forecast"`
+	Importance    string               `json:"importance"`
+	PrevInitial   string               `json:"prevInitial"`
+	Previous      string               `json:"previous"`
+	ReferenceDate convert.ExchangeTime `json:"refDate"`
+	Region        string               `json:"region"`
+	UpdateTime    convert.ExchangeTime `json:"uTime"`
+	Unit          string               `json:"unit"`
+}
+
 // CandleStick  holds candlestick price data
 type CandleStick struct {
 	OpenTime         time.Time
@@ -222,6 +292,16 @@ type CandleStick struct {
 	ClosePrice       float64
 	Volume           float64
 	QuoteAssetVolume float64
+}
+
+// CandlestickHistoryItem retrieve the candlestick charts of the index/mark price from recent years.
+type CandlestickHistoryItem struct {
+	Timestamp    time.Time
+	OpenPrice    float64
+	HighestPrice float64
+	LowestPrice  float64
+	ClosePrice   float64
+	Confirm      candlestickState
 }
 
 // TradeResponse represents the recent transaction instance.
@@ -1038,6 +1118,22 @@ type AssetBalance struct {
 	FrozenBalance float64 `json:"frozenBal,string"`
 }
 
+// NonTradableAsset holds non-tradable asset detail.
+type NonTradableAsset struct {
+	Balance    convert.StringToFloat64 `json:"bal"`
+	CanWd      bool                    `json:"canWd"`
+	Currency   string                  `json:"ccy"`
+	Chain      string                  `json:"chain"`
+	CtAddr     string                  `json:"ctAddr"`
+	Fee        convert.StringToFloat64 `json:"fee"`
+	LogoLink   string                  `json:"logoLink"`
+	MinWd      string                  `json:"minWd"`
+	Name       string                  `json:"name"`
+	NeedTag    bool                    `json:"needTag"`
+	WdAll      bool                    `json:"wdAll"`
+	WdTickSize convert.StringToFloat64 `json:"wdTickSz"`
+}
+
 // AccountAssetValuation represents view account asset valuation data
 type AccountAssetValuation struct {
 	Details struct {
@@ -1179,6 +1275,20 @@ type WithdrawalHistoryResponse struct {
 	WithdrawalID         string               `json:"wdId"`
 	PaymentID            string               `json:"pmtId,omitempty"`
 	Memo                 string               `json:"memo"`
+}
+
+// DepositWithdrawStatus holds deposit withdraw status info.
+type DepositWithdrawStatus struct {
+	WithdrawID      string               `json:"wdId"`
+	TransactionID   string               `json:"txId"`
+	State           string               `json:"state"`
+	EstCompleteTime convert.ExchangeTime `json:"estCompleteTime"`
+}
+
+// ExchangeInfo represents exchange information
+type ExchangeInfo struct {
+	ExchID       string `json:"exchId"`
+	ExchangeName string `json:"exchName"`
 }
 
 // SmallAssetConvertResponse represents a response of converting a small asset to OKB.
@@ -2153,6 +2263,15 @@ type FundingBalance struct {
 	FrozenBalance    string `json:"frozenBal"`
 }
 
+// SubAccountMaximumWithdrawal holds sub-account maximum withdrawal information
+type SubAccountMaximumWithdrawal struct {
+	Currency          string                  `json:"ccy"`
+	MaxWd             convert.StringToFloat64 `json:"maxWd"`
+	MaxWdEx           string                  `json:"maxWdEx"`
+	SpotOffsetMaxWd   convert.StringToFloat64 `json:"spotOffsetMaxWd"`
+	SpotOffsetMaxWdEx convert.StringToFloat64 `json:"spotOffsetMaxWdEx"`
+}
+
 // SubaccountBillItem represents subaccount balance bill item
 type SubaccountBillItem struct {
 	BillID                 string               `json:"billId"`
@@ -2161,6 +2280,17 @@ type SubaccountBillItem struct {
 	Amount                 string               `json:"amt"`
 	SubAccount             string               `json:"subAcct"`
 	Timestamp              convert.ExchangeTime `json:"ts"`
+}
+
+// SubAccountTransfer holds sub-account transfer instance.
+type SubAccountTransfer struct {
+	BillID    string                  `json:"billId"`
+	Type      string                  `json:"type"`
+	Ccy       string                  `json:"ccy"`
+	Amount    convert.StringToFloat64 `json:"amt"`
+	SubAcct   string                  `json:"subAcct"`
+	SubUID    string                  `json:"subUid"`
+	Timestamp convert.ExchangeTime    `json:"ts"`
 }
 
 // SubAccountAssetTransferParams represents subaccount asset transfer request parameters.
@@ -2189,6 +2319,43 @@ type PermissionOfTransfer struct {
 // SubaccountName represents single subaccount name
 type SubaccountName struct {
 	SubaccountName string `json:"subAcct"`
+}
+
+// SubAccountLoanAllocationParam holds parameter for VIP sub-account loan allocation
+type SubAccountLoanAllocationParam struct {
+	Enable bool                              `json:"enable"`
+	Alloc  []subAccountVIPLoanAllocationInfo `json:"alloc"`
+}
+
+type subAccountVIPLoanAllocationInfo struct {
+	SubAcct   string  `json:"subAcct"`
+	LoanAlloc float64 `json:"loanAlloc,string"`
+}
+
+// SubAccounBorrowInterestAndLimit represents sub-account borrow interest and limit
+type SubAccounBorrowInterestAndLimit struct {
+	SubAcct          string                  `json:"subAcct"`
+	Debt             convert.StringToFloat64 `json:"debt"`
+	Interest         convert.StringToFloat64 `json:"interest"`
+	NextDiscountTime convert.ExchangeTime    `json:"nextDiscountTime"`
+	NextInterestTime convert.ExchangeTime    `json:"nextInterestTime"`
+	LoanAlloc        convert.StringToFloat64 `json:"loanAlloc"`
+	Records          []struct {
+		AvailLoan         string                  `json:"availLoan"`
+		Ccy               string                  `json:"ccy"`
+		Interest          convert.StringToFloat64 `json:"interest"`
+		LoanQuota         convert.StringToFloat64 `json:"loanQuota"`
+		PosLoan           string                  `json:"posLoan"`
+		Rate              convert.StringToFloat64 `json:"rate"`
+		SurplusLmt        string                  `json:"surplusLmt"`
+		SurplusLmtDetails struct {
+			AllAcctRemainingQuota convert.StringToFloat64 `json:"allAcctRemainingQuota"`
+			CurAcctRemainingQuota convert.StringToFloat64 `json:"curAcctRemainingQuota"`
+			PlatRemainingQuota    convert.StringToFloat64 `json:"platRemainingQuota"`
+		} `json:"surplusLmtDetails"`
+		UsedLmt  convert.StringToFloat64 `json:"usedLmt"`
+		UsedLoan convert.StringToFloat64 `json:"usedLoan"`
+	} `json:"records"`
 }
 
 // GridAlgoOrder represents grid algo order.
@@ -2575,6 +2742,17 @@ type UnitConvertResponse struct {
 	Size         float64 `json:"sz,string"`
 	ConvertType  uint64  `json:"type"`
 	Unit         string  `json:"unit"`
+}
+
+// OptionTickBand holds option band information
+type OptionTickBand struct {
+	InstrumentType   string `json:"instType"`
+	InstrumentFamily string `json:"instFamily"`
+	TickBand         []struct {
+		MinPrice string `json:"minPx"`
+		MaxPrice string `json:"maxPx"`
+		TickSize string `json:"tickSz"`
+	} `json:"tickBand"`
 }
 
 // Websocket Models
@@ -3880,6 +4058,31 @@ type ActiveFundingOrder struct {
 		Earnings    float64 `json:"earnings,string"`
 	} `json:"earningData"`
 	PurchasedTime convert.ExchangeTime `json:"purchasedTime"`
+}
+
+// BETHAssetsBalance balance is a snapshot summarized all BETH assets
+type BETHAssetsBalance struct {
+	Amount                convert.StringToFloat64 `json:"amt"`
+	Currency              string                  `json:"ccy"`
+	LatestInterestAccrual convert.StringToFloat64 `json:"latestInterestAccrual"`
+	TotalInterestAccrual  convert.StringToFloat64 `json:"totalInterestAccrual"`
+	Timestamp             convert.ExchangeTime    `json:"ts"`
+}
+
+// PurchaseRedeemHistory holds purchase and redeem history
+type PurchaseRedeemHistory struct {
+	Amt              convert.StringToFloat64 `json:"amt"`
+	CompletedTime    convert.ExchangeTime    `json:"completedTime"`
+	EstCompletedTime string                  `json:"estCompletedTime"`
+	RequestTime      convert.ExchangeTime    `json:"requestTime"`
+	Status           string                  `json:"status"`
+	Type             string                  `json:"type"`
+}
+
+// APYItem holds annual percentage yield record
+type APYItem struct {
+	Rate      convert.StringToFloat64 `json:"rate"`
+	Timestamp convert.ExchangeTime    `json:"ts"`
 }
 
 // FundingOrder represents orders of earning, purchase, and redeem

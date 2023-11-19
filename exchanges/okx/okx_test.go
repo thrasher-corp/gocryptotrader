@@ -1056,6 +1056,15 @@ func TestGetBalance(t *testing.T) {
 	}
 }
 
+func TestGetNonTradableAssets(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
+	_, err := ok.GetNonTradableAssets(context.Background(), "BTC")
+	if err != nil {
+		t.Error(err)
+	}
+}
+
 func TestGetAccountAssetValuation(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
@@ -1599,6 +1608,14 @@ func TestGetSubaccountFundingBalance(t *testing.T) {
 		t.Error("Okx GetSubaccountFundingBalance() error", err)
 	}
 }
+func TestGetSubAccountMaximumWithdrawal(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
+	_, err := ok.GetSubAccountMaximumWithdrawal(context.Background(), "test1", "BTC")
+	if err != nil {
+		t.Error("Okx GetSubaccountFundingBalance() error", err)
+	}
+}
 
 func TestHistoryOfSubaccountTransfer(t *testing.T) {
 	t.Parallel()
@@ -1606,6 +1623,15 @@ func TestHistoryOfSubaccountTransfer(t *testing.T) {
 
 	if _, err := ok.HistoryOfSubaccountTransfer(contextGenerate(), "", "0", "", time.Time{}, time.Time{}, 1); err != nil {
 		t.Error("Okx HistoryOfSubaccountTransfer() error", err)
+	}
+}
+
+func TestGetHistoryOfManagedSubAccountTransfer(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
+	_, err := ok.GetHistoryOfManagedSubAccountTransfer(context.Background(), "BTC", "", "", "", time.Time{}, time.Time{}, 10)
+	if err != nil {
+		t.Error(err)
 	}
 }
 
@@ -1639,6 +1665,79 @@ func TestGetCustodyTradingSubaccountList(t *testing.T) {
 
 	if _, err := ok.GetCustodyTradingSubaccountList(contextGenerate(), ""); err != nil {
 		t.Error("Okx GetCustodyTradingSubaccountList() error", err)
+	}
+}
+
+func TestSetSubAccountVIPLoanAllocation(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
+	_, err := ok.SetSubAccountVIPLoanAllocation(context.Background(), &SubAccountLoanAllocationParam{
+		Enable: true,
+		Alloc: []subAccountVIPLoanAllocationInfo{
+			{
+				SubAcct:   "subAcct1",
+				LoanAlloc: 20.01,
+			},
+		},
+	})
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetSubAccountBorrowInterestAndLimit(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
+	_, err := ok.GetSubAccountBorrowInterestAndLimit(context.Background(), "123456", "ETH")
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+// ETH Staking
+
+func TestPurcahseETHStaking(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
+	err := ok.PurcahseETHStaking(context.Background(), 100)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+// RedeemETHStaking
+func TestRedeemETHStaking(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
+	err := ok.RedeemETHStaking(context.Background(), 100)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetBETHAssetsBalance(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
+	_, err := ok.GetBETHAssetsBalance(context.Background())
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetPurchaseAndRedeemHistory(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
+	_, err := ok.GetPurchaseAndRedeemHistory(context.Background(), "purchase", "pending", time.Time{}, time.Now(), 10)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetAPYHistory(t *testing.T) {
+	t.Parallel()
+	_, err := ok.GetAPYHistory(context.Background(), 34)
+	if err != nil {
+		t.Error(err)
 	}
 }
 
@@ -4271,6 +4370,63 @@ func TestGetSpreadTickers(t *testing.T) {
 func TestGetPublicSpreadTrades(t *testing.T) {
 	t.Parallel()
 	_, err := ok.GetPublicSpreadTrades(context.Background(), "")
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetOptionsTickBands(t *testing.T) {
+	t.Parallel()
+	_, err := ok.GetOptionsTickBands(context.Background(), "OPTION", "")
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestExtractIndexCandlestick(t *testing.T) {
+	t.Parallel()
+	data := IndexCandlestickSlices([][6]string{{"1597026383085", "3.721", "3.743", "3.677", "3.708", "1"}, {"1597026383085", "3.731", "3.799", "3.494", "3.72", "1"}})
+	candlesticks, err := data.ExtractIndexCandlestick()
+	if err != nil {
+		t.Error(err)
+	} else if len(candlesticks) != 2 {
+		t.Errorf("expected candles with length 2, got %d", len(candlesticks))
+	}
+}
+
+func TestGetHistoricIndexAndMarkPriceCandlesticks(t *testing.T) {
+	t.Parallel()
+	_, err := ok.GetHistoricIndexCandlesticksHistory(context.Background(), "BTC-USD", time.Time{}, time.Time{}, kline.FiveMin, 10)
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = ok.GetMarkPriceCandlestickHistory(context.Background(), "BTC-USD-SWAP", time.Time{}, time.Time{}, kline.FiveMin, 10)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetEconomicCanendarData(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
+	_, err := ok.GetEconomicCalendarData(context.Background(), "", "", time.Now(), time.Time{}, 0)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetDepositWithdrawalStatus(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
+	_, err := ok.GetDepositWithdrawalStatus(context.Background(), "", "", "", "", "")
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetPublicExchangeList(t *testing.T) {
+	t.Parallel()
+	_, err := ok.GetPublicExchangeList(context.Background())
 	if err != nil {
 		t.Error(err)
 	}

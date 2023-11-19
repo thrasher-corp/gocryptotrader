@@ -299,6 +299,7 @@ var (
 	errMissingQuoteIDOrClientQuoteID           = errors.New("missing quote id or client quote id")
 	errMissingEitherQuoteIDAOrClientQuoteIDs   = errors.New("missing either quote ids or client quote ids")
 	errMissingRequiredParameterSubaccountName  = errors.New("missing required parameter subaccount name")
+	errInvalidLoanAllocationValue              = errors.New("invalid loan allocation value, must be between 0 to 100")
 	errInvalidTransferAmount                   = errors.New("unacceptable transfer amount")
 	errInvalidSubaccount                       = errors.New("invalid account type")
 	errMissingDestinationSubaccountName        = errors.New("missing destination subaccount name")
@@ -1505,6 +1506,16 @@ func (ok *Okx) GetBalance(ctx context.Context, currency string) ([]AssetBalance,
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getBalanceEPL, http.MethodGet, common.EncodeURLValues(assetBalance, params), nil, &resp, true)
 }
 
+// GetNonTradableAssets retrieves non tradable assets.
+func (ok *Okx) GetNonTradableAssets(ctx context.Context, currency string) ([]NonTradableAsset, error) {
+	params := url.Values{}
+	if currency != "" {
+		params.Set("ccy", currency)
+	}
+	var resp []NonTradableAsset
+	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getNonTradableAssetsEPL, http.MethodGet, common.EncodeURLValues("asset/balances", params), nil, &resp, true)
+}
+
 // GetAccountAssetValuation view account asset valuation
 func (ok *Okx) GetAccountAssetValuation(ctx context.Context, currency string) ([]AccountAssetValuation, error) {
 	params := url.Values{}
@@ -1736,6 +1747,37 @@ func (ok *Okx) GetWithdrawalHistory(ctx context.Context, currency, withdrawalID,
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getWithdrawalHistoryEPL, http.MethodGet, common.EncodeURLValues(withdrawalHistory, params), nil, &resp, true)
 }
 
+// GetDepositWithdrawalStatus retrieve deposit's and withdrawal's detailed status and estimated complete time.
+func (ok *Okx) GetDepositWithdrawalStatus(ctx context.Context, withdrawalID, transactionID, ccy, addressTo, chain string) ([]DepositWithdrawStatus, error) {
+	if withdrawalID == "" && transactionID == "" {
+		return nil, errors.New("either withdrawal id or transaction id is required")
+	}
+	params := url.Values{}
+	if withdrawalID != "" {
+		params.Set("wdId", withdrawalID)
+	}
+	if transactionID != "" {
+		params.Set("txId", transactionID)
+	}
+	if withdrawalID == "" && ccy == "" {
+		return nil, currency.ErrCurrencyCodeEmpty
+	} else if ccy != "" {
+		params.Set("ccy", ccy)
+	}
+	if withdrawalID == "" && addressTo == "" {
+		return nil, errors.New("destination address is required")
+	} else if ccy != "" {
+		params.Set("to", addressTo)
+	}
+	if withdrawalID == "" && chain == "" {
+		return nil, errors.New("chain is required")
+	} else if ccy != "" {
+		params.Set("chain", chain)
+	}
+	var resp []DepositWithdrawStatus
+	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getDepositWithdrawalStatusEPL, http.MethodGet, common.EncodeURLValues("asset/deposit-withdraw-status", params), nil, &resp, true)
+}
+
 // SmallAssetsConvert Convert small assets in funding account to OKB. Only one convert is allowed within 24 hours.
 func (ok *Okx) SmallAssetsConvert(ctx context.Context, currency []string) (*SmallAssetConvertResponse, error) {
 	input := map[string][]string{"ccy": currency}
@@ -1748,6 +1790,12 @@ func (ok *Okx) SmallAssetsConvert(ctx context.Context, currency []string) (*Smal
 		return &resp[0], nil
 	}
 	return nil, errNoValidResponseFromServer
+}
+
+// GetPublicExchangeList retrieves exchanges
+func (ok *Okx) GetPublicExchangeList(ctx context.Context) ([]ExchangeInfo, error) {
+	var resp []ExchangeInfo
+	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getPublicExchangeListEPL, http.MethodGet, "asset/exchange-list", nil, &resp, false)
 }
 
 // GetSavingBalance returns saving balance, and only assets in the funding account can be used for saving.
@@ -2877,17 +2925,31 @@ func (ok *Okx) GetSubaccountTradingBalance(ctx context.Context, subaccountName s
 }
 
 // GetSubaccountFundingBalance query detailed balance info of Funding Account of a sub-account via the master account (applies to master accounts only)
-func (ok *Okx) GetSubaccountFundingBalance(ctx context.Context, subaccountName, currency string) ([]FundingBalance, error) {
-	params := url.Values{}
+func (ok *Okx) GetSubaccountFundingBalance(ctx context.Context, subaccountName, ccy string) ([]FundingBalance, error) {
 	if subaccountName == "" {
 		return nil, errMissingRequiredParameterSubaccountName
 	}
+	params := url.Values{}
 	params.Set("subAcct", subaccountName)
-	if currency != "" {
-		params.Set("ccy", currency)
+	if ccy != "" {
+		params.Set("ccy", ccy)
 	}
 	var resp []FundingBalance
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getSubaccountFundingBalanceEPL, http.MethodGet, common.EncodeURLValues(assetSubaccountBalances, params), nil, &resp, true)
+}
+
+// GetSubAccountMaximumWithdrawal retrieve the maximum withdrawal information of a sub-account via the master account (applies to master accounts only). If no currency is specified, the transferable amount of all owned currencies will be returned.
+func (ok *Okx) GetSubAccountMaximumWithdrawal(ctx context.Context, subAccountName, ccy string) ([]SubAccountMaximumWithdrawal, error) {
+	if subAccountName == "" {
+		return nil, errMissingRequiredParameterSubaccountName
+	}
+	params := url.Values{}
+	params.Set("subAcct", subAccountName)
+	if ccy != "" {
+		params.Set("ccy", ccy)
+	}
+	var resp []SubAccountMaximumWithdrawal
+	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getSubAccountMaxWithdrawalEPL, http.MethodGet, "account/subaccount/max-withdrawal", nil, &resp, true)
 }
 
 // HistoryOfSubaccountTransfer retrieves subaccount transfer histories; applies to master accounts only.
@@ -2914,6 +2976,35 @@ func (ok *Okx) HistoryOfSubaccountTransfer(ctx context.Context, currency, subacc
 	}
 	var resp []SubaccountBillItem
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, historyOfSubaccountTransferEPL, http.MethodGet, common.EncodeURLValues(assetSubaccountBills, params), nil, &resp, true)
+}
+
+// GetHistoryOfManagedSubAccountTransfer retrieves managed sub-account transfers.
+// nly applicable to the trading team's master account to getting transfer records of managed sub accounts entrusted to oneself.
+func (ok *Okx) GetHistoryOfManagedSubAccountTransfer(ctx context.Context, ccy, transferType, subAccountName, subAccountUID string, after, before time.Time, limit int64) ([]SubAccountTransfer, error) {
+	params := url.Values{}
+	if ccy != "" {
+		params.Set("ccy", ccy)
+	}
+	if transferType != "" {
+		params.Set("type", transferType)
+	}
+	if subAccountName != "" {
+		params.Set("subAcct", subAccountName)
+	}
+	if subAccountUID != "" {
+		params.Set("subUid", subAccountUID)
+	}
+	if !after.IsZero() {
+		params.Set("after", strconv.FormatInt(after.UnixMilli(), 10))
+	}
+	if !before.IsZero() {
+		params.Set("before", strconv.FormatInt(before.UnixMilli(), 10))
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	var resp []SubAccountTransfer
+	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, managedSubAccountTransferEPL, http.MethodGet, common.EncodeURLValues("asset/subaccount/managed-subaccount-bills", params), nil, &resp, true)
 }
 
 // MasterAccountsManageTransfersBetweenSubaccounts master accounts manage the transfers between sub-accounts applies to master accounts only
@@ -2958,6 +3049,47 @@ func (ok *Okx) GetCustodyTradingSubaccountList(ctx context.Context, subaccountNa
 	}
 	var resp []SubaccountName
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getCustodyTradingSubaccountListEPL, http.MethodGet, common.EncodeURLValues(usersEntrustSubaccountList, params), nil, &resp, true)
+}
+
+// SetSubAccountVIPLoanAllocation set the VIP loan allocation of sub-accounts. Only Applicable to master account API keys with Trade access.
+func (ok *Okx) SetSubAccountVIPLoanAllocation(ctx context.Context, arg *SubAccountLoanAllocationParam) (bool, error) {
+	if arg == nil || len(arg.Alloc) == 0 {
+		return false, errNilArgument
+	}
+	for a := range arg.Alloc {
+		if arg.Alloc[a].SubAcct == "" {
+			return false, errMissingRequiredParameterSubaccountName
+		}
+		if arg.Alloc[a].LoanAlloc < 0 || arg.Alloc[a].LoanAlloc > 100 {
+			return false, errInvalidLoanAllocationValue
+		}
+	}
+	resp := []struct {
+		Result bool `json:"result"`
+	}{}
+	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, setSubAccountVIPLoanAllocationEPL, http.MethodPost, "account/subaccount/set-loan-allocation", arg, &resp, true)
+	if err != nil {
+		return false, err
+	}
+	if len(resp) == 1 {
+		return resp[0].Result, nil
+	}
+	return false, errNoValidResponseFromServer
+}
+
+// GetSubAccountBorrowInterestAndLimit retrieves sub-account borrow interest and limit
+// Only applicable to master account API keys. Only return VIP loan information
+func (ok *Okx) GetSubAccountBorrowInterestAndLimit(ctx context.Context, subAccount, ccy string) ([]SubAccounBorrowInterestAndLimit, error) {
+	if subAccount == "" {
+		return nil, errMissingRequiredParameterSubaccountName
+	}
+	params := url.Values{}
+	params.Set("subAcct", subAccount)
+	if ccy != "" {
+		params.Set("ccy", ccy)
+	}
+	var resp []SubAccounBorrowInterestAndLimit
+	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getSubAccountBorrowInterestAndLimitEPL, http.MethodGet, common.EncodeURLValues("account/subaccount/interest-limits", params), nil, &resp, true)
 }
 
 /*************************************** Grid Trading Endpoints ***************************************************/
@@ -3961,6 +4093,74 @@ func (ok *Okx) GetFundingOrderHistory(ctx context.Context, productID, protocolTy
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getFundingOrderHistoryEPL, http.MethodGet, common.EncodeURLValues(financeOrdersHistory, params), nil, &resp, true)
 }
 
+// **************************************************************** ETH Staking ****************************************************************
+
+// PurcahseETHStaking staking ETH for BETH
+// Only the assets in the funding account can be used.
+func (ok *Okx) PurcahseETHStaking(ctx context.Context, amount float64) error {
+	if amount <= 0 {
+		return order.ErrAmountBelowMin
+	}
+	var resp []string
+	return ok.SendHTTPRequest(ctx, exchange.RestSpot, purchaseETHStakingEPL, http.MethodPost, "finance/staking-defi/eth/purchase", map[string]string{"amt": strconv.FormatFloat(amount, 'f', -1, 64)}, &resp, true)
+}
+
+// RedeemETHStaking only the assets in the funding account can be used. If your BETH is in your trading account, you can make funding transfer first.
+func (ok *Okx) RedeemETHStaking(ctx context.Context, amount float64) error {
+	if amount <= 0 {
+		return order.ErrAmountBelowMin
+	}
+	var resp []string
+	return ok.SendHTTPRequest(ctx, exchange.RestSpot, redeemETHStakingEPL, http.MethodPost, "finance/staking-defi/eth/redeem", map[string]string{"amt": strconv.FormatFloat(amount, 'f', -1, 64)}, &resp, true)
+}
+
+// GetBETHAssetsBalance balance is a snapshot summarized all BETH assets in trading and funding accounts. Also, the snapshot updates hourly.
+func (ok *Okx) GetBETHAssetsBalance(ctx context.Context) (*BETHAssetsBalance, error) {
+	var resp []BETHAssetsBalance
+	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, getBETHBalanceEPL, http.MethodGet, "finance/staking-defi/eth/balance", nil, &resp, true)
+	if err != nil {
+		return nil, err
+	}
+	if len(resp) == 1 {
+		return &resp[0], nil
+	}
+	return nil, errNoValidResponseFromServer
+}
+
+// GetPurchaseAndRedeemHistory retrieves purchase and redeem history
+// kind possible values are 'purchase' and 'redeem'
+// Status 'pending' 'success' 'failed'
+func (ok *Okx) GetPurchaseAndRedeemHistory(ctx context.Context, kind, status string, after, before time.Time, limit int64) ([]PurchaseRedeemHistory, error) {
+	if kind == "" {
+		return nil, errors.New("kind is required: possible values are 'purchase' and 'redeem'")
+	}
+	params := url.Values{}
+	params.Set("type", kind)
+	if status != "" {
+		params.Set("status", status)
+	}
+	if !after.IsZero() {
+		params.Set("after", strconv.FormatInt(after.UnixMilli(), 10))
+	}
+	if !before.IsZero() {
+		params.Set("before", strconv.FormatInt(before.UnixMilli(), 10))
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	var resp []PurchaseRedeemHistory
+	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getPurchaseRedeemHistoryEPL, http.MethodGet, common.EncodeURLValues("finance/staking-defi/eth/purchase-redeem-history", params), nil, &resp, true)
+}
+
+// GetAPYHistory retrieves Annual percentage yield(APY) history
+func (ok *Okx) GetAPYHistory(ctx context.Context, days int64) ([]APYItem, error) {
+	if days == 0 || days > 365 {
+		return nil, errors.New("field days is required; possible values from 1 to 365")
+	}
+	var resp []APYItem
+	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getAPYHistoryEPL, http.MethodGet, fmt.Sprintf("finance/staking-defi/eth/apy-history?days=%d", days), nil, &resp, false)
+}
+
 // GetTickers retrieves the latest price snapshots best bid/ ask price, and trading volume in the last 24 hours.
 func (ok *Okx) GetTickers(ctx context.Context, instType, uly, instID string) ([]TickerResponse, error) {
 	params := url.Values{}
@@ -4156,6 +4356,65 @@ func (ok *Okx) GetIndexCandlesticks(ctx context.Context, instrumentID string, in
 // GetMarkPriceCandlesticks Retrieve the candlestick charts of mark price. This endpoint can retrieve the latest 1,440 data entries. Charts are returned in groups based on the requested bar.
 func (ok *Okx) GetMarkPriceCandlesticks(ctx context.Context, instrumentID string, interval kline.Interval, before, after time.Time, limit int64) ([]CandleStick, error) {
 	return ok.GetCandlestickData(ctx, instrumentID, interval, before, after, limit, marketPriceCandles, getCandlestickHistoryEPL)
+}
+
+// GetHistoricIndexCandlesticksHistory retrieve the candlestick charts of the index from recent years.
+func (ok *Okx) GetHistoricIndexCandlesticksHistory(ctx context.Context, instrumentID string, after, before time.Time, bar kline.Interval, limit int64) ([]CandlestickHistoryItem, error) {
+	return ok.getHistoricCandlesticks(ctx, instrumentID, "market/history-index-candles", after, before, bar, limit, getIndexCandlesticksHistoryEPL)
+}
+
+// GetMarkPriceCandlestickHistory retrieve the candlestick charts of the mark price from recent years.
+func (ok *Okx) GetMarkPriceCandlestickHistory(ctx context.Context, instrumentID string, after, before time.Time, bar kline.Interval, limit int64) ([]CandlestickHistoryItem, error) {
+	return ok.getHistoricCandlesticks(ctx, instrumentID, "market/history-mark-price-candles", after, before, bar, limit, getMarkPriceCandlesticksHistoryEPL)
+}
+
+func (ok *Okx) getHistoricCandlesticks(ctx context.Context, instrumentID, path string, after, before time.Time, bar kline.Interval, limit int64, epl request.EndpointLimit) ([]CandlestickHistoryItem, error) {
+	if instrumentID == "" {
+		return nil, errMissingInstrumentID
+	}
+	params := url.Values{}
+	params.Set("instId", instrumentID)
+	if !after.IsZero() {
+		params.Set("after", strconv.FormatInt(after.UnixMilli(), 10))
+	}
+	if !before.IsZero() {
+		params.Set("before", strconv.FormatInt(before.UnixMilli(), 10))
+	}
+	barString := ok.GetIntervalEnum(bar, false)
+	if barString != "" {
+		params.Set("bar", barString)
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	var resp IndexCandlestickSlices
+	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, epl, http.MethodGet, common.EncodeURLValues(path, params), nil, &resp, false)
+	if err != nil {
+		return nil, err
+	}
+	return resp.ExtractIndexCandlestick()
+}
+
+// GetEconomicCalendarData retrieves the macro-economic calendar data within 3 months. Historical data from 3 months ago is only available to users with trading fee tier VIP1 and above.
+func (ok *Okx) GetEconomicCalendarData(ctx context.Context, region, importance string, before, after time.Time, limit int64) ([]EconomicCalendar, error) {
+	params := url.Values{}
+	if region != "" {
+		params.Set("region", region)
+	}
+	if importance != "" {
+		params.Set("importance", importance)
+	}
+	if !before.IsZero() {
+		params.Set("before", strconv.FormatInt(before.UnixMilli(), 10))
+	}
+	if !after.IsZero() {
+		params.Set("after", strconv.FormatInt(after.UnixMilli(), 10))
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	var resp []EconomicCalendar
+	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getEconomicCalendarEPL, http.MethodGet, "public/economic-calendar", nil, &resp, true)
 }
 
 // GetCandlestickData handles fetching the data for both the default GetCandlesticks, GetCandlesticksHistory, and GetIndexCandlesticks() methods.
@@ -5007,6 +5266,21 @@ func (ok *Okx) CurrencyUnitConvert(ctx context.Context, instrumentID string, qua
 		return &resp[0], nil
 	}
 	return nil, errNoValidResponseFromServer
+}
+
+// GetOptionsTickBands retrieves option tick bands information.
+// Instrument type OPTION
+func (ok *Okx) GetOptionsTickBands(ctx context.Context, instrumentType, instrumentFamily string) ([]OptionTickBand, error) {
+	if instrumentType == "" {
+		return nil, errInstrumentTypeRequired
+	}
+	params := url.Values{}
+	params.Set("instType", instrumentType)
+	if instrumentFamily != "" {
+		params.Set("instFamily", instrumentFamily)
+	}
+	var resp []OptionTickBand
+	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, optionTickBandsEPL, http.MethodGet, common.EncodeURLValues("public/instrument-tick-bands", params), nil, &resp, false)
 }
 
 // Trading Data Endpoints
