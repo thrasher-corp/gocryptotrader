@@ -250,7 +250,7 @@
         "client_order_id": "123456789"
         },
       "queryString": "",
-      "bodyParams": "amount=10&key=FUId9Nby1VbZrGgZHfzGbswd4CDcp6Ar&nonce=1700279668250533000&price=1&signature=1A2DA09AF1C89492591BC21A25899558A3C41EB91A61BBE99926F570C8DE47E5",
+      "bodyParams": "amount=45&key=FUId9Nby1VbZrGgZHfzGbswd4CDcp6Ar&nonce=1700378043980665000&price=2211&signature=2D0A359D16FCA1FD6185E9B8C007F294154AF296659AF2FF965695B6452B0C40",
       "headers": {
        "Content-Type": [
         "application/x-www-form-urlencoded"
