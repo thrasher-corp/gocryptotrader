@@ -879,19 +879,19 @@ func TestGetWithdrawalsHistory(t *testing.T) {
 	assert.NoError(t, err, "GetWithdrawalsHistory should not error")
 }
 
-// Failing json: cannot unmarshal object into Go value of type []bitstamp.WithdrawalRequests
 func TestGetOrderInfo(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	o, err := b.GetOrderInfo(context.Background(), "1458532827766784", currency.NewPair(currency.BTC, currency.USD), asset.Spot)
 	if mockTests {
 		assert.NoError(t, err, "GetOrderInfo should not error")
-		assert.Equal(t, "2022-01-31 14:43:15", o.Date, "order date should match")
-		assert.Equal(t, 1458532827766784, o.OrderID, "order ID should match")
-		assert.Equal(t, "100.00", o.Amount, "amount should match")
-		assert.Equal(t, "100.00", o.Price, "amount should match")
+		assert.Equal(t, time.Time(time.Date(2022, time.January, 31, 14, 43, 15, 0, time.UTC)), o.Date, "order date should match")
+		assert.Equal(t, "1458532827766784", o.OrderID, "order ID should match")
+		assert.Equal(t, 200.00, o.Amount, "amount should match")
+		assert.Equal(t, 50.00, o.Price, "amount should match")
+	} else {
+		assert.ErrorContains(t, err, "authenticated request failed Order not found")
 	}
-	assert.ErrorContains(t, err, "authenticated request failed Order not found")
 }
 
 func TestFetchWSAuth(t *testing.T) {
