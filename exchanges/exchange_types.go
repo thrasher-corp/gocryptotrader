@@ -177,6 +177,7 @@ type FeaturesSupported struct {
 
 // FuturesCapabilities stores the exchange's futures capabilities
 type FuturesCapabilities struct {
+	FundingRate                     SupportedCapability
 	FundingRates                    bool
 	MaximumFundingRateHistory       time.Duration
 	FundingRateBatching             map[asset.Item]bool
@@ -186,13 +187,18 @@ type FuturesCapabilities struct {
 	Collateral                      bool
 	CollateralMode                  bool
 	Leverage                        bool
-	OpenInterest                    OpenInterest
+	OpenInterest                    SupportedCapability
 }
 
-type OpenInterest struct {
-	Supported                   bool
+// SupportedCapability helps breakdown a feature and how it is supported
+type SupportedCapability struct {
 	SupportedViaRestTicker      bool
+	SupportsRestBatch           bool
 	SupportedViaWebsocketTicker bool
+	// Optional
+	SupportByAsset map[asset.Item]bool
+	MaxLimit       int64
+	MaxHistory     time.Duration
 }
 
 // MarginCapabilities stores the exchange's margin capabilities

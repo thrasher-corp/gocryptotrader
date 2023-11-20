@@ -11,7 +11,9 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
+	"github.com/stretchr/testify/assert"
 	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -1314,4 +1316,26 @@ func TestIsPerpetualFutureCurrency(t *testing.T) {
 	if !isPerp {
 		t.Error("expected true")
 	}
+}
+
+func TestGetOpenInterest(t *testing.T) {
+	t.Parallel()
+	_, err := b.GetOpenInterest(context.Background(), key.PairAsset{
+		Base:  currency.XBT.Item,
+		Quote: currency.USD.Item,
+		Asset: asset.PerpetualContract,
+	})
+	assert.NoError(t, err)
+
+	_, err = b.GetOpenInterest(context.Background(), key.PairAsset{
+		Asset: asset.Futures,
+	})
+	assert.NoError(t, err)
+
+	_, err = b.GetOpenInterest(context.Background(), key.PairAsset{
+		Base:  currency.BTC.Item,
+		Quote: currency.USDT.Item,
+		Asset: asset.Spot,
+	})
+	assert.ErrorIs(t, err, asset.ErrNotSupported)
 }

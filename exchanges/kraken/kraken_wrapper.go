@@ -168,8 +168,11 @@ func (k *Kraken) SetDefaults() {
 				FundingRateBatching: map[asset.Item]bool{
 					asset.Futures: true,
 				},
-				OpenInterest:              true,
-				OpenInterestViaRestTicker: true,
+				OpenInterest: exchange.SupportedCapability{
+					SupportsRestBatch:           true,
+					SupportedViaRestTicker:      true,
+					SupportedViaWebsocketTicker: true,
+				},
 			},
 		},
 		Enabled: exchange.FeaturesEnabled{

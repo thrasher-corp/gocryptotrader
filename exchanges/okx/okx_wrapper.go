@@ -132,9 +132,10 @@ func (ok *Okx) SetDefaults() {
 			},
 			WithdrawPermissions: exchange.AutoWithdrawCrypto,
 			FuturesCapabilities: exchange.FuturesCapabilities{
-				Positions:                 true,
-				Leverage:                  true,
-				CollateralMode:            true,
+				Positions:      true,
+				Leverage:       true,
+				CollateralMode: true,
+
 				FundingRates:              true,
 				MaximumFundingRateHistory: kline.ThreeMonth.Duration(),
 				SupportedFundingRateFrequencies: map[kline.Interval]bool{

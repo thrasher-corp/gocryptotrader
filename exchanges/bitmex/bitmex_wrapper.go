@@ -146,8 +146,10 @@ func (b *Bitmex) SetDefaults() {
 				FundingRateBatching: map[asset.Item]bool{
 					asset.PerpetualContract: true,
 				},
-				OpenInterest:              true,
-				OpenInterestViaRestTicker: true,
+				OpenInterest: exchange.SupportedCapability{
+					SupportsRestBatch:      true,
+					SupportedViaRestTicker: true,
+				},
 			},
 			WithdrawPermissions: exchange.AutoWithdrawCryptoWithAPIPermission |
 				exchange.WithdrawCryptoWithEmail |
@@ -1377,7 +1379,7 @@ func (b *Bitmex) GetOpenInterest(ctx context.Context, k key.PairAsset) ([]future
 	if err != nil {
 		return nil, err
 	}
-	tick, err := b.GetActiveInstruments(ctx, &GenericRequestParams{Symbol: symbol})
+	tick, err := b.GetInstrument(ctx, &GenericRequestParams{Symbol: symbol})
 	if err != nil {
 		return nil, err
 	}

@@ -263,6 +263,15 @@ func (b *Bitmex) GetFullFundingHistory(ctx context.Context, symbol, count, filte
 		&fundingHistory)
 }
 
+// GetInstrument returns instrument data
+func (b *Bitmex) GetInstrument(ctx context.Context, params *GenericRequestParams) ([]Instrument, error) {
+	var instruments []Instrument
+
+	return instruments, b.SendHTTPRequest(ctx, exchange.RestSpot, bitmexEndpointInstruments,
+		params,
+		&instruments)
+}
+
 // GetInstruments returns instrument data
 func (b *Bitmex) GetInstruments(ctx context.Context, params *GenericRequestParams) ([]Instrument, error) {
 	var instruments []Instrument

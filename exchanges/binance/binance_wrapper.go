@@ -183,6 +183,9 @@ func (b *Binance) SetDefaults() {
 				FundingRateBatching: map[asset.Item]bool{
 					asset.USDTMarginedFutures: true,
 				},
+				OpenInterest: exchange.SupportedCapability{
+					SupportedViaRestTicker: true,
+				},
 			},
 		},
 		Enabled: exchange.FeaturesEnabled{

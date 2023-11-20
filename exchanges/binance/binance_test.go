@@ -12,6 +12,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -796,9 +797,9 @@ func TestGetFuturesOrderbookTicker(t *testing.T) {
 	}
 }
 
-func TestGetOpenInterest(t *testing.T) {
+func TestOpenInterest(t *testing.T) {
 	t.Parallel()
-	_, err := b.GetOpenInterest(context.Background(), currency.NewPairWithDelimiter("BTCUSD", "PERP", "_"))
+	_, err := b.OpenInterest(context.Background(), currency.NewPairWithDelimiter("BTCUSD", "PERP", "_"))
 	if err != nil {
 		t.Error(err)
 	}
@@ -3438,4 +3439,28 @@ func TestUGetFundingRateInfo(t *testing.T) {
 	t.Parallel()
 	_, err := b.UGetFundingRateInfo(context.Background())
 	assert.NoError(t, err)
+}
+
+func TestGetOpenInterest(t *testing.T) {
+	t.Parallel()
+	_, err := b.GetOpenInterest(context.Background(), key.PairAsset{
+		Base:  currency.BTC.Item,
+		Quote: currency.USDT.Item,
+		Asset: asset.USDTMarginedFutures,
+	})
+	assert.NoError(t, err)
+
+	_, err = b.GetOpenInterest(context.Background(), key.PairAsset{
+		Base:  currency.NewCode("BTCUSD").Item,
+		Quote: currency.PERP.Item,
+		Asset: asset.CoinMarginedFutures,
+	})
+	assert.NoError(t, err)
+
+	_, err = b.GetOpenInterest(context.Background(), key.PairAsset{
+		Base:  currency.BTC.Item,
+		Quote: currency.USDT.Item,
+		Asset: asset.Spot,
+	})
+	assert.ErrorIs(t, err, asset.ErrNotSupported)
 }
