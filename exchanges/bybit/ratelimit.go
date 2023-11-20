@@ -109,8 +109,7 @@ const (
 	getAccountFeeEPL
 	getAssetTransferQueryInfoEPL
 	getAssetTransferQueryTransferCoinListEPL
-	getAssetTransferCOinListEPL
-	getAssetinterTransferListEPL
+	getAssetTransferCoinListEPL
 	getSubMemberListEPL
 	getAssetUniversalTransferListEPL
 	getAssetAccountCoinBalanceEPL
@@ -262,10 +261,8 @@ func (r *RateLimit) Limit(ctx context.Context, f request.EndpointLimit) error {
 		limiter, tokens = r.GetAssetTransferQueryInfoRate, 1
 	case getAssetTransferQueryTransferCoinListEPL:
 		limiter, tokens = r.GetAssetTransferQueryTransferCoinListRate, 1
-	case getAssetTransferCOinListEPL:
+	case getAssetTransferCoinListEPL:
 		limiter, tokens = r.GetAssetTransferCOinListRate, 1
-	case getAssetinterTransferListEPL:
-		limiter, tokens = r.GetAssetinterTransferListRate, 1
 	case getSubMemberListEPL:
 		limiter, tokens = r.GetSubMemberListRate, 1
 	case getAssetUniversalTransferListEPL:

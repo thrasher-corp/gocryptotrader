@@ -452,8 +452,9 @@ func (by *Bybit) UpdateTickers(ctx context.Context, assetType asset.Item) error 
 			}
 		}
 	case asset.Options:
-		for x := range enabled {
-			ticks, err = by.GetTickers(ctx, getCategoryName(assetType), format.Format(enabled[x]), "", time.Time{})
+		baseCoins := []string{"BTC", "ETH"}
+		for x := range baseCoins {
+			ticks, err = by.GetTickers(ctx, getCategoryName(assetType), "", baseCoins[x], time.Time{})
 			if err != nil {
 				return err
 			}
@@ -1879,20 +1880,6 @@ func getContractLength(contractLength time.Duration) (futures.ContractType, erro
 	return ct, nil
 }
 
-// ExtractCurrencyPair extracts the currency pair equivalent of provided pair string.
-func (by *Bybit) ExtractCurrencyPair(symbol string, assetType asset.Item, request bool) (currency.Pair, error) {
-	format, err := by.GetPairFormat(assetType, request)
-	if err != nil {
-		return currency.EMPTYPAIR, err
-	}
-	var pair currency.Pair
-	pair, err = by.MatchSymbolWithAvailablePairs(symbol, assetType, true)
-	if err != nil {
-		return currency.EMPTYPAIR, err
-	}
-	return pair.Format(format), nil
-}
-
 // GetLatestFundingRates returns the latest funding rates data
 func (by *Bybit) GetLatestFundingRates(ctx context.Context, r *fundingrate.LatestRateRequest) ([]fundingrate.LatestRateResponse, error) {
 	if r == nil {
@@ -1930,8 +1917,7 @@ func (by *Bybit) GetLatestFundingRates(ctx context.Context, r *fundingrate.Lates
 			cp, isEnabled, err = by.MatchSymbolCheckEnabled(fRates.List[i].Symbol, r.Asset, true)
 			if err != nil && !errors.Is(err, currency.ErrPairNotFound) {
 				return nil, err
-			}
-			if !isEnabled {
+			} else if !isEnabled || !cp.Equal(r.Pair) {
 				continue
 			}
 
@@ -1942,7 +1928,7 @@ func (by *Bybit) GetLatestFundingRates(ctx context.Context, r *fundingrate.Lates
 				Pair:        cp,
 				LatestRate: fundingrate.Rate{
 					Time: fRates.List[i].FundingRateTimestamp.Time(),
-					Rate: decimal.NewFromFloat((fRates.List[i].FundingRate.Float64())),
+					Rate: decimal.NewFromFloat(fRates.List[i].FundingRate.Float64()),
 				},
 			}
 			resp = append(resp, rate)
@@ -1951,9 +1937,6 @@ func (by *Bybit) GetLatestFundingRates(ctx context.Context, r *fundingrate.Lates
 			return nil, fmt.Errorf("%w %v %v", futures.ErrNotPerpetualFuture, r.Asset, r.Pair)
 		}
 		return resp, nil
-	case asset.Spot,
-		asset.Options:
-		return nil, fmt.Errorf("%w only 'linear' and 'inverse' categories are supported", errInvalidCategory)
 	}
 	return nil, fmt.Errorf("%s %w", r.Asset, asset.ErrNotSupported)
 }

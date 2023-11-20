@@ -55,7 +55,7 @@ var (
 	errInvalidTriggerPriceType                 = errors.New("invalid trigger price type")
 	errNilArgument                             = errors.New("nil argument")
 	errMissingUserID                           = errors.New("sub user id missing")
-	errMissingusername                         = errors.New("username is missing")
+	errMissingUsername                         = errors.New("username is missing")
 	errInvalidMemberType                       = errors.New("invalid member type")
 	errMissingTransferID                       = errors.New("transfer ID is required")
 	errMemberIDRequired                        = errors.New("member ID is required")
@@ -551,7 +551,12 @@ func (by *Bybit) PlaceOrder(ctx context.Context, arg *PlaceOrderParams) (*OrderR
 		return nil, errInvalidTriggerPriceType
 	}
 	var resp OrderResponse
-	return &resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, "/v5/order/create", nil, arg, &resp, createOrderEPL)
+
+	epl := createOrderEPL
+	if arg.Category == "spot" {
+		epl = createSpotOrderEPL
+	}
+	return &resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, "/v5/order/create", nil, arg, &resp, epl)
 }
 
 // AmendOrder amends an open unfilled or partially filled orders.
@@ -599,7 +604,12 @@ func (by *Bybit) CancelTradeOrder(ctx context.Context, arg *CancelOrderParams) (
 		return nil, fmt.Errorf("%w, orderFilter is valid for 'spot' only", errInvalidCategory)
 	}
 	var resp *OrderResponse
-	return resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, "/v5/order/cancel", nil, arg, &resp, cancelOrderEPL)
+
+	epl := cancelOrderEPL
+	if arg.Category == "spot" {
+		epl = cancelSpotEPL
+	}
+	return resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, "/v5/order/cancel", nil, arg, &resp, epl)
 }
 
 // GetOpenOrders retrieves unfilled or partially filled orders in real-time. To query older order records, please use the order history interface.
@@ -650,7 +660,11 @@ func (by *Bybit) CancelAllTradeOrders(ctx context.Context, arg *CancelAllOrdersP
 		return nil, fmt.Errorf("%w, only used for category=linear or inverse", errInvalidOrderFilter)
 	}
 	var resp CancelAllResponse
-	return resp.List, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, "/v5/order/cancel-all", nil, arg, &resp, calcelAllEPL)
+	epl := calcelAllEPL
+	if arg.Category == "spot" {
+		epl = cancelAllSpotEPL
+	}
+	return resp.List, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, "/v5/order/cancel-all", nil, arg, &resp, epl)
 }
 
 // GetTradeOrderHistory retrieves order history. As order creation/cancellation is asynchronous, the data returned from this endpoint may delay.
@@ -1568,13 +1582,13 @@ func (by *Bybit) CreateInternalTransfer(ctx context.Context, arg *TransferParams
 func (by *Bybit) GetInternalTransferRecords(ctx context.Context, transferID, coin, status, cursor string, startTime, endTime time.Time, limit int64) (*TransferResponse, error) {
 	params := fillTransferQueryParams(transferID, coin, status, cursor, startTime, endTime, limit)
 	var resp *TransferResponse
-	return resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/asset/transfer/query-inter-transfer-list", params, nil, &resp, getAssetTransferCOinListEPL)
+	return resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/asset/transfer/query-inter-transfer-list", params, nil, &resp, getAssetTransferCoinListEPL)
 }
 
 // GetSubUID retrieves the sub UIDs under a main UID
 func (by *Bybit) GetSubUID(ctx context.Context) (*SubUID, error) {
 	var resp *SubUID
-	return resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/asset/transfer/query-sub-member-list", nil, nil, &resp, getAssetinterTransferListEPL)
+	return resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/asset/transfer/query-sub-member-list", nil, nil, &resp, getSubMemberListEPL)
 }
 
 // EnableUniversalTransferForSubUID Transfer between sub-sub or main-sub
@@ -1871,7 +1885,7 @@ func (by *Bybit) CreateNewSubUserID(ctx context.Context, arg *CreateSubUserParam
 		return nil, errNilArgument
 	}
 	if arg.Username == "" {
-		return nil, errMissingusername
+		return nil, errMissingUsername
 	}
 	if arg.MemberType <= 0 {
 		return nil, errInvalidMemberType

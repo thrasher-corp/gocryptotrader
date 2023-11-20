@@ -165,7 +165,11 @@ func TestGetOrderBook(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = b.GetOrderBook(context.Background(), "option", optionsTradablePair.String(), 100)
+	optionsTradablePairString := optionsTradablePair.String()
+	if mockTests {
+		optionsTradablePairString = "BTC-28JUN24-70000-C"
+	}
+	_, err = b.GetOrderBook(context.Background(), "option", optionsTradablePairString, 0)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -228,7 +232,14 @@ func TestUpdateTicker(t *testing.T) {
 
 func TestUpdateOrderbook(t *testing.T) {
 	t.Parallel()
-	_, err := b.UpdateOrderbook(context.Background(), spotTradablePair, asset.Spot)
+	var err error
+	if mockTests {
+		optionsTradablePair, err = currency.NewPairFromString("BTC-28JUN24-70000-C")
+		if err != nil {
+			t.Error(err)
+		}
+	}
+	_, err = b.UpdateOrderbook(context.Background(), spotTradablePair, asset.Spot)
 	if err != nil {
 		t.Error(err)
 	}
@@ -245,7 +256,6 @@ func TestUpdateOrderbook(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-
 	_, err = b.UpdateOrderbook(context.Background(), optionsTradablePair, asset.Options)
 	if err != nil {
 		t.Error(err)
@@ -2320,8 +2330,8 @@ func TestCreateNewSubUserID(t *testing.T) {
 		t.Fatalf("expected %v, got %v", errNilArgument, err)
 	}
 	_, err = b.CreateNewSubUserID(context.Background(), &CreateSubUserParams{MemberType: 1, Switch: 1, Note: "test"})
-	if !errors.Is(err, errMissingusername) {
-		t.Fatalf("expected %v, got %v", errMissingusername, err)
+	if !errors.Is(err, errMissingUsername) {
+		t.Fatalf("expected %v, got %v", errMissingUsername, err)
 	}
 	_, err = b.CreateNewSubUserID(context.Background(), &CreateSubUserParams{Username: "Sami", Switch: 1, Note: "test"})
 	if !errors.Is(err, errInvalidMemberType) {
@@ -3416,4 +3426,18 @@ func TestConstructOrderDetails(t *testing.T) {
 	} else if len(orders) != 1 {
 		t.Errorf("expected order with length 1, got %d", len(orders))
 	}
+}
+
+// ExtractCurrencyPair extracts the currency pair equivalent of provided pair string.
+func (by *Bybit) ExtractCurrencyPair(symbol string, assetType asset.Item, request bool) (currency.Pair, error) {
+	format, err := by.GetPairFormat(assetType, request)
+	if err != nil {
+		return currency.EMPTYPAIR, err
+	}
+	var pair currency.Pair
+	pair, err = by.MatchSymbolWithAvailablePairs(symbol, assetType, true)
+	if err != nil {
+		return currency.EMPTYPAIR, err
+	}
+	return pair.Format(format), nil
 }
