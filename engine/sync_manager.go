@@ -704,6 +704,8 @@ func printConvertCurrencyFormat(origPrice float64, origCurrency, displayCurrency
 		} else {
 			conv = fmt.Sprintf("%.2f", convFloat)
 		}
+	} else {
+		conv = "0.00"
 	}
 
 	displaySymbol, err := currency.GetSymbolByCurrencyName(displayCurrency)
