@@ -998,3 +998,8 @@ func (bi *Binanceus) GetFuturesContractDetails(context.Context, asset.Item) ([]f
 func (bi *Binanceus) GetLatestFundingRates(context.Context, *fundingrate.LatestRateRequest) ([]fundingrate.LatestRateResponse, error) {
 	return nil, common.ErrFunctionNotSupported
 }
+
+// UpdateOrderExecutionLimits updates order execution limits
+func (bi *Binanceus) UpdateOrderExecutionLimits(_ context.Context, _ asset.Item) error {
+	return common.ErrNotYetImplemented
+}

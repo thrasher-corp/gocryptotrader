@@ -488,3 +488,8 @@ func (a *Alphapoint) GetFuturesContractDetails(context.Context, asset.Item) ([]f
 func (a *Alphapoint) GetLatestFundingRates(context.Context, *fundingrate.LatestRateRequest) ([]fundingrate.LatestRateResponse, error) {
 	return nil, common.ErrFunctionNotSupported
 }
+
+// UpdateOrderExecutionLimits updates order execution limits
+func (a *Alphapoint) UpdateOrderExecutionLimits(_ context.Context, _ asset.Item) error {
+	return common.ErrNotYetImplemented
+}

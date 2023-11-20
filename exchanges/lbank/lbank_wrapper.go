@@ -1031,3 +1031,8 @@ func (l *Lbank) GetFuturesContractDetails(context.Context, asset.Item) ([]future
 func (l *Lbank) GetLatestFundingRates(context.Context, *fundingrate.LatestRateRequest) ([]fundingrate.LatestRateResponse, error) {
 	return nil, common.ErrFunctionNotSupported
 }
+
+// UpdateOrderExecutionLimits updates order execution limits
+func (l *Lbank) UpdateOrderExecutionLimits(_ context.Context, _ asset.Item) error {
+	return common.ErrNotYetImplemented
+}
