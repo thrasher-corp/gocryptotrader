@@ -3516,20 +3516,18 @@ func TestGetHistoricalFundingRates(t *testing.T) {
 		t.Fatalf("received: %v, expected: %v", err, common.ErrStartAfterEnd)
 	}
 
-	history, err := g.GetHistoricalFundingRates(context.Background(), &fundingrate.HistoricalRatesRequest{
+	_, err = g.GetHistoricalFundingRates(context.Background(), &fundingrate.HistoricalRatesRequest{
 		Asset:           asset.Futures,
 		Pair:            currency.NewPair(currency.ENJ, currency.USDT),
 		PaymentCurrency: currency.USDT,
-		StartDate:       time.Now().Add(-time.Hour * 16),
+		StartDate:       time.Now().Add(-time.Hour * 8008),
 		EndDate:         time.Now(),
 	})
-	if !errors.Is(err, common.ErrStartAfterEnd) {
-		t.Fatalf("received: %v, expected: %v", err, common.ErrStartAfterEnd)
+	if !errors.Is(err, fundingrate.ErrFundingRateOutsideLimits) {
+		t.Fatalf("received: %v, expected: %v", err, fundingrate.ErrFundingRateOutsideLimits)
 	}
 
-	assert.NotEmpty(t, history, "should return values")
-
-	history, err = g.GetHistoricalFundingRates(context.Background(), &fundingrate.HistoricalRatesRequest{
+	history, err := g.GetHistoricalFundingRates(context.Background(), &fundingrate.HistoricalRatesRequest{
 		Asset:           asset.Futures,
 		Pair:            currency.NewPair(currency.ENJ, currency.USDT),
 		PaymentCurrency: currency.USDT,
