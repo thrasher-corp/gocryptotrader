@@ -119,7 +119,11 @@ func TestGetMarkPriceKline(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = b.GetMarkPriceKline(context.Background(), "option", optionsTradablePair.String(), kline.FiveMin, s, e, 5)
+	optionTradablePairString := optionsTradablePair.String()
+	if mockTests {
+		optionTradablePairString = "BTC-29DEC23-80000-C"
+	}
+	_, err = b.GetMarkPriceKline(context.Background(), "option", optionTradablePairString, kline.FiveMin, s, e, 5)
 	if err == nil {
 		t.Fatalf("expected 'params error: Category is invalid', but found nil")
 	}
@@ -3380,15 +3384,15 @@ func TestGetLatestFundingRates(t *testing.T) {
 		Asset: asset.Spot,
 		Pair:  spotTradablePair,
 	})
-	if !errors.Is(err, errInvalidCategory) {
-		t.Errorf("expected %v, got %v", errInvalidCategory, err)
+	if !errors.Is(err, asset.ErrNotSupported) {
+		t.Errorf("expected %v, got %v", asset.ErrNotSupported, err)
 	}
 	_, err = b.GetLatestFundingRates(context.Background(), &fundingrate.LatestRateRequest{
 		Asset: asset.Options,
 		Pair:  optionsTradablePair,
 	})
-	if !errors.Is(err, errInvalidCategory) {
-		t.Errorf("expected %v, got %v", errInvalidCategory, err)
+	if !errors.Is(err, asset.ErrNotSupported) {
+		t.Errorf("expected %v, got %v", asset.ErrNotSupported, err)
 	}
 	_, err = b.GetLatestFundingRates(context.Background(), &fundingrate.LatestRateRequest{
 		Asset: asset.USDTMarginedFutures,
