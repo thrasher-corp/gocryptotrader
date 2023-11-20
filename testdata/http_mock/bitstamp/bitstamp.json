@@ -67910,11 +67910,10 @@
     {
      "data": {
       "code": "API0000",
-      "reason": "Missing key, signature and nonce parameters",
-      "status": "error"
+      "status": "ok"
      },
      "queryString": "",
-     "bodyParams": "amount=0.01\u0026currency=btc\u0026key=\u0026nonce=1563774326032825427\u0026signature=0EEA71F2E4811F720A9C5D294D33A75404D2C0902C120D976A50B68946F699C9\u0026subAccount=testAccount",
+     "bodyParams": "amount=10000&currency=BTC&key=FUId9Nby1VbZrGgZHfzGbswd4CDcp6Ar&nonce=1700382096969064000&signature=0EAAF413A980752F4018A6DD083B4AA9470AF839AD5862D8E803CAE8C6813C43&subAccount=1234567",
      "headers": {
       "Content-Type": [
        "application/x-www-form-urlencoded"

@@ -391,15 +391,18 @@ func TestGetUnconfirmedBitcoinDeposits(t *testing.T) {
 
 }
 
-// Failing no documentation on what data to be used
 func TestTransferAccountBalance(t *testing.T) {
 	t.Parallel()
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	}
 	err := b.TransferAccountBalance(context.Background(),
-		0.01, "btc", "testAccount", true)
-	assert.NoError(t, err, "TransferAccountBalance should not error")
+		10000, "BTC", "1234567", true)
+	if !mockTests {
+		assert.ErrorContains(t, err, "Sub account with identifier \"1234567\" does not exist.")
+	} else {
+		assert.NoError(t, err, "TransferAccountBalance should not error")
+	}
 }
 
 func TestFormatWithdrawPermissions(t *testing.T) {
