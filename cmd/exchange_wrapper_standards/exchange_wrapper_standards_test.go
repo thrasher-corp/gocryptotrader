@@ -593,7 +593,6 @@ var unsupportedExchangeNames = []string{
 	"testexch",
 	"alphapoint",
 	"bitflyer", // Bitflyer has many "ErrNotYetImplemented, which is true, but not what we care to test for here
-	"bittrex",  // the api is about to expire in March, and we haven't updated it yet
 	"itbit",    // itbit has no way of retrieving pair data
 	"btse",     // 	TODO rm once timeout issues resolved
 	"poloniex", // 	outdated API // TODO rm once updated
