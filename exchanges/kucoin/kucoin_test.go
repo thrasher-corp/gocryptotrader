@@ -2506,7 +2506,6 @@ func TestProcessMarketSnapshot(t *testing.T) {
 
 func TestSubscribeMarketSnapshot(t *testing.T) {
 	t.Parallel()
-	setupWS()
 	s := []stream.ChannelSubscription{
 		{Channel: marketTickerSnapshotForCurrencyChannel,
 			Currency: currency.Pair{Base: currency.BTC}},
