@@ -1647,13 +1647,14 @@ func (ku *Kucoin) GetBasicFee(ctx context.Context, currencyType string) (*Fees, 
 }
 
 // GetTradingFee get fee rate of trading pairs
-func (ku *Kucoin) GetTradingFee(ctx context.Context, symbols string) ([]Fees, error) {
-	params := url.Values{}
-	if symbols != "" {
-		params.Set("symbols", symbols)
+// WARNING: There is a limit of 10 currency pairs allowed to be requested per call.
+func (ku *Kucoin) GetTradingFee(ctx context.Context, pairs currency.Pairs) ([]Fees, error) {
+	if len(pairs) == 0 {
+		return nil, currency.ErrCurrencyPairsEmpty
 	}
+	path := kucoinTradingFee + "?symbols=" + pairs.Upper().Join()
 	var resp []Fees
-	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, defaultSpotEPL, http.MethodGet, common.EncodeURLValues(kucoinTradingFee, params), nil, &resp)
+	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, defaultSpotEPL, http.MethodGet, path, nil, &resp)
 }
 
 // SendHTTPRequest sends an unauthenticated HTTP request

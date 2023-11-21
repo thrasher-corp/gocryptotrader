@@ -1096,11 +1096,45 @@ func TestGetBasicFee(t *testing.T) {
 
 func TestGetTradingFee(t *testing.T) {
 	t.Parallel()
+
+	_, err := ku.GetTradingFee(context.Background(), nil)
+	if !errors.Is(err, currency.ErrCurrencyPairsEmpty) {
+		t.Fatalf("received %v, expected %v", err, currency.ErrCurrencyPairsEmpty)
+	}
+
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ku)
 
-	_, err := ku.GetTradingFee(context.Background(), "BTC-USDT")
+	avail, err := ku.GetAvailablePairs(asset.Spot)
 	if err != nil {
-		t.Error("GetTradingFee() error", err)
+		t.Fatal(err)
+	}
+
+	pairs := currency.Pairs{avail[0]}
+	btcusdTradingFee, err := ku.GetTradingFee(context.Background(), pairs)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received %v, expected %v", err, nil)
+	}
+
+	if len(btcusdTradingFee) != 1 {
+		t.Error("GetTradingFee() error, expected 1 pair")
+	}
+
+	// NOTE: Test below will error out from an external call as this will exceed
+	// the allowed pairs. If this does not error then this endpoint will allow
+	// more items to be requested.
+	pairs = append(pairs, avail[1:11]...)
+	_, err = ku.GetTradingFee(context.Background(), pairs)
+	if errors.Is(err, nil) {
+		t.Fatalf("received %v, expected %v", err, "code: 200000 message: symbols size invalid.")
+	}
+
+	got, err := ku.GetTradingFee(context.Background(), pairs[:10])
+	if !errors.Is(err, nil) {
+		t.Fatalf("received %v, expected %v", err, nil)
+	}
+
+	if len(got) != 10 {
+		t.Error("GetTradingFee() error, expected 10 pairs")
 	}
 }
 
