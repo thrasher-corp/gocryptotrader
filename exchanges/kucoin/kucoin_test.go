@@ -73,6 +73,7 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		log.Fatal(err)
 	}
+
 	request.MaxRequestJobs = 100
 	ku.Websocket.DataHandler = sharedtestvalues.GetWebsocketInterfaceChannelOverride()
 	ku.Websocket.TrafficAlert = sharedtestvalues.GetWebsocketStructChannelOverride()
@@ -2480,7 +2481,7 @@ func TestProcessMarketSnapshot(t *testing.T) {
 					assert.Equal(t, 0.00000039450000000000, v.High, "high")
 					assert.Equal(t, 0.0000003897, v.Last, "lastTradedPrice")
 					assert.Equal(t, 0.00000034200000000000, v.Low, "low")
-					assert.Equal(t, currency.NewPairWithDelimiter("MTV", "BTC", "-"), v.Pair, "symbol")
+					assert.Equal(t, currency.NewPairWithDelimiter("ETH", "BTC", "-"), v.Pair, "symbol")
 					assert.Equal(t, 316078.69700000000000000000, v.Volume, "volume")
 					assert.Equal(t, 0.11768519138877000000, v.QuoteVolume, "volValue")
 				// both margin and spot
