@@ -2485,7 +2485,7 @@ func TestProcessMarketSnapshot(t *testing.T) {
 					assert.Equal(t, 316078.69700000000000000000, v.Volume, "volume")
 					assert.Equal(t, 0.11768519138877000000, v.QuoteVolume, "volValue")
 				// both margin and spot
-				case 3:
+				case 3, 4:
 					assert.Equal(t, time.UnixMilli(1698740324437), v.LastUpdated, "datetime")
 					assert.Equal(t, 0.00008486000000000000, v.High, "high")
 					assert.Equal(t, 0.00008318, v.Last, "lastTradedPrice")
