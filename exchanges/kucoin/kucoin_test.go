@@ -24,7 +24,9 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/buffer"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
@@ -2415,6 +2417,68 @@ func TestProcessOrderbook(t *testing.T) {
 	}
 }
 
+func TestProcessMarketSnapshot(t *testing.T) {
+	t.Parallel()
+	n := new(Kucoin)
+	sharedtestvalues.TestFixtureToDataHandler(t, ku, n, "testdata/wsMarketSnapshot.json", n.wsHandleData)
+	seen := 0
+	for reading := true; reading; {
+		select {
+		default:
+			reading = false
+		case resp := <-n.GetBase().Websocket.DataHandler:
+			seen++
+			switch v := resp.(type) {
+			case *ticker.Price:
+				switch seen {
+				// spot only
+				case 1:
+					assert.Equal(t, time.UnixMilli(1698740324415), v.LastUpdated, "datetime")
+					assert.Equal(t, 0.00001402100000000000, v.High, "high")
+					assert.Equal(t, 0.000012508, v.Last, "lastTradedPrice")
+					assert.Equal(t, 0.00001129200000000000, v.Low, "low")
+					assert.Equal(t, currency.NewPairWithDelimiter("XMR", "BTC", "-"), v.Pair, "symbol")
+					assert.Equal(t, 28474.47280000000000000000, v.Volume, "volume")
+					assert.Equal(t, 0.37038038297340000000, v.QuoteVolume, "volValue")
+				// margin only
+				case 2:
+					assert.Equal(t, time.UnixMilli(1698740324483), v.LastUpdated, "datetime")
+					assert.Equal(t, 0.00000039450000000000, v.High, "high")
+					assert.Equal(t, 0.0000003897, v.Last, "lastTradedPrice")
+					assert.Equal(t, 0.00000034200000000000, v.Low, "low")
+					assert.Equal(t, currency.NewPairWithDelimiter("MTV", "BTC", "-"), v.Pair, "symbol")
+					assert.Equal(t, 316078.69700000000000000000, v.Volume, "volume")
+					assert.Equal(t, 0.11768519138877000000, v.QuoteVolume, "volValue")
+				// both margin and spot
+				case 3:
+					assert.Equal(t, time.UnixMilli(1698740324437), v.LastUpdated, "datetime")
+					assert.Equal(t, 0.00008486000000000000, v.High, "high")
+					assert.Equal(t, 0.00008318, v.Last, "lastTradedPrice")
+					assert.Equal(t, 0.00007152000000000000, v.Low, "low")
+					assert.Equal(t, currency.NewPairWithDelimiter("BTC", "USDT", "-"), v.Pair, "symbol")
+					assert.Equal(t, 17062.45450000000000000000, v.Volume, "volume")
+					assert.Equal(t, 1.33076678861000000000, v.QuoteVolume, "volValue")
+				}
+			case error:
+				t.Error(v)
+			default:
+				t.Errorf("Got unexpected data: %T %v", v, v)
+			}
+		}
+	}
+	assert.Equal(t, 4, seen, "Number of messages")
+}
+
+func TestSubscribeMarketSnapshot(t *testing.T) {
+	t.Parallel()
+	setupWS()
+	s := []stream.ChannelSubscription{
+		{Channel: marketTickerSnapshotForCurrencyChannel,
+			Currency: currency.Pair{Base: currency.BTC}},
+	}
+	err := ku.Subscribe(s)
+	assert.NoError(t, err, "Subscribe to MarketSnapshot should not error")
+}
 func TestSeedLocalCache(t *testing.T) {
 	t.Parallel()
 	pair, err := currency.NewPairFromString("ETH-USDT")
