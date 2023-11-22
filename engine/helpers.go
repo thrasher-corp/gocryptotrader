@@ -34,7 +34,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/bithumb"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/bitmex"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/bitstamp"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/bittrex"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/btcmarkets"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/btse"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/bybit"
@@ -1010,8 +1009,6 @@ func NewSupportedExchangeByName(name string) (exchange.IBotExchange, error) {
 		return new(bitmex.Bitmex), nil
 	case "bitstamp":
 		return new(bitstamp.Bitstamp), nil
-	case "bittrex":
-		return new(bittrex.Bittrex), nil
 	case "btc markets":
 		return new(btcmarkets.BTCMarkets), nil
 	case "btse":
