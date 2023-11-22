@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net"
 	"net/url"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -13,6 +14,7 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
+	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -26,6 +28,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/banking"
@@ -1331,6 +1334,56 @@ func (e *Endpoints) GetURLMap() map[string]string {
 	}
 	e.mu.RUnlock()
 	return urlMap
+}
+
+// GetCachedOpenInterest returns open interest data if the exchange
+// supports open interest in ticker data
+func (b *Base) GetCachedOpenInterest(_ context.Context, k key.PairAsset) ([]futures.OpenInterest, error) {
+	if !b.Features.Supports.FuturesCapabilities.OpenInterest.Supported ||
+		(!b.Features.Supports.FuturesCapabilities.OpenInterest.SupportedViaRestTicker &&
+			!b.Features.Supports.FuturesCapabilities.OpenInterest.SupportedViaWebsocketTicker) {
+		return nil, common.ErrFunctionNotSupported
+	}
+	if k.Pair().IsEmpty() {
+		ticks, err := ticker.GetExchangeTickers(b.Name)
+		if err != nil {
+			return nil, err
+		}
+		resp := make([]futures.OpenInterest, 0, len(ticks))
+		for i := range ticks {
+			if ticks[i].OpenInterest <= 0 {
+				continue
+			}
+			resp = append(resp, futures.OpenInterest{
+				K: key.ExchangePairAsset{
+					Exchange: b.Name,
+					Base:     ticks[i].Pair.Base.Item,
+					Quote:    ticks[i].Pair.Quote.Item,
+					Asset:    ticks[i].AssetType,
+				},
+				OpenInterest: ticks[i].OpenInterest,
+			})
+		}
+		sort.Slice(resp, func(i, j int) bool {
+			return resp[i].K.Base.Symbol < resp[j].K.Base.Symbol
+		})
+		return resp, nil
+	}
+	t, err := ticker.GetTicker(b.Name, k.Pair(), k.Asset)
+	if err != nil {
+		return nil, err
+	}
+	return []futures.OpenInterest{
+		{
+			K: key.ExchangePairAsset{
+				Exchange: b.Name,
+				Base:     k.Base,
+				Quote:    k.Quote,
+				Asset:    k.Asset,
+			},
+			OpenInterest: t.OpenInterest,
+		},
+	}, nil
 }
 
 // FormatSymbol formats the given pair to a string suitable for exchange API requests

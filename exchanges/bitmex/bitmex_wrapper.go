@@ -146,7 +146,8 @@ func (b *Bitmex) SetDefaults() {
 				FundingRateBatching: map[asset.Item]bool{
 					asset.PerpetualContract: true,
 				},
-				OpenInterest: exchange.SupportedCapability{
+				OpenInterest: exchange.OpenInterest{
+					Supported:              true,
 					SupportsRestBatch:      true,
 					SupportedViaRestTicker: true,
 				},

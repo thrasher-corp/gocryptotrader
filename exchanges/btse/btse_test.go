@@ -10,7 +10,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -32,7 +34,7 @@ const (
 )
 
 var b = &BTSE{}
-var testFUTURESPair = currency.NewPair(currency.ENJ, currency.PFC)
+var testFUTURESPair = currency.NewPair(currency.BTC, currency.PFC)
 
 func TestMain(m *testing.M) {
 	b.SetDefaults()
@@ -1025,4 +1027,26 @@ func TestIsPerpetualFutureCurrency(t *testing.T) {
 	if isPerp {
 		t.Error("expected false")
 	}
+}
+
+func TestGetOpenInterest(t *testing.T) {
+	t.Parallel()
+	_, err := b.GetOpenInterest(context.Background(), key.PairAsset{
+		Base:  testFUTURESPair.Base.Item,
+		Quote: testFUTURESPair.Quote.Item,
+		Asset: asset.Futures,
+	})
+	assert.NoError(t, err)
+
+	_, err = b.GetOpenInterest(context.Background(), key.PairAsset{
+		Asset: asset.Futures,
+	})
+	assert.NoError(t, err)
+
+	_, err = b.GetOpenInterest(context.Background(), key.PairAsset{
+		Base:  currency.BTC.Item,
+		Quote: currency.USDT.Item,
+		Asset: asset.Spot,
+	})
+	assert.ErrorIs(t, err, asset.ErrNotSupported)
 }

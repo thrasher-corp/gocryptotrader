@@ -92,6 +92,24 @@ func GetTicker(exchange string, p currency.Pair, a asset.Item) (*Price, error) {
 	return &cpy, nil
 }
 
+func GetExchangeTickers(exchange string) ([]*Price, error) {
+	if exchange == "" {
+		return nil, errExchangeNameIsEmpty
+	}
+	exchange = strings.ToLower(exchange)
+	service.mu.Lock()
+	defer service.mu.Unlock()
+	var tickers []*Price
+	for k, v := range service.Tickers {
+		if k.Exchange != exchange {
+			continue
+		}
+		cpy := v.Price // Don't let external functions have access to underlying
+		tickers = append(tickers, &cpy)
+	}
+	return tickers, nil
+}
+
 // FindLast searches for a currency pair and returns the first available
 func FindLast(p currency.Pair, a asset.Item) (float64, error) {
 	service.mu.Lock()
@@ -205,7 +223,7 @@ func (s *Service) setItemID(t *Ticker, p *Price, exch string) error {
 	return nil
 }
 
-// getAssociations links a singular book with it's dispatch associations
+// getAssociations links a singular book with its dispatch associations
 func (s *Service) getAssociations(exch string) ([]uuid.UUID, error) {
 	if exch == "" {
 		return nil, errExchangeNameIsEmpty

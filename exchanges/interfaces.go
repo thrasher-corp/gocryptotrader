@@ -159,6 +159,7 @@ type FunctionalityChecker interface {
 
 // FuturesManagement manages futures orders, pnl and collateral calculations
 type FuturesManagement interface {
+	GetCachedOpenInterest(context.Context, key.PairAsset) ([]futures.OpenInterest, error)
 	GetOpenInterest(context.Context, key.PairAsset) ([]futures.OpenInterest, error)
 	ScaleCollateral(ctx context.Context, calculator *futures.CollateralCalculator) (*collateral.ByCurrency, error)
 	GetPositionSummary(context.Context, *futures.PositionSummaryRequest) (*futures.PositionSummary, error)

@@ -13,6 +13,7 @@ import (
 
 	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -136,6 +137,11 @@ func (b *BTSE) SetDefaults() {
 				},
 				FundingRateBatching: map[asset.Item]bool{
 					asset.Futures: true,
+				},
+				OpenInterest: exchange.OpenInterest{
+					Supported:              true,
+					SupportedViaRestTicker: true,
+					SupportsRestBatch:      true,
 				},
 			},
 		},
@@ -268,7 +274,8 @@ func (b *BTSE) FetchTradablePairs(ctx context.Context, a asset.Item) (currency.P
 			// TODO: Add support for an OTC asset as this eliminates many valid
 			// tradable pairs which are active, OTC only and available on the
 			// front-end.
-			(m[x].LowestAsk == 0 && m[x].HighestBid == 0) {
+			(m[x].LowestAsk == 0 && m[x].HighestBid == 0) ||
+			m[x].Symbol[0:3] == "PIT" {
 			continue
 		}
 
@@ -332,6 +339,7 @@ func (b *BTSE) UpdateTickers(ctx context.Context, a asset.Item) error {
 			Last:         tickers[x].Last,
 			Volume:       tickers[x].Volume,
 			High:         tickers[x].High24Hr,
+			OpenInterest: tickers[x].OpenInterest,
 			ExchangeName: b.Name,
 			AssetType:    a})
 		if err != nil {
@@ -1295,4 +1303,68 @@ func (b *BTSE) IsPerpetualFutureCurrency(a asset.Item, p currency.Pair) (bool, e
 // UpdateOrderExecutionLimits updates order execution limits
 func (b *BTSE) UpdateOrderExecutionLimits(_ context.Context, _ asset.Item) error {
 	return common.ErrNotYetImplemented
+}
+
+// GetOpenInterest returns the open interest rate for a given asset pair
+func (b *BTSE) GetOpenInterest(ctx context.Context, pa key.PairAsset) ([]futures.OpenInterest, error) {
+	if pa.Asset != asset.Futures {
+		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, pa.Asset)
+	}
+	if pa.Pair().IsEmpty() {
+		tickers, err := b.GetMarketSummary(ctx, "", false)
+		if err != nil {
+			return nil, err
+		}
+		resp := make([]futures.OpenInterest, 0, len(tickers))
+		var cp currency.Pair
+		var isEnabled bool
+		for i := range tickers {
+			cp, isEnabled, err = b.MatchSymbolCheckEnabled(tickers[i].Symbol, pa.Asset, false)
+			if err != nil && !errors.Is(err, currency.ErrPairNotFound) {
+				return nil, err
+			}
+			if !isEnabled {
+				continue
+			}
+			resp = append(resp, futures.OpenInterest{
+				K: key.ExchangePairAsset{
+					Exchange: b.Name,
+					Base:     cp.Base.Item,
+					Quote:    cp.Quote.Item,
+					Asset:    pa.Asset,
+				},
+				OpenInterest: tickers[i].OpenInterest,
+			})
+		}
+		return resp, nil
+	}
+	p, isEnabled, err := b.MatchSymbolCheckEnabled(pa.Pair().String(), pa.Asset, false)
+	if err != nil {
+		return nil, err
+	}
+	if !isEnabled {
+		return nil, fmt.Errorf("%v %w", p, currency.ErrPairNotEnabled)
+	}
+	symbol, err := b.FormatSymbol(p, pa.Asset)
+	if err != nil {
+		return nil, err
+	}
+	pi, err := b.GetMarketSummary(ctx, symbol, false)
+	if err != nil {
+		return nil, err
+	}
+	if len(pi) != 1 {
+		return nil, fmt.Errorf("expected 1 result, got %v", len(pi))
+	}
+	return []futures.OpenInterest{
+		{
+			K: key.ExchangePairAsset{
+				Exchange: b.Name,
+				Base:     pa.Base,
+				Quote:    pa.Quote,
+				Asset:    pa.Asset,
+			},
+			OpenInterest: pi[0].OpenInterest,
+		},
+	}, nil
 }
