@@ -2,12 +2,15 @@ package bybit
 
 import (
 	"encoding/json"
+	"errors"
+	"fmt"
 	"time"
 
 	"github.com/gofrs/uuid"
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 )
 
 var validCategory = []string{"spot", "linear", "inverse", "option"}
@@ -222,9 +225,9 @@ type TradingHistory struct {
 type TradingHistoryItem struct {
 	ExecutionID  string                  `json:"execId"`
 	Symbol       string                  `json:"symbol"`
+	Side         string                  `json:"side"`
 	Price        convert.StringToFloat64 `json:"price"`
 	Size         convert.StringToFloat64 `json:"size"`
-	Side         string                  `json:"side"`
 	TradeTime    convert.ExchangeTime    `json:"time"`
 	IsBlockTrade bool                    `json:"isBlockTrade"`
 }
@@ -262,11 +265,11 @@ type RiskLimitHistory struct {
 	Category string `json:"category"`
 	List     []struct {
 		ID                int64                   `json:"id"`
+		IsLowestRisk      int64                   `json:"isLowestRisk"`
 		Symbol            string                  `json:"symbol"`
 		RiskLimitValue    convert.StringToFloat64 `json:"riskLimitValue"`
 		MaintenanceMargin convert.StringToFloat64 `json:"maintenanceMargin"`
 		InitialMargin     convert.StringToFloat64 `json:"initialMargin"`
-		IsLowestRisk      int64                   `json:"isLowestRisk"`
 		MaxLeverage       convert.StringToFloat64 `json:"maxLeverage"`
 	} `json:"list"`
 }
@@ -300,14 +303,14 @@ type PlaceOrderParams struct {
 	TriggerPriceType       string        `json:"triggerBy,omitempty"` // Conditional order param. Trigger price type. 'LastPrice', 'IndexPrice', 'MarkPrice'
 	OrderImpliedVolatility string        `json:"orderIv,omitempty"`
 	PositionIdx            int64         `json:"positionIdx,omitempty"` // Under hedge-mode, this param is required '0': one-way mode '1': hedge-mode Buy side '2': hedge-mode Sell side
-	ReduceOnly             bool          `json:"reduceOnly,omitempty"`
 	TakeProfitPrice        float64       `json:"takeProfit,omitempty,string"`
 	TakeProfitTriggerBy    string        `json:"tpTriggerBy,omitempty"` // The price type to trigger take profit. 'MarkPrice', 'IndexPrice', default: 'LastPrice'
 	StopLossTriggerBy      string        `json:"slTriggerBy,omitempty"` // The price type to trigger stop loss. MarkPrice, IndexPrice, default: LastPrice
 	StopLossPrice          float64       `json:"stopLoss,omitempty,string"`
-	CloseOnTrigger         bool          `json:"closeOnTrigger,omitempty"`
 	SMPExecutionType       string        `json:"smpType,omitempty"` // default: 'None', 'CancelMaker', 'CancelTaker', 'CancelBoth'
-	MarketMakerProtection  bool          `json:"mmp,omitempty"`     // option only. true means set the order as a market maker protection order.
+	ReduceOnly             bool          `json:"reduceOnly,omitempty"`
+	CloseOnTrigger         bool          `json:"closeOnTrigger,omitempty"`
+	MarketMakerProtection  bool          `json:"mmp,omitempty"` // option only. true means set the order as a market maker protection order.
 
 	// TP/SL mode
 	// "Full": entire position for TP/SL. Then, tpOrderType or slOrderType must be Market
@@ -345,6 +348,13 @@ type AmendOrderParams struct {
 
 	TakeProfitLimitPrice float64 `json:"tpLimitPrice,omitempty,string"`
 	StopLossLimitPrice   float64 `json:"slLimitPrice,omitempty,string"`
+
+	// TP/SL mode
+	// Full: entire position for TP/SL. Then, tpOrderType or slOrderType must be Market
+	// Partial: partial position tp/sl. Limit TP/SL order are supported. Note: When create limit tp/sl,
+	// 'tpslMode' is required and it must be Partial
+	// Valid for 'linear' & 'inverse'
+	TPSLMode string `json:"tpslMode,omitempty"`
 }
 
 // CancelOrderParams represents a cancel order parameters.
@@ -374,7 +384,7 @@ type TradeOrder struct {
 	OrderQuantity          convert.StringToFloat64 `json:"qty"`
 	Side                   string                  `json:"side"`
 	IsLeverage             string                  `json:"isLeverage"`
-	PositionIdx            int                     `json:"positionIdx"`
+	PositionIdx            int64                   `json:"positionIdx"`
 	OrderStatus            string                  `json:"orderStatus"`
 	CancelType             string                  `json:"cancelType"`
 	RejectReason           string                  `json:"rejectReason"`
@@ -393,13 +403,13 @@ type TradeOrder struct {
 	StopLossPrice          convert.StringToFloat64 `json:"stopLoss"`
 	TpTriggerBy            string                  `json:"tpTriggerBy"`
 	SlTriggerBy            string                  `json:"slTriggerBy"`
-	TriggerDirection       int                     `json:"triggerDirection"`
+	TriggerDirection       int64                   `json:"triggerDirection"`
 	TriggerBy              string                  `json:"triggerBy"`
 	LastPriceOnCreated     string                  `json:"lastPriceOnCreated"`
 	ReduceOnly             bool                    `json:"reduceOnly"`
 	CloseOnTrigger         bool                    `json:"closeOnTrigger"`
 	SmpType                string                  `json:"smpType"`
-	SmpGroup               int                     `json:"smpGroup"`
+	SmpGroup               int64                   `json:"smpGroup"`
 	SmpOrderID             string                  `json:"smpOrderId"`
 	TpslMode               string                  `json:"tpslMode"`
 	TpLimitPrice           convert.StringToFloat64 `json:"tpLimitPrice"`
@@ -407,6 +417,11 @@ type TradeOrder struct {
 	PlaceType              string                  `json:"placeType"`
 	CreatedTime            convert.ExchangeTime    `json:"createdTime"`
 	UpdatedTime            convert.ExchangeTime    `json:"updatedTime"`
+
+	// UTA Spot: add new response field 'ocoTriggerBy',
+	// and the value can be 'OcoTriggerByUnknown', 'OcoTriggerByTp', 'OcoTriggerBySl'
+	OCOTriggerType string `json:"ocoTriggerType"`
+	OCOTriggerBy   string `json:"ocoTriggerBy"`
 }
 
 // CancelAllResponse represents a cancel all trade orders response.
@@ -443,8 +458,8 @@ type BatchOrderItemParam struct {
 	Price            float64       `json:"price,string,omitempty"`
 	TriggerDirection int64         `json:"triggerDirection,omitempty"`
 	TriggerPrice     int64         `json:"triggerPrice,omitempty"`
-	TriggerBy        string        `json:"triggerBy,omitempty"` // Possible values:  LastPrice, IndexPrice, and MarkPrice
 	OrderIv          int64         `json:"orderIv,omitempty,string"`
+	TriggerBy        string        `json:"triggerBy,omitempty"` // Possible values:  LastPrice, IndexPrice, and MarkPrice
 	TimeInForce      string        `json:"timeInForce,omitempty"`
 
 	// PositionIndex Used to identify positions in different position modes. Under hedge-mode,
@@ -456,9 +471,9 @@ type BatchOrderItemParam struct {
 	StopLoss              string `json:"stopLoss,omitempty"`    // Stop loss price, valid for linear
 	TakeProfitTriggerBy   string `json:"tpTriggerBy,omitempty"` // MarkPrice, IndexPrice, default: LastPrice. Valid for linear
 	StopLossTriggerBy     string `json:"slTriggerBy,omitempty"` // MarkPrice, IndexPrice, default: LastPrice
+	SMPType               string `json:"smpType,omitempty"`
 	ReduceOnly            bool   `json:"reduceOnly,omitempty"`
 	CloseOnTrigger        bool   `json:"closeOnTrigger,omitempty"`
-	SMPType               string `json:"smpType,omitempty"`
 	MarketMakerProtection bool   `json:"mmp,omitempty"`
 	TPSLMode              string `json:"tpslMode,omitempty"`
 	TakeProfitLimitPrice  string `json:"tpLimitPrice,omitempty"`
@@ -501,6 +516,13 @@ type BatchAmendOrderParamItem struct {
 	OrderImpliedVolatility string        `json:"orderIv,omitempty"`
 	OrderQuantity          float64       `json:"qty,omitempty,string"` // Order quantity. For Spot Market Buy order, please note that qty should be quote currency amount
 	Price                  float64       `json:"price,string,omitempty"`
+
+	// TP/SL mode
+	// Full: entire position for TP/SL. Then, tpOrderType or slOrderType must be Market
+	// Partial: partial position tp/sl. Limit TP/SL order are supported. Note: When create limit tp/sl,
+	// 'tpslMode' is required and it must be Partial
+	// Valid for 'linear' & 'inverse'
+	TPSLMode string `json:"tpslMode,omitempty"`
 }
 
 // CancelBatchOrder represents a batch cancel request parameters.
@@ -523,11 +545,13 @@ type cancelBatchResponse struct {
 
 // BorrowQuota represents
 type BorrowQuota struct {
-	Symbol         string `json:"symbol"`
-	MaxTradeQty    string `json:"maxTradeQty"`
-	Side           string `json:"side"`
-	MaxTradeAmount string `json:"maxTradeAmount"`
-	BorrowCoin     string `json:"borrowCoin"`
+	Symbol               string                  `json:"symbol"`
+	MaxTradeQty          string                  `json:"maxTradeQty"`
+	Side                 string                  `json:"side"`
+	MaxTradeAmount       string                  `json:"maxTradeAmount"`
+	BorrowCoin           string                  `json:"borrowCoin"`
+	SpotMaxTradeQuantity convert.StringToFloat64 `json:"spotMaxTradeQty"`
+	SpotMaxTradeAmount   convert.StringToFloat64 `json:"spotMaxTradeAmount"`
 }
 
 // SetDCPParams represents the set disconnect cancel all parameters.
@@ -574,6 +598,10 @@ type PositionInfo struct {
 	CumRealisedPnl convert.StringToFloat64 `json:"cumRealisedPnl"`
 	CreatedTime    convert.ExchangeTime    `json:"createdTime"`
 	UpdatedTime    convert.ExchangeTime    `json:"updatedTime"`
+
+	IsReduceOnly           bool                 `json:"isReduceOnly"`
+	MMRSysUpdatedTime      convert.ExchangeTime `json:"mmrSysUpdatedTime"`
+	LeverageSysUpdatedTime convert.ExchangeTime `json:"leverageSysUpdatedTime"`
 
 	// Cross sequence, used to associate each fill and each position update
 	// Different symbols may have the same seq, please use seq + symbol to check unique
@@ -846,6 +874,7 @@ type WalletBalance struct {
 		TotalWalletBalance     convert.StringToFloat64 `json:"totalWalletBalance"`
 		AccountLTV             string                  `json:"accountLTV"` // Account LTV: account total borrowed size / (account total equity + account total borrowed size).
 		TotalMaintenanceMargin convert.StringToFloat64 `json:"totalMaintenanceMargin"`
+		SpotHedgingQuantity    convert.StringToFloat64 `json:"spotHedgingQty"`
 		Coin                   []struct {
 			AvailableToBorrow       convert.StringToFloat64 `json:"availableToBorrow"`
 			Bonus                   convert.StringToFloat64 `json:"bonus"`
@@ -935,6 +964,7 @@ type AccountInfo struct {
 	TimeWindow          int64                `json:"timeWindow"`
 	SmpGroup            int64                `json:"smpGroup"`
 	IsMasterTrader      bool                 `json:"isMasterTrader"`
+	SpotHedgingStatus   string               `json:"spotHedgingStatus"`
 	UpdatedTime         convert.ExchangeTime `json:"updatedTime"`
 }
 
@@ -1013,7 +1043,7 @@ type AccountInfos map[string]struct {
 // CoinBalances represents coin balances for a specific asset type.
 type CoinBalances struct {
 	AccountType string `json:"accountType"`
-	BizType     int    `json:"bizType"`
+	BizType     int64  `json:"bizType"`
 	AccountID   string `json:"accountId"`
 	MemberID    string `json:"memberId"`
 	Balance     []struct {
@@ -1028,7 +1058,7 @@ type CoinBalances struct {
 // CoinBalance represents coin balance for a specific asset type.
 type CoinBalance struct {
 	AccountType string `json:"accountType"`
-	BizType     int    `json:"bizType"`
+	BizType     int64  `json:"bizType"`
 	AccountID   string `json:"accountId"`
 	MemberID    string `json:"memberId"`
 	Balance     struct {
@@ -1089,7 +1119,7 @@ type AllowedDepositCoinInfo struct {
 		Chain              string `json:"chain"`
 		CoinShowName       string `json:"coinShowName"`
 		ChainType          string `json:"chainType"`
-		BlockConfirmNumber int    `json:"blockConfirmNumber"`
+		BlockConfirmNumber int64  `json:"blockConfirmNumber"`
 		MinDepositAmount   string `json:"minDepositAmount"`
 	} `json:"configList"`
 	NextPageCursor string `json:"nextPageCursor"`
@@ -1107,7 +1137,7 @@ type DepositRecords struct {
 		Chain         string `json:"chain"`
 		Amount        string `json:"amount"`
 		TxID          string `json:"txID"`
-		Status        int    `json:"status"`
+		Status        int64  `json:"status"`
 		ToAddress     string `json:"toAddress"`
 		Tag           string `json:"tag"`
 		DepositFee    string `json:"depositFee"`
@@ -1179,7 +1209,7 @@ type WithdrawalRecords struct {
 		CreateTime    convert.ExchangeTime    `json:"createTime"`
 		UpdateTime    convert.ExchangeTime    `json:"updateTime"`
 		WithdrawID    string                  `json:"withdrawId"`
-		WithdrawType  int                     `json:"withdrawType"`
+		WithdrawType  int64                   `json:"withdrawType"`
 	} `json:"rows"`
 	NextPageCursor string `json:"nextPageCursor"`
 }
@@ -1202,7 +1232,7 @@ type WithdrawalParam struct {
 	Tag         string        `json:"tag,omitempty"`
 	Amount      float64       `json:"amount,omitempty,string"`
 	Timestamp   int64         `json:"timestamp,omitempty"`
-	ForceChain  int64         `json:"forceChain,omitempty"`
+	ForceChain  int64         `json:"forceChain,omitempty"` // Whether or not to force an on-chain withdrawal '0'(default): If the address is parsed out to be an internal address, then internal transfer '1': Force the withdrawal to occur on-chain '2': Use UID to withdraw
 	AccountType string        `json:"accountType,omitempty"`
 }
 
@@ -1265,6 +1295,41 @@ type SubUIDAPIResponse struct {
 	AffiliateID           int64     `json:"affiliateID"`
 	RsaPublicKey          string    `json:"rsaPublicKey"`
 	IsMaster              bool      `json:"isMaster"`
+
+	// Personal account kyc level. LEVEL_DEFAULT, LEVEL_1， LEVEL_2
+	KycLevel  string `json:"kycLevel"`
+	KycRegion string `json:"kycRegion"`
+}
+
+// SubAccountAPIKeys holds list of sub-account API Keys
+type SubAccountAPIKeys struct {
+	Result []struct {
+		ID          string    `json:"id"`
+		Ips         []string  `json:"ips"`
+		APIKey      string    `json:"apiKey"`
+		Note        string    `json:"note"`
+		Status      int64     `json:"status"`
+		ExpiredAt   time.Time `json:"expiredAt"`
+		CreatedAt   time.Time `json:"createdAt"`
+		Type        int64     `json:"type"`
+		Permissions struct {
+			ContractTrade []string `json:"ContractTrade"`
+			Spot          []string `json:"Spot"`
+			Wallet        []string `json:"Wallet"`
+			Options       []string `json:"Options"`
+			Derivatives   []string `json:"Derivatives"`
+			CopyTrading   []string `json:"CopyTrading"`
+			BlockTrade    []string `json:"BlockTrade"`
+			Exchange      []string `json:"Exchange"`
+			Nft           []string `json:"NFT"`
+			Affiliate     []string `json:"Affiliate"`
+		} `json:"permissions"`
+		Secret      string `json:"secret"`
+		ReadOnly    bool   `json:"readOnly"`
+		DeadlineDay int64  `json:"deadlineDay"`
+		Flag        string `json:"flag"`
+	} `json:"result"`
+	NextPageCursor string `json:"nextPageCursor"`
 }
 
 // WalletType represents available wallet types for the master account or sub account
@@ -1384,13 +1449,13 @@ type SpotMarginMode struct {
 type VIPMarginData struct {
 	VipCoinList []struct {
 		List []struct {
-			Borrowable         bool   `json:"borrowable"`
-			CollateralRatio    string `json:"collateralRatio"`
-			Currency           string `json:"currency"`
-			HourlyBorrowRate   string `json:"hourlyBorrowRate"`
-			LiquidationOrder   string `json:"liquidationOrder"`
-			MarginCollateral   bool   `json:"marginCollateral"`
-			MaxBorrowingAmount string `json:"maxBorrowingAmount"`
+			Borrowable         bool                    `json:"borrowable"`
+			CollateralRatio    convert.StringToFloat64 `json:"collateralRatio"`
+			Currency           string                  `json:"currency"`
+			HourlyBorrowRate   convert.StringToFloat64 `json:"hourlyBorrowRate"`
+			LiquidationOrder   string                  `json:"liquidationOrder"`
+			MarginCollateral   bool                    `json:"marginCollateral"`
+			MaxBorrowingAmount convert.StringToFloat64 `json:"maxBorrowingAmount"`
 		} `json:"list"`
 		VipLevel string `json:"vipLevel"`
 	} `json:"vipCoinList"`
@@ -1398,15 +1463,15 @@ type VIPMarginData struct {
 
 // MarginCoinInfo represents margin coin information.
 type MarginCoinInfo struct {
-	Coin             string `json:"coin"`
-	ConversionRate   string `json:"conversionRate"`
-	LiquidationOrder int    `json:"liquidationOrder"`
+	Coin             string                  `json:"coin"`
+	ConversionRate   convert.StringToFloat64 `json:"conversionRate"`
+	LiquidationOrder int64                   `json:"liquidationOrder"`
 }
 
 // BorrowableCoinInfo represents borrowable coin information.
 type BorrowableCoinInfo struct {
-	BorrowingPrecision int64  `json:"borrowingPrecision"`
 	Coin               string `json:"coin"`
+	BorrowingPrecision int64  `json:"borrowingPrecision"`
 	RepaymentPrecision int64  `json:"repaymentPrecision"`
 }
 
@@ -1570,7 +1635,7 @@ type LTVInfo struct {
 		UnpaidAmount   convert.StringToFloat64 `json:"unpaidAmount"`
 		UnpaidInfo     []struct {
 			Token          string                  `json:"token"`
-			UnpaidQty      convert.StringToFloat64 `json:"unpaidQty"`
+			UnpaidQuantity convert.StringToFloat64 `json:"unpaidQty"`
 			UnpaidInterest convert.StringToFloat64 `json:"unpaidInterest"`
 		} `json:"unpaidInfo"`
 		Balance     string `json:"balance"`
@@ -1581,6 +1646,12 @@ type LTVInfo struct {
 			ConvertedAmount convert.StringToFloat64 `json:"convertedAmount"`
 		} `json:"balanceInfo"`
 	} `json:"ltvInfo"`
+}
+
+// BindOrUnbindUIDResponse holds uid information after binding/unbinding.
+type BindOrUnbindUIDResponse struct {
+	UID     string `json:"uid"`
+	Operate string `json:"operate"`
 }
 
 // C2CLendingCoinInfo represent contract-to-contract lending coin information.
@@ -1765,16 +1836,16 @@ type WsSpotTicker struct {
 
 // WsKlines represents a list of Kline data.
 type WsKlines []struct {
+	Confirm   bool                    `json:"confirm"`
 	Start     convert.ExchangeTime    `json:"start"`
 	End       convert.ExchangeTime    `json:"end"`
-	Interval  string                  `json:"interval"`
 	Open      convert.StringToFloat64 `json:"open"`
 	Close     convert.StringToFloat64 `json:"close"`
 	High      convert.StringToFloat64 `json:"high"`
 	Low       convert.StringToFloat64 `json:"low"`
 	Volume    convert.StringToFloat64 `json:"volume"`
 	Turnover  string                  `json:"turnover"`
-	Confirm   bool                    `json:"confirm"`
+	Interval  string                  `json:"interval"`
 	Timestamp convert.ExchangeTime    `json:"timestamp"`
 }
 
@@ -1789,14 +1860,14 @@ type WebsocketLiquidiation struct {
 
 // LTKlines represents a leverage token kline.
 type LTKlines []struct {
+	Confirm   bool                    `json:"confirm"`
+	Interval  string                  `json:"interval"`
 	Start     convert.ExchangeTime    `json:"start"`
 	End       convert.ExchangeTime    `json:"end"`
-	Interval  string                  `json:"interval"`
 	Open      convert.StringToFloat64 `json:"open"`
 	Close     convert.StringToFloat64 `json:"close"`
 	High      convert.StringToFloat64 `json:"high"`
 	Low       convert.StringToFloat64 `json:"low"`
-	Confirm   bool                    `json:"confirm"`
 	Timestamp convert.ExchangeTime    `json:"timestamp"`
 }
 
@@ -1824,9 +1895,9 @@ type LTNav struct {
 
 // WsPositions represents a position information.
 type WsPositions []struct {
-	PositionIdx      int                     `json:"positionIdx"`
-	TradeMode        int                     `json:"tradeMode"`
-	RiskID           int                     `json:"riskId"`
+	PositionIdx      int64                   `json:"positionIdx"`
+	TradeMode        int64                   `json:"tradeMode"`
+	RiskID           int64                   `json:"riskId"`
 	RiskLimitValue   convert.StringToFloat64 `json:"riskLimitValue"`
 	Symbol           string                  `json:"symbol"`
 	Side             string                  `json:"side"`
@@ -1850,7 +1921,7 @@ type WsPositions []struct {
 	BustPrice        convert.StringToFloat64 `json:"bustPrice"`
 	Category         string                  `json:"category"`
 	PositionStatus   string                  `json:"positionStatus"`
-	AdlRankIndicator int                     `json:"adlRankIndicator"`
+	AdlRankIndicator int64                   `json:"adlRankIndicator"`
 }
 
 // WsExecutions represents execution stream to see your executions in real-time.
@@ -1905,7 +1976,7 @@ type WsOrders []struct {
 	CumExecValue       convert.StringToFloat64 `json:"cumExecValue"`
 	AvgPrice           convert.StringToFloat64 `json:"avgPrice"`
 	BlockTradeID       string                  `json:"blockTradeId"`
-	PositionIdx        int                     `json:"positionIdx"`
+	PositionIdx        int64                   `json:"positionIdx"`
 	CumExecFee         convert.StringToFloat64 `json:"cumExecFee"`
 	CreatedTime        convert.ExchangeTime    `json:"createdTime"`
 	UpdatedTime        convert.ExchangeTime    `json:"updatedTime"`
@@ -1919,14 +1990,18 @@ type WsOrders []struct {
 	SlTriggerBy        convert.StringToFloat64 `json:"slTriggerBy"`
 	TpLimitPrice       convert.StringToFloat64 `json:"tpLimitPrice"`
 	SlLimitPrice       convert.StringToFloat64 `json:"slLimitPrice"`
-	TriggerDirection   int                     `json:"triggerDirection"`
+	TriggerDirection   int64                   `json:"triggerDirection"`
 	TriggerBy          string                  `json:"triggerBy"`
 	CloseOnTrigger     bool                    `json:"closeOnTrigger"`
 	Category           string                  `json:"category"`
 	PlaceType          string                  `json:"placeType"`
 	SmpType            string                  `json:"smpType"` // SMP execution type
-	SmpGroup           int                     `json:"smpGroup"`
+	SmpGroup           int64                   `json:"smpGroup"`
 	SmpOrderID         string                  `json:"smpOrderId"`
+
+	// UTA Spot: add new response field ocoTriggerBy, and the value can be
+	// OcoTriggerByUnknown, OcoTriggerByTp, OcoTriggerBySl
+	OCOTriggerBy string `json:"ocoTriggerBy"`
 }
 
 // WebsocketWallet represents a wallet stream to see changes to your wallet in real-time.
@@ -1959,6 +2034,7 @@ type WebsocketWallet struct {
 			UnrealisedPnl       convert.StringToFloat64 `json:"unrealisedPnl"`
 			CumRealisedPnl      convert.StringToFloat64 `json:"cumRealisedPnl"`
 			Bonus               convert.StringToFloat64 `json:"bonus"`
+			SpotHedgingQuantity convert.StringToFloat64 `json:"spotHedgingQty"`
 		} `json:"coin"`
 		AccountType string `json:"accountType"`
 		AccountLTV  string `json:"accountLTV"`
@@ -1991,4 +2067,34 @@ type InstrumentInfoItem struct {
 	BuyRatio  convert.StringToFloat64 `json:"buyRatio"`
 	SellRatio convert.StringToFloat64 `json:"sellRatio"`
 	Timestamp convert.ExchangeTime    `json:"timestamp"`
+}
+
+// Error defines all error information for each request
+type Error struct {
+	ReturnCode      int64  `json:"ret_code"`
+	ReturnMsg       string `json:"ret_msg"`
+	ReturnCodeV5    int64  `json:"retCode"`
+	ReturnMessageV5 string `json:"retMsg"`
+	ExtCode         string `json:"ext_code"`
+	ExtMsg          string `json:"ext_info"`
+}
+
+// GetError checks and returns an error if it is supplied.
+func (e *Error) GetError(isAuthRequest bool) error {
+	if e.ReturnCode != 0 && e.ReturnMsg != "" {
+		if isAuthRequest {
+			return fmt.Errorf("%w %v", request.ErrAuthRequestFailed, e.ReturnMsg)
+		}
+		return errors.New(e.ReturnMsg)
+	}
+	if e.ReturnCodeV5 != 0 && e.ReturnMessageV5 != "" {
+		return errors.New(e.ReturnMessageV5)
+	}
+	if e.ExtCode != "" && e.ExtMsg != "" {
+		if isAuthRequest {
+			return fmt.Errorf("%w %v", request.ErrAuthRequestFailed, e.ExtMsg)
+		}
+		return errors.New(e.ExtMsg)
+	}
+	return nil
 }

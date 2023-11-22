@@ -58,7 +58,7 @@ const (
 	interTransferRate         = 20
 	saveTransferSubMemberRate = 20
 	universalTransferRate     = 5
-	createWithdrawalRate      = 10
+	createWithdrawalRate      = 1
 	cancelWithdrawalRate      = 60
 
 	userCreateSubMemberRate = 5
@@ -398,7 +398,7 @@ func SetRateLimit() *RateLimit {
 		InterTransferRate:                         request.NewRateLimit(time.Minute, interTransferRate),
 		SaveTransferSubMemberRate:                 request.NewRateLimit(time.Minute, saveTransferSubMemberRate),
 		UniversalTransferRate:                     request.NewRateLimit(time.Second, universalTransferRate),
-		CreateWithdrawalRate:                      request.NewRateLimit(time.Minute, createWithdrawalRate),
+		CreateWithdrawalRate:                      request.NewRateLimit(time.Second, createWithdrawalRate),
 		CancelWithdrawalRate:                      request.NewRateLimit(time.Minute, cancelWithdrawalRate),
 		UserCreateSubMemberRate:                   request.NewRateLimit(time.Second, userCreateSubMemberRate),
 		UserCreateSubAPIKeyRate:                   request.NewRateLimit(time.Second, userCreateSubAPIKeyRate),

@@ -76,7 +76,6 @@ var (
 	errQuantityLimitRequired                   = errors.New("quantity limit required")
 	errInvalidPushData                         = errors.New("invalid push data")
 	errWebsocketNotEnabled                     = errors.New(stream.WebsocketNotEnabled)
-	errInvalidSide                             = errors.New("invalid side")
 	errInvalidLeverage                         = errors.New("leverage can't be zero or less then it")
 	errInvalidPositionMode                     = errors.New("position mode is invalid")
 	errInvalidMode                             = errors.New("mode can't be empty or missing")
@@ -89,7 +88,6 @@ var (
 	errDisconnectTimeWindowNotSet              = errors.New("disconnect time window not set")
 	errAPIKeyIsNotUnified                      = errors.New("api key is not unified")
 	errEndpointAvailableForNormalAPIKeyHolders = errors.New("endpoint available for normal API key holders only")
-	errOrderSideRequired                       = errors.New("order side is required")
 	errInvalidContractLength                   = errors.New("contract length cannot be less than or equal to zero")
 )
 
@@ -613,6 +611,7 @@ func (by *Bybit) CancelTradeOrder(ctx context.Context, arg *CancelOrderParams) (
 }
 
 // GetOpenOrders retrieves unfilled or partially filled orders in real-time. To query older order records, please use the order history interface.
+// orderFilter: possible values are 'Order', 'StopOrder', 'tpslOrder', and 'OcoOrder'
 func (by *Bybit) GetOpenOrders(ctx context.Context, category, symbol, baseCoin, settleCoin, orderID, orderLinkID, orderFilter, cursor string,
 	openOnly, limit int64) (*TradeOrders, error) {
 	params, err := fillCategoryAndSymbol(category, symbol, true)
@@ -669,6 +668,7 @@ func (by *Bybit) CancelAllTradeOrders(ctx context.Context, arg *CancelAllOrdersP
 
 // GetTradeOrderHistory retrieves order history. As order creation/cancellation is asynchronous, the data returned from this endpoint may delay.
 // If you want to get real-time order information, you could query this endpoint or rely on the websocket stream (recommended).
+// orderFilter: possible values are 'Order', 'StopOrder', 'tpslOrder', and 'OcoOrder'
 func (by *Bybit) GetTradeOrderHistory(ctx context.Context, category, symbol, orderID, orderLinkID,
 	baseCoin, settleCoin, orderFilter, orderStatus, cursor string,
 	startTime, endTime time.Time, limit int64) (*TradeOrders, error) {
@@ -692,10 +692,7 @@ func (by *Bybit) GetTradeOrderHistory(ctx context.Context, category, symbol, ord
 		params.Set("orderFilter", orderFilter)
 	}
 	if orderStatus != "" {
-		params.Set("orderFilter", orderFilter)
-	}
-	if limit > 0 {
-		params.Set("limit", strconv.FormatInt(limit, 10))
+		params.Set("orderStatus", orderStatus)
 	}
 	if cursor != "" {
 		params.Set("cursor", cursor)
@@ -705,6 +702,9 @@ func (by *Bybit) GetTradeOrderHistory(ctx context.Context, category, symbol, ord
 	}
 	if !endTime.IsZero() {
 		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	var resp *TradeOrders
 	return resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/order/history", params, nil, &resp, getOrderHistoryEPL)
@@ -1045,7 +1045,8 @@ func (by *Bybit) AddOrReduceMargin(ctx context.Context, arg *AddOrReduceMarginPa
 
 // GetExecution retrieves users' execution records, sorted by execTime in descending order. However, for Normal spot, they are sorted by execId in descending order.
 // Execution Type possible values: 'Trade', 'AdlTrade' Auto-Deleveraging, 'Funding' Funding fee, 'BustTrade' Liquidation, 'Delivery' USDC futures delivery, 'BlockTrade'
-func (by *Bybit) GetExecution(ctx context.Context, category, symbol, orderID, orderLinkID, baseCoin, executionType, cursor string, startTime, endTime time.Time, limit int64) (*ExecutionResponse, error) {
+// UTA Spot: 'stopOrderType', "" for normal order, "tpslOrder" for TP/SL order, "Stop" for conditional order, "OcoOrder" for OCO order
+func (by *Bybit) GetExecution(ctx context.Context, category, symbol, orderID, orderLinkID, baseCoin, executionType, stopOrderType, cursor string, startTime, endTime time.Time, limit int64) (*ExecutionResponse, error) {
 	params, err := fillCategoryAndSymbol(category, symbol, true)
 	if err != nil {
 		return nil, err
@@ -1073,6 +1074,9 @@ func (by *Bybit) GetExecution(ctx context.Context, category, symbol, orderID, or
 	}
 	if cursor != "" {
 		params.Set("cursor", cursor)
+	}
+	if stopOrderType != "" {
+		params.Set("stopOrderType", stopOrderType)
 	}
 	if limit > 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
@@ -1140,6 +1144,28 @@ func fillOrderAndExecutionFetchParams(ac paramsConfig, category, symbol, baseCoi
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	return params, nil
+}
+
+// ConfirmNewRiskLimit t is only applicable when the user is marked as only reducing positions
+// (please see the isReduceOnly field in the Get Position Info interface).
+// After the user actively adjusts the risk level, this interface is called to try to calculate the adjusted risk level,
+// and if it passes (retCode=0), the system will remove the position reduceOnly mark.
+// You are recommended to call Get Position Info to check isReduceOnly field.
+func (by *Bybit) ConfirmNewRiskLimit(ctx context.Context, category, symbol string) error {
+	if category == "" {
+		return errCategoryNotSet
+	}
+	if symbol == "" {
+		return errSymbolMissing
+	}
+	arg := &struct {
+		Category string `json:"category"`
+		Symbol   string `json:"symbol"`
+	}{
+		Category: category,
+		Symbol:   symbol,
+	}
+	return by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, "/v5/position/confirm-pending-mmr", nil, arg, &struct{}{}, defaultEPL)
 }
 
 // GetPreUpgradeOrderHistory the account is upgraded to a Unified account, you can get the orders which occurred before the upgrade.
@@ -1363,6 +1389,16 @@ func (by *Bybit) SetMarginMode(ctx context.Context, marginMode string) (*SetMarg
 
 	var resp *SetMarginModeResponse
 	return resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, "/v5/account/set-margin-mode", nil, arg, &resp, defaultEPL)
+}
+
+// SetSpotHedging to turn on/off Spot hedging feature in Portfolio margin for Unified account.
+func (by *Bybit) SetSpotHedging(ctx context.Context, setHedgingModeOn bool) error {
+	resp := struct{}{}
+	setHedgingMode := "OFF"
+	if setHedgingModeOn {
+		setHedgingMode = "ON"
+	}
+	return by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, "/v5/account/set-hedging-mode", nil, &map[string]string{"setHedgingMode": setHedgingMode}, &resp, defaultEPL)
 }
 
 // SetMMP Market Maker Protection (MMP) is an automated mechanism designed to protect market makers (MM) against liquidity risks and over-exposure in the market.
@@ -1937,6 +1973,23 @@ func (by *Bybit) GetAPIKeyInformation(ctx context.Context) (*SubUIDAPIResponse, 
 	return resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/user/query-api", nil, nil, &resp, userQueryAPIEPL)
 }
 
+// GetSubAccountAllAPIKeys retrieves all api keys information of a sub UID.
+func (by *Bybit) GetSubAccountAllAPIKeys(ctx context.Context, subMemberID, cursor string, limit int64) (*SubAccountAPIKeys, error) {
+	if subMemberID == "" {
+		return nil, errMembersIDsNotSet
+	}
+	params := url.Values{}
+	params.Set("subMemberId", subMemberID)
+	if cursor != "" {
+		params.Set("cursor", cursor)
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	var resp *SubAccountAPIKeys
+	return resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "  /v5/user/sub-apikeys", params, nil, &resp, defaultEPL)
+}
+
 // GetUIDWalletType retrieves available wallet types for the master account or sub account
 func (by *Bybit) GetUIDWalletType(ctx context.Context, memberIDS string) (*WalletType, error) {
 	if memberIDS == "" {
@@ -1963,6 +2016,19 @@ func (by *Bybit) ModifySubAPIKey(ctx context.Context, arg *SubUIDAPIKeyUpdatePar
 	}
 	var resp *SubUIDAPIResponse
 	return resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, "/v5/user/update-sub-api", nil, &arg, &resp, userUpdateSubAPIEPL)
+}
+
+// DeleteSubUID delete a sub UID. Before deleting the UID, please make sure there is no asset.
+// Use master user's api key**.
+func (by *Bybit) DeleteSubUID(ctx context.Context, subMemberID string) error {
+	if subMemberID == "" {
+		return errMembersIDsNotSet
+	}
+	arg := &struct {
+		SubMemberID string `json:"subMemberId"`
+	}{SubMemberID: subMemberID}
+	var resp interface{}
+	return by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, "/v5/user/del-submember", nil, arg, &resp, defaultEPL)
 }
 
 // DeleteMasterAPIKey delete the api key of master account.
@@ -2326,6 +2392,23 @@ func (by *Bybit) GetLTV(ctx context.Context) (*LTVInfo, error) {
 	return resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/ins-loan/ltv-convert", nil, nil, &resp, defaultEPL)
 }
 
+// BindOrUnbindUID For the INS loan product, you can bind new UID to risk unit or unbind UID out from risk unit.
+// possible 'operate' values: 0: bind, 1: unbind
+func (by *Bybit) BindOrUnbindUID(ctx context.Context, uid, operate string) (*BindOrUnbindUIDResponse, error) {
+	if uid == "" {
+		return nil, fmt.Errorf("%w, uid is required", errMissingUserID)
+	}
+	if operate != "0" && operate != "1" {
+		return nil, errors.New("operation type required; 0:bind and 1:unbind")
+	}
+	arg := &struct {
+		UID     string `json:"uid"`
+		Operate string `json:"operate"`
+	}{UID: uid, Operate: operate}
+	var resp *BindOrUnbindUIDResponse
+	return resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, "/v5/ins-loan/association-uid", nil, arg, &resp, defaultEPL)
+}
+
 // GetC2CLendingCoinInfo retrieves C2C basic information of lending coins
 func (by *Bybit) GetC2CLendingCoinInfo(ctx context.Context, coin currency.Code) ([]C2CLendingCoinInfo, error) {
 	params := url.Values{}
@@ -2556,36 +2639,6 @@ func (by *Bybit) SendAuthHTTPRequestV5(ctx context.Context, ePath exchange.URL, 
 		}
 	}
 	return err
-}
-
-// Error defines all error information for each request
-type Error struct {
-	ReturnCode      int64  `json:"ret_code"`
-	ReturnMsg       string `json:"ret_msg"`
-	ReturnCodeV5    int64  `json:"retCode"`
-	ReturnMessageV5 string `json:"retMsg"`
-	ExtCode         string `json:"ext_code"`
-	ExtMsg          string `json:"ext_info"`
-}
-
-// GetError checks and returns an error if it is supplied.
-func (e *Error) GetError(isAuthRequest bool) error {
-	if e.ReturnCode != 0 && e.ReturnMsg != "" {
-		if isAuthRequest {
-			return fmt.Errorf("%w %v", request.ErrAuthRequestFailed, e.ReturnMsg)
-		}
-		return errors.New(e.ReturnMsg)
-	}
-	if e.ReturnCodeV5 != 0 && e.ReturnMessageV5 != "" {
-		return errors.New(e.ReturnMessageV5)
-	}
-	if e.ExtCode != "" && e.ExtMsg != "" {
-		if isAuthRequest {
-			return fmt.Errorf("%w %v", request.ErrAuthRequestFailed, e.ExtMsg)
-		}
-		return errors.New(e.ExtMsg)
-	}
-	return nil
 }
 
 func getSide(side string) order.Side {

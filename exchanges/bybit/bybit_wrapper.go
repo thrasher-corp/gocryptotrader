@@ -308,63 +308,78 @@ func (by *Bybit) Run(ctx context.Context) {
 func (by *Bybit) FetchTradablePairs(ctx context.Context, a asset.Item) (currency.Pairs, error) {
 	var pair currency.Pair
 	var category string
-	switch a {
-	case asset.Spot, asset.Options, asset.CoinMarginedFutures, asset.USDCMarginedFutures, asset.USDTMarginedFutures:
-		category = getCategoryName(a)
-	default:
-		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, a)
-	}
-	allPairs, err := by.GetInstruments(ctx, category, "", "Trading", "", "", int64(by.Features.Enabled.Kline.GlobalResultLimit))
-	if err != nil {
-		return nil, err
-	}
 	format, err := by.GetPairFormat(a, false)
 	if err != nil {
 		return nil, err
 	}
-	pairs := make(currency.Pairs, 0, len(allPairs.List))
+	var (
+		pairs    currency.Pairs
+		allPairs []InstrumentInfo
+		response *InstrumentsInfo
+	)
 	switch a {
-	case asset.Spot, asset.Options:
-		for x := range allPairs.List {
-			if allPairs.List[x].Status != "Trading" {
-				continue
-			}
-			quote := strings.TrimPrefix(allPairs.List[x].Symbol[len(allPairs.List[x].BaseCoin):], currency.DashDelimiter)
-			pair, err = currency.NewPairFromStrings(allPairs.List[x].BaseCoin, quote)
+	case asset.Spot, asset.CoinMarginedFutures, asset.USDCMarginedFutures, asset.USDTMarginedFutures:
+		category = getCategoryName(a)
+		response, err = by.GetInstruments(ctx, category, "", "Trading", "", "", int64(by.Features.Enabled.Kline.GlobalResultLimit))
+		if err != nil {
+			return nil, err
+		}
+		allPairs = response.List
+	case asset.Options:
+		category = getCategoryName(a)
+		baseCoins := []string{"BTC", "ETH"}
+		for x := range baseCoins {
+			response, err = by.GetInstruments(ctx, category, "", "Trading", baseCoins[x], "", int64(by.Features.Enabled.Kline.GlobalResultLimit))
 			if err != nil {
 				return nil, err
 			}
-
+			allPairs = append(allPairs, response.List...)
+		}
+	default:
+		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, a)
+	}
+	pairs = make(currency.Pairs, 0, len(allPairs))
+	switch a {
+	case asset.Spot, asset.Options:
+		for x := range allPairs {
+			if allPairs[x].Status != "Trading" {
+				continue
+			}
+			quote := strings.TrimPrefix(allPairs[x].Symbol[len(allPairs[x].BaseCoin):], currency.DashDelimiter)
+			pair, err = currency.NewPairFromStrings(allPairs[x].BaseCoin, quote)
+			if err != nil {
+				return nil, err
+			}
 			pairs = append(pairs, pair)
 		}
 	case asset.CoinMarginedFutures:
-		for x := range allPairs.List {
-			if allPairs.List[x].Status != "Trading" || allPairs.List[x].QuoteCoin != "USD" {
+		for x := range allPairs {
+			if allPairs[x].Status != "Trading" || allPairs[x].QuoteCoin != "USD" {
 				continue
 			}
-			pair, err = currency.NewPairFromStrings(allPairs.List[x].BaseCoin, allPairs.List[x].Symbol[len(allPairs.List[x].BaseCoin):])
+			pair, err = currency.NewPairFromStrings(allPairs[x].BaseCoin, allPairs[x].Symbol[len(allPairs[x].BaseCoin):])
 			if err != nil {
 				return nil, err
 			}
 			pairs = append(pairs, pair)
 		}
 	case asset.USDCMarginedFutures:
-		for x := range allPairs.List {
-			if allPairs.List[x].Status != "Trading" || allPairs.List[x].QuoteCoin != "USDC" {
+		for x := range allPairs {
+			if allPairs[x].Status != "Trading" || allPairs[x].QuoteCoin != "USDC" {
 				continue
 			}
-			pair, err = currency.NewPairFromString(allPairs.List[x].Symbol)
+			pair, err = currency.NewPairFromString(allPairs[x].Symbol)
 			if err != nil {
 				return nil, err
 			}
 			pairs = append(pairs, pair)
 		}
 	case asset.USDTMarginedFutures:
-		for x := range allPairs.List {
-			if allPairs.List[x].Status != "Trading" || allPairs.List[x].QuoteCoin != "USDT" {
+		for x := range allPairs {
+			if allPairs[x].Status != "Trading" || allPairs[x].QuoteCoin != "USDT" {
 				continue
 			}
-			pair, err = currency.NewPairFromStrings(allPairs.List[x].BaseCoin, allPairs.List[x].Symbol[len(allPairs.List[x].BaseCoin):])
+			pair, err = currency.NewPairFromStrings(allPairs[x].BaseCoin, allPairs[x].Symbol[len(allPairs[x].BaseCoin):])
 			if err != nil {
 				return nil, err
 			}
@@ -817,7 +832,7 @@ func (by *Bybit) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Submi
 	case s.Side.IsShort():
 		sideType = sideSell
 	default:
-		return nil, errInvalidSide
+		return nil, order.ErrSideIsInvalid
 	}
 	status := order.New
 	switch s.AssetType {
@@ -1610,7 +1625,7 @@ func (by *Bybit) SetLeverage(ctx context.Context, item asset.Item, pair currency
 			// Classic account: under one-way mode, buyLeverage must be the same as sellLeverage
 			params.BuyLeverage, params.SellLeverage = amount, amount
 		case order.UnknownSide:
-			return errOrderSideRequired
+			return order.ErrSideIsInvalid
 		default:
 			return order.ErrSideIsInvalid
 		}
@@ -1910,18 +1925,23 @@ func (by *Bybit) GetLatestFundingRates(ctx context.Context, r *fundingrate.Lates
 			return nil, err
 		}
 
-		resp := make([]fundingrate.LatestRateResponse, 0, len(fRates.List))
+		var latestTimestamp int64
+		resp := make([]fundingrate.LatestRateResponse, 1)
 		for i := range fRates.List {
 			var cp currency.Pair
 			var isEnabled bool
 			cp, isEnabled, err = by.MatchSymbolCheckEnabled(fRates.List[i].Symbol, r.Asset, true)
 			if err != nil && !errors.Is(err, currency.ErrPairNotFound) {
 				return nil, err
-			} else if !isEnabled || !cp.Equal(r.Pair) {
+			} else if !isEnabled ||
+				!cp.Equal(r.Pair) ||
+
+				// check if FundingRateTimestamp is earlier than latestTimestamp.
+				fRates.List[i].FundingRateTimestamp.Time().UnixMilli() <= latestTimestamp {
 				continue
 			}
-
-			rate := fundingrate.LatestRateResponse{
+			latestTimestamp = fRates.List[i].FundingRateTimestamp.Time().UnixMilli()
+			resp[0] = fundingrate.LatestRateResponse{
 				TimeChecked: time.Now(),
 				Exchange:    by.Name,
 				Asset:       r.Asset,
@@ -1931,7 +1951,6 @@ func (by *Bybit) GetLatestFundingRates(ctx context.Context, r *fundingrate.Lates
 					Rate: decimal.NewFromFloat(fRates.List[i].FundingRate.Float64()),
 				},
 			}
-			resp = append(resp, rate)
 		}
 		if len(resp) == 0 {
 			return nil, fmt.Errorf("%w %v %v", futures.ErrNotPerpetualFuture, r.Asset, r.Pair)
