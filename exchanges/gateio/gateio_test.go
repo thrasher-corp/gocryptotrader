@@ -1148,7 +1148,7 @@ func TestGetFuturesAccountBooks(t *testing.T) {
 func TestGetAllPositionsOfUsers(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, g)
-	if _, err := g.GetAllFuturesPositionsOfUsers(context.Background(), settleUSDT); err != nil {
+	if _, err := g.GetAllFuturesPositionsOfUsers(context.Background(), settleUSDT, true); err != nil {
 		t.Errorf("%s GetAllPositionsOfUsers() error %v", g.Name, err)
 	}
 }

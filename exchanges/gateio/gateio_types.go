@@ -1742,19 +1742,19 @@ type Position struct {
 	Size            int64                   `json:"size"`
 	Leverage        convert.StringToFloat64 `json:"leverage"`
 	RiskLimit       convert.StringToFloat64 `json:"risk_limit"`
-	LeverageMax     string                  `json:"leverage_max"`
+	LeverageMax     convert.StringToFloat64 `json:"leverage_max"`
 	MaintenanceRate convert.StringToFloat64 `json:"maintenance_rate"`
 	Value           convert.StringToFloat64 `json:"value"`
 	Margin          convert.StringToFloat64 `json:"margin"`
 	EntryPrice      convert.StringToFloat64 `json:"entry_price"`
 	LiqPrice        convert.StringToFloat64 `json:"liq_price"`
 	MarkPrice       convert.StringToFloat64 `json:"mark_price"`
-	UnrealisedPnl   string                  `json:"unrealised_pnl"`
-	RealisedPnl     string                  `json:"realised_pnl"`
-	HistoryPnl      string                  `json:"history_pnl"`
-	LastClosePnl    string                  `json:"last_close_pnl"`
-	RealisedPoint   string                  `json:"realised_point"`
-	HistoryPoint    string                  `json:"history_point"`
+	UnrealisedPnl   convert.StringToFloat64 `json:"unrealised_pnl"`
+	RealisedPnl     convert.StringToFloat64 `json:"realised_pnl"`
+	HistoryPnl      convert.StringToFloat64 `json:"history_pnl"`
+	LastClosePnl    convert.StringToFloat64 `json:"last_close_pnl"`
+	RealisedPoint   convert.StringToFloat64 `json:"realised_point"`
+	HistoryPoint    convert.StringToFloat64 `json:"history_point"`
 	AdlRanking      int64                   `json:"adl_ranking"`
 	PendingOrders   int64                   `json:"pending_orders"`
 	CloseOrder      struct {

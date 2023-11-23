@@ -2148,12 +2148,16 @@ func (g *Gateio) GetFuturesAccountBooks(ctx context.Context, settle string, limi
 }
 
 // GetAllFuturesPositionsOfUsers list all positions of users.
-func (g *Gateio) GetAllFuturesPositionsOfUsers(ctx context.Context, settle string) (*Position, error) {
+func (g *Gateio) GetAllFuturesPositionsOfUsers(ctx context.Context, settle string, realPositionsOnly bool) ([]Position, error) {
 	if settle == "" {
 		return nil, errEmptySettlementCurrency
 	}
-	var response *Position
-	return response, g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, perpetualSwapPrivateEPL, http.MethodGet, "futures/"+settle+"/positions", nil, nil, &response)
+	params := url.Values{}
+	if realPositionsOnly {
+		params.Set("holding", "true")
+	}
+	var response []Position
+	return response, g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, perpetualSwapPrivateEPL, http.MethodGet, "futures/"+settle+"/positions", params, nil, &response)
 }
 
 // GetSinglePosition returns a single position
