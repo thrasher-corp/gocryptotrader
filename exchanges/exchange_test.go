@@ -2453,14 +2453,6 @@ func TestUpdateCurrencyStates(t *testing.T) {
 	}
 }
 
-func TestUpdateOrderExecutionLimits(t *testing.T) {
-	t.Parallel()
-	var b Base
-	if err := b.UpdateOrderExecutionLimits(context.Background(), asset.Spot); !errors.Is(err, common.ErrNotYetImplemented) {
-		t.Errorf("received: %v, expected: %v", err, common.ErrNotYetImplemented)
-	}
-}
-
 func TestSetTradeFeedStatus(t *testing.T) {
 	t.Parallel()
 	b := Base{
