@@ -976,7 +976,7 @@ func (b *Binance) getMultiplier(ctx context.Context, isMaker bool) (float64, err
 	return multiplier, nil
 }
 
-// calculateTradingFee returns the fee for trading any currency on Bittrex
+// calculateTradingFee returns the fee for trading any currency on Binance
 func calculateTradingFee(purchasePrice, amount, multiplier float64) float64 {
 	return (multiplier / 100) * purchasePrice * amount
 }
