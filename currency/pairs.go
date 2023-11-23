@@ -486,7 +486,7 @@ func (p Pairs) GetPairsByBase(baseTerm Code) (Pairs, error) {
 	}
 	pairs := make(Pairs, 0, len(p))
 	for i := range p {
-		if p[i].Quote.Equal(baseTerm) {
+		if p[i].Base.Equal(baseTerm) {
 			pairs = append(pairs, p[i])
 		}
 	}
