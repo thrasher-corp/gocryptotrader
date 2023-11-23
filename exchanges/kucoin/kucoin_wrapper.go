@@ -511,18 +511,23 @@ func (ku *Kucoin) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (
 	}
 	switch assetType {
 	case asset.Futures:
-		accountH, err := ku.GetFuturesAccountOverview(ctx, "")
-		if err != nil {
-			return account.Holdings{}, err
-		}
-		holding.Accounts = append(holding.Accounts, account.SubAccount{
-			AssetType: assetType,
-			Currencies: []account.Balance{{
+		balances := make([]account.Balance, 0, 2)
+		for _, settlement := range []string{"XBT", "USDT"} {
+			accountH, err := ku.GetFuturesAccountOverview(ctx, settlement)
+			if err != nil {
+				return account.Holdings{}, err
+			}
+
+			balances = append(balances, account.Balance{
 				Currency: currency.NewCode(accountH.Currency),
 				Total:    accountH.AvailableBalance + accountH.FrozenFunds,
 				Hold:     accountH.FrozenFunds,
 				Free:     accountH.AvailableBalance,
-			}},
+			})
+		}
+		holding.Accounts = append(holding.Accounts, account.SubAccount{
+			AssetType:  assetType,
+			Currencies: balances,
 		})
 	case asset.Spot, asset.Margin:
 		accountH, err := ku.GetAllAccounts(ctx, "", ku.accountTypeToString(assetType))

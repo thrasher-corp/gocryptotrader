@@ -34,6 +34,11 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
+// unfundedFuturesAccount defines an error string when an account associated
+// with a settlement currency has not been funded. Use specific pairs to avoid
+// this error.
+const unfundedFuturesAccount = `{"label":"USER_NOT_FOUND","message":"please transfer funds first to create futures account"}`
+
 // GetDefaultConfig returns a default exchange config
 func (g *Gateio) GetDefaultConfig(ctx context.Context) (*config.Exchange, error) {
 	g.SetDefaults()
@@ -806,7 +811,7 @@ func (g *Gateio) UpdateAccountInfo(ctx context.Context, a asset.Item) (account.H
 			Currencies: currencies,
 		})
 	case asset.Futures, asset.DeliveryFutures:
-		currencies := make([]account.Balance, 3)
+		currencies := make([]account.Balance, 0, 3)
 		settles := []currency.Code{currency.BTC, currency.USDT, currency.USD}
 		for x := range settles {
 			var balance *FuturesAccount
@@ -819,14 +824,18 @@ func (g *Gateio) UpdateAccountInfo(ctx context.Context, a asset.Item) (account.H
 				balance, err = g.GetDeliveryFuturesAccounts(ctx, settles[x].String())
 			}
 			if err != nil {
+				if strings.Contains(err.Error(), unfundedFuturesAccount) {
+					log.Warnf(log.ExchangeSys, "%s %v", g.Name, err)
+					continue
+				}
 				return info, err
 			}
-			currencies[x] = account.Balance{
+			currencies = append(currencies, account.Balance{
 				Currency: currency.NewCode(balance.Currency),
 				Total:    balance.Total.Float64(),
 				Hold:     balance.Total.Float64() - balance.Available.Float64(),
 				Free:     balance.Available.Float64(),
-			}
+			})
 		}
 		info.Accounts = append(info.Accounts, account.SubAccount{
 			AssetType:  a,
@@ -1667,16 +1676,16 @@ func (g *Gateio) GetActiveOrders(ctx context.Context, req *order.MultiOrderReque
 
 		for key := range settlement {
 			var futuresOrders []Order
-			// NOTE: If account associated with a settlement currency has not
-			// been funded, this will return an error.
-			// {"label":"USER_NOT_FOUND","message":"please transfer funds first to create futures account"}
-			// Use specific pairs to avoid this error.
 			if req.AssetType == asset.Futures {
 				futuresOrders, err = g.GetFuturesOrders(ctx, currency.EMPTYPAIR, "open", "", key, 0, 0, 0)
 			} else {
 				futuresOrders, err = g.GetDeliveryOrders(ctx, currency.EMPTYPAIR, "open", key, "", 0, 0, 0)
 			}
 			if err != nil {
+				if strings.Contains(err.Error(), unfundedFuturesAccount) {
+					log.Warnf(log.ExchangeSys, "%s %v", g.Name, err)
+					continue
+				}
 				return nil, err
 			}
 			for x := range futuresOrders {
@@ -1759,8 +1768,6 @@ func (g *Gateio) GetActiveOrders(ctx context.Context, req *order.MultiOrderReque
 	}
 	return req.Filter(g.Name, orders), nil
 }
-
-var tif = []string{"poc", "gtc", "ioc", "fok"}
 
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
