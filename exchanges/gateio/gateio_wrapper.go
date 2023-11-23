@@ -11,6 +11,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/config"
@@ -2166,6 +2167,88 @@ func (g *Gateio) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) e
 	}
 
 	return g.LoadLimits(limits)
+}
+
+// GetHistoricalFundingRates returns historical funding rates for a futures contract
+func (g *Gateio) GetHistoricalFundingRates(ctx context.Context, r *fundingrate.HistoricalRatesRequest) (*fundingrate.HistoricalRates, error) {
+	if r == nil {
+		return nil, fmt.Errorf("%w LatestRateRequest", common.ErrNilPointer)
+	}
+	if r.Asset != asset.Futures {
+		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, r.Asset)
+	}
+
+	if r.Pair.IsEmpty() {
+		return nil, currency.ErrCurrencyPairEmpty
+	}
+
+	if !r.StartDate.IsZero() && !r.EndDate.IsZero() {
+		err := common.StartEndTimeCheck(r.StartDate, r.EndDate)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	// NOTE: Opted to fail here as a misconfigured request will result in
+	// {"label":"CONTRACT_NOT_FOUND"} and rather not mutate request using
+	// quote currency as the settlement currency.
+	if r.PaymentCurrency.IsEmpty() {
+		return nil, fundingrate.ErrPaymentCurrencyCannotBeEmpty
+	}
+
+	if r.IncludePayments {
+		return nil, fmt.Errorf("include payments %w", common.ErrNotYetImplemented)
+	}
+
+	if r.IncludePredictedRate {
+		return nil, fmt.Errorf("include predicted rate %w", common.ErrNotYetImplemented)
+	}
+
+	fPair, err := g.FormatExchangeCurrency(r.Pair, r.Asset)
+	if err != nil {
+		return nil, err
+	}
+
+	records, err := g.GetFutureFundingRates(ctx, r.PaymentCurrency.String(), fPair, 1000)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(records) == 0 {
+		return nil, fundingrate.ErrNoFundingRatesFound
+	}
+
+	if !r.StartDate.IsZero() && !r.RespectHistoryLimits && r.StartDate.Before(records[len(records)-1].Timestamp.Time()) {
+		return nil, fmt.Errorf("%w start date requested: %v last returned record: %v", fundingrate.ErrFundingRateOutsideLimits, r.StartDate, records[len(records)-1].Timestamp.Time())
+	}
+
+	fundingRates := make([]fundingrate.Rate, 0, len(records))
+	for i := range records {
+		if (!r.EndDate.IsZero() && r.EndDate.Before(records[i].Timestamp.Time())) ||
+			(!r.StartDate.IsZero() && r.StartDate.After(records[i].Timestamp.Time())) {
+			continue
+		}
+
+		fundingRates = append(fundingRates, fundingrate.Rate{
+			Rate: decimal.NewFromFloat(records[i].Rate.Float64()),
+			Time: records[i].Timestamp.Time(),
+		})
+	}
+
+	if len(fundingRates) == 0 {
+		return nil, fundingrate.ErrNoFundingRatesFound
+	}
+
+	return &fundingrate.HistoricalRates{
+		Exchange:        g.Name,
+		Asset:           r.Asset,
+		Pair:            r.Pair,
+		FundingRates:    fundingRates,
+		StartDate:       fundingRates[len(fundingRates)-1].Time,
+		EndDate:         fundingRates[0].Time,
+		LatestRate:      fundingRates[0],
+		PaymentCurrency: r.PaymentCurrency,
+	}, nil
 }
 
 // GetLatestFundingRates returns the latest funding rates data
