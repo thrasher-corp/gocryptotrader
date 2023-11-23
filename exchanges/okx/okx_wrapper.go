@@ -622,10 +622,10 @@ func (ok *Okx) GetAccountFundingHistory(ctx context.Context) ([]exchange.Funding
 	for x := range depositHistories {
 		resp = append(resp, exchange.FundingHistory{
 			ExchangeName:    ok.Name,
-			Status:          strconv.Itoa(depositHistories[x].State),
+			Status:          strconv.FormatInt(depositHistories[x].State, 10),
 			Timestamp:       depositHistories[x].Timestamp.Time(),
 			Currency:        depositHistories[x].Currency,
-			Amount:          depositHistories[x].Amount,
+			Amount:          depositHistories[x].Amount.Float64(),
 			TransferType:    "deposit",
 			CryptoToAddress: depositHistories[x].ToDepositAddress,
 			CryptoTxID:      depositHistories[x].TransactionID,
@@ -637,12 +637,12 @@ func (ok *Okx) GetAccountFundingHistory(ctx context.Context) ([]exchange.Funding
 			Status:          withdrawalHistories[x].StateOfWithdrawal,
 			Timestamp:       withdrawalHistories[x].Timestamp.Time(),
 			Currency:        withdrawalHistories[x].Currency,
-			Amount:          withdrawalHistories[x].Amount,
+			Amount:          withdrawalHistories[x].Amount.Float64(),
 			TransferType:    "withdrawal",
 			CryptoToAddress: withdrawalHistories[x].ToReceivingAddress,
 			CryptoTxID:      withdrawalHistories[x].TransactionID,
 			TransferID:      withdrawalHistories[x].WithdrawalID,
-			Fee:             withdrawalHistories[x].WithdrawalFee,
+			Fee:             withdrawalHistories[x].WithdrawalFee.Float64(),
 			CryptoChain:     withdrawalHistories[x].ChainName,
 		})
 	}
@@ -661,13 +661,13 @@ func (ok *Okx) GetWithdrawalsHistory(ctx context.Context, c currency.Code, _ ass
 			Status:          withdrawals[x].StateOfWithdrawal,
 			Timestamp:       withdrawals[x].Timestamp.Time(),
 			Currency:        withdrawals[x].Currency,
-			Amount:          withdrawals[x].Amount,
+			Amount:          withdrawals[x].Amount.Float64(),
 			TransferType:    "withdrawal",
 			CryptoToAddress: withdrawals[x].ToReceivingAddress,
 			CryptoTxID:      withdrawals[x].TransactionID,
 			CryptoChain:     withdrawals[x].ChainName,
 			TransferID:      withdrawals[x].WithdrawalID,
-			Fee:             withdrawals[x].WithdrawalFee,
+			Fee:             withdrawals[x].WithdrawalFee.Float64(),
 		})
 	}
 	return resp, nil
@@ -1133,8 +1133,8 @@ func (ok *Okx) GetOrderInfo(ctx context.Context, orderID string, pair currency.P
 		Status:         status,
 		Price:          orderDetail.Price.Float64(),
 		ExecutedAmount: orderDetail.RebateAmount.Float64(),
-		Date:           orderDetail.CreationTime,
-		LastUpdated:    orderDetail.UpdateTime,
+		Date:           orderDetail.CreationTime.Time(),
+		LastUpdated:    orderDetail.UpdateTime.Time(),
 	}, nil
 }
 
@@ -1246,9 +1246,9 @@ allOrders:
 			break
 		}
 		for i := range orderList {
-			if req.StartTime.Equal(orderList[i].CreationTime) ||
-				orderList[i].CreationTime.Before(req.StartTime) ||
-				endTime == orderList[i].CreationTime {
+			if req.StartTime.Equal(orderList[i].CreationTime.Time()) ||
+				orderList[i].CreationTime.Time().Before(req.StartTime) ||
+				endTime == orderList[i].CreationTime.Time() {
 				// reached end of orders to crawl
 				break allOrders
 			}
@@ -1294,8 +1294,8 @@ allOrders:
 				Side:            orderSide,
 				Status:          orderStatus,
 				AssetType:       req.AssetType,
-				Date:            orderList[i].CreationTime,
-				LastUpdated:     orderList[i].UpdateTime,
+				Date:            orderList[i].CreationTime.Time(),
+				LastUpdated:     orderList[i].UpdateTime.Time(),
 			})
 		}
 		if len(orderList) < 100 {
@@ -1304,7 +1304,7 @@ allOrders:
 			// If not, break out of the loop to not send another request.
 			break
 		}
-		endTime = orderList[len(orderList)-1].CreationTime
+		endTime = orderList[len(orderList)-1].CreationTime.Time()
 	}
 	return req.Filter(ok.Name, resp), nil
 }
@@ -1341,9 +1341,9 @@ allOrders:
 			break
 		}
 		for i := range orderList {
-			if req.StartTime.Equal(orderList[i].CreationTime) ||
-				orderList[i].CreationTime.Before(req.StartTime) ||
-				endTime == orderList[i].CreationTime {
+			if req.StartTime.Equal(orderList[i].CreationTime.Time()) ||
+				orderList[i].CreationTime.Time().Before(req.StartTime) ||
+				endTime == orderList[i].CreationTime.Time() {
 				// reached end of orders to crawl
 				break allOrders
 			}
@@ -1395,8 +1395,8 @@ allOrders:
 					Side:                 orderSide,
 					Status:               orderStatus,
 					AssetType:            req.AssetType,
-					Date:                 orderList[i].CreationTime,
-					LastUpdated:          orderList[i].UpdateTime,
+					Date:                 orderList[i].CreationTime.Time(),
+					LastUpdated:          orderList[i].UpdateTime.Time(),
 					Pair:                 pair,
 					Cost:                 orderList[i].AveragePrice.Float64() * orderList[i].AccumulatedFillSize.Float64(),
 					CostAsset:            currency.NewCode(orderList[i].RebateCurrency),
@@ -1406,7 +1406,7 @@ allOrders:
 		if len(orderList) < 100 {
 			break
 		}
-		endTime = orderList[len(orderList)-1].CreationTime
+		endTime = orderList[len(orderList)-1].CreationTime.Time()
 	}
 	return req.Filter(ok.Name, resp), nil
 }
@@ -2093,8 +2093,8 @@ func (ok *Okx) GetFuturesPositionOrders(ctx context.Context, req *futures.Positi
 				Side:                 orderSide,
 				Status:               orderStatus,
 				AssetType:            req.Asset,
-				Date:                 positions[j].CreationTime,
-				LastUpdated:          positions[j].UpdateTime,
+				Date:                 positions[j].CreationTime.Time(),
+				LastUpdated:          positions[j].UpdateTime.Time(),
 				Pair:                 req.Pairs[i],
 				Cost:                 cost,
 				CostAsset:            currency.NewCode(positions[j].RebateCurrency),

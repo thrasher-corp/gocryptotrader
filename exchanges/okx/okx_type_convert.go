@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
@@ -54,108 +53,6 @@ func (a *OpenInterest) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-// UnmarshalJSON deserializes JSON, and timestamp information.
-func (a *LimitPriceResponse) UnmarshalJSON(data []byte) error {
-	type Alias LimitPriceResponse
-	chil := &struct {
-		*Alias
-		Timestamp int64 `json:"ts,string"`
-	}{
-		Alias: (*Alias)(a),
-	}
-	err := json.Unmarshal(data, chil)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-// UnmarshalJSON deserializes JSON, and timestamp information.
-func (a *OrderDetail) UnmarshalJSON(data []byte) error {
-	type Alias OrderDetail
-	chil := &struct {
-		*Alias
-		UpdateTime   int64  `json:"uTime,string"`
-		CreationTime int64  `json:"cTime,string"`
-		FillTime     string `json:"fillTime"`
-	}{
-		Alias: (*Alias)(a),
-	}
-	if err := json.Unmarshal(data, chil); err != nil {
-		return err
-	}
-	var err error
-	a.UpdateTime = time.UnixMilli(chil.UpdateTime)
-	a.CreationTime = time.UnixMilli(chil.CreationTime)
-	if chil.FillTime == "" {
-		a.FillTime = time.Time{}
-	} else {
-		var value int64
-		value, err = strconv.ParseInt(chil.FillTime, 10, 64)
-		if err != nil {
-			return err
-		}
-		a.FillTime = time.UnixMilli(value)
-	}
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-// UnmarshalJSON deserializes JSON, and timestamp information.
-func (a *RfqTradeResponse) UnmarshalJSON(data []byte) error {
-	type Alias RfqTradeResponse
-	chil := &struct {
-		*Alias
-		CreationTime int64 `json:"cTime,string"`
-	}{
-		Alias: (*Alias)(a),
-	}
-	if err := json.Unmarshal(data, chil); err != nil {
-		return err
-	}
-	a.CreationTime = time.UnixMilli(chil.CreationTime)
-	return nil
-}
-
-// UnmarshalJSON deserializes JSON, and timestamp information.
-func (a *BlockTicker) UnmarshalJSON(data []byte) error {
-	type Alias BlockTicker
-	chil := &struct {
-		*Alias
-		Timestamp int64 `json:"ts,string"`
-	}{
-		Alias: (*Alias)(a),
-	}
-	err := json.Unmarshal(data, chil)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-// UnmarshalJSON deserializes JSON, and timestamp information.
-func (a *UnitConvertResponse) UnmarshalJSON(data []byte) error {
-	type Alias UnitConvertResponse
-	chil := &struct {
-		*Alias
-		ConvertType int `json:"type,string"`
-	}{
-		Alias: (*Alias)(a),
-	}
-	if err := json.Unmarshal(data, chil); err != nil {
-		return err
-	}
-	switch chil.ConvertType {
-	case 1:
-		a.ConvertType = 1
-	case 2:
-		a.ConvertType = 2
-	}
-	return nil
-}
-
 // MarshalJSON serialized QuoteLeg instance into bytes
 func (a *QuoteLeg) MarshalJSON() ([]byte, error) {
 	type Alias QuoteLeg
@@ -200,39 +97,4 @@ func (a *WebsocketLoginData) MarshalJSON() ([]byte, error) {
 		Timestamp: a.Timestamp.UTC().Unix(),
 		Alias:     (*Alias)(a),
 	})
-}
-
-// UnmarshalJSON deserializes JSON, and timestamp information.
-func (a *WebsocketLoginData) UnmarshalJSON(data []byte) error {
-	type Alias WebsocketLoginData
-	chil := &struct {
-		*Alias
-		Timestamp int64 `json:"timestamp"`
-	}{
-		Alias: (*Alias)(a),
-	}
-	if err := json.Unmarshal(data, chil); err != nil {
-		return err
-	}
-	a.Timestamp = time.UnixMilli(chil.Timestamp)
-	return nil
-}
-
-// UnmarshalJSON deserializes JSON, and timestamp information.
-func (a *CurrencyOneClickRepay) UnmarshalJSON(data []byte) error {
-	type Alias CurrencyOneClickRepay
-	chil := &struct {
-		*Alias
-		UpdateTime   int64  `json:"uTime,string"`
-		FillToSize   string `json:"fillToSz"`
-		FillFromSize string `json:"fillFromSz"`
-	}{
-		Alias: (*Alias)(a),
-	}
-	err := json.Unmarshal(data, chil)
-	if err != nil {
-		return err
-	}
-	a.UpdateTime = time.Unix(chil.UpdateTime, 0)
-	return nil
 }

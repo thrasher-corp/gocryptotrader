@@ -2124,7 +2124,7 @@ func (ok *Okx) GetBillsDetail(ctx context.Context, arg *BillsDetailQueryParamete
 		params.Set("type", strconv.Itoa(int(arg.BillType)))
 	}
 	if arg.BillSubType != 0 {
-		params.Set("subType", strconv.Itoa(arg.BillSubType))
+		params.Set("subType", strconv.FormatInt(arg.BillSubType, 10))
 	}
 	if arg.After != "" {
 		params.Set("after", arg.After)
@@ -2372,10 +2372,10 @@ func (ok *Okx) GetFee(ctx context.Context, feeBuilder *exchange.FeeBuilder) (flo
 
 // GetTradeFee query trade fee rate of various instrument types and instrument ids.
 func (ok *Okx) GetTradeFee(ctx context.Context, instrumentType, instrumentID, underlying string) ([]TradeFeeRate, error) {
-	params := url.Values{}
 	if instrumentType == "" {
 		return nil, errInstrumentTypeRequired
 	}
+	params := url.Values{}
 	instrumentType = strings.ToUpper(instrumentType)
 	params.Set("instType", instrumentType)
 	if instrumentID != "" {
@@ -2655,10 +2655,10 @@ func (ok *Okx) GetVIPLoanOrderList(ctx context.Context, orderID, state string, c
 
 // GetVIPLoanOrderDetail retrieves list of loan order details.
 func (ok *Okx) GetVIPLoanOrderDetail(ctx context.Context, orderID string, ccy currency.Code, after, before time.Time, limit int64) (*VIPLoanOrderDetail, error) {
-	params := url.Values{}
 	if orderID == "" {
 		return nil, order.ErrOrderIDNotSet
 	}
+	params := url.Values{}
 	params.Set("ordId", orderID)
 	if !ccy.IsEmpty() {
 		params.Set("ccy", ccy.String())
@@ -2873,13 +2873,13 @@ func (ok *Okx) ViewSubAccountList(ctx context.Context, enable bool, subaccountNa
 
 // ResetSubAccountAPIKey applies to master accounts only and master accounts APIKey must be linked to IP addresses.
 func (ok *Okx) ResetSubAccountAPIKey(ctx context.Context, arg *SubAccountAPIKeyParam) (*SubAccountAPIKeyResponse, error) {
-	params := url.Values{}
 	if arg == nil {
 		return nil, errNilArgument
 	}
 	if arg.SubAccountName == "" {
 		return nil, errInvalidSubAccountName
 	}
+	params := url.Values{}
 	params.Set("subAcct", arg.SubAccountName)
 	if arg.APIKey == "" {
 		return nil, errInvalidAPIKey
@@ -2915,10 +2915,10 @@ func (ok *Okx) ResetSubAccountAPIKey(ctx context.Context, arg *SubAccountAPIKeyP
 
 // GetSubaccountTradingBalance query detailed balance info of Trading Account of a sub-account via the master account (applies to master accounts only)
 func (ok *Okx) GetSubaccountTradingBalance(ctx context.Context, subaccountName string) ([]SubaccountBalanceResponse, error) {
-	params := url.Values{}
 	if subaccountName == "" {
 		return nil, errMissingRequiredParameterSubaccountName
 	}
+	params := url.Values{}
 	params.Set("subAcct", subaccountName)
 	var resp []SubaccountBalanceResponse
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getSubaccountTradingBalanceEPL, http.MethodGet, common.EncodeURLValues(accountSubaccountBalances, params), nil, &resp, true)
@@ -3279,11 +3279,11 @@ func (ok *Okx) GetGridAlgoOrderHistory(ctx context.Context, algoOrderType, algoI
 func (ok *Okx) getGridAlgoOrders(ctx context.Context, algoOrderType, algoID,
 	instrumentID, instrumentType,
 	after, before, route string, limit int64) ([]GridAlgoOrderResponse, error) {
-	params := url.Values{}
 	algoOrderType = strings.ToLower(algoOrderType)
 	if algoOrderType != AlgoOrdTypeGrid && algoOrderType != AlgoOrdTypeContractGrid {
 		return nil, errMissingAlgoOrderType
 	}
+	params := url.Values{}
 	params.Set("algoOrdType", algoOrderType)
 	if algoID != "" {
 		params.Set("algoId", algoID)
@@ -3313,7 +3313,6 @@ func (ok *Okx) getGridAlgoOrders(ctx context.Context, algoOrderType, algoID,
 
 // GetGridAlgoOrderDetails retrieves grid algo order details
 func (ok *Okx) GetGridAlgoOrderDetails(ctx context.Context, algoOrderType, algoID string) (*GridAlgoOrderResponse, error) {
-	params := url.Values{}
 	if algoOrderType != AlgoOrdTypeGrid &&
 		algoOrderType != AlgoOrdTypeContractGrid {
 		return nil, errMissingAlgoOrderType
@@ -3321,6 +3320,7 @@ func (ok *Okx) GetGridAlgoOrderDetails(ctx context.Context, algoOrderType, algoI
 	if algoID == "" {
 		return nil, errMissingAlgoOrderID
 	}
+	params := url.Values{}
 	params.Set("algoOrdType", algoOrderType)
 	params.Set("algoId", algoID)
 	var resp []GridAlgoOrderResponse
@@ -3336,11 +3336,11 @@ func (ok *Okx) GetGridAlgoOrderDetails(ctx context.Context, algoOrderType, algoI
 
 // GetGridAlgoSubOrders retrieves grid algo sub orders
 func (ok *Okx) GetGridAlgoSubOrders(ctx context.Context, algoOrderType, algoID, subOrderType, groupID, after, before string, limit int64) ([]GridAlgoOrderResponse, error) {
-	params := url.Values{}
 	if algoOrderType != AlgoOrdTypeGrid &&
 		algoOrderType != AlgoOrdTypeContractGrid {
 		return nil, errMissingAlgoOrderType
 	}
+	params := url.Values{}
 	params.Set("algoOrdType", algoOrderType)
 	if algoID != "" {
 		params.Set("algoId", algoID)
@@ -3369,13 +3369,13 @@ func (ok *Okx) GetGridAlgoSubOrders(ctx context.Context, algoOrderType, algoID, 
 
 // GetGridAlgoOrderPositions retrieves grid algo order positions.
 func (ok *Okx) GetGridAlgoOrderPositions(ctx context.Context, algoOrderType, algoID string) ([]AlgoOrderPosition, error) {
-	params := url.Values{}
 	if algoOrderType != AlgoOrdTypeGrid && algoOrderType != AlgoOrdTypeContractGrid {
 		return nil, errInvalidAlgoOrderType
 	}
 	if algoID == "" {
 		return nil, errMissingAlgoOrderID
 	}
+	params := url.Values{}
 	params.Set("algoOrdType", algoOrderType)
 	params.Set("algoId", algoID)
 	var resp []AlgoOrderPosition
@@ -3444,7 +3444,6 @@ func (ok *Okx) AdjustMarginBalance(ctx context.Context, arg MarginBalanceParam) 
 
 // GetGridAIParameter retrieves grid AI parameter
 func (ok *Okx) GetGridAIParameter(ctx context.Context, algoOrderType, instrumentID, direction, duration string) ([]GridAIParameterResponse, error) {
-	params := url.Values{}
 	if algoOrderType != "moon_grid" && algoOrderType != "contract_grid" && algoOrderType != "grid" {
 		return nil, errInvalidAlgoOrderType
 	}
@@ -3454,6 +3453,7 @@ func (ok *Okx) GetGridAIParameter(ctx context.Context, algoOrderType, instrument
 	if algoOrderType == "contract_grid" && direction != positionSideLong && direction != positionSideShort && direction != "neutral" {
 		return nil, errors.New("parameter 'direction' is required for 'contract_grid' algo order type")
 	}
+	params := url.Values{}
 	params.Set("direction", direction)
 	params.Set("algoOrdType", algoOrderType)
 	params.Set("instId", instrumentID)
@@ -3793,13 +3793,13 @@ func (ok *Okx) GetRecurringOrderDetails(ctx context.Context, algoID string) (*Re
 
 // GetRecurringSubOrders retrieves recurring buy sub orders.
 func (ok *Okx) GetRecurringSubOrders(ctx context.Context, algoID, orderID string, after, before time.Time, limit int64) ([]RecurringBuySubOrder, error) {
-	params := url.Values{}
 	if algoID == "" {
 		return nil, errNilArgument
 	}
 	if orderID == "" {
 		return nil, errMissingAlgoOrderID
 	}
+	params := url.Values{}
 	if !after.IsZero() {
 		params.Set("after", strconv.FormatInt(after.UnixMilli(), 10))
 	}
@@ -3926,10 +3926,10 @@ func (ok *Okx) AmendLeadingInstruments(ctx context.Context, instrumentID, instru
 
 // GetProfitSharingDetails gets profits shared details for the last 3 months.
 func (ok *Okx) GetProfitSharingDetails(ctx context.Context, instrumentType string, before, after time.Time, limit int64) ([]ProfitSharingItem, error) {
-	params := url.Values{}
 	if instrumentType == "" {
 		return nil, errInstrumentTypeRequired
 	}
+	params := url.Values{}
 	if !before.IsZero() {
 		params.Set("before", strconv.FormatInt(before.UnixMilli(), 10))
 	}
@@ -5201,10 +5201,10 @@ func (ok *Okx) GetInsuranceFundInformation(ctx context.Context, arg *InsuranceFu
 	if arg == nil {
 		return nil, errNilArgument
 	}
-	params := url.Values{}
 	if arg.InstrumentType == "" {
 		return nil, errMissingRequiredArgInstType
 	}
+	params := url.Values{}
 	params.Set("instType", strings.ToUpper(arg.InstrumentType))
 	arg.Type = strings.ToLower(arg.Type)
 	if arg.Type != "" {
