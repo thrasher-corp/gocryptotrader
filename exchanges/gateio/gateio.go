@@ -2375,11 +2375,10 @@ func (g *Gateio) GetFuturesOrders(ctx context.Context, contract currency.Pair, s
 	if settle == "" {
 		return nil, errEmptySettlementCurrency
 	}
-	if contract.IsInvalid() {
-		return nil, fmt.Errorf("%w, currency pair for contract must not be empty", errInvalidOrMissingContractParam)
-	}
 	params := url.Values{}
-	params.Set("contract", contract.String())
+	if !contract.IsEmpty() {
+		params.Set("contract", contract.String())
+	}
 	if status != statusOpen && status != statusFinished {
 		return nil, fmt.Errorf("%w, only 'open' and 'finished' status are supported", errInvalidOrderStatus)
 	}

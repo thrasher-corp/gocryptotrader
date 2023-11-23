@@ -1645,24 +1645,36 @@ func (g *Gateio) GetActiveOrders(ctx context.Context, req *order.MultiOrderReque
 			}
 		}
 	case asset.Futures, asset.DeliveryFutures:
+		settlement := map[string]bool{}
 		if len(req.Pairs) == 0 {
-			return nil, currency.ErrCurrencyPairsEmpty
+			settlement["btc"] = true
+			settlement["usdt"] = true
+			settlement["usd"] = true
+		} else {
+			for x := range req.Pairs {
+				var s string
+				if req.AssetType == asset.Futures {
+					s, err = g.getSettlementFromCurrency(req.Pairs[x], true)
+				} else {
+					s, err = g.getSettlementFromCurrency(req.Pairs[x], false)
+				}
+				if err != nil {
+					return nil, err
+				}
+				settlement[s] = true
+			}
 		}
-		for z := range req.Pairs {
-			var settle string
-			if req.AssetType == asset.Futures {
-				settle, err = g.getSettlementFromCurrency(req.Pairs[z], true)
-			} else {
-				settle, err = g.getSettlementFromCurrency(req.Pairs[z], false)
-			}
-			if err != nil {
-				return nil, err
-			}
+
+		for key := range settlement {
 			var futuresOrders []Order
+			// NOTE: If account associated with a settlement currency has not
+			// been funded, this will return an error.
+			// {"label":"USER_NOT_FOUND","message":"please transfer funds first to create futures account"}
+			// Use specific pairs to avoid this error.
 			if req.AssetType == asset.Futures {
-				futuresOrders, err = g.GetFuturesOrders(ctx, req.Pairs[z], "open", "", settle, 0, 0, 0)
+				futuresOrders, err = g.GetFuturesOrders(ctx, currency.EMPTYPAIR, "open", "", key, 0, 0, 0)
 			} else {
-				futuresOrders, err = g.GetDeliveryOrders(ctx, req.Pairs[z], "open", settle, "", 0, 0, 0)
+				futuresOrders, err = g.GetDeliveryOrders(ctx, currency.EMPTYPAIR, "open", key, "", 0, 0, 0)
 			}
 			if err != nil {
 				return nil, err
@@ -1671,24 +1683,42 @@ func (g *Gateio) GetActiveOrders(ctx context.Context, req *order.MultiOrderReque
 				if futuresOrders[x].Status != "open" {
 					continue
 				}
+				var pair currency.Pair
+				pair, err = currency.NewPairFromString(futuresOrders[x].Contract)
+				if err != nil {
+					return nil, err
+				}
 				var status order.Status
 				status, err = order.StringToOrderStatus(futuresOrders[x].Status)
 				if err != nil {
 					log.Errorf(log.ExchangeSys, "%s %v", g.Name, err)
 				}
+
+				side := order.Long
+				if futuresOrders[x].Size < 0 {
+					side = order.Short
+					futuresOrders[x].Size = math.Abs(futuresOrders[x].Size)
+					futuresOrders[x].RemainingAmount = math.Abs(futuresOrders[x].RemainingAmount)
+				}
 				orders = append(orders, order.Detail{
-					Status:          status,
-					Amount:          futuresOrders[x].Size,
-					Pair:            req.Pairs[x],
-					OrderID:         strconv.FormatInt(futuresOrders[x].ID, 10),
-					Price:           futuresOrders[x].OrderPrice.Float64(),
-					ExecutedAmount:  futuresOrders[x].Size - futuresOrders[x].RemainingAmount,
-					RemainingAmount: futuresOrders[x].RemainingAmount,
-					LastUpdated:     futuresOrders[x].FinishTime.Time(),
-					Date:            futuresOrders[x].CreateTime.Time(),
-					ClientOrderID:   futuresOrders[x].Text,
-					Exchange:        g.Name,
-					AssetType:       req.AssetType,
+					Status:             status,
+					Amount:             futuresOrders[x].Size,
+					ContractAmount:     futuresOrders[x].Size,
+					Pair:               pair,
+					OrderID:            strconv.FormatInt(futuresOrders[x].ID, 10),
+					Price:              futuresOrders[x].OrderPrice.Float64(),
+					ExecutedAmount:     futuresOrders[x].Size - futuresOrders[x].RemainingAmount,
+					RemainingAmount:    futuresOrders[x].RemainingAmount,
+					LastUpdated:        futuresOrders[x].FinishTime.Time(),
+					Date:               futuresOrders[x].CreateTime.Time(),
+					ExecutionNote:      futuresOrders[x].Text,
+					Exchange:           g.Name,
+					AssetType:          req.AssetType,
+					Side:               side,
+					Type:               order.Limit,
+					SettlementCurrency: currency.NewCode(key),
+					ReduceOnly:         futuresOrders[x].IsReduceOnly,
+					PostOnly:           futuresOrders[x].TimeInForce == "poc",
 				})
 			}
 		}
@@ -1729,6 +1759,8 @@ func (g *Gateio) GetActiveOrders(ctx context.Context, req *order.MultiOrderReque
 	}
 	return req.Filter(g.Name, orders), nil
 }
+
+var tif = []string{"poc", "gtc", "ioc", "fok"}
 
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
