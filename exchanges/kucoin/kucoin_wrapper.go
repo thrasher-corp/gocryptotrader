@@ -1077,8 +1077,8 @@ func (ku *Kucoin) GetActiveOrders(ctx context.Context, getOrdersRequest *order.M
 	if err != nil {
 		return nil, err
 	}
-	pair := ""
-	orders := []order.Detail{}
+	var pair string
+	var orders []order.Detail
 	switch getOrdersRequest.AssetType {
 	case asset.Futures:
 		if len(getOrdersRequest.Pairs) == 1 {
@@ -1101,40 +1101,52 @@ func (ku *Kucoin) GetActiveOrders(ctx context.Context, getOrdersRequest *order.M
 				continue
 			}
 			var dPair currency.Pair
-			var isEnabled bool
-			dPair, isEnabled, err = ku.MatchSymbolCheckEnabled(futuresOrders.Items[x].Symbol, getOrdersRequest.AssetType, true)
+			dPair, err = ku.MatchSymbolWithAvailablePairs(futuresOrders.Items[x].Symbol, getOrdersRequest.AssetType, false)
 			if err != nil {
 				return nil, err
 			}
-			if !isEnabled {
-				continue
+			side, err := order.StringToOrderSide(futuresOrders.Items[x].Side)
+			if err != nil {
+				return nil, err
 			}
-			for i := range getOrdersRequest.Pairs {
-				if !getOrdersRequest.Pairs[i].Equal(dPair) {
-					continue
-				}
-				side, err := order.StringToOrderSide(futuresOrders.Items[x].Side)
-				if err != nil {
-					return nil, err
-				}
-				oType, err := order.StringToOrderType(futuresOrders.Items[x].OrderType)
-				if err != nil {
-					return nil, fmt.Errorf("asset type: %v order type: %v err: %w", getOrdersRequest.AssetType, getOrdersRequest.Type, err)
-				}
-				orders = append(orders, order.Detail{
-					OrderID:         futuresOrders.Items[x].ID,
-					Amount:          futuresOrders.Items[x].Size,
-					RemainingAmount: futuresOrders.Items[x].Size - futuresOrders.Items[x].FilledSize,
-					ExecutedAmount:  futuresOrders.Items[x].FilledSize,
-					Exchange:        ku.Name,
-					Date:            futuresOrders.Items[x].CreatedAt.Time(),
-					LastUpdated:     futuresOrders.Items[x].UpdatedAt.Time(),
-					Price:           futuresOrders.Items[x].Price,
-					Side:            side,
-					Type:            oType,
-					Pair:            dPair,
-				})
+			if side == order.Sell {
+				side = order.Short
+			} else if side == order.Buy {
+				side = order.Long
 			}
+			oType, err := order.StringToOrderType(futuresOrders.Items[x].OrderType)
+			if err != nil {
+				return nil, fmt.Errorf("asset type: %v order type: %v err: %w", getOrdersRequest.AssetType, getOrdersRequest.Type, err)
+			}
+
+			status, err := order.StringToOrderStatus(futuresOrders.Items[x].Status)
+			if err != nil {
+				return nil, err
+			}
+
+			orders = append(orders, order.Detail{
+				OrderID:            futuresOrders.Items[x].ID,
+				ClientOrderID:      futuresOrders.Items[x].ClientOid,
+				Amount:             futuresOrders.Items[x].Size,
+				ContractAmount:     futuresOrders.Items[x].Size,
+				RemainingAmount:    futuresOrders.Items[x].Size - futuresOrders.Items[x].FilledSize,
+				ExecutedAmount:     futuresOrders.Items[x].FilledSize,
+				Exchange:           ku.Name,
+				Date:               futuresOrders.Items[x].CreatedAt.Time(),
+				LastUpdated:        futuresOrders.Items[x].UpdatedAt.Time(),
+				Price:              futuresOrders.Items[x].Price,
+				Side:               side,
+				Type:               oType,
+				Pair:               dPair,
+				PostOnly:           futuresOrders.Items[x].PostOnly,
+				ReduceOnly:         futuresOrders.Items[x].ReduceOnly,
+				Status:             status,
+				SettlementCurrency: currency.NewCode(futuresOrders.Items[x].SettleCurrency),
+				Leverage:           futuresOrders.Items[x].Leverage,
+				ExecutionNote:      futuresOrders.Items[x].Remark,
+				AssetType:          getOrdersRequest.AssetType,
+				HiddenOrder:        futuresOrders.Items[x].Hidden,
+			})
 		}
 	case asset.Spot, asset.Margin:
 		if len(getOrdersRequest.Pairs) == 1 {
