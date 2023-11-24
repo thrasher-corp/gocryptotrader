@@ -743,14 +743,19 @@ func (ku *Kucoin) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Subm
 	}
 	switch s.AssetType {
 	case asset.Futures:
-		if s.Leverage == 0 {
-			s.Leverage = 1
-		}
 		o, err := ku.PostFuturesOrder(ctx, &FuturesOrderParam{
-			ClientOrderID: s.ClientOrderID, Side: sideString, Symbol: s.Pair,
-			OrderType: s.Type.Lower(), Size: s.Amount, Price: s.Price, StopPrice: s.TriggerPrice,
-			Leverage: s.Leverage, VisibleSize: 0, ReduceOnly: s.ReduceOnly,
-			PostOnly: s.PostOnly, Hidden: s.Hidden})
+			ClientOrderID: s.ClientOrderID,
+			Side:          sideString,
+			Symbol:        s.Pair,
+			OrderType:     s.Type.Lower(),
+			Size:          s.Amount,
+			Price:         s.Price,
+			StopPrice:     s.TriggerPrice,
+			Leverage:      s.Leverage,
+			VisibleSize:   0,
+			ReduceOnly:    s.ReduceOnly,
+			PostOnly:      s.PostOnly,
+			Hidden:        s.Hidden})
 		if err != nil {
 			return nil, err
 		}

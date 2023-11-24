@@ -547,7 +547,6 @@ func (g *Gateio) CreateBatchOrders(ctx context.Context, args []CreateOrderReques
 	if len(args) > 10 {
 		return nil, fmt.Errorf("%w only 10 orders are canceled at once", errMultipleOrders)
 	}
-	var err error
 	for x := range args {
 		if (x != 0) && args[x-1].Account != args[x].Account {
 			return nil, errDifferentAccount
@@ -566,13 +565,6 @@ func (g *Gateio) CreateBatchOrders(ctx context.Context, args []CreateOrderReques
 			!strings.EqualFold(args[x].Account, asset.CrossMargin.String()) &&
 			!strings.EqualFold(args[x].Account, asset.Margin.String()) {
 			return nil, errors.New("only spot, margin, and cross_margin area allowed")
-		}
-		if args[x].Text == "" {
-			args[x].Text, err = common.GenerateRandomString(10, common.NumberCharacters)
-			if err != nil {
-				return nil, err
-			}
-			args[x].Text = "t-" + args[x].Text
 		}
 		if args[x].Amount <= 0 {
 			return nil, errInvalidAmount
@@ -643,15 +635,6 @@ func (g *Gateio) PlaceSpotOrder(ctx context.Context, arg *CreateOrderRequestData
 		!strings.EqualFold(arg.Account, asset.CrossMargin.String()) &&
 		!strings.EqualFold(arg.Account, asset.Margin.String()) {
 		return nil, errors.New("only 'spot', 'cross_margin', and 'margin' area allowed")
-	}
-	if arg.Text != "" {
-		arg.Text = "t-" + arg.Text
-	} else {
-		randomString, err := common.GenerateRandomString(10, common.NumberCharacters)
-		if err != nil {
-			return nil, err
-		}
-		arg.Text = "t-" + randomString
 	}
 	if arg.Amount <= 0 {
 		return nil, errInvalidAmount
@@ -2345,15 +2328,6 @@ func (g *Gateio) PlaceFuturesOrder(ctx context.Context, arg *OrderCreateParams) 
 	if arg.Price < 0 {
 		return nil, errInvalidPrice
 	}
-	if arg.Text != "" {
-		arg.Text = "t-" + arg.Text
-	} else {
-		randomString, err := common.GenerateRandomString(10, common.NumberCharacters)
-		if err != nil {
-			return nil, err
-		}
-		arg.Text = "t-" + randomString
-	}
 	if arg.AutoSize != "" && (arg.AutoSize == "close_long" || arg.AutoSize == "close_short") {
 		return nil, errInvalidAutoSizeValue
 	}
@@ -2363,10 +2337,13 @@ func (g *Gateio) PlaceFuturesOrder(ctx context.Context, arg *OrderCreateParams) 
 	}
 	var response *Order
 	return response, g.SendAuthenticatedHTTPRequest(ctx,
-		exchange.RestSpot, perpetualSwapPlaceOrdersEPL,
+		exchange.RestSpot,
+		perpetualSwapPlaceOrdersEPL,
 		http.MethodPost,
 		"futures/"+arg.Settle+"/orders",
-		nil, &arg, &response)
+		nil,
+		&arg,
+		&response)
 }
 
 // GetFuturesOrders retrieves list of futures orders
@@ -2982,15 +2959,6 @@ func (g *Gateio) PlaceDeliveryOrder(ctx context.Context, arg *OrderCreateParams)
 	if arg.Price < 0 {
 		return nil, errInvalidPrice
 	}
-	if arg.Text != "" {
-		arg.Text = "t-" + arg.Text
-	} else {
-		randomString, err := common.GenerateRandomString(10, common.NumberCharacters)
-		if err != nil {
-			return nil, err
-		}
-		arg.Text = "t-" + randomString
-	}
 	if arg.AutoSize != "" && (arg.AutoSize == "close_long" || arg.AutoSize == "close_short") {
 		return nil, errInvalidAutoSizeValue
 	}
@@ -3494,12 +3462,6 @@ func (g *Gateio) PlaceOptionOrder(ctx context.Context, arg OptionOrderParam) (*O
 	if arg.TimeInForce == iocTIF || arg.Price < 0 {
 		arg.Price = 0
 	}
-	var err error
-	arg.Text, err = common.GenerateRandomString(10, common.NumberCharacters)
-	if err != nil {
-		return nil, err
-	}
-	arg.Text = "t-" + arg.Text
 	var response *OptionOrderResponse
 	return response, g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, perpetualSwapPlaceOrdersEPL, http.MethodPost,
 		gateioOptionsOrders, nil, &arg, &response)

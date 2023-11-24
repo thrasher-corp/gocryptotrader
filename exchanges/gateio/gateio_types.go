@@ -1794,18 +1794,16 @@ type DualModeResponse struct {
 
 // OrderCreateParams represents future order creation parameters
 type OrderCreateParams struct {
-	Contract    currency.Pair           `json:"contract"`
-	Size        float64                 `json:"size"`
-	Iceberg     int64                   `json:"iceberg"`
-	Price       convert.StringToFloat64 `json:"price"`
-	TimeInForce string                  `json:"tif"`
-	Text        string                  `json:"text"`
-
-	// Optional Parameters
-	ClosePosition bool   `json:"close,omitempty"`
-	ReduceOnly    bool   `json:"reduce_only,omitempty"`
-	AutoSize      string `json:"auto_size,omitempty"`
-	Settle        string `json:"-"`
+	Contract      currency.Pair           `json:"contract"`
+	Size          float64                 `json:"size"`
+	Iceberg       int64                   `json:"iceberg,omitempty"`
+	Price         convert.StringToFloat64 `json:"price,omitempty"`
+	TimeInForce   string                  `json:"tif,omitempty"`
+	Text          string                  `json:"text,omitempty"`
+	ClosePosition bool                    `json:"close,omitempty"`
+	ReduceOnly    bool                    `json:"reduce_only,omitempty"`
+	AutoSize      string                  `json:"auto_size,omitempty"`
+	Settle        string                  `json:"-"` // Used in URL.
 }
 
 // Order represents future order response

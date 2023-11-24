@@ -1034,15 +1034,7 @@ func (g *Gateio) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Submi
 	if err != nil {
 		return nil, err
 	}
-	var orderTypeFormat string
-	switch {
-	case s.Side.IsLong():
-		orderTypeFormat = order.Buy.Lower()
-	case s.Side.IsShort():
-		orderTypeFormat = order.Sell.Lower()
-	default:
-		return nil, errInvalidOrderSide
-	}
+
 	s.Pair, err = g.FormatExchangeCurrency(s.Pair, s.AssetType)
 	if err != nil {
 		return nil, err
@@ -1053,8 +1045,16 @@ func (g *Gateio) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Submi
 		if s.Type != order.Limit {
 			return nil, errOnlyLimitOrderType
 		}
+		switch {
+		case s.Side.IsLong():
+			s.Side = order.Buy
+		case s.Side.IsShort():
+			s.Side = order.Sell
+		default:
+			return nil, errInvalidOrderSide
+		}
 		sOrder, err := g.PlaceSpotOrder(ctx, &CreateOrderRequestData{
-			Side:         orderTypeFormat,
+			Side:         s.Side.Lower(),
 			Type:         s.Type.Lower(),
 			Account:      g.assetTypeToString(s.AssetType),
 			Amount:       convert.StringToFloat64(s.Amount),
@@ -1088,24 +1088,32 @@ func (g *Gateio) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Submi
 		response.LastUpdated = sOrder.UpdateTimeMs.Time()
 		return response, nil
 	case asset.Futures:
+		// TODO: See https://www.gate.io/docs/developers/apiv4/en/#create-a-futures-order
+		//	* iceberg orders
+		//	* auto_size (close_long, close_short)
+		// 	* stp_act (self trade prevention)
 		settle, err := g.getSettlementFromCurrency(s.Pair, true)
 		if err != nil {
 			return nil, err
 		}
-		if orderTypeFormat == "bid" && s.Price < 0 {
-			s.Price = -s.Price
-		} else if orderTypeFormat == "ask" && s.Price > 0 {
-			s.Price = -s.Price
+		var amountWithDirection float64
+		amountWithDirection, err = getFuturesAmountWithDirection(s)
+		if err != nil {
+			return nil, err
+		}
+		var timeInForce string
+		timeInForce, err = getTimeInForce(s)
+		if err != nil {
+			return nil, err
 		}
 		fOrder, err := g.PlaceFuturesOrder(ctx, &OrderCreateParams{
 			Contract:    s.Pair,
-			Size:        s.Amount,
+			Size:        amountWithDirection,
 			Price:       convert.StringToFloat64(s.Price),
 			Settle:      settle,
 			ReduceOnly:  s.ReduceOnly,
-			TimeInForce: "gtc",
-			Text:        s.ClientOrderID,
-		})
+			TimeInForce: timeInForce,
+			Text:        s.ClientOrderID})
 		if err != nil {
 			return nil, err
 		}
@@ -1122,25 +1130,31 @@ func (g *Gateio) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Submi
 		response.Date = fOrder.CreateTime.Time()
 		response.ClientOrderID = fOrder.Text
 		response.ReduceOnly = fOrder.IsReduceOnly
-		response.Amount = fOrder.RemainingAmount
+		response.Amount = math.Abs(fOrder.Size)
+		response.Price = fOrder.OrderPrice.Float64()
 		return response, nil
 	case asset.DeliveryFutures:
 		settle, err := g.getSettlementFromCurrency(s.Pair, false)
 		if err != nil {
 			return nil, err
 		}
-		if orderTypeFormat == "bid" && s.Price < 0 {
-			s.Price = -s.Price
-		} else if orderTypeFormat == "ask" && s.Price > 0 {
-			s.Price = -s.Price
+		var amountWithDirection float64
+		amountWithDirection, err = getFuturesAmountWithDirection(s)
+		if err != nil {
+			return nil, err
+		}
+		var timeInForce string
+		timeInForce, err = getTimeInForce(s)
+		if err != nil {
+			return nil, err
 		}
 		newOrder, err := g.PlaceDeliveryOrder(ctx, &OrderCreateParams{
 			Contract:    s.Pair,
-			Size:        s.Amount,
+			Size:        amountWithDirection,
 			Price:       convert.StringToFloat64(s.Price),
 			Settle:      settle,
 			ReduceOnly:  s.ReduceOnly,
-			TimeInForce: "gtc",
+			TimeInForce: timeInForce,
 			Text:        s.ClientOrderID,
 		})
 		if err != nil {
@@ -1158,7 +1172,7 @@ func (g *Gateio) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Submi
 		response.Pair = s.Pair
 		response.Date = newOrder.CreateTime.Time()
 		response.ClientOrderID = newOrder.Text
-		response.Amount = newOrder.Size
+		response.Amount = math.Abs(newOrder.Size)
 		response.Price = newOrder.OrderPrice.Float64()
 		return response, nil
 	case asset.Options:
@@ -1188,6 +1202,37 @@ func (g *Gateio) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Submi
 	default:
 		return nil, fmt.Errorf("%w asset type: %v", asset.ErrNotSupported, s.AssetType)
 	}
+}
+
+// getFuturesAmountWithDirection sets the amount to a negative value if shorting.
+func getFuturesAmountWithDirection(s *order.Submit) (float64, error) {
+	switch {
+	case s.Side.IsLong():
+	case s.Side.IsShort():
+		s.Amount = -s.Amount
+	default:
+		return 0, errInvalidOrderSide
+	}
+	return s.Amount, nil
+}
+
+// getTimeInForce returns the time in force for a given order. If Market order
+// IOC
+func getTimeInForce(s *order.Submit) (string, error) {
+	timeInForce := "gtc"
+	if s.ImmediateOrCancel {
+		timeInForce = "ioc"
+	}
+	if s.PostOnly {
+		if s.Type != order.Limit {
+			return "", errors.New("post only is only supported for limit orders")
+		}
+		timeInForce = "poc"
+	}
+	if s.FillOrKill {
+		timeInForce = "fok"
+	}
+	return timeInForce, nil
 }
 
 // ModifyOrder will allow of changing orderbook placement and limit to market conversion
