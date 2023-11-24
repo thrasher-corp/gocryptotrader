@@ -173,7 +173,6 @@ func validateSettings(b *Engine, s *Settings, flagSet FlagSet) {
 	flagSet.WithBool("exchangerates", &b.Settings.EnableExchangeRates, b.Config.Currency.ForexProviders.IsEnabled("exchangerates"))
 	flagSet.WithBool("fixer", &b.Settings.EnableFixer, b.Config.Currency.ForexProviders.IsEnabled("fixer"))
 	flagSet.WithBool("openexchangerates", &b.Settings.EnableOpenExchangeRates, b.Config.Currency.ForexProviders.IsEnabled("openexchangerates"))
-	flagSet.WithBool("exchangeratehost", &b.Settings.EnableExchangeRateHost, b.Config.Currency.ForexProviders.IsEnabled("exchangeratehost"))
 
 	flagSet.WithBool("datahistorymanager", &b.Settings.EnableDataHistoryManager, b.Config.DataHistoryManager.Enabled)
 	flagSet.WithBool("currencystatemanager", &b.Settings.EnableCurrencyStateManager, b.Config.CurrencyStateManager.Enabled != nil && *b.Config.CurrencyStateManager.Enabled)
@@ -403,12 +402,11 @@ func (bot *Engine) Start() error {
 			ExchangeRates:     bot.Settings.EnableExchangeRates,
 			Fixer:             bot.Settings.EnableFixer,
 			OpenExchangeRates: bot.Settings.EnableOpenExchangeRates,
-			ExchangeRateHost:  bot.Settings.EnableExchangeRateHost,
 		},
 		&bot.Config.Currency,
 		bot.Settings.DataDir,
 	); err != nil {
-		gctlog.Errorf(gctlog.Global, "ExchangeSettings updater system failed to start %s", err)
+		gctlog.Errorf(gctlog.Global, "Currency Converter system failed to start %s", err)
 	}
 
 	if bot.Settings.EnableGRPC {
@@ -677,7 +675,7 @@ func (bot *Engine) Stop() {
 
 	err = currency.ShutdownStorageUpdater()
 	if err != nil {
-		gctlog.Errorf(gctlog.Global, "ExchangeSettings storage system. Error: %v", err)
+		gctlog.Errorf(gctlog.Global, "Currency Converter unable to stop. Error: %v", err)
 	}
 
 	if !bot.Settings.EnableDryRun {
