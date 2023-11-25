@@ -402,18 +402,8 @@ func (ok *Okx) PlaceOrder(ctx context.Context, arg *PlaceOrderRequestParam, a as
 	if err != nil {
 		return nil, err
 	}
-	var resp []OrderData
-	err = ok.SendHTTPRequest(ctx, exchange.RestSpot, placeOrderEPL, http.MethodPost, tradeOrder, &arg, &resp, true)
-	if err != nil {
-		if len(resp) != 1 {
-			return nil, err
-		}
-		return nil, fmt.Errorf("error code:%s message: %v", resp[0].SCode, resp[0].SMessage)
-	}
-	if len(resp) == 1 {
-		return &resp[0], nil
-	}
-	return nil, errNoValidResponseFromServer
+	var resp *OrderData
+	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, placeOrderEPL, http.MethodPost, tradeOrder, &arg, &resp, true)
 }
 
 func (ok *Okx) validatePlaceOrderParams(arg *PlaceOrderRequestParam) error {
@@ -548,15 +538,8 @@ func (ok *Okx) AmendOrder(ctx context.Context, arg *AmendOrderRequestParams) (*O
 	if arg.NewQuantity < 0 && arg.NewPrice < 0 {
 		return nil, errInvalidNewSizeOrPriceInformation
 	}
-	var resp []OrderData
-	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, amendOrderEPL, http.MethodPost, amendOrder, arg, &resp, true)
-	if err != nil {
-		return nil, err
-	}
-	if len(resp) == 1 {
-		return &resp[0], nil
-	}
-	return nil, errNoValidResponseFromServer
+	var resp *OrderData
+	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, amendOrderEPL, http.MethodPost, amendOrder, arg, &resp, true)
 }
 
 // AmendMultipleOrders amend incomplete orders in batches. Maximum 20 orders can be amended at a time. Request parameters should be passed in the form of an array.
@@ -586,15 +569,8 @@ func (ok *Okx) ClosePositions(ctx context.Context, arg *ClosePositionsRequestPar
 		arg.MarginMode != TradeModeIsolated {
 		return nil, errMissingMarginMode
 	}
-	var resp []ClosePositionResponse
-	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, closePositionEPL, http.MethodPost, closePositionPath, arg, &resp, true)
-	if err != nil {
-		return nil, err
-	}
-	if len(resp) == 1 {
-		return &resp[0], nil
-	}
-	return nil, errNoValidResponseFromServer
+	var resp *ClosePositionResponse
+	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, closePositionEPL, http.MethodPost, closePositionPath, arg, &resp, true)
 }
 
 // GetOrderDetail retrieves order details given instrument id and order identification
@@ -615,15 +591,8 @@ func (ok *Okx) GetOrderDetail(ctx context.Context, arg *OrderDetailRequestParam)
 	default:
 		params.Set("clOrdId", arg.ClientOrderID)
 	}
-	var resp []OrderDetail
-	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, getOrderDetEPL, http.MethodGet, common.EncodeURLValues(tradeOrder, params), nil, &resp, true)
-	if err != nil {
-		return nil, err
-	}
-	if len(resp) == 1 {
-		return &resp[0], nil
-	}
-	return nil, errNoValidResponseFromServer
+	var resp *OrderDetail
+	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getOrderDetEPL, http.MethodGet, common.EncodeURLValues(tradeOrder, params), nil, &resp, true)
 }
 
 // GetOrderList retrieves all incomplete orders under the current account.
@@ -806,15 +775,8 @@ func (ok *Okx) PlaceAlgoOrder(ctx context.Context, arg *AlgoOrderParams) (*AlgoO
 	if arg.Size <= 0 {
 		return nil, errMissingNewSize
 	}
-	var resp []AlgoOrder
-	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, placeAlgoOrderEPL, http.MethodGet, algoTradeOrder, arg, &resp, true)
-	if err != nil {
-		return nil, err
-	}
-	if len(resp) == 1 {
-		return &resp[0], nil
-	}
-	return nil, errNoValidResponseFromServer
+	var resp *AlgoOrder
+	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, placeAlgoOrderEPL, http.MethodGet, algoTradeOrder, arg, &resp, true)
 }
 
 // PlaceStopOrder to place stop order
@@ -935,7 +897,7 @@ func (ok *Okx) cancelAlgoOrder(ctx context.Context, args []AlgoOrderCancelParams
 	if len(args) == 0 {
 		return nil, errors.New("no parameter")
 	}
-	resp := []AlgoOrder{}
+	var resp []AlgoOrder
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, rateLimit, http.MethodPost, route, &args, &resp, true)
 }
 
@@ -951,16 +913,8 @@ func (ok *Okx) AmendAlgoOrder(ctx context.Context, arg *AmendAlgoOrderParam) (*A
 	if arg.AlgoID == "" || arg.ClientSuppliedAlgoOrderID == "" {
 		return nil, fmt.Errorf("%w eiither 'algoId' or 'algoClOrdId' is required", errMissingAlgoOrderID)
 	}
-
-	var resp []AmendAlgoResponse
-	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, amendAlgoOrderEPL, http.MethodGet, "trade/amend-algos", arg, &resp, true)
-	if err != nil {
-		return nil, err
-	}
-	if len(resp) == 1 {
-		return &resp[0], nil
-	}
-	return nil, errNoValidResponseFromServer
+	var resp *AmendAlgoResponse
+	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, amendAlgoOrderEPL, http.MethodGet, "trade/amend-algos", arg, &resp, true)
 }
 
 // GetAlgoOrderDetail retrieves algo order details.
@@ -971,15 +925,8 @@ func (ok *Okx) GetAlgoOrderDetail(ctx context.Context, algoID, algoClientOrderID
 	params := url.Values{}
 	params.Set("algoId", algoID)
 	params.Set("algoClOrdId", algoClientOrderID)
-	var resp []AlgoOrderDetail
-	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, getAlgoOrderDetailEPL, http.MethodGet, common.EncodeURLValues("trade/order-algo", params), nil, &resp, true)
-	if err != nil {
-		return nil, err
-	}
-	if len(resp) == 1 {
-		return &resp[0], nil
-	}
-	return nil, errNoValidResponseFromServer
+	var resp *AlgoOrderDetail
+	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getAlgoOrderDetailEPL, http.MethodGet, common.EncodeURLValues("trade/order-algo", params), nil, &resp, true)
 }
 
 // GetAlgoOrderList retrieves a list of untriggered Algo orders under the current account.
@@ -1056,15 +1003,9 @@ func (ok *Okx) GetAlgoOrderHistory(ctx context.Context, orderType, state, algoOr
 
 // GetEasyConvertCurrencyList retrieve list of small convertibles and mainstream currencies. Only applicable to the crypto balance less than $10.
 func (ok *Okx) GetEasyConvertCurrencyList(ctx context.Context) (*EasyConvertDetail, error) {
-	var resp []EasyConvertDetail
-	if err := ok.SendHTTPRequest(ctx, exchange.RestSpot, getEasyConvertCurrencyListEPL, http.MethodGet,
-		easyConvertCurrencyList, nil, &resp, true); err != nil {
-		return nil, err
-	}
-	if len(resp) == 1 {
-		return &resp[0], nil
-	}
-	return nil, errNoValidResponseFromServer
+	var resp *EasyConvertDetail
+	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getEasyConvertCurrencyListEPL, http.MethodGet,
+		easyConvertCurrencyList, nil, &resp, true)
 }
 
 // PlaceEasyConvert converts small currencies to mainstream currencies. Only applicable to the crypto balance less than $10.
@@ -1146,15 +1087,8 @@ func (ok *Okx) MassCancelOrder(ctx context.Context, instrumentType, instrumentFa
 	params := url.Values{}
 	params.Set("instType", instrumentType)
 	params.Set("instFamily", instrumentFamily)
-	var resp []CancelMMPResponse
-	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, tradeOneClickRepayEPL, http.MethodPost, common.EncodeURLValues("trade/mass-cancel", params), nil, &resp, true)
-	if err != nil {
-		return nil, err
-	}
-	if len(resp) == 1 {
-		return &resp[0], nil
-	}
-	return nil, errNoValidResponseFromServer
+	var resp *CancelMMPResponse
+	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, tradeOneClickRepayEPL, http.MethodPost, common.EncodeURLValues("trade/mass-cancel", params), nil, &resp, true)
 }
 
 // CancelAllMMPOrdersAfterCountdown cancel all MMP pending orders after the countdown timeout.
@@ -1163,15 +1097,8 @@ func (ok *Okx) CancelAllMMPOrdersAfterCountdown(ctx context.Context, timeout str
 	if timeout == "" {
 		return nil, errors.New("countdown timeout is required")
 	}
-	var resp []CancelMMPAfterCountdownResponse
-	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, cancelAllAfterCountdownEPL, http.MethodGet, "/trade/cancel-all-after", &map[string]string{"timeOut": "1"}, &resp, true)
-	if err != nil {
-		return nil, err
-	}
-	if len(resp) == 1 {
-		return &resp[0], nil
-	}
-	return nil, errNoValidResponseFromServer
+	var resp *CancelMMPAfterCountdownResponse
+	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, cancelAllAfterCountdownEPL, http.MethodGet, "/trade/cancel-all-after", &map[string]string{"timeOut": "1"}, &resp, true)
 }
 
 /*************************************** Block trading ********************************/
@@ -1190,15 +1117,8 @@ func (ok *Okx) CreateRfq(ctx context.Context, arg CreateRfqInput) (*RfqResponse,
 	if len(arg.Legs) == 0 {
 		return nil, errInvalidLegs
 	}
-	var resp []RfqResponse
-	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, createRfqEPL, http.MethodPost, rfqCreateRfq, &arg, &resp, true)
-	if err != nil {
-		return nil, err
-	}
-	if len(resp) == 1 {
-		return &resp[0], nil
-	}
-	return nil, errNoValidResponseFromServer
+	var resp *RfqResponse
+	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, createRfqEPL, http.MethodPost, rfqCreateRfq, &arg, &resp, true)
 }
 
 // CancelRfq Cancel an existing active Rfq that you has previously created.
@@ -1206,15 +1126,8 @@ func (ok *Okx) CancelRfq(ctx context.Context, arg CancelRfqRequestParam) (*Cance
 	if arg.RfqID == "" && arg.ClientRfqID == "" {
 		return nil, errMissingRfqIDAndClientRfqID
 	}
-	var resp []CancelRfqResponse
-	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, cancelRfqEPL, http.MethodPost, rfqCancelRfq, &arg, &resp, true)
-	if err != nil {
-		return nil, err
-	}
-	if len(resp) == 1 {
-		return &resp[0], nil
-	}
-	return nil, errNoValidResponseFromServer
+	var resp *CancelRfqResponse
+	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, cancelRfqEPL, http.MethodPost, rfqCancelRfq, &arg, &resp, true)
 }
 
 // CancelMultipleRfqs cancel multiple active Rfqs in a single batch. Maximum 100 Rfq orders can be canceled at a time.
@@ -1230,15 +1143,8 @@ func (ok *Okx) CancelMultipleRfqs(ctx context.Context, arg CancelRfqRequestsPara
 
 // CancelAllRfqs cancels all active Rfqs.
 func (ok *Okx) CancelAllRfqs(ctx context.Context) (time.Time, error) {
-	var resp []TimestampResponse
-	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, cancelAllRfqsEPL, http.MethodPost, rfqCancelAllRfqs, nil, &resp, true)
-	if err != nil {
-		return time.Time{}, err
-	}
-	if len(resp) == 1 {
-		return resp[0].Timestamp.Time(), nil
-	}
-	return time.Time{}, errNoValidResponseFromServer
+	resp := &TimestampResponse{}
+	return resp.Timestamp.Time(), ok.SendHTTPRequest(ctx, exchange.RestSpot, cancelAllRfqsEPL, http.MethodPost, rfqCancelAllRfqs, nil, &resp, true)
 }
 
 // ExecuteQuote executes a Quote. It is only used by the creator of the Rfq
@@ -1246,15 +1152,8 @@ func (ok *Okx) ExecuteQuote(ctx context.Context, arg ExecuteQuoteParams) (*Execu
 	if arg.RfqID == "" || arg.QuoteID == "" {
 		return nil, errMissingRfqIDOrQuoteID
 	}
-	var resp []ExecuteQuoteResponse
-	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, executeQuoteEPL, http.MethodPost, rfqExecuteQuote, &arg, &resp, true)
-	if err != nil {
-		return nil, err
-	}
-	if len(resp) == 1 {
-		return &resp[0], nil
-	}
-	return nil, errNoValidResponseFromServer
+	var resp *ExecuteQuoteResponse
+	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, executeQuoteEPL, http.MethodPost, rfqExecuteQuote, &arg, &resp, true)
 }
 
 // GetQuoteProducts retrieve the products which makers want to quote and receive RFQs for, and the corresponding price and size limit.
@@ -1290,14 +1189,8 @@ func (ok *Okx) SetQuoteProducts(ctx context.Context, args []SetQuoteProductParam
 			}
 		}
 	}
-	var resp []SetQuoteProductsResult
-	if err := ok.SendHTTPRequest(ctx, exchange.RestSpot, setQuoteProductsEPL, http.MethodPost, makerInstrumentSettings, &args, &resp, true); err != nil {
-		return nil, err
-	}
-	if len(resp) == 1 {
-		return &resp[0], nil
-	}
-	return nil, errNoValidResponseFromServer
+	var resp *SetQuoteProductsResult
+	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, setQuoteProductsEPL, http.MethodPost, makerInstrumentSettings, &args, &resp, true)
 }
 
 // CreateQuote allows the user to Quote an Rfq that they are a counterparty to. The user MUST quote
@@ -1323,15 +1216,8 @@ func (ok *Okx) CreateQuote(ctx context.Context, arg CreateQuoteParams) (*QuoteRe
 			return nil, errInvalidOrderSide
 		}
 	}
-	var resp []QuoteResponse
-	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, createQuoteEPL, http.MethodPost, rfqCreateQuote, &arg, &resp, true)
-	if err != nil {
-		return nil, err
-	}
-	if len(resp) == 1 {
-		return &resp[0], nil
-	}
-	return nil, errNoValidResponseFromServer
+	var resp *QuoteResponse
+	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, createQuoteEPL, http.MethodPost, rfqCreateQuote, &arg, &resp, true)
 }
 
 // CancelQuote cancels an existing active quote you have created in response to an Rfq.
@@ -1340,15 +1226,8 @@ func (ok *Okx) CancelQuote(ctx context.Context, arg CancelQuoteRequestParams) (*
 	if arg.ClientQuoteID == "" && arg.QuoteID == "" {
 		return nil, errMissingQuoteIDOrClientQuoteID
 	}
-	var resp []CancelQuoteResponse
-	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, cancelQuoteEPL, http.MethodPost, rfqCancelQuote, &arg, &resp, true)
-	if err != nil {
-		return nil, err
-	}
-	if len(resp) == 1 {
-		return &resp[0], nil
-	}
-	return nil, errNoValidResponseFromServer
+	var resp *CancelQuoteResponse
+	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, cancelQuoteEPL, http.MethodPost, rfqCancelQuote, &arg, &resp, true)
 }
 
 // CancelMultipleQuote cancel multiple active Quotes in a single batch. Maximum 100 quote orders can be canceled at a time.
@@ -1362,15 +1241,15 @@ func (ok *Okx) CancelMultipleQuote(ctx context.Context, arg CancelQuotesRequestP
 
 // CancelAllQuotes cancels all active Quotes.
 func (ok *Okx) CancelAllQuotes(ctx context.Context) (time.Time, error) {
-	var resp []TimestampResponse
+	var resp *TimestampResponse
 	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, cancelAllQuotesEPL, http.MethodPost, rfqCancelAllQuotes, nil, &resp, true)
 	if err != nil {
 		return time.Time{}, err
 	}
-	if len(resp) == 1 {
-		return resp[0].Timestamp.Time(), nil
+	if resp == nil {
+		return time.Time{}, errMissingResponseBody
 	}
-	return time.Time{}, errMissingResponseBody
+	return resp.Timestamp.Time(), nil
 }
 
 // GetRfqs retrieves details of Rfqs that the user is a counterparty to (either as the creator or the receiver of the Rfq).
@@ -1668,15 +1547,8 @@ func (ok *Okx) Withdrawal(ctx context.Context, input *WithdrawalInput) (*Withdra
 	case input.ToAddress == "":
 		return nil, errors.New("missing verified digital currency address \"toAddr\" information")
 	}
-	var resp []WithdrawalResponse
-	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, withdrawalEPL, http.MethodPost, assetWithdrawal, &input, &resp, true)
-	if err != nil {
-		return nil, err
-	}
-	if len(resp) == 1 {
-		return &resp[0], nil
-	}
-	return nil, errNoValidResponseFromServer
+	var resp *WithdrawalResponse
+	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, withdrawalEPL, http.MethodPost, assetWithdrawal, &input, &resp, true)
 }
 
 /*
@@ -1690,14 +1562,8 @@ func (ok *Okx) LightningWithdrawal(ctx context.Context, arg LightningWithdrawalR
 	} else if arg.Invoice == "" {
 		return nil, errors.New("missing invoice text")
 	}
-	var resp []LightningWithdrawalResponse
-	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, lightningWithdrawalsEPL, http.MethodPost, assetLightningWithdrawal, &arg, &resp, true)
-	if err != nil {
-		return nil, err
-	} else if len(resp) == 1 {
-		return &resp[0], nil
-	}
-	return nil, errNoValidResponseFromServer
+	var resp *LightningWithdrawalResponse
+	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, lightningWithdrawalsEPL, http.MethodPost, assetLightningWithdrawal, &arg, &resp, true)
 }
 
 // CancelWithdrawal You can cancel normal withdrawal, but can not cancel the withdrawal on Lightning.
@@ -1781,15 +1647,8 @@ func (ok *Okx) GetDepositWithdrawalStatus(ctx context.Context, withdrawalID, tra
 // SmallAssetsConvert Convert small assets in funding account to OKB. Only one convert is allowed within 24 hours.
 func (ok *Okx) SmallAssetsConvert(ctx context.Context, currency []string) (*SmallAssetConvertResponse, error) {
 	input := map[string][]string{"ccy": currency}
-	var resp []SmallAssetConvertResponse
-	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, smallAssetsConvertEPL, http.MethodPost, smallAssetsConvert, input, &resp, true)
-	if err != nil {
-		return nil, err
-	}
-	if len(resp) == 1 {
-		return &resp[0], nil
-	}
-	return nil, errNoValidResponseFromServer
+	var resp *SmallAssetConvertResponse
+	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, smallAssetsConvertEPL, http.MethodPost, smallAssetsConvert, input, &resp, true)
 }
 
 // GetPublicExchangeList retrieves exchanges
@@ -1824,15 +1683,8 @@ func (ok *Okx) SavingsPurchaseOrRedemption(ctx context.Context, arg *SavingsPurc
 	case arg.ActionType == "purchase" && (arg.Rate < 0.01 || arg.Rate > 3.65):
 		return nil, errors.New("the rate value range is between 1% (0.01) and 365% (3.65)")
 	}
-	var resp []SavingsPurchaseRedemptionResponse
-	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, savingsPurchaseRedemptionEPL, http.MethodPost, financePurchaseRedempt, &arg, &resp, true)
-	if err != nil {
-		return nil, err
-	}
-	if len(resp) == 1 {
-		return &resp[0], nil
-	}
-	return nil, errNoValidResponseFromServer
+	var resp *SavingsPurchaseRedemptionResponse
+	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, savingsPurchaseRedemptionEPL, http.MethodPost, financePurchaseRedempt, &arg, &resp, true)
 }
 
 // GetLendingHistory lending history
@@ -1861,15 +1713,8 @@ func (ok *Okx) SetLendingRate(ctx context.Context, arg LendingRate) (*LendingRat
 	} else if arg.Rate < 0.01 || arg.Rate > 3.65 {
 		return nil, errors.New("invalid lending rate value. the rate value range is between 1% (0.01) and 365% (3.65)")
 	}
-	var resp []LendingRate
-	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, setLendingRateEPL, http.MethodPost, financeSetLendingRate, &arg, &resp, true)
-	if err != nil {
-		return nil, err
-	}
-	if len(resp) == 1 {
-		return &resp[0], nil
-	}
-	return nil, errNoValidResponseFromServer
+	var resp *LendingRate
+	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, setLendingRateEPL, http.MethodPost, financeSetLendingRate, &arg, &resp, true)
 }
 
 // GetPublicBorrowInfo returns the public borrow info.
@@ -1920,14 +1765,8 @@ func (ok *Okx) GetConvertCurrencyPair(ctx context.Context, fromCurrency, toCurre
 	}
 	params.Set("fromCcy", fromCurrency)
 	params.Set("toCcy", toCurrency)
-	var resp []ConvertCurrencyPair
-	if err := ok.SendHTTPRequest(ctx, exchange.RestSpot, getConvertCurrencyPairEPL, http.MethodGet, common.EncodeURLValues(convertCurrencyPairsPath, params), nil, &resp, true); err != nil {
-		return nil, err
-	}
-	if len(resp) == 1 {
-		return &resp[0], nil
-	}
-	return nil, errNoValidResponseFromServer
+	var resp *ConvertCurrencyPair
+	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getConvertCurrencyPairEPL, http.MethodGet, common.EncodeURLValues(convertCurrencyPairsPath, params), nil, &resp, true)
 }
 
 // EstimateQuote retrieves quote estimation detail result given the base and quote currency.
@@ -1951,15 +1790,8 @@ func (ok *Okx) EstimateQuote(ctx context.Context, arg *EstimateQuoteRequestInput
 	if arg.RfqSzCurrency == "" {
 		return nil, errors.New("missing rfq currency")
 	}
-	var resp []EstimateQuoteResponse
-	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, estimateQuoteEPL, http.MethodPost, assetEstimateQuote, arg, &resp, true)
-	if err != nil {
-		return nil, err
-	}
-	if len(resp) == 1 {
-		return &resp[0], nil
-	}
-	return nil, errNoValidResponseFromServer
+	var resp *EstimateQuoteResponse
+	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, estimateQuoteEPL, http.MethodPost, assetEstimateQuote, arg, &resp, true)
 }
 
 // ConvertTrade converts a base currency to quote currency.
@@ -1987,15 +1819,8 @@ func (ok *Okx) ConvertTrade(ctx context.Context, arg *ConvertTradeInput) (*Conve
 	if arg.QuoteID == "" {
 		return nil, errors.New("missing quote id")
 	}
-	var resp []ConvertTradeResponse
-	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, convertTradeEPL, http.MethodPost, assetConvertTrade, &arg, &resp, true)
-	if err != nil {
-		return nil, err
-	}
-	if len(resp) == 1 {
-		return &resp[0], nil
-	}
-	return nil, errNoValidResponseFromServer
+	var resp *ConvertTradeResponse
+	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, convertTradeEPL, http.MethodPost, assetConvertTrade, &arg, &resp, true)
 }
 
 // GetConvertHistory gets the recent history.
@@ -2152,22 +1977,15 @@ func (ok *Okx) GetAccountConfiguration(ctx context.Context) ([]AccountConfigurat
 }
 
 // SetPositionMode FUTURES and SWAP support both long/short mode and net mode. In net mode, users can only have positions in one direction; In long/short mode, users can hold positions in long and short directions.
-func (ok *Okx) SetPositionMode(ctx context.Context, positionMode string) (string, error) {
+func (ok *Okx) SetPositionMode(ctx context.Context, positionMode string) (*PositionMode, error) {
 	if positionMode != "long_short_mode" && positionMode != "net_mode" {
-		return "", errors.New("invalid position mode")
+		return nil, errors.New("invalid position mode")
 	}
 	input := &PositionMode{
 		PositionMode: positionMode,
 	}
-	var resp []PositionMode
-	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, setPositionModeEPL, http.MethodPost, accountSetPositionMode, input, &resp, true)
-	if err != nil {
-		return "", err
-	}
-	if len(resp) == 1 {
-		return resp[0].PositionMode, nil
-	}
-	return "", errNoValidResponseFromServer
+	var resp *PositionMode
+	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, setPositionModeEPL, http.MethodPost, accountSetPositionMode, input, &resp, true)
 }
 
 // SetLeverageRate sets a leverage setting for instrument id.
@@ -2176,15 +1994,8 @@ func (ok *Okx) SetLeverageRate(ctx context.Context, arg SetLeverageInput) (*SetL
 		return nil, errors.New("either instrument id or currency is required")
 	}
 	arg.PositionSide = strings.ToLower(arg.PositionSide)
-	var resp []SetLeverageResponse
-	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, setLeverageEPL, http.MethodPost, accountSetLeverage, &arg, &resp, true)
-	if err != nil {
-		return nil, err
-	}
-	if len(resp) == 1 {
-		return &resp[0], nil
-	}
-	return nil, errNoValidResponseFromServer
+	var resp *SetLeverageResponse
+	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, setLeverageEPL, http.MethodPost, accountSetLeverage, &arg, &resp, true)
 }
 
 // GetMaximumBuySellAmountOROpenAmount retrieves the maximum buy or sell amount for a specific instrument id
@@ -2252,15 +2063,8 @@ func (ok *Okx) IncreaseDecreaseMargin(ctx context.Context, arg IncreaseDecreaseM
 	if arg.Amount <= 0 {
 		return nil, errors.New("missing valid amount")
 	}
-	var resp []IncreaseDecreaseMargin
-	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, increaseOrDecreaseMarginEPL, http.MethodPost, accountPositionMarginBalance, &arg, &resp, true)
-	if err != nil {
-		return nil, err
-	}
-	if len(resp) == 1 {
-		return &resp[0], nil
-	}
-	return nil, errNoValidResponseFromServer
+	var resp *IncreaseDecreaseMargin
+	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, increaseOrDecreaseMarginEPL, http.MethodPost, accountPositionMarginBalance, &arg, &resp, true)
 }
 
 // GetLeverageRate retrieves leverage data for different instrument id or margin mode.
@@ -2435,15 +2239,8 @@ func (ok *Okx) SetGreeks(ctx context.Context, greeksType string) (*GreeksType, e
 	input := &GreeksType{
 		GreeksType: greeksType,
 	}
-	var resp []GreeksType
-	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, setGreeksEPL, http.MethodPost, accountSetGreeks, input, &resp, true)
-	if err != nil {
-		return nil, err
-	}
-	if len(resp) == 1 {
-		return &resp[0], nil
-	}
-	return nil, errNoValidResponseFromServer
+	var resp *GreeksType
+	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, setGreeksEPL, http.MethodPost, accountSetGreeks, input, &resp, true)
 }
 
 // IsolatedMarginTradingSettings to set the currency margin and futures/perpetual Isolated margin trading mode.
@@ -2458,15 +2255,8 @@ func (ok *Okx) IsolatedMarginTradingSettings(ctx context.Context, arg IsolatedMo
 		arg.InstrumentType != okxInstTypeContract {
 		return nil, fmt.Errorf("%w, received '%v' only margin and contract instrument types are allowed", errInvalidInstrumentType, arg.InstrumentType)
 	}
-	var resp []IsolatedMode
-	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, isolatedMarginTradingSettingsEPL, http.MethodPost, accountSetIsolatedMode, &arg, &resp, true)
-	if err != nil {
-		return nil, err
-	}
-	if len(resp) == 1 {
-		return &resp[0], nil
-	}
-	return nil, errNoValidResponseFromServer
+	var resp *IsolatedMode
+	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, isolatedMarginTradingSettingsEPL, http.MethodPost, accountSetIsolatedMode, &arg, &resp, true)
 }
 
 // ManualBorrowAndRepayInQuickMarginMode creates a new manual borrow and repay
@@ -2483,15 +2273,8 @@ func (ok *Okx) ManualBorrowAndRepayInQuickMarginMode(ctx context.Context, arg *B
 	if arg.InstrumentID == "" {
 		return nil, errMissingInstrumentID
 	}
-	var resp []BorrowAndRepay
-	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, manualBorrowAndRepayEPL, http.MethodPost, "account/quick-margin-borrow-repay", arg, &resp, true)
-	if err != nil {
-		return nil, err
-	}
-	if len(resp) == 1 {
-		return &resp[0], nil
-	}
-	return nil, errNoValidResponseFromServer
+	var resp *BorrowAndRepay
+	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, manualBorrowAndRepayEPL, http.MethodPost, "account/quick-margin-borrow-repay", arg, &resp, true)
 }
 
 // GetBorrowAndRepayHistoryInQuickMarginMode retrieves borrow and repay history in quick mergin mode.
@@ -2553,15 +2336,8 @@ func (ok *Okx) VIPLoansBorrowAndRepay(ctx context.Context, arg LoanBorrowAndRepl
 	if arg.Amount <= 0 {
 		return nil, errors.New("amount must be greater than zero")
 	}
-	var resp []LoanBorrowAndReplay
-	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, vipLoansBorrowAnsRepayEPL, http.MethodPost, accountBorrowReply, &arg, &resp, true)
-	if err != nil {
-		return nil, err
-	}
-	if len(resp) == 1 {
-		return &resp[0], nil
-	}
-	return nil, errNoValidResponseFromServer
+	var resp *LoanBorrowAndReplay
+	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, vipLoansBorrowAnsRepayEPL, http.MethodPost, accountBorrowReply, &arg, &resp, true)
 }
 
 // GetBorrowAndRepayHistoryForVIPLoans retrieves borrow and repay history for VIP loans.
@@ -2672,15 +2448,8 @@ func (ok *Okx) GetVIPLoanOrderDetail(ctx context.Context, orderID string, ccy cu
 	if limit > 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
-	var resp []VIPLoanOrderDetail
-	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, getVIPLoanOrderDetailEPL, http.MethodGet, common.EncodeURLValues("account/vip-loan-order-detail", params), nil, &resp, true)
-	if err != nil {
-		return nil, err
-	}
-	if len(resp) == 1 {
-		return &resp[0], nil
-	}
-	return nil, errNoValidResponseFromServer
+	var resp *VIPLoanOrderDetail
+	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getVIPLoanOrderDetailEPL, http.MethodGet, common.EncodeURLValues("account/vip-loan-order-detail", params), nil, &resp, true)
 }
 
 // GetBorrowInterestAndLimit borrow interest and limit
@@ -2738,57 +2507,29 @@ func (ok *Okx) SetRiskOffsetType(ctx context.Context, riskOffsetType string) (*R
 	if riskOffsetType == "" {
 		return nil, errors.New("missing risk offset type")
 	}
-	var resp []RiskOffsetType
-	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, setRiskOffsetLimiterEPL, http.MethodPost, "account/set-riskOffset-type", &map[string]string{"type": riskOffsetType}, &resp, true)
-	if err != nil {
-		return nil, err
-	}
-	if len(resp) == 1 {
-		return &resp[0], nil
-	}
-	return nil, errNoValidResponseFromServer
+	var resp *RiskOffsetType
+	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, setRiskOffsetLimiterEPL, http.MethodPost, "account/set-riskOffset-type", &map[string]string{"type": riskOffsetType}, &resp, true)
 }
 
 // ActivateOption activates option
 func (ok *Okx) ActivateOption(ctx context.Context) (time.Time, error) {
-	var resp []struct {
+	resp := &struct {
 		Timestamp convert.ExchangeTime `json:"ts"`
-	}
-	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, activateOptionEPL, http.MethodPost, "account/activate-option", nil, &resp, true)
-	if err != nil {
-		return time.Time{}, err
-	}
-	if len(resp) == 1 {
-		return resp[0].Timestamp.Time(), nil
-	}
-	return time.Time{}, errNoValidResponseFromServer
+	}{}
+	return resp.Timestamp.Time(), ok.SendHTTPRequest(ctx, exchange.RestSpot, activateOptionEPL, http.MethodPost, "account/activate-option", nil, &resp, true)
 }
 
 // SetAutoLoan only applicalbe to Multi-currency margin and Portfolio margin
 func (ok *Okx) SetAutoLoan(ctx context.Context, autoLoan bool) (*AutoLoan, error) {
-	var resp []AutoLoan
-	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, setAutoLoanEPL, http.MethodPost, "", &AutoLoan{AutoLoan: autoLoan}, &resp, true)
-	if err != nil {
-		return nil, err
-	}
-	if len(resp) == 1 {
-		return &resp[0], nil
-	}
-	return nil, errNoValidResponseFromServer
+	var resp *AutoLoan
+	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, setAutoLoanEPL, http.MethodPost, "account/set-auto-loan", &AutoLoan{AutoLoan: autoLoan}, &resp, true)
 }
 
 // SetAccountMode to set on the Web/App for the first set of every account mode.
 // Account mode 1: Simple mode 2: Single-currency margin mode  3: Multi-currency margin code  4: Portfolio margin mode
 func (ok *Okx) SetAccountMode(ctx context.Context, accountLevel string) (*AccountMode, error) {
-	var resp []AccountMode
-	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, setAccountLevelEPL, http.MethodPost, "account/set-account-level", &map[string]string{"acctLv": accountLevel}, &resp, true)
-	if err != nil {
-		return nil, err
-	}
-	if len(resp) == 1 {
-		return &resp[0], nil
-	}
-	return nil, errNoValidResponseFromServer
+	var resp *AccountMode
+	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, setAccountLevelEPL, http.MethodPost, "account/set-account-level", &map[string]string{"acctLv": accountLevel}, &resp, true)
 }
 
 // ResetMMPStatus reset the MMP status to be inactive.
@@ -2805,14 +2546,8 @@ func (ok *Okx) ResetMMPStatus(ctx context.Context, instrumentType, instrumentFam
 		InstrumentType:   instrumentType,
 		InstrumentFamily: instrumentFamily,
 	}
-	var resp []MMPStatusResponse
-	if err := ok.SendHTTPRequest(ctx, exchange.RestSpot, restMMPStatusEPL, http.MethodPost, "account/mmp-reset", arg, &resp, true); err != nil {
-		return nil, err
-	}
-	if len(resp) == 1 {
-		return &resp[0], nil
-	}
-	return nil, errNoValidResponseFromServer
+	var resp *MMPStatusResponse
+	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, restMMPStatusEPL, http.MethodPost, "account/mmp-reset", arg, &resp, true)
 }
 
 // SetMMP set MMP configure
@@ -2827,15 +2562,8 @@ func (ok *Okx) SetMMP(ctx context.Context, arg *MMPConfig) (*MMPConfig, error) {
 	if arg.QuantityLimit <= 0 {
 		return nil, errInvalidQuantityLimit
 	}
-	var resp []MMPConfig
-	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, setMMPEPL, http.MethodPost, "account/mmp-config", arg, &resp, true)
-	if err != nil {
-		return nil, err
-	}
-	if len(resp) == 1 {
-		return &resp[0], nil
-	}
-	return nil, errNoValidResponseFromServer
+	var resp *MMPConfig
+	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, setMMPEPL, http.MethodPost, "account/mmp-config", arg, &resp, true)
 }
 
 // GetMMPConfig retrieves MMP configure information
@@ -2903,14 +2631,8 @@ func (ok *Okx) ResetSubAccountAPIKey(ctx context.Context, arg *SubAccountAPIKeyP
 	} else if arg.APIKeyPermission != "read" && arg.APIKeyPermission != "withdraw" && arg.APIKeyPermission != "trade" && arg.APIKeyPermission != "read_only" {
 		return nil, errInvalidAPIKeyPermission
 	}
-	var resp []SubAccountAPIKeyResponse
-	if err := ok.SendHTTPRequest(ctx, exchange.RestSpot, resetSubAccountAPIKeyEPL, http.MethodPost, subAccountModifyAPIKey, &arg, &resp, true); err != nil {
-		return nil, err
-	}
-	if len(resp) == 1 {
-		return &resp[0], nil
-	}
-	return nil, errNoValidResponseFromServer
+	var resp *SubAccountAPIKeyResponse
+	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, resetSubAccountAPIKeyEPL, http.MethodPost, subAccountModifyAPIKey, &arg, &resp, true)
 }
 
 // GetSubaccountTradingBalance query detailed balance info of Trading Account of a sub-account via the master account (applies to master accounts only)
@@ -3064,17 +2786,10 @@ func (ok *Okx) SetSubAccountVIPLoanAllocation(ctx context.Context, arg *SubAccou
 			return false, errInvalidLoanAllocationValue
 		}
 	}
-	resp := []struct {
+	resp := &struct {
 		Result bool `json:"result"`
 	}{}
-	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, setSubAccountVIPLoanAllocationEPL, http.MethodPost, "account/subaccount/set-loan-allocation", arg, &resp, true)
-	if err != nil {
-		return false, err
-	}
-	if len(resp) == 1 {
-		return resp[0].Result, nil
-	}
-	return false, errNoValidResponseFromServer
+	return resp.Result, ok.SendHTTPRequest(ctx, exchange.RestSpot, setSubAccountVIPLoanAllocationEPL, http.MethodPost, "account/subaccount/set-loan-allocation", arg, resp, true)
 }
 
 // GetSubAccountBorrowInterestAndLimit retrieves sub-account borrow interest and limit
@@ -3211,15 +2926,8 @@ func (ok *Okx) ClosePositionForContractrid(ctx context.Context, arg *ClosePositi
 	if !arg.MarketCloseAllPositions && arg.Price <= 0 {
 		return nil, errInvalidMinimumPrice
 	}
-	var resp []ClosePositionContractGridResponse
-	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, closePositionForForContractGridEPL, http.MethodPost, "tradingBot/grid/close-position", arg, &resp, true)
-	if err != nil {
-		return nil, err
-	}
-	if len(resp) == 1 {
-		return &resp[0], nil
-	}
-	return nil, errNoValidResponseFromServer
+	var resp *ClosePositionContractGridResponse
+	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, closePositionForForContractGridEPL, http.MethodPost, "tradingBot/grid/close-position", arg, &resp, true)
 }
 
 // CancelClosePositionOrderForContractGrid cancels close position order for contract grid
@@ -3233,28 +2941,14 @@ func (ok *Okx) CancelClosePositionOrderForContractGrid(ctx context.Context, arg 
 	if arg.OrderID == "" {
 		return nil, order.ErrOrderIDNotSet
 	}
-	var resp []ClosePositionContractGridResponse
-	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, cancelClosePositionOrderForContractGridEPL, http.MethodPost, "tradingBot/grid/cancel-close-order", arg, &resp, true)
-	if err != nil {
-		return nil, err
-	}
-	if len(resp) == 1 {
-		return &resp[0], nil
-	}
-	return nil, errNoValidResponseFromServer
+	var resp *ClosePositionContractGridResponse
+	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, cancelClosePositionOrderForContractGridEPL, http.MethodPost, "tradingBot/grid/cancel-close-order", arg, &resp, true)
 }
 
 // InstantTriggerGridAlgoOrder triggers grid algo order
 func (ok *Okx) InstantTriggerGridAlgoOrder(ctx context.Context, algoID string) (*TriggeredGridAlgoOrderInfo, error) {
-	var resp []TriggeredGridAlgoOrderInfo
-	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, instantTriggerGridAlgoOrderEPL, http.MethodPost, "tradingBot/grid/order-instant-trigger", &map[string]string{"algoId": algoID}, &resp, true)
-	if err != nil {
-		return nil, err
-	}
-	if len(resp) == 1 {
-		return &resp[0], nil
-	}
-	return nil, errNoValidResponseFromServer
+	var resp *TriggeredGridAlgoOrderInfo
+	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, instantTriggerGridAlgoOrderEPL, http.MethodPost, "tradingBot/grid/order-instant-trigger", &map[string]string{"algoId": algoID}, &resp, true)
 }
 
 // GetGridAlgoOrdersList retrieves list of pending grid algo orders with the complete data.
@@ -3323,15 +3017,8 @@ func (ok *Okx) GetGridAlgoOrderDetails(ctx context.Context, algoOrderType, algoI
 	params := url.Values{}
 	params.Set("algoOrdType", algoOrderType)
 	params.Set("algoId", algoID)
-	var resp []GridAlgoOrderResponse
-	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, getGridAlgoOrderDetailsEPL, http.MethodGet, common.EncodeURLValues(gridOrdersAlgoDetails, params), nil, &resp, true)
-	if err != nil {
-		return nil, err
-	}
-	if len(resp) == 1 {
-		return &resp[0], nil
-	}
-	return nil, errNoValidResponseFromServer
+	var resp *GridAlgoOrderResponse
+	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getGridAlgoOrderDetailsEPL, http.MethodGet, common.EncodeURLValues(gridOrdersAlgoDetails, params), nil, &resp, true)
 }
 
 // GetGridAlgoSubOrders retrieves grid algo sub orders
@@ -3392,15 +3079,8 @@ func (ok *Okx) SpotGridWithdrawProfit(ctx context.Context, algoID string) (*Algo
 	}{
 		AlgoID: algoID,
 	}
-	var resp []AlgoOrderWithdrawalProfit
-	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, spotGridWithdrawIncomeEPL, http.MethodPost, gridWithdrawalIncome, input, &resp, true)
-	if err != nil {
-		return nil, err
-	}
-	if len(resp) == 1 {
-		return &resp[0], nil
-	}
-	return nil, errNoValidResponseFromServer
+	var resp *AlgoOrderWithdrawalProfit
+	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, spotGridWithdrawIncomeEPL, http.MethodPost, gridWithdrawalIncome, input, &resp, true)
 }
 
 // ComputeMarginBalance computes margin balance with 'add' and 'reduce' balance type
@@ -3411,14 +3091,8 @@ func (ok *Okx) ComputeMarginBalance(ctx context.Context, arg MarginBalanceParam)
 	if arg.Type != "add" && arg.Type != "reduce" {
 		return nil, errInvalidMarginTypeAdjust
 	}
-	var resp []ComputeMarginBalance
-	if err := ok.SendHTTPRequest(ctx, exchange.RestSpot, computeMarginBalanceEPL, http.MethodPost, gridComputeMarginBalance, &arg, &resp, true); err != nil {
-		return nil, err
-	}
-	if len(resp) == 1 {
-		return &resp[0], nil
-	}
-	return nil, errNoValidResponseFromServer
+	var resp *ComputeMarginBalance
+	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, computeMarginBalanceEPL, http.MethodPost, gridComputeMarginBalance, &arg, &resp, true)
 }
 
 // AdjustMarginBalance retrieves adjust margin balance with 'add' and 'reduce' balance type
@@ -3432,14 +3106,8 @@ func (ok *Okx) AdjustMarginBalance(ctx context.Context, arg MarginBalanceParam) 
 	if arg.Percentage <= 0 && arg.Amount < 0 {
 		return nil, errors.New("either percentage or amount is required")
 	}
-	var resp []AdjustMarginBalanceResponse
-	if err := ok.SendHTTPRequest(ctx, exchange.RestSpot, adjustMarginBalanceEPL, http.MethodPost, gridMarginBalance, &arg, &resp, true); err != nil {
-		return nil, err
-	}
-	if len(resp) == 1 {
-		return &resp[0], nil
-	}
-	return nil, errNoValidResponseFromServer
+	var resp *AdjustMarginBalanceResponse
+	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, adjustMarginBalanceEPL, http.MethodPost, gridMarginBalance, &arg, &resp, true)
 }
 
 // GetGridAIParameter retrieves grid AI parameter
@@ -3504,15 +3172,8 @@ func (ok *Okx) ComputeMinInvestment(ctx context.Context, arg *ComputeInvestmentD
 			return nil, currency.ErrCurrencyCodeEmpty
 		}
 	}
-	var resp []InvestmentResult
-	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, computeMinInvestmentEPL, http.MethodPost, "tradingBot/grid/min-investment", arg, &resp, false)
-	if err != nil {
-		return nil, err
-	}
-	if len(resp) == 1 {
-		return &resp[0], nil
-	}
-	return nil, errNoValidResponseFromServer
+	var resp *InvestmentResult
+	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, computeMinInvestmentEPL, http.MethodPost, "tradingBot/grid/min-investment", arg, &resp, false)
 }
 
 // RSIBackTesting relative strength index(RSI) backtesting
@@ -3545,15 +3206,8 @@ func (ok *Okx) RSIBackTesting(ctx context.Context, instrumentID, triggerConditio
 	if duration != "" {
 		params.Set("duration", duration)
 	}
-	var resp []RSIBacktestingResponse
-	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, rsiBackTestingEPL, http.MethodGet, common.EncodeURLValues("tradingBot/public/rsi-back-testing", params), nil, &resp, false)
-	if err != nil {
-		return nil, err
-	}
-	if len(resp) == 1 {
-		return &resp[0], nil
-	}
-	return nil, errNoValidResponseFromServer
+	var resp *RSIBacktestingResponse
+	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, rsiBackTestingEPL, http.MethodGet, common.EncodeURLValues("tradingBot/public/rsi-back-testing", params), nil, &resp, false)
 }
 
 // ****************************************** Signal bot trading **************************************************
@@ -3570,15 +3224,8 @@ func (ok *Okx) GetSignalBotOrderDetail(ctx context.Context, algoOrderType, algoI
 	params := url.Values{}
 	params.Set("algoId", algoID)
 	params.Set("algoOrdType", algoOrderType)
-	var resp []SignalBotOrderDetail
-	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, signalBotOrderDetailsEPL, http.MethodGet, "tradingBot/signal/orders-algo-details", nil, &resp, true)
-	if err != nil {
-		return nil, err
-	}
-	if len(resp) == 1 {
-		return &resp[0], nil
-	}
-	return nil, errNoValidResponseFromServer
+	var resp *SignalBotOrderDetail
+	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, signalBotOrderDetailsEPL, http.MethodGet, "tradingBot/signal/orders-algo-details", nil, &resp, true)
 }
 
 // GetSignalOrderPositions retrieves signal bot order positions
@@ -3592,15 +3239,8 @@ func (ok *Okx) GetSignalOrderPositions(ctx context.Context, algoOrderType, algoI
 	params := url.Values{}
 	params.Set("algoId", algoID)
 	params.Set("algoOrdType", algoOrderType)
-	var resp []SignalBotPosition
-	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, signalBotOrderPositionsEPL, http.MethodGet, common.EncodeURLValues("tradingBot/signal/positions", params), nil, &resp, true)
-	if err != nil {
-		return nil, err
-	}
-	if len(resp) == 1 {
-		return &resp[0], nil
-	}
-	return nil, errNoValidResponseFromServer
+	var resp *SignalBotPosition
+	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, signalBotOrderPositionsEPL, http.MethodGet, common.EncodeURLValues("tradingBot/signal/positions", params), nil, &resp, true)
 }
 
 // GetSignalBotSubOrders retrieves historical filled sub orders and designated sub orders
@@ -3690,15 +3330,8 @@ func (ok *Okx) PlaceRecurringBuyOrder(ctx context.Context, arg *PlaceRecurringBu
 	if arg.TradeMode == "" {
 		return nil, errInvalidTradeModeValue
 	}
-	var resp []RecurringOrderResponse
-	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, placeRecurringBuyOrderEPL, http.MethodPost, "tradingBot/recurring/order-algo", arg, &resp, true)
-	if err != nil {
-		return nil, err
-	}
-	if len(resp) == 1 {
-		return &resp[0], nil
-	}
-	return nil, errNoValidResponseFromServer
+	var resp *RecurringOrderResponse
+	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, placeRecurringBuyOrderEPL, http.MethodPost, "tradingBot/recurring/order-algo", arg, &resp, true)
 }
 
 // AmendRecurringBuyOrder amends recurring order
@@ -3712,15 +3345,8 @@ func (ok *Okx) AmendRecurringBuyOrder(ctx context.Context, arg *AmendRecurringOr
 	if arg.StrategyName == "" {
 		return nil, errStrategyNameRequired
 	}
-	var resp []RecurringOrderResponse
-	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, amendRecurringBuyOrderEPL, http.MethodPost, "tradingBot/recurring/amend-order-algo", arg, &resp, true)
-	if err != nil {
-		return nil, err
-	}
-	if len(resp) == 1 {
-		return &resp[0], nil
-	}
-	return nil, errNoValidResponseFromServer
+	var resp *RecurringOrderResponse
+	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, amendRecurringBuyOrderEPL, http.MethodPost, "tradingBot/recurring/amend-order-algo", arg, &resp, true)
 }
 
 // StopRecurringBuyOrder stops recurring buy order. A maximum of 10 orders can be stopped per request.
@@ -3780,15 +3406,8 @@ func (ok *Okx) GetRecurringOrderDetails(ctx context.Context, algoID string) (*Re
 	if algoID == "" {
 		return nil, errInvalidAlgoID
 	}
-	var resp []RecurringOrderDeail
-	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, getRecurringBuyOrderDetailEPL, http.MethodGet, "tradingBot/recurring/orders-algo-details?algoId="+algoID, nil, &resp, true)
-	if err != nil {
-		return nil, err
-	}
-	if len(resp) == 1 {
-		return &resp[0], nil
-	}
-	return nil, errNoValidResponseFromServer
+	var resp *RecurringOrderDeail
+	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getRecurringBuyOrderDetailEPL, http.MethodGet, "tradingBot/recurring/orders-algo-details?algoId="+algoID, nil, &resp, true)
 }
 
 // GetRecurringSubOrders retrieves recurring buy sub orders.
@@ -3868,15 +3487,8 @@ func (ok *Okx) PlaceLeadingStopOrder(ctx context.Context, arg *TPSLOrderParam) (
 	if arg.SubPositionID == "" {
 		return nil, errSubPositionIDRequired
 	}
-	var resp []PositionIDInfo
-	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, placeLeadingStopOrderEPL, http.MethodGet, "copytrading/algo-order", arg, &resp, true)
-	if err != nil {
-		return nil, err
-	}
-	if len(resp) == 1 {
-		return &resp[0], nil
-	}
-	return nil, errNoValidResponseFromServer
+	var resp *PositionIDInfo
+	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, placeLeadingStopOrderEPL, http.MethodGet, "copytrading/algo-order", arg, &resp, true)
 }
 
 // CloseLeadingPosition close a leading position once a time.
@@ -3887,15 +3499,8 @@ func (ok *Okx) CloseLeadingPosition(ctx context.Context, arg *CloseLeadingPositi
 	if arg.SubPositionID == "" {
 		return nil, errSubPositionIDRequired
 	}
-	var resp []PositionIDInfo
-	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, closeLeadingPositionEPL, http.MethodPost, "copytrading/close-subposition", arg, &resp, true)
-	if err != nil {
-		return nil, err
-	}
-	if len(resp) == 1 {
-		return &resp[0], nil
-	}
-	return nil, errNoValidResponseFromServer
+	var resp *PositionIDInfo
+	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, closeLeadingPositionEPL, http.MethodPost, "copytrading/close-subposition", arg, &resp, true)
 }
 
 // GetLeadingInstrument retrieves leading instruments
@@ -3996,14 +3601,8 @@ func (ok *Okx) Purchase(ctx context.Context, arg PurchaseRequestParam) (*OrderID
 			return nil, errUnacceptableAmount
 		}
 	}
-	var resp []OrderIDResponse
-	if err := ok.SendHTTPRequest(ctx, exchange.RestSpot, purchaseEPL, http.MethodPost, financePurchase, &arg, &resp, true); err != nil {
-		return nil, err
-	}
-	if len(resp) == 1 {
-		return &resp[0], nil
-	}
-	return nil, errNoValidResponseFromServer
+	var resp *OrderIDResponse
+	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, purchaseEPL, http.MethodPost, financePurchase, &arg, &resp, true)
 }
 
 // Redeem redemption of investment
@@ -4014,14 +3613,8 @@ func (ok *Okx) Redeem(ctx context.Context, arg RedeemRequestParam) (*OrderIDResp
 	if arg.ProtocolType != "staking" && arg.ProtocolType != "defi" {
 		return nil, errInvalidProtocolType
 	}
-	var resp []OrderIDResponse
-	if err := ok.SendHTTPRequest(ctx, exchange.RestSpot, redeemEPL, http.MethodPost, financeRedeem, &arg, &resp, true); err != nil {
-		return nil, err
-	}
-	if len(resp) == 1 {
-		return &resp[0], nil
-	}
-	return nil, errNoValidResponseFromServer
+	var resp *OrderIDResponse
+	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, redeemEPL, http.MethodPost, financeRedeem, &arg, &resp, true)
 }
 
 // CancelPurchaseOrRedemption cancels Purchases or Redemptions
@@ -4033,14 +3626,8 @@ func (ok *Okx) CancelPurchaseOrRedemption(ctx context.Context, arg CancelFunding
 	if arg.ProtocolType != "staking" && arg.ProtocolType != "defi" {
 		return nil, errInvalidProtocolType
 	}
-	var resp []OrderIDResponse
-	if err := ok.SendHTTPRequest(ctx, exchange.RestSpot, cancelPurchaseOrRedemptionEPL, http.MethodPost, financeCancelPurchase, &arg, &resp, true); err != nil {
-		return nil, err
-	}
-	if len(resp) == 1 {
-		return &resp[0], nil
-	}
-	return nil, errNoValidResponseFromServer
+	var resp *OrderIDResponse
+	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, cancelPurchaseOrRedemptionEPL, http.MethodPost, financeCancelPurchase, &arg, &resp, true)
 }
 
 // GetEarnActiveOrders retrieves active orders.
@@ -4116,15 +3703,8 @@ func (ok *Okx) RedeemETHStaking(ctx context.Context, amount float64) error {
 
 // GetBETHAssetsBalance balance is a snapshot summarized all BETH assets in trading and funding accounts. Also, the snapshot updates hourly.
 func (ok *Okx) GetBETHAssetsBalance(ctx context.Context) (*BETHAssetsBalance, error) {
-	var resp []BETHAssetsBalance
-	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, getBETHBalanceEPL, http.MethodGet, "finance/staking-defi/eth/balance", nil, &resp, true)
-	if err != nil {
-		return nil, err
-	}
-	if len(resp) == 1 {
-		return &resp[0], nil
-	}
-	return nil, errNoValidResponseFromServer
+	var resp *BETHAssetsBalance
+	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getBETHBalanceEPL, http.MethodGet, "finance/staking-defi/eth/balance", nil, &resp, true)
 }
 
 // GetPurchaseAndRedeemHistory retrieves purchase and redeem history
@@ -4188,15 +3768,8 @@ func (ok *Okx) GetTicker(ctx context.Context, instrumentID string) (*TickerRespo
 	} else {
 		return nil, errors.New("missing required variable instType(instruction type) or instId( Instrument ID )")
 	}
-	var response []TickerResponse
-	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, getTickerEPL, http.MethodGet, common.EncodeURLValues(marketTicker, params), nil, &response, false)
-	if err != nil {
-		return nil, err
-	}
-	if len(response) == 1 {
-		return &response[0], nil
-	}
-	return nil, errNoValidResponseFromServer
+	var resp *TickerResponse
+	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getTickerEPL, http.MethodGet, common.EncodeURLValues(marketTicker, params), nil, &resp, false)
 }
 
 // GetIndexTickers Retrieves index tickers.
@@ -4254,14 +3827,8 @@ func (ok *Okx) GetOrderBookDepth(ctx context.Context, instrumentID string, depth
 	if depth > 0 {
 		params.Set("sz", strconv.FormatInt(depth, 10))
 	}
-	var resp []OrderBookResponse
-	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, getOrderBookEPL, http.MethodGet, common.EncodeURLValues(marketBooks, params), nil, &resp, false)
-	if err != nil {
-		return nil, err
-	} else if len(resp) == 1 {
-		return &resp[0], nil
-	}
-	return nil, errNoValidResponseFromServer
+	var resp *OrderBookResponse
+	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getOrderBookEPL, http.MethodGet, common.EncodeURLValues(marketBooks, params), nil, &resp, false)
 }
 
 // GetOrderBooksLite returns the recent order asks and bids before specified timestamp.
@@ -4271,14 +3838,8 @@ func (ok *Okx) GetOrderBooksLite(ctx context.Context, instrumentID string) (*Ord
 	}
 	params := url.Values{}
 	params.Set("instId", instrumentID)
-	var resp []OrderBookResponse
-	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, getOrderBookLiteEPL, http.MethodGet, common.EncodeURLValues("market/books-lite", params), nil, &resp, false)
-	if err != nil {
-		return nil, err
-	} else if len(resp) == 1 {
-		return &resp[0], nil
-	}
-	return nil, errNoValidResponseFromServer
+	var resp *OrderBookResponse
+	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getOrderBookLiteEPL, http.MethodGet, common.EncodeURLValues("market/books-lite", params), nil, &resp, false)
 }
 
 // GetIntervalEnum allowed interval params by Okx Exchange
@@ -4580,7 +4141,7 @@ func (ok *Okx) GetIndexComponents(ctx context.Context, index string) (*IndexComp
 	params := url.Values{}
 	params.Set("index", index)
 	var resp *IndexComponent
-	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, getIndexComponentsEPL, http.MethodGet, common.EncodeURLValues(marketIndexComponents, params), nil, &resp, false)
+	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, getIndexComponentsEPL, http.MethodGet, common.EncodeURLValues(marketIndexComponents, params), nil, &resp, false, true)
 	if err != nil {
 		return nil, err
 	}
@@ -4613,15 +4174,8 @@ func (ok *Okx) GetBlockTicker(ctx context.Context, instrumentID string) (*BlockT
 		return nil, errMissingInstrumentID
 	}
 	params.Set("instId", instrumentID)
-	var resp []BlockTicker
-	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, getBlockTickersEPL, http.MethodGet, common.EncodeURLValues(marketBlockTicker, params), nil, &resp, false)
-	if err != nil {
-		return nil, err
-	}
-	if len(resp) == 1 {
-		return &resp[0], nil
-	}
-	return nil, errNoValidResponseFromServer
+	var resp *BlockTicker
+	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getBlockTickersEPL, http.MethodGet, common.EncodeURLValues(marketBlockTicker, params), nil, &resp, false)
 }
 
 // GetBlockTrades retrieves the recent block trading transactions of an instrument. Descending order by tradeId.
@@ -4660,15 +4214,8 @@ func (ok *Okx) PlaceSpreadOrder(ctx context.Context, arg *SpreadOrderParam) (*Sp
 	if arg.Side != "buy" && arg.Side != "sell" {
 		return nil, fmt.Errorf("%w %s", errInvalidOrderSide, arg.Side)
 	}
-	var resp []SpreadOrderResponse
-	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, placeSpreadOrderEPL, http.MethodGet, "sprd/order", arg, &resp, true)
-	if err != nil {
-		return nil, err
-	}
-	if len(resp) == 1 {
-		return &resp[0], nil
-	}
-	return nil, errNoValidResponseFromServer
+	var resp *SpreadOrderResponse
+	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, placeSpreadOrderEPL, http.MethodGet, "sprd/order", arg, &resp, true)
 }
 
 // CancelSpreadOrder cancels an incomplete spread order
@@ -4683,15 +4230,8 @@ func (ok *Okx) CancelSpreadOrder(ctx context.Context, orderID, clientOrderID str
 	if clientOrderID != "" {
 		arg["clOrdId"] = clientOrderID
 	}
-	var resp []SpreadOrderResponse
-	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, cancelSpreadOrderEPL, http.MethodPost, "sprd/cancel-order", arg, &resp, true)
-	if err != nil {
-		return nil, err
-	}
-	if len(resp) == 1 {
-		return &resp[0], nil
-	}
-	return nil, errNoValidResponseFromServer
+	var resp *SpreadOrderResponse
+	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, cancelSpreadOrderEPL, http.MethodPost, "sprd/cancel-order", arg, &resp, true)
 }
 
 // CancelAllSpreadOrders cancels all spread orders and return success message
@@ -4702,17 +4242,10 @@ func (ok *Okx) CancelAllSpreadOrders(ctx context.Context, spreadID string) (bool
 	if spreadID != "" {
 		arg["sprdId"] = spreadID
 	}
-	resp := []struct {
+	resp := &struct {
 		Result bool `json:"result"`
 	}{}
-	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, cancelAllSpreadOrderEPL, http.MethodPost, "sprd/mass-cancel", arg, &resp, true)
-	if err != nil {
-		return false, err
-	}
-	if len(resp) == 1 {
-		return resp[0].Result, nil
-	}
-	return false, errNoValidResponseFromServer
+	return resp.Result, ok.SendHTTPRequest(ctx, exchange.RestSpot, cancelAllSpreadOrderEPL, http.MethodPost, "sprd/mass-cancel", arg, resp, true)
 }
 
 // AmendSpreadOrder amends incomplete spread order
@@ -4726,15 +4259,8 @@ func (ok *Okx) AmendSpreadOrder(ctx context.Context, arg *AmendSpreadOrderParam)
 	if arg.NewPrice == 0 && arg.NewSize == 0 {
 		return nil, errSizeOrPriceIsRequired
 	}
-	var resp []SpreadOrderResponse
-	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, amendSpreadOrderEPL, http.MethodPost, "sprd/amend-order", arg, &resp, true)
-	if err != nil {
-		return nil, err
-	}
-	if len(resp) == 1 {
-		return &resp[0], nil
-	}
-	return nil, errNoValidResponseFromServer
+	var resp *SpreadOrderResponse
+	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, amendSpreadOrderEPL, http.MethodPost, "sprd/amend-order", arg, &resp, true)
 }
 
 // GetSpreadOrderDetails retrieves spread order details.
@@ -4749,15 +4275,8 @@ func (ok *Okx) GetSpreadOrderDetails(ctx context.Context, orderID, clientOrderID
 	if clientOrderID != "" {
 		params.Set("clOrdId", clientOrderID)
 	}
-	var resp []SpreadOrder
-	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, getSpreadOrderDetailsEPL, http.MethodGet, "sprd/order", nil, &resp, true)
-	if err != nil {
-		return nil, err
-	}
-	if len(resp) == 1 {
-		return &resp[0], nil
-	}
-	return nil, errNoValidResponseFromServer
+	var resp *SpreadOrder
+	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getSpreadOrderDetailsEPL, http.MethodGet, "sprd/order", nil, &resp, true)
 }
 
 // GetActiveSpreadOrders retrieves list of incomplete spread orders.
@@ -4971,15 +4490,8 @@ func (ok *Okx) GetSingleFundingRate(ctx context.Context, instrumentID string) (*
 		return nil, errMissingInstrumentID
 	}
 	params.Set("instId", instrumentID)
-	var resp []FundingRateResponse
-	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, getFundingEPL, http.MethodGet, common.EncodeURLValues(publicFundingRate, params), nil, &resp, false)
-	if err != nil {
-		return nil, err
-	}
-	if len(resp) == 1 {
-		return &resp[0], nil
-	}
-	return nil, errNoValidResponseFromServer
+	var resp *FundingRateResponse
+	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getFundingEPL, http.MethodGet, common.EncodeURLValues(publicFundingRate, params), nil, &resp, false)
 }
 
 // GetFundingRateHistory retrieves funding rate history. This endpoint can retrieve data from the last 3 months.
@@ -5059,14 +4571,8 @@ func (ok *Okx) GetDiscountRateAndInterestFreeQuota(ctx context.Context, currency
 
 // GetSystemTime Retrieve API server time.
 func (ok *Okx) GetSystemTime(ctx context.Context) (time.Time, error) {
-	var resp []ServerTime
-	if err := ok.SendHTTPRequest(ctx, exchange.RestSpot, getSystemTimeEPL, http.MethodGet, publicTime, nil, &resp, false); err != nil {
-		return time.Time{}, err
-	}
-	if len(resp) == 1 {
-		return resp[0].Timestamp.Time(), nil
-	}
-	return time.Time{}, errNoValidResponseFromServer
+	resp := &ServerTime{}
+	return resp.Timestamp.Time(), ok.SendHTTPRequest(ctx, exchange.RestSpot, getSystemTimeEPL, http.MethodGet, publicTime, nil, &resp, false)
 }
 
 // GetLiquidationOrders retrieves information on liquidation orders in the last day.
@@ -5186,14 +4692,8 @@ func (ok *Okx) GetPublicUnderlyings(ctx context.Context, instrumentType string) 
 		return nil, errMissingRequiredArgInstType
 	}
 	params.Set("instType", strings.ToUpper(instrumentType))
-	var resp [][]string
-	if err := ok.SendHTTPRequest(ctx, exchange.RestSpot, getUnderlyingEPL, http.MethodGet, common.EncodeURLValues(publicUnderlyings, params), nil, &resp, false); err != nil {
-		return nil, err
-	}
-	if len(resp) == 1 {
-		return resp[0], nil
-	}
-	return nil, errUnderlyingsForSpecifiedInstTypeNofFound
+	var resp []string
+	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getUnderlyingEPL, http.MethodGet, common.EncodeURLValues(publicUnderlyings, params), nil, &resp, false, false)
 }
 
 // GetInsuranceFundInformation returns insurance fund balance information.
@@ -5257,15 +4757,8 @@ func (ok *Okx) CurrencyUnitConvert(ctx context.Context, instrumentID string, qua
 	if unitOfCurrency != "" {
 		params.Set("unit", unitOfCurrency)
 	}
-	var resp []UnitConvertResponse
-	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, unitConvertEPL, http.MethodGet, common.EncodeURLValues(publicCurrencyConvertContract, params), nil, &resp, false)
-	if err != nil {
-		return nil, err
-	}
-	if len(resp) == 1 {
-		return &resp[0], nil
-	}
-	return nil, errNoValidResponseFromServer
+	var resp *UnitConvertResponse
+	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, unitConvertEPL, http.MethodGet, common.EncodeURLValues(publicCurrencyConvertContract, params), nil, &resp, false)
 }
 
 // GetOptionsTickBands retrieves option tick bands information.
@@ -5288,7 +4781,7 @@ func (ok *Okx) GetOptionsTickBands(ctx context.Context, instrumentType, instrume
 // GetSupportCoins retrieves the currencies supported by the trading data endpoints
 func (ok *Okx) GetSupportCoins(ctx context.Context) (*SupportedCoinsData, error) {
 	var response SupportedCoinsData
-	return &response, ok.SendHTTPRequest(ctx, exchange.RestSpot, getSupportCoinEPL, http.MethodGet, tradingDataSupportedCoins, nil, &response, false)
+	return &response, ok.SendHTTPRequest(ctx, exchange.RestSpot, getSupportCoinEPL, http.MethodGet, tradingDataSupportedCoins, nil, &response, false, true)
 }
 
 // GetTakerVolume retrieves the taker volume for both buyers and sellers.
@@ -5712,7 +5205,7 @@ func (ok *Okx) GetTakerFlow(ctx context.Context, currency string, period kline.I
 		params.Set("period", interval)
 	}
 	var resp [7]string
-	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, getTakerFlowEPL, http.MethodGet, common.EncodeURLValues(takerBlockVolume, params), nil, &resp, false)
+	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, getTakerFlowEPL, http.MethodGet, common.EncodeURLValues(takerBlockVolume, params), nil, &resp, false, true)
 	if err != nil {
 		return nil, err
 	}
@@ -5758,21 +5251,32 @@ func (ok *Okx) GetTakerFlow(ctx context.Context, currency string, period kline.I
 // SendHTTPRequest sends an authenticated http request to a desired
 // path with a JSON payload (of present)
 // URL arguments must be in the request path and not as url.URL values
-func (ok *Okx) SendHTTPRequest(ctx context.Context, ep exchange.URL, f request.EndpointLimit, httpMethod, requestPath string, data, result interface{}, authenticated bool) (err error) {
+func (ok *Okx) SendHTTPRequest(ctx context.Context, ep exchange.URL, f request.EndpointLimit, httpMethod, requestPath string, data, result interface{}, authenticated bool, useAsItIs ...bool) (err error) {
 	rv := reflect.ValueOf(result)
-	if rv.Kind() != reflect.Pointer || rv.IsNil() {
+	if rv.Kind() != reflect.Pointer /*|| rv.IsNil()*/ {
 		return errInvalidResponseParam
 	}
 	endpoint, err := ok.API.Endpoints.GetURL(ep)
 	if err != nil {
 		return err
 	}
+	var respResult interface{}
+	switch {
+	case rv.Elem().Kind() == reflect.Slice && len(useAsItIs) > 0 && !useAsItIs[0]:
+		respResult = &[]interface{}{&result}
+	case rv.Elem().Kind() == reflect.Slice ||
+		// When needed to use the result as it is.
+		len(useAsItIs) > 0 && useAsItIs[0]:
+		respResult = result
+	default:
+		respResult = &[]interface{}{result}
+	}
 	resp := struct {
 		Code string      `json:"code"`
 		Msg  string      `json:"msg"`
 		Data interface{} `json:"data"`
 	}{
-		Data: result,
+		Data: respResult,
 	}
 	requestType := request.AuthType(request.UnauthenticatedRequest)
 	if authenticated {
@@ -5827,6 +5331,14 @@ func (ok *Okx) SendHTTPRequest(ctx context.Context, ep exchange.URL, f request.E
 	err = ok.SendPayload(ctx, f, newRequest, requestType)
 	if err != nil {
 		return err
+	}
+	switch {
+	case rv.Kind() == reflect.Slice:
+		value, okay := result.([]interface{})
+		if !okay || result == nil || len(value) == 0 {
+			return errNoValidResponseFromServer
+		}
+	case rv.Kind() == reflect.Pointer && rv.Elem().Kind() != reflect.Slice:
 	}
 	code, err := strconv.ParseInt(resp.Code, 10, 64)
 	if err == nil && code != 0 {

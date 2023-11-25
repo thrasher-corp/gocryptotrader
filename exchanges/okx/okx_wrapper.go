@@ -696,8 +696,8 @@ func (ok *Okx) GetRecentTrades(ctx context.Context, p currency.Pair, assetType a
 			CurrencyPair: p,
 			AssetType:    assetType,
 			Side:         tradeData[x].Side,
-			Price:        tradeData[x].Price,
-			Amount:       tradeData[x].Quantity,
+			Price:        tradeData[x].Price.Float64(),
+			Amount:       tradeData[x].Quantity.Float64(),
 			Timestamp:    tradeData[x].Timestamp.Time(),
 		}
 	}
@@ -749,8 +749,8 @@ allTrades:
 				Exchange:     ok.Name,
 				CurrencyPair: p,
 				AssetType:    assetType,
-				Price:        trades[i].Price,
-				Amount:       trades[i].Quantity,
+				Price:        trades[i].Price.Float64(),
+				Amount:       trades[i].Quantity.Float64(),
 				Timestamp:    trades[i].Timestamp.Time(),
 				Side:         trades[i].Side,
 			})

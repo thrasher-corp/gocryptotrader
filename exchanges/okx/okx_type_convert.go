@@ -2,40 +2,10 @@ package okx
 
 import (
 	"encoding/json"
-	"strconv"
 	"strings"
 
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
-
-type okxNumericalValue float64
-
-// UnmarshalJSON is custom type json unmarshaller for okxNumericalValue
-func (a *okxNumericalValue) UnmarshalJSON(data []byte) error {
-	var num interface{}
-	err := json.Unmarshal(data, &num)
-	if err != nil {
-		return err
-	}
-
-	switch d := num.(type) {
-	case float64:
-		*a = okxNumericalValue(d)
-	case string:
-		if d == "" {
-			return nil
-		}
-		convNum, err := strconv.ParseFloat(d, 64)
-		if err != nil {
-			return err
-		}
-		*a = okxNumericalValue(convNum)
-	}
-	return nil
-}
-
-// Float64 returns a float64 value for okxNumericalValue
-func (a *okxNumericalValue) Float64() float64 { return float64(*a) }
 
 // UnmarshalJSON decoder for OpenInterestResponse instance.
 func (a *OpenInterest) UnmarshalJSON(data []byte) error {
