@@ -68,12 +68,11 @@ const (
 // Constants here define unset default values displayed in the config.json
 // file
 const (
-	APIURLNonDefaultMessage              = "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API"
-	WebsocketURLNonDefaultMessage        = "NON_DEFAULT_HTTP_LINK_TO_WEBSOCKET_EXCHANGE_API"
-	DefaultUnsetAPIKey                   = "Key"
-	DefaultUnsetAPISecret                = "Secret"
-	DefaultUnsetAccountPlan              = "accountPlan"
-	DefaultForexProviderExchangeRatesAPI = "ExchangeRateHost"
+	APIURLNonDefaultMessage       = "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API"
+	WebsocketURLNonDefaultMessage = "NON_DEFAULT_HTTP_LINK_TO_WEBSOCKET_EXCHANGE_API"
+	DefaultUnsetAPIKey            = "Key"
+	DefaultUnsetAPISecret         = "Secret"
+	DefaultUnsetAccountPlan       = "accountPlan"
 )
 
 // Variables here are used for configuration

@@ -1828,7 +1828,6 @@ func (c *Config) LoadConfig(configPath string, dryrun bool) error {
 	if err != nil {
 		return fmt.Errorf(ErrFailureOpeningConfig, configPath, err)
 	}
-
 	return c.CheckConfig()
 }
 

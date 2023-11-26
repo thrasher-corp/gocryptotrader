@@ -3,6 +3,7 @@ package binance
 import (
 	"time"
 
+	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 )
 
@@ -79,6 +80,15 @@ type UMarkPrice struct {
 	EstimatedSettlePrice float64 `json:"estimatedSettlePrice,string"`
 	NextFundingTime      int64   `json:"nextFundingTime"`
 	Time                 int64   `json:"time"`
+}
+
+// FundingRateInfoResponse stores funding rate info
+type FundingRateInfoResponse struct {
+	Symbol                   string                  `json:"symbol"`
+	AdjustedFundingRateCap   convert.StringToFloat64 `json:"adjustedFundingRateCap"`
+	AdjustedFundingRateFloor convert.StringToFloat64 `json:"adjustedFundingRateFloor"`
+	FundingIntervalHours     int64                   `json:"fundingIntervalHours"`
+	Disclaimer               bool                    `json:"disclaimer"`
 }
 
 // FundingRateHistory stores funding rate history

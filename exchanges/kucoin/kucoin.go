@@ -140,10 +140,11 @@ const (
 var errMaximumOf10Symbols = errors.New("maximum of 10 symbols")
 
 // GetSymbols gets pairs details on the exchange
-func (ku *Kucoin) GetSymbols(ctx context.Context, ccy string) ([]SymbolInfo, error) {
+// For market details see endpoint: https://www.kucoin.com/docs/rest/spot-trading/market-data/get-market-list
+func (ku *Kucoin) GetSymbols(ctx context.Context, market string) ([]SymbolInfo, error) {
 	params := url.Values{}
-	if ccy != "" {
-		params.Set("market", ccy)
+	if market != "" {
+		params.Set("market", market)
 	}
 	var resp []SymbolInfo
 	return resp, ku.SendHTTPRequest(ctx, exchange.RestSpot, defaultSpotEPL, common.EncodeURLValues(kucoinGetSymbols, params), &resp)
@@ -816,6 +817,7 @@ func (ku *Kucoin) GetServiceStatus(ctx context.Context) (*ServiceStatus, error) 
 // Note: use this only for SPOT trades
 func (ku *Kucoin) PostOrder(ctx context.Context, arg *SpotOrderParam) (string, error) {
 	if arg.ClientOrderID == "" {
+		// NOTE: 128 bit max length character string. UUID recommended.
 		return "", errInvalidClientOrderID
 	}
 	if arg.Side == "" {
@@ -842,11 +844,13 @@ func (ku *Kucoin) PostOrder(ctx context.Context, arg *SpotOrderParam) (string, e
 	default:
 		return "", fmt.Errorf("%w %s", order.ErrTypeIsInvalid, arg.OrderType)
 	}
-	resp := struct {
-		OrderID string `json:"orderId"`
+	var resp struct {
+		Data struct {
+			OrderID string `json:"orderId"`
+		} `json:"data"`
 		Error
-	}{}
-	return resp.OrderID, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, placeOrderEPL, http.MethodPost, kucoinPostOrder, &arg, &resp)
+	}
+	return resp.Data.OrderID, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, placeOrderEPL, http.MethodPost, kucoinPostOrder, &arg, &resp)
 }
 
 // PostMarginOrder used to place two types of margin orders: limit and market
@@ -1645,12 +1649,10 @@ func (ku *Kucoin) GetBasicFee(ctx context.Context, currencyType string) (*Fees, 
 }
 
 // GetTradingFee get fee rate of trading pairs
+// WARNING: There is a limit of 10 currency pairs allowed to be requested per call.
 func (ku *Kucoin) GetTradingFee(ctx context.Context, pairs currency.Pairs) ([]Fees, error) {
 	if len(pairs) == 0 {
 		return nil, currency.ErrCurrencyPairsEmpty
-	}
-	if len(pairs) > 10 {
-		return nil, errMaximumOf10Symbols
 	}
 	path := kucoinTradingFee + "?symbols=" + pairs.Upper().Join()
 	var resp []Fees

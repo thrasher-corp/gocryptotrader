@@ -26,10 +26,9 @@ func init() {
 // CurrencyFileUpdateDelay defines the rate at which the currency.json file is
 // updated
 const (
-	DefaultCurrencyFileDelay             = 168 * time.Hour
-	DefaultForeignExchangeDelay          = 1 * time.Minute
-	DefaultStorageFile                   = "currency.json"
-	DefaultForexProviderExchangeRatesAPI = "ExchangeRateHost"
+	DefaultCurrencyFileDelay    = 168 * time.Hour
+	DefaultForeignExchangeDelay = 1 * time.Minute
+	DefaultStorageFile          = "currency.json"
 )
 
 var (
@@ -74,7 +73,12 @@ func (s *Storage) SetDefaults() {
 		log.Errorf(log.Currency, "Currency Storage: Setting default cryptocurrencies error: %s", err)
 	}
 	s.SetupConversionRates()
-	s.fiatExchangeMarkets = forexprovider.NewDefaultFXProvider()
+	s.fiatExchangeMarkets = nil
+}
+
+// ForexEnabled returns whether the currency system has any available forex providers enabled
+func ForexEnabled() bool {
+	return storage.fiatExchangeMarkets != nil
 }
 
 // RunUpdater runs the foreign exchange updater service. This will set up a JSON
@@ -103,6 +107,10 @@ func (s *Storage) RunUpdater(overrides BotOverrides, settings *Config, filePath 
 	}
 
 	s.mtx.Lock()
+
+	// Ensure the forex provider is unset in cases we exit early
+	s.fiatExchangeMarkets = nil
+
 	s.shutdown = make(chan struct{})
 	s.baseCurrency = settings.FiatDisplayCurrency
 	s.path = filepath.Join(filePath, DefaultStorageFile)
@@ -132,26 +140,23 @@ func (s *Storage) RunUpdater(overrides BotOverrides, settings *Config, filePath 
 			(settings.ForexProviders[i].Name == "CurrencyLayer" && overrides.CurrencyLayer) ||
 			(settings.ForexProviders[i].Name == "Fixer" && overrides.Fixer) ||
 			(settings.ForexProviders[i].Name == "OpenExchangeRates" && overrides.OpenExchangeRates) ||
-			(settings.ForexProviders[i].Name == "ExchangeRates" && overrides.ExchangeRates) ||
-			(settings.ForexProviders[i].Name == "ExchangeRateHost" && overrides.ExchangeRateHost)
+			(settings.ForexProviders[i].Name == "ExchangeRates" && overrides.ExchangeRates)
 
 		if !enabled {
 			continue
 		}
 
-		if settings.ForexProviders[i].Name != DefaultForexProviderExchangeRatesAPI {
-			if settings.ForexProviders[i].APIKey == "" || settings.ForexProviders[i].APIKey == "Key" {
-				log.Warnf(log.Currency, "%s forex provider API key not set, disabling. Please set this in your config.json file\n",
-					settings.ForexProviders[i].Name)
-				settings.ForexProviders[i].Enabled = false
-				settings.ForexProviders[i].PrimaryProvider = false
-				continue
-			}
+		if settings.ForexProviders[i].APIKey == "" || settings.ForexProviders[i].APIKey == "Key" {
+			log.Warnf(log.Currency, "%s forex provider API key not set, disabling. Please set this in your config.json file\n",
+				settings.ForexProviders[i].Name)
+			settings.ForexProviders[i].Enabled = false
+			settings.ForexProviders[i].PrimaryProvider = false
+			continue
+		}
 
-			if settings.ForexProviders[i].APIKeyLvl == -1 && settings.ForexProviders[i].Name != "ExchangeRates" {
-				log.Warnf(log.Currency, "%s APIKey level not set, functionality is limited. Please review this in your config.json file\n",
-					settings.ForexProviders[i].Name)
-			}
+		if settings.ForexProviders[i].APIKeyLvl == -1 && settings.ForexProviders[i].Name != "ExchangeRates" {
+			log.Warnf(log.Currency, "%s APIKey level not set, functionality is limited. Please review this in your config.json file\n",
+				settings.ForexProviders[i].Name)
 		}
 
 		if settings.ForexProviders[i].PrimaryProvider {
@@ -167,22 +172,9 @@ func (s *Storage) RunUpdater(overrides BotOverrides, settings *Config, filePath 
 	}
 
 	if len(fxSettings) == 0 {
-		log.Warnln(log.Currency, "No foreign exchange providers enabled, setting default provider...")
-		for x := range settings.ForexProviders {
-			if settings.ForexProviders[x].Name != DefaultForexProviderExchangeRatesAPI {
-				continue
-			}
-			settings.ForexProviders[x].Enabled = true
-			settings.ForexProviders[x].PrimaryProvider = true
-			primaryProvider = true
-			log.Warnf(log.Currency, "No valid foreign exchange providers configured. Defaulting to %s.", DefaultForexProviderExchangeRatesAPI)
-			fxSettings = append(fxSettings, base.Settings(settings.ForexProviders[x]))
-		}
-	}
-
-	if len(fxSettings) == 0 {
 		s.mtx.Unlock()
-		return errNoForeignExchangeProvidersEnabled
+		log.Warnln(log.Currency, "No foreign exchange providers enabled, currency conversion will not be available")
+		return nil
 	}
 
 	if !primaryProvider {
@@ -313,8 +305,7 @@ func (s *Storage) ForeignExchangeUpdater() {
 		log.Errorln(log.Currency, err)
 	}
 
-	// Unlock main rate retrieval mutex so all routines waiting can get access
-	// to data
+	// Unlock main rate retrieval mutex so all routines waiting can get access to data
 	s.mtx.Unlock()
 
 	// Set tickers to client defined rates or defaults
@@ -516,6 +507,9 @@ func (s *Storage) UpdateCurrencies() error {
 func (s *Storage) SeedForeignExchangeRatesByCurrencies(c Currencies) error {
 	s.fxRates.mtx.Lock()
 	defer s.fxRates.mtx.Unlock()
+	if s.fiatExchangeMarkets == nil {
+		return nil
+	}
 	rates, err := s.fiatExchangeMarkets.GetCurrencyData(s.baseCurrency.String(),
 		c.Strings())
 	if err != nil {
@@ -526,6 +520,9 @@ func (s *Storage) SeedForeignExchangeRatesByCurrencies(c Currencies) error {
 
 // SeedForeignExchangeRate returns a singular exchange rate
 func (s *Storage) SeedForeignExchangeRate(from, to Code) (map[string]float64, error) {
+	if s.fiatExchangeMarkets == nil {
+		return nil, nil
+	}
 	return s.fiatExchangeMarkets.GetCurrencyData(from.String(),
 		[]string{to.String()})
 }
@@ -546,6 +543,9 @@ func (s *Storage) GetDefaultForeignExchangeRates() (Conversions, error) {
 func (s *Storage) SeedDefaultForeignExchangeRates() error {
 	s.fxRates.mtx.Lock()
 	defer s.fxRates.mtx.Unlock()
+	if s.fiatExchangeMarkets == nil {
+		return errNoForeignExchangeProvidersEnabled
+	}
 	rates, err := s.fiatExchangeMarkets.GetCurrencyData(
 		s.defaultBaseCurrency.String(),
 		s.defaultFiatCurrencies.Strings())
@@ -566,11 +566,13 @@ func (s *Storage) GetExchangeRates() (Conversions, error) {
 	return s.fxRates.GetFullRates(), nil
 }
 
-// SeedForeignExchangeRates seeds the foreign exchange rates from storage config
-// currencies
+// SeedForeignExchangeRates seeds the foreign exchange rates from storage config currencies
 func (s *Storage) SeedForeignExchangeRates() error {
 	s.fxRates.mtx.Lock()
 	defer s.fxRates.mtx.Unlock()
+	if s.fiatExchangeMarkets == nil {
+		return errNoForeignExchangeProvidersEnabled
+	}
 	rates, err := s.fiatExchangeMarkets.GetCurrencyData(s.baseCurrency.String(),
 		s.fiatCurrencies.Strings())
 	if err != nil {
@@ -695,6 +697,9 @@ func (s *Storage) UpdateEnabledFiatCurrencies(c Currencies) {
 // ConvertCurrency for example converts $1 USD to the equivalent Japanese Yen
 // or vice versa.
 func (s *Storage) ConvertCurrency(amount float64, from, to Code) (float64, error) {
+	if s.fiatExchangeMarkets == nil {
+		return 0, errNoForeignExchangeProvidersEnabled
+	}
 	if amount <= 0 {
 		return 0, fmt.Errorf("%f %w", amount, errInvalidAmount)
 	}

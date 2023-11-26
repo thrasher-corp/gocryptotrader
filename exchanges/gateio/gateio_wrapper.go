@@ -11,6 +11,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/config"
@@ -94,6 +95,8 @@ func (g *Gateio) SetDefaults() {
 				CryptoWithdrawalFee:   true,
 				MultiChainDeposits:    true,
 				MultiChainWithdrawals: true,
+				PredictedFundingRate:  true,
+				FundingRateFetching:   true,
 			},
 			WebsocketCapabilities: protocol.Features{
 				TickerFetching:         true,
@@ -111,6 +114,16 @@ func (g *Gateio) SetDefaults() {
 				exchange.NoFiatWithdrawals,
 			Kline: kline.ExchangeCapabilitiesSupported{
 				Intervals: true,
+			},
+			FuturesCapabilities: exchange.FuturesCapabilities{
+				FundingRates: true,
+				SupportedFundingRateFrequencies: map[kline.Interval]bool{
+					kline.FourHour:  true,
+					kline.EightHour: true,
+				},
+				FundingRateBatching: map[asset.Item]bool{
+					asset.Futures: true,
+				},
 			},
 		},
 		Enabled: exchange.FeaturesEnabled{
@@ -2112,11 +2125,6 @@ func (g *Gateio) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) e
 		return fmt.Errorf("%s %w", a, asset.ErrNotSupported)
 	}
 
-	avail, err := g.GetAvailablePairs(a)
-	if err != nil {
-		return err
-	}
-
 	var limits []order.MinMaxLevel
 	switch a {
 	case asset.Spot:
@@ -2132,7 +2140,7 @@ func (g *Gateio) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) e
 				continue
 			}
 			var pair currency.Pair
-			pair, err = avail.DeriveFrom(strings.ReplaceAll(pairsData[x].ID, "_", ""))
+			pair, err = g.MatchSymbolWithAvailablePairs(pairsData[x].ID, a, true)
 			if err != nil {
 				return err
 			}
@@ -2159,4 +2167,179 @@ func (g *Gateio) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) e
 	}
 
 	return g.LoadLimits(limits)
+}
+
+// GetHistoricalFundingRates returns historical funding rates for a futures contract
+func (g *Gateio) GetHistoricalFundingRates(ctx context.Context, r *fundingrate.HistoricalRatesRequest) (*fundingrate.HistoricalRates, error) {
+	if r == nil {
+		return nil, fmt.Errorf("%w LatestRateRequest", common.ErrNilPointer)
+	}
+	if r.Asset != asset.Futures {
+		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, r.Asset)
+	}
+
+	if r.Pair.IsEmpty() {
+		return nil, currency.ErrCurrencyPairEmpty
+	}
+
+	if !r.StartDate.IsZero() && !r.EndDate.IsZero() {
+		err := common.StartEndTimeCheck(r.StartDate, r.EndDate)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	// NOTE: Opted to fail here as a misconfigured request will result in
+	// {"label":"CONTRACT_NOT_FOUND"} and rather not mutate request using
+	// quote currency as the settlement currency.
+	if r.PaymentCurrency.IsEmpty() {
+		return nil, fundingrate.ErrPaymentCurrencyCannotBeEmpty
+	}
+
+	if r.IncludePayments {
+		return nil, fmt.Errorf("include payments %w", common.ErrNotYetImplemented)
+	}
+
+	if r.IncludePredictedRate {
+		return nil, fmt.Errorf("include predicted rate %w", common.ErrNotYetImplemented)
+	}
+
+	fPair, err := g.FormatExchangeCurrency(r.Pair, r.Asset)
+	if err != nil {
+		return nil, err
+	}
+
+	records, err := g.GetFutureFundingRates(ctx, r.PaymentCurrency.String(), fPair, 1000)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(records) == 0 {
+		return nil, fundingrate.ErrNoFundingRatesFound
+	}
+
+	if !r.StartDate.IsZero() && !r.RespectHistoryLimits && r.StartDate.Before(records[len(records)-1].Timestamp.Time()) {
+		return nil, fmt.Errorf("%w start date requested: %v last returned record: %v", fundingrate.ErrFundingRateOutsideLimits, r.StartDate, records[len(records)-1].Timestamp.Time())
+	}
+
+	fundingRates := make([]fundingrate.Rate, 0, len(records))
+	for i := range records {
+		if (!r.EndDate.IsZero() && r.EndDate.Before(records[i].Timestamp.Time())) ||
+			(!r.StartDate.IsZero() && r.StartDate.After(records[i].Timestamp.Time())) {
+			continue
+		}
+
+		fundingRates = append(fundingRates, fundingrate.Rate{
+			Rate: decimal.NewFromFloat(records[i].Rate.Float64()),
+			Time: records[i].Timestamp.Time(),
+		})
+	}
+
+	if len(fundingRates) == 0 {
+		return nil, fundingrate.ErrNoFundingRatesFound
+	}
+
+	return &fundingrate.HistoricalRates{
+		Exchange:        g.Name,
+		Asset:           r.Asset,
+		Pair:            r.Pair,
+		FundingRates:    fundingRates,
+		StartDate:       fundingRates[len(fundingRates)-1].Time,
+		EndDate:         fundingRates[0].Time,
+		LatestRate:      fundingRates[0],
+		PaymentCurrency: r.PaymentCurrency,
+	}, nil
+}
+
+// GetLatestFundingRates returns the latest funding rates data
+func (g *Gateio) GetLatestFundingRates(ctx context.Context, r *fundingrate.LatestRateRequest) ([]fundingrate.LatestRateResponse, error) {
+	if r == nil {
+		return nil, fmt.Errorf("%w LatestRateRequest", common.ErrNilPointer)
+	}
+	if r.Asset != asset.Futures {
+		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, r.Asset)
+	}
+
+	if !r.Pair.IsEmpty() {
+		resp := make([]fundingrate.LatestRateResponse, 1)
+		fPair, err := g.FormatExchangeCurrency(r.Pair, r.Asset)
+		if err != nil {
+			return nil, err
+		}
+		var settle string
+		settle, err = g.getSettlementFromCurrency(fPair, true)
+		if err != nil {
+			return nil, err
+		}
+		contract, err := g.GetSingleContract(ctx, settle, fPair.String())
+		if err != nil {
+			return nil, err
+		}
+		resp[0] = contractToFundingRate(g.Name, r.Asset, fPair, contract, r.IncludePredictedRate)
+		return resp, nil
+	}
+
+	var resp []fundingrate.LatestRateResponse
+	settleCurrencies := []string{"btc", "usdt", "usd"}
+	pairs, err := g.GetEnabledPairs(asset.Futures)
+	if err != nil {
+		return nil, err
+	}
+
+	for i := range settleCurrencies {
+		contracts, err := g.GetAllFutureContracts(ctx, settleCurrencies[i])
+		if err != nil {
+			return nil, err
+		}
+		for j := range contracts {
+			p := strings.ToUpper(contracts[j].Name)
+			if !g.IsValidPairString(p) {
+				continue
+			}
+			cp, err := currency.NewPairFromString(p)
+			if err != nil {
+				return nil, err
+			}
+			if !pairs.Contains(cp, false) {
+				continue
+			}
+			var isPerp bool
+			isPerp, err = g.IsPerpetualFutureCurrency(r.Asset, cp)
+			if err != nil {
+				return nil, err
+			}
+			if !isPerp {
+				continue
+			}
+			resp = append(resp, contractToFundingRate(g.Name, r.Asset, cp, &contracts[j], r.IncludePredictedRate))
+		}
+	}
+
+	return resp, nil
+}
+
+func contractToFundingRate(name string, item asset.Item, fPair currency.Pair, contract *FuturesContract, includeUpcomingRate bool) fundingrate.LatestRateResponse {
+	resp := fundingrate.LatestRateResponse{
+		Exchange: name,
+		Asset:    item,
+		Pair:     fPair,
+		LatestRate: fundingrate.Rate{
+			Time: contract.FundingNextApply.Time().Add(-time.Duration(contract.FundingInterval) * time.Second),
+			Rate: contract.FundingRate.Decimal(),
+		},
+		TimeOfNextRate: contract.FundingNextApply.Time(),
+		TimeChecked:    time.Now(),
+	}
+	if includeUpcomingRate {
+		resp.PredictedUpcomingRate = fundingrate.Rate{
+			Time: contract.FundingNextApply.Time(),
+			Rate: contract.FundingRateIndicative.Decimal(),
+		}
+	}
+	return resp
+}
+
+// IsPerpetualFutureCurrency ensures a given asset and currency is a perpetual future
+func (g *Gateio) IsPerpetualFutureCurrency(a asset.Item, _ currency.Pair) (bool, error) {
+	return a == asset.Futures, nil
 }

@@ -34,7 +34,6 @@ type BotOverrides struct {
 	ExchangeRates     bool
 	Fixer             bool
 	OpenExchangeRates bool
-	ExchangeRateHost  bool
 }
 
 // CoinmarketcapSettings refers to settings
@@ -81,11 +80,3 @@ const (
 	ForwardSlashDelimiter = "/"
 	ColonDelimiter        = ":"
 )
-
-// delimiters is a delimiter list
-var delimiters = []string{
-	DashDelimiter,
-	UnderscoreDelimiter,
-	ForwardSlashDelimiter,
-	ColonDelimiter,
-}
