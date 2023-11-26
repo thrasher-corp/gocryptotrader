@@ -70,7 +70,7 @@ func (f fExchange) GetFuturesPositionSummary(context.Context, *futures.PositionS
 		MarkPrice:                    leet,
 		CurrentSize:                  leet,
 		AverageOpenPrice:             leet,
-		PositionPNL:                  leet,
+		UnrealisedPNL:                leet,
 		MaintenanceMarginFraction:    leet,
 		FreeCollateral:               leet,
 		TotalCollateral:              leet,
@@ -141,29 +141,31 @@ func (f fExchange) GetFuturesPositionOrders(_ context.Context, req *futures.Posi
 	return resp, nil
 }
 
-func (f fExchange) GetLatestFundingRate(_ context.Context, request *fundingrate.LatestRateRequest) (*fundingrate.LatestRateResponse, error) {
+func (f fExchange) GetLatestFundingRates(_ context.Context, request *fundingrate.LatestRateRequest) ([]fundingrate.LatestRateResponse, error) {
 	leet := decimal.NewFromInt(1337)
-	return &fundingrate.LatestRateResponse{
-		Exchange: f.GetName(),
-		Asset:    request.Asset,
-		Pair:     request.Pair,
-		LatestRate: fundingrate.Rate{
-			Time:    time.Now(),
-			Rate:    leet,
-			Payment: leet,
+	return []fundingrate.LatestRateResponse{
+		{
+			Exchange: f.GetName(),
+			Asset:    request.Asset,
+			Pair:     request.Pair,
+			LatestRate: fundingrate.Rate{
+				Time:    time.Now(),
+				Rate:    leet,
+				Payment: leet,
+			},
+			PredictedUpcomingRate: fundingrate.Rate{
+				Time:    time.Now(),
+				Rate:    leet,
+				Payment: leet,
+			},
+			TimeOfNextRate: time.Now(),
 		},
-		PredictedUpcomingRate: fundingrate.Rate{
-			Time:    time.Now(),
-			Rate:    leet,
-			Payment: leet,
-		},
-		TimeOfNextRate: time.Now(),
 	}, nil
 }
 
-func (f fExchange) GetFundingRates(_ context.Context, request *fundingrate.RatesRequest) (*fundingrate.Rates, error) {
+func (f fExchange) GetHistoricalFundingRates(_ context.Context, request *fundingrate.HistoricalRatesRequest) (*fundingrate.HistoricalRates, error) {
 	leet := decimal.NewFromInt(1337)
-	return &fundingrate.Rates{
+	return &fundingrate.HistoricalRates{
 		Exchange:  f.GetName(),
 		Asset:     request.Asset,
 		Pair:      request.Pair,
@@ -2927,19 +2929,26 @@ func TestGetFundingRates(t *testing.T) {
 	}
 
 	b.CurrencyPairs.Pairs = make(map[asset.Item]*currency.PairStore)
-	b.CurrencyPairs.Pairs[asset.Futures] = &currency.PairStore{
+	err = b.CurrencyPairs.Store(asset.Futures, &currency.PairStore{
 		AssetEnabled:  convert.BoolPtr(true),
 		RequestFormat: &currency.PairFormat{Delimiter: "-"},
 		ConfigFormat:  &currency.PairFormat{Delimiter: "-"},
 		Available:     currency.Pairs{cp},
 		Enabled:       currency.Pairs{cp},
+	})
+	if err != nil {
+		t.Fatal(err)
 	}
-	b.CurrencyPairs.Pairs[asset.Spot] = &currency.PairStore{
+
+	err = b.CurrencyPairs.Store(asset.Spot, &currency.PairStore{
 		AssetEnabled:  convert.BoolPtr(true),
 		ConfigFormat:  &currency.PairFormat{Delimiter: "/"},
 		RequestFormat: &currency.PairFormat{Delimiter: "/"},
 		Available:     currency.Pairs{cp},
 		Enabled:       currency.Pairs{cp},
+	})
+	if err != nil {
+		t.Fatal(err)
 	}
 	b.Features.Supports.FuturesCapabilities.FundingRates = true
 	fakeExchange := fExchange{
@@ -3028,19 +3037,25 @@ func TestGetLatestFundingRate(t *testing.T) {
 	}
 
 	b.CurrencyPairs.Pairs = make(map[asset.Item]*currency.PairStore)
-	b.CurrencyPairs.Pairs[asset.Futures] = &currency.PairStore{
+	err = b.CurrencyPairs.Store(asset.Futures, &currency.PairStore{
 		AssetEnabled:  convert.BoolPtr(true),
 		RequestFormat: &currency.PairFormat{Delimiter: "-"},
 		ConfigFormat:  &currency.PairFormat{Delimiter: "-"},
 		Available:     currency.Pairs{cp},
 		Enabled:       currency.Pairs{cp},
+	})
+	if err != nil {
+		t.Fatal(err)
 	}
-	b.CurrencyPairs.Pairs[asset.Spot] = &currency.PairStore{
+	err = b.CurrencyPairs.Store(asset.Spot, &currency.PairStore{
 		AssetEnabled:  convert.BoolPtr(true),
 		ConfigFormat:  &currency.PairFormat{Delimiter: "/"},
 		RequestFormat: &currency.PairFormat{Delimiter: "/"},
 		Available:     currency.Pairs{cp},
 		Enabled:       currency.Pairs{cp},
+	})
+	if err != nil {
+		t.Fatal(err)
 	}
 	fakeExchange := fExchange{
 		IBotExchange: exch,

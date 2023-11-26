@@ -33,6 +33,7 @@ type CurrencyLayer struct {
 // Error Defines the response error if an error occurred
 type Error struct {
 	Code int    `json:"code"`
+	Type string `json:"type"`
 	Info string `json:"info"`
 }
 

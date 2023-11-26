@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"unicode"
 )
 
 // EMPTYFORMAT defines an empty pair format
@@ -45,8 +46,21 @@ func (p *Pair) UnmarshalJSON(d []byte) error {
 		return nil
 	}
 
-	*p, err = NewPairFromString(pair)
-	return err
+	// Check if pair is in the format of BTC-USD
+	for x := range pair {
+		if unicode.IsPunct(rune(pair[x])) {
+			p.Base = NewCode(pair[:x])
+			p.Delimiter = string(pair[x])
+			p.Quote = NewCode(pair[x+1:])
+			return nil
+		}
+	}
+
+	// NOTE: Pair string could be in format DUSKUSDT (Kucoin) which will be
+	// incorrectly converted to DUS-KUSDT, ELKRW (Bithumb) which will convert
+	// converted to ELK-RW and HTUSDT (Lbank) which will be incorrectly
+	// converted to HTU-SDT.
+	return fmt.Errorf("%w from %s cannot ensure pair is in correct format, please use exchange method MatchSymbolWithAvailablePairs", errCannotCreatePair, pair)
 }
 
 // MarshalJSON conforms type to the marshaler interface
