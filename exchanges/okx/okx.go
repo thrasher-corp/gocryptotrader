@@ -1440,9 +1440,10 @@ func (ok *Okx) GetDepositWithdrawalStatus(ctx context.Context, withdrawalID, tra
 		return nil, errors.New("either withdrawal id or transaction id is required")
 	}
 	params := url.Values{}
-	if withdrawalID != "" {
-		params.Set("wdId", withdrawalID)
+	if withdrawalID == "" {
+		return nil, errMissingValidWithdrawalID
 	}
+	params.Set("wdId", withdrawalID)
 	if transactionID != "" {
 		params.Set("txId", transactionID)
 	}

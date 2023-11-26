@@ -1495,7 +1495,6 @@ func TestIsolatedMarginTradingSettings(t *testing.T) {
 func TestGetMaximumWithdrawals(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
-
 	if _, err := ok.GetMaximumWithdrawals(contextGenerate(), "BTC"); err != nil {
 		t.Error("Okx GetMaximumWithdrawals() error", err)
 	}
@@ -4221,6 +4220,12 @@ func TestCloseLeadingPosition(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
 	_, err := ok.CloseLeadingPosition(context.Background(), &CloseLeadingPositionParam{})
+	if !errors.Is(err, errNilArgument) {
+		t.Errorf("expected %v, got %v", errNilArgument, err)
+	}
+	_, err = ok.CloseLeadingPosition(context.Background(), &CloseLeadingPositionParam{
+		SubPositionID: "518541406042591232",
+	})
 	if err != nil {
 		t.Error(err)
 	}
