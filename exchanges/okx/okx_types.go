@@ -2550,6 +2550,7 @@ type BlockTrade struct {
 
 // SpreadOrderParam holds parameters for spread orders.
 type SpreadOrderParam struct {
+	InstrumentID  string  `json:"instId"`
 	SpreadID      string  `json:"sprdId,omitempty"`
 	ClientOrderID string  `json:"clOrdId,omitempty"`
 	Side          string  `json:"side"`    // Order side, buy sell

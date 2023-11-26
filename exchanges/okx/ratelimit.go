@@ -64,7 +64,8 @@ type RateLimit struct {
 	ExecuteQuote                *rate.Limiter
 	GetQuoteProducts            *rate.Limiter
 	SetQuoteProducts            *rate.Limiter
-	RestMMPStatus               *rate.Limiter
+	ResetMMPStatus              *rate.Limiter
+	ResetRFQMMPStatus           *rate.Limiter
 	SetMMP                      *rate.Limiter
 	GetMMPConfig                *rate.Limiter
 	CreateQuote                 *rate.Limiter
@@ -326,7 +327,7 @@ const (
 	executeQuoteEPL
 	getQuoteProductsEPL
 	setQuoteProductsEPL
-	restMMPStatusEPL
+	resetRFQMMPEPL
 	setMMPEPL
 	getMMPConfigEPL
 	createQuoteEPL
@@ -406,6 +407,7 @@ const (
 	activateOptionEPL
 	setAutoLoanEPL
 	setAccountLevelEPL
+	resetMMPStatusEPL
 	viewSubaccountListEPL
 	resetSubAccountAPIKeyEPL
 	getSubaccountTradingBalanceEPL
@@ -607,8 +609,10 @@ func (r *RateLimit) Limit(ctx context.Context, f request.EndpointLimit) error {
 		return r.GetQuoteProducts.Wait(ctx)
 	case setQuoteProductsEPL:
 		return r.SetQuoteProducts.Wait(ctx)
-	case restMMPStatusEPL:
-		return r.RestMMPStatus.Wait(ctx)
+	case resetMMPStatusEPL:
+		return r.ResetMMPStatus.Wait(ctx)
+	case resetRFQMMPEPL:
+		return r.ResetRFQMMPStatus.Wait(ctx)
 	case setMMPEPL:
 		return r.SetMMP.Wait(ctx)
 	case getMMPConfigEPL:
@@ -1054,7 +1058,8 @@ func SetRateLimit() *RateLimit {
 		ExecuteQuote:                request.NewRateLimit(threeSecondsInterval, 2),
 		GetQuoteProducts:            request.NewRateLimit(twoSecondsInterval, 5),
 		SetQuoteProducts:            request.NewRateLimit(twoSecondsInterval, 5),
-		RestMMPStatus:               request.NewRateLimit(twoSecondsInterval, 5),
+		ResetMMPStatus:              request.NewRateLimit(twoSecondsInterval, 5),
+		ResetRFQMMPStatus:           request.NewRateLimit(twoSecondsInterval, 5),
 		SetMMP:                      request.NewRateLimit(tenSecondsInterval, 2),
 		GetMMPConfig:                request.NewRateLimit(twoSecondsInterval, 5),
 		CreateQuote:                 request.NewRateLimit(twoSecondsInterval, 50),

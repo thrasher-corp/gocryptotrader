@@ -137,7 +137,6 @@ func TestGetOrderBookDepth(t *testing.T) {
 
 func TestGetOrderBooksLite(t *testing.T) {
 	t.Parallel()
-	ok.Verbose = true
 	_, err := ok.GetOrderBooksLite(contextGenerate(), "BTC-USDT")
 	if err != nil {
 		t.Error("OKX GetOrderBookLite() error", err)
@@ -917,6 +916,15 @@ func TestSetQuoteProducts(t *testing.T) {
 			},
 		}}); err != nil {
 		t.Errorf("%s SetQuoteProducts() error %v", ok.Name, err)
+	}
+}
+
+func TestResetRFQMMPStatus(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
+	_, err := ok.ResetRFQMMPStatus(context.Background())
+	if err != nil {
+		t.Error(err)
 	}
 }
 
@@ -3675,6 +3683,7 @@ func TestGetFuturesPositions(t *testing.T) {
 		Asset:     asset.Futures,
 		Pairs:     []currency.Pair{pp[0]},
 		StartDate: time.Now().Add(time.Hour * 24 * -7),
+		EndDate:   time.Now(),
 	})
 	if err != nil {
 		t.Error(err)
@@ -3685,7 +3694,7 @@ func TestGetFuturesPositions(t *testing.T) {
 		Pairs:     []currency.Pair{pp[0]},
 		StartDate: time.Now().Add(time.Hour * 24 * -7),
 	})
-	if !errors.Is(err, futures.ErrNotFuturesAsset) {
+	if !errors.Is(err, asset.ErrNotSupported) {
 		t.Errorf("received '%v', expected '%v'", err, asset.ErrNotSupported)
 	}
 }
@@ -3824,7 +3833,7 @@ func TestWsProcessOrderbook5(t *testing.T) {
 func TestGetLeverateEstimatedInfo(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
-	_, err := ok.GetLeverateEstimatedInfo(context.Background(), "SPOT", "cross", "1", "", currency.NewPair(currency.BTC, currency.USDT), currency.EMPTYCODE)
+	_, err := ok.GetLeverateEstimatedInfo(context.Background(), "MARGIN", "cross", "1", "", "BTC-USDT", currency.BTC)
 	if err != nil {
 		t.Error(err)
 	}
@@ -3832,7 +3841,7 @@ func TestGetLeverateEstimatedInfo(t *testing.T) {
 
 func TestManualBorrowAndRepayInQuickMarginMode(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
 	_, err := ok.ManualBorrowAndRepayInQuickMarginMode(context.Background(), &BorrowAndRepay{
 		Amount:       1,
 		InstrumentID: "BTC-USDT",
@@ -3889,7 +3898,7 @@ func TestGetVIPLoanOrderDetail(t *testing.T) {
 }
 func TestSetRiskOffsetType(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
 	_, err := ok.SetRiskOffsetType(context.Background(), "3")
 	if err != nil {
 		t.Error(err)
@@ -3947,7 +3956,7 @@ func TestSetMMP(t *testing.T) {
 func TestGetMMPConfig(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
-	_, err := ok.GetMMPConfig(context.Background(), "")
+	_, err := ok.GetMMPConfig(context.Background(), "BTC-USD")
 	if err != nil {
 		t.Error(err)
 	}
@@ -3955,7 +3964,7 @@ func TestGetMMPConfig(t *testing.T) {
 
 func TestMassCancelOrder(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
 	_, err := ok.MassCancelOrder(context.Background(), "OPTION", "BTC-USD")
 	if err != nil {
 		t.Error(err)
@@ -4173,7 +4182,7 @@ func TestGetRecurringOrderDetails(t *testing.T) {
 func TestGetRecurringSubOrders(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
-	_, err := ok.GetRecurringSubOrders(context.Background(), "560473220642766848", "", time.Time{}, time.Now(), 0)
+	_, err := ok.GetRecurringSubOrders(context.Background(), "560473220642766848", "123422", time.Time{}, time.Now(), 0)
 	if err != nil {
 		t.Error(err)
 	}
@@ -4266,6 +4275,8 @@ func TestPlaceSpreadOrder(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
 	_, err := ok.PlaceSpreadOrder(context.Background(), &SpreadOrderParam{
+		InstrumentID:  "BTC-USDT_BTC-USD-SWAP",
+		SpreadID:      "1234",
 		ClientOrderID: "12354123523",
 		Side:          "buy",
 		OrderType:     "limit",
@@ -4418,7 +4429,7 @@ func TestGetEconomicCanendarData(t *testing.T) {
 func TestGetDepositWithdrawalStatus(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
-	_, err := ok.GetDepositWithdrawalStatus(context.Background(), "", "", "", "", "")
+	_, err := ok.GetDepositWithdrawalStatus(context.Background(), "1244", "", "", "", "")
 	if err != nil {
 		t.Error(err)
 	}
