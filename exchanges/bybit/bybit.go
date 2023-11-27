@@ -197,8 +197,8 @@ func processKlineResponse(in [][]string) ([]KlineItem, error) {
 	return klines, nil
 }
 
-// GetInstruments retrieves the list of instrument details given the category and symbol.
-func (by *Bybit) GetInstruments(ctx context.Context, category, symbol, status, baseCoin, cursor string, limit int64) (*InstrumentsInfo, error) {
+// GetInstrumentInfo retrieves the list of instrument details given the category and symbol.
+func (by *Bybit) GetInstrumentInfo(ctx context.Context, category, symbol, status, baseCoin, cursor string, limit int64) (*InstrumentsInfo, error) {
 	params, err := fillCategoryAndSymbol(category, symbol, true)
 	if err != nil {
 		return nil, err

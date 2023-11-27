@@ -54,19 +54,19 @@ func TestStart(t *testing.T) {
 
 func TestGetInstrumentInfo(t *testing.T) {
 	t.Parallel()
-	_, err := b.GetInstruments(context.Background(), "spot", "", "", "", "", 0)
+	_, err := b.GetInstrumentInfo(context.Background(), "spot", "", "", "", "", 0)
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = b.GetInstruments(context.Background(), "linear", "", "", "", "", 0)
+	_, err = b.GetInstrumentInfo(context.Background(), "linear", "", "", "", "", 0)
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = b.GetInstruments(context.Background(), "inverse", "", "", "", "", 0)
+	_, err = b.GetInstrumentInfo(context.Background(), "inverse", "", "", "", "", 0)
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = b.GetInstruments(context.Background(), "option", "", "", "", "", 0)
+	_, err = b.GetInstrumentInfo(context.Background(), "option", "", "", "", "", 0)
 	if err != nil {
 		t.Error(err)
 	}

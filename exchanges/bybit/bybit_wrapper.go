@@ -320,7 +320,7 @@ func (by *Bybit) FetchTradablePairs(ctx context.Context, a asset.Item) (currency
 	switch a {
 	case asset.Spot, asset.CoinMarginedFutures, asset.USDCMarginedFutures, asset.USDTMarginedFutures:
 		category = getCategoryName(a)
-		response, err = by.GetInstruments(ctx, category, "", "Trading", "", "", int64(by.Features.Enabled.Kline.GlobalResultLimit))
+		response, err = by.GetInstrumentInfo(ctx, category, "", "Trading", "", "", int64(by.Features.Enabled.Kline.GlobalResultLimit))
 		if err != nil {
 			return nil, err
 		}
@@ -329,7 +329,7 @@ func (by *Bybit) FetchTradablePairs(ctx context.Context, a asset.Item) (currency
 		category = getCategoryName(a)
 		baseCoins := []string{"BTC", "ETH"}
 		for x := range baseCoins {
-			response, err = by.GetInstruments(ctx, category, "", "Trading", baseCoins[x], "", int64(by.Features.Enabled.Kline.GlobalResultLimit))
+			response, err = by.GetInstrumentInfo(ctx, category, "", "Trading", baseCoins[x], "", int64(by.Features.Enabled.Kline.GlobalResultLimit))
 			if err != nil {
 				return nil, err
 			}
@@ -1565,12 +1565,12 @@ func (by *Bybit) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) e
 	var instrumentsInfo *InstrumentsInfo
 	switch a {
 	case asset.Spot, asset.USDTMarginedFutures, asset.USDCMarginedFutures, asset.CoinMarginedFutures:
-		instrumentsInfo, err = by.GetInstruments(ctx, getCategoryName(a), "", "", "", "", 400)
+		instrumentsInfo, err = by.GetInstrumentInfo(ctx, getCategoryName(a), "", "", "", "", 400)
 		if err != nil {
 			return err
 		}
 	case asset.Options:
-		instrumentsInfo, err = by.GetInstruments(ctx, getCategoryName(a), "", "", "BTC", "", 400)
+		instrumentsInfo, err = by.GetInstrumentInfo(ctx, getCategoryName(a), "", "", "BTC", "", 400)
 		if err != nil {
 			return err
 		}
@@ -1643,7 +1643,7 @@ func (by *Bybit) GetFuturesContractDetails(ctx context.Context, item asset.Item)
 	if !by.SupportsAsset(item) {
 		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, item)
 	}
-	inverseContracts, err := by.GetInstruments(ctx, getCategoryName(item), "", "", "", "", 1000)
+	inverseContracts, err := by.GetInstrumentInfo(ctx, getCategoryName(item), "", "", "", "", 1000)
 	if err != nil {
 		return nil, err
 	}
@@ -1715,7 +1715,7 @@ func (by *Bybit) GetFuturesContractDetails(ctx context.Context, item asset.Item)
 		}
 		return resp, nil
 	case asset.USDCMarginedFutures:
-		linearContracts, err := by.GetInstruments(ctx, "linear", "", "", "", "", 1000)
+		linearContracts, err := by.GetInstrumentInfo(ctx, "linear", "", "", "", "", 1000)
 		if err != nil {
 			return nil, err
 		}
@@ -1792,7 +1792,7 @@ func (by *Bybit) GetFuturesContractDetails(ctx context.Context, item asset.Item)
 		}
 		return resp, nil
 	case asset.USDTMarginedFutures:
-		linearContracts, err := by.GetInstruments(ctx, "linear", "", "", "", "", 1000)
+		linearContracts, err := by.GetInstrumentInfo(ctx, "linear", "", "", "", "", 1000)
 		if err != nil {
 			return nil, err
 		}
