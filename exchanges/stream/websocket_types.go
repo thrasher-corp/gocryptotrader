@@ -22,6 +22,8 @@ const (
 	UnhandledMessage                   = " - Unhandled websocket message: "
 )
 
+type subscriptionMap map[any]*ChannelSubscription
+
 // Websocket defines a return type for websocket connections via the interface
 // wrapper for routine processing
 type Websocket struct {
@@ -43,11 +45,11 @@ type Websocket struct {
 	runningURLAuth               string
 	exchangeName                 string
 	m                            sync.Mutex
-	connectionMutex              sync.RWMutex
+	fieldMutex                   sync.RWMutex
 	connector                    func() error
 
-	subscriptionMutex sync.Mutex
-	subscriptions     []ChannelSubscription
+	subscriptionMutex sync.RWMutex
+	subscriptions     subscriptionMap
 	Subscribe         chan []ChannelSubscription
 	Unsubscribe       chan []ChannelSubscription
 
@@ -93,6 +95,10 @@ type Websocket struct {
 
 	// Latency reporter
 	ExchangeLevelReporter Reporter
+
+	// MaxSubScriptionsPerConnection defines the maximum number of
+	// subscriptions per connection that is allowed by the exchange.
+	MaxSubscriptionsPerConnection int
 }
 
 // WebsocketSetup defines variables for setting up a websocket connection
@@ -114,6 +120,10 @@ type WebsocketSetup struct {
 
 	// Fill data config values
 	FillsFeed bool
+
+	// MaxWebsocketSubscriptionsPerConnection defines the maximum number of
+	// subscriptions per connection that is allowed by the exchange.
+	MaxWebsocketSubscriptionsPerConnection int
 }
 
 // WebsocketConnection contains all the data needed to send a message to a WS

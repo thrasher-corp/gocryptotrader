@@ -170,7 +170,7 @@ func (by *Bybit) Unsubscribe(channelsToUnsubscribe []stream.ChannelSubscription)
 			errs = common.AppendError(errs, err)
 			continue
 		}
-		by.Websocket.RemoveSuccessfulUnsubscriptions(channelsToUnsubscribe[i])
+		by.Websocket.RemoveSubscriptions(channelsToUnsubscribe[i])
 	}
 	return errs
 }
@@ -266,9 +266,13 @@ func (by *Bybit) wsHandleData(respRaw []byte) error {
 				if err != nil {
 					return err
 				}
-				p, err := by.extractCurrencyPair(data.OBData.Symbol, asset.Spot)
+				p, enabled, err := by.MatchSymbolCheckEnabled(data.OBData.Symbol, asset.Spot, false)
 				if err != nil {
 					return err
+				}
+
+				if !enabled {
+					return nil
 				}
 
 				err = by.wsUpdateOrderbook(&data.OBData, p, asset.Spot)
@@ -286,9 +290,13 @@ func (by *Bybit) wsHandleData(respRaw []byte) error {
 					return err
 				}
 
-				p, err := by.extractCurrencyPair(data.Parameters.Symbol, asset.Spot)
+				p, enabled, err := by.MatchSymbolCheckEnabled(data.Parameters.Symbol, asset.Spot, false)
 				if err != nil {
 					return err
+				}
+
+				if !enabled {
+					return nil
 				}
 
 				side := order.Sell
@@ -313,9 +321,13 @@ func (by *Bybit) wsHandleData(respRaw []byte) error {
 					return err
 				}
 
-				p, err := by.extractCurrencyPair(data.Ticker.Symbol, asset.Spot)
+				p, enabled, err := by.MatchSymbolCheckEnabled(data.Ticker.Symbol, asset.Spot, false)
 				if err != nil {
 					return err
+				}
+
+				if !enabled {
+					return nil
 				}
 
 				by.Websocket.DataHandler <- &ticker.Price{
@@ -334,9 +346,13 @@ func (by *Bybit) wsHandleData(respRaw []byte) error {
 					return err
 				}
 
-				p, err := by.extractCurrencyPair(data.Kline.Symbol, asset.Spot)
+				p, enabled, err := by.MatchSymbolCheckEnabled(data.Kline.Symbol, asset.Spot, false)
 				if err != nil {
 					return err
+				}
+
+				if !enabled {
+					return nil
 				}
 
 				by.Websocket.DataHandler <- stream.KlineData{
@@ -425,9 +441,13 @@ func (by *Bybit) wsHandleData(respRaw []byte) error {
 						}
 					}
 
-					p, err := by.extractCurrencyPair(data[j].Symbol, asset.Spot)
+					p, enabled, err := by.MatchSymbolCheckEnabled(data[j].Symbol, asset.Spot, false)
 					if err != nil {
 						return err
+					}
+
+					if !enabled {
+						continue
 					}
 
 					by.Websocket.DataHandler <- order.Detail{
@@ -475,9 +495,13 @@ func (by *Bybit) wsHandleData(respRaw []byte) error {
 						}
 					}
 
-					p, err := by.extractCurrencyPair(data[j].Symbol, asset.Spot)
+					p, enabled, err := by.MatchSymbolCheckEnabled(data[j].Symbol, asset.Spot, false)
 					if err != nil {
 						return err
+					}
+
+					if !enabled {
+						continue
 					}
 
 					by.Websocket.DataHandler <- &order.Detail{

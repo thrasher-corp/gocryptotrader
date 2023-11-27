@@ -34,7 +34,7 @@ var (
 	errMissingOrderbookSequence  = errors.New("missing orderbook sequence")
 	errSizeOrFundIsRequired      = errors.New("at least one required among size and funds")
 	errInvalidLeverage           = errors.New("invalid leverage value")
-	errInvalidClientOrderID      = errors.New("invalid client order ID")
+	errInvalidClientOrderID      = errors.New("no client order ID supplied, this endpoint requires a UUID or similar string")
 
 	subAccountRegExp           = regexp.MustCompile("^[a-zA-Z0-9]{7-32}$")
 	subAccountPassphraseRegExp = regexp.MustCompile("^[a-zA-Z0-9]{7-24}$")
@@ -58,11 +58,14 @@ func (e Error) GetError() error {
 		return err
 	}
 	switch code {
-	case 200000, 200:
+	case 200:
 		return nil
-	default:
-		return fmt.Errorf("code: %s message: %s", e.Code, e.Msg)
+	case 200000:
+		if e.Msg == "" {
+			return nil
+		}
 	}
+	return fmt.Errorf("code: %s message: %s", e.Code, e.Msg)
 }
 
 // SymbolInfo stores symbol information

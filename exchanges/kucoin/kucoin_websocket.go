@@ -235,7 +235,7 @@ func (ku *Kucoin) wsHandleData(respData []byte) error {
 		return ku.processTicker(resp.Data, instruments)
 	case strings.HasPrefix(marketTickerSnapshotChannel, topicInfo[0]) ||
 		strings.HasPrefix(marketTickerSnapshotForCurrencyChannel, topicInfo[0]):
-		return ku.processMarketSnapshot(resp.Data, topicInfo[1])
+		return ku.processMarketSnapshot(resp.Data)
 	case strings.HasPrefix(marketOrderbookLevel2Channels, topicInfo[0]):
 		return ku.processOrderbookWithDepth(respData, topicInfo[1])
 	case strings.HasPrefix(marketOrderbookLevel2to5Channel, topicInfo[0]),
@@ -680,6 +680,7 @@ func (ku *Kucoin) processOrderChangeEvent(respData []byte) error {
 	if err != nil {
 		return err
 	}
+	// TODO: should amend this function as we need to know the order asset type when we call it
 	assets, err := ku.listOfAssetsCurrencyPairEnabledFor(pair)
 	if err != nil {
 		return err
@@ -943,13 +944,13 @@ func (ku *Kucoin) processOrderbook(respData []byte, symbol string) error {
 	return nil
 }
 
-func (ku *Kucoin) processMarketSnapshot(respData []byte, instrument string) error {
+func (ku *Kucoin) processMarketSnapshot(respData []byte) error {
 	response := WsSpotTicker{}
 	err := json.Unmarshal(respData, &response)
 	if err != nil {
 		return err
 	}
-	pair, err := currency.NewPairFromString(instrument)
+	pair, err := currency.NewPairFromString(response.Data.Symbol)
 	if err != nil {
 		return err
 	}

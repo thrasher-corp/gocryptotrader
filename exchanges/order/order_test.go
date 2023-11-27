@@ -1,6 +1,7 @@
 package order
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"reflect"
@@ -10,6 +11,7 @@ import (
 	"time"
 
 	"github.com/gofrs/uuid"
+	"github.com/stretchr/testify/assert"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -1415,7 +1417,7 @@ func TestMatchFilter(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	filters := map[int]Filter{
+	filters := map[int]*Filter{
 		0:  {},
 		1:  {Exchange: "Binance"},
 		2:  {InternalOrderID: id},
@@ -1458,13 +1460,13 @@ func TestMatchFilter(t *testing.T) {
 	// empty filter tests
 	emptyFilter := filters[0]
 	for _, o := range orders {
-		if !o.MatchFilter(&emptyFilter) {
+		if !o.MatchFilter(emptyFilter) {
 			t.Error("empty filter should match everything")
 		}
 	}
 
 	tests := map[int]struct {
-		f              Filter
+		f              *Filter
 		o              Detail
 		expectedResult bool
 	}{
@@ -1509,9 +1511,14 @@ func TestMatchFilter(t *testing.T) {
 	}
 	// specific tests
 	for num, tt := range tests {
-		if tt.o.MatchFilter(&tt.f) != tt.expectedResult {
-			t.Errorf("tests[%v] failed", num)
-		}
+		num := num
+		tt := tt
+		t.Run(fmt.Sprintf("%v", num), func(t *testing.T) {
+			t.Parallel()
+			if tt.o.MatchFilter(tt.f) != tt.expectedResult {
+				t.Errorf("tests[%v] failed", num)
+			}
+		})
 	}
 }
 
@@ -2044,4 +2051,14 @@ func TestAdjustQuoteAmount(t *testing.T) {
 	if s.QuoteAmount != 5.22222222 {
 		t.Fatalf("received: '%v' but expected: '%v'", s.Amount, 5.22222222)
 	}
+}
+
+func TestSideUnmarshal(t *testing.T) {
+	t.Parallel()
+	var s Side
+	assert.Nil(t, s.UnmarshalJSON([]byte(`"SELL"`)), "Quoted valid side okay")
+	assert.Equal(t, Sell, s, "Correctly set order Side")
+	assert.ErrorIs(t, s.UnmarshalJSON([]byte(`"STEAL"`)), ErrSideIsInvalid, "Quoted invalid side errors")
+	var jErr *json.UnmarshalTypeError
+	assert.ErrorAs(t, s.UnmarshalJSON([]byte(`14`)), &jErr, "non-string valid json is rejected")
 }

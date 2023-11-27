@@ -232,11 +232,21 @@ func (b *Bitmex) GetAccountExecutionTradeHistory(ctx context.Context, params *Ge
 func (b *Bitmex) GetFullFundingHistory(ctx context.Context, symbol, count, filter, columns, start string, reverse bool, startTime, endTime time.Time) ([]Funding, error) {
 	var fundingHistory []Funding
 	params := url.Values{}
-	params.Set("symbol", symbol)
-	params.Set("count", count)
-	params.Set("filter", filter)
-	params.Set("columns", columns)
-	params.Set("start", start)
+	if symbol != "" {
+		params.Set("symbol", symbol)
+	}
+	if count != "" {
+		params.Set("count", count)
+	}
+	if filter != "" {
+		params.Set("filter", filter)
+	}
+	if columns != "" {
+		params.Set("columns", columns)
+	}
+	if !startTime.IsZero() {
+		params.Set("start", start)
+	}
 	params.Set("reverse", "true")
 	if !reverse {
 		params.Set("reverse", "false")
@@ -956,7 +966,7 @@ func getOfflineTradeFee(price, amount float64) float64 {
 	return 0.000750 * price * amount
 }
 
-// calculateTradingFee returns the fee for trading any currency on Bittrex
+// calculateTradingFee returns the fee for trading any currency on Bitmex
 func calculateTradingFee(purchasePrice, amount float64, isMaker bool) float64 {
 	var fee = 0.000750
 	if isMaker {

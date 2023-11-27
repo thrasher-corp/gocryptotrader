@@ -17,6 +17,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -206,28 +207,24 @@ func (e *EXMO) UpdateTradablePairs(ctx context.Context, forceUpdate bool) error 
 
 // UpdateTickers updates the ticker for all currency pairs of a given asset type
 func (e *EXMO) UpdateTickers(ctx context.Context, a asset.Item) error {
-	avail, err := e.GetAvailablePairs(a)
-	if err != nil {
-		return err
+	if !e.SupportsAsset(a) {
+		return fmt.Errorf("%w: %v", asset.ErrNotSupported, a)
 	}
-
-	enabled, err := e.GetEnabledPairs(a)
-	if err != nil {
-		return err
-	}
-
 	result, err := e.GetTicker(ctx)
 	if err != nil {
 		return err
 	}
 
+	var enabled bool
 	for symbol, tick := range result {
 		var pair currency.Pair
-		pair, err = avail.DeriveFrom(strings.Replace(symbol, "_", "", 1))
+		pair, enabled, err = e.MatchSymbolCheckEnabled(symbol, asset.Spot, true)
 		if err != nil {
-			return err
+			if !errors.Is(err, currency.ErrPairNotFound) {
+				return err
+			}
 		}
-		if !enabled.Contains(pair, true) {
+		if !enabled {
 			continue
 		}
 		err = ticker.ProcessTicker(&ticker.Price{
@@ -837,4 +834,14 @@ func (e *EXMO) GetAvailableTransferChains(ctx context.Context, cryptocurrency cu
 // GetFuturesContractDetails returns all contracts from the exchange by asset type
 func (e *EXMO) GetFuturesContractDetails(context.Context, asset.Item) ([]futures.Contract, error) {
 	return nil, common.ErrFunctionNotSupported
+}
+
+// GetLatestFundingRates returns the latest funding rates data
+func (e *EXMO) GetLatestFundingRates(context.Context, *fundingrate.LatestRateRequest) ([]fundingrate.LatestRateResponse, error) {
+	return nil, common.ErrFunctionNotSupported
+}
+
+// UpdateOrderExecutionLimits updates order execution limits
+func (e *EXMO) UpdateOrderExecutionLimits(_ context.Context, _ asset.Item) error {
+	return common.ErrNotYetImplemented
 }

@@ -2,32 +2,25 @@ package currency
 
 import (
 	"fmt"
-	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestNewConversionFromString(t *testing.T) {
-	expected := "AUDUSD"
-	conv, err := NewConversionFromString(expected)
-	if err != nil {
-		t.Error(err)
-	}
-	if conv.String() != expected {
-		t.Errorf("NewConversion() error expected %s but received %s",
-			expected,
-			conv)
-	}
+	conv, err := NewConversionFromString("AUDUSD")
+	assert.NoError(t, err, "NewConversionFromString should not error")
+	assert.Equal(t, "AUDUSD", conv.String(), "Should provide correct conversion currency")
+	r, err := conv.GetRate()
+	assert.NoError(t, err, "GetRate should not error")
+	assert.Positive(t, r, "Should provide correct conversion rate")
 
-	newexpected := strings.ToLower(expected)
-	conv, err = NewConversionFromString(newexpected)
-	if err != nil {
-		t.Error(err)
-	}
-	if conv.String() != newexpected {
-		t.Errorf("NewConversion() error expected %s but received %s",
-			newexpected,
-			conv)
-	}
+	conv, err = NewConversionFromString("audusd")
+	assert.NoError(t, err, "NewConversionFromString should not error")
+	assert.Equal(t, "audusd", conv.String(), "Should provide correct conversion for lowercase")
+	r, err = conv.GetRate()
+	assert.NoError(t, err, "GetRate should not error")
+	assert.Positive(t, r, "Should provide correct conversion rate")
 }
 
 func TestNewConversionFromStrings(t *testing.T) {

@@ -80,7 +80,6 @@ type ForexSettings struct {
 	EnableExchangeRates     bool
 	EnableFixer             bool
 	EnableOpenExchangeRates bool
-	EnableExchangeRateHost  bool
 }
 
 // ExchangeTuningSettings defines settings related to an exchange
