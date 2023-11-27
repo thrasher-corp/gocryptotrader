@@ -12,7 +12,6 @@ import (
 
 var (
 	errSetCannotBeEmpty = errors.New("set cannot be empty")
-	errTypeAssert       = errors.New("type assertion failed")
 	errNoSeqNo          = errors.New("no sequence number")
 	errUnknownError     = errors.New("unknown error")
 	errParamNotAllowed  = errors.New("param not allowed")
