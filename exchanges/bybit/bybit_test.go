@@ -2042,7 +2042,7 @@ func TestUpdateTicker(t *testing.T) {
 	var pairs currency.Pairs
 	if mockTests {
 		var pair2 currency.Pair
-		pair2, err = currency.NewPairFromString("BTCUSD-U23")
+		pair2, err = currency.NewPairFromString("BTCUSD-Z23")
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -2230,7 +2230,7 @@ func TestGetHistoricCandles(t *testing.T) {
 	}
 	var pair2 currency.Pair
 	if mockTests {
-		pair2, err = currency.NewPairFromString("BTCUSD-U23")
+		pair2, err = currency.NewPairFromString("BTCUSD-Z23")
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -2292,7 +2292,7 @@ func TestGetHistoricCandlesExtended(t *testing.T) {
 	}
 	var pair2 currency.Pair
 	if mockTests {
-		pair2, err = currency.NewPairFromString("BTCUSD-U23")
+		pair2, err = currency.NewPairFromString("BTCUSD-Z23")
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -3582,5 +3582,24 @@ func TestGetContractLength(t *testing.T) {
 	}
 	if cl != futures.SemiAnnually {
 		t.Error("expected semi annually")
+	}
+}
+
+func TestIsPerpetualFutureCurrency(t *testing.T) {
+	t.Parallel()
+	enabled, err := b.GetEnabledPairs(asset.Futures)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for x := range enabled {
+		isPerp, err := b.IsPerpetualFutureCurrency(asset.Futures, enabled[x])
+		if err != nil {
+			t.Fatal(err)
+		}
+		if enabled[x].Quote.Equal(currency.PFC) && !isPerp {
+			t.Error("expected true")
+		} else if !enabled[x].Quote.Equal(currency.PFC) && isPerp {
+			t.Error("expected false")
+		}
 	}
 }

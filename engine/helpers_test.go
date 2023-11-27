@@ -9,16 +9,15 @@ import (
 	"crypto/x509/pkix"
 	"encoding/pem"
 	"errors"
-	"fmt"
 	"math/big"
 	"net"
 	"os"
 	"path/filepath"
 	"strings"
-	"sync"
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/common/file"
@@ -1374,37 +1373,22 @@ func TestNewSupportedExchangeByName(t *testing.T) {
 func TestNewExchangeByNameWithDefaults(t *testing.T) {
 	t.Parallel()
 
-	_, err := NewExchangeByNameWithDefaults(context.Background(), "meow")
-	if !errors.Is(err, ErrExchangeNotFound) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, ErrExchangeNotFound)
-	}
-
-	ch := make(chan error, len(exchange.Exchanges))
-	wg := sync.WaitGroup{}
+	_, err := NewExchangeByNameWithDefaults(context.Background(), "moarunlikelymeow")
+	assert.ErrorIs(t, err, ErrExchangeNotFound, "Invalid exchange name should error")
 	for x := range exchange.Exchanges {
-		wg.Add(1)
-		go func(x int) {
-			defer wg.Done()
-			exch, err := NewExchangeByNameWithDefaults(context.Background(), exchange.Exchanges[x])
-			if err != nil {
-				ch <- err
-				return
+		name := exchange.Exchanges[x]
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			if isCITest() && common.StringDataContains(blockedCIExchanges, name) {
+				t.Skipf("skipping %s due to CI test restrictions", name)
 			}
-
-			if !strings.EqualFold(exch.GetName(), exchange.Exchanges[x]) {
-				ch <- fmt.Errorf("received: '%v' but expected: '%v'", exch.GetName(), exchange.Exchanges[x])
+			if common.StringDataContains(unsupportedDefaultConfigExchanges, name) {
+				t.Skipf("skipping %s unsupported", name)
 			}
-		}(x)
-	}
-	wg.Wait()
-
-outta:
-	for {
-		select {
-		case err := <-ch:
-			t.Error(err)
-		default:
-			break outta
-		}
+			exch, err := NewExchangeByNameWithDefaults(context.Background(), name)
+			if assert.NoError(t, err, "NewExchangeByNameWithDefaults should not error") {
+				assert.Equal(t, name, strings.ToLower(exch.GetName()), "Should get correct exchange name")
+			}
+		})
 	}
 }

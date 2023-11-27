@@ -712,7 +712,7 @@ func (g *Gateio) handleSubscription(ctx context.Context, event string, channelsT
 			if payloads[k].Event == "subscribe" {
 				g.Websocket.AddSuccessfulSubscriptions(channelsToSubscribe[k])
 			} else {
-				g.Websocket.RemoveSuccessfulUnsubscriptions(channelsToSubscribe[k])
+				g.Websocket.RemoveSubscriptions(channelsToSubscribe[k])
 			}
 		}
 	}

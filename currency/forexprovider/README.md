@@ -25,7 +25,6 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 + Exchange Rates support
 + Fixer.io support
 + Open Exchange Rates support
-+ ExchangeRate.host support
 
 ### Please click GoDocs chevron above to view current GoDoc information for this package
 

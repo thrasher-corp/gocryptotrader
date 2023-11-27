@@ -73,17 +73,6 @@
    "Disabled": false
   },
   {
-   "Name": "Bittrex",
-   "CheckType": "GitHub Sha Check",
-   "Data": {
-    "GitHubData": {
-     "Repo": "Bittrex/bittrex.github.io",
-     "Sha": "fc1ea9c10c48aa82c4dc2c6be74887ef61b5b31b"
-    }
-   },
-   "Disabled": false
-  },
-  {
    "Name": "Coinut",
    "CheckType": "GitHub Sha Check",
    "Data": {

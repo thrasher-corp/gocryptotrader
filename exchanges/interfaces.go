@@ -97,6 +97,18 @@ type IBotExchange interface {
 	CurrencyStateManagement
 	FuturesManagement
 	MarginManagement
+
+	// MatchSymbolWithAvailablePairs returns a currency pair based on the supplied
+	// symbol and asset type. If the string is expected to have a delimiter this
+	// will attempt to screen it out.
+	MatchSymbolWithAvailablePairs(symbol string, a asset.Item, hasDelimiter bool) (currency.Pair, error)
+	// MatchSymbolCheckEnabled returns a currency pair based on the supplied symbol
+	// and asset type against the available pairs list. If the string is expected to
+	// have a delimiter this will attempt to screen it out. It will also check if
+	// the pair is enabled.
+	MatchSymbolCheckEnabled(symbol string, a asset.Item, hasDelimiter bool) (pair currency.Pair, enabled bool, err error)
+	// IsPairEnabled checks if a pair is enabled for an enabled asset type
+	IsPairEnabled(pair currency.Pair, a asset.Item) (bool, error)
 }
 
 // OrderManagement defines functionality for order management
@@ -149,8 +161,9 @@ type FuturesManagement interface {
 	ScaleCollateral(ctx context.Context, calculator *futures.CollateralCalculator) (*collateral.ByCurrency, error)
 	GetPositionSummary(context.Context, *futures.PositionSummaryRequest) (*futures.PositionSummary, error)
 	CalculateTotalCollateral(context.Context, *futures.TotalCollateralCalculator) (*futures.TotalCollateralResponse, error)
-	GetFundingRates(context.Context, *fundingrate.RatesRequest) (*fundingrate.Rates, error)
-	GetLatestFundingRate(context.Context, *fundingrate.LatestRateRequest) (*fundingrate.LatestRateResponse, error)
+	GetFuturesPositions(context.Context, *futures.PositionsRequest) ([]futures.PositionDetails, error)
+	GetHistoricalFundingRates(context.Context, *fundingrate.HistoricalRatesRequest) (*fundingrate.HistoricalRates, error)
+	GetLatestFundingRates(context.Context, *fundingrate.LatestRateRequest) ([]fundingrate.LatestRateResponse, error)
 	IsPerpetualFutureCurrency(asset.Item, currency.Pair) (bool, error)
 	GetCollateralCurrencyForContract(asset.Item, currency.Pair) (currency.Code, asset.Item, error)
 

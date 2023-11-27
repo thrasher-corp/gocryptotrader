@@ -202,7 +202,6 @@ Yes means supported, No means not yet implemented and NA means protocol unsuppor
 | Bithumb | Yes  | NA       | NA  |
 | BitMEX | Yes | Yes | NA |
 | Bitstamp | Yes  | Yes       | No  |
-| Bittrex | Yes | Yes | NA |
 | BTCMarkets | Yes | No       | NA  |
 | BTSE | Yes | Yes | NA |
 | COINUT | Yes | Yes | NA |
@@ -233,7 +232,6 @@ var Exchanges = []string{
 	"bithumb",
 	"bitmex",
 	"bitstamp",
-	"bittrex",
 	"btc markets",
 	"btse",
 	"coinbasepro",
@@ -1095,7 +1093,7 @@ channels:
 			continue
 		}
 		// When we have a successful unsubscription, we can alert our internal management system of the success.
-		f.Websocket.RemoveSuccessfulUnsubscriptions(channelsToUnsubscribe[i])
+		f.Websocket.RemoveSubscriptions(channelsToUnsubscribe[i])
 	}
 	if errs != nil {
 		return errs

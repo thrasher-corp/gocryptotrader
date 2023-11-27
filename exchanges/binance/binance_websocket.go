@@ -621,7 +621,7 @@ func (b *Binance) Unsubscribe(_ context.Context, channelsToUnsubscribe []stream.
 			return err
 		}
 	}
-	b.Websocket.RemoveSuccessfulUnsubscriptions(channelsToUnsubscribe...)
+	b.Websocket.RemoveSubscriptions(channelsToUnsubscribe...)
 	return nil
 }
 

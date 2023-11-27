@@ -684,7 +684,7 @@ func (c *COINUT) Unsubscribe(_ context.Context, channelToUnsubscribe []stream.Ch
 				channelToUnsubscribe[i].Channel))
 			continue
 		}
-		c.Websocket.RemoveSuccessfulUnsubscriptions(channelToUnsubscribe[i])
+		c.Websocket.RemoveSubscriptions(channelToUnsubscribe[i])
 	}
 	return errs
 }

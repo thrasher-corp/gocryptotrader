@@ -243,6 +243,10 @@ func (m *WebsocketRoutineManager) websocketDataHandler(exchName string, data int
 			}
 			m.syncer.PrintTickerSummary(&d[x], "websocket", err)
 		}
+	case order.Detail,
+		ticker.Price,
+		orderbook.Depth:
+		return errUseAPointer
 	case stream.KlineData:
 		if m.verbose {
 			log.Infof(log.WebsocketMgr, "%s websocket %s %s kline updated %+v",

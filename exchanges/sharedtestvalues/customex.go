@@ -12,6 +12,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -358,6 +359,16 @@ func (c *CustomEx) CheckOrderExecutionLimits(_ asset.Item, _ currency.Pair, _, _
 // UpdateOrderExecutionLimits is a mock method for CustomEx
 func (c *CustomEx) UpdateOrderExecutionLimits(_ context.Context, _ asset.Item) error {
 	return nil
+}
+
+// GetHistoricalFundingRates returns funding rates for a given asset and currency for a time period
+func (c *CustomEx) GetHistoricalFundingRates(_ context.Context, _ *fundingrate.HistoricalRatesRequest) (*fundingrate.HistoricalRates, error) {
+	return nil, nil
+}
+
+// GetLatestFundingRates returns the latest funding rates data
+func (c *CustomEx) GetLatestFundingRates(_ context.Context, _ *fundingrate.LatestRateRequest) ([]fundingrate.LatestRateResponse, error) {
+	return nil, nil
 }
 
 // GetFuturesContractDetails returns all contracts from the exchange by asset type

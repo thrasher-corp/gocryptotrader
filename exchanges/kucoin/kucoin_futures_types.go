@@ -251,7 +251,7 @@ type FuturesPosition struct {
 	ADLRankingPercentile float64              `json:"delevPercentage"`
 	OpeningTimestamp     convert.ExchangeTime `json:"openingTimestamp"`
 	CurrentTimestamp     convert.ExchangeTime `json:"currentTimestamp"`
-	CurrentQty           int64                `json:"currentQty"`
+	CurrentQty           float64              `json:"currentQty"`
 	CurrentCost          float64              `json:"currentCost"` // Current position value
 	CurrentComm          float64              `json:"currentComm"` // Current commission
 	UnrealisedCost       float64              `json:"unrealisedCost"`
