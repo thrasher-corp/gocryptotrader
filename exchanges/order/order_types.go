@@ -383,10 +383,6 @@ const (
 	supportedTimeInForceFlag = UnknownTIF | GTC | GTT | FOK | IOC | PostOnlyGTC
 )
 
-var (
-	supportedTIFItems = []TimeInForce{GTC, GTT, FOK, IOC, PostOnlyGTC}
-)
-
 // ByPrice used for sorting orders by price
 type ByPrice []Detail
 

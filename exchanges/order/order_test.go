@@ -2105,6 +2105,20 @@ func TestStringToTimeInForce(t *testing.T) {
 		t.Fatalf("unexpected result")
 	}
 
+	tif, err = StringToTimeInForce("GTT")
+	if err != nil {
+		t.Fatal(err)
+	} else if tif != GTT {
+		t.Fatalf("expected %v, got %v", GTT, tif)
+	}
+
+	tif, err = StringToTimeInForce("GOOD_TIL_TIME")
+	if err != nil {
+		t.Fatal(err)
+	} else if tif != GTT {
+		t.Fatalf("expected %v, got %v", GTT, tif)
+	}
+
 	tif, err = StringToTimeInForce("FILLORKILL")
 	if err != nil {
 		t.Error(err)
