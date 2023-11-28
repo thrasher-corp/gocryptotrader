@@ -23,7 +23,7 @@ jobs:
          go install google.golang.org/protobuf/cmd/protoc-gen-go
          go install google.golang.org/grpc/cmd/protoc-gen-go-grpc
 
-      - uses: bufbuild/buf-setup-action@v1.26.1
+      - uses: bufbuild/buf-setup-action@v1.28.1
 
       - name: buf generate
         working-directory: ./gctrpc

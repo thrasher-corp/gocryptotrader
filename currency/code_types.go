@@ -230,6 +230,7 @@ var (
 	SSC              = NewCode("SSC")
 	SHOW             = NewCode("SHOW")
 	SPF              = NewCode("SPF")
+	PF               = NewCode("PF")
 	SNC              = NewCode("SNC")
 	SWFTC            = NewCode("SWFTC")
 	TRA              = NewCode("TRA")
@@ -3018,6 +3019,8 @@ var (
 	SWAP             = NewCode("SWAP")
 	PI               = NewCode("PI")
 	FI               = NewCode("FI")
+	USDM             = NewCode("USDM")
+	USDTM            = NewCode("USDTM")
 
 	stables = Currencies{
 		USDT,

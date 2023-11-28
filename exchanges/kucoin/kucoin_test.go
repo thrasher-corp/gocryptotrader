@@ -9,18 +9,24 @@ import (
 	"testing"
 	"time"
 
+	"github.com/gofrs/uuid"
+	"github.com/stretchr/testify/assert"
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/buffer"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
@@ -30,9 +36,6 @@ const (
 	apiSecret               = ""
 	passPhrase              = ""
 	canManipulateRealOrders = false
-
-	assetNotEnabled              = "asset %v not enabled"
-	spotAndMarginAssetNotEnabled = "neither spot nor margin asset is enabled"
 )
 
 var (
@@ -70,6 +73,7 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		log.Fatal(err)
 	}
+
 	request.MaxRequestJobs = 100
 	ku.Websocket.DataHandler = sharedtestvalues.GetWebsocketInterfaceChannelOverride()
 	ku.Websocket.TrafficAlert = sharedtestvalues.GetWebsocketStructChannelOverride()
@@ -81,14 +85,17 @@ func TestMain(m *testing.M) {
 // Spot asset test cases starts from here
 func TestGetSymbols(t *testing.T) {
 	t.Parallel()
-	_, err := ku.GetSymbols(context.Background(), "")
+	symbols, err := ku.GetSymbols(context.Background(), "")
 	if err != nil {
 		t.Error("GetSymbols() error", err)
 	}
-	_, err = ku.GetSymbols(context.Background(), currency.BTC.String())
+	assert.NotEmpty(t, symbols, "should return all available spot/margin symbols")
+	// Using market string reduces the scope of what is returned.
+	symbols, err = ku.GetSymbols(context.Background(), "ETF")
 	if err != nil {
 		t.Error("GetSymbols() error", err)
 	}
+	assert.NotEmpty(t, symbols, "should return all available ETF symbols")
 }
 
 func TestGetTicker(t *testing.T) {
@@ -560,7 +567,6 @@ func TestGetServiceStatus(t *testing.T) {
 
 func TestPostOrder(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, ku, canManipulateRealOrders)
 
 	// default order type is limit
 	_, err := ku.PostOrder(context.Background(), &SpotOrderParam{
@@ -568,43 +574,46 @@ func TestPostOrder(t *testing.T) {
 	if !errors.Is(err, errInvalidClientOrderID) {
 		t.Errorf("PostOrder() expected %v, but found %v", errInvalidClientOrderID, err)
 	}
+
+	customID, err := uuid.NewV4()
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	_, err = ku.PostOrder(context.Background(), &SpotOrderParam{
-		ClientOrderID: "5bd6e9286d99522a52e458de", Symbol: spotTradablePair,
+		ClientOrderID: customID.String(), Symbol: spotTradablePair,
 		OrderType: ""})
 	if !errors.Is(err, order.ErrSideIsInvalid) {
 		t.Errorf("PostOrder() expected %v, but found %v", order.ErrSideIsInvalid, err)
 	}
 	_, err = ku.PostOrder(context.Background(), &SpotOrderParam{
-		ClientOrderID: "5bd6e9286d99522a52e458de", Symbol: currency.EMPTYPAIR,
+		ClientOrderID: customID.String(), Symbol: currency.EMPTYPAIR,
 		Size: 0.1, Side: "buy", Price: 234565})
 	if !errors.Is(err, currency.ErrCurrencyPairEmpty) {
 		t.Errorf("PostOrder() expected %v, but found %v", currency.ErrCurrencyPairEmpty, err)
 	}
 	_, err = ku.PostOrder(context.Background(), &SpotOrderParam{
-		ClientOrderID: "5bd6e9286d99522a52e458de", Side: "buy",
+		ClientOrderID: customID.String(), Side: "buy",
 		Symbol:    spotTradablePair,
 		OrderType: "limit", Size: 0.1})
 	if !errors.Is(err, errInvalidPrice) {
 		t.Errorf("PostOrder() expected %v, but found %v", errInvalidPrice, err)
 	}
 	_, err = ku.PostOrder(context.Background(), &SpotOrderParam{
-		ClientOrderID: "5bd6e9286d99522a52e458de", Symbol: spotTradablePair, Side: "buy",
+		ClientOrderID: customID.String(), Symbol: spotTradablePair, Side: "buy",
 		OrderType: "limit", Price: 234565})
 	if !errors.Is(err, errInvalidSize) {
 		t.Errorf("PostOrder() expected %v, but found %v", errInvalidSize, err)
 	}
-	_, err = ku.PostOrder(context.Background(), &SpotOrderParam{
-		ClientOrderID: "5bd6e9286d99522a52e458de", Side: "buy",
-		Symbol: spotTradablePair, OrderType: "limit", Size: 0.1, Price: 234565})
-	if err != nil {
-		t.Error("PostOrder() error", err)
-	}
 
-	// market order
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, ku, canManipulateRealOrders)
 	_, err = ku.PostOrder(context.Background(), &SpotOrderParam{
-		ClientOrderID: "5bd6e9286d99522a52e458de", Side: "buy",
-		Symbol:    spotTradablePair,
-		OrderType: "market", Remark: "remark", Size: 0.1})
+		ClientOrderID: customID.String(),
+		Side:          "buy",
+		Symbol:        spotTradablePair,
+		OrderType:     "limit",
+		Size:          0.005,
+		Price:         1000})
 	if err != nil {
 		t.Error("PostOrder() error", err)
 	}
@@ -1088,11 +1097,45 @@ func TestGetBasicFee(t *testing.T) {
 
 func TestGetTradingFee(t *testing.T) {
 	t.Parallel()
+
+	_, err := ku.GetTradingFee(context.Background(), nil)
+	if !errors.Is(err, currency.ErrCurrencyPairsEmpty) {
+		t.Fatalf("received %v, expected %v", err, currency.ErrCurrencyPairsEmpty)
+	}
+
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ku)
 
-	_, err := ku.GetTradingFee(context.Background(), "BTC-USDT")
+	avail, err := ku.GetAvailablePairs(asset.Spot)
 	if err != nil {
-		t.Error("GetTradingFee() error", err)
+		t.Fatal(err)
+	}
+
+	pairs := currency.Pairs{avail[0]}
+	btcusdTradingFee, err := ku.GetTradingFee(context.Background(), pairs)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received %v, expected %v", err, nil)
+	}
+
+	if len(btcusdTradingFee) != 1 {
+		t.Error("GetTradingFee() error, expected 1 pair")
+	}
+
+	// NOTE: Test below will error out from an external call as this will exceed
+	// the allowed pairs. If this does not error then this endpoint will allow
+	// more items to be requested.
+	pairs = append(pairs, avail[1:11]...)
+	_, err = ku.GetTradingFee(context.Background(), pairs)
+	if errors.Is(err, nil) {
+		t.Fatalf("received %v, expected %v", err, "code: 200000 message: symbols size invalid.")
+	}
+
+	got, err := ku.GetTradingFee(context.Background(), pairs[:10])
+	if !errors.Is(err, nil) {
+		t.Fatalf("received %v, expected %v", err, nil)
+	}
+
+	if len(got) != 10 {
+		t.Error("GetTradingFee() error, expected 10 pairs")
 	}
 }
 
@@ -2409,6 +2452,67 @@ func TestProcessOrderbook(t *testing.T) {
 	}
 }
 
+func TestProcessMarketSnapshot(t *testing.T) {
+	t.Parallel()
+	n := new(Kucoin)
+	sharedtestvalues.TestFixtureToDataHandler(t, ku, n, "testdata/wsMarketSnapshot.json", n.wsHandleData)
+	seen := 0
+	for reading := true; reading; {
+		select {
+		default:
+			reading = false
+		case resp := <-n.GetBase().Websocket.DataHandler:
+			seen++
+			switch v := resp.(type) {
+			case *ticker.Price:
+				switch seen {
+				// spot only
+				case 1:
+					assert.Equal(t, time.UnixMilli(1698740324415), v.LastUpdated, "datetime")
+					assert.Equal(t, 0.00001402100000000000, v.High, "high")
+					assert.Equal(t, 0.000012508, v.Last, "lastTradedPrice")
+					assert.Equal(t, 0.00001129200000000000, v.Low, "low")
+					assert.Equal(t, currency.NewPairWithDelimiter("XMR", "BTC", "-"), v.Pair, "symbol")
+					assert.Equal(t, 28474.47280000000000000000, v.Volume, "volume")
+					assert.Equal(t, 0.37038038297340000000, v.QuoteVolume, "volValue")
+				// margin only
+				case 2:
+					assert.Equal(t, time.UnixMilli(1698740324483), v.LastUpdated, "datetime")
+					assert.Equal(t, 0.00000039450000000000, v.High, "high")
+					assert.Equal(t, 0.0000003897, v.Last, "lastTradedPrice")
+					assert.Equal(t, 0.00000034200000000000, v.Low, "low")
+					assert.Equal(t, currency.NewPairWithDelimiter("ETH", "BTC", "-"), v.Pair, "symbol")
+					assert.Equal(t, 316078.69700000000000000000, v.Volume, "volume")
+					assert.Equal(t, 0.11768519138877000000, v.QuoteVolume, "volValue")
+				// both margin and spot
+				case 3, 4:
+					assert.Equal(t, time.UnixMilli(1698740324437), v.LastUpdated, "datetime")
+					assert.Equal(t, 0.00008486000000000000, v.High, "high")
+					assert.Equal(t, 0.00008318, v.Last, "lastTradedPrice")
+					assert.Equal(t, 0.00007152000000000000, v.Low, "low")
+					assert.Equal(t, currency.NewPairWithDelimiter("BTC", "USDT", "-"), v.Pair, "symbol")
+					assert.Equal(t, 17062.45450000000000000000, v.Volume, "volume")
+					assert.Equal(t, 1.33076678861000000000, v.QuoteVolume, "volValue")
+				}
+			case error:
+				t.Error(v)
+			default:
+				t.Errorf("Got unexpected data: %T %v", v, v)
+			}
+		}
+	}
+	assert.Equal(t, 4, seen, "Number of messages")
+}
+
+func TestSubscribeMarketSnapshot(t *testing.T) {
+	t.Parallel()
+	s := []stream.ChannelSubscription{
+		{Channel: marketTickerSnapshotForCurrencyChannel,
+			Currency: currency.Pair{Base: currency.BTC}},
+	}
+	err := ku.Subscribe(s)
+	assert.NoError(t, err, "Subscribe to MarketSnapshot should not error")
+}
 func TestSeedLocalCache(t *testing.T) {
 	t.Parallel()
 	pair, err := currency.NewPairFromString("ETH-USDT")
@@ -2424,15 +2528,167 @@ func TestSeedLocalCache(t *testing.T) {
 func TestGetFuturesContractDetails(t *testing.T) {
 	t.Parallel()
 	_, err := ku.GetFuturesContractDetails(context.Background(), asset.Spot)
-	if !errors.Is(err, futures.ErrNotFuturesAsset) {
-		t.Error(err)
-	}
+	assert.ErrorIs(t, err, futures.ErrNotFuturesAsset)
 	_, err = ku.GetFuturesContractDetails(context.Background(), asset.USDTMarginedFutures)
-	if !errors.Is(err, asset.ErrNotSupported) {
-		t.Error(err)
-	}
+	assert.ErrorIs(t, err, asset.ErrNotSupported)
 	_, err = ku.GetFuturesContractDetails(context.Background(), asset.Futures)
-	if !errors.Is(err, nil) {
-		t.Error(err)
+	assert.NoError(t, err)
+}
+
+func TestGetLatestFundingRates(t *testing.T) {
+	t.Parallel()
+	_, err := ku.GetLatestFundingRates(context.Background(), nil)
+	assert.ErrorIs(t, err, common.ErrNilPointer)
+
+	req := &fundingrate.LatestRateRequest{
+		Asset: asset.Futures,
+		Pair:  currency.NewPair(currency.BTC, currency.USD),
+	}
+	_, err = ku.GetLatestFundingRates(context.Background(), req)
+	assert.ErrorIs(t, err, futures.ErrNotPerpetualFuture)
+
+	req = &fundingrate.LatestRateRequest{
+		Asset: asset.Futures,
+		Pair:  currency.NewPair(currency.XBT, currency.USDTM),
+	}
+	resp, err := ku.GetLatestFundingRates(context.Background(), req)
+	assert.NoError(t, err)
+	assert.Len(t, resp, 1)
+
+	req = &fundingrate.LatestRateRequest{
+		Asset: asset.Futures,
+		Pair:  currency.EMPTYPAIR,
+	}
+	resp, err = ku.GetLatestFundingRates(context.Background(), req)
+	assert.NoError(t, err)
+	assert.NotEmpty(t, resp)
+}
+
+func TestIsPerpetualFutureCurrency(t *testing.T) {
+	t.Parallel()
+	is, err := ku.IsPerpetualFutureCurrency(asset.Spot, currency.EMPTYPAIR)
+	assert.NoError(t, err)
+	assert.False(t, is)
+	is, err = ku.IsPerpetualFutureCurrency(asset.Futures, currency.EMPTYPAIR)
+	assert.NoError(t, err)
+	assert.False(t, is)
+	is, err = ku.IsPerpetualFutureCurrency(asset.Futures, currency.NewPair(currency.XBT, currency.EOS))
+	assert.NoError(t, err)
+	assert.False(t, is)
+	is, err = ku.IsPerpetualFutureCurrency(asset.Futures, currency.NewPair(currency.XBT, currency.USDTM))
+	assert.NoError(t, err)
+	assert.True(t, is)
+	is, err = ku.IsPerpetualFutureCurrency(asset.Futures, currency.NewPair(currency.XBT, currency.USDM))
+	assert.NoError(t, err)
+	assert.True(t, is)
+}
+
+func TestChangePositionMargin(t *testing.T) {
+	t.Parallel()
+	_, err := ku.ChangePositionMargin(context.Background(), nil)
+	assert.ErrorIs(t, err, common.ErrNilPointer)
+
+	req := &margin.PositionChangeRequest{}
+	_, err = ku.ChangePositionMargin(context.Background(), req)
+	assert.ErrorIs(t, err, futures.ErrNotFuturesAsset)
+
+	req.Asset = asset.Futures
+	_, err = ku.ChangePositionMargin(context.Background(), req)
+	assert.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
+
+	req.Pair = currency.NewPair(currency.XBT, currency.USDTM)
+	_, err = ku.ChangePositionMargin(context.Background(), req)
+	assert.ErrorIs(t, err, margin.ErrMarginTypeUnsupported)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, ku, canManipulateRealOrders)
+	req.MarginType = margin.Isolated
+	_, err = ku.ChangePositionMargin(context.Background(), req)
+	assert.Error(t, err)
+
+	req.NewAllocatedMargin = 1337
+	_, err = ku.ChangePositionMargin(context.Background(), req)
+	assert.ErrorIs(t, err, nil)
+}
+
+func TestGetFuturesPositionSummary(t *testing.T) {
+	t.Parallel()
+	_, err := ku.GetFuturesPositionSummary(context.Background(), nil)
+	assert.ErrorIs(t, err, common.ErrNilPointer)
+
+	req := &futures.PositionSummaryRequest{}
+	_, err = ku.GetFuturesPositionSummary(context.Background(), req)
+	assert.ErrorIs(t, err, futures.ErrNotPerpetualFuture)
+
+	req.Asset = asset.Futures
+	_, err = ku.GetFuturesPositionSummary(context.Background(), req)
+	assert.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, ku, canManipulateRealOrders)
+	req.Pair = currency.NewPair(currency.XBT, currency.USDTM)
+	_, err = ku.GetFuturesPositionSummary(context.Background(), req)
+	assert.ErrorIs(t, err, nil)
+}
+
+func TestGetFuturesPositionOrders(t *testing.T) {
+	t.Parallel()
+	_, err := ku.GetFuturesPositionOrders(context.Background(), nil)
+	assert.ErrorIs(t, err, common.ErrNilPointer)
+
+	req := &futures.PositionsRequest{}
+	_, err = ku.GetFuturesPositionOrders(context.Background(), req)
+	assert.ErrorIs(t, err, futures.ErrNotPerpetualFuture)
+
+	req.Asset = asset.Futures
+	_, err = ku.GetFuturesPositionOrders(context.Background(), req)
+	assert.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
+
+	req.Pairs = currency.Pairs{
+		currency.NewPair(currency.XBT, currency.USDTM),
+	}
+	_, err = ku.GetFuturesPositionOrders(context.Background(), req)
+	assert.ErrorIs(t, err, common.ErrDateUnset)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, ku, canManipulateRealOrders)
+	req.EndDate = time.Now()
+	req.StartDate = req.EndDate.Add(-time.Hour * 24 * 7)
+	_, err = ku.GetFuturesPositionOrders(context.Background(), req)
+	assert.ErrorIs(t, err, nil)
+
+	req.StartDate = req.EndDate.Add(-time.Hour * 24 * 30)
+	_, err = ku.GetFuturesPositionOrders(context.Background(), req)
+	assert.ErrorIs(t, err, futures.ErrOrderHistoryTooLarge)
+
+	req.RespectOrderHistoryLimits = true
+	_, err = ku.GetFuturesPositionOrders(context.Background(), req)
+	assert.ErrorIs(t, err, nil)
+}
+
+func TestUpdateOrderExecutionLimits(t *testing.T) {
+	t.Parallel()
+
+	err := ku.UpdateOrderExecutionLimits(context.Background(), asset.Binary)
+	if !errors.Is(err, asset.ErrNotSupported) {
+		t.Fatalf("Received %v, expected %v", err, asset.ErrNotSupported)
+	}
+
+	assets := []asset.Item{asset.Spot, asset.Futures, asset.Margin}
+	for x := range assets {
+		err = ku.UpdateOrderExecutionLimits(context.Background(), assets[x])
+		if !errors.Is(err, nil) {
+			t.Fatalf("received %v, expected %v", err, nil)
+		}
+
+		enabled, err := ku.GetEnabledPairs(assets[x])
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		for y := range enabled {
+			lim, err := ku.GetOrderExecutionLimits(assets[x], enabled[y])
+			if err != nil {
+				t.Fatalf("%v %s %v", err, enabled[y], assets[x])
+			}
+			assert.NotEmpty(t, lim, "limit cannot be empty")
+		}
 	}
 }

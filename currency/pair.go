@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"unicode"
 )
 
 var errCannotCreatePair = errors.New("cannot create currency pair")
@@ -100,23 +101,17 @@ func NewPairFromString(currencyPair string) (Pair, error) {
 				errCannotCreatePair,
 				currencyPair)
 	}
-	var delimiter string
-	pairStrings := []string{currencyPair}
-	for x := range delimiters {
-		if strings.Contains(pairStrings[0], delimiters[x]) {
-			values := strings.SplitN(pairStrings[0], delimiters[x], 2)
-			if delimiter != "" {
-				values[1] += delimiter + pairStrings[1]
-				pairStrings = values
-			} else {
-				pairStrings = values
-			}
-			delimiter = delimiters[x]
+
+	for x := range currencyPair {
+		if unicode.IsPunct(rune(currencyPair[x])) {
+			return Pair{
+				Base:      NewCode(currencyPair[:x]),
+				Delimiter: string(currencyPair[x]),
+				Quote:     NewCode(currencyPair[x+1:]),
+			}, nil
 		}
 	}
-	if delimiter != "" {
-		return Pair{Base: NewCode(pairStrings[0]), Delimiter: delimiter, Quote: NewCode(pairStrings[1])}, nil
-	}
+
 	return NewPairFromStrings(currencyPair[0:3], currencyPair[3:])
 }
 
