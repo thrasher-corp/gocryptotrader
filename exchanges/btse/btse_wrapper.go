@@ -352,7 +352,24 @@ func (b *BTSE) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Item) 
 	if !b.SupportsAsset(a) {
 		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, a)
 	}
-	if err := b.UpdateTickers(ctx, a); err != nil {
+	ticks, err := b.GetMarketSummary(ctx, p.String(), a == asset.Spot)
+	if err != nil {
+		return nil, err
+	}
+	if len(ticks) != 1 {
+		return nil, errors.New("market_summary should return 1 tick for a single ticker")
+	}
+	err = ticker.ProcessTicker(&ticker.Price{
+		Pair:         p,
+		Ask:          ticks[0].LowestAsk,
+		Bid:          ticks[0].HighestBid,
+		Low:          ticks[0].Low24Hr,
+		Last:         ticks[0].Last,
+		Volume:       ticks[0].Volume,
+		High:         ticks[0].High24Hr,
+		ExchangeName: b.Name,
+		AssetType:    a})
+	if err != nil {
 		return nil, err
 	}
 	return ticker.GetTicker(b.Name, p, a)
