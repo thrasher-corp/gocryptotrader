@@ -283,39 +283,52 @@ func (c *CoinbasePro) UpdateTradablePairs(ctx context.Context, forceUpdate bool)
 // UpdateAccountInfo retrieves balances for all enabled currencies for the
 // coinbasepro exchange
 func (c *CoinbasePro) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
-	var response account.Holdings
+	var (
+		response       account.Holdings
+		accountBalance []Account
+		done           bool
+		err            error
+		cursor         string
+	)
 	response.Exchange = c.Name
-	// accountBalance, err := c.GetAccounts(ctx)
-	// if err != nil {
-	// 	return response, err
-	// }
 
-	// accountCurrencies := make(map[string][]account.Balance)
-	// for i := range accountBalance {
-	// 	profileID := accountBalance[i].ProfileID
-	// 	currencies := accountCurrencies[profileID]
-	// 	accountCurrencies[profileID] = append(currencies, account.Balance{
-	// 		Currency: currency.NewCode(accountBalance[i].Currency),
-	// 		Total:    accountBalance[i].Balance,
-	// 		Hold:     accountBalance[i].Hold,
-	// 		Free:     accountBalance[i].Available,
-	// 			AvailableWithoutBorrow: accountBalance[i].Available - accountBalance[i].FundedAmount,
-	// 			Borrowed:               accountBalance[i].FundedAmount,
-	// 	})
-	// }
+	for !done {
+		accountResp, err := c.GetAllAccounts(ctx, 250, cursor)
+		if err != nil {
+			return response, err
+		}
+		accountBalance = append(accountBalance, accountResp.Accounts...)
+		done = !accountResp.HasNext
+		cursor = accountResp.Cursor
+	}
 
-	// if response.Accounts, err = account.CollectBalances(accountCurrencies, assetType); err != nil {
-	// 	return account.Holdings{}, err
-	// }
+	accountCurrencies := make(map[string][]account.Balance)
+	for i := range accountBalance {
+		profileID := accountBalance[i].UUID
+		currencies := accountCurrencies[profileID]
+		accountCurrencies[profileID] = append(currencies, account.Balance{
+			Currency: currency.NewCode(accountBalance[i].Currency),
+			Total:    accountBalance[i].AvailableBalance.Value,
+			Hold:     accountBalance[i].Hold.Value,
+			Free: accountBalance[i].AvailableBalance.Value -
+				accountBalance[i].Hold.Value,
+			AvailableWithoutBorrow: accountBalance[i].AvailableBalance.Value,
+			Borrowed:               0,
+		})
+	}
 
-	// creds, err := c.GetCredentials(ctx)
-	// if err != nil {
-	// 	return account.Holdings{}, err
-	// }
-	// err = account.Process(&response, creds)
-	// if err != nil {
-	// 	return account.Holdings{}, err
-	// }
+	if response.Accounts, err = account.CollectBalances(accountCurrencies, assetType); err != nil {
+		return account.Holdings{}, err
+	}
+
+	creds, err := c.GetCredentials(ctx)
+	if err != nil {
+		return account.Holdings{}, err
+	}
+	err = account.Process(&response, creds)
+	if err != nil {
+		return account.Holdings{}, err
+	}
 
 	return response, nil
 }

@@ -2650,8 +2650,21 @@ func TestSetup(t *testing.T) {
 	}
 }
 
+func TestWrapperStart(t *testing.T) {
+	wg := sync.WaitGroup{}
+	err := c.Start(context.Background(), &wg)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
 func TestFetchTradablePairs(t *testing.T) {
-	_, err := c.FetchTradablePairs(context.Background(), asset.Spot)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, c)
+	_, err := c.FetchTradablePairs(context.Background(), asset.Empty)
+	if !errors.Is(err, asset.ErrNotSupported) {
+		t.Errorf(errExpectMismatch, err, asset.ErrNotSupported)
+	}
+	_, err = c.FetchTradablePairs(context.Background(), asset.Spot)
 	if err != nil {
 		t.Error(err)
 	}
@@ -2659,9 +2672,29 @@ func TestFetchTradablePairs(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = c.FetchTradablePairs(context.Background(), asset.Empty)
-	if !errors.Is(err, asset.ErrNotSupported) {
-		t.Errorf(errExpectMismatch, err, asset.ErrNotSupported)
+}
+
+func TestUpdateTradablePairs(t *testing.T) {
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, c)
+	err := c.UpdateTradablePairs(context.Background(), false)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestUpdateAccountInfo(t *testing.T) {
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, c)
+	_, err := c.UpdateAccountInfo(context.Background(), asset.Spot)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestFetchAccountInfo(t *testing.T) {
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, c)
+	_, err := c.FetchAccountInfo(context.Background(), asset.Spot)
+	if err != nil {
+		t.Error(err)
 	}
 }
 
