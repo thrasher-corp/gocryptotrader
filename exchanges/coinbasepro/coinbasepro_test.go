@@ -18,8 +18,10 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
+	gctlog "github.com/thrasher-corp/gocryptotrader/log"
 )
 
 var (
@@ -44,6 +46,7 @@ const (
 	errExpectMismatch     = "received: '%v' but expected: '%v'"
 	errExpectedNonEmpty   = "expected non-empty response"
 	skipPayMethodNotFound = "no payment methods found, skipping"
+	errx7f                = "setting proxy address error parse \"\\x7f\": net/url: invalid control character in URL"
 )
 
 func TestMain(m *testing.M) {
@@ -56,11 +59,11 @@ func TestMain(m *testing.M) {
 	cfg := config.GetConfig()
 	err := cfg.LoadConfig("../../testdata/configtest.json", true)
 	if err != nil {
-		log.Fatal("coinbasepro load config error", err)
+		log.Fatal("load config error", err)
 	}
 	gdxConfig, err := cfg.GetExchangeConfig("CoinbasePro")
 	if err != nil {
-		log.Fatal("coinbasepro Setup() init error")
+		log.Fatal("init error")
 	}
 	if apiKey != "" {
 		gdxConfig.API.Credentials.Key = apiKey
@@ -69,12 +72,17 @@ func TestMain(m *testing.M) {
 		gdxConfig.API.AuthenticatedSupport = true
 		gdxConfig.API.AuthenticatedWebsocketSupport = true
 	}
+	gdxConfig.API.AuthenticatedSupport = true
 	c.Websocket = sharedtestvalues.NewTestWebsocket()
 	err = c.Setup(gdxConfig)
 	if err != nil {
 		log.Fatal("CoinbasePro setup error", err)
 	}
+	c.GetBase().API.AuthenticatedSupport = true
+	c.GetBase().API.AuthenticatedWebsocketSupport = true
 	c.Verbose = true
+	err = gctlog.SetGlobalLogConfig(gctlog.GenDefaultSettings())
+	fmt.Println(err)
 	os.Exit(m.Run())
 }
 
@@ -156,14 +164,21 @@ func TestGetProductBook(t *testing.T) {
 	assert.NotEmpty(t, resp, errExpectedNonEmpty)
 }
 
+func TestSillyTestTest(t *testing.T) {
+	assTypes := c.CurrencyPairs.GetAssetTypes(false)
+	log.Printf("%+v", assTypes)
+}
+
 func TestGetAllProducts(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, c)
-	testPairs := []string{testPair.String(), "ETH-USD"}
-	resp, err := c.GetAllProducts(context.Background(), 2, 0, "SPOT", unknownContract, testPairs)
+	// testPairs := []string{testPair.String(), "ETH-USD"}
+	var testPairs []string
+	resp, err := c.GetAllProducts(context.Background(), 30000, 0, "", "", testPairs)
 	if err != nil {
 		t.Error(err)
 	}
 	assert.NotEmpty(t, resp, errExpectedNonEmpty)
+	log.Printf("%+v\n%+v", resp.NumProducts, len(resp.Products))
 }
 
 func TestGetProductByID(t *testing.T) {
@@ -290,11 +305,10 @@ func TestEditOrderPreview(t *testing.T) {
 		t.Errorf(errExpectMismatch, err, errSizeAndPriceZero)
 	}
 	id, _ := uuid.NewV4()
-	resp, err := c.EditOrderPreview(context.Background(), id.String(), 0.0000001, 10000000000000)
+	_, err = c.EditOrderPreview(context.Background(), id.String(), 0.0000001, 10000000000000)
 	if err != nil {
 		t.Error(err)
 	}
-	log.Printf("%+v", resp)
 }
 
 func TestGetAllOrders(t *testing.T) {
@@ -326,7 +340,7 @@ func TestGetFills(t *testing.T) {
 	if !errors.Is(err, common.ErrStartAfterEnd) {
 		t.Errorf(errExpectMismatch, err, common.ErrStartAfterEnd)
 	}
-	_, err = c.GetFills(context.Background(), "0", testPair.String(), "", 2, time.Unix(1, 1), time.Now())
+	_, err = c.GetFills(context.Background(), "", "", "", 5, time.Unix(1, 1), time.Now())
 	if err != nil {
 		t.Error(err)
 	}
@@ -2512,7 +2526,7 @@ func TestPrepareDateString(t *testing.T) {
 		t.Error(err)
 	}
 	if fmt.Sprint(expectedResult) != fmt.Sprint(result) {
-		t.Errorf(errExpectMismatch, expectedResult, result)
+		t.Errorf(errExpectMismatch, result, expectedResult)
 	}
 
 	var newTime time.Time
@@ -2541,7 +2555,7 @@ func TestPreparePagination(t *testing.T) {
 	result.PreparePagination(pagIn)
 
 	if fmt.Sprint(expectedResult) != fmt.Sprint(result) {
-		t.Errorf(errExpectMismatch, expectedResult, result)
+		t.Errorf(errExpectMismatch, result, expectedResult)
 	}
 }
 
@@ -2605,7 +2619,49 @@ func TestPrepareDSL(t *testing.T) {
 
 	result.PrepareDSL("before", "1", 2)
 	if fmt.Sprint(expectedResult) != fmt.Sprint(result) {
-		t.Errorf(errExpectMismatch, expectedResult, result)
+		t.Errorf(errExpectMismatch, result, expectedResult)
+	}
+}
+
+func TestGetDefaultConfig(t *testing.T) {
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, c)
+	_, err := c.GetDefaultConfig(context.Background())
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestSetup(t *testing.T) {
+	err := c.Setup(nil)
+	if !errors.Is(err, config.ErrExchangeConfigIsNil) {
+		t.Errorf(errExpectMismatch, err, config.ErrExchangeConfigIsNil)
+	}
+	cfg, err := c.GetStandardConfig()
+	if err != nil {
+		t.Error(err)
+	}
+	cfg.Enabled = false
+	_ = c.Setup(cfg)
+	cfg.Enabled = true
+	cfg.ProxyAddress = string(rune(0x7f))
+	err = c.Setup(cfg)
+	if err.Error() != errx7f {
+		t.Errorf(errExpectMismatch, err, errx7f)
+	}
+}
+
+func TestFetchTradablePairs(t *testing.T) {
+	_, err := c.FetchTradablePairs(context.Background(), asset.Spot)
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = c.FetchTradablePairs(context.Background(), asset.Futures)
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = c.FetchTradablePairs(context.Background(), asset.Empty)
+	if !errors.Is(err, asset.ErrNotSupported) {
+		t.Errorf(errExpectMismatch, err, asset.ErrNotSupported)
 	}
 }
 

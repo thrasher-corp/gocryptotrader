@@ -120,7 +120,7 @@ func (c *CoinbasePro) GetAllAccounts(ctx context.Context, limit uint8, cursor st
 
 	var params Params
 	params.urlVals = url.Values{}
-	params.urlVals.Set("limit", strconv.Itoa(int(limit)))
+	params.urlVals.Set("limit", strconv.FormatInt(int64(limit), 10))
 	params.urlVals.Set("cursor", cursor)
 
 	pathParams := common.EncodeURLValues("", params.urlVals)
@@ -161,7 +161,7 @@ func (c *CoinbasePro) GetBestBidAsk(ctx context.Context, products []string) (Bes
 }
 
 // GetProductBook returns a list of bids/asks for a single product
-func (c *CoinbasePro) GetProductBook(ctx context.Context, productID string, limit int32) (ProductBook, error) {
+func (c *CoinbasePro) GetProductBook(ctx context.Context, productID string, limit uint16) (ProductBook, error) {
 	if productID == "" {
 		return ProductBook{}, errProductIDEmpty
 	}
@@ -182,8 +182,8 @@ func (c *CoinbasePro) GetProductBook(ctx context.Context, productID string, limi
 func (c *CoinbasePro) GetAllProducts(ctx context.Context, limit, offset int32, productType, contractExpiryType string, productIDs []string) (AllProducts, error) {
 	var params Params
 	params.urlVals = url.Values{}
-	params.urlVals.Set("limit", strconv.Itoa(int(limit)))
-	params.urlVals.Set("offset", strconv.Itoa(int(offset)))
+	params.urlVals.Set("limit", strconv.FormatInt(int64(limit), 10))
+	params.urlVals.Set("offset", strconv.FormatInt(int64(offset), 10))
 
 	if productType != "" {
 		params.urlVals.Set("product_type", productType)
@@ -271,7 +271,7 @@ func (c *CoinbasePro) GetTicker(ctx context.Context, productID string, limit uin
 
 	pathParams := common.EncodeURLValues("", params.urlVals)
 
-	resp := Ticker{}
+	var resp Ticker
 
 	return &resp, c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet,
 		path, pathParams, nil, Version3, &resp, nil)
@@ -279,31 +279,30 @@ func (c *CoinbasePro) GetTicker(ctx context.Context, productID string, limit uin
 
 // PlaceOrder places either a limit, market, or stop order
 func (c *CoinbasePro) PlaceOrder(ctx context.Context, clientOID, productID, side, stopDirection, orderType string, baseAmount, quoteAmount, limitPrice, stopPrice float64, postOnly bool, endTime time.Time) (*PlaceOrderResp, error) {
-	var resp PlaceOrderResp
-
 	if clientOID == "" {
-		return &resp, errClientOrderIDEmpty
+		return nil, errClientOrderIDEmpty
 	}
 	if productID == "" {
-		return &resp, errProductIDEmpty
+		return nil, errProductIDEmpty
 	}
 	if baseAmount == 0 && orderType != order.Market.Lower() && side != order.Buy.String() {
-		return &resp, errAmountZeroNonMarketBuy
+		return nil, errAmountZeroNonMarketBuy
 	}
 	if quoteAmount == 0 && orderType == order.Market.Lower() && side == order.Buy.String() {
-		return &resp, errAmountZeroMarketBuy
+		return nil, errAmountZeroMarketBuy
 	}
+
+	var resp PlaceOrderResp
 
 	var orderConfig OrderConfiguration
 
 	switch orderType {
 	case order.Market.Lower():
+		orderConfig.MarketMarketIOC = &MarketMarketIOC{}
 		if side == order.Buy.Lower() {
-			orderConfig.MarketMarketIOC = &MarketMarketIOC{}
 			orderConfig.MarketMarketIOC.QuoteSize = strconv.FormatFloat(quoteAmount, 'f', -1, 64)
 		}
 		if side == order.Sell.Lower() {
-			orderConfig.MarketMarketIOC = &MarketMarketIOC{}
 			orderConfig.MarketMarketIOC.BaseSize = strconv.FormatFloat(baseAmount, 'f', -1, 64)
 		}
 	case order.Limit.Lower():
@@ -455,7 +454,7 @@ func (c *CoinbasePro) GetAllOrders(ctx context.Context, productID, userNativeCur
 }
 
 // GetFills returns information of recent fills on the specified profile
-func (c *CoinbasePro) GetFills(ctx context.Context, orderID, productID, cursor string, limit int64, startDate, endDate time.Time) (FillResponse, error) {
+func (c *CoinbasePro) GetFills(ctx context.Context, orderID, productID, cursor string, limit uint16, startDate, endDate time.Time) (FillResponse, error) {
 	var resp FillResponse
 	var params Params
 	params.urlVals = url.Values{}
@@ -472,7 +471,7 @@ func (c *CoinbasePro) GetFills(ctx context.Context, orderID, productID, cursor s
 		params.urlVals.Set("product_id", productID)
 	}
 
-	params.urlVals.Set("limit", strconv.FormatInt(limit, 10))
+	params.urlVals.Set("limit", strconv.FormatInt(int64(limit), 10))
 	params.urlVals.Set("cursor", cursor)
 
 	pathParams := common.EncodeURLValues("", params.urlVals)
@@ -484,10 +483,10 @@ func (c *CoinbasePro) GetFills(ctx context.Context, orderID, productID, cursor s
 
 // GetOrderByID returns a single order by order id.
 func (c *CoinbasePro) GetOrderByID(ctx context.Context, orderID, userNativeCurrency, clientID string) (*GetOrderResponse, error) {
-	resp := GetOrderResponse{}
 	if orderID == "" {
-		return &resp, errOrderIDEmpty
+		return nil, errOrderIDEmpty
 	}
+	var resp GetOrderResponse
 	var params Params
 	params.urlVals = url.Values{}
 	params.urlVals.Set("client_order_id", clientID)
@@ -501,14 +500,13 @@ func (c *CoinbasePro) GetOrderByID(ctx context.Context, orderID, userNativeCurre
 
 // GetTransactionSummary returns a summary of transactions with fee tiers, total volume,
 // and fees
-func (c *CoinbasePro) GetTransactionSummary(ctx context.Context, startDate, endDate time.Time, userNativeCurrency, productType, contractExpiryType string) (TransactionSummary, error) {
-	var resp TransactionSummary
+func (c *CoinbasePro) GetTransactionSummary(ctx context.Context, startDate, endDate time.Time, userNativeCurrency, productType, contractExpiryType string) (*TransactionSummary, error) {
 	var params Params
 	params.urlVals = url.Values{}
 
 	err := params.PrepareDateString(startDate, endDate, startDateString, endDateString)
 	if err != nil {
-		return resp, err
+		return nil, err
 	}
 
 	if contractExpiryType != "" {
@@ -522,7 +520,9 @@ func (c *CoinbasePro) GetTransactionSummary(ctx context.Context, startDate, endD
 
 	pathParams := common.EncodeURLValues("", params.urlVals)
 
-	return resp, c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet,
+	var resp TransactionSummary
+
+	return &resp, c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet,
 		coinbaseV3+coinbaseTransactionSummary, pathParams, nil, Version3, &resp, nil)
 }
 
@@ -747,12 +747,12 @@ func (c *CoinbasePro) GetAddressTransactions(ctx context.Context, walletID, addr
 		path, pathParams, nil, Version2, &resp, nil)
 }
 
-// SendMoney ca send funds to an email or cryptocurrency address (if "traType" is set to "send"),
+// SendMoney can send funds to an email or cryptocurrency address (if "traType" is set to "send"),
 // or to another one of the user's wallets or vaults (if "traType" is set to "transfer"). Coinbase
-// may delay or cancel  the transaction at their discretion. The "idem" parameter is an optional
-// string for  idempotency; a token with a max length of 100 characters, if a previous
-// transaction included the same string as a parameter, the new transaction won't be processed,
-// and information on the previous transaction will be returned
+// may delay or cancel the transaction at their discretion. The "idem" parameter is an optional
+// string for idempotency; a token with a max length of 100 characters, if a previous
+// transaction included the same token as a parameter, the new transaction won't be processed,
+// and information on the previous transaction will be returned instead
 func (c *CoinbasePro) SendMoney(ctx context.Context, traType, walletID, to, amount, currency, description, idem, financialInstitutionWebsite, destinationTag string, skipNotifications, toFinancialInstitution bool) (*GenTransactionResp, error) {
 	if traType == "" {
 		return nil, errTransactionTypeEmpty
@@ -1878,7 +1878,7 @@ func (c *CoinbasePro) SendAuthenticatedHTTPRequest(ctx context.Context, ep excha
 	if err != nil {
 		return err
 	}
-	errCap := struct {
+	singleErrCap := struct {
 		ErrorType             string `json:"error"`
 		Message               string `json:"message"`
 		ErrorDetails          string `json:"error_details"`
@@ -1886,12 +1886,37 @@ func (c *CoinbasePro) SendAuthenticatedHTTPRequest(ctx context.Context, ep excha
 		PreviewFailureReason  string `json:"preview_failure_reason"`
 		NewOrderFailureReason string `json:"new_order_failure_reason"`
 	}{}
-	if err := json.Unmarshal(interim, &errCap); err == nil {
-		if errCap.Message != "" {
+	if err := json.Unmarshal(interim, &singleErrCap); err == nil {
+		if singleErrCap.Message != "" {
 			errMessage := fmt.Sprintf("message: %s, error type: %s, error details: %s, edit failure reason: %s, preview failure reason: %s, new order failure reason: %s",
-				errCap.Message, errCap.ErrorType, errCap.ErrorDetails, errCap.EditFailureReason,
-				errCap.PreviewFailureReason, errCap.NewOrderFailureReason)
+				singleErrCap.Message, singleErrCap.ErrorType, singleErrCap.ErrorDetails, singleErrCap.EditFailureReason,
+				singleErrCap.PreviewFailureReason, singleErrCap.NewOrderFailureReason)
 			return errors.New(errMessage)
+		}
+	}
+	manyErrCap := struct {
+		Errors []struct {
+			Success              bool   `json:"success"`
+			FailureReason        string `json:"failure_reason"`
+			OrderID              string `json:"order_id"`
+			EditFailureReason    string `json:"edit_failure_reason"`
+			PreviewFailureReason string `json:"preview_failure_reason"`
+		}
+	}{}
+	if err := json.Unmarshal(interim, &manyErrCap); err == nil {
+		if len(manyErrCap.Errors) > 0 {
+			errMessage := ""
+			for i := range manyErrCap.Errors {
+				if !manyErrCap.Errors[i].Success || manyErrCap.Errors[i].EditFailureReason != "" ||
+					manyErrCap.Errors[i].PreviewFailureReason != "" {
+					errMessage += fmt.Sprintf("order id: %s, failure reason: %s, edit failure reason: %s, preview failure reason: %s",
+						manyErrCap.Errors[i].OrderID, manyErrCap.Errors[i].FailureReason,
+						manyErrCap.Errors[i].EditFailureReason, manyErrCap.Errors[i].PreviewFailureReason)
+				}
+			}
+			if errMessage != "" {
+				return errors.New(errMessage)
+			}
 		}
 	}
 	if result == nil {
@@ -1995,7 +2020,7 @@ func (p *Params) PrepareDateString(startDate, endDate time.Time, labelStart, lab
 
 func (p *Params) PreparePagination(pag PaginationInp) {
 	if pag.Limit != 0 {
-		p.urlVals.Set("limit", strconv.Itoa(int(pag.Limit)))
+		p.urlVals.Set("limit", strconv.FormatInt(int64(pag.Limit), 10))
 	}
 	if pag.OrderAscend {
 		p.urlVals.Set("order", "asc")

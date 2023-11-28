@@ -43,7 +43,7 @@ func (c *CoinbasePro) GetDefaultConfig(ctx context.Context) (*config.Exchange, e
 		return nil, err
 	}
 
-	if c.Features.Supports.RESTCapabilities.AutoPairUpdates {
+	if c.Features.Supports.RESTCapabilities.AutoPairUpdates && c.Base.API.AuthenticatedSupport {
 		err = c.UpdateTradablePairs(ctx, true)
 		if err != nil {
 			return nil, err
@@ -65,7 +65,7 @@ func (c *CoinbasePro) SetDefaults() {
 
 	requestFmt := &currency.PairFormat{Delimiter: currency.DashDelimiter, Uppercase: true}
 	configFmt := &currency.PairFormat{Delimiter: currency.DashDelimiter, Uppercase: true}
-	err := c.SetGlobalPairsManager(requestFmt, configFmt, asset.Spot)
+	err := c.SetGlobalPairsManager(requestFmt, configFmt, asset.Spot, asset.Futures)
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
@@ -220,102 +220,61 @@ func (c *CoinbasePro) Run(ctx context.Context) {
 		c.PrintEnabledPairs()
 	}
 
-	forceUpdate := false
-	if !c.BypassConfigFormatUpgrades {
-		format, err := c.GetPairFormat(asset.Spot, false)
-		if err != nil {
-			log.Errorf(log.ExchangeSys,
-				"%s failed to update currencies. Err: %s\n",
-				c.Name,
-				err)
-			return
-		}
-		enabled, err := c.CurrencyPairs.GetPairs(asset.Spot, true)
-		if err != nil {
-			log.Errorf(log.ExchangeSys,
-				"%s failed to update currencies. Err: %s\n",
-				c.Name,
-				err)
-			return
-		}
-
-		avail, err := c.CurrencyPairs.GetPairs(asset.Spot, false)
-		if err != nil {
-			log.Errorf(log.ExchangeSys,
-				"%s failed to update currencies. Err: %s\n",
-				c.Name,
-				err)
-			return
-		}
-
-		if !common.StringDataContains(enabled.Strings(), format.Delimiter) ||
-			!common.StringDataContains(avail.Strings(), format.Delimiter) {
-			var p currency.Pairs
-			p, err = currency.NewPairsFromStrings([]string{currency.BTC.String() +
-				format.Delimiter +
-				currency.USD.String()})
-			if err != nil {
-				log.Errorf(log.ExchangeSys,
-					"%s failed to update currencies. Err: %s\n",
-					c.Name,
-					err)
-			} else {
-				forceUpdate = true
-				log.Warnf(log.ExchangeSys, exchange.ResetConfigPairsWarningMessage, c.Name, asset.Spot, p)
-
-				err = c.UpdatePairs(p, asset.Spot, true, true)
-				if err != nil {
-					log.Errorf(log.ExchangeSys,
-						"%s failed to update currencies. Err: %s\n",
-						c.Name,
-						err)
-				}
-			}
-		}
-	}
-
-	if !c.GetEnabledFeatures().AutoPairUpdates && !forceUpdate {
+	if !c.GetEnabledFeatures().AutoPairUpdates {
 		return
 	}
 
-	err := c.UpdateTradablePairs(ctx, forceUpdate)
+	err := c.UpdateTradablePairs(ctx, false)
 	if err != nil {
 		log.Errorf(log.ExchangeSys, "%s failed to update tradable pairs. Err: %s", c.Name, err)
 	}
 }
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs
-func (c *CoinbasePro) FetchTradablePairs(ctx context.Context, _ asset.Item) (currency.Pairs, error) {
-	// products, err := c.GetProducts(ctx)
-	// if err != nil {
-	// 	return nil, err
-	// }
+func (c *CoinbasePro) FetchTradablePairs(ctx context.Context, a asset.Item) (currency.Pairs, error) {
+	var products AllProducts
+	var err error
+	switch a {
+	case asset.Spot:
+		products, err = c.GetAllProducts(ctx, 2<<30-1, 0, "SPOT", "", nil)
+	case asset.Futures:
+		products, err = c.GetAllProducts(ctx, 2<<30-1, 0, "FUTURE", "", nil)
+	default:
+		err = asset.ErrNotSupported
+	}
 
-	// pairs := make([]currency.Pair, 0, len(products))
-	// for x := range products {
-	// 	if products[x].TradingDisabled {
-	// 		continue
-	// 	}
-	// 	var pair currency.Pair
-	// 	pair, err = currency.NewPairDelimiter(products[x].ID, currency.DashDelimiter)
-	// 	if err != nil {
-	// 		return nil, err
-	// 	}
-	// 	pairs = append(pairs, pair)
-	// }
-	return nil, errors.New("function not properly implemented")
+	if err != nil {
+		return nil, err
+	}
+
+	pairs := make([]currency.Pair, 0, len(products.Products))
+	for x := range products.Products {
+		if products.Products[x].TradingDisabled {
+			continue
+		}
+		var pair currency.Pair
+		pair, err = currency.NewPairDelimiter(products.Products[x].ID, currency.DashDelimiter)
+		if err != nil {
+			return nil, err
+		}
+		pairs = append(pairs, pair)
+	}
+	return pairs, nil
 }
 
 // UpdateTradablePairs updates the exchanges available pairs and stores
 // them in the exchanges config
 func (c *CoinbasePro) UpdateTradablePairs(ctx context.Context, forceUpdate bool) error {
-	pairs, err := c.FetchTradablePairs(ctx, asset.Spot)
-	if err != nil {
-		return err
-	}
-	err = c.UpdatePairs(pairs, asset.Spot, false, forceUpdate)
-	if err != nil {
-		return err
+	assets := c.GetAssetTypes(true)
+	for i := range assets {
+		pairs, err := c.FetchTradablePairs(ctx, assets[i])
+		if err != nil {
+			return err
+		}
+		err = c.UpdatePairs(pairs, assets[i], false, forceUpdate)
+		if err != nil {
+			return err
+		}
 	}
 	return c.EnsureOnePairEnabled()
 }

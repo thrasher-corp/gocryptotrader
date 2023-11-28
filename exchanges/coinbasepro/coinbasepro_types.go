@@ -76,31 +76,31 @@ type ProductBookResponse struct {
 
 // Product holds product information, returned by GetAllProducts and GetProductByID
 type Product struct {
-	ID                        string  `json:"product_id"`
-	Price                     float64 `json:"price,string"`
-	PricePercentageChange24H  float64 `json:"price_percentage_change_24h,string"`
-	Volume24H                 float64 `json:"volume_24h,string"`
-	VolumePercentageChange24H float64 `json:"volume_percentage_change_24h,string"`
-	BaseIncrement             float64 `json:"base_increment,string"`
-	QuoteIncrement            float64 `json:"quote_increment,string"`
-	QuoteMinSize              float64 `json:"quote_min_size,string"`
-	QuoteMaxSize              float64 `json:"quote_max_size,string"`
-	BaseMinSize               float64 `json:"base_min_size,string"`
-	BaseMaxSize               float64 `json:"base_max_size,string"`
-	BaseName                  string  `json:"base_name"`
-	QuoteName                 string  `json:"quote_name"`
-	Watched                   bool    `json:"watched"`
-	IsDisabled                bool    `json:"is_disabled"`
-	New                       bool    `json:"new"`
-	Status                    string  `json:"status"`
-	CancelOnly                bool    `json:"cancel_only"`
-	LimitOnly                 bool    `json:"limit_only"`
-	PostOnly                  bool    `json:"post_only"`
-	TradingDisabled           bool    `json:"trading_disabled"`
-	AuctionMode               bool    `json:"auction_mode"`
-	ProductType               string  `json:"product_type"`
-	QuoteCurrencyID           string  `json:"quote_currency_id"`
-	BaseCurrencyID            string  `json:"base_currency_id"`
+	ID                        string                  `json:"product_id"`
+	Price                     convert.StringToFloat64 `json:"price"`
+	PricePercentageChange24H  convert.StringToFloat64 `json:"price_percentage_change_24h"`
+	Volume24H                 convert.StringToFloat64 `json:"volume_24h"`
+	VolumePercentageChange24H convert.StringToFloat64 `json:"volume_percentage_change_24h"`
+	BaseIncrement             convert.StringToFloat64 `json:"base_increment"`
+	QuoteIncrement            convert.StringToFloat64 `json:"quote_increment"`
+	QuoteMinSize              convert.StringToFloat64 `json:"quote_min_size"`
+	QuoteMaxSize              convert.StringToFloat64 `json:"quote_max_size"`
+	BaseMinSize               convert.StringToFloat64 `json:"base_min_size"`
+	BaseMaxSize               convert.StringToFloat64 `json:"base_max_size"`
+	BaseName                  string                  `json:"base_name"`
+	QuoteName                 string                  `json:"quote_name"`
+	Watched                   bool                    `json:"watched"`
+	IsDisabled                bool                    `json:"is_disabled"`
+	New                       bool                    `json:"new"`
+	Status                    string                  `json:"status"`
+	CancelOnly                bool                    `json:"cancel_only"`
+	LimitOnly                 bool                    `json:"limit_only"`
+	PostOnly                  bool                    `json:"post_only"`
+	TradingDisabled           bool                    `json:"trading_disabled"`
+	AuctionMode               bool                    `json:"auction_mode"`
+	ProductType               string                  `json:"product_type"`
+	QuoteCurrencyID           string                  `json:"quote_currency_id"`
+	BaseCurrencyID            string                  `json:"base_currency_id"`
 	FCMTradingSessionDetails  struct {
 		IsSessionOpen bool      `json:"is_session_open"`
 		OpenTime      time.Time `json:"open_time"`
@@ -112,22 +112,22 @@ type Product struct {
 	BaseDisplaySymbol    string                  `json:"base_display_symbol"`
 	QuoteDisplaySymbol   string                  `json:"quote_display_symbol"`
 	ViewOnly             bool                    `json:"view_only"`
-	PriceIncrement       float64                 `json:"price_increment,string"`
+	PriceIncrement       convert.StringToFloat64 `json:"price_increment"`
 	FutureProductDetails struct {
-		Venue                  string  `json:"venue"`
-		ContractCode           string  `json:"contract_code"`
-		ContractExpiry         string  `json:"contract_expiry"`
-		ContractSize           float64 `json:"contract_size,string"`
-		ContractRootUnit       string  `json:"contract_root_unit"`
-		GroupDescription       string  `json:"group_description"`
-		ContractExpiryTimezone string  `json:"contract_expiry_timezone"`
-		GroupShortDescription  string  `json:"group_short_description"`
-		RiskManagedBy          string  `json:"risk_managed_by"`
-		ContractExpiryType     string  `json:"contract_expiry_type"`
+		Venue                  string                  `json:"venue"`
+		ContractCode           string                  `json:"contract_code"`
+		ContractExpiry         string                  `json:"contract_expiry"`
+		ContractSize           convert.StringToFloat64 `json:"contract_size"`
+		ContractRootUnit       string                  `json:"contract_root_unit"`
+		GroupDescription       string                  `json:"group_description"`
+		ContractExpiryTimezone string                  `json:"contract_expiry_timezone"`
+		GroupShortDescription  string                  `json:"group_short_description"`
+		RiskManagedBy          string                  `json:"risk_managed_by"`
+		ContractExpiryType     string                  `json:"contract_expiry_type"`
 		PerpetualDetails       struct {
-			OpenInterest float64   `json:"open_interest,string"`
-			FundingRate  float64   `json:"funding_rate,string"`
-			FundingTime  time.Time `json:"funding_time"`
+			OpenInterest convert.StringToFloat64 `json:"open_interest"`
+			FundingRate  convert.StringToFloat64 `json:"funding_rate"`
+			FundingTime  time.Time               `json:"funding_time"`
 		} `json:"perpetual_details"`
 		ContractDisplayName string `json:"contract_display_name"`
 	} `json:"future_product_details"`
@@ -248,13 +248,6 @@ type PlaceOrderResp struct {
 		Side          string `json:"side"`
 		ClientOrderID string `json:"client_oid"`
 	} `json:"success_response"`
-	ErrorResponse struct {
-		Error                 string `json:"error"`
-		Message               string `json:"message"`
-		ErrorDetails          string `json:"error_details"`
-		PreviewFailureReason  string `json:"preview_failure_reason"`
-		NewOrderFailureReason string `json:"new_order_failure_reason"`
-	} `json:"error_response"`
 	OrderConfiguration OrderConfiguration `json:"order_configuration"`
 }
 
@@ -416,42 +409,38 @@ type ListNotificationsResponse struct {
 		Type string `json:"type"`
 		Data struct {
 			ID            string     `json:"id"`
+			Address       string     `json:"address"`
+			Name          string     `json:"name"`
 			Status        string     `json:"status"`
 			PaymentMethod IDResource `json:"payment_method"`
 			Transaction   IDResource `json:"transaction"`
-			Amount        struct {
-				Amount   float64 `json:"amount,string"`
-				Currency string  `json:"currency"`
-			}
-			Total struct {
-				Amount   float64 `json:"amount,string"`
-				Currency string  `json:"currency"`
-			}
-			Subtotal struct {
-				Amount   float64 `json:"amount,string"`
-				Currency string  `json:"currency"`
-			}
-			CreatedAt    time.Time `json:"created_at"`
-			UpdatedAt    time.Time `json:"updated_at"`
-			Resource     string    `json:"resource"`
-			ResourcePath string    `json:"resource_path"`
-			Committed    bool      `json:"committed"`
-			Instant      bool      `json:"instant"`
-			Fees         []struct {
+			Amount        AmCur      `json:"amount"`
+			Total         AmCur      `json:"total"`
+			Subtotal      AmCur      `json:"subtotal"`
+			CreatedAt     time.Time  `json:"created_at"`
+			UpdatedAt     time.Time  `json:"updated_at"`
+			Resource      string     `json:"resource"`
+			ResourcePath  string     `json:"resource_path"`
+			Committed     bool       `json:"committed"`
+			Instant       bool       `json:"instant"`
+			Fee           AmCur      `json:"fee"`
+			Fees          []struct {
 				Type   string `json:"type"`
-				Amount struct {
-					Amount   float64 `json:"amount,string"`
-					Currency string  `json:"currency"`
-				} `json:"amount"`
+				Amount AmCur  `json:"amount"`
 			} `json:"fees"`
 			PayoutAt time.Time `json:"payout_at"`
 		} `json:"data"`
+		AdditionalData struct {
+			Hash   string `json:"hash"`
+			Amount AmCur  `json:"amount"`
+		} `json:"additional_data"`
 		User             IDResource `json:"user"`
 		Account          IDResource `json:"account"`
 		DeliveryAttempts int32      `json:"delivery_attempts"`
 		CreatedAt        time.Time  `json:"created_at"`
 		Resource         string     `json:"resource"`
 		ResourcePath     string     `json:"resource_path"`
+		Transaction      IDResource `json:"transaction"`
 	} `json:"data"`
 }
 
@@ -505,6 +494,7 @@ type UserResponse struct {
 		ShowInstantAchUx                      bool   `json:"show_instant_ach_ux"`
 		UserType                              string `json:"user_type"`
 		Email                                 string `json:"email"`
+		SendsDisabled                         bool   `json:"sends_disabled"`
 	} `json:"data"`
 }
 

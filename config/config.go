@@ -29,8 +29,8 @@ import (
 )
 
 var (
-	// errExchangeConfigIsNil defines an error when the config is nil
-	errExchangeConfigIsNil = errors.New("exchange config is nil")
+	// ErrExchangeConfigIsNil defines an error when the config is nil
+	ErrExchangeConfigIsNil = errors.New("exchange config is nil")
 	errPairsManagerIsNil   = errors.New("currency pairs manager is nil")
 )
 
@@ -1893,7 +1893,7 @@ func (c *Config) GetDataPath(elem ...string) string {
 // Validate checks if exchange config is valid
 func (c *Exchange) Validate() error {
 	if c == nil {
-		return errExchangeConfigIsNil
+		return ErrExchangeConfigIsNil
 	}
 
 	if c.ConnectionMonitorDelay <= 0 {
