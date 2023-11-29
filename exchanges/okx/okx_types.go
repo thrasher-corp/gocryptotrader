@@ -4082,17 +4082,35 @@ func (a *WsSpreadOrderbook) ExtractSpreadOrder() (*WsSpreadOrderbookData, error)
 		resp.Data[x].Bids = make([]orderbook.Item, len(a.Data[x].Bids))
 
 		for as := range a.Data[x].Asks {
-			resp.Data[x].Asks[as].Price, err = strconv.ParseFloat(a.Data[x].Asks[a][0])
+			resp.Data[x].Asks[as].Price, err = strconv.ParseFloat(a.Data[x].Asks[as][0], 64)
 			if err != nil {
 				return nil, err
 			}
-			resp.Data[x].Asks[as].Amount, err = strconv.ParseFloat(a.Data[x].Asks[a][0])
+			resp.Data[x].Asks[as].Amount, err = strconv.ParseFloat(a.Data[x].Asks[as][1], 64)
+			if err != nil {
+				return nil, err
+			}
+			resp.Data[x].Asks[as].OrderCount, err = strconv.ParseInt(a.Data[x].Asks[as][2], 10, 64)
+			if err != nil {
+				return nil, err
+			}
+		}
+		for as := range a.Data[x].Bids {
+			resp.Data[x].Bids[as].Price, err = strconv.ParseFloat(a.Data[x].Bids[as][0], 64)
+			if err != nil {
+				return nil, err
+			}
+			resp.Data[x].Bids[as].Amount, err = strconv.ParseFloat(a.Data[x].Bids[as][1], 64)
+			if err != nil {
+				return nil, err
+			}
+			resp.Data[x].Bids[as].OrderCount, err = strconv.ParseInt(a.Data[x].Bids[as][2], 10, 64)
 			if err != nil {
 				return nil, err
 			}
 		}
 	}
-	return nil, nil
+	return resp, nil
 }
 
 // WsSpreadOrderbookItem represents an orderbook asks and bids details.

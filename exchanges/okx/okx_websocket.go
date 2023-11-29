@@ -873,7 +873,27 @@ func (ok *Okx) wsProcessSpreadOrderbook(respRaw []byte) error {
 	if err != nil {
 		return err
 	}
-
+	pair, err := ok.GetPairFromInstrumentID(resp.Arg.SpreadID)
+	if err != nil {
+		return err
+	}
+	extractedResponse, err := resp.ExtractSpreadOrder()
+	if err != nil {
+		return err
+	}
+	for x := range extractedResponse.Data {
+		err = ok.Websocket.Orderbook.LoadSnapshot(&orderbook.Base{
+			Asset:           asset.PerpetualSwap,
+			Asks:            extractedResponse.Data[x].Asks,
+			Bids:            extractedResponse.Data[x].Bids,
+			LastUpdated:     resp.Data[x].Timestamp.Time(),
+			Pair:            pair,
+			Exchange:        ok.Name,
+			VerifyOrderbook: ok.CanVerifyOrderbook})
+		if err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
