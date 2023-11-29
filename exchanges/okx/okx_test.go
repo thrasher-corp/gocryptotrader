@@ -36,7 +36,7 @@ const (
 	apiKey                  = ""
 	apiSecret               = ""
 	passphrase              = ""
-	canManipulateRealOrders = false
+	canManipulateRealOrders = true
 	useTestNet              = false
 )
 
@@ -2147,12 +2147,16 @@ func TestSubmitOrder(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
 
-	var resp WsPlaceOrderInput
+	var resp WsOperationInput
 	err := json.Unmarshal([]byte(placeOrderArgs), &resp)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(resp.Arguments) == 0 {
+	args, okay := resp.Arguments.([]PlaceOrderRequestParam)
+	if !okay {
+		t.Fatal("unexpected arguments")
+	}
+	if len(args) == 0 {
 		t.Error("order not found")
 	}
 	var orderSubmission = &order.Submit{
@@ -2519,6 +2523,26 @@ func TestSnapshotPushData(t *testing.T) {
 	err := ok.WsHandleData([]byte(fmt.Sprintf(snapshotOrderBookPushData, ok.CurrencyPairs.Pairs[asset.Futures].Enabled[0])))
 	if err != nil {
 		t.Error("Okx Snapshot order book push data error", err)
+	}
+}
+
+const optionsTrades = `{"arg": { "channel": "option-trades", "instType": "OPTION", "instFamily": "BTC-USD" }, "data": [ { "fillVol": "0.5066007836914062", "fwdPx": "16469.69928595038", "idxPx": "16537.2", "instFamily": "BTC-USD", "instId": "BTC-USD-230224-18000-C", "markPx": "0.04690107010619562", "optType": "C", "px": "0.045", "side": "sell", "sz": "2", "tradeId": "38", "ts": "1672286551080" } ] }`
+
+func TestOptionsTrades(t *testing.T) {
+	t.Parallel()
+	err := ok.WsHandleData([]byte(optionsTrades))
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+const publicBlockTrades = `{ "arg":{ "channel":"public-block-trades", "instId":"BTC-USD-231020-5000-P" }, "data":[ { "fillVol":"5", "fwdPx":"26808.16", "idxPx":"27222.5", "instId":"BTC-USD-231020-5000-P", "markPx":"0.0022406326071111", "px":"0.0048", "side":"buy", "sz":"1", "tradeId":"633971452580106242", "ts":"1697422572972" } ] }`
+
+func TestPublicBlockTrades(t *testing.T) {
+	t.Parallel()
+	err := ok.WsHandleData([]byte(publicBlockTrades))
+	if err != nil {
+		t.Error(err)
 	}
 }
 
@@ -3005,6 +3029,16 @@ func TestBlockTickerSubscription(t *testing.T) {
 	}
 }
 
+func TestPublicBlockTradesSubscription(t *testing.T) {
+	t.Parallel()
+	if err := ok.PublicBlockTradesSubscription("subscribe", asset.Options, currency.NewPairWithDelimiter("BTC", "USDT-SWAP", "-")); err != nil {
+		t.Errorf("%s PublicBlockTradesSubscription() error: %v", ok.Name, err)
+	}
+	if err := ok.PublicBlockTradesSubscription("unsubscribe", asset.Options, currency.NewPairWithDelimiter("BTC", "USDT-SWAP", "-")); err != nil {
+		t.Errorf("%s PublicBlockTradesSubscription() error: %v", ok.Name, err)
+	}
+}
+
 // ************ Authenticated Websocket endpoints Test **********************************************
 
 func TestWsAccountSubscription(t *testing.T) {
@@ -3022,7 +3056,7 @@ func TestWsPlaceOrder(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
 
-	var resp WsPlaceOrderInput
+	var resp WsOperationInput
 	err := json.Unmarshal([]byte(placeOrderArgs), &resp)
 	if err != nil {
 		t.Error(err)
@@ -3052,7 +3086,7 @@ func TestWsPlaceMultipleOrder(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
 
-	var resp WsPlaceOrderInput
+	var resp WsOperationInput
 	if err := json.Unmarshal([]byte(placeOrderArgs), &resp); err != nil {
 		t.Error(err)
 	}
@@ -3062,7 +3096,11 @@ func TestWsPlaceMultipleOrder(t *testing.T) {
 	} else if len(pairs) == 0 {
 		t.Skip("no pairs found")
 	}
-	if _, err := ok.WsPlaceMultipleOrder(resp.Arguments); err != nil {
+	args, okay := resp.Arguments.([]PlaceOrderRequestParam)
+	if !okay {
+		t.Fatal("unexpected argument")
+	}
+	if _, err := ok.WsPlaceMultipleOrder(args); err != nil {
 		t.Error("Okx WsPlaceMultipleOrder() error", err)
 	}
 }
@@ -4302,6 +4340,15 @@ func TestCancelSpreadOrder(t *testing.T) {
 	}
 }
 
+func TestWsCancelSpreadOrder(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
+	_, err := ok.WsCancelSpreadOrder("1234", "")
+	if err != nil {
+		t.Error(err)
+	}
+}
+
 func TestCancelAllSpreadOrders(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
@@ -4311,10 +4358,31 @@ func TestCancelAllSpreadOrders(t *testing.T) {
 	}
 }
 
+func TestWsCancelAllSpreadOrders(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
+	_, err := ok.WsCancelAllSpreadOrders("BTC-USDT_BTC-USDT-SWAP")
+	if err != nil {
+		t.Error(err)
+	}
+}
+
 func TestAmendSpreadOrder(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
 	_, err := ok.AmendSpreadOrder(context.Background(), &AmendSpreadOrderParam{
+		OrderID: "2510789768709120",
+		NewSize: 2,
+	})
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestWsAmandSpreadOrder(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
+	_, err := ok.WsAmandSpreadOrder(&AmendSpreadOrderParam{
 		OrderID: "2510789768709120",
 		NewSize: 2,
 	})
@@ -4443,6 +4511,22 @@ func TestGetDepositWithdrawalStatus(t *testing.T) {
 func TestGetPublicExchangeList(t *testing.T) {
 	t.Parallel()
 	_, err := ok.GetPublicExchangeList(context.Background())
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestWsPlaceSpreadOrder(t *testing.T) {
+	t.Parallel()
+	setupWS()
+	_, err := ok.WsPlaceSpreadOrder(&SpreadOrderParam{
+		SpreadID:      "BTC-USDT_BTC-USDT-SWAP",
+		ClientOrderID: "b15",
+		Side:          "buy",
+		OrderType:     "limit",
+		Price:         2.15,
+		Size:          2,
+	})
 	if err != nil {
 		t.Error(err)
 	}

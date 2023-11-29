@@ -3,6 +3,7 @@ package okx
 import (
 	"encoding/json"
 	"errors"
+	"reflect"
 	"strconv"
 	"time"
 
@@ -11,6 +12,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 )
 
 const (
@@ -716,6 +718,7 @@ type PlaceOrderRequestParam struct {
 }
 
 // OrderData response message for place, cancel, and amend an order requests.
+// implements the StatusCodeHolder interface
 type OrderData struct {
 	OrderID       string `json:"ordId,omitempty"`
 	RequestID     string `json:"reqId,omitempty"`
@@ -724,6 +727,26 @@ type OrderData struct {
 	SCode         string `json:"sCode,omitempty"`
 	SMessage      string `json:"sMsg,omitempty"`
 }
+
+// GetSCode returns a status code value
+func (a *OrderData) GetSCode() string { return a.SCode }
+
+// GetSMsg returns a status message value
+func (a *OrderData) GetSMsg() string { return a.SMessage }
+
+// WsCancelSpreadOrders used to hold response for cancelling all spread orders.
+// implements the StatusCodeHolder interface
+type WsCancelSpreadOrders struct {
+	Result   bool   `json:"result"`
+	SCode    string `json:"sCode,omitempty"`
+	SMessage string `json:"sMsg,omitempty"`
+}
+
+// GetSCode returns a status code value
+func (a *WsCancelSpreadOrders) GetSCode() string { return a.SCode }
+
+// GetSMsg returns a status message value
+func (a *WsCancelSpreadOrders) GetSMsg() string { return a.SMessage }
 
 // CancelOrderRequestParam represents order parameters to cancel an order.
 type CancelOrderRequestParam struct {
@@ -2562,11 +2585,26 @@ type SpreadOrderParam struct {
 
 // SpreadOrderResponse represents a spread create order response
 type SpreadOrderResponse struct {
+	SCode         string `json:"sCode"`
+	SMsg          string `json:"sMsg"`
 	ClientOrderID string `json:"clOrdId"`
 	OrderID       string `json:"ordId"`
 	Tag           string `json:"tag"`
-	SCode         string `json:"sCode"`
-	SMsg          string `json:"sMsg"`
+
+	// Added when amending spread order through websocket
+	RequestID string `json:"reqId"`
+}
+
+// GetSCode returns a status code value
+func (a *SpreadOrderResponse) GetSCode() string { return a.SCode }
+
+// GetSMsg returns a status message value
+func (a *SpreadOrderResponse) GetSMsg() string { return a.SMsg }
+
+// StatusCodeHolder interface to represent structs which has a status code information
+type StatusCodeHolder interface {
+	GetSCode() string
+	GetSMsg() string
 }
 
 // AmendSpreadOrderParam holds amend parameters for spread order
@@ -2717,15 +2755,17 @@ type WebsocketLoginData struct {
 
 // SubscriptionInfo holds the channel and instrument IDs.
 type SubscriptionInfo struct {
-	Channel        string `json:"channel"`
-	InstrumentID   string `json:"instId,omitempty"`
-	InstrumentType string `json:"instType,omitempty"`
-	Underlying     string `json:"uly,omitempty"`
-	UID            string `json:"uid,omitempty"` // user identifier
+	Channel          string `json:"channel"`
+	InstrumentID     string `json:"instId,omitempty"`
+	InstrumentFamily string `json:"instFamily,omitempty"`
+	InstrumentType   string `json:"instType,omitempty"`
+	Underlying       string `json:"uly,omitempty"`
+	UID              string `json:"uid,omitempty"` // user identifier
 
 	// For Algo Orders
 	AlgoID   string `json:"algoId,omitempty"`
-	Currency string `json:"ccy,omitempty"` // Currency:
+	Currency string `json:"ccy,omitempty"`
+	SpreadID string `json:"sprdId,omitempty"`
 }
 
 // WSSubscriptionInformationList websocket subscription and unsubscription operation inputs.
@@ -2734,13 +2774,40 @@ type WSSubscriptionInformationList struct {
 	Arguments []SubscriptionInfo `json:"args"`
 }
 
-// WSOrderResponse place order response thought the websocket connection.
-type WSOrderResponse struct {
-	ID        string      `json:"id"`
-	Operation string      `json:"op"`
-	Data      []OrderData `json:"data"`
-	Code      string      `json:"code,omitempty"`
-	Msg       string      `json:"msg,omitempty"`
+// OperationResponse holds common operation identification
+type OperationResponse struct {
+	ID        string `json:"id"`
+	Operation string `json:"op"`
+	Code      string `json:"code"`
+	Msg       string `json:"msg"`
+}
+
+// WsPlaceOrderResponse place order response thought the websocket connection.
+type WsPlaceOrderResponse struct {
+	OperationResponse
+	Data []OrderData `json:"data"`
+}
+
+// SpreadOrderInfo holds spread order response information
+// implements the StatusCodeHolder interface
+type SpreadOrderInfo struct {
+	ClientOrderID string `json:"clOrdId"`
+	OrderID       string `json:"ordId"`
+	Tag           string `json:"tag"`
+	SCode         string `json:"sCode"`
+	SMsg          string `json:"sMsg"`
+}
+
+// GetSCode returns a status code value
+func (a *SpreadOrderInfo) GetSCode() string { return a.SCode }
+
+// GetSMsg returns a status message value
+func (a *SpreadOrderInfo) GetSMsg() string { return a.SMsg }
+
+// WsSpreadOrderResponse holds websocket spread order response.
+type WsSpreadOrderResponse struct {
+	OperationResponse
+	Data []SpreadOrderInfo `json:"data"`
 }
 
 type wsRequestInfo struct {
@@ -2765,7 +2832,7 @@ type wsIncomingData struct {
 }
 
 // copyToPlaceOrderResponse returns WSPlaceOrderResponse struct instance
-func (w *wsIncomingData) copyToPlaceOrderResponse() (*WSOrderResponse, error) {
+func (w *wsIncomingData) copyToPlaceOrderResponse() (*WsPlaceOrderResponse, error) {
 	if len(w.Data) == 0 {
 		return nil, errEmptyPlaceOrderResponse
 	}
@@ -2774,11 +2841,26 @@ func (w *wsIncomingData) copyToPlaceOrderResponse() (*WSOrderResponse, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &WSOrderResponse{
-		Operation: w.Operation,
-		ID:        w.ID,
-		Data:      placeOrds,
+	return &WsPlaceOrderResponse{
+		OperationResponse: OperationResponse{
+			Operation: w.Operation,
+			ID:        w.ID,
+		},
+		Data: placeOrds,
 	}, nil
+}
+
+// copyResponseToInterface returns unmarshals the response data into the dataHolder interface.
+func (w *wsIncomingData) copyResponseToInterface(dataHolder interface{}) error {
+	rv := reflect.ValueOf(dataHolder)
+	if rv.Kind() != reflect.Pointer /* TODO: || rv.IsNil()*/ {
+		return errInvalidResponseParam
+	}
+	if len(w.Data) == 0 {
+		return errEmptyPlaceOrderResponse
+	}
+	var spreadOrderResps []SpreadOrderInfo
+	return json.Unmarshal(w.Data, &spreadOrderResps)
 }
 
 // WSInstrumentResponse represents websocket instruments push message.
@@ -2799,25 +2881,11 @@ type WSOpenInterestResponse struct {
 	Data     []OpenInterest   `json:"data"`
 }
 
-// WsPlaceOrderInput for all websocket request inputs.
-type WsPlaceOrderInput struct {
-	ID        string                   `json:"id"`
-	Operation string                   `json:"op"`
-	Arguments []PlaceOrderRequestParam `json:"args"`
-}
-
-// WsCancelOrderInput websocket cancel order request
-type WsCancelOrderInput struct {
-	ID        string                    `json:"id"`
-	Operation string                    `json:"op"`
-	Arguments []CancelOrderRequestParam `json:"args"`
-}
-
-// WsAmendOrderInput websocket handler amend Order response
-type WsAmendOrderInput struct {
-	ID        string                    `json:"id"`
-	Operation string                    `json:"op"`
-	Arguments []AmendOrderRequestParams `json:"args"`
+// WsOperationInput for all websocket request inputs.
+type WsOperationInput struct {
+	ID        string      `json:"id"`
+	Operation string      `json:"op"`
+	Arguments interface{} `json:"args"`
 }
 
 // WsOrderActionResponse holds websocket response Amendment request
@@ -3246,6 +3314,28 @@ type WsOrderBook struct {
 	Data     []WsOrderBookData `json:"data"`
 }
 
+// WsOptionTrades represents option trade data
+type WsOptionTrades struct {
+	Arg  SubscriptionInfo `json:"arg"`
+	Data []PublicTrade    `json:"data"`
+}
+
+// PublicTrade represents public trade item for option, block, and others
+type PublicTrade struct {
+	FillVolume       convert.StringToFloat64 `json:"fillVol"`
+	ForwardPrice     convert.StringToFloat64 `json:"fwdPx"`
+	IndexPrice       convert.StringToFloat64 `json:"idxPx"`
+	InstrumentFamily string                  `json:"instFamily"`
+	InstrumentID     string                  `json:"instId"`
+	MarkPrice        convert.StringToFloat64 `json:"markPx"`
+	OptionType       string                  `json:"optType"`
+	Price            convert.StringToFloat64 `json:"px"`
+	Side             string                  `json:"side"`
+	Size             convert.StringToFloat64 `json:"sz"`
+	TradeID          string                  `json:"tradeId"`
+	Timestamp        convert.ExchangeTime    `json:"ts"`
+}
+
 // WsOrderBookData represents a book order push data.
 type WsOrderBookData struct {
 	Asks      [][4]string          `json:"asks"`
@@ -3288,6 +3378,12 @@ type WsPublicTradesResponse struct {
 type WsBlockTicker struct {
 	Argument SubscriptionInfo `json:"arg"`
 	Data     []BlockTicker    `json:"data"`
+}
+
+// PublicBlockTrades holds public block trades
+type PublicBlockTrades struct {
+	Arg  SubscriptionInfo `json:"arg"`
+	Data []PublicTrade    `json:"data"`
 }
 
 // PMLimitationResponse represents portfolio margin mode limitation for specific underlying
@@ -3896,4 +3992,117 @@ type Book5Data struct {
 	InstrumentID string               `json:"instId"`
 	Timestamp    convert.ExchangeTime `json:"ts"`
 	SequenceID   int64                `json:"seqId"`
+}
+
+// WsSpreadOrder represents spread order detail.
+type WsSpreadOrder struct {
+	SpreadID          string                  `json:"sprdId"`
+	OrderID           string                  `json:"ordId"`
+	ClientOrderID     string                  `json:"clOrdId"`
+	Tag               string                  `json:"tag"`
+	Price             convert.StringToFloat64 `json:"px"`
+	Size              convert.StringToFloat64 `json:"sz"`
+	OrderType         string                  `json:"ordType"`
+	Side              string                  `json:"side"`
+	FillSize          convert.StringToFloat64 `json:"fillSz"`
+	FillPrice         convert.StringToFloat64 `json:"fillPx"`
+	TradeID           string                  `json:"tradeId"`
+	AccFillSize       convert.StringToFloat64 `json:"accFillSz"`
+	PendingFillSize   convert.StringToFloat64 `json:"pendingFillSz"`
+	PendingSettleSize convert.StringToFloat64 `json:"pendingSettleSz"`
+	CanceledSize      convert.StringToFloat64 `json:"canceledSz"`
+	State             string                  `json:"state"`
+	AvgPrice          convert.StringToFloat64 `json:"avgPx"`
+	CancelSource      string                  `json:"cancelSource"`
+	UpdateTime        convert.ExchangeTime    `json:"uTime"`
+	CreationTime      convert.ExchangeTime    `json:"cTime"`
+	Code              string                  `json:"code"`
+	Msg               string                  `json:"msg"`
+}
+
+// WsSpreadOrderTrade trade of an order.
+type WsSpreadOrderTrade struct {
+	Argument struct {
+		Channel  string `json:"channel"`
+		SpreadID string `json:"sprdId"`
+		UID      string `json:"uid"`
+	} `json:"arg"`
+	Data []struct {
+		SpreadID      string                  `json:"sprdId"`
+		TradeID       string                  `json:"tradeId"`
+		OrderID       string                  `json:"ordId"`
+		ClientOrderID string                  `json:"clOrdId"`
+		Tag           string                  `json:"tag"`
+		FillPrice     convert.StringToFloat64 `json:"fillPx"`
+		FillSize      convert.StringToFloat64 `json:"fillSz"`
+		State         string                  `json:"state"`
+		Side          string                  `json:"side"`
+		ExecType      string                  `json:"execType"`
+		Timestamp     convert.ExchangeTime    `json:"ts"`
+		Legs          []struct {
+			InstrumentID string                  `json:"instId"`
+			Price        convert.StringToFloat64 `json:"px"`
+			Size         convert.StringToFloat64 `json:"sz"`
+			Side         string                  `json:"side"`
+			Fee          convert.StringToFloat64 `json:"fee"`
+			FeeCcy       string                  `json:"feeCcy"`
+			TradeID      string                  `json:"tradeId"`
+		} `json:"legs"`
+		Code string `json:"code"`
+		Msg  string `json:"msg"`
+	} `json:"data"`
+}
+
+// WsSpreadOrderbook holds spread orderbook data.
+type WsSpreadOrderbook struct {
+	Arg struct {
+		Channel  string `json:"channel"`
+		SpreadID string `json:"sprdId"`
+	} `json:"arg"`
+	Data []struct {
+		Asks      [][3]string          `json:"asks"`
+		Bids      [][3]string          `json:"bids"`
+		Timestamp convert.ExchangeTime `json:"ts"`
+	} `json:"data"`
+}
+
+// ExtractSpreadOrder extracts WsSpreadOrderbookData from WsSpreadOrderbook
+func (a *WsSpreadOrderbook) ExtractSpreadOrder() (*WsSpreadOrderbookData, error) {
+	resp := &WsSpreadOrderbookData{
+		Argument: SubscriptionInfo{
+			SpreadID: a.Arg.SpreadID,
+			Channel:  a.Arg.Channel,
+		},
+		Data: make([]WsSpreadOrderbookItem, len(a.Data)),
+	}
+	var err error
+	for x := range a.Data {
+		resp.Data[x].Timestamp = a.Data[x].Timestamp.Time()
+		resp.Data[x].Asks = make([]orderbook.Item, len(a.Data[x].Asks))
+		resp.Data[x].Bids = make([]orderbook.Item, len(a.Data[x].Bids))
+
+		for as := range a.Data[x].Asks {
+			resp.Data[x].Asks[as].Price, err = strconv.ParseFloat(a.Data[x].Asks[a][0])
+			if err != nil {
+				return nil, err
+			}
+			resp.Data[x].Asks[as].Amount, err = strconv.ParseFloat(a.Data[x].Asks[a][0])
+			if err != nil {
+				return nil, err
+			}
+		}
+	}
+	return nil, nil
+}
+
+// WsSpreadOrderbookItem represents an orderbook asks and bids details.
+type WsSpreadOrderbookItem struct {
+	Asks      []orderbook.Item
+	Bids      []orderbook.Item
+	Timestamp time.Time
+}
+
+type WsSpreadOrderbookData struct {
+	Argument SubscriptionInfo `json:"arg"`
+	Data     []WsSpreadOrderbookItem
 }

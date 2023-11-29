@@ -4017,27 +4017,35 @@ func (ok *Okx) GetBlockTrades(ctx context.Context, instrumentID string) ([]Block
 
 // PlaceSpreadOrder places new spread order.
 func (ok *Okx) PlaceSpreadOrder(ctx context.Context, arg *SpreadOrderParam) (*SpreadOrderResponse, error) {
-	if arg == nil || *arg == (SpreadOrderParam{}) {
-		return nil, errNilArgument
-	}
-	if arg.SpreadID == "" {
-		return nil, errSpreadIDMissing
-	}
-	if arg.OrderType == "" {
-		return nil, fmt.Errorf("%w spread order type is required", order.ErrTypeIsInvalid)
-	}
-	if arg.Size <= 0 {
-		return nil, errMissingNewSize
-	}
-	if arg.Price <= 0 {
-		return nil, errInvalidMinimumPrice
-	}
-	arg.Side = strings.ToLower(arg.Side)
-	if arg.Side != "buy" && arg.Side != "sell" {
-		return nil, fmt.Errorf("%w %s", errInvalidOrderSide, arg.Side)
+	err := ok.validatePlaceSpreadOrderParam(arg)
+	if err != nil {
+		return nil, err
 	}
 	var resp *SpreadOrderResponse
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, placeSpreadOrderEPL, http.MethodPost, "sprd/order", arg, &resp, true)
+}
+
+func (ok *Okx) validatePlaceSpreadOrderParam(arg *SpreadOrderParam) error {
+	if arg == nil || *arg == (SpreadOrderParam{}) {
+		return errNilArgument
+	}
+	if arg.SpreadID == "" {
+		return errSpreadIDMissing
+	}
+	if arg.OrderType == "" {
+		return fmt.Errorf("%w spread order type is required", order.ErrTypeIsInvalid)
+	}
+	if arg.Size <= 0 {
+		return errMissingNewSize
+	}
+	if arg.Price <= 0 {
+		return errInvalidMinimumPrice
+	}
+	arg.Side = strings.ToLower(arg.Side)
+	if arg.Side != "buy" && arg.Side != "sell" {
+		return fmt.Errorf("%w %s", errInvalidOrderSide, arg.Side)
+	}
+	return nil
 }
 
 // CancelSpreadOrder cancels an incomplete spread order
@@ -5075,7 +5083,7 @@ func (ok *Okx) GetTakerFlow(ctx context.Context, currency string, period kline.I
 // URL arguments must be in the request path and not as url.URL values
 func (ok *Okx) SendHTTPRequest(ctx context.Context, ep exchange.URL, f request.EndpointLimit, httpMethod, requestPath string, data, result interface{}, authenticated bool, useAsItIs ...bool) (err error) {
 	rv := reflect.ValueOf(result)
-	if rv.Kind() != reflect.Pointer /*|| rv.IsNil()*/ {
+	if rv.Kind() != reflect.Pointer /* TODO: || rv.IsNil()*/ {
 		return errInvalidResponseParam
 	}
 	endpoint, err := ok.API.Endpoints.GetURL(ep)
