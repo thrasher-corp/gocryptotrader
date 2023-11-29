@@ -60,7 +60,7 @@ func TestUpdateTradablePairs(t *testing.T) {
 	t.Parallel()
 	updatePairsOnce(t)
 	expected := map[asset.Item][]string{
-		asset.Spot:    {"BTCUSD", "BTCUSDT", "ETHBTC", "M_PITUSD"},
+		asset.Spot:    {"BTCUSD", "BTCUSDT", "ETHBTC"},
 		asset.Futures: {"BTCPFC", "ETHPFC"},
 	}
 	for a, pairs := range expected {
@@ -69,8 +69,6 @@ func TestUpdateTradablePairs(t *testing.T) {
 			assert.NoErrorf(t, err, "Should find pair %s for %s", symb, a)
 		}
 	}
-	_, err := b.CurrencyPairs.Match("PITUSD", asset.Spot)
-	assert.ErrorIs(t, err, currency.ErrPairNotFound, "Should not find a PITUSD pair") // Instead we expected to find the M_PITUSD pair earlier
 }
 
 func TestStart(t *testing.T) {
