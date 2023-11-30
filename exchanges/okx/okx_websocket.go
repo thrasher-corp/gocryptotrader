@@ -84,7 +84,9 @@ const (
 	okxSpreadTrades = "sprd-trades"
 
 	// Public Spread Subscriptions
-	okxSpreadOrderbook = "sprd-books5"
+	okxSpreadOrderbook    = "sprd-books5"
+	okxSpreadPublicTrades = "sprd-public-trades"
+	okxSpreadPublicTicker = "sprd-tickers"
 
 	// Ticker channel
 	okxChannelTickers                = "tickers"
@@ -435,7 +437,6 @@ func (ok *Okx) handleSubscription(operation string, subscriptions []stream.Chann
 			arg.Channel == okxChannelTickers ||
 			arg.Channel == okxChannelOrderBooks ||
 			arg.Channel == okxChannelOrderBooks5 ||
-			arg.Channel == okxSpreadOrderbook ||
 			arg.Channel == okxChannelOrderBooks50TBT ||
 			arg.Channel == okxChannelOrderBooksTBT ||
 			arg.Channel == okxChannelFundingRate ||
@@ -472,7 +473,10 @@ func (ok *Okx) handleSubscription(operation string, subscriptions []stream.Chann
 		case okxChannelOptionTrades:
 			instrumentFamily, _ = subscriptions[i].Params["instrumentFamily"].(string)
 		case okxSpreadOrders,
-			okxSpreadTrades:
+			okxSpreadTrades,
+			okxSpreadOrderbook,
+			okxSpreadPublicTrades,
+			okxSpreadPublicTicker:
 			spreadID = subscriptions[i].Currency.String()
 		}
 
@@ -678,6 +682,10 @@ func (ok *Okx) WsHandleData(respRaw []byte) error {
 		return ok.wsProcessOrderbook5(respRaw)
 	case okxSpreadOrderbook:
 		return ok.wsProcessSpreadOrderbook(respRaw)
+	case okxSpreadPublicTrades:
+		return ok.wsProcessPublicSpreadTrades(respRaw)
+	case okxSpreadPublicTicker:
+		return ok.wsProcessPublicSpreadTicker(respRaw)
 	case okxChannelOrderBooks,
 		okxChannelOrderBooks50TBT,
 		okxChannelBBOTBT,
@@ -864,6 +872,70 @@ func (ok *Okx) wsProcessIndexCandles(respRaw []byte) error {
 		}
 	}
 	return nil
+}
+
+// wsProcessPublicSpreadTicker process spread order ticker push data.
+func (ok *Okx) wsProcessPublicSpreadTicker(respRaw []byte) error {
+	var resp WsSpreadPushData
+	data := []WsSpreadPublicTicker{}
+	resp.Data = data
+	err := json.Unmarshal(respRaw, &resp)
+	if err != nil {
+		return err
+	}
+	pair, err := currency.NewPairFromString(resp.Argument.SpreadID)
+	if err != nil {
+		return err
+	}
+	tickers := make([]ticker.Price, len(data))
+	for x := range data {
+		tickers[x] = ticker.Price{
+			Last:         data[x].Last.Float64(),
+			Bid:          data[x].BidPrice.Float64(),
+			Ask:          data[x].AskPrice.Float64(),
+			Pair:         pair,
+			ExchangeName: ok.Name,
+			AssetType:    asset.PerpetualSwap,
+			LastUpdated:  data[x].Timestamp.Time(),
+		}
+	}
+	ok.Websocket.DataHandler <- tickers
+	return nil
+}
+
+// wsProcessPublicSpreadTrades retrieve the recent trades data from sprd-public-trades.
+// Data will be pushed whenever there is a trade.
+// Every update contains only one trade.
+func (ok *Okx) wsProcessPublicSpreadTrades(respRaw []byte) error {
+	var resp WsSpreadPushData
+	data := []WsSpreadPublicTrade{}
+	resp.Data = data
+	err := json.Unmarshal(respRaw, &resp)
+	if err != nil {
+		return err
+	}
+	pair, err := currency.NewPairFromString(resp.Argument.SpreadID)
+	if err != nil {
+		return err
+	}
+	trades := make([]trade.Data, len(data))
+	for x := range data {
+		oSide, err := order.StringToOrderSide(data[x].Side)
+		if err != nil {
+			return err
+		}
+		trades[x] = trade.Data{
+			TID:          data[x].TradeID,
+			Exchange:     ok.Name,
+			CurrencyPair: pair,
+			AssetType:    asset.PerpetualSwap,
+			Side:         oSide,
+			Price:        data[x].Price.Float64(),
+			Amount:       data[x].Size.Float64(),
+			Timestamp:    data[x].Timestamp.Time(),
+		}
+	}
+	return trade.AddTradesToBuffer(ok.Name, trades...)
 }
 
 // wsProcessSpreadOrderbook process spread orderbook data.

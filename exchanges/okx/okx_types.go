@@ -4066,6 +4066,34 @@ type WsSpreadOrderbook struct {
 	} `json:"data"`
 }
 
+// WsSpreadPushData holds push data.
+type WsSpreadPushData struct {
+	Argument SubscriptionInfo `json:"arg"`
+	Data     interface{}      `json:"data"`
+}
+
+// WsSpreadPublicTicker holds spread public ticker datas.
+type WsSpreadPublicTicker struct {
+	SpreadID  string                  `json:"sprdId"`
+	Last      convert.StringToFloat64 `json:"last"`
+	LastSize  convert.StringToFloat64 `json:"lastSz"`
+	AskPrice  convert.StringToFloat64 `json:"askPx"`
+	AskSize   convert.StringToFloat64 `json:"askSz"`
+	BidPrice  convert.StringToFloat64 `json:"bidPx"`
+	BidSize   convert.StringToFloat64 `json:"bidSz"`
+	Timestamp convert.ExchangeTime    `json:"ts"`
+}
+
+// WsSpreadPublicTrade holds trades data from sprd-public-trades.
+type WsSpreadPublicTrade struct {
+	SpreadID  string                  `json:"sprdId"`
+	Side      string                  `json:"side"`
+	Size      convert.StringToFloat64 `json:"sz"`
+	Price     convert.StringToFloat64 `json:"px"`
+	TradeID   string                  `json:"tradeId"`
+	Timestamp convert.ExchangeTime    `json:"ts"`
+}
+
 // ExtractSpreadOrder extracts WsSpreadOrderbookData from WsSpreadOrderbook
 func (a *WsSpreadOrderbook) ExtractSpreadOrder() (*WsSpreadOrderbookData, error) {
 	resp := &WsSpreadOrderbookData{
