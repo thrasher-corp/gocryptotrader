@@ -388,15 +388,20 @@ func TestGetOrderStatus(t *testing.T) {
 
 func TestGetWithdrawalRequests(t *testing.T) {
 	t.Parallel()
-
-	_, err := b.GetWithdrawalRequests(context.Background(), 0)
-	switch {
-	case sharedtestvalues.AreAPICredentialsSet(b) && err != nil && !mockTests:
-		t.Error("GetWithdrawalRequests() error", err)
-	case !sharedtestvalues.AreAPICredentialsSet(b) && err == nil && !mockTests:
-		t.Error("Expecting an error when no keys are set")
-	case mockTests && err != nil:
-		t.Error("GetWithdrawalRequests() error", err)
+	if !mockTests {
+		sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	}
+	r, err := b.GetWithdrawalRequests(context.Background(), 1)
+	assert.NoError(t, err, "GetWithdrawalRequests should not error")
+	if mockTests {
+		assert.NotEmpty(t, r, "GetWithdrawalRequests should return a withdrawal request")
+		for _, req := range r {
+			assert.Equal(t, int64(1), req.OrderID, "OrderId should match")
+			assert.Equal(t, "aMDHooGmAkyrsaQiKhAORhSNTmoRzxqWIO", req.Address, "Address should match")
+			assert.Equal(t, "2022-01-31 16:07:32", req.Date, "Date should match")
+			assert.Equal(t, currency.BTC, req.Currency, "Currency should match")
+			assert.Equal(t, 0.00006000, req.Amount, "Amount should match")
+		}
 	}
 }
 
