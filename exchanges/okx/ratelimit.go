@@ -285,7 +285,9 @@ type RateLimit struct {
 	GetOpenInterestAndVolume          *rate.Limiter
 	GetTakerFlow                      *rate.Limiter
 	// Status Endpoints
-	GetEventStatus *rate.Limiter
+	GetEventStatus                   *rate.Limiter
+	GetAffilateInviteesDetail        *rate.Limiter
+	GetUserAffilateRebateInformation *rate.Limiter
 }
 
 const (
@@ -528,6 +530,9 @@ const (
 	getIndexCandlesticksHistoryEPL
 	getMarkPriceCandlesticksHistoryEPL
 	getEconomicCalendarEPL
+
+	getAffilateInviteesDetailEPL
+	getUserAffilateRebateInformationEPL
 )
 
 // Limit executes rate limiting for Okx exchange given the context and EndpointLimit
@@ -1010,6 +1015,10 @@ func (r *RateLimit) Limit(ctx context.Context, f request.EndpointLimit) error {
 		return r.GetTakerFlow.Wait(ctx)
 	case getEventStatusEPL:
 		return r.GetEventStatus.Wait(ctx)
+	case getAffilateInviteesDetailEPL:
+		return r.GetAffilateInviteesDetail.Wait(ctx)
+	case getUserAffilateRebateInformationEPL:
+		return r.GetUserAffilateRebateInformation.Wait(ctx)
 	default:
 		return errors.New("endpoint rate limit functionality not found")
 	}
@@ -1285,6 +1294,8 @@ func SetRateLimit() *RateLimit {
 
 		// Status Endpoints
 
-		GetEventStatus: request.NewRateLimit(fiveSecondsInterval, 1),
+		GetEventStatus:                   request.NewRateLimit(fiveSecondsInterval, 1),
+		GetAffilateInviteesDetail:        request.NewRateLimit(twoSecondsInterval, 20),
+		GetUserAffilateRebateInformation: request.NewRateLimit(twoSecondsInterval, 20),
 	}
 }

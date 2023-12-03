@@ -157,6 +157,7 @@ var (
 	errStrategyNameRequired                   = errors.New("strategy name required")
 	errSubPositionIDRequired                  = errors.New("sub position id is required")
 	errSpreadIDMissing                        = errors.New("spread id is required")
+	errUserIDRequired                         = errors.New("uid is required")
 )
 
 /************************************ MarketData Endpoints *************************************************/
@@ -1191,9 +1192,13 @@ func (ok *Okx) GetPublicTrades(ctx context.Context, beginID, endID string, limit
 /*************************************** Funding Tradings ********************************/
 
 // GetFundingCurrencies Retrieve a list of all currencies.
-func (ok *Okx) GetFundingCurrencies(ctx context.Context) ([]CurrencyResponse, error) {
+func (ok *Okx) GetFundingCurrencies(ctx context.Context, ccy string) ([]CurrencyResponse, error) {
+	params := url.Values{}
+	if ccy != "" {
+		params.Set("ccy", ccy)
+	}
 	var resp []CurrencyResponse
-	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getCurrenciesEPL, http.MethodGet, "asset/currencies", nil, &resp, true)
+	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getCurrenciesEPL, http.MethodGet, common.EncodeURLValues("asset/currencies", params), nil, &resp, true)
 }
 
 // GetBalance retrieves the funding account balances of all the assets and the amount that is available or on hold.
@@ -1213,7 +1218,7 @@ func (ok *Okx) GetNonTradableAssets(ctx context.Context, currency string) ([]Non
 		params.Set("ccy", currency)
 	}
 	var resp []NonTradableAsset
-	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getNonTradableAssetsEPL, http.MethodGet, common.EncodeURLValues("asset/balances", params), nil, &resp, true)
+	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getNonTradableAssetsEPL, http.MethodGet, common.EncodeURLValues("asset/non-tradable-assets", params), nil, &resp, true)
 }
 
 // GetAccountAssetValuation view account asset valuation
@@ -3635,9 +3640,9 @@ func (ok *Okx) GetUnderlying(pair currency.Pair, a asset.Item) (string, error) {
 
 // GetPairFromInstrumentID returns a currency pair give an instrument ID and asset Item, which represents the instrument type.
 func (ok *Okx) GetPairFromInstrumentID(instrumentID string) (currency.Pair, error) {
-	codes := strings.Split(instrumentID, ok.CurrencyPairs.RequestFormat.Delimiter)
+	codes := strings.Split(instrumentID, currency.DashDelimiter)
 	if len(codes) >= 2 {
-		instrumentID = codes[0] + ok.CurrencyPairs.RequestFormat.Delimiter + strings.Join(codes[1:], ok.CurrencyPairs.RequestFormat.Delimiter)
+		instrumentID = codes[0] + currency.DashDelimiter + strings.Join(codes[1:], currency.DashDelimiter)
 	}
 	return currency.NewPairFromString(instrumentID)
 }
@@ -5078,6 +5083,31 @@ func (ok *Okx) GetTakerFlow(ctx context.Context, currency string, period kline.I
 	}, nil
 }
 
+// ********************************************************** Affilate **********************************************************************
+
+// The Affiliate API offers affiliate users a flexible fucntion to query the invitee information.
+// Simply enter the UID of your direct invitee to access their relevant information, empowering your affiliate business growth and day-to-day business operation.
+// If you have additional data requirements regarding the Affiliate API, please don't hesitate to contact your BD.
+// We will reach out to you through your BD to provide more comprehensive API support.
+
+// GetInviteesDetail retrieves affilate invitees details.
+func (ok *Okx) GetInviteesDetail(ctx context.Context, uid string) (*AffilateInviteesDetail, error) {
+	if uid == "" {
+		return nil, errUserIDRequired
+	}
+	var resp *AffilateInviteesDetail
+	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getAffilateInviteesDetailEPL, http.MethodGet, "affiliate/invitee/detail?uid="+uid, nil, &resp, true)
+}
+
+// GetUserAffilateRebateInformation this endpoint is used to get the user's affiliate rebate information for affiliate.
+func (ok *Okx) GetUserAffilateRebateInformation(ctx context.Context, apiKey string) (*AffilateRebateInfo, error) {
+	if apiKey == "" {
+		return nil, errInvalidAPIKey
+	}
+	var resp *AffilateRebateInfo
+	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getUserAffilateRebateInformationEPL, http.MethodGet, "users/partner/if-rebate?apiKey="+apiKey, nil, &resp, true)
+}
+
 // SendHTTPRequest sends an authenticated http request to a desired
 // path with a JSON payload (of present)
 // URL arguments must be in the request path and not as url.URL values
@@ -5224,11 +5254,11 @@ func (ok *Okx) GetAssetsFromInstrumentTypeOrID(instType, instrumentID string) ([
 	if instrumentID == "" {
 		return nil, fmt.Errorf("%w instrumentID", errEmptyArgument)
 	}
-	splitSymbol := strings.Split(instrumentID, ok.CurrencyPairs.RequestFormat.Delimiter)
+	splitSymbol := strings.Split(instrumentID, currency.DashDelimiter)
 	if len(splitSymbol) <= 1 {
 		return nil, fmt.Errorf("%w %v", currency.ErrCurrencyNotSupported, instrumentID)
 	}
-	pair, err := currency.NewPairDelimiter(instrumentID, ok.CurrencyPairs.RequestFormat.Delimiter)
+	pair, err := currency.NewPairDelimiter(instrumentID, currency.DashDelimiter)
 	if err != nil {
 		return nil, err
 	}

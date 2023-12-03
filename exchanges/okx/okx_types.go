@@ -266,25 +266,6 @@ func (a IndexCandlestickSlices) ExtractIndexCandlestick() ([]CandlestickHistoryI
 	return candles, nil
 }
 
-// EconomicCalendar represents macro-economic calendar data
-type EconomicCalendar struct {
-	Actual        string               `json:"actual"`
-	CalendarID    string               `json:"calendarId"`
-	Category      string               `json:"category"`
-	Currency      string               `json:"ccy"`
-	Date          convert.ExchangeTime `json:"date"`
-	DateSpan      string               `json:"dateSpan"`
-	Event         string               `json:"event"`
-	Forecast      string               `json:"forecast"`
-	Importance    string               `json:"importance"`
-	PrevInitial   string               `json:"prevInitial"`
-	Previous      string               `json:"previous"`
-	ReferenceDate convert.ExchangeTime `json:"refDate"`
-	Region        string               `json:"region"`
-	UpdateTime    convert.ExchangeTime `json:"uTime"`
-	Unit          string               `json:"unit"`
-}
-
 // CandleStick  holds candlestick price data
 type CandleStick struct {
 	OpenTime         time.Time
@@ -4151,4 +4132,165 @@ type WsSpreadOrderbookItem struct {
 type WsSpreadOrderbookData struct {
 	Argument SubscriptionInfo `json:"arg"`
 	Data     []WsSpreadOrderbookItem
+}
+
+// AffilateInviteesDetail represents affilate invitee's detail.
+type AffilateInviteesDetail struct {
+	InviteeLv         convert.StringToFloat64 `json:"inviteeLv"`
+	JoinTime          convert.ExchangeTime    `json:"joinTime"`
+	InviteeRebateRate convert.StringToFloat64 `json:"inviteeRebateRate"`
+	TotalCommission   convert.StringToFloat64 `json:"totalCommission"`
+}
+
+// AffilateRebateInfo represents rebate information.
+type AffilateRebateInfo struct {
+	Result bool   `json:"result"`
+	Type   string `json:"type"`
+}
+
+// WsDepositInfo represents a deposit information.
+type WsDepositInfo struct {
+	ActualDepBulkConfirm string                  `json:"actualDepBlkConfirm"`
+	Amount               convert.StringToFloat64 `json:"amt"`
+	AreaCodeFrom         string                  `json:"areaCodeFrom"`
+	Currency             string                  `json:"ccy"`
+	Chain                string                  `json:"chain"`
+	DepositID            string                  `json:"depId"`
+	From                 string                  `json:"from"`
+	FromWdID             string                  `json:"fromWdId"` // Internal transfer initiator's withdrawal ID
+	PushTime             convert.ExchangeTime    `json:"pTime"`
+	State                string                  `json:"state"`
+	SubAccount           string                  `json:"subAcct"`
+	To                   string                  `json:"to"`
+	Timestamp            convert.ExchangeTime    `json:"ts"`
+	TransactionID        string                  `json:"txId"`
+	UID                  string                  `json:"uid"`
+}
+
+// WsWithdrawlInfo represents push notification is triggered when a withdrawal is initiated or the withdrawal status changes.
+type WsWithdrawlInfo struct {
+	AddrEx           any                     `json:"addrEx"`
+	Amount           convert.StringToFloat64 `json:"amt"`
+	AreaCodeFrom     string                  `json:"areaCodeFrom"`
+	AreaCodeTo       string                  `json:"areaCodeTo"`
+	Currency         string                  `json:"ccy"`
+	Chain            string                  `json:"chain"`
+	ClientID         string                  `json:"clientId"`
+	Fee              convert.StringToFloat64 `json:"fee"`
+	FeeCurrency      string                  `json:"feeCcy"`
+	From             string                  `json:"from"`
+	Memo             string                  `json:"memo"`
+	NonTradableAsset bool                    `json:"nonTradableAsset"`
+	PushTime         convert.ExchangeTime    `json:"pTime"`
+	PmtID            string                  `json:"pmtId"`
+	State            string                  `json:"state"`
+	SubAcct          string                  `json:"subAcct"`
+	Tag              string                  `json:"tag"`
+	To               string                  `json:"to"`
+	Timestamp        convert.ExchangeTime    `json:"ts"`
+	TransactionID    string                  `json:"txId"`
+	UID              string                  `json:"uid"`
+	WithdrawalID     string                  `json:"wdId"`
+}
+
+// RecurringBuyOrder represents a recurring buy order instance.
+type RecurringBuyOrder struct {
+	AlgoClOrdID        string                  `json:"algoClOrdId"`
+	AlgoID             string                  `json:"algoId"`
+	AlgoOrderType      string                  `json:"algoOrdType"`
+	Amount             convert.StringToFloat64 `json:"amt"`
+	CreationTime       convert.ExchangeTime    `json:"cTime"`
+	Cycles             string                  `json:"cycles"`
+	InstrumentType     string                  `json:"instType"`
+	InvestmentAmount   convert.StringToFloat64 `json:"investmentAmt"`
+	InvestmentCurrency string                  `json:"investmentCcy"`
+	MarketCap          string                  `json:"mktCap"`
+	NextInvestTime     convert.ExchangeTime    `json:"nextInvestTime"`
+	PushTime           convert.ExchangeTime    `json:"pTime"`
+	Period             string                  `json:"period"`
+	ProfitAndLossRatio convert.StringToFloat64 `json:"pnlRatio"`
+	RecurringDay       string                  `json:"recurringDay"`
+	RecurringHour      string                  `json:"recurringHour"`
+	RecurringList      []struct {
+		AveragePrice convert.StringToFloat64 `json:"avgPx"`
+		Currency     string                  `json:"ccy"`
+		Profit       string                  `json:"profit"`
+		Price        convert.StringToFloat64 `json:"px"`
+		Ratio        convert.StringToFloat64 `json:"ratio"`
+		TotalAmount  convert.StringToFloat64 `json:"totalAmt"`
+	} `json:"recurringList"`
+	RecurringTime convert.ExchangeTime `json:"recurringTime"`
+	State         string               `json:"state"`
+	StrategyName  string               `json:"stgyName"`
+	Tag           string               `json:"tag"`
+	TimeZone      string               `json:"timeZone"`
+	TotalAnnRate  string               `json:"totalAnnRate"`
+	TotalPnl      string               `json:"totalPnl"`
+	UpdateTime    convert.ExchangeTime `json:"uTime"`
+}
+
+// LiquidiationOrder represents a recent liquidation order instance.
+type LiquidiationOrder struct {
+	Arg  SubscriptionInfo `json:"arg"`
+	Data []struct {
+		Details []struct {
+			BankruptcyLoss  convert.StringToFloat64 `json:"bkLoss"`
+			BankruptcyPrice convert.StringToFloat64 `json:"bkPx"`
+			Currency        string                  `json:"ccy"`
+			PosSide         string                  `json:"posSide"`
+			Side            string                  `json:"side"`
+			Size            convert.StringToFloat64 `json:"sz"`
+			Timestamp       convert.ExchangeTime    `json:"ts"`
+		} `json:"details"`
+		InstrumentFamily string `json:"instFamily"`
+		InstrumentID     string `json:"instId"`
+		InstrumentType   string `json:"instType"`
+		Underlying       string `json:"uly"`
+	} `json:"data"`
+}
+
+// ADLWarning represents auto-deleveraging warning.
+type ADLWarning struct {
+	Arg  SubscriptionInfo `json:"arg"`
+	Data []struct {
+		DecRate          string                  `json:"decRate"`
+		MaxBal           string                  `json:"maxBal"`
+		AdlRecRate       convert.StringToFloat64 `json:"adlRecRate"`
+		AdlRecBal        convert.StringToFloat64 `json:"adlRecBal"`
+		Bal              convert.StringToFloat64 `json:"bal"`
+		InstrumentType   string                  `json:"instType"`
+		AdlRate          convert.StringToFloat64 `json:"adlRate"`
+		InstrumentFamily string                  `json:"instFamily"`
+		MaxBalTimestamp  convert.ExchangeTime    `json:"maxBalTs"`
+		AdlType          string                  `json:"adlType"`
+		State            string                  `json:"state"`
+		AdlBalance       convert.StringToFloat64 `json:"adlBal"`
+		Timestamp        convert.ExchangeTime    `json:"ts"`
+	} `json:"data"`
+}
+
+// EconomicCalendar represents macro-economic calendar data
+type EconomicCalendar struct {
+	Actual      convert.StringToFloat64 `json:"actual"`
+	CalendarID  string                  `json:"calendarId"`
+	Date        convert.ExchangeTime    `json:"date"`
+	Region      string                  `json:"region"`
+	Category    string                  `json:"category"`
+	Event       string                  `json:"event"`
+	RefDate     convert.ExchangeTime    `json:"refDate"`
+	Previous    convert.StringToFloat64 `json:"previous"`
+	Forecast    convert.StringToFloat64 `json:"forecast"`
+	Importance  string                  `json:"importance"`
+	PrevInitial string                  `json:"prevInitial"`
+	Currency    string                  `json:"ccy"`
+	Unit        string                  `json:"unit"`
+	Timestamp   convert.ExchangeTime    `json:"ts"`
+	DateSpan    string                  `json:"dateSpan"`
+	UpdateTime  convert.ExchangeTime    `json:"uTime"`
+}
+
+// EconomicCalendarResponse represents response for economic calendar
+type EconomicCalendarResponse struct {
+	Arg  SubscriptionInfo   `json:"arg"`
+	Data []EconomicCalendar `json:"data"`
 }

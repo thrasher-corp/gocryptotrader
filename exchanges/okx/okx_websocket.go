@@ -32,9 +32,14 @@ var (
 var (
 	// defaultSubscribedChannels list of channels which are subscribed by default
 	defaultSubscribedChannels = []string{
-		okxChannelTrades,
-		okxChannelOrderBooks,
-		okxChannelTickers,
+		// okxChannelTrades,
+		// okxChannelOrderBooks,
+		// okxChannelTickers,
+
+		// okxSpreadOrderbook,
+		// okxSpreadOrderbookLevel1,
+		// okxSpreadPublicTicker,
+		// okxSpreadPublicTrades,
 	}
 	// defaultAuthChannels list of channels which are subscribed when authenticated
 	defaultAuthChannels = []string{
@@ -84,9 +89,14 @@ const (
 	okxSpreadTrades = "sprd-trades"
 
 	// Public Spread Subscriptions
-	okxSpreadOrderbook    = "sprd-books5"
-	okxSpreadPublicTrades = "sprd-public-trades"
-	okxSpreadPublicTicker = "sprd-tickers"
+	okxSpreadOrderbookLevel1 = "sprd-bbo-tbt"
+	okxSpreadOrderbook       = "sprd-books5"
+	okxSpreadPublicTrades    = "sprd-public-trades"
+	okxSpreadPublicTicker    = "sprd-tickers"
+
+	// Withdrawal Info Channel subscriptions
+	okxWithdrawalInfo = "withdrawal-info"
+	okxDepositInfo    = "deposit-info"
 
 	// Ticker channel
 	okxChannelTickers                = "tickers"
@@ -112,8 +122,11 @@ const (
 	okxChannelGridOrdersContract   = "grid-orders-contract"
 	okxChannelMoonGridAlgoOrders   = "grid-orders-moon"
 	okxChannelGridPositions        = "grid-positions"
-	okcChannelGridSubOrders        = "grid-sub-orders"
-	okcRecurringBuyChannel         = "algo-recurring-buy"
+	okxChannelGridSubOrders        = "grid-sub-orders"
+	okxRecurringBuyChannel         = "algo-recurring-buy"
+	okxLiquidationOrders           = "liquidation-orders"
+	okxADLWarning                  = "adl-warning"
+	okxEconomicCalendar            = "economic-calendar"
 
 	// Public channels
 	okxChannelInstruments     = "instruments"
@@ -276,17 +289,6 @@ func (ok *Okx) WsAuth(ctx context.Context, dialer *websocket.Dialer) error {
 	if !ok.Websocket.CanUseAuthenticatedEndpoints() {
 		return fmt.Errorf("%v AuthenticatedWebsocketAPISupport not enabled", ok.Name)
 	}
-	err := ok.Websocket.AuthConn.Dial(dialer, http.Header{})
-	if err != nil {
-		return fmt.Errorf("%v Websocket connection %v error. Error %v", ok.Name, okxAPIWebsocketPrivateURL, err)
-	}
-	ok.Websocket.Wg.Add(1)
-	go ok.wsReadData(ok.Websocket.AuthConn)
-	ok.Websocket.AuthConn.SetupPingHandler(stream.PingHandler{
-		MessageType: websocket.TextMessage,
-		Message:     pingMsg,
-		Delay:       time.Second * 20,
-	})
 	creds, err := ok.GetCredentials(ctx)
 	if err != nil {
 		return err
@@ -313,7 +315,7 @@ func (ok *Okx) WsAuth(ctx context.Context, dialer *websocket.Dialer) error {
 			},
 		},
 	}
-	err = ok.Websocket.AuthConn.SendJSONMessage(request)
+	err = ok.Websocket.Conn.SendJSONMessage(request)
 	if err != nil {
 		return err
 	}
@@ -414,21 +416,26 @@ func (ok *Okx) handleSubscription(operation string, subscriptions []stream.Chann
 			okxChannelGridOrdersContract,
 			okxChannelMoonGridAlgoOrders,
 			okxChannelGridPositions,
-			okcChannelGridSubOrders,
-			okcRecurringBuyChannel,
+			okxChannelGridSubOrders,
+			okxRecurringBuyChannel,
 			okxSpreadOrders,
-			okxSpreadTrades:
+			okxSpreadTrades,
+			okxDepositInfo,
+			okxLiquidationOrders,
+			okxADLWarning,
+			okxWithdrawalInfo,
+			okxEconomicCalendar:
 			authSubscription = true
 		}
 
 		switch arg.Channel {
 		case okxChannelGridPositions,
-			okcRecurringBuyChannel:
+			okxRecurringBuyChannel:
 			algoID, _ = subscriptions[i].Params["algoId"].(string)
 		}
 
 		switch arg.Channel {
-		case okcChannelGridSubOrders,
+		case okxChannelGridSubOrders,
 			okxChannelGridPositions:
 			uid, _ = subscriptions[i].Params["uid"].(string)
 		}
@@ -468,16 +475,20 @@ func (ok *Okx) handleSubscription(operation string, subscriptions []stream.Chann
 		switch arg.Channel {
 		case okxChannelInstruments, okxChannelPositions, okxChannelOrders, okxChannelAlgoOrders,
 			okxChannelAlgoAdvance, okxChannelLiquidationWarning, okxChannelSpotGridOrder,
-			okxChannelGridOrdersContract, okxChannelMoonGridAlgoOrders, okxChannelEstimatedPrice:
+			okxChannelGridOrdersContract, okxChannelMoonGridAlgoOrders, okxChannelEstimatedPrice,
+			okxADLWarning, okxLiquidationOrders, okxRecurringBuyChannel:
 			instrumentType = ok.GetInstrumentTypeFromAssetItem(subscriptions[i].Asset)
-		case okxChannelOptionTrades:
-			instrumentFamily, _ = subscriptions[i].Params["instrumentFamily"].(string)
 		case okxSpreadOrders,
 			okxSpreadTrades,
+			okxSpreadOrderbookLevel1,
 			okxSpreadOrderbook,
 			okxSpreadPublicTrades,
 			okxSpreadPublicTicker:
 			spreadID = subscriptions[i].Currency.String()
+		}
+		switch arg.Channel {
+		case okxChannelOptionTrades, okxADLWarning:
+			instrumentFamily, _ = subscriptions[i].Params["instrumentFamily"].(string)
 		}
 
 		switch arg.Channel {
@@ -571,6 +582,7 @@ func (ok *Okx) handleSubscription(operation string, subscriptions []stream.Chann
 
 // WsHandleData will read websocket raw data and pass to appropriate handler
 func (ok *Okx) WsHandleData(respRaw []byte) error {
+	println(string(respRaw))
 	var resp wsIncomingData
 	err := json.Unmarshal(respRaw, &resp)
 	if err != nil {
@@ -659,7 +671,7 @@ func (ok *Okx) WsHandleData(respRaw []byte) error {
 	case okxChannelGridPositions:
 		var response WsContractGridAlgoOrder
 		return ok.wsProcessPushData(respRaw, &response)
-	case okcChannelGridSubOrders:
+	case okxChannelGridSubOrders:
 		var response WsGridSubOrderData
 		return ok.wsProcessPushData(respRaw, &response)
 	case okxChannelInstruments:
@@ -680,7 +692,8 @@ func (ok *Okx) WsHandleData(respRaw []byte) error {
 		return ok.wsProcessPushData(respRaw, &response)
 	case okxChannelOrderBooks5:
 		return ok.wsProcessOrderbook5(respRaw)
-	case okxSpreadOrderbook:
+	case okxSpreadOrderbookLevel1,
+		okxSpreadOrderbook:
 		return ok.wsProcessSpreadOrderbook(respRaw)
 	case okxSpreadPublicTrades:
 		return ok.wsProcessPublicSpreadTrades(respRaw)
@@ -712,10 +725,43 @@ func (ok *Okx) WsHandleData(respRaw []byte) error {
 		return ok.wsProcessSpreadOrders(respRaw)
 	case okxSpreadTrades:
 		return ok.wsProcessSpreadTrades(respRaw)
+	case okxWithdrawalInfo:
+		resp := &struct {
+			Arguments SubscriptionInfo `json:"arg"`
+			Data      []WsDepositInfo  `json:"data"`
+		}{}
+		return ok.wsProcessPushData(respRaw, resp)
+	case okxDepositInfo:
+		resp := &struct {
+			Arguments SubscriptionInfo  `json:"arg"`
+			Data      []WsWithdrawlInfo `json:"data"`
+		}{}
+		return ok.wsProcessPushData(respRaw, resp)
+	case okxRecurringBuyChannel:
+		resp := &struct {
+			Arguments SubscriptionInfo    `json:"arg"`
+			Data      []RecurringBuyOrder `json:"data"`
+		}{}
+		return ok.wsProcessPushData(respRaw, resp)
+	case okxLiquidationOrders:
+		var resp LiquidiationOrder
+		return ok.wsProcessPushData(respRaw, &resp)
+	case okxADLWarning:
+		var resp ADLWarning
+		return ok.wsProcessPushData(respRaw, &resp)
+	case okxEconomicCalendar:
+		var resp EconomicCalendarResponse
+		return ok.wsProcessPushData(respRaw, &resp)
 	default:
 		ok.Websocket.DataHandler <- stream.UnhandledMessageWarning{Message: ok.Name + stream.UnhandledMessage + string(respRaw)}
 		return nil
 	}
+}
+
+// wsProcessDepositInfo handles push notification is triggered when a deposit is initiated or the deposit status changes.
+// Supports subscriptions for accounts
+func (ok *Okx) wsProcessDepositInfo(respRaw []byte) error {
+	return nil
 }
 
 // wsProcessSpreadTrades handle and process spread order trades
@@ -743,7 +789,7 @@ func (ok *Okx) wsProcessSpreadTrades(respRaw []byte) error {
 		}
 		trades[x] = trade.Data{
 			Amount:       resp.Data[x].FillSize.Float64(),
-			AssetType:    asset.PerpetualSwap,
+			AssetType:    asset.Spread,
 			CurrencyPair: pair,
 			Exchange:     ok.Name,
 			Side:         oSide,
@@ -895,7 +941,7 @@ func (ok *Okx) wsProcessPublicSpreadTicker(respRaw []byte) error {
 			Ask:          data[x].AskPrice.Float64(),
 			Pair:         pair,
 			ExchangeName: ok.Name,
-			AssetType:    asset.PerpetualSwap,
+			AssetType:    asset.Spread,
 			LastUpdated:  data[x].Timestamp.Time(),
 		}
 	}
@@ -928,7 +974,7 @@ func (ok *Okx) wsProcessPublicSpreadTrades(respRaw []byte) error {
 			TID:          data[x].TradeID,
 			Exchange:     ok.Name,
 			CurrencyPair: pair,
-			AssetType:    asset.PerpetualSwap,
+			AssetType:    asset.Spread,
 			Side:         oSide,
 			Price:        data[x].Price.Float64(),
 			Amount:       data[x].Size.Float64(),
@@ -955,7 +1001,7 @@ func (ok *Okx) wsProcessSpreadOrderbook(respRaw []byte) error {
 	}
 	for x := range extractedResponse.Data {
 		err = ok.Websocket.Orderbook.LoadSnapshot(&orderbook.Base{
-			Asset:           asset.PerpetualSwap,
+			Asset:           asset.Spread,
 			Asks:            extractedResponse.Data[x].Asks,
 			Bids:            extractedResponse.Data[x].Bids,
 			LastUpdated:     resp.Data[x].Timestamp.Time(),
@@ -1611,15 +1657,20 @@ func (ok *Okx) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, err
 					Currency: pairs[p],
 				})
 			}
-		case okxSpreadOrders:
-			pairs, err := ok.GetEnabledPairs(asset.PerpetualSwap)
+		case okxSpreadOrders,
+			okxSpreadTrades,
+			okxSpreadOrderbookLevel1,
+			okxSpreadOrderbook,
+			okxSpreadPublicTrades,
+			okxSpreadPublicTicker:
+			pairs, err := ok.GetEnabledPairs(asset.Spread)
 			if err != nil {
 				return nil, err
 			}
 			for p := range pairs {
 				subscriptions = append(subscriptions, stream.ChannelSubscription{
 					Channel:  subs[c],
-					Asset:    asset.PerpetualSwap,
+					Asset:    asset.Spread,
 					Currency: pairs[p],
 				})
 			}
@@ -2290,7 +2341,7 @@ func (ok *Okx) GridPositionsSubscription(operation, algoID string) error {
 
 // GridSubOrders to retrieve grid sub orders. Data will be pushed when first subscribed. Data will be pushed when triggered by events such as placing order.
 func (ok *Okx) GridSubOrders(operation, algoID string) error {
-	return ok.wsAuthChannelSubscription(operation, okcChannelGridSubOrders, asset.Empty, currency.EMPTYPAIR, "", algoID, wsSubscriptionParameters{})
+	return ok.wsAuthChannelSubscription(operation, okxChannelGridSubOrders, asset.Empty, currency.EMPTYPAIR, "", algoID, wsSubscriptionParameters{})
 }
 
 // Public Websocket stream subscription

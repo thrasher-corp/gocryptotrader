@@ -78,7 +78,29 @@ func (ok *Okx) SetDefaults() {
 		Uppercase: true,
 	}
 
-	err := ok.SetGlobalPairsManager(cpf, cpf, asset.Spot, asset.Futures, asset.PerpetualSwap, asset.Options, asset.Margin)
+	pairStore := currency.PairStore{RequestFormat: cpf, ConfigFormat: cpf}
+	err := ok.StoreAssetPairFormat(asset.Spot, pairStore)
+	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
+	}
+	err = ok.StoreAssetPairFormat(asset.Futures, pairStore)
+	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
+	}
+	err = ok.StoreAssetPairFormat(asset.PerpetualSwap, pairStore)
+	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
+	}
+	err = ok.StoreAssetPairFormat(asset.Options, pairStore)
+	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
+	}
+	err = ok.StoreAssetPairFormat(asset.Margin, pairStore)
+	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
+	}
+	spf := currency.PairFormat{Uppercase: true, Delimiter: currency.UnderscoreDelimiter}
+	err = ok.StoreAssetPairFormat(asset.Spread, currency.PairStore{RequestFormat: &spf, ConfigFormat: &spf})
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
@@ -221,7 +243,7 @@ func (ok *Okx) Setup(exch *config.Exchange) error {
 		ExchangeConfig:                         exch,
 		DefaultURL:                             okxAPIWebsocketPublicURL,
 		RunningURL:                             wsRunningEndpoint,
-		Connector:                              ok.WsConnect,
+		Connector:                              ok.WsConnectBusiness,
 		Subscriber:                             ok.Subscribe,
 		Unsubscriber:                           ok.Unsubscribe,
 		GenerateSubscriptions:                  ok.GenerateDefaultSubscriptions,
@@ -316,23 +338,55 @@ func (ok *Okx) GetServerTime(ctx context.Context, _ asset.Item) (time.Time, erro
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs
 func (ok *Okx) FetchTradablePairs(ctx context.Context, a asset.Item) (currency.Pairs, error) {
-	insts, err := ok.getInstrumentsForAsset(ctx, a)
-	if err != nil {
-		return nil, err
-	}
-	pairs := make([]currency.Pair, len(insts))
-	for x := range insts {
-		pairs[x], err = currency.NewPairDelimiter(insts[x].InstrumentID, ok.CurrencyPairs.ConfigFormat.Delimiter)
+	switch a {
+	case asset.Options, asset.Futures, asset.Spot, asset.PerpetualSwap, asset.Margin:
+		format, err := ok.GetPairFormat(a, true)
 		if err != nil {
 			return nil, err
 		}
+		insts, err := ok.getInstrumentsForAsset(ctx, a)
+		if err != nil {
+			return nil, err
+		}
+		var pair currency.Pair
+		pairs := make([]currency.Pair, 0, len(insts))
+		for x := range insts {
+			if insts[x].State != "live" {
+				continue
+			}
+			pair, err = currency.NewPairDelimiter(insts[x].InstrumentID, format.Delimiter)
+			if err != nil {
+				return nil, err
+			}
+			pairs = append(pairs, pair)
+
+		}
+		return pairs, nil
+	case asset.Spread:
+		format, err := ok.GetPairFormat(a, true)
+		if err != nil {
+			return nil, err
+		}
+		spreadInstruments, err := ok.GetPublicSpreads(ctx, "", "", "", "live")
+		if err != nil {
+			return nil, fmt.Errorf("%w asset type: %v", err, a)
+		}
+		pairs := make(currency.Pairs, len(spreadInstruments))
+		for x := range spreadInstruments {
+			pairs[x], err = currency.NewPairDelimiter(spreadInstruments[x].SpreadID, format.Delimiter)
+			if err != nil {
+				return nil, err
+			}
+		}
+		return pairs, nil
+	default:
+		return nil, fmt.Errorf("%w asset type: %v", asset.ErrNotSupported, a)
 	}
-	return pairs, nil
 }
 
 // UpdateTradablePairs updates the exchanges available pairs and stores them in the exchanges config
 func (ok *Okx) UpdateTradablePairs(ctx context.Context, forceUpdate bool) error {
-	assetTypes := ok.GetAssetTypes(false)
+	assetTypes := ok.GetAssetTypes(true)
 	for i := range assetTypes {
 		pairs, err := ok.FetchTradablePairs(ctx, assetTypes[i])
 		if err != nil {
@@ -1506,7 +1560,7 @@ func (ok *Okx) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pai
 // GetAvailableTransferChains returns the available transfer blockchains for the specific
 // cryptocurrency
 func (ok *Okx) GetAvailableTransferChains(ctx context.Context, cryptocurrency currency.Code) ([]string, error) {
-	currencyChains, err := ok.GetFundingCurrencies(ctx)
+	currencyChains, err := ok.GetFundingCurrencies(ctx, cryptocurrency.String())
 	if err != nil {
 		return nil, err
 	}
