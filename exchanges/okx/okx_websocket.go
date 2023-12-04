@@ -32,14 +32,13 @@ var (
 var (
 	// defaultSubscribedChannels list of channels which are subscribed by default
 	defaultSubscribedChannels = []string{
-		// okxChannelTrades,
-		// okxChannelOrderBooks,
-		// okxChannelTickers,
+		okxChannelTrades,
+		okxChannelOrderBooks,
+		okxChannelTickers,
 
-		// okxSpreadOrderbook,
-		// okxSpreadOrderbookLevel1,
-		// okxSpreadPublicTicker,
-		// okxSpreadPublicTrades,
+		okxSpreadPublicTrades,
+		okxSpreadOrderbook,
+		okxSpreadPublicTicker,
 	}
 	// defaultAuthChannels list of channels which are subscribed when authenticated
 	defaultAuthChannels = []string{
@@ -2487,7 +2486,7 @@ func (ok *Okx) handleIncomingData(requestID string, data *wsIncomingData, dataHo
 }
 
 // WsPlaceSpreadOrder places a spread order thought the websocket connection stream, and returns a SubmitResponse and error message.
-func (ok *Okx) WsPlaceSpreadOrder(arg *SpreadOrderParam) (*SpreadOrderInfo, error) {
+func (ok *Okx) WsPlaceSpreadOrder(arg *SpreadOrderParam) (*SpreadOrderResponse, error) {
 	if arg == nil {
 		return nil, errNilArgument
 	}
@@ -2519,7 +2518,7 @@ func (ok *Okx) WsPlaceSpreadOrder(arg *SpreadOrderParam) (*SpreadOrderInfo, erro
 		select {
 		case data := <-wsResponse:
 			if data.Operation == okxSpreadOrder && data.ID == input.ID {
-				var dataHolder *SpreadOrderInfo
+				var dataHolder *SpreadOrderResponse
 				return dataHolder, ok.handleIncomingData(data.ID, data, dataHolder)
 			}
 			continue

@@ -2094,6 +2094,9 @@ func TestUpdateTickers(t *testing.T) {
 	if err := ok.UpdateTickers(contextGenerate(), asset.Spot); err != nil {
 		t.Error("Okx UpdateTicker() error", err)
 	}
+	if err := ok.UpdateTickers(contextGenerate(), asset.Spread); err != nil {
+		t.Error("Okx UpdateTicker() error", err)
+	}
 }
 
 func TestFetchTicker(t *testing.T) {
@@ -2117,6 +2120,13 @@ func TestFetchOrderbook(t *testing.T) {
 func TestUpdateOrderbook(t *testing.T) {
 	t.Parallel()
 	if _, err := ok.UpdateOrderbook(contextGenerate(), currency.NewPair(currency.BTC, currency.NewCode("USDT-SWAP")), asset.Spot); err != nil {
+		t.Error("Okx UpdateOrderbook() error", err)
+	}
+	spreadPair, err := currency.NewPairDelimiter("BTC-USDT-SWAP_BTC-USDT-240126", currency.UnderscoreDelimiter)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := ok.UpdateOrderbook(contextGenerate(), spreadPair, asset.Spread); err != nil {
 		t.Error("Okx UpdateOrderbook() error", err)
 	}
 }
@@ -2160,6 +2170,9 @@ func TestGetWithdrawalsHistory(t *testing.T) {
 func TestGetRecentTrades(t *testing.T) {
 	t.Parallel()
 	if _, err := ok.GetRecentTrades(contextGenerate(), currency.NewPair(currency.BTC, currency.USDT), asset.PerpetualSwap); err != nil {
+		t.Error("Okx GetRecentTrades() error", err)
+	}
+	if _, err := ok.GetRecentTrades(contextGenerate(), currency.NewPair(currency.BTC, currency.USDT), asset.Spread); err != nil {
 		t.Error("Okx GetRecentTrades() error", err)
 	}
 }
