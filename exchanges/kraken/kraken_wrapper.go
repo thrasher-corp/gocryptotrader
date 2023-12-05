@@ -1866,7 +1866,7 @@ func (k *Kraken) IsPerpetualFutureCurrency(a asset.Item, cp currency.Pair) (bool
 }
 
 // GetOpenInterest returns the open interest rate for a given asset pair
-func (k *Kraken) GetOpenInterest(ctx context.Context, pa key.PairAsset) ([]futures.OpenInterest, error) {
+func (k *Kraken) GetOpenInterest(ctx context.Context, pa ...key.PairAsset) ([]futures.OpenInterest, error) {
 	if pa.Asset != asset.Futures {
 		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, pa.Asset)
 	}

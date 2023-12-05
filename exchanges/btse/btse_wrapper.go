@@ -1306,11 +1306,13 @@ func (b *BTSE) UpdateOrderExecutionLimits(_ context.Context, _ asset.Item) error
 }
 
 // GetOpenInterest returns the open interest rate for a given asset pair
-func (b *BTSE) GetOpenInterest(ctx context.Context, pa key.PairAsset) ([]futures.OpenInterest, error) {
-	if pa.Asset != asset.Futures {
-		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, pa.Asset)
+func (b *BTSE) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]futures.OpenInterest, error) {
+	for i := range k {
+		if k[i].Asset != asset.Futures {
+			return nil, fmt.Errorf("%w %v %v", asset.ErrNotSupported, k[i].Asset, k[i].Pair())
+		}
 	}
-	if pa.Pair().IsEmpty() {
+	if len(k) == 0 {
 		tickers, err := b.GetMarketSummary(ctx, "", false)
 		if err != nil {
 			return nil, err

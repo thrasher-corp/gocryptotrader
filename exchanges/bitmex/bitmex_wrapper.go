@@ -1346,55 +1346,79 @@ func (b *Bitmex) UpdateOrderExecutionLimits(_ context.Context, _ asset.Item) err
 }
 
 // GetOpenInterest returns the open interest rate for a given asset pair
-func (b *Bitmex) GetOpenInterest(ctx context.Context, k key.PairAsset) ([]futures.OpenInterest, error) {
-	if k.Asset == asset.Spot || k.Asset == asset.Index {
-		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, k.Asset)
+func (b *Bitmex) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]futures.OpenInterest, error) {
+	for i := range k {
+		if k[i].Asset == asset.Spot || k[i].Asset == asset.Index {
+			// avoid API calls or returning errors after a successful retrieval
+			return nil, fmt.Errorf("%w %v %v", asset.ErrNotSupported, k[i].Asset, k[i].Pair())
+		}
 	}
-	if k.Pair().IsEmpty() {
+	if len(k) == 0 {
 		ticks, err := b.GetActiveAndIndexInstruments(ctx)
 		if err != nil {
 			return nil, err
 		}
 		resp := make([]futures.OpenInterest, 0, len(ticks))
+	tickers:
 		for i := range ticks {
-			_, enabled, err := b.MatchSymbolCheckEnabled(ticks[i].Symbol, k.Asset, false)
-			if err != nil && !errors.Is(err, currency.ErrPairNotFound) {
-				return nil, err
+			for _, a := range b.CurrencyPairs.GetAssetTypes(true) {
+				symbol, enabled, err := b.MatchSymbolCheckEnabled(ticks[i].Symbol, a, false)
+				if err != nil {
+					if !errors.Is(err, currency.ErrPairNotFound) {
+						continue
+					}
+					return nil, err
+				}
+				if !enabled {
+					continue tickers
+				}
+				resp = append(resp, futures.OpenInterest{
+					K: key.ExchangePairAsset{
+						Exchange: b.Name,
+						Base:     symbol.Base.Item,
+						Quote:    symbol.Quote.Item,
+						Asset:    a,
+					},
+					OpenInterest: ticks[i].OpenInterest,
+				})
 			}
-			if !enabled {
-				continue
-			}
-			resp = append(resp, futures.OpenInterest{
-				K: key.ExchangePairAsset{
-					Exchange: b.Name,
-					Base:     k.Base,
-					Quote:    k.Quote,
-					Asset:    k.Asset,
-				},
-				OpenInterest: ticks[i].OpenInterest,
-			})
+
 		}
 		return resp, nil
 	}
-	symbol, err := b.FormatSymbol(k.Pair(), k.Asset)
-	if err != nil {
-		return nil, err
-	}
-	tick, err := b.GetInstrument(ctx, &GenericRequestParams{Symbol: symbol})
-	if err != nil {
-		return nil, err
-	}
-	if len(tick) != 1 {
-		return nil, fmt.Errorf("%w %v", currency.ErrPairNotFound, k.Pair())
-	}
 
-	return []futures.OpenInterest{{
-		K: key.ExchangePairAsset{
-			Exchange: b.Name,
-			Base:     k.Base,
-			Quote:    k.Quote,
-			Asset:    k.Asset,
-		},
-		OpenInterest: tick[0].OpenInterest,
-	}}, nil
+	resp := make([]futures.OpenInterest, 0, len(k))
+	for i := range k {
+		_, enabled, err := b.MatchSymbolCheckEnabled(k[i].Pair().String(), k[i].Asset, false)
+		if err != nil {
+			if errors.Is(err, currency.ErrPairNotFound) {
+				continue
+			}
+			return nil, err
+		}
+		if !enabled {
+			continue
+		}
+		symbolStr, err := b.FormatSymbol(k[i].Pair(), k[i].Asset)
+		if err != nil {
+			return nil, err
+		}
+		tick, err := b.GetInstrument(ctx, &GenericRequestParams{Symbol: symbolStr})
+		if err != nil {
+			return nil, err
+		}
+		if len(tick) != 1 {
+			return nil, fmt.Errorf("%w %v", currency.ErrPairNotFound, k[i].Pair())
+		}
+		resp = append(resp, futures.OpenInterest{
+			K: key.ExchangePairAsset{
+				Exchange: b.Name,
+				Base:     k[i].Base,
+				Quote:    k[i].Quote,
+				Asset:    k[i].Asset,
+			},
+			OpenInterest: tick[0].OpenInterest,
+		})
+	}
+	return resp, nil
 }
