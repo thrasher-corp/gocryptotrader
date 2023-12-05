@@ -46,6 +46,7 @@ const (
 	errExpectMismatch     = "received: '%v' but expected: '%v'"
 	errExpectedNonEmpty   = "expected non-empty response"
 	skipPayMethodNotFound = "no payment methods found, skipping"
+	skipInsufSuitableAccs = "insufficient suitable accounts found, skipping"
 	errx7f                = "setting proxy address error parse \"\\x7f\": net/url: invalid control character in URL"
 )
 
@@ -157,16 +158,11 @@ func TestGetProductBook(t *testing.T) {
 	if !errors.Is(err, errProductIDEmpty) {
 		t.Errorf(errExpectMismatch, err, errProductIDEmpty)
 	}
-	resp, err := c.GetProductBook(context.Background(), testPair.String(), 5)
+	resp, err := c.GetProductBook(context.Background(), testPair.String(), 2)
 	if err != nil {
 		t.Error(err)
 	}
 	assert.NotEmpty(t, resp, errExpectedNonEmpty)
-}
-
-func TestSillyTestTest(t *testing.T) {
-	assTypes := c.CurrencyPairs.GetAssetTypes(false)
-	log.Printf("%+v", assTypes)
 }
 
 func TestGetAllProducts(t *testing.T) {
@@ -178,7 +174,7 @@ func TestGetAllProducts(t *testing.T) {
 		t.Error(err)
 	}
 	assert.NotEmpty(t, resp, errExpectedNonEmpty)
-	log.Printf("%+v\n%+v", resp.NumProducts, len(resp.Products))
+	// log.Printf("%+v\n%+v", resp.NumProducts, len(resp.Products))
 }
 
 func TestGetProductByID(t *testing.T) {
@@ -374,6 +370,137 @@ func TestGetTransactionSummary(t *testing.T) {
 	}
 	_, err = c.GetTransactionSummary(context.Background(), time.Unix(1, 1), time.Now(), "", "SPOT",
 		"UNKNOWN_CONTRACT_EXPIRY_TYPE")
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestCreateConvertQuote(t *testing.T) {
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, c, canManipulateRealOrders)
+	_, err := c.CreateConvertQuote(context.Background(), "", "", "", "", 0)
+	if !errors.Is(err, errAccountIDEmpty) {
+		t.Errorf(errExpectMismatch, err, errAccountIDEmpty)
+	}
+	_, err = c.CreateConvertQuote(context.Background(), "meow", "123", "", "", 0)
+	if !errors.Is(err, errAmountEmpty) {
+		t.Errorf(errExpectMismatch, err, errAmountEmpty)
+	}
+	accIDs, err := c.GetAllAccounts(context.Background(), 250, "")
+	if err != nil {
+		t.Error(err)
+	}
+	if len(accIDs.Accounts) == 0 {
+		t.Fatal(errExpectedNonEmpty)
+	}
+	var (
+		fromAccID string
+		toAccID   string
+	)
+	for x := range accIDs.Accounts {
+		if accIDs.Accounts[x].Currency == "USDC" {
+			fromAccID = accIDs.Accounts[x].UUID
+		}
+		if accIDs.Accounts[x].Currency == "USD" {
+			toAccID = accIDs.Accounts[x].UUID
+		}
+		if fromAccID != "" && toAccID != "" {
+			break
+		}
+	}
+	if fromAccID == "" || toAccID == "" {
+		t.Skip(skipInsufSuitableAccs)
+	}
+	_, err = c.CreateConvertQuote(context.Background(), fromAccID, toAccID, "", "", 0.01)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestCommitConvertTrade(t *testing.T) {
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, c, canManipulateRealOrders)
+	_, err := c.CommitConvertTrade(context.Background(), "", "", "")
+	if !errors.Is(err, errTransactionIDEmpty) {
+		t.Errorf(errExpectMismatch, err, errTransactionIDEmpty)
+	}
+	_, err = c.CommitConvertTrade(context.Background(), "meow", "", "")
+	if !errors.Is(err, errAccountIDEmpty) {
+		t.Errorf(errExpectMismatch, err, errAccountIDEmpty)
+	}
+	accIDs, err := c.GetAllAccounts(context.Background(), 250, "")
+	if err != nil {
+		t.Error(err)
+	}
+	if len(accIDs.Accounts) == 0 {
+		t.Fatal(errExpectedNonEmpty)
+	}
+	var (
+		fromAccID string
+		toAccID   string
+	)
+	for x := range accIDs.Accounts {
+		if accIDs.Accounts[x].Currency == "USDC" {
+			fromAccID = accIDs.Accounts[x].UUID
+		}
+		if accIDs.Accounts[x].Currency == "USD" {
+			toAccID = accIDs.Accounts[x].UUID
+		}
+		if fromAccID != "" && toAccID != "" {
+			break
+		}
+	}
+	if fromAccID == "" || toAccID == "" {
+		t.Skip(skipInsufSuitableAccs)
+	}
+	resp, err := c.CreateConvertQuote(context.Background(), fromAccID, toAccID, "", "", 0.01)
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = c.CommitConvertTrade(context.Background(), resp.Trade.ID, fromAccID, toAccID)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetConvertTradeByID(t *testing.T) {
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, c, canManipulateRealOrders)
+	_, err := c.GetConvertTradeByID(context.Background(), "", "", "")
+	if !errors.Is(err, errTransactionIDEmpty) {
+		t.Errorf(errExpectMismatch, err, errTransactionIDEmpty)
+	}
+	_, err = c.GetConvertTradeByID(context.Background(), "meow", "", "")
+	if !errors.Is(err, errAccountIDEmpty) {
+		t.Errorf(errExpectMismatch, err, errAccountIDEmpty)
+	}
+	accIDs, err := c.GetAllAccounts(context.Background(), 250, "")
+	if err != nil {
+		t.Error(err)
+	}
+	if len(accIDs.Accounts) == 0 {
+		t.Fatal(errExpectedNonEmpty)
+	}
+	var (
+		fromAccID string
+		toAccID   string
+	)
+	for x := range accIDs.Accounts {
+		if accIDs.Accounts[x].Currency == "USDC" {
+			fromAccID = accIDs.Accounts[x].UUID
+		}
+		if accIDs.Accounts[x].Currency == "USD" {
+			toAccID = accIDs.Accounts[x].UUID
+		}
+		if fromAccID != "" && toAccID != "" {
+			break
+		}
+	}
+	if fromAccID == "" || toAccID == "" {
+		t.Skip(skipInsufSuitableAccs)
+	}
+	resp, err := c.CreateConvertQuote(context.Background(), fromAccID, toAccID, "", "", 0.01)
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = c.GetConvertTradeByID(context.Background(), resp.Trade.ID, fromAccID, toAccID)
 	if err != nil {
 		t.Error(err)
 	}
@@ -634,10 +761,10 @@ func TestSendMoney(t *testing.T) {
 	}
 }
 
-func TestListTransactions(t *testing.T) {
+func TestGetAllTransactions(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, c)
 	var pag PaginationInp
-	_, err := c.ListTransactions(context.Background(), "", pag)
+	_, err := c.GetAllTransactions(context.Background(), "", pag)
 	if !errors.Is(err, errWalletIDEmpty) {
 		t.Errorf(errExpectMismatch, err, errWalletIDEmpty)
 	}
@@ -646,7 +773,7 @@ func TestListTransactions(t *testing.T) {
 		t.Error(err)
 	}
 	assert.NotEmpty(t, wID, errExpectedNonEmpty)
-	_, err = c.ListTransactions(context.Background(), wID.Data.ID, pag)
+	_, err = c.GetAllTransactions(context.Background(), wID.Data.ID, pag)
 	if err != nil {
 		t.Error(err)
 	}
@@ -667,7 +794,7 @@ func TestGetTransactionByID(t *testing.T) {
 		t.Error(err)
 	}
 	assert.NotEmpty(t, wID, errExpectedNonEmpty)
-	tID, err := c.ListTransactions(context.Background(), wID.Data.ID, PaginationInp{})
+	tID, err := c.GetAllTransactions(context.Background(), wID.Data.ID, PaginationInp{})
 	if err != nil {
 		t.Error(err)
 	}
@@ -2693,6 +2820,115 @@ func TestUpdateAccountInfo(t *testing.T) {
 func TestFetchAccountInfo(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, c)
 	_, err := c.FetchAccountInfo(context.Background(), asset.Spot)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestUpdateTickersS(t *testing.T) {
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, c)
+	err := c.UpdateTickers(context.Background(), asset.Empty)
+	if !errors.Is(err, asset.ErrNotSupported) {
+		t.Errorf(errExpectMismatch, err, asset.ErrNotSupported)
+	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, c)
+	err = c.UpdateTickers(context.Background(), asset.Futures)
+	if err != nil {
+		t.Error(err)
+	}
+	err = c.UpdateTickers(context.Background(), asset.Spot)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestUpdateTicker(t *testing.T) {
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, c)
+	_, err := c.UpdateTicker(context.Background(), currency.Pair{}, asset.Empty)
+	if !errors.Is(err, currency.ErrCurrencyPairEmpty) {
+		t.Errorf(errExpectMismatch, err, currency.ErrCurrencyPairEmpty)
+	}
+	_, err = c.UpdateTicker(context.Background(), testPair, asset.Spot)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestFetchTicker(t *testing.T) {
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, c)
+	_, err := c.FetchTicker(context.Background(), testPair, asset.Spot)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestFetchOrderbook(t *testing.T) {
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, c)
+	_, err := c.FetchOrderbook(context.Background(), testPair, asset.Spot)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestUpdateOrderbook(t *testing.T) {
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, c)
+	_, err := c.UpdateOrderbook(context.Background(), currency.Pair{}, asset.Empty)
+	if !errors.Is(err, currency.ErrCurrencyPairEmpty) {
+		t.Errorf(errExpectMismatch, err, currency.ErrCurrencyPairEmpty)
+	}
+	_, err = c.UpdateOrderbook(context.Background(), currency.NewPairWithDelimiter("meow", "woof", "-"), asset.Spot)
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = c.UpdateOrderbook(context.Background(), testPair, asset.Spot)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestProcessFundingData(t *testing.T) {
+	accHist := make([]DeposWithdrData, 1)
+	genAmcur := AmCur{Amount: 1, Currency: "DOGE"}
+	accHist[0] = DeposWithdrData{Status: "meow", ID: "woof", PayoutAt: time.Unix(1, 1).UTC(), Amount: genAmcur,
+		Fee: genAmcur, TransferType: FiatWithdrawal}
+	genAmcur.Amount = 2
+	cryptHist := make([]TransactionData, 2)
+	cryptHist[0] = TransactionData{Status: "moo", ID: "oink", CreatedAt: time.Unix(2, 2).UTC(), Amount: genAmcur,
+		Type: "receive"}
+	cryptHist[0].Network.Name = "neigh"
+	cryptHist[0].To.ID = "The Barnyard"
+	cryptHist[1].Type = "send"
+
+	expectedResult := make([]exchange.FundingHistory, 3)
+	expectedResult[0] = exchange.FundingHistory{ExchangeName: "CoinbasePro", Status: "meow", TransferID: "woof",
+		Timestamp: time.Unix(1, 1).UTC(), Currency: "DOGE", Amount: 1, Fee: 1, TransferType: "withdrawal"}
+	expectedResult[1] = exchange.FundingHistory{ExchangeName: "CoinbasePro", Status: "moo", TransferID: "oink",
+		Timestamp: time.Unix(2, 2).UTC(), Currency: "DOGE", Amount: 2, Fee: 0, TransferType: "deposit",
+		CryptoFromAddress: "The Barnyard", CryptoChain: "neigh"}
+	expectedResult[2] = exchange.FundingHistory{ExchangeName: "CoinbasePro", TransferType: "withdrawal"}
+
+	resp := c.ProcessFundingData(accHist, cryptHist)
+
+	if fmt.Sprint(expectedResult) != fmt.Sprint(resp) {
+		t.Errorf(errExpectMismatch, resp, expectedResult)
+	}
+}
+
+func TestGetAccountFundingHistory(t *testing.T) {
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, c)
+	_, err := c.GetAccountFundingHistory(context.Background())
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetWithdrawalsHistory(t *testing.T) {
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, c)
+	_, err := c.GetWithdrawalsHistory(context.Background(), currency.NewCode("meow"), asset.Spot)
+	if !errors.Is(err, errNoMatchingWallets) {
+		t.Errorf(errExpectMismatch, err, errNoMatchingWallets)
+	}
+	_, err = c.GetWithdrawalsHistory(context.Background(), currency.BTC, asset.Spot)
 	if err != nil {
 		t.Error(err)
 	}

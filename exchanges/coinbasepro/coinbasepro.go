@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -38,6 +39,9 @@ const (
 	coinbaseCandles            = "candles"
 	coinbaseTicker             = "ticker"
 	coinbaseTransactionSummary = "transaction_summary"
+	coinbaseConvert            = "convert"
+	coinbaseQuote              = "quote"
+	coinbaseTrade              = "trade"
 	coinbaseV2                 = "/v2/"
 	coinbaseNotifications      = "notifications"
 	coinbaseUser               = "user"
@@ -104,15 +108,8 @@ var (
 	errDepositIDEmpty         = errors.New("deposit id cannot be empty")
 	errInvalidPriceType       = errors.New("price type must be spot, buy, or sell")
 	errInvalidOrderType       = errors.New("order type must be market, limit, or stop")
+	errNoMatchingWallets      = errors.New("no matching wallets returned")
 )
-
-type Version bool
-type FiatTransferType bool
-
-// CoinbasePro is the overarching type across the coinbasepro package
-type CoinbasePro struct {
-	exchange.Base
-}
 
 // GetAllAccounts returns information on all trading accounts associated with the API key
 func (c *CoinbasePro) GetAllAccounts(ctx context.Context, limit uint8, cursor string) (AllAccountsResponse, error) {
@@ -256,8 +253,8 @@ func (c *CoinbasePro) GetHistoricRates(ctx context.Context, productID, granulari
 	return resp, err
 }
 
-// GetTicker returns snapshot information about the last trades (ticks), best bid/ask, and
-// 24h volume.
+// GetTicker returns snapshot information about the last trades (ticks) and best bid/ask.
+// Contrary to documentation, this does not tell you the 24h volume
 func (c *CoinbasePro) GetTicker(ctx context.Context, productID string, limit uint16) (*Ticker, error) {
 	if productID == "" {
 		return nil, errProductIDEmpty
@@ -526,6 +523,65 @@ func (c *CoinbasePro) GetTransactionSummary(ctx context.Context, startDate, endD
 		coinbaseV3+coinbaseTransactionSummary, pathParams, nil, Version3, &resp, nil)
 }
 
+// CreateConvertQuote creates a quote for a conversion between two currencies. The trade_id returned
+// can be used to commit the trade, but that must be done within 10 minutes of the quote's creation
+func (c *CoinbasePro) CreateConvertQuote(ctx context.Context, from, to, userIncentiveID, codeVal string, amount float64) (ConvertResponse, error) {
+	var resp ConvertResponse
+	if from == "" || to == "" {
+		return resp, errAccountIDEmpty
+	}
+	if amount == 0 {
+		return resp, errAmountEmpty
+	}
+
+	path := fmt.Sprintf("%s%s/%s", coinbaseV3, coinbaseConvert, coinbaseQuote)
+
+	tIM := map[string]interface{}{"user_incentive_id": userIncentiveID, "code_val": codeVal}
+
+	req := map[string]interface{}{"from_account": from, "to_account": to,
+		"amount": strconv.FormatFloat(amount, 'f', -1, 64), "trade_incentive_metadata": tIM}
+
+	return resp, c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, path,
+		"", req, Version3, &resp, nil)
+}
+
+// CommitConvertTrade commits a conversion between two currencies, using the trade_id returned
+// from CreateConvertQuote
+func (c *CoinbasePro) CommitConvertTrade(ctx context.Context, tradeID, from, to string) (ConvertResponse, error) {
+	var resp ConvertResponse
+	if tradeID == "" {
+		return resp, errTransactionIDEmpty
+	}
+	if from == "" || to == "" {
+		return resp, errAccountIDEmpty
+	}
+
+	path := fmt.Sprintf("%s%s/%s/%s", coinbaseV3, coinbaseConvert, coinbaseTrade, tradeID)
+
+	req := map[string]interface{}{"from_account": from, "to_account": to}
+
+	return resp, c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, path,
+		"", req, Version3, &resp, nil)
+}
+
+// GetConvertTradeByID returns information on a conversion between two currencies
+func (c *CoinbasePro) GetConvertTradeByID(ctx context.Context, tradeID, from, to string) (ConvertResponse, error) {
+	var resp ConvertResponse
+	if tradeID == "" {
+		return resp, errTransactionIDEmpty
+	}
+	if from == "" || to == "" {
+		return resp, errAccountIDEmpty
+	}
+
+	path := fmt.Sprintf("%s%s/%s/%s", coinbaseV3, coinbaseConvert, coinbaseTrade, tradeID)
+
+	req := map[string]interface{}{"from_account": from, "to_account": to}
+
+	return resp, c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path,
+		"", req, Version3, &resp, nil)
+}
+
 // ListNotifications lists the notifications the user is subscribed to
 func (c *CoinbasePro) ListNotifications(ctx context.Context, pag PaginationInp) (ListNotificationsResponse, error) {
 	var resp ListNotificationsResponse
@@ -784,8 +840,8 @@ func (c *CoinbasePro) SendMoney(ctx context.Context, traType, walletID, to, amou
 		path, "", req, Version2, &resp, nil)
 }
 
-// ListTransactions returns a list of transactions associated with the specified wallet
-func (c *CoinbasePro) ListTransactions(ctx context.Context, walletID string, pag PaginationInp) (ManyTransactionsResp, error) {
+// GetAllTransactions returns a list of transactions associated with the specified wallet
+func (c *CoinbasePro) GetAllTransactions(ctx context.Context, walletID string, pag PaginationInp) (ManyTransactionsResp, error) {
 	var resp ManyTransactionsResp
 
 	if walletID == "" {
@@ -906,8 +962,18 @@ func (c *CoinbasePro) GetAllFiatTransfers(ctx context.Context, walletID string, 
 
 	pathParams := common.EncodeURLValues("", params.urlVals)
 
-	return resp, c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet,
+	err := c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet,
 		path, pathParams, nil, Version2, &resp, nil)
+
+	if err != nil {
+		return resp, err
+	}
+
+	for i := range resp.Data {
+		resp.Data[i].TransferType = transferType
+	}
+
+	return resp, nil
 }
 
 // GetFiatTransferByID returns information on a single deposit associated with the specified wallet
@@ -1130,31 +1196,6 @@ func (c *CoinbasePro) GetCoinbaseWallets(ctx context.Context) ([]CoinbaseAccount
 
 	return resp,
 		c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, coinbaseproCoinbaseAccounts, "", nil, Version3, &resp, nil)
-}
-
-// ConvertCurrency converts between two currencies in the specified profile
-func (c *CoinbasePro) ConvertCurrency(ctx context.Context, profileID, from, to, nonce string, amount float64) (ConvertResponse, error) {
-	params := map[string]interface{}{"profile_id": profileID, "from": from, "to": to,
-		"amount": strconv.FormatFloat(amount, 'f', -1, 64), "nonce": nonce}
-
-	resp := ConvertResponse{}
-
-	return resp,
-		c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, coinbaseproConversions, "", params, Version3, &resp, nil)
-}
-
-// GetConversionByID returns the details of a past conversion, given its ID
-func (c *CoinbasePro) GetConversionByID(ctx context.Context, conversionID, profileID string) (ConvertResponse, error) {
-	path := fmt.Sprintf("%s/%s", coinbaseproConversions, conversionID)
-	var params Params
-	params.urlVals = url.Values{}
-	params.urlVals.Set("profile_id", profileID)
-	path = common.EncodeURLValues(path, params.urlVals)
-
-	resp := ConvertResponse{}
-
-	return resp,
-		c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, "", nil, Version3, &resp, nil)
 }
 
 // GetAllCurrencies returns a list of currencies known by the exchange
@@ -2084,4 +2125,62 @@ func (p *Params) PrepareDSL(direction, step string, limit int64) {
 	if limit >= 0 {
 		p.urlVals.Set("limit", strconv.FormatInt(limit, 10))
 	}
+}
+
+func (f FiatTransferType) String() string {
+	if f {
+		return "withdrawal"
+	}
+	return "deposit"
+}
+
+func (t *UnixTimestamp) UnmarshalJSON(b []byte) error {
+	var timestampStr string
+	err := json.Unmarshal(b, &timestampStr)
+	if err != nil {
+		return err
+	}
+	timestamp, err := strconv.ParseInt(timestampStr, 10, 64)
+	if err != nil {
+		return err
+	}
+	*t = UnixTimestamp(time.Unix(timestamp, 0))
+	return nil
+}
+
+func (t UnixTimestamp) String() string {
+	return time.Time(t).String()
+}
+
+func (t *ExchTime) UnmarshalJSON(b []byte) error {
+	s := strings.Trim(string(b), `"`)
+	if s == " " || s == "null" {
+		return nil
+	}
+	tt, err := time.Parse("2006-01-02 15:04:05.999999-07", s)
+	if err != nil {
+		return err
+	}
+	*t = ExchTime(tt)
+	return nil
+}
+
+func (t ExchTime) String() string {
+	return time.Time(t).String()
+}
+
+func (pm *PriceMap) UnmarshalJSON(data []byte) error {
+	var m map[string]string
+	if err := json.Unmarshal(data, &m); err != nil {
+		return err
+	}
+	*pm = make(PriceMap)
+	for k, v := range m {
+		f, err := strconv.ParseFloat(v, 64)
+		if err != nil {
+			return err
+		}
+		(*pm)[k] = f
+	}
+	return nil
 }

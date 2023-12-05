@@ -1,15 +1,26 @@
 package coinbasepro
 
 import (
-	"encoding/json"
 	"net/url"
-	"strconv"
-	"strings"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 )
+
+// CoinbasePro is the overarching type across the coinbasepro package
+type CoinbasePro struct {
+	exchange.Base
+}
+
+// Version is used for the niche cases where the Version of the API must be specified and passed
+// around for proper functionality
+type Version bool
+
+// FiatTransferType is used so that we don't need to duplicate the four fiat transfer-related
+// endpoints under version 2 of the API
+type FiatTransferType bool
 
 // ValCur is a sub-struct used in the type Account
 type ValCur struct {
@@ -144,24 +155,6 @@ type AllProducts struct {
 // the exchange
 type UnixTimestamp time.Time
 
-func (t *UnixTimestamp) UnmarshalJSON(b []byte) error {
-	var timestampStr string
-	err := json.Unmarshal(b, &timestampStr)
-	if err != nil {
-		return err
-	}
-	timestamp, err := strconv.ParseInt(timestampStr, 10, 64)
-	if err != nil {
-		return err
-	}
-	*t = UnixTimestamp(time.Unix(timestamp, 0))
-	return nil
-}
-
-func (t UnixTimestamp) String() string {
-	return time.Time(t).String()
-}
-
 // History holds historic rate information, returned by GetHistoricRates
 type History struct {
 	Candles []struct {
@@ -186,8 +179,8 @@ type Ticker struct {
 		Bid       convert.StringToFloat64 `json:"bid"`
 		Ask       convert.StringToFloat64 `json:"ask"`
 	} `json:"trades"`
-	BestBid float64 `json:"best_bid,string"`
-	BestAsk float64 `json:"best_ask,string"`
+	BestBid convert.StringToFloat64 `json:"best_bid"`
+	BestAsk convert.StringToFloat64 `json:"best_ask"`
 }
 
 // MarketMarketIOC is a sub-struct used in the type OrderConfiguration
@@ -367,6 +360,106 @@ type GetAllOrdersResp struct {
 	Sequence int64              `json:"sequence,string"`
 	HasNext  bool               `json:"has_next"`
 	Cursor   string             `json:"cursor"`
+}
+
+// FeeStruct is a sub-struct storing information on fees, used in ConvertResponse
+type FeeStruct struct {
+	Title       string `json:"title"`
+	Description string `json:"description"`
+	Amount      ValCur `json:"amount"`
+	Label       string `json:"label"`
+	Disclosure  struct {
+		Title       string `json:"title"`
+		Description string `json:"description"`
+		Link        struct {
+			Text string `json:"text"`
+			URL  string `json:"url"`
+		} `json:"link"`
+	} `json:"disclosure"`
+}
+
+// AccountStruct is a sub-struct storing information on accounts, used in ConvertResponse
+type AccountStruct struct {
+	Type          string `json:"type"`
+	Network       string `json:"network"`
+	LedgerAccount struct {
+		AccountID string `json:"account_id"`
+		Currency  string `json:"currency"`
+		Owner     struct {
+			ID       string `json:"id"`
+			UUID     string `json:"uuid"`
+			UserUUID string `json:"user_uuid"`
+			Type     string `json:"type"`
+		} `json:"owner"`
+	} `json:"ledger_account"`
+}
+
+// AmScale is a sub-struct storing information on amounts and scales, used in ConvertResponse
+type AmScale struct {
+	Amount ValCur `json:"amount"`
+	Scale  int32  `json:"scale"`
+}
+
+// ConvertResponse contains information on a convert trade, returned by CreateConvertQuote,
+// CommitConvertTrade, and GetConvertTrade
+type ConvertResponse struct {
+	Trade struct {
+		ID                string        `json:"id"`
+		Status            string        `json:"status"`
+		UserEnteredAmount ValCur        `json:"user_entered_amount"`
+		Amount            ValCur        `json:"amount"`
+		Subtotal          ValCur        `json:"subtotal"`
+		Total             ValCur        `json:"total"`
+		Fees              []FeeStruct   `json:"fees"`
+		TotalFee          FeeStruct     `json:"total_fee"`
+		Source            AccountStruct `json:"source"`
+		Target            AccountStruct `json:"target"`
+		UnitPrice         struct {
+			TargetToFiat   AmScale `json:"target_to_fiat"`
+			TargetToSource AmScale `json:"target_to_source"`
+			SourceToFiat   AmScale `json:"source_to_fiat"`
+		} `json:"unit_price"`
+		UserWarnings []struct {
+			ID   string `json:"id"`
+			Link struct {
+				Text string `json:"text"`
+				URL  string `json:"url"`
+			} `json:"link"`
+			Context struct {
+				Details  []string `json:"details"`
+				Title    string   `json:"title"`
+				LinkText string   `json:"link_text"`
+			} `json:"context"`
+			Code    string `json:"code"`
+			Message string `json:"message"`
+		} `json:"user_warnings"`
+		UserReference      string `json:"user_reference"`
+		SourceCurrency     string `json:"source_currency"`
+		TargetCurrency     string `json:"target_currency"`
+		CancellationReason struct {
+			Message   string `json:"message"`
+			Code      string `json:"code"`
+			ErrorCode string `json:"error_code"`
+			ErrorCTA  string `json:"error_cta"`
+		} `json:"cancellation_reason"`
+		SourceID     string `json:"source_id"`
+		TargetID     string `json:"target_id"`
+		ExchangeRate ValCur `json:"exchange_rate"`
+		TaxDetails   []struct {
+			Name   string `json:"name"`
+			Amount ValCur `json:"amount"`
+		} `json:"tax_details"`
+		TradeIncentiveInfo struct {
+			AppliedIncentive    bool      `json:"applied_incentive"`
+			UserIncentiveID     string    `json:"user_incentive_id"`
+			CodeVal             string    `json:"code_val"`
+			EndsAt              time.Time `json:"ends_at"`
+			FeeWithoutIncentive ValCur    `json:"fee_without_incentive"`
+			Redeemed            bool      `json:"redeemed"`
+		} `json:"trade_incentive_info"`
+		TotalFeeWithoutTax FeeStruct `json:"total_fee_without_tax"`
+		FiatDenotedTotal   ValCur    `json:"fiat_denoted_total"`
+	} `json:"trade"`
 }
 
 // IDResource holds an ID, resource type, and associated data, used in ListNotificationsResponse,
@@ -639,15 +732,11 @@ type TransactionData struct {
 	Details struct {
 		Title    string `json:"title"`
 		Subtitle string `json:"subtitle"`
-		// SubsidebarLabel string `json:"subsidebar_label"`
-		// Header  string `json:"header"`
-		// Health string `json:"health"`
 	} `json:"details"`
 	Network struct {
 		Status string `json:"status"`
-		// StatusDescription string `json:"status_description"`
-		Hash string `json:"hash"`
-		Name string `json:"name"`
+		Hash   string `json:"hash"`
+		Name   string `json:"name"`
 	} `json:"network"`
 	To      IDResource `json:"to"`
 	From    IDResource `json:"from"`
@@ -685,6 +774,7 @@ type DeposWithdrData struct {
 	Committed     bool       `json:"committed"`
 	Fee           AmCur      `json:"fee"`
 	PayoutAt      time.Time  `json:"payout_at"`
+	TransferType  FiatTransferType
 }
 
 // GenDeposWithdrResp holds information on a deposit. Returned by DepositFunds, CommitDeposit,
@@ -1401,23 +1491,6 @@ type TransferResponse struct {
 
 type ExchTime time.Time
 
-func (t *ExchTime) UnmarshalJSON(b []byte) error {
-	s := strings.Trim(string(b), `"`)
-	if s == " " || s == "null" {
-		return nil
-	}
-	tt, err := time.Parse("2006-01-02 15:04:05.999999-07", s)
-	if err != nil {
-		return err
-	}
-	*t = ExchTime(tt)
-	return nil
-}
-
-func (t ExchTime) String() string {
-	return time.Time(t).String()
-}
-
 // TravelRule contains information on a travel rule, returned by GetTravelRules
 // and CreateTravelRule
 type TravelRule struct {
@@ -1511,17 +1584,6 @@ type CryptoAddressResponse struct {
 	CallbackURL    string `json:"callback_url"`
 }
 
-// ConvertResponse contains information about a completed currency conversion, returned
-// by ConvertCurrency and GetConversionByID
-type ConvertResponse struct {
-	ID            string `json:"id"`
-	Amount        string `json:"amount"`
-	FromAccountID string `json:"from_account_id"`
-	ToAccountID   string `json:"to_account_id"`
-	From          string `json:"from"`
-	To            string `json:"to"`
-}
-
 // WithdrawalFeeEstimate is the exchange's estimate of the fee for a withdrawal, returned
 // by GetWithdrawalFeeEstimate
 type WithdrawalFeeEstimate struct {
@@ -1539,22 +1601,6 @@ type FeeResponse struct {
 
 // PriceMap is used to properly unmarshal the response from GetSignedPrices
 type PriceMap map[string]float64
-
-func (pm *PriceMap) UnmarshalJSON(data []byte) error {
-	var m map[string]string
-	if err := json.Unmarshal(data, &m); err != nil {
-		return err
-	}
-	*pm = make(PriceMap)
-	for k, v := range m {
-		f, err := strconv.ParseFloat(v, 64)
-		if err != nil {
-			return err
-		}
-		(*pm)[k] = f
-	}
-	return nil
-}
 
 // SignedPrices contains cryptographically signed prices, alongside other information
 // necessary for them to be posted on-chain using Compound's Open Oracle smart contract.

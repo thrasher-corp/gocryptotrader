@@ -340,50 +340,86 @@ func (c *CoinbasePro) FetchAccountInfo(ctx context.Context, assetType asset.Item
 		return account.Holdings{}, err
 	}
 	acc, err := account.GetHoldings(c.Name, creds, assetType)
+	fmt.Printf("Error: %v\n", err)
 	if err != nil {
 		return c.UpdateAccountInfo(ctx, assetType)
 	}
 	return acc, nil
 }
 
-// UpdateTickers updates the ticker for all currency pairs of a given asset type
-func (c *CoinbasePro) UpdateTickers(_ context.Context, _ asset.Item) error {
-	return common.ErrFunctionNotSupported
+// UpdateTickers updates all currency pairs of a given asset type
+func (c *CoinbasePro) UpdateTickers(ctx context.Context, assetType asset.Item) error {
+	var aTString string
+	switch assetType {
+	case asset.Futures:
+		aTString = "FUTURE"
+	case asset.Spot:
+		aTString = "SPOT"
+	default:
+		return fmt.Errorf("%w %v", asset.ErrNotSupported, assetType)
+	}
+
+	products, err := c.GetAllProducts(ctx, 2<<30-1, 0, aTString, "", nil)
+	if err != nil {
+		return err
+	}
+	for x := range products.Products {
+		tick, err := c.GetTicker(ctx, products.Products[x].ID, 1)
+		if err != nil {
+			return err
+		}
+		pair, err := currency.NewPairDelimiter(products.Products[x].ID, currency.DashDelimiter)
+		if err != nil {
+			return err
+		}
+		var last float64
+		if len(tick.Trades) != 0 {
+			last = tick.Trades[0].Price
+		}
+		err = ticker.ProcessTicker(&ticker.Price{
+			Last:         last,
+			Bid:          tick.BestBid.Float64(),
+			Ask:          tick.BestAsk.Float64(),
+			Pair:         pair,
+			ExchangeName: c.Name,
+			AssetType:    assetType,
+		})
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair
 func (c *CoinbasePro) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Item) (*ticker.Price, error) {
-	// fPair, err := c.FormatExchangeCurrency(p, a)
-	// if err != nil {
-	// 	return nil, err
-	// }
+	fPair, err := c.FormatExchangeCurrency(p, a)
+	if err != nil {
+		return nil, err
+	}
 
-	// tick, err := c.GetTicker(ctx, fPair.String())
-	// if err != nil {
-	// 	return nil, err
-	// }
-	// stats, err := c.GetStats(ctx, fPair.String())
-	// if err != nil {
-	// 	return nil, err
-	// }
+	tick, err := c.GetTicker(ctx, fPair.String(), 1)
+	if err != nil {
+		return nil, err
+	}
 
-	// tickerPrice := &ticker.Price{
-	// 	Last:         stats.Last,
-	// 	High:         stats.High,
-	// 	Low:          stats.Low,
-	// 	Bid:          tick.Bid,
-	// 	Ask:          tick.Ask,
-	// 	Volume:       tick.Volume,
-	// 	Open:         stats.Open,
-	// 	Pair:         p,
-	// 	LastUpdated:  tick.Time,
-	// 	ExchangeName: c.Name,
-	// 	AssetType:    a}
+	var last float64
+	if len(tick.Trades) != 0 {
+		last = tick.Trades[0].Price
+	}
 
-	// err = ticker.ProcessTicker(tickerPrice)
-	// if err != nil {
-	// 	return tickerPrice, err
-	// }
+	tickerPrice := &ticker.Price{
+		Last:         last,
+		Bid:          tick.BestBid.Float64(),
+		Ask:          tick.BestAsk.Float64(),
+		Pair:         p,
+		ExchangeName: c.Name,
+		AssetType:    a}
+
+	err = ticker.ProcessTicker(tickerPrice)
+	if err != nil {
+		return tickerPrice, err
+	}
 
 	return ticker.GetTicker(c.Name, p, a)
 }
@@ -414,66 +450,204 @@ func (c *CoinbasePro) UpdateOrderbook(ctx context.Context, p currency.Pair, asse
 	if err := c.CurrencyPairs.IsAssetEnabled(assetType); err != nil {
 		return nil, err
 	}
-	// book := &orderbook.Base{
-	// 	Exchange:        c.Name,
-	// 	Pair:            p,
-	// 	Asset:           assetType,
-	// 	VerifyOrderbook: c.CanVerifyOrderbook,
-	// }
-	// fPair, err := c.FormatExchangeCurrency(p, assetType)
-	// if err != nil {
-	// 	return book, err
-	// }
+	book := &orderbook.Base{
+		Exchange:        c.Name,
+		Pair:            p,
+		Asset:           assetType,
+		VerifyOrderbook: c.CanVerifyOrderbook,
+	}
+	fPair, err := c.FormatExchangeCurrency(p, assetType)
+	if err != nil {
+		return book, err
+	}
 
-	// orderbookNew, err := c.GetOrderbook(ctx, fPair.String(), 2)
-	// if err != nil {
-	// 	return book, err
-	// }
+	orderbookNew, err := c.GetProductBook(ctx, fPair.String(), 1000)
+	if err != nil {
+		return book, err
+	}
 
-	// obNew, ok := orderbookNew.(OrderbookL1L2)
-	// if !ok {
-	// 	return book, common.GetTypeAssertError("OrderbookL1L2", orderbookNew)
-	// }
+	book.Bids = make(orderbook.Items, len(orderbookNew.Bids))
+	for x := range orderbookNew.Bids {
+		book.Bids[x] = orderbook.Item{
+			Amount: orderbookNew.Bids[x].Size,
+			Price:  orderbookNew.Bids[x].Price,
+		}
+	}
 
-	// book.Bids = make(orderbook.Items, len(obNew.Bids))
-	// for x := range obNew.Bids {
-	// 	book.Bids[x] = orderbook.Item{
-	// 		Amount: obNew.Bids[x].Amount,
-	// 		Price:  obNew.Bids[x].Price,
-	// 	}
-	// }
-
-	// book.Asks = make(orderbook.Items, len(obNew.Asks))
-	// for x := range obNew.Asks {
-	// 	book.Asks[x] = orderbook.Item{
-	// 		Amount: obNew.Asks[x].Amount,
-	// 		Price:  obNew.Asks[x].Price,
-	// 	}
-	// }
-	// err = book.Process()
-	// if err != nil {
-	// 	return book, err
-	// }
+	book.Asks = make(orderbook.Items, len(orderbookNew.Asks))
+	for x := range orderbookNew.Asks {
+		book.Asks[x] = orderbook.Item{
+			Amount: orderbookNew.Asks[x].Size,
+			Price:  orderbookNew.Asks[x].Price,
+		}
+	}
+	err = book.Process()
+	if err != nil {
+		return book, err
+	}
 	return orderbook.Get(c.Name, p, assetType)
+}
+
+// ProcessFundingData is a helper function for GetAccountFundingHistory and GetWithdrawalsHistory
+func (c *CoinbasePro) ProcessFundingData(accHistory []DeposWithdrData, cryptoHistory []TransactionData) []exchange.FundingHistory {
+	fundingData := make([]exchange.FundingHistory, len(accHistory)+len(cryptoHistory))
+	for i := range accHistory {
+		fundingData[i] = exchange.FundingHistory{
+			ExchangeName: c.Name,
+			Status:       accHistory[i].Status,
+			TransferID:   accHistory[i].ID,
+			Timestamp:    accHistory[i].PayoutAt,
+			Currency:     accHistory[i].Amount.Currency,
+			Amount:       accHistory[i].Amount.Amount,
+			Fee:          accHistory[i].Fee.Amount,
+			TransferType: accHistory[i].TransferType.String(),
+		}
+	}
+
+	for i := range cryptoHistory {
+		fundingData[i+len(accHistory)] = exchange.FundingHistory{
+			ExchangeName: c.Name,
+			Status:       cryptoHistory[i].Status,
+			TransferID:   cryptoHistory[i].ID,
+			Description:  cryptoHistory[i].Details.Title + cryptoHistory[i].Details.Subtitle,
+			Timestamp:    cryptoHistory[i].CreatedAt,
+			Currency:     cryptoHistory[i].Amount.Currency,
+			Amount:       cryptoHistory[i].Amount.Amount,
+			CryptoChain:  cryptoHistory[i].Network.Name,
+		}
+		if cryptoHistory[i].Type == "receive" {
+			fundingData[i+len(accHistory)].TransferType = "deposit"
+			fundingData[i+len(accHistory)].CryptoFromAddress = cryptoHistory[i].To.ID
+		}
+		if cryptoHistory[i].Type == "send" {
+			fundingData[i+len(accHistory)].TransferType = "withdrawal"
+			fundingData[i+len(accHistory)].CryptoToAddress = cryptoHistory[i].From.ID
+		}
+	}
+	return fundingData
 }
 
 // GetAccountFundingHistory returns funding history, deposits and
 // withdrawals
-func (c *CoinbasePro) GetAccountFundingHistory(_ context.Context) ([]exchange.FundingHistory, error) {
-	return nil, common.ErrFunctionNotSupported
+func (c *CoinbasePro) GetAccountFundingHistory(ctx context.Context) ([]exchange.FundingHistory, error) {
+	wallIDs, err := c.GetAllWallets(ctx, PaginationInp{})
+
+	if err != nil {
+		return nil, err
+	}
+	if len(wallIDs.Data) == 0 {
+		return nil, errors.New("no wallets returned")
+	}
+
+	var accHistory []DeposWithdrData
+
+	for i := range wallIDs.Data {
+		tempAccHist, err := c.GetAllFiatTransfers(ctx, wallIDs.Data[i].ID, PaginationInp{}, FiatDeposit)
+		if err != nil {
+			return nil, err
+		}
+		accHistory = append(accHistory, tempAccHist.Data...)
+		tempAccHist, err = c.GetAllFiatTransfers(ctx, wallIDs.Data[i].ID, PaginationInp{}, FiatWithdrawal)
+		if err != nil {
+			return nil, err
+		}
+		accHistory = append(accHistory, tempAccHist.Data...)
+	}
+
+	var cryptoHistory []TransactionData
+
+	for i := range wallIDs.Data {
+		tempCryptoHist, err := c.GetAllTransactions(ctx, wallIDs.Data[i].ID, PaginationInp{})
+		if err != nil {
+			return nil, err
+		}
+		for j := range tempCryptoHist.Data {
+			if tempCryptoHist.Data[j].Type == "receive" || tempCryptoHist.Data[j].Type == "send" {
+				cryptoHistory = append(cryptoHistory, tempCryptoHist.Data[j])
+			}
+		}
+	}
+
+	fundingData := c.ProcessFundingData(accHistory, cryptoHistory)
+
+	return fundingData, nil
 }
 
 // GetWithdrawalsHistory returns previous withdrawals data
-func (c *CoinbasePro) GetWithdrawalsHistory(_ context.Context, _ currency.Code, _ asset.Item) ([]exchange.WithdrawalHistory, error) {
-	// while fetching withdrawal history is possible, the API response lacks any useful information
-	// like the currency withdrawn and thus is unsupported. If that position changes, use GetTransfers(...)
-	return nil, common.ErrFunctionNotSupported
+func (c *CoinbasePro) GetWithdrawalsHistory(ctx context.Context, cur currency.Code, a asset.Item) ([]exchange.WithdrawalHistory, error) {
+	tempWallIDs, err := c.GetAllWallets(ctx, PaginationInp{})
+
+	if err != nil {
+		return nil, err
+	}
+	if len(tempWallIDs.Data) == 0 {
+		return nil, errors.New("no wallets returned")
+	}
+
+	var wallIDs []string
+
+	for i := range tempWallIDs.Data {
+		if tempWallIDs.Data[i].Currency.Code == cur.String() {
+			wallIDs = append(wallIDs, tempWallIDs.Data[i].ID)
+		}
+	}
+
+	if len(wallIDs) == 0 {
+		return nil, errNoMatchingWallets
+	}
+
+	var accHistory []DeposWithdrData
+
+	for i := range wallIDs {
+		tempAccHist, err := c.GetAllFiatTransfers(ctx, wallIDs[i], PaginationInp{}, FiatWithdrawal)
+		if err != nil {
+			return nil, err
+		}
+		accHistory = append(accHistory, tempAccHist.Data...)
+	}
+
+	var cryptoHistory []TransactionData
+
+	for i := range wallIDs {
+		tempCryptoHist, err := c.GetAllTransactions(ctx, wallIDs[i], PaginationInp{})
+		if err != nil {
+			return nil, err
+		}
+		for j := range tempCryptoHist.Data {
+			if tempCryptoHist.Data[j].Type == "send" {
+				cryptoHistory = append(cryptoHistory, tempCryptoHist.Data[j])
+			}
+		}
+	}
+
+	tempFundingData := c.ProcessFundingData(accHistory, cryptoHistory)
+
+	fundingData := make([]exchange.WithdrawalHistory, len(tempFundingData))
+
+	for i := range tempFundingData {
+		fundingData[i] = exchange.WithdrawalHistory{
+			Status:          tempFundingData[i].Status,
+			TransferID:      tempFundingData[i].TransferID,
+			Description:     tempFundingData[i].Description,
+			Timestamp:       tempFundingData[i].Timestamp,
+			Currency:        tempFundingData[i].Currency,
+			Amount:          tempFundingData[i].Amount,
+			Fee:             tempFundingData[i].Fee,
+			TransferType:    tempFundingData[i].TransferType,
+			CryptoToAddress: tempFundingData[i].CryptoToAddress,
+			CryptoTxID:      tempFundingData[i].CryptoTxID,
+			CryptoChain:     tempFundingData[i].CryptoChain,
+			BankTo:          tempFundingData[i].BankTo,
+		}
+	}
+
+	return fundingData, nil
 }
 
 // GetRecentTrades returns the most recent trades for a currency and asset
 func (c *CoinbasePro) GetRecentTrades(ctx context.Context, p currency.Pair, assetType asset.Item) ([]trade.Data, error) {
-	var err error
-	p, err = c.FormatExchangeCurrency(p, assetType)
+
+	p, err := c.FormatExchangeCurrency(p, assetType)
 	if err != nil {
 		return nil, err
 	}
