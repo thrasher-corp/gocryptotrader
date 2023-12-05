@@ -17,6 +17,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/common/file"
@@ -1372,10 +1373,8 @@ func TestNewSupportedExchangeByName(t *testing.T) {
 func TestNewExchangeByNameWithDefaults(t *testing.T) {
 	t.Parallel()
 
-	_, err := NewExchangeByNameWithDefaults(context.Background(), "meow")
-	if !errors.Is(err, ErrExchangeNotFound) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, ErrExchangeNotFound)
-	}
+	_, err := NewExchangeByNameWithDefaults(context.Background(), "moarunlikelymeow")
+	assert.ErrorIs(t, err, ErrExchangeNotFound, "Invalid exchange name should error")
 	for x := range exchange.Exchanges {
 		name := exchange.Exchanges[x]
 		t.Run(name, func(t *testing.T) {
@@ -1387,11 +1386,8 @@ func TestNewExchangeByNameWithDefaults(t *testing.T) {
 				t.Skipf("skipping %s unsupported", name)
 			}
 			exch, err := NewExchangeByNameWithDefaults(context.Background(), name)
-			if err != nil {
-				t.Error(err)
-			}
-			if !strings.EqualFold(exch.GetName(), name) {
-				t.Errorf("received: '%v' but expected: '%v'", exch.GetName(), name)
+			if assert.NoError(t, err, "NewExchangeByNameWithDefaults should not error") {
+				assert.Equal(t, name, strings.ToLower(exch.GetName()), "Should get correct exchange name")
 			}
 		})
 	}

@@ -56,11 +56,14 @@ func (e Error) GetError() error {
 		return err
 	}
 	switch code {
-	case 200000, 200:
+	case 200:
 		return nil
-	default:
-		return fmt.Errorf("code: %s message: %s", e.Code, e.Msg)
+	case 200000:
+		if e.Msg == "" {
+			return nil
+		}
 	}
+	return fmt.Errorf("code: %s message: %s", e.Code, e.Msg)
 }
 
 // SymbolInfo stores symbol information

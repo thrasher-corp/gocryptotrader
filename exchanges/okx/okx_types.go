@@ -505,11 +505,11 @@ type InsuranceFundInformation struct {
 // InsuranceFundInformationDetail represents an Insurance fund information item for a
 // single currency and type
 type InsuranceFundInformationDetail struct {
-	Amount    float64          `json:"amt,string"`
-	Balance   float64          `json:"balance,string"`
-	Currency  string           `json:"ccy"`
-	Timestamp okxUnixMilliTime `json:"ts"`
-	Type      string           `json:"type"`
+	Amount    convert.StringToFloat64 `json:"amt"`
+	Balance   convert.StringToFloat64 `json:"balance"`
+	Currency  string                  `json:"ccy"`
+	Timestamp okxUnixMilliTime        `json:"ts"`
+	Type      string                  `json:"type"`
 }
 
 // SupportedCoinsData holds information about currencies supported by the trading data endpoints.
