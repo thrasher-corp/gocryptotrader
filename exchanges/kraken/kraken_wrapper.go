@@ -1866,46 +1866,80 @@ func (k *Kraken) IsPerpetualFutureCurrency(a asset.Item, cp currency.Pair) (bool
 }
 
 // GetOpenInterest returns the open interest rate for a given asset pair
-func (k *Kraken) GetOpenInterest(ctx context.Context, pa ...key.PairAsset) ([]futures.OpenInterest, error) {
-	if pa.Asset != asset.Futures {
-		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, pa.Asset)
+func (k *Kraken) GetOpenInterest(ctx context.Context, keys ...key.PairAsset) ([]futures.OpenInterest, error) {
+	for i := range keys {
+		if keys[i].Asset != asset.Futures {
+			// avoid API calls or returning errors after a successful retrieval
+			return nil, fmt.Errorf("%w %v %v", asset.ErrNotSupported, keys[i].Asset, keys[i].Pair())
+		}
 	}
-	if pa.Pair().IsEmpty() {
+	if len(keys) == 0 {
 		ticks, err := k.GetFuturesTickers(ctx)
 		if err != nil {
 			return nil, err
 		}
 		resp := make([]futures.OpenInterest, 0, len(ticks.Tickers))
 		for i := range ticks.Tickers {
-
+			p, isEnabled, err := k.MatchSymbolCheckEnabled(ticks.Tickers[i].Symbol, asset.Futures, false)
+			if err != nil && !errors.Is(err, currency.ErrPairNotFound) {
+				return nil, err
+			}
+			if !isEnabled {
+				continue
+			}
 			resp = append(resp, futures.OpenInterest{
 				K: key.ExchangePairAsset{
 					Exchange: k.Name,
-					Base:     pa.Base,
-					Quote:    pa.Quote,
-					Asset:    pa.Asset,
+					Base:     p.Base.Item,
+					Quote:    p.Quote.Item,
+					Asset:    asset.Futures,
 				},
 				OpenInterest: ticks.Tickers[i].OpenInterest,
 			})
 		}
 		return resp, nil
 	}
-	symbol, err := k.FormatSymbol(pa.Pair(), pa.Asset)
-	if err != nil {
-		return nil, err
-	}
-	tick, err := k.GetFuturesTickerBySymbol(ctx, symbol)
-	if err != nil {
-		return nil, err
-	}
+	resp := make([]futures.OpenInterest, 0, len(keys))
+	for i := range keys {
+		// decision to only get cached tickers for individual pairs
+		// is due to the processing & development required to return all pairs
+		tick, err := ticker.GetTicker(k.Name, keys[i].Pair(), asset.Futures)
+		if err != nil && !errors.Is(err, ticker.ErrNoTickerFound) {
+			return nil, err
+		}
+		if tick != nil {
+			resp = append(resp, futures.OpenInterest{
+				K: key.ExchangePairAsset{
+					Exchange: k.Name,
+					Base:     keys[i].Base,
+					Quote:    keys[i].Quote,
+					Asset:    asset.Futures,
+				},
+				OpenInterest: tick.OpenInterest,
+			})
+			continue
+		}
 
-	return []futures.OpenInterest{{
-		K: key.ExchangePairAsset{
-			Exchange: k.Name,
-			Base:     pa.Base,
-			Quote:    pa.Quote,
-			Asset:    pa.Asset,
-		},
-		OpenInterest: tick.Ticker.OpenInterest,
-	}}, nil
+		data, err := k.GetFuturesTickerBySymbol(ctx, keys[i].Pair().String())
+		if err != nil {
+			return nil, err
+		}
+		p, isEnabled, err := k.MatchSymbolCheckEnabled(data.Ticker.Symbol, asset.Futures, false)
+		if err != nil && !errors.Is(err, currency.ErrPairNotFound) {
+			return nil, err
+		}
+		if !isEnabled {
+			continue
+		}
+		resp = append(resp, futures.OpenInterest{
+			K: key.ExchangePairAsset{
+				Exchange: k.Name,
+				Base:     p.Base.Item,
+				Quote:    p.Quote.Item,
+				Asset:    asset.Futures,
+			},
+			OpenInterest: data.Ticker.OpenInterest,
+		})
+	}
+	return resp, nil
 }

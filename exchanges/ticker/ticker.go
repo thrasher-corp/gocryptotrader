@@ -14,6 +14,9 @@ import (
 )
 
 var (
+	// ErrNoTickerFound is when a ticker is not found
+	ErrNoTickerFound = errors.New("no ticker found")
+
 	errInvalidTicker       = errors.New("invalid ticker")
 	errTickerNotFound      = errors.New("ticker not found")
 	errExchangeNameIsEmpty = errors.New("exchange name is empty")
@@ -84,8 +87,8 @@ func GetTicker(exchange string, p currency.Pair, a asset.Item) (*Price, error) {
 		Asset:    a,
 	}]
 	if !ok {
-		return nil, fmt.Errorf("no tickers associated with asset type %s %s %s",
-			exchange, p, a)
+		return nil, fmt.Errorf("%w %s %s %s",
+			ErrNoTickerFound, exchange, p, a)
 	}
 
 	cpy := tick.Price // Don't let external functions have access to underlying
