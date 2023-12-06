@@ -330,8 +330,8 @@ type OrderResponse struct {
 
 // AmendOrderParams represents a parameter for amending order.
 type AmendOrderParams struct {
-	Category               string        `json:"category"`
-	Symbol                 currency.Pair `json:"symbol"`
+	Category               string        `json:"category,omitempty"`
+	Symbol                 currency.Pair `json:"symbol,omitempty"`
 	OrderID                string        `json:"orderId,omitempty"`
 	OrderLinkID            string        `json:"orderLinkId,omitempty"` // User customised order ID. A max of 36 characters. Combinations of numbers, letters (upper and lower cases), dashes, and underscores are supported. future orderLinkId rules:
 	OrderImpliedVolatility string        `json:"orderIv,omitempty"`
@@ -1342,14 +1342,31 @@ type WalletType struct {
 
 // SubUIDAPIKeyUpdateParam represents a sub-user ID API key update parameter.
 type SubUIDAPIKeyUpdateParam struct {
-	ReadOnly int64 `json:"readOnly"`
+	APIKey   string `json:"apikey"`
+	ReadOnly int64  `json:"readOnly,omitempty"`
 	// Set the IP bind. example: ["192.168.0.1,192.168.0.2"]note:
 	// don't pass ips or pass with ["*"] means no bind
 	// No ip bound api key will be invalid after 90 days
 	// api key will be invalid after 7 days once the account password is changed
-	IPs []string `json:"ips"`
+	IPs string `json:"ips"`
+
+	// You can provide the IP addresses as a list of strings.
+	IPAddresses []string `json:"-"`
+
 	// Tick the types of permission. one of below types must be passed, otherwise the error is thrown
-	Permissions map[string][]string `json:"permissions,omitempty"`
+	Permissions PermissionsList `json:"permissions"`
+}
+
+// PermissionsList represents list of sub api permissions.
+type PermissionsList struct {
+	ContractTrade []string `json:"ContractTrade,omitempty"`
+	Spot          []string `json:"Spot,omitempty"`
+	Wallet        []string `json:"Wallet,omitempty"`
+	Options       []string `json:"Options,omitempty"`
+	Exchange      []string `json:"Exchange,omitempty"`
+	CopyTrading   []string `json:"CopyTrading,omitempty"`
+	BlockTrade    []string `json:"BlockTrade,omitempty"`
+	NFT           []string `json:"NFT,omitempty"`
 }
 
 // AffiliateCustomerInfo represents user information

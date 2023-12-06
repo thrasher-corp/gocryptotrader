@@ -1469,9 +1469,8 @@ func (by *Bybit) GetCoinExchangeRecords(ctx context.Context, fromCoin, toCoin, c
 
 // GetDeliveryRecord retrieves delivery records of USDC futures and Options, sorted by deliveryTime in descending order
 func (by *Bybit) GetDeliveryRecord(ctx context.Context, category, symbol, cursor string, expiryDate time.Time, limit int64) (*DeliveryRecord, error) {
-	validCategory = []string{cLinear, cOption}
-	if !common.StringDataContains(validCategory, category) {
-		return nil, fmt.Errorf("%w, valid category values are %v", errInvalidCategory, validCategory)
+	if !common.StringDataContains([]string{cLinear, cOption}, category) {
+		return nil, fmt.Errorf("%w, valid category values are %v", errInvalidCategory, []string{cLinear, cOption})
 	}
 	params := url.Values{}
 	params.Set("category", category)
@@ -1493,9 +1492,8 @@ func (by *Bybit) GetDeliveryRecord(ctx context.Context, category, symbol, cursor
 
 // GetUSDCSessionSettlement retrieves session settlement records of USDC perpetual and futures
 func (by *Bybit) GetUSDCSessionSettlement(ctx context.Context, category, symbol, cursor string, limit int64) (*SettlementSession, error) {
-	validCategory = []string{cLinear}
-	if !common.StringDataContains(validCategory, category) {
-		return nil, fmt.Errorf("%w, valid category values are %v", errInvalidCategory, validCategory)
+	if !common.StringDataContains([]string{cLinear}, category) {
+		return nil, fmt.Errorf("%w, valid category value is %v", errInvalidCategory, cLinear)
 	}
 	params := url.Values{}
 	params.Set("category", category)
@@ -2005,6 +2003,9 @@ func (by *Bybit) ModifyMasterAPIKey(ctx context.Context, arg *SubUIDAPIKeyUpdate
 	if arg == nil || reflect.DeepEqual(*arg, SubUIDAPIKeyUpdateParam{}) {
 		return nil, errNilArgument
 	}
+	if len(arg.IPs) == 0 && len(arg.IPAddresses) > 0 {
+		arg.IPs = strings.Join(arg.IPAddresses, ",")
+	}
 	var resp *SubUIDAPIResponse
 	return resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, "/v5/user/update-api", nil, arg, &resp, userUpdateAPIEPL)
 }
@@ -2014,6 +2015,9 @@ func (by *Bybit) ModifySubAPIKey(ctx context.Context, arg *SubUIDAPIKeyUpdatePar
 	if arg == nil || reflect.DeepEqual(*arg, SubUIDAPIKeyUpdateParam{}) {
 		return nil, errNilArgument
 	}
+	if len(arg.IPs) == 0 && len(arg.IPAddresses) > 0 {
+		arg.IPs = strings.Join(arg.IPAddresses, ",")
+	}
 	var resp *SubUIDAPIResponse
 	return resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, "/v5/user/update-sub-api", nil, &arg, &resp, userUpdateSubAPIEPL)
 }
@@ -2022,7 +2026,7 @@ func (by *Bybit) ModifySubAPIKey(ctx context.Context, arg *SubUIDAPIKeyUpdatePar
 // Use master user's api key**.
 func (by *Bybit) DeleteSubUID(ctx context.Context, subMemberID string) error {
 	if subMemberID == "" {
-		return errMembersIDsNotSet
+		return errMemberIDRequired
 	}
 	arg := &struct {
 		SubMemberID string `json:"subMemberId"`
@@ -2564,11 +2568,7 @@ func (by *Bybit) SendHTTPRequest(ctx context.Context, ePath exchange.URL, path s
 
 // SendAuthHTTPRequestV5 sends an authenticated HTTP request
 func (by *Bybit) SendAuthHTTPRequestV5(ctx context.Context, ePath exchange.URL, method, path string, params url.Values, arg, result interface{}, f request.EndpointLimit) error {
-	val := reflect.ValueOf(arg)
-	if arg != nil && val.Kind() != reflect.Ptr {
-		return errNonePointerArgument
-	}
-	val = reflect.ValueOf(result)
+	val := reflect.ValueOf(result)
 	if val.Kind() != reflect.Ptr {
 		return errNonePointerArgument
 	} else if val.IsNil() {

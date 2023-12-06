@@ -966,8 +966,9 @@ func TestAmendOrder(t *testing.T) {
 		t.Fatalf("expected %v, got %v", currency.ErrCurrencyPairEmpty, err)
 	}
 	_, err = b.AmendOrder(context.Background(), &AmendOrderParams{
-		OrderID:  "c6f055d9-7f21-4079-913d-e6523a9cfffa",
-		Category: "spot", Symbol: spotTradablePair,
+		OrderID:         "c6f055d9-7f21-4079-913d-e6523a9cfffa",
+		Category:        cSpot,
+		Symbol:          spotTradablePair,
 		TriggerPrice:    1145,
 		OrderQuantity:   0.15,
 		Price:           1050,
@@ -1204,10 +1205,10 @@ func TestCancelBatchOrder(t *testing.T) {
 		t.Fatalf("expected %v, got %v", errNilArgument, err)
 	}
 	_, err = b.CancelBatchOrder(context.Background(), &CancelBatchOrder{})
-	if !errors.Is(err, errCategoryNotSet) {
-		t.Fatalf("expected %v, got %v", errCategoryNotSet, err)
+	if !errors.Is(err, errInvalidCategory) {
+		t.Fatalf("expected %v, got %v", errInvalidCategory, err)
 	}
-	_, err = b.CancelBatchOrder(context.Background(), &CancelBatchOrder{Category: "spot"})
+	_, err = b.CancelBatchOrder(context.Background(), &CancelBatchOrder{Category: cOption})
 	if !errors.Is(err, errNoOrderPassed) {
 		t.Fatalf("expected %v, got %v", errNoOrderPassed, err)
 	}
@@ -2441,17 +2442,15 @@ func TestModifyMasterAPIKey(t *testing.T) {
 	}
 	_, err = b.ModifyMasterAPIKey(context.Background(), &SubUIDAPIKeyUpdateParam{
 		ReadOnly: 0,
-		IPs:      []string{"*"},
-		Permissions: map[string][]string{
-			"ContractTrade": {"Order", "Position"},
-			"Spot":          {"SpotTrade"},
-			"Wallet":        {"AccountTransfer", "SubMemberTransfer"},
-			"Options":       {"OptionsTrade"},
-			"Derivatives":   {"DerivativesTrade"},
-			"CopyTrading":   {"CopyTrading"},
-			"BlockTrade":    {},
-			"Exchange":      {"ExchangeHistory"},
-			"NFT":           {"NFTQueryProductList"}},
+		IPs:      "192.168.0.1,192.168.0.2",
+		Permissions: PermissionsList{
+			ContractTrade: []string{"Order", "Position"},
+			Spot:          []string{"SpotTrade"},
+			Wallet:        []string{"AccountTransfer", "SubMemberTransfer"},
+			Options:       []string{"OptionsTrade"},
+			CopyTrading:   []string{"CopyTrading"},
+			Exchange:      []string{"ExchangeHistory"},
+		},
 	})
 	if err != nil {
 		t.Error(err)
@@ -2469,12 +2468,12 @@ func TestModifySubAPIKey(t *testing.T) {
 		t.Fatalf("expected %v, got %v", errNilArgument, err)
 	}
 	_, err = b.ModifySubAPIKey(context.Background(), &SubUIDAPIKeyUpdateParam{
+		APIKey:   "",
 		ReadOnly: 0,
-		IPs:      []string{"*"},
-		Permissions: map[string][]string{
-			"ContractTrade": {},
-			"Spot":          {"SpotTrade"},
-			"Wallet":        {"AccountTransfer"},
+		IPs:      "192.168.0.1,192.168.0.2",
+		Permissions: PermissionsList{
+			Spot:   []string{"SpotTrade"},
+			Wallet: []string{"AccountTransfer"},
 		},
 	})
 	if err != nil {
