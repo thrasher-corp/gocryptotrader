@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/gofrs/uuid"
+	"github.com/stretchr/testify/assert"
 )
 
 var (
@@ -485,38 +486,27 @@ func TestMuxPublish(t *testing.T) {
 	t.Parallel()
 	d := NewDispatcher()
 	err := d.start(0, 0)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	assert.NoError(t, err, "start should not error")
+
 	mux := GetNewMux(d)
 	itemID, err := mux.GetID()
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.NoError(t, err, "GetID should not error")
 
-	// demonstrate that jobs do not get published when the limit should be reached
-	// but there is no listener associated with job
-	for x := 0; x < 200; x++ {
-		err2 := mux.Publish("test", itemID)
-		if !errors.Is(err2, nil) {
-			err = err2
+	for i := 0; i < 200; i++ {
+		err = mux.Publish("test", itemID)
+		if !assert.NoError(t, err, "Publish should not error when over limit but no listeners") {
 			break
 		}
 	}
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
 
 	pipe, err := mux.Subscribe(itemID)
-	if err != nil {
-		t.Error(err)
-	}
+	assert.NoError(t, err, "Subscribe should not error")
 
 	go func(mux *Mux) {
 		for i := 0; i < 100; i++ {
 			errMux := mux.Publish(i, itemID)
-			if errMux != nil {
-				t.Error(errMux)
+			if !assert.NoError(t, errMux, "Publish should not error within limits") {
+				return
 			}
 		}
 	}(mux)
@@ -524,39 +514,26 @@ func TestMuxPublish(t *testing.T) {
 	<-pipe.Channel()
 
 	// demonstrate that jobs can be limited when subscribed
-	for x := 0; x < 200; x++ {
-		err2 := mux.Publish("test", itemID)
-		if !errors.Is(err2, nil) {
-			err = err2
+	for i := 0; i < 200; i++ {
+		if err = mux.Publish("test", itemID); err != nil {
 			break
 		}
 	}
-	if !errors.Is(err, errDispatcherJobsAtLimit) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errDispatcherJobsAtLimit)
-	}
+	assert.ErrorIs(t, err, errDispatcherJobsAtLimit, "Publish should error when more published than expected")
 
-	// demonstrate that jobs go back to not being sent after unsubscribing
 	err = mux.Unsubscribe(itemID, pipe.c)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	assert.NoError(t, err, "Unsubscribe should not error")
 
-	for x := 0; x < 200; x++ {
-		err2 := mux.Publish("test", itemID)
-		if !errors.Is(err2, nil) {
-			err = err2
+	for i := 0; i < 200; i++ {
+		if err = mux.Publish("test", itemID); err != nil {
 			break
 		}
 	}
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	assert.NoError(t, err, "Publish should not error after Unsubscribe when over limit")
 
 	// Shut down dispatch system
 	err = d.stop()
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.NoError(t, err, "stop should not error")
 }
 
 // 13636467	        84.26 ns/op	     141 B/op	       1 allocs/op
