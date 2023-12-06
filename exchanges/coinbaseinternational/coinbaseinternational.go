@@ -37,10 +37,10 @@ var (
 	errMissingPortfolioID           = errors.New("missing portfolio identification")
 	errNetworkArnID                 = errors.New("identifies the blockchain network")
 	errMissingTransferID            = errors.New("missing transfer ID")
-	errAddressIsRequired            = errors.New("err: missing address")
-	errAssetIdentifierRequired      = errors.New("err: asset identified is required")
-	errEmptyArgument                = errors.New("err: empty argument")
-	errTimeInForceRequired          = errors.New("err: time_in_force is required")
+	errAddressIsRequired            = errors.New("missing address")
+	errAssetIdentifierRequired      = errors.New("asset identified is required")
+	errEmptyArgument                = errors.New("empty argument")
+	errTimeInForceRequired          = errors.New("time_in_force is required")
 	errInstrumentIdentifierRequired = errors.New("instrument information is required")
 )
 
@@ -205,7 +205,7 @@ func (co *CoinbaseInternational) ModifyOpenOrder(ctx context.Context, orderID st
 	if orderID == "" {
 		return nil, order.ErrOrderIDNotSet
 	}
-	if arg == (&ModifyOrderParam{}) {
+	if arg == nil || arg == (&ModifyOrderParam{}) {
 		return nil, fmt.Errorf("%w, empty modification parameter", common.ErrNilPointer)
 	}
 	var resp *OrderItem
@@ -374,7 +374,7 @@ func (co *CoinbaseInternational) ListMatchingTransfers(ctx context.Context, port
 		params.Set("status", status)
 	}
 	if transferType != "" {
-		params.Set("type", status)
+		params.Set("type", transferType)
 	}
 	if !timeFrom.IsZero() {
 		params.Set("time_from", timeFrom.String())
@@ -450,11 +450,12 @@ func (co *CoinbaseInternational) SendHTTPRequest(ctx context.Context, ep exchang
 		}
 		requestType = request.AuthenticatedRequest
 	}
-	value := reflect.ValueOf(data)
+
 	var payload []byte
-	if value != (reflect.Value{}) && !value.IsNil() && value.Kind() != reflect.Ptr {
-		return errArgumentMustBeInterface
-	} else if value != (reflect.Value{}) && !value.IsNil() {
+	if data != nil {
+		if reflect.ValueOf(data).Kind() != reflect.Ptr {
+			return errArgumentMustBeInterface
+		}
 		payload, err = json.Marshal(data)
 		if err != nil {
 			return err

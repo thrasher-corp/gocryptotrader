@@ -266,7 +266,7 @@ func (co *CoinbaseInternational) UpdateTicker(ctx context.Context, p currency.Pa
 		Open:         tick.MarkPrice.Float64(),
 		Close:        tick.SettlementPrice.Float64(),
 		LastUpdated:  tick.Timestamp,
-		Volume:       tick.TradeQty.Float64() / tick.TradePrice.Float64(), // TODO: if the volume is representing the quote volume,  then the base quentity is the quote volume divided by the trade price.
+		Volume:       tick.TradeQty.Float64() / tick.TradePrice.Float64(),
 		QuoteVolume:  tick.TradeQty.Float64(),
 		ExchangeName: co.Name,
 		AssetType:    asset.Spot,
@@ -303,7 +303,7 @@ func (co *CoinbaseInternational) UpdateTickers(ctx context.Context, assetType as
 			Open:         tick.MarkPrice.Float64(),
 			Close:        tick.SettlementPrice.Float64(),
 			LastUpdated:  tick.Timestamp,
-			Volume:       tick.TradeQty.Float64() / tick.TradePrice.Float64(), // TODO: if the volume is representing the quote volume,  then the base quentity is the quote volume divided by the trade price.
+			Volume:       tick.TradeQty.Float64() / tick.TradePrice.Float64(),
 			QuoteVolume:  tick.TradeQty.Float64(),
 			Pair:         enabledPairs[x],
 			AssetType:    asset.Spot,
@@ -396,7 +396,6 @@ func (co *CoinbaseInternational) UpdateAccountInfo(ctx context.Context, assetTyp
 				Hold:                   balances[b].Hold.Float64(),
 				Free:                   balances[b].Quantity.Float64() - balances[b].Hold.Float64(),
 				AvailableWithoutBorrow: balances[b].MaxWithdrawAmount.Float64(),
-				Borrowed:               balances[b].CollateralValue.Float64(), // TODO: amount to be borrowed
 			}
 		}
 	}
@@ -430,10 +429,10 @@ func (co *CoinbaseInternational) GetAccountFundingHistory(ctx context.Context) (
 			CryptoTxID:   history.Results[j].TransferUUID,
 			CryptoChain:  history.Results[j].NetworkName,
 			Timestamp:    history.Results[j].CreatedAt,
-			Status:       history.Results[j].Status,
+			Status:       history.Results[j].TransferStatus,
 			Currency:     history.Results[j].Asset,
 			Amount:       history.Results[j].Amount,
-			TransferType: history.Results[j].Type,
+			TransferType: history.Results[j].TransferType,
 		}
 	}
 	return resp, nil
@@ -451,13 +450,19 @@ func (co *CoinbaseInternational) GetWithdrawalsHistory(ctx context.Context, _ cu
 	resp := make([]exchange.WithdrawalHistory, len(history.Results))
 	for j := range history.Results {
 		resp[j] = exchange.WithdrawalHistory{
-			Status:       history.Results[j].Status,
-			Timestamp:    history.Results[j].CreatedAt,
-			Currency:     history.Results[j].Asset,
-			Amount:       history.Results[j].Amount,
-			TransferType: history.Results[j].Type,
-			CryptoTxID:   history.Results[j].TransferUUID,
-			CryptoChain:  history.Results[j].NetworkName,
+			Status:          history.Results[j].TransferStatus,
+			Timestamp:       history.Results[j].CreatedAt,
+			Currency:        history.Results[j].Asset,
+			Amount:          history.Results[j].Amount,
+			TransferType:    history.Results[j].TransferType,
+			CryptoTxID:      history.Results[j].TransferUUID,
+			CryptoChain:     history.Results[j].NetworkName,
+			CryptoToAddress: history.Results[j].ToPortfolio.ID,
+		}
+		if resp[j].CryptoToAddress == "" && history.Results[j].ToPortfolio.UUID != "" {
+			resp[j].CryptoToAddress = history.Results[j].ToPortfolio.UUID
+		} else if resp[j].CryptoToAddress == "" {
+			resp[j].CryptoToAddress = history.Results[j].ToPortfolio.Name
 		}
 	}
 	return resp, nil
@@ -465,17 +470,17 @@ func (co *CoinbaseInternational) GetWithdrawalsHistory(ctx context.Context, _ cu
 
 // GetRecentTrades returns the most recent trades for a currency and asset
 func (co *CoinbaseInternational) GetRecentTrades(_ context.Context, _ currency.Pair, _ asset.Item) ([]trade.Data, error) {
-	return nil, common.ErrNotYetImplemented
+	return nil, common.ErrFunctionNotSupported
 }
 
 // GetHistoricTrades returns historic trade data within the timeframe provided
 func (co *CoinbaseInternational) GetHistoricTrades(context.Context, currency.Pair, asset.Item, time.Time, time.Time) ([]trade.Data, error) {
-	return nil, common.ErrNotYetImplemented
+	return nil, common.ErrFunctionNotSupported
 }
 
 // GetServerTime returns the current exchange server time.
 func (co *CoinbaseInternational) GetServerTime(_ context.Context, _ asset.Item) (time.Time, error) {
-	return time.Time{}, common.ErrNotYetImplemented
+	return time.Time{}, common.ErrFunctionNotSupported
 }
 
 // SubmitOrder submits a new order
@@ -510,27 +515,7 @@ func (co *CoinbaseInternational) SubmitOrder(ctx context.Context, s *order.Submi
 	if err != nil {
 		return nil, err
 	}
-	oStatus, err := order.StringToOrderStatus(response.OrderStatus)
-	if err != nil {
-		return nil, err
-	}
-	return &order.SubmitResponse{
-		Exchange:      co.Name,
-		Type:          s.Type,
-		Side:          s.Side,
-		Pair:          s.Pair,
-		AssetType:     asset.Spot,
-		PostOnly:      s.PostOnly,
-		ReduceOnly:    s.ReduceOnly,
-		Leverage:      s.Leverage,
-		Price:         response.Price,
-		Amount:        response.Size,
-		TriggerPrice:  response.StopPrice,
-		ClientOrderID: response.ClientOrderID,
-		Status:        oStatus,
-		OrderID:       strconv.FormatInt(response.OrderID, 10),
-		Fee:           response.Fee.Float64(),
-	}, nil
+	return s.DeriveSubmitResponse(strconv.FormatInt(response.OrderID, 10))
 }
 
 // ModifyOrder will allow of changing orderbook placement and limit to
@@ -571,15 +556,12 @@ func (co *CoinbaseInternational) CancelOrder(ctx context.Context, ord *order.Can
 		return err
 	}
 	_, err = co.CancelTradeOrder(ctx, ord.OrderID, ord.ClientOrderID, ord.AccountID, "")
-	if err != nil {
-		return err
-	}
-	return nil
+	return err
 }
 
 // CancelBatchOrders cancels orders by their corresponding ID numbers
 func (co *CoinbaseInternational) CancelBatchOrders(context.Context, []order.Cancel) (*order.CancelBatchResponse, error) {
-	return nil, common.ErrNotYetImplemented
+	return nil, common.ErrFunctionNotSupported
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
@@ -655,7 +637,7 @@ func (co *CoinbaseInternational) GetOrderInfo(ctx context.Context, orderID strin
 
 // GetDepositAddress returns a deposit address for a specified currency
 func (co *CoinbaseInternational) GetDepositAddress(context.Context, currency.Code, string, string) (*deposit.Address, error) {
-	return nil, common.ErrNotYetImplemented
+	return nil, common.ErrFunctionNotSupported
 }
 
 // GetAvailableTransferChains returns the available transfer blockchains for the specific
@@ -696,13 +678,13 @@ func (co *CoinbaseInternational) WithdrawCryptocurrencyFunds(ctx context.Context
 // WithdrawFiatFunds returns a withdrawal ID when a withdrawal is
 // submitted
 func (co *CoinbaseInternational) WithdrawFiatFunds(context.Context, *withdraw.Request) (*withdraw.ExchangeResponse, error) {
-	return nil, common.ErrNotYetImplemented
+	return nil, common.ErrFunctionNotSupported
 }
 
 // WithdrawFiatFundsToInternationalBank returns a withdrawal ID when a withdrawal is
 // submitted
 func (co *CoinbaseInternational) WithdrawFiatFundsToInternationalBank(context.Context, *withdraw.Request) (*withdraw.ExchangeResponse, error) {
-	return nil, common.ErrNotYetImplemented
+	return nil, common.ErrFunctionNotSupported
 }
 
 // GetActiveOrders retrieves any orders that are active/open
@@ -763,7 +745,7 @@ func (co *CoinbaseInternational) GetActiveOrders(ctx context.Context, getOrdersR
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
 func (co *CoinbaseInternational) GetOrderHistory(context.Context, *order.MultiOrderRequest) (order.FilteredOrders, error) {
-	return nil, common.ErrNotYetImplemented
+	return nil, common.ErrFunctionNotSupported
 }
 
 // GetFeeByType returns an estimate of fee based on the type of transaction
@@ -786,12 +768,12 @@ func (co *CoinbaseInternational) ValidateAPICredentials(ctx context.Context, ass
 
 // GetHistoricCandles returns candles between a time period for a set time interval
 func (co *CoinbaseInternational) GetHistoricCandles(context.Context, currency.Pair, asset.Item, kline.Interval, time.Time, time.Time) (*kline.Item, error) {
-	return nil, common.ErrNotYetImplemented
+	return nil, common.ErrFunctionNotSupported
 }
 
 // GetHistoricCandlesExtended returns candles between a time period for a set time interval
 func (co *CoinbaseInternational) GetHistoricCandlesExtended(context.Context, currency.Pair, asset.Item, kline.Interval, time.Time, time.Time) (*kline.Item, error) {
-	return nil, common.ErrNotYetImplemented
+	return nil, common.ErrFunctionNotSupported
 }
 
 // GetFuturesContractDetails returns all contracts from the exchange by asset type

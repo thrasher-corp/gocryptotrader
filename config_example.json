@@ -295,7 +295,7 @@
             }
         },
         "api": {
-            "authenticatedSupport": false,
+            "authenticatedSupport": true,
             "authenticatedWebsocketApiSupport": false,
             "credentials": {
             "key": "Key",
@@ -309,7 +309,7 @@
                 "restCapabilities": {
                     "autoPairUpdates": true
                 },
-                "websocketAPI": true,
+                "websocketAPI": false,
                 "websocketCapabilities": {}
             },
             "enabled": {

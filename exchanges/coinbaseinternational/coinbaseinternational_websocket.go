@@ -88,12 +88,11 @@ func (co *CoinbaseInternational) wsReadData(conn stream.Connection) {
 }
 
 func (co *CoinbaseInternational) wsHandleData(respRaw []byte) error {
-	var resp SubscriptionRespnse
+	var resp SubscriptionResponse
 	err := json.Unmarshal(respRaw, &resp)
 	if err != nil {
 		return err
 	}
-
 	switch resp.Type {
 	case "SUBSCRIBE":
 		subsccefulySubscribedChannels := []stream.ChannelSubscription{}
@@ -163,30 +162,27 @@ func (co *CoinbaseInternational) processOrderbookLevel2(respRaw []byte) error {
 		if err != nil {
 			return err
 		}
-		var price, amount float64
-		asks := make([]orderbook.Item, 0, len(resp[x].Asks))
+		asks := make([]orderbook.Item, len(resp[x].Asks))
 		for a := range resp[x].Asks {
-			price, err = strconv.ParseFloat(resp[x].Asks[a][0], 64)
+			asks[a].Price, err = strconv.ParseFloat(resp[x].Asks[a][0], 64)
 			if err != nil {
 				return err
 			}
-			amount, err = strconv.ParseFloat(resp[x].Asks[a][1], 64)
+			asks[a].Amount, err = strconv.ParseFloat(resp[x].Asks[a][1], 64)
 			if err != nil {
 				return err
 			}
-			asks[x] = orderbook.Item{Amount: amount, Price: price}
 		}
-		bids := make([]orderbook.Item, 0, len(resp[x].Bids))
+		bids := make([]orderbook.Item, len(resp[x].Bids))
 		for b := range resp[x].Bids {
-			price, err = strconv.ParseFloat(resp[x].Bids[b][0], 64)
+			bids[b].Price, err = strconv.ParseFloat(resp[x].Bids[b][0], 64)
 			if err != nil {
 				return err
 			}
-			amount, err = strconv.ParseFloat(resp[x].Bids[b][1], 64)
+			bids[b].Amount, err = strconv.ParseFloat(resp[x].Bids[b][1], 64)
 			if err != nil {
 				return err
 			}
-			bids[x] = orderbook.Item{Amount: amount, Price: price}
 		}
 		if resp[x].Type == "UPDATE" {
 			var update = orderbook.Update{
@@ -368,21 +364,27 @@ func (co *CoinbaseInternational) GenerateSubscriptionPayload(subscriptions []str
 }
 
 func (co *CoinbaseInternational) handleSubscription(payload []SubscriptionInput) error {
-	var err error
-	var authenticate bool
-	creds, err := co.GetCredentials(context.Background())
-	if err == nil && co.Websocket.CanUseAuthenticatedEndpoints() {
+	var (
+		authenticate bool
+		creds        *account.Credentials
+	)
+	if co.Websocket.CanUseAuthenticatedEndpoints() {
+		var err error
+		creds, err = co.GetCredentials(context.Background())
+		if err != nil {
+			return err
+		}
 		authenticate = true
 	}
 	for x := range payload {
 		payload[x].Time = strconv.FormatInt(time.Now().Unix(), 10)
 		if authenticate {
-			err = co.signSubscriptionPayload(creds, &payload[x])
+			err := co.signSubscriptionPayload(creds, &payload[x])
 			if err != nil {
 				return err
 			}
 		}
-		err = co.Websocket.Conn.SendJSONMessage(payload[x])
+		err := co.Websocket.Conn.SendJSONMessage(payload[x])
 		if err != nil {
 			return err
 		}
@@ -391,7 +393,6 @@ func (co *CoinbaseInternational) handleSubscription(payload []SubscriptionInput)
 }
 
 func (co *CoinbaseInternational) signSubscriptionPayload(creds *account.Credentials, body *SubscriptionInput) error {
-	var hmac []byte
 	hmac, err := crypto.GetHMAC(crypto.HashSHA256,
 		[]byte(body.Time+creds.Key+"CBINTLMD"+creds.ClientID),
 		[]byte(creds.Secret))

@@ -34,35 +34,35 @@ type AssetInfoWithSupportedNetwork struct {
 
 // InstrumentInfo represents an instrument detail for specific instrument id.
 type InstrumentInfo struct {
-	InstrumentID        string  `json:"instrument_id"`
-	InstrumentUUID      string  `json:"instrument_uuid"`
-	Symbol              string  `json:"symbol"`
-	Type                string  `json:"type"`
-	BaseAssetID         string  `json:"base_asset_id"`
-	BaseAssetUUID       string  `json:"base_asset_uuid"`
-	BaseAssetName       string  `json:"base_asset_name"`
-	QuoteAssetID        string  `json:"quote_asset_id"`
-	QuoteAssetUUID      string  `json:"quote_asset_uuid"`
-	QuoteAssetName      string  `json:"quote_asset_name"`
-	BaseIncrement       string  `json:"base_increment"`
-	QuoteIncrement      string  `json:"quote_increment"`
-	PriceBandPercent    float64 `json:"price_band_percent"`
-	MarketOrderPercent  float64 `json:"market_order_percent"`
-	Qty24Hr             string  `json:"qty_24hr"`
-	Notional24Hr        string  `json:"notional_24hr"`
-	AvgDailyQty         string  `json:"avg_daily_qty"`
-	AvgDailyNotional    string  `json:"avg_daily_notional"`
-	PreviousDayQty      string  `json:"previous_day_qty"`
-	OpenInterest        string  `json:"open_interest"`
-	PositionLimitQty    string  `json:"position_limit_qty"`
-	PositionLimitAdqPct float64 `json:"position_limit_adq_pct"`
-	ReplacementCost     string  `json:"replacement_cost"`
-	BaseImf             float64 `json:"base_imf"`
-	MinNotionalValue    string  `json:"min_notional_value"`
-	FundingInterval     string  `json:"funding_interval"`
-	TradingState        string  `json:"trading_state"`
-	PositionLimitAdv    float64 `json:"position_limit_adv"`
-	InitialMarginAdv    float64 `json:"initial_margin_adv"`
+	InstrumentID        string                  `json:"instrument_id"`
+	InstrumentUUID      string                  `json:"instrument_uuid"`
+	Symbol              string                  `json:"symbol"`
+	Type                string                  `json:"type"`
+	BaseAssetID         string                  `json:"base_asset_id"`
+	BaseAssetUUID       string                  `json:"base_asset_uuid"`
+	BaseAssetName       string                  `json:"base_asset_name"`
+	QuoteAssetID        string                  `json:"quote_asset_id"`
+	QuoteAssetUUID      string                  `json:"quote_asset_uuid"`
+	QuoteAssetName      string                  `json:"quote_asset_name"`
+	BaseIncrement       convert.StringToFloat64 `json:"base_increment"`
+	QuoteIncrement      convert.StringToFloat64 `json:"quote_increment"`
+	PriceBandPercent    float64                 `json:"price_band_percent"`
+	MarketOrderPercent  float64                 `json:"market_order_percent"`
+	Qty24Hr             convert.StringToFloat64 `json:"qty_24hr"`
+	Notional24Hr        convert.StringToFloat64 `json:"notional_24hr"`
+	AvgDailyQty         convert.StringToFloat64 `json:"avg_daily_qty"`
+	AvgDailyNotional    convert.StringToFloat64 `json:"avg_daily_notional"`
+	PreviousDayQty      convert.StringToFloat64 `json:"previous_day_qty"`
+	OpenInterest        convert.StringToFloat64 `json:"open_interest"`
+	PositionLimitQty    convert.StringToFloat64 `json:"position_limit_qty"`
+	PositionLimitAdqPct float64                 `json:"position_limit_adq_pct"`
+	ReplacementCost     convert.StringToFloat64 `json:"replacement_cost"`
+	BaseImf             float64                 `json:"base_imf"`
+	MinNotionalValue    string                  `json:"min_notional_value"`
+	FundingInterval     string                  `json:"funding_interval"`
+	TradingState        string                  `json:"trading_state"`
+	PositionLimitAdv    float64                 `json:"position_limit_adv"`
+	InitialMarginAdv    float64                 `json:"initial_margin_adv"`
 }
 
 // QuoteInformation represents a instrument quote information
@@ -287,13 +287,13 @@ type PortfolioFill struct {
 		ClientID       string    `json:"client_id"`
 		ClientOrderID  string    `json:"client_order_id"`
 		OrderQty       float64   `json:"order_qty"`
-		LimitPrice     int64     `json:"limit_price"`
+		LimitPrice     float64   `json:"limit_price"`
 		TotalFilled    float64   `json:"total_filled"`
 		FilledVwap     float64   `json:"filled_vwap"`
 		ExpireTime     time.Time `json:"expire_time"`
 		StopPrice      float64   `json:"stop_price"`
 		Side           string    `json:"side"`
-		Tif            string    `json:"tif"`
+		TimeInForce    string    `json:"tif"`
 		StpMode        string    `json:"stp_mode"`
 		Flags          string    `json:"flags"`
 		Fee            float64   `json:"fee"`
@@ -306,22 +306,36 @@ type PortfolioFill struct {
 // Transfers returns a list of fund transfers.
 type Transfers struct {
 	Pagination struct {
-		ResultLimit  int `json:"result_limit"`
-		ResultOffset int `json:"result_offset"`
+		ResultLimit  int64 `json:"result_limit"`
+		ResultOffset int64 `json:"result_offset"`
 	} `json:"pagination"`
 	Results []FundTransfer `json:"results"`
 }
 
 // FundTransfer represents a fund transfer instance.
 type FundTransfer struct {
-	TransferUUID string    `json:"transfer_uuid"`
-	Type         string    `json:"type"` // TODO: ?
-	Amount       float64   `json:"amount"`
-	Asset        string    `json:"asset"`
-	Status       string    `json:"status"`
-	NetworkName  string    `json:"network_name"`
-	CreatedAt    time.Time `json:"created_at"`
-	UpdatedAt    time.Time `json:"updated_at"`
+	TransferUUID   string    `json:"transfer_uuid"`
+	TransferType   string    `json:"type"`
+	Amount         float64   `json:"amount"`
+	Asset          string    `json:"asset"`
+	TransferStatus string    `json:"status"`
+	NetworkName    string    `json:"network_name"`
+	CreatedAt      time.Time `json:"created_at"`
+	UpdatedAt      time.Time `json:"updated_at"`
+	FromPortfolio  struct {
+		ID   string `json:"id"`
+		UUID string `json:"uuid"`
+		Name string `json:"name"`
+	} `json:"from_portfolio"`
+	ToPortfolio struct {
+		ID   string `json:"id"`
+		UUID string `json:"uuid"`
+		Name string `json:"name"`
+	} `json:"to_portfolio"`
+	FromAddress         int64  `json:"from_address"`
+	ToAddress           int64  `json:"to_address"`
+	FromCoinbaseAccount string `json:"from_cb_account"`
+	ToCoinbaseAccount   string `json:"to_cb_account"`
 }
 
 // WithdrawToCoinbaseINTXParam holds withdraw funds parameters.
@@ -383,8 +397,8 @@ type SubscriptionInput struct {
 	Signature      string         `json:"signature,omitempty"`
 }
 
-// SubscriptionRespnse represents a subscription response
-type SubscriptionRespnse struct {
+// SubscriptionResponse represents a subscription response
+type SubscriptionResponse struct {
 	Channels      []SubscribedChannel `json:"channels,omitempty"`
 	Authenticated bool                `json:"authenticated,omitempty"`
 	Channel       string              `json:"channel,omitempty"`
@@ -404,40 +418,40 @@ type SubscribedChannel struct {
 
 // WsInstrument holds response information to websocket
 type WsInstrument struct {
-	Sequence            int64     `json:"sequence"`
-	ProductID           string    `json:"product_id"`
-	InstrumentType      string    `json:"instrument_type"`
-	BaseAssetName       string    `json:"base_asset_name"`
-	QuoteAssetName      string    `json:"quote_asset_name"`
-	BaseIncrement       string    `json:"base_increment"`
-	QuoteIncrement      string    `json:"quote_increment"`        // 30 day average daily traded vol, updated daily
-	AvgDailyQuantity    string    `json:"avg_daily_quantity"`     // 30 day avg daily traded notional amt in USDC, updated daily
-	AvgDailyVolume      string    `json:"avg_daily_volume"`       // Max leverage allowed when trading on margin, in margin fraction
-	Total30DayQuantity  string    `json:"total_30_day_quantity"`  // 30 day total traded vol, updated daily
-	Total30DayVolume    string    `json:"total_30_day_volume"`    // 30 day total traded notional amt in USDC, updated daily
-	Total24HourQuantity string    `json:"total_24_hour_quantity"` // 24 hr total traded vol, updated hourly
-	Total24HourVolume   string    `json:"total_24_hour_volume"`   // 24 hr total traded notional amt in USDC, updated hourly
-	BaseImf             string    `json:"base_imf"`               // Smallest qty allowed to place an order
-	MinQuantity         string    `json:"min_quantity"`           // Max size allowed for a position
-	PositionSizeLimit   string    `json:"position_size_limit"`
-	FundingInterval     string    `json:"funding_interval"` // Time in nanoseconds between funding intervals
-	TradingState        string    `json:"trading_state"`    // ALLOWED: offline, trading, paused
-	LastUpdateTime      time.Time `json:"last_update_time"`
-	Time                time.Time `json:"time"` // Gateway timestamp
-	Channel             string    `json:"channel"`
-	Type                string    `json:"type"`
+	Sequence            int64                   `json:"sequence"`
+	ProductID           string                  `json:"product_id"`
+	InstrumentType      string                  `json:"instrument_type"`
+	BaseAssetName       string                  `json:"base_asset_name"`
+	QuoteAssetName      string                  `json:"quote_asset_name"`
+	BaseIncrement       convert.StringToFloat64 `json:"base_increment"`
+	QuoteIncrement      convert.StringToFloat64 `json:"quote_increment"`
+	AvgDailyQuantity    convert.StringToFloat64 `json:"avg_daily_quantity"`
+	AvgDailyVolume      convert.StringToFloat64 `json:"avg_daily_volume"`
+	Total30DayQuantity  convert.StringToFloat64 `json:"total_30_day_quantity"`
+	Total30DayVolume    convert.StringToFloat64 `json:"total_30_day_volume"`
+	Total24HourQuantity convert.StringToFloat64 `json:"total_24_hour_quantity"`
+	Total24HourVolume   convert.StringToFloat64 `json:"total_24_hour_volume"`
+	BaseImf             string                  `json:"base_imf"`
+	MinQuantity         convert.StringToFloat64 `json:"min_quantity"`
+	PositionSizeLimit   convert.StringToFloat64 `json:"position_size_limit"`
+	FundingInterval     string                  `json:"funding_interval"`
+	TradingState        string                  `json:"trading_state"`
+	LastUpdateTime      time.Time               `json:"last_update_time"`
+	GatewayTime         time.Time               `json:"time"`
+	Channel             string                  `json:"channel"`
+	Type                string                  `json:"type"`
 }
 
 // WsMatch holds push data information through the channel MATCH.
 type WsMatch struct {
-	Sequence   int64     `json:"sequence"`
-	ProductID  string    `json:"product_id"`
-	Time       time.Time `json:"time"`
-	MatchID    string    `json:"match_id"`
-	TradeQty   string    `json:"trade_qty"`
-	TradePrice string    `json:"trade_price"`
-	Channel    string    `json:"channel"`
-	Type       string    `json:"type"`
+	Sequence   int64                   `json:"sequence"`
+	ProductID  string                  `json:"product_id"`
+	Time       time.Time               `json:"time"`
+	MatchID    string                  `json:"match_id"`
+	TradeQty   convert.StringToFloat64 `json:"trade_qty"`
+	TradePrice convert.StringToFloat64 `json:"trade_price"`
+	Channel    string                  `json:"channel"`
+	Type       string                  `json:"type"`
 }
 
 // WsFunding holds push data information through the FUNDING channel.
@@ -453,16 +467,16 @@ type WsFunding struct {
 
 // WsRisk holds push data information through the RISK channel.
 type WsRisk struct {
-	Sequence        int64     `json:"sequence"`
-	ProductID       string    `json:"product_id"`
-	Time            time.Time `json:"time"`
-	LimitUp         string    `json:"limit_up"`
-	LimitDown       string    `json:"limit_down"`
-	IndexPrice      string    `json:"index_price"`
-	MarkPrice       string    `json:"mark_price"`
-	SettlementPrice string    `json:"settlement_price"`
-	Channel         string    `json:"channel"`
-	Type            string    `json:"type"`
+	Sequence        int64                   `json:"sequence"`
+	ProductID       string                  `json:"product_id"`
+	Time            time.Time               `json:"time"`
+	LimitUp         string                  `json:"limit_up"`
+	LimitDown       string                  `json:"limit_down"`
+	IndexPrice      convert.StringToFloat64 `json:"index_price"`
+	MarkPrice       convert.StringToFloat64 `json:"mark_price"`
+	SettlementPrice convert.StringToFloat64 `json:"settlement_price"`
+	Channel         string                  `json:"channel"`
+	Type            string                  `json:"type"`
 }
 
 // WsOrderbookLevel1 holds Level-1 orderbook information
