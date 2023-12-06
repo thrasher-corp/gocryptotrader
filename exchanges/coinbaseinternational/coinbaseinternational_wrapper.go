@@ -785,3 +785,8 @@ func (co *CoinbaseInternational) GetFuturesContractDetails(context.Context, asse
 func (co *CoinbaseInternational) GetLatestFundingRates(_ context.Context, _ *fundingrate.LatestRateRequest) ([]fundingrate.LatestRateResponse, error) {
 	return nil, common.ErrFunctionNotSupported
 }
+
+// UpdateOrderExecutionLimits sets exchange executions for a required asset type
+func (co *CoinbaseInternational) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) error {
+	return common.ErrFunctionNotSupported
+}

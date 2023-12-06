@@ -67,7 +67,6 @@ _b in this context is an `IBotExchange` implemented struct_
 | Bithumb | Yes  | Yes       | No  |
 | BitMEX | Yes | Yes | Yes |
 | Bitstamp | Yes  | Yes       | No  |
-| Bittrex | Yes | Yes | No |
 | BTCMarkets | Yes | Yes       | No  |
 | BTSE | Yes | Yes | No |
 | Bybit | Yes | Yes | Yes |

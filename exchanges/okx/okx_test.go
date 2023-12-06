@@ -359,12 +359,18 @@ func TestGetPublicUnderlyings(t *testing.T) {
 
 func TestGetInsuranceFundInformation(t *testing.T) {
 	t.Parallel()
-	if _, err := ok.GetInsuranceFundInformation(contextGenerate(), &InsuranceFundInformationRequestParams{
+	r, err := ok.GetInsuranceFundInformation(contextGenerate(), &InsuranceFundInformationRequestParams{
 		InstrumentType: "FUTURES",
 		Underlying:     "BTC-USDT",
 		Limit:          2,
-	}); err != nil {
-		t.Error("Okx GetInsuranceFundInformation() error", err)
+	})
+	assert.NoError(t, err, "GetInsuranceFundInformation should not error")
+	assert.Positive(t, r.Total, "Total should be positive")
+	assert.NotEmpty(t, r.Details, "Should have some details")
+	for _, d := range r.Details {
+		assert.Positive(t, d.Balance, "Balance should be positive")
+		assert.NotEmpty(t, d.Type, "Type should not be empty")
+		assert.Positive(t, d.Timestamp, "Timestamp should be positive")
 	}
 }
 
