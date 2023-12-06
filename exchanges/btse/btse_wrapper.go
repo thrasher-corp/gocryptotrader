@@ -1309,6 +1309,7 @@ func (b *BTSE) UpdateOrderExecutionLimits(_ context.Context, _ asset.Item) error
 func (b *BTSE) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]futures.OpenInterest, error) {
 	for i := range k {
 		if k[i].Asset != asset.Futures {
+			// avoid API calls or returning errors after a successful retrieval
 			return nil, fmt.Errorf("%w %v %v", asset.ErrNotSupported, k[i].Asset, k[i].Pair())
 		}
 	}
@@ -1318,55 +1319,58 @@ func (b *BTSE) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]futur
 			return nil, err
 		}
 		resp := make([]futures.OpenInterest, 0, len(tickers))
-		var cp currency.Pair
-		var isEnabled bool
 		for i := range tickers {
-			cp, isEnabled, err = b.MatchSymbolCheckEnabled(tickers[i].Symbol, pa.Asset, false)
-			if err != nil && !errors.Is(err, currency.ErrPairNotFound) {
+			symbol, enabled, err := b.MatchSymbolCheckEnabled(tickers[i].Symbol, asset.Futures, false)
+			if err != nil {
+				if !errors.Is(err, currency.ErrPairNotFound) {
+					continue
+				}
 				return nil, err
 			}
-			if !isEnabled {
+			if !enabled {
 				continue
 			}
 			resp = append(resp, futures.OpenInterest{
 				K: key.ExchangePairAsset{
 					Exchange: b.Name,
-					Base:     cp.Base.Item,
-					Quote:    cp.Quote.Item,
-					Asset:    pa.Asset,
+					Base:     symbol.Base.Item,
+					Quote:    symbol.Quote.Item,
+					Asset:    asset.Futures,
 				},
 				OpenInterest: tickers[i].OpenInterest,
 			})
 		}
 		return resp, nil
 	}
-	p, isEnabled, err := b.MatchSymbolCheckEnabled(pa.Pair().String(), pa.Asset, false)
-	if err != nil {
-		return nil, err
-	}
-	if !isEnabled {
-		return nil, fmt.Errorf("%v %w", p, currency.ErrPairNotEnabled)
-	}
-	symbol, err := b.FormatSymbol(p, pa.Asset)
-	if err != nil {
-		return nil, err
-	}
-	pi, err := b.GetMarketSummary(ctx, symbol, false)
-	if err != nil {
-		return nil, err
-	}
-	if len(pi) != 1 {
-		return nil, fmt.Errorf("expected 1 result, got %v", len(pi))
-	}
-	return []futures.OpenInterest{
-		{
+	resp := make([]futures.OpenInterest, 0, len(k))
+	for i := range k {
+		p, isEnabled, err := b.MatchSymbolCheckEnabled(k[0].Pair().String(), k[i].Asset, false)
+		if err != nil {
+			return nil, err
+		}
+		if !isEnabled {
+			return nil, fmt.Errorf("%v %w", p, currency.ErrPairNotEnabled)
+		}
+		symbol, err := b.FormatSymbol(p, k[i].Asset)
+		if err != nil {
+			return nil, err
+		}
+		pi, err := b.GetMarketSummary(ctx, symbol, false)
+		if err != nil {
+			return nil, err
+		}
+		if len(pi) != 1 {
+			return nil, fmt.Errorf("expected 1 result, got %v", len(pi))
+		}
+		resp = append(resp, futures.OpenInterest{
 			K: key.ExchangePairAsset{
 				Exchange: b.Name,
-				Base:     pa.Base,
-				Quote:    pa.Quote,
-				Asset:    pa.Asset,
+				Base:     k[i].Base,
+				Quote:    k[i].Quote,
+				Asset:    k[i].Asset,
 			},
 			OpenInterest: pi[0].OpenInterest,
-		},
-	}, nil
+		})
+	}
+	return resp, nil
 }

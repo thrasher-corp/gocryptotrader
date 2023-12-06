@@ -1511,23 +1511,6 @@ message GetOpenInterestResponse {
   double open_interest = 1;
 }
 
-message GetCachedOpenInterestRequest {
-  string exchange = 1;
-  string asset = 2;
-  CurrencyPair pair = 3;
-}
-
-message GetCachedOpenInterestResponse {
-  repeated CachedOpenInterestData data = 1;
-}
-
-message CachedOpenInterestData {
-  string exchange = 1;
-  string asset = 2;
-  CurrencyPair pair = 3;
-  double open_interest = 4;
-}
-
 service GoCryptoTraderService {
   rpc GetInfo(GetInfoRequest) returns (GetInfoResponse) {
     option (google.api.http) = {get: "/v1/getinfo"};
@@ -2073,8 +2056,5 @@ service GoCryptoTraderService {
   }
   rpc GetOpenInterest(GetOpenInterestRequest) returns (GetOpenInterestResponse) {
     option (google.api.http) = {get: "/v1/getopeninterest"};
-  }
-  rpc GetCachedOpenInterest(GetCachedOpenInterestRequest) returns (GetCachedOpenInterestResponse) {
-    option (google.api.http) = {get: "/v1/getcachedopeninterest"};
   }
 }

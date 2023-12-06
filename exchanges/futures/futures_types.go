@@ -202,6 +202,8 @@ type CollateralCalculator struct {
 type OpenInterest struct {
 	K            key.ExchangePairAsset
 	OpenInterest float64
+	// OpenInterestUSD optional if provided
+	OpenInterestUSD float64
 }
 
 // PNLCalculator implements the PNLCalculation interface

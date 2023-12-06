@@ -12,6 +12,7 @@ import (
 
 	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -2303,4 +2304,120 @@ func (h *HUOBI) IsPerpetualFutureCurrency(a asset.Item, _ currency.Pair) (bool, 
 // UpdateOrderExecutionLimits updates order execution limits
 func (h *HUOBI) UpdateOrderExecutionLimits(_ context.Context, _ asset.Item) error {
 	return common.ErrNotYetImplemented
+}
+
+// GetOpenInterest returns the open interest rate for a given asset pair
+func (h *HUOBI) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]futures.OpenInterest, error) {
+	for i := range k {
+		if k[i].Asset != asset.Futures {
+			// avoid API calls or returning errors after a successful retrieval
+			return nil, fmt.Errorf("%w %v %v", asset.ErrNotSupported, k[i].Asset, k[i].Pair())
+		}
+	}
+	if len(k) == 0 {
+		var resp []futures.OpenInterest
+		for _, a := range h.GetAssetTypes(true) {
+			switch a {
+			case asset.Futures:
+				data, err := h.FContractOpenInterest(ctx, "", "", currency.EMPTYPAIR)
+				if err != nil {
+					return nil, err
+				}
+				for i := range data.Data {
+					p, isEnabled, err := h.MatchSymbolCheckEnabled(data.Data[i].Symbol, a, false)
+					if err != nil && !errors.Is(err, currency.ErrPairNotFound) {
+						return nil, err
+					}
+					if !isEnabled {
+						continue
+					}
+					resp = append(resp, futures.OpenInterest{
+						K: key.ExchangePairAsset{
+							Exchange: h.Name,
+							Base:     p.Base.Item,
+							Quote:    p.Quote.Item,
+							Asset:    a,
+						},
+						OpenInterest: data.Data[i].Amount,
+					})
+				}
+			case asset.CoinMarginedFutures:
+				data, err := h.SwapOpenInterestInformation(ctx, currency.EMPTYPAIR)
+				if err != nil {
+					return nil, err
+				}
+				for i := range data.Data {
+					p, isEnabled, err := h.MatchSymbolCheckEnabled(data.Data[i].Symbol, a, false)
+					if err != nil && !errors.Is(err, currency.ErrPairNotFound) {
+						return nil, err
+					}
+					if !isEnabled {
+						continue
+					}
+					resp = append(resp, futures.OpenInterest{
+						K: key.ExchangePairAsset{
+							Exchange: h.Name,
+							Base:     p.Base.Item,
+							Quote:    p.Quote.Item,
+							Asset:    a,
+						},
+						OpenInterest: data.Data[i].Amount,
+					})
+				}
+			}
+			return resp, nil
+		}
+	}
+	resp := make([]futures.OpenInterest, 0, len(k))
+	for i := range k {
+		switch k[i].Asset {
+		case asset.Futures:
+			data, err := h.FContractOpenInterest(ctx, "", "", k[i].Pair())
+			if err != nil {
+				return nil, err
+			}
+			for j := range data.Data {
+				p, isEnabled, err := h.MatchSymbolCheckEnabled(data.Data[j].Symbol, k[i].Asset, false)
+				if err != nil && !errors.Is(err, currency.ErrPairNotFound) {
+					return nil, err
+				}
+				if !isEnabled {
+					continue
+				}
+				resp = append(resp, futures.OpenInterest{
+					K: key.ExchangePairAsset{
+						Exchange: h.Name,
+						Base:     p.Base.Item,
+						Quote:    p.Quote.Item,
+						Asset:    k[i].Asset,
+					},
+					OpenInterest: data.Data[j].Amount,
+				})
+			}
+		case asset.CoinMarginedFutures:
+			data, err := h.SwapOpenInterestInformation(ctx, k[i].Pair())
+			if err != nil {
+				return nil, err
+			}
+			for j := range data.Data {
+				p, isEnabled, err := h.MatchSymbolCheckEnabled(data.Data[j].Symbol, k[i].Asset, false)
+				if err != nil && !errors.Is(err, currency.ErrPairNotFound) {
+					return nil, err
+				}
+				if !isEnabled {
+					continue
+				}
+				resp = append(resp, futures.OpenInterest{
+					K: key.ExchangePairAsset{
+						Exchange: h.Name,
+						Base:     p.Base.Item,
+						Quote:    p.Quote.Item,
+						Asset:    k[i].Asset,
+					},
+					OpenInterest: data.Data[j].Amount,
+				})
+			}
+		}
+	}
+	return resp, nil
 }

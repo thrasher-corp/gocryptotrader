@@ -2347,43 +2347,34 @@ func (g *Gateio) IsPerpetualFutureCurrency(a asset.Item, _ currency.Pair) (bool,
 
 // GetOpenInterest returns the open interest rate for a given asset pair
 func (g *Gateio) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]futures.OpenInterest, error) {
-	if k.Pair().IsEmpty() {
+	if len(k) == 0 {
 		return nil, fmt.Errorf("%w requires pair", common.ErrFunctionNotSupported)
 	}
-	switch k.Asset {
-	case asset.USDTMarginedFutures:
-		oi, err := b.UOpenInterest(ctx, k.Pair())
-		if err != nil {
-			return nil, err
+	for i := range k {
+		if k[i].Asset != asset.DeliveryFutures && k[i].Asset != asset.Futures {
+			// avoid API calls or returning errors after a successful retrieval
+			return nil, fmt.Errorf("%w %v %v", asset.ErrNotSupported, k[i].Asset, k[i].Pair())
 		}
-		return []futures.OpenInterest{
-			{
-				K: key.ExchangePairAsset{
-					Exchange: b.Name,
-					Base:     k.Base,
-					Quote:    k.Quote,
-					Asset:    k.Asset,
-				},
-				OpenInterest: oi.OpenInterest,
-			},
-		}, nil
-	case asset.CoinMarginedFutures:
-		oi, err := b.OpenInterest(ctx, k.Pair())
-		if err != nil {
-			return nil, err
-		}
-		return []futures.OpenInterest{
-			{
-				K: key.ExchangePairAsset{
-					Exchange: b.Name,
-					Base:     k.Base,
-					Quote:    k.Quote,
-					Asset:    k.Asset,
-				},
-				OpenInterest: oi.OpenInterest,
-			},
-		}, nil
-	default:
-		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, k.Asset)
 	}
+	resp := make([]futures.OpenInterest, 0, len(k))
+	for i := range k {
+		settleCurrencies := []string{"btc", "usdt", "usd"}
+		for j := range settleCurrencies {
+			oi, err := g.GetFutureStats(ctx, settleCurrencies[j], k[i].Pair(), time.Time{}, 0, 1)
+			if err != nil {
+				continue
+			}
+			resp = append(resp, futures.OpenInterest{
+				K: key.ExchangePairAsset{
+					Exchange: g.Name,
+					Base:     k[i].Base,
+					Quote:    k[i].Quote,
+					Asset:    k[i].Asset,
+				},
+				OpenInterest:    oi[0].OpenInterest,
+				OpenInterestUSD: oi[0].OpenInterestUsd,
+			})
+		}
+	}
+	return resp, nil
 }

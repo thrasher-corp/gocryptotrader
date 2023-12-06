@@ -1303,60 +1303,6 @@
         ]
       }
     },
-    "/v1/getcachedopeninterest": {
-      "get": {
-        "operationId": "GoCryptoTraderService_GetCachedOpenInterest",
-        "responses": {
-          "200": {
-            "description": "A successful response.",
-            "schema": {
-              "$ref": "#/definitions/gctrpcGetCachedOpenInterestResponse"
-            }
-          },
-          "default": {
-            "description": "An unexpected error response.",
-            "schema": {
-              "$ref": "#/definitions/rpcStatus"
-            }
-          }
-        },
-        "parameters": [
-          {
-            "name": "exchange",
-            "in": "query",
-            "required": false,
-            "type": "string"
-          },
-          {
-            "name": "asset",
-            "in": "query",
-            "required": false,
-            "type": "string"
-          },
-          {
-            "name": "pair.delimiter",
-            "in": "query",
-            "required": false,
-            "type": "string"
-          },
-          {
-            "name": "pair.base",
-            "in": "query",
-            "required": false,
-            "type": "string"
-          },
-          {
-            "name": "pair.quote",
-            "in": "query",
-            "required": false,
-            "type": "string"
-          }
-        ],
-        "tags": [
-          "GoCryptoTraderService"
-        ]
-      }
-    },
     "/v1/getcollateral": {
       "get": {
         "operationId": "GoCryptoTraderService_GetCollateral",
@@ -4926,24 +4872,6 @@
         }
       }
     },
-    "gctrpcCachedOpenInterestData": {
-      "type": "object",
-      "properties": {
-        "exchange": {
-          "type": "string"
-        },
-        "asset": {
-          "type": "string"
-        },
-        "pair": {
-          "$ref": "#/definitions/gctrpcCurrencyPair"
-        },
-        "openInterest": {
-          "type": "number",
-          "format": "double"
-        }
-      }
-    },
     "gctrpcCancelAllOrdersRequest": {
       "type": "object",
       "properties": {
@@ -5941,18 +5869,6 @@
           "type": "array",
           "items": {
             "type": "string"
-          }
-        }
-      }
-    },
-    "gctrpcGetCachedOpenInterestResponse": {
-      "type": "object",
-      "properties": {
-        "data": {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "$ref": "#/definitions/gctrpcCachedOpenInterestData"
           }
         }
       }

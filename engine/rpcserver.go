@@ -5982,23 +5982,6 @@ func (s *RPCServer) GetOpenInterest(ctx context.Context, r *gctrpc.GetOpenIntere
 	if !feat.FuturesCapabilities.OpenInterest.Supported {
 		return nil, common.ErrFunctionNotSupported
 	}
-	if feat.FuturesCapabilities.OpenInterest.SupportedViaRestTicker || feat.FuturesCapabilities.OpenInterest.SupportedViaWebsocketTicker {
-		openInterest, err := exch.GetCachedOpenInterest(ctx, key.PairAsset{
-			Base:  p.Base.Item,
-			Quote: p.Quote.Item,
-			Asset: ai,
-		})
-		if err != nil {
-			return nil, err
-		}
-		if len(openInterest) != 1 {
-			return nil, fmt.Errorf("received %v expected %v", len(openInterest), 1)
-		}
-		return &gctrpc.GetOpenInterestResponse{
-			OpenInterest: openInterest[0].OpenInterest,
-		}, nil
-	}
-
 	openInterest, err := exch.GetOpenInterest(ctx, key.PairAsset{
 		Base:  p.Base.Item,
 		Quote: p.Quote.Item,
@@ -6014,59 +5997,4 @@ func (s *RPCServer) GetOpenInterest(ctx context.Context, r *gctrpc.GetOpenIntere
 	return &gctrpc.GetOpenInterestResponse{
 		OpenInterest: openInterest[0].OpenInterest,
 	}, nil
-}
-
-// GetCachedOpenInterest returns all the open interest stored inside the ticker store
-func (s *RPCServer) GetCachedOpenInterest(ctx context.Context, r *gctrpc.GetCachedOpenInterestRequest) (*gctrpc.GetCachedOpenInterestResponse, error) {
-	if r == nil {
-		return nil, fmt.Errorf("%w GetCachedOpenInterestRequest", common.ErrNilPointer)
-	}
-	if r.Pair == nil {
-		return nil, currency.ErrCurrencyPairEmpty
-	}
-	exch, err := s.GetExchangeByName(r.Exchange)
-	if err != nil {
-		return nil, err
-	}
-	if !exch.IsEnabled() {
-		return nil, fmt.Errorf("%s %w", r.Exchange, errExchangeNotEnabled)
-	}
-	var ai asset.Item
-	if r.Asset != "" {
-		ai, err = asset.New(r.Asset)
-		if err != nil {
-			return nil, err
-		}
-	}
-	var p currency.Pair
-	if r.Pair.String() != "" {
-		p, err = currency.NewPairFromStrings(r.Pair.Base, r.Pair.Quote)
-		if err != nil {
-			return nil, err
-		}
-	}
-	openInterest, err := exch.GetCachedOpenInterest(ctx, key.PairAsset{
-		Base:  p.Base.Item,
-		Quote: p.Quote.Item,
-		Asset: ai,
-	})
-	if err != nil {
-		return nil, err
-	}
-	resp := gctrpc.GetCachedOpenInterestResponse{
-		Data: make([]*gctrpc.CachedOpenInterestData, len(openInterest)),
-	}
-	for i := range openInterest {
-		resp.Data[i] = &gctrpc.CachedOpenInterestData{
-			Exchange: openInterest[i].K.Exchange,
-			Asset:    openInterest[i].K.Asset.String(),
-			Pair: &gctrpc.CurrencyPair{
-				Base:  openInterest[i].K.Base.String(),
-				Quote: openInterest[i].K.Quote.String(),
-			},
-			OpenInterest: openInterest[i].OpenInterest,
-		}
-	}
-
-	return &resp, nil
 }

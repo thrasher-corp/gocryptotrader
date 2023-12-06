@@ -1381,6 +1381,7 @@ func (b *Bitmex) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]fut
 					},
 					OpenInterest: ticks[i].OpenInterest,
 				})
+				break
 			}
 
 		}

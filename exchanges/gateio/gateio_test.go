@@ -1107,9 +1107,11 @@ func TestGetFutureStats(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	if _, err := g.GetFutureStats(context.Background(), settle, futuresTradablePair, time.Time{}, kline.OneHour, 0); err != nil {
+	resp, err := g.GetFutureStats(context.Background(), settle, futuresTradablePair, time.Time{}, 0, 0)
+	if err != nil {
 		t.Errorf("%s GetFutureStats() error %v", g.Name, err)
 	}
+	t.Log(resp)
 }
 
 func TestGetIndexConstituent(t *testing.T) {
