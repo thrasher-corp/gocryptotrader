@@ -1156,10 +1156,10 @@ func TestGetFuturesContract(t *testing.T) {
 	}
 }
 
-func TestGetFuturesRealTimeTicker(t *testing.T) {
+func TestGetFuturesTicker(t *testing.T) {
 	t.Parallel()
-	tick, err := ku.GetFuturesRealTimeTicker(context.Background(), "XBTUSDTM")
-	if assert.NoError(t, err, "GetFuturesRealTimeTicker should not error") {
+	tick, err := ku.GetFuturesTicker(context.Background(), "XBTUSDTM")
+	if assert.NoError(t, err, "GetFuturesTicker should not error") {
 		assert.Positive(t, tick.Sequence, "Sequence should be positive")
 		assert.Equal(t, "XBTUSDTM", tick.Symbol, "Symbol should be correct")
 		assert.Contains(t, []order.Side{order.Buy, order.Sell}, tick.Side, "Side should be a side")
