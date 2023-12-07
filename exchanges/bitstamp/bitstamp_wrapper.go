@@ -543,9 +543,7 @@ func (b *Bitstamp) GetWithdrawalsHistory(ctx context.Context, c currency.Code, _
 		var tm time.Time
 		tm, err = parseTime(withdrawals[i].Date)
 		if err != nil {
-			log.Errorf(log.ExchangeSys,
-				"%s GetWithdrawalsHistory unable to parse time: %s\n", b.Name, err)
-			return nil, err
+			return nil, fmt.Errorf("getWithdrawalsHistory unable to parse Date field: %w", err)
 		}
 		if c.IsEmpty() || c.Equal(withdrawals[i].Currency) {
 			resp = append(resp, exchange.WithdrawalHistory{
