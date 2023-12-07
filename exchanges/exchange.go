@@ -1340,8 +1340,7 @@ func (e *Endpoints) GetURLMap() map[string]string {
 // supports open interest in ticker data
 func (b *Base) GetCachedOpenInterest(_ context.Context, k key.PairAsset) ([]futures.OpenInterest, error) {
 	if !b.Features.Supports.FuturesCapabilities.OpenInterest.Supported ||
-		(!b.Features.Supports.FuturesCapabilities.OpenInterest.SupportedViaRestTicker &&
-			!b.Features.Supports.FuturesCapabilities.OpenInterest.SupportedViaWebsocketTicker) {
+		(!b.Features.Supports.FuturesCapabilities.OpenInterest.SupportedViaTicker) {
 		return nil, common.ErrFunctionNotSupported
 	}
 	if k.Pair().IsEmpty() {

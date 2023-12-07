@@ -138,10 +138,9 @@ func (b *BTSE) SetDefaults() {
 				FundingRateBatching: map[asset.Item]bool{
 					asset.Futures: true,
 				},
-				OpenInterest: exchange.OpenInterest{
-					Supported:              true,
-					SupportedViaRestTicker: true,
-					SupportsRestBatch:      true,
+				OpenInterest: exchange.OpenInterestSupport{
+					Supported:          true,
+					SupportedViaTicker: true,
 				},
 			},
 		},

@@ -186,19 +186,14 @@ type FuturesCapabilities struct {
 	Collateral                      bool
 	CollateralMode                  bool
 	Leverage                        bool
-	OpenInterest                    OpenInterest
+	OpenInterest                    OpenInterestSupport
 }
 
-// OpenInterest helps breakdown a feature and how it is supported
-type OpenInterest struct {
-	Supported                   bool
-	SupportedViaRestTicker      bool
-	SupportsRestBatch           bool
-	SupportedViaWebsocketTicker bool
-	// Optional, not sure if they'll be used yet
-	SupportByAsset map[asset.Item]bool
-	MaxLimit       int64
-	MaxHistory     time.Duration
+// OpenInterestSupport helps breakdown a feature and how it is supported
+type OpenInterestSupport struct {
+	Supported          bool
+	SupportedViaTicker bool
+	SupportsRestBatch  bool
 }
 
 // MarginCapabilities stores the exchange's margin capabilities

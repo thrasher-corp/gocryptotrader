@@ -168,11 +168,10 @@ func (k *Kraken) SetDefaults() {
 				FundingRateBatching: map[asset.Item]bool{
 					asset.Futures: true,
 				},
-				OpenInterest: exchange.OpenInterest{
-					Supported:                   true,
-					SupportsRestBatch:           true,
-					SupportedViaRestTicker:      true,
-					SupportedViaWebsocketTicker: true,
+				OpenInterest: exchange.OpenInterestSupport{
+					Supported:          true,
+					SupportsRestBatch:  true,
+					SupportedViaTicker: true,
 				},
 			},
 		},
@@ -1874,13 +1873,33 @@ func (k *Kraken) GetOpenInterest(ctx context.Context, keys ...key.PairAsset) ([]
 		}
 	}
 	if len(keys) == 0 {
-		ticks, err := k.GetFuturesTickers(ctx)
+		ticks, err := ticker.GetExchangeTickers(k.Name)
+		if err == nil {
+			resp := make([]futures.OpenInterest, 0, len(ticks))
+			for i := range ticks {
+				if ticks[i].AssetType != asset.Futures {
+					continue
+				}
+				resp = append(resp, futures.OpenInterest{
+					K: key.ExchangePairAsset{
+						Exchange: k.Name,
+						Base:     ticks[i].Pair.Base.Item,
+						Quote:    ticks[i].Pair.Quote.Item,
+						Asset:    asset.Futures,
+					},
+					OpenInterest: ticks[i].OpenInterest,
+				})
+			}
+			return resp, nil
+		}
+
+		futuresTickersData, err := k.GetFuturesTickers(ctx)
 		if err != nil {
 			return nil, err
 		}
-		resp := make([]futures.OpenInterest, 0, len(ticks.Tickers))
-		for i := range ticks.Tickers {
-			p, isEnabled, err := k.MatchSymbolCheckEnabled(ticks.Tickers[i].Symbol, asset.Futures, false)
+		resp := make([]futures.OpenInterest, 0, len(futuresTickersData.Tickers))
+		for i := range futuresTickersData.Tickers {
+			p, isEnabled, err := k.MatchSymbolCheckEnabled(futuresTickersData.Tickers[i].Symbol, asset.Futures, false)
 			if err != nil && !errors.Is(err, currency.ErrPairNotFound) {
 				return nil, err
 			}
@@ -1894,20 +1913,15 @@ func (k *Kraken) GetOpenInterest(ctx context.Context, keys ...key.PairAsset) ([]
 					Quote:    p.Quote.Item,
 					Asset:    asset.Futures,
 				},
-				OpenInterest: ticks.Tickers[i].OpenInterest,
+				OpenInterest: futuresTickersData.Tickers[i].OpenInterest,
 			})
 		}
 		return resp, nil
 	}
 	resp := make([]futures.OpenInterest, 0, len(keys))
 	for i := range keys {
-		// decision to only get cached tickers for individual pairs
-		// is due to the processing & development required to return all pairs
 		tick, err := ticker.GetTicker(k.Name, keys[i].Pair(), asset.Futures)
-		if err != nil && !errors.Is(err, ticker.ErrNoTickerFound) {
-			return nil, err
-		}
-		if tick != nil {
+		if err == nil {
 			resp = append(resp, futures.OpenInterest{
 				K: key.ExchangePairAsset{
 					Exchange: k.Name,

@@ -2358,10 +2358,17 @@ func (g *Gateio) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]fut
 	}
 	resp := make([]futures.OpenInterest, 0, len(k))
 	for i := range k {
+		pFmt, err := g.FormatExchangeCurrency(k[i].Pair(), k[i].Asset)
+		if err != nil {
+			return nil, err
+		}
 		settleCurrencies := []string{"btc", "usdt", "usd"}
 		for j := range settleCurrencies {
-			oi, err := g.GetFutureStats(ctx, settleCurrencies[j], k[i].Pair(), time.Time{}, 0, 1)
+			oi, err := g.GetFutureStats(ctx, settleCurrencies[j], pFmt, time.Time{}, 0, 1)
 			if err != nil {
+				continue
+			}
+			if len(oi) == 0 {
 				continue
 			}
 			resp = append(resp, futures.OpenInterest{

@@ -14,6 +14,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -245,9 +246,9 @@ func TestGetDeliveryHistory(t *testing.T) {
 	}
 }
 
-func TestGetOpenInterest(t *testing.T) {
+func TestGetOpenInterestData(t *testing.T) {
 	t.Parallel()
-	if _, err := ok.GetOpenInterest(contextGenerate(), "FUTURES", "BTC-USDT", ""); err != nil {
+	if _, err := ok.GetOpenInterestData(contextGenerate(), "FUTURES", "BTC-USDT", ""); err != nil {
 		t.Error("Okx GetOpenInterest() error", err)
 	}
 }
@@ -3690,4 +3691,24 @@ func TestWsProcessOrderbook5(t *testing.T) {
 	if len(got.Bids) != 5 {
 		t.Errorf("expected %v, received %v", 5, len(got.Bids))
 	}
+}
+
+func TestGetOpenInterest(t *testing.T) {
+	t.Parallel()
+	_, err := ok.GetOpenInterest(context.Background(), key.PairAsset{
+		Base:  currency.ETH.Item,
+		Quote: currency.USDT.Item,
+		Asset: asset.USDTMarginedFutures,
+	})
+	assert.ErrorIs(t, err, asset.ErrNotSupported)
+
+	_, err = ok.GetOpenInterest(context.Background(), key.PairAsset{
+		Base:  currency.BTC.Item,
+		Quote: currency.NewCode("USD-SWAP").Item,
+		Asset: asset.PerpetualSwap,
+	})
+	assert.NoError(t, err)
+
+	_, err = ok.GetOpenInterest(context.Background())
+	assert.NoError(t, err)
 }
