@@ -6,6 +6,7 @@ import (
 	"runtime"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/gofrs/uuid"
 	"github.com/stretchr/testify/assert"
@@ -502,20 +503,30 @@ func TestMuxPublish(t *testing.T) {
 		}
 	}
 
+	ready := make(chan any)
+	demux := make(chan any, 1)
 	pipe, err := mux.Subscribe(itemID)
 	assert.NoError(t, err, "Subscribe should not error")
 
-	done := make(chan struct{})
-	go func(mux *Mux) {
-		for i := 0; i < 90; i++ {
+	// Subscribers must be actively selecting in order to receive anything
+	go func() {
+		close(ready)
+		i := <-pipe.c
+		demux <- i
+		close(demux)
+	}()
+
+	go func() {
+		<-ready // Ensure listener is ready before starting
+		for i := 0; i < 100; i++ {
 			errMux := mux.Publish(i, itemID)
 			if !assert.NoError(t, errMux, "Publish should not error within limits") {
 				return
 			}
 		}
-		close(done)
-	}(mux)
-	<-done
+	}()
+
+	assert.Eventually(t, func() bool { return len(demux) >= 1 }, time.Second, time.Millisecond*10, "Subscriber should eventually get at least one message")
 
 	// demonstrate that jobs can be limited when subscribed
 	// Published data gets consumed from .jobs to the worker channels, so we're looking to push more than it's consumed and prevent the select reading them too quickly
