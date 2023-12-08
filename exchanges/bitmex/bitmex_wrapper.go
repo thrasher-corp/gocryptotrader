@@ -149,6 +149,7 @@ func (b *Bitmex) SetDefaults() {
 				OpenInterest: exchange.OpenInterestSupport{
 					Supported:          true,
 					SupportedViaTicker: true,
+					SupportsRestBatch:  true,
 				},
 			},
 			WithdrawPermissions: exchange.AutoWithdrawCryptoWithAPIPermission |
@@ -1178,7 +1179,7 @@ func (b *Bitmex) GetFuturesContractDetails(ctx context.Context, item asset.Item)
 				Type:                 futures.Perpetual,
 				SettlementType:       contractSettlementType,
 				SettlementCurrencies: currency.Currencies{currency.NewCode(marketInfo[x].SettlCurrency)},
-				Multiplier:           float64(marketInfo[x].Multiplier),
+				Multiplier:           marketInfo[x].Multiplier,
 				LatestRate: fundingrate.Rate{
 					Time: marketInfo[x].FundingTimestamp,
 					Rate: decimal.NewFromFloat(marketInfo[x].FundingRate),
@@ -1248,7 +1249,7 @@ func (b *Bitmex) GetFuturesContractDetails(ctx context.Context, item asset.Item)
 				Status:               marketInfo[x].State,
 				Type:                 ct,
 				SettlementCurrencies: currency.Currencies{currency.NewCode(marketInfo[x].SettlCurrency)},
-				Multiplier:           float64(marketInfo[x].Multiplier),
+				Multiplier:           marketInfo[x].Multiplier,
 				SettlementType:       contractSettlementType,
 			})
 		}
@@ -1352,43 +1353,24 @@ func (b *Bitmex) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]fut
 			return nil, fmt.Errorf("%w %v %v", asset.ErrNotSupported, k[i].Asset, k[i].Pair())
 		}
 	}
+	ticks, err := b.GetCachedOpenInterest(ctx, k...)
+	if err == nil && len(ticks) > 0 {
+		return ticks, nil
+	}
 	if len(k) == 0 {
-		ticks, err := ticker.GetExchangeTickers(b.Name)
-		if err == nil {
-			resp := make([]futures.OpenInterest, 0, len(ticks))
-			for i := range ticks {
-				if ticks[i].OpenInterest == 0 {
-					continue
-				}
-				resp = append(resp, futures.OpenInterest{
-					K: key.ExchangePairAsset{
-						Exchange: b.Name,
-						Base:     ticks[i].Pair.Base.Item,
-						Quote:    ticks[i].Pair.Quote.Item,
-						Asset:    ticks[i].AssetType,
-					},
-					OpenInterest: ticks[i].OpenInterest,
-				})
-			}
-			return resp, nil
-		}
 		activeInstruments, err := b.GetActiveAndIndexInstruments(ctx)
 		if err != nil {
 			return nil, err
 		}
 		resp := make([]futures.OpenInterest, 0, len(activeInstruments))
-	tickers:
 		for i := range activeInstruments {
 			for _, a := range b.CurrencyPairs.GetAssetTypes(true) {
 				symbol, enabled, err := b.MatchSymbolCheckEnabled(activeInstruments[i].Symbol, a, false)
-				if err != nil {
-					if !errors.Is(err, currency.ErrPairNotFound) {
-						continue
-					}
+				if err != nil && !errors.Is(err, currency.ErrPairNotFound) {
 					return nil, err
 				}
 				if !enabled {
-					continue tickers
+					break
 				}
 				resp = append(resp, futures.OpenInterest{
 					K: key.ExchangePairAsset{
@@ -1401,40 +1383,19 @@ func (b *Bitmex) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]fut
 				})
 				break
 			}
-
 		}
 		return resp, nil
 	}
 
 	resp := make([]futures.OpenInterest, 0, len(k))
 	for i := range k {
-		_, enabled, err := b.MatchSymbolCheckEnabled(k[i].Pair().String(), k[i].Asset, false)
-		if err != nil {
-			if errors.Is(err, currency.ErrPairNotFound) {
-				continue
-			}
+		_, isEnabled, err := b.MatchSymbolCheckEnabled(k[i].Pair().String(), k[i].Asset, false)
+		if err != nil && !errors.Is(err, currency.ErrPairNotFound) {
 			return nil, err
 		}
-		if !enabled {
+		if !isEnabled {
 			continue
 		}
-
-		tick, err := ticker.GetTicker(b.Name, k[i].Pair(), k[i].Asset)
-		if err == nil {
-			if tick.OpenInterest != 0 {
-				resp = append(resp, futures.OpenInterest{
-					K: key.ExchangePairAsset{
-						Exchange: b.Name,
-						Base:     k[i].Base,
-						Quote:    k[i].Quote,
-						Asset:    k[i].Asset,
-					},
-					OpenInterest: tick.OpenInterest,
-				})
-			}
-			continue
-		}
-
 		symbolStr, err := b.FormatSymbol(k[i].Pair(), k[i].Asset)
 		if err != nil {
 			return nil, err

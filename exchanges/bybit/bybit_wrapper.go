@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -2425,6 +2426,12 @@ func (by *Bybit) IsPerpetualFutureCurrency(a asset.Item, p currency.Pair) (bool,
 
 // GetLatestFundingRates returns the latest funding rates data
 func (by *Bybit) GetLatestFundingRates(context.Context, *fundingrate.LatestRateRequest) ([]fundingrate.LatestRateResponse, error) {
+	// TODO: implement with v5 API upgrade
+	return nil, common.ErrNotYetImplemented
+}
+
+// GetOpenInterest returns the open interest rate for a given asset pair
+func (by *Bybit) GetOpenInterest(context.Context, ...key.PairAsset) ([]futures.OpenInterest, error) {
 	// TODO: implement with v5 API upgrade
 	return nil, common.ErrNotYetImplemented
 }

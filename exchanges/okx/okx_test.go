@@ -249,7 +249,7 @@ func TestGetDeliveryHistory(t *testing.T) {
 func TestGetOpenInterestData(t *testing.T) {
 	t.Parallel()
 	if _, err := ok.GetOpenInterestData(contextGenerate(), "FUTURES", "BTC-USDT", ""); err != nil {
-		t.Error("Okx GetOpenInterest() error", err)
+		t.Error("Okx GetOpenInterestData() error", err)
 	}
 }
 

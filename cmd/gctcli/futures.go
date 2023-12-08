@@ -489,6 +489,30 @@ var futuresCommands = &cli.Command{
 				},
 			},
 		},
+		{
+			Name:      "getopeninterest",
+			Aliases:   []string{"goi", "oi"},
+			Usage:     "gets the open interest for provided exchange asset pair, if asset pair is not present, return all available if supported",
+			ArgsUsage: "<exchange> <asset> <pair>",
+			Action:    getOpenInterest,
+			Flags: []cli.Flag{
+				&cli.StringFlag{
+					Name:    "exchange",
+					Aliases: []string{"e"},
+					Usage:   "the exchange to retrieve open interest from",
+				},
+				&cli.StringFlag{
+					Name:    "asset",
+					Aliases: []string{"a"},
+					Usage:   "optional - the asset type of the currency pair, must be a futures type",
+				},
+				&cli.StringFlag{
+					Name:    "pair",
+					Aliases: []string{"p"},
+					Usage:   "optional - the currency pair",
+				},
+			},
+		},
 	},
 }
 
@@ -1604,6 +1628,81 @@ func setMarginType(c *cli.Context) error {
 				Quote:     pair.Quote.String(),
 			},
 			MarginType: marginType,
+		})
+	if err != nil {
+		return err
+	}
+
+	jsonOutput(result)
+	return nil
+}
+
+func getOpenInterest(c *cli.Context) error {
+	if c.NArg() == 0 && c.NumFlags() == 0 {
+		return cli.ShowSubcommandHelp(c)
+	}
+	var (
+		exchangeName, assetType, currencyPair string
+		err                                   error
+	)
+	if c.IsSet("exchange") {
+		exchangeName = c.String("exchange")
+	} else {
+		exchangeName = c.Args().First()
+	}
+
+	if c.IsSet("asset") {
+		assetType = c.String("asset")
+	} else {
+		assetType = c.Args().Get(1)
+	}
+
+	if assetType != "" {
+		err = isFuturesAsset(assetType)
+		if err != nil {
+			return err
+		}
+	}
+
+	if c.IsSet("pair") {
+		currencyPair = c.String("pair")
+	} else {
+		currencyPair = c.Args().Get(2)
+	}
+	var pair currency.Pair
+	if currencyPair != "" {
+		if !validPair(currencyPair) {
+			return fmt.Errorf("%w currencypair:%v", errInvalidPair, currencyPair)
+		}
+		pair, err = currency.NewPairDelimiter(currencyPair, pairDelimiter)
+		if err != nil {
+			return err
+		}
+	}
+
+	data := make([]*gctrpc.OpenInterestDataRequest, 1)
+	if !pair.IsEmpty() {
+		data[0] = &gctrpc.OpenInterestDataRequest{
+			Asset: assetType,
+			Pair: &gctrpc.CurrencyPair{
+				Delimiter: pair.Delimiter,
+				Base:      pair.Base.String(),
+				Quote:     pair.Quote.String(),
+			},
+		}
+	}
+
+	conn, cancel, err := setupClient(c)
+	if err != nil {
+		return err
+	}
+	defer closeConn(conn, cancel)
+
+	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
+	result, err := client.GetOpenInterest(c.Context,
+		&gctrpc.GetOpenInterestRequest{
+			Exchange: exchangeName,
+			Data:     data,
 		})
 	if err != nil {
 		return err

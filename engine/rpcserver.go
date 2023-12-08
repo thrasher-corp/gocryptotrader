@@ -5955,9 +5955,6 @@ func (s *RPCServer) GetOpenInterest(ctx context.Context, r *gctrpc.GetOpenIntere
 	if r == nil {
 		return nil, fmt.Errorf("%w GetOpenInterestRequest", common.ErrNilPointer)
 	}
-	if r.Pair == nil {
-		return nil, currency.ErrCurrencyPairEmpty
-	}
 	exch, err := s.GetExchangeByName(r.Exchange)
 	if err != nil {
 		return nil, err
@@ -5965,36 +5962,40 @@ func (s *RPCServer) GetOpenInterest(ctx context.Context, r *gctrpc.GetOpenIntere
 	if !exch.IsEnabled() {
 		return nil, fmt.Errorf("%s %w", r.Exchange, errExchangeNotEnabled)
 	}
-
-	ai, err := asset.New(r.Asset)
-	if err != nil {
-		return nil, err
-	}
-	p, pEnabled, err := exch.MatchSymbolCheckEnabled(r.Pair.String(), ai, false)
-	if err != nil {
-		return nil, err
-	}
-	if !pEnabled {
-		return nil, fmt.Errorf("%w %v", currency.ErrPairNotEnabled, r.Pair)
-	}
-
 	feat := exch.GetSupportedFeatures()
 	if !feat.FuturesCapabilities.OpenInterest.Supported {
 		return nil, common.ErrFunctionNotSupported
 	}
-	openInterest, err := exch.GetOpenInterest(ctx, key.PairAsset{
-		Base:  p.Base.Item,
-		Quote: p.Quote.Item,
-		Asset: ai,
-	})
+	keys := make([]key.PairAsset, len(r.Data))
+	for i := range r.Data {
+		var a asset.Item
+		a, err = asset.New(r.Data[i].Asset)
+		if err != nil {
+			return nil, err
+		}
+		keys[i].Base = currency.NewCode(r.Data[i].Pair.Base).Item
+		keys[i].Quote = currency.NewCode(r.Data[i].Pair.Quote).Item
+		keys[i].Asset = a
+	}
+
+	openInterest, err := exch.GetOpenInterest(ctx, keys...)
 	if err != nil {
 		return nil, err
 	}
-	if len(openInterest) != 1 {
-		return nil, fmt.Errorf("received %v expected %v", len(openInterest), 1)
-	}
 
+	resp := make([]*gctrpc.OpenInterestDataResponse, len(openInterest))
+	for i := range openInterest {
+		resp[i] = &gctrpc.OpenInterestDataResponse{
+			Exchange: openInterest[i].K.Exchange,
+			Pair: &gctrpc.CurrencyPair{
+				Base:  openInterest[i].K.Base.String(),
+				Quote: openInterest[i].K.Quote.String(),
+			},
+			Asset:        openInterest[i].K.Asset.String(),
+			OpenInterest: openInterest[i].OpenInterest,
+		}
+	}
 	return &gctrpc.GetOpenInterestResponse{
-		OpenInterest: openInterest[0].OpenInterest,
+		Data: resp,
 	}, nil
 }

@@ -3396,7 +3396,7 @@ func (ok *Okx) GetDeliveryHistory(ctx context.Context, instrumentType, underlyin
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getDeliveryExerciseHistoryEPL, http.MethodGet, common.EncodeURLValues(publicDeliveryExerciseHistory, params), nil, &resp, false)
 }
 
-// GetOpenInterest retrieves the total open interest for contracts on OKX
+// GetOpenInterestData retrieves the total open interest for contracts on OKX
 func (ok *Okx) GetOpenInterestData(ctx context.Context, instType, uly, instID string) ([]OpenInterest, error) {
 	params := url.Values{}
 	instType = strings.ToUpper(instType)

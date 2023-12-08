@@ -3209,3 +3209,11 @@ func TestIsPairEnabled(t *testing.T) {
 		t.Fatal("expected true")
 	}
 }
+
+func TestGetOpenInterest(t *testing.T) {
+	t.Parallel()
+	var b Base
+	if _, err := b.GetOpenInterest(context.Background()); !errors.Is(err, common.ErrNotYetImplemented) {
+		t.Errorf("received: %v, expected: %v", err, common.ErrNotYetImplemented)
+	}
+}

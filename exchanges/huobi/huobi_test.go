@@ -12,7 +12,9 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
+	"github.com/stretchr/testify/assert"
 	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -2840,4 +2842,24 @@ func TestGetSwapFundingRates(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
+}
+
+func TestGetOpenInterest(t *testing.T) {
+	t.Parallel()
+	_, err := h.GetOpenInterest(context.Background(), key.PairAsset{
+		Base:  currency.ETH.Item,
+		Quote: currency.USDT.Item,
+		Asset: asset.USDTMarginedFutures,
+	})
+	assert.ErrorIs(t, err, asset.ErrNotSupported)
+
+	_, err = h.GetOpenInterest(context.Background(), key.PairAsset{
+		Base:  currency.BTC.Item,
+		Quote: currency.USD.Item,
+		Asset: asset.CoinMarginedFutures,
+	})
+	assert.NoError(t, err)
+
+	_, err = h.GetOpenInterest(context.Background())
+	assert.NoError(t, err)
 }

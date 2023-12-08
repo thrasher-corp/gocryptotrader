@@ -1503,12 +1503,23 @@ message GetOrderbookAmountByImpactResponse {
 
 message GetOpenInterestRequest {
   string exchange = 1;
-  string asset = 2;
-  CurrencyPair pair = 3;
+  repeated OpenInterestDataRequest data = 2;
+}
+
+message OpenInterestDataRequest {
+  string asset = 1;
+  CurrencyPair pair = 2;
 }
 
 message GetOpenInterestResponse {
-  double open_interest = 1;
+  repeated OpenInterestDataResponse data = 1;
+}
+
+message OpenInterestDataResponse {
+  string exchange = 1;
+  string asset = 2;
+  CurrencyPair pair = 3;
+  double open_interest = 4;
 }
 
 service GoCryptoTraderService {

@@ -1338,12 +1338,12 @@ func (e *Endpoints) GetURLMap() map[string]string {
 
 // GetCachedOpenInterest returns open interest data if the exchange
 // supports open interest in ticker data
-func (b *Base) GetCachedOpenInterest(_ context.Context, k key.PairAsset) ([]futures.OpenInterest, error) {
+func (b *Base) GetCachedOpenInterest(_ context.Context, k ...key.PairAsset) ([]futures.OpenInterest, error) {
 	if !b.Features.Supports.FuturesCapabilities.OpenInterest.Supported ||
-		(!b.Features.Supports.FuturesCapabilities.OpenInterest.SupportedViaTicker) {
+		!b.Features.Supports.FuturesCapabilities.OpenInterest.SupportedViaTicker {
 		return nil, common.ErrFunctionNotSupported
 	}
-	if k.Pair().IsEmpty() {
+	if len(k) == 0 {
 		ticks, err := ticker.GetExchangeTickers(b.Name)
 		if err != nil {
 			return nil, err
@@ -1368,21 +1368,23 @@ func (b *Base) GetCachedOpenInterest(_ context.Context, k key.PairAsset) ([]futu
 		})
 		return resp, nil
 	}
-	t, err := ticker.GetTicker(b.Name, k.Pair(), k.Asset)
-	if err != nil {
-		return nil, err
-	}
-	return []futures.OpenInterest{
-		{
+	resp := make([]futures.OpenInterest, 0, len(k))
+	for i := range k {
+		t, err := ticker.GetTicker(b.Name, k[i].Pair(), k[i].Asset)
+		if err != nil {
+			return nil, err
+		}
+		resp[i] = futures.OpenInterest{
 			K: key.ExchangePairAsset{
 				Exchange: b.Name,
-				Base:     k.Base,
-				Quote:    k.Quote,
-				Asset:    k.Asset,
+				Base:     t.Pair.Base.Item,
+				Quote:    t.Pair.Quote.Item,
+				Asset:    t.AssetType,
 			},
 			OpenInterest: t.OpenInterest,
-		},
-	}, nil
+		}
+	}
+	return resp, nil
 }
 
 // FormatSymbol formats the given pair to a string suitable for exchange API requests
@@ -1803,4 +1805,9 @@ func (b *Base) MatchSymbolCheckEnabled(symbol string, a asset.Item, hasDelimiter
 // TODO: Optimisation map for enabled pair matching, instead of linear traversal.
 func (b *Base) IsPairEnabled(pair currency.Pair, a asset.Item) (bool, error) {
 	return b.CurrencyPairs.IsPairEnabled(pair, a)
+}
+
+// GetOpenInterest returns the open interest rate for a given asset pair
+func (b *Base) GetOpenInterest(context.Context, ...key.PairAsset) ([]futures.OpenInterest, error) {
+	return nil, common.ErrNotYetImplemented
 }

@@ -1038,9 +1038,7 @@ func TestGetOpenInterest(t *testing.T) {
 	})
 	assert.NoError(t, err)
 
-	_, err = b.GetOpenInterest(context.Background(), key.PairAsset{
-		Asset: asset.Futures,
-	})
+	_, err = b.GetOpenInterest(context.Background())
 	assert.NoError(t, err)
 
 	_, err = b.GetOpenInterest(context.Background(), key.PairAsset{

@@ -2892,30 +2892,6 @@
             "in": "query",
             "required": false,
             "type": "string"
-          },
-          {
-            "name": "asset",
-            "in": "query",
-            "required": false,
-            "type": "string"
-          },
-          {
-            "name": "pair.delimiter",
-            "in": "query",
-            "required": false,
-            "type": "string"
-          },
-          {
-            "name": "pair.base",
-            "in": "query",
-            "required": false,
-            "type": "string"
-          },
-          {
-            "name": "pair.quote",
-            "in": "query",
-            "required": false,
-            "type": "string"
           }
         ],
         "tags": [
@@ -6348,9 +6324,12 @@
     "gctrpcGetOpenInterestResponse": {
       "type": "object",
       "properties": {
-        "openInterest": {
-          "type": "number",
-          "format": "double"
+        "data": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/gctrpcOpenInterestDataResponse"
+          }
         }
       }
     },
@@ -6790,6 +6769,35 @@
           "additionalProperties": {
             "$ref": "#/definitions/gctrpcOnlineCoinSummary"
           }
+        }
+      }
+    },
+    "gctrpcOpenInterestDataRequest": {
+      "type": "object",
+      "properties": {
+        "asset": {
+          "type": "string"
+        },
+        "pair": {
+          "$ref": "#/definitions/gctrpcCurrencyPair"
+        }
+      }
+    },
+    "gctrpcOpenInterestDataResponse": {
+      "type": "object",
+      "properties": {
+        "exchange": {
+          "type": "string"
+        },
+        "asset": {
+          "type": "string"
+        },
+        "pair": {
+          "$ref": "#/definitions/gctrpcCurrencyPair"
+        },
+        "openInterest": {
+          "type": "number",
+          "format": "double"
         }
       }
     },

@@ -282,8 +282,8 @@ func (by *Bybit) GetPremiumIndexPriceKline(ctx context.Context, symbol currency.
 	return resp.Data, by.SendHTTPRequest(ctx, exchange.RestCoinMargined, path, publicFuturesRate, &resp)
 }
 
-// GetOpenInterest gets open interest data for a symbol.
-func (by *Bybit) GetOpenInterest(ctx context.Context, symbol currency.Pair, period string, limit int64) ([]OpenInterestData, error) {
+// GetOpenInterestData gets open interest data for a symbol.
+func (by *Bybit) GetOpenInterestData(ctx context.Context, symbol currency.Pair, period string, limit int64) ([]OpenInterestData, error) {
 	resp := struct {
 		Data []OpenInterestData `json:"result"`
 		Error

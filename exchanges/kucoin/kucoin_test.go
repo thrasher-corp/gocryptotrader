@@ -12,6 +12,7 @@ import (
 	"github.com/gofrs/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -2691,4 +2692,24 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 			assert.NotEmpty(t, lim, "limit cannot be empty")
 		}
 	}
+}
+
+func TestGetOpenInterest(t *testing.T) {
+	t.Parallel()
+	_, err := ku.GetOpenInterest(context.Background(), key.PairAsset{
+		Base:  currency.ETH.Item,
+		Quote: currency.USDT.Item,
+		Asset: asset.USDTMarginedFutures,
+	})
+	assert.ErrorIs(t, err, asset.ErrNotSupported)
+
+	_, err = ku.GetOpenInterest(context.Background(), key.PairAsset{
+		Base:  futuresTradablePair.Base.Item,
+		Quote: futuresTradablePair.Quote.Item,
+		Asset: asset.Futures,
+	})
+	assert.NoError(t, err)
+
+	_, err = ku.GetOpenInterest(context.Background())
+	assert.NoError(t, err)
 }

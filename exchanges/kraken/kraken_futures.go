@@ -84,6 +84,7 @@ func (k *Kraken) GetFuturesTickers(ctx context.Context) (FuturesTickersData, err
 	return resp, k.SendHTTPRequest(ctx, exchange.RestFutures, futuresTickers, &resp)
 }
 
+// GetFuturesTickerBySymbol returns futures ticker data by symbol
 func (k *Kraken) GetFuturesTickerBySymbol(ctx context.Context, symbol string) (FuturesTickerData, error) {
 	var resp FuturesTickerData
 	return resp, k.SendHTTPRequest(ctx, exchange.RestFutures, futuresTickers+"/"+symbol, &resp)

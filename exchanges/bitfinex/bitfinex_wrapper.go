@@ -12,6 +12,7 @@ import (
 	"unicode"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -1308,6 +1309,12 @@ func (b *Bitfinex) GetFuturesContractDetails(context.Context, asset.Item) ([]fut
 
 // GetLatestFundingRates returns the latest funding rates data
 func (b *Bitfinex) GetLatestFundingRates(context.Context, *fundingrate.LatestRateRequest) ([]fundingrate.LatestRateResponse, error) {
+	// TODO: Add futures support for Bitfinex
+	return nil, common.ErrNotYetImplemented
+}
+
+// GetOpenInterest returns the open interest rate for a given asset pair
+func (b *Bitfinex) GetOpenInterest(context.Context, ...key.PairAsset) ([]futures.OpenInterest, error) {
 	// TODO: Add futures support for Bitfinex
 	return nil, common.ErrNotYetImplemented
 }

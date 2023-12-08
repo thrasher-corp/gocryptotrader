@@ -1872,34 +1872,19 @@ func (k *Kraken) GetOpenInterest(ctx context.Context, keys ...key.PairAsset) ([]
 			return nil, fmt.Errorf("%w %v %v", asset.ErrNotSupported, keys[i].Asset, keys[i].Pair())
 		}
 	}
-	if len(keys) == 0 {
-		ticks, err := ticker.GetExchangeTickers(k.Name)
-		if err == nil {
-			resp := make([]futures.OpenInterest, 0, len(ticks))
-			for i := range ticks {
-				if ticks[i].AssetType != asset.Futures {
-					continue
-				}
-				resp = append(resp, futures.OpenInterest{
-					K: key.ExchangePairAsset{
-						Exchange: k.Name,
-						Base:     ticks[i].Pair.Base.Item,
-						Quote:    ticks[i].Pair.Quote.Item,
-						Asset:    asset.Futures,
-					},
-					OpenInterest: ticks[i].OpenInterest,
-				})
-			}
-			return resp, nil
-		}
+	ticks, err := k.GetCachedOpenInterest(ctx, keys...)
+	if err == nil && len(ticks) > 0 {
+		return ticks, nil
+	}
 
+	if len(keys) == 0 {
 		futuresTickersData, err := k.GetFuturesTickers(ctx)
 		if err != nil {
 			return nil, err
 		}
 		resp := make([]futures.OpenInterest, 0, len(futuresTickersData.Tickers))
 		for i := range futuresTickersData.Tickers {
-			p, isEnabled, err := k.MatchSymbolCheckEnabled(futuresTickersData.Tickers[i].Symbol, asset.Futures, false)
+			p, isEnabled, err := k.MatchSymbolCheckEnabled(futuresTickersData.Tickers[i].Symbol, asset.Futures, true)
 			if err != nil && !errors.Is(err, currency.ErrPairNotFound) {
 				return nil, err
 			}
@@ -1920,25 +1905,15 @@ func (k *Kraken) GetOpenInterest(ctx context.Context, keys ...key.PairAsset) ([]
 	}
 	resp := make([]futures.OpenInterest, 0, len(keys))
 	for i := range keys {
-		tick, err := ticker.GetTicker(k.Name, keys[i].Pair(), asset.Futures)
-		if err == nil {
-			resp = append(resp, futures.OpenInterest{
-				K: key.ExchangePairAsset{
-					Exchange: k.Name,
-					Base:     keys[i].Base,
-					Quote:    keys[i].Quote,
-					Asset:    asset.Futures,
-				},
-				OpenInterest: tick.OpenInterest,
-			})
-			continue
-		}
-
-		data, err := k.GetFuturesTickerBySymbol(ctx, keys[i].Pair().String())
+		pFmt, err := k.FormatSymbol(keys[i].Pair(), asset.Futures)
 		if err != nil {
 			return nil, err
 		}
-		p, isEnabled, err := k.MatchSymbolCheckEnabled(data.Ticker.Symbol, asset.Futures, false)
+		data, err := k.GetFuturesTickerBySymbol(ctx, pFmt)
+		if err != nil {
+			return nil, err
+		}
+		p, isEnabled, err := k.MatchSymbolCheckEnabled(data.Ticker.Symbol, asset.Futures, true)
 		if err != nil && !errors.Is(err, currency.ErrPairNotFound) {
 			return nil, err
 		}

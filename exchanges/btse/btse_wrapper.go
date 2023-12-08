@@ -140,6 +140,7 @@ func (b *BTSE) SetDefaults() {
 				},
 				OpenInterest: exchange.OpenInterestSupport{
 					Supported:          true,
+					SupportsRestBatch:  true,
 					SupportedViaTicker: true,
 				},
 			},
@@ -1312,6 +1313,11 @@ func (b *BTSE) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]futur
 			return nil, fmt.Errorf("%w %v %v", asset.ErrNotSupported, k[i].Asset, k[i].Pair())
 		}
 	}
+	ticks, err := b.GetCachedOpenInterest(ctx, k...)
+	if err == nil && len(ticks) > 0 {
+		return ticks, nil
+	}
+
 	if len(k) == 0 {
 		tickers, err := b.GetMarketSummary(ctx, "", false)
 		if err != nil {
@@ -1320,10 +1326,7 @@ func (b *BTSE) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]futur
 		resp := make([]futures.OpenInterest, 0, len(tickers))
 		for i := range tickers {
 			symbol, enabled, err := b.MatchSymbolCheckEnabled(tickers[i].Symbol, asset.Futures, false)
-			if err != nil {
-				if !errors.Is(err, currency.ErrPairNotFound) {
-					continue
-				}
+			if err != nil && !errors.Is(err, currency.ErrPairNotFound) {
 				return nil, err
 			}
 			if !enabled {

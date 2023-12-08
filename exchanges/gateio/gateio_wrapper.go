@@ -125,6 +125,9 @@ func (g *Gateio) SetDefaults() {
 				FundingRateBatching: map[asset.Item]bool{
 					asset.Futures: true,
 				},
+				OpenInterest: exchange.OpenInterestSupport{
+					Supported: true,
+				},
 			},
 		},
 		Enabled: exchange.FeaturesEnabled{
@@ -2378,9 +2381,9 @@ func (g *Gateio) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]fut
 					Quote:    k[i].Quote,
 					Asset:    k[i].Asset,
 				},
-				OpenInterest:    oi[0].OpenInterest,
-				OpenInterestUSD: oi[0].OpenInterestUsd,
+				OpenInterest: oi[0].OpenInterest,
 			})
+			break
 		}
 	}
 	return resp, nil

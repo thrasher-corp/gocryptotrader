@@ -22,6 +22,7 @@ var (
 	errExchangeNameIsEmpty = errors.New("exchange name is empty")
 	errBidEqualsAsk        = errors.New("bid equals ask this is a crossed or locked market")
 	errBidGreaterThanAsk   = errors.New("bid greater than ask this is a crossed or locked market")
+	errExchangeNotFound    = errors.New("exchange not found")
 )
 
 func init() {
@@ -95,15 +96,24 @@ func GetTicker(exchange string, p currency.Pair, a asset.Item) (*Price, error) {
 	return &cpy, nil
 }
 
+// GetExchangeTickers returns all tickers for a given exchange
 func GetExchangeTickers(exchange string) ([]*Price, error) {
+	return service.getExchangeTickers(exchange)
+}
+
+func (s *Service) getExchangeTickers(exchange string) ([]*Price, error) {
 	if exchange == "" {
 		return nil, errExchangeNameIsEmpty
 	}
 	exchange = strings.ToLower(exchange)
-	service.mu.Lock()
-	defer service.mu.Unlock()
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	_, ok := s.Exchange[exchange]
+	if !ok {
+		return nil, fmt.Errorf("%w %v", errExchangeNotFound, exchange)
+	}
 	var tickers []*Price
-	for k, v := range service.Tickers {
+	for k, v := range s.Tickers {
 		if k.Exchange != exchange {
 			continue
 		}
