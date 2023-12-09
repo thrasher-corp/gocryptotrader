@@ -2003,7 +2003,7 @@ func (by *Bybit) ModifyMasterAPIKey(ctx context.Context, arg *SubUIDAPIKeyUpdate
 	if arg == nil || reflect.DeepEqual(*arg, SubUIDAPIKeyUpdateParam{}) {
 		return nil, errNilArgument
 	}
-	if len(arg.IPs) == 0 && len(arg.IPAddresses) > 0 {
+	if arg.IPs == "" && len(arg.IPAddresses) > 0 {
 		arg.IPs = strings.Join(arg.IPAddresses, ",")
 	}
 	var resp *SubUIDAPIResponse
@@ -2015,7 +2015,7 @@ func (by *Bybit) ModifySubAPIKey(ctx context.Context, arg *SubUIDAPIKeyUpdatePar
 	if arg == nil || reflect.DeepEqual(*arg, SubUIDAPIKeyUpdateParam{}) {
 		return nil, errNilArgument
 	}
-	if len(arg.IPs) == 0 && len(arg.IPAddresses) > 0 {
+	if arg.IPs == "" && len(arg.IPAddresses) > 0 {
 		arg.IPs = strings.Join(arg.IPAddresses, ",")
 	}
 	var resp *SubUIDAPIResponse
