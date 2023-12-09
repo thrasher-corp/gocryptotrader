@@ -822,9 +822,15 @@ func TestGetRecentTrades(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = b.GetRecentTrades(context.Background(), currencyPair, asset.Spot)
-	if err != nil {
-		t.Error(err)
+	tr, err := b.GetRecentTrades(context.Background(), currencyPair, asset.Spot)
+	assert.NoError(t, err, "GetRecentTrades should not error")
+	if mockTests {
+		for _, req := range tr {
+			assert.Positive(t, req.Amount, "Amount should be positive")
+			assert.NotEmpty(t, req.Timestamp, "Timestamp should not be empty")
+			assert.Positive(t, req.Price, "Price should be positive")
+			assert.NotEmpty(t, req.TID, "TID should not be empty")
+		}
 	}
 }
 
