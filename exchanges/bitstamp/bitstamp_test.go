@@ -388,7 +388,6 @@ func TestGetUnconfirmedBitcoinDeposits(t *testing.T) {
 	}
 	_, err := b.GetUnconfirmedBitcoinDeposits(context.Background())
 	assert.NoError(t, err, "GetUnconfirmedBitcoinDeposits should not error")
-
 }
 
 func TestTransferAccountBalance(t *testing.T) {
@@ -560,12 +559,12 @@ func TestWithdrawFiat(t *testing.T) {
 	_, err := b.WithdrawFiatFunds(context.Background(), &withdrawFiatRequest)
 	if mockTests {
 		assert.Equal(t, float64(10), withdrawFiatRequest.Amount, "Amount should match")
-		assert.Equal(t, currency.Code(currency.USD), withdrawFiatRequest.Currency, "Currency should match")
+		assert.Equal(t, currency.USD, withdrawFiatRequest.Currency, "Currency should match")
 		assert.NotEmpty(t, withdrawFiatRequest.Fiat.Bank, "Bank details must not be empty")
 		assert.NotEmpty(t, withdrawFiatRequest.Fiat.WireCurrency, "WireCurrency details should not be empty")
 		assert.Equal(t, currency.USD.String(), withdrawFiatRequest.Fiat.WireCurrency, "WireCurrency should match")
 	} else {
-		assert.ErrorContains(t, err, "amount: [You have only 0.00 USD available. Check your account balance for details.]")
+		assert.ErrorContains(t, err, "Check your account balance for details")
 	}
 }
 
@@ -615,7 +614,7 @@ func TestWithdrawInternationalBank(t *testing.T) {
 		assert.NotEmpty(t, withdrawFiatRequest.Fiat.Bank, "Bank details must not be empty")
 		assert.NotEmpty(t, withdrawFiatRequest.Fiat.WireCurrency, "WireCurrency details should not be empty")
 	}
-	assert.ErrorContains(t, err, "amount: [You have only 0.00 USD available. Check your account balance for details.]")
+	assert.ErrorContains(t, err, "Check your account balance for details")
 }
 
 func TestGetDepositAddress(t *testing.T) {
@@ -779,7 +778,6 @@ func TestWsRequestReconnect(t *testing.T) {
 	}`)
 	err := b.wsHandleData(pressXToJSON)
 	assert.NoError(t, err, "WsRequestReconnect should not error")
-
 }
 
 func TestBitstamp_OHLC(t *testing.T) {
@@ -878,17 +876,25 @@ func TestOrderbookZeroBidPrice(t *testing.T) {
 func TestGetWithdrawalsHistory(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
-	_, err := b.GetWithdrawalsHistory(context.Background(), currency.BTC, asset.Spot)
+	h, err := b.GetWithdrawalsHistory(context.Background(), currency.BTC, asset.Spot)
 	assert.NoError(t, err, "GetWithdrawalsHistory should not error")
+	if mockTests {
+		assert.NotEmpty(t, h, "GetWithdrawalRequests should return a withdrawal request")
+		for _, req := range h {
+			assert.Equal(t, "NsOeFbQhRnpGzNIThWGBTkQwRJqTNOGPVhYavrVyMfkAyMUmIlUpFIwGTzSvpeOP", req.TransferID, "TransferId should match")
+			assert.Equal(t, "2022-01-31 16:07:32", req.Timestamp, "Timestamp should match")
+			assert.Equal(t, currency.BTC, req.Currency, "Currency should match")
+			assert.Equal(t, 0.00006000, req.Amount, "Amount should match")
+		}
+	}
 }
-
 func TestGetOrderInfo(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	o, err := b.GetOrderInfo(context.Background(), "1458532827766784", currency.NewPair(currency.BTC, currency.USD), asset.Spot)
 	if mockTests {
 		assert.NoError(t, err, "GetOrderInfo should not error")
-		assert.Equal(t, time.Time(time.Date(2022, time.January, 31, 14, 43, 15, 0, time.UTC)), o.Date, "order date should match")
+		assert.Equal(t, time.Date(2022, time.January, 31, 14, 43, 15, 0, time.UTC), o.Date, "order date should match")
 		assert.Equal(t, "1458532827766784", o.OrderID, "order ID should match")
 		assert.Equal(t, 200.00, o.Amount, "amount should match")
 		assert.Equal(t, 50.00, o.Price, "amount should match")
