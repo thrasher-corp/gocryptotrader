@@ -2442,7 +2442,7 @@ func TestModifyMasterAPIKey(t *testing.T) {
 	}
 	_, err = b.ModifyMasterAPIKey(context.Background(), &SubUIDAPIKeyUpdateParam{
 		ReadOnly: 0,
-		IPs:      "192.168.0.1,192.168.0.2",
+		IPs:      "*",
 		Permissions: PermissionsList{
 			ContractTrade: []string{"Order", "Position"},
 			Spot:          []string{"SpotTrade"},
@@ -2468,12 +2468,16 @@ func TestModifySubAPIKey(t *testing.T) {
 		t.Fatalf("expected %v, got %v", errNilArgument, err)
 	}
 	_, err = b.ModifySubAPIKey(context.Background(), &SubUIDAPIKeyUpdateParam{
-		APIKey:   "",
+		APIKey:   "lnqQ8ACaoMLi4168He",
 		ReadOnly: 0,
-		IPs:      "192.168.0.1,192.168.0.2",
+		IPs:      "*",
 		Permissions: PermissionsList{
-			Spot:   []string{"SpotTrade"},
-			Wallet: []string{"AccountTransfer"},
+			ContractTrade: []string{"Order", "Position"},
+			Spot:          []string{"SpotTrade"},
+			Wallet:        []string{"AccountTransfer", "SubMemberTransfer"},
+			Options:       []string{"OptionsTrade"},
+			CopyTrading:   []string{"CopyTrading"},
+			Exchange:      []string{"ExchangeHistory"},
 		},
 	})
 	if err != nil {

@@ -600,6 +600,10 @@ func (by *Bybit) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (a
 	var acc account.SubAccount
 	var accountType string
 	info.Exchange = by.Name
+	err := by.RetrieveAndSetAccountType(ctx)
+	if err != nil {
+		return info, err
+	}
 	switch assetType {
 	case asset.Spot, asset.Options,
 		asset.USDCMarginedFutures,
@@ -1465,11 +1469,7 @@ func (by *Bybit) getCategoryFromPair(pair currency.Pair) []asset.Item {
 
 // ValidateAPICredentials validates current credentials used for wrapper
 func (by *Bybit) ValidateAPICredentials(ctx context.Context, assetType asset.Item) error {
-	err := by.RetrieveAndSetAccountType(ctx)
-	if err != nil {
-		return err
-	}
-	_, err = by.UpdateAccountInfo(ctx, assetType)
+	_, err := by.UpdateAccountInfo(ctx, assetType)
 	return by.CheckTransientError(err)
 }
 
