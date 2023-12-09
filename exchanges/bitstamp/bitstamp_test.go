@@ -622,8 +622,10 @@ func TestGetDepositAddress(t *testing.T) {
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
 	}
-	_, err := b.GetDepositAddress(context.Background(), currency.XRP, "", "")
+	a, err := b.GetDepositAddress(context.Background(), currency.XRP, "", "")
 	assert.NoError(t, err, "GetDepositAddress should not error")
+	assert.NotEmpty(t, a.Address, "Address should not be empty")
+	assert.NotEmpty(t, a.Tag, "Tag should not be empty")
 }
 
 func TestParseTime(t *testing.T) {
@@ -783,36 +785,54 @@ func TestWsRequestReconnect(t *testing.T) {
 func TestBitstamp_OHLC(t *testing.T) {
 	start := time.Unix(1546300800, 0)
 	end := time.Unix(1577836799, 0)
-	_, err := b.OHLC(context.Background(), "btcusd", start, end, "60", "10")
-	if err != nil {
-		t.Fatal(err)
+	o, err := b.OHLC(context.Background(), "btcusd", start, end, "60", "10")
+	assert.NoError(t, err, "TestBitstamp_OHLC should not error")
+	assert.NotEmpty(t, o.Data.Pair, "Pair should not be empty")
+	for _, req := range o.Data.OHLCV {
+		assert.Positive(t, req.Low, "Low should be positive")
+		assert.Positive(t, req.Close, "Close should be positive")
+		assert.Positive(t, req.Open, "Low should be positive")
+		assert.Positive(t, req.Volume, "Volume should be positive")
+		assert.NotEmpty(t, req.Timestamp, "Time should not be empty")
 	}
 }
 
 func TestBitstamp_GetHistoricCandles(t *testing.T) {
 	pair, err := currency.NewPairFromString("BTCUSD")
 	if err != nil {
-		t.Fatal(err)
+		t.Error("Invalid pair")
 	}
 	start := time.Unix(1546300800, 0)
 	end := time.Unix(1577836799, 0)
-	_, err = b.GetHistoricCandles(context.Background(), pair, asset.Spot, kline.OneDay, start, end)
-	if err != nil {
-		t.Fatal(err)
+	c, err := b.GetHistoricCandles(context.Background(), pair, asset.Spot, kline.OneDay, start, end)
+	assert.NoError(t, err, "GetHistoricCandles should not error")
+	for _, req := range c.Candles {
+		assert.Positive(t, req.High, "High should be positive")
+		assert.Positive(t, req.Low, "Low should be positive")
+		assert.Positive(t, req.Close, "Close should be positive")
+		assert.Positive(t, req.Open, "Low should be positive")
+		assert.Positive(t, req.Volume, "Volume should be positive")
+		assert.NotEmpty(t, req.Time, "Time should not be empty")
 	}
 }
 
 func TestBitstamp_GetHistoricCandlesExtended(t *testing.T) {
 	pair, err := currency.NewPairFromString("BTCUSD")
 	if err != nil {
-		t.Fatal(err)
+		t.Error("Invalid pair")
 	}
 	start := time.Unix(1546300800, 0)
 	end := time.Unix(1577836799, 0)
 
-	_, err = b.GetHistoricCandlesExtended(context.Background(), pair, asset.Spot, kline.OneDay, start, end)
-	if err != nil {
-		t.Fatal(err)
+	c, err := b.GetHistoricCandlesExtended(context.Background(), pair, asset.Spot, kline.OneDay, start, end)
+	assert.NoError(t, err, "GetHistoricCandlesExtended should not error")
+	for _, req := range c.Candles {
+		assert.Positive(t, req.High, "High should be positive")
+		assert.Positive(t, req.Low, "Low should be positive")
+		assert.Positive(t, req.Close, "Close should be positive")
+		assert.Positive(t, req.Open, "Low should be positive")
+		assert.Positive(t, req.Volume, "Volume should be positive")
+		assert.NotEmpty(t, req.Time, "Time should not be empty")
 	}
 }
 
@@ -824,13 +844,11 @@ func TestGetRecentTrades(t *testing.T) {
 	}
 	tr, err := b.GetRecentTrades(context.Background(), currencyPair, asset.Spot)
 	assert.NoError(t, err, "GetRecentTrades should not error")
-	if mockTests {
-		for _, req := range tr {
-			assert.Positive(t, req.Amount, "Amount should be positive")
-			assert.NotEmpty(t, req.Timestamp, "Timestamp should not be empty")
-			assert.Positive(t, req.Price, "Price should be positive")
-			assert.NotEmpty(t, req.TID, "TID should not be empty")
-		}
+	for _, req := range tr {
+		assert.Positive(t, req.Amount, "Amount should be positive")
+		assert.NotEmpty(t, req.Timestamp, "Timestamp should not be empty")
+		assert.Positive(t, req.Price, "Price should be positive")
+		assert.NotEmpty(t, req.TID, "TID should not be empty")
 	}
 }
 
