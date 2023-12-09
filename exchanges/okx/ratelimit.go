@@ -202,6 +202,14 @@ type RateLimit struct {
 	GetLeadingInstruments       *rate.Limiter
 	GetProfitSharingLimit       *rate.Limiter
 	GetTotalProfitSharing       *rate.Limiter
+	SetFirstCopySettings        *rate.Limiter
+	AmendFirstCopySettings      *rate.Limiter
+	StopCopying                 *rate.Limiter
+	GetCopySettings             *rate.Limiter
+	GetMultipleLeverages        *rate.Limiter
+	SetBatchLeverage            *rate.Limiter
+	GetMyLeadTraders            *rate.Limiter
+	GetLeadTraderRanks          *rate.Limiter
 
 	// Earn
 	GetOffer                   *rate.Limiter
@@ -457,6 +465,14 @@ const (
 	getLeadingInstrumentsEPL
 	getProfitSharingLimitEPL
 	getTotalProfitSharingEPL
+	setFirstCopySettingsEPL
+	amendFirstCopySettingsEPL
+	stopCopyingEPL
+	getCopySettingsEPL
+	getMultipleLeveragesEPL
+	setBatchLeverageEPL
+	getMyLeadTradersEPL
+	getLeadTraderRanksEPL
 	getOfferEPL
 	purchaseEPL
 	redeemEPL
@@ -871,6 +887,22 @@ func (r *RateLimit) Limit(ctx context.Context, f request.EndpointLimit) error {
 		return r.GetProfitSharingLimit.Wait(ctx)
 	case getTotalProfitSharingEPL:
 		return r.GetTotalProfitSharing.Wait(ctx)
+	case setFirstCopySettingsEPL:
+		return r.SetFirstCopySettings.Wait(ctx)
+	case amendFirstCopySettingsEPL:
+		return r.AmendFirstCopySettings.Wait(ctx)
+	case stopCopyingEPL:
+		return r.StopCopying.Wait(ctx)
+	case getCopySettingsEPL:
+		return r.GetCopySettings.Wait(ctx)
+	case getMultipleLeveragesEPL:
+		return r.GetMultipleLeverages.Wait(ctx)
+	case setBatchLeverageEPL:
+		return r.SetBatchLeverage.Wait(ctx)
+	case getMyLeadTradersEPL:
+		return r.GetMyLeadTraders.Wait(ctx)
+	case getLeadTraderRanksEPL:
+		return r.GetLeadTraderRanks.Wait(ctx)
 	case getOfferEPL:
 		return r.GetOffer.Wait(ctx)
 	case purchaseEPL:
@@ -1206,6 +1238,14 @@ func SetRateLimit() *RateLimit {
 		GetLeadingInstruments:       request.NewRateLimit(twoSecondsInterval, 5),
 		GetProfitSharingLimit:       request.NewRateLimit(twoSecondsInterval, 5),
 		GetTotalProfitSharing:       request.NewRateLimit(twoSecondsInterval, 5),
+		SetFirstCopySettings:        request.NewRateLimit(twoSecondsInterval, 5),
+		AmendFirstCopySettings:      request.NewRateLimit(twoSecondsInterval, 5),
+		StopCopying:                 request.NewRateLimit(twoSecondsInterval, 5),
+		GetCopySettings:             request.NewRateLimit(twoSecondsInterval, 5),
+		GetMultipleLeverages:        request.NewRateLimit(twoSecondsInterval, 5),
+		SetBatchLeverage:            request.NewRateLimit(twoSecondsInterval, 5),
+		GetMyLeadTraders:            request.NewRateLimit(twoSecondsInterval, 5),
+		GetLeadTraderRanks:          request.NewRateLimit(twoSecondsInterval, 5),
 
 		// Earn
 		GetOffer:                   request.NewRateLimit(oneSecondInterval, 3),

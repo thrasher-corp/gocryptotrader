@@ -244,6 +244,9 @@ const (
 	okxChannelMarkPriceCandle5Dutc  = markPrice + okxChannelCandle5Dutc
 	okxChannelMarkPriceCandle12Hutc = markPrice + okxChannelCandle12Hutc
 	okxChannelMarkPriceCandle6Hutc  = markPrice + okxChannelCandle6Hutc
+
+	// Copy trading websocket endpoints.
+	okxCopyTrading = "copytrading-notification"
 )
 
 // WsConnect initiates a websocket connection
@@ -395,8 +398,9 @@ func (ok *Okx) handleSubscription(operation string, subscriptions []stream.Chann
 			Channel: subscriptions[i].Channel,
 		}
 		var (
-			instrumentID, underlying, instrumentType, instrumentFamily, spreadID, algoID, uid string
-			okay, authSubscription                                                            bool
+			instrumentID, underlying, instrumentType,
+			instrumentFamily, spreadID, algoID, uid string
+			okay, authSubscription bool
 		)
 
 		switch arg.Channel {
@@ -423,7 +427,8 @@ func (ok *Okx) handleSubscription(operation string, subscriptions []stream.Chann
 			okxLiquidationOrders,
 			okxADLWarning,
 			okxWithdrawalInfo,
-			okxEconomicCalendar:
+			okxEconomicCalendar,
+			okxCopyTrading:
 			authSubscription = true
 		}
 
@@ -448,7 +453,8 @@ func (ok *Okx) handleSubscription(operation string, subscriptions []stream.Chann
 			arg.Channel == okxChannelFundingRate ||
 			arg.Channel == okxChannelAllTrades ||
 			arg.Channel == okxChannelTrades ||
-			arg.Channel == okxChannelOptionTrades {
+			arg.Channel == okxChannelOptionTrades ||
+			arg.Channel == okxCopyTrading {
 			if subscriptions[i].Params["instId"] != "" {
 				instrumentID, okay = subscriptions[i].Params["instId"].(string)
 				if !okay {
@@ -475,7 +481,7 @@ func (ok *Okx) handleSubscription(operation string, subscriptions []stream.Chann
 		case okxChannelInstruments, okxChannelPositions, okxChannelOrders, okxChannelAlgoOrders,
 			okxChannelAlgoAdvance, okxChannelLiquidationWarning, okxChannelSpotGridOrder,
 			okxChannelGridOrdersContract, okxChannelMoonGridAlgoOrders, okxChannelEstimatedPrice,
-			okxADLWarning, okxLiquidationOrders, okxRecurringBuyChannel:
+			okxADLWarning, okxLiquidationOrders, okxRecurringBuyChannel, okxCopyTrading:
 			instrumentType = ok.GetInstrumentTypeFromAssetItem(subscriptions[i].Asset)
 		case okxSpreadOrders,
 			okxSpreadTrades,
@@ -581,7 +587,6 @@ func (ok *Okx) handleSubscription(operation string, subscriptions []stream.Chann
 
 // WsHandleData will read websocket raw data and pass to appropriate handler
 func (ok *Okx) WsHandleData(respRaw []byte) error {
-	println(string(respRaw))
 	var resp wsIncomingData
 	err := json.Unmarshal(respRaw, &resp)
 	if err != nil {
@@ -750,6 +755,9 @@ func (ok *Okx) WsHandleData(respRaw []byte) error {
 		return ok.wsProcessPushData(respRaw, &resp)
 	case okxEconomicCalendar:
 		var resp EconomicCalendarResponse
+		return ok.wsProcessPushData(respRaw, &resp)
+	case okxCopyTrading:
+		var resp CopyTradingNotification
 		return ok.wsProcessPushData(respRaw, &resp)
 	default:
 		ok.Websocket.DataHandler <- stream.UnhandledMessageWarning{Message: ok.Name + stream.UnhandledMessage + string(respRaw)}
@@ -1673,6 +1681,18 @@ func (ok *Okx) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, err
 					Currency: pairs[p],
 				})
 			}
+		case okxCopyTrading:
+			pairs, err := ok.GetEnabledPairs(asset.PerpetualSwap)
+			if err != nil {
+				return nil, err
+			}
+			for p := range pairs {
+				subscriptions = append(subscriptions, stream.ChannelSubscription{
+					Channel:  subs[c],
+					Asset:    asset.PerpetualSwap,
+					Currency: pairs[p],
+				})
+			}
 		default:
 			subscriptions = append(subscriptions, stream.ChannelSubscription{
 				Channel: subs[c],
@@ -1711,7 +1731,6 @@ func (ok *Okx) wsProcessBlockPublicTrades(data []byte) error {
 			Price:        resp.Data[i].Price.Float64(),
 		}
 	}
-	println("Public Block Trades", len(trades))
 	return trade.AddTradesToBuffer(ok.Name, trades...)
 }
 
@@ -2400,11 +2419,11 @@ func (ok *Okx) MarkPriceCandlesticksSubscription(operation, channel string, asse
 }
 
 // PriceLimitSubscription subscribe or unsubscribe to "price-limit" channel to retrieve the maximum buy price and minimum sell price of the instrument. Data will be pushed every 5 seconds when there are changes in limits, and will not be pushed when there is no changes on limit.
-func (ok *Okx) PriceLimitSubscription(operation string, pair currency.Pair) error {
+func (ok *Okx) PriceLimitSubscription(operation string, assetType asset.Item, pair currency.Pair) error {
 	if operation != operationSubscribe && operation != operationUnsubscribe {
 		return errInvalidWebsocketEvent
 	}
-	return ok.wsChannelSubscription(operation, okxChannelPriceLimit, asset.Empty, pair, false, true, false)
+	return ok.wsChannelSubscription(operation, okxChannelPriceLimit, assetType, pair, false, true, false)
 }
 
 // OrderBooksSubscription subscribe or unsubscribe to "books*" channel to retrieve order book data.
@@ -2658,7 +2677,7 @@ func (ok *Okx) WsCancelAllSpreadOrders(spreadID string) (bool, error) {
 		select {
 		case data := <-wsResponse:
 			if data.Operation == okxSpreadCancelAllOrders && data.ID == input.ID {
-				dataHolder := &WsCancelSpreadOrders{}
+				dataHolder := &ResponseSuccess{}
 				return dataHolder.Result, ok.handleIncomingData(data.ID, data, dataHolder)
 			}
 			continue

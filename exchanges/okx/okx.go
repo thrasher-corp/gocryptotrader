@@ -158,6 +158,9 @@ var (
 	errSubPositionIDRequired                  = errors.New("sub position id is required")
 	errSpreadIDMissing                        = errors.New("spread id is required")
 	errUserIDRequired                         = errors.New("uid is required")
+	errSubPositionCloseTypeRequired           = errors.New("sub position close type")
+	errUniqueCodeRequired                     = errors.New("unique code is required")
+	errCopyInstrumentIDTypeRequired           = errors.New("copy instrument ID type is required")
 )
 
 /************************************ MarketData Endpoints *************************************************/
@@ -3397,6 +3400,185 @@ func (ok *Okx) GetUnrealizedProfitSharingDetails(ctx context.Context, instrument
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getTotalProfitSharingEPL, http.MethodGet, common.EncodeURLValues("copytrading/unrealized-profit-sharing-details", params), nil, &resp, true)
 }
 
+// SetFirstCopySettings set first copy settings for the certain lead trader. You need to first copy settings after stopping copying.
+func (ok *Okx) SetFirstCopySettings(ctx context.Context, arg *FirstCopySettings) (*ResponseSuccess, error) {
+	err := processFirstCopySettings(arg)
+	if err != nil {
+		return nil, err
+	}
+	var resp *ResponseSuccess
+	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, setFirstCopySettingsEPL, http.MethodPost, "copytrading/first-copy-settings", arg, &resp, true)
+}
+
+// AmendCopySettings amends need to use this endpoint for amending copy settings
+func (ok *Okx) AmendCopySettings(ctx context.Context, arg *FirstCopySettings) (*ResponseSuccess, error) {
+	err := processFirstCopySettings(arg)
+	if err != nil {
+		return nil, err
+	}
+	var resp *ResponseSuccess
+	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, amendFirstCopySettingsEPL, http.MethodPost, "copytrading/amend-copy-settings", arg, &resp, true)
+}
+
+func processFirstCopySettings(arg *FirstCopySettings) error {
+	if arg == nil || *arg == (FirstCopySettings{}) {
+		return errNilArgument
+	}
+	if arg.UniqueCode == "" {
+		return errUniqueCodeRequired
+	}
+	if arg.CopyInstrumentIDType == "" {
+		return errCopyInstrumentIDTypeRequired
+	}
+	if arg.CopyTotalAmount <= 0 {
+		return fmt.Errorf("%w, copyTotalAmount value %f", order.ErrAmountBelowMin, arg.CopyTotalAmount)
+	}
+	if arg.SubPosCloseType == "" {
+		return errSubPositionCloseTypeRequired
+	}
+	return nil
+}
+
+// StopCopying need to use this endpoint for amending copy settings
+func (ok *Okx) StopCopying(ctx context.Context, arg *StopCopyingParameter) (*ResponseSuccess, error) {
+	if arg == nil || *arg == (StopCopyingParameter{}) {
+		return nil, errNilArgument
+	}
+	if arg.UniqueCode == "" {
+		return nil, errUniqueCodeRequired
+	}
+	if arg.SubPositionCloseType == "" {
+		return nil, errSubPositionCloseTypeRequired
+	}
+	var resp *ResponseSuccess
+	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, stopCopyingEPL, http.MethodPost, "copytrading/stop-copy-trading", arg, &resp, true)
+}
+
+// GetCopySettings retrieve the copy settings about certain lead trader.
+func (ok *Okx) GetCopySettings(ctx context.Context, instrumentType, uniqueCode string) (*CopySetting, error) {
+	if uniqueCode == "" {
+		return nil, errUniqueCodeRequired
+	}
+	params := url.Values{}
+	params.Set("uniqueCode", uniqueCode)
+	if instrumentType == "" {
+		params.Set("instType", instrumentType)
+	}
+	var resp *CopySetting
+	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getCopySettingsEPL, http.MethodGet, common.EncodeURLValues("copytrading/copy-settings", params), nil, &resp, true)
+}
+
+// GetMultipleLeverages retrieve leverages that belong to the lead trader and you.
+func (ok *Okx) GetMultipleLeverages(ctx context.Context, marginMode, uniqueCode, instrumentID string) ([]Leverages, error) {
+	if marginMode == "" {
+		return nil, errMissingMarginMode
+	}
+	if uniqueCode == "" {
+		return nil, errUniqueCodeRequired
+	}
+	params := url.Values{}
+	params.Set("mgnMode", marginMode)
+	params.Set("uniqueCode", uniqueCode)
+	if instrumentID != "" {
+		params.Set("instId", instrumentID)
+	}
+	var resp []Leverages
+	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getMultipleLeveragesEPL, http.MethodGet, common.EncodeURLValues("copytrading/batch-leverage-info", params), nil, &resp, true)
+}
+
+// SetMultipleLeverages set Multiple leverages
+func (ok *Okx) SetMultipleLeverages(ctx context.Context, arg *SetLeveragesParam) (*SetMultipleLeverageResponse, error) {
+	if arg == nil || *arg == (SetLeveragesParam{}) {
+		return nil, errNilArgument
+	}
+	if arg.MarginMode == "" {
+		return nil, errMissingMarginMode
+	}
+	if arg.Leverage < 0 {
+		return nil, errRequiredParameterMissingLeverage
+	}
+	if arg.InstrumentID == "" {
+		return nil, errMissingInstrumentID
+	}
+	var resp *SetMultipleLeverageResponse
+	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, setBatchLeverageEPL, http.MethodPost, "copytrading/batch-set-leverage", arg, &resp, true)
+}
+
+// GetMyLeadTraders retrieve my lead traders.
+func (ok *Okx) GetMyLeadTraders(ctx context.Context, instrumentType string) ([]LeadTrader, error) {
+	params := url.Values{}
+	if instrumentType != "" {
+		params.Set("instType", instrumentType)
+	}
+	var resp []LeadTrader
+	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getMyLeadTradersEPL, http.MethodGet, common.EncodeURLValues("copytrading/current-lead-traders", params), nil, &resp, true)
+}
+
+// GetHistoryLeadTraders retrieve my history lead traders.
+func (ok *Okx) GetHistoryLeadTraders(ctx context.Context, instrumentType, after, before string, limit int64) ([]LeadTrader, error) {
+	params := url.Values{}
+	if instrumentType != "" {
+		params.Set("instType", instrumentType)
+	}
+	if after != "" {
+		params.Set("after", after)
+	}
+	if before != "" {
+		params.Set("before", before)
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	var resp []LeadTrader
+	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getMyLeadTradersEPL, http.MethodGet, common.EncodeURLValues("copytrading/lead-traders-history", params), nil, &resp, true)
+}
+
+// GetLeadTradersRanks retrieve lead trader ranks.
+// Instrument type: SWAP, the default value
+// Sort type"overview": overview, the default value "pnl": profit and loss "aum": assets under management "win_ratio": win ratio "pnl_ratio": pnl ratio "current_copy_trader_pnl": current copy trader pnl
+// Lead trader state: "0": All lead traders, the default, including vacancy and non-vacancy "1": lead traders who have vacancy
+// Minimum lead days '1': 7 days '2': 30 days '3': 90 days '4': 180 days
+func (ok *Okx) GetLeadTradersRanks(ctx context.Context, instrumentType, sortType, state,
+	minLeadDays, minAssets, maxAssets, minAssetUnderManagement, maxAssetUnderManagement,
+	dataVersion, page string, limit int64) ([]LeadTradersRank, error) {
+	params := url.Values{}
+	if instrumentType != "" {
+		params.Set("instType", instrumentType)
+	}
+	if sortType != "" {
+		params.Set("sortType", sortType)
+	}
+	if state != "" {
+		params.Set("state", state)
+	}
+	if minLeadDays != "" {
+		params.Set("minLeadDays", minLeadDays)
+	}
+	if minAssets != "" {
+		params.Set("minAssets", minAssets)
+	}
+	if maxAssets != "" {
+		params.Set("maxAssets", maxAssets)
+	}
+	if minAssetUnderManagement != "" {
+		params.Set("minAum", minAssetUnderManagement)
+	}
+	if maxAssetUnderManagement != "" {
+		params.Set("maxAum", maxAssetUnderManagement)
+	}
+	if dataVersion != "" {
+		params.Set("dataVer", dataVersion)
+	}
+	if page != "" {
+		params.Set("page", page)
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	var resp []LeadTradersRank
+	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getLeadTraderRanksEPL, http.MethodGet, common.EncodeURLValues("copytrading/public-lead-traders", params), nil, &resp, true)
+}
+
 // ****************************************** Earn **************************************************
 
 // GetOffers retrieves list of offers for different protocols.
@@ -4202,7 +4384,7 @@ func (ok *Okx) GetSpreadTradesOfLast7Days(ctx context.Context, spreadID, tradeID
 }
 
 // GetPublicSpreads retrieve all available spreads based on the request parameters.
-func (ok *Okx) GetPublicSpreads(ctx context.Context, baseCurrency, instrumentID, spreadID, state string) ([]SpreadTradeOrder, error) {
+func (ok *Okx) GetPublicSpreads(ctx context.Context, baseCurrency, instrumentID, spreadID, state string) ([]SpreadInstrument, error) {
 	params := url.Values{}
 	if baseCurrency != "" {
 		params.Set("baseCcy", baseCurrency)
@@ -4216,7 +4398,7 @@ func (ok *Okx) GetPublicSpreads(ctx context.Context, baseCurrency, instrumentID,
 	if state != "" {
 		params.Set("state", state)
 	}
-	var resp []SpreadTradeOrder
+	var resp []SpreadInstrument
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getSpreadsEPL, http.MethodGet, common.EncodeURLValues("sprd/spreads", params), nil, &resp, false)
 }
 

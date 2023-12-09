@@ -402,29 +402,56 @@ func (ok *Okx) UpdateTradablePairs(ctx context.Context, forceUpdate bool) error 
 
 // UpdateOrderExecutionLimits sets exchange execution order limits for an asset type
 func (ok *Okx) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) error {
-	insts, err := ok.getInstrumentsForAsset(ctx, a)
-	if err != nil {
-		return err
-	}
-	if len(insts) == 0 {
-		return errNoInstrumentFound
-	}
-	limits := make([]order.MinMaxLevel, len(insts))
-	for x := range insts {
-		pair, err := currency.NewPairFromString(insts[x].InstrumentID)
+	switch a {
+	case asset.Spot, asset.Margin, asset.Options,
+		asset.PerpetualSwap, asset.Futures:
+		insts, err := ok.getInstrumentsForAsset(ctx, a)
 		if err != nil {
 			return err
 		}
-
-		limits[x] = order.MinMaxLevel{
-			Pair:                   pair,
-			Asset:                  a,
-			PriceStepIncrementSize: insts[x].TickSize.Float64(),
-			MinimumBaseAmount:      insts[x].MinimumOrderSize.Float64(),
+		if len(insts) == 0 {
+			return errNoInstrumentFound
 		}
+		limits := make([]order.MinMaxLevel, len(insts))
+		for x := range insts {
+			pair, err := currency.NewPairFromString(insts[x].InstrumentID)
+			if err != nil {
+				return err
+			}
+			limits[x] = order.MinMaxLevel{
+				Pair:                   pair,
+				Asset:                  a,
+				PriceStepIncrementSize: insts[x].TickSize.Float64(),
+				MinimumBaseAmount:      insts[x].MinimumOrderSize.Float64(),
+			}
+		}
+		return ok.LoadLimits(limits)
+	case asset.Spread:
+		insts, err := ok.GetPublicSpreads(ctx, "", "", "", "live")
+		if err != nil {
+			return err
+		}
+		if len(insts) == 0 {
+			return errNoInstrumentFound
+		}
+		limits := make([]order.MinMaxLevel, len(insts))
+		for x := range insts {
+			pair, err := currency.NewPairFromString(insts[x].SpreadID)
+			if err != nil {
+				return err
+			}
+			limits[x] = order.MinMaxLevel{
+				Pair:                   pair,
+				Asset:                  a,
+				PriceStepIncrementSize: insts[x].MinSize.Float64(),
+				MinimumBaseAmount:      insts[x].MinSize.Float64(),
+				QuoteStepIncrementSize: insts[x].TickSize.Float64(),
+			}
+		}
+		return ok.LoadLimits(limits)
+	default:
+		return fmt.Errorf("%w %v", asset.ErrNotSupported, a)
 	}
-
-	return ok.LoadLimits(limits)
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair

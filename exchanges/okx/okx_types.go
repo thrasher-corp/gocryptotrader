@@ -715,19 +715,19 @@ func (a *OrderData) GetSCode() string { return a.SCode }
 // GetSMsg returns a status message value
 func (a *OrderData) GetSMsg() string { return a.SMessage }
 
-// WsCancelSpreadOrders used to hold response for cancelling all spread orders.
-// implements the StatusCodeHolder interface
-type WsCancelSpreadOrders struct {
-	Result   bool   `json:"result"`
+// ResponseSuccess holds responses having a status result value.
+type ResponseSuccess struct {
+	Result bool `json:"result"`
+
 	SCode    string `json:"sCode,omitempty"`
 	SMessage string `json:"sMsg,omitempty"`
 }
 
 // GetSCode returns a status code value
-func (a *WsCancelSpreadOrders) GetSCode() string { return a.SCode }
+func (a *ResponseSuccess) GetSCode() string { return a.SCode }
 
 // GetSMsg returns a status message value
-func (a *WsCancelSpreadOrders) GetSMsg() string { return a.SMessage }
+func (a *ResponseSuccess) GetSMsg() string { return a.SMessage }
 
 // CancelOrderRequestParam represents order parameters to cancel an order.
 type CancelOrderRequestParam struct {
@@ -2648,8 +2648,8 @@ type SpreadTrade struct {
 	Msg  string `json:"msg"`
 }
 
-// SpreadTradeOrder retrieve all available spreads based on the request parameters.
-type SpreadTradeOrder struct {
+// SpreadInstrument retrieve all available spreads based on the request parameters.
+type SpreadInstrument struct {
 	SpreadID      string                  `json:"sprdId"`
 	SpreadType    string                  `json:"sprdType"`
 	State         string                  `json:"state"`
@@ -4293,4 +4293,146 @@ type EconomicCalendar struct {
 type EconomicCalendarResponse struct {
 	Arg  SubscriptionInfo   `json:"arg"`
 	Data []EconomicCalendar `json:"data"`
+}
+
+// CopyTradingNotification holds copy-trading notifications.
+type CopyTradingNotification struct {
+	Argument SubscriptionInfo `json:"arg"`
+	Data     []struct {
+		AveragePrice        convert.StringToFloat64 `json:"avgPx"`
+		Currency            string                  `json:"ccy"`
+		CopyTotalAmount     convert.StringToFloat64 `json:"copyTotalAmt"`
+		InfoType            string                  `json:"infoType"`
+		InstrumentID        string                  `json:"instId"`
+		InstrumentType      string                  `json:"instType"`
+		Leverage            convert.StringToFloat64 `json:"lever"`
+		MaxLeadTraderNumber string                  `json:"maxLeadTraderNum"`
+		MinNotional         convert.StringToFloat64 `json:"minNotional"`
+		PosSide             string                  `json:"posSide"`
+		RmThoreshold        string                  `json:"rmThold"` // Lead trader can remove copy trader if balance of copy trader less than this value.
+		Side                string                  `json:"side"`
+		StopLossTotalAmount convert.StringToFloat64 `json:"slTotalAmt"`
+		SlippageRatio       convert.StringToFloat64 `json:"slippageRatio"`
+		SubPosID            string                  `json:"subPosId"`
+		UniqueCode          string                  `json:"uniqueCode"`
+	} `json:"data"`
+}
+
+// FirstCopySettings holds parameters first copy settings for the certain lead trader.
+type FirstCopySettings struct {
+	InstrumentType       string  `json:"instType,omitempty"`
+	InstrumentID         string  `json:"instId"` // Instrument ID. If there are multiple instruments, separate them with commas. Maximum of 200 instruments can be selected
+	UniqueCode           string  `json:"uniqueCode"`
+	CopyMgnMode          string  `json:"copyMgnMode,omitempty"` // Copy margin mode 'cross': cross 'isolated': isolated 'copy'
+	CopyInstrumentIDType string  `json:"copyInstIdType"`        // Copy contract type setted 'custom': custom by instId which is required；'copy': Keep your contracts consistent with this trader
+	CopyMode             string  `json:"copyMode,omitempty"`    // Possible values: 'fixed_amount', 'ratio_copy', 'copyRatio', and 'fixed_amount'
+	CopyRatio            float64 `json:"copyRatio,string"`
+	CopyAmount           float64 `json:"copyAmt,string,omitempty"`
+	CopyTotalAmount      float64 `json:"copyTotalAmt,string"`
+	SubPosCloseType      string  `json:"subPosCloseType"`
+	TakeProfitRatio      float64 `json:"tpRatio,string,omitempty"`
+	StopLossRatio        float64 `json:"slRatio,string,omitempty"`
+	StopLossTotalAmount  float64 `json:"slTotalAmt,string,omitempty"`
+}
+
+// StopCopyingParameter holds stop copying request parameter
+type StopCopyingParameter struct {
+	InstrumentType       string `json:"instType,omitempty"`
+	UniqueCode           string `json:"uniqueCode"`
+	SubPositionCloseType string `json:"subPosCloseType"`
+}
+
+// CopySetting represents a copy setting response.
+type CopySetting struct {
+	Currency             string                  `json:"ccy"`
+	CopyState            string                  `json:"copyState"`
+	CopyMgnMode          string                  `json:"copyMgnMode"`
+	SubPositionCloseType string                  `json:"subPosCloseType"`
+	StopLossTotalAmount  convert.StringToFloat64 `json:"slTotalAmt"`
+	CopyAmount           convert.StringToFloat64 `json:"copyAmt"`
+	CopyInstrumentIDType string                  `json:"copyInstIdType"`
+	CopyMode             string                  `json:"copyMode"`
+	CopyRatio            convert.StringToFloat64 `json:"copyRatio"`
+	CopyTotalAmount      convert.StringToFloat64 `json:"copyTotalAmt"`
+	InstrumentIDs        []struct {
+		Enabled string `json:"enabled"`
+		InstID  string `json:"instId"`
+	} `json:"instIds"`
+	StopLossRatio   convert.StringToFloat64 `json:"slRatio"`
+	TakeProfitRatio convert.StringToFloat64 `json:"tpRatio"`
+}
+
+// Leverages holds batch leverage info
+type Leverages struct {
+	InstrumentID     string         `json:"instId"`
+	LeadTraderLevers []LeverageInfo `json:"leadTraderLevers"`
+	MgnMode          string         `json:"mgnMode"`
+	MyLevers         []LeverageInfo `json:"myLevers"`
+}
+
+// LeverageInfo holds leverage information.
+type LeverageInfo struct {
+	Leverage     convert.StringToFloat64 `json:"lever"`
+	PositionSide string                  `json:"posSide"`
+}
+
+// SetMultipleLeverageResponse represents multiple leverage response
+type SetMultipleLeverageResponse struct {
+	FailInstrumentID string `json:"failInstId"`
+	Result           string `json:"result"`
+	SuccInstrumentID string `json:"succInstId"`
+}
+
+// SetLeveragesParam sets leverage parameter
+type SetLeveragesParam struct {
+	MarginMode   string `json:"mgnMode"`
+	Leverage     int64  `json:"lever,string"`
+	InstrumentID string `json:"instId,omitempty"` // Instrument ID. If there are multiple instruments, separate them with commas. Maximum of 200 instruments can be selected
+}
+
+// LeadTrader represents a lead trader information
+type LeadTrader struct {
+	BeginCopyTime           convert.ExchangeTime    `json:"beginCopyTime"`
+	Currency                string                  `json:"ccy"`
+	CopyTotalAmount         convert.StringToFloat64 `json:"copyTotalAmt"`
+	CopyTotalProfitAndLoss  string                  `json:"copyTotalPnl"`
+	LeadMode                string                  `json:"leadMode"`
+	Margin                  convert.StringToFloat64 `json:"margin"`
+	NickName                string                  `json:"nickName"`
+	PortLink                string                  `json:"portLink"`
+	ProfitSharingRatio      convert.StringToFloat64 `json:"profitSharingRatio"`
+	TodayProfitAndLoss      convert.StringToFloat64 `json:"todayPnl"`
+	UniqueCode              string                  `json:"uniqueCode"`
+	UnrealizedProfitAndLoss convert.StringToFloat64 `json:"upl"`
+	CopyMode                string                  `json:"copyMode"`
+	CopyNum                 string                  `json:"copyNum"`
+	CopyRatio               convert.StringToFloat64 `json:"copyRatio"`
+	CopyRelID               string                  `json:"copyRelId"`
+	CopyState               string                  `json:"copyState"`
+}
+
+// LeadTradersRank represents lead traders rank info
+type LeadTradersRank struct {
+	DataVer string `json:"dataVer"`
+	Ranks   []struct {
+		AccCopyTraderNum string                  `json:"accCopyTraderNum"`
+		Aum              string                  `json:"aum"`
+		Ccy              string                  `json:"ccy"`
+		CopyState        string                  `json:"copyState"`
+		CopyTraderNum    string                  `json:"copyTraderNum"`
+		LeadDays         string                  `json:"leadDays"`
+		MaxCopyTraderNum string                  `json:"maxCopyTraderNum"`
+		NickName         string                  `json:"nickName"`
+		Pnl              convert.StringToFloat64 `json:"pnl"`
+		PnlRatio         convert.StringToFloat64 `json:"pnlRatio"`
+		PnlRatios        []struct {
+			BeginTs  convert.ExchangeTime    `json:"beginTs"`
+			PnlRatio convert.StringToFloat64 `json:"pnlRatio"`
+		} `json:"pnlRatios"`
+		PortLink    string                  `json:"portLink"`
+		TraderInsts []string                `json:"traderInsts"`
+		UniqueCode  string                  `json:"uniqueCode"`
+		WinRatio    convert.StringToFloat64 `json:"winRatio"`
+	} `json:"ranks"`
+	TotalPage string `json:"totalPage"`
 }
