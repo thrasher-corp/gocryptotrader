@@ -109,7 +109,6 @@ const (
 	marketIndexComponents        = "market/index-components"
 	marketBlockTickers           = "market/block-tickers"
 	marketBlockTicker            = "market/block-ticker"
-	marketBlockTrades            = "market/block-trades"
 
 	// Public endpoints
 	publicInstruments                 = "public/instruments"
@@ -130,6 +129,7 @@ const (
 	publicUnderlyings                 = "public/underlying"
 	publicInsuranceFunds              = "public/insurance-fund"
 	publicCurrencyConvertContract     = "public/convert-contract-coin"
+	publicBlockTrades                 = "public/block-trades"
 
 	// Trading Endpoints
 	tradingDataSupportedCoins      = "rubik/stat/trading-data/support-coin"
@@ -3348,7 +3348,7 @@ func (ok *Okx) GetBlockTrades(ctx context.Context, instrumentID string) ([]Block
 	}
 	params.Set("instId", instrumentID)
 	var resp []BlockTrade
-	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getBlockTradesEPL, http.MethodGet, common.EncodeURLValues(marketBlockTrades, params), nil, &resp, false)
+	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getBlockTradesEPL, http.MethodGet, common.EncodeURLValues(publicBlockTrades, params), nil, &resp, false)
 }
 
 /************************************ Public Data Endpoinst *************************************************/
