@@ -1354,7 +1354,7 @@ func (b *Base) GetCachedOpenInterest(_ context.Context, k ...key.PairAsset) ([]f
 				continue
 			}
 			resp = append(resp, futures.OpenInterest{
-				K: key.ExchangePairAsset{
+				Key: key.ExchangePairAsset{
 					Exchange: b.Name,
 					Base:     ticks[i].Pair.Base.Item,
 					Quote:    ticks[i].Pair.Quote.Item,
@@ -1364,7 +1364,7 @@ func (b *Base) GetCachedOpenInterest(_ context.Context, k ...key.PairAsset) ([]f
 			})
 		}
 		sort.Slice(resp, func(i, j int) bool {
-			return resp[i].K.Base.Symbol < resp[j].K.Base.Symbol
+			return resp[i].Key.Base.Symbol < resp[j].Key.Base.Symbol
 		})
 		return resp, nil
 	}
@@ -1375,7 +1375,7 @@ func (b *Base) GetCachedOpenInterest(_ context.Context, k ...key.PairAsset) ([]f
 			return nil, err
 		}
 		resp[i] = futures.OpenInterest{
-			K: key.ExchangePairAsset{
+			Key: key.ExchangePairAsset{
 				Exchange: b.Name,
 				Base:     t.Pair.Base.Item,
 				Quote:    t.Pair.Quote.Item,

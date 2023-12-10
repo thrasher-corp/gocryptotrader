@@ -385,6 +385,7 @@ func (ku *Kucoin) UpdateTickers(ctx context.Context, assetType asset.Item) error
 				High:         ticks[x].HighPrice,
 				Low:          ticks[x].LowPrice,
 				Volume:       ticks[x].VolumeOf24h,
+				OpenInterest: ticks[x].OpenInterest.Float64(),
 				Pair:         pair,
 				ExchangeName: ku.Name,
 				AssetType:    assetType,
@@ -2006,6 +2007,7 @@ func (ku *Kucoin) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]fu
 	if err == nil && len(ticks) > 0 {
 		return ticks, nil
 	}
+
 	if len(k) == 0 {
 		contracts, err := ku.GetFuturesOpenContracts(ctx)
 		if err != nil {
@@ -2021,7 +2023,7 @@ func (ku *Kucoin) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]fu
 				continue
 			}
 			resp = append(resp, futures.OpenInterest{
-				K: key.ExchangePairAsset{
+				Key: key.ExchangePairAsset{
 					Exchange: ku.Name,
 					Base:     symbol.Base.Item,
 					Quote:    symbol.Quote.Item,
@@ -2052,7 +2054,7 @@ func (ku *Kucoin) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]fu
 			return nil, err
 		}
 		resp = append(resp, futures.OpenInterest{
-			K: key.ExchangePairAsset{
+			Key: key.ExchangePairAsset{
 				Exchange: ku.Name,
 				Base:     k[i].Base,
 				Quote:    k[i].Quote,

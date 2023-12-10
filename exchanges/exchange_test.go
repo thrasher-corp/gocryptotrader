@@ -3230,7 +3230,7 @@ type FakeBase struct {
 func (f *FakeBase) GetOpenInterest(context.Context, ...key.PairAsset) ([]futures.OpenInterest, error) {
 	return []futures.OpenInterest{
 		{
-			K: key.ExchangePairAsset{
+			Key: key.ExchangePairAsset{
 				Exchange: f.Name,
 				Base:     currency.BTC.Item,
 				Quote:    currency.NewCode("Bonk").Item,

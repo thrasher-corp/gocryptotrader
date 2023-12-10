@@ -2375,7 +2375,7 @@ func (g *Gateio) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]fut
 				continue
 			}
 			resp = append(resp, futures.OpenInterest{
-				K: key.ExchangePairAsset{
+				Key: key.ExchangePairAsset{
 					Exchange: g.Name,
 					Base:     k[i].Base,
 					Quote:    k[i].Quote,

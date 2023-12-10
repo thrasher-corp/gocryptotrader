@@ -5986,12 +5986,12 @@ func (s *RPCServer) GetOpenInterest(ctx context.Context, r *gctrpc.GetOpenIntere
 	resp := make([]*gctrpc.OpenInterestDataResponse, len(openInterest))
 	for i := range openInterest {
 		resp[i] = &gctrpc.OpenInterestDataResponse{
-			Exchange: openInterest[i].K.Exchange,
+			Exchange: openInterest[i].Key.Exchange,
 			Pair: &gctrpc.CurrencyPair{
-				Base:  openInterest[i].K.Base.String(),
-				Quote: openInterest[i].K.Quote.String(),
+				Base:  openInterest[i].Key.Base.String(),
+				Quote: openInterest[i].Key.Quote.String(),
 			},
-			Asset:        openInterest[i].K.Asset.String(),
+			Asset:        openInterest[i].Key.Asset.String(),
 			OpenInterest: openInterest[i].OpenInterest,
 		}
 	}

@@ -3127,7 +3127,7 @@ func (b *Binance) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]fu
 				return nil, err
 			}
 			result[i] = futures.OpenInterest{
-				K: key.ExchangePairAsset{
+				Key: key.ExchangePairAsset{
 					Exchange: b.Name,
 					Base:     k[i].Base,
 					Quote:    k[i].Quote,
@@ -3141,7 +3141,7 @@ func (b *Binance) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]fu
 				return nil, err
 			}
 			result[i] = futures.OpenInterest{
-				K: key.ExchangePairAsset{
+				Key: key.ExchangePairAsset{
 					Exchange: b.Name,
 					Base:     k[i].Base,
 					Quote:    k[i].Quote,

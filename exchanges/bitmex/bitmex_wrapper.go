@@ -1373,7 +1373,7 @@ func (b *Bitmex) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]fut
 					break
 				}
 				resp = append(resp, futures.OpenInterest{
-					K: key.ExchangePairAsset{
+					Key: key.ExchangePairAsset{
 						Exchange: b.Name,
 						Base:     symbol.Base.Item,
 						Quote:    symbol.Quote.Item,
@@ -1407,7 +1407,7 @@ func (b *Bitmex) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]fut
 			return nil, fmt.Errorf("%w %v", currency.ErrPairNotFound, k[i].Pair())
 		}
 		resp = append(resp, futures.OpenInterest{
-			K: key.ExchangePairAsset{
+			Key: key.ExchangePairAsset{
 				Exchange: b.Name,
 				Base:     k[i].Base,
 				Quote:    k[i].Quote,

@@ -109,7 +109,7 @@ func (f fExchange) GetOpenInterest(_ context.Context, k ...key.PairAsset) ([]fut
 	if len(k) > 0 {
 		return []futures.OpenInterest{
 			{
-				K: key.ExchangePairAsset{
+				Key: key.ExchangePairAsset{
 					Exchange: f.GetName(),
 					Base:     k[0].Base,
 					Quote:    k[0].Quote,

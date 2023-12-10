@@ -201,7 +201,7 @@ type CollateralCalculator struct {
 
 // OpenInterest holds open interest data for an exchange pair asset
 type OpenInterest struct {
-	K            key.ExchangePairAsset
+	Key          key.ExchangePairAsset
 	OpenInterest float64
 }
 

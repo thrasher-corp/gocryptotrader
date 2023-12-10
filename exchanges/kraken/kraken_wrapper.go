@@ -1892,7 +1892,7 @@ func (k *Kraken) GetOpenInterest(ctx context.Context, keys ...key.PairAsset) ([]
 				continue
 			}
 			resp = append(resp, futures.OpenInterest{
-				K: key.ExchangePairAsset{
+				Key: key.ExchangePairAsset{
 					Exchange: k.Name,
 					Base:     p.Base.Item,
 					Quote:    p.Quote.Item,
@@ -1921,7 +1921,7 @@ func (k *Kraken) GetOpenInterest(ctx context.Context, keys ...key.PairAsset) ([]
 			continue
 		}
 		resp = append(resp, futures.OpenInterest{
-			K: key.ExchangePairAsset{
+			Key: key.ExchangePairAsset{
 				Exchange: k.Name,
 				Base:     p.Base.Item,
 				Quote:    p.Quote.Item,

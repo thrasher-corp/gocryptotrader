@@ -1333,7 +1333,7 @@ func (b *BTSE) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]futur
 				continue
 			}
 			resp = append(resp, futures.OpenInterest{
-				K: key.ExchangePairAsset{
+				Key: key.ExchangePairAsset{
 					Exchange: b.Name,
 					Base:     symbol.Base.Item,
 					Quote:    symbol.Quote.Item,
@@ -1365,7 +1365,7 @@ func (b *BTSE) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]futur
 			return nil, fmt.Errorf("expected 1 result, got %v", len(pi))
 		}
 		resp = append(resp, futures.OpenInterest{
-			K: key.ExchangePairAsset{
+			Key: key.ExchangePairAsset{
 				Exchange: b.Name,
 				Base:     k[i].Base,
 				Quote:    k[i].Quote,
