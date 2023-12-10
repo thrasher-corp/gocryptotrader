@@ -35,7 +35,7 @@ const (
 	apiKey                  = ""
 	apiSecret               = ""
 	passphrase              = ""
-	canManipulateRealOrders = true
+	canManipulateRealOrders = false
 	useTestNet              = false
 )
 
@@ -237,7 +237,7 @@ func TestGetBlockTicker(t *testing.T) {
 
 func TestGetBlockTrade(t *testing.T) {
 	t.Parallel()
-	if _, err := ok.GetBlockTrades(contextGenerate(), "BTC-USDT"); err != nil {
+	if _, err := ok.GetPublicBlockTrades(contextGenerate(), "BTC-USDT"); err != nil {
 		t.Error("Okx GetBlockTrades() error", err)
 	}
 }
@@ -1566,7 +1566,7 @@ func TestGetPMLimitation(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
 
-	if _, err := ok.GetPMLimitation(contextGenerate(), "SWAP", "BTC-USDT"); err != nil {
+	if _, err := ok.GetPMPositionLimitation(contextGenerate(), "SWAP", "BTC-USDT"); err != nil {
 		t.Errorf("%s GetPMLimitation() error %v", ok.Name, err)
 	}
 }
@@ -2553,7 +2553,6 @@ var pushDataMap = map[string]string{
 	"Mark Price Candlestick":                `{"arg": {"channel": "mark-price-candle1D","instId": "BTC-USD-190628"},"data": [["1597026383085", "3.721", "3.743", "3.677", "3.708"],["1597026383085", "3.731", "3.799", "3.494", "3.72"]]}`,
 	"Price Limit":                           `{"arg": {"channel": "price-limit","instId": "LTC-USD-190628"},"data": [{"instId": "LTC-USD-190628","buyLmt": "200","sellLmt": "300","ts": "1597026383085"}]}`,
 	"Test Snapshot Orderbook":               `{"arg":{"channel":"books","instId":"BTC-USDT"},"action":"snapshot","data":[{"asks":[["0.07026","5","0","1"],["0.07027","765","0","3"],["0.07028","110","0","1"],["0.0703","1264","0","1"],["0.07034","280","0","1"],["0.07035","2255","0","1"],["0.07036","28","0","1"],["0.07037","63","0","1"],["0.07039","137","0","2"],["0.0704","48","0","1"],["0.07041","32","0","1"],["0.07043","3985","0","1"],["0.07057","257","0","1"],["0.07058","7870","0","1"],["0.07059","161","0","1"],["0.07061","4539","0","1"],["0.07068","1438","0","3"],["0.07088","3162","0","1"],["0.07104","99","0","1"],["0.07108","5018","0","1"],["0.07115","1540","0","1"],["0.07129","5080","0","1"],["0.07145","1512","0","1"],["0.0715","5016","0","1"],["0.07171","5026","0","1"],["0.07192","5062","0","1"],["0.07197","1517","0","1"],["0.0726","1511","0","1"],["0.07314","10376","0","1"],["0.07354","1","0","1"],["0.07466","10277","0","1"],["0.07626","269","0","1"],["0.07636","269","0","1"],["0.0809","1","0","1"],["0.08899","1","0","1"],["0.09789","1","0","1"],["0.10768","1","0","1"]],"bids":[["0.07014","56","0","2"],["0.07011","608","0","1"],["0.07009","110","0","1"],["0.07006","1264","0","1"],["0.07004","2347","0","3"],["0.07003","279","0","1"],["0.07001","52","0","1"],["0.06997","91","0","1"],["0.06996","4242","0","2"],["0.06995","486","0","1"],["0.06992","161","0","1"],["0.06991","63","0","1"],["0.06988","7518","0","1"],["0.06976","186","0","1"],["0.06975","71","0","1"],["0.06973","1086","0","1"],["0.06961","513","0","2"],["0.06959","4603","0","1"],["0.0695","186","0","1"],["0.06946","3043","0","1"],["0.06939","103","0","1"],["0.0693","5053","0","1"],["0.06909","5039","0","1"],["0.06888","5037","0","1"],["0.06886","1526","0","1"],["0.06867","5008","0","1"],["0.06846","5065","0","1"],["0.06826","1572","0","1"],["0.06801","1565","0","1"],["0.06748","67","0","1"],["0.0674","111","0","1"],["0.0672","10038","0","1"],["0.06652","1","0","1"],["0.06625","1526","0","1"],["0.06619","10924","0","1"],["0.05986","1","0","1"],["0.05387","1","0","1"],["0.04848","1","0","1"],["0.04363","1","0","1"]],"ts":"1659792392540","checksum":-1462286744}]}`,
-	"Update OrderBook":                      `{"arg":{"channel":"books","instId":"BTC-USDT"},"action":"update","data":[{"asks":[["0.07026","5","0","1"],["0.07027","765","0","3"],["0.07028","110","0","1"],["0.0703","1264","0","1"],["0.07034","280","0","1"],["0.07035","2255","0","1"],["0.07036","28","0","1"],["0.07037","63","0","1"],["0.07039","137","0","2"],["0.0704","48","0","1"],["0.07041","32","0","1"],["0.07043","3985","0","1"],["0.07057","257","0","1"],["0.07058","7870","0","1"],["0.07059","161","0","1"],["0.07061","4539","0","1"],["0.07068","1438","0","3"],["0.07088","3162","0","1"],["0.07104","99","0","1"],["0.07108","5018","0","1"],["0.07115","1540","0","1"],["0.07129","5080","0","1"],["0.07145","1512","0","1"],["0.0715","5016","0","1"],["0.07171","5026","0","1"],["0.07192","5062","0","1"],["0.07197","1517","0","1"],["0.0726","1511","0","1"],["0.07314","10376","0","1"],["0.07354","1","0","1"],["0.07466","10277","0","1"],["0.07626","269","0","1"],["0.07636","269","0","1"],["0.0809","1","0","1"],["0.08899","1","0","1"],["0.09789","1","0","1"],["0.10768","1","0","1"]],"bids":[["0.07014","56","0","2"],["0.07011","608","0","1"],["0.07009","110","0","1"],["0.07006","1264","0","1"],["0.07004","2347","0","3"],["0.07003","279","0","1"],["0.07001","52","0","1"],["0.06997","91","0","1"],["0.06996","4242","0","2"],["0.06995","486","0","1"],["0.06992","161","0","1"],["0.06991","63","0","1"],["0.06988","7518","0","1"],["0.06976","186","0","1"],["0.06975","71","0","1"],["0.06973","1086","0","1"],["0.06961","513","0","2"],["0.06959","4603","0","1"],["0.0695","186","0","1"],["0.06946","3043","0","1"],["0.06939","103","0","1"],["0.0693","5053","0","1"],["0.06909","5039","0","1"],["0.06888","5037","0","1"],["0.06886","1526","0","1"],["0.06867","5008","0","1"],["0.06846","5065","0","1"],["0.06826","1572","0","1"],["0.06801","1565","0","1"],["0.06748","67","0","1"],["0.0674","111","0","1"],["0.0672","10038","0","1"],["0.06652","1","0","1"],["0.06625","1526","0","1"],["0.06619","10924","0","1"],["0.05986","1","0","1"],["0.05387","1","0","1"],["0.04848","1","0","1"],["0.04363","1","0","1"]],"ts":"1659792392540","checksum":-1462286744}]}`,
 	"Options Trades":                        `{"arg": { "channel": "option-trades", "instType": "OPTION", "instFamily": "BTC-USD" }, "data": [ { "fillVol": "0.5066007836914062", "fwdPx": "16469.69928595038", "idxPx": "16537.2", "instFamily": "BTC-USD", "instId": "BTC-USD-230224-18000-C", "markPx": "0.04690107010619562", "optType": "C", "px": "0.045", "side": "sell", "sz": "2", "tradeId": "38", "ts": "1672286551080" } ] }`,
 	"Public Block Trades":                   `{"arg":{ "channel":"public-block-trades", "instId":"BTC-USD-231020-5000-P" }, "data":[ { "fillVol":"5", "fwdPx":"26808.16", "idxPx":"27222.5", "instId":"BTC-USD-231020-5000-P", "markPx":"0.0022406326071111", "px":"0.0048", "side":"buy", "sz":"1", "tradeId":"633971452580106242", "ts":"1697422572972"}]}`,
 	"Option Summary":                        `{"arg": {"channel": "opt-summary","uly": "BTC-USD"},"data": [{"instType": "OPTION","instId": "BTC-USD-200103-5500-C","uly": "BTC-USD","delta": "0.7494223636","gamma": "-0.6765419039","theta": "-0.0000809873","vega": "0.0000077307","deltaBS": "0.7494223636","gammaBS": "-0.6765419039","thetaBS": "-0.0000809873","vegaBS": "0.0000077307","realVol": "0","bidVol": "","askVol": "1.5625","markVol": "0.9987","lever": "4.0342","fwdPx": "39016.8143629068452065","ts": "1597026383085"}]}`,
@@ -2923,6 +2922,19 @@ func TestWsAmendMultipleOrders(t *testing.T) {
 		},
 	}); err != nil && !strings.Contains(err.Error(), "Order modification failed as the order does not exist.") {
 		t.Errorf("%s WsAmendMultipleOrders() %v", ok.Name, err)
+	}
+}
+
+func TestWsMassCancelOrders(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
+	if _, err := ok.WsMassCancelOrders([]CancelMassReqParam{
+		{
+			InstrumentType:   "OPTION",
+			InstrumentFamily: "BTC-USD",
+		},
+	}); err != nil && !strings.Contains(err.Error(), "order does not exist.") {
+		t.Errorf("%s WsMassCancelOrders() error %v", ok.Name, err)
 	}
 }
 
@@ -4208,6 +4220,54 @@ func TestGetLeadTradersRanks(t *testing.T) {
 	_, err := ok.GetLeadTradersRanks(context.Background(), "SWAP", "pnl_ratio", "1", "", "", "", "", "", "", "", 10)
 	if err != nil {
 		t.Error(err)
+	}
+}
+
+func TestGetWeeklyTraderProfitAndLoss(t *testing.T) {
+	t.Parallel()
+	_, err := ok.GetWeeklyTraderProfitAndLoss(context.Background(), "", "213E8C92DC61EFAC")
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetDailyLeadTraderPNL(t *testing.T) {
+	t.Parallel()
+	_, err := ok.GetDailyLeadTraderPNL(context.Background(), "SWAP", "213E8C92DC61EFAC", "2")
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestGetLeadTraderStats(t *testing.T) {
+	t.Parallel()
+	_, err := ok.GetLeadTraderStats(context.Background(), "SWAP", "213E8C92DC61EFAC", "2")
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestGetLeadTraderCurrencyPreferences(t *testing.T) {
+	t.Parallel()
+	_, err := ok.GetLeadTraderCurrencyPreferences(context.Background(), "SWAP", "213E8C92DC61EFAC", "2")
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestGetLeadTraderCurrentLeadPositions(t *testing.T) {
+	t.Parallel()
+	_, err := ok.GetLeadTraderCurrentLeadPositions(context.Background(), "SPOT", "213E8C92DC61EFAC", "", "", 10)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetLeadTraderLeadPositionHistory(t *testing.T) {
+	t.Parallel()
+	_, err := ok.GetLeadTraderLeadPositionHistory(context.Background(), "SPOT", "213E8C92DC61EFAC", "", "", 10)
+	if err != nil {
+		t.Fatal(err)
 	}
 }
 

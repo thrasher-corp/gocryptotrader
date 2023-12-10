@@ -26,19 +26,11 @@ import (
 )
 
 var (
-	errInvalidChecksum = errors.New("invalid checksum")
-)
-
-var (
 	// defaultSubscribedChannels list of channels which are subscribed by default
 	defaultSubscribedChannels = []string{
 		okxChannelTrades,
 		okxChannelOrderBooks,
 		okxChannelTickers,
-
-		okxSpreadPublicTrades,
-		okxSpreadOrderbook,
-		okxSpreadPublicTicker,
 	}
 	// defaultAuthChannels list of channels which are subscribed when authenticated
 	defaultAuthChannels = []string{
@@ -151,6 +143,7 @@ const (
 	okxOpBatchCancelOrders = "batch-cancel-orders"
 	okxOpAmendOrder        = "amend-order"
 	okxOpBatchAmendOrders  = "batch-amend-orders"
+	okxOpMassCancelOrder   = "mass-cancel"
 
 	// Candlestick lengths
 	okxChannelCandle1Y     = candle + "1Y"
@@ -274,10 +267,7 @@ func (ok *Okx) WsConnect() error {
 		Delay:       time.Second * 20,
 	})
 	if ok.IsWebsocketAuthenticationSupported() {
-		var authDialer websocket.Dialer
-		authDialer.ReadBufferSize = 8192
-		authDialer.WriteBufferSize = 8192
-		err = ok.WsAuth(context.TODO(), &authDialer)
+		err = ok.WsAuth(context.TODO())
 		if err != nil {
 			log.Errorf(log.ExchangeSys, "Error connecting auth socket: %s\n", err.Error())
 			ok.Websocket.SetCanUseAuthenticatedEndpoints(false)
@@ -287,7 +277,7 @@ func (ok *Okx) WsConnect() error {
 }
 
 // WsAuth will connect to Okx's Private websocket connection and Authenticate with a login payload.
-func (ok *Okx) WsAuth(ctx context.Context, dialer *websocket.Dialer) error {
+func (ok *Okx) WsAuth(ctx context.Context) error {
 	if !ok.Websocket.CanUseAuthenticatedEndpoints() {
 		return fmt.Errorf("%v AuthenticatedWebsocketAPISupport not enabled", ok.Name)
 	}
@@ -399,7 +389,7 @@ func (ok *Okx) handleSubscription(operation string, subscriptions []stream.Chann
 		}
 		var (
 			instrumentID, underlying, instrumentType,
-			instrumentFamily, spreadID, algoID, uid string
+			instrumentFamily, algoID, uid string
 			okay, authSubscription bool
 		)
 
@@ -421,8 +411,6 @@ func (ok *Okx) handleSubscription(operation string, subscriptions []stream.Chann
 			okxChannelGridPositions,
 			okxChannelGridSubOrders,
 			okxRecurringBuyChannel,
-			okxSpreadOrders,
-			okxSpreadTrades,
 			okxDepositInfo,
 			okxLiquidationOrders,
 			okxADLWarning,
@@ -483,17 +471,10 @@ func (ok *Okx) handleSubscription(operation string, subscriptions []stream.Chann
 			okxChannelGridOrdersContract, okxChannelMoonGridAlgoOrders, okxChannelEstimatedPrice,
 			okxADLWarning, okxLiquidationOrders, okxRecurringBuyChannel, okxCopyTrading:
 			instrumentType = ok.GetInstrumentTypeFromAssetItem(subscriptions[i].Asset)
-		case okxSpreadOrders,
-			okxSpreadTrades,
-			okxSpreadOrderbookLevel1,
-			okxSpreadOrderbook,
-			okxSpreadPublicTrades,
-			okxSpreadPublicTicker:
-			spreadID = subscriptions[i].Currency.String()
 		}
 		switch arg.Channel {
 		case okxChannelOptionTrades, okxADLWarning:
-			instrumentFamily, _ = subscriptions[i].Params["instrumentFamily"].(string)
+			instrumentFamily, _ = subscriptions[i].Params["instFamily"].(string)
 		}
 
 		switch arg.Channel {
@@ -508,7 +489,6 @@ func (ok *Okx) handleSubscription(operation string, subscriptions []stream.Chann
 		arg.UID = uid
 		arg.AlgoID = algoID
 		arg.InstrumentFamily = instrumentFamily
-		arg.SpreadID = spreadID
 
 		if authSubscription {
 			var authChunk []byte
@@ -763,12 +743,6 @@ func (ok *Okx) WsHandleData(respRaw []byte) error {
 		ok.Websocket.DataHandler <- stream.UnhandledMessageWarning{Message: ok.Name + stream.UnhandledMessage + string(respRaw)}
 		return nil
 	}
-}
-
-// wsProcessDepositInfo handles push notification is triggered when a deposit is initiated or the deposit status changes.
-// Supports subscriptions for accounts
-func (ok *Okx) wsProcessDepositInfo(respRaw []byte) error {
-	return nil
 }
 
 // wsProcessSpreadTrades handle and process spread order trades
@@ -1664,23 +1638,6 @@ func (ok *Okx) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, err
 					Currency: pairs[p],
 				})
 			}
-		case okxSpreadOrders,
-			okxSpreadTrades,
-			okxSpreadOrderbookLevel1,
-			okxSpreadOrderbook,
-			okxSpreadPublicTrades,
-			okxSpreadPublicTicker:
-			pairs, err := ok.GetEnabledPairs(asset.Spread)
-			if err != nil {
-				return nil, err
-			}
-			for p := range pairs {
-				subscriptions = append(subscriptions, stream.ChannelSubscription{
-					Channel:  subs[c],
-					Asset:    asset.Spread,
-					Currency: pairs[p],
-				})
-			}
 		case okxCopyTrading:
 			pairs, err := ok.GetEnabledPairs(asset.PerpetualSwap)
 			if err != nil {
@@ -1779,7 +1736,7 @@ func (ok *Okx) WsPlaceOrder(arg *PlaceOrderRequestParam) (*OrderData, error) {
 		case data := <-wsResponse:
 			if data.Operation == okxOpOrder && data.ID == input.ID {
 				var dataHolder *OrderData
-				return dataHolder, ok.handleIncomingData(data.ID, data, dataHolder)
+				return dataHolder, ok.handleIncomingData(data, dataHolder)
 			}
 			continue
 		case <-timer.C:
@@ -1896,7 +1853,7 @@ func (ok *Okx) WsCancelOrder(arg CancelOrderRequestParam) (*OrderData, error) {
 		case data := <-wsResponse:
 			if data.Operation == okxOpCancelOrder && data.ID == input.ID {
 				var dataHolder *OrderData
-				return dataHolder, ok.handleIncomingData(data.ID, data, dataHolder)
+				return dataHolder, ok.handleIncomingData(data, dataHolder)
 			}
 			continue
 		case <-timer.C:
@@ -2020,7 +1977,7 @@ func (ok *Okx) WsAmendOrder(arg *AmendOrderRequestParams) (*OrderData, error) {
 		case data := <-wsResponse:
 			if data.Operation == okxOpAmendOrder && data.ID == input.ID {
 				var dataHolder *OrderData
-				return dataHolder, ok.handleIncomingData(data.ID, data, dataHolder)
+				return dataHolder, ok.handleIncomingData(data, dataHolder)
 			}
 			continue
 		case <-timer.C:
@@ -2101,6 +2058,65 @@ func (ok *Okx) WsAmendMultipleOrders(args []AmendOrderRequestParams) ([]OrderDat
 		case <-timer.C:
 			timer.Stop()
 			return nil, fmt.Errorf("%s websocket connection: timeout waiting for response with an operation: %v",
+				ok.Name,
+				input.Operation)
+		}
+	}
+}
+
+// WsMassCancelOrders cancel all the MMP pending orders of an instrument family.
+// Only applicable to Option in Portfolio Margin mode, and MMP privilege is required.
+func (ok *Okx) WsMassCancelOrders(args []CancelMassReqParam) (bool, error) {
+	for x := range args {
+		if args[x].InstrumentType == "" {
+			return false, errInstrumentTypeRequired
+		}
+		if args[x].InstrumentFamily == "" {
+			return false, errInstrumentFamilyRequired
+		}
+	}
+	randomID, err := common.GenerateRandomString(4, common.NumberCharacters)
+	if err != nil {
+		return false, err
+	}
+	input := &WsOperationInput{
+		ID:        randomID,
+		Operation: okxOpMassCancelOrder,
+		Arguments: args,
+	}
+	err = ok.Websocket.AuthConn.SendJSONMessage(input)
+	if err != nil {
+		return false, err
+	}
+	timer := time.NewTimer(ok.WebsocketResponseMaxLimit)
+	wsResponse := make(chan *wsIncomingData)
+	ok.WsResponseMultiplexer.Register <- &wsRequestInfo{
+		ID:   randomID,
+		Chan: wsResponse,
+	}
+	defer func() { ok.WsResponseMultiplexer.Unregister <- randomID }()
+	for {
+		select {
+		case data := <-wsResponse:
+			if data.Operation == okxOpMassCancelOrder && data.ID == input.ID {
+				if data.Code == "0" || data.Code == "2" {
+					resp := []struct {
+						Result bool `json:"result"`
+					}{}
+					err := json.Unmarshal(data.Data, &resp)
+					if err != nil {
+						return false, err
+					}
+					if len(data.Data) == 0 {
+						return false, fmt.Errorf("error code:%s message: %v", data.Code, ErrorCodes[data.Code])
+					}
+					return resp[0].Result, nil
+				}
+			}
+			continue
+		case <-timer.C:
+			timer.Stop()
+			return false, fmt.Errorf("%s websocket connection: timeout waiting for response with an operation: %v",
 				ok.Name,
 				input.Operation)
 		}
@@ -2486,7 +2502,7 @@ func (ok *Okx) PublicBlockTradesSubscription(operation string, assetType asset.I
 // Websocket Spread Trade methods
 
 // handleIncomingData extracts the incoming data to the dataHolder interface after few checks and return nil or return error message otherwise
-func (ok *Okx) handleIncomingData(requestID string, data *wsIncomingData, dataHolder StatusCodeHolder) error {
+func (ok *Okx) handleIncomingData(data *wsIncomingData, dataHolder StatusCodeHolder) error {
 	sliceDataHolder := []StatusCodeHolder{dataHolder}
 	if data.Code == "0" || data.Code == "1" {
 		err := data.copyResponseToInterface(&sliceDataHolder)
@@ -2538,7 +2554,7 @@ func (ok *Okx) WsPlaceSpreadOrder(arg *SpreadOrderParam) (*SpreadOrderResponse, 
 		case data := <-wsResponse:
 			if data.Operation == okxSpreadOrder && data.ID == input.ID {
 				var dataHolder *SpreadOrderResponse
-				return dataHolder, ok.handleIncomingData(data.ID, data, dataHolder)
+				return dataHolder, ok.handleIncomingData(data, dataHolder)
 			}
 			continue
 		case <-timer.C:
@@ -2586,7 +2602,7 @@ func (ok *Okx) WsAmandSpreadOrder(arg *AmendSpreadOrderParam) (*SpreadOrderRespo
 		case data := <-wsResponse:
 			if data.Operation == okxSpreadAmendOrder && data.ID == input.ID {
 				var dataHolder *SpreadOrderResponse
-				return dataHolder, ok.handleIncomingData(data.ID, data, dataHolder)
+				return dataHolder, ok.handleIncomingData(data, dataHolder)
 			}
 			continue
 		case <-timer.C:
@@ -2635,7 +2651,7 @@ func (ok *Okx) WsCancelSpreadOrder(orderID, clientOrderID string) (*SpreadOrderR
 		case data := <-wsResponse:
 			if data.Operation == okxSpreadCancelOrder && data.ID == input.ID {
 				var dataHolder *SpreadOrderResponse
-				return dataHolder, ok.handleIncomingData(data.ID, data, dataHolder)
+				return dataHolder, ok.handleIncomingData(data, dataHolder)
 			}
 			continue
 		case <-timer.C:
@@ -2678,7 +2694,7 @@ func (ok *Okx) WsCancelAllSpreadOrders(spreadID string) (bool, error) {
 		case data := <-wsResponse:
 			if data.Operation == okxSpreadCancelAllOrders && data.ID == input.ID {
 				dataHolder := &ResponseSuccess{}
-				return dataHolder.Result, ok.handleIncomingData(data.ID, data, dataHolder)
+				return dataHolder.Result, ok.handleIncomingData(data, dataHolder)
 			}
 			continue
 		case <-timer.C:

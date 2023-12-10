@@ -188,28 +188,34 @@ type RateLimit struct {
 	SignalBotEventHistory *rate.Limiter
 
 	// Recurring Buy Order
-	PlaceRecurringBuyOrder      *rate.Limiter
-	AmendRecurringBuyOrder      *rate.Limiter
-	StopRecurringBuyOrder       *rate.Limiter
-	GetRecurringBuyOrder        *rate.Limiter
-	GetRecurringBuyOrderHistory *rate.Limiter
-	GetRecurringBuyOrderDetail  *rate.Limiter
-	GetRecurringBuySubOrders    *rate.Limiter
-	GetExistingLeadingPositions *rate.Limiter
-	GetLeadingPositionHistory   *rate.Limiter
-	PlaceLeadingStopOrder       *rate.Limiter
-	GetCloseLeadingPosition     *rate.Limiter
-	GetLeadingInstruments       *rate.Limiter
-	GetProfitSharingLimit       *rate.Limiter
-	GetTotalProfitSharing       *rate.Limiter
-	SetFirstCopySettings        *rate.Limiter
-	AmendFirstCopySettings      *rate.Limiter
-	StopCopying                 *rate.Limiter
-	GetCopySettings             *rate.Limiter
-	GetMultipleLeverages        *rate.Limiter
-	SetBatchLeverage            *rate.Limiter
-	GetMyLeadTraders            *rate.Limiter
-	GetLeadTraderRanks          *rate.Limiter
+	PlaceRecurringBuyOrder           *rate.Limiter
+	AmendRecurringBuyOrder           *rate.Limiter
+	StopRecurringBuyOrder            *rate.Limiter
+	GetRecurringBuyOrder             *rate.Limiter
+	GetRecurringBuyOrderHistory      *rate.Limiter
+	GetRecurringBuyOrderDetail       *rate.Limiter
+	GetRecurringBuySubOrders         *rate.Limiter
+	GetExistingLeadingPositions      *rate.Limiter
+	GetLeadingPositionHistory        *rate.Limiter
+	PlaceLeadingStopOrder            *rate.Limiter
+	GetCloseLeadingPosition          *rate.Limiter
+	GetLeadingInstruments            *rate.Limiter
+	GetProfitSharingLimit            *rate.Limiter
+	GetTotalProfitSharing            *rate.Limiter
+	SetFirstCopySettings             *rate.Limiter
+	AmendFirstCopySettings           *rate.Limiter
+	StopCopying                      *rate.Limiter
+	GetCopySettings                  *rate.Limiter
+	GetMultipleLeverages             *rate.Limiter
+	SetBatchLeverage                 *rate.Limiter
+	GetMyLeadTraders                 *rate.Limiter
+	GetLeadTraderRanks               *rate.Limiter
+	GetLeadTraderWeeklyPNL           *rate.Limiter
+	GetLeadTraderDailyPNL            *rate.Limiter
+	GetLeadTraderStats               *rate.Limiter
+	GetLeadTraderCurrencyPreferences *rate.Limiter
+	GetTraderCurrentLeadPositions    *rate.Limiter
+	GetLeadTraderLeadPositionHistory *rate.Limiter
 
 	// Earn
 	GetOffer                   *rate.Limiter
@@ -473,6 +479,12 @@ const (
 	setBatchLeverageEPL
 	getMyLeadTradersEPL
 	getLeadTraderRanksEPL
+	getLeadTraderWeeklyPNLEPL
+	getLeadTraderDailyPNLEPL
+	getLeadTraderStatsEPL
+	getLeadTraderCurrencyPreferencesEPL
+	getTraderCurrentLeadPositionsEPL
+	getLeadTraderLeadPositionHistoryEPL
 	getOfferEPL
 	purchaseEPL
 	redeemEPL
@@ -903,6 +915,18 @@ func (r *RateLimit) Limit(ctx context.Context, f request.EndpointLimit) error {
 		return r.GetMyLeadTraders.Wait(ctx)
 	case getLeadTraderRanksEPL:
 		return r.GetLeadTraderRanks.Wait(ctx)
+	case getLeadTraderWeeklyPNLEPL:
+		return r.GetLeadTraderWeeklyPNL.Wait(ctx)
+	case getLeadTraderDailyPNLEPL:
+		return r.GetLeadTraderDailyPNL.Wait(ctx)
+	case getLeadTraderStatsEPL:
+		return r.GetLeadTraderStats.Wait(ctx)
+	case getLeadTraderCurrencyPreferencesEPL:
+		return r.GetLeadTraderCurrencyPreferences.Wait(ctx)
+	case getTraderCurrentLeadPositionsEPL:
+		return r.GetTraderCurrentLeadPositions.Wait(ctx)
+	case getLeadTraderLeadPositionHistoryEPL:
+		return r.GetLeadTraderLeadPositionHistory.Wait(ctx)
 	case getOfferEPL:
 		return r.GetOffer.Wait(ctx)
 	case purchaseEPL:
@@ -1224,28 +1248,34 @@ func SetRateLimit() *RateLimit {
 		SignalBotEventHistory: request.NewRateLimit(twoSecondsInterval, 20),
 
 		// Recurring Buy Order
-		PlaceRecurringBuyOrder:      request.NewRateLimit(twoSecondsInterval, 20),
-		AmendRecurringBuyOrder:      request.NewRateLimit(twoSecondsInterval, 20),
-		StopRecurringBuyOrder:       request.NewRateLimit(twoSecondsInterval, 20),
-		GetRecurringBuyOrder:        request.NewRateLimit(twoSecondsInterval, 20),
-		GetRecurringBuyOrderHistory: request.NewRateLimit(twoSecondsInterval, 20),
-		GetRecurringBuyOrderDetail:  request.NewRateLimit(twoSecondsInterval, 20),
-		GetRecurringBuySubOrders:    request.NewRateLimit(twoSecondsInterval, 20),
-		GetExistingLeadingPositions: request.NewRateLimit(twoSecondsInterval, 20),
-		GetLeadingPositionHistory:   request.NewRateLimit(twoSecondsInterval, 20),
-		PlaceLeadingStopOrder:       request.NewRateLimit(twoSecondsInterval, 20),
-		GetCloseLeadingPosition:     request.NewRateLimit(twoSecondsInterval, 20),
-		GetLeadingInstruments:       request.NewRateLimit(twoSecondsInterval, 5),
-		GetProfitSharingLimit:       request.NewRateLimit(twoSecondsInterval, 5),
-		GetTotalProfitSharing:       request.NewRateLimit(twoSecondsInterval, 5),
-		SetFirstCopySettings:        request.NewRateLimit(twoSecondsInterval, 5),
-		AmendFirstCopySettings:      request.NewRateLimit(twoSecondsInterval, 5),
-		StopCopying:                 request.NewRateLimit(twoSecondsInterval, 5),
-		GetCopySettings:             request.NewRateLimit(twoSecondsInterval, 5),
-		GetMultipleLeverages:        request.NewRateLimit(twoSecondsInterval, 5),
-		SetBatchLeverage:            request.NewRateLimit(twoSecondsInterval, 5),
-		GetMyLeadTraders:            request.NewRateLimit(twoSecondsInterval, 5),
-		GetLeadTraderRanks:          request.NewRateLimit(twoSecondsInterval, 5),
+		PlaceRecurringBuyOrder:           request.NewRateLimit(twoSecondsInterval, 20),
+		AmendRecurringBuyOrder:           request.NewRateLimit(twoSecondsInterval, 20),
+		StopRecurringBuyOrder:            request.NewRateLimit(twoSecondsInterval, 20),
+		GetRecurringBuyOrder:             request.NewRateLimit(twoSecondsInterval, 20),
+		GetRecurringBuyOrderHistory:      request.NewRateLimit(twoSecondsInterval, 20),
+		GetRecurringBuyOrderDetail:       request.NewRateLimit(twoSecondsInterval, 20),
+		GetRecurringBuySubOrders:         request.NewRateLimit(twoSecondsInterval, 20),
+		GetExistingLeadingPositions:      request.NewRateLimit(twoSecondsInterval, 20),
+		GetLeadingPositionHistory:        request.NewRateLimit(twoSecondsInterval, 20),
+		PlaceLeadingStopOrder:            request.NewRateLimit(twoSecondsInterval, 20),
+		GetCloseLeadingPosition:          request.NewRateLimit(twoSecondsInterval, 20),
+		GetLeadingInstruments:            request.NewRateLimit(twoSecondsInterval, 5),
+		GetProfitSharingLimit:            request.NewRateLimit(twoSecondsInterval, 5),
+		GetTotalProfitSharing:            request.NewRateLimit(twoSecondsInterval, 5),
+		SetFirstCopySettings:             request.NewRateLimit(twoSecondsInterval, 5),
+		AmendFirstCopySettings:           request.NewRateLimit(twoSecondsInterval, 5),
+		StopCopying:                      request.NewRateLimit(twoSecondsInterval, 5),
+		GetCopySettings:                  request.NewRateLimit(twoSecondsInterval, 5),
+		GetMultipleLeverages:             request.NewRateLimit(twoSecondsInterval, 5),
+		SetBatchLeverage:                 request.NewRateLimit(twoSecondsInterval, 5),
+		GetMyLeadTraders:                 request.NewRateLimit(twoSecondsInterval, 5),
+		GetLeadTraderRanks:               request.NewRateLimit(twoSecondsInterval, 5),
+		GetLeadTraderWeeklyPNL:           request.NewRateLimit(twoSecondsInterval, 5),
+		GetLeadTraderDailyPNL:            request.NewRateLimit(twoSecondsInterval, 5),
+		GetLeadTraderStats:               request.NewRateLimit(twoSecondsInterval, 5),
+		GetLeadTraderCurrencyPreferences: request.NewRateLimit(twoSecondsInterval, 5),
+		GetTraderCurrentLeadPositions:    request.NewRateLimit(twoSecondsInterval, 5),
+		GetLeadTraderLeadPositionHistory: request.NewRateLimit(twoSecondsInterval, 5),
 
 		// Earn
 		GetOffer:                   request.NewRateLimit(oneSecondInterval, 3),

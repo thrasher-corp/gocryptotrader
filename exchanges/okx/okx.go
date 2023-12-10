@@ -51,7 +51,7 @@ const (
 )
 
 var (
-	errNo24HrTradeVolumeFound                 = errors.New("no trade record found in the 24 trade volume ")
+	errNo24HrTradeVolumeFound                 = errors.New("no trade record found in the 24 trade volume")
 	errOracleInformationNotFound              = errors.New("oracle information not found")
 	errExchangeInfoNotFound                   = errors.New("exchange information not found")
 	errIndexComponentNotFound                 = errors.New("unable to fetch index components")
@@ -74,13 +74,13 @@ var (
 	errInvalidNewSizeOrPriceInformation       = errors.New("invalid the new size or price information")
 	errSizeOrPriceIsRequired                  = errors.New("either size or price is required")
 	errMissingNewSize                         = errors.New("missing the order size information")
-	errMissingMarginMode                      = errors.New("missing required param margin mode \"mgnMode\"")
+	errMissingMarginMode                      = errors.New("missing required param margin mode 'mgnMode'")
 	errInvalidTriggerPrice                    = errors.New("invalid trigger price value")
 	errInvalidPriceLimit                      = errors.New("invalid price limit value")
 	errMissingIntervalValue                   = errors.New("missing interval value")
 	errMissingTakeProfitTriggerPrice          = errors.New("missing take profit trigger price")
 	errMissingTakeProfitOrderPrice            = errors.New("missing take profit order price")
-	errMissingSizeLimit                       = errors.New("missing required parameter \"szLimit\"")
+	errMissingSizeLimit                       = errors.New("missing required parameter 'szLimit'")
 	errMissingEitherAlgoIDOrState             = errors.New("either algo id or order state is required")
 	errUnacceptableAmount                     = errors.New("amount must be greater than 0")
 	errInvalidCurrencyValue                   = errors.New("invalid currency value")
@@ -113,7 +113,7 @@ var (
 	errInvalidSubaccount                      = errors.New("invalid account type")
 	errMissingDestinationSubaccountName       = errors.New("missing destination subaccount name")
 	errMissingInitialSubaccountName           = errors.New("missing initial subaccount name")
-	errMissingAlgoOrderType                   = errors.New("missing algo order type \"grid\": Spot grid, \"contract_grid\": Contract grid")
+	errMissingAlgoOrderType                   = errors.New("missing algo order type 'grid': Spot grid, \"contract_grid\": Contract grid")
 	errInvalidMaximumPrice                    = errors.New("invalid maximum price")
 	errInvalidMinimumPrice                    = errors.New("invalid minimum price")
 	errInvalidGridQuantity                    = errors.New("invalid grid quantity (grid number)")
@@ -161,6 +161,7 @@ var (
 	errSubPositionCloseTypeRequired           = errors.New("sub position close type")
 	errUniqueCodeRequired                     = errors.New("unique code is required")
 	errCopyInstrumentIDTypeRequired           = errors.New("copy instrument ID type is required")
+	errInvalidChecksum                        = errors.New("invalid checksum")
 )
 
 /************************************ MarketData Endpoints *************************************************/
@@ -2313,8 +2314,8 @@ func (ok *Okx) GetGreeks(ctx context.Context, currency string) ([]GreeksItem, er
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getGreeksEPL, http.MethodGet, common.EncodeURLValues("account/greeks", params), nil, &resp, true)
 }
 
-// GetPMLimitation retrieve cross position limitation of SWAP/FUTURES/OPTION under Portfolio margin mode.
-func (ok *Okx) GetPMLimitation(ctx context.Context, instrumentType, underlying string) ([]PMLimitationResponse, error) {
+// GetPMPositionLimitation retrieve cross position limitation of SWAP/FUTURES/OPTION under Portfolio margin mode.
+func (ok *Okx) GetPMPositionLimitation(ctx context.Context, instrumentType, underlying string) ([]PMLimitationResponse, error) {
 	params := url.Values{}
 	if instrumentType == "" {
 		return nil, errInstrumentTypeRequired
@@ -3579,6 +3580,123 @@ func (ok *Okx) GetLeadTradersRanks(ctx context.Context, instrumentType, sortType
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getLeadTraderRanksEPL, http.MethodGet, common.EncodeURLValues("copytrading/public-lead-traders", params), nil, &resp, true)
 }
 
+// GetWeeklyTraderProfitAndLoss retrieve lead trader weekly pnl. Results are returned in counter chronological order.
+func (ok *Okx) GetWeeklyTraderProfitAndLoss(ctx context.Context, instrumentType, uniqueCode string) ([]TraderWeeklyProfitAndLoss, error) {
+	if uniqueCode == "" {
+		return nil, errUniqueCodeRequired
+	}
+	params := url.Values{}
+	params.Set("uniqueCode", uniqueCode)
+	if instrumentType != "" {
+		params.Set("instType", instrumentType)
+	}
+	var resp []TraderWeeklyProfitAndLoss
+	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getLeadTraderWeeklyPNLEPL, http.MethodGet, common.EncodeURLValues("copytrading/public-weekly-pnl", params), nil, &resp, false)
+}
+
+// GetDailyLeadTraderPNL retrieve lead trader daily pnl. Results are returned in counter chronological order.
+// Last days "1": last 7 days  "2": last 30 days "3": last 90 days  "4": last 365 days
+func (ok *Okx) GetDailyLeadTraderPNL(ctx context.Context, instrumentType, uniqueCode, lastDays string) ([]TraderWeeklyProfitAndLoss, error) {
+	if uniqueCode == "" {
+		return nil, errUniqueCodeRequired
+	}
+	if lastDays == "" {
+		return nil, errors.New("last days require")
+	}
+	params := url.Values{}
+	params.Set("uniqueCode", uniqueCode)
+	params.Set("lastDays", lastDays)
+	if instrumentType != "" {
+		params.Set("instType", instrumentType)
+	}
+	var resp []TraderWeeklyProfitAndLoss
+	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getLeadTraderDailyPNLEPL, http.MethodGet, common.EncodeURLValues("copytrading/public-weekly-pnl", params), nil, &resp, false)
+}
+
+// GetLeadTraderStats retrieves key data related to lead trader performance.
+func (ok *Okx) GetLeadTraderStats(ctx context.Context, instrumentType, uniqueCode, lastDays string) ([]LeadTraderStat, error) {
+	if uniqueCode == "" {
+		return nil, errUniqueCodeRequired
+	}
+	if lastDays == "" {
+		return nil, errors.New("last days require")
+	}
+	params := url.Values{}
+	params.Set("uniqueCode", uniqueCode)
+	params.Set("lastDays", lastDays)
+	if instrumentType != "" {
+		params.Set("instType", instrumentType)
+	}
+	var resp []LeadTraderStat
+	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getLeadTraderStatsEPL, http.MethodGet, common.EncodeURLValues("copytrading/public-stats", params), nil, &resp, false)
+}
+
+// GetLeadTraderCurrencyPreferences retrieves the most frequently traded crypto of this lead trader. Results are sorted by ratio from large to small.
+func (ok *Okx) GetLeadTraderCurrencyPreferences(ctx context.Context, instrumentType, uniqueCode, lastDays string) ([]LeadTraderCurrencyPreference, error) {
+	if uniqueCode == "" {
+		return nil, errUniqueCodeRequired
+	}
+	if lastDays == "" {
+		return nil, errors.New("last days require")
+	}
+	params := url.Values{}
+	params.Set("uniqueCode", uniqueCode)
+	params.Set("lastDays", lastDays)
+	if instrumentType != "" {
+		params.Set("instType", instrumentType)
+	}
+	var resp []LeadTraderCurrencyPreference
+	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getLeadTraderCurrencyPreferencesEPL, http.MethodGet, common.EncodeURLValues("copytrading/public-preference-currency", params), nil, &resp, false)
+}
+
+// GetLeadTraderCurrentLeadPositions get current leading positions of lead trader
+// Instrument type "SPOT" "SWAP"
+func (ok *Okx) GetLeadTraderCurrentLeadPositions(ctx context.Context, instrumentType, uniqueCode, afterSubPositionID,
+	beforeSubPositionID string, limit int64) ([]LeadTraderCurrentLeadPosition, error) {
+	if uniqueCode == "" {
+		return nil, errUniqueCodeRequired
+	}
+	params := url.Values{}
+	params.Set("uniqueCode", uniqueCode)
+	if instrumentType != "" {
+		params.Set("instType", instrumentType)
+	}
+	if afterSubPositionID != "" {
+		params.Set("after", afterSubPositionID)
+	}
+	if beforeSubPositionID != "" {
+		params.Set("before", beforeSubPositionID)
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	var resp []LeadTraderCurrentLeadPosition
+	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getTraderCurrentLeadPositionsEPL, http.MethodGet, common.EncodeURLValues("copytrading/public-current-subpositions", params), nil, &resp, false)
+}
+
+// GetLeadTraderLeadPositionHistory retrieve the lead trader completed leading position of the last 3 months. Returns reverse chronological order with subPosId.
+func (ok *Okx) GetLeadTraderLeadPositionHistory(ctx context.Context, instrumentType, uniqueCode, afterSubPositionID, beforeSubPositionID string, limit int64) ([]LeadPosition, error) {
+	if uniqueCode == "" {
+		return nil, errUniqueCodeRequired
+	}
+	params := url.Values{}
+	params.Set("uniqueCode", uniqueCode)
+	if instrumentType != "" {
+		params.Set("instType", instrumentType)
+	}
+	if afterSubPositionID != "" {
+		params.Set("after", afterSubPositionID)
+	}
+	if beforeSubPositionID != "" {
+		params.Set("before", beforeSubPositionID)
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	var resp []LeadPosition
+	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getLeadTraderLeadPositionHistoryEPL, http.MethodGet, common.EncodeURLValues("copytrading/public-subpositions-history", params), nil, &resp, false)
+}
+
 // ****************************************** Earn **************************************************
 
 // GetOffers retrieves list of offers for different protocols.
@@ -3989,10 +4107,10 @@ func (ok *Okx) GetEconomicCalendarData(ctx context.Context, region, importance s
 
 // GetCandlestickData handles fetching the data for both the default GetCandlesticks, GetCandlesticksHistory, and GetIndexCandlesticks() methods.
 func (ok *Okx) GetCandlestickData(ctx context.Context, instrumentID string, interval kline.Interval, before, after time.Time, limit int64, route string, rateLimit request.EndpointLimit) ([]CandleStick, error) {
-	params := url.Values{}
 	if instrumentID == "" {
 		return nil, errMissingInstrumentID
 	}
+	params := url.Values{}
 	params.Set("instId", instrumentID)
 	params.Set("limit", strconv.FormatInt(limit, 10))
 	if !before.IsZero() {
@@ -4044,10 +4162,10 @@ func (ok *Okx) GetCandlestickData(ctx context.Context, instrumentID string, inte
 
 // GetTrades Retrieve the recent transactions of an instrument.
 func (ok *Okx) GetTrades(ctx context.Context, instrumentID string, limit int64) ([]TradeResponse, error) {
-	params := url.Values{}
 	if instrumentID == "" {
 		return nil, errMissingInstrumentID
 	}
+	params := url.Values{}
 	params.Set("instId", instrumentID)
 	if limit > 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
@@ -4058,10 +4176,10 @@ func (ok *Okx) GetTrades(ctx context.Context, instrumentID string, limit int64) 
 
 // GetTradesHistory retrieves the recent transactions of an instrument from the last 3 months with pagination.
 func (ok *Okx) GetTradesHistory(ctx context.Context, instrumentID, before, after string, limit int64) ([]TradeResponse, error) {
-	params := url.Values{}
 	if instrumentID == "" {
 		return nil, errMissingInstrumentID
 	}
+	params := url.Values{}
 	params.Set("instId", instrumentID)
 	if before != "" {
 		params.Set("before", before)
@@ -4088,10 +4206,10 @@ func (ok *Okx) GetOptionTradesByInstrumentFamily(ctx context.Context, instrument
 // GetOptionTrades retrieves option trades
 // Option type, 'C': Call 'P': put
 func (ok *Okx) GetOptionTrades(ctx context.Context, instrumentID, instrumentFamily, optionType string) ([]OptionTrade, error) {
-	params := url.Values{}
 	if instrumentID == "" && instrumentFamily == "" {
 		return nil, errInstrumentIDorFamilyRequired
 	}
+	params := url.Values{}
 	if instrumentID != "" {
 		params.Set("instId", instrumentID)
 	}
@@ -4163,11 +4281,11 @@ func (ok *Okx) GetIndexComponents(ctx context.Context, index string) (*IndexComp
 // GetBlockTickers retrieves the latest block trading volume in the last 24 hours.
 // Instrument Type Is Mandatory, and Underlying is Optional.
 func (ok *Okx) GetBlockTickers(ctx context.Context, instrumentType, underlying string) ([]BlockTicker, error) {
-	params := url.Values{}
 	instrumentType = strings.ToUpper(instrumentType)
 	if instrumentType == "" {
 		return nil, errMissingRequiredArgInstType
 	}
+	params := url.Values{}
 	params.Set("instType", instrumentType)
 	if underlying != "" {
 		params.Set("uly", underlying)
@@ -4178,17 +4296,17 @@ func (ok *Okx) GetBlockTickers(ctx context.Context, instrumentType, underlying s
 
 // GetBlockTicker retrieves the latest block trading volume in the last 24 hours.
 func (ok *Okx) GetBlockTicker(ctx context.Context, instrumentID string) (*BlockTicker, error) {
-	params := url.Values{}
 	if instrumentID == "" {
 		return nil, errMissingInstrumentID
 	}
+	params := url.Values{}
 	params.Set("instId", instrumentID)
 	var resp *BlockTicker
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getBlockTickersEPL, http.MethodGet, common.EncodeURLValues("market/block-ticker", params), nil, &resp, false)
 }
 
-// GetBlockTrades retrieves the recent block trading transactions of an instrument. Descending order by tradeId.
-func (ok *Okx) GetBlockTrades(ctx context.Context, instrumentID string) ([]BlockTrade, error) {
+// GetPublicBlockTrades retrieves the recent block trading transactions of an instrument. Descending order by tradeId.
+func (ok *Okx) GetPublicBlockTrades(ctx context.Context, instrumentID string) ([]BlockTrade, error) {
 	params := url.Values{}
 	if instrumentID == "" {
 		return nil, errMissingInstrumentID
@@ -5265,14 +5383,14 @@ func (ok *Okx) GetTakerFlow(ctx context.Context, currency string, period kline.I
 	}, nil
 }
 
-// ********************************************************** Affilate **********************************************************************
+// ********************************************************** Affiliate **********************************************************************
 
-// The Affiliate API offers affiliate users a flexible fucntion to query the invitee information.
+// The Affiliate API offers affiliate users a flexible function to query the invitee information.
 // Simply enter the UID of your direct invitee to access their relevant information, empowering your affiliate business growth and day-to-day business operation.
 // If you have additional data requirements regarding the Affiliate API, please don't hesitate to contact your BD.
 // We will reach out to you through your BD to provide more comprehensive API support.
 
-// GetInviteesDetail retrieves affilate invitees details.
+// GetInviteesDetail retrieves affiliate invitees details.
 func (ok *Okx) GetInviteesDetail(ctx context.Context, uid string) (*AffilateInviteesDetail, error) {
 	if uid == "" {
 		return nil, errUserIDRequired

@@ -736,6 +736,12 @@ type CancelOrderRequestParam struct {
 	ClientOrderID string `json:"clOrdId,omitempty"`
 }
 
+// CancelMassReqParam holds MMP batch cancel request parameters.
+type CancelMassReqParam struct {
+	InstrumentType   string `json:"instType"`
+	InstrumentFamily string `json:"instFamily"`
+}
+
 // AmendOrderRequestParams represents amend order requesting parameters.
 type AmendOrderRequestParams struct {
 	InstrumentID    string  `json:"instId"`
@@ -4129,12 +4135,13 @@ type WsSpreadOrderbookItem struct {
 	Timestamp time.Time
 }
 
+// WsSpreadOrderbookData represents orderbook response for spread instruments
 type WsSpreadOrderbookData struct {
 	Argument SubscriptionInfo `json:"arg"`
 	Data     []WsSpreadOrderbookItem
 }
 
-// AffilateInviteesDetail represents affilate invitee's detail.
+// AffilateInviteesDetail represents affiliate invitee's detail.
 type AffilateInviteesDetail struct {
 	InviteeLv         convert.StringToFloat64 `json:"inviteeLv"`
 	JoinTime          convert.ExchangeTime    `json:"joinTime"`
@@ -4324,7 +4331,7 @@ type FirstCopySettings struct {
 	InstrumentID         string  `json:"instId"` // Instrument ID. If there are multiple instruments, separate them with commas. Maximum of 200 instruments can be selected
 	UniqueCode           string  `json:"uniqueCode"`
 	CopyMgnMode          string  `json:"copyMgnMode,omitempty"` // Copy margin mode 'cross': cross 'isolated': isolated 'copy'
-	CopyInstrumentIDType string  `json:"copyInstIdType"`        // Copy contract type setted 'custom': custom by instId which is required；'copy': Keep your contracts consistent with this trader
+	CopyInstrumentIDType string  `json:"copyInstIdType"`        // Copy contract type set 'custom': custom by instId which is required；'copy': Keep your contracts consistent with this trader
 	CopyMode             string  `json:"copyMode,omitempty"`    // Possible values: 'fixed_amount', 'ratio_copy', 'copyRatio', and 'fixed_amount'
 	CopyRatio            float64 `json:"copyRatio,string"`
 	CopyAmount           float64 `json:"copyAmt,string,omitempty"`
@@ -4426,8 +4433,8 @@ type LeadTradersRank struct {
 		Pnl              convert.StringToFloat64 `json:"pnl"`
 		PnlRatio         convert.StringToFloat64 `json:"pnlRatio"`
 		PnlRatios        []struct {
-			BeginTs  convert.ExchangeTime    `json:"beginTs"`
-			PnlRatio convert.StringToFloat64 `json:"pnlRatio"`
+			BeginTimestamp convert.ExchangeTime    `json:"beginTs"`
+			PnlRatio       convert.StringToFloat64 `json:"pnlRatio"`
 		} `json:"pnlRatios"`
 		PortLink    string                  `json:"portLink"`
 		TraderInsts []string                `json:"traderInsts"`
@@ -4435,4 +4442,67 @@ type LeadTradersRank struct {
 		WinRatio    convert.StringToFloat64 `json:"winRatio"`
 	} `json:"ranks"`
 	TotalPage string `json:"totalPage"`
+}
+
+// TraderWeeklyProfitAndLoss represents lead trader weekly pnl.
+type TraderWeeklyProfitAndLoss struct {
+	BeginTimestamp     convert.ExchangeTime    `json:"beginTs"`
+	ProfitAndLoss      convert.StringToFloat64 `json:"pnl"`
+	ProfitAndLossRatio convert.StringToFloat64 `json:"pnlRatio"`
+}
+
+// LeadTraderStat represents lead trader performance info.
+type LeadTraderStat struct {
+	AvgSubPosNotional convert.StringToFloat64 `json:"avgSubPosNotional"`
+	Currency          string                  `json:"ccy"`
+	CurCopyTraderPnl  convert.StringToFloat64 `json:"curCopyTraderPnl"`
+	InvestAmount      convert.StringToFloat64 `json:"investAmt"`
+	LossDays          string                  `json:"lossDays"`
+	ProfitDays        string                  `json:"profitDays"`
+	WinRatio          convert.StringToFloat64 `json:"winRatio"`
+}
+
+// LeadTraderCurrencyPreference holds public preference currency
+type LeadTraderCurrencyPreference struct {
+	Currency string                  `json:"ccy"`
+	Ratio    convert.StringToFloat64 `json:"ratio"`
+}
+
+// LeadTraderCurrentLeadPosition holds leading positions of lead trader
+type LeadTraderCurrentLeadPosition struct {
+	Ccy            string                  `json:"ccy"`
+	InstrumentID   string                  `json:"instId"`
+	InstrumentType string                  `json:"instType"`
+	Lever          convert.StringToFloat64 `json:"lever"`
+	Margin         convert.StringToFloat64 `json:"margin"`
+	MarkPrice      convert.StringToFloat64 `json:"markPx"`
+	MgnMode        string                  `json:"mgnMode"`
+	OpenAvgPrice   convert.StringToFloat64 `json:"openAvgPx"`
+	OpenTime       convert.ExchangeTime    `json:"openTime"`
+	PosSide        string                  `json:"posSide"`
+	SubPos         string                  `json:"subPos"`
+	SubPosID       string                  `json:"subPosId"`
+	UniqueCode     string                  `json:"uniqueCode"`
+	Upl            convert.StringToFloat64 `json:"upl"`
+	UplRatio       convert.StringToFloat64 `json:"uplRatio"`
+}
+
+// LeadPosition holds lead trader completed leading position
+type LeadPosition struct {
+	Currency          string                  `json:"ccy"`
+	CloseAveragePrice convert.StringToFloat64 `json:"closeAvgPx"`
+	CloseTime         convert.ExchangeTime    `json:"closeTime"`
+	InstrumentID      string                  `json:"instId"`
+	InstrumentType    string                  `json:"instType"`
+	Leverage          convert.StringToFloat64 `json:"lever"`
+	Margin            convert.StringToFloat64 `json:"margin"`
+	MgnMode           string                  `json:"mgnMode"`
+	OpenAveragePrice  convert.StringToFloat64 `json:"openAvgPx"`
+	OpenTime          convert.ExchangeTime    `json:"openTime"`
+	Pnl               string                  `json:"pnl"`
+	PnlRatio          convert.StringToFloat64 `json:"pnlRatio"`
+	PosSide           string                  `json:"posSide"`
+	SubPosition       string                  `json:"subPos"`
+	SubPositionID     string                  `json:"subPosId"`
+	UniqueCode        string                  `json:"uniqueCode"`
 }

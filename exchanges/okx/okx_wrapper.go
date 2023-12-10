@@ -243,7 +243,7 @@ func (ok *Okx) Setup(exch *config.Exchange) error {
 		ExchangeConfig:                         exch,
 		DefaultURL:                             okxAPIWebsocketPublicURL,
 		RunningURL:                             wsRunningEndpoint,
-		Connector:                              ok.WsConnectBusiness,
+		Connector:                              ok.WsConnect,
 		Subscriber:                             ok.Subscribe,
 		Unsubscriber:                           ok.Unsubscribe,
 		GenerateSubscriptions:                  ok.GenerateDefaultSubscriptions,
@@ -359,7 +359,6 @@ func (ok *Okx) FetchTradablePairs(ctx context.Context, a asset.Item) (currency.P
 				return nil, err
 			}
 			pairs = append(pairs, pair)
-
 		}
 		return pairs, nil
 	case asset.Spread:
@@ -624,11 +623,15 @@ func (ok *Okx) UpdateOrderbook(ctx context.Context, pair currency.Pair, assetTyp
 	var err error
 	switch assetType {
 	case asset.Spread:
-		pairFormat, err := ok.GetPairFormat(assetType, true)
+		var (
+			pairFormat      currency.PairFormat
+			spreadOrderbook []SpreadOrderbook
+		)
+		pairFormat, err = ok.GetPairFormat(assetType, true)
 		if err != nil {
 			return nil, err
 		}
-		spreadOrderbook, err := ok.GetPublicSpreadOrderBooks(ctx, pairFormat.Format(pair), 50)
+		spreadOrderbook, err = ok.GetPublicSpreadOrderBooks(ctx, pairFormat.Format(pair), 50)
 		if err != nil {
 			return nil, err
 		}
@@ -675,11 +678,6 @@ func (ok *Okx) UpdateOrderbook(ctx context.Context, pair currency.Pair, assetTyp
 			}
 		}
 	case asset.Spot, asset.Options, asset.Margin, asset.PerpetualSwap, asset.Futures:
-		if err = ok.CurrencyPairs.IsAssetEnabled(assetType); err != nil {
-			return nil, err
-		}
-		var orderbookNew *OrderBookResponse
-		var err error
 		err = ok.CurrencyPairs.IsAssetEnabled(assetType)
 		if err != nil {
 			return nil, err
@@ -699,6 +697,7 @@ func (ok *Okx) UpdateOrderbook(ctx context.Context, pair currency.Pair, assetTyp
 			Asset:           assetType,
 			VerifyOrderbook: ok.CanVerifyOrderbook,
 		}
+		var orderbookNew *OrderBookResponse
 		orderbookNew, err = ok.GetOrderBookDepth(ctx, instrumentID, 400)
 		if err != nil {
 			return book, err
@@ -865,8 +864,9 @@ func (ok *Okx) GetRecentTrades(ctx context.Context, p currency.Pair, assetType a
 			return nil, err
 		}
 		resp = make([]trade.Data, len(spreadTrades))
+		var oSide order.Side
 		for x := range spreadTrades {
-			oSide, err := order.StringToOrderSide(spreadTrades[x].Side)
+			oSide, err = order.StringToOrderSide(spreadTrades[x].Side)
 			if err != nil {
 				return nil, err
 			}
@@ -886,7 +886,8 @@ func (ok *Okx) GetRecentTrades(ctx context.Context, p currency.Pair, assetType a
 			return nil, currency.ErrCurrencyPairEmpty
 		}
 		instrumentID := format.Format(p)
-		tradeData, err := ok.GetTrades(ctx, instrumentID, 1000)
+		var tradeData []TradeResponse
+		tradeData, err = ok.GetTrades(ctx, instrumentID, 1000)
 		if err != nil {
 			return nil, err
 		}
@@ -1254,7 +1255,8 @@ func (ok *Okx) CancelAllOrders(ctx context.Context, orderCancellation *order.Can
 
 	// For asset.Spread asset orders cancellation
 	if orderCancellation.AssetType == asset.Spread {
-		success, err := ok.CancelAllSpreadOrders(ctx, orderCancellation.OrderID)
+		var success bool
+		success, err = ok.CancelAllSpreadOrders(ctx, orderCancellation.OrderID)
 		if err != nil {
 			return cancelAllResponse, err
 		}
@@ -1540,20 +1542,26 @@ func (ok *Okx) GetActiveOrders(ctx context.Context, req *order.MultiOrderRequest
 			if err != nil {
 				return nil, err
 			}
-			var pair currency.Pair
+			var (
+				pair    currency.Pair
+				oType   order.Type
+				oSide   order.Side
+				oStatus order.Status
+			)
+
 			pair, err = currency.NewPairDelimiter(spreads[x].SpreadID, format.Delimiter)
 			if err != nil {
 				return nil, err
 			}
-			oType, err := order.StringToOrderType(spreads[x].OrderType)
+			oType, err = order.StringToOrderType(spreads[x].OrderType)
 			if err != nil {
 				return nil, err
 			}
-			oSide, err := order.StringToOrderSide(spreads[x].Side)
+			oSide, err = order.StringToOrderSide(spreads[x].Side)
 			if err != nil {
 				return nil, err
 			}
-			oStatus, err := order.StringToOrderStatus(spreads[x].State)
+			oStatus, err = order.StringToOrderStatus(spreads[x].State)
 			if err != nil {
 				return nil, err
 			}
