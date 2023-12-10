@@ -11,6 +11,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
+	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
 var (
@@ -1070,8 +1071,8 @@ type WsFuturesTicker struct {
 	FilledSize   float64              `json:"size"`
 	TradeID      string               `json:"tradeId"`
 	BestBidSize  float64              `json:"bestBidSize"`
-	BestBidPrice kucoinNumber         `json:"bestBidPrice"`
-	BestAskPrice kucoinNumber         `json:"bestAskPrice"`
+	BestBidPrice types.Number         `json:"bestBidPrice"`
+	BestAskPrice types.Number         `json:"bestAskPrice"`
 	BestAskSize  float64              `json:"bestAskSize"`
 	FilledTime   convert.ExchangeTime `json:"ts"`
 }
@@ -1112,8 +1113,8 @@ type WsOrderbookLevel5 struct {
 type WsOrderbookLevel5Response struct {
 	Timestamp     convert.ExchangeTime `json:"timestamp"`
 	Sequence      int64                `json:"sequence"`
-	Bids          [][2]kucoinNumber    `json:"bids"`
-	Asks          [][2]kucoinNumber    `json:"asks"`
+	Bids          [][2]types.Number    `json:"bids"`
+	Asks          [][2]types.Number    `json:"asks"`
 	PushTimestamp convert.ExchangeTime `json:"ts"`
 }
 
