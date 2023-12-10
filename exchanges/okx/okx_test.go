@@ -73,10 +73,6 @@ func TestMain(m *testing.M) {
 		ok.Websocket.TrafficAlert = sharedtestvalues.GetWebsocketStructChannelOverride()
 		setupWS()
 	}
-	err = ok.UpdateTradablePairs(contextGenerate(), true)
-	if err != nil {
-		log.Fatal(err)
-	}
 	os.Exit(m.Run())
 }
 
@@ -1883,9 +1879,8 @@ func TestFetchTradablePairs(t *testing.T) {
 
 func TestUpdateTradablePairs(t *testing.T) {
 	t.Parallel()
-	if err := ok.UpdateTradablePairs(contextGenerate(), true); err != nil {
-		t.Error("Okx UpdateTradablePairs() error", err)
-	}
+	err := ok.UpdateTradablePairs(context.Background(), true)
+	assert.NoError(tb, err, "UpdateTradablePairs should not error")
 }
 
 func TestUpdateOrderExecutionLimits(t *testing.T) {
