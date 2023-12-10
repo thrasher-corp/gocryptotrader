@@ -810,15 +810,15 @@ type WsTicker struct {
 	Timestamp   convert.ExchangeTime `json:"time"`
 }
 
-// WsSpotTicker represents a spot ticker push data.
-type WsSpotTicker struct {
-	Sequence kucoinNumber       `json:"sequence"`
-	Data     WsSpotTickerDetail `json:"data"`
+// WsSnapshot represents a spot ticker push data.
+type WsSnapshot struct {
+	Sequence types.Number     `json:"sequence"`
+	Data     WsSnapshotDetail `json:"data"`
 }
 
-// WsSpotTickerDetail represents the detail of a spot ticker data.
+// WsSnapshotDetail represents the detail of a spot ticker data.
 // This represents all websocket ticker information pushed as a result of subscription to /market/snapshot:{symbol}, and /market/snapshot:{currency,market}
-type WsSpotTickerDetail struct {
+type WsSnapshotDetail struct {
 	AveragePrice     float64              `json:"averagePrice"`
 	BaseCurrency     string               `json:"baseCurrency"`
 	Board            int64                `json:"board"`
