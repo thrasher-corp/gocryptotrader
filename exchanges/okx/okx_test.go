@@ -210,8 +210,16 @@ func TestGetBlockTicker(t *testing.T) {
 
 func TestGetBlockTrade(t *testing.T) {
 	t.Parallel()
-	if _, err := ok.GetBlockTrades(contextGenerate(), "BTC-USDT"); err != nil {
-		t.Error("Okx GetBlockTrades() error", err)
+	trades, err := ok.GetBlockTrades(contextGenerate(), "BTC-USDT")
+	assert.NoError(t, err, "GetBlockTrades should not error")
+	if assert.NotEmpty(t, trades, "Should get some block trades") {
+		trade := trades[0]
+		assert.Equal(t, "BTC-USDT", trade.InstrumentID, "InstrumentID should have correct value")
+		assert.NotEmpty(t, trade.TradeID, "TradeID should not be empty")
+		assert.Positive(t, trade.Price, "Price should have a positive value")
+		assert.Positive(t, trade.Size, "Size should have a positive value")
+		assert.Contains(t, []order.Side{order.Buy, order.Sell}, trade.Side, "Side should be a side")
+		assert.WithinRange(t, trade.Timestamp.Time(), time.Now().Add(time.Hour*-24*7), time.Now(), "Timestamp should be within last 7 days")
 	}
 }
 
