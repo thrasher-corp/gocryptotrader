@@ -2223,7 +2223,7 @@ func TestGetLatestFundingRates(t *testing.T) {
 	cp := currency.NewPair(currency.PF, currency.NewCode("XBTUSD"))
 	cp.Delimiter = "_"
 	err = k.CurrencyPairs.EnablePair(asset.Futures, cp)
-	if !errors.Is(err, nil) {
+	if err != nil && !errors.Is(err, currency.ErrPairAlreadyEnabled) {
 		t.Fatal(err)
 	}
 	_, err = k.GetLatestFundingRates(context.Background(), &fundingrate.LatestRateRequest{

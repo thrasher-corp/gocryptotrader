@@ -1368,7 +1368,7 @@ func (b *Base) GetCachedOpenInterest(_ context.Context, k ...key.PairAsset) ([]f
 		})
 		return resp, nil
 	}
-	resp := make([]futures.OpenInterest, 0, len(k))
+	resp := make([]futures.OpenInterest, len(k))
 	for i := range k {
 		t, err := ticker.GetTicker(b.Name, k[i].Pair(), k[i].Asset)
 		if err != nil {
@@ -1809,5 +1809,5 @@ func (b *Base) IsPairEnabled(pair currency.Pair, a asset.Item) (bool, error) {
 
 // GetOpenInterest returns the open interest rate for a given asset pair
 func (b *Base) GetOpenInterest(context.Context, ...key.PairAsset) ([]futures.OpenInterest, error) {
-	return nil, common.ErrNotYetImplemented
+	return nil, common.ErrFunctionNotSupported
 }

@@ -118,27 +118,6 @@ var (
 	errEitherLoanOrCollateralAmountsMustBeSet = errors.New("either loan or collateral amounts must be set")
 )
 
-// GetUndocumentedInterestHistory gets interest history for currency/currencies provided
-func (b *Binance) GetUndocumentedInterestHistory(ctx context.Context) (MarginInfoData, error) {
-	var resp MarginInfoData
-	if err := b.SendHTTPRequest(ctx, exchange.EdgeCase1, undocumentedInterestHistory, spotDefaultRate, &resp); err != nil {
-		return resp, err
-	}
-	return resp, nil
-}
-
-// GetCrossMarginInterestHistory gets cross-margin interest history for currency/currencies provided
-func (b *Binance) GetCrossMarginInterestHistory(ctx context.Context) (CrossMarginInterestData, error) {
-	var resp CrossMarginInterestData
-	if err := b.SendHTTPRequest(ctx,
-		exchange.EdgeCase1,
-		undocumentedCrossMarginInterestHistory,
-		spotDefaultRate, &resp); err != nil {
-		return resp, err
-	}
-	return resp, nil
-}
-
 // GetExchangeInfo returns exchange information. Check binance_types for more
 // information
 func (b *Binance) GetExchangeInfo(ctx context.Context) (ExchangeInfo, error) {

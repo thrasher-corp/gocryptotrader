@@ -630,22 +630,6 @@ func TestGetFuturesExchangeInfo(t *testing.T) {
 	}
 }
 
-func TestGetUndocumentedInterestHistory(t *testing.T) {
-	t.Parallel()
-	_, err := b.GetUndocumentedInterestHistory(context.Background())
-	if err != nil {
-		t.Error(err)
-	}
-}
-
-func TestGetCrossMarginInterestHistory(t *testing.T) {
-	t.Parallel()
-	_, err := b.GetCrossMarginInterestHistory(context.Background())
-	if err != nil {
-		t.Error(err)
-	}
-}
-
 func TestGetFuturesOrderbook(t *testing.T) {
 	t.Parallel()
 	_, err := b.GetFuturesOrderbook(context.Background(), currency.NewPairWithDelimiter("BTCUSD", "PERP", "_"), 1000)

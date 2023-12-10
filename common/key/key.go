@@ -35,6 +35,7 @@ type SubAccountCurrencyAsset struct {
 	Asset      asset.Item
 }
 
+// Pair combines the base and quote into a pair
 func (k *PairAsset) Pair() currency.Pair {
 	if k.Base == nil && k.Quote == nil {
 		return currency.EMPTYPAIR
@@ -42,6 +43,7 @@ func (k *PairAsset) Pair() currency.Pair {
 	return currency.NewPair(k.Base.Currency(), k.Quote.Currency())
 }
 
+// Pair combines the base and quote into a pair
 func (k *ExchangePairAsset) Pair() currency.Pair {
 	if k.Base == nil && k.Quote == nil {
 		return currency.EMPTYPAIR

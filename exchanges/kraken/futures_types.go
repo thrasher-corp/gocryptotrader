@@ -303,7 +303,7 @@ type FuturesEditedOrderData struct {
 	} `json:"editStatus"`
 }
 
-// Futures ticker holds futures ticker data
+// FuturesTicker  holds futures ticker data
 type FuturesTicker struct {
 	Tag                   string  `json:"tag"`
 	Pair                  string  `json:"pair"`

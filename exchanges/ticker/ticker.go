@@ -112,7 +112,7 @@ func (s *Service) getExchangeTickers(exchange string) ([]*Price, error) {
 	if !ok {
 		return nil, fmt.Errorf("%w %v", errExchangeNotFound, exchange)
 	}
-	var tickers []*Price
+	tickers := make([]*Price, 0, len(s.Tickers))
 	for k, v := range s.Tickers {
 		if k.Exchange != exchange {
 			continue

@@ -2252,13 +2252,14 @@ func (ok *Okx) GetFuturesContractDetails(ctx context.Context, item asset.Item) (
 // GetOpenInterest returns the open interest rate for a given asset pair
 func (ok *Okx) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]futures.OpenInterest, error) {
 	for i := range k {
-		if k[i].Asset != asset.Futures && k[i].Asset != asset.PerpetualSwap && k[i].Asset != asset.Options {
+		if k[i].Asset != asset.Futures && k[i].Asset != asset.PerpetualSwap {
 			// avoid API calls or returning errors after a successful retrieval
 			return nil, fmt.Errorf("%w %v %v", asset.ErrNotSupported, k[i].Asset, k[i].Pair())
 		}
 	}
 	if len(k) == 0 {
 		var resp []futures.OpenInterest
+		// TODO: Options support
 		instTypes := map[string]asset.Item{
 			"SWAP":    asset.PerpetualSwap,
 			"FUTURES": asset.Futures,

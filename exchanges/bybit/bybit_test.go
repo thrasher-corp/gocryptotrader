@@ -632,14 +632,14 @@ func TestGetPremiumIndexPriceKline(t *testing.T) {
 	}
 }
 
-func TestGetOpenInterest(t *testing.T) {
+func TestGetOpenInterestData(t *testing.T) {
 	t.Parallel()
 	pair, err := currency.NewPairFromString("BTCUSD")
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	_, err = b.GetOpenInterest(context.Background(), pair, "5min", 0)
+	_, err = b.GetOpenInterestData(context.Background(), pair, "5min", 0)
 	if err != nil {
 		t.Error(err)
 	}

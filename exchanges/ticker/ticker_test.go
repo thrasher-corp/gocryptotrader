@@ -454,8 +454,8 @@ func TestGetAssociation(t *testing.T) {
 }
 
 func TestGetExchangeTickersPublic(t *testing.T) {
-	GetExchangeTickers("")
-	assert.ErrorIs(t, errExchangeNameIsEmpty, errExchangeNameIsEmpty)
+	_, err := GetExchangeTickers("")
+	assert.ErrorIs(t, err, errExchangeNameIsEmpty)
 }
 
 func TestGetExchangeTickers(t *testing.T) {
