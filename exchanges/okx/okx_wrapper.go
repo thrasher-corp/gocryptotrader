@@ -136,7 +136,10 @@ func (ok *Okx) SetDefaults() {
 				Positions:      true,
 				Leverage:       true,
 				CollateralMode: true,
-
+				OpenInterest: exchange.OpenInterestSupport{
+					Supported:         true,
+					SupportsRestBatch: true,
+				},
 				FundingRates:              true,
 				MaximumFundingRateHistory: kline.ThreeMonth.Duration(),
 				SupportedFundingRateFrequencies: map[kline.Interval]bool{

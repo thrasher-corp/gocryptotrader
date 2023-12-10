@@ -136,6 +136,7 @@ func (ku *Kucoin) SetDefaults() {
 				OpenInterest: exchange.OpenInterestSupport{
 					Supported:          true,
 					SupportedViaTicker: true,
+					SupportsRestBatch:  true,
 				},
 			},
 			MaximumOrderHistory: kline.OneDay.Duration() * 7,
