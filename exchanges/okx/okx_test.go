@@ -1003,12 +1003,22 @@ func TestGetRfqTrades(t *testing.T) {
 	}
 }
 
-func TestGetPublicTrades(t *testing.T) {
+func TestGetPublicBlockTrades(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
-
-	if _, err := ok.GetPublicTrades(contextGenerate(), "", "", 3); err != nil {
-		t.Error("Okx GetPublicTrades() error", err)
+	trades, err := ok.GetPublicBlockTrades(contextGenerate(), "", "", 3)
+	assert.NoError(t, err, "GetPublicBlockTrades should not error")
+	assert.NotEmpty(t, trades, "Should get some block trades back")
+	for _, trade := range trades {
+		assert.NotEmpty(t, trade.CreationTime, "CreationTime shound not be empty")
+		assert.NotEmpty(t, trade.BlockTradeID, "BlockTradeID shound not be empty")
+		if assert.NotEmpty(t, trade.Legs, "Should get some trades") {
+			leg := trade.Legs[0]
+			assert.NotEmpty(t, leg.InstrumentID, "InstrumentID should have correct value")
+			assert.NotEmpty(t, leg.TradeID, "TradeID should not be empty")
+			assert.Positive(t, leg.Price, "Price should have a positive value")
+			assert.Positive(t, leg.Size, "Size should have a positive value")
+			assert.Contains(t, []order.Side{order.Buy, order.Sell}, leg.Side, "Side should be a side")
+		}
 	}
 }
 
