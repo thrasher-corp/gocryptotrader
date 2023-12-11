@@ -965,16 +965,18 @@ func TestCreateQuote(t *testing.T) {
 func TestCancelQuote(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
-
-	if _, err := ok.CancelQuote(contextGenerate(), CancelQuoteRequestParams{}); err != nil && !errors.Is(err, errMissingQuoteIDOrClientQuoteID) {
+	if _, err := ok.CancelQuote(contextGenerate(), nil); err != nil && !errors.Is(err, errNilArgument) {
+		t.Errorf("expected %v, got %v", errNilArgument, err)
+	}
+	if _, err := ok.CancelQuote(contextGenerate(), &CancelQuoteRequestParams{}); err != nil && !errors.Is(err, errMissingQuoteIDOrClientQuoteID) {
 		t.Error("Okx CancelQuote() error", err)
 	}
-	if _, err := ok.CancelQuote(contextGenerate(), CancelQuoteRequestParams{
+	if _, err := ok.CancelQuote(contextGenerate(), &CancelQuoteRequestParams{
 		QuoteID: "1234",
 	}); err != nil {
 		t.Error("Okx CancelQuote() error", err)
 	}
-	if _, err := ok.CancelQuote(contextGenerate(), CancelQuoteRequestParams{
+	if _, err := ok.CancelQuote(contextGenerate(), &CancelQuoteRequestParams{
 		ClientQuoteID: "1234",
 	}); err != nil {
 		t.Error("Okx CancelQuote() error", err)
