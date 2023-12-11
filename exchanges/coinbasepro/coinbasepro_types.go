@@ -462,6 +462,12 @@ type ConvertResponse struct {
 	} `json:"trade"`
 }
 
+type ServerTimeV3 struct {
+	Iso               time.Time `json:"iso"`
+	EpochSeconds      int64     `json:"epochSeconds,string"`
+	EpochMilliseconds int64     `json:"epochMillis,string"`
+}
+
 // IDResource holds an ID, resource type, and associated data, used in ListNotificationsResponse,
 // TransactionData
 type IDResource struct {
@@ -872,8 +878,8 @@ type GetPriceResp struct {
 	} `json:"data"`
 }
 
-// ServerTime holds current requested server time information
-type ServerTime struct {
+// ServerTimeV2 holds current requested server time information, returned from V2 of the API
+type ServerTimeV2 struct {
 	Data struct {
 		ISO   time.Time `json:"iso"`
 		Epoch uint64    `json:"epoch"`

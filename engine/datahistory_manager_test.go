@@ -529,14 +529,14 @@ func TestValidateJob(t *testing.T) {
 
 	dhj.DataType = dataHistoryCandleValidationSecondarySourceType
 	err = m.validateJob(dhj)
-	if !errors.Is(err, errExchangeNameUnset) {
-		t.Errorf("error '%v', expected '%v'", err, errExchangeNameUnset)
+	if !errors.Is(err, common.ErrExchangeNameUnset) {
+		t.Errorf("error '%v', expected '%v'", err, common.ErrExchangeNameUnset)
 	}
 	dhj.SecondaryExchangeSource = "lol"
 	dhj.Exchange = ""
 	err = m.validateJob(dhj)
-	if !errors.Is(err, errExchangeNameUnset) {
-		t.Errorf("error '%v', expected '%v'", err, errExchangeNameUnset)
+	if !errors.Is(err, common.ErrExchangeNameUnset) {
+		t.Errorf("error '%v', expected '%v'", err, common.ErrExchangeNameUnset)
 	}
 }
 

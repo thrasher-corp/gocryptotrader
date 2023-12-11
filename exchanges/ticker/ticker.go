@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/gofrs/uuid"
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/dispatch"
@@ -116,7 +117,7 @@ func ProcessTicker(p *Price) error {
 	}
 
 	if p.ExchangeName == "" {
-		return fmt.Errorf(ErrExchangeNameUnset)
+		return common.ErrExchangeNameUnset
 	}
 
 	if p.Pair.IsEmpty() {

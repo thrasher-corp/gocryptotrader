@@ -3,6 +3,7 @@ package coinbasepro
 import (
 	"context"
 	"errors"
+	"strconv"
 
 	"fmt"
 	"log"
@@ -45,6 +46,8 @@ const (
 
 	errExpectMismatch     = "received: '%v' but expected: '%v'"
 	errExpectedNonEmpty   = "expected non-empty response"
+	errOrder0CancelFail   = "order 0 failed to cancel"
+	errIDNotSet           = "ID not set"
 	skipPayMethodNotFound = "no payment methods found, skipping"
 	skipInsufSuitableAccs = "insufficient suitable accounts found, skipping"
 	errx7f                = "setting proxy address error parse \"\\x7f\": net/url: invalid control character in URL"
@@ -223,27 +226,22 @@ func TestGetTicker(t *testing.T) {
 
 func TestPlaceOrder(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, c, canManipulateRealOrders)
-	_, err := c.PlaceOrder(context.Background(), "", "", "", "", "", 0, 0, 0, 0, false, time.Time{})
+	_, err := c.PlaceOrder(context.Background(), "", "", "", "", "", 0, 0, 0, false, time.Time{})
 	if !errors.Is(err, errClientOrderIDEmpty) {
 		t.Errorf(errExpectMismatch, err, errClientOrderIDEmpty)
 	}
-	_, err = c.PlaceOrder(context.Background(), "meow", "", "", "", "", 0, 0, 0, 0, false, time.Time{})
+	_, err = c.PlaceOrder(context.Background(), "meow", "", "", "", "", 0, 0, 0, false, time.Time{})
 	if !errors.Is(err, errProductIDEmpty) {
 		t.Errorf(errExpectMismatch, err, errProductIDEmpty)
 	}
 	_, err = c.PlaceOrder(context.Background(), "meow", testPair.String(), order.Sell.String(), "", "", 0,
-		0, 0, 0, false, time.Time{})
-	if !errors.Is(err, errAmountZeroNonMarketBuy) {
-		t.Errorf(errExpectMismatch, err, errAmountZeroNonMarketBuy)
-	}
-	_, err = c.PlaceOrder(context.Background(), "meow", testPair.String(), order.Buy.String(), "",
-		order.Market.Lower(), 1, 0, 0, 0, false, time.Time{})
-	if !errors.Is(err, errAmountZeroMarketBuy) {
-		t.Errorf(errExpectMismatch, err, errAmountZeroMarketBuy)
+		0, 0, false, time.Time{})
+	if !errors.Is(err, errAmountZero) {
+		t.Errorf(errExpectMismatch, err, errAmountZero)
 	}
 	id, _ := uuid.NewV4()
 	_, err = c.PlaceOrder(context.Background(), id.String(), testPair.String(), order.Sell.String(), "",
-		order.Limit.Lower(), 0.0000001, 0, 1000000000000, 0, false, time.Now().Add(time.Hour))
+		order.Limit.String(), 0.0000001, 1000000000000, 0, false, time.Now().Add(time.Hour))
 	if err != nil {
 		t.Error(err)
 	}
@@ -257,7 +255,7 @@ func TestCancelOrders(t *testing.T) {
 		t.Errorf(errExpectMismatch, err, errOrderIDEmpty)
 	}
 	ordID, err := c.PlaceOrder(context.Background(), "meow", testPair.String(), order.Sell.String(), "",
-		order.Limit.Lower(), 0.0000001, 0, 1000000000000, 0, false, time.Time{})
+		order.Limit.Lower(), 0.0000001, 1000000000000, 0, false, time.Time{})
 	if err != nil {
 		t.Error(err)
 	}
@@ -280,7 +278,7 @@ func TestEditOrder(t *testing.T) {
 	}
 	id, _ := uuid.NewV4()
 	ordID, err := c.PlaceOrder(context.Background(), id.String(), testPair.String(), order.Sell.String(), "",
-		order.Limit.Lower(), 0.0000001, 0, 1000000000000, 0, false, time.Time{})
+		order.Limit.Lower(), 0.0000001, 1000000000000, 0, false, time.Time{})
 	if err != nil {
 		t.Error(err)
 	}
@@ -504,6 +502,16 @@ func TestGetConvertTradeByID(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
+}
+
+func TestGetV3Time(t *testing.T) {
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, c)
+	resp, err := c.GetV3Time(context.Background())
+	if err != nil {
+		t.Error(err)
+	}
+	assert.NotEmpty(t, resp, errExpectedNonEmpty)
+	log.Printf("%+v", resp)
 }
 
 func TestListNotifications(t *testing.T) {
@@ -1016,8 +1024,8 @@ func TestGetPrice(t *testing.T) {
 	assert.NotEmpty(t, resp, errExpectedNonEmpty)
 }
 
-func TestGetCurrentServerTime(t *testing.T) {
-	resp, err := c.GetCurrentServerTime(context.Background())
+func TestGetV2Time(t *testing.T) {
+	resp, err := c.GetV2Time(context.Background())
 	if err != nil {
 		t.Error(err)
 	}
@@ -2929,6 +2937,163 @@ func TestGetWithdrawalsHistory(t *testing.T) {
 		t.Errorf(errExpectMismatch, err, errNoMatchingWallets)
 	}
 	_, err = c.GetWithdrawalsHistory(context.Background(), currency.BTC, asset.Spot)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetRecentTrades(t *testing.T) {
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, c)
+	_, err := c.GetRecentTrades(context.Background(), testPair, asset.Spot)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetHistoricTrades(t *testing.T) {
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, c)
+	_, err := c.GetHistoricTrades(context.Background(), testPair, asset.Spot, time.Time{}, time.Now())
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestSubmitOrder(t *testing.T) {
+	_, err := c.SubmitOrder(context.Background(), nil)
+	if !errors.Is(err, common.ErrNilPointer) {
+		t.Errorf(errExpectMismatch, err, common.ErrNilPointer)
+	}
+	var ord order.Submit
+	_, err = c.SubmitOrder(context.Background(), &ord)
+	if !errors.Is(err, common.ErrExchangeNameUnset) {
+		t.Errorf(errExpectMismatch, err, common.ErrExchangeNameUnset)
+	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, c, canManipulateRealOrders)
+	ord.Exchange = c.Name
+	ord.Pair = testPair
+	ord.AssetType = asset.Spot
+	ord.Side = order.Sell
+	ord.Type = order.StopLimit
+	ord.StopDirection = order.StopUp
+	ord.Amount = 0.0000001
+	ord.Price = 1000000000000
+	ord.RetrieveFees = true
+	ord.ClientOrderID = strconv.FormatInt(time.Now().UnixMilli(), 18) + "GCTSubmitOrderTest"
+	_, err = c.SubmitOrder(context.Background(), &ord)
+	if err != nil {
+		t.Error(err)
+	}
+	ord.StopDirection = order.StopDown
+	ord.Side = order.Buy
+	_, err = c.SubmitOrder(context.Background(), &ord)
+	if err != nil {
+		t.Error(err)
+	}
+	ord.Type = order.Market
+	ord.QuoteAmount = 0.0000001
+	_, err = c.SubmitOrder(context.Background(), &ord)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestModifyOrder(t *testing.T) {
+	_, err := c.ModifyOrder(context.Background(), nil)
+	if !errors.Is(err, common.ErrNilPointer) {
+		t.Errorf(errExpectMismatch, err, common.ErrNilPointer)
+	}
+	var ord order.Modify
+	_, err = c.ModifyOrder(context.Background(), &ord)
+	if !errors.Is(err, order.ErrPairIsEmpty) {
+		t.Errorf(errExpectMismatch, err, order.ErrPairIsEmpty)
+	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, c, canManipulateRealOrders)
+	resp, err := c.PlaceOrder(context.Background(), strconv.FormatInt(time.Now().UnixMilli(), 18)+"GCTModifyOrderTest",
+		testPair.String(), order.Sell.String(), "", order.Limit.String(), 0.0000001, 1000000000000, 0, false, time.Time{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	ord.OrderID = resp.OrderID
+	ord.Price = 1000000000001
+	_, err = c.ModifyOrder(context.Background(), &ord)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestCancelOrder(t *testing.T) {
+	err := c.CancelOrder(context.Background(), nil)
+	if !errors.Is(err, common.ErrNilPointer) {
+		t.Errorf(errExpectMismatch, err, common.ErrNilPointer)
+	}
+	var can order.Cancel
+	err = c.CancelOrder(context.Background(), &can)
+	if err.Error() != errIDNotSet {
+		t.Errorf(errExpectMismatch, err, errIDNotSet)
+	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, c, canManipulateRealOrders)
+	can.OrderID = "0"
+	c.Verbose = true
+	err = c.CancelOrder(context.Background(), &can)
+	if err.Error() != errOrder0CancelFail {
+		t.Errorf(errExpectMismatch, err, errOrder0CancelFail)
+	}
+	resp, err := c.PlaceOrder(context.Background(), strconv.FormatInt(time.Now().UnixMilli(), 18)+"GCTCancelOrderTest",
+		testPair.String(), order.Sell.String(), "", order.Limit.String(), 0.0000001, 1000000000000, 0, false, time.Time{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	can.OrderID = resp.OrderID
+	err = c.CancelOrder(context.Background(), &can)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestCancelBatchOrders(t *testing.T) {
+	_, err := c.CancelBatchOrders(context.Background(), nil)
+	if !errors.Is(err, errOrderIDEmpty) {
+		t.Errorf(errExpectMismatch, err, errOrderIDEmpty)
+	}
+	can := make([]order.Cancel, 1)
+	_, err = c.CancelBatchOrders(context.Background(), can)
+	if err.Error() != errIDNotSet {
+		t.Errorf(errExpectMismatch, err, errIDNotSet)
+	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, c, canManipulateRealOrders)
+	resp, err := c.PlaceOrder(context.Background(),
+		strconv.FormatInt(time.Now().UnixMilli(), 18)+"GCTCancelBatchOrdersTest", testPair.String(),
+		order.Sell.String(), "", order.Limit.String(), 0.0000001, 1000000000000, 0, false, time.Time{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	can[0].OrderID = resp.OrderID
+	_, err = c.CancelBatchOrders(context.Background(), can)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestCancelAllOrders(t *testing.T) {
+	_, err := c.CancelAllOrders(context.Background(), nil)
+	if !errors.Is(err, common.ErrNilPointer) {
+		t.Errorf(errExpectMismatch, err, common.ErrNilPointer)
+	}
+	var can order.Cancel
+	_, err = c.CancelAllOrders(context.Background(), &can)
+	if !errors.Is(err, order.ErrPairIsEmpty) {
+		t.Errorf(errExpectMismatch, err, order.ErrPairIsEmpty)
+	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, c, canManipulateRealOrders)
+	_, err = c.PlaceOrder(context.Background(),
+		strconv.FormatInt(time.Now().UnixMilli(), 18)+"GCTCancelAllOrdersTest", testPair.String(),
+		order.Sell.String(), "", order.Limit.String(), 0.0000001, 1000000000000, 0, false, time.Time{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	can.Pair = testPair
+	can.AssetType = asset.Spot
+	_, err = c.CancelAllOrders(context.Background(), &can)
 	if err != nil {
 		t.Error(err)
 	}

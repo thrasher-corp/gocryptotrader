@@ -1195,11 +1195,11 @@ func (m *DataHistoryManager) validateJob(job *DataHistoryJob) error {
 	exchangeName := job.Exchange
 	if job.DataType == dataHistoryCandleValidationSecondarySourceType {
 		if job.SecondaryExchangeSource == "" {
-			return fmt.Errorf("job %s %w, secondary exchange name required to lookup existing results", job.Nickname, errExchangeNameUnset)
+			return fmt.Errorf("job %s %w, secondary exchange name required to lookup existing results", job.Nickname, common.ErrExchangeNameUnset)
 		}
 		exchangeName = job.SecondaryExchangeSource
 		if job.Exchange == "" {
-			return fmt.Errorf("job %s %w, exchange name required to lookup existing results", job.Nickname, errExchangeNameUnset)
+			return fmt.Errorf("job %s %w, exchange name required to lookup existing results", job.Nickname, common.ErrExchangeNameUnset)
 		}
 	}
 	exch, err := m.exchangeManager.GetExchangeByName(exchangeName)

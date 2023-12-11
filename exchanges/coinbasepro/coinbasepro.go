@@ -90,8 +90,7 @@ var (
 	errAccountIDEmpty         = errors.New("account id cannot be empty")
 	errClientOrderIDEmpty     = errors.New("client order id cannot be empty")
 	errProductIDEmpty         = errors.New("product id cannot be empty")
-	errAmountZeroNonMarketBuy = errors.New("base amount cannot be 0 unless a market buy order")
-	errAmountZeroMarketBuy    = errors.New("quote amount cannot be 0 for market buy orders")
+	errAmountZero             = errors.New("amount cannot be 0")
 	errOrderIDEmpty           = errors.New("order ids cannot be empty")
 	errOpenPairWithOtherTypes = errors.New("cannot pair open orders with other order types")
 	errUserIDEmpty            = errors.New("user id cannot be empty")
@@ -109,6 +108,8 @@ var (
 	errInvalidPriceType       = errors.New("price type must be spot, buy, or sell")
 	errInvalidOrderType       = errors.New("order type must be market, limit, or stop")
 	errNoMatchingWallets      = errors.New("no matching wallets returned")
+	errOrderModFailNoErr      = errors.New("order modification failed but no error returned")
+	errNoMatchingOrders       = errors.New("no matching orders returned")
 )
 
 // GetAllAccounts returns information on all trading accounts associated with the API key
@@ -275,18 +276,15 @@ func (c *CoinbasePro) GetTicker(ctx context.Context, productID string, limit uin
 }
 
 // PlaceOrder places either a limit, market, or stop order
-func (c *CoinbasePro) PlaceOrder(ctx context.Context, clientOID, productID, side, stopDirection, orderType string, baseAmount, quoteAmount, limitPrice, stopPrice float64, postOnly bool, endTime time.Time) (*PlaceOrderResp, error) {
+func (c *CoinbasePro) PlaceOrder(ctx context.Context, clientOID, productID, side, stopDirection, orderType string, amount, limitPrice, stopPrice float64, postOnly bool, endTime time.Time) (*PlaceOrderResp, error) {
 	if clientOID == "" {
 		return nil, errClientOrderIDEmpty
 	}
 	if productID == "" {
 		return nil, errProductIDEmpty
 	}
-	if baseAmount == 0 && orderType != order.Market.Lower() && side != order.Buy.String() {
-		return nil, errAmountZeroNonMarketBuy
-	}
-	if quoteAmount == 0 && orderType == order.Market.Lower() && side == order.Buy.String() {
-		return nil, errAmountZeroMarketBuy
+	if amount == 0 {
+		return nil, errAmountZero
 	}
 
 	var resp PlaceOrderResp
@@ -294,38 +292,38 @@ func (c *CoinbasePro) PlaceOrder(ctx context.Context, clientOID, productID, side
 	var orderConfig OrderConfiguration
 
 	switch orderType {
-	case order.Market.Lower():
+	case order.Market.String(), order.ImmediateOrCancel.String():
 		orderConfig.MarketMarketIOC = &MarketMarketIOC{}
-		if side == order.Buy.Lower() {
-			orderConfig.MarketMarketIOC.QuoteSize = strconv.FormatFloat(quoteAmount, 'f', -1, 64)
+		if side == order.Buy.String() {
+			orderConfig.MarketMarketIOC.QuoteSize = strconv.FormatFloat(amount, 'f', -1, 64)
 		}
-		if side == order.Sell.Lower() {
-			orderConfig.MarketMarketIOC.BaseSize = strconv.FormatFloat(baseAmount, 'f', -1, 64)
+		if side == order.Sell.String() {
+			orderConfig.MarketMarketIOC.BaseSize = strconv.FormatFloat(amount, 'f', -1, 64)
 		}
-	case order.Limit.Lower():
+	case order.Limit.String():
 		if endTime == (time.Time{}) {
 			orderConfig.LimitLimitGTC = &LimitLimitGTC{}
-			orderConfig.LimitLimitGTC.BaseSize = strconv.FormatFloat(baseAmount, 'f', -1, 64)
+			orderConfig.LimitLimitGTC.BaseSize = strconv.FormatFloat(amount, 'f', -1, 64)
 			orderConfig.LimitLimitGTC.LimitPrice = strconv.FormatFloat(limitPrice, 'f', -1, 64)
 			orderConfig.LimitLimitGTC.PostOnly = postOnly
 		} else {
 			orderConfig.LimitLimitGTD = &LimitLimitGTD{}
-			orderConfig.LimitLimitGTD.BaseSize = strconv.FormatFloat(baseAmount, 'f', -1, 64)
+			orderConfig.LimitLimitGTD.BaseSize = strconv.FormatFloat(amount, 'f', -1, 64)
 			orderConfig.LimitLimitGTD.LimitPrice = strconv.FormatFloat(limitPrice, 'f', -1, 64)
 			orderConfig.LimitLimitGTD.PostOnly = postOnly
 			orderConfig.LimitLimitGTD.EndTime = endTime
 		}
-	case order.Stop.Lower():
+	case order.StopLimit.String():
 		if endTime == (time.Time{}) {
 			orderConfig.StopLimitStopLimitGTC = &StopLimitStopLimitGTC{}
-			orderConfig.StopLimitStopLimitGTC.BaseSize = strconv.FormatFloat(baseAmount, 'f', -1, 64)
+			orderConfig.StopLimitStopLimitGTC.BaseSize = strconv.FormatFloat(amount, 'f', -1, 64)
 			orderConfig.StopLimitStopLimitGTC.LimitPrice = strconv.FormatFloat(limitPrice, 'f', -1,
 				64)
 			orderConfig.StopLimitStopLimitGTC.StopPrice = strconv.FormatFloat(stopPrice, 'f', -1, 64)
 			orderConfig.StopLimitStopLimitGTC.StopDirection = stopDirection
 		} else {
 			orderConfig.StopLimitStopLimitGTD = &StopLimitStopLimitGTD{}
-			orderConfig.StopLimitStopLimitGTD.BaseSize = strconv.FormatFloat(baseAmount, 'f', -1, 64)
+			orderConfig.StopLimitStopLimitGTD.BaseSize = strconv.FormatFloat(amount, 'f', -1, 64)
 			orderConfig.StopLimitStopLimitGTD.LimitPrice = strconv.FormatFloat(limitPrice, 'f', -1,
 				64)
 			orderConfig.StopLimitStopLimitGTD.StopPrice = strconv.FormatFloat(stopPrice, 'f', -1, 64)
@@ -356,7 +354,7 @@ func (c *CoinbasePro) CancelOrders(ctx context.Context, orderIDs []string) (Canc
 	req := map[string]interface{}{"order_ids": orderIDs}
 
 	return resp, c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, path, "",
-		nil, Version3, req, nil)
+		req, Version3, &resp, nil)
 }
 
 // EditOrder edits an order to a new size or price. Only limit orders with a good-till-cancelled time
@@ -580,6 +578,14 @@ func (c *CoinbasePro) GetConvertTradeByID(ctx context.Context, tradeID, from, to
 
 	return resp, c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path,
 		"", req, Version3, &resp, nil)
+}
+
+// GetV3Time returns the current server time, calling V3 of the API
+func (c *CoinbasePro) GetV3Time(ctx context.Context) (ServerTimeV3, error) {
+	var resp ServerTimeV3
+
+	return resp, c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet,
+		coinbaseV3+coinbaseTime, "", nil, Version3, &resp, nil)
 }
 
 // ListNotifications lists the notifications the user is subscribed to
@@ -1076,9 +1082,9 @@ func (c *CoinbasePro) GetPrice(ctx context.Context, currencyPair, priceType stri
 	return resp, c.SendHTTPRequest(ctx, exchange.RestSpot, path, &resp)
 }
 
-// GetCurrentServerTime returns the API server time
-func (c *CoinbasePro) GetCurrentServerTime(ctx context.Context) (ServerTime, error) {
-	resp := ServerTime{}
+// GetV2Time returns the current server time, calling V2 of the API
+func (c *CoinbasePro) GetV2Time(ctx context.Context) (ServerTimeV2, error) {
+	resp := ServerTimeV2{}
 	return resp, c.SendHTTPRequest(ctx, exchange.RestSpot, coinbaseV2+coinbaseTime, &resp)
 }
 
@@ -1944,7 +1950,8 @@ func (c *CoinbasePro) SendAuthenticatedHTTPRequest(ctx context.Context, ep excha
 			PreviewFailureReason string `json:"preview_failure_reason"`
 		}
 	}{}
-	if err := json.Unmarshal(interim, &manyErrCap); err == nil {
+	err = json.Unmarshal(interim, &manyErrCap)
+	if err == nil {
 		if len(manyErrCap.Errors) > 0 {
 			errMessage := ""
 			for i := range manyErrCap.Errors {
