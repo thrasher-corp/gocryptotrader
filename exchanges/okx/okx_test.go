@@ -221,6 +221,44 @@ func TestGetBlockTrade(t *testing.T) {
 		assert.Contains(t, []order.Side{order.Buy, order.Sell}, trade.Side, "Side should be a side")
 		assert.WithinRange(t, trade.Timestamp.Time(), time.Now().Add(time.Hour*-24*7), time.Now(), "Timestamp should be within last 7 days")
 	}
+
+	updatePairsOnce(t)
+
+	pairs, err := ok.GetAvailablePairs(asset.Options)
+	assert.NoError(t, err, "GetAvailablePairs should not error")
+	assert.NotEmpty(t, pairs, "Should get some Option pairs")
+
+	publicTrades, err := ok.GetPublicBlockTrades(contextGenerate(), "", "", 100)
+	assert.NoError(t, err, "GetPublicBlockTrades should not error")
+
+	tested := false
+LOOP:
+	for _, trade := range publicTrades {
+		for _, leg := range trade.Legs {
+			p, err := ok.MatchSymbolWithAvailablePairs(leg.InstrumentID, asset.Options, true)
+			if err != nil {
+				continue
+			}
+
+			trades, err = ok.GetBlockTrades(contextGenerate(), p.String())
+			assert.NoError(t, err, "GetBlockTrades should not error on Options")
+			for _, trade := range trades {
+				assert.Equal(t, p.String(), trade.InstrumentID, "InstrumentID should have correct value")
+				assert.NotEmpty(t, trade.TradeID, "TradeID should not be empty")
+				assert.Positive(t, trade.Price, "Price should have a positive value")
+				assert.Positive(t, trade.Size, "Size should have a positive value")
+				assert.Contains(t, []order.Side{order.Buy, order.Sell}, trade.Side, "Side should be a side")
+				assert.Positive(t, trade.FillVolatility, "FillVolatility should have a positive value")
+				assert.Positive(t, trade.ForwardPrice, "ForwardPrice should have a positive value")
+				assert.Positive(t, trade.IndexPrice, "IndexPrice should have a positive value")
+				assert.Positive(t, trade.MarkPrice, "MarkPrice should have a positive value")
+				assert.NotEmpty(t, trade.Timestamp, "Timestamp should not be empty")
+				tested = true
+				break LOOP
+			}
+		}
+	}
+	assert.True(t, tested, "Should find at least one BlockTrade somewhere")
 }
 
 func TestGetInstrument(t *testing.T) {
@@ -1897,8 +1935,17 @@ func TestFetchTradablePairs(t *testing.T) {
 
 func TestUpdateTradablePairs(t *testing.T) {
 	t.Parallel()
-	err := ok.UpdateTradablePairs(context.Background(), true)
-	assert.NoError(t, err, "UpdateTradablePairs should not error")
+	updatePairsOnce(t)
+}
+
+var updatePairsGuard sync.Once
+
+func updatePairsOnce(tb testing.TB) {
+	tb.Helper()
+	updatePairsGuard.Do(func() {
+		err := ok.UpdateTradablePairs(context.Background(), true)
+		assert.NoError(tb, err, "UpdateTradablePairs should not error")
+	})
 }
 
 func TestUpdateOrderExecutionLimits(t *testing.T) {
