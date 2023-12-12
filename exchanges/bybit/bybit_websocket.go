@@ -3,6 +3,7 @@ package bybit
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -56,7 +57,7 @@ const (
 // WsConnect connects to a websocket feed
 func (by *Bybit) WsConnect() error {
 	if !by.Websocket.IsEnabled() || !by.IsEnabled() || !by.IsAssetWebsocketSupported(asset.Spot) {
-		return errWebsocketNotEnabled
+		return errors.New(stream.WebsocketNotEnabled)
 	}
 	var dialer websocket.Dialer
 	err := by.Websocket.Conn.Dial(&dialer, http.Header{})
@@ -546,7 +547,7 @@ func (by *Bybit) wsProcessLeverageTokenKline(assetType asset.Item, resp *Websock
 }
 
 func (by *Bybit) wsProcessLiquidation(resp *WebsocketResponse) error {
-	var result WebsocketLiquidiation
+	var result WebsocketLiquidation
 	err := json.Unmarshal(resp.Data, &result)
 	if err != nil {
 		return err
@@ -591,6 +592,10 @@ func (by *Bybit) wsProcessKline(assetType asset.Item, resp *WebsocketResponse, t
 }
 
 func (by *Bybit) wsProcessPublicTicker(assetType asset.Item, resp *WebsocketResponse) error {
+	format, err := by.GetPairFormat(assetType, false)
+	if err != nil {
+		return err
+	}
 	switch assetType {
 	case asset.Spot:
 		var result WsSpotTicker
@@ -602,8 +607,9 @@ func (by *Bybit) wsProcessPublicTicker(assetType asset.Item, resp *WebsocketResp
 		if err != nil {
 			return err
 		}
+		cp = cp.Format(format)
 		if resp.Type == "snapshot" {
-			by.Websocket.DataHandler <- &ticker.Price{
+			return ticker.ProcessTicker(&ticker.Price{
 				Last:         result.LastPrice.Float64(),
 				High:         result.HighPrice24H.Float64(),
 				Low:          result.LowPrice24H.Float64(),
@@ -612,18 +618,16 @@ func (by *Bybit) wsProcessPublicTicker(assetType asset.Item, resp *WebsocketResp
 				ExchangeName: by.Name,
 				AssetType:    assetType,
 				LastUpdated:  resp.Timestamp.Time(),
-			}
-		} else {
-			var tickerData *ticker.Price
-			tickerData, err = by.updateSpotTickerInformation(&result, cp)
-			if err != nil {
-				return err
-			}
-			tickerData.LastUpdated = resp.Timestamp.Time()
-			return nil
+			})
 		}
+		var tickerData *ticker.Price
+		tickerData, err = by.updateSpotTickerInformation(&result, cp)
+		if err != nil {
+			return err
+		}
+		tickerData.LastUpdated = resp.Timestamp.Time()
 		return nil
-	case asset.LinearContract, asset.CoinMarginedFutures:
+	case asset.USDCMarginedFutures, asset.USDTMarginedFutures, asset.CoinMarginedFutures:
 		var result WsLinearTicker
 		err := json.Unmarshal(resp.Data, &result)
 		if err != nil {
@@ -633,8 +637,9 @@ func (by *Bybit) wsProcessPublicTicker(assetType asset.Item, resp *WebsocketResp
 		if err != nil {
 			return err
 		}
+		cp = cp.Format(format)
 		if resp.Type == "snapshot" {
-			by.Websocket.DataHandler <- &ticker.Price{
+			return ticker.ProcessTicker(&ticker.Price{
 				Last:         result.LastPrice.Float64(),
 				High:         result.HighPrice24H.Float64(),
 				Low:          result.LowPrice24H.Float64(),
@@ -646,16 +651,15 @@ func (by *Bybit) wsProcessPublicTicker(assetType asset.Item, resp *WebsocketResp
 				Pair:         cp,
 				ExchangeName: by.Name,
 				AssetType:    assetType,
-			}
-		} else {
-			var tickerData *ticker.Price
-			tickerData, err = by.updateTickerInformation(&result, cp)
-			if err != nil {
-				return err
-			}
-			tickerData.LastUpdated = resp.Timestamp.Time()
-			by.Websocket.DataHandler <- tickerData
+			})
 		}
+		var tickerData *ticker.Price
+		tickerData, err = by.updateTickerInformation(&result, cp, assetType)
+		if err != nil {
+			return err
+		}
+		tickerData.LastUpdated = resp.Timestamp.Time()
+		by.Websocket.DataHandler <- tickerData
 		return nil
 	case asset.Options:
 		var result WsOptionTicker
@@ -667,8 +671,9 @@ func (by *Bybit) wsProcessPublicTicker(assetType asset.Item, resp *WebsocketResp
 		if err != nil {
 			return err
 		}
+		cp = cp.Format(format)
 		if resp.Type == "snapshot" {
-			by.Websocket.DataHandler <- &ticker.Price{
+			return ticker.ProcessTicker(&ticker.Price{
 				Last:         result.LastPrice.Float64(),
 				High:         result.HighPrice24H.Float64(),
 				Low:          result.LastPrice.Float64(),
@@ -680,15 +685,14 @@ func (by *Bybit) wsProcessPublicTicker(assetType asset.Item, resp *WebsocketResp
 				Pair:         cp,
 				ExchangeName: by.Name,
 				AssetType:    assetType,
-			}
-		} else {
-			tickerData, err := by.updateOptionsTickerInformation(&result, cp)
-			if err != nil {
-				return err
-			}
-			tickerData.LastUpdated = resp.Timestamp.Time()
-			by.Websocket.DataHandler <- tickerData
+			})
 		}
+		tickerData, err := by.updateOptionsTickerInformation(&result, cp)
+		if err != nil {
+			return err
+		}
+		tickerData.LastUpdated = resp.Timestamp.Time()
+		by.Websocket.DataHandler <- tickerData
 		return nil
 	default:
 		return fmt.Errorf("ticker data unsupported for asset type %v", assetType)
@@ -715,8 +719,8 @@ func (by *Bybit) updateSpotTickerInformation(result *WsSpotTicker, cp currency.P
 	return tickerData, nil
 }
 
-func (by *Bybit) updateTickerInformation(result *WsLinearTicker, cp currency.Pair) (*ticker.Price, error) {
-	tickerData, err := ticker.GetTicker(by.Name, cp, asset.LinearContract)
+func (by *Bybit) updateTickerInformation(result *WsLinearTicker, cp currency.Pair, assetType asset.Item) (*ticker.Price, error) {
+	tickerData, err := ticker.GetTicker(by.Name, cp, assetType)
 	if err != nil {
 		return nil, err
 	}

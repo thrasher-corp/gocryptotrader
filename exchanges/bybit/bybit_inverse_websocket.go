@@ -1,6 +1,7 @@
 package bybit
 
 import (
+	"errors"
 	"net/http"
 
 	"github.com/gorilla/websocket"
@@ -11,7 +12,7 @@ import (
 // WsInverseConnect connects to inverse websocket feed
 func (by *Bybit) WsInverseConnect() error {
 	if !by.Websocket.IsEnabled() || !by.IsEnabled() || !by.IsAssetWebsocketSupported(asset.CoinMarginedFutures) {
-		return errWebsocketNotEnabled
+		return errors.New(stream.WebsocketNotEnabled)
 	}
 	by.Websocket.Conn.SetURL(inversePublic)
 	var dialer websocket.Dialer

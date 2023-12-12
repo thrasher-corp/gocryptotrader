@@ -2,15 +2,12 @@ package bybit
 
 import (
 	"encoding/json"
-	"errors"
-	"fmt"
 	"time"
 
 	"github.com/gofrs/uuid"
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 )
 
 var validCategory = []string{"spot", "linear", "inverse", "option"}
@@ -52,7 +49,7 @@ type AccountFee struct {
 	List     []Fee  `json:"list"`
 }
 
-// InstrumentsInfo representa a category, page indicator, and list of instrument information.
+// InstrumentsInfo represents a category, page indicator, and list of instrument information.
 type InstrumentsInfo struct {
 	Category       string           `json:"category"`
 	List           []InstrumentInfo `json:"list"`
@@ -686,7 +683,7 @@ type TradingStopParams struct {
 type AutoAddMarginParam struct {
 	Category      string        `json:"category"`
 	Symbol        currency.Pair `json:"symbol"`
-	AutoAddmargin int64         `json:"autoAddmargin,string"` // Turn on/off. 0: off. 1: on
+	AutoAddmargin int64         `json:"autoAddMargin,string"` // Turn on/off. 0: off. 1: on
 
 	// Positions in different position modes.
 	// 0: one-way mode, 1: hedge-mode Buy side, 2: hedge-mode Sell side
@@ -794,7 +791,7 @@ type paramsConfig struct {
 	Option          bool
 	Linear          bool
 	Inverse         bool
-	MendatorySymbol bool
+	MandatorySymbol bool
 
 	OptionalCategory bool
 	OptionalBaseCoin bool
@@ -889,7 +886,7 @@ type WalletBalance struct {
 			BorrowAmount            convert.StringToFloat64 `json:"borrowAmount"`
 			TotalPositionIM         string                  `json:"totalPositionIM"`
 			WalletBalance           convert.StringToFloat64 `json:"walletBalance"`
-			CummulativeRealisedPnl  convert.StringToFloat64 `json:"cumRealisedPnl"`
+			CumulativeRealisedPnl   convert.StringToFloat64 `json:"cumRealisedPnl"`
 			Coin                    string                  `json:"coin"`
 		} `json:"coin"`
 	} `json:"list"`
@@ -915,7 +912,7 @@ type BorrowHistory struct {
 		CostExemption             string                  `json:"costExemption"`
 		BorrowAmount              convert.StringToFloat64 `json:"borrowAmount"`
 		UnrealisedLoss            convert.StringToFloat64 `json:"unrealisedLoss"`
-		FreeBorrowdAmount         convert.StringToFloat64 `json:"freeBorrowedAmount"`
+		FreeBorrowedAmount        convert.StringToFloat64 `json:"freeBorrowedAmount"`
 	} `json:"list"`
 }
 
@@ -1866,8 +1863,8 @@ type WsKlines []struct {
 	Timestamp convert.ExchangeTime    `json:"timestamp"`
 }
 
-// WebsocketLiquidiation represents liquidation stream push data.
-type WebsocketLiquidiation struct {
+// WebsocketLiquidation represents liquidation stream push data.
+type WebsocketLiquidation struct {
 	Symbol      string                  `json:"symbol"`
 	Side        string                  `json:"side"`
 	Price       convert.StringToFloat64 `json:"price"`
@@ -2094,24 +2091,4 @@ type Error struct {
 	ReturnMessageV5 string `json:"retMsg"`
 	ExtCode         string `json:"ext_code"`
 	ExtMsg          string `json:"ext_info"`
-}
-
-// GetError checks and returns an error if it is supplied.
-func (e *Error) GetError(isAuthRequest bool) error {
-	if e.ReturnCode != 0 && e.ReturnMsg != "" {
-		if isAuthRequest {
-			return fmt.Errorf("%w %v", request.ErrAuthRequestFailed, e.ReturnMsg)
-		}
-		return errors.New(e.ReturnMsg)
-	}
-	if e.ReturnCodeV5 != 0 && e.ReturnMessageV5 != "" {
-		return errors.New(e.ReturnMessageV5)
-	}
-	if e.ExtCode != "" && e.ExtMsg != "" {
-		if isAuthRequest {
-			return fmt.Errorf("%w %v", request.ErrAuthRequestFailed, e.ExtMsg)
-		}
-		return errors.New(e.ExtMsg)
-	}
-	return nil
 }

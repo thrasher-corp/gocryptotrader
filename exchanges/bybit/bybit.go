@@ -21,7 +21,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 )
 
 // Bybit is the overarching type across this package
@@ -75,7 +74,6 @@ var (
 	errFrozenPeriodRequired                    = errors.New("frozen period required")
 	errQuantityLimitRequired                   = errors.New("quantity limit required")
 	errInvalidPushData                         = errors.New("invalid push data")
-	errWebsocketNotEnabled                     = errors.New(stream.WebsocketNotEnabled)
 	errInvalidLeverage                         = errors.New("leverage can't be zero or less then it")
 	errInvalidPositionMode                     = errors.New("position mode is invalid")
 	errInvalidMode                             = errors.New("mode can't be empty or missing")
@@ -659,7 +657,7 @@ func (by *Bybit) CancelAllTradeOrders(ctx context.Context, arg *CancelAllOrdersP
 		return nil, fmt.Errorf("%w, only used for category=linear or inverse", errInvalidOrderFilter)
 	}
 	var resp CancelAllResponse
-	epl := calcelAllEPL
+	epl := cancelAllEPL
 	if arg.Category == "spot" {
 		epl = cancelAllSpotEPL
 	}
@@ -879,7 +877,7 @@ func (by *Bybit) SetLeverageLevel(ctx context.Context, arg *SetLeverageParams) e
 	case arg.BuyLeverage != arg.SellLeverage:
 		return fmt.Errorf("%w, buy leverage not equal sell leverage", errInvalidLeverage)
 	}
-	return by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, "/v5/position/set-leverage", nil, arg, &struct{}{}, postPOsitionSetLeverageEPL)
+	return by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, "/v5/position/set-leverage", nil, arg, &struct{}{}, postPositionSetLeverageEPL)
 }
 
 // SwitchTradeMode sets the trade mode value either to 'cross' or 'isolated'.
@@ -1109,7 +1107,7 @@ func fillOrderAndExecutionFetchParams(ac paramsConfig, category, symbol, baseCoi
 	default:
 		params.Set("category", category)
 	}
-	if ac.MendatorySymbol && symbol == "" {
+	if ac.MandatorySymbol && symbol == "" {
 		return nil, errSymbolMissing
 	} else if symbol != "" {
 		params.Set("symbol", symbol)
@@ -1199,7 +1197,7 @@ func (by *Bybit) GetPreUpgradeTradeHistory(ctx context.Context, category, symbol
 
 // GetPreUpgradeClosedPnL retrieves user's closed profit and loss records from before you upgraded the account to a Unified account. The results are sorted by createdTime in descending order.
 func (by *Bybit) GetPreUpgradeClosedPnL(ctx context.Context, category, symbol, cursor string, startTime, endTime time.Time, limit int64) (*ClosedProfitAndLossResponse, error) {
-	params, err := fillOrderAndExecutionFetchParams(paramsConfig{Linear: true, Inverse: true, MendatorySymbol: true}, category, symbol, "", "", "", "", "", cursor, startTime, endTime, limit)
+	params, err := fillOrderAndExecutionFetchParams(paramsConfig{Linear: true, Inverse: true, MandatorySymbol: true}, category, symbol, "", "", "", "", "", cursor, startTime, endTime, limit)
 	if err != nil {
 		return nil, err
 	}
@@ -1616,7 +1614,7 @@ func (by *Bybit) CreateInternalTransfer(ctx context.Context, arg *TransferParams
 func (by *Bybit) GetInternalTransferRecords(ctx context.Context, transferID, coin, status, cursor string, startTime, endTime time.Time, limit int64) (*TransferResponse, error) {
 	params := fillTransferQueryParams(transferID, coin, status, cursor, startTime, endTime, limit)
 	var resp *TransferResponse
-	return resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/asset/transfer/query-inter-transfer-list", params, nil, &resp, getAssetTransferCoinListEPL)
+	return resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/asset/transfer/query-inter-transfer-list", params, nil, &resp, getAssetInterTransferListEPL)
 }
 
 // GetSubUID retrieves the sub UIDs under a main UID
@@ -1950,17 +1948,21 @@ func (by *Bybit) GetSubUIDList(ctx context.Context) ([]SubUserItem, error) {
 
 // FreezeSubUID freeze Sub UID. Use master user's api key only.
 func (by *Bybit) FreezeSubUID(ctx context.Context, subUID string, frozen bool) error {
-	params := url.Values{}
 	if subUID == "" {
 		return fmt.Errorf("%w, subuid", errMissingUserID)
 	}
-	params.Set("subuid", subUID)
-	if frozen {
-		params.Set("frozen", "0")
-	} else {
-		params.Set("frozen", "1")
+	arg := &struct {
+		SubUID string `json:"subuid"`
+		Frozen int64  `json:"frozen"`
+	}{
+		SubUID: subUID,
 	}
-	return by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/user/frozen-sub-member", params, nil, &struct{}{}, userFrozenSubMemberEPL)
+	if frozen {
+		arg.Frozen = 0
+	} else {
+		arg.Frozen = 1
+	}
+	return by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, "/v5/user/frozen-sub-member", nil, arg, &struct{}{}, userFrozenSubMemberEPL)
 }
 
 // GetAPIKeyInformation retrieves the information of the api key.

@@ -11,77 +11,7 @@ import (
 
 const (
 	// See: https://bybit-exchange.github.io/docs/v5/rate-limit
-	spotInterval    = time.Second * 5
-	spotRequestRate = 120
-
-	createOrderRate      = 10
-	createSpotOrderRate  = 20
-	amendOrderRate       = 10
-	cancelOrderRate      = 10
-	cancelSpotRate       = 20
-	calcelAllRate        = 1
-	cancelAllSpotRate    = 20
-	createBatchOrderRate = 10
-	amendBatchOrderRate  = 10
-	cancelBatchOrderRate = 10
-
-	getOrderRate        = 10
-	getOrderHistoryRate = 10
-
-	getPositionListRate      = 10
-	getExecutionListRate     = 10
-	getPositionClosedPNLRate = 10
-
-	postPOsitionSetLeverageRate = 10
-	setPositionTPLSModeRate     = 10
-	setPositionRiskLimitRate    = 10
-	stopTradingPositionRate     = 10
-
-	getAccountWalletBalaceRate = 10
-	getAccountFeeRate          = 10
-
-	getAssetTransferQueryInfoRate             = 60
-	getAssetTransferQueryTransferCoinListRate = 60
-	getAssetTransferCOinListRate              = 60
-	getAssetinterTransferListRate             = 60
-	getSubMemberListRate                      = 60
-	getAssetUniversalTransferListRate         = 2
-	getAssetAccountCoinBalanceRate            = 2
-	getAssetDepositRecordsRate                = 300
-	getAssetDepositSubMemberRecordsRate       = 300
-	getAssetDepositSubMemberAddressRate       = 300
-
-	getWithdrawRecordsRate     = 300
-	getAssetCoinInfoRate       = 300
-	getExchangeOrderRecordRate = 300
-
-	interTransferRate         = 20
-	saveTransferSubMemberRate = 20
-	universalTransferRate     = 5
-	createWithdrawalRate      = 1
-	cancelWithdrawalRate      = 60
-
-	userCreateSubMemberRate = 5
-	userCreateSubAPIKeyRate = 5
-	userFrozenSubMemberRate = 5
-	userUpdateAPIRate       = 5
-	userUpdateSubAPIRate    = 5
-	userDeleteAPIRate       = 5
-	userDeleteSubAPIRate    = 5
-	userQuerySubMembersRate = 10
-	userQueryAPIRate        = 10
-
-	getSpotLeverageTokenOrderRecordsRate = 50
-	spotLeverageTokenPurchaseRate        = 20
-	spotLeverTokenRedeemRate             = 20
-
-	getSpotCrossMarginTradeLoanInfoRate     = 50
-	getSpotCrossMarginTradeAccountRate      = 50
-	getSpotCrossMarginTradeOrdersRate       = 50
-	getSpotCrossMarginTradeRepayHistoryRate = 50
-	spotCrossMarginTradeLoanRate            = 20
-	spotCrossMarginTradeRepayRate           = 20
-	spotCrossMarginTradeSwitchRate          = 20
+	spotInterval = time.Second * 5
 )
 
 const (
@@ -91,7 +21,7 @@ const (
 	amendOrderEPL
 	cancelOrderEPL
 	cancelSpotEPL
-	calcelAllEPL
+	cancelAllEPL
 	cancelAllSpotEPL
 	createBatchOrderEPL
 	amendBatchOrderEPL
@@ -101,7 +31,7 @@ const (
 	getPositionListEPL
 	getExecutionListEPL
 	getPositionClosedPNLEPL
-	postPOsitionSetLeverageEPL
+	postPositionSetLeverageEPL
 	setPositionTPLSModeEPL
 	setPositionRiskLimitEPL
 	stopTradingPositionEPL
@@ -110,6 +40,7 @@ const (
 	getAssetTransferQueryInfoEPL
 	getAssetTransferQueryTransferCoinListEPL
 	getAssetTransferCoinListEPL
+	getAssetInterTransferListEPL
 	getSubMemberListEPL
 	getAssetUniversalTransferListEPL
 	getAssetAccountCoinBalanceEPL
@@ -153,7 +84,7 @@ type RateLimit struct {
 	AmendOrderRate                            *rate.Limiter
 	CancelOrderRate                           *rate.Limiter
 	CancelSpotRate                            *rate.Limiter
-	CalcelAllRate                             *rate.Limiter
+	CancelAllRate                             *rate.Limiter
 	CancelAllSpotRate                         *rate.Limiter
 	CreateBatchOrderRate                      *rate.Limiter
 	AmendBatchOrderRate                       *rate.Limiter
@@ -163,7 +94,7 @@ type RateLimit struct {
 	GetPositionListRate                       *rate.Limiter
 	GetExecutionListRate                      *rate.Limiter
 	GetPositionClosedPNLRate                  *rate.Limiter
-	PostPOsitionSetLeverageRate               *rate.Limiter
+	PostPositionSetLeverageRate               *rate.Limiter
 	SetPositionTPLSModeRate                   *rate.Limiter
 	SetPositionRiskLimitRate                  *rate.Limiter
 	StopTradingPositionRate                   *rate.Limiter
@@ -171,8 +102,8 @@ type RateLimit struct {
 	GetAccountFeeRate                         *rate.Limiter
 	GetAssetTransferQueryInfoRate             *rate.Limiter
 	GetAssetTransferQueryTransferCoinListRate *rate.Limiter
-	GetAssetTransferCOinListRate              *rate.Limiter
-	GetAssetinterTransferListRate             *rate.Limiter
+	GetAssetTransferCoinListRate              *rate.Limiter
+	GetAssetInterTransferListRate             *rate.Limiter
 	GetSubMemberListRate                      *rate.Limiter
 	GetAssetUniversalTransferListRate         *rate.Limiter
 	GetAssetAccountCoinBalanceRate            *rate.Limiter
@@ -225,8 +156,8 @@ func (r *RateLimit) Limit(ctx context.Context, f request.EndpointLimit) error {
 		limiter, tokens = r.CancelOrderRate, 10
 	case cancelSpotEPL:
 		limiter, tokens = r.CancelSpotRate, 20
-	case calcelAllEPL:
-		limiter, tokens = r.CalcelAllRate, 1
+	case cancelAllEPL:
+		limiter, tokens = r.CancelAllRate, 1
 	case cancelAllSpotEPL:
 		limiter, tokens = r.CancelAllSpotRate, 20
 	case createBatchOrderEPL:
@@ -245,8 +176,8 @@ func (r *RateLimit) Limit(ctx context.Context, f request.EndpointLimit) error {
 		limiter, tokens = r.GetExecutionListRate, 10
 	case getPositionClosedPNLEPL:
 		limiter, tokens = r.GetPositionClosedPNLRate, 10
-	case postPOsitionSetLeverageEPL:
-		limiter, tokens = r.PostPOsitionSetLeverageRate, 10
+	case postPositionSetLeverageEPL:
+		limiter, tokens = r.PostPositionSetLeverageRate, 10
 	case setPositionTPLSModeEPL:
 		limiter, tokens = r.SetPositionTPLSModeRate, 10
 	case setPositionRiskLimitEPL:
@@ -262,7 +193,9 @@ func (r *RateLimit) Limit(ctx context.Context, f request.EndpointLimit) error {
 	case getAssetTransferQueryTransferCoinListEPL:
 		limiter, tokens = r.GetAssetTransferQueryTransferCoinListRate, 1
 	case getAssetTransferCoinListEPL:
-		limiter, tokens = r.GetAssetTransferCOinListRate, 1
+		limiter, tokens = r.GetAssetTransferCoinListRate, 1
+	case getAssetInterTransferListEPL:
+		limiter, tokens = r.GetAssetInterTransferListRate, 1
 	case getSubMemberListEPL:
 		limiter, tokens = r.GetSubMemberListRate, 1
 	case getAssetUniversalTransferListEPL:
@@ -360,64 +293,64 @@ func (r *RateLimit) Limit(ctx context.Context, f request.EndpointLimit) error {
 // SetRateLimit returns the rate limit for the exchange
 func SetRateLimit() *RateLimit {
 	return &RateLimit{
-		SpotRate:                                  request.NewRateLimit(spotInterval, spotRequestRate),
-		CreateOrderRate:                           request.NewRateLimit(time.Second, createOrderRate),
-		CreateSpotOrderRate:                       request.NewRateLimit(time.Second, createSpotOrderRate),
-		AmendOrderRate:                            request.NewRateLimit(time.Second, amendOrderRate),
-		CancelOrderRate:                           request.NewRateLimit(time.Second, cancelOrderRate),
-		CancelSpotRate:                            request.NewRateLimit(time.Second, cancelSpotRate),
-		CalcelAllRate:                             request.NewRateLimit(time.Second, calcelAllRate),
-		CancelAllSpotRate:                         request.NewRateLimit(time.Second, cancelAllSpotRate),
-		CreateBatchOrderRate:                      request.NewRateLimit(time.Second, createBatchOrderRate),
-		AmendBatchOrderRate:                       request.NewRateLimit(time.Second, amendBatchOrderRate),
-		CancelBatchOrderRate:                      request.NewRateLimit(time.Second, cancelBatchOrderRate),
-		GetOrderRate:                              request.NewRateLimit(time.Second, getOrderRate),
-		GetOrderHistoryRate:                       request.NewRateLimit(time.Second, getOrderHistoryRate),
-		GetPositionListRate:                       request.NewRateLimit(time.Second, getPositionListRate),
-		GetExecutionListRate:                      request.NewRateLimit(time.Second, getExecutionListRate),
-		GetPositionClosedPNLRate:                  request.NewRateLimit(time.Second, getPositionClosedPNLRate),
-		PostPOsitionSetLeverageRate:               request.NewRateLimit(time.Second, postPOsitionSetLeverageRate),
-		SetPositionTPLSModeRate:                   request.NewRateLimit(time.Second, setPositionTPLSModeRate),
-		SetPositionRiskLimitRate:                  request.NewRateLimit(time.Second, setPositionRiskLimitRate),
-		StopTradingPositionRate:                   request.NewRateLimit(time.Second, stopTradingPositionRate),
-		GetAccountWalletBalaceRate:                request.NewRateLimit(time.Second, getAccountWalletBalaceRate),
-		GetAccountFeeRate:                         request.NewRateLimit(time.Second, getAccountFeeRate),
-		GetAssetTransferQueryInfoRate:             request.NewRateLimit(time.Minute, getAssetTransferQueryInfoRate),
-		GetAssetTransferQueryTransferCoinListRate: request.NewRateLimit(time.Minute, getAssetTransferQueryTransferCoinListRate),
-		GetAssetTransferCOinListRate:              request.NewRateLimit(time.Minute, getAssetTransferCOinListRate),
-		GetAssetinterTransferListRate:             request.NewRateLimit(time.Minute, getAssetinterTransferListRate),
-		GetSubMemberListRate:                      request.NewRateLimit(time.Minute, getSubMemberListRate),
-		GetAssetUniversalTransferListRate:         request.NewRateLimit(time.Second, getAssetUniversalTransferListRate),
-		GetAssetAccountCoinBalanceRate:            request.NewRateLimit(time.Second, getAssetAccountCoinBalanceRate),
-		GetAssetDepositRecordsRate:                request.NewRateLimit(time.Minute, getAssetDepositRecordsRate),
-		GetAssetDepositSubMemberRecordsRate:       request.NewRateLimit(time.Minute, getAssetDepositSubMemberRecordsRate),
-		GetAssetDepositSubMemberAddressRate:       request.NewRateLimit(time.Minute, getAssetDepositSubMemberAddressRate),
-		GetWithdrawRecordsRate:                    request.NewRateLimit(time.Minute, getWithdrawRecordsRate),
-		GetAssetCoinInfoRate:                      request.NewRateLimit(time.Minute, getAssetCoinInfoRate),
-		GetExchangeOrderRecordRate:                request.NewRateLimit(time.Minute, getExchangeOrderRecordRate),
-		InterTransferRate:                         request.NewRateLimit(time.Minute, interTransferRate),
-		SaveTransferSubMemberRate:                 request.NewRateLimit(time.Minute, saveTransferSubMemberRate),
-		UniversalTransferRate:                     request.NewRateLimit(time.Second, universalTransferRate),
-		CreateWithdrawalRate:                      request.NewRateLimit(time.Second, createWithdrawalRate),
-		CancelWithdrawalRate:                      request.NewRateLimit(time.Minute, cancelWithdrawalRate),
-		UserCreateSubMemberRate:                   request.NewRateLimit(time.Second, userCreateSubMemberRate),
-		UserCreateSubAPIKeyRate:                   request.NewRateLimit(time.Second, userCreateSubAPIKeyRate),
-		UserFrozenSubMemberRate:                   request.NewRateLimit(time.Second, userFrozenSubMemberRate),
-		UserUpdateAPIRate:                         request.NewRateLimit(time.Second, userUpdateAPIRate),
-		UserUpdateSubAPIRate:                      request.NewRateLimit(time.Second, userUpdateSubAPIRate),
-		UserDeleteAPIRate:                         request.NewRateLimit(time.Second, userDeleteAPIRate),
-		UserDeleteSubAPIRate:                      request.NewRateLimit(time.Second, userDeleteSubAPIRate),
-		UserQuerySubMembersRate:                   request.NewRateLimit(time.Second, userQuerySubMembersRate),
-		UserQueryAPIRate:                          request.NewRateLimit(time.Second, userQueryAPIRate),
-		GetSpotLeverageTokenOrderRecordsRate:      request.NewRateLimit(time.Second, getSpotLeverageTokenOrderRecordsRate),
-		SpotLeverageTokenPurchaseRate:             request.NewRateLimit(time.Second, spotLeverageTokenPurchaseRate),
-		SpotLeverTokenRedeemRate:                  request.NewRateLimit(time.Second, spotLeverTokenRedeemRate),
-		GetSpotCrossMarginTradeLoanInfoRate:       request.NewRateLimit(time.Second, getSpotCrossMarginTradeLoanInfoRate),
-		GetSpotCrossMarginTradeAccountRate:        request.NewRateLimit(time.Second, getSpotCrossMarginTradeAccountRate),
-		GetSpotCrossMarginTradeOrdersRate:         request.NewRateLimit(time.Second, getSpotCrossMarginTradeOrdersRate),
-		GetSpotCrossMarginTradeRepayHistoryRate:   request.NewRateLimit(time.Second, getSpotCrossMarginTradeRepayHistoryRate),
-		SpotCrossMarginTradeLoanRate:              request.NewRateLimit(time.Second, spotCrossMarginTradeLoanRate),
-		SpotCrossMarginTradeRepayRate:             request.NewRateLimit(time.Second, spotCrossMarginTradeRepayRate),
-		SpotCrossMarginTradeSwitchRate:            request.NewRateLimit(time.Second, spotCrossMarginTradeSwitchRate),
+		SpotRate:                                  request.NewRateLimit(spotInterval, 120),
+		CreateOrderRate:                           request.NewRateLimit(time.Second, 10),
+		CreateSpotOrderRate:                       request.NewRateLimit(time.Second, 20),
+		AmendOrderRate:                            request.NewRateLimit(time.Second, 10),
+		CancelOrderRate:                           request.NewRateLimit(time.Second, 10),
+		CancelSpotRate:                            request.NewRateLimit(time.Second, 20),
+		CancelAllRate:                             request.NewRateLimit(time.Second, 1),
+		CancelAllSpotRate:                         request.NewRateLimit(time.Second, 20),
+		CreateBatchOrderRate:                      request.NewRateLimit(time.Second, 10),
+		AmendBatchOrderRate:                       request.NewRateLimit(time.Second, 10),
+		CancelBatchOrderRate:                      request.NewRateLimit(time.Second, 10),
+		GetOrderRate:                              request.NewRateLimit(time.Second, 10),
+		GetOrderHistoryRate:                       request.NewRateLimit(time.Second, 10),
+		GetPositionListRate:                       request.NewRateLimit(time.Second, 10),
+		GetExecutionListRate:                      request.NewRateLimit(time.Second, 10),
+		GetPositionClosedPNLRate:                  request.NewRateLimit(time.Second, 10),
+		PostPositionSetLeverageRate:               request.NewRateLimit(time.Second, 10),
+		SetPositionTPLSModeRate:                   request.NewRateLimit(time.Second, 10),
+		SetPositionRiskLimitRate:                  request.NewRateLimit(time.Second, 10),
+		StopTradingPositionRate:                   request.NewRateLimit(time.Second, 10),
+		GetAccountWalletBalaceRate:                request.NewRateLimit(time.Second, 10),
+		GetAccountFeeRate:                         request.NewRateLimit(time.Second, 10),
+		GetAssetTransferQueryInfoRate:             request.NewRateLimit(time.Minute, 60),
+		GetAssetTransferQueryTransferCoinListRate: request.NewRateLimit(time.Minute, 60),
+		GetAssetTransferCoinListRate:              request.NewRateLimit(time.Minute, 60),
+		GetAssetInterTransferListRate:             request.NewRateLimit(time.Minute, 60),
+		GetSubMemberListRate:                      request.NewRateLimit(time.Minute, 60),
+		GetAssetUniversalTransferListRate:         request.NewRateLimit(time.Second, 2),
+		GetAssetAccountCoinBalanceRate:            request.NewRateLimit(time.Second, 2),
+		GetAssetDepositRecordsRate:                request.NewRateLimit(time.Minute, 300),
+		GetAssetDepositSubMemberRecordsRate:       request.NewRateLimit(time.Minute, 300),
+		GetAssetDepositSubMemberAddressRate:       request.NewRateLimit(time.Minute, 300),
+		GetWithdrawRecordsRate:                    request.NewRateLimit(time.Minute, 300),
+		GetAssetCoinInfoRate:                      request.NewRateLimit(time.Minute, 300),
+		GetExchangeOrderRecordRate:                request.NewRateLimit(time.Minute, 300),
+		InterTransferRate:                         request.NewRateLimit(time.Minute, 20),
+		SaveTransferSubMemberRate:                 request.NewRateLimit(time.Minute, 20),
+		UniversalTransferRate:                     request.NewRateLimit(time.Second, 5),
+		CreateWithdrawalRate:                      request.NewRateLimit(time.Second, 1),
+		CancelWithdrawalRate:                      request.NewRateLimit(time.Minute, 60),
+		UserCreateSubMemberRate:                   request.NewRateLimit(time.Second, 5),
+		UserCreateSubAPIKeyRate:                   request.NewRateLimit(time.Second, 5),
+		UserFrozenSubMemberRate:                   request.NewRateLimit(time.Second, 5),
+		UserUpdateAPIRate:                         request.NewRateLimit(time.Second, 5),
+		UserUpdateSubAPIRate:                      request.NewRateLimit(time.Second, 5),
+		UserDeleteAPIRate:                         request.NewRateLimit(time.Second, 5),
+		UserDeleteSubAPIRate:                      request.NewRateLimit(time.Second, 5),
+		UserQuerySubMembersRate:                   request.NewRateLimit(time.Second, 10),
+		UserQueryAPIRate:                          request.NewRateLimit(time.Second, 10),
+		GetSpotLeverageTokenOrderRecordsRate:      request.NewRateLimit(time.Second, 50),
+		SpotLeverageTokenPurchaseRate:             request.NewRateLimit(time.Second, 20),
+		SpotLeverTokenRedeemRate:                  request.NewRateLimit(time.Second, 20),
+		GetSpotCrossMarginTradeLoanInfoRate:       request.NewRateLimit(time.Second, 50),
+		GetSpotCrossMarginTradeAccountRate:        request.NewRateLimit(time.Second, 50),
+		GetSpotCrossMarginTradeOrdersRate:         request.NewRateLimit(time.Second, 50),
+		GetSpotCrossMarginTradeRepayHistoryRate:   request.NewRateLimit(time.Second, 50),
+		SpotCrossMarginTradeLoanRate:              request.NewRateLimit(time.Second, 20),
+		SpotCrossMarginTradeRepayRate:             request.NewRateLimit(time.Second, 20),
+		SpotCrossMarginTradeSwitchRate:            request.NewRateLimit(time.Second, 20),
 	}
 }
