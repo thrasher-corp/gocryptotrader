@@ -411,26 +411,29 @@ func (c *CoinbasePro) Subscribe(channelsToSubscribe []stream.ChannelSubscription
 	subscribe := WebsocketSubscribe{
 		Type: "subscribe",
 	}
-
-subscriptions:
+	productIDs := make([]string, 0, len(channelsToSubscribe))
 	for i := range channelsToSubscribe {
 		p := channelsToSubscribe[i].Currency.String()
-		if !common.StringDataCompare(subscribe.ProductIDs, p) && p != "" {
-			subscribe.ProductIDs = append(subscribe.ProductIDs, p)
+		if p != "" && !common.StringDataCompare(subscribe.ProductIDs, p) {
+			// get all unique productIDs in advance as we generate by channels
+			productIDs = append(productIDs, p)
 		}
-
+	}
+subscriptions:
+	for i := range channelsToSubscribe {
 		for j := range subscribe.Channels {
 			if subscribe.Channels[j].Name == channelsToSubscribe[i].Channel {
 				continue subscriptions
 			}
 		}
 
-		subscribe.Channels = append(subscribe.Channels, WsChannels{
-			Name: channelsToSubscribe[i].Channel,
-		})
-
-		if (channelsToSubscribe[i].Channel == "user" ||
-			channelsToSubscribe[i].Channel == "full") && creds != nil {
+		subChan := WsChannels{
+			Name:       channelsToSubscribe[i].Channel,
+			ProductIDs: productIDs,
+		}
+		if (channelsToSubscribe[i].Channel == "user" || channelsToSubscribe[i].Channel == "full") &&
+			creds != nil &&
+			subscribe.Signature == "" {
 			n := strconv.FormatInt(time.Now().Unix(), 10)
 			message := n + http.MethodGet + "/users/self/verify"
 			var hmac []byte
@@ -445,6 +448,7 @@ subscriptions:
 			subscribe.Passphrase = creds.ClientID
 			subscribe.Timestamp = n
 		}
+		subscribe.Channels = append(subscribe.Channels, subChan)
 	}
 	err = c.Websocket.Conn.SendJSONMessage(subscribe)
 	if err != nil {
