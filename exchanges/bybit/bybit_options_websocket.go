@@ -2,7 +2,6 @@ package bybit
 
 import (
 	"encoding/json"
-	"errors"
 	"net/http"
 	"strconv"
 
@@ -14,7 +13,7 @@ import (
 // WsOptionsConnect connects to options a websocket feed
 func (by *Bybit) WsOptionsConnect() error {
 	if !by.Websocket.IsEnabled() || !by.IsEnabled() || !by.IsAssetWebsocketSupported(asset.Options) {
-		return errors.New(stream.WebsocketNotEnabled)
+		return errWebsocketNotEnabled
 	}
 	by.Websocket.Conn.SetURL(optionPublic)
 	var dialer websocket.Dialer

@@ -2,7 +2,6 @@ package bybit
 
 import (
 	"context"
-	"errors"
 	"net/http"
 
 	"github.com/gorilla/websocket"
@@ -14,7 +13,7 @@ import (
 // WsLinearConnect connects to linear a websocket feed
 func (by *Bybit) WsLinearConnect() error {
 	if !by.Websocket.IsEnabled() || !by.IsEnabled() || !by.IsAssetWebsocketSupported(asset.LinearContract) {
-		return errors.New(stream.WebsocketNotEnabled)
+		return errWebsocketNotEnabled
 	}
 	by.Websocket.Conn.SetURL(linearPublic)
 	var dialer websocket.Dialer
