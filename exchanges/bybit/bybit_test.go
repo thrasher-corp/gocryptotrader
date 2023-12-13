@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -20,7 +19,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
@@ -3134,7 +3132,7 @@ func TestWsLinearConnect(t *testing.T) {
 		t.Skip(skippingWebsocketFunctionsForMockTesting)
 	}
 	err := b.WsLinearConnect()
-	if err != nil && !strings.Contains(err.Error(), stream.WebsocketNotEnabled) {
+	if err != nil && !errors.Is(err, errWebsocketNotEnabled) {
 		t.Error(err)
 	}
 }
@@ -3144,7 +3142,7 @@ func TestWsInverseConnect(t *testing.T) {
 		t.Skip(skippingWebsocketFunctionsForMockTesting)
 	}
 	err := b.WsInverseConnect()
-	if err != nil && !strings.Contains(err.Error(), stream.WebsocketNotEnabled) {
+	if err != nil && !errors.Is(err, errWebsocketNotEnabled) {
 		t.Error(err)
 	}
 }
@@ -3154,7 +3152,7 @@ func TestWsOptionsConnect(t *testing.T) {
 		t.Skip(skippingWebsocketFunctionsForMockTesting)
 	}
 	err := b.WsOptionsConnect()
-	if err != nil && !strings.Contains(err.Error(), stream.WebsocketNotEnabled) {
+	if err != nil && !errors.Is(err, errWebsocketNotEnabled) {
 		t.Error(err)
 	}
 }

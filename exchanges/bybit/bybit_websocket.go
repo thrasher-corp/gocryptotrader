@@ -3,7 +3,6 @@ package bybit
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -57,7 +56,7 @@ const (
 // WsConnect connects to a websocket feed
 func (by *Bybit) WsConnect() error {
 	if !by.Websocket.IsEnabled() || !by.IsEnabled() || !by.IsAssetWebsocketSupported(asset.Spot) {
-		return errors.New(stream.WebsocketNotEnabled)
+		return errWebsocketNotEnabled
 	}
 	var dialer websocket.Dialer
 	err := by.Websocket.Conn.Dial(&dialer, http.Header{})
