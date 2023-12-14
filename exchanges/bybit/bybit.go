@@ -1269,7 +1269,7 @@ func (by *Bybit) GetWalletBalance(ctx context.Context, accountType, coin string)
 		params.Set("coin", coin)
 	}
 	var resp *WalletBalance
-	return resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/account/wallet-balance", params, nil, &resp, getAccountWalletBalaceEPL)
+	return resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/account/wallet-balance", params, nil, &resp, getAccountWalletBalanceEPL)
 }
 
 // UpgradeToUnifiedAccount upgrades the account to unified account.

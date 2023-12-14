@@ -35,7 +35,7 @@ const (
 	setPositionTPLSModeEPL
 	setPositionRiskLimitEPL
 	stopTradingPositionEPL
-	getAccountWalletBalaceEPL
+	getAccountWalletBalanceEPL
 	getAccountFeeEPL
 	getAssetTransferQueryInfoEPL
 	getAssetTransferQueryTransferCoinListEPL
@@ -98,7 +98,7 @@ type RateLimit struct {
 	SetPositionTPLSModeRate                   *rate.Limiter
 	SetPositionRiskLimitRate                  *rate.Limiter
 	StopTradingPositionRate                   *rate.Limiter
-	GetAccountWalletBalaceRate                *rate.Limiter
+	GetAccountWalletBalanceRate               *rate.Limiter
 	GetAccountFeeRate                         *rate.Limiter
 	GetAssetTransferQueryInfoRate             *rate.Limiter
 	GetAssetTransferQueryTransferCoinListRate *rate.Limiter
@@ -184,8 +184,8 @@ func (r *RateLimit) Limit(ctx context.Context, f request.EndpointLimit) error {
 		limiter, tokens = r.SetPositionRiskLimitRate, 10
 	case stopTradingPositionEPL:
 		limiter, tokens = r.StopTradingPositionRate, 10
-	case getAccountWalletBalaceEPL:
-		limiter, tokens = r.GetAccountWalletBalaceRate, 10
+	case getAccountWalletBalanceEPL:
+		limiter, tokens = r.GetAccountWalletBalanceRate, 10
 	case getAccountFeeEPL:
 		limiter, tokens = r.GetAccountFeeRate, 10
 	case getAssetTransferQueryInfoEPL:
@@ -313,7 +313,7 @@ func SetRateLimit() *RateLimit {
 		SetPositionTPLSModeRate:                   request.NewRateLimit(time.Second, 10),
 		SetPositionRiskLimitRate:                  request.NewRateLimit(time.Second, 10),
 		StopTradingPositionRate:                   request.NewRateLimit(time.Second, 10),
-		GetAccountWalletBalaceRate:                request.NewRateLimit(time.Second, 10),
+		GetAccountWalletBalanceRate:               request.NewRateLimit(time.Second, 10),
 		GetAccountFeeRate:                         request.NewRateLimit(time.Second, 10),
 		GetAssetTransferQueryInfoRate:             request.NewRateLimit(time.Minute, 60),
 		GetAssetTransferQueryTransferCoinListRate: request.NewRateLimit(time.Minute, 60),
