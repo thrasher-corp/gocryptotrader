@@ -24,7 +24,9 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/buffer"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
@@ -71,6 +73,7 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		log.Fatal(err)
 	}
+
 	request.MaxRequestJobs = 100
 	ku.Websocket.DataHandler = sharedtestvalues.GetWebsocketInterfaceChannelOverride()
 	ku.Websocket.TrafficAlert = sharedtestvalues.GetWebsocketStructChannelOverride()
@@ -1094,11 +1097,45 @@ func TestGetBasicFee(t *testing.T) {
 
 func TestGetTradingFee(t *testing.T) {
 	t.Parallel()
+
+	_, err := ku.GetTradingFee(context.Background(), nil)
+	if !errors.Is(err, currency.ErrCurrencyPairsEmpty) {
+		t.Fatalf("received %v, expected %v", err, currency.ErrCurrencyPairsEmpty)
+	}
+
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ku)
 
-	_, err := ku.GetTradingFee(context.Background(), "BTC-USDT")
+	avail, err := ku.GetAvailablePairs(asset.Spot)
 	if err != nil {
-		t.Error("GetTradingFee() error", err)
+		t.Fatal(err)
+	}
+
+	pairs := currency.Pairs{avail[0]}
+	btcusdTradingFee, err := ku.GetTradingFee(context.Background(), pairs)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received %v, expected %v", err, nil)
+	}
+
+	if len(btcusdTradingFee) != 1 {
+		t.Error("GetTradingFee() error, expected 1 pair")
+	}
+
+	// NOTE: Test below will error out from an external call as this will exceed
+	// the allowed pairs. If this does not error then this endpoint will allow
+	// more items to be requested.
+	pairs = append(pairs, avail[1:11]...)
+	_, err = ku.GetTradingFee(context.Background(), pairs)
+	if errors.Is(err, nil) {
+		t.Fatalf("received %v, expected %v", err, "code: 200000 message: symbols size invalid.")
+	}
+
+	got, err := ku.GetTradingFee(context.Background(), pairs[:10])
+	if !errors.Is(err, nil) {
+		t.Fatalf("received %v, expected %v", err, nil)
+	}
+
+	if len(got) != 10 {
+		t.Error("GetTradingFee() error, expected 10 pairs")
 	}
 }
 
@@ -1119,11 +1156,21 @@ func TestGetFuturesContract(t *testing.T) {
 	}
 }
 
-func TestGetFuturesRealTimeTicker(t *testing.T) {
+func TestGetFuturesTicker(t *testing.T) {
 	t.Parallel()
-	_, err := ku.GetFuturesRealTimeTicker(context.Background(), "XBTUSDTM")
-	if err != nil {
-		t.Error("GetFuturesRealTimeTicker() error", err)
+	tick, err := ku.GetFuturesTicker(context.Background(), "XBTUSDTM")
+	if assert.NoError(t, err, "GetFuturesTicker should not error") {
+		assert.Positive(t, tick.Sequence, "Sequence should be positive")
+		assert.Equal(t, "XBTUSDTM", tick.Symbol, "Symbol should be correct")
+		assert.Contains(t, []order.Side{order.Buy, order.Sell}, tick.Side, "Side should be a side")
+		assert.Positive(t, tick.Size, "Size should be positive")
+		assert.Positive(t, tick.Price.Float64(), "Price should be positive")
+		assert.Positive(t, tick.BestBidPrice.Float64(), "BestBidPrice should be positive")
+		assert.Positive(t, tick.BestBidSize, "BestBidSize should be positive")
+		assert.Positive(t, tick.BestAskPrice.Float64(), "BestAskPrice should be positive")
+		assert.Positive(t, tick.BestAskSize, "BestAskSize should be positive")
+		assert.NotEmpty(t, tick.TradeID, "TradeID should not be empty")
+		assert.WithinRange(t, tick.FilledTime.Time(), time.Now().Add(time.Hour*-24), time.Now(), "FilledTime should be within last 24 hours")
 	}
 }
 
@@ -1924,57 +1971,9 @@ func TestGetAuthenticatedServersInstances(t *testing.T) {
 	}
 }
 
-var websocketPushDatas = map[string]string{
-	"SymbolTickerPushDataJSON":                                   `{"type": "message","topic": "/market/ticker:FET-BTC","subject": "trade.ticker","data": {"bestAsk": "0.000018679","bestAskSize": "258.4609","bestBid": "0.000018622","bestBidSize": "68.5961","price": "0.000018628","sequence": "38509148","size": "8.943","time": 1677321643926}}`,
-	"AllSymbolsTickerPushDataJSON":                               `{"type": "message","topic": "/market/ticker:all","subject": "FTM-ETH","data": {"bestAsk": "0.0002901","bestAskSize": "3514.4978","bestBid": "0.0002894","bestBidSize": "65.536","price": "0.0002894","sequence": "186911324","size": "150","time": 1677320967673}}`,
-	"MarketTradeSnapshotPushDataJSON":                            `{"type": "message","topic": "/market/snapshot:BTC","subject": "trade.snapshot","data": {"sequence": "5701753771","data": {"averagePrice": 21736.73225440,"baseCurrency": "BTC","board": 1,"buy": 21423,"changePrice": -556.80000000000000000000,"changeRate": -0.0253,"close": 21423.1,"datetime": 1676310802092,"high": 22030.70000000000000000000,"lastTradedPrice": 21423.1,"low": 21407.00000000000000000000,"makerCoefficient": 1.000000,"makerFeeRate": 0.001,"marginTrade": true,"mark": 0,"market": "USDS","markets": ["USDS"],"open": 21979.90000000000000000000,"quoteCurrency": "USDT","sell": 21423.1,"sort": 100,"symbol": "BTC-USDT","symbolCode": "BTC-USDT","takerCoefficient": 1.000000,"takerFeeRate": 0.001,"trading": true,"vol": 6179.80570155000000000000,"volValue": 133988049.45570351500000000000}}}`,
-	"Orderbook Level 2 PushDataJSON":                             `{"type": "message","topic": "/spotMarket/level2Depth5:ETH-USDT","subject": "level2","data": {"asks": [[	"21612.7",	"0.32307467"],[	"21613.1",	"0.1581911"],[	"21613.2",	"1.37156153"],[	"21613.3",	"2.58327302"],[	"21613.4",	"0.00302088"]],"bids": [[	"21612.6",	"2.34316818"],[	"21612.3",	"0.5771615"],[	"21612.2",	"0.21605964"],[	"21612.1",	"0.22894841"],[	"21611.6",	"0.29251003"]],"timestamp": 1676319909635}}`,
-	"TradeCandlesUpdatePushDataJSON":                             `{"type":"message","topic":"/market/candles:BTC-USDT_1hour","subject":"trade.candles.update","data":{"symbol":"BTC-USDT","candles":["1589968800","9786.9","9740.8","9806.1","9732","27.45649579","268280.09830877"],"time":1589970010253893337}}`,
-	"SymbolSnapshotPushDataJSON":                                 `{"type": "message","topic": "/market/snapshot:KCS-BTC","subject": "trade.snapshot","data": {"sequence": "1545896669291","data": {"trading": true,"symbol": "KCS-BTC","buy": 0.00011,"sell": 0.00012,            "sort": 100,            "volValue": 3.13851792584,            "baseCurrency": "KCS",            "market": "BTC",            "quoteCurrency": "BTC",            "symbolCode": "KCS-BTC",            "datetime": 1548388122031,            "high": 0.00013,            "vol": 27514.34842,            "low": 0.0001,            "changePrice": -1.0e-5,            "changeRate": -0.0769,            "lastTradedPrice": 0.00012,            "board": 0,            "mark": 0        }    }}`,
-	"MatchExecutionPushDataJSON":                                 `{"type":"message","topic":"/market/match:BTC-USDT","subject":"trade.l3match","data":{"sequence":"1545896669145","type":"match","symbol":"BTC-USDT","side":"buy","price":"0.08200000000000000000","size":"0.01022222000000000000","tradeId":"5c24c5da03aa673885cd67aa","takerOrderId":"5c24c5d903aa6772d55b371e","makerOrderId":"5c2187d003aa677bd09d5c93","time":"1545913818099033203"}}`,
-	"IndexPricePushDataJSON":                                     `{"id":"","type":"message","topic":"/indicator/index:USDT-BTC","subject":"tick","data":{"symbol": "USDT-BTC","granularity": 5000,"timestamp": 1551770400000,"value": 0.0001092}}`,
-	"MarkPricePushDataJSON":                                      `{"type":"message","topic":"/indicator/markPrice:USDT-BTC","subject":"tick","data":{"symbol": "USDT-BTC","granularity": 5000,"timestamp": 1551770400000,"value": 0.0001093}}`,
-	"Orderbook ChangePushDataJSON":                               `{"type":"message","topic":"/margin/fundingBook:USDT","subject":"funding.update","data":{"annualIntRate":0.0547,"currency":"USDT","dailyIntRate":0.00015,"sequence":87611418,"side":"lend","size":25040,"term":7,"ts":1671005721087508735}}`,
-	"Order ChangeStateOpenPushDataJSON":                          `{"type":"message","topic":"/spotMarket/tradeOrders","subject":"orderChange","channelType":"private","data":{"symbol":"KCS-USDT","orderType":"limit","side":"buy","orderId":"5efab07953bdea00089965d2","type":"open","orderTime":1593487481683297666,"size":"0.1","filledSize":"0","price":"0.937","clientOid":"1593487481000906","remainSize":"0.1","status":"open","ts":1593487481683297666}}`,
-	"Order ChangeStateMatchPushDataJSON":                         `{"type":"message","topic":"/spotMarket/tradeOrders","subject":"orderChange","channelType":"private","data":{"symbol":"KCS-USDT","orderType":"limit","side":"sell","orderId":"5efab07953bdea00089965fa","liquidity":"taker","type":"match","orderTime":1593487482038606180,"size":"0.1","filledSize":"0.1","price":"0.938","matchPrice":"0.96738","matchSize":"0.1","tradeId":"5efab07a4ee4c7000a82d6d9","clientOid":"1593487481000313","remainSize":"0","status":"match","ts":1593487482038606180}}`,
-	"Order ChangeStateFilledPushDataJSON":                        `{"type":"message","topic":"/spotMarket/tradeOrders","subject":"orderChange","channelType":"private","data":{"symbol":"KCS-USDT","orderType":"limit","side":"sell","orderId":"5efab07953bdea00089965fa","type":"filled","orderTime":1593487482038606180,"size":"0.1","filledSize":"0.1","price":"0.938","clientOid":"1593487481000313","remainSize":"0","status":"done","ts":1593487482038606180}}`,
-	"Order ChangeStateCancelledPushDataJSON":                     `{"type":"message","topic":"/spotMarket/tradeOrders","subject":"orderChange","channelType":"private","data":{"symbol":"KCS-USDT","orderType":"limit","side":"buy","orderId":"5efab07953bdea00089965d2","type":"canceled","orderTime":1593487481683297666,"size":"0.1","filledSize":"0","price":"0.937","clientOid":"1593487481000906","remainSize":"0","status":"done","ts":1593487481893140844}}`,
-	"Order ChangeStateUpdatePushDataJSON":                        `{"type":"message","topic":"/spotMarket/tradeOrders","subject":"orderChange","channelType":"private","data":{"symbol":"KCS-USDT","orderType":"limit","side":"buy","orderId":"5efab13f53bdea00089971df","type":"update","oldSize":"0.1","orderTime":1593487679693183319,"size":"0.06","filledSize":"0","price":"0.937","clientOid":"1593487679000249","remainSize":"0.06","status":"open","ts":1593487682916117521}}`,
-	"AccountBalanceNoticePushDataJSON":                           `{"type": "message","topic": "/account/balance","subject": "account.balance","channelType":"private","data": {"total": "88","available": "88","availableChange": "88","currency": "KCS","hold": "0","holdChange": "0","relationEvent": "trade.hold","relationEventId": "5c21e80303aa677bd09d7dff","relationContext": {"symbol":"BTC-USDT","tradeId":"5e6a5dca9e16882a7d83b7a4","orderId":"5ea10479415e2f0009949d54"},"time": "1545743136994"}}`,
-	"DebtRatioChangePushDataJSON":                                `{"type":"message","topic":"/margin/position","subject":"debt.ratio","channelType":"private","data": {"debtRatio": 0.7505,"totalDebt": "21.7505","debtList": {"BTC": "1.21","USDT": "2121.2121","EOS": "0"},"timestamp": 1553846081210}}`,
-	"PositionStatusChangeEventPushDataJSON":                      `{"type":"message","topic":"/margin/position","subject":"position.status","channelType":"private","data": {"type": "FROZEN_FL","timestamp": 1553846081210}}`,
-	"MarginTradeOrderEntersEventPushDataJSON":                    `{"type": "message","topic": "/margin/loan:BTC","subject": "order.open","channelType":"private","data": {    "currency": "BTC",    "orderId": "ac928c66ca53498f9c13a127a60e8",    "dailyIntRate": 0.0001,    "term": 7,    "size": 1,        "side": "lend",    "ts": 1553846081210004941}}`,
-	"MarginTradeOrderUpdateEventPushDataJSON":                    `{"type": "message","topic": "/margin/loan:BTC","subject": "order.update","channelType":"private","data": {    "currency": "BTC",    "orderId": "ac928c66ca53498f9c13a127a60e8",    "dailyIntRate": 0.0001,    "term": 7,    "size": 1,    "lentSize": 0.5,    "side": "lend",    "ts": 1553846081210004941}}`,
-	"MarginTradeOrderDoneEventPushDataJSON":                      `{"type": "message","topic": "/margin/loan:BTC","subject": "order.done","channelType":"private","data": {    "currency": "BTC",    "orderId": "ac928c66ca53498f9c13a127a60e8",    "reason": "filled",    "side": "lend",    "ts": 1553846081210004941  }}`,
-	"StopOrderEventPushDataJSON":                                 `{"type":"message","topic":"/spotMarket/advancedOrders","subject":"stopOrder","channelType":"private","data":{"createdAt":1589789942337,"orderId":"5ec244f6a8a75e0009958237","orderPrice":"0.00062","orderType":"stop","side":"sell","size":"1","stop":"entry","stopPrice":"0.00062","symbol":"KCS-BTC","tradeType":"TRADE","triggerSuccess":true,"ts":1589790121382281286,"type":"triggered"}}`,
-	"Public Futures TickerPushDataJSON":                          `{"subject": "tickerV2","topic": "/contractMarket/tickerV2:ETHUSDCM","data": {"symbol": "ETHUSDCM","bestBidSize": 795,"bestBidPrice": 3200.00,"bestAskPrice": 3600.00,"bestAskSize": 284,"ts": 1553846081210004941}}`,
-	"Public Futures TickerV1PushDataJSON":                        `{"subject": "ticker","topic": "/contractMarket/ticker:ETHUSDCM","data": {"symbol": "ETHUSDCM","sequence": 45,"side": "sell","price": 3600.00,"size": 16,"tradeId": "5c9dcf4170744d6f5a3d32fb","bestBidSize": 795,"bestBidPrice": 3200.00,"bestAskPrice": 3600.00,"bestAskSize": 284,"ts": 1553846081210004941}}`,
-	"Public Futures Level2OrderbookPushDataJSON":                 `{"subject": "level2",  "topic": "/contractMarket/level2:ETHUSDCM",  "type": "message",  "data": {    "sequence": 18,    "change": "5000.0,sell,83","timestamp": 1551770400000}}`,
-	"Public Futures ExecutionDataJSON":                           `{"type": "message","topic": "/contractMarket/execution:ETHUSDCM","subject": "match","data": {"makerUserId": "6287c3015c27f000017d0c2f","symbol": "ETHUSDCM","sequence": 31443494,"side": "buy","size": 35,"price": 23083.00000000,"takerOrderId": "63f94040839d00000193264b","makerOrderId": "63f94036839d0000019310c3","takerUserId": "6133f817230d8d000607b941","tradeId": "63f940400000650065f4996f","ts": 1677279296134648869}}`,
-	"PublicFuturesOrderbookWithDepth5PushDataJSON":               `{ "type": "message", "topic": "/contractMarket/level2Depth5:ETHUSDCM", "subject": "level2", "data": { "sequence": 1672332328701, "asks": [[	23149,	13703],[	23150,	1460],[	23151.00000000,	941],[	23152,	4591],[	23153,	4107] ], "bids": [[	23148.00000000,	22801],[23147.0,4766],[	23146,	1388],[	23145.00000000,	2593],[	23144.00000000,	6286] ], "ts": 1677280435684, "timestamp": 1677280435684 }}`,
-	"Private PositionSettlementPushDataJSON":                     `{"userId": "xbc453tg732eba53a88ggyt8c","topic": "/contract/position:ETHUSDCM","subject": "position.settlement","data": {"fundingTime": 1551770400000,"qty": 100,"markPrice": 3610.85,"fundingRate": -0.002966,"fundingFee": -296,"ts": 1547697294838004923,"settleCurrency": "XBT"}}`,
-	"Futures PositionChangePushDataJSON":                         `{ "userId": "5cd3f1a7b7ebc19ae9558591","topic": "/contract/position:ETHUSDCM",  "subject": "position.change", "data": {"markPrice": 7947.83,"markValue": 0.00251640,"maintMargin": 0.00252044,"realLeverage": 10.06,"unrealisedPnl": -0.00014735,"unrealisedRoePcnt": -0.0553,"unrealisedPnlPcnt": -0.0553,"delevPercentage": 0.52,"currentTimestamp": 1558087175068,"settleCurrency": "XBT"}}`,
-	"Futures PositionChangeWithChangeReasonPushDataJSON":         `{ "type": "message","userId": "5c32d69203aa676ce4b543c7","channelType": "private","topic": "/contract/position:ETHUSDCM",  "subject": "position.change", "data": {"realisedGrossPnl": 0E-8,"symbol":"ETHUSDCM","crossMode": false,"liquidationPrice": 1000000.0,"posLoss": 0E-8,"avgEntryPrice": 7508.22,"unrealisedPnl": -0.00014735,"markPrice": 7947.83,"posMargin": 0.00266779,"autoDeposit": false,"riskLimit": 100000,"unrealisedCost": 0.00266375,"posComm": 0.00000392,"posMaint": 0.00001724,"posCost": 0.00266375,"maintMarginReq": 0.005,"bankruptPrice": 1000000.0,"realisedCost": 0.00000271,"markValue": 0.00251640,"posInit": 0.00266375,"realisedPnl": -0.00000253,"maintMargin": 0.00252044,"realLeverage": 1.06,"changeReason": "positionChange","currentCost": 0.00266375,"openingTimestamp": 1558433191000,"currentQty": -20,"delevPercentage": 0.52,"currentComm": 0.00000271,"realisedGrossCost": 0E-8,"isOpen": true,"posCross": 1.2E-7,"currentTimestamp": 1558506060394,"unrealisedRoePcnt": -0.0553,"unrealisedPnlPcnt": -0.0553,"settleCurrency": "XBT"}}`,
-	"Futures WithdrawalAmountTransferOutAmountEventPushDataJSON": `{ "userId": "xbc453tg732eba53a88ggyt8c","topic": "/contractAccount/wallet","subject": "withdrawHold.change","data": {"withdrawHold": 5923,"currency":"USDT","timestamp": 1553842862614}}`,
-	"Futures AvailableBalanceChangePushData":                     `{ "userId": "xbc453tg732eba53a88ggyt8c","topic": "/contractAccount/wallet","subject": "availableBalance.change","data": {"availableBalance": 5923,"holdBalance": 2312,"currency":"USDT","timestamp": 1553842862614}}`,
-	"Futures OrderMarginChangePushDataJSON":                      `{ "userId": "xbc453tg732eba53a88ggyt8c","topic": "/contractAccount/wallet","subject": "orderMargin.change","data": {"orderMargin": 5923,"currency":"USDT","timestamp": 1553842862614}}`,
-	"Futures StopOrderPushDataJSON":                              `{"userId": "5cd3f1a7b7ebc19ae9558591","topic": "/contractMarket/advancedOrders", "subject": "stopOrder","data": {"orderId": "5cdfc138b21023a909e5ad55","symbol": "ETHUSDCM","type": "open","orderType":"stop","side":"buy","size":"1000","orderPrice":"9000","stop":"up","stopPrice":"9100","stopPriceType":"TP","triggerSuccess": true,"error": "error.createOrder.accountBalanceInsufficient","createdAt": 1558074652423,"ts":1558074652423004000}}`,
-	"Futures TradeOrdersPushDataJSON":                            `{"type": "message","topic": "/contractMarket/tradeOrders","subject": "orderChange","channelType": "private","data": {"orderId": "5cdfc138b21023a909e5ad55","symbol": "ETHUSDCM","type": "match","status": "open","matchSize": "","matchPrice": "","orderType": "limit","side": "buy","price": "3600","size": "20000","remainSize": "20001","filledSize":"20000","canceledSize": "0","tradeId": "5ce24c16b210233c36eexxxx","clientOid": "5ce24c16b210233c36ee321d","orderTime": 1545914149935808589,"oldSize ": "15000","liquidity": "maker","ts": 1545914149935808589}}`,
-	"TransactionStaticsPushDataJSON":                             `{ "topic": "/contractMarket/snapshot:ETHUSDCM","subject": "snapshot.24h","data": {"volume": 30449670,      "turnover": 845169919063,"lastPrice": 3551,       "priceChgPct": 0.0043,   "ts": 1547697294838004923}  }`,
-	"Futures EndFundingFeeSettlementPushDataJSON":                `{ "type":"message","topic": "/contract/announcement","subject": "funding.end","data": {"symbol": "ETHUSDCM",         "fundingTime": 1551770400000,"fundingRate": -0.002966,    "timestamp": 1551770410000          }}`,
-	"Futures StartFundingFeeSettlementPushDataJSON":              `{ "topic": "/contract/announcement","subject": "funding.begin","data": {"symbol": "ETHUSDCM","fundingTime": 1551770400000,"fundingRate": -0.002966,"timestamp": 1551770400000}}`,
-	"Futures FundingRatePushDataJSON":                            `{ "topic": "/contract/instrument:ETHUSDCM","subject": "funding.rate","data": {"granularity": 60000,"fundingRate": -0.002966,"timestamp": 1551770400000}}`,
-	"Futures MarkIndexPricePushDataJSON":                         `{ "topic": "/contract/instrument:ETHUSDCM","subject": "mark.index.price","data": {"granularity": 1000,"indexPrice": 4000.23,"markPrice": 4010.52,"timestamp": 1551770400000}}`,
-	"Orderbook Market Level2":                                    `{ "type": "message", "topic": "/market/level2:BTC-USDT", "subject": "trade.l2update", "data": { "changes": { "asks": [ [ "18906", "0.00331", "14103845" ], [ "18907.3", "0.58751503", "14103844" ] ], "bids": [ [ "18891.9", "0.15688", "14103847" ] ] }, "sequenceEnd": 14103847, "sequenceStart": 14103844, "symbol": "BTC-USDT", "time": 1663747970273 } }`,
-}
-
 func TestPushData(t *testing.T) {
-	for key, val := range websocketPushDatas {
-		err := ku.wsHandleData([]byte(val))
-		if err != nil {
-			t.Errorf("%s: %v", key, err)
-		}
-	}
+	n := new(Kucoin)
+	sharedtestvalues.TestFixtureToDataHandler(t, ku, n, "testdata/wsHandleData.json", ku.wsHandleData)
 }
 
 func TestGenerateDefaultSubscriptions(t *testing.T) {
@@ -2415,6 +2414,67 @@ func TestProcessOrderbook(t *testing.T) {
 	}
 }
 
+func TestProcessMarketSnapshot(t *testing.T) {
+	t.Parallel()
+	n := new(Kucoin)
+	sharedtestvalues.TestFixtureToDataHandler(t, ku, n, "testdata/wsMarketSnapshot.json", n.wsHandleData)
+	seen := 0
+	for reading := true; reading; {
+		select {
+		default:
+			reading = false
+		case resp := <-n.GetBase().Websocket.DataHandler:
+			seen++
+			switch v := resp.(type) {
+			case *ticker.Price:
+				switch seen {
+				// spot only
+				case 1:
+					assert.Equal(t, time.UnixMilli(1698740324415), v.LastUpdated, "datetime")
+					assert.Equal(t, 0.00001402100000000000, v.High, "high")
+					assert.Equal(t, 0.000012508, v.Last, "lastTradedPrice")
+					assert.Equal(t, 0.00001129200000000000, v.Low, "low")
+					assert.Equal(t, currency.NewPairWithDelimiter("XMR", "BTC", "-"), v.Pair, "symbol")
+					assert.Equal(t, 28474.47280000000000000000, v.Volume, "volume")
+					assert.Equal(t, 0.37038038297340000000, v.QuoteVolume, "volValue")
+				// margin only
+				case 2:
+					assert.Equal(t, time.UnixMilli(1698740324483), v.LastUpdated, "datetime")
+					assert.Equal(t, 0.00000039450000000000, v.High, "high")
+					assert.Equal(t, 0.0000003897, v.Last, "lastTradedPrice")
+					assert.Equal(t, 0.00000034200000000000, v.Low, "low")
+					assert.Equal(t, currency.NewPairWithDelimiter("ETH", "BTC", "-"), v.Pair, "symbol")
+					assert.Equal(t, 316078.69700000000000000000, v.Volume, "volume")
+					assert.Equal(t, 0.11768519138877000000, v.QuoteVolume, "volValue")
+				// both margin and spot
+				case 3, 4:
+					assert.Equal(t, time.UnixMilli(1698740324437), v.LastUpdated, "datetime")
+					assert.Equal(t, 0.00008486000000000000, v.High, "high")
+					assert.Equal(t, 0.00008318, v.Last, "lastTradedPrice")
+					assert.Equal(t, 0.00007152000000000000, v.Low, "low")
+					assert.Equal(t, currency.NewPairWithDelimiter("BTC", "USDT", "-"), v.Pair, "symbol")
+					assert.Equal(t, 17062.45450000000000000000, v.Volume, "volume")
+					assert.Equal(t, 1.33076678861000000000, v.QuoteVolume, "volValue")
+				}
+			case error:
+				t.Error(v)
+			default:
+				t.Errorf("Got unexpected data: %T %v", v, v)
+			}
+		}
+	}
+	assert.Equal(t, 4, seen, "Number of messages")
+}
+
+func TestSubscribeMarketSnapshot(t *testing.T) {
+	t.Parallel()
+	s := []stream.ChannelSubscription{
+		{Channel: marketTickerSnapshotForCurrencyChannel,
+			Currency: currency.Pair{Base: currency.BTC}},
+	}
+	err := ku.Subscribe(s)
+	assert.NoError(t, err, "Subscribe to MarketSnapshot should not error")
+}
 func TestSeedLocalCache(t *testing.T) {
 	t.Parallel()
 	pair, err := currency.NewPairFromString("ETH-USDT")

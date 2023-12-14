@@ -405,29 +405,19 @@ func (ku *Kucoin) UpdateTickers(ctx context.Context, assetType asset.Item) error
 			if !pairs.Contains(pair, true) {
 				continue
 			}
-			tick := ticker.Price{
-				Last:         ticks.Tickers[t].Last,
-				High:         ticks.Tickers[t].High,
-				Low:          ticks.Tickers[t].Low,
-				Volume:       ticks.Tickers[t].Volume,
-				Ask:          ticks.Tickers[t].Sell,
-				Bid:          ticks.Tickers[t].Buy,
-				Pair:         pair,
-				ExchangeName: ku.Name,
-				AssetType:    assetType,
-				LastUpdated:  ticks.Time.Time(),
-			}
-			assetEnabledPairs := ku.listOfAssetsCurrencyPairEnabledFor(pair)
-			if assetEnabledPairs[asset.Spot] && ku.CurrencyPairs.IsAssetEnabled(asset.Spot) == nil {
-				err = ticker.ProcessTicker(&tick)
-				if err != nil {
-					return err
-				}
-			}
-			if assetEnabledPairs[asset.Margin] && ku.CurrencyPairs.IsAssetEnabled(asset.Margin) == nil {
-				marginTick := tick
-				marginTick.AssetType = asset.Margin
-				err = ticker.ProcessTicker(&marginTick)
+			for _, assetType := range ku.listOfAssetsCurrencyPairEnabledFor(pair) {
+				err = ticker.ProcessTicker(&ticker.Price{
+					Last:         ticks.Tickers[t].Last,
+					High:         ticks.Tickers[t].High,
+					Low:          ticks.Tickers[t].Low,
+					Volume:       ticks.Tickers[t].Volume,
+					Ask:          ticks.Tickers[t].Sell,
+					Bid:          ticks.Tickers[t].Buy,
+					Pair:         pair,
+					ExchangeName: ku.Name,
+					AssetType:    assetType,
+					LastUpdated:  ticks.Time.Time(),
+				})
 				if err != nil {
 					return err
 				}
@@ -1361,7 +1351,7 @@ func (ku *Kucoin) GetFeeByType(ctx context.Context, feeBuilder *exchange.FeeBuil
 	switch feeBuilder.FeeType {
 	case exchange.CryptocurrencyWithdrawalFee,
 		exchange.CryptocurrencyTradeFee:
-		fee, err := ku.GetTradingFee(ctx, feeBuilder.Pair.String())
+		fee, err := ku.GetTradingFee(ctx, currency.Pairs{feeBuilder.Pair})
 		if err != nil {
 			return 0, err
 		}
