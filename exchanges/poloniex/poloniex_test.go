@@ -1557,3 +1557,35 @@ func TestWsCancelAllTradeOrders(t *testing.T) {
 		t.Error(err)
 	}
 }
+
+func TestUpdateOrderExecutionLimits(t *testing.T) {
+	t.Parallel()
+	err := p.UpdateOrderExecutionLimits(context.Background(), asset.Spot)
+	if err != nil {
+		t.Fatal(err)
+	}
+	instruments, err := p.GetSymbolInformation(context.Background(), currency.EMPTYPAIR)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(instruments) == 0 {
+		t.Fatal("invalid instrument information found")
+	}
+	cp, err := currency.NewPairFromString(instruments[0].Symbol)
+	if err != nil {
+		t.Fatal(err)
+	}
+	limits, err := p.GetOrderExecutionLimits(asset.Spot, cp)
+	if err != nil {
+		t.Errorf("Asset: %s Pair: %s Err: %v", asset.Spot, cp, err)
+	}
+	if got := limits.PriceStepIncrementSize; got != instruments[0].SymbolTradeLimit.PriceScale {
+		t.Errorf("PriceStepIncrementSize; Asset: %s Pair: %s Expected: %v Got: %v", asset.Spot, cp, instruments[0].SymbolTradeLimit.PriceScale, got)
+	}
+	if got := limits.MinimumBaseAmount; got != instruments[0].SymbolTradeLimit.MinQuantity.Float64() {
+		t.Errorf("MinimumBaseAmount; Pair: %s Expected: %v Got: %v", cp, instruments[0].SymbolTradeLimit.MinQuantity.Float64(), got)
+	}
+	if got := limits.MinimumQuoteAmount; got != instruments[0].SymbolTradeLimit.MinAmount.Float64() {
+		t.Errorf("Pair: %s Expected: %v Got: %v", cp, instruments[0].SymbolTradeLimit.MinAmount.Float64(), got)
+	}
+}

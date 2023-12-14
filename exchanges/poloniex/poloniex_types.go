@@ -10,8 +10,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 )
 
-// depositAddressesResponse holds the full address per crypto-currency
-type depositAddressesResponse map[string]string
+// DepositAddressesResponse holds the full address per crypto-currency
+type DepositAddressesResponse map[string]string
 
 // WithdrawalFees the large list of predefined withdrawal fees
 // Prone to change, using highest value

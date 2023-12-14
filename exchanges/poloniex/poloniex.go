@@ -45,11 +45,11 @@ type Poloniex struct {
 
 // GetSymbolInformation all symbols and their tradeLimit info. priceScale is referring to the max number of decimals allowed for a given symbol.
 func (p *Poloniex) GetSymbolInformation(ctx context.Context, symbol currency.Pair) ([]SymbolDetail, error) {
-	var resp []SymbolDetail
 	path := "/markets"
 	if !symbol.IsEmpty() {
 		path = path + "/" + symbol.String()
 	}
+	var resp []SymbolDetail
 	return resp, p.SendHTTPRequest(ctx, exchange.RestSpot, unauthEPL, path, &resp)
 }
 
@@ -61,10 +61,10 @@ func (p *Poloniex) GetCurrencyInformations(ctx context.Context) ([]CurrencyDetai
 
 // GetCurrencyInformation retrieves currency and their detailed information.
 func (p *Poloniex) GetCurrencyInformation(ctx context.Context, ccy currency.Code) (CurrencyDetail, error) {
-	var resp CurrencyDetail
 	if ccy.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
+	var resp CurrencyDetail
 	return resp, p.SendHTTPRequest(ctx, exchange.RestSpot, referenceDataEPL, "/currencies/"+ccy.String(), &resp)
 }
 
@@ -76,10 +76,10 @@ func (p *Poloniex) GetV2CurrencyInformations(ctx context.Context) ([]CurrencyV2I
 
 // GetV2CurrencyInformation retrieves currency details for V2 API.
 func (p *Poloniex) GetV2CurrencyInformation(ctx context.Context, ccy currency.Code) (*CurrencyV2Information, error) {
-	var resp *CurrencyV2Information
 	if ccy.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
+	var resp *CurrencyV2Information
 	return resp, p.SendHTTPRequest(ctx, exchange.RestSpot, referenceDataEPL, "/v2/currencies/"+ccy.String(), &resp)
 }
 
@@ -112,10 +112,10 @@ func (p *Poloniex) GetMarkPrices(ctx context.Context) ([]MarkPrice, error) {
 
 // GetMarkPrice retrieves latest mark price for all cross margin symbol.
 func (p *Poloniex) GetMarkPrice(ctx context.Context, symbol currency.Pair) (*MarkPrice, error) {
-	var resp *MarkPrice
 	if symbol.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
+	var resp *MarkPrice
 	return resp, p.SendHTTPRequest(ctx, exchange.RestSpot, unauthEPL, "/markets/"+symbol.String()+"/markPrice", &resp)
 }
 
@@ -412,7 +412,8 @@ func (p *Poloniex) SubAccountTransfer(ctx context.Context, arg *SubAccountTransf
 	return resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authNonResourceIntensiveEPL, http.MethodPost, "/subaccounts/transfer", nil, arg, &resp)
 }
 
-// GetSubAccountTransferRecords get a list of transfer records of a user. Max interval for start and end time is 6 months. If no start/end time params are specified then records for last 7 days will be returned.
+// GetSubAccountTransferRecords get a list of transfer records of a user. Max interval for start and end time is 6 months.
+// If no start/end time params are specified then records for last 7 days will be returned.
 func (p *Poloniex) GetSubAccountTransferRecords(ctx context.Context, ccy currency.Code, startTime,
 	endTime time.Time, fromAccountID, toAccountID, fromAccountType,
 	toAccountType, direction string, from, limit int64) ([]SubAccountTransfer, error) {
@@ -458,12 +459,12 @@ func (p *Poloniex) GetSubAccountTransferRecord(ctx context.Context, id string) (
 }
 
 // GetDepositAddresses get all deposit addresses for a user.
-func (p *Poloniex) GetDepositAddresses(ctx context.Context, ccy currency.Code) (*depositAddressesResponse, error) {
+func (p *Poloniex) GetDepositAddresses(ctx context.Context, ccy currency.Code) (*DepositAddressesResponse, error) {
 	params := url.Values{}
 	if !ccy.IsEmpty() {
 		params.Set("currency", ccy.String())
 	}
-	var addresses *depositAddressesResponse
+	var addresses *DepositAddressesResponse
 	return addresses, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, authResourceIntensiveEPL, http.MethodGet, "/wallets/addresses", params, nil, addresses)
 }
 
@@ -994,7 +995,6 @@ func (p *Poloniex) SendHTTPRequest(ctx context.Context, ep exchange.URL, epl req
 	if err != nil {
 		return err
 	}
-
 	item := &request.Item{
 		Method:        http.MethodGet,
 		Path:          endpoint + path,
@@ -1110,7 +1110,6 @@ func (p *Poloniex) GetFee(ctx context.Context, feeBuilder *exchange.FeeBuilder) 
 	if fee < 0 {
 		fee = 0
 	}
-
 	return fee, nil
 }
 

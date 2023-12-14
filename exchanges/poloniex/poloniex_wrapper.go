@@ -1345,16 +1345,40 @@ func (p *Poloniex) GetServerTime(ctx context.Context, _ asset.Item) (time.Time, 
 // GetFuturesContractDetails returns all contracts from the exchange by asset type
 func (p *Poloniex) GetFuturesContractDetails(context.Context, asset.Item) ([]futures.Contract, error) {
 	// TODO: implement with API upgrade
-	return nil, common.ErrNotYetImplemented
+	return nil, common.ErrFunctionNotSupported
 }
 
 // GetLatestFundingRates returns the latest funding rates data
 func (p *Poloniex) GetLatestFundingRates(context.Context, *fundingrate.LatestRateRequest) ([]fundingrate.LatestRateResponse, error) {
 	// TODO: implement with API upgrade
-	return nil, common.ErrNotYetImplemented
+	return nil, common.ErrFunctionNotSupported
 }
 
 // UpdateOrderExecutionLimits updates order execution limits
-func (p *Poloniex) UpdateOrderExecutionLimits(_ context.Context, _ asset.Item) error {
-	return common.ErrNotYetImplemented
+func (p *Poloniex) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) error {
+	if !p.SupportsAsset(a) {
+		return fmt.Errorf("%v asset: %v", asset.ErrNotSupported, a)
+	}
+	instruments, err := p.GetSymbolInformation(ctx, currency.EMPTYPAIR)
+	if err != nil {
+		return err
+	}
+	limits := make([]order.MinMaxLevel, len(instruments))
+	for x := range instruments {
+		pair, err := currency.NewPairFromString(instruments[x].Symbol)
+		if err != nil {
+			return err
+		}
+
+		limits[x] = order.MinMaxLevel{
+			Pair:                    pair,
+			Asset:                   a,
+			PriceStepIncrementSize:  instruments[x].SymbolTradeLimit.PriceScale,
+			MinimumBaseAmount:       instruments[x].SymbolTradeLimit.MinQuantity.Float64(),
+			MinimumQuoteAmount:      instruments[x].SymbolTradeLimit.MinAmount.Float64(),
+			AmountStepIncrementSize: instruments[x].SymbolTradeLimit.AmountScale,
+			QuoteStepIncrementSize:  instruments[x].SymbolTradeLimit.QuantityScale,
+		}
+	}
+	return p.LoadLimits(limits)
 }
