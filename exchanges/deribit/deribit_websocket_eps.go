@@ -1259,7 +1259,7 @@ func (d *Deribit) WSSetPasswordForSubAccount(subAccountID int64, password string
 		SID:      subAccountID,
 	}
 	var resp interface{}
-	err := d.SendWSRequest(nonMatchingEPL, setPasswordForSubAccount, input, &resp, true)
+	err := d.SendWSRequest(nonMatchingEPL, "private/set_password_for_subaccount", input, &resp, true)
 	if err != nil {
 		return "", err
 	}

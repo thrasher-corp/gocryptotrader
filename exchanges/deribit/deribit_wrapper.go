@@ -158,8 +158,8 @@ func (d *Deribit) SetDefaults() {
 	}
 	d.API.Endpoints = d.NewEndpoints()
 	err = d.API.Endpoints.SetDefaultEndpoints(map[exchange.URL]string{
-		exchange.RestFutures: deribitAPIURL,
-		exchange.RestSpot:    deribitTestAPIURL,
+		exchange.RestFutures: "https://www.deribit.com",
+		exchange.RestSpot:    "https://test.deribit.com",
 	})
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
@@ -247,7 +247,7 @@ func (d *Deribit) FetchTradablePairs(ctx context.Context, assetType asset.Item) 
 		return nil, fmt.Errorf("%s: %w - %v", d.Name, asset.ErrNotSupported, assetType)
 	}
 	var resp currency.Pairs
-	for _, x := range []string{"BTC", "SOL", "ETH", "USDC"} {
+	for _, x := range []string{"BTC", "ETH", "USDC", "USDT"} {
 		var instrumentsData []InstrumentData
 		var err error
 		if d.Websocket.IsConnected() {
@@ -255,8 +255,10 @@ func (d *Deribit) FetchTradablePairs(ctx context.Context, assetType asset.Item) 
 		} else {
 			instrumentsData, err = d.GetInstrumentsData(ctx, x, d.GetAssetKind(assetType), false)
 		}
-		if err != nil && len(resp) == 0 {
+		if err != nil {
 			return nil, err
+		} else if len(resp) == 0 {
+			return nil, errNoInstrumentDataFound
 		}
 		for y := range instrumentsData {
 			if !instrumentsData[y].IsActive {
@@ -1256,4 +1258,44 @@ func (d *Deribit) GetLatestFundingRates(ctx context.Context, r *fundingrate.Late
 		return nil, fmt.Errorf("%w %v %v", futures.ErrNotPerpetualFuture, r.Asset, r.Pair)
 	}
 	return resp, nil
+}
+
+// UpdateOrderExecutionLimits sets exchange execution order limits for an asset type
+func (d *Deribit) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) error {
+	if !d.SupportsAsset(a) {
+		return fmt.Errorf("%s: %w - %v", d.Name, asset.ErrNotSupported, a)
+	}
+	for _, x := range []string{"BTC", "ETH", "USDC", "USDT"} {
+		var instrumentsData []InstrumentData
+		var err error
+		if d.Websocket.IsConnected() {
+			instrumentsData, err = d.WSRetrieveInstrumentsData(x, d.GetAssetKind(a), false)
+		} else {
+			instrumentsData, err = d.GetInstrumentsData(ctx, x, d.GetAssetKind(a), false)
+		}
+		if err != nil {
+			return err
+		} else if len(instrumentsData) == 0 {
+			return errNoInstrumentDataFound
+		}
+		limits := make([]order.MinMaxLevel, len(instrumentsData))
+		for x := range instrumentsData {
+			var pair currency.Pair
+			pair, err = currency.NewPairFromString(instrumentsData[x].InstrumentName)
+			if err != nil {
+				return err
+			}
+			limits[x] = order.MinMaxLevel{
+				Pair:                   pair,
+				Asset:                  a,
+				PriceStepIncrementSize: instrumentsData[x].TickSize,
+				MinimumBaseAmount:      instrumentsData[x].MinimumTradeAmount,
+			}
+		}
+		err = d.LoadLimits(limits)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }

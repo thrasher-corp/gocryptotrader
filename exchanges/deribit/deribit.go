@@ -28,14 +28,9 @@ type Deribit struct {
 }
 
 const (
-	deribitAPIURL     = "https://www.deribit.com"
-	deribitTestAPIURL = "https://test.deribit.com"
 	deribitAPIVersion = "/api/v2"
 
 	// Public endpoints
-
-	// Supporting endpoints
-	serverTime = "public/get_time"
 
 	// Market Data
 	getBookByCurrency                = "public/get_book_summary_by_currency"
@@ -102,7 +97,6 @@ const (
 	getOrderState                    = "private/get_order_state"
 	getTriggerOrderHistory           = "private/get_trigger_order_history"
 	getUserTradesByCurrency          = "private/get_user_trades_by_currency"
-	getUserTradesByCurrencyAndTime   = "private/get_user_trades_by_currency_and_time"
 	getUserTradesByInstrument        = "private/get_user_trades_by_instrument"
 	getUserTradesByInstrumentAndTime = "private/get_user_trades_by_instrument_and_time"
 	getUserTradesByOrder             = "private/get_user_trades_by_order"
@@ -139,11 +133,9 @@ const (
 	listAPIKeys                       = "private/list_api_keys"
 	removeAPIKey                      = "private/remove_api_key"
 	removeSubAccount                  = "private/remove_subaccount"
-	resetAPIKey                       = "private/reset_api_key"
 	setAnnouncementAsRead             = "private/set_announcement_as_read"
 	setEmailForSubAccount             = "private/set_email_for_subaccount"
 	setEmailLanguage                  = "private/set_email_language"
-	setPasswordForSubAccount          = "private/set_password_for_subaccount"
 	toggleNotificationsFromSubAccount = "private/toggle_notifications_from_subaccount"
 	togglePortfolioMargining          = "private/toggle_portfolio_margining"
 	toggleSubAccountLogin             = "private/toggle_subaccount_login"
@@ -1279,7 +1271,7 @@ func (d *Deribit) ResetAPIKey(ctx context.Context, id int64) (*APIKeyData, error
 	params.Set("id", strconv.FormatInt(id, 10))
 	var resp *APIKeyData
 	return resp, d.SendHTTPAuthRequest(ctx, exchange.RestFutures, nonMatchingEPL, http.MethodGet,
-		resetAPIKey, params, &resp)
+		"private/reset_api_key", params, &resp)
 }
 
 // SetAnnouncementAsRead sets an announcement as read
@@ -1897,7 +1889,7 @@ func (d *Deribit) GetUserTradesByCurrencyAndTime(ctx context.Context, ccy, kind,
 	}
 	var resp *UserTradesData
 	return resp, d.SendHTTPAuthRequest(ctx, exchange.RestFutures, nonMatchingEPL, http.MethodGet,
-		getUserTradesByCurrencyAndTime, params, &resp)
+		"private/get_user_trades_by_currency_and_time", params, &resp)
 }
 
 // GetUserTradesByInstrument sends a request to fetch user trades sorted by instrument
@@ -2331,7 +2323,7 @@ func (d *Deribit) GetUserBlockTrade(ctx context.Context, id string) ([]BlockTrad
 // GetTime retrieves the current time (in milliseconds). This API endpoint can be used to check the clock skew between your software and Deribit's systems.
 func (d *Deribit) GetTime(ctx context.Context) (time.Time, error) {
 	var result int64
-	err := d.SendHTTPRequest(ctx, exchange.RestSpot, nonMatchingEPL, serverTime, &result)
+	err := d.SendHTTPRequest(ctx, exchange.RestSpot, nonMatchingEPL, "public/get_time", &result)
 	if err != nil {
 		return time.Time{}, err
 	}
