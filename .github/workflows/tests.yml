@@ -110,7 +110,7 @@ jobs:
       uses: codecov/codecov-action@v3
 
   backend-arm64:
-    name: GoCryptoTrader back-end arm64
+    name: GoCryptoTrader back-end (ubuntu-latest, arm64, false, true)
     runs-on: ubuntu-latest
 
     steps:
