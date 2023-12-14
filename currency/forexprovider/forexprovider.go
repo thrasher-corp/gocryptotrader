@@ -9,7 +9,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency/forexprovider/base"
 	currencyconverter "github.com/thrasher-corp/gocryptotrader/currency/forexprovider/currencyconverterapi"
 	"github.com/thrasher-corp/gocryptotrader/currency/forexprovider/currencylayer"
-	exchangeratehost "github.com/thrasher-corp/gocryptotrader/currency/forexprovider/exchangerate.host"
 	exchangerates "github.com/thrasher-corp/gocryptotrader/currency/forexprovider/exchangeratesapi.io"
 	fixer "github.com/thrasher-corp/gocryptotrader/currency/forexprovider/fixer.io"
 	"github.com/thrasher-corp/gocryptotrader/currency/forexprovider/openexchangerates"
@@ -33,34 +32,7 @@ func GetSupportedForexProviders() []string {
 		"ExchangeRates",
 		"Fixer",
 		"OpenExchangeRates",
-		"ExchangeRateHost",
 	}
-}
-
-// NewDefaultFXProvider returns the default forex provider (currencyconverterAPI)
-func NewDefaultFXProvider() *ForexProviders {
-	handler := new(ForexProviders)
-	provider := new(exchangeratehost.ExchangeRateHost)
-	err := provider.Setup(base.Settings{
-		PrimaryProvider: true,
-		Enabled:         true,
-		Name:            "ExchangeRateHost",
-	})
-	if err != nil {
-		panic(err)
-	}
-
-	currencies, _ := provider.GetSupportedCurrencies()
-	providerBase := base.Provider{
-		Provider:            provider,
-		SupportedCurrencies: currencies,
-	}
-
-	handler.FXHandler = base.FXHandler{
-		Primary: providerBase,
-	}
-
-	return handler
 }
 
 // SetProvider sets provider to the FX handler
@@ -102,8 +74,6 @@ func StartFXService(fxProviders []base.Settings) (*ForexProviders, error) {
 			provider = new(fixer.Fixer)
 		case "OpenExchangeRates":
 			provider = new(openexchangerates.OXR)
-		case "ExchangeRateHost":
-			provider = new(exchangeratehost.ExchangeRateHost)
 		default:
 			return nil, fmt.Errorf("%s %w", fxProviders[i].Name,
 				errUnhandledForeignExchangeProvider)

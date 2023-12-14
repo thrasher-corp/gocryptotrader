@@ -697,13 +697,15 @@ func printCurrencyFormat(price float64, displayCurrency currency.Code) string {
 }
 
 func printConvertCurrencyFormat(origPrice float64, origCurrency, displayCurrency currency.Code) string {
-	var conv float64
+	var conv string
 	if origPrice > 0 {
-		var err error
-		conv, err = currency.ConvertFiat(origPrice, origCurrency, displayCurrency)
-		if err != nil {
-			log.Errorf(log.SyncMgr, "Failed to convert currency: %s", err)
+		if convFloat, err := currency.ConvertFiat(origPrice, origCurrency, displayCurrency); err != nil {
+			conv = "?.??"
+		} else {
+			conv = fmt.Sprintf("%.2f", convFloat)
 		}
+	} else {
+		conv = "0.00"
 	}
 
 	displaySymbol, err := currency.GetSymbolByCurrencyName(displayCurrency)
@@ -718,7 +720,7 @@ func printConvertCurrencyFormat(origPrice float64, origCurrency, displayCurrency
 			err)
 	}
 
-	return fmt.Sprintf("%s%.2f %s (%s%.2f %s)",
+	return fmt.Sprintf("%s%s %s (%s%.2f %s)",
 		displaySymbol,
 		conv,
 		displayCurrency,
@@ -755,7 +757,8 @@ func (m *SyncManager) PrintTickerSummary(result *ticker.Price, protocol string, 
 		return
 	}
 
-	if result.Pair.Quote.IsFiatCurrency() &&
+	if currency.ForexEnabled() &&
+		result.Pair.Quote.IsFiatCurrency() &&
 		!result.Pair.Quote.Equal(m.fiatDisplayCurrency) &&
 		!m.fiatDisplayCurrency.IsEmpty() {
 		origCurrency := result.Pair.Quote.Upper()
@@ -854,7 +857,7 @@ func (m *SyncManager) PrintOrderbookSummary(result *orderbook.Base, protocol str
 
 	var bidValueResult, askValueResult string
 	switch {
-	case result.Pair.Quote.IsFiatCurrency() && !result.Pair.Quote.Equal(m.fiatDisplayCurrency) && !m.fiatDisplayCurrency.IsEmpty():
+	case currency.ForexEnabled() && result.Pair.Quote.IsFiatCurrency() && !result.Pair.Quote.Equal(m.fiatDisplayCurrency) && !m.fiatDisplayCurrency.IsEmpty():
 		origCurrency := result.Pair.Quote.Upper()
 		if bidsValue > 0 {
 			bidValueResult = printConvertCurrencyFormat(bidsValue, origCurrency, m.fiatDisplayCurrency)
