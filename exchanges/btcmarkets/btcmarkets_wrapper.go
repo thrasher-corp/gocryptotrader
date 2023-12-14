@@ -218,76 +218,14 @@ func (b *BTCMarkets) Start(ctx context.Context, wg *sync.WaitGroup) error {
 // Run implements the BTC Markets wrapper
 func (b *BTCMarkets) Run(ctx context.Context) {
 	if b.Verbose {
-		log.Debugf(log.ExchangeSys,
-			"%s Websocket: %s (url: %s).\n",
-			b.Name,
-			common.IsEnabled(b.Websocket.IsEnabled()),
-			btcMarketsWSURL)
+		log.Debugf(log.ExchangeSys, "%s Websocket: %s (url: %s).\n", b.Name, common.IsEnabled(b.Websocket.IsEnabled()), btcMarketsWSURL)
 		b.PrintEnabledPairs()
 	}
 
-	forceUpdate := false
-	pairs, err := b.GetEnabledPairs(asset.Spot)
-	if err != nil {
-		log.Errorf(log.ExchangeSys,
-			"%s Failed to update enabled currencies Err:%s\n",
-			b.Name,
-			err)
-		return
-	}
-	format, err := b.GetPairFormat(asset.Spot, false)
-	if err != nil {
-		log.Errorf(log.ExchangeSys,
-			"%s Failed to update enabled currencies.\n",
-			b.Name)
-		return
-	}
-
-	avail, err := b.GetAvailablePairs(asset.Spot)
-	if err != nil {
-		log.Errorf(log.ExchangeSys,
-			"%s Failed to update enabled currencies.\n",
-			b.Name)
-		return
-	}
-
-	if !common.StringDataContains(pairs.Strings(), format.Delimiter) ||
-		!common.StringDataContains(avail.Strings(), format.Delimiter) {
-		forceUpdate = true
-	}
-	if forceUpdate {
-		enabledPairs := currency.Pairs{currency.Pair{
-			Base:      currency.BTC.Lower(),
-			Quote:     currency.AUD.Lower(),
-			Delimiter: format.Delimiter,
-		},
+	if b.GetEnabledFeatures().AutoPairUpdates {
+		if err := b.UpdateTradablePairs(ctx, false); err != nil {
+			log.Errorf(log.ExchangeSys, "%s failed to update tradable pairs. Err: %s", b.Name, err)
 		}
-		log.Warnf(log.ExchangeSys, exchange.ResetConfigPairsWarningMessage, b.Name, asset.Spot, enabledPairs)
-		err = b.UpdatePairs(enabledPairs, asset.Spot, true, true)
-		if err != nil {
-			log.Errorf(log.ExchangeSys,
-				"%s Failed to update enabled currencies.\n",
-				b.Name)
-		}
-	}
-
-	err = b.UpdateOrderExecutionLimits(ctx, asset.Spot)
-	if err != nil {
-		log.Errorf(log.ExchangeSys,
-			"%s Failed to update order execution limits. Error: %v\n",
-			b.Name, err)
-	}
-
-	if !b.GetEnabledFeatures().AutoPairUpdates && !forceUpdate {
-		return
-	}
-
-	err = b.UpdateTradablePairs(ctx, forceUpdate)
-	if err != nil {
-		log.Errorf(log.ExchangeSys,
-			"%s failed to update tradable pairs. Err: %s",
-			b.Name,
-			err)
 	}
 }
 

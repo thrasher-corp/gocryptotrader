@@ -223,80 +223,14 @@ func (o *Okcoin) Start(ctx context.Context, wg *sync.WaitGroup) error {
 // Run implements the Okcoin wrapper
 func (o *Okcoin) Run(ctx context.Context) {
 	if o.Verbose {
-		log.Debugf(log.ExchangeSys,
-			"%s Websocket: %s.",
-			o.Name,
-			common.IsEnabled(o.Websocket.IsEnabled()))
+		log.Debugf(log.ExchangeSys, "%s Websocket: %s.", o.Name, common.IsEnabled(o.Websocket.IsEnabled()))
 		o.PrintEnabledPairs()
 	}
 
-	forceUpdate := false
-	var err error
-	if !o.BypassConfigFormatUpgrades {
-		for _, a := range o.GetAssetTypes(true) {
-			var format currency.PairFormat
-			format, err = o.GetPairFormat(a, false)
-			if err != nil {
-				log.Errorf(log.ExchangeSys,
-					"%s failed to update currencies. Err: %s\n",
-					o.Name,
-					err)
-				return
-			}
-			var enabled, avail currency.Pairs
-			enabled, err = o.CurrencyPairs.GetPairs(a, true)
-			if err != nil {
-				log.Errorf(log.ExchangeSys,
-					"%s failed to update currencies. Err: %s\n",
-					o.Name,
-					err)
-				return
-			}
-
-			avail, err = o.CurrencyPairs.GetPairs(a, false)
-			if err != nil {
-				log.Errorf(log.ExchangeSys,
-					"%s failed to update currencies. Err: %s\n",
-					o.Name,
-					err)
-				return
-			}
-
-			if !common.StringDataContains(enabled.Strings(), format.Delimiter) ||
-				!common.StringDataContains(avail.Strings(), format.Delimiter) {
-				var p currency.Pairs
-				p, err = currency.NewPairsFromStrings([]string{currency.BTC.String() +
-					format.Delimiter +
-					currency.USD.String()})
-				if err != nil {
-					log.Errorf(log.ExchangeSys,
-						"%s failed to update currencies.\n",
-						o.Name)
-				} else {
-					log.Warnf(log.ExchangeSys, exchange.ResetConfigPairsWarningMessage, o.Name, a, p)
-					forceUpdate = true
-
-					err = o.UpdatePairs(p, a, true, true)
-					if err != nil {
-						log.Errorf(log.ExchangeSys,
-							"%s failed to update currencies. Err: %s\n",
-							o.Name,
-							err)
-						return
-					}
-				}
-			}
+	if o.GetEnabledFeatures().AutoPairUpdates {
+		if err := o.UpdateTradablePairs(ctx, false); err != nil {
+			log.Errorf(log.ExchangeSys, "%s failed to update tradable pairs. Err: %s", o.Name, err)
 		}
-	}
-	if !o.GetEnabledFeatures().AutoPairUpdates && !forceUpdate {
-		return
-	}
-	err = o.UpdateTradablePairs(ctx, forceUpdate)
-	if err != nil {
-		log.Errorf(log.ExchangeSys,
-			"%s failed to update tradable pairs. Err: %s",
-			o.Name,
-			err)
 	}
 }
 

@@ -212,70 +212,14 @@ func (g *Gemini) Run(ctx context.Context) {
 		g.PrintEnabledPairs()
 	}
 
-	forceUpdate := false
-	if !g.BypassConfigFormatUpgrades {
-		format, err := g.GetPairFormat(asset.Spot, false)
-		if err != nil {
-			log.Errorf(log.ExchangeSys, "%s failed to get enabled currencies. Err %s\n",
-				g.Name,
-				err)
-			return
-		}
-
-		enabled, err := g.CurrencyPairs.GetPairs(asset.Spot, true)
-		if err != nil {
-			log.Errorf(log.ExchangeSys, "%s failed to get enabled currencies. Err %s\n",
-				g.Name,
-				err)
-			return
-		}
-
-		avail, err := g.CurrencyPairs.GetPairs(asset.Spot, false)
-		if err != nil {
-			log.Errorf(log.ExchangeSys, "%s failed to get available currencies. Err %s\n",
-				g.Name,
-				err)
-			return
-		}
-
-		if !common.StringDataContains(enabled.Strings(), format.Delimiter) ||
-			!common.StringDataContains(avail.Strings(), format.Delimiter) {
-			var enabledPairs currency.Pairs
-			enabledPairs, err = currency.NewPairsFromStrings([]string{
-				currency.BTC.String() + format.Delimiter + currency.USD.String()})
-			if err != nil {
-				log.Errorf(log.ExchangeSys, "%s failed to update currencies. Err %s\n",
-					g.Name,
-					err)
-			} else {
-				log.Warnf(log.ExchangeSys, exchange.ResetConfigPairsWarningMessage, g.Name, asset.Spot, enabledPairs)
-				forceUpdate = true
-
-				err = g.UpdatePairs(enabledPairs, asset.Spot, true, true)
-				if err != nil {
-					log.Errorf(log.ExchangeSys,
-						"%s failed to update currencies. Err: %s\n",
-						g.Name,
-						err)
-				}
-			}
-		}
-	}
 	if err := g.UpdateOrderExecutionLimits(ctx, asset.Spot); err != nil {
-		log.Errorf(log.ExchangeSys,
-			"%s failed to set exchange order execution limits. Err: %v",
-			g.Name,
-			err)
+		log.Errorf(log.ExchangeSys, "%s failed to set exchange order execution limits. Err: %v", g.Name, err)
 	}
-	if !g.GetEnabledFeatures().AutoPairUpdates && !forceUpdate {
-		return
-	}
-	err := g.UpdateTradablePairs(ctx, forceUpdate)
-	if err != nil {
-		log.Errorf(log.ExchangeSys,
-			"%s failed to update tradable pairs. Err: %s",
-			g.Name,
-			err)
+
+	if g.GetEnabledFeatures().AutoPairUpdates {
+		if err := g.UpdateTradablePairs(ctx, false); err != nil {
+			log.Errorf(log.ExchangeSys, "%s failed to update tradable pairs. Err: %s", g.Name, err)
+		}
 	}
 }
 

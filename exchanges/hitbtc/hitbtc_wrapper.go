@@ -219,67 +219,10 @@ func (h *HitBTC) Run(ctx context.Context) {
 		h.PrintEnabledPairs()
 	}
 
-	forceUpdate := false
-	if !h.BypassConfigFormatUpgrades {
-		format, err := h.GetPairFormat(asset.Spot, false)
-		if err != nil {
-			log.Errorf(log.ExchangeSys,
-				"%s failed to update tradable pairs. Err: %s",
-				h.Name,
-				err)
-			return
+	if h.GetEnabledFeatures().AutoPairUpdates {
+		if err := h.UpdateTradablePairs(ctx, false); err != nil {
+			log.Errorf(log.ExchangeSys, "%s failed to update tradable pairs. Err: %s", h.Name, err)
 		}
-		enabled, err := h.GetEnabledPairs(asset.Spot)
-		if err != nil {
-			log.Errorf(log.ExchangeSys,
-				"%s failed to update tradable pairs. Err: %s",
-				h.Name,
-				err)
-			return
-		}
-
-		avail, err := h.GetAvailablePairs(asset.Spot)
-		if err != nil {
-			log.Errorf(log.ExchangeSys,
-				"%s failed to update tradable pairs. Err: %s",
-				h.Name,
-				err)
-			return
-		}
-
-		if !common.StringDataContains(enabled.Strings(), format.Delimiter) ||
-			!common.StringDataContains(avail.Strings(), format.Delimiter) {
-			enabledPairs := []string{currency.BTC.String() + format.Delimiter + currency.USD.String()}
-			log.Warnf(log.ExchangeSys, exchange.ResetConfigPairsWarningMessage, h.Name, asset.Spot, enabledPairs)
-			forceUpdate = true
-			var p currency.Pairs
-			p, err = currency.NewPairsFromStrings(enabledPairs)
-			if err != nil {
-				log.Errorf(log.ExchangeSys,
-					"%s failed to update tradable pairs. Err: %s",
-					h.Name,
-					err)
-				return
-			}
-			err = h.UpdatePairs(p, asset.Spot, true, true)
-			if err != nil {
-				log.Errorf(log.ExchangeSys,
-					"%s failed to update enabled currencies.\n",
-					h.Name)
-			}
-		}
-	}
-
-	if !h.GetEnabledFeatures().AutoPairUpdates && !forceUpdate {
-		return
-	}
-
-	err := h.UpdateTradablePairs(ctx, forceUpdate)
-	if err != nil {
-		log.Errorf(log.ExchangeSys,
-			"%s failed to update tradable pairs. Err: %s",
-			h.Name,
-			err)
 	}
 }
 

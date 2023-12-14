@@ -199,67 +199,10 @@ func (c *COINUT) Run(ctx context.Context) {
 		c.PrintEnabledPairs()
 	}
 
-	forceUpdate := false
-	if !c.BypassConfigFormatUpgrades {
-		format, err := c.GetPairFormat(asset.Spot, false)
-		if err != nil {
-			log.Errorf(log.ExchangeSys,
-				"%s failed to update currencies. Err: %s\n",
-				c.Name,
-				err)
-			return
+	if c.GetEnabledFeatures().AutoPairUpdates {
+		if err := c.UpdateTradablePairs(ctx, false); err != nil {
+			log.Errorf(log.ExchangeSys, "%s failed to update tradable pairs. Err: %s", c.Name, err)
 		}
-
-		enabled, err := c.CurrencyPairs.GetPairs(asset.Spot, true)
-		if err != nil {
-			log.Errorf(log.ExchangeSys,
-				"%s failed to update currencies. Err: %s\n",
-				c.Name,
-				err)
-			return
-		}
-		avail, err := c.CurrencyPairs.GetPairs(asset.Spot, false)
-		if err != nil {
-			log.Errorf(log.ExchangeSys,
-				"%s failed to update currencies. Err: %s\n",
-				c.Name,
-				err)
-			return
-		}
-
-		if !common.StringDataContains(enabled.Strings(), format.Delimiter) ||
-			!common.StringDataContains(avail.Strings(), format.Delimiter) {
-			var p currency.Pairs
-			p, err = currency.NewPairsFromStrings([]string{currency.LTC.String() +
-				format.Delimiter +
-				currency.USDT.String()})
-			if err != nil {
-				log.Errorf(log.ExchangeSys,
-					"%s failed to update currencies. Err: %s\n",
-					c.Name,
-					err)
-			} else {
-				log.Warnf(log.ExchangeSys, exchange.ResetConfigPairsWarningMessage, c.Name, asset.Spot, p)
-				forceUpdate = true
-
-				err = c.UpdatePairs(p, asset.Spot, true, true)
-				if err != nil {
-					log.Errorf(log.ExchangeSys,
-						"%s failed to update currencies. Err: %s\n",
-						c.Name,
-						err)
-				}
-			}
-		}
-	}
-
-	if !c.GetEnabledFeatures().AutoPairUpdates && !forceUpdate {
-		return
-	}
-
-	err := c.UpdateTradablePairs(ctx, forceUpdate)
-	if err != nil {
-		log.Errorf(log.ExchangeSys, "%s failed to update tradable pairs. Err: %s", c.Name, err)
 	}
 }
 
