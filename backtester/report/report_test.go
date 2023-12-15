@@ -135,11 +135,11 @@ func TestGenerateReport(t *testing.T) {
 				},
 			},
 			{
-				Exchange:  "Bittrex",
+				Exchange:  "Bitstamp",
 				Asset:     a,
 				Pair:      currency.NewPair(currency.BTC, currency.USD),
 				Interval:  gctkline.OneDay,
-				Watermark: "BITTREX - SPOT - BTC-USD - 1d",
+				Watermark: "BITSTAMP - SPOT - BTC-USD - 1d",
 				Candles: []DetailedCandle{
 					{
 						UnixMilli:      time.Date(2020, 12, 12, 0, 0, 0, 0, time.UTC).UnixMilli(),

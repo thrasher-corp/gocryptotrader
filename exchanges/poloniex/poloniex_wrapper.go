@@ -1150,3 +1150,8 @@ func (p *Poloniex) GetLatestFundingRates(context.Context, *fundingrate.LatestRat
 	// TODO: implement with API upgrade
 	return nil, common.ErrNotYetImplemented
 }
+
+// UpdateOrderExecutionLimits updates order execution limits
+func (p *Poloniex) UpdateOrderExecutionLimits(_ context.Context, _ asset.Item) error {
+	return common.ErrNotYetImplemented
+}
