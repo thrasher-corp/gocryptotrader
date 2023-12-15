@@ -2031,7 +2031,6 @@ func (ku *Kucoin) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]fu
 				},
 				OpenInterest: contracts[i].OpenInterest.Float64(),
 			})
-			break
 		}
 		return resp, nil
 	}
