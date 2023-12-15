@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"sort"
 	"strconv"
-	"sync"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -205,33 +204,6 @@ func (o *Okcoin) Setup(exch *config.Exchange) error {
 		RateLimit:            okcoinWsRateLimit,
 		Authenticated:        true,
 	})
-}
-
-// Start starts the Okcoin go routine
-func (o *Okcoin) Start(ctx context.Context, wg *sync.WaitGroup) error {
-	if wg == nil {
-		return fmt.Errorf("%T %w", wg, common.ErrNilPointer)
-	}
-	wg.Add(1)
-	go func() {
-		o.Run(ctx)
-		wg.Done()
-	}()
-	return nil
-}
-
-// Run implements the Okcoin wrapper
-func (o *Okcoin) Run(ctx context.Context) {
-	if o.Verbose {
-		log.Debugf(log.ExchangeSys, "%s Websocket: %s.", o.Name, common.IsEnabled(o.Websocket.IsEnabled()))
-		o.PrintEnabledPairs()
-	}
-
-	if o.GetEnabledFeatures().AutoPairUpdates {
-		if err := o.UpdateTradablePairs(ctx, false); err != nil {
-			log.Errorf(log.ExchangeSys, "%s failed to update tradable pairs. Err: %s", o.Name, err)
-		}
-	}
 }
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs

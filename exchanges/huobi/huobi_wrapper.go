@@ -7,7 +7,6 @@ import (
 	"sort"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/shopspring/decimal"
@@ -259,33 +258,6 @@ func (h *HUOBI) Setup(exch *config.Exchange) error {
 		URL:                  wsAccountsOrdersURL,
 		Authenticated:        true,
 	})
-}
-
-// Start starts the HUOBI go routine
-func (h *HUOBI) Start(ctx context.Context, wg *sync.WaitGroup) error {
-	if wg == nil {
-		return fmt.Errorf("%T %w", wg, common.ErrNilPointer)
-	}
-	wg.Add(1)
-	go func() {
-		h.Run(ctx)
-		wg.Done()
-	}()
-	return nil
-}
-
-// Run implements the HUOBI wrapper
-func (h *HUOBI) Run(ctx context.Context) {
-	if h.Verbose {
-		log.Debugf(log.ExchangeSys, "%s Websocket: %s (url: %s).\n", h.Name, common.IsEnabled(h.Websocket.IsEnabled()), wsMarketURL)
-		h.PrintEnabledPairs()
-	}
-
-	if h.GetEnabledFeatures().AutoPairUpdates {
-		if err := h.UpdateTradablePairs(ctx, false); err != nil {
-			log.Errorf(log.ExchangeSys, "%s failed to update tradable pairs. Err: %s", h.Name, err)
-		}
-	}
 }
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs

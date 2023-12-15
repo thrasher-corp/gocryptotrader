@@ -8,7 +8,6 @@ import (
 	"sort"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -200,33 +199,6 @@ func (b *BTCMarkets) Setup(exch *config.Exchange) error {
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
 	})
-}
-
-// Start starts the BTC Markets go routine
-func (b *BTCMarkets) Start(ctx context.Context, wg *sync.WaitGroup) error {
-	if wg == nil {
-		return fmt.Errorf("%T %w", wg, common.ErrNilPointer)
-	}
-	wg.Add(1)
-	go func() {
-		b.Run(ctx)
-		wg.Done()
-	}()
-	return nil
-}
-
-// Run implements the BTC Markets wrapper
-func (b *BTCMarkets) Run(ctx context.Context) {
-	if b.Verbose {
-		log.Debugf(log.ExchangeSys, "%s Websocket: %s (url: %s).\n", b.Name, common.IsEnabled(b.Websocket.IsEnabled()), btcMarketsWSURL)
-		b.PrintEnabledPairs()
-	}
-
-	if b.GetEnabledFeatures().AutoPairUpdates {
-		if err := b.UpdateTradablePairs(ctx, false); err != nil {
-			log.Errorf(log.ExchangeSys, "%s failed to update tradable pairs. Err: %s", b.Name, err)
-		}
-	}
 }
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs

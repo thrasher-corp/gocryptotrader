@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"sort"
 	"strconv"
-	"sync"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -194,33 +193,6 @@ func (c *CoinbasePro) Setup(exch *config.Exchange) error {
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
 	})
-}
-
-// Start starts the coinbasepro go routine
-func (c *CoinbasePro) Start(ctx context.Context, wg *sync.WaitGroup) error {
-	if wg == nil {
-		return fmt.Errorf("%T %w", wg, common.ErrNilPointer)
-	}
-	wg.Add(1)
-	go func() {
-		c.Run(ctx)
-		wg.Done()
-	}()
-	return nil
-}
-
-// Run implements the coinbasepro wrapper
-func (c *CoinbasePro) Run(ctx context.Context) {
-	if c.Verbose {
-		log.Debugf(log.ExchangeSys, "%s Websocket: %s. (url: %s).\n", c.Name, common.IsEnabled(c.Websocket.IsEnabled()), coinbaseproWebsocketURL)
-		c.PrintEnabledPairs()
-	}
-
-	if c.GetEnabledFeatures().AutoPairUpdates {
-		if err := c.UpdateTradablePairs(ctx, false); err != nil {
-			log.Errorf(log.ExchangeSys, "%s failed to update tradable pairs. Err: %s", c.Name, err)
-		}
-	}
 }
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs

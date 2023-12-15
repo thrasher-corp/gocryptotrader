@@ -7,7 +7,6 @@ import (
 	"sort"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/shopspring/decimal"
@@ -272,39 +271,6 @@ func (k *Kraken) Setup(exch *config.Exchange) error {
 		URL:                  krakenAuthWSURL,
 		Authenticated:        true,
 	})
-}
-
-// Start starts the Kraken go routine
-func (k *Kraken) Start(ctx context.Context, wg *sync.WaitGroup) error {
-	if wg == nil {
-		return fmt.Errorf("%T %w", wg, common.ErrNilPointer)
-	}
-	wg.Add(1)
-	go func() {
-		k.Run(ctx)
-		wg.Done()
-	}()
-	return nil
-}
-
-// Run implements the Kraken wrapper
-func (k *Kraken) Run(ctx context.Context) {
-	if k.Verbose {
-		log.Debugf(log.ExchangeSys, "%s Websocket: %s. (url: %s).\n", k.Name, common.IsEnabled(k.Websocket.IsEnabled()), k.Websocket.GetWebsocketURL())
-		k.PrintEnabledPairs()
-	}
-
-	if k.GetEnabledFeatures().AutoPairUpdates {
-		if err := k.UpdateTradablePairs(ctx, false); err != nil {
-			log.Errorf(log.ExchangeSys, "%s failed to update tradable pairs. Err: %s", k.Name, err)
-		}
-	}
-
-	for _, a := range k.GetAssetTypes(true) {
-		if err := k.UpdateOrderExecutionLimits(ctx, a); err != nil && err != common.ErrNotYetImplemented {
-			log.Errorln(log.ExchangeSys, err.Error())
-		}
-	}
 }
 
 // UpdateOrderExecutionLimits sets exchange execution order limits for an asset type

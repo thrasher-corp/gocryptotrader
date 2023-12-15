@@ -7,7 +7,6 @@ import (
 	"sort"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -177,33 +176,6 @@ func (c *COINUT) Setup(exch *config.Exchange) error {
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
 		RateLimit:            wsRateLimitInMilliseconds,
 	})
-}
-
-// Start starts the COINUT go routine
-func (c *COINUT) Start(ctx context.Context, wg *sync.WaitGroup) error {
-	if wg == nil {
-		return fmt.Errorf("%T %w", wg, common.ErrNilPointer)
-	}
-	wg.Add(1)
-	go func() {
-		c.Run(ctx)
-		wg.Done()
-	}()
-	return nil
-}
-
-// Run implements the COINUT wrapper
-func (c *COINUT) Run(ctx context.Context) {
-	if c.Verbose {
-		log.Debugf(log.ExchangeSys, "%s Websocket: %s. (url: %s).\n", c.Name, common.IsEnabled(c.Websocket.IsEnabled()), coinutWebsocketURL)
-		c.PrintEnabledPairs()
-	}
-
-	if c.GetEnabledFeatures().AutoPairUpdates {
-		if err := c.UpdateTradablePairs(ctx, false); err != nil {
-			log.Errorf(log.ExchangeSys, "%s failed to update tradable pairs. Err: %s", c.Name, err)
-		}
-	}
 }
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs

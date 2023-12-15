@@ -7,7 +7,6 @@ import (
 	"math"
 	"sort"
 	"strconv"
-	"sync"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -192,39 +191,6 @@ func (b *Bitstamp) Setup(exch *config.Exchange) error {
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
 	})
-}
-
-// Start starts the Bitstamp go routine
-func (b *Bitstamp) Start(ctx context.Context, wg *sync.WaitGroup) error {
-	if wg == nil {
-		return fmt.Errorf("%T %w", wg, common.ErrNilPointer)
-	}
-	wg.Add(1)
-	go func() {
-		b.Run(ctx)
-		wg.Done()
-	}()
-	return nil
-}
-
-// Run implements the Bitstamp wrapper
-func (b *Bitstamp) Run(ctx context.Context) {
-	if b.Verbose {
-		log.Debugf(log.ExchangeSys, "%s Websocket: %s.", b.Name, common.IsEnabled(b.Websocket.IsEnabled()))
-		b.PrintEnabledPairs()
-	}
-
-	if b.GetEnabledFeatures().AutoPairUpdates {
-		if err := b.UpdateTradablePairs(ctx, false); err != nil {
-			log.Errorf(log.ExchangeSys, "%s failed to update tradable pairs. Err: %s", b.Name, err)
-		}
-	}
-
-	for _, a := range b.GetAssetTypes(true) {
-		if err := b.UpdateOrderExecutionLimits(ctx, a); err != nil && err != common.ErrNotYetImplemented {
-			log.Errorln(log.ExchangeSys, err.Error())
-		}
-	}
 }
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs

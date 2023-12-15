@@ -8,7 +8,6 @@ import (
 	"sort"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -191,36 +190,6 @@ func (g *Gemini) Setup(exch *config.Exchange) error {
 		URL:                  geminiWebsocketEndpoint + "/v1/" + geminiWsOrderEvents,
 		Authenticated:        true,
 	})
-}
-
-// Start starts the Gemini go routine
-func (g *Gemini) Start(ctx context.Context, wg *sync.WaitGroup) error {
-	if wg == nil {
-		return fmt.Errorf("%T %w", wg, common.ErrNilPointer)
-	}
-	wg.Add(1)
-	go func() {
-		g.Run(ctx)
-		wg.Done()
-	}()
-	return nil
-}
-
-// Run implements the Gemini wrapper
-func (g *Gemini) Run(ctx context.Context) {
-	if g.Verbose {
-		g.PrintEnabledPairs()
-	}
-
-	if err := g.UpdateOrderExecutionLimits(ctx, asset.Spot); err != nil {
-		log.Errorf(log.ExchangeSys, "%s failed to set exchange order execution limits. Err: %v", g.Name, err)
-	}
-
-	if g.GetEnabledFeatures().AutoPairUpdates {
-		if err := g.UpdateTradablePairs(ctx, false); err != nil {
-			log.Errorf(log.ExchangeSys, "%s failed to update tradable pairs. Err: %s", g.Name, err)
-		}
-	}
 }
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs

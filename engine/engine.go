@@ -850,7 +850,7 @@ func (bot *Engine) LoadExchange(name string, wg *sync.WaitGroup) error {
 		wg = &sync.WaitGroup{}
 		defer wg.Wait()
 	}
-	return exch.Start(context.TODO(), wg)
+	return exchange.Start(context.TODO(), exch, wg)
 }
 
 func (bot *Engine) dryRunParamInteraction(param string) {

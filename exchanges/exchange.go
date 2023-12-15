@@ -1874,3 +1874,52 @@ func (b *Base) ParallelChanOp(channels []subscription.Subscription, m func([]sub
 
 	return errs
 }
+
+// Start starts an exchange bootstrap process in the background
+func Start(ctx context.Context, b IBotExchange, wg *sync.WaitGroup) error {
+	if wg == nil {
+		return fmt.Errorf("%T %w", wg, common.ErrNilPointer)
+	}
+	wg.Add(1)
+	go func() {
+		Run(ctx, b)
+		wg.Done()
+	}()
+	return nil
+}
+
+// Run performs a few Bootstrapping actions for the exchange
+func Run(ctx context.Context, b IBotExchange) {
+	if b.IsVerbose() {
+		if b.GetSupportedFeatures().Websocket {
+			wsURL := ""
+			wsEnabled := false
+			if w, err := b.GetWebsocket(); err == nil {
+				wsURL = w.GetWebsocketURL()
+				wsEnabled = w.IsEnabled()
+			}
+			log.Debugf(log.ExchangeSys, "%s Websocket: %s. (url: %s)", b.GetName(), common.IsEnabled(wsEnabled), wsURL)
+		} else {
+			log.Debugf(log.ExchangeSys, "%s Websocket: Unsupported", b.GetName())
+		}
+		b.PrintEnabledPairs()
+	}
+
+	a := b.GetAssetTypes(true)
+	for x := range a {
+		if err := b.UpdateOrderExecutionLimits(ctx, a[x]); err != nil && !errors.Is(err, common.ErrNotYetImplemented) {
+			log.Errorf(log.ExchangeSys, "%s failed to set exchange order execution limits. Err: %v", b.GetName(), err)
+		}
+	}
+
+	if b.GetEnabledFeatures().AutoPairUpdates {
+		if err := b.UpdateTradablePairs(ctx, false); err != nil {
+			log.Errorf(log.ExchangeSys, "%s failed to update tradable pairs. Err: %s", b.GetName(), err)
+		}
+	}
+}
+
+// IsVerbose returns if the exchange is set to verbose
+func (b *Base) IsVerbose() bool {
+	return b.Verbose
+}
