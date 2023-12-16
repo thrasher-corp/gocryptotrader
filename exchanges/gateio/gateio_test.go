@@ -11,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/core"
@@ -3454,4 +3455,86 @@ func TestGetLatestFundingRates(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
+}
+
+func TestGetHistoricalFundingRates(t *testing.T) {
+	t.Parallel()
+	_, err := g.GetHistoricalFundingRates(context.Background(), nil)
+	if !errors.Is(err, common.ErrNilPointer) {
+		t.Fatalf("received: %v, expected: %v", err, common.ErrNilPointer)
+	}
+
+	_, err = g.GetHistoricalFundingRates(context.Background(), &fundingrate.HistoricalRatesRequest{})
+	if !errors.Is(err, asset.ErrNotSupported) {
+		t.Fatalf("received: %v, expected: %v", err, asset.ErrNotSupported)
+	}
+
+	_, err = g.GetHistoricalFundingRates(context.Background(), &fundingrate.HistoricalRatesRequest{
+		Asset: asset.Futures,
+	})
+	if !errors.Is(err, currency.ErrCurrencyPairEmpty) {
+		t.Fatalf("received: %v, expected: %v", err, currency.ErrCurrencyPairEmpty)
+	}
+
+	_, err = g.GetHistoricalFundingRates(context.Background(), &fundingrate.HistoricalRatesRequest{
+		Asset: asset.Futures,
+		Pair:  currency.NewPair(currency.ENJ, currency.USDT),
+	})
+	if !errors.Is(err, fundingrate.ErrPaymentCurrencyCannotBeEmpty) {
+		t.Fatalf("received: %v, expected: %v", err, fundingrate.ErrPaymentCurrencyCannotBeEmpty)
+	}
+
+	_, err = g.GetHistoricalFundingRates(context.Background(), &fundingrate.HistoricalRatesRequest{
+		Asset:                asset.Futures,
+		Pair:                 currency.NewPair(currency.ENJ, currency.USDT),
+		PaymentCurrency:      currency.USDT,
+		IncludePayments:      true,
+		IncludePredictedRate: true,
+	})
+	if !errors.Is(err, common.ErrNotYetImplemented) {
+		t.Fatalf("received: %v, expected: %v", err, common.ErrNotYetImplemented)
+	}
+
+	_, err = g.GetHistoricalFundingRates(context.Background(), &fundingrate.HistoricalRatesRequest{
+		Asset:                asset.Futures,
+		Pair:                 currency.NewPair(currency.ENJ, currency.USDT),
+		PaymentCurrency:      currency.USDT,
+		IncludePredictedRate: true,
+	})
+	if !errors.Is(err, common.ErrNotYetImplemented) {
+		t.Fatalf("received: %v, expected: %v", err, common.ErrNotYetImplemented)
+	}
+
+	_, err = g.GetHistoricalFundingRates(context.Background(), &fundingrate.HistoricalRatesRequest{
+		Asset:           asset.Futures,
+		Pair:            currency.NewPair(currency.ENJ, currency.USDT),
+		PaymentCurrency: currency.USDT,
+		StartDate:       time.Now().Add(time.Hour * 16),
+		EndDate:         time.Now(),
+	})
+	if !errors.Is(err, common.ErrStartAfterEnd) {
+		t.Fatalf("received: %v, expected: %v", err, common.ErrStartAfterEnd)
+	}
+
+	_, err = g.GetHistoricalFundingRates(context.Background(), &fundingrate.HistoricalRatesRequest{
+		Asset:           asset.Futures,
+		Pair:            currency.NewPair(currency.ENJ, currency.USDT),
+		PaymentCurrency: currency.USDT,
+		StartDate:       time.Now().Add(-time.Hour * 8008),
+		EndDate:         time.Now(),
+	})
+	if !errors.Is(err, fundingrate.ErrFundingRateOutsideLimits) {
+		t.Fatalf("received: %v, expected: %v", err, fundingrate.ErrFundingRateOutsideLimits)
+	}
+
+	history, err := g.GetHistoricalFundingRates(context.Background(), &fundingrate.HistoricalRatesRequest{
+		Asset:           asset.Futures,
+		Pair:            currency.NewPair(currency.ENJ, currency.USDT),
+		PaymentCurrency: currency.USDT,
+	})
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: %v, expected: %v", err, nil)
+	}
+
+	assert.NotEmpty(t, history, "should return values")
 }

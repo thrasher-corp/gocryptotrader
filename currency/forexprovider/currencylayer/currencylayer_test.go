@@ -1,137 +1,129 @@
 package currencylayer
 
 import (
+	"log"
+	"os"
+	"strings"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/thrasher-corp/gocryptotrader/currency/forexprovider/base"
 )
 
 var c CurrencyLayer
 
-// please set your API key here for due diligence testing NOTE be aware you will
-// minimize your API calls using this test.
-const (
-	APIkey   = ""
-	Apilevel = 0
+// Either set your API key here or in env var for integration testing
+var (
+	apiKey      = ""
+	apiKeyLevel = 0
 )
 
 var isSet bool
 
-func setup() error {
-	if !isSet {
-		defaultCfg := base.Settings{
-			Name:    "CurrencyLayer",
-			Enabled: true,
-		}
-
-		if APIkey != "" {
-			defaultCfg.APIKey = APIkey
-		}
-
-		if Apilevel > -2 && Apilevel < 4 {
-			defaultCfg.APIKeyLvl = Apilevel
-		}
-
-		err := c.Setup(defaultCfg)
-		if err != nil {
-			return err
-		}
-		isSet = true
+func TestMain(m *testing.M) {
+	if apiKey == "" {
+		apiKey = os.Getenv("CURRENCYLAYER_APIKEY")
 	}
-	return nil
+
+	cfg := base.Settings{
+		Name:      "CurrencyLayer",
+		Enabled:   true,
+		APIKeyLvl: apiKeyLevel,
+		APIKey:    apiKey,
+	}
+
+	if err := c.Setup(cfg); err != nil {
+		log.Fatal(err)
+	}
+	os.Exit(m.Run())
 }
 
-func areAPIKeysSet() bool {
-	return APIkey != "" && Apilevel != -1
+func skipIfNoAPIKey(tb testing.TB) {
+	tb.Helper()
+	if apiKey == "" {
+		tb.Skip("No API Key configured. Set env var CURRENCYLAYER_APIKEY")
+	}
 }
 
-func TestGetRates(t *testing.T) {
-	err := setup()
-	if err != nil {
-		t.Skip("CurrencyLayer GetRates error", err)
-	}
-	_, err = c.GetRates("USD", "AUD")
-	if areAPIKeysSet() && err != nil {
-		t.Error("test error - currencylayer GetRates() error", err)
-	} else if !areAPIKeysSet() && err == nil {
-		t.Error("test error - currencylayer GetRates() error cannot be nil")
-	}
+func TestNoAPIKey(t *testing.T) {
+	t.Parallel()
+	n := c
+	n.APIKey = ""
+	_, err := n.GetSupportedCurrencies()
+	assert.ErrorContains(t, err, "You have not supplied an API Access Key", "Should error APIKeyRequired")
 }
 
 func TestGetSupportedCurrencies(t *testing.T) {
-	err := setup()
-	if err != nil {
-		t.Fatal("CurrencyLayer GetSupportedCurrencies error", err)
+	t.Parallel()
+	skipIfNoAPIKey(t)
+	currs, err := c.GetSupportedCurrencies()
+	if assert.NoError(t, err, "GetSupportedCurrencies should not error") {
+		assert.Contains(t, currs, "AUD", "AUD is a valid currency")
+		assert.Contains(t, currs, "USD", "USD is a valid currency") // Might fail in the near future
 	}
-	_, err = c.GetSupportedCurrencies()
-	if areAPIKeysSet() && err != nil {
-		t.Error("test error - currencylayer GetSupportedCurrencies() error", err)
-	} else if !areAPIKeysSet() && err == nil {
-		t.Error("test error - currencylayer GetSupportedCurrencies() error cannot be nil")
+}
+
+func TestGetRates(t *testing.T) {
+	t.Parallel()
+	skipIfNoAPIKey(t)
+	r, err := c.GetRates("USD", "AUD")
+	if assert.NoError(t, err, "GetRates should not error") {
+		assert.Contains(t, r, "USDAUD", "Should find a USDAUD rate")
+		assert.Positive(t, r["USDAUD"], "Rate should be positive")
 	}
 }
 
 func TestGetliveData(t *testing.T) {
-	err := setup()
-	if err != nil {
-		t.Fatal("CurrencyLayer GetliveData error", err)
-	}
-	_, err = c.GetliveData("AUD", "USD")
-	if areAPIKeysSet() && err != nil {
-		t.Error("test error - currencylayer GetliveData() error", err)
-	} else if !areAPIKeysSet() && err == nil {
-		t.Error("test error - currencylayer GetliveData() error cannot be nil")
+	t.Parallel()
+	skipIfNoAPIKey(t)
+	r, err := c.GetliveData("EUR", "GBP")
+	if assert.NoError(t, err, "GetliveData should not error") {
+		assert.Contains(t, r, "GBPEUR", "Should find rate")
+		assert.Positive(t, r["GBPEUR"], "Rate should be positive")
 	}
 }
 
 func TestGetHistoricalData(t *testing.T) {
-	err := setup()
-	if err != nil {
-		t.Fatal("CurrencyLayer GetHistoricalData error", err)
-	}
-	_, err = c.GetHistoricalData("2016-12-15", []string{"AUD"}, "USD")
-	if areAPIKeysSet() && err != nil {
-		t.Error("test error - currencylayer GetHistoricalData() error", err)
-	} else if !areAPIKeysSet() && err == nil {
-		t.Error("test error - currencylayer GetHistoricalData() error cannot be nil")
+	t.Parallel()
+	skipIfNoAPIKey(t)
+	r, err := c.GetHistoricalData("2022-09-26", []string{"USD"}, "EUR")
+	if assert.NoError(t, err, "GetHistoricalData should not error") {
+		assert.Contains(t, r, "EURUSD", "Should find rate")
+		assert.Equal(t, r["EURUSD"], 0.962232, "Rate should be exactly correct")
 	}
 }
 
 func TestConvert(t *testing.T) {
-	err := setup()
-	if err != nil {
-		t.Fatal("CurrencyLayer Convert error", err)
-	}
-	_, err = c.Convert("USD", "AUD", "", 1)
-	if areAPIKeysSet() && err != nil && c.APIKeyLvl >= AccountBasic {
-		t.Error("test error - currencylayer Convert() error", err)
-	} else if !areAPIKeysSet() && err == nil {
-		t.Error("test error - currencylayer Convert() error cannot be nil")
+	t.Parallel()
+	skipIfNoAPIKey(t)
+	r, err := c.Convert("USD", "AUD", "", 1)
+	if assert.NoError(t, err, "Convert should not error") {
+		assert.Positive(t, r, "Should get a positive rate")
 	}
 }
 
 func TestQueryTimeFrame(t *testing.T) {
-	err := setup()
-	if err != nil {
-		t.Fatal("CurrencyLayer QueryTimeFrame error", err)
-	}
-	_, err = c.QueryTimeFrame("2010-12-0", "2010-12-5", "USD", []string{"AUD"})
-	if areAPIKeysSet() && err != nil && c.APIKeyLvl >= AccountPro {
-		t.Error("test error - currencylayer QueryTimeFrame() error", err)
-	} else if !areAPIKeysSet() && err == nil {
-		t.Error("test error - currencylayer QueryTimeFrame() error cannot be nil")
+	t.Parallel()
+	skipIfNoAPIKey(t)
+	r, err := c.QueryTimeFrame("2020-03-12", "2020-03-16", "USD", []string{"AUD"})
+	if assert.NoError(t, err, "QueryTimeFrame should not error") {
+		assert.Len(t, r, 5, "Should get correct number of days")
+		a, ok := r["2020-03-16"].(map[string]any)
+		assert.True(t, ok, "Has final date entry")
+		assert.Equal(t, a["USDAUD"], 1.6397, "And it was a bad week")
 	}
 }
 
 func TestQueryCurrencyChange(t *testing.T) {
-	err := setup()
-	if err != nil {
-		t.Fatal("CurrencyLayer QueryCurrencyChange() error", err)
-	}
-	_, err = c.QueryCurrencyChange("2010-12-0", "2010-12-5", "USD", []string{"AUD"})
-	if areAPIKeysSet() && err != nil && c.APIKeyLvl == AccountEnterprise {
-		t.Error("test error - currencylayer QueryCurrencyChange() error", err)
-	} else if !areAPIKeysSet() && err == nil {
-		t.Error("test error - currencylayer QueryCurrencyChange() error cannot be nil")
+	t.Parallel()
+	skipIfNoAPIKey(t)
+	r, err := c.QueryCurrencyChange("2030-03-12", "2030-03-16", "USD", []string{"AUD"})
+	switch {
+	case err != nil && strings.Contains(err.Error(), "insufficient API privileges, upgrade to basic to use this function"):
+		t.Skip("Upgrade to Basic API plan to test Currency Change")
+	case assert.NoError(t, err, "QueryCurrencyChange should not error"):
+		assert.Contains(t, r, "USDAUD", "Should find change")
+		assert.Positive(t, r["USDAUD"].Change, "Change should be positive")
+		assert.Positive(t, r["USDAUD"].ChangePCT, "Change PCT should be positive")
 	}
 }
