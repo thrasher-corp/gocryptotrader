@@ -286,13 +286,13 @@ func (cr *Cryptodotcom) UpdateTicker(ctx context.Context, p currency.Pair, asset
 		return nil, errInvalidResponseFromServer
 	}
 	tickerPrice := &ticker.Price{
-		High:         tick.Data[0].HighestTradePrice,
-		Low:          tick.Data[0].LowestTradePrice,
-		Bid:          tick.Data[0].BestBidPrice,
-		Ask:          tick.Data[0].BestAskPrice,
-		Open:         tick.Data[0].OpenInterest,
-		Last:         tick.Data[0].LatestTradePrice,
-		Volume:       tick.Data[0].TradedVolume,
+		High:         tick.Data[0].HighestTradePrice.Float64(),
+		Low:          tick.Data[0].LowestTradePrice.Float64(),
+		Bid:          tick.Data[0].BestBidPrice.Float64(),
+		Ask:          tick.Data[0].BestAskPrice.Float64(),
+		Open:         tick.Data[0].OpenInterest.Float64(),
+		Last:         tick.Data[0].LatestTradePrice.Float64(),
+		Volume:       tick.Data[0].TradedVolume.Float64(),
 		LastUpdated:  tick.Data[0].TradeTimestamp.Time(),
 		AssetType:    assetType,
 		ExchangeName: cr.Name,
@@ -320,17 +320,17 @@ func (cr *Cryptodotcom) UpdateTickers(ctx context.Context, assetType asset.Item)
 			return err
 		}
 		err = ticker.ProcessTicker(&ticker.Price{
-			Last:         tick.Data[y].LatestTradePrice,
-			High:         tick.Data[y].HighestTradePrice,
-			Low:          tick.Data[y].LowestTradePrice,
-			Bid:          tick.Data[y].BestBidPrice,
-			Ask:          tick.Data[y].BestAskPrice,
-			Volume:       tick.Data[y].TradedVolume,
-			Open:         tick.Data[y].OpenInterest,
+			Last:         tick.Data[y].LatestTradePrice.Float64(),
+			High:         tick.Data[y].HighestTradePrice.Float64(),
+			Low:          tick.Data[y].LowestTradePrice.Float64(),
+			Bid:          tick.Data[y].BestBidPrice.Float64(),
+			Ask:          tick.Data[y].BestAskPrice.Float64(),
+			Volume:       tick.Data[y].TradedVolume.Float64(),
+			Open:         tick.Data[y].OpenInterest.Float64(),
 			Pair:         cp,
 			ExchangeName: cr.Name,
 			AssetType:    assetType,
-			QuoteVolume:  tick.Data[y].TradedVolumeInUSD24H,
+			QuoteVolume:  tick.Data[y].TradedVolumeInUSD24H.Float64(),
 		})
 		if err != nil {
 			return err
@@ -576,8 +576,8 @@ func (cr *Cryptodotcom) GetRecentTrades(ctx context.Context, p currency.Pair, as
 			CurrencyPair: p,
 			AssetType:    assetType,
 			Side:         side,
-			Price:        trades.Data[x].TradePrice,
-			Amount:       trades.Data[x].TradeQuantity,
+			Price:        trades.Data[x].TradePrice.Float64(),
+			Amount:       trades.Data[x].TradeQuantity.Float64(),
 			Timestamp:    trades.Data[x].DataTime.Time(),
 		}
 	}
@@ -631,8 +631,8 @@ allTrades:
 				CurrencyPair: p,
 				AssetType:    assetType,
 				Side:         side,
-				Price:        tradeData.Data[i].TradePrice,
-				Amount:       tradeData.Data[i].TradeQuantity,
+				Price:        tradeData.Data[i].TradePrice.Float64(),
+				Amount:       tradeData.Data[i].TradeQuantity.Float64(),
 				Timestamp:    tradeData.Data[i].TradeTimestamp.Time(),
 				TID:          tradeData.Data[i].TradeID,
 			})
@@ -1122,4 +1122,35 @@ func (cr *Cryptodotcom) GetFuturesContractDetails(context.Context, asset.Item) (
 // GetLatestFundingRates returns the latest funding rates data
 func (cr *Cryptodotcom) GetLatestFundingRates(_ context.Context, _ *fundingrate.LatestRateRequest) ([]fundingrate.LatestRateResponse, error) {
 	return nil, common.ErrFunctionNotSupported
+}
+
+// UpdateOrderExecutionLimits updates order execution limits
+func (cr *Cryptodotcom) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) error {
+	if !cr.SupportsAsset(a) {
+		return fmt.Errorf("%w asset type %v", asset.ErrNotSupported, a)
+	}
+	instrumentsResponse, err := cr.GetInstruments(ctx)
+	if err != nil {
+		return err
+	}
+
+	limits := make([]order.MinMaxLevel, 0, len(instrumentsResponse.Instruments))
+	for x := range instrumentsResponse.Instruments {
+		pair, err := currency.NewPairFromString(instrumentsResponse.Instruments[x].InstrumentName)
+		if err != nil {
+			return err
+		}
+
+		limits = append(limits, order.MinMaxLevel{
+			Pair:                    pair,
+			Asset:                   a,
+			AmountStepIncrementSize: instrumentsResponse.Instruments[x].QuantityTickSize.Float64(),
+			PriceStepIncrementSize:  instrumentsResponse.Instruments[x].PriceTickSize.Float64(),
+			MinimumBaseAmount:       instrumentsResponse.Instruments[x].MinQuantity.Float64(),
+			MaximumBaseAmount:       instrumentsResponse.Instruments[x].MaxQuantity.Float64(),
+			MinPrice:                instrumentsResponse.Instruments[x].MinPrice.Float64(),
+			MaxPrice:                instrumentsResponse.Instruments[x].MaxPrice.Float64(),
+		})
+	}
+	return cr.LoadLimits(limits)
 }

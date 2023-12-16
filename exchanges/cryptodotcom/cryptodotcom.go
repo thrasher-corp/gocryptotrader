@@ -420,12 +420,12 @@ func (cr *Cryptodotcom) GetPersonalOpenOrders(ctx context.Context, instrumentNam
 
 // GetOrderDetail retrieves details on a particular order ID
 func (cr *Cryptodotcom) GetOrderDetail(ctx context.Context, orderID string) (*OrderDetail, error) {
-	var resp *OrderDetail
 	if orderID == "" {
 		return nil, order.ErrOrderIDNotSet
 	}
 	params := make(map[string]interface{})
 	params["order_id"] = orderID
+	var resp *OrderDetail
 	return resp, cr.SendAuthHTTPRequest(ctx, exchange.RestSpot, privateGetOrderDetailRate, privateGetOrderDetail, params, &resp)
 }
 

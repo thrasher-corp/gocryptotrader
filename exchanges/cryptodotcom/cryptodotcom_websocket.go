@@ -413,8 +413,8 @@ func (cr *Cryptodotcom) processTrades(resp *WsResult) error {
 			return err
 		}
 		trades[i] = trade.Data{
-			Amount:       data[i].TradeQuantity,
-			Price:        data[i].TradePrice,
+			Amount:       data[i].TradeQuantity.Float64(),
+			Price:        data[i].TradePrice.Float64(),
 			AssetType:    asset.Spot,
 			CurrencyPair: cp,
 			Exchange:     cr.Name,
@@ -440,15 +440,15 @@ func (cr *Cryptodotcom) processTicker(resp *WsResult) error {
 	for x := range data {
 		tickersDatas[x] = ticker.Price{
 			ExchangeName: cr.Name,
-			Volume:       data[x].TradedVolume,
-			QuoteVolume:  data[x].TradedVolumeInUSD24H,
-			High:         data[x].HighestTradePrice,
-			Low:          data[x].LowestTradePrice,
-			Bid:          data[x].BestBidPrice,
-			BidSize:      data[x].BestBidSize,
-			Ask:          data[x].BestAskPrice,
-			AskSize:      data[x].BestAskSize,
-			Last:         data[x].LatestTradePrice,
+			Volume:       data[x].TradedVolume.Float64(),
+			QuoteVolume:  data[x].TradedVolumeInUSD24H.Float64(),
+			High:         data[x].HighestTradePrice.Float64(),
+			Low:          data[x].LowestTradePrice.Float64(),
+			Bid:          data[x].BestBidPrice.Float64(),
+			BidSize:      data[x].BestBidSize.Float64(),
+			Ask:          data[x].BestAskPrice.Float64(),
+			AskSize:      data[x].BestAskSize.Float64(),
+			Last:         data[x].LatestTradePrice.Float64(),
 			AssetType:    asset.Spot,
 			Pair:         cp,
 		}
