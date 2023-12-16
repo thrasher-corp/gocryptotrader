@@ -788,5 +788,28 @@ func (co *CoinbaseInternational) GetLatestFundingRates(_ context.Context, _ *fun
 
 // UpdateOrderExecutionLimits sets exchange executions for a required asset type
 func (co *CoinbaseInternational) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) error {
-	return common.ErrFunctionNotSupported
+	if a != asset.Spot {
+		return fmt.Errorf("%w %v", asset.ErrNotSupported, a)
+	}
+	instruments, err := co.GetInstruments(ctx)
+	if err != nil {
+		return fmt.Errorf("%s failed to load %s pair execution limits. Err: %s", co.Name, a, err)
+	}
+
+	limits := make([]order.MinMaxLevel, len(instruments))
+	for index := range instruments {
+		pair, err := currency.NewPairFromString(instruments[index].Symbol)
+		if err != nil {
+			return err
+		}
+		limits[index] = order.MinMaxLevel{
+			Asset:                   a,
+			Pair:                    pair,
+			AmountStepIncrementSize: instruments[index].BaseIncrement.Float64(),
+			QuoteStepIncrementSize:  instruments[index].QuoteIncrement.Float64(),
+			MinPrice:                instruments[index].Quote.LimitDown.Float64(),
+			MaxPrice:                instruments[index].Quote.LimitUp.Float64(),
+		}
+	}
+	return co.LoadLimits(limits)
 }

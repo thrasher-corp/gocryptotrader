@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -591,5 +592,25 @@ func TestGetActiveOrders(t *testing.T) {
 	})
 	if err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestUpdateOrderExecutionLimits(t *testing.T) {
+	t.Parallel()
+	err := co.UpdateOrderExecutionLimits(context.Background(), asset.Spot)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	pairs, err := co.FetchTradablePairs(context.Background(), asset.Spot)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for y := range pairs {
+		lim, err := co.GetOrderExecutionLimits(asset.Spot, pairs[y])
+		if err != nil {
+			t.Fatalf("%v %s %v", err, pairs[y], asset.Spot)
+		}
+		assert.NotEmpty(t, lim, "limit cannot be empty")
 	}
 }

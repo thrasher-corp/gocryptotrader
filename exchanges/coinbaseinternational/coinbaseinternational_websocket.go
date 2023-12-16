@@ -368,7 +368,7 @@ func (co *CoinbaseInternational) handleSubscription(payload []SubscriptionInput)
 		authenticate bool
 		creds        *account.Credentials
 	)
-	if co.Websocket.CanUseAuthenticatedEndpoints() {
+	if co.AreCredentialsValid(context.Background()) && co.Websocket.CanUseAuthenticatedEndpoints() {
 		var err error
 		creds, err = co.GetCredentials(context.Background())
 		if err != nil {

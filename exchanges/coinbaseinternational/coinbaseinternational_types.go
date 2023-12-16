@@ -63,6 +63,21 @@ type InstrumentInfo struct {
 	TradingState        string                  `json:"trading_state"`
 	PositionLimitAdv    float64                 `json:"position_limit_adv"`
 	InitialMarginAdv    float64                 `json:"initial_margin_adv"`
+	Quote               struct {
+		BestBidPrice     convert.StringToFloat64 `json:"best_bid_price"`
+		BestBidSize      convert.StringToFloat64 `json:"best_bid_size"`
+		BestAskPrice     convert.StringToFloat64 `json:"best_ask_price"`
+		BestAskSize      convert.StringToFloat64 `json:"best_ask_size"`
+		TradePrice       convert.StringToFloat64 `json:"trade_price"`
+		TradeQty         convert.StringToFloat64 `json:"trade_qty"`
+		IndexPrice       convert.StringToFloat64 `json:"index_price"`
+		MarkPrice        convert.StringToFloat64 `json:"mark_price"`
+		SettlementPrice  convert.StringToFloat64 `json:"settlement_price"`
+		LimitUp          convert.StringToFloat64 `json:"limit_up"`
+		LimitDown        convert.StringToFloat64 `json:"limit_down"`
+		PredictedFunding convert.StringToFloat64 `json:"predicted_funding"`
+		Timestamp        time.Time               `json:"timestamp"`
+	} `json:"quote"`
 }
 
 // QuoteInformation represents a instrument quote information
