@@ -128,12 +128,10 @@ func TestGetCurrencyNetworks(t *testing.T) {
 	}
 }
 
-const getWithdrawalHistoryResponseJSON = `{ "withdrawal_list": [ { "currency": "XRP", "client_wid": "my_withdrawal_002", "fee": 1.0, "create_time": 1607063412000, "id": "2220", "update_time": 1607063460000, "amount": 100, "address": "2NBqqD5GRJ8wHy1PYyCXTe9ke5226FhavBf?1234567890", "status": "1", "txid": "", "network_id": null }]}`
-
 func TestGetWithdrawalHistory(t *testing.T) {
 	t.Parallel()
 	var resp *WithdrawalResponse
-	err := json.Unmarshal([]byte(getWithdrawalHistoryResponseJSON), &resp)
+	err := json.Unmarshal([]byte(getWithdrawalHistory), &resp)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -206,12 +204,10 @@ func TestCancelExistingOrder(t *testing.T) {
 	}
 }
 
-const getPrivateTradesPushDataJSON = `{ "trade_list": [ { "side": "SELL", "instrument_name": "ETH_CRO", "fee": 0.014, "trade_id": "367107655537806900", "create_time": 1588777459755, "traded_price": 7, "traded_quantity": 1, "fee_currency": "CRO", "order_id": "367107623521528450"}]}`
-
 func TestGetPrivateTrades(t *testing.T) {
 	t.Parallel()
 	var resp *PersonalTrades
-	err := json.Unmarshal([]byte(getPrivateTradesPushDataJSON), &resp)
+	err := json.Unmarshal([]byte(getPrivateTrades), &resp)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -252,12 +248,10 @@ func TestGetPersonalOpenOrders(t *testing.T) {
 	}
 }
 
-const getPersonalOrderHistoryResponseJSON = `{ "order_list": [ { "status": "FILLED", "side": "SELL", "price": 1, "quantity": 1, "order_id": "367107623521528457", "client_oid": "my_order_0002", "create_time": 1588777459755, "update_time": 1588777460700, "type": "LIMIT", "instrument_name": "ETH_CRO", "cumulative_quantity": 1, "cumulative_value": 1, "avg_price": 1, "fee_currency": "CRO", "time_in_force": "GOOD_TILL_CANCEL" }, { "status": "FILLED", "side": "SELL", "price": 1, "quantity": 1, "order_id": "367063282527104905", "client_oid": "my_order_0002", "create_time": 1588776138290, "update_time": 1588776138679, "type": "LIMIT", "instrument_name": "ETH_CRO", "cumulative_quantity": 1, "cumulative_value": 1, "avg_price": 1, "fee_currency": "CRO", "time_in_force": "GOOD_TILL_CANCEL"}]}`
-
 func TestGetPersonalOrderHistory(t *testing.T) {
 	t.Parallel()
 	var resp *PersonalOrdersResponse
-	err := json.Unmarshal([]byte(getPersonalOrderHistoryResponseJSON), &resp)
+	err := json.Unmarshal([]byte(getPersonalOrderHistory), &resp)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -334,12 +328,10 @@ func TestGetAccounts(t *testing.T) {
 	}
 }
 
-const getTransactionsResponseJSON = `{ "data": [ { "account_id": "88888888-8888-8888-8888-000000000007", "event_date": "2021-02-18", "journal_type": "TRADING", "journal_id": "187078", "transaction_qty": "-0.0005", "transaction_cost": "-24.500000", "realized_pnl": "-0.006125", "order_id": "72062", "trade_id": "71497", "trade_match_id": "8625", "event_timestamp_ms": 1613640752166, "event_timestamp_ns": "1613640752166234567", "client_oid": "6ac2421d-5078-4ef6-a9d5-9680602ce123", "taker_side": "MAKER", "side": "SELL", "instrument_name": "BTCUSD-PERP" }, { "account_id": "9c72d8f1-583d-4b9d-b27c-55e695a2d116", "event_date": "2021-02-18", "journal_type": "SESSION_SETTLE", "journal_id": "186959", "transaction_qty": "0", "transaction_cost": "0.000000", "realized_pnl": "-0.007800", "trade_match_id": "0", "event_timestamp_ms": 1613638800001, "event_timestamp_ns": "1613638800001124563", "client_oid": "", "taker_side": "", "instrument_name": "BTCUSD-PERP" }]}`
-
 func TestGetTransactions(t *testing.T) {
 	t.Parallel()
 	var resp *TransactionResponse
-	err := json.Unmarshal([]byte(getTransactionsResponseJSON), &resp)
+	err := json.Unmarshal([]byte(getTransactions), &resp)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -359,12 +351,10 @@ func TestCreateSubAccountTransfer(t *testing.T) {
 	}
 }
 
-const getOtcUserResponseJSON = `{ "account_uuid": "00000000-00000000-00000000-00000000", "requests_per_minute": 30, "max_trade_value_usd": "5000000", "min_trade_value_usd": "50000", "accept_otc_tc_datetime": 1636512069509 }`
-
 func TestGetOTCUser(t *testing.T) {
 	t.Parallel()
 	var resp *OTCTrade
-	err := json.Unmarshal([]byte(getOtcUserResponseJSON), &resp)
+	err := json.Unmarshal([]byte(getOtcUser), &resp)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -384,12 +374,10 @@ func TestGetOTCInstruments(t *testing.T) {
 	}
 }
 
-const requestOTCQuoteResponseJSON = `{"quote_id": "2412548678404715041", "quote_status": "ACTIVE", "quote_direction": "BUY", "base_currency": "BTC", "quote_currency": "USDT", "base_currency_size": null, "quote_currency_size": "100000.00", "quote_buy": "39708.24", "quote_buy_quantity": "2.51836898", "quote_buy_value": "100000.00", "quote_sell": "39677.18", "quote_sell_quantity": "2.52034040", "quote_sell_value": "100000.00", "quote_duration": 2, "quote_time": 1649736353489, "quote_expiry_time": 1649736363578 }`
-
 func TestRequestOTCQuote(t *testing.T) {
 	t.Parallel()
 	var resp *OTCQuoteResponse
-	err := json.Unmarshal([]byte(requestOTCQuoteResponseJSON), &resp)
+	err := json.Unmarshal([]byte(requestOTCQuote), &resp)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -400,12 +388,10 @@ func TestRequestOTCQuote(t *testing.T) {
 	}
 }
 
-const acceptOTCQuoteResponseJSON = `{"quote_id": "2412548678404715041", "quote_status": "FILLED", "quote_direction": "BUY", "base_currency": "BTC", "quote_currency": "USDT", "base_currency_size": null, "quote_currency_size": "100000.00", "quote_buy": "39708.24", "quote_sell": null, "quote_duration": 2, "quote_time": 1649743710146, "quote_expiry_time": 1649743720231, "trade_direction": "BUY", "trade_price": "39708.24", "trade_quantity": "2.51836898", "trade_value": "100000.00", "trade_time": 1649743718963 }`
-
 func TestAcceptOTCQuote(t *testing.T) {
 	t.Parallel()
 	var resp *AcceptQuoteResponse
-	err := json.Unmarshal([]byte(acceptOTCQuoteResponseJSON), &resp)
+	err := json.Unmarshal([]byte(acceptOTCQuote), &resp)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -416,12 +402,10 @@ func TestAcceptOTCQuote(t *testing.T) {
 	}
 }
 
-const getOTCQuoteHistoryResponseJSON = `{"count": 1, "quote_list": [ { "quote_id": "2412795526826582752", "quote_status": "EXPIRED", "quote_direction": "BUY", "base_currency": "BTC", "quote_currency": "USDT", "base_currency_size": null, "quote_currency_size": "100000.00", "quote_buy": "39708.24", "quote_sell": null, "quote_duration": 2, "quote_time": 1649743710146, "quote_expiry_time": 1649743720231, "trade_direction": null, "trade_price": null, "trade_quantity": null, "trade_value": null, "trade_time": null } ] }`
-
 func TestGetOTCQuoteHistory(t *testing.T) {
 	t.Parallel()
 	var resp *QuoteHistoryResponse
-	err := json.Unmarshal([]byte(getOTCQuoteHistoryResponseJSON), &resp)
+	err := json.Unmarshal([]byte(getOTCQuoteHistory), &resp)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -432,12 +416,10 @@ func TestGetOTCQuoteHistory(t *testing.T) {
 	}
 }
 
-const getOTCTradeHistoryResponseJSON = `{"count": 1, "trade_list": [ { "quote_id": "2412795526826582752", "quote_status": "FILLED", "quote_direction": "BUY", "base_currency": "BTC", "quote_currency": "USDT", "base_currency_size": null, "quote_currency_size": "100000.00", "quote_buy": "39708.24", "quote_sell": null, "quote_duration": 10, "quote_time": 1649743710146, "quote_expiry_time": 1649743720231, "trade_direction": "BUY", "trade_price": "39708.24", "trade_quantity": "2.51836898", "trade_value": "100000.00", "trade_time": 1649743718963 } ] }`
-
 func TestGetOTCTradeHistory(t *testing.T) {
 	t.Parallel()
 	var resp *OTCTradeHistoryResponse
-	err := json.Unmarshal([]byte(getOTCTradeHistoryResponseJSON), &resp)
+	err := json.Unmarshal([]byte(getOTCTradeHistory), &resp)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -842,6 +824,18 @@ var pushDataMap = map[string]string{
 	"userOrderPushData":   `{"method": "subscribe", "result": { "instrument_name": "ETH_CRO", "subscription": "user.order.ETH_CRO", "channel": "user.order", "data": [ { "status": "ACTIVE", "side": "BUY", "price": 1, "quantity": 1, "order_id": "366455245775097673", "client_oid": "my_order_0002", "create_time": 1588758017375, "update_time": 1588758017411, "type": "LIMIT", "instrument_name": "ETH_CRO", "cumulative_quantity": 0, "cumulative_value": 0, "avg_price": 0, "fee_currency": "CRO", "time_in_force":"GOOD_TILL_CANCEL" } ], "channel": "user.order.ETH_CRO" } }`,
 	"userTradePushData":   `{"method": "subscribe", "code": 0, "result": { "instrument_name": "ETH_CRO", "subscription": "user.trade.ETH_CRO", "channel": "user.trade", "data": [ { "side": "SELL", "instrument_name": "ETH_CRO", "fee": 0.014, "trade_id": "367107655537806900", "create_time": "1588777459755", "traded_price": 7, "traded_quantity": 1, "fee_currency": "CRO", "order_id": "367107623521528450" } ], "channel": "user.trade.ETH_CRO" } }`,
 }
+
+const (
+	getWithdrawalHistory    = `{ "withdrawal_list": [ { "currency": "XRP", "client_wid": "my_withdrawal_002", "fee": 1.0, "create_time": 1607063412000, "id": "2220", "update_time": 1607063460000, "amount": 100, "address": "2NBqqD5GRJ8wHy1PYyCXTe9ke5226FhavBf?1234567890", "status": "1", "txid": "", "network_id": null }]}`
+	getPrivateTrades        = `{ "trade_list": [ { "side": "SELL", "instrument_name": "ETH_CRO", "fee": 0.014, "trade_id": "367107655537806900", "create_time": 1588777459755, "traded_price": 7, "traded_quantity": 1, "fee_currency": "CRO", "order_id": "367107623521528450"}]}`
+	getPersonalOrderHistory = `{ "order_list": [ { "status": "FILLED", "side": "SELL", "price": 1, "quantity": 1, "order_id": "367107623521528457", "client_oid": "my_order_0002", "create_time": 1588777459755, "update_time": 1588777460700, "type": "LIMIT", "instrument_name": "ETH_CRO", "cumulative_quantity": 1, "cumulative_value": 1, "avg_price": 1, "fee_currency": "CRO", "time_in_force": "GOOD_TILL_CANCEL" }, { "status": "FILLED", "side": "SELL", "price": 1, "quantity": 1, "order_id": "367063282527104905", "client_oid": "my_order_0002", "create_time": 1588776138290, "update_time": 1588776138679, "type": "LIMIT", "instrument_name": "ETH_CRO", "cumulative_quantity": 1, "cumulative_value": 1, "avg_price": 1, "fee_currency": "CRO", "time_in_force": "GOOD_TILL_CANCEL"}]}`
+	getTransactions         = `{ "data": [ { "account_id": "88888888-8888-8888-8888-000000000007", "event_date": "2021-02-18", "journal_type": "TRADING", "journal_id": "187078", "transaction_qty": "-0.0005", "transaction_cost": "-24.500000", "realized_pnl": "-0.006125", "order_id": "72062", "trade_id": "71497", "trade_match_id": "8625", "event_timestamp_ms": 1613640752166, "event_timestamp_ns": "1613640752166234567", "client_oid": "6ac2421d-5078-4ef6-a9d5-9680602ce123", "taker_side": "MAKER", "side": "SELL", "instrument_name": "BTCUSD-PERP" }, { "account_id": "9c72d8f1-583d-4b9d-b27c-55e695a2d116", "event_date": "2021-02-18", "journal_type": "SESSION_SETTLE", "journal_id": "186959", "transaction_qty": "0", "transaction_cost": "0.000000", "realized_pnl": "-0.007800", "trade_match_id": "0", "event_timestamp_ms": 1613638800001, "event_timestamp_ns": "1613638800001124563", "client_oid": "", "taker_side": "", "instrument_name": "BTCUSD-PERP" }]}`
+	getOtcUser              = `{ "account_uuid": "00000000-00000000-00000000-00000000", "requests_per_minute": 30, "max_trade_value_usd": "5000000", "min_trade_value_usd": "50000", "accept_otc_tc_datetime": 1636512069509 }`
+	requestOTCQuote         = `{"quote_id": "2412548678404715041", "quote_status": "ACTIVE", "quote_direction": "BUY", "base_currency": "BTC", "quote_currency": "USDT", "base_currency_size": null, "quote_currency_size": "100000.00", "quote_buy": "39708.24", "quote_buy_quantity": "2.51836898", "quote_buy_value": "100000.00", "quote_sell": "39677.18", "quote_sell_quantity": "2.52034040", "quote_sell_value": "100000.00", "quote_duration": 2, "quote_time": 1649736353489, "quote_expiry_time": 1649736363578 }`
+	acceptOTCQuote          = `{"quote_id": "2412548678404715041", "quote_status": "FILLED", "quote_direction": "BUY", "base_currency": "BTC", "quote_currency": "USDT", "base_currency_size": null, "quote_currency_size": "100000.00", "quote_buy": "39708.24", "quote_sell": null, "quote_duration": 2, "quote_time": 1649743710146, "quote_expiry_time": 1649743720231, "trade_direction": "BUY", "trade_price": "39708.24", "trade_quantity": "2.51836898", "trade_value": "100000.00", "trade_time": 1649743718963 }`
+	getOTCQuoteHistory      = `{"count": 1, "quote_list": [ { "quote_id": "2412795526826582752", "quote_status": "EXPIRED", "quote_direction": "BUY", "base_currency": "BTC", "quote_currency": "USDT", "base_currency_size": null, "quote_currency_size": "100000.00", "quote_buy": "39708.24", "quote_sell": null, "quote_duration": 2, "quote_time": 1649743710146, "quote_expiry_time": 1649743720231, "trade_direction": null, "trade_price": null, "trade_quantity": null, "trade_value": null, "trade_time": null } ] }`
+	getOTCTradeHistory      = `{"count": 1, "trade_list": [ { "quote_id": "2412795526826582752", "quote_status": "FILLED", "quote_direction": "BUY", "base_currency": "BTC", "quote_currency": "USDT", "base_currency_size": null, "quote_currency_size": "100000.00", "quote_buy": "39708.24", "quote_sell": null, "quote_duration": 10, "quote_time": 1649743710146, "quote_expiry_time": 1649743720231, "trade_direction": "BUY", "trade_price": "39708.24", "trade_quantity": "2.51836898", "trade_value": "100000.00", "trade_time": 1649743718963 } ] }`
+)
 
 func TestPushData(t *testing.T) {
 	t.Parallel()
