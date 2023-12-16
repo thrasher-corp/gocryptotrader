@@ -8,6 +8,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -15,6 +16,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -219,8 +221,7 @@ func (dy *DYDX) FetchTradablePairs(ctx context.Context, a asset.Item) (currency.
 	if err != nil {
 		return nil, err
 	}
-	pairs := make(currency.Pairs, len(instruments.Markets))
-	count := 0
+	pairs := make(currency.Pairs, 0, len(instruments.Markets))
 	for key := range instruments.Markets {
 		if instruments.Markets[key].Status == "OFFLINE" {
 			continue
@@ -229,8 +230,7 @@ func (dy *DYDX) FetchTradablePairs(ctx context.Context, a asset.Item) (currency.
 		if err != nil {
 			return nil, err
 		}
-		pairs[count] = cp
-		count++
+		pairs = append(pairs, cp)
 	}
 	return pairs, nil
 }
@@ -581,7 +581,7 @@ func (dy *DYDX) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Submit
 		Size:       s.Amount,
 		Price:      s.Price,
 		ReduceOnly: s.ReduceOnly,
-		Expiration: dydxTimeUTC(expirationTime),
+		Expiration: dYdXTimeUTC(expirationTime),
 	})
 	if err != nil {
 		return nil, err
@@ -720,7 +720,7 @@ func (dy *DYDX) WithdrawCryptocurrencyFunds(ctx context.Context, withdrawRequest
 	response, err := dy.CreateWithdrawal(ctx, creds.SubAccount, &WithdrawalParam{
 		Asset:      withdrawRequest.Currency.String(),
 		Amount:     withdrawRequest.Amount,
-		Expiration: dydxTimeUTC(expirationTime),
+		Expiration: dYdXTimeUTC(expirationTime),
 	})
 	if err != nil {
 		return nil, err
@@ -942,10 +942,77 @@ func (dy *DYDX) GetServerTime(ctx context.Context, _ asset.Item) (time.Time, err
 	if err != nil {
 		return time.Time{}, err
 	}
-	return serverTime.Epoch, nil
+	return serverTime.Epoch.Time(), nil
 }
 
 // GetFuturesContractDetails returns all contracts from the exchange by asset type
 func (dy *DYDX) GetFuturesContractDetails(context.Context, asset.Item) ([]futures.Contract, error) {
 	return nil, common.ErrFunctionNotSupported
+}
+
+// GetLatestFundingRates returns the latest funding rates data
+func (dy *DYDX) GetLatestFundingRates(ctx context.Context, r *fundingrate.LatestRateRequest) ([]fundingrate.LatestRateResponse, error) {
+	if r == nil {
+		return nil, fmt.Errorf("%w LatestRateRequest", common.ErrNilPointer)
+	}
+	if r.Asset != asset.Spot {
+		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, r.Asset)
+	}
+	if r.Pair.IsEmpty() {
+		return nil, fmt.Errorf("%w, pair required", currency.ErrCurrencyPairEmpty)
+	}
+	format, err := dy.GetPairFormat(r.Asset, true)
+	if err != nil {
+		return nil, err
+	}
+	r.Pair = r.Pair.Format(format)
+	fr, err := dy.GetHistoricalFunding(ctx, r.Pair.String(), time.Time{})
+	if err != nil {
+		return nil, err
+	}
+	latestRates := make([]fundingrate.LatestRateResponse, len(fr))
+	for x := range fr {
+		latestRates[x] = fundingrate.LatestRateResponse{
+			TimeChecked: time.Now(),
+			Exchange:    dy.Name,
+			Asset:       r.Asset,
+			Pair:        r.Pair,
+		}
+		latestRates[x].LatestRate = fundingrate.Rate{
+			Time: fr[x].EffectiveAt,
+			Rate: decimal.NewFromFloat(fr[x].Rate.Float64()),
+		}
+	}
+	return latestRates, nil
+}
+
+// UpdateOrderExecutionLimits updates order execution limits
+func (dy *DYDX) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) error {
+	if !dy.SupportsAsset(a) {
+		return fmt.Errorf("%w %v", asset.ErrNotSupported, a)
+	}
+	instruments, err := dy.GetMarkets(ctx, "")
+	if err != nil {
+		return err
+	}
+
+	limits := make([]order.MinMaxLevel, 0, len(instruments.Markets))
+	for x := range instruments.Markets {
+		if instruments.Markets[x].Status == "OFFLINE" {
+			continue
+		}
+		pair, err := currency.NewPairFromString(instruments.Markets[x].Market)
+		if err != nil {
+			return err
+		}
+		limits = append(limits, order.MinMaxLevel{
+			Pair:                    pair,
+			Asset:                   a,
+			AmountStepIncrementSize: instruments.Markets[x].StepSize.Float64(),
+			PriceStepIncrementSize:  instruments.Markets[x].TickSize.Float64(),
+			MinimumBaseAmount:       instruments.Markets[x].MinOrderSize.Float64(),
+			MaximumBaseAmount:       instruments.Markets[x].MaxPositionSize.Float64(),
+		})
+	}
+	return dy.LoadLimits(limits)
 }

@@ -217,22 +217,7 @@ type API struct {
 	credentials account.Credentials
 	credMu      sync.RWMutex
 
-<<<<<<< HEAD
-	CredentialsValidator CredentialsValidator
-}
-
-// CredentialsValidator determines what is required
-// to make authenticated requests for an exchange
-type CredentialsValidator struct {
-	RequiresPEM                bool
-	RequiresKey                bool
-	RequiresSecret             bool
-	RequiresClientID           bool
-	RequiresBase64DecodeSecret bool
-	RequiresPrivateKey         bool
-=======
 	CredentialsValidator config.APICredentialsValidatorConfig
->>>>>>> 233a65a7785a61ed60fe46c75cef1b82971c4ebf
 }
 
 // Base stores the individual exchange information

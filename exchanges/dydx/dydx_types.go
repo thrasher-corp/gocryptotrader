@@ -5,6 +5,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 )
 
@@ -94,31 +95,31 @@ var (
 // InstrumentDatas metadata about each retrieved market.
 type InstrumentDatas struct {
 	Markets map[string]*struct {
-		Market                           string    `json:"market"`
-		Status                           string    `json:"status"`
-		BaseAsset                        string    `json:"baseAsset"`
-		QuoteAsset                       string    `json:"quoteAsset"`
-		StepSize                         string    `json:"stepSize"`
-		TickSize                         float64   `json:"tickSize,string"`
-		IndexPrice                       float64   `json:"indexPrice,string"`
-		OraclePrice                      float64   `json:"oraclePrice,string"`
-		PriceChange24H                   float64   `json:"priceChange24H,string"`
-		NextFundingRate                  string    `json:"nextFundingRate"`
-		NextFundingAt                    time.Time `json:"nextFundingAt"`
-		MinOrderSize                     string    `json:"minOrderSize"`
-		Type                             string    `json:"type"`
-		InitialMarginFraction            string    `json:"initialMarginFraction"`
-		MaintenanceMarginFraction        string    `json:"maintenanceMarginFraction"`
-		BaselinePositionSize             string    `json:"baselinePositionSize"`
-		IncrementalPositionSize          string    `json:"incrementalPositionSize"`
-		IncrementalInitialMarginFraction string    `json:"incrementalInitialMarginFraction"`
-		Volume24H                        float64   `json:"volume24H,string"`
-		Trades24H                        float64   `json:"trades24H,string"`
-		OpenInterest                     string    `json:"openInterest"`
-		MaxPositionSize                  string    `json:"maxPositionSize"`
-		AssetResolution                  string    `json:"assetResolution"`
-		SyntheticAssetID                 string    `json:"syntheticAssetId"`
-		TransferMarginFraction           string    `json:"transferMarginFraction"`
+		Market                           string                  `json:"market"`
+		Status                           string                  `json:"status"`
+		BaseAsset                        string                  `json:"baseAsset"`
+		QuoteAsset                       string                  `json:"quoteAsset"`
+		StepSize                         convert.StringToFloat64 `json:"stepSize"`
+		TickSize                         convert.StringToFloat64 `json:"tickSize"`
+		IndexPrice                       convert.StringToFloat64 `json:"indexPrice"`
+		OraclePrice                      convert.StringToFloat64 `json:"oraclePrice"`
+		PriceChange24H                   convert.StringToFloat64 `json:"priceChange24H"`
+		NextFundingRate                  convert.StringToFloat64 `json:"nextFundingRate"`
+		NextFundingAt                    time.Time               `json:"nextFundingAt"`
+		MinOrderSize                     convert.StringToFloat64 `json:"minOrderSize"`
+		Type                             string                  `json:"type"`
+		InitialMarginFraction            convert.StringToFloat64 `json:"initialMarginFraction"`
+		MaintenanceMarginFraction        convert.StringToFloat64 `json:"maintenanceMarginFraction"`
+		BaselinePositionSize             convert.StringToFloat64 `json:"baselinePositionSize"`
+		IncrementalPositionSize          convert.StringToFloat64 `json:"incrementalPositionSize"`
+		IncrementalInitialMarginFraction convert.StringToFloat64 `json:"incrementalInitialMarginFraction"`
+		Volume24H                        convert.StringToFloat64 `json:"volume24H"`
+		Trades24H                        convert.StringToFloat64 `json:"trades24H"`
+		OpenInterest                     string                  `json:"openInterest"`
+		MaxPositionSize                  convert.StringToFloat64 `json:"maxPositionSize"`
+		AssetResolution                  string                  `json:"assetResolution"`
+		SyntheticAssetID                 string                  `json:"syntheticAssetId"`
+		TransferMarginFraction           string                  `json:"transferMarginFraction"`
 	} `json:"markets"`
 }
 
@@ -227,10 +228,10 @@ type HistoricFundingResponse struct {
 
 // HistoricalFunding represents historical funding rates for a market.
 type HistoricalFunding struct {
-	Market      string    `json:"market"`
-	Rate        string    `json:"rate"`
-	Price       string    `json:"price"`
-	EffectiveAt time.Time `json:"effectiveAt"`
+	Market      string                  `json:"market"`
+	Rate        convert.StringToFloat64 `json:"rate"`
+	Price       convert.StringToFloat64 `json:"price"`
+	EffectiveAt time.Time               `json:"effectiveAt"`
 }
 
 // MarketCandlesResponse represents response data for market candlestick data.
@@ -282,8 +283,8 @@ type ConfigurationVariableResponse struct {
 
 // APIServerTime represents the server time in ISO(string) and Epoch milliseconds.
 type APIServerTime struct {
-	ISO   string    `json:"iso"`
-	Epoch time.Time `json:"epoch"`
+	ISO   string               `json:"iso"`
+	Epoch convert.ExchangeTime `json:"epoch"`
 }
 
 // LeaderboardPNLs represents top PNLs for a specified period and how they rank against
@@ -630,7 +631,7 @@ type CreateOrderRequestParams struct {
 	Size            float64     `json:"size,string"`
 	Price           float64     `json:"price,string"`
 	LimitFee        float64     `json:"limitFee"`
-	Expiration      dydxTimeUTC `json:"expiration,omitempty"`
+	Expiration      dYdXTimeUTC `json:"expiration,omitempty"`
 	TimeInForce     string      `json:"timeInForce,omitempty"`
 	Cancelled       bool        `json:"cancelId,string"`
 	TriggerPrice    float64     `json:"triggerPrice,omitempty,string"`
@@ -871,7 +872,7 @@ type FastWithdrawalParam struct {
 	SlippageTolerance float64     `json:"slippageTolerance,omitempty,string"`
 	LPPositionID      int64       `json:"lpPositionId,omitempty,string"`
 	ClientID          string      `json:"clientId"`
-	Expiration        dydxTimeUTC `json:"expiration,omitempty"`
+	Expiration        dYdXTimeUTC `json:"expiration,omitempty"`
 	Hey               string      `json:"Hey,omitempty"`
 	Signature         string      `json:"signature"`
 }
@@ -887,7 +888,7 @@ type FastWithdrawalRequestParam struct {
 type TransferParam struct {
 	Amount             float64     `json:"amount,string"`
 	ClientID           string      `json:"clientId"`
-	Expiration         dydxTimeUTC `json:"expiration,omitempty"`
+	Expiration         dYdXTimeUTC `json:"expiration,omitempty"`
 	ReceiverAccountID  string      `json:"receiverAccountId"`
 	Signature          string      `json:"signature,omitempty"`
 	ReceiverPublicKey  string      `json:"receiverPublicKey"`
@@ -898,7 +899,7 @@ type TransferParam struct {
 type WithdrawalParam struct {
 	Amount            float64     `json:"amount,string"`
 	Asset             string      `json:"asset"`
-	Expiration        dydxTimeUTC `json:"expiration"`
+	Expiration        dYdXTimeUTC `json:"expiration"`
 	ClientGeneratedID string      `json:"clientId"`
 	Signature         string      `json:"signature"`
 }

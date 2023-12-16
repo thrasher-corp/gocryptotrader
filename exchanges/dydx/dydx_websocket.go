@@ -211,21 +211,21 @@ func (dy *DYDX) wsHandleData(respRaw []byte) error {
 			if market.Markets[key].Volume24H != 0 {
 				tickerPrice = &ticker.Price{
 					ExchangeName: dy.Name,
-					Last:         market.Markets[key].IndexPrice,
+					Last:         market.Markets[key].IndexPrice.Float64(),
 					Pair:         pair,
 					AssetType:    asset.Spot,
-					Open:         market.Markets[key].PriceChange24H,
-					QuoteVolume:  market.Markets[key].Volume24H,
+					Open:         market.Markets[key].PriceChange24H.Float64(),
+					QuoteVolume:  market.Markets[key].Volume24H.Float64(),
 				}
 				if market.Markets[key].OraclePrice != 0 {
-					tickerPrice.Volume = market.Markets[key].Volume24H / market.Markets[key].OraclePrice
+					tickerPrice.Volume = market.Markets[key].Volume24H.Float64() / market.Markets[key].OraclePrice.Float64()
 				}
 			} else {
 				tickerPrice, err = ticker.GetTicker(dy.Name, pair, asset.Spot)
 				if err != nil {
 					return err
 				}
-				tickerPrice.Last = market.Markets[key].IndexPrice
+				tickerPrice.Last = market.Markets[key].IndexPrice.Float64()
 			}
 			dy.Websocket.DataHandler <- tickerPrice
 		}
