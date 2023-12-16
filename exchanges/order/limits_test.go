@@ -166,8 +166,8 @@ func TestGetOrderExecutionLimits(t *testing.T) {
 	}
 
 	_, err = e.GetOrderExecutionLimits(asset.Futures, ltcusd)
-	if !errors.Is(err, errExchangeLimitAsset) {
-		t.Fatalf("expected error %v but received %v", errExchangeLimitAsset, err)
+	if !errors.Is(err, ErrCannotValidateAsset) {
+		t.Fatalf("expected error %v but received %v", ErrCannotValidateAsset, err)
 	}
 
 	_, err = e.GetOrderExecutionLimits(asset.Spot, ltcusd)
@@ -218,18 +218,18 @@ func TestCheckLimit(t *testing.T) {
 	}
 
 	err = e.CheckOrderExecutionLimits(asset.Futures, ltcusd, 1337, 1337, Limit)
-	if !errors.Is(err, errCannotValidateAsset) {
-		t.Fatalf("expected error %v but received %v", errCannotValidateAsset, err)
+	if !errors.Is(err, ErrCannotValidateAsset) {
+		t.Fatalf("expected error %v but received %v", ErrCannotValidateAsset, err)
 	}
 
 	err = e.CheckOrderExecutionLimits(asset.Spot, ltcusd, 1337, 1337, Limit)
-	if !errors.Is(err, errCannotValidateBaseCurrency) {
-		t.Fatalf("expected error %v but received %v", errCannotValidateBaseCurrency, err)
+	if !errors.Is(err, ErrCannotValidateBaseCurrency) {
+		t.Fatalf("expected error %v but received %v", ErrCannotValidateBaseCurrency, err)
 	}
 
 	err = e.CheckOrderExecutionLimits(asset.Spot, btcltc, 1337, 1337, Limit)
-	if !errors.Is(err, errCannotValidateQuoteCurrency) {
-		t.Fatalf("expected error %v but received %v", errCannotValidateQuoteCurrency, err)
+	if !errors.Is(err, ErrCannotValidateQuoteCurrency) {
+		t.Fatalf("expected error %v but received %v", ErrCannotValidateQuoteCurrency, err)
 	}
 
 	err = e.CheckOrderExecutionLimits(asset.Spot, btcusd, 1337, 9, Limit)

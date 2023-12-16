@@ -177,9 +177,8 @@ func TestFixtureToDataHandler(t *testing.T, seed, e exchange.IBotExchange, fixtu
 	s := bufio.NewScanner(fixture)
 	for s.Scan() {
 		msg := s.Bytes()
-		if err := reader(msg); err != nil {
-			t.Errorf("%v from message: %s", err, msg)
-		}
+		err := reader(msg)
+		assert.NoErrorf(t, err, "Fixture message should not error:\n%s", msg)
 	}
 	assert.NoError(t, s.Err(), "Fixture Scanner should not error")
 }

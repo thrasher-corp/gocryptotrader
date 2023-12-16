@@ -1417,11 +1417,6 @@ func getURLTypeFromString(ep string) (URL, error) {
 	}
 }
 
-// UpdateOrderExecutionLimits updates order execution limits this is overridable
-func (b *Base) UpdateOrderExecutionLimits(_ context.Context, _ asset.Item) error {
-	return common.ErrNotYetImplemented
-}
-
 // DisableAssetWebsocketSupport disables websocket functionality for the
 // supplied asset item. In the case that websocket functionality has not yet
 // been implemented for that specific asset type. This is a base method to
@@ -1672,11 +1667,6 @@ func (b *Base) GetFuturesPositionSummary(context.Context, *futures.PositionSumma
 	return nil, common.ErrNotYetImplemented
 }
 
-// GetFundingPaymentDetails returns funding payment details for a future for a specific time period
-func (b *Base) GetFundingPaymentDetails(context.Context, *fundingrate.RatesRequest) (*fundingrate.Rates, error) {
-	return nil, common.ErrNotYetImplemented
-}
-
 // GetFuturesPositions returns futures positions for all currencies
 func (b *Base) GetFuturesPositions(context.Context, *futures.PositionsRequest) ([]futures.PositionDetails, error) {
 	return nil, common.ErrNotYetImplemented
@@ -1687,13 +1677,8 @@ func (b *Base) GetFuturesPositionOrders(context.Context, *futures.PositionsReque
 	return nil, common.ErrNotYetImplemented
 }
 
-// GetLatestFundingRate returns the latest funding rate based on request data
-func (b *Base) GetLatestFundingRate(context.Context, *fundingrate.LatestRateRequest) (*fundingrate.LatestRateResponse, error) {
-	return nil, common.ErrNotYetImplemented
-}
-
-// GetFundingRates returns funding rates based on request data
-func (b *Base) GetFundingRates(context.Context, *fundingrate.RatesRequest) (*fundingrate.Rates, error) {
+// GetHistoricalFundingRates returns historical funding rates for a future
+func (b *Base) GetHistoricalFundingRates(context.Context, *fundingrate.HistoricalRatesRequest) (*fundingrate.HistoricalRates, error) {
 	return nil, common.ErrNotYetImplemented
 }
 

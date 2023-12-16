@@ -181,14 +181,15 @@ type FeaturesSupported struct {
 
 // FuturesCapabilities stores the exchange's futures capabilities
 type FuturesCapabilities struct {
-	FundingRates                 bool
-	Positions                    bool
-	OrderManagerPositionTracking bool
-	Collateral                   bool
-	CollateralMode               bool
-	Leverage                     bool
-	MaximumFundingRateHistory    time.Duration
-	FundingRateFrequency         time.Duration
+	FundingRates                    bool
+	MaximumFundingRateHistory       time.Duration
+	SupportedFundingRateFrequencies map[kline.Interval]bool
+	Positions                       bool
+	OrderManagerPositionTracking    bool
+	Collateral                      bool
+	CollateralMode                  bool
+	Leverage                        bool
+	FundingRateBatching             map[asset.Item]bool
 }
 
 // MarginCapabilities stores the exchange's margin capabilities

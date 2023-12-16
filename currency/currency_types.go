@@ -34,7 +34,6 @@ type BotOverrides struct {
 	ExchangeRates     bool
 	Fixer             bool
 	OpenExchangeRates bool
-	ExchangeRateHost  bool
 }
 
 // CoinmarketcapSettings refers to settings

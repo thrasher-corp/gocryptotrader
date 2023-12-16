@@ -106,8 +106,8 @@ type Base struct {
 	// Checks if the orderbook needs ID alignment as well as price alignment
 	IDAlignment bool
 	// Determines if there is a max depth of orderbooks and after an append we
-	// should remove any items that are outside of this scope. Bittrex and
-	// Kraken utilise this field.
+	// should remove any items that are outside of this scope. Kraken utilises
+	// this field.
 	MaxDepth int
 	// ChecksumStringRequired defines if the checksum is built from the raw
 	// string representations of the price and amount. This helps alleviate any
