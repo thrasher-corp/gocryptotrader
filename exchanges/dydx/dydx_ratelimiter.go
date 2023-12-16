@@ -26,17 +26,6 @@ const (
 	tenMinuteInterval       = time.Minute * 10
 	tenSecondInterval       = time.Second * 10
 	oneDayInterval          = time.Hour * 24
-
-	// request rates per interval
-	defaultV3Rate             = 175
-	sendVerificationEmailRate = 2
-	cancelOrdersRate          = 3
-	cancelSingleOrderRate     = 250
-	postOrdersRate            = 10
-	postTestnetTokensRate     = 5
-	cancelActiveOrdersRate    = 425
-	getActiveOrderRate        = 175
-	defaultRateRate           = 10
 )
 
 // RateLimiter limits dYdX requests
@@ -55,15 +44,15 @@ type RateLimiter struct {
 // SetupRateLimiter returns the rate limit for the exchange
 func SetupRateLimiter() *RateLimiter {
 	return &RateLimiter{
-		DefaultV3Limiter:             request.NewRateLimit(tenSecondInterval, defaultV3Rate),
-		SendVerificationEmailLimiter: request.NewRateLimit(tenMinuteInterval, sendVerificationEmailRate),
-		CancelOrdersLimiter:          request.NewRateLimit(tenSecondInterval, cancelOrdersRate),
-		CancelSingleOrderLimiter:     request.NewRateLimit(tenSecondInterval, cancelSingleOrderRate),
-		PostOrdersLimiter:            request.NewRateLimit(time.Second, postOrdersRate),
-		PostTestnetTokensLimiter:     request.NewRateLimit(oneDayInterval, postTestnetTokensRate),
-		CancelActiveOrdersLimiter:    request.NewRateLimit(tenSecondInterval, cancelActiveOrdersRate),
-		GetActiveOrderLimiter:        request.NewRateLimit(tenSecondInterval, getActiveOrderRate),
-		DefaultRateLimiter:           request.NewRateLimit(time.Minute, defaultRateRate),
+		DefaultV3Limiter:             request.NewRateLimit(tenSecondInterval, 175),
+		SendVerificationEmailLimiter: request.NewRateLimit(tenMinuteInterval, 2),
+		CancelOrdersLimiter:          request.NewRateLimit(tenSecondInterval, 3),
+		CancelSingleOrderLimiter:     request.NewRateLimit(tenSecondInterval, 250),
+		PostOrdersLimiter:            request.NewRateLimit(time.Second, 10),
+		PostTestnetTokensLimiter:     request.NewRateLimit(oneDayInterval, 5),
+		CancelActiveOrdersLimiter:    request.NewRateLimit(tenSecondInterval, 425),
+		GetActiveOrderLimiter:        request.NewRateLimit(tenSecondInterval, 175),
+		DefaultRateLimiter:           request.NewRateLimit(time.Minute, 10),
 	}
 }
 
