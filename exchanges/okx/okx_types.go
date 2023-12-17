@@ -2186,18 +2186,17 @@ type RfqTradeResponse struct {
 
 // RfqTradeLeg RFQ trade response leg.
 type RfqTradeLeg struct {
-	InstrumentID string                  `json:"instId"`
-	Side         string                  `json:"side"`
-	Size         string                  `json:"sz"`
-	Price        convert.StringToFloat64 `json:"px"`
 	TradeID      string                  `json:"tradeId"`
-
-	Fee         convert.StringToFloat64 `json:"fee"`
-	FeeCurrency string                  `json:"feeCcy"`
+	InstrumentID string                  `json:"instId"`
+	Side         order.Side              `json:"side"`
+	Size         convert.StringToFloat64 `json:"sz"`
+	Price        convert.StringToFloat64 `json:"px"`
+	Fee          convert.StringToFloat64 `json:"fee"`
+	FeeCurrency  string                  `json:"feeCcy"`
 }
 
-// PublicTradesResponse represents data will be pushed whenever there is a block trade.
-type PublicTradesResponse struct {
+// PublicBlockTradesResponse represents data will be pushed whenever there is a block trade.
+type PublicBlockTradesResponse struct {
 	BlockTradeID string               `json:"blockTdId"`
 	CreationTime convert.ExchangeTime `json:"cTime"`
 	Legs         []RfqTradeLeg        `json:"legs"`
@@ -2546,16 +2545,16 @@ type BlockTicker struct {
 
 // BlockTrade represents a block trade.
 type BlockTrade struct {
-	FillVolume   convert.StringToFloat64 `json:"fillVol"`
-	ForwardPrice convert.StringToFloat64 `json:"fwdPx"`
-	InedexPrice  convert.StringToFloat64 `json:"idxPx"`
-	MarkPrice    convert.StringToFloat64 `json:"markPx"`
-	Side         string                  `json:"side"`
-	InstrumentID string                  `json:"instId"`
-	TradeID      string                  `json:"tradeId"`
-	Price        convert.StringToFloat64 `json:"px"`
-	Size         convert.StringToFloat64 `json:"sz"`
-	Timestamp    convert.ExchangeTime    `json:"ts"`
+	FillVolatility convert.StringToFloat64 `json:"fillVol"`
+	ForwardPrice   convert.StringToFloat64 `json:"fwdPx"`
+	IndexPrice     convert.StringToFloat64 `json:"idxPx"`
+	MarkPrice      convert.StringToFloat64 `json:"markPx"`
+	Side           order.Side              `json:"side"`
+	InstrumentID   string                  `json:"instId"`
+	TradeID        string                  `json:"tradeId"`
+	Price          convert.StringToFloat64 `json:"px"`
+	Size           convert.StringToFloat64 `json:"sz"`
+	Timestamp      convert.ExchangeTime    `json:"ts"`
 }
 
 // SpreadOrderParam holds parameters for spread orders.
@@ -3357,8 +3356,8 @@ type WsSystemStatusResponse struct {
 
 // WsPublicTradesResponse represents websocket push data of structured block trades as a result of subscription to "public-struc-block-trades"
 type WsPublicTradesResponse struct {
-	Argument SubscriptionInfo       `json:"arg"`
-	Data     []PublicTradesResponse `json:"data"`
+	Argument SubscriptionInfo            `json:"arg"`
+	Data     []PublicBlockTradesResponse `json:"data"`
 }
 
 // WsBlockTicker represents websocket push data as a result of subscription to channel "block-tickers".
