@@ -846,9 +846,7 @@ func (bot *Engine) LoadExchange(name string) error {
 		}
 	}
 
-	exchange.Bootstrap(context.TODO(), exch)
-
-	return nil
+	return exchange.Bootstrap(context.TODO(), exch)
 }
 
 func (bot *Engine) dryRunParamInteraction(param string) {

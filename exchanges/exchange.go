@@ -1881,9 +1881,9 @@ func (b *Base) ParallelChanOp(channels []subscription.Subscription, m func([]sub
 // * Print debug startup information
 // * UpdateOrderExecutionLimits
 // * UpdateTradablePairs
-func Bootstrap(ctx context.Context, b IBotExchange) {
-	if continueBootstrap := b.Bootstrap(ctx); !continueBootstrap {
-		return
+func Bootstrap(ctx context.Context, b IBotExchange) error {
+	if continueBootstrap, err := b.Bootstrap(ctx); !continueBootstrap || err != nil {
+		return err
 	}
 
 	if b.IsVerbose() {
@@ -1901,25 +1901,44 @@ func Bootstrap(ctx context.Context, b IBotExchange) {
 		b.PrintEnabledPairs()
 	}
 
-	a := b.GetAssetTypes(true)
-	for x := range a {
-		if err := b.UpdateOrderExecutionLimits(ctx, a[x]); err != nil && !errors.Is(err, common.ErrNotYetImplemented) {
-			log.Errorf(log.ExchangeSys, "%s failed to set exchange order execution limits. Err: %v", b.GetName(), err)
+	errC := make(chan error, 16) // Blocking isn't a dealbreaker, but a little buffer is nice
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		a := b.GetAssetTypes(true)
+		for x := range a {
+			if aErr := b.UpdateOrderExecutionLimits(ctx, a[x]); aErr != nil && !errors.Is(aErr, common.ErrNotYetImplemented) {
+				errC <- fmt.Errorf("failed to set exchange order execution limits: %w", aErr)
+			}
 		}
+	}()
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		if b.GetEnabledFeatures().AutoPairUpdates {
+			if aErr := b.UpdateTradablePairs(ctx, false); aErr != nil {
+				errC <- fmt.Errorf("failed to update tradable pairs: %w", aErr)
+			}
+		}
+	}()
+	wg.Wait()
+	close(errC)
+
+	var err error
+	for e := range errC {
+		err = common.AppendError(err, e)
 	}
 
-	if b.GetEnabledFeatures().AutoPairUpdates {
-		if err := b.UpdateTradablePairs(ctx, false); err != nil {
-			log.Errorf(log.ExchangeSys, "%s failed to update tradable pairs. Err: %s", b.GetName(), err)
-		}
-	}
+	return err
 }
 
 // Bootstrap is a fallback method for exchange startup actions
-// Exchange authors should overide this if they wysh to customise startup actions
-// Return true to all default Bootstrap actions to occur afterwars
+// Exchange authors should override this if they wish to customise startup actions
+// Return true or an error to all default Bootstrap actions to occur afterwards
 // or false to signal that no further bootstrapping should occur
-func (b *Base) Bootstrap(_ context.Context) (continueBootstrap bool) {
+func (b *Base) Bootstrap(_ context.Context) (continueBootstrap bool, err error) {
 	continueBootstrap = true
 	return
 }

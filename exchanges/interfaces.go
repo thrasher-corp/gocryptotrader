@@ -29,7 +29,7 @@ import (
 // GoCryptoTrader
 type IBotExchange interface {
 	Setup(exch *config.Exchange) error
-	Bootstrap(context.Context) (continueBootstrap bool)
+	Bootstrap(context.Context) (continueBootstrap bool, err error)
 	SetDefaults()
 	Shutdown() error
 	GetName() string
