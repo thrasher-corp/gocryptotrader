@@ -58,7 +58,6 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		log.Fatal("GateIO setup error", err)
 	}
-	g.Run(context.Background())
 	getFirstTradablePairOfAssets()
 	os.Exit(m.Run())
 }
