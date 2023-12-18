@@ -722,7 +722,7 @@ func (bot *Engine) GetExchanges() []exchange.IBotExchange {
 
 // LoadExchange loads an exchange by name. Optional wait group can be added for
 // external synchronization.
-func (bot *Engine) LoadExchange(name string, wg *sync.WaitGroup) error {
+func (bot *Engine) LoadExchange(name string) error {
 	exch, err := bot.ExchangeManager.NewExchangeByName(name)
 	if err != nil {
 		return err
@@ -846,11 +846,9 @@ func (bot *Engine) LoadExchange(name string, wg *sync.WaitGroup) error {
 		}
 	}
 
-	if wg == nil {
-		wg = &sync.WaitGroup{}
-		defer wg.Wait()
-	}
-	return exchange.Start(context.TODO(), exch, wg)
+	exchange.Bootstrap(context.TODO(), exch)
+
+	return nil
 }
 
 func (bot *Engine) dryRunParamInteraction(param string) {
@@ -869,7 +867,6 @@ func (bot *Engine) dryRunParamInteraction(param string) {
 
 // SetupExchanges sets up the exchanges used by the Bot
 func (bot *Engine) SetupExchanges() error {
-	var wg sync.WaitGroup
 	configs := bot.Config.GetAllExchangeConfigs()
 	if bot.Settings.EnableAllPairs {
 		bot.dryRunParamInteraction("enableallpairs")
@@ -902,6 +899,7 @@ func (bot *Engine) SetupExchanges() error {
 		bot.dryRunParamInteraction("exchangehttpdebugging")
 	}
 
+	var wg sync.WaitGroup
 	for x := range configs {
 		if !configs[x].Enabled && !bot.Settings.EnableAllExchanges {
 			gctlog.Debugf(gctlog.ExchangeSys, "%s: Exchange support: Disabled\n", configs[x].Name)
@@ -910,17 +908,16 @@ func (bot *Engine) SetupExchanges() error {
 		wg.Add(1)
 		go func(c config.Exchange) {
 			defer wg.Done()
-			err := bot.LoadExchange(c.Name, &wg)
-			if err != nil {
+			if err := bot.LoadExchange(c.Name); err != nil {
 				gctlog.Errorf(gctlog.ExchangeSys, "LoadExchange %s failed: %s\n", c.Name, err)
-				return
+			} else {
+				gctlog.Debugf(gctlog.ExchangeSys,
+					"%s: Exchange support: Enabled (Authenticated API support: %s - Verbose mode: %s).\n",
+					c.Name,
+					common.IsEnabled(c.API.AuthenticatedSupport),
+					common.IsEnabled(c.Verbose),
+				)
 			}
-			gctlog.Debugf(gctlog.ExchangeSys,
-				"%s: Exchange support: Enabled (Authenticated API support: %s - Verbose mode: %s).\n",
-				c.Name,
-				common.IsEnabled(c.API.AuthenticatedSupport),
-				common.IsEnabled(c.Verbose),
-			)
 		}(configs[x])
 	}
 	wg.Wait()

@@ -1875,21 +1875,17 @@ func (b *Base) ParallelChanOp(channels []subscription.Subscription, m func([]sub
 	return errs
 }
 
-// Start starts an exchange bootstrap process in the background
-func Start(ctx context.Context, b IBotExchange, wg *sync.WaitGroup) error {
-	if wg == nil {
-		return fmt.Errorf("%T %w", wg, common.ErrNilPointer)
+// Bootstrap function allows for exchange authors to supplement or override common startup actions
+// If exchange.Bootstrap returns false or error it will not perform any other actions.
+// If it returns true, or is not implemented by the exchange, it will:
+// * Print debug startup information
+// * UpdateOrderExecutionLimits
+// * UpdateTradablePairs
+func Bootstrap(ctx context.Context, b IBotExchange) {
+	if continueBootstrap := b.Bootstrap(ctx); !continueBootstrap {
+		return
 	}
-	wg.Add(1)
-	go func() {
-		Run(ctx, b)
-		wg.Done()
-	}()
-	return nil
-}
 
-// Run performs a few Bootstrapping actions for the exchange
-func Run(ctx context.Context, b IBotExchange) {
 	if b.IsVerbose() {
 		if b.GetSupportedFeatures().Websocket {
 			wsURL := ""
@@ -1917,6 +1913,15 @@ func Run(ctx context.Context, b IBotExchange) {
 			log.Errorf(log.ExchangeSys, "%s failed to update tradable pairs. Err: %s", b.GetName(), err)
 		}
 	}
+}
+
+// Bootstrap is a fallback method for exchange startup actions
+// Exchange authors should overide this if they wysh to customise startup actions
+// Return true to all default Bootstrap actions to occur afterwars
+// or false to signal that no further bootstrapping should occur
+func (b *Base) Bootstrap(_ context.Context) (continueBootstrap bool) {
+	continueBootstrap = true
+	return
 }
 
 // IsVerbose returns if the exchange is set to verbose
