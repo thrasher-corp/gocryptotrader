@@ -24,7 +24,7 @@ const (
 	apiKey                  = ""
 	apiSecret               = ""
 	customerID              = "" // This is the customer id you use to log in
-	canManipulateRealOrders = true
+	canManipulateRealOrders = false
 )
 
 var b = &Bitstamp{}
@@ -182,6 +182,7 @@ func TestGetTicker(t *testing.T) {
 	assert.Positive(t, ticker.Volume, "Volume should be positive")
 	assert.Positive(t, ticker.Vwap, "Vwap should be positive")
 	assert.NotEmpty(t, ticker.Timestamp, "Timestamp should not be empty")
+	assert.Contains(t, []order.Side{order.Buy, order.Sell}, ticker.Side.Side(), "Side should be either Buy or Sell")
 }
 
 func TestGetOrderbook(t *testing.T) {
@@ -208,7 +209,7 @@ func TestGetTradingPairs(t *testing.T) {
 	for _, res := range p {
 		if mockTests {
 			assert.Positive(t, res.BaseDecimals, "BaseDecimals should be positive")
-			assert.Positive(t, res.CounterDecimals, "Delimiter should be positive")
+			assert.Positive(t, res.CounterDecimals, "CounterDecimals should be positive")
 		}
 		assert.NotEmpty(t, res.Name, "Name should not be empty")
 		assert.Positive(t, res.MinimumOrder, "MinimumOrder should be positive")
@@ -322,7 +323,7 @@ func TestGetBalance(t *testing.T) {
 			assert.Equal(t, e.Available, bal[k].Available, "Available balance should match")
 			assert.Equal(t, e.Balance, bal[k].Balance, "Balance should match")
 			assert.Equal(t, e.Reserved, bal[k].Reserved, "Reserved balance should match")
-			assert.Equal(t, e.WithdrawalFee, bal[k].WithdrawalFee, "WithdraawlFee should match")
+			assert.Equal(t, e.WithdrawalFee, bal[k].WithdrawalFee, "WithdrawalFee should match")
 		}
 	}
 }
@@ -464,7 +465,7 @@ func TestGetActiveOrders(t *testing.T) {
 		for _, res := range o {
 			assert.Equal(t, "1234123412341234", res.OrderID, "OrderID should be correct")
 			assert.Equal(t, time.Date(2022, time.January, 31, 14, 43, 15, 0, time.UTC), res.Date, "Date should be correct")
-			assert.Equal(t, asset.Item(0), res.AssetType, "AssetType should be correct")
+			assert.Equal(t, order.Buy, res.Side, "Order Side should be correct")
 			assert.Equal(t, 100.00, res.Price, "Price should be correct")
 			assert.Equal(t, currency.NewPairWithDelimiter("BTC", "USD", "/"), res.Pair, "Pair should be correct")
 			assert.Equal(t, 0.50000000, res.Amount, "Amount should be correct")
@@ -590,7 +591,6 @@ func TestWithdraw(t *testing.T) {
 	} else {
 		assert.ErrorContains(t, err, "Check your account balance for details")
 	}
-
 }
 
 func TestWithdrawFiat(t *testing.T) {
@@ -994,7 +994,7 @@ func TestGetOrderInfo(t *testing.T) {
 		assert.Equal(t, time.Date(2022, time.January, 31, 14, 43, 15, 0, time.UTC), o.Date, "order date should match")
 		assert.Equal(t, "1458532827766784", o.OrderID, "order ID should match")
 		assert.Equal(t, 200.00, o.Amount, "amount should match")
-		assert.Equal(t, 50.00, o.Price, "amount should match")
+		assert.Equal(t, 50.00, o.Price, "price should match")
 	} else {
 		assert.ErrorContains(t, err, "authenticated request failed Order not found")
 	}
