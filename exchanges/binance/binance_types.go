@@ -293,6 +293,20 @@ type AggregatedTrade struct {
 	BestMatchPrice bool      `json:"M"`
 }
 
+// UFuturesAggregatedTrade represents usdt futures aggregated trade information
+type UFuturesAggregatedTrade struct {
+	EventType        string                  `json:"e"`
+	EventTime        convert.ExchangeTime    `json:"E"`
+	Symbol           string                  `json:"s"`
+	AggregateTradeID int64                   `json:"a"`
+	Price            convert.StringToFloat64 `json:"p"`
+	Quantity         convert.StringToFloat64 `json:"q"`
+	FirstTradeID     int64                   `json:"f"`
+	LastTradeID      int64                   `json:"l"`
+	TradeTime        convert.ExchangeTime    `json:"T"`
+	MarketMaker      bool                    `json:"m"`
+}
+
 // IndexMarkPrice stores data for index and mark prices
 type IndexMarkPrice struct {
 	Symbol               string                  `json:"symbol"`
@@ -1233,4 +1247,162 @@ type FlexibleCollateralAssetsDataItem struct {
 type FlexibleCollateralAssetsData struct {
 	Rows  []FlexibleCollateralAssetsDataItem `json:"rows"`
 	Total int64                              `json:"total"`
+}
+
+// UFuturesOrderbook holds orderbook data for usdt assets
+type UFuturesOrderbook struct {
+	Stream string `json:"stream"`
+	Data   struct {
+		EventType               string               `json:"e"`
+		EventTime               convert.ExchangeTime `json:"E"`
+		TransactionTime         convert.ExchangeTime `json:"T"`
+		Symbol                  string               `json:"s"`
+		FirstUpdateID           int64                `json:"U"`
+		FinalUpdateID           int64                `json:"u"`
+		FinalUpdateIDLastStream int64                `json:"pu"`
+		Bids                    [][2]string          `json:"b"`
+		Asks                    [][2]string          `json:"a"`
+	} `json:"data"`
+}
+
+// UFuturesKline updates to the current klines/candlestick
+type UFuturesKline struct {
+	EventType string               `json:"e"`
+	EventTime convert.ExchangeTime `json:"E"`
+	Symbol    string               `json:"s"`
+	KlineData struct {
+		StartTime                convert.ExchangeTime    `json:"t"`
+		CloseTime                convert.ExchangeTime    `json:"T"`
+		Symbol                   string                  `json:"s"`
+		Interval                 string                  `json:"i"`
+		FirstTradeID             int64                   `json:"f"`
+		LastTradeID              int64                   `json:"L"`
+		OpenPrice                convert.StringToFloat64 `json:"o"`
+		ClosePrice               convert.StringToFloat64 `json:"c"`
+		HighPrice                convert.StringToFloat64 `json:"h"`
+		LowPrice                 convert.StringToFloat64 `json:"l"`
+		BaseVolume               convert.StringToFloat64 `json:"v"`
+		NumberOfTrades           int64                   `json:"n"`
+		IsKlineClosed            bool                    `json:"x"`
+		QuoteVolume              convert.StringToFloat64 `json:"q"`
+		TakerBuyBaseAssetVolume  convert.StringToFloat64 `json:"V"`
+		TakerBuyQuoteAssetVolume convert.StringToFloat64 `json:"Q"`
+		B                        string                  `json:"B"`
+	} `json:"k"`
+}
+
+// UFuturesMarkPrice represents usdt futures mark price and funding rate for a single symbol pushed every 3
+type UFuturesMarkPrice struct {
+	EventType            string                  `json:"e"`
+	EventTime            convert.ExchangeTime    `json:"E"`
+	Symbol               string                  `json:"s"`
+	MarkPrice            convert.StringToFloat64 `json:"p"`
+	IndexPrice           convert.StringToFloat64 `json:"i"`
+	EstimatedSettlePrice convert.StringToFloat64 `json:"P"` // Estimated Settle Price, only useful in the last hour before the settlement starts
+	FundingRate          convert.StringToFloat64 `json:"r"`
+	NextFundingTime      convert.ExchangeTime    `json:"T"`
+}
+
+// UFuturesAssetIndexUpdate holds asset index for multi-assets mode user
+type UFuturesAssetIndexUpdate struct {
+	EventType             string                  `json:"e"`
+	EventTime             convert.ExchangeTime    `json:"E"`
+	Symbol                string                  `json:"s"`
+	IndexPrice            convert.StringToFloat64 `json:"i"`
+	BidBuffer             convert.StringToFloat64 `json:"b"`
+	AskBuffer             convert.StringToFloat64 `json:"a"`
+	BidRate               convert.StringToFloat64 `json:"B"`
+	AskRate               convert.StringToFloat64 `json:"A"`
+	AutoExchangeBidBuffer convert.StringToFloat64 `json:"q"`
+	AutoExchangeAskbuffer convert.StringToFloat64 `json:"g"`
+	AutoExchangeBidRate   convert.StringToFloat64 `json:"Q"`
+	AutoExchangeAskRate   convert.StringToFloat64 `json:"G"`
+}
+
+// UFuturesContractInfo contract info updates. bks field only shows up when bracket gets updated.
+type UFuturesContractInfo struct {
+	EventType        string               `json:"e"`
+	EventTime        convert.ExchangeTime `json:"E"`
+	Symbol           string               `json:"s"`
+	Pair             string               `json:"ps"`
+	ContractType     string               `json:"ct"`
+	DeliveryDateTime convert.ExchangeTime `json:"dt"`
+	OnboardDateTime  convert.ExchangeTime `json:"ot"`
+	ContractStatus   string               `json:"cs"`
+	Brackets         []struct {
+		NationalBracket      float64 `json:"bs"`
+		BracketFloorNotional float64 `json:"bnf"`
+		BracketNotionalCap   float64 `json:"bnc"`
+		MaintenanceRatio     float64 `json:"mmr"`
+		Cf                   float64 `json:"cf"`
+		MinLeverage          float64 `json:"mi"`
+		MaxLeverage          float64 `json:"ma"`
+	} `json:"bks"`
+}
+
+// MarketLiquidationOrder all Liquidation Order Snapshot Streams push force liquidation order information for all symbols in the market.
+type MarketLiquidationOrder struct {
+	EventType string               `json:"e"`
+	EventTime convert.ExchangeTime `json:"E"`
+	Order     struct {
+		Symbol                         string                  `json:"s"`
+		Side                           string                  `json:"S"`
+		OrderType                      string                  `json:"o"`
+		TimeInForce                    string                  `json:"f"`
+		OriginalQuantity               convert.StringToFloat64 `json:"q"`
+		Price                          convert.StringToFloat64 `json:"p"`
+		AveragePrice                   convert.StringToFloat64 `json:"ap"`
+		OrderStatus                    string                  `json:"X"`
+		OrderLastFieldQuantity         convert.StringToFloat64 `json:"l"`
+		OrderFilledAccumulatedQuantity convert.StringToFloat64 `json:"z"`
+		OrderTradeTime                 convert.ExchangeTime    `json:"T"`
+	} `json:"o"`
+}
+
+// UFuturesBookTicker update to the best bid or ask's price or quantity in real-time for a specified symbol.
+type UFuturesBookTicker struct {
+	EventType         string                  `json:"e"`
+	OrderbookUpdateID int64                   `json:"u"`
+	EventTime         convert.ExchangeTime    `json:"E"`
+	TransactionTime   convert.ExchangeTime    `json:"T"`
+	Symbol            string                  `json:"s"`
+	BestBidPrice      convert.StringToFloat64 `json:"b"`
+	BestBidQty        convert.StringToFloat64 `json:"B"`
+	BestAskPrice      convert.StringToFloat64 `json:"a"`
+	BestAskQty        convert.StringToFloat64 `json:"A"`
+}
+
+// UFutureMarketTicker 24hr rolling window ticker statistics for all symbols.
+type UFutureMarketTicker struct {
+	EventType             string                  `json:"e"`
+	EventTime             convert.ExchangeTime    `json:"E"`
+	Symbol                string                  `json:"s"`
+	PriceChange           convert.StringToFloat64 `json:"p"`
+	PriceChangePercent    convert.StringToFloat64 `json:"P"`
+	WeightedAveragePrice  convert.StringToFloat64 `json:"w"`
+	LastPrice             convert.StringToFloat64 `json:"c"`
+	LastQuantity          convert.StringToFloat64 `json:"Q"`
+	OpenPrice             convert.StringToFloat64 `json:"o"`
+	HighPrice             convert.StringToFloat64 `json:"h"`
+	LowPrice              convert.StringToFloat64 `json:"l"`
+	TotalTradeBaseVolume  convert.StringToFloat64 `json:"v"`
+	TotalQuoteAssetVolume convert.StringToFloat64 `json:"q"`
+	OpenTime              convert.ExchangeTime    `json:"O"`
+	CloseTIme             convert.ExchangeTime    `json:"C"`
+	FirstTradeID          int64                   `json:"F"`
+	LastTradeID           int64                   `json:"L"`
+	TotalNumberOfTrades   int64                   `json:"n"`
+}
+
+// UFutureMiniTickerPrice holds market mini tickers stream
+type UFutureMiniTickerPrice struct {
+	EventType   string                  `json:"e"`
+	EventTime   convert.ExchangeTime    `json:"E"`
+	Symbol      string                  `json:"s"`
+	ClosePrice  convert.StringToFloat64 `json:"c"`
+	OpenPrice   convert.StringToFloat64 `json:"o"`
+	HighPrice   convert.StringToFloat64 `json:"h"`
+	LowPrice    convert.StringToFloat64 `json:"l"`
+	Volume      convert.StringToFloat64 `json:"v"`
+	QuoteVolume convert.StringToFloat64 `json:"q"`
 }
