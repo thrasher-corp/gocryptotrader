@@ -23,6 +23,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	gctlog "github.com/thrasher-corp/gocryptotrader/log"
+	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
 var (
@@ -44,13 +45,15 @@ const (
 	// Donation address
 	testAddress = "bc1qk0jareu4jytc0cfrhr5wgshsq8282awpavfahc"
 
-	errExpectMismatch     = "received: '%v' but expected: '%v'"
-	errExpectedNonEmpty   = "expected non-empty response"
-	errOrder0CancelFail   = "order 0 failed to cancel"
-	errIDNotSet           = "ID not set"
-	skipPayMethodNotFound = "no payment methods found, skipping"
-	skipInsufSuitableAccs = "insufficient suitable accounts found, skipping"
-	errx7f                = "setting proxy address error parse \"\\x7f\": net/url: invalid control character in URL"
+	errExpectMismatch         = "received: '%v' but expected: '%v'"
+	errExpectedNonEmpty       = "expected non-empty response"
+	errOrder0CancelFail       = "order 0 failed to cancel"
+	errIDNotSet               = "ID not set"
+	skipPayMethodNotFound     = "no payment methods found, skipping"
+	skipInsufSuitableAccs     = "insufficient suitable accounts found, skipping"
+	errx7f                    = "setting proxy address error parse \"\\x7f\": net/url: invalid control character in URL"
+	errPortfolioNameDuplicate = `CoinbasePro unsuccessful HTTP status code: 409 raw response: {"error":"CONFLICT","error_details":"[PORTFOLIO_ERROR_CODE_ALREADY_EXISTS] the requested portfolio name already exists","message":"[PORTFOLIO_ERROR_CODE_ALREADY_EXISTS] the requested portfolio name already exists"}, authenticated request failed`
+	errPortTransferInsufFunds = `CoinbasePro unsuccessful HTTP status code: 429 raw response: {"error":"unknown","error_details":"[PORTFOLIO_ERROR_CODE_INSUFFICIENT_FUNDS] insufficient funds in source account","message":"[PORTFOLIO_ERROR_CODE_INSUFFICIENT_FUNDS] insufficient funds in source account"}, authenticated request failed`
 )
 
 func TestMain(m *testing.M) {
@@ -236,8 +239,8 @@ func TestPlaceOrder(t *testing.T) {
 	}
 	_, err = c.PlaceOrder(context.Background(), "meow", testPair.String(), order.Sell.String(), "", "", 0,
 		0, 0, false, time.Time{})
-	if !errors.Is(err, errAmountZero) {
-		t.Errorf(errExpectMismatch, err, errAmountZero)
+	if !errors.Is(err, errAmountEmpty) {
+		t.Errorf(errExpectMismatch, err, errAmountEmpty)
 	}
 	id, _ := uuid.NewV4()
 	_, err = c.PlaceOrder(context.Background(), id.String(), testPair.String(), order.Sell.String(), "",
@@ -360,13 +363,138 @@ func TestGetOrderByID(t *testing.T) {
 	}
 }
 
+func TestGetAllPortfolios(t *testing.T) {
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, c)
+	resp, err := c.GetAllPortfolios(context.Background(), "")
+	if err != nil {
+		t.Error(err)
+	}
+	assert.NotEmpty(t, resp, errExpectedNonEmpty)
+}
+
+func TestCreatePortfolio(t *testing.T) {
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, c, canManipulateRealOrders)
+	_, err := c.CreatePortfolio(context.Background(), "GCT Test Portfolio")
+	if err != nil && err.Error() != errPortfolioNameDuplicate {
+		t.Error(err)
+	}
+}
+
+func TestMovePortfolioFunds(t *testing.T) {
+	_, err := c.MovePortfolioFunds(context.Background(), "", "", "", 0)
+	if !errors.Is(err, errPortfolioIDEmpty) {
+		t.Errorf(errExpectMismatch, err, errPortfolioIDEmpty)
+	}
+	_, err = c.MovePortfolioFunds(context.Background(), "meowPort", "woofPort", "", 0)
+	if !errors.Is(err, errCurrencyEmpty) {
+		t.Errorf(errExpectMismatch, err, errCurrencyEmpty)
+	}
+	_, err = c.MovePortfolioFunds(context.Background(), "meowPort", "woofPort", "BTC", 0)
+	if !errors.Is(err, errAmountEmpty) {
+		t.Errorf(errExpectMismatch, err, errAmountEmpty)
+	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, c, canManipulateRealOrders)
+	portID, err := c.GetAllPortfolios(context.Background(), "")
+	if err != nil {
+		t.Error(err)
+	}
+	if len(portID.Portfolios) < 2 {
+		t.Skip("fewer than 2 portfolios found, skipping")
+	}
+	_, err = c.MovePortfolioFunds(context.Background(), portID.Portfolios[0].UUID, portID.Portfolios[1].UUID, "BTC",
+		0.00000001)
+	if err != nil && err.Error() != errPortTransferInsufFunds {
+		t.Error(err)
+	}
+}
+
+func TestGetPortfolioByID(t *testing.T) {
+	_, err := c.GetPortfolioByID(context.Background(), "")
+	if !errors.Is(err, errPortfolioIDEmpty) {
+		t.Errorf(errExpectMismatch, err, errPortfolioIDEmpty)
+	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, c)
+	resp, err := c.GetAllPortfolios(context.Background(), "")
+	if err != nil {
+		t.Error(err)
+	}
+	if len(resp.Portfolios) == 0 {
+		t.Fatal(errExpectedNonEmpty)
+	}
+	_, err = c.GetPortfolioByID(context.Background(), resp.Portfolios[0].UUID)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func PortfolioTestHelper(t *testing.T, targetName string) string {
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, c, canManipulateRealOrders)
+	createResp, err := c.CreatePortfolio(context.Background(), targetName)
+	var targetID string
+	if err != nil {
+		if err.Error() != errPortfolioNameDuplicate {
+			t.Error(err)
+		}
+		getResp, err := c.GetAllPortfolios(context.Background(), "")
+		if err != nil {
+			t.Error(err)
+		}
+		if len(getResp.Portfolios) == 0 {
+			t.Fatal(errExpectedNonEmpty)
+		}
+		for i := range getResp.Portfolios {
+			if getResp.Portfolios[i].Name == targetName {
+				targetID = getResp.Portfolios[i].UUID
+				break
+			}
+		}
+	} else {
+		targetID = createResp.Portfolio.UUID
+	}
+	return targetID
+}
+
+func TestDeletePortfolio(t *testing.T) {
+	err := c.DeletePortfolio(context.Background(), "")
+	if !errors.Is(err, errPortfolioIDEmpty) {
+		t.Errorf(errExpectMismatch, err, errPortfolioIDEmpty)
+	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, c, canManipulateRealOrders)
+
+	pID := PortfolioTestHelper(t, "GCT Test Portfolio To-Delete")
+
+	err = c.DeletePortfolio(context.Background(), pID)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestEditPortfolio(t *testing.T) {
+	_, err := c.EditPortfolio(context.Background(), "", "")
+	if !errors.Is(err, errPortfolioIDEmpty) {
+		t.Errorf(errExpectMismatch, err, errPortfolioIDEmpty)
+	}
+	_, err = c.EditPortfolio(context.Background(), "meow", "")
+	if !errors.Is(err, errNameEmpty) {
+		t.Errorf(errExpectMismatch, err, errNameEmpty)
+	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, c, canManipulateRealOrders)
+
+	pID := PortfolioTestHelper(t, "GCT Test Portfolio To-Edit")
+
+	_, err = c.EditPortfolio(context.Background(), pID, "GCT Test Portfolio Edited")
+	if err != nil && err.Error() != errPortfolioNameDuplicate {
+		t.Error(err)
+	}
+}
+
 func TestGetTransactionSummary(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, c)
 	_, err := c.GetTransactionSummary(context.Background(), time.Unix(2, 2), time.Unix(1, 1), "", "", "")
 	if !errors.Is(err, common.ErrStartAfterEnd) {
 		t.Errorf(errExpectMismatch, err, common.ErrStartAfterEnd)
 	}
-	_, err = c.GetTransactionSummary(context.Background(), time.Unix(1, 1), time.Now(), "", "SPOT",
+	_, err = c.GetTransactionSummary(context.Background(), time.Unix(1, 1), time.Now(), "", asset.Spot.Upper(),
 		"UNKNOWN_CONTRACT_EXPIRY_TYPE")
 	if err != nil {
 		t.Error(err)
@@ -735,23 +863,23 @@ func TestGetAddressTransactions(t *testing.T) {
 
 func TestSendMoney(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, c, canManipulateRealOrders)
-	_, err := c.SendMoney(context.Background(), "", "", "", "", "", "", "", "", "", false, false)
+	_, err := c.SendMoney(context.Background(), "", "", "", "", "", "", "", "", 0, false, false)
 	if !errors.Is(err, errTransactionTypeEmpty) {
 		t.Errorf(errExpectMismatch, err, errTransactionTypeEmpty)
 	}
-	_, err = c.SendMoney(context.Background(), "123", "", "", "", "", "", "", "", "", false, false)
+	_, err = c.SendMoney(context.Background(), "123", "", "", "", "", "", "", "", 0, false, false)
 	if !errors.Is(err, errWalletIDEmpty) {
 		t.Errorf(errExpectMismatch, err, errWalletIDEmpty)
 	}
-	_, err = c.SendMoney(context.Background(), "123", "123", "", "", "", "", "", "", "", false, false)
+	_, err = c.SendMoney(context.Background(), "123", "123", "", "", "", "", "", "", 0, false, false)
 	if !errors.Is(err, errToEmpty) {
 		t.Errorf(errExpectMismatch, err, errToEmpty)
 	}
-	_, err = c.SendMoney(context.Background(), "123", "123", "123", "", "", "", "", "", "", false, false)
+	_, err = c.SendMoney(context.Background(), "123", "123", "123", "", "", "", "", "", 0, false, false)
 	if !errors.Is(err, errAmountEmpty) {
 		t.Errorf(errExpectMismatch, err, errAmountEmpty)
 	}
-	_, err = c.SendMoney(context.Background(), "123", "123", "123", "123", "", "", "", "", "", false, false)
+	_, err = c.SendMoney(context.Background(), "123", "123", "123", "", "", "", "", "", 1, false, false)
 	if !errors.Is(err, errCurrencyEmpty) {
 		t.Errorf(errExpectMismatch, err, errCurrencyEmpty)
 	}
@@ -762,8 +890,8 @@ func TestSendMoney(t *testing.T) {
 	if len(wID.Data) < 2 {
 		t.Skip("fewer than 2 wallets found, skipping test")
 	}
-	_, err = c.SendMoney(context.Background(), "transfer", wID.Data[0].ID, wID.Data[1].ID, "0.00000001",
-		"BTC", "GCT Test", "123", "", "", false, false)
+	_, err = c.SendMoney(context.Background(), "transfer", wID.Data[0].ID, wID.Data[1].ID,
+		"BTC", "GCT Test", "123", "", "", 0.00000001, false, false)
 	if err != nil {
 		t.Error(err)
 	}
@@ -1007,7 +1135,7 @@ func TestGetPrice(t *testing.T) {
 	if !errors.Is(err, errInvalidPriceType) {
 		t.Errorf(errExpectMismatch, err, errInvalidPriceType)
 	}
-	resp, err := c.GetPrice(context.Background(), testPair.String(), "spot")
+	resp, err := c.GetPrice(context.Background(), testPair.String(), asset.Spot.Upper())
 	if err != nil {
 		t.Error(err)
 	}
@@ -3094,6 +3222,48 @@ func TestCancelAllOrders(t *testing.T) {
 	can.Pair = testPair
 	can.AssetType = asset.Spot
 	_, err = c.CancelAllOrders(context.Background(), &can)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetOrderInfo(t *testing.T) {
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, c, canManipulateRealOrders)
+	ordID, err := c.GetAllOrders(context.Background(), testPair.String(), "", "", "", "",
+		asset.Spot.Upper(), "", "", nil, 2, time.Time{}, time.Now())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(ordID.Orders) == 0 {
+		t.Fatal(errExpectedNonEmpty)
+	}
+	_, err = c.GetOrderInfo(context.Background(), ordID.Orders[0].OrderID, testPair, asset.Spot)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetDepositAddress(t *testing.T) {
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, c, canManipulateRealOrders)
+	_, err := c.GetDepositAddress(context.Background(), currency.BTC, "", "")
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestWithdrawCryptocurrencyFunds(t *testing.T) {
+	req := withdraw.Request{}
+	_, err := c.WithdrawCryptocurrencyFunds(context.Background(), &req)
+	if !errors.Is(err, common.ErrExchangeNameUnset) {
+		t.Errorf(errExpectMismatch, err, common.ErrExchangeNameUnset)
+	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, c, canManipulateRealOrders)
+	req.Exchange = c.Name
+	req.Currency = currency.BTC
+	req.Amount = 0.00000001
+	req.Type = withdraw.Crypto
+	req.Crypto.Address = testAddress
+	_, err = c.WithdrawCryptocurrencyFunds(context.Background(), &req)
 	if err != nil {
 		t.Error(err)
 	}

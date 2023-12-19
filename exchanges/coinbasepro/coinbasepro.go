@@ -38,6 +38,8 @@ const (
 	coinbaseFills              = "fills"
 	coinbaseCandles            = "candles"
 	coinbaseTicker             = "ticker"
+	coinbasePortfolios         = "portfolios"
+	coinbaseMoveFunds          = "move_funds"
 	coinbaseTransactionSummary = "transaction_summary"
 	coinbaseConvert            = "convert"
 	coinbaseQuote              = "quote"
@@ -78,19 +80,12 @@ const (
 	granOneDay                       = "ONE_DAY"
 	startDateString                  = "start_date"
 	endDateString                    = "end_date"
-
-	// coinbaseproTime           = "time"
-	// coinbaseproMarginTransfer = "profiles/margin-transfer"
-	// coinbaseproPosition       = "position"
-	// coinbaseproPositionClose  = "position/close"
-	// coinbaseproTrailingVolume = "users/self/trailing-volume"
 )
 
 var (
 	errAccountIDEmpty         = errors.New("account id cannot be empty")
 	errClientOrderIDEmpty     = errors.New("client order id cannot be empty")
 	errProductIDEmpty         = errors.New("product id cannot be empty")
-	errAmountZero             = errors.New("amount cannot be 0")
 	errOrderIDEmpty           = errors.New("order ids cannot be empty")
 	errOpenPairWithOtherTypes = errors.New("cannot pair open orders with other order types")
 	errUserIDEmpty            = errors.New("user id cannot be empty")
@@ -110,6 +105,9 @@ var (
 	errNoMatchingWallets      = errors.New("no matching wallets returned")
 	errOrderModFailNoErr      = errors.New("order modification failed but no error returned")
 	errNoMatchingOrders       = errors.New("no matching orders returned")
+	errPointerNil             = errors.New("relevant pointer is nil")
+	errNameEmpty              = errors.New("name cannot be empty")
+	errPortfolioIDEmpty       = errors.New("portfolio id cannot be empty")
 )
 
 // GetAllAccounts returns information on all trading accounts associated with the API key
@@ -284,7 +282,7 @@ func (c *CoinbasePro) PlaceOrder(ctx context.Context, clientOID, productID, side
 		return nil, errProductIDEmpty
 	}
 	if amount == 0 {
-		return nil, errAmountZero
+		return nil, errAmountEmpty
 	}
 
 	var resp PlaceOrderResp
@@ -491,6 +489,106 @@ func (c *CoinbasePro) GetOrderByID(ctx context.Context, orderID, userNativeCurre
 	pathParams := common.EncodeURLValues("", params.urlVals)
 
 	return &resp, c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, pathParams, nil, Version3, &resp, nil)
+}
+
+// GetAllPortfolios returns a list of portfolios associated with the user
+func (c *CoinbasePro) GetAllPortfolios(ctx context.Context, portfolioType string) (AllPortfolioResponse, error) {
+	var resp AllPortfolioResponse
+
+	var params Params
+	params.urlVals = url.Values{}
+
+	if portfolioType != "" {
+		params.urlVals.Set("portfolio_type", portfolioType)
+	}
+
+	pathParams := common.EncodeURLValues("", params.urlVals)
+
+	return resp, c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet,
+		coinbaseV3+coinbasePortfolios, pathParams, nil, Version3, &resp, nil)
+}
+
+// CreatePortfolio creates a new portfolio
+func (c *CoinbasePro) CreatePortfolio(ctx context.Context, name string) (SimplePortfolioResponse, error) {
+	var resp SimplePortfolioResponse
+
+	if name == "" {
+		return resp, errNameEmpty
+	}
+
+	req := map[string]interface{}{"name": name}
+
+	return resp, c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost,
+		coinbaseV3+coinbasePortfolios, "", req, Version3, &resp, nil)
+}
+
+// MovePortfolioFunds transfers funds between portfolios
+func (c *CoinbasePro) MovePortfolioFunds(ctx context.Context, from, to, currency string, amount float64) (MovePortfolioFundsResponse, error) {
+	var resp MovePortfolioFundsResponse
+
+	if from == "" || to == "" {
+		return resp, errPortfolioIDEmpty
+	}
+	if currency == "" {
+		return resp, errCurrencyEmpty
+	}
+	if amount == 0 {
+		return resp, errAmountEmpty
+	}
+
+	funds := FundsData{Value: strconv.FormatFloat(amount, 'f', -1, 64), Currency: currency}
+
+	req := map[string]interface{}{"source_portfolio_uuid": from, "target_portfolio_uuid": to, "funds": funds}
+
+	path := fmt.Sprintf("%s%s/%s", coinbaseV3, coinbasePortfolios, coinbaseMoveFunds)
+
+	return resp, c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost,
+		path, "", req, Version3, &resp, nil)
+}
+
+// GetPortfolioByID provides detailed information on a single portfolio
+func (c *CoinbasePro) GetPortfolioByID(ctx context.Context, portfolioID string) (*DetailedPortfolioResponse, error) {
+	if portfolioID == "" {
+		return nil, errPortfolioIDEmpty
+	}
+
+	path := fmt.Sprintf("%s%s/%s", coinbaseV3, coinbasePortfolios, portfolioID)
+
+	var resp DetailedPortfolioResponse
+
+	return &resp, c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet,
+		path, "", nil, Version3, &resp, nil)
+}
+
+// DeletePortfolio deletes a portfolio
+func (c *CoinbasePro) DeletePortfolio(ctx context.Context, portfolioID string) error {
+	if portfolioID == "" {
+		return errPortfolioIDEmpty
+	}
+
+	path := fmt.Sprintf("%s%s/%s", coinbaseV3, coinbasePortfolios, portfolioID)
+
+	return c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodDelete, path, "", nil,
+		Version3, nil, nil)
+}
+
+// EditPortfolio edits the name of a portfolio
+func (c *CoinbasePro) EditPortfolio(ctx context.Context, portfolioID, name string) (SimplePortfolioResponse, error) {
+	var resp SimplePortfolioResponse
+
+	if portfolioID == "" {
+		return resp, errPortfolioIDEmpty
+	}
+	if name == "" {
+		return resp, errNameEmpty
+	}
+
+	req := map[string]interface{}{"name": name}
+
+	path := fmt.Sprintf("%s%s/%s", coinbaseV3, coinbasePortfolios, portfolioID)
+
+	return resp, c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPut,
+		path, "", req, Version3, &resp, nil)
 }
 
 // GetTransactionSummary returns a summary of transactions with fee tiers, total volume,
@@ -815,7 +913,7 @@ func (c *CoinbasePro) GetAddressTransactions(ctx context.Context, walletID, addr
 // string for idempotency; a token with a max length of 100 characters, if a previous
 // transaction included the same token as a parameter, the new transaction won't be processed,
 // and information on the previous transaction will be returned instead
-func (c *CoinbasePro) SendMoney(ctx context.Context, traType, walletID, to, amount, currency, description, idem, financialInstitutionWebsite, destinationTag string, skipNotifications, toFinancialInstitution bool) (*GenTransactionResp, error) {
+func (c *CoinbasePro) SendMoney(ctx context.Context, traType, walletID, to, currency, description, idem, financialInstitutionWebsite, destinationTag string, amount float64, skipNotifications, toFinancialInstitution bool) (*GenTransactionResp, error) {
 	if traType == "" {
 		return nil, errTransactionTypeEmpty
 	}
@@ -825,7 +923,7 @@ func (c *CoinbasePro) SendMoney(ctx context.Context, traType, walletID, to, amou
 	if to == "" {
 		return nil, errToEmpty
 	}
-	if amount == "" {
+	if amount == 0 {
 		return nil, errAmountEmpty
 	}
 	if currency == "" {
@@ -834,7 +932,8 @@ func (c *CoinbasePro) SendMoney(ctx context.Context, traType, walletID, to, amou
 
 	path := fmt.Sprintf("%s%s/%s/%s", coinbaseV2, coinbaseAccounts, walletID, coinbaseTransactions)
 
-	req := map[string]interface{}{"type": traType, "to": to, "amount": amount, "currency": currency,
+	req := map[string]interface{}{"type": traType, "to": to,
+		"amount": strconv.FormatFloat(amount, 'f', -1, 64), "currency": currency,
 		"description": description, "skip_notifications": skipNotifications, "idem": idem,
 		"to_financial_institution":      toFinancialInstitution,
 		"financial_institution_website": financialInstitutionWebsite,

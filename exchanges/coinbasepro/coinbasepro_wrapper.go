@@ -2,6 +2,7 @@ package coinbasepro
 
 import (
 	"context"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"sort"
@@ -11,6 +12,7 @@ import (
 
 	"github.com/gofrs/uuid"
 	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -238,9 +240,9 @@ func (c *CoinbasePro) FetchTradablePairs(ctx context.Context, a asset.Item) (cur
 	var err error
 	switch a {
 	case asset.Spot:
-		products, err = c.GetAllProducts(ctx, 2<<30-1, 0, "SPOT", "", nil)
+		products, err = c.GetAllProducts(ctx, 2<<30-1, 0, asset.Spot.Upper(), "", nil)
 	case asset.Futures:
-		products, err = c.GetAllProducts(ctx, 2<<30-1, 0, "FUTURE", "", nil)
+		products, err = c.GetAllProducts(ctx, 2<<30-1, 0, asset.Futures.Upper(), "", nil)
 	default:
 		err = asset.ErrNotSupported
 	}
@@ -350,17 +352,7 @@ func (c *CoinbasePro) FetchAccountInfo(ctx context.Context, assetType asset.Item
 
 // UpdateTickers updates all currency pairs of a given asset type
 func (c *CoinbasePro) UpdateTickers(ctx context.Context, assetType asset.Item) error {
-	var aTString string
-	switch assetType {
-	case asset.Futures:
-		aTString = "FUTURE"
-	case asset.Spot:
-		aTString = "SPOT"
-	default:
-		return fmt.Errorf("%w %v", asset.ErrNotSupported, assetType)
-	}
-
-	products, err := c.GetAllProducts(ctx, 2<<30-1, 0, aTString, "", nil)
+	products, err := c.GetAllProducts(ctx, 2<<30-1, 0, assetType.Upper(), "", nil)
 	if err != nil {
 		return err
 	}
@@ -587,7 +579,7 @@ func (c *CoinbasePro) GetAccountFundingHistory(ctx context.Context) ([]exchange.
 }
 
 // GetWithdrawalsHistory returns previous withdrawals data
-func (c *CoinbasePro) GetWithdrawalsHistory(ctx context.Context, cur currency.Code, a asset.Item) ([]exchange.WithdrawalHistory, error) {
+func (c *CoinbasePro) GetWithdrawalsHistory(ctx context.Context, cur currency.Code, _ asset.Item) ([]exchange.WithdrawalHistory, error) {
 	tempWallIDs, err := c.GetAllWallets(ctx, PaginationInp{})
 
 	if err != nil {
@@ -671,7 +663,8 @@ func (c *CoinbasePro) GetHistoricTrades(ctx context.Context, p currency.Pair, as
 
 	statuses := []string{"FILLED", "CANCELLED", "EXPIRED", "FAILED"}
 
-	ord, err := c.GetAllOrders(ctx, p.String(), "", "", "", "", "", "", "", statuses, 2<<30-1, startDate, endDate)
+	ord, err := c.GetAllOrders(ctx, p.String(), "", "", "", "", assetType.Upper(), "", "", statuses, 2<<30-1,
+		startDate, endDate)
 
 	if err != nil {
 		return nil, err
@@ -692,74 +685,59 @@ func (c *CoinbasePro) GetHistoricTrades(ctx context.Context, p currency.Pair, as
 		var price float64
 		var amount float64
 		if ord.Orders[i].OrderConfiguration.MarketMarketIOC != nil {
-			if ord.Orders[i].OrderConfiguration.MarketMarketIOC.QuoteSize != "" {
-				amount, err = strconv.ParseFloat(ord.Orders[i].OrderConfiguration.MarketMarketIOC.QuoteSize, 64)
-				if err != nil {
-					return nil, err
-				}
+			err = stringToFloatPtr(&amount, ord.Orders[i].OrderConfiguration.MarketMarketIOC.QuoteSize)
+			if err != nil {
+				return nil, err
 			}
-			if ord.Orders[i].OrderConfiguration.MarketMarketIOC.BaseSize != "" {
-				amount, err = strconv.ParseFloat(ord.Orders[i].OrderConfiguration.MarketMarketIOC.BaseSize, 64)
-				if err != nil {
-					return nil, err
-				}
+			err = stringToFloatPtr(&amount, ord.Orders[i].OrderConfiguration.MarketMarketIOC.BaseSize)
+			if err != nil {
+				return nil, err
 			}
 		}
+
 		if ord.Orders[i].OrderConfiguration.LimitLimitGTC != nil {
-			if ord.Orders[i].OrderConfiguration.LimitLimitGTC.LimitPrice != "" {
-				price, err = strconv.ParseFloat(ord.Orders[i].OrderConfiguration.LimitLimitGTC.LimitPrice, 64)
-				if err != nil {
-					return nil, err
-				}
+			err = stringToFloatPtr(&price, ord.Orders[i].OrderConfiguration.LimitLimitGTC.LimitPrice)
+			if err != nil {
+				return nil, err
 			}
-			if ord.Orders[i].OrderConfiguration.LimitLimitGTC.BaseSize != "" {
-				amount, err = strconv.ParseFloat(ord.Orders[i].OrderConfiguration.LimitLimitGTC.BaseSize, 64)
-				if err != nil {
-					return nil, err
-				}
+			err = stringToFloatPtr(&amount, ord.Orders[i].OrderConfiguration.LimitLimitGTC.BaseSize)
+			if err != nil {
+				return nil, err
 			}
+
 		}
 		if ord.Orders[i].OrderConfiguration.LimitLimitGTD != nil {
-			if ord.Orders[i].OrderConfiguration.LimitLimitGTD.LimitPrice != "" {
-				price, err = strconv.ParseFloat(ord.Orders[i].OrderConfiguration.LimitLimitGTD.LimitPrice, 64)
-				if err != nil {
-					return nil, err
-				}
+			err = stringToFloatPtr(&price, ord.Orders[i].OrderConfiguration.LimitLimitGTD.LimitPrice)
+			if err != nil {
+				return nil, err
 			}
-			if ord.Orders[i].OrderConfiguration.LimitLimitGTD.BaseSize != "" {
-				amount, err = strconv.ParseFloat(ord.Orders[i].OrderConfiguration.LimitLimitGTD.BaseSize, 64)
-				if err != nil {
-					return nil, err
-				}
+			err = stringToFloatPtr(&amount, ord.Orders[i].OrderConfiguration.LimitLimitGTD.BaseSize)
+			if err != nil {
+				return nil, err
 			}
+
 		}
 		if ord.Orders[i].OrderConfiguration.StopLimitStopLimitGTC != nil {
-			if ord.Orders[i].OrderConfiguration.StopLimitStopLimitGTC.LimitPrice != "" {
-				price, err = strconv.ParseFloat(ord.Orders[i].OrderConfiguration.StopLimitStopLimitGTC.LimitPrice, 64)
-				if err != nil {
-					return nil, err
-				}
+			err = stringToFloatPtr(&price, ord.Orders[i].OrderConfiguration.StopLimitStopLimitGTC.LimitPrice)
+			if err != nil {
+				return nil, err
 			}
-			if ord.Orders[i].OrderConfiguration.StopLimitStopLimitGTC.BaseSize != "" {
-				amount, err = strconv.ParseFloat(ord.Orders[i].OrderConfiguration.StopLimitStopLimitGTC.BaseSize, 64)
-				if err != nil {
-					return nil, err
-				}
+			err = stringToFloatPtr(&amount, ord.Orders[i].OrderConfiguration.StopLimitStopLimitGTC.BaseSize)
+			if err != nil {
+				return nil, err
 			}
+
 		}
 		if ord.Orders[i].OrderConfiguration.StopLimitStopLimitGTD != nil {
-			if ord.Orders[i].OrderConfiguration.StopLimitStopLimitGTD.LimitPrice != "" {
-				price, err = strconv.ParseFloat(ord.Orders[i].OrderConfiguration.StopLimitStopLimitGTD.LimitPrice, 64)
-				if err != nil {
-					return nil, err
-				}
+			err = stringToFloatPtr(&price, ord.Orders[i].OrderConfiguration.StopLimitStopLimitGTD.LimitPrice)
+			if err != nil {
+				return nil, err
 			}
-			if ord.Orders[i].OrderConfiguration.StopLimitStopLimitGTD.BaseSize != "" {
-				amount, err = strconv.ParseFloat(ord.Orders[i].OrderConfiguration.StopLimitStopLimitGTD.BaseSize, 64)
-				if err != nil {
-					return nil, err
-				}
+			err = stringToFloatPtr(&amount, ord.Orders[i].OrderConfiguration.StopLimitStopLimitGTD.BaseSize)
+			if err != nil {
+				return nil, err
 			}
+
 		}
 
 		resp[i] = trade.Data{
@@ -881,28 +859,11 @@ func (c *CoinbasePro) CancelOrder(ctx context.Context, o *order.Cancel) error {
 
 // CancelBatchOrders cancels an orders by their corresponding ID numbers
 func (c *CoinbasePro) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*order.CancelBatchResponse, error) {
-	if len(o) == 0 {
-		return nil, errOrderIDEmpty
-	}
 	var status order.CancelBatchResponse
-	status.Status = make(map[string]string)
-	ordIDSlice := make([]string, len(o))
-	for i := range o {
-		err := o[i].Validate(o[i].StandardCancel())
-		if err != nil {
-			return nil, err
-		}
-		ordIDSlice[i] = o[i].OrderID
-		status.Status[o[i].OrderID] = "Failed to cancel"
-	}
-	resp, err := c.CancelOrders(ctx, ordIDSlice)
+	var err error
+	status.Status, _, err = c.cancelOrdersReturnMapAndCount(ctx, o)
 	if err != nil {
 		return nil, err
-	}
-	for i := range resp.Results {
-		if resp.Results[i].Success {
-			status.Status[resp.Results[i].OrderID] = order.Cancelled.String()
-		}
 	}
 	return &status, nil
 }
@@ -939,113 +900,225 @@ func (c *CoinbasePro) CancelAllOrders(ctx context.Context, can *order.Cancel) (o
 		orders = append(orders, order.Cancel{OrderID: ordIDs[i].OrderID})
 	}
 
-	batchResp, err := c.CancelBatchOrders(ctx, orders)
+	batchResp, count, err := c.cancelOrdersReturnMapAndCount(ctx, orders)
 	if err != nil {
 		return resp, err
 	}
 
-	resp.Status = batchResp.Status
-	resp.Count = int64(len(orders))
+	resp.Status = batchResp
+	resp.Count = count
 
 	return resp, nil
 }
 
 // GetOrderInfo returns order information based on order ID
-func (c *CoinbasePro) GetOrderInfo(ctx context.Context, orderID string, pair currency.Pair, asset asset.Item) (*order.Detail, error) {
-	// genOrderDetail, err := c.GetOrderByID(ctx, orderID, "", "")
-	// if err != nil {
-	// 	return nil, err
-	// }
+func (c *CoinbasePro) GetOrderInfo(ctx context.Context, orderID string, pair currency.Pair, assetItem asset.Item) (*order.Detail, error) {
+	genOrderDetail, err := c.GetOrderByID(ctx, orderID, "", "")
+	if err != nil {
+		return nil, err
+	}
 
-	// var amount float64
-	// if genOrderDetail.OrderConfiguration.MarketMarketIOC != nil {
-	// 	if genOrderDetail.OrderConfiguration.MarketMarketIOC.QuoteSize != "" {
-	// 		amount, err = strconv.ParseFloat(genOrderDetail.OrderConfiguration.MarketMarketIOC.QuoteSize, 64)
-	// 		if err != nil {
-	// 			return nil, err
-	// 		}
-	// 	}
-	// 	if genOrderDetail.OrderConfiguration.MarketMarketIOC.BaseSize != "" {
-	// 		amount, err = strconv.ParseFloat(genOrderDetail.OrderConfiguration.MarketMarketIOC.BaseSize, 64)
-	// 		if err != nil {
-	// 			return nil, err
-	// 		}
-	// 	}
-	// }
-	// var price float64
-	// var postOnly bool
-	// if genOrderDetail.OrderConfiguration.LimitLimitGTC != nil {
+	var amount float64
+	var quoteAmount float64
+	var orderType order.Type
+	if genOrderDetail.OrderConfiguration.MarketMarketIOC != nil {
+		err = stringToFloatPtr(&quoteAmount, genOrderDetail.OrderConfiguration.MarketMarketIOC.QuoteSize)
+		if err != nil {
+			return nil, err
+		}
+		err = stringToFloatPtr(&amount, genOrderDetail.OrderConfiguration.MarketMarketIOC.BaseSize)
+		if err != nil {
+			return nil, err
+		}
+		orderType = order.Market
+	}
+	var price float64
+	var postOnly bool
+	if genOrderDetail.OrderConfiguration.LimitLimitGTC != nil {
+		err = stringToFloatPtr(&amount, genOrderDetail.OrderConfiguration.LimitLimitGTC.BaseSize)
+		if err != nil {
+			return nil, err
+		}
+		err = stringToFloatPtr(&price, genOrderDetail.OrderConfiguration.LimitLimitGTC.LimitPrice)
+		if err != nil {
+			return nil, err
+		}
+		postOnly = genOrderDetail.OrderConfiguration.LimitLimitGTC.PostOnly
+		orderType = order.Limit
+	}
+	if genOrderDetail.OrderConfiguration.LimitLimitGTD != nil {
+		err = stringToFloatPtr(&amount, genOrderDetail.OrderConfiguration.LimitLimitGTD.BaseSize)
+		if err != nil {
+			return nil, err
+		}
+		err = stringToFloatPtr(&price, genOrderDetail.OrderConfiguration.LimitLimitGTD.LimitPrice)
+		if err != nil {
+			return nil, err
+		}
+		postOnly = genOrderDetail.OrderConfiguration.LimitLimitGTD.PostOnly
+		orderType = order.Limit
+	}
+	var triggerPrice float64
+	if genOrderDetail.OrderConfiguration.StopLimitStopLimitGTC != nil {
+		err = stringToFloatPtr(&amount, genOrderDetail.OrderConfiguration.StopLimitStopLimitGTC.BaseSize)
+		if err != nil {
+			return nil, err
+		}
+		err = stringToFloatPtr(&price, genOrderDetail.OrderConfiguration.StopLimitStopLimitGTC.LimitPrice)
+		if err != nil {
+			return nil, err
+		}
+		err = stringToFloatPtr(&triggerPrice, genOrderDetail.OrderConfiguration.StopLimitStopLimitGTC.StopPrice)
+		if err != nil {
+			return nil, err
+		}
+		orderType = order.StopLimit
+	}
+	if genOrderDetail.OrderConfiguration.StopLimitStopLimitGTD != nil {
+		err = stringToFloatPtr(&amount, genOrderDetail.OrderConfiguration.StopLimitStopLimitGTD.BaseSize)
+		if err != nil {
+			return nil, err
+		}
+		err = stringToFloatPtr(&price, genOrderDetail.OrderConfiguration.StopLimitStopLimitGTD.LimitPrice)
+		if err != nil {
+			return nil, err
+		}
+		err = stringToFloatPtr(&triggerPrice, genOrderDetail.OrderConfiguration.StopLimitStopLimitGTD.StopPrice)
+		if err != nil {
+			return nil, err
+		}
+		orderType = order.StopLimit
+	}
+	var remainingAmount float64
+	if !genOrderDetail.SizeInQuote {
+		remainingAmount = amount - genOrderDetail.FilledSize
+	}
+	var orderSide order.Side
+	switch genOrderDetail.Side {
+	case order.Buy.String():
+		orderSide = order.Buy
+	case order.Sell.String():
+		orderSide = order.Sell
+	}
+	var orderStatus order.Status
+	switch genOrderDetail.Status {
+	case order.Open.String():
+		orderStatus = order.Open
+	case order.Filled.String():
+		orderStatus = order.Filled
+	case order.Cancelled.String():
+		orderStatus = order.Cancelled
+	case order.Expired.String():
+		orderStatus = order.Expired
+	case "FAILED":
+		orderStatus = order.Rejected
+	case "UNKNOWN_ORDER_STATUS":
+		orderStatus = order.UnknownStatus
+	}
+	var closeTime time.Time
+	if genOrderDetail.Settled {
+		closeTime = genOrderDetail.LastFillTime
+	}
+	var lastUpdateTime time.Time
+	if len(genOrderDetail.EditHistory) > 0 {
+		lastUpdateTime = genOrderDetail.EditHistory[len(genOrderDetail.EditHistory)-1].ReplaceAcceptTimestamp
+	}
 
-	// 	postOnly = genOrderDetail.OrderConfiguration.LimitLimitGTC.PostOnly
-	// }
-	// if genOrderDetail.OrderConfiguration.LimitLimitGTD != nil {
-	// 	postOnly = genOrderDetail.OrderConfiguration.LimitLimitGTD.PostOnly
-	// }
+	response := order.Detail{
+		ImmediateOrCancel:    genOrderDetail.OrderConfiguration.MarketMarketIOC != nil,
+		PostOnly:             postOnly,
+		Price:                price,
+		Amount:               amount,
+		TriggerPrice:         triggerPrice,
+		AverageExecutedPrice: genOrderDetail.AverageFilledPrice,
+		QuoteAmount:          quoteAmount,
+		ExecutedAmount:       genOrderDetail.FilledSize,
+		RemainingAmount:      remainingAmount,
+		Cost:                 genOrderDetail.TotalValueAfterFees,
+		Fee:                  genOrderDetail.TotalFees,
+		Exchange:             c.GetName(),
+		OrderID:              genOrderDetail.OrderID,
+		ClientOrderID:        genOrderDetail.ClientOID,
+		ClientID:             genOrderDetail.UserID,
+		Type:                 orderType,
+		Side:                 orderSide,
+		Status:               orderStatus,
+		AssetType:            assetItem,
+		Date:                 genOrderDetail.CreatedTime,
+		CloseTime:            closeTime,
+		LastUpdated:          lastUpdateTime,
+		Pair:                 pair,
+	}
 
-	// response := order.Detail{
-	// 	ImmediateOrCancel: genOrderDetail.OrderConfiguration.MarketMarketIOC != nil,
-	// 	PostOnly: postOnly,
-	// 	Price:
-	// }
+	fmt.Printf("%+v\n", response)
 
-	// orderStatus, err := order.StringToOrderStatus(genOrderDetail.Status)
-	// if err != nil {
-	// 	return nil, fmt.Errorf("error parsing order status: %w", err)
-	// }
-	// orderType, err := order.StringToOrderType(genOrderDetail.Type)
-	// if err != nil {
-	// 	return nil, fmt.Errorf("error parsing order type: %w", err)
-	// }
-	// orderSide, err := order.StringToOrderSide(genOrderDetail.Side)
-	// if err != nil {
-	// 	return nil, fmt.Errorf("error parsing order side: %w", err)
-	// }
-	// pair, err := currency.NewPairDelimiter(genOrderDetail.ProductID, "-")
-	// if err != nil {
-	// 	return nil, fmt.Errorf("error parsing order pair: %w", err)
-	// }
+	fillData, err := c.GetFills(ctx, orderID, "", "", 2<<15-1, time.Time{}, time.Now())
+	if err != nil {
+		return nil, err
+	}
+	cursor := fillData.Cursor
+	for cursor != "" {
+		tempFillData, err := c.GetFills(ctx, orderID, "", cursor, 2<<15-1, time.Time{}, time.Now())
+		if err != nil {
+			return nil, err
+		}
+		fillData.Fills = append(fillData.Fills, tempFillData.Fills...)
+		cursor = tempFillData.Cursor
+	}
+	response.Trades = make([]order.TradeHistory, len(fillData.Fills))
+	switch orderSide {
+	case order.Buy:
+		orderSide = order.Sell
+	case order.Sell:
+		orderSide = order.Buy
+	}
+	for i := range fillData.Fills {
+		response.Trades[i] = order.TradeHistory{
+			Price:     fillData.Fills[i].Price,
+			Amount:    fillData.Fills[i].Size,
+			Fee:       fillData.Fills[i].Commission,
+			Exchange:  c.GetName(),
+			TID:       fillData.Fills[i].TradeID,
+			Side:      orderSide,
+			Timestamp: fillData.Fills[i].TradeTime,
+			Total:     fillData.Fills[i].Price * fillData.Fills[i].Size,
+		}
+	}
 
-	// response := order.Detail{
-	// 	Exchange:        c.GetName(),
-	// 	OrderID:         genOrderDetail.ID,
-	// 	Pair:            pair,
-	// 	Side:            orderSide,
-	// 	Type:            orderType,
-	// 	Date:            genOrderDetail.DoneAt,
-	// 	Status:          orderStatus,
-	// 	Price:           genOrderDetail.Price,
-	// 	Amount:          genOrderDetail.Size,
-	// 	ExecutedAmount:  genOrderDetail.FilledSize,
-	// 	RemainingAmount: genOrderDetail.Size - genOrderDetail.FilledSize,
-	// 	Fee:             genOrderDetail.FillFees,
-	// }
-	// fillResponse, err := c.GetFills(ctx, orderID, genOrderDetail.ProductID)
-	// if err != nil {
-	// 	return nil, fmt.Errorf("error retrieving the order fills: %w", err)
-	// }
-	// for i := range fillResponse {
-	// 	var fillSide order.Side
-	// 	fillSide, err = order.StringToOrderSide(fillResponse[i].Side)
-	// 	if err != nil {
-	// 		return nil, fmt.Errorf("error parsing order Side: %w", err)
-	// 	}
-	// 	response.Trades = append(response.Trades, order.TradeHistory{
-	// 		Timestamp: fillResponse[i].CreatedAt,
-	// 		TID:       strconv.FormatInt(fillResponse[i].TradeID, 10),
-	// 		Price:     fillResponse[i].Price,
-	// 		Amount:    fillResponse[i].Size,
-	// 		Exchange:  c.GetName(),
-	// 		Type:      orderType,
-	// 		Side:      fillSide,
-	// 		Fee:       fillResponse[i].Fee,
-	// 	})
-	// }
-	return nil, errors.New("function not properly implemented")
+	return &response, nil
 }
 
 // GetDepositAddress returns a deposit address for a specified currency
-func (c *CoinbasePro) GetDepositAddress(_ context.Context, _ currency.Code, _, _ string) (*deposit.Address, error) {
-	return nil, common.ErrFunctionNotSupported
+func (c *CoinbasePro) GetDepositAddress(ctx context.Context, cryptocurrency currency.Code, _, chain string) (*deposit.Address, error) {
+	allWalResp, err := c.GetAllWallets(ctx, PaginationInp{})
+	if err != nil {
+		return nil, err
+	}
+	var targetWalletID string
+	if len(allWalResp.Data) != 0 {
+		for i := range allWalResp.Data {
+			if allWalResp.Data[i].Currency.Code == cryptocurrency.String() {
+				targetWalletID = allWalResp.Data[i].ID
+				break
+			}
+		}
+	}
+	if targetWalletID == "" {
+		createWalResp, err := c.CreateWallet(ctx, cryptocurrency.String())
+		if err != nil {
+			return nil, err
+		}
+		targetWalletID = createWalResp.Data.ID
+	}
+	resp, err := c.CreateAddress(ctx, targetWalletID, "")
+	if err != nil {
+		return nil, err
+	}
+	return &deposit.Address{
+		Address: resp.Data.Address,
+		Tag:     resp.Data.Name,
+		Chain:   resp.Data.Network,
+	}, nil
 }
 
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is
@@ -1054,17 +1127,55 @@ func (c *CoinbasePro) WithdrawCryptocurrencyFunds(ctx context.Context, withdrawR
 	if err := withdrawRequest.Validate(); err != nil {
 		return nil, err
 	}
-	// resp, err := c.WithdrawCrypto(ctx,
-	// 	withdrawRequest.Amount,
-	// 	withdrawRequest.Currency.String(),
-	// 	withdrawRequest.Crypto.Address)
-	// if err != nil {
-	// 	return nil, err
-	// }
-	// return &withdraw.ExchangeResponse{
-	// 	ID: resp.ID,
-	// }, err
-	return nil, common.ErrFunctionNotSupported
+	gawResp, err := c.GetAllWallets(ctx, PaginationInp{})
+	if err != nil {
+		return nil, err
+	}
+	if len(gawResp.Data) == 0 {
+		return nil, errNoMatchingWallets
+	}
+	var wID string
+	for i := range gawResp.Data {
+		if gawResp.Data[i].Currency.Code == withdrawRequest.Currency.String() {
+			wID = gawResp.Data[i].ID
+			break
+		}
+	}
+
+	message := fmt.Sprintf("%+v", withdrawRequest)
+
+	creds, err := c.GetCredentials(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	hmac, err := crypto.GetHMAC(crypto.HashSHA256,
+		[]byte(message),
+		[]byte(creds.Secret))
+	if err != nil {
+		return nil, err
+	}
+
+	message = hex.EncodeToString(hmac)
+
+	var tocut uint8
+	if len(message) > 100 {
+		tocut = 100
+	} else {
+		tocut = uint8(len(message))
+	}
+
+	message = message[:tocut]
+
+	resp, err := c.SendMoney(ctx, "send", wID, withdrawRequest.Crypto.Address, withdrawRequest.Currency.String(),
+		withdrawRequest.Description, message, "", withdrawRequest.Crypto.AddressTag, withdrawRequest.Amount,
+		false, false)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return &withdraw.ExchangeResponse{Name: resp.Data.Network.Name, ID: resp.Data.ID, Status: resp.Data.Status}, nil
 }
 
 // WithdrawFiatFunds returns a withdrawal ID when a withdrawal is
@@ -1370,4 +1481,48 @@ func (c *CoinbasePro) GetFuturesContractDetails(context.Context, asset.Item) ([]
 // UpdateOrderExecutionLimits updates order execution limits
 func (c *CoinbasePro) UpdateOrderExecutionLimits(_ context.Context, _ asset.Item) error {
 	return common.ErrNotYetImplemented
+}
+
+// cancelOrdersReturnMapAndCount is a helper function for CancelBatchOrders and CancelAllOrders,
+// calling the appropriate Coinbase endpoint, and returning information useful to both
+func (c *CoinbasePro) cancelOrdersReturnMapAndCount(ctx context.Context, o []order.Cancel) (map[string]string, int64, error) {
+	if len(o) == 0 {
+		return nil, 0, errOrderIDEmpty
+	}
+	status := make(map[string]string)
+	ordIDSlice := make([]string, len(o))
+	for i := range o {
+		err := o[i].Validate(o[i].StandardCancel())
+		if err != nil {
+			return nil, 0, err
+		}
+		ordIDSlice[i] = o[i].OrderID
+		status[o[i].OrderID] = "Failed to cancel"
+	}
+	resp, err := c.CancelOrders(ctx, ordIDSlice)
+	if err != nil {
+		return nil, 0, err
+	}
+	var counter int64
+	for i := range resp.Results {
+		if resp.Results[i].Success {
+			status[resp.Results[i].OrderID] = order.Cancelled.String()
+			counter++
+		}
+	}
+	return status, counter, nil
+}
+
+// stringToFloatPtr essentially calls ParseFloat, but leaves the float alone instead of erroring out
+// if the string is empty.
+func stringToFloatPtr(outgoing *float64, incoming string) error {
+	if outgoing == nil {
+		return errPointerNil
+	}
+	var err error
+	if incoming != "" {
+		*outgoing, err = strconv.ParseFloat(incoming, 64)
+		return err
+	}
+	return nil
 }

@@ -329,6 +329,111 @@ type FillResponse struct {
 	Cursor string `json:"cursor"`
 }
 
+// SimplePortfolioData is a sub-struct used in the types AllPortfolioResponse, and
+// SimplePortfolioResponse
+type SimplePortfolioData struct {
+	Name    string `json:"name"`
+	UUID    string `json:"uuid"`
+	Type    string `json:"type"`
+	Deleted bool   `json:"deleted"`
+}
+
+// AllPortfolioResponse contains a brief overview of the user's portfolios, returned by
+// GetAllPortfolios
+type AllPortfolioResponse struct {
+	Portfolios []SimplePortfolioData `json:"portfolios"`
+}
+
+// SimplePortfolioResponse contains a small amount of information on a single portfolio.
+// Returned by CreatePortfolio and EditPortfolio
+type SimplePortfolioResponse struct {
+	Portfolio SimplePortfolioData `json:"portfolio"`
+}
+
+// MovePortfolioFundsResponse contains the UUIDs of the portfolios involved. Returned by
+// MovePortfolioFunds
+type MovePortfolioFundsResponse struct {
+	SourcePortfolioUUID string `json:"source_portfolio_uuid"`
+	TargetPortfolioUUID string `json:"target_portfolio_uuid"`
+}
+
+// FundsData is used internally when preparing a request in MovePortfolioFunds
+type FundsData struct {
+	Value    string `json:"value"`
+	Currency string `json:"currency"`
+}
+
+// NativeAndRaw is a sub-struct used in the type DetailedPortfolioResponse
+type NativeAndRaw struct {
+	UserNativeCurrency ValCur `json:"userNativeCurrency"`
+	RawCurrency        ValCur `json:"rawCurrency"`
+}
+
+// DetailedPortfolioResponse contains a great deal of information on a single portfolio.
+// Returned by GetPortfolioByID
+type DetailedPortfolioResponse struct {
+	Breakdown struct {
+		Portfolio         SimplePortfolioData `json:"portfolio"`
+		PortfolioBalances struct {
+			TotalBalance               ValCur `json:"total_balance"`
+			TotalFuturesBalance        ValCur `json:"total_futures_balance"`
+			TotalCashEquivalentBalance ValCur `json:"total_cash_equivalent_balance"`
+			TotalCryptoBalance         ValCur `json:"total_crypto_balance"`
+			FuturesUnrealizedPNL       ValCur `json:"futures_unrealized_pnl"`
+			PerpUnrealizedPNL          ValCur `json:"perp_unrealized_pnl"`
+		} `json:"portfolio_balances"`
+		SpotPositions []struct {
+			Asset                 string  `json:"asset"`
+			AccountUUID           string  `json:"account_uuid"`
+			TotalBalanceFiat      float64 `json:"total_balance_fiat"`
+			TotalBalanceCrypto    float64 `json:"total_balance_crypto"`
+			AvailableToTreadeFiat float64 `json:"available_to_trade_fiat"`
+			Allocation            float64 `json:"allocation"`
+			OneDayChange          float64 `json:"one_day_change"`
+			CostBasis             ValCur  `json:"cost_basis"`
+			AssetImgURL           string  `json:"asset_img_url"`
+			IsCash                bool    `json:"is_cash"`
+		} `json:"spot_positions"`
+		PerpPositions []struct {
+			ProductID             string       `json:"product_id"`
+			ProductUUID           string       `json:"product_uuid"`
+			Symbol                string       `json:"symbol"`
+			AssetImageURL         string       `json:"asset_image_url"`
+			VWAP                  NativeAndRaw `json:"vwap"`
+			PositionSide          string       `json:"position_side"`
+			NetSize               float64      `json:"net_size,string"`
+			BuyOrderSize          float64      `json:"buy_order_size,string"`
+			SellOrderSize         float64      `json:"sell_order_size,string"`
+			IMContribution        float64      `json:"im_contribution,string"`
+			UnrealizedPNL         NativeAndRaw `json:"unrealized_pnl"`
+			MarkPrice             NativeAndRaw `json:"mark_price"`
+			LiquidationPrice      NativeAndRaw `json:"liquidation_price"`
+			Leverage              float64      `json:"leverage,string"`
+			IMNotional            NativeAndRaw `json:"im_notional"`
+			MMNotional            NativeAndRaw `json:"mm_notional"`
+			PositionNotional      NativeAndRaw `json:"position_notional"`
+			MarginType            string       `json:"margin_type"`
+			LiquidationBuffer     float64      `json:"liquidation_buffer,string"`
+			LiquidationPercentage float64      `json:"liquidation_percentage,string"`
+		} `json:"perp_positions"`
+		FuturesPositions []struct {
+			ProductID       string    `json:"product_id"`
+			ContractSize    float64   `json:"contract_size,string"`
+			Side            string    `json:"side"`
+			Amount          float64   `json:"amount,string"`
+			AvgEntryPrice   float64   `json:"avg_entry_price,string"`
+			CurrentPrice    float64   `json:"current_price,string"`
+			UnrealizedPNL   float64   `json:"unrealized_pnl,string"`
+			Expiry          time.Time `json:"expiry"`
+			UnderlyingAsset string    `json:"underlying_asset"`
+			AssetImgURL     string    `json:"asset_img_url"`
+			ProductName     string    `json:"product_name"`
+			Venue           string    `json:"venue"`
+			NotionalValue   float64   `json:"notional_value,string"`
+		} `json:"futures_positions"`
+	} `json:"breakdown"`
+}
+
 // TransactionSummary contains a summary of transaction fees, volume, and the like. Returned
 // by GetTransactionSummary
 type TransactionSummary struct {
