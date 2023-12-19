@@ -741,15 +741,20 @@ func updatePairsOnce(tb testing.TB) {
 
 func TestGetOpenInterest(t *testing.T) {
 	t.Parallel()
-	_, err := b.GetOpenInterest(context.Background(), key.PairAsset{
-		Base:  testFUTURESPair.Base.Item,
-		Quote: testFUTURESPair.Quote.Item,
+	cp := currency.NewPair(currency.BTC, currency.PFC)
+	sharedtestvalues.SetupCurrencyPairForExchangeAsset(t, b, cp, asset.Futures)
+
+	resp, err := b.GetOpenInterest(context.Background(), key.PairAsset{
+		Base:  cp.Base.Item,
+		Quote: cp.Quote.Item,
 		Asset: asset.Futures,
 	})
 	assert.NoError(t, err)
+	assert.NotEmpty(t, resp)
 
-	_, err = b.GetOpenInterest(context.Background())
+	resp, err = b.GetOpenInterest(context.Background())
 	assert.NoError(t, err)
+	assert.NotEmpty(t, resp)
 
 	_, err = b.GetOpenInterest(context.Background(), key.PairAsset{
 		Base:  currency.BTC.Item,

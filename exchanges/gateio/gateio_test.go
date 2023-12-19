@@ -1108,11 +1108,10 @@ func TestGetFutureStats(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	resp, err := g.GetFutureStats(context.Background(), settle, futuresTradablePair, time.Time{}, 0, 0)
+	_, err = g.GetFutureStats(context.Background(), settle, futuresTradablePair, time.Time{}, 0, 0)
 	if err != nil {
 		t.Errorf("%s GetFutureStats() error %v", g.Name, err)
 	}
-	t.Log(resp)
 }
 
 func TestGetIndexConstituent(t *testing.T) {
@@ -3551,12 +3550,13 @@ func TestGetOpenInterest(t *testing.T) {
 	})
 	assert.ErrorIs(t, err, asset.ErrNotSupported)
 
-	_, err = g.GetOpenInterest(context.Background(), key.PairAsset{
+	resp, err := g.GetOpenInterest(context.Background(), key.PairAsset{
 		Base:  futuresTradablePair.Base.Item,
 		Quote: futuresTradablePair.Quote.Item,
 		Asset: asset.Futures,
 	})
 	assert.NoError(t, err)
+	assert.NotEmpty(t, resp)
 
 	_, err = g.GetOpenInterest(context.Background())
 	assert.ErrorIs(t, err, common.ErrFunctionNotSupported)

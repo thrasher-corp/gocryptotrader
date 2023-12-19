@@ -3,6 +3,7 @@ package key
 import (
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
@@ -69,4 +70,40 @@ func TestMatchesExchange(t *testing.T) {
 	if k.MatchesExchange("") {
 		t.Error("expected false")
 	}
+}
+
+func TestExchangePairAsset_Pair(t *testing.T) {
+	t.Parallel()
+	cp := currency.NewPair(currency.BTC, currency.USD)
+	k := ExchangePairAsset{
+		Base:  currency.BTC.Item,
+		Quote: currency.USD.Item,
+		Asset: asset.Spot,
+	}
+	assert.Equal(t, cp, k.Pair())
+
+	cp = currency.NewPair(currency.BTC, currency.EMPTYCODE)
+	k.Quote = currency.EMPTYCODE.Item
+	assert.Equal(t, cp, k.Pair())
+
+	cp = currency.EMPTYPAIR
+	assert.Equal(t, cp, ExchangePairAsset{}.Pair())
+}
+
+func TestPairAsset_Pair(t *testing.T) {
+	t.Parallel()
+	cp := currency.NewPair(currency.BTC, currency.USD)
+	k := PairAsset{
+		Base:  currency.BTC.Item,
+		Quote: currency.USD.Item,
+		Asset: asset.Spot,
+	}
+	assert.Equal(t, cp, k.Pair())
+
+	cp = currency.NewPair(currency.BTC, currency.EMPTYCODE)
+	k.Quote = currency.EMPTYCODE.Item
+	assert.Equal(t, cp, k.Pair())
+
+	cp = currency.EMPTYPAIR
+	assert.Equal(t, cp, PairAsset{}.Pair())
 }

@@ -2272,13 +2272,15 @@ func TestGetOpenInterest(t *testing.T) {
 	})
 	assert.ErrorIs(t, err, asset.ErrNotSupported)
 
-	_, err = k.GetOpenInterest(context.Background(), key.PairAsset{
+	resp, err := k.GetOpenInterest(context.Background(), key.PairAsset{
 		Base:  currency.PF.Item,
 		Quote: currency.NewCode("XBTUSD").Item,
 		Asset: asset.Futures,
 	})
 	assert.NoError(t, err)
+	assert.NotEmpty(t, resp)
 
 	_, err = k.GetOpenInterest(context.Background())
 	assert.NoError(t, err)
+	assert.NotEmpty(t, resp)
 }

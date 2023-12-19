@@ -2665,13 +2665,15 @@ func TestGetOpenInterest(t *testing.T) {
 	})
 	assert.ErrorIs(t, err, asset.ErrNotSupported)
 
-	_, err = ku.GetOpenInterest(context.Background(), key.PairAsset{
+	resp, err := ku.GetOpenInterest(context.Background(), key.PairAsset{
 		Base:  futuresTradablePair.Base.Item,
 		Quote: futuresTradablePair.Quote.Item,
 		Asset: asset.Futures,
 	})
 	assert.NoError(t, err)
+	assert.NotEmpty(t, resp)
 
-	_, err = ku.GetOpenInterest(context.Background())
+	resp, err = ku.GetOpenInterest(context.Background())
 	assert.NoError(t, err)
+	assert.NotEmpty(t, resp)
 }

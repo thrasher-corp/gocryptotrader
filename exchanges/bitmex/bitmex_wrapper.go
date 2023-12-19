@@ -1370,7 +1370,7 @@ func (b *Bitmex) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]fut
 					return nil, err
 				}
 				if !enabled {
-					break
+					continue
 				}
 				resp = append(resp, futures.OpenInterest{
 					Key: key.ExchangePairAsset{

@@ -2853,13 +2853,15 @@ func TestGetOpenInterest(t *testing.T) {
 	})
 	assert.ErrorIs(t, err, asset.ErrNotSupported)
 
-	_, err = h.GetOpenInterest(context.Background(), key.PairAsset{
+	resp, err := h.GetOpenInterest(context.Background(), key.PairAsset{
 		Base:  currency.BTC.Item,
 		Quote: currency.USD.Item,
 		Asset: asset.CoinMarginedFutures,
 	})
 	assert.NoError(t, err)
+	assert.NotEmpty(t, resp)
 
-	_, err = h.GetOpenInterest(context.Background())
+	resp, err = h.GetOpenInterest(context.Background())
 	assert.NoError(t, err)
+	assert.NotEmpty(t, resp)
 }

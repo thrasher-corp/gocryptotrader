@@ -105,8 +105,6 @@ const (
 	flexibleLoanCollateralAssetsData = "/sapi/v1/loan/flexible/collateral/data"
 
 	defaultRecvWindow = 5 * time.Second
-
-	errUnexpectedPairFormat = "unexpected pair format"
 )
 
 var (

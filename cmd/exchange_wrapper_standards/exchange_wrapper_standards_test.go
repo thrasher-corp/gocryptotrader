@@ -318,7 +318,6 @@ func generateMethodArg(ctx context.Context, t *testing.T, argGenerator *MethodAr
 			// OrderID
 			input = reflect.ValueOf("1337")
 		}
-
 	case argGenerator.MethodInputType.AssignableTo(pairKeySliceParam):
 		input = reflect.ValueOf(key.PairAsset{
 			Base:  argGenerator.AssetParams.Pair.Base.Item,

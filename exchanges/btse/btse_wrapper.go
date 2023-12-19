@@ -1364,7 +1364,7 @@ func (b *BTSE) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]futur
 	}
 	resp := make([]futures.OpenInterest, 0, len(k))
 	for i := range k {
-		p, isEnabled, err := b.MatchSymbolCheckEnabled(k[0].Pair().String(), k[i].Asset, false)
+		p, isEnabled, err := b.MatchSymbolCheckEnabled(k[i].Pair().String(), k[i].Asset, false)
 		if err != nil {
 			return nil, err
 		}

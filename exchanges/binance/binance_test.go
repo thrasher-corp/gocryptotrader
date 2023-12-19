@@ -3427,19 +3427,21 @@ func TestUGetFundingRateInfo(t *testing.T) {
 
 func TestGetOpenInterest(t *testing.T) {
 	t.Parallel()
-	_, err := b.GetOpenInterest(context.Background(), key.PairAsset{
+	resp, err := b.GetOpenInterest(context.Background(), key.PairAsset{
 		Base:  currency.BTC.Item,
 		Quote: currency.USDT.Item,
 		Asset: asset.USDTMarginedFutures,
 	})
 	assert.NoError(t, err)
+	assert.NotEmpty(t, resp)
 
-	_, err = b.GetOpenInterest(context.Background(), key.PairAsset{
+	resp, err = b.GetOpenInterest(context.Background(), key.PairAsset{
 		Base:  currency.NewCode("BTCUSD").Item,
 		Quote: currency.PERP.Item,
 		Asset: asset.CoinMarginedFutures,
 	})
 	assert.NoError(t, err)
+	assert.NotEmpty(t, resp)
 
 	_, err = b.GetOpenInterest(context.Background(), key.PairAsset{
 		Base:  currency.BTC.Item,

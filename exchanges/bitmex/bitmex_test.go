@@ -1320,15 +1320,20 @@ func TestIsPerpetualFutureCurrency(t *testing.T) {
 
 func TestGetOpenInterest(t *testing.T) {
 	t.Parallel()
-	_, err := b.GetOpenInterest(context.Background(), key.PairAsset{
+	cp := currency.NewPair(currency.XBT, currency.USD)
+	sharedtestvalues.SetupCurrencyPairForExchangeAsset(t, b, cp, asset.PerpetualContract)
+
+	resp, err := b.GetOpenInterest(context.Background(), key.PairAsset{
 		Base:  currency.XBT.Item,
 		Quote: currency.USD.Item,
 		Asset: asset.PerpetualContract,
 	})
 	assert.NoError(t, err)
+	assert.NotEmpty(t, resp)
 
-	_, err = b.GetOpenInterest(context.Background())
+	resp, err = b.GetOpenInterest(context.Background())
 	assert.NoError(t, err)
+	assert.NotEmpty(t, resp)
 
 	_, err = b.GetOpenInterest(context.Background(), key.PairAsset{
 		Base:  currency.BTC.Item,
