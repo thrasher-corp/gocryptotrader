@@ -264,32 +264,35 @@ func (b *BTSE) FetchTradablePairs(ctx context.Context, a asset.Item) (currency.P
 	if err != nil {
 		return nil, err
 	}
-	pairs := make([]currency.Pair, 0, len(m))
-	for x := range m {
-		if !m[x].Active ||
-			// BTSE returns 0 for both highest bid and lowest ask if there is
-			// no order book data, so we skip those pairs. There is no way to
-			// take or provide liquidity for these pairs.
-
-			// TODO: Add support for an OTC asset as this eliminates many valid
-			// tradable pairs which are active, OTC only and available on the
-			// front-end.
-			(m[x].LowestAsk == 0 && m[x].HighestBid == 0) ||
-			m[x].Symbol[0:3] == "PIT" {
+	pairs := make(currency.Pairs, 0, len(m))
+	mPairs := m.MillionPairs()
+	for _, l := range m {
+		if !l.Active || !l.HasLiquidity() ||
+			(a == asset.Spot && !l.IsMarketOpenToSpot) { // Skip OTC assets only tradable on web UI
 			continue
 		}
-
-		var pair currency.Pair
-		quote := m[x].Quote
+		if mPairs[l.Symbol] {
+			// BTSE lists M_ symbols for very small pairs, in millions. For those listings, we want to take the M_ listing in preference
+			// to the native listing, since they're often going to appear as locked markets due to size (bid == ask, e.g. 0.0000000003)
+			continue
+		}
+		baseCurr := l.Base
+		var quoteCurr string
 		if a == asset.Futures {
-			symSplit := strings.Split(m[x].Symbol, m[x].Base)
-			if len(symSplit) <= 1 {
+			s := strings.Split(l.Symbol, l.Base) // e.g. RUNEPFC for RUNE-USD futures pair
+			if len(s) <= 1 {
 				continue
 			}
-			quote = symSplit[1]
+			quoteCurr = s[1]
+		} else {
+			s := strings.Split(l.Symbol, currency.DashDelimiter)
+			if len(s) != 2 {
+				continue
+			}
+			baseCurr = s[0]
+			quoteCurr = s[1]
 		}
-
-		pair, err = currency.NewPairFromStrings(m[x].Base, quote)
+		pair, err := currency.NewPairFromStrings(baseCurr, quoteCurr)
 		if err != nil {
 			return nil, err
 		}
@@ -324,30 +327,28 @@ func (b *BTSE) UpdateTickers(ctx context.Context, a asset.Item) error {
 	if err != nil {
 		return err
 	}
+	var errs error
 	for x := range tickers {
-		var pair currency.Pair
-		pair, err = currency.NewPairFromString(tickers[x].Symbol)
-		if err != nil {
-			return err
+		pair, err := currency.NewPairFromString(tickers[x].Symbol)
+		if err == nil {
+			err = ticker.ProcessTicker(&ticker.Price{
+				Pair:         pair,
+				Ask:          tickers[x].LowestAsk,
+				Bid:          tickers[x].HighestBid,
+				Low:          tickers[x].Low24Hr,
+				Last:         tickers[x].Last,
+				Volume:       tickers[x].Volume,
+				High:         tickers[x].High24Hr,
+				OpenInterest: tickers[x].OpenInterest,
+				ExchangeName: b.Name,
+				AssetType:    a})
 		}
-
-		err = ticker.ProcessTicker(&ticker.Price{
-			Pair:         pair,
-			Ask:          tickers[x].LowestAsk,
-			Bid:          tickers[x].HighestBid,
-			Low:          tickers[x].Low24Hr,
-			Last:         tickers[x].Last,
-			Volume:       tickers[x].Volume,
-			High:         tickers[x].High24Hr,
-			OpenInterest: tickers[x].OpenInterest,
-			ExchangeName: b.Name,
-			AssetType:    a})
 		if err != nil {
-			return err
+			errs = common.AppendError(errs, err)
 		}
 	}
 
-	return nil
+	return errs
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair
@@ -358,7 +359,24 @@ func (b *BTSE) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Item) 
 	if !b.SupportsAsset(a) {
 		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, a)
 	}
-	if err := b.UpdateTickers(ctx, a); err != nil {
+	ticks, err := b.GetMarketSummary(ctx, p.String(), a == asset.Spot)
+	if err != nil {
+		return nil, err
+	}
+	if len(ticks) != 1 {
+		return nil, errors.New("market_summary should return 1 tick for a single ticker")
+	}
+	err = ticker.ProcessTicker(&ticker.Price{
+		Pair:         p,
+		Ask:          ticks[0].LowestAsk,
+		Bid:          ticks[0].HighestBid,
+		Low:          ticks[0].Low24Hr,
+		Last:         ticks[0].Last,
+		Volume:       ticks[0].Volume,
+		High:         ticks[0].High24Hr,
+		ExchangeName: b.Name,
+		AssetType:    a})
+	if err != nil {
 		return nil, err
 	}
 	return ticker.GetTicker(b.Name, p, a)

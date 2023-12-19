@@ -109,7 +109,6 @@ const (
 	marketIndexComponents        = "market/index-components"
 	marketBlockTickers           = "market/block-tickers"
 	marketBlockTicker            = "market/block-ticker"
-	marketBlockTrades            = "market/block-trades"
 
 	// Public endpoints
 	publicInstruments                 = "public/instruments"
@@ -130,6 +129,7 @@ const (
 	publicUnderlyings                 = "public/underlying"
 	publicInsuranceFunds              = "public/insurance-fund"
 	publicCurrencyConvertContract     = "public/convert-contract-coin"
+	publicBlockTrades                 = "public/block-trades"
 
 	// Trading Endpoints
 	tradingDataSupportedCoins      = "rubik/stat/trading-data/support-coin"
@@ -1361,8 +1361,8 @@ func (ok *Okx) GetRfqTrades(ctx context.Context, arg *RfqTradesRequestParams) ([
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getTradesEPL, http.MethodGet, common.EncodeURLValues(rfqTrades, params), nil, &resp, true)
 }
 
-// GetPublicTrades retrieves the recent executed block trades.
-func (ok *Okx) GetPublicTrades(ctx context.Context, beginID, endID string, limit int64) ([]PublicTradesResponse, error) {
+// GetPublicBlockTrades retrieves the recent executed block trades.
+func (ok *Okx) GetPublicBlockTrades(ctx context.Context, beginID, endID string, limit int64) ([]PublicBlockTradesResponse, error) {
 	params := url.Values{}
 	if beginID != "" {
 		params.Set("beginId", beginID)
@@ -1373,8 +1373,8 @@ func (ok *Okx) GetPublicTrades(ctx context.Context, beginID, endID string, limit
 	if limit > 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
-	var resp []PublicTradesResponse
-	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getPublicTradesEPL, http.MethodGet, common.EncodeURLValues(rfqPublicTrades, params), nil, &resp, true)
+	var resp []PublicBlockTradesResponse
+	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getPublicTradesEPL, http.MethodGet, common.EncodeURLValues(rfqPublicTrades, params), nil, &resp, false)
 }
 
 /*************************************** Funding Tradings ********************************/
@@ -3348,7 +3348,7 @@ func (ok *Okx) GetBlockTrades(ctx context.Context, instrumentID string) ([]Block
 	}
 	params.Set("instId", instrumentID)
 	var resp []BlockTrade
-	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getBlockTradesEPL, http.MethodGet, common.EncodeURLValues(marketBlockTrades, params), nil, &resp, false)
+	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getBlockTradesEPL, http.MethodGet, common.EncodeURLValues(publicBlockTrades, params), nil, &resp, false)
 }
 
 /************************************ Public Data Endpoinst *************************************************/

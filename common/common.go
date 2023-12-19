@@ -463,78 +463,88 @@ func InArray(val, array interface{}) (exists bool, index int) {
 	return
 }
 
-// multiError holds all the errors as a slice, this is unexported, so it forces
-// inbuilt error handling.
+// multiError holds errors as a slice
 type multiError struct {
-	loadedErrors []error
-	offset       *int
+	errs []error
 }
 
-// AppendError appends error in a more idiomatic way. This can start out as a
-// standard error e.g. err := errors.New("random error")
-// err = AppendError(err, errors.New("another random error"))
+// AppendError appends an error to a list of exesting errors
+// Either argument may be:
+// * A vanilla error
+// * An error implementing Unwrap() []error e.g. fmt.Errorf("%w: %w")
+// * nil
+// The result will be an error which may be a multiError if multipleErrors were found
 func AppendError(original, incoming error) error {
-	errSliceP, ok := original.(*multiError)
-	if ok {
-		errSliceP.offset = nil
-	}
 	if incoming == nil {
-		return original // Skip append - continue as normal.
+		return original
 	}
-	if !ok {
-		// This assumes that a standard error is passed in and we can want to
-		// track it and add additional errors.
-		errSliceP = &multiError{}
-		if original != nil {
-			errSliceP.loadedErrors = append(errSliceP.loadedErrors, original)
+	if original == nil {
+		return incoming
+	}
+	newErrs := []error{incoming}
+	if u, ok := incoming.(interface{ Unwrap() []error }); ok {
+		newErrs = u.Unwrap()
+	}
+	if u, ok := original.(interface{ Unwrap() []error }); ok {
+		return &multiError{
+			errs: append(u.Unwrap(), newErrs...),
 		}
 	}
-	if incomingSlice, ok := incoming.(*multiError); ok {
-		// Join slices if needed.
-		errSliceP.loadedErrors = append(errSliceP.loadedErrors, incomingSlice.loadedErrors...)
-	} else {
-		errSliceP.loadedErrors = append(errSliceP.loadedErrors, incoming)
+	return &multiError{
+		errs: append([]error{original}, newErrs...),
 	}
-	return errSliceP
 }
 
-// Error displays all errors comma separated, if unwrapped has been called and
-// has not been reset will display the individual error
+// Error displays all errors comma separated
 func (e *multiError) Error() string {
-	if e.offset != nil {
-		return e.loadedErrors[*e.offset].Error()
-	}
-	allErrors := make([]string, len(e.loadedErrors))
-	for x := range e.loadedErrors {
-		allErrors[x] = e.loadedErrors[x].Error()
+	allErrors := make([]string, len(e.errs))
+	for x := range e.errs {
+		allErrors[x] = e.errs[x].Error()
 	}
 	return strings.Join(allErrors, ", ")
 }
 
-// Unwrap increments the offset so errors.Is() can be called to its individual
-// error for correct matching.
-func (e *multiError) Unwrap() error {
-	if e.offset == nil {
-		e.offset = new(int)
-	} else {
-		*e.offset++
-	}
-	if *e.offset == len(e.loadedErrors) {
-		e.offset = nil
-		return nil // Force errors.Is package to return false.
-	}
-	return e
+// Unwrap returns all of the errors in the multiError
+func (e *multiError) Unwrap() []error {
+	return e.errs
 }
 
-// Is checks to see if the errors match. It calls package errors.Is() so that
-// we can keep fmt.Errorf() trimmings. This is called in errors package at
-// interface assertion err.(interface{ Is(error) bool }).
-func (e *multiError) Is(incoming error) bool {
-	if e.offset != nil && errors.Is(e.loadedErrors[*e.offset], incoming) {
-		e.offset = nil
-		return true
+type unwrappable interface {
+	Unwrap() []error
+}
+
+// unwrapDeep walks down a stack of nested fmt.Errorf("%w: %w") errors
+// This is necessary since fmt.wrapErrors doesn't flatten the error slices
+func unwrapDeep(err unwrappable) []error {
+	var n []error
+	for _, e := range err.Unwrap() {
+		if u, ok := e.(unwrappable); ok {
+			n = append(n, u.Unwrap()...)
+		} else {
+			n = append(n, e)
+		}
 	}
-	return false
+	return n
+}
+
+// ExcludeError returns a new error excluding any errors matching excl
+// For a standard error it will either return the error unchanged or nil
+// For an error which implements Unwrap() []error it will remove any errors matching excl and return the remaining errors or nil
+// Any non-error messages and formatting from fmt.Errorf will be lost; This function is written for conditions
+func ExcludeError(err, excl error) error {
+	if u, ok := err.(unwrappable); ok {
+		var n error
+		for _, e := range unwrapDeep(u) {
+			if !errors.Is(e, excl) {
+				n = AppendError(n, e)
+			}
+		}
+		return n
+	}
+	if errors.Is(err, excl) {
+		return nil
+	}
+	return err
 }
 
 // StartEndTimeCheck provides some basic checks which occur

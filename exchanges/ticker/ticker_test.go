@@ -291,9 +291,7 @@ func TestProcessTicker(t *testing.T) { // non-appending function to tickers
 		Bid:          1337,
 		Ask:          1337,
 	})
-	if !errors.Is(err, errBidEqualsAsk) {
-		t.Errorf("received: %v but expected: %v", err, errBidEqualsAsk)
-	}
+	assert.ErrorIs(t, err, ErrBidEqualsAsk, "ProcessTicker should error locked market")
 
 	err = ProcessTicker(&Price{
 		ExchangeName: "Bitfinex",

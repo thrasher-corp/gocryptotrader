@@ -1843,34 +1843,33 @@ type RfqTradesRequestParams struct {
 
 // RfqTradeResponse Rfq trade response
 type RfqTradeResponse struct {
-	RfqID           string        `json:"rfqId"`
-	ClientRfqID     string        `json:"clRfqId"`
-	QuoteID         string        `json:"quoteId"`
-	ClientQuoteID   string        `json:"clQuoteId"`
-	BlockTradeID    string        `json:"blockTdId"`
-	Legs            []RfqTradeLeg `json:"legs"`
-	CreationTime    time.Time     `json:"cTime"`
-	TakerTraderCode string        `json:"tTraderCode"`
-	MakerTraderCode string        `json:"mTraderCode"`
+	RfqID           string          `json:"rfqId"`
+	ClientRfqID     string          `json:"clRfqId"`
+	QuoteID         string          `json:"quoteId"`
+	ClientQuoteID   string          `json:"clQuoteId"`
+	BlockTradeID    string          `json:"blockTdId"`
+	Legs            []BlockTradeLeg `json:"legs"`
+	CreationTime    time.Time       `json:"cTime"`
+	TakerTraderCode string          `json:"tTraderCode"`
+	MakerTraderCode string          `json:"mTraderCode"`
 }
 
-// RfqTradeLeg Rfq trade response leg.
-type RfqTradeLeg struct {
-	InstrumentID string  `json:"instId"`
-	Side         string  `json:"side"`
-	Size         string  `json:"sz"`
-	Price        float64 `json:"px,string"`
-	TradeID      string  `json:"tradeId"`
-
-	Fee         float64 `json:"fee,string,omitempty"`
-	FeeCurrency string  `json:"feeCcy,omitempty"`
+// BlockTradeLeg Rfq trade response leg.
+type BlockTradeLeg struct {
+	TradeID      string                  `json:"tradeId"`
+	InstrumentID string                  `json:"instId"`
+	Side         order.Side              `json:"side"`
+	Size         convert.StringToFloat64 `json:"sz"`
+	Price        convert.StringToFloat64 `json:"px"`
+	Fee          convert.StringToFloat64 `json:"fee,omitempty"`
+	FeeCurrency  string                  `json:"feeCcy,omitempty"`
 }
 
-// PublicTradesResponse represents data will be pushed whenever there is a block trade.
-type PublicTradesResponse struct {
+// PublicBlockTradesResponse represents data will be pushed whenever there is a block trade.
+type PublicBlockTradesResponse struct {
 	BlockTradeID string           `json:"blockTdId"`
 	CreationTime okxUnixMilliTime `json:"cTime"`
-	Legs         []RfqTradeLeg    `json:"legs"`
+	Legs         []BlockTradeLeg  `json:"legs"`
 }
 
 // SubaccountInfo represents subaccount information detail.
@@ -2169,12 +2168,16 @@ type BlockTicker struct {
 
 // BlockTrade represents a block trade.
 type BlockTrade struct {
-	InstrumentID string           `json:"instId"`
-	TradeID      string           `json:"tradeId"`
-	Price        float64          `json:"px,string"`
-	Size         float64          `json:"sz,string"`
-	Side         order.Side       `json:"side"`
-	Timestamp    okxUnixMilliTime `json:"ts"`
+	InstrumentID   string                  `json:"instId"`
+	TradeID        string                  `json:"tradeId"`
+	Price          convert.StringToFloat64 `json:"px"`
+	Size           convert.StringToFloat64 `json:"sz"`
+	Side           order.Side              `json:"side"`
+	FillVolatility convert.StringToFloat64 `json:"fillVol"`
+	ForwardPrice   convert.StringToFloat64 `json:"fwdPx"`
+	IndexPrice     convert.StringToFloat64 `json:"idxPx"`
+	MarkPrice      convert.StringToFloat64 `json:"markPx"`
+	Timestamp      convert.ExchangeTime    `json:"ts"`
 }
 
 // UnitConvertResponse unit convert response.
@@ -2915,8 +2918,8 @@ type WsSystemStatusResponse struct {
 
 // WsPublicTradesResponse represents websocket push data of structured block trades as a result of subscription to "public-struc-block-trades"
 type WsPublicTradesResponse struct {
-	Argument SubscriptionInfo       `json:"arg"`
-	Data     []PublicTradesResponse `json:"data"`
+	Argument SubscriptionInfo            `json:"arg"`
+	Data     []PublicBlockTradesResponse `json:"data"`
 }
 
 // WsBlockTicker represents websocket push data as a result of subscription to channel "block-tickers".
