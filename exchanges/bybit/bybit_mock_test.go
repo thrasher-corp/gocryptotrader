@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	"github.com/thrasher-corp/gocryptotrader/config"
+	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/mock"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
@@ -65,26 +66,41 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		log.Fatal("Bybit setup error", err)
 	}
-
-	spotTradablePair, err = b.ExtractCurrencyPair("BTCUSDT", asset.Spot, true)
-	if err != nil {
-		log.Fatal(err)
+	spotTradablePair = currency.Pair{Base: currency.BTC, Quote: currency.USDT}
+	okay, err := b.IsPairEnabled(spotTradablePair, asset.Spot)
+	if !okay || err != nil {
+		err = b.CurrencyPairs.EnablePair(asset.Spot, spotTradablePair)
+		if err != nil {
+			log.Fatal(err)
+		}
 	}
-	usdtMarginedTradablePair, err = b.ExtractCurrencyPair("10000LADYSUSDT", asset.USDTMarginedFutures, true)
-	if err != nil {
-		log.Fatal(err)
+	usdtMarginedTradablePair = currency.Pair{Base: currency.NewCode("10000LADYS"), Quote: currency.USDT}
+	if okay, err = b.IsPairEnabled(usdtMarginedTradablePair, asset.USDTMarginedFutures); !okay || err != nil {
+		err = b.CurrencyPairs.EnablePair(asset.USDTMarginedFutures, usdtMarginedTradablePair)
+		if err != nil {
+			log.Fatal(err)
+		}
 	}
-	usdcMarginedTradablePair, err = b.ExtractCurrencyPair("ETHPERP", asset.USDCMarginedFutures, true)
-	if err != nil {
-		log.Fatal(err)
+	usdcMarginedTradablePair = currency.Pair{Base: currency.ETH, Quote: currency.PERP}
+	if okay, err = b.IsPairEnabled(usdcMarginedTradablePair, asset.USDCMarginedFutures); !okay || err != nil {
+		err = b.CurrencyPairs.EnablePair(asset.USDCMarginedFutures, usdcMarginedTradablePair)
+		if err != nil {
+			log.Fatal(err)
+		}
 	}
-	inverseTradablePair, err = b.ExtractCurrencyPair("ADAUSD", asset.CoinMarginedFutures, true)
-	if err != nil {
-		log.Fatal(err)
+	inverseTradablePair = currency.Pair{Base: currency.ADA, Quote: currency.USD}
+	if okay, err = b.IsPairEnabled(inverseTradablePair, asset.CoinMarginedFutures); !okay || err != nil {
+		err = b.CurrencyPairs.EnablePair(asset.CoinMarginedFutures, inverseTradablePair)
+		if err != nil {
+			log.Fatal(err)
+		}
 	}
-	optionsTradablePair, err = b.ExtractCurrencyPair("BTC-29DEC23-80000-C", asset.Options, true)
-	if err != nil {
-		log.Fatal(err)
+	optionsTradablePair = currency.Pair{Base: currency.BTC, Delimiter: currency.DashDelimiter, Quote: currency.NewCode("29DEC23-80000-C")}
+	if okay, err = b.IsPairEnabled(optionsTradablePair, asset.Options); !okay || err != nil {
+		err = b.CurrencyPairs.EnablePair(asset.Options, optionsTradablePair)
+		if err != nil {
+			log.Fatal(err)
+		}
 	}
 	os.Exit(m.Run())
 }

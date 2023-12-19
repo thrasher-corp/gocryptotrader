@@ -217,14 +217,7 @@ func TestUpdateTicker(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	cp := optionsTradablePair
-	if mockTests {
-		cp, err = currency.NewPairFromString("BTC-28JUN24-70000-C")
-		if err != nil {
-			t.Error(err)
-		}
-	}
-	_, err = b.UpdateTicker(context.Background(), cp, asset.Options)
+	_, err = b.UpdateTicker(context.Background(), optionsTradablePair, asset.Options)
 	if err != nil {
 		t.Error(err)
 	}
@@ -3404,12 +3397,6 @@ func TestRetrieveAndSetAccountType(t *testing.T) {
 
 func TestGetLatestFundingRates(t *testing.T) {
 	t.Parallel()
-	if mockTests {
-		usdtMarginedTradablePair = currency.Pair{Base: currency.NewCode("10000LADYS"), Quote: currency.USDT}
-		spotTradablePair = currency.Pair{Base: currency.BTC, Quote: currency.USDT}
-		optionsTradablePair = currency.Pair{Base: currency.BTC, Delimiter: "-", Quote: currency.NewCode("29DEC23-80000-C")}
-		usdcMarginedTradablePair = currency.Pair{Base: currency.ETH, Quote: currency.PERP}
-	}
 	_, err := b.GetLatestFundingRates(context.Background(), &fundingrate.LatestRateRequest{
 		Asset: asset.Futures,
 		Pair:  usdtMarginedTradablePair,
