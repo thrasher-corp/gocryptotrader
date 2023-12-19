@@ -61,7 +61,7 @@ func (i *ItBit) SetDefaults() {
 	i.API.CredentialsValidator.RequiresSecret = true
 
 	requestFmt := &currency.PairFormat{Uppercase: true}
-	configFmt := &currency.PairFormat{Uppercase: true, Delimiter: currency.DashDelimiter}
+	configFmt := &currency.PairFormat{Uppercase: true}
 	err := i.SetGlobalPairsManager(requestFmt, configFmt, asset.Spot)
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)

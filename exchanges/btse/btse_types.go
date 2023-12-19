@@ -21,7 +21,10 @@ type FundingHistoryData struct {
 }
 
 // MarketSummary response data
-type MarketSummary []struct {
+type MarketSummary []*MarketPair
+
+// MarketPair is a single pair in Market Summary
+type MarketPair struct {
 	Symbol              string   `json:"symbol"`
 	Last                float64  `json:"last"`
 	LowestAsk           float64  `json:"lowestAsk"`
@@ -56,7 +59,7 @@ type MarketSummary []struct {
 	AvailableSettlement []string `json:"availableSettlement"`
 	Futures             bool     `json:"futures"`
 	IsMarketOpenToSpot  bool     `json:"isMarketOpenToSpot"`
-	IsMarketOpentoOTC   bool     `json:"isMarketOpenToOtc"`
+	IsMarketOpenToOTC   bool     `json:"isMarketOpenToOtc"`
 }
 
 // OHLCV holds Open, High Low, Close, Volume data for set symbol
