@@ -625,7 +625,7 @@ func (ok *Okx) GetAccountFundingHistory(ctx context.Context) ([]exchange.Funding
 			Status:          strconv.Itoa(depositHistories[x].State),
 			Timestamp:       depositHistories[x].Timestamp.Time(),
 			Currency:        depositHistories[x].Currency,
-			Amount:          depositHistories[x].Amount,
+			Amount:          depositHistories[x].Amount.Float64(),
 			TransferType:    "deposit",
 			CryptoToAddress: depositHistories[x].ToDepositAddress,
 			CryptoTxID:      depositHistories[x].TransactionID,
@@ -637,12 +637,12 @@ func (ok *Okx) GetAccountFundingHistory(ctx context.Context) ([]exchange.Funding
 			Status:          withdrawalHistories[x].StateOfWithdrawal,
 			Timestamp:       withdrawalHistories[x].Timestamp.Time(),
 			Currency:        withdrawalHistories[x].Currency,
-			Amount:          withdrawalHistories[x].Amount,
+			Amount:          withdrawalHistories[x].Amount.Float64(),
 			TransferType:    "withdrawal",
 			CryptoToAddress: withdrawalHistories[x].ToReceivingAddress,
 			CryptoTxID:      withdrawalHistories[x].TransactionID,
 			TransferID:      withdrawalHistories[x].WithdrawalID,
-			Fee:             withdrawalHistories[x].WithdrawalFee,
+			Fee:             withdrawalHistories[x].WithdrawalFee.Float64(),
 			CryptoChain:     withdrawalHistories[x].ChainName,
 		})
 	}
@@ -661,13 +661,13 @@ func (ok *Okx) GetWithdrawalsHistory(ctx context.Context, c currency.Code, _ ass
 			Status:          withdrawals[x].StateOfWithdrawal,
 			Timestamp:       withdrawals[x].Timestamp.Time(),
 			Currency:        withdrawals[x].Currency,
-			Amount:          withdrawals[x].Amount,
+			Amount:          withdrawals[x].Amount.Float64(),
 			TransferType:    "withdrawal",
 			CryptoToAddress: withdrawals[x].ToReceivingAddress,
 			CryptoTxID:      withdrawals[x].TransactionID,
 			CryptoChain:     withdrawals[x].ChainName,
 			TransferID:      withdrawals[x].WithdrawalID,
-			Fee:             withdrawals[x].WithdrawalFee,
+			Fee:             withdrawals[x].WithdrawalFee.Float64(),
 		})
 	}
 	return resp, nil
@@ -696,8 +696,8 @@ func (ok *Okx) GetRecentTrades(ctx context.Context, p currency.Pair, assetType a
 			CurrencyPair: p,
 			AssetType:    assetType,
 			Side:         tradeData[x].Side,
-			Price:        tradeData[x].Price,
-			Amount:       tradeData[x].Quantity,
+			Price:        tradeData[x].Price.Float64(),
+			Amount:       tradeData[x].Quantity.Float64(),
 			Timestamp:    tradeData[x].Timestamp.Time(),
 		}
 	}
@@ -749,8 +749,8 @@ allTrades:
 				Exchange:     ok.Name,
 				CurrencyPair: p,
 				AssetType:    assetType,
-				Price:        trades[i].Price,
-				Amount:       trades[i].Quantity,
+				Price:        trades[i].Price.Float64(),
+				Amount:       trades[i].Quantity.Float64(),
 				Timestamp:    trades[i].Timestamp.Time(),
 				Side:         trades[i].Side,
 			})
