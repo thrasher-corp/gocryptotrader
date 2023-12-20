@@ -2272,11 +2272,29 @@ func TestGetOpenInterest(t *testing.T) {
 	})
 	assert.ErrorIs(t, err, asset.ErrNotSupported)
 
+	cp1 := currency.NewPair(currency.PF, currency.NewCode("ETHUSD"))
+	cp2 := currency.NewPair(currency.PF, currency.NewCode("XBTUSD"))
+	sharedtestvalues.SetupCurrencyPairsForExchangeAsset(t, k, asset.Futures, cp1, cp2)
+
 	resp, err := k.GetOpenInterest(context.Background(), key.PairAsset{
-		Base:  currency.PF.Item,
-		Quote: currency.NewCode("XBTUSD").Item,
+		Base:  cp1.Base.Item,
+		Quote: cp1.Quote.Item,
 		Asset: asset.Futures,
 	})
+	assert.NoError(t, err)
+	assert.NotEmpty(t, resp)
+
+	resp, err = k.GetOpenInterest(context.Background(),
+		key.PairAsset{
+			Base:  cp1.Base.Item,
+			Quote: cp1.Quote.Item,
+			Asset: asset.Futures,
+		},
+		key.PairAsset{
+			Base:  cp2.Base.Item,
+			Quote: cp2.Quote.Item,
+			Asset: asset.Futures,
+		})
 	assert.NoError(t, err)
 	assert.NotEmpty(t, resp)
 
