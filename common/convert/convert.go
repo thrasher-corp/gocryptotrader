@@ -1,9 +1,7 @@
 package convert
 
 import (
-	"bytes"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"math"
 	"strconv"
@@ -12,10 +10,6 @@ import (
 
 	"github.com/shopspring/decimal"
 )
-
-const jsonStringIdent = `"` // immutable byte sequence
-
-var errUnhandledType = errors.New("unhandled type")
 
 // FloatFromString format
 func FloatFromString(raw interface{}) (float64, error) {
@@ -193,55 +187,6 @@ func InterfaceToStringOrZeroValue(r interface{}) string {
 		return v
 	}
 	return ""
-}
-
-// StringToFloat64 is a float64 that unmarshals from a string. This is useful
-// for APIs that return numbers as strings and return an empty string instead of
-// 0.
-type StringToFloat64 float64
-
-// UnmarshalJSON implements the json.Unmarshaler interface.
-// This implementation is slightly more performant than calling json.Unmarshal
-// again.
-func (f *StringToFloat64) UnmarshalJSON(data []byte) error {
-	if !bytes.HasPrefix(data, []byte(jsonStringIdent)) {
-		return fmt.Errorf("%w: %s", errUnhandledType, string(data))
-	}
-
-	data = data[1 : len(data)-1] // Remove quotes
-	if len(data) == 0 {
-		*f = StringToFloat64(0)
-		return nil
-	}
-
-	val, err := strconv.ParseFloat(string(data), 64)
-	if err != nil {
-		return err
-	}
-
-	*f = StringToFloat64(val)
-	return nil
-}
-
-// MarshalJSON implements the json.Marshaler interface.
-func (f StringToFloat64) MarshalJSON() ([]byte, error) {
-	if f == 0 {
-		return []byte(jsonStringIdent + jsonStringIdent), nil
-	}
-	val := strconv.FormatFloat(float64(f), 'f', -1, 64)
-	return []byte(jsonStringIdent + val + jsonStringIdent), nil
-}
-
-// Float64 returns the float64 value of the FloatString.
-func (f StringToFloat64) Float64() float64 {
-	return float64(f)
-}
-
-// Decimal returns the decimal value of the FloatString
-// Warning: this does not handle big numbers as the underlying
-// is still a float
-func (f StringToFloat64) Decimal() decimal.Decimal {
-	return decimal.NewFromFloat(float64(f))
 }
 
 // ExchangeTime provides timestamp to time conversion method.

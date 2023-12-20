@@ -33,6 +33,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
+	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
 // GetDefaultConfig returns a default exchange config
@@ -1052,8 +1053,8 @@ func (g *Gateio) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Submi
 			Side:         orderTypeFormat,
 			Type:         s.Type.Lower(),
 			Account:      g.assetTypeToString(s.AssetType),
-			Amount:       convert.StringToFloat64(s.Amount),
-			Price:        convert.StringToFloat64(s.Price),
+			Amount:       types.Number(s.Amount),
+			Price:        types.Number(s.Price),
 			CurrencyPair: s.Pair,
 			Text:         s.ClientOrderID,
 		})
@@ -1095,7 +1096,7 @@ func (g *Gateio) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Submi
 		fOrder, err := g.PlaceFuturesOrder(ctx, &OrderCreateParams{
 			Contract:    s.Pair,
 			Size:        s.Amount,
-			Price:       convert.StringToFloat64(s.Price),
+			Price:       types.Number(s.Price),
 			Settle:      settle,
 			ReduceOnly:  s.ReduceOnly,
 			TimeInForce: "gtc",
@@ -1132,7 +1133,7 @@ func (g *Gateio) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Submi
 		newOrder, err := g.PlaceDeliveryOrder(ctx, &OrderCreateParams{
 			Contract:    s.Pair,
 			Size:        s.Amount,
-			Price:       convert.StringToFloat64(s.Price),
+			Price:       types.Number(s.Price),
 			Settle:      settle,
 			ReduceOnly:  s.ReduceOnly,
 			TimeInForce: "gtc",
@@ -1160,7 +1161,7 @@ func (g *Gateio) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Submi
 		optionOrder, err := g.PlaceOptionOrder(ctx, OptionOrderParam{
 			Contract:   s.Pair.String(),
 			OrderSize:  s.Amount,
-			Price:      convert.StringToFloat64(s.Price),
+			Price:      types.Number(s.Price),
 			ReduceOnly: s.ReduceOnly,
 			Text:       s.ClientOrderID,
 		})
@@ -1548,7 +1549,7 @@ func (g *Gateio) WithdrawCryptocurrencyFunds(ctx context.Context, withdrawReques
 	}
 	response, err := g.WithdrawCurrency(ctx,
 		WithdrawalRequestParam{
-			Amount:   convert.StringToFloat64(withdrawRequest.Amount),
+			Amount:   types.Number(withdrawRequest.Amount),
 			Currency: withdrawRequest.Currency,
 			Address:  withdrawRequest.Crypto.Address,
 			Chain:    withdrawRequest.Crypto.Chain,

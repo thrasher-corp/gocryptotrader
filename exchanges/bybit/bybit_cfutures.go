@@ -10,11 +10,11 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
-	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
+	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
 const (
@@ -394,7 +394,7 @@ func (by *Bybit) GetLastFundingRate(ctx context.Context, symbol currency.Pair) (
 // GetFuturesServerTime returns Bybit server time in seconds
 func (by *Bybit) GetFuturesServerTime(ctx context.Context) (time.Time, error) {
 	resp := struct {
-		TimeNow convert.StringToFloat64 `json:"time_now"`
+		TimeNow types.Number `json:"time_now"`
 		Error
 	}{}
 
