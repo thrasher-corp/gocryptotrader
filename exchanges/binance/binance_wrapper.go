@@ -3120,8 +3120,7 @@ func (b *Binance) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]fu
 	}
 	result := make([]futures.OpenInterest, len(k))
 	for i := range k {
-		switch k[i].Asset {
-		case asset.USDTMarginedFutures:
+		if k[i].Asset == asset.USDTMarginedFutures {
 			oi, err := b.UOpenInterest(ctx, k[i].Pair())
 			if err != nil {
 				return nil, err
@@ -3135,7 +3134,7 @@ func (b *Binance) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]fu
 				},
 				OpenInterest: oi.OpenInterest,
 			}
-		case asset.CoinMarginedFutures:
+		} else if k[i].Asset == asset.CoinMarginedFutures {
 			oi, err := b.OpenInterest(ctx, k[i].Pair())
 			if err != nil {
 				return nil, err

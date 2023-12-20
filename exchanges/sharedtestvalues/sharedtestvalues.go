@@ -186,11 +186,14 @@ func TestFixtureToDataHandler(t *testing.T, seed, e exchange.IBotExchange, fixtu
 	assert.NoError(t, s.Err(), "Fixture Scanner should not error")
 }
 
-// SetupCurrencyPairForExchangeAsset enables an asset for an exchange
-// and adds the currency pair to the available and enabled list of existing pairs
+// SetupCurrencyPairsForExchangeAsset enables an asset for an exchange
+// and adds the currency pair(s) to the available and enabled list of existing pairs
 // if it is already enabled or part of the pairs, no error is raised
-func SetupCurrencyPairForExchangeAsset(t *testing.T, exch exchange.IBotExchange, cp currency.Pair, a asset.Item) {
+func SetupCurrencyPairsForExchangeAsset(t *testing.T, exch exchange.IBotExchange, a asset.Item, cp ...currency.Pair) {
 	t.Helper()
+	if len(cp) == 0 {
+		return
+	}
 	b := exch.GetBase()
 	err := b.CurrencyPairs.SetAssetEnabled(a, true)
 	if err != nil && !errors.Is(err, currency.ErrAssetAlreadyEnabled) {
@@ -200,21 +203,24 @@ func SetupCurrencyPairForExchangeAsset(t *testing.T, exch exchange.IBotExchange,
 	if err != nil {
 		t.Fatal(err)
 	}
+	apLen := len(availPairs)
 	enabledPairs, err := b.CurrencyPairs.GetPairs(a, true)
 	if err != nil {
 		t.Fatal(err)
 	}
-	newAvailPairs := availPairs.Add(cp)
-	if len(newAvailPairs) != len(availPairs) {
-		err = b.CurrencyPairs.StorePairs(a, newAvailPairs, false)
+	epLen := len(enabledPairs)
+	for i := range cp {
+		availPairs = availPairs.Add(cp[i])
+		enabledPairs = enabledPairs.Add(cp[i])
+	}
+	if len(availPairs) != apLen {
+		err = b.CurrencyPairs.StorePairs(a, availPairs, false)
 		if err != nil {
 			t.Fatal(err)
 		}
 	}
-
-	newEnabledPairs := enabledPairs.Add(cp)
-	if len(newEnabledPairs) != len(enabledPairs) {
-		err = b.CurrencyPairs.StorePairs(a, newEnabledPairs, true)
+	if len(enabledPairs) != epLen {
+		err = b.CurrencyPairs.StorePairs(a, enabledPairs, true)
 		if err != nil {
 			t.Fatal(err)
 		}

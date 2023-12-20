@@ -2008,18 +2008,31 @@ func (ku *Kucoin) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]fu
 		return ticks, nil
 	}
 
-	if len(k) == 0 {
-		contracts, err := ku.GetFuturesOpenContracts(ctx)
+	if len(k) == 0 || len(k) > 1 {
+		var contracts []Contract
+		contracts, err = ku.GetFuturesOpenContracts(ctx)
 		if err != nil {
 			return nil, err
 		}
 		resp := make([]futures.OpenInterest, 0, len(contracts))
 		for i := range contracts {
-			symbol, enabled, err := ku.MatchSymbolCheckEnabled(contracts[i].Symbol, asset.Futures, true)
+			var symbol currency.Pair
+			var enabled bool
+			symbol, enabled, err = ku.MatchSymbolCheckEnabled(contracts[i].Symbol, asset.Futures, true)
 			if err != nil && !errors.Is(err, currency.ErrPairNotFound) {
 				return nil, err
 			}
 			if !enabled {
+				continue
+			}
+			var appendData bool
+			for j := range k {
+				if k[j].Pair().Equal(symbol) {
+					appendData = true
+					break
+				}
+			}
+			if len(k) > 0 && !appendData {
 				continue
 			}
 			resp = append(resp, futures.OpenInterest{
@@ -2035,32 +2048,30 @@ func (ku *Kucoin) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]fu
 		return resp, nil
 	}
 
-	resp := make([]futures.OpenInterest, 0, len(k))
-	for i := range k {
-		_, isEnabled, err := ku.MatchSymbolCheckEnabled(k[i].Pair().String(), k[i].Asset, false)
-		if err != nil && !errors.Is(err, currency.ErrPairNotFound) {
-			return nil, err
-		}
-		if !isEnabled {
-			continue
-		}
-		symbolStr, err := ku.FormatSymbol(k[i].Pair(), k[i].Asset)
-		if err != nil {
-			return nil, err
-		}
-		instrument, err := ku.GetFuturesContract(ctx, symbolStr)
-		if err != nil {
-			return nil, err
-		}
-		resp = append(resp, futures.OpenInterest{
-			Key: key.ExchangePairAsset{
-				Exchange: ku.Name,
-				Base:     k[i].Base,
-				Quote:    k[i].Quote,
-				Asset:    k[i].Asset,
-			},
-			OpenInterest: instrument.OpenInterest.Float64(),
-		})
+	resp := make([]futures.OpenInterest, 1)
+	p, isEnabled, err := ku.MatchSymbolCheckEnabled(k[0].Pair().String(), k[0].Asset, false)
+	if err != nil && !errors.Is(err, currency.ErrPairNotFound) {
+		return nil, err
+	}
+	if !isEnabled {
+		return nil, fmt.Errorf("%v %w", p, currency.ErrPairNotEnabled)
+	}
+	symbolStr, err := ku.FormatSymbol(k[0].Pair(), k[0].Asset)
+	if err != nil {
+		return nil, err
+	}
+	instrument, err := ku.GetFuturesContract(ctx, symbolStr)
+	if err != nil {
+		return nil, err
+	}
+	resp[0] = futures.OpenInterest{
+		Key: key.ExchangePairAsset{
+			Exchange: ku.Name,
+			Base:     k[0].Base,
+			Quote:    k[0].Quote,
+			Asset:    k[0].Asset,
+		},
+		OpenInterest: instrument.OpenInterest.Float64(),
 	}
 	return resp, nil
 }

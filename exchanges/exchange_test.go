@@ -3233,7 +3233,7 @@ func (f *FakeBase) GetOpenInterest(context.Context, ...key.PairAsset) ([]futures
 			Key: key.ExchangePairAsset{
 				Exchange: f.Name,
 				Base:     currency.BTC.Item,
-				Quote:    currency.NewCode("Bonk").Item,
+				Quote:    currency.BONK.Item,
 				Asset:    asset.Futures,
 			},
 			OpenInterest: 1337,
@@ -3249,12 +3249,11 @@ func TestGetCachedOpenInterest(t *testing.T) {
 	}
 	_, err := b.GetCachedOpenInterest(context.Background())
 	assert.ErrorIs(t, err, common.ErrFunctionNotSupported)
-	bonk := currency.NewCode("Bonk")
 	b.Features.Supports.FuturesCapabilities.OpenInterest.SupportedViaTicker = true
 	b.Name = "test"
 	err = ticker.ProcessTicker(&ticker.Price{
 		ExchangeName: "test",
-		Pair:         currency.NewPair(currency.BTC, bonk),
+		Pair:         currency.NewPair(currency.BTC, currency.BONK),
 		AssetType:    asset.Futures,
 		OpenInterest: 1337,
 	})
@@ -3265,7 +3264,7 @@ func TestGetCachedOpenInterest(t *testing.T) {
 
 	_, err = b.GetCachedOpenInterest(context.Background(), key.PairAsset{
 		Base:  currency.BTC.Item,
-		Quote: bonk.Item,
+		Quote: currency.BONK.Item,
 		Asset: asset.Futures,
 	})
 	assert.NoError(t, err)

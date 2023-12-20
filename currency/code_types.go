@@ -3021,6 +3021,10 @@ var (
 	FI               = NewCode("FI")
 	USDM             = NewCode("USDM")
 	USDTM            = NewCode("USDTM")
+	BONK             = NewCode("BONK")
+	WIF              = NewCode("WIF")
+	AIDOGE           = NewCode("AIDOGE")
+	PEPE             = NewCode("PEPE")
 
 	stables = Currencies{
 		USDT,

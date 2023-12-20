@@ -54,6 +54,7 @@ func TestMain(m *testing.M) {
 	if err = b.Setup(btseConfig); err != nil {
 		log.Fatal(err)
 	}
+
 	os.Exit(m.Run())
 }
 
@@ -741,14 +742,29 @@ func updatePairsOnce(tb testing.TB) {
 
 func TestGetOpenInterest(t *testing.T) {
 	t.Parallel()
-	cp := currency.NewPair(currency.BTC, currency.PFC)
-	sharedtestvalues.SetupCurrencyPairForExchangeAsset(t, b, cp, asset.Futures)
+	cp1 := currency.NewPair(currency.BTC, currency.PFC)
+	cp2 := currency.NewPair(currency.ETH, currency.PFC)
+	sharedtestvalues.SetupCurrencyPairsForExchangeAsset(t, b, asset.Futures, futuresPair, cp1, cp2)
 
 	resp, err := b.GetOpenInterest(context.Background(), key.PairAsset{
-		Base:  cp.Base.Item,
-		Quote: cp.Quote.Item,
+		Base:  cp1.Base.Item,
+		Quote: cp1.Quote.Item,
 		Asset: asset.Futures,
 	})
+	assert.NoError(t, err)
+	assert.NotEmpty(t, resp)
+
+	resp, err = b.GetOpenInterest(context.Background(),
+		key.PairAsset{
+			Base:  cp1.Base.Item,
+			Quote: cp1.Quote.Item,
+			Asset: asset.Futures,
+		},
+		key.PairAsset{
+			Base:  cp2.Base.Item,
+			Quote: cp2.Quote.Item,
+			Asset: asset.Futures,
+		})
 	assert.NoError(t, err)
 	assert.NotEmpty(t, resp)
 

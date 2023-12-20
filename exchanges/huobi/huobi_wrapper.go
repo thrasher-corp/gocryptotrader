@@ -2318,7 +2318,7 @@ func (h *HUOBI) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]futu
 			return nil, fmt.Errorf("%w %v %v", asset.ErrNotSupported, k[i].Asset, k[i].Pair())
 		}
 	}
-	if len(k) == 0 {
+	if len(k) == 0 || len(k) > 1 {
 		var resp []futures.OpenInterest
 		for _, a := range h.GetAssetTypes(true) {
 			switch a {
@@ -2333,6 +2333,16 @@ func (h *HUOBI) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]futu
 						return nil, err
 					}
 					if !isEnabled {
+						continue
+					}
+					var appendData bool
+					for j := range k {
+						if k[j].Pair().Equal(p) {
+							appendData = true
+							break
+						}
+					}
+					if len(k) > 0 && !appendData {
 						continue
 					}
 					resp = append(resp, futures.OpenInterest{
@@ -2358,6 +2368,16 @@ func (h *HUOBI) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]futu
 					if !isEnabled {
 						continue
 					}
+					var appendData bool
+					for j := range k {
+						if k[j].Pair().Equal(p) {
+							appendData = true
+							break
+						}
+					}
+					if len(k) > 0 && !appendData {
+						continue
+					}
 					resp = append(resp, futures.OpenInterest{
 						Key: key.ExchangePairAsset{
 							Exchange: h.Name,
@@ -2372,54 +2392,52 @@ func (h *HUOBI) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]futu
 		}
 		return resp, nil
 	}
-	resp := make([]futures.OpenInterest, 0, len(k))
-	for i := range k {
-		switch k[i].Asset {
-		case asset.Futures:
-			data, err := h.FContractOpenInterest(ctx, "", "", k[i].Pair())
-			if err != nil {
+	resp := make([]futures.OpenInterest, 1)
+	switch k[0].Asset {
+	case asset.Futures:
+		data, err := h.FContractOpenInterest(ctx, "", "", k[0].Pair())
+		if err != nil {
+			return nil, err
+		}
+		for j := range data.Data {
+			p, isEnabled, err := h.MatchSymbolCheckEnabled(data.Data[j].ContractCode, k[0].Asset, true)
+			if err != nil && !errors.Is(err, currency.ErrPairNotFound) {
 				return nil, err
 			}
-			for j := range data.Data {
-				p, isEnabled, err := h.MatchSymbolCheckEnabled(data.Data[j].ContractCode, k[i].Asset, true)
-				if err != nil && !errors.Is(err, currency.ErrPairNotFound) {
-					return nil, err
-				}
-				if !isEnabled {
-					continue
-				}
-				resp = append(resp, futures.OpenInterest{
-					Key: key.ExchangePairAsset{
-						Exchange: h.Name,
-						Base:     p.Base.Item,
-						Quote:    p.Quote.Item,
-						Asset:    k[i].Asset,
-					},
-					OpenInterest: data.Data[j].Amount,
-				})
+			if !isEnabled {
+				continue
 			}
-		case asset.CoinMarginedFutures:
-			data, err := h.SwapOpenInterestInformation(ctx, k[i].Pair())
-			if err != nil {
+			resp[0] = futures.OpenInterest{
+				Key: key.ExchangePairAsset{
+					Exchange: h.Name,
+					Base:     p.Base.Item,
+					Quote:    p.Quote.Item,
+					Asset:    k[0].Asset,
+				},
+				OpenInterest: data.Data[j].Amount,
+			}
+		}
+	case asset.CoinMarginedFutures:
+		data, err := h.SwapOpenInterestInformation(ctx, k[0].Pair())
+		if err != nil {
+			return nil, err
+		}
+		for j := range data.Data {
+			p, isEnabled, err := h.MatchSymbolCheckEnabled(data.Data[j].ContractCode, k[0].Asset, true)
+			if err != nil && !errors.Is(err, currency.ErrPairNotFound) {
 				return nil, err
 			}
-			for j := range data.Data {
-				p, isEnabled, err := h.MatchSymbolCheckEnabled(data.Data[j].ContractCode, k[i].Asset, true)
-				if err != nil && !errors.Is(err, currency.ErrPairNotFound) {
-					return nil, err
-				}
-				if !isEnabled {
-					continue
-				}
-				resp = append(resp, futures.OpenInterest{
-					Key: key.ExchangePairAsset{
-						Exchange: h.Name,
-						Base:     p.Base.Item,
-						Quote:    p.Quote.Item,
-						Asset:    k[i].Asset,
-					},
-					OpenInterest: data.Data[j].Amount,
-				})
+			if !isEnabled {
+				continue
+			}
+			resp[0] = futures.OpenInterest{
+				Key: key.ExchangePairAsset{
+					Exchange: h.Name,
+					Base:     p.Base.Item,
+					Quote:    p.Quote.Item,
+					Asset:    k[0].Asset,
+				},
+				OpenInterest: data.Data[j].Amount,
 			}
 		}
 	}

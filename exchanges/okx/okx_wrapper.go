@@ -2260,15 +2260,15 @@ func (ok *Okx) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]futur
 			return nil, fmt.Errorf("%w %v %v", asset.ErrNotSupported, k[i].Asset, k[i].Pair())
 		}
 	}
-	if len(k) == 0 {
+	if len(k) == 0 || len(k) > 1 {
 		var resp []futures.OpenInterest
 		// TODO: Options support
 		instTypes := map[string]asset.Item{
 			"SWAP":    asset.PerpetualSwap,
 			"FUTURES": asset.Futures,
 		}
-		for k, v := range instTypes {
-			oid, err := ok.GetOpenInterestData(ctx, k, "", "")
+		for instType, v := range instTypes {
+			oid, err := ok.GetOpenInterestData(ctx, instType, "", "")
 			if err != nil {
 				return nil, err
 			}
@@ -2278,6 +2278,16 @@ func (ok *Okx) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]futur
 					return nil, err
 				}
 				if !isEnabled {
+					continue
+				}
+				var appendData bool
+				for j := range k {
+					if k[j].Pair().Equal(p) {
+						appendData = true
+						break
+					}
+				}
+				if len(k) > 0 && !appendData {
 					continue
 				}
 				resp = append(resp, futures.OpenInterest{
@@ -2293,37 +2303,35 @@ func (ok *Okx) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]futur
 		}
 		return resp, nil
 	}
-	resp := make([]futures.OpenInterest, 0, len(k))
+	resp := make([]futures.OpenInterest, 1)
 	instTypes := map[asset.Item]string{
 		asset.PerpetualSwap: "SWAP",
 		asset.Futures:       "FUTURES",
 	}
-	for i := range k {
-		pFmt, err := ok.FormatSymbol(k[i].Pair(), k[i].Asset)
-		if err != nil {
+	pFmt, err := ok.FormatSymbol(k[0].Pair(), k[0].Asset)
+	if err != nil {
+		return nil, err
+	}
+	oid, err := ok.GetOpenInterestData(ctx, instTypes[k[0].Asset], "", pFmt)
+	if err != nil {
+		return nil, err
+	}
+	for i := range oid {
+		p, isEnabled, err := ok.MatchSymbolCheckEnabled(oid[i].InstrumentID, k[0].Asset, true)
+		if err != nil && !errors.Is(err, currency.ErrPairNotFound) {
 			return nil, err
 		}
-		oid, err := ok.GetOpenInterestData(ctx, instTypes[k[i].Asset], "", pFmt)
-		if err != nil {
-			return nil, err
+		if !isEnabled {
+			continue
 		}
-		for j := range oid {
-			p, isEnabled, err := ok.MatchSymbolCheckEnabled(oid[j].InstrumentID, k[i].Asset, true)
-			if err != nil && !errors.Is(err, currency.ErrPairNotFound) {
-				return nil, err
-			}
-			if !isEnabled {
-				continue
-			}
-			resp = append(resp, futures.OpenInterest{
-				Key: key.ExchangePairAsset{
-					Exchange: ok.Name,
-					Base:     p.Base.Item,
-					Quote:    p.Quote.Item,
-					Asset:    k[i].Asset,
-				},
-				OpenInterest: oid[j].OpenInterest,
-			})
+		resp[0] = futures.OpenInterest{
+			Key: key.ExchangePairAsset{
+				Exchange: ok.Name,
+				Base:     p.Base.Item,
+				Quote:    p.Quote.Item,
+				Asset:    k[0].Asset,
+			},
+			OpenInterest: oid[i].OpenInterest,
 		}
 	}
 	return resp, nil

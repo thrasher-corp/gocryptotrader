@@ -1336,18 +1336,31 @@ func (b *BTSE) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]futur
 		return ticks, nil
 	}
 
-	if len(k) == 0 {
-		tickers, err := b.GetMarketSummary(ctx, "", false)
+	if len(k) == 0 || len(k) > 1 {
+		var tickers MarketSummary
+		tickers, err = b.GetMarketSummary(ctx, "", false)
 		if err != nil {
 			return nil, err
 		}
 		resp := make([]futures.OpenInterest, 0, len(tickers))
 		for i := range tickers {
-			symbol, enabled, err := b.MatchSymbolCheckEnabled(tickers[i].Symbol, asset.Futures, false)
+			var symbol currency.Pair
+			var enabled bool
+			symbol, enabled, err = b.MatchSymbolCheckEnabled(tickers[i].Symbol, asset.Futures, false)
 			if err != nil && !errors.Is(err, currency.ErrPairNotFound) {
 				return nil, err
 			}
 			if !enabled {
+				continue
+			}
+			var appendData bool
+			for j := range k {
+				if k[j].Pair().Equal(symbol) {
+					appendData = true
+					break
+				}
+			}
+			if len(k) > 0 && !appendData {
 				continue
 			}
 			resp = append(resp, futures.OpenInterest{
@@ -1362,35 +1375,34 @@ func (b *BTSE) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]futur
 		}
 		return resp, nil
 	}
-	resp := make([]futures.OpenInterest, 0, len(k))
-	for i := range k {
-		p, isEnabled, err := b.MatchSymbolCheckEnabled(k[i].Pair().String(), k[i].Asset, false)
-		if err != nil {
-			return nil, err
-		}
-		if !isEnabled {
-			return nil, fmt.Errorf("%v %w", p, currency.ErrPairNotEnabled)
-		}
-		symbol, err := b.FormatSymbol(p, k[i].Asset)
-		if err != nil {
-			return nil, err
-		}
-		pi, err := b.GetMarketSummary(ctx, symbol, false)
-		if err != nil {
-			return nil, err
-		}
-		if len(pi) != 1 {
-			return nil, fmt.Errorf("expected 1 result, got %v", len(pi))
-		}
-		resp = append(resp, futures.OpenInterest{
-			Key: key.ExchangePairAsset{
-				Exchange: b.Name,
-				Base:     k[i].Base,
-				Quote:    k[i].Quote,
-				Asset:    k[i].Asset,
-			},
-			OpenInterest: pi[0].OpenInterest,
-		})
+
+	p, isEnabled, err := b.MatchSymbolCheckEnabled(k[0].Pair().String(), k[0].Asset, false)
+	if err != nil {
+		return nil, err
+	}
+	if !isEnabled {
+		return nil, fmt.Errorf("%v %w", p, currency.ErrPairNotEnabled)
+	}
+	symbol, err := b.FormatSymbol(p, k[0].Asset)
+	if err != nil {
+		return nil, err
+	}
+	pi, err := b.GetMarketSummary(ctx, symbol, false)
+	if err != nil {
+		return nil, err
+	}
+	if len(pi) != 1 {
+		return nil, fmt.Errorf("expected 1 result, got %v", len(pi))
+	}
+	resp := make([]futures.OpenInterest, 1)
+	resp[0] = futures.OpenInterest{
+		Key: key.ExchangePairAsset{
+			Exchange: b.Name,
+			Base:     k[0].Base,
+			Quote:    k[0].Quote,
+			Asset:    k[0].Asset,
+		},
+		OpenInterest: pi[0].OpenInterest,
 	}
 	return resp, nil
 }
