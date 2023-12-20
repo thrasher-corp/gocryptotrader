@@ -648,8 +648,6 @@ func (b *Bitstamp) WithdrawCryptocurrencyFunds(ctx context.Context, withdrawRequ
 // WithdrawFiatFunds returns a withdrawal ID when a
 // withdrawal is submitted
 func (b *Bitstamp) WithdrawFiatFunds(ctx context.Context, withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
-	withdrawRequest.Exchange = b.Name
-	withdrawRequest.Type = withdraw.Fiat
 	if err := withdrawRequest.Validate(); err != nil {
 		return nil, err
 	}
@@ -677,8 +675,6 @@ func (b *Bitstamp) WithdrawFiatFunds(ctx context.Context, withdrawRequest *withd
 // WithdrawFiatFundsToInternationalBank returns a withdrawal ID when a
 // withdrawal is submitted
 func (b *Bitstamp) WithdrawFiatFundsToInternationalBank(ctx context.Context, withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
-	withdrawRequest.Exchange = b.Name
-	withdrawRequest.Type = withdraw.Fiat
 	if err := withdrawRequest.Validate(); err != nil {
 		return nil, err
 	}

@@ -601,6 +601,8 @@ func TestWithdrawFiat(t *testing.T) {
 	}
 
 	var withdrawFiatRequest = withdraw.Request{
+		Type:     withdraw.Fiat,
+		Exchange: b.Name,
 		Fiat: withdraw.FiatRequest{
 			Bank: banking.Account{
 				SupportedExchanges:  b.Name,
@@ -642,6 +644,8 @@ func TestWithdrawInternationalBank(t *testing.T) {
 	}
 
 	var withdrawFiatRequest = withdraw.Request{
+		Type:     withdraw.Fiat,
+		Exchange: b.Name,
 		Fiat: withdraw.FiatRequest{
 			Bank: banking.Account{
 				SupportedExchanges:  b.Name,
