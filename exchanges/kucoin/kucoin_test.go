@@ -9,14 +9,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/davecgh/go-spew/spew"
 	"github.com/gofrs/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
-	"github.com/thrasher-corp/gocryptotrader/dispatch"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
@@ -1667,47 +1665,22 @@ func TestUpdateOrderbook(t *testing.T) {
 }
 func TestUpdateTickers(t *testing.T) {
 	t.Parallel()
-	err := ku.UpdateTickers(context.Background(), asset.Spot)
-	assert.NoError(t, err, "UpdateTickers should not error")
-
-	ticks := make(chan *ticker.Price, 128)
-	ready := make(chan bool, 1)
-	err = dispatch.Start(1, dispatch.DefaultJobsLimit)
-	assert.NoError(t, err, "dispatch.Start should not error")
-	go func() {
-		p, err := ticker.SubscribeToExchangeTickers(ku.Name)
-		assert.NoError(t, err, "SubscribeToExchangeTickers should not error")
-		ready <- true
-		spew.Dump("Watching")
-		for {
-			select {
-			case n := <-p.Channel():
-				ticks <- n.(*ticker.Price)
-			case _, ok := <-ready:
-				if !ok {
-					close(ticks)
-					return
-				}
-			}
-		}
-	}()
-	<-ready
 
 	for _, a := range ku.GetAssetTypes(true) {
-		err = ku.UpdateTickers(context.Background(), a)
+		err := ku.UpdateTickers(context.Background(), a)
 		assert.NoError(t, err, "UpdateTickers should not error")
-		p, err := ku.GetEnabledPairs(a)
+		pairs, err := ku.GetEnabledPairs(a)
 		assert.NoError(t, err, "GetEnabledPairs should not error")
-		t.Log(len(p))
+		for _, p := range pairs {
+			tick, err := ticker.GetTicker(ku.Name, p, a)
+			if assert.NoErrorf(t, err, "GetTicker %s %s should not error", a, p) {
+				assert.Positivef(t, tick.Ask, "%s %s Tick Ask should be positive", a, p)
+				// etc
+			}
+		}
 	}
-	close(ready)
 
-	for x := range ticks {
-		spew.Dump("Got :")
-		spew.Dump(x)
-	}
-
-	err = ku.UpdateTickers(context.Background(), asset.Empty)
+	err := ku.UpdateTickers(context.Background(), asset.Empty)
 	assert.ErrorIs(t, err, asset.ErrNotSupported, "UpdateTickers should error correctly on Empty asset type")
 }
 
