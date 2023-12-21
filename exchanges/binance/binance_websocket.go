@@ -587,7 +587,7 @@ func (b *Binance) Subscribe(channelsToSubscribe []stream.ChannelSubscription) er
 			if err != nil {
 				return err
 			}
-			payload.Params = []string{}
+			payload.Params = []interface{}{}
 		}
 	}
 	if len(payload.Params) > 0 {
@@ -612,7 +612,7 @@ func (b *Binance) Unsubscribe(channelsToUnsubscribe []stream.ChannelSubscription
 			if err != nil {
 				return err
 			}
-			payload.Params = []string{}
+			payload.Params = []interface{}{}
 		}
 	}
 	if len(payload.Params) > 0 {

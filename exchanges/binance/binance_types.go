@@ -889,9 +889,9 @@ type WsListStatusData struct {
 
 // WsPayload defines the payload through the websocket connection
 type WsPayload struct {
-	Method string   `json:"method"`
-	Params []string `json:"params"`
-	ID     int64    `json:"id"`
+	Method string        `json:"method"`
+	Params []interface{} `json:"params"`
+	ID     int64         `json:"id"`
 }
 
 // CrossMarginInterestData stores cross margin data for borrowing
@@ -1405,4 +1405,79 @@ type UFutureMiniTickerPrice struct {
 	LowPrice    convert.StringToFloat64 `json:"l"`
 	Volume      convert.StringToFloat64 `json:"v"`
 	QuoteVolume convert.StringToFloat64 `json:"q"`
+}
+
+// UFuturesAggTrade aggregate trade streams push market trade
+type UFuturesAggTrade struct {
+	EventType        string                  `json:"e"`
+	EventTime        convert.ExchangeTime    `json:"E"`
+	Symbol           string                  `json:"s"`
+	AggregateTradeID int64                   `json:"a"`
+	Price            convert.StringToFloat64 `json:"p"`
+	Quantity         convert.StringToFloat64 `json:"q"`
+	FirstTradeID     int64                   `json:"f"`
+	LastTradeID      int64                   `json:"l"`
+	TradeTime        convert.ExchangeTime    `json:"T"`
+	IsMaker          bool                    `json:"m"`
+}
+
+// UFuturesDepthOrderbook represents bids and asks
+type UFuturesDepthOrderbook struct {
+	EventType               string               `json:"e"`
+	EventTime               convert.ExchangeTime `json:"E"`
+	TransactionTime         convert.ExchangeTime `json:"T"`
+	Symbol                  string               `json:"s"`
+	FirstUpdateID           int64                `json:"U"`
+	LastUpdateID            int64                `json:"u"`
+	FinalUpdateIDLastStream int64                `json:"pu"`
+	Bids                    [][]string           `json:"b"`
+	Asks                    [][]string           `json:"a"`
+}
+
+// UFutureCompositeIndex represents symbols a composite index
+type UFutureCompositeIndex struct {
+	EventType   string                  `json:"e"`
+	EventTime   convert.ExchangeTime    `json:"E"`
+	Symbol      string                  `json:"s"`
+	Price       convert.StringToFloat64 `json:"p"`
+	C           string                  `json:"C"`
+	Composition []struct {
+		BaseAsset          string                  `json:"b"`
+		QuoteAsset         string                  `json:"q"`
+		WeightQuantity     convert.StringToFloat64 `json:"w"`
+		WeightInPercentage convert.StringToFloat64 `json:"W"`
+		IndexPrice         convert.StringToFloat64 `json:"i"`
+	} `json:"c"`
+}
+
+// UFutureContinuousKline represents continuous kline data.
+type UFutureContinuousKline struct {
+	EventType    string               `json:"e"`
+	EventTime    convert.ExchangeTime `json:"E"`
+	Pair         string               `json:"ps"`
+	ContractType string               `json:"ct"`
+	KlineData    struct {
+		StartTime                convert.ExchangeTime    `json:"t"`
+		EndTime                  convert.ExchangeTime    `json:"T"`
+		Interval                 string                  `json:"i"`
+		FirstUpdateID            int64                   `json:"f"`
+		LastupdateID             int64                   `json:"L"`
+		OpenPrice                convert.StringToFloat64 `json:"o"`
+		ClosePrice               convert.StringToFloat64 `json:"c"`
+		HighPrice                convert.StringToFloat64 `json:"h"`
+		LowPrice                 convert.StringToFloat64 `json:"l"`
+		Volume                   convert.StringToFloat64 `json:"v"`
+		NumberOfTrades           int64                   `json:"n"`
+		IsKlineClosed            bool                    `json:"x"`
+		QuoteAssetVolume         convert.StringToFloat64 `json:"q"`
+		TakerBuyVolume           convert.StringToFloat64 `json:"V"`
+		TakerBuyQuoteAssetVolume convert.StringToFloat64 `json:"Q"`
+		B                        string                  `json:"B"`
+	} `json:"k"`
+}
+
+// WebsocketActionResponse represents a response for websocket actions like "SET_PROPERTY", "LIST_SUBSCRIPTIONS" and others
+type WebsocketActionResponse struct {
+	Result []string `json:"result"`
+	ID     int64    `json:"id"`
 }

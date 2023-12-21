@@ -26,7 +26,7 @@ const (
 	binanceUFuturesWebsocketURL     = "wss://fstream.binance.com"
 	binanceUFuturesAuthWebsocketURL = "wss://fstream-auth.binance.com"
 
-	// channels
+	// Channels
 
 	assetIndexAllChan   = "!assetIndex@arr"
 	contractInfoAllChan = "!contractInfo"
@@ -34,26 +34,25 @@ const (
 	bookTickerAllChan   = "!bookTicker"
 	tickerAllChan       = "!ticker@arr"
 	miniTickerAllChan   = "!miniTicker@arr"
-	markPriceAllChan    = "!markPrice@arr" // !markPrice@arr  !markPrice@arr@1s
+	markPriceAllChan    = "!markPrice@arr"
 
-	aggTradeChan       = "@aggTrade" // <symbol>@aggTrade
+	aggTradeChan       = "@aggTrade"
 	depthChan          = "@depth"
-	markPriceChan      = "@markPrice" // <symbol>@markPrice <symbol>@markPrice@1s
-	tickerChan         = "@ticker"    // <symbol>@ticker
-	klineChan          = "@kline"     // <symbol>@kline_<interval>
+	markPriceChan      = "@markPrice"
+	tickerChan         = "@ticker"
+	klineChan          = "@kline"
 	miniTickerChan     = "@miniTicker"
 	bookTickersChan    = "@bookTickers"
 	forceOrderChan     = "@forceOrder"
 	compositeIndexChan = "@compositeIndex"
 	assetIndexChan     = "@assetIndex"
+	continuousKline    = "continuousKline"
 )
 
 var defaultSubscriptions = []string{
-	assetIndexChan,
-	contractInfoAllChan,
-	bookTickerAllChan,
+	depthChan,
 	tickerAllChan,
-	miniTickerAllChan,
+	continuousKline,
 }
 
 // getKlineIntervalString returns a string representation of the kline interval.
@@ -75,11 +74,10 @@ func (b *Binance) WsUFuturesConnect() error {
 	if !b.Websocket.IsEnabled() || !b.IsEnabled() {
 		return errors.New(stream.WebsocketNotEnabled)
 	}
-
+	var err error
 	var dialer websocket.Dialer
 	dialer.HandshakeTimeout = b.Config.HTTPTimeout
 	dialer.Proxy = http.ProxyFromEnvironment
-	var err error
 	wsURL := binanceUFuturesWebsocketURL + "/stream"
 	err = b.Websocket.SetWebsocketURL(wsURL, false, false)
 	if err != nil {
@@ -87,13 +85,14 @@ func (b *Binance) WsUFuturesConnect() error {
 	}
 	if b.Websocket.CanUseAuthenticatedEndpoints() {
 		listenKey, err = b.GetWsAuthStreamKey(context.TODO())
-		if err != nil {
+		switch {
+		case err != nil:
 			b.Websocket.SetCanUseAuthenticatedEndpoints(false)
 			log.Errorf(log.ExchangeSys,
 				"%v unable to connect to authenticated Websocket. Error: %s",
 				b.Name,
 				err)
-		} else {
+		default:
 			wsURL = binanceUFuturesAuthWebsocketURL + "?streams=" + listenKey
 			err = b.Websocket.SetWebsocketURL(wsURL, false, false)
 			if err != nil {
@@ -101,38 +100,19 @@ func (b *Binance) WsUFuturesConnect() error {
 			}
 		}
 	}
-
 	err = b.Websocket.Conn.Dial(&dialer, http.Header{})
 	if err != nil {
-		return fmt.Errorf("%v - Unable to connect to Websocket. Error: %s",
-			b.Name,
-			err)
+		return fmt.Errorf("%v - Unable to connect to Websocket. Error: %s", b.Name, err)
 	}
-
-	// if b.Websocket.CanUseAuthenticatedEndpoints() {
-	// 	go b.KeepAuthKeyAlive()
-	// }
-
 	b.Websocket.Conn.SetupPingHandler(stream.PingHandler{
 		UseGorillaHandler: true,
 		MessageType:       websocket.PongMessage,
 		Delay:             pingDelay,
 	})
-
 	b.Websocket.Wg.Add(1)
 	go b.wsUFuturesReadData()
 
-	// b.setupOrderbookManager()
-	subscriptions, err := b.GenerateUFuturesDefaultSubscriptions()
-	if err != nil {
-		return err
-	}
-
-	// value, _ := json.Marshal(subscriptions)
-	// println(string(value))
-
-	return b.SubscribeUFutures(subscriptions)
-	// return nil
+	return nil
 }
 
 // wsUFuturesReadData receives and passes on websocket messages for processing
@@ -145,14 +125,14 @@ func (b *Binance) wsUFuturesReadData() {
 		if resp.Raw == nil {
 			return
 		}
-		err := b.wsUFuturesHandleData(resp.Raw)
+		err := b.wsHandleUFuturesData(resp.Raw)
 		if err != nil {
 			b.Websocket.DataHandler <- err
 		}
 	}
 }
 
-func (b *Binance) wsUFuturesHandleData(respRaw []byte) error {
+func (b *Binance) wsHandleUFuturesData(respRaw []byte) error {
 	result := struct {
 		Result json.RawMessage `json:"result"`
 		ID     int64           `json:"id"`
@@ -163,43 +143,195 @@ func (b *Binance) wsUFuturesHandleData(respRaw []byte) error {
 	if err != nil {
 		return err
 	}
-
-	if result.Stream == "" || result.ID != 0 {
+	if result.Stream == "" || (result.ID != 0 && result.Result != nil) {
 		if !b.Websocket.Match.IncomingWithData(result.ID, respRaw) {
 			return errors.New("Unhandled data: " + string(respRaw))
 		}
 		return nil
 	}
-
-	if result.Stream != "" {
-		// if e, ok := newdata["e"].(string); ok {
-		// 	switch e {
-		// 	case "aggTrade":
-		// 		return b.processTrades(respRaw)
-		// 	case "markPriceUpdate":
-		// 		return b.processMarkPriceUpdate(respRaw)
-		// 	case "depthUpdate":
-		// 		return b.processDepthUpdate(respRaw)
-		// 	case "kline":
-		// 		return b.processKline(respRaw)
-		// 	}
-		// }
-		switch result.Stream {
-		case assetIndexAllChan:
-			return b.processMultiAssetModeAssetIndexes(result.Data, true)
-		case contractInfoAllChan:
-			return b.processContractInfoStream(result.Data)
-		case forceOrderAllChan:
-			return b.processForceOrder(result.Data)
-		case bookTickerAllChan:
-			return b.processBookTicker(result.Data)
-		case tickerAllChan:
-			return b.processMarketTicker(result.Data, true)
-		case miniTickerAllChan:
-			return b.processMiniTickers(result.Data, true)
-		}
+	var stream string
+	switch result.Stream {
+	case assetIndexAllChan, forceOrderAllChan, bookTickerAllChan, tickerAllChan, miniTickerAllChan:
+		stream = result.Stream
+	default:
+		stream = extractStreamInfo(result.Stream)
+	}
+	switch stream {
+	case assetIndexAllChan, "assetIndex":
+		return b.processMultiAssetModeAssetIndexes(result.Data, true)
+	case contractInfoAllChan:
+		return b.processContractInfoStream(result.Data)
+	case forceOrderAllChan, "forceOrder":
+		return b.processForceOrder(result.Data)
+	case bookTickerAllChan, "bookTicker":
+		return b.processBookTicker(result.Data)
+	case tickerAllChan:
+		return b.processMarketTicker(result.Data, true)
+	case "ticker":
+		return b.processMarketTicker(result.Data, false)
+	case miniTickerAllChan:
+		return b.processMiniTickers(result.Data, true)
+	case "miniTicker":
+		return b.processMiniTickers(result.Data, false)
+	case "aggTrade":
+		return b.processAggregateTrade(result.Data)
+	case "markPrice":
+		return b.processMarkPriceUpdate(result.Data, false)
+	case "!markPrice@arr":
+		return b.processMarkPriceUpdate(result.Data, true)
+	case "depth":
+		return b.processOrderbookDepthUpdate(result.Data)
+	case "compositeIndex":
+		return b.processCompositeIndex(result.Data)
+	case continuousKline:
+		return b.processContinuousKlineUpdate(result.Data)
 	}
 	return fmt.Errorf("unhandled stream data %s", string(respRaw))
+}
+
+func (b *Binance) processContinuousKlineUpdate(respRaw []byte) error {
+	var resp UFutureContinuousKline
+	err := json.Unmarshal(respRaw, &resp)
+	if err != nil {
+		return err
+	}
+	cp, err := currency.NewPairFromString(resp.Pair)
+	if err != nil {
+		return err
+	}
+	b.Websocket.DataHandler <- stream.KlineData{
+		Timestamp:  resp.EventTime.Time(),
+		Pair:       cp,
+		AssetType:  asset.USDTMarginedFutures,
+		Exchange:   b.Name,
+		StartTime:  resp.KlineData.StartTime.Time(),
+		CloseTime:  resp.KlineData.EndTime.Time(),
+		Interval:   resp.KlineData.Interval,
+		OpenPrice:  resp.KlineData.OpenPrice.Float64(),
+		ClosePrice: resp.KlineData.ClosePrice.Float64(),
+		HighPrice:  resp.KlineData.HighPrice.Float64(),
+		LowPrice:   resp.KlineData.LowPrice.Float64(),
+		Volume:     resp.KlineData.Volume.Float64(),
+	}
+	return nil
+}
+
+func (b *Binance) processCompositeIndex(respRaw []byte) error {
+	var resp UFutureCompositeIndex
+	err := json.Unmarshal(respRaw, &resp)
+	if err != nil {
+		return err
+	}
+	b.Websocket.DataHandler <- resp
+	return nil
+}
+
+// bookTickerSymbolsMap used to track symbols whose snapshot is recorded.
+var (
+	bookTickerSymbolsMap  = map[string]struct{}{}
+	bookTickerSymbolsLock sync.Mutex
+)
+
+func (b *Binance) processOrderbookDepthUpdate(respRaw []byte) error {
+	var resp UFuturesDepthOrderbook
+	err := json.Unmarshal(respRaw, &resp)
+	if err != nil {
+		return err
+	}
+	cp, err := currency.NewPairFromString(resp.Symbol)
+	if err != nil {
+		return err
+	}
+	asks := make(orderbook.Items, len(resp.Asks))
+	bids := make(orderbook.Items, len(resp.Bids))
+	for a := range resp.Asks {
+		asks[a].Price, err = strconv.ParseFloat(resp.Asks[a][0], 64)
+		if err != nil {
+			return err
+		}
+		asks[a].Amount, err = strconv.ParseFloat(resp.Asks[a][1], 64)
+		if err != nil {
+			return err
+		}
+	}
+	for b := range resp.Bids {
+		bids[b].Price, err = strconv.ParseFloat(resp.Bids[b][0], 64)
+		if err != nil {
+			return err
+		}
+		bids[b].Amount, err = strconv.ParseFloat(resp.Bids[b][1], 64)
+		if err != nil {
+			return err
+		}
+	}
+	bookTickerSymbolsLock.Lock()
+	defer bookTickerSymbolsLock.Unlock()
+	if _, okay := bookTickerSymbolsMap[resp.Symbol]; !okay {
+		bookTickerSymbolsMap[strings.ToUpper(resp.Symbol)] = struct{}{}
+		return b.Websocket.Orderbook.LoadSnapshot(&orderbook.Base{
+			Bids:         bids,
+			Asks:         asks,
+			Exchange:     b.Name,
+			Pair:         cp,
+			Asset:        asset.USDTMarginedFutures,
+			LastUpdated:  resp.TransactionTime.Time(),
+			LastUpdateID: resp.LastUpdateID,
+		})
+	}
+	return b.Websocket.Orderbook.Update(&orderbook.Update{
+		UpdateID:   resp.LastUpdateID,
+		UpdateTime: resp.TransactionTime.Time(),
+		Asset:      asset.USDTMarginedFutures,
+		Action:     orderbook.Amend,
+		Pair:       cp,
+		Asks:       asks,
+		Bids:       bids,
+	})
+}
+
+func (b *Binance) processAggregateTrade(respRaw []byte) error {
+	var resp UFuturesAggTrade
+	err := json.Unmarshal(respRaw, &resp)
+	if err != nil {
+		return err
+	}
+	cp, err := currency.NewPairFromString(resp.Symbol)
+	if err != nil {
+		return err
+	}
+	b.Websocket.DataHandler <- []trade.Data{
+		{
+			TID:          strconv.FormatInt(resp.AggregateTradeID, 10),
+			Exchange:     b.Name,
+			CurrencyPair: cp,
+			AssetType:    asset.USDTMarginedFutures,
+			Price:        resp.Price.Float64(),
+			Amount:       resp.Quantity.Float64(),
+			Timestamp:    resp.TradeTime.Time(),
+		},
+	}
+	return nil
+}
+
+func extractStreamInfo(resultStream string) string {
+	splitStream := strings.Split(resultStream, "@")
+	if len(splitStream) < 2 {
+		return resultStream
+	}
+	switch splitStream[1] {
+	case "aggTrade", "markPrice", "ticker", "bookTicker", "forceOrder", "depth", "compositeIndex", "assetIndex", "miniTicker":
+		return splitStream[1]
+	default:
+		switch {
+		case strings.HasPrefix(splitStream[1], "depth"):
+			return "depth"
+		case strings.HasPrefix(splitStream[1], "continuousKline"):
+			return "continuousKline"
+		case strings.HasPrefix(splitStream[0], "!markPrice"):
+			return "!markPrice@arr"
+		}
+	}
+	return resultStream
 }
 
 func (b *Binance) processMiniTickers(respRaw []byte, array bool) error {
@@ -260,6 +392,7 @@ func (b *Binance) getMiniTickers(miniTickers []UFutureMiniTickerPrice) ([]ticker
 	}
 	return tickerPrices, nil
 }
+
 func (b *Binance) processMarketTicker(respRaw []byte, array bool) error {
 	if array {
 		var resp []UFutureMarketTicker
@@ -321,12 +454,6 @@ func (b *Binance) getTickerInfos(marketTickers []UFutureMarketTicker) ([]ticker.
 	return tickerPrices, nil
 }
 
-// bookTickerSymbolsMap used to track symbols whose snapshot is recorded.
-var (
-	bookTickerSymbolsMap  = map[string]struct{}{}
-	bookTickerSymbolsLock sync.Mutex
-)
-
 func (b *Binance) processBookTicker(respRaw []byte) error {
 	var resp UFuturesBookTicker
 	err := json.Unmarshal(respRaw, &resp)
@@ -340,7 +467,7 @@ func (b *Binance) processBookTicker(respRaw []byte) error {
 	bookTickerSymbolsLock.Lock()
 	defer bookTickerSymbolsLock.Unlock()
 	if _, okay := bookTickerSymbolsMap[resp.Symbol]; !okay {
-		bookTickerSymbolsMap[resp.Symbol] = struct{}{}
+		bookTickerSymbolsMap[strings.ToUpper(resp.Symbol)] = struct{}{}
 		return b.Websocket.Orderbook.LoadSnapshot(&orderbook.Base{
 			Bids: orderbook.Items{{
 				Amount: resp.BestBidQty.Float64(),
@@ -435,12 +562,21 @@ func (b *Binance) processMultiAssetModeAssetIndexes(respRaw []byte, array bool) 
 	return nil
 }
 
-func (b *Binance) processMarkPriceUpdate(respRaw []byte) error {
+func (b *Binance) processMarkPriceUpdate(respRaw []byte, array bool) error {
+	if array {
+		var resp []UFuturesMarkPrice
+		err := json.Unmarshal(respRaw, &resp)
+		if err != nil {
+			return err
+		}
+		b.Websocket.DataHandler <- resp
+	}
 	var resp UFuturesMarkPrice
 	err := json.Unmarshal(respRaw, &resp)
 	if err != nil {
 		return err
 	}
+	b.Websocket.DataHandler <- resp
 	return nil
 }
 
@@ -558,7 +694,7 @@ func (b *Binance) handleSubscriptions(operation string, subscriptionChannels []s
 			if err != nil {
 				return err
 			}
-			payload.Params = []string{}
+			payload.Params = []interface{}{}
 			payload.ID = b.Websocket.Conn.GenerateMessageID(false)
 		}
 	}
@@ -593,6 +729,9 @@ func (b *Binance) GenerateUFuturesDefaultSubscriptions() ([]stream.ChannelSubscr
 		switch channels[z] {
 		case assetIndexAllChan, contractInfoAllChan, forceOrderAllChan,
 			bookTickerAllChan, tickerAllChan, miniTickerAllChan, markPriceAllChan:
+			if channels[z] == markPriceAllChan {
+				channels[z] += "@1s"
+			}
 			subscriptions = append(subscriptions, stream.ChannelSubscription{
 				Channel: channels[z],
 			})
@@ -606,24 +745,59 @@ func (b *Binance) GenerateUFuturesDefaultSubscriptions() ([]stream.ChannelSubscr
 				}
 				switch channels[z] {
 				case depthChan:
-					subscription.Channel = subscription.Channel + "@100ms"
+					subscription.Channel += "@100ms"
 				case klineChan:
-					subscription.Channel = subscription.Channel + "_" + getKlineIntervalString(kline.FiveMin)
+					subscription.Channel += "_" + getKlineIntervalString(kline.FiveMin)
+				}
+				subscriptions = append(subscriptions, subscription)
+			}
+		case continuousKline:
+			for y := range pairs {
+				lp := pairs[y].Lower()
+				lp.Delimiter = ""
+				subscription = stream.ChannelSubscription{
+					// Contract types:"PERPETUAL", "CURRENT_MONTH", "NEXT_MONTH", "CURRENT_QUARTER", "NEXT_QUARTER"
+					// by default we are subscribing to PERPETUAL contract types
+					Channel: lp.String() + "_PERPETUAL@" + channels[z] + "_" + getKlineIntervalString(kline.FiveMin),
 				}
 				subscriptions = append(subscriptions, subscription)
 			}
 		default:
 			return nil, errors.New("unsupported subscription")
 		}
-		// switch channels[z] {
-		// case depthChan:
-		// 	subscription.Channel += "@100ms"
-		// case klineChan:
-		// 	subscription.Channel += "_" + getKlineIntervalString(kline.FiveMin)
-		// case markPriceAllChan:
-		// 	subscription.Channel += "@1s"
-		// }
-		// subscriptions = append(subscriptions, subscription)
 	}
 	return subscriptions, nil
+}
+
+// ListSubscriptions retrieves list of subscriptions
+func (b *Binance) ListSubscriptions() ([]string, error) {
+	req := &WsPayload{
+		ID:     b.Websocket.Conn.GenerateMessageID(false),
+		Method: "LIST_SUBSCRIPTIONS",
+	}
+	var resp WebsocketActionResponse
+	respRaw, err := b.Websocket.Conn.SendMessageReturnResponse(req.ID, &req)
+	if err != nil {
+		return nil, err
+	}
+	return resp.Result, json.Unmarshal(respRaw, &resp)
+}
+
+// SetProperty to set a property for the websocket connection you are using.
+func (b *Binance) SetProperty(property string, value interface{}) error {
+	// Currently, the only property can be set is to set whether "combined" stream payloads are enabled are not.
+	req := &WsPayload{
+		ID:     b.Websocket.Conn.GenerateMessageID(false),
+		Method: "SET_PROPERTY",
+		Params: []interface{}{
+			property,
+			value,
+		},
+	}
+	var resp WebsocketActionResponse
+	respRaw, err := b.Websocket.Conn.SendMessageReturnResponse(req.ID, &req)
+	if err != nil {
+		return err
+	}
+	return json.Unmarshal(respRaw, &resp)
 }
