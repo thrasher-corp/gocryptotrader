@@ -1,8 +1,7 @@
 package binance
 
 import (
-	"time"
-
+	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
@@ -52,12 +51,12 @@ type OrderbookData struct {
 
 // UPublicTradesData stores trade data
 type UPublicTradesData struct {
-	ID           int64       `json:"id"`
-	Price        float64     `json:"price,string"`
-	Qty          float64     `json:"qty,string"`
-	QuoteQty     float64     `json:"quoteQty,string"`
-	Time         binanceTime `json:"time"`
-	IsBuyerMaker bool        `json:"isBuyerMaker"`
+	ID           int64                `json:"id"`
+	Price        float64              `json:"price,string"`
+	Qty          float64              `json:"qty,string"`
+	QuoteQty     float64              `json:"quoteQty,string"`
+	Time         convert.ExchangeTime `json:"time"`
+	IsBuyerMaker bool                 `json:"isBuyerMaker"`
 }
 
 // UCompressedTradeData stores compressed trade data
@@ -195,57 +194,57 @@ type UCompositeIndexInfoData struct {
 
 // UOrderData stores order data
 type UOrderData struct {
-	ClientOrderID      string    `json:"clientOrderId"`
-	Time               time.Time `json:"time"`
-	CumulativeQuantity float64   `json:"cumQty,string"`
-	CumulativeQuote    float64   `json:"cumQuote,string"`
-	ExecutedQuantity   float64   `json:"executedQty,string"`
-	OrderID            int64     `json:"orderId"`
-	AveragePrice       float64   `json:"avgPrice,string"`
-	OriginalQuantity   float64   `json:"origQty,string"`
-	Price              float64   `json:"price,string"`
-	ReduceOnly         bool      `json:"reduceOnly"`
-	Side               string    `json:"side"`
-	PositionSide       string    `json:"positionSide"`
-	Status             string    `json:"status"`
-	StopPrice          float64   `json:"stopPrice,string"`
-	ClosePosition      bool      `json:"closePosition"`
-	Symbol             string    `json:"symbol"`
-	TimeInForce        string    `json:"timeInForce"`
-	OrderType          string    `json:"type"`
-	OriginalType       string    `json:"origType"`
-	ActivatePrice      float64   `json:"activatePrice,string"`
-	PriceRate          float64   `json:"priceRate,string"`
-	UpdateTime         time.Time `json:"updateTime"`
-	WorkingType        string    `json:"workingType"`
-	Code               int64     `json:"code"`
-	Message            string    `json:"msg"`
+	ClientOrderID      string               `json:"clientOrderId"`
+	Time               convert.ExchangeTime `json:"time"`
+	CumulativeQuantity float64              `json:"cumQty,string"`
+	CumulativeQuote    float64              `json:"cumQuote,string"`
+	ExecutedQuantity   float64              `json:"executedQty,string"`
+	OrderID            int64                `json:"orderId"`
+	AveragePrice       float64              `json:"avgPrice,string"`
+	OriginalQuantity   float64              `json:"origQty,string"`
+	Price              float64              `json:"price,string"`
+	ReduceOnly         bool                 `json:"reduceOnly"`
+	Side               string               `json:"side"`
+	PositionSide       string               `json:"positionSide"`
+	Status             string               `json:"status"`
+	StopPrice          float64              `json:"stopPrice,string"`
+	ClosePosition      bool                 `json:"closePosition"`
+	Symbol             string               `json:"symbol"`
+	TimeInForce        string               `json:"timeInForce"`
+	OrderType          string               `json:"type"`
+	OriginalType       string               `json:"origType"`
+	ActivatePrice      float64              `json:"activatePrice,string"`
+	PriceRate          float64              `json:"priceRate,string"`
+	UpdateTime         convert.ExchangeTime `json:"updateTime"`
+	WorkingType        string               `json:"workingType"`
+	Code               int64                `json:"code"`
+	Message            string               `json:"msg"`
 }
 
 // UFuturesOrderData stores order data for ufutures
 type UFuturesOrderData struct {
-	AvgPrice      float64   `json:"avgPrice,string"`
-	ClientOrderID string    `json:"clientOrderId"`
-	CumQuote      string    `json:"cumQuote"`
-	ExecutedQty   float64   `json:"executedQty,string"`
-	OrderID       int64     `json:"orderId"`
-	OrigQty       float64   `json:"origQty,string"`
-	OrigType      string    `json:"origType"`
-	Price         float64   `json:"price,string"`
-	ReduceOnly    bool      `json:"reduceOnly"`
-	Side          string    `json:"side"`
-	PositionSide  string    `json:"positionSide"`
-	Status        string    `json:"status"`
-	StopPrice     float64   `json:"stopPrice,string"`
-	ClosePosition bool      `json:"closePosition"`
-	Symbol        string    `json:"symbol"`
-	Time          time.Time `json:"time"`
-	TimeInForce   string    `json:"timeInForce"`
-	OrderType     string    `json:"type"`
-	ActivatePrice float64   `json:"activatePrice,string"`
-	PriceRate     float64   `json:"priceRate,string"`
-	UpdateTime    time.Time `json:"updateTime"`
-	WorkingType   string    `json:"workingType"`
+	AvgPrice      float64              `json:"avgPrice,string"`
+	ClientOrderID string               `json:"clientOrderId"`
+	CumQuote      string               `json:"cumQuote"`
+	ExecutedQty   float64              `json:"executedQty,string"`
+	OrderID       int64                `json:"orderId"`
+	OrigQty       float64              `json:"origQty,string"`
+	OrigType      string               `json:"origType"`
+	Price         float64              `json:"price,string"`
+	ReduceOnly    bool                 `json:"reduceOnly"`
+	Side          string               `json:"side"`
+	PositionSide  string               `json:"positionSide"`
+	Status        string               `json:"status"`
+	StopPrice     float64              `json:"stopPrice,string"`
+	ClosePosition bool                 `json:"closePosition"`
+	Symbol        string               `json:"symbol"`
+	Time          convert.ExchangeTime `json:"time"`
+	TimeInForce   string               `json:"timeInForce"`
+	OrderType     string               `json:"type"`
+	ActivatePrice float64              `json:"activatePrice,string"`
+	PriceRate     float64              `json:"priceRate,string"`
+	UpdateTime    convert.ExchangeTime `json:"updateTime"`
+	WorkingType   string               `json:"workingType"`
 }
 
 // UAccountBalanceV2Data stores account balance data for ufutures
@@ -300,22 +299,22 @@ type UAsset struct {
 
 // UPosition holds account position information
 type UPosition struct {
-	Symbol                 string      `json:"symbol"`
-	InitialMargin          float64     `json:"initialMargin,string"`
-	MaintenanceMargin      float64     `json:"maintMargin,string"`
-	UnrealisedProfit       float64     `json:"unrealizedProfit,string"`
-	PositionInitialMargin  float64     `json:"positionInitialMargin,string"`
-	OpenOrderInitialMargin float64     `json:"openOrderInitialMargin,string"`
-	Leverage               float64     `json:"leverage,string"`
-	Isolated               bool        `json:"isolated"`
-	IsolatedWallet         float64     `json:"isolatedWallet,string"`
-	EntryPrice             float64     `json:"entryPrice,string"`
-	MaxNotional            float64     `json:"maxNotional,string"`
-	BidNotional            float64     `json:"bidNotional,string"`
-	AskNotional            float64     `json:"askNotional,string"`
-	PositionSide           string      `json:"positionSide"`
-	PositionAmount         float64     `json:"positionAmt,string"`
-	UpdateTime             binanceTime `json:"updateTime"`
+	Symbol                 string               `json:"symbol"`
+	InitialMargin          float64              `json:"initialMargin,string"`
+	MaintenanceMargin      float64              `json:"maintMargin,string"`
+	UnrealisedProfit       float64              `json:"unrealizedProfit,string"`
+	PositionInitialMargin  float64              `json:"positionInitialMargin,string"`
+	OpenOrderInitialMargin float64              `json:"openOrderInitialMargin,string"`
+	Leverage               float64              `json:"leverage,string"`
+	Isolated               bool                 `json:"isolated"`
+	IsolatedWallet         float64              `json:"isolatedWallet,string"`
+	EntryPrice             float64              `json:"entryPrice,string"`
+	MaxNotional            float64              `json:"maxNotional,string"`
+	BidNotional            float64              `json:"bidNotional,string"`
+	AskNotional            float64              `json:"askNotional,string"`
+	PositionSide           string               `json:"positionSide"`
+	PositionAmount         float64              `json:"positionAmt,string"`
+	UpdateTime             convert.ExchangeTime `json:"updateTime"`
 }
 
 // UChangeInitialLeverage stores leverage change data
@@ -343,21 +342,21 @@ type UPositionMarginChangeHistoryData struct {
 
 // UPositionInformationV2 stores positions data
 type UPositionInformationV2 struct {
-	Symbol           string      `json:"symbol"`
-	PositionAmount   float64     `json:"positionAmt,string"`
-	EntryPrice       float64     `json:"entryPrice,string"`
-	MarkPrice        float64     `json:"markPrice,string"`
-	UnrealizedProfit float64     `json:"unrealizedProfit,string"`
-	LiquidationPrice float64     `json:"liquidationPrice,string"`
-	Leverage         float64     `json:"leverage,string"`
-	MaxNotionalValue float64     `json:"maxNotionalValue,string"`
-	MarginType       string      `json:"marginType"`
-	IsAutoAddMargin  bool        `json:"isAutoAddMargin,string"`
-	PositionSide     string      `json:"positionSide"`
-	Notional         float64     `json:"notional,string"`
-	IsolatedWallet   float64     `json:"isolatedWallet,string"`
-	IsolatedMargin   float64     `json:"isolatedMargin,string"`
-	UpdateTime       binanceTime `json:"updateTime"`
+	Symbol           string               `json:"symbol"`
+	PositionAmount   float64              `json:"positionAmt,string"`
+	EntryPrice       float64              `json:"entryPrice,string"`
+	MarkPrice        float64              `json:"markPrice,string"`
+	UnrealizedProfit float64              `json:"unrealizedProfit,string"`
+	LiquidationPrice float64              `json:"liquidationPrice,string"`
+	Leverage         float64              `json:"leverage,string"`
+	MaxNotionalValue float64              `json:"maxNotionalValue,string"`
+	MarginType       string               `json:"marginType"`
+	IsAutoAddMargin  bool                 `json:"isAutoAddMargin,string"`
+	PositionSide     string               `json:"positionSide"`
+	Notional         float64              `json:"notional,string"`
+	IsolatedWallet   float64              `json:"isolatedWallet,string"`
+	IsolatedMargin   float64              `json:"isolatedMargin,string"`
+	UpdateTime       convert.ExchangeTime `json:"updateTime"`
 }
 
 // UAccountTradeHistory stores trade data for the users account

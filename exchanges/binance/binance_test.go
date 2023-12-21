@@ -1111,7 +1111,7 @@ func TestGetExchangeInfo(t *testing.T) {
 	}
 	if mockTests {
 		serverTime := time.Date(2022, 2, 25, 3, 50, 40, int(601*time.Millisecond), time.UTC)
-		if !info.ServerTime.Equal(serverTime) {
+		if !info.ServerTime.Time().Equal(serverTime) {
 			t.Errorf("Expected %v, got %v", serverTime, info.ServerTime)
 		}
 	}
@@ -1592,8 +1592,8 @@ func TestGetAggregatedTradesBatched(t *testing.T) {
 				t.Errorf("GetAggregatedTradesBatched() expected %v entries, got %v", tt.numExpected, len(result))
 			}
 			lastTradeTime := result[len(result)-1].TimeStamp
-			if !lastTradeTime.Equal(tt.lastExpected) {
-				t.Errorf("last trade expected %v, got %v", tt.lastExpected.UTC(), lastTradeTime.UTC())
+			if !lastTradeTime.Time().Equal(tt.lastExpected) {
+				t.Errorf("last trade expected %v, got %v", tt.lastExpected.UTC(), lastTradeTime.Time().UTC())
 			}
 		})
 	}

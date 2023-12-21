@@ -394,7 +394,7 @@ func (b *Binance) batchAggregateTrades(ctx context.Context, arg *AggregatedTrade
 		if !arg.EndTime.IsZero() {
 			// get index for truncating to end time
 			lastIndex = sort.Search(len(additionalTrades), func(i int) bool {
-				return arg.EndTime.Before(additionalTrades[i].TimeStamp)
+				return arg.EndTime.Before(additionalTrades[i].TimeStamp.Time())
 			})
 		}
 		// don't include the first as the request was inclusive from last ATradeID

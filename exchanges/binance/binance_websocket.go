@@ -278,8 +278,8 @@ func (b *Binance) wsHandleData(respRaw []byte) error {
 					Side:                 orderSide,
 					Status:               orderStatus,
 					AssetType:            assetType,
-					Date:                 data.Data.OrderCreationTime,
-					LastUpdated:          data.Data.TransactionTime,
+					Date:                 data.Data.OrderCreationTime.Time(),
+					LastUpdated:          data.Data.TransactionTime.Time(),
 					Pair:                 pair,
 				}
 				return nil
@@ -354,7 +354,7 @@ func (b *Binance) wsHandleData(respRaw []byte) error {
 					return b.Websocket.Trade.Update(saveTradeData,
 						trade.Data{
 							CurrencyPair: pair,
-							Timestamp:    t.TimeStamp,
+							Timestamp:    t.TimeStamp.Time(),
 							Price:        price,
 							Amount:       amount,
 							Exchange:     b.Name,
@@ -386,7 +386,7 @@ func (b *Binance) wsHandleData(respRaw []byte) error {
 						Bid:          t.BestBidPrice,
 						Ask:          t.BestAskPrice,
 						Last:         t.LastPrice,
-						LastUpdated:  t.EventTime,
+						LastUpdated:  t.EventTime.Time(),
 						AssetType:    asset.Spot,
 						Pair:         pair,
 					}
@@ -407,12 +407,12 @@ func (b *Binance) wsHandleData(respRaw []byte) error {
 					}
 
 					b.Websocket.DataHandler <- stream.KlineData{
-						Timestamp:  kline.EventTime,
+						Timestamp:  kline.EventTime.Time(),
 						Pair:       pair,
 						AssetType:  asset.Spot,
 						Exchange:   b.Name,
-						StartTime:  kline.Kline.StartTime,
-						CloseTime:  kline.Kline.CloseTime,
+						StartTime:  kline.Kline.StartTime.Time(),
+						CloseTime:  kline.Kline.CloseTime.Time(),
 						Interval:   kline.Kline.Interval,
 						OpenPrice:  kline.Kline.OpenPrice,
 						ClosePrice: kline.Kline.ClosePrice,
@@ -674,7 +674,7 @@ func (b *Binance) ProcessUpdate(cp currency.Pair, a asset.Item, ws *WebsocketDep
 		Asks:       updateAsk,
 		Pair:       cp,
 		UpdateID:   ws.LastUpdateID,
-		UpdateTime: ws.Timestamp,
+		UpdateTime: ws.Timestamp.Time(),
 		Asset:      a,
 	})
 }
