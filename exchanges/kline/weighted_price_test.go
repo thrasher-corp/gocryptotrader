@@ -2,54 +2,44 @@ package kline
 
 import (
 	"errors"
+	"math"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/assert"
 )
+
+var accuracy10dp = 1 / math.Pow10(10)
 
 func TestGetAveragePrice(t *testing.T) {
 	t.Parallel()
 	c := Candle{}
-	if c.GetAveragePrice() != 0 {
-		t.Fatal("unexpected value")
-	}
+	assert.Zero(t, c.GetAveragePrice(), "GetAveragePrice should return zero")
 
 	c.High = 20
-	if c.GetAveragePrice() != 5 {
-		t.Fatal("unexpected value")
-	}
+	assert.Equal(t, 5.0, c.GetAveragePrice(), "GetAveragePrice should return correct value")
 }
 
 func TestGetAveragePrice_OHLC(t *testing.T) {
 	t.Parallel()
 	var ohlc *OHLC
 	_, err := ohlc.GetAveragePrice(-1)
-	if !errors.Is(err, errNilOHLC) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errNilOHLC)
-	}
+	assert.ErrorIs(t, err, errNilOHLC, "GetAveragePrice should error on nil")
 
 	ohlc = &OHLC{}
 	_, err = ohlc.GetAveragePrice(-1)
-	if !errors.Is(err, errInvalidElement) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errInvalidElement)
-	}
+	assert.ErrorIs(t, err, errInvalidElement, "GetAveragePrice should error on negative index")
 
 	_, err = ohlc.GetAveragePrice(0)
-	if !errors.Is(err, errElementExceedsDataLength) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errElementExceedsDataLength)
-	}
+	assert.ErrorIs(t, err, errElementExceedsDataLength, "GetAveragePrice should error on empty timeseries")
 
 	ohlc.High = append(ohlc.High, 20)
 	ohlc.Open = append(ohlc.Open, 0)
 	ohlc.Low = append(ohlc.Low, 0)
 	ohlc.Close = append(ohlc.Close, 0)
 	avgPrice, err := ohlc.GetAveragePrice(0)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
-
-	if avgPrice != 5 {
-		t.Fatal("unexpected value")
-	}
+	assert.NoError(t, err, "GetAveragePrice should not error")
+	assert.Equal(t, 5.0, avgPrice, "GetAveragePrice should return correct value")
 }
 
 var twapdataset = []Candle{
@@ -81,55 +71,38 @@ func TestGetTWAP_OHLC(t *testing.T) {
 	t.Parallel()
 	var ohlc *OHLC
 	_, err := ohlc.GetTWAP()
-	if !errors.Is(err, errNilOHLC) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errNilOHLC)
-	}
+	assert.ErrorIs(t, err, errNilOHLC, "GetTWAP should error on nil")
 
 	ohlc = &OHLC{}
 	_, err = ohlc.GetTWAP()
-	if !errors.Is(err, errNoData) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errNoData)
-	}
+	assert.ErrorIs(t, err, errNoData, "GetTWAP should error on no data")
 
 	ohlc.Open = append(ohlc.Open, 20)
 	ohlc.High = append(ohlc.High, 20)
 	ohlc.Low = append(ohlc.Low, 20)
 	ohlc.Close = append(ohlc.Close, 20, 20)
 	_, err = ohlc.GetTWAP()
-	if !errors.Is(err, errDataLengthMismatch) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errDataLengthMismatch)
-	}
+	assert.ErrorIs(t, err, errDataLengthMismatch, "GetTWAP should error on length mismatch")
 
 	i := Item{}
 	i.Candles = twapdataset
 
 	ohlc = i.GetOHLC()
 	twap, err := ohlc.GetTWAP()
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
-
-	if twap != 328.147840909091 {
-		t.Fatal("unexpected value returned from data-set")
-	}
+	assert.NoError(t, err, "GetTWAP should not error")
+	assert.InDelta(t, 328.147840909091, twap, accuracy10dp, "TWAP should be correct")
 }
 
 func TestGetTWAP(t *testing.T) {
 	t.Parallel()
 	candles := Item{}
-	if _, err := candles.GetTWAP(); !errors.Is(err, errNoData) {
-		t.Fatal(err)
-	}
+	_, err := candles.GetTWAP()
+	assert.ErrorIs(t, err, errNoData, "GetTWAP should error on no data")
 
 	candles.Candles = twapdataset
 	twap, err := candles.GetTWAP()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if twap != 328.147840909091 {
-		t.Fatal("unexpected value returned from data-set")
-	}
+	assert.NoError(t, err, "GetTWAP should not error")
+	assert.InDelta(t, 328.147840909091, twap, accuracy10dp, "TWAP should be correct")
 }
 
 var vwapdataset = []Candle{
@@ -164,6 +137,7 @@ var vwapdataset = []Candle{
 	{Time: time.Date(2019, 10, 10, 9, 59, 0, 0, time.UTC), Open: 248.9199, High: 248.9199, Low: 248.9199, Close: 248.9199, Volume: 85348},
 	{Time: time.Date(2019, 10, 10, 10, 0, 0, 0, time.UTC), Open: 248.91, High: 249.08, Low: 248.42, Close: 248.72, Volume: 58270},
 }
+var expectVWAPs = []float64{245.05046666666664, 245.00156932123465, 245.07320400593073, 245.19714781780763, 245.248374356565, 245.35797872352975, 245.45540807301208, 245.57298124760712, 245.61797546720302, 245.6901232761351, 245.7435986712912, 245.76128302894574, 245.771994363731, 245.7768929849006, 245.80115004533573, 245.82471633454026, 245.90964645148168, 246.0356579876492, 246.20233204964117, 246.29892677543359, 246.57315726207088, 246.70305234595537, 246.73669536160304, 246.7746731036053, 246.83849361010806, 246.89338504378165, 246.96313273581723, 247.03640100225914, 247.16505290840146, 247.23522648930867}
 
 func TestGetVWAPs(t *testing.T) {
 	t.Parallel()
@@ -174,55 +148,22 @@ func TestGetVWAPs(t *testing.T) {
 
 	candles.Candles = vwapdataset
 	vwap, err := candles.GetVWAPs()
-	if err != nil {
-		t.Fatal(err)
+	assert.NoError(t, err, "GetVWAPs should not error")
+	assert.Len(t, vwap, len(expectVWAPs), "Should get correct number of vwaps")
+	for i := range vwap {
+		assert.InDelta(t, expectVWAPs[i], vwap[i], accuracy10dp, "VWAPS should be correct")
 	}
-
-	assert(t, vwap[0], 245.05046666666664)
-	assert(t, vwap[1], 245.00156932123465)
-	assert(t, vwap[2], 245.07320400593073)
-	assert(t, vwap[3], 245.19714781780763)
-	assert(t, vwap[4], 245.248374356565)
-	assert(t, vwap[5], 245.35797872352975)
-	assert(t, vwap[6], 245.45540807301208)
-	assert(t, vwap[7], 245.57298124760712)
-	assert(t, vwap[8], 245.61797546720302)
-	assert(t, vwap[9], 245.6901232761351)
-	assert(t, vwap[10], 245.7435986712912)
-	assert(t, vwap[11], 245.76128302894574)
-	assert(t, vwap[12], 245.771994363731)
-	assert(t, vwap[13], 245.7768929849006)
-	assert(t, vwap[14], 245.80115004533573)
-	assert(t, vwap[15], 245.82471633454026)
-	assert(t, vwap[16], 245.90964645148168)
-	assert(t, vwap[17], 246.0356579876492)
-	assert(t, vwap[18], 246.20233204964117)
-	assert(t, vwap[19], 246.29892677543359)
-	assert(t, vwap[20], 246.57315726207088)
-	assert(t, vwap[21], 246.70305234595537)
-	assert(t, vwap[22], 246.73669536160304)
-	assert(t, vwap[23], 246.7746731036053)
-	assert(t, vwap[24], 246.83849361010806)
-	assert(t, vwap[25], 246.89338504378165)
-	assert(t, vwap[26], 246.96313273581723)
-	assert(t, vwap[27], 247.03640100225914)
-	assert(t, vwap[28], 247.16505290840146)
-	assert(t, vwap[29], 247.23522648930867)
 }
 
 func TestGetVWAPs_OHLC(t *testing.T) {
 	t.Parallel()
 	var ohlc *OHLC
 	_, err := ohlc.GetVWAPs()
-	if !errors.Is(err, errNilOHLC) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errNilOHLC)
-	}
+	assert.ErrorIs(t, err, errNilOHLC, "GetVWAPs should error correctly with no data")
 
 	ohlc = &OHLC{}
 	_, err = ohlc.GetVWAPs()
-	if !errors.Is(err, errNoData) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errNoData)
-	}
+	assert.ErrorIs(t, err, errNoData, "GetVWAP should error on no data")
 
 	ohlc.Open = append(ohlc.Open, 20)
 	ohlc.High = append(ohlc.High, 20)
@@ -230,84 +171,35 @@ func TestGetVWAPs_OHLC(t *testing.T) {
 	ohlc.Close = append(ohlc.Close, 20, 20)
 
 	_, err = ohlc.GetVWAPs()
-	if !errors.Is(err, errDataLengthMismatch) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errDataLengthMismatch)
-	}
+	assert.ErrorIs(t, err, errDataLengthMismatch, "GetVWAP should error on length mismatch")
 
 	ohlc = (&Item{Candles: vwapdataset}).GetOHLC()
 
 	vwap, err := ohlc.GetVWAPs()
-	if err != nil {
-		t.Fatal(err)
+	assert.NoError(t, err, "GetVWAPs should not error")
+	assert.Len(t, vwap, len(expectVWAPs), "Should get correct number of vwaps")
+	for i := range vwap {
+		assert.InDelta(t, expectVWAPs[i], vwap[i], accuracy10dp, "VWAPS should be correct")
 	}
-
-	assert(t, vwap[0], 245.05046666666664)
-	assert(t, vwap[1], 245.00156932123465)
-	assert(t, vwap[2], 245.07320400593073)
-	assert(t, vwap[3], 245.19714781780763)
-	assert(t, vwap[4], 245.248374356565)
-	assert(t, vwap[5], 245.35797872352975)
-	assert(t, vwap[6], 245.45540807301208)
-	assert(t, vwap[7], 245.57298124760712)
-	assert(t, vwap[8], 245.61797546720302)
-	assert(t, vwap[9], 245.6901232761351)
-	assert(t, vwap[10], 245.7435986712912)
-	assert(t, vwap[11], 245.76128302894574)
-	assert(t, vwap[12], 245.771994363731)
-	assert(t, vwap[13], 245.7768929849006)
-	assert(t, vwap[14], 245.80115004533573)
-	assert(t, vwap[15], 245.82471633454026)
-	assert(t, vwap[16], 245.90964645148168)
-	assert(t, vwap[17], 246.0356579876492)
-	assert(t, vwap[18], 246.20233204964117)
-	assert(t, vwap[19], 246.29892677543359)
-	assert(t, vwap[20], 246.57315726207088)
-	assert(t, vwap[21], 246.70305234595537)
-	assert(t, vwap[22], 246.73669536160304)
-	assert(t, vwap[23], 246.7746731036053)
-	assert(t, vwap[24], 246.83849361010806)
-	assert(t, vwap[25], 246.89338504378165)
-	assert(t, vwap[26], 246.96313273581723)
-	assert(t, vwap[27], 247.03640100225914)
-	assert(t, vwap[28], 247.16505290840146)
-	assert(t, vwap[29], 247.23522648930867)
 }
 
 func TestGetTypicalPrice_OHLC(t *testing.T) {
 	t.Parallel()
 	var ohlc *OHLC
 	_, err := ohlc.GetTypicalPrice(-1)
-	if !errors.Is(err, errNilOHLC) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errNilOHLC)
-	}
+	assert.ErrorIs(t, err, errNilOHLC, "GetTypicalPrice should error correctly with no data")
 
 	ohlc = &OHLC{}
 	_, err = ohlc.GetTypicalPrice(-1)
-	if !errors.Is(err, errInvalidElement) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errInvalidElement)
-	}
+	assert.ErrorIs(t, err, errInvalidElement, "GetTypicalPrice should error on negative index")
 
 	_, err = ohlc.GetTypicalPrice(0)
-	if !errors.Is(err, errElementExceedsDataLength) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errElementExceedsDataLength)
-	}
+	assert.ErrorIs(t, err, errElementExceedsDataLength, "GetTypicalPrice should error on empty timeseries")
 
 	ohlc.High = append(ohlc.High, 15)
 	ohlc.Low = append(ohlc.Low, 0)
 	ohlc.Close = append(ohlc.Close, 0)
 	avgPrice, err := ohlc.GetTypicalPrice(0)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
-
-	if avgPrice != 5 {
-		t.Fatal("unexpected value")
-	}
-}
-
-func assert(t *testing.T, received, expected float64) {
-	t.Helper()
-	if received != expected {
-		t.Fatalf("received: '%v' but expected: '%v'", received, expected)
-	}
+	assert.NoError(t, err, "GetTypicalPrice should not error")
+	assert.Equal(t, 5.0, avgPrice, "GetTypicalPrice should return correct value")
 }
