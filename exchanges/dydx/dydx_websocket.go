@@ -176,8 +176,8 @@ func (dy *DYDX) wsHandleData(respRaw []byte) error {
 				Exchange:     dy.Name,
 				Side:         side,
 				Timestamp:    myTrades.Trades[i].CreatedAt,
-				Amount:       myTrades.Trades[i].Size,
-				Price:        myTrades.Trades[i].Price,
+				Amount:       myTrades.Trades[i].Size.Float64(),
+				Price:        myTrades.Trades[i].Price.Float64(),
 			}
 		}
 		return trade.AddTradesToBuffer(dy.Name, trades...)
@@ -240,7 +240,7 @@ func (dy *DYDX) processAccount(acct *Account) {
 	dy.Websocket.DataHandler <- account.Change{
 		Exchange: dy.Name,
 		Asset:    asset.Spot,
-		Amount:   acct.QuoteBalance,
+		Amount:   acct.QuoteBalance.Float64(),
 	}
 }
 
@@ -265,10 +265,10 @@ func (dy *DYDX) processOrders(orders []Order) error {
 			return err
 		}
 		orderDetails[x] = order.Detail{
-			Price:           orders[x].Price,
-			Amount:          orders[x].Size,
-			ExecutedAmount:  orders[x].Size - orders[x].RemainingSize,
-			Fee:             orders[x].LimitFee,
+			Price:           orders[x].Price.Float64(),
+			Amount:          orders[x].Size.Float64(),
+			ExecutedAmount:  orders[x].Size.Float64() - orders[x].RemainingSize.Float64(),
+			Fee:             orders[x].LimitFee.Float64(),
 			Exchange:        dy.Name,
 			OrderID:         orders[x].ID,
 			Type:            orderType,
@@ -277,7 +277,7 @@ func (dy *DYDX) processOrders(orders []Order) error {
 			AssetType:       asset.Spot,
 			Date:            orders[x].CreatedAt,
 			Pair:            cp,
-			RemainingAmount: orders[x].RemainingSize,
+			RemainingAmount: orders[x].RemainingSize.Float64(),
 		}
 	}
 	dy.Websocket.DataHandler <- orderDetails

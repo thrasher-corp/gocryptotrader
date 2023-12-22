@@ -7,6 +7,7 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
+	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
 const (
@@ -95,31 +96,31 @@ var (
 // InstrumentDatas metadata about each retrieved market.
 type InstrumentDatas struct {
 	Markets map[string]*struct {
-		Market                           string                  `json:"market"`
-		Status                           string                  `json:"status"`
-		BaseAsset                        string                  `json:"baseAsset"`
-		QuoteAsset                       string                  `json:"quoteAsset"`
-		StepSize                         convert.StringToFloat64 `json:"stepSize"`
-		TickSize                         convert.StringToFloat64 `json:"tickSize"`
-		IndexPrice                       convert.StringToFloat64 `json:"indexPrice"`
-		OraclePrice                      convert.StringToFloat64 `json:"oraclePrice"`
-		PriceChange24H                   convert.StringToFloat64 `json:"priceChange24H"`
-		NextFundingRate                  convert.StringToFloat64 `json:"nextFundingRate"`
-		NextFundingAt                    time.Time               `json:"nextFundingAt"`
-		MinOrderSize                     convert.StringToFloat64 `json:"minOrderSize"`
-		Type                             string                  `json:"type"`
-		InitialMarginFraction            convert.StringToFloat64 `json:"initialMarginFraction"`
-		MaintenanceMarginFraction        convert.StringToFloat64 `json:"maintenanceMarginFraction"`
-		BaselinePositionSize             convert.StringToFloat64 `json:"baselinePositionSize"`
-		IncrementalPositionSize          convert.StringToFloat64 `json:"incrementalPositionSize"`
-		IncrementalInitialMarginFraction convert.StringToFloat64 `json:"incrementalInitialMarginFraction"`
-		Volume24H                        convert.StringToFloat64 `json:"volume24H"`
-		Trades24H                        convert.StringToFloat64 `json:"trades24H"`
-		OpenInterest                     string                  `json:"openInterest"`
-		MaxPositionSize                  convert.StringToFloat64 `json:"maxPositionSize"`
-		AssetResolution                  string                  `json:"assetResolution"`
-		SyntheticAssetID                 string                  `json:"syntheticAssetId"`
-		TransferMarginFraction           string                  `json:"transferMarginFraction"`
+		Market                           string       `json:"market"`
+		Status                           string       `json:"status"`
+		BaseAsset                        string       `json:"baseAsset"`
+		QuoteAsset                       string       `json:"quoteAsset"`
+		StepSize                         types.Number `json:"stepSize"`
+		TickSize                         types.Number `json:"tickSize"`
+		IndexPrice                       types.Number `json:"indexPrice"`
+		OraclePrice                      types.Number `json:"oraclePrice"`
+		PriceChange24H                   types.Number `json:"priceChange24H"`
+		NextFundingRate                  types.Number `json:"nextFundingRate"`
+		NextFundingAt                    time.Time    `json:"nextFundingAt"`
+		MinOrderSize                     types.Number `json:"minOrderSize"`
+		Type                             string       `json:"type"`
+		InitialMarginFraction            types.Number `json:"initialMarginFraction"`
+		MaintenanceMarginFraction        types.Number `json:"maintenanceMarginFraction"`
+		BaselinePositionSize             types.Number `json:"baselinePositionSize"`
+		IncrementalPositionSize          types.Number `json:"incrementalPositionSize"`
+		IncrementalInitialMarginFraction types.Number `json:"incrementalInitialMarginFraction"`
+		Volume24H                        types.Number `json:"volume24H"`
+		Trades24H                        types.Number `json:"trades24H"`
+		OpenInterest                     string       `json:"openInterest"`
+		MaxPositionSize                  types.Number `json:"maxPositionSize"`
+		AssetResolution                  string       `json:"assetResolution"`
+		SyntheticAssetID                 string       `json:"syntheticAssetId"`
+		TransferMarginFraction           string       `json:"transferMarginFraction"`
 	} `json:"markets"`
 }
 
@@ -159,9 +160,9 @@ func (a wsOrderbookUpdate) generateOrderbookItem() ([]orderbook.Item, error) {
 
 // OrderbookData represents asks and bids price and size data.
 type OrderbookData struct {
-	Offset string  `json:"offset"`
-	Price  float64 `json:"price,string"`
-	Size   float64 `json:"size,string"`
+	Offset string       `json:"offset"`
+	Price  types.Number `json:"price"`
+	Size   types.Number `json:"size"`
 }
 
 type orderbookDatas []OrderbookData
@@ -170,8 +171,8 @@ func (a orderbookDatas) generateOrderbookItem() []orderbook.Item {
 	books := make([]orderbook.Item, len(a))
 	for x := range a {
 		books[x] = orderbook.Item{
-			Price:  a[x].Price,
-			Amount: a[x].Size,
+			Price:  a[x].Price.Float64(),
+			Amount: a[x].Size.Float64(),
 		}
 	}
 	return books
@@ -184,11 +185,11 @@ type MarketTrades struct {
 
 // MarketTrade represents a market trade item.
 type MarketTrade struct {
-	Side        string    `json:"side"`
-	Size        float64   `json:"size,string"`
-	Price       float64   `json:"price,string"`
-	CreatedAt   time.Time `json:"createdAt"`
-	Liquidation bool      `json:"liquidation"`
+	Side        string       `json:"side"`
+	Size        types.Number `json:"size"`
+	Price       types.Number `json:"price"`
+	CreatedAt   time.Time    `json:"createdAt"`
+	Liquidation bool         `json:"liquidation"`
 }
 
 // WithdrawalLiquidityResponse represents accounts that have available funds for fast withdrawals.
@@ -198,9 +199,9 @@ type WithdrawalLiquidityResponse struct {
 
 // LiquidityProvider represents a liquidation provider item data
 type LiquidityProvider struct {
-	AvailableFunds float64 `json:"availableFunds,string"`
-	StarkKey       string  `json:"starkKey"`
-	Quote          string  `json:"quote"`
+	AvailableFunds types.Number `json:"availableFunds"`
+	StarkKey       string       `json:"starkKey"`
+	Quote          string       `json:"quote"`
 }
 
 // TickerDatas represents market's statistics data.
@@ -210,15 +211,15 @@ type TickerDatas struct {
 
 // TickerData represents ticker data for a market.
 type TickerData struct {
-	Market      string  `json:"market"`
-	Open        float64 `json:"open,string"`
-	Close       float64 `json:"close,string"`
-	High        float64 `json:"high,string"`
-	Low         float64 `json:"low,string"`
-	BaseVolume  float64 `json:"baseVolume,string"`
-	QuoteVolume float64 `json:"quoteVolume,string"`
-	Type        string  `json:"type"`
-	Fees        float64 `json:"fees,string"`
+	Market      string       `json:"market"`
+	Open        types.Number `json:"open"`
+	Close       types.Number `json:"close"`
+	High        types.Number `json:"high"`
+	Low         types.Number `json:"low"`
+	BaseVolume  types.Number `json:"baseVolume"`
+	QuoteVolume types.Number `json:"quoteVolume"`
+	Type        string       `json:"type"`
+	Fees        types.Number `json:"fees"`
 }
 
 // HistoricFundingResponse represents a historic funding response data.
@@ -228,10 +229,10 @@ type HistoricFundingResponse struct {
 
 // HistoricalFunding represents historical funding rates for a market.
 type HistoricalFunding struct {
-	Market      string                  `json:"market"`
-	Rate        convert.StringToFloat64 `json:"rate"`
-	Price       convert.StringToFloat64 `json:"price"`
-	EffectiveAt time.Time               `json:"effectiveAt"`
+	Market      string       `json:"market"`
+	Rate        types.Number `json:"rate"`
+	Price       types.Number `json:"price"`
+	EffectiveAt time.Time    `json:"effectiveAt"`
 }
 
 // MarketCandlesResponse represents response data for market candlestick data.
@@ -241,29 +242,29 @@ type MarketCandlesResponse struct {
 
 // MarketCandle represents candle statistics for a specific market.
 type MarketCandle struct {
-	StartedAt            time.Time `json:"startedAt"`
-	UpdatedAt            time.Time `json:"updatedAt"`
-	Market               string    `json:"market"`
-	Resolution           string    `json:"resolution"`
-	Low                  float64   `json:"low,string"`
-	High                 float64   `json:"high,string"`
-	Open                 float64   `json:"open,string"`
-	Close                float64   `json:"close,string"`
-	BaseTokenVolume      float64   `json:"baseTokenVolume,string"`
-	Trades               string    `json:"trades"`
-	UsdVolume            float64   `json:"usdVolume,string"`
-	StartingOpenInterest string    `json:"startingOpenInterest"`
+	StartedAt            time.Time    `json:"startedAt"`
+	UpdatedAt            time.Time    `json:"updatedAt"`
+	Market               string       `json:"market"`
+	Resolution           string       `json:"resolution"`
+	Low                  types.Number `json:"low"`
+	High                 types.Number `json:"high"`
+	Open                 types.Number `json:"open"`
+	Close                types.Number `json:"close"`
+	BaseTokenVolume      types.Number `json:"baseTokenVolume"`
+	Trades               string       `json:"trades"`
+	UsdVolume            types.Number `json:"usdVolume"`
+	StartingOpenInterest string       `json:"startingOpenInterest"`
 }
 
 // ConfigurationVariableResponse represents any configuration variables for the exchange.
 type ConfigurationVariableResponse struct {
-	CollateralAssetID             string  `json:"collateralAssetId"`
-	CollateralTokenAddress        string  `json:"collateralTokenAddress"`
-	DefaultMakerFee               float64 `json:"defaultMakerFee,string"`
-	DefaultTakerFee               float64 `json:"defaultTakerFee,string"`
-	ExchangeAddress               string  `json:"exchangeAddress"`
-	MaxExpectedBatchLengthMinutes int64   `json:"maxExpectedBatchLengthMinutes,string"`
-	MaxFastWithdrawalAmount       float64 `json:"maxFastWithdrawalAmount,string"`
+	CollateralAssetID             string       `json:"collateralAssetId"`
+	CollateralTokenAddress        string       `json:"collateralTokenAddress"`
+	DefaultMakerFee               types.Number `json:"defaultMakerFee"`
+	DefaultTakerFee               types.Number `json:"defaultTakerFee"`
+	ExchangeAddress               string       `json:"exchangeAddress"`
+	MaxExpectedBatchLengthMinutes types.Number `json:"maxExpectedBatchLengthMinutes"`
+	MaxFastWithdrawalAmount       types.Number `json:"maxFastWithdrawalAmount"`
 	CancelOrderRateLimiting       struct {
 		MaxPointsMulti  int64 `json:"maxPointsMulti"`
 		MaxPointsSingle int64 `json:"maxPointsSingle"`
@@ -339,7 +340,7 @@ type CurrentRevealedHedgies struct {
 type HistoricalRevealedHedgies struct {
 	HistoricalTokenIds []struct {
 		BlockNumber       int64    `json:"blockNumber,string"`
-		Competitionperiod int64    `json:"competitionperiod"`
+		CompetitionPeriod int64    `json:"competitionperiod"`
 		TokenIds          []string `json:"tokenIds"`
 	} `json:"historicalTokenIds"`
 }
@@ -460,8 +461,8 @@ type User struct {
 	Email                        string         `json:"email"`
 	Username                     string         `json:"username"`
 	UserData                     UserDataDetail `json:"userData"`
-	MakerFeeRate                 float64        `json:"makerFeeRate,string"`
-	TakerFeeRate                 float64        `json:"takerFeeRate,string"`
+	MakerFeeRate                 types.Number   `json:"makerFeeRate"`
+	TakerFeeRate                 types.Number   `json:"takerFeeRate"`
 	MakerVolume30D               string         `json:"makerVolume30D"`
 	TakerVolume30D               string         `json:"takerVolume30D"`
 	Fees30D                      string         `json:"fees30D"`
@@ -511,9 +512,9 @@ type UserDataDetail struct {
 
 // UserActiveLink represents a user's active link to the specified user type.
 type UserActiveLink struct {
-	UserType           string `json:"userType,string"`
-	PrimaryAddress     string `json:"primaryAddress,string"`
-	SecondaryAddresses string `json:"secondaryAddresses,string"`
+	UserType           string `json:"userType"`
+	PrimaryAddress     string `json:"primaryAddress"`
+	SecondaryAddresses string `json:"secondaryAddresses"`
 }
 
 // UserLinkParams represents a user's link request parameters.
@@ -585,12 +586,12 @@ type Account struct {
 	UserID             string              `json:"userId"`
 	AccountNumber      string              `json:"accountNumber"`
 	StarkKey           string              `json:"starkKey"`
-	QuoteBalance       float64             `json:"quoteBalance,string"`
-	PendingDeposits    float64             `json:"pendingDeposits,string"`
-	PendingWithdrawals float64             `json:"pendingWithdrawals,string"`
+	QuoteBalance       types.Number        `json:"quoteBalance"`
+	PendingDeposits    types.Number        `json:"pendingDeposits"`
+	PendingWithdrawals types.Number        `json:"pendingWithdrawals"`
 	LastTransactionID  string              `json:"lastTransactionId"`
 	Equity             string              `json:"equity"`
-	FreeCollateral     float64             `json:"freeCollateral,string"`
+	FreeCollateral     types.Number        `json:"freeCollateral"`
 	OpenPositions      map[string]Position `json:"openPositions"`
 	CreatedAt          time.Time           `json:"createdAt"`
 }
@@ -607,19 +608,19 @@ type WithdrawalResponse struct {
 
 // TransferResponse represents a user's transfer request response.
 type TransferResponse struct {
-	ID              string    `json:"id"`
-	Type            string    `json:"type"`
-	DebitAsset      string    `json:"debitAsset"`
-	CreditAsset     string    `json:"creditAsset"`
-	DebitAmount     float64   `json:"debitAmount,string"`
-	CreditAmount    float64   `json:"creditAmount,string"`
-	TransactionHash string    `json:"transactionHash"`
-	Status          string    `json:"status"`
-	CreatedAt       time.Time `json:"createdAt"`
-	ConfirmedAt     time.Time `json:"confirmedAt"`
-	ClientID        string    `json:"clientId"`
-	FromAddress     string    `json:"fromAddress"`
-	ToAddress       string    `json:"toAddress"`
+	ID              string       `json:"id"`
+	Type            string       `json:"type"`
+	DebitAsset      string       `json:"debitAsset"`
+	CreditAsset     string       `json:"creditAsset"`
+	DebitAmount     types.Number `json:"debitAmount"`
+	CreditAmount    types.Number `json:"creditAmount"`
+	TransactionHash string       `json:"transactionHash"`
+	Status          string       `json:"status"`
+	CreatedAt       time.Time    `json:"createdAt"`
+	ConfirmedAt     time.Time    `json:"confirmedAt"`
+	ClientID        string       `json:"clientId"`
+	FromAddress     string       `json:"fromAddress"`
+	ToAddress       string       `json:"toAddress"`
 }
 
 // CreateOrderRequestParams represents parameters for creating a new order.
@@ -648,27 +649,27 @@ type OrderResponse struct {
 
 // Order represents a single order instance.
 type Order struct {
-	ID               string      `json:"id"`
-	ClientAssignedID string      `json:"clientId"`
-	AccountID        string      `json:"accountId"`
-	Market           string      `json:"market"`
-	Side             string      `json:"side"`
-	Price            float64     `json:"price,string"`
-	TriggerPrice     float64     `json:"triggerPrice"`
-	TrailingPercent  float64     `json:"trailingPercent"`
-	Size             float64     `json:"size,string"`
-	RemainingSize    float64     `json:"remainingSize,string"`
-	Type             string      `json:"type"`
-	CreatedAt        time.Time   `json:"createdAt"`
-	UnfillableAt     interface{} `json:"unfillableAt"`
-	ExpiresAt        time.Time   `json:"expiresAt"`
-	Status           string      `json:"status"`
-	TimeInForce      string      `json:"timeInForce"`
-	PostOnly         bool        `json:"postOnly"`
-	ReduceOnly       bool        `json:"reduceOnly"`
-	CancelReason     string      `json:"cancelReason"`
-	LimitFee         float64     `json:"limitFee,string"`
-	Signature        string      `json:"signature"`
+	ID               string       `json:"id"`
+	ClientAssignedID string       `json:"clientId"`
+	AccountID        string       `json:"accountId"`
+	Market           string       `json:"market"`
+	Side             string       `json:"side"`
+	Price            types.Number `json:"price"`
+	TriggerPrice     types.Number `json:"triggerPrice"`
+	TrailingPercent  types.Number `json:"trailingPercent"`
+	Size             types.Number `json:"size"`
+	RemainingSize    types.Number `json:"remainingSize"`
+	Type             string       `json:"type"`
+	CreatedAt        time.Time    `json:"createdAt"`
+	UnfillableAt     interface{}  `json:"unfillableAt"`
+	ExpiresAt        time.Time    `json:"expiresAt"`
+	Status           string       `json:"status"`
+	TimeInForce      string       `json:"timeInForce"`
+	PostOnly         bool         `json:"postOnly"`
+	ReduceOnly       bool         `json:"reduceOnly"`
+	CancelReason     string       `json:"cancelReason"`
+	LimitFee         types.Number `json:"limitFee"`
+	Signature        string       `json:"signature"`
 }
 
 // OrderFills  represents list of order fills.

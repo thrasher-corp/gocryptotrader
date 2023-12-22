@@ -269,12 +269,12 @@ func (dy *DYDX) UpdateTicker(ctx context.Context, p currency.Pair, assetType ass
 		}
 		err = ticker.ProcessTicker(&ticker.Price{
 			Pair:         cp,
-			High:         tick.High,
-			Low:          tick.Low,
-			Close:        tick.Close,
-			Open:         tick.Open,
-			Volume:       tick.BaseVolume,
-			QuoteVolume:  tick.QuoteVolume,
+			High:         tick.High.Float64(),
+			Low:          tick.Low.Float64(),
+			Close:        tick.Close.Float64(),
+			Open:         tick.Open.Float64(),
+			Volume:       tick.BaseVolume.Float64(),
+			QuoteVolume:  tick.QuoteVolume.Float64(),
 			ExchangeName: dy.Name,
 			AssetType:    assetType,
 		})
@@ -311,12 +311,12 @@ func (dy *DYDX) UpdateTickers(ctx context.Context, assetType asset.Item) error {
 			}
 			err = ticker.ProcessTicker(&ticker.Price{
 				Pair:         pair,
-				High:         stats[x].High,
-				Low:          stats[x].Low,
-				Close:        stats[x].Close,
-				Open:         stats[x].Open,
-				Volume:       stats[x].BaseVolume,
-				QuoteVolume:  stats[x].QuoteVolume,
+				High:         stats[x].High.Float64(),
+				Low:          stats[x].Low.Float64(),
+				Close:        stats[x].Close.Float64(),
+				Open:         stats[x].Open.Float64(),
+				Volume:       stats[x].BaseVolume.Float64(),
+				QuoteVolume:  stats[x].QuoteVolume.Float64(),
 				ExchangeName: dy.Name,
 				AssetType:    assetType,
 			})
@@ -385,9 +385,9 @@ func (dy *DYDX) UpdateAccountInfo(ctx context.Context, _ asset.Item) (account.Ho
 		}
 		subAcc.Currencies = append(subAcc.Currencies, account.Balance{
 			Currency: currency.USDC,
-			Total:    acc.Accounts[x].QuoteBalance,
-			Hold:     acc.Accounts[x].PendingWithdrawals,
-			Free:     acc.Accounts[x].FreeCollateral,
+			Total:    acc.Accounts[x].QuoteBalance.Float64(),
+			Hold:     acc.Accounts[x].PendingWithdrawals.Float64(),
+			Free:     acc.Accounts[x].FreeCollateral.Float64(),
 		})
 		resp.Accounts = append(resp.Accounts, subAcc)
 	}
@@ -426,7 +426,7 @@ func (dy *DYDX) GetAccountFundingHistory(ctx context.Context) ([]exchange.Fundin
 				CryptoToAddress:   transfers.Transfers[x].ToAddress,
 				CryptoTxID:        transfers.Transfers[x].ID,
 				Status:            transfers.Transfers[x].Status,
-				Amount:            transfers.Transfers[x].CreditAmount,
+				Amount:            transfers.Transfers[x].CreditAmount.Float64(),
 				Currency:          transfers.Transfers[x].CreditAsset,
 			}
 		case "WITHDRAWAL", "FAST_WITHDRAWAL":
@@ -438,7 +438,7 @@ func (dy *DYDX) GetAccountFundingHistory(ctx context.Context) ([]exchange.Fundin
 				CryptoToAddress:   transfers.Transfers[x].ToAddress,
 				CryptoTxID:        transfers.Transfers[x].ID,
 				Status:            transfers.Transfers[x].Status,
-				Amount:            transfers.Transfers[x].DebitAmount,
+				Amount:            transfers.Transfers[x].DebitAmount.Float64(),
 				Currency:          transfers.Transfers[x].DebitAsset,
 			}
 		}
@@ -464,7 +464,7 @@ func (dy *DYDX) GetWithdrawalsHistory(ctx context.Context, _ currency.Code, a as
 				CryptoToAddress: transfers.Transfers[x].ToAddress,
 				CryptoTxID:      transfers.Transfers[x].ID,
 				Status:          transfers.Transfers[x].Status,
-				Amount:          transfers.Transfers[x].DebitAmount,
+				Amount:          transfers.Transfers[x].DebitAmount.Float64(),
 				Currency:        transfers.Transfers[x].DebitAsset,
 			})
 		}
@@ -501,8 +501,8 @@ func (dy *DYDX) GetRecentTrades(ctx context.Context, p currency.Pair, assetType 
 			CurrencyPair: p,
 			AssetType:    assetType,
 			Side:         side,
-			Price:        trades[x].Price,
-			Amount:       trades[x].Size,
+			Price:        trades[x].Price.Float64(),
+			Amount:       trades[x].Size.Float64(),
 			Timestamp:    trades[x].CreatedAt,
 		}
 	}
@@ -545,8 +545,8 @@ func (dy *DYDX) GetHistoricTrades(ctx context.Context, p currency.Pair, assetTyp
 			CurrencyPair: p,
 			AssetType:    assetType,
 			Side:         side,
-			Price:        trades[x].Price,
-			Amount:       trades[x].Size,
+			Price:        trades[x].Price.Float64(),
+			Amount:       trades[x].Size.Float64(),
 			Timestamp:    trades[x].CreatedAt,
 		}
 	}
@@ -683,18 +683,18 @@ func (dy *DYDX) GetOrderInfo(ctx context.Context, orderID string, _ currency.Pai
 	}
 	return &order.Detail{
 		OrderID:         orderDetail.ID,
-		Amount:          orderDetail.Size,
+		Amount:          orderDetail.Size.Float64(),
 		ClientOrderID:   orderDetail.ClientAssignedID,
 		Date:            orderDetail.CreatedAt,
 		Exchange:        dy.Name,
-		ExecutedAmount:  orderDetail.Size - orderDetail.RemainingSize,
+		ExecutedAmount:  orderDetail.Size.Float64() - orderDetail.RemainingSize.Float64(),
 		Pair:            pair,
-		RemainingAmount: orderDetail.RemainingSize,
+		RemainingAmount: orderDetail.RemainingSize.Float64(),
 		AssetType:       asset.Spot,
 		Status:          orderStatus,
 		Side:            orderSide,
 		Type:            orderType,
-		Fee:             orderDetail.LimitFee,
+		Fee:             orderDetail.LimitFee.Float64(),
 	}, nil
 }
 
@@ -781,19 +781,19 @@ func (dy *DYDX) GetActiveOrders(ctx context.Context, getOrdersRequest *order.Mul
 			}
 			filteredOrders = append(filteredOrders, order.Detail{
 				OrderID:         orders[x].ID,
-				Amount:          orders[x].Size,
+				Amount:          orders[x].Size.Float64(),
 				AssetType:       asset.Spot,
-				TriggerPrice:    orders[x].TriggerPrice,
+				TriggerPrice:    orders[x].TriggerPrice.Float64(),
 				ClientOrderID:   orders[x].ClientAssignedID,
 				Date:            orders[x].CreatedAt,
 				Exchange:        dy.Name,
 				Pair:            cp,
-				Price:           orders[x].Price,
-				RemainingAmount: orders[x].RemainingSize,
+				Price:           orders[x].Price.Float64(),
+				RemainingAmount: orders[x].RemainingSize.Float64(),
 				Status:          orderStatus,
 				Type:            orderType,
 				Side:            orderSide,
-				Fee:             orders[x].LimitFee,
+				Fee:             orders[x].LimitFee.Float64(),
 			})
 		}
 	}
@@ -857,19 +857,19 @@ func (dy *DYDX) GetOrderHistory(ctx context.Context, getOrdersRequest *order.Mul
 		}
 		filteredOrders = append(filteredOrders, order.Detail{
 			OrderID:         orders[x].ID,
-			Amount:          orders[x].Size,
+			Amount:          orders[x].Size.Float64(),
 			AssetType:       asset.Spot,
-			TriggerPrice:    orders[x].TriggerPrice,
+			TriggerPrice:    orders[x].TriggerPrice.Float64(),
 			ClientOrderID:   orders[x].ClientAssignedID,
 			Date:            orders[x].CreatedAt,
 			Exchange:        dy.Name,
 			Pair:            cp,
-			Price:           orders[x].Price,
-			RemainingAmount: orders[x].RemainingSize,
+			Price:           orders[x].Price.Float64(),
+			RemainingAmount: orders[x].RemainingSize.Float64(),
 			Status:          orderStatus,
 			Type:            orderType,
 			Side:            orderSide,
-			Fee:             orders[x].LimitFee,
+			Fee:             orders[x].LimitFee.Float64(),
 		})
 	}
 	return getOrdersRequest.Filter(dy.Name, filteredOrders), nil
@@ -888,11 +888,11 @@ func (dy *DYDX) GetFeeByType(ctx context.Context, feeBuilder *exchange.FeeBuilde
 	}
 	switch {
 	case feeBuilder.IsMaker, feeBuilder.PostOnly:
-		fee = user.User.MakerFeeRate * feeBuilder.Amount * feeBuilder.PurchasePrice
+		fee = user.User.MakerFeeRate.Float64() * feeBuilder.Amount * feeBuilder.PurchasePrice
 	case !feeBuilder.IsMaker,
 		feeBuilder.OrderType == order.FillOrKill ||
 			feeBuilder.OrderType == order.ImmediateOrCancel:
-		fee = user.User.TakerFeeRate * feeBuilder.Amount * feeBuilder.PurchasePrice
+		fee = user.User.TakerFeeRate.Float64() * feeBuilder.Amount * feeBuilder.PurchasePrice
 	}
 	if fee < 0 {
 		fee = 0
@@ -920,11 +920,11 @@ func (dy *DYDX) GetHistoricCandles(ctx context.Context, pair currency.Pair, a as
 	for x := range candles {
 		timeSeries[x] = kline.Candle{
 			Time:   candles[x].StartedAt,
-			Open:   candles[x].Open,
-			High:   candles[x].High,
-			Low:    candles[x].Low,
-			Close:  candles[x].Close,
-			Volume: candles[x].BaseTokenVolume,
+			Open:   candles[x].Open.Float64(),
+			High:   candles[x].High.Float64(),
+			Low:    candles[x].Low.Float64(),
+			Close:  candles[x].Close.Float64(),
+			Volume: candles[x].BaseTokenVolume.Float64(),
 		}
 	}
 
