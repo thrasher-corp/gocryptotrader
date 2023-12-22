@@ -2,88 +2,64 @@ package orderbook
 
 import (
 	"errors"
+	"math"
 	"reflect"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/gofrs/uuid"
+	"github.com/stretchr/testify/assert"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
 
-var id = uuid.Must(uuid.NewV4())
+var (
+	id           = uuid.Must(uuid.NewV4())
+	accuracy10dp = 1 / math.Pow10(10)
+)
 
 func TestGetLength(t *testing.T) {
 	t.Parallel()
 	d := NewDepth(id)
 	err := d.Invalidate(nil)
-	if !errors.Is(err, ErrOrderbookInvalid) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, ErrOrderbookInvalid)
-	}
+	assert.ErrorIs(t, err, ErrOrderbookInvalid, "Invalidate should error correctly")
+
 	_, err = d.GetAskLength()
-	if !errors.Is(err, ErrOrderbookInvalid) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, ErrOrderbookInvalid)
-	}
+	assert.ErrorIs(t, err, ErrOrderbookInvalid, "GetAskLength should error with invalid depth")
 
 	err = d.LoadSnapshot([]Item{{Price: 1337}}, nil, 0, time.Now(), true)
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.NoError(t, err, "LoadSnapshot should not error")
 
 	askLen, err := d.GetAskLength()
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
-
-	if askLen != 0 {
-		t.Errorf("expected len %v, but received %v", 0, askLen)
-	}
+	assert.NoError(t, err, "GetAskLength should not error")
+	assert.Zero(t, askLen, "ask length should be zero")
 
 	d.asks.load([]Item{{Price: 1337}}, d.stack, time.Now())
 
 	askLen, err = d.GetAskLength()
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
-
-	if askLen != 1 {
-		t.Errorf("expected len %v, but received %v", 1, askLen)
-	}
+	assert.NoError(t, err, "GetAskLength should not error")
+	assert.Equal(t, 1, askLen, "Ask Length should be correct")
 
 	d = NewDepth(id)
 	err = d.Invalidate(nil)
-	if !errors.Is(err, ErrOrderbookInvalid) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, ErrOrderbookInvalid)
-	}
+	assert.ErrorIs(t, err, ErrOrderbookInvalid, "Invalidate should error correctly")
+
 	_, err = d.GetBidLength()
-	if !errors.Is(err, ErrOrderbookInvalid) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, ErrOrderbookInvalid)
-	}
+	assert.ErrorIs(t, err, ErrOrderbookInvalid, "GetBidLength should error with invalid depth")
 
 	err = d.LoadSnapshot(nil, []Item{{Price: 1337}}, 0, time.Now(), true)
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.NoError(t, err, "LoadSnapshot should not error")
 
 	bidLen, err := d.GetBidLength()
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
-
-	if bidLen != 0 {
-		t.Errorf("expected len %v, but received %v", 0, bidLen)
-	}
+	assert.NoError(t, err, "GetBidLength should not error")
+	assert.Zero(t, bidLen, "bid length should be zero")
 
 	d.bids.load([]Item{{Price: 1337}}, d.stack, time.Now())
 
 	bidLen, err = d.GetBidLength()
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
-
-	if bidLen != 1 {
-		t.Errorf("expected len %v, but received %v", 1, bidLen)
-	}
+	assert.NoError(t, err, "GetBidLength should not error")
+	assert.Equal(t, 1, bidLen, "Bid Length should be correct")
 }
 
 func TestRetrieve(t *testing.T) {
@@ -111,28 +87,14 @@ func TestRetrieve(t *testing.T) {
 	mirrored := reflect.Indirect(reflect.ValueOf(d.options))
 	for n := 0; n < mirrored.NumField(); n++ {
 		structVal := mirrored.Field(n)
-		if structVal.IsZero() {
-			t.Fatalf("struct value options not set for field %v",
-				mirrored.Type().Field(n).Name)
-		}
+		assert.Falsef(t, structVal.IsZero(), "struct field '%s' not tested", mirrored.Type().Field(n).Name)
 	}
 
 	ob, err := d.Retrieve()
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
-
-	if len(ob.Asks) != 1 {
-		t.Errorf("expected len %v, but received %v", 1, len(ob.Bids))
-	}
-
-	if len(ob.Bids) != 1 {
-		t.Errorf("expected len %v, but received %v", 1, len(ob.Bids))
-	}
-
-	if ob.MaxDepth != 10 {
-		t.Errorf("expected max depth %v, but received %v", 10, ob.MaxDepth)
-	}
+	assert.NoError(t, err, "Retrieve should not error")
+	assert.Len(t, ob.Asks, 1, "Should have correct Asks")
+	assert.Len(t, ob.Bids, 1, "Should have correct Bids")
+	assert.Equal(t, 10, ob.MaxDepth, "Should have correct MaxDepth")
 }
 
 func TestTotalAmounts(t *testing.T) {
@@ -140,104 +102,59 @@ func TestTotalAmounts(t *testing.T) {
 	d := NewDepth(id)
 
 	err := d.Invalidate(nil)
-	if !errors.Is(err, ErrOrderbookInvalid) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, ErrOrderbookInvalid)
-	}
+	assert.ErrorIs(t, err, ErrOrderbookInvalid, "Invalidate should error correctly")
 	_, _, err = d.TotalBidAmounts()
-	if !errors.Is(err, ErrOrderbookInvalid) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, ErrOrderbookInvalid)
-	}
+	assert.ErrorIs(t, err, ErrOrderbookInvalid, "TotalBidAmounts should error correctly")
 
 	d.validationError = nil
 	liquidity, value, err := d.TotalBidAmounts()
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
-
-	if liquidity != 0 || value != 0 {
-		t.Fatalf("liquidity expected %f received %f value expected %f received %f",
-			0.,
-			liquidity,
-			0.,
-			value)
-	}
+	assert.NoError(t, err, "TotalBidAmounts should not error")
+	assert.Zero(t, liquidity, "total bid liquidity should be zero")
+	assert.Zero(t, value, "total bid value should be zero")
 
 	err = d.Invalidate(nil)
-	if !errors.Is(err, ErrOrderbookInvalid) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, ErrOrderbookInvalid)
-	}
+	assert.ErrorIs(t, err, ErrOrderbookInvalid, "Invalidate should error correctly")
 
 	_, _, err = d.TotalAskAmounts()
-	if !errors.Is(err, ErrOrderbookInvalid) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, ErrOrderbookInvalid)
-	}
+	assert.ErrorIs(t, err, ErrOrderbookInvalid, "TotalAskAmounts should error correctly")
 
 	d.validationError = nil
 
 	liquidity, value, err = d.TotalAskAmounts()
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
-
-	if liquidity != 0 || value != 0 {
-		t.Fatalf("liquidity expected %f received %f value expected %f received %f",
-			0.,
-			liquidity,
-			0.,
-			value)
-	}
+	assert.NoError(t, err, "TotalAskAmounts should not error")
+	assert.Zero(t, liquidity, "total ask liquidity should be zero")
+	assert.Zero(t, value, "total ask value should be zero")
 
 	d.asks.load([]Item{{Price: 1337, Amount: 1}}, d.stack, time.Now())
 	d.bids.load([]Item{{Price: 1337, Amount: 10}}, d.stack, time.Now())
 
 	liquidity, value, err = d.TotalBidAmounts()
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
-
-	if liquidity != 10 || value != 13370 {
-		t.Fatalf("liquidity expected %f received %f value expected %f received %f",
-			10.,
-			liquidity,
-			13370.,
-			value)
-	}
+	assert.NoError(t, err, "TotalBidAmounts should not error")
+	assert.Equal(t, 10.0, liquidity, "total bid liquidity should be correct")
+	assert.Equal(t, 13370.0, value, "total bid value should be correct")
 
 	liquidity, value, err = d.TotalAskAmounts()
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
-
-	if liquidity != 1 || value != 1337 {
-		t.Fatalf("liquidity expected %f received %f value expected %f received %f",
-			1.,
-			liquidity,
-			1337.,
-			value)
-	}
+	assert.NoError(t, err, "TotalAskAmounts should not error")
+	assert.Equal(t, 1.0, liquidity, "total ask liquidity should be correct")
+	assert.Equal(t, 1337.0, value, "total ask value should be correct")
 }
 
 func TestLoadSnapshot(t *testing.T) {
 	t.Parallel()
 	d := NewDepth(id)
 	err := d.LoadSnapshot(Items{{Price: 1337, Amount: 1}}, Items{{Price: 1337, Amount: 10}}, 0, time.Time{}, false)
-	if !errors.Is(err, errLastUpdatedNotSet) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errLastUpdatedNotSet)
-	}
+	assert.ErrorIs(t, err, errLastUpdatedNotSet, "LoadSnapshot should error correctly")
 
-	err = d.LoadSnapshot(Items{{Price: 1337, Amount: 1}}, Items{{Price: 1337, Amount: 10}}, 0, time.Now(), false)
-	if err != nil {
-		t.Fatal(err)
-	}
+	err = d.LoadSnapshot(Items{{Price: 1337, Amount: 2}}, Items{{Price: 1338, Amount: 10}}, 0, time.Now(), false)
+	assert.NoError(t, err, "LoadSnapshot should not error")
 
 	ob, err := d.Retrieve()
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	assert.NoError(t, err, "Retrieve should not error")
 
-	if ob.Asks[0].Price != 1337 || ob.Bids[0].Price != 1337 {
-		t.Fatalf("not set")
-	}
+	assert.Equal(t, 1338.0, ob.Asks[0].Price, "Top ask price should be correct")
+	assert.Equal(t, 10.0, ob.Asks[0].Amount, "Top ask amount should be correct")
+	assert.Equal(t, 1337.0, ob.Bids[0].Price, "Top bid price should be correct")
+	assert.Equal(t, 2.0, ob.Bids[0].Amount, "Top bid amount should be correct")
 }
 
 func TestInvalidate(t *testing.T) {
@@ -246,115 +163,81 @@ func TestInvalidate(t *testing.T) {
 	d.exchange = "testexchange"
 	d.pair = currency.NewPair(currency.BTC, currency.WABI)
 	d.asset = asset.Spot
+
 	err := d.LoadSnapshot(Items{{Price: 1337, Amount: 1}}, Items{{Price: 1337, Amount: 10}}, 0, time.Now(), false)
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.NoError(t, err, "LoadSnapshot should not error")
 
 	ob, err := d.Retrieve()
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
-
-	if ob == nil {
-		t.Fatalf("unexpected value")
-	}
+	assert.NoError(t, err, "Retrieve should not error")
+	assert.NotNil(t, ob, "ob should not be nil")
 
 	testReason := errors.New("random reason")
 
 	err = d.Invalidate(testReason)
-	if !errors.Is(err, ErrOrderbookInvalid) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, ErrOrderbookInvalid)
-	}
+	assert.ErrorIs(t, err, ErrOrderbookInvalid, "Invalidate should error correctly")
 
 	_, err = d.Retrieve()
-	if !errors.Is(err, ErrOrderbookInvalid) && !errors.Is(err, testReason) {
-		t.Fatalf("received: '%v' but expected: '%v' && '%v'", err, ErrOrderbookInvalid, testReason)
-	}
+	assert.ErrorIs(t, err, ErrOrderbookInvalid, "Retrieve should error correctly")
+	assert.ErrorIs(t, err, testReason, "Invalidate should error correctly")
 
 	d.validationError = nil
 
 	ob, err = d.Retrieve()
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	assert.NoError(t, err, "Retrieve should not error")
 
-	if len(ob.Asks) != 0 || len(ob.Bids) != 0 {
-		t.Fatalf("not flushed")
-	}
+	assert.Empty(t, ob.Asks, "Orderbook Asks should be flushed")
+	assert.Empty(t, ob.Bids, "Orderbook Bids should be flushed")
 }
 
 func TestUpdateBidAskByPrice(t *testing.T) {
 	t.Parallel()
 	d := NewDepth(id)
-	err := d.LoadSnapshot(Items{{Price: 1337, Amount: 1, ID: 1}}, Items{{Price: 1337, Amount: 10, ID: 2}}, 0, time.Now(), false)
-	if err != nil {
-		t.Fatal(err)
-	}
-	err = d.UpdateBidAskByPrice(&Update{})
-	if !errors.Is(err, errLastUpdatedNotSet) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errLastUpdatedNotSet)
-	}
+	err := d.LoadSnapshot(Items{{Price: 1337, Amount: 1, ID: 1}}, Items{{Price: 1338, Amount: 10, ID: 2}}, 0, time.Now(), false)
+	assert.NoError(t, err, "LoadSnapshot should not error")
 
-	// empty
+	err = d.UpdateBidAskByPrice(&Update{})
+	assert.ErrorIs(t, err, errLastUpdatedNotSet, "UpdateBidAskByPrice should error correctly")
+
 	err = d.UpdateBidAskByPrice(&Update{UpdateTime: time.Now()})
-	if err != nil {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	assert.NoError(t, err, "UpdateBidAskByPrice should not error")
 
 	updates := &Update{
 		Bids:       Items{{Price: 1337, Amount: 2, ID: 1}},
-		Asks:       Items{{Price: 1337, Amount: 2, ID: 2}},
+		Asks:       Items{{Price: 1338, Amount: 3, ID: 2}},
 		UpdateID:   1,
 		UpdateTime: time.Now(),
 	}
 	err = d.UpdateBidAskByPrice(updates)
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.NoError(t, err, "UpdateBidAskByPrice should not error")
 
 	ob, err := d.Retrieve()
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
-
-	if ob.Asks[0].Amount != 2 || ob.Bids[0].Amount != 2 {
-		t.Fatalf("orderbook amounts not updated correctly")
-	}
+	assert.NoError(t, err, "Retrieve should not error")
+	assert.Equal(t, 3.0, ob.Asks[0].Amount, "Asks amount should be correct")
+	assert.Equal(t, 2.0, ob.Bids[0].Amount, "Bids amount should be correct")
 
 	updates = &Update{
 		Bids:       Items{{Price: 1337, Amount: 0, ID: 1}},
-		Asks:       Items{{Price: 1337, Amount: 0, ID: 2}},
+		Asks:       Items{{Price: 1338, Amount: 0, ID: 2}},
 		UpdateID:   2,
 		UpdateTime: time.Now(),
 	}
 	err = d.UpdateBidAskByPrice(updates)
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.NoError(t, err, "UpdateBidAskByPrice should not error")
 
 	askLen, err := d.GetAskLength()
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	assert.NoError(t, err, "GetAskLength should not error")
+	assert.Zero(t, askLen, "Ask Length should be correct")
 
 	bidLen, err := d.GetBidLength()
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
-
-	if askLen != 0 || bidLen != 0 {
-		t.Fatalf("orderbook amounts not updated correctly")
-	}
+	assert.NoError(t, err, "GetBidLength should not error")
+	assert.Zero(t, bidLen, "Bid Length should be correct")
 }
 
 func TestDeleteBidAskByID(t *testing.T) {
 	t.Parallel()
 	d := NewDepth(id)
 	err := d.LoadSnapshot(Items{{Price: 1337, Amount: 1, ID: 1}}, Items{{Price: 1337, Amount: 10, ID: 2}}, 0, time.Now(), false)
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.NoError(t, err, "LoadSnapshot should not error")
 
 	updates := &Update{
 		Bids: Items{{Price: 1337, Amount: 2, ID: 1}},
@@ -362,60 +245,44 @@ func TestDeleteBidAskByID(t *testing.T) {
 	}
 
 	err = d.DeleteBidAskByID(updates, false)
-	if !errors.Is(err, errLastUpdatedNotSet) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errLastUpdatedNotSet)
-	}
+	assert.ErrorIs(t, err, errLastUpdatedNotSet, "DeleteBidAskByID should error correctly")
 
 	updates.UpdateTime = time.Now()
 	err = d.DeleteBidAskByID(updates, false)
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.NoError(t, err, "DeleteBidAskByID should not error")
 
 	ob, err := d.Retrieve()
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
-
-	if len(ob.Asks) != 0 || len(ob.Bids) != 0 {
-		t.Fatalf("items not deleted")
-	}
+	assert.NoError(t, err, "Retrieve should not error")
+	assert.Empty(t, ob.Asks, "Asks should be empty")
+	assert.Empty(t, ob.Bids, "Bids should be empty")
 
 	updates = &Update{
 		Bids:       Items{{Price: 1337, Amount: 2, ID: 1}},
 		UpdateTime: time.Now(),
 	}
 	err = d.DeleteBidAskByID(updates, false)
-	if !errors.Is(err, errIDCannotBeMatched) {
-		t.Fatalf("error expected %v received %v", errIDCannotBeMatched, err)
-	}
+	assert.ErrorIs(t, err, errIDCannotBeMatched, "DeleteBidAskByID should error correctly")
 
 	updates = &Update{
 		Asks:       Items{{Price: 1337, Amount: 2, ID: 2}},
 		UpdateTime: time.Now(),
 	}
 	err = d.DeleteBidAskByID(updates, false)
-	if !errors.Is(err, errIDCannotBeMatched) {
-		t.Fatalf("error expected %v received %v", errIDCannotBeMatched, err)
-	}
+	assert.ErrorIs(t, err, errIDCannotBeMatched, "DeleteBidAskByID should error correctly")
 
 	updates = &Update{
 		Asks:       Items{{Price: 1337, Amount: 2, ID: 2}},
 		UpdateTime: time.Now(),
 	}
 	err = d.DeleteBidAskByID(updates, true)
-	if !errors.Is(err, nil) {
-		t.Fatalf("error expected %v received %v", nil, err)
-	}
+	assert.NoError(t, err, "DeleteBidAskByID should not error")
 }
 
 func TestUpdateBidAskByID(t *testing.T) {
 	t.Parallel()
 	d := NewDepth(id)
 	err := d.LoadSnapshot(Items{{Price: 1337, Amount: 1, ID: 1}}, Items{{Price: 1337, Amount: 10, ID: 2}}, 0, time.Now(), false)
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.NoError(t, err, "LoadSnapshot should not error")
 
 	updates := &Update{
 		Bids: Items{{Price: 1337, Amount: 2, ID: 1}},
@@ -423,24 +290,16 @@ func TestUpdateBidAskByID(t *testing.T) {
 	}
 
 	err = d.UpdateBidAskByID(updates)
-	if !errors.Is(err, errLastUpdatedNotSet) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errLastUpdatedNotSet)
-	}
+	assert.ErrorIs(t, err, errLastUpdatedNotSet, "UpdateBidAskByID should error correctly")
 
 	updates.UpdateTime = time.Now()
 	err = d.UpdateBidAskByID(updates)
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.NoError(t, err, "UpdateBidAskByID should not error")
 
 	ob, err := d.Retrieve()
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
-
-	if ob.Asks[0].Amount != 2 || ob.Bids[0].Amount != 2 {
-		t.Fatalf("orderbook amounts not updated correctly")
-	}
+	assert.NoError(t, err, "Retrieve should not error")
+	assert.Equal(t, 2.0, ob.Asks[0].Amount, "First ask amount should be correct")
+	assert.Equal(t, 2.0, ob.Bids[0].Amount, "First bid amount should be correct")
 
 	updates = &Update{
 		Bids:       Items{{Price: 1337, Amount: 2, ID: 666}},
@@ -448,47 +307,35 @@ func TestUpdateBidAskByID(t *testing.T) {
 	}
 	// random unmatching IDs
 	err = d.UpdateBidAskByID(updates)
-	if !errors.Is(err, errIDCannotBeMatched) {
-		t.Fatalf("error expected %v received %v", errIDCannotBeMatched, err)
-	}
+	assert.ErrorIs(t, err, errIDCannotBeMatched, "UpdateBidAskByID should error correctly")
 
 	updates = &Update{
 		Asks:       Items{{Price: 1337, Amount: 2, ID: 69}},
 		UpdateTime: time.Now(),
 	}
 	err = d.UpdateBidAskByID(updates)
-	if !errors.Is(err, errIDCannotBeMatched) {
-		t.Fatalf("error expected %v received %v", errIDCannotBeMatched, err)
-	}
+	assert.ErrorIs(t, err, errIDCannotBeMatched, "UpdateBidAskByID should error correctly")
 }
 
 func TestInsertBidAskByID(t *testing.T) {
 	t.Parallel()
 	d := NewDepth(id)
 	err := d.LoadSnapshot(Items{{Price: 1337, Amount: 1, ID: 1}}, Items{{Price: 1337, Amount: 10, ID: 2}}, 0, time.Now(), false)
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.NoError(t, err, "LoadSnapshot should not error")
 
 	updates := &Update{
 		Asks: Items{{Price: 1337, Amount: 2, ID: 3}},
 	}
 	err = d.InsertBidAskByID(updates)
-	if !errors.Is(err, errLastUpdatedNotSet) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errLastUpdatedNotSet)
-	}
+	assert.ErrorIs(t, err, errLastUpdatedNotSet, "InsertBidAskByID should error correctly")
 
 	updates.UpdateTime = time.Now()
 
 	err = d.InsertBidAskByID(updates)
-	if !errors.Is(err, errCollisionDetected) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errCollisionDetected)
-	}
+	assert.ErrorIs(t, err, errCollisionDetected, "InsertBidAskByID should error correctly on collision")
 
 	err = d.LoadSnapshot(Items{{Price: 1337, Amount: 1, ID: 1}}, Items{{Price: 1337, Amount: 10, ID: 2}}, 0, time.Now(), false)
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.NoError(t, err, "LoadSnapshot should not error")
 
 	updates = &Update{
 		Bids:       Items{{Price: 1337, Amount: 2, ID: 3}},
@@ -496,14 +343,10 @@ func TestInsertBidAskByID(t *testing.T) {
 	}
 
 	err = d.InsertBidAskByID(updates)
-	if !errors.Is(err, errCollisionDetected) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errCollisionDetected)
-	}
+	assert.ErrorIs(t, err, errCollisionDetected, "InsertBidAskByID should error correctly on collision")
 
 	err = d.LoadSnapshot(Items{{Price: 1337, Amount: 1, ID: 1}}, Items{{Price: 1337, Amount: 10, ID: 2}}, 0, time.Now(), false)
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.NoError(t, err, "LoadSnapshot should not error")
 
 	updates = &Update{
 		Bids:       Items{{Price: 1338, Amount: 2, ID: 3}},
@@ -511,53 +354,37 @@ func TestInsertBidAskByID(t *testing.T) {
 		UpdateTime: time.Now(),
 	}
 	err = d.InsertBidAskByID(updates)
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.NoError(t, err, "InsertBidAskByID should not error")
 
 	ob, err := d.Retrieve()
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
-
-	if len(ob.Asks) != 2 || len(ob.Bids) != 2 {
-		t.Fatalf("items not added correctly")
-	}
+	assert.NoError(t, err, "Retrieve should not error")
+	assert.Len(t, ob.Asks, 2, "Should have correct Asks")
+	assert.Len(t, ob.Bids, 2, "Should have correct Bids")
 }
 
 func TestUpdateInsertByID(t *testing.T) {
 	t.Parallel()
 	d := NewDepth(id)
 	err := d.LoadSnapshot(Items{{Price: 1337, Amount: 1, ID: 1}}, Items{{Price: 1337, Amount: 10, ID: 2}}, 0, time.Now(), false)
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.NoError(t, err, "LoadSnapshot should not error")
 
 	updates := &Update{
 		Bids: Items{{Price: 1338, Amount: 0, ID: 3}},
 		Asks: Items{{Price: 1336, Amount: 2, ID: 4}},
 	}
 	err = d.UpdateInsertByID(updates)
-	if !errors.Is(err, errLastUpdatedNotSet) {
-		t.Fatalf("expected: %v but received: %v", errLastUpdatedNotSet, err)
-	}
+	assert.ErrorIs(t, err, errLastUpdatedNotSet, "UpdateInsertByID should error correctly")
 
 	updates.UpdateTime = time.Now()
 	err = d.UpdateInsertByID(updates)
-	if !errors.Is(err, errAmountCannotBeLessOrEqualToZero) {
-		t.Fatalf("expected: %v but received: %v", errAmountCannotBeLessOrEqualToZero, err)
-	}
+	assert.ErrorIs(t, err, errAmountCannotBeLessOrEqualToZero, "UpdateInsertByID should error correctly")
 
 	// Above will invalidate the book
 	_, err = d.Retrieve()
-	if !errors.Is(err, ErrOrderbookInvalid) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, ErrOrderbookInvalid)
-	}
+	assert.ErrorIs(t, err, ErrOrderbookInvalid, "Retrieve should error correctly")
 
 	err = d.LoadSnapshot(Items{{Price: 1337, Amount: 1, ID: 1}}, Items{{Price: 1337, Amount: 10, ID: 2}}, 0, time.Now(), false)
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.NoError(t, err, "LoadSnapshot should not error")
 
 	updates = &Update{
 		Bids:       Items{{Price: 1338, Amount: 2, ID: 3}},
@@ -565,20 +392,14 @@ func TestUpdateInsertByID(t *testing.T) {
 		UpdateTime: time.Now(),
 	}
 	err = d.UpdateInsertByID(updates)
-	if !errors.Is(err, errAmountCannotBeLessOrEqualToZero) {
-		t.Fatalf("expected: %v but received: %v", errAmountCannotBeLessOrEqualToZero, err)
-	}
+	assert.ErrorIs(t, err, errAmountCannotBeLessOrEqualToZero, "UpdateInsertByID should error correctly")
 
 	// Above will invalidate the book
 	_, err = d.Retrieve()
-	if !errors.Is(err, ErrOrderbookInvalid) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, ErrOrderbookInvalid)
-	}
+	assert.ErrorIs(t, err, ErrOrderbookInvalid, "Retrieve should error correctly")
 
 	err = d.LoadSnapshot(Items{{Price: 1337, Amount: 1, ID: 1}}, Items{{Price: 1337, Amount: 10, ID: 2}}, 0, time.Now(), false)
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.NoError(t, err, "LoadSnapshot should not error")
 
 	updates = &Update{
 		Bids:       Items{{Price: 1338, Amount: 2, ID: 3}},
@@ -586,18 +407,12 @@ func TestUpdateInsertByID(t *testing.T) {
 		UpdateTime: time.Now(),
 	}
 	err = d.UpdateInsertByID(updates)
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.NoError(t, err, "UpdateInsertByID should not error")
 
 	ob, err := d.Retrieve()
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
-
-	if len(ob.Asks) != 2 || len(ob.Bids) != 2 {
-		t.Fatalf("items not added correctly")
-	}
+	assert.NoError(t, err, "Retrieve should not error")
+	assert.Len(t, ob.Asks, 2, "Should have correct Asks")
+	assert.Len(t, ob.Bids, 2, "Should have correct Bids")
 }
 
 func TestAssignOptions(t *testing.T) {
@@ -618,27 +433,23 @@ func TestAssignOptions(t *testing.T) {
 		IDAlignment:      true,
 	})
 
-	if d.exchange != "test" ||
-		d.pair != cp ||
-		d.asset != asset.Spot ||
-		d.lastUpdated != tn ||
-		d.lastUpdateID != 1337 ||
-		!d.priceDuplication ||
-		!d.isFundingRate ||
-		!d.VerifyOrderbook ||
-		!d.restSnapshot ||
-		!d.idAligned {
-		t.Fatalf("failed to set correctly")
-	}
+	assert.Equal(t, "test", d.exchange, "exchange should be correct")
+	assert.Equal(t, cp, d.pair, "pair should be correct")
+	assert.Equal(t, asset.Spot, d.asset, "asset should be correct")
+	assert.Equal(t, tn, d.lastUpdated, "lastUpdated should be correct")
+	assert.EqualValues(t, 1337, d.lastUpdateID, "lastUpdatedID should be correct")
+	assert.True(t, d.priceDuplication, "priceDuplication should be correct")
+	assert.True(t, d.isFundingRate, "isFundingRate should be correct")
+	assert.True(t, d.VerifyOrderbook, "VerifyOrderbook should be correct")
+	assert.True(t, d.restSnapshot, "restSnapshot should be correct")
+	assert.True(t, d.idAligned, "idAligned should be correct")
 }
 
 func TestGetName(t *testing.T) {
 	t.Parallel()
 	d := Depth{}
 	d.exchange = "test"
-	if d.GetName() != "test" {
-		t.Fatalf("failed to get correct value")
-	}
+	assert.Equal(t, "test", d.GetName(), "GetName should return correct value")
 }
 
 func TestIsRestSnapshot(t *testing.T) {
@@ -646,64 +457,45 @@ func TestIsRestSnapshot(t *testing.T) {
 	d := Depth{}
 	d.restSnapshot = true
 	err := d.Invalidate(nil)
-	if !errors.Is(err, ErrOrderbookInvalid) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, ErrOrderbookInvalid)
-	}
+	assert.ErrorIs(t, err, ErrOrderbookInvalid, "Invalidate should error correctly")
 	_, err = d.IsRESTSnapshot()
-	if !errors.Is(err, ErrOrderbookInvalid) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, ErrOrderbookInvalid)
-	}
+	assert.ErrorIs(t, err, ErrOrderbookInvalid, "IsRESTSnapshot should error correctly")
 
 	d.validationError = nil
 	b, err := d.IsRESTSnapshot()
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
-
-	if !b {
-		t.Fatalf("received: '%v' but expected: '%v'", b, true)
-	}
+	assert.NoError(t, err, "IsRESTSnapshot should not error")
+	assert.True(t, b, "IsRESTSnapshot should return correct value")
 }
 
 func TestLastUpdateID(t *testing.T) {
 	t.Parallel()
 	d := Depth{}
 	err := d.Invalidate(nil)
-	if !errors.Is(err, ErrOrderbookInvalid) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, ErrOrderbookInvalid)
-	}
+	assert.ErrorIs(t, err, ErrOrderbookInvalid, "Invalidate should error correctly")
+
 	_, err = d.LastUpdateID()
-	if !errors.Is(err, ErrOrderbookInvalid) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, ErrOrderbookInvalid)
-	}
+	assert.ErrorIs(t, err, ErrOrderbookInvalid, "LastUpdateID should error correctly")
 
 	d.validationError = nil
 	d.lastUpdateID = 1337
 	id, err := d.LastUpdateID()
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	assert.NoError(t, err, "LastUpdateID should not error")
 
-	if id != 1337 {
-		t.Fatalf("received: '%v' but expected: '%v'", id, 1337)
-	}
+	assert.EqualValues(t, 1337, id, "LastUpdateID should return correct value")
 }
 
 func TestIsFundingRate(t *testing.T) {
 	t.Parallel()
 	d := Depth{}
 	d.isFundingRate = true
-	if !d.IsFundingRate() {
-		t.Fatalf("failed to get correct value")
-	}
+	assert.True(t, d.IsFundingRate(), "IsFundingRate should return true")
 }
 
 func TestPublish(t *testing.T) {
 	t.Parallel()
 	d := Depth{}
-	if err := d.Invalidate(nil); !errors.Is(err, ErrOrderbookInvalid) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, ErrOrderbookInvalid)
-	}
+	err := d.Invalidate(nil)
+	assert.ErrorIs(t, err, ErrOrderbookInvalid, "Invalidate should error correctly")
 	d.Publish()
 	d.validationError = nil
 	d.Publish()
@@ -712,1663 +504,175 @@ func TestPublish(t *testing.T) {
 func TestIsValid(t *testing.T) {
 	t.Parallel()
 	d := Depth{}
-	if !d.IsValid() {
-		t.Fatalf("received: '%v' but expected: '%v'", d.IsValid(), true)
-	}
-	if err := d.Invalidate(nil); !errors.Is(err, ErrOrderbookInvalid) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, ErrOrderbookInvalid)
-	}
-	if d.IsValid() {
-		t.Fatalf("received: '%v' but expected: '%v'", d.IsValid(), false)
-	}
-}
-
-func TestHitTheBidsByNominalSlippage(t *testing.T) {
-	t.Parallel()
-	_, err := getInvalidDepth().HitTheBidsByNominalSlippage(10, 1355.5)
-	if !errors.Is(err, ErrOrderbookInvalid) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, ErrOrderbookInvalid)
-	}
-
-	depth := NewDepth(id)
-	_, err = depth.HitTheBidsByNominalSlippage(10, 1355.5)
-	if !errors.Is(err, errNoLiquidity) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errNoLiquidity)
-	}
-
-	err = depth.LoadSnapshot(bid, ask, 0, time.Now(), true)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	// First tranche
-	amt, err := depth.HitTheBidsByNominalSlippage(0, 1336)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
-
-	if amt.Sold != 1 {
-		t.Fatalf("received: '%+v' but expected: '%v'", amt, 2)
-	}
-
-	if amt.NominalPercentage != 0 {
-		t.Fatalf("received: '%+v' but expected: '%v'", amt, 0)
-	}
-
-	if amt.StartPrice != 1336 {
-		t.Fatalf("received: '%+v' but expected: '%v'", amt, 1336)
-	}
-
-	if amt.EndPrice != 1336 {
-		t.Fatalf("received: '%+v' but expected: '%v'", amt, 1336)
-	}
-
-	if amt.FullBookSideConsumed {
-		t.Fatalf("received: '%+v' but expected: '%v'", amt.FullBookSideConsumed, false)
-	}
-
-	// First and second price
-	amt, err = depth.HitTheBidsByNominalSlippage(0.037425149700598806, 1336)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
-
-	if amt.Sold != 2 {
-		t.Fatalf("received: '%+v' but expected: '%v'", amt, 2)
-	}
-
-	if amt.NominalPercentage != 0.037425149700598806 {
-		t.Fatalf("received: '%+v' but expected: '%v'", amt, 0.037425149700598806)
-	}
-
-	if amt.StartPrice != 1336 {
-		t.Fatalf("received: '%+v' but expected: '%v'", amt, 1336)
-	}
-
-	if amt.EndPrice != 1335 {
-		t.Fatalf("received: '%+v' but expected: '%v'", amt, 1335)
-	}
-
-	if amt.FullBookSideConsumed {
-		t.Fatalf("received: '%+v' but expected: '%v'", amt.FullBookSideConsumed, false)
-	}
-
-	// First and half of second tranche
-	amt, err = depth.HitTheBidsByNominalSlippage(0.02495009980039353, 1336)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
-
-	if amt.Sold != 1.4999999999998295 {
-		t.Fatalf("received: '%+v' but expected: '%v'", amt, 1.4999999999998295)
-	}
-
-	if amt.NominalPercentage != 0.02495009980039353 {
-		t.Fatalf("received: '%+v' but expected: '%v'", amt, 0.02495009980039353)
-	}
-
-	if amt.StartPrice != 1336 {
-		t.Fatalf("received: '%+v' but expected: '%v'", amt, 1336)
-	}
-
-	if amt.EndPrice != 1335 {
-		t.Fatalf("received: '%+v' but expected: '%v'", amt, 1335)
-	}
-
-	if amt.FullBookSideConsumed {
-		t.Fatalf("received: '%+v' but expected: '%v'", amt.FullBookSideConsumed, false)
-	}
-
-	// All the way up to the last price
-	amt, err = depth.HitTheBidsByNominalSlippage(0.7110778443113772, 1336)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
-
-	// This exceeds the entire total base available - should be 20.
-	if amt.Sold != 20 {
-		t.Fatalf("received: '%+v' but expected: '%v'", amt, 20.00721336370539)
-	}
-
-	if amt.NominalPercentage != 0.7110778443113772 {
-		t.Fatalf("received: '%+v' but expected: '%v'", amt, 0.7110778443113772)
-	}
-
-	if amt.StartPrice != 1336 {
-		t.Fatalf("received: '%+v' but expected: '%v'", amt, 1336)
-	}
-
-	if amt.EndPrice != 1317 {
-		t.Fatalf("received: '%+v' but expected: '%v'", amt, 1317)
-	}
-
-	if !amt.FullBookSideConsumed {
-		t.Fatalf("received: '%+v' but expected: '%v'", amt.FullBookSideConsumed, true)
-	}
-}
-
-func TestHitTheBidsByNominalSlippageFromMid(t *testing.T) {
-	t.Parallel()
-	_, err := getInvalidDepth().HitTheBidsByNominalSlippageFromMid(10)
-	if !errors.Is(err, ErrOrderbookInvalid) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, ErrOrderbookInvalid)
-	}
-
-	depth := NewDepth(id)
-
-	_, err = depth.HitTheBidsByNominalSlippageFromMid(10)
-	if !errors.Is(err, errNoLiquidity) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errNoLiquidity)
-	}
-
-	err = depth.LoadSnapshot(bid, ask, 0, time.Now(), true)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	// First price from mid point
-	amt, err := depth.HitTheBidsByNominalSlippageFromMid(0.03741114852226)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
-
-	if amt.Sold != 1 {
-		t.Fatalf("received: '%v' but expected: '%v'", amt, 1)
-	}
-
-	// All the way up to the last price from mid price
-	amt, err = depth.HitTheBidsByNominalSlippageFromMid(0.74822297044519)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
-
-	// This exceeds the entire total base available
-	if amt.Sold != 20 {
-		t.Fatalf("received: '%v' but expected: '%v'", amt, 20)
-	}
-}
-
-func TestHitTheBidsByNominalSlippageFromBest(t *testing.T) {
-	t.Parallel()
-	_, err := getInvalidDepth().HitTheBidsByNominalSlippageFromBest(10)
-	if !errors.Is(err, ErrOrderbookInvalid) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, ErrOrderbookInvalid)
-	}
-
-	depth := NewDepth(id)
-
-	_, err = depth.HitTheBidsByNominalSlippageFromBest(10)
-	if !errors.Is(err, errNoLiquidity) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errNoLiquidity)
-	}
-
-	err = depth.LoadSnapshot(bid, ask, 0, time.Now(), true)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	// First and second price from best bid
-	amt, err := depth.HitTheBidsByNominalSlippageFromBest(0.037425149700599)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
-
-	if amt.Sold != 2 {
-		t.Fatalf("received: '%+v' but expected: '%+v'", amt, 2)
-	}
-
-	// All the way up to the last price from best bid price
-	amt, err = depth.HitTheBidsByNominalSlippageFromBest(0.71107784431138)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
-
-	// This exceeds the entire total base available
-	if amt.Sold != 20 {
-		t.Fatalf("received: '%v' but expected: '%v'", amt, 20)
-	}
-}
-
-func TestLiftTheAsksByNominalSlippage(t *testing.T) {
-	t.Parallel()
-	_, err := getInvalidDepth().LiftTheAsksByNominalSlippage(10, 1355.5)
-	if !errors.Is(err, ErrOrderbookInvalid) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, ErrOrderbookInvalid)
-	}
-
-	depth := NewDepth(id)
-
-	_, err = depth.LiftTheAsksByNominalSlippage(10, 1355.5)
-	if !errors.Is(err, errNoLiquidity) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errNoLiquidity)
-	}
-
-	err = depth.LoadSnapshot(bid, ask, 0, time.Now(), true)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	// First and second price
-	amt, err := depth.LiftTheAsksByNominalSlippage(0.037397157816006, 1337)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
-
-	if amt.Sold != 2675 {
-		t.Fatalf("received: '%v' but expected: '%v'", amt, 2675)
-	}
-
-	// All the way up to the last price
-	amt, err = depth.LiftTheAsksByNominalSlippage(0.71054599850411, 1337)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
-
-	if amt.Sold != 26930 {
-		t.Fatalf("received: '%v' but expected: '%v'", amt, 26930)
-	}
-}
-
-func TestLiftTheAsksByNominalSlippageFromMid(t *testing.T) {
-	t.Parallel()
-	_, err := getInvalidDepth().LiftTheAsksByNominalSlippageFromMid(10)
-	if !errors.Is(err, ErrOrderbookInvalid) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, ErrOrderbookInvalid)
-	}
-
-	depth := NewDepth(id)
-
-	_, err = depth.LiftTheAsksByNominalSlippageFromMid(10)
-	if !errors.Is(err, errNoLiquidity) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errNoLiquidity)
-	}
-
-	err = depth.LoadSnapshot(bid, ask, 0, time.Now(), true)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	// First price from mid point
-	amt, err := depth.LiftTheAsksByNominalSlippageFromMid(0.074822297044519)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
-
-	if amt.Sold != 2675 {
-		t.Fatalf("received: '%v' but expected: '%v'", amt, 2675)
-	}
-
-	// All the way up to the last price from mid price
-	amt, err = depth.LiftTheAsksByNominalSlippageFromMid(0.74822297044519)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
-
-	// This does not match the entire total quote available
-	if amt.Sold != 26930 {
-		t.Fatalf("received: '%v' but expected: '%v'", amt, 26930)
-	}
-}
-
-func TestLiftTheAsksByNominalSlippageFromBest(t *testing.T) {
-	t.Parallel()
-	_, err := getInvalidDepth().LiftTheAsksByNominalSlippageFromBest(10)
-	if !errors.Is(err, ErrOrderbookInvalid) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, ErrOrderbookInvalid)
-	}
-
-	depth := NewDepth(id)
-
-	_, err = depth.LiftTheAsksByNominalSlippageFromBest(10)
-	if !errors.Is(err, errNoLiquidity) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errNoLiquidity)
-	}
-
-	err = depth.LoadSnapshot(bid, ask, 0, time.Now(), true)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	// First and second price from best bid
-	amt, err := depth.LiftTheAsksByNominalSlippageFromBest(0.037397157816006)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
-
-	if amt.Sold != 2675 {
-		t.Fatalf("received: '%v' but expected: '%v'", amt, 2675)
-	}
-
-	// All the way up to the last price from best bid price
-	amt, err = depth.LiftTheAsksByNominalSlippageFromBest(0.71054599850411)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
-
-	// This does not match the entire total quote available
-	if amt.Sold != 26930 {
-		t.Fatalf("received: '%v' but expected: '%v'", amt, 26930)
-	}
-}
-
-func TestHitTheBidsByImpactSlippage(t *testing.T) {
-	t.Parallel()
-	_, err := getInvalidDepth().HitTheBidsByImpactSlippage(0.7485029940119761, 1336)
-	if !errors.Is(err, ErrOrderbookInvalid) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, ErrOrderbookInvalid)
-	}
-
-	depth := NewDepth(id)
-	err = depth.LoadSnapshot(bid, ask, 0, time.Now(), true)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	// First and second price from best bid - price level target 1326 (which should be kept)
-	amt, err := depth.HitTheBidsByImpactSlippage(0.7485029940119761, 1336)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
-
-	if amt.Sold != 10 {
-		t.Fatalf("received: '%v' but expected: '%v'", amt, 10)
-	}
-
-	// All the way up to the last price from best bid price
-	amt, err = depth.HitTheBidsByImpactSlippage(1.4221556886227544, 1336)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
-
-	// This does not match the entire total quote available - should be 26930.
-	if amt.Sold != 19 {
-		t.Fatalf("received: '%v' but expected: '%v'", amt, 19)
-	}
-}
-
-func TestHitTheBidsByImpactSlippageFromMid(t *testing.T) {
-	t.Parallel()
-	_, err := getInvalidDepth().HitTheBidsByImpactSlippageFromMid(10)
-	if !errors.Is(err, ErrOrderbookInvalid) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, ErrOrderbookInvalid)
-	}
-
-	depth := NewDepth(id)
-	_, err = depth.HitTheBidsByImpactSlippageFromMid(10)
-	if !errors.Is(err, errNoLiquidity) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errNoLiquidity)
-	}
-
-	err = depth.LoadSnapshot(bid, ask, 0, time.Now(), true)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	// First and second price from mid - price level target 1326 (which should be kept)
-	amt, err := depth.HitTheBidsByImpactSlippageFromMid(0.7485029940119761)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
-
-	if amt.Sold != 10 {
-		t.Fatalf("received: '%v' but expected: '%v'", amt, 10)
-	}
-
-	// All the way up to the last price from best bid price
-	amt, err = depth.HitTheBidsByImpactSlippageFromMid(1.4221556886227544)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
-
-	if amt.Sold != 19 {
-		t.Fatalf("received: '%v' but expected: '%v'", amt, 19)
-	}
-}
-
-func TestHitTheBidsByImpactSlippageFromBest(t *testing.T) {
-	t.Parallel()
-	_, err := getInvalidDepth().HitTheBidsByImpactSlippageFromBest(10)
-	if !errors.Is(err, ErrOrderbookInvalid) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, ErrOrderbookInvalid)
-	}
-
-	depth := NewDepth(id)
-	_, err = depth.HitTheBidsByImpactSlippageFromBest(10)
-	if !errors.Is(err, errNoLiquidity) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errNoLiquidity)
-	}
-	err = depth.LoadSnapshot(bid, ask, 0, time.Now(), true)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	// First and second price from mid - price level target 1326 (which should be kept)
-	amt, err := depth.HitTheBidsByImpactSlippageFromBest(0.7485029940119761)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
-
-	if amt.Sold != 10 {
-		t.Fatalf("received: '%v' but expected: '%v'", amt, 10)
-	}
-
-	// All the way up to the last price from best bid price
-	amt, err = depth.HitTheBidsByImpactSlippageFromBest(1.4221556886227544)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
-
-	if amt.Sold != 19 {
-		t.Fatalf("received: '%v' but expected: '%v'", amt, 19)
-	}
-}
-
-func TestLiftTheAsksByImpactSlippage(t *testing.T) {
-	t.Parallel()
-	_, err := getInvalidDepth().LiftTheAsksByImpactSlippage(0.7479431563201197, 1337)
-	if !errors.Is(err, ErrOrderbookInvalid) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, ErrOrderbookInvalid)
-	}
-
-	depth := NewDepth(id)
-	err = depth.LoadSnapshot(bid, ask, 0, time.Now(), true)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	// First and second price from best bid - price level target 1326 (which should be kept)
-	amt, err := depth.LiftTheAsksByImpactSlippage(0.7479431563201197, 1337)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
-
-	if amt.Sold != 13415 {
-		t.Fatalf("received: '%v' but expected: '%v'", amt, 13415)
-	}
-
-	// All the way up to the last price from best bid price
-	amt, err = depth.LiftTheAsksByImpactSlippage(1.4210919970082274, 1337)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
-
-	if amt.Sold != 25574 {
-		t.Fatalf("received: '%v' but expected: '%v'", amt, 25574)
-	}
-}
-
-func TestLiftTheAsksByImpactSlippageFromMid(t *testing.T) {
-	t.Parallel()
-	_, err := getInvalidDepth().LiftTheAsksByImpactSlippageFromMid(10)
-	if !errors.Is(err, ErrOrderbookInvalid) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, ErrOrderbookInvalid)
-	}
-
-	depth := NewDepth(id)
-	_, err = depth.LiftTheAsksByImpactSlippageFromMid(10)
-	if !errors.Is(err, errNoLiquidity) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errNoLiquidity)
-	}
-	err = depth.LoadSnapshot(bid, ask, 0, time.Now(), true)
-	if err != nil {
-		t.Fatal(err)
-	}
-	// First and second price from mid - price level target 1326 (which should be kept)
-	amt, err := depth.LiftTheAsksByImpactSlippageFromMid(0.7485029940119761)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
-
-	if amt.Sold != 13415 {
-		t.Fatalf("received: '%+v' but expected: '%v'", amt, 13415)
-	}
-
-	// All the way up to the last price from best bid price
-	amt, err = depth.LiftTheAsksByImpactSlippageFromMid(1.4221556886227544)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
-
-	if amt.Sold != 25574 {
-		t.Fatalf("received: '%v' but expected: '%v'", amt, 25574)
-	}
-}
-
-func TestLiftTheAsksByImpactSlippageFromBest(t *testing.T) {
-	t.Parallel()
-	_, err := getInvalidDepth().LiftTheAsksByImpactSlippageFromBest(10)
-	if !errors.Is(err, ErrOrderbookInvalid) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, ErrOrderbookInvalid)
-	}
-
-	depth := NewDepth(id)
-	_, err = depth.LiftTheAsksByImpactSlippageFromBest(10)
-	if !errors.Is(err, errNoLiquidity) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errNoLiquidity)
-	}
-	err = depth.LoadSnapshot(bid, ask, 0, time.Now(), true)
-	if err != nil {
-		t.Fatal(err)
-	}
-	// First and second price from mid - price level target 1326 (which should be kept)
-	amt, err := depth.LiftTheAsksByImpactSlippageFromBest(0.7479431563201197)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
-
-	if amt.Sold != 13415 {
-		t.Fatalf("received: '%v' but expected: '%v'", amt, 13415)
-	}
-
-	// All the way up to the last price from best bid price
-	amt, err = depth.LiftTheAsksByImpactSlippageFromBest(1.4210919970082274)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
-
-	// This goes to price 1356, it will not count that tranches' volume as it
-	// is needed to sustain the slippage.
-	if amt.Sold != 25574 {
-		t.Fatalf("received: '%v' but expected: '%v'", amt, 25574)
-	}
-}
-
-func TestHitTheBids(t *testing.T) {
-	t.Parallel()
-	depth := NewDepth(id)
-	err := depth.LoadSnapshot(bid, ask, 0, time.Now(), true)
-	if err != nil {
-		t.Fatal(err)
-	}
-	mov, err := depth.HitTheBids(20.1, 1336, false)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
-
-	if !mov.FullBookSideConsumed {
-		t.Fatal("entire side should be consumed by this value")
-	}
-
-	mov, err = depth.HitTheBids(1, 1336, false)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
-
-	if mov.NominalPercentage != 0 {
-		t.Fatalf("received: '%v' but expected: '%v'", mov.NominalPercentage, 0)
-	}
-	if mov.ImpactPercentage != 0.07485029940119761 {
-		t.Fatalf("received: '%v' but expected: '%v'", mov.ImpactPercentage, 0.07485029940119761)
-	}
-	if mov.SlippageCost != 0 {
-		t.Fatalf("received: '%v' but expected: '%v'", mov.SlippageCost, 0)
-	}
-
-	mov, err = depth.HitTheBids(19.5, 1336, false)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
-
-	if mov.NominalPercentage != 0.692845079072617 {
-		t.Fatalf("received: '%v' but expected: '%v'", mov.NominalPercentage, 0.692845079072617)
-	}
-	if mov.ImpactPercentage != 1.4221556886227544 {
-		t.Fatalf("received: '%v' but expected: '%v'", mov.ImpactPercentage, 1.4221556886227544)
-	}
-
-	if mov.SlippageCost != 180.5 {
-		t.Fatalf("received: '%v' but expected: '%v'", mov.SlippageCost, 180.5)
-	}
-
-	// All the way up to the last price from best bid price
-	mov, err = depth.HitTheBids(20, 1336, false)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
-
-	if mov.NominalPercentage != 0.7110778443113772 {
-		t.Fatalf("received: '%v' but expected: '%v'", mov.NominalPercentage, 0.7110778443113772)
-	}
-	if mov.ImpactPercentage != FullLiquidityExhaustedPercentage {
-		t.Fatalf("received: '%v' but expected: '%v'", mov.ImpactPercentage, FullLiquidityExhaustedPercentage)
-	}
-	if mov.SlippageCost != 190 {
-		t.Fatalf("received: '%v' but expected: '%v'", mov.SlippageCost, 190)
-	}
-}
-
-func TestHitTheBids_QuotationRequired(t *testing.T) {
-	t.Parallel()
-	_, err := getInvalidDepth().HitTheBids(26531, 1336, true)
-	if !errors.Is(err, ErrOrderbookInvalid) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, ErrOrderbookInvalid)
-	}
-
-	depth := NewDepth(id)
-	err = depth.LoadSnapshot(bid, ask, 0, time.Now(), true)
-	if err != nil {
-		t.Fatal(err)
-	}
-	mov, err := depth.HitTheBids(26531, 1336, true)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
-
-	if !mov.FullBookSideConsumed {
-		t.Fatal("entire side should be consumed by this value")
-	}
-
-	mov, err = depth.HitTheBids(1336, 1336, true)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
-
-	if mov.NominalPercentage != 0 {
-		t.Fatalf("received: '%v' but expected: '%v'", mov.NominalPercentage, 0)
-	}
-	if mov.ImpactPercentage != 0.07485029940119761 {
-		t.Fatalf("received: '%v' but expected: '%v'", mov.ImpactPercentage, 0.07485029940119761)
-	}
-	if mov.SlippageCost != 0 {
-		t.Fatalf("received: '%v' but expected: '%v'", mov.SlippageCost, 0)
-	}
-
-	mov, err = depth.HitTheBids(25871.5, 1336, true)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
-
-	if mov.NominalPercentage != 0.692845079072617 {
-		t.Fatalf("received: '%v' but expected: '%v'", mov.NominalPercentage, 0.692845079072617)
-	}
-	if mov.ImpactPercentage != 1.4221556886227544 {
-		t.Fatalf("received: '%v' but expected: '%v'", mov.ImpactPercentage, 1.4221556886227544)
-	}
-
-	if mov.SlippageCost != 180.5 {
-		t.Fatalf("received: '%v' but expected: '%v'", mov.SlippageCost, 180.5)
-	}
-
-	// All the way up to the last price from best bid price
-	mov, err = depth.HitTheBids(26530, 1336, true)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
-
-	if mov.NominalPercentage != 0.7110778443113772 {
-		t.Fatalf("received: '%v' but expected: '%v'", mov.NominalPercentage, 0.7110778443113772)
-	}
-	if mov.ImpactPercentage != FullLiquidityExhaustedPercentage {
-		t.Fatalf("received: '%v' but expected: '%v'", mov.ImpactPercentage, FullLiquidityExhaustedPercentage)
-	}
-	if mov.SlippageCost != 190 {
-		t.Fatalf("received: '%v' but expected: '%v'", mov.SlippageCost, 190)
-	}
-}
-
-func TestHitTheBidsFromMid(t *testing.T) {
-	t.Parallel()
-	_, err := getInvalidDepth().HitTheBidsFromMid(10, false)
-	if !errors.Is(err, ErrOrderbookInvalid) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, ErrOrderbookInvalid)
-	}
-
-	depth := NewDepth(id)
-	_, err = depth.HitTheBidsFromMid(10, false)
-	if !errors.Is(err, errNoLiquidity) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errNoLiquidity)
-	}
-	err = depth.LoadSnapshot(bid, ask, 0, time.Now(), true)
-	if err != nil {
-		t.Fatal(err)
-	}
-	mov, err := depth.HitTheBidsFromMid(20.1, false)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
-
-	if !mov.FullBookSideConsumed {
-		t.Fatal("entire side should be consumed by this value")
-	}
-
-	mov, err = depth.HitTheBidsFromMid(1, false)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
-
-	if mov.NominalPercentage != 0.03741114852225963 {
-		t.Fatalf("received: '%v' but expected: '%v'", mov.NominalPercentage, 0.03741114852225963)
-	}
-
-	if mov.ImpactPercentage != 0.11223344556677892 { // mid price 1336.5 -> 1335
-		t.Fatalf("received: '%v' but expected: '%v'", mov.ImpactPercentage, 0.11223344556677892)
-	}
-	if mov.SlippageCost != 0 {
-		t.Fatalf("received: '%v' but expected: '%v'", mov.SlippageCost, 0)
-	}
-
-	mov, err = depth.HitTheBidsFromMid(19.5, false)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
-
-	if mov.NominalPercentage != 0.7299970262933156 {
-		t.Fatalf("received: '%v' but expected: '%v'", mov.NominalPercentage, 0.7299970262933156)
-	}
-	if mov.ImpactPercentage != 1.4590347923681257 {
-		t.Fatalf("received: '%v' but expected: '%v'", mov.ImpactPercentage, 1.4590347923681257)
-	}
-	if mov.SlippageCost != 180.5 {
-		t.Fatalf("received: '%v' but expected: '%v'", mov.SlippageCost, 180.5)
-	}
-
-	// All the way up to the last price from best bid price
-	mov, err = depth.HitTheBidsFromMid(20, false)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
-
-	if mov.NominalPercentage != 0.7482229704451926 {
-		t.Fatalf("received: '%v' but expected: '%v'", mov.NominalPercentage, 0.7482229704451926)
-	}
-	if mov.ImpactPercentage != FullLiquidityExhaustedPercentage {
-		t.Fatalf("received: '%v' but expected: '%v'", mov.ImpactPercentage, FullLiquidityExhaustedPercentage)
-	}
-	if mov.SlippageCost != 190 {
-		t.Fatalf("received: '%v' but expected: '%v'", mov.SlippageCost, 190)
-	}
-}
-
-func TestHitTheBidsFromMid_QuotationRequired(t *testing.T) {
-	t.Parallel()
-	depth := NewDepth(id)
-	_, err := depth.HitTheBidsFromMid(10, false)
-	if !errors.Is(err, errNoLiquidity) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errNoLiquidity)
-	}
-	err = depth.LoadSnapshot(bid, ask, 0, time.Now(), true)
-	if err != nil {
-		t.Fatal(err)
-	}
-	mov, err := depth.HitTheBidsFromMid(26531, true)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
-
-	if !mov.FullBookSideConsumed {
-		t.Fatal("entire side should be consumed by this value")
-	}
-
-	mov, err = depth.HitTheBidsFromMid(1336, true)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
-
-	if mov.NominalPercentage != 0.03741114852225963 {
-		t.Fatalf("received: '%v' but expected: '%v'", mov.NominalPercentage, 0.03741114852225963)
-	}
-
-	if mov.ImpactPercentage != 0.11223344556677892 { // mid price 1336.5 -> 1335
-		t.Fatalf("received: '%v' but expected: '%v'", mov.ImpactPercentage, 0.11223344556677892)
-	}
-	if mov.SlippageCost != 0 {
-		t.Fatalf("received: '%v' but expected: '%v'", mov.SlippageCost, 0)
-	}
-
-	mov, err = depth.HitTheBidsFromMid(25871.5, true)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
-
-	if mov.NominalPercentage != 0.7299970262933156 {
-		t.Fatalf("received: '%v' but expected: '%v'", mov.NominalPercentage, 0.7299970262933156)
-	}
-	if mov.ImpactPercentage != 1.4590347923681257 {
-		t.Fatalf("received: '%v' but expected: '%v'", mov.ImpactPercentage, 1.4590347923681257)
-	}
-	if mov.SlippageCost != 180.5 {
-		t.Fatalf("received: '%v' but expected: '%v'", mov.SlippageCost, 180.5)
-	}
-
-	// All the way up to the last price from best bid price
-	mov, err = depth.HitTheBidsFromMid(26530, true)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
-
-	if mov.NominalPercentage != 0.7482229704451926 {
-		t.Fatalf("received: '%v' but expected: '%v'", mov.NominalPercentage, 0.7482229704451926)
-	}
-	if mov.ImpactPercentage != FullLiquidityExhaustedPercentage {
-		t.Fatalf("received: '%v' but expected: '%v'", mov.ImpactPercentage, FullLiquidityExhaustedPercentage)
-	}
-	if mov.SlippageCost != 190 {
-		t.Fatalf("received: '%v' but expected: '%v'", mov.SlippageCost, 190)
-	}
-}
-
-func TestHitTheBidsFromBest(t *testing.T) {
-	t.Parallel()
-	depth := NewDepth(id)
-	_, err := depth.HitTheBidsFromBest(10, false)
-	if !errors.Is(err, errNoLiquidity) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errNoLiquidity)
-	}
-	err = depth.LoadSnapshot(bid, ask, 0, time.Now(), true)
-	if err != nil {
-		t.Fatal(err)
-	}
-	mov, err := depth.HitTheBidsFromBest(20.1, false)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
-
-	if !mov.FullBookSideConsumed {
-		t.Fatal("entire side should be consumed by this value")
-	}
-
-	mov, err = depth.HitTheBidsFromBest(1, false)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
-
-	if mov.NominalPercentage != 0 {
-		t.Fatalf("received: '%v' but expected: '%v'", mov.NominalPercentage, 0)
-	}
-	if mov.ImpactPercentage != 0.07485029940119761 {
-		t.Fatalf("received: '%v' but expected: '%v'", mov.ImpactPercentage, 0.07485029940119761)
-	}
-	if mov.SlippageCost != 0 {
-		t.Fatalf("received: '%v' but expected: '%v'", mov.SlippageCost, 0)
-	}
-
-	mov, err = depth.HitTheBidsFromBest(19.5, false)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
-
-	if mov.NominalPercentage != 0.692845079072617 {
-		t.Fatalf("received: '%v' but expected: '%v'", mov.NominalPercentage, 0.692845079072617)
-	}
-	if mov.ImpactPercentage != 1.4221556886227544 {
-		t.Fatalf("received: '%v' but expected: '%v'", mov.ImpactPercentage, 1.4221556886227544)
-	}
-	if mov.SlippageCost != 180.5 {
-		t.Fatalf("received: '%v' but expected: '%v'", mov.SlippageCost, 180.5)
-	}
-
-	// All the way up to the last price from best bid price
-	mov, err = depth.HitTheBidsFromBest(20, false)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
-
-	if mov.NominalPercentage != 0.7110778443113772 {
-		t.Fatalf("received: '%v' but expected: '%v'", mov.NominalPercentage, 0.7110778443113772)
-	}
-	if mov.ImpactPercentage != FullLiquidityExhaustedPercentage {
-		t.Fatalf("received: '%v' but expected: '%v'", mov.ImpactPercentage, FullLiquidityExhaustedPercentage)
-	}
-	if mov.SlippageCost != 190 {
-		t.Fatalf("received: '%v' but expected: '%v'", mov.SlippageCost, 190)
-	}
-}
-
-func TestHitTheBidsFromBest_QuotationRequired(t *testing.T) {
-	t.Parallel()
-	_, err := getInvalidDepth().HitTheBidsFromBest(10, false)
-	if !errors.Is(err, ErrOrderbookInvalid) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, ErrOrderbookInvalid)
-	}
-
-	depth := NewDepth(id)
-	_, err = depth.HitTheBidsFromBest(10, false)
-	if !errors.Is(err, errNoLiquidity) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errNoLiquidity)
-	}
-	err = depth.LoadSnapshot(bid, ask, 0, time.Now(), true)
-	if err != nil {
-		t.Fatal(err)
-	}
-	mov, err := depth.HitTheBidsFromBest(26531, true)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
-
-	if !mov.FullBookSideConsumed {
-		t.Fatal("entire side should be consumed by this value")
-	}
-
-	mov, err = depth.HitTheBidsFromBest(1336, true)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
-
-	if mov.NominalPercentage != 0 {
-		t.Fatalf("received: '%v' but expected: '%v'", mov.NominalPercentage, 0)
-	}
-	if mov.ImpactPercentage != 0.07485029940119761 {
-		t.Fatalf("received: '%v' but expected: '%v'", mov.ImpactPercentage, 0.07485029940119761)
-	}
-	if mov.SlippageCost != 0 {
-		t.Fatalf("received: '%v' but expected: '%v'", mov.SlippageCost, 0)
-	}
-
-	mov, err = depth.HitTheBidsFromBest(25871.5, true)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
-
-	if mov.NominalPercentage != 0.692845079072617 {
-		t.Fatalf("received: '%v' but expected: '%v'", mov.NominalPercentage, 0.692845079072617)
-	}
-	if mov.ImpactPercentage != 1.4221556886227544 {
-		t.Fatalf("received: '%v' but expected: '%v'", mov.ImpactPercentage, 1.4221556886227544)
-	}
-	if mov.SlippageCost != 180.5 {
-		t.Fatalf("received: '%v' but expected: '%v'", mov.SlippageCost, 180.5)
-	}
-
-	// All the way up to the last price from best bid price
-	mov, err = depth.HitTheBidsFromBest(26530, true)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
-
-	if mov.NominalPercentage != 0.7110778443113772 {
-		t.Fatalf("received: '%v' but expected: '%v'", mov.NominalPercentage, 0.7110778443113772)
-	}
-	if mov.ImpactPercentage != FullLiquidityExhaustedPercentage {
-		t.Fatalf("received: '%v' but expected: '%v'", mov.ImpactPercentage, FullLiquidityExhaustedPercentage)
-	}
-	if mov.SlippageCost != 190 {
-		t.Fatalf("received: '%v' but expected: '%v'", mov.SlippageCost, 190)
-	}
-}
-
-func TestLiftTheAsks(t *testing.T) {
-	t.Parallel()
-	depth := NewDepth(id)
-	err := depth.LoadSnapshot(bid, ask, 0, time.Now(), true)
-	if err != nil {
-		t.Fatal(err)
-	}
-	mov, err := depth.LiftTheAsks(26931, 1337, false)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
-
-	if !mov.FullBookSideConsumed {
-		t.Fatal("entire side should be consumed by this value")
-	}
-
-	mov, err = depth.LiftTheAsks(1337, 1337, false)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
-
-	if mov.NominalPercentage != 0 {
-		t.Fatalf("received: '%v' but expected: '%v'", mov.NominalPercentage, 0)
-	}
-	if mov.ImpactPercentage != 0.07479431563201197 {
-		t.Fatalf("received: '%v' but expected: '%v'", mov.ImpactPercentage, 0.07479431563201197)
-	}
-	if mov.SlippageCost != 0 {
-		t.Fatalf("received: '%v' but expected: '%v'", mov.SlippageCost, 0)
-	}
-
-	mov, err = depth.LiftTheAsks(26900, 1337, false)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
-
-	if mov.NominalPercentage != 0.7097591258590459 {
-		t.Fatalf("received: '%v' but expected: '%v'", mov.NominalPercentage, 0.7097591258590459)
-	}
-	if mov.ImpactPercentage != 1.4210919970082274 {
-		t.Fatalf("received: '%v' but expected: '%v'", mov.ImpactPercentage, 1.4210919970082274)
-	}
-	if mov.SlippageCost != 189.57964601770072 {
-		t.Fatalf("received: '%v' but expected: '%v'", mov.SlippageCost, 189.57964601770072)
-	}
-
-	// All the way up to the last price from best bid price
-	mov, err = depth.LiftTheAsks(26930, 1336, false)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
-
-	if mov.NominalPercentage != 0.7859281437125748 {
-		t.Fatalf("received: '%v' but expected: '%v'", mov.NominalPercentage, 0.7859281437125748)
-	}
-	if mov.ImpactPercentage != FullLiquidityExhaustedPercentage {
-		t.Fatalf("received: '%v' but expected: '%v'", mov.ImpactPercentage, FullLiquidityExhaustedPercentage)
-	}
-	if mov.SlippageCost != 190 {
-		t.Fatalf("received: '%v' but expected: '%v'", mov.SlippageCost, 190)
-	}
-}
-
-func TestLiftTheAsks_BaseRequired(t *testing.T) {
-	t.Parallel()
-	_, err := getInvalidDepth().LiftTheAsks(21, 1337, true)
-	if !errors.Is(err, ErrOrderbookInvalid) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, ErrOrderbookInvalid)
-	}
-
-	depth := NewDepth(id)
-	err = depth.LoadSnapshot(bid, ask, 0, time.Now(), true)
-	if err != nil {
-		t.Fatal(err)
-	}
-	mov, err := depth.LiftTheAsks(21, 1337, true)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
-
-	if !mov.FullBookSideConsumed {
-		t.Fatal("entire side should be consumed by this value")
-	}
-
-	mov, err = depth.LiftTheAsks(1, 1337, true)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
-
-	if mov.NominalPercentage != 0 {
-		t.Fatalf("received: '%v' but expected: '%v'", mov.NominalPercentage, 0)
-	}
-	if mov.ImpactPercentage != 0.07479431563201197 {
-		t.Fatalf("received: '%v' but expected: '%v'", mov.ImpactPercentage, 0.07479431563201197)
-	}
-	if mov.SlippageCost != 0 {
-		t.Fatalf("received: '%v' but expected: '%v'", mov.SlippageCost, 0)
-	}
-
-	mov, err = depth.LiftTheAsks(19.97787610619469, 1337, true)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
-
-	if mov.NominalPercentage != 0.7097591258590288 {
-		t.Fatalf("received: '%v' but expected: '%v'", mov.NominalPercentage, 0.7097591258590288)
-	}
-	if mov.ImpactPercentage != 1.4210919970082274 {
-		t.Fatalf("received: '%v' but expected: '%v'", mov.ImpactPercentage, 1.4210919970082274)
-	}
-	if mov.SlippageCost != 189.5796460176971 {
-		t.Fatalf("received: '%v' but expected: '%v'", mov.SlippageCost, 189.5796460176971)
-	}
-
-	// All the way up to the last price from best bid price
-	mov, err = depth.LiftTheAsks(20, 1336, true)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
-
-	if mov.NominalPercentage != 0.7859281437125748 {
-		t.Fatalf("received: '%v' but expected: '%v'", mov.NominalPercentage, 0.7859281437125748)
-	}
-	if mov.ImpactPercentage != FullLiquidityExhaustedPercentage {
-		t.Fatalf("received: '%v' but expected: '%v'", mov.ImpactPercentage, FullLiquidityExhaustedPercentage)
-	}
-	if mov.SlippageCost != 190 {
-		t.Fatalf("received: '%v' but expected: '%v'", mov.SlippageCost, 190)
-	}
-}
-
-func TestLiftTheAsksFromMid(t *testing.T) {
-	t.Parallel()
-	_, err := getInvalidDepth().LiftTheAsksFromMid(10, false)
-	if !errors.Is(err, ErrOrderbookInvalid) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, ErrOrderbookInvalid)
-	}
-
-	depth := NewDepth(id)
-	_, err = depth.LiftTheAsksFromMid(10, false)
-	if !errors.Is(err, errNoLiquidity) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errNoLiquidity)
-	}
-	err = depth.LoadSnapshot(bid, ask, 0, time.Now(), true)
-	if err != nil {
-		t.Fatal(err)
-	}
-	mov, err := depth.LiftTheAsksFromMid(26931, false)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
-
-	if !mov.FullBookSideConsumed {
-		t.Fatal("entire side should be consumed by this value")
-	}
-
-	mov, err = depth.LiftTheAsksFromMid(1337, false)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
-
-	if mov.NominalPercentage != 0.03741114852225963 {
-		t.Fatalf("received: '%v' but expected: '%v'", mov.NominalPercentage, 0.03741114852225963)
-	}
-	if mov.ImpactPercentage != 0.11223344556677892 {
-		t.Fatalf("received: '%v' but expected: '%v'", mov.ImpactPercentage, 0.11223344556677892)
-	}
-	if mov.SlippageCost != 0 {
-		t.Fatalf("received: '%v' but expected: '%v'", mov.SlippageCost, 0)
-	}
-
-	mov, err = depth.LiftTheAsksFromMid(26900, false)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
-
-	if mov.NominalPercentage != 0.747435803422031 {
-		t.Fatalf("received: '%v' but expected: '%v'", mov.NominalPercentage, 0.747435803422031)
-	}
-	if mov.ImpactPercentage != 1.4590347923681257 {
-		t.Fatalf("received: '%v' but expected: '%v'", mov.ImpactPercentage, 1.4590347923681257)
-	}
-	if mov.SlippageCost != 189.57964601770072 {
-		t.Fatalf("received: '%v' but expected: '%v'", mov.SlippageCost, 189.57964601770072)
-	}
-
-	// All the way up to the last price from best bid price
-	mov, err = depth.LiftTheAsksFromMid(26930, false)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
-
-	if mov.NominalPercentage != 0.7482229704451926 {
-		t.Fatalf("received: '%v' but expected: '%v'", mov.NominalPercentage, 0.7482229704451926)
-	}
-	if mov.ImpactPercentage != FullLiquidityExhaustedPercentage {
-		t.Fatalf("received: '%v' but expected: '%v'", mov.ImpactPercentage, FullLiquidityExhaustedPercentage)
-	}
-	if mov.SlippageCost != 190 {
-		t.Fatalf("received: '%v' but expected: '%v'", mov.SlippageCost, 190)
-	}
-}
-
-func TestLiftTheAsksFromMid_BaseRequired(t *testing.T) {
-	t.Parallel()
-	_, err := getInvalidDepth().LiftTheAsksFromMid(10, false)
-	if !errors.Is(err, ErrOrderbookInvalid) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, ErrOrderbookInvalid)
-	}
-
-	depth := NewDepth(id)
-	_, err = depth.LiftTheAsksFromMid(10, false)
-	if !errors.Is(err, errNoLiquidity) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errNoLiquidity)
-	}
-	err = depth.LoadSnapshot(bid, ask, 0, time.Now(), true)
-	if err != nil {
-		t.Fatal(err)
-	}
-	mov, err := depth.LiftTheAsksFromMid(21, true)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
-
-	if !mov.FullBookSideConsumed {
-		t.Fatal("entire side should be consumed by this value")
-	}
-
-	mov, err = depth.LiftTheAsksFromMid(1, true)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
-
-	if mov.NominalPercentage != 0.03741114852225963 {
-		t.Fatalf("received: '%v' but expected: '%v'", mov.NominalPercentage, 0.03741114852225963)
-	}
-	if mov.ImpactPercentage != 0.11223344556677892 {
-		t.Fatalf("received: '%v' but expected: '%v'", mov.ImpactPercentage, 0.11223344556677892)
-	}
-	if mov.SlippageCost != 0 {
-		t.Fatalf("received: '%v' but expected: '%v'", mov.SlippageCost, 0)
-	}
-
-	mov, err = depth.LiftTheAsksFromMid(19.97787610619469, true)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
-
-	if mov.NominalPercentage != 0.7474358034220139 {
-		t.Fatalf("received: '%v' but expected: '%v'", mov.NominalPercentage, 0.7474358034220139)
-	}
-	if mov.ImpactPercentage != 1.4590347923681257 {
-		t.Fatalf("received: '%v' but expected: '%v'", mov.ImpactPercentage, 1.4590347923681257)
-	}
-	if mov.SlippageCost != 189.5796460176971 {
-		t.Fatalf("received: '%v' but expected: '%v'", mov.SlippageCost, 189.5796460176971)
-	}
-
-	// All the way up to the last price from best bid price
-	mov, err = depth.LiftTheAsksFromMid(20, true)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
-
-	if mov.NominalPercentage != 0.7482229704451926 {
-		t.Fatalf("received: '%v' but expected: '%v'", mov.NominalPercentage, 0.7482229704451926)
-	}
-	if mov.ImpactPercentage != FullLiquidityExhaustedPercentage {
-		t.Fatalf("received: '%v' but expected: '%v'", mov.ImpactPercentage, FullLiquidityExhaustedPercentage)
-	}
-	if mov.SlippageCost != 190 {
-		t.Fatalf("received: '%v' but expected: '%v'", mov.SlippageCost, 190)
-	}
-}
-
-func TestLiftTheAsksFromBest(t *testing.T) {
-	t.Parallel()
-	_, err := getInvalidDepth().LiftTheAsksFromBest(10, false)
-	if !errors.Is(err, ErrOrderbookInvalid) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, ErrOrderbookInvalid)
-	}
-
-	depth := NewDepth(id)
-	_, err = depth.LiftTheAsksFromBest(10, false)
-	if !errors.Is(err, errNoLiquidity) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errNoLiquidity)
-	}
-	err = depth.LoadSnapshot(bid, ask, 0, time.Now(), true)
-	if err != nil {
-		t.Fatal(err)
-	}
-	mov, err := depth.LiftTheAsksFromBest(26931, false)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
-
-	if !mov.FullBookSideConsumed {
-		t.Fatal("entire side should be consumed by this value")
-	}
-
-	mov, err = depth.LiftTheAsksFromBest(1337, false)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
-
-	if mov.NominalPercentage != 0 {
-		t.Fatalf("received: '%v' but expected: '%v'", mov.NominalPercentage, 0)
-	}
-	if mov.ImpactPercentage != 0.07479431563201197 {
-		t.Fatalf("received: '%v' but expected: '%v'", mov.ImpactPercentage, 0.07479431563201197)
-	}
-	if mov.SlippageCost != 0 {
-		t.Fatalf("received: '%v' but expected: '%v'", mov.SlippageCost, 0)
-	}
-
-	mov, err = depth.LiftTheAsksFromBest(26900, false)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
-
-	if mov.NominalPercentage != 0.7097591258590459 {
-		t.Fatalf("received: '%v' but expected: '%v'", mov.NominalPercentage, 0.7097591258590459)
-	}
-	if mov.ImpactPercentage != 1.4210919970082274 {
-		t.Fatalf("received: '%v' but expected: '%v'", mov.ImpactPercentage, 1.4210919970082274)
-	}
-	if mov.SlippageCost != 189.57964601770072 {
-		t.Fatalf("received: '%v' but expected: '%v'", mov.SlippageCost, 189.57964601770072)
-	}
-
-	// All the way up to the last price from best bid price
-	mov, err = depth.LiftTheAsksFromBest(26930, false)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
-
-	if mov.NominalPercentage != 0.7105459985041137 {
-		t.Fatalf("received: '%v' but expected: '%v'", mov.NominalPercentage, 0.7105459985041137)
-	}
-	if mov.ImpactPercentage != FullLiquidityExhaustedPercentage {
-		t.Fatalf("received: '%v' but expected: '%v'", mov.ImpactPercentage, FullLiquidityExhaustedPercentage)
-	}
-	if mov.SlippageCost != 190 {
-		t.Fatalf("received: '%v' but expected: '%v'", mov.SlippageCost, 190)
-	}
-}
-
-func TestLiftTheAsksFromBest_BaseRequired(t *testing.T) {
-	t.Parallel()
-	_, err := getInvalidDepth().LiftTheAsksFromBest(10, false)
-	if !errors.Is(err, ErrOrderbookInvalid) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, ErrOrderbookInvalid)
-	}
-
-	depth := NewDepth(id)
-	_, err = depth.LiftTheAsksFromBest(10, false)
-	if !errors.Is(err, errNoLiquidity) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errNoLiquidity)
-	}
-	err = depth.LoadSnapshot(bid, ask, 0, time.Now(), true)
-	if err != nil {
-		t.Fatal(err)
-	}
-	mov, err := depth.LiftTheAsksFromBest(21, true)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
-
-	if !mov.FullBookSideConsumed {
-		t.Fatal("entire side should be consumed by this value")
-	}
-
-	mov, err = depth.LiftTheAsksFromBest(1, true)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
-
-	if mov.NominalPercentage != 0 {
-		t.Fatalf("received: '%v' but expected: '%v'", mov.NominalPercentage, 0)
-	}
-	if mov.ImpactPercentage != 0.07479431563201197 {
-		t.Fatalf("received: '%v' but expected: '%v'", mov.ImpactPercentage, 0.07479431563201197)
-	}
-	if mov.SlippageCost != 0 {
-		t.Fatalf("received: '%v' but expected: '%v'", mov.SlippageCost, 0)
-	}
-
-	mov, err = depth.LiftTheAsksFromBest(19.97787610619469, true)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
-	if mov.NominalPercentage != 0.7097591258590288 {
-		t.Fatalf("received: '%v' but expected: '%v'", mov.NominalPercentage, 0.7097591258590288)
-	}
-	if mov.ImpactPercentage != 1.4210919970082274 {
-		t.Fatalf("received: '%v' but expected: '%v'", mov.ImpactPercentage, 1.4210919970082274)
-	}
-	if mov.SlippageCost != 189.5796460176971 {
-		t.Fatalf("received: '%v' but expected: '%v'", mov.SlippageCost, 189.5796460176971)
-	}
-
-	// All the way up to the last price from best bid price
-	mov, err = depth.LiftTheAsksFromBest(20, true)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
-
-	if mov.NominalPercentage != 0.7105459985041137 {
-		t.Fatalf("received: '%v' but expected: '%v'", mov.NominalPercentage, 0.7105459985041137)
-	}
-	if mov.ImpactPercentage != FullLiquidityExhaustedPercentage {
-		t.Fatalf("received: '%v' but expected: '%v'", mov.ImpactPercentage, FullLiquidityExhaustedPercentage)
-	}
-	if mov.SlippageCost != 190 {
-		t.Fatalf("received: '%v' but expected: '%v'", mov.SlippageCost, 190)
-	}
+	assert.True(t, d.IsValid(), "IsValid should return correct value")
+	err := d.Invalidate(nil)
+	assert.ErrorIs(t, err, ErrOrderbookInvalid, "Invalidate should error correctly")
+	assert.False(t, d.IsValid(), "IsValid should return correct value after Invalidate")
 }
 
 func TestGetMidPrice_Depth(t *testing.T) {
 	t.Parallel()
 	_, err := getInvalidDepth().GetMidPrice()
-	if !errors.Is(err, ErrOrderbookInvalid) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, ErrOrderbookInvalid)
-	}
+	assert.ErrorIs(t, err, ErrOrderbookInvalid, "GetMidPrice should error correctly")
 
 	depth := NewDepth(id)
 	_, err = depth.GetMidPrice()
-	if !errors.Is(err, errNoLiquidity) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errNoLiquidity)
-	}
-	err = depth.LoadSnapshot(bid, ask, 0, time.Now(), true)
-	if err != nil {
-		t.Fatal(err)
-	}
-	mid, err := depth.GetMidPrice()
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	assert.ErrorIs(t, err, errNoLiquidity, "GetMidPrice should error correctly")
 
-	if mid != 1336.5 {
-		t.Fatalf("received: '%v' but expected: '%v'", mid, 1336.5)
-	}
+	err = depth.LoadSnapshot(bid, ask, 0, time.Now(), true)
+	assert.NoError(t, err, "LoadSnapshot should not error")
+
+	mid, err := depth.GetMidPrice()
+	assert.NoError(t, err, "GetMidPrice should not error")
+	assert.Equal(t, 1336.5, mid, "Mid price should be correct")
 }
 
 func TestGetMidPriceNoLock_Depth(t *testing.T) {
 	t.Parallel()
 	depth := NewDepth(id)
 	_, err := depth.getMidPriceNoLock()
-	if !errors.Is(err, errNoLiquidity) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errNoLiquidity)
-	}
+	assert.ErrorIs(t, err, errNoLiquidity, "getMidPriceNoLock should error correctly")
+
 	err = depth.LoadSnapshot(bid, nil, 0, time.Now(), true)
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.NoError(t, err, "LoadSnapshot should not error")
+
 	_, err = depth.getMidPriceNoLock()
-	if !errors.Is(err, errNoLiquidity) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errNoLiquidity)
-	}
+	assert.ErrorIs(t, err, errNoLiquidity, "getMidPriceNoLock should error correctly")
 
 	err = depth.LoadSnapshot(bid, ask, 0, time.Now(), true)
-	if err != nil {
-		t.Fatal(err)
-	}
-	mid, err := depth.getMidPriceNoLock()
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	assert.NoError(t, err, "LoadSnapshot should not error")
 
-	if mid != 1336.5 {
-		t.Fatalf("received: '%v' but expected: '%v'", mid, 1336.5)
-	}
+	mid, err := depth.getMidPriceNoLock()
+	assert.NoError(t, err, "getMidPriceNoLock should not error")
+	assert.Equal(t, 1336.5, mid, "Mid price should be correct")
 }
 
 func TestGetBestBidASk_Depth(t *testing.T) {
 	t.Parallel()
 	_, err := getInvalidDepth().GetBestBid()
-	if !errors.Is(err, ErrOrderbookInvalid) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, ErrOrderbookInvalid)
-	}
+	assert.ErrorIs(t, err, ErrOrderbookInvalid, "getInvalidDepth should error correctly")
 
 	_, err = getInvalidDepth().GetBestAsk()
-	if !errors.Is(err, ErrOrderbookInvalid) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, ErrOrderbookInvalid)
-	}
+	assert.ErrorIs(t, err, ErrOrderbookInvalid, "getInvalidDepth should error correctly")
 
 	depth := NewDepth(id)
 	_, err = depth.GetBestBid()
-	if !errors.Is(err, errNoLiquidity) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errNoLiquidity)
-	}
+	assert.ErrorIs(t, err, errNoLiquidity, "GetBestBid should error correctly")
+
 	_, err = depth.GetBestAsk()
-	if !errors.Is(err, errNoLiquidity) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errNoLiquidity)
-	}
+	assert.ErrorIs(t, err, errNoLiquidity, "GetBestAsk should error correctly")
+
 	err = depth.LoadSnapshot(bid, ask, 0, time.Now(), true)
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.NoError(t, err, "LoadSnapshot should not error")
+
 	mid, err := depth.GetBestBid()
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
-	if mid != 1336 {
-		t.Fatalf("received: '%v' but expected: '%v'", mid, 1336)
-	}
+	assert.NoError(t, err, "GetBestBid should not error")
+	assert.Equal(t, 1336.0, mid, "Mid price should be correct")
+
 	mid, err = depth.GetBestAsk()
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
-	if mid != 1337 {
-		t.Fatalf("received: '%v' but expected: '%v'", mid, 1337)
-	}
+	assert.NoError(t, err, "GetBestAsk should not error")
+	assert.Equal(t, 1337.0, mid, "Mid price should be correct")
 }
 
 func TestGetSpreadAmount(t *testing.T) {
 	t.Parallel()
 	_, err := getInvalidDepth().GetSpreadAmount()
-	if !errors.Is(err, ErrOrderbookInvalid) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, ErrOrderbookInvalid)
-	}
+	assert.ErrorIs(t, err, ErrOrderbookInvalid, "GetSpreadAmount should error correctly")
 
 	depth := NewDepth(id)
 
 	_, err = depth.GetSpreadAmount()
-	if !errors.Is(err, errNoLiquidity) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errNoLiquidity)
-	}
+	assert.ErrorIs(t, err, errNoLiquidity, "GetSpreadAmount should error correctly")
 
 	err = depth.LoadSnapshot(nil, ask, 0, time.Now(), true)
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.NoError(t, err, "LoadSnapshot should not error")
+
 	_, err = depth.GetSpreadAmount()
-	if !errors.Is(err, errNoLiquidity) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errNoLiquidity)
-	}
+	assert.ErrorIs(t, err, errNoLiquidity, "GetSpreadAmount should error correctly")
 
 	err = depth.LoadSnapshot(bid, ask, 0, time.Now(), true)
-	if err != nil {
-		t.Fatal(err)
-	}
-	spread, err := depth.GetSpreadAmount()
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	assert.NoError(t, err, "LoadSnapshot should not error")
 
-	if spread != 1 {
-		t.Fatalf("received: '%v' but expected: '%v'", spread, 1)
-	}
+	spread, err := depth.GetSpreadAmount()
+	assert.NoError(t, err, "GetSpreadAmount should not error")
+	assert.Equal(t, 1.0, spread, "spread should be correct")
 }
 
 func TestGetSpreadPercentage(t *testing.T) {
 	t.Parallel()
 	_, err := getInvalidDepth().GetSpreadPercentage()
-	if !errors.Is(err, ErrOrderbookInvalid) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, ErrOrderbookInvalid)
-	}
+	assert.ErrorIs(t, err, ErrOrderbookInvalid, "GetSpreadPercentage should error correctly")
 
 	depth := NewDepth(id)
 
 	_, err = depth.GetSpreadPercentage()
-	if !errors.Is(err, errNoLiquidity) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errNoLiquidity)
-	}
+	assert.ErrorIs(t, err, errNoLiquidity, "GetSpreadPercentage should error correctly")
 
 	err = depth.LoadSnapshot(nil, ask, 0, time.Now(), true)
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.NoError(t, err, "LoadSnapshot should not error")
+
 	_, err = depth.GetSpreadPercentage()
-	if !errors.Is(err, errNoLiquidity) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errNoLiquidity)
-	}
+	assert.ErrorIs(t, err, errNoLiquidity, "GetSpreadPercentage should error correctly")
 
 	err = depth.LoadSnapshot(bid, ask, 0, time.Now(), true)
-	if err != nil {
-		t.Fatal(err)
-	}
-	spread, err := depth.GetSpreadPercentage()
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	assert.NoError(t, err, "LoadSnapshot should not error")
 
-	if spread != 0.07479431563201197 {
-		t.Fatalf("received: '%v' but expected: '%v'", spread, 0.07479431563201197)
-	}
+	spread, err := depth.GetSpreadPercentage()
+	assert.NoError(t, err, "GetSpreadPercentage should not error")
+	assert.Equal(t, 0.07479431563201197, spread, "spread should be correct")
 }
 
 func TestGetImbalance_Depth(t *testing.T) {
 	t.Parallel()
 	_, err := getInvalidDepth().GetImbalance()
-	if !errors.Is(err, ErrOrderbookInvalid) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, ErrOrderbookInvalid)
-	}
+	assert.ErrorIs(t, err, ErrOrderbookInvalid, "GetImbalance should error correctly")
 
 	depth := NewDepth(id)
 
 	_, err = depth.GetImbalance()
-	if !errors.Is(err, errNoLiquidity) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errNoLiquidity)
-	}
+	assert.ErrorIs(t, err, errNoLiquidity, "GetImbalance should error correctly")
 
 	err = depth.LoadSnapshot(nil, ask, 0, time.Now(), true)
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.NoError(t, err, "LoadSnapshot should not error")
+
 	_, err = depth.GetImbalance()
-	if !errors.Is(err, errNoLiquidity) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errNoLiquidity)
-	}
+	assert.ErrorIs(t, err, errNoLiquidity, "GetImbalance should error correctly")
 
 	err = depth.LoadSnapshot(bid, ask, 0, time.Now(), true)
-	if err != nil {
-		t.Fatal(err)
-	}
-	imbalance, err := depth.GetImbalance()
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	assert.NoError(t, err, "LoadSnapshot should not error")
 
-	if imbalance != 0 {
-		t.Fatalf("received: '%v' but expected: '%v'", imbalance, 0)
-	}
+	imbalance, err := depth.GetImbalance()
+	assert.NoError(t, err, "GetImbalance should not error")
+	assert.Zero(t, imbalance, "imbalance should be correct")
 }
 
 func TestGetTranches(t *testing.T) {
 	t.Parallel()
 	_, _, err := getInvalidDepth().GetTranches(0)
-	if !errors.Is(err, ErrOrderbookInvalid) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, ErrOrderbookInvalid)
-	}
+	assert.ErrorIs(t, err, ErrOrderbookInvalid, "GetTranches should error correctly")
 
 	depth := NewDepth(id)
 
 	_, _, err = depth.GetTranches(-1)
-	if !errors.Is(err, errInvalidBookDepth) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errInvalidBookDepth)
-	}
+	assert.ErrorIs(t, err, errInvalidBookDepth, "GetTranches should error correctly")
 
 	askT, bidT, err := depth.GetTranches(0)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
-
-	if len(askT) != 0 {
-		t.Fatalf("received: '%v' but expected: '%v'", len(askT), 0)
-	}
-
-	if len(bidT) != 0 {
-		t.Fatalf("received: '%v' but expected: '%v'", len(bidT), 0)
-	}
+	assert.NoError(t, err, "GetTranches should not error")
+	assert.Empty(t, askT, "Ask tranche should be empty")
+	assert.Empty(t, bidT, "Bid tranche should be empty")
 
 	err = depth.LoadSnapshot(bid, ask, 0, time.Now(), true)
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.NoError(t, err, "LoadSnapshot should not error")
 
 	askT, bidT, err = depth.GetTranches(0)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
-
-	if len(askT) != 20 {
-		t.Fatalf("received: '%v' but expected: '%v'", len(askT), 20)
-	}
-
-	if len(bidT) != 20 {
-		t.Fatalf("received: '%v' but expected: '%v'", len(bidT), 20)
-	}
+	assert.NoError(t, err, "GetTranches should not error")
+	assert.Len(t, askT, 20, "asks should have correct number of tranches")
+	assert.Len(t, bidT, 20, "bids should have correct number of tranches")
 
 	askT, bidT, err = depth.GetTranches(5)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
-
-	if len(askT) != 5 {
-		t.Fatalf("received: '%v' but expected: '%v'", len(askT), 5)
-	}
-
-	if len(bidT) != 5 {
-		t.Fatalf("received: '%v' but expected: '%v'", len(bidT), 5)
-	}
+	assert.NoError(t, err, "GetTranches should not error")
+	assert.Len(t, askT, 5, "asks should have correct number of tranches")
+	assert.Len(t, bidT, 5, "bids should have correct number of tranches")
 }
 
 func TestGetPair(t *testing.T) {
@@ -2376,25 +680,232 @@ func TestGetPair(t *testing.T) {
 	depth := NewDepth(id)
 
 	_, err := depth.GetPair()
-	if !errors.Is(err, currency.ErrCurrencyPairEmpty) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, currency.ErrCurrencyPairEmpty)
-	}
+	assert.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "GetPair should error correctly")
 
 	expected := currency.NewPair(currency.BTC, currency.WABI)
 	depth.pair = expected
 
 	pair, err := depth.GetPair()
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	assert.NoError(t, err, "GetPair should not error")
 
-	if !pair.Equal(expected) {
-		t.Fatalf("received: '%v' but expected: '%v'", pair, expected)
-	}
+	assert.Equal(t, expected, pair, "GetPair should return correct pair")
 }
 
 func getInvalidDepth() *Depth {
 	depth := NewDepth(id)
 	_ = depth.Invalidate(errors.New("invalid reasoning"))
 	return depth
+}
+
+func TestMovementMethods(t *testing.T) {
+	t.Parallel()
+
+	callMethod := func(i any, name string, args []any) (*Movement, error) {
+		m := reflect.ValueOf(i).MethodByName(name)
+		valueArgs := []reflect.Value{}
+		for _, i := range args {
+			valueArgs = append(valueArgs, reflect.ValueOf(i))
+		}
+		r := m.Call(valueArgs)
+		movement, ok := r[0].Interface().(*Movement)
+		assert.True(t, ok, "Should return an Movement type")
+		if err, ok := r[1].Interface().(error); ok {
+			return movement, err
+		}
+		return movement, nil
+	}
+
+	for _, tt := range movementTests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			depth := NewDepth(id)
+			methodName := strings.Split(tt.name, "_")[0]
+
+			_, err := callMethod(getInvalidDepth(), methodName, tt.tests[0].inputs)
+			assert.ErrorIsf(t, err, ErrOrderbookInvalid, "should error correctly with an invalid orderbook")
+
+			_, err = callMethod(depth, methodName, tt.tests[0].inputs)
+			assert.ErrorIs(t, err, errNoLiquidity, "should error correctly with no liquidity")
+
+			err = depth.LoadSnapshot(bid, ask, 0, time.Now(), true)
+			assert.NoError(t, err, "LoadSnapshot should not error")
+
+			for i, subT := range tt.tests {
+				move, err := callMethod(depth, methodName, subT.inputs)
+				assert.NoErrorf(t, err, "sub test %d should not error", i)
+				meta := reflect.Indirect(reflect.ValueOf(move))
+				metaExpect := reflect.Indirect(reflect.ValueOf(subT.expect))
+				for j := 0; j < metaExpect.NumField(); j++ {
+					field := meta.Field(j)
+					expect := metaExpect.Field(j)
+					if field.CanFloat() && !expect.IsZero() {
+						assert.InDeltaf(t, field.Float(), expect.Float(), accuracy10dp, "sub test %d movement %s should be correct", i, meta.Type().Field(j).Name)
+					}
+				}
+				assert.Equal(t, subT.expect.FullBookSideConsumed, move.FullBookSideConsumed, "sub test %d movement FullBookSideConsumed should be correct", i)
+			}
+		})
+	}
+}
+
+type movementTest struct {
+	inputs []any
+	expect Movement
+}
+
+var zero = accuracy10dp // Hack to allow testing of 0 values when we want without testing other fields we haven't specified
+
+var movementTests = []struct {
+	name  string
+	tests []movementTest
+}{
+	{"HitTheBidsByImpactSlippage",
+		[]movementTest{
+			{[]any{0.7485029940119761, 1336.0}, Movement{Sold: 10}}, // First and second price from best bid - price level target 1326 (which should be kept)
+			{[]any{1.4221556886227544, 1336.0}, Movement{Sold: 19}}, // All the way up to the last price from best bid price
+		}},
+	{"HitTheBidsByImpactSlippageFromMid",
+		[]movementTest{
+			{[]any{0.7485029940119761}, Movement{Sold: 10.0}}, // First and second price from mid - price level target 1326 (which should be kept)
+			{[]any{1.4221556886227544}, Movement{Sold: 19.0}}, // All the way up to the last price from best bid price
+		}},
+	{"HitTheBidsByNominalSlippageFromMid",
+		[]movementTest{
+			{[]any{0.03741114852226}, Movement{Sold: 1.0}},  // First price from mid point
+			{[]any{0.74822297044519}, Movement{Sold: 20.0}}, // All the way up to the last price from mid price
+		}},
+	{"HitTheBidsByNominalSlippageFromBest",
+		[]movementTest{
+			{[]any{0.037425149700599}, Movement{Sold: 2.0}},                             // First and second price from best bid
+			{[]any{0.71107784431138}, Movement{Sold: 20.0, FullBookSideConsumed: true}}, // All the way up to the last price from best bid price
+		}},
+	{"LiftTheAsksByNominalSlippage",
+		[]movementTest{
+			{[]any{0.037397157816006, 1337.0}, Movement{Sold: 2675.0}}, // First and second price
+			{[]any{0.71054599850411, 1337.0}, Movement{Sold: 26930.0}}, // All the way up to the last price
+		}},
+	{"LiftTheAsksByNominalSlippageFromMid",
+		[]movementTest{
+			{[]any{0.074822297044519}, Movement{Sold: 2675.0}}, // First price from mid point
+			{[]any{0.74822297044519}, Movement{Sold: 26930.0}}, // All the way up to the last price from mid price
+		}},
+	{"LiftTheAsksByNominalSlippageFromBest",
+		[]movementTest{
+			{[]any{0.037397157816006}, Movement{Sold: 2675.0}}, // First and second price from best bid
+			{[]any{0.71054599850411}, Movement{Sold: 26930.0}}, // All the way up to the last price from best bid price
+		}},
+	{"HitTheBidsByImpactSlippageFromBest",
+		[]movementTest{
+			{[]any{0.7485029940119761}, Movement{Sold: 10.0}}, // First and second price from mid - price level target 1326 (which should be kept)
+			{[]any{1.4221556886227544}, Movement{Sold: 19.0}}, // All the way up to the last price from best bid price
+		}},
+	{"LiftTheAsksByImpactSlippage",
+		[]movementTest{
+			{[]any{0.7479431563201197, 1337.0}, Movement{Sold: 13415.0}}, // First and second price from best bid - price level target 1326 (which should be kept)
+			{[]any{1.4210919970082274, 1337.0}, Movement{Sold: 25574.0}}, // All the way up to the last price from best bid price
+		}},
+	{"LiftTheAsksByImpactSlippageFromMid",
+		[]movementTest{
+			{[]any{0.7485029940119761}, Movement{Sold: 13415.0}}, // First and second price from mid - price level target 1326 (which should be kept)
+			{[]any{1.4221556886227544}, Movement{Sold: 25574.0}}, // All the way up to the last price from best bid price
+		}},
+	{"LiftTheAsksByImpactSlippageFromBest",
+		[]movementTest{
+			{[]any{0.7479431563201197}, Movement{Sold: 13415.0}}, // First and second price from mid - price level target 1326 (which should be kept)
+			// All the way up to the last price from best bid price
+			// This goes to price 1356, it will not count that tranches' volume as it is needed to sustain the slippage.
+			{[]any{1.4210919970082274}, Movement{Sold: 25574.0}},
+		}},
+	{"HitTheBidsByNominalSlippage",
+		[]movementTest{
+			{[]any{0.0, 1336.0}, Movement{Sold: 1.0, NominalPercentage: 0.0, StartPrice: 1336.0, EndPrice: 1336.0}},                                                          // 1st
+			{[]any{0.037425149700598806, 1336.0}, Movement{Sold: 2.0, NominalPercentage: 0.037425149700598806, StartPrice: 1336.0, EndPrice: 1335.0}},                        // 2nd
+			{[]any{0.02495009980039353, 1336.0}, Movement{Sold: 1.5, NominalPercentage: 0.02495009980039353, StartPrice: 1336.0, EndPrice: 1335.0}},                          // 1.5ish
+			{[]any{0.7110778443113772, 1336.0}, Movement{Sold: 20, NominalPercentage: 0.7110778443113772, StartPrice: 1336.0, EndPrice: 1317.0, FullBookSideConsumed: true}}, // All
+		}},
+	{"HitTheBids",
+		[]movementTest{
+			{[]any{20.1, 1336.0, false}, Movement{Sold: 20.0, FullBookSideConsumed: true}},
+			{[]any{1.0, 1336.0, false}, Movement{ImpactPercentage: 0.07485029940119761, NominalPercentage: zero, SlippageCost: zero}},
+			{[]any{19.5, 1336.0, false}, Movement{NominalPercentage: 0.692845079072617, ImpactPercentage: 1.4221556886227544, SlippageCost: 180.5}},
+			{[]any{20.0, 1336.0, false}, Movement{NominalPercentage: 0.7110778443113772, ImpactPercentage: FullLiquidityExhaustedPercentage, SlippageCost: 190.0, FullBookSideConsumed: true}},
+		}},
+	{"HitTheBids_QuotationRequired",
+		[]movementTest{
+			{[]any{26531.0, 1336.0, true}, Movement{Sold: 20.0, FullBookSideConsumed: true}},
+			{[]any{1336.0, 1336.0, true}, Movement{ImpactPercentage: 0.07485029940119761, NominalPercentage: zero, SlippageCost: zero}},
+			{[]any{25871.5, 1336.0, true}, Movement{NominalPercentage: 0.692845079072617, ImpactPercentage: 1.4221556886227544, SlippageCost: 180.5}},
+			{[]any{26530.0, 1336.0, true}, Movement{NominalPercentage: 0.7110778443113772, ImpactPercentage: FullLiquidityExhaustedPercentage, SlippageCost: 190.0, FullBookSideConsumed: true}},
+		}},
+	{"HitTheBidsFromMid",
+		[]movementTest{
+			{[]any{20.1, false}, Movement{Sold: 20.0, FullBookSideConsumed: true}},
+			{[]any{1.0, false}, Movement{ImpactPercentage: 0.11223344556677892, NominalPercentage: 0.03741114852225963, SlippageCost: zero}}, // mid price 1336.5 -> 1335
+			{[]any{19.5, false}, Movement{NominalPercentage: 0.7299970262933156, ImpactPercentage: 1.4590347923681257, SlippageCost: 180.5}},
+			{[]any{20.0, false}, Movement{NominalPercentage: 0.7482229704451926, ImpactPercentage: FullLiquidityExhaustedPercentage, SlippageCost: 190.0, FullBookSideConsumed: true}},
+		}},
+	{"HitTheBidsFromMid_QuotationRequired",
+		[]movementTest{
+			{[]any{26531.0, true}, Movement{Sold: 20.0, FullBookSideConsumed: true}},
+			{[]any{1336.0, true}, Movement{ImpactPercentage: 0.11223344556677892, NominalPercentage: 0.03741114852225963, SlippageCost: zero}}, // mid price 1336.5 -> 1335
+			{[]any{25871.5, true}, Movement{NominalPercentage: 0.7299970262933156, ImpactPercentage: 1.4590347923681257, SlippageCost: 180.5}},
+			{[]any{26530.0, true}, Movement{NominalPercentage: 0.7482229704451926, ImpactPercentage: FullLiquidityExhaustedPercentage, SlippageCost: 190.0, FullBookSideConsumed: true}},
+		}},
+	{"HitTheBidsFromBest",
+		[]movementTest{
+			{[]any{20.1, false}, Movement{Sold: 20.0, FullBookSideConsumed: true}},
+			{[]any{1.0, false}, Movement{ImpactPercentage: 0.07485029940119761, NominalPercentage: zero, SlippageCost: zero}},
+			{[]any{19.5, false}, Movement{NominalPercentage: 0.692845079072617, ImpactPercentage: 1.4221556886227544, SlippageCost: 180.5}},
+			{[]any{20.0, false}, Movement{NominalPercentage: 0.7110778443113772, ImpactPercentage: FullLiquidityExhaustedPercentage, SlippageCost: 190.0, FullBookSideConsumed: true}},
+		}},
+	{"HitTheBidsFromBest_QuotationRequired",
+		[]movementTest{
+			{[]any{26531.0, true}, Movement{Sold: 20.0, FullBookSideConsumed: true}},
+			{[]any{1336.0, true}, Movement{ImpactPercentage: 0.07485029940119761, NominalPercentage: zero, SlippageCost: zero}},
+			{[]any{25871.5, true}, Movement{NominalPercentage: 0.692845079072617, ImpactPercentage: 1.4221556886227544, SlippageCost: 180.5}},
+			{[]any{26530.0, true}, Movement{NominalPercentage: 0.7110778443113772, ImpactPercentage: FullLiquidityExhaustedPercentage, SlippageCost: 190.0, FullBookSideConsumed: true}},
+		}},
+	{"LiftTheAsks",
+		[]movementTest{
+			{[]any{26931.0, 1337.0, false}, Movement{Sold: 26930.0, FullBookSideConsumed: true}},
+			{[]any{1337.0, 1337.0, false}, Movement{ImpactPercentage: 0.07479431563201197, NominalPercentage: zero, SlippageCost: zero}},
+			{[]any{26900.0, 1337.0, false}, Movement{NominalPercentage: 0.7097591258590459, ImpactPercentage: 1.4210919970082274, SlippageCost: 189.57964601770072}},
+			{[]any{26930.0, 1336.0, false}, Movement{NominalPercentage: 0.7859281437125748, ImpactPercentage: FullLiquidityExhaustedPercentage, SlippageCost: 190.0, FullBookSideConsumed: true}},
+		}},
+	{"LiftTheAsks_BaseRequired",
+		[]movementTest{
+			{[]any{21.0, 1337.0, true}, Movement{Sold: 26930.0, FullBookSideConsumed: true}},
+			{[]any{1.0, 1337.0, true}, Movement{ImpactPercentage: 0.07479431563201197, NominalPercentage: zero, SlippageCost: zero}},
+			{[]any{19.97787610619469, 1337.0, true}, Movement{NominalPercentage: 0.7097591258590459, ImpactPercentage: 1.4210919970082274, SlippageCost: 189.57964601770072}},
+			{[]any{20.0, 1336.0, true}, Movement{NominalPercentage: 0.7859281437125748, ImpactPercentage: FullLiquidityExhaustedPercentage, SlippageCost: 190.0, FullBookSideConsumed: true}},
+		}},
+	{"LiftTheAsksFromMid",
+		[]movementTest{
+			{[]any{26931.0, false}, Movement{Sold: 26930.0, FullBookSideConsumed: true}},
+			{[]any{1337.0, false}, Movement{NominalPercentage: 0.03741114852225963, ImpactPercentage: 0.11223344556677892, SlippageCost: zero}},
+			{[]any{26900.0, false}, Movement{NominalPercentage: 0.747435803422031, ImpactPercentage: 1.4590347923681257, SlippageCost: 189.57964601770072}},
+			{[]any{26930.0, false}, Movement{NominalPercentage: 0.7482229704451926, ImpactPercentage: FullLiquidityExhaustedPercentage, SlippageCost: 190.0, FullBookSideConsumed: true}},
+		}},
+	{"LiftTheAsksFromMid_BaseRequired",
+		[]movementTest{
+			{[]any{21.0, true}, Movement{Sold: 26930.0, FullBookSideConsumed: true}},
+			{[]any{1.0, true}, Movement{NominalPercentage: 0.03741114852225963, ImpactPercentage: 0.11223344556677892, SlippageCost: zero}},
+			{[]any{19.97787610619469, true}, Movement{NominalPercentage: 0.7474358034220139, ImpactPercentage: 1.4590347923681257, SlippageCost: 189.5796460176971}},
+			{[]any{20.0, true}, Movement{NominalPercentage: 0.7482229704451926, ImpactPercentage: FullLiquidityExhaustedPercentage, SlippageCost: 190.0, FullBookSideConsumed: true}},
+		}},
+	{"LiftTheAsksFromBest",
+		[]movementTest{
+			{[]any{26931.0, false}, Movement{Sold: 26930.0, FullBookSideConsumed: true}},
+			{[]any{1337.0, false}, Movement{NominalPercentage: zero, ImpactPercentage: 0.07479431563201197, SlippageCost: zero}},
+			{[]any{26900.0, false}, Movement{NominalPercentage: 0.7097591258590459, ImpactPercentage: 1.4210919970082274, SlippageCost: 189.579646017701}},
+			{[]any{26930.0, false}, Movement{NominalPercentage: 0.7105459985041137, ImpactPercentage: FullLiquidityExhaustedPercentage, SlippageCost: 190.0, FullBookSideConsumed: true}},
+		}},
+	{"LiftTheAsksFromBest_BaseRequired",
+		[]movementTest{
+			{[]any{21.0, true}, Movement{Sold: 26930.0, FullBookSideConsumed: true}},
+			{[]any{1.0, true}, Movement{NominalPercentage: zero, ImpactPercentage: 0.07479431563201197, SlippageCost: zero}},
+			{[]any{19.97787610619469, true}, Movement{NominalPercentage: 0.7097591258590459, ImpactPercentage: 1.4210919970082274, SlippageCost: 189.579646017701}},
+			{[]any{20.0, true}, Movement{NominalPercentage: 0.7105459985041137, ImpactPercentage: FullLiquidityExhaustedPercentage, SlippageCost: 190.0, FullBookSideConsumed: true}},
+		}},
 }
