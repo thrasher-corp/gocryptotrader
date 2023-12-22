@@ -35,9 +35,10 @@ var (
 	// ErrSymbolStringEmpty is an error when a symbol string is empty
 	ErrSymbolStringEmpty = errors.New("symbol string is empty")
 
-	errPairStoreIsNil   = errors.New("pair store is nil")
-	errPairFormatIsNil  = errors.New("pair format is nil")
-	errPairMatcherIsNil = errors.New("pair matcher is nil")
+	errPairStoreIsNil      = errors.New("pair store is nil")
+	errPairFormatIsNil     = errors.New("pair format is nil")
+	errPairMatcherIsNil    = errors.New("pair matcher is nil")
+	errPairConfigFormatNil = errors.New("pair config format is nil")
 )
 
 // GetAssetTypes returns a list of stored asset types
@@ -456,6 +457,33 @@ func (p *PairsManager) getPairStoreRequiresLock(a asset.Item) (*PairStore, error
 	}
 
 	return pairStore, nil
+}
+
+// SetDelimitersFromConfig ensures that the pairs adhere to the configured delimiters
+// Pairs.Unmarshal doesn't know what the delimiter is, so uses the first punctuation rune
+func (p *PairsManager) SetDelimitersFromConfig() error {
+	for a, s := range p.Pairs {
+		cf := s.ConfigFormat
+		if cf == nil {
+			cf = p.ConfigFormat
+		}
+		if cf == nil {
+			return errPairConfigFormatNil
+		}
+		for i, p := range []Pairs{s.Enabled, s.Available} {
+			for j := range p {
+				if p[j].Delimiter == cf.Delimiter {
+					continue
+				}
+				nP, err := NewPairDelimiter(p[j].String(), cf.Delimiter)
+				if err != nil {
+					return fmt.Errorf("%s.%s.%s: %w", a, []string{"enabled", "available"}[i], p[j], err)
+				}
+				p[j] = nP
+			}
+		}
+	}
+	return nil
 }
 
 // UnmarshalJSON implements the unmarshal json interface so that the key can be
