@@ -1901,28 +1901,24 @@ func Bootstrap(ctx context.Context, b IBotExchange) error {
 		b.PrintEnabledPairs()
 	}
 
-	errC := make(chan error, 16) // Blocking isn't a dealbreaker, but a little buffer is nice
-	var wg sync.WaitGroup
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		a := b.GetAssetTypes(true)
-		for x := range a {
-			if aErr := b.UpdateOrderExecutionLimits(ctx, a[x]); aErr != nil && !errors.Is(aErr, common.ErrNotYetImplemented) {
-				errC <- fmt.Errorf("failed to set exchange order execution limits: %w", aErr)
-			}
+	if b.GetEnabledFeatures().AutoPairUpdates {
+		if err := b.UpdateTradablePairs(ctx, false); err != nil {
+			return fmt.Errorf("failed to update tradable pairs: %w", err)
 		}
-	}()
+	}
 
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		if b.GetEnabledFeatures().AutoPairUpdates {
-			if aErr := b.UpdateTradablePairs(ctx, false); aErr != nil {
-				errC <- fmt.Errorf("failed to update tradable pairs: %w", aErr)
+	a := b.GetAssetTypes(true)
+	var wg sync.WaitGroup
+	errC := make(chan error, len(a))
+	for i := range a {
+		wg.Add(1)
+		go func(a asset.Item) {
+			defer wg.Done()
+			if err := b.UpdateOrderExecutionLimits(ctx, a); err != nil && !errors.Is(err, common.ErrNotYetImplemented) {
+				errC <- fmt.Errorf("failed to set exchange order execution limits: %w", err)
 			}
-		}
-	}()
+		}(a[i])
+	}
 	wg.Wait()
 	close(errC)
 
