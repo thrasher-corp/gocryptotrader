@@ -536,7 +536,8 @@ func TestIsAssetEnabled_SetAssetEnabled(t *testing.T) {
 	}
 }
 
-func TestUnmarshalMarshal(t *testing.T) {
+// TestFullStoreUnmarshalMarshal tests json Mashal and Unmarshal
+func TestFullStoreUnmarshalMarshal(t *testing.T) {
 	t.Parallel()
 	var um = make(FullStore)
 	um[asset.Spot] = &PairStore{AssetEnabled: convert.BoolPtr(true)}
@@ -770,5 +771,53 @@ func TestLoad(t *testing.T) {
 		assert.Equal(t, tt, base.LastUpdated, "Last Updated should be correct")
 		assert.Equal(t, fmt1.Uppercase, base.ConfigFormat.Uppercase, "ConfigFormat Uppercase should be correct")
 		assert.Equal(t, fmt2.Delimiter, base.RequestFormat.Delimiter, "RequestFormat Delimiter should be correct")
+	}
+}
+
+func checkPairDelimiter(tb testing.TB, p *PairsManager, err error, d, msg string) {
+	tb.Helper()
+	if assert.NoError(tb, err, "UnmarshalJSON should not error") {
+		err := p.SetDelimitersFromConfig()
+		assert.NoError(tb, err, "SetDelimitersFromConfig should not error")
+		s := p.Pairs[asset.Spot]
+		if assert.NotNil(tb, s, "Spot asset should not be nil") {
+			for _, ps := range []Pairs{s.Enabled, s.Available} {
+				if assert.NotEmpty(tb, ps, "PairStore should not be empty") {
+					for _, p := range ps {
+						assert.Equalf(tb, d, p.Delimiter, msg)
+					}
+				}
+			}
+		}
+	}
+}
+
+// TestPairManagerUnmarshal tests behaviour expectations:
+// * Should error with no ConfigFormat ( `CheckPairConsistency` catches that )
+// * Asset pair config should take precedent
+// * Global store pair config should apply when no Asset pair config
+func TestPairManagerSetDelimitersFromConfig(t *testing.T) {
+	t.Parallel()
+	p := new(PairsManager)
+
+	err := json.Unmarshal([]byte(`{"pairs":{"spot":{"enabled":"BTC-USD,M_PIT-USDT","available":"BTC-USD,M_PIT-USD"}}}`), p)
+	if assert.NoError(t, err, "UnmarshalJSON should not error") {
+		err = p.SetDelimitersFromConfig()
+		assert.ErrorIs(t, err, errPairConfigFormatNil, "SetDelimitersFromConfig should error correctly")
+	}
+
+	err = json.Unmarshal([]byte(`{"pairs":{"spot":{"configFormat":{"delimiter":"-"},"enabled":"BTC-USD,M_PIT-USDT","available":"BTC-USD,M_PIT-USD"}}}`), p)
+	checkPairDelimiter(t, p, err, "-", "Delimiter should be correct with only bottom level configFormat")
+
+	err = json.Unmarshal([]byte(`{"configFormat":{"delimiter":"/"},"pairs":{"spot":{"enabled":"BTC/USD,M_PIT/USDT","available":"BTC/USD,M_PIT/USD"}}}`), p)
+	checkPairDelimiter(t, p, err, "/", "Delimiter should be correct with top level configFormat")
+
+	err = json.Unmarshal([]byte(`{"configFormat":{"delimiter":"_"},"pairs":{"spot":{"configFormat":{"delimiter":"/"},"enabled":"BTC/USD,M_PIT/USDT","available":"BTC/USD,M_PIT/USD"}}}`), p)
+	checkPairDelimiter(t, p, err, "/", "Delimiter should be correct with bottom level configFormat")
+
+	err = json.Unmarshal([]byte(`{"pairs":{"spot":{"configFormat":{"delimiter":"_"},"enabled":"BTC-USDT","available":"BTC-USDT"}}}`), p)
+	if assert.NoError(t, err, "UnmarshalJSON should not error") {
+		err := p.SetDelimitersFromConfig()
+		assert.ErrorContains(t, err, "spot.enabled.BTC-USDT: delimiter: [_] not found in currencypair string", "SetDelimitersFromConfig should error correctly")
 	}
 }
