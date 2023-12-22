@@ -20,6 +20,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
+	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
 // Bybit is the overarching type across this package
@@ -164,10 +165,10 @@ func (by *Bybit) GetMergedOrderBook(ctx context.Context, symbol string, scale, d
 func (by *Bybit) GetTrades(ctx context.Context, symbol string, limit int64) ([]TradeItem, error) {
 	resp := struct {
 		Data []struct {
-			Time         convert.ExchangeTime    `json:"time"`
-			IsBuyerMaker bool                    `json:"isBuyerMaker"`
-			Price        convert.StringToFloat64 `json:"price"`
-			Quantity     convert.StringToFloat64 `json:"qty"`
+			Price        types.Number         `json:"price"`
+			Time         convert.ExchangeTime `json:"time"`
+			Quantity     types.Number         `json:"qty"`
+			IsBuyerMaker bool                 `json:"isBuyerMaker"`
 		} `json:"result"`
 		Error
 	}{}

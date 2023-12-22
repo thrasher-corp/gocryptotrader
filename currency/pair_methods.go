@@ -33,7 +33,7 @@ func (p Pair) Upper() Pair {
 	return p
 }
 
-// UnmarshalJSON comforms type to the umarshaler interface
+// UnmarshalJSON implements json.Unmarshaler
 func (p *Pair) UnmarshalJSON(d []byte) error {
 	var pair string
 	err := json.Unmarshal(d, &pair)

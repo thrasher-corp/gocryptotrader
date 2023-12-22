@@ -3410,7 +3410,7 @@ func TestForceFileStandard(t *testing.T) {
 		t.Error(err)
 	}
 	if t.Failed() {
-		t.Fatal("Please use convert.StringToFloat64 type instead of `float64` and remove `,string` as strings can be empty in unmarshal process. Then call the Float64() method.")
+		t.Fatal("Please use types.Number type instead of `float64` and remove `,string` as strings can be empty in unmarshal process. Then call the Float64() method.")
 	}
 }
 
