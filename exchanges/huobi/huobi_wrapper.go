@@ -2318,7 +2318,7 @@ func (h *HUOBI) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]futu
 			return nil, fmt.Errorf("%w %v %v", asset.ErrNotSupported, k[i].Asset, k[i].Pair())
 		}
 	}
-	if len(k) == 0 || len(k) > 1 {
+	if len(k) != 1 {
 		var resp []futures.OpenInterest
 		for _, a := range h.GetAssetTypes(true) {
 			switch a {

@@ -36,7 +36,7 @@ type SubAccountCurrencyAsset struct {
 }
 
 // Pair combines the base and quote into a pair
-func (k PairAsset) Pair() currency.Pair {
+func (k *PairAsset) Pair() currency.Pair {
 	if k.Base == nil && k.Quote == nil {
 		return currency.EMPTYPAIR
 	}
@@ -44,7 +44,7 @@ func (k PairAsset) Pair() currency.Pair {
 }
 
 // Pair combines the base and quote into a pair
-func (k ExchangePairAsset) Pair() currency.Pair {
+func (k *ExchangePairAsset) Pair() currency.Pair {
 	if k.Base == nil && k.Quote == nil {
 		return currency.EMPTYPAIR
 	}
@@ -52,18 +52,18 @@ func (k ExchangePairAsset) Pair() currency.Pair {
 }
 
 // MatchesExchangeAsset checks if the key matches the exchange and asset
-func (k ExchangePairAsset) MatchesExchangeAsset(exch string, item asset.Item) bool {
+func (k *ExchangePairAsset) MatchesExchangeAsset(exch string, item asset.Item) bool {
 	return strings.EqualFold(k.Exchange, exch) && k.Asset == item
 }
 
 // MatchesPairAsset checks if the key matches the pair and asset
-func (k ExchangePairAsset) MatchesPairAsset(pair currency.Pair, item asset.Item) bool {
+func (k *ExchangePairAsset) MatchesPairAsset(pair currency.Pair, item asset.Item) bool {
 	return k.Base == pair.Base.Item &&
 		k.Quote == pair.Quote.Item &&
 		k.Asset == item
 }
 
 // MatchesExchange checks if the exchange matches
-func (k ExchangePairAsset) MatchesExchange(exch string) bool {
+func (k *ExchangePairAsset) MatchesExchange(exch string) bool {
 	return strings.EqualFold(k.Exchange, exch)
 }

@@ -1336,7 +1336,7 @@ func (b *BTSE) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]futur
 		return ticks, nil
 	}
 
-	if len(k) == 0 || len(k) > 1 {
+	if len(k) != 1 {
 		var tickers MarketSummary
 		tickers, err = b.GetMarketSummary(ctx, "", false)
 		if err != nil {

@@ -2260,7 +2260,7 @@ func (ok *Okx) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]futur
 			return nil, fmt.Errorf("%w %v %v", asset.ErrNotSupported, k[i].Asset, k[i].Pair())
 		}
 	}
-	if len(k) == 0 || len(k) > 1 {
+	if len(k) != 1 {
 		var resp []futures.OpenInterest
 		// TODO: Options support
 		instTypes := map[string]asset.Item{

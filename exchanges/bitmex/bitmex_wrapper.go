@@ -1357,7 +1357,7 @@ func (b *Bitmex) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]fut
 	if err == nil && len(ticks) > 0 {
 		return ticks, nil
 	}
-	if len(k) == 0 || len(k) > 1 {
+	if len(k) != 1 {
 		var activeInstruments []Instrument
 		activeInstruments, err = b.GetActiveAndIndexInstruments(ctx)
 		if err != nil {

@@ -1877,7 +1877,7 @@ func (k *Kraken) GetOpenInterest(ctx context.Context, keys ...key.PairAsset) ([]
 		return ticks, nil
 	}
 
-	if len(keys) == 0 || len(keys) > 1 {
+	if len(keys) != 1 {
 		var futuresTickersData FuturesTickersData
 		futuresTickersData, err = k.GetFuturesTickers(ctx)
 		if err != nil {

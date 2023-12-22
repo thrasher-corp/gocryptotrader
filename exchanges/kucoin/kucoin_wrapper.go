@@ -2008,7 +2008,7 @@ func (ku *Kucoin) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]fu
 		return ticks, nil
 	}
 
-	if len(k) == 0 || len(k) > 1 {
+	if len(k) != 1 {
 		var contracts []Contract
 		contracts, err = ku.GetFuturesOpenContracts(ctx)
 		if err != nil {
