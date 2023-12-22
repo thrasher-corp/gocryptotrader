@@ -12,13 +12,13 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
-	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
+	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
 const (
@@ -888,7 +888,7 @@ func (by *Bybit) GetUSDCPosition(ctx context.Context, symbol currency.Pair, cate
 func (by *Bybit) SetUSDCLeverage(ctx context.Context, symbol currency.Pair, leverage float64) (float64, error) {
 	resp := struct {
 		Result struct {
-			Leverage convert.StringToFloat64 `json:"leverage"`
+			Leverage types.Number `json:"leverage"`
 		} `json:"result"`
 		USDCError
 	}{}
@@ -1019,8 +1019,8 @@ func (by *Bybit) GetUSDCLastFundingRate(ctx context.Context, symbol currency.Pai
 func (by *Bybit) GetUSDCPredictedFundingRate(ctx context.Context, symbol currency.Pair) (predictedFundingRate, predictedFundingFee float64, err error) {
 	resp := struct {
 		Result struct {
-			PredictedFundingRate convert.StringToFloat64 `json:"predictedFundingRate"`
-			PredictedFundingFee  convert.StringToFloat64 `json:"predictedFundingFee"`
+			PredictedFundingRate types.Number `json:"predictedFundingRate"`
+			PredictedFundingFee  types.Number `json:"predictedFundingFee"`
 		} `json:"result"`
 		USDCError
 	}{}

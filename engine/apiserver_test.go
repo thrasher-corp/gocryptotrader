@@ -7,9 +7,9 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
-	"reflect"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/thrasher-corp/gocryptotrader/config"
 )
 
@@ -258,28 +258,22 @@ func TestConfigAllJsonResponse(t *testing.T) {
 	t.Parallel()
 	var c config.Config
 	err := c.LoadConfig(config.TestFile, true)
-	if err != nil {
-		t.Error(err)
-	}
+	assert.NoError(t, err, "LoadConfig should not error")
+
 	resp := makeHTTPGetRequest(t, c)
 	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		t.Error("Body not readable", err)
-	}
+	assert.NoError(t, err, "ReadAll should not error")
 	err = resp.Body.Close()
-	if err != nil {
-		t.Error("Body not closable", err)
-	}
+	assert.NoError(t, err, "Close body should not error")
 
 	var responseConfig config.Config
-	jsonErr := json.Unmarshal(body, &responseConfig)
-	if jsonErr != nil {
-		t.Error("Response not parse-able as json", err)
+	err = json.Unmarshal(body, &responseConfig)
+	assert.NoError(t, err, "Unmarshal should not error")
+	for _, e := range responseConfig.Exchanges {
+		err = e.CurrencyPairs.SetDelimitersFromConfig()
+		assert.NoError(t, err, "SetDelimitersFromConfig should not error")
 	}
-
-	if !reflect.DeepEqual(responseConfig, c) {
-		t.Error("Json not equal to config")
-	}
+	assert.Equal(t, c, responseConfig, "Config should match api response")
 }
 
 // fakeBot is a basic implementation of the iBot interface used for testing

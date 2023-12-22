@@ -5,6 +5,8 @@ import (
 	"errors"
 	"fmt"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 const (
@@ -46,47 +48,18 @@ func TestUpper(t *testing.T) {
 }
 
 func TestPairUnmarshalJSON(t *testing.T) {
-	var unmarshalHere Pair
-	configPair, err := NewPairDelimiter("btc_usd", "_")
-	if err != nil {
-		t.Fatal(err)
-	}
+	var p Pair
+	assert.NoError(t, p.UnmarshalJSON([]byte(`"btc_usd"`)), "UnmarshalJSON should not error")
+	assert.Equal(t, "btc", p.Base.String(), "Base should be correct")
+	assert.Equal(t, "usd", p.Quote.String(), "Quote should be correct")
+	assert.Equal(t, "_", p.Delimiter, "Delimiter should be correct")
 
-	encoded, err := json.Marshal(configPair)
-	if err != nil {
-		t.Fatal("Pair UnmarshalJSON() error", err)
-	}
+	assert.ErrorIs(t, p.UnmarshalJSON([]byte(`"btcusd"`)), errCannotCreatePair, "UnmarshalJSON with no delimiter should error")
 
-	err = json.Unmarshal(encoded, &unmarshalHere)
-	if err != nil {
-		t.Fatal("Pair UnmarshalJSON() error", err)
-	}
-
-	err = json.Unmarshal(encoded, &unmarshalHere)
-	if err != nil {
-		t.Fatal("Pair UnmarshalJSON() error", err)
-	}
-
-	if !unmarshalHere.Equal(configPair) {
-		t.Errorf("Pair UnmarshalJSON() error expected %s but received %s",
-			configPair, unmarshalHere)
-	}
-
-	encoded, err = json.Marshal(EMPTYPAIR)
-	if err != nil {
-		t.Fatal(err)
-	}
-	err = json.Unmarshal(encoded, &unmarshalHere)
-	if err != nil {
-		t.Fatal("Pair UnmarshalJSON() error", err)
-	}
-	err = json.Unmarshal([]byte("null"), &unmarshalHere)
-	if err != nil {
-		t.Fatal("Pair UnmarshalJSON() error", err)
-	}
-	if unmarshalHere != EMPTYPAIR {
-		t.Fatalf("Expected EMPTYPAIR got: %s", unmarshalHere)
-	}
+	assert.NoError(t, p.UnmarshalJSON([]byte(`""`)), "UnmarshalJSON should not error on empty value")
+	assert.Equal(t, EMPTYPAIR, p, "UnmarshalJSON empty value should give EMPTYPAIR")
+	assert.NoError(t, p.UnmarshalJSON([]byte(`null`)), "UnmarshalJSON should not error on empty value")
+	assert.Equal(t, EMPTYPAIR, p, "UnmarshalJSON null value should give EMPTYPAIR")
 }
 
 func TestPairMarshalJSON(t *testing.T) {
