@@ -406,7 +406,7 @@ func getSavedTrades(c *cli.Context) error {
 	}
 
 	if e.Before(s) {
-		return errors.New("start cannot be after end")
+		return common.ErrStartAfterEnd
 	}
 
 	conn, cancel, err := setupClient(c)
@@ -557,7 +557,7 @@ func getHistoricTrades(c *cli.Context) error {
 	}
 
 	if e.Before(s) {
-		return errors.New("start cannot be after end")
+		return common.ErrStartAfterEnd
 	}
 
 	conn, cancel, err := setupClient(c)
@@ -695,7 +695,7 @@ func convertSavedTradesToCandles(c *cli.Context) error {
 	}
 
 	if e.Before(s) {
-		return errors.New("start cannot be after end")
+		return common.ErrStartAfterEnd
 	}
 
 	conn, cancel, err := setupClient(c)

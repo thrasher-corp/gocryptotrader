@@ -798,7 +798,7 @@ func (ok *Okx) GetAccountFundingHistory(ctx context.Context) ([]exchange.Funding
 	for x := range depositHistories {
 		resp = append(resp, exchange.FundingHistory{
 			ExchangeName:    ok.Name,
-			Status:          strconv.FormatInt(depositHistories[x].State, 10),
+			Status:          strconv.FormatInt(depositHistories[x].State.Int64(), 10),
 			Timestamp:       depositHistories[x].Timestamp.Time(),
 			Currency:        depositHistories[x].Currency,
 			Amount:          depositHistories[x].Amount.Float64(),

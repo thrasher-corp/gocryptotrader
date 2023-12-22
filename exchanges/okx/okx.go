@@ -1178,8 +1178,8 @@ func (ok *Okx) GetRfqTrades(ctx context.Context, arg *RfqTradesRequestParams) ([
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getTradesEPL, http.MethodGet, common.EncodeURLValues("rfq/trades", params), nil, &resp, true)
 }
 
-// GetPublicBlockTrades retrieves the recent executed block trades.
-func (ok *Okx) GetPublicBlockTrades(ctx context.Context, beginID, endID string, limit int64) ([]PublicBlockTradesResponse, error) {
+// GetPublicTrades retrieves the recent executed block trades.
+func (ok *Okx) GetPublicTrades(ctx context.Context, beginID, endID string, limit int64) ([]PublicTradesResponse, error) {
 	params := url.Values{}
 	if beginID != "" {
 		params.Set("beginId", beginID)
@@ -1190,8 +1190,8 @@ func (ok *Okx) GetPublicBlockTrades(ctx context.Context, beginID, endID string, 
 	if limit > 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
-	var resp []PublicBlockTradesResponse
-	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getPublicTradesEPL, http.MethodGet, common.EncodeURLValues("rfq/public-trades", params), nil, &resp, false)
+	var resp []PublicTradesResponse
+	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getPublicTradesEPL, http.MethodGet, common.EncodeURLValues("rfq/public-trades", params), nil, &resp, true)
 }
 
 /*************************************** Funding Tradings ********************************/
@@ -4300,8 +4300,8 @@ func (ok *Okx) GetBlockTicker(ctx context.Context, instrumentID string) (*BlockT
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getBlockTickersEPL, http.MethodGet, common.EncodeURLValues("market/block-ticker", params), nil, &resp, false)
 }
 
-// GetBlockTrades retrieves the recent block trading transactions of an instrument. Descending order by tradeId.
-func (ok *Okx) GetBlockTrades(ctx context.Context, instrumentID string) ([]BlockTrade, error) {
+// GetPublicBlockTrades retrieves the recent block trading transactions of an instrument. Descending order by tradeId.
+func (ok *Okx) GetPublicBlockTrades(ctx context.Context, instrumentID string) ([]BlockTrade, error) {
 	if instrumentID == "" {
 		return nil, errMissingInstrumentID
 	}
