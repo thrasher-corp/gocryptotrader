@@ -10,6 +10,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
 const (
@@ -97,12 +98,12 @@ type TickerResponse struct {
 // IndexTicker represents Index ticker data.
 type IndexTicker struct {
 	InstID    string           `json:"instId"`
-	IdxPx     float64          `json:"idxPx,string"`
-	High24H   float64          `json:"high24h,string"`
-	SodUtc0   float64          `json:"sodUtc0,string"`
-	Open24H   float64          `json:"open24h,string"`
-	Low24H    float64          `json:"low24h,string"`
-	SodUtc8   float64          `json:"sodUtc8,string"`
+	IdxPx     types.Number     `json:"idxPx"`
+	High24H   types.Number     `json:"high24h"`
+	SodUtc0   types.Number     `json:"sodUtc0"`
+	Open24H   types.Number     `json:"open24h"`
+	Low24H    types.Number     `json:"low24h"`
+	SodUtc8   types.Number     `json:"sodUtc8"`
 	Timestamp okxUnixMilliTime `json:"ts"`
 }
 
@@ -228,8 +229,8 @@ type CandleStick struct {
 type TradeResponse struct {
 	InstrumentID string           `json:"instId"`
 	TradeID      string           `json:"tradeId"`
-	Price        float64          `json:"px,string"`
-	Quantity     float64          `json:"sz,string"`
+	Price        types.Number     `json:"px"`
+	Quantity     types.Number     `json:"sz"`
 	Side         order.Side       `json:"side"`
 	Timestamp    okxUnixMilliTime `json:"ts"`
 }
@@ -238,8 +239,8 @@ type TradeResponse struct {
 type TradingVolumeIn24HR struct {
 	BlockVolumeInCNY   okxNumericalValue `json:"blockVolCny"`
 	BlockVolumeInUSD   okxNumericalValue `json:"blockVolUsd"`
-	TradingVolumeInUSD float64           `json:"volUsd,string"`
-	TradingVolumeInCny float64           `json:"volCny,string"`
+	TradingVolumeInUSD types.Number      `json:"volUsd"`
+	TradingVolumeInCny types.Number      `json:"volCny"`
 	Timestamp          okxUnixMilliTime  `json:"ts"`
 }
 
@@ -253,13 +254,13 @@ type OracleSmartContractResponse struct {
 
 // UsdCnyExchangeRate the exchange rate for converting from USD to CNV
 type UsdCnyExchangeRate struct {
-	UsdCny float64 `json:"usdCny,string"`
+	UsdCny types.Number `json:"usdCny"`
 }
 
 // IndexComponent represents index component data on the market
 type IndexComponent struct {
 	Components []IndexComponentItem `json:"components"`
-	Last       float64              `json:"last,string"`
+	Last       types.Number         `json:"last"`
 	Index      string               `json:"index"`
 	Timestamp  okxUnixMilliTime     `json:"ts"`
 }
@@ -282,41 +283,41 @@ type InstrumentsFetchParams struct {
 
 // Instrument  representing an instrument with open contract.
 type Instrument struct {
-	InstrumentType                  string                  `json:"instType"`
-	InstrumentID                    string                  `json:"instId"`
-	InstrumentFamily                string                  `json:"instFamily"`
-	Underlying                      string                  `json:"uly"`
-	Category                        string                  `json:"category"`
-	BaseCurrency                    string                  `json:"baseCcy"`
-	QuoteCurrency                   string                  `json:"quoteCcy"`
-	SettlementCurrency              string                  `json:"settleCcy"`
-	ContractValue                   convert.StringToFloat64 `json:"ctVal"`
-	ContractMultiplier              convert.StringToFloat64 `json:"ctMult"`
-	ContractValueCurrency           string                  `json:"ctValCcy"`
-	OptionType                      string                  `json:"optType"`
-	StrikePrice                     string                  `json:"stk"`
-	ListTime                        okxTime                 `json:"listTime"`
-	ExpTime                         okxTime                 `json:"expTime"`
-	MaxLeverage                     convert.StringToFloat64 `json:"lever"`
-	TickSize                        convert.StringToFloat64 `json:"tickSz"`
-	LotSize                         convert.StringToFloat64 `json:"lotSz"`
-	MinimumOrderSize                convert.StringToFloat64 `json:"minSz"`
-	ContractType                    string                  `json:"ctType"`
-	Alias                           string                  `json:"alias"`
-	State                           string                  `json:"state"`
-	MaxQuantityOfSpotLimitOrder     convert.StringToFloat64 `json:"maxLmtSz"`
-	MaxQuantityOfMarketLimitOrder   convert.StringToFloat64 `json:"maxMktSz"`
-	MaxQuantityOfSpotTwapLimitOrder convert.StringToFloat64 `json:"maxTwapSz"`
-	MaxSpotIcebergSize              convert.StringToFloat64 `json:"maxIcebergSz"`
-	MaxTriggerSize                  convert.StringToFloat64 `json:"maxTriggerSz"`
-	MaxStopSize                     convert.StringToFloat64 `json:"maxStopSz"`
+	InstrumentType                  string       `json:"instType"`
+	InstrumentID                    string       `json:"instId"`
+	InstrumentFamily                string       `json:"instFamily"`
+	Underlying                      string       `json:"uly"`
+	Category                        string       `json:"category"`
+	BaseCurrency                    string       `json:"baseCcy"`
+	QuoteCurrency                   string       `json:"quoteCcy"`
+	SettlementCurrency              string       `json:"settleCcy"`
+	ContractValue                   types.Number `json:"ctVal"`
+	ContractMultiplier              types.Number `json:"ctMult"`
+	ContractValueCurrency           string       `json:"ctValCcy"`
+	OptionType                      string       `json:"optType"`
+	StrikePrice                     string       `json:"stk"`
+	ListTime                        okxTime      `json:"listTime"`
+	ExpTime                         okxTime      `json:"expTime"`
+	MaxLeverage                     types.Number `json:"lever"`
+	TickSize                        types.Number `json:"tickSz"`
+	LotSize                         types.Number `json:"lotSz"`
+	MinimumOrderSize                types.Number `json:"minSz"`
+	ContractType                    string       `json:"ctType"`
+	Alias                           string       `json:"alias"`
+	State                           string       `json:"state"`
+	MaxQuantityOfSpotLimitOrder     types.Number `json:"maxLmtSz"`
+	MaxQuantityOfMarketLimitOrder   types.Number `json:"maxMktSz"`
+	MaxQuantityOfSpotTwapLimitOrder types.Number `json:"maxTwapSz"`
+	MaxSpotIcebergSize              types.Number `json:"maxIcebergSz"`
+	MaxTriggerSize                  types.Number `json:"maxTriggerSz"`
+	MaxStopSize                     types.Number `json:"maxStopSz"`
 }
 
 // DeliveryHistoryDetail holds instrument id and delivery price information detail
 type DeliveryHistoryDetail struct {
-	Type          string  `json:"type"`
-	InstrumentID  string  `json:"insId"`
-	DeliveryPrice float64 `json:"px,string"`
+	Type          string       `json:"type"`
+	InstrumentID  string       `json:"insId"`
+	DeliveryPrice types.Number `json:"px"`
 }
 
 // DeliveryHistory represents list of delivery history detail items and timestamp information
@@ -329,28 +330,28 @@ type DeliveryHistory struct {
 type OpenInterest struct {
 	InstrumentType       asset.Item       `json:"instType"`
 	InstrumentID         string           `json:"instId"`
-	OpenInterest         float64          `json:"oi,string"`
-	OpenInterestCurrency float64          `json:"oiCcy,string"`
+	OpenInterest         types.Number     `json:"oi"`
+	OpenInterestCurrency types.Number     `json:"oiCcy"`
 	Timestamp            okxUnixMilliTime `json:"ts"`
 }
 
 // FundingRateResponse response data for the Funding Rate for an instruction type
 type FundingRateResponse struct {
-	FundingRate     convert.StringToFloat64 `json:"fundingRate"`
-	RealisedRate    convert.StringToFloat64 `json:"realizedRate"`
-	FundingTime     okxUnixMilliTime        `json:"fundingTime"`
-	InstrumentID    string                  `json:"instId"`
-	InstrumentType  string                  `json:"instType"`
-	NextFundingRate convert.StringToFloat64 `json:"nextFundingRate"`
-	NextFundingTime okxUnixMilliTime        `json:"nextFundingTime"`
+	FundingRate     types.Number     `json:"fundingRate"`
+	RealisedRate    types.Number     `json:"realizedRate"`
+	FundingTime     okxUnixMilliTime `json:"fundingTime"`
+	InstrumentID    string           `json:"instId"`
+	InstrumentType  string           `json:"instType"`
+	NextFundingRate types.Number     `json:"nextFundingRate"`
+	NextFundingTime okxUnixMilliTime `json:"nextFundingTime"`
 }
 
 // LimitPriceResponse hold an information for
 type LimitPriceResponse struct {
 	InstrumentType string           `json:"instType"`
 	InstID         string           `json:"instId"`
-	BuyLimit       float64          `json:"buyLmt,string"`
-	SellLimit      float64          `json:"sellLmt,string"`
+	BuyLimit       types.Number     `json:"buyLmt"`
+	SellLimit      types.Number     `json:"sellLmt"`
 	Timestamp      okxUnixMilliTime `json:"ts"`
 }
 
@@ -359,19 +360,19 @@ type OptionMarketDataResponse struct {
 	InstrumentType string           `json:"instType"`
 	InstrumentID   string           `json:"instId"`
 	Underlying     string           `json:"uly"`
-	Delta          float64          `json:"delta,string"`
-	Gamma          float64          `json:"gamma,string"`
-	Theta          float64          `json:"theta,string"`
-	Vega           float64          `json:"vega,string"`
-	DeltaBS        float64          `json:"deltaBS,string"`
-	GammaBS        float64          `json:"gammaBS,string"`
-	ThetaBS        float64          `json:"thetaBS,string"`
-	VegaBS         float64          `json:"vegaBS,string"`
+	Delta          types.Number     `json:"delta"`
+	Gamma          types.Number     `json:"gamma"`
+	Theta          types.Number     `json:"theta"`
+	Vega           types.Number     `json:"vega"`
+	DeltaBS        types.Number     `json:"deltaBS"`
+	GammaBS        types.Number     `json:"gammaBS"`
+	ThetaBS        types.Number     `json:"thetaBS"`
+	VegaBS         types.Number     `json:"vegaBS"`
 	RealVol        string           `json:"realVol"`
 	BidVolatility  string           `json:"bidVol"`
-	AskVolatility  float64          `json:"askVol,string"`
-	MarkVolatility float64          `json:"markVol,string"`
-	Leverage       float64          `json:"lever,string"`
+	AskVolatility  types.Number     `json:"askVol"`
+	MarkVolatility types.Number     `json:"markVol"`
+	Leverage       types.Number     `json:"lever"`
 	ForwardPrice   string           `json:"fwdPx"`
 	Timestamp      okxUnixMilliTime `json:"ts"`
 }
@@ -434,7 +435,7 @@ type LiquidationOrderDetailItem struct {
 	Currency              string           `json:"ccy"`
 	PosSide               string           `json:"posSide"`
 	Side                  string           `json:"side"` // May be empty
-	QuantityOfLiquidation float64          `json:"sz,string"`
+	QuantityOfLiquidation types.Number     `json:"sz"`
 	Timestamp             okxUnixMilliTime `json:"ts"`
 }
 
@@ -448,40 +449,40 @@ type MarkPrice struct {
 
 // PositionTiers represents position tier detailed information.
 type PositionTiers struct {
-	BaseMaxLoan                  string  `json:"baseMaxLoan"`
-	InitialMarginRequirement     string  `json:"imr"`
-	InstrumentID                 string  `json:"instId"`
-	MaximumLeverage              string  `json:"maxLever"`
-	MaximumSize                  float64 `json:"maxSz,string"`
-	MinSize                      float64 `json:"minSz,string"`
-	MaintenanceMarginRequirement string  `json:"mmr"`
-	OptionalMarginFactor         string  `json:"optMgnFactor"`
-	QuoteMaxLoan                 string  `json:"quoteMaxLoan"`
-	Tier                         string  `json:"tier"`
-	Underlying                   string  `json:"uly"`
+	BaseMaxLoan                  string       `json:"baseMaxLoan"`
+	InitialMarginRequirement     string       `json:"imr"`
+	InstrumentID                 string       `json:"instId"`
+	MaximumLeverage              string       `json:"maxLever"`
+	MaximumSize                  types.Number `json:"maxSz"`
+	MinSize                      types.Number `json:"minSz"`
+	MaintenanceMarginRequirement string       `json:"mmr"`
+	OptionalMarginFactor         string       `json:"optMgnFactor"`
+	QuoteMaxLoan                 string       `json:"quoteMaxLoan"`
+	Tier                         string       `json:"tier"`
+	Underlying                   string       `json:"uly"`
 }
 
 // InterestRateLoanQuotaBasic holds the basic Currency, loan,and interest rate information.
 type InterestRateLoanQuotaBasic struct {
-	Currency     string  `json:"ccy"`
-	LoanQuota    string  `json:"quota"`
-	InterestRate float64 `json:"rate,string"`
+	Currency     string       `json:"ccy"`
+	LoanQuota    string       `json:"quota"`
+	InterestRate types.Number `json:"rate"`
 }
 
 // InterestRateLoanQuotaItem holds the basic Currency, loan,interest rate, and other level and VIP related information.
 type InterestRateLoanQuotaItem struct {
 	InterestRateLoanQuotaBasic
-	InterestRateDiscount float64 `json:"0.7,string"`
-	LoanQuotaCoefficient float64 `json:"loanQuotaCoef,string"`
-	Level                string  `json:"level"`
+	InterestRateDiscount types.Number `json:"0.7"`
+	LoanQuotaCoefficient types.Number `json:"loanQuotaCoef"`
+	Level                string       `json:"level"`
 }
 
 // VIPInterestRateAndLoanQuotaInformation holds interest rate and loan quoata information for VIP users.
 type VIPInterestRateAndLoanQuotaInformation struct {
 	InterestRateLoanQuotaBasic
 	LevelList []struct {
-		Level     string  `json:"level"`
-		LoanQuota float64 `json:"loanQuota,string"`
+		Level     string       `json:"level"`
+		LoanQuota types.Number `json:"loanQuota"`
 	} `json:"levelList"`
 }
 
@@ -499,17 +500,17 @@ type InsuranceFundInformationRequestParams struct {
 // InsuranceFundInformation holds insurance fund information data.
 type InsuranceFundInformation struct {
 	Details []InsuranceFundInformationDetail `json:"details"`
-	Total   float64                          `json:"total,string"`
+	Total   types.Number                     `json:"total"`
 }
 
 // InsuranceFundInformationDetail represents an Insurance fund information item for a
 // single currency and type
 type InsuranceFundInformationDetail struct {
-	Amount    convert.StringToFloat64 `json:"amt"`
-	Balance   convert.StringToFloat64 `json:"balance"`
-	Currency  string                  `json:"ccy"`
-	Timestamp okxUnixMilliTime        `json:"ts"`
-	Type      string                  `json:"type"`
+	Amount    types.Number     `json:"amt"`
+	Balance   types.Number     `json:"balance"`
+	Currency  string           `json:"ccy"`
+	Timestamp okxUnixMilliTime `json:"ts"`
+	Type      string           `json:"type"`
 }
 
 // SupportedCoinsData holds information about currencies supported by the trading data endpoints.
@@ -717,42 +718,42 @@ type OrderHistoryRequestParams struct {
 
 // PendingOrderItem represents a pending order Item in pending orders list.
 type PendingOrderItem struct {
-	AccumulatedFillSize        convert.StringToFloat64 `json:"accFillSz"`
-	AveragePrice               convert.StringToFloat64 `json:"avgPx"`
-	CreationTime               okxUnixMilliTime        `json:"cTime"`
-	Category                   string                  `json:"category"`
-	Currency                   string                  `json:"ccy"`
-	ClientOrderID              string                  `json:"clOrdId"`
-	Fee                        convert.StringToFloat64 `json:"fee"`
-	FeeCurrency                currency.Code           `json:"feeCcy"`
-	LastFilledPrice            convert.StringToFloat64 `json:"fillPx"`
-	LastFilledSize             convert.StringToFloat64 `json:"fillSz"`
-	FillTime                   okxUnixMilliTime        `json:"fillTime"`
-	InstrumentID               string                  `json:"instId"`
-	InstrumentType             string                  `json:"instType"`
-	Leverage                   convert.StringToFloat64 `json:"lever"`
-	OrderID                    string                  `json:"ordId"`
-	OrderType                  string                  `json:"ordType"`
-	ProfitAndLoss              string                  `json:"pnl"`
-	PositionSide               string                  `json:"posSide"`
-	RebateAmount               convert.StringToFloat64 `json:"rebate"`
-	RebateCurrency             string                  `json:"rebateCcy"`
-	Side                       order.Side              `json:"side"`
-	StopLossOrdPrice           convert.StringToFloat64 `json:"slOrdPx"`
-	StopLossTriggerPrice       convert.StringToFloat64 `json:"slTriggerPx"`
-	StopLossTriggerPriceType   string                  `json:"slTriggerPxType"`
-	State                      string                  `json:"state"`
-	Price                      convert.StringToFloat64 `json:"px"`
-	Size                       convert.StringToFloat64 `json:"sz"`
-	Tag                        string                  `json:"tag"`
-	SizeType                   string                  `json:"tgtCcy"`
-	TradeMode                  string                  `json:"tdMode"`
-	Source                     string                  `json:"source"`
-	TakeProfitOrdPrice         convert.StringToFloat64 `json:"tpOrdPx"`
-	TakeProfitTriggerPrice     convert.StringToFloat64 `json:"tpTriggerPx"`
-	TakeProfitTriggerPriceType string                  `json:"tpTriggerPxType"`
-	TradeID                    string                  `json:"tradeId"`
-	UpdateTime                 okxUnixMilliTime        `json:"uTime"`
+	AccumulatedFillSize        types.Number     `json:"accFillSz"`
+	AveragePrice               types.Number     `json:"avgPx"`
+	CreationTime               okxUnixMilliTime `json:"cTime"`
+	Category                   string           `json:"category"`
+	Currency                   string           `json:"ccy"`
+	ClientOrderID              string           `json:"clOrdId"`
+	Fee                        types.Number     `json:"fee"`
+	FeeCurrency                currency.Code    `json:"feeCcy"`
+	LastFilledPrice            types.Number     `json:"fillPx"`
+	LastFilledSize             types.Number     `json:"fillSz"`
+	FillTime                   okxUnixMilliTime `json:"fillTime"`
+	InstrumentID               string           `json:"instId"`
+	InstrumentType             string           `json:"instType"`
+	Leverage                   types.Number     `json:"lever"`
+	OrderID                    string           `json:"ordId"`
+	OrderType                  string           `json:"ordType"`
+	ProfitAndLoss              string           `json:"pnl"`
+	PositionSide               string           `json:"posSide"`
+	RebateAmount               types.Number     `json:"rebate"`
+	RebateCurrency             string           `json:"rebateCcy"`
+	Side                       order.Side       `json:"side"`
+	StopLossOrdPrice           types.Number     `json:"slOrdPx"`
+	StopLossTriggerPrice       types.Number     `json:"slTriggerPx"`
+	StopLossTriggerPriceType   string           `json:"slTriggerPxType"`
+	State                      string           `json:"state"`
+	Price                      types.Number     `json:"px"`
+	Size                       types.Number     `json:"sz"`
+	Tag                        string           `json:"tag"`
+	SizeType                   string           `json:"tgtCcy"`
+	TradeMode                  string           `json:"tdMode"`
+	Source                     string           `json:"source"`
+	TakeProfitOrdPrice         types.Number     `json:"tpOrdPx"`
+	TakeProfitTriggerPrice     types.Number     `json:"tpTriggerPx"`
+	TakeProfitTriggerPriceType string           `json:"tpTriggerPxType"`
+	TradeID                    string           `json:"tradeId"`
+	UpdateTime                 okxUnixMilliTime `json:"uTime"`
 }
 
 // TransactionDetailRequestParams retrieve recently-filled transaction details in the last 3 day.
@@ -778,8 +779,8 @@ type TransactionDetail struct {
 	ClientOrderID  string           `json:"clOrdId"`
 	BillID         string           `json:"billId"`
 	Tag            string           `json:"tag"`
-	FillPrice      float64          `json:"fillPx,string"`
-	FillSize       float64          `json:"fillSz,string"`
+	FillPrice      types.Number     `json:"fillPx"`
+	FillSize       types.Number     `json:"fillSz"`
 	Side           order.Side       `json:"side"`
 	PositionSide   string           `json:"posSide"`
 	ExecType       string           `json:"execType"`
@@ -894,40 +895,40 @@ type AlgoOrderResponse struct {
 
 // CurrencyResponse represents a currency item detail response data.
 type CurrencyResponse struct {
-	CanDeposit          bool    `json:"canDep"`        // Availability to deposit from chain. false: not available true: available
-	CanInternalTransfer bool    `json:"canInternal"`   // Availability to internal transfer.
-	CanWithdraw         bool    `json:"canWd"`         // Availability to withdraw to chain.
-	Currency            string  `json:"ccy"`           //
-	Chain               string  `json:"chain"`         //
-	LogoLink            string  `json:"logoLink"`      // Logo link of currency
-	MainNet             bool    `json:"mainNet"`       // If current chain is main net then return true, otherwise return false
-	MaxFee              float64 `json:"maxFee,string"` // Minimum withdrawal fee
-	MaxWithdrawal       float64 `json:"maxWd,string"`  // Minimum amount of currency withdrawal in a single transaction
-	MinFee              float64 `json:"minFee,string"` // Minimum withdrawal fee
-	MinWithdrawal       string  `json:"minWd"`         // Minimum amount of currency withdrawal in a single transaction
-	Name                string  `json:"name"`          // Chinese name of currency
-	UsedWithdrawalQuota string  `json:"usedWdQuota"`   // Amount of currency withdrawal used in the past 24 hours, unit in BTC
-	WithdrawalQuota     string  `json:"wdQuota"`       // Minimum amount of currency withdrawal in a single transaction
-	WithdrawalTickSize  string  `json:"wdTickSz"`      // Withdrawal precision, indicating the number of digits after the decimal point
+	CanDeposit          bool         `json:"canDep"`      // Availability to deposit from chain. false: not available true: available
+	CanInternalTransfer bool         `json:"canInternal"` // Availability to internal transfer.
+	CanWithdraw         bool         `json:"canWd"`       // Availability to withdraw to chain.
+	Currency            string       `json:"ccy"`         //
+	Chain               string       `json:"chain"`       //
+	LogoLink            string       `json:"logoLink"`    // Logo link of currency
+	MainNet             bool         `json:"mainNet"`     // If current chain is main net then return true, otherwise return false
+	MaxFee              types.Number `json:"maxFee"`      // Minimum withdrawal fee
+	MaxWithdrawal       types.Number `json:"maxWd"`       // Minimum amount of currency withdrawal in a single transaction
+	MinFee              types.Number `json:"minFee"`      // Minimum withdrawal fee
+	MinWithdrawal       string       `json:"minWd"`       // Minimum amount of currency withdrawal in a single transaction
+	Name                string       `json:"name"`        // Chinese name of currency
+	UsedWithdrawalQuota string       `json:"usedWdQuota"` // Amount of currency withdrawal used in the past 24 hours, unit in BTC
+	WithdrawalQuota     string       `json:"wdQuota"`     // Minimum amount of currency withdrawal in a single transaction
+	WithdrawalTickSize  string       `json:"wdTickSz"`    // Withdrawal precision, indicating the number of digits after the decimal point
 }
 
 // AssetBalance represents account owner asset balance
 type AssetBalance struct {
-	AvailBal      float64 `json:"availBal,string"`
-	Balance       float64 `json:"bal,string"`
-	Currency      string  `json:"ccy"`
-	FrozenBalance float64 `json:"frozenBal,string"`
+	AvailBal      types.Number `json:"availBal"`
+	Balance       types.Number `json:"bal"`
+	Currency      string       `json:"ccy"`
+	FrozenBalance types.Number `json:"frozenBal"`
 }
 
 // AccountAssetValuation represents view account asset valuation data
 type AccountAssetValuation struct {
 	Details struct {
-		Classic float64 `json:"classic,string"`
-		Earn    float64 `json:"earn,string"`
-		Funding float64 `json:"funding,string"`
-		Trading float64 `json:"trading,string"`
+		Classic types.Number `json:"classic"`
+		Earn    types.Number `json:"earn"`
+		Funding types.Number `json:"funding"`
+		Trading types.Number `json:"trading"`
 	} `json:"details"`
-	TotalBalance float64          `json:"totalBal,string"`
+	TotalBalance types.Number     `json:"totalBal"`
 	Timestamp    okxUnixMilliTime `json:"ts"`
 }
 
@@ -945,27 +946,27 @@ type FundingTransferRequestInput struct {
 
 // FundingTransferResponse represents funding transfer and trading account transfer response.
 type FundingTransferResponse struct {
-	TransferID string  `json:"transId"`
-	Currency   string  `json:"ccy"`
-	ClientID   string  `json:"clientId"`
-	From       int64   `json:"from,string"`
-	Amount     float64 `json:"amt,string"`
-	To         int64   `json:"to,string"`
+	TransferID string       `json:"transId"`
+	Currency   string       `json:"ccy"`
+	ClientID   string       `json:"clientId"`
+	From       int64        `json:"from,string"`
+	Amount     types.Number `json:"amt"`
+	To         int64        `json:"to,string"`
 }
 
 // TransferFundRateResponse represents funcing transfer rate response
 type TransferFundRateResponse struct {
-	Amount         float64 `json:"amt,string"`
-	Currency       string  `json:"ccy"`
-	ClientID       string  `json:"clientId"`
-	From           string  `json:"from"`
-	InstrumentID   string  `json:"instId"`
-	State          string  `json:"state"`
-	SubAccount     string  `json:"subAcct"`
-	To             string  `json:"to"`
-	ToInstrumentID string  `json:"toInstId"`
-	TransferID     string  `json:"transId"`
-	Type           int     `json:"type,string"`
+	Amount         types.Number `json:"amt"`
+	Currency       string       `json:"ccy"`
+	ClientID       string       `json:"clientId"`
+	From           string       `json:"from"`
+	InstrumentID   string       `json:"instId"`
+	State          string       `json:"state"`
+	SubAccount     string       `json:"subAcct"`
+	To             string       `json:"to"`
+	ToInstrumentID string       `json:"toInstId"`
+	TransferID     string       `json:"transId"`
+	Type           int          `json:"type,string"`
 }
 
 // AssetBillDetail represents  the billing record
@@ -1001,7 +1002,7 @@ type CurrencyDepositResponseItem struct {
 
 // DepositHistoryResponseItem deposit history response item.
 type DepositHistoryResponseItem struct {
-	Amount           float64          `json:"amt,string"`
+	Amount           types.Number     `json:"amt"`
 	TransactionID    string           `json:"txId"` // Hash record of the deposit
 	Currency         string           `json:"ccy"`
 	Chain            string           `json:"chain"`
@@ -1025,11 +1026,11 @@ type WithdrawalInput struct {
 
 // WithdrawalResponse cryptocurrency withdrawal response
 type WithdrawalResponse struct {
-	Amount       float64 `json:"amt,string"`
-	WithdrawalID string  `json:"wdId"`
-	Currency     string  `json:"ccy"`
-	ClientID     string  `json:"clientId"`
-	Chain        string  `json:"chain"`
+	Amount       types.Number `json:"amt"`
+	WithdrawalID string       `json:"wdId"`
+	Currency     string       `json:"ccy"`
+	ClientID     string       `json:"clientId"`
+	Chain        string       `json:"chain"`
 }
 
 // LightningWithdrawalRequestInput to request Lightning Withdrawal requests.
@@ -1048,10 +1049,10 @@ type LightningWithdrawalResponse struct {
 // WithdrawalHistoryResponse represents the withdrawal response history.
 type WithdrawalHistoryResponse struct {
 	ChainName            string           `json:"chain"`
-	WithdrawalFee        float64          `json:"fee,string"`
+	WithdrawalFee        types.Number     `json:"fee"`
 	Currency             string           `json:"ccy"`
 	ClientID             string           `json:"clientId"`
-	Amount               float64          `json:"amt,string"`
+	Amount               types.Number     `json:"amt"`
 	TransactionID        string           `json:"txId"` // Hash record of the withdrawal. This parameter will not be returned for internal transfers.
 	FromRemittingAddress string           `json:"from"`
 	ToReceivingAddress   string           `json:"to"`
@@ -1075,13 +1076,13 @@ type SmallAssetConvertResponse struct {
 
 // SavingBalanceResponse returns a saving response.
 type SavingBalanceResponse struct {
-	Earnings      float64 `json:"earnings,string"`
-	RedemptAmount float64 `json:"redemptAmt,string"`
-	Rate          float64 `json:"rate,string"`
-	Currency      string  `json:"ccy"`
-	Amount        float64 `json:"amt,string"`
-	LoanAmount    float64 `json:"loanAmt,string"`
-	PendingAmount float64 `json:"pendingAmt,string"`
+	Earnings      types.Number `json:"earnings"`
+	RedemptAmount types.Number `json:"redemptAmt"`
+	Rate          types.Number `json:"rate"`
+	Currency      string       `json:"ccy"`
+	Amount        types.Number `json:"amt"`
+	LoanAmount    types.Number `json:"loanAmt"`
+	PendingAmount types.Number `json:"pendingAmt"`
 }
 
 // SavingsPurchaseRedemptionInput input json to SavingPurchase Post merthod.
@@ -1094,24 +1095,24 @@ type SavingsPurchaseRedemptionInput struct {
 
 // SavingsPurchaseRedemptionResponse response json to SavingPurchase or SavingRedemption Post method.
 type SavingsPurchaseRedemptionResponse struct {
-	Currency   string  `json:"ccy"`
-	Amount     float64 `json:"amt,string"`
-	ActionType string  `json:"side"`
-	Rate       float64 `json:"rate,string"`
+	Currency   string       `json:"ccy"`
+	Amount     types.Number `json:"amt"`
+	ActionType string       `json:"side"`
+	Rate       types.Number `json:"rate"`
 }
 
 // LendingRate represents lending rate response
 type LendingRate struct {
-	Currency string  `json:"ccy"`
-	Rate     float64 `json:"rate,string"`
+	Currency string       `json:"ccy"`
+	Rate     types.Number `json:"rate"`
 }
 
 // LendingHistory holds lending history responses
 type LendingHistory struct {
 	Currency  string           `json:"ccy"`
-	Amount    float64          `json:"amt,string"`
-	Earnings  float64          `json:"earnings,string,omitempty"`
-	Rate      float64          `json:"rate,string"`
+	Amount    types.Number     `json:"amt"`
+	Earnings  types.Number     `json:"earnings,omitempty"`
+	Rate      types.Number     `json:"rate"`
 	Timestamp okxUnixMilliTime `json:"ts"`
 }
 
@@ -1127,9 +1128,9 @@ type PublicBorrowInfo struct {
 
 // PublicBorrowHistory holds a currencies borrow history.
 type PublicBorrowHistory struct {
-	Amount    float64          `json:"amt,string"`
+	Amount    types.Number     `json:"amt"`
 	Currency  string           `json:"ccy"`
-	Rate      float64          `json:"rate,string"`
+	Rate      types.Number     `json:"rate"`
 	Timestamp okxUnixMilliTime `json:"ts"`
 }
 
@@ -1142,13 +1143,13 @@ type ConvertCurrency struct {
 
 // ConvertCurrencyPair holds information related to conversion between two pairs.
 type ConvertCurrencyPair struct {
-	InstrumentID     string  `json:"instId"`
-	BaseCurrency     string  `json:"baseCcy"`
-	BaseCurrencyMax  float64 `json:"baseCcyMax,string,omitempty"`
-	BaseCurrencyMin  float64 `json:"baseCcyMin,string,omitempty"`
-	QuoteCurrency    string  `json:"quoteCcy,omitempty"`
-	QuoteCurrencyMax float64 `json:"quoteCcyMax,string,omitempty"`
-	QuoteCurrencyMin float64 `json:"quoteCcyMin,string,omitempty"`
+	InstrumentID     string       `json:"instId"`
+	BaseCurrency     string       `json:"baseCcy"`
+	BaseCurrencyMax  types.Number `json:"baseCcyMax,omitempty"`
+	BaseCurrencyMin  types.Number `json:"baseCcyMin,omitempty"`
+	QuoteCurrency    string       `json:"quoteCcy,omitempty"`
+	QuoteCurrencyMax types.Number `json:"quoteCcyMax,omitempty"`
+	QuoteCurrencyMin types.Number `json:"quoteCcyMin,omitempty"`
 }
 
 // EstimateQuoteRequestInput represents estimate quote request parameters
@@ -1195,9 +1196,9 @@ type ConvertTradeInput struct {
 type ConvertTradeResponse struct {
 	BaseCurrency  string           `json:"baseCcy"`
 	ClientOrderID string           `json:"clTReqId"`
-	FillBaseSize  float64          `json:"fillBaseSz,string"`
+	FillBaseSize  types.Number     `json:"fillBaseSz"`
 	FillPrice     string           `json:"fillPx"`
-	FillQuoteSize float64          `json:"fillQuoteSz,string"`
+	FillQuoteSize types.Number     `json:"fillQuoteSz"`
 	InstrumentID  string           `json:"instId"`
 	QuoteCurrency string           `json:"quoteCcy"`
 	QuoteID       string           `json:"quoteId"`
@@ -1211,13 +1212,13 @@ type ConvertTradeResponse struct {
 type ConvertHistory struct {
 	InstrumentID  string           `json:"instId"`
 	Side          order.Side       `json:"side"`
-	FillPrice     float64          `json:"fillPx,string"`
+	FillPrice     types.Number     `json:"fillPx"`
 	BaseCurrency  string           `json:"baseCcy"`
 	QuoteCurrency string           `json:"quoteCcy"`
-	FillBaseSize  float64          `json:"fillBaseSz,string"`
+	FillBaseSize  types.Number     `json:"fillBaseSz"`
 	State         string           `json:"state"`
 	TradeID       string           `json:"tradeId"`
-	FillQuoteSize float64          `json:"fillQuoteSz,string"`
+	FillQuoteSize types.Number     `json:"fillQuoteSz"`
 	Timestamp     okxUnixMilliTime `json:"ts"`
 }
 
@@ -1237,72 +1238,72 @@ type Account struct {
 
 // AccountDetail account detail information.
 type AccountDetail struct {
-	AvailableBalance              convert.StringToFloat64 `json:"availBal"`
-	AvailableEquity               convert.StringToFloat64 `json:"availEq"`
-	CashBalance                   convert.StringToFloat64 `json:"cashBal"` // Cash Balance
-	Currency                      string                  `json:"ccy"`
-	CrossLiab                     convert.StringToFloat64 `json:"crossLiab"`
-	DiscountEquity                convert.StringToFloat64 `json:"disEq"`
-	EquityOfCurrency              convert.StringToFloat64 `json:"eq"`
-	EquityUsd                     convert.StringToFloat64 `json:"eqUsd"`
-	FrozenBalance                 convert.StringToFloat64 `json:"frozenBal"`
-	Interest                      convert.StringToFloat64 `json:"interest"`
-	IsoEquity                     convert.StringToFloat64 `json:"isoEq"`
-	IsolatedLiabilities           convert.StringToFloat64 `json:"isoLiab"`
-	IsoUpl                        convert.StringToFloat64 `json:"isoUpl"` // Isolated unrealized profit and loss of the currency applicable to Single-currency margin and Multi-currency margin and Portfolio margin
-	LiabilitiesOfCurrency         convert.StringToFloat64 `json:"liab"`
-	MaxLoan                       convert.StringToFloat64 `json:"maxLoan"`
-	MarginRatio                   convert.StringToFloat64 `json:"mgnRatio"`      // Equity of the currency
-	NotionalLever                 convert.StringToFloat64 `json:"notionalLever"` // Leverage of the currency applicable to Single-currency margin
-	OpenOrdersMarginFrozen        convert.StringToFloat64 `json:"ordFrozen"`
-	Twap                          convert.StringToFloat64 `json:"twap"`
-	UpdateTime                    okxUnixMilliTime        `json:"uTime"`
-	UnrealizedProfit              convert.StringToFloat64 `json:"upl"`
-	UnrealizedCurrencyLiabilities convert.StringToFloat64 `json:"uplLiab"`
-	StrategyEquity                convert.StringToFloat64 `json:"stgyEq"`  // strategy equity
-	TotalEquity                   convert.StringToFloat64 `json:"totalEq"` // Total equity in USD level. Appears unused
+	AvailableBalance              types.Number     `json:"availBal"`
+	AvailableEquity               types.Number     `json:"availEq"`
+	CashBalance                   types.Number     `json:"cashBal"` // Cash Balance
+	Currency                      string           `json:"ccy"`
+	CrossLiab                     types.Number     `json:"crossLiab"`
+	DiscountEquity                types.Number     `json:"disEq"`
+	EquityOfCurrency              types.Number     `json:"eq"`
+	EquityUsd                     types.Number     `json:"eqUsd"`
+	FrozenBalance                 types.Number     `json:"frozenBal"`
+	Interest                      types.Number     `json:"interest"`
+	IsoEquity                     types.Number     `json:"isoEq"`
+	IsolatedLiabilities           types.Number     `json:"isoLiab"`
+	IsoUpl                        types.Number     `json:"isoUpl"` // Isolated unrealized profit and loss of the currency applicable to Single-currency margin and Multi-currency margin and Portfolio margin
+	LiabilitiesOfCurrency         types.Number     `json:"liab"`
+	MaxLoan                       types.Number     `json:"maxLoan"`
+	MarginRatio                   types.Number     `json:"mgnRatio"`      // Equity of the currency
+	NotionalLever                 types.Number     `json:"notionalLever"` // Leverage of the currency applicable to Single-currency margin
+	OpenOrdersMarginFrozen        types.Number     `json:"ordFrozen"`
+	Twap                          types.Number     `json:"twap"`
+	UpdateTime                    okxUnixMilliTime `json:"uTime"`
+	UnrealizedProfit              types.Number     `json:"upl"`
+	UnrealizedCurrencyLiabilities types.Number     `json:"uplLiab"`
+	StrategyEquity                types.Number     `json:"stgyEq"`  // strategy equity
+	TotalEquity                   types.Number     `json:"totalEq"` // Total equity in USD level. Appears unused
 }
 
 // AccountPosition account position.
 type AccountPosition struct {
-	AutoDeleveraging             string                  `json:"adl"`      // Auto-deleveraging (ADL) indicator Divided into 5 levels, from 1 to 5, the smaller the number, the weaker the adl intensity.
-	AvailablePosition            string                  `json:"availPos"` // Position that can be closed Only applicable to MARGIN, FUTURES/SWAP in the long-short mode, OPTION in Simple and isolated OPTION in margin Account.
-	AveragePrice                 convert.StringToFloat64 `json:"avgPx"`
-	CreationTime                 okxUnixMilliTime        `json:"cTime"`
-	Currency                     string                  `json:"ccy"`
-	DeltaBS                      string                  `json:"deltaBS"` // delta：Black-Scholes Greeks in dollars,only applicable to OPTION
-	DeltaPA                      string                  `json:"deltaPA"` // delta：Greeks in coins,only applicable to OPTION
-	GammaBS                      string                  `json:"gammaBS"` // gamma：Black-Scholes Greeks in dollars,only applicable to OPTION
-	GammaPA                      string                  `json:"gammaPA"` // gamma：Greeks in coins,only applicable to OPTION
-	InitialMarginRequirement     convert.StringToFloat64 `json:"imr"`     // Initial margin requirement, only applicable to cross.
-	InstrumentID                 string                  `json:"instId"`
-	InstrumentType               asset.Item              `json:"instType"`
-	Interest                     convert.StringToFloat64 `json:"interest"`
-	USDPrice                     convert.StringToFloat64 `json:"usdPx"`
-	LastTradePrice               convert.StringToFloat64 `json:"last"`
-	Leverage                     convert.StringToFloat64 `json:"lever"`   // Leverage, not applicable to OPTION seller
-	Liabilities                  string                  `json:"liab"`    // Liabilities, only applicable to MARGIN.
-	LiabilitiesCurrency          string                  `json:"liabCcy"` // Liabilities currency, only applicable to MARGIN.
-	LiquidationPrice             convert.StringToFloat64 `json:"liqPx"`   // Estimated liquidation price Not applicable to OPTION
-	MarkPrice                    convert.StringToFloat64 `json:"markPx"`
-	Margin                       convert.StringToFloat64 `json:"margin"`
-	MarginMode                   string                  `json:"mgnMode"`
-	MarginRatio                  convert.StringToFloat64 `json:"mgnRatio"`
-	MaintenanceMarginRequirement convert.StringToFloat64 `json:"mmr"`         // Maintenance margin requirement in USD level Applicable to Multi-currency margin and Portfolio margin
-	NotionalUsd                  convert.StringToFloat64 `json:"notionalUsd"` // Quality of Positions -- usd
-	OptionValue                  convert.StringToFloat64 `json:"optVal"`      // Option Value, only application to position.
-	QuantityOfPosition           convert.StringToFloat64 `json:"pos"`         // Quantity of positions,In the mode of autonomous transfer from position to position, after the deposit is transferred, a position with pos of 0 will be generated
-	PositionCurrency             string                  `json:"posCcy"`
-	PositionID                   string                  `json:"posId"`
-	PositionSide                 string                  `json:"posSide"`
-	ThetaBS                      string                  `json:"thetaBS"` // theta：Black-Scholes Greeks in dollars,only applicable to OPTION
-	ThetaPA                      string                  `json:"thetaPA"` // theta：Greeks in coins,only applicable to OPTION
-	TradeID                      string                  `json:"tradeId"`
-	UpdatedTime                  okxUnixMilliTime        `json:"uTime"`    // Latest time position was adjusted,
-	UPNL                         convert.StringToFloat64 `json:"upl"`      // Unrealized profit and loss
-	UPLRatio                     convert.StringToFloat64 `json:"uplRatio"` // Unrealized profit and loss ratio
-	VegaBS                       string                  `json:"vegaBS"`   // vega：Black-Scholes Greeks in dollars,only applicable to OPTION
-	VegaPA                       string                  `json:"vegaPA"`   // vega：Greeks in coins,only applicable to OPTION
+	AutoDeleveraging             string           `json:"adl"`      // Auto-deleveraging (ADL) indicator Divided into 5 levels, from 1 to 5, the smaller the number, the weaker the adl intensity.
+	AvailablePosition            string           `json:"availPos"` // Position that can be closed Only applicable to MARGIN, FUTURES/SWAP in the long-short mode, OPTION in Simple and isolated OPTION in margin Account.
+	AveragePrice                 types.Number     `json:"avgPx"`
+	CreationTime                 okxUnixMilliTime `json:"cTime"`
+	Currency                     string           `json:"ccy"`
+	DeltaBS                      string           `json:"deltaBS"` // delta：Black-Scholes Greeks in dollars,only applicable to OPTION
+	DeltaPA                      string           `json:"deltaPA"` // delta：Greeks in coins,only applicable to OPTION
+	GammaBS                      string           `json:"gammaBS"` // gamma：Black-Scholes Greeks in dollars,only applicable to OPTION
+	GammaPA                      string           `json:"gammaPA"` // gamma：Greeks in coins,only applicable to OPTION
+	InitialMarginRequirement     types.Number     `json:"imr"`     // Initial margin requirement, only applicable to cross.
+	InstrumentID                 string           `json:"instId"`
+	InstrumentType               asset.Item       `json:"instType"`
+	Interest                     types.Number     `json:"interest"`
+	USDPrice                     types.Number     `json:"usdPx"`
+	LastTradePrice               types.Number     `json:"last"`
+	Leverage                     types.Number     `json:"lever"`   // Leverage, not applicable to OPTION seller
+	Liabilities                  string           `json:"liab"`    // Liabilities, only applicable to MARGIN.
+	LiabilitiesCurrency          string           `json:"liabCcy"` // Liabilities currency, only applicable to MARGIN.
+	LiquidationPrice             types.Number     `json:"liqPx"`   // Estimated liquidation price Not applicable to OPTION
+	MarkPrice                    types.Number     `json:"markPx"`
+	Margin                       types.Number     `json:"margin"`
+	MarginMode                   string           `json:"mgnMode"`
+	MarginRatio                  types.Number     `json:"mgnRatio"`
+	MaintenanceMarginRequirement types.Number     `json:"mmr"`         // Maintenance margin requirement in USD level Applicable to Multi-currency margin and Portfolio margin
+	NotionalUsd                  types.Number     `json:"notionalUsd"` // Quality of Positions -- usd
+	OptionValue                  types.Number     `json:"optVal"`      // Option Value, only application to position.
+	QuantityOfPosition           types.Number     `json:"pos"`         // Quantity of positions,In the mode of autonomous transfer from position to position, after the deposit is transferred, a position with pos of 0 will be generated
+	PositionCurrency             string           `json:"posCcy"`
+	PositionID                   string           `json:"posId"`
+	PositionSide                 string           `json:"posSide"`
+	ThetaBS                      string           `json:"thetaBS"` // theta：Black-Scholes Greeks in dollars,only applicable to OPTION
+	ThetaPA                      string           `json:"thetaPA"` // theta：Greeks in coins,only applicable to OPTION
+	TradeID                      string           `json:"tradeId"`
+	UpdatedTime                  okxUnixMilliTime `json:"uTime"`    // Latest time position was adjusted,
+	UPNL                         types.Number     `json:"upl"`      // Unrealized profit and loss
+	UPLRatio                     types.Number     `json:"uplRatio"` // Unrealized profit and loss ratio
+	VegaBS                       string           `json:"vegaBS"`   // vega：Black-Scholes Greeks in dollars,only applicable to OPTION
+	VegaPA                       string           `json:"vegaPA"`   // vega：Greeks in coins,only applicable to OPTION
 
 	// PushTime added feature in the websocket push data.
 
@@ -1313,16 +1314,16 @@ type AccountPosition struct {
 type AccountPositionHistory struct {
 	CreationTime       okxUnixMilliTime `json:"cTime"`
 	Currency           string           `json:"ccy"`
-	CloseAveragePrice  float64          `json:"closeAvgPx,string,omitempty"`
-	CloseTotalPosition float64          `json:"closeTotalPos,string,omitempty"`
+	CloseAveragePrice  types.Number     `json:"closeAvgPx,omitempty"`
+	CloseTotalPosition types.Number     `json:"closeTotalPos,omitempty"`
 	InstrumentID       string           `json:"instId"`
 	InstrumentType     string           `json:"instType"`
 	Leverage           string           `json:"lever"`
 	ManagementMode     string           `json:"mgnMode"`
 	OpenAveragePrice   string           `json:"openAvgPx"`
 	OpenMaxPosition    string           `json:"openMaxPos"`
-	ProfitAndLoss      float64          `json:"pnl,string,omitempty"`
-	ProfitAndLossRatio float64          `json:"pnlRatio,string,omitempty"`
+	ProfitAndLoss      types.Number     `json:"pnl,omitempty"`
+	ProfitAndLossRatio types.Number     `json:"pnlRatio,omitempty"`
 	PositionID         string           `json:"posId"`
 	PositionSide       string           `json:"posSide"`
 	TriggerPrice       string           `json:"triggerPx"`
@@ -1379,26 +1380,26 @@ type BillsDetailQueryParameter struct {
 
 // BillsDetailResponse represents account bills information.
 type BillsDetailResponse struct {
-	Balance                    okxNumericalValue       `json:"bal"`
-	BalanceChange              string                  `json:"balChg"`
-	BillID                     string                  `json:"billId"`
-	Currency                   string                  `json:"ccy"`
-	ExecType                   string                  `json:"execType"` // Order flow type, T：taker M：maker
-	Fee                        convert.StringToFloat64 `json:"fee"`      // Fee Negative number represents the user transaction fee charged by the platform. Positive number represents rebate.
-	From                       string                  `json:"from"`     // The remitting account 6: FUNDING 18: Trading account When bill type is not transfer, the field returns "".
-	InstrumentID               string                  `json:"instId"`
-	InstrumentType             asset.Item              `json:"instType"`
-	MarginMode                 string                  `json:"mgnMode"`
-	Notes                      string                  `json:"notes"` // notes When bill type is not transfer, the field returns "".
-	OrderID                    string                  `json:"ordId"`
-	ProfitAndLoss              convert.StringToFloat64 `json:"pnl"`
-	PositionLevelBalance       convert.StringToFloat64 `json:"posBal"`
-	PositionLevelBalanceChange convert.StringToFloat64 `json:"posBalChg"`
-	SubType                    string                  `json:"subType"`
-	Size                       convert.StringToFloat64 `json:"sz"`
-	To                         string                  `json:"to"`
-	Timestamp                  okxUnixMilliTime        `json:"ts"`
-	Type                       string                  `json:"type"`
+	Balance                    okxNumericalValue `json:"bal"`
+	BalanceChange              string            `json:"balChg"`
+	BillID                     string            `json:"billId"`
+	Currency                   string            `json:"ccy"`
+	ExecType                   string            `json:"execType"` // Order flow type, T：taker M：maker
+	Fee                        types.Number      `json:"fee"`      // Fee Negative number represents the user transaction fee charged by the platform. Positive number represents rebate.
+	From                       string            `json:"from"`     // The remitting account 6: FUNDING 18: Trading account When bill type is not transfer, the field returns "".
+	InstrumentID               string            `json:"instId"`
+	InstrumentType             asset.Item        `json:"instType"`
+	MarginMode                 string            `json:"mgnMode"`
+	Notes                      string            `json:"notes"` // notes When bill type is not transfer, the field returns "".
+	OrderID                    string            `json:"ordId"`
+	ProfitAndLoss              types.Number      `json:"pnl"`
+	PositionLevelBalance       types.Number      `json:"posBal"`
+	PositionLevelBalanceChange types.Number      `json:"posBalChg"`
+	SubType                    string            `json:"subType"`
+	Size                       types.Number      `json:"sz"`
+	To                         string            `json:"to"`
+	Timestamp                  okxUnixMilliTime  `json:"ts"`
+	Type                       string            `json:"type"`
 }
 
 // AccountConfigurationResponse represents account configuration response.
@@ -1492,18 +1493,18 @@ type MaximumLoanInstrument struct {
 
 // TradeFeeRate holds trade fee rate information for a given instrument type.
 type TradeFeeRate struct {
-	Category         string                  `json:"category"`
-	DeliveryFeeRate  string                  `json:"delivery"`
-	Exercise         string                  `json:"exercise"`
-	InstrumentType   asset.Item              `json:"instType"`
-	FeeRateLevel     string                  `json:"level"`
-	FeeRateMaker     convert.StringToFloat64 `json:"maker"`
-	FeeRateMakerUSDT convert.StringToFloat64 `json:"makerU"`
-	FeeRateMakerUSDC convert.StringToFloat64 `json:"makerUSDC"`
-	FeeRateTaker     convert.StringToFloat64 `json:"taker"`
-	FeeRateTakerUSDT convert.StringToFloat64 `json:"takerU"`
-	FeeRateTakerUSDC convert.StringToFloat64 `json:"takerUSDC"`
-	Timestamp        okxUnixMilliTime        `json:"ts"`
+	Category         string           `json:"category"`
+	DeliveryFeeRate  string           `json:"delivery"`
+	Exercise         string           `json:"exercise"`
+	InstrumentType   asset.Item       `json:"instType"`
+	FeeRateLevel     string           `json:"level"`
+	FeeRateMaker     types.Number     `json:"maker"`
+	FeeRateMakerUSDT types.Number     `json:"makerU"`
+	FeeRateMakerUSDC types.Number     `json:"makerUSDC"`
+	FeeRateTaker     types.Number     `json:"taker"`
+	FeeRateTakerUSDT types.Number     `json:"takerU"`
+	FeeRateTakerUSDC types.Number     `json:"takerUSDC"`
+	Timestamp        okxUnixMilliTime `json:"ts"`
 }
 
 // InterestAccruedData represents interest rate accrued response
@@ -1520,8 +1521,8 @@ type InterestAccruedData struct {
 
 // InterestRateResponse represents interest rate response.
 type InterestRateResponse struct {
-	InterestRate float64 `json:"interestRate,string"`
-	Currency     string  `json:"ccy"`
+	InterestRate types.Number `json:"interestRate"`
+	Currency     string       `json:"ccy"`
 }
 
 // GreeksType represents for greeks type response
@@ -1552,9 +1553,9 @@ type AccountRiskState struct {
 
 // LoanBorrowAndReplayInput represents currency VIP borrow or repay request params.
 type LoanBorrowAndReplayInput struct {
-	Currency string  `json:"ccy"`
-	Side     string  `json:"side,omitempty"`
-	Amount   float64 `json:"amt,string,omitempty"`
+	Currency string       `json:"ccy"`
+	Side     string       `json:"side,omitempty"`
+	Amount   types.Number `json:"amt,omitempty"`
 }
 
 // LoanBorrowAndReplay loans borrow and repay
@@ -1729,9 +1730,9 @@ type OrderLeg struct {
 	TargetCurrency string `json:"tgtCcy"`
 
 	// available in REST only
-	Fee         float64 `json:"fee,string"`
-	FeeCurrency string  `json:"feeCcy"`
-	TradeID     string  `json:"tradeId"`
+	Fee         types.Number `json:"fee"`
+	FeeCurrency string       `json:"feeCcy"`
+	TradeID     string       `json:"tradeId"`
 }
 
 // CreateQuoteParams holds information related to create quote.
@@ -1744,10 +1745,10 @@ type CreateQuoteParams struct {
 
 // QuoteLeg the legs of the Quote.
 type QuoteLeg struct {
-	Price          float64    `json:"px,string"`
-	SizeOfQuoteLeg float64    `json:"sz,string"`
-	InstrumentID   string     `json:"instId"`
-	Side           order.Side `json:"side"`
+	Price          types.Number `json:"px"`
+	SizeOfQuoteLeg types.Number `json:"sz"`
+	InstrumentID   string       `json:"instId"`
+	Side           order.Side   `json:"side"`
 
 	// TargetCurrency represents target currency
 	TargetCurrency string `json:"tgtCcy,omitempty"`
@@ -1843,34 +1844,33 @@ type RfqTradesRequestParams struct {
 
 // RfqTradeResponse Rfq trade response
 type RfqTradeResponse struct {
-	RfqID           string        `json:"rfqId"`
-	ClientRfqID     string        `json:"clRfqId"`
-	QuoteID         string        `json:"quoteId"`
-	ClientQuoteID   string        `json:"clQuoteId"`
-	BlockTradeID    string        `json:"blockTdId"`
-	Legs            []RfqTradeLeg `json:"legs"`
-	CreationTime    time.Time     `json:"cTime"`
-	TakerTraderCode string        `json:"tTraderCode"`
-	MakerTraderCode string        `json:"mTraderCode"`
+	RfqID           string          `json:"rfqId"`
+	ClientRfqID     string          `json:"clRfqId"`
+	QuoteID         string          `json:"quoteId"`
+	ClientQuoteID   string          `json:"clQuoteId"`
+	BlockTradeID    string          `json:"blockTdId"`
+	Legs            []BlockTradeLeg `json:"legs"`
+	CreationTime    time.Time       `json:"cTime"`
+	TakerTraderCode string          `json:"tTraderCode"`
+	MakerTraderCode string          `json:"mTraderCode"`
 }
 
-// RfqTradeLeg Rfq trade response leg.
-type RfqTradeLeg struct {
-	InstrumentID string  `json:"instId"`
-	Side         string  `json:"side"`
-	Size         string  `json:"sz"`
-	Price        float64 `json:"px,string"`
-	TradeID      string  `json:"tradeId"`
-
-	Fee         float64 `json:"fee,string,omitempty"`
-	FeeCurrency string  `json:"feeCcy,omitempty"`
+// BlockTradeLeg Rfq trade response leg.
+type BlockTradeLeg struct {
+	TradeID      string       `json:"tradeId"`
+	InstrumentID string       `json:"instId"`
+	Side         order.Side   `json:"side"`
+	Size         types.Number `json:"sz"`
+	Price        types.Number `json:"px"`
+	Fee          types.Number `json:"fee,omitempty"`
+	FeeCurrency  string       `json:"feeCcy,omitempty"`
 }
 
-// PublicTradesResponse represents data will be pushed whenever there is a block trade.
-type PublicTradesResponse struct {
+// PublicBlockTradesResponse represents data will be pushed whenever there is a block trade.
+type PublicBlockTradesResponse struct {
 	BlockTradeID string           `json:"blockTdId"`
 	CreationTime okxUnixMilliTime `json:"cTime"`
-	Legs         []RfqTradeLeg    `json:"legs"`
+	Legs         []BlockTradeLeg  `json:"legs"`
 }
 
 // SubaccountInfo represents subaccount information detail.
@@ -1972,22 +1972,22 @@ type SubaccountName struct {
 
 // GridAlgoOrder represents grid algo order.
 type GridAlgoOrder struct {
-	InstrumentID string  `json:"instId"`
-	AlgoOrdType  string  `json:"algoOrdType"`
-	MaxPrice     float64 `json:"maxPx,string"`
-	MinPrice     float64 `json:"minPx,string"`
-	GridQuantity float64 `json:"gridNum,string"`
-	GridType     string  `json:"runType"` // "1": Arithmetic, "2": Geometric Default is Arithmetic
+	InstrumentID string       `json:"instId"`
+	AlgoOrdType  string       `json:"algoOrdType"`
+	MaxPrice     types.Number `json:"maxPx"`
+	MinPrice     types.Number `json:"minPx"`
+	GridQuantity types.Number `json:"gridNum"`
+	GridType     string       `json:"runType"` // "1": Arithmetic, "2": Geometric Default is Arithmetic
 
 	// Spot Grid Order
-	QuoteSize float64 `json:"quoteSz,string"` // Invest amount for quote currency Either "instId" or "ccy" is required
-	BaseSize  float64 `json:"baseSz,string"`  // Invest amount for base currency Either "instId" or "ccy" is required
+	QuoteSize types.Number `json:"quoteSz"` // Invest amount for quote currency Either "instId" or "ccy" is required
+	BaseSize  types.Number `json:"baseSz"`  // Invest amount for base currency Either "instId" or "ccy" is required
 
 	// Contract Grid Order
-	BasePosition bool    `json:"basePos"` // Whether or not open a position when strategy actives Default is false Neutral contract grid should omit the parameter
-	Size         float64 `json:"sz,string"`
-	Direction    string  `json:"direction"`
-	Lever        string  `json:"lever"`
+	BasePosition bool         `json:"basePos"` // Whether or not open a position when strategy actives Default is false Neutral contract grid should omit the parameter
+	Size         types.Number `json:"sz"`
+	Direction    string       `json:"direction"`
+	Lever        string       `json:"lever"`
 }
 
 // GridAlgoOrderIDResponse represents grid algo order
@@ -2162,28 +2162,32 @@ type SystemStatusResponse struct {
 type BlockTicker struct {
 	InstrumentType           string           `json:"instType"`
 	InstrumentID             string           `json:"instId"`
-	TradingVolumeInCCY24Hour float64          `json:"volCcy24h,string"`
-	TradingVolumeInUSD24Hour float64          `json:"vol24h,string"`
+	TradingVolumeInCCY24Hour types.Number     `json:"volCcy24h"`
+	TradingVolumeInUSD24Hour types.Number     `json:"vol24h"`
 	Timestamp                okxUnixMilliTime `json:"ts"`
 }
 
 // BlockTrade represents a block trade.
 type BlockTrade struct {
-	InstrumentID string           `json:"instId"`
-	TradeID      string           `json:"tradeId"`
-	Price        float64          `json:"px,string"`
-	Size         float64          `json:"sz,string"`
-	Side         order.Side       `json:"side"`
-	Timestamp    okxUnixMilliTime `json:"ts"`
+	InstrumentID   string               `json:"instId"`
+	TradeID        string               `json:"tradeId"`
+	Price          types.Number         `json:"px"`
+	Size           types.Number         `json:"sz"`
+	Side           order.Side           `json:"side"`
+	FillVolatility types.Number         `json:"fillVol"`
+	ForwardPrice   types.Number         `json:"fwdPx"`
+	IndexPrice     types.Number         `json:"idxPx"`
+	MarkPrice      types.Number         `json:"markPx"`
+	Timestamp      convert.ExchangeTime `json:"ts"`
 }
 
 // UnitConvertResponse unit convert response.
 type UnitConvertResponse struct {
-	InstrumentID string  `json:"instId"`
-	Price        float64 `json:"px,string"`
-	Size         float64 `json:"sz,string"`
-	ConvertType  uint64  `json:"type"`
-	Unit         string  `json:"unit"`
+	InstrumentID string       `json:"instId"`
+	Price        types.Number `json:"px"`
+	Size         types.Number `json:"sz"`
+	ConvertType  uint64       `json:"type"`
+	Unit         string       `json:"unit"`
 }
 
 // Websocket Models
@@ -2256,20 +2260,20 @@ type WSMarketDataResponse struct {
 
 // WSPlaceOrderData holds websocket order information.
 type WSPlaceOrderData struct {
-	ClientOrderID  string  `json:"clOrdId,omitempty"`
-	Currency       string  `json:"ccy,omitempty"`
-	Tag            string  `json:"tag,omitempty"`
-	PositionSide   string  `json:"posSide,omitempty"`
-	ExpiryTime     int64   `json:"expTime,string,omitempty"`
-	BanAmend       bool    `json:"banAmend,omitempty"`
-	Side           string  `json:"side"`
-	InstrumentID   string  `json:"instId"`
-	TradeMode      string  `json:"tdMode"`
-	OrderType      string  `json:"ordType"`
-	Size           float64 `json:"sz"`
-	Price          float64 `json:"px,string,omitempty"`
-	ReduceOnly     bool    `json:"reduceOnly,string,omitempty"`
-	TargetCurrency string  `json:"tgtCurrency,omitempty"`
+	ClientOrderID  string       `json:"clOrdId,omitempty"`
+	Currency       string       `json:"ccy,omitempty"`
+	Tag            string       `json:"tag,omitempty"`
+	PositionSide   string       `json:"posSide,omitempty"`
+	ExpiryTime     int64        `json:"expTime,string,omitempty"`
+	BanAmend       bool         `json:"banAmend,omitempty"`
+	Side           string       `json:"side"`
+	InstrumentID   string       `json:"instId"`
+	TradeMode      string       `json:"tdMode"`
+	OrderType      string       `json:"ordType"`
+	Size           float64      `json:"sz"`
+	Price          types.Number `json:"px,omitempty"`
+	ReduceOnly     bool         `json:"reduceOnly,string,omitempty"`
+	TargetCurrency string       `json:"tgtCurrency,omitempty"`
 }
 
 // WSPlaceOrder holds the websocket place order input data.
@@ -2372,26 +2376,26 @@ type WSOpenInterestResponse struct {
 type WSTradeData struct {
 	InstrumentID string           `json:"instId"`
 	TradeID      string           `json:"tradeId"`
-	Price        float64          `json:"px,string"`
-	Size         float64          `json:"sz,string"`
+	Price        types.Number     `json:"px"`
+	Size         types.Number     `json:"sz"`
 	Side         order.Side       `json:"side"`
 	Timestamp    okxUnixMilliTime `json:"ts"`
 }
 
 // WSPlaceOrderInput place order input variables as a json.
 type WSPlaceOrderInput struct {
-	Side           order.Side `json:"side"`
-	InstrumentID   string     `json:"instId"`
-	TradeMode      string     `json:"tdMode"`
-	OrderType      string     `json:"ordType"`
-	Size           float64    `json:"sz,string"`
-	Currency       string     `json:"ccy"`
-	ClientOrderID  string     `json:"clOrdId,omitempty"`
-	Tag            string     `json:"tag,omitempty"`
-	PositionSide   string     `json:"posSide,omitempty"`
-	Price          float64    `json:"px,string,omitempty"`
-	ReduceOnly     bool       `json:"reduceOnly,omitempty"`
-	TargetCurrency string     `json:"tgtCcy"`
+	Side           order.Side   `json:"side"`
+	InstrumentID   string       `json:"instId"`
+	TradeMode      string       `json:"tdMode"`
+	OrderType      string       `json:"ordType"`
+	Size           types.Number `json:"sz"`
+	Currency       string       `json:"ccy"`
+	ClientOrderID  string       `json:"clOrdId,omitempty"`
+	Tag            string       `json:"tag,omitempty"`
+	PositionSide   string       `json:"posSide,omitempty"`
+	Price          types.Number `json:"px,omitempty"`
+	ReduceOnly     bool         `json:"reduceOnly,omitempty"`
+	TargetCurrency string       `json:"tgtCcy"`
 }
 
 // WsPlaceOrderInput for all websocket request inputs.
@@ -2500,16 +2504,16 @@ type WsBalanceAndPosition struct {
 // WsOrder represents a websocket order.
 type WsOrder struct {
 	PendingOrderItem
-	AmendResult     string                  `json:"amendResult"`
-	Code            string                  `json:"code"`
-	ExecType        string                  `json:"execType"`
-	FillFee         convert.StringToFloat64 `json:"fillFee"`
-	FillFeeCurrency string                  `json:"fillFeeCcy"`
-	FillNotionalUsd convert.StringToFloat64 `json:"fillNotionalUsd"`
-	Msg             string                  `json:"msg"`
-	NotionalUSD     convert.StringToFloat64 `json:"notionalUsd"`
-	ReduceOnly      bool                    `json:"reduceOnly,string"`
-	RequestID       string                  `json:"reqId"`
+	AmendResult     string       `json:"amendResult"`
+	Code            string       `json:"code"`
+	ExecType        string       `json:"execType"`
+	FillFee         types.Number `json:"fillFee"`
+	FillFeeCurrency string       `json:"fillFeeCcy"`
+	FillNotionalUsd types.Number `json:"fillNotionalUsd"`
+	Msg             string       `json:"msg"`
+	NotionalUSD     types.Number `json:"notionalUsd"`
+	ReduceOnly      bool         `json:"reduceOnly,string"`
+	RequestID       string       `json:"reqId"`
 }
 
 // WsOrderResponse holds order list push data through the websocket connection
@@ -2548,7 +2552,7 @@ type WsAlgoOrderDetail struct {
 	StopLossTriggerPriceType   string           `json:"slTriggerPxType"`
 	TriggerPrice               string           `json:"triggerPx"`
 	TriggerPriceType           string           `json:"triggerPxType"`
-	OrderPrice                 float64          `json:"ordPx,string"`
+	OrderPrice                 types.Number     `json:"ordPx"`
 	ActualSize                 string           `json:"actualSz"`
 	ActualPrice                string           `json:"actualPx"`
 	Tag                        string           `json:"tag"`
@@ -2915,8 +2919,8 @@ type WsSystemStatusResponse struct {
 
 // WsPublicTradesResponse represents websocket push data of structured block trades as a result of subscription to "public-struc-block-trades"
 type WsPublicTradesResponse struct {
-	Argument SubscriptionInfo       `json:"arg"`
-	Data     []PublicTradesResponse `json:"data"`
+	Argument SubscriptionInfo            `json:"arg"`
+	Data     []PublicBlockTradesResponse `json:"data"`
 }
 
 // WsBlockTicker represents websocket push data as a result of subscription to channel "block-tickers".
@@ -2927,9 +2931,9 @@ type WsBlockTicker struct {
 
 // PMLimitationResponse represents portfolio margin mode limitation for specific underlying
 type PMLimitationResponse struct {
-	MaximumSize  float64 `json:"maxSz,string"`
-	PositionType string  `json:"postType"`
-	Underlying   string  `json:"uly"`
+	MaximumSize  types.Number `json:"maxSz"`
+	PositionType string       `json:"postType"`
+	Underlying   string       `json:"uly"`
 }
 
 // EasyConvertDetail represents easy convert currencies list and their detail.
@@ -2940,8 +2944,8 @@ type EasyConvertDetail struct {
 
 // EasyConvertFromData represents convert currency from detail
 type EasyConvertFromData struct {
-	FromAmount   float64 `json:"fromAmt,string"`
-	FromCurrency string  `json:"fromCcy"`
+	FromAmount   types.Number `json:"fromAmt"`
+	FromCurrency string       `json:"fromCcy"`
 }
 
 // PlaceEasyConvertParam represents easy convert request params
@@ -2952,8 +2956,8 @@ type PlaceEasyConvertParam struct {
 
 // EasyConvertItem represents easy convert place order response.
 type EasyConvertItem struct {
-	FilFromSize  float64          `json:"fillFromSz,string"`
-	FillToSize   float64          `json:"fillToSz,string"`
+	FilFromSize  types.Number     `json:"fillFromSz"`
+	FillToSize   types.Number     `json:"fillToSz"`
 	FromCurrency string           `json:"fromCcy"`
 	Status       string           `json:"status"`
 	ToCurrency   string           `json:"toCcy"`
@@ -2969,14 +2973,14 @@ type OneClickRepayCurrencyItem struct {
 
 // CurrencyDebtAmount represents debt currency data
 type CurrencyDebtAmount struct {
-	DebtAmount   float64 `json:"debtAmt,string"`
-	DebtCurrency string  `json:"debtCcy"`
+	DebtAmount   types.Number `json:"debtAmt"`
+	DebtCurrency string       `json:"debtCcy"`
 }
 
 // CurrencyRepayAmount represents rebat currency amount.
 type CurrencyRepayAmount struct {
-	RepayAmount   float64 `json:"repayAmt,string"`
-	RepayCurrency string  `json:"repayCcy"`
+	RepayAmount   types.Number `json:"repayAmt"`
+	RepayCurrency string       `json:"repayCcy"`
 }
 
 // TradeOneClickRepayParam represents click one repay param
@@ -2990,7 +2994,7 @@ type CurrencyOneClickRepay struct {
 	DebtCurrency  string            `json:"debtCcy"`
 	FillFromSize  okxNumericalValue `json:"fillFromSz"`
 	FillRepaySize okxNumericalValue `json:"fillRepaySz"`
-	FillToSize    float64           `json:"fillToSz,string"`
+	FillToSize    types.Number      `json:"fillToSz"`
 	RepayCurrency string            `json:"repayCcy"`
 	Status        string            `json:"status"`
 	UpdateTime    time.Time         `json:"uTime"`
@@ -3004,10 +3008,10 @@ type SetQuoteProductParam struct {
 
 // MakerInstrumentSetting represents set quote product setting info
 type MakerInstrumentSetting struct {
-	Underlying     string  `json:"uly"`
-	InstrumentID   string  `json:"instId"`
-	MaxBlockSize   float64 `json:"maxBlockSz,string"`
-	MakerPriceBand float64 `json:"makerPxBand,string"`
+	Underlying     string       `json:"uly"`
+	InstrumentID   string       `json:"instId"`
+	MaxBlockSize   types.Number `json:"maxBlockSz"`
+	MakerPriceBand types.Number `json:"makerPxBand"`
 }
 
 // SetQuoteProductsResult represents set quote products result
@@ -3045,8 +3049,8 @@ type MarginBalanceParam struct {
 
 // ComputeMarginBalance represents compute margin amount request response
 type ComputeMarginBalance struct {
-	Leverage      float64 `json:"lever,string"`
-	MaximumAmount float64 `json:"maxAmt,string"`
+	Leverage      types.Number `json:"lever"`
+	MaximumAmount types.Number `json:"maxAmt"`
 }
 
 // AdjustMarginBalanceResponse represents algo id for response for margin balance adjust request.
@@ -3056,20 +3060,20 @@ type AdjustMarginBalanceResponse struct {
 
 // GridAIParameterResponse represents gri AI parameter response.
 type GridAIParameterResponse struct {
-	AlgoOrderType        string  `json:"algoOrdType"`
-	AnnualizedRate       string  `json:"annualizedRate"`
-	Currency             string  `json:"ccy"`
-	Direction            string  `json:"direction"`
-	Duration             string  `json:"duration"`
-	GridNum              string  `json:"gridNum"`
-	InstrumentID         string  `json:"instId"`
-	Leverage             float64 `json:"lever,string"`
-	MaximumPrice         float64 `json:"maxPx,string"`
-	MinimumInvestment    float64 `json:"minInvestment,string"`
-	MinimumPrice         float64 `json:"minPx,string"`
-	PerMaximumProfitRate float64 `json:"perMaxProfitRate,string"`
-	PerMinimumProfitRate float64 `json:"perMinProfitRate,string"`
-	RunType              string  `json:"runType"`
+	AlgoOrderType        string       `json:"algoOrdType"`
+	AnnualizedRate       string       `json:"annualizedRate"`
+	Currency             string       `json:"ccy"`
+	Direction            string       `json:"direction"`
+	Duration             string       `json:"duration"`
+	GridNum              string       `json:"gridNum"`
+	InstrumentID         string       `json:"instId"`
+	Leverage             types.Number `json:"lever"`
+	MaximumPrice         types.Number `json:"maxPx"`
+	MinimumInvestment    types.Number `json:"minInvestment"`
+	MinimumPrice         types.Number `json:"minPx"`
+	PerMaximumProfitRate types.Number `json:"perMaxProfitRate"`
+	PerMinimumProfitRate types.Number `json:"perMinProfitRate"`
+	RunType              string       `json:"runType"`
 }
 
 // Offer represents an investment offer information for different 'staking' and 'defi' protocols
@@ -3106,8 +3110,8 @@ type PurchaseRequestParam struct {
 
 // PurchaseInvestDataItem represents purchase invest data information having the currency and amount information
 type PurchaseInvestDataItem struct {
-	Currency string  `json:"ccy"`
-	Amount   float64 `json:"amt,string"`
+	Currency string       `json:"ccy"`
+	Amount   types.Number `json:"amt"`
 }
 
 // OrderIDResponse represents purchase order ID
@@ -3138,34 +3142,34 @@ type ActiveFundingOrder struct {
 	Term         string `json:"term"`
 	Apy          string `json:"apy"`
 	InvestData   []struct {
-		Currency string  `json:"ccy"`
-		Amount   float64 `json:"amt,string"`
+		Currency string       `json:"ccy"`
+		Amount   types.Number `json:"amt"`
 	} `json:"investData"`
 	EarningData []struct {
-		Ccy         string  `json:"ccy"`
-		EarningType string  `json:"earningType"`
-		Earnings    float64 `json:"earnings,string"`
+		Ccy         string       `json:"ccy"`
+		EarningType string       `json:"earningType"`
+		Earnings    types.Number `json:"earnings"`
 	} `json:"earningData"`
 	PurchasedTime okxUnixMilliTime `json:"purchasedTime"`
 }
 
 // FundingOrder represents orders of earning, purchase, and redeem
 type FundingOrder struct {
-	OrderID      string  `json:"ordId"`
-	State        string  `json:"state"`
-	Currency     string  `json:"ccy"`
-	Protocol     string  `json:"protocol"`
-	ProtocolType string  `json:"protocolType"`
-	Term         string  `json:"term"`
-	Apy          float64 `json:"apy,string"`
+	OrderID      string       `json:"ordId"`
+	State        string       `json:"state"`
+	Currency     string       `json:"ccy"`
+	Protocol     string       `json:"protocol"`
+	ProtocolType string       `json:"protocolType"`
+	Term         string       `json:"term"`
+	Apy          types.Number `json:"apy"`
 	InvestData   []struct {
-		Currency string  `json:"ccy"`
-		Amount   float64 `json:"amt,string"`
+		Currency string       `json:"ccy"`
+		Amount   types.Number `json:"amt"`
 	} `json:"investData"`
 	EarningData []struct {
-		Currency         string  `json:"ccy"`
-		EarningType      string  `json:"earningType"`
-		RealizedEarnings float64 `json:"realizedEarnings,string"`
+		Currency         string       `json:"ccy"`
+		EarningType      string       `json:"earningType"`
+		RealizedEarnings types.Number `json:"realizedEarnings"`
 	} `json:"earningData"`
 	PurchasedTime okxUnixMilliTime `json:"purchasedTime"`
 	RedeemedTime  okxUnixMilliTime `json:"redeemedTime"`

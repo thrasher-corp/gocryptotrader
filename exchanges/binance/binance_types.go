@@ -5,9 +5,9 @@ import (
 	"time"
 
 	"github.com/shopspring/decimal"
-	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
 const wsRateLimitMilliseconds = 250
@@ -295,14 +295,14 @@ type AggregatedTrade struct {
 
 // IndexMarkPrice stores data for index and mark prices
 type IndexMarkPrice struct {
-	Symbol               string                  `json:"symbol"`
-	Pair                 string                  `json:"pair"`
-	MarkPrice            convert.StringToFloat64 `json:"markPrice"`
-	IndexPrice           convert.StringToFloat64 `json:"indexPrice"`
-	EstimatedSettlePrice convert.StringToFloat64 `json:"estimatedSettlePrice"`
-	LastFundingRate      convert.StringToFloat64 `json:"lastFundingRate"`
-	NextFundingTime      int64                   `json:"nextFundingTime"`
-	Time                 int64                   `json:"time"`
+	Symbol               string       `json:"symbol"`
+	Pair                 string       `json:"pair"`
+	MarkPrice            types.Number `json:"markPrice"`
+	IndexPrice           types.Number `json:"indexPrice"`
+	EstimatedSettlePrice types.Number `json:"estimatedSettlePrice"`
+	LastFundingRate      types.Number `json:"lastFundingRate"`
+	NextFundingTime      int64        `json:"nextFundingTime"`
+	Time                 int64        `json:"time"`
 }
 
 // CandleStick holds kline data
