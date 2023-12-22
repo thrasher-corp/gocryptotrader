@@ -5,6 +5,7 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
 // AssetItemInfo represents a single an asset item instance.
@@ -19,82 +20,82 @@ type AssetItemInfo struct {
 
 // AssetInfoWithSupportedNetwork represents network information for a specific asset.
 type AssetInfoWithSupportedNetwork struct {
-	AssetID             string                  `json:"asset_id"`
-	AssetUUID           string                  `json:"asset_uuid"`
-	AssetName           string                  `json:"asset_name"`
-	NetworkName         string                  `json:"network_name"`
-	DisplayName         string                  `json:"display_name"`
-	NetworkArnID        string                  `json:"network_arn_id"`
-	MinWithdrawalAmount convert.StringToFloat64 `json:"min_withdrawal_amt"`
-	MaxWithdrawalAmount convert.StringToFloat64 `json:"max_withdrawal_amt"`
-	NetworkConfirms     int64                   `json:"network_confirms"`
-	ProcessingTime      convert.ExchangeTime    `json:"processing_time"`
-	IsDefault           bool                    `json:"is_default"`
+	AssetID             string               `json:"asset_id"`
+	AssetUUID           string               `json:"asset_uuid"`
+	AssetName           string               `json:"asset_name"`
+	NetworkName         string               `json:"network_name"`
+	DisplayName         string               `json:"display_name"`
+	NetworkArnID        string               `json:"network_arn_id"`
+	MinWithdrawalAmount types.Number         `json:"min_withdrawal_amt"`
+	MaxWithdrawalAmount types.Number         `json:"max_withdrawal_amt"`
+	NetworkConfirms     int64                `json:"network_confirms"`
+	ProcessingTime      convert.ExchangeTime `json:"processing_time"`
+	IsDefault           bool                 `json:"is_default"`
 }
 
 // InstrumentInfo represents an instrument detail for specific instrument id.
 type InstrumentInfo struct {
-	InstrumentID        string                  `json:"instrument_id"`
-	InstrumentUUID      string                  `json:"instrument_uuid"`
-	Symbol              string                  `json:"symbol"`
-	Type                string                  `json:"type"`
-	BaseAssetID         string                  `json:"base_asset_id"`
-	BaseAssetUUID       string                  `json:"base_asset_uuid"`
-	BaseAssetName       string                  `json:"base_asset_name"`
-	QuoteAssetID        string                  `json:"quote_asset_id"`
-	QuoteAssetUUID      string                  `json:"quote_asset_uuid"`
-	QuoteAssetName      string                  `json:"quote_asset_name"`
-	BaseIncrement       convert.StringToFloat64 `json:"base_increment"`
-	QuoteIncrement      convert.StringToFloat64 `json:"quote_increment"`
-	PriceBandPercent    float64                 `json:"price_band_percent"`
-	MarketOrderPercent  float64                 `json:"market_order_percent"`
-	Qty24Hr             convert.StringToFloat64 `json:"qty_24hr"`
-	Notional24Hr        convert.StringToFloat64 `json:"notional_24hr"`
-	AvgDailyQty         convert.StringToFloat64 `json:"avg_daily_qty"`
-	AvgDailyNotional    convert.StringToFloat64 `json:"avg_daily_notional"`
-	PreviousDayQty      convert.StringToFloat64 `json:"previous_day_qty"`
-	OpenInterest        convert.StringToFloat64 `json:"open_interest"`
-	PositionLimitQty    convert.StringToFloat64 `json:"position_limit_qty"`
-	PositionLimitAdqPct float64                 `json:"position_limit_adq_pct"`
-	ReplacementCost     convert.StringToFloat64 `json:"replacement_cost"`
-	BaseImf             float64                 `json:"base_imf"`
-	MinNotionalValue    string                  `json:"min_notional_value"`
-	FundingInterval     string                  `json:"funding_interval"`
-	TradingState        string                  `json:"trading_state"`
-	PositionLimitAdv    float64                 `json:"position_limit_adv"`
-	InitialMarginAdv    float64                 `json:"initial_margin_adv"`
+	InstrumentID        string       `json:"instrument_id"`
+	InstrumentUUID      string       `json:"instrument_uuid"`
+	Symbol              string       `json:"symbol"`
+	Type                string       `json:"type"`
+	BaseAssetID         string       `json:"base_asset_id"`
+	BaseAssetUUID       string       `json:"base_asset_uuid"`
+	BaseAssetName       string       `json:"base_asset_name"`
+	QuoteAssetID        string       `json:"quote_asset_id"`
+	QuoteAssetUUID      string       `json:"quote_asset_uuid"`
+	QuoteAssetName      string       `json:"quote_asset_name"`
+	BaseIncrement       types.Number `json:"base_increment"`
+	QuoteIncrement      types.Number `json:"quote_increment"`
+	PriceBandPercent    float64      `json:"price_band_percent"`
+	MarketOrderPercent  float64      `json:"market_order_percent"`
+	Qty24Hr             types.Number `json:"qty_24hr"`
+	Notional24Hr        types.Number `json:"notional_24hr"`
+	AvgDailyQty         types.Number `json:"avg_daily_qty"`
+	AvgDailyNotional    types.Number `json:"avg_daily_notional"`
+	PreviousDayQty      types.Number `json:"previous_day_qty"`
+	OpenInterest        types.Number `json:"open_interest"`
+	PositionLimitQty    types.Number `json:"position_limit_qty"`
+	PositionLimitAdqPct float64      `json:"position_limit_adq_pct"`
+	ReplacementCost     types.Number `json:"replacement_cost"`
+	BaseImf             float64      `json:"base_imf"`
+	MinNotionalValue    string       `json:"min_notional_value"`
+	FundingInterval     string       `json:"funding_interval"`
+	TradingState        string       `json:"trading_state"`
+	PositionLimitAdv    float64      `json:"position_limit_adv"`
+	InitialMarginAdv    float64      `json:"initial_margin_adv"`
 	Quote               struct {
-		BestBidPrice     convert.StringToFloat64 `json:"best_bid_price"`
-		BestBidSize      convert.StringToFloat64 `json:"best_bid_size"`
-		BestAskPrice     convert.StringToFloat64 `json:"best_ask_price"`
-		BestAskSize      convert.StringToFloat64 `json:"best_ask_size"`
-		TradePrice       convert.StringToFloat64 `json:"trade_price"`
-		TradeQty         convert.StringToFloat64 `json:"trade_qty"`
-		IndexPrice       convert.StringToFloat64 `json:"index_price"`
-		MarkPrice        convert.StringToFloat64 `json:"mark_price"`
-		SettlementPrice  convert.StringToFloat64 `json:"settlement_price"`
-		LimitUp          convert.StringToFloat64 `json:"limit_up"`
-		LimitDown        convert.StringToFloat64 `json:"limit_down"`
-		PredictedFunding convert.StringToFloat64 `json:"predicted_funding"`
-		Timestamp        time.Time               `json:"timestamp"`
+		BestBidPrice     types.Number `json:"best_bid_price"`
+		BestBidSize      types.Number `json:"best_bid_size"`
+		BestAskPrice     types.Number `json:"best_ask_price"`
+		BestAskSize      types.Number `json:"best_ask_size"`
+		TradePrice       types.Number `json:"trade_price"`
+		TradeQty         types.Number `json:"trade_qty"`
+		IndexPrice       types.Number `json:"index_price"`
+		MarkPrice        types.Number `json:"mark_price"`
+		SettlementPrice  types.Number `json:"settlement_price"`
+		LimitUp          types.Number `json:"limit_up"`
+		LimitDown        types.Number `json:"limit_down"`
+		PredictedFunding types.Number `json:"predicted_funding"`
+		Timestamp        time.Time    `json:"timestamp"`
 	} `json:"quote"`
 }
 
 // QuoteInformation represents a instrument quote information
 type QuoteInformation struct {
-	BestBidPrice     convert.StringToFloat64 `json:"best_bid_price"`
-	BestBidSize      convert.StringToFloat64 `json:"best_bid_size"`
-	BestAskPrice     convert.StringToFloat64 `json:"best_ask_price"`
-	BestAskSize      convert.StringToFloat64 `json:"best_ask_size"`
-	TradePrice       convert.StringToFloat64 `json:"trade_price"`
-	TradeQty         convert.StringToFloat64 `json:"trade_qty"`
-	IndexPrice       convert.StringToFloat64 `json:"index_price"`
-	MarkPrice        convert.StringToFloat64 `json:"mark_price"`
-	SettlementPrice  convert.StringToFloat64 `json:"settlement_price"`
-	LimitUp          convert.StringToFloat64 `json:"limit_up"`
-	LimitDown        convert.StringToFloat64 `json:"limit_down"`
-	PredictedFunding convert.StringToFloat64 `json:"predicted_funding"`
-	Timestamp        time.Time               `json:"timestamp"`
+	BestBidPrice     types.Number `json:"best_bid_price"`
+	BestBidSize      types.Number `json:"best_bid_size"`
+	BestAskPrice     types.Number `json:"best_ask_price"`
+	BestAskSize      types.Number `json:"best_ask_size"`
+	TradePrice       types.Number `json:"trade_price"`
+	TradeQty         types.Number `json:"trade_qty"`
+	IndexPrice       types.Number `json:"index_price"`
+	MarkPrice        types.Number `json:"mark_price"`
+	SettlementPrice  types.Number `json:"settlement_price"`
+	LimitUp          types.Number `json:"limit_up"`
+	LimitDown        types.Number `json:"limit_down"`
+	PredictedFunding types.Number `json:"predicted_funding"`
+	Timestamp        time.Time    `json:"timestamp"`
 }
 
 // OrderRequestParams represents a request parameter for creating order.
@@ -116,28 +117,28 @@ type OrderRequestParams struct {
 
 // TradeOrder represents a single order
 type TradeOrder struct {
-	OrderID        int64                   `json:"order_id"`
-	ClientOrderID  string                  `json:"client_order_id"`
-	Side           string                  `json:"side"`
-	InstrumentID   int64                   `json:"instrument_id"`
-	InstrumentUUID string                  `json:"instrument_uuid"`
-	Symbol         string                  `json:"symbol"`
-	PortfolioID    int64                   `json:"portfolio_id"`
-	PortfolioUUID  string                  `json:"portfolio_uuid"`
-	Type           string                  `json:"type"`
-	Price          float64                 `json:"price"`
-	StopPrice      float64                 `json:"stop_price"`
-	Size           float64                 `json:"size"`
-	TimeInForce    string                  `json:"tif"`
-	ExpireTime     time.Time               `json:"expire_time"`
-	StpMode        string                  `json:"stp_mode"`
-	EventType      string                  `json:"event_type"`
-	OrderStatus    string                  `json:"order_status"`
-	LeavesQty      convert.StringToFloat64 `json:"leaves_qty"`
-	ExecQty        convert.StringToFloat64 `json:"exec_qty"`
-	AvgPrice       convert.StringToFloat64 `json:"avg_price"`
-	Message        string                  `json:"message"`
-	Fee            convert.StringToFloat64 `json:"fee"`
+	OrderID        int64        `json:"order_id"`
+	ClientOrderID  string       `json:"client_order_id"`
+	Side           string       `json:"side"`
+	InstrumentID   int64        `json:"instrument_id"`
+	InstrumentUUID string       `json:"instrument_uuid"`
+	Symbol         string       `json:"symbol"`
+	PortfolioID    int64        `json:"portfolio_id"`
+	PortfolioUUID  string       `json:"portfolio_uuid"`
+	Type           string       `json:"type"`
+	Price          float64      `json:"price"`
+	StopPrice      float64      `json:"stop_price"`
+	Size           float64      `json:"size"`
+	TimeInForce    string       `json:"tif"`
+	ExpireTime     time.Time    `json:"expire_time"`
+	StpMode        string       `json:"stp_mode"`
+	EventType      string       `json:"event_type"`
+	OrderStatus    string       `json:"order_status"`
+	LeavesQty      types.Number `json:"leaves_qty"`
+	ExecQty        types.Number `json:"exec_qty"`
+	AvgPrice       types.Number `json:"avg_price"`
+	Message        string       `json:"message"`
+	Fee            types.Number `json:"fee"`
 }
 
 // OrderItemDetail represents an open order detail.
@@ -161,42 +162,42 @@ type ModifyOrderParam struct {
 
 // OrderItem represents a single order item.
 type OrderItem struct {
-	OrderID        string                  `json:"order_id"`
-	ClientOrderID  string                  `json:"client_order_id"`
-	Side           string                  `json:"side"`
-	InstrumentID   string                  `json:"instrument_id"`
-	InstrumentUUID string                  `json:"instrument_uuid"`
-	Symbol         string                  `json:"symbol"`
-	PortfolioID    int64                   `json:"portfolio_id"`
-	PortfolioUUID  string                  `json:"portfolio_uuid"`
-	Type           string                  `json:"type"`
-	Price          float64                 `json:"price"`
-	StopPrice      float64                 `json:"stop_price"`
-	Size           float64                 `json:"size"`
-	TimeInForce    string                  `json:"tif"`
-	ExpireTime     time.Time               `json:"expire_time"`
-	StpMode        string                  `json:"stp_mode"`
-	EventType      string                  `json:"event_type"`
-	OrderStatus    string                  `json:"order_status"`
-	LeavesQuantity convert.StringToFloat64 `json:"leaves_qty"`
-	ExecQty        convert.StringToFloat64 `json:"exec_qty"`
-	AveragePrice   convert.StringToFloat64 `json:"avg_price"`
-	Message        string                  `json:"message"`
-	Fee            convert.StringToFloat64 `json:"fee"`
+	OrderID        string       `json:"order_id"`
+	ClientOrderID  string       `json:"client_order_id"`
+	Side           string       `json:"side"`
+	InstrumentID   string       `json:"instrument_id"`
+	InstrumentUUID string       `json:"instrument_uuid"`
+	Symbol         string       `json:"symbol"`
+	PortfolioID    int64        `json:"portfolio_id"`
+	PortfolioUUID  string       `json:"portfolio_uuid"`
+	Type           string       `json:"type"`
+	Price          float64      `json:"price"`
+	StopPrice      float64      `json:"stop_price"`
+	Size           float64      `json:"size"`
+	TimeInForce    string       `json:"tif"`
+	ExpireTime     time.Time    `json:"expire_time"`
+	StpMode        string       `json:"stp_mode"`
+	EventType      string       `json:"event_type"`
+	OrderStatus    string       `json:"order_status"`
+	LeavesQuantity types.Number `json:"leaves_qty"`
+	ExecQty        types.Number `json:"exec_qty"`
+	AveragePrice   types.Number `json:"avg_price"`
+	Message        string       `json:"message"`
+	Fee            types.Number `json:"fee"`
 }
 
 // PortfolioItem represents a user portfolio item
 // and transaction fee information.
 type PortfolioItem struct {
-	PortfolioID    string                  `json:"portfolio_id"`
-	PortfolioUUID  string                  `json:"portfolio_uuid"`
-	Name           string                  `json:"name"`
-	UserUUID       string                  `json:"user_uuid"`
-	MakerFeeRate   convert.StringToFloat64 `json:"maker_fee_rate"`
-	TakerFeeRate   convert.StringToFloat64 `json:"taker_fee_rate"`
-	TradingLock    bool                    `json:"trading_lock"`
-	BorrowDisabled bool                    `json:"borrow_disabled"`
-	IsLSP          bool                    `json:"is_lsp"` // Indicates if the portfolio is setup to take liquidation assignments
+	PortfolioID    string       `json:"portfolio_id"`
+	PortfolioUUID  string       `json:"portfolio_uuid"`
+	Name           string       `json:"name"`
+	UserUUID       string       `json:"user_uuid"`
+	MakerFeeRate   types.Number `json:"maker_fee_rate"`
+	TakerFeeRate   types.Number `json:"taker_fee_rate"`
+	TradingLock    bool         `json:"trading_lock"`
+	BorrowDisabled bool         `json:"borrow_disabled"`
+	IsLSP          bool         `json:"is_lsp"` // Indicates if the portfolio is setup to take liquidation assignments
 }
 
 // PortfolioDetail represents a portfolio detail.
@@ -259,14 +260,14 @@ type PortfolioSummary struct {
 
 // PortfolioBalance represents a portfolio balance instance.
 type PortfolioBalance struct {
-	AssetID           string                  `json:"asset_id"`
-	AssetUUID         string                  `json:"asset_uuid"`
-	AssetName         string                  `json:"asset_name"`
-	Quantity          convert.StringToFloat64 `json:"quantity"`
-	Hold              convert.StringToFloat64 `json:"hold"`
-	TransferHold      convert.StringToFloat64 `json:"transfer_hold"`
-	CollateralValue   convert.StringToFloat64 `json:"collateral_value"`
-	MaxWithdrawAmount convert.StringToFloat64 `json:"max_withdraw_amount"`
+	AssetID           string       `json:"asset_id"`
+	AssetUUID         string       `json:"asset_uuid"`
+	AssetName         string       `json:"asset_name"`
+	Quantity          types.Number `json:"quantity"`
+	Hold              types.Number `json:"hold"`
+	TransferHold      types.Number `json:"transfer_hold"`
+	CollateralValue   types.Number `json:"collateral_value"`
+	MaxWithdrawAmount types.Number `json:"max_withdraw_amount"`
 }
 
 // PortfolioPosition represents a portfolio positions instance.
@@ -363,12 +364,12 @@ type WithdrawToCoinbaseINTXParam struct {
 
 // WithdrawToCoinbaseResponse represents a response after withdrawing to coinbase account.
 type WithdrawToCoinbaseResponse struct {
-	ID       string                  `json:"id"`
-	Amount   convert.StringToFloat64 `json:"amount"`
-	Fee      convert.StringToFloat64 `json:"fee"`
-	Currency string                  `json:"currency"`
-	PayoutAt string                  `json:"payout_at"`
-	Subtotal string                  `json:"subtotal"`
+	ID       string       `json:"id"`
+	Amount   types.Number `json:"amount"`
+	Fee      types.Number `json:"fee"`
+	Currency string       `json:"currency"`
+	PayoutAt string       `json:"payout_at"`
+	Subtotal string       `json:"subtotal"`
 }
 
 // WithdrawCryptoParams holds crypto fund withdrawal information.
@@ -433,89 +434,89 @@ type SubscribedChannel struct {
 
 // WsInstrument holds response information to websocket
 type WsInstrument struct {
-	Sequence            int64                   `json:"sequence"`
-	ProductID           string                  `json:"product_id"`
-	InstrumentType      string                  `json:"instrument_type"`
-	BaseAssetName       string                  `json:"base_asset_name"`
-	QuoteAssetName      string                  `json:"quote_asset_name"`
-	BaseIncrement       convert.StringToFloat64 `json:"base_increment"`
-	QuoteIncrement      convert.StringToFloat64 `json:"quote_increment"`
-	AvgDailyQuantity    convert.StringToFloat64 `json:"avg_daily_quantity"`
-	AvgDailyVolume      convert.StringToFloat64 `json:"avg_daily_volume"`
-	Total30DayQuantity  convert.StringToFloat64 `json:"total_30_day_quantity"`
-	Total30DayVolume    convert.StringToFloat64 `json:"total_30_day_volume"`
-	Total24HourQuantity convert.StringToFloat64 `json:"total_24_hour_quantity"`
-	Total24HourVolume   convert.StringToFloat64 `json:"total_24_hour_volume"`
-	BaseImf             string                  `json:"base_imf"`
-	MinQuantity         convert.StringToFloat64 `json:"min_quantity"`
-	PositionSizeLimit   convert.StringToFloat64 `json:"position_size_limit"`
-	FundingInterval     string                  `json:"funding_interval"`
-	TradingState        string                  `json:"trading_state"`
-	LastUpdateTime      time.Time               `json:"last_update_time"`
-	GatewayTime         time.Time               `json:"time"`
-	Channel             string                  `json:"channel"`
-	Type                string                  `json:"type"`
+	Sequence            int64        `json:"sequence"`
+	ProductID           string       `json:"product_id"`
+	InstrumentType      string       `json:"instrument_type"`
+	BaseAssetName       string       `json:"base_asset_name"`
+	QuoteAssetName      string       `json:"quote_asset_name"`
+	BaseIncrement       types.Number `json:"base_increment"`
+	QuoteIncrement      types.Number `json:"quote_increment"`
+	AvgDailyQuantity    types.Number `json:"avg_daily_quantity"`
+	AvgDailyVolume      types.Number `json:"avg_daily_volume"`
+	Total30DayQuantity  types.Number `json:"total_30_day_quantity"`
+	Total30DayVolume    types.Number `json:"total_30_day_volume"`
+	Total24HourQuantity types.Number `json:"total_24_hour_quantity"`
+	Total24HourVolume   types.Number `json:"total_24_hour_volume"`
+	BaseImf             string       `json:"base_imf"`
+	MinQuantity         types.Number `json:"min_quantity"`
+	PositionSizeLimit   types.Number `json:"position_size_limit"`
+	FundingInterval     string       `json:"funding_interval"`
+	TradingState        string       `json:"trading_state"`
+	LastUpdateTime      time.Time    `json:"last_update_time"`
+	GatewayTime         time.Time    `json:"time"`
+	Channel             string       `json:"channel"`
+	Type                string       `json:"type"`
 }
 
 // WsMatch holds push data information through the channel MATCH.
 type WsMatch struct {
-	Sequence   int64                   `json:"sequence"`
-	ProductID  string                  `json:"product_id"`
-	Time       time.Time               `json:"time"`
-	MatchID    string                  `json:"match_id"`
-	TradeQty   convert.StringToFloat64 `json:"trade_qty"`
-	TradePrice convert.StringToFloat64 `json:"trade_price"`
-	Channel    string                  `json:"channel"`
-	Type       string                  `json:"type"`
+	Sequence   int64        `json:"sequence"`
+	ProductID  string       `json:"product_id"`
+	Time       time.Time    `json:"time"`
+	MatchID    string       `json:"match_id"`
+	TradeQty   types.Number `json:"trade_qty"`
+	TradePrice types.Number `json:"trade_price"`
+	Channel    string       `json:"channel"`
+	Type       string       `json:"type"`
 }
 
 // WsFunding holds push data information through the FUNDING channel.
 type WsFunding struct {
-	Sequence    int64                   `json:"sequence"`
-	ProductID   string                  `json:"product_id"`
-	Time        time.Time               `json:"time"`
-	FundingRate convert.StringToFloat64 `json:"funding_rate"`
-	IsFinal     bool                    `json:"is_final"`
-	Channel     string                  `json:"channel"`
-	Type        string                  `json:"type"`
+	Sequence    int64        `json:"sequence"`
+	ProductID   string       `json:"product_id"`
+	Time        time.Time    `json:"time"`
+	FundingRate types.Number `json:"funding_rate"`
+	IsFinal     bool         `json:"is_final"`
+	Channel     string       `json:"channel"`
+	Type        string       `json:"type"`
 }
 
 // WsRisk holds push data information through the RISK channel.
 type WsRisk struct {
-	Sequence        int64                   `json:"sequence"`
-	ProductID       string                  `json:"product_id"`
-	Time            time.Time               `json:"time"`
-	LimitUp         string                  `json:"limit_up"`
-	LimitDown       string                  `json:"limit_down"`
-	IndexPrice      convert.StringToFloat64 `json:"index_price"`
-	MarkPrice       convert.StringToFloat64 `json:"mark_price"`
-	SettlementPrice convert.StringToFloat64 `json:"settlement_price"`
-	Channel         string                  `json:"channel"`
-	Type            string                  `json:"type"`
+	Sequence        int64        `json:"sequence"`
+	ProductID       string       `json:"product_id"`
+	Time            time.Time    `json:"time"`
+	LimitUp         string       `json:"limit_up"`
+	LimitDown       string       `json:"limit_down"`
+	IndexPrice      types.Number `json:"index_price"`
+	MarkPrice       types.Number `json:"mark_price"`
+	SettlementPrice types.Number `json:"settlement_price"`
+	Channel         string       `json:"channel"`
+	Type            string       `json:"type"`
 }
 
 // WsOrderbookLevel1 holds Level-1 orderbook information
 type WsOrderbookLevel1 struct {
-	Sequence  int64                   `json:"sequence"`
-	ProductID string                  `json:"product_id"`
-	Time      time.Time               `json:"time"`
-	BidPrice  convert.StringToFloat64 `json:"bid_price"`
-	BidQty    convert.StringToFloat64 `json:"bid_qty"`
-	Channel   string                  `json:"channel"`
-	Type      string                  `json:"type"`
-	AskPrice  convert.StringToFloat64 `json:"ask_price,omitempty"`
-	AskQty    convert.StringToFloat64 `json:"ask_qty,omitempty"`
+	Sequence  int64        `json:"sequence"`
+	ProductID string       `json:"product_id"`
+	Time      time.Time    `json:"time"`
+	BidPrice  types.Number `json:"bid_price"`
+	BidQty    types.Number `json:"bid_qty"`
+	Channel   string       `json:"channel"`
+	Type      string       `json:"type"`
+	AskPrice  types.Number `json:"ask_price,omitempty"`
+	AskQty    types.Number `json:"ask_qty,omitempty"`
 }
 
 // WsOrderbookLevel2 holds Level-2 orderbook information.
 type WsOrderbookLevel2 struct {
-	Sequence  int64       `json:"sequence"`
-	ProductID string      `json:"product_id"`
-	Time      time.Time   `json:"time"`
-	Asks      [][2]string `json:"asks"`
-	Bids      [][2]string `json:"bids"`
-	Channel   string      `json:"channel"`
-	Type      string      `json:"type"` // Possible values: UPDATE and SNAPSHOT
+	Sequence  int64             `json:"sequence"`
+	ProductID string            `json:"product_id"`
+	Time      time.Time         `json:"time"`
+	Asks      [][2]types.Number `json:"asks"`
+	Bids      [][2]types.Number `json:"bids"`
+	Channel   string            `json:"channel"`
+	Type      string            `json:"type"` // Possible values: UPDATE and SNAPSHOT
 
 	// Changes when the data is UPDATE
 	Changes [][3]string `json:"changes"`

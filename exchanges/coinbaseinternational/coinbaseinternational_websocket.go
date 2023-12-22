@@ -164,28 +164,16 @@ func (co *CoinbaseInternational) processOrderbookLevel2(respRaw []byte) error {
 		}
 		asks := make([]orderbook.Item, len(resp[x].Asks))
 		for a := range resp[x].Asks {
-			asks[a].Price, err = strconv.ParseFloat(resp[x].Asks[a][0], 64)
-			if err != nil {
-				return err
-			}
-			asks[a].Amount, err = strconv.ParseFloat(resp[x].Asks[a][1], 64)
-			if err != nil {
-				return err
-			}
+			asks[a].Price = resp[x].Asks[a][0].Float64()
+			asks[a].Amount = resp[x].Asks[a][1].Float64()
 		}
 		bids := make([]orderbook.Item, len(resp[x].Bids))
 		for b := range resp[x].Bids {
-			bids[b].Price, err = strconv.ParseFloat(resp[x].Bids[b][0], 64)
-			if err != nil {
-				return err
-			}
-			bids[b].Amount, err = strconv.ParseFloat(resp[x].Bids[b][1], 64)
-			if err != nil {
-				return err
-			}
+			bids[b].Price = resp[x].Bids[b][0].Float64()
+			bids[b].Amount = resp[x].Bids[b][1].Float64()
 		}
 		if resp[x].Type == "UPDATE" {
-			var update = orderbook.Update{
+			return co.Websocket.Orderbook.Update(&orderbook.Update{
 				UpdateID:   resp[x].Sequence,
 				UpdateTime: resp[x].Time,
 				Asset:      asset.Spot,
@@ -193,26 +181,17 @@ func (co *CoinbaseInternational) processOrderbookLevel2(respRaw []byte) error {
 				Bids:       bids,
 				Asks:       asks,
 				Pair:       pair,
-			}
-			err = co.Websocket.Orderbook.Update(&update)
-			if err != nil {
-				return err
-			}
-		} else {
-			base := orderbook.Base{
-				LastUpdateID: resp[x].Sequence,
-				Bids:         bids,
-				Asks:         asks,
-				Pair:         pair,
-				Exchange:     co.Name,
-				Asset:        asset.Spot,
-				LastUpdated:  resp[x].Time,
-			}
-			err = co.Websocket.Orderbook.LoadSnapshot(&base)
-			if err != nil {
-				return err
-			}
+			})
 		}
+		return co.Websocket.Orderbook.LoadSnapshot(&orderbook.Base{
+			LastUpdateID: resp[x].Sequence,
+			Bids:         bids,
+			Asks:         asks,
+			Pair:         pair,
+			Exchange:     co.Name,
+			Asset:        asset.Spot,
+			LastUpdated:  resp[x].Time,
+		})
 	}
 	return nil
 }
@@ -229,7 +208,7 @@ func (co *CoinbaseInternational) processOrderbookLevel1(respRaw []byte) error {
 			return err
 		}
 		if resp[x].Type == "UPDATE" {
-			update := orderbook.Update{
+			return co.Websocket.Orderbook.Update(&orderbook.Update{
 				Pair:       pair,
 				Asset:      asset.Spot,
 				UpdateTime: resp[x].Time,
@@ -237,26 +216,17 @@ func (co *CoinbaseInternational) processOrderbookLevel1(respRaw []byte) error {
 				UpdateID:   resp[x].Sequence,
 				Asks:       []orderbook.Item{{Price: resp[x].AskPrice.Float64(), Amount: resp[x].AskQty.Float64()}},
 				Bids:       []orderbook.Item{{Price: resp[x].BidPrice.Float64(), Amount: resp[x].BidQty.Float64()}},
-			}
-			err = co.Websocket.Orderbook.Update(&update)
-			if err != nil {
-				return err
-			}
-		} else {
-			base := orderbook.Base{
-				Pair:         pair,
-				Exchange:     co.Name,
-				Asset:        asset.Spot,
-				LastUpdated:  resp[x].Time,
-				LastUpdateID: resp[x].Sequence,
-				Asks:         []orderbook.Item{{Price: resp[x].AskPrice.Float64(), Amount: resp[x].AskQty.Float64()}},
-				Bids:         []orderbook.Item{{Price: resp[x].BidPrice.Float64(), Amount: resp[x].BidQty.Float64()}},
-			}
-			err = co.Websocket.Orderbook.LoadSnapshot(&base)
-			if err != nil {
-				return err
-			}
+			})
 		}
+		return co.Websocket.Orderbook.LoadSnapshot(&orderbook.Base{
+			Pair:         pair,
+			Exchange:     co.Name,
+			Asset:        asset.Spot,
+			LastUpdated:  resp[x].Time,
+			LastUpdateID: resp[x].Sequence,
+			Asks:         []orderbook.Item{{Price: resp[x].AskPrice.Float64(), Amount: resp[x].AskQty.Float64()}},
+			Bids:         []orderbook.Item{{Price: resp[x].BidPrice.Float64(), Amount: resp[x].BidQty.Float64()}},
+		})
 	}
 	return nil
 }
