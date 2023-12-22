@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"strconv"
 	"strings"
 	"time"
 
@@ -339,26 +338,16 @@ func (p *Poloniex) processBooks(result *SubscriptionResponse) error {
 		}
 		update.Asks = make([]orderbook.Item, len(resp[x].Asks))
 		for i := range resp[x].Asks {
-			update.Asks[i] = orderbook.Item{}
-			update.Asks[i].Price, err = strconv.ParseFloat(resp[x].Asks[i][0], 64)
-			if err != nil {
-				return err
-			}
-			update.Asks[i].Amount, err = strconv.ParseFloat(resp[x].Asks[i][1], 64)
-			if err != nil {
-				return err
+			update.Asks[i] = orderbook.Item{
+				Price:  resp[x].Asks[i][0].Float64(),
+				Amount: resp[x].Asks[i][1].Float64(),
 			}
 		}
 		update.Bids = make([]orderbook.Item, len(resp[x].Bids))
 		for i := range resp[x].Bids {
-			update.Bids[i] = orderbook.Item{}
-			update.Bids[i].Price, err = strconv.ParseFloat(resp[x].Bids[i][0], 64)
-			if err != nil {
-				return err
-			}
-			update.Bids[i].Amount, err = strconv.ParseFloat(resp[x].Bids[i][1], 64)
-			if err != nil {
-				return err
+			update.Bids[i] = orderbook.Item{
+				Price:  resp[x].Bids[i][0].Float64(),
+				Amount: resp[x].Bids[i][1].Float64(),
 			}
 		}
 		update.UpdateID = resp[x].LastID

@@ -406,26 +406,14 @@ func (p *Poloniex) UpdateOrderbook(ctx context.Context, pair currency.Pair, asse
 
 	book.Bids = make(orderbook.Items, len(orderbookNew.Bids)/2)
 	for y := range book.Bids {
-		book.Bids[y].Price, err = strconv.ParseFloat(orderbookNew.Bids[y*2], 64)
-		if err != nil {
-			return nil, err
-		}
-		book.Bids[y].Amount, err = strconv.ParseFloat(orderbookNew.Bids[y*2+1], 64)
-		if err != nil {
-			return nil, err
-		}
+		book.Bids[y].Price = orderbookNew.Bids[y*2].Float64()
+		book.Bids[y].Amount = orderbookNew.Bids[y*2+1].Float64()
 	}
 
 	book.Asks = make(orderbook.Items, len(orderbookNew.Asks)/2)
 	for y := range book.Asks {
-		book.Asks[y].Price, err = strconv.ParseFloat(orderbookNew.Asks[y*2], 64)
-		if err != nil {
-			return nil, err
-		}
-		book.Asks[y].Amount, err = strconv.ParseFloat(orderbookNew.Asks[y*2+1], 64)
-		if err != nil {
-			return nil, err
-		}
+		book.Asks[y].Price = orderbookNew.Asks[y*2].Float64()
+		book.Asks[y].Amount = orderbookNew.Asks[y*2+1].Float64()
 	}
 	err = book.Process()
 	if err != nil {

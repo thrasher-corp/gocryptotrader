@@ -25,16 +25,16 @@ const (
 )
 
 var (
-	errNilArgument                     = errors.New("error: nil argument")
+	errNilArgument                     = errors.New("nil argument")
 	errAddressRequired                 = errors.New("address is required")
 	errInvalidWithdrawalChain          = errors.New("invalid withdrawal chain")
 	errClientOrderIDOROrderIDsRequired = errors.New("either client order IDs or order IDs or both are required")
 	errInvalidTimeout                  = errors.New("timeout must not be empty")
-	errChainsNotFound                  = errors.New("err chains not found")
+	errChainsNotFound                  = errors.New("chains not found")
 	errChannelNotSupported             = errors.New("channel not supported")
 	errAccountIDRequired               = errors.New("missing account ID")
 	errAccountTypeRequired             = errors.New("account type required")
-	errInvalidResponse                 = errors.New("err: invalid response data")
+	errInvalidResponse                 = errors.New("invalid response data")
 	errUnexpectedIncomingDataType      = errors.New("unexpected incoming data type")
 )
 
