@@ -260,7 +260,7 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 			assert.NotEmpty(t, limits.Pair, "Pair should not be empty")
 			assert.Positive(t, limits.PriceStepIncrementSize, "PriceStepIncrementSize should be positive")
 			assert.Positive(t, limits.AmountStepIncrementSize, "AmountStepIncrementSize should be positive")
-			assert.Positive(t, limits.MinimumQuoteAmount, "MinAmount should be positive")
+			assert.Positive(t, limits.MinimumQuoteAmount, "MinimumQuoteAmount should be positive")
 			if mockTests {
 				if got := limits.PriceStepIncrementSize; got != limitTest.step {
 					t.Errorf("Bitstamp UpdateOrderExecutionLimits wrong PriceStepIncrementSize; Asset: %s Pair: %s Expected: %v Got: %v", assetItem, limitTest.pair, limitTest.step, got)
