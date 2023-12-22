@@ -164,9 +164,17 @@ func TestGetPairs(t *testing.T) {
 
 func TestUpdateTradablePairs(t *testing.T) {
 	t.Parallel()
-	if err := b.UpdateTradablePairs(context.Background(), true); err != nil {
-		t.Error("Bitfinex UpdateTradablePairs() error", err)
-	}
+	updatePairsOnce(t)
+}
+
+var updatePairsGuard sync.Once
+
+func updatePairsOnce(tb testing.TB) {
+	tb.Helper()
+	updatePairsGuard.Do(func() {
+		err := b.UpdateTradablePairs(context.Background(), true)
+		assert.NoError(tb, err, "UpdateTradablePairs should not error")
+	})
 }
 
 func TestUpdateOrderExecutionLimits(t *testing.T) {
@@ -477,13 +485,11 @@ func TestUpdateTicker(t *testing.T) {
 func TestUpdateTickers(t *testing.T) {
 	t.Parallel()
 
-	err := b.UpdateTradablePairs(context.Background(), false)
-	assert.NoErrorf(t, err, "UpdateTradablePairs should not error")
+	updatePairsOnce(t)
 
 	assets := b.GetAssetTypes(false)
 	for _, a := range assets {
-		var avail []currency.Pair
-		avail, err = b.GetAvailablePairs(a)
+		avail, err := b.GetAvailablePairs(a)
 		assert.NoError(t, err, "GetAvailablePairs should not error")
 
 		err = b.CurrencyPairs.StorePairs(a, avail, true)
@@ -494,7 +500,7 @@ func TestUpdateTickers(t *testing.T) {
 
 		// Bitfinex leaves delisted pairs in Available info/conf endpoints
 		// We want to assert that most pairs are valid, so we'll check that no more than 5% are erroring
-		acceptableThreshold := 0.95
+		acceptableThreshold := 95.0
 		okay := 0.0
 		var errs error
 		for _, p := range avail {
@@ -504,7 +510,7 @@ func TestUpdateTickers(t *testing.T) {
 				okay++
 			}
 		}
-		if !assert.Greater(t, okay, acceptableThreshold*float64(len(avail)), "No more than %d%% of %s tickers should error", int(acceptableThreshold*100), a) {
+		if !assert.Greater(t, okay/float64(len(avail))*100.0, acceptableThreshold, "At least %.f%% of %s tickers should not error", acceptableThreshold, a) {
 			t.Log(errs.Error())
 		}
 	}
