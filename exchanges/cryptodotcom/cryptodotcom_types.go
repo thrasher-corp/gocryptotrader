@@ -8,6 +8,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
 var (
@@ -23,21 +24,21 @@ var (
 
 // Instrument represents an details.
 type Instrument struct {
-	InstrumentName          string                  `json:"instrument_name"`
-	QuoteCurrency           string                  `json:"quote_currency"`
-	BaseCurrency            string                  `json:"base_currency"`
-	PriceDecimals           int64                   `json:"price_decimals"`
-	QuantityDecimals        int64                   `json:"quantity_decimals"`
-	MarginTradingEnabled    bool                    `json:"margin_trading_enabled"`
-	MarginTradingEnabled5X  bool                    `json:"margin_trading_enabled_5x"`
-	MarginTradingEnabled10X bool                    `json:"margin_trading_enabled_10x"`
-	MaxQuantity             convert.StringToFloat64 `json:"max_quantity"`
-	MinQuantity             convert.StringToFloat64 `json:"min_quantity"`
-	MaxPrice                convert.StringToFloat64 `json:"max_price"`
-	MinPrice                convert.StringToFloat64 `json:"min_price"`
-	LastUpdateDate          convert.ExchangeTime    `json:"last_update_date"`
-	QuantityTickSize        convert.StringToFloat64 `json:"quantity_tick_size"`
-	PriceTickSize           convert.StringToFloat64 `json:"price_tick_size"`
+	InstrumentName          string               `json:"instrument_name"`
+	QuoteCurrency           string               `json:"quote_currency"`
+	BaseCurrency            string               `json:"base_currency"`
+	PriceDecimals           int64                `json:"price_decimals"`
+	QuantityDecimals        int64                `json:"quantity_decimals"`
+	MarginTradingEnabled    bool                 `json:"margin_trading_enabled"`
+	MarginTradingEnabled5X  bool                 `json:"margin_trading_enabled_5x"`
+	MarginTradingEnabled10X bool                 `json:"margin_trading_enabled_10x"`
+	MaxQuantity             types.Number         `json:"max_quantity"`
+	MinQuantity             types.Number         `json:"min_quantity"`
+	MaxPrice                types.Number         `json:"max_price"`
+	MinPrice                types.Number         `json:"min_price"`
+	LastUpdateDate          convert.ExchangeTime `json:"last_update_date"`
+	QuantityTickSize        types.Number         `json:"quantity_tick_size"`
+	PriceTickSize           types.Number         `json:"price_tick_size"`
 }
 
 // OrderbookDetail public order book detail.
@@ -81,21 +82,21 @@ type TickersResponse struct {
 
 // TickerItem represents a ticker item.
 type TickerItem struct {
-	HighestTradePrice    convert.StringToFloat64 `json:"h"` // Price of the 24h highest trade
-	LowestTradePrice     convert.StringToFloat64 `json:"l"` // Price of the 24h lowest trade, null if there weren't any trades
-	LatestTradePrice     convert.StringToFloat64 `json:"a"` // The price of the latest trade, null if there weren't any trades
-	InstrumentName       string                  `json:"i"`
-	TradedVolume         convert.StringToFloat64 `json:"v"`  // The total 24h traded volume
-	TradedVolumeInUSD24H convert.StringToFloat64 `json:"vv"` // The total 24h traded volume value (in USD)
-	OpenInterest         convert.StringToFloat64 `json:"oi"`
-	PriceChange24H       convert.StringToFloat64 `json:"c"` // 24-hour price change, null if there weren't any trades
-	BestBidPrice         convert.StringToFloat64 `json:"b"` // The current best bid price, null if there aren't any bids
-	BestAskPrice         convert.StringToFloat64 `json:"k"` // The current best ask price, null if there aren't any asks
-	TradeTimestamp       convert.ExchangeTime    `json:"t"`
+	HighestTradePrice    types.Number         `json:"h"` // Price of the 24h highest trade
+	LowestTradePrice     types.Number         `json:"l"` // Price of the 24h lowest trade, null if there weren't any trades
+	LatestTradePrice     types.Number         `json:"a"` // The price of the latest trade, null if there weren't any trades
+	InstrumentName       string               `json:"i"`
+	TradedVolume         types.Number         `json:"v"`  // The total 24h traded volume
+	TradedVolumeInUSD24H types.Number         `json:"vv"` // The total 24h traded volume value (in USD)
+	OpenInterest         types.Number         `json:"oi"`
+	PriceChange24H       types.Number         `json:"c"` // 24-hour price change, null if there weren't any trades
+	BestBidPrice         types.Number         `json:"b"` // The current best bid price, null if there aren't any bids
+	BestAskPrice         types.Number         `json:"k"` // The current best ask price, null if there aren't any asks
+	TradeTimestamp       convert.ExchangeTime `json:"t"`
 
 	// Added for websocket push data.
-	BestBidSize convert.StringToFloat64 `json:"bs"`
-	BestAskSize convert.StringToFloat64 `json:"ks"`
+	BestBidSize types.Number `json:"bs"`
+	BestAskSize types.Number `json:"ks"`
 }
 
 // TradesResponse represents public trades for a particular instrument.
@@ -105,13 +106,13 @@ type TradesResponse struct {
 
 // TradeItem represents a public trade item.
 type TradeItem struct {
-	Side           string                  `json:"s"`
-	TradePrice     convert.StringToFloat64 `json:"p"`
-	TradeQuantity  convert.StringToFloat64 `json:"q"`
-	TradeTimestamp convert.ExchangeTime    `json:"t"`
-	TradeID        string                  `json:"d"`
-	InstrumentName string                  `json:"i"`
-	DataTime       convert.ExchangeTime    `json:"dataTime"`
+	Side           string               `json:"s"`
+	TradePrice     types.Number         `json:"p"`
+	TradeQuantity  types.Number         `json:"q"`
+	TradeTimestamp convert.ExchangeTime `json:"t"`
+	TradeID        string               `json:"d"`
+	InstrumentName string               `json:"i"`
+	DataTime       convert.ExchangeTime `json:"dataTime"`
 }
 
 // CancelOnDisconnectScope represents a scope of cancellation.
@@ -440,31 +441,31 @@ type TransactionResponse struct {
 
 // TransactionItem represents a transaction instance.
 type TransactionItem struct {
-	OrderID             string                  `json:"order_id,omitempty"`
-	AccountID           string                  `json:"account_id"`
-	TradeMatchID        string                  `json:"trade_match_id"`
-	TradeID             string                  `json:"trade_id,omitempty"`
-	EventDate           string                  `json:"event_date"` // format 2021-02-18
-	JournalType         string                  `json:"journal_type"`
-	JournalID           string                  `json:"journal_id"`
-	TransactionCost     convert.StringToFloat64 `json:"transaction_cost"`
-	TransactionQuantity convert.StringToFloat64 `json:"transaction_qty"`
-	RealizedPnl         convert.StringToFloat64 `json:"realized_pnl"`
-	EventTimestampMs    convert.ExchangeTime    `json:"event_timestamp_ms"` // Event timestamp in milliseconds
-	EventTimestampNs    convert.ExchangeTime    `json:"event_timestamp_ns"` // Event timestamp in nanoseconds
-	ClientOrderID       string                  `json:"client_oid"`
-	TakerSide           string                  `json:"taker_side"`
-	Side                string                  `json:"side,omitempty"`
-	InstrumentName      string                  `json:"instrument_name"`
+	OrderID             string               `json:"order_id,omitempty"`
+	AccountID           string               `json:"account_id"`
+	TradeMatchID        string               `json:"trade_match_id"`
+	TradeID             string               `json:"trade_id,omitempty"`
+	EventDate           string               `json:"event_date"` // format 2021-02-18
+	JournalType         string               `json:"journal_type"`
+	JournalID           string               `json:"journal_id"`
+	TransactionCost     types.Number         `json:"transaction_cost"`
+	TransactionQuantity types.Number         `json:"transaction_qty"`
+	RealizedPnl         types.Number         `json:"realized_pnl"`
+	EventTimestampMs    convert.ExchangeTime `json:"event_timestamp_ms"` // Event timestamp in milliseconds
+	EventTimestampNs    convert.ExchangeTime `json:"event_timestamp_ns"` // Event timestamp in nanoseconds
+	ClientOrderID       string               `json:"client_oid"`
+	TakerSide           string               `json:"taker_side"`
+	Side                string               `json:"side,omitempty"`
+	InstrumentName      string               `json:"instrument_name"`
 }
 
 // OTCTrade represents an OTC trade.
 type OTCTrade struct {
-	AccountUUID         string                  `json:"account_uuid"`
-	RequestsPerMinute   int64                   `json:"requests_per_minute"`
-	MaxTradeValueUSD    convert.StringToFloat64 `json:"max_trade_value_usd"`
-	MinTradeValueUSD    convert.StringToFloat64 `json:"min_trade_value_usd"`
-	AcceptOtcTcDatetime convert.ExchangeTime    `json:"accept_otc_tc_datetime"`
+	AccountUUID         string               `json:"account_uuid"`
+	RequestsPerMinute   int64                `json:"requests_per_minute"`
+	MaxTradeValueUSD    types.Number         `json:"max_trade_value_usd"`
+	MinTradeValueUSD    types.Number         `json:"min_trade_value_usd"`
+	AcceptOtcTcDatetime convert.ExchangeTime `json:"accept_otc_tc_datetime"`
 }
 
 // OTCInstrumentsResponse represents an OTC instruments instance.
@@ -486,66 +487,66 @@ type OTCInstrument struct {
 
 // OTCQuoteResponse represents quote to buy or sell with either base currency or quote currency.
 type OTCQuoteResponse struct {
-	QuoteID           string                  `json:"quote_id"`
-	QuoteStatus       string                  `json:"quote_status"`
-	QuoteDirection    string                  `json:"quote_direction"`
-	BaseCurrency      string                  `json:"base_currency"`
-	QuoteCurrency     string                  `json:"quote_currency"`
-	BaseCurrencySize  convert.StringToFloat64 `json:"base_currency_size"`
-	QuoteCurrencySize convert.StringToFloat64 `json:"quote_currency_size"`
-	QuoteBuy          convert.StringToFloat64 `json:"quote_buy"`
-	QuoteBuyQuantity  convert.StringToFloat64 `json:"quote_buy_quantity"`
-	QuoteBuyValue     convert.StringToFloat64 `json:"quote_buy_value"`
-	QuoteSell         convert.StringToFloat64 `json:"quote_sell"`
-	QuoteSellQuantity convert.StringToFloat64 `json:"quote_sell_quantity"`
-	QuoteSellValue    convert.StringToFloat64 `json:"quote_sell_value"`
-	QuoteDuration     int64                   `json:"quote_duration"`
-	QuoteTime         convert.ExchangeTime    `json:"quote_time"`
-	QuoteExpiryTime   convert.ExchangeTime    `json:"quote_expiry_time"`
+	QuoteID           string               `json:"quote_id"`
+	QuoteStatus       string               `json:"quote_status"`
+	QuoteDirection    string               `json:"quote_direction"`
+	BaseCurrency      string               `json:"base_currency"`
+	QuoteCurrency     string               `json:"quote_currency"`
+	BaseCurrencySize  types.Number         `json:"base_currency_size"`
+	QuoteCurrencySize types.Number         `json:"quote_currency_size"`
+	QuoteBuy          types.Number         `json:"quote_buy"`
+	QuoteBuyQuantity  types.Number         `json:"quote_buy_quantity"`
+	QuoteBuyValue     types.Number         `json:"quote_buy_value"`
+	QuoteSell         types.Number         `json:"quote_sell"`
+	QuoteSellQuantity types.Number         `json:"quote_sell_quantity"`
+	QuoteSellValue    types.Number         `json:"quote_sell_value"`
+	QuoteDuration     int64                `json:"quote_duration"`
+	QuoteTime         convert.ExchangeTime `json:"quote_time"`
+	QuoteExpiryTime   convert.ExchangeTime `json:"quote_expiry_time"`
 }
 
 // AcceptQuoteResponse represents response param for accepting quote.
 type AcceptQuoteResponse struct {
-	QuoteID           string                  `json:"quote_id"`
-	QuoteStatus       string                  `json:"quote_status"`
-	TradeDirection    string                  `json:"trade_direction"`
-	QuoteDirection    string                  `json:"quote_direction"`
-	BaseCurrency      string                  `json:"base_currency"`
-	QuoteCurrency     string                  `json:"quote_currency"`
-	BaseCurrencySize  convert.StringToFloat64 `json:"base_currency_size"`
-	QuoteCurrencySize convert.StringToFloat64 `json:"quote_currency_size"`
-	QuoteBuy          convert.StringToFloat64 `json:"quote_buy"`
-	QuoteSell         convert.StringToFloat64 `json:"quote_sell"`
-	QuoteDuration     int64                   `json:"quote_duration"`
-	QuoteTime         convert.ExchangeTime    `json:"quote_time"`
-	QuoteExpiryTime   convert.ExchangeTime    `json:"quote_expiry_time"`
-	TradePrice        convert.StringToFloat64 `json:"trade_price"`
-	TradeQuantity     convert.StringToFloat64 `json:"trade_quantity"`
-	TradedValue       convert.StringToFloat64 `json:"trade_value"`
-	TradeTime         convert.ExchangeTime    `json:"trade_time"`
+	QuoteID           string               `json:"quote_id"`
+	QuoteStatus       string               `json:"quote_status"`
+	TradeDirection    string               `json:"trade_direction"`
+	QuoteDirection    string               `json:"quote_direction"`
+	BaseCurrency      string               `json:"base_currency"`
+	QuoteCurrency     string               `json:"quote_currency"`
+	BaseCurrencySize  types.Number         `json:"base_currency_size"`
+	QuoteCurrencySize types.Number         `json:"quote_currency_size"`
+	QuoteBuy          types.Number         `json:"quote_buy"`
+	QuoteSell         types.Number         `json:"quote_sell"`
+	QuoteDuration     int64                `json:"quote_duration"`
+	QuoteTime         convert.ExchangeTime `json:"quote_time"`
+	QuoteExpiryTime   convert.ExchangeTime `json:"quote_expiry_time"`
+	TradePrice        types.Number         `json:"trade_price"`
+	TradeQuantity     types.Number         `json:"trade_quantity"`
+	TradedValue       types.Number         `json:"trade_value"`
+	TradeTime         convert.ExchangeTime `json:"trade_time"`
 }
 
 // QuoteHistoryResponse represents a quote history instance.
 type QuoteHistoryResponse struct {
 	Count     int64 `json:"count"`
 	QuoteList []struct {
-		QuoteID           string                  `json:"quote_id"`
-		QuoteStatus       string                  `json:"quote_status"`
-		QuoteDirection    string                  `json:"quote_direction"`
-		BaseCurrency      string                  `json:"base_currency"`
-		QuoteCurrency     string                  `json:"quote_currency"`
-		BaseCurrencySize  float64                 `json:"base_currency_size"`
-		QuoteCurrencySize convert.StringToFloat64 `json:"quote_currency_size"`
-		QuoteBuy          convert.StringToFloat64 `json:"quote_buy"`
-		QuoteSell         convert.StringToFloat64 `json:"quote_sell"`
-		QuoteDuration     int64                   `json:"quote_duration"`
-		QuoteTime         convert.ExchangeTime    `json:"quote_time"`
-		QuoteExpiryTime   convert.ExchangeTime    `json:"quote_expiry_time"`
-		TradeDirection    string                  `json:"trade_direction"`
-		TradePrice        float64                 `json:"trade_price"`
-		TradeQuantity     float64                 `json:"trade_quantity"`
-		TradeValue        float64                 `json:"trade_value"`
-		TradeTime         convert.ExchangeTime    `json:"trade_time"`
+		QuoteID           string               `json:"quote_id"`
+		QuoteStatus       string               `json:"quote_status"`
+		QuoteDirection    string               `json:"quote_direction"`
+		BaseCurrency      string               `json:"base_currency"`
+		QuoteCurrency     string               `json:"quote_currency"`
+		BaseCurrencySize  float64              `json:"base_currency_size"`
+		QuoteCurrencySize types.Number         `json:"quote_currency_size"`
+		QuoteBuy          types.Number         `json:"quote_buy"`
+		QuoteSell         types.Number         `json:"quote_sell"`
+		QuoteDuration     int64                `json:"quote_duration"`
+		QuoteTime         convert.ExchangeTime `json:"quote_time"`
+		QuoteExpiryTime   convert.ExchangeTime `json:"quote_expiry_time"`
+		TradeDirection    string               `json:"trade_direction"`
+		TradePrice        float64              `json:"trade_price"`
+		TradeQuantity     float64              `json:"trade_quantity"`
+		TradeValue        float64              `json:"trade_value"`
+		TradeTime         convert.ExchangeTime `json:"trade_time"`
 	} `json:"quote_list"`
 }
 
@@ -557,23 +558,23 @@ type OTCTradeHistoryResponse struct {
 
 // OTCTradeItem represents an OTC trade item detail.
 type OTCTradeItem struct {
-	QuoteID           string                  `json:"quote_id"`
-	QuoteStatus       string                  `json:"quote_status"`
-	QuoteDirection    string                  `json:"quote_direction"`
-	BaseCurrency      string                  `json:"base_currency"`
-	QuoteCurrency     string                  `json:"quote_currency"`
-	BaseCurrencySize  convert.StringToFloat64 `json:"base_currency_size"`
-	QuoteCurrencySize convert.StringToFloat64 `json:"quote_currency_size"`
-	QuoteBuy          string                  `json:"quote_buy"`
-	QuoteSell         string                  `json:"quote_sell"`
-	QuoteDuration     int64                   `json:"quote_duration"`
-	QuoteTime         convert.ExchangeTime    `json:"quote_time"`
-	QuoteExpiryTime   convert.ExchangeTime    `json:"quote_expiry_time"`
-	TradeDirection    string                  `json:"trade_direction"`
-	TradePrice        convert.StringToFloat64 `json:"trade_price"`
-	TradeQuantity     convert.StringToFloat64 `json:"trade_quantity"`
-	TradeValue        convert.StringToFloat64 `json:"trade_value"`
-	TradeTime         convert.ExchangeTime    `json:"trade_time"`
+	QuoteID           string               `json:"quote_id"`
+	QuoteStatus       string               `json:"quote_status"`
+	QuoteDirection    string               `json:"quote_direction"`
+	BaseCurrency      string               `json:"base_currency"`
+	QuoteCurrency     string               `json:"quote_currency"`
+	BaseCurrencySize  types.Number         `json:"base_currency_size"`
+	QuoteCurrencySize types.Number         `json:"quote_currency_size"`
+	QuoteBuy          string               `json:"quote_buy"`
+	QuoteSell         string               `json:"quote_sell"`
+	QuoteDuration     int64                `json:"quote_duration"`
+	QuoteTime         convert.ExchangeTime `json:"quote_time"`
+	QuoteExpiryTime   convert.ExchangeTime `json:"quote_expiry_time"`
+	TradeDirection    string               `json:"trade_direction"`
+	TradePrice        types.Number         `json:"trade_price"`
+	TradeQuantity     types.Number         `json:"trade_quantity"`
+	TradeValue        types.Number         `json:"trade_value"`
+	TradeTime         convert.ExchangeTime `json:"trade_time"`
 }
 
 // SubscriptionPayload represents a subscription payload
