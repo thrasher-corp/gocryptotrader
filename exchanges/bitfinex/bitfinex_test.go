@@ -496,7 +496,7 @@ func TestUpdateTickers(t *testing.T) {
 		assert.NoError(t, err, "StorePairs should not error")
 
 		err = b.UpdateTickers(context.Background(), a)
-		assert.NoError(t, err, "UpdateTickers should not error")
+		assert.NoError(t, common.ExcludeError(err, ticker.ErrBidEqualsAsk), "UpdateTickers may only error about locked markets")
 
 		// Bitfinex leaves delisted pairs in Available info/conf endpoints
 		// We want to assert that most pairs are valid, so we'll check that no more than 5% are erroring
