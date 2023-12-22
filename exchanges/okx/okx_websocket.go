@@ -1068,14 +1068,14 @@ func (ok *Okx) wsProcessTrades(data []byte) error {
 		}
 		for j := range assets {
 			trades = append(trades, trade.Data{
-				Amount:       response.Data[i].Quantity,
+				Amount:       response.Data[i].Quantity.Float64(),
 				AssetType:    assets[j],
 				CurrencyPair: pair,
 				Exchange:     ok.Name,
 				Side:         response.Data[i].Side,
 				Timestamp:    response.Data[i].Timestamp.Time(),
 				TID:          response.Data[i].TradeID,
-				Price:        response.Data[i].Price,
+				Price:        response.Data[i].Price.Float64(),
 			})
 		}
 	}
