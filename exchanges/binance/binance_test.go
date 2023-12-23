@@ -1995,7 +1995,7 @@ func TestSubscribe(t *testing.T) {
 			assert.Equal(t, req.Params[0], channels[0].Channel, "Channel name should be correct")
 			assert.Equal(t, req.Params[1], channels[1].Channel, "Channel name should be correct")
 			return w.WriteMessage(websocket.TextMessage, []byte(fmt.Sprintf(`{"result":null,"id":%d}`, req.ID)))
-		})
+		}, testexch.WsMockWrapper)
 	} else {
 		testexch.SetupWs(t, b)
 	}
@@ -2015,7 +2015,7 @@ func TestSubscribeBadResp(t *testing.T) {
 		err := json.Unmarshal(msg, &req)
 		require.NoError(t, err, "Unmarshal should not error")
 		return w.WriteMessage(websocket.TextMessage, []byte(fmt.Sprintf(`{"result":{"error":"carrots"},"id":%d}`, req.ID)))
-	})
+	}, testexch.WsMockWrapper)
 	err := b.Subscribe(channels)
 	assert.ErrorIs(t, err, stream.ErrSubscriptionFailure, "Subscribe should error ErrSubscriptionFailure")
 	assert.ErrorIs(t, err, errUnknownError, "Subscribe should error errUnknownError")

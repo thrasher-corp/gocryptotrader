@@ -77,24 +77,27 @@ func MockHTTPInstance(e exchange.IBotExchange) error {
 
 var upgrader = websocket.Upgrader{}
 
-type wsMockFunc func(msg []byte, w *websocket.Conn) error
+type HttpMockFunc func(testing.TB, http.ResponseWriter, *http.Request, WsMockFunc)
+type WsMockFunc func([]byte, *websocket.Conn) error
 
 // MockWSInstance creates a new Exchange instance with a mock WS instance and HTTP server
 // It accepts an exchange package type argument and a mock WS function
+// An HttpMockFunc can be provided as the last argument, or if nil then WsMockWrapper will be used
 // It is expected to be run from any WS tests which need a specific response function
 func MockWSInstance[T any, PT interface {
 	*T
 	exchange.IBotExchange
-}](tb testing.TB, m wsMockFunc) *T {
+}](tb testing.TB, wsMock WsMockFunc, httpMock HttpMockFunc) *T {
 	tb.Helper()
 
 	e := PT(new(T))
 	require.NoError(tb, TestInstance(e), "TestInstance setup should not error")
 
-	s := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { wsMockWrapper(tb, w, r, m) }))
+	s := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { httpMock(tb, w, r, wsMock) }))
 
 	b := e.GetBase()
 	b.SkipAuthCheck = true
+	b.API.AuthenticatedWebsocketSupport = true
 	err := b.API.Endpoints.SetRunning("RestSpotURL", s.URL)
 	require.NoError(tb, err, "Endpoints.SetRunning should not error for RestSpotURL")
 	for _, auth := range []bool{true, false} {
@@ -103,29 +106,29 @@ func MockWSInstance[T any, PT interface {
 	}
 
 	b.Features.Subscriptions = []*subscription.Subscription{}
+	// Exchanges which don't support subscription conf; Can be removed when all exchanges support sub conf
+	b.Websocket.GenerateSubs = func() ([]subscription.Subscription, error) { return []subscription.Subscription{}, nil }
+
 	err = b.Websocket.Connect()
 	require.NoError(tb, err, "Connect should not error")
 
 	return e
 }
 
-// wsMockWrapper handles upgrading an initial HTTP request to WS, and then runs a for loop calling the mock func on each input
-func wsMockWrapper(tb testing.TB, w http.ResponseWriter, r *http.Request, m wsMockFunc) {
+// WsMockWrapper handles upgrading an initial HTTP request to WS, and then runs a for loop calling the mock func on each input
+func WsMockWrapper(tb testing.TB, w http.ResponseWriter, r *http.Request, wsHandler WsMockFunc) {
 	tb.Helper()
-	// TODO: This needs to move once this branch includes #1358, probably to use a new mock HTTP instance for kraken
-	if strings.Contains(r.URL.Path, "GetWebSocketsToken") {
-		_, err := w.Write([]byte(`{"result":{"token":"mockAuth"}}`))
-		require.NoError(tb, err, "Write should not error")
-		return
-	}
 	c, err := upgrader.Upgrade(w, r, nil)
 	require.NoError(tb, err, "Upgrade connection should not error")
 	defer c.Close()
 	for {
 		_, p, err := c.ReadMessage()
+		if websocket.IsUnexpectedCloseError(err) {
+			return
+		}
 		require.NoError(tb, err, "ReadMessage should not error")
 
-		err = m(p, c)
+		err = wsHandler(p, c)
 		assert.NoError(tb, err, "WS Mock Function should not error")
 	}
 }
