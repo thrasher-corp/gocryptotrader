@@ -2,6 +2,7 @@ package kraken
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
@@ -17,7 +18,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/common/key"
-	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -31,10 +31,11 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
+	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
-var k = &Kraken{}
+var k *Kraken
 var wsSetupRan bool
 
 // Please add your own APIkeys to do correct due diligence testing.
@@ -44,31 +45,21 @@ const (
 	canManipulateRealOrders = false
 )
 
-// TestSetup setup func
 func TestMain(m *testing.M) {
-	k.SetDefaults()
-	cfg := config.GetConfig()
-	err := cfg.LoadConfig("../../testdata/configtest.json", true)
-	if err != nil {
+	k = new(Kraken)
+	if err := testexch.TestInstance(k); err != nil {
 		log.Fatal(err)
 	}
-	krakenConfig, err := cfg.GetExchangeConfig("Kraken")
-	if err != nil {
-		log.Fatal(err)
-	}
-	krakenConfig.API.AuthenticatedSupport = true
-	krakenConfig.API.Credentials.Key = apiKey
-	krakenConfig.API.Credentials.Secret = apiSecret
-	k.Websocket = sharedtestvalues.NewTestWebsocket()
-	err = k.Setup(krakenConfig)
-	if err != nil {
-		log.Fatal(err)
-	}
-	err = k.UpdateTradablePairs(context.Background(), true)
-	if err != nil {
-		log.Fatal(err)
+	if apiKey != "" && apiSecret != "" {
+		k.API.AuthenticatedSupport = true
+		k.SetCredentials(apiKey, apiSecret, "", "", "", "")
 	}
 	os.Exit(m.Run())
+}
+
+func TestUpdateTradablePairs(t *testing.T) {
+	t.Parallel()
+	testexch.UpdatePairsOnce(t, k)
 }
 
 func TestGetCurrentServerTime(t *testing.T) {
@@ -139,6 +130,7 @@ func TestUpdateTicker(t *testing.T) {
 
 func TestUpdateTickers(t *testing.T) {
 	t.Parallel()
+	testexch.UpdatePairsOnce(t, k)
 	ap, err := k.GetAvailablePairs(asset.Spot)
 	require.NoError(t, err)
 	err = k.CurrencyPairs.StorePairs(asset.Spot, ap, true)
@@ -1253,7 +1245,9 @@ func TestGetWSToken(t *testing.T) {
 }
 
 func TestWsAddOrder(t *testing.T) {
-	setupWsTests(t)
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, k, canManipulateRealOrders)
+	testexch.SetupWs(t, k)
 	_, err := k.wsAddOrder(&WsAddOrderRequest{
 		OrderType: order.Limit.Lower(),
 		OrderSide: order.Buy.Lower(),
@@ -1265,11 +1259,42 @@ func TestWsAddOrder(t *testing.T) {
 	}
 }
 
-func TestWsCancelOrder(t *testing.T) {
-	setupWsTests(t)
-	if err := k.wsCancelOrders([]string{"1337"}); err != nil {
-		t.Error(err)
+func mockWsCancelOrders(msg []byte, w *websocket.Conn) error {
+	var req WsCancelOrderRequest
+	if err := json.Unmarshal(msg, &req); err != nil {
+		return err
 	}
+	resp := WsCancelOrderResponse{
+		Event:     krakenWsCancelOrderStatus,
+		Status:    "ok",
+		RequestID: req.RequestID,
+		Count:     int64(len(req.TransactionIDs)),
+	}
+	if len(req.TransactionIDs) == 0 || strings.Contains(req.TransactionIDs[0], "FISH") { // Reject anything that smells suspicious
+		resp.Status = "error"
+		resp.ErrorMessage = "[EOrder:Unknown order]"
+	}
+	respJSON, err := json.Marshal(resp)
+	if err != nil {
+		return err
+	}
+	return w.WriteMessage(websocket.TextMessage, respJSON)
+}
+
+func TestWsCancelOrders(t *testing.T) {
+	t.Parallel()
+
+	k := testexch.MockWsInstance[Kraken](t, curryWsMockUpgrader(t, mockWsCancelOrders)) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
+	require.True(t, k.IsWebsocketAuthenticationSupported(), "WS must be authenticated")
+
+	err := k.wsCancelOrders([]string{"RABBIT", "BATFISH", "SQUIRREL", "CATFISH", "MOUSE"})
+	assert.ErrorIs(t, err, errCancellingOrder, "Should error cancelling order")
+	assert.ErrorContains(t, err, "BATFISH", "Should error containing txn id")
+	assert.ErrorContains(t, err, "CATFISH", "Should error containing txn id")
+	assert.ErrorContains(t, err, "[EOrder:Unknown order]", "Should error containing server error")
+
+	err = k.wsCancelOrders([]string{"RABBIT", "SQUIRREL", "MOUSE"})
+	assert.NoError(t, err, "Should not error with valid ids")
 }
 
 func TestWsCancelAllOrders(t *testing.T) {
@@ -1803,6 +1828,7 @@ func TestWsOwnTrades(t *testing.T) {
 func TestWsOpenOrders(t *testing.T) {
 	t.Parallel()
 	n := new(Kraken)
+	testexch.UpdatePairsOnce(t, k)
 	sharedtestvalues.TestFixtureToDataHandler(t, k, n, "testdata/wsOpenTrades.json", n.wsHandleData)
 	seen := 0
 	for reading := true; reading; {
@@ -1877,18 +1903,6 @@ func TestWsAddOrderJSON(t *testing.T) {
   "event": "addOrderStatus",
   "status": "ok",
   "txid": "ONPNXH-KMKMU-F4MR5V"
-}`)
-	err := k.wsHandleData(pressXToJSON)
-	if err != nil {
-		t.Error(err)
-	}
-}
-
-func TestWsCancelOrderJSON(t *testing.T) {
-	t.Parallel()
-	pressXToJSON := []byte(`{
-  "event": "cancelOrderStatus",
-  "status": "ok"
 }`)
 	err := k.wsHandleData(pressXToJSON)
 	if err != nil {
@@ -2281,4 +2295,17 @@ func TestGetOpenInterest(t *testing.T) {
 	resp, err = k.GetOpenInterest(context.Background())
 	assert.NoError(t, err)
 	assert.NotEmpty(t, resp)
+}
+
+// curryWsMockUpgrader handles Kraken specific http auth token responses prior to handling off to standard Websocket upgrader
+func curryWsMockUpgrader(tb testing.TB, h testexch.WsMockFunc) http.HandlerFunc {
+	tb.Helper()
+	return func(w http.ResponseWriter, r *http.Request) {
+		if strings.Contains(r.URL.Path, "GetWebSocketsToken") {
+			_, err := w.Write([]byte(`{"result":{"token":"mockAuth"}}`))
+			require.NoError(tb, err, "Write should not error")
+			return
+		}
+		testexch.WsMockUpgrader(tb, w, r, h)
+	}
 }
