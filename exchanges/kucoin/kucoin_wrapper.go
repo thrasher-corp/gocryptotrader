@@ -347,6 +347,35 @@ func (ku *Kucoin) UpdateTradablePairs(ctx context.Context, forceUpdate bool) err
 	return nil
 }
 
+// GetFuturesTickers returns the tickers for all currency pairs of the futures asset type
+func (ku *Kucoin) GetFuturesTickers(ctx context.Context) ([]*ticker.Price, error) {
+	pairs, err := ku.GetEnabledPairs(asset.Futures)
+	if err != nil {
+		return nil, err
+	}
+	var tickers []*ticker.Price
+	for i := range pairs {
+		p, err := ku.FormatExchangeCurrency(pairs[i], asset.Futures)
+		if err != nil {
+			return nil, err
+		}
+		fTick, err := ku.GetFuturesTicker(ctx, p.String())
+		if err != nil {
+			return nil, err
+		}
+		tick := &ticker.Price{
+			Last:        fTick.Price.Float64(),
+			Bid:         fTick.BestBidPrice.Float64(),
+			Ask:         fTick.BestAskPrice.Float64(),
+			Volume:      fTick.Size,
+			Pair:        pairs[i],
+			LastUpdated: fTick.FilledTime.Time(),
+		}
+		tickers = append(tickers, tick)
+	}
+	return tickers, nil
+}
+
 // UpdateTicker updates and returns the ticker for a currency pair
 func (ku *Kucoin) UpdateTicker(ctx context.Context, p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
 	p, err := ku.FormatExchangeCurrency(p, assetType)

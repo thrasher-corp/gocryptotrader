@@ -112,6 +112,12 @@ func TestGetAllTickers(t *testing.T) {
 	}
 }
 
+func TestGetFuturesTickers(t *testing.T) {
+	t.Parallel()
+	_, err := ku.GetFuturesTickers(context.Background())
+	assert.NoError(t, err, "GetFuturesTickers should not error")
+}
+
 func TestGet24hrStats(t *testing.T) {
 	t.Parallel()
 	_, err := ku.Get24hrStats(context.Background(), "BTC-USDT")
@@ -1663,21 +1669,26 @@ func TestUpdateOrderbook(t *testing.T) {
 }
 func TestUpdateTickers(t *testing.T) {
 	t.Parallel()
-	err := ku.UpdateTickers(context.Background(), asset.Spot)
-	if err != nil {
-		t.Fatal(err)
-	}
-	err = ku.UpdateTickers(context.Background(), asset.Margin)
-	if err != nil {
-		t.Fatal(err)
-	}
-	err = ku.UpdateTickers(context.Background(), asset.Futures)
-	if err != nil {
-		t.Fatal(err)
-	}
-	err = ku.UpdateTickers(context.Background(), asset.Empty)
-	if !errors.Is(err, asset.ErrNotSupported) {
-		t.Fatal(err)
+	for _, a := range ku.GetAssetTypes(true) {
+		err := ku.UpdateTickers(context.Background(), a)
+		assert.NoError(t, err, "UpdateTickers should not error")
+		pairs, err := ku.GetEnabledPairs(a)
+		assert.NoError(t, err, "GetEnabledPairs should not error")
+		for _, p := range pairs {
+			tick, err := ticker.GetTicker(ku.Name, p, a)
+			if assert.NoError(t, err, "GetTicker %s %s should not error", a, p) {
+				assert.Positive(t, tick.Last, "%s %s Tick Last should be positive", a, p)
+				assert.Positive(t, tick.High, "%s %s Tick High should be positive", a, p)
+				assert.Positive(t, tick.Low, "%s %s Tick Low should be positive", a, p)
+				assert.Positive(t, tick.Bid, "%s %s Tick Bid should be positive", a, p)
+				assert.Positive(t, tick.Ask, "%s %s Tick Ask should be positive", a, p)
+				assert.Positive(t, tick.Volume, "%s %s Tick Volume should be positive", a, p)
+				assert.NotEmpty(t, tick.Pair, "%s %s Tick Pair should not be empty", a, p)
+				assert.Equal(t, ku.Name, tick.ExchangeName, "ExchangeName should be correct")
+				assert.Equal(t, a, tick.AssetType, "AssetType should be correct")
+				assert.NotEmpty(t, tick.LastUpdated, "%s %s Tick LastUpdated should not be empty", a, p)
+			}
+		}
 	}
 }
 func TestUpdateTicker(t *testing.T) {
