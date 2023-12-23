@@ -6,6 +6,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
 // Response holds basic binance api response data
@@ -665,4 +666,64 @@ type CExchangeInfo struct {
 		RequiredMarginPercent float64              `json:"requiredMarginPercent,string"`
 	} `json:"symbols"`
 	Timezone string `json:"timezone"`
+}
+
+// CFutureAggregateTrade represents a coin margined future push data instance.
+type CFutureAggregateTrade struct {
+	EventType        string `json:"e"`
+	EventTime        int64  `json:"E"`
+	AggregateTradeID int    `json:"a"`
+	Symbol           string `json:"s"`
+	Price            string `json:"p"`
+	Quantity         string `json:"q"`
+	FirstTradeID     int64  `json:"f"`
+	LastTradeID      int64  `json:"l"`
+	TradeTime        int64  `json:"T"`
+	IsMarketMaker    bool   `json:"m"`
+}
+
+// CFuturesMarketLiquidiation represents liquidation order snapshot
+type CFuturesMarketLiquidiation struct {
+	EventType string `json:"e"`
+	EventTime int64  `json:"E"`
+	Order     struct {
+		Symbol                         string               `json:"s"`
+		Pair                           string               `json:"ps"`
+		Side                           string               `json:"S"`
+		OrderType                      string               `json:"o"`
+		TimeInForce                    string               `json:"f"`
+		OriginalQuantity               types.Number         `json:"q"`
+		Price                          types.Number         `json:"p"`
+		AveragePrice                   types.Number         `json:"ap"`
+		OrderStatus                    string               `json:"X"`
+		LastFilledQuantity             types.Number         `json:"l"`
+		OrderFilledAccumulatedQuantity types.Number         `json:"z"`
+		OrderTradeTime                 convert.ExchangeTime `json:"T"`
+	} `json:"o"`
+}
+
+// CFutureMarkPriceKline
+type CFutureMarkPriceKline struct {
+	EventType string               `json:"e"`
+	EventTime convert.ExchangeTime `json:"E"`
+	Pair      string               `json:"ps"`
+	Kline     struct {
+		StartTime         convert.ExchangeTime `json:"t"`
+		CloseTime         convert.ExchangeTime `json:"T"`
+		Symbol            string               `json:"s"`
+		Interval          string               `json:"i"`
+		F                 int64                `json:"f"`
+		L                 int64                `json:"L"`
+		OpenPrice         types.Number         `json:"o"`
+		ClosePrice        types.Number         `json:"c"`
+		HighPrice         types.Number         `json:"h"`
+		LowPrice          types.Number         `json:"l"`
+		V                 string               `json:"v"`
+		NumberOfBasicData int64                `json:"n"`
+		IsKlineClosed     bool                 `json:"x"`
+		Q                 string               `json:"q"`
+		V0                string               `json:"V"`
+		Q0                string               `json:"Q"`
+		B                 string               `json:"B"`
+	} `json:"k"`
 }

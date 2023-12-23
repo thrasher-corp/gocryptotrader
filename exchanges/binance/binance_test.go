@@ -3466,7 +3466,7 @@ var messageMap = map[string]string{
 func TestHandleData(t *testing.T) {
 	t.Parallel()
 	for x := range messageMap {
-		err := b.wsHandleUFuturesData([]byte(messageMap[x]))
+		err := b.wsHandleFuturesData([]byte(messageMap[x]), asset.USDTMarginedFutures)
 		if err != nil {
 			t.Errorf("%s: %v", x, err)
 		}
@@ -3499,4 +3499,13 @@ func TestSetProperty(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+}
+
+func TestWsCFutureConnect(t *testing.T) {
+	t.Parallel()
+	err := b.WsCFutureConnect()
+	if err != nil {
+		t.Fatal(err)
+	}
+	time.Sleep(time.Second * 23)
 }

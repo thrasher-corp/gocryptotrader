@@ -22,6 +22,34 @@ const (
 	Processing
 	Failure
 	Completed
+
+	// Futures channels
+	contractInfoAllChan = "!contractInfo"
+	forceOrderAllChan   = "!forceOrder@arr"
+	bookTickerAllChan   = "!bookTicker"
+	tickerAllChan       = "!ticker@arr"
+	miniTickerAllChan   = "!miniTicker@arr"
+	aggTradeChan        = "@aggTrade"
+	depthChan           = "@depth"
+	markPriceChan       = "@markPrice"
+	tickerChan          = "@ticker"
+	klineChan           = "@kline"
+	miniTickerChan      = "@miniTicker"
+	forceOrderChan      = "@forceOrder"
+	continuousKline     = "continuousKline"
+
+	// USDT Marigined futures
+	markPriceAllChan   = "!markPrice@arr"
+	assetIndexChan     = "@assetIndex"
+	bookTickersChan    = "@bookTickers"
+	assetIndexAllChan  = "!assetIndex@arr"
+	compositeIndexChan = "@compositeIndex"
+
+	// Coin Margined futures
+	indexPriceCFuturesChan      = "@indexPrice"
+	bookTickerCFuturesChan      = "@bookTicker"
+	indexPriceKlineCFuturesChan = "@indexPriceKline"
+	markPriceKlineCFuturesChan  = "@markPriceKline"
 )
 
 type filterType string
@@ -1320,8 +1348,8 @@ type UFuturesAssetIndexUpdate struct {
 	AutoExchangeAskRate   types.Number         `json:"G"`
 }
 
-// UFuturesContractInfo contract info updates. bks field only shows up when bracket gets updated.
-type UFuturesContractInfo struct {
+// FuturesContractInfo contract info updates. bks field only shows up when bracket gets updated.
+type FuturesContractInfo struct {
 	EventType        string               `json:"e"`
 	EventTime        convert.ExchangeTime `json:"E"`
 	Symbol           string               `json:"s"`

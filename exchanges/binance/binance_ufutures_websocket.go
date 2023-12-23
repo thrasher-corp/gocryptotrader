@@ -25,28 +25,6 @@ import (
 const (
 	binanceUFuturesWebsocketURL     = "wss://fstream.binance.com"
 	binanceUFuturesAuthWebsocketURL = "wss://fstream-auth.binance.com"
-
-	// Channels
-
-	assetIndexAllChan   = "!assetIndex@arr"
-	contractInfoAllChan = "!contractInfo"
-	forceOrderAllChan   = "!forceOrder@arr"
-	bookTickerAllChan   = "!bookTicker"
-	tickerAllChan       = "!ticker@arr"
-	miniTickerAllChan   = "!miniTicker@arr"
-	markPriceAllChan    = "!markPrice@arr"
-
-	aggTradeChan       = "@aggTrade"
-	depthChan          = "@depth"
-	markPriceChan      = "@markPrice"
-	tickerChan         = "@ticker"
-	klineChan          = "@kline"
-	miniTickerChan     = "@miniTicker"
-	bookTickersChan    = "@bookTickers"
-	forceOrderChan     = "@forceOrder"
-	compositeIndexChan = "@compositeIndex"
-	assetIndexChan     = "@assetIndex"
-	continuousKline    = "continuousKline"
 )
 
 var defaultSubscriptions = []string{
@@ -110,29 +88,27 @@ func (b *Binance) WsUFuturesConnect() error {
 		Delay:             pingDelay,
 	})
 	b.Websocket.Wg.Add(1)
-	go b.wsUFuturesReadData()
-
+	go b.wsUFuturesReadData(asset.USDTMarginedFutures)
 	return nil
 }
 
 // wsUFuturesReadData receives and passes on websocket messages for processing
 // for USDT margined instruments.
-func (b *Binance) wsUFuturesReadData() {
+func (b *Binance) wsUFuturesReadData(assetType asset.Item) {
 	defer b.Websocket.Wg.Done()
-
 	for {
 		resp := b.Websocket.Conn.ReadMessage()
 		if resp.Raw == nil {
 			return
 		}
-		err := b.wsHandleUFuturesData(resp.Raw)
+		err := b.wsHandleFuturesData(resp.Raw, assetType)
 		if err != nil {
 			b.Websocket.DataHandler <- err
 		}
 	}
 }
 
-func (b *Binance) wsHandleUFuturesData(respRaw []byte) error {
+func (b *Binance) wsHandleFuturesData(respRaw []byte, assetType asset.Item) error {
 	result := struct {
 		Result json.RawMessage `json:"result"`
 		ID     int64           `json:"id"`
@@ -162,34 +138,34 @@ func (b *Binance) wsHandleUFuturesData(respRaw []byte) error {
 	case contractInfoAllChan:
 		return b.processContractInfoStream(result.Data)
 	case forceOrderAllChan, "forceOrder":
-		return b.processForceOrder(result.Data)
+		return b.processForceOrder(result.Data, assetType)
 	case bookTickerAllChan, "bookTicker":
-		return b.processBookTicker(result.Data)
+		return b.processBookTicker(result.Data, assetType)
 	case tickerAllChan:
-		return b.processMarketTicker(result.Data, true)
+		return b.processMarketTicker(result.Data, true, assetType)
 	case "ticker":
-		return b.processMarketTicker(result.Data, false)
+		return b.processMarketTicker(result.Data, false, assetType)
 	case miniTickerAllChan:
-		return b.processMiniTickers(result.Data, true)
+		return b.processMiniTickers(result.Data, true, assetType)
 	case "miniTicker":
-		return b.processMiniTickers(result.Data, false)
+		return b.processMiniTickers(result.Data, false, assetType)
 	case "aggTrade":
-		return b.processAggregateTrade(result.Data)
+		return b.processAggregateTrade(result.Data, assetType)
 	case "markPrice":
 		return b.processMarkPriceUpdate(result.Data, false)
 	case "!markPrice@arr":
 		return b.processMarkPriceUpdate(result.Data, true)
 	case "depth":
-		return b.processOrderbookDepthUpdate(result.Data)
+		return b.processOrderbookDepthUpdate(result.Data, assetType)
 	case "compositeIndex":
 		return b.processCompositeIndex(result.Data)
 	case continuousKline:
-		return b.processContinuousKlineUpdate(result.Data)
+		return b.processContinuousKlineUpdate(result.Data, assetType)
 	}
 	return fmt.Errorf("unhandled stream data %s", string(respRaw))
 }
 
-func (b *Binance) processContinuousKlineUpdate(respRaw []byte) error {
+func (b *Binance) processContinuousKlineUpdate(respRaw []byte, assetType asset.Item) error {
 	var resp UFutureContinuousKline
 	err := json.Unmarshal(respRaw, &resp)
 	if err != nil {
@@ -202,7 +178,7 @@ func (b *Binance) processContinuousKlineUpdate(respRaw []byte) error {
 	b.Websocket.DataHandler <- stream.KlineData{
 		Timestamp:  resp.EventTime.Time(),
 		Pair:       cp,
-		AssetType:  asset.USDTMarginedFutures,
+		AssetType:  assetType,
 		Exchange:   b.Name,
 		StartTime:  resp.KlineData.StartTime.Time(),
 		CloseTime:  resp.KlineData.EndTime.Time(),
@@ -232,7 +208,7 @@ var (
 	bookTickerSymbolsLock sync.Mutex
 )
 
-func (b *Binance) processOrderbookDepthUpdate(respRaw []byte) error {
+func (b *Binance) processOrderbookDepthUpdate(respRaw []byte, assetType asset.Item) error {
 	var resp UFuturesDepthOrderbook
 	err := json.Unmarshal(respRaw, &resp)
 	if err != nil {
@@ -273,7 +249,7 @@ func (b *Binance) processOrderbookDepthUpdate(respRaw []byte) error {
 			Asks:         asks,
 			Exchange:     b.Name,
 			Pair:         cp,
-			Asset:        asset.USDTMarginedFutures,
+			Asset:        assetType,
 			LastUpdated:  resp.TransactionTime.Time(),
 			LastUpdateID: resp.LastUpdateID,
 		})
@@ -289,7 +265,7 @@ func (b *Binance) processOrderbookDepthUpdate(respRaw []byte) error {
 	})
 }
 
-func (b *Binance) processAggregateTrade(respRaw []byte) error {
+func (b *Binance) processAggregateTrade(respRaw []byte, assetType asset.Item) error {
 	var resp UFuturesAggTrade
 	err := json.Unmarshal(respRaw, &resp)
 	if err != nil {
@@ -304,7 +280,7 @@ func (b *Binance) processAggregateTrade(respRaw []byte) error {
 			TID:          strconv.FormatInt(resp.AggregateTradeID, 10),
 			Exchange:     b.Name,
 			CurrencyPair: cp,
-			AssetType:    asset.USDTMarginedFutures,
+			AssetType:    assetType,
 			Price:        resp.Price.Float64(),
 			Amount:       resp.Quantity.Float64(),
 			Timestamp:    resp.TradeTime.Time(),
@@ -319,7 +295,8 @@ func extractStreamInfo(resultStream string) string {
 		return resultStream
 	}
 	switch splitStream[1] {
-	case "aggTrade", "markPrice", "ticker", "bookTicker", "forceOrder", "depth", "compositeIndex", "assetIndex", "miniTicker":
+	case "aggTrade", "markPrice", "ticker", "bookTicker", "forceOrder", "depth",
+		"compositeIndex", "assetIndex", "miniTicker", "indexPrice":
 		return splitStream[1]
 	default:
 		switch {
@@ -334,7 +311,7 @@ func extractStreamInfo(resultStream string) string {
 	return resultStream
 }
 
-func (b *Binance) processMiniTickers(respRaw []byte, array bool) error {
+func (b *Binance) processMiniTickers(respRaw []byte, array bool, assetType asset.Item) error {
 	if array {
 		var resp []UFutureMiniTickerPrice
 		err := json.Unmarshal(respRaw, &resp)
@@ -365,7 +342,7 @@ func (b *Binance) processMiniTickers(respRaw []byte, array bool) error {
 		QuoteVolume:  resp.QuoteVolume.Float64(),
 		Open:         resp.OpenPrice.Float64(),
 		ExchangeName: b.Name,
-		AssetType:    asset.USDTMarginedFutures,
+		AssetType:    assetType,
 		LastUpdated:  resp.EventTime.Time(),
 	}
 	return nil
@@ -393,7 +370,7 @@ func (b *Binance) getMiniTickers(miniTickers []UFutureMiniTickerPrice) ([]ticker
 	return tickerPrices, nil
 }
 
-func (b *Binance) processMarketTicker(respRaw []byte, array bool) error {
+func (b *Binance) processMarketTicker(respRaw []byte, array bool, assetType asset.Item) error {
 	if array {
 		var resp []UFutureMarketTicker
 		err := json.Unmarshal(respRaw, &resp)
@@ -425,7 +402,7 @@ func (b *Binance) processMarketTicker(respRaw []byte, array bool) error {
 		QuoteVolume:  resp.TotalQuoteAssetVolume.Float64(),
 		Open:         resp.OpenPrice.Float64(),
 		ExchangeName: b.Name,
-		AssetType:    asset.USDTMarginedFutures,
+		AssetType:    assetType,
 		LastUpdated:  resp.EventTime.Time(),
 	}
 	return nil
@@ -454,7 +431,7 @@ func (b *Binance) getTickerInfos(marketTickers []UFutureMarketTicker) ([]ticker.
 	return tickerPrices, nil
 }
 
-func (b *Binance) processBookTicker(respRaw []byte) error {
+func (b *Binance) processBookTicker(respRaw []byte, assetType asset.Item) error {
 	var resp UFuturesBookTicker
 	err := json.Unmarshal(respRaw, &resp)
 	if err != nil {
@@ -479,7 +456,7 @@ func (b *Binance) processBookTicker(respRaw []byte) error {
 			}},
 			Pair:         cp,
 			Exchange:     b.Name,
-			Asset:        asset.USDTMarginedFutures,
+			Asset:        assetType,
 			LastUpdated:  resp.TransactionTime.Time(),
 			LastUpdateID: resp.OrderbookUpdateID,
 		})
@@ -487,7 +464,7 @@ func (b *Binance) processBookTicker(respRaw []byte) error {
 	return b.Websocket.Orderbook.Update(&orderbook.Update{
 		UpdateID:   resp.OrderbookUpdateID,
 		UpdateTime: resp.TransactionTime.Time(),
-		Asset:      asset.USDTMarginedFutures,
+		Asset:      assetType,
 		Action:     orderbook.Amend,
 		Bids: []orderbook.Item{{
 			Amount: resp.BestBidQty.Float64(),
@@ -501,7 +478,7 @@ func (b *Binance) processBookTicker(respRaw []byte) error {
 	})
 }
 
-func (b *Binance) processForceOrder(respRaw []byte) error {
+func (b *Binance) processForceOrder(respRaw []byte, assetType asset.Item) error {
 	var resp MarketLiquidationOrder
 	err := json.Unmarshal(respRaw, &resp)
 	if err != nil {
@@ -533,7 +510,7 @@ func (b *Binance) processForceOrder(respRaw []byte) error {
 		Type:                 oType,
 		Side:                 oSide,
 		Status:               oStatus,
-		AssetType:            asset.USDTMarginedFutures,
+		AssetType:            assetType,
 		LastUpdated:          resp.Order.OrderTradeTime.Time(),
 		Pair:                 cp,
 	}
@@ -541,7 +518,7 @@ func (b *Binance) processForceOrder(respRaw []byte) error {
 }
 
 func (b *Binance) processContractInfoStream(respRaw []byte) error {
-	var resp UFuturesContractInfo
+	var resp FuturesContractInfo
 	err := json.Unmarshal(respRaw, &resp)
 	if err != nil {
 		return err
@@ -672,13 +649,13 @@ func (b *Binance) processTrades(respRaw []byte) error {
 	})
 }
 
-// SubscribeUFutures subscribes to a set of channels
-func (b *Binance) SubscribeUFutures(channelsToSubscribe []stream.ChannelSubscription) error {
+// SubscribeFutures subscribes to a set of channels
+func (b *Binance) SubscribeFutures(channelsToSubscribe []stream.ChannelSubscription) error {
 	return b.handleSubscriptions("SUBSCRIBE", channelsToSubscribe)
 }
 
-// UnsubscribeUFutures unsubscribes from a set of channels
-func (b *Binance) UnsubscribeUFutures(channelsToUnsubscribe []stream.ChannelSubscription) error {
+// UnsubscribeFutures unsubscribes from a set of channels
+func (b *Binance) UnsubscribeFutures(channelsToUnsubscribe []stream.ChannelSubscription) error {
 	return b.handleSubscriptions("UNSUBSCRIBE", channelsToUnsubscribe)
 }
 
