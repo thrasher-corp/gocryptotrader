@@ -3,9 +3,17 @@ package binance
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
+	"net/http"
 	"strconv"
+	"time"
 
+	"github.com/gorilla/websocket"
+	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
+	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
 const (
@@ -21,12 +29,93 @@ var websocketStatusCodes = map[int64]string{
 	419: "exceeded API request rate limit",
 }
 
+// WsConnectAPI creates a new websocket connection to API server
+func (b *Binance) WsConnectAPI() error {
+	if !b.Websocket.IsEnabled() || !b.IsEnabled() {
+		return errors.New(stream.WebsocketNotEnabled)
+	}
+
+	var err error
+	var dialer websocket.Dialer
+	dialer.HandshakeTimeout = b.Config.HTTPTimeout
+	dialer.Proxy = http.ProxyFromEnvironment
+
+	b.Websocket.AuthConn.SetURL(binanceDefaultWebsocketURL)
+	err = b.Websocket.AuthConn.Dial(&dialer, http.Header{})
+	if err != nil {
+		return fmt.Errorf("%v - Unable to connect to Websocket. Error: %s", b.Name, err)
+	}
+
+	b.Websocket.AuthConn.SetupPingHandler(stream.PingHandler{
+		UseGorillaHandler: true,
+		MessageType:       websocket.PongMessage,
+		Delay:             pingDelay,
+	})
+
+	b.Websocket.Wg.Add(1)
+	go b.wsAPIReadData()
+	return nil
+}
+
+// IsAPIStreamConnected checks if the API stream connection is established
+func (b *Binance) IsAPIStreamConnected() bool {
+	b.isAPIStreamConnectionLock.Lock()
+	defer b.isAPIStreamConnectionLock.Unlock()
+	return b.isAPIStreamConnected
+}
+
+// SetIsAPIStreamConnected sets a value of whether the API stream connection is established
+func (b *Binance) SetIsAPIStreamConnected(isAPIStreamConnected bool) {
+	b.isAPIStreamConnectionLock.Lock()
+	defer b.isAPIStreamConnectionLock.Unlock()
+	b.isAPIStreamConnected = isAPIStreamConnected
+}
+
+// wsAPIReadData receives and passes on websocket api messages for processing
+func (b *Binance) wsAPIReadData() {
+	defer b.Websocket.Wg.Done()
+
+	for {
+		resp := b.Websocket.AuthConn.ReadMessage()
+		if resp.Raw == nil {
+			return
+		}
+		err := b.wsHandleSpotAPIData(resp.Raw)
+		if err != nil {
+			b.Websocket.DataHandler <- err
+		}
+	}
+}
+
+// wsHandleSpotAPIData routes API response data.
+func (b *Binance) wsHandleSpotAPIData(respRaw []byte) error {
+	result := struct {
+		Result json.RawMessage `json:"result"`
+		ID     string          `json:"id"`
+		Data   json.RawMessage `json:"data"`
+	}{}
+	err := json.Unmarshal(respRaw, &result)
+	if err != nil {
+		return err
+	}
+	if result.ID != "" {
+		if !b.Websocket.Match.IncomingWithData(result.ID, respRaw) {
+			return errors.New("Unhandled data: " + string(respRaw))
+		}
+		return nil
+	}
+	return fmt.Errorf("unhandled stream data %s", string(respRaw))
+}
+
 // GetWsOrderbook returns full orderbook information
 //
 // OrderBookDataRequestParams contains the following members
 // symbol: string of currency pair
 // limit: returned limit amount
-func (b *Binance) GetWsOrderbook(obd OrderBookDataRequestParams) (*OrderBook, error) {
+func (b *Binance) GetWsOrderbook(obd *OrderBookDataRequestParams) (*OrderBook, error) {
+	if obd == nil || *obd == (OrderBookDataRequestParams{}) {
+		return nil, errNilArgument
+	}
 	if err := b.CheckLimit(obd.Limit); err != nil {
 		return nil, err
 	}
@@ -46,6 +135,78 @@ func (b *Binance) GetWsOrderbook(obd OrderBookDataRequestParams) (*OrderBook, er
 		orderbook.Asks[x] = OrderbookItem{Price: resp.Asks[x][0].Float64(), Quantity: resp.Asks[x][1].Float64()}
 	}
 	return &orderbook, nil
+}
+
+// GetWsMostRecentTrades returns recent trade activity through the websocket connection
+// limit: Up to 500 results returned
+func (b *Binance) GetWsMostRecentTrades(rtr *RecentTradeRequestParams) ([]RecentTrade, error) {
+	if rtr == nil || *rtr == (RecentTradeRequestParams{}) {
+		return nil, errNilArgument
+	}
+	if rtr.Symbol.IsEmpty() {
+		return nil, currency.ErrCurrencyPairEmpty
+	}
+	var err error
+	rtr.Symbol, err = b.FormatExchangeCurrency(rtr.Symbol, asset.Spot)
+	if err != nil {
+		return nil, err
+	}
+	var resp []RecentTrade
+	return resp, b.SendWsRequest("trades.recent", rtr, &resp)
+}
+
+// GetWsAggregatedTrades retrieves aggregated trade activity.
+func (b *Binance) GetWsAggregatedTrades(arg *WsAggregateTradeRequestParams) ([]AggregatedTrade, error) {
+	if arg == nil || *arg == (WsAggregateTradeRequestParams{}) {
+		return nil, errNilArgument
+	}
+	var resp []AggregatedTrade
+	return resp, b.SendWsRequest("trades.aggregate", arg, &resp)
+}
+
+// GetWsKlines retrieves spot kline data through the websocket connection.
+func (b *Binance) GetWsKlines(arg *KlinesRequestParams) ([]CandleStick, error) {
+	if arg == nil || *arg == (KlinesRequestParams{}) {
+		return nil, nil
+	}
+	if arg.Symbol.IsEmpty() {
+		return nil, currency.ErrCurrencyPairEmpty
+	}
+	if arg.Interval == "" {
+		return nil, kline.ErrInvalidInterval
+	}
+	if !arg.StartTime.IsZero() {
+		arg.StartTimestamp = arg.StartTime.UnixMilli()
+	}
+	if !arg.EndTime.IsZero() {
+		arg.EndTimestamp = arg.EndTime.UnixMilli()
+	}
+	var resp [][]types.Number
+	err := b.SendWsRequest("klines", arg, &resp)
+	if err != nil {
+		return nil, err
+	}
+
+	klineData := make([]CandleStick, len(resp))
+	for x := range resp {
+		if len(resp[x]) != 12 {
+			return nil, errors.New("unexpected kline data length")
+		}
+		klineData[x] = CandleStick{
+			OpenTime:                 time.UnixMilli(resp[x][0].Int64()),
+			Open:                     resp[x][1].Float64(),
+			High:                     resp[x][2].Float64(),
+			Low:                      resp[x][3].Float64(),
+			Close:                    resp[x][4].Float64(),
+			Volume:                   resp[x][5].Float64(),
+			CloseTime:                time.UnixMilli(resp[x][6].Int64()),
+			QuoteAssetVolume:         resp[x][7].Float64(),
+			TradeCount:               resp[x][8].Float64(),
+			TakerBuyAssetVolume:      resp[x][9].Float64(),
+			TakerBuyQuoteAssetVolume: resp[x][10].Float64(),
+		}
+	}
+	return klineData, nil
 }
 
 // SendWsRequest sends websocket endpoint request through the websocket connection

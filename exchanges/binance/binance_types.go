@@ -69,23 +69,19 @@ const (
 
 // ExchangeInfo holds the full exchange information type
 type ExchangeInfo struct {
-	Code       int                  `json:"code"`
-	Msg        string               `json:"msg"`
-	Timezone   string               `json:"timezone"`
-	ServerTime convert.ExchangeTime `json:"serverTime"`
-	RateLimits []struct {
-		RateLimitType string `json:"rateLimitType"`
-		Interval      string `json:"interval"`
-		Limit         int    `json:"limit"`
-	} `json:"rateLimits"`
-	ExchangeFilters interface{} `json:"exchangeFilters"`
+	Code            int64                `json:"code"`
+	Msg             string               `json:"msg"`
+	Timezone        string               `json:"timezone"`
+	ServerTime      convert.ExchangeTime `json:"serverTime"`
+	RateLimits      []RateLimitItem      `json:"rateLimits"`
+	ExchangeFilters interface{}          `json:"exchangeFilters"`
 	Symbols         []struct {
 		Symbol                     string        `json:"symbol"`
 		Status                     string        `json:"status"`
 		BaseAsset                  string        `json:"baseAsset"`
-		BaseAssetPrecision         int           `json:"baseAssetPrecision"`
+		BaseAssetPrecision         int64         `json:"baseAssetPrecision"`
 		QuoteAsset                 string        `json:"quoteAsset"`
-		QuotePrecision             int           `json:"quotePrecision"`
+		QuotePrecision             int64         `json:"quotePrecision"`
 		OrderTypes                 []string      `json:"orderTypes"`
 		IcebergAllowed             bool          `json:"icebergAllowed"`
 		OCOAllowed                 bool          `json:"ocoAllowed"`
@@ -155,7 +151,7 @@ type CoinInfo struct {
 // OrderBookDataRequestParams represents Klines request data.
 type OrderBookDataRequestParams struct {
 	Symbol currency.Pair `json:"symbol"` // Required field; example LTCBTC,BTCUSDT
-	Limit  int           `json:"limit"`  // Default 100; max 1000. Valid limits:[5, 10, 20, 50, 100, 500, 1000]
+	Limit  int64         `json:"limit"`  // Default 100; max 1000. Valid limits:[5, 10, 20, 50, 100, 500, 1000]
 }
 
 // OrderbookItem stores an individual orderbook item
@@ -166,7 +162,7 @@ type OrderbookItem struct {
 
 // OrderBookData is resp data from orderbook endpoint
 type OrderBookData struct {
-	Code         int               `json:"code"`
+	Code         int64             `json:"code"`
 	Msg          string            `json:"msg"`
 	LastUpdateID int64             `json:"lastUpdateId"`
 	Bids         [][2]types.Number `json:"bids"`
@@ -204,7 +200,8 @@ type WebsocketDepthStream struct {
 // RecentTradeRequestParams represents Klines request data.
 type RecentTradeRequestParams struct {
 	Symbol currency.Pair `json:"symbol"` // Required field. example LTCBTC, BTCUSDT
-	Limit  int           `json:"limit"`  // Default 500; max 500.
+	Limit  int64         `json:"limit"`  // Default 500; max 500.
+	FromID int64         `json:"fromId,omitempty"`
 }
 
 // RecentTrade holds recent trade data
@@ -308,6 +305,13 @@ type AggregatedTradeRequestParams struct {
 	EndTime   time.Time
 	// Default 500; max 1000.
 	Limit int
+}
+
+// WsAggregateTradeRequestParams holds request paramters for aggregate trades
+type WsAggregateTradeRequestParams struct {
+	Symbol currency.Pair `json:"symbol"`
+	FromID int64         `json:"fromId,omitempty"`
+	Limit  int64         `json:"limit,omitempty"`
 }
 
 // AggregatedTrade holds aggregated trade information
@@ -431,7 +435,7 @@ type NewOrderRequest struct {
 
 // NewOrderResponse is the return structured response from the exchange
 type NewOrderResponse struct {
-	Code            int                  `json:"code"`
+	Code            int64                `json:"code"`
 	Msg             string               `json:"msg"`
 	Symbol          string               `json:"symbol"`
 	OrderID         int64                `json:"orderId"`
@@ -464,7 +468,7 @@ type CancelOrderResponse struct {
 
 // QueryOrderData holds query order data
 type QueryOrderData struct {
-	Code                int                  `json:"code"`
+	Code                int64                `json:"code"`
 	Msg                 string               `json:"msg"`
 	Symbol              string               `json:"symbol"`
 	OrderID             int64                `json:"orderId"`
@@ -495,10 +499,10 @@ type Balance struct {
 
 // Account holds the account data
 type Account struct {
-	MakerCommission  int                  `json:"makerCommission"`
-	TakerCommission  int                  `json:"takerCommission"`
-	BuyerCommission  int                  `json:"buyerCommission"`
-	SellerCommission int                  `json:"sellerCommission"`
+	MakerCommission  int64                `json:"makerCommission"`
+	TakerCommission  int64                `json:"takerCommission"`
+	BuyerCommission  int64                `json:"buyerCommission"`
+	SellerCommission int64                `json:"sellerCommission"`
 	CanTrade         bool                 `json:"canTrade"`
 	CanWithdraw      bool                 `json:"canWithdraw"`
 	CanDeposit       bool                 `json:"canDeposit"`
@@ -570,11 +574,14 @@ var (
 
 // KlinesRequestParams represents Klines request data.
 type KlinesRequestParams struct {
-	Symbol    currency.Pair // Required field; example LTCBTC, BTCUSDT
-	Interval  string        // Time interval period
-	Limit     int           // Default 500; max 500.
-	StartTime time.Time
-	EndTime   time.Time
+	Symbol         currency.Pair `json:"symbol"`   // Required field; example LTCBTC, BTCUSDT
+	Interval       string        `json:"interval"` // Time interval period
+	Limit          int64         `json:"limit"`    // Default 500; max 500.
+	StartTime      time.Time     `json:"-"`
+	EndTime        time.Time     `json:"-"`
+	Timezone       string        `json:"timeZone"`
+	StartTimestamp int64         `json:"startTime,omitempty"`
+	EndTimestamp   int64         `json:"endTime,omitempty"`
 }
 
 // WithdrawalFees the large list of predefined withdrawal fees
@@ -1518,4 +1525,11 @@ type FutureContinuousKline struct {
 type WebsocketActionResponse struct {
 	Result []string `json:"result"`
 	ID     int64    `json:"id"`
+}
+
+// RateLimitItem holds ratelimit information for endpoint calls.
+type RateLimitItem struct {
+	RateLimitType string `json:"rateLimitType"`
+	Interval      string `json:"interval"`
+	Limit         int64  `json:"limit"`
 }

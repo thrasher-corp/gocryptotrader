@@ -3511,8 +3511,45 @@ func TestWsConnect(t *testing.T) {
 
 func TestGetWsOrderbook(t *testing.T) {
 	t.Parallel()
-	_, err := b.GetWsOrderbook(OrderBookDataRequestParams{Symbol: currency.NewPair(currency.BTC, currency.USDT), Limit: 1000})
+	_, err := b.GetWsOrderbook(&OrderBookDataRequestParams{Symbol: currency.NewPair(currency.BTC, currency.USDT), Limit: 1000})
 	if err != nil {
 		t.Error(err)
+	}
+}
+
+func TestGetWsMostRecentTrades(t *testing.T) {
+	t.Parallel()
+	_, err := b.GetWsMostRecentTrades(&RecentTradeRequestParams{
+		Symbol: currency.NewPair(currency.BTC, currency.USDT),
+		Limit:  15,
+	})
+	if err != nil {
+		t.Error("Binance GetWsMostRecentTrades() error", err)
+	}
+}
+
+func TestGetWsAggregatedTrades(t *testing.T) {
+	t.Parallel()
+	_, err := b.GetWsAggregatedTrades(&WsAggregateTradeRequestParams{
+		Symbol: currency.NewPair(currency.BTC, currency.USDT),
+		Limit:  5,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestGetWsKlines(t *testing.T) {
+	t.Parallel()
+	start, end := getTime()
+	_, err := b.GetWsKlines(&KlinesRequestParams{
+		Symbol:    currency.NewPair(currency.BTC, currency.USDT),
+		Interval:  kline.FiveMin.Short(),
+		Limit:     24,
+		StartTime: start,
+		EndTime:   end,
+	})
+	if err != nil {
+		t.Error("Binance GetSpotKline() error", err)
 	}
 }

@@ -9,24 +9,30 @@ import (
 	"net/url"
 	"sort"
 	"strconv"
+	"sync"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
-	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
+	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
 // Binance is the overarching type across the Binance package
 type Binance struct {
 	exchange.Base
 	// Valid string list that is required by the exchange
-	validLimits []int
+	validLimits []int64
 	obm         *orderbookManager
+
+	// isAPIStreamConnected is true if the spot API stream websocket connection is established
+	isAPIStreamConnected bool
+
+	isAPIStreamConnectionLock sync.Mutex
 }
 
 const (
@@ -116,6 +122,8 @@ var (
 	errOrderIDMustBeSet                       = errors.New("orderID must be set")
 	errAmountMustBeSet                        = errors.New("amount must not be <= 0")
 	errEitherLoanOrCollateralAmountsMustBeSet = errors.New("either loan or collateral amounts must be set")
+	errNilArgument                            = errors.New("nil argument")
+	errWebsocketAPICallNotEnabled             = errors.New("websocket API connection not enabled")
 )
 
 // GetUndocumentedInterestHistory gets interest history for currency/currencies provided
@@ -408,7 +416,7 @@ func (b *Binance) GetSpotKline(ctx context.Context, arg *KlinesRequestParams) ([
 	params.Set("symbol", symbol)
 	params.Set("interval", arg.Interval)
 	if arg.Limit != 0 {
-		params.Set("limit", strconv.Itoa(arg.Limit))
+		params.Set("limit", strconv.FormatInt(arg.Limit, 10))
 	}
 	if !arg.StartTime.IsZero() {
 		params.Set("startTime", timeString(arg.StartTime))
@@ -418,65 +426,30 @@ func (b *Binance) GetSpotKline(ctx context.Context, arg *KlinesRequestParams) ([
 	}
 
 	path := candleStick + "?" + params.Encode()
-	var resp interface{}
-
+	var resp [][]types.Number
 	err = b.SendHTTPRequest(ctx,
 		exchange.RestSpotSupplementary,
 		path,
 		spotDefaultRate,
 		&resp)
-	if err != nil {
-		return nil, err
-	}
-	responseData, ok := resp.([]interface{})
-	if !ok {
-		return nil, common.GetTypeAssertError("[]interface{}", resp)
-	}
-
-	klineData := make([]CandleStick, len(responseData))
-	for x := range responseData {
-		individualData, ok := responseData[x].([]interface{})
-		if !ok {
-			return nil, common.GetTypeAssertError("[]interface{}", responseData[x])
-		}
-		if len(individualData) != 12 {
+	klineData := make([]CandleStick, len(resp))
+	for x := range resp {
+		if len(resp[x]) != 12 {
 			return nil, errors.New("unexpected kline data length")
 		}
-		var candle CandleStick
-		if candle.OpenTime, err = convert.TimeFromUnixTimestampFloat(individualData[0]); err != nil {
-			return nil, err
+		klineData[x] = CandleStick{
+			OpenTime:                 time.UnixMilli(resp[x][0].Int64()),
+			Open:                     resp[x][1].Float64(),
+			High:                     resp[x][2].Float64(),
+			Low:                      resp[x][3].Float64(),
+			Close:                    resp[x][4].Float64(),
+			Volume:                   resp[x][5].Float64(),
+			CloseTime:                time.UnixMilli(resp[x][6].Int64()),
+			QuoteAssetVolume:         resp[x][7].Float64(),
+			TradeCount:               resp[x][8].Float64(),
+			TakerBuyAssetVolume:      resp[x][9].Float64(),
+			TakerBuyQuoteAssetVolume: resp[x][10].Float64(),
 		}
-		if candle.Open, err = convert.FloatFromString(individualData[1]); err != nil {
-			return nil, err
-		}
-		if candle.High, err = convert.FloatFromString(individualData[2]); err != nil {
-			return nil, err
-		}
-		if candle.Low, err = convert.FloatFromString(individualData[3]); err != nil {
-			return nil, err
-		}
-		if candle.Close, err = convert.FloatFromString(individualData[4]); err != nil {
-			return nil, err
-		}
-		if candle.Volume, err = convert.FloatFromString(individualData[5]); err != nil {
-			return nil, err
-		}
-		if candle.CloseTime, err = convert.TimeFromUnixTimestampFloat(individualData[6]); err != nil {
-			return nil, err
-		}
-		if candle.QuoteAssetVolume, err = convert.FloatFromString(individualData[7]); err != nil {
-			return nil, err
-		}
-		if candle.TradeCount, ok = individualData[8].(float64); !ok {
-			return nil, common.GetTypeAssertError("float64", individualData[8])
-		}
-		if candle.TakerBuyAssetVolume, err = convert.FloatFromString(individualData[9]); err != nil {
-			return nil, err
-		}
-		if candle.TakerBuyQuoteAssetVolume, err = convert.FloatFromString(individualData[10]); err != nil {
-			return nil, err
-		}
-		klineData[x] = candle
 	}
 	return klineData, nil
 }
@@ -898,7 +871,7 @@ func (b *Binance) SendAuthHTTPRequest(ctx context.Context, ePath exchange.URL, m
 }
 
 // CheckLimit checks value against a variable list
-func (b *Binance) CheckLimit(limit int) error {
+func (b *Binance) CheckLimit(limit int64) error {
 	for x := range b.validLimits {
 		if b.validLimits[x] == limit {
 			return nil
@@ -909,7 +882,7 @@ func (b *Binance) CheckLimit(limit int) error {
 
 // SetValues sets the default valid values
 func (b *Binance) SetValues() {
-	b.validLimits = []int{5, 10, 20, 50, 100, 500, 1000, 5000}
+	b.validLimits = []int64{5, 10, 20, 50, 100, 500, 1000, 5000}
 }
 
 // GetFee returns an estimate of fee based on type of transaction

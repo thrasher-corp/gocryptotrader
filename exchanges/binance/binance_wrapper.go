@@ -878,7 +878,7 @@ func (b *Binance) GetRecentTrades(ctx context.Context, p currency.Pair, a asset.
 	switch a {
 	case asset.Spot:
 		tradeData, err := b.GetMostRecentTrades(ctx,
-			RecentTradeRequestParams{pFmt, limit})
+			RecentTradeRequestParams{Symbol: pFmt, Limit: limit})
 		if err != nil {
 			return nil, err
 		}
@@ -1784,7 +1784,7 @@ func (b *Binance) GetHistoricCandles(ctx context.Context, pair currency.Pair, a 
 			Symbol:    req.Pair,
 			StartTime: req.Start,
 			EndTime:   req.End,
-			Limit:     int(req.RequestLimit),
+			Limit:     req.RequestLimit,
 		})
 		if err != nil {
 			return nil, err
@@ -1865,7 +1865,7 @@ func (b *Binance) GetHistoricCandlesExtended(ctx context.Context, pair currency.
 				Symbol:    req.Pair,
 				StartTime: req.RangeHolder.Ranges[x].Start.Time,
 				EndTime:   req.RangeHolder.Ranges[x].End.Time,
-				Limit:     int(req.RequestLimit),
+				Limit:     req.RequestLimit,
 			})
 			if err != nil {
 				return nil, err

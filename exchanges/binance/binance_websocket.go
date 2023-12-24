@@ -591,10 +591,6 @@ func (b *Binance) Subscribe(channelsToSubscribe []stream.ChannelSubscription) er
 		}
 	}
 	if len(payload.Params) > 0 {
-
-		val, _ := json.Marshal(payload)
-		println(string(val))
-
 		err := b.Websocket.Conn.SendJSONMessage(payload)
 		if err != nil {
 			return err
