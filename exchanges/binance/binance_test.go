@@ -3500,3 +3500,19 @@ func TestSetProperty(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestWsConnect(t *testing.T) {
+	t.Parallel()
+	err := b.WsConnect()
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestGetWsOrderbook(t *testing.T) {
+	t.Parallel()
+	_, err := b.GetWsOrderbook(OrderBookDataRequestParams{Symbol: currency.NewPair(currency.BTC, currency.USDT), Limit: 1000})
+	if err != nil {
+		t.Error(err)
+	}
+}

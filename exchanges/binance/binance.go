@@ -179,39 +179,17 @@ func (b *Binance) GetOrderBook(ctx context.Context, obd OrderBookDataRequestPara
 		LastUpdateID: resp.LastUpdateID,
 	}
 	for x := range resp.Bids {
-		price, err := strconv.ParseFloat(resp.Bids[x][0], 64)
-		if err != nil {
-			return nil, err
-		}
-
-		amount, err := strconv.ParseFloat(resp.Bids[x][1], 64)
-		if err != nil {
-			return nil, err
-		}
-
 		orderbook.Bids[x] = OrderbookItem{
-			Price:    price,
-			Quantity: amount,
+			Price:    resp.Bids[x][0].Float64(),
+			Quantity: resp.Bids[x][1].Float64(),
 		}
 	}
-
 	for x := range resp.Asks {
-		price, err := strconv.ParseFloat(resp.Asks[x][0], 64)
-		if err != nil {
-			return nil, err
-		}
-
-		amount, err := strconv.ParseFloat(resp.Asks[x][1], 64)
-		if err != nil {
-			return nil, err
-		}
-
 		orderbook.Asks[x] = OrderbookItem{
-			Price:    price,
-			Quantity: amount,
+			Price:    resp.Asks[x][0].Float64(),
+			Quantity: resp.Asks[x][1].Float64(),
 		}
 	}
-
 	return &orderbook, nil
 }
 

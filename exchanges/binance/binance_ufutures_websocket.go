@@ -606,24 +606,12 @@ func (b *Binance) processDepthUpdate(respRaw []byte) error {
 		Pair:       cp,
 	}
 	for a := range resp.Data.Asks {
-		oUpdate.Asks[a].Price, err = strconv.ParseFloat(resp.Data.Asks[a][0], 64)
-		if err != nil {
-			return err
-		}
-		oUpdate.Asks[a].Amount, err = strconv.ParseFloat(resp.Data.Asks[a][1], 64)
-		if err != nil {
-			return err
-		}
+		oUpdate.Asks[a].Price = resp.Data.Asks[a][0].Float64()
+		oUpdate.Asks[a].Amount = resp.Data.Asks[a][1].Float64()
 	}
 	for b := range resp.Data.Bids {
-		oUpdate.Bids[b].Price, err = strconv.ParseFloat(resp.Data.Bids[b][0], 64)
-		if err != nil {
-			return err
-		}
-		oUpdate.Bids[b].Amount, err = strconv.ParseFloat(resp.Data.Bids[b][1], 64)
-		if err != nil {
-			return err
-		}
+		oUpdate.Bids[b].Price = resp.Data.Bids[b][0].Float64()
+		oUpdate.Bids[b].Amount = resp.Data.Bids[b][1].Float64()
 	}
 	return b.Websocket.Orderbook.Update(oUpdate)
 }
