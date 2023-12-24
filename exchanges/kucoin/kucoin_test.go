@@ -114,8 +114,18 @@ func TestGetAllTickers(t *testing.T) {
 
 func TestGetFuturesTickers(t *testing.T) {
 	t.Parallel()
-	_, err := ku.GetFuturesTickers(context.Background())
+	tickers, err := ku.GetFuturesTickers(context.Background())
 	assert.NoError(t, err, "GetFuturesTickers should not error")
+	for i := range tickers {
+		assert.Positive(t, tickers[i].Last, "Last should be positive")
+		assert.Positive(t, tickers[i].Bid, "Bid should be positive")
+		assert.Positive(t, tickers[i].Ask, "Ask should be positive")
+		assert.Positive(t, tickers[i].Volume, "Volume should be positive")
+		assert.NotEmpty(t, tickers[i].Pair, "Pair should not be empty")
+		assert.NotEmpty(t, tickers[i].LastUpdated, "LastUpdated should not be empty")
+		assert.Equal(t, ku.Name, tickers[i].ExchangeName, "Exchange name should be correct")
+		assert.Equal(t, asset.Futures, tickers[i].AssetType, "Asset type should be correct")
+	}
 }
 
 func TestGet24hrStats(t *testing.T) {
@@ -1678,8 +1688,6 @@ func TestUpdateTickers(t *testing.T) {
 			tick, err := ticker.GetTicker(ku.Name, p, a)
 			if assert.NoError(t, err, "GetTicker %s %s should not error", a, p) {
 				assert.Positive(t, tick.Last, "%s %s Tick Last should be positive", a, p)
-				assert.Positive(t, tick.High, "%s %s Tick High should be positive", a, p)
-				assert.Positive(t, tick.Low, "%s %s Tick Low should be positive", a, p)
 				assert.Positive(t, tick.Bid, "%s %s Tick Bid should be positive", a, p)
 				assert.Positive(t, tick.Ask, "%s %s Tick Ask should be positive", a, p)
 				assert.Positive(t, tick.Volume, "%s %s Tick Volume should be positive", a, p)
