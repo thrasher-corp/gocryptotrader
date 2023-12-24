@@ -3440,7 +3440,7 @@ func TestUGetFundingRateInfo(t *testing.T) {
 	assert.NoError(t, err)
 }
 
-func TestWsConnect(t *testing.T) {
+func TestWsUFuturesConnect(t *testing.T) {
 	t.Parallel()
 	err := b.WsUFuturesConnect()
 	if err != nil {
@@ -3499,13 +3499,4 @@ func TestSetProperty(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-}
-
-func TestWsCFutureConnect(t *testing.T) {
-	t.Parallel()
-	err := b.WsCFutureConnect()
-	if err != nil {
-		t.Fatal(err)
-	}
-	time.Sleep(time.Second * 23)
 }

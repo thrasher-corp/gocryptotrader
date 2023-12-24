@@ -11,7 +11,7 @@ import (
 
 // Response holds basic binance api response data
 type Response struct {
-	Code int    `json:"code"`
+	Code int64  `json:"code"`
 	Msg  string `json:"msg"`
 }
 
@@ -416,7 +416,7 @@ type GenericAuthResponse struct {
 // FuturesMarginUpdatedResponse stores margin update response data
 type FuturesMarginUpdatedResponse struct {
 	Amount float64 `json:"amount"`
-	Type   int     `json:"type"`
+	Type   int64   `json:"type"`
 	GenericAuthResponse
 }
 
@@ -672,7 +672,7 @@ type CExchangeInfo struct {
 type CFutureAggregateTrade struct {
 	EventType        string `json:"e"`
 	EventTime        int64  `json:"E"`
-	AggregateTradeID int    `json:"a"`
+	AggregateTradeID int64  `json:"a"`
 	Symbol           string `json:"s"`
 	Price            string `json:"p"`
 	Quantity         string `json:"q"`
@@ -702,15 +702,15 @@ type CFuturesMarketLiquidiation struct {
 	} `json:"o"`
 }
 
-// CFutureMarkPriceKline
-type CFutureMarkPriceKline struct {
+// CFutureMarkOrIndexPriceKline represents mark/index price kline data.
+type CFutureMarkOrIndexPriceKline struct {
 	EventType string               `json:"e"`
 	EventTime convert.ExchangeTime `json:"E"`
 	Pair      string               `json:"ps"`
 	Kline     struct {
 		StartTime         convert.ExchangeTime `json:"t"`
 		CloseTime         convert.ExchangeTime `json:"T"`
-		Symbol            string               `json:"s"`
+		S                 string               `json:"s"` // Symbol for Mark Price, Ignored for Index Price
 		Interval          string               `json:"i"`
 		F                 int64                `json:"f"`
 		L                 int64                `json:"L"`
@@ -726,4 +726,46 @@ type CFutureMarkPriceKline struct {
 		Q0                string               `json:"Q"`
 		B                 string               `json:"B"`
 	} `json:"k"`
+}
+
+// CFutureIndexPriceStream represents an index price stream data.
+type CFutureIndexPriceStream struct {
+	EventType  string               `json:"e"`
+	EventTime  convert.ExchangeTime `json:"E"`
+	Pair       string               `json:"i"`
+	IndexPrice types.Number         `json:"p"`
+}
+
+// CFutureKlineData represents a
+type CFutureKlineData struct {
+	EventType string               `json:"e"`
+	EventTime convert.ExchangeTime `json:"E"`
+	Symbol    string               `json:"s"`
+	KlineData struct {
+		StartTime               convert.ExchangeTime `json:"t"`
+		CloseTime               convert.ExchangeTime `json:"T"`
+		Symbol                  string               `json:"s"`
+		Interval                string               `json:"i"`
+		FirstTradeID            int64                `json:"f"`
+		LastTradeID             int64                `json:"L"`
+		OpenPrice               types.Number         `json:"o"`
+		ClosePrice              types.Number         `json:"c"`
+		HighPrice               types.Number         `json:"h"`
+		LowPrice                types.Number         `json:"l"`
+		Volume                  types.Number         `json:"v"`
+		NumberOfTrades          int64                `json:"n"`
+		IsKlineClose            bool                 `json:"x"`
+		BaseAssetVolume         types.Number         `json:"q"`
+		TakerBuyVolume          types.Number         `json:"V"`
+		TakerBuyBaseAssetVolume types.Number         `json:"Q"`
+		B                       string               `json:"B"`
+	} `json:"k"`
+}
+
+// CFuturesMarketTicker 24hr rolling window ticker statistics for all symbols
+type CFuturesMarketTicker struct {
+	UFutureMarketTicker
+	Pair                       string       `json:"ps"`
+	TotalTradedVolume          types.Number `json:"v"`
+	TotalTradedBaseAssetVolume types.Number `json:"q"`
 }

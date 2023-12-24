@@ -1320,8 +1320,8 @@ type UFuturesKline struct {
 	} `json:"k"`
 }
 
-// UFuturesMarkPrice represents usdt futures mark price and funding rate for a single symbol pushed every 3
-type UFuturesMarkPrice struct {
+// FuturesMarkPrice represents usdt futures mark price and funding rate for a single symbol pushed every 3
+type FuturesMarkPrice struct {
 	EventType            string               `json:"e"`
 	EventTime            convert.ExchangeTime `json:"E"`
 	Symbol               string               `json:"s"`
@@ -1388,8 +1388,8 @@ type MarketLiquidationOrder struct {
 	} `json:"o"`
 }
 
-// UFuturesBookTicker update to the best bid or ask's price or quantity in real-time for a specified symbol.
-type UFuturesBookTicker struct {
+// FuturesBookTicker update to the best bid or ask's price or quantity in real-time for a specified symbol.
+type FuturesBookTicker struct {
 	EventType         string               `json:"e"`
 	OrderbookUpdateID int64                `json:"u"`
 	EventTime         convert.ExchangeTime `json:"E"`
@@ -1399,6 +1399,9 @@ type UFuturesBookTicker struct {
 	BestBidQty        types.Number         `json:"B"`
 	BestAskPrice      types.Number         `json:"a"`
 	BestAskQty        types.Number         `json:"A"`
+
+	// Pair added to coin marigined futures
+	Pair string `json:"ps"`
 }
 
 // UFutureMarketTicker 24hr rolling window ticker statistics for all symbols.
@@ -1423,21 +1426,24 @@ type UFutureMarketTicker struct {
 	TotalNumberOfTrades   int64                `json:"n"`
 }
 
-// UFutureMiniTickerPrice holds market mini tickers stream
-type UFutureMiniTickerPrice struct {
-	EventType   string               `json:"e"`
-	EventTime   convert.ExchangeTime `json:"E"`
-	Symbol      string               `json:"s"`
-	ClosePrice  types.Number         `json:"c"`
-	OpenPrice   types.Number         `json:"o"`
-	HighPrice   types.Number         `json:"h"`
-	LowPrice    types.Number         `json:"l"`
-	Volume      types.Number         `json:"v"`
-	QuoteVolume types.Number         `json:"q"`
+// FutureMiniTickerPrice holds market mini tickers stream
+type FutureMiniTickerPrice struct {
+	EventType  string               `json:"e"`
+	EventTime  convert.ExchangeTime `json:"E"`
+	Symbol     string               `json:"s"`
+	ClosePrice types.Number         `json:"c"`
+	OpenPrice  types.Number         `json:"o"`
+	HighPrice  types.Number         `json:"h"`
+	LowPrice   types.Number         `json:"l"`
+	Volume     types.Number         `json:"v"`
+
+	QuoteVolume types.Number `json:"q"` // Total traded base asset volume for Coin Margined Futures
+
+	Pair string `json:"ps"`
 }
 
-// UFuturesAggTrade aggregate trade streams push market trade
-type UFuturesAggTrade struct {
+// FuturesAggTrade aggregate trade streams push market trade
+type FuturesAggTrade struct {
 	EventType        string               `json:"e"`
 	EventTime        convert.ExchangeTime `json:"E"`
 	Symbol           string               `json:"s"`
@@ -1450,8 +1456,8 @@ type UFuturesAggTrade struct {
 	IsMaker          bool                 `json:"m"`
 }
 
-// UFuturesDepthOrderbook represents bids and asks
-type UFuturesDepthOrderbook struct {
+// FuturesDepthOrderbook represents bids and asks
+type FuturesDepthOrderbook struct {
 	EventType               string               `json:"e"`
 	EventTime               convert.ExchangeTime `json:"E"`
 	TransactionTime         convert.ExchangeTime `json:"T"`
@@ -1461,6 +1467,9 @@ type UFuturesDepthOrderbook struct {
 	FinalUpdateIDLastStream int64                `json:"pu"`
 	Bids                    [][]string           `json:"b"`
 	Asks                    [][]string           `json:"a"`
+
+	// Added for coin margined futures
+	Pair string `json:"ps"`
 }
 
 // UFutureCompositeIndex represents symbols a composite index
@@ -1479,8 +1488,8 @@ type UFutureCompositeIndex struct {
 	} `json:"c"`
 }
 
-// UFutureContinuousKline represents continuous kline data.
-type UFutureContinuousKline struct {
+// FutureContinuousKline represents continuous kline data.
+type FutureContinuousKline struct {
 	EventType    string               `json:"e"`
 	EventTime    convert.ExchangeTime `json:"E"`
 	Pair         string               `json:"ps"`

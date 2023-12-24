@@ -166,7 +166,7 @@ func (b *Binance) wsHandleFuturesData(respRaw []byte, assetType asset.Item) erro
 }
 
 func (b *Binance) processContinuousKlineUpdate(respRaw []byte, assetType asset.Item) error {
-	var resp UFutureContinuousKline
+	var resp FutureContinuousKline
 	err := json.Unmarshal(respRaw, &resp)
 	if err != nil {
 		return err
@@ -209,7 +209,7 @@ var (
 )
 
 func (b *Binance) processOrderbookDepthUpdate(respRaw []byte, assetType asset.Item) error {
-	var resp UFuturesDepthOrderbook
+	var resp FuturesDepthOrderbook
 	err := json.Unmarshal(respRaw, &resp)
 	if err != nil {
 		return err
@@ -266,7 +266,7 @@ func (b *Binance) processOrderbookDepthUpdate(respRaw []byte, assetType asset.It
 }
 
 func (b *Binance) processAggregateTrade(respRaw []byte, assetType asset.Item) error {
-	var resp UFuturesAggTrade
+	var resp FuturesAggTrade
 	err := json.Unmarshal(respRaw, &resp)
 	if err != nil {
 		return err
@@ -313,19 +313,19 @@ func extractStreamInfo(resultStream string) string {
 
 func (b *Binance) processMiniTickers(respRaw []byte, array bool, assetType asset.Item) error {
 	if array {
-		var resp []UFutureMiniTickerPrice
+		var resp []FutureMiniTickerPrice
 		err := json.Unmarshal(respRaw, &resp)
 		if err != nil {
 			return err
 		}
-		tickerPrices, err := b.getMiniTickers(resp)
+		tickerPrices, err := b.getMiniTickers(resp, assetType)
 		if err != nil {
 			return err
 		}
 		b.Websocket.DataHandler <- tickerPrices
 		return nil
 	}
-	var resp UFutureMiniTickerPrice
+	var resp FutureMiniTickerPrice
 	err := json.Unmarshal(respRaw, &resp)
 	if err != nil {
 		return err
@@ -348,7 +348,7 @@ func (b *Binance) processMiniTickers(respRaw []byte, array bool, assetType asset
 	return nil
 }
 
-func (b *Binance) getMiniTickers(miniTickers []UFutureMiniTickerPrice) ([]ticker.Price, error) {
+func (b *Binance) getMiniTickers(miniTickers []FutureMiniTickerPrice, assetType asset.Item) ([]ticker.Price, error) {
 	tickerPrices := make([]ticker.Price, len(miniTickers))
 	for i := range miniTickers {
 		cp, err := currency.NewPairFromString(miniTickers[i].Symbol)
@@ -363,7 +363,7 @@ func (b *Binance) getMiniTickers(miniTickers []UFutureMiniTickerPrice) ([]ticker
 			QuoteVolume:  miniTickers[i].QuoteVolume.Float64(),
 			Open:         miniTickers[i].OpenPrice.Float64(),
 			ExchangeName: b.Name,
-			AssetType:    asset.USDTMarginedFutures,
+			AssetType:    assetType,
 			LastUpdated:  miniTickers[i].EventTime.Time(),
 		}
 	}
@@ -432,7 +432,7 @@ func (b *Binance) getTickerInfos(marketTickers []UFutureMarketTicker) ([]ticker.
 }
 
 func (b *Binance) processBookTicker(respRaw []byte, assetType asset.Item) error {
-	var resp UFuturesBookTicker
+	var resp FuturesBookTicker
 	err := json.Unmarshal(respRaw, &resp)
 	if err != nil {
 		return err
@@ -541,14 +541,14 @@ func (b *Binance) processMultiAssetModeAssetIndexes(respRaw []byte, array bool) 
 
 func (b *Binance) processMarkPriceUpdate(respRaw []byte, array bool) error {
 	if array {
-		var resp []UFuturesMarkPrice
+		var resp []FuturesMarkPrice
 		err := json.Unmarshal(respRaw, &resp)
 		if err != nil {
 			return err
 		}
 		b.Websocket.DataHandler <- resp
 	}
-	var resp UFuturesMarkPrice
+	var resp FuturesMarkPrice
 	err := json.Unmarshal(respRaw, &resp)
 	if err != nil {
 		return err
@@ -735,7 +735,7 @@ func (b *Binance) GenerateUFuturesDefaultSubscriptions() ([]stream.ChannelSubscr
 				subscription = stream.ChannelSubscription{
 					// Contract types:"PERPETUAL", "CURRENT_MONTH", "NEXT_MONTH", "CURRENT_QUARTER", "NEXT_QUARTER"
 					// by default we are subscribing to PERPETUAL contract types
-					Channel: lp.String() + "_PERPETUAL@" + channels[z] + "_" + getKlineIntervalString(kline.FiveMin),
+					Channel: lp.String() + "_PERPETUAL@" + channels[z] + "_" + getKlineIntervalString(kline.FifteenMin),
 				}
 				subscriptions = append(subscriptions, subscription)
 			}
