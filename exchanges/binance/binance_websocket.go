@@ -90,6 +90,16 @@ func (b *Binance) WsConnect() error {
 	go b.wsReadData()
 
 	b.setupOrderbookManager()
+
+	err = b.WsConnectAPI()
+	if err != nil {
+		b.SetIsAPIStreamConnected(false)
+		log.Errorf(log.ExchangeSys, "could not connect to API stream %v", err)
+	} else {
+		println("Is Connected ...\n\n\n")
+		b.SetIsAPIStreamConnected(true)
+	}
+
 	return nil
 }
 

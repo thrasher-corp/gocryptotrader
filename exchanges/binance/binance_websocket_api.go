@@ -40,7 +40,7 @@ func (b *Binance) WsConnectAPI() error {
 	dialer.HandshakeTimeout = b.Config.HTTPTimeout
 	dialer.Proxy = http.ProxyFromEnvironment
 
-	b.Websocket.AuthConn.SetURL(binanceDefaultWebsocketURL)
+	b.Websocket.AuthConn.SetURL(binanceWebsocketAPIURL)
 	err = b.Websocket.AuthConn.Dial(&dialer, http.Header{})
 	if err != nil {
 		return fmt.Errorf("%v - Unable to connect to Websocket. Error: %s", b.Name, err)
@@ -164,8 +164,18 @@ func (b *Binance) GetWsAggregatedTrades(arg *WsAggregateTradeRequestParams) ([]A
 	return resp, b.SendWsRequest("trades.aggregate", arg, &resp)
 }
 
-// GetWsKlines retrieves spot kline data through the websocket connection.
-func (b *Binance) GetWsKlines(arg *KlinesRequestParams) ([]CandleStick, error) {
+// GetWsCandlestick retrieves spot kline data through the websocket connection.
+func (b *Binance) GetWsCandlestick(arg *KlinesRequestParams) ([]CandleStick, error) {
+	return b.getWsKlines("klines", arg)
+}
+
+// GetWsOptimizedCandlestick retrieves spot candlestick bars through the websocket connection.
+func (b *Binance) GetWsOptimizedCandlestick(arg *KlinesRequestParams) ([]CandleStick, error) {
+	return b.getWsKlines("uiKlines", arg)
+}
+
+// getWsKlines retrieves spot kline data through the websocket connection.
+func (b *Binance) getWsKlines(method string, arg *KlinesRequestParams) ([]CandleStick, error) {
 	if arg == nil || *arg == (KlinesRequestParams{}) {
 		return nil, nil
 	}
@@ -182,7 +192,7 @@ func (b *Binance) GetWsKlines(arg *KlinesRequestParams) ([]CandleStick, error) {
 		arg.EndTimestamp = arg.EndTime.UnixMilli()
 	}
 	var resp [][]types.Number
-	err := b.SendWsRequest("klines", arg, &resp)
+	err := b.SendWsRequest(method, arg, &resp)
 	if err != nil {
 		return nil, err
 	}
@@ -209,11 +219,100 @@ func (b *Binance) GetWsKlines(arg *KlinesRequestParams) ([]CandleStick, error) {
 	return klineData, nil
 }
 
+// GetWsCurrenctAveragePrice retrieves current average price for a symbol.
+func (b *Binance) GetWsCurrenctAveragePrice(symbol currency.Pair) (*SymbolAveragePrice, error) {
+	if symbol.IsEmpty() {
+		return nil, currency.ErrCurrencyPairEmpty
+	}
+	arg := &struct {
+		Symbol currency.Pair `json:"symbol"`
+	}{
+		Symbol: symbol,
+	}
+	var resp SymbolAveragePrice
+	return &resp, b.SendWsRequest("avgPrice", arg, &resp)
+}
+
+// GetWs24HourPriceChange 24-hour rolling window price change statistics through the websocket stream.
+func (b *Binance) GetWs24HourPriceChange(symbol currency.Pair, tickerType string) (*WsTickerPriceChange, error) {
+	if symbol.IsEmpty() {
+		return nil, currency.ErrCurrencyPairEmpty
+	}
+	arg := &struct {
+		Symbol     currency.Pair `json:"symbol"`
+		TickerType string        `json:"type,omitempty"`
+	}{
+		Symbol:     symbol,
+		TickerType: tickerType,
+	}
+	var resp WsTickerPriceChange
+	return &resp, b.SendWsRequest("ticker.24hr", arg, &resp)
+}
+
+// GetWs24HourPriceChanges 24-hour rolling window price changes statistics through the websocket stream.
+// 'type': 'FULL' (default) or 'MINI'
+// 'timeZone' Default: 0 (UTC)
+func (b *Binance) GetWs24HourPriceChanges(symbols currency.Pairs, tickerType string) ([]WsTickerPriceChange, error) {
+	if len(symbols) == 0 {
+		return nil, currency.ErrCurrencyPairsEmpty
+	}
+	arg := &struct {
+		Symbols    []string `json:"symbols"`
+		TickerType string   `json:"type,omitempty"`
+	}{
+		Symbols:    symbols.Strings(),
+		TickerType: tickerType,
+	}
+	var resp []WsTickerPriceChange
+	return resp, b.SendWsRequest("ticker.24hr", arg, &resp)
+}
+
+// GetWsTradingDayTicker price change statistics for a trading day.
+// 'type': 'FULL' (default) or 'MINI'
+// 'timeZone' Default: 0 (UTC)
+func (b *Binance) GetWsTradingDayTicker(symbol currency.Pair, timezone, tickerType string) (*WsTickerPriceChange, error) {
+	if symbol.IsEmpty() {
+		return nil, currency.ErrCurrencyPairEmpty
+	}
+	arg := &struct {
+		Symbol     string `json:"symbol"`
+		Timezone   string `json:"timeZone,omitempty"`
+		TickerType string `json:"type,omitempty"`
+	}{
+		Symbol:     symbol.String(),
+		Timezone:   timezone,
+		TickerType: tickerType,
+	}
+	var resp WsTickerPriceChange
+	return &resp, b.SendWsRequest("ticker.tradingDay", arg, &resp)
+}
+
+// GetWsTradingDayTickers price change statistics for a trading day.
+// 'type': 'FULL' (default) or 'MINI'
+// 'timeZone' Default: 0 (UTC)
+func (b *Binance) GetWsTradingDayTickers(symbols currency.Pairs, timezone, tickerType string) ([]WsTickerPriceChange, error) {
+	if len(symbols) == 0 {
+		return nil, currency.ErrCurrencyPairsEmpty
+	}
+	arg := &struct {
+		Symbols    []string `json:"symbols"`
+		Timezone   string   `json:"timeZone,omitempty"`
+		TickerType string   `json:"type,omitempty"`
+	}{
+		Symbols:    symbols.Strings(),
+		Timezone:   timezone,
+		TickerType: tickerType,
+	}
+	var resp []WsTickerPriceChange
+	return resp, b.SendWsRequest("ticker.tradingDay", arg, &resp)
+}
+
+// GetRollingWindowPriceChangeStatistics retrieves rolling window price change statistics with a custom window.
+// this request is similar to ticker.24hr, but statistics are computed on demand using the arbitrary window you specify
+// func (b *Binance) GetRollingWindowPriceChangeStatistics()
+
 // SendWsRequest sends websocket endpoint request through the websocket connection
 func (b *Binance) SendWsRequest(method string, param, result interface{}) error {
-	if !b.Websocket.IsConnected() {
-		return stream.ErrNotConnected
-	}
 	input := &struct {
 		ID     string      `json:"id"`
 		Method string      `json:"method"`

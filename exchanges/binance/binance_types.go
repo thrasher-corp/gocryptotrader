@@ -574,12 +574,12 @@ var (
 
 // KlinesRequestParams represents Klines request data.
 type KlinesRequestParams struct {
-	Symbol         currency.Pair `json:"symbol"`   // Required field; example LTCBTC, BTCUSDT
-	Interval       string        `json:"interval"` // Time interval period
-	Limit          int64         `json:"limit"`    // Default 500; max 500.
+	Symbol         currency.Pair `json:"symbol"`             // Required field; example LTCBTC, BTCUSDT
+	Interval       string        `json:"interval,omitempty"` // Time interval period
+	Limit          int64         `json:"limit,omitempty"`    // Default 500; max 500.
 	StartTime      time.Time     `json:"-"`
 	EndTime        time.Time     `json:"-"`
-	Timezone       string        `json:"timeZone"`
+	Timezone       string        `json:"timeZone,omitempty"`
 	StartTimestamp int64         `json:"startTime,omitempty"`
 	EndTimestamp   int64         `json:"endTime,omitempty"`
 }
@@ -1532,4 +1532,36 @@ type RateLimitItem struct {
 	RateLimitType string `json:"rateLimitType"`
 	Interval      string `json:"interval"`
 	Limit         int64  `json:"limit"`
+}
+
+// SymbolAveragePrice represents the average symbol price
+type SymbolAveragePrice struct {
+	PriceIntervalMins int64                `json:"mins"`
+	Price             types.Number         `json:"price"`
+	CloseTime         convert.ExchangeTime `json:"closeTime"`
+}
+
+// WsTickerPriceChange 24hr ticker price change statistics
+type WsTickerPriceChange struct {
+	Symbol             string               `json:"symbol"`
+	PriceChange        types.Number         `json:"priceChange"`
+	PriceChangePercent types.Number         `json:"priceChangePercent"`
+	WeightedAvgPrice   types.Number         `json:"weightedAvgPrice"`
+	PrevClosePrice     types.Number         `json:"prevClosePrice"`
+	LastPrice          types.Number         `json:"lastPrice"`
+	LastQty            types.Number         `json:"lastQty"`
+	BidPrice           types.Number         `json:"bidPrice"`
+	BidQty             types.Number         `json:"bidQty"`
+	AskPrice           types.Number         `json:"askPrice"`
+	AskQty             types.Number         `json:"askQty"`
+	OpenPrice          types.Number         `json:"openPrice"`
+	HighPrice          types.Number         `json:"highPrice"`
+	LowPrice           types.Number         `json:"lowPrice"`
+	Volume             types.Number         `json:"volume"`
+	QuoteVolume        types.Number         `json:"quoteVolume"`
+	OpenTime           convert.ExchangeTime `json:"openTime"`
+	CloseTime          convert.ExchangeTime `json:"closeTime"`
+	FirstID            int64                `json:"firstId"`
+	LastID             int64                `json:"lastId"`
+	Count              int64                `json:"count"`
 }

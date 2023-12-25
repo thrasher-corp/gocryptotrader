@@ -270,6 +270,17 @@ func (b *Binance) Setup(exch *config.Exchange) error {
 		return err
 	}
 
+	err = b.Websocket.SetupNewConnection(stream.ConnectionSetup{
+		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
+		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
+		RateLimit:            wsRateLimitMilliseconds,
+		URL:                  binanceWebsocketAPIURL,
+		Authenticated:        true,
+	})
+	if err != nil {
+		return err
+	}
+
 	return b.Websocket.SetupNewConnection(stream.ConnectionSetup{
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,

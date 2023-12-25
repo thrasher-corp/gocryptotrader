@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"reflect"
 	"sync"
 	"testing"
@@ -3511,6 +3512,9 @@ func TestWsConnect(t *testing.T) {
 
 func TestGetWsOrderbook(t *testing.T) {
 	t.Parallel()
+	if !b.IsAPIStreamConnected() {
+		t.Skip("API streaming is not connected")
+	}
 	_, err := b.GetWsOrderbook(&OrderBookDataRequestParams{Symbol: currency.NewPair(currency.BTC, currency.USDT), Limit: 1000})
 	if err != nil {
 		t.Error(err)
@@ -3519,6 +3523,9 @@ func TestGetWsOrderbook(t *testing.T) {
 
 func TestGetWsMostRecentTrades(t *testing.T) {
 	t.Parallel()
+	if !b.IsAPIStreamConnected() {
+		t.Skip("API streaming is not connected")
+	}
 	_, err := b.GetWsMostRecentTrades(&RecentTradeRequestParams{
 		Symbol: currency.NewPair(currency.BTC, currency.USDT),
 		Limit:  15,
@@ -3530,6 +3537,9 @@ func TestGetWsMostRecentTrades(t *testing.T) {
 
 func TestGetWsAggregatedTrades(t *testing.T) {
 	t.Parallel()
+	if !b.IsAPIStreamConnected() {
+		t.Skip("API streaming is not connected")
+	}
 	_, err := b.GetWsAggregatedTrades(&WsAggregateTradeRequestParams{
 		Symbol: currency.NewPair(currency.BTC, currency.USDT),
 		Limit:  5,
@@ -3542,7 +3552,10 @@ func TestGetWsAggregatedTrades(t *testing.T) {
 func TestGetWsKlines(t *testing.T) {
 	t.Parallel()
 	start, end := getTime()
-	_, err := b.GetWsKlines(&KlinesRequestParams{
+	if !b.IsAPIStreamConnected() {
+		t.Skip("API streaming is not connected")
+	}
+	_, err := b.GetWsCandlestick(&KlinesRequestParams{
 		Symbol:    currency.NewPair(currency.BTC, currency.USDT),
 		Interval:  kline.FiveMin.Short(),
 		Limit:     24,
@@ -3551,5 +3564,70 @@ func TestGetWsKlines(t *testing.T) {
 	})
 	if err != nil {
 		t.Error("Binance GetSpotKline() error", err)
+	}
+}
+
+func TestGetWsOptimizedCandlestick(t *testing.T) {
+	t.Parallel()
+	start, end := getTime()
+	if !b.IsAPIStreamConnected() {
+		t.Skip("API streaming is not connected")
+	}
+	_, err := b.GetWsOptimizedCandlestick(&KlinesRequestParams{
+		Symbol:    currency.NewPair(currency.BTC, currency.USDT),
+		Interval:  kline.FiveMin.Short(),
+		Limit:     24,
+		StartTime: start,
+		EndTime:   end,
+	})
+	if err != nil {
+		t.Error("Binance GetSpotKline() error", err)
+	}
+}
+
+func setupWs() {
+	err := b.WsConnect()
+	if err != nil {
+		log.Fatal(err)
+	}
+}
+
+func TestGetCurrenctAveragePrice(t *testing.T) {
+	t.Parallel()
+	_, err := b.GetWsCurrenctAveragePrice(currency.NewPair(currency.BTC, currency.USDT))
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetWs24HourPriceChange(t *testing.T) {
+	t.Parallel()
+	_, err := b.GetWs24HourPriceChange(currency.NewPair(currency.BTC, currency.USDT), "")
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetWs24HourPriceChanges(t *testing.T) {
+	t.Parallel()
+	_, err := b.GetWs24HourPriceChanges([]currency.Pair{currency.NewPair(currency.BTC, currency.USDT)}, "")
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetWsTradingDayTicker(t *testing.T) {
+	t.Parallel()
+	_, err := b.GetWsTradingDayTicker(currency.NewPair(currency.BTC, currency.USDT), "", "")
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetWsTradingDayTickers(t *testing.T) {
+	t.Parallel()
+	_, err := b.GetWsTradingDayTickers([]currency.Pair{currency.NewPair(currency.BTC, currency.USDT)}, "", "")
+	if err != nil {
+		t.Error(err)
 	}
 }
