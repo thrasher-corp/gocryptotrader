@@ -307,7 +307,7 @@ type AggregatedTradeRequestParams struct {
 	Limit int
 }
 
-// WsAggregateTradeRequestParams holds request paramters for aggregate trades
+// WsAggregateTradeRequestParams holds request parameters for aggregate trades
 type WsAggregateTradeRequestParams struct {
 	Symbol currency.Pair `json:"symbol"`
 	FromID int64         `json:"fromId,omitempty"`
@@ -1549,11 +1549,6 @@ type WsTickerPriceChange struct {
 	WeightedAvgPrice   types.Number         `json:"weightedAvgPrice"`
 	PrevClosePrice     types.Number         `json:"prevClosePrice"`
 	LastPrice          types.Number         `json:"lastPrice"`
-	LastQty            types.Number         `json:"lastQty"`
-	BidPrice           types.Number         `json:"bidPrice"`
-	BidQty             types.Number         `json:"bidQty"`
-	AskPrice           types.Number         `json:"askPrice"`
-	AskQty             types.Number         `json:"askQty"`
 	OpenPrice          types.Number         `json:"openPrice"`
 	HighPrice          types.Number         `json:"highPrice"`
 	LowPrice           types.Number         `json:"lowPrice"`
@@ -1564,4 +1559,83 @@ type WsTickerPriceChange struct {
 	FirstID            int64                `json:"firstId"`
 	LastID             int64                `json:"lastId"`
 	Count              int64                `json:"count"`
+
+	LastQty  types.Number `json:"lastQty"`
+	BidPrice types.Number `json:"bidPrice"`
+	BidQty   types.Number `json:"bidQty"`
+	AskPrice types.Number `json:"askPrice"`
+	AskQty   types.Number `json:"askQty"`
+}
+
+// PriceChangeRequestParam holds request parameters for price change request parameters
+type PriceChangeRequestParam struct {
+	Symbol       currency.Pair   `json:"-"`
+	SymbolString string          `json:"symbol,omitempty"`
+	Symbols      []currency.Pair `json:"symbols,omitempty"`
+	Timezone     string          `json:"timeZone,omitempty"`
+	TickerType   string          `json:"type,omitempty"`
+}
+
+// PriceChanges holds a single or slice of WsTickerPriceChange instance into a new type.
+type PriceChanges []WsTickerPriceChange
+
+// WsRollingWindowPriceParams rolling window price change statistics request params
+type WsRollingWindowPriceParams struct {
+	Symbols            []currency.Pair `json:"symbols,omitempty"`
+	WindowSizeDuration time.Duration   `json:"-"`
+	WindowSize         string          `json:"windowSize,omitempty"`
+	TickerType         string          `json:"type,omitempty"`
+	Symbol             currency.Pair   `json:"symbol,omitempty"`
+}
+
+// SymbolTickerItem holds symbol and price information
+type SymbolTickerItem struct {
+	Symbol string       `json:"symbol"`
+	Price  types.Number `json:"price" `
+}
+
+// SymbolTickers holds symbol and price ticker information.
+type SymbolTickers []SymbolTickerItem
+
+// WsOrderbookTicker holds orderbook ticker information
+type WsOrderbookTicker struct {
+	Symbol   string       `json:"symbol"`
+	BidPrice types.Number `json:"bidPrice"`
+	BidQty   types.Number `json:"bidQty"`
+	AskPrice types.Number `json:"askPrice"`
+	AskQty   types.Number `json:"askQty"`
+}
+
+// WsOrderbookTickers represents an orderbook ticker information
+type WsOrderbookTickers []WsOrderbookTicker
+
+// TradeOrderRequestParam new order request parameter
+type TradeOrderRequestParam struct {
+	Symbol      currency.Pair `json:"symbol"`
+	Side        string        `json:"side"`
+	OrderType   string        `json:"type"`
+	TimeInForce string        `json:"timeInForce"`
+	Price       float64       `json:"price,omitempty,string"`
+	Quantity    float64       `json:"quantity,omitempty,string"`
+	APIKey      string        `json:"apiKey"`
+	Signature   string        `json:"signature"`
+	Timestamp   int64         `json:"timestamp"`
+}
+
+// TradeOrderResponse holds response for trade order.
+type TradeOrderResponse struct {
+	Symbol        string               `json:"symbol"`
+	OrderID       int64                `json:"orderId"`
+	OrderListID   int64                `json:"orderListId"`
+	ClientOrderID string               `json:"clientOrderId"`
+	TransactTime  convert.ExchangeTime `json:"transactTime"`
+}
+
+// CFuturesAuthenticationRequest holds authentication.
+type CFuturesAuthenticationRequest struct {
+	APIKey           string               `json:"apiKey"`
+	AuthorizedSince  int64                `json:"authorizedSince"`
+	ConnectedSince   int64                `json:"connectedSince"`
+	ReturnRateLimits bool                 `json:"returnRateLimits"`
+	ServerTime       convert.ExchangeTime `json:"serverTime"`
 }

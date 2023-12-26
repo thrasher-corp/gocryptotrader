@@ -3594,15 +3594,10 @@ func setupWs() {
 
 func TestGetCurrenctAveragePrice(t *testing.T) {
 	t.Parallel()
-	_, err := b.GetWsCurrenctAveragePrice(currency.NewPair(currency.BTC, currency.USDT))
-	if err != nil {
-		t.Error(err)
+	if !b.IsAPIStreamConnected() {
+		t.Skip("API streaming is not connected")
 	}
-}
-
-func TestGetWs24HourPriceChange(t *testing.T) {
-	t.Parallel()
-	_, err := b.GetWs24HourPriceChange(currency.NewPair(currency.BTC, currency.USDT), "")
+	_, err := b.GetWsCurrenctAveragePrice(currency.NewPair(currency.BTC, currency.USDT))
 	if err != nil {
 		t.Error(err)
 	}
@@ -3610,15 +3605,12 @@ func TestGetWs24HourPriceChange(t *testing.T) {
 
 func TestGetWs24HourPriceChanges(t *testing.T) {
 	t.Parallel()
-	_, err := b.GetWs24HourPriceChanges([]currency.Pair{currency.NewPair(currency.BTC, currency.USDT)}, "")
-	if err != nil {
-		t.Error(err)
+	if !b.IsAPIStreamConnected() {
+		t.Skip("API streaming is not connected")
 	}
-}
-
-func TestGetWsTradingDayTicker(t *testing.T) {
-	t.Parallel()
-	_, err := b.GetWsTradingDayTicker(currency.NewPair(currency.BTC, currency.USDT), "", "")
+	_, err := b.GetWs24HourPriceChanges(&PriceChangeRequestParam{
+		Symbols: []currency.Pair{currency.NewPair(currency.BTC, currency.USDT)},
+	})
 	if err != nil {
 		t.Error(err)
 	}
@@ -3626,8 +3618,98 @@ func TestGetWsTradingDayTicker(t *testing.T) {
 
 func TestGetWsTradingDayTickers(t *testing.T) {
 	t.Parallel()
-	_, err := b.GetWsTradingDayTickers([]currency.Pair{currency.NewPair(currency.BTC, currency.USDT)}, "", "")
+	if !b.IsAPIStreamConnected() {
+		t.Skip("API streaming is not connected")
+	}
+	_, err := b.GetWsTradingDayTickers(&PriceChangeRequestParam{
+		Symbols: []currency.Pair{currency.NewPair(currency.BTC, currency.USDT)},
+	})
 	if err != nil {
 		t.Error(err)
+	}
+}
+
+func TestGetSymbolPriceTicker(t *testing.T) {
+	t.Parallel()
+	if !b.IsAPIStreamConnected() {
+		t.Skip("API streaming is not connected")
+	}
+	_, err := b.GetSymbolPriceTicker(currency.NewPair(currency.BTC, currency.USDT))
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestGetWsSymbolOrderbookTicker(t *testing.T) {
+	t.Parallel()
+	if !b.IsAPIStreamConnected() {
+		t.Skip("API streaming is not connected")
+	}
+	_, err := b.GetWsSymbolOrderbookTicker([]currency.Pair{currency.NewPair(currency.BTC, currency.USDT)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = b.GetWsSymbolOrderbookTicker([]currency.Pair{
+		currency.NewPair(currency.BTC, currency.USDT),
+		currency.NewPair(currency.ETH, currency.USDT),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestWsLogin(t *testing.T) {
+	t.Parallel()
+	if !b.IsAPIStreamConnected() {
+		t.Skip("API streaming is not connected")
+	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	_, err := b.WsLogin()
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestGetQuerySessionStatus(t *testing.T) {
+	t.Parallel()
+	if !b.IsAPIStreamConnected() {
+		t.Skip("API streaming is not connected")
+	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	_, err := b.GetQuerySessionStatus()
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestGetLogOutOfSession(t *testing.T) {
+	t.Parallel()
+	if !b.IsAPIStreamConnected() {
+		t.Skip("API streaming is not connected")
+	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	_, err := b.GetLogOutOfSession()
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestPlaceNewOrder(t *testing.T) {
+	t.Parallel()
+	if !b.IsAPIStreamConnected() {
+		t.Skip("API streaming is not connected")
+	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	_, err := b.PlaceNewOrder(&TradeOrderRequestParam{
+		Symbol:      currency.NewPair(currency.BTC, currency.USDT),
+		Side:        "SELL",
+		OrderType:   "LIMIT",
+		TimeInForce: "GTC",
+		Price:       1234,
+		Quantity:    1,
+		Timestamp:   time.Now().UnixMilli(),
+	})
+	if err != nil {
+		t.Fatal(err)
 	}
 }

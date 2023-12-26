@@ -432,6 +432,9 @@ func (b *Binance) GetSpotKline(ctx context.Context, arg *KlinesRequestParams) ([
 		path,
 		spotDefaultRate,
 		&resp)
+	if err != nil {
+		return nil, err
+	}
 	klineData := make([]CandleStick, len(resp))
 	for x := range resp {
 		if len(resp[x]) != 12 {

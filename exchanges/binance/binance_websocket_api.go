@@ -1,6 +1,7 @@
 package binance
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -9,9 +10,11 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
+	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
@@ -105,6 +108,45 @@ func (b *Binance) wsHandleSpotAPIData(respRaw []byte) error {
 		return nil
 	}
 	return fmt.Errorf("unhandled stream data %s", string(respRaw))
+}
+
+// SendWsRequest sends websocket endpoint request through the websocket connection
+func (b *Binance) SendWsRequest(method string, param, result interface{}) error {
+	input := &struct {
+		ID     string      `json:"id"`
+		Method string      `json:"method"`
+		Params interface{} `json:"params"`
+	}{
+		ID:     strconv.FormatInt(b.Websocket.AuthConn.GenerateMessageID(false), 10),
+		Method: method,
+		Params: param,
+	}
+	respRaw, err := b.Websocket.AuthConn.SendMessageReturnResponse(input.ID, input)
+	if err != nil {
+		return err
+	}
+	resp := &struct {
+		ID     string      `json:"id"`
+		Status int64       `json:"status"`
+		Result interface{} `json:"result"`
+	}{
+		Result: result,
+	}
+	err = json.Unmarshal(respRaw, &resp)
+	if err != nil {
+		return err
+	}
+	switch resp.Status {
+	case 200:
+		return nil
+	case 400, 403, 409, 418, 419:
+		return fmt.Errorf("status code: %d, msg: %s", resp.Status, websocketStatusCodes[resp.Status])
+	default:
+		if resp.Status >= 500 {
+			return fmt.Errorf("status code: %d, msg: internal server error", resp.Status)
+		}
+		return fmt.Errorf("status code: %d, msg: request failed", resp.Status)
+	}
 }
 
 // GetWsOrderbook returns full orderbook information
@@ -233,119 +275,148 @@ func (b *Binance) GetWsCurrenctAveragePrice(symbol currency.Pair) (*SymbolAverag
 	return &resp, b.SendWsRequest("avgPrice", arg, &resp)
 }
 
-// GetWs24HourPriceChange 24-hour rolling window price change statistics through the websocket stream.
-func (b *Binance) GetWs24HourPriceChange(symbol currency.Pair, tickerType string) (*WsTickerPriceChange, error) {
-	if symbol.IsEmpty() {
-		return nil, currency.ErrCurrencyPairEmpty
-	}
-	arg := &struct {
-		Symbol     currency.Pair `json:"symbol"`
-		TickerType string        `json:"type,omitempty"`
-	}{
-		Symbol:     symbol,
-		TickerType: tickerType,
-	}
-	var resp WsTickerPriceChange
-	return &resp, b.SendWsRequest("ticker.24hr", arg, &resp)
-}
-
 // GetWs24HourPriceChanges 24-hour rolling window price changes statistics through the websocket stream.
 // 'type': 'FULL' (default) or 'MINI'
 // 'timeZone' Default: 0 (UTC)
-func (b *Binance) GetWs24HourPriceChanges(symbols currency.Pairs, tickerType string) ([]WsTickerPriceChange, error) {
-	if len(symbols) == 0 {
-		return nil, currency.ErrCurrencyPairsEmpty
-	}
-	arg := &struct {
-		Symbols    []string `json:"symbols"`
-		TickerType string   `json:"type,omitempty"`
-	}{
-		Symbols:    symbols.Strings(),
-		TickerType: tickerType,
-	}
-	var resp []WsTickerPriceChange
-	return resp, b.SendWsRequest("ticker.24hr", arg, &resp)
-}
-
-// GetWsTradingDayTicker price change statistics for a trading day.
-// 'type': 'FULL' (default) or 'MINI'
-// 'timeZone' Default: 0 (UTC)
-func (b *Binance) GetWsTradingDayTicker(symbol currency.Pair, timezone, tickerType string) (*WsTickerPriceChange, error) {
-	if symbol.IsEmpty() {
-		return nil, currency.ErrCurrencyPairEmpty
-	}
-	arg := &struct {
-		Symbol     string `json:"symbol"`
-		Timezone   string `json:"timeZone,omitempty"`
-		TickerType string `json:"type,omitempty"`
-	}{
-		Symbol:     symbol.String(),
-		Timezone:   timezone,
-		TickerType: tickerType,
-	}
-	var resp WsTickerPriceChange
-	return &resp, b.SendWsRequest("ticker.tradingDay", arg, &resp)
+func (b *Binance) GetWs24HourPriceChanges(arg *PriceChangeRequestParam) ([]WsTickerPriceChange, error) {
+	return b.tickerDataChange("ticker.24hr", arg)
 }
 
 // GetWsTradingDayTickers price change statistics for a trading day.
 // 'type': 'FULL' (default) or 'MINI'
 // 'timeZone' Default: 0 (UTC)
-func (b *Binance) GetWsTradingDayTickers(symbols currency.Pairs, timezone, tickerType string) ([]WsTickerPriceChange, error) {
-	if len(symbols) == 0 {
-		return nil, currency.ErrCurrencyPairsEmpty
-	}
-	arg := &struct {
-		Symbols    []string `json:"symbols"`
-		Timezone   string   `json:"timeZone,omitempty"`
-		TickerType string   `json:"type,omitempty"`
-	}{
-		Symbols:    symbols.Strings(),
-		Timezone:   timezone,
-		TickerType: tickerType,
-	}
-	var resp []WsTickerPriceChange
-	return resp, b.SendWsRequest("ticker.tradingDay", arg, &resp)
+func (b *Binance) GetWsTradingDayTickers(arg *PriceChangeRequestParam) ([]WsTickerPriceChange, error) {
+	return b.tickerDataChange("ticker.tradingDay", arg)
 }
 
-// GetRollingWindowPriceChangeStatistics retrieves rolling window price change statistics with a custom window.
-// this request is similar to ticker.24hr, but statistics are computed on demand using the arbitrary window you specify
-// func (b *Binance) GetRollingWindowPriceChangeStatistics()
+// tickerDataChange unifying method to make price change requests through the websocket stream.
+func (b *Binance) tickerDataChange(method string, arg *PriceChangeRequestParam) ([]WsTickerPriceChange, error) {
+	if arg == nil {
+		return nil, errNilArgument
+	}
+	if arg.Symbol.IsEmpty() && len(arg.Symbols) == 0 {
+		return nil, currency.ErrCurrencyPairsEmpty
+	}
+	if !arg.Symbol.IsEmpty() {
+		arg.SymbolString = arg.Symbol.String()
+	}
+	var resp PriceChanges
+	return resp, b.SendWsRequest(method, arg, &resp)
+}
 
-// SendWsRequest sends websocket endpoint request through the websocket connection
-func (b *Binance) SendWsRequest(method string, param, result interface{}) error {
-	input := &struct {
-		ID     string      `json:"id"`
-		Method string      `json:"method"`
-		Params interface{} `json:"params"`
+// WindowSizeToString converts a duration instance and returns a string.
+func (b *Binance) WindowSizeToString(windowSize time.Duration) string {
+	switch {
+	case windowSize/(time.Hour*24) > 0:
+		return strconv.FormatInt(int64(windowSize/(time.Hour*24)), 10) + "d"
+	case (windowSize / time.Hour) > 0:
+		return strconv.FormatInt(int64(windowSize/time.Hour), 10) + "h"
+	case (windowSize / time.Minute) > 0:
+		return strconv.FormatInt(int64((windowSize/time.Minute)), 10) + "m"
+	}
+	return ""
+}
+
+// GetSymbolPriceTicker represents a symbol ticker item information.
+func (b *Binance) GetSymbolPriceTicker(symbol currency.Pair) ([]SymbolTickerItem, error) {
+	if symbol.IsEmpty() {
+		return nil, currency.ErrCurrencyPairsEmpty
+	}
+	var resp SymbolTickers
+	return resp, b.SendWsRequest("ticker.price", map[string]string{"symbol": symbol.String()}, &resp)
+}
+
+// GetWsRollingWindowPriceChanges retrieves rolling window price change statistics with a custom window.
+// this request is similar to ticker.24hr, but statistics are computed on demand using the arbitrary window you specify
+func (b *Binance) GetWsRollingWindowPriceChanges(arg *WsRollingWindowPriceParams) ([]WsTickerPriceChange, error) {
+	if arg.Symbol.IsEmpty() && len(arg.Symbols) == 0 {
+		return nil, currency.ErrSymbolStringEmpty
+	}
+	arg.WindowSize = b.WindowSizeToString(arg.WindowSizeDuration)
+	var resp PriceChanges
+	return resp, b.SendWsRequest("ticker", arg, &resp)
+}
+
+// GetWsSymbolOrderbookTicker retrieves the current best price and quantity on the order book.
+func (b *Binance) GetWsSymbolOrderbookTicker(symbols currency.Pairs) ([]WsOrderbookTicker, error) {
+	if len(symbols) == 0 || (len(symbols) == 1 && symbols[0].IsEmpty()) {
+		return nil, currency.ErrCurrencyPairsEmpty
+	}
+	var (
+		symbolString  string
+		symbolsString []string
+	)
+	if len(symbols) > 1 {
+		symbolsString = symbols.Strings()
+	} else {
+		symbolString = symbols[0].String()
+	}
+	arg := &struct {
+		Symbol  string   `json:"symbol,omitempty"`
+		Symbols []string `json:"symbols,omitempty"`
 	}{
-		ID:     strconv.FormatInt(b.Websocket.AuthConn.GenerateMessageID(false), 10),
-		Method: method,
-		Params: param,
+		Symbols: symbolsString,
+		Symbol:  symbolString,
 	}
-	respRaw, err := b.Websocket.AuthConn.SendMessageReturnResponse(input.ID, input)
+
+	var resp WsOrderbookTickers
+	return resp, b.SendWsRequest("ticker.book", arg, &resp)
+}
+
+// WsLogin authenticates websocket API stream.
+func (b *Binance) WsLogin() (*CFuturesAuthenticationRequest, error) {
+	creds, err := b.GetCredentials(context.Background())
 	if err != nil {
-		return err
+		return nil, err
 	}
-	resp := &struct {
-		ID     string      `json:"id"`
-		Status int64       `json:"status"`
-		Result interface{} `json:"result"`
+	timestamp := time.Now().UnixMilli()
+	payloadString := (fmt.Sprintf("timestamp=%d", timestamp))
+	var hmacSigned []byte
+	hmacSigned, err = crypto.GetHMAC(crypto.HashSHA256,
+		[]byte(payloadString),
+		[]byte(creds.Secret))
+	if err != nil {
+		return nil, err
+	}
+	hmacSignedStr := crypto.HexEncodeToString(hmacSigned)
+	arg := &struct {
+		APIKey    string `json:"apiKey"`
+		Signature string `json:"signature"`
+		Timestamp int64  `json:"timestamp"`
 	}{
-		Result: result,
+		APIKey:    creds.Key,
+		Signature: hmacSignedStr,
+		Timestamp: timestamp,
 	}
-	err = json.Unmarshal(respRaw, &resp)
-	if err != nil {
-		return err
+	var resp CFuturesAuthenticationRequest
+	return &resp, b.SendWsRequest("session.logon", arg, &resp)
+}
+
+// GetQuerySessionStatus query the status of the WebSocket connection, inspecting which API key (if any) is used to authorize requests.
+func (b *Binance) GetQuerySessionStatus() (*CFuturesAuthenticationRequest, error) {
+	var resp CFuturesAuthenticationRequest
+	return &resp, b.SendWsRequest("session.status", nil, &resp)
+}
+
+// GetLogOutOfSession forget the API key previously authenticated. If the connection is not authenticated, this request does nothing.
+func (b *Binance) GetLogOutOfSession() (*CFuturesAuthenticationRequest, error) {
+	var resp CFuturesAuthenticationRequest
+	return &resp, b.SendWsRequest("session.logout", nil, &resp)
+}
+
+// ----------------------------------------------------------- Trading Requests ----------------------------------------------------
+
+// PlaceNewOrder place new order
+func (b *Binance) PlaceNewOrder(arg *TradeOrderRequestParam) (*TradeOrderResponse, error) {
+	if arg.Symbol.IsEmpty() {
+		return nil, currency.ErrCurrencyPairEmpty
 	}
-	switch resp.Status {
-	case 200:
-		return nil
-	case 400, 403, 409, 418, 419:
-		return errors.New(websocketStatusCodes[resp.Status])
-	default:
-		if resp.Status >= 500 {
-			return errors.New("internal server error")
-		}
-		return errors.New("request failed")
+	if arg.Side == "" {
+		return nil, order.ErrSideIsInvalid
 	}
+	if arg.OrderType == "" {
+		return nil, order.ErrTypeIsInvalid
+	}
+	var resp TradeOrderResponse
+	return &resp, b.SendWsRequest("order.place", arg, &resp)
 }
