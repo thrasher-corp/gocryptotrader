@@ -2,14 +2,21 @@ package kraken
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
+	"fmt"
 	"log"
+	"net/http"
+	"net/http/httptest"
 	"os"
+	"strings"
 	"sync"
 	"testing"
 	"time"
 
+	"github.com/gorilla/websocket"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/common/key"
@@ -40,26 +47,9 @@ const (
 
 var btcusdPair = currency.NewPairWithDelimiter("XBT", "USD", "/")
 
-// TestSetup setup func
 func TestMain(m *testing.M) {
-	k.SetDefaults()
-	cfg := config.GetConfig()
-	err := cfg.LoadConfig("../../testdata/configtest.json", true)
-	if err != nil {
-		log.Fatal(err)
-	}
-	krakenConfig, err := cfg.GetExchangeConfig("Kraken")
-	if err != nil {
-		log.Fatal(err)
-	}
-	if apiKey != "" {
-		krakenConfig.API.Credentials.Key = apiKey
-	}
-	if apiSecret != "" {
-		krakenConfig.API.Credentials.Secret = apiSecret
-	}
-	k.Websocket = sharedtestvalues.NewTestWebsocket()
-	err = k.Setup(krakenConfig)
+	var err error
+	k, err = testInstance()
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -1375,6 +1365,7 @@ func TestGetWSToken(t *testing.T) {
 }
 
 func TestWsAddOrder(t *testing.T) {
+	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, k, canManipulateRealOrders)
 	setupWs(t)
 	_, err := k.wsAddOrder(&WsAddOrderRequest{
@@ -1388,11 +1379,47 @@ func TestWsAddOrder(t *testing.T) {
 	}
 }
 
-func TestWsCancelOrder(t *testing.T) {
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, k, canManipulateRealOrders)
-	setupWs(t)
-	if err := k.wsCancelOrders([]string{"1337"}); err != nil {
-		t.Error(err)
+func TestWsCancelOrders(t *testing.T) {
+	t.Parallel()
+	if sharedtestvalues.AreAPICredentialsSet(k) && canManipulateRealOrders { // Live test
+		setupWs(t)
+		if err := k.wsCancelOrders([]string{"1337"}); err != nil {
+			t.Error(err)
+		}
+	} else {
+		m := wsMockInstance(t, func(msg []byte, w *websocket.Conn) error {
+			var req WsCancelOrderRequest
+			if err := json.Unmarshal(msg, &req); err != nil {
+				return err
+			}
+			if req.Event != krakenWsCancelOrder {
+				return w.WriteMessage(websocket.TextMessage, []byte(fmt.Sprintf(`{"event":"subscriptionStatus","reqid":%d,"status":"ok"}`, req.RequestID)))
+			}
+			resp := WsCancelOrderResponse{
+				Event:     krakenWsCancelOrderStatus,
+				Status:    "ok",
+				RequestID: req.RequestID,
+				Count:     int64(len(req.TransactionIDs)),
+			}
+			if len(req.TransactionIDs) == 0 || strings.Contains(req.TransactionIDs[0], "FISH") { // Reject anything that smells suspicious
+				resp.Status = "error"
+				resp.ErrorMessage = "[EOrder:Unknown order]"
+			}
+			respJSON, err := json.Marshal(resp)
+			if err != nil {
+				return err
+			}
+			return w.WriteMessage(websocket.TextMessage, respJSON)
+		})
+
+		err := m.wsCancelOrders([]string{"RABBIT", "BATFISH", "SQUIRREL", "CATFISH", "MOUSE"})
+		assert.ErrorIs(t, err, errCancellingOrder, "Should error cancelling order")
+		assert.ErrorContains(t, err, "BATFISH", "Should error containing txn id")
+		assert.ErrorContains(t, err, "CATFISH", "Should error containing txn id")
+		assert.ErrorContains(t, err, "[EOrder:Unknown order]", "Should error containing server error")
+
+		err = m.wsCancelOrders([]string{"RABBIT", "SQUIRREL", "MOUSE"})
+		assert.NoError(t, err, "Should not error without bad txn id")
 	}
 }
 
@@ -1721,18 +1748,6 @@ func TestWsAddOrderJSON(t *testing.T) {
   "event": "addOrderStatus",
   "status": "ok",
   "txid": "ONPNXH-KMKMU-F4MR5V"
-}`)
-	err := k.wsHandleData(pressXToJSON)
-	if err != nil {
-		t.Error(err)
-	}
-}
-
-func TestWsCancelOrderJSON(t *testing.T) {
-	t.Parallel()
-	pressXToJSON := []byte(`{
-  "event": "cancelOrderStatus",
-  "status": "ok"
 }`)
 	err := k.wsHandleData(pressXToJSON)
 	if err != nil {
@@ -2142,4 +2157,72 @@ func TestGetOpenInterest(t *testing.T) {
 	_, err = k.GetOpenInterest(context.Background())
 	assert.NoError(t, err)
 	assert.NotEmpty(t, resp)
+}
+
+func testInstance() (*Kraken, error) {
+	k := new(Kraken)
+	k.SetDefaults()
+	cfg := config.GetConfig()
+	err := cfg.LoadConfig("../../testdata/configtest.json", true)
+	if err != nil {
+		return nil, fmt.Errorf("Error loading config: %w", err)
+	}
+	krakenConfig, err := cfg.GetExchangeConfig("Kraken")
+	if err != nil {
+		return nil, fmt.Errorf("Error getting exchange config: %w", err)
+	}
+	if apiKey != "" {
+		krakenConfig.API.Credentials.Key = apiKey
+	}
+	if apiSecret != "" {
+		krakenConfig.API.Credentials.Secret = apiSecret
+	}
+	k.Websocket = sharedtestvalues.NewTestWebsocket()
+	err = k.Setup(krakenConfig)
+
+	return k, err
+}
+
+type wsMockFunc func(msg []byte, w *websocket.Conn) error
+
+func wsMockInstance(tb testing.TB, m wsMockFunc) *Kraken {
+	tb.Helper()
+
+	k, err := testInstance()
+	require.NoError(tb, err, "testInstance should not error")
+
+	s := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { wsMockWrapper(tb, w, r, m) }))
+
+	err = k.API.Endpoints.SetRunning("RestSpotURL", s.URL)
+	require.NoError(tb, err, "SetRunning should not error")
+	for _, auth := range []bool{true, false} {
+		err = k.Websocket.SetWebsocketURL("ws"+strings.TrimPrefix(s.URL, "http"), auth, true)
+		require.NoErrorf(tb, err, "SetWebsocketURL should not error for auth: %v", auth)
+	}
+
+	k.API.AuthenticatedWebsocketSupport = true
+	k.GetBase().SkipAuthCheck = true
+	err = k.Websocket.Connect()
+	require.NoError(tb, err, "Connect should not error")
+
+	return k
+}
+
+func wsMockWrapper(tb testing.TB, w http.ResponseWriter, r *http.Request, m wsMockFunc) {
+	tb.Helper()
+	if strings.Contains(r.URL.Path, "GetWebSocketsToken") {
+		_, err := w.Write([]byte(`{"result":{"token":"mockAuth"}}`))
+		require.NoError(tb, err, "Write should not error")
+		return
+	}
+	c, err := new(websocket.Upgrader).Upgrade(w, r, nil)
+	require.NoError(tb, err, "Upgrade connection should not error")
+	defer c.Close()
+	for {
+		_, p, err := c.ReadMessage()
+		require.NoError(tb, err, "ReadMessage should not error")
+
+		err = m(p, c)
+		assert.NoError(tb, err, "WS Mock Function should not error")
+	}
 }
