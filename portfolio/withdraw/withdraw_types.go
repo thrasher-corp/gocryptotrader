@@ -92,6 +92,9 @@ type Request struct {
 	// Used exclusively in Binance.US
 	ClientOrderID string `json:"clientID"`
 
+	// Currently used exclusively in Coinbase
+	WalletID string `json:"walletID"`
+
 	// Used exclusively in Okcoin to classify internal represented by '3' or on chain represented by '4'
 	InternalTransfer bool
 

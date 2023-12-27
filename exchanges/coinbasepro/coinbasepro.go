@@ -15,6 +15,8 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
+	"github.com/thrasher-corp/gocryptotrader/common/key"
+	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
@@ -80,6 +82,8 @@ const (
 	granOneDay                       = "ONE_DAY"
 	startDateString                  = "start_date"
 	endDateString                    = "end_date"
+
+	errPayMethodNotFound = "payment method '%v' not found"
 )
 
 var (
@@ -108,6 +112,7 @@ var (
 	errPointerNil             = errors.New("relevant pointer is nil")
 	errNameEmpty              = errors.New("name cannot be empty")
 	errPortfolioIDEmpty       = errors.New("portfolio id cannot be empty")
+	errFeeTypeNotSupported    = errors.New("fee type not supported")
 )
 
 // GetAllAccounts returns information on all trading accounts associated with the API key
@@ -2072,56 +2077,63 @@ func (c *CoinbasePro) SendAuthenticatedHTTPRequest(ctx context.Context, ep excha
 	return json.Unmarshal(interim, result)
 }
 
-// // GetFee returns an estimate of fee based on type of transaction
-// func (c *CoinbasePro) GetFee(ctx context.Context, feeBuilder *exchange.FeeBuilder) (float64, error) {
-// 	var fee float64
-// 	switch feeBuilder.FeeType {
-// 	case exchange.CryptocurrencyTradeFee:
-// 		fees, err := c.GetFees(ctx)
-// 		if err != nil {
-// 			fee = fees.TakerFeeRate
-// 		} else {
-// 			fee = 0.006
-// 		}
-// 	case exchange.InternationalBankWithdrawalFee:
-// 		fee = getInternationalBankWithdrawalFee(feeBuilder.FiatCurrency)
-// 	case exchange.InternationalBankDepositFee:
-// 		fee = getInternationalBankDepositFee(feeBuilder.FiatCurrency)
-// 	case exchange.OfflineTradeFee:
-// 		fee = getOfflineTradeFee(feeBuilder.PurchasePrice, feeBuilder.Amount)
-// 	}
+// GetFee returns an estimate of fee based on type of transaction
+func (c *CoinbasePro) GetFee(ctx context.Context, feeBuilder *exchange.FeeBuilder) (float64, error) {
+	if feeBuilder == nil {
+		return 0, fmt.Errorf("%T %w", feeBuilder, common.ErrNilPointer)
+	}
+	var fee float64
+	switch {
+	case !c.IsStablePair(feeBuilder.Pair) && feeBuilder.FeeType == exchange.CryptocurrencyTradeFee:
+		fees, err := c.GetTransactionSummary(ctx, time.Now().Add(-time.Hour*24*30), time.Now(), "", "", "")
+		fmt.Printf("Fees struct: %v\n", fees)
+		if err != nil {
+			return 0, err
+		}
+		if feeBuilder.IsMaker {
+			fee = fees.FeeTier.MakerFeeRate
+		} else {
+			fee = fees.FeeTier.TakerFeeRate
+		}
+	case feeBuilder.IsMaker && c.IsStablePair(feeBuilder.Pair) &&
+		(feeBuilder.FeeType == exchange.CryptocurrencyTradeFee || feeBuilder.FeeType == exchange.OfflineTradeFee):
+		fee = 0
+	case !feeBuilder.IsMaker && c.IsStablePair(feeBuilder.Pair) &&
+		(feeBuilder.FeeType == exchange.CryptocurrencyTradeFee || feeBuilder.FeeType == exchange.OfflineTradeFee):
+		fee = 0.00001
+	case feeBuilder.IsMaker && !c.IsStablePair(feeBuilder.Pair) && feeBuilder.FeeType == exchange.OfflineTradeFee:
+		fee = 0.006
+	case !feeBuilder.IsMaker && !c.IsStablePair(feeBuilder.Pair) && feeBuilder.FeeType == exchange.OfflineTradeFee:
+		fee = 0.008
+	default:
+		return 0, errFeeTypeNotSupported
+	}
+	return fee * feeBuilder.Amount * feeBuilder.PurchasePrice, nil
+}
 
-// 	if fee < 0 {
-// 		fee = 0
-// 	}
+var stableMap = map[key.PairAsset]bool{
+	{Base: currency.USDT.Item, Quote: currency.USD.Item}:  true,
+	{Base: currency.USDT.Item, Quote: currency.EUR.Item}:  true,
+	{Base: currency.USDC.Item, Quote: currency.EUR.Item}:  true,
+	{Base: currency.USDC.Item, Quote: currency.GBP.Item}:  true,
+	{Base: currency.USDT.Item, Quote: currency.GBP.Item}:  true,
+	{Base: currency.USDT.Item, Quote: currency.USDC.Item}: true,
+	{Base: currency.DAI.Item, Quote: currency.USD.Item}:   true,
+	{Base: currency.CBETH.Item, Quote: currency.ETH.Item}: true,
+	{Base: currency.PYUSD.Item, Quote: currency.USD.Item}: true,
+	{Base: currency.EUROC.Item, Quote: currency.USD.Item}: true,
+	{Base: currency.GUSD.Item, Quote: currency.USD.Item}:  true,
+	{Base: currency.EUROC.Item, Quote: currency.EUR.Item}: true,
+	{Base: currency.WBTC.Item, Quote: currency.BTC.Item}:  true,
+	{Base: currency.LSETH.Item, Quote: currency.ETH.Item}: true,
+	{Base: currency.GYEN.Item, Quote: currency.USD.Item}:  true,
+	{Base: currency.PAX.Item, Quote: currency.USD.Item}:   true,
+}
 
-// 	return fee, nil
-// }
-
-// // getOfflineTradeFee calculates the worst case-scenario trading fee
-// func getOfflineTradeFee(price, amount float64) float64 {
-// 	return 0.0025 * price * amount
-// }
-
-// func (c *CoinbasePro) calculateTradingFee(trailingVolume []Volume, base, quote currency.Code, delimiter string, purchasePrice, amount float64, isMaker bool) float64 {
-// 	var fee float64
-// 	for _, i := range trailingVolume {
-// 		if strings.EqualFold(i.ProductID, base.String()+delimiter+quote.String()) {
-// 			switch {
-// 			case isMaker:
-// 				fee = 0
-// 			case i.Volume <= 10000000:
-// 				fee = 0.003
-// 			case i.Volume > 10000000 && i.Volume <= 100000000:
-// 				fee = 0.002
-// 			case i.Volume > 100000000:
-// 				fee = 0.001
-// 			}
-// 			break
-// 		}
-// 	}
-// 	return fee * amount * purchasePrice
-// }
+// IsStablePair returns true if the currency pair is considered a "stable pair" by Coinbase
+func (c *CoinbasePro) IsStablePair(pair currency.Pair) bool {
+	return stableMap[key.PairAsset{Base: pair.Base.Item, Quote: pair.Quote.Item}]
+}
 
 // func getInternationalBankWithdrawalFee(c currency.Code) float64 {
 // 	var fee float64

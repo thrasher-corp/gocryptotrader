@@ -440,23 +440,27 @@ type TransactionSummary struct {
 	TotalVolume float64 `json:"total_volume"`
 	TotalFees   float64 `json:"total_fees"`
 	FeeTier     struct {
-		PricingTier  float64 `json:"pricing_tier,string"`
-		USDFrom      float64 `json:"usd_from,string"`
-		USDTo        float64 `json:"usd_to,string"`
-		TakerFeeRate float64 `json:"taker_fee_rate,string"`
-		MakerFeeRate float64 `json:"maker_fee_rate,string"`
-	}
+		PricingTier  string                  `json:"pricing_tier"`
+		USDFrom      float64                 `json:"usd_from,string"`
+		USDTo        float64                 `json:"usd_to,string"`
+		TakerFeeRate float64                 `json:"taker_fee_rate,string"`
+		MakerFeeRate float64                 `json:"maker_fee_rate,string"`
+		AOPFrom      convert.StringToFloat64 `json:"aop_from"`
+		AOPTo        convert.StringToFloat64 `json:"aop_to"`
+	} `json:"fee_tier"`
 	MarginRate struct {
 		Value float64 `json:"value,string"`
-	}
+	} `json:"margin_rate"`
 	GoodsAndServicesTax struct {
 		Rate float64 `json:"rate,string"`
 		Type string  `json:"type"`
-	}
-	AdvancedTradeOnlyVolume float64 `json:"advanced_trade_only_volume"`
-	AdvancedTradeOnlyFees   float64 `json:"advanced_trade_only_fees"`
-	CoinbaseProVolume       float64 `json:"coinbase_pro_volume"`
-	CoinbaseProFees         float64 `json:"coinbase_pro_fees"`
+	} `json:"goods_and_services_tax"`
+	AdvancedTradeOnlyVolume float64                 `json:"advanced_trade_only_volume"`
+	AdvancedTradeOnlyFees   float64                 `json:"advanced_trade_only_fees"`
+	CoinbaseProVolume       float64                 `json:"coinbase_pro_volume"`
+	CoinbaseProFees         float64                 `json:"coinbase_pro_fees"`
+	TotalBalance            convert.StringToFloat64 `json:"total_balance"`
+	HasPromoFee             bool                    `json:"has_promo_fee"`
 }
 
 // GetAllOrdersResp contains information on a lot of orders, returned by GetAllOrders

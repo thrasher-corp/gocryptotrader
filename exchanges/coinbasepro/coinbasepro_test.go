@@ -51,9 +51,14 @@ const (
 	errIDNotSet               = "ID not set"
 	skipPayMethodNotFound     = "no payment methods found, skipping"
 	skipInsufSuitableAccs     = "insufficient suitable accounts found, skipping"
+	skipInsufficientFunds     = "insufficient funds for test, skipping"
 	errx7f                    = "setting proxy address error parse \"\\x7f\": net/url: invalid control character in URL"
 	errPortfolioNameDuplicate = `CoinbasePro unsuccessful HTTP status code: 409 raw response: {"error":"CONFLICT","error_details":"[PORTFOLIO_ERROR_CODE_ALREADY_EXISTS] the requested portfolio name already exists","message":"[PORTFOLIO_ERROR_CODE_ALREADY_EXISTS] the requested portfolio name already exists"}, authenticated request failed`
 	errPortTransferInsufFunds = `CoinbasePro unsuccessful HTTP status code: 429 raw response: {"error":"unknown","error_details":"[PORTFOLIO_ERROR_CODE_INSUFFICIENT_FUNDS] insufficient funds in source account","message":"[PORTFOLIO_ERROR_CODE_INSUFFICIENT_FUNDS] insufficient funds in source account"}, authenticated request failed`
+	errFeeBuilderNil          = "*exchange.FeeBuilder nil pointer"
+	errUnsupportedAssetType   = " unsupported asset type"
+
+	testAmount = 0.00000001
 )
 
 func TestMain(m *testing.M) {
@@ -402,7 +407,7 @@ func TestMovePortfolioFunds(t *testing.T) {
 		t.Skip("fewer than 2 portfolios found, skipping")
 	}
 	_, err = c.MovePortfolioFunds(context.Background(), portID.Portfolios[0].UUID, portID.Portfolios[1].UUID, "BTC",
-		0.00000001)
+		testAmount)
 	if err != nil && err.Error() != errPortTransferInsufFunds {
 		t.Error(err)
 	}
@@ -890,8 +895,27 @@ func TestSendMoney(t *testing.T) {
 	if len(wID.Data) < 2 {
 		t.Skip("fewer than 2 wallets found, skipping test")
 	}
+	var (
+		fromID string
+		toID   string
+	)
+	for i := range wID.Data {
+		if wID.Data[i].Currency.Name == "BTC" {
+			if wID.Data[i].Balance.Amount > 0 {
+				fromID = wID.Data[i].ID
+			} else {
+				toID = wID.Data[i].ID
+			}
+		}
+		if fromID != "" && toID != "" {
+			break
+		}
+	}
+	if fromID == "" || toID == "" {
+		t.Skip("insufficient funds or BTC wallets, skipping")
+	}
 	_, err = c.SendMoney(context.Background(), "transfer", wID.Data[0].ID, wID.Data[1].ID,
-		"BTC", "GCT Test", "123", "", "", 0.00000001, false, false)
+		"BTC", "GCT Test", "123", "", "", testAmount, false, false)
 	if err != nil {
 		t.Error(err)
 	}
@@ -2486,7 +2510,7 @@ func TestWsStatus(t *testing.T) {
             "quote_currency": "USD",
             "base_min_size": "0.001",
             "base_max_size": "70",
-            "base_increment": "0.00000001",
+            "base_increment": "testAmount",
             "quote_increment": "0.01",
             "display_name": "BTC/USD",
             "status": "online",
@@ -2520,10 +2544,10 @@ func TestWsStatus(t *testing.T) {
         {
             "id": "BTC",
             "name": "Bitcoin",
-            "min_size": "0.00000001",
+            "min_size": "testAmount",
             "status": "online",
             "status_message": null,
-            "max_precision": "0.00000001",
+            "max_precision": "testAmount",
             "convertible_to": []
         }
     ]
@@ -2769,6 +2793,72 @@ func TestStatusToStandardStatus(t *testing.T) {
 // }
 
 */
+
+func TestGetFee(t *testing.T) {
+	_, err := c.GetFee(context.Background(), nil)
+	if err.Error() != errFeeBuilderNil {
+		t.Errorf(errExpectMismatch, errFeeBuilderNil, err)
+	}
+	feeBuilder := exchange.FeeBuilder{
+		FeeType:       exchange.OfflineTradeFee,
+		Amount:        1,
+		PurchasePrice: 1,
+	}
+	resp, err := c.GetFee(context.Background(), &feeBuilder)
+	if err != nil {
+		t.Error(err)
+	}
+	if resp != 0.008 {
+		t.Errorf(errExpectMismatch, resp, 0.008)
+	}
+	feeBuilder.IsMaker = true
+	resp, err = c.GetFee(context.Background(), &feeBuilder)
+	if err != nil {
+		t.Error(err)
+	}
+	if resp != 0.006 {
+		t.Errorf(errExpectMismatch, resp, 0.006)
+	}
+	feeBuilder.Pair = currency.NewPair(currency.USDT, currency.USD)
+	resp, err = c.GetFee(context.Background(), &feeBuilder)
+	if err != nil {
+		t.Error(err)
+	}
+	if resp != 0 {
+		t.Errorf(errExpectMismatch, resp, 0)
+	}
+	feeBuilder.IsMaker = false
+	resp, err = c.GetFee(context.Background(), &feeBuilder)
+	if err != nil {
+		t.Error(err)
+	}
+	if resp != 0.00001 {
+		t.Errorf(errExpectMismatch, resp, 0.00001)
+	}
+	feeBuilder.FeeType = exchange.CryptocurrencyDepositFee
+	_, err = c.GetFee(context.Background(), &feeBuilder)
+	if err != errFeeTypeNotSupported {
+		t.Errorf(errExpectMismatch, errFeeTypeNotSupported, err)
+	}
+	feeBuilder.Pair = currency.Pair{}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, c)
+	feeBuilder.FeeType = exchange.CryptocurrencyTradeFee
+	resp, err = c.GetFee(context.Background(), &feeBuilder)
+	if err != nil {
+		t.Error(err)
+	}
+	if !(resp <= 0.008 && resp >= 0.0005) {
+		t.Errorf("expected fee range of 0.0005 and 0.008, received %v", resp)
+	}
+	feeBuilder.IsMaker = true
+	resp, err = c.GetFee(context.Background(), &feeBuilder)
+	if err != nil {
+		t.Error(err)
+	}
+	if !(resp <= 0.006 && resp >= 0) {
+		t.Errorf("expected fee range of 0 and 0.006, received %v", resp)
+	}
+}
 
 func TestPrepareDateString(t *testing.T) {
 	t.Parallel()
@@ -3070,22 +3160,6 @@ func TestGetWithdrawalsHistory(t *testing.T) {
 	}
 }
 
-func TestGetRecentTrades(t *testing.T) {
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, c)
-	_, err := c.GetRecentTrades(context.Background(), testPair, asset.Spot)
-	if err != nil {
-		t.Error(err)
-	}
-}
-
-func TestGetHistoricTrades(t *testing.T) {
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, c)
-	_, err := c.GetHistoricTrades(context.Background(), testPair, asset.Spot, time.Time{}, time.Now())
-	if err != nil {
-		t.Error(err)
-	}
-}
-
 func TestSubmitOrder(t *testing.T) {
 	_, err := c.SubmitOrder(context.Background(), nil)
 	if !errors.Is(err, common.ErrNilPointer) {
@@ -3257,16 +3331,143 @@ func TestWithdrawCryptocurrencyFunds(t *testing.T) {
 	if !errors.Is(err, common.ErrExchangeNameUnset) {
 		t.Errorf(errExpectMismatch, err, common.ErrExchangeNameUnset)
 	}
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, c, canManipulateRealOrders)
 	req.Exchange = c.Name
 	req.Currency = currency.BTC
-	req.Amount = 0.00000001
+	req.Amount = testAmount
 	req.Type = withdraw.Crypto
 	req.Crypto.Address = testAddress
+	_, err = c.WithdrawCryptocurrencyFunds(context.Background(), &req)
+	if !errors.Is(err, errWalletIDEmpty) {
+		t.Errorf(errExpectMismatch, err, errWalletIDEmpty)
+	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, c, canManipulateRealOrders)
+	wallets, err := c.GetAllWallets(context.Background(), PaginationInp{})
+	if err != nil {
+		t.Error(err)
+	}
+	if len(wallets.Data) == 0 {
+		t.Fatal(errExpectedNonEmpty)
+	}
+	for i := range wallets.Data {
+		if wallets.Data[i].Currency.Name == currency.BTC.String() && wallets.Data[i].Balance.Amount > testAmount {
+			req.WalletID = wallets.Data[i].ID
+			break
+		}
+	}
+	if req.WalletID == "" {
+		t.Skip(skipInsufficientFunds)
+	}
 	_, err = c.WithdrawCryptocurrencyFunds(context.Background(), &req)
 	if err != nil {
 		t.Error(err)
 	}
+}
+
+func TestWithdrawFiatFunds(t *testing.T) {
+	req := withdraw.Request{}
+	_, err := c.WithdrawFiatFunds(context.Background(), &req)
+	if !errors.Is(err, common.ErrExchangeNameUnset) {
+		t.Errorf(errExpectMismatch, err, common.ErrExchangeNameUnset)
+	}
+	req.Exchange = c.Name
+	req.Currency = currency.AUD
+	req.Amount = 1
+	req.Type = withdraw.Fiat
+	req.Fiat.Bank.Enabled = true
+	req.Fiat.Bank.SupportedExchanges = "CoinbasePro"
+	req.Fiat.Bank.SupportedCurrencies = "AUD"
+	req.Fiat.Bank.AccountNumber = "123"
+	req.Fiat.Bank.SWIFTCode = "456"
+	req.Fiat.Bank.BSBNumber = "789"
+	_, err = c.WithdrawFiatFunds(context.Background(), &req)
+	if !errors.Is(err, errWalletIDEmpty) {
+		t.Errorf(errExpectMismatch, err, errWalletIDEmpty)
+	}
+	req.WalletID = "meow"
+	req.Fiat.Bank.BankName = "GCT's Fake and Not Real Test Bank Meow Meow"
+	expectedError := fmt.Sprintf(errPayMethodNotFound, req.Fiat.Bank.BankName)
+	_, err = c.WithdrawFiatFunds(context.Background(), &req)
+	if err.Error() != expectedError {
+		t.Errorf(errExpectMismatch, err, expectedError)
+	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, c, canManipulateRealOrders)
+	wallets, err := c.GetAllWallets(context.Background(), PaginationInp{})
+	if err != nil {
+		t.Error(err)
+	}
+	if len(wallets.Data) == 0 {
+		t.Fatal(errExpectedNonEmpty)
+	}
+	for i := range wallets.Data {
+		if wallets.Data[i].Currency.Name == currency.AUD.String() && wallets.Data[i].Balance.Amount > testAmount {
+			req.WalletID = wallets.Data[i].ID
+			break
+		}
+	}
+	if req.WalletID == "" {
+		t.Skip(skipInsufficientFunds)
+	}
+	req.Fiat.Bank.BankName = "AUD Wallet"
+	_, err = c.WithdrawFiatFunds(context.Background(), &req)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestWithdrawFiatFundsToInternationalBank(t *testing.T) {
+	req := withdraw.Request{}
+	_, err := c.WithdrawFiatFundsToInternationalBank(context.Background(), &req)
+	if !errors.Is(err, common.ErrExchangeNameUnset) {
+		t.Errorf(errExpectMismatch, err, common.ErrExchangeNameUnset)
+	}
+}
+
+func TestGetFeeByType(t *testing.T) {
+	_, err := c.GetFeeByType(context.Background(), nil)
+	if err.Error() != errFeeBuilderNil {
+		t.Errorf(errExpectMismatch, err, errFeeBuilderNil)
+	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, c)
+	var feeBuilder exchange.FeeBuilder
+	feeBuilder.FeeType = exchange.OfflineTradeFee
+	feeBuilder.Amount = 1
+	feeBuilder.PurchasePrice = 1
+	resp, err := c.GetFeeByType(context.Background(), &feeBuilder)
+	if err != nil {
+		t.Error(err)
+	}
+	if resp != 0.008 {
+		t.Errorf(errExpectMismatch, resp, 0.008)
+	}
+}
+
+func TestGetActiveOrders(t *testing.T) {
+	_, err := c.GetActiveOrders(context.Background(), nil)
+	if !errors.Is(err, common.ErrNilPointer) {
+		t.Errorf(errExpectMismatch, err, common.ErrNilPointer)
+	}
+	var req order.MultiOrderRequest
+	_, err = c.GetActiveOrders(context.Background(), &req)
+	if err.Error() != errUnsupportedAssetType {
+		t.Errorf(errExpectMismatch, err, errUnsupportedAssetType)
+	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, c)
+	req.AssetType = asset.Spot
+	req.Side = order.AnySide
+	req.Type = order.AnyType
+	_, err = c.GetActiveOrders(context.Background(), &req)
+	if err != nil {
+		t.Error(err)
+	}
+	req.Pairs = req.Pairs.Add(currency.NewPair(currency.BTC, currency.USD))
+	_, err = c.GetActiveOrders(context.Background(), &req)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetOrderHistory(t *testing.T) {
+
 }
 
 // 8837708	       143.0 ns/op	      24 B/op	       5 allocs/op
@@ -3387,5 +3588,22 @@ func TestWithdrawCryptocurrencyFunds(t *testing.T) {
 // 				coinbaseWithdrawals)
 // 		}
 // 		_ = str2
+// 	}
+// }
+
+// func AssignStructData(a AmCur) {
+// 	req := map[string]interface{}{"amount": a.Amount, "currency": a.Currency}
+// 	_ = req
+// }
+
+// BenchmarkAssignStructData-8	18488131	        65.81 ns/op	       0 B/op	       0 allocs/op
+// BenchmarkAssignStructData-8	18336296	        67.94 ns/op	       0 B/op	       0 allocs/op
+// BenchmarkAssignStructData-8	5245032	       230.0 ns/op	       0 B/op	       0 allocs/op
+// BenchmarkAssignStructData-8	6194977	       193.4 ns/op	       0 B/op	       0 allocs/op
+// func BenchmarkAssignStructData(b *testing.B) {
+// 	for x := 0; x < b.N; x++ {
+// 		AssignStructData(AmCur{})
+// 		AssignStructData(AmCur{})
+// 		AssignStructData(AmCur{})
 // 	}
 // }
