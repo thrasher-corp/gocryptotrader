@@ -347,9 +347,8 @@ func (ku *Kucoin) UpdateTradablePairs(ctx context.Context, forceUpdate bool) err
 	return nil
 }
 
-// GetFuturesTickers returns the tickers for all currency pairs of the futures asset type
+// GetFuturesTickers does n * REST requests based on enabled pairs of the futures asset type
 func (ku *Kucoin) GetFuturesTickers(ctx context.Context) ([]*ticker.Price, error) {
-	var errs error
 	pairs, err := ku.GetEnabledPairs(asset.Futures)
 	if err != nil {
 		return nil, err
@@ -358,13 +357,11 @@ func (ku *Kucoin) GetFuturesTickers(ctx context.Context) ([]*ticker.Price, error
 	for i := range pairs {
 		p, err := ku.FormatExchangeCurrency(pairs[i], asset.Futures)
 		if err != nil {
-			errs = common.AppendError(errs, err)
-			continue
+			return nil, err
 		}
 		fTick, err := ku.GetFuturesTicker(ctx, p.String())
-		if err != nil && !errors.Is(err, currency.ErrPairNotFound) {
-			errs = common.AppendError(errs, err)
-			continue
+		if err != nil {
+			return nil, err
 		}
 		tick := &ticker.Price{
 			Last:         fTick.Price.Float64(),
@@ -419,9 +416,8 @@ func (ku *Kucoin) UpdateTickers(ctx context.Context, assetType asset.Item) error
 		}
 		for t := range ticks.Tickers {
 			pair, err := currency.NewPairFromString(ticks.Tickers[t].Symbol)
-			if err != nil && !errors.Is(err, currency.ErrPairNotFound) {
-				errs = common.AppendError(errs, err)
-				continue
+			if err != nil {
+				return err
 			}
 			if !pairs.Contains(pair, true) {
 				continue
