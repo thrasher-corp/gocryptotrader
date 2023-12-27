@@ -703,6 +703,13 @@ func TestErrors(t *testing.T) {
 	assert.ErrorIs(t, ExcludeError(err, e5), e3, "Excluding e5 should retain e3")
 	assert.ErrorIs(t, ExcludeError(err, e5), e4, "Excluding e5 should retain the vanilla co-wrapped e4")
 	assert.False(t, errors.Is(ExcludeError(err, e5), e5), "e4 should be excluded")
+
+	// Formatting retention
+	err = AppendError(e1, fmt.Errorf("%w: Run out of `%s`: %w", e3, "sausages", e5))
+	assert.ErrorIs(t, err, e1, "Should be an e1")
+	assert.ErrorIs(t, err, e3, "Should be an e3")
+	assert.ErrorIs(t, err, e5, "Should be an e5")
+	assert.ErrorContains(t, err, "sausages", "Should know about secret snausages")
 }
 
 func TestParseStartEndDate(t *testing.T) {
