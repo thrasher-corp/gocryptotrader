@@ -1,11 +1,11 @@
 package currency
 
 import (
-	"errors"
 	"fmt"
 	"os"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/thrasher-corp/gocryptotrader/database/testhelpers"
 )
 
@@ -16,6 +16,8 @@ func TestMain(m *testing.M) {
 		fmt.Printf("failed to create temp file: %v", err)
 		os.Exit(1)
 	}
+
+	storage.fiatExchangeMarkets = newMockProvider()
 
 	t := m.Run()
 
@@ -30,219 +32,88 @@ func TestMain(m *testing.M) {
 func TestRunUpdater(t *testing.T) {
 	var newStorage Storage
 
-	emptyMainConfig := Config{}
-	err := newStorage.RunUpdater(BotOverrides{}, &emptyMainConfig, "")
-	if err == nil {
-		t.Fatal("storage RunUpdater() error cannot be nil")
-	}
+	err := newStorage.RunUpdater(BotOverrides{}, &Config{}, "")
+	assert.ErrorIs(t, err, errFiatDisplayCurrencyUnset, "No currency should error correctly")
 
-	mainConfig := Config{}
-	err = newStorage.RunUpdater(BotOverrides{}, &mainConfig, "")
-	if !errors.Is(err, errFiatDisplayCurrencyUnset) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errFiatDisplayCurrencyUnset)
-	}
+	err = newStorage.RunUpdater(BotOverrides{}, &Config{FiatDisplayCurrency: BTC}, "")
+	assert.ErrorIs(t, err, ErrFiatDisplayCurrencyIsNotFiat, "Crypto currency should error as not fiat")
 
-	mainConfig.FiatDisplayCurrency = BTC
-	err = newStorage.RunUpdater(BotOverrides{}, &mainConfig, "")
-	if !errors.Is(err, ErrFiatDisplayCurrencyIsNotFiat) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, ErrFiatDisplayCurrencyIsNotFiat)
-	}
-
-	mainConfig.FiatDisplayCurrency = AUD
-	err = newStorage.RunUpdater(BotOverrides{}, &mainConfig, "")
-	if !errors.Is(err, errNoFilePathSet) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errNoFilePathSet)
-	}
+	c := &Config{FiatDisplayCurrency: AUD}
+	err = newStorage.RunUpdater(BotOverrides{}, c, "")
+	assert.ErrorIs(t, err, errNoFilePathSet, "Should error with no path set")
 
 	tempDir := testhelpers.TempDir
+	err = newStorage.RunUpdater(BotOverrides{}, c, tempDir)
+	assert.ErrorIs(t, err, errInvalidCurrencyFileUpdateDuration, "Should error invalid file update duration")
 
-	err = newStorage.RunUpdater(BotOverrides{}, &mainConfig, tempDir)
-	if !errors.Is(err, errInvalidCurrencyFileUpdateDuration) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errInvalidCurrencyFileUpdateDuration)
-	}
+	c.CurrencyFileUpdateDuration = DefaultCurrencyFileDelay
+	err = newStorage.RunUpdater(BotOverrides{}, c, tempDir)
+	assert.ErrorIs(t, err, errInvalidForeignExchangeUpdateDuration, "Should error invalid forex update duration")
 
-	mainConfig.CurrencyFileUpdateDuration = DefaultCurrencyFileDelay
-	err = newStorage.RunUpdater(BotOverrides{}, &mainConfig, tempDir)
-	if !errors.Is(err, errInvalidForeignExchangeUpdateDuration) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errInvalidForeignExchangeUpdateDuration)
-	}
+	c.ForeignExchangeUpdateDuration = DefaultForeignExchangeDelay
+	err = newStorage.RunUpdater(BotOverrides{}, c, tempDir)
 
-	mainConfig.ForeignExchangeUpdateDuration = DefaultForeignExchangeDelay
-	err = newStorage.RunUpdater(BotOverrides{}, &mainConfig, tempDir)
-	if !errors.Is(err, errNoForeignExchangeProvidersEnabled) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errNoForeignExchangeProvidersEnabled)
-	}
-
-	settings := FXSettings{
-		Name:    "Fixer",
-		Enabled: true,
-		APIKey:  "wo",
-	}
-
-	mainConfig.ForexProviders = AllFXSettings{settings}
-	err = newStorage.RunUpdater(BotOverrides{Fixer: true}, &mainConfig, tempDir)
-	if errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, "an error")
-	}
+	assert.NoError(t, err, "Storage should not error with no forex providers enabled")
+	assert.Nil(t, newStorage.fiatExchangeMarkets, "Forex should not be enabled with no providers") // Proxy for testing ForexEnabled
 
 	err = newStorage.Shutdown()
-	if err != nil {
-		t.Fatal(err)
+	assert.NoError(t, err, "Shutdown should not error evne though it silently aborted the RunUpdater early")
+
+	// Exchanges which reject a bad APIKey
+	for _, n := range []string{"Fixer", "CurrencyConverter", "CurrencyLayer", "ExchangeRates"} {
+		c.ForexProviders = AllFXSettings{{Name: n, Enabled: true, APIKey: ""}}
+		err = newStorage.RunUpdater(overrideForProvider(n), c, tempDir)
+		assert.NoErrorf(t, err, "%s should not error and silently exit without running with no api keys", n)
+		assert.Falsef(t, c.ForexProviders[0].Enabled, "%s should not be marked enabled with no api keys", n)
+		assert.Nil(t, newStorage.fiatExchangeMarkets, "Forex should not be enabled with no providers")
+		c.ForexProviders = AllFXSettings{{Name: n, Enabled: true, APIKey: "sudo shazam!"}}
+		err = newStorage.RunUpdater(overrideForProvider(n), c, tempDir)
+		assert.Errorf(t, err, "%s should throw some provider originating error with a (hopefully) invalid api key", n)
+		assert.Truef(t, c.ForexProviders[0].Enabled, "%s should still be enabled after being chosen but failing", n)
+		assert.Nil(t, newStorage.fiatExchangeMarkets, "Forex should not be enabled when provider errored during startup")
+		err = newStorage.Shutdown()
+		assert.NoError(t, err, "Shutdown should not error")
 	}
 
-	settings.Name = "CurrencyConverter"
-	mainConfig.ForexProviders = AllFXSettings{settings}
-	err = newStorage.RunUpdater(BotOverrides{CurrencyConverter: true}, &mainConfig, tempDir)
-	if errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, "an error")
+	// Exchanges which do not error with a bad APIKey on startup
+	for _, n := range []string{"OpenExchangeRates"} {
+		c.ForexProviders = AllFXSettings{{Name: n, Enabled: true, APIKey: ""}}
+		err = newStorage.RunUpdater(overrideForProvider(n), c, tempDir)
+		assert.NoErrorf(t, err, "%s should not error and silently exit without running with no api keys", n)
+		assert.Nil(t, newStorage.fiatExchangeMarkets, "Forex should not be enabled with no providers")
+		c.ForexProviders = AllFXSettings{{Name: n, Enabled: true, APIKey: "sudo shazam!"}}
+		err = newStorage.RunUpdater(overrideForProvider(n), c, tempDir)
+		assert.NoError(t, err, "%s should not error on Setup with a bad apikey", n)
+		assert.NotNil(t, newStorage.fiatExchangeMarkets, "Forex should be enabled now we have a provider with a key")
+		err = newStorage.Shutdown()
+		assert.NoError(t, err, "Shutdown should not error")
 	}
 
-	err = newStorage.Shutdown()
-	if err != nil {
-		t.Fatal(err)
+	c.ForexProviders = AllFXSettings{
+		{Name: "ExchangeRates"}, // Old Default
+		{Name: "OpenExchangeRates", APIKey: "shazam?"},
 	}
 
-	settings.Name = "CurrencyLayer"
-	mainConfig.ForexProviders = AllFXSettings{settings}
-	err = newStorage.RunUpdater(BotOverrides{CurrencyLayer: true}, &mainConfig, tempDir)
-	if errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, "an error")
-	}
+	// Regression test for old defaults which were enabled when in settings and nothing else was enabled and configured
+	err = newStorage.RunUpdater(BotOverrides{}, c, tempDir)
+	assert.NoError(t, err, "RunUpdater should not error")
+	assert.Nil(t, newStorage.fiatExchangeMarkets, "Forex should not be enabled with no providers") // Proxy for testing ForexEnabled
+	assert.False(t, c.ForexProviders[0].Enabled, "Old Default ExchangeRates should not have defaulted to enabled with no enabled overrides")
+}
 
-	err = newStorage.Shutdown()
-	if err != nil {
-		t.Fatal(err)
+func overrideForProvider(n string) BotOverrides {
+	b := BotOverrides{}
+	switch n {
+	case "Fixer":
+		b.Fixer = true
+	case "CurrencyConverter":
+		b.CurrencyConverter = true
+	case "CurrencyLayer":
+		b.CurrencyLayer = true
+	case "OpenExchangeRates":
+		b.OpenExchangeRates = true
+	case "ExchangeRates":
+		b.ExchangeRates = true
 	}
-
-	settings.Name = "OpenExchangeRates"
-	mainConfig.ForexProviders = AllFXSettings{settings}
-	err = newStorage.RunUpdater(BotOverrides{OpenExchangeRates: true}, &mainConfig, tempDir)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
-
-	err = newStorage.Shutdown()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	settings.Name = "ExchangeRates"
-	mainConfig.ForexProviders = AllFXSettings{settings}
-	err = newStorage.RunUpdater(BotOverrides{ExchangeRates: true}, &mainConfig, tempDir)
-	if errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, "an error")
-	}
-
-	err = newStorage.Shutdown()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	settings.Name = "ExchangeRateHost"
-	mainConfig.ForexProviders = AllFXSettings{settings}
-	err = newStorage.RunUpdater(BotOverrides{ExchangeRateHost: true}, &mainConfig, tempDir)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
-
-	err = newStorage.Shutdown()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	// old config where two providers enabled
-	oldDefault := FXSettings{
-		Name:            "ExchangeRates",
-		Enabled:         true,
-		APIKey:          "", // old default provider which did not need api keys.
-		PrimaryProvider: true,
-	}
-	other := FXSettings{
-		Name:    "OpenExchangeRates",
-		Enabled: true,
-		APIKey:  "enabled-keys", // Has keys enabled and will fall over to primary
-	}
-	defaultProvider := FXSettings{
-		// From config this will be included but not necessarily enabled.
-		Name:    "ExchangeRateHost",
-		Enabled: false,
-	}
-
-	mainConfig.ForexProviders = AllFXSettings{oldDefault, other, defaultProvider}
-	err = newStorage.RunUpdater(BotOverrides{ExchangeRates: true, OpenExchangeRates: true}, &mainConfig, tempDir)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
-
-	if mainConfig.ForexProviders[0].Enabled {
-		t.Fatal("old default provider should not be enabled due to unset keys")
-	}
-
-	if mainConfig.ForexProviders[0].PrimaryProvider {
-		t.Fatal("old default provider should not be a primary provider anymore")
-	}
-
-	if !mainConfig.ForexProviders[1].Enabled {
-		t.Fatal("open exchange rates provider with keys set should be enabled")
-	}
-
-	if !mainConfig.ForexProviders[1].PrimaryProvider {
-		t.Fatal("open exchange rates provider with keys set should be set as primary provider")
-	}
-
-	if mainConfig.ForexProviders[2].Enabled {
-		t.Fatal("actual default provider should not be enabled")
-	}
-
-	if mainConfig.ForexProviders[2].PrimaryProvider {
-		t.Fatal("actual default provider should not be designated as primary provider")
-	}
-
-	err = newStorage.Shutdown()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	// old config where two providers enabled
-	oldDefault = FXSettings{
-		Name:            "ExchangeRates",
-		Enabled:         true,
-		APIKey:          "", // old default provider which did not need api keys.
-		PrimaryProvider: true,
-	}
-	other = FXSettings{
-		Name:    "OpenExchangeRates",
-		Enabled: true,
-		APIKey:  "", // Has no keys enabled will fall over to new default provider.
-	}
-
-	mainConfig.ForexProviders = AllFXSettings{oldDefault, other, defaultProvider}
-	err = newStorage.RunUpdater(BotOverrides{ExchangeRates: true, OpenExchangeRates: true}, &mainConfig, tempDir)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
-
-	if mainConfig.ForexProviders[0].Enabled {
-		t.Fatal("old default provider should not be enabled due to unset keys")
-	}
-
-	if mainConfig.ForexProviders[0].PrimaryProvider {
-		t.Fatal("old default provider should not be a primary provider anymore")
-	}
-
-	if mainConfig.ForexProviders[1].Enabled {
-		t.Fatal("open exchange rates provider with keys unset should not be enabled")
-	}
-
-	if mainConfig.ForexProviders[1].PrimaryProvider {
-		t.Fatal("open exchange rates provider with keys unset should not be set as primary provider")
-	}
-
-	if !mainConfig.ForexProviders[2].Enabled {
-		t.Fatal("actual default provider should not be disabled")
-	}
-
-	if !mainConfig.ForexProviders[2].PrimaryProvider {
-		t.Fatal("actual default provider should be designated as primary provider")
-	}
+	return b
 }

@@ -14,10 +14,11 @@ import (
 )
 
 var (
+	// ErrBidEqualsAsk error for locked markets
+	ErrBidEqualsAsk        = errors.New("bid equals ask this is a crossed or locked market")
 	errInvalidTicker       = errors.New("invalid ticker")
 	errTickerNotFound      = errors.New("ticker not found")
 	errExchangeNameIsEmpty = errors.New("exchange name is empty")
-	errBidEqualsAsk        = errors.New("bid equals ask this is a crossed or locked market")
 	errBidGreaterThanAsk   = errors.New("bid greater than ask this is a crossed or locked market")
 )
 
@@ -132,7 +133,7 @@ func ProcessTicker(p *Price) error {
 				return fmt.Errorf("%s %s %w",
 					p.ExchangeName,
 					p.Pair,
-					errBidEqualsAsk)
+					ErrBidEqualsAsk)
 			}
 
 			if p.Bid > p.Ask {
