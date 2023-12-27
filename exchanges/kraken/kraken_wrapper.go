@@ -178,10 +178,11 @@ func (k *Kraken) SetDefaults() {
 	}
 	k.API.Endpoints = k.NewEndpoints()
 	err = k.API.Endpoints.SetDefaultEndpoints(map[exchange.URL]string{
-		exchange.RestSpot:                 krakenAPIURL,
-		exchange.RestFutures:              krakenFuturesURL,
-		exchange.WebsocketSpot:            krakenWSURL,
-		exchange.RestFuturesSupplementary: krakenFuturesSupplementaryURL,
+		exchange.RestSpot:                   krakenAPIURL,
+		exchange.RestFutures:                krakenFuturesURL,
+		exchange.WebsocketSpot:              krakenWSURL,
+		exchange.WebsocketSpotSupplementary: krakenAuthWSURL,
+		exchange.RestFuturesSupplementary:   krakenFuturesSupplementaryURL,
 	})
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
@@ -235,18 +236,21 @@ func (k *Kraken) Setup(exch *config.Exchange) error {
 		RateLimit:            request.NewWeightedRateLimitByDuration(50 * time.Millisecond),
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
-		URL:                  krakenWSURL,
 	})
 	if err != nil {
 		return err
 	}
 
+	wsRunningAuthURL, err := k.API.Endpoints.GetURL(exchange.WebsocketSpotSupplementary)
+	if err != nil {
+		return err
+	}
 	return k.Websocket.SetupNewConnection(stream.ConnectionSetup{
 		RateLimit:            request.NewWeightedRateLimitByDuration(50 * time.Millisecond),
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
-		URL:                  krakenAuthWSURL,
 		Authenticated:        true,
+		URL:                  wsRunningAuthURL,
 	})
 }
 
