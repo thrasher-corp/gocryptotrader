@@ -20,8 +20,7 @@ var blockedCIExchanges = []string{
 }
 
 func isCITest() bool {
-	ci := os.Getenv("CI")
-	return ci == "true" /* github actions */ || ci == "True" /* appveyor */
+	return os.Getenv("CI") == "true"
 }
 
 func TestLoadConfigWithSettings(t *testing.T) {
