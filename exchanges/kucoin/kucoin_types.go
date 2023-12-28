@@ -139,8 +139,8 @@ type Orderbook struct {
 }
 
 type orderbookResponse struct {
-	Asks     [][2]string          `json:"asks"`
-	Bids     [][2]string          `json:"bids"`
+	Asks     [][2]types.Number    `json:"asks"`
+	Bids     [][2]types.Number    `json:"bids"`
 	Time     convert.ExchangeTime `json:"time"`
 	Sequence string               `json:"sequence"`
 }
@@ -861,16 +861,8 @@ type WsOrderbook struct {
 
 // OrderbookChanges represents orderbook ask and bid changes.
 type OrderbookChanges struct {
-	Asks [][]string `json:"asks"`
-	Bids [][]string `json:"bids"`
-}
-
-// WsOrderbookDepth represents orderbook information.
-type WsOrderbookDepth struct {
-	Asks   [][]string           `json:"asks"`
-	Bids   [][]string           `json:"bids"`
-	Symbol string               `json:"symbol"`
-	TimeMS convert.ExchangeTime `json:"timestamp"`
+	Asks [][]types.Number `json:"asks"`
+	Bids [][]types.Number `json:"bids"`
 }
 
 // WsCandlestickData represents candlestick information push data for a symbol.

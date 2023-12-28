@@ -26,6 +26,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
+	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
 // Kucoin is the overarching type across this package
@@ -189,46 +190,31 @@ func (ku *Kucoin) GetMarketList(ctx context.Context) ([]string, error) {
 	return resp, ku.SendHTTPRequest(ctx, exchange.RestSpot, defaultSpotEPL, kucoinGetMarketList, &resp)
 }
 
-func processOB(ob [][2]string) ([]orderbook.Item, error) {
+func processOB(ob [][2]types.Number) []orderbook.Item {
 	o := make([]orderbook.Item, len(ob))
 	for x := range ob {
-		amount, err := strconv.ParseFloat(ob[x][1], 64)
-		if err != nil {
-			return nil, err
-		}
-		price, err := strconv.ParseFloat(ob[x][0], 64)
-		if err != nil {
-			return nil, err
-		}
-		o[x] = orderbook.Item{
-			Price:  price,
-			Amount: amount,
-		}
+		o[x].Amount = ob[x][1].Float64()
+		o[x].Price = ob[x][0].Float64()
 	}
-	return o, nil
+	return o
 }
 
 func constructOrderbook(o *orderbookResponse) (*Orderbook, error) {
 	var (
-		s   Orderbook
-		err error
+		s = Orderbook{
+			Bids: processOB(o.Bids),
+			Asks: processOB(o.Asks),
+			Time: o.Time.Time(),
+		}
 	)
-	s.Bids, err = processOB(o.Bids)
-	if err != nil {
-		return nil, err
-	}
-	s.Asks, err = processOB(o.Asks)
-	if err != nil {
-		return nil, err
-	}
-	s.Time = o.Time.Time()
 	if o.Sequence != "" {
+		var err error
 		s.Sequence, err = strconv.ParseInt(o.Sequence, 10, 64)
 		if err != nil {
 			return nil, err
 		}
 	}
-	return &s, err
+	return &s, nil
 }
 
 // GetPartOrderbook20 gets orderbook for a specified pair with depth 20
@@ -307,42 +293,20 @@ func (ku *Kucoin) GetKlines(ctx context.Context, pair, period string, start, end
 	if !end.IsZero() {
 		params.Set("endAt", strconv.FormatInt(end.Unix(), 10))
 	}
-	var resp [][7]string
+	var resp [][7]types.Number
 	err := ku.SendHTTPRequest(ctx, exchange.RestSpot, defaultSpotEPL, common.EncodeURLValues(kucoinGetKlines, params), &resp)
 	if err != nil {
 		return nil, err
 	}
 	klines := make([]Kline, len(resp))
 	for i := range resp {
-		t, err := strconv.ParseInt(resp[i][0], 10, 64)
-		if err != nil {
-			return nil, err
-		}
-		klines[i].StartTime = time.Unix(t, 0)
-		klines[i].Open, err = strconv.ParseFloat(resp[i][1], 64)
-		if err != nil {
-			return nil, err
-		}
-		klines[i].Close, err = strconv.ParseFloat(resp[i][2], 64)
-		if err != nil {
-			return nil, err
-		}
-		klines[i].High, err = strconv.ParseFloat(resp[i][3], 64)
-		if err != nil {
-			return nil, err
-		}
-		klines[i].Low, err = strconv.ParseFloat(resp[i][4], 64)
-		if err != nil {
-			return nil, err
-		}
-		klines[i].Volume, err = strconv.ParseFloat(resp[i][5], 64)
-		if err != nil {
-			return nil, err
-		}
-		klines[i].Amount, err = strconv.ParseFloat(resp[i][6], 64)
-		if err != nil {
-			return nil, err
-		}
+		klines[i].StartTime = time.Unix(resp[i][0].Int64(), 0)
+		klines[i].Open = resp[i][1].Float64()
+		klines[i].Close = resp[i][2].Float64()
+		klines[i].High = resp[i][3].Float64()
+		klines[i].Low = resp[i][4].Float64()
+		klines[i].Volume = resp[i][5].Float64()
+		klines[i].Amount = resp[i][6].Float64()
 	}
 	return klines, nil
 }

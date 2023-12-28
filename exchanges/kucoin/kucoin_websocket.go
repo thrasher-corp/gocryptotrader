@@ -151,7 +151,12 @@ func (ku *Kucoin) WsConnect() error {
 	})
 
 	ku.setupOrderbookManager()
-	return nil
+	subscriptions, err := ku.GenerateDefaultSubscriptions()
+	if err != nil {
+		return err
+	}
+	return ku.Subscribe(subscriptions)
+	// return nil
 }
 
 // GetInstanceServers retrieves the server list and temporary public token
@@ -1003,7 +1008,8 @@ func (ku *Kucoin) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, 
 				futuresTradeOrdersBySymbolChannel,
 				futuresTradeOrderChannel,
 				futuresStopOrdersLifecycleEventChannel,
-				futuresAccountBalanceEventChannel)
+				futuresAccountBalanceEventChannel,
+			)
 		}
 	}
 	var err error
@@ -1364,42 +1370,19 @@ func (ku *Kucoin) setupOrderbookManager() {
 func (ku *Kucoin) ProcessUpdate(cp currency.Pair, a asset.Item, ws *WsOrderbook) error {
 	updateBid := make([]orderbook.Item, len(ws.Changes.Bids))
 	for i := range ws.Changes.Bids {
-		p, err := strconv.ParseFloat(ws.Changes.Bids[i][0], 64)
-		if err != nil {
-			return err
-		}
-		a, err := strconv.ParseFloat(ws.Changes.Bids[i][1], 64)
-		if err != nil {
-			return err
-		}
 		var sequence int64
-		if len(ws.Changes.Bids[i]) > 2 && ws.Changes.Bids[i][2] != "" {
-			sequence, err = strconv.ParseInt(ws.Changes.Bids[i][2], 10, 64)
-			if err != nil {
-				return err
-			}
+		if len(ws.Changes.Bids[i]) > 2 {
+			sequence = ws.Changes.Bids[i][2].Int64()
 		}
-		updateBid[i] = orderbook.Item{Price: p, Amount: a, ID: sequence}
+		updateBid[i] = orderbook.Item{Price: ws.Changes.Bids[i][0].Float64(), Amount: ws.Changes.Bids[i][1].Float64(), ID: sequence}
 	}
-
 	updateAsk := make([]orderbook.Item, len(ws.Changes.Asks))
 	for i := range ws.Changes.Asks {
-		p, err := strconv.ParseFloat(ws.Changes.Asks[i][0], 64)
-		if err != nil {
-			return err
-		}
-		a, err := strconv.ParseFloat(ws.Changes.Asks[i][1], 64)
-		if err != nil {
-			return err
-		}
 		var sequence int64
-		if len(ws.Changes.Asks[i]) > 2 && ws.Changes.Asks[i][2] != "" {
-			sequence, err = strconv.ParseInt(ws.Changes.Asks[i][2], 10, 64)
-			if err != nil {
-				return err
-			}
+		if len(ws.Changes.Asks[i]) > 2 {
+			sequence = ws.Changes.Asks[i][2].Int64()
 		}
-		updateAsk[i] = orderbook.Item{Price: p, Amount: a, ID: sequence}
+		updateAsk[i] = orderbook.Item{Price: ws.Changes.Asks[i][0].Float64(), Amount: ws.Changes.Asks[i][1].Float64(), ID: sequence}
 	}
 
 	return ku.Websocket.Orderbook.Update(&orderbook.Update{
