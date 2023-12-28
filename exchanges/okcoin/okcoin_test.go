@@ -339,28 +339,28 @@ func TestWithdrawal(t *testing.T) {
 		t.Fatalf("found %v, expected %v", err, currency.ErrCurrencyCodeEmpty)
 	}
 	_, err = o.Withdrawal(context.Background(), &WithdrawalRequest{
-		Ccy: currency.BTC,
+		Currency: currency.BTC,
 	})
 	if !errors.Is(err, errInvalidAmount) {
 		t.Fatalf("found %v, expected %v", err, errInvalidAmount)
 	}
 	_, err = o.Withdrawal(context.Background(), &WithdrawalRequest{
-		Ccy:    currency.BTC,
-		Amount: 1,
+		Currency: currency.BTC,
+		Amount:   1,
 	})
 	if !errors.Is(err, errInvalidWithdrawalMethod) {
 		t.Fatalf("found %v, expected %v", err, errInvalidWithdrawalMethod)
 	}
-	_, err = o.Withdrawal(context.Background(), &WithdrawalRequest{Amount: 1, Ccy: currency.BTC, WithdrawalMethod: "1"})
+	_, err = o.Withdrawal(context.Background(), &WithdrawalRequest{Amount: 1, Currency: currency.BTC, WithdrawalMethod: "1"})
 	if !errors.Is(err, errAddressMustNotBeEmptyString) {
 		t.Fatalf("found %v, expected %v", err, errInvalidWithdrawalMethod)
 	}
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, o, canManipulateRealOrders)
-	_, err = o.Withdrawal(context.Background(), &WithdrawalRequest{Amount: 1, Ccy: currency.BTC, WithdrawalMethod: "1", ToAddress: "abcdefg"})
+	_, err = o.Withdrawal(context.Background(), &WithdrawalRequest{Amount: 1, Currency: currency.BTC, WithdrawalMethod: "1", ToAddress: "abcdefg"})
 	if !errors.Is(err, errInvalidTransactionFeeValue) {
 		t.Errorf("found %v, expected %v", err, errAddressMustNotBeEmptyString)
 	}
-	_, err = o.Withdrawal(context.Background(), &WithdrawalRequest{Amount: 1, Ccy: currency.BTC, WithdrawalMethod: "1", ToAddress: "abcdefg", TransactionFee: 0.004})
+	_, err = o.Withdrawal(context.Background(), &WithdrawalRequest{Amount: 1, Currency: currency.BTC, WithdrawalMethod: "1", ToAddress: "abcdefg", TransactionFee: 0.004})
 	if err != nil {
 		t.Error(err)
 	}
@@ -1828,7 +1828,7 @@ func TestAccountBalanceTransfer(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, o, canManipulateRealOrders)
 	_, err := o.AccountBalanceTransfer(context.Background(), &IntraAccountTransferParam{
-		Ccy:            "BTC",
+		Currency:       "BTC",
 		Amount:         1234.0,
 		From:           "6",
 		To:             "6",

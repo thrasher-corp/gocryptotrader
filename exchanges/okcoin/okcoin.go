@@ -507,7 +507,7 @@ func (o *Okcoin) Withdrawal(ctx context.Context, arg *WithdrawalRequest) ([]With
 	if arg == nil {
 		return nil, errNilArgument
 	}
-	if arg.Ccy.IsEmpty() {
+	if arg.Currency.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
 	if arg.Amount <= 0 {
@@ -1097,7 +1097,7 @@ func (o *Okcoin) AccountBalanceTransfer(ctx context.Context, arg *IntraAccountTr
 	if arg == nil {
 		return nil, common.ErrNilPointer
 	}
-	if arg.Ccy == "" {
+	if arg.Currency == "" {
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
 	if arg.Amount <= 0 {

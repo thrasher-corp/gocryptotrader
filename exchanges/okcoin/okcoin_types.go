@@ -130,8 +130,8 @@ type TickerData struct {
 // GetOrderBookResponse response data
 type GetOrderBookResponse struct {
 	Timestamp convert.ExchangeTime `json:"ts"`
-	Asks      [][4]string          `json:"asks"` // [[0]: "Price", [1]: "Size", [2]: "Num_orders"], ...
-	Bids      [][4]string          `json:"bids"` // [[0]: "Price", [1]: "Size", [2]: "Num_orders"], ...
+	Asks      [][4]types.Number    `json:"asks"` // [[0]: "Price", [1]: "Size", [2]: "Num_orders"], ...
+	Bids      [][4]types.Number    `json:"bids"` // [[0]: "Price", [1]: "Size", [2]: "Num_orders"], ...
 }
 
 // WebsocketEventRequest contains event data for a websocket channel
@@ -232,7 +232,7 @@ type WebsocketStatus struct {
 		State                 string               `json:"state"`
 		End                   convert.ExchangeTime `json:"end"`
 		Begin                 convert.ExchangeTime `json:"begin"`
-		Href                  string               `json:"href"`
+		HRef                  string               `json:"href"`
 		ServiceType           int64                `json:"serviceType,string"`
 		System                string               `json:"system"`
 		RescheduleDescription string               `json:"scheDesc"`
@@ -400,7 +400,7 @@ type WebsocketAdvancedAlgoOrder struct {
 		ActualSz             types.Number         `json:"actualSz"`
 		AlgoID               string               `json:"algoId"`
 		CreationTime         convert.ExchangeTime `json:"cTime"`
-		Ccy                  string               `json:"ccy"`
+		Currency             string               `json:"ccy"`
 		ClOrdID              string               `json:"clOrdId"`
 		Count                string               `json:"count"`
 		InstrumentID         string               `json:"instId"`
@@ -744,7 +744,7 @@ type LightningDepositDetail struct {
 type DepositAddress struct {
 	Chain                    string `json:"chain"`
 	ContractAddr             string `json:"ctAddr"`
-	Ccy                      string `json:"ccy"`
+	Currency                 string `json:"ccy"`
 	To                       string `json:"to"`
 	Address                  string `json:"addr"`
 	Selected                 bool   `json:"selected"`
@@ -773,7 +773,7 @@ type WithdrawalRequest struct {
 	Amount           float64       `json:"amt,string,omitempty"`
 	TransactionFee   float64       `json:"fee,string"`
 	WithdrawalMethod string        `json:"dest,omitempty"` // Withdrawal method 3: internal  4: on chain
-	Ccy              currency.Code `json:"ccy,omitempty"`
+	Currency         currency.Code `json:"ccy,omitempty"`
 	Chain            string        `json:"chain,omitempty"`
 	ClientID         string        `json:"clientId,omitempty"`
 	ToAddress        string        `json:"toAddr,omitempty"`
@@ -808,7 +808,7 @@ type WithdrawalCancellation struct {
 
 // WithdrawalOrderItem represents a withdrawal instance item
 type WithdrawalOrderItem struct {
-	Ccy                         string               `json:"ccy"`
+	Currency                    string               `json:"ccy"`
 	Chain                       string               `json:"chain"`
 	Amount                      types.Number         `json:"amt"`
 	Timestamp                   convert.ExchangeTime `json:"ts"`
@@ -1110,7 +1110,7 @@ type FiatWithdrawalHistoryItem struct {
 	Amount          types.Number         `json:"amt"`
 	Fee             types.Number         `json:"fee"`
 	State           string               `json:"state"`
-	Ccy             string               `json:"ccy"`
+	Currency        string               `json:"ccy"`
 	CreationTime    convert.ExchangeTime `json:"cTime"`
 	UpdateTime      convert.ExchangeTime `json:"uTime"`
 }
@@ -1340,7 +1340,7 @@ type AlgoOrderDetail struct {
 	SizeLimit                types.Number         `json:"szLimit"`
 	Tag                      string               `json:"tag"`
 	TdMode                   string               `json:"tdMode"`
-	TgtCcy                   string               `json:"tgtCcy"`
+	TgtCurrency              string               `json:"tgtCcy"`
 	TimeInterval             string               `json:"timeInterval"`
 	TpOrdPrice               types.Number         `json:"tpOrdPx"`
 	TpTriggerPrice           types.Number         `json:"tpTriggerPx"`
@@ -1407,7 +1407,7 @@ type SubAccountFundingBalance struct {
 type SubAccountTransferInfo struct {
 	BillID            string               `json:"billId"`
 	Type              string               `json:"type"`
-	Ccy               string               `json:"ccy"`
+	Currency          string               `json:"ccy"`
 	Amount            types.Number         `json:"amt"`
 	SubAccount        string               `json:"subAcct"`
 	CreationTimestamp convert.ExchangeTime `json:"ts"`
@@ -1420,7 +1420,7 @@ type SubAccountTransferResponse struct {
 
 // IntraAccountTransferParam represents an intra account transfer request parameters.
 type IntraAccountTransferParam struct {
-	Ccy            string  `json:"ccy"`
+	Currency       string  `json:"ccy"`
 	Amount         float64 `json:"amt,string"`
 	From           string  `json:"from"`
 	To             string  `json:"to"`
