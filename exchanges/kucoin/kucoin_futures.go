@@ -160,7 +160,6 @@ func (ku *Kucoin) GetFuturesInterestRate(ctx context.Context, symbol string, sta
 	}
 	params := url.Values{}
 	params.Set("symbol", symbol)
-
 	if !startAt.IsZero() {
 		params.Set("startAt", strconv.FormatInt(startAt.UnixMilli(), 10))
 	}
@@ -274,12 +273,12 @@ func (ku *Kucoin) GetFuturesKline(ctx context.Context, granularity int64, symbol
 	if !common.StringDataContains(validGranularity, strconv.FormatInt(granularity, 10)) {
 		return nil, errors.New("invalid granularity")
 	}
-	params := url.Values{}
-	// The granularity (granularity parameter of K-line) represents the number of minutes, the available granularity scope is: 1,5,15,30,60,120,240,480,720,1440,10080. Requests beyond the above range will be rejected.
-	params.Set("granularity", strconv.FormatInt(granularity, 10))
 	if symbol == "" {
 		return nil, errors.New("symbol can't be empty")
 	}
+	params := url.Values{}
+	// The granularity (granularity parameter of K-line) represents the number of minutes, the available granularity scope is: 1,5,15,30,60,120,240,480,720,1440,10080. Requests beyond the above range will be rejected.
+	params.Set("granularity", strconv.FormatInt(granularity, 10))
 	params.Set("symbol", symbol)
 	if !from.IsZero() {
 		params.Set("from", strconv.FormatInt(from.UnixMilli(), 10))
@@ -556,10 +555,10 @@ func (ku *Kucoin) GetFuturesRiskLimitLevel(ctx context.Context, symbol string) (
 
 // FuturesUpdateRiskLmitLevel is used to adjustment the risk limit level
 func (ku *Kucoin) FuturesUpdateRiskLmitLevel(ctx context.Context, symbol string, level int64) (bool, error) {
-	params := make(map[string]interface{})
 	if symbol == "" {
 		return false, errors.New("symbol can't be empty")
 	}
+	params := make(map[string]interface{})
 	params["symbol"] = symbol
 	params["level"] = strconv.FormatInt(level, 10)
 	var resp bool
@@ -629,25 +628,25 @@ func (ku *Kucoin) GetFuturesTransactionHistory(ctx context.Context, currency, tx
 
 // CreateFuturesSubAccountAPIKey is used to create Futures APIs for sub-accounts
 func (ku *Kucoin) CreateFuturesSubAccountAPIKey(ctx context.Context, ipWhitelist, passphrase, permission, remark, subName string) (*APIKeyDetail, error) {
-	params := make(map[string]interface{})
-	if ipWhitelist != "" {
-		params["ipWhitelist"] = ipWhitelist
+	if remark == "" {
+		return nil, errors.New("remark can't be empty")
+	}
+	if subName == "" {
+		return nil, errors.New("subName can't be empty")
 	}
 	if passphrase == "" {
 		return nil, errors.New("passphrase can't be empty")
 	}
+	params := make(map[string]interface{})
 	params["passphrase"] = passphrase
+	params["remark"] = remark
+	params["subName"] = subName
+	if ipWhitelist != "" {
+		params["ipWhitelist"] = ipWhitelist
+	}
 	if permission != "" {
 		params["permission"] = permission
 	}
-	if remark == "" {
-		return nil, errors.New("remark can't be empty")
-	}
-	params["remark"] = remark
-	if subName == "" {
-		return nil, errors.New("subName can't be empty")
-	}
-	params["subName"] = subName
 	var resp *APIKeyDetail
 	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestFutures, defaultFuturesEPL, http.MethodPost, kucoinFuturesSubAccountAPI, params, &resp)
 }
@@ -720,18 +719,18 @@ func (ku *Kucoin) CancelFuturesWithdrawal(ctx context.Context, withdrawalID stri
 
 // TransferFuturesFundsToMainAccount helps in transferring funds from futures to main/trade account
 func (ku *Kucoin) TransferFuturesFundsToMainAccount(ctx context.Context, amount float64, currency, recAccountType string) (*TransferRes, error) {
-	params := make(map[string]interface{})
 	if amount <= 0 {
 		return nil, errors.New("amount can't be zero or negative")
 	}
-	params["amount"] = amount
 	if currency == "" {
 		return nil, errors.New("currency can't be empty")
 	}
-	params["currency"] = currency
 	if recAccountType == "" {
 		return nil, errors.New("recAccountType can't be empty")
 	}
+	params := make(map[string]interface{})
+	params["amount"] = amount
+	params["currency"] = currency
 	params["recAccountType"] = recAccountType
 	var resp *TransferRes
 	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestFutures, defaultFuturesEPL, http.MethodPost, kucoinFuturesTransferFundtoMainAccount, params, &resp)
@@ -739,18 +738,18 @@ func (ku *Kucoin) TransferFuturesFundsToMainAccount(ctx context.Context, amount 
 
 // TransferFundsToFuturesAccount helps in transferring funds from payee account to futures account
 func (ku *Kucoin) TransferFundsToFuturesAccount(ctx context.Context, amount float64, currency, payAccountType string) error {
-	params := make(map[string]interface{})
 	if amount <= 0 {
 		return errors.New("amount can't be zero or negative")
 	}
-	params["amount"] = amount
 	if currency == "" {
 		return errors.New("currency can't be empty")
 	}
-	params["currency"] = currency
 	if payAccountType == "" {
 		return errors.New("payAccountType can't be empty")
 	}
+	params := make(map[string]interface{})
+	params["amount"] = amount
+	params["currency"] = currency
 	params["payAccountType"] = payAccountType
 	resp := struct {
 		Error

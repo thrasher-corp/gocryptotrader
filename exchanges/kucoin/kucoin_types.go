@@ -256,12 +256,12 @@ type BorrowOrder struct {
 	Size      float64 `json:"size,string"`
 	Filled    float64 `json:"filled"`
 	MatchList []struct {
+		TradeID      string               `json:"tradeId"`
 		Currency     string               `json:"currency"`
 		DailyIntRate float64              `json:"dailyIntRate,string"`
 		Size         float64              `json:"size,string"`
 		Term         int64                `json:"term"`
 		Timestamp    convert.ExchangeTime `json:"timestamp"`
-		TradeID      string               `json:"tradeId"`
 	} `json:"matchList"`
 	Status string `json:"status"`
 }

@@ -1180,10 +1180,10 @@ func (ku *Kucoin) CreateSubUser(ctx context.Context, subAccountName, password, r
 
 // GetSubAccountSpotAPIList used to obtain a list of Spot APIs pertaining to a sub-account.
 func (ku *Kucoin) GetSubAccountSpotAPIList(ctx context.Context, subAccountName, apiKeys string) (*SubAccountResponse, error) {
-	params := url.Values{}
 	if subAccountRegExp.MatchString(subAccountName) {
 		return nil, errInvalidSubAccountName
 	}
+	params := url.Values{}
 	params.Set("subName", subAccountName)
 	if apiKeys != "" {
 		params.Set("apiKey", apiKeys)
