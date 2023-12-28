@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -44,7 +45,7 @@ const (
 		"candle1Dutc", "candle2Dutc", "candle3Dutc", "candle5Dutc", "candle12Hutc", "candle6Hutc"
 	wsTrades                  = "trades"
 	wsOrderbooks              = "books"
-	wsOrderbooksL5            = "book5"
+	wsOrderbooksL5            = "books5"
 	wsOrderbookL1             = "bbo-tbt"
 	wsOrderbookTickByTickL400 = "books-l2-tbt"
 	wsOrderbookTickByTickL50  = "books50-l2-tbt"
@@ -59,6 +60,7 @@ const (
 var defaultSubscriptions = []string{
 	wsTickers,
 	wsOrderbooks,
+	wsOrderbooksL5,
 	wsStatus,
 }
 
@@ -472,6 +474,12 @@ func (o *Okcoin) wsProcessAccount(respRaw []byte) error {
 	return nil
 }
 
+var (
+	// the following variables are used to synchronize and track changes to the orderbook buffer and corresponding instrument ID
+	orderbookSnapshotLock sync.Mutex
+	orderbookSnapshotMap  = map[string]struct{}{}
+)
+
 func (o *Okcoin) wsProcessOrderbook(respRaw []byte, obChannel string) error {
 	var resp WebsocketOrderbookResponse
 	err := json.Unmarshal(respRaw, &resp)
@@ -482,15 +490,23 @@ func (o *Okcoin) wsProcessOrderbook(respRaw []byte, obChannel string) error {
 	if err != nil {
 		return err
 	}
-	channel := resp.Arg.Channel
-	length := len(resp.Data[0].Asks) + len(resp.Data[0].Bids)
 	var snapshot bool
-	if channel == wsOrderbooks && length >= 100 ||
-		channel == wsOrderbooksL5 ||
-		channel == wsOrderbookTickByTickL50 ||
-		channel == wsOrderbookTickByTickL400 && length >= 400 ||
-		channel == wsOrderbookTickByTickL50 && length >= 50 {
-		snapshot = true
+	orderbookSnapshotLock.Lock()
+	defer orderbookSnapshotLock.Unlock()
+	if resp.Action == "" {
+		_, okay := orderbookSnapshotMap[resp.Arg.InstrumentID]
+		if !okay {
+			orderbookSnapshotMap[resp.Arg.InstrumentID] = struct{}{}
+			snapshot = true
+		}
+	} else {
+		switch resp.Action {
+		case "snapshot":
+			snapshot = true
+			orderbookSnapshotMap[resp.Arg.InstrumentID] = struct{}{}
+		case "update":
+			snapshot = false
+		}
 	}
 	if snapshot {
 		resp.Data[0].prepareOrderbook()
@@ -518,10 +534,8 @@ func (o *Okcoin) wsProcessOrderbook(respRaw []byte, obChannel string) error {
 		if err != nil {
 			return fmt.Errorf("%s channel: Orderbook unable to calculate orderbook checksum: %s", o.Name, err)
 		}
-		if int64(signedChecksum) != resp.Data[0].Checksum {
-			return fmt.Errorf("%s channel: Orderbook for %v checksum invalid",
-				o.Name,
-				cp)
+		if resp.Data[0].Checksum != 0 && int64(signedChecksum) != resp.Data[0].Checksum {
+			return fmt.Errorf("%s channel: Orderbook for %v checksum invalid", o.Name, cp)
 		}
 		err = base.Process()
 		if err != nil {
@@ -550,17 +564,16 @@ func (o *Okcoin) wsProcessOrderbook(respRaw []byte, obChannel string) error {
 	if err != nil {
 		return err
 	}
-	update := orderbook.Update{
+	err = o.Websocket.Orderbook.Update(&orderbook.Update{
 		Asset:      asset.Spot,
 		Pair:       cp,
 		UpdateTime: resp.Data[0].Timestamp.Time(),
 		Asks:       asks,
 		Bids:       bids,
-	}
-	err = o.Websocket.Orderbook.Update(&update)
+	})
 	if err != nil {
 		if errors.Is(err, orderbook.ErrOrderbookInvalid) {
-			err2 := o.ReSubscribeSpecificOrderbook(obChannel, update.Pair)
+			err2 := o.ReSubscribeSpecificOrderbook(obChannel, cp)
 			if err2 != nil {
 				return err2
 			}
@@ -572,7 +585,7 @@ func (o *Okcoin) wsProcessOrderbook(respRaw []byte, obChannel string) error {
 		return err
 	}
 	checksum := o.CalculateOrderbookUpdateChecksum(updatedOb)
-	if int64(checksum) != resp.Data[0].Checksum {
+	if resp.Data[0].Checksum != 0 && int64(checksum) != resp.Data[0].Checksum {
 		return fmt.Errorf("checksum failed, calculated '%v' received '%v'", checksum, resp.Data)
 	}
 	return nil
@@ -696,12 +709,13 @@ func (o *Okcoin) wsProcessCandles(respRaw []byte) error {
 
 // AppendWsOrderbookItems adds websocket orderbook data bid/asks into an
 // orderbook item array
-func (o *Okcoin) AppendWsOrderbookItems(entries [][2]types.Number) ([]orderbook.Item, error) {
+func (o *Okcoin) AppendWsOrderbookItems(entries [][4]types.Number) ([]orderbook.Item, error) {
 	items := make([]orderbook.Item, len(entries))
 	for j := range entries {
-		amount := entries[j][1].Float64()
-		price := entries[j][0].Float64()
-		items[j] = orderbook.Item{Amount: amount, Price: price}
+		items[j] = orderbook.Item{
+			Amount: entries[j][1].Float64(),
+			Price:  entries[j][0].Float64(),
+		}
 	}
 	return items, nil
 }
@@ -716,19 +730,15 @@ func (o *Okcoin) CalculateChecksum(orderbookData *WebsocketOrderBook) (int32, er
 	var checksum strings.Builder
 	for i := 0; i < allowableIterations; i++ {
 		if len(orderbookData.Bids)-1 >= i {
-			bidPrice := orderbookData.Bids[i][0]
-			bidAmount := orderbookData.Bids[i][1]
-			checksum.WriteString(bidPrice.String() +
+			checksum.WriteString(orderbookData.Bids[i][0].String() +
 				currency.ColonDelimiter +
-				bidAmount.String() +
+				orderbookData.Bids[i][1].String() +
 				currency.ColonDelimiter)
 		}
 		if len(orderbookData.Asks)-1 >= i {
-			askPrice := orderbookData.Asks[i][0]
-			askAmount := orderbookData.Asks[i][1]
-			checksum.WriteString(askPrice.String() +
+			checksum.WriteString(orderbookData.Asks[i][0].String() +
 				currency.ColonDelimiter +
-				askAmount.String() +
+				orderbookData.Asks[i][1].String() +
 				currency.ColonDelimiter)
 		}
 	}
@@ -741,20 +751,18 @@ func (o *Okcoin) CalculateOrderbookUpdateChecksum(orderbookData *orderbook.Base)
 	var checksum strings.Builder
 	for i := 0; i < allowableIterations; i++ {
 		if len(orderbookData.Bids)-1 >= i {
-			bidPrice := strconv.FormatFloat(orderbookData.Bids[i].Price, 'f', -1, 64)
-			bidAmount := strconv.FormatFloat(orderbookData.Bids[i].Amount, 'f', -1, 64)
-			checksum.WriteString(bidPrice +
-				currency.ColonDelimiter +
-				bidAmount +
-				currency.ColonDelimiter)
+			checksum.WriteString(
+				strconv.FormatFloat(orderbookData.Bids[i].Price, 'f', -1, 64) +
+					currency.ColonDelimiter +
+					strconv.FormatFloat(orderbookData.Bids[i].Amount, 'f', -1, 64) +
+					currency.ColonDelimiter)
 		}
 		if len(orderbookData.Asks)-1 >= i {
-			askPrice := strconv.FormatFloat(orderbookData.Asks[i].Price, 'f', -1, 64)
-			askAmount := strconv.FormatFloat(orderbookData.Asks[i].Amount, 'f', -1, 64)
-			checksum.WriteString(askPrice +
-				currency.ColonDelimiter +
-				askAmount +
-				currency.ColonDelimiter)
+			checksum.WriteString(
+				strconv.FormatFloat(orderbookData.Asks[i].Price, 'f', -1, 64) +
+					currency.ColonDelimiter +
+					strconv.FormatFloat(orderbookData.Asks[i].Amount, 'f', -1, 64) +
+					currency.ColonDelimiter)
 		}
 	}
 	checksumStr := strings.TrimSuffix(checksum.String(), currency.ColonDelimiter)
@@ -987,35 +995,15 @@ func (o *Okcoin) GetCandlesData(arg *WebsocketCandlesResponse) ([]stream.KlineDa
 		if len(arg.Data[x]) < 6 {
 			return nil, fmt.Errorf("%w expected a kline data of length 6 but found %d", kline.ErrInsufficientCandleData, len(arg.Data[x]))
 		}
-		var timestamp int64
-		timestamp, err = strconv.ParseInt(arg.Data[x][0], 10, 64)
-		if err != nil {
-			return nil, err
-		}
 		candlesticks[x].AssetType = asset.Spot
 		candlesticks[x].Pair = cp
-		candlesticks[x].Timestamp = time.UnixMilli(timestamp)
+		candlesticks[x].Timestamp = time.UnixMilli(arg.Data[x][0].Int64())
 		candlesticks[x].Exchange = o.Name
-		candlesticks[x].OpenPrice, err = strconv.ParseFloat(arg.Data[x][1], 64)
-		if err != nil {
-			return nil, err
-		}
-		candlesticks[x].HighPrice, err = strconv.ParseFloat(arg.Data[x][2], 64)
-		if err != nil {
-			return nil, err
-		}
-		candlesticks[x].LowPrice, err = strconv.ParseFloat(arg.Data[x][3], 64)
-		if err != nil {
-			return nil, err
-		}
-		candlesticks[x].ClosePrice, err = strconv.ParseFloat(arg.Data[x][4], 64)
-		if err != nil {
-			return nil, err
-		}
-		candlesticks[x].Volume, err = strconv.ParseFloat(arg.Data[x][5], 64)
-		if err != nil {
-			return nil, err
-		}
+		candlesticks[x].OpenPrice = arg.Data[x][1].Float64()
+		candlesticks[x].HighPrice = arg.Data[x][2].Float64()
+		candlesticks[x].LowPrice = arg.Data[x][3].Float64()
+		candlesticks[x].ClosePrice = arg.Data[x][4].Float64()
+		candlesticks[x].Volume = arg.Data[x][5].Float64()
 	}
 	return candlesticks, nil
 }

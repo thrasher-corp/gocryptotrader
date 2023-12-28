@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -90,10 +91,10 @@ const (
 // GetInstruments Get market data. This endpoint provides the snapshots of market data and can be used without verifications.
 // List trading pairs and get the trading limit, price, and more information of different trading pairs.
 func (o *Okcoin) GetInstruments(ctx context.Context, instrumentType, instrumentID string) ([]Instrument, error) {
-	params := url.Values{}
 	if instrumentType == "" {
 		return nil, errInstrumentTypeMissing
 	}
+	params := url.Values{}
 	params.Set("instType", instrumentType)
 	if instrumentID != "" {
 		params.Set("instId", instrumentID)
@@ -117,7 +118,7 @@ func (o *Okcoin) GetSystemStatus(ctx context.Context, state string) ([]SystemSta
 // GetSystemTime retrieve API server time.
 func (o *Okcoin) GetSystemTime(ctx context.Context) (time.Time, error) {
 	timestampResponse := []struct {
-		Timestamp okcoinTime `json:"ts"`
+		Timestamp convert.ExchangeTime `json:"ts"`
 	}{}
 	err := o.SendHTTPRequest(ctx, exchange.RestSpot, getSystemTimeEPL, http.MethodGet, typePublic, "time", nil, &timestampResponse, false)
 	if err != nil {
@@ -128,10 +129,10 @@ func (o *Okcoin) GetSystemTime(ctx context.Context) (time.Time, error) {
 
 // GetTickers retrieve the latest price snapshot, best bid/ask price, and trading volume in the last 24 hours.
 func (o *Okcoin) GetTickers(ctx context.Context, instrumentType string) ([]TickerData, error) {
-	params := url.Values{}
 	if instrumentType == "" {
 		return nil, errInstrumentTypeMissing
 	}
+	params := url.Values{}
 	params.Set("instType", instrumentType)
 	var resp []TickerData
 	return resp, o.SendHTTPRequest(ctx, exchange.RestSpot, getTickersEPL, http.MethodGet, typeMarket, common.EncodeURLValues("tickers", params), nil, &resp, false)
@@ -202,7 +203,7 @@ func (o *Okcoin) GetCandlesticks(ctx context.Context, instrumentID string, inter
 	if err != nil {
 		return nil, err
 	}
-	return ExtractCandlesticks(resp)
+	return ExtractCandlesticks(resp), nil
 }
 
 // GetCandlestickHistory retrieve history candlestick charts from recent years.
@@ -235,7 +236,7 @@ func (o *Okcoin) GetCandlestickHistory(ctx context.Context, instrumentID string,
 	if err != nil {
 		return nil, err
 	}
-	return ExtractCandlesticks(resp)
+	return ExtractCandlesticks(resp), nil
 }
 
 // GetTrades retrieve the recent transactions of an instrument.
@@ -440,10 +441,10 @@ func (o *Okcoin) GetAssetBillsDetail(ctx context.Context, ccy currency.Code, bil
 
 // GetLightningDeposits retrieves lightning deposit instances
 func (o *Okcoin) GetLightningDeposits(ctx context.Context, ccy currency.Code, amount float64, to string) ([]LightningDepositDetail, error) {
-	params := url.Values{}
 	if ccy.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
+	params := url.Values{}
 	params.Set("ccy", ccy.String())
 	if amount < 0.000001 || amount > 0.1 {
 		return nil, fmt.Errorf("%w, deposit amount must be between 0.000001 - 0.1", errInvalidAmount)
@@ -458,10 +459,10 @@ func (o *Okcoin) GetLightningDeposits(ctx context.Context, ccy currency.Code, am
 
 // GetCurrencyDepositAddresses retrieve the deposit addresses of currencies, including previously-used addresses.
 func (o *Okcoin) GetCurrencyDepositAddresses(ctx context.Context, ccy currency.Code) ([]DepositAddress, error) {
-	params := url.Values{}
 	if ccy.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
+	params := url.Values{}
 	params.Set("ccy", ccy.String())
 	var resp []DepositAddress
 	return resp, o.SendHTTPRequest(ctx, exchange.RestSpot, getAssetDepositAddressEPL, http.MethodGet, typeAssets, common.EncodeURLValues("deposit-address", params), nil, &resp, true)
@@ -531,7 +532,7 @@ func (o *Okcoin) SubmitLightningWithdrawals(ctx context.Context, arg *LightningW
 	if arg == nil {
 		return nil, errNilArgument
 	}
-	if arg.Ccy.IsEmpty() {
+	if arg.Currency.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
 	if arg.Invoice == "" {
@@ -697,14 +698,14 @@ func (o *Okcoin) GetAccountConfigurations(ctx context.Context) ([]AccountConfigu
 // Price When the price is not specified, it will be calculated according to the last traded price.
 // optional parameter
 func (o *Okcoin) GetMaximumBuySellOrOpenAmount(ctx context.Context, instrumentID, tradeMode string, price float64) ([]MaxBuySellResp, error) {
-	params := url.Values{}
 	if instrumentID == "" {
 		return nil, errMissingInstrumentID
 	}
-	params.Set("instId", instrumentID)
 	if tradeMode == "" {
 		return nil, errTradeModeIsRequired
 	}
+	params := url.Values{}
+	params.Set("instId", instrumentID)
 	params.Set("tdMode", tradeMode)
 	if price != 0 {
 		params.Set("price", strconv.FormatFloat(price, 'f', -1, 64))
@@ -717,16 +718,16 @@ func (o *Okcoin) GetMaximumBuySellOrOpenAmount(ctx context.Context, instrumentID
 // Single instrument or multiple instruments (no more than 5) separated with comma, e.g. BTC-USDT,ETH-USDT
 // Trade mode 'cash'
 func (o *Okcoin) GetMaximumAvailableTradableAmount(ctx context.Context, tradeMode string, instrumentIDs ...string) ([]AvailableTradableAmount, error) {
-	params := url.Values{}
 	if len(instrumentIDs) == 0 {
 		return nil, errMissingInstrumentID
 	} else if len(instrumentIDs) > 5 {
 		return nil, errors.New("instrument IDs can not be more than 5")
 	}
-	params.Set("instId", strings.Join(instrumentIDs, ","))
 	if tradeMode == "" {
 		return nil, errTradeModeIsRequired
 	}
+	params := url.Values{}
+	params.Set("instId", strings.Join(instrumentIDs, ","))
 	params.Set("tdMode", tradeMode)
 	var resp []AvailableTradableAmount
 	return resp, o.SendHTTPRequest(ctx, exchange.RestSpot, getMaxAvailableTradableAmountEPL, http.MethodGet, typeAccounts, common.EncodeURLValues("max-avail-size", params), nil, &resp, true)
@@ -734,10 +735,10 @@ func (o *Okcoin) GetMaximumAvailableTradableAmount(ctx context.Context, tradeMod
 
 // GetFeeRates retrieves instrument trading fee information.
 func (o *Okcoin) GetFeeRates(ctx context.Context, instrumentType, instrumentID string) ([]FeeRate, error) {
-	params := url.Values{}
 	if instrumentType == "" {
 		return nil, errInstrumentTypeMissing
 	}
+	params := url.Values{}
 	params.Set("instType", instrumentType)
 	if instrumentID != "" {
 		params.Set("instId", instrumentID)
@@ -1028,10 +1029,10 @@ func (o *Okcoin) GetSubAccounts(ctx context.Context, enable bool, subAccountName
 
 // GetAPIKeyOfSubAccount retrieves sub-account's API Key information.
 func (o *Okcoin) GetAPIKeyOfSubAccount(ctx context.Context, subAccountName, apiKey string) ([]SubAccountAPIKey, error) {
-	params := url.Values{}
 	if subAccountName == "" {
 		return nil, errSubAccountNameRequired
 	}
+	params := url.Values{}
 	params.Set("subAcct", subAccountName)
 	if apiKey != "" {
 		params.Set("apiKey", apiKey)
@@ -1051,10 +1052,10 @@ func (o *Okcoin) GetSubAccountTradingBalance(ctx context.Context, subAccountName
 
 // GetSubAccountFundingBalance retrieves detailed balance info of Funding Account of a sub-account via the master account (applies to master accounts only)
 func (o *Okcoin) GetSubAccountFundingBalance(ctx context.Context, subAccountName string, currencies ...string) ([]SubAccountFundingBalance, error) {
-	params := url.Values{}
 	if subAccountName == "" {
 		return nil, errSubAccountNameRequired
 	}
+	params := url.Values{}
 	params.Set("subAcct", subAccountName)
 	if len(currencies) > 0 {
 		params.Set("ccy", strings.Join(currencies, ","))

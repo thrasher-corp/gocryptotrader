@@ -1169,7 +1169,7 @@ func (o *Okcoin) GetHistoricCandles(ctx context.Context, pair currency.Pair, a a
 	timeSeriesData := make([]kline.Candle, len(timeSeries))
 	for x := range timeSeries {
 		timeSeriesData[x] = kline.Candle{
-			Time:   timeSeries[x].Timestamp.Time(),
+			Time:   timeSeries[x].Timestamp,
 			Open:   timeSeries[x].OpenPrice,
 			High:   timeSeries[x].HighestPrice,
 			Low:    timeSeries[x].LowestPrice,
@@ -1203,7 +1203,7 @@ func (o *Okcoin) GetHistoricCandlesExtended(ctx context.Context, pair currency.P
 			}
 			for z := range candles {
 				timeSeries = append(timeSeries, kline.Candle{
-					Time:   candles[z].Timestamp.Time(),
+					Time:   candles[z].Timestamp,
 					Open:   candles[z].OpenPrice,
 					High:   candles[z].HighestPrice,
 					Low:    candles[z].LowestPrice,
