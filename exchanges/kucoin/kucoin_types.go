@@ -11,6 +11,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
+	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
 var (
@@ -810,15 +811,15 @@ type WsTicker struct {
 	Timestamp   convert.ExchangeTime `json:"time"`
 }
 
-// WsSpotTicker represents a spot ticker push data.
-type WsSpotTicker struct {
-	Sequence kucoinNumber       `json:"sequence"`
-	Data     WsSpotTickerDetail `json:"data"`
+// WsSnapshot represents a spot ticker push data.
+type WsSnapshot struct {
+	Sequence types.Number     `json:"sequence"`
+	Data     WsSnapshotDetail `json:"data"`
 }
 
-// WsSpotTickerDetail represents the detail of a spot ticker data.
+// WsSnapshotDetail represents the detail of a spot ticker data.
 // This represents all websocket ticker information pushed as a result of subscription to /market/snapshot:{symbol}, and /market/snapshot:{currency,market}
-type WsSpotTickerDetail struct {
+type WsSnapshotDetail struct {
 	AveragePrice     float64              `json:"averagePrice"`
 	BaseCurrency     string               `json:"baseCurrency"`
 	Board            int64                `json:"board"`
@@ -1070,8 +1071,8 @@ type WsFuturesTicker struct {
 	FilledSize   float64              `json:"size"`
 	TradeID      string               `json:"tradeId"`
 	BestBidSize  float64              `json:"bestBidSize"`
-	BestBidPrice kucoinNumber         `json:"bestBidPrice"`
-	BestAskPrice kucoinNumber         `json:"bestAskPrice"`
+	BestBidPrice types.Number         `json:"bestBidPrice"`
+	BestAskPrice types.Number         `json:"bestAskPrice"`
 	BestAskSize  float64              `json:"bestAskSize"`
 	FilledTime   convert.ExchangeTime `json:"ts"`
 }
@@ -1112,8 +1113,8 @@ type WsOrderbookLevel5 struct {
 type WsOrderbookLevel5Response struct {
 	Timestamp     convert.ExchangeTime `json:"timestamp"`
 	Sequence      int64                `json:"sequence"`
-	Bids          [][2]kucoinNumber    `json:"bids"`
-	Asks          [][2]kucoinNumber    `json:"asks"`
+	Bids          [][2]types.Number    `json:"bids"`
+	Asks          [][2]types.Number    `json:"asks"`
 	PushTimestamp convert.ExchangeTime `json:"ts"`
 }
 

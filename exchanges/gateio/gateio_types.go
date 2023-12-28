@@ -492,36 +492,36 @@ type CurrencyInfo struct {
 
 // CurrencyPairDetail represents a single currency pair detail.
 type CurrencyPairDetail struct {
-	ID              string               `json:"id"`
-	Base            string               `json:"base"`
-	Quote           string               `json:"quote"`
-	TradingFee      gateioNumericalValue `json:"fee"`
-	MinBaseAmount   gateioNumericalValue `json:"min_base_amount"`
-	MinQuoteAmount  gateioNumericalValue `json:"min_quote_amount"`
-	AmountPrecision float64              `json:"amount_precision"` // Amount scale
-	Precision       float64              `json:"precision"`        // Price scale
-	TradeStatus     string               `json:"trade_status"`
-	SellStart       float64              `json:"sell_start"`
-	BuyStart        float64              `json:"buy_start"`
+	ID              string       `json:"id"`
+	Base            string       `json:"base"`
+	Quote           string       `json:"quote"`
+	TradingFee      types.Number `json:"fee"`
+	MinBaseAmount   types.Number `json:"min_base_amount"`
+	MinQuoteAmount  types.Number `json:"min_quote_amount"`
+	AmountPrecision float64      `json:"amount_precision"` // Amount scale
+	Precision       float64      `json:"precision"`        // Price scale
+	TradeStatus     string       `json:"trade_status"`
+	SellStart       float64      `json:"sell_start"`
+	BuyStart        float64      `json:"buy_start"`
 }
 
 // Ticker holds detail ticker information for a currency pair
 type Ticker struct {
-	CurrencyPair     string               `json:"currency_pair"`
-	Last             gateioNumericalValue `json:"last"`
-	LowestAsk        gateioNumericalValue `json:"lowest_ask"`
-	HighestBid       gateioNumericalValue `json:"highest_bid"`
-	ChangePercentage string               `json:"change_percentage"`
-	ChangeUtc0       string               `json:"change_utc0"`
-	ChangeUtc8       string               `json:"change_utc8"`
-	BaseVolume       gateioNumericalValue `json:"base_volume"`
-	QuoteVolume      gateioNumericalValue `json:"quote_volume"`
-	High24H          gateioNumericalValue `json:"high_24h"`
-	Low24H           gateioNumericalValue `json:"low_24h"`
-	EtfNetValue      string               `json:"etf_net_value"`
-	EtfPreNetValue   string               `json:"etf_pre_net_value"`
-	EtfPreTimestamp  gateioTime           `json:"etf_pre_timestamp"`
-	EtfLeverage      gateioNumericalValue `json:"etf_leverage"`
+	CurrencyPair     string       `json:"currency_pair"`
+	Last             types.Number `json:"last"`
+	LowestAsk        types.Number `json:"lowest_ask"`
+	HighestBid       types.Number `json:"highest_bid"`
+	ChangePercentage string       `json:"change_percentage"`
+	ChangeUtc0       string       `json:"change_utc0"`
+	ChangeUtc8       string       `json:"change_utc8"`
+	BaseVolume       types.Number `json:"base_volume"`
+	QuoteVolume      types.Number `json:"quote_volume"`
+	High24H          types.Number `json:"high_24h"`
+	Low24H           types.Number `json:"low_24h"`
+	EtfNetValue      string       `json:"etf_net_value"`
+	EtfPreNetValue   string       `json:"etf_pre_net_value"`
+	EtfPreTimestamp  gateioTime   `json:"etf_pre_timestamp"`
+	EtfLeverage      types.Number `json:"etf_leverage"`
 }
 
 // OrderbookData holds orderbook ask and bid datas.
@@ -552,7 +552,7 @@ func (a *OrderbookData) MakeOrderbook() (*Orderbook, error) {
 			return nil, err
 		}
 		ob.Asks[x] = OrderbookItem{
-			Price:  gateioNumericalValue(price),
+			Price:  types.Number(price),
 			Amount: amount,
 		}
 	}
@@ -566,7 +566,7 @@ func (a *OrderbookData) MakeOrderbook() (*Orderbook, error) {
 			return nil, err
 		}
 		ob.Bids[x] = OrderbookItem{
-			Price:  gateioNumericalValue(price),
+			Price:  types.Number(price),
 			Amount: amount,
 		}
 	}
@@ -575,8 +575,8 @@ func (a *OrderbookData) MakeOrderbook() (*Orderbook, error) {
 
 // OrderbookItem stores an orderbook item
 type OrderbookItem struct {
-	Price  gateioNumericalValue `json:"p"`
-	Amount float64              `json:"s"`
+	Price  types.Number `json:"p"`
+	Amount float64      `json:"s"`
 }
 
 // Orderbook stores the orderbook data
@@ -744,8 +744,8 @@ type FuturesTicker struct {
 
 // FuturesFundingRate represents futures funding rate response.
 type FuturesFundingRate struct {
-	Timestamp gateioTime           `json:"t"`
-	Rate      gateioNumericalValue `json:"r"`
+	Timestamp gateioTime   `json:"t"`
+	Rate      types.Number `json:"r"`
 }
 
 // InsuranceBalance represents futures insurance balance item.
@@ -783,18 +783,18 @@ type IndexConstituent struct {
 
 // LiquidationHistory represents  liquidation history for a specifies settle.
 type LiquidationHistory struct {
-	Time             gateioTime           `json:"time"`
-	Contract         string               `json:"contract"`
-	Size             int64                `json:"size"`
-	Leverage         string               `json:"leverage"`
-	Margin           string               `json:"margin"`
-	EntryPrice       types.Number         `json:"entry_price"`
-	LiquidationPrice gateioNumericalValue `json:"liq_price"`
-	MarkPrice        types.Number         `json:"mark_price"`
-	OrderID          int64                `json:"order_id"`
-	OrderPrice       types.Number         `json:"order_price"`
-	FillPrice        types.Number         `json:"fill_price"`
-	Left             int64                `json:"left"`
+	Time             gateioTime   `json:"time"`
+	Contract         string       `json:"contract"`
+	Size             int64        `json:"size"`
+	Leverage         string       `json:"leverage"`
+	Margin           string       `json:"margin"`
+	EntryPrice       types.Number `json:"entry_price"`
+	LiquidationPrice types.Number `json:"liq_price"`
+	MarkPrice        types.Number `json:"mark_price"`
+	OrderID          int64        `json:"order_id"`
+	OrderPrice       types.Number `json:"order_price"`
+	FillPrice        types.Number `json:"fill_price"`
+	Left             int64        `json:"left"`
 }
 
 // DeliveryContract represents a delivery contract instance detail.
@@ -888,12 +888,12 @@ type OptionContract struct {
 
 // OptionSettlement list settlement history
 type OptionSettlement struct {
-	Timestamp   gateioTime           `json:"time"`
-	Profit      gateioNumericalValue `json:"profit"`
-	Fee         gateioNumericalValue `json:"fee"`
-	SettlePrice types.Number         `json:"settle_price"`
-	Contract    string               `json:"contract"`
-	StrikePrice types.Number         `json:"strike_price"`
+	Timestamp   gateioTime   `json:"time"`
+	Profit      types.Number `json:"profit"`
+	Fee         types.Number `json:"fee"`
+	SettlePrice types.Number `json:"settle_price"`
+	Contract    string       `json:"contract"`
+	StrikePrice types.Number `json:"strike_price"`
 }
 
 // SwapCurrencies represents Flash Swap supported currencies
@@ -919,26 +919,26 @@ type MyOptionSettlement struct {
 
 // OptionsTicker represents  tickers of options contracts
 type OptionsTicker struct {
-	Name                  currency.Pair        `json:"name"`
-	LastPrice             gateioNumericalValue `json:"last_price"`
-	MarkPrice             gateioNumericalValue `json:"mark_price"`
-	PositionSize          float64              `json:"position_size"`
-	Ask1Size              float64              `json:"ask1_size"`
-	Ask1Price             types.Number         `json:"ask1_price"`
-	Bid1Size              float64              `json:"bid1_size"`
-	Bid1Price             types.Number         `json:"bid1_price"`
-	Vega                  string               `json:"vega"`
-	Theta                 string               `json:"theta"`
-	Rho                   string               `json:"rho"`
-	Gamma                 string               `json:"gamma"`
-	Delta                 string               `json:"delta"`
-	MarkImpliedVolatility gateioNumericalValue `json:"mark_iv"`
-	BidImpliedVolatility  gateioNumericalValue `json:"bid_iv"`
-	AskImpliedVolatility  gateioNumericalValue `json:"ask_iv"`
-	Leverage              gateioNumericalValue `json:"leverage"`
+	Name                  currency.Pair `json:"name"`
+	LastPrice             types.Number  `json:"last_price"`
+	MarkPrice             types.Number  `json:"mark_price"`
+	PositionSize          float64       `json:"position_size"`
+	Ask1Size              float64       `json:"ask1_size"`
+	Ask1Price             types.Number  `json:"ask1_price"`
+	Bid1Size              float64       `json:"bid1_size"`
+	Bid1Price             types.Number  `json:"bid1_price"`
+	Vega                  string        `json:"vega"`
+	Theta                 string        `json:"theta"`
+	Rho                   string        `json:"rho"`
+	Gamma                 string        `json:"gamma"`
+	Delta                 string        `json:"delta"`
+	MarkImpliedVolatility types.Number  `json:"mark_iv"`
+	BidImpliedVolatility  types.Number  `json:"bid_iv"`
+	AskImpliedVolatility  types.Number  `json:"ask_iv"`
+	Leverage              types.Number  `json:"leverage"`
 
 	// Added fields for the websocket
-	IndexPrice gateioNumericalValue `json:"index_price"`
+	IndexPrice types.Number `json:"index_price"`
 }
 
 // OptionsUnderlyingTicker represents underlying ticker
@@ -1389,39 +1389,39 @@ type CreateOrderRequestData struct {
 
 // SpotOrder represents create order response.
 type SpotOrder struct {
-	OrderID            string               `json:"id,omitempty"`
-	Text               string               `json:"text,omitempty"`
-	Succeeded          bool                 `json:"succeeded"`
-	ErrorLabel         string               `json:"label,omitempty"`
-	Message            string               `json:"message,omitempty"`
-	CreateTime         gateioTime           `json:"create_time,omitempty"`
-	CreateTimeMs       gateioTime           `json:"create_time_ms,omitempty"`
-	UpdateTime         gateioTime           `json:"update_time,omitempty"`
-	UpdateTimeMs       gateioTime           `json:"update_time_ms,omitempty"`
-	CurrencyPair       string               `json:"currency_pair,omitempty"`
-	Status             string               `json:"status,omitempty"`
-	Type               string               `json:"type,omitempty"`
-	Account            string               `json:"account,omitempty"`
-	Side               string               `json:"side,omitempty"`
-	Amount             types.Number         `json:"amount,omitempty"`
-	Price              types.Number         `json:"price,omitempty"`
-	TimeInForce        string               `json:"time_in_force,omitempty"`
-	Iceberg            string               `json:"iceberg,omitempty"`
-	AutoRepay          bool                 `json:"auto_repay"`
-	AutoBorrow         bool                 `json:"auto_borrow"`
-	Left               gateioNumericalValue `json:"left"`
-	AverageFillPrice   types.Number         `json:"avg_deal_price"`
-	FeeDeducted        types.Number         `json:"fee"`
-	FeeCurrency        string               `json:"fee_currency"`
-	FillPrice          types.Number         `json:"fill_price"`   // Total filled in quote currency. Deprecated in favor of filled_total
-	FilledTotal        types.Number         `json:"filled_total"` // Total filled in quote currency
-	PointFee           types.Number         `json:"point_fee"`
-	GtFee              string               `json:"gt_fee,omitempty"`
-	GtDiscount         bool                 `json:"gt_discount"`
-	GtMakerFee         types.Number         `json:"gt_maker_fee"`
-	GtTakerFee         types.Number         `json:"gt_taker_fee"`
-	RebatedFee         types.Number         `json:"rebated_fee"`
-	RebatedFeeCurrency string               `json:"rebated_fee_currency"`
+	OrderID            string       `json:"id,omitempty"`
+	Text               string       `json:"text,omitempty"`
+	Succeeded          bool         `json:"succeeded"`
+	ErrorLabel         string       `json:"label,omitempty"`
+	Message            string       `json:"message,omitempty"`
+	CreateTime         gateioTime   `json:"create_time,omitempty"`
+	CreateTimeMs       gateioTime   `json:"create_time_ms,omitempty"`
+	UpdateTime         gateioTime   `json:"update_time,omitempty"`
+	UpdateTimeMs       gateioTime   `json:"update_time_ms,omitempty"`
+	CurrencyPair       string       `json:"currency_pair,omitempty"`
+	Status             string       `json:"status,omitempty"`
+	Type               string       `json:"type,omitempty"`
+	Account            string       `json:"account,omitempty"`
+	Side               string       `json:"side,omitempty"`
+	Amount             types.Number `json:"amount,omitempty"`
+	Price              types.Number `json:"price,omitempty"`
+	TimeInForce        string       `json:"time_in_force,omitempty"`
+	Iceberg            string       `json:"iceberg,omitempty"`
+	AutoRepay          bool         `json:"auto_repay"`
+	AutoBorrow         bool         `json:"auto_borrow"`
+	Left               types.Number `json:"left"`
+	AverageFillPrice   types.Number `json:"avg_deal_price"`
+	FeeDeducted        types.Number `json:"fee"`
+	FeeCurrency        string       `json:"fee_currency"`
+	FillPrice          types.Number `json:"fill_price"`   // Total filled in quote currency. Deprecated in favor of filled_total
+	FilledTotal        types.Number `json:"filled_total"` // Total filled in quote currency
+	PointFee           types.Number `json:"point_fee"`
+	GtFee              string       `json:"gt_fee,omitempty"`
+	GtDiscount         bool         `json:"gt_discount"`
+	GtMakerFee         types.Number `json:"gt_maker_fee"`
+	GtTakerFee         types.Number `json:"gt_taker_fee"`
+	RebatedFee         types.Number `json:"rebated_fee"`
+	RebatedFeeCurrency string       `json:"rebated_fee_currency"`
 }
 
 // SpotOrdersDetail represents list of orders for specific currency pair
@@ -2067,34 +2067,34 @@ type WsOrderbookSnapshot struct {
 
 // WsSpotOrder represents an order push data through the websocket channel.
 type WsSpotOrder struct {
-	ID                 string               `json:"id,omitempty"`
-	User               int64                `json:"user"`
-	Text               string               `json:"text,omitempty"`
-	Succeeded          bool                 `json:"succeeded,omitempty"`
-	Label              string               `json:"label,omitempty"`
-	Message            string               `json:"message,omitempty"`
-	CurrencyPair       currency.Pair        `json:"currency_pair,omitempty"`
-	Type               string               `json:"type,omitempty"`
-	Account            string               `json:"account,omitempty"`
-	Side               string               `json:"side,omitempty"`
-	Amount             types.Number         `json:"amount,omitempty"`
-	Price              types.Number         `json:"price,omitempty"`
-	TimeInForce        string               `json:"time_in_force,omitempty"`
-	Iceberg            string               `json:"iceberg,omitempty"`
-	Left               gateioNumericalValue `json:"left,omitempty"`
-	FilledTotal        types.Number         `json:"filled_total,omitempty"`
-	Fee                types.Number         `json:"fee,omitempty"`
-	FeeCurrency        string               `json:"fee_currency,omitempty"`
-	PointFee           string               `json:"point_fee,omitempty"`
-	GtFee              string               `json:"gt_fee,omitempty"`
-	GtDiscount         bool                 `json:"gt_discount,omitempty"`
-	RebatedFee         string               `json:"rebated_fee,omitempty"`
-	RebatedFeeCurrency string               `json:"rebated_fee_currency,omitempty"`
-	Event              string               `json:"event"`
-	CreateTime         gateioTime           `json:"create_time,omitempty"`
-	CreateTimeMs       gateioTime           `json:"create_time_ms,omitempty"`
-	UpdateTime         gateioTime           `json:"update_time,omitempty"`
-	UpdateTimeMs       gateioTime           `json:"update_time_ms,omitempty"`
+	ID                 string        `json:"id,omitempty"`
+	User               int64         `json:"user"`
+	Text               string        `json:"text,omitempty"`
+	Succeeded          bool          `json:"succeeded,omitempty"`
+	Label              string        `json:"label,omitempty"`
+	Message            string        `json:"message,omitempty"`
+	CurrencyPair       currency.Pair `json:"currency_pair,omitempty"`
+	Type               string        `json:"type,omitempty"`
+	Account            string        `json:"account,omitempty"`
+	Side               string        `json:"side,omitempty"`
+	Amount             types.Number  `json:"amount,omitempty"`
+	Price              types.Number  `json:"price,omitempty"`
+	TimeInForce        string        `json:"time_in_force,omitempty"`
+	Iceberg            string        `json:"iceberg,omitempty"`
+	Left               types.Number  `json:"left,omitempty"`
+	FilledTotal        types.Number  `json:"filled_total,omitempty"`
+	Fee                types.Number  `json:"fee,omitempty"`
+	FeeCurrency        string        `json:"fee_currency,omitempty"`
+	PointFee           string        `json:"point_fee,omitempty"`
+	GtFee              string        `json:"gt_fee,omitempty"`
+	GtDiscount         bool          `json:"gt_discount,omitempty"`
+	RebatedFee         string        `json:"rebated_fee,omitempty"`
+	RebatedFeeCurrency string        `json:"rebated_fee_currency,omitempty"`
+	Event              string        `json:"event"`
+	CreateTime         gateioTime    `json:"create_time,omitempty"`
+	CreateTimeMs       gateioTime    `json:"create_time_ms,omitempty"`
+	UpdateTime         gateioTime    `json:"update_time,omitempty"`
+	UpdateTimeMs       gateioTime    `json:"update_time_ms,omitempty"`
 }
 
 // WsUserPersonalTrade represents a user's personal trade pushed through the websocket connection.
