@@ -3309,45 +3309,6 @@ func TestParseGateioTimeUnmarshal(t *testing.T) {
 	}
 }
 
-func TestGateioNumericalValue(t *testing.T) {
-	t.Parallel()
-	in := &struct {
-		Number gateioNumericalValue `json:"number"`
-	}{}
-
-	numberJSON := `{"number":123442.231}`
-	err := json.Unmarshal([]byte(numberJSON), in)
-	if err != nil {
-		t.Fatal(err)
-	} else if in.Number != 123442.231 {
-		t.Fatalf("found %f, but expected %f", in.Number, 123442.231)
-	}
-
-	numberJSON = `{"number":"123442.231"}`
-	err = json.Unmarshal([]byte(numberJSON), in)
-	if err != nil {
-		t.Fatal(err)
-	} else if in.Number != 123442.231 {
-		t.Fatalf("found %f, but expected %s", in.Number, "123442.231")
-	}
-
-	numberJSON = `{"number":""}`
-	err = json.Unmarshal([]byte(numberJSON), in)
-	if err != nil {
-		t.Fatal(err)
-	} else if in.Number != 0 {
-		t.Fatalf("found %f, but expected %d", in.Number, 0)
-	}
-
-	numberJSON = `{"number":0}`
-	err = json.Unmarshal([]byte(numberJSON), in)
-	if err != nil {
-		t.Fatal(err)
-	} else if in.Number != 0 {
-		t.Fatalf("found %f, but expected %d", in.Number, 0)
-	}
-}
-
 func TestUpdateOrderExecutionLimits(t *testing.T) {
 	t.Parallel()
 

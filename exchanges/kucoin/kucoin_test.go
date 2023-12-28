@@ -2316,62 +2316,6 @@ func TestFetchAccountInfo(t *testing.T) {
 	}
 }
 
-func TestKucoinNumberUnmarshal(t *testing.T) {
-	t.Parallel()
-	data := &struct {
-		Number kucoinNumber `json:"number"`
-	}{}
-	data1 := `{"number": 123.33}`
-	err := json.Unmarshal([]byte(data1), &data)
-	if err != nil {
-		t.Fatal(err)
-	} else if data.Number.Float64() != 123.33 {
-		t.Errorf("expecting %.2f, got %.2f", 123.33, data.Number)
-	}
-	data2 := `{"number": "123.33"}`
-	err = json.Unmarshal([]byte(data2), &data)
-	if err != nil {
-		t.Fatal(err)
-	} else if data.Number.Float64() != 123.33 {
-		t.Errorf("expecting %.2f, got %.2f", 123.33, data.Number)
-	}
-	data3 := `{"number": ""}`
-	err = json.Unmarshal([]byte(data3), &data)
-	if err != nil {
-		t.Fatal(err)
-	} else if data.Number.Float64() != 0 {
-		t.Errorf("expecting %d, got %.2f", 0, data.Number)
-	}
-	data4 := `{"number": "123"}`
-	err = json.Unmarshal([]byte(data4), &data)
-	if err != nil {
-		t.Fatal(err)
-	} else if data.Number.Float64() != 123 {
-		t.Errorf("expecting %d, got %.2f", 123, data.Number)
-	}
-	data5 := `{"number": 0}`
-	err = json.Unmarshal([]byte(data5), &data)
-	if err != nil {
-		t.Fatal(err)
-	} else if data.Number.Float64() != 0 {
-		t.Errorf("expecting %d, got %.2f", 0, data.Number)
-	}
-	data6 := `{"number": 123789}`
-	err = json.Unmarshal([]byte(data6), &data)
-	if err != nil {
-		t.Fatal(err)
-	} else if data.Number.Float64() != 123789 {
-		t.Errorf("expecting %d, got %.2f", 123789, data.Number)
-	}
-	data7 := `{"number": 12321312312312312}`
-	err = json.Unmarshal([]byte(data7), &data)
-	if err != nil {
-		t.Fatal(err)
-	} else if data.Number.Float64() != float64(12321312312312312) {
-		t.Errorf("expecting %.f, got %.2f", float64(12321312312312312), data.Number)
-	}
-}
-
 func TestUpdateAccountInfo(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ku)

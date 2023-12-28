@@ -31,7 +31,7 @@ import (
 
 func TestMain(m *testing.M) {
 	// only run testing suite for one CI/CD environment
-	if isAppVeyor() || is32BitJob() {
+	if skipAdditionalWrapperCITests() {
 		return
 	}
 	request.MaxRequestJobs = 200
@@ -763,16 +763,9 @@ Rsd80LrBCVI8ctzrvYRFSugC`
 }
 
 func isCITest() bool {
-	ci := os.Getenv("CI")
-	return ci == "true" /* github actions */ || ci == "True" /* appveyor */
+	return os.Getenv("CI") == "true"
 }
 
-func isAppVeyor() bool {
-	ci := os.Getenv("APPVEYOR")
-	return ci == "True"
-}
-
-func is32BitJob() bool {
-	ci := os.Getenv("GITHUB_JOB")
-	return ci == "backend-32bit"
+func skipAdditionalWrapperCITests() bool {
+	return os.Getenv("SKIP_WRAPPER_CI_TESTS") == "true"
 }
