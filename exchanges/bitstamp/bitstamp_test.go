@@ -401,6 +401,9 @@ func TestGetWithdrawalRequests(t *testing.T) {
 			assert.Equal(t, "2022-01-31 16:07:32", req.Date, "Date should match")
 			assert.Equal(t, currency.BTC, req.Currency, "Currency should match")
 			assert.Equal(t, 0.00006000, req.Amount, "Amount should match")
+			assert.Equal(t, "NsOeFbQhRnpGzNIThWGBTkQwRJqTNOGPVhYavrVyMfkAyMUmIlUpFIwGTzSvpeOP", req.TransactionID, "TransactionID should match")
+			assert.Equal(t, int64(2), req.Status, "Status should match")
+			assert.Equal(t, int64(0), req.Type, "Type should match")
 		}
 	}
 }
