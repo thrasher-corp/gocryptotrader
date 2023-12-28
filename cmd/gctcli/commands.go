@@ -1173,7 +1173,7 @@ func getOrders(c *cli.Context) error {
 	}
 
 	if e.Before(s) {
-		return errors.New("start cannot be after end")
+		return common.ErrStartAfterEnd
 	}
 
 	conn, cancel, err := setupClient(c)
@@ -3019,7 +3019,7 @@ func withdrawlRequestByDate(c *cli.Context) error {
 	}
 
 	if e.Before(s) {
-		return errors.New("start cannot be after end")
+		return common.ErrStartAfterEnd
 	}
 
 	conn, cancel, err := setupClient(c)
@@ -3411,7 +3411,7 @@ func getAuditEvent(c *cli.Context) error {
 	}
 
 	if e.Before(s) {
-		return errors.New("start cannot be after end")
+		return common.ErrStartAfterEnd
 	}
 
 	conn, cancel, err := setupClient(c)
@@ -4161,7 +4161,7 @@ func getHistoricCandlesExtended(c *cli.Context) error {
 	}
 
 	if e.Before(s) {
-		return errors.New("start cannot be after end")
+		return common.ErrStartAfterEnd
 	}
 
 	conn, cancel, err := setupClient(c)
@@ -4310,7 +4310,7 @@ func findMissingSavedCandleIntervals(c *cli.Context) error {
 	}
 
 	if e.Before(s) {
-		return errors.New("start cannot be after end")
+		return common.ErrStartAfterEnd
 	}
 
 	conn, cancel, err := setupClient(c)

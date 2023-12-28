@@ -888,7 +888,7 @@ func (ku *Kucoin) processOrderbook(respData []byte, symbol string) error {
 }
 
 func (ku *Kucoin) processMarketSnapshot(respData []byte) error {
-	response := WsSpotTicker{}
+	response := WsSnapshot{}
 	err := json.Unmarshal(respData, &response)
 	if err != nil {
 		return err

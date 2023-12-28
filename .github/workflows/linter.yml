@@ -9,6 +9,7 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version: '1.21.x'
+          cache: false
       - name: golangci-lint
         uses: golangci/golangci-lint-action@v3
         with:
