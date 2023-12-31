@@ -624,15 +624,14 @@ type ExchangeRate struct {
 // ToExtract returns a CandlestickData instance from []string
 func (c *candlestickItemResponse) ToExtract() CandlestickData {
 	return CandlestickData{
-		Timestamp:            time.UnixMilli(c[0].Int64()),
-		OpenPrice:            c[1].Float64(),
-		HighestPrice:         c[2].Float64(),
-		LowestPrice:          c[3].Float64(),
-		ClosePrice:           c[4].Float64(),
-		TradingVolume:        c[5].Float64(),
-		QuoteTradingVolume:   c[6].Float64(),
-		TradingVolumeInQuote: c[7].Float64(),
-		Confirm:              c[8].Int64(),
+		Timestamp:          time.UnixMilli(c[0].Int64()),
+		OpenPrice:          c[1].Float64(),
+		HighestPrice:       c[2].Float64(),
+		LowestPrice:        c[3].Float64(),
+		ClosePrice:         c[4].Float64(),
+		TradingVolume:      c[5].Float64(),
+		QuoteTradingVolume: c[6].Float64(),
+		Confirm:            c[8].Int64(),
 	}
 }
 

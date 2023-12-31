@@ -138,7 +138,7 @@ func TestGetOrderbooks(t *testing.T) {
 
 func TestGetCandlestick(t *testing.T) {
 	t.Parallel()
-	_, err := o.GetCandlesticks(context.Background(), spotTradablePair.String(), kline.FiveMin, time.Now(), time.Now().Add(-time.Hour*30), 0, false)
+	_, err := o.GetCandlesticks(context.Background(), spotTradablePair.String(), kline.FiveMin, time.Now(), time.Now().Add(-time.Hour*30), 1, false)
 	if err != nil {
 		t.Error(err)
 	}
