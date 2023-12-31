@@ -30,11 +30,10 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	exchCfg.Enabled = true
-	exchCfg.API.AuthenticatedSupport = true
-	exchCfg.API.AuthenticatedWebsocketSupport = true
 	exchCfg.API.Credentials.Key = apiKey
 	exchCfg.API.Credentials.Secret = apiSecret
+	exchCfg.API.AuthenticatedSupport = true
+	exchCfg.API.AuthenticatedWebsocketSupport = true
 	b.Websocket = sharedtestvalues.NewTestWebsocket()
 	request.MaxRequestJobs = 100
 	err = b.Setup(exchCfg)

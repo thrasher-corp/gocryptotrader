@@ -36,11 +36,12 @@ func TestMain(m *testing.M) {
 	}
 
 	b.SkipAuthCheck = true
-	bybitConfig.API.AuthenticatedSupport = true
+	request.MaxRequestJobs = 100
 	bybitConfig.API.Credentials.Key = apiKey
 	bybitConfig.API.Credentials.Secret = apiSecret
+	bybitConfig.API.AuthenticatedSupport = true
+	bybitConfig.API.AuthenticatedWebsocketSupport = true
 	b.Websocket = sharedtestvalues.NewTestWebsocket()
-	request.MaxRequestJobs = 100
 	err = b.Setup(bybitConfig)
 	if err != nil {
 		log.Fatal("Bybit setup error", err)

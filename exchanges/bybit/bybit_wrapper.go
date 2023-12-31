@@ -1914,6 +1914,14 @@ func (by *Bybit) GetLatestFundingRates(ctx context.Context, r *fundingrate.Lates
 	}
 	r.Pair = r.Pair.Format(format)
 
+	var fundingInterval time.Duration
+	instrumentInfo, err := by.GetInstrumentInfo(ctx, getCategoryName(r.Asset), r.Pair.String(), "", "", "", 1)
+	if err != nil {
+		log.Errorf(log.ExchangeSys, "could not get instrument next funding time info")
+	} else if len(instrumentInfo.List) > 0 {
+		fundingInterval = time.Minute * time.Duration(instrumentInfo.List[0].FundingInterval)
+	}
+
 	switch r.Asset {
 	case asset.USDCMarginedFutures,
 		asset.USDTMarginedFutures,
@@ -1942,14 +1950,15 @@ func (by *Bybit) GetLatestFundingRates(ctx context.Context, r *fundingrate.Lates
 			}
 			latestTimestamp = fRates.List[i].FundingRateTimestamp.Time().UnixMilli()
 			resp[0] = fundingrate.LatestRateResponse{
-				TimeChecked: time.Now(),
 				Exchange:    by.Name,
+				TimeChecked: time.Now(),
 				Asset:       r.Asset,
 				Pair:        cp,
 				LatestRate: fundingrate.Rate{
 					Time: fRates.List[i].FundingRateTimestamp.Time(),
 					Rate: decimal.NewFromFloat(fRates.List[i].FundingRate.Float64()),
 				},
+				TimeOfNextRate: fRates.List[i].FundingRateTimestamp.Time().Add(fundingInterval),
 			}
 		}
 		if len(resp) == 0 {
