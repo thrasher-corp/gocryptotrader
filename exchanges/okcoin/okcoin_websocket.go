@@ -24,6 +24,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
+	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
 const (
@@ -695,7 +696,7 @@ func (o *Okcoin) wsProcessCandles(respRaw []byte) error {
 
 // AppendWsOrderbookItems adds websocket orderbook data bid/asks into an
 // orderbook item array
-func (o *Okcoin) AppendWsOrderbookItems(entries [][2]okcoinNumber) ([]orderbook.Item, error) {
+func (o *Okcoin) AppendWsOrderbookItems(entries [][2]types.Number) ([]orderbook.Item, error) {
 	items := make([]orderbook.Item, len(entries))
 	for j := range entries {
 		amount := entries[j][1].Float64()

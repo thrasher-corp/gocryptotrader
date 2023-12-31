@@ -180,11 +180,9 @@ func (d *Dispatcher) relayer() {
 				continue
 			}
 			for i := range pipes {
-				select {
-				case pipes[i] <- j.Data:
-				default:
-					// no receiver; don't wait. This limits complexity.
-				}
+				go func(p chan any) {
+					p <- j.Data
+				}(pipes[i])
 			}
 			d.rMtx.RUnlock()
 		case <-d.shutdown:
