@@ -51,33 +51,3 @@ func (a *gateioTime) UnmarshalJSON(data []byte) error {
 
 // Time represents a time instance.
 func (a gateioTime) Time() time.Time { return time.Time(a) }
-
-type gateioNumericalValue float64
-
-// UnmarshalJSON is custom type json unmarshaller for gateioNumericalValue
-func (a *gateioNumericalValue) UnmarshalJSON(data []byte) error {
-	var num interface{}
-	err := json.Unmarshal(data, &num)
-	if err != nil {
-		return err
-	}
-
-	switch d := num.(type) {
-	case float64:
-		*a = gateioNumericalValue(d)
-	case string:
-		if d == "" {
-			*a = gateioNumericalValue(0)
-			return nil
-		}
-		convNum, err := strconv.ParseFloat(d, 64)
-		if err != nil {
-			return err
-		}
-		*a = gateioNumericalValue(convNum)
-	}
-	return nil
-}
-
-// Float64 returns float64 value from gateioNumericalValue instance.
-func (a gateioNumericalValue) Float64() float64 { return float64(a) }

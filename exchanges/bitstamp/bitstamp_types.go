@@ -2,7 +2,6 @@ package bitstamp
 
 import (
 	"errors"
-	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
 )
@@ -156,7 +155,7 @@ type DepositAddress struct {
 // WithdrawalRequests holds request information on withdrawals
 type WithdrawalRequests struct {
 	OrderID       int64         `json:"id"`
-	Date          time.Time     `json:"datetime"`
+	Date          string        `json:"datetime"`
 	Type          int64         `json:"type"`
 	Amount        float64       `json:"amount,string"`
 	Status        int64         `json:"status"`

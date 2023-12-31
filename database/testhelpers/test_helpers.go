@@ -2,7 +2,6 @@ package testhelpers
 
 import (
 	"database/sql"
-	"os"
 	"path/filepath"
 	"reflect"
 
@@ -26,38 +25,6 @@ var (
 
 // GetConnectionDetails returns connection details for CI or test db instances
 func GetConnectionDetails() *database.Config {
-	_, exists := os.LookupEnv("TRAVIS")
-	if exists {
-		return &database.Config{
-			Enabled: true,
-			Driver:  "postgres",
-			ConnectionDetails: drivers.ConnectionDetails{
-				Host:     "localhost",
-				Port:     5432,
-				Username: "postgres",
-				Password: "",
-				Database: "gct_dev_ci",
-				SSLMode:  "",
-			},
-		}
-	}
-
-	_, exists = os.LookupEnv("APPVEYOR")
-	if exists {
-		return &database.Config{
-			Enabled: true,
-			Driver:  "postgres",
-			ConnectionDetails: drivers.ConnectionDetails{
-				Host:     "localhost",
-				Port:     5432,
-				Username: "postgres",
-				Password: "Password12!",
-				Database: "gct_dev_ci",
-				SSLMode:  "",
-			},
-		}
-	}
-
 	return &database.Config{
 		Enabled:           true,
 		Driver:            "postgres",
