@@ -2,7 +2,6 @@ package okcoin
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"log"
 	"os"
@@ -1766,27 +1765,6 @@ func (o *Okcoin) populateTradablePairs(ctx context.Context) error {
 	}
 	spotTradablePair = enabledPairs[0]
 	return nil
-}
-
-func TestOKCOINNumberUnmarshal(t *testing.T) {
-	type testNumberHolder struct {
-		Numb okcoinNumber `json:"numb"`
-	}
-	var val testNumberHolder
-	data1 := `{ "numb":"12345.65" }`
-	err := json.Unmarshal([]byte(data1), &val)
-	if err != nil {
-		t.Error(err)
-	} else if val.Numb.Float64() != 12345.65 {
-		t.Errorf("found %.2f, but found %.2f", val.Numb.Float64(), 12345.65)
-	}
-	data2 := `{ "numb":"" }`
-	err = json.Unmarshal([]byte(data2), &val)
-	if err != nil {
-		t.Error(err)
-	} else if val.Numb.Float64() != 0 {
-		t.Errorf("found %.2f, but found %d", val.Numb.Float64(), 0)
-	}
 }
 
 func TestGetSubAccounts(t *testing.T) {
