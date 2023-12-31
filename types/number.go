@@ -71,3 +71,8 @@ func (f Number) Int64() int64 {
 func (f Number) Decimal() decimal.Decimal {
 	return decimal.NewFromFloat(float64(f))
 }
+
+// String returns a string representation of the number
+func (f Number) String() string {
+	return strconv.FormatFloat(float64(f), 'f', -1, 64)
+}
