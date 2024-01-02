@@ -404,10 +404,8 @@ func (ku *Kucoin) GetBorrowOrder(ctx context.Context, orderID string) (*BorrowOr
 	if orderID == "" {
 		return nil, errors.New("empty orderID")
 	}
-	params := url.Values{}
-	params.Set("orderId", orderID)
 	var resp *BorrowOrder
-	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, defaultSpotEPL, http.MethodGet, common.EncodeURLValues(kucoinBorrowOrder, params), nil, &resp)
+	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, defaultSpotEPL, http.MethodGet, kucoinBorrowOrder+"?orderId="+orderID, nil, &resp)
 }
 
 // GetOutstandingRecord gets outstanding record information
@@ -435,15 +433,15 @@ func (ku *Kucoin) OneClickRepayment(ctx context.Context, ccy, sequence string, s
 	if ccy == "" {
 		return currency.ErrCurrencyCodeEmpty
 	}
-	params := make(map[string]interface{})
-	params["currency"] = ccy
 	if sequence == "" {
 		return errors.New("sequence can not be empty")
 	}
-	params["sequence"] = sequence
 	if size == 0 {
 		return errors.New("size can not be zero")
 	}
+	params := make(map[string]interface{})
+	params["currency"] = ccy
+	params["sequence"] = sequence
 	params["size"] = strconv.FormatFloat(size, 'f', -1, 64)
 	return ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, defaultSpotEPL, http.MethodPost, kucoinOneClickRepayment, params, &struct{}{})
 }
@@ -453,15 +451,15 @@ func (ku *Kucoin) SingleOrderRepayment(ctx context.Context, ccy, tradeID string,
 	if ccy == "" {
 		return currency.ErrCurrencyCodeEmpty
 	}
-	params := make(map[string]interface{})
-	params["currency"] = ccy
 	if tradeID == "" {
 		return errors.New("tradeId can not be empty")
 	}
-	params["tradeId"] = tradeID
 	if size == 0 {
 		return errors.New("size can not be zero")
 	}
+	params := make(map[string]interface{})
+	params["currency"] = ccy
+	params["tradeId"] = tradeID
 	params["size"] = strconv.FormatFloat(size, 'f', -1, 64)
 	return ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, defaultSpotEPL, http.MethodPost, kucoinRepaySingleOrder, params, &struct{}{})
 }
@@ -471,19 +469,19 @@ func (ku *Kucoin) PostLendOrder(ctx context.Context, ccy string, dailyInterestRa
 	if ccy == "" {
 		return "", currency.ErrCurrencyPairEmpty
 	}
-	params := make(map[string]interface{})
-	params["currency"] = ccy
 	if dailyInterestRate == 0 {
 		return "", errors.New("dailyIntRate can not be zero")
 	}
-	params["dailyIntRate"] = strconv.FormatFloat(dailyInterestRate, 'f', -1, 64)
 	if size == 0 {
 		return "", errors.New("size can not be zero")
 	}
-	params["size"] = strconv.FormatFloat(size, 'f', -1, 64)
 	if term == 0 {
 		return "", errors.New("term can not be zero")
 	}
+	params := make(map[string]interface{})
+	params["currency"] = ccy
+	params["dailyIntRate"] = strconv.FormatFloat(dailyInterestRate, 'f', -1, 64)
+	params["size"] = strconv.FormatFloat(size, 'f', -1, 64)
 	params["term"] = strconv.FormatInt(term, 10)
 	resp := struct {
 		OrderID string `json:"orderId"`
@@ -505,19 +503,19 @@ func (ku *Kucoin) SetAutoLend(ctx context.Context, ccy string, dailyInterestRate
 	if ccy == "" {
 		return currency.ErrCurrencyCodeEmpty
 	}
-	params := make(map[string]interface{})
-	params["currency"] = ccy
 	if dailyInterestRate == 0 {
 		return errors.New("dailyIntRate can not be zero")
 	}
-	params["dailyIntRate"] = strconv.FormatFloat(dailyInterestRate, 'f', -1, 64)
 	if retainSize == 0 {
 		return errors.New("retainSize can not be zero")
 	}
-	params["retainSize"] = strconv.FormatFloat(retainSize, 'f', -1, 64)
 	if term == 0 {
 		return errors.New("term can not be zero")
 	}
+	params := make(map[string]interface{})
+	params["currency"] = ccy
+	params["dailyIntRate"] = strconv.FormatFloat(dailyInterestRate, 'f', -1, 64)
+	params["retainSize"] = strconv.FormatFloat(retainSize, 'f', -1, 64)
 	params["term"] = strconv.FormatInt(term, 10)
 	params["isEnable"] = isEnable
 	resp := struct {
@@ -646,18 +644,17 @@ func (ku *Kucoin) InitiateIsolatedMarginBorrowing(ctx context.Context, symbol, c
 	if ccy == "" {
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
-	params := make(map[string]interface{})
-	params["symbol"] = symbol
-	params["currency"] = ccy
 	if borrowStrategy == "" {
 		return nil, errors.New("borrowStrategy can not be empty")
 	}
-	params["borrowStrategy"] = borrowStrategy
 	if size == 0 {
 		return nil, errors.New("size can not be zero")
 	}
+	params := make(map[string]interface{})
+	params["symbol"] = symbol
+	params["currency"] = ccy
+	params["borrowStrategy"] = borrowStrategy
 	params["size"] = strconv.FormatInt(size, 10)
-
 	if period != "" {
 		params["period"] = period
 	}
@@ -736,19 +733,19 @@ func (ku *Kucoin) InitiateIsolatedMarginSingleRepayment(ctx context.Context, sym
 	if symbol == "" {
 		return currency.ErrCurrencyPairEmpty
 	}
-	params := make(map[string]interface{})
-	params["symbol"] = symbol
 	if ccy == "" {
 		return currency.ErrCurrencyCodeEmpty
 	}
-	params["currency"] = ccy
 	if loanID == "" {
 		return errors.New("loanId can not be empty")
 	}
-	params["loanId"] = loanID
 	if size == 0 {
 		return errors.New("size can not be zero")
 	}
+	params := make(map[string]interface{})
+	params["symbol"] = symbol
+	params["currency"] = ccy
+	params["loanId"] = loanID
 	params["size"] = strconv.FormatInt(size, 10)
 	resp := struct {
 		Error
@@ -996,18 +993,18 @@ func (ku *Kucoin) GetRecentFills(ctx context.Context) ([]Fill, error) {
 
 // PostStopOrder used to place two types of stop orders: limit and market
 func (ku *Kucoin) PostStopOrder(ctx context.Context, clientOID, side, symbol, orderType, remark, stop, stp, tradeType, timeInForce string, size, price, stopPrice, cancelAfter, visibleSize, funds float64, postOnly, hidden, iceberg bool) (string, error) {
-	params := make(map[string]interface{})
 	if clientOID == "" {
 		return "", errors.New("clientOid can not be empty")
 	}
-	params["clientOid"] = clientOID
 	if side == "" {
 		return "", errors.New("side can not be empty")
 	}
-	params["side"] = side
 	if symbol == "" {
 		return "", fmt.Errorf("%w, empty symbol", currency.ErrCurrencyPairEmpty)
 	}
+	params := make(map[string]interface{})
+	params["clientOid"] = clientOID
+	params["side"] = side
 	params["symbol"] = symbol
 	if remark != "" {
 		params["remark"] = remark
@@ -1159,13 +1156,13 @@ func (ku *Kucoin) CancelStopOrderByClientID(ctx context.Context, symbol, clientO
 
 // CreateSubUser creates a new sub-user for the account.
 func (ku *Kucoin) CreateSubUser(ctx context.Context, subAccountName, password, remarks, access string) (*SubAccount, error) {
-	params := make(map[string]interface{})
 	if regexp.MustCompile("^[a-zA-Z0-9]{7-32}$").MatchString(subAccountName) {
 		return nil, errors.New("invalid sub-account name")
 	}
 	if regexp.MustCompile("^[a-zA-Z0-9]{7-24}$").MatchString(password) {
 		return nil, errInvalidPassPhraseInstance
 	}
+	params := make(map[string]interface{})
 	params["subName"] = subAccountName
 	params["password"] = password
 	if remarks != "" {
@@ -1188,8 +1185,8 @@ func (ku *Kucoin) GetSubAccountSpotAPIList(ctx context.Context, subAccountName, 
 	if apiKeys != "" {
 		params.Set("apiKey", apiKeys)
 	}
-	var resp SubAccountResponse
-	return &resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, defaultSpotEPL, http.MethodGet, common.EncodeURLValues(kucoinSubAccountSpotAPIs, params), nil, &resp)
+	var resp *SubAccountResponse
+	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, defaultSpotEPL, http.MethodGet, common.EncodeURLValues(kucoinSubAccountSpotAPIs, params), nil, &resp)
 }
 
 // CreateSpotAPIsForSubAccount can be used to create Spot APIs for sub-accounts.
@@ -1341,11 +1338,11 @@ func (ku *Kucoin) GetTransferableBalance(ctx context.Context, ccy, accountType, 
 	if ccy == "" {
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
-	params := url.Values{}
-	params.Set("currency", ccy)
 	if accountType == "" {
 		return nil, errors.New("accountType can not be empty")
 	}
+	params := url.Values{}
+	params.Set("currency", ccy)
 	params.Set("type", accountType)
 	if tag != "" {
 		params.Set("tag", tag)
@@ -1565,15 +1562,15 @@ func (ku *Kucoin) ApplyWithdrawal(ctx context.Context, ccy, address, memo, remar
 	if ccy == "" {
 		return "", currency.ErrCurrencyPairEmpty
 	}
-	params := make(map[string]interface{})
-	params["currency"] = ccy
 	if address == "" {
 		return "", errors.New("address can not be empty")
 	}
-	params["address"] = address
 	if amount == 0 {
 		return "", errors.New("amount can not be empty")
 	}
+	params := make(map[string]interface{})
+	params["currency"] = ccy
+	params["address"] = address
 	params["amount"] = amount
 	if memo != "" {
 		params["memo"] = memo
@@ -1725,36 +1722,14 @@ func (ku *Kucoin) SendAuthHTTPRequest(ctx context.Context, ePath exchange.URL, e
 }
 
 func (ku *Kucoin) intervalToString(interval kline.Interval) (string, error) {
-	switch interval {
-	case kline.OneMin:
-		return "1min", nil
-	case kline.ThreeMin:
-		return "3min", nil
-	case kline.FiveMin:
-		return "5min", nil
-	case kline.FifteenMin:
-		return "15min", nil
-	case kline.ThirtyMin:
-		return "30min", nil
-	case kline.OneHour:
-		return "1hour", nil
-	case kline.TwoHour:
-		return "2hour", nil
-	case kline.FourHour:
-		return "4hour", nil
-	case kline.SixHour:
-		return "6hour", nil
-	case kline.EightHour:
-		return "8hour", nil
-	case kline.TwelveHour:
-		return "12hour", nil
-	case kline.OneDay:
-		return "1day", nil
-	case kline.OneWeek:
-		return "1week", nil
-	default:
+	intervalMap := map[kline.Interval]string{
+		kline.OneMin: "1min", kline.ThreeMin: "3min", kline.FiveMin: "5min", kline.FifteenMin: "15min", kline.ThirtyMin: "30min", kline.OneHour: "1hour", kline.TwoHour: "2hour", kline.FourHour: "4hour", kline.SixHour: "6hour", kline.EightHour: "8hour", kline.TwelveHour: "12hour", kline.OneDay: "1day", kline.OneWeek: "1week",
+	}
+	intervalString, okay := intervalMap[interval]
+	if !okay {
 		return "", kline.ErrUnsupportedInterval
 	}
+	return intervalString, nil
 }
 
 func (ku *Kucoin) stringToOrderStatus(status string) (order.Status, error) {
