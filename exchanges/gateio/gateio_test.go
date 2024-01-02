@@ -3517,8 +3517,17 @@ func TestGetOpenInterest(t *testing.T) {
 		Asset: asset.Futures,
 	})
 	assert.NoError(t, err)
-	assert.NotEmpty(t, resp)
+	assert.Len(t, resp, 1)
 
-	_, err = g.GetOpenInterest(context.Background())
-	assert.ErrorIs(t, err, common.ErrFunctionNotSupported)
+	resp, err = g.GetOpenInterest(context.Background(), key.PairAsset{
+		Base:  deliveryFuturesTradablePair.Base.Item,
+		Quote: deliveryFuturesTradablePair.Quote.Item,
+		Asset: asset.DeliveryFutures,
+	})
+	assert.NoError(t, err)
+	assert.Len(t, resp, 1)
+
+	resp, err = g.GetOpenInterest(context.Background())
+	assert.NoError(t, err)
+	assert.NotEmpty(t, resp)
 }
