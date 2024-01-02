@@ -2357,6 +2357,53 @@ func (g *Gateio) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]fut
 			return nil, fmt.Errorf("%w %v %v", asset.ErrNotSupported, k[i].Asset, k[i].Pair())
 		}
 	}
+	if len(k) == 1 {
+		p, isEnabled, err := g.MatchSymbolCheckEnabled(k[0].Pair().String(), k[0].Asset, false)
+		if err != nil {
+			return nil, err
+		}
+		if !isEnabled {
+			return nil, fmt.Errorf("%w %v", asset.ErrNotEnabled, k[0].Pair())
+		}
+		switch k[0].Asset {
+		case asset.DeliveryFutures:
+			contractResp, err := g.GetSingleDeliveryContracts(ctx, "usdt", p)
+			if err != nil {
+				return nil, err
+			}
+			openInterest := contractResp.QuantoMultiplier.Float64() * float64(contractResp.PositionSize) * contractResp.IndexPrice.Float64()
+			return []futures.OpenInterest{
+				{
+					Key: key.ExchangePairAsset{
+						Exchange: g.Name,
+						Base:     k[0].Base,
+						Quote:    k[0].Quote,
+						Asset:    k[0].Asset,
+					},
+					OpenInterest: openInterest,
+				},
+			}, nil
+		case asset.Futures:
+			for _, s := range []string{"usd", "usdt", "btc"} {
+				contractResp, err := g.GetSingleContract(ctx, s, p.String())
+				if err != nil {
+					continue
+				}
+				openInterest := contractResp.QuantoMultiplier.Float64() * float64(contractResp.PositionSize) * contractResp.IndexPrice.Float64()
+				return []futures.OpenInterest{
+					{
+						Key: key.ExchangePairAsset{
+							Exchange: g.Name,
+							Base:     k[0].Base,
+							Quote:    k[0].Quote,
+							Asset:    k[0].Asset,
+						},
+						OpenInterest: openInterest,
+					},
+				}, nil
+			}
+		}
+	}
 	var resp []futures.OpenInterest
 	for _, a := range g.GetAssetTypes(true) {
 		switch a {
