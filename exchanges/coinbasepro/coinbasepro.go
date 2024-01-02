@@ -83,7 +83,8 @@ const (
 	startDateString                  = "start_date"
 	endDateString                    = "end_date"
 
-	errPayMethodNotFound = "payment method '%v' not found"
+	errPayMethodNotFound    = "payment method '%v' not found"
+	errIntervalNotSupported = "interval not supported"
 )
 
 var (
@@ -180,7 +181,7 @@ func (c *CoinbasePro) GetProductBook(ctx context.Context, productID string, limi
 }
 
 // GetAllProducts returns information on all currency pairs that are available for trading
-func (c *CoinbasePro) GetAllProducts(ctx context.Context, limit, offset int32, productType, contractExpiryType string, productIDs []string) (AllProducts, error) {
+func (c *CoinbasePro) GetAllProducts(ctx context.Context, limit, offset int32, productType, contractExpiryType, expiringContractStatus string, productIDs []string) (AllProducts, error) {
 	var params Params
 	params.urlVals = url.Values{}
 	params.urlVals.Set("limit", strconv.FormatInt(int64(limit), 10))
@@ -259,7 +260,7 @@ func (c *CoinbasePro) GetHistoricRates(ctx context.Context, productID, granulari
 
 // GetTicker returns snapshot information about the last trades (ticks) and best bid/ask.
 // Contrary to documentation, this does not tell you the 24h volume
-func (c *CoinbasePro) GetTicker(ctx context.Context, productID string, limit uint16) (*Ticker, error) {
+func (c *CoinbasePro) GetTicker(ctx context.Context, productID string, limit uint16, startDate, endDate time.Time) (*Ticker, error) {
 	if productID == "" {
 		return nil, errProductIDEmpty
 	}
@@ -269,6 +270,8 @@ func (c *CoinbasePro) GetTicker(ctx context.Context, productID string, limit uin
 	var params Params
 	params.urlVals = url.Values{}
 	params.urlVals.Set("limit", strconv.FormatInt(int64(limit), 10))
+	params.urlVals.Set("start", strconv.FormatInt(startDate.Unix(), 10))
+	params.urlVals.Set("end", strconv.FormatInt(endDate.Unix(), 10))
 
 	pathParams := common.EncodeURLValues("", params.urlVals)
 
@@ -279,7 +282,7 @@ func (c *CoinbasePro) GetTicker(ctx context.Context, productID string, limit uin
 }
 
 // PlaceOrder places either a limit, market, or stop order
-func (c *CoinbasePro) PlaceOrder(ctx context.Context, clientOID, productID, side, stopDirection, orderType string, amount, limitPrice, stopPrice float64, postOnly bool, endTime time.Time) (*PlaceOrderResp, error) {
+func (c *CoinbasePro) PlaceOrder(ctx context.Context, clientOID, productID, side, stopDirection, orderType, stpID, marginType, rpID string, amount, limitPrice, stopPrice, leverage float64, postOnly bool, endTime time.Time) (*PlaceOrderResp, error) {
 	if clientOID == "" {
 		return nil, errClientOrderIDEmpty
 	}
@@ -338,7 +341,12 @@ func (c *CoinbasePro) PlaceOrder(ctx context.Context, clientOID, productID, side
 	}
 
 	req := map[string]interface{}{"client_order_id": clientOID, "product_id": productID,
-		"side": side, "order_configuration": orderConfig}
+		"side": side, "order_configuration": orderConfig, "self_trade_prevention_id": stpID,
+		"leverage": strconv.FormatFloat(leverage, 'f', -1, 64), "retail_portfolio_id": rpID}
+
+	if marginType != "" {
+		req["margin_type"] = marginType
+	}
 
 	return &resp,
 		c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost,
@@ -403,7 +411,7 @@ func (c *CoinbasePro) EditOrderPreview(ctx context.Context, orderID string, size
 }
 
 // GetAllOrders lists orders, filtered by their status
-func (c *CoinbasePro) GetAllOrders(ctx context.Context, productID, userNativeCurrency, orderType, orderSide, cursor, productType, orderPlacementSource, contractExpiryType string, orderStatus []string, limit int32, startDate, endDate time.Time) (GetAllOrdersResp, error) {
+func (c *CoinbasePro) GetAllOrders(ctx context.Context, productID, userNativeCurrency, orderType, orderSide, cursor, productType, orderPlacementSource, contractExpiryType, retailPortfolioID string, orderStatus, assetFilters []string, limit int32, startDate, endDate time.Time) (GetAllOrdersResp, error) {
 	var resp GetAllOrdersResp
 
 	var params Params
@@ -2086,7 +2094,6 @@ func (c *CoinbasePro) GetFee(ctx context.Context, feeBuilder *exchange.FeeBuilde
 	switch {
 	case !c.IsStablePair(feeBuilder.Pair) && feeBuilder.FeeType == exchange.CryptocurrencyTradeFee:
 		fees, err := c.GetTransactionSummary(ctx, time.Now().Add(-time.Hour*24*30), time.Now(), "", "", "")
-		fmt.Printf("Fees struct: %v\n", fees)
 		if err != nil {
 			return 0, err
 		}
@@ -2268,6 +2275,10 @@ func (t *UnixTimestamp) UnmarshalJSON(b []byte) error {
 
 func (t UnixTimestamp) String() string {
 	return time.Time(t).String()
+}
+
+func (t UnixTimestamp) Time() time.Time {
+	return time.Time(t)
 }
 
 func (t *ExchTime) UnmarshalJSON(b []byte) error {

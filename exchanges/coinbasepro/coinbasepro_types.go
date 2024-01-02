@@ -127,7 +127,7 @@ type Product struct {
 	FutureProductDetails struct {
 		Venue                  string                  `json:"venue"`
 		ContractCode           string                  `json:"contract_code"`
-		ContractExpiry         string                  `json:"contract_expiry"`
+		ContractExpiry         time.Time               `json:"contract_expiry"`
 		ContractSize           convert.StringToFloat64 `json:"contract_size"`
 		ContractRootUnit       string                  `json:"contract_root_unit"`
 		GroupDescription       string                  `json:"group_description"`
