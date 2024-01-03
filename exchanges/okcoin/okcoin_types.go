@@ -166,37 +166,6 @@ type WebsocketOrderBook struct {
 	Timestamp convert.ExchangeTime `json:"ts"`
 }
 
-func (a *WebsocketOrderBook) prepareOrderbook() {
-	asks := [][4]types.Number{}
-	for x := range a.Asks {
-		if len(asks) > 0 && asks[len(asks)-1][0].Float64() == a.Asks[x][0].Float64() {
-			if a.Asks[x][1].Float64() != 0 {
-				if asks[len(asks)-1][1].Float64() > a.Asks[x][1].Float64() {
-					asks[len(asks)-1], a.Asks[x] = a.Asks[x], asks[len(asks)-1]
-				}
-			} else if a.Asks[x][1] == 0 {
-				continue
-			}
-		}
-		asks = append(asks, a.Asks[x])
-	}
-	bids := [][4]types.Number{}
-	for x := range a.Bids {
-		if len(bids) > 0 && bids[len(bids)-1][0].Float64() == a.Bids[x][0].Float64() {
-			if a.Bids[x][1].Float64() != 0 {
-				if bids[len(bids)-1][1].Float64() < a.Bids[x][1].Float64() {
-					bids[len(bids)-1], a.Bids[x] = a.Bids[x], bids[len(bids)-1]
-				}
-			} else if a.Bids[x][1] == 0 {
-				continue
-			}
-		}
-		bids = append(bids, a.Bids[x])
-	}
-	a.Asks = asks
-	a.Bids = bids
-}
-
 // WebsocketDataResponse formats all response data for a websocket event
 type WebsocketDataResponse struct {
 	ID        string `json:"id"`

@@ -10,7 +10,6 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -474,11 +473,7 @@ func (o *Okcoin) wsProcessAccount(respRaw []byte) error {
 	return nil
 }
 
-var (
-	// the following variables are used to synchronize and track changes to the orderbook buffer and corresponding instrument ID
-	orderbookSnapshotLock sync.Mutex
-	orderbookSnapshotMap  = map[string]struct{}{}
-)
+var orderbookSnapshotMap = map[string]bool{}
 
 func (o *Okcoin) wsProcessOrderbook(respRaw []byte, obChannel string) error {
 	var resp WebsocketOrderbookResponse
@@ -491,25 +486,22 @@ func (o *Okcoin) wsProcessOrderbook(respRaw []byte, obChannel string) error {
 		return err
 	}
 	var snapshot bool
-	orderbookSnapshotLock.Lock()
-	defer orderbookSnapshotLock.Unlock()
 	if resp.Action == "" {
-		_, okay := orderbookSnapshotMap[resp.Arg.InstrumentID]
+		okay := orderbookSnapshotMap[resp.Arg.InstrumentID]
 		if !okay {
-			orderbookSnapshotMap[resp.Arg.InstrumentID] = struct{}{}
+			orderbookSnapshotMap[resp.Arg.InstrumentID] = true
 			snapshot = true
 		}
 	} else {
 		switch resp.Action {
 		case "snapshot":
 			snapshot = true
-			orderbookSnapshotMap[resp.Arg.InstrumentID] = struct{}{}
+			orderbookSnapshotMap[resp.Arg.InstrumentID] = true
 		case "update":
 			snapshot = false
 		}
 	}
 	if snapshot {
-		resp.Data[0].prepareOrderbook()
 		if len(resp.Data[0].Asks)+len(resp.Data[0].Bids) == 0 {
 			return nil
 		}
@@ -529,18 +521,6 @@ func (o *Okcoin) wsProcessOrderbook(respRaw []byte, obChannel string) error {
 			base.Bids[b].Amount = resp.Data[0].Bids[b][1].Float64()
 			base.Bids[b].Price = resp.Data[0].Bids[b][0].Float64()
 		}
-		var signedChecksum int32
-		signedChecksum, err = o.CalculateChecksum(&resp.Data[0])
-		if err != nil {
-			return fmt.Errorf("%s channel: Orderbook unable to calculate orderbook checksum: %s", o.Name, err)
-		}
-		if resp.Data[0].Checksum != 0 && int64(signedChecksum) != resp.Data[0].Checksum {
-			return fmt.Errorf("%s channel: Orderbook for %v checksum invalid", o.Name, cp)
-		}
-		err = base.Process()
-		if err != nil {
-			return err
-		}
 		err = o.Websocket.Orderbook.LoadSnapshot(&base)
 		if err != nil {
 			if errors.Is(err, orderbook.ErrOrderbookInvalid) {
@@ -550,6 +530,16 @@ func (o *Okcoin) wsProcessOrderbook(respRaw []byte, obChannel string) error {
 				}
 			}
 			return err
+		}
+		if resp.Data[0].Checksum != 0 {
+			var check *orderbook.Base
+			check, err = o.Websocket.Orderbook.GetOrderbook(cp, asset.Spot)
+			if err != nil {
+				return err
+			}
+			if checksum := int64(o.CalculateOrderbookUpdateChecksum(check)); checksum != resp.Data[0].Checksum {
+				return fmt.Errorf("%s channel: Orderbook for %v checksum invalid got: %v expecting: %v", o.Name, cp, checksum, resp.Data[0].Checksum)
+			}
 		}
 		return nil
 	}
@@ -580,13 +570,14 @@ func (o *Okcoin) wsProcessOrderbook(respRaw []byte, obChannel string) error {
 		}
 		return err
 	}
-	updatedOb, err := o.Websocket.Orderbook.GetOrderbook(cp, asset.Spot)
-	if err != nil {
-		return err
-	}
-	checksum := o.CalculateOrderbookUpdateChecksum(updatedOb)
-	if resp.Data[0].Checksum != 0 && int64(checksum) != resp.Data[0].Checksum {
-		return fmt.Errorf("checksum failed, calculated '%v' received '%v'", checksum, resp.Data)
+	if resp.Data[0].Checksum != 0 {
+		updatedOb, err := o.Websocket.Orderbook.GetOrderbook(cp, asset.Spot)
+		if err != nil {
+			return err
+		}
+		if checksum := o.CalculateOrderbookUpdateChecksum(updatedOb); int64(checksum) != resp.Data[0].Checksum {
+			return fmt.Errorf("checksum failed, calculated '%v' received '%v'", checksum, resp.Data)
+		}
 	}
 	return nil
 }
@@ -718,32 +709,6 @@ func (o *Okcoin) AppendWsOrderbookItems(entries [][4]types.Number) ([]orderbook.
 		}
 	}
 	return items, nil
-}
-
-// CalculateChecksum alternates over the first 25 bid and ask
-// entries from websocket data. The checksum is made up of the price and the
-// quantity with a semicolon (:) deliminating them. This will also work when
-// there are less than 25 entries (for whatever reason)
-// eg Bid:Ask:Bid:Ask:Ask:Ask
-func (o *Okcoin) CalculateChecksum(orderbookData *WebsocketOrderBook) (int32, error) {
-	orderbookData.prepareOrderbook()
-	var checksum strings.Builder
-	for i := 0; i < allowableIterations; i++ {
-		if len(orderbookData.Bids)-1 >= i {
-			checksum.WriteString(orderbookData.Bids[i][0].String() +
-				currency.ColonDelimiter +
-				orderbookData.Bids[i][1].String() +
-				currency.ColonDelimiter)
-		}
-		if len(orderbookData.Asks)-1 >= i {
-			checksum.WriteString(orderbookData.Asks[i][0].String() +
-				currency.ColonDelimiter +
-				orderbookData.Asks[i][1].String() +
-				currency.ColonDelimiter)
-		}
-	}
-	checksumStr := strings.TrimSuffix(checksum.String(), currency.ColonDelimiter)
-	return int32(crc32.ChecksumIEEE([]byte(checksumStr))), nil
 }
 
 // CalculateOrderbookUpdateChecksum calculated the orderbook update checksum using currency pair full snapshot.
