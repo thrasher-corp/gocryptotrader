@@ -1483,7 +1483,7 @@ func (by *Bybit) GetHistoricCandles(ctx context.Context, pair currency.Pair, a a
 		}
 		var timeSeries []kline.Candle
 		if a == asset.USDCMarginedFutures && !pair.Quote.Equal(currency.PERP) {
-			pair.Delimiter = currency.DashDelimiter
+			req.RequestFormatted.Delimiter = currency.DashDelimiter
 		}
 		var candles []KlineItem
 		candles, err = by.GetKlines(ctx, getCategoryName(req.Asset), req.RequestFormatted.String(), req.ExchangeInterval, req.Start, req.End, req.RequestLimit)

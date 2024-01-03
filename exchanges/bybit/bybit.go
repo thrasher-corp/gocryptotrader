@@ -2627,7 +2627,7 @@ func (by *Bybit) SendAuthHTTPRequestV5(ctx context.Context, ePath exchange.URL, 
 		}, nil
 	}, request.AuthenticatedRequest)
 	if response.RetCode != 0 && response.RetMsg != "" {
-		return fmt.Errorf("code: %d message: %s", response.RetCode, response.RetMsg)
+		return fmt.Errorf("%w code: %d message: %s", request.ErrAuthRequestFailed, response.RetCode, response.RetMsg)
 	}
 	if len(response.RetExtInfo.List) > 0 && response.RetCode != 0 {
 		var errMessage string
@@ -2639,7 +2639,7 @@ func (by *Bybit) SendAuthHTTPRequestV5(ctx context.Context, ePath exchange.URL, 
 			}
 		}
 		if failed {
-			return errors.New(errMessage)
+			return fmt.Errorf("%w %s", request.ErrAuthRequestFailed, errMessage)
 		}
 	}
 	return err
