@@ -28,44 +28,47 @@ const (
 	huobiAPIVersion2 = "2"
 
 	// Spot endpoints
-	huobiMarketHistoryKline          = "/market/history/kline"
-	huobiMarketDetail                = "/market/detail"
-	huobiMarketDetailMerged          = "/market/detail/merged"
-	huobi24HrMarketSummary           = "/market/detail?"
-	huobiMarketDepth                 = "/market/depth"
-	huobiMarketTrade                 = "/market/trade"
-	huobiMarketTickers               = "/market/tickers"
-	huobiMarketTradeHistory          = "/market/history/trade"
-	huobiSymbols                     = "/v1/common/symbols"
-	huobiCurrencies                  = "/v1/common/currencys"
-	huobiTimestamp                   = "/common/timestamp"
-	huobiAccounts                    = "/account/accounts"
-	huobiAccountBalance              = "/account/accounts/%s/balance"
-	huobiAccountDepositAddress       = "/account/deposit/address"
-	huobiAccountWithdrawQuota        = "/account/withdraw/quota"
-	huobiAccountQueryWithdrawAddress = "/account/withdraw/"
-	huobiAggregatedBalance           = "/subuser/aggregate-balance"
-	huobiOrderPlace                  = "/order/orders/place"
-	huobiOrderCancel                 = "/order/orders/%s/submitcancel"
-	huobiOrderCancelBatch            = "/order/orders/batchcancel"
-	huobiBatchCancelOpenOrders       = "/order/orders/batchCancelOpenOrders"
-	huobiGetOrder                    = "/order/orders/getClientOrder"
-	huobiGetOrderMatch               = "/order/orders/%s/matchresults"
-	huobiGetOrders                   = "/order/orders"
-	huobiGetOpenOrders               = "/order/openOrders"
-	huobiGetOrdersMatch              = "/orders/matchresults"
-	huobiMarginTransferIn            = "/dw/transfer-in/margin"
-	huobiMarginTransferOut           = "/dw/transfer-out/margin"
-	huobiMarginOrders                = "/margin/orders"
-	huobiMarginRepay                 = "/margin/orders/%s/repay"
-	huobiMarginLoanOrders            = "/margin/loan-orders"
-	huobiMarginAccountBalance        = "/margin/accounts/balance"
-	huobiWithdrawCreate              = "/dw/withdraw/api/create"
-	huobiWithdrawCancel              = "/dw/withdraw-virtual/%s/cancel"
-	huobiStatusError                 = "error"
-	huobiMarginRates                 = "/margin/loan-info"
-	huobiCurrenciesReference         = "/v2/reference/currencies"
-	huobiWithdrawHistory             = "/query/deposit-withdraw"
+	huobiMarketHistoryKline           = "/market/history/kline"
+	huobiMarketDetail                 = "/market/detail"
+	huobiMarketDetailMerged           = "/market/detail/merged"
+	huobi24HrMarketSummary            = "/market/detail?"
+	huobiMarketDepth                  = "/market/depth"
+	huobiMarketTrade                  = "/market/trade"
+	huobiMarketTickers                = "/market/tickers"
+	huobiMarketTradeHistory           = "/market/history/trade"
+	huobiSymbols                      = "/v1/common/symbols"
+	huobiCurrencies                   = "/v1/common/currencys"
+	huobiTimestamp                    = "/common/timestamp"
+	huobiAccounts                     = "/account/accounts"
+	huobiAccountBalance               = "/account/accounts/%s/balance"
+	huobiAccountDepositAddress        = "/account/deposit/address"
+	huobiAccountWithdrawQuota         = "/account/withdraw/quota"
+	huobiAccountQueryWithdrawAddress  = "/account/withdraw/"
+	huobiAggregatedBalance            = "/subuser/aggregate-balance"
+	huobiOrderPlace                   = "/order/orders/place"
+	huobiOrderCancel                  = "/order/orders/%s/submitcancel"
+	huobiOrderCancelBatch             = "/order/orders/batchcancel"
+	huobiBatchCancelOpenOrders        = "/order/orders/batchCancelOpenOrders"
+	huobiGetOrder                     = "/order/orders/getClientOrder"
+	huobiGetOrderMatch                = "/order/orders/%s/matchresults"
+	huobiGetOrders                    = "/order/orders"
+	huobiGetOpenOrders                = "/order/openOrders"
+	huobiGetOrdersMatch               = "/orders/matchresults"
+	huobiMarginTransferIn             = "/dw/transfer-in/margin"
+	huobiMarginTransferOut            = "/dw/transfer-out/margin"
+	huobiMarginOrders                 = "/margin/orders"
+	huobiMarginRepay                  = "/margin/orders/%s/repay"
+	huobiMarginLoanOrders             = "/margin/loan-orders"
+	huobiMarginAccountBalance         = "/margin/accounts/balance"
+	huobiWithdrawCreate               = "/dw/withdraw/api/create"
+	huobiWithdrawCancel               = "/dw/withdraw-virtual/%s/cancel"
+	huobiStatusError                  = "error"
+	huobiMarginRates                  = "/margin/loan-info"
+	huobiCurrenciesReference          = "/v2/reference/currencies"
+	huobiWithdrawHistory              = "/query/deposit-withdraw"
+	huobiBatchCoinMarginSwapContracts = "/v2/swap-ex/market/detail/batch_merged"
+	huobiBatchLinearSwapContracts     = "/linear-swap-ex/market/detail/batch_merged"
+	huobiBatchContracts               = "/v2/market/detail/batch_merged"
 )
 
 // HUOBI is the overarching type across this package
@@ -127,6 +130,36 @@ func (h *HUOBI) Get24HrMarketSummary(ctx context.Context, symbol currency.Pair) 
 	}
 	params.Set("symbol", symbolValue)
 	return result, h.SendHTTPRequest(ctx, exchange.RestSpot, huobi24HrMarketSummary+params.Encode(), &result)
+}
+
+// GetBatchCoinMarginSwapContracts returns the tickers for coin margined swap contracts
+func (h *HUOBI) GetBatchCoinMarginSwapContracts(ctx context.Context) ([]FuturesBatchTicker, error) {
+	type batchData struct {
+		Data []FuturesBatchTicker `json:"ticks"`
+	}
+	var result batchData
+	err := h.SendHTTPRequest(ctx, exchange.RestFutures, huobiBatchCoinMarginSwapContracts, &result)
+	return result.Data, err
+}
+
+// GetBatchLinearSwapContracts  returns the tickers for linear swap contracts
+func (h *HUOBI) GetBatchLinearSwapContracts(ctx context.Context) ([]FuturesBatchTicker, error) {
+	type batchData struct {
+		Data []FuturesBatchTicker `json:"ticks"`
+	}
+	var result batchData
+	err := h.SendHTTPRequest(ctx, exchange.RestFutures, huobiBatchLinearSwapContracts, &result)
+	return result.Data, err
+}
+
+// GetBatchFuturesContracts returns the tickers for futures contracts
+func (h *HUOBI) GetBatchFuturesContracts(ctx context.Context) ([]FuturesBatchTicker, error) {
+	type batchData struct {
+		Data []FuturesBatchTicker `json:"ticks"`
+	}
+	var result batchData
+	err := h.SendHTTPRequest(ctx, exchange.RestFutures, huobiBatchContracts, &result)
+	return result.Data, err
 }
 
 // GetTickers returns the ticker for the specified symbol

@@ -80,7 +80,7 @@ func (h *HUOBI) SetDefaults() {
 			Delimiter: currency.DashDelimiter,
 		},
 	}
-	futures := currency.PairStore{
+	futuresPairStore := currency.PairStore{
 		RequestFormat: &currency.PairFormat{
 			Uppercase: true,
 		},
@@ -97,7 +97,7 @@ func (h *HUOBI) SetDefaults() {
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
-	err = h.StoreAssetPairFormat(asset.Futures, futures)
+	err = h.StoreAssetPairFormat(asset.Futures, futuresPairStore)
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
@@ -108,6 +108,7 @@ func (h *HUOBI) SetDefaults() {
 			Websocket: true,
 			RESTCapabilities: protocol.Features{
 				TickerFetching:                 true,
+				TickerBatching:                 true,
 				KlineFetching:                  true,
 				TradeFetching:                  true,
 				OrderbookFetching:              true,
@@ -140,7 +141,6 @@ func (h *HUOBI) SetDefaults() {
 				GetOrders:              true,
 				TickerFetching:         true,
 				FundingRateFetching:    false, // supported but not implemented // TODO when multi-websocket support added
-
 			},
 			WithdrawPermissions: exchange.AutoWithdrawCryptoWithSetup |
 				exchange.NoFiatWithdrawals,
@@ -440,8 +440,118 @@ func (h *HUOBI) UpdateTradablePairs(ctx context.Context, forceUpdate bool) error
 }
 
 // UpdateTickers updates the ticker for all currency pairs of a given asset type
-func (h *HUOBI) UpdateTickers(_ context.Context, _ asset.Item) error {
-	return common.ErrFunctionNotSupported
+func (h *HUOBI) UpdateTickers(ctx context.Context, a asset.Item) error {
+	switch a {
+	case asset.Spot:
+		ticks, err := h.GetTickers(ctx)
+		if err != nil {
+			return err
+		}
+		for i := range ticks.Data {
+			var cp currency.Pair
+			cp, err = currency.NewPairFromString(ticks.Data[i].Symbol)
+			if err != nil {
+				return err
+			}
+			err = ticker.ProcessTicker(&ticker.Price{
+				High:         ticks.Data[i].High,
+				Low:          ticks.Data[i].Low,
+				Bid:          ticks.Data[i].Bid,
+				Ask:          ticks.Data[i].Ask,
+				Volume:       ticks.Data[i].Volume,
+				QuoteVolume:  ticks.Data[i].Amount,
+				Open:         ticks.Data[i].Open,
+				Close:        ticks.Data[i].Close,
+				BidSize:      ticks.Data[i].BidSize,
+				AskSize:      ticks.Data[i].AskSize,
+				Pair:         cp,
+				ExchangeName: h.Name,
+				AssetType:    a,
+				LastUpdated:  time.Now(),
+			})
+			if err != nil {
+				return err
+			}
+		}
+	case asset.CoinMarginedFutures:
+		ticks, err := h.GetBatchCoinMarginSwapContracts(ctx)
+		if err != nil {
+			return err
+		}
+		for i := range ticks {
+			var cp currency.Pair
+			cp, err = currency.NewPairFromString(ticks[i].ContractCode)
+			if err != nil {
+				return err
+			}
+			tt := time.UnixMilli(ticks[i].Timestamp)
+			err = ticker.ProcessTicker(&ticker.Price{
+				High:         ticks[i].High.Float64(),
+				Low:          ticks[i].Low.Float64(),
+				Volume:       ticks[i].Volume.Float64(),
+				QuoteVolume:  ticks[i].Amount.Float64(),
+				Open:         ticks[i].Open.Float64(),
+				Close:        ticks[i].Close.Float64(),
+				Bid:          ticks[i].Bid[0],
+				BidSize:      ticks[i].Bid[1],
+				Ask:          ticks[i].Ask[0],
+				AskSize:      ticks[i].Ask[1],
+				Pair:         cp,
+				ExchangeName: h.Name,
+				AssetType:    a,
+				LastUpdated:  tt,
+			})
+			if err != nil {
+				return err
+			}
+		}
+	case asset.Futures:
+		linearTicks, err := h.GetBatchLinearSwapContracts(ctx)
+		if err != nil {
+			return err
+		}
+		ticks, err := h.GetBatchFuturesContracts(ctx)
+		if err != nil {
+			return err
+		}
+		var allTicks []FuturesBatchTicker
+		allTicks = append(allTicks, linearTicks...)
+		allTicks = append(allTicks, ticks...)
+		for i := range allTicks {
+			var cp currency.Pair
+			if allTicks[i].Symbol != "" {
+				cp, err = currency.NewPairFromString(allTicks[i].Symbol)
+			} else {
+				cp, err = currency.NewPairFromString(allTicks[i].ContractCode)
+			}
+			if err != nil {
+				return err
+			}
+			tt := time.UnixMilli(allTicks[i].Timestamp)
+			err = ticker.ProcessTicker(&ticker.Price{
+				High:         allTicks[i].High.Float64(),
+				Low:          allTicks[i].Low.Float64(),
+				Volume:       allTicks[i].Volume.Float64(),
+				QuoteVolume:  allTicks[i].Amount.Float64(),
+				Open:         allTicks[i].Open.Float64(),
+				Close:        allTicks[i].Close.Float64(),
+				Bid:          allTicks[i].Bid[0],
+				BidSize:      allTicks[i].Bid[1],
+				Ask:          allTicks[i].Ask[0],
+				AskSize:      allTicks[i].Ask[1],
+				Pair:         cp,
+				ExchangeName: h.Name,
+				AssetType:    a,
+				LastUpdated:  tt,
+			})
+			if err != nil {
+				return err
+			}
+		}
+	default:
+		return fmt.Errorf("%w %v", asset.ErrNotSupported, a)
+	}
+	return nil
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair

@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
+	"github.com/stretchr/testify/assert"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/core"
@@ -2839,5 +2840,34 @@ func TestGetSwapFundingRates(t *testing.T) {
 	_, err := h.GetSwapFundingRates(context.Background())
 	if err != nil {
 		t.Error(err)
+	}
+}
+
+func TestGetBatchCoinMarginSwapContracts(t *testing.T) {
+	t.Parallel()
+	resp, err := h.GetBatchCoinMarginSwapContracts(context.Background())
+	assert.NoError(t, err)
+	assert.NotEmpty(t, resp)
+}
+
+func TestGetBatchLinearSwapContracts(t *testing.T) {
+	t.Parallel()
+	resp, err := h.GetBatchLinearSwapContracts(context.Background())
+	assert.NoError(t, err)
+	assert.NotEmpty(t, resp)
+}
+
+func TestGetBatchFuturesContracts(t *testing.T) {
+	t.Parallel()
+	resp, err := h.GetBatchFuturesContracts(context.Background())
+	assert.NoError(t, err)
+	assert.NotEmpty(t, resp)
+}
+
+func TestUpdateTickers(t *testing.T) {
+	t.Parallel()
+	for _, a := range h.GetAssetTypes(false) {
+		err := h.UpdateTickers(context.Background(), a)
+		assert.NoErrorf(t, err, "asset %s", a)
 	}
 }
