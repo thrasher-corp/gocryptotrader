@@ -2386,7 +2386,7 @@ func (h *HUOBI) GetLatestFundingRates(ctx context.Context, r *fundingrate.Latest
 		rate := fundingrate.LatestRateResponse{
 			Exchange: h.Name,
 			Asset:    r.Asset,
-			Pair:     r.Pair,
+			Pair:     cp,
 			LatestRate: fundingrate.Rate{
 				Time: ft,
 				Rate: decimal.NewFromFloat(rates[i].FundingRate),
