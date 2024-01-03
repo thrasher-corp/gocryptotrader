@@ -1937,6 +1937,7 @@ func (by *Bybit) GetLatestFundingRates(ctx context.Context, r *fundingrate.Lates
 				Asset:       r.Asset,
 				Pair:        cp,
 				LatestRate: fundingrate.Rate{
+					Time: ticks.List[i].NextFundingTime.Time().Add(-time.Hour * 8),
 					Rate: decimal.NewFromFloat(ticks.List[i].FundingRate.Float64()),
 				},
 				TimeOfNextRate: ticks.List[i].NextFundingTime.Time(),
