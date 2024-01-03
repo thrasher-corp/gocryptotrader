@@ -177,7 +177,7 @@ type TickerItem struct {
 	Turnover24H            types.Number         `json:"turnover24h"`
 	Volume24H              types.Number         `json:"volume24h"`
 	FundingRate            types.Number         `json:"fundingRate"`
-	NextFundingTime        types.Number         `json:"nextFundingTime"`
+	NextFundingTime        convert.ExchangeTime `json:"nextFundingTime"`
 	PredictedDeliveryPrice types.Number         `json:"predictedDeliveryPrice"`
 	BasisRate              types.Number         `json:"basisRate"`
 	DeliveryFeeRate        types.Number         `json:"deliveryFeeRate"`

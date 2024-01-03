@@ -3420,7 +3420,6 @@ func TestGetLatestFundingRates(t *testing.T) {
 	}
 	_, err = b.GetLatestFundingRates(context.Background(), &fundingrate.LatestRateRequest{
 		Asset: asset.USDTMarginedFutures,
-		Pair:  usdtMarginedTradablePair,
 	})
 	if err != nil {
 		t.Error(err)

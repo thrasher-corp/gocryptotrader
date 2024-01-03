@@ -1903,68 +1903,49 @@ func (by *Bybit) GetLatestFundingRates(ctx context.Context, r *fundingrate.Lates
 	if r.IncludePredictedRate {
 		return nil, fmt.Errorf("%w IncludePredictedRate", common.ErrFunctionNotSupported)
 	}
-	var err error
-	if r.Pair.IsEmpty() {
-		return nil, currency.ErrCurrencyPairEmpty
-	}
-	var format currency.PairFormat
-	format, err = by.GetPairFormat(r.Asset, true)
-	if err != nil {
-		return nil, err
-	}
-	r.Pair = r.Pair.Format(format)
-
-	var fundingInterval time.Duration
-	instrumentInfo, err := by.GetInstrumentInfo(ctx, getCategoryName(r.Asset), r.Pair.String(), "", "", "", 1)
-	if err != nil {
-		log.Errorf(log.ExchangeSys, "could not get instrument next funding time info")
-	} else if len(instrumentInfo.List) > 0 {
-		fundingInterval = time.Minute * time.Duration(instrumentInfo.List[0].FundingInterval)
-	}
-
 	switch r.Asset {
 	case asset.USDCMarginedFutures,
 		asset.USDTMarginedFutures,
 		asset.CoinMarginedFutures:
 
-		var fRates *FundingRateHistory
-		fRates, err = by.GetFundingRateHistory(ctx, getCategoryName(r.Asset), r.Pair.String(), time.Time{}, time.Time{}, 0)
+		symbol := ""
+		if !r.Pair.IsEmpty() {
+			format, err := by.GetPairFormat(r.Asset, true)
+			if err != nil {
+				return nil, err
+			}
+			symbol = r.Pair.Format(format).String()
+		}
+		ticks, err := by.GetTickers(ctx, getCategoryName(r.Asset), symbol, "", time.Time{})
 		if err != nil {
 			return nil, err
 		}
 
-		var latestTimestamp int64
-		resp := make([]fundingrate.LatestRateResponse, 1)
-		for i := range fRates.List {
+		resp := make([]fundingrate.LatestRateResponse, 0, len(ticks.List))
+		for i := range ticks.List {
 			var cp currency.Pair
 			var isEnabled bool
-			cp, isEnabled, err = by.MatchSymbolCheckEnabled(fRates.List[i].Symbol, r.Asset, true)
+			cp, isEnabled, err = by.MatchSymbolCheckEnabled(ticks.List[i].Symbol, r.Asset, false)
 			if err != nil && !errors.Is(err, currency.ErrPairNotFound) {
 				return nil, err
-			} else if !isEnabled ||
-				!cp.Equal(r.Pair) ||
-
-				// check if FundingRateTimestamp is earlier than latestTimestamp.
-				fRates.List[i].FundingRateTimestamp.Time().UnixMilli() <= latestTimestamp {
+			} else if !isEnabled {
 				continue
 			}
-			latestTimestamp = fRates.List[i].FundingRateTimestamp.Time().UnixMilli()
-			resp[0] = fundingrate.LatestRateResponse{
+			resp = append(resp, fundingrate.LatestRateResponse{
 				Exchange:    by.Name,
 				TimeChecked: time.Now(),
 				Asset:       r.Asset,
 				Pair:        cp,
 				LatestRate: fundingrate.Rate{
-					Time: fRates.List[i].FundingRateTimestamp.Time(),
-					Rate: decimal.NewFromFloat(fRates.List[i].FundingRate.Float64()),
+					Rate: decimal.NewFromFloat(ticks.List[i].FundingRate.Float64()),
 				},
-				TimeOfNextRate: fRates.List[i].FundingRateTimestamp.Time().Add(fundingInterval),
-			}
+				TimeOfNextRate: ticks.List[i].NextFundingTime.Time(),
+			})
 		}
 		if len(resp) == 0 {
 			return nil, fmt.Errorf("%w %v %v", futures.ErrNotPerpetualFuture, r.Asset, r.Pair)
 		}
 		return resp, nil
 	}
-	return nil, fmt.Errorf("%s %w", r.Asset, asset.ErrNotSupported)
+	return nil, fmt.Errorf("%w %s", asset.ErrNotSupported, r.Asset)
 }
