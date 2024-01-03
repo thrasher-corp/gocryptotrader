@@ -59,7 +59,6 @@ const (
 var defaultSubscriptions = []string{
 	wsTickers,
 	wsOrderbooks,
-	wsOrderbooksL5,
 	wsStatus,
 }
 
