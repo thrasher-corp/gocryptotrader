@@ -2598,3 +2598,12 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 		}
 	}
 }
+
+func BenchmarkIntervalToString(b *testing.B) {
+	for x := 0; x < b.N; x++ {
+		_, err := ku.intervalToString(kline.OneWeek)
+		if err != nil {
+			b.Fatal(err)
+		}
+	}
+}

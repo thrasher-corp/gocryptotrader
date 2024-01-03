@@ -88,8 +88,10 @@ var (
 	maxWSOrderbookWorkers = 10
 )
 
-var requiredSubscriptionIDS map[string]bool
-var requiredSubscriptionIDSLock sync.Mutex
+var (
+	requiredSubscriptionIDS     map[string]bool
+	requiredSubscriptionIDSLock sync.Mutex
+)
 
 // checkRequiredSubscriptionID check whether the id included in the required subscription ids list.
 func (ku *Kucoin) checkRequiredSubscriptionID(id string) bool {
@@ -151,12 +153,7 @@ func (ku *Kucoin) WsConnect() error {
 	})
 
 	ku.setupOrderbookManager()
-	subscriptions, err := ku.GenerateDefaultSubscriptions()
-	if err != nil {
-		return err
-	}
-	return ku.Subscribe(subscriptions)
-	// return nil
+	return nil
 }
 
 // GetInstanceServers retrieves the server list and temporary public token

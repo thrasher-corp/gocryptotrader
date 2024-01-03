@@ -1721,15 +1721,16 @@ func (ku *Kucoin) SendAuthHTTPRequest(ctx context.Context, ePath exchange.URL, e
 	return resp.GetError()
 }
 
+var intervalMap = map[kline.Interval]string{
+	kline.OneMin: "1min", kline.ThreeMin: "3min", kline.FiveMin: "5min", kline.FifteenMin: "15min", kline.ThirtyMin: "30min", kline.OneHour: "1hour", kline.TwoHour: "2hour", kline.FourHour: "4hour", kline.SixHour: "6hour", kline.EightHour: "8hour", kline.TwelveHour: "12hour", kline.OneDay: "1day", kline.OneWeek: "1week",
+}
+
 func (ku *Kucoin) intervalToString(interval kline.Interval) (string, error) {
-	intervalMap := map[kline.Interval]string{
-		kline.OneMin: "1min", kline.ThreeMin: "3min", kline.FiveMin: "5min", kline.FifteenMin: "15min", kline.ThirtyMin: "30min", kline.OneHour: "1hour", kline.TwoHour: "2hour", kline.FourHour: "4hour", kline.SixHour: "6hour", kline.EightHour: "8hour", kline.TwelveHour: "12hour", kline.OneDay: "1day", kline.OneWeek: "1week",
-	}
 	intervalString, okay := intervalMap[interval]
-	if !okay {
-		return "", kline.ErrUnsupportedInterval
+	if okay {
+		return intervalString, nil
 	}
-	return intervalString, nil
+	return "", kline.ErrUnsupportedInterval
 }
 
 func (ku *Kucoin) stringToOrderStatus(status string) (order.Status, error) {
