@@ -3707,7 +3707,40 @@ func TestPlaceNewOrder(t *testing.T) {
 		TimeInForce: "GTC",
 		Price:       1234,
 		Quantity:    1,
-		Timestamp:   time.Now().UnixMilli(),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestValidatePlaceNewOrderRequest(t *testing.T) {
+	t.Parallel()
+	if !b.IsAPIStreamConnected() {
+		t.Skip("API streaming is not connected")
+	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	err := b.ValidatePlaceNewOrderRequest(&TradeOrderRequestParam{
+		Symbol:      currency.NewPair(currency.BTC, currency.USDT),
+		Side:        "SELL",
+		OrderType:   "LIMIT",
+		TimeInForce: "GTC",
+		Price:       1234,
+		Quantity:    1,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestWsQueryOrder(t *testing.T) {
+	t.Parallel()
+	if !b.IsAPIStreamConnected() {
+		t.Skip("API streaming is not connected")
+	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	_, err := b.WsQueryOrder(&QueryOrderParam{
+		Symbol:  currency.NewPair(currency.BTC, currency.USDT),
+		OrderID: 12345,
 	})
 	if err != nil {
 		t.Fatal(err)

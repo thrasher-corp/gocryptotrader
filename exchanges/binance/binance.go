@@ -690,7 +690,6 @@ func (b *Binance) AllOrders(ctx context.Context, symbol currency.Pair, orderID, 
 // QueryOrder returns information on a past order
 func (b *Binance) QueryOrder(ctx context.Context, symbol currency.Pair, origClientOrderID string, orderID int64) (QueryOrderData, error) {
 	var resp QueryOrderData
-
 	params := url.Values{}
 	symbolValue, err := b.FormatSymbol(symbol, asset.Spot)
 	if err != nil {

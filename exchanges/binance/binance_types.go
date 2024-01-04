@@ -458,6 +458,30 @@ type NewOrderResponse struct {
 	} `json:"fills"`
 }
 
+// WsTradeOrder represents a trade order returned through the websocket stream.
+type WsTradeOrder struct {
+	Symbol                  string               `json:"symbol"`
+	OrderID                 int64                `json:"orderId"`
+	OrderListID             int64                `json:"orderListId"`
+	ClientOrderID           string               `json:"clientOrderId"`
+	Price                   types.Number         `json:"price"`
+	OrigQty                 types.Number         `json:"origQty"`
+	ExecutedQty             types.Number         `json:"executedQty"`
+	CummulativeQuoteQty     types.Number         `json:"cummulativeQuoteQty"`
+	Status                  string               `json:"status"`
+	TimeInForce             string               `json:"timeInForce"`
+	Type                    string               `json:"type"`
+	Side                    string               `json:"side"`
+	StopPrice               types.Number         `json:"stopPrice"`
+	IcebergQty              types.Number         `json:"icebergQty"`
+	Time                    convert.ExchangeTime `json:"time"`
+	UpdateTime              convert.ExchangeTime `json:"updateTime"`
+	IsWorking               bool                 `json:"isWorking"`
+	WorkingTime             convert.ExchangeTime `json:"workingTime"`
+	OrigQuoteOrderQty       types.Number         `json:"origQuoteOrderQty"`
+	SelfTradePreventionMode string               `json:"selfTradePreventionMode"`
+}
+
 // CancelOrderResponse is the return structured response from the exchange
 type CancelOrderResponse struct {
 	Symbol            string `json:"symbol"`
@@ -1609,17 +1633,29 @@ type WsOrderbookTicker struct {
 // WsOrderbookTickers represents an orderbook ticker information
 type WsOrderbookTickers []WsOrderbookTicker
 
+// APISignatureInfo holds API key and signature information
+type APISignatureInfo struct {
+	APIKey    string `json:"apiKey,omitempty"`
+	Signature string `json:"signature,omitempty"`
+	Timestamp int64  `json:"timestamp,omitempty"`
+}
+
 // TradeOrderRequestParam new order request parameter
 type TradeOrderRequestParam struct {
+	APISignatureInfo
 	Symbol      currency.Pair `json:"symbol"`
 	Side        string        `json:"side"`
 	OrderType   string        `json:"type"`
 	TimeInForce string        `json:"timeInForce"`
 	Price       float64       `json:"price,omitempty,string"`
 	Quantity    float64       `json:"quantity,omitempty,string"`
-	APIKey      string        `json:"apiKey"`
-	Signature   string        `json:"signature"`
-	Timestamp   int64         `json:"timestamp"`
+}
+
+// QueryOrderParam represents an order querying parameters
+type QueryOrderParam struct {
+	APISignatureInfo
+	Symbol  currency.Pair `json:"symbol"`
+	OrderID int64         `json:"orderId"`
 }
 
 // TradeOrderResponse holds response for trade order.

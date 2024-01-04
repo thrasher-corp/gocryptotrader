@@ -420,3 +420,35 @@ func (b *Binance) PlaceNewOrder(arg *TradeOrderRequestParam) (*TradeOrderRespons
 	var resp TradeOrderResponse
 	return &resp, b.SendWsRequest("order.place", arg, &resp)
 }
+
+// ValidatePlaceNewOrderRequest tests whether the request order is valid or not.
+func (b *Binance) ValidatePlaceNewOrderRequest(arg *TradeOrderRequestParam) error {
+	if arg == nil {
+		return errNilArgument
+	}
+	if arg.Symbol.IsEmpty() {
+		return currency.ErrCurrencyPairEmpty
+	}
+	if arg.Side == "" {
+		return order.ErrSideIsInvalid
+	}
+	if arg.OrderType == "" {
+		return order.ErrTypeIsInvalid
+	}
+	return b.SendWsRequest("order.test", arg, &struct{}{})
+}
+
+// WsQueryOrder to query a trade order
+func (b *Binance) WsQueryOrder(arg *QueryOrderParam) (*WsTradeOrder, error) {
+	if arg == nil {
+		return nil, errNilArgument
+	}
+	if arg.Symbol.IsEmpty() {
+		return nil, currency.ErrCurrencyPairEmpty
+	}
+	if arg.OrderID == 0 {
+		return nil, order.ErrOrderIDNotSet
+	}
+	var resp *WsTradeOrder
+	return resp, b.SendWsRequest("", arg, &resp)
+}
