@@ -375,7 +375,7 @@ func (s *RPCServer) GetExchangeInfo(_ context.Context, r *gctrpc.GenericExchange
 
 // GetTicker returns the ticker for a specified exchange, currency pair and
 // asset type
-func (s *RPCServer) GetTicker(ctx context.Context, r *gctrpc.GetTickerRequest) (*gctrpc.TickerResponse, error) {
+func (s *RPCServer) GetTicker(_ context.Context, r *gctrpc.GetTickerRequest) (*gctrpc.TickerResponse, error) {
 	a, err := asset.New(r.AssetType)
 	if err != nil {
 		return nil, err

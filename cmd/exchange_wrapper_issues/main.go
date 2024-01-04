@@ -347,7 +347,6 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 		log.Printf("Executing wrappers for %v %v %v", base.GetName(), assetTypes[i], p)
 
 		if !authenticatedOnly {
-
 			var updateTickerResponse *ticker.Price
 			updateTickerResponse, err = e.UpdateTicker(context.TODO(), p, assetTypes[i])
 			msg = ""
