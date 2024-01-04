@@ -303,7 +303,7 @@ func (g *Gateio) processOrderbookUpdate(incoming []byte) error {
 	assetPairEnabled := g.listOfAssetsCurrencyPairEnabledFor(data.CurrencyPair)
 	if !fetchedCurrencyPairSnapshotOrderbook[data.CurrencyPair.String()] {
 		var orderbooks *orderbook.Base
-		orderbooks, err = g.FetchOrderbook(context.Background(), data.CurrencyPair, asset.Spot) // currency pair orderbook data for Spot, Margin, and Cross Margin is same
+		orderbooks, err = g.UpdateOrderbook(context.Background(), data.CurrencyPair, asset.Spot) // currency pair orderbook data for Spot, Margin, and Cross Margin is same
 		if err != nil {
 			return err
 		}

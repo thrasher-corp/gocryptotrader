@@ -169,28 +169,6 @@ func TestCheckFXString(t *testing.T) {
 	}
 }
 
-func TestFetchTicker(t *testing.T) {
-	t.Parallel()
-	var p currency.Pair
-
-	currencies, err := b.GetAvailablePairs(asset.Spot)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	for i := range currencies {
-		if currencies[i].String() == "FXBTC_JPY" {
-			p = currencies[i]
-			break
-		}
-	}
-
-	_, err = b.FetchTicker(context.Background(), p, asset.Spot)
-	if err != nil {
-		t.Error("Bitflyer - FetchTicker() error", err)
-	}
-}
-
 func setFeeBuilder() *exchange.FeeBuilder {
 	return &exchange.FeeBuilder{
 		Amount:              1,

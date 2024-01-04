@@ -179,10 +179,6 @@ func TestUpdateTicker(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = h.FetchTicker(context.Background(), pairs[1], asset.Spot)
-	if err != nil {
-		t.Error(err)
-	}
 }
 
 func TestUpdateTickers(t *testing.T) {
@@ -197,7 +193,7 @@ func TestUpdateTickers(t *testing.T) {
 	}
 
 	for j := range enabled {
-		_, err = h.FetchTicker(context.Background(), enabled[j], asset.Spot)
+		_, err = h.FetchTicker(enabled[j], asset.Spot)
 		if err != nil {
 			t.Error(err)
 		}

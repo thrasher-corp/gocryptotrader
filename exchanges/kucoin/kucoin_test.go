@@ -1699,33 +1699,6 @@ func TestUpdateTicker(t *testing.T) {
 	}
 }
 
-func TestFetchTicker(t *testing.T) {
-	t.Parallel()
-	_, err := ku.FetchTicker(context.Background(), spotTradablePair, asset.Spot)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if _, err = ku.FetchTicker(context.Background(), marginTradablePair, asset.Margin); err != nil {
-		t.Error(err)
-	}
-	if _, err = ku.FetchTicker(context.Background(), futuresTradablePair, asset.Futures); err != nil {
-		t.Error(err)
-	}
-}
-
-func TestFetchOrderbook(t *testing.T) {
-	t.Parallel()
-	if _, err := ku.FetchOrderbook(context.Background(), spotTradablePair, asset.Spot); err != nil {
-		t.Error(err)
-	}
-	if _, err := ku.FetchOrderbook(context.Background(), marginTradablePair, asset.Margin); err != nil {
-		t.Error(err)
-	}
-	if _, err := ku.FetchOrderbook(context.Background(), futuresTradablePair, asset.Futures); err != nil {
-		t.Error(err)
-	}
-}
-
 func TestGetHistoricCandles(t *testing.T) {
 	startTime := time.Now().Add(-time.Hour * 48)
 	endTime := time.Now().Add(-time.Hour * 3)

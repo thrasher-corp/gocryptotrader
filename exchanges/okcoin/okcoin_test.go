@@ -1293,24 +1293,9 @@ func TestUpdateTicker(t *testing.T) {
 	}
 }
 
-func TestFetchTicker(t *testing.T) {
-	t.Parallel()
-	_, err := o.FetchTicker(context.Background(), spotTradablePair, asset.Spot)
-	if err != nil {
-		t.Error(err)
-	}
-}
-
 func TestGetRecentTrades(t *testing.T) {
 	t.Parallel()
 	_, err := o.GetRecentTrades(context.Background(), spotTradablePair, asset.Spot)
-	if err != nil {
-		t.Error(err)
-	}
-}
-func TestFetchOrderbook(t *testing.T) {
-	t.Parallel()
-	_, err := o.FetchOrderbook(context.Background(), spotTradablePair, asset.Spot)
 	if err != nil {
 		t.Error(err)
 	}

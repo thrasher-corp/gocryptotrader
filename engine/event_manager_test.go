@@ -305,8 +305,7 @@ func TestCheckEventCondition(t *testing.T) {
 		t.Error("expected error")
 	}
 	m.m.Unlock()
-	_, err = exch.FetchTicker(context.Background(),
-		currency.NewPair(currency.BTC, currency.USD), asset.Spot)
+	_, err = exch.FetchTicker(currency.NewPair(currency.BTC, currency.USD), asset.Spot)
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}
@@ -330,8 +329,7 @@ func TestCheckEventCondition(t *testing.T) {
 	}
 	m.m.Unlock()
 
-	_, err = exch.FetchOrderbook(context.Background(),
-		currency.NewPair(currency.BTC, currency.USD), asset.Spot)
+	_, err = exch.FetchOrderbook(currency.NewPair(currency.BTC, currency.USD), asset.Spot)
 	if !errors.Is(err, nil) {
 		t.Errorf("error '%v', expected '%v'", err, nil)
 	}

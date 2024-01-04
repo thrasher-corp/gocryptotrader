@@ -271,7 +271,7 @@ func (f fExchange) GetMarginRatesHistory(context.Context, *margin.RateHistoryReq
 	return resp, nil
 }
 
-func (f fExchange) FetchTicker(_ context.Context, p currency.Pair, a asset.Item) (*ticker.Price, error) {
+func (f fExchange) FetchTicker(p currency.Pair, a asset.Item) (*ticker.Price, error) {
 	return &ticker.Price{
 		Last:         1337,
 		High:         1337,

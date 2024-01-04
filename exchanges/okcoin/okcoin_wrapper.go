@@ -385,15 +385,6 @@ func (o *Okcoin) UpdateTickers(ctx context.Context, a asset.Item) error {
 	return nil
 }
 
-// FetchTicker returns the ticker for a currency pair
-func (o *Okcoin) FetchTicker(ctx context.Context, p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
-	t, err := ticker.GetTicker(o.Name, p, assetType)
-	if err != nil {
-		return o.UpdateTicker(ctx, p, assetType)
-	}
-	return t, nil
-}
-
 // UpdateTicker updates and returns the ticker for a currency pair
 func (o *Okcoin) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Item) (*ticker.Price, error) {
 	if err := o.UpdateTickers(ctx, a); err != nil {
@@ -488,19 +479,6 @@ func (o *Okcoin) CancelBatchOrders(ctx context.Context, args []order.Cancel) (*o
 	return cancelBatchResponse, nil
 }
 
-// FetchOrderbook returns orderbook base on the currency pair
-func (o *Okcoin) FetchOrderbook(ctx context.Context, p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
-	fPair, err := o.FormatExchangeCurrency(p, assetType)
-	if err != nil {
-		return nil, err
-	}
-	ob, err := orderbook.Get(o.Name, fPair, assetType)
-	if err != nil {
-		return o.UpdateOrderbook(ctx, fPair, assetType)
-	}
-	return ob, nil
-}
-
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (o *Okcoin) UpdateOrderbook(ctx context.Context, p currency.Pair, a asset.Item) (*orderbook.Base, error) {
 	if p.IsEmpty() {
@@ -591,19 +569,6 @@ func (o *Okcoin) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (a
 		return resp, err
 	}
 	return resp, nil
-}
-
-// FetchAccountInfo retrieves balances for all enabled currencies
-func (o *Okcoin) FetchAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
-	creds, err := o.GetCredentials(ctx)
-	if err != nil {
-		return account.Holdings{}, err
-	}
-	acc, err := account.GetHoldings(o.Name, creds, assetType)
-	if err != nil {
-		return o.UpdateAccountInfo(ctx, assetType)
-	}
-	return acc, nil
 }
 
 // GetAccountFundingHistory returns funding history, deposits and

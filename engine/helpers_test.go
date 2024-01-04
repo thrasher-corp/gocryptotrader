@@ -774,8 +774,7 @@ func TestGetSpecificOrderbook(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	ob, err := e.GetSpecificOrderbook(context.Background(),
-		btsusd, testExchange, asset.Spot)
+	ob, err := e.GetSpecificOrderbook(btsusd, testExchange, asset.Spot)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -789,8 +788,7 @@ func TestGetSpecificOrderbook(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err = e.GetSpecificOrderbook(context.Background(),
-		ethltc, testExchange, asset.Spot)
+	_, err = e.GetSpecificOrderbook(ethltc, testExchange, asset.Spot)
 	if err == nil {
 		t.Fatal("Unexpected result")
 	}
@@ -818,8 +816,7 @@ func TestGetSpecificTicker(t *testing.T) {
 		t.Fatal("ProcessTicker error", err)
 	}
 
-	tick, err := e.GetSpecificTicker(context.Background(),
-		p, testExchange, asset.Spot)
+	tick, err := e.GetSpecificTicker(p, testExchange, asset.Spot)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -833,8 +830,7 @@ func TestGetSpecificTicker(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err = e.GetSpecificTicker(context.Background(),
-		ethltc, testExchange, asset.Spot)
+	_, err = e.GetSpecificTicker(ethltc, testExchange, asset.Spot)
 	if err == nil {
 		t.Fatal("Unexpected result")
 	}

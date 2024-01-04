@@ -395,7 +395,7 @@ func (s *RPCServer) GetTicker(ctx context.Context, r *gctrpc.GetTickerRequest) (
 		return nil, err
 	}
 
-	t, err := s.GetSpecificTicker(ctx,
+	t, err := s.GetSpecificTicker(
 		currency.Pair{
 			Delimiter: r.Pair.Delimiter,
 			Base:      currency.NewCode(r.Pair.Base),
@@ -425,8 +425,8 @@ func (s *RPCServer) GetTicker(ctx context.Context, r *gctrpc.GetTickerRequest) (
 
 // GetTickers returns a list of tickers for all enabled exchanges and all
 // enabled currency pairs
-func (s *RPCServer) GetTickers(ctx context.Context, _ *gctrpc.GetTickersRequest) (*gctrpc.GetTickersResponse, error) {
-	activeTickers := s.GetAllActiveTickers(ctx)
+func (s *RPCServer) GetTickers(_ context.Context, _ *gctrpc.GetTickersRequest) (*gctrpc.GetTickersResponse, error) {
+	activeTickers := s.GetAllActiveTickers()
 	tickers := make([]*gctrpc.Tickers, len(activeTickers))
 
 	for x := range activeTickers {
@@ -460,18 +460,17 @@ func (s *RPCServer) GetTickers(ctx context.Context, _ *gctrpc.GetTickersRequest)
 
 // GetOrderbook returns an orderbook for a specific exchange, currency pair
 // and asset type
-func (s *RPCServer) GetOrderbook(ctx context.Context, r *gctrpc.GetOrderbookRequest) (*gctrpc.OrderbookResponse, error) {
+func (s *RPCServer) GetOrderbook(_ context.Context, r *gctrpc.GetOrderbookRequest) (*gctrpc.OrderbookResponse, error) {
 	a, err := asset.New(r.AssetType)
 	if err != nil {
 		return nil, err
 	}
 
-	ob, err := s.GetSpecificOrderbook(ctx,
-		currency.Pair{
-			Delimiter: r.Pair.Delimiter,
-			Base:      currency.NewCode(r.Pair.Base),
-			Quote:     currency.NewCode(r.Pair.Quote),
-		},
+	ob, err := s.GetSpecificOrderbook(currency.Pair{
+		Delimiter: r.Pair.Delimiter,
+		Base:      currency.NewCode(r.Pair.Base),
+		Quote:     currency.NewCode(r.Pair.Quote),
+	},
 		r.Exchange,
 		a,
 	)
@@ -514,7 +513,7 @@ func (s *RPCServer) GetOrderbook(ctx context.Context, r *gctrpc.GetOrderbookRequ
 
 // GetOrderbooks returns a list of orderbooks for all enabled exchanges and all
 // enabled currency pairs
-func (s *RPCServer) GetOrderbooks(ctx context.Context, _ *gctrpc.GetOrderbooksRequest) (*gctrpc.GetOrderbooksResponse, error) {
+func (s *RPCServer) GetOrderbooks(_ context.Context, _ *gctrpc.GetOrderbooksRequest) (*gctrpc.GetOrderbooksResponse, error) {
 	exchanges, err := s.ExchangeManager.GetExchanges()
 	if err != nil {
 		return nil, err
@@ -537,7 +536,7 @@ func (s *RPCServer) GetOrderbooks(ctx context.Context, _ *gctrpc.GetOrderbooksRe
 				continue
 			}
 			for z := range currencies {
-				resp, err := exchanges[x].FetchOrderbook(ctx, currencies[z], assets[y])
+				resp, err := exchanges[x].FetchOrderbook(currencies[z], assets[y])
 				if err != nil {
 					log.Errorf(log.RESTSys,
 						"Exchange %s failed to retrieve %s orderbook. Err: %s\n", exchName,
@@ -1282,7 +1281,7 @@ func (s *RPCServer) SubmitOrder(ctx context.Context, r *gctrpc.SubmitOrderReques
 
 // SimulateOrder simulates an order specified by exchange, currency pair and asset
 // type
-func (s *RPCServer) SimulateOrder(ctx context.Context, r *gctrpc.SimulateOrderRequest) (*gctrpc.SimulateOrderResponse, error) {
+func (s *RPCServer) SimulateOrder(_ context.Context, r *gctrpc.SimulateOrderRequest) (*gctrpc.SimulateOrderResponse, error) {
 	if r.Pair == nil {
 		return nil, errCurrencyPairUnset
 	}
@@ -1303,7 +1302,7 @@ func (s *RPCServer) SimulateOrder(ctx context.Context, r *gctrpc.SimulateOrderRe
 		return nil, err
 	}
 
-	o, err := exch.FetchOrderbook(ctx, p, asset.Spot)
+	o, err := exch.FetchOrderbook(p, asset.Spot)
 	if err != nil {
 		return nil, err
 	}
@@ -1337,7 +1336,7 @@ func (s *RPCServer) SimulateOrder(ctx context.Context, r *gctrpc.SimulateOrderRe
 
 // WhaleBomb finds the amount required to reach a specific price target for a given exchange, pair
 // and asset type
-func (s *RPCServer) WhaleBomb(ctx context.Context, r *gctrpc.WhaleBombRequest) (*gctrpc.SimulateOrderResponse, error) {
+func (s *RPCServer) WhaleBomb(_ context.Context, r *gctrpc.WhaleBombRequest) (*gctrpc.SimulateOrderResponse, error) {
 	if r.Pair == nil {
 		return nil, errCurrencyPairUnset
 	}
@@ -1363,7 +1362,7 @@ func (s *RPCServer) WhaleBomb(ctx context.Context, r *gctrpc.WhaleBombRequest) (
 		return nil, err
 	}
 
-	o, err := exch.FetchOrderbook(ctx, p, a)
+	o, err := exch.FetchOrderbook(p, a)
 	if err != nil {
 		return nil, err
 	}
@@ -4918,7 +4917,7 @@ func (s *RPCServer) GetCollateral(ctx context.Context, r *gctrpc.GetCollateralRe
 				// cannot price currency to calculate collateral
 				continue
 			}
-			tick, err = exch.FetchTicker(ctx, tickerCurr, asset.Spot)
+			tick, err = exch.FetchTicker(tickerCurr, asset.Spot)
 			if err != nil {
 				log.Errorf(log.GRPCSys, fmt.Sprintf("GetCollateral offline calculation error via FetchTicker %s %s", exch.GetName(), err))
 				continue

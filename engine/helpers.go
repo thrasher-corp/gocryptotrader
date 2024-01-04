@@ -578,22 +578,22 @@ func GetRelatableCurrencies(p currency.Pair, incOrig, incUSDT bool) currency.Pai
 
 // GetSpecificOrderbook returns a specific orderbook given the currency,
 // exchangeName and assetType
-func (bot *Engine) GetSpecificOrderbook(ctx context.Context, p currency.Pair, exchangeName string, assetType asset.Item) (*orderbook.Base, error) {
+func (bot *Engine) GetSpecificOrderbook(p currency.Pair, exchangeName string, assetType asset.Item) (*orderbook.Base, error) {
 	exch, err := bot.GetExchangeByName(exchangeName)
 	if err != nil {
 		return nil, err
 	}
-	return exch.FetchOrderbook(ctx, p, assetType)
+	return exch.FetchOrderbook(p, assetType)
 }
 
 // GetSpecificTicker returns a specific ticker given the currency,
 // exchangeName and assetType
-func (bot *Engine) GetSpecificTicker(ctx context.Context, p currency.Pair, exchangeName string, assetType asset.Item) (*ticker.Price, error) {
+func (bot *Engine) GetSpecificTicker(p currency.Pair, exchangeName string, assetType asset.Item) (*ticker.Price, error) {
 	exch, err := bot.GetExchangeByName(exchangeName)
 	if err != nil {
 		return nil, err
 	}
-	return exch.FetchTicker(ctx, p, assetType)
+	return exch.FetchTicker(p, assetType)
 }
 
 // GetCollatedExchangeAccountInfoByCoin collates individual exchange account
@@ -832,7 +832,7 @@ func (bot *Engine) GetExchangeNames(enabledOnly bool) []string {
 }
 
 // GetAllActiveTickers returns all enabled exchange tickers
-func (bot *Engine) GetAllActiveTickers(ctx context.Context) []EnabledExchangeCurrencies {
+func (bot *Engine) GetAllActiveTickers() []EnabledExchangeCurrencies {
 	var tickerData []EnabledExchangeCurrencies
 	exchanges := bot.GetExchanges()
 	for x := range exchanges {
@@ -851,7 +851,7 @@ func (bot *Engine) GetAllActiveTickers(ctx context.Context) []EnabledExchangeCur
 				continue
 			}
 			for z := range currencies {
-				tp, err := exchanges[x].FetchTicker(ctx, currencies[z], assets[y])
+				tp, err := exchanges[x].FetchTicker(currencies[z], assets[y])
 				if err != nil {
 					log.Errorf(log.ExchangeSys, "Exchange %s failed to retrieve %s ticker. Err: %s\n", exchName,
 						currencies[z].String(),

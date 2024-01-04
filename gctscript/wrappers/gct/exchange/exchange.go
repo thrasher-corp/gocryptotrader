@@ -45,18 +45,18 @@ func (e Exchange) IsEnabled(exch string) bool {
 }
 
 // Orderbook returns current orderbook requested exchange, pair and asset
-func (e Exchange) Orderbook(ctx context.Context, exch string, pair currency.Pair, item asset.Item) (*orderbook.Base, error) {
-	return engine.Bot.GetSpecificOrderbook(ctx, pair, exch, item)
+func (e Exchange) Orderbook(_ context.Context, exch string, pair currency.Pair, item asset.Item) (*orderbook.Base, error) {
+	return engine.Bot.GetSpecificOrderbook(pair, exch, item)
 }
 
 // Ticker returns ticker for provided currency pair & asset type
-func (e Exchange) Ticker(ctx context.Context, exch string, pair currency.Pair, item asset.Item) (*ticker.Price, error) {
+func (e Exchange) Ticker(_ context.Context, exch string, pair currency.Pair, item asset.Item) (*ticker.Price, error) {
 	ex, err := e.GetExchange(exch)
 	if err != nil {
 		return nil, err
 	}
 
-	return ex.FetchTicker(ctx, pair, item)
+	return ex.FetchTicker(pair, item)
 }
 
 // Pairs returns either all or enabled currency pairs
