@@ -134,30 +134,27 @@ func (h *HUOBI) Get24HrMarketSummary(ctx context.Context, symbol currency.Pair) 
 
 // GetBatchCoinMarginSwapContracts returns the tickers for coin margined swap contracts
 func (h *HUOBI) GetBatchCoinMarginSwapContracts(ctx context.Context) ([]FuturesBatchTicker, error) {
-	type batchData struct {
+	var result struct {
 		Data []FuturesBatchTicker `json:"ticks"`
 	}
-	var result batchData
 	err := h.SendHTTPRequest(ctx, exchange.RestFutures, huobiBatchCoinMarginSwapContracts, &result)
 	return result.Data, err
 }
 
 // GetBatchLinearSwapContracts  returns the tickers for linear swap contracts
 func (h *HUOBI) GetBatchLinearSwapContracts(ctx context.Context) ([]FuturesBatchTicker, error) {
-	type batchData struct {
+	var result struct {
 		Data []FuturesBatchTicker `json:"ticks"`
 	}
-	var result batchData
 	err := h.SendHTTPRequest(ctx, exchange.RestFutures, huobiBatchLinearSwapContracts, &result)
 	return result.Data, err
 }
 
 // GetBatchFuturesContracts returns the tickers for futures contracts
 func (h *HUOBI) GetBatchFuturesContracts(ctx context.Context) ([]FuturesBatchTicker, error) {
-	type batchData struct {
+	var result struct {
 		Data []FuturesBatchTicker `json:"ticks"`
 	}
-	var result batchData
 	err := h.SendHTTPRequest(ctx, exchange.RestFutures, huobiBatchContracts, &result)
 	return result.Data, err
 }
