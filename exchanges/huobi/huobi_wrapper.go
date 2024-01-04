@@ -449,8 +449,11 @@ func (h *HUOBI) UpdateTickers(ctx context.Context, a asset.Item) error {
 		}
 		for i := range ticks.Data {
 			var cp currency.Pair
-			cp, err = currency.NewPairFromString(ticks.Data[i].Symbol)
+			cp, _, err = h.MatchSymbolCheckEnabled(ticks.Data[i].Symbol, a, false)
 			if err != nil {
+				if errors.Is(err, currency.ErrPairNotFound) {
+					continue
+				}
 				return err
 			}
 			err = ticker.ProcessTicker(&ticker.Price{
@@ -480,8 +483,11 @@ func (h *HUOBI) UpdateTickers(ctx context.Context, a asset.Item) error {
 		}
 		for i := range ticks {
 			var cp currency.Pair
-			cp, err = currency.NewPairFromString(ticks[i].ContractCode)
+			cp, _, err = h.MatchSymbolCheckEnabled(ticks[i].ContractCode, a, true)
 			if err != nil {
+				if errors.Is(err, currency.ErrPairNotFound) {
+					continue
+				}
 				return err
 			}
 			tt := time.UnixMilli(ticks[i].Timestamp)
@@ -521,11 +527,28 @@ func (h *HUOBI) UpdateTickers(ctx context.Context, a asset.Item) error {
 			var cp currency.Pair
 			if allTicks[i].Symbol != "" {
 				cp, err = currency.NewPairFromString(allTicks[i].Symbol)
+				if err != nil {
+					return err
+				}
+				cp, err = h.convertContractShortHandToExpiry(cp)
+				if err != nil {
+					return err
+				}
+				cp, _, err = h.MatchSymbolCheckEnabled(cp.String(), a, true)
+				if err != nil {
+					if errors.Is(err, currency.ErrPairNotFound) {
+						continue
+					}
+					return err
+				}
 			} else {
-				cp, err = currency.NewPairFromString(allTicks[i].ContractCode)
-			}
-			if err != nil {
-				return err
+				cp, _, err = h.MatchSymbolCheckEnabled(allTicks[i].ContractCode, a, true)
+				if err != nil {
+					if errors.Is(err, currency.ErrPairNotFound) {
+						continue
+					}
+					return err
+				}
 			}
 			tt := time.UnixMilli(allTicks[i].Timestamp)
 			err = ticker.ProcessTicker(&ticker.Price{

@@ -75,6 +75,8 @@ const (
 	fCancelAllTriggerOrders    = "/api/v1/contract_trigger_cancelall"
 	fTriggerOpenOrders         = "/api/v1/contract_trigger_openorders"
 	fTriggerOrderHistory       = "/api/v1/contract_trigger_hisorders"
+
+	fContractDateFormat = "060102"
 )
 
 // FGetContractInfo gets contract info for futures
@@ -1221,4 +1223,42 @@ func (h *HUOBI) formatFuturesPair(p currency.Pair) (string, error) {
 		return p.Format(currency.PairFormat{Delimiter: "_", Uppercase: true}).String(), nil
 	}
 	return h.FormatSymbol(p, asset.Futures)
+}
+
+// convertContractShortHandToExpiry converts a contract shorthand eg BTC-CW into a full expiry date
+// eg BTC240329 to associate with tradable pair formatting
+func (h *HUOBI) convertContractShortHandToExpiry(pair currency.Pair) (currency.Pair, error) {
+	if !common.StringDataCompareInsensitive(validContractShortTypes, pair.Quote.String()) {
+		return currency.EMPTYPAIR, fmt.Errorf("%s invalid contract type", pair)
+	}
+
+	tt := time.Now()
+	switch pair.Quote.Item.Symbol {
+	case "NW":
+		tt = tt.AddDate(0, 0, 7)
+		fallthrough
+	case "CW":
+		for {
+			if tt.Weekday() == time.Friday {
+				break
+			}
+			tt = tt.AddDate(0, 0, 1)
+		}
+	case "NQ":
+		tt = tt.AddDate(0, 3, 0)
+		fallthrough
+	case "CQ":
+		// Find the next quarter end
+		for !(tt.Month() == time.March || tt.Month() == time.June || tt.Month() == time.September || tt.Month() == time.December) {
+			tt = tt.AddDate(0, 1, 0)
+		}
+		// Find the last day of the quarter
+		tt = time.Date(tt.Year(), tt.Month()+1, 0, 0, 0, 0, 0, time.UTC)
+		// Find the last Friday of the quarter
+		for tt.Weekday() != time.Friday {
+			tt = tt.AddDate(0, 0, -1)
+		}
+	}
+	pair.Quote = currency.NewCode(tt.Format(fContractDateFormat))
+	return pair, nil
 }

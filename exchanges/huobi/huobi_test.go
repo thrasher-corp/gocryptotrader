@@ -26,6 +26,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
@@ -2869,5 +2870,52 @@ func TestUpdateTickers(t *testing.T) {
 	for _, a := range h.GetAssetTypes(false) {
 		err := h.UpdateTickers(context.Background(), a)
 		assert.NoErrorf(t, err, "asset %s", a)
+
+		avail, err := h.GetAvailablePairs(a)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for x := range avail {
+			_, err = ticker.GetTicker(h.Name, avail[x], a)
+			assert.NoError(t, err)
+		}
 	}
+}
+
+func TestConvertContractShortHandToExpiry(t *testing.T) {
+	t.Parallel()
+	cp := currency.NewPair(currency.BTC, currency.NewCode("CW"))
+	cp, err := h.convertContractShortHandToExpiry(cp)
+	assert.NoError(t, err)
+	assert.NotEqual(t, cp.Quote.String(), "CW")
+	tick, err := h.FetchTicker(context.Background(), cp, asset.Futures)
+	assert.NoError(t, err)
+	assert.NotZero(t, tick.Close)
+
+	cp = currency.NewPair(currency.BTC, currency.NewCode("NW"))
+	cp, err = h.convertContractShortHandToExpiry(cp)
+	assert.NoError(t, err)
+	assert.NotEqual(t, cp.Quote.String(), "NW")
+	tick, err = h.FetchTicker(context.Background(), cp, asset.Futures)
+	assert.NoError(t, err)
+	assert.NotZero(t, tick.Close)
+
+	cp = currency.NewPair(currency.BTC, currency.NewCode("CQ"))
+	cp, err = h.convertContractShortHandToExpiry(cp)
+	assert.NoError(t, err)
+	assert.NotEqual(t, cp.Quote.String(), "CQ")
+	tick, err = h.FetchTicker(context.Background(), cp, asset.Futures)
+	assert.NoError(t, err)
+	assert.NotZero(t, tick.Close)
+
+	cp = currency.NewPair(currency.BTC, currency.NewCode("NQ"))
+	cp, err = h.convertContractShortHandToExpiry(cp)
+	assert.NoError(t, err)
+	assert.NotEqual(t, cp.Quote.String(), "NQ")
+	tick, err = h.FetchTicker(context.Background(), cp, asset.Futures)
+	if err != nil {
+		// Huobi doesn't always have a next-quarter contract
+		return
+	}
+	assert.NotZero(t, tick.Close)
 }
