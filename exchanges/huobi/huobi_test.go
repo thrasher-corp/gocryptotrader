@@ -41,7 +41,6 @@ const (
 var (
 	h               = &HUOBI{}
 	wsSetupRan      bool
-	futuresTestPair = currency.NewPair(currency.BTC, currency.NewCode("CW")) // represents this week - NQ (next quarter) is erroring out.
 )
 
 func TestMain(m *testing.M) {
@@ -2688,9 +2687,8 @@ func TestGetAvailableTransferChains(t *testing.T) {
 		t.Error("expected more than one result")
 	}
 }
-
 func TestFormatFuturesPair(t *testing.T) {
-	r, err := h.formatFuturesPair(futuresTestPair)
+	r, err := h.formatFuturesPair(futuresTestPair, false)
 	if err != nil {
 		t.Error(err)
 	}
@@ -2706,7 +2704,7 @@ func TestFormatFuturesPair(t *testing.T) {
 	}
 	// test getting a tradable pair in the format of BTC210827 but make it lower
 	// case to test correct formatting
-	r, err = h.formatFuturesPair(availInstruments[0])
+	r, err = h.formatFuturesPair(availInstruments[0], false)
 	if err != nil {
 		t.Error(err)
 	}
@@ -2715,6 +2713,22 @@ func TestFormatFuturesPair(t *testing.T) {
 	// as they not deterministic from this endpoint.
 	if !strings.Contains(r, "BTC") {
 		t.Errorf("expected %s, got %s", "BTC220708", r)
+	}
+
+	r, err = h.formatFuturesPair(futuresTestPair, true)
+	if err != nil {
+		t.Error(err)
+	}
+	if r == "BTC_CW" {
+		t.Errorf("expected BTC{{date}}, got %s", r)
+	}
+
+	r, err = h.formatFuturesPair(currency.NewPair(currency.BTC, currency.USDT), false)
+	if err != nil {
+		t.Error(err)
+	}
+	if r != "BTC-USDT" {
+		t.Errorf("expected BTC-USDT, got %s", r)
 	}
 }
 
