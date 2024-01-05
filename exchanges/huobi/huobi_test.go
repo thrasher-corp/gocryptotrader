@@ -41,6 +41,7 @@ const (
 var (
 	h               = &HUOBI{}
 	wsSetupRan      bool
+	futuresTestPair = currency.NewPair(currency.BTC, currency.NewCode("CW")) // represents this week - NQ (next quarter) is erroring out.
 )
 
 func TestMain(m *testing.M) {
