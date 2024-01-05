@@ -802,6 +802,10 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 			t.Fatal("Bybit GetOrderExecutionLimits() error cannot be nil")
 		}
 	}
+	err = b.UpdateOrderExecutionLimits(context.Background(), asset.Options)
+	if err != nil {
+		t.Fatal(err)
+	}
 }
 
 func TestPlaceOrder(t *testing.T) {

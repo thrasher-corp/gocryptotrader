@@ -1574,6 +1574,12 @@ func (by *Bybit) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) e
 		if err != nil {
 			return err
 		}
+		var ethInstruments *InstrumentsInfo
+		ethInstruments, err = by.GetInstrumentInfo(ctx, getCategoryName(a), "", "", "ETH", "", 400)
+		if err != nil {
+			return err
+		}
+		instrumentsInfo.List = append(instrumentsInfo.List, ethInstruments.List...)
 	default:
 		return fmt.Errorf("%s %w", a, asset.ErrNotSupported)
 	}
