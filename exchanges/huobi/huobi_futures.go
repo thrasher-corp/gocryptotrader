@@ -147,20 +147,19 @@ func (h *HUOBI) FContractPriceLimitations(ctx context.Context, symbol, contractT
 // ContractOpenInterestUSDT gets open interest data for futures contracts
 func (h *HUOBI) ContractOpenInterestUSDT(ctx context.Context, contractCode, pair currency.Pair, contractType, businessType string) ([]UContractOpenInterest, error) {
 	params := url.Values{}
-	var err error
 	if !contractCode.IsEmpty() {
-		contractCode, err = h.convertContractShortHandToExpiry(contractCode)
+		cc, err := h.formatFuturesPair(contractCode, true)
 		if err != nil {
 			return nil, err
 		}
-		params.Set("contract_code", contractCode.String())
+		params.Set("contract_code", cc)
 	}
 	if !pair.IsEmpty() {
-		pair, err = h.convertContractShortHandToExpiry(pair)
+		p, err := h.formatFuturesPair(pair, true)
 		if err != nil {
 			return nil, err
 		}
-		params.Set("pair", pair.String())
+		params.Set("pair", p)
 	}
 	if contractType != "" {
 		if !common.StringDataCompareInsensitive(validContractTypes, contractType) {
@@ -217,12 +216,12 @@ func (h *HUOBI) FGetEstimatedDeliveryPrice(ctx context.Context, symbol currency.
 
 // FGetMarketDepth gets market depth data for futures contracts
 func (h *HUOBI) FGetMarketDepth(ctx context.Context, symbol currency.Pair, dataType string) (*OBData, error) {
-	symbolValue, err := h.formatFuturesPair(symbol)
+	symbolValue, err := h.formatFuturesPair(symbol, false)
 	if err != nil {
 		return nil, err
 	}
 	params := url.Values{}
-	params.Set("symbol", symbolValue.String())
+	params.Set("symbol", symbolValue)
 	params.Set("type", dataType)
 	path := common.EncodeURLValues(fContractMarketDepth, params)
 
@@ -233,11 +232,11 @@ func (h *HUOBI) FGetMarketDepth(ctx context.Context, symbol currency.Pair, dataT
 	}
 
 	resp := OBData{
-		Symbol: symbolValue.String(),
+		Symbol: symbolValue,
 		Bids:   make([]obItem, len(tempData.Tick.Bids)),
 		Asks:   make([]obItem, len(tempData.Tick.Asks)),
 	}
-	resp.Symbol = symbolValue.String()
+	resp.Symbol = symbolValue
 	for x := range tempData.Tick.Asks {
 		resp.Asks[x] = obItem{
 			Price:    tempData.Tick.Asks[x][0],
@@ -257,11 +256,11 @@ func (h *HUOBI) FGetMarketDepth(ctx context.Context, symbol currency.Pair, dataT
 func (h *HUOBI) FGetKlineData(ctx context.Context, symbol currency.Pair, period string, size int64, startTime, endTime time.Time) (FKlineData, error) {
 	var resp FKlineData
 	params := url.Values{}
-	symbolValue, err := h.formatFuturesPair(symbol)
+	symbolValue, err := h.formatFuturesPair(symbol, false)
 	if err != nil {
 		return resp, err
 	}
-	params.Set("symbol", symbolValue.String())
+	params.Set("symbol", symbolValue)
 	if !common.StringDataCompareInsensitive(validFuturesPeriods, period) {
 		return resp, fmt.Errorf("invalid period value received")
 	}
@@ -284,11 +283,11 @@ func (h *HUOBI) FGetKlineData(ctx context.Context, symbol currency.Pair, period 
 func (h *HUOBI) FGetMarketOverviewData(ctx context.Context, symbol currency.Pair) (FMarketOverviewData, error) {
 	var resp FMarketOverviewData
 	params := url.Values{}
-	symbolValue, err := h.formatFuturesPair(symbol)
+	symbolValue, err := h.formatFuturesPair(symbol, false)
 	if err != nil {
 		return resp, err
 	}
-	params.Set("symbol", symbolValue.String())
+	params.Set("symbol", symbolValue)
 	path := common.EncodeURLValues(fMarketOverview, params)
 	return resp, h.SendHTTPRequest(ctx, exchange.RestFutures, path, &resp)
 }
@@ -297,11 +296,11 @@ func (h *HUOBI) FGetMarketOverviewData(ctx context.Context, symbol currency.Pair
 func (h *HUOBI) FLastTradeData(ctx context.Context, symbol currency.Pair) (FLastTradeData, error) {
 	var resp FLastTradeData
 	params := url.Values{}
-	symbolValue, err := h.formatFuturesPair(symbol)
+	symbolValue, err := h.formatFuturesPair(symbol, false)
 	if err != nil {
 		return resp, err
 	}
-	params.Set("symbol", symbolValue.String())
+	params.Set("symbol", symbolValue)
 	path := common.EncodeURLValues(fLastTradeContract, params)
 	return resp, h.SendHTTPRequest(ctx, exchange.RestFutures, path, &resp)
 }
@@ -309,11 +308,11 @@ func (h *HUOBI) FLastTradeData(ctx context.Context, symbol currency.Pair) (FLast
 // FRequestPublicBatchTrades gets public batch trades for a futures contract
 func (h *HUOBI) FRequestPublicBatchTrades(ctx context.Context, symbol currency.Pair, size int64) (FBatchTradesForContractData, error) {
 	params := url.Values{}
-	symbolValue, err := h.formatFuturesPair(symbol)
+	symbolValue, err := h.formatFuturesPair(symbol, false)
 	if err != nil {
 		return FBatchTradesForContractData{}, err
 	}
-	params.Set("symbol", symbolValue.String())
+	params.Set("symbol", symbolValue)
 	if size > 0 {
 		params.Set("size", strconv.FormatInt(size, 10))
 	}
@@ -470,11 +469,11 @@ func (h *HUOBI) FLiquidationOrders(ctx context.Context, symbol currency.Code, tr
 func (h *HUOBI) FIndexKline(ctx context.Context, symbol currency.Pair, period string, size int64) (FIndexKlineData, error) {
 	var resp FIndexKlineData
 	params := url.Values{}
-	symbolValue, err := h.formatFuturesPair(symbol)
+	symbolValue, err := h.formatFuturesPair(symbol, false)
 	if err != nil {
 		return resp, err
 	}
-	params.Set("symbol", symbolValue.String())
+	params.Set("symbol", symbolValue)
 	if !common.StringDataCompareInsensitive(validFuturesPeriods, period) {
 		return resp, fmt.Errorf("invalid period value received")
 	}
@@ -491,11 +490,11 @@ func (h *HUOBI) FIndexKline(ctx context.Context, symbol currency.Pair, period st
 func (h *HUOBI) FGetBasisData(ctx context.Context, symbol currency.Pair, period, basisPriceType string, size int64) (FBasisData, error) {
 	var resp FBasisData
 	params := url.Values{}
-	symbolValue, err := h.formatFuturesPair(symbol)
+	symbolValue, err := h.formatFuturesPair(symbol, false)
 	if err != nil {
 		return resp, err
 	}
-	params.Set("symbol", symbolValue.String())
+	params.Set("symbol", symbolValue)
 	if !common.StringDataCompareInsensitive(validFuturesPeriods, period) {
 		return resp, fmt.Errorf("invalid period value received")
 	}
@@ -1254,25 +1253,31 @@ func (h *HUOBI) formatFuturesCode(p currency.Code) (string, error) {
 }
 
 // formatFuturesPair handles pairs in the format as "BTC-NW" and "BTC210827"
-func (h *HUOBI) formatFuturesPair(p currency.Pair) (currency.Pair, error) {
+func (h *HUOBI) formatFuturesPair(p currency.Pair, convertQuoteToExpiry bool) (string, error) {
 	if common.StringDataCompareInsensitive(validContractShortTypes, p.Quote.String()) {
-		return p.Format(currency.PairFormat{Delimiter: "_", Uppercase: true}), nil
+		if convertQuoteToExpiry {
+			cp, err := h.convertContractShortHandToExpiry(p)
+			if err != nil {
+				return "", err
+			}
+			return cp.String(), nil
+		}
+		return p.Format(currency.PairFormat{Delimiter: "_", Uppercase: true}).String(), nil
 	}
 	if p.Quote.IsStableCurrency() {
-		return p.Format(currency.PairFormat{Delimiter: "-", Uppercase: true}), nil
+		return p.Format(currency.PairFormat{Delimiter: "-", Uppercase: true}).String(), nil
 	}
-	return h.FormatExchangeCurrency(p, asset.Futures)
+
+	return h.FormatSymbol(p, asset.Futures)
 }
 
 // convertContractShortHandToExpiry converts a contract shorthand eg BTC-CW into a full expiry date
 // eg BTC240329 to associate with tradable pair formatting
-// returns the currency pair if the quote currency is not a contract shorthand
 func (h *HUOBI) convertContractShortHandToExpiry(pair currency.Pair) (currency.Pair, error) {
 	if !common.StringDataCompareInsensitive(validContractShortTypes, pair.Quote.String()) {
-		return h.formatFuturesPair(pair)
+		return currency.EMPTYPAIR, fmt.Errorf("%s invalid contract type", pair)
 	}
-	// contract codes with expiry have no delimiter for API requests
-	pair.Delimiter = ""
+
 	tt := time.Now()
 	switch pair.Quote.Item.Symbol {
 	case "NW":
