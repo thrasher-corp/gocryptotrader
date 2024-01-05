@@ -1877,69 +1877,41 @@ func (k *Kraken) GetOpenInterest(ctx context.Context, keys ...key.PairAsset) ([]
 		return ticks, nil
 	}
 
-	if len(keys) != 1 {
-		var futuresTickersData FuturesTickersData
-		futuresTickersData, err = k.GetFuturesTickers(ctx)
-		if err != nil {
+	var futuresTickersData FuturesTickersData
+	futuresTickersData, err = k.GetFuturesTickers(ctx)
+	if err != nil {
+		return nil, err
+	}
+	resp := make([]futures.OpenInterest, 0, len(futuresTickersData.Tickers))
+	for i := range futuresTickersData.Tickers {
+		var p currency.Pair
+		var isEnabled bool
+		p, isEnabled, err = k.MatchSymbolCheckEnabled(futuresTickersData.Tickers[i].Symbol, asset.Futures, true)
+		if err != nil && !errors.Is(err, currency.ErrPairNotFound) {
 			return nil, err
 		}
-		resp := make([]futures.OpenInterest, 0, len(futuresTickersData.Tickers))
-		for i := range futuresTickersData.Tickers {
-			var p currency.Pair
-			var isEnabled bool
-			p, isEnabled, err = k.MatchSymbolCheckEnabled(futuresTickersData.Tickers[i].Symbol, asset.Futures, true)
-			if err != nil && !errors.Is(err, currency.ErrPairNotFound) {
-				return nil, err
-			}
-			if !isEnabled {
-				continue
-			}
-			var appendData bool
-			for j := range keys {
-				if keys[j].Pair().Equal(p) {
-					appendData = true
-					break
-				}
-			}
-			if len(keys) > 0 && !appendData {
-				continue
-			}
-			resp = append(resp, futures.OpenInterest{
-				Key: key.ExchangePairAsset{
-					Exchange: k.Name,
-					Base:     p.Base.Item,
-					Quote:    p.Quote.Item,
-					Asset:    asset.Futures,
-				},
-				OpenInterest: futuresTickersData.Tickers[i].OpenInterest,
-			})
+		if !isEnabled {
+			continue
 		}
-		return resp, nil
-	}
-	resp := make([]futures.OpenInterest, 1)
-	pFmt, err := k.FormatSymbol(keys[0].Pair(), asset.Futures)
-	if err != nil {
-		return nil, err
-	}
-	data, err := k.GetFuturesTickerBySymbol(ctx, pFmt)
-	if err != nil {
-		return nil, err
-	}
-	p, isEnabled, err := k.MatchSymbolCheckEnabled(data.Ticker.Symbol, asset.Futures, true)
-	if err != nil && !errors.Is(err, currency.ErrPairNotFound) {
-		return nil, err
-	}
-	if !isEnabled {
-		return nil, fmt.Errorf("%v %w", p, currency.ErrPairNotEnabled)
-	}
-	resp[0] = futures.OpenInterest{
-		Key: key.ExchangePairAsset{
-			Exchange: k.Name,
-			Base:     p.Base.Item,
-			Quote:    p.Quote.Item,
-			Asset:    asset.Futures,
-		},
-		OpenInterest: data.Ticker.OpenInterest,
+		var appendData bool
+		for j := range keys {
+			if keys[j].Pair().Equal(p) {
+				appendData = true
+				break
+			}
+		}
+		if len(keys) > 0 && !appendData {
+			continue
+		}
+		resp = append(resp, futures.OpenInterest{
+			Key: key.ExchangePairAsset{
+				Exchange: k.Name,
+				Base:     p.Base.Item,
+				Quote:    p.Quote.Item,
+				Asset:    asset.Futures,
+			},
+			OpenInterest: futuresTickersData.Tickers[i].OpenInterest,
+		})
 	}
 	return resp, nil
 }

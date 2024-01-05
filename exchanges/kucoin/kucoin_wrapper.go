@@ -2008,70 +2008,41 @@ func (ku *Kucoin) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]fu
 		return ticks, nil
 	}
 
-	if len(k) != 1 {
-		var contracts []Contract
-		contracts, err = ku.GetFuturesOpenContracts(ctx)
-		if err != nil {
+	var contracts []Contract
+	contracts, err = ku.GetFuturesOpenContracts(ctx)
+	if err != nil {
+		return nil, err
+	}
+	resp := make([]futures.OpenInterest, 0, len(contracts))
+	for i := range contracts {
+		var symbol currency.Pair
+		var enabled bool
+		symbol, enabled, err = ku.MatchSymbolCheckEnabled(contracts[i].Symbol, asset.Futures, true)
+		if err != nil && !errors.Is(err, currency.ErrPairNotFound) {
 			return nil, err
 		}
-		resp := make([]futures.OpenInterest, 0, len(contracts))
-		for i := range contracts {
-			var symbol currency.Pair
-			var enabled bool
-			symbol, enabled, err = ku.MatchSymbolCheckEnabled(contracts[i].Symbol, asset.Futures, true)
-			if err != nil && !errors.Is(err, currency.ErrPairNotFound) {
-				return nil, err
-			}
-			if !enabled {
-				continue
-			}
-			var appendData bool
-			for j := range k {
-				if k[j].Pair().Equal(symbol) {
-					appendData = true
-					break
-				}
-			}
-			if len(k) > 0 && !appendData {
-				continue
-			}
-			resp = append(resp, futures.OpenInterest{
-				Key: key.ExchangePairAsset{
-					Exchange: ku.Name,
-					Base:     symbol.Base.Item,
-					Quote:    symbol.Quote.Item,
-					Asset:    asset.Futures,
-				},
-				OpenInterest: contracts[i].OpenInterest.Float64(),
-			})
+		if !enabled {
+			continue
 		}
-		return resp, nil
-	}
-
-	resp := make([]futures.OpenInterest, 1)
-	p, isEnabled, err := ku.MatchSymbolCheckEnabled(k[0].Pair().String(), k[0].Asset, false)
-	if err != nil && !errors.Is(err, currency.ErrPairNotFound) {
-		return nil, err
-	}
-	if !isEnabled {
-		return nil, fmt.Errorf("%v %w", p, currency.ErrPairNotEnabled)
-	}
-	symbolStr, err := ku.FormatSymbol(k[0].Pair(), k[0].Asset)
-	if err != nil {
-		return nil, err
-	}
-	instrument, err := ku.GetFuturesContract(ctx, symbolStr)
-	if err != nil {
-		return nil, err
-	}
-	resp[0] = futures.OpenInterest{
-		Key: key.ExchangePairAsset{
-			Exchange: ku.Name,
-			Base:     k[0].Base,
-			Quote:    k[0].Quote,
-			Asset:    k[0].Asset,
-		},
-		OpenInterest: instrument.OpenInterest.Float64(),
+		var appendData bool
+		for j := range k {
+			if k[j].Pair().Equal(symbol) {
+				appendData = true
+				break
+			}
+		}
+		if len(k) > 0 && !appendData {
+			continue
+		}
+		resp = append(resp, futures.OpenInterest{
+			Key: key.ExchangePairAsset{
+				Exchange: ku.Name,
+				Base:     symbol.Base.Item,
+				Quote:    symbol.Quote.Item,
+				Asset:    asset.Futures,
+			},
+			OpenInterest: contracts[i].OpenInterest.Float64(),
+		})
 	}
 	return resp, nil
 }
