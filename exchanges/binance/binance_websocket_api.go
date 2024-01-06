@@ -363,44 +363,61 @@ func (b *Binance) GetWsSymbolOrderbookTicker(symbols currency.Pairs) ([]WsOrderb
 	return resp, b.SendWsRequest("ticker.book", arg, &resp)
 }
 
-// WsLogin authenticates websocket API stream.
-func (b *Binance) WsLogin() (*CFuturesAuthenticationRequest, error) {
-	creds, err := b.GetCredentials(context.Background())
+// WsAuthenticate authenticates websocket API stream.
+func (b *Binance) WsAuthenticate() (*FuturesAuthenticationResp, error) {
+	timestamp := time.Now().UnixMilli()
+	apiKey, singatures, err := b.SignRequest(map[string]interface{}{
+		"timestamp": timestamp,
+	})
 	if err != nil {
 		return nil, err
 	}
-	timestamp := time.Now().UnixMilli()
-	payloadString := (fmt.Sprintf("timestamp=%d", timestamp))
+	var resp FuturesAuthenticationResp
+	return &resp, b.SendWsRequest("session.logon", &APISignatureInfo{
+		APIKey:    apiKey,
+		Signature: singatures,
+		Timestamp: timestamp,
+	}, &resp)
+}
+
+// SignRequest creates a signature given params map
+func (b *Binance) SignRequest(params map[string]interface{}) (apiKey, signature string, err error) {
+	creds, err := b.GetCredentials(context.Background())
+	if err != nil {
+		return "", "", err
+	}
+	timestampInfo, okay := params["timestamp"]
+	if !okay {
+		return "", "", errTimestampInfoRequired
+	} else if _, okay = timestampInfo.(int64); !okay {
+		return "", "", fmt.Errorf("invalid timestamp: %w", errTimestampInfoRequired)
+	}
+	payloadString := fmt.Sprintf("apiKey=%s", creds.Key)
+	for a := range params {
+		if a < "apiKey" {
+			payloadString = fmt.Sprintf("%s=%v&", a, params[a]) + payloadString
+		}
+		payloadString += fmt.Sprintf("&%s=%v", a, params[a])
+	}
 	var hmacSigned []byte
 	hmacSigned, err = crypto.GetHMAC(crypto.HashSHA256,
 		[]byte(payloadString),
 		[]byte(creds.Secret))
 	if err != nil {
-		return nil, err
+		return "", "", err
 	}
-	hmacSignedStr := crypto.HexEncodeToString(hmacSigned)
-	arg := &struct {
-		APIKey    string `json:"apiKey"`
-		Signature string `json:"signature"`
-		Timestamp int64  `json:"timestamp"`
-	}{
-		APIKey:    creds.Key,
-		Signature: hmacSignedStr,
-		Timestamp: timestamp,
-	}
-	var resp CFuturesAuthenticationRequest
-	return &resp, b.SendWsRequest("session.logon", arg, &resp)
+	return creds.Key, crypto.HexEncodeToString(hmacSigned), nil
 }
 
 // GetQuerySessionStatus query the status of the WebSocket connection, inspecting which API key (if any) is used to authorize requests.
-func (b *Binance) GetQuerySessionStatus() (*CFuturesAuthenticationRequest, error) {
-	var resp CFuturesAuthenticationRequest
+func (b *Binance) GetQuerySessionStatus() (*FuturesAuthenticationResp, error) {
+	var resp FuturesAuthenticationResp
 	return &resp, b.SendWsRequest("session.status", nil, &resp)
 }
 
 // GetLogOutOfSession forget the API key previously authenticated. If the connection is not authenticated, this request does nothing.
-func (b *Binance) GetLogOutOfSession() (*CFuturesAuthenticationRequest, error) {
-	var resp CFuturesAuthenticationRequest
+func (b *Binance) GetLogOutOfSession() (*FuturesAuthenticationResp, error) {
+	var resp FuturesAuthenticationResp
 	return &resp, b.SendWsRequest("session.logout", nil, &resp)
 }
 
@@ -440,15 +457,205 @@ func (b *Binance) ValidatePlaceNewOrderRequest(arg *TradeOrderRequestParam) erro
 
 // WsQueryOrder to query a trade order
 func (b *Binance) WsQueryOrder(arg *QueryOrderParam) (*WsTradeOrder, error) {
+	err := b.signParam(arg)
+	if err != nil {
+		return nil, err
+	}
+	var resp *WsTradeOrder
+	return resp, b.SendWsRequest("order.status", arg, &resp)
+}
+
+// WsCancelOrder cancel an active order.
+func (b *Binance) WsCancelOrder(arg *QueryOrderParam) (*WsTradeOrder, error) {
+	err := b.signParam(arg)
+	if err != nil {
+		return nil, err
+	}
+	var resp *WsTradeOrder
+	return resp, b.SendWsRequest("order.cancel", &arg, &resp)
+}
+
+func (b *Binance) signParam(arg *QueryOrderParam) error {
+	if arg == nil {
+		return errNilArgument
+	}
+	if arg.OrderID == 0 && arg.OrigClientOrderID == "" {
+		return order.ErrOrderIDNotSet
+	}
+	if arg.Symbol.IsEmpty() {
+		return currency.ErrCurrencyPairEmpty
+	}
+	params := map[string]interface{}{}
+	if arg.CancelRestrictions != "" {
+		params["cancelRestrictions"] = arg.CancelRestrictions
+	}
+	if arg.NewClientOrderID != "" {
+		params["newClientOrderId"] = arg.NewClientOrderID
+	}
+	if arg.OrderID != 0 {
+		params["orderId"] = arg.OrderID
+	}
+	if arg.OrigClientOrderID != "" {
+		params["origClientOrderId"] = arg.OrigClientOrderID
+	}
+	if arg.RecvWindow != 0 {
+		params["recvWindow"] = arg.RecvWindow
+	}
+	params["symbol"] = arg.Symbol.String()
+	timestamp := time.Now().UnixMilli()
+	params["timestamp"] = timestamp
+	apiKey, signatures, err := b.SignRequest(params)
+	if err != nil {
+		return err
+	}
+	arg.APIKey = apiKey
+	arg.Signature = signatures
+	return nil
+}
+
+// WsCancelAndReplaceTradeOrder cancel an existing order and immediately place a new order instead of the canceled one.
+func (b *Binance) WsCancelAndReplaceTradeOrder(arg *WsCancelAndReplaceParam) (*WsCancelAndReplaceTradeOrderResponse, error) {
 	if arg == nil {
 		return nil, errNilArgument
 	}
 	if arg.Symbol.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
-	if arg.OrderID == 0 {
-		return nil, order.ErrOrderIDNotSet
+	if arg.CancelReplaceMode == "" {
+		return nil, errors.New("cancel replace mode is required")
 	}
-	var resp *WsTradeOrder
-	return resp, b.SendWsRequest("", arg, &resp)
+	if arg.CancelOrderID == "" {
+		return nil, fmt.Errorf("cancelOrderId missing, %w", order.ErrOrderIDNotSet)
+	}
+	if arg.Side == "" {
+		return nil, order.ErrSideIsInvalid
+	}
+	if arg.OrderType == "" {
+		return nil, order.ErrTypeIsInvalid
+	}
+	var resp *WsCancelAndReplaceTradeOrderResponse
+	return resp, b.SendWsRequest("order.cancelReplace", &arg, &resp)
+}
+
+func (b *Binance) openOrdersFilter(symbol currency.Pair, recvWindow int64) (map[string]interface{}, error) {
+	if symbol.IsEmpty() {
+		return nil, currency.ErrCurrencyPairEmpty
+	}
+	arg := map[string]interface{}{}
+	if recvWindow != 0 {
+		arg["recvWindow"] = recvWindow
+	}
+	timestamp := time.Now().UnixMilli()
+	arg["symbol"] = symbol
+	arg["timestamp"] = timestamp
+	apiKey, signature, err := b.SignRequest(arg)
+	if err != nil {
+		return nil, err
+	}
+	arg["apiKey"] = apiKey
+	arg["signature"] = signature
+	return arg, nil
+}
+
+// WsCurrentOpenOrders retrieves list of open orders.
+func (b *Binance) WsCurrentOpenOrders(symbol currency.Pair, recvWindow int64) ([]WsCancelOrder, error) {
+	arg, err := b.openOrdersFilter(symbol, recvWindow)
+	if err != nil {
+		return nil, err
+	}
+	var resp []WsCancelOrder
+	return resp, b.SendWsRequest("openOrders.status", arg, &resp)
+}
+
+// WsCancelOpenOrders represents an open orders list
+func (b *Binance) WsCancelOpenOrders(symbol currency.Pair, recvWindow int64) ([]WsCancelOrder, error) {
+	arg, err := b.openOrdersFilter(symbol, recvWindow)
+	if err != nil {
+		return nil, err
+	}
+	var resp []WsCancelOrder
+	return resp, b.SendWsRequest("openOrders.cancelAll", arg, &resp)
+}
+
+// WsPlaceOCOOrder send in a new one-cancels-the-other (OCO) pair: LIMIT_MAKER + STOP_LOSS/STOP_LOSS_LIMIT orders (called legs), where activation of one order immediately cancels the other.
+// Response format for orderReports is selected using the newOrderRespType parameter. The following example is for RESULT response type. See order.place for more examples.
+func (b *Binance) WsPlaceOCOOrder(arg *PlaceOCOOrderParam) (*OCOOrder, error) {
+	if arg == nil {
+		return nil, errNilArgument
+	}
+	if arg.Symbol.IsEmpty() {
+		return nil, currency.ErrCurrencyPairEmpty
+	}
+	if arg.Side == "" {
+		return nil, order.ErrSideIsInvalid
+	}
+	if arg.Quantity <= 0 {
+		return nil, order.ErrAmountBelowMin
+	}
+	if arg.StopPrice <= 0 {
+		return nil, fmt.Errorf("stopPrice: %w", order.ErrPriceBelowMin)
+	}
+	if arg.TrailingDelta <= 0 {
+		return nil, errors.New("invalid trailingDelta value")
+	}
+	var resp *OCOOrder
+	return resp, b.SendWsRequest("orderList.place", arg, &resp)
+}
+
+// WsQueryOCOOrder execution status of an OCO.
+func (b *Binance) WsQueryOCOOrder(origClientOrderID string, orderListID int64, recvWindow int64) (*OCOOrderInfo, error) {
+	if origClientOrderID == "" {
+		return nil, fmt.Errorf("origClientOrderID %w", errOrderIDMustBeSet)
+	}
+	params := map[string]interface{}{
+		"origClientOrderId": origClientOrderID,
+	}
+	if orderListID != 0 {
+		params["orderListId"] = orderListID
+	}
+	if recvWindow != 0 {
+		params["recvWindow"] = recvWindow
+	}
+	timestamp := time.Now().UnixMilli()
+	params["timestamp"] = timestamp
+	apiKey, signature, err := b.SignRequest(params)
+	if err != nil {
+		return nil, err
+	}
+	params["apiKey"] = apiKey
+	params["signature"] = signature
+	var resp *OCOOrderInfo
+	return resp, b.SendWsRequest("orderList.status", params, &resp)
+}
+
+// WsCancelOCOOrder cancel an active OCO order.
+func (b *Binance) WsCancelOCOOrder(symbol currency.Pair, orderListID,
+	listClientOrderID,
+	newClientOrderID string,
+	recvWindow int64) (*OCOOrder, error) {
+	if symbol.IsEmpty() {
+		return nil, currency.ErrCurrencyPairEmpty
+	}
+	if orderListID == "" {
+		return nil, fmt.Errorf("orderListID %w", errOrderIDMustBeSet)
+	}
+	params := map[string]interface{}{}
+	if listClientOrderID == "" {
+		params["listClientOrderId"] = listClientOrderID
+	}
+	if newClientOrderID == "" {
+		params["newClientOrderId"] = newClientOrderID
+	}
+	params["orderListId"] = orderListID
+	if recvWindow != 0 {
+		params["recvWindow"] = recvWindow
+	}
+	apiKey, signature, err := b.SignRequest(params)
+	if err != nil {
+		return nil, err
+	}
+	params["apiKey"] = apiKey
+	params["signature"] = signature
+	var resp *OCOOrder
+	return resp, b.SendWsRequest("orderList.cancel", params, &resp)
 }

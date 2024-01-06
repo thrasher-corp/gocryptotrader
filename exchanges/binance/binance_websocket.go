@@ -96,7 +96,6 @@ func (b *Binance) WsConnect() error {
 		b.SetIsAPIStreamConnected(false)
 		log.Errorf(log.ExchangeSys, "could not connect to API stream %v", err)
 	} else {
-		println("Is Connected ...\n\n\n")
 		b.SetIsAPIStreamConnected(true)
 	}
 

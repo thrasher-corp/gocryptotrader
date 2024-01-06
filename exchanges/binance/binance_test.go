@@ -33,6 +33,8 @@ const (
 	apiSecret               = ""
 	canManipulateRealOrders = false
 	useTestNet              = false
+
+	apiStreamingIsNotConnected = "API streaming is not connected"
 )
 
 var (
@@ -3595,7 +3597,7 @@ func setupWs() {
 func TestGetCurrenctAveragePrice(t *testing.T) {
 	t.Parallel()
 	if !b.IsAPIStreamConnected() {
-		t.Skip("API streaming is not connected")
+		t.Skip(apiStreamingIsNotConnected)
 	}
 	_, err := b.GetWsCurrenctAveragePrice(currency.NewPair(currency.BTC, currency.USDT))
 	if err != nil {
@@ -3606,7 +3608,7 @@ func TestGetCurrenctAveragePrice(t *testing.T) {
 func TestGetWs24HourPriceChanges(t *testing.T) {
 	t.Parallel()
 	if !b.IsAPIStreamConnected() {
-		t.Skip("API streaming is not connected")
+		t.Skip(apiStreamingIsNotConnected)
 	}
 	_, err := b.GetWs24HourPriceChanges(&PriceChangeRequestParam{
 		Symbols: []currency.Pair{currency.NewPair(currency.BTC, currency.USDT)},
@@ -3619,7 +3621,7 @@ func TestGetWs24HourPriceChanges(t *testing.T) {
 func TestGetWsTradingDayTickers(t *testing.T) {
 	t.Parallel()
 	if !b.IsAPIStreamConnected() {
-		t.Skip("API streaming is not connected")
+		t.Skip(apiStreamingIsNotConnected)
 	}
 	_, err := b.GetWsTradingDayTickers(&PriceChangeRequestParam{
 		Symbols: []currency.Pair{currency.NewPair(currency.BTC, currency.USDT)},
@@ -3632,7 +3634,7 @@ func TestGetWsTradingDayTickers(t *testing.T) {
 func TestGetSymbolPriceTicker(t *testing.T) {
 	t.Parallel()
 	if !b.IsAPIStreamConnected() {
-		t.Skip("API streaming is not connected")
+		t.Skip(apiStreamingIsNotConnected)
 	}
 	_, err := b.GetSymbolPriceTicker(currency.NewPair(currency.BTC, currency.USDT))
 	if err != nil {
@@ -3643,7 +3645,7 @@ func TestGetSymbolPriceTicker(t *testing.T) {
 func TestGetWsSymbolOrderbookTicker(t *testing.T) {
 	t.Parallel()
 	if !b.IsAPIStreamConnected() {
-		t.Skip("API streaming is not connected")
+		t.Skip(apiStreamingIsNotConnected)
 	}
 	_, err := b.GetWsSymbolOrderbookTicker([]currency.Pair{currency.NewPair(currency.BTC, currency.USDT)})
 	if err != nil {
@@ -3661,10 +3663,10 @@ func TestGetWsSymbolOrderbookTicker(t *testing.T) {
 func TestWsLogin(t *testing.T) {
 	t.Parallel()
 	if !b.IsAPIStreamConnected() {
-		t.Skip("API streaming is not connected")
+		t.Skip(apiStreamingIsNotConnected)
 	}
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
-	_, err := b.WsLogin()
+	_, err := b.WsAuthenticate()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -3673,7 +3675,7 @@ func TestWsLogin(t *testing.T) {
 func TestGetQuerySessionStatus(t *testing.T) {
 	t.Parallel()
 	if !b.IsAPIStreamConnected() {
-		t.Skip("API streaming is not connected")
+		t.Skip(apiStreamingIsNotConnected)
 	}
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	_, err := b.GetQuerySessionStatus()
@@ -3685,7 +3687,7 @@ func TestGetQuerySessionStatus(t *testing.T) {
 func TestGetLogOutOfSession(t *testing.T) {
 	t.Parallel()
 	if !b.IsAPIStreamConnected() {
-		t.Skip("API streaming is not connected")
+		t.Skip(apiStreamingIsNotConnected)
 	}
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	_, err := b.GetLogOutOfSession()
@@ -3697,7 +3699,7 @@ func TestGetLogOutOfSession(t *testing.T) {
 func TestPlaceNewOrder(t *testing.T) {
 	t.Parallel()
 	if !b.IsAPIStreamConnected() {
-		t.Skip("API streaming is not connected")
+		t.Skip(apiStreamingIsNotConnected)
 	}
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
 	_, err := b.PlaceNewOrder(&TradeOrderRequestParam{
@@ -3716,7 +3718,7 @@ func TestPlaceNewOrder(t *testing.T) {
 func TestValidatePlaceNewOrderRequest(t *testing.T) {
 	t.Parallel()
 	if !b.IsAPIStreamConnected() {
-		t.Skip("API streaming is not connected")
+		t.Skip(apiStreamingIsNotConnected)
 	}
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
 	err := b.ValidatePlaceNewOrderRequest(&TradeOrderRequestParam{
@@ -3735,13 +3737,110 @@ func TestValidatePlaceNewOrderRequest(t *testing.T) {
 func TestWsQueryOrder(t *testing.T) {
 	t.Parallel()
 	if !b.IsAPIStreamConnected() {
-		t.Skip("API streaming is not connected")
+		t.Skip(apiStreamingIsNotConnected)
 	}
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	_, err := b.WsQueryOrder(&QueryOrderParam{
 		Symbol:  currency.NewPair(currency.BTC, currency.USDT),
 		OrderID: 12345,
 	})
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestSignRequest(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	if !b.IsAPIStreamConnected() {
+		t.Skip(apiStreamingIsNotConnected)
+	}
+	_, signature, err := b.SignRequest(map[string]interface{}{
+		"name": "nameValue",
+	})
+	if err != nil {
+		t.Fatal(err)
+	} else if signature == "" {
+		t.Fatalf("unexpected signature")
+	}
+}
+
+func TestWsCancelAndReplaceTradeOrder(t *testing.T) {
+	t.Parallel()
+	if !b.IsAPIStreamConnected() {
+		t.Skip(apiStreamingIsNotConnected)
+	}
+	_, err := b.WsCancelAndReplaceTradeOrder(&WsCancelAndReplaceParam{
+		Symbol:                    currency.NewPair(currency.BTC, currency.USDT),
+		CancelReplaceMode:         "ALLOW_FAILURE",
+		CancelOriginClientOrderID: "4d96324ff9d44481926157",
+		Side:                      "SELL",
+		OrderType:                 "LIMIT",
+		TimeInForce:               "GTC",
+		Price:                     23416.10000000,
+		Quantity:                  0.00847000,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestWsCancelOpenOrders(t *testing.T) {
+	t.Parallel()
+	if !b.IsAPIStreamConnected() {
+		t.Skip(apiStreamingIsNotConnected)
+	}
+	_, err := b.WsCancelOpenOrders(currency.NewPair(currency.BTC, currency.USDT), 6000)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestWsPlaceOCOOrder(t *testing.T) {
+	t.Parallel()
+	if !b.IsAPIStreamConnected() {
+		t.Skip(apiStreamingIsNotConnected)
+	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	_, err := b.WsPlaceOCOOrder(&PlaceOCOOrderParam{
+		Symbol:               currency.NewPair(currency.BTC, currency.USDT),
+		Side:                 "SELL",
+		Price:                23420.00000000,
+		Quantity:             0.00650000,
+		StopPrice:            23410.00000000,
+		StopLimitPrice:       23405.00000000,
+		StopLimitTimeInForce: "GTC",
+		NewOrderRespType:     "RESULT",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestWsQueryOCOOrder(t *testing.T) {
+	t.Parallel()
+	if !b.IsAPIStreamConnected() {
+		t.Skip(apiStreamingIsNotConnected)
+	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	_, err := b.WsQueryOCOOrder("123456788", 0, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestWsCancelOCOOrder(t *testing.T) {
+	t.Parallel()
+	if !b.IsAPIStreamConnected() {
+		t.Skip(apiStreamingIsNotConnected)
+	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	_, err := b.WsCancelOCOOrder(
+		currency.NewPair(currency.BTC, currency.USDT),
+		"someID",
+		"12354",
+		"",
+		0)
 	if err != nil {
 		t.Fatal(err)
 	}

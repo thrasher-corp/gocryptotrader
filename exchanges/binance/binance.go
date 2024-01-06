@@ -124,6 +124,7 @@ var (
 	errEitherLoanOrCollateralAmountsMustBeSet = errors.New("either loan or collateral amounts must be set")
 	errNilArgument                            = errors.New("nil argument")
 	errWebsocketAPICallNotEnabled             = errors.New("websocket API connection not enabled")
+	errTimestampInfoRequired                  = errors.New("timestamp information is required")
 )
 
 // GetUndocumentedInterestHistory gets interest history for currency/currencies provided
