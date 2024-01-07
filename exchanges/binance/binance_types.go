@@ -1908,3 +1908,56 @@ type OCOOrderInfo struct {
 		SelfTradePreventionMode string               `json:"selfTradePreventionMode"`
 	} `json:"orderReports"`
 }
+
+// WsOSRPlaceOrderParams holds request paramters for placing OSR orders.
+type WsOSRPlaceOrderParams struct {
+	APISignatureInfo
+	Symbol           currency.Pair `json:"symbol,omitempty"`
+	Side             string        `json:"side,omitempty"`
+	OrderType        string        `json:"type,omitempty"`
+	TimeInForce      string        `json:"timeInForce,omitempty"`
+	Price            float64       `json:"price,omitempty"`
+	Quantity         float64       `json:"quantity,omitempty"`
+	NewClientOrderID string        `json:"newClientOrderId,omitempty"`
+
+	// Select response format: ACK, RESULT, FULL.
+	// MARKET and LIMIT orders use FULL by default.
+	NewOrderRespType string  `json:"newOrderRespType,omitempty"`
+	IcebergQty       float64 `json:"icebergQty,omitempty"`
+	StrategyID       int64   `json:"strategyId,omitempty"`
+	StrategyType     string  `json:"strategyType,omitempty"`
+
+	// The allowed enums is dependent on what is configured on the symbol. The possible supported values are EXPIRE_TAKER, EXPIRE_MAKER, EXPIRE_BOTH, NONE.
+	SelfTradePreventionMode string `json:"selfTradePreventionMode,omitempty"`
+	RecvWindow              string `json:"recvWindow,omitempty"`
+}
+
+// OSROrder represents a request parameters for Smart Order Routing (SOR)
+type OSROrder struct {
+	Symbol              string               `json:"symbol"`
+	OrderID             int64                `json:"orderId"`
+	OrderListID         int64                `json:"orderListId"`
+	ClientOrderID       string               `json:"clientOrderId"`
+	TransactTime        int64                `json:"transactTime"`
+	Price               types.Number         `json:"price"`
+	OrigQty             types.Number         `json:"origQty"`
+	ExecutedQty         types.Number         `json:"executedQty"`
+	CummulativeQuoteQty types.Number         `json:"cummulativeQuoteQty"`
+	Status              string               `json:"status"`
+	TimeInForce         string               `json:"timeInForce"`
+	Type                string               `json:"type"`
+	Side                string               `json:"side"`
+	WorkingTime         convert.ExchangeTime `json:"workingTime"`
+	Fills               []struct {
+		MatchType       string       `json:"matchType"`
+		Price           types.Number `json:"price"`
+		Qty             types.Number `json:"qty"`
+		Commission      string       `json:"commission"`
+		CommissionAsset string       `json:"commissionAsset"`
+		TradeID         int          `json:"tradeId"`
+		AllocID         int          `json:"allocId"`
+	} `json:"fills"`
+	WorkingFloor            string `json:"workingFloor"`
+	SelfTradePreventionMode string `json:"selfTradePreventionMode"`
+	UsedSor                 bool   `json:"usedSor"`
+}

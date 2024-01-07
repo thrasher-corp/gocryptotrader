@@ -3845,3 +3845,53 @@ func TestWsCancelOCOOrder(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestWsCurrentOpenOCOOrders(t *testing.T) {
+	t.Parallel()
+	if !b.IsAPIStreamConnected() {
+		t.Skip(apiStreamingIsNotConnected)
+	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	_, err := b.WsCurrentOpenOCOOrders(0)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestWsPlaceNewSOROrder(t *testing.T) {
+	t.Parallel()
+	if !b.IsAPIStreamConnected() {
+		t.Skip(apiStreamingIsNotConnected)
+	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	_, err := b.WsPlaceNewSOROrder(&WsOSRPlaceOrderParams{
+		Symbol:      currency.NewPair(currency.BTC, currency.USDT),
+		Side:        "BUY",
+		OrderType:   "LIMIT",
+		Quantity:    0.5,
+		TimeInForce: "GTC",
+		Price:       31000,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestWsTestNewOrderUsingSOR(t *testing.T) {
+	t.Parallel()
+	if !b.IsAPIStreamConnected() {
+		t.Skip(apiStreamingIsNotConnected)
+	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	err := b.WsTestNewOrderUsingSOR(&WsOSRPlaceOrderParams{
+		Symbol:      currency.NewPair(currency.BTC, currency.USDT),
+		Side:        "BUY",
+		OrderType:   "LIMIT",
+		Quantity:    0.5,
+		TimeInForce: "GTC",
+		Price:       31000,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+}

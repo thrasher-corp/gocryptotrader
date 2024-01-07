@@ -659,3 +659,63 @@ func (b *Binance) WsCancelOCOOrder(symbol currency.Pair, orderListID,
 	var resp *OCOOrder
 	return resp, b.SendWsRequest("orderList.cancel", params, &resp)
 }
+
+// WsCurrentOpenOCOOrders query execution status of all open OCOs.
+func (b *Binance) WsCurrentOpenOCOOrders(recvWindow int64) ([]OCOOrder, error) {
+	params := map[string]interface{}{}
+	if recvWindow != 0 {
+		params["recvWindow"] = recvWindow
+	}
+	timestamp := time.Now().UnixMilli()
+	params["timestamp"] = timestamp
+	apiKey, signature, err := b.SignRequest(params)
+	if err != nil {
+		return nil, err
+	}
+	params["apiKey"] = apiKey
+	params["signature"] = signature
+	var resp []OCOOrder
+	return resp, b.SendWsRequest("openOrderLists.status", params, &resp)
+}
+
+// WsPlaceNewSOROrder places an order using smart order routing (SOR).
+func (b *Binance) WsPlaceNewSOROrder(arg *WsOSRPlaceOrderParams) ([]OSROrder, error) {
+	if arg == nil || *arg == (WsOSRPlaceOrderParams{}) {
+		return nil, errNilArgument
+	}
+	if arg.Symbol.IsEmpty() {
+		return nil, currency.ErrCurrencyPairEmpty
+	}
+	if arg.Side == "" {
+		return nil, order.ErrSideIsInvalid
+	}
+	if arg.OrderType == "" {
+		return nil, order.ErrTypeIsInvalid
+	}
+	if arg.Quantity <= 0 {
+		return nil, order.ErrAmountBelowMin
+	}
+	var resp []OSROrder
+	return resp, b.SendWsRequest("sor.order.place", arg, &resp)
+}
+
+// WsTestNewOrderUsingSOR test new order creation and signature/recvWindow using smart order routing (SOR).
+// Creates and validates a new order but does not send it into the matching engine.
+func (b *Binance) WsTestNewOrderUsingSOR(arg *WsOSRPlaceOrderParams) error {
+	if arg == nil || *arg == (WsOSRPlaceOrderParams{}) {
+		return errNilArgument
+	}
+	if arg.Symbol.IsEmpty() {
+		return currency.ErrCurrencyPairEmpty
+	}
+	if arg.Side == "" {
+		return order.ErrSideIsInvalid
+	}
+	if arg.OrderType == "" {
+		return order.ErrTypeIsInvalid
+	}
+	if arg.Quantity <= 0 {
+		return order.ErrAmountBelowMin
+	}
+	return b.SendWsRequest("sor.order.place", arg, &struct{}{})
+}
