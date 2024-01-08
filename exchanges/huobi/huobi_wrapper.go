@@ -2321,6 +2321,11 @@ func (h *HUOBI) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]futu
 	if len(k) == 1 {
 		switch k[0].Asset {
 		case asset.Futures:
+			_, err := strconv.ParseInt(k[0].Quote.Symbol, 10, 64)
+			if err == nil {
+				// Huobi does not like requests being made with contract expiry in them (eg BTC240109)
+				return nil, fmt.Errorf("%w %v, must use shorthand such as CW (current week)", currency.ErrCurrencyNotSupported, k[0].Pair())
+			}
 			data, err := h.FContractOpenInterest(ctx, "", "", k[0].Pair())
 			if err != nil {
 				data2, err2 := h.ContractOpenInterestUSDT(ctx, k[0].Pair(), currency.EMPTYPAIR, "", "")
@@ -2332,7 +2337,7 @@ func (h *HUOBI) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]futu
 
 			for i := range data.Data {
 				var p currency.Pair
-				p, _, err = h.MatchSymbolCheckEnabled(data.Data[i].ContractCode, k[0].Asset, true)
+				p, err = h.MatchSymbolWithAvailablePairs(data.Data[i].ContractCode, k[0].Asset, true)
 				if err != nil {
 					if errors.Is(err, currency.ErrPairNotFound) {
 						continue
@@ -2358,7 +2363,7 @@ func (h *HUOBI) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]futu
 			}
 			for i := range data.Data {
 				var p currency.Pair
-				p, _, err = h.MatchSymbolCheckEnabled(data.Data[i].ContractCode, k[0].Asset, true)
+				p, err = h.MatchSymbolWithAvailablePairs(data.Data[i].ContractCode, k[0].Asset, true)
 				if err != nil {
 					if errors.Is(err, currency.ErrPairNotFound) {
 						continue
@@ -2387,12 +2392,10 @@ func (h *HUOBI) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]futu
 			if err != nil {
 				return nil, err
 			}
-
 			uData, err := h.ContractOpenInterestUSDT(ctx, currency.EMPTYPAIR, currency.EMPTYPAIR, "", "")
 			if err != nil {
 				return nil, err
 			}
-
 			allData := make([]UContractOpenInterest, 0, len(data.Data)+len(uData))
 			allData = append(allData, data.Data...)
 			allData = append(allData, uData...)
