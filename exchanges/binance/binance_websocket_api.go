@@ -366,7 +366,7 @@ func (b *Binance) GetWsSymbolOrderbookTicker(symbols currency.Pairs) ([]WsOrderb
 // WsAuthenticate authenticates websocket API stream.
 func (b *Binance) WsAuthenticate() (*FuturesAuthenticationResp, error) {
 	timestamp := time.Now().UnixMilli()
-	apiKey, singatures, err := b.SignRequest(map[string]interface{}{
+	apiKey, signatures, err := b.SignRequest(map[string]interface{}{
 		"timestamp": timestamp,
 	})
 	if err != nil {
@@ -375,7 +375,7 @@ func (b *Binance) WsAuthenticate() (*FuturesAuthenticationResp, error) {
 	var resp FuturesAuthenticationResp
 	return &resp, b.SendWsRequest("session.logon", &APISignatureInfo{
 		APIKey:    apiKey,
-		Signature: singatures,
+		Signature: signatures,
 		Timestamp: timestamp,
 	}, &resp)
 }
@@ -603,7 +603,7 @@ func (b *Binance) WsPlaceOCOOrder(arg *PlaceOCOOrderParam) (*OCOOrder, error) {
 }
 
 // WsQueryOCOOrder execution status of an OCO.
-func (b *Binance) WsQueryOCOOrder(origClientOrderID string, orderListID int64, recvWindow int64) (*OCOOrderInfo, error) {
+func (b *Binance) WsQueryOCOOrder(origClientOrderID string, orderListID, recvWindow int64) (*OCOOrderInfo, error) {
 	if origClientOrderID == "" {
 		return nil, fmt.Errorf("origClientOrderID %w", errOrderIDMustBeSet)
 	}

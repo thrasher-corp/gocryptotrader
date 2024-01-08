@@ -570,6 +570,7 @@ func (b *Binance) processKline(respRaw []byte) error {
 		return err
 	}
 	b.Websocket.DataHandler <- stream.KlineData{
+		Pair:       cp,
 		StartTime:  resp.KlineData.StartTime.Time(),
 		CloseTime:  resp.KlineData.CloseTime.Time(),
 		Timestamp:  resp.EventTime.Time(),
@@ -578,7 +579,6 @@ func (b *Binance) processKline(respRaw []byte) error {
 		LowPrice:   resp.KlineData.LowPrice.Float64(),
 		ClosePrice: resp.KlineData.ClosePrice.Float64(),
 		Volume:     resp.KlineData.BaseVolume.Float64(),
-		Pair:       cp,
 		AssetType:  asset.USDTMarginedFutures,
 		Exchange:   b.Name,
 		Interval:   resp.KlineData.Interval,

@@ -164,12 +164,10 @@ func TestUpdateTickers(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-
 	err = b.UpdateTickers(context.Background(), asset.CoinMarginedFutures)
 	if err != nil {
 		t.Error(err)
 	}
-
 	err = b.UpdateTickers(context.Background(), asset.USDTMarginedFutures)
 	if err != nil {
 		t.Error(err)
@@ -3770,6 +3768,7 @@ func TestWsCancelAndReplaceTradeOrder(t *testing.T) {
 	if !b.IsAPIStreamConnected() {
 		t.Skip(apiStreamingIsNotConnected)
 	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
 	_, err := b.WsCancelAndReplaceTradeOrder(&WsCancelAndReplaceParam{
 		Symbol:                    currency.NewPair(currency.BTC, currency.USDT),
 		CancelReplaceMode:         "ALLOW_FAILURE",
@@ -3790,6 +3789,7 @@ func TestWsCancelOpenOrders(t *testing.T) {
 	if !b.IsAPIStreamConnected() {
 		t.Skip(apiStreamingIsNotConnected)
 	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
 	_, err := b.WsCancelOpenOrders(currency.NewPair(currency.BTC, currency.USDT), 6000)
 	if err != nil {
 		t.Fatal(err)

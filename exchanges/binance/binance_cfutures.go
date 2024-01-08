@@ -113,36 +113,19 @@ func (b *Binance) GetFuturesOrderbook(ctx context.Context, symbol currency.Pair,
 	}
 
 	var resp OrderBook
-	var price, quantity float64
 	resp.Asks = make([]OrderbookItem, len(data.Asks))
 	for x := range data.Asks {
-		price, err = strconv.ParseFloat(data.Asks[x][0], 64)
-		if err != nil {
-			return nil, err
-		}
-		quantity, err = strconv.ParseFloat(data.Asks[x][1], 64)
-		if err != nil {
-			return nil, err
-		}
 		resp.Asks[x] = OrderbookItem{
-			Price:    price,
-			Quantity: quantity,
+			Price:    data.Asks[x][0].Float64(),
+			Quantity: data.Asks[x][1].Float64(),
 		}
 	}
 
 	resp.Bids = make([]OrderbookItem, len(data.Bids))
 	for y := range data.Bids {
-		price, err = strconv.ParseFloat(data.Bids[y][0], 64)
-		if err != nil {
-			return nil, err
-		}
-		quantity, err = strconv.ParseFloat(data.Bids[y][1], 64)
-		if err != nil {
-			return nil, err
-		}
 		resp.Bids[y] = OrderbookItem{
-			Price:    price,
-			Quantity: quantity,
+			Price:    data.Bids[y][0].Float64(),
+			Quantity: data.Bids[y][1].Float64(),
 		}
 	}
 	return &resp, nil

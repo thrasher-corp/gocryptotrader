@@ -47,19 +47,19 @@ type MarkPriceData struct {
 
 // SymbolPriceTicker stores ticker price stats
 type SymbolPriceTicker struct {
-	Symbol string  `json:"symbol"`
-	Price  float64 `json:"price,string"`
-	Time   int64   `json:"time"`
+	Symbol string               `json:"symbol"`
+	Price  float64              `json:"price,string"`
+	Time   convert.ExchangeTime `json:"time"`
 }
 
 // SymbolOrderBookTicker stores orderbook ticker data
 type SymbolOrderBookTicker struct {
-	Symbol   string  `json:"symbol"`
-	BidPrice float64 `json:"bidPrice,string"`
-	AskPrice float64 `json:"askPrice,string"`
-	BidQty   float64 `json:"bidQty,string"`
-	AskQty   float64 `json:"askQty,string"`
-	Time     int64   `json:"time"`
+	Symbol   string               `json:"symbol"`
+	BidPrice float64              `json:"bidPrice,string"`
+	AskPrice float64              `json:"askPrice,string"`
+	BidQty   float64              `json:"bidQty,string"`
+	AskQty   float64              `json:"askQty,string"`
+	Time     convert.ExchangeTime `json:"time"`
 }
 
 // FuturesCandleStick holds kline data

@@ -173,7 +173,7 @@ type OrderBookData struct {
 type OrderBook struct {
 	Symbol       string
 	LastUpdateID int64
-	Code         int
+	Code         int64
 	Msg          string
 	Bids         []OrderbookItem
 	Asks         []OrderbookItem
@@ -342,14 +342,14 @@ type UFuturesAggregatedTrade struct {
 
 // IndexMarkPrice stores data for index and mark prices
 type IndexMarkPrice struct {
-	Symbol               string       `json:"symbol"`
-	Pair                 string       `json:"pair"`
-	MarkPrice            types.Number `json:"markPrice"`
-	IndexPrice           types.Number `json:"indexPrice"`
-	EstimatedSettlePrice types.Number `json:"estimatedSettlePrice"`
-	LastFundingRate      types.Number `json:"lastFundingRate"`
-	NextFundingTime      int64        `json:"nextFundingTime"`
-	Time                 int64        `json:"time"`
+	Symbol               string               `json:"symbol"`
+	Pair                 string               `json:"pair"`
+	MarkPrice            types.Number         `json:"markPrice"`
+	IndexPrice           types.Number         `json:"indexPrice"`
+	EstimatedSettlePrice types.Number         `json:"estimatedSettlePrice"`
+	LastFundingRate      types.Number         `json:"lastFundingRate"`
+	NextFundingTime      convert.ExchangeTime `json:"nextFundingTime"`
+	Time                 convert.ExchangeTime `json:"time"`
 }
 
 // CandleStick holds kline data
@@ -472,11 +472,11 @@ type WsTradeOrder struct {
 	TimeInForce             string               `json:"timeInForce"`
 	Type                    string               `json:"type"`
 	Side                    string               `json:"side"`
+	IsWorking               bool                 `json:"isWorking"`
 	StopPrice               types.Number         `json:"stopPrice"`
 	IcebergQty              types.Number         `json:"icebergQty"`
 	Time                    convert.ExchangeTime `json:"time"`
 	UpdateTime              convert.ExchangeTime `json:"updateTime"`
-	IsWorking               bool                 `json:"isWorking"`
 	WorkingTime             convert.ExchangeTime `json:"workingTime"`
 	OrigQuoteOrderQty       types.Number         `json:"origQuoteOrderQty"`
 	SelfTradePreventionMode string               `json:"selfTradePreventionMode"`
@@ -1703,7 +1703,7 @@ type WsCancelAndReplaceParam struct {
 	RecvWindow         int64  `json:"recvWindow,omitempty"`
 }
 
-// PlaceOCOOrderParam holds a request paramters for one-cancel-other orders
+// PlaceOCOOrderParam holds a request parameters for one-cancel-other orders
 type PlaceOCOOrderParam struct {
 	APISignatureInfo
 	Symbol               currency.Pair `json:"symbol,omitempty"`
@@ -1876,7 +1876,7 @@ type OCOOrder struct {
 
 // OCOOrderInfo represents OCO order information.
 type OCOOrderInfo struct {
-	OrderListID       int                  `json:"orderListId"`
+	OrderListID       int64                `json:"orderListId"`
 	ContingencyType   string               `json:"contingencyType"`
 	ListStatusType    string               `json:"listStatusType"`
 	ListOrderStatus   string               `json:"listOrderStatus"`
@@ -1909,7 +1909,7 @@ type OCOOrderInfo struct {
 	} `json:"orderReports"`
 }
 
-// WsOSRPlaceOrderParams holds request paramters for placing OSR orders.
+// WsOSRPlaceOrderParams holds request parameters for placing OSR orders.
 type WsOSRPlaceOrderParams struct {
 	APISignatureInfo
 	Symbol           currency.Pair `json:"symbol,omitempty"`
@@ -1954,8 +1954,8 @@ type OSROrder struct {
 		Qty             types.Number `json:"qty"`
 		Commission      string       `json:"commission"`
 		CommissionAsset string       `json:"commissionAsset"`
-		TradeID         int          `json:"tradeId"`
-		AllocID         int          `json:"allocId"`
+		TradeID         int64        `json:"tradeId"`
+		AllocID         int64        `json:"allocId"`
 	} `json:"fills"`
 	WorkingFloor            string `json:"workingFloor"`
 	SelfTradePreventionMode string `json:"selfTradePreventionMode"`
