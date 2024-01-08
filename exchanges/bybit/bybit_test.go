@@ -794,7 +794,8 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 		t.Fatal("Bybit GetAvailablePairs() error", err)
 	}
 	for x := range enabled {
-		limits, err := b.GetOrderExecutionLimits(asset.Spot, enabled[x])
+		var limits order.MinMaxLevel
+		limits, err = b.GetOrderExecutionLimits(asset.Spot, enabled[x])
 		if err != nil {
 			t.Fatal("Bybit GetOrderExecutionLimits() error", err)
 		}

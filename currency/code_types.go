@@ -3021,6 +3021,21 @@ var (
 	FI               = NewCode("FI")
 	USDM             = NewCode("USDM")
 	USDTM            = NewCode("USDTM")
+	LEVER            = NewCode("LEVER")
+	NESS             = NewCode("NESS")
+	KAS              = NewCode("KAS")
+	NEXT             = NewCode("NEXT")
+	VEXT             = NewCode("VEXT")
+	PYUSD            = NewCode("PYUSD")
+	SAIL             = NewCode("SAIL")
+	VV               = NewCode("VV")
+	ORDI             = NewCode("ORDI")
+	CYBER            = NewCode("CYBER")
+	SEILOR           = NewCode("SEILOR")
+	TAVA             = NewCode("TAVA")
+	DSRUN            = NewCode("DSRUN")
+	CWAR             = NewCode("CWAR")
+	GALFT            = NewCode("GALFT")
 
 	stables = Currencies{
 		USDT,
