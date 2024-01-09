@@ -30,9 +30,10 @@ import (
 )
 
 var (
-	c        = &CoinbasePro{}
-	testPair = currency.NewPairWithDelimiter(currency.BTC.String(), currency.USD.String(), "-")
-	testCur  = currency.BTC
+	c          = &CoinbasePro{}
+	testCrypto = currency.BTC
+	testFiat   = currency.USD
+	testPair   = currency.NewPairWithDelimiter(testCrypto.String(), testFiat.String(), "-")
 )
 
 // Please supply your APIKeys here for better testing
@@ -49,34 +50,39 @@ const (
 	// Donation address
 	testAddress = "bc1qk0jareu4jytc0cfrhr5wgshsq8282awpavfahc"
 
-	errExpectMismatch         = "received: '%v' but expected: '%v'"
-	errExpectedNonEmpty       = "expected non-empty response"
-	errOrder0CancelFail       = "order 0 failed to cancel"
-	errIDNotSet               = "ID not set"
-	skipPayMethodNotFound     = "no payment methods found, skipping"
-	skipInsufSuitableAccs     = "insufficient suitable accounts found, skipping"
-	skipInsufficientFunds     = "insufficient funds for test, skipping"
-	errx7f                    = "setting proxy address error parse \"\\x7f\": net/url: invalid control character in URL"
-	errPortfolioNameDuplicate = `CoinbasePro unsuccessful HTTP status code: 409 raw response: {"error":"CONFLICT","error_details":"[PORTFOLIO_ERROR_CODE_ALREADY_EXISTS] the requested portfolio name already exists","message":"[PORTFOLIO_ERROR_CODE_ALREADY_EXISTS] the requested portfolio name already exists"}, authenticated request failed`
-	errPortTransferInsufFunds = `CoinbasePro unsuccessful HTTP status code: 429 raw response: {"error":"unknown","error_details":"[PORTFOLIO_ERROR_CODE_INSUFFICIENT_FUNDS] insufficient funds in source account","message":"[PORTFOLIO_ERROR_CODE_INSUFFICIENT_FUNDS] insufficient funds in source account"}, authenticated request failed`
-	errFeeBuilderNil          = "*exchange.FeeBuilder nil pointer"
-	errUnsupportedAssetType   = " unsupported asset type"
-	errUpsideUnsupported      = "unsupported asset type upsideprofitcontract"
+	skipPayMethodNotFound          = "no payment methods found, skipping"
+	skipInsufSuitableAccs          = "insufficient suitable accounts for test, skipping"
+	skipInsufficientFunds          = "insufficient funds for test, skipping"
+	skipInsufficientOrders         = "insufficient orders for test, skipping"
+	skipInsufficientPortfolios     = "insufficient portfolios for test, skipping"
+	skipSweepPending               = "pending sweep found, skipping"
+	skipInsufficientWallets        = "insufficient wallets for test, skipping"
+	skipInsufficientFundsOrWallets = "insufficient funds or wallets for test, skipping"
+	skipInsufficientTransactions   = "insufficient transactions for test, skipping"
 
-	testAmount = 0.00000001
+	errExpectMismatch          = "received: '%v' but expected: '%v'"
+	errExpectedNonEmpty        = "expected non-empty response"
+	errOrder0CancelFail        = "order 0 failed to cancel"
+	errIDNotSet                = "ID not set"
+	errx7f                     = "setting proxy address error parse \"\\x7f\": net/url: invalid control character in URL"
+	errPortfolioNameDuplicate  = `CoinbasePro unsuccessful HTTP status code: 409 raw response: {"error":"CONFLICT","error_details":"[PORTFOLIO_ERROR_CODE_ALREADY_EXISTS] the requested portfolio name already exists","message":"[PORTFOLIO_ERROR_CODE_ALREADY_EXISTS] the requested portfolio name already exists"}, authenticated request failed`
+	errPortTransferInsufFunds  = `CoinbasePro unsuccessful HTTP status code: 429 raw response: {"error":"unknown","error_details":"[PORTFOLIO_ERROR_CODE_INSUFFICIENT_FUNDS] insufficient funds in source account","message":"[PORTFOLIO_ERROR_CODE_INSUFFICIENT_FUNDS] insufficient funds in source account"}, authenticated request failed`
+	errInvalidProductID        = `CoinbasePro unsuccessful HTTP status code: 400 raw response: {"error":"INVALID_ARGUMENT","error_details":"valid product_id is required","message":"valid product_id is required"}, authenticated request failed`
+	errFeeBuilderNil           = "*exchange.FeeBuilder nil pointer"
+	errUnsupportedAssetType    = " unsupported asset type"
+	errUpsideUnsupported       = "unsupported asset type upsideprofitcontract"
+	errBlorboGranularity       = "invalid granularity blorbo, allowed granularities are: [ONE_MINUTE FIVE_MINUTE FIFTEEN_MINUTE THIRTY_MINUTE ONE_HOUR TWO_HOUR SIX_HOUR ONE_DAY]"
+	errNoEndpointPathEdgeCase3 = "no endpoint path found for the given key: EdgeCase3URL"
+	errJsonUnsupportedChan     = "json: unsupported type: chan struct {}, authenticated request failed"
+	errExpectedFeeRange        = "expected fee range of %v and %v, received %v"
+
+	testAmount = 1e-08
+	testPrice  = 1e+09
 )
 
 func TestGetDefaultConfig(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, c)
 	_, err := c.GetDefaultConfig(context.Background())
-	if err != nil {
-		t.Error(err)
-	}
-}
-
-func TestWrapperStart(t *testing.T) {
-	wg := sync.WaitGroup{}
-	err := c.Start(context.Background(), &wg)
 	if err != nil {
 		t.Error(err)
 	}
@@ -104,6 +110,14 @@ func TestSetup(t *testing.T) {
 	}
 }
 
+func TestWrapperStart(t *testing.T) {
+	wg := sync.WaitGroup{}
+	err := c.Start(context.Background(), &wg)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
 func TestMain(m *testing.M) {
 	c.SetDefaults()
 	if testingInSandbox {
@@ -127,14 +141,15 @@ func TestMain(m *testing.M) {
 		gdxConfig.API.AuthenticatedSupport = true
 		gdxConfig.API.AuthenticatedWebsocketSupport = true
 	}
-	gdxConfig.API.AuthenticatedSupport = true
 	c.Websocket = sharedtestvalues.NewTestWebsocket()
 	err = c.Setup(gdxConfig)
 	if err != nil {
 		log.Fatal("CoinbasePro setup error", err)
 	}
-	c.GetBase().API.AuthenticatedSupport = true
-	c.GetBase().API.AuthenticatedWebsocketSupport = true
+	if apiKey != "" {
+		c.GetBase().API.AuthenticatedSupport = true
+		c.GetBase().API.AuthenticatedWebsocketSupport = true
+	}
 	c.Verbose = true
 	err = gctlog.SetGlobalLogConfig(gctlog.GenDefaultSettings())
 	fmt.Println(err)
@@ -175,11 +190,11 @@ func TestGetAllAccounts(t *testing.T) {
 }
 
 func TestGetAccountByID(t *testing.T) {
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, c)
 	_, err := c.GetAccountByID(context.Background(), "")
 	if !errors.Is(err, errAccountIDEmpty) {
 		t.Errorf(errExpectMismatch, err, errAccountIDEmpty)
 	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, c)
 	longResp, err := c.GetAllAccounts(context.Background(), 49, "")
 	if err != nil {
 		t.Error(err)
@@ -192,7 +207,7 @@ func TestGetAccountByID(t *testing.T) {
 		t.Error(err)
 	}
 	if *shortResp != longResp.Accounts[0] {
-		t.Error("mismatched responses")
+		t.Errorf(errExpectMismatch, shortResp, longResp.Accounts[0])
 	}
 }
 
@@ -207,11 +222,11 @@ func TestGetBestBidAsk(t *testing.T) {
 }
 
 func TestGetProductBook(t *testing.T) {
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, c)
 	_, err := c.GetProductBook(context.Background(), "", 0)
 	if !errors.Is(err, errProductIDEmpty) {
 		t.Errorf(errExpectMismatch, err, errProductIDEmpty)
 	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, c)
 	resp, err := c.GetProductBook(context.Background(), testPair.String(), 2)
 	if err != nil {
 		t.Error(err)
@@ -221,9 +236,9 @@ func TestGetProductBook(t *testing.T) {
 
 func TestGetAllProducts(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, c)
-	// testPairs := []string{testPair.String(), "ETH-USD"}
-	var testPairs []string
-	resp, err := c.GetAllProducts(context.Background(), 30000, 0, "FUTURE", "", "",
+	testPairs := []string{testPair.String(), "ETH-USD"}
+	// var testPairs []string
+	resp, err := c.GetAllProducts(context.Background(), 30000, 0, "SPOT", "PERPETUAL", "",
 		testPairs)
 	if err != nil {
 		t.Error(err)
@@ -233,11 +248,11 @@ func TestGetAllProducts(t *testing.T) {
 }
 
 func TestGetProductByID(t *testing.T) {
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, c)
 	_, err := c.GetProductByID(context.Background(), "")
 	if !errors.Is(err, errProductIDEmpty) {
 		t.Errorf(errExpectMismatch, err, errProductIDEmpty)
 	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, c)
 	resp, err := c.GetProductByID(context.Background(), testPair.String())
 	if err != nil {
 		t.Error(err)
@@ -246,15 +261,15 @@ func TestGetProductByID(t *testing.T) {
 }
 
 func TestGetHistoricRates(t *testing.T) {
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, c)
 	_, err := c.GetHistoricRates(context.Background(), "", granUnknown, time.Time{}, time.Time{})
 	if !errors.Is(err, errProductIDEmpty) {
 		t.Errorf(errExpectMismatch, err, errProductIDEmpty)
 	}
 	_, err = c.GetHistoricRates(context.Background(), testPair.String(), "blorbo", time.Time{}, time.Time{})
-	if err == nil {
-		t.Error("expected error due to invalid granularity")
+	if err.Error() != errBlorboGranularity {
+		t.Errorf(errExpectMismatch, err, errBlorboGranularity)
 	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, c)
 	resp, err := c.GetHistoricRates(context.Background(), testPair.String(), granOneMin,
 		time.Now().Add(-5*time.Minute), time.Now())
 	if err != nil {
@@ -264,11 +279,11 @@ func TestGetHistoricRates(t *testing.T) {
 }
 
 func TestGetTicker(t *testing.T) {
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, c)
 	_, err := c.GetTicker(context.Background(), "", 1, time.Time{}, time.Time{})
 	if !errors.Is(err, errProductIDEmpty) {
 		t.Errorf(errExpectMismatch, err, errProductIDEmpty)
 	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, c)
 	resp, err := c.GetTicker(context.Background(), testPair.String(), 5, time.Time{}, time.Time{})
 	if err != nil {
 		t.Error(err)
@@ -291,28 +306,27 @@ func TestPlaceOrder(t *testing.T) {
 		t.Errorf(errExpectMismatch, err, errAmountEmpty)
 	}
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, c, canManipulateRealOrders)
-	accounts, err := c.GetAllAccounts(context.Background(), 250, "")
+	skipTestIfLowOnFunds(t)
+	id, err := uuid.NewV4()
 	if err != nil {
 		t.Error(err)
 	}
-	if len(accounts.Accounts) == 0 {
-		t.Fatal(errExpectedNonEmpty)
-	}
-	var hasValidFunds bool
-	for i := range accounts.Accounts {
-		if accounts.Accounts[i].Currency == testCur.String() && accounts.Accounts[i].AvailableBalance.Value > 0.00001 {
-			hasValidFunds = true
-		}
-	}
-	if !hasValidFunds {
-		t.Skip(skipInsufficientFunds)
-	}
-	id, _ := uuid.NewV4()
-	_, err = c.PlaceOrder(context.Background(), id.String(), testPair.String(), order.Sell.String(), "",
-		order.Limit.String(), "", "CROSS", "", 0.0000001, 1000000000000, 0, 9999, false, time.Now().Add(time.Hour))
+	resp, err := c.PlaceOrder(context.Background(), id.String(), testPair.String(), order.Sell.String(), "",
+		order.Limit.String(), "", "CROSS", "", testAmount, testPrice, 0, 9999, false, time.Now().Add(time.Hour))
 	if err != nil {
 		t.Error(err)
 	}
+	assert.NotEmpty(t, resp, errExpectedNonEmpty)
+	id, err = uuid.NewV4()
+	if err != nil {
+		t.Error(err)
+	}
+	resp, err = c.PlaceOrder(context.Background(), id.String(), testPair.String(), order.Sell.String(), "",
+		order.Limit.String(), "", "MULTI", "", testAmount, testPrice, 0, 9999, false, time.Now().Add(time.Hour))
+	if err != nil {
+		t.Error(err)
+	}
+	assert.NotEmpty(t, resp, errExpectedNonEmpty)
 }
 
 func TestCancelOrders(t *testing.T) {
@@ -322,32 +336,18 @@ func TestCancelOrders(t *testing.T) {
 		t.Errorf(errExpectMismatch, err, errOrderIDEmpty)
 	}
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, c, canManipulateRealOrders)
-	accounts, err := c.GetAllAccounts(context.Background(), 250, "")
-	if err != nil {
-		t.Error(err)
-	}
-	if len(accounts.Accounts) == 0 {
-		t.Fatal(errExpectedNonEmpty)
-	}
-	var hasValidFunds bool
-	for i := range accounts.Accounts {
-		if accounts.Accounts[i].Currency == testCur.String() && accounts.Accounts[i].AvailableBalance.Value > 0.00001 {
-			hasValidFunds = true
-		}
-	}
-	if !hasValidFunds {
-		t.Skip(skipInsufficientFunds)
-	}
+	skipTestIfLowOnFunds(t)
 	ordID, err := c.PlaceOrder(context.Background(), "meow", testPair.String(), order.Sell.String(), "",
-		order.Limit.String(), "", "", "", 0.0000001, 1000000000000, 0, 9999, false, time.Time{})
+		order.Limit.String(), "", "", "", testPrice, testAmount, 0, 9999, false, time.Time{})
 	if err != nil {
 		t.Error(err)
 	}
 	OrderSlice = append(OrderSlice, ordID.OrderID)
-	_, err = c.CancelOrders(context.Background(), OrderSlice)
+	resp, err := c.CancelOrders(context.Background(), OrderSlice)
 	if err != nil {
 		t.Error(err)
 	}
+	assert.NotEmpty(t, resp, errExpectedNonEmpty)
 }
 
 func TestEditOrder(t *testing.T) {
@@ -360,32 +360,21 @@ func TestEditOrder(t *testing.T) {
 		t.Errorf(errExpectMismatch, err, errSizeAndPriceZero)
 	}
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, c, canManipulateRealOrders)
-	accounts, err := c.GetAllAccounts(context.Background(), 250, "")
+	skipTestIfLowOnFunds(t)
+	id, err := uuid.NewV4()
 	if err != nil {
 		t.Error(err)
 	}
-	if len(accounts.Accounts) == 0 {
-		t.Fatal(errExpectedNonEmpty)
-	}
-	var hasValidFunds bool
-	for i := range accounts.Accounts {
-		if accounts.Accounts[i].Currency == testCur.String() && accounts.Accounts[i].AvailableBalance.Value > 0.00001 {
-			hasValidFunds = true
-		}
-	}
-	if !hasValidFunds {
-		t.Skip(skipInsufficientFunds)
-	}
-	id, _ := uuid.NewV4()
 	ordID, err := c.PlaceOrder(context.Background(), id.String(), testPair.String(), order.Sell.String(), "",
-		order.Limit.String(), "", "", "", 0.0000001, 1000000000000, 0, 9999, false, time.Time{})
+		order.Limit.String(), "", "", "", testAmount, testPrice, 0, 9999, false, time.Time{})
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = c.EditOrder(context.Background(), ordID.OrderID, 0.0000001, 10000000000000)
+	resp, err := c.EditOrder(context.Background(), ordID.OrderID, testAmount, testPrice*10)
 	if err != nil {
 		t.Error(err)
 	}
+	assert.NotEmpty(t, resp, errExpectedNonEmpty)
 }
 
 func TestEditOrderPreview(t *testing.T) {
@@ -398,36 +387,24 @@ func TestEditOrderPreview(t *testing.T) {
 		t.Errorf(errExpectMismatch, err, errSizeAndPriceZero)
 	}
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, c, canManipulateRealOrders)
-	accounts, err := c.GetAllAccounts(context.Background(), 250, "")
+	skipTestIfLowOnFunds(t)
+	id, err := uuid.NewV4()
 	if err != nil {
 		t.Error(err)
 	}
-	if len(accounts.Accounts) == 0 {
-		t.Fatal(errExpectedNonEmpty)
-	}
-	var hasValidFunds bool
-	for i := range accounts.Accounts {
-		if accounts.Accounts[i].Currency == testCur.String() && accounts.Accounts[i].AvailableBalance.Value > 0.00001 {
-			hasValidFunds = true
-		}
-	}
-	if !hasValidFunds {
-		t.Skip(skipInsufficientFunds)
-	}
-	id, _ := uuid.NewV4()
 	ordID, err := c.PlaceOrder(context.Background(), id.String(), testPair.String(), order.Sell.String(), "",
-		order.Limit.String(), "", "", "", 0.0000001, 1000000000000, 0, 9999, false, time.Time{})
+		order.Limit.String(), "", "", "", testAmount, testPrice, 0, 9999, false, time.Time{})
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = c.EditOrderPreview(context.Background(), ordID.OrderID, 0.0000001, 10000000000000)
+	resp, err := c.EditOrderPreview(context.Background(), ordID.OrderID, testAmount, testPrice*10)
 	if err != nil {
 		t.Error(err)
 	}
+	assert.NotEmpty(t, resp, errExpectedNonEmpty)
 }
 
 func TestGetAllOrders(t *testing.T) {
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, c)
 	assets := []string{"USD"}
 	status := make([]string, 2)
 	_, err := c.GetAllOrders(context.Background(), "", "", "", "", "", "", "", "", "", status, assets, 0,
@@ -442,7 +419,10 @@ func TestGetAllOrders(t *testing.T) {
 	if !errors.Is(err, errOpenPairWithOtherTypes) {
 		t.Errorf(errExpectMismatch, err, errOpenPairWithOtherTypes)
 	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, c)
 	status = make([]string, 0)
+	assets = make([]string, 1)
+	assets[0] = testCrypto.String()
 	_, err = c.GetAllOrders(context.Background(), "", "USD", "LIMIT", "SELL", "", "SPOT", "RETAIL_ADVANCED",
 		"UNKNOWN_CONTRACT_EXPIRY_TYPE", "2", status, assets, 10, time.Time{}, time.Time{})
 	if err != nil {
@@ -451,30 +431,43 @@ func TestGetAllOrders(t *testing.T) {
 }
 
 func TestGetFills(t *testing.T) {
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, c)
-	_, err := c.GetFills(context.Background(), "", "", "", 0, time.Unix(2, 2), time.Unix(1, 1))
+	_, err := c.GetFills(context.Background(), "", "", "", time.Unix(2, 2), time.Unix(1, 1), 0)
 	if !errors.Is(err, common.ErrStartAfterEnd) {
 		t.Errorf(errExpectMismatch, err, common.ErrStartAfterEnd)
 	}
-	_, err = c.GetFills(context.Background(), "", "", "", 5, time.Unix(1, 1), time.Now())
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, c)
+	_, err = c.GetFills(context.Background(), "", testPair.String(), "", time.Unix(1, 1), time.Now(), 5)
+	if err != nil {
+		t.Error(err)
+	}
+	status := []string{"OPEN"}
+	ordID, err := c.GetAllOrders(context.Background(), "", "", "", "", "", "", "", "", "", status, nil, 3, time.Time{},
+		time.Time{})
+	if err != nil {
+		t.Error(err)
+	}
+	if len(ordID.Orders) == 0 {
+		t.Skip(skipInsufficientOrders)
+	}
+	_, err = c.GetFills(context.Background(), ordID.Orders[0].OrderID, "", "", time.Time{}, time.Time{}, 5)
 	if err != nil {
 		t.Error(err)
 	}
 }
 
 func TestGetOrderByID(t *testing.T) {
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, c)
 	_, err := c.GetOrderByID(context.Background(), "", "", "")
 	if !errors.Is(err, errOrderIDEmpty) {
 		t.Errorf(errExpectMismatch, err, errOrderIDEmpty)
 	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, c)
 	ordID, err := c.GetAllOrders(context.Background(), "", "", "", "", "", "", "", "", "", nil, nil, 10,
 		time.Time{}, time.Time{})
 	if err != nil {
 		t.Error(err)
 	}
 	if len(ordID.Orders) == 0 {
-		t.Skip("no orders found, skipping")
+		t.Skip(skipInsufficientOrders)
 	}
 	_, err = c.GetOrderByID(context.Background(), ordID.Orders[0].OrderID, ordID.Orders[0].ClientOID, "")
 	if err != nil {
@@ -484,7 +477,7 @@ func TestGetOrderByID(t *testing.T) {
 
 func TestGetAllPortfolios(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, c)
-	resp, err := c.GetAllPortfolios(context.Background(), "")
+	resp, err := c.GetAllPortfolios(context.Background(), "DEFAULT")
 	if err != nil {
 		t.Error(err)
 	}
@@ -492,8 +485,12 @@ func TestGetAllPortfolios(t *testing.T) {
 }
 
 func TestCreatePortfolio(t *testing.T) {
+	_, err := c.CreatePortfolio(context.Background(), "")
+	if !errors.Is(err, errNameEmpty) {
+		t.Errorf(errExpectMismatch, err, errNameEmpty)
+	}
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, c, canManipulateRealOrders)
-	_, err := c.CreatePortfolio(context.Background(), "GCT Test Portfolio")
+	_, err = c.CreatePortfolio(context.Background(), "GCT Test Portfolio")
 	if err != nil && err.Error() != errPortfolioNameDuplicate {
 		t.Error(err)
 	}
@@ -504,11 +501,11 @@ func TestMovePortfolioFunds(t *testing.T) {
 	if !errors.Is(err, errPortfolioIDEmpty) {
 		t.Errorf(errExpectMismatch, err, errPortfolioIDEmpty)
 	}
-	_, err = c.MovePortfolioFunds(context.Background(), "meowPort", "woofPort", "", 0)
+	_, err = c.MovePortfolioFunds(context.Background(), "", "meowPort", "woofPort", 0)
 	if !errors.Is(err, errCurrencyEmpty) {
 		t.Errorf(errExpectMismatch, err, errCurrencyEmpty)
 	}
-	_, err = c.MovePortfolioFunds(context.Background(), "meowPort", "woofPort", "BTC", 0)
+	_, err = c.MovePortfolioFunds(context.Background(), testCrypto.String(), "meowPort", "woofPort", 0)
 	if !errors.Is(err, errAmountEmpty) {
 		t.Errorf(errExpectMismatch, err, errAmountEmpty)
 	}
@@ -518,9 +515,9 @@ func TestMovePortfolioFunds(t *testing.T) {
 		t.Error(err)
 	}
 	if len(portID.Portfolios) < 2 {
-		t.Skip("fewer than 2 portfolios found, skipping")
+		t.Skip(skipInsufficientPortfolios)
 	}
-	_, err = c.MovePortfolioFunds(context.Background(), portID.Portfolios[0].UUID, portID.Portfolios[1].UUID, "BTC",
+	_, err = c.MovePortfolioFunds(context.Background(), testCrypto.String(), portID.Portfolios[0].UUID, portID.Portfolios[1].UUID,
 		testAmount)
 	if err != nil && err.Error() != errPortTransferInsufFunds {
 		t.Error(err)
@@ -533,44 +530,20 @@ func TestGetPortfolioByID(t *testing.T) {
 		t.Errorf(errExpectMismatch, err, errPortfolioIDEmpty)
 	}
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, c)
-	resp, err := c.GetAllPortfolios(context.Background(), "")
+	portID, err := c.GetAllPortfolios(context.Background(), "")
 	if err != nil {
 		t.Error(err)
 	}
-	if len(resp.Portfolios) == 0 {
+	if len(portID.Portfolios) == 0 {
 		t.Fatal(errExpectedNonEmpty)
 	}
-	_, err = c.GetPortfolioByID(context.Background(), resp.Portfolios[0].UUID)
+	resp, err := c.GetPortfolioByID(context.Background(), portID.Portfolios[0].UUID)
 	if err != nil {
 		t.Error(err)
 	}
-}
-
-func PortfolioTestHelper(t *testing.T, targetName string) string {
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, c, canManipulateRealOrders)
-	createResp, err := c.CreatePortfolio(context.Background(), targetName)
-	var targetID string
-	if err != nil {
-		if err.Error() != errPortfolioNameDuplicate {
-			t.Error(err)
-		}
-		getResp, err := c.GetAllPortfolios(context.Background(), "")
-		if err != nil {
-			t.Error(err)
-		}
-		if len(getResp.Portfolios) == 0 {
-			t.Fatal(errExpectedNonEmpty)
-		}
-		for i := range getResp.Portfolios {
-			if getResp.Portfolios[i].Name == targetName {
-				targetID = getResp.Portfolios[i].UUID
-				break
-			}
-		}
-	} else {
-		targetID = createResp.Portfolio.UUID
+	if resp.Breakdown.Portfolio != portID.Portfolios[0] {
+		t.Errorf(errExpectMismatch, resp.Breakdown.Portfolio, portID.Portfolios[0])
 	}
-	return targetID
 }
 
 func TestDeletePortfolio(t *testing.T) {
@@ -580,7 +553,7 @@ func TestDeletePortfolio(t *testing.T) {
 	}
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, c, canManipulateRealOrders)
 
-	pID := PortfolioTestHelper(t, "GCT Test Portfolio To-Delete")
+	pID := portfolioTestHelper(t, "GCT Test Portfolio To-Delete")
 
 	err = c.DeletePortfolio(context.Background(), pID)
 	if err != nil {
@@ -599,7 +572,7 @@ func TestEditPortfolio(t *testing.T) {
 	}
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, c, canManipulateRealOrders)
 
-	pID := PortfolioTestHelper(t, "GCT Test Portfolio To-Edit")
+	pID := portfolioTestHelper(t, "GCT Test Portfolio To-Edit")
 
 	_, err = c.EditPortfolio(context.Background(), pID, "GCT Test Portfolio Edited")
 	if err != nil && err.Error() != errPortfolioNameDuplicate {
@@ -607,21 +580,118 @@ func TestEditPortfolio(t *testing.T) {
 	}
 }
 
-func TestGetTransactionSummary(t *testing.T) {
+func TestGetFuturesBalanceSummary(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, c)
-	_, err := c.GetTransactionSummary(context.Background(), time.Unix(2, 2), time.Unix(1, 1), "", "", "")
-	if !errors.Is(err, common.ErrStartAfterEnd) {
-		t.Errorf(errExpectMismatch, err, common.ErrStartAfterEnd)
-	}
-	_, err = c.GetTransactionSummary(context.Background(), time.Unix(1, 1), time.Now(), "", asset.Spot.Upper(),
-		"UNKNOWN_CONTRACT_EXPIRY_TYPE")
+	_, err := c.GetFuturesBalanceSummary(context.Background())
 	if err != nil {
 		t.Error(err)
 	}
 }
 
-func TestCreateConvertQuote(t *testing.T) {
+func TestGetAllFuturesPositions(t *testing.T) {
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, c)
+	_, err := c.GetAllFuturesPositions(context.Background())
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetFuturesPositionByID(t *testing.T) {
+	_, err := c.GetFuturesPositionByID(context.Background(), "")
+	if !errors.Is(err, errProductIDEmpty) {
+		t.Errorf(errExpectMismatch, err, errProductIDEmpty)
+	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, c)
+	_, err = c.GetFuturesPositionByID(context.Background(), "meow")
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestScheduleFuturesSweep(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, c, canManipulateRealOrders)
+	curSweeps, err := c.ListFuturesSweeps(context.Background())
+	if err != nil {
+		t.Error(err)
+	}
+	preCancel := false
+	if len(curSweeps.Sweeps) > 0 {
+		for i := range curSweeps.Sweeps {
+			if curSweeps.Sweeps[i].Status == "PENDING" {
+				if curSweeps.Sweeps[i].RequestedAmount.Value == 0.001337 {
+					preCancel = true
+				} else {
+					t.Skip(skipSweepPending)
+				}
+			}
+		}
+	}
+	if preCancel {
+		_, err = c.CancelPendingFuturesSweep(context.Background())
+		if err != nil {
+			t.Error(err)
+		}
+	}
+	_, err = c.ScheduleFuturesSweep(context.Background(), 0.001337)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestListFuturesSweeps(t *testing.T) {
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, c)
+	_, err := c.ListFuturesSweeps(context.Background())
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestCancelPendingFuturesSweep(t *testing.T) {
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, c, canManipulateRealOrders)
+	curSweeps, err := c.ListFuturesSweeps(context.Background())
+	if err != nil {
+		t.Error(err)
+	}
+	partialSkip := false
+	if len(curSweeps.Sweeps) > 0 {
+		for i := range curSweeps.Sweeps {
+			if curSweeps.Sweeps[i].Status == "PENDING" {
+				if curSweeps.Sweeps[i].RequestedAmount.Value == 0.001337 {
+					partialSkip = true
+				} else {
+					t.Skip(skipSweepPending)
+				}
+			}
+		}
+	}
+	if !partialSkip {
+		_, err = c.ScheduleFuturesSweep(context.Background(), 0.001337)
+		if err != nil {
+			t.Error(err)
+		}
+
+	}
+	_, err = c.CancelPendingFuturesSweep(context.Background())
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestGetTransactionSummary(t *testing.T) {
+	_, err := c.GetTransactionSummary(context.Background(), time.Unix(2, 2), time.Unix(1, 1), "", "", "")
+	if !errors.Is(err, common.ErrStartAfterEnd) {
+		t.Errorf(errExpectMismatch, err, common.ErrStartAfterEnd)
+	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, c)
+	resp, err := c.GetTransactionSummary(context.Background(), time.Unix(1, 1), time.Now(), "", asset.Spot.Upper(),
+		"UNKNOWN_CONTRACT_EXPIRY_TYPE")
+	if err != nil {
+		t.Error(err)
+	}
+	assert.NotEmpty(t, resp, errExpectedNonEmpty)
+}
+
+func TestCreateConvertQuote(t *testing.T) {
 	_, err := c.CreateConvertQuote(context.Background(), "", "", "", "", 0)
 	if !errors.Is(err, errAccountIDEmpty) {
 		t.Errorf(errExpectMismatch, err, errAccountIDEmpty)
@@ -630,39 +700,16 @@ func TestCreateConvertQuote(t *testing.T) {
 	if !errors.Is(err, errAmountEmpty) {
 		t.Errorf(errExpectMismatch, err, errAmountEmpty)
 	}
-	accIDs, err := c.GetAllAccounts(context.Background(), 250, "")
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, c, canManipulateRealOrders)
+	fromAccID, toAccID := convertTestHelper(t)
+	resp, err := c.CreateConvertQuote(context.Background(), fromAccID, toAccID, "", "", 0.01)
 	if err != nil {
 		t.Error(err)
 	}
-	if len(accIDs.Accounts) == 0 {
-		t.Fatal(errExpectedNonEmpty)
-	}
-	var (
-		fromAccID string
-		toAccID   string
-	)
-	for x := range accIDs.Accounts {
-		if accIDs.Accounts[x].Currency == "USDC" {
-			fromAccID = accIDs.Accounts[x].UUID
-		}
-		if accIDs.Accounts[x].Currency == "USD" {
-			toAccID = accIDs.Accounts[x].UUID
-		}
-		if fromAccID != "" && toAccID != "" {
-			break
-		}
-	}
-	if fromAccID == "" || toAccID == "" {
-		t.Skip(skipInsufSuitableAccs)
-	}
-	_, err = c.CreateConvertQuote(context.Background(), fromAccID, toAccID, "", "", 0.01)
-	if err != nil {
-		t.Error(err)
-	}
+	assert.NotEmpty(t, resp, errExpectedNonEmpty)
 }
 
 func TestCommitConvertTrade(t *testing.T) {
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, c, canManipulateRealOrders)
 	_, err := c.CommitConvertTrade(context.Background(), "", "", "")
 	if !errors.Is(err, errTransactionIDEmpty) {
 		t.Errorf(errExpectMismatch, err, errTransactionIDEmpty)
@@ -671,43 +718,20 @@ func TestCommitConvertTrade(t *testing.T) {
 	if !errors.Is(err, errAccountIDEmpty) {
 		t.Errorf(errExpectMismatch, err, errAccountIDEmpty)
 	}
-	accIDs, err := c.GetAllAccounts(context.Background(), 250, "")
-	if err != nil {
-		t.Error(err)
-	}
-	if len(accIDs.Accounts) == 0 {
-		t.Fatal(errExpectedNonEmpty)
-	}
-	var (
-		fromAccID string
-		toAccID   string
-	)
-	for x := range accIDs.Accounts {
-		if accIDs.Accounts[x].Currency == "USDC" {
-			fromAccID = accIDs.Accounts[x].UUID
-		}
-		if accIDs.Accounts[x].Currency == "USD" {
-			toAccID = accIDs.Accounts[x].UUID
-		}
-		if fromAccID != "" && toAccID != "" {
-			break
-		}
-	}
-	if fromAccID == "" || toAccID == "" {
-		t.Skip(skipInsufSuitableAccs)
-	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, c, canManipulateRealOrders)
+	fromAccID, toAccID := convertTestHelper(t)
 	resp, err := c.CreateConvertQuote(context.Background(), fromAccID, toAccID, "", "", 0.01)
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = c.CommitConvertTrade(context.Background(), resp.Trade.ID, fromAccID, toAccID)
+	resp, err = c.CommitConvertTrade(context.Background(), resp.Trade.ID, fromAccID, toAccID)
 	if err != nil {
 		t.Error(err)
 	}
+	assert.NotEmpty(t, resp, errExpectedNonEmpty)
 }
 
 func TestGetConvertTradeByID(t *testing.T) {
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, c, canManipulateRealOrders)
 	_, err := c.GetConvertTradeByID(context.Background(), "", "", "")
 	if !errors.Is(err, errTransactionIDEmpty) {
 		t.Errorf(errExpectMismatch, err, errTransactionIDEmpty)
@@ -716,39 +740,17 @@ func TestGetConvertTradeByID(t *testing.T) {
 	if !errors.Is(err, errAccountIDEmpty) {
 		t.Errorf(errExpectMismatch, err, errAccountIDEmpty)
 	}
-	accIDs, err := c.GetAllAccounts(context.Background(), 250, "")
-	if err != nil {
-		t.Error(err)
-	}
-	if len(accIDs.Accounts) == 0 {
-		t.Fatal(errExpectedNonEmpty)
-	}
-	var (
-		fromAccID string
-		toAccID   string
-	)
-	for x := range accIDs.Accounts {
-		if accIDs.Accounts[x].Currency == "USDC" {
-			fromAccID = accIDs.Accounts[x].UUID
-		}
-		if accIDs.Accounts[x].Currency == "USD" {
-			toAccID = accIDs.Accounts[x].UUID
-		}
-		if fromAccID != "" && toAccID != "" {
-			break
-		}
-	}
-	if fromAccID == "" || toAccID == "" {
-		t.Skip(skipInsufSuitableAccs)
-	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, c, canManipulateRealOrders)
+	fromAccID, toAccID := convertTestHelper(t)
 	resp, err := c.CreateConvertQuote(context.Background(), fromAccID, toAccID, "", "", 0.01)
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = c.GetConvertTradeByID(context.Background(), resp.Trade.ID, fromAccID, toAccID)
+	resp, err = c.GetConvertTradeByID(context.Background(), resp.Trade.ID, fromAccID, toAccID)
 	if err != nil {
 		t.Error(err)
 	}
+	assert.NotEmpty(t, resp, errExpectedNonEmpty)
 }
 
 func TestGetV3Time(t *testing.T) {
@@ -769,6 +771,10 @@ func TestListNotifications(t *testing.T) {
 }
 
 func TestGetUserByID(t *testing.T) {
+	_, err := c.GetUserByID(context.Background(), "")
+	if !errors.Is(err, errUserIDEmpty) {
+		t.Errorf(errExpectMismatch, err, errUserIDEmpty)
+	}
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, c)
 	resp, err := c.GetCurrentUser(context.Background())
 	if err != nil {
@@ -777,11 +783,11 @@ func TestGetUserByID(t *testing.T) {
 	if resp == nil {
 		t.Fatal(errExpectedNonEmpty)
 	}
-	resp2, err := c.GetUserByID(context.Background(), resp.Data.ID)
+	resp, err = c.GetUserByID(context.Background(), resp.Data.ID)
 	if err != nil {
 		t.Error(err)
 	}
-	assert.NotEmpty(t, resp2, errExpectedNonEmpty)
+	assert.NotEmpty(t, resp, errExpectedNonEmpty)
 }
 
 func TestGetCurrentUser(t *testing.T) {
@@ -804,7 +810,15 @@ func TestGetAuthInfo(t *testing.T) {
 
 func TestUpdateUser(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, c, canManipulateRealOrders)
-	resp, err := c.UpdateUser(context.Background(), "", "", "AUD")
+	oldData, err := c.GetCurrentUser(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = c.UpdateUser(context.Background(), "Name changed as per GCT testing", "Sydney", testFiat.String())
+	if err != nil {
+		t.Error(err)
+	}
+	resp, err := c.UpdateUser(context.Background(), oldData.Data.Name, oldData.Data.TimeZone, oldData.Data.NativeCurrency)
 	if err != nil {
 		t.Error(err)
 	}
@@ -812,8 +826,12 @@ func TestUpdateUser(t *testing.T) {
 }
 
 func TestCreateWallet(t *testing.T) {
+	_, err := c.CreateWallet(context.Background(), "")
+	if !errors.Is(err, errCurrencyEmpty) {
+		t.Errorf(errExpectMismatch, err, errCurrencyEmpty)
+	}
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, c, canManipulateRealOrders)
-	resp, err := c.CreateWallet(context.Background(), "BTC")
+	resp, err := c.CreateWallet(context.Background(), testCrypto.String())
 	if err != nil {
 		t.Error(err)
 	}
@@ -829,7 +847,7 @@ func TestGetAllWallets(t *testing.T) {
 	}
 	assert.NotEmpty(t, resp, errExpectedNonEmpty)
 	if resp.Pagination.NextStartingAfter == "" {
-		t.Skip("fewer than 3 wallets found, skipping pagination test")
+		t.Skip(skipInsufficientWallets)
 	}
 	pagIn.StartingAfter = resp.Pagination.NextStartingAfter
 	resp, err = c.GetAllWallets(context.Background(), pagIn)
@@ -840,12 +858,17 @@ func TestGetAllWallets(t *testing.T) {
 }
 
 func TestGetWalletByID(t *testing.T) {
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, c)
 	_, err := c.GetWalletByID(context.Background(), "", "")
 	if !errors.Is(err, errCurrWalletConflict) {
 		t.Errorf(errExpectMismatch, err, errCurrWalletConflict)
 	}
-	resp, err := c.GetWalletByID(context.Background(), "", "BTC")
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, c)
+	resp, err := c.GetWalletByID(context.Background(), "", testCrypto.String())
+	if err != nil {
+		t.Error(err)
+	}
+	assert.NotEmpty(t, resp, errExpectedNonEmpty)
+	resp, err = c.GetWalletByID(context.Background(), resp.Data.ID, "")
 	if err != nil {
 		t.Error(err)
 	}
@@ -853,11 +876,11 @@ func TestGetWalletByID(t *testing.T) {
 }
 
 func TestUpdateWalletName(t *testing.T) {
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, c, canManipulateRealOrders)
 	_, err := c.UpdateWalletName(context.Background(), "", "")
 	if !errors.Is(err, errWalletIDEmpty) {
 		t.Errorf(errExpectMismatch, err, errWalletIDEmpty)
 	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, c, canManipulateRealOrders)
 	wID, err := c.GetAllWallets(context.Background(), PaginationInp{})
 	if err != nil {
 		t.Error(err)
@@ -873,18 +896,19 @@ func TestUpdateWalletName(t *testing.T) {
 }
 
 func TestDeleteWallet(t *testing.T) {
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, c, canManipulateRealOrders)
 	err := c.DeleteWallet(context.Background(), "")
 	if !errors.Is(err, errWalletIDEmpty) {
 		t.Errorf(errExpectMismatch, err, errWalletIDEmpty)
 	}
-	wID, err := c.CreateWallet(context.Background(), "LTC")
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, c, canManipulateRealOrders)
+	wID, err := c.CreateWallet(context.Background(), testCrypto.String())
 	if err != nil {
 		t.Error(err)
 	}
 	// As of now, it seems like this next step always fails. DeleteWallet only lets you delete non-primary
 	// non-fiat wallets, but the only non-primary wallet is fiat. Trying to create a secondary wallet for
 	// any cryptocurrency using CreateWallet simply returns the details of the existing primary wallet.
+	t.Skip("endpoint bugged on their end, skipping")
 	err = c.DeleteWallet(context.Background(), wID.Data.ID)
 	if err != nil {
 		t.Error(err)
@@ -892,12 +916,12 @@ func TestDeleteWallet(t *testing.T) {
 }
 
 func TestCreateAddress(t *testing.T) {
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, c, canManipulateRealOrders)
 	_, err := c.CreateAddress(context.Background(), "", "")
 	if !errors.Is(err, errWalletIDEmpty) {
 		t.Errorf(errExpectMismatch, err, errWalletIDEmpty)
 	}
-	wID, err := c.GetWalletByID(context.Background(), "", "BTC")
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, c, canManipulateRealOrders)
+	wID, err := c.GetWalletByID(context.Background(), "", testCrypto.String())
 	if err != nil {
 		t.Error(err)
 	}
@@ -910,13 +934,13 @@ func TestCreateAddress(t *testing.T) {
 }
 
 func TestGetAllAddresses(t *testing.T) {
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, c)
 	var pag PaginationInp
 	_, err := c.GetAllAddresses(context.Background(), "", pag)
 	if !errors.Is(err, errWalletIDEmpty) {
 		t.Errorf(errExpectMismatch, err, errWalletIDEmpty)
 	}
-	wID, err := c.GetWalletByID(context.Background(), "", "BTC")
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, c)
+	wID, err := c.GetWalletByID(context.Background(), "", testCrypto.String())
 	if err != nil {
 		t.Error(err)
 	}
@@ -929,7 +953,6 @@ func TestGetAllAddresses(t *testing.T) {
 }
 
 func TestGetAddressByID(t *testing.T) {
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, c)
 	_, err := c.GetAddressByID(context.Background(), "", "")
 	if !errors.Is(err, errWalletIDEmpty) {
 		t.Errorf(errExpectMismatch, err, errWalletIDEmpty)
@@ -938,7 +961,8 @@ func TestGetAddressByID(t *testing.T) {
 	if !errors.Is(err, errAddressIDEmpty) {
 		t.Errorf(errExpectMismatch, err, errAddressIDEmpty)
 	}
-	wID, err := c.GetWalletByID(context.Background(), "", "BTC")
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, c)
+	wID, err := c.GetWalletByID(context.Background(), "", testCrypto.String())
 	if err != nil {
 		t.Error(err)
 	}
@@ -956,7 +980,6 @@ func TestGetAddressByID(t *testing.T) {
 }
 
 func TestGetAddressTransactions(t *testing.T) {
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, c)
 	_, err := c.GetAddressTransactions(context.Background(), "", "", PaginationInp{})
 	if !errors.Is(err, errWalletIDEmpty) {
 		t.Errorf(errExpectMismatch, err, errWalletIDEmpty)
@@ -965,7 +988,8 @@ func TestGetAddressTransactions(t *testing.T) {
 	if !errors.Is(err, errAddressIDEmpty) {
 		t.Errorf(errExpectMismatch, err, errAddressIDEmpty)
 	}
-	wID, err := c.GetWalletByID(context.Background(), "", "BTC")
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, c)
+	wID, err := c.GetWalletByID(context.Background(), "", testCrypto.String())
 	if err != nil {
 		t.Error(err)
 	}
@@ -982,7 +1006,6 @@ func TestGetAddressTransactions(t *testing.T) {
 }
 
 func TestSendMoney(t *testing.T) {
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, c, canManipulateRealOrders)
 	_, err := c.SendMoney(context.Background(), "", "", "", "", "", "", "", "", 0, false, false)
 	if !errors.Is(err, errTransactionTypeEmpty) {
 		t.Errorf(errExpectMismatch, err, errTransactionTypeEmpty)
@@ -1003,20 +1026,21 @@ func TestSendMoney(t *testing.T) {
 	if !errors.Is(err, errCurrencyEmpty) {
 		t.Errorf(errExpectMismatch, err, errCurrencyEmpty)
 	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, c, canManipulateRealOrders)
 	wID, err := c.GetAllWallets(context.Background(), PaginationInp{})
 	if err != nil {
 		t.Error(err)
 	}
 	if len(wID.Data) < 2 {
-		t.Skip("fewer than 2 wallets found, skipping test")
+		t.Skip(skipInsufficientWallets)
 	}
 	var (
 		fromID string
 		toID   string
 	)
 	for i := range wID.Data {
-		if wID.Data[i].Currency.Name == "BTC" {
-			if wID.Data[i].Balance.Amount > 0 {
+		if wID.Data[i].Currency.Name == testCrypto.String() {
+			if wID.Data[i].Balance.Amount > testAmount {
 				fromID = wID.Data[i].ID
 			} else {
 				toID = wID.Data[i].ID
@@ -1027,23 +1051,23 @@ func TestSendMoney(t *testing.T) {
 		}
 	}
 	if fromID == "" || toID == "" {
-		t.Skip("insufficient funds or BTC wallets, skipping")
+		t.Skip(skipInsufficientFundsOrWallets)
 	}
 	_, err = c.SendMoney(context.Background(), "transfer", wID.Data[0].ID, wID.Data[1].ID,
-		"BTC", "GCT Test", "123", "", "", testAmount, false, false)
+		testCrypto.String(), "GCT Test", "123", "", "", testAmount, false, false)
 	if err != nil {
 		t.Error(err)
 	}
 }
 
 func TestGetAllTransactions(t *testing.T) {
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, c)
 	var pag PaginationInp
 	_, err := c.GetAllTransactions(context.Background(), "", pag)
 	if !errors.Is(err, errWalletIDEmpty) {
 		t.Errorf(errExpectMismatch, err, errWalletIDEmpty)
 	}
-	wID, err := c.GetWalletByID(context.Background(), "", "BTC")
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, c)
+	wID, err := c.GetWalletByID(context.Background(), "", testCrypto.String())
 	if err != nil {
 		t.Error(err)
 	}
@@ -1055,7 +1079,6 @@ func TestGetAllTransactions(t *testing.T) {
 }
 
 func TestGetTransactionByID(t *testing.T) {
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, c)
 	_, err := c.GetTransactionByID(context.Background(), "", "")
 	if !errors.Is(err, errWalletIDEmpty) {
 		t.Errorf(errExpectMismatch, err, errWalletIDEmpty)
@@ -1064,7 +1087,8 @@ func TestGetTransactionByID(t *testing.T) {
 	if !errors.Is(err, errTransactionIDEmpty) {
 		t.Errorf(errExpectMismatch, err, errTransactionIDEmpty)
 	}
-	wID, err := c.GetWalletByID(context.Background(), "", "BTC")
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, c)
+	wID, err := c.GetWalletByID(context.Background(), "", testCrypto.String())
 	if err != nil {
 		t.Error(err)
 	}
@@ -1074,7 +1098,7 @@ func TestGetTransactionByID(t *testing.T) {
 		t.Error(err)
 	}
 	if len(tID.Data) == 0 {
-		t.Skip("no transactions found, skipping")
+		t.Skip(skipInsufficientTransactions)
 	}
 	resp, err := c.GetTransactionByID(context.Background(), wID.Data.ID, tID.Data[0].ID)
 	if err != nil {
@@ -1084,7 +1108,6 @@ func TestGetTransactionByID(t *testing.T) {
 }
 
 func TestFiatTransfer(t *testing.T) {
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, c, canManipulateRealOrders)
 	_, err := c.FiatTransfer(context.Background(), "", "", "", 0, false, FiatDeposit)
 	if !errors.Is(err, errWalletIDEmpty) {
 		t.Errorf(errExpectMismatch, err, errWalletIDEmpty)
@@ -1101,30 +1124,24 @@ func TestFiatTransfer(t *testing.T) {
 	if !errors.Is(err, errPaymentMethodEmpty) {
 		t.Errorf(errExpectMismatch, err, errPaymentMethodEmpty)
 	}
-	wID, err := c.GetWalletByID(context.Background(), "", "AUD")
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, c, canManipulateRealOrders)
+	wallets, err := c.GetAllWallets(context.Background(), PaginationInp{})
 	if err != nil {
 		t.Error(err)
 	}
-	assert.NotEmpty(t, wID, errExpectedNonEmpty)
-	pmID, err := c.GetAllPaymentMethods(context.Background(), PaginationInp{})
+	assert.NotEmpty(t, wallets, errExpectedNonEmpty)
+	wID, pmID := transferTestHelper(t, wallets)
+	_, err = c.FiatTransfer(context.Background(), wID, testFiat.String(), pmID, testAmount, false, FiatDeposit)
 	if err != nil {
 		t.Error(err)
 	}
-	if len(pmID.Data) == 0 {
-		t.Skip(skipPayMethodNotFound)
-	}
-	_, err = c.FiatTransfer(context.Background(), wID.Data.ID, "AUD", pmID.Data[0].FiatAccount.ID, 1, false, FiatDeposit)
-	if err != nil {
-		t.Error(err)
-	}
-	_, err = c.FiatTransfer(context.Background(), wID.Data.ID, "AUD", pmID.Data[0].FiatAccount.ID, 1, false, FiatWithdrawal)
+	_, err = c.FiatTransfer(context.Background(), wID, testFiat.String(), pmID, testAmount, false, FiatWithdrawal)
 	if err != nil {
 		t.Error(err)
 	}
 }
 
 func TestCommitTransfer(t *testing.T) {
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, c, canManipulateRealOrders)
 	_, err := c.CommitTransfer(context.Background(), "", "", FiatDeposit)
 	if !errors.Is(err, errWalletIDEmpty) {
 		t.Errorf(errExpectMismatch, err, errWalletIDEmpty)
@@ -1133,43 +1150,43 @@ func TestCommitTransfer(t *testing.T) {
 	if !errors.Is(err, errDepositIDEmpty) {
 		t.Errorf(errExpectMismatch, err, errDepositIDEmpty)
 	}
-	wID, err := c.GetWalletByID(context.Background(), "", "AUD")
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, c, canManipulateRealOrders)
+	wallets, err := c.GetAllWallets(context.Background(), PaginationInp{})
 	if err != nil {
 		t.Error(err)
 	}
-	assert.NotEmpty(t, wID, errExpectedNonEmpty)
-	pmID, err := c.GetAllPaymentMethods(context.Background(), PaginationInp{})
-	if err != nil {
-		t.Error(err)
-	}
-	if len(pmID.Data) == 0 {
-		t.Skip(skipPayMethodNotFound)
-	}
-	depID, err := c.FiatTransfer(context.Background(), wID.Data.ID, "AUD", pmID.Data[0].FiatAccount.ID, 1,
+	assert.NotEmpty(t, wallets, errExpectedNonEmpty)
+	wID, pmID := transferTestHelper(t, wallets)
+	depID, err := c.FiatTransfer(context.Background(), wID, testFiat.String(), pmID, testAmount,
 		false, FiatDeposit)
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = c.CommitTransfer(context.Background(), wID.Data.ID, depID.Data.ID, FiatDeposit)
+	_, err = c.CommitTransfer(context.Background(), wID, depID.Data.ID, FiatDeposit)
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = c.CommitTransfer(context.Background(), wID.Data.ID, depID.Data.ID, FiatWithdrawal)
+	depID, err = c.FiatTransfer(context.Background(), wID, testFiat.String(), pmID, testAmount,
+		false, FiatWithdrawal)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = c.CommitTransfer(context.Background(), wID, depID.Data.ID, FiatWithdrawal)
 	if err != nil {
 		t.Error(err)
 	}
 }
 
 func TestGetAllFiatTransfers(t *testing.T) {
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, c)
 	var pag PaginationInp
 	_, err := c.GetAllFiatTransfers(context.Background(), "", pag, FiatDeposit)
 	if !errors.Is(err, errWalletIDEmpty) {
 		t.Errorf(errExpectMismatch, err, errWalletIDEmpty)
 	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, c)
 	wID, err := c.GetWalletByID(context.Background(), "", "AUD")
 	if err != nil {
-		t.Error(err)
+		t.Fatal(err)
 	}
 	assert.NotEmpty(t, wID, errExpectedNonEmpty)
 	_, err = c.GetAllFiatTransfers(context.Background(), wID.Data.ID, pag, FiatDeposit)
@@ -1183,7 +1200,6 @@ func TestGetAllFiatTransfers(t *testing.T) {
 }
 
 func TestGetFiatTransferByID(t *testing.T) {
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, c)
 	_, err := c.GetFiatTransferByID(context.Background(), "", "", FiatDeposit)
 	if !errors.Is(err, errWalletIDEmpty) {
 		t.Errorf(errExpectMismatch, err, errWalletIDEmpty)
@@ -1192,9 +1208,10 @@ func TestGetFiatTransferByID(t *testing.T) {
 	if !errors.Is(err, errDepositIDEmpty) {
 		t.Errorf(errExpectMismatch, err, errDepositIDEmpty)
 	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, c)
 	wID, err := c.GetWalletByID(context.Background(), "", "AUD")
 	if err != nil {
-		t.Error(err)
+		t.Fatal(err)
 	}
 	assert.NotEmpty(t, wID, errExpectedNonEmpty)
 	dID, err := c.GetAllFiatTransfers(context.Background(), wID.Data.ID, PaginationInp{}, FiatDeposit)
@@ -1202,7 +1219,7 @@ func TestGetFiatTransferByID(t *testing.T) {
 		t.Error(err)
 	}
 	if len(dID.Data) == 0 {
-		t.Skip("no deposits found, skipping")
+		t.Skip(skipInsufficientTransactions)
 	}
 	resp, err := c.GetFiatTransferByID(context.Background(), wID.Data.ID, dID.Data[0].ID, FiatDeposit)
 	if err != nil {
@@ -1226,11 +1243,11 @@ func TestGetAllPaymentMethods(t *testing.T) {
 }
 
 func TestGetPaymentMethodByID(t *testing.T) {
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, c)
 	_, err := c.GetPaymentMethodByID(context.Background(), "")
 	if !errors.Is(err, errPaymentMethodEmpty) {
 		t.Errorf(errExpectMismatch, err, errPaymentMethodEmpty)
 	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, c)
 	pmID, err := c.GetAllPaymentMethods(context.Background(), PaginationInp{})
 	if err != nil {
 		t.Error(err)
@@ -1274,7 +1291,7 @@ func TestGetPrice(t *testing.T) {
 	if !errors.Is(err, errInvalidPriceType) {
 		t.Errorf(errExpectMismatch, err, errInvalidPriceType)
 	}
-	resp, err := c.GetPrice(context.Background(), testPair.String(), asset.Spot.Upper())
+	resp, err := c.GetPrice(context.Background(), testPair.String(), asset.Spot.String())
 	if err != nil {
 		t.Error(err)
 	}
@@ -2909,6 +2926,31 @@ func TestStatusToStandardStatus(t *testing.T) {
 
 */
 
+func TestSendHTTPRequest(t *testing.T) {
+	err := c.SendHTTPRequest(context.Background(), exchange.EdgeCase3, "", nil)
+	if err.Error() != errNoEndpointPathEdgeCase3 {
+		t.Errorf(errExpectMismatch, err, errNoEndpointPathEdgeCase3)
+	}
+}
+
+func TestSendAuthenticatedHTTPRequest(t *testing.T) {
+	fc := &CoinbasePro{}
+	err := fc.SendAuthenticatedHTTPRequest(context.Background(), exchange.EdgeCase3, "", "", "", nil, false, nil, nil)
+	if !errors.Is(err, exchange.ErrCredentialsAreEmpty) {
+		t.Errorf(errExpectMismatch, err, exchange.ErrCredentialsAreEmpty)
+	}
+	err = c.SendAuthenticatedHTTPRequest(context.Background(), exchange.EdgeCase3, "", "", "", nil, false, nil, nil)
+	if err.Error() != errNoEndpointPathEdgeCase3 {
+		t.Errorf(errExpectMismatch, err, errNoEndpointPathEdgeCase3)
+	}
+	ch := make(chan struct{})
+	body := map[string]interface{}{"Unmarshalable": ch}
+	err = c.SendAuthenticatedHTTPRequest(context.Background(), exchange.RestSpot, "", "", "", body, false, nil, nil)
+	if err.Error() != errJsonUnsupportedChan {
+		t.Errorf(errExpectMismatch, err, errJsonUnsupportedChan)
+	}
+}
+
 func TestGetFee(t *testing.T) {
 	_, err := c.GetFee(context.Background(), nil)
 	if err.Error() != errFeeBuilderNil {
@@ -2963,7 +3005,7 @@ func TestGetFee(t *testing.T) {
 		t.Error(err)
 	}
 	if !(resp <= 0.008 && resp >= 0.0005) {
-		t.Errorf("expected fee range of 0.0005 and 0.008, received %v", resp)
+		t.Errorf(errExpectedFeeRange, 0.0005, 0.008, resp)
 	}
 	feeBuilder.IsMaker = true
 	resp, err = c.GetFee(context.Background(), &feeBuilder)
@@ -2971,7 +3013,7 @@ func TestGetFee(t *testing.T) {
 		t.Error(err)
 	}
 	if !(resp <= 0.006 && resp >= 0) {
-		t.Errorf("expected fee range of 0 and 0.006, received %v", resp)
+		t.Errorf(errExpectedFeeRange, 0, 0.006, resp)
 	}
 }
 
@@ -2989,7 +3031,7 @@ func TestPrepareDateString(t *testing.T) {
 	labelStart := "start_date"
 	labelEnd := "end_date"
 
-	err := result.PrepareDateString(time.Unix(1, 1).UTC(), time.Unix(2, 2).UTC(), labelStart, labelEnd)
+	err := result.prepareDateString(time.Unix(1, 1).UTC(), time.Unix(2, 2).UTC(), labelStart, labelEnd)
 	if err != nil {
 		t.Error(err)
 	}
@@ -2998,14 +3040,14 @@ func TestPrepareDateString(t *testing.T) {
 	}
 
 	var newTime time.Time
-	err = result.PrepareDateString(newTime, newTime, labelStart, labelEnd)
+	err = result.prepareDateString(newTime, newTime, labelStart, labelEnd)
 	if err != nil {
 		t.Error(err)
 	}
 
-	err = result.PrepareDateString(time.Unix(2, 2).UTC(), time.Unix(1, 1).UTC(), labelStart, labelEnd)
-	if err == nil {
-		t.Error("expected startafterend error")
+	err = result.prepareDateString(time.Unix(2, 2).UTC(), time.Unix(1, 1).UTC(), labelStart, labelEnd)
+	if !errors.Is(err, common.ErrStartAfterEnd) {
+		t.Errorf(errExpectMismatch, err, common.ErrStartAfterEnd)
 	}
 }
 
@@ -3020,76 +3062,76 @@ func TestPreparePagination(t *testing.T) {
 
 	pagIn := PaginationInp{Limit: 1, OrderAscend: true, StartingAfter: "meow", EndingBefore: "woof"}
 
-	result.PreparePagination(pagIn)
+	result.preparePagination(pagIn)
 
 	if fmt.Sprint(expectedResult) != fmt.Sprint(result) {
 		t.Errorf(errExpectMismatch, result, expectedResult)
 	}
 }
 
-func TestOrderbookHelper(t *testing.T) {
-	t.Parallel()
-	req := make(InterOrderDetail, 1)
-	req[0][0] = true
-	req[0][1] = false
-	req[0][2] = true
+// func TestOrderbookHelper(t *testing.T) {
+// 	t.Parallel()
+// 	req := make(InterOrderDetail, 1)
+// 	req[0][0] = true
+// 	req[0][1] = false
+// 	req[0][2] = true
 
-	_, err := OrderbookHelper(req, 2)
-	if err == nil {
-		t.Error("expected unable to type assert price error")
-	}
-	req[0][0] = "egg"
-	_, err = OrderbookHelper(req, 2)
-	if err == nil {
-		t.Error("expected invalid ParseFloat error")
-	}
-	req[0][0] = "1.1"
-	_, err = OrderbookHelper(req, 2)
-	if err == nil {
-		t.Error("expected unable to type assert amount error")
-	}
-	req[0][1] = "meow"
-	_, err = OrderbookHelper(req, 2)
-	if err == nil {
-		t.Error("expected invalid ParseFloat error")
-	}
-	req[0][1] = "2.2"
-	_, err = OrderbookHelper(req, 2)
-	if err == nil {
-		t.Error("expected unable to type assert number of orders error")
-	}
-	req[0][2] = 3.3
-	_, err = OrderbookHelper(req, 2)
-	if err != nil {
-		t.Error(err)
-	}
-	_, err = OrderbookHelper(req, 3)
-	if err == nil {
-		t.Error("expected unable to type assert order ID error")
-	}
-	req[0][2] = "woof"
-	_, err = OrderbookHelper(req, 3)
-	if err != nil {
-		t.Error(err)
-	}
-}
+// 	_, err := OrderbookHelper(req, 2)
+// 	if err == nil {
+// 		t.Error("expected unable to type assert price error")
+// 	}
+// 	req[0][0] = "egg"
+// 	_, err = OrderbookHelper(req, 2)
+// 	if err == nil {
+// 		t.Error("expected invalid ParseFloat error")
+// 	}
+// 	req[0][0] = "1.1"
+// 	_, err = OrderbookHelper(req, 2)
+// 	if err == nil {
+// 		t.Error("expected unable to type assert amount error")
+// 	}
+// 	req[0][1] = "meow"
+// 	_, err = OrderbookHelper(req, 2)
+// 	if err == nil {
+// 		t.Error("expected invalid ParseFloat error")
+// 	}
+// 	req[0][1] = "2.2"
+// 	_, err = OrderbookHelper(req, 2)
+// 	if err == nil {
+// 		t.Error("expected unable to type assert number of orders error")
+// 	}
+// 	req[0][2] = 3.3
+// 	_, err = OrderbookHelper(req, 2)
+// 	if err != nil {
+// 		t.Error(err)
+// 	}
+// 	_, err = OrderbookHelper(req, 3)
+// 	if err == nil {
+// 		t.Error("expected unable to type assert order ID error")
+// 	}
+// 	req[0][2] = "woof"
+// 	_, err = OrderbookHelper(req, 3)
+// 	if err != nil {
+// 		t.Error(err)
+// 	}
+// }
 
-func TestPrepareDSL(t *testing.T) {
-	t.Parallel()
-	var expectedResult Params
-	expectedResult.urlVals = map[string][]string{
-		"before": {"1"},
-		"limit":  {"2"},
-	}
-	var result Params
+// func TestPrepareDSL(t *testing.T) {
+// 	t.Parallel()
+// 	var expectedResult Params
+// 	expectedResult.urlVals = map[string][]string{
+// 		"before": {"1"},
+// 		"limit":  {"2"},
+// 	}
+// 	var result Params
 
-	result.urlVals = make(url.Values)
+// 	result.urlVals = make(url.Values)
 
-	result.PrepareDSL("before", "1", 2)
-	if fmt.Sprint(expectedResult) != fmt.Sprint(result) {
-		t.Errorf(errExpectMismatch, result, expectedResult)
-	}
-}
+// 	result.PrepareDSL("before", "1", 2)
+// 	if fmt.Sprint(expectedResult) != fmt.Sprint(result) {
+// 		t.Errorf(errExpectMismatch, result, expectedResult)
+// 	}
+// }
 
 func TestFetchTradablePairs(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, c)
@@ -3178,8 +3220,8 @@ func TestUpdateOrderbook(t *testing.T) {
 		t.Errorf(errExpectMismatch, err, currency.ErrCurrencyPairEmpty)
 	}
 	_, err = c.UpdateOrderbook(context.Background(), currency.NewPairWithDelimiter("meow", "woof", "-"), asset.Spot)
-	if err != nil {
-		t.Error(err)
+	if err.Error() != errInvalidProductID {
+		t.Errorf(errExpectMismatch, err, errInvalidProductID)
 	}
 	_, err = c.UpdateOrderbook(context.Background(), testPair, asset.Spot)
 	if err != nil {
@@ -3246,6 +3288,7 @@ func TestSubmitOrder(t *testing.T) {
 		t.Errorf(errExpectMismatch, err, common.ErrExchangeNameUnset)
 	}
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, c, canManipulateRealOrders)
+	skipTestIfLowOnFunds(t)
 	ord.Exchange = c.Name
 	ord.Pair = testPair
 	ord.AssetType = asset.Spot
@@ -3285,6 +3328,7 @@ func TestModifyOrder(t *testing.T) {
 		t.Errorf(errExpectMismatch, err, order.ErrPairIsEmpty)
 	}
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, c, canManipulateRealOrders)
+	skipTestIfLowOnFunds(t)
 	resp, err := c.PlaceOrder(context.Background(), strconv.FormatInt(time.Now().UnixMilli(), 18)+"GCTModifyOrderTest",
 		testPair.String(), order.Sell.String(), "", order.Limit.String(), "", "", "", 0.0000001, 1000000000000, 0, 9999,
 		false, time.Time{})
@@ -3316,6 +3360,7 @@ func TestCancelOrder(t *testing.T) {
 	if err.Error() != errOrder0CancelFail {
 		t.Errorf(errExpectMismatch, err, errOrder0CancelFail)
 	}
+	skipTestIfLowOnFunds(t)
 	resp, err := c.PlaceOrder(context.Background(), strconv.FormatInt(time.Now().UnixMilli(), 18)+"GCTCancelOrderTest",
 		testPair.String(), order.Sell.String(), "", order.Limit.String(), "", "", "", 0.0000001, 1000000000000, 0, 9999,
 		false, time.Time{})
@@ -3340,6 +3385,7 @@ func TestCancelBatchOrders(t *testing.T) {
 		t.Errorf(errExpectMismatch, err, errIDNotSet)
 	}
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, c, canManipulateRealOrders)
+	skipTestIfLowOnFunds(t)
 	resp, err := c.PlaceOrder(context.Background(),
 		strconv.FormatInt(time.Now().UnixMilli(), 18)+"GCTCancelBatchOrdersTest", testPair.String(),
 		order.Sell.String(), "", order.Limit.String(), "", "", "", 0.0000001, 1000000000000, 0, 9999, false, time.Time{})
@@ -3364,6 +3410,7 @@ func TestCancelAllOrders(t *testing.T) {
 		t.Errorf(errExpectMismatch, err, order.ErrPairIsEmpty)
 	}
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, c, canManipulateRealOrders)
+	skipTestIfLowOnFunds(t)
 	_, err = c.PlaceOrder(context.Background(),
 		strconv.FormatInt(time.Now().UnixMilli(), 18)+"GCTCancelAllOrdersTest", testPair.String(),
 		order.Sell.String(), "", order.Limit.String(), "", "", "", 0.0000001, 1000000000000, 0, 9999, false, time.Time{})
@@ -3386,7 +3433,7 @@ func TestGetOrderInfo(t *testing.T) {
 		t.Fatal(err)
 	}
 	if len(ordID.Orders) == 0 {
-		t.Fatal(errExpectedNonEmpty)
+		t.Skip(skipInsufficientOrders)
 	}
 	_, err = c.GetOrderInfo(context.Background(), ordID.Orders[0].OrderID, testPair, asset.Spot)
 	if err != nil {
@@ -3475,6 +3522,7 @@ func TestWithdrawFiatFunds(t *testing.T) {
 	if len(wallets.Data) == 0 {
 		t.Fatal(errExpectedNonEmpty)
 	}
+	req.WalletID = ""
 	for i := range wallets.Data {
 		if wallets.Data[i].Currency.Name == currency.AUD.String() && wallets.Data[i].Balance.Amount > testAmount {
 			req.WalletID = wallets.Data[i].ID
@@ -3653,6 +3701,103 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
+}
+
+func skipTestIfLowOnFunds(t *testing.T) {
+	accounts, err := c.GetAllAccounts(context.Background(), 250, "")
+	if err != nil {
+		t.Error(err)
+	}
+	if len(accounts.Accounts) == 0 {
+		t.Fatal(errExpectedNonEmpty)
+	}
+	var hasValidFunds bool
+	for i := range accounts.Accounts {
+		if accounts.Accounts[i].Currency == testCrypto.String() && accounts.Accounts[i].AvailableBalance.Value > testAmount*100 {
+			hasValidFunds = true
+		}
+	}
+	if !hasValidFunds {
+		t.Skip(skipInsufficientFunds)
+	}
+}
+
+func portfolioTestHelper(t *testing.T, targetName string) string {
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, c, canManipulateRealOrders)
+	createResp, err := c.CreatePortfolio(context.Background(), targetName)
+	var targetID string
+	if err != nil {
+		if err.Error() != errPortfolioNameDuplicate {
+			t.Error(err)
+		}
+		getResp, err := c.GetAllPortfolios(context.Background(), "")
+		if err != nil {
+			t.Error(err)
+		}
+		if len(getResp.Portfolios) == 0 {
+			t.Fatal(errExpectedNonEmpty)
+		}
+		for i := range getResp.Portfolios {
+			if getResp.Portfolios[i].Name == targetName {
+				targetID = getResp.Portfolios[i].UUID
+				break
+			}
+		}
+	} else {
+		targetID = createResp.Portfolio.UUID
+	}
+	return targetID
+}
+
+func convertTestHelper(t *testing.T) (string, string) {
+	accIDs, err := c.GetAllAccounts(context.Background(), 250, "")
+	if err != nil {
+		t.Error(err)
+	}
+	if len(accIDs.Accounts) == 0 {
+		t.Fatal(errExpectedNonEmpty)
+	}
+	var (
+		fromAccID string
+		toAccID   string
+	)
+	for x := range accIDs.Accounts {
+		if accIDs.Accounts[x].Currency == "USDC" {
+			fromAccID = accIDs.Accounts[x].UUID
+		}
+		if accIDs.Accounts[x].Currency == "USD" {
+			toAccID = accIDs.Accounts[x].UUID
+		}
+		if fromAccID != "" && toAccID != "" {
+			break
+		}
+	}
+	if fromAccID == "" || toAccID == "" {
+		t.Skip(skipInsufSuitableAccs)
+	}
+	return fromAccID, toAccID
+}
+
+func transferTestHelper(t *testing.T, wallets GetAllWalletsResponse) (string, string) {
+	var hasValidFunds bool
+	var wID string
+	for i := range wallets.Data {
+		if wallets.Data[i].Currency.Code == testFiat.String() && wallets.Data[i].Balance.Amount > 10 {
+			hasValidFunds = true
+			wID = wallets.Data[i].ID
+		}
+	}
+	if !hasValidFunds {
+		t.Skip(skipInsufficientFunds)
+	}
+	pmID, err := c.GetAllPaymentMethods(context.Background(), PaginationInp{})
+	if err != nil {
+		t.Error(err)
+	}
+	if len(pmID.Data) == 0 {
+		t.Skip(skipPayMethodNotFound)
+	}
+	return wID, pmID.Data[0].FiatAccount.ID
 }
 
 // 8837708	       143.0 ns/op	      24 B/op	       5 allocs/op

@@ -124,6 +124,7 @@ type Product struct {
 	QuoteDisplaySymbol   string                  `json:"quote_display_symbol"`
 	ViewOnly             bool                    `json:"view_only"`
 	PriceIncrement       convert.StringToFloat64 `json:"price_increment"`
+	DisplayName          string                  `json:"display_name"`
 	FutureProductDetails struct {
 		Venue                  string                  `json:"venue"`
 		ContractCode           string                  `json:"contract_code"`
@@ -139,6 +140,7 @@ type Product struct {
 			OpenInterest convert.StringToFloat64 `json:"open_interest"`
 			FundingRate  convert.StringToFloat64 `json:"funding_rate"`
 			FundingTime  time.Time               `json:"funding_time"`
+			MaxLeverage  convert.StringToFloat64 `json:"max_leverage"`
 		} `json:"perpetual_details"`
 		ContractDisplayName string `json:"contract_display_name"`
 	} `json:"future_product_details"`
@@ -434,6 +436,64 @@ type DetailedPortfolioResponse struct {
 	} `json:"breakdown"`
 }
 
+// FuturesBalanceSummary contains information on futures balances, returned by
+// GetFuturesBalanceSummary
+type FuturesBalanceSummary struct {
+	BalanceSummary struct {
+		FuturesBuyingPower          ValCur  `json:"futures_buying_power"`
+		TotalUSDBalance             ValCur  `json:"total_usd_balance"`
+		CBIUSDBalance               ValCur  `json:"cbi_usd_balance"`
+		CFMUSDBalance               ValCur  `json:"cfm_usd_balance"`
+		TotalOpenOrdersHoldAmount   ValCur  `json:"total_open_orders_hold_amount"`
+		UnrealizedPNL               ValCur  `json:"unrealized_pnl"`
+		DailyRealizedPNL            ValCur  `json:"daily_realized_pnl"`
+		InitialMargin               ValCur  `json:"initial_margin"`
+		AvailableMargin             ValCur  `json:"available_margin"`
+		LiquidationThreshold        ValCur  `json:"liquidation_threshold"`
+		LiquidationBufferAmount     ValCur  `json:"liquidation_buffer_amount"`
+		LiquidationBufferPercentage float64 `json:"liquidation_buffer_percentage,string"`
+	} `json:"balance_summary"`
+}
+
+// FuturesPosition contains information on a single futures position, returned by
+// GetFuturesPositionByID and used as a sub-struct in the type AllFuturesPositions
+type FuturesPosition struct {
+	// This may belong in a struct of its own called "position", requring a bit
+	// more abstraction, but for the moment I'll assume it doesn't
+	ProductID         string    `json:"product_id"`
+	ExpirationTime    time.Time `json:"expiration_time"`
+	Side              string    `json:"side"`
+	NumberOfContracts float64   `json:"number_of_contracts,string"`
+	CurrentPrice      float64   `json:"current_price,string"`
+	AverageEntryPrice float64   `json:"avg_entry_price,string"`
+	UnrealizedPNL     float64   `json:"unrealized_pnl,string"`
+	DailyRealizedPNL  float64   `json:"daily_realized_pnl,string"`
+}
+
+// AllFuturesPositions contains information on all futures positions, returned by
+// GetAllFuturesPositions
+type AllFuturesPositions struct {
+	Positions []FuturesPosition `json:"positions"`
+}
+
+// SuccessBool is returned by some endpoints to indicate a failure or a success. Returned
+// by EditOrder, ScheduleFuturesSweep, and CancelPendingFuturesSweep
+type SuccessBool struct {
+	Success bool `json:"success"`
+}
+
+// ListFuturesSweepsResponse contains information on pending and processing sweep
+// requests. Returned by ListFuturesSweeps
+type ListFuturesSweepsResponse struct {
+	Sweeps []struct {
+		ID              string    `json:"id"`
+		RequestedAmount ValCur    `json:"requested_amount"`
+		ShouldSweepAll  bool      `json:"should_sweep_all"`
+		Status          string    `json:"status"`
+		ScheduledTime   time.Time `json:"scheduled_time"`
+	} `json:"sweeps"`
+}
+
 // TransactionSummary contains a summary of transaction fees, volume, and the like. Returned
 // by GetTransactionSummary
 type TransactionSummary struct {
@@ -471,6 +531,13 @@ type GetAllOrdersResp struct {
 	Cursor   string             `json:"cursor"`
 }
 
+// LinkStruct is a sub-struct storing information on links, used in FeeStruct and
+// ConvertResponse
+type LinkStruct struct {
+	Text string `json:"text"`
+	URL  string `json:"url"`
+}
+
 // FeeStruct is a sub-struct storing information on fees, used in ConvertResponse
 type FeeStruct struct {
 	Title       string `json:"title"`
@@ -478,12 +545,9 @@ type FeeStruct struct {
 	Amount      ValCur `json:"amount"`
 	Label       string `json:"label"`
 	Disclosure  struct {
-		Title       string `json:"title"`
-		Description string `json:"description"`
-		Link        struct {
-			Text string `json:"text"`
-			URL  string `json:"url"`
-		} `json:"link"`
+		Title       string     `json:"title"`
+		Description string     `json:"description"`
+		Link        LinkStruct `json:"link"`
 	} `json:"disclosure"`
 }
 
@@ -529,11 +593,8 @@ type ConvertResponse struct {
 			SourceToFiat   AmScale `json:"source_to_fiat"`
 		} `json:"unit_price"`
 		UserWarnings []struct {
-			ID   string `json:"id"`
-			Link struct {
-				Text string `json:"text"`
-				URL  string `json:"url"`
-			} `json:"link"`
+			ID      string     `json:"id"`
+			Link    LinkStruct `json:"link"`
 			Context struct {
 				Details  []string `json:"details"`
 				Title    string   `json:"title"`
@@ -652,7 +713,13 @@ type ListNotificationsResponse struct {
 	} `json:"data"`
 }
 
-// UserResponse holds information on a user, returned by GetUseByID and GetCurrentUser
+// CodeName holds a code and a name, used in UserResponse and CoinbaseAccounts
+type CodeName struct {
+	Code string `json:"code"`
+	Name string `json:"name"`
+}
+
+// UserResponse holds information on a user, returned by GetUserByID and GetCurrentUser
 type UserResponse struct {
 	Data struct {
 		ID              string `json:"id"`
@@ -674,10 +741,7 @@ type UserResponse struct {
 			Name       string `json:"name"`
 			IsInEurope bool   `json:"is_in_europe"`
 		} `json:"country"`
-		Nationality struct {
-			Code string `json:"code"`
-			Name string `json:"name"`
-		} `json:"nationality"`
+		Nationality                           CodeName  `json:"nationality"`
 		RegionSupportsFiatTransfers           bool      `json:"region_supports_fiat_transfers"`
 		RegionSupportsCryptoToCryptoTransfers bool      `json:"region_supports_crypto_to_crypto_transfers"`
 		CreatedAt                             time.Time `json:"created_at"`
@@ -722,22 +786,20 @@ type WalletData struct {
 	Primary  bool   `json:"primary"`
 	Type     string `json:"type"`
 	Currency struct {
-		Code                string `json:"code"`
-		Name                string `json:"name"`
-		Color               string `json:"color"`
-		SortIndex           int32  `json:"sort_index"`
-		Exponent            int32  `json:"exponent"`
-		Type                string `json:"type"`
-		AddressRegex        string `json:"address_regex"`
-		AssetID             string `json:"asset_id"`
-		DestinationTagName  string `json:"destination_tag_name"`
-		DestinationTagRegex string `json:"destination_tag_regex"`
-		Slug                string `json:"slug"`
+		Code                string      `json:"code"`
+		Name                string      `json:"name"`
+		Color               string      `json:"color"`
+		SortIndex           int32       `json:"sort_index"`
+		Exponent            int32       `json:"exponent"`
+		Type                string      `json:"type"`
+		AddressRegex        string      `json:"address_regex"`
+		AssetID             string      `json:"asset_id"`
+		DestinationTagName  string      `json:"destination_tag_name"`
+		DestinationTagRegex string      `json:"destination_tag_regex"`
+		Slug                string      `json:"slug"`
+		Rewards             interface{} `json:"rewards"`
 	} `json:"currency"`
-	Balance struct {
-		Amount   float64 `json:"amount,string"`
-		Currency string  `json:"currency"`
-	} `json:"balance"`
+	Balance          AmCur     `json:"balance"`
 	CreatedAt        time.Time `json:"created_at"`
 	UpdatedAt        time.Time `json:"updated_at"`
 	Resource         string    `json:"resource"`
@@ -758,21 +820,30 @@ type GetAllWalletsResponse struct {
 	Data       []WalletData   `json:"data"`
 }
 
+// AddressInfo holds an address and a destination tag, used in AddressData and
+type AddressInfo struct {
+	Address        string `json:"address"`
+	DestinationTag string `json:"destination_tag"`
+}
+
+// TitleSubtitle holds a title and a subtitle, used in AddressData and TransactionData
+type TitleSubtitle struct {
+	Title    string `json:"title"`
+	Subtitle string `json:"subtitle"`
+}
+
 // AddressData holds address information, used in GenAddrResponse and GetAllAddrResponse
 type AddressData struct {
-	ID          string `json:"id"`
-	Address     string `json:"address"`
-	AddressInfo struct {
-		Address        string `json:"address"`
-		DestinationTag string `json:"destination_tag"`
-	} `json:"address_info"`
-	Name         string    `json:"name"`
-	CreatedAt    time.Time `json:"created_at"`
-	UpdatedAt    time.Time `json:"updated_at"`
-	Network      string    `json:"network"`
-	URIScheme    string    `json:"uri_scheme"`
-	Resource     string    `json:"resource"`
-	ResourcePath string    `json:"resource_path"`
+	ID           string      `json:"id"`
+	Address      string      `json:"address"`
+	AddressInfo  AddressInfo `json:"address_info"`
+	Name         string      `json:"name"`
+	CreatedAt    time.Time   `json:"created_at"`
+	UpdatedAt    time.Time   `json:"updated_at"`
+	Network      string      `json:"network"`
+	URIScheme    string      `json:"uri_scheme"`
+	Resource     string      `json:"resource"`
+	ResourcePath string      `json:"resource_path"`
 	Warnings     []struct {
 		Type     string `json:"type"`
 		Title    string `json:"title"`
@@ -796,11 +867,8 @@ type AddressData struct {
 	} `json:"share_address_copy"`
 	ReceiveSubtitle string `json:"receive_subtitle"`
 	InlineWarning   struct {
-		Text    string `json:"text"`
-		Tooltip struct {
-			Title    string `json:"title"`
-			Subtitle string `json:"subtitle"`
-		} `json:"tooltip"`
+		Text    string        `json:"text"`
+		Tooltip TitleSubtitle `json:"tooltip"`
 	} `json:"inline_warning"`
 }
 
@@ -844,10 +912,7 @@ type TransactionData struct {
 		Commission float64 `json:"commission,string"`
 		OrderSide  string  `json:"order_side"`
 	} `json:"advanced_trade_fill"`
-	Details struct {
-		Title    string `json:"title"`
-		Subtitle string `json:"subtitle"`
-	} `json:"details"`
+	Details TitleSubtitle `json:"details"`
 	Network struct {
 		Status string `json:"status"`
 		Hash   string `json:"hash"`
@@ -1186,20 +1251,12 @@ type PaymentMethod struct {
 		InstantBuy []LimitStruct `json:"instant_buy"`
 		Sell       []LimitStruct `json:"sell"`
 	} `json:"limits"`
-	AllowBuy      bool `json:"allow_buy"`
-	AllowSell     bool `json:"allow_sell"`
-	AllowDeposit  bool `json:"allow_deposit"`
-	AllowWithdraw bool `json:"allow_withdraw"`
-	FiatAccount   struct {
-		ID           string `json:"id"`
-		Resource     string `json:"resource"`
-		ResourcePath string `json:"resource_path"`
-	} `json:"fiat_account"`
-	CryptoAccount struct {
-		ID           string `json:"id"`
-		Resource     string `json:"resource"`
-		ResourcePath string `json:"resource_path"`
-	} `json:"crypto_account"`
+	AllowBuy         bool       `json:"allow_buy"`
+	AllowSell        bool       `json:"allow_sell"`
+	AllowDeposit     bool       `json:"allow_deposit"`
+	AllowWithdraw    bool       `json:"allow_withdraw"`
+	FiatAccount      IDResource `json:"fiat_account"`
+	CryptoAccount    IDResource `json:"crypto_account"`
 	AvailableBalance struct {
 		Amount   float64 `json:"amount"`
 		Currency string  `json:"currency"`
@@ -1222,10 +1279,7 @@ type PaymentMethod struct {
 		BankName              string `json:"bank_name"`
 		BranchName            string `json:"branch_name"`
 		IconURL               string `json:"icon_url"`
-		Balance               struct {
-			Amount   float64 `json:"amount,string"`
-			Currency string  `json:"currency"`
-		} `json:"balance"`
+		Balance               AmCur  `json:"balance"`
 	} `json:"picker_data"`
 	HoldBusinessDays   int64  `json:"hold_business_days"`
 	HoldDays           int64  `json:"hold_days"`
@@ -1267,29 +1321,23 @@ type CoinbaseAccounts struct {
 	AvailableOnConsumer    bool    `json:"available_on_consumer"`
 	Ready                  bool    `json:"ready"`
 	WireDepositInformation struct {
-		AccountNumber string `json:"account_number"`
-		RoutingNumber string `json:"routing_number"`
-		BankName      string `json:"bank_name"`
-		BankAddress   string `json:"bank_address"`
-		BankCountry   struct {
-			Name string `json:"name"`
-			Code string `json:"code"`
-		} `json:"bank_country"`
-		AccountName    string `json:"account_name"`
-		AccountAddress string `json:"account_address"`
-		Reference      string `json:"reference"`
+		AccountNumber  string   `json:"account_number"`
+		RoutingNumber  string   `json:"routing_number"`
+		BankName       string   `json:"bank_name"`
+		BankAddress    string   `json:"bank_address"`
+		BankCountry    CodeName `json:"bank_country"`
+		AccountName    string   `json:"account_name"`
+		AccountAddress string   `json:"account_address"`
+		Reference      string   `json:"reference"`
 	} `json:"wire_deposit_information"`
 	SwiftDepositInformation struct {
-		AccountNumber string `json:"account_number"`
-		BankName      string `json:"bank_name"`
-		BankAddress   string `json:"bank_address"`
-		BankCountry   struct {
-			Name string `json:"name"`
-			Code string `json:"code"`
-		} `json:"bank_country"`
-		AccountName    string `json:"account_name"`
-		AccountAddress string `json:"account_address"`
-		Reference      string `json:"reference"`
+		AccountNumber  string   `json:"account_number"`
+		BankName       string   `json:"bank_name"`
+		BankAddress    string   `json:"bank_address"`
+		BankCountry    CodeName `json:"bank_country"`
+		AccountName    string   `json:"account_name"`
+		AccountAddress string   `json:"account_address"`
+		Reference      string   `json:"reference"`
 	} `json:"swift_deposit_information"`
 	SepaDepositInformation struct {
 		Iban            string `json:"iban"`
@@ -1634,19 +1682,13 @@ type GetAddressResponse struct {
 	VASPID             string    `json:"vasp_id"`
 }
 
-// To is part of the struct expected by the exchange for the AddAddresses function
-type To struct {
-	Address        string `json:"address"`
-	DestinationTag string `json:"destination_tag"`
-}
-
 // AddAddressRequest is the struct expected by the exchange for the AddAddresses function
 type AddAddressRequest struct {
-	Currency           string `json:"currency"`
-	To                 `json:"to"`
-	Label              string `json:"label"`
-	VerifiedSelfHosted bool   `json:"is_verified_self_hosted_wallet"`
-	VaspID             string `json:"vasp_id"`
+	Currency           string      `json:"currency"`
+	AddressInfo        AddressInfo `json:"to"`
+	Label              string      `json:"label"`
+	VerifiedSelfHosted bool        `json:"is_verified_self_hosted_wallet"`
+	VaspID             string      `json:"vasp_id"`
 }
 
 // AddAddressResponse contains information on the addresses just added, returned by
@@ -1674,20 +1716,17 @@ type AddAddressResponse struct {
 // CryptoAddressResponse contains information on the one-time address generated for
 // depositing crypto, returned by GenerateCryptoAddress
 type CryptoAddressResponse struct {
-	ID          string `json:"id"`
-	Address     string `json:"address"`
-	AddressInfo struct {
-		Address        string `json:"address"`
-		DestinationTag string `json:"destination_tag"`
-	} `json:"address_info"`
-	Name                   string    `json:"name"`
-	CreatedAt              time.Time `json:"created_at"`
-	UpdatedAt              time.Time `json:"updated_at"`
-	Network                string    `json:"network"`
-	URIScheme              string    `json:"uri_scheme"`
-	Resource               string    `json:"resource"`
-	ResourcePath           string    `json:"resource_path"`
-	ExchangeDepositAddress bool      `json:"exchange_deposit_address"`
+	ID                     string      `json:"id"`
+	Address                string      `json:"address"`
+	AddressInfo            AddressInfo `json:"address_info"`
+	Name                   string      `json:"name"`
+	CreatedAt              time.Time   `json:"created_at"`
+	UpdatedAt              time.Time   `json:"updated_at"`
+	Network                string      `json:"network"`
+	URIScheme              string      `json:"uri_scheme"`
+	Resource               string      `json:"resource"`
+	ResourcePath           string      `json:"resource_path"`
+	ExchangeDepositAddress bool        `json:"exchange_deposit_address"`
 	Warnings               []struct {
 		Title    string `json:"title"`
 		Details  string `json:"details"`

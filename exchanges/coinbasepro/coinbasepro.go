@@ -42,6 +42,11 @@ const (
 	coinbaseTicker             = "ticker"
 	coinbasePortfolios         = "portfolios"
 	coinbaseMoveFunds          = "move_funds"
+	coinbaseCFM                = "cfm"
+	coinbaseBalanceSummary     = "balance_summary"
+	coinbasePositions          = "positions"
+	coinbaseSweeps             = "sweeps"
+	coinbaseSchedule           = "schedule"
 	coinbaseTransactionSummary = "transaction_summary"
 	coinbaseConvert            = "convert"
 	coinbaseQuote              = "quote"
@@ -293,8 +298,6 @@ func (c *CoinbasePro) PlaceOrder(ctx context.Context, clientOID, productID, side
 		return nil, errAmountEmpty
 	}
 
-	var resp PlaceOrderResp
-
 	var orderConfig OrderConfiguration
 
 	switch orderType {
@@ -337,16 +340,21 @@ func (c *CoinbasePro) PlaceOrder(ctx context.Context, clientOID, productID, side
 			orderConfig.StopLimitStopLimitGTD.EndTime = endTime
 		}
 	default:
-		return &resp, errInvalidOrderType
+		return nil, errInvalidOrderType
 	}
 
 	req := map[string]interface{}{"client_order_id": clientOID, "product_id": productID,
 		"side": side, "order_configuration": orderConfig, "self_trade_prevention_id": stpID,
 		"leverage": strconv.FormatFloat(leverage, 'f', -1, 64), "retail_portfolio_id": rpID}
 
-	if marginType != "" {
+	if marginType == "ISOLATED" || marginType == "CROSS" {
 		req["margin_type"] = marginType
 	}
+	if marginType == "MULTI" {
+		req["margin_type"] = "CROSS"
+	}
+
+	var resp PlaceOrderResp
 
 	return &resp,
 		c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost,
@@ -370,20 +378,20 @@ func (c *CoinbasePro) CancelOrders(ctx context.Context, orderIDs []string) (Canc
 
 // EditOrder edits an order to a new size or price. Only limit orders with a good-till-cancelled time
 // in force can be edited
-func (c *CoinbasePro) EditOrder(ctx context.Context, orderID string, size, price float64) (bool, error) {
+func (c *CoinbasePro) EditOrder(ctx context.Context, orderID string, size, price float64) (SuccessBool, error) {
+	var resp SuccessBool
+
 	if orderID == "" {
-		return false, errOrderIDEmpty
+		return resp, errOrderIDEmpty
 	}
 	if size == 0 && price == 0 {
-		return false, errSizeAndPriceZero
+		return resp, errSizeAndPriceZero
 	}
 
 	path := fmt.Sprintf("%s%s/%s", coinbaseV3, coinbaseOrders, coinbaseEdit)
 
 	req := map[string]interface{}{"order_id": orderID, "size": strconv.FormatFloat(size, 'f', -1, 64),
 		"price": strconv.FormatFloat(price, 'f', -1, 64)}
-
-	var resp bool
 
 	return resp, c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, path, "",
 		req, Version3, &resp, nil)
@@ -416,7 +424,7 @@ func (c *CoinbasePro) GetAllOrders(ctx context.Context, productID, userNativeCur
 
 	var params Params
 	params.urlVals = make(url.Values)
-	err := params.PrepareDateString(startDate, endDate, startDateString, endDateString)
+	err := params.prepareDateString(startDate, endDate, startDateString, endDateString)
 	if err != nil {
 		return resp, err
 	}
@@ -426,6 +434,11 @@ func (c *CoinbasePro) GetAllOrders(ctx context.Context, productID, userNativeCur
 				return resp, errOpenPairWithOtherTypes
 			}
 			params.urlVals.Add("order_status", orderStatus[x])
+		}
+	}
+	if len(assetFilters) != 0 {
+		for x := range assetFilters {
+			params.urlVals.Add("asset_filters", assetFilters[x])
 		}
 	}
 
@@ -460,11 +473,11 @@ func (c *CoinbasePro) GetAllOrders(ctx context.Context, productID, userNativeCur
 }
 
 // GetFills returns information of recent fills on the specified profile
-func (c *CoinbasePro) GetFills(ctx context.Context, orderID, productID, cursor string, limit uint16, startDate, endDate time.Time) (FillResponse, error) {
+func (c *CoinbasePro) GetFills(ctx context.Context, orderID, productID, cursor string, startDate, endDate time.Time, limit uint16) (FillResponse, error) {
 	var resp FillResponse
 	var params Params
 	params.urlVals = url.Values{}
-	err := params.PrepareDateString(startDate, endDate, "start_sequence_timestamp",
+	err := params.prepareDateString(startDate, endDate, "start_sequence_timestamp",
 		"end_sequence_timestamp")
 	if err != nil {
 		return resp, err
@@ -488,7 +501,7 @@ func (c *CoinbasePro) GetFills(ctx context.Context, orderID, productID, cursor s
 }
 
 // GetOrderByID returns a single order by order id.
-func (c *CoinbasePro) GetOrderByID(ctx context.Context, orderID, userNativeCurrency, clientID string) (*GetOrderResponse, error) {
+func (c *CoinbasePro) GetOrderByID(ctx context.Context, orderID, clientID, userNativeCurrency string) (*GetOrderResponse, error) {
 	if orderID == "" {
 		return nil, errOrderIDEmpty
 	}
@@ -536,7 +549,7 @@ func (c *CoinbasePro) CreatePortfolio(ctx context.Context, name string) (SimpleP
 }
 
 // MovePortfolioFunds transfers funds between portfolios
-func (c *CoinbasePro) MovePortfolioFunds(ctx context.Context, from, to, currency string, amount float64) (MovePortfolioFundsResponse, error) {
+func (c *CoinbasePro) MovePortfolioFunds(ctx context.Context, currency, from, to string, amount float64) (MovePortfolioFundsResponse, error) {
 	var resp MovePortfolioFundsResponse
 
 	if from == "" || to == "" {
@@ -604,13 +617,88 @@ func (c *CoinbasePro) EditPortfolio(ctx context.Context, portfolioID, name strin
 		path, "", req, Version3, &resp, nil)
 }
 
+// GetFuturesBalanceSummary returns information on balances related to Coinbase Financial Markets
+// futures trading
+func (c *CoinbasePro) GetFuturesBalanceSummary(ctx context.Context) (FuturesBalanceSummary, error) {
+	var resp FuturesBalanceSummary
+
+	path := fmt.Sprintf("%s%s/%s", coinbaseV3, coinbaseCFM, coinbaseBalanceSummary)
+
+	return resp, c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet,
+		path, "", nil, Version3, &resp, nil)
+}
+
+// GetAllFuturesPositions returns a list of all open positions in CFM futures products
+func (c *CoinbasePro) GetAllFuturesPositions(ctx context.Context) (AllFuturesPositions, error) {
+	var resp AllFuturesPositions
+
+	path := fmt.Sprintf("%s%s/%s", coinbaseV3, coinbaseCFM, coinbasePositions)
+
+	return resp, c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet,
+		path, "", nil, Version3, &resp, nil)
+}
+
+// GetFuturesPositionByID returns information on a single open position in CFM futures products
+func (c *CoinbasePro) GetFuturesPositionByID(ctx context.Context, productID string) (FuturesPosition, error) {
+	var resp FuturesPosition
+
+	if productID == "" {
+		return resp, errProductIDEmpty
+	}
+
+	path := fmt.Sprintf("%s%s/%s/%s", coinbaseV3, coinbaseCFM, coinbasePositions, productID)
+
+	return resp, c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet,
+		path, "", nil, Version3, &resp, nil)
+}
+
+// ScheduleFuturesSweep schedules a sweep of funds from a CFTC-regulated futures account to a
+// Coinbase USD Spot wallet. Request submitted before 5 pm ET are processed the following
+// business day, requests submitted after are processed in 2 business days. Only one
+// sweep request can be pending at a time. Funds transferred depend on the excess available
+// in the futures account. An amount of 0 will sweep all available excess funds
+func (c *CoinbasePro) ScheduleFuturesSweep(ctx context.Context, amount float64) (SuccessBool, error) {
+	path := fmt.Sprintf("%s%s/%s/%s", coinbaseV3, coinbaseCFM, coinbaseSweeps, coinbaseSchedule)
+
+	req := make(map[string]interface{})
+
+	if amount != 0 {
+		req["usd_amount"] = strconv.FormatFloat(amount, 'f', -1, 64)
+	}
+
+	var resp SuccessBool
+
+	return resp, c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost,
+		path, "", req, Version3, &resp, nil)
+}
+
+// ListFuturesSweeps returns information on pending and/or processing requests to sweep funds
+func (c *CoinbasePro) ListFuturesSweeps(ctx context.Context) (ListFuturesSweepsResponse, error) {
+	var resp ListFuturesSweepsResponse
+
+	path := fmt.Sprintf("%s%s/%s", coinbaseV3, coinbaseCFM, coinbaseSweeps)
+
+	return resp, c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet,
+		path, "", nil, Version3, &resp, nil)
+}
+
+// CancelPendingFuturesSweep cancels a pending sweep request
+func (c *CoinbasePro) CancelPendingFuturesSweep(ctx context.Context) (SuccessBool, error) {
+	path := fmt.Sprintf("%s%s/%s", coinbaseV3, coinbaseCFM, coinbaseSweeps)
+
+	var resp SuccessBool
+
+	return resp, c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodDelete,
+		path, "", nil, Version3, &resp, nil)
+}
+
 // GetTransactionSummary returns a summary of transactions with fee tiers, total volume,
 // and fees
 func (c *CoinbasePro) GetTransactionSummary(ctx context.Context, startDate, endDate time.Time, userNativeCurrency, productType, contractExpiryType string) (*TransactionSummary, error) {
 	var params Params
 	params.urlVals = url.Values{}
 
-	err := params.PrepareDateString(startDate, endDate, startDateString, endDateString)
+	err := params.prepareDateString(startDate, endDate, startDateString, endDateString)
 	if err != nil {
 		return nil, err
 	}
@@ -705,7 +793,7 @@ func (c *CoinbasePro) ListNotifications(ctx context.Context, pag PaginationInp) 
 
 	var params Params
 	params.urlVals = url.Values{}
-	params.PreparePagination(pag)
+	params.preparePagination(pag)
 
 	pathParams := common.EncodeURLValues("", params.urlVals)
 
@@ -784,7 +872,7 @@ func (c *CoinbasePro) GetAllWallets(ctx context.Context, pag PaginationInp) (Get
 
 	var params Params
 	params.urlVals = url.Values{}
-	params.PreparePagination(pag)
+	params.preparePagination(pag)
 
 	pathParams := common.EncodeURLValues("", params.urlVals)
 
@@ -870,7 +958,7 @@ func (c *CoinbasePro) GetAllAddresses(ctx context.Context, walletID string, pag 
 
 	var params Params
 	params.urlVals = url.Values{}
-	params.PreparePagination(pag)
+	params.preparePagination(pag)
 
 	pathParams := common.EncodeURLValues("", params.urlVals)
 
@@ -912,7 +1000,7 @@ func (c *CoinbasePro) GetAddressTransactions(ctx context.Context, walletID, addr
 
 	var params Params
 	params.urlVals = url.Values{}
-	params.PreparePagination(pag)
+	params.preparePagination(pag)
 
 	pathParams := common.EncodeURLValues("", params.urlVals)
 
@@ -970,7 +1058,7 @@ func (c *CoinbasePro) GetAllTransactions(ctx context.Context, walletID string, p
 
 	var params Params
 	params.urlVals = url.Values{}
-	params.PreparePagination(pag)
+	params.preparePagination(pag)
 
 	pathParams := common.EncodeURLValues("", params.urlVals)
 
@@ -1076,7 +1164,7 @@ func (c *CoinbasePro) GetAllFiatTransfers(ctx context.Context, walletID string, 
 
 	var params Params
 	params.urlVals = url.Values{}
-	params.PreparePagination(pag)
+	params.preparePagination(pag)
 
 	pathParams := common.EncodeURLValues("", params.urlVals)
 
@@ -1094,7 +1182,7 @@ func (c *CoinbasePro) GetAllFiatTransfers(ctx context.Context, walletID string, 
 	return resp, nil
 }
 
-// GetFiatTransferByID returns information on a single deposit associated with the specified wallet
+// GetFiatTransferByID returns information on a single deposit/withdrawal associated with the specified wallet
 func (c *CoinbasePro) GetFiatTransferByID(ctx context.Context, walletID, depositID string, transferType FiatTransferType) (*GenDeposWithdrResp, error) {
 	if walletID == "" {
 		return nil, errWalletIDEmpty
@@ -1120,7 +1208,7 @@ func (c *CoinbasePro) GetAllPaymentMethods(ctx context.Context, pag PaginationIn
 
 	var params Params
 	params.urlVals = url.Values{}
-	params.PreparePagination(pag)
+	params.preparePagination(pag)
 
 	pathParams := common.EncodeURLValues("", params.urlVals)
 
@@ -2092,7 +2180,7 @@ func (c *CoinbasePro) GetFee(ctx context.Context, feeBuilder *exchange.FeeBuilde
 	}
 	var fee float64
 	switch {
-	case !c.IsStablePair(feeBuilder.Pair) && feeBuilder.FeeType == exchange.CryptocurrencyTradeFee:
+	case !isStablePair(feeBuilder.Pair) && feeBuilder.FeeType == exchange.CryptocurrencyTradeFee:
 		fees, err := c.GetTransactionSummary(ctx, time.Now().Add(-time.Hour*24*30), time.Now(), "", "", "")
 		if err != nil {
 			return 0, err
@@ -2102,15 +2190,15 @@ func (c *CoinbasePro) GetFee(ctx context.Context, feeBuilder *exchange.FeeBuilde
 		} else {
 			fee = fees.FeeTier.TakerFeeRate
 		}
-	case feeBuilder.IsMaker && c.IsStablePair(feeBuilder.Pair) &&
+	case feeBuilder.IsMaker && isStablePair(feeBuilder.Pair) &&
 		(feeBuilder.FeeType == exchange.CryptocurrencyTradeFee || feeBuilder.FeeType == exchange.OfflineTradeFee):
 		fee = 0
-	case !feeBuilder.IsMaker && c.IsStablePair(feeBuilder.Pair) &&
+	case !feeBuilder.IsMaker && isStablePair(feeBuilder.Pair) &&
 		(feeBuilder.FeeType == exchange.CryptocurrencyTradeFee || feeBuilder.FeeType == exchange.OfflineTradeFee):
 		fee = 0.00001
-	case feeBuilder.IsMaker && !c.IsStablePair(feeBuilder.Pair) && feeBuilder.FeeType == exchange.OfflineTradeFee:
+	case feeBuilder.IsMaker && !isStablePair(feeBuilder.Pair) && feeBuilder.FeeType == exchange.OfflineTradeFee:
 		fee = 0.006
-	case !feeBuilder.IsMaker && !c.IsStablePair(feeBuilder.Pair) && feeBuilder.FeeType == exchange.OfflineTradeFee:
+	case !feeBuilder.IsMaker && !isStablePair(feeBuilder.Pair) && feeBuilder.FeeType == exchange.OfflineTradeFee:
 		fee = 0.008
 	default:
 		return 0, errFeeTypeNotSupported
@@ -2138,7 +2226,7 @@ var stableMap = map[key.PairAsset]bool{
 }
 
 // IsStablePair returns true if the currency pair is considered a "stable pair" by Coinbase
-func (c *CoinbasePro) IsStablePair(pair currency.Pair) bool {
+func isStablePair(pair currency.Pair) bool {
 	return stableMap[key.PairAsset{Base: pair.Base.Item, Quote: pair.Quote.Item}]
 }
 
@@ -2167,7 +2255,7 @@ func (c *CoinbasePro) IsStablePair(pair currency.Pair) bool {
 // }
 
 // PrepareDateString encodes a set of parameters indicating start & end dates
-func (p *Params) PrepareDateString(startDate, endDate time.Time, labelStart, labelEnd string) error {
+func (p *Params) prepareDateString(startDate, endDate time.Time, labelStart, labelEnd string) error {
 	err := common.StartEndTimeCheck(startDate, endDate)
 
 	if err == nil {
@@ -2184,7 +2272,7 @@ func (p *Params) PrepareDateString(startDate, endDate time.Time, labelStart, lab
 	return err
 }
 
-func (p *Params) PreparePagination(pag PaginationInp) {
+func (p *Params) preparePagination(pag PaginationInp) {
 	if pag.Limit != 0 {
 		p.urlVals.Set("limit", strconv.FormatInt(int64(pag.Limit), 10))
 	}
@@ -2201,56 +2289,56 @@ func (p *Params) PreparePagination(pag PaginationInp) {
 
 // OrderbookHelper handles the transfer of bids and asks of unclear levels, to a
 // generalised format
-func OrderbookHelper(iOD InterOrderDetail, level int32) ([]GenOrderDetail, error) {
-	gOD := make([]GenOrderDetail, len(iOD))
+// func orderbookHelper(iOD InterOrderDetail, level int32) ([]GenOrderDetail, error) {
+// 	gOD := make([]GenOrderDetail, len(iOD))
 
-	for i := range iOD {
-		priceConv, ok := iOD[i][0].(string)
-		if !ok {
-			return nil, errors.New("unable to type assert price")
-		}
-		price, err := strconv.ParseFloat(priceConv, 64)
-		if err != nil {
-			return nil, err
-		}
-		gOD[i].Price = price
+// 	for i := range iOD {
+// 		priceConv, ok := iOD[i][0].(string)
+// 		if !ok {
+// 			return nil, errors.New("unable to type assert price")
+// 		}
+// 		price, err := strconv.ParseFloat(priceConv, 64)
+// 		if err != nil {
+// 			return nil, err
+// 		}
+// 		gOD[i].Price = price
 
-		amountConv, ok := iOD[i][1].(string)
-		if !ok {
-			return nil, errors.New("unable to type assert amount")
-		}
-		amount, err := strconv.ParseFloat(amountConv, 64)
-		if err != nil {
-			return nil, err
-		}
-		gOD[i].Amount = amount
+// 		amountConv, ok := iOD[i][1].(string)
+// 		if !ok {
+// 			return nil, errors.New("unable to type assert amount")
+// 		}
+// 		amount, err := strconv.ParseFloat(amountConv, 64)
+// 		if err != nil {
+// 			return nil, err
+// 		}
+// 		gOD[i].Amount = amount
 
-		if level == 3 {
-			orderID, ok := iOD[i][2].(string)
-			if !ok {
-				return nil, errors.New("unable to type assert order ID")
-			}
-			gOD[i].OrderID = orderID
-		} else {
-			numOrders, ok := iOD[i][2].(float64)
-			if !ok {
-				return nil, errors.New("unable to type assert number of orders")
-			}
-			gOD[i].NumOrders = numOrders
-		}
+// 		if level == 3 {
+// 			orderID, ok := iOD[i][2].(string)
+// 			if !ok {
+// 				return nil, errors.New("unable to type assert order ID")
+// 			}
+// 			gOD[i].OrderID = orderID
+// 		} else {
+// 			numOrders, ok := iOD[i][2].(float64)
+// 			if !ok {
+// 				return nil, errors.New("unable to type assert number of orders")
+// 			}
+// 			gOD[i].NumOrders = numOrders
+// 		}
 
-	}
-	return gOD, nil
+// 	}
+// 	return gOD, nil
 
-}
+// }
 
-// PrepareDSL adds the direction, step, and limit queries for pagination
-func (p *Params) PrepareDSL(direction, step string, limit int64) {
-	p.urlVals.Set(direction, step)
-	if limit >= 0 {
-		p.urlVals.Set("limit", strconv.FormatInt(limit, 10))
-	}
-}
+// prepareDSL adds the direction, step, and limit queries for pagination
+// func (p *Params) prepareDSL(direction, step string, limit int64) {
+// 	p.urlVals.Set(direction, step)
+// 	if limit >= 0 {
+// 		p.urlVals.Set("limit", strconv.FormatInt(limit, 10))
+// 	}
+// }
 
 func (f FiatTransferType) String() string {
 	if f {

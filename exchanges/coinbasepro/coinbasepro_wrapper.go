@@ -719,7 +719,7 @@ func (c *CoinbasePro) SubmitOrder(ctx context.Context, s *order.Submit) (*order.
 
 	if s.RetrieveFees {
 		time.Sleep(s.RetrieveFeeDelay)
-		feeResp, err := c.GetOrderByID(ctx, resp.OrderID, "", s.ClientOrderID)
+		feeResp, err := c.GetOrderByID(ctx, resp.OrderID, s.ClientOrderID, "")
 		if err != nil {
 			return nil, err
 		}
@@ -742,7 +742,7 @@ func (c *CoinbasePro) ModifyOrder(ctx context.Context, m *order.Modify) (*order.
 	if err != nil {
 		return nil, err
 	}
-	if !success {
+	if !success.Success {
 		return nil, errOrderModFailNoErr
 	}
 
@@ -982,13 +982,13 @@ func (c *CoinbasePro) GetOrderInfo(ctx context.Context, orderID string, pair cur
 		return nil, err
 	}
 
-	fillData, err := c.GetFills(ctx, orderID, "", "", 2<<15-1, time.Time{}, time.Now())
+	fillData, err := c.GetFills(ctx, orderID, "", "", time.Time{}, time.Now(), 2<<15-1)
 	if err != nil {
 		return nil, err
 	}
 	cursor := fillData.Cursor
 	for cursor != "" {
-		tempFillData, err := c.GetFills(ctx, orderID, "", cursor, 2<<15-1, time.Time{}, time.Now())
+		tempFillData, err := c.GetFills(ctx, orderID, "", cursor, time.Time{}, time.Now(), 2<<15-1)
 		if err != nil {
 			return nil, err
 		}
