@@ -30,7 +30,7 @@ type Dispatcher struct {
 	// See relayer() method below.
 	routes map[uuid.UUID][]chan interface{}
 	// rMtx protects the routes variable ensuring acceptable read/write access
-	rMtx sync.RWMutex
+	rMtx sync.Mutex
 
 	// Persistent buffered job queue for relayers
 	jobs chan job

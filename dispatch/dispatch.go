@@ -128,27 +128,31 @@ func (d *Dispatcher) stop() error {
 	// Release finished workers
 	close(d.shutdown)
 
+	ch := make(chan struct{}, 1)
+	go func(ch chan<- struct{}) {
+		d.wg.Wait()
+		ch <- struct{}{}
+	}(ch)
+
+	select {
+	case <-ch:
+	case <-time.After(time.Second):
+		return errDispatchShutdown
+	}
+
+	// Wait for all relayers to have exited, including any blocking channel writes, before closing channels
 	d.rMtx.Lock()
 	for key, pipes := range d.routes {
 		for i := range pipes {
-			// Boot off receivers waiting on pipes.
 			close(pipes[i])
 		}
-		// Flush all pipes, re-subscription will need to occur.
 		d.routes[key] = nil
 	}
 	d.rMtx.Unlock()
 
-	ch := make(chan struct{})
-	timer := time.NewTimer(time.Second)
-	go func(ch chan<- struct{}) { d.wg.Wait(); ch <- struct{}{} }(ch)
-	select {
-	case <-ch:
-		log.Debugln(log.DispatchMgr, "Dispatch manager shutdown.")
-		return nil
-	case <-timer.C:
-		return errDispatchShutdown
-	}
+	log.Debugln(log.DispatchMgr, "Dispatch manager shutdown")
+
+	return nil
 }
 
 // isRunning returns if the dispatch system is running
@@ -172,19 +176,24 @@ func (d *Dispatcher) relayer() {
 				// every real job created has an ID set
 				continue
 			}
-			d.rMtx.RLock()
+			d.rMtx.Lock()
 			pipes, ok := d.routes[j.ID]
 			if !ok {
 				log.Warnf(log.DispatchMgr, "%v: %v\n", errDispatcherUUIDNotFoundInRouteList, j.ID)
-				d.rMtx.RUnlock()
+				d.rMtx.Unlock()
 				continue
 			}
 			for i := range pipes {
+				d.wg.Add(1)
 				go func(p chan any) {
-					p <- j.Data
+					defer d.wg.Done()
+					select {
+					case p <- j.Data:
+					case <-d.shutdown: // Avoids race on blocking consumer when we go to stop
+					}
 				}(pipes[i])
 			}
-			d.rMtx.RUnlock()
+			d.rMtx.Unlock()
 		case <-d.shutdown:
 			d.wg.Done()
 			return
