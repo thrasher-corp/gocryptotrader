@@ -126,9 +126,10 @@ func (b *Binance) SendWsRequest(method string, param, result interface{}) error 
 		return err
 	}
 	resp := &struct {
-		ID     string      `json:"id"`
-		Status int64       `json:"status"`
-		Result interface{} `json:"result"`
+		ID     string             `json:"id"`
+		Status int64              `json:"status"`
+		Result interface{}        `json:"result"`
+		Error  *WebsocketAPIError `json:"error"`
 	}{
 		Result: result,
 	}
@@ -136,17 +137,25 @@ func (b *Binance) SendWsRequest(method string, param, result interface{}) error 
 	if err != nil {
 		return err
 	}
-	switch resp.Status {
-	case 200:
-		return nil
-	case 400, 403, 409, 418, 419:
-		return fmt.Errorf("status code: %d, msg: %s", resp.Status, websocketStatusCodes[resp.Status])
-	default:
-		if resp.Status >= 500 {
-			return fmt.Errorf("status code: %d, msg: internal server error", resp.Status)
+	if resp.Status != 200 {
+		if resp.Error != nil {
+			return fmt.Errorf("status code: %d error code: %d msg: %s", resp.Status, resp.Error.Code, resp.Error.Message)
 		}
-		return fmt.Errorf("status code: %d, msg: request failed", resp.Status)
+		switch resp.Status {
+		case 400, 403, 409, 418, 419:
+			return fmt.Errorf("status code: %d, msg: %s", resp.Status, websocketStatusCodes[resp.Status])
+		default:
+			switch {
+			case resp.Status >= 500 && resp.Error != nil:
+				return fmt.Errorf("error code: %d msg: %s", resp.Error.Code, resp.Error.Message)
+			case resp.Status >= 500:
+				return fmt.Errorf("status code: %d, msg: internal server error", resp.Status)
+			default:
+				return fmt.Errorf("status code: %d, msg: request failed", resp.Status)
+			}
+		}
 	}
+	return nil
 }
 
 // GetWsOrderbook returns full orderbook information
@@ -363,21 +372,12 @@ func (b *Binance) GetWsSymbolOrderbookTicker(symbols currency.Pairs) ([]WsOrderb
 	return resp, b.SendWsRequest("ticker.book", arg, &resp)
 }
 
-// WsAuthenticate authenticates websocket API stream.
-func (b *Binance) WsAuthenticate() (*FuturesAuthenticationResp, error) {
-	timestamp := time.Now().UnixMilli()
-	apiKey, signatures, err := b.SignRequest(map[string]interface{}{
-		"timestamp": timestamp,
-	})
+func (b *Binance) getSignature(arg interface{}) (apiKey, signature string, err error) {
+	mapValue, err := b.ToMap(arg)
 	if err != nil {
-		return nil, err
+		return apiKey, signature, err
 	}
-	var resp FuturesAuthenticationResp
-	return &resp, b.SendWsRequest("session.logon", &APISignatureInfo{
-		APIKey:    apiKey,
-		Signature: signatures,
-		Timestamp: timestamp,
-	}, &resp)
+	return b.SignRequest(mapValue)
 }
 
 // SignRequest creates a signature given params map
@@ -389,15 +389,19 @@ func (b *Binance) SignRequest(params map[string]interface{}) (apiKey, signature 
 	timestampInfo, okay := params["timestamp"]
 	if !okay {
 		return "", "", errTimestampInfoRequired
-	} else if _, okay = timestampInfo.(int64); !okay {
-		return "", "", fmt.Errorf("invalid timestamp: %w", errTimestampInfoRequired)
 	}
-	payloadString := fmt.Sprintf("apiKey=%s", creds.Key)
-	for a := range params {
-		if a < "apiKey" {
-			payloadString = fmt.Sprintf("%s=%v&", a, params[a]) + payloadString
-		}
-		payloadString += fmt.Sprintf("&%s=%v", a, params[a])
+	timestampType := fmt.Sprintf("%T", timestampInfo)
+	switch timestampType {
+	case "float64", "int64",
+		"float32", "int":
+	default:
+		return "", "", fmt.Errorf("invalid timestamp: %s %w", timestampType, errTimestampInfoRequired)
+	}
+	params["apiKey"] = creds.Key
+	keys := SortMap(params)
+	payloadString := fmt.Sprintf("%s=%v", keys[0], params[keys[0]])
+	for i := 1; i < len(keys); i++ {
+		payloadString += fmt.Sprintf("&%s=%v", keys[i], params[keys[i]])
 	}
 	var hmacSigned []byte
 	hmacSigned, err = crypto.GetHMAC(crypto.HashSHA256,
@@ -407,6 +411,27 @@ func (b *Binance) SignRequest(params map[string]interface{}) (apiKey, signature 
 		return "", "", err
 	}
 	return creds.Key, crypto.HexEncodeToString(hmacSigned), nil
+}
+
+// SortMap gives a slice of sorted keys from the passed map
+func SortMap(params map[string]interface{}) []string {
+	keys := make([]string, 0, len(params))
+	for a := range params {
+		count := 0
+		added := false
+		for count < len(keys) {
+			if keys[count] >= a {
+				keys = append(keys[:count], append([]string{a}, keys[count:]...)...)
+				added = true
+				break
+			}
+			count++
+		}
+		if !added {
+			keys = append(keys, a)
+		}
+	}
+	return keys
 }
 
 // GetQuerySessionStatus query the status of the WebSocket connection, inspecting which API key (if any) is used to authorize requests.
@@ -434,6 +459,13 @@ func (b *Binance) PlaceNewOrder(arg *TradeOrderRequestParam) (*TradeOrderRespons
 	if arg.OrderType == "" {
 		return nil, order.ErrTypeIsInvalid
 	}
+	arg.Timestamp = time.Now().UnixMilli()
+	apiKey, signature, err := b.getSignature(arg)
+	if err != nil {
+		return nil, err
+	}
+	arg.APIKey = apiKey
+	arg.Signature = signature
 	var resp TradeOrderResponse
 	return &resp, b.SendWsRequest("order.place", arg, &resp)
 }
@@ -452,6 +484,13 @@ func (b *Binance) ValidatePlaceNewOrderRequest(arg *TradeOrderRequestParam) erro
 	if arg.OrderType == "" {
 		return order.ErrTypeIsInvalid
 	}
+	arg.Timestamp = time.Now().UnixMilli()
+	apiKey, signature, err := b.getSignature(arg)
+	if err != nil {
+		return err
+	}
+	arg.APIKey = apiKey
+	arg.Signature = signature
 	return b.SendWsRequest("order.test", arg, &struct{}{})
 }
 
@@ -485,31 +524,13 @@ func (b *Binance) signParam(arg *QueryOrderParam) error {
 	if arg.Symbol.IsEmpty() {
 		return currency.ErrCurrencyPairEmpty
 	}
-	params := map[string]interface{}{}
-	if arg.CancelRestrictions != "" {
-		params["cancelRestrictions"] = arg.CancelRestrictions
-	}
-	if arg.NewClientOrderID != "" {
-		params["newClientOrderId"] = arg.NewClientOrderID
-	}
-	if arg.OrderID != 0 {
-		params["orderId"] = arg.OrderID
-	}
-	if arg.OrigClientOrderID != "" {
-		params["origClientOrderId"] = arg.OrigClientOrderID
-	}
-	if arg.RecvWindow != 0 {
-		params["recvWindow"] = arg.RecvWindow
-	}
-	params["symbol"] = arg.Symbol.String()
-	timestamp := time.Now().UnixMilli()
-	params["timestamp"] = timestamp
-	apiKey, signatures, err := b.SignRequest(params)
+	arg.Timestamp = time.Now().UnixMilli()
+	apiKey, signature, err := b.getSignature(arg)
 	if err != nil {
 		return err
 	}
 	arg.APIKey = apiKey
-	arg.Signature = signatures
+	arg.Signature = signature
 	return nil
 }
 
@@ -533,6 +554,13 @@ func (b *Binance) WsCancelAndReplaceTradeOrder(arg *WsCancelAndReplaceParam) (*W
 	if arg.OrderType == "" {
 		return nil, order.ErrTypeIsInvalid
 	}
+	arg.Timestamp = time.Now().UnixMilli()
+	apiKey, signature, err := b.getSignature(arg)
+	if err != nil {
+		return nil, err
+	}
+	arg.APIKey = apiKey
+	arg.Signature = signature
 	var resp *WsCancelAndReplaceTradeOrderResponse
 	return resp, b.SendWsRequest("order.cancelReplace", &arg, &resp)
 }
@@ -545,9 +573,8 @@ func (b *Binance) openOrdersFilter(symbol currency.Pair, recvWindow int64) (map[
 	if recvWindow != 0 {
 		arg["recvWindow"] = recvWindow
 	}
-	timestamp := time.Now().UnixMilli()
 	arg["symbol"] = symbol
-	arg["timestamp"] = timestamp
+	arg["timestamp"] = time.Now().UnixMilli()
 	apiKey, signature, err := b.SignRequest(arg)
 	if err != nil {
 		return nil, err
@@ -563,6 +590,13 @@ func (b *Binance) WsCurrentOpenOrders(symbol currency.Pair, recvWindow int64) ([
 	if err != nil {
 		return nil, err
 	}
+	arg["timestamp"] = time.Now().UnixMilli()
+	apiKey, signature, err := b.getSignature(arg)
+	if err != nil {
+		return nil, err
+	}
+	arg["apiKey"] = apiKey
+	arg["signature"] = signature
 	var resp []WsCancelOrder
 	return resp, b.SendWsRequest("openOrders.status", arg, &resp)
 }
@@ -573,6 +607,13 @@ func (b *Binance) WsCancelOpenOrders(symbol currency.Pair, recvWindow int64) ([]
 	if err != nil {
 		return nil, err
 	}
+	arg["timestamp"] = time.Now().UnixMilli()
+	apiKey, signature, err := b.getSignature(arg)
+	if err != nil {
+		return nil, err
+	}
+	arg["apiKey"] = apiKey
+	arg["signature"] = signature
 	var resp []WsCancelOrder
 	return resp, b.SendWsRequest("openOrders.cancelAll", arg, &resp)
 }
@@ -598,6 +639,13 @@ func (b *Binance) WsPlaceOCOOrder(arg *PlaceOCOOrderParam) (*OCOOrder, error) {
 	if arg.TrailingDelta <= 0 {
 		return nil, errors.New("invalid trailingDelta value")
 	}
+	arg.Timestamp = time.Now().UnixMilli()
+	apiKey, signature, err := b.getSignature(arg)
+	if err != nil {
+		return nil, err
+	}
+	arg.APIKey = apiKey
+	arg.Signature = signature
 	var resp *OCOOrder
 	return resp, b.SendWsRequest("orderList.place", arg, &resp)
 }
@@ -616,8 +664,7 @@ func (b *Binance) WsQueryOCOOrder(origClientOrderID string, orderListID, recvWin
 	if recvWindow != 0 {
 		params["recvWindow"] = recvWindow
 	}
-	timestamp := time.Now().UnixMilli()
-	params["timestamp"] = timestamp
+	params["timestamp"] = time.Now().UnixMilli()
 	apiKey, signature, err := b.SignRequest(params)
 	if err != nil {
 		return nil, err
@@ -650,6 +697,7 @@ func (b *Binance) WsCancelOCOOrder(symbol currency.Pair, orderListID,
 	if recvWindow != 0 {
 		params["recvWindow"] = recvWindow
 	}
+	params["timestamp"] = time.Now().UnixMilli()
 	apiKey, signature, err := b.SignRequest(params)
 	if err != nil {
 		return nil, err
@@ -666,8 +714,7 @@ func (b *Binance) WsCurrentOpenOCOOrders(recvWindow int64) ([]OCOOrder, error) {
 	if recvWindow != 0 {
 		params["recvWindow"] = recvWindow
 	}
-	timestamp := time.Now().UnixMilli()
-	params["timestamp"] = timestamp
+	params["timestamp"] = time.Now().UnixMilli()
 	apiKey, signature, err := b.SignRequest(params)
 	if err != nil {
 		return nil, err
@@ -695,6 +742,13 @@ func (b *Binance) WsPlaceNewSOROrder(arg *WsOSRPlaceOrderParams) ([]OSROrder, er
 	if arg.Quantity <= 0 {
 		return nil, order.ErrAmountBelowMin
 	}
+	arg.Timestamp = time.Now().UnixMilli()
+	apiKey, signature, err := b.getSignature(arg)
+	if err != nil {
+		return nil, err
+	}
+	arg.APIKey = apiKey
+	arg.Signature = signature
 	var resp []OSROrder
 	return resp, b.SendWsRequest("sor.order.place", arg, &resp)
 }
@@ -717,5 +771,41 @@ func (b *Binance) WsTestNewOrderUsingSOR(arg *WsOSRPlaceOrderParams) error {
 	if arg.Quantity <= 0 {
 		return order.ErrAmountBelowMin
 	}
+	arg.Timestamp = time.Now().UnixMilli()
+	apiKey, signature, err := b.getSignature(arg)
+	if err != nil {
+		return err
+	}
+	arg.APIKey = apiKey
+	arg.Signature = signature
 	return b.SendWsRequest("sor.order.place", arg, &struct{}{})
+}
+
+// ToMap creates a map out of struct instances
+func (b *Binance) ToMap(input interface{}) (map[string]interface{}, error) {
+	data, err := json.Marshal(input)
+	if err != nil {
+		return nil, err
+	}
+	var resp map[string]interface{}
+	return resp, json.Unmarshal(data, &resp)
+}
+
+// ------------------------------------------- Account Requests --------------------------------
+
+// GetAccountInformation query information about your account.
+func (b *Binance) GetAccountInformation(recvWindow int64) (*WsAccountInfo, error) {
+	params := map[string]interface{}{}
+	if recvWindow != 0 {
+		params["recvWindow"] = recvWindow
+	}
+	params["timestamp"] = time.Now().UnixMilli()
+	apiKey, signatures, err := b.SignRequest(params)
+	if err != nil {
+		return nil, err
+	}
+	params["apiKey"] = apiKey
+	params["signature"] = signatures
+	var resp *WsAccountInfo
+	return resp, b.SendWsRequest("account.status", params, &resp)
 }

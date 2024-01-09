@@ -3513,7 +3513,7 @@ func TestWsConnect(t *testing.T) {
 func TestGetWsOrderbook(t *testing.T) {
 	t.Parallel()
 	if !b.IsAPIStreamConnected() {
-		t.Skip("API streaming is not connected")
+		t.Skip(apiStreamingIsNotConnected)
 	}
 	_, err := b.GetWsOrderbook(&OrderBookDataRequestParams{Symbol: currency.NewPair(currency.BTC, currency.USDT), Limit: 1000})
 	if err != nil {
@@ -3524,7 +3524,7 @@ func TestGetWsOrderbook(t *testing.T) {
 func TestGetWsMostRecentTrades(t *testing.T) {
 	t.Parallel()
 	if !b.IsAPIStreamConnected() {
-		t.Skip("API streaming is not connected")
+		t.Skip(apiStreamingIsNotConnected)
 	}
 	_, err := b.GetWsMostRecentTrades(&RecentTradeRequestParams{
 		Symbol: currency.NewPair(currency.BTC, currency.USDT),
@@ -3538,7 +3538,7 @@ func TestGetWsMostRecentTrades(t *testing.T) {
 func TestGetWsAggregatedTrades(t *testing.T) {
 	t.Parallel()
 	if !b.IsAPIStreamConnected() {
-		t.Skip("API streaming is not connected")
+		t.Skip(apiStreamingIsNotConnected)
 	}
 	_, err := b.GetWsAggregatedTrades(&WsAggregateTradeRequestParams{
 		Symbol: currency.NewPair(currency.BTC, currency.USDT),
@@ -3553,7 +3553,7 @@ func TestGetWsKlines(t *testing.T) {
 	t.Parallel()
 	start, end := getTime()
 	if !b.IsAPIStreamConnected() {
-		t.Skip("API streaming is not connected")
+		t.Skip(apiStreamingIsNotConnected)
 	}
 	_, err := b.GetWsCandlestick(&KlinesRequestParams{
 		Symbol:    currency.NewPair(currency.BTC, currency.USDT),
@@ -3571,7 +3571,7 @@ func TestGetWsOptimizedCandlestick(t *testing.T) {
 	t.Parallel()
 	start, end := getTime()
 	if !b.IsAPIStreamConnected() {
-		t.Skip("API streaming is not connected")
+		t.Skip(apiStreamingIsNotConnected)
 	}
 	_, err := b.GetWsOptimizedCandlestick(&KlinesRequestParams{
 		Symbol:    currency.NewPair(currency.BTC, currency.USDT),
@@ -3653,18 +3653,6 @@ func TestGetWsSymbolOrderbookTicker(t *testing.T) {
 		currency.NewPair(currency.BTC, currency.USDT),
 		currency.NewPair(currency.ETH, currency.USDT),
 	})
-	if err != nil {
-		t.Fatal(err)
-	}
-}
-
-func TestWsLogin(t *testing.T) {
-	t.Parallel()
-	if !b.IsAPIStreamConnected() {
-		t.Skip(apiStreamingIsNotConnected)
-	}
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
-	_, err := b.WsAuthenticate()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -3882,7 +3870,7 @@ func TestWsTestNewOrderUsingSOR(t *testing.T) {
 	if !b.IsAPIStreamConnected() {
 		t.Skip(apiStreamingIsNotConnected)
 	}
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
 	err := b.WsTestNewOrderUsingSOR(&WsOSRPlaceOrderParams{
 		Symbol:      currency.NewPair(currency.BTC, currency.USDT),
 		Side:        "BUY",
@@ -3891,6 +3879,49 @@ func TestWsTestNewOrderUsingSOR(t *testing.T) {
 		TimeInForce: "GTC",
 		Price:       31000,
 	})
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestToMap(t *testing.T) {
+	t.Parallel()
+	input := &struct {
+		Zebiba bool   `json:"zebiba"`
+		Value  int64  `json:"value"`
+		Abebe  string `json:"abebe"`
+		Name   string `json:"name"`
+	}{
+		Name:  "theName",
+		Value: 347,
+	}
+	_, err := b.ToMap(input)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestSortingTest(t *testing.T) {
+	params := map[string]interface{}{"one": true, "two": false, "dos": false, "hulet": true, "aaa": true}
+	sortedKeys := []string{"aaa", "dos", "hulet", "one", "two"}
+	keys := SortMap(params)
+	if len(keys) != len(sortedKeys) {
+		t.Fatal("unexptected keys length")
+	}
+	for a := range keys {
+		if keys[a] != sortedKeys[a] {
+			t.Fatalf("unexpected keys expected: %v, got : %v", sortedKeys, keys)
+		}
+	}
+}
+
+func TestGetAccountInformation(t *testing.T) {
+	t.Parallel()
+	if !b.IsAPIStreamConnected() {
+		t.Skip(apiStreamingIsNotConnected)
+	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	_, err := b.GetAccountInformation(0)
 	if err != nil {
 		t.Fatal(err)
 	}
