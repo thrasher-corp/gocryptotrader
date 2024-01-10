@@ -3902,8 +3902,8 @@ func TestToMap(t *testing.T) {
 }
 
 func TestSortingTest(t *testing.T) {
-	params := map[string]interface{}{"one": true, "two": false, "dos": false, "hulet": true, "aaa": true}
-	sortedKeys := []string{"aaa", "dos", "hulet", "one", "two"}
+	params := map[string]interface{}{"apiKey": "wwhj3r3amR", "signature": "f89c6e5c0b", "timestamp": 1704873175325, "symbol": "BTCUSDT", "startTime": 1704009175325, "endTime": 1704873175325, "limit": 5}
+	sortedKeys := []string{"apiKey", "endTime", "limit", "signature", "startTime", "symbol", "timestamp"}
 	keys := SortMap(params)
 	if len(keys) != len(sortedKeys) {
 		t.Fatal("unexptected keys length")
@@ -3922,6 +3922,134 @@ func TestGetAccountInformation(t *testing.T) {
 	}
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	_, err := b.GetAccountInformation(0)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestWsQueryAccountOrderRateLimits(t *testing.T) {
+	t.Parallel()
+	if !b.IsAPIStreamConnected() {
+		t.Skip(apiStreamingIsNotConnected)
+	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	_, err := b.WsQueryAccountOrderRateLimits(0)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestWsQueryAccountOrderHistory(t *testing.T) {
+	t.Parallel()
+	if !b.IsAPIStreamConnected() {
+		t.Skip(apiStreamingIsNotConnected)
+	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	_, err := b.WsQueryAccountOrderHistory(&AccountOrderRequestParam{
+		Symbol:    currency.NewPair(currency.BTC, currency.USDT),
+		StartTime: time.Now().Add(-time.Hour * 24 * 10).UnixMilli(),
+		EndTime:   time.Now().Add(-time.Hour * 6).UnixMilli(),
+		Limit:     5,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestWsQueryAccountOCOOrderHistory(t *testing.T) {
+	t.Parallel()
+	if !b.IsAPIStreamConnected() {
+		t.Skip(apiStreamingIsNotConnected)
+	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	_, err := b.WsQueryAccountOCOOrderHistory(0, 0, 0, time.Time{}, time.Time{})
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestWsAccountTradeHistory(t *testing.T) {
+	t.Parallel()
+	if !b.IsAPIStreamConnected() {
+		t.Skip(apiStreamingIsNotConnected)
+	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	_, err := b.WsAccountTradeHistory(&AccountOrderRequestParam{
+		Symbol:  currency.NewPair(currency.BTC, currency.USDT),
+		OrderID: 1234,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestWsAccountPreventedMatches(t *testing.T) {
+	t.Parallel()
+	if !b.IsAPIStreamConnected() {
+		t.Skip(apiStreamingIsNotConnected)
+	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	_, err := b.WsAccountPreventedMatches(currency.NewPair(currency.BTC, currency.USDT), 1223456, 0, 0, 0, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestWsAccountAllocation(t *testing.T) {
+	t.Parallel()
+	if !b.IsAPIStreamConnected() {
+		t.Skip(apiStreamingIsNotConnected)
+	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	_, err := b.WsAccountAllocation(currency.NewPair(currency.BTC, currency.USDT), time.Time{}, time.Now(), 0, 0, 0, 19)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestWsAccountCommissionRates(t *testing.T) {
+	t.Parallel()
+	if !b.IsAPIStreamConnected() {
+		t.Skip(apiStreamingIsNotConnected)
+	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	_, err := b.WsAccountCommissionRates(currency.NewPair(currency.BTC, currency.USDT))
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestWsStartUserDataStream(t *testing.T) {
+	t.Parallel()
+	if !b.IsAPIStreamConnected() {
+		t.Skip(apiStreamingIsNotConnected)
+	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	_, err := b.WsStartUserDataStream()
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestWsPingUserDataStream(t *testing.T) {
+	t.Parallel()
+	if !b.IsAPIStreamConnected() {
+		t.Skip(apiStreamingIsNotConnected)
+	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	err := b.WsPingUserDataStream("xs0mRXdAKlIPDRFrlPcw0qI41Eh3ixNntmymGyhrhgqo7L6FuLaWArTD7RLP")
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestWsStopUserDataStream(t *testing.T) {
+	t.Parallel()
+	if !b.IsAPIStreamConnected() {
+		t.Skip(apiStreamingIsNotConnected)
+	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	err := b.WsStopUserDataStream("xs0mRXdAKlIPDRFrlPcw0qI41Eh3ixNntmymGyhrhgqo7L6FuLaWArTD7RLP")
 	if err != nil {
 		t.Fatal(err)
 	}

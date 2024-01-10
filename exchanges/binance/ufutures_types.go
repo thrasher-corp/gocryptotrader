@@ -483,7 +483,7 @@ type WsAccountInfo struct {
 	UpdateTime                 convert.ExchangeTime `json:"updateTime"`
 	AccountType                string               `json:"accountType"`
 	Balances                   []struct {
-		Asset  types.Number `json:"asset"`
+		Asset  string       `json:"asset"`
 		Free   types.Number `json:"free"`
 		Locked types.Number `json:"locked"`
 	} `json:"balances"`

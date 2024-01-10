@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -126,10 +127,11 @@ func (b *Binance) SendWsRequest(method string, param, result interface{}) error 
 		return err
 	}
 	resp := &struct {
-		ID     string             `json:"id"`
-		Status int64              `json:"status"`
-		Result interface{}        `json:"result"`
-		Error  *WebsocketAPIError `json:"error"`
+		ID         string             `json:"id"`
+		Status     int64              `json:"status"`
+		Result     interface{}        `json:"result"`
+		Error      *WebsocketAPIError `json:"error"`
+		Ratelimits []RateLimitItem    `json:"ratelimits,omitempty"`
 	}{
 		Result: result,
 	}
@@ -808,4 +810,251 @@ func (b *Binance) GetAccountInformation(recvWindow int64) (*WsAccountInfo, error
 	params["signature"] = signatures
 	var resp *WsAccountInfo
 	return resp, b.SendWsRequest("account.status", params, &resp)
+}
+
+// WsQueryAccountOrderRateLimits query your current order rate limit.
+func (b *Binance) WsQueryAccountOrderRateLimits(recvWindow int64) ([]RateLimitItem, error) {
+	params := map[string]interface{}{}
+	if recvWindow > 0 {
+		params["recvWindow"] = recvWindow
+	}
+	params["timestamp"] = time.Now().UnixMilli()
+	apiKey, signature, err := b.SignRequest(params)
+	if err != nil {
+		return nil, err
+	}
+	params["apiKey"] = apiKey
+	params["signature"] = signature
+	var resp []RateLimitItem
+	return resp, b.SendWsRequest("account.rateLimits.orders", params, &resp)
+}
+
+// WsQueryAccountOrderHistory query information about all your orders – active, canceled, filled – filtered by time range.
+// Status reports for orders are identical to order.status.
+func (b *Binance) WsQueryAccountOrderHistory(arg *AccountOrderRequestParam) ([]WsTradeOrder, error) {
+	if arg == nil {
+		return nil, errNilArgument
+	}
+	if arg.Symbol.IsEmpty() {
+		return nil, currency.ErrCurrencyCodeEmpty
+	}
+	arg.Timestamp = time.Now().UnixMilli()
+	apiKey, signature, err := b.getSignature(arg)
+	if err != nil {
+		return nil, err
+	}
+	arg.APIKey = apiKey
+	arg.Signature = signature
+	var resp []WsTradeOrder
+	return resp, b.SendWsRequest("allOrders", arg, &resp)
+}
+
+// WsQueryAccountOCOOrderHistory query information about all your OCOs, filtered by time range.
+// Status reports for OCOs are identical to orderList.status.
+func (b *Binance) WsQueryAccountOCOOrderHistory(fromID, limit, recvWindow int64, startTime, endTime time.Time) ([]OCOOrder, error) {
+	params := map[string]interface{}{}
+	if fromID != 0 {
+		params["fromId"] = fromID
+	}
+	if limit != 0 {
+		params["limit"] = limit
+	}
+	switch {
+	case !startTime.IsZero() && !endTime.IsZero():
+		if common.StartEndTimeCheck(startTime, endTime) == nil {
+			params["startTime"] = startTime.UnixMilli()
+			params["endTime"] = endTime.UnixMilli()
+		}
+	case !startTime.IsZero():
+		params["startTime"] = startTime.UnixMilli()
+	case !endTime.IsZero():
+		params["endTime"] = endTime.UnixMilli()
+	}
+	if recvWindow != 0 {
+		params["recvWindow"] = recvWindow
+	}
+	params["timestamp"] = time.Now().UnixMilli()
+	apiKey, signature, err := b.SignRequest(params)
+	if err != nil {
+		return nil, err
+	}
+	params["apiKey"] = apiKey
+	params["signature"] = signature
+	var resp []OCOOrder
+	return resp, b.SendWsRequest("allOrderLists", params, &resp)
+}
+
+// WsAccountTradeHistory query information about all your trades, filtered by time range.
+func (b *Binance) WsAccountTradeHistory(arg *AccountOrderRequestParam) ([]TradeHistory, error) {
+	if arg == nil {
+		return nil, errNilArgument
+	}
+	if arg.Symbol.IsEmpty() {
+		return nil, currency.ErrCurrencyPairEmpty
+	}
+	arg.Timestamp = time.Now().UnixMilli()
+	apiKey, signatures, err := b.getSignature(arg)
+	if err != nil {
+		return nil, err
+	}
+	arg.APIKey = apiKey
+	arg.Signature = signatures
+	var resp []TradeHistory
+	return resp, b.SendWsRequest("myTrades", arg, &resp)
+}
+
+// WsAccountPreventedMatches displays the list of orders that were expired because of STP trigger.
+//
+// These are the combinations supported:
+// symbol + preventedMatchId
+// symbol + orderId
+// symbol + orderId + fromPreventedMatchId (limit will default to 500)
+// symbol + orderId + fromPreventedMatchId + limit
+func (b *Binance) WsAccountPreventedMatches(symbol currency.Pair, preventedMatchID, orderID, fromPreventedMatchID, limit, recvWindow int64) ([]SelfTradePrevention, error) {
+	if symbol.IsEmpty() {
+		return nil, currency.ErrCurrencyPairEmpty
+	}
+	if orderID == 0 && preventedMatchID == 0 {
+		return nil, errors.New("either orderID or preventedMatchID is required")
+	}
+	params := map[string]interface{}{}
+	params["symbol"] = symbol
+	if preventedMatchID != 0 {
+		params["preventedMatchId"] = preventedMatchID
+	}
+	if orderID != 0 {
+		params["orderId"] = orderID
+	}
+	if fromPreventedMatchID != 0 {
+		params["fromPreventedMatchId"] = fromPreventedMatchID
+	}
+	if limit > 0 {
+		params["limit"] = limit
+	}
+	if recvWindow > 0 {
+		params["recvWindow"] = recvWindow
+	}
+	params["timestamp"] = time.Now().UnixMilli()
+	apiKey, signature, err := b.SignRequest(params)
+	if err != nil {
+		return nil, err
+	}
+	params["apiKey"] = apiKey
+	params["signature"] = signature
+	var resp []SelfTradePrevention
+	return resp, b.SendWsRequest("myPreventedMatches", params, &resp)
+}
+
+// WsAccountAllocation retrieves allocations resulting from SOR order placement.
+func (b *Binance) WsAccountAllocation(symbol currency.Pair, startTime, endTime time.Time, orderID, fromAllocationID, recvWindow, limit int64) ([]SORReplacements, error) {
+	if symbol.IsEmpty() {
+		return nil, currency.ErrCurrencyPairEmpty
+	}
+	params := map[string]interface{}{
+		"symbol": symbol.String(),
+	}
+	switch {
+	case !startTime.IsZero() && !endTime.IsZero():
+		if common.StartEndTimeCheck(startTime, endTime) == nil {
+			params["startTime"] = startTime.UnixMilli()
+			params["endTime"] = endTime.UnixMilli()
+		}
+	case !startTime.IsZero():
+		params["startTime"] = startTime.UnixMilli()
+	case !endTime.IsZero():
+		params["endTime"] = endTime.UnixMilli()
+	}
+	if fromAllocationID != 0 {
+		params["fromAllocationId"] = fromAllocationID
+	}
+	if limit > 0 {
+		params["limit"] = limit
+	}
+	if orderID > 0 {
+		params["orderId"] = orderID
+	}
+	if recvWindow > 0 {
+		params["recvWindow"] = recvWindow
+	}
+	params["timestamp"] = time.Now().UnixMilli()
+	apiKey, signature, err := b.SignRequest(params)
+	if err != nil {
+		return nil, err
+	}
+	params["apiKey"] = apiKey
+	params["signature"] = signature
+	var resp []SORReplacements
+	return resp, b.SendWsRequest("myAllocations", params, &resp)
+}
+
+// WsAccountCommissionRates get current account commission rates.
+func (b *Binance) WsAccountCommissionRates(symbol currency.Pair) (*CommissionRateInto, error) {
+	if symbol.IsEmpty() {
+		return nil, currency.ErrCurrencyPairEmpty
+	}
+	params := map[string]interface{}{
+		"symbol": symbol.String(),
+	}
+	params["timestamp"] = time.Now().UnixMilli()
+	apiKey, signature, err := b.SignRequest(params)
+	if err != nil {
+		return nil, err
+	}
+	params["apiKey"] = apiKey
+	params["signature"] = signature
+	var resp *CommissionRateInto
+	return resp, b.SendWsRequest("account.commission", params, &resp)
+}
+
+// --------------------------------- User Data Stream requests ---------------------------------
+
+// WsStartUserDataStream start a new user data stream.
+// The response will output a listen key that can be subscribed through on the Websocket stream afterwards.
+func (b *Binance) WsStartUserDataStream() (string, error) {
+	creds, err := b.GetCredentials(context.Background())
+	if err != nil {
+		return "", err
+	}
+	params := map[string]interface{}{
+		"apiKey": creds.Key,
+	}
+	resp := &struct {
+		ListenKey string `json:"listenKey,omitempty"`
+	}{}
+	return resp.ListenKey, b.SendWsRequest("userDataStream.start", params, &resp)
+}
+
+// WsPingUserDataStream ping a user data stream to keep it alive.
+// User data streams close automatically after 60 minutes, even if you're listening to them on WebSocket Streams.
+// In order to keep the stream open, you have to regularly send pings using the userDataStream.ping request.
+// It is recommended to send a ping once every 30 minutes.
+func (b *Binance) WsPingUserDataStream(listenKey string) error {
+	if listenKey == "" {
+		return errListenKeyIsRequired
+	}
+	creds, err := b.GetCredentials(context.Background())
+	if err != nil {
+		return err
+	}
+	params := map[string]interface{}{
+		"apiKey":    creds.Key,
+		"listenKey": listenKey,
+	}
+	return b.SendWsRequest("userDataStream.ping", params, struct{}{})
+}
+
+// WsStopUserDataStream explicitly stop and close the user data stream.
+func (b *Binance) WsStopUserDataStream(listenKey string) error {
+	if listenKey == "" {
+		return errListenKeyIsRequired
+	}
+	creds, err := b.GetCredentials(context.Background())
+	if err != nil {
+		return err
+	}
+	params := map[string]interface{}{
+		"apiKey":    creds.Key,
+		"listenKey": listenKey,
+	}
+	return b.SendWsRequest("userDataStream.stop", params, struct{}{})
 }

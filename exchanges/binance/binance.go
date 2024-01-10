@@ -125,6 +125,7 @@ var (
 	errNilArgument                            = errors.New("nil argument")
 	errWebsocketAPICallNotEnabled             = errors.New("websocket API connection not enabled")
 	errTimestampInfoRequired                  = errors.New("timestamp information is required")
+	errListenKeyIsRequired                    = errors.New("listen key is required")
 )
 
 // GetUndocumentedInterestHistory gets interest history for currency/currencies provided

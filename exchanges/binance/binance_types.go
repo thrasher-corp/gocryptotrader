@@ -459,6 +459,7 @@ type NewOrderResponse struct {
 }
 
 // WsTradeOrder represents a trade order returned through the websocket stream.
+// Note that some fields are optional and included only for orders that set them.
 type WsTradeOrder struct {
 	Symbol                  string               `json:"symbol"`
 	OrderID                 int64                `json:"orderId"`
@@ -482,6 +483,9 @@ type WsTradeOrder struct {
 	SelfTradePreventionMode string               `json:"selfTradePreventionMode"`
 	OrigClientOrderID       string               `json:"origClientOrderId"`
 	TransactTime            convert.ExchangeTime `json:"transactTime"`
+
+	PreventedMatchID  int64        `json:"preventedMatchId"`
+	PreventedQuantity types.Number `json:"preventedQuantity"`
 }
 
 // CancelOrderResponse is the return structured response from the exchange
@@ -1555,9 +1559,11 @@ type WebsocketActionResponse struct {
 
 // RateLimitItem holds ratelimit information for endpoint calls.
 type RateLimitItem struct {
-	RateLimitType string `json:"rateLimitType"`
-	Interval      string `json:"interval"`
-	Limit         int64  `json:"limit"`
+	RateLimitType  string `json:"rateLimitType"`
+	Interval       string `json:"interval"`
+	IntervalNumber int64  `json:"intervalNum"`
+	Limit          int64  `json:"limit"`
+	Count          int64  `json:"count"`
 }
 
 // SymbolAveragePrice represents the average symbol price
@@ -1960,4 +1966,87 @@ type OSROrder struct {
 	WorkingFloor            string `json:"workingFloor"`
 	SelfTradePreventionMode string `json:"selfTradePreventionMode"`
 	UsedSor                 bool   `json:"usedSor"`
+}
+
+// AccountOrderRequestParam retrieves an account order history parameters
+type AccountOrderRequestParam struct {
+	APISignatureInfo
+	EndTime    int64         `json:"endTime,omitempty"`
+	Limit      int64         `json:"limit,omitempty"`
+	OrderID    int64         `json:"orderId,omitempty"` // Order ID to begin at
+	RecvWindow int64         `json:"recvWindow,omitempty"`
+	StartTime  int64         `json:"startTime,omitempty"`
+	Symbol     currency.Pair `json:"symbol"`
+
+	// for requesting trades
+	FromID int64 `json:"fromId,omitempty"`
+}
+
+// TradeHistory holds trade history information.
+type TradeHistory struct {
+	Symbol          string               `json:"symbol"`
+	ID              int                  `json:"id"`
+	OrderID         int64                `json:"orderId"`
+	OrderListID     int                  `json:"orderListId"`
+	Price           types.Number         `json:"price"`
+	Qty             types.Number         `json:"qty"`
+	QuoteQty        types.Number         `json:"quoteQty"`
+	Commission      string               `json:"commission"`
+	CommissionAsset string               `json:"commissionAsset"`
+	Time            convert.ExchangeTime `json:"time"`
+	IsBuyer         bool                 `json:"isBuyer"`
+	IsMaker         bool                 `json:"isMaker"`
+	IsBestMatch     bool                 `json:"isBestMatch"`
+}
+
+// SelfTradePrevention represents a self-trade prevention instance.
+type SelfTradePrevention struct {
+	Symbol                  string               `json:"symbol"`
+	PreventedMatchID        int64                `json:"preventedMatchId"`
+	TakerOrderID            int64                `json:"takerOrderId"`
+	MakerOrderID            int64                `json:"makerOrderId"`
+	TradeGroupID            int64                `json:"tradeGroupId"`
+	SelfTradePreventionMode string               `json:"selfTradePreventionMode"`
+	Price                   types.Number         `json:"price"`
+	MakerPreventedQuantity  types.Number         `json:"makerPreventedQuantity"`
+	TransactTime            convert.ExchangeTime `json:"transactTime"`
+}
+
+// SORReplacements represents response instance after for Smart Order Routing(SOR) order placement.
+type SORReplacements struct {
+	Symbol          string               `json:"symbol"`
+	AllocationID    int64                `json:"allocationId"`
+	AllocationType  string               `json:"allocationType"`
+	OrderID         int64                `json:"orderId"`
+	OrderListID     int64                `json:"orderListId"`
+	Price           types.Number         `json:"price"`
+	Quantity        types.Number         `json:"qty"`
+	QuoteQty        types.Number         `json:"quoteQty"`
+	Commission      string               `json:"commission"`
+	CommissionAsset string               `json:"commissionAsset"`
+	Time            convert.ExchangeTime `json:"time"`
+	IsBuyer         bool                 `json:"isBuyer"`
+	IsMaker         bool                 `json:"isMaker"`
+	IsAllocator     bool                 `json:"isAllocator"`
+}
+
+// CommissionRateInto represents commission rate info.
+type CommissionRateInto struct {
+	Symbol             string          `json:"symbol"`
+	StandardCommission *CommissionInfo `json:"standardCommission"`
+	TaxCommission      *CommissionInfo `json:"taxCommission"`
+	Discount           struct {
+		EnabledForAccount bool   `json:"enabledForAccount"`
+		EnabledForSymbol  bool   `json:"enabledForSymbol"`
+		DiscountAsset     string `json:"discountAsset"`
+		Discount          string `json:"discount"`
+	} `json:"discount"`
+}
+
+// CommissionInfo holds tax and standard
+type CommissionInfo struct {
+	Maker  string `json:"maker"`
+	Taker  string `json:"taker"`
+	Buyer  string `json:"buyer"`
+	Seller string `json:"seller"`
 }
