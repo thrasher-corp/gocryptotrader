@@ -63,15 +63,6 @@ const (
 	accountInfo       = "/api/v3/account"
 	marginAccountInfo = "/sapi/v1/margin/account"
 
-	// Withdraw API endpoints
-	accountStatus                          = "/wapi/v3/accountStatus.html"
-	systemStatus                           = "/wapi/v3/systemStatus.html"
-	dustLog                                = "/wapi/v3/userAssetDribbletLog.html"
-	tradeFee                               = "/wapi/v3/tradeFee.html"
-	assetDetail                            = "/wapi/v3/assetDetail.html"
-	undocumentedInterestHistory            = "/gateway-api/v1/public/isolated-margin/pair/vip-level"
-	undocumentedCrossMarginInterestHistory = "/gateway-api/v1/friendly/margin/vip/spec/list-all"
-
 	// Wallet endpoints
 	allCoinsInfo     = "/sapi/v1/capital/config/getall"
 	withdrawEndpoint = "/sapi/v1/capital/withdraw/apply"
