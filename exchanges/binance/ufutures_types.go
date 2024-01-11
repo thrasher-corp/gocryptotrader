@@ -461,32 +461,3 @@ type WebsocketAPIError struct {
 	Code    int64  `json:"code"`
 	Message string `json:"msg"`
 }
-
-// WsAccountInfo holds account information detail.
-type WsAccountInfo struct {
-	MakerCommission  types.Number `json:"makerCommission"`
-	TakerCommission  types.Number `json:"takerCommission"`
-	BuyerCommission  types.Number `json:"buyerCommission"`
-	SellerCommission types.Number `json:"sellerCommission"`
-	CanTrade         bool         `json:"canTrade"`
-	CanWithdraw      bool         `json:"canWithdraw"`
-	CanDeposit       bool         `json:"canDeposit"`
-	CommissionRates  struct {
-		Maker  types.Number `json:"maker"`
-		Taker  types.Number `json:"taker"`
-		Buyer  types.Number `json:"buyer"`
-		Seller types.Number `json:"seller"`
-	} `json:"commissionRates"`
-	Brokered                   bool                 `json:"brokered"`
-	RequireSelfTradePrevention bool                 `json:"requireSelfTradePrevention"`
-	PreventSor                 bool                 `json:"preventSor"`
-	UpdateTime                 convert.ExchangeTime `json:"updateTime"`
-	AccountType                string               `json:"accountType"`
-	Balances                   []struct {
-		Asset  string       `json:"asset"`
-		Free   types.Number `json:"free"`
-		Locked types.Number `json:"locked"`
-	} `json:"balances"`
-	Permissions []string `json:"permissions"`
-	UID         int64    `json:"uid"`
-}

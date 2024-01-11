@@ -376,24 +376,27 @@ type AveragePrice struct {
 // PriceChangeStats contains statistics for the last 24 hours trade
 type PriceChangeStats struct {
 	Symbol             string               `json:"symbol"`
-	PriceChange        float64              `json:"priceChange,string"`
-	PriceChangePercent float64              `json:"priceChangePercent,string"`
-	WeightedAvgPrice   float64              `json:"weightedAvgPrice,string"`
-	PrevClosePrice     float64              `json:"prevClosePrice,string"`
-	LastPrice          float64              `json:"lastPrice,string"`
-	LastQty            float64              `json:"lastQty,string"`
-	BidPrice           float64              `json:"bidPrice,string"`
-	AskPrice           float64              `json:"askPrice,string"`
-	OpenPrice          float64              `json:"openPrice,string"`
-	HighPrice          float64              `json:"highPrice,string"`
-	LowPrice           float64              `json:"lowPrice,string"`
-	Volume             float64              `json:"volume,string"`
-	QuoteVolume        float64              `json:"quoteVolume,string"`
+	PriceChange        types.Number         `json:"priceChange"`
+	PriceChangePercent types.Number         `json:"priceChangePercent"`
+	WeightedAvgPrice   types.Number         `json:"weightedAvgPrice"`
+	PrevClosePrice     types.Number         `json:"prevClosePrice"`
+	LastPrice          types.Number         `json:"lastPrice"`
+	OpenPrice          types.Number         `json:"openPrice"`
+	HighPrice          types.Number         `json:"highPrice"`
+	LowPrice           types.Number         `json:"lowPrice"`
+	Volume             types.Number         `json:"volume"`
+	QuoteVolume        types.Number         `json:"quoteVolume"`
 	OpenTime           convert.ExchangeTime `json:"openTime"`
 	CloseTime          convert.ExchangeTime `json:"closeTime"`
 	FirstID            int64                `json:"firstId"`
 	LastID             int64                `json:"lastId"`
 	Count              int64                `json:"count"`
+
+	LastQty  types.Number `json:"lastQty"`
+	BidPrice types.Number `json:"bidPrice"`
+	BidQty   types.Number `json:"bidQty"`
+	AskPrice types.Number `json:"askPrice"`
+	AskQty   types.Number `json:"askQty"`
 }
 
 // SymbolPrice holds basic symbol price
@@ -458,9 +461,19 @@ type NewOrderResponse struct {
 	} `json:"fills"`
 }
 
-// WsTradeOrder represents a trade order returned through the websocket stream.
+// CancelOrderResponse is the return structured response from the exchange
+type CancelOrderResponse struct {
+	Symbol            string `json:"symbol"`
+	OrigClientOrderID string `json:"origClientOrderId"`
+	OrderID           int64  `json:"orderId"`
+	ClientOrderID     string `json:"clientOrderId"`
+}
+
+// TradeOrder holds query order data
 // Note that some fields are optional and included only for orders that set them.
-type WsTradeOrder struct {
+type TradeOrder struct {
+	Code                    int64                `json:"code"`
+	Msg                     string               `json:"msg"`
 	Symbol                  string               `json:"symbol"`
 	OrderID                 int64                `json:"orderId"`
 	OrderListID             int64                `json:"orderListId"`
@@ -488,38 +501,6 @@ type WsTradeOrder struct {
 	PreventedQuantity types.Number `json:"preventedQuantity"`
 }
 
-// CancelOrderResponse is the return structured response from the exchange
-type CancelOrderResponse struct {
-	Symbol            string `json:"symbol"`
-	OrigClientOrderID string `json:"origClientOrderId"`
-	OrderID           int64  `json:"orderId"`
-	ClientOrderID     string `json:"clientOrderId"`
-}
-
-// QueryOrderData holds query order data
-type QueryOrderData struct {
-	Code                int64                `json:"code"`
-	Msg                 string               `json:"msg"`
-	Symbol              string               `json:"symbol"`
-	OrderID             int64                `json:"orderId"`
-	ClientOrderID       string               `json:"clientOrderId"`
-	Price               float64              `json:"price,string"`
-	OrigQty             float64              `json:"origQty,string"`
-	ExecutedQty         float64              `json:"executedQty,string"`
-	Status              string               `json:"status"`
-	TimeInForce         string               `json:"timeInForce"`
-	Type                string               `json:"type"`
-	Side                string               `json:"side"`
-	StopPrice           float64              `json:"stopPrice,string"`
-	IcebergQty          float64              `json:"icebergQty,string"`
-	Time                convert.ExchangeTime `json:"time"`
-	IsWorking           bool                 `json:"isWorking"`
-	CummulativeQuoteQty float64              `json:"cummulativeQuoteQty,string"`
-	OrderListID         int64                `json:"orderListId"`
-	OrigQuoteOrderQty   float64              `json:"origQuoteOrderQty,string"`
-	UpdateTime          convert.ExchangeTime `json:"updateTime"`
-}
-
 // Balance holds query order data
 type Balance struct {
 	Asset  string          `json:"asset"`
@@ -529,15 +510,27 @@ type Balance struct {
 
 // Account holds the account data
 type Account struct {
-	MakerCommission  int64                `json:"makerCommission"`
-	TakerCommission  int64                `json:"takerCommission"`
-	BuyerCommission  int64                `json:"buyerCommission"`
-	SellerCommission int64                `json:"sellerCommission"`
-	CanTrade         bool                 `json:"canTrade"`
-	CanWithdraw      bool                 `json:"canWithdraw"`
-	CanDeposit       bool                 `json:"canDeposit"`
-	UpdateTime       convert.ExchangeTime `json:"updateTime"`
-	Balances         []Balance            `json:"balances"`
+	UID              int64        `json:"uid"`
+	MakerCommission  types.Number `json:"makerCommission"`
+	TakerCommission  types.Number `json:"takerCommission"`
+	BuyerCommission  types.Number `json:"buyerCommission"`
+	SellerCommission types.Number `json:"sellerCommission"`
+	CanTrade         bool         `json:"canTrade"`
+	CanWithdraw      bool         `json:"canWithdraw"`
+	CanDeposit       bool         `json:"canDeposit"`
+	CommissionRates  struct {
+		Maker  types.Number `json:"maker"`
+		Taker  types.Number `json:"taker"`
+		Buyer  types.Number `json:"buyer"`
+		Seller types.Number `json:"seller"`
+	} `json:"commissionRates"`
+	Brokered                   bool                 `json:"brokered"`
+	RequireSelfTradePrevention bool                 `json:"requireSelfTradePrevention"`
+	PreventSor                 bool                 `json:"preventSor"`
+	UpdateTime                 convert.ExchangeTime `json:"updateTime"`
+	AccountType                string               `json:"accountType"`
+	Balances                   []Balance            `json:"balances"`
+	Permissions                []string             `json:"permissions"`
 }
 
 // MarginAccount holds the margin account data
@@ -1573,43 +1566,16 @@ type SymbolAveragePrice struct {
 	CloseTime         convert.ExchangeTime `json:"closeTime"`
 }
 
-// WsTickerPriceChange 24hr ticker price change statistics
-type WsTickerPriceChange struct {
-	Symbol             string               `json:"symbol"`
-	PriceChange        types.Number         `json:"priceChange"`
-	PriceChangePercent types.Number         `json:"priceChangePercent"`
-	WeightedAvgPrice   types.Number         `json:"weightedAvgPrice"`
-	PrevClosePrice     types.Number         `json:"prevClosePrice"`
-	LastPrice          types.Number         `json:"lastPrice"`
-	OpenPrice          types.Number         `json:"openPrice"`
-	HighPrice          types.Number         `json:"highPrice"`
-	LowPrice           types.Number         `json:"lowPrice"`
-	Volume             types.Number         `json:"volume"`
-	QuoteVolume        types.Number         `json:"quoteVolume"`
-	OpenTime           convert.ExchangeTime `json:"openTime"`
-	CloseTime          convert.ExchangeTime `json:"closeTime"`
-	FirstID            int64                `json:"firstId"`
-	LastID             int64                `json:"lastId"`
-	Count              int64                `json:"count"`
-
-	LastQty  types.Number `json:"lastQty"`
-	BidPrice types.Number `json:"bidPrice"`
-	BidQty   types.Number `json:"bidQty"`
-	AskPrice types.Number `json:"askPrice"`
-	AskQty   types.Number `json:"askQty"`
-}
-
 // PriceChangeRequestParam holds request parameters for price change request parameters
 type PriceChangeRequestParam struct {
-	Symbol       currency.Pair   `json:"-"`
-	SymbolString string          `json:"symbol,omitempty"`
-	Symbols      []currency.Pair `json:"symbols,omitempty"`
-	Timezone     string          `json:"timeZone,omitempty"`
-	TickerType   string          `json:"type,omitempty"`
+	Symbol     currency.Pair   `json:"symbol,omitempty"`
+	Symbols    []currency.Pair `json:"symbols,omitempty"`
+	Timezone   string          `json:"timeZone,omitempty"`
+	TickerType string          `json:"type,omitempty"`
 }
 
 // PriceChanges holds a single or slice of WsTickerPriceChange instance into a new type.
-type PriceChanges []WsTickerPriceChange
+type PriceChanges []PriceChangeStats
 
 // WsRollingWindowPriceParams rolling window price change statistics request params
 type WsRollingWindowPriceParams struct {
@@ -1826,24 +1792,27 @@ type WsCancelOrder struct {
 		OrderID       int64  `json:"orderId"`
 		ClientOrderID string `json:"clientOrderId"`
 	} `json:"orders,omitempty"`
-	OrderReports []struct {
-		Symbol                  string               `json:"symbol"`
-		OrigClientOrderID       string               `json:"origClientOrderId"`
-		OrderID                 int64                `json:"orderId"`
-		OrderListID             int64                `json:"orderListId"`
-		ClientOrderID           string               `json:"clientOrderId"`
-		TransactTime            convert.ExchangeTime `json:"transactTime"`
-		Price                   types.Number         `json:"price"`
-		OrigQty                 types.Number         `json:"origQty"`
-		ExecutedQty             types.Number         `json:"executedQty"`
-		CummulativeQuoteQty     types.Number         `json:"cummulativeQuoteQty"`
-		Status                  string               `json:"status"`
-		TimeInForce             string               `json:"timeInForce"`
-		Type                    string               `json:"type"`
-		Side                    string               `json:"side"`
-		StopPrice               types.Number         `json:"stopPrice,omitempty"`
-		SelfTradePreventionMode string               `json:"selfTradePreventionMode"`
-	} `json:"orderReports,omitempty"`
+	OrderReports []OrderReportItem `json:"orderReports,omitempty"`
+}
+
+// OrderReportItem represents a single order report instance.
+type OrderReportItem struct {
+	Symbol                  string               `json:"symbol"`
+	OrigClientOrderID       string               `json:"origClientOrderId"`
+	OrderID                 int64                `json:"orderId"`
+	OrderListID             int64                `json:"orderListId"`
+	ClientOrderID           string               `json:"clientOrderId"`
+	TransactTime            convert.ExchangeTime `json:"transactTime"`
+	Price                   types.Number         `json:"price"`
+	OrigQty                 types.Number         `json:"origQty"`
+	ExecutedQty             types.Number         `json:"executedQty"`
+	CummulativeQuoteQty     types.Number         `json:"cummulativeQuoteQty"`
+	Status                  string               `json:"status"`
+	TimeInForce             string               `json:"timeInForce"`
+	Type                    string               `json:"type"`
+	Side                    string               `json:"side"`
+	StopPrice               types.Number         `json:"stopPrice,omitempty"`
+	SelfTradePreventionMode string               `json:"selfTradePreventionMode"`
 }
 
 // OCOOrder represents a one-close-other order type.

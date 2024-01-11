@@ -13,15 +13,15 @@ func timeString(t time.Time) string {
 
 // UnmarshalJSON deserializes the data to unmarshal into WsTickerPriceChange or []WsTickerPriceChange
 func (a *PriceChanges) UnmarshalJSON(data []byte) error {
-	var resp []WsTickerPriceChange
+	var resp []PriceChangeStats
 	err := json.Unmarshal(data, &resp)
 	if err != nil {
-		var singleResp WsTickerPriceChange
+		var singleResp PriceChangeStats
 		err := json.Unmarshal(data, &singleResp)
 		if err != nil {
 			return err
 		}
-		*a = []WsTickerPriceChange{singleResp}
+		*a = []PriceChangeStats{singleResp}
 	} else {
 		*a = resp
 	}

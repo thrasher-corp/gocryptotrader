@@ -3772,6 +3772,18 @@ func TestWsCancelAndReplaceTradeOrder(t *testing.T) {
 	}
 }
 
+func TestWsCurrentOpenOrders(t *testing.T) {
+	t.Parallel()
+	if !b.IsAPIStreamConnected() {
+		t.Skip(apiStreamingIsNotConnected)
+	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	_, err := b.WsCurrentOpenOrders(currency.NewPair(currency.BTC, currency.USDT), 6000)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestWsCancelOpenOrders(t *testing.T) {
 	t.Parallel()
 	if !b.IsAPIStreamConnected() {
@@ -3921,7 +3933,7 @@ func TestGetAccountInformation(t *testing.T) {
 		t.Skip(apiStreamingIsNotConnected)
 	}
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
-	_, err := b.GetAccountInformation(0)
+	_, err := b.GetWsAccountInfo(0)
 	if err != nil {
 		t.Fatal(err)
 	}

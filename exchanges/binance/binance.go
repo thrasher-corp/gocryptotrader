@@ -630,8 +630,8 @@ func (b *Binance) CancelExistingOrder(ctx context.Context, symbol currency.Pair,
 // OpenOrders Current open orders. Get all open orders on a symbol.
 // Careful when accessing this with no symbol: The number of requests counted
 // against the rate limiter is significantly higher
-func (b *Binance) OpenOrders(ctx context.Context, pair currency.Pair) ([]QueryOrderData, error) {
-	var resp []QueryOrderData
+func (b *Binance) OpenOrders(ctx context.Context, pair currency.Pair) ([]TradeOrder, error) {
+	var resp []TradeOrder
 	params := url.Values{}
 	var p string
 	var err error
@@ -662,8 +662,8 @@ func (b *Binance) OpenOrders(ctx context.Context, pair currency.Pair) ([]QueryOr
 // AllOrders Get all account orders; active, canceled, or filled.
 // orderId optional param
 // limit optional param, default 500; max 500
-func (b *Binance) AllOrders(ctx context.Context, symbol currency.Pair, orderID, limit string) ([]QueryOrderData, error) {
-	var resp []QueryOrderData
+func (b *Binance) AllOrders(ctx context.Context, symbol currency.Pair, orderID, limit string) ([]TradeOrder, error) {
+	var resp []TradeOrder
 
 	params := url.Values{}
 	symbolValue, err := b.FormatSymbol(symbol, asset.Spot)
@@ -690,8 +690,8 @@ func (b *Binance) AllOrders(ctx context.Context, symbol currency.Pair, orderID, 
 }
 
 // QueryOrder returns information on a past order
-func (b *Binance) QueryOrder(ctx context.Context, symbol currency.Pair, origClientOrderID string, orderID int64) (QueryOrderData, error) {
-	var resp QueryOrderData
+func (b *Binance) QueryOrder(ctx context.Context, symbol currency.Pair, origClientOrderID string, orderID int64) (TradeOrder, error) {
+	var resp TradeOrder
 	params := url.Values{}
 	symbolValue, err := b.FormatSymbol(symbol, asset.Spot)
 	if err != nil {

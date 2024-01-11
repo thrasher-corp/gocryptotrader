@@ -289,27 +289,24 @@ func (b *Binance) GetWsCurrenctAveragePrice(symbol currency.Pair) (*SymbolAverag
 // GetWs24HourPriceChanges 24-hour rolling window price changes statistics through the websocket stream.
 // 'type': 'FULL' (default) or 'MINI'
 // 'timeZone' Default: 0 (UTC)
-func (b *Binance) GetWs24HourPriceChanges(arg *PriceChangeRequestParam) ([]WsTickerPriceChange, error) {
+func (b *Binance) GetWs24HourPriceChanges(arg *PriceChangeRequestParam) ([]PriceChangeStats, error) {
 	return b.tickerDataChange("ticker.24hr", arg)
 }
 
 // GetWsTradingDayTickers price change statistics for a trading day.
 // 'type': 'FULL' (default) or 'MINI'
 // 'timeZone' Default: 0 (UTC)
-func (b *Binance) GetWsTradingDayTickers(arg *PriceChangeRequestParam) ([]WsTickerPriceChange, error) {
+func (b *Binance) GetWsTradingDayTickers(arg *PriceChangeRequestParam) ([]PriceChangeStats, error) {
 	return b.tickerDataChange("ticker.tradingDay", arg)
 }
 
 // tickerDataChange unifying method to make price change requests through the websocket stream.
-func (b *Binance) tickerDataChange(method string, arg *PriceChangeRequestParam) ([]WsTickerPriceChange, error) {
+func (b *Binance) tickerDataChange(method string, arg *PriceChangeRequestParam) ([]PriceChangeStats, error) {
 	if arg == nil {
 		return nil, errNilArgument
 	}
 	if arg.Symbol.IsEmpty() && len(arg.Symbols) == 0 {
 		return nil, currency.ErrCurrencyPairsEmpty
-	}
-	if !arg.Symbol.IsEmpty() {
-		arg.SymbolString = arg.Symbol.String()
 	}
 	var resp PriceChanges
 	return resp, b.SendWsRequest(method, arg, &resp)
@@ -339,7 +336,7 @@ func (b *Binance) GetSymbolPriceTicker(symbol currency.Pair) ([]SymbolTickerItem
 
 // GetWsRollingWindowPriceChanges retrieves rolling window price change statistics with a custom window.
 // this request is similar to ticker.24hr, but statistics are computed on demand using the arbitrary window you specify
-func (b *Binance) GetWsRollingWindowPriceChanges(arg *WsRollingWindowPriceParams) ([]WsTickerPriceChange, error) {
+func (b *Binance) GetWsRollingWindowPriceChanges(arg *WsRollingWindowPriceParams) ([]PriceChangeStats, error) {
 	if arg.Symbol.IsEmpty() && len(arg.Symbols) == 0 {
 		return nil, currency.ErrSymbolStringEmpty
 	}
@@ -497,22 +494,22 @@ func (b *Binance) ValidatePlaceNewOrderRequest(arg *TradeOrderRequestParam) erro
 }
 
 // WsQueryOrder to query a trade order
-func (b *Binance) WsQueryOrder(arg *QueryOrderParam) (*WsTradeOrder, error) {
+func (b *Binance) WsQueryOrder(arg *QueryOrderParam) (*TradeOrder, error) {
 	err := b.signParam(arg)
 	if err != nil {
 		return nil, err
 	}
-	var resp *WsTradeOrder
+	var resp *TradeOrder
 	return resp, b.SendWsRequest("order.status", arg, &resp)
 }
 
 // WsCancelOrder cancel an active order.
-func (b *Binance) WsCancelOrder(arg *QueryOrderParam) (*WsTradeOrder, error) {
+func (b *Binance) WsCancelOrder(arg *QueryOrderParam) (*TradeOrder, error) {
 	err := b.signParam(arg)
 	if err != nil {
 		return nil, err
 	}
-	var resp *WsTradeOrder
+	var resp *TradeOrder
 	return resp, b.SendWsRequest("order.cancel", &arg, &resp)
 }
 
@@ -587,7 +584,7 @@ func (b *Binance) openOrdersFilter(symbol currency.Pair, recvWindow int64) (map[
 }
 
 // WsCurrentOpenOrders retrieves list of open orders.
-func (b *Binance) WsCurrentOpenOrders(symbol currency.Pair, recvWindow int64) ([]WsCancelOrder, error) {
+func (b *Binance) WsCurrentOpenOrders(symbol currency.Pair, recvWindow int64) ([]TradeOrder, error) {
 	arg, err := b.openOrdersFilter(symbol, recvWindow)
 	if err != nil {
 		return nil, err
@@ -599,7 +596,7 @@ func (b *Binance) WsCurrentOpenOrders(symbol currency.Pair, recvWindow int64) ([
 	}
 	arg["apiKey"] = apiKey
 	arg["signature"] = signature
-	var resp []WsCancelOrder
+	var resp []TradeOrder
 	return resp, b.SendWsRequest("openOrders.status", arg, &resp)
 }
 
@@ -795,8 +792,8 @@ func (b *Binance) ToMap(input interface{}) (map[string]interface{}, error) {
 
 // ------------------------------------------- Account Requests --------------------------------
 
-// GetAccountInformation query information about your account.
-func (b *Binance) GetAccountInformation(recvWindow int64) (*WsAccountInfo, error) {
+// GetWsAccountInfo query information about your account.
+func (b *Binance) GetWsAccountInfo(recvWindow int64) (*Account, error) {
 	params := map[string]interface{}{}
 	if recvWindow != 0 {
 		params["recvWindow"] = recvWindow
@@ -808,7 +805,7 @@ func (b *Binance) GetAccountInformation(recvWindow int64) (*WsAccountInfo, error
 	}
 	params["apiKey"] = apiKey
 	params["signature"] = signatures
-	var resp *WsAccountInfo
+	var resp *Account
 	return resp, b.SendWsRequest("account.status", params, &resp)
 }
 
@@ -831,7 +828,7 @@ func (b *Binance) WsQueryAccountOrderRateLimits(recvWindow int64) ([]RateLimitIt
 
 // WsQueryAccountOrderHistory query information about all your orders – active, canceled, filled – filtered by time range.
 // Status reports for orders are identical to order.status.
-func (b *Binance) WsQueryAccountOrderHistory(arg *AccountOrderRequestParam) ([]WsTradeOrder, error) {
+func (b *Binance) WsQueryAccountOrderHistory(arg *AccountOrderRequestParam) ([]TradeOrder, error) {
 	if arg == nil {
 		return nil, errNilArgument
 	}
@@ -845,7 +842,7 @@ func (b *Binance) WsQueryAccountOrderHistory(arg *AccountOrderRequestParam) ([]W
 	}
 	arg.APIKey = apiKey
 	arg.Signature = signature
-	var resp []WsTradeOrder
+	var resp []TradeOrder
 	return resp, b.SendWsRequest("allOrders", arg, &resp)
 }
 
