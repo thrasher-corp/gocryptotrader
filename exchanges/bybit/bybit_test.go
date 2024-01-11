@@ -2920,59 +2920,6 @@ func TestGetBrokerEarning(t *testing.T) {
 	}
 }
 
-func instantiateTradablePairs() error {
-	err := b.UpdateTradablePairs(context.Background(), true)
-	if err != nil {
-		return err
-	}
-	tradables, err := b.GetEnabledPairs(asset.Spot)
-	if err != nil {
-		return err
-	}
-	format, err := b.GetPairFormat(asset.Spot, true)
-	if err != nil {
-		return err
-	}
-	spotTradablePair = tradables[0].Format(format)
-	tradables, err = b.GetEnabledPairs(asset.USDTMarginedFutures)
-	if err != nil {
-		return err
-	}
-	format, err = b.GetPairFormat(asset.USDTMarginedFutures, true)
-	if err != nil {
-		return err
-	}
-	usdtMarginedTradablePair = tradables[0].Format(format)
-	tradables, err = b.GetEnabledPairs(asset.USDCMarginedFutures)
-	if err != nil {
-		return err
-	}
-	format, err = b.GetPairFormat(asset.USDCMarginedFutures, true)
-	if err != nil {
-		return err
-	}
-	usdcMarginedTradablePair = tradables[0].Format(format)
-	tradables, err = b.GetEnabledPairs(asset.CoinMarginedFutures)
-	if err != nil {
-		return err
-	}
-	format, err = b.GetPairFormat(asset.CoinMarginedFutures, true)
-	if err != nil {
-		return err
-	}
-	inverseTradablePair = tradables[0].Format(format)
-	tradables, err = b.GetEnabledPairs(asset.Options)
-	if err != nil {
-		return err
-	}
-	format, err = b.GetPairFormat(asset.Options, true)
-	if err != nil {
-		return err
-	}
-	optionsTradablePair = tradables[0].Format(format)
-	return nil
-}
-
 func TestUpdateAccountInfo(t *testing.T) {
 	t.Parallel()
 	if mockTests {
