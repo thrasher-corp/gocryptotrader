@@ -1479,27 +1479,20 @@ func TestNewOrderTest(t *testing.T) {
 
 func TestGetHistoricTrades(t *testing.T) {
 	t.Parallel()
-	currencyPair, err := currency.NewPairFromString("BTCUSDT")
-	if err != nil {
-		t.Fatal(err)
-	}
-	start, err := time.Parse(time.RFC3339, "2020-01-02T15:04:05Z")
-	if err != nil {
-		t.Fatal(err)
-	}
-	result, err := b.GetHistoricTrades(context.Background(),
-		currencyPair, asset.Spot, start, start.Add(15*time.Minute))
-	if err != nil {
-		t.Error(err)
-	}
-	var expected int
+	p := currency.NewPair(currency.BTC, currency.USDT)
+	start := time.Unix(1577977445, 0)  // 2020-01-02 15:04:05
+	end := start.Add(15 * time.Minute) // 2020-01-02 15:19:05
+	result, err := b.GetHistoricTrades(context.Background(), p, asset.Spot, start, end)
+	assert.NoError(t, err, "GetHistoricTrades should not error")
+	expected := 2134
 	if mockTests {
-		expected = 5
-	} else {
-		expected = 2134
+		expected = 1002
 	}
-	if len(result) != expected {
-		t.Errorf("GetHistoricTrades() expected %v entries, got %v", expected, len(result))
+	assert.Equal(t, expected, len(result), "GetHistoricTrades should return correct number of entries") // assert.Len doesn't produce clear messages on result
+	for _, r := range result {
+		if !assert.WithinRange(t, r.Timestamp, start, end, "All trades should be within time range") {
+			break
+		}
 	}
 }
 
