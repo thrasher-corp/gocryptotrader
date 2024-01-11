@@ -192,7 +192,8 @@ func executeExchangeWrapperTests(ctx context.Context, t *testing.T, exch exchang
 				input.AssignableTo(orderCancelParam) ||
 				input.AssignableTo(orderCancelsParam) ||
 				input.AssignableTo(pairKeySliceParam) ||
-				input.AssignableTo(getOrdersRequestParam) {
+				input.AssignableTo(getOrdersRequestParam) ||
+				input.AssignableTo(pairKeySliceParam) {
 				// this allows wrapper functions that support assets types
 				// to be tested with all supported assets
 				assetLen = len(assetParams) - 1

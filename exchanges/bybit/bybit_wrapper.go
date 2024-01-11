@@ -37,11 +37,11 @@ import (
 // GetDefaultConfig returns a default exchange config
 func (by *Bybit) GetDefaultConfig(ctx context.Context) (*config.Exchange, error) {
 	by.SetDefaults()
-	exchCfg := new(config.Exchange)
-	exchCfg.Name = by.Name
-	exchCfg.HTTPTimeout = exchange.DefaultHTTPTimeout
-	exchCfg.BaseCurrencies = by.BaseCurrencies
-	err := by.SetupDefaults(exchCfg)
+	exchCfg, err := by.GetStandardConfig()
+	if err != nil {
+		return nil, err
+	}
+	err = by.SetupDefaults(exchCfg)
 	if err != nil {
 		return nil, err
 	}
@@ -156,6 +156,23 @@ func (by *Bybit) SetDefaults() {
 				exchange.AutoWithdrawFiat,
 			Kline: kline.ExchangeCapabilitiesSupported{
 				Intervals: true,
+			},
+			FuturesCapabilities: exchange.FuturesCapabilities{
+				FundingRates: true,
+				FundingRateBatching: map[asset.Item]bool{
+					asset.USDCMarginedFutures: true,
+					asset.USDTMarginedFutures: true,
+					asset.CoinMarginedFutures: true,
+				},
+				SupportedFundingRateFrequencies: map[kline.Interval]bool{
+					kline.FourHour:  true,
+					kline.EightHour: true,
+				},
+				OpenInterest: exchange.OpenInterestSupport{
+					Supported:          true,
+					SupportedViaTicker: true,
+					SupportsRestBatch:  true,
+				},
 			},
 		},
 		Enabled: exchange.FeaturesEnabled{
@@ -1944,7 +1961,7 @@ func (by *Bybit) GetLatestFundingRates(ctx context.Context, r *fundingrate.Lates
 				Asset:       r.Asset,
 				Pair:        cp,
 				LatestRate: fundingrate.Rate{
-					Time: ticks.List[i].NextFundingTime.Time().Add(-time.Hour * 8),
+					// TODO: populate start time
 					Rate: decimal.NewFromFloat(ticks.List[i].FundingRate.Float64()),
 				},
 				TimeOfNextRate: ticks.List[i].NextFundingTime.Time(),
@@ -1959,7 +1976,78 @@ func (by *Bybit) GetLatestFundingRates(ctx context.Context, r *fundingrate.Lates
 }
 
 // GetOpenInterest returns the open interest rate for a given asset pair
-func (by *Bybit) GetOpenInterest(context.Context, ...key.PairAsset) ([]futures.OpenInterest, error) {
-	// TODO: implement with v5 API upgrade
-	return nil, common.ErrNotYetImplemented
+func (by *Bybit) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]futures.OpenInterest, error) {
+	by.Verbose = true
+	for i := range k {
+		if k[i].Asset != asset.USDCMarginedFutures &&
+			k[i].Asset != asset.USDTMarginedFutures &&
+			k[i].Asset != asset.CoinMarginedFutures {
+			return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, k[i].Asset)
+		}
+	}
+	if resp, err := by.GetCachedOpenInterest(ctx, k...); err == nil && len(resp) > 0 {
+		return resp, nil
+	}
+
+	if len(k) == 1 {
+		formattedPair, err := by.FormatExchangeCurrency(k[0].Pair(), k[0].Asset)
+		if err != nil {
+			return nil, err
+		}
+		if _, parseErr := time.Parse(longDatedFormat, k[0].Quote.Symbol); parseErr == nil {
+			// long-dated contracts have a delimiter
+			formattedPair.Delimiter = currency.DashDelimiter
+		}
+		pFmt := formattedPair.String()
+		var ticks *TickerData
+		ticks, err = by.GetTickers(ctx, getCategoryName(k[0].Asset), pFmt, "", time.Time{})
+		if err != nil {
+			return nil, err
+		}
+		for i := range ticks.List {
+			if ticks.List[i].Symbol != pFmt {
+				continue
+			}
+			return []futures.OpenInterest{{
+				Key: key.ExchangePairAsset{
+					Exchange: by.Name,
+					Asset:    k[0].Asset,
+					Base:     k[0].Base,
+					Quote:    k[0].Quote,
+				},
+				OpenInterest: ticks.List[i].OpenInterest.Float64(),
+			}}, nil
+		}
+	}
+	assets := []asset.Item{asset.USDCMarginedFutures, asset.USDTMarginedFutures, asset.CoinMarginedFutures}
+	var resp []futures.OpenInterest
+	for i := range assets {
+		ticks, err := by.GetTickers(ctx, getCategoryName(assets[i]), "", "", time.Time{})
+		if err != nil {
+			return nil, err
+		}
+		for x := range ticks.List {
+			var pair currency.Pair
+			var isEnabled bool
+			pair, isEnabled, err = by.MatchSymbolCheckEnabled(ticks.List[x].Symbol, assets[i], false)
+			if err != nil || !isEnabled {
+				continue
+			}
+			var appendData bool
+			for j := range k {
+				if k[j].Pair().Equal(pair) {
+					appendData = true
+					break
+				}
+			}
+			if len(k) > 0 && !appendData {
+				continue
+			}
+			resp = append(resp, futures.OpenInterest{
+				Key:          key.ExchangePairAsset{},
+				OpenInterest: ticks.List[i].OpenInterest.Float64(),
+			})
+		}
+	}
+	return resp, nil
 }
