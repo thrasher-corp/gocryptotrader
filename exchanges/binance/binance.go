@@ -296,16 +296,12 @@ func (b *Binance) GetUserMarginInterestHistory(ctx context.Context, assetCurrenc
 func (b *Binance) GetAggregatedTrades(ctx context.Context, arg *AggregatedTradeRequestParams) ([]AggregatedTrade, error) {
 	params := url.Values{}
 	params.Set("symbol", arg.Symbol.String())
-	// if the user request is directly not supported by the exchange, we might be able to fulfill it
+	// If the user request is directly not supported by the exchange, we might be able to fulfill it
 	// by merging results from multiple API requests
-	needBatch := false
-	if arg.Limit > 0 {
-		if arg.Limit > 1000 {
-			// remote call doesn't support higher limits
-			needBatch = true
-		} else {
-			params.Set("limit", strconv.Itoa(arg.Limit))
-		}
+	needBatch := true // Need to batch unless user has specified a limit
+	if arg.Limit > 0 && arg.Limit <= 1000 {
+		needBatch = false
+		params.Set("limit", strconv.Itoa(arg.Limit))
 	}
 	if arg.FromID != 0 {
 		params.Set("fromId", strconv.FormatInt(arg.FromID, 10))
@@ -321,7 +317,7 @@ func (b *Binance) GetAggregatedTrades(ctx context.Context, arg *AggregatedTradeR
 	needBatch = needBatch || (!arg.StartTime.IsZero() && !arg.EndTime.IsZero() && arg.EndTime.Sub(arg.StartTime) > time.Hour)
 	// Fall back to batch requests, if possible and necessary
 	if needBatch {
-		// fromId xor start time must be set
+		// fromId or start time must be set
 		canBatch := arg.FromID == 0 != arg.StartTime.IsZero()
 		if canBatch {
 			// Split the request into multiple

@@ -3,8 +3,8 @@ package binance
 import (
 	"time"
 
-	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
 var (
@@ -84,11 +84,11 @@ type UMarkPrice struct {
 
 // FundingRateInfoResponse stores funding rate info
 type FundingRateInfoResponse struct {
-	Symbol                   string                  `json:"symbol"`
-	AdjustedFundingRateCap   convert.StringToFloat64 `json:"adjustedFundingRateCap"`
-	AdjustedFundingRateFloor convert.StringToFloat64 `json:"adjustedFundingRateFloor"`
-	FundingIntervalHours     int64                   `json:"fundingIntervalHours"`
-	Disclaimer               bool                    `json:"disclaimer"`
+	Symbol                   string       `json:"symbol"`
+	AdjustedFundingRateCap   types.Number `json:"adjustedFundingRateCap"`
+	AdjustedFundingRateFloor types.Number `json:"adjustedFundingRateFloor"`
+	FundingIntervalHours     int64        `json:"fundingIntervalHours"`
+	Disclaimer               bool         `json:"disclaimer"`
 }
 
 // FundingRateHistory stores funding rate history

@@ -204,6 +204,7 @@ Yes means supported, No means not yet implemented and NA means protocol unsuppor
 | Bitstamp | Yes  | Yes       | No  |
 | BTCMarkets | Yes | No       | NA  |
 | BTSE | Yes | Yes | NA |
+| Bybit | Yes | Yes | NA |
 | COINUT | Yes | Yes | NA |
 | Exmo | Yes | NA | NA |
 | FTX | Yes | Yes | No | // <-------- new exchange
@@ -234,6 +235,7 @@ var Exchanges = []string{
 	"bitstamp",
 	"btc markets",
 	"btse",
+	"bybit",
 	"coinbasepro",
 	"coinut",
 	"exmo",
