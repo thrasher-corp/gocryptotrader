@@ -143,20 +143,20 @@ Binaries will be published once the codebase reaches a stable condition.
 
 |User|Contribution Amount|
 |--|--|
-| [thrasher-](https://github.com/thrasher-) | 683 |
-| [shazbert](https://github.com/shazbert) | 313 |
-| [dependabot[bot]](https://github.com/apps/dependabot) | 227 |
+| [thrasher-](https://github.com/thrasher-) | 684 |
+| [shazbert](https://github.com/shazbert) | 315 |
+| [dependabot[bot]](https://github.com/apps/dependabot) | 228 |
 | [gloriousCode](https://github.com/gloriousCode) | 224 |
 | [dependabot-preview[bot]](https://github.com/apps/dependabot-preview) | 88 |
 | [xtda](https://github.com/xtda) | 47 |
-| [gbjk](https://github.com/gbjk) | 40 |
+| [gbjk](https://github.com/gbjk) | 42 |
 | [lrascao](https://github.com/lrascao) | 27 |
 | [Rots](https://github.com/Rots) | 15 |
 | [vazha](https://github.com/vazha) | 15 |
 | [ydm](https://github.com/ydm) | 15 |
 | [ermalguni](https://github.com/ermalguni) | 14 |
 | [MadCozBadd](https://github.com/MadCozBadd) | 13 |
-| [Beadko](https://github.com/Beadko) | 10 |
+| [Beadko](https://github.com/Beadko) | 11 |
 | [vadimzhukck](https://github.com/vadimzhukck) | 10 |
 | [140am](https://github.com/140am) | 8 |
 | [marcofranssen](https://github.com/marcofranssen) | 8 |
