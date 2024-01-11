@@ -1872,13 +1872,7 @@ func (k *Kraken) GetOpenInterest(ctx context.Context, keys ...key.PairAsset) ([]
 			return nil, fmt.Errorf("%w %v %v", asset.ErrNotSupported, keys[i].Asset, keys[i].Pair())
 		}
 	}
-	ticks, err := k.GetCachedOpenInterest(ctx, keys...)
-	if err == nil && len(ticks) > 0 {
-		return ticks, nil
-	}
-
-	var futuresTickersData FuturesTickersData
-	futuresTickersData, err = k.GetFuturesTickers(ctx)
+	futuresTickersData, err := k.GetFuturesTickers(ctx)
 	if err != nil {
 		return nil, err
 	}

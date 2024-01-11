@@ -2003,13 +2003,7 @@ func (ku *Kucoin) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]fu
 			return nil, fmt.Errorf("%w %v %v", asset.ErrNotSupported, k[i].Asset, k[i].Pair())
 		}
 	}
-	ticks, err := ku.GetCachedOpenInterest(ctx, k...)
-	if err == nil && len(ticks) > 0 {
-		return ticks, nil
-	}
-
-	var contracts []Contract
-	contracts, err = ku.GetFuturesOpenContracts(ctx)
+	contracts, err := ku.GetFuturesOpenContracts(ctx)
 	if err != nil {
 		return nil, err
 	}

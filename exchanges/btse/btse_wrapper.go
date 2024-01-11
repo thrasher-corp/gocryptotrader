@@ -1331,13 +1331,7 @@ func (b *BTSE) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]futur
 			return nil, fmt.Errorf("%w %v %v", asset.ErrNotSupported, k[i].Asset, k[i].Pair())
 		}
 	}
-	ticks, err := b.GetCachedOpenInterest(ctx, k...)
-	if err == nil && len(ticks) > 0 {
-		return ticks, nil
-	}
-
-	var tickers MarketSummary
-	tickers, err = b.GetMarketSummary(ctx, "", false)
+	tickers, err := b.GetMarketSummary(ctx, "", false)
 	if err != nil {
 		return nil, err
 	}

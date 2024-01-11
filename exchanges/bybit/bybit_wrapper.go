@@ -1984,10 +1984,6 @@ func (by *Bybit) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]fut
 			return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, k[i].Asset)
 		}
 	}
-	if resp, err := by.GetCachedOpenInterest(ctx, k...); err == nil && len(resp) > 0 {
-		return resp, nil
-	}
-
 	if len(k) == 1 {
 		formattedPair, err := by.FormatExchangeCurrency(k[0].Pair(), k[0].Asset)
 		if err != nil {
@@ -2043,7 +2039,12 @@ func (by *Bybit) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]fut
 				continue
 			}
 			resp = append(resp, futures.OpenInterest{
-				Key:          key.ExchangePairAsset{},
+				Key: key.ExchangePairAsset{
+					Exchange: by.Name,
+					Base:     pair.Base.Item,
+					Quote:    pair.Quote.Item,
+					Asset:    assets[i],
+				},
 				OpenInterest: ticks.List[i].OpenInterest.Float64(),
 			})
 		}
