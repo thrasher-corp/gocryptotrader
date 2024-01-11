@@ -1977,7 +1977,6 @@ func (by *Bybit) GetLatestFundingRates(ctx context.Context, r *fundingrate.Lates
 
 // GetOpenInterest returns the open interest rate for a given asset pair
 func (by *Bybit) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]futures.OpenInterest, error) {
-	by.Verbose = true
 	for i := range k {
 		if k[i].Asset != asset.USDCMarginedFutures &&
 			k[i].Asset != asset.USDTMarginedFutures &&

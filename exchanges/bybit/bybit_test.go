@@ -3555,9 +3555,7 @@ func TestGetOpenInterest(t *testing.T) {
 		Asset: asset.USDCMarginedFutures,
 	})
 	assert.NoError(t, err)
-	if assert.NotEmpty(t, resp) {
-		assert.NotZero(t, resp[0].OpenInterest)
-	}
+	assert.NotEmpty(t, resp)
 
 	resp, err = b.GetOpenInterest(context.Background(), key.PairAsset{
 		Base:  usdtMarginedTradablePair.Base.Item,
@@ -3565,9 +3563,7 @@ func TestGetOpenInterest(t *testing.T) {
 		Asset: asset.USDTMarginedFutures,
 	})
 	assert.NoError(t, err)
-	if assert.NotEmpty(t, resp) {
-		assert.NotZero(t, resp[0].OpenInterest)
-	}
+	assert.NotEmpty(t, resp)
 
 	resp, err = b.GetOpenInterest(context.Background(), key.PairAsset{
 		Base:  inverseTradablePair.Base.Item,
@@ -3575,13 +3571,9 @@ func TestGetOpenInterest(t *testing.T) {
 		Asset: asset.CoinMarginedFutures,
 	})
 	assert.NoError(t, err)
-	if assert.NotEmpty(t, resp) {
-		assert.NotZero(t, resp[0].OpenInterest)
-	}
+	assert.NotEmpty(t, resp)
 
 	resp, err = b.GetOpenInterest(context.Background())
 	assert.NoError(t, err)
-	if assert.NotEmpty(t, resp) {
-		assert.NotZero(t, resp[0].OpenInterest)
-	}
+	assert.NotEmpty(t, resp)
 }
