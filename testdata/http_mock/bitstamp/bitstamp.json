@@ -68270,9 +68270,20 @@
   "/api/withdrawal_requests/": {
    "POST": [
     {
-     "data": [],
+     "data": [{
+        "address": "aMDHooGmAkyrsaQiKhAORhSNTmoRzxqWIO",
+        "amount": "0.00006000",
+        "currency": "BTC",
+        "datetime": "2022-01-31 16:07:32",
+        "id": 1,
+        "network": "bitcoin",
+        "status": 2,
+        "transaction_id": "NsOeFbQhRnpGzNIThWGBTkQwRJqTNOGPVhYavrVyMfkAyMUmIlUpFIwGTzSvpeOP",
+        "txid": 1,
+        "type": 0
+     }],
      "queryString": "",
-     "bodyParams": "key=\u0026nonce=1560480184558170717\u0026signature=5CE4CEFAA663FA03DE0005741683D2AE77D9ACD75F4644A2A1E9030E596D4E04",
+     "bodyParams": "key=&nonce=1701424773861988000&signature=63D3A30E29FF85C814715111F8AC138B0D658C01D45A2EDDCE1E0F09B354DA88&timedelta=1",
      "headers": {
       "Content-Type": [
        "application/x-www-form-urlencoded"

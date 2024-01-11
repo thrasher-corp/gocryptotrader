@@ -1,4 +1,4 @@
-//go:build !mock_test_off
+//go:build mock_test_off
 
 // This will build if build tag mock_test_off is parsed and will do live testing
 // using all tests in (exchange)_test.go
@@ -13,50 +13,40 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
+	gctlog "github.com/thrasher-corp/gocryptotrader/log"
 )
 
-var mockTests = true
+var mockTests = false
 
 func TestMain(m *testing.M) {
+	b.SetDefaults()
 	cfg := config.GetConfig()
 	err := cfg.LoadConfig("../../testdata/configtest.json", true)
 	if err != nil {
-		log.Fatal("Bybit load config error", err)
-	}
-	bybitConfig, err := cfg.GetExchangeConfig("Bybit")
-	if err != nil {
-		log.Fatal("Bybit Setup() init error", err)
+		log.Fatal(err)
 	}
 
-	bybitConfig.API.AuthenticatedSupport = true
-	bybitConfig.API.Credentials.Key = apiKey
-	bybitConfig.API.Credentials.Secret = apiSecret
-	b.SetDefaults()
+	exchCfg, err := cfg.GetExchangeConfig("Bybit")
+	if err != nil {
+		log.Fatal(err)
+	}
+	exchCfg.API.Credentials.Key = apiKey
+	exchCfg.API.Credentials.Secret = apiSecret
+	exchCfg.API.AuthenticatedSupport = true
+	exchCfg.API.AuthenticatedWebsocketSupport = true
 	b.Websocket = sharedtestvalues.NewTestWebsocket()
-	err = b.Setup(bybitConfig)
-	if err != nil {
-		log.Fatal("Bybit setup error", err)
-	}
 	request.MaxRequestJobs = 100
-	b.Websocket.DataHandler = sharedtestvalues.GetWebsocketInterfaceChannelOverride()
-	log.Printf(sharedtestvalues.LiveTesting, b.Name)
-	err = b.UpdateTradablePairs(context.Background(), true)
+	err = b.Setup(exchCfg)
 	if err != nil {
-		log.Fatal("Bybit setup error", err)
+		log.Fatal(err)
 	}
-
-	// Turn on all pairs for testing
-	supportedAssets := b.GetAssetTypes(false)
-	for x := range supportedAssets {
-		avail, err := b.GetAvailablePairs(supportedAssets[x])
-		if err != nil {
-			log.Fatal(err)
-		}
-
-		err = b.CurrencyPairs.StorePairs(supportedAssets[x], avail, true)
-		if err != nil {
-			log.Fatal(err)
-		}
+	err = instantiateTradablePairs()
+	if err != nil {
+		log.Fatalf("%s %v", b.Name, err)
+	}
+	err = b.RetrieveAndSetAccountType(context.Background())
+	if err != nil {
+		gctlog.Errorf(gctlog.ExchangeSys, "RetrieveAndSetAccountType: %v", err)
 	}
 	os.Exit(m.Run())
 }

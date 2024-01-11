@@ -164,9 +164,17 @@ func TestGetPairs(t *testing.T) {
 
 func TestUpdateTradablePairs(t *testing.T) {
 	t.Parallel()
-	if err := b.UpdateTradablePairs(context.Background(), true); err != nil {
-		t.Error("Bitfinex UpdateTradablePairs() error", err)
-	}
+	updatePairsOnce(t)
+}
+
+var updatePairsGuard sync.Once
+
+func updatePairsOnce(tb testing.TB) {
+	tb.Helper()
+	updatePairsGuard.Do(func() {
+		err := b.UpdateTradablePairs(context.Background(), true)
+		assert.NoError(tb, err, "UpdateTradablePairs should not error")
+	})
 }
 
 func TestUpdateOrderExecutionLimits(t *testing.T) {
@@ -477,34 +485,33 @@ func TestUpdateTicker(t *testing.T) {
 func TestUpdateTickers(t *testing.T) {
 	t.Parallel()
 
-	err := b.UpdateTradablePairs(context.Background(), false)
-	if err != nil {
-		t.Fatal(err)
-	}
+	updatePairsOnce(t)
 
 	assets := b.GetAssetTypes(false)
-	for x := range assets {
-		var avail []currency.Pair
-		avail, err = b.GetAvailablePairs(assets[x])
-		if err != nil {
-			t.Fatal(err)
-		}
+	for _, a := range assets {
+		avail, err := b.GetAvailablePairs(a)
+		assert.NoError(t, err, "GetAvailablePairs should not error")
 
-		err = b.CurrencyPairs.StorePairs(assets[x], avail, true)
-		if err != nil {
-			t.Fatal(err)
-		}
+		err = b.CurrencyPairs.StorePairs(a, avail, true)
+		assert.NoError(t, err, "StorePairs should not error")
 
-		err = b.UpdateTickers(context.Background(), assets[x])
-		if err != nil {
-			t.Fatal(err)
-		}
+		err = b.UpdateTickers(context.Background(), a)
+		assert.NoError(t, common.ExcludeError(err, ticker.ErrBidEqualsAsk), "UpdateTickers may only error about locked markets")
 
-		for y := range avail {
-			_, err = ticker.GetTicker(b.Name, avail[y], assets[x])
-			if err != nil {
-				t.Fatal(err)
+		// Bitfinex leaves delisted pairs in Available info/conf endpoints
+		// We want to assert that most pairs are valid, so we'll check that no more than 5% are erroring
+		acceptableThreshold := 95.0
+		okay := 0.0
+		var errs error
+		for _, p := range avail {
+			if _, err = ticker.GetTicker(b.Name, p, a); err != nil {
+				errs = common.AppendError(errs, err)
+			} else {
+				okay++
 			}
+		}
+		if !assert.Greater(t, okay/float64(len(avail))*100.0, acceptableThreshold, "At least %.f%% of %s tickers should not error", acceptableThreshold, a) {
+			t.Log(errs.Error())
 		}
 	}
 }

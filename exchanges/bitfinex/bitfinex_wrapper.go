@@ -367,15 +367,17 @@ func (b *Bitfinex) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 
 // UpdateTickers updates the ticker for all currency pairs of a given asset type
 func (b *Bitfinex) UpdateTickers(ctx context.Context, a asset.Item) error {
-	tickerNew, err := b.GetTickerBatch(ctx)
+	t, err := b.GetTickerBatch(ctx)
 	if err != nil {
 		return err
 	}
 
-	for key, val := range tickerNew {
+	var errs error
+	for key, val := range t {
 		pair, enabled, err := b.MatchSymbolCheckEnabled(key[1:], a, true)
 		if err != nil && !errors.Is(err, currency.ErrPairNotFound) {
-			return err
+			errs = common.AppendError(errs, err)
+			continue
 		}
 		if !enabled {
 			continue
@@ -392,10 +394,10 @@ func (b *Bitfinex) UpdateTickers(ctx context.Context, a asset.Item) error {
 			AssetType:    a,
 			ExchangeName: b.Name})
 		if err != nil {
-			return err
+			errs = common.AppendError(errs, err)
 		}
 	}
-	return nil
+	return errs
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair
