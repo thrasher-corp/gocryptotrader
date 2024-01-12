@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"sync"
 	"testing"
 	"time"
@@ -3523,4 +3524,24 @@ func TestGetOpenInterest(t *testing.T) {
 	resp, err = b.GetOpenInterest(context.Background())
 	assert.NoError(t, err)
 	assert.NotEmpty(t, resp)
+}
+
+func TestIsPerpetualFutureCurrency(t *testing.T) {
+	t.Parallel()
+
+	is, err := b.IsPerpetualFutureCurrency(asset.Spot, spotTradablePair)
+	assert.NoError(t, err)
+	assert.False(t, is)
+
+	is, err = b.IsPerpetualFutureCurrency(asset.CoinMarginedFutures, inverseTradablePair)
+	assert.NoError(t, err)
+	assert.True(t, is, fmt.Sprintf("%s %s should be a perp", asset.CoinMarginedFutures, inverseTradablePair))
+
+	is, err = b.IsPerpetualFutureCurrency(asset.USDTMarginedFutures, usdtMarginedTradablePair)
+	assert.NoError(t, err)
+	assert.True(t, is, fmt.Sprintf("%s %s should be a perp", asset.USDTMarginedFutures, usdtMarginedTradablePair))
+
+	is, err = b.IsPerpetualFutureCurrency(asset.USDCMarginedFutures, usdcMarginedTradablePair)
+	assert.NoError(t, err)
+	assert.True(t, is, fmt.Sprintf("%s %s should be a perp", asset.USDCMarginedFutures, usdcMarginedTradablePair))
 }
