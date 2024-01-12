@@ -588,9 +588,10 @@ func (b *Binance) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Ite
 	if p.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
+	var err error
 	switch a {
 	case asset.Spot, asset.Margin:
-		p, err := b.FormatExchangeCurrency(p, a)
+		p, err = b.FormatExchangeCurrency(p, a)
 		if err != nil {
 			return nil, err
 		}
@@ -629,7 +630,8 @@ func (b *Binance) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Ite
 			return nil, err
 		}
 	case asset.USDTMarginedFutures:
-		tick, err := b.U24HTickerPriceChangeStats(ctx, p)
+		var tick []U24HrPriceChangeStats
+		tick, err = b.U24HTickerPriceChangeStats(ctx, p)
 		if err != nil {
 			return nil, err
 		}
@@ -649,7 +651,8 @@ func (b *Binance) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Ite
 			return nil, err
 		}
 	case asset.CoinMarginedFutures:
-		tick, err := b.GetFuturesSwapTickerChangeStats(ctx, p, "")
+		var tick []PriceChangeStats
+		tick, err = b.GetFuturesSwapTickerChangeStats(ctx, p, "")
 		if err != nil {
 			return nil, err
 		}
@@ -775,7 +778,7 @@ func (b *Binance) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (
 	case asset.Spot:
 		var raw *Account
 		var err error
-		if b.IsAPIStreamConnected() {
+		if b.IsAPIStreamConnected() && b.Websocket.CanUseAuthenticatedEndpoints() && b.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
 			raw, err = b.GetWsAccountInfo(0)
 		} else {
 			raw, err = b.GetAccount(ctx)
@@ -1044,7 +1047,8 @@ func (b *Binance) GetHistoricTrades(ctx context.Context, p currency.Pair, a asse
 
 // SubmitOrder submits a new order
 func (b *Binance) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitResponse, error) {
-	if err := s.Validate(); err != nil {
+	err := s.Validate()
+	if err != nil {
 		return nil, err
 	}
 	var orderID string
@@ -1076,32 +1080,48 @@ func (b *Binance) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Subm
 			return nil, fmt.Errorf("%w %v", order.ErrUnsupportedOrderType, s.Type)
 		}
 
-		var orderRequest = NewOrderRequest{
-			Symbol:           s.Pair,
-			Side:             sideType,
-			Price:            s.Price,
-			Quantity:         s.Amount,
-			TradeType:        requestParamsOrderType,
-			TimeInForce:      timeInForce,
-			NewClientOrderID: s.ClientOrderID,
-		}
-		response, err := b.NewOrder(ctx, &orderRequest)
-		if err != nil {
-			return nil, err
-		}
+		if b.IsAPIStreamConnected() && b.Websocket.CanUseAuthenticatedEndpoints() && b.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
+			var results *TradeOrderResponse
+			results, err = b.WsPlaceNewOrder(&TradeOrderRequestParam{
+				Symbol:      s.Pair,
+				Side:        sideType,
+				OrderType:   string(requestParamsOrderType),
+				TimeInForce: string(timeInForce),
+				Price:       s.Price,
+				Quantity:    s.Amount,
+			})
+			if err != nil {
+				return nil, err
+			}
+			orderID = strconv.FormatInt(results.OrderID, 10)
+		} else {
+			var response NewOrderResponse
+			response, err = b.NewOrder(ctx, &NewOrderRequest{
+				Symbol:           s.Pair,
+				Side:             sideType,
+				Price:            s.Price,
+				Quantity:         s.Amount,
+				TradeType:        requestParamsOrderType,
+				TimeInForce:      timeInForce,
+				NewClientOrderID: s.ClientOrderID,
+			})
+			if err != nil {
+				return nil, err
+			}
 
-		orderID = strconv.FormatInt(response.OrderID, 10)
-		if response.ExecutedQty == response.OrigQty {
-			status = order.Filled
-		}
+			orderID = strconv.FormatInt(response.OrderID, 10)
+			if response.ExecutedQty == response.OrigQty {
+				status = order.Filled
+			}
 
-		trades = make([]order.TradeHistory, len(response.Fills))
-		for i := range response.Fills {
-			trades[i] = order.TradeHistory{
-				Price:    response.Fills[i].Price,
-				Amount:   response.Fills[i].Qty,
-				Fee:      response.Fills[i].Commission,
-				FeeAsset: response.Fills[i].CommissionAsset,
+			trades = make([]order.TradeHistory, len(response.Fills))
+			for i := range response.Fills {
+				trades[i] = order.TradeHistory{
+					Price:    response.Fills[i].Price,
+					Amount:   response.Fills[i].Qty,
+					Fee:      response.Fills[i].Commission,
+					FeeAsset: response.Fills[i].CommissionAsset,
+				}
 			}
 		}
 	case asset.CoinMarginedFutures:
@@ -1140,7 +1160,8 @@ func (b *Binance) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Subm
 			return nil, errors.New("invalid type, check api docs for updates")
 		}
 
-		o, err := b.FuturesNewOrder(
+		var o FuturesOrderPlaceData
+		o, err = b.FuturesNewOrder(
 			ctx,
 			&FuturesNewOrderRequest{
 				Symbol:           s.Pair,
@@ -1186,7 +1207,8 @@ func (b *Binance) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Subm
 		default:
 			return nil, errors.New("invalid type, check api docs for updates")
 		}
-		o, err := b.UFuturesNewOrder(ctx,
+		var o UOrderData
+		o, err = b.UFuturesNewOrder(ctx,
 			&UFuturesNewOrderRequest{
 				Symbol:           s.Pair,
 				Side:             reqSide,
@@ -1223,14 +1245,15 @@ func (b *Binance) ModifyOrder(_ context.Context, _ *order.Modify) (*order.Modify
 
 // CancelOrder cancels an order by its corresponding ID number
 func (b *Binance) CancelOrder(ctx context.Context, o *order.Cancel) error {
-	if err := o.Validate(o.StandardCancel()); err != nil {
+	err := o.Validate(o.StandardCancel())
+	if err != nil {
 		return err
 	}
 	switch o.AssetType {
 	case asset.Spot, asset.Margin:
-		var err error
-		if b.IsAPIStreamConnected() && b.Websocket.CanUseAuthenticatedEndpoints() {
-			orderIDInt, err := strconv.ParseInt(o.OrderID, 10, 64)
+		var orderIDInt int64
+		if b.IsAPIStreamConnected() && b.Websocket.CanUseAuthenticatedEndpoints() && b.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
+			orderIDInt, err = strconv.ParseInt(o.OrderID, 10, 64)
 			if err != nil {
 				return err
 			}
@@ -1240,7 +1263,7 @@ func (b *Binance) CancelOrder(ctx context.Context, o *order.Cancel) error {
 				OrigClientOrderID: o.ClientOrderID,
 			})
 		} else {
-			orderIDInt, err := strconv.ParseInt(o.OrderID, 10, 64)
+			orderIDInt, err = strconv.ParseInt(o.OrderID, 10, 64)
 			if err != nil {
 				return err
 			}
@@ -1280,7 +1303,7 @@ func (b *Binance) CancelAllOrders(ctx context.Context, req *order.Cancel) (order
 	cancelAllOrdersResponse.Status = make(map[string]string)
 	switch req.AssetType {
 	case asset.Spot, asset.Margin:
-		if b.IsAPIStreamConnected() && b.Websocket.CanUseAuthenticatedEndpoints() {
+		if b.IsAPIStreamConnected() && b.Websocket.CanUseAuthenticatedEndpoints() && b.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
 			openOrders, err := b.WsCurrentOpenOrders(req.Pair, 0)
 			if err != nil {
 				return cancelAllOrdersResponse, err
@@ -1365,8 +1388,7 @@ func (b *Binance) GetOrderInfo(ctx context.Context, orderID string, pair currenc
 	switch assetType {
 	case asset.Spot:
 		var resp TradeOrder
-		var err error
-		if b.IsAPIStreamConnected() {
+		if b.IsAPIStreamConnected() && b.Websocket.CanUseAuthenticatedEndpoints() && b.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
 			var trades []TradeOrder
 			trades, err = b.WsQueryAccountOrderHistory(&AccountOrderRequestParam{
 				Symbol:  pair,
@@ -1551,7 +1573,12 @@ func (b *Binance) GetActiveOrders(ctx context.Context, req *order.MultiOrderRequ
 	for i := range req.Pairs {
 		switch req.AssetType {
 		case asset.Spot, asset.Margin:
-			resp, err := b.OpenOrders(ctx, req.Pairs[i])
+			var resp []TradeOrder
+			if b.IsAPIStreamConnected() && b.Websocket.CanUseAuthenticatedEndpoints() && b.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
+				resp, err = b.WsCurrentOpenOrders(req.Pairs[i], 0)
+			} else {
+				resp, err = b.OpenOrders(ctx, req.Pairs[i])
+			}
 			if err != nil {
 				return nil, err
 			}

@@ -447,8 +447,8 @@ func (b *Binance) GetLogOutOfSession() (*FuturesAuthenticationResp, error) {
 
 // ----------------------------------------------------------- Trading Requests ----------------------------------------------------
 
-// PlaceNewOrder place new order
-func (b *Binance) PlaceNewOrder(arg *TradeOrderRequestParam) (*TradeOrderResponse, error) {
+// WsPlaceNewOrder place new order
+func (b *Binance) WsPlaceNewOrder(arg *TradeOrderRequestParam) (*TradeOrderResponse, error) {
 	if arg.Symbol.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}

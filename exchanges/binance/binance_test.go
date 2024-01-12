@@ -3681,7 +3681,7 @@ func TestPlaceNewOrder(t *testing.T) {
 		t.Skip(apiStreamingIsNotConnected)
 	}
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
-	_, err := b.PlaceNewOrder(&TradeOrderRequestParam{
+	_, err := b.WsPlaceNewOrder(&TradeOrderRequestParam{
 		Symbol:      currency.NewPair(currency.BTC, currency.USDT),
 		Side:        "SELL",
 		OrderType:   "LIMIT",
