@@ -2932,13 +2932,15 @@ func TestConvertContractShortHandToExpiry(t *testing.T) {
 	tt = time.Date(2021, 6, 3, 0, 0, 0, 0, time.UTC)
 	cp, err = h.convertContractShortHandToExpiry(cp, tt)
 	assert.NoError(t, err)
+	assert.Equal(t, cp.Quote.String(), "210625")
 
 	cp = currency.NewPair(currency.BTC, currency.NewCode("CW"))
 	cp, err = h.convertContractShortHandToExpiry(cp, tt)
 	assert.NoError(t, err)
+	assert.Equal(t, cp.Quote.String(), "210604")
 
 	cp = currency.NewPair(currency.BTC, currency.NewCode("CWif hat"))
-	cp, err = h.convertContractShortHandToExpiry(cp, tt)
+	_, err = h.convertContractShortHandToExpiry(cp, tt)
 	assert.ErrorIs(t, err, errInvalidContractType)
 
 	// Huobi doesn't always have a next-quarter contract, return if no data found
