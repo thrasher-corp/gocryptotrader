@@ -132,6 +132,7 @@ const (
 	GoCryptoTraderService_SetMarginType_FullMethodName                     = "/gctrpc.GoCryptoTraderService/SetMarginType"
 	GoCryptoTraderService_SetLeverage_FullMethodName                       = "/gctrpc.GoCryptoTraderService/SetLeverage"
 	GoCryptoTraderService_ChangePositionMargin_FullMethodName              = "/gctrpc.GoCryptoTraderService/ChangePositionMargin"
+	GoCryptoTraderService_GetOpenInterest_FullMethodName                   = "/gctrpc.GoCryptoTraderService/GetOpenInterest"
 )
 
 // GoCryptoTraderServiceClient is the client API for GoCryptoTraderService service.
@@ -251,6 +252,7 @@ type GoCryptoTraderServiceClient interface {
 	SetMarginType(ctx context.Context, in *SetMarginTypeRequest, opts ...grpc.CallOption) (*SetMarginTypeResponse, error)
 	SetLeverage(ctx context.Context, in *SetLeverageRequest, opts ...grpc.CallOption) (*SetLeverageResponse, error)
 	ChangePositionMargin(ctx context.Context, in *ChangePositionMarginRequest, opts ...grpc.CallOption) (*ChangePositionMarginResponse, error)
+	GetOpenInterest(ctx context.Context, in *GetOpenInterestRequest, opts ...grpc.CallOption) (*GetOpenInterestResponse, error)
 }
 
 type goCryptoTraderServiceClient struct {
@@ -1416,6 +1418,15 @@ func (c *goCryptoTraderServiceClient) ChangePositionMargin(ctx context.Context, 
 	return out, nil
 }
 
+func (c *goCryptoTraderServiceClient) GetOpenInterest(ctx context.Context, in *GetOpenInterestRequest, opts ...grpc.CallOption) (*GetOpenInterestResponse, error) {
+	out := new(GetOpenInterestResponse)
+	err := c.cc.Invoke(ctx, GoCryptoTraderService_GetOpenInterest_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // GoCryptoTraderServiceServer is the server API for GoCryptoTraderService service.
 // All implementations must embed UnimplementedGoCryptoTraderServiceServer
 // for forward compatibility
@@ -1533,6 +1544,7 @@ type GoCryptoTraderServiceServer interface {
 	SetMarginType(context.Context, *SetMarginTypeRequest) (*SetMarginTypeResponse, error)
 	SetLeverage(context.Context, *SetLeverageRequest) (*SetLeverageResponse, error)
 	ChangePositionMargin(context.Context, *ChangePositionMarginRequest) (*ChangePositionMarginResponse, error)
+	GetOpenInterest(context.Context, *GetOpenInterestRequest) (*GetOpenInterestResponse, error)
 	mustEmbedUnimplementedGoCryptoTraderServiceServer()
 }
 
@@ -1878,6 +1890,9 @@ func (UnimplementedGoCryptoTraderServiceServer) SetLeverage(context.Context, *Se
 }
 func (UnimplementedGoCryptoTraderServiceServer) ChangePositionMargin(context.Context, *ChangePositionMarginRequest) (*ChangePositionMarginResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ChangePositionMargin not implemented")
+}
+func (UnimplementedGoCryptoTraderServiceServer) GetOpenInterest(context.Context, *GetOpenInterestRequest) (*GetOpenInterestResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetOpenInterest not implemented")
 }
 func (UnimplementedGoCryptoTraderServiceServer) mustEmbedUnimplementedGoCryptoTraderServiceServer() {}
 
@@ -3944,6 +3959,24 @@ func _GoCryptoTraderService_ChangePositionMargin_Handler(srv interface{}, ctx co
 	return interceptor(ctx, in, info, handler)
 }
 
+func _GoCryptoTraderService_GetOpenInterest_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetOpenInterestRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(GoCryptoTraderServiceServer).GetOpenInterest(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: GoCryptoTraderService_GetOpenInterest_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(GoCryptoTraderServiceServer).GetOpenInterest(ctx, req.(*GetOpenInterestRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // GoCryptoTraderService_ServiceDesc is the grpc.ServiceDesc for GoCryptoTraderService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -4378,6 +4411,10 @@ var GoCryptoTraderService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "ChangePositionMargin",
 			Handler:    _GoCryptoTraderService_ChangePositionMargin_Handler,
+		},
+		{
+			MethodName: "GetOpenInterest",
+			Handler:    _GoCryptoTraderService_GetOpenInterest_Handler,
 		},
 	},
 	Streams: []grpc.StreamDesc{

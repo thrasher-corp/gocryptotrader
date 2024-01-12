@@ -46,7 +46,6 @@ type Features struct {
 	MultiChainDeposits                bool `json:"multiChainDeposits,omitempty"`
 	MultiChainWithdrawals             bool `json:"multiChainWithdrawals,omitempty"`
 	MultiChainDepositRequiresChainSet bool `json:"multiChainDepositRequiresChainSet,omitempty"`
-
 	// HasAssetTypeAccountSegregation is when the assets are divided into asset
 	// types instead of just being denoted as spot holdings.
 	HasAssetTypeAccountSegregation bool `json:"hasAssetTypeAccountSegregation,omitempty"`

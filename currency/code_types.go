@@ -3066,6 +3066,10 @@ var (
 	SHIB1000         = NewCode("SHIB1000")
 	SWEAT            = NewCode("SWEAT")
 	TOMI             = NewCode("TOMI")
+	BONK             = NewCode("BONK")
+	WIF              = NewCode("WIF")
+	AIDOGE           = NewCode("AIDOGE")
+	PEPE             = NewCode("PEPE")
 
 	stables = Currencies{
 		USDT,
