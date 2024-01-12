@@ -530,7 +530,7 @@ func (h *HUOBI) UpdateTickers(ctx context.Context, a asset.Item) error {
 				if err != nil {
 					return err
 				}
-				cp, err = h.convertContractShortHandToExpiry(cp)
+				cp, err = h.convertContractShortHandToExpiry(cp, time.Now())
 				if err != nil {
 					return err
 				}

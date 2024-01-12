@@ -79,6 +79,8 @@ const (
 	fContractDateFormat = "060102"
 )
 
+var errInvalidContractType = errors.New("invalid contract type")
+
 // FGetContractInfo gets contract info for futures
 func (h *HUOBI) FGetContractInfo(ctx context.Context, symbol, contractType string, code currency.Pair) (FContractInfoData, error) {
 	var resp FContractInfoData
@@ -156,7 +158,7 @@ func (h *HUOBI) FContractOpenInterest(ctx context.Context, symbol, contractType 
 		params.Set("contract_type", contractType)
 	}
 	if !code.IsEmpty() {
-		codeValue, err := h.FormatSymbol(code, asset.Futures)
+		codeValue, err := h.formatFuturesPair(code, true)
 		if err != nil {
 			return resp, err
 		}
@@ -339,7 +341,7 @@ func (h *HUOBI) FQueryHisOpenInterest(ctx context.Context, symbol, contractType,
 		params.Set("symbol", symbol)
 	}
 	if !common.StringDataCompareInsensitive(validContractTypes, contractType) {
-		return resp, fmt.Errorf("invalid contract type")
+		return resp, fmt.Errorf("%w %v", errInvalidContractType, contractType)
 	}
 	params.Set("contract_type", contractType)
 	if !common.StringDataCompareInsensitive(validPeriods, period) {
@@ -1221,7 +1223,7 @@ func (h *HUOBI) formatFuturesCode(p currency.Code) (string, error) {
 func (h *HUOBI) formatFuturesPair(p currency.Pair, convertQuoteToExpiry bool) (string, error) {
 	if common.StringDataCompareInsensitive(validContractShortTypes, p.Quote.String()) {
 		if convertQuoteToExpiry {
-			cp, err := h.convertContractShortHandToExpiry(p)
+			cp, err := h.convertContractShortHandToExpiry(p, time.Now())
 			if err != nil {
 				return "", err
 			}
@@ -1238,12 +1240,12 @@ func (h *HUOBI) formatFuturesPair(p currency.Pair, convertQuoteToExpiry bool) (s
 
 // convertContractShortHandToExpiry converts a contract shorthand eg BTC-CW into a full expiry date
 // eg BTC240329 to associate with tradable pair formatting
-func (h *HUOBI) convertContractShortHandToExpiry(pair currency.Pair) (currency.Pair, error) {
-	if !common.StringDataCompareInsensitive(validContractShortTypes, pair.Quote.String()) {
-		return currency.EMPTYPAIR, fmt.Errorf("%s invalid contract type", pair)
+func (h *HUOBI) convertContractShortHandToExpiry(pair currency.Pair, tt time.Time) (currency.Pair, error) {
+	loc, err := time.LoadLocation("Asia/Singapore")
+	if err != nil {
+		return currency.EMPTYPAIR, err
 	}
-
-	tt := time.Now()
+	tt = tt.In(loc)
 	switch pair.Quote.Item.Symbol {
 	case "NW":
 		tt = tt.AddDate(0, 0, 7)
@@ -1269,6 +1271,8 @@ func (h *HUOBI) convertContractShortHandToExpiry(pair currency.Pair) (currency.P
 		for tt.Weekday() != time.Friday {
 			tt = tt.AddDate(0, 0, -1)
 		}
+	default:
+		return currency.EMPTYPAIR, fmt.Errorf(" %w %v", errInvalidContractType, pair)
 	}
 	pair.Quote = currency.NewCode(tt.Format(fContractDateFormat))
 	return pair, nil
