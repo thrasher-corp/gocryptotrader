@@ -1679,16 +1679,16 @@ func getOpenInterest(c *cli.Context) error {
 		}
 	}
 
-	data := make([]*gctrpc.OpenInterestDataRequest, 1)
+	data := make([]*gctrpc.OpenInterestDataRequest, 0, 1)
 	if !pair.IsEmpty() {
-		data[0] = &gctrpc.OpenInterestDataRequest{
+		data = append(data, &gctrpc.OpenInterestDataRequest{
 			Asset: assetType,
 			Pair: &gctrpc.CurrencyPair{
 				Delimiter: pair.Delimiter,
 				Base:      pair.Base.String(),
 				Quote:     pair.Quote.String(),
 			},
-		}
+		})
 	}
 
 	conn, cancel, err := setupClient(c)
