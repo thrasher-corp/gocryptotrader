@@ -11,6 +11,7 @@ import (
 
 	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -36,11 +37,11 @@ import (
 // GetDefaultConfig returns a default exchange config
 func (by *Bybit) GetDefaultConfig(ctx context.Context) (*config.Exchange, error) {
 	by.SetDefaults()
-	exchCfg := new(config.Exchange)
-	exchCfg.Name = by.Name
-	exchCfg.HTTPTimeout = exchange.DefaultHTTPTimeout
-	exchCfg.BaseCurrencies = by.BaseCurrencies
-	err := by.SetupDefaults(exchCfg)
+	exchCfg, err := by.GetStandardConfig()
+	if err != nil {
+		return nil, err
+	}
+	err = by.SetupDefaults(exchCfg)
 	if err != nil {
 		return nil, err
 	}
@@ -155,6 +156,23 @@ func (by *Bybit) SetDefaults() {
 				exchange.AutoWithdrawFiat,
 			Kline: kline.ExchangeCapabilitiesSupported{
 				Intervals: true,
+			},
+			FuturesCapabilities: exchange.FuturesCapabilities{
+				FundingRates: true,
+				FundingRateBatching: map[asset.Item]bool{
+					asset.USDCMarginedFutures: true,
+					asset.USDTMarginedFutures: true,
+					asset.CoinMarginedFutures: true,
+				},
+				SupportedFundingRateFrequencies: map[kline.Interval]bool{
+					kline.FourHour:  true,
+					kline.EightHour: true,
+				},
+				OpenInterest: exchange.OpenInterestSupport{
+					Supported:          true,
+					SupportedViaTicker: true,
+					SupportsRestBatch:  true,
+				},
 			},
 		},
 		Enabled: exchange.FeaturesEnabled{
@@ -368,7 +386,12 @@ func (by *Bybit) FetchTradablePairs(ctx context.Context, a asset.Item) (currency
 			if allPairs[x].Status != "Trading" || allPairs[x].QuoteCoin != "USDC" {
 				continue
 			}
-			pair, err = currency.NewPairFromString(allPairs[x].Symbol)
+			if strings.EqualFold(allPairs[x].ContractType, "linearfutures") {
+				// long-dated contracts have a delimiter
+				pair, err = currency.NewPairFromString(allPairs[x].Symbol)
+			} else {
+				pair, err = currency.NewPairFromStrings(allPairs[x].BaseCoin, allPairs[x].Symbol[len(allPairs[x].BaseCoin):])
+			}
 			if err != nil {
 				return nil, err
 			}
@@ -1641,6 +1664,17 @@ func (by *Bybit) SetLeverage(ctx context.Context, item asset.Item, pair currency
 	}
 }
 
+// IsPerpetualFutureCurrency ensures a given asset and currency is a perpetual future
+func (by *Bybit) IsPerpetualFutureCurrency(a asset.Item, p currency.Pair) (bool, error) {
+	if !a.IsFutures() {
+		return false, nil
+	}
+	return p.Quote.Equal(currency.PERP) ||
+		p.Quote.Equal(currency.USD) ||
+		p.Quote.Equal(currency.USDC) ||
+		p.Quote.Equal(currency.USDT), nil
+}
+
 // GetFuturesContractDetails returns details about futures contracts
 func (by *Bybit) GetFuturesContractDetails(ctx context.Context, item asset.Item) ([]futures.Contract, error) {
 	if !item.IsFutures() {
@@ -1665,12 +1699,7 @@ func (by *Bybit) GetFuturesContractDetails(ctx context.Context, item asset.Item)
 				continue
 			}
 			var cp, underlying currency.Pair
-			splitCoin := strings.Split(inverseContracts.List[i].Symbol, inverseContracts.List[i].BaseCoin)
-			if len(splitCoin) <= 1 {
-				continue
-			}
-
-			cp, err = currency.NewPairFromStrings(inverseContracts.List[i].BaseCoin, splitCoin[1])
+			cp, err = currency.NewPairFromStrings(inverseContracts.List[i].BaseCoin, inverseContracts.List[i].Symbol[len(inverseContracts.List[i].BaseCoin):])
 			if err != nil {
 				return nil, err
 			}
@@ -1752,11 +1781,7 @@ func (by *Bybit) GetFuturesContractDetails(ctx context.Context, item asset.Item)
 			switch contractType {
 			case "linearperpetual":
 				ct = futures.Perpetual
-				splitCoin := strings.Split(instruments[i].Symbol, instruments[i].BaseCoin)
-				if len(splitCoin) <= 1 {
-					continue
-				}
-				cp, err = currency.NewPairFromStrings(instruments[i].BaseCoin, splitCoin[1])
+				cp, err = currency.NewPairFromStrings(instruments[i].BaseCoin, instruments[i].Symbol[len(instruments[i].BaseCoin):])
 				if err != nil {
 					return nil, err
 				}
@@ -1767,6 +1792,9 @@ func (by *Bybit) GetFuturesContractDetails(ctx context.Context, item asset.Item)
 				}
 				cp, err = by.MatchSymbolWithAvailablePairs(instruments[i].Symbol, item, true)
 				if err != nil {
+					if errors.Is(err, currency.ErrPairNotFound) {
+						continue
+					}
 					return nil, err
 				}
 			default:
@@ -1776,6 +1804,9 @@ func (by *Bybit) GetFuturesContractDetails(ctx context.Context, item asset.Item)
 				ct = futures.Unknown
 				cp, err = by.MatchSymbolWithAvailablePairs(instruments[i].Symbol, item, true)
 				if err != nil {
+					if errors.Is(err, currency.ErrPairNotFound) {
+						continue
+					}
 					return nil, err
 				}
 			}
@@ -1818,12 +1849,8 @@ func (by *Bybit) GetFuturesContractDetails(ctx context.Context, item asset.Item)
 			instruments = append(instruments, inverseContracts.List[i])
 		}
 		for i := range instruments {
-			splitCoin := strings.Split(instruments[i].Symbol, instruments[i].BaseCoin)
-			if len(splitCoin) <= 1 {
-				continue
-			}
 			var cp, underlying currency.Pair
-			cp, err = currency.NewPairFromStrings(instruments[i].BaseCoin, splitCoin[1])
+			cp, err = currency.NewPairFromStrings(instruments[i].BaseCoin, instruments[i].Symbol[len(instruments[i].BaseCoin):])
 			if err != nil {
 				return nil, err
 			}
@@ -1889,12 +1916,16 @@ func getContractLength(contractLength time.Duration) (futures.ContractType, erro
 		ct = futures.Weekly
 	case contractLength <= kline.TwoWeek.Duration()+kline.ThreeDay.Duration():
 		ct = futures.Fortnightly
+	case contractLength <= kline.ThreeWeek.Duration()+kline.ThreeDay.Duration():
+		ct = futures.ThreeWeekly
 	case contractLength <= kline.ThreeMonth.Duration()+kline.ThreeWeek.Duration():
 		ct = futures.Quarterly
 	case contractLength <= kline.SixMonth.Duration()+kline.ThreeWeek.Duration():
 		ct = futures.HalfYearly
 	case contractLength <= kline.NineMonth.Duration()+kline.ThreeWeek.Duration():
 		ct = futures.NineMonthly
+	case contractLength <= kline.OneYear.Duration()+kline.ThreeWeek.Duration():
+		ct = futures.Yearly
 	default:
 		ct = futures.SemiAnnually
 	}
@@ -1927,6 +1958,11 @@ func (by *Bybit) GetLatestFundingRates(ctx context.Context, r *fundingrate.Lates
 			return nil, err
 		}
 
+		instrumentInfo, err := by.GetInstrumentInfo(ctx, getCategoryName(r.Asset), symbol, "", "", "", 1000)
+		if err != nil {
+			return nil, err
+		}
+
 		resp := make([]fundingrate.LatestRateResponse, 0, len(ticks.List))
 		for i := range ticks.List {
 			var cp currency.Pair
@@ -1937,13 +1973,25 @@ func (by *Bybit) GetLatestFundingRates(ctx context.Context, r *fundingrate.Lates
 			} else if !isEnabled {
 				continue
 			}
+			var fundingInterval time.Duration
+			for j := range instrumentInfo.List {
+				if instrumentInfo.List[j].Symbol != ticks.List[i].Symbol {
+					continue
+				}
+				fundingInterval = time.Duration(instrumentInfo.List[j].FundingInterval) * time.Minute
+				break
+			}
+			var lrt time.Time
+			if fundingInterval > 0 {
+				lrt = ticks.List[i].NextFundingTime.Time().Add(-fundingInterval)
+			}
 			resp = append(resp, fundingrate.LatestRateResponse{
 				Exchange:    by.Name,
 				TimeChecked: time.Now(),
 				Asset:       r.Asset,
 				Pair:        cp,
 				LatestRate: fundingrate.Rate{
-					Time: ticks.List[i].NextFundingTime.Time().Add(-time.Hour * 8),
+					Time: lrt,
 					Rate: decimal.NewFromFloat(ticks.List[i].FundingRate.Float64()),
 				},
 				TimeOfNextRate: ticks.List[i].NextFundingTime.Time(),
@@ -1955,4 +2003,82 @@ func (by *Bybit) GetLatestFundingRates(ctx context.Context, r *fundingrate.Lates
 		return resp, nil
 	}
 	return nil, fmt.Errorf("%w %s", asset.ErrNotSupported, r.Asset)
+}
+
+// GetOpenInterest returns the open interest rate for a given asset pair
+func (by *Bybit) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]futures.OpenInterest, error) {
+	for i := range k {
+		if k[i].Asset != asset.USDCMarginedFutures &&
+			k[i].Asset != asset.USDTMarginedFutures &&
+			k[i].Asset != asset.CoinMarginedFutures {
+			return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, k[i].Asset)
+		}
+	}
+	if len(k) == 1 {
+		formattedPair, err := by.FormatExchangeCurrency(k[0].Pair(), k[0].Asset)
+		if err != nil {
+			return nil, err
+		}
+		if _, parseErr := time.Parse(longDatedFormat, k[0].Quote.Symbol); parseErr == nil {
+			// long-dated contracts have a delimiter
+			formattedPair.Delimiter = currency.DashDelimiter
+		}
+		pFmt := formattedPair.String()
+		var ticks *TickerData
+		ticks, err = by.GetTickers(ctx, getCategoryName(k[0].Asset), pFmt, "", time.Time{})
+		if err != nil {
+			return nil, err
+		}
+		for i := range ticks.List {
+			if ticks.List[i].Symbol != pFmt {
+				continue
+			}
+			return []futures.OpenInterest{{
+				Key: key.ExchangePairAsset{
+					Exchange: by.Name,
+					Asset:    k[0].Asset,
+					Base:     k[0].Base,
+					Quote:    k[0].Quote,
+				},
+				OpenInterest: ticks.List[i].OpenInterest.Float64(),
+			}}, nil
+		}
+	}
+	assets := []asset.Item{asset.USDCMarginedFutures, asset.USDTMarginedFutures, asset.CoinMarginedFutures}
+	var resp []futures.OpenInterest
+	for i := range assets {
+		ticks, err := by.GetTickers(ctx, getCategoryName(assets[i]), "", "", time.Time{})
+		if err != nil {
+			return nil, err
+		}
+		for x := range ticks.List {
+			var pair currency.Pair
+			var isEnabled bool
+			// only long-dated contracts have a delimiter
+			pair, isEnabled, err = by.MatchSymbolCheckEnabled(ticks.List[x].Symbol, assets[i], strings.Contains(ticks.List[x].Symbol, currency.DashDelimiter))
+			if err != nil || !isEnabled {
+				continue
+			}
+			var appendData bool
+			for j := range k {
+				if k[j].Pair().Equal(pair) {
+					appendData = true
+					break
+				}
+			}
+			if len(k) > 0 && !appendData {
+				continue
+			}
+			resp = append(resp, futures.OpenInterest{
+				Key: key.ExchangePairAsset{
+					Exchange: by.Name,
+					Base:     pair.Base.Item,
+					Quote:    pair.Quote.Item,
+					Asset:    assets[i],
+				},
+				OpenInterest: ticks.List[i].OpenInterest.Float64(),
+			})
+		}
+	}
+	return resp, nil
 }

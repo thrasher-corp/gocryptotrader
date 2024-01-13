@@ -69,15 +69,6 @@ const (
 	accountInfo       = "/api/v3/account"
 	marginAccountInfo = "/sapi/v1/margin/account"
 
-	// Withdraw API endpoints
-	accountStatus                          = "/wapi/v3/accountStatus.html"
-	systemStatus                           = "/wapi/v3/systemStatus.html"
-	dustLog                                = "/wapi/v3/userAssetDribbletLog.html"
-	tradeFee                               = "/wapi/v3/tradeFee.html"
-	assetDetail                            = "/wapi/v3/assetDetail.html"
-	undocumentedInterestHistory            = "/gateway-api/v1/public/isolated-margin/pair/vip-level"
-	undocumentedCrossMarginInterestHistory = "/gateway-api/v1/friendly/margin/vip/spec/list-all"
-
 	// Wallet endpoints
 	allCoinsInfo     = "/sapi/v1/capital/config/getall"
 	withdrawEndpoint = "/sapi/v1/capital/withdraw/apply"
@@ -111,8 +102,6 @@ const (
 	flexibleLoanCollateralAssetsData = "/sapi/v1/loan/flexible/collateral/data"
 
 	defaultRecvWindow = 5 * time.Second
-
-	errUnexpectedPairFormat = "unexpected pair format"
 )
 
 var (
@@ -127,27 +116,6 @@ var (
 	errTimestampInfoRequired                  = errors.New("timestamp information is required")
 	errListenKeyIsRequired                    = errors.New("listen key is required")
 )
-
-// GetUndocumentedInterestHistory gets interest history for currency/currencies provided
-func (b *Binance) GetUndocumentedInterestHistory(ctx context.Context) (MarginInfoData, error) {
-	var resp MarginInfoData
-	if err := b.SendHTTPRequest(ctx, exchange.EdgeCase1, undocumentedInterestHistory, spotDefaultRate, &resp); err != nil {
-		return resp, err
-	}
-	return resp, nil
-}
-
-// GetCrossMarginInterestHistory gets cross-margin interest history for currency/currencies provided
-func (b *Binance) GetCrossMarginInterestHistory(ctx context.Context) (CrossMarginInterestData, error) {
-	var resp CrossMarginInterestData
-	if err := b.SendHTTPRequest(ctx,
-		exchange.EdgeCase1,
-		undocumentedCrossMarginInterestHistory,
-		spotDefaultRate, &resp); err != nil {
-		return resp, err
-	}
-	return resp, nil
-}
 
 // GetExchangeInfo returns exchange information. Check binance_types for more
 // information

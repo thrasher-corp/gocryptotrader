@@ -9,6 +9,7 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 )
 
 func TestSetupEventManager(t *testing.T) {
@@ -299,7 +300,7 @@ func TestCheckEventCondition(t *testing.T) {
 	}
 	m.m.Lock()
 	err = m.checkEventCondition(&m.events[0])
-	if err != nil && !strings.Contains(err.Error(), "no tickers associated") {
+	if err != nil && !errors.Is(err, ticker.ErrNoTickerFound) {
 		t.Error(err)
 	} else if err == nil {
 		t.Error("expected error")
