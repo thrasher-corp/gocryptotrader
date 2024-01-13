@@ -13,7 +13,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
@@ -199,11 +198,6 @@ func (b *Binance) GetWsMostRecentTrades(rtr *RecentTradeRequestParams) ([]Recent
 	if rtr.Symbol.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
-	var err error
-	rtr.Symbol, err = b.FormatExchangeCurrency(rtr.Symbol, asset.Spot)
-	if err != nil {
-		return nil, err
-	}
 	var resp []RecentTrade
 	return resp, b.SendWsRequest("trades.recent", rtr, &resp)
 }
@@ -305,7 +299,7 @@ func (b *Binance) tickerDataChange(method string, arg *PriceChangeRequestParam) 
 	if arg == nil {
 		return nil, errNilArgument
 	}
-	if arg.Symbol.IsEmpty() && len(arg.Symbols) == 0 {
+	if arg.Symbol == "" && len(arg.Symbols) == 0 {
 		return nil, currency.ErrCurrencyPairsEmpty
 	}
 	var resp PriceChanges
@@ -337,7 +331,7 @@ func (b *Binance) GetSymbolPriceTicker(symbol currency.Pair) ([]SymbolTickerItem
 // GetWsRollingWindowPriceChanges retrieves rolling window price change statistics with a custom window.
 // this request is similar to ticker.24hr, but statistics are computed on demand using the arbitrary window you specify
 func (b *Binance) GetWsRollingWindowPriceChanges(arg *WsRollingWindowPriceParams) ([]PriceChangeStats, error) {
-	if arg.Symbol.IsEmpty() && len(arg.Symbols) == 0 {
+	if arg.Symbol == "" && len(arg.Symbols) == 0 {
 		return nil, currency.ErrSymbolStringEmpty
 	}
 	arg.WindowSize = b.WindowSizeToString(arg.WindowSizeDuration)
@@ -449,7 +443,7 @@ func (b *Binance) GetLogOutOfSession() (*FuturesAuthenticationResp, error) {
 
 // WsPlaceNewOrder place new order
 func (b *Binance) WsPlaceNewOrder(arg *TradeOrderRequestParam) (*TradeOrderResponse, error) {
-	if arg.Symbol.IsEmpty() {
+	if arg.Symbol == "" {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
 	if arg.Side == "" {
@@ -474,7 +468,7 @@ func (b *Binance) ValidatePlaceNewOrderRequest(arg *TradeOrderRequestParam) erro
 	if arg == nil {
 		return errNilArgument
 	}
-	if arg.Symbol.IsEmpty() {
+	if arg.Symbol == "" {
 		return currency.ErrCurrencyPairEmpty
 	}
 	if arg.Side == "" {
@@ -495,42 +489,46 @@ func (b *Binance) ValidatePlaceNewOrderRequest(arg *TradeOrderRequestParam) erro
 
 // WsQueryOrder to query a trade order
 func (b *Binance) WsQueryOrder(arg *QueryOrderParam) (*TradeOrder, error) {
-	err := b.signParam(arg)
+	if arg == nil {
+		return nil, errNilArgument
+	}
+	if arg.OrderID == 0 && arg.OrigClientOrderID == "" {
+		return nil, order.ErrOrderIDNotSet
+	}
+	if arg.Symbol == "" {
+		return nil, currency.ErrCurrencyPairEmpty
+	}
+	arg.Timestamp = time.Now().UnixMilli()
+	apiKey, signature, err := b.getSignature(arg)
 	if err != nil {
 		return nil, err
 	}
+	arg.APIKey = apiKey
+	arg.Signature = signature
 	var resp *TradeOrder
 	return resp, b.SendWsRequest("order.status", arg, &resp)
 }
 
 // WsCancelOrder cancel an active order.
 func (b *Binance) WsCancelOrder(arg *QueryOrderParam) (*TradeOrder, error) {
-	err := b.signParam(arg)
-	if err != nil {
-		return nil, err
-	}
-	var resp *TradeOrder
-	return resp, b.SendWsRequest("order.cancel", &arg, &resp)
-}
-
-func (b *Binance) signParam(arg *QueryOrderParam) error {
 	if arg == nil {
-		return errNilArgument
+		return nil, errNilArgument
 	}
 	if arg.OrderID == 0 && arg.OrigClientOrderID == "" {
-		return order.ErrOrderIDNotSet
+		return nil, order.ErrOrderIDNotSet
 	}
-	if arg.Symbol.IsEmpty() {
-		return currency.ErrCurrencyPairEmpty
+	if arg.Symbol == "" {
+		return nil, currency.ErrCurrencyPairEmpty
 	}
 	arg.Timestamp = time.Now().UnixMilli()
 	apiKey, signature, err := b.getSignature(arg)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	arg.APIKey = apiKey
 	arg.Signature = signature
-	return nil
+	var resp *TradeOrder
+	return resp, b.SendWsRequest("order.cancel", &arg, &resp)
 }
 
 // WsCancelAndReplaceTradeOrder cancel an existing order and immediately place a new order instead of the canceled one.
@@ -538,7 +536,7 @@ func (b *Binance) WsCancelAndReplaceTradeOrder(arg *WsCancelAndReplaceParam) (*W
 	if arg == nil {
 		return nil, errNilArgument
 	}
-	if arg.Symbol.IsEmpty() {
+	if arg.Symbol == "" {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
 	if arg.CancelReplaceMode == "" {
@@ -623,7 +621,7 @@ func (b *Binance) WsPlaceOCOOrder(arg *PlaceOCOOrderParam) (*OCOOrder, error) {
 	if arg == nil {
 		return nil, errNilArgument
 	}
-	if arg.Symbol.IsEmpty() {
+	if arg.Symbol == "" {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
 	if arg.Side == "" {
@@ -729,7 +727,7 @@ func (b *Binance) WsPlaceNewSOROrder(arg *WsOSRPlaceOrderParams) ([]OSROrder, er
 	if arg == nil || *arg == (WsOSRPlaceOrderParams{}) {
 		return nil, errNilArgument
 	}
-	if arg.Symbol.IsEmpty() {
+	if arg.Symbol == "" {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
 	if arg.Side == "" {
@@ -758,7 +756,7 @@ func (b *Binance) WsTestNewOrderUsingSOR(arg *WsOSRPlaceOrderParams) error {
 	if arg == nil || *arg == (WsOSRPlaceOrderParams{}) {
 		return errNilArgument
 	}
-	if arg.Symbol.IsEmpty() {
+	if arg.Symbol == "" {
 		return currency.ErrCurrencyPairEmpty
 	}
 	if arg.Side == "" {
@@ -832,7 +830,7 @@ func (b *Binance) WsQueryAccountOrderHistory(arg *AccountOrderRequestParam) ([]T
 	if arg == nil {
 		return nil, errNilArgument
 	}
-	if arg.Symbol.IsEmpty() {
+	if arg.Symbol == "" {
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
 	arg.Timestamp = time.Now().UnixMilli()
@@ -886,7 +884,7 @@ func (b *Binance) WsAccountTradeHistory(arg *AccountOrderRequestParam) ([]TradeH
 	if arg == nil {
 		return nil, errNilArgument
 	}
-	if arg.Symbol.IsEmpty() {
+	if arg.Symbol == "" {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
 	arg.Timestamp = time.Now().UnixMilli()

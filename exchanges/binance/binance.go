@@ -283,7 +283,7 @@ func (b *Binance) GetUserMarginInterestHistory(ctx context.Context, assetCurrenc
 // https://binance-docs.github.io/apidocs/spot/en/#compressed-aggregate-trades-list
 func (b *Binance) GetAggregatedTrades(ctx context.Context, arg *AggregatedTradeRequestParams) ([]AggregatedTrade, error) {
 	params := url.Values{}
-	params.Set("symbol", arg.Symbol.String())
+	params.Set("symbol", arg.Symbol)
 	// If the user request is directly not supported by the exchange, we might be able to fulfill it
 	// by merging results from multiple API requests
 	needBatch := true // Need to batch unless user has specified a limit

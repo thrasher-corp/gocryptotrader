@@ -476,10 +476,15 @@ func (b *Binance) UpdateTradablePairs(ctx context.Context, forceUpdate bool) err
 func (b *Binance) UpdateTickers(ctx context.Context, a asset.Item) error {
 	switch a {
 	case asset.Spot, asset.Margin:
+		format, err := b.GetPairFormat(a, true)
+		if err != nil {
+			return err
+		}
 		pairs, err := b.GetEnabledPairs(a)
 		if err != nil {
 			return err
 		}
+		pairs = pairs.Format(format)
 		var tick []PriceChangeStats
 		if b.IsAPIStreamConnected() {
 			tick, err = b.GetWsTradingDayTickers(&PriceChangeRequestParam{
@@ -599,7 +604,7 @@ func (b *Binance) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Ite
 		if b.IsAPIStreamConnected() {
 			var ticks []PriceChangeStats
 			ticks, err = b.GetWsTradingDayTickers(&PriceChangeRequestParam{
-				Symbol:     p,
+				Symbol:     p.String(),
 				TickerType: "FULL",
 			})
 			if err != nil {
@@ -1011,19 +1016,19 @@ func (b *Binance) GetHistoricTrades(ctx context.Context, p currency.Pair, a asse
 		return nil, err
 	}
 	pFmt := p.Format(rFmt)
-	req := AggregatedTradeRequestParams{
-		Symbol:    pFmt,
-		StartTime: from,
-		EndTime:   to,
-	}
 	var trades []AggregatedTrade
 	if b.IsAPIStreamConnected() {
 		trades, err = b.GetWsAggregatedTrades(&WsAggregateTradeRequestParams{
-			Symbol: req.Symbol,
-			FromID: req.FromID,
-			Limit:  int64(req.Limit),
+			Symbol:    pFmt.String(),
+			StartTime: from.UnixMilli(),
+			EndTime:   to.UnixMilli(),
 		})
 	} else {
+		req := AggregatedTradeRequestParams{
+			Symbol:    pFmt.String(),
+			StartTime: from,
+			EndTime:   to,
+		}
 		trades, err = b.GetAggregatedTrades(ctx, &req)
 	}
 	if err != nil {
@@ -1083,7 +1088,7 @@ func (b *Binance) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Subm
 		if b.IsAPIStreamConnected() && b.Websocket.CanUseAuthenticatedEndpoints() && b.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
 			var results *TradeOrderResponse
 			results, err = b.WsPlaceNewOrder(&TradeOrderRequestParam{
-				Symbol:      s.Pair,
+				Symbol:      s.Pair.String(),
 				Side:        sideType,
 				OrderType:   string(requestParamsOrderType),
 				TimeInForce: string(timeInForce),
@@ -1118,7 +1123,7 @@ func (b *Binance) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Subm
 			for i := range response.Fills {
 				trades[i] = order.TradeHistory{
 					Price:    response.Fills[i].Price,
-					Amount:   response.Fills[i].Qty,
+					Amount:   response.Fills[i].Quantity,
 					Fee:      response.Fills[i].Commission,
 					FeeAsset: response.Fills[i].CommissionAsset,
 				}
@@ -1258,7 +1263,7 @@ func (b *Binance) CancelOrder(ctx context.Context, o *order.Cancel) error {
 				return err
 			}
 			_, err = b.WsCancelOrder(&QueryOrderParam{
-				Symbol:            o.Pair,
+				Symbol:            o.Pair.String(),
 				OrderID:           orderIDInt,
 				OrigClientOrderID: o.ClientOrderID,
 			})
@@ -1391,7 +1396,7 @@ func (b *Binance) GetOrderInfo(ctx context.Context, orderID string, pair currenc
 		if b.IsAPIStreamConnected() && b.Websocket.CanUseAuthenticatedEndpoints() && b.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
 			var trades []TradeOrder
 			trades, err = b.WsQueryAccountOrderHistory(&AccountOrderRequestParam{
-				Symbol:  pair,
+				Symbol:  pair.String(),
 				OrderID: orderIDInt,
 			})
 			if err != nil {
@@ -1912,7 +1917,7 @@ func (b *Binance) GetHistoricCandles(ctx context.Context, pair currency.Pair, a 
 		if b.IsAPIStreamConnected() {
 			candles, err = b.GetWsOptimizedCandlestick(&KlinesRequestParams{
 				Interval:  b.FormatExchangeKlineInterval(req.ExchangeInterval),
-				Symbol:    req.Pair,
+				Symbol:    req.RequestFormatted,
 				StartTime: req.Start,
 				EndTime:   req.End,
 				Limit:     req.RequestLimit,
@@ -2003,7 +2008,7 @@ func (b *Binance) GetHistoricCandlesExtended(ctx context.Context, pair currency.
 			if b.IsAPIStreamConnected() {
 				candles, err = b.GetWsCandlestick(&KlinesRequestParams{
 					Interval:  b.FormatExchangeKlineInterval(req.ExchangeInterval),
-					Symbol:    req.Pair,
+					Symbol:    req.RequestFormatted,
 					StartTime: req.RangeHolder.Ranges[x].Start.Time,
 					EndTime:   req.RangeHolder.Ranges[x].End.Time,
 					Limit:     req.RequestLimit,

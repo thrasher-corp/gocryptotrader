@@ -1176,7 +1176,7 @@ func TestGetAggregatedTrades(t *testing.T) {
 	t.Parallel()
 	_, err := b.GetAggregatedTrades(context.Background(),
 		&AggregatedTradeRequestParams{
-			Symbol: currency.NewPair(currency.BTC, currency.USDT),
+			Symbol: "BTCUSDT",
 			Limit:  5,
 		})
 	if err != nil {
@@ -1482,10 +1482,16 @@ func TestGetHistoricTrades(t *testing.T) {
 	p := currency.NewPair(currency.BTC, currency.USDT)
 	start := time.Unix(1577977445, 0)  // 2020-01-02 15:04:05
 	end := start.Add(15 * time.Minute) // 2020-01-02 15:19:05
+	if b.IsAPIStreamConnected() {
+		start = time.Now().Add(-time.Hour * 10)
+		end = time.Now().Add(-time.Hour)
+	}
 	result, err := b.GetHistoricTrades(context.Background(), p, asset.Spot, start, end)
 	assert.NoError(t, err, "GetHistoricTrades should not error")
 	expected := 2134
-	if mockTests {
+	if b.IsAPIStreamConnected() {
+		expected = len(result)
+	} else if mockTests {
 		expected = 1002
 	}
 	assert.Equal(t, expected, len(result), "GetHistoricTrades should return correct number of entries") // assert.Len doesn't produce clear messages on result
@@ -1522,7 +1528,7 @@ func TestGetAggregatedTradesBatched(t *testing.T) {
 			name: "mock batch with timerange",
 			mock: true,
 			args: &AggregatedTradeRequestParams{
-				Symbol:    currencyPair,
+				Symbol:    currencyPair.String(),
 				StartTime: start,
 				EndTime:   start.Add(75 * time.Minute),
 			},
@@ -1532,7 +1538,7 @@ func TestGetAggregatedTradesBatched(t *testing.T) {
 		{
 			name: "batch with timerange",
 			args: &AggregatedTradeRequestParams{
-				Symbol:    currencyPair,
+				Symbol:    currencyPair.String(),
 				StartTime: start,
 				EndTime:   start.Add(75 * time.Minute),
 			},
@@ -1543,7 +1549,7 @@ func TestGetAggregatedTradesBatched(t *testing.T) {
 			name: "mock custom limit with start time set, no end time",
 			mock: true,
 			args: &AggregatedTradeRequestParams{
-				Symbol:    currency.NewPair(currency.BTC, currency.USDT),
+				Symbol:    "BTCUSDT",
 				StartTime: start,
 				Limit:     1001,
 			},
@@ -1553,7 +1559,7 @@ func TestGetAggregatedTradesBatched(t *testing.T) {
 		{
 			name: "custom limit with start time set, no end time",
 			args: &AggregatedTradeRequestParams{
-				Symbol:    currency.NewPair(currency.BTC, currency.USDT),
+				Symbol:    "BTCUSDT",
 				StartTime: time.Date(2020, 11, 18, 23, 0, 28, 921, time.UTC),
 				Limit:     1001,
 			},
@@ -1564,7 +1570,7 @@ func TestGetAggregatedTradesBatched(t *testing.T) {
 			name: "mock recent trades",
 			mock: true,
 			args: &AggregatedTradeRequestParams{
-				Symbol: currency.NewPair(currency.BTC, currency.USDT),
+				Symbol: "BTCUSDT",
 				Limit:  3,
 			},
 			numExpected:  3,
@@ -1606,14 +1612,14 @@ func TestGetAggregatedTradesErrors(t *testing.T) {
 		{
 			name: "get recent trades does not support custom limit",
 			args: &AggregatedTradeRequestParams{
-				Symbol: currency.NewPair(currency.BTC, currency.USDT),
+				Symbol: "BTCUSDT",
 				Limit:  1001,
 			},
 		},
 		{
 			name: "start time and fromId cannot be both set",
 			args: &AggregatedTradeRequestParams{
-				Symbol:    currency.NewPair(currency.BTC, currency.USDT),
+				Symbol:    "BTCUSDT",
 				StartTime: start,
 				EndTime:   start.Add(75 * time.Minute),
 				FromID:    2,
@@ -1622,7 +1628,7 @@ func TestGetAggregatedTradesErrors(t *testing.T) {
 		{
 			name: "can't get most recent 5000 (more than 1000 not allowed)",
 			args: &AggregatedTradeRequestParams{
-				Symbol: currency.NewPair(currency.BTC, currency.USDT),
+				Symbol: "BTCUSDT",
 				Limit:  5000,
 			},
 		},
@@ -3534,7 +3540,7 @@ func TestGetWsAggregatedTrades(t *testing.T) {
 		t.Skip(apiStreamingIsNotConnected)
 	}
 	_, err := b.GetWsAggregatedTrades(&WsAggregateTradeRequestParams{
-		Symbol: currency.NewPair(currency.BTC, currency.USDT),
+		Symbol: "BTCUSDT",
 		Limit:  5,
 	})
 	if err != nil {
@@ -3682,7 +3688,7 @@ func TestPlaceNewOrder(t *testing.T) {
 	}
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
 	_, err := b.WsPlaceNewOrder(&TradeOrderRequestParam{
-		Symbol:      currency.NewPair(currency.BTC, currency.USDT),
+		Symbol:      "BTCUSDT",
 		Side:        "SELL",
 		OrderType:   "LIMIT",
 		TimeInForce: "GTC",
@@ -3701,7 +3707,7 @@ func TestValidatePlaceNewOrderRequest(t *testing.T) {
 	}
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
 	err := b.ValidatePlaceNewOrderRequest(&TradeOrderRequestParam{
-		Symbol:      currency.NewPair(currency.BTC, currency.USDT),
+		Symbol:      "BTCUSDT",
 		Side:        "SELL",
 		OrderType:   "LIMIT",
 		TimeInForce: "GTC",
@@ -3720,7 +3726,7 @@ func TestWsQueryOrder(t *testing.T) {
 	}
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	_, err := b.WsQueryOrder(&QueryOrderParam{
-		Symbol:  currency.NewPair(currency.BTC, currency.USDT),
+		Symbol:  "BTCUSDT",
 		OrderID: 12345,
 	})
 	if err != nil {
@@ -3751,7 +3757,7 @@ func TestWsCancelAndReplaceTradeOrder(t *testing.T) {
 	}
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
 	_, err := b.WsCancelAndReplaceTradeOrder(&WsCancelAndReplaceParam{
-		Symbol:                    currency.NewPair(currency.BTC, currency.USDT),
+		Symbol:                    "BTCUSDT",
 		CancelReplaceMode:         "ALLOW_FAILURE",
 		CancelOriginClientOrderID: "4d96324ff9d44481926157",
 		Side:                      "SELL",
@@ -3796,7 +3802,7 @@ func TestWsPlaceOCOOrder(t *testing.T) {
 	}
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
 	_, err := b.WsPlaceOCOOrder(&PlaceOCOOrderParam{
-		Symbol:               currency.NewPair(currency.BTC, currency.USDT),
+		Symbol:               "BTCUSDT",
 		Side:                 "SELL",
 		Price:                23420.00000000,
 		Quantity:             0.00650000,
@@ -3858,7 +3864,7 @@ func TestWsPlaceNewSOROrder(t *testing.T) {
 	}
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
 	_, err := b.WsPlaceNewSOROrder(&WsOSRPlaceOrderParams{
-		Symbol:      currency.NewPair(currency.BTC, currency.USDT),
+		Symbol:      "BTCUSDT",
 		Side:        "BUY",
 		OrderType:   "LIMIT",
 		Quantity:    0.5,
@@ -3877,7 +3883,7 @@ func TestWsTestNewOrderUsingSOR(t *testing.T) {
 	}
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
 	err := b.WsTestNewOrderUsingSOR(&WsOSRPlaceOrderParams{
-		Symbol:      currency.NewPair(currency.BTC, currency.USDT),
+		Symbol:      "BTCUSDT",
 		Side:        "BUY",
 		OrderType:   "LIMIT",
 		Quantity:    0.5,
@@ -3951,7 +3957,7 @@ func TestWsQueryAccountOrderHistory(t *testing.T) {
 	}
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	_, err := b.WsQueryAccountOrderHistory(&AccountOrderRequestParam{
-		Symbol:    currency.NewPair(currency.BTC, currency.USDT),
+		Symbol:    "BTCUSDT",
 		StartTime: time.Now().Add(-time.Hour * 24 * 10).UnixMilli(),
 		EndTime:   time.Now().Add(-time.Hour * 6).UnixMilli(),
 		Limit:     5,
@@ -3980,7 +3986,7 @@ func TestWsAccountTradeHistory(t *testing.T) {
 	}
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	_, err := b.WsAccountTradeHistory(&AccountOrderRequestParam{
-		Symbol:  currency.NewPair(currency.BTC, currency.USDT),
+		Symbol:  "BTCUSDT",
 		OrderID: 1234,
 	})
 	if err != nil {

@@ -297,7 +297,7 @@ type HistoricalTrade struct {
 
 // AggregatedTradeRequestParams holds request params
 type AggregatedTradeRequestParams struct {
-	Symbol currency.Pair // Required field; example LTCBTC, BTCUSDT
+	Symbol string // Required field; example LTCBTC, BTCUSDT
 	// The first trade to retrieve
 	FromID int64
 	// The API seems to accept (start and end time) or FromID and no other combinations
@@ -309,9 +309,11 @@ type AggregatedTradeRequestParams struct {
 
 // WsAggregateTradeRequestParams holds request parameters for aggregate trades
 type WsAggregateTradeRequestParams struct {
-	Symbol currency.Pair `json:"symbol"`
-	FromID int64         `json:"fromId,omitempty"`
-	Limit  int64         `json:"limit,omitempty"`
+	Symbol    string `json:"symbol"`
+	FromID    int64  `json:"fromId,omitempty"`
+	Limit     int64  `json:"limit,omitempty"`
+	StartTime int64  `json:"startTime,omitempty"`
+	EndTime   int64  `json:"endTime,omitempty"`
 }
 
 // AggregatedTrade holds aggregated trade information
@@ -455,7 +457,7 @@ type NewOrderResponse struct {
 	Side               string  `json:"side"`
 	Fills              []struct {
 		Price           float64 `json:"price,string"`
-		Qty             float64 `json:"qty,string"`
+		Quantity        float64 `json:"qty,string"`
 		Commission      float64 `json:"commission,string"`
 		CommissionAsset string  `json:"commissionAsset"`
 	} `json:"fills"`
@@ -1568,7 +1570,7 @@ type SymbolAveragePrice struct {
 
 // PriceChangeRequestParam holds request parameters for price change request parameters
 type PriceChangeRequestParam struct {
-	Symbol     currency.Pair   `json:"symbol,omitempty"`
+	Symbol     string          `json:"symbol,omitempty"`
 	Symbols    []currency.Pair `json:"symbols,omitempty"`
 	Timezone   string          `json:"timeZone,omitempty"`
 	TickerType string          `json:"type,omitempty"`
@@ -1583,7 +1585,7 @@ type WsRollingWindowPriceParams struct {
 	WindowSizeDuration time.Duration   `json:"-"`
 	WindowSize         string          `json:"windowSize,omitempty"`
 	TickerType         string          `json:"type,omitempty"`
-	Symbol             currency.Pair   `json:"symbol,omitempty"`
+	Symbol             string          `json:"symbol,omitempty"`
 }
 
 // SymbolTickerItem holds symbol and price information
@@ -1617,21 +1619,21 @@ type APISignatureInfo struct {
 // TradeOrderRequestParam new order request parameter
 type TradeOrderRequestParam struct {
 	APISignatureInfo
-	Symbol      currency.Pair `json:"symbol"`
-	Side        string        `json:"side"`
-	OrderType   string        `json:"type"`
-	TimeInForce string        `json:"timeInForce"`
-	Price       float64       `json:"price,omitempty,string"`
-	Quantity    float64       `json:"quantity,omitempty,string"`
+	Symbol      string  `json:"symbol"`
+	Side        string  `json:"side"`
+	OrderType   string  `json:"type"`
+	TimeInForce string  `json:"timeInForce"`
+	Price       float64 `json:"price,omitempty,string"`
+	Quantity    float64 `json:"quantity,omitempty,string"`
 }
 
 // QueryOrderParam represents an order querying parameters
 type QueryOrderParam struct {
 	APISignatureInfo
-	Symbol            currency.Pair `json:"symbol,omitempty"`
-	OrderID           int64         `json:"orderId,omitempty"`
-	OrigClientOrderID string        `json:"origClientOrderId,omitempty"`
-	RecvWindow        int64         `json:"recvWindow,omitempty"`
+	Symbol            string `json:"symbol,omitempty"`
+	OrderID           int64  `json:"orderId,omitempty"`
+	OrigClientOrderID string `json:"origClientOrderId,omitempty"`
+	RecvWindow        int64  `json:"recvWindow,omitempty"`
 
 	NewClientOrderID   string `json:"newClientOrderId,omitempty"`
 	CancelRestrictions string `json:"cancelRestrictions,omitempty"`
@@ -1640,8 +1642,8 @@ type QueryOrderParam struct {
 // WsCancelAndReplaceParam represents a cancel and replace request parameters
 type WsCancelAndReplaceParam struct {
 	APISignatureInfo
-	Symbol        currency.Pair `json:"symbol,omitempty"`
-	CancelOrderID string        `json:"cancelOrderId,omitempty"`
+	Symbol        string `json:"symbol,omitempty"`
+	CancelOrderID string `json:"cancelOrderId,omitempty"`
 
 	// CancelReplaceMode possible values are 'STOP_ON_FAILURE', 'ALLOW_FAILURE'
 	CancelReplaceMode         string  `json:"cancelReplaceMode,omitempty"`
@@ -1678,24 +1680,24 @@ type WsCancelAndReplaceParam struct {
 // PlaceOCOOrderParam holds a request parameters for one-cancel-other orders
 type PlaceOCOOrderParam struct {
 	APISignatureInfo
-	Symbol               currency.Pair `json:"symbol,omitempty"`
-	Side                 string        `json:"side,omitempty"`
-	Price                float64       `json:"price,omitempty"`
-	Quantity             float64       `json:"quantity,omitempty"`
-	ListClientOrderID    string        `json:"listClientOrderId,omitempty"`
-	LimitClientOrderID   string        `json:"limitClientOrderId,omitempty"`
-	LimitIcebergQty      float64       `json:"limitIcebergQty,omitempty"`
-	LimitStrategyID      string        `json:"limitStrategyId,omitempty"`
-	LimitStrategyType    string        `json:"limitStrategyType,omitempty"`
-	StopPrice            float64       `json:"stopPrice,omitempty"`
-	TrailingDelta        int64         `json:"trailingDelta,omitempty"`
-	StopClientOrderID    string        `json:"stopClientOrderId,omitempty"`
-	StopLimitPrice       float64       `json:"stopLimitPrice,omitempty"`
-	StopLimitTimeInForce string        `json:"stopLimitTimeInForce,omitempty"`
-	StopIcebergQty       float64       `json:"stopIcebergQty,omitempty"`
-	StopStrategyID       string        `json:"stopStrategyId,omitempty"`
-	StopStrategyType     string        `json:"stopStrategyType,omitempty"`
-	NewOrderRespType     string        `json:"newOrderRespType,omitempty"`
+	Symbol               string  `json:"symbol,omitempty"`
+	Side                 string  `json:"side,omitempty"`
+	Price                float64 `json:"price,omitempty"`
+	Quantity             float64 `json:"quantity,omitempty"`
+	ListClientOrderID    string  `json:"listClientOrderId,omitempty"`
+	LimitClientOrderID   string  `json:"limitClientOrderId,omitempty"`
+	LimitIcebergQty      float64 `json:"limitIcebergQty,omitempty"`
+	LimitStrategyID      string  `json:"limitStrategyId,omitempty"`
+	LimitStrategyType    string  `json:"limitStrategyType,omitempty"`
+	StopPrice            float64 `json:"stopPrice,omitempty"`
+	TrailingDelta        int64   `json:"trailingDelta,omitempty"`
+	StopClientOrderID    string  `json:"stopClientOrderId,omitempty"`
+	StopLimitPrice       float64 `json:"stopLimitPrice,omitempty"`
+	StopLimitTimeInForce string  `json:"stopLimitTimeInForce,omitempty"`
+	StopIcebergQty       float64 `json:"stopIcebergQty,omitempty"`
+	StopStrategyID       string  `json:"stopStrategyId,omitempty"`
+	StopStrategyType     string  `json:"stopStrategyType,omitempty"`
+	NewOrderRespType     string  `json:"newOrderRespType,omitempty"`
 
 	// The allowed enums is dependent on what is configured on the symbol. The possible supported values are 'EXPIRE_TAKER', 'EXPIRE_MAKER', 'EXPIRE_BOTH', 'NONE'.
 	SelfTradePreventionMode string `json:"selfTradePreventionMode,omitempty"`
@@ -1887,13 +1889,13 @@ type OCOOrderInfo struct {
 // WsOSRPlaceOrderParams holds request parameters for placing OSR orders.
 type WsOSRPlaceOrderParams struct {
 	APISignatureInfo
-	Symbol           currency.Pair `json:"symbol,omitempty"`
-	Side             string        `json:"side,omitempty"`
-	OrderType        string        `json:"type,omitempty"`
-	TimeInForce      string        `json:"timeInForce,omitempty"`
-	Price            float64       `json:"price,omitempty"`
-	Quantity         float64       `json:"quantity,omitempty"`
-	NewClientOrderID string        `json:"newClientOrderId,omitempty"`
+	Symbol           string  `json:"symbol,omitempty"`
+	Side             string  `json:"side,omitempty"`
+	OrderType        string  `json:"type,omitempty"`
+	TimeInForce      string  `json:"timeInForce,omitempty"`
+	Price            float64 `json:"price,omitempty"`
+	Quantity         float64 `json:"quantity,omitempty"`
+	NewClientOrderID string  `json:"newClientOrderId,omitempty"`
 
 	// Select response format: ACK, RESULT, FULL.
 	// MARKET and LIMIT orders use FULL by default.
@@ -1940,12 +1942,12 @@ type OSROrder struct {
 // AccountOrderRequestParam retrieves an account order history parameters
 type AccountOrderRequestParam struct {
 	APISignatureInfo
-	EndTime    int64         `json:"endTime,omitempty"`
-	Limit      int64         `json:"limit,omitempty"`
-	OrderID    int64         `json:"orderId,omitempty"` // Order ID to begin at
-	RecvWindow int64         `json:"recvWindow,omitempty"`
-	StartTime  int64         `json:"startTime,omitempty"`
-	Symbol     currency.Pair `json:"symbol"`
+	EndTime    int64  `json:"endTime,omitempty"`
+	Limit      int64  `json:"limit,omitempty"`
+	OrderID    int64  `json:"orderId,omitempty"` // Order ID to begin at
+	RecvWindow int64  `json:"recvWindow,omitempty"`
+	StartTime  int64  `json:"startTime,omitempty"`
+	Symbol     string `json:"symbol"`
 
 	// for requesting trades
 	FromID int64 `json:"fromId,omitempty"`
