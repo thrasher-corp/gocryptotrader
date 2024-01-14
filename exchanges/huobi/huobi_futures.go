@@ -197,7 +197,7 @@ func (h *HUOBI) FContractOpenInterest(ctx context.Context, symbol, contractType 
 		if err != nil {
 			return resp, err
 		}
-		params.Set("contract_code", codeValue.String())
+		params.Set("contract_code", codeValue)
 	}
 	path := common.EncodeURLValues(fContractOpenInterest, params)
 	return resp, h.SendHTTPRequest(ctx, exchange.RestFutures, path, &resp)
