@@ -76,6 +76,8 @@ const (
 	fTriggerOpenOrders         = "/api/v1/contract_trigger_openorders"
 	fTriggerOrderHistory       = "/api/v1/contract_trigger_hisorders"
 
+	uContractOpenInterest = "/linear-swap-api/v1/swap_open_interest"
+
 	fContractDateFormat = "060102"
 )
 
@@ -144,6 +146,39 @@ func (h *HUOBI) FContractPriceLimitations(ctx context.Context, symbol, contractT
 	return resp, h.SendHTTPRequest(ctx, exchange.RestFutures, path, &resp)
 }
 
+// ContractOpenInterestUSDT gets open interest data for futures contracts
+func (h *HUOBI) ContractOpenInterestUSDT(ctx context.Context, contractCode, pair currency.Pair, contractType, businessType string) ([]UContractOpenInterest, error) {
+	params := url.Values{}
+	if !contractCode.IsEmpty() {
+		cc, err := h.formatFuturesPair(contractCode, true)
+		if err != nil {
+			return nil, err
+		}
+		params.Set("contract_code", cc)
+	}
+	if !pair.IsEmpty() {
+		p, err := h.formatFuturesPair(pair, true)
+		if err != nil {
+			return nil, err
+		}
+		params.Set("pair", p)
+	}
+	if contractType != "" {
+		if !common.StringDataCompareInsensitive(validContractTypes, contractType) {
+			return nil, fmt.Errorf("invalid contractType")
+		}
+		params.Set("contract_type", contractType)
+	}
+	if businessType != "" {
+		params.Set("business_type", businessType)
+	}
+	path := common.EncodeURLValues(uContractOpenInterest, params)
+	var resp struct {
+		Data []UContractOpenInterest `json:"data"`
+	}
+	return resp.Data, h.SendHTTPRequest(ctx, exchange.RestFutures, path, &resp)
+}
+
 // FContractOpenInterest gets open interest data for futures contracts
 func (h *HUOBI) FContractOpenInterest(ctx context.Context, symbol, contractType string, code currency.Pair) (FContractOIData, error) {
 	var resp FContractOIData
@@ -162,7 +197,7 @@ func (h *HUOBI) FContractOpenInterest(ctx context.Context, symbol, contractType 
 		if err != nil {
 			return resp, err
 		}
-		params.Set("contract_code", codeValue)
+		params.Set("contract_code", codeValue.String())
 	}
 	path := common.EncodeURLValues(fContractOpenInterest, params)
 	return resp, h.SendHTTPRequest(ctx, exchange.RestFutures, path, &resp)
