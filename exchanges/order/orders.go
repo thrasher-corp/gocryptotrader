@@ -25,7 +25,7 @@ const (
 	shortSide                 = Short | Sell | Ask
 	longSide                  = Long | Buy | Bid
 
-	inactiveStatuses = Filled | Cancelled | InsufficientBalance | MarketUnavailable | Rejected | PartiallyCancelled | Expired | Closed | AnyStatus | Cancelling | Liquidated
+	inactiveStatuses = Filled | Cancelled | InsufficientBalance | MarketUnavailable | Rejected | PartiallyCancelled | PartiallyFilledCancelled | Expired | Closed | AnyStatus | Cancelling | Liquidated
 	activeStatuses   = Active | Open | PartiallyFilled | New | PendingCancel | Hidden | AutoDeleverage | Pending
 	notPlaced        = InsufficientBalance | MarketUnavailable | Rejected
 )
@@ -36,6 +36,9 @@ var (
 	ErrUnableToPlaceOrder = errors.New("order not placed")
 	// ErrOrderNotFound is returned when no order is found
 	ErrOrderNotFound = errors.New("order not found")
+
+	// ErrUnknownPriceType returned when price type is unknown
+	ErrUnknownPriceType = errors.New("unknown price type")
 
 	errTimeInForceConflict      = errors.New("multiple time in force options applied")
 	errUnrecognisedOrderType    = errors.New("unrecognised order type")
@@ -784,6 +787,8 @@ func (s Status) String() string {
 		return "PARTIALLY_CANCELLED"
 	case PartiallyFilled:
 		return "PARTIALLY_FILLED"
+	case PartiallyFilledCancelled:
+		return "PARTIALLY_FILLED_CANCELED"
 	case Filled:
 		return "FILLED"
 	case Cancelled:
@@ -1132,6 +1137,8 @@ func StringToOrderStatus(status string) (Status, error) {
 		return Filled, nil
 	case PartiallyCancelled.String(), "PARTIALLY CANCELLED", "ORDER_PARTIALLY_TRANSACTED":
 		return PartiallyCancelled, nil
+	case PartiallyFilledCancelled.String(), "PARTIALLYFILLEDCANCELED":
+		return PartiallyFilledCancelled, nil
 	case Open.String():
 		return Open, nil
 	case Closed.String():
@@ -1284,4 +1291,34 @@ func (m *Modify) Validate(opt ...validate.Checker) error {
 		return ErrOrderIDNotSet
 	}
 	return nil
+}
+
+// String implements the stringer interface
+func (t PriceType) String() string {
+	switch t {
+	case LastPrice:
+		return "LastPrice"
+	case IndexPrice:
+		return "IndexPrice"
+	case MarkPrice:
+		return "MarkPrice"
+	default:
+		return ""
+	}
+}
+
+// StringToPriceType for converting case insensitive order side
+// and returning a real Side
+func (t PriceType) StringToPriceType(priceType string) (PriceType, error) {
+	priceType = strings.ToLower(priceType)
+	switch priceType {
+	case "lastprice", "":
+		return LastPrice, nil
+	case "indexprice":
+		return IndexPrice, nil
+	case "markprice":
+		return MarkPrice, nil
+	default:
+		return UnknownPriceType, ErrUnknownPriceType
+	}
 }

@@ -9,17 +9,13 @@ import (
 	"golang.org/x/time/rate"
 )
 
+// Ratelimit intervals.
 const (
-	// oneSecondInterval
-	oneSecondInterval = time.Second
-	// twoSecondInterval
-	twoSecondsInterval = 2 * time.Second
-	// threeSecondInterval
+	oneSecondInterval    = time.Second
+	twoSecondsInterval   = 2 * time.Second
 	threeSecondsInterval = 3 * time.Second
-	// fiveSecondsInterval
-	fiveSecondsInterval = 5 * time.Second
-	// tenSecondsInterval
-	tenSecondsInterval = 10 * time.Second
+	fiveSecondsInterval  = 5 * time.Second
+	tenSecondsInterval   = 10 * time.Second
 )
 
 // RateLimit implements the request.Limiter interface

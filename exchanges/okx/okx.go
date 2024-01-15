@@ -4581,8 +4581,8 @@ func (ok *Okx) GetDeliveryHistory(ctx context.Context, instrumentType, underlyin
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getDeliveryExerciseHistoryEPL, http.MethodGet, common.EncodeURLValues("public/delivery-exercise-history", params), nil, &resp, false)
 }
 
-// GetOpenInterest retrieves the total open interest for contracts on OKX
-func (ok *Okx) GetOpenInterest(ctx context.Context, instType, uly, instID string) ([]OpenInterest, error) {
+// GetOpenInterestData retrieves the total open interest for contracts on OKX
+func (ok *Okx) GetOpenInterestData(ctx context.Context, instType, uly, instID string) ([]OpenInterest, error) {
 	instType = strings.ToUpper(instType)
 	if instType == "" {
 		return nil, errMissingRequiredArgInstType
@@ -5002,9 +5002,7 @@ func (ok *Okx) GetLongShortRatio(ctx context.Context, currency string, begin, en
 }
 
 // GetContractsOpenInterestAndVolume retrieves the open interest and trading volume for futures and perpetual swaps.
-func (ok *Okx) GetContractsOpenInterestAndVolume(
-	ctx context.Context, currency string,
-	begin, end time.Time, period kline.Interval) ([]OpenInterestVolume, error) {
+func (ok *Okx) GetContractsOpenInterestAndVolume(ctx context.Context, currency string, begin, end time.Time, period kline.Interval) ([]OpenInterestVolume, error) {
 	params := url.Values{}
 	if currency != "" {
 		params.Set("ccy", currency)
@@ -5042,8 +5040,7 @@ func (ok *Okx) GetContractsOpenInterestAndVolume(
 }
 
 // GetOptionsOpenInterestAndVolume retrieves the open interest and trading volume for options.
-func (ok *Okx) GetOptionsOpenInterestAndVolume(ctx context.Context, currency string,
-	period kline.Interval) ([]OpenInterestVolume, error) {
+func (ok *Okx) GetOptionsOpenInterestAndVolume(ctx context.Context, currency string, period kline.Interval) ([]OpenInterestVolume, error) {
 	params := url.Values{}
 	if currency != "" {
 		params.Set("ccy", currency)

@@ -13,6 +13,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -268,10 +269,10 @@ func TestGetDeliveryHistory(t *testing.T) {
 	}
 }
 
-func TestGetOpenInterest(t *testing.T) {
+func TestGetOpenInterestData(t *testing.T) {
 	t.Parallel()
-	if _, err := ok.GetOpenInterest(contextGenerate(), "FUTURES", "BTC-USDT", ""); err != nil {
-		t.Error("Okx GetOpenInterest() error", err)
+	if _, err := ok.GetOpenInterestData(contextGenerate(), "FUTURES", "BTC-USDT", ""); err != nil {
+		t.Error("Okx GetOpenInterestData() error", err)
 	}
 }
 
@@ -4482,4 +4483,44 @@ func TestGetUserAffilateRebateInformation(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
+}
+
+func TestGetOpenInterest(t *testing.T) {
+	t.Parallel()
+	_, err := ok.GetOpenInterest(context.Background(), key.PairAsset{
+		Base:  currency.ETH.Item,
+		Quote: currency.USDT.Item,
+		Asset: asset.USDTMarginedFutures,
+	})
+	assert.ErrorIs(t, err, asset.ErrNotSupported)
+
+	usdSwapCode := currency.NewCode("USD-SWAP")
+	resp, err := ok.GetOpenInterest(context.Background(), key.PairAsset{
+		Base:  currency.BTC.Item,
+		Quote: usdSwapCode.Item,
+		Asset: asset.PerpetualSwap,
+	})
+	assert.NoError(t, err)
+	assert.NotEmpty(t, resp)
+
+	cp1 := currency.NewPair(currency.DOGE, usdSwapCode)
+	sharedtestvalues.SetupCurrencyPairsForExchangeAsset(t, ok, asset.PerpetualSwap, cp1)
+	resp, err = ok.GetOpenInterest(context.Background(),
+		key.PairAsset{
+			Base:  currency.BTC.Item,
+			Quote: usdSwapCode.Item,
+			Asset: asset.PerpetualSwap,
+		},
+		key.PairAsset{
+			Base:  cp1.Base.Item,
+			Quote: cp1.Quote.Item,
+			Asset: asset.PerpetualSwap,
+		},
+	)
+	assert.NoError(t, err)
+	assert.NotEmpty(t, resp)
+
+	resp, err = ok.GetOpenInterest(context.Background())
+	assert.NoError(t, err)
+	assert.NotEmpty(t, resp)
 }
