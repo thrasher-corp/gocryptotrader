@@ -24,6 +24,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
+	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
 // Okx is the overarching type across this package
@@ -71,6 +72,7 @@ var (
 	errInvalidOrderType                       = errors.New("invalid order type")
 	errInvalidAmount                          = errors.New("unacceptable quantity to buy or sell")
 	errMissingClientOrderIDOrOrderID          = errors.New("client order id or order id is missing")
+	errWebsocketStreamNotAuthenticated        = errors.New("websocket stream not authenticated")
 	errInvalidNewSizeOrPriceInformation       = errors.New("invalid the new size or price information")
 	errSizeOrPriceIsRequired                  = errors.New("either size or price is required")
 	errMissingNewSize                         = errors.New("missing the order size information")
@@ -1020,10 +1022,11 @@ func (ok *Okx) ResetRFQMMPStatus(ctx context.Context) (time.Time, error) {
 // CreateQuote allows the user to Quote an Rfq that they are a counterparty to. The user MUST quote
 // the entire Rfq and not part of the legs or part of the quantity. Partial quoting or partial fills are not allowed.
 func (ok *Okx) CreateQuote(ctx context.Context, arg CreateQuoteParams) (*QuoteResponse, error) {
+	arg.QuoteSide = strings.ToLower(arg.QuoteSide)
 	switch {
 	case arg.RfqID == "":
 		return nil, errMissingRfqID
-	case arg.QuoteSide != order.Buy && arg.QuoteSide != order.Sell:
+	case arg.QuoteSide != "buy" && arg.QuoteSide != "sell":
 		return nil, errInvalidOrderSide
 	case len(arg.Legs) == 0:
 		return nil, errMissingLegs
@@ -4118,39 +4121,22 @@ func (ok *Okx) GetCandlestickData(ctx context.Context, instrumentID string, inte
 	if bar != "" {
 		params.Set("bar", bar)
 	}
-	var resp [][7]string
+	var resp [][7]types.Number
 	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, rateLimit, http.MethodGet, common.EncodeURLValues(route, params), nil, &resp, false)
 	if err != nil {
 		return nil, err
 	}
 	klineData := make([]CandleStick, len(resp))
 	for x := range resp {
-		var candleData CandleStick
-		var err error
-		timestamp, err := strconv.ParseInt(resp[x][0], 10, 64)
-		if err != nil {
-			return nil, err
+		klineData[x] = CandleStick{
+			OpenTime:         time.UnixMilli(resp[x][0].Int64()),
+			OpenPrice:        resp[x][1].Float64(),
+			HighestPrice:     resp[x][2].Float64(),
+			LowestPrice:      resp[x][3].Float64(),
+			ClosePrice:       resp[x][4].Float64(),
+			Volume:           resp[x][5].Float64(),
+			QuoteAssetVolume: resp[x][6].Float64(),
 		}
-		candleData.OpenTime = time.UnixMilli(timestamp)
-		if candleData.OpenPrice, err = convert.FloatFromString(resp[x][1]); err != nil {
-			return nil, err
-		}
-		if candleData.HighestPrice, err = convert.FloatFromString(resp[x][2]); err != nil {
-			return nil, err
-		}
-		if candleData.LowestPrice, err = convert.FloatFromString(resp[x][3]); err != nil {
-			return nil, err
-		}
-		if candleData.ClosePrice, err = convert.FloatFromString(resp[x][4]); err != nil {
-			return nil, err
-		}
-		if candleData.Volume, err = convert.FloatFromString(resp[x][5]); err != nil {
-			return nil, err
-		}
-		if candleData.QuoteAssetVolume, err = convert.FloatFromString(resp[x][6]); err != nil {
-			return nil, err
-		}
-		klineData[x] = candleData
 	}
 	return klineData, nil
 }
@@ -4934,31 +4920,18 @@ func (ok *Okx) GetTakerVolume(ctx context.Context, currency, instrumentType stri
 	if !end.IsZero() {
 		params.Set("end", strconv.FormatInt(end.UnixMilli(), 10))
 	}
-	var response [][3]string
+	var response [][3]types.Number
 	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, getTakerVolumeEPL, http.MethodGet, common.EncodeURLValues("rubik/stat/taker-volume", params), nil, &response, false)
 	if err != nil {
 		return nil, err
 	}
-	takerVolumes := []TakerVolume{}
+	takerVolumes := make([]TakerVolume, len(response))
 	for x := range response {
-		timestamp, err := strconv.ParseInt(response[x][0], 10, 64)
-		if err != nil {
-			return nil, err
+		takerVolumes[x] = TakerVolume{
+			Timestamp:  time.UnixMilli(response[x][0].Int64()),
+			SellVolume: response[x][1].Float64(),
+			BuyVolume:  response[x][2].Float64(),
 		}
-		sellVolume, err := strconv.ParseFloat(response[x][1], 64)
-		if err != nil {
-			return nil, err
-		}
-		buyVolume, err := strconv.ParseFloat(response[x][2], 64)
-		if err != nil {
-			return nil, err
-		}
-		takerVolume := TakerVolume{
-			Timestamp:  time.UnixMilli(timestamp),
-			SellVolume: sellVolume,
-			BuyVolume:  buyVolume,
-		}
-		takerVolumes = append(takerVolumes, takerVolume)
 	}
 	return takerVolumes, nil
 }
@@ -4979,26 +4952,17 @@ func (ok *Okx) GetMarginLendingRatio(ctx context.Context, currency string, begin
 	if interval != "" {
 		params.Set("period", interval)
 	}
-	var response [][2]string
+	var response [][2]types.Number
 	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, getMarginLendingRatioEPL, http.MethodGet, common.EncodeURLValues("rubik/stat/margin/loan-ratio", params), nil, &response, false)
 	if err != nil {
 		return nil, err
 	}
-	lendingRatios := []MarginLendRatioItem{}
+	lendingRatios := make([]MarginLendRatioItem, len(response))
 	for x := range response {
-		timestamp, err := strconv.ParseInt(response[x][0], 10, 64)
-		if err != nil {
-			return nil, err
+		lendingRatios[x] = MarginLendRatioItem{
+			Timestamp:       time.UnixMilli(response[x][0].Int64()),
+			MarginLendRatio: response[x][1].Float64(),
 		}
-		ratio, err := strconv.ParseFloat(response[x][1], 64)
-		if err != nil {
-			return nil, err
-		}
-		lendRatio := MarginLendRatioItem{
-			Timestamp:       time.UnixMilli(timestamp),
-			MarginLendRatio: ratio,
-		}
-		lendingRatios = append(lendingRatios, lendRatio)
 	}
 	return lendingRatios, nil
 }
@@ -5019,28 +4983,20 @@ func (ok *Okx) GetLongShortRatio(ctx context.Context, currency string, begin, en
 	if interval != "" {
 		params.Set("period", interval)
 	}
-	var response [][2]string
+	var response [][2]types.Number
 	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, getLongShortRatioEPL, http.MethodGet, common.EncodeURLValues("rubik/stat/contracts/long-short-account-ratio", params), nil, &response, false)
 	if err != nil {
 		return nil, err
 	}
-	ratios := []LongShortRatio{}
+	ratios := make([]LongShortRatio, len(response))
 	for x := range response {
-		timestamp, err := strconv.ParseInt(response[x][0], 10, 64)
-		if err != nil {
-			return nil, err
-		} else if timestamp <= 0 {
-			return nil, fmt.Errorf("%w, expecting non zero timestamp, but found %d", errMalformedData, timestamp)
+		if response[x][0].Int64() <= 0 {
+			return nil, fmt.Errorf("%w, expecting non zero timestamp, but found %d", errMalformedData, response[x][0].Int64())
 		}
-		ratio, err := strconv.ParseFloat(response[x][1], 64)
-		if err != nil {
-			return nil, err
+		ratios[x] = LongShortRatio{
+			Timestamp:       time.UnixMilli(response[x][0].Int64()),
+			MarginLendRatio: response[x][1].Float64(),
 		}
-		dratio := LongShortRatio{
-			Timestamp:       time.UnixMilli(timestamp),
-			MarginLendRatio: ratio,
-		}
-		ratios = append(ratios, dratio)
 	}
 	return ratios, nil
 }
@@ -5063,35 +5019,24 @@ func (ok *Okx) GetContractsOpenInterestAndVolume(
 	if interval != "" {
 		params.Set("period", interval)
 	}
-	openInterestVolumes := []OpenInterestVolume{}
-	var response [][3]string
+	var response [][3]types.Number
 	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, getContractsOpenInterestAndVolumeEPL, http.MethodGet, common.EncodeURLValues("rubik/stat/contracts/open-interest-volume", params), nil, &response, false)
 	if err != nil {
 		return nil, err
 	}
+	openInterestVolumes := make([]OpenInterestVolume, len(response))
 	for x := range response {
-		timestamp, err := strconv.ParseFloat(response[x][0], 64)
-		if err != nil {
-			return nil, err
-		} else if timestamp <= 0 {
-			return nil, fmt.Errorf("%w, invalid Timestamp value %f", errMalformedData, timestamp)
+		if response[x][0].Int64() <= 0 {
+			return nil, fmt.Errorf("%w, invalid Timestamp value %d", errMalformedData, response[x][0].Int64())
 		}
-		openInterest, err := strconv.ParseFloat(response[x][1], 64)
-		if err != nil {
-			return nil, err
-		} else if openInterest <= 0 {
-			return nil, fmt.Errorf("%w, OpendInterest has to be non-zero positive value, but found %f", errMalformedData, openInterest)
+		if response[x][1].Float64() <= 0 {
+			return nil, fmt.Errorf("%w, OpendInterest has to be non-zero positive value, but found %f", errMalformedData, response[x][1].Float64())
 		}
-		volume, err := strconv.ParseFloat(response[x][2], 64)
-		if err != nil {
-			return nil, err
+		openInterestVolumes[x] = OpenInterestVolume{
+			Timestamp:    time.UnixMilli(response[x][0].Int64()),
+			Volume:       response[x][2].Float64(),
+			OpenInterest: response[x][1].Float64(),
 		}
-		openInterestVolume := OpenInterestVolume{
-			Timestamp:    time.UnixMilli(int64(timestamp)),
-			Volume:       volume,
-			OpenInterest: openInterest,
-		}
-		openInterestVolumes = append(openInterestVolumes, openInterestVolume)
 	}
 	return openInterestVolumes, nil
 }
@@ -5107,35 +5052,24 @@ func (ok *Okx) GetOptionsOpenInterestAndVolume(ctx context.Context, currency str
 	if interval != "" {
 		params.Set("period", interval)
 	}
-	openInterestVolumes := []OpenInterestVolume{}
-	var response [][3]string
+	var response [][3]types.Number
 	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, getOptionsOpenInterestAndVolumeEPL, http.MethodGet, common.EncodeURLValues("rubik/stat/option/open-interest-volume", params), nil, &response, false)
 	if err != nil {
 		return nil, err
 	}
+	openInterestVolumes := make([]OpenInterestVolume, len(response))
 	for x := range response {
-		timestamp, err := strconv.ParseInt(response[x][0], 10, 64)
-		if err != nil {
-			return nil, errors.New("invalid timestamp information")
-		} else if timestamp <= 0 {
-			return nil, fmt.Errorf("%w, expecting non zero timestamp, but found %d", errMalformedData, timestamp)
+		if response[x][0].Int64() <= 0 {
+			return nil, fmt.Errorf("%w, expecting non zero timestamp, but found %d", errMalformedData, response[x][0].Int64())
 		}
-		openInterest, err := strconv.ParseFloat(response[x][1], 64)
-		if err != nil {
-			return nil, err
-		} else if openInterest <= 0 {
-			return nil, fmt.Errorf("%w, OpendInterest has to be non-zero positive value, but found %f", errMalformedData, openInterest)
+		if response[x][1].Float64() <= 0 {
+			return nil, fmt.Errorf("%w, OpendInterest has to be non-zero positive value, but found %f", errMalformedData, response[x][1].Float64())
 		}
-		volume, err := strconv.ParseFloat(response[x][2], 64)
-		if err != nil {
-			return nil, err
+		openInterestVolumes[x] = OpenInterestVolume{
+			Timestamp:    time.UnixMilli(response[x][0].Int64()),
+			Volume:       response[x][2].Float64(),
+			OpenInterest: response[x][1].Float64(),
 		}
-		openInterestVolume := OpenInterestVolume{
-			Timestamp:    time.UnixMilli(timestamp),
-			Volume:       volume,
-			OpenInterest: openInterest,
-		}
-		openInterestVolumes = append(openInterestVolumes, openInterestVolume)
 	}
 	return openInterestVolumes, nil
 }
@@ -5151,31 +5085,18 @@ func (ok *Okx) GetPutCallRatio(ctx context.Context, currency string,
 	if interval != "" {
 		params.Set("period", interval)
 	}
-	openInterestVolumeRatios := []OpenInterestVolumeRatio{}
-	var response [][3]string
+	var response [][3]types.Number
 	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, getPutCallRatioEPL, http.MethodGet, common.EncodeURLValues("rubik/stat/option/open-interest-volume-ratio", params), nil, &response, false)
 	if err != nil {
 		return nil, err
 	}
+	openInterestVolumeRatios := make([]OpenInterestVolumeRatio, len(response))
 	for x := range response {
-		timestamp, err := strconv.ParseInt(response[x][0], 10, 64)
-		if err != nil {
-			return nil, err
+		openInterestVolumeRatios[x] = OpenInterestVolumeRatio{
+			Timestamp:         time.UnixMilli(response[x][0].Int64()),
+			VolumeRatio:       response[x][2].Float64(),
+			OpenInterestRatio: response[x][1].Float64(),
 		}
-		openInterest, err := strconv.ParseFloat(response[x][1], 64)
-		if err != nil {
-			return nil, err
-		}
-		volume, err := strconv.ParseFloat(response[x][2], 64)
-		if err != nil {
-			return nil, err
-		}
-		openInterestVolume := OpenInterestVolumeRatio{
-			Timestamp:         time.UnixMilli(timestamp),
-			VolumeRatio:       volume,
-			OpenInterestRatio: openInterest,
-		}
-		openInterestVolumeRatios = append(openInterestVolumeRatios, openInterestVolume)
 	}
 	return openInterestVolumeRatios, nil
 }
@@ -5195,7 +5116,7 @@ func (ok *Okx) GetOpenInterestAndVolumeExpiry(ctx context.Context, currency stri
 	if err != nil {
 		return nil, err
 	}
-	volumes := []ExpiryOpenInterestAndVolume{}
+	volumes := make([]ExpiryOpenInterestAndVolume, len(resp))
 	for x := range resp {
 		var timestamp int64
 		timestamp, err = strconv.ParseInt(resp[x][0], 10, 64)
@@ -5250,7 +5171,7 @@ func (ok *Okx) GetOpenInterestAndVolumeExpiry(ctx context.Context, currency stri
 		if err != nil {
 			return nil, err
 		}
-		volume := ExpiryOpenInterestAndVolume{
+		volumes[x] = ExpiryOpenInterestAndVolume{
 			Timestamp:        time.UnixMilli(timestamp),
 			ExpiryTime:       expiryTime,
 			CallOpenInterest: callOpenInterest,
@@ -5258,7 +5179,6 @@ func (ok *Okx) GetOpenInterestAndVolumeExpiry(ctx context.Context, currency stri
 			CallVolume:       callVol,
 			PutVolume:        putVol,
 		}
-		volumes = append(volumes, volume)
 	}
 	return volumes, nil
 }
@@ -5278,46 +5198,19 @@ func (ok *Okx) GetOpenInterestAndVolumeStrike(ctx context.Context, currency stri
 	if interval != "" {
 		params.Set("period", interval)
 	}
-	var resp [][6]string
+	var resp [][6]types.Number
 	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, getOpenInterestAndVolumeEPL, http.MethodGet, common.EncodeURLValues("rubik/stat/option/open-interest-volume-strike", params), nil, &resp, false)
 	if err != nil {
 		return nil, err
 	}
-	volumes := []StrikeOpenInterestAndVolume{}
+	volumes := make([]StrikeOpenInterestAndVolume, len(resp))
 	for x := range resp {
-		timestamp, err := strconv.ParseInt(resp[x][0], 10, 64)
-		if err != nil {
-			return nil, err
-		}
-		strike, err := strconv.ParseInt(resp[x][1], 10, 64)
-		if err != nil {
-			return nil, err
-		}
-		calloi, err := strconv.ParseFloat(resp[x][2], 64)
-		if err != nil {
-			return nil, err
-		}
-		putoi, err := strconv.ParseFloat(resp[x][3], 64)
-		if err != nil {
-			return nil, err
-		}
-		callvol, err := strconv.ParseFloat(resp[x][4], 64)
-		if err != nil {
-			return nil, err
-		}
-		putvol, err := strconv.ParseFloat(resp[x][5], 64)
-		if err != nil {
-			return nil, err
-		}
-		volume := StrikeOpenInterestAndVolume{
-			Timestamp:        time.UnixMilli(timestamp),
-			Strike:           strike,
-			CallOpenInterest: calloi,
-			PutOpenInterest:  putoi,
-			CallVolume:       callvol,
-			PutVolume:        putvol,
-		}
-		volumes = append(volumes, volume)
+		volumes[x].Timestamp = time.UnixMilli(resp[x][0].Int64())
+		volumes[x].Strike = resp[x][1].Int64()
+		volumes[x].CallOpenInterest = resp[x][2].Float64()
+		volumes[x].PutOpenInterest = resp[x][3].Float64()
+		volumes[x].CallVolume = resp[x][4].Float64()
+		volumes[x].PutVolume = resp[x][5].Float64()
 	}
 	return volumes, nil
 }
@@ -5333,47 +5226,19 @@ func (ok *Okx) GetTakerFlow(ctx context.Context, currency string, period kline.I
 	if interval != "" {
 		params.Set("period", interval)
 	}
-	var resp [7]string
+	var resp [7]types.Number
 	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, getTakerFlowEPL, http.MethodGet, common.EncodeURLValues("rubik/stat/option/taker-block-volume", params), nil, &resp, false, true)
 	if err != nil {
 		return nil, err
 	}
-	timestamp, err := strconv.ParseInt(resp[0], 10, 64)
-	if err != nil {
-		return nil, err
-	}
-	callbuyvol, err := strconv.ParseFloat(resp[1], 64)
-	if err != nil {
-		return nil, err
-	}
-	callselvol, err := strconv.ParseFloat(resp[2], 64)
-	if err != nil {
-		return nil, err
-	}
-	putbutvol, err := strconv.ParseFloat(resp[3], 64)
-	if err != nil {
-		return nil, err
-	}
-	putsellvol, err := strconv.ParseFloat(resp[4], 64)
-	if err != nil {
-		return nil, err
-	}
-	callblockvol, err := strconv.ParseFloat(resp[5], 64)
-	if err != nil {
-		return nil, err
-	}
-	putblockvol, err := strconv.ParseFloat(resp[6], 64)
-	if err != nil {
-		return nil, err
-	}
 	return &CurrencyTakerFlow{
-		Timestamp:       time.UnixMilli(timestamp),
-		CallBuyVolume:   callbuyvol,
-		CallSellVolume:  callselvol,
-		PutBuyVolume:    putbutvol,
-		PutSellVolume:   putsellvol,
-		CallBlockVolume: callblockvol,
-		PutBlockVolume:  putblockvol,
+		Timestamp:       time.UnixMilli(resp[0].Int64()),
+		CallBuyVolume:   resp[1].Float64(),
+		CallSellVolume:  resp[2].Float64(),
+		PutBuyVolume:    resp[3].Float64(),
+		PutSellVolume:   resp[4].Float64(),
+		CallBlockVolume: resp[5].Float64(),
+		PutBlockVolume:  resp[6].Float64(),
 	}, nil
 }
 
@@ -5426,9 +5291,9 @@ func (ok *Okx) SendHTTPRequest(ctx context.Context, ep exchange.URL, f request.E
 		respResult = &[]interface{}{result}
 	}
 	resp := struct {
-		Code string      `json:"code"`
-		Msg  string      `json:"msg"`
-		Data interface{} `json:"data"`
+		Code types.Number `json:"code"`
+		Msg  string       `json:"msg"`
+		Data interface{}  `json:"data"`
 	}{
 		Data: respResult,
 	}
@@ -5494,16 +5359,15 @@ func (ok *Okx) SendHTTPRequest(ctx context.Context, ep exchange.URL, f request.E
 		}
 	case rv.Kind() == reflect.Pointer && rv.Elem().Kind() != reflect.Slice:
 	}
-	code, err := strconv.ParseInt(resp.Code, 10, 64)
-	if err == nil && code != 0 {
+	if err == nil && resp.Code.Int64() != 0 {
 		if resp.Msg != "" {
-			return fmt.Errorf("error code: %d message: %s", code, resp.Msg)
+			return fmt.Errorf("error code: %d message: %s", resp.Code.Int64(), resp.Msg)
 		}
-		err, okay := ErrorCodes[strconv.FormatInt(code, 10)]
+		err, okay := ErrorCodes[resp.Code.String()]
 		if okay {
 			return err
 		}
-		return fmt.Errorf("error code: %d", code)
+		return fmt.Errorf("error code: %d", resp.Code.Int64())
 	}
 	return nil
 }

@@ -1214,6 +1214,7 @@ func SetRateLimit() *RateLimit {
 		ResetSubAccountAPIKey:                          request.NewRateLimit(oneSecondInterval, 1),
 		GetSubaccountTradingBalance:                    request.NewRateLimit(twoSecondsInterval, 2),
 		GetSubaccountFundingBalance:                    request.NewRateLimit(twoSecondsInterval, 2),
+		SubAccountMaxWithdrawal:                        request.NewRateLimit(twoSecondsInterval, 20),
 		HistoryOfSubaccountTransfer:                    request.NewRateLimit(oneSecondInterval, 6),
 		ManagedSubAccountTransfer:                      request.NewRateLimit(oneSecondInterval, 6),
 		MasterAccountsManageTransfersBetweenSubaccount: request.NewRateLimit(oneSecondInterval, 1),

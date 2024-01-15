@@ -23,6 +23,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
+	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
 var (
@@ -266,7 +267,7 @@ func (ok *Okx) WsConnect() error {
 		Message:     pingMsg,
 		Delay:       time.Second * 20,
 	})
-	if ok.IsWebsocketAuthenticationSupported() {
+	if ok.Websocket.CanUseAuthenticatedEndpoints() {
 		err = ok.WsAuth(context.TODO())
 		if err != nil {
 			log.Errorf(log.ExchangeSys, "Error connecting auth socket: %s\n", err.Error())
@@ -285,6 +286,23 @@ func (ok *Okx) WsAuth(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+	var dialer websocket.Dialer
+	err = ok.Websocket.AuthConn.Dial(&dialer, http.Header{})
+	if err != nil {
+		return err
+	}
+	ok.Websocket.Wg.Add(1)
+	go ok.wsReadData(ok.Websocket.AuthConn)
+	if ok.Verbose {
+		log.Debugf(log.ExchangeSys, "Successful connection of authenticated stream to %v\n",
+			ok.Websocket.GetWebsocketURL())
+	}
+	ok.Websocket.AuthConn.SetupPingHandler(stream.PingHandler{
+		MessageType: websocket.TextMessage,
+		Message:     pingMsg,
+		Delay:       time.Second * 20,
+	})
+
 	ok.Websocket.SetCanUseAuthenticatedEndpoints(true)
 	timeUnix := time.Now()
 	signPath := "/users/self/verify"
@@ -296,7 +314,7 @@ func (ok *Okx) WsAuth(ctx context.Context) error {
 		return err
 	}
 	base64Sign := crypto.Base64Encode(hmac)
-	request := WebsocketEventRequest{
+	err = ok.Websocket.AuthConn.SendJSONMessage(WebsocketEventRequest{
 		Operation: operationLogin,
 		Arguments: []WebsocketLoginData{
 			{
@@ -306,8 +324,7 @@ func (ok *Okx) WsAuth(ctx context.Context) error {
 				Sign:       base64Sign,
 			},
 		},
-	}
-	err = ok.Websocket.Conn.SendJSONMessage(request)
+	})
 	if err != nil {
 		return err
 	}
@@ -334,16 +351,16 @@ func (ok *Okx) WsAuth(ctx context.Context) error {
 				ok.Websocket.SetCanUseAuthenticatedEndpoints(true)
 				return nil
 			} else if data.Event == "error" &&
-				(data.Code == "60022" || data.Code == "60009") {
+				(data.Code == "60022" || data.Code == "60009" || data.Code == "60004") {
 				ok.Websocket.SetCanUseAuthenticatedEndpoints(false)
-				return fmt.Errorf("authentication failed with error: %v", ErrorCodes[data.Code])
+				return fmt.Errorf("%w code: %s message: %s", errWebsocketStreamNotAuthenticated, data.Code, data.Message)
 			}
 			continue
 		case <-timer.C:
 			timer.Stop()
 			return fmt.Errorf("%s websocket connection: timeout waiting for response with an operation: %v",
 				ok.Name,
-				request.Operation)
+				operationLogin)
 		}
 	}
 }
@@ -550,9 +567,6 @@ func (ok *Okx) handleSubscription(operation string, subscriptions []stream.Chann
 		if err != nil {
 			return err
 		}
-	}
-	if err != nil {
-		return err
 	}
 
 	if operation == operationUnsubscribe {
@@ -846,8 +860,8 @@ func (ok *Okx) wsProcessIndexCandles(respRaw []byte) error {
 		return errNilArgument
 	}
 	response := struct {
-		Argument SubscriptionInfo `json:"arg"`
-		Data     [][5]string      `json:"data"`
+		Argument SubscriptionInfo  `json:"arg"`
+		Data     [][5]types.Number `json:"data"`
 	}{}
 	err := json.Unmarshal(respRaw, &response)
 	if err != nil {
@@ -867,31 +881,15 @@ func (ok *Okx) wsProcessIndexCandles(respRaw []byte) error {
 	candleInterval := strings.TrimPrefix(response.Argument.Channel, candle)
 	for i := range response.Data {
 		candlesData := response.Data[i]
-		timestamp, err := strconv.ParseInt(candlesData[0], 10, 64)
-		if err != nil {
-			return err
-		}
 		myCandle := stream.KlineData{
-			Pair:      pair,
-			Exchange:  ok.Name,
-			Timestamp: time.UnixMilli(timestamp),
-			Interval:  candleInterval,
-		}
-		myCandle.OpenPrice, err = strconv.ParseFloat(candlesData[1], 64)
-		if err != nil {
-			return err
-		}
-		myCandle.HighPrice, err = strconv.ParseFloat(candlesData[2], 64)
-		if err != nil {
-			return err
-		}
-		myCandle.LowPrice, err = strconv.ParseFloat(candlesData[3], 64)
-		if err != nil {
-			return err
-		}
-		myCandle.ClosePrice, err = strconv.ParseFloat(candlesData[4], 64)
-		if err != nil {
-			return err
+			Pair:       pair,
+			Exchange:   ok.Name,
+			Timestamp:  time.UnixMilli(candlesData[0].Int64()),
+			Interval:   candleInterval,
+			OpenPrice:  candlesData[1].Float64(),
+			HighPrice:  candlesData[2].Float64(),
+			LowPrice:   candlesData[3].Float64(),
+			ClosePrice: candlesData[4].Float64(),
 		}
 		for i := range assets {
 			myCandle.AssetType = assets[i]
@@ -1020,28 +1018,14 @@ func (ok *Okx) wsProcessOrderbook5(data []byte) error {
 
 	asks := make([]orderbook.Item, len(resp.Data[0].Asks))
 	for x := range resp.Data[0].Asks {
-		asks[x].Price, err = strconv.ParseFloat(resp.Data[0].Asks[x][0], 64)
-		if err != nil {
-			return err
-		}
-
-		asks[x].Amount, err = strconv.ParseFloat(resp.Data[0].Asks[x][1], 64)
-		if err != nil {
-			return err
-		}
+		asks[x].Price = resp.Data[0].Asks[x][0].Float64()
+		asks[x].Amount = resp.Data[0].Asks[x][1].Float64()
 	}
 
 	bids := make([]orderbook.Item, len(resp.Data[0].Bids))
 	for x := range resp.Data[0].Bids {
-		bids[x].Price, err = strconv.ParseFloat(resp.Data[0].Bids[x][0], 64)
-		if err != nil {
-			return err
-		}
-
-		bids[x].Amount, err = strconv.ParseFloat(resp.Data[0].Bids[x][1], 64)
-		if err != nil {
-			return err
-		}
+		bids[x].Price = resp.Data[0].Bids[x][0].Float64()
+		bids[x].Amount = resp.Data[0].Bids[x][1].Float64()
 	}
 
 	for x := range assets {
@@ -1224,18 +1208,10 @@ func (ok *Okx) WsProcessUpdateOrderbook(data WsOrderBookData, pair currency.Pair
 }
 
 // AppendWsOrderbookItems adds websocket orderbook data bid/asks into an orderbook item array
-func (ok *Okx) AppendWsOrderbookItems(entries [][4]string) ([]orderbook.Item, error) {
+func (ok *Okx) AppendWsOrderbookItems(entries [][4]types.Number) ([]orderbook.Item, error) {
 	items := make([]orderbook.Item, len(entries))
 	for j := range entries {
-		amount, err := strconv.ParseFloat(entries[j][1], 64)
-		if err != nil {
-			return nil, err
-		}
-		price, err := strconv.ParseFloat(entries[j][0], 64)
-		if err != nil {
-			return nil, err
-		}
-		items[j] = orderbook.Item{Amount: amount, Price: price}
+		items[j] = orderbook.Item{Amount: entries[j][1].Float64(), Price: entries[j][0].Float64()}
 	}
 	return items, nil
 }
@@ -1271,8 +1247,8 @@ func (ok *Okx) CalculateOrderbookChecksum(orderbookData WsOrderBookData) (int32,
 	var checksum strings.Builder
 	for i := 0; i < allowableIterations; i++ {
 		if len(orderbookData.Bids)-1 >= i {
-			bidPrice := orderbookData.Bids[i][0]
-			bidAmount := orderbookData.Bids[i][1]
+			bidPrice := orderbookData.Bids[i][0].String()
+			bidAmount := orderbookData.Bids[i][1].String()
 			checksum.WriteString(
 				bidPrice +
 					wsOrderbookChecksumDelimiter +
@@ -1280,8 +1256,8 @@ func (ok *Okx) CalculateOrderbookChecksum(orderbookData WsOrderBookData) (int32,
 					wsOrderbookChecksumDelimiter)
 		}
 		if len(orderbookData.Asks)-1 >= i {
-			askPrice := orderbookData.Asks[i][0]
-			askAmount := orderbookData.Asks[i][1]
+			askPrice := orderbookData.Asks[i][0].String()
+			askAmount := orderbookData.Asks[i][1].String()
 			checksum.WriteString(askPrice +
 				wsOrderbookChecksumDelimiter +
 				askAmount +
@@ -1295,49 +1271,21 @@ func (ok *Okx) CalculateOrderbookChecksum(orderbookData WsOrderBookData) (int32,
 // wsHandleMarkPriceCandles processes candlestick mark price push data as a result of  subscription to "mark-price-candle*" channel.
 func (ok *Okx) wsHandleMarkPriceCandles(data []byte) error {
 	tempo := &struct {
-		Argument SubscriptionInfo `json:"arg"`
-		Data     [][5]string      `json:"data"`
+		Argument SubscriptionInfo  `json:"arg"`
+		Data     [][5]types.Number `json:"data"`
 	}{}
-	var err error
-	err = json.Unmarshal(data, tempo)
+	err := json.Unmarshal(data, tempo)
 	if err != nil {
 		return err
 	}
-	var tsInt int64
-	var ts time.Time
-	var op float64
-	var hp float64
-	var lp float64
-	var cp float64
 	candles := make([]CandlestickMarkPrice, len(tempo.Data))
 	for x := range tempo.Data {
-		tsInt, err = strconv.ParseInt(tempo.Data[x][0], 10, 64)
-		if err != nil {
-			return err
-		}
-		ts = time.UnixMilli(tsInt)
-		op, err = strconv.ParseFloat(tempo.Data[x][1], 64)
-		if err != nil {
-			return err
-		}
-		hp, err = strconv.ParseFloat(tempo.Data[x][2], 64)
-		if err != nil {
-			return err
-		}
-		lp, err = strconv.ParseFloat(tempo.Data[x][3], 64)
-		if err != nil {
-			return err
-		}
-		cp, err = strconv.ParseFloat(tempo.Data[x][4], 64)
-		if err != nil {
-			return err
-		}
 		candles[x] = CandlestickMarkPrice{
-			Timestamp:    ts,
-			OpenPrice:    op,
-			HighestPrice: hp,
-			LowestPrice:  lp,
-			ClosePrice:   cp,
+			Timestamp:    time.UnixMilli(tempo.Data[x][0].Int64()),
+			OpenPrice:    tempo.Data[x][1].Float64(),
+			HighestPrice: tempo.Data[x][2].Float64(),
+			LowestPrice:  tempo.Data[x][3].Float64(),
+			ClosePrice:   tempo.Data[x][4].Float64(),
 		}
 	}
 	ok.Websocket.DataHandler <- candles
@@ -1474,8 +1422,8 @@ func (ok *Okx) wsProcessCandles(respRaw []byte) error {
 		return errNilArgument
 	}
 	response := struct {
-		Argument SubscriptionInfo `json:"arg"`
-		Data     [][7]string      `json:"data"`
+		Argument SubscriptionInfo  `json:"arg"`
+		Data     [][7]types.Number `json:"data"`
 	}{}
 	err := json.Unmarshal(respRaw, &response)
 	if err != nil {
@@ -1495,47 +1443,18 @@ func (ok *Okx) wsProcessCandles(respRaw []byte) error {
 	}
 	candleInterval := strings.TrimPrefix(response.Argument.Channel, candle)
 	for i := range response.Data {
-		var ticks int64
-		var timestamp time.Time
-		var o, h, l, c, v float64
-		ticks, err = strconv.ParseInt(response.Data[i][0], 10, 64)
-		if err != nil {
-			return err
-		}
-		timestamp = time.UnixMilli(ticks)
-		o, err = strconv.ParseFloat(response.Data[i][1], 64)
-		if err != nil {
-			return err
-		}
-		h, err = strconv.ParseFloat(response.Data[i][2], 64)
-		if err != nil {
-			return err
-		}
-		l, err = strconv.ParseFloat(response.Data[i][3], 64)
-		if err != nil {
-			return err
-		}
-		c, err = strconv.ParseFloat(response.Data[i][4], 64)
-		if err != nil {
-			return err
-		}
-		v, err = strconv.ParseFloat(response.Data[i][5], 64)
-		if err != nil {
-			return err
-		}
-
 		for j := range assets {
 			ok.Websocket.DataHandler <- stream.KlineData{
-				Timestamp:  timestamp,
+				Timestamp:  time.UnixMilli(response.Data[i][0].Int64()),
 				Pair:       pair,
 				AssetType:  assets[j],
 				Exchange:   ok.Name,
 				Interval:   candleInterval,
-				OpenPrice:  o,
-				ClosePrice: c,
-				HighPrice:  h,
-				LowPrice:   l,
-				Volume:     v,
+				OpenPrice:  response.Data[i][1].Float64(),
+				ClosePrice: response.Data[i][4].Float64(),
+				HighPrice:  response.Data[i][2].Float64(),
+				LowPrice:   response.Data[i][3].Float64(),
+				Volume:     response.Data[i][5].Float64(),
 			}
 		}
 	}
@@ -1711,6 +1630,9 @@ func (ok *Okx) WsPlaceOrder(arg *PlaceOrderRequestParam) (*OrderData, error) {
 	if err != nil {
 		return nil, err
 	}
+	if !ok.Websocket.CanUseAuthenticatedEndpoints() {
+		return nil, errWebsocketStreamNotAuthenticated
+	}
 	randomID, err := common.GenerateRandomString(32, common.SmallLetters, common.CapitalLetters, common.NumberCharacters)
 	if err != nil {
 		return nil, err
@@ -1757,6 +1679,9 @@ func (ok *Okx) WsPlaceMultipleOrder(args []PlaceOrderRequestParam) ([]OrderData,
 		if err != nil {
 			return nil, err
 		}
+	}
+	if !ok.Websocket.CanUseAuthenticatedEndpoints() {
+		return nil, errWebsocketStreamNotAuthenticated
 	}
 	randomID, err := common.GenerateRandomString(4, common.NumberCharacters)
 	if err != nil {
@@ -1828,6 +1753,9 @@ func (ok *Okx) WsCancelOrder(arg CancelOrderRequestParam) (*OrderData, error) {
 	if arg.OrderID == "" && arg.ClientOrderID == "" {
 		return nil, fmt.Errorf("either order id or client supplier id is required")
 	}
+	if !ok.Websocket.CanUseAuthenticatedEndpoints() {
+		return nil, errWebsocketStreamNotAuthenticated
+	}
 	randomID, err := common.GenerateRandomString(4, common.NumberCharacters)
 	if err != nil {
 		return nil, err
@@ -1875,6 +1803,9 @@ func (ok *Okx) WsCancelMultipleOrder(args []CancelOrderRequestParam) ([]OrderDat
 		if arg.OrderID == "" && arg.ClientOrderID == "" {
 			return nil, fmt.Errorf("either order id or client supplier id is required")
 		}
+	}
+	if !ok.Websocket.CanUseAuthenticatedEndpoints() {
+		return nil, errWebsocketStreamNotAuthenticated
 	}
 	randomID, err := common.GenerateRandomString(4, common.NumberCharacters)
 	if err != nil {
@@ -1952,6 +1883,9 @@ func (ok *Okx) WsAmendOrder(arg *AmendOrderRequestParams) (*OrderData, error) {
 	if arg.NewQuantity <= 0 && arg.NewPrice <= 0 {
 		return nil, errInvalidNewSizeOrPriceInformation
 	}
+	if !ok.Websocket.CanUseAuthenticatedEndpoints() {
+		return nil, errWebsocketStreamNotAuthenticated
+	}
 	randomID, err := common.GenerateRandomString(4, common.NumberCharacters)
 	if err != nil {
 		return nil, err
@@ -2001,6 +1935,9 @@ func (ok *Okx) WsAmendMultipleOrders(args []AmendOrderRequestParams) ([]OrderDat
 		if args[x].NewQuantity <= 0 && args[x].NewPrice <= 0 {
 			return nil, errInvalidNewSizeOrPriceInformation
 		}
+	}
+	if !ok.Websocket.CanUseAuthenticatedEndpoints() {
+		return nil, errWebsocketStreamNotAuthenticated
 	}
 	randomID, err := common.GenerateRandomString(4, common.NumberCharacters)
 	if err != nil {
@@ -2074,6 +2011,9 @@ func (ok *Okx) WsMassCancelOrders(args []CancelMassReqParam) (bool, error) {
 		if args[x].InstrumentFamily == "" {
 			return false, errInstrumentFamilyRequired
 		}
+	}
+	if !ok.Websocket.CanUseAuthenticatedEndpoints() {
+		return false, errWebsocketStreamNotAuthenticated
 	}
 	randomID, err := common.GenerateRandomString(4, common.NumberCharacters)
 	if err != nil {
@@ -2149,8 +2089,8 @@ func (m *wsRequestDataChannelsMultiplexer) Run() {
 			}
 			for _, myChan := range m.WsResponseChannelsMap {
 				if (msg.Event == "error" || myChan.Event == operationLogin) &&
-					(msg.Code == "60009" || msg.Code == "60022" || msg.Code == "0") &&
-					strings.Contains(msg.Msg, myChan.Channel) {
+					(msg.Code == "60009" || msg.Code == "60004" || msg.Code == "60022" || msg.Code == "0") &&
+					strings.Contains(msg.Message, myChan.Channel) {
 					myChan.Chan <- msg
 					continue
 				} else if msg.Event != myChan.Event ||
@@ -2529,6 +2469,9 @@ func (ok *Okx) WsPlaceSpreadOrder(arg *SpreadOrderParam) (*SpreadOrderResponse, 
 	if err != nil {
 		return nil, err
 	}
+	if !ok.Websocket.CanUseAuthenticatedEndpoints() {
+		return nil, errWebsocketStreamNotAuthenticated
+	}
 	randomID, err := common.GenerateRandomString(32, common.SmallLetters, common.CapitalLetters, common.NumberCharacters)
 	if err != nil {
 		return nil, err
@@ -2577,6 +2520,9 @@ func (ok *Okx) WsAmandSpreadOrder(arg *AmendSpreadOrderParam) (*SpreadOrderRespo
 	if arg.NewPrice == 0 && arg.NewSize == 0 {
 		return nil, errSizeOrPriceIsRequired
 	}
+	if !ok.Websocket.CanUseAuthenticatedEndpoints() {
+		return nil, errWebsocketStreamNotAuthenticated
+	}
 	randomID, err := common.GenerateRandomString(32, common.SmallLetters, common.CapitalLetters, common.NumberCharacters)
 	if err != nil {
 		return nil, err
@@ -2618,6 +2564,9 @@ func (ok *Okx) WsAmandSpreadOrder(arg *AmendSpreadOrderParam) (*SpreadOrderRespo
 func (ok *Okx) WsCancelSpreadOrder(orderID, clientOrderID string) (*SpreadOrderResponse, error) {
 	if orderID == "" && clientOrderID == "" {
 		return nil, errMissingClientOrderIDOrOrderID
+	}
+	if !ok.Websocket.CanUseAuthenticatedEndpoints() {
+		return nil, errWebsocketStreamNotAuthenticated
 	}
 	arg := make(map[string]string)
 	if orderID != "" {
@@ -2665,6 +2614,9 @@ func (ok *Okx) WsCancelSpreadOrder(orderID, clientOrderID string) (*SpreadOrderR
 
 // WsCancelAllSpreadOrders cancels all spread orders and return success message through the websocket channel.
 func (ok *Okx) WsCancelAllSpreadOrders(spreadID string) (bool, error) {
+	if !ok.Websocket.CanUseAuthenticatedEndpoints() {
+		return false, errWebsocketStreamNotAuthenticated
+	}
 	arg := make(map[string]string, 1)
 	if spreadID != "" {
 		arg["sprdId"] = spreadID

@@ -2069,7 +2069,7 @@ type OrderLeg struct {
 type CreateQuoteParams struct {
 	RfqID         string     `json:"rfqId"`
 	ClientQuoteID string     `json:"clQuoteId"`
-	QuoteSide     order.Side `json:"quoteSide"`
+	QuoteSide     string     `json:"quoteSide"`
 	Legs          []QuoteLeg `json:"legs"`
 }
 
@@ -2811,7 +2811,7 @@ type wsIncomingData struct {
 	Event    string           `json:"event,omitempty"`
 	Argument SubscriptionInfo `json:"arg,omitempty"`
 	Code     string           `json:"code,omitempty"`
-	Msg      string           `json:"msg,omitempty"`
+	Message  string           `json:"msg,omitempty"`
 
 	// For Websocket Trading Endpoints websocket responses
 	ID        string          `json:"id,omitempty"`
@@ -2892,7 +2892,7 @@ func (a *WsOrderActionResponse) populateFromIncomingData(incoming *wsIncomingDat
 	a.ID = incoming.ID
 	a.Code = incoming.Code
 	a.Operation = incoming.Operation
-	a.Msg = incoming.Msg
+	a.Msg = incoming.Message
 	return nil
 }
 
@@ -3326,8 +3326,8 @@ type PublicTrade struct {
 
 // WsOrderBookData represents a book order push data.
 type WsOrderBookData struct {
-	Asks      [][4]string          `json:"asks"`
-	Bids      [][4]string          `json:"bids"`
+	Asks      [][4]types.Number    `json:"asks"`
+	Bids      [][4]types.Number    `json:"bids"`
 	Timestamp convert.ExchangeTime `json:"ts"`
 	Checksum  int32                `json:"checksum,omitempty"`
 }
@@ -3975,8 +3975,8 @@ type WsOrderbook5 struct {
 
 // Book5Data stores the orderbook data for orderbook 5 websocket
 type Book5Data struct {
-	Asks         [][4]string          `json:"asks"`
-	Bids         [][4]string          `json:"bids"`
+	Asks         [][4]types.Number    `json:"asks"`
+	Bids         [][4]types.Number    `json:"bids"`
 	InstrumentID string               `json:"instId"`
 	Timestamp    convert.ExchangeTime `json:"ts"`
 	SequenceID   int64                `json:"seqId"`
@@ -4048,8 +4048,8 @@ type WsSpreadOrderbook struct {
 		SpreadID string `json:"sprdId"`
 	} `json:"arg"`
 	Data []struct {
-		Asks      [][3]string          `json:"asks"`
-		Bids      [][3]string          `json:"bids"`
+		Asks      [][3]types.Number    `json:"asks"`
+		Bids      [][3]types.Number    `json:"bids"`
 		Timestamp convert.ExchangeTime `json:"ts"`
 	} `json:"data"`
 }
@@ -4091,39 +4091,20 @@ func (a *WsSpreadOrderbook) ExtractSpreadOrder() (*WsSpreadOrderbookData, error)
 		},
 		Data: make([]WsSpreadOrderbookItem, len(a.Data)),
 	}
-	var err error
 	for x := range a.Data {
 		resp.Data[x].Timestamp = a.Data[x].Timestamp.Time()
 		resp.Data[x].Asks = make([]orderbook.Item, len(a.Data[x].Asks))
 		resp.Data[x].Bids = make([]orderbook.Item, len(a.Data[x].Bids))
 
 		for as := range a.Data[x].Asks {
-			resp.Data[x].Asks[as].Price, err = strconv.ParseFloat(a.Data[x].Asks[as][0], 64)
-			if err != nil {
-				return nil, err
-			}
-			resp.Data[x].Asks[as].Amount, err = strconv.ParseFloat(a.Data[x].Asks[as][1], 64)
-			if err != nil {
-				return nil, err
-			}
-			resp.Data[x].Asks[as].OrderCount, err = strconv.ParseInt(a.Data[x].Asks[as][2], 10, 64)
-			if err != nil {
-				return nil, err
-			}
+			resp.Data[x].Asks[as].Price = a.Data[x].Asks[as][0].Float64()
+			resp.Data[x].Asks[as].Amount = a.Data[x].Asks[as][1].Float64()
+			resp.Data[x].Asks[as].OrderCount = a.Data[x].Asks[as][2].Int64()
 		}
 		for as := range a.Data[x].Bids {
-			resp.Data[x].Bids[as].Price, err = strconv.ParseFloat(a.Data[x].Bids[as][0], 64)
-			if err != nil {
-				return nil, err
-			}
-			resp.Data[x].Bids[as].Amount, err = strconv.ParseFloat(a.Data[x].Bids[as][1], 64)
-			if err != nil {
-				return nil, err
-			}
-			resp.Data[x].Bids[as].OrderCount, err = strconv.ParseInt(a.Data[x].Bids[as][2], 10, 64)
-			if err != nil {
-				return nil, err
-			}
+			resp.Data[x].Bids[as].Price = a.Data[x].Bids[as][0].Float64()
+			resp.Data[x].Bids[as].Amount = a.Data[x].Bids[as][1].Float64()
+			resp.Data[x].Bids[as].OrderCount = a.Data[x].Bids[as][2].Int64()
 		}
 	}
 	return resp, nil
@@ -4265,7 +4246,7 @@ type ADLWarning struct {
 		MaxBal           string               `json:"maxBal"`
 		AdlRecRate       types.Number         `json:"adlRecRate"`
 		AdlRecBal        types.Number         `json:"adlRecBal"`
-		Bal              types.Number         `json:"bal"`
+		Balance          types.Number         `json:"bal"`
 		InstrumentType   string               `json:"instType"`
 		AdlRate          types.Number         `json:"adlRate"`
 		InstrumentFamily string               `json:"instFamily"`
@@ -4363,8 +4344,8 @@ type CopySetting struct {
 	CopyRatio            types.Number `json:"copyRatio"`
 	CopyTotalAmount      types.Number `json:"copyTotalAmt"`
 	InstrumentIDs        []struct {
-		Enabled string `json:"enabled"`
-		InstID  string `json:"instId"`
+		Enabled      string `json:"enabled"`
+		InstrumentID string `json:"instId"`
 	} `json:"instIds"`
 	StopLossRatio   types.Number `json:"slRatio"`
 	TakeProfitRatio types.Number `json:"tpRatio"`
@@ -4372,10 +4353,10 @@ type CopySetting struct {
 
 // Leverages holds batch leverage info
 type Leverages struct {
-	InstrumentID     string         `json:"instId"`
 	LeadTraderLevers []LeverageInfo `json:"leadTraderLevers"`
-	MgnMode          string         `json:"mgnMode"`
 	MyLevers         []LeverageInfo `json:"myLevers"`
+	InstrumentID     string         `json:"instId"`
+	MgnMode          string         `json:"mgnMode"`
 }
 
 // LeverageInfo holds leverage information.

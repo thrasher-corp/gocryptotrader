@@ -39,32 +39,3 @@ func (a *QuoteLeg) MarshalJSON() ([]byte, error) {
 	}
 	return json.Marshal(chil)
 }
-
-// MarshalJSON serialized CreateQuoteParams instance into bytes
-func (a *CreateQuoteParams) MarshalJSON() ([]byte, error) {
-	type Alias CreateQuoteParams
-	chil := &struct {
-		*Alias
-		QuoteSide string `json:"quoteSide"`
-	}{
-		Alias: (*Alias)(a),
-	}
-	if a.QuoteSide == order.Buy {
-		chil.QuoteSide = "buy"
-	} else {
-		chil.QuoteSide = "sell"
-	}
-	return json.Marshal(chil)
-}
-
-// MarshalJSON serializes the WebsocketLoginData object
-func (a *WebsocketLoginData) MarshalJSON() ([]byte, error) {
-	type Alias WebsocketLoginData
-	return json.Marshal(struct {
-		Timestamp int64 `json:"timestamp"`
-		*Alias
-	}{
-		Timestamp: a.Timestamp.UTC().Unix(),
-		Alias:     (*Alias)(a),
-	})
-}
