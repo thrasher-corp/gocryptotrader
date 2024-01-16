@@ -270,8 +270,8 @@ func (b *Bitflyer) GetExecutions() {
 	// Needs to be updated
 }
 
-// GetOpenInterest returns a summary of open interest
-func (b *Bitflyer) GetOpenInterest() {
+// GetOpenInterestData returns a summary of open interest
+func (b *Bitflyer) GetOpenInterestData() {
 	// Needs to be updated
 }
 

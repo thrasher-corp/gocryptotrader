@@ -12,6 +12,7 @@ import (
 
 	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -181,6 +182,9 @@ func (b *Binance) SetDefaults() {
 				},
 				FundingRateBatching: map[asset.Item]bool{
 					asset.USDTMarginedFutures: true,
+				},
+				OpenInterest: exchange.OpenInterestSupport{
+					Supported: true,
 				},
 			},
 		},
@@ -3101,4 +3105,51 @@ func (b *Binance) GetFuturesContractDetails(ctx context.Context, item asset.Item
 		return resp, nil
 	}
 	return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, item)
+}
+
+// GetOpenInterest returns the open interest rate for a given asset pair
+func (b *Binance) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]futures.OpenInterest, error) {
+	if len(k) == 0 {
+		return nil, fmt.Errorf("%w requires pair", common.ErrFunctionNotSupported)
+	}
+	for i := range k {
+		if k[i].Asset != asset.USDTMarginedFutures && k[i].Asset != asset.CoinMarginedFutures {
+			// avoid API calls or returning errors after a successful retrieval
+			return nil, fmt.Errorf("%w %v %v", asset.ErrNotSupported, k[i].Asset, k[i].Pair())
+		}
+	}
+	result := make([]futures.OpenInterest, len(k))
+	for i := range k {
+		switch k[i].Asset {
+		case asset.USDTMarginedFutures:
+			oi, err := b.UOpenInterest(ctx, k[i].Pair())
+			if err != nil {
+				return nil, err
+			}
+			result[i] = futures.OpenInterest{
+				Key: key.ExchangePairAsset{
+					Exchange: b.Name,
+					Base:     k[i].Base,
+					Quote:    k[i].Quote,
+					Asset:    k[i].Asset,
+				},
+				OpenInterest: oi.OpenInterest,
+			}
+		case asset.CoinMarginedFutures:
+			oi, err := b.OpenInterest(ctx, k[i].Pair())
+			if err != nil {
+				return nil, err
+			}
+			result[i] = futures.OpenInterest{
+				Key: key.ExchangePairAsset{
+					Exchange: b.Name,
+					Base:     k[i].Base,
+					Quote:    k[i].Quote,
+					Asset:    k[i].Asset,
+				},
+				OpenInterest: oi.OpenInterest,
+			}
+		}
+	}
+	return result, nil
 }

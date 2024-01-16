@@ -71,6 +71,7 @@ const (
 	LongDated
 	Weekly
 	Fortnightly
+	ThreeWeekly
 	Monthly
 	Quarterly
 	SemiAnnually
@@ -91,6 +92,8 @@ func (c ContractType) String() string {
 		return "weekly"
 	case Fortnightly:
 		return "fortnightly"
+	case ThreeWeekly:
+		return "three-weekly"
 	case Monthly:
 		return "monthly"
 	case Quarterly:

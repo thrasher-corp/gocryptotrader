@@ -12,6 +12,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -629,22 +630,6 @@ func TestGetFuturesExchangeInfo(t *testing.T) {
 	}
 }
 
-func TestGetUndocumentedInterestHistory(t *testing.T) {
-	t.Parallel()
-	_, err := b.GetUndocumentedInterestHistory(context.Background())
-	if err != nil {
-		t.Error(err)
-	}
-}
-
-func TestGetCrossMarginInterestHistory(t *testing.T) {
-	t.Parallel()
-	_, err := b.GetCrossMarginInterestHistory(context.Background())
-	if err != nil {
-		t.Error(err)
-	}
-}
-
 func TestGetFuturesOrderbook(t *testing.T) {
 	t.Parallel()
 	_, err := b.GetFuturesOrderbook(context.Background(), currency.NewPairWithDelimiter("BTCUSD", "PERP", "_"), 1000)
@@ -796,9 +781,9 @@ func TestGetFuturesOrderbookTicker(t *testing.T) {
 	}
 }
 
-func TestGetOpenInterest(t *testing.T) {
+func TestOpenInterest(t *testing.T) {
 	t.Parallel()
-	_, err := b.GetOpenInterest(context.Background(), currency.NewPairWithDelimiter("BTCUSD", "PERP", "_"))
+	_, err := b.OpenInterest(context.Background(), currency.NewPairWithDelimiter("BTCUSD", "PERP", "_"))
 	if err != nil {
 		t.Error(err)
 	}
@@ -1478,27 +1463,20 @@ func TestNewOrderTest(t *testing.T) {
 
 func TestGetHistoricTrades(t *testing.T) {
 	t.Parallel()
-	currencyPair, err := currency.NewPairFromString("BTCUSDT")
-	if err != nil {
-		t.Fatal(err)
-	}
-	start, err := time.Parse(time.RFC3339, "2020-01-02T15:04:05Z")
-	if err != nil {
-		t.Fatal(err)
-	}
-	result, err := b.GetHistoricTrades(context.Background(),
-		currencyPair, asset.Spot, start, start.Add(15*time.Minute))
-	if err != nil {
-		t.Error(err)
-	}
-	var expected int
+	p := currency.NewPair(currency.BTC, currency.USDT)
+	start := time.Unix(1577977445, 0)  // 2020-01-02 15:04:05
+	end := start.Add(15 * time.Minute) // 2020-01-02 15:19:05
+	result, err := b.GetHistoricTrades(context.Background(), p, asset.Spot, start, end)
+	assert.NoError(t, err, "GetHistoricTrades should not error")
+	expected := 2134
 	if mockTests {
-		expected = 5
-	} else {
-		expected = 2134
+		expected = 1002
 	}
-	if len(result) != expected {
-		t.Errorf("GetHistoricTrades() expected %v entries, got %v", expected, len(result))
+	assert.Equal(t, expected, len(result), "GetHistoricTrades should return correct number of entries") // assert.Len doesn't produce clear messages on result
+	for _, r := range result {
+		if !assert.WithinRange(t, r.Timestamp, start, end, "All trades should be within time range") {
+			break
+		}
 	}
 }
 
@@ -3438,4 +3416,30 @@ func TestUGetFundingRateInfo(t *testing.T) {
 	t.Parallel()
 	_, err := b.UGetFundingRateInfo(context.Background())
 	assert.NoError(t, err)
+}
+
+func TestGetOpenInterest(t *testing.T) {
+	t.Parallel()
+	resp, err := b.GetOpenInterest(context.Background(), key.PairAsset{
+		Base:  currency.BTC.Item,
+		Quote: currency.USDT.Item,
+		Asset: asset.USDTMarginedFutures,
+	})
+	assert.NoError(t, err)
+	assert.NotEmpty(t, resp)
+
+	resp, err = b.GetOpenInterest(context.Background(), key.PairAsset{
+		Base:  currency.NewCode("BTCUSD").Item,
+		Quote: currency.PERP.Item,
+		Asset: asset.CoinMarginedFutures,
+	})
+	assert.NoError(t, err)
+	assert.NotEmpty(t, resp)
+
+	_, err = b.GetOpenInterest(context.Background(), key.PairAsset{
+		Base:  currency.BTC.Item,
+		Quote: currency.USDT.Item,
+		Asset: asset.Spot,
+	})
+	assert.ErrorIs(t, err, asset.ErrNotSupported)
 }
