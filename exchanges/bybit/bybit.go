@@ -46,6 +46,8 @@ const (
 
 	accountTypeNormal  = 0 // 0: regular account
 	accountTypeUnified = 1 // 1: unified trade account
+
+	longDatedFormat = "02Jan06"
 )
 
 var (
@@ -321,7 +323,7 @@ func (by *Bybit) GetTickers(ctx context.Context, category, symbol, baseCoin stri
 		params.Set("baseCoin", baseCoin)
 	}
 	if !expiryDate.IsZero() {
-		params.Set("expData", expiryDate.Format("02Jan06"))
+		params.Set("expData", expiryDate.Format(longDatedFormat))
 	}
 	var resp *TickerData
 	return resp, by.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues("market/tickers", params), defaultEPL, &resp)
@@ -377,8 +379,8 @@ func (by *Bybit) GetPublicTradingHistory(ctx context.Context, category, symbol, 
 	return resp, by.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues("market/recent-trade", params), defaultEPL, &resp)
 }
 
-// GetOpenInterest retrieves open interest of each symbol.
-func (by *Bybit) GetOpenInterest(ctx context.Context, category, symbol, intervalTime string, startTime, endTime time.Time, limit int64, cursor string) (*OpenInterest, error) {
+// GetOpenInterestData retrieves open interest of each symbol.
+func (by *Bybit) GetOpenInterestData(ctx context.Context, category, symbol, intervalTime string, startTime, endTime time.Time, limit int64, cursor string) (*OpenInterest, error) {
 	if category == "" {
 		return nil, errCategoryNotSet
 	} else if category != cLinear && category != cInverse {
@@ -1236,7 +1238,7 @@ func (by *Bybit) GetPreUpgradeOptionDeliveryRecord(ctx context.Context, category
 		return nil, errAPIKeyIsNotUnified
 	}
 	if !expiryDate.IsZero() {
-		params.Set("expData", expiryDate.Format("02Jan06"))
+		params.Set("expData", expiryDate.Format(longDatedFormat))
 	}
 	var resp *PreUpdateOptionDeliveryRecord
 	return resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/pre-upgrade/asset/delivery-record", params, nil, &resp, defaultEPL)
@@ -1478,7 +1480,7 @@ func (by *Bybit) GetDeliveryRecord(ctx context.Context, category, symbol, cursor
 		params.Set("symbol", symbol)
 	}
 	if !expiryDate.IsZero() {
-		params.Set("expData", expiryDate.Format("02Jan06"))
+		params.Set("expData", expiryDate.Format(longDatedFormat))
 	}
 	if cursor != "" {
 		params.Set("cursor", cursor)

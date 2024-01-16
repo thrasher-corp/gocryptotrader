@@ -4,12 +4,15 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"sync"
 	"testing"
 	"time"
 
 	"github.com/gofrs/uuid"
+	"github.com/stretchr/testify/assert"
 	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -706,25 +709,25 @@ func TestGetPublicTradingHistory(t *testing.T) {
 	}
 }
 
-func TestGetOpenInterest(t *testing.T) {
+func TestGetOpenInterestData(t *testing.T) {
 	t.Parallel()
-	_, err := b.GetOpenInterest(context.Background(), "spot", spotTradablePair.String(), "5min", time.Time{}, time.Time{}, 0, "")
+	_, err := b.GetOpenInterestData(context.Background(), "spot", spotTradablePair.String(), "5min", time.Time{}, time.Time{}, 0, "")
 	if !errors.Is(err, errInvalidCategory) {
 		t.Errorf("expected %v, got %v", errInvalidCategory, err)
 	}
-	_, err = b.GetOpenInterest(context.Background(), "linear", usdtMarginedTradablePair.String(), "5min", time.Time{}, time.Time{}, 0, "")
+	_, err = b.GetOpenInterestData(context.Background(), "linear", usdtMarginedTradablePair.String(), "5min", time.Time{}, time.Time{}, 0, "")
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = b.GetOpenInterest(context.Background(), "linear", usdcMarginedTradablePair.String(), "5min", time.Time{}, time.Time{}, 0, "")
+	_, err = b.GetOpenInterestData(context.Background(), "linear", usdcMarginedTradablePair.String(), "5min", time.Time{}, time.Time{}, 0, "")
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = b.GetOpenInterest(context.Background(), "inverse", inverseTradablePair.String(), "5min", time.Time{}, time.Time{}, 0, "")
+	_, err = b.GetOpenInterestData(context.Background(), "inverse", inverseTradablePair.String(), "5min", time.Time{}, time.Time{}, 0, "")
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = b.GetOpenInterest(context.Background(), "option", optionsTradablePair.String(), "5min", time.Time{}, time.Time{}, 0, "")
+	_, err = b.GetOpenInterestData(context.Background(), "option", optionsTradablePair.String(), "5min", time.Time{}, time.Time{}, 0, "")
 	if !errors.Is(err, errInvalidCategory) {
 		t.Errorf("expected %v, got %v", errInvalidCategory, err)
 	}
@@ -2918,59 +2921,6 @@ func TestGetBrokerEarning(t *testing.T) {
 	}
 }
 
-func instantiateTradablePairs() error {
-	err := b.UpdateTradablePairs(context.Background(), true)
-	if err != nil {
-		return err
-	}
-	tradables, err := b.GetEnabledPairs(asset.Spot)
-	if err != nil {
-		return err
-	}
-	format, err := b.GetPairFormat(asset.Spot, true)
-	if err != nil {
-		return err
-	}
-	spotTradablePair = tradables[0].Format(format)
-	tradables, err = b.GetEnabledPairs(asset.USDTMarginedFutures)
-	if err != nil {
-		return err
-	}
-	format, err = b.GetPairFormat(asset.USDTMarginedFutures, true)
-	if err != nil {
-		return err
-	}
-	usdtMarginedTradablePair = tradables[0].Format(format)
-	tradables, err = b.GetEnabledPairs(asset.USDCMarginedFutures)
-	if err != nil {
-		return err
-	}
-	format, err = b.GetPairFormat(asset.USDCMarginedFutures, true)
-	if err != nil {
-		return err
-	}
-	usdcMarginedTradablePair = tradables[0].Format(format)
-	tradables, err = b.GetEnabledPairs(asset.CoinMarginedFutures)
-	if err != nil {
-		return err
-	}
-	format, err = b.GetPairFormat(asset.CoinMarginedFutures, true)
-	if err != nil {
-		return err
-	}
-	inverseTradablePair = tradables[0].Format(format)
-	tradables, err = b.GetEnabledPairs(asset.Options)
-	if err != nil {
-		return err
-	}
-	format, err = b.GetPairFormat(asset.Options, true)
-	if err != nil {
-		return err
-	}
-	optionsTradablePair = tradables[0].Format(format)
-	return nil
-}
-
 func TestUpdateAccountInfo(t *testing.T) {
 	t.Parallel()
 	if mockTests {
@@ -3536,4 +3486,62 @@ func TestUpdateOptionsTickerInformation(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+}
+
+func TestGetOpenInterest(t *testing.T) {
+	t.Parallel()
+	_, err := b.GetOpenInterest(context.Background(), key.PairAsset{
+		Base:  currency.ETH.Item,
+		Quote: currency.USDT.Item,
+		Asset: asset.Spot,
+	})
+	assert.ErrorIs(t, err, asset.ErrNotSupported)
+
+	resp, err := b.GetOpenInterest(context.Background(), key.PairAsset{
+		Base:  usdcMarginedTradablePair.Base.Item,
+		Quote: usdcMarginedTradablePair.Quote.Item,
+		Asset: asset.USDCMarginedFutures,
+	})
+	assert.NoError(t, err)
+	assert.NotEmpty(t, resp)
+
+	resp, err = b.GetOpenInterest(context.Background(), key.PairAsset{
+		Base:  usdtMarginedTradablePair.Base.Item,
+		Quote: usdtMarginedTradablePair.Quote.Item,
+		Asset: asset.USDTMarginedFutures,
+	})
+	assert.NoError(t, err)
+	assert.NotEmpty(t, resp)
+
+	resp, err = b.GetOpenInterest(context.Background(), key.PairAsset{
+		Base:  inverseTradablePair.Base.Item,
+		Quote: inverseTradablePair.Quote.Item,
+		Asset: asset.CoinMarginedFutures,
+	})
+	assert.NoError(t, err)
+	assert.NotEmpty(t, resp)
+
+	resp, err = b.GetOpenInterest(context.Background())
+	assert.NoError(t, err)
+	assert.NotEmpty(t, resp)
+}
+
+func TestIsPerpetualFutureCurrency(t *testing.T) {
+	t.Parallel()
+
+	is, err := b.IsPerpetualFutureCurrency(asset.Spot, spotTradablePair)
+	assert.NoError(t, err)
+	assert.False(t, is)
+
+	is, err = b.IsPerpetualFutureCurrency(asset.CoinMarginedFutures, inverseTradablePair)
+	assert.NoError(t, err)
+	assert.True(t, is, fmt.Sprintf("%s %s should be a perp", asset.CoinMarginedFutures, inverseTradablePair))
+
+	is, err = b.IsPerpetualFutureCurrency(asset.USDTMarginedFutures, usdtMarginedTradablePair)
+	assert.NoError(t, err)
+	assert.True(t, is, fmt.Sprintf("%s %s should be a perp", asset.USDTMarginedFutures, usdtMarginedTradablePair))
+
+	is, err = b.IsPerpetualFutureCurrency(asset.USDCMarginedFutures, usdcMarginedTradablePair)
+	assert.NoError(t, err)
+	assert.True(t, is, fmt.Sprintf("%s %s should be a perp", asset.USDCMarginedFutures, usdcMarginedTradablePair))
 }

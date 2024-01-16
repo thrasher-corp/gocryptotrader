@@ -200,7 +200,7 @@ func (c *CoinbasePro) wsHandleData(respRaw []byte) error {
 				Pair:            p,
 			}
 		}
-	case "match":
+	case "match", "last_match":
 		var wsOrder wsOrderReceived
 		err := json.Unmarshal(respRaw, &wsOrder)
 		if err != nil {
@@ -411,26 +411,29 @@ func (c *CoinbasePro) Subscribe(channelsToSubscribe []stream.ChannelSubscription
 	subscribe := WebsocketSubscribe{
 		Type: "subscribe",
 	}
-
-subscriptions:
+	productIDs := make([]string, 0, len(channelsToSubscribe))
 	for i := range channelsToSubscribe {
 		p := channelsToSubscribe[i].Currency.String()
-		if !common.StringDataCompare(subscribe.ProductIDs, p) && p != "" {
-			subscribe.ProductIDs = append(subscribe.ProductIDs, p)
+		if p != "" && !common.StringDataCompare(productIDs, p) {
+			// get all unique productIDs in advance as we generate by channels
+			productIDs = append(productIDs, p)
 		}
-
+	}
+subscriptions:
+	for i := range channelsToSubscribe {
 		for j := range subscribe.Channels {
 			if subscribe.Channels[j].Name == channelsToSubscribe[i].Channel {
 				continue subscriptions
 			}
 		}
 
-		subscribe.Channels = append(subscribe.Channels, WsChannels{
-			Name: channelsToSubscribe[i].Channel,
-		})
-
-		if (channelsToSubscribe[i].Channel == "user" ||
-			channelsToSubscribe[i].Channel == "full") && creds != nil {
+		subChan := WsChannels{
+			Name:       channelsToSubscribe[i].Channel,
+			ProductIDs: productIDs,
+		}
+		if (channelsToSubscribe[i].Channel == "user" || channelsToSubscribe[i].Channel == "full") &&
+			creds != nil &&
+			subscribe.Signature == "" {
 			n := strconv.FormatInt(time.Now().Unix(), 10)
 			message := n + http.MethodGet + "/users/self/verify"
 			var hmac []byte
@@ -445,6 +448,7 @@ subscriptions:
 			subscribe.Passphrase = creds.ClientID
 			subscribe.Timestamp = n
 		}
+		subscribe.Channels = append(subscribe.Channels, subChan)
 	}
 	err = c.Websocket.Conn.SendJSONMessage(subscribe)
 	if err != nil {
@@ -459,14 +463,17 @@ func (c *CoinbasePro) Unsubscribe(channelsToUnsubscribe []stream.ChannelSubscrip
 	unsubscribe := WebsocketSubscribe{
 		Type: "unsubscribe",
 	}
+	productIDs := make([]string, 0, len(channelsToUnsubscribe))
+	for i := range channelsToUnsubscribe {
+		p := channelsToUnsubscribe[i].Currency.String()
+		if p != "" && !common.StringDataCompare(productIDs, p) {
+			// get all unique productIDs in advance as we generate by channels
+			productIDs = append(productIDs, p)
+		}
+	}
 
 unsubscriptions:
 	for i := range channelsToUnsubscribe {
-		p := channelsToUnsubscribe[i].Currency.String()
-		if !common.StringDataCompare(unsubscribe.ProductIDs, p) && p != "" {
-			unsubscribe.ProductIDs = append(unsubscribe.ProductIDs, p)
-		}
-
 		for j := range unsubscribe.Channels {
 			if unsubscribe.Channels[j].Name == channelsToUnsubscribe[i].Channel {
 				continue unsubscriptions
@@ -474,7 +481,8 @@ unsubscriptions:
 		}
 
 		unsubscribe.Channels = append(unsubscribe.Channels, WsChannels{
-			Name: channelsToUnsubscribe[i].Channel,
+			Name:       channelsToUnsubscribe[i].Channel,
+			ProductIDs: productIDs,
 		})
 	}
 	err := c.Websocket.Conn.SendJSONMessage(unsubscribe)
