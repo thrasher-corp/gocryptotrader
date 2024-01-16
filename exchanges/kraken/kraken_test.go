@@ -185,7 +185,7 @@ func TestNewPairFromSymbol(t *testing.T) {
 	assert.True(t, cp.Equal(currency.NewPair(currency.XBT, currency.USD)))
 
 	symbol = "WIFBONK"
-	cp, err = k.newPairFromSymbol(symbol, asset.Spot)
+	_, err = k.newPairFromSymbol(symbol, asset.Spot)
 	assert.ErrorIs(t, err, currency.ErrPairNotFound)
 
 	symbol = "PF_XBTUSD"
