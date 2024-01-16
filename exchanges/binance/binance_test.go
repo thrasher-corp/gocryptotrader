@@ -10,7 +10,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/gorilla/websocket"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/core"
@@ -26,6 +28,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
+	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
@@ -1952,34 +1955,47 @@ func TestGetDepositAddress(t *testing.T) {
 	}
 }
 
-func TestWSSubscriptionHandling(t *testing.T) {
+func TestSubscribe(t *testing.T) {
 	t.Parallel()
-	pressXToJSON := []byte(`{
-  "method": "SUBSCRIBE",
-  "params": [
-    "btcusdt@aggTrade",
-    "btcusdt@depth"
-  ],
-  "id": 1
-}`)
-	err := b.wsHandleData(pressXToJSON)
-	if err != nil {
-		t.Error(err)
+	b := b
+	channels := []subscription.Subscription{
+		{Channel: "btcusdt@ticker"},
+		{Channel: "btcusdt@trade"},
 	}
+	if mockTests {
+		b = testexch.MockWSInstance[Binance](t, func(msg []byte, w *websocket.Conn) error {
+			var req WsPayload
+			err := json.Unmarshal(msg, &req)
+			require.NoError(t, err, "Unmarshal should not error")
+			require.Len(t, req.Params, len(channels), "Params should only have 2 channel") // Failure might mean mockWSInstance default Subs is not empty
+			assert.Equal(t, req.Params[0], channels[0].Channel, "Channel name should be correct")
+			assert.Equal(t, req.Params[1], channels[1].Channel, "Channel name should be correct")
+			return w.WriteMessage(websocket.TextMessage, []byte(fmt.Sprintf(`{"result":null,"id":%d}`, req.ID)))
+		})
+	} else {
+		testexch.SetupWs(t, b)
+	}
+	err := b.Subscribe(channels)
+	require.NoError(t, err, "Subscribe should not error")
+	err = b.Unsubscribe(channels)
+	require.NoError(t, err, "Unsubscribe should not error")
 }
 
-func TestWSUnsubscriptionHandling(t *testing.T) {
-	pressXToJSON := []byte(`{
-  "method": "UNSUBSCRIBE",
-  "params": [
-    "btcusdt@depth"
-  ],
-  "id": 312
-}`)
-	err := b.wsHandleData(pressXToJSON)
-	if err != nil {
-		t.Error(err)
+func TestSubscribeBadResp(t *testing.T) {
+	t.Parallel()
+	channels := []subscription.Subscription{
+		{Channel: "moons@ticker"},
 	}
+	b := testexch.MockWSInstance[Binance](t, func(msg []byte, w *websocket.Conn) error { //nolint:govet // shadow
+		var req WsPayload
+		err := json.Unmarshal(msg, &req)
+		require.NoError(t, err, "Unmarshal should not error")
+		return w.WriteMessage(websocket.TextMessage, []byte(fmt.Sprintf(`{"result":{"error":"carrots"},"id":%d}`, req.ID)))
+	})
+	err := b.Subscribe(channels)
+	assert.ErrorIs(t, err, stream.ErrSubscriptionFailure, "Subscribe should error ErrSubscriptionFailure")
+	assert.ErrorIs(t, err, errUnknownError, "Subscribe should error errUnknownError")
+	assert.ErrorContains(t, err, "carrots", "Subscribe should error containing the carrots")
 }
 
 func TestWsTickerUpdate(t *testing.T) {
