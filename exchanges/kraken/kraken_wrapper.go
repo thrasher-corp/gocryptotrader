@@ -488,15 +488,16 @@ func (k *Kraken) UpdateTradablePairs(ctx context.Context, forceUpdate bool) erro
 func (k *Kraken) newPairFromSymbol(symbol string, item asset.Item) (currency.Pair, error) {
 	cp, err := k.MatchSymbolWithAvailablePairs(symbol, item, item == asset.Futures)
 	if err != nil {
-		if errors.Is(err, currency.ErrPairNotFound) {
-			altName := assetTranslator.LookupAltName(symbol)
-			if altName == "" {
-				return currency.Pair{}, err
-			}
-			cp, err = k.CurrencyPairs.Match(altName, item)
-			if err != nil {
-				return currency.Pair{}, err
-			}
+		if !errors.Is(err, currency.ErrPairNotFound) {
+			return currency.EMPTYPAIR, err
+		}
+		altName := assetTranslator.LookupAltName(symbol)
+		if altName == "" {
+			return currency.EMPTYPAIR, err
+		}
+		cp, err = k.MatchSymbolWithAvailablePairs(altName, item, item == asset.Futures)
+		if err != nil {
+			return currency.EMPTYPAIR, err
 		}
 	}
 	return cp, nil
