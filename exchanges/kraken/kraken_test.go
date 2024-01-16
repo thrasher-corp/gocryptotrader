@@ -205,18 +205,17 @@ func TestUpdateTickers(t *testing.T) {
 	require.NoError(t, err)
 	err = k.CurrencyPairs.StorePairs(asset.Spot, ap, true)
 	require.NoError(t, err)
-
-	ap, err = k.GetAvailablePairs(asset.Futures)
-	require.NoError(t, err)
-	err = k.CurrencyPairs.StorePairs(asset.Futures, ap, true)
-	require.NoError(t, err)
-
-	err = k.UpdateTickers(context.Background(), asset.Futures)
+	err = k.UpdateTickers(context.Background(), asset.Spot)
 	assert.NoError(t, err)
 	for i := range ap {
 		_, err = ticker.GetTicker(k.Name, ap[i], asset.Spot)
 		assert.NoError(t, err)
 	}
+
+	ap, err = k.GetAvailablePairs(asset.Futures)
+	require.NoError(t, err)
+	err = k.CurrencyPairs.StorePairs(asset.Futures, ap, true)
+	require.NoError(t, err)
 	err = k.UpdateTickers(context.Background(), asset.Futures)
 	assert.NoError(t, err)
 	for i := range ap {
