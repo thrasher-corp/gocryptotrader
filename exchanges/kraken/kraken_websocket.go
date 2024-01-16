@@ -145,10 +145,7 @@ func (k *Kraken) wsReadData(comms chan stream.Response) {
 					select {
 					case k.Websocket.DataHandler <- err:
 					default:
-						log.Errorf(log.WebsocketMgr,
-							"%s websocket handle data error: %v",
-							k.Name,
-							err)
+						log.Errorf(log.WebsocketMgr, "%s websocket handle data error: %v", k.Name, err)
 					}
 				}
 			default:
@@ -157,9 +154,7 @@ func (k *Kraken) wsReadData(comms chan stream.Response) {
 		case resp := <-comms:
 			err := k.wsHandleData(resp.Raw)
 			if err != nil {
-				k.Websocket.DataHandler <- fmt.Errorf("%s - unhandled websocket data: %v",
-					k.Name,
-					err)
+				k.Websocket.DataHandler <- fmt.Errorf("%s - unhandled websocket data: %v", k.Name, err)
 			}
 		}
 	}
@@ -324,7 +319,7 @@ func (k *Kraken) wsHandleData(respRaw []byte) error {
 		}
 	default:
 		k.Websocket.DataHandler <- stream.UnhandledMessageWarning{
-			Message: k.Name + stream.UnhandledMessage + string(respRaw),
+			Message: fmt.Sprintf("%s %s: %s", k.Name, stream.UnhandledMessage, respRaw),
 		}
 	}
 
