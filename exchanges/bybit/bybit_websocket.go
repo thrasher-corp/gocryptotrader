@@ -58,19 +58,23 @@ func (by *Bybit) WsConnect() error {
 	if !by.Websocket.IsEnabled() || !by.IsEnabled() || !by.IsAssetWebsocketSupported(asset.Spot) {
 		return errWebsocketNotEnabled
 	}
-	var dialer websocket.Dialer
-	err := by.Websocket.Conn.Dial(&dialer, http.Header{})
+	spotWebsocket, err := by.Websocket.GetAssetWebsocket(asset.Spot)
 	if err != nil {
 		return err
 	}
-	by.Websocket.Conn.SetupPingHandler(stream.PingHandler{
+	var dialer websocket.Dialer
+	err = spotWebsocket.Conn.Dial(&dialer, http.Header{})
+	if err != nil {
+		return err
+	}
+	spotWebsocket.Conn.SetupPingHandler(stream.PingHandler{
 		MessageType: websocket.TextMessage,
 		Message:     []byte(`{"op": "ping"}`),
 		Delay:       bybitWebsocketTimer,
 	})
 
 	by.Websocket.Wg.Add(1)
-	go by.wsReadData(asset.Spot, by.Websocket.Conn)
+	go by.wsReadData(asset.Spot, spotWebsocket.Conn)
 	if by.Websocket.CanUseAuthenticatedEndpoints() {
 		err = by.WsAuth(context.TODO())
 		if err != nil {
@@ -84,19 +88,23 @@ func (by *Bybit) WsConnect() error {
 // WsAuth sends an authentication message to receive auth data
 func (by *Bybit) WsAuth(ctx context.Context) error {
 	var dialer websocket.Dialer
-	err := by.Websocket.AuthConn.Dial(&dialer, http.Header{})
+	spotWebsocket, err := by.Websocket.GetAssetWebsocket(asset.Spot)
+	if err != nil {
+		return err
+	}
+	err = spotWebsocket.AuthConn.Dial(&dialer, http.Header{})
 	if err != nil {
 		return err
 	}
 
-	by.Websocket.AuthConn.SetupPingHandler(stream.PingHandler{
+	spotWebsocket.AuthConn.SetupPingHandler(stream.PingHandler{
 		MessageType: websocket.TextMessage,
 		Message:     []byte(`{"op":"ping"}`),
 		Delay:       bybitWebsocketTimer,
 	})
 
 	by.Websocket.Wg.Add(1)
-	go by.wsReadData(asset.Spot, by.Websocket.AuthConn)
+	go by.wsReadData(asset.Spot, spotWebsocket.AuthConn)
 	creds, err := by.GetCredentials(ctx)
 	if err != nil {
 		return err
@@ -113,11 +121,11 @@ func (by *Bybit) WsAuth(ctx context.Context) error {
 	}
 	sign := crypto.HexEncodeToString(hmac)
 	req := Authenticate{
-		RequestID: strconv.FormatInt(by.Websocket.AuthConn.GenerateMessageID(false), 10),
+		RequestID: strconv.FormatInt(spotWebsocket.AuthConn.GenerateMessageID(false), 10),
 		Operation: "auth",
 		Args:      []interface{}{creds.Key, intNonce, sign},
 	}
-	resp, err := by.Websocket.AuthConn.SendMessageReturnResponse(req.RequestID, req)
+	resp, err := spotWebsocket.AuthConn.SendMessageReturnResponse(req.RequestID, req)
 	if err != nil {
 		return err
 	}
@@ -138,16 +146,20 @@ func (by *Bybit) Subscribe(channelsToSubscribe []stream.ChannelSubscription) err
 }
 
 func (by *Bybit) handleSubscriptions(assetType asset.Item, operation string, channelsToSubscribe []stream.ChannelSubscription) ([]SubscriptionArgument, error) {
+	spotWebsocket, err := by.Websocket.GetAssetWebsocket(asset.Spot)
+	if err != nil {
+		return nil, err
+	}
 	var args []SubscriptionArgument
 	arg := SubscriptionArgument{
 		Operation: operation,
-		RequestID: strconv.FormatInt(by.Websocket.Conn.GenerateMessageID(false), 10),
+		RequestID: strconv.FormatInt(spotWebsocket.Conn.GenerateMessageID(false), 10),
 		Arguments: []string{},
 	}
 	authArg := SubscriptionArgument{
 		auth:      true,
 		Operation: operation,
-		RequestID: strconv.FormatInt(by.Websocket.Conn.GenerateMessageID(false), 10),
+		RequestID: strconv.FormatInt(spotWebsocket.Conn.GenerateMessageID(false), 10),
 		Arguments: []string{},
 	}
 
@@ -188,7 +200,7 @@ func (by *Bybit) handleSubscriptions(assetType asset.Item, operation string, cha
 			args = append(args, arg)
 			arg = SubscriptionArgument{
 				Operation: operation,
-				RequestID: strconv.FormatInt(by.Websocket.Conn.GenerateMessageID(false), 10),
+				RequestID: strconv.FormatInt(spotWebsocket.Conn.GenerateMessageID(false), 10),
 				Arguments: []string{},
 			}
 		}
@@ -208,6 +220,10 @@ func (by *Bybit) Unsubscribe(channelsToUnsubscribe []stream.ChannelSubscription)
 }
 
 func (by *Bybit) handleSpotSubscription(operation string, channelsToSubscribe []stream.ChannelSubscription) error {
+	spotWebsocket, err := by.Websocket.GetAssetWebsocket(asset.Spot)
+	if err != nil {
+		return err
+	}
 	payloads, err := by.handleSubscriptions(asset.Spot, operation, channelsToSubscribe)
 	if err != nil {
 		return err
@@ -215,12 +231,12 @@ func (by *Bybit) handleSpotSubscription(operation string, channelsToSubscribe []
 	for a := range payloads {
 		var response []byte
 		if payloads[a].auth {
-			response, err = by.Websocket.AuthConn.SendMessageReturnResponse(payloads[a].RequestID, payloads[a])
+			response, err = spotWebsocket.AuthConn.SendMessageReturnResponse(payloads[a].RequestID, payloads[a])
 			if err != nil {
 				return err
 			}
 		} else {
-			response, err = by.Websocket.Conn.SendMessageReturnResponse(payloads[a].RequestID, payloads[a])
+			response, err = spotWebsocket.Conn.SendMessageReturnResponse(payloads[a].RequestID, payloads[a])
 			if err != nil {
 				return err
 			}
@@ -824,25 +840,13 @@ func (by *Bybit) wsProcessOrderbook(assetType asset.Item, resp *WebsocketRespons
 	}
 	asks := make([]orderbook.Item, len(result.Asks))
 	for i := range result.Asks {
-		asks[i].Price, err = strconv.ParseFloat(result.Asks[i][0], 64)
-		if err != nil {
-			return err
-		}
-		asks[i].Amount, err = strconv.ParseFloat(result.Asks[i][1], 64)
-		if err != nil {
-			return err
-		}
+		asks[i].Price = result.Asks[i][0].Float64()
+		asks[i].Amount = result.Asks[i][1].Float64()
 	}
 	bids := make([]orderbook.Item, len(result.Bids))
 	for i := range result.Bids {
-		bids[i].Price, err = strconv.ParseFloat(result.Bids[i][0], 64)
-		if err != nil {
-			return err
-		}
-		bids[i].Amount, err = strconv.ParseFloat(result.Bids[i][1], 64)
-		if err != nil {
-			return err
-		}
+		bids[i].Price = result.Bids[i][0].Float64()
+		bids[i].Amount = result.Bids[i][1].Float64()
 	}
 	if len(asks) == 0 && len(bids) == 0 {
 		return nil

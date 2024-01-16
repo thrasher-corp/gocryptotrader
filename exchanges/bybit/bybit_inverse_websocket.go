@@ -13,20 +13,24 @@ func (by *Bybit) WsInverseConnect() error {
 	if !by.Websocket.IsEnabled() || !by.IsEnabled() || !by.IsAssetWebsocketSupported(asset.CoinMarginedFutures) {
 		return errWebsocketNotEnabled
 	}
-	by.Websocket.Conn.SetURL(inversePublic)
-	var dialer websocket.Dialer
-	err := by.Websocket.Conn.Dial(&dialer, http.Header{})
+	inverseWebsocket, err := by.Websocket.GetAssetWebsocket(asset.CoinMarginedFutures)
 	if err != nil {
 		return err
 	}
-	by.Websocket.Conn.SetupPingHandler(stream.PingHandler{
+	inverseWebsocket.Conn.SetURL(inversePublic)
+	var dialer websocket.Dialer
+	err = inverseWebsocket.Conn.Dial(&dialer, http.Header{})
+	if err != nil {
+		return err
+	}
+	inverseWebsocket.Conn.SetupPingHandler(stream.PingHandler{
 		MessageType: websocket.TextMessage,
 		Message:     []byte(`{"op": "ping"}`),
 		Delay:       bybitWebsocketTimer,
 	})
 
 	by.Websocket.Wg.Add(1)
-	go by.wsReadData(asset.CoinMarginedFutures, by.Websocket.Conn)
+	go by.wsReadData(asset.CoinMarginedFutures, inverseWebsocket.Conn)
 	return nil
 }
 
@@ -62,6 +66,10 @@ func (by *Bybit) InverseUnsubscribe(channelSubscriptions []stream.ChannelSubscri
 }
 
 func (by *Bybit) handleInversePayloadSubscription(operation string, channelSubscriptions []stream.ChannelSubscription) error {
+	inverseWebsocket, err := by.Websocket.GetAssetWebsocket(asset.CoinMarginedFutures)
+	if err != nil {
+		return err
+	}
 	payloads, err := by.handleSubscriptions(asset.CoinMarginedFutures, operation, channelSubscriptions)
 	if err != nil {
 		return err
@@ -69,7 +77,7 @@ func (by *Bybit) handleInversePayloadSubscription(operation string, channelSubsc
 	for a := range payloads {
 		// The options connection does not send the subscription request id back with the subscription notification payload
 		// therefore the code doesn't wait for the response to check whether the subscription is successful or not.
-		err = by.Websocket.Conn.SendJSONMessage(payloads[a])
+		err = inverseWebsocket.Conn.SendJSONMessage(payloads[a])
 		if err != nil {
 			return err
 		}

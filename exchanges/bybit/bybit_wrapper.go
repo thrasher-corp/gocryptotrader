@@ -217,7 +217,7 @@ func (by *Bybit) SetDefaults() {
 		log.Errorln(log.ExchangeSys, err)
 	}
 
-	by.Websocket = stream.New()
+	by.Websocket = stream.NewWrapper()
 	by.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	by.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
 	by.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
@@ -239,46 +239,130 @@ func (by *Bybit) Setup(exch *config.Exchange) error {
 		return err
 	}
 
-	wsRunningEndpoint, err := by.API.Endpoints.GetURL(exchange.WebsocketSpot)
+	err = by.Websocket.Setup(&stream.WebsocketWrapperSetup{
+		ExchangeConfig:         exch,
+		ConnectionMonitorDelay: exch.ConnectionMonitorDelay,
+		Features:               &by.Features.Supports.WebsocketCapabilities,
+		FillsFeed:              by.Features.Enabled.FillsFeed,
+		TradeFeed:              by.Features.Enabled.TradeFeed,
+		OrderbookBufferConfig: buffer.Config{
+			SortBuffer:            true,
+			SortBufferByUpdateIDs: true,
+		},
+	})
 	if err != nil {
 		return err
 	}
 
-	err = by.Websocket.Setup(
-		&stream.WebsocketSetup{
-			ExchangeConfig:        exch,
-			DefaultURL:            spotPublic,
-			RunningURL:            wsRunningEndpoint,
-			RunningURLAuth:        websocketPrivate,
-			Connector:             by.WsConnect,
-			Subscriber:            by.Subscribe,
-			Unsubscriber:          by.Unsubscribe,
-			GenerateSubscriptions: by.GenerateDefaultSubscriptions,
-			Features:              &by.Features.Supports.WebsocketCapabilities,
-			OrderbookBufferConfig: buffer.Config{
-				SortBuffer:            true,
-				SortBufferByUpdateIDs: true,
-			},
-			TradeFeed: by.Features.Enabled.TradeFeed,
+	if by.IsAssetWebsocketSupported(asset.Spot) {
+		wsRunningEndpoint, err := by.API.Endpoints.GetURL(exchange.WebsocketSpot)
+		if err != nil {
+			return err
+		}
+		spotWebsocket, err := by.Websocket.AddWebsocket(
+			&stream.WebsocketSetup{
+				DefaultURL:            spotPublic,
+				RunningURL:            wsRunningEndpoint,
+				RunningURLAuth:        websocketPrivate,
+				Connector:             by.WsConnect,
+				Subscriber:            by.Subscribe,
+				Unsubscriber:          by.Unsubscribe,
+				GenerateSubscriptions: by.GenerateDefaultSubscriptions,
+				AssetType:             asset.Spot,
+			})
+		if err != nil {
+			return err
+		}
+		err = spotWebsocket.SetupNewConnection(stream.ConnectionSetup{
+			URL:                  by.Websocket.GetWebsocketURL(),
+			ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
+			ResponseMaxLimit:     bybitWebsocketTimer,
 		})
-	if err != nil {
-		return err
-	}
-	err = by.Websocket.SetupNewConnection(stream.ConnectionSetup{
-		URL:                  by.Websocket.GetWebsocketURL(),
-		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
-		ResponseMaxLimit:     bybitWebsocketTimer,
-	})
-	if err != nil {
-		return err
+		if err != nil {
+			return err
+		}
+		err = spotWebsocket.SetupNewConnection(stream.ConnectionSetup{
+			URL:                  websocketPrivate,
+			ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
+			ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
+			Authenticated:        true,
+		})
+		if err != nil {
+			return err
+		}
 	}
 
-	return by.Websocket.SetupNewConnection(stream.ConnectionSetup{
-		URL:                  websocketPrivate,
-		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
-		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
-		Authenticated:        true,
-	})
+	if by.IsAssetWebsocketSupported(asset.Options) {
+		optionsWebsocket, err := by.Websocket.AddWebsocket(
+			&stream.WebsocketSetup{
+				DefaultURL:            optionPublic,
+				RunningURL:            optionPublic,
+				Connector:             by.WsOptionsConnect,
+				Subscriber:            by.OptionSubscribe,
+				Unsubscriber:          by.OptionUnsubscribe,
+				GenerateSubscriptions: by.GenerateOptionsDefaultSubscriptions,
+				AssetType:             asset.Options,
+			})
+		if err != nil {
+			return err
+		}
+		err = optionsWebsocket.SetupNewConnection(stream.ConnectionSetup{
+			URL:                  optionPublic,
+			ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
+			ResponseMaxLimit:     bybitWebsocketTimer,
+		})
+		if err != nil {
+			return err
+		}
+	}
+	if by.IsAssetWebsocketSupported(asset.USDTMarginedFutures) ||
+		by.IsAssetWebsocketSupported(asset.USDCMarginedFutures) {
+		linearWebsocket, err := by.Websocket.AddWebsocket(
+			&stream.WebsocketSetup{
+				DefaultURL:            linearPublic,
+				RunningURL:            linearPublic,
+				Connector:             by.WsLinearConnect,
+				Subscriber:            by.LinearSubscribe,
+				Unsubscriber:          by.LinearUnsubscribe,
+				GenerateSubscriptions: by.GenerateLinearDefaultSubscriptions,
+				AssetType:             asset.USDTMarginedFutures,
+			})
+		if err != nil {
+			return err
+		}
+		err = linearWebsocket.SetupNewConnection(stream.ConnectionSetup{
+			URL:                  linearPublic,
+			ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
+			ResponseMaxLimit:     bybitWebsocketTimer,
+		})
+		if err != nil {
+			return err
+		}
+	}
+	if by.IsAssetWebsocketSupported(asset.CoinMarginedFutures) {
+		inverseWebsocket, err := by.Websocket.AddWebsocket(
+			&stream.WebsocketSetup{
+				DefaultURL:            inversePublic,
+				RunningURL:            inversePublic,
+				Connector:             by.WsInverseConnect,
+				Subscriber:            by.InverseSubscribe,
+				Unsubscriber:          by.InverseUnsubscribe,
+				GenerateSubscriptions: by.GenerateInverseDefaultSubscriptions,
+				AssetType:             asset.CoinMarginedFutures,
+			})
+		if err != nil {
+			return err
+		}
+		err = inverseWebsocket.SetupNewConnection(stream.ConnectionSetup{
+			URL:                  inversePublic,
+			ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
+			ResponseMaxLimit:     bybitWebsocketTimer,
+		})
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // AuthenticateWebsocket sends an authentication message to the websocket

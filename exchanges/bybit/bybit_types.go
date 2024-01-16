@@ -135,26 +135,6 @@ type MarkPriceKlineResponse struct {
 	List     [][]string `json:"list"`
 }
 
-func constructOrderbook(o *orderbookResponse) (*Orderbook, error) {
-	var (
-		s = Orderbook{
-			Symbol:         o.Symbol,
-			UpdateID:       o.UpdateID,
-			GenerationTime: o.Timestamp.Time(),
-		}
-		err error
-	)
-	s.Bids, err = processOB(o.Bids)
-	if err != nil {
-		return nil, err
-	}
-	s.Asks, err = processOB(o.Asks)
-	if err != nil {
-		return nil, err
-	}
-	return &s, err
-}
-
 // TickerData represents a list of ticker detailed information.
 type TickerData struct {
 	Category string       `json:"category"`

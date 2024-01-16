@@ -41,7 +41,7 @@ func TestMain(m *testing.M) {
 	bybitConfig.API.Credentials.Secret = apiSecret
 	bybitConfig.API.AuthenticatedSupport = true
 	bybitConfig.API.AuthenticatedWebsocketSupport = true
-	b.Websocket = sharedtestvalues.NewTestWebsocket()
+	b.Websocket = sharedtestvalues.NewTestWrapperWebsocket()
 	err = b.Setup(bybitConfig)
 	if err != nil {
 		log.Fatal("Bybit setup error", err)

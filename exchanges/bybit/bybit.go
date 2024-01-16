@@ -292,7 +292,13 @@ func (by *Bybit) GetOrderBook(ctx context.Context, category, symbol string, limi
 	if err != nil {
 		return nil, err
 	}
-	return constructOrderbook(&resp)
+	return &Orderbook{
+		Symbol:         resp.Symbol,
+		UpdateID:       resp.UpdateID,
+		GenerationTime: resp.Timestamp.Time(),
+		Bids:           processOB(resp.Bids),
+		Asks:           processOB(resp.Asks),
+	}, nil
 }
 
 func fillCategoryAndSymbol(category, symbol string, optionalSymbol ...bool) (url.Values, error) {
@@ -2526,13 +2532,13 @@ func (by *Bybit) GetBrokerEarning(ctx context.Context, businessType, cursor stri
 	return resp.List, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/broker/earning-record", params, nil, &resp, defaultEPL)
 }
 
-func processOB(ob [][2]types.Number) ([]orderbook.Item, error) {
+func processOB(ob [][2]types.Number) []orderbook.Item {
 	o := make([]orderbook.Item, len(ob))
 	for x := range ob {
 		o[x].Amount = ob[x][1].Float64()
 		o[x].Price = ob[x][0].Float64()
 	}
-	return o, nil
+	return o
 }
 
 // SendHTTPRequest sends an unauthenticated request
