@@ -79,9 +79,15 @@ func (k *Kraken) GetInstruments(ctx context.Context) (FuturesInstrumentData, err
 }
 
 // GetFuturesTickers gets a list of futures tickers and their data
-func (k *Kraken) GetFuturesTickers(ctx context.Context) (FuturesTickerData, error) {
-	var resp FuturesTickerData
+func (k *Kraken) GetFuturesTickers(ctx context.Context) (FuturesTickersData, error) {
+	var resp FuturesTickersData
 	return resp, k.SendHTTPRequest(ctx, exchange.RestFutures, futuresTickers, &resp)
+}
+
+// GetFuturesTickerBySymbol returns futures ticker data by symbol
+func (k *Kraken) GetFuturesTickerBySymbol(ctx context.Context, symbol string) (FuturesTickerData, error) {
+	var resp FuturesTickerData
+	return resp, k.SendHTTPRequest(ctx, exchange.RestFutures, futuresTickers+"/"+symbol, &resp)
 }
 
 // GetFuturesTradeHistory gets public trade history data for futures

@@ -13,6 +13,7 @@ import (
 
 	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -125,6 +126,10 @@ func (g *Gateio) SetDefaults() {
 				},
 				FundingRateBatching: map[asset.Item]bool{
 					asset.Futures: true,
+				},
+				OpenInterest: exchange.OpenInterestSupport{
+					Supported:         true,
+					SupportsRestBatch: true,
 				},
 			},
 		},
@@ -2430,4 +2435,139 @@ func contractToFundingRate(name string, item asset.Item, fPair currency.Pair, co
 // IsPerpetualFutureCurrency ensures a given asset and currency is a perpetual future
 func (g *Gateio) IsPerpetualFutureCurrency(a asset.Item, _ currency.Pair) (bool, error) {
 	return a == asset.Futures, nil
+}
+
+// GetOpenInterest returns the open interest rate for a given asset pair
+func (g *Gateio) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]futures.OpenInterest, error) {
+	for i := range k {
+		if k[i].Asset != asset.DeliveryFutures && k[i].Asset != asset.Futures {
+			// avoid API calls or returning errors after a successful retrieval
+			return nil, fmt.Errorf("%w %v %v", asset.ErrNotSupported, k[i].Asset, k[i].Pair())
+		}
+	}
+	if len(k) == 1 {
+		p, isEnabled, err := g.MatchSymbolCheckEnabled(k[0].Pair().String(), k[0].Asset, false)
+		if err != nil {
+			return nil, err
+		}
+		if !isEnabled {
+			return nil, fmt.Errorf("%w %v", asset.ErrNotEnabled, k[0].Pair())
+		}
+		switch k[0].Asset {
+		case asset.DeliveryFutures:
+			contractResp, err := g.GetSingleDeliveryContracts(ctx, "usdt", p)
+			if err != nil {
+				return nil, err
+			}
+			openInterest := contractResp.QuantoMultiplier.Float64() * float64(contractResp.PositionSize) * contractResp.IndexPrice.Float64()
+			return []futures.OpenInterest{
+				{
+					Key: key.ExchangePairAsset{
+						Exchange: g.Name,
+						Base:     k[0].Base,
+						Quote:    k[0].Quote,
+						Asset:    k[0].Asset,
+					},
+					OpenInterest: openInterest,
+				},
+			}, nil
+		case asset.Futures:
+			for _, s := range []string{"usd", "usdt", "btc"} {
+				contractResp, err := g.GetSingleContract(ctx, s, p.String())
+				if err != nil {
+					continue
+				}
+				openInterest := contractResp.QuantoMultiplier.Float64() * float64(contractResp.PositionSize) * contractResp.IndexPrice.Float64()
+				return []futures.OpenInterest{
+					{
+						Key: key.ExchangePairAsset{
+							Exchange: g.Name,
+							Base:     k[0].Base,
+							Quote:    k[0].Quote,
+							Asset:    k[0].Asset,
+						},
+						OpenInterest: openInterest,
+					},
+				}, nil
+			}
+		}
+	}
+	var resp []futures.OpenInterest
+	for _, a := range g.GetAssetTypes(true) {
+		switch a {
+		case asset.DeliveryFutures:
+			contractResp, err := g.GetAllDeliveryContracts(ctx, "usdt")
+			if err != nil {
+				return nil, err
+			}
+
+			for i := range contractResp {
+				p, isEnabled, err := g.MatchSymbolCheckEnabled(contractResp[i].Name, a, true)
+				if err != nil && !errors.Is(err, currency.ErrPairNotFound) {
+					return nil, err
+				}
+				if !isEnabled {
+					continue
+				}
+				var appendData bool
+				for j := range k {
+					if k[j].Pair().Equal(p) {
+						appendData = true
+						break
+					}
+				}
+				if len(k) > 0 && !appendData {
+					continue
+				}
+				openInterest := contractResp[i].QuantoMultiplier.Float64() * float64(contractResp[i].PositionSize) * contractResp[i].IndexPrice.Float64()
+				resp = append(resp, futures.OpenInterest{
+					Key: key.ExchangePairAsset{
+						Exchange: g.Name,
+						Base:     p.Base.Item,
+						Quote:    p.Quote.Item,
+						Asset:    a,
+					},
+					OpenInterest: openInterest,
+				})
+			}
+		case asset.Futures:
+			for _, s := range []string{"usd", "usdt", "btc"} {
+				contractResp, err := g.GetAllFutureContracts(ctx, s)
+				if err != nil {
+					return nil, err
+				}
+
+				for i := range contractResp {
+					p, isEnabled, err := g.MatchSymbolCheckEnabled(contractResp[i].Name, a, true)
+					if err != nil && !errors.Is(err, currency.ErrPairNotFound) {
+						return nil, err
+					}
+					if !isEnabled {
+						continue
+					}
+					var appendData bool
+					for j := range k {
+						if k[j].Pair().Equal(p) {
+							appendData = true
+							break
+						}
+					}
+					if len(k) > 0 && !appendData {
+						continue
+					}
+					openInterest := contractResp[i].QuantoMultiplier.Float64() * float64(contractResp[i].PositionSize) * contractResp[i].IndexPrice.Float64()
+					resp = append(resp, futures.OpenInterest{
+						Key: key.ExchangePairAsset{
+							Exchange: g.Name,
+							Base:     p.Base.Item,
+							Quote:    p.Quote.Item,
+							Asset:    a,
+						},
+						OpenInterest: openInterest,
+					})
+				}
+			}
+		}
+	}
+	return resp, nil
 }

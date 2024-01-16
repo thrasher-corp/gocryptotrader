@@ -11,6 +11,7 @@ import (
 
 	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -131,6 +132,11 @@ func (ku *Kucoin) SetDefaults() {
 				},
 				FundingRateBatching: map[asset.Item]bool{
 					asset.Futures: true,
+				},
+				OpenInterest: exchange.OpenInterestSupport{
+					Supported:          true,
+					SupportedViaTicker: true,
+					SupportsRestBatch:  true,
 				},
 			},
 			MaximumOrderHistory: kline.OneDay.Duration() * 7,
@@ -385,6 +391,7 @@ func (ku *Kucoin) UpdateTickers(ctx context.Context, assetType asset.Item) error
 				High:         ticks[x].HighPrice,
 				Low:          ticks[x].LowPrice,
 				Volume:       ticks[x].VolumeOf24h,
+				OpenInterest: ticks[x].OpenInterest.Float64(),
 				Pair:         pair,
 				ExchangeName: ku.Name,
 				AssetType:    assetType,
@@ -1992,4 +1999,50 @@ func (ku *Kucoin) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) 
 	}
 
 	return ku.LoadLimits(limits)
+}
+
+// GetOpenInterest returns the open interest rate for a given asset pair
+func (ku *Kucoin) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]futures.OpenInterest, error) {
+	for i := range k {
+		if k[i].Asset != asset.Futures {
+			// avoid API calls or returning errors after a successful retrieval
+			return nil, fmt.Errorf("%w %v %v", asset.ErrNotSupported, k[i].Asset, k[i].Pair())
+		}
+	}
+	contracts, err := ku.GetFuturesOpenContracts(ctx)
+	if err != nil {
+		return nil, err
+	}
+	resp := make([]futures.OpenInterest, 0, len(contracts))
+	for i := range contracts {
+		var symbol currency.Pair
+		var enabled bool
+		symbol, enabled, err = ku.MatchSymbolCheckEnabled(contracts[i].Symbol, asset.Futures, true)
+		if err != nil && !errors.Is(err, currency.ErrPairNotFound) {
+			return nil, err
+		}
+		if !enabled {
+			continue
+		}
+		var appendData bool
+		for j := range k {
+			if k[j].Pair().Equal(symbol) {
+				appendData = true
+				break
+			}
+		}
+		if len(k) > 0 && !appendData {
+			continue
+		}
+		resp = append(resp, futures.OpenInterest{
+			Key: key.ExchangePairAsset{
+				Exchange: ku.Name,
+				Base:     symbol.Base.Item,
+				Quote:    symbol.Quote.Item,
+				Asset:    asset.Futures,
+			},
+			OpenInterest: contracts[i].OpenInterest.Float64(),
+		})
+	}
+	return resp, nil
 }
