@@ -472,7 +472,7 @@ func (o *Okcoin) wsProcessAccount(respRaw []byte) error {
 	return nil
 }
 
-var orderbookSnapshotMap = map[string]bool{}
+var orderbookSnapshotMap = make(map[string]bool)
 
 func (o *Okcoin) wsProcessOrderbook(respRaw []byte, obChannel string) error {
 	var resp WebsocketOrderbookResponse
