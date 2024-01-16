@@ -14,6 +14,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -72,10 +73,6 @@ func TestMain(m *testing.M) {
 		ok.Websocket.DataHandler = sharedtestvalues.GetWebsocketInterfaceChannelOverride()
 		ok.Websocket.TrafficAlert = sharedtestvalues.GetWebsocketStructChannelOverride()
 		setupWS()
-	}
-	err = ok.UpdateTradablePairs(contextGenerate(), true)
-	if err != nil {
-		log.Fatal(err)
 	}
 	os.Exit(m.Run())
 }
@@ -214,9 +211,55 @@ func TestGetBlockTicker(t *testing.T) {
 
 func TestGetBlockTrade(t *testing.T) {
 	t.Parallel()
-	if _, err := ok.GetBlockTrades(contextGenerate(), "BTC-USDT"); err != nil {
-		t.Error("Okx GetBlockTrades() error", err)
+	trades, err := ok.GetBlockTrades(contextGenerate(), "BTC-USDT")
+	assert.NoError(t, err, "GetBlockTrades should not error")
+	if assert.NotEmpty(t, trades, "Should get some block trades") {
+		trade := trades[0]
+		assert.Equal(t, "BTC-USDT", trade.InstrumentID, "InstrumentID should have correct value")
+		assert.NotEmpty(t, trade.TradeID, "TradeID should not be empty")
+		assert.Positive(t, trade.Price, "Price should have a positive value")
+		assert.Positive(t, trade.Size, "Size should have a positive value")
+		assert.Contains(t, []order.Side{order.Buy, order.Sell}, trade.Side, "Side should be a side")
+		assert.WithinRange(t, trade.Timestamp.Time(), time.Now().Add(time.Hour*-24*7), time.Now(), "Timestamp should be within last 7 days")
 	}
+
+	updatePairsOnce(t)
+
+	pairs, err := ok.GetAvailablePairs(asset.Options)
+	assert.NoError(t, err, "GetAvailablePairs should not error")
+	assert.NotEmpty(t, pairs, "Should get some Option pairs")
+
+	publicTrades, err := ok.GetPublicBlockTrades(contextGenerate(), "", "", 100)
+	assert.NoError(t, err, "GetPublicBlockTrades should not error")
+
+	tested := false
+LOOP:
+	for _, trade := range publicTrades {
+		for _, leg := range trade.Legs {
+			p, err := ok.MatchSymbolWithAvailablePairs(leg.InstrumentID, asset.Options, true)
+			if err != nil {
+				continue
+			}
+
+			trades, err = ok.GetBlockTrades(contextGenerate(), p.String())
+			assert.NoError(t, err, "GetBlockTrades should not error on Options")
+			for _, trade := range trades {
+				assert.Equal(t, p.String(), trade.InstrumentID, "InstrumentID should have correct value")
+				assert.NotEmpty(t, trade.TradeID, "TradeID should not be empty")
+				assert.Positive(t, trade.Price, "Price should have a positive value")
+				assert.Positive(t, trade.Size, "Size should have a positive value")
+				assert.Contains(t, []order.Side{order.Buy, order.Sell}, trade.Side, "Side should be a side")
+				assert.Positive(t, trade.FillVolatility, "FillVolatility should have a positive value")
+				assert.Positive(t, trade.ForwardPrice, "ForwardPrice should have a positive value")
+				assert.Positive(t, trade.IndexPrice, "IndexPrice should have a positive value")
+				assert.Positive(t, trade.MarkPrice, "MarkPrice should have a positive value")
+				assert.NotEmpty(t, trade.Timestamp, "Timestamp should not be empty")
+				tested = true
+				break LOOP
+			}
+		}
+	}
+	assert.True(t, tested, "Should find at least one BlockTrade somewhere")
 }
 
 func TestGetInstrument(t *testing.T) {
@@ -245,10 +288,10 @@ func TestGetDeliveryHistory(t *testing.T) {
 	}
 }
 
-func TestGetOpenInterest(t *testing.T) {
+func TestGetOpenInterestData(t *testing.T) {
 	t.Parallel()
-	if _, err := ok.GetOpenInterest(contextGenerate(), "FUTURES", "BTC-USDT", ""); err != nil {
-		t.Error("Okx GetOpenInterest() error", err)
+	if _, err := ok.GetOpenInterestData(contextGenerate(), "FUTURES", "BTC-USDT", ""); err != nil {
+		t.Error("Okx GetOpenInterestData() error", err)
 	}
 }
 
@@ -999,12 +1042,22 @@ func TestGetRfqTrades(t *testing.T) {
 	}
 }
 
-func TestGetPublicTrades(t *testing.T) {
+func TestGetPublicBlockTrades(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
-
-	if _, err := ok.GetPublicTrades(contextGenerate(), "", "", 3); err != nil {
-		t.Error("Okx GetPublicTrades() error", err)
+	trades, err := ok.GetPublicBlockTrades(contextGenerate(), "", "", 3)
+	assert.NoError(t, err, "GetPublicBlockTrades should not error")
+	assert.NotEmpty(t, trades, "Should get some block trades back")
+	for _, trade := range trades {
+		assert.NotEmpty(t, trade.CreationTime, "CreationTime shound not be empty")
+		assert.NotEmpty(t, trade.BlockTradeID, "BlockTradeID shound not be empty")
+		if assert.NotEmpty(t, trade.Legs, "Should get some trades") {
+			leg := trade.Legs[0]
+			assert.NotEmpty(t, leg.InstrumentID, "InstrumentID should have correct value")
+			assert.NotEmpty(t, leg.TradeID, "TradeID should not be empty")
+			assert.Positive(t, leg.Price, "Price should have a positive value")
+			assert.Positive(t, leg.Size, "Size should have a positive value")
+			assert.Contains(t, []order.Side{order.Buy, order.Sell}, leg.Side, "Side should be a side")
+		}
 	}
 }
 
@@ -1883,9 +1936,17 @@ func TestFetchTradablePairs(t *testing.T) {
 
 func TestUpdateTradablePairs(t *testing.T) {
 	t.Parallel()
-	if err := ok.UpdateTradablePairs(contextGenerate(), true); err != nil {
-		t.Error("Okx UpdateTradablePairs() error", err)
-	}
+	updatePairsOnce(t)
+}
+
+var updatePairsGuard sync.Once
+
+func updatePairsOnce(tb testing.TB) {
+	tb.Helper()
+	updatePairsGuard.Do(func() {
+		err := ok.UpdateTradablePairs(context.Background(), true)
+		assert.NoError(tb, err, "UpdateTradablePairs should not error")
+	})
 }
 
 func TestUpdateOrderExecutionLimits(t *testing.T) {
@@ -3690,4 +3751,44 @@ func TestWsProcessOrderbook5(t *testing.T) {
 	if len(got.Bids) != 5 {
 		t.Errorf("expected %v, received %v", 5, len(got.Bids))
 	}
+}
+
+func TestGetOpenInterest(t *testing.T) {
+	t.Parallel()
+	_, err := ok.GetOpenInterest(context.Background(), key.PairAsset{
+		Base:  currency.ETH.Item,
+		Quote: currency.USDT.Item,
+		Asset: asset.USDTMarginedFutures,
+	})
+	assert.ErrorIs(t, err, asset.ErrNotSupported)
+
+	usdSwapCode := currency.NewCode("USD-SWAP")
+	resp, err := ok.GetOpenInterest(context.Background(), key.PairAsset{
+		Base:  currency.BTC.Item,
+		Quote: usdSwapCode.Item,
+		Asset: asset.PerpetualSwap,
+	})
+	assert.NoError(t, err)
+	assert.NotEmpty(t, resp)
+
+	cp1 := currency.NewPair(currency.DOGE, usdSwapCode)
+	sharedtestvalues.SetupCurrencyPairsForExchangeAsset(t, ok, asset.PerpetualSwap, cp1)
+	resp, err = ok.GetOpenInterest(context.Background(),
+		key.PairAsset{
+			Base:  currency.BTC.Item,
+			Quote: usdSwapCode.Item,
+			Asset: asset.PerpetualSwap,
+		},
+		key.PairAsset{
+			Base:  cp1.Base.Item,
+			Quote: cp1.Quote.Item,
+			Asset: asset.PerpetualSwap,
+		},
+	)
+	assert.NoError(t, err)
+	assert.NotEmpty(t, resp)
+
+	resp, err = ok.GetOpenInterest(context.Background())
+	assert.NoError(t, err)
+	assert.NotEmpty(t, resp)
 }

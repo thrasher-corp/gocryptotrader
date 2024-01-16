@@ -952,6 +952,10 @@ func (c *Config) CheckExchangeConfigValues() error {
 			c.Exchanges[i].AvailablePairs = nil
 			c.Exchanges[i].EnabledPairs = nil
 		} else {
+			if err := c.Exchanges[i].CurrencyPairs.SetDelimitersFromConfig(); err != nil {
+				return fmt.Errorf("%s: %w", c.Exchanges[i].Name, err)
+			}
+
 			assets := c.Exchanges[i].CurrencyPairs.GetAssetTypes(false)
 			if len(assets) == 0 {
 				c.Exchanges[i].Enabled = false
