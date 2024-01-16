@@ -161,7 +161,9 @@ func (k *Kraken) GetTicker(ctx context.Context, symbol currency.Pair) (Ticker, e
 // ("LTCUSD,ETCUSD")
 func (k *Kraken) GetTickers(ctx context.Context, pairList string) (map[string]Ticker, error) {
 	values := url.Values{}
-	values.Set("pair", pairList)
+	if pairList != "" {
+		values.Set("pair", pairList)
+	}
 
 	type Response struct {
 		Error []interface{}             `json:"error"`
@@ -1206,8 +1208,8 @@ func (k *Kraken) GetWebsocketToken(ctx context.Context) (string, error) {
 	return response.Result.Token, nil
 }
 
-// LookupAltname converts a currency into its altname (ZUSD -> USD)
-func (a *assetTranslatorStore) LookupAltname(target string) string {
+// LookupAltName converts a currency into its altName (ZUSD -> USD)
+func (a *assetTranslatorStore) LookupAltName(target string) string {
 	a.l.RLock()
 	alt, ok := a.Assets[target]
 	if !ok {
@@ -1218,7 +1220,7 @@ func (a *assetTranslatorStore) LookupAltname(target string) string {
 	return alt
 }
 
-// LookupAltname converts an altname to its original type (USD -> ZUSD)
+// LookupCurrency converts an altName to its original type (USD -> ZUSD)
 func (a *assetTranslatorStore) LookupCurrency(target string) string {
 	a.l.RLock()
 	for k, v := range a.Assets {
@@ -1247,7 +1249,7 @@ func (a *assetTranslatorStore) Seed(orig, alt string) {
 	a.l.Unlock()
 }
 
-// Seeded returns whether or not the asset translator has been seeded
+// Seeded checks if assets have been seeded
 func (a *assetTranslatorStore) Seeded() bool {
 	a.l.RLock()
 	isSeeded := len(a.Assets) > 0

@@ -405,7 +405,7 @@ func (k *Kraken) fetchSpotPairInfo(ctx context.Context) (map[currency.Pair]*Asse
 		if info.Status != "online" {
 			continue
 		}
-		base := assetTranslator.LookupAltname(info.Base)
+		base := assetTranslator.LookupAltName(info.Base)
 		if base == "" {
 			log.Warnf(log.ExchangeSys,
 				"%s unable to lookup altname for base currency %s",
@@ -413,7 +413,7 @@ func (k *Kraken) fetchSpotPairInfo(ctx context.Context) (map[currency.Pair]*Asse
 				info.Base)
 			continue
 		}
-		quote := assetTranslator.LookupAltname(info.Quote)
+		quote := assetTranslator.LookupAltName(info.Quote)
 		if quote == "" {
 			log.Warnf(log.ExchangeSys,
 				"%s unable to lookup altname for quote currency %s",
@@ -485,53 +485,52 @@ func (k *Kraken) UpdateTradablePairs(ctx context.Context, forceUpdate bool) erro
 	return k.EnsureOnePairEnabled()
 }
 
+func (k *Kraken) newPairFromSymbol(symbol string, item asset.Item) (currency.Pair, error) {
+	cp, err := k.MatchSymbolWithAvailablePairs(symbol, item, item == asset.Futures)
+	if err != nil {
+		if errors.Is(err, currency.ErrPairNotFound) {
+			altName := assetTranslator.LookupAltName(symbol)
+			if altName == "" {
+				return currency.Pair{}, err
+			}
+			cp, err = k.CurrencyPairs.Match(altName, item)
+			if err != nil {
+				return currency.Pair{}, err
+			}
+		}
+	}
+	return cp, nil
+}
+
 // UpdateTickers updates the ticker for all currency pairs of a given asset type
 func (k *Kraken) UpdateTickers(ctx context.Context, a asset.Item) error {
 	switch a {
 	case asset.Spot:
-		pairs, err := k.GetEnabledPairs(a)
+		tickers, err := k.GetTickers(ctx, "")
 		if err != nil {
 			return err
 		}
-		pairsCollated, err := k.FormatExchangeCurrencies(pairs, a)
-		if err != nil {
-			return err
-		}
-		tickers, err := k.GetTickers(ctx, pairsCollated)
-		if err != nil {
-			return err
-		}
-
-		for i := range pairs {
-			for c, t := range tickers {
-				pairFmt, err := k.FormatExchangeCurrency(pairs[i], a)
-				if err != nil {
-					return err
+		for c, t := range tickers {
+			cp, err := k.newPairFromSymbol(c, a)
+			if err != nil {
+				if errors.Is(err, currency.ErrPairNotFound) {
+					continue
 				}
-				if !strings.EqualFold(pairFmt.String(), c) {
-					altCurrency := assetTranslator.LookupAltname(c)
-					if altCurrency == "" {
-						continue
-					}
-					if !strings.EqualFold(pairFmt.String(), altCurrency) {
-						continue
-					}
-				}
-
-				err = ticker.ProcessTicker(&ticker.Price{
-					Last:         t.Last,
-					High:         t.High,
-					Low:          t.Low,
-					Bid:          t.Bid,
-					Ask:          t.Ask,
-					Volume:       t.Volume,
-					Open:         t.Open,
-					Pair:         pairs[i],
-					ExchangeName: k.Name,
-					AssetType:    a})
-				if err != nil {
-					return err
-				}
+				return err
+			}
+			err = ticker.ProcessTicker(&ticker.Price{
+				Last:         t.Last,
+				High:         t.High,
+				Low:          t.Low,
+				Bid:          t.Bid,
+				Ask:          t.Ask,
+				Volume:       t.Volume,
+				Open:         t.Open,
+				Pair:         cp,
+				ExchangeName: k.Name,
+				AssetType:    a})
+			if err != nil {
+				return err
 			}
 		}
 	case asset.Futures:
@@ -669,7 +668,7 @@ func (k *Kraken) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (a
 			return info, err
 		}
 		for key := range bal {
-			translatedCurrency := assetTranslator.LookupAltname(key)
+			translatedCurrency := assetTranslator.LookupAltName(key)
 			if translatedCurrency == "" {
 				log.Warnf(log.ExchangeSys, "%s unable to translate currency: %s\n",
 					k.Name,
