@@ -1069,20 +1069,20 @@ type ServerTimeV2 struct {
 
 // WebsocketSubscribe takes in subscription information
 type WebsocketSubscribe struct {
-	Type       string       `json:"type"`
-	ProductIDs []string     `json:"product_ids,omitempty"`
-	Channels   []WsChannels `json:"channels,omitempty"`
-	Signature  string       `json:"signature,omitempty"`
-	Key        string       `json:"key,omitempty"`
-	Passphrase string       `json:"passphrase,omitempty"`
-	Timestamp  string       `json:"timestamp,omitempty"`
+	Type       string   `json:"type"`
+	ProductIDs []string `json:"product_ids,omitempty"`
+	Channel    string   `json:"channel,omitempty"`
+	Signature  string   `json:"signature,omitempty"`
+	Key        string   `json:"api_key,omitempty"`
+	Timestamp  string   `json:"timestamp,omitempty"`
+	JWT        string   `json:"jwt,omitempty"`
 }
 
-// WsChannels defines outgoing channels for subscription purposes
-type WsChannels struct {
-	Name       string   `json:"name"`
-	ProductIDs []string `json:"product_ids,omitempty"`
-}
+// // WsChannels defines outgoing channels for subscription purposes
+// type WsChannels struct {
+// 	Name       string   `json:"name"`
+// 	ProductIDs []string `json:"product_ids,omitempty"`
+// }
 
 // wsOrderReceived holds websocket received values
 type wsOrderReceived struct {
@@ -1125,21 +1125,15 @@ type WebsocketHeartBeat struct {
 
 // WebsocketTicker defines ticker websocket response
 type WebsocketTicker struct {
-	Type      string        `json:"type"`
-	Sequence  int64         `json:"sequence"`
-	ProductID currency.Pair `json:"product_id"`
-	Price     float64       `json:"price,string"`
-	Open24H   float64       `json:"open_24h,string"`
-	Volume24H float64       `json:"volume_24h,string"`
-	Low24H    float64       `json:"low_24h,string"`
-	High24H   float64       `json:"high_24h,string"`
-	Volume30D float64       `json:"volume_30d,string"`
-	BestBid   float64       `json:"best_bid,string"`
-	BestAsk   float64       `json:"best_ask,string"`
-	Side      string        `json:"side"`
-	Time      time.Time     `json:"time"`
-	TradeID   int64         `json:"trade_id"`
-	LastSize  float64       `json:"last_size,string"`
+	Type                     string        `json:"type"`
+	ProductID                currency.Pair `json:"product_id"`
+	Price                    float64       `json:"price,string"`
+	Volume24H                float64       `json:"volume_24_h,string"`
+	Low24H                   float64       `json:"low_24_h,string"`
+	High24H                  float64       `json:"high_24_h,string"`
+	Low52W                   float64       `json:"low_52_w,string"`
+	High52W                  float64       `json:"high_52_w,string"`
+	PricePercentageChange24H float64       `json:"price_percent_chg_24_h,string"`
 }
 
 // WebsocketOrderbookSnapshot defines a snapshot response
@@ -1159,10 +1153,12 @@ type WebsocketL2Update struct {
 	Changes   [][3]string `json:"changes"`
 }
 
-type wsMsgType struct {
-	Type      string `json:"type"`
-	Sequence  int64  `json:"sequence"`
-	ProductID string `json:"product_id"`
+type wsGen struct {
+	Channel     string        `json:"channel"`
+	ClientID    string        `json:"client_id"`
+	Timestamp   time.Time     `json:"timestamp"`
+	SequenceNum uint64        `json:"sequence_num"`
+	Events      []interface{} `json:"events"`
 }
 
 type wsStatus struct {

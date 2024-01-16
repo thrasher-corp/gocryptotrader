@@ -117,6 +117,7 @@ var (
 	errPortfolioIDEmpty       = errors.New("portfolio id cannot be empty")
 	errFeeTypeNotSupported    = errors.New("fee type not supported")
 	errUnknownEndpointLimit   = errors.New("unknown endpoint limit")
+	errNoEventsWS             = errors.New("no events returned from websocket")
 )
 
 // GetAllAccounts returns information on all trading accounts associated with the API key
