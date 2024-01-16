@@ -4,9 +4,9 @@ import (
 	"net/url"
 	"time"
 
-	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
 // CoinbasePro is the overarching type across the coinbasepro package
@@ -89,60 +89,60 @@ type ProductBookResponse struct {
 // Product holds product information, returned by GetProductByID, and used as a sub-struct
 // in the type AllProducts
 type Product struct {
-	ID                        string                  `json:"product_id"`
-	Price                     convert.StringToFloat64 `json:"price"`
-	PricePercentageChange24H  convert.StringToFloat64 `json:"price_percentage_change_24h"`
-	Volume24H                 convert.StringToFloat64 `json:"volume_24h"`
-	VolumePercentageChange24H convert.StringToFloat64 `json:"volume_percentage_change_24h"`
-	BaseIncrement             convert.StringToFloat64 `json:"base_increment"`
-	QuoteIncrement            convert.StringToFloat64 `json:"quote_increment"`
-	QuoteMinSize              convert.StringToFloat64 `json:"quote_min_size"`
-	QuoteMaxSize              convert.StringToFloat64 `json:"quote_max_size"`
-	BaseMinSize               convert.StringToFloat64 `json:"base_min_size"`
-	BaseMaxSize               convert.StringToFloat64 `json:"base_max_size"`
-	BaseName                  string                  `json:"base_name"`
-	QuoteName                 string                  `json:"quote_name"`
-	Watched                   bool                    `json:"watched"`
-	IsDisabled                bool                    `json:"is_disabled"`
-	New                       bool                    `json:"new"`
-	Status                    string                  `json:"status"`
-	CancelOnly                bool                    `json:"cancel_only"`
-	LimitOnly                 bool                    `json:"limit_only"`
-	PostOnly                  bool                    `json:"post_only"`
-	TradingDisabled           bool                    `json:"trading_disabled"`
-	AuctionMode               bool                    `json:"auction_mode"`
-	ProductType               string                  `json:"product_type"`
-	QuoteCurrencyID           string                  `json:"quote_currency_id"`
-	BaseCurrencyID            string                  `json:"base_currency_id"`
+	ID                        string       `json:"product_id"`
+	Price                     types.Number `json:"price"`
+	PricePercentageChange24H  types.Number `json:"price_percentage_change_24h"`
+	Volume24H                 types.Number `json:"volume_24h"`
+	VolumePercentageChange24H types.Number `json:"volume_percentage_change_24h"`
+	BaseIncrement             types.Number `json:"base_increment"`
+	QuoteIncrement            types.Number `json:"quote_increment"`
+	QuoteMinSize              types.Number `json:"quote_min_size"`
+	QuoteMaxSize              types.Number `json:"quote_max_size"`
+	BaseMinSize               types.Number `json:"base_min_size"`
+	BaseMaxSize               types.Number `json:"base_max_size"`
+	BaseName                  string       `json:"base_name"`
+	QuoteName                 string       `json:"quote_name"`
+	Watched                   bool         `json:"watched"`
+	IsDisabled                bool         `json:"is_disabled"`
+	New                       bool         `json:"new"`
+	Status                    string       `json:"status"`
+	CancelOnly                bool         `json:"cancel_only"`
+	LimitOnly                 bool         `json:"limit_only"`
+	PostOnly                  bool         `json:"post_only"`
+	TradingDisabled           bool         `json:"trading_disabled"`
+	AuctionMode               bool         `json:"auction_mode"`
+	ProductType               string       `json:"product_type"`
+	QuoteCurrencyID           string       `json:"quote_currency_id"`
+	BaseCurrencyID            string       `json:"base_currency_id"`
 	FCMTradingSessionDetails  struct {
 		IsSessionOpen bool      `json:"is_session_open"`
 		OpenTime      time.Time `json:"open_time"`
 		CloseTime     time.Time `json:"close_time"`
 	} `json:"fcm_trading_session_details"`
-	MidMarketPrice       convert.StringToFloat64 `json:"mid_market_price"`
-	Alias                string                  `json:"alias"`
-	AliasTo              []string                `json:"alias_to"`
-	BaseDisplaySymbol    string                  `json:"base_display_symbol"`
-	QuoteDisplaySymbol   string                  `json:"quote_display_symbol"`
-	ViewOnly             bool                    `json:"view_only"`
-	PriceIncrement       convert.StringToFloat64 `json:"price_increment"`
-	DisplayName          string                  `json:"display_name"`
+	MidMarketPrice       types.Number `json:"mid_market_price"`
+	Alias                string       `json:"alias"`
+	AliasTo              []string     `json:"alias_to"`
+	BaseDisplaySymbol    string       `json:"base_display_symbol"`
+	QuoteDisplaySymbol   string       `json:"quote_display_symbol"`
+	ViewOnly             bool         `json:"view_only"`
+	PriceIncrement       types.Number `json:"price_increment"`
+	DisplayName          string       `json:"display_name"`
 	FutureProductDetails struct {
-		Venue                  string                  `json:"venue"`
-		ContractCode           string                  `json:"contract_code"`
-		ContractExpiry         time.Time               `json:"contract_expiry"`
-		ContractSize           convert.StringToFloat64 `json:"contract_size"`
-		ContractRootUnit       string                  `json:"contract_root_unit"`
-		GroupDescription       string                  `json:"group_description"`
-		ContractExpiryTimezone string                  `json:"contract_expiry_timezone"`
-		GroupShortDescription  string                  `json:"group_short_description"`
-		RiskManagedBy          string                  `json:"risk_managed_by"`
-		ContractExpiryType     string                  `json:"contract_expiry_type"`
+		Venue                  string       `json:"venue"`
+		ContractCode           string       `json:"contract_code"`
+		ContractExpiry         time.Time    `json:"contract_expiry"`
+		ContractSize           types.Number `json:"contract_size"`
+		ContractRootUnit       string       `json:"contract_root_unit"`
+		GroupDescription       string       `json:"group_description"`
+		ContractExpiryTimezone string       `json:"contract_expiry_timezone"`
+		GroupShortDescription  string       `json:"group_short_description"`
+		RiskManagedBy          string       `json:"risk_managed_by"`
+		ContractExpiryType     string       `json:"contract_expiry_type"`
 		PerpetualDetails       struct {
-			OpenInterest convert.StringToFloat64 `json:"open_interest"`
-			FundingRate  convert.StringToFloat64 `json:"funding_rate"`
-			FundingTime  time.Time               `json:"funding_time"`
-			MaxLeverage  convert.StringToFloat64 `json:"max_leverage"`
+			OpenInterest types.Number `json:"open_interest"`
+			FundingRate  types.Number `json:"funding_rate"`
+			FundingTime  time.Time    `json:"funding_time"`
+			MaxLeverage  types.Number `json:"max_leverage"`
 		} `json:"perpetual_details"`
 		ContractDisplayName string `json:"contract_display_name"`
 	} `json:"future_product_details"`
@@ -174,17 +174,17 @@ type History struct {
 // Ticker holds basic ticker information, returned by GetTicker
 type Ticker struct {
 	Trades []struct {
-		TradeID   string                  `json:"trade_id"`
-		ProductID string                  `json:"product_id"`
-		Price     float64                 `json:"price,string"`
-		Size      float64                 `json:"size,string"`
-		Time      time.Time               `json:"time"`
-		Side      string                  `json:"side"`
-		Bid       convert.StringToFloat64 `json:"bid"`
-		Ask       convert.StringToFloat64 `json:"ask"`
+		TradeID   string       `json:"trade_id"`
+		ProductID string       `json:"product_id"`
+		Price     float64      `json:"price,string"`
+		Size      float64      `json:"size,string"`
+		Time      time.Time    `json:"time"`
+		Side      string       `json:"side"`
+		Bid       types.Number `json:"bid"`
+		Ask       types.Number `json:"ask"`
 	} `json:"trades"`
-	BestBid convert.StringToFloat64 `json:"best_bid"`
-	BestAsk convert.StringToFloat64 `json:"best_ask"`
+	BestBid types.Number `json:"best_bid"`
+	BestAsk types.Number `json:"best_ask"`
 }
 
 // MarketMarketIOC is a sub-struct used in the type OrderConfiguration
@@ -503,13 +503,13 @@ type TransactionSummary struct {
 	TotalVolume float64 `json:"total_volume"`
 	TotalFees   float64 `json:"total_fees"`
 	FeeTier     struct {
-		PricingTier  string                  `json:"pricing_tier"`
-		USDFrom      float64                 `json:"usd_from,string"`
-		USDTo        float64                 `json:"usd_to,string"`
-		TakerFeeRate float64                 `json:"taker_fee_rate,string"`
-		MakerFeeRate float64                 `json:"maker_fee_rate,string"`
-		AOPFrom      convert.StringToFloat64 `json:"aop_from"`
-		AOPTo        convert.StringToFloat64 `json:"aop_to"`
+		PricingTier  string       `json:"pricing_tier"`
+		USDFrom      float64      `json:"usd_from,string"`
+		USDTo        float64      `json:"usd_to,string"`
+		TakerFeeRate float64      `json:"taker_fee_rate,string"`
+		MakerFeeRate float64      `json:"maker_fee_rate,string"`
+		AOPFrom      types.Number `json:"aop_from"`
+		AOPTo        types.Number `json:"aop_to"`
 	} `json:"fee_tier"`
 	MarginRate struct {
 		Value float64 `json:"value,string"`
@@ -518,12 +518,12 @@ type TransactionSummary struct {
 		Rate float64 `json:"rate,string"`
 		Type string  `json:"type"`
 	} `json:"goods_and_services_tax"`
-	AdvancedTradeOnlyVolume float64                 `json:"advanced_trade_only_volume"`
-	AdvancedTradeOnlyFees   float64                 `json:"advanced_trade_only_fees"`
-	CoinbaseProVolume       float64                 `json:"coinbase_pro_volume"`
-	CoinbaseProFees         float64                 `json:"coinbase_pro_fees"`
-	TotalBalance            convert.StringToFloat64 `json:"total_balance"`
-	HasPromoFee             bool                    `json:"has_promo_fee"`
+	AdvancedTradeOnlyVolume float64      `json:"advanced_trade_only_volume"`
+	AdvancedTradeOnlyFees   float64      `json:"advanced_trade_only_fees"`
+	CoinbaseProVolume       float64      `json:"coinbase_pro_volume"`
+	CoinbaseProFees         float64      `json:"coinbase_pro_fees"`
+	TotalBalance            types.Number `json:"total_balance"`
+	HasPromoFee             bool         `json:"has_promo_fee"`
 }
 
 // GetAllOrdersResp contains information on a lot of orders, returned by GetAllOrders
@@ -1045,8 +1045,8 @@ type GetCryptocurrenciesResp struct {
 // GetExchangeRatesResp holds information on exchange rates. Returned by GetExchangeRates
 type GetExchangeRatesResp struct {
 	Data struct {
-		Currency string                             `json:"currency"`
-		Rates    map[string]convert.StringToFloat64 `json:"rates"`
+		Currency string                  `json:"currency"`
+		Rates    map[string]types.Number `json:"rates"`
 	} `json:"data"`
 }
 
