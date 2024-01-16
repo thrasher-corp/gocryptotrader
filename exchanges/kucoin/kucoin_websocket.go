@@ -921,12 +921,12 @@ func (ku *Kucoin) processOrderbook(respData []byte, symbol string) error {
 		}
 	}
 
-	lastUpdated := time.UnixMilli(response.Timestamp)
-
 	assets, err := ku.listOfAssetsCurrencyPairEnabledFor(pair)
 	if err != nil {
 		return err
 	}
+
+	lastUpdated := time.UnixMilli(response.Timestamp)
 
 	for x := range assets {
 		err = ku.Websocket.Orderbook.LoadSnapshot(&orderbook.Base{
