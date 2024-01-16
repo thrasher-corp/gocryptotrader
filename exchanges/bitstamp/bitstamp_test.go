@@ -1007,6 +1007,9 @@ func TestGetOrderInfo(t *testing.T) {
 func TestFetchWSAuth(t *testing.T) {
 	t.Parallel()
 
+	if !mockTests {
+		sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	}
 	resp, err := b.FetchWSAuth(context.TODO())
 	assert.NoError(t, err, "FetchWSAuth should not error")
 	assert.NotNil(t, resp, "resp should not be nil")
