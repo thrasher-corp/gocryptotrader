@@ -2869,6 +2869,36 @@
         ]
       }
     },
+    "/v1/getopeninterest": {
+      "get": {
+        "operationId": "GoCryptoTraderService_GetOpenInterest",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/gctrpcGetOpenInterestResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "exchange",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "GoCryptoTraderService"
+        ]
+      }
+    },
     "/v1/getorder": {
       "post": {
         "operationId": "GoCryptoTraderService_GetOrder",
@@ -6291,6 +6321,18 @@
         }
       }
     },
+    "gctrpcGetOpenInterestResponse": {
+      "type": "object",
+      "properties": {
+        "data": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/gctrpcOpenInterestDataResponse"
+          }
+        }
+      }
+    },
     "gctrpcGetOrderRequest": {
       "type": "object",
       "properties": {
@@ -6727,6 +6769,35 @@
           "additionalProperties": {
             "$ref": "#/definitions/gctrpcOnlineCoinSummary"
           }
+        }
+      }
+    },
+    "gctrpcOpenInterestDataRequest": {
+      "type": "object",
+      "properties": {
+        "asset": {
+          "type": "string"
+        },
+        "pair": {
+          "$ref": "#/definitions/gctrpcCurrencyPair"
+        }
+      }
+    },
+    "gctrpcOpenInterestDataResponse": {
+      "type": "object",
+      "properties": {
+        "exchange": {
+          "type": "string"
+        },
+        "asset": {
+          "type": "string"
+        },
+        "pair": {
+          "$ref": "#/definitions/gctrpcCurrencyPair"
+        },
+        "openInterest": {
+          "type": "number",
+          "format": "double"
         }
       }
     },
