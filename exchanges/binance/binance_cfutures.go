@@ -814,8 +814,8 @@ func (b *Binance) GetFuturesOrderbookTicker(ctx context.Context, symbol currency
 	return resp, b.SendHTTPRequest(ctx, exchange.RestCoinMargined, cfuturesSymbolOrderbook+params.Encode(), rateLimit, &resp)
 }
 
-// GetOpenInterest gets open interest data for a symbol
-func (b *Binance) GetOpenInterest(ctx context.Context, symbol currency.Pair) (OpenInterestData, error) {
+// OpenInterest gets open interest data for a symbol
+func (b *Binance) OpenInterest(ctx context.Context, symbol currency.Pair) (OpenInterestData, error) {
 	var resp OpenInterestData
 	params := url.Values{}
 	symbolValue, err := b.FormatSymbol(symbol, asset.CoinMarginedFutures)

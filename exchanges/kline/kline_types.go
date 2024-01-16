@@ -27,6 +27,7 @@ const (
 	ThreeHour            = 3 * OneHour
 	FourHour             = 4 * OneHour
 	SixHour              = 6 * OneHour
+	SevenHour            = 7 * OneHour
 	EightHour            = 8 * OneHour
 	TwelveHour           = 12 * OneHour
 	OneDay               = 24 * OneHour
@@ -103,6 +104,7 @@ var (
 		ThreeHour,
 		FourHour,
 		SixHour,
+		SevenHour,
 		EightHour,
 		TwelveHour,
 		OneDay,

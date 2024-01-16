@@ -275,28 +275,16 @@ type FuturesTradeHistoryData struct {
 	} `json:"history"`
 }
 
+// FuturesTickersData stores info for futures tickers
+type FuturesTickersData struct {
+	Tickers    []FuturesTicker `json:"tickers"`
+	ServerTime string          `json:"serverTime"`
+}
+
 // FuturesTickerData stores info for futures ticker
 type FuturesTickerData struct {
-	Tickers []struct {
-		Tag                   string  `json:"tag"`
-		Pair                  string  `json:"pair"`
-		Symbol                string  `json:"symbol"`
-		MarkPrice             float64 `json:"markPrice"`
-		Bid                   float64 `json:"bid"`
-		BidSize               float64 `json:"bidSize"`
-		Ask                   float64 `json:"ask"`
-		AskSize               float64 `json:"askSize"`
-		Vol24h                float64 `json:"vol24h"`
-		OpenInterest          float64 `json:"openInterest"`
-		Open24H               float64 `json:"open24h"`
-		Last                  float64 `json:"last"`
-		LastTime              string  `json:"lastTime"`
-		LastSize              float64 `json:"lastSize"`
-		Suspended             bool    `json:"suspended"`
-		FundingRate           float64 `json:"fundingRate"`
-		FundingRatePrediction float64 `json:"fundingRatePrediction"`
-	} `json:"tickers"`
-	ServerTime string `json:"serverTime"`
+	Ticker     FuturesTicker `json:"ticker"`
+	ServerTime string        `json:"serverTime"`
 }
 
 // FuturesEditedOrderData stores an edited order's data
@@ -313,6 +301,27 @@ type FuturesEditedOrderData struct {
 		ReduceQuantity string `json:"reduceQuantity"`
 		DataType       string `json:"type"`
 	} `json:"editStatus"`
+}
+
+// FuturesTicker  holds futures ticker data
+type FuturesTicker struct {
+	Tag                   string  `json:"tag"`
+	Pair                  string  `json:"pair"`
+	Symbol                string  `json:"symbol"`
+	MarkPrice             float64 `json:"markPrice"`
+	Bid                   float64 `json:"bid"`
+	BidSize               float64 `json:"bidSize"`
+	Ask                   float64 `json:"ask"`
+	AskSize               float64 `json:"askSize"`
+	Vol24h                float64 `json:"vol24h"`
+	OpenInterest          float64 `json:"openInterest"`
+	Open24H               float64 `json:"open24h"`
+	Last                  float64 `json:"last"`
+	LastTime              string  `json:"lastTime"`
+	LastSize              float64 `json:"lastSize"`
+	Suspended             bool    `json:"suspended"`
+	FundingRate           float64 `json:"fundingRate"`
+	FundingRatePrediction float64 `json:"fundingRatePrediction"`
 }
 
 // FuturesSendOrderData stores send order data
