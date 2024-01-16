@@ -1666,44 +1666,23 @@ func (b *Bitfinex) ConfigureWS() error {
 
 // Subscribe sends a websocket message to receive data from channels
 func (b *Bitfinex) Subscribe(channels []subscription.Subscription) error {
-	return b.parallelChanOp(channels, b.subscribeToChan)
+	return b.ParallelChanOp(channels, b.subscribeToChan, 1)
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from channels
 func (b *Bitfinex) Unsubscribe(channels []subscription.Subscription) error {
-	return b.parallelChanOp(channels, b.unsubscribeFromChan)
-}
-
-// parallelChanOp performs a single method call in parallel across streams and waits to return any errors
-func (b *Bitfinex) parallelChanOp(channels []subscription.Subscription, m func(*subscription.Subscription) error) error {
-	wg := sync.WaitGroup{}
-	wg.Add(len(channels))
-	errC := make(chan error, len(channels))
-
-	for i := range channels {
-		go func(c *subscription.Subscription) {
-			defer wg.Done()
-			if err := m(c); err != nil {
-				errC <- err
-			}
-		}(&channels[i])
-	}
-
-	wg.Wait()
-	close(errC)
-
-	var errs error
-	for err := range errC {
-		errs = common.AppendError(errs, err)
-	}
-
-	return errs
+	return b.ParallelChanOp(channels, b.unsubscribeFromChan, 1)
 }
 
 // subscribeToChan handles a single subscription and parses the result
 // on success it adds the subscription to the websocket
-func (b *Bitfinex) subscribeToChan(c *subscription.Subscription) error {
-	req, err := subscribeReq(c)
+func (b *Bitfinex) subscribeToChan(chans []subscription.Subscription) error {
+	if len(chans) != 1 {
+		return errors.New("subscription batching limited to 1")
+	}
+
+	c := chans[0]
+	req, err := subscribeReq(&c)
 	if err != nil {
 		return fmt.Errorf("%w: %w; Channel: %s Pair: %s", stream.ErrSubscriptionFailure, err, c.Channel, c.Pair)
 	}
@@ -1718,13 +1697,13 @@ func (b *Bitfinex) subscribeToChan(c *subscription.Subscription) error {
 	c.Key = subID // Note subID string type avoids conflicts with later chanID key
 
 	c.State = subscription.SubscribingState
-	err = b.Websocket.AddSubscription(c)
+	err = b.Websocket.AddSubscription(&c)
 	if err != nil {
 		return fmt.Errorf("%w Channel: %s Pair: %s Error: %w", stream.ErrSubscriptionFailure, c.Channel, c.Pair, err)
 	}
 
 	// Always remove the temporary subscription keyed by subID
-	defer b.Websocket.RemoveSubscriptions(*c)
+	defer b.Websocket.RemoveSubscriptions(c)
 
 	respRaw, err := b.Websocket.Conn.SendMessageReturnResponse("subscribe:"+subID, req)
 	if err != nil {
@@ -1797,7 +1776,11 @@ func subscribeReq(c *subscription.Subscription) (map[string]interface{}, error) 
 }
 
 // unsubscribeFromChan sends a websocket message to stop receiving data from a channel
-func (b *Bitfinex) unsubscribeFromChan(c *subscription.Subscription) error {
+func (b *Bitfinex) unsubscribeFromChan(chans []subscription.Subscription) error {
+	if len(chans) != 1 {
+		return errors.New("subscription batching limited to 1")
+	}
+	c := chans[0]
 	chanID, ok := c.Key.(int)
 	if !ok {
 		return common.GetTypeAssertError("int", c.Key, "chanID")
@@ -1819,7 +1802,7 @@ func (b *Bitfinex) unsubscribeFromChan(c *subscription.Subscription) error {
 		return wErr
 	}
 
-	b.Websocket.RemoveSubscriptions(*c)
+	b.Websocket.RemoveSubscriptions(c)
 
 	return nil
 }

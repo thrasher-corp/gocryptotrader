@@ -3295,3 +3295,38 @@ func TestSetSubscriptionsFromConfig(t *testing.T) {
 	assert.ElementsMatch(t, subs, b.Features.Subscriptions, "Subscriptions should be updated from Config")
 	assert.ElementsMatch(t, subs, b.Config.Features.Subscriptions, "Config Subscriptions should be the same")
 }
+
+// TestParallelChanOp unit tests the helper func ParallelChanOp
+func TestParallelChanOp(t *testing.T) {
+	t.Parallel()
+	c := []subscription.Subscription{
+		{Channel: "red"},
+		{Channel: "blue"},
+		{Channel: "violent"},
+		{Channel: "spin"},
+		{Channel: "charm"},
+	}
+	run := make(chan struct{}, len(c)*2)
+	b := Base{}
+	errC := make(chan error, 1)
+	go func() {
+		errC <- b.ParallelChanOp(c, func(c []subscription.Subscription) error {
+			time.Sleep(300 * time.Millisecond)
+			run <- struct{}{}
+			switch c[0].Channel {
+			case "spin", "violent":
+				return errors.New(c[0].Channel)
+			}
+			return nil
+		}, 1)
+	}()
+	f := func(ct *assert.CollectT) {
+		if assert.Len(ct, errC, 1, "Should eventually have an error") {
+			err := <-errC
+			assert.ErrorContains(ct, err, "violent", "Should get a violent error")
+			assert.ErrorContains(ct, err, "spin", "Should get a spin error")
+		}
+	}
+	assert.EventuallyWithT(t, f, 500*time.Millisecond, 50*time.Millisecond, "ParallelChanOp should complete within 500ms not 5*300ms")
+	assert.Len(t, run, len(c), "Every channel was run to completion")
+}

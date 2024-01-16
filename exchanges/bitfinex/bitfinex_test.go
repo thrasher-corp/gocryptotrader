@@ -1926,40 +1926,6 @@ func TestGetErrResp(t *testing.T) {
 	assert.NoError(t, fixture.Close(), "Closing the fixture file should not error")
 }
 
-// TestParallelChanOp unit tests the helper func parallelChanOp
-func TestParallelChanOp(t *testing.T) {
-	t.Parallel()
-	c := []subscription.Subscription{
-		{Channel: "red"},
-		{Channel: "blue"},
-		{Channel: "violent"},
-		{Channel: "spin"},
-		{Channel: "charm"},
-	}
-	run := make(chan struct{}, len(c)*2)
-	errC := make(chan error, 1)
-	go func() {
-		errC <- b.parallelChanOp(c, func(c *subscription.Subscription) error {
-			time.Sleep(300 * time.Millisecond)
-			run <- struct{}{}
-			switch c.Channel {
-			case "spin", "violent":
-				return errors.New(c.Channel)
-			}
-			return nil
-		})
-	}()
-	f := func(ct *assert.CollectT) {
-		if assert.Len(ct, errC, 1, "Should eventually have an error") {
-			err := <-errC
-			assert.ErrorContains(ct, err, "violent", "Should get a violent error")
-			assert.ErrorContains(ct, err, "spin", "Should get a spin error")
-		}
-	}
-	assert.EventuallyWithT(t, f, 500*time.Millisecond, 50*time.Millisecond, "ParallelChanOp should complete within 500ms not 5*300ms")
-	assert.Len(t, run, len(c), "Every channel was run to completion")
-}
-
 // setupWs is a helper function to connect both auth and normal websockets
 // It will skip the test if websockets are not enabled
 // It's up to the test to skip if it requires creds, though

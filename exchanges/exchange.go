@@ -9,6 +9,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 	"unicode"
 
@@ -62,6 +63,7 @@ var (
 	errAssetConfigFormatIsNil            = errors.New("asset type config format is nil")
 	errSetDefaultsNotCalled              = errors.New("set defaults not called")
 	errExchangeIsNil                     = errors.New("exchange is nil")
+	errBatchSizeZero                     = errors.New("batch size cannot be 0")
 )
 
 // SetRequester sets the instance of the requester
@@ -1839,4 +1841,38 @@ func (b *Base) IsPairEnabled(pair currency.Pair, a asset.Item) (bool, error) {
 // GetOpenInterest returns the open interest rate for a given asset pair
 func (b *Base) GetOpenInterest(context.Context, ...key.PairAsset) ([]futures.OpenInterest, error) {
 	return nil, common.ErrFunctionNotSupported
+}
+
+// ParallelChanOp performs a single method call in parallel across streams and waits to return any errors
+func (b *Base) ParallelChanOp(channels []subscription.Subscription, m func([]subscription.Subscription) error, batchSize int) error {
+	wg := sync.WaitGroup{}
+	errC := make(chan error, len(channels))
+	if batchSize == 0 {
+		return errBatchSizeZero
+	}
+
+	var j int
+	for i := 0; i < len(channels); i += batchSize {
+		j += batchSize
+		if j >= len(channels) {
+			j = len(channels)
+		}
+		wg.Add(1)
+		go func(c []subscription.Subscription) {
+			defer wg.Done()
+			if err := m(c); err != nil {
+				errC <- err
+			}
+		}(channels[i:j])
+	}
+
+	wg.Wait()
+	close(errC)
+
+	var errs error
+	for err := range errC {
+		errs = common.AppendError(errs, err)
+	}
+
+	return errs
 }
