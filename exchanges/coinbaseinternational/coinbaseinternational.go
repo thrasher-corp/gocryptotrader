@@ -30,6 +30,8 @@ type CoinbaseInternational struct {
 const (
 	coinbaseInternationalAPIURL = "https://api.international.coinbase.com"
 	coinbaseAPIVersion          = "/api/v1"
+
+	portfolios = "portfolios/"
 )
 
 var (
@@ -254,7 +256,7 @@ func (co *CoinbaseInternational) GetPortfolioDetails(ctx context.Context, portfo
 		return nil, errMissingPortfolioID
 	}
 	var resp *PortfolioDetail
-	return resp, co.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "portfolios/"+portfolioID+"/detail", nil, nil, &resp, true)
+	return resp, co.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, portfolios+portfolioID+"/detail", nil, nil, &resp, true)
 }
 
 // GetPortfolioSummary retrieves the high level overview of a portfolio.
@@ -262,9 +264,9 @@ func (co *CoinbaseInternational) GetPortfolioSummary(ctx context.Context, portfo
 	var path string
 	switch {
 	case portfolioUUID != "":
-		path = "portfolios/" + portfolioUUID + "/summary"
+		path = portfolios + portfolioUUID + "/summary"
 	case portfolioID != "":
-		path = "portfolios/" + portfolioID + "/summary"
+		path = portfolios + portfolioID + "/summary"
 	default:
 		return nil, errMissingPortfolioID
 	}
@@ -277,9 +279,9 @@ func (co *CoinbaseInternational) ListPortfolioBalances(ctx context.Context, port
 	var path string
 	switch {
 	case portfolioUUID != "":
-		path = "portfolios/" + portfolioUUID + "/balances"
+		path = portfolios + portfolioUUID + "/balances"
 	case portfolioID != "":
-		path = "portfolios/" + portfolioID + "/balances"
+		path = portfolios + portfolioID + "/balances"
 	default:
 		return nil, errMissingPortfolioID
 	}
@@ -295,9 +297,9 @@ func (co *CoinbaseInternational) GetPortfolioAssetBalance(ctx context.Context, p
 	var path string
 	switch {
 	case portfolioUUID != "":
-		path = "portfolios/" + portfolioUUID + "/balances/" + ccy.String()
+		path = portfolios + portfolioUUID + "/balances/" + ccy.String()
 	case portfolioID != "":
-		path = "portfolios/" + portfolioID + "/balances/" + ccy.String()
+		path = portfolios + portfolioID + "/balances/" + ccy.String()
 	default:
 		return nil, errMissingPortfolioID
 	}
@@ -310,9 +312,9 @@ func (co *CoinbaseInternational) ListPortfolioPositions(ctx context.Context, por
 	var path string
 	switch {
 	case portfolioUUID != "":
-		path = "portfolios/" + portfolioUUID + "/positions"
+		path = portfolios + portfolioUUID + "/positions"
 	case portfolioID != "":
-		path = "portfolios/" + portfolioID + "/positions"
+		path = portfolios + portfolioID + "/positions"
 	default:
 		return nil, errMissingPortfolioID
 	}
@@ -328,9 +330,9 @@ func (co *CoinbaseInternational) GetPortfolioInstrumentPosition(ctx context.Cont
 	var path string
 	switch {
 	case portfolioUUID != "":
-		path = "portfolios/" + portfolioUUID + "/positions/" + instrument.String()
+		path = portfolios + portfolioUUID + "/positions/" + instrument.String()
 	case portfolioID != "":
-		path = "portfolios/" + portfolioID + "/positions/" + instrument.String()
+		path = portfolios + portfolioID + "/positions/" + instrument.String()
 	default:
 		return nil, errMissingPortfolioID
 	}
@@ -343,9 +345,9 @@ func (co *CoinbaseInternational) ListPortfolioFills(ctx context.Context, portfol
 	var path string
 	switch {
 	case portfolioUUID != "":
-		path = "portfolios/" + portfolioUUID + "/fills"
+		path = portfolios + portfolioUUID + "/fills"
 	case portfolioID != "":
-		path = "portfolios/" + portfolioID + "/fills"
+		path = portfolios + portfolioID + "/fills"
 	default:
 		return nil, errMissingPortfolioID
 	}

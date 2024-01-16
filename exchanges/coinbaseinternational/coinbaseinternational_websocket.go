@@ -173,7 +173,7 @@ func (co *CoinbaseInternational) processOrderbookLevel2(respRaw []byte) error {
 			bids[b].Amount = resp[x].Bids[b][1].Float64()
 		}
 		if resp[x].Type == "UPDATE" {
-			return co.Websocket.Orderbook.Update(&orderbook.Update{
+			err = co.Websocket.Orderbook.Update(&orderbook.Update{
 				UpdateID:   resp[x].Sequence,
 				UpdateTime: resp[x].Time,
 				Asset:      asset.Spot,
@@ -182,8 +182,11 @@ func (co *CoinbaseInternational) processOrderbookLevel2(respRaw []byte) error {
 				Asks:       asks,
 				Pair:       pair,
 			})
+			if err != nil {
+				return err
+			}
 		}
-		return co.Websocket.Orderbook.LoadSnapshot(&orderbook.Base{
+		err = co.Websocket.Orderbook.LoadSnapshot(&orderbook.Base{
 			LastUpdateID: resp[x].Sequence,
 			Bids:         bids,
 			Asks:         asks,
@@ -192,6 +195,9 @@ func (co *CoinbaseInternational) processOrderbookLevel2(respRaw []byte) error {
 			Asset:        asset.Spot,
 			LastUpdated:  resp[x].Time,
 		})
+		if err != nil {
+			return err
+		}
 	}
 	return nil
 }
@@ -208,7 +214,7 @@ func (co *CoinbaseInternational) processOrderbookLevel1(respRaw []byte) error {
 			return err
 		}
 		if resp[x].Type == "UPDATE" {
-			return co.Websocket.Orderbook.Update(&orderbook.Update{
+			err = co.Websocket.Orderbook.Update(&orderbook.Update{
 				Pair:       pair,
 				Asset:      asset.Spot,
 				UpdateTime: resp[x].Time,
@@ -217,8 +223,11 @@ func (co *CoinbaseInternational) processOrderbookLevel1(respRaw []byte) error {
 				Asks:       []orderbook.Item{{Price: resp[x].AskPrice.Float64(), Amount: resp[x].AskQty.Float64()}},
 				Bids:       []orderbook.Item{{Price: resp[x].BidPrice.Float64(), Amount: resp[x].BidQty.Float64()}},
 			})
+			if err != nil {
+				return err
+			}
 		}
-		return co.Websocket.Orderbook.LoadSnapshot(&orderbook.Base{
+		err = co.Websocket.Orderbook.LoadSnapshot(&orderbook.Base{
 			Pair:         pair,
 			Exchange:     co.Name,
 			Asset:        asset.Spot,
@@ -227,6 +236,9 @@ func (co *CoinbaseInternational) processOrderbookLevel1(respRaw []byte) error {
 			Asks:         []orderbook.Item{{Price: resp[x].AskPrice.Float64(), Amount: resp[x].AskQty.Float64()}},
 			Bids:         []orderbook.Item{{Price: resp[x].BidPrice.Float64(), Amount: resp[x].BidQty.Float64()}},
 		})
+		if err != nil {
+			return err
+		}
 	}
 	return nil
 }
