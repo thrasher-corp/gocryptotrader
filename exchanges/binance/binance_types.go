@@ -2021,3 +2021,60 @@ type CommissionInfo struct {
 	Buyer  string `json:"buyer"`
 	Seller string `json:"seller"`
 }
+
+// SystemStatus
+type SystemStatus struct {
+	Status  int64  `json:"status"` // 0: normal，1：system maintenance
+	Message string `json:"msg"`    // "normal", "system_maintenance"
+}
+
+// DailyAccountSnapshot holds a snapshot of daily asset information
+type DailyAccountSnapshot struct {
+	Code        int64  `json:"code"`
+	Msg         string `json:"msg"`
+	SnapshotVos []struct {
+		Data struct {
+			Balances []struct {
+				Asset  string       `json:"asset"`
+				Free   types.Number `json:"free"`
+				Locked types.Number `json:"locked"`
+			} `json:"balances"`
+			TotalAssetOfBTC string `json:"totalAssetOfBtc"`
+		} `json:"data"`
+		Type       string               `json:"type"`
+		UpdateTime convert.ExchangeTime `json:"updateTime"`
+	} `json:"snapshotVos"`
+}
+
+// TradingAPIAccountStatus represents a trading account
+type TradingAPIAccountStatus struct {
+	Data struct {
+		IsLocked           bool                 `json:"isLocked"`
+		PlannedRecoverTime convert.ExchangeTime `json:"plannedRecoverTime"`
+		TriggerCondition   struct {
+			Gcr  int64 `json:"GCR"`
+			Ifer int64 `json:"IFER"`
+			Ufr  int64 `json:"UFR"`
+		} `json:"triggerCondition"`
+		UpdateTime convert.ExchangeTime `json:"updateTime"`
+	} `json:"data"`
+}
+
+// DustLog holds small assets information
+type DustLog struct {
+	Total              int64 `json:"total"`
+	UserAssetDribblets []struct {
+		OperateTime              convert.ExchangeTime `json:"operateTime"`
+		TotalTransferedAmount    types.Number         `json:"totalTransferedAmount"`
+		TotalServiceChargeAmount types.Number         `json:"totalServiceChargeAmount"`
+		TransID                  int64                `json:"transId"`
+		UserAssetDribbletDetails []struct {
+			TransID             int64                `json:"transId"`
+			ServiceChargeAmount types.Number         `json:"serviceChargeAmount"`
+			Amount              types.Number         `json:"amount"`
+			OperateTime         convert.ExchangeTime `json:"operateTime"`
+			TransferedAmount    types.Number         `json:"transferedAmount"`
+			FromAsset           string               `json:"fromAsset"`
+		} `json:"userAssetDribbletDetails"`
+	} `json:"userAssetDribblets"`
+}

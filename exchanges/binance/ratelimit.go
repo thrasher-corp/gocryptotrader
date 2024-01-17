@@ -32,6 +32,7 @@ const (
 // Binance Spot rate limits
 const (
 	spotDefaultRate request.EndpointLimit = iota
+	walletSystemStatus
 	spotExchangeInfo
 	spotHistoricalTradesRate
 	spotOrderbookDepth500Rate
@@ -123,6 +124,8 @@ func (r *RateLimit) Limit(ctx context.Context, f request.EndpointLimit) error {
 		spotAccountInformationRate,
 		spotExchangeInfo:
 		limiter, tokens = r.SpotRate, 10
+	case walletSystemStatus:
+		limiter, tokens = r.SpotRate, 1
 	case spotPriceChangeAllRate:
 		limiter, tokens = r.SpotRate, 40
 	case spotOrderbookDepth5000Rate:

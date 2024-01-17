@@ -70,11 +70,20 @@ const (
 	marginAccountInfo = "/sapi/v1/margin/account"
 
 	// Wallet endpoints
-	allCoinsInfo     = "/sapi/v1/capital/config/getall"
-	withdrawEndpoint = "/sapi/v1/capital/withdraw/apply"
-	depositHistory   = "/sapi/v1/capital/deposit/hisrec"
-	withdrawHistory  = "/sapi/v1/capital/withdraw/history"
-	depositAddress   = "/sapi/v1/capital/deposit/address"
+	systemStatus                = "/sapi/v1/system/status"
+	allCoinsInfo                = "/sapi/v1/capital/config/getall"
+	accountSnapshot             = "/sapi/v1/accountSnapshot"
+	disableFastWithdrawalSwitch = "/sapi/v1/account/disableFastWithdrawSwitch"
+	enableFastWithdrawalSwitch  = "/sapi/v1/account/enableFastWithdrawSwitch"
+	withdrawEndpoint            = "/sapi/v1/capital/withdraw/apply"
+	depositHistory              = "/sapi/v1/capital/deposit/hisrec"
+	withdrawHistory             = "/sapi/v1/capital/withdraw/history"
+	depositAddress              = "/sapi/v1/capital/deposit/address"
+
+	// Account endpoints
+	accountStatus           = "/sapi/v1/account/status"
+	accountAPITradingStatus = "/sapi/v1/account/apiTradingStatus"
+	dustAssetsLog           = "/sapi/v1/asset/dribblet"
 
 	// Crypto loan endpoints
 	loanIncomeHistory            = "/sapi/v1/loan/income"
@@ -905,7 +914,15 @@ func getCryptocurrencyWithdrawalFee(c currency.Code) float64 {
 	return WithdrawalFees[c]
 }
 
-// GetAllCoinsInfo returns details about all supported coins
+// GetSystemStatus fetch system status.
+// 0: normal，1：system maintenance
+// "normal", "system_maintenance"
+func (b *Binance) GetSystemStatus(ctx context.Context) (*SystemStatus, error) {
+	var resp *SystemStatus
+	return resp, b.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, systemStatus, walletSystemStatus, &resp)
+}
+
+// GetAllCoinsInfo returns details about all supported coins(available for deposit and withdraw)
 func (b *Binance) GetAllCoinsInfo(ctx context.Context) ([]CoinInfo, error) {
 	var resp []CoinInfo
 	if err := b.SendAuthHTTPRequest(ctx,
@@ -918,6 +935,38 @@ func (b *Binance) GetAllCoinsInfo(ctx context.Context) ([]CoinInfo, error) {
 		return nil, err
 	}
 	return resp, nil
+}
+
+// GetDailyAccountSnapshot retrieves daily account snapshot
+func (b *Binance) GetDailyAccountSnapshot(ctx context.Context, tradeType string, startTime, endTime time.Time, limit int64) (*DailyAccountSnapshot, error) {
+	if tradeType == "" {
+		return nil, fmt.Errorf("%w type: %s", asset.ErrInvalidAsset, tradeType)
+	}
+	params := url.Values{}
+	params.Set("type", tradeType)
+	if !startTime.IsZero() {
+		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+	}
+	if !endTime.IsZero() {
+		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	var resp *DailyAccountSnapshot
+	return resp, b.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues(accountSnapshot, params), spotDefaultRate, &resp)
+}
+
+// DisableFastWithdrawalSwitch disables fast withdrawal switch
+// This request will disable fastwithdraw switch under your account.
+// You need to enable "trade" option for the api key which requests this endpoint.
+func (b *Binance) DisableFastWithdrawalSwitch(ctx context.Context) error {
+	return b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, disableFastWithdrawalSwitch, nil, spotDefaultRate, &struct{}{})
+}
+
+// EnableFastWithdrawalSwitch enable fastwithdraw switch under your account.
+func (b *Binance) EnableFastWithdrawalSwitch(ctx context.Context) error {
+	return b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, enableFastWithdrawalSwitch, nil, spotDefaultRate, &struct{}{})
 }
 
 // WithdrawCrypto sends cryptocurrency to the address of your choosing
@@ -1084,6 +1133,36 @@ func (b *Binance) GetDepositAddressForCurrency(ctx context.Context, currency, ch
 	var d DepositAddress
 	return &d,
 		b.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, depositAddress, params, spotDefaultRate, &d)
+}
+
+// GetAccountStatus fetch account status detail.
+func (b *Binance) GetAccountStatus(ctx context.Context) (string, error) {
+	resp := &struct {
+		Data string `json:"data"`
+	}{}
+	return resp.Data, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, accountStatus, nil, spotDefaultRate, &resp)
+}
+
+// GetAccountTradingAPIStatus fetch account api trading status detail.
+func (b *Binance) GetAccountTradingAPIStatus(ctx context.Context) (*TradingAPIAccountStatus, error) {
+	var resp *TradingAPIAccountStatus
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, accountAPITradingStatus, nil, spotDefaultRate, &resp)
+}
+
+// GetDustLog retrieves record of small or fractional amounts of assets that accumulate in a user's account
+func (b *Binance) GetDustLog(ctx context.Context, accountType string, startTime, endTime time.Time) (*DustLog, error) {
+	params := url.Values{}
+	if accountType == "" {
+		params.Set("accountType", accountType)
+	}
+	if !startTime.IsZero() {
+		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+	}
+	if !endTime.IsZero() {
+		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
+	}
+	var resp *DustLog
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, dustAssetsLog, params, spotDefaultRate, &resp)
 }
 
 // GetWsAuthStreamKey will retrieve a key to use for authorised WS streaming

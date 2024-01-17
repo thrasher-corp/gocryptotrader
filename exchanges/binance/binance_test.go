@@ -4075,3 +4075,65 @@ func TestGetOpenInterest(t *testing.T) {
 	})
 	assert.ErrorIs(t, err, asset.ErrNotSupported)
 }
+
+func TestSystemStatus(t *testing.T) {
+	t.Parallel()
+	_, err := b.GetSystemStatus(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestGetDailyAccountSnapshot(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	_, err := b.GetDailyAccountSnapshot(context.Background(), "SPOT", time.Time{}, time.Now(), 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestDisableFastWithdrawalSwitch(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	err := b.DisableFastWithdrawalSwitch(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestEnableFastWithdrawalSwitch(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	err := b.EnableFastWithdrawalSwitch(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestGetAccountStatus(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	_, err := b.GetAccountStatus(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestGetAccountTradingAPIStatus(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	_, err := b.GetAccountTradingAPIStatus(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestGetDustLog(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	_, err := b.GetDustLog(context.Background(), "MARGIN", time.Time{}, time.Now())
+	if err != nil {
+		t.Error(err)
+	}
+}
