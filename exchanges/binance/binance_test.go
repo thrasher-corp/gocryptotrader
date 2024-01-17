@@ -1976,7 +1976,7 @@ func BenchmarkWsHandleData(bb *testing.B) {
 	require.NoError(bb, err)
 	go func() {
 		for {
-			_ = <-b.Websocket.DataHandler
+			<-b.Websocket.DataHandler
 		}
 	}()
 	bb.ResetTimer()

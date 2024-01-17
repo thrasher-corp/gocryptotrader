@@ -213,49 +213,49 @@ type KlineStream struct {
 
 // KlineStreamData defines kline streaming data
 type KlineStreamData struct {
-	StartTime                time.Time `json:"t"`
-	CloseTime                time.Time `json:"T"`
-	Symbol                   string    `json:"s"`
-	Interval                 string    `json:"i"`
-	FirstTradeID             int64     `json:"f"`
-	LastTradeID              int64     `json:"L"`
-	OpenPrice                float64   `json:"o,string"`
-	ClosePrice               float64   `json:"c,string"`
-	HighPrice                float64   `json:"h,string"`
-	LowPrice                 float64   `json:"l,string"`
-	Volume                   float64   `json:"v,string"`
-	NumberOfTrades           int64     `json:"n"`
-	KlineClosed              bool      `json:"x"`
-	Quote                    float64   `json:"q,string"`
-	TakerBuyBaseAssetVolume  float64   `json:"V,string"`
-	TakerBuyQuoteAssetVolume float64   `json:"Q,string"`
+	StartTime                time.Time    `json:"t"`
+	CloseTime                time.Time    `json:"T"`
+	Symbol                   string       `json:"s"`
+	Interval                 string       `json:"i"`
+	FirstTradeID             int64        `json:"f"`
+	LastTradeID              int64        `json:"L"`
+	OpenPrice                types.Number `json:"o"`
+	ClosePrice               types.Number `json:"c"`
+	HighPrice                types.Number `json:"h"`
+	LowPrice                 types.Number `json:"l"`
+	Volume                   types.Number `json:"v"`
+	NumberOfTrades           int64        `json:"n"`
+	KlineClosed              bool         `json:"x"`
+	Quote                    types.Number `json:"q"`
+	TakerBuyBaseAssetVolume  types.Number `json:"V"`
+	TakerBuyQuoteAssetVolume types.Number `json:"Q"`
 }
 
 // TickerStream holds the ticker stream data
 type TickerStream struct {
-	EventType              string    `json:"e"`
-	EventTime              time.Time `json:"E"`
-	Symbol                 string    `json:"s"`
-	PriceChange            float64   `json:"p,string"`
-	PriceChangePercent     float64   `json:"P,string"`
-	WeightedAvgPrice       float64   `json:"w,string"`
-	ClosePrice             float64   `json:"x,string"`
-	LastPrice              float64   `json:"c,string"`
-	LastPriceQuantity      float64   `json:"Q,string"`
-	BestBidPrice           float64   `json:"b,string"`
-	BestBidQuantity        float64   `json:"B,string"`
-	BestAskPrice           float64   `json:"a,string"`
-	BestAskQuantity        float64   `json:"A,string"`
-	OpenPrice              float64   `json:"o,string"`
-	HighPrice              float64   `json:"h,string"`
-	LowPrice               float64   `json:"l,string"`
-	TotalTradedVolume      float64   `json:"v,string"`
-	TotalTradedQuoteVolume float64   `json:"q,string"`
-	OpenTime               time.Time `json:"O"`
-	CloseTime              time.Time `json:"C"`
-	FirstTradeID           int64     `json:"F"`
-	LastTradeID            int64     `json:"L"`
-	NumberOfTrades         int64     `json:"n"`
+	EventType              string       `json:"e"`
+	EventTime              time.Time    `json:"E"`
+	Symbol                 string       `json:"s"`
+	PriceChange            types.Number `json:"p"`
+	PriceChangePercent     types.Number `json:"P"`
+	WeightedAvgPrice       types.Number `json:"w"`
+	ClosePrice             types.Number `json:"x"`
+	LastPrice              types.Number `json:"c"`
+	LastPriceQuantity      types.Number `json:"Q"`
+	BestBidPrice           types.Number `json:"b"`
+	BestBidQuantity        types.Number `json:"B"`
+	BestAskPrice           types.Number `json:"a"`
+	BestAskQuantity        types.Number `json:"A"`
+	OpenPrice              types.Number `json:"o"`
+	HighPrice              types.Number `json:"h"`
+	LowPrice               types.Number `json:"l"`
+	TotalTradedVolume      types.Number `json:"v"`
+	TotalTradedQuoteVolume types.Number `json:"q"`
+	OpenTime               time.Time    `json:"O"`
+	CloseTime              time.Time    `json:"C"`
+	FirstTradeID           int64        `json:"F"`
+	LastTradeID            int64        `json:"L"`
+	NumberOfTrades         int64        `json:"n"`
 }
 
 // HistoricalTrade holds recent trade data
