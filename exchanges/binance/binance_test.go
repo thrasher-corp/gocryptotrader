@@ -1970,7 +1970,6 @@ func TestGetDepositAddress(t *testing.T) {
 
 func BenchmarkWsHandleData(bb *testing.B) {
 	bb.ReportAllocs()
-	b.SetSaveTradeDataStatus(true)
 	fixture, err := os.Open("testdata/wsHandleData.json")
 	require.NoError(bb, err)
 	ap, err := b.CurrencyPairs.GetPairs(asset.Spot, false)
@@ -1981,7 +1980,9 @@ func BenchmarkWsHandleData(bb *testing.B) {
 		err = fixture.Close()
 		assert.NoError(bb, err)
 	}()
-
+	go func() {
+		<-b.Websocket.DataHandler
+	}()
 	bb.ResetTimer()
 	for i := 0; i < bb.N; i++ {
 		s := bufio.NewScanner(fixture)
