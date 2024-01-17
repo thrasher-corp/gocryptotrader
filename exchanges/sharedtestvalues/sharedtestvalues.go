@@ -3,6 +3,7 @@ package sharedtestvalues
 import (
 	"bufio"
 	"bytes"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -13,7 +14,9 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 )
 
@@ -181,4 +184,45 @@ func TestFixtureToDataHandler(t *testing.T, seed, e exchange.IBotExchange, fixtu
 		assert.NoErrorf(t, err, "Fixture message should not error:\n%s", msg)
 	}
 	assert.NoError(t, s.Err(), "Fixture Scanner should not error")
+}
+
+// SetupCurrencyPairsForExchangeAsset enables an asset for an exchange
+// and adds the currency pair(s) to the available and enabled list of existing pairs
+// if it is already enabled or part of the pairs, no error is raised
+func SetupCurrencyPairsForExchangeAsset(t *testing.T, exch exchange.IBotExchange, a asset.Item, cp ...currency.Pair) {
+	t.Helper()
+	if len(cp) == 0 {
+		return
+	}
+	b := exch.GetBase()
+	err := b.CurrencyPairs.SetAssetEnabled(a, true)
+	if err != nil && !errors.Is(err, currency.ErrAssetAlreadyEnabled) {
+		t.Fatal(err)
+	}
+	availPairs, err := b.CurrencyPairs.GetPairs(a, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	apLen := len(availPairs)
+	enabledPairs, err := b.CurrencyPairs.GetPairs(a, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	epLen := len(enabledPairs)
+	for i := range cp {
+		availPairs = availPairs.Add(cp[i])
+		enabledPairs = enabledPairs.Add(cp[i])
+	}
+	if len(availPairs) != apLen {
+		err = b.CurrencyPairs.StorePairs(a, availPairs, false)
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+	if len(enabledPairs) != epLen {
+		err = b.CurrencyPairs.StorePairs(a, enabledPairs, true)
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
 }

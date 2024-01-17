@@ -10,6 +10,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -53,6 +54,7 @@ func TestMain(m *testing.M) {
 	if err = b.Setup(btseConfig); err != nil {
 		log.Fatal(err)
 	}
+
 	os.Exit(m.Run())
 }
 
@@ -736,4 +738,44 @@ func updatePairsOnce(tb testing.TB) {
 		err := b.UpdateTradablePairs(context.Background(), true)
 		assert.NoError(tb, err, "UpdateTradablePairs should not error")
 	})
+}
+
+func TestGetOpenInterest(t *testing.T) {
+	t.Parallel()
+	cp1 := currency.NewPair(currency.BTC, currency.PFC)
+	cp2 := currency.NewPair(currency.ETH, currency.PFC)
+	sharedtestvalues.SetupCurrencyPairsForExchangeAsset(t, b, asset.Futures, futuresPair, cp1, cp2)
+
+	resp, err := b.GetOpenInterest(context.Background(), key.PairAsset{
+		Base:  cp1.Base.Item,
+		Quote: cp1.Quote.Item,
+		Asset: asset.Futures,
+	})
+	assert.NoError(t, err)
+	assert.NotEmpty(t, resp)
+
+	resp, err = b.GetOpenInterest(context.Background(),
+		key.PairAsset{
+			Base:  cp1.Base.Item,
+			Quote: cp1.Quote.Item,
+			Asset: asset.Futures,
+		},
+		key.PairAsset{
+			Base:  cp2.Base.Item,
+			Quote: cp2.Quote.Item,
+			Asset: asset.Futures,
+		})
+	assert.NoError(t, err)
+	assert.NotEmpty(t, resp)
+
+	resp, err = b.GetOpenInterest(context.Background())
+	assert.NoError(t, err)
+	assert.NotEmpty(t, resp)
+
+	_, err = b.GetOpenInterest(context.Background(), key.PairAsset{
+		Base:  currency.BTC.Item,
+		Quote: currency.USDT.Item,
+		Asset: asset.Spot,
+	})
+	assert.ErrorIs(t, err, asset.ErrNotSupported)
 }
