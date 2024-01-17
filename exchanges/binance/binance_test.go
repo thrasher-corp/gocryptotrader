@@ -1973,10 +1973,16 @@ func BenchmarkWsHandleData(bb *testing.B) {
 	b.SetSaveTradeDataStatus(true)
 	fixture, err := os.Open("testdata/wsHandleData.json")
 	require.NoError(bb, err)
+	ap, err := b.CurrencyPairs.GetPairs(asset.Spot, false)
+	require.NoError(bb, err)
+	err = b.CurrencyPairs.StorePairs(asset.Spot, ap, true)
+	require.NoError(bb, err)
 	defer func() {
 		err = fixture.Close()
 		assert.NoError(bb, err)
 	}()
+
+	bb.ResetTimer()
 	for i := 0; i < bb.N; i++ {
 		s := bufio.NewScanner(fixture)
 		for s.Scan() {
