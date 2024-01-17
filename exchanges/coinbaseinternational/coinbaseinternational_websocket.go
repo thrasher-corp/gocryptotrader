@@ -48,6 +48,8 @@ func (co *CoinbaseInternational) WsConnect() error {
 		return errors.New(stream.WebsocketNotEnabled)
 	}
 	var dialer websocket.Dialer
+	dialer.HandshakeTimeout = co.Config.HTTPTimeout
+	dialer.Proxy = http.ProxyFromEnvironment
 	err := co.Websocket.Conn.Dial(&dialer, http.Header{})
 	if err != nil {
 		return err
