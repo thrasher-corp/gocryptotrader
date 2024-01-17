@@ -141,17 +141,18 @@ func (k *Kraken) GetTicker(ctx context.Context, symbol currency.Pair) (Ticker, e
 	if len(resp.Error) > 0 {
 		return tick, fmt.Errorf("%s error: %s", k.Name, resp.Error)
 	}
-
 	for i := range resp.Data {
-		tick.Ask, _ = strconv.ParseFloat(resp.Data[i].Ask[0], 64)
-		tick.Bid, _ = strconv.ParseFloat(resp.Data[i].Bid[0], 64)
-		tick.Last, _ = strconv.ParseFloat(resp.Data[i].Last[0], 64)
-		tick.Volume, _ = strconv.ParseFloat(resp.Data[i].Volume[1], 64)
-		tick.VolumeWeightedAveragePrice, _ = strconv.ParseFloat(resp.Data[i].VolumeWeightedAveragePrice[1], 64)
+		tick.Ask = resp.Data[i].Ask[0].Float64()
+		tick.AskSize = resp.Data[i].Ask[2].Float64()
+		tick.Bid = resp.Data[i].Bid[0].Float64()
+		tick.BidSize = resp.Data[i].Bid[2].Float64()
+		tick.Last = resp.Data[i].Last[0].Float64()
+		tick.Volume = resp.Data[i].Volume[1].Float64()
+		tick.VolumeWeightedAveragePrice = resp.Data[i].VolumeWeightedAveragePrice[1].Float64()
 		tick.Trades = resp.Data[i].Trades[1]
-		tick.Low, _ = strconv.ParseFloat(resp.Data[i].Low[1], 64)
-		tick.High, _ = strconv.ParseFloat(resp.Data[i].High[1], 64)
-		tick.Open, _ = strconv.ParseFloat(resp.Data[i].Open, 64)
+		tick.Low = resp.Data[i].Low[1].Float64()
+		tick.High = resp.Data[i].High[1].Float64()
+		tick.Open = resp.Data[i].Open.Float64()
 	}
 	return tick, nil
 }
@@ -182,20 +183,21 @@ func (k *Kraken) GetTickers(ctx context.Context, pairList string) (map[string]Ti
 		return nil, fmt.Errorf("%s error: %s", k.Name, resp.Error)
 	}
 
-	tickers := make(map[string]Ticker)
-
+	tickers := make(map[string]Ticker, len(resp.Data))
 	for i := range resp.Data {
-		tick := Ticker{}
-		tick.Ask, _ = strconv.ParseFloat(resp.Data[i].Ask[0], 64)
-		tick.Bid, _ = strconv.ParseFloat(resp.Data[i].Bid[0], 64)
-		tick.Last, _ = strconv.ParseFloat(resp.Data[i].Last[0], 64)
-		tick.Volume, _ = strconv.ParseFloat(resp.Data[i].Volume[1], 64)
-		tick.VolumeWeightedAveragePrice, _ = strconv.ParseFloat(resp.Data[i].VolumeWeightedAveragePrice[1], 64)
-		tick.Trades = resp.Data[i].Trades[1]
-		tick.Low, _ = strconv.ParseFloat(resp.Data[i].Low[1], 64)
-		tick.High, _ = strconv.ParseFloat(resp.Data[i].High[1], 64)
-		tick.Open, _ = strconv.ParseFloat(resp.Data[i].Open, 64)
-		tickers[i] = tick
+		tickers[i] = Ticker{
+			Ask:                        resp.Data[i].Ask[0].Float64(),
+			AskSize:                    resp.Data[i].Ask[2].Float64(),
+			Bid:                        resp.Data[i].Bid[0].Float64(),
+			BidSize:                    resp.Data[i].Bid[2].Float64(),
+			Last:                       resp.Data[i].Last[0].Float64(),
+			Volume:                     resp.Data[i].Volume[1].Float64(),
+			VolumeWeightedAveragePrice: resp.Data[i].VolumeWeightedAveragePrice[1].Float64(),
+			Trades:                     resp.Data[i].Trades[1],
+			Low:                        resp.Data[i].Low[1].Float64(),
+			High:                       resp.Data[i].High[1].Float64(),
+			Open:                       resp.Data[i].Open.Float64(),
+		}
 	}
 	return tickers, nil
 }

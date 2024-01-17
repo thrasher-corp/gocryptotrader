@@ -524,12 +524,15 @@ func (k *Kraken) UpdateTickers(ctx context.Context, a asset.Item) error {
 				High:         t.High,
 				Low:          t.Low,
 				Bid:          t.Bid,
+				BidSize:      t.BidSize,
 				Ask:          t.Ask,
+				AskSize:      t.AskSize,
 				Volume:       t.Volume,
 				Open:         t.Open,
 				Pair:         cp,
 				ExchangeName: k.Name,
-				AssetType:    a})
+				AssetType:    a,
+			})
 			if err != nil {
 				return err
 			}
@@ -547,13 +550,18 @@ func (k *Kraken) UpdateTickers(ctx context.Context, a asset.Item) error {
 			err = ticker.ProcessTicker(&ticker.Price{
 				Last:         t.Tickers[x].Last,
 				Bid:          t.Tickers[x].Bid,
+				BidSize:      t.Tickers[x].BidSize,
 				Ask:          t.Tickers[x].Ask,
+				AskSize:      t.Tickers[x].AskSize,
 				Volume:       t.Tickers[x].Vol24h,
 				Open:         t.Tickers[x].Open24H,
 				OpenInterest: t.Tickers[x].OpenInterest,
+				MarkPrice:    t.Tickers[x].MarkPrice,
+				IndexPrice:   t.Tickers[x].IndexPrice,
 				Pair:         pair,
 				ExchangeName: k.Name,
-				AssetType:    a})
+				AssetType:    a,
+			})
 			if err != nil {
 				return err
 			}
