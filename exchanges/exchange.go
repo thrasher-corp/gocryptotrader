@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net"
 	"net/url"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -13,6 +14,7 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
+	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
@@ -1336,6 +1338,57 @@ func (e *Endpoints) GetURLMap() map[string]string {
 	return urlMap
 }
 
+// GetCachedOpenInterest returns open interest data if the exchange
+// supports open interest in ticker data
+func (b *Base) GetCachedOpenInterest(_ context.Context, k ...key.PairAsset) ([]futures.OpenInterest, error) {
+	if !b.Features.Supports.FuturesCapabilities.OpenInterest.Supported ||
+		!b.Features.Supports.FuturesCapabilities.OpenInterest.SupportedViaTicker {
+		return nil, common.ErrFunctionNotSupported
+	}
+	if len(k) == 0 {
+		ticks, err := ticker.GetExchangeTickers(b.Name)
+		if err != nil {
+			return nil, err
+		}
+		resp := make([]futures.OpenInterest, 0, len(ticks))
+		for i := range ticks {
+			if ticks[i].OpenInterest <= 0 {
+				continue
+			}
+			resp = append(resp, futures.OpenInterest{
+				Key: key.ExchangePairAsset{
+					Exchange: b.Name,
+					Base:     ticks[i].Pair.Base.Item,
+					Quote:    ticks[i].Pair.Quote.Item,
+					Asset:    ticks[i].AssetType,
+				},
+				OpenInterest: ticks[i].OpenInterest,
+			})
+		}
+		sort.Slice(resp, func(i, j int) bool {
+			return resp[i].Key.Base.Symbol < resp[j].Key.Base.Symbol
+		})
+		return resp, nil
+	}
+	resp := make([]futures.OpenInterest, len(k))
+	for i := range k {
+		t, err := ticker.GetTicker(b.Name, k[i].Pair(), k[i].Asset)
+		if err != nil {
+			return nil, err
+		}
+		resp[i] = futures.OpenInterest{
+			Key: key.ExchangePairAsset{
+				Exchange: b.Name,
+				Base:     t.Pair.Base.Item,
+				Quote:    t.Pair.Quote.Item,
+				Asset:    t.AssetType,
+			},
+			OpenInterest: t.OpenInterest,
+		}
+	}
+	return resp, nil
+}
+
 // FormatSymbol formats the given pair to a string suitable for exchange API requests
 func (b *Base) FormatSymbol(pair currency.Pair, assetType asset.Item) (string, error) {
 	pairFmt, err := b.GetPairFormat(assetType, true)
@@ -1754,6 +1807,11 @@ func (b *Base) MatchSymbolCheckEnabled(symbol string, a asset.Item, hasDelimiter
 // TODO: Optimisation map for enabled pair matching, instead of linear traversal.
 func (b *Base) IsPairEnabled(pair currency.Pair, a asset.Item) (bool, error) {
 	return b.CurrencyPairs.IsPairEnabled(pair, a)
+}
+
+// GetOpenInterest returns the open interest rate for a given asset pair
+func (b *Base) GetOpenInterest(context.Context, ...key.PairAsset) ([]futures.OpenInterest, error) {
+	return nil, common.ErrFunctionNotSupported
 }
 
 // FetchTicker returns the ticker for a currency pair and asset type

@@ -15,8 +15,10 @@ import (
 
 	"github.com/gofrs/uuid"
 	"github.com/shopspring/decimal"
+	"github.com/stretchr/testify/assert"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
+	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/database"
@@ -101,6 +103,23 @@ func (f fExchange) SetMarginType(_ context.Context, _ asset.Item, _ currency.Pai
 
 func (f fExchange) SetCollateralMode(_ context.Context, _ asset.Item, _ collateral.Mode) error {
 	return nil
+}
+
+func (f fExchange) GetOpenInterest(_ context.Context, k ...key.PairAsset) ([]futures.OpenInterest, error) {
+	if len(k) > 0 {
+		return []futures.OpenInterest{
+			{
+				Key: key.ExchangePairAsset{
+					Exchange: f.GetName(),
+					Base:     k[0].Base,
+					Quote:    k[0].Quote,
+					Asset:    k[0].Asset,
+				},
+				OpenInterest: 1337,
+			},
+		}, nil
+	}
+	return nil, nil
 }
 
 func (f fExchange) GetCollateralMode(_ context.Context, _ asset.Item) (collateral.Mode, error) {
@@ -4078,4 +4097,45 @@ func TestGetCollateralMode(t *testing.T) {
 	if !errors.Is(err, nil) {
 		t.Error(err)
 	}
+}
+
+func TestGetOpenInterest(t *testing.T) {
+	t.Parallel()
+	em := NewExchangeManager()
+	exch, err := em.NewExchangeByName("binance")
+	assert.NoError(t, err)
+
+	exch.SetDefaults()
+	b := exch.GetBase()
+	b.Name = fakeExchangeName
+	b.Enabled = true
+	b.CurrencyPairs.Pairs = make(map[asset.Item]*currency.PairStore)
+	b.CurrencyPairs.Pairs[asset.USDTMarginedFutures] = &currency.PairStore{
+		AssetEnabled: convert.BoolPtr(true),
+	}
+
+	fakeExchange := fExchange{
+		IBotExchange: exch,
+	}
+	err = em.Add(fakeExchange)
+	assert.NoError(t, err)
+
+	s := RPCServer{Engine: &Engine{ExchangeManager: em}}
+	_, err = s.GetOpenInterest(context.Background(), nil)
+	assert.ErrorIs(t, err, common.ErrNilPointer)
+
+	req := &gctrpc.GetOpenInterestRequest{}
+	_, err = s.GetOpenInterest(context.Background(), req)
+	assert.ErrorIs(t, err, ErrExchangeNameIsEmpty)
+
+	req.Exchange = fakeExchangeName
+	_, err = s.GetOpenInterest(context.Background(), req)
+	assert.NoError(t, err)
+
+	req.Data = append(req.Data, &gctrpc.OpenInterestDataRequest{
+		Asset: asset.USDTMarginedFutures.String(),
+		Pair:  &gctrpc.CurrencyPair{Base: currency.BTC.String(), Quote: currency.USDT.String()},
+	})
+	_, err = s.GetOpenInterest(context.Background(), req)
+	assert.NoError(t, err)
 }
