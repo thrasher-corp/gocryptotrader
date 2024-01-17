@@ -252,6 +252,7 @@ func (co *CoinbaseInternational) UpdateTicker(ctx context.Context, p currency.Pa
 	if p.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
+	p = p.Format(format)
 	tick, err := co.GetQuotePerInstrument(ctx, p.String(), "", "")
 	if err != nil {
 		return nil, err
@@ -342,11 +343,14 @@ func (co *CoinbaseInternational) UpdateOrderbook(ctx context.Context, pair curre
 		Asset:           assetType,
 		VerifyOrderbook: co.CanVerifyOrderbook,
 	}
+	if pair.IsEmpty() {
+		return nil, currency.ErrCurrencyPairEmpty
+	}
 	format, err := co.GetPairFormat(asset.Spot, true)
 	if err != nil {
 		return nil, err
 	}
-	orderbookNew, err := co.GetQuotePerInstrument(ctx, pair.Format(format).String(), "", "")
+	orderbookNew, err := co.GetQuotePerInstrument(ctx, format.Format(pair), "", "")
 	if err != nil {
 		return book, err
 	}
@@ -570,7 +574,7 @@ func (co *CoinbaseInternational) CancelAllOrders(ctx context.Context, action *or
 		return order.CancelAllResponse{}, fmt.Errorf("%w asset type %v", asset.ErrNotSupported, action.AssetType)
 	}
 	if action.AccountID == "" {
-		return order.CancelAllResponse{}, fmt.Errorf("%w (account ID)", errMissingPortfolioID)
+		return order.CancelAllResponse{}, fmt.Errorf("%w %w (account ID)", request.ErrAuthRequestFailed, errMissingPortfolioID)
 	}
 	format, err := co.GetPairFormat(asset.Spot, true)
 	if err != nil {

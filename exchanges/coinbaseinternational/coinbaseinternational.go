@@ -193,7 +193,7 @@ func (co *CoinbaseInternational) CancelOrders(ctx context.Context, portfolioID, 
 	case portfolioUUID != "":
 		params.Set("portfolio", portfolioUUID)
 	default:
-		return nil, errMissingPortfolioID
+		return nil, fmt.Errorf("%w %w", request.ErrAuthRequestFailed, errMissingPortfolioID)
 	}
 	if instrument != "" {
 		params.Set("instrument", instrument)
@@ -236,7 +236,7 @@ func (co *CoinbaseInternational) CancelTradeOrder(ctx context.Context, orderID, 
 	case portfolioUUID != "":
 		params.Set("portfolio", portfolioUUID)
 	default:
-		return nil, errMissingPortfolioID
+		return nil, fmt.Errorf("%w %w", request.ErrAuthRequestFailed, errMissingPortfolioID)
 	}
 	var resp *OrderItem
 	return resp, co.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodDelete, "orders/"+orderID, params, nil, &resp, true)
@@ -463,7 +463,8 @@ func (co *CoinbaseInternational) SendHTTPRequest(ctx context.Context, ep exchang
 			return err
 		}
 	}
-	return co.SendPayload(ctx, request.Unset, func() (*request.Item, error) {
+	intrim := json.RawMessage{}
+	err = co.SendPayload(ctx, request.Unset, func() (*request.Item, error) {
 		timestamp := time.Now()
 		headers := make(map[string]string)
 		headers["Content-Type"] = "application/json"
@@ -487,13 +488,32 @@ func (co *CoinbaseInternational) SendHTTPRequest(ctx context.Context, ep exchang
 			Method:        method,
 			Path:          urlPath,
 			Headers:       headers,
-			Result:        result,
+			Result:        &intrim,
 			Body:          bytes.NewBuffer(payload),
 			Verbose:       co.Verbose,
 			HTTPDebugging: co.HTTPDebugging,
 			HTTPRecording: co.HTTPRecording,
 		}, nil
 	}, requestType)
+	if err != nil {
+		return err
+	}
+	errorMessage := &struct {
+		Title  string `json:"title,omitempty"`
+		Status int64  `json:"status,omitempty"`
+	}{}
+	err = json.Unmarshal(intrim, errorMessage)
+	if errorMessage.Status != 0 {
+		if authenticated {
+			return fmt.Errorf("%v %w status: %d title: %s", err, request.ErrAuthRequestFailed, errorMessage.Status, errorMessage.Title)
+		}
+		return fmt.Errorf("status: %d Title: %s", errorMessage.Status, errorMessage.Title)
+	}
+	if result == nil {
+		return nil
+	}
+
+	return json.Unmarshal(intrim, result)
 }
 
 func orderTypeString(oType order.Type) (string, error) {
