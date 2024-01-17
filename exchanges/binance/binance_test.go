@@ -2009,11 +2009,11 @@ func TestWsKlineUpdate(t *testing.T) {
 	pressXToJSON := []byte(`{"stream":"btcusdt@kline_1m","data":{
 	  "e": "kline",     
 	  "E": 123456789,   
-	  "s": "BNBBTC",    
+	  "s": "BTCUSDT",    
 	  "k": {
 		"t": 123400000, 
 		"T": 123460000, 
-		"s": "BNBBTC",  
+		"s": "BTCUSDT",  
 		"i": "1m",      
 		"f": 100,       
 		"L": 200,       
@@ -2038,10 +2038,11 @@ func TestWsKlineUpdate(t *testing.T) {
 
 func TestWsTradeUpdate(t *testing.T) {
 	t.Parallel()
+	b.SetSaveTradeDataStatus(true)
 	pressXToJSON := []byte(`{"stream":"btcusdt@trade","data":{
 	  "e": "trade",     
 	  "E": 123456789,   
-	  "s": "BNBBTC",    
+	  "s": "BTCUSDT",    
 	  "t": 12345,       
 	  "p": "0.001",     
 	  "q": "100",       

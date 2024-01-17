@@ -163,13 +163,13 @@ type DepthUpdateParams []struct {
 
 // WebsocketDepthStream is the difference for the update depth stream
 type WebsocketDepthStream struct {
-	Event         string           `json:"e"`
-	Timestamp     time.Time        `json:"E"`
-	Pair          string           `json:"s"`
-	FirstUpdateID int64            `json:"U"`
-	LastUpdateID  int64            `json:"u"`
-	UpdateBids    [][2]interface{} `json:"b"`
-	UpdateAsks    [][2]interface{} `json:"a"`
+	Event         string            `json:"e"`
+	Timestamp     time.Time         `json:"E"`
+	Pair          string            `json:"s"`
+	FirstUpdateID int64             `json:"U"`
+	LastUpdateID  int64             `json:"u"`
+	UpdateBids    [][2]types.Number `json:"b"`
+	UpdateAsks    [][2]types.Number `json:"a"`
 }
 
 // RecentTradeRequestParams represents Klines request data.
@@ -190,17 +190,17 @@ type RecentTrade struct {
 
 // TradeStream holds the trade stream data
 type TradeStream struct {
-	EventType      string    `json:"e"`
-	EventTime      time.Time `json:"E"`
-	Symbol         string    `json:"s"`
-	TradeID        int64     `json:"t"`
-	Price          string    `json:"p"`
-	Quantity       string    `json:"q"`
-	BuyerOrderID   int64     `json:"b"`
-	SellerOrderID  int64     `json:"a"`
-	TimeStamp      time.Time `json:"T"`
-	Maker          bool      `json:"m"`
-	BestMatchPrice bool      `json:"M"`
+	EventType      string       `json:"e"`
+	EventTime      time.Time    `json:"E"`
+	Symbol         string       `json:"s"`
+	TradeID        int64        `json:"t"`
+	Price          types.Number `json:"p"`
+	Quantity       types.Number `json:"q"`
+	BuyerOrderID   int64        `json:"b"`
+	SellerOrderID  int64        `json:"a"`
+	TimeStamp      time.Time    `json:"T"`
+	Maker          bool         `json:"m"`
+	BestMatchPrice bool         `json:"M"`
 }
 
 // KlineStream holds the kline stream data
