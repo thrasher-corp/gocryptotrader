@@ -195,7 +195,7 @@ func TestGetOrderbook(t *testing.T) {
 		if assert.NotEmptyf(t, o, "Should have items in %ss", s) {
 			a := o[0]
 			assert.Positivef(t, a.Price, "%ss Price should be positive", s)
-			assert.Positivef(t, a.Amount, "%s Amount should be positive", s)
+			assert.Positivef(t, a.Amount, "%ss Amount should be positive", s)
 		}
 	}
 }
@@ -521,7 +521,7 @@ func TestSubmitOrder(t *testing.T) {
 	} else {
 		assert.NoError(t, err, "SubmitOrder should not error")
 		assert.Equal(t, float64(45), o.Amount, "Amount should be correct")
-		assert.Equal(t, asset.Item(2), o.AssetType, "AssetType should be correct")
+		assert.Equal(t, asset.Spot, o.AssetType, "AssetType should be correct")
 		assert.Equal(t, "123456789", o.ClientID, "ClientID should be correct")
 		assert.Equal(t, "1234123412341234", o.OrderID, "OrderID should be correct")
 		assert.Equal(t, 2211.0, o.Price, "Price should be correct")
@@ -578,7 +578,7 @@ func TestWithdraw(t *testing.T) {
 	}
 	w, err := b.WithdrawCryptocurrencyFunds(context.Background(), &withdraw.Request{
 		Exchange:    b.Name,
-		Amount:      6,
+		Amount:      -1,
 		Currency:    currency.BTC,
 		Description: "WITHDRAW IT ALL",
 		Crypto: withdraw.CryptoRequest{
@@ -679,10 +679,9 @@ func TestWithdrawInternationalBank(t *testing.T) {
 	w, err := b.WithdrawFiatFundsToInternationalBank(context.Background(),
 		&withdrawFiatRequest)
 	if mockTests {
-		assert.NoError(t, err, "WithdrawFiatFundsToInternationalBank should not error")
 		assert.Equal(t, "1", w.ID, "Withdrawal ID should be correct")
 	} else {
-		assert.ErrorContains(t, err, "Check your account balance for details")
+		assert.NoError(t, err, "WithdrawFiatFundsToInternationalBank should not error")
 	}
 }
 
@@ -862,9 +861,9 @@ func TestBitstamp_OHLC(t *testing.T) {
 	for _, req := range o.Data.OHLCV {
 		assert.Positive(t, req.Low, "Low should be positive")
 		assert.Positive(t, req.Close, "Close should be positive")
-		assert.Positive(t, req.Open, "Low should be positive")
+		assert.Positive(t, req.Open, "Open should be positive")
 		assert.Positive(t, req.Volume, "Volume should be positive")
-		assert.NotEmpty(t, req.Timestamp, "Time should not be empty")
+		assert.NotEmpty(t, req.Timestamp, "Timestamp should not be empty")
 	}
 }
 
@@ -883,7 +882,7 @@ func TestBitstamp_GetHistoricCandles(t *testing.T) {
 		assert.Positive(t, req.High, "High should be positive")
 		assert.Positive(t, req.Low, "Low should be positive")
 		assert.Positive(t, req.Close, "Close should be positive")
-		assert.Positive(t, req.Open, "Low should be positive")
+		assert.Positive(t, req.Open, "Open should be positive")
 		assert.Positive(t, req.Volume, "Volume should be positive")
 		assert.NotEmpty(t, req.Time, "Time should not be empty")
 	}
@@ -924,6 +923,7 @@ func TestGetRecentTrades(t *testing.T) {
 	for _, req := range tr {
 		assert.Positive(t, req.Amount, "Amount should be positive")
 		assert.Equal(t, currency.NewPairWithDelimiter("ltc", "usd", ""), req.CurrencyPair, "Pair should be correct")
+		assert.Equal(t, asset.Spot, req.AssetType, "AssetType should be set")
 		assert.NotEmpty(t, req.Timestamp, "Timestamp should not be empty")
 		assert.Positive(t, req.Price, "Price should be positive")
 		assert.NotEmpty(t, req.TID, "TID should not be empty")
@@ -973,7 +973,9 @@ func TestOrderbookZeroBidPrice(t *testing.T) {
 func TestGetWithdrawalsHistory(t *testing.T) {
 	t.Parallel()
 
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	if !mockTests {
+		sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	}
 	h, err := b.GetWithdrawalsHistory(context.Background(), currency.BTC, asset.Spot)
 	assert.NoError(t, err, "GetWithdrawalsHistory should not error")
 	if mockTests {
@@ -991,7 +993,9 @@ func TestGetWithdrawalsHistory(t *testing.T) {
 func TestGetOrderInfo(t *testing.T) {
 	t.Parallel()
 
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	if !mockTests {
+		sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	}
 	o, err := b.GetOrderInfo(context.Background(), "1458532827766784", currency.NewPair(currency.BTC, currency.USD), asset.Spot)
 	if mockTests {
 		assert.NoError(t, err, "GetOrderInfo should not error")
