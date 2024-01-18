@@ -199,6 +199,12 @@ type CollateralCalculator struct {
 	UnrealisedPNL      decimal.Decimal
 }
 
+// OpenInterest holds open interest data for an exchange pair asset
+type OpenInterest struct {
+	Key          key.ExchangePairAsset
+	OpenInterest float64
+}
+
 // PNLCalculator implements the PNLCalculation interface
 // to call CalculatePNL and is used when a user wishes to have a
 // consistent method of calculating PNL across different exchanges

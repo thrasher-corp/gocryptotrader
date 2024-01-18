@@ -109,7 +109,9 @@ func (h *HUOBI) SwapOpenInterestInformation(ctx context.Context, code currency.P
 		return resp, err
 	}
 	params := url.Values{}
-	params.Set("contract_code", codeValue)
+	if !code.IsEmpty() {
+		params.Set("contract_code", codeValue)
+	}
 	path := common.EncodeURLValues(huobiSwapOpenInterestInfo, params)
 	return resp, h.SendHTTPRequest(ctx, exchange.RestFutures, path, &resp)
 }
