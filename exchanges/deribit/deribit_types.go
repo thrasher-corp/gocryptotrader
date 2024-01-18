@@ -57,7 +57,6 @@ var (
 	errMissingSubAccountID                 = errors.New("missing subaccount id")
 	errNoOrderDeleted                      = errors.New("no order deleted")
 	errUnsupportedInstrumentFormat         = errors.New("unsupported instrument type format")
-	errNoInstrumentDataFound               = errors.New("no instrument data found")
 
 	websocketRequestTimeout = time.Second * 30
 )
@@ -1419,4 +1418,14 @@ type OrderBuyAndSellParams struct {
 	TriggerPrice   float64 `json:"trigger_price,omitempty"`
 	Trigger        string  `json:"trigger,omitempty"`
 	Advanced       string  `json:"advanced,omitempty"`
+}
+
+// ErrInfo represents an error response messages
+type ErrInfo struct {
+	Message string `json:"message"`
+	Data    struct {
+		Param  string `json:"param"`
+		Reason string `json:"reason"`
+	} `json:"data"`
+	Code int64 `json:"code"`
 }

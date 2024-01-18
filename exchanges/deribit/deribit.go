@@ -2107,6 +2107,7 @@ func (d *Deribit) SendHTTPAuthRequest(ctx context.Context, ep exchange.URL, epl 
 		JSONRPC string          `json:"jsonrpc"`
 		ID      int64           `json:"id"`
 		Data    json.RawMessage `json:"result"`
+		Error   ErrInfo         `json:"error"`
 	}
 	item := &request.Item{
 		Method:        method,
@@ -2122,6 +2123,13 @@ func (d *Deribit) SendHTTPAuthRequest(ctx context.Context, ep exchange.URL, epl 
 	}, request.AuthenticatedRequest)
 	if err != nil {
 		return err
+	}
+	if tempData.Error.Code != 0 {
+		var errParamInfo string
+		if tempData.Error.Data.Param != "" {
+			errParamInfo = fmt.Sprintf(" param: %s reason: %s", tempData.Error.Data.Param, tempData.Error.Data.Reason)
+		}
+		return fmt.Errorf("%w code: %d msg: %s%s", request.ErrAuthRequestFailed, tempData.Error.Code, tempData.Error.Message, errParamInfo)
 	}
 	return json.Unmarshal(tempData.Data, result)
 }

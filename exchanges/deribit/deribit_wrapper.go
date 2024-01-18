@@ -257,9 +257,8 @@ func (d *Deribit) FetchTradablePairs(ctx context.Context, assetType asset.Item) 
 		}
 		if err != nil {
 			return nil, err
-		} else if len(resp) == 0 {
-			return nil, errNoInstrumentDataFound
 		}
+
 		for y := range instrumentsData {
 			if !instrumentsData[y].IsActive {
 				continue
@@ -301,18 +300,14 @@ func (d *Deribit) UpdateTicker(ctx context.Context, p currency.Pair, assetType a
 	if !d.SupportsAsset(assetType) {
 		return nil, fmt.Errorf("%s: %w - %s", d.Name, asset.ErrNotSupported, assetType)
 	}
-	if p.IsEmpty() {
-		return nil, currency.ErrCurrencyPairEmpty
+	p, err := d.FormatExchangeCurrency(p, assetType)
+	if err != nil {
+		return nil, err
 	}
 	var instrumentID string
-	var err error
 	if assetType == asset.Futures {
 		instrumentID = d.formatFuturesTradablePair(p)
 	} else {
-		p, err = d.FormatExchangeCurrency(p, assetType)
-		if err != nil {
-			return nil, err
-		}
 		instrumentID = p.String()
 	}
 	var tickerData *TickerData
@@ -364,21 +359,14 @@ func (d *Deribit) FetchOrderbook(ctx context.Context, currencyPair currency.Pair
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (d *Deribit) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
-	book := &orderbook.Base{
-		Exchange:        d.Name,
-		Pair:            p,
-		Asset:           assetType,
-		VerifyOrderbook: d.CanVerifyOrderbook,
+	p, err := d.FormatExchangeCurrency(p, assetType)
+	if err != nil {
+		return nil, err
 	}
 	var instrumentID string
-	var err error
 	if assetType == asset.Futures {
 		instrumentID = d.formatFuturesTradablePair(p)
 	} else {
-		p, err = d.FormatExchangeCurrency(p, assetType)
-		if err != nil {
-			return nil, err
-		}
 		instrumentID = p.String()
 	}
 	var obData *Orderbook
@@ -389,6 +377,12 @@ func (d *Deribit) UpdateOrderbook(ctx context.Context, p currency.Pair, assetTyp
 	}
 	if err != nil {
 		return nil, err
+	}
+	book := &orderbook.Base{
+		Exchange:        d.Name,
+		Pair:            p,
+		Asset:           assetType,
+		VerifyOrderbook: d.CanVerifyOrderbook,
 	}
 	book.Asks = make([]orderbook.Item, len(obData.Asks))
 	for x := range book.Asks {
@@ -560,11 +554,11 @@ func (d *Deribit) GetRecentTrades(ctx context.Context, p currency.Pair, assetTyp
 	if !d.SupportsAsset(assetType) {
 		return nil, fmt.Errorf("%s: %w - %s", d.Name, asset.ErrNotSupported, d.Name)
 	}
-	format, err := d.GetPairFormat(assetType, true)
+	p, err := d.FormatExchangeCurrency(p, assetType)
 	if err != nil {
 		return nil, err
 	}
-	instrumentID := format.Format(p)
+	instrumentID := p.String()
 	if assetType == asset.Futures {
 		instrumentID = d.formatFuturesTradablePair(p)
 	}
@@ -607,16 +601,18 @@ func (d *Deribit) GetHistoricTrades(ctx context.Context, p currency.Pair, assetT
 			timestampStart,
 			timestampEnd)
 	}
-	instrumentID, err := d.FormatSymbol(p, assetType)
+	p, err := d.FormatExchangeCurrency(p, assetType)
 	if err != nil {
 		return nil, err
 	}
+	var instrumentID string
 	switch assetType {
 	case asset.Futures:
 		instrumentID = d.formatFuturesTradablePair(p)
 	case asset.Spot:
+		instrumentID = p.String()
 	default:
-		return nil, fmt.Errorf("historic trades are not supported for asset type %v", assetType)
+		return nil, fmt.Errorf("%w asset type %v", asset.ErrNotSupported, assetType)
 	}
 	var resp []trade.Data
 	var tradesData *PublicTradesData
@@ -823,7 +819,7 @@ func (d *Deribit) CancelAllOrders(ctx context.Context, orderCancellation *order.
 // GetOrderInfo returns order information based on order ID
 func (d *Deribit) GetOrderInfo(ctx context.Context, orderID string, _ currency.Pair, assetType asset.Item) (*order.Detail, error) {
 	if !d.SupportsAsset(assetType) {
-		return nil, fmt.Errorf("%s: orderType %v is not valid", d.Name, assetType)
+		return nil, fmt.Errorf("%w assetType %v", asset.ErrNotSupported, assetType)
 	}
 	var orderInfo *OrderData
 	var err error
@@ -1137,7 +1133,6 @@ func (d *Deribit) GetHistoricCandles(ctx context.Context, pair currency.Pair, a 
 		listCandles := make([]kline.Candle, len(tradingViewData.Ticks))
 		for x := range tradingViewData.Ticks {
 			listCandles[x] = kline.Candle{
-				Time:   time.UnixMilli(int64(tradingViewData.Ticks[x])),
 				Open:   tradingViewData.Open[x],
 				High:   tradingViewData.High[x],
 				Low:    tradingViewData.Low[x],
@@ -1181,11 +1176,10 @@ func (d *Deribit) GetHistoricCandlesExtended(ctx context.Context, pair currency.
 				len(tradingViewData.Low) != checkLen ||
 				len(tradingViewData.Close) != checkLen ||
 				len(tradingViewData.Volume) != checkLen {
-				return nil, fmt.Errorf("%s - %s - %v: invalid trading view chart data received", d.Name, a, d.formatFuturesTradablePair(req.RequestFormatted))
+				return nil, fmt.Errorf("%s - %v: invalid trading view chart data received", a, d.formatFuturesTradablePair(req.RequestFormatted))
 			}
 			for x := range tradingViewData.Ticks {
 				timeSeries = append(timeSeries, kline.Candle{
-					Time:   time.UnixMilli(int64(tradingViewData.Ticks[x])),
 					Open:   tradingViewData.Open[x],
 					High:   tradingViewData.High[x],
 					Low:    tradingViewData.Low[x],
@@ -1225,15 +1219,10 @@ func (d *Deribit) GetLatestFundingRates(ctx context.Context, r *fundingrate.Late
 		return nil, fmt.Errorf("%s %w", r.Asset, asset.ErrNotSupported)
 	}
 	var err error
-	if r.Pair.IsEmpty() {
-		return nil, currency.ErrCurrencyPairEmpty
-	}
-	format, err := d.GetPairFormat(r.Asset, true)
+	r.Pair, err = d.FormatExchangeCurrency(r.Pair, r.Asset)
 	if err != nil {
 		return nil, err
 	}
-	r.Pair = r.Pair.Format(format)
-
 	var fri []FundingRateHistory
 	fri, err = d.GetFundingRateHistory(ctx, r.Pair.String(), time.Now().Add(-time.Hour*16), time.Now())
 	if err != nil {
@@ -1276,8 +1265,9 @@ func (d *Deribit) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) 
 		if err != nil {
 			return err
 		} else if len(instrumentsData) == 0 {
-			return errNoInstrumentDataFound
+			continue
 		}
+
 		limits := make([]order.MinMaxLevel, len(instrumentsData))
 		for x := range instrumentsData {
 			var pair currency.Pair
