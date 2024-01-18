@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/core"
@@ -24,7 +25,7 @@ import (
 const (
 	apiKey                  = ""
 	apiSecret               = ""
-	canManipulateRealOrders = false
+	canManipulateRealOrders = true
 	testCurrency            = "btc"
 )
 
@@ -43,8 +44,12 @@ func TestMain(m *testing.M) {
 	}
 
 	bitConfig.API.AuthenticatedSupport = true
-	bitConfig.API.Credentials.Key = apiKey
-	bitConfig.API.Credentials.Secret = apiSecret
+	if apiKey != "" {
+		bitConfig.API.Credentials.Key = apiKey
+	}
+	if apiSecret != "" {
+		bitConfig.API.Credentials.Secret = apiSecret
+	}
 
 	err = b.Setup(bitConfig)
 	if err != nil {
@@ -62,42 +67,79 @@ func TestMain(m *testing.M) {
 func TestGetTradablePairs(t *testing.T) {
 	t.Parallel()
 	_, err := b.GetTradablePairs(context.Background())
-	if err != nil {
-		t.Error(err)
-	}
+	assert.NoError(t, err, "GetTradablePairs should not error")
 }
 
 func TestGetTicker(t *testing.T) {
 	t.Parallel()
-	_, err := b.GetTicker(context.Background(), testCurrency)
-	if err != nil {
-		t.Error("Bithumb GetTicker() error", err)
-	}
+	tick, err := b.GetTicker(context.Background(), testCurrency)
+	assert.NoError(t, err, "GetTicker should not error")
+	assert.Positive(t, tick.OpeningPrice, "OpeningPrice should be positive")
+	assert.Positive(t, tick.ClosingPrice, "ClosingPrice should be positive")
+	assert.Positive(t, tick.MinPrice, "MinPrice should be positive")
+	assert.Positive(t, tick.MaxPrice, "MaxPrice should be positive")
+	assert.Positive(t, tick.UnitsTraded, "UnitsTraded should be positive")
+	assert.Positive(t, tick.AccumulatedTradeValue, "AccumulatedTradeValue should be positive")
+	assert.Positive(t, tick.PreviousClosingPrice, "PreviousClosingPrice should be positive")
+	assert.Positive(t, tick.UnitsTraded24Hr, "UnitsTraded24Hr should be positive")
+	assert.Positive(t, tick.AccumulatedTradeValue24hr, "AccumulatedTradeValue24hr should be positive")
+	assert.NotEmpty(t, tick.Fluctuate24Hr, "Fluctuate24Hr should not be empty")
+	assert.NotEmpty(t, tick.FluctuateRate24hr, "FluctuateRate24hr should not be empty")
+	assert.Positive(t, tick.Date, "Date should be positive")
 }
 
+// not all currencies have dates and fluctuation rates
 func TestGetAllTickers(t *testing.T) {
 	t.Parallel()
-	_, err := b.GetAllTickers(context.Background())
-	if err != nil {
-		t.Error(err)
+	tick, err := b.GetAllTickers(context.Background())
+	assert.NoError(t, err, "GetAllTickers should not error")
+	for _, res := range tick {
+		assert.Positive(t, res.OpeningPrice, "OpeningPrice should be positive")
+		assert.Positive(t, res.ClosingPrice, "ClosingPrice should be positive")
+		assert.Positive(t, res.MinPrice, "MinPrice should be positive")
+		assert.Positive(t, res.MaxPrice, "MaxPrice should be positive")
+		assert.Positive(t, res.UnitsTraded, "UnitsTraded should be positive")
+		assert.Positive(t, res.AccumulatedTradeValue, "AccumulatedTradeValue should be positive")
+		assert.Positive(t, res.PreviousClosingPrice, "PreviousClosingPrice should be positive")
+		assert.Positive(t, res.UnitsTraded24Hr, "UnitsTraded24Hr should be positive")
+		assert.Positive(t, res.AccumulatedTradeValue24hr, "AccumulatedTradeValue24hr should be positive")
 	}
 }
 
 func TestGetOrderBook(t *testing.T) {
 	t.Parallel()
-	_, err := b.GetOrderBook(context.Background(), testCurrency)
-	if err != nil {
-		t.Error(err)
+	ob, err := b.GetOrderBook(context.Background(), testCurrency)
+	assert.NoError(t, err, "GetOrderBook should not error")
+	assert.NotEmpty(t, ob.Status, "Status should not be empty")
+	assert.NotEmpty(t, ob.Data.Timestamp, "Timestamp should not be empty")
+	assert.NotEmpty(t, ob.Data.OrderCurrency, "OrderCurrency should not be empty")
+	assert.NotEmpty(t, ob.Data.PaymentCurrency, "PaymentCurrency should not be empty")
+	for _, a := range ob.Data.Asks {
+		assert.Positive(t, a.Price, "Price should be positive")
+		assert.Positive(t, a.Quantity, "Quantity should be positive")
+	}
+	for _, b := range ob.Data.Bids {
+		assert.Positive(t, b.Price, "Price should be positive")
+		assert.Positive(t, b.Quantity, "Quantity should be positive")
 	}
 }
 
 func TestGetTransactionHistory(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
-	_, err := b.GetTransactionHistory(context.Background(), testCurrency)
-	if err != nil {
-		t.Error(err)
+	th, err := b.GetTransactionHistory(context.Background(), testCurrency)
+	assert.NoError(t, err, "GetTransactionHistory should not error")
+	assert.NotEmpty(t, th.Status, "Status should not be empty")
+	for _, res := range th.Data {
+		assert.Positive(t, res.ContNumber, "ContNumber should be positive")
+		assert.NotEmpty(t, res.TransactionDate, "TransactionDate should not be empty")
+		assert.Positive(t, res.ContNumber, "ContNumber should be positive")
+		assert.NotEmpty(t, res.Type, "Type should not be empty")
+		assert.Positive(t, res.UnitsTraded, "UnitsTraded should be positive")
+		assert.Positive(t, res.Price, "Price should be positive")
+		assert.Positive(t, res.Total, "Total should be positive")
 	}
+
 }
 
 func TestGetAccountInformation(t *testing.T) {
@@ -111,12 +153,15 @@ func TestGetAccountInformation(t *testing.T) {
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 
-	_, err = b.GetAccountInformation(context.Background(),
+	a, err := b.GetAccountInformation(context.Background(),
 		testCurrency,
 		currency.KRW.String())
-	if err != nil {
-		t.Error(err)
-	}
+	assert.NoError(t, err, "GetAccountInformation should not error")
+	assert.NotEmpty(t, a.Status, "Status should not be empty")
+	assert.Positive(t, a.Data.Created, "Created should be positive")
+	assert.NotEmpty(t, a.Data.AccountID, "AccountID should not be empty")
+	assert.Positive(t, a.Data.TradeFee, "TradeFee should be positive")
+	assert.Positive(t, a.Data.Balance, "Balance should be positive")
 }
 
 func TestGetAccountBalance(t *testing.T) {
