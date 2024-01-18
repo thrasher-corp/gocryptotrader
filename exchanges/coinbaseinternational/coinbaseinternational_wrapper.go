@@ -32,12 +32,12 @@ import (
 // GetDefaultConfig returns a default exchange config
 func (co *CoinbaseInternational) GetDefaultConfig(ctx context.Context) (*config.Exchange, error) {
 	co.SetDefaults()
-	exchCfg := new(config.Exchange)
-	exchCfg.Name = co.Name
-	exchCfg.HTTPTimeout = exchange.DefaultHTTPTimeout
-	exchCfg.BaseCurrencies = co.BaseCurrencies
+	exchCfg, err := co.GetStandardConfig()
+	if err != nil {
+		return nil, err
+	}
 
-	err := co.SetupDefaults(exchCfg)
+	err = co.SetupDefaults(exchCfg)
 	if err != nil {
 		return nil, err
 	}
@@ -160,6 +160,7 @@ func (co *CoinbaseInternational) Setup(exch *config.Exchange) error {
 	return co.Websocket.SetupNewConnection(stream.ConnectionSetup{
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
+		URL:                  coinbaseinternationalWSAPIURL,
 	})
 }
 

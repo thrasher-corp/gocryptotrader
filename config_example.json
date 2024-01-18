@@ -264,19 +264,17 @@
     {
         "name": "CoinbaseInternational",
         "enabled": true,
-        "verbose": true,
-        "httpTimeout": 0,
-        "websocketResponseCheckTimeout": 0,
-        "websocketResponseMaxLimit": 0,
-        "websocketTrafficTimeout": 0,
-        "connectionMonitorDelay": 0,
-        "baseCurrencies": "",
+        "verbose": false,
+        "httpTimeout": 15000000000,
+        "websocketResponseCheckTimeout": 30000000,
+        "websocketResponseMaxLimit": 150000000000000000,
+        "websocketTrafficTimeout": 30000000000,
+        "websocketOrderbookBufferLimit": 5,
+        "baseCurrencies": "USD",
         "currencyPairs": {
-            "bypassConfigFormatUpgrades": false,
             "requestFormat": {
                 "uppercase": true,
                 "delimiter": "-"
-
             },
             "configFormat": {
                 "uppercase": true,
@@ -288,7 +286,7 @@
             ],
             "pairs": {
                 "spot":{
-                    "assetEnabled":true,
+                    "assetEnabled": true,
                     "enabled": "XRP-PERP,ETH-PERP,BTC-PERP,LTC-PERP",
                     "available": "XRP-PERP,ETH-PERP,BTC-PERP,LTC-PERP"
                 }

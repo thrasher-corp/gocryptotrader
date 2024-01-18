@@ -392,6 +392,7 @@ func TestGenerateSubscriptionPayload(t *testing.T) {
 	payload, err := co.GenerateSubscriptionPayload([]stream.ChannelSubscription{
 		{Channel: cnlFunding, Currency: currency.Pair{Base: currency.BTC, Delimiter: "-", Quote: currency.USDT}},
 		{Channel: cnlFunding, Currency: currency.Pair{Base: currency.BTC, Delimiter: "-", Quote: currency.USDC}},
+		{Channel: cnlFunding, Currency: currency.Pair{Base: currency.BTC, Delimiter: "-", Quote: currency.USDC}},
 		{Channel: cnlInstruments, Currency: currency.Pair{Base: currency.BTC, Delimiter: "-", Quote: currency.USDT}},
 		{Channel: cnlInstruments, Currency: currency.Pair{Base: currency.BTC, Delimiter: "-", Quote: currency.USDC}},
 		{Channel: cnlMatch, Currency: currency.Pair{Base: currency.BTC, Delimiter: "-", Quote: currency.USDT}},

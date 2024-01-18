@@ -47,8 +47,9 @@ func (co *CoinbaseInternational) WsConnect() error {
 	if !co.Websocket.IsEnabled() || !co.IsEnabled() {
 		return errors.New(stream.WebsocketNotEnabled)
 	}
-	var dialer websocket.Dialer
-	dialer.Proxy = http.ProxyFromEnvironment
+	var dialer = websocket.Dialer{
+		Proxy: http.ProxyFromEnvironment,
+	}
 	err := co.Websocket.Conn.Dial(&dialer, http.Header{})
 	if err != nil {
 		return err
@@ -297,16 +298,16 @@ func (co *CoinbaseInternational) GenerateSubscriptionPayload(subscriptions []str
 		return nil, errEmptyArgument
 	}
 	channelPairsMap := make(map[string]currency.Pairs)
+	format, err := co.GetPairFormat(asset.Spot, true)
+	if err != nil {
+		return nil, err
+	}
 	for x := range subscriptions {
 		_, okay := channelPairsMap[subscriptions[x].Channel]
 		if !okay {
 			channelPairsMap[subscriptions[x].Channel] = currency.Pairs{}
 		}
-		channelPairsMap[subscriptions[x].Channel] = channelPairsMap[subscriptions[x].Channel].Add(subscriptions[x].Currency)
-	}
-	format, err := co.GetPairFormat(asset.Spot, true)
-	if err != nil {
-		return nil, err
+		channelPairsMap[subscriptions[x].Channel] = channelPairsMap[subscriptions[x].Channel].Add(subscriptions[x].Currency.Format(format))
 	}
 	payloads := make([]SubscriptionInput, 0, len(channelPairsMap))
 	var payload *SubscriptionInput
@@ -322,13 +323,29 @@ func (co *CoinbaseInternational) GenerateSubscriptionPayload(subscriptions []str
 				ProductIDPairs: mPairs,
 				Type:           operation,
 			}
-			continue
 		}
 		diff, err := payload.ProductIDPairs.FindDifferences(mPairs, format)
 		if err != nil {
 			return nil, err
 		}
-		if len(diff.New) > 0 || len(diff.Remove) > 0 {
+		if len(diff.New) == 0 && len(diff.Remove) == 0 {
+			payload.Channels = append(payload.Channels, key)
+		} else {
+			match := false
+			for p := range payloads {
+				diff, err = payloads[p].ProductIDPairs.FindDifferences(mPairs, format)
+				if err != nil {
+					return nil, err
+				}
+				if len(diff.New) == 0 && len(diff.Remove) == 0 {
+					match = true
+					payloads[p].Channels = append(payloads[p].Channels, key)
+					break
+				}
+			}
+			if match {
+				continue
+			}
 			payloads = append(payloads, *payload)
 			payload = &SubscriptionInput{
 				Type: operation,
@@ -338,9 +355,7 @@ func (co *CoinbaseInternational) GenerateSubscriptionPayload(subscriptions []str
 				ProductIDs:     mPairs.Strings(),
 				ProductIDPairs: mPairs,
 			}
-			continue
 		}
-		payload.Channels = append(payload.Channels, key)
 	}
 	payloads = append(payloads, *payload)
 	return payloads, nil
