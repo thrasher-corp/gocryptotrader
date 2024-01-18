@@ -22,6 +22,8 @@ import (
 
 const (
 	poloniexAPIURL = "https://api.poloniex.com"
+
+	marketEps = "/markets/"
 )
 
 var (
@@ -101,7 +103,7 @@ func (p *Poloniex) GetMarketPrice(ctx context.Context, symbol currency.Pair) (*M
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
 	var resp *MarketPrice
-	return resp, p.SendHTTPRequest(ctx, exchange.RestSpot, unauthEPL, "/markets/"+symbol.String()+"/price", &resp)
+	return resp, p.SendHTTPRequest(ctx, exchange.RestSpot, unauthEPL, marketEps+symbol.String()+"/price", &resp)
 }
 
 // GetMarkPrices retrieves latest mark price for a single cross margin
@@ -116,7 +118,7 @@ func (p *Poloniex) GetMarkPrice(ctx context.Context, symbol currency.Pair) (*Mar
 		return nil, currency.ErrCurrencyPairEmpty
 	}
 	var resp *MarkPrice
-	return resp, p.SendHTTPRequest(ctx, exchange.RestSpot, unauthEPL, "/markets/"+symbol.String()+"/markPrice", &resp)
+	return resp, p.SendHTTPRequest(ctx, exchange.RestSpot, unauthEPL, marketEps+symbol.String()+"/markPrice", &resp)
 }
 
 // MarkPriceComponents retrieves components of the mark price for a given symbol.
@@ -125,7 +127,7 @@ func (p *Poloniex) MarkPriceComponents(ctx context.Context, symbol currency.Pair
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
 	var resp *MarkPriceComponent
-	return resp, p.SendHTTPRequest(ctx, exchange.RestSpot, unauthEPL, "/markets/"+symbol.String()+"/markPriceComponents", &resp)
+	return resp, p.SendHTTPRequest(ctx, exchange.RestSpot, unauthEPL, marketEps+symbol.String()+"/markPriceComponents", &resp)
 }
 
 // GetOrderbook retrieves the order book for a given symbol. Scale and limit values are optional.
@@ -143,7 +145,7 @@ func (p *Poloniex) GetOrderbook(ctx context.Context, symbol currency.Pair, scale
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	var resp *OrderbookData
-	return resp, p.SendHTTPRequest(ctx, exchange.RestSpot, unauthEPL, common.EncodeURLValues("/markets/"+symbol.String()+"/orderBook", params), &resp)
+	return resp, p.SendHTTPRequest(ctx, exchange.RestSpot, unauthEPL, common.EncodeURLValues(marketEps+symbol.String()+"/orderBook", params), &resp)
 }
 
 // GetCandlesticks retrieves OHLC for a symbol at given timeframe (interval).
@@ -169,7 +171,7 @@ func (p *Poloniex) GetCandlesticks(ctx context.Context, symbol currency.Pair, in
 		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
 	}
 	var resp []CandlestickArrayData
-	err = p.SendHTTPRequest(ctx, exchange.RestSpot, unauthEPL, common.EncodeURLValues("/markets/"+symbol.String()+"/candles", params), &resp)
+	err = p.SendHTTPRequest(ctx, exchange.RestSpot, unauthEPL, common.EncodeURLValues(marketEps+symbol.String()+"/candles", params), &resp)
 	if err != nil {
 		return nil, err
 	}
@@ -186,7 +188,7 @@ func (p *Poloniex) GetTrades(ctx context.Context, symbol currency.Pair, limit in
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	var resp []Trade
-	return resp, p.SendHTTPRequest(ctx, exchange.RestSpot, referenceDataEPL, common.EncodeURLValues("/markets/"+symbol.String()+"/trades", params), &resp)
+	return resp, p.SendHTTPRequest(ctx, exchange.RestSpot, referenceDataEPL, common.EncodeURLValues(marketEps+symbol.String()+"/trades", params), &resp)
 }
 
 // GetTickers retrieve ticker in last 24 hours for all symbols.
@@ -201,7 +203,7 @@ func (p *Poloniex) GetTicker(ctx context.Context, symbol currency.Pair) (*Ticker
 		return nil, currency.ErrCurrencyPairEmpty
 	}
 	var resp *TickerData
-	return resp, p.SendHTTPRequest(ctx, exchange.RestSpot, referenceDataEPL, "/markets/"+symbol.String()+"/ticker24h", &resp)
+	return resp, p.SendHTTPRequest(ctx, exchange.RestSpot, referenceDataEPL, marketEps+symbol.String()+"/ticker24h", &resp)
 }
 
 // GetCollateralInfos retrieves collateral information for all currencies.
@@ -213,7 +215,7 @@ func (p *Poloniex) GetCollateralInfos(ctx context.Context) ([]CollateralInfo, er
 // GetCollateralInfo retrieves collateral information for all currencies.
 func (p *Poloniex) GetCollateralInfo(ctx context.Context, ccy currency.Code) (*CollateralInfo, error) {
 	var resp *CollateralInfo
-	return resp, p.SendHTTPRequest(ctx, exchange.RestSpot, unauthEPL, "/markets/"+ccy.String()+"/collateralInfo", &resp)
+	return resp, p.SendHTTPRequest(ctx, exchange.RestSpot, unauthEPL, marketEps+ccy.String()+"/collateralInfo", &resp)
 }
 
 // GetBorrowRateInfo retrieves borrow rates information for all tiers and currencies.

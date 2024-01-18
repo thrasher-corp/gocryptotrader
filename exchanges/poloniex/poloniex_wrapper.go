@@ -1345,7 +1345,7 @@ func (p *Poloniex) GetLatestFundingRates(context.Context, *fundingrate.LatestRat
 // UpdateOrderExecutionLimits updates order execution limits
 func (p *Poloniex) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) error {
 	if !p.SupportsAsset(a) {
-		return fmt.Errorf("%v asset: %v", asset.ErrNotSupported, a)
+		return fmt.Errorf("%w asset: %v", asset.ErrNotSupported, a)
 	}
 	instruments, err := p.GetSymbolInformation(ctx, currency.EMPTYPAIR)
 	if err != nil {
