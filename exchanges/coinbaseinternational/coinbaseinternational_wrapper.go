@@ -265,11 +265,8 @@ func (co *CoinbaseInternational) UpdateTicker(ctx context.Context, p currency.Pa
 		BidSize:      tick.BestBidSize.Float64(),
 		Ask:          tick.BestAskPrice.Float64(),
 		AskSize:      tick.BestAskSize.Float64(),
-		Open:         tick.MarkPrice.Float64(),
-		Close:        tick.SettlementPrice.Float64(),
 		LastUpdated:  tick.Timestamp,
-		Volume:       tick.TradeQty.Float64() / tick.TradePrice.Float64(),
-		QuoteVolume:  tick.TradeQty.Float64(),
+		Volume:       tick.TradeQty.Float64(),
 		ExchangeName: co.Name,
 		AssetType:    asset.Spot,
 		Pair:         p.Format(format),
@@ -800,20 +797,24 @@ func (co *CoinbaseInternational) UpdateOrderExecutionLimits(ctx context.Context,
 	if err != nil {
 		return fmt.Errorf("%s failed to load %s pair execution limits. Err: %s", co.Name, a, err)
 	}
-
+	format, err := co.GetPairFormat(a, false)
+	if err != nil {
+		return err
+	}
 	limits := make([]order.MinMaxLevel, len(instruments))
 	for index := range instruments {
 		pair, err := currency.NewPairFromString(instruments[index].Symbol)
 		if err != nil {
 			return err
 		}
+		pair = pair.Format(format)
 		limits[index] = order.MinMaxLevel{
 			Asset:                   a,
 			Pair:                    pair,
 			AmountStepIncrementSize: instruments[index].BaseIncrement.Float64(),
 			QuoteStepIncrementSize:  instruments[index].QuoteIncrement.Float64(),
-			MinPrice:                instruments[index].Quote.LimitDown.Float64(),
-			MaxPrice:                instruments[index].Quote.LimitUp.Float64(),
+			MinimumQuoteAmount:      instruments[index].Quote.LimitDown.Float64(),
+			MaximumQuoteAmount:      instruments[index].Quote.LimitUp.Float64(),
 		}
 	}
 	return co.LoadLimits(limits)
