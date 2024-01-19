@@ -521,7 +521,7 @@ func (d *Deribit) GetMarkPriceHistory(ctx context.Context, instrument string, st
 
 func checkInstrument(instrumentName string) (url.Values, error) {
 	if instrumentName == "" {
-		return nil, fmt.Errorf("%w, instrument_name is missing", errInvalidInstrumentName)
+		return nil, fmt.Errorf("%w, instrument_name is missing", currency.ErrCurrencyPairEmpty)
 	}
 	params := url.Values{}
 	params.Set("instrument_name", instrumentName)

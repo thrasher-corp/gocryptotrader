@@ -34,11 +34,12 @@ import (
 // GetDefaultConfig returns a default exchange config
 func (d *Deribit) GetDefaultConfig(ctx context.Context) (*config.Exchange, error) {
 	d.SetDefaults()
-	exchCfg := new(config.Exchange)
-	exchCfg.Name = d.Name
-	exchCfg.HTTPTimeout = exchange.DefaultHTTPTimeout
-	exchCfg.BaseCurrencies = d.BaseCurrencies
-	err := d.SetupDefaults(exchCfg)
+	exchCfg, err := d.GetStandardConfig()
+	if err != nil {
+		return nil, err
+	}
+
+	err = d.SetupDefaults(exchCfg)
 	if err != nil {
 		return nil, err
 	}
@@ -1121,6 +1122,8 @@ func (d *Deribit) GetHistoricCandles(ctx context.Context, pair currency.Pair, a 
 		}
 		if err != nil {
 			return nil, err
+		} else if len(tradingViewData.Ticks) == 0 {
+			return nil, kline.ErrNoTimeSeriesDataToConvert
 		}
 		checkLen := len(tradingViewData.Ticks)
 		if len(tradingViewData.Open) != checkLen ||
@@ -1128,7 +1131,7 @@ func (d *Deribit) GetHistoricCandles(ctx context.Context, pair currency.Pair, a 
 			len(tradingViewData.Low) != checkLen ||
 			len(tradingViewData.Close) != checkLen ||
 			len(tradingViewData.Volume) != checkLen {
-			return nil, fmt.Errorf("%s - %s - %v: invalid trading view chart data received", d.Name, a, req.RequestFormatted)
+			return nil, fmt.Errorf("%s - %v: invalid trading view chart data received", a, req.RequestFormatted)
 		}
 		listCandles := make([]kline.Candle, len(tradingViewData.Ticks))
 		for x := range tradingViewData.Ticks {
@@ -1138,6 +1141,7 @@ func (d *Deribit) GetHistoricCandles(ctx context.Context, pair currency.Pair, a 
 				Low:    tradingViewData.Low[x],
 				Close:  tradingViewData.Close[x],
 				Volume: tradingViewData.Volume[x],
+				Time:   time.UnixMilli(tradingViewData.Ticks[x]),
 			}
 		}
 		return req.ProcessResponse(listCandles)
@@ -1185,6 +1189,7 @@ func (d *Deribit) GetHistoricCandlesExtended(ctx context.Context, pair currency.
 					Low:    tradingViewData.Low[x],
 					Close:  tradingViewData.Close[x],
 					Volume: tradingViewData.Volume[x],
+					Time:   time.UnixMilli(tradingViewData.Ticks[x]),
 				})
 			}
 		}
@@ -1219,6 +1224,13 @@ func (d *Deribit) GetLatestFundingRates(ctx context.Context, r *fundingrate.Late
 		return nil, fmt.Errorf("%s %w", r.Asset, asset.ErrNotSupported)
 	}
 	var err error
+	available, err := d.GetAvailablePairs(r.Asset)
+	if err != nil {
+		return nil, err
+	}
+	if !available.Contains(r.Pair, true) || r.Pair.Quote != currency.PERP {
+		return nil, fmt.Errorf("%w pair: %v is not supported perpetual pair", futures.ErrNotPerpetualFuture, r.Pair)
+	}
 	r.Pair, err = d.FormatExchangeCurrency(r.Pair, r.Asset)
 	if err != nil {
 		return nil, err

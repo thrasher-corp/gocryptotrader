@@ -299,7 +299,7 @@ type TradeVolumesData struct {
 type TVChartData struct {
 	Volume []float64 `json:"volume"`
 	Cost   []float64 `json:"cost"`
-	Ticks  []float64 `json:"ticks"`
+	Ticks  []int64   `json:"ticks"` // Values of the time axis given in milliseconds since UNIX epoch
 	Status string    `json:"status"`
 	Open   []float64 `json:"open"`
 	Low    []float64 `json:"low"`
