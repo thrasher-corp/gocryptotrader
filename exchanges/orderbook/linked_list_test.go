@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/assert"
 )
 
 var ask = Items{
@@ -1575,6 +1577,17 @@ func TestGetMovementByBaseAmount(t *testing.T) {
 	}
 }
 
+func assertMovement(tb testing.TB, expected, movement *Movement) {
+	tb.Helper()
+	assert.InDelta(tb, expected.Sold, movement.Sold, accuracy10dp, "Sold should be correct")
+	assert.InDelta(tb, expected.Purchased, movement.Purchased, accuracy10dp, "Purchased should be correct")
+	assert.InDelta(tb, expected.AverageOrderCost, movement.AverageOrderCost, accuracy10dp, "AverageOrderCost should be correct")
+	assert.InDelta(tb, expected.StartPrice, movement.StartPrice, accuracy10dp, "StartPrice should be correct")
+	assert.InDelta(tb, expected.EndPrice, movement.EndPrice, accuracy10dp, "EndPrice should be correct")
+	assert.InDelta(tb, expected.NominalPercentage, movement.NominalPercentage, accuracy10dp, "NominalPercentage should be correct")
+	assert.Equal(tb, expected.FullBookSideConsumed, movement.FullBookSideConsumed, "FullBookSideConsumed should be correct")
+}
+
 func TestGetBaseAmountFromNominalSlippage(t *testing.T) {
 	t.Parallel()
 	cases := []struct {
@@ -1626,7 +1639,7 @@ func TestGetBaseAmountFromNominalSlippage(t *testing.T) {
 			NominalSlippage: 0.33333333333334,
 			ReferencePrice:  10000,
 			ExpectedShift: &Movement{
-				Sold:              3.0000000000000275, // <- expected rounding issue
+				Sold:              3.0000000000000275,
 				Purchased:         29900.00000000027,
 				AverageOrderCost:  9966.666666666664,
 				NominalPercentage: 0.33333333333334,
@@ -1670,17 +1683,13 @@ func TestGetBaseAmountFromNominalSlippage(t *testing.T) {
 			t.Parallel()
 			depth := NewDepth(id)
 			err := depth.LoadSnapshot(tt.BidLiquidity, nil, 0, time.Now(), true)
-			if err != nil {
-				t.Fatal(err)
-			}
+			assert.NoError(t, err, "LoadSnapshot should not error")
+
 			base, err := depth.bids.hitBidsByNominalSlippage(tt.NominalSlippage, tt.ReferencePrice)
-			if !errors.Is(err, tt.ExpectedError) {
-				t.Fatalf("%s received: '%v' but expected: '%v'",
-					tt.Name, err, tt.ExpectedError)
-			}
-			if !base.IsEqual(tt.ExpectedShift) {
-				t.Fatalf("%s quote received: '%+v' but expected: '%+v'",
-					tt.Name, base, tt.ExpectedShift)
+			if tt.ExpectedError != nil {
+				assert.ErrorIs(t, err, tt.ExpectedError, "Should error correctly")
+			} else {
+				assertMovement(t, tt.ExpectedShift, base)
 			}
 		})
 	}
@@ -2001,16 +2010,13 @@ func TestGetQuoteAmountFromNominalSlippage(t *testing.T) {
 			t.Parallel()
 			depth := NewDepth(id)
 			err := depth.LoadSnapshot(nil, tt.AskLiquidity, 0, time.Now(), true)
-			if err != nil {
-				t.Fatalf("failed to load snapshot: %s", err)
-			}
+			assert.NoError(t, err, "LoadSnapshot should not error")
+
 			quote, err := depth.asks.liftAsksByNominalSlippage(tt.NominalSlippage, tt.ReferencePrice)
-			if !errors.Is(err, tt.ExpectedError) {
-				t.Fatalf("%s received: '%v' but expected: '%v'", tt.Name, err, tt.ExpectedError)
-			}
-			if !quote.IsEqual(tt.ExpectedShift) {
-				t.Fatalf("%s quote received: \n'%+v' \nbut expected: \n'%+v'",
-					tt.Name, quote, tt.ExpectedShift)
+			if tt.ExpectedError != nil {
+				assert.ErrorIs(t, err, tt.ExpectedError, "Should error correctly")
+			} else {
+				assertMovement(t, tt.ExpectedShift, quote)
 			}
 		})
 	}
@@ -2093,16 +2099,13 @@ func TestGetQuoteAmountFromImpact(t *testing.T) {
 			t.Parallel()
 			depth := NewDepth(id)
 			err := depth.LoadSnapshot(nil, tt.AskLiquidity, 0, time.Now(), true)
-			if err != nil {
-				t.Fatalf("failed to load snapshot: %s", err)
-			}
+			assert.NoError(t, err, "LoadSnapshot should not error")
+
 			quote, err := depth.asks.liftAsksByImpactSlippage(tt.ImpactSlippage, tt.ReferencePrice)
-			if !errors.Is(err, tt.ExpectedError) {
-				t.Fatalf("received: '%v' but expected: '%v'", err, tt.ExpectedError)
-			}
-			if !quote.IsEqual(tt.ExpectedShift) {
-				t.Fatalf("%s quote received: '%+v' but expected: '%+v'",
-					tt.Name, quote, tt.ExpectedShift)
+			if tt.ExpectedError != nil {
+				assert.ErrorIs(t, err, tt.ExpectedError, "Should error correctly")
+			} else {
+				assertMovement(t, tt.ExpectedShift, quote)
 			}
 		})
 	}
@@ -2144,29 +2147,16 @@ func TestGetHeadPrice(t *testing.T) {
 func TestFinalizeFields(t *testing.T) {
 	m := &Movement{}
 	_, err := m.finalizeFields(0, 0, 0, 0, false)
-	if !errors.Is(err, errInvalidCost) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errInvalidCost)
-	}
+	assert.ErrorIs(t, err, errInvalidCost, "finalizeFields should error when cost is invalid")
+
 	_, err = m.finalizeFields(1, 0, 0, 0, false)
-	if !errors.Is(err, errInvalidAmount) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errInvalidAmount)
-	}
+	assert.ErrorIs(t, err, errInvalidAmount, "finalizeFields should error when amount is invalid")
+
 	_, err = m.finalizeFields(1, 1, 0, 0, false)
-	if !errors.Is(err, errInvalidHeadPrice) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errInvalidHeadPrice)
-	}
+	assert.ErrorIs(t, err, errInvalidHeadPrice, "finalizeFields should error correctly with bad head price")
 
 	// Test slippage as per https://en.wikipedia.org/wiki/Slippage_(finance)
 	mov, err := m.finalizeFields(20000*151.11585, 20000, 151.08, 0, false)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
-
-	// These tests demonstrate the imprecision of relying on floating point numbers
-	// That a different OS will return different numbers: macOS: `716.9999999997499` vs '716.9999999995343'
-	// speed is important, but having tests look for exact floating point numbers shows that one
-	// could have a different impact simply from running it on a different computer
-	if mov.SlippageCost != 716.9999999995343 {
-		t.Fatalf("received: '%v' but expected: '%v'", mov.SlippageCost, 716.9999999995343)
-	}
+	assert.NoError(t, err, "finalizeFields should not error")
+	assert.InDelta(t, 717.0, mov.SlippageCost, 0.000000001, "SlippageCost should be correct")
 }

@@ -12,7 +12,9 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
+	"github.com/stretchr/testify/assert"
 	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -2686,7 +2688,7 @@ func TestGetAvailableTransferChains(t *testing.T) {
 }
 
 func TestFormatFuturesPair(t *testing.T) {
-	r, err := h.formatFuturesPair(futuresTestPair)
+	r, err := h.formatFuturesPair(futuresTestPair, false)
 	if err != nil {
 		t.Error(err)
 	}
@@ -2702,7 +2704,7 @@ func TestFormatFuturesPair(t *testing.T) {
 	}
 	// test getting a tradable pair in the format of BTC210827 but make it lower
 	// case to test correct formatting
-	r, err = h.formatFuturesPair(availInstruments[0])
+	r, err = h.formatFuturesPair(availInstruments[0], false)
 	if err != nil {
 		t.Error(err)
 	}
@@ -2711,6 +2713,22 @@ func TestFormatFuturesPair(t *testing.T) {
 	// as they not deterministic from this endpoint.
 	if !strings.Contains(r, "BTC") {
 		t.Errorf("expected %s, got %s", "BTC220708", r)
+	}
+
+	r, err = h.formatFuturesPair(futuresTestPair, true)
+	if err != nil {
+		t.Error(err)
+	}
+	if r == "BTC_CW" {
+		t.Errorf("expected BTC{{date}}, got %s", r)
+	}
+
+	r, err = h.formatFuturesPair(currency.NewPair(currency.BTC, currency.USDT), false)
+	if err != nil {
+		t.Error(err)
+	}
+	if r != "BTC-USDT" {
+		t.Errorf("expected BTC-USDT, got %s", r)
 	}
 }
 
@@ -2838,4 +2856,96 @@ func TestGetSwapFundingRates(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
+}
+
+func TestGetOpenInterest(t *testing.T) {
+	t.Parallel()
+	_, err := h.GetOpenInterest(context.Background(), key.PairAsset{
+		Base:  currency.ETH.Item,
+		Quote: currency.USDT.Item,
+		Asset: asset.USDTMarginedFutures,
+	})
+	assert.ErrorIs(t, err, asset.ErrNotSupported)
+
+	resp, err := h.GetOpenInterest(context.Background(), key.PairAsset{
+		Base:  currency.BTC.Item,
+		Quote: currency.USD.Item,
+		Asset: asset.CoinMarginedFutures,
+	})
+	assert.NoError(t, err)
+	assert.NotEmpty(t, resp)
+
+	resp, err = h.GetOpenInterest(context.Background(), key.PairAsset{
+		Base:  futuresTestPair.Base.Item,
+		Quote: futuresTestPair.Quote.Item,
+		Asset: asset.Futures,
+	})
+	assert.NoError(t, err)
+	assert.NotEmpty(t, resp)
+
+	resp, err = h.GetOpenInterest(context.Background())
+	assert.NoError(t, err)
+	assert.NotEmpty(t, resp)
+}
+
+func TestContractOpenInterestUSDT(t *testing.T) {
+	t.Parallel()
+	resp, err := h.ContractOpenInterestUSDT(context.Background(), currency.EMPTYPAIR, currency.EMPTYPAIR, "", "")
+	assert.NoError(t, err)
+	assert.NotEmpty(t, resp)
+
+	cp := currency.NewPair(currency.BTC, currency.USDT)
+	resp, err = h.ContractOpenInterestUSDT(context.Background(), cp, currency.EMPTYPAIR, "", "")
+	assert.NoError(t, err)
+	assert.NotEmpty(t, resp)
+
+	resp, err = h.ContractOpenInterestUSDT(context.Background(), currency.EMPTYPAIR, cp, "", "")
+	assert.NoError(t, err)
+	assert.NotEmpty(t, resp)
+
+	resp, err = h.ContractOpenInterestUSDT(context.Background(), cp, currency.EMPTYPAIR, "this_week", "")
+	assert.NoError(t, err)
+	assert.NotEmpty(t, resp)
+
+	resp, err = h.ContractOpenInterestUSDT(context.Background(), currency.EMPTYPAIR, currency.EMPTYPAIR, "", "swap")
+	assert.NoError(t, err)
+	assert.NotEmpty(t, resp)
+}
+
+func TestConvertContractShortHandToExpiry(t *testing.T) {
+	t.Parallel()
+	cp := currency.NewPair(currency.BTC, currency.NewCode("CW"))
+	cp, err := h.convertContractShortHandToExpiry(cp)
+	assert.NoError(t, err)
+	assert.NotEqual(t, cp.Quote.String(), "CW")
+	tick, err := h.FetchTicker(context.Background(), cp, asset.Futures)
+	assert.NoError(t, err)
+	assert.NotZero(t, tick.Close)
+
+	cp = currency.NewPair(currency.BTC, currency.NewCode("NW"))
+	cp, err = h.convertContractShortHandToExpiry(cp)
+	assert.NoError(t, err)
+	assert.NotEqual(t, cp.Quote.String(), "NW")
+	tick, err = h.FetchTicker(context.Background(), cp, asset.Futures)
+	assert.NoError(t, err)
+	assert.NotZero(t, tick.Close)
+
+	cp = currency.NewPair(currency.BTC, currency.NewCode("CQ"))
+	cp, err = h.convertContractShortHandToExpiry(cp)
+	assert.NoError(t, err)
+	assert.NotEqual(t, cp.Quote.String(), "CQ")
+	tick, err = h.FetchTicker(context.Background(), cp, asset.Futures)
+	assert.NoError(t, err)
+	assert.NotZero(t, tick.Close)
+
+	cp = currency.NewPair(currency.BTC, currency.NewCode("NQ"))
+	cp, err = h.convertContractShortHandToExpiry(cp)
+	assert.NoError(t, err)
+	assert.NotEqual(t, cp.Quote.String(), "NQ")
+	tick, err = h.FetchTicker(context.Background(), cp, asset.Futures)
+	if err != nil {
+		// Huobi doesn't always have a next-quarter contract
+		return
+	}
+	assert.NotZero(t, tick.Close)
 }

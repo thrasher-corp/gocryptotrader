@@ -1501,6 +1501,27 @@ message GetOrderbookAmountByImpactResponse {
   bool full_orderbook_side_consumed = 11;
 }
 
+message GetOpenInterestRequest {
+  string exchange = 1;
+  repeated OpenInterestDataRequest data = 2;
+}
+
+message OpenInterestDataRequest {
+  string asset = 1;
+  CurrencyPair pair = 2;
+}
+
+message GetOpenInterestResponse {
+  repeated OpenInterestDataResponse data = 1;
+}
+
+message OpenInterestDataResponse {
+  string exchange = 1;
+  string asset = 2;
+  CurrencyPair pair = 3;
+  double open_interest = 4;
+}
+
 service GoCryptoTraderService {
   rpc GetInfo(GetInfoRequest) returns (GetInfoResponse) {
     option (google.api.http) = {get: "/v1/getinfo"};
@@ -2043,5 +2064,8 @@ service GoCryptoTraderService {
       post: "/v1/changepositionmargin"
       body: "*"
     };
+  }
+  rpc GetOpenInterest(GetOpenInterestRequest) returns (GetOpenInterestResponse) {
+    option (google.api.http) = {get: "/v1/getopeninterest"};
   }
 }

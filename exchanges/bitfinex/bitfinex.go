@@ -615,9 +615,9 @@ func (b *Bitfinex) GetDerivativeStatusInfo(ctx context.Context, keys, startTime,
 		case float64:
 			response.OpenInterest = t
 		case nil:
-			break // OpenInterest will default to 0
+			break // SupportedCapability will default to 0
 		default:
-			return finalResp, common.GetTypeAssertError(" float64|nil", t, "DerivativesStatus.OpenInterest")
+			return finalResp, common.GetTypeAssertError(" float64|nil", t, "DerivativesStatus.SupportedCapability")
 		}
 		finalResp[z] = response
 	}

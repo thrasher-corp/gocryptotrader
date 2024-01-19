@@ -5,7 +5,6 @@
 	if errOt != nil {
 		return order.Detail{}, fmt.Errorf("error parsing order type: %s", errOt)
 	currency.CANN:       0.2,
-	InstrumentID  string  `json:"insId"`
 	currency.DOTA:       0.01,
 	currency.SCRPT:      0.01,
 	currency.NOO:        0.002,

@@ -12,6 +12,7 @@ import (
 	"unicode"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -366,15 +367,17 @@ func (b *Bitfinex) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 
 // UpdateTickers updates the ticker for all currency pairs of a given asset type
 func (b *Bitfinex) UpdateTickers(ctx context.Context, a asset.Item) error {
-	tickerNew, err := b.GetTickerBatch(ctx)
+	t, err := b.GetTickerBatch(ctx)
 	if err != nil {
 		return err
 	}
 
-	for key, val := range tickerNew {
+	var errs error
+	for key, val := range t {
 		pair, enabled, err := b.MatchSymbolCheckEnabled(key[1:], a, true)
 		if err != nil && !errors.Is(err, currency.ErrPairNotFound) {
-			return err
+			errs = common.AppendError(errs, err)
+			continue
 		}
 		if !enabled {
 			continue
@@ -391,10 +394,10 @@ func (b *Bitfinex) UpdateTickers(ctx context.Context, a asset.Item) error {
 			AssetType:    a,
 			ExchangeName: b.Name})
 		if err != nil {
-			return err
+			errs = common.AppendError(errs, err)
 		}
 	}
-	return nil
+	return errs
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair
@@ -1308,6 +1311,12 @@ func (b *Bitfinex) GetFuturesContractDetails(context.Context, asset.Item) ([]fut
 
 // GetLatestFundingRates returns the latest funding rates data
 func (b *Bitfinex) GetLatestFundingRates(context.Context, *fundingrate.LatestRateRequest) ([]fundingrate.LatestRateResponse, error) {
+	// TODO: Add futures support for Bitfinex
+	return nil, common.ErrNotYetImplemented
+}
+
+// GetOpenInterest returns the open interest rate for a given asset pair
+func (b *Bitfinex) GetOpenInterest(context.Context, ...key.PairAsset) ([]futures.OpenInterest, error) {
 	// TODO: Add futures support for Bitfinex
 	return nil, common.ErrNotYetImplemented
 }

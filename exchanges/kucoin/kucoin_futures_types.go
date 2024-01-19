@@ -4,6 +4,8 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
 var (
@@ -52,7 +54,7 @@ type Contract struct {
 	Status                  string               `json:"status"`
 	FundingFeeRate          float64              `json:"fundingFeeRate"`
 	PredictedFundingFeeRate float64              `json:"predictedFundingFeeRate"`
-	OpenInterest            string               `json:"openInterest"`
+	OpenInterest            types.Number         `json:"openInterest"`
 	TurnoverOf24h           float64              `json:"turnoverOf24h"`
 	VolumeOf24h             float64              `json:"volumeOf24h"`
 	MarkPrice               float64              `json:"markPrice"`
@@ -75,15 +77,15 @@ type Contract struct {
 type FuturesTicker struct {
 	Sequence     int64                `json:"sequence"`
 	Symbol       string               `json:"symbol"`
-	Side         string               `json:"side"`
+	Side         order.Side           `json:"side"`
 	Size         float64              `json:"size"`
-	Price        float64              `json:"price"`
+	Price        types.Number         `json:"price"`
 	BestBidSize  float64              `json:"bestBidSize"`
-	BestBidPrice float64              `json:"bestBidPrice"`
+	BestBidPrice types.Number         `json:"bestBidPrice"`
 	BestAskSize  float64              `json:"bestAskSize"`
-	BestAskPrice float64              `json:"bestAskPrice"`
+	BestAskPrice types.Number         `json:"bestAskPrice"`
 	TradeID      string               `json:"tradeId"`
-	FilledTime   convert.ExchangeTime `json:"time"`
+	FilledTime   convert.ExchangeTime `json:"ts"`
 }
 
 type futuresOrderbookResponse struct {

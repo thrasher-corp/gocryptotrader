@@ -7,18 +7,22 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
+	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/collateral"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/banking"
 )
 
@@ -3208,4 +3212,60 @@ func TestIsPairEnabled(t *testing.T) {
 	if !enabled {
 		t.Fatal("expected true")
 	}
+}
+
+func TestGetOpenInterest(t *testing.T) {
+	t.Parallel()
+	var b Base
+	if _, err := b.GetOpenInterest(context.Background()); !errors.Is(err, common.ErrFunctionNotSupported) {
+		t.Errorf("received: %v, expected: %v", err, common.ErrFunctionNotSupported)
+	}
+}
+
+// FakeBase is used to override functions
+type FakeBase struct {
+	Base
+}
+
+func (f *FakeBase) GetOpenInterest(context.Context, ...key.PairAsset) ([]futures.OpenInterest, error) {
+	return []futures.OpenInterest{
+		{
+			Key: key.ExchangePairAsset{
+				Exchange: f.Name,
+				Base:     currency.BTC.Item,
+				Quote:    currency.BONK.Item,
+				Asset:    asset.Futures,
+			},
+			OpenInterest: 1337,
+		},
+	}, nil
+}
+
+func TestGetCachedOpenInterest(t *testing.T) {
+	t.Parallel()
+	var b FakeBase
+	b.Features.Supports.FuturesCapabilities.OpenInterest = OpenInterestSupport{
+		Supported: true,
+	}
+	_, err := b.GetCachedOpenInterest(context.Background())
+	assert.ErrorIs(t, err, common.ErrFunctionNotSupported)
+	b.Features.Supports.FuturesCapabilities.OpenInterest.SupportedViaTicker = true
+	b.Name = "test"
+	err = ticker.ProcessTicker(&ticker.Price{
+		ExchangeName: "test",
+		Pair:         currency.NewPair(currency.BTC, currency.BONK),
+		AssetType:    asset.Futures,
+		OpenInterest: 1337,
+	})
+	assert.NoError(t, err)
+
+	_, err = b.GetCachedOpenInterest(context.Background())
+	assert.NoError(t, err)
+
+	_, err = b.GetCachedOpenInterest(context.Background(), key.PairAsset{
+		Base:  currency.BTC.Item,
+		Quote: currency.BONK.Item,
+		Asset: asset.Futures,
+	})
+	assert.NoError(t, err)
 }

@@ -10,6 +10,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/gofrs/uuid"
+	"github.com/stretchr/testify/assert"
+	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/dispatch"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -288,9 +291,7 @@ func TestProcessTicker(t *testing.T) { // non-appending function to tickers
 		Bid:          1337,
 		Ask:          1337,
 	})
-	if !errors.Is(err, errBidEqualsAsk) {
-		t.Errorf("received: %v but expected: %v", err, errBidEqualsAsk)
-	}
+	assert.ErrorIs(t, err, ErrBidEqualsAsk, "ProcessTicker should error locked market")
 
 	err = ProcessTicker(&Price{
 		ExchangeName: "Bitfinex",
@@ -448,4 +449,45 @@ func TestGetAssociation(t *testing.T) {
 	}
 
 	service.mux = cpyMux
+}
+
+func TestGetExchangeTickersPublic(t *testing.T) {
+	_, err := GetExchangeTickers("")
+	assert.ErrorIs(t, err, errExchangeNameIsEmpty)
+}
+
+func TestGetExchangeTickers(t *testing.T) {
+	t.Parallel()
+	s := Service{
+		Tickers:  make(map[key.ExchangePairAsset]*Ticker),
+		Exchange: make(map[string]uuid.UUID),
+	}
+
+	_, err := s.getExchangeTickers("")
+	assert.ErrorIs(t, err, errExchangeNameIsEmpty)
+
+	_, err = s.getExchangeTickers("test")
+	assert.ErrorIs(t, err, errExchangeNotFound)
+
+	s.Tickers[key.ExchangePairAsset{
+		Exchange: "test",
+		Base:     currency.XBT.Item,
+		Quote:    currency.DOGE.Item,
+		Asset:    asset.Futures,
+	}] = &Ticker{
+		Price: Price{
+			Pair:         currency.NewPair(currency.XBT, currency.DOGE),
+			ExchangeName: "test",
+			AssetType:    asset.Futures,
+			OpenInterest: 1337,
+		},
+	}
+	s.Exchange["test"] = uuid.Must(uuid.NewV4())
+
+	resp, err := s.getExchangeTickers("test")
+	assert.NoError(t, err)
+	if len(resp) != 1 {
+		t.Fatal("unexpected length")
+	}
+	assert.Equal(t, resp[0].OpenInterest, 1337.0)
 }

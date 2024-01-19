@@ -13,6 +13,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -1105,7 +1106,8 @@ func TestGetFutureStats(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	if _, err := g.GetFutureStats(context.Background(), settle, futuresTradablePair, time.Time{}, kline.OneHour, 0); err != nil {
+	_, err = g.GetFutureStats(context.Background(), settle, futuresTradablePair, time.Time{}, 0, 0)
+	if err != nil {
 		t.Errorf("%s GetFutureStats() error %v", g.Name, err)
 	}
 }
@@ -3305,45 +3307,6 @@ func TestParseGateioTimeUnmarshal(t *testing.T) {
 	}
 }
 
-func TestGateioNumericalValue(t *testing.T) {
-	t.Parallel()
-	in := &struct {
-		Number gateioNumericalValue `json:"number"`
-	}{}
-
-	numberJSON := `{"number":123442.231}`
-	err := json.Unmarshal([]byte(numberJSON), in)
-	if err != nil {
-		t.Fatal(err)
-	} else if in.Number != 123442.231 {
-		t.Fatalf("found %f, but expected %f", in.Number, 123442.231)
-	}
-
-	numberJSON = `{"number":"123442.231"}`
-	err = json.Unmarshal([]byte(numberJSON), in)
-	if err != nil {
-		t.Fatal(err)
-	} else if in.Number != 123442.231 {
-		t.Fatalf("found %f, but expected %s", in.Number, "123442.231")
-	}
-
-	numberJSON = `{"number":""}`
-	err = json.Unmarshal([]byte(numberJSON), in)
-	if err != nil {
-		t.Fatal(err)
-	} else if in.Number != 0 {
-		t.Fatalf("found %f, but expected %d", in.Number, 0)
-	}
-
-	numberJSON = `{"number":0}`
-	err = json.Unmarshal([]byte(numberJSON), in)
-	if err != nil {
-		t.Fatal(err)
-	} else if in.Number != 0 {
-		t.Fatalf("found %f, but expected %d", in.Number, 0)
-	}
-}
-
 func TestUpdateOrderExecutionLimits(t *testing.T) {
 	t.Parallel()
 
@@ -3405,7 +3368,7 @@ func TestForceFileStandard(t *testing.T) {
 		t.Error(err)
 	}
 	if t.Failed() {
-		t.Fatal("Please use convert.StringToFloat64 type instead of `float64` and remove `,string` as strings can be empty in unmarshal process. Then call the Float64() method.")
+		t.Fatal("Please use types.Number type instead of `float64` and remove `,string` as strings can be empty in unmarshal process. Then call the Float64() method.")
 	}
 }
 
@@ -3535,4 +3498,34 @@ func TestGetHistoricalFundingRates(t *testing.T) {
 	}
 
 	assert.NotEmpty(t, history, "should return values")
+}
+
+func TestGetOpenInterest(t *testing.T) {
+	t.Parallel()
+	_, err := g.GetOpenInterest(context.Background(), key.PairAsset{
+		Base:  currency.ETH.Item,
+		Quote: currency.USDT.Item,
+		Asset: asset.USDTMarginedFutures,
+	})
+	assert.ErrorIs(t, err, asset.ErrNotSupported)
+
+	resp, err := g.GetOpenInterest(context.Background(), key.PairAsset{
+		Base:  futuresTradablePair.Base.Item,
+		Quote: futuresTradablePair.Quote.Item,
+		Asset: asset.Futures,
+	})
+	assert.NoError(t, err)
+	assert.Len(t, resp, 1)
+
+	resp, err = g.GetOpenInterest(context.Background(), key.PairAsset{
+		Base:  deliveryFuturesTradablePair.Base.Item,
+		Quote: deliveryFuturesTradablePair.Quote.Item,
+		Asset: asset.DeliveryFutures,
+	})
+	assert.NoError(t, err)
+	assert.Len(t, resp, 1)
+
+	resp, err = g.GetOpenInterest(context.Background())
+	assert.NoError(t, err)
+	assert.NotEmpty(t, resp)
 }
