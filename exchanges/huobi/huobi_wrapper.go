@@ -525,7 +525,7 @@ func (h *HUOBI) UpdateTickers(ctx context.Context, a asset.Item) error {
 		if err != nil {
 			return err
 		}
-		var allTicks []FuturesBatchTicker
+		allTicks := make([]FuturesBatchTicker, 0, len(linearTicks)+len(ticks))
 		allTicks = append(allTicks, linearTicks...)
 		allTicks = append(allTicks, ticks...)
 		for i := range allTicks {

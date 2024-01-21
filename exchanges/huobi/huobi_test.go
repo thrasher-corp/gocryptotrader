@@ -13,6 +13,7 @@ import (
 
 	"github.com/gorilla/websocket"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/config"
@@ -2888,9 +2889,7 @@ func TestUpdateTickers(t *testing.T) {
 		assert.NoErrorf(t, err, "asset %s", a)
 
 		avail, err := h.GetAvailablePairs(a)
-		if err != nil {
-			t.Fatal(err)
-		}
+		require.NoError(t, err)
 		for x := range avail {
 			_, err = ticker.GetTicker(h.Name, avail[x], a)
 			assert.NoError(t, err)
@@ -2944,7 +2943,6 @@ func TestConvertContractShortHandToExpiry(t *testing.T) {
 	_, err = h.convertContractShortHandToExpiry(cp, tt)
 	assert.ErrorIs(t, err, errInvalidContractType)
 
-	// Huobi doesn't always have a next-quarter contract, return if no data found
 	tt = time.Now()
 	cp = currency.NewPair(currency.BTC, currency.NewCode("NQ"))
 	cp, err = h.convertContractShortHandToExpiry(cp, tt)
@@ -2952,6 +2950,7 @@ func TestConvertContractShortHandToExpiry(t *testing.T) {
 	assert.NotEqual(t, cp.Quote.String(), "NQ")
 	tick, err = h.FetchTicker(context.Background(), cp, asset.Futures)
 	if err != nil {
+		// Huobi doesn't always have a next-quarter contract, return if no data found
 		return
 	}
 	assert.NotZero(t, tick.Close)
