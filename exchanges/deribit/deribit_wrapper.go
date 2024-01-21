@@ -1228,8 +1228,8 @@ func (d *Deribit) GetLatestFundingRates(ctx context.Context, r *fundingrate.Late
 	if err != nil {
 		return nil, err
 	}
-	if !available.Contains(r.Pair, true) || r.Pair.Quote != currency.PERP {
-		return nil, fmt.Errorf("%w pair: %v is not supported perpetual pair", futures.ErrNotPerpetualFuture, r.Pair)
+	if !available.Contains(r.Pair, true) || r.Pair.Quote.String() != "PERPETUAL" {
+		return nil, fmt.Errorf("%w pair: %v", futures.ErrNotPerpetualFuture, r.Pair)
 	}
 	r.Pair, err = d.FormatExchangeCurrency(r.Pair, r.Asset)
 	if err != nil {

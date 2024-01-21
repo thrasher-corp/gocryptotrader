@@ -208,24 +208,24 @@ func TestGetHistoricCandles(t *testing.T) {
 
 func TestGetHistoricCandlesExtended(t *testing.T) {
 	t.Parallel()
-	_, err := d.GetHistoricCandlesExtended(context.Background(), futuresTradablePair, asset.Futures, kline.FifteenMin, time.Now().Add(-time.Hour*5), time.Now())
+	_, err := d.GetHistoricCandlesExtended(context.Background(), futuresTradablePair, asset.Futures, kline.FifteenMin, time.Now().Add(-time.Hour*550), time.Now().Add(-time.Hour*150))
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = d.GetHistoricCandlesExtended(context.Background(), spotTradablePair, asset.Spot, kline.FifteenMin, time.Now().Add(-time.Hour*5), time.Now())
+	_, err = d.GetHistoricCandlesExtended(context.Background(), spotTradablePair, asset.Spot, kline.FifteenMin, time.Now().Add(-time.Hour*550), time.Now().Add(-time.Hour*150))
 	if err != nil {
 		t.Error(err)
 	}
 	sleepUntilTradablePairsUpdated()
-	_, err = d.GetHistoricCandlesExtended(context.Background(), optionsTradablePair, asset.Options, kline.FifteenMin, time.Now().Add(-time.Hour*5), time.Now())
+	_, err = d.GetHistoricCandlesExtended(context.Background(), optionsTradablePair, asset.Options, kline.FifteenMin, time.Now().Add(-time.Hour*550), time.Now().Add(-time.Hour*150))
 	if !errors.Is(err, asset.ErrNotSupported) {
 		t.Errorf("expected %v, but found %v", asset.ErrNotSupported, err)
 	}
-	_, err = d.GetHistoricCandlesExtended(context.Background(), futureComboTradablePair, asset.FutureCombo, kline.FifteenMin, time.Now().Add(-time.Hour*5), time.Now())
+	_, err = d.GetHistoricCandlesExtended(context.Background(), futureComboTradablePair, asset.FutureCombo, kline.FifteenMin, time.Now().Add(-time.Hour*550), time.Now().Add(-time.Hour*150))
 	if !errors.Is(err, asset.ErrNotSupported) {
 		t.Errorf("expected %v, but found %v", asset.ErrNotSupported, err)
 	}
-	_, err = d.GetHistoricCandlesExtended(context.Background(), optionComboTradablePair, asset.OptionCombo, kline.FifteenMin, time.Now().Add(-time.Hour*5), time.Now())
+	_, err = d.GetHistoricCandlesExtended(context.Background(), optionComboTradablePair, asset.OptionCombo, kline.FifteenMin, time.Now().Add(-time.Hour*550), time.Now().Add(-time.Hour*150))
 	if !errors.Is(err, asset.ErrNotSupported) {
 		t.Errorf("expected %v, but found %v", asset.ErrNotSupported, err)
 	}
