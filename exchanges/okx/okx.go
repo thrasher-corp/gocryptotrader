@@ -2350,7 +2350,7 @@ func (ok *Okx) ActivateOption(ctx context.Context) (time.Time, error) {
 	return resp.Timestamp.Time(), ok.SendHTTPRequest(ctx, exchange.RestSpot, activateOptionEPL, http.MethodPost, "account/activate-option", nil, &resp, true)
 }
 
-// SetAutoLoan only applicalbe to Multi-currency margin and Portfolio margin
+// SetAutoLoan only applicable to Multi-currency margin and Portfolio margin
 func (ok *Okx) SetAutoLoan(ctx context.Context, autoLoan bool) (*AutoLoan, error) {
 	var resp *AutoLoan
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, setAutoLoanEPL, http.MethodPost, "account/set-auto-loan", &AutoLoan{AutoLoan: autoLoan}, &resp, true)
