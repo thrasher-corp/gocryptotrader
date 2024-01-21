@@ -512,11 +512,9 @@ func (k *Kraken) UpdateTickers(ctx context.Context, a asset.Item) error {
 			return err
 		}
 		for c, t := range tickers {
-			cp, err := k.newPairFromSymbol(c, a)
+			var cp currency.Pair
+			cp, err = k.newPairFromSymbol(c, a)
 			if err != nil {
-				if errors.Is(err, currency.ErrPairNotFound) {
-					continue
-				}
 				return err
 			}
 			err = ticker.ProcessTicker(&ticker.Price{
@@ -543,7 +541,8 @@ func (k *Kraken) UpdateTickers(ctx context.Context, a asset.Item) error {
 			return err
 		}
 		for x := range t.Tickers {
-			pair, err := currency.NewPairFromString(t.Tickers[x].Symbol)
+			var cp currency.Pair
+			cp, err = currency.NewPairFromString(t.Tickers[x].Symbol)
 			if err != nil {
 				return err
 			}
@@ -558,7 +557,7 @@ func (k *Kraken) UpdateTickers(ctx context.Context, a asset.Item) error {
 				OpenInterest: t.Tickers[x].OpenInterest,
 				MarkPrice:    t.Tickers[x].MarkPrice,
 				IndexPrice:   t.Tickers[x].IndexPrice,
-				Pair:         pair,
+				Pair:         cp,
 				ExchangeName: k.Name,
 				AssetType:    a,
 			})
