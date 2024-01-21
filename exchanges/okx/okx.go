@@ -5358,13 +5358,13 @@ func (ok *Okx) SendHTTPRequest(ctx context.Context, ep exchange.URL, f request.E
 	}
 	if err == nil && resp.Code.Int64() != 0 {
 		if resp.Msg != "" {
-			return fmt.Errorf("error code: %d message: %s", resp.Code.Int64(), resp.Msg)
+			return fmt.Errorf("%w error code: %d message: %s", request.ErrAuthRequestFailed, resp.Code.Int64(), resp.Msg)
 		}
 		err, okay := ErrorCodes[resp.Code.String()]
 		if okay {
 			return err
 		}
-		return fmt.Errorf("error code: %d", resp.Code.Int64())
+		return fmt.Errorf("%w error code: %d", request.ErrAuthRequestFailed, resp.Code.Int64())
 	}
 	return nil
 }

@@ -460,18 +460,15 @@ func (ok *Okx) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) err
 
 // UpdateTicker updates and returns the ticker for a currency pair
 func (ok *Okx) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Item) (*ticker.Price, error) {
-	pairFormat, err := ok.GetPairFormat(a, true)
+	var err error
+	p, err = ok.FormatExchangeCurrency(p, a)
 	if err != nil {
 		return nil, err
 	}
-	if p.IsEmpty() {
-		return nil, currency.ErrCurrencyPairEmpty
-	}
-	instrumentID := pairFormat.Format(p)
 	if !ok.SupportsAsset(a) {
 		return nil, fmt.Errorf("%w: %v", asset.ErrNotSupported, a)
 	}
-	mdata, err := ok.GetTicker(ctx, instrumentID)
+	mdata, err := ok.GetTicker(ctx, p.String())
 	if err != nil {
 		return nil, err
 	}
