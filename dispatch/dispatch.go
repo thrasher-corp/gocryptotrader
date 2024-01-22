@@ -141,14 +141,14 @@ func (d *Dispatcher) stop() error {
 	}
 
 	// Wait for all relayers to have exited, including any blocking channel writes, before closing channels
-	d.rMtx.Lock()
+	d.routesMtx.Lock()
 	for key, pipes := range d.routes {
 		for i := range pipes {
 			close(pipes[i])
 		}
 		d.routes[key] = nil
 	}
-	d.rMtx.Unlock()
+	d.routesMtx.Unlock()
 
 	log.Debugln(log.DispatchMgr, "Dispatch manager shutdown")
 
@@ -176,11 +176,11 @@ func (d *Dispatcher) relayer() {
 				// every real job created has an ID set
 				continue
 			}
-			d.rMtx.Lock()
+			d.routesMtx.Lock()
 			pipes, ok := d.routes[j.ID]
 			if !ok {
 				log.Warnf(log.DispatchMgr, "%v: %v\n", errDispatcherUUIDNotFoundInRouteList, j.ID)
-				d.rMtx.Unlock()
+				d.routesMtx.Unlock()
 				continue
 			}
 			for i := range pipes {
@@ -193,7 +193,7 @@ func (d *Dispatcher) relayer() {
 					}
 				}(pipes[i])
 			}
-			d.rMtx.Unlock()
+			d.routesMtx.Unlock()
 		case <-d.shutdown:
 			d.wg.Done()
 			return
@@ -251,8 +251,8 @@ func (d *Dispatcher) subscribe(id uuid.UUID) (chan interface{}, error) {
 		return nil, ErrNotRunning
 	}
 
-	d.rMtx.Lock()
-	defer d.rMtx.Unlock()
+	d.routesMtx.Lock()
+	defer d.routesMtx.Unlock()
 	if _, ok := d.routes[id]; !ok {
 		return nil, errDispatcherUUIDNotFoundInRouteList
 	}
@@ -290,8 +290,8 @@ func (d *Dispatcher) unsubscribe(id uuid.UUID, usedChan chan interface{}) error 
 		return nil
 	}
 
-	d.rMtx.Lock()
-	defer d.rMtx.Unlock()
+	d.routesMtx.Lock()
+	defer d.routesMtx.Unlock()
 	pipes, ok := d.routes[id]
 	if !ok {
 		return errDispatcherUUIDNotFoundInRouteList
@@ -343,8 +343,8 @@ func (d *Dispatcher) getNewID(genFn func() (uuid.UUID, error)) (uuid.UUID, error
 		return uuid.Nil, err
 	}
 
-	d.rMtx.Lock()
-	defer d.rMtx.Unlock()
+	d.routesMtx.Lock()
+	defer d.routesMtx.Unlock()
 	// Check to see if it already exists
 	if _, ok := d.routes[newID]; ok {
 		return uuid.Nil, errUUIDCollision
