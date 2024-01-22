@@ -1,7 +1,7 @@
 package binance
 
 import (
-	"bufio"
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -1974,6 +1974,11 @@ func BenchmarkWsHandleData(bb *testing.B) {
 	require.NoError(bb, err)
 	err = b.CurrencyPairs.StorePairs(asset.Spot, ap, true)
 	require.NoError(bb, err)
+
+	data, err := os.ReadFile("testdata/wsHandleData.json")
+	require.NoError(bb, err)
+	lines := bytes.Split(data, []byte("\n"))
+	require.Len(bb, lines, 10)
 	go func() {
 		for {
 			<-b.Websocket.DataHandler
@@ -1981,15 +1986,9 @@ func BenchmarkWsHandleData(bb *testing.B) {
 	}()
 	bb.ResetTimer()
 	for i := 0; i < bb.N; i++ {
-		fixture, err := os.Open("testdata/wsHandleData.json")
-		require.NoError(bb, err)
-		s := bufio.NewScanner(fixture)
-		for s.Scan() {
-			err = b.wsHandleData(s.Bytes())
-			assert.NoError(bb, err)
+		for x := range lines {
+			assert.NoError(bb, b.wsHandleData(lines[x]))
 		}
-		err = fixture.Close()
-		assert.NoError(bb, err)
 	}
 }
 
