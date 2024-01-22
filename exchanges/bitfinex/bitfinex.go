@@ -748,86 +748,86 @@ func (b *Bitfinex) GetTicker(ctx context.Context, symbol string) (*Ticker, error
 	if len(response) > 10 {
 		var ok bool
 		if t.FlashReturnRate, ok = response[0].(float64); !ok {
-			return nil, errors.New("unable to type assert flashReturnRate")
+			return nil, common.GetTypeAssertError("float64", response[0], "Ticker.Data.FlashReturnRate")
 		}
 		if t.Bid, ok = response[1].(float64); !ok {
-			return nil, errors.New("unable to type assert bid")
+			return nil, common.GetTypeAssertError("float64", response[1], "Ticker.Data.Bid")
 		}
-		var bidPeriod float64
-		bidPeriod, ok = response[2].(float64)
+		var bidPeriodF float64
+		bidPeriodF, ok = response[2].(float64)
 		if !ok {
-			return nil, errors.New("unable to type assert bidPeriod")
+			return nil, common.GetTypeAssertError("float64", response[2], "Ticker.Data.BidPeriod")
 		}
-		t.BidPeriod = int64(bidPeriod)
+		t.BidPeriod = int64(bidPeriodF)
 		if t.BidSize, ok = response[3].(float64); !ok {
-			return nil, errors.New("unable to type assert bidSize")
+			return nil, common.GetTypeAssertError("float64", response[3], "Ticker.Data.BidSize")
 		}
 		if t.Ask, ok = response[4].(float64); !ok {
-			return nil, errors.New("unable to type assert ask")
+			return nil, common.GetTypeAssertError("float64", response[4], "Ticker.Data.Ask")
 		}
-		var askPeriod float64
-		askPeriod, ok = response[5].(float64)
+		var askPeriodF float64
+		askPeriodF, ok = response[5].(float64)
 		if !ok {
-			return nil, errors.New("unable to type assert askPeriod")
+			return nil, common.GetTypeAssertError("float64", response[5], "Ticker.Data.AskPeriod")
 		}
-		t.AskPeriod = int64(askPeriod)
+		t.AskPeriod = int64(askPeriodF)
 		if t.AskSize, ok = response[6].(float64); !ok {
-			return nil, errors.New("unable to type assert askSize")
+			return nil, common.GetTypeAssertError("float64", response[6], "Ticker.Data.AskSize")
 		}
 		if t.DailyChange, ok = response[7].(float64); !ok {
-			return nil, errors.New("unable to type assert dailyChange")
+			return nil, common.GetTypeAssertError("float64", response[7], "Ticker.Data.DailyChange")
 		}
 		if t.DailyChangePerc, ok = response[8].(float64); !ok {
-			return nil, errors.New("unable to type assert dailyChangePerc")
+			return nil, common.GetTypeAssertError("float64", response[8], "Ticker.Data.DailyChangePerc")
 		}
 		if t.Last, ok = response[9].(float64); !ok {
-			return nil, errors.New("unable to type assert last")
+			return nil, common.GetTypeAssertError("float64", response[9], "Ticker.Data.Last")
 		}
 		if t.Volume, ok = response[10].(float64); !ok {
-			return nil, errors.New("unable to type assert volume")
+			return nil, common.GetTypeAssertError("float64", response[10], "Ticker.Data.Volume")
 		}
 		if t.High, ok = response[11].(float64); !ok {
-			return nil, errors.New("unable to type assert high")
+			return nil, common.GetTypeAssertError("float64", response[11], "Ticker.Data.High")
 		}
 		if t.Low, ok = response[12].(float64); !ok {
-			return nil, errors.New("unable to type assert low")
+			return nil, common.GetTypeAssertError("float64", response[12], "Ticker.Data.Low")
 		}
 		if t.FFRAmountAvailable, ok = response[15].(float64); !ok {
-			return nil, errors.New("unable to type assert FFRAmountAvailable")
+			return nil, common.GetTypeAssertError("float64", response[15], "Ticker.Data.FFRAmountAvailable")
 		}
 		return &t, nil
 	}
 
 	var ok bool
 	if t.Bid, ok = response[0].(float64); !ok {
-		return nil, errors.New("unable to type assert bid")
+		return nil, common.GetTypeAssertError("float64", response[0], "Ticker.Data.Bid")
 	}
 	if t.BidSize, ok = response[1].(float64); !ok {
-		return nil, errors.New("unable to type assert bidSize")
+		return nil, common.GetTypeAssertError("float64", response[1], "Ticker.Data.BidSize")
 	}
 	if t.Ask, ok = response[2].(float64); !ok {
-		return nil, errors.New("unable to type assert ask")
+		return nil, common.GetTypeAssertError("float64", response[2], "Ticker.Data.Ask")
 	}
 	if t.AskSize, ok = response[3].(float64); !ok {
-		return nil, errors.New("unable to type assert askSize")
+		return nil, common.GetTypeAssertError("float64", response[3], "Ticker.Data.AskSize")
 	}
 	if t.DailyChange, ok = response[4].(float64); !ok {
-		return nil, errors.New("unable to type assert dailyChange")
+		return nil, common.GetTypeAssertError("float64", response[4], "Ticker.Data.DailyChange")
 	}
 	if t.DailyChangePerc, ok = response[5].(float64); !ok {
-		return nil, errors.New("unable to type assert dailyChangePerc")
+		return nil, common.GetTypeAssertError("float64", response[5], "Ticker.Data.DailyChangePerc")
 	}
 	if t.Last, ok = response[6].(float64); !ok {
-		return nil, errors.New("unable to type assert last")
+		return nil, common.GetTypeAssertError("float64", response[6], "Ticker.Data.Last")
 	}
 	if t.Volume, ok = response[7].(float64); !ok {
-		return nil, errors.New("unable to type assert volume")
+		return nil, common.GetTypeAssertError("float64", response[7], "Ticker.Data.Volume")
 	}
 	if t.High, ok = response[8].(float64); !ok {
-		return nil, errors.New("unable to type assert high")
+		return nil, common.GetTypeAssertError("float64", response[8], "Ticker.Data.High")
 	}
 	if t.Low, ok = response[9].(float64); !ok {
-		return nil, errors.New("unable to type assert low")
+		return nil, common.GetTypeAssertError("float64", response[9], "Ticker.Data.Low")
 	}
 	return &t, nil
 }
