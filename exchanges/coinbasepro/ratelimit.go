@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	"github.com/pkg/errors"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"golang.org/x/time/rate"
 )
@@ -17,7 +18,7 @@ const (
 	coinbaseV2Rate     = 10000
 
 	coinbaseWSInterval = time.Second
-	coinbaseWSRate     = 750
+	coinbaseWSRate     = 75
 )
 
 const (
@@ -43,7 +44,7 @@ func (r *RateLimit) Limit(ctx context.Context, f request.EndpointLimit) error {
 	case WSRate:
 		return r.RateLimWS.Wait(ctx)
 	default:
-		return errUnknownEndpointLimit
+		return errors.Errorf(errUnknownEndpointLimit, f)
 	}
 }
 

@@ -6,12 +6,15 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
 // CoinbasePro is the overarching type across the coinbasepro package
 type CoinbasePro struct {
 	exchange.Base
+	jwt          string
+	jwtLastRegen time.Time
 }
 
 // Version is used for the niche cases where the Version of the API must be specified and passed
@@ -1085,43 +1088,43 @@ type WebsocketSubscribe struct {
 // }
 
 // wsOrderReceived holds websocket received values
-type wsOrderReceived struct {
-	Type          string    `json:"type"`
-	OrderID       string    `json:"order_id"`
-	OrderType     string    `json:"order_type"`
-	Size          float64   `json:"size,string"`
-	Price         float64   `json:"price,omitempty,string"`
-	Funds         float64   `json:"funds,omitempty,string"`
-	Side          string    `json:"side"`
-	ClientOID     string    `json:"client_oid"`
-	ProductID     string    `json:"product_id"`
-	Sequence      int64     `json:"sequence"`
-	Time          time.Time `json:"time"`
-	RemainingSize float64   `json:"remaining_size,string"`
-	NewSize       float64   `json:"new_size,string"`
-	OldSize       float64   `json:"old_size,string"`
-	Reason        string    `json:"reason"`
-	Timestamp     float64   `json:"timestamp,string"`
-	UserID        string    `json:"user_id"`
-	ProfileID     string    `json:"profile_id"`
-	StopType      string    `json:"stop_type"`
-	StopPrice     float64   `json:"stop_price,string"`
-	TakerFeeRate  float64   `json:"taker_fee_rate,string"`
-	Private       bool      `json:"private"`
-	TradeID       int64     `json:"trade_id"`
-	MakerOrderID  string    `json:"maker_order_id"`
-	TakerOrderID  string    `json:"taker_order_id"`
-	TakerUserID   string    `json:"taker_user_id"`
-}
+// type wsOrderReceived struct {
+// 	Type          string    `json:"type"`
+// 	OrderID       string    `json:"order_id"`
+// 	OrderType     string    `json:"order_type"`
+// 	Size          float64   `json:"size,string"`
+// 	Price         float64   `json:"price,omitempty,string"`
+// 	Funds         float64   `json:"funds,omitempty,string"`
+// 	Side          string    `json:"side"`
+// 	ClientOID     string    `json:"client_oid"`
+// 	ProductID     string    `json:"product_id"`
+// 	Sequence      int64     `json:"sequence"`
+// 	Time          time.Time `json:"time"`
+// 	RemainingSize float64   `json:"remaining_size,string"`
+// 	NewSize       float64   `json:"new_size,string"`
+// 	OldSize       float64   `json:"old_size,string"`
+// 	Reason        string    `json:"reason"`
+// 	Timestamp     float64   `json:"timestamp,string"`
+// 	UserID        string    `json:"user_id"`
+// 	ProfileID     string    `json:"profile_id"`
+// 	StopType      string    `json:"stop_type"`
+// 	StopPrice     float64   `json:"stop_price,string"`
+// 	TakerFeeRate  float64   `json:"taker_fee_rate,string"`
+// 	Private       bool      `json:"private"`
+// 	TradeID       int64     `json:"trade_id"`
+// 	MakerOrderID  string    `json:"maker_order_id"`
+// 	TakerOrderID  string    `json:"taker_order_id"`
+// 	TakerUserID   string    `json:"taker_user_id"`
+// }
 
 // WebsocketHeartBeat defines JSON response for a heart beat message
-type WebsocketHeartBeat struct {
-	Type        string `json:"type"`
-	Sequence    int64  `json:"sequence"`
-	LastTradeID int64  `json:"last_trade_id"`
-	ProductID   string `json:"product_id"`
-	Time        string `json:"time"`
-}
+// type WebsocketHeartBeat struct {
+// 	Type        string `json:"type"`
+// 	Sequence    int64  `json:"sequence"`
+// 	LastTradeID int64  `json:"last_trade_id"`
+// 	ProductID   string `json:"product_id"`
+// 	Time        string `json:"time"`
+// }
 
 // WebsocketTicker defines ticker websocket response
 type WebsocketTicker struct {
@@ -1136,22 +1139,117 @@ type WebsocketTicker struct {
 	PricePercentageChange24H float64       `json:"price_percent_chg_24_h,string"`
 }
 
-// WebsocketOrderbookSnapshot defines a snapshot response
-type WebsocketOrderbookSnapshot struct {
-	ProductID string      `json:"product_id"`
-	Type      string      `json:"type"`
-	Bids      [][2]string `json:"bids"`
-	Asks      [][2]string `json:"asks"`
-	Time      time.Time   `json:"time"`
+// WebsocketTickerHolder holds a variety of ticker responses
+type WebsocketTickerHolder struct {
+	Type    string            `json:"type"`
+	Tickers []WebsocketTicker `json:"tickers"`
 }
 
-// WebsocketL2Update defines an update on the L2 orderbooks
-type WebsocketL2Update struct {
-	Type      string      `json:"type"`
-	ProductID string      `json:"product_id"`
-	Time      time.Time   `json:"time"`
-	Changes   [][3]string `json:"changes"`
+// WebsocketCandle defines a candle websocket response
+type WebsocketCandle struct {
+	Start     UnixTimestamp `json:"start"`
+	Low       float64       `json:"low,string"`
+	High      float64       `json:"high,string"`
+	Open      float64       `json:"open,string"`
+	Close     float64       `json:"close,string"`
+	Volume    float64       `json:"volume,string"`
+	ProductID currency.Pair `json:"product_id"`
 }
+
+// WebsocketCandleHolder holds a variety of candle responses
+type WebsocketCandleHolder struct {
+	Type    string            `json:"type"`
+	Candles []WebsocketCandle `json:"candles"`
+}
+
+// WebsocketMarketTrade defines a market trade websocket response
+type WebsocketMarketTrade struct {
+	TradeID   string        `json:"trade_id"`
+	ProductID currency.Pair `json:"product_id"`
+	Price     float64       `json:"price,string"`
+	Size      float64       `json:"size,string"`
+	Side      order.Side    `json:"side"`
+	Time      time.Time     `json:"time"`
+}
+
+// WebsocketMarketTradeHolder holds a variety of market trade responses
+type WebsocketMarketTradeHolder struct {
+	Type   string                 `json:"type"`
+	Trades []WebsocketMarketTrade `json:"trades"`
+}
+
+// WebsocketProduct defines a product websocket response
+type WebsocketProduct struct {
+	ProductType    string        `json:"product_type"`
+	ID             currency.Pair `json:"id"`
+	BaseCurrency   string        `json:"base_currency"`
+	QuoteCurrency  string        `json:"quote_currency"`
+	BaseIncrement  float64       `json:"base_increment,string"`
+	QuoteIncrement float64       `json:"quote_increment,string"`
+	DisplayName    string        `json:"display_name"`
+	Status         string        `json:"status"`
+	StatusMessage  string        `json:"status_message"`
+	MinMarketFunds float64       `json:"min_market_funds,string"`
+}
+
+// WebsocketProductHolder holds a variety of product responses
+type WebsocketProductHolder struct {
+	Type     string             `json:"type"`
+	Products []WebsocketProduct `json:"products"`
+}
+
+// WebsocketOrderbookData defines a websocket orderbook response
+type WebsocketOrderbookData struct {
+	Side        string    `json:"side"`
+	EventTime   time.Time `json:"event_time"`
+	PriceLevel  float64   `json:"price_level,string"`
+	NewQuantity float64   `json:"new_quantity,string"`
+}
+
+// WebsocketOrderbookDataHolder holds a variety of orderbook responses
+type WebsocketOrderbookDataHolder struct {
+	Type      string                   `json:"type"`
+	ProductID currency.Pair            `json:"product_id"`
+	Changes   []WebsocketOrderbookData `json:"updates"`
+}
+
+// WebsocketOrderData defines a websocket order response
+type WebsocketOrderData struct {
+	OrderID            string        `json:"order_id"`
+	ClientOrderID      string        `json:"client_order_id"`
+	CumulativeQuantity float64       `json:"cumulative_quantity,string"`
+	LeavesQuantity     float64       `json:"leaves_quantity,string"`
+	AveragePrice       float64       `json:"avg_price,string"`
+	TotalFees          float64       `json:"total_fees,string"`
+	Status             string        `json:"status"`
+	ProductID          currency.Pair `json:"product_id"`
+	CreationTime       time.Time     `json:"creation_time"`
+	OrderSide          string        `json:"order_side"`
+	OrderType          string        `json:"order_type"`
+}
+
+// WebsocketOrderDataHolder holds a variety of order responses
+type WebsocketOrderDataHolder struct {
+	Type   string               `json:"type"`
+	Orders []WebsocketOrderData `json:"orders"`
+}
+
+// WebsocketOrderbookSnapshot defines a snapshot response
+// type WebsocketOrderbookSnapshot struct {
+// 	ProductID string      `json:"product_id"`
+// 	Type      string      `json:"type"`
+// 	Bids      [][2]string `json:"bids"`
+// 	Asks      [][2]string `json:"asks"`
+// 	Time      time.Time   `json:"time"`
+// }
+
+// WebsocketL2Update defines an update on the L2 orderbooks
+// type WebsocketL2Update struct {
+// 	Type      string      `json:"type"`
+// 	ProductID string      `json:"product_id"`
+// 	Time      time.Time   `json:"time"`
+// 	Changes   [][3]string `json:"changes"`
+// }
 
 type wsGen struct {
 	Channel     string        `json:"channel"`
@@ -1161,36 +1259,36 @@ type wsGen struct {
 	Events      []interface{} `json:"events"`
 }
 
-type wsStatus struct {
-	Currencies []struct {
-		ConvertibleTo []string    `json:"convertible_to"`
-		Details       struct{}    `json:"details"`
-		ID            string      `json:"id"`
-		MaxPrecision  float64     `json:"max_precision,string"`
-		MinSize       float64     `json:"min_size,string"`
-		Name          string      `json:"name"`
-		Status        string      `json:"status"`
-		StatusMessage interface{} `json:"status_message"`
-	} `json:"currencies"`
-	Products []struct {
-		BaseCurrency   string      `json:"base_currency"`
-		BaseIncrement  float64     `json:"base_increment,string"`
-		BaseMaxSize    float64     `json:"base_max_size,string"`
-		BaseMinSize    float64     `json:"base_min_size,string"`
-		CancelOnly     bool        `json:"cancel_only"`
-		DisplayName    string      `json:"display_name"`
-		ID             string      `json:"id"`
-		LimitOnly      bool        `json:"limit_only"`
-		MaxMarketFunds float64     `json:"max_market_funds,string"`
-		MinMarketFunds float64     `json:"min_market_funds,string"`
-		PostOnly       bool        `json:"post_only"`
-		QuoteCurrency  string      `json:"quote_currency"`
-		QuoteIncrement float64     `json:"quote_increment,string"`
-		Status         string      `json:"status"`
-		StatusMessage  interface{} `json:"status_message"`
-	} `json:"products"`
-	Type string `json:"type"`
-}
+// type wsStatus struct {
+// 	Currencies []struct {
+// 		ConvertibleTo []string    `json:"convertible_to"`
+// 		Details       struct{}    `json:"details"`
+// 		ID            string      `json:"id"`
+// 		MaxPrecision  float64     `json:"max_precision,string"`
+// 		MinSize       float64     `json:"min_size,string"`
+// 		Name          string      `json:"name"`
+// 		Status        string      `json:"status"`
+// 		StatusMessage interface{} `json:"status_message"`
+// 	} `json:"currencies"`
+// 	Products []struct {
+// 		BaseCurrency   string      `json:"base_currency"`
+// 		BaseIncrement  float64     `json:"base_increment,string"`
+// 		BaseMaxSize    float64     `json:"base_max_size,string"`
+// 		BaseMinSize    float64     `json:"base_min_size,string"`
+// 		CancelOnly     bool        `json:"cancel_only"`
+// 		DisplayName    string      `json:"display_name"`
+// 		ID             string      `json:"id"`
+// 		LimitOnly      bool        `json:"limit_only"`
+// 		MaxMarketFunds float64     `json:"max_market_funds,string"`
+// 		MinMarketFunds float64     `json:"min_market_funds,string"`
+// 		PostOnly       bool        `json:"post_only"`
+// 		QuoteCurrency  string      `json:"quote_currency"`
+// 		QuoteIncrement float64     `json:"quote_increment,string"`
+// 		Status         string      `json:"status"`
+// 		StatusMessage  interface{} `json:"status_message"`
+// 	} `json:"products"`
+// 	Type string `json:"type"`
+// }
 
 // Params is used within functions to make the setting of parameters easier
 type Params struct {

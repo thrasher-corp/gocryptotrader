@@ -2114,6 +2114,10 @@ func TestStringToFloatPtr(t *testing.T) {
 	}
 }
 
+func TestWsSomethingOrOther(t *testing.T) {
+
+}
+
 func skipTestIfLowOnFunds(t *testing.T) {
 	accounts, err := c.GetAllAccounts(context.Background(), 250, "")
 	if err != nil {

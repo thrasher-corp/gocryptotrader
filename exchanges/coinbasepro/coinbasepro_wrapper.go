@@ -1263,11 +1263,12 @@ func (c *CoinbasePro) fetchFutures(ctx context.Context) (AllProducts, error) {
 // cancelOrdersReturnMapAndCount is a helper function for CancelBatchOrders and CancelAllOrders,
 // calling the appropriate Coinbase endpoint, and returning information useful to both
 func (c *CoinbasePro) cancelOrdersReturnMapAndCount(ctx context.Context, o []order.Cancel) (map[string]string, int64, error) {
-	if len(o) == 0 {
+	ordToCancel := len(o)
+	if ordToCancel == 0 {
 		return nil, 0, errOrderIDEmpty
 	}
 	status := make(map[string]string)
-	ordIDSlice := make([]string, len(o))
+	ordIDSlice := make([]string, ordToCancel)
 	for i := range o {
 		err := o[i].Validate(o[i].StandardCancel())
 		if err != nil {
@@ -1276,10 +1277,23 @@ func (c *CoinbasePro) cancelOrdersReturnMapAndCount(ctx context.Context, o []ord
 		ordIDSlice[i] = o[i].OrderID
 		status[o[i].OrderID] = "Failed to cancel"
 	}
-	resp, err := c.CancelOrders(ctx, ordIDSlice)
-	if err != nil {
-		return nil, 0, err
+
+	var resp CancelOrderResp
+
+	for i := 0; i < ordToCancel; i += 100 {
+		var tempOrdIDSlice []string
+		if ordToCancel-i < 100 {
+			tempOrdIDSlice = ordIDSlice[i:]
+		} else {
+			tempOrdIDSlice = ordIDSlice[i : i+100]
+		}
+		tempResp, err := c.CancelOrders(ctx, tempOrdIDSlice)
+		if err != nil {
+			return nil, 0, err
+		}
+		resp.Results = append(resp.Results, tempResp.Results...)
 	}
+
 	var counter int64
 	for i := range resp.Results {
 		if resp.Results[i].Success {

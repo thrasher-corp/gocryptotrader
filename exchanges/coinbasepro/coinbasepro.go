@@ -87,6 +87,9 @@ const (
 
 	errPayMethodNotFound    = "payment method '%v' not found"
 	errIntervalNotSupported = "interval not supported"
+	errUnknownEndpointLimit = "unknown endpoint limit %v"
+	errUnknownL2DataType    = "unknown l2update data type %v"
+	errUnknownSide          = "unknown side %v"
 )
 
 var (
@@ -116,8 +119,8 @@ var (
 	errNameEmpty              = errors.New("name cannot be empty")
 	errPortfolioIDEmpty       = errors.New("portfolio id cannot be empty")
 	errFeeTypeNotSupported    = errors.New("fee type not supported")
-	errUnknownEndpointLimit   = errors.New("unknown endpoint limit")
 	errNoEventsWS             = errors.New("no events returned from websocket")
+	errCantDecodePrivKey      = errors.New("cannot decode private key")
 )
 
 // GetAllAccounts returns information on all trading accounts associated with the API key
@@ -360,7 +363,7 @@ func (c *CoinbasePro) PlaceOrder(ctx context.Context, clientOID, productID, side
 			coinbaseV3+coinbaseOrders, "", req, true, &resp, nil)
 }
 
-// CancelOrders cancels orders by orderID
+// CancelOrders cancels orders by orderID. Can only cancel 100 orders per request
 func (c *CoinbasePro) CancelOrders(ctx context.Context, orderIDs []string) (CancelOrderResp, error) {
 	var resp CancelOrderResp
 	if len(orderIDs) == 0 {
@@ -1345,9 +1348,16 @@ func (c *CoinbasePro) SendAuthenticatedHTTPRequest(ctx context.Context, ep excha
 			return nil, err
 		}
 
+		// jwt, err := c.GetJWT(ctx, method+" "+path)
+		// if err != nil {
+		// 	return nil, err
+		// }
+		// fmt.Printf("Here's the JWT you were looking for: %s\n", jwt)
+
 		headers := make(map[string]string)
 		headers["CB-ACCESS-KEY"] = creds.Key
 		headers["CB-ACCESS-SIGN"] = hex.EncodeToString(hmac)
+		// headers["Authorization"] = "Bearer " + jwt
 		headers["CB-ACCESS-TIMESTAMP"] = n
 		headers["Content-Type"] = "application/json"
 		headers["CB-VERSION"] = "2023-11-13"
