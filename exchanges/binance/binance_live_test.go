@@ -12,7 +12,6 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/config"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 )
 
@@ -53,7 +52,6 @@ func TestMain(m *testing.M) {
 		log.Fatal("Binance setup error", err)
 	}
 	b.setupOrderbookManager()
-	request.MaxRequestJobs = 100
 	b.Websocket.DataHandler = sharedtestvalues.GetWebsocketInterfaceChannelOverride()
 	log.Printf(sharedtestvalues.LiveTesting, b.Name)
 	err = b.UpdateTradablePairs(context.Background(), true)
