@@ -353,26 +353,48 @@ func (ku *Kucoin) GetFuturesTickers(ctx context.Context) ([]*ticker.Price, error
 	if err != nil {
 		return nil, err
 	}
-	tickers := make([]*ticker.Price, 0, len(pairs))
+
+	var wg sync.WaitGroup
+	tickersC := make(chan *ticker.Price, len(pairs))
+	errC := make(chan error, len(pairs))
+
 	for i := range pairs {
 		p, err := ku.FormatExchangeCurrency(pairs[i], asset.Futures)
 		if err != nil {
-			return nil, err
+			errC <- err
+			break
 		}
-		fTick, err := ku.GetFuturesTicker(ctx, p.String())
-		if err != nil {
-			return nil, err
-		}
-		tick := &ticker.Price{
-			Last:         fTick.Price.Float64(),
-			Bid:          fTick.BestBidPrice.Float64(),
-			Ask:          fTick.BestAskPrice.Float64(),
-			Volume:       fTick.Size,
-			Pair:         pairs[i],
-			LastUpdated:  fTick.FilledTime.Time(),
-			ExchangeName: ku.Name,
-			AssetType:    asset.Futures,
-		}
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+
+			if tick, err := ku.GetFuturesTicker(ctx, p.String()); err != nil {
+				errC <- err
+			} else {
+				tickersC <- &ticker.Price{
+					Last:         tick.Price.Float64(),
+					Bid:          tick.BestBidPrice.Float64(),
+					Ask:          tick.BestAskPrice.Float64(),
+					Volume:       tick.Size,
+					Pair:         p,
+					LastUpdated:  tick.FilledTime.Time(),
+					ExchangeName: ku.Name,
+					AssetType:    asset.Futures,
+				}
+			}
+		}()
+	}
+
+	wg.Wait()
+	close(tickersC)
+	close(errC)
+
+	for err := range errC {
+		return nil, err
+	}
+
+	tickers := make([]*ticker.Price, 0, len(pairs))
+	for tick := range tickersC {
 		tickers = append(tickers, tick)
 	}
 	return tickers, nil
