@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -574,23 +575,19 @@ func TestWithdraw(t *testing.T) {
 	t.Parallel()
 
 	if !mockTests {
-		sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+		t.Skip("TestWithdraw not allowed for live tests")
 	}
 	w, err := b.WithdrawCryptocurrencyFunds(context.Background(), &withdraw.Request{
 		Exchange:    b.Name,
-		Amount:      -1,
+		Amount:      6,
 		Currency:    currency.BTC,
 		Description: "WITHDRAW IT ALL",
 		Crypto: withdraw.CryptoRequest{
 			Address: core.BitcoinDonationAddress,
 		},
 	})
-	if mockTests {
-		assert.NoError(t, err, "WithdrawCryptocurrencyFunds should not error")
-		assert.Equal(t, "1", w.ID, "Withdrawal ID should be correct")
-	} else {
-		assert.ErrorContains(t, err, "Check your account balance for details")
-	}
+	require.NoError(t, err, "WithdrawCryptocurrencyFunds should not error")
+	assert.Equal(t, "1", w.ID, "Withdrawal ID should be correct")
 }
 
 func TestWithdrawFiat(t *testing.T) {
