@@ -13,6 +13,7 @@ import (
 
 	"github.com/buger/jsonparser"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/core"
@@ -242,22 +243,16 @@ func TestGetPlatformStatus(t *testing.T) {
 func TestGetTickerBatch(t *testing.T) {
 	t.Parallel()
 	_, err := b.GetTickerBatch(context.Background())
-	if err != nil {
-		t.Error(err)
-	}
+	assert.NoError(t, err, "GetTickerBatch should not error")
 }
 
 func TestGetTicker(t *testing.T) {
 	t.Parallel()
 	_, err := b.GetTicker(context.Background(), "tBTCUSD")
-	if err != nil {
-		t.Error(err)
-	}
+	assert.NoError(t, err, "GetTicker should not error")
 
 	_, err = b.GetTicker(context.Background(), "fUSD")
-	if err != nil {
-		t.Error(err)
-	}
+	assert.NoError(t, err, "GetTicker should not error")
 }
 
 func TestGetTrades(t *testing.T) {
@@ -478,9 +473,8 @@ func TestNewOrder(t *testing.T) {
 func TestUpdateTicker(t *testing.T) {
 	t.Parallel()
 
-	if _, err := b.UpdateTicker(context.Background(), btcusdPair, asset.Spot); err != nil {
-		t.Error(err)
-	}
+	_, err := b.UpdateTicker(context.Background(), btcusdPair, asset.Spot)
+	assert.NoError(t, err, "UpdateTicker should not error")
 }
 
 func TestUpdateTickers(t *testing.T) {
@@ -491,13 +485,13 @@ func TestUpdateTickers(t *testing.T) {
 	assets := b.GetAssetTypes(false)
 	for _, a := range assets {
 		avail, err := b.GetAvailablePairs(a)
-		assert.NoError(t, err, "GetAvailablePairs should not error")
+		require.NoError(t, err, "GetAvailablePairs should not error")
 
 		err = b.CurrencyPairs.StorePairs(a, avail, true)
-		assert.NoError(t, err, "StorePairs should not error")
+		require.NoError(t, err, "StorePairs should not error")
 
 		err = b.UpdateTickers(context.Background(), a)
-		assert.NoError(t, common.ExcludeError(err, ticker.ErrBidEqualsAsk), "UpdateTickers may only error about locked markets")
+		require.NoError(t, common.ExcludeError(err, ticker.ErrBidEqualsAsk), "UpdateTickers may only error about locked markets")
 
 		// Bitfinex leaves delisted pairs in Available info/conf endpoints
 		// We want to assert that most pairs are valid, so we'll check that no more than 5% are erroring
@@ -512,7 +506,7 @@ func TestUpdateTickers(t *testing.T) {
 			}
 		}
 		if !assert.Greater(t, okay/float64(len(avail))*100.0, acceptableThreshold, "At least %.f%% of %s tickers should not error", acceptableThreshold, a) {
-			t.Log(errs.Error())
+			assert.NoError(t, errs, "Collection of all the ticker errors")
 		}
 	}
 }
