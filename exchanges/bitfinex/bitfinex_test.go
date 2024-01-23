@@ -242,17 +242,111 @@ func TestGetPlatformStatus(t *testing.T) {
 
 func TestGetTickerBatch(t *testing.T) {
 	t.Parallel()
-	_, err := b.GetTickerBatch(context.Background())
-	assert.NoError(t, err, "GetTickerBatch should not error")
+	ticks, err := b.GetTickerBatch(context.Background())
+	// Exclude TickerInvalidResp because Bitfinex is intermittently sending invalid formats for tALT2612:USD
+	// Error handling for that is covered in TestTickerFromResp
+	// Ensuring that in general the tickers are sane is handled below by specifically testing tBTCUSD and fUSD
+	require.NoError(t, common.ExcludeError(err, errTickerInvalidResp), "GetTickerBatch may only error about bad response formats")
+	require.NotEmpty(t, ticks, "GetTickerBatch should return some ticks")
+	require.Contains(t, ticks, "tBTCUSD", "Ticker batch must contain tBTCUSD")
+	checkTradeTick(t, ticks["tBTCUSD"])
+	require.Contains(t, ticks, "fUSD", "Ticker batch must contain fUSD")
+	checkTradeTick(t, ticks["fUSD"])
 }
 
 func TestGetTicker(t *testing.T) {
 	t.Parallel()
-	_, err := b.GetTicker(context.Background(), "tBTCUSD")
-	assert.NoError(t, err, "GetTicker should not error")
+	tick, err := b.GetTicker(context.Background(), "tBTCUSD")
+	require.NoError(t, err, "GetTicker should not error")
+	checkTradeTick(t, tick)
+}
 
-	_, err = b.GetTicker(context.Background(), "fUSD")
-	assert.NoError(t, err, "GetTicker should not error")
+func TestTickerFromResp(t *testing.T) {
+	t.Parallel()
+	_, err := tickerFromResp("tBTCUSD", []any{100.0, nil, 100.0, nil, nil, nil, nil, nil, nil, nil})
+	assert.ErrorIs(t, err, errTickerInvalidResp, "tickerFromResp should error correctly")
+	assert.ErrorContains(t, err, "BidSize", "tickerFromResp should error correctly")
+	assert.ErrorContains(t, err, "tBTCUSD", "tickerFromResp should error correctly")
+
+	_, err = tickerFromResp("tBTCUSD", []any{100.0, nil, 100.0, nil, nil, nil, nil, nil, nil})
+	assert.ErrorIs(t, err, errTickerInvalidFieldCount, "tickerFromResp should error correctly")
+	assert.ErrorContains(t, err, "tBTCUSD", "tickerFromResp should error correctly")
+
+	tick, err := tickerFromResp("tBTCUSD", []any{1.1, 2.2, 3.3, 4.4, 5.5, 6.6, 7.7, 8.8, 9.9, 10.10})
+	require.NoError(t, err, "tickerFromResp should error correctly")
+	assert.Equal(t, 1.1, tick.Bid, "Tick Bid should be correct")
+	assert.Equal(t, 2.2, tick.BidSize, "Tick BidSize should be correct")
+	assert.Equal(t, 3.3, tick.Ask, "Tick Ask should be correct")
+	assert.Equal(t, 4.4, tick.AskSize, "Tick AskSize should be correct")
+	assert.Equal(t, 5.5, tick.DailyChange, "Tick DailyChange should be correct")
+	assert.Equal(t, 6.6, tick.DailyChangePerc, "Tick DailyChangePerc should be correct")
+	assert.Equal(t, 7.7, tick.Last, "Tick Last should be correct")
+	assert.Equal(t, 8.8, tick.Volume, "Tick Volume should be correct")
+	assert.Equal(t, 9.9, tick.High, "Tick High should be correct")
+	assert.Equal(t, 10.10, tick.Low, "Tick Low should be correct")
+
+	_, err = tickerFromResp("fBTC", []any{100.0, nil, 100.0, nil, nil, nil, nil, nil, nil, nil})
+	assert.ErrorIs(t, err, errTickerInvalidFieldCount, "tickerFromResp should delegate to tickerFromFundingResp and error correctly")
+	assert.ErrorContains(t, err, "fBTC", "tickerFromResp should delegate to tickerFromFundingResp and error correctly")
+}
+
+func TestTickerFromFundingResp(t *testing.T) {
+	t.Parallel()
+	_, err := tickerFromFundingResp("fBTC", []any{nil, 100.0, nil, 100.0, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil})
+	assert.ErrorIs(t, err, errTickerInvalidResp, "tickerFromFundingResp should error correctly")
+	assert.ErrorContains(t, err, "FlashReturnRate", "tickerFromFundingResp should error correctly")
+	assert.ErrorContains(t, err, "fBTC", "tickerFromFundingResp should error correctly")
+
+	_, err = tickerFromFundingResp("fBTC", []any{100.0, nil, 100.0, nil, nil, nil, nil, nil, nil})
+	assert.ErrorIs(t, err, errTickerInvalidFieldCount, "tickerFromFundingResp should error correctly")
+	assert.ErrorContains(t, err, "fBTC", "tickerFromFundingResp should error correctly")
+
+	tick, err := tickerFromFundingResp("fBTC", []any{1.1, 2.2, 3.0, 4.4, 5.5, 6.0, 7.7, 8.8, 9.9, 10.10, 11.11, 12.12, 13.13, nil, nil, 15.15})
+	require.NoError(t, err, "tickerFromFundingResp should error correctly")
+	assert.Equal(t, 1.1, tick.FlashReturnRate, "Tick FlashReturnRate should be correct")
+	assert.Equal(t, 2.2, tick.Bid, "Tick Bid should be correct")
+	assert.Equal(t, int64(3), tick.BidPeriod, "Tick BidPeriod should be correct")
+	assert.Equal(t, 4.4, tick.BidSize, "Tick BidSize should be correct")
+	assert.Equal(t, 5.5, tick.Ask, "Tick Ask should be correct")
+	assert.Equal(t, int64(6), tick.AskPeriod, "Tick AskPeriod should be correct")
+	assert.Equal(t, 7.7, tick.AskSize, "Tick AskSize should be correct")
+	assert.Equal(t, 8.8, tick.DailyChange, "Tick DailyChange should be correct")
+	assert.Equal(t, 9.9, tick.DailyChangePerc, "Tick DailyChangePerc should be correct")
+	assert.Equal(t, 10.10, tick.Last, "Tick Last should be correct")
+	assert.Equal(t, 11.11, tick.Volume, "Tick Volume should be correct")
+	assert.Equal(t, 12.12, tick.High, "Tick High should be correct")
+	assert.Equal(t, 13.13, tick.Low, "Tick Low should be correct")
+	assert.Equal(t, 15.15, tick.FFRAmountAvailable, "Tick FFRAmountAvailable should be correct")
+}
+
+func TestGetTickerFunding(t *testing.T) {
+	t.Parallel()
+	tick, err := b.GetTicker(context.Background(), "fUSD")
+	require.NoError(t, err, "GetTicker should not error")
+	checkFundingTick(t, tick)
+}
+
+func checkTradeTick(tb testing.TB, tick *Ticker) {
+	tb.Helper()
+	assert.Positive(tb, tick.Bid, "Tick Bid should be positive")
+	assert.Positive(tb, tick.BidSize, "Tick BidSize should be positive")
+	assert.Positive(tb, tick.Ask, "Tick Ask should be positive")
+	assert.Positive(tb, tick.AskSize, "Tick AskSize should be positive")
+	assert.Positive(tb, tick.Last, "Tick Last should be positive")
+	// Can't test DailyChange*, Volume, High or Low without false positives when they're occasionally 0
+}
+
+func checkFundingTick(tb testing.TB, tick *Ticker) {
+	tb.Helper()
+	assert.NotZero(tb, tick.FlashReturnRate, "Tick FlashReturnRate should not be zero")
+	assert.Positive(tb, tick.Bid, "Tick Bid should be positive")
+	assert.Positive(tb, tick.BidPeriod, "Tick BidPeriod should be positive")
+	assert.Positive(tb, tick.BidSize, "Tick BidSize should be positive")
+	assert.Positive(tb, tick.Ask, "Tick Ask should be positive")
+	assert.Positive(tb, tick.AskPeriod, "Tick AskPeriod should be positive")
+	assert.Positive(tb, tick.AskSize, "Tick AskSize should be positive")
+	assert.Positive(tb, tick.Last, "Tick Last should be positive")
+	assert.Positive(tb, tick.FFRAmountAvailable, "Tick FFRAmountavailable should be positive")
 }
 
 func TestGetTrades(t *testing.T) {
