@@ -200,6 +200,7 @@ func (s *RPCServer) StartRPCRESTProxy() {
 			Addr:              s.Config.RemoteControl.GRPC.GRPCProxyListenAddress,
 			ReadHeaderTimeout: time.Minute,
 			ReadTimeout:       time.Minute,
+			Handler:           mux,
 		}
 
 		if err = server.ListenAndServe(); err != nil {
