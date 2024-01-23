@@ -485,24 +485,6 @@ func (k *Kraken) UpdateTradablePairs(ctx context.Context, forceUpdate bool) erro
 	return k.EnsureOnePairEnabled()
 }
 
-func (k *Kraken) newPairFromSymbol(symbol string, item asset.Item) (currency.Pair, error) {
-	cp, err := k.MatchSymbolWithAvailablePairs(symbol, item, item == asset.Futures)
-	if err != nil {
-		if !errors.Is(err, currency.ErrPairNotFound) {
-			return currency.EMPTYPAIR, err
-		}
-		altName := assetTranslator.LookupAltName(symbol)
-		if altName == "" {
-			return currency.EMPTYPAIR, err
-		}
-		cp, err = k.MatchSymbolWithAvailablePairs(altName, item, item == asset.Futures)
-		if err != nil {
-			return currency.EMPTYPAIR, err
-		}
-	}
-	return cp, nil
-}
-
 // UpdateTickers updates the ticker for all currency pairs of a given asset type
 func (k *Kraken) UpdateTickers(ctx context.Context, a asset.Item) error {
 	switch a {
@@ -513,9 +495,19 @@ func (k *Kraken) UpdateTickers(ctx context.Context, a asset.Item) error {
 		}
 		for c, t := range tickers {
 			var cp currency.Pair
-			cp, err = k.newPairFromSymbol(c, a)
+			cp, err = k.MatchSymbolWithAvailablePairs(c, a, false)
 			if err != nil {
-				return err
+				if !errors.Is(err, currency.ErrPairNotFound) {
+					return err
+				}
+				altName := assetTranslator.LookupAltName(c)
+				if altName == "" {
+					continue
+				}
+				cp, err = k.MatchSymbolWithAvailablePairs(altName, a, false)
+				if err != nil {
+					continue
+				}
 			}
 			err = ticker.ProcessTicker(&ticker.Price{
 				Last:         t.Last,

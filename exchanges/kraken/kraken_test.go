@@ -172,33 +172,6 @@ func TestUpdateTicker(t *testing.T) {
 	}
 }
 
-func TestNewPairFromSymbol(t *testing.T) {
-	t.Parallel()
-	symbol := "XXBTZUSD"
-	cp, err := k.newPairFromSymbol(symbol, asset.Spot)
-	assert.NoError(t, err)
-	assert.True(t, cp.Equal(currency.NewPair(currency.XBT, currency.USD)))
-
-	symbol = "XBTUSD"
-	cp, err = k.newPairFromSymbol(symbol, asset.Spot)
-	assert.NoError(t, err)
-	assert.True(t, cp.Equal(currency.NewPair(currency.XBT, currency.USD)))
-
-	symbol = "WIFBONK"
-	_, err = k.newPairFromSymbol(symbol, asset.Spot)
-	assert.ErrorIs(t, err, currency.ErrPairNotFound)
-
-	symbol = "PF_XBTUSD"
-	cp, err = k.newPairFromSymbol(symbol, asset.Futures)
-	assert.NoError(t, err)
-	assert.True(t, cp.Equal(currency.NewPair(currency.PF, currency.NewCode("XBTUSD"))))
-
-	symbol = "PFXBTUSD"
-	cp, err = k.newPairFromSymbol(symbol, asset.Futures)
-	assert.NoError(t, err)
-	assert.True(t, cp.Equal(currency.NewPair(currency.PF, currency.NewCode("XBTUSD"))))
-}
-
 func TestUpdateTickers(t *testing.T) {
 	t.Parallel()
 	ap, err := k.GetAvailablePairs(asset.Spot)
@@ -222,6 +195,9 @@ func TestUpdateTickers(t *testing.T) {
 		_, err = ticker.GetTicker(k.Name, ap[i], asset.Futures)
 		assert.NoError(t, err)
 	}
+
+	err = k.UpdateTickers(context.Background(), asset.Index)
+	assert.ErrorIs(t, err, asset.ErrNotSupported)
 }
 
 func TestUpdateOrderbook(t *testing.T) {
