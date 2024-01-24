@@ -12,7 +12,6 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	gctlog "github.com/thrasher-corp/gocryptotrader/log"
 )
@@ -36,7 +35,6 @@ func TestMain(m *testing.M) {
 	exchCfg.API.AuthenticatedSupport = true
 	exchCfg.API.AuthenticatedWebsocketSupport = true
 	b.Websocket = sharedtestvalues.NewTestWebsocket()
-	request.MaxRequestJobs = 100
 	err = b.Setup(exchCfg)
 	if err != nil {
 		log.Fatal(err)

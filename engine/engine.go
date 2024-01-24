@@ -214,12 +214,6 @@ func validateSettings(b *Engine, s *Settings, flagSet FlagSet) {
 		b.Settings.EventManagerDelay = EventSleepDelay
 	}
 
-	// Checks if the flag values are different from the defaults
-	if b.Settings.MaxHTTPRequestJobsLimit != int(request.DefaultMaxRequestJobs) &&
-		b.Settings.MaxHTTPRequestJobsLimit > 0 {
-		request.MaxRequestJobs = int32(b.Settings.MaxHTTPRequestJobsLimit)
-	}
-
 	if b.Settings.TradeBufferProcessingInterval != trade.DefaultProcessorIntervalTime {
 		if b.Settings.TradeBufferProcessingInterval >= time.Second {
 			trade.BufferProcessorIntervalTime = b.Settings.TradeBufferProcessingInterval

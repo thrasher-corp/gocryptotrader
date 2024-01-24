@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/database"
@@ -1395,4 +1396,19 @@ func TestGetIntervalResultLimit(t *testing.T) {
 	if limit != 1337 {
 		t.Errorf("received '%v' expected '%v'", limit, 1337)
 	}
+}
+
+func TestUnmarshalJSON(t *testing.T) {
+	i := new(Interval)
+	err := i.UnmarshalJSON([]byte(`"3m"`))
+	assert.NoError(t, err, "UnmarshalJSON should not error")
+	assert.Equal(t, time.Minute*3, i.Duration(), "Interval should have correct value")
+	err = i.UnmarshalJSON([]byte(`"15s"`))
+	assert.NoError(t, err, "UnmarshalJSON should not error")
+	assert.Equal(t, time.Second*15, i.Duration(), "Interval should have correct value")
+	err = i.UnmarshalJSON([]byte(`720000000000`))
+	assert.NoError(t, err, "UnmarshalJSON should not error")
+	assert.Equal(t, time.Minute*12, i.Duration(), "Interval should have correct value")
+	err = i.UnmarshalJSON([]byte(`"6hedgehogs"`))
+	assert.ErrorContains(t, err, "unknown unit", "UnmarshalJSON should error")
 }

@@ -19,6 +19,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 )
@@ -273,10 +274,10 @@ func (z *ZB) wsHandleData(respRaw []byte) error {
 }
 
 // GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
-func (z *ZB) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, error) {
-	var subscriptions []stream.ChannelSubscription
+func (z *ZB) GenerateDefaultSubscriptions() ([]subscription.Subscription, error) {
+	var subscriptions []subscription.Subscription
 	// market configuration is its own channel
-	subscriptions = append(subscriptions, stream.ChannelSubscription{
+	subscriptions = append(subscriptions, subscription.Subscription{
 		Channel: "markets",
 	})
 	channels := []string{"%s_ticker", "%s_depth", "%s_trades"}
@@ -288,10 +289,10 @@ func (z *ZB) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, error
 	for i := range channels {
 		for j := range enabledCurrencies {
 			enabledCurrencies[j].Delimiter = ""
-			subscriptions = append(subscriptions, stream.ChannelSubscription{
-				Channel:  fmt.Sprintf(channels[i], enabledCurrencies[j].Lower().String()),
-				Currency: enabledCurrencies[j].Lower(),
-				Asset:    asset.Spot,
+			subscriptions = append(subscriptions, subscription.Subscription{
+				Channel: fmt.Sprintf(channels[i], enabledCurrencies[j].Lower().String()),
+				Pair:    enabledCurrencies[j].Lower(),
+				Asset:   asset.Spot,
 			})
 		}
 	}
@@ -299,7 +300,7 @@ func (z *ZB) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, error
 }
 
 // Subscribe sends a websocket message to receive data from the channel
-func (z *ZB) Subscribe(channelsToSubscribe []stream.ChannelSubscription) error {
+func (z *ZB) Subscribe(channelsToSubscribe []subscription.Subscription) error {
 	var errs error
 	for i := range channelsToSubscribe {
 		subscriptionRequest := Subscription{

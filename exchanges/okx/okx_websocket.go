@@ -20,6 +20,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
@@ -380,24 +381,24 @@ func (ok *Okx) wsReadData(ws stream.Connection) {
 }
 
 // Subscribe sends a websocket subscription request to several channels to receive data.
-func (ok *Okx) Subscribe(channelsToSubscribe []stream.ChannelSubscription) error {
+func (ok *Okx) Subscribe(channelsToSubscribe []subscription.Subscription) error {
 	return ok.handleSubscription(operationSubscribe, channelsToSubscribe)
 }
 
 // Unsubscribe sends a websocket unsubscription request to several channels to receive data.
-func (ok *Okx) Unsubscribe(channelsToUnsubscribe []stream.ChannelSubscription) error {
+func (ok *Okx) Unsubscribe(channelsToUnsubscribe []subscription.Subscription) error {
 	return ok.handleSubscription(operationUnsubscribe, channelsToUnsubscribe)
 }
 
 // handleSubscription sends a subscription and unsubscription information thought the websocket endpoint.
 // as of the okx, exchange this endpoint sends subscription and unsubscription messages but with a list of json objects.
-func (ok *Okx) handleSubscription(operation string, subscriptions []stream.ChannelSubscription) error {
+func (ok *Okx) handleSubscription(operation string, subscriptions []subscription.Subscription) error {
 	request := WSSubscriptionInformationList{Operation: operation}
 	authRequests := WSSubscriptionInformationList{Operation: operation}
 	ok.WsRequestSemaphore <- 1
 	defer func() { <-ok.WsRequestSemaphore }()
-	var channels []stream.ChannelSubscription
-	var authChannels []stream.ChannelSubscription
+	var channels []subscription.Subscription
+	var authChannels []subscription.Subscription
 	var err error
 	var format currency.PairFormat
 	for i := 0; i < len(subscriptions); i++ {
@@ -476,10 +477,10 @@ func (ok *Okx) handleSubscription(operation string, subscriptions []stream.Chann
 				if err != nil {
 					return err
 				}
-				if subscriptions[i].Currency.Base.String() == "" || subscriptions[i].Currency.Quote.String() == "" {
+				if subscriptions[i].Pair.Base.String() == "" || subscriptions[i].Pair.Quote.String() == "" {
 					return errIncompleteCurrencyPair
 				}
-				instrumentID = format.Format(subscriptions[i].Currency)
+				instrumentID = format.Format(subscriptions[i].Pair)
 			}
 		}
 		switch arg.Channel {
@@ -497,7 +498,7 @@ func (ok *Okx) handleSubscription(operation string, subscriptions []stream.Chann
 		switch arg.Channel {
 		case okxChannelPositions, okxChannelOrders, okxChannelAlgoOrders,
 			okxChannelEstimatedPrice, okxChannelOptSummary:
-			underlying, _ = ok.GetUnderlying(subscriptions[i].Currency, subscriptions[i].Asset)
+			underlying, _ = ok.GetUnderlying(subscriptions[i].Pair, subscriptions[i].Asset)
 		}
 
 		arg.InstrumentID = instrumentID
@@ -527,7 +528,7 @@ func (ok *Okx) handleSubscription(operation string, subscriptions []stream.Chann
 				} else {
 					ok.Websocket.AddSuccessfulSubscriptions(channels...)
 				}
-				authChannels = []stream.ChannelSubscription{}
+				authChannels = []subscription.Subscription{}
 				authRequests.Arguments = []SubscriptionInfo{}
 			}
 		} else {
@@ -549,7 +550,7 @@ func (ok *Okx) handleSubscription(operation string, subscriptions []stream.Chann
 				} else {
 					ok.Websocket.AddSuccessfulSubscriptions(channels...)
 				}
-				channels = []stream.ChannelSubscription{}
+				channels = []subscription.Subscription{}
 				request.Arguments = []SubscriptionInfo{}
 				continue
 			}
@@ -1113,11 +1114,11 @@ func (ok *Okx) wsProcessOrderBooks(data []byte) error {
 		}
 		if err != nil {
 			if errors.Is(err, errInvalidChecksum) {
-				err = ok.Subscribe([]stream.ChannelSubscription{
+				err = ok.Subscribe([]subscription.Subscription{
 					{
-						Channel:  response.Argument.Channel,
-						Asset:    assets[0],
-						Currency: pair,
+						Channel: response.Argument.Channel,
+						Asset:   assets[0],
+						Pair:    pair,
 					},
 				})
 				if err != nil {
@@ -1512,8 +1513,8 @@ func (ok *Okx) wsProcessTickers(data []byte) error {
 }
 
 // GenerateDefaultSubscriptions returns a list of default subscription message.
-func (ok *Okx) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, error) {
-	var subscriptions []stream.ChannelSubscription
+func (ok *Okx) GenerateDefaultSubscriptions() ([]subscription.Subscription, error) {
+	var subscriptions []subscription.Subscription
 	assets := ok.GetAssetTypes(true)
 	subs := make([]string, 0, len(defaultSubscribedChannels)+len(defaultAuthChannels))
 	subs = append(subs, defaultSubscribedChannels...)
@@ -1524,7 +1525,7 @@ func (ok *Okx) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, err
 		switch subs[c] {
 		case okxChannelOrders:
 			for x := range assets {
-				subscriptions = append(subscriptions, stream.ChannelSubscription{
+				subscriptions = append(subscriptions, subscription.Subscription{
 					Channel: subs[c],
 					Asset:   assets[x],
 				})
@@ -1538,10 +1539,10 @@ func (ok *Okx) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, err
 					return nil, err
 				}
 				for p := range pairs {
-					subscriptions = append(subscriptions, stream.ChannelSubscription{
-						Channel:  subs[c],
-						Asset:    assets[x],
-						Currency: pairs[p],
+					subscriptions = append(subscriptions, subscription.Subscription{
+						Channel: subs[c],
+						Asset:   assets[x],
+						Pair:    pairs[p],
 					})
 				}
 			}
@@ -1551,10 +1552,10 @@ func (ok *Okx) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, err
 				return nil, err
 			}
 			for p := range pairs {
-				subscriptions = append(subscriptions, stream.ChannelSubscription{
-					Channel:  subs[c],
-					Asset:    asset.Options,
-					Currency: pairs[p],
+				subscriptions = append(subscriptions, subscription.Subscription{
+					Channel: subs[c],
+					Asset:   asset.Options,
+					Pair:    pairs[p],
 				})
 			}
 		case okxCopyTrading:
@@ -1563,14 +1564,14 @@ func (ok *Okx) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, err
 				return nil, err
 			}
 			for p := range pairs {
-				subscriptions = append(subscriptions, stream.ChannelSubscription{
-					Channel:  subs[c],
-					Asset:    asset.PerpetualSwap,
-					Currency: pairs[p],
+				subscriptions = append(subscriptions, subscription.Subscription{
+					Channel: subs[c],
+					Asset:   asset.PerpetualSwap,
+					Pair:    pairs[p],
 				})
 			}
 		default:
-			subscriptions = append(subscriptions, stream.ChannelSubscription{
+			subscriptions = append(subscriptions, subscription.Subscription{
 				Channel: subs[c],
 			})
 		}

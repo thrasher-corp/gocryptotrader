@@ -14,6 +14,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
@@ -150,8 +151,8 @@ func (ok *Okx) WsSpreadAuth(ctx context.Context) error {
 }
 
 // GenerateDefaultBusinessSubscriptions returns a list of default subscriptions to business stream.
-func (ok *Okx) GenerateDefaultBusinessSubscriptions() ([]stream.ChannelSubscription, error) {
-	var subscriptions []stream.ChannelSubscription
+func (ok *Okx) GenerateDefaultBusinessSubscriptions() ([]subscription.Subscription, error) {
+	var subscriptions []subscription.Subscription
 	subs := make([]string, 0, len(defaultSubscribedChannels)+len(defaultBusinessAuthChannels))
 	subs = append(subs, defaultBusinessSubscribedChannels...)
 	if ok.Websocket.CanUseAuthenticatedEndpoints() {
@@ -170,10 +171,10 @@ func (ok *Okx) GenerateDefaultBusinessSubscriptions() ([]stream.ChannelSubscript
 				return nil, err
 			}
 			for p := range pairs {
-				subscriptions = append(subscriptions, stream.ChannelSubscription{
-					Channel:  subs[c],
-					Asset:    asset.Spread,
-					Currency: pairs[p],
+				subscriptions = append(subscriptions, subscription.Subscription{
+					Channel: subs[c],
+					Asset:   asset.Spread,
+					Pair:    pairs[p],
 				})
 			}
 		case okxChannelPublicBlockTrades,
@@ -183,14 +184,14 @@ func (ok *Okx) GenerateDefaultBusinessSubscriptions() ([]stream.ChannelSubscript
 				return nil, err
 			}
 			for p := range pairs {
-				subscriptions = append(subscriptions, stream.ChannelSubscription{
-					Channel:  subs[c],
-					Asset:    asset.PerpetualSwap,
-					Currency: pairs[p],
+				subscriptions = append(subscriptions, subscription.Subscription{
+					Channel: subs[c],
+					Asset:   asset.PerpetualSwap,
+					Pair:    pairs[p],
 				})
 			}
 		default:
-			subscriptions = append(subscriptions, stream.ChannelSubscription{
+			subscriptions = append(subscriptions, subscription.Subscription{
 				Channel: subs[c],
 			})
 		}
@@ -199,23 +200,23 @@ func (ok *Okx) GenerateDefaultBusinessSubscriptions() ([]stream.ChannelSubscript
 }
 
 // BusinessSubscribe sends a websocket subscription request to several channels to receive data.
-func (ok *Okx) BusinessSubscribe(channelsToSubscribe []stream.ChannelSubscription) error {
+func (ok *Okx) BusinessSubscribe(channelsToSubscribe []subscription.Subscription) error {
 	return ok.handleBusinessSubscription(operationSubscribe, channelsToSubscribe)
 }
 
 // BusinessUnsubscribe sends a websocket unsubscription request to several channels to receive data.
-func (ok *Okx) BusinessUnsubscribe(channelsToUnsubscribe []stream.ChannelSubscription) error {
+func (ok *Okx) BusinessUnsubscribe(channelsToUnsubscribe []subscription.Subscription) error {
 	return ok.handleBusinessSubscription(operationUnsubscribe, channelsToUnsubscribe)
 }
 
 // handleBusinessSubscription sends a subscription and unsubscription information thought the business websocket endpoint.
 // as of the okx, exchange this endpoint sends subscription and unsubscription messages but with a list of json objects.
-func (ok *Okx) handleBusinessSubscription(operation string, subscriptions []stream.ChannelSubscription) error {
+func (ok *Okx) handleBusinessSubscription(operation string, subscriptions []subscription.Subscription) error {
 	request := WSSubscriptionInformationList{Operation: operation}
 	ok.WsRequestSemaphore <- 1
 	defer func() { <-ok.WsRequestSemaphore }()
-	var channels []stream.ChannelSubscription
-	var authChannels []stream.ChannelSubscription
+	var channels []subscription.Subscription
+	var authChannels []subscription.Subscription
 	var err error
 	for i := 0; i < len(subscriptions); i++ {
 		arg := SubscriptionInfo{
@@ -229,10 +230,10 @@ func (ok *Okx) handleBusinessSubscription(operation string, subscriptions []stre
 			okxSpreadOrderbook,
 			okxSpreadPublicTrades,
 			okxSpreadPublicTicker:
-			spreadID = subscriptions[i].Currency.String()
+			spreadID = subscriptions[i].Pair.String()
 		case okxChannelPublicBlockTrades,
 			okxChannelBlockTickers:
-			instrumentID = subscriptions[i].Currency.String()
+			instrumentID = subscriptions[i].Pair.String()
 		}
 		instrumentFamilyInterface, okay := subscriptions[i].Params["instFamily"]
 		if okay {
@@ -261,7 +262,7 @@ func (ok *Okx) handleBusinessSubscription(operation string, subscriptions []stre
 			} else {
 				ok.Websocket.AddSuccessfulSubscriptions(channels...)
 			}
-			channels = []stream.ChannelSubscription{}
+			channels = []subscription.Subscription{}
 			request.Arguments = []SubscriptionInfo{}
 			continue
 		}
