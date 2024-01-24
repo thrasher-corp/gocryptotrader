@@ -2,12 +2,19 @@ package engine
 
 import (
 	"context"
+	"crypto/tls"
+	"crypto/x509"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
+	"math/rand"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"reflect"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -16,6 +23,7 @@ import (
 	"github.com/gofrs/uuid"
 	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/common/key"
@@ -43,6 +51,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/gctrpc"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/banking"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
+	"github.com/thrasher-corp/gocryptotrader/utils"
 	"github.com/thrasher-corp/goose"
 	"google.golang.org/grpc/metadata"
 )
@@ -4138,4 +4147,100 @@ func TestGetOpenInterest(t *testing.T) {
 	})
 	_, err = s.GetOpenInterest(context.Background(), req)
 	assert.NoError(t, err)
+}
+
+func TestStartRPCRESTProxy(t *testing.T) {
+	t.Parallel()
+
+	gRPCPort := rand.Intn(65535-42069) + 42069 //nolint:gosec // Don't require crypto/rand usage here
+	gRPCProxyPort := gRPCPort + 1
+
+	e := &Engine{
+		Config: &config.Config{
+			RemoteControl: config.RemoteControlConfig{
+				Username: "bobmarley",
+				Password: "Sup3rdup3rS3cr3t",
+				GRPC: config.GRPCConfig{
+					Enabled:                true,
+					ListenAddress:          "localhost:" + strconv.Itoa(gRPCPort),
+					GRPCProxyListenAddress: "localhost:" + strconv.Itoa(gRPCProxyPort),
+				},
+			},
+		},
+		Settings: Settings{
+			DataDir:      common.GetDefaultDataDir(""),
+			CoreSettings: CoreSettings{EnableGRPCProxy: true},
+		},
+	}
+
+	fakeTime := time.Now().Add(-time.Hour)
+	e.uptime = fakeTime
+
+	StartRPCServer(e)
+
+	// Give the proxy time to start
+	time.Sleep(time.Millisecond * 500)
+
+	targetDir := utils.GetTLSDir(common.GetDefaultDataDir(""))
+	certFile := filepath.Join(targetDir, "cert.pem")
+
+	caCert, err := os.ReadFile(certFile)
+	require.NoError(t, err, "ReadFile should not error")
+	caCertPool := x509.NewCertPool()
+	ok := caCertPool.AppendCertsFromPEM(caCert)
+	require.True(t, ok, "AppendCertsFromPEM should return true")
+	client := &http.Client{Transport: &http.Transport{TLSClientConfig: &tls.Config{RootCAs: caCertPool, MinVersion: tls.VersionTLS12}}}
+
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, "https://localhost:"+strconv.Itoa(gRPCProxyPort)+"/v1/getinfo", http.NoBody)
+	require.NoError(t, err, "NewRequestWithContext should not error")
+	req.SetBasicAuth("bobmarley", "Sup3rdup3rS3cr3t")
+	resp, err := client.Do(req)
+	require.NoError(t, err, "Do should not error")
+	defer resp.Body.Close()
+
+	var info gctrpc.GetInfoResponse
+	err = json.NewDecoder(resp.Body).Decode(&info)
+	require.NoError(t, err, "Decode should not error")
+
+	uptimeDuration, err := time.ParseDuration(info.Uptime)
+	require.NoError(t, err, "ParseDuration should not error")
+	assert.InDelta(t, time.Since(fakeTime).Seconds(), uptimeDuration.Seconds(), 1.0, "Uptime should be within 1 second of the expected duration")
+}
+
+func TestRPCProxyAuthClient(t *testing.T) {
+	t.Parallel()
+
+	s := new(RPCServer)
+	s.Engine = &Engine{
+		Config: &config.Config{
+			RemoteControl: config.RemoteControlConfig{
+				Username: "bobmarley",
+				Password: "Sup3rdup3rS3cr3t",
+			},
+		},
+	}
+
+	dummyHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		_, err := w.Write([]byte("MEOW"))
+		require.NoError(t, err, "Write should not error")
+	})
+
+	rr := httptest.NewRecorder()
+	handler := s.authClient(dummyHandler)
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, "/", http.NoBody)
+	require.NoError(t, err, "NewRequestWithContext should not error")
+
+	// Test with valid credentials
+	req.SetBasicAuth("bobmarley", "Sup3rdup3rS3cr3t")
+	handler.ServeHTTP(rr, req)
+	assert.Equal(t, http.StatusOK, rr.Code, "HTTP status code should be 200")
+	assert.Equal(t, "MEOW", rr.Body.String(), "Response body should be 'MEOW'")
+
+	// Test with wrong credentials
+	req.SetBasicAuth("wronguser", "wrongpass")
+	rr = httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+	assert.Equal(t, http.StatusUnauthorized, rr.Code, "HTTP status code should be 401")
+	assert.Equal(t, "Access denied\n", rr.Body.String(), "Response body should be 'Access denied\n'")
 }
