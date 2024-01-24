@@ -29,6 +29,7 @@ const (
 )
 
 var b = &Bitstamp{}
+var btcusdPair = currency.NewPair(currency.BTC, currency.USD)
 
 func setFeeBuilder() *exchange.FeeBuilder {
 	return &exchange.FeeBuilder{
@@ -526,7 +527,7 @@ func TestSubmitOrder(t *testing.T) {
 		assert.Equal(t, "123456789", o.ClientID, "ClientID should be correct")
 		assert.Equal(t, "1234123412341234", o.OrderID, "OrderID should be correct")
 		assert.Equal(t, 2211.0, o.Price, "Price should be correct")
-		assert.Equal(t, currency.NewPairWithDelimiter("BTC", "USD", ""), o.Pair, "Pair should be correct")
+		assert.Equal(t, btcusdPair, o.Pair, "Pair should be correct")
 		assert.WithinRange(t, o.Date, time.Now().Add(-24*time.Hour), time.Now(), "Date should be correct")
 	}
 }
@@ -865,15 +866,11 @@ func TestBitstamp_OHLC(t *testing.T) {
 }
 
 func TestBitstamp_GetHistoricCandles(t *testing.T) {
-	pair, err := currency.NewPairFromString("BTCUSD")
-	if err != nil {
-		t.Error("Invalid pair")
-	}
 	start := time.Unix(1546300800, 0)
 	end := time.Unix(1577836799, 0)
-	c, err := b.GetHistoricCandles(context.Background(), pair, asset.Spot, kline.OneDay, start, end)
+	c, err := b.GetHistoricCandles(context.Background(), btcusdPair, asset.Spot, kline.OneDay, start, end)
 	assert.NoError(t, err, "GetHistoricCandles should not error")
-	assert.Equal(t, currency.NewPairWithDelimiter("BTC", "USD", ""), c.Pair, "Pair should be correct")
+	assert.Equal(t, btcusdPair, c.Pair, "Pair should be correct")
 	assert.NotEmpty(t, c, "Candles should not be empty")
 	for _, req := range c.Candles {
 		assert.Positive(t, req.High, "High should be positive")
@@ -886,22 +883,18 @@ func TestBitstamp_GetHistoricCandles(t *testing.T) {
 }
 
 func TestBitstamp_GetHistoricCandlesExtended(t *testing.T) {
-	pair, err := currency.NewPairFromString("BTCUSD")
-	if err != nil {
-		t.Error("Invalid pair")
-	}
 	start := time.Unix(1546300800, 0)
 	end := time.Unix(1577836799, 0)
 
-	c, err := b.GetHistoricCandlesExtended(context.Background(), pair, asset.Spot, kline.OneDay, start, end)
+	c, err := b.GetHistoricCandlesExtended(context.Background(), btcusdPair, asset.Spot, kline.OneDay, start, end)
 	assert.NoError(t, err, "GetHistoricCandlesExtended should not error")
-	assert.Equal(t, currency.NewPairWithDelimiter("BTC", "USD", ""), c.Pair, "Pair should be correct")
+	assert.Equal(t, btcusdPair, c.Pair, "Pair should be correct")
 	assert.NotEmpty(t, c, "Candles should not be empty")
 	for _, req := range c.Candles {
 		assert.Positive(t, req.High, "High should be positive")
 		assert.Positive(t, req.Low, "Low should be positive")
 		assert.Positive(t, req.Close, "Close should be positive")
-		assert.Positive(t, req.Open, "Low should be positive")
+		assert.Positive(t, req.Open, "Open should be positive")
 		assert.Positive(t, req.Volume, "Volume should be positive")
 		assert.NotEmpty(t, req.Time, "Time should not be empty")
 	}
@@ -912,7 +905,7 @@ func TestGetRecentTrades(t *testing.T) {
 
 	currencyPair, err := currency.NewPairFromString("LTCUSD")
 	if err != nil {
-		t.Fatal(err)
+		t.Error("Invalid pair")
 	}
 	tr, err := b.GetRecentTrades(context.Background(), currencyPair, asset.Spot)
 	assert.NoError(t, err, "GetRecentTrades should not error")
@@ -932,7 +925,7 @@ func TestGetHistoricTrades(t *testing.T) {
 
 	currencyPair, err := currency.NewPairFromString("LTCUSD")
 	if err != nil {
-		t.Fatal(err)
+		t.Error("Invalid pair")
 	}
 	_, err = b.GetHistoricTrades(context.Background(),
 		currencyPair, asset.Spot, time.Now().Add(-time.Minute*15), time.Now())
@@ -944,7 +937,7 @@ func TestOrderbookZeroBidPrice(t *testing.T) {
 
 	ob := &orderbook.Base{
 		Exchange: "Bitstamp",
-		Pair:     currency.NewPair(currency.BTC, currency.USD),
+		Pair:     btcusdPair,
 		Asset:    asset.Spot,
 	}
 	filterOrderbookZeroBidPrice(ob)
@@ -976,14 +969,11 @@ func TestGetWithdrawalsHistory(t *testing.T) {
 	h, err := b.GetWithdrawalsHistory(context.Background(), currency.BTC, asset.Spot)
 	assert.NoError(t, err, "GetWithdrawalsHistory should not error")
 	if mockTests {
-		assert.NotEmpty(t, h, "GetWithdrawalRequests should return a withdrawal request")
-		if mockTests {
-			assert.NotEmpty(t, h, "WithdrawalHistory should not be empty")
-			for _, req := range h {
-				assert.Equal(t, time.Date(2022, time.January, 31, 16, 7, 32, 0, time.UTC), req.Timestamp, "Timestamp should match")
-				assert.Equal(t, "BTC", req.Currency, "Currency should match")
-				assert.Equal(t, 0.00006000, req.Amount, "Amount should match")
-			}
+		assert.NotEmpty(t, h, "WithdrawalHistory should not be empty")
+		for _, req := range h {
+			assert.Equal(t, time.Date(2022, time.January, 31, 16, 7, 32, 0, time.UTC), req.Timestamp, "Timestamp should match")
+			assert.Equal(t, "BTC", req.Currency, "Currency should match")
+			assert.Equal(t, 0.00006000, req.Amount, "Amount should match")
 		}
 	}
 }
@@ -993,7 +983,7 @@ func TestGetOrderInfo(t *testing.T) {
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	}
-	o, err := b.GetOrderInfo(context.Background(), "1458532827766784", currency.NewPair(currency.BTC, currency.USD), asset.Spot)
+	o, err := b.GetOrderInfo(context.Background(), "1458532827766784", btcusdPair, asset.Spot)
 	if mockTests {
 		assert.NoError(t, err, "GetOrderInfo should not error")
 		assert.Equal(t, time.Date(2022, time.January, 31, 14, 43, 15, 0, time.UTC), o.Date, "order date should match")
