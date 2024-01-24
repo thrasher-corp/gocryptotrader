@@ -19,6 +19,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
@@ -125,6 +126,13 @@ var (
 	errTimestampInfoRequired                  = errors.New("timestamp information is required")
 	errListenKeyIsRequired                    = errors.New("listen key is required")
 )
+
+var subscriptionNames = map[string]string{
+	subscription.TickerChannel:    "ticker",
+	subscription.OrderbookChannel: "depth",
+	subscription.CandlesChannel:   "kline",
+	subscription.AllTradesChannel: "trade",
+}
 
 // GetExchangeInfo returns exchange information. Check binance_types for more
 // information
