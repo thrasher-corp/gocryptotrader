@@ -417,16 +417,34 @@ func (ku *Kucoin) UpdateTickers(ctx context.Context, assetType asset.Item) error
 	var errs error
 	switch assetType {
 	case asset.Futures:
-		ticks, err := ku.GetFuturesTickers(ctx)
+		ticks, err := ku.GetFuturesOpenContracts(ctx)
 		if err != nil {
 			return err
 		}
-		for i := range ticks {
-			if err := ticker.ProcessTicker(ticks[i]); err != nil {
+		pairs, err := ku.GetEnabledPairs(asset.Futures)
+		for x := range ticks {
+			var pair currency.Pair
+			pair, err = currency.NewPairFromStrings(ticks[x].BaseCurrency, ticks[x].Symbol[len(ticks[x].BaseCurrency):])
+			if err != nil {
+				return err
+			}
+			if !pairs.Contains(pair, true) {
+				continue
+			}
+			err = ticker.ProcessTicker(&ticker.Price{
+				Last:         ticks[x].LastTradePrice,
+				High:         ticks[x].HighPrice,
+				Low:          ticks[x].LowPrice,
+				Volume:       ticks[x].VolumeOf24h,
+				OpenInterest: ticks[x].OpenInterest.Float64(),
+				Pair:         pair,
+				ExchangeName: ku.Name,
+				AssetType:    assetType,
+			})
+			if err != nil {
 				return err
 			}
 		}
-		return nil
 	case asset.Spot, asset.Margin:
 		ticks, err := ku.GetTickers(ctx)
 		if err != nil {
