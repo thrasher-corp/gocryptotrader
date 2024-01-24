@@ -22,6 +22,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/banking"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
@@ -704,10 +705,10 @@ func TestWsAuth(t *testing.T) {
 	}
 	go c.wsReadData()
 
-	err = c.Subscribe([]stream.ChannelSubscription{
+	err = c.Subscribe([]subscription.Subscription{
 		{
-			Channel:  "user",
-			Currency: testPair,
+			Channel: "user",
+			Pair:    testPair,
 		},
 	})
 	if err != nil {

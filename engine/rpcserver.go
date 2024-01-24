@@ -3103,10 +3103,10 @@ func (s *RPCServer) WebsocketGetSubscriptions(_ context.Context, r *gctrpc.Webso
 		}
 		payload.Subscriptions = append(payload.Subscriptions,
 			&gctrpc.WebsocketSubscription{
-				Channel:  subs[i].Channel,
-				Currency: subs[i].Currency.String(),
-				Asset:    subs[i].Asset.String(),
-				Params:   string(params),
+				Channel: subs[i].Channel,
+				Pair:    subs[i].Pair.String(),
+				Asset:   subs[i].Asset.String(),
+				Params:  string(params),
 			})
 	}
 	return payload, nil

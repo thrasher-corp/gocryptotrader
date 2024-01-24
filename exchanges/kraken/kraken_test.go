@@ -29,6 +29,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
@@ -1245,10 +1246,10 @@ func setupWsTests(t *testing.T) {
 // TestWebsocketSubscribe tests returning a message with an id
 func TestWebsocketSubscribe(t *testing.T) {
 	setupWsTests(t)
-	err := k.Subscribe([]stream.ChannelSubscription{
+	err := k.Subscribe([]subscription.Subscription{
 		{
-			Channel:  defaultSubscribedChannels[0],
-			Currency: currency.NewPairWithDelimiter("XBT", "USD", "/"),
+			Channel: defaultSubscribedChannels[0],
+			Pair:    currency.NewPairWithDelimiter("XBT", "USD", "/"),
 		},
 	})
 	if err != nil {
@@ -2298,7 +2299,7 @@ func TestGetOpenInterest(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotEmpty(t, resp)
 
-	_, err = k.GetOpenInterest(context.Background())
+	resp, err = k.GetOpenInterest(context.Background())
 	assert.NoError(t, err)
 	assert.NotEmpty(t, resp)
 }

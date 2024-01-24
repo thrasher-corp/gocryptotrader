@@ -101,9 +101,9 @@ const (
 	bitfinexChecksumFlag   = 131072
 	bitfinexWsSequenceFlag = 65536
 
-	// CandlesTimeframeKey configures the timeframe in stream.ChannelSubscription.Params
+	// CandlesTimeframeKey configures the timeframe in subscription.Subscription.Params
 	CandlesTimeframeKey = "_timeframe"
-	// CandlesPeriodKey configures the aggregated period in stream.ChannelSubscription.Params
+	// CandlesPeriodKey configures the aggregated period in subscription.Subscription.Params
 	CandlesPeriodKey = "_period"
 )
 
