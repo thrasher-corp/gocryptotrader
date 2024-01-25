@@ -565,7 +565,7 @@ func TestUpdateTicker(t *testing.T) {
 	t.Parallel()
 
 	_, err := b.UpdateTicker(context.Background(), btcusdPair, asset.Spot)
-	assert.NoError(t, err, "UpdateTicker should not error")
+	assert.NoError(t, common.ExcludeError(err, ticker.ErrBidEqualsAsk), "UpdateTicker may only error about locked markets")
 }
 
 func TestUpdateTickers(t *testing.T) {
