@@ -11,12 +11,14 @@ import (
 )
 
 var (
-	errSetCannotBeEmpty = errors.New("set cannot be empty")
-	errTypeAssert       = errors.New("type assertion failed")
-	errNoSeqNo          = errors.New("no sequence number")
-	errUnknownError     = errors.New("unknown error")
-	errParamNotAllowed  = errors.New("param not allowed")
-	errParsingWSField   = errors.New("error parsing WS field")
+	errSetCannotBeEmpty        = errors.New("set cannot be empty")
+	errNoSeqNo                 = errors.New("no sequence number")
+	errUnknownError            = errors.New("unknown error")
+	errParamNotAllowed         = errors.New("param not allowed")
+	errParsingWSField          = errors.New("error parsing WS field")
+	errTickerInvalidSymbol     = errors.New("invalid ticker symbol")
+	errTickerInvalidResp       = errors.New("invalid ticker response format")
+	errTickerInvalidFieldCount = errors.New("invalid ticker response field count")
 )
 
 // AccountV2Data stores account v2 data

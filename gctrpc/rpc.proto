@@ -834,7 +834,7 @@ message WebsocketGetSubscriptionsRequest {
 
 message WebsocketSubscription {
   string channel = 1;
-  string currency = 2;
+  string pair = 2;
   string asset = 3;
   string params = 4;
 }

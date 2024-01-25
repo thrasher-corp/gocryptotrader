@@ -57,7 +57,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stats"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/yobit"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/zb"
 	"github.com/thrasher-corp/gocryptotrader/gctscript/vm"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
@@ -1048,8 +1047,6 @@ func NewSupportedExchangeByName(name string) (exchange.IBotExchange, error) {
 		return new(poloniex.Poloniex), nil
 	case "yobit":
 		return new(yobit.Yobit), nil
-	case "zb":
-		return new(zb.ZB), nil
 	default:
 		return nil, fmt.Errorf("'%s', %w", name, ErrExchangeNotFound)
 	}
