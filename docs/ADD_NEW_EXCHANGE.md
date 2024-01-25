@@ -221,7 +221,6 @@ Yes means supported, No means not yet implemented and NA means protocol unsuppor
 | Okx | Yes | Yes | NA |
 | Poloniex | Yes | Yes | NA |
 | Yobit | Yes | NA | NA |
-| ZB.COM | Yes | Yes | NA |
 ```
 
 #### Add exchange to the list of [supported exchanges](../exchanges/support.go):
@@ -252,7 +251,6 @@ var Exchanges = []string{
 	"okx",
 	"poloniex",
 	"yobit",
-    "zb",
 ```
 
 #### Increment the default number of supported exchanges in [config/config_test.go](../config/config_test.go):
