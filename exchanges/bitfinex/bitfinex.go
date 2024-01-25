@@ -645,7 +645,10 @@ func (b *Bitfinex) GetTickerBatch(ctx context.Context) (map[string]*Ticker, erro
 			continue
 		}
 		if t, err := tickerFromResp(symbol, tickResp[1:]); err != nil {
-			tickErrs = common.AppendError(tickErrs, err)
+			// We get too frequent intermittent formatting errors from tALT2612:USD to treat them as errors
+			if !errors.Is(err, errTickerInvalidResp) {
+				tickErrs = common.AppendError(tickErrs, err)
+			}
 		} else {
 			tickers[symbol] = t
 		}

@@ -243,10 +243,7 @@ func TestGetPlatformStatus(t *testing.T) {
 func TestGetTickerBatch(t *testing.T) {
 	t.Parallel()
 	ticks, err := b.GetTickerBatch(context.Background())
-	// Exclude TickerInvalidResp because Bitfinex is intermittently sending invalid formats for tALT2612:USD
-	// Error handling for that is covered in TestTickerFromResp
-	// Ensuring that in general the tickers are sane is handled below by specifically testing tBTCUSD and fUSD
-	require.NoError(t, common.ExcludeError(err, errTickerInvalidResp), "GetTickerBatch may only error about bad response formats")
+	require.NoError(t, err, "GetTickerBatch should not error")
 	require.NotEmpty(t, ticks, "GetTickerBatch should return some ticks")
 	require.Contains(t, ticks, "tBTCUSD", "Ticker batch must contain tBTCUSD")
 	checkTradeTick(t, ticks["tBTCUSD"])
