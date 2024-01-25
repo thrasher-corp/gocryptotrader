@@ -9,6 +9,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/database"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	gctscript "github.com/thrasher-corp/gocryptotrader/gctscript/vm"
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio"
@@ -313,8 +314,9 @@ type FeaturesEnabledConfig struct {
 
 // FeaturesConfig stores the exchanges supported and enabled features
 type FeaturesConfig struct {
-	Supports FeaturesSupportedConfig `json:"supports"`
-	Enabled  FeaturesEnabledConfig   `json:"enabled"`
+	Supports      FeaturesSupportedConfig      `json:"supports"`
+	Enabled       FeaturesEnabledConfig        `json:"enabled"`
+	Subscriptions []*subscription.Subscription `json:"subscriptions,omitempty"`
 }
 
 // APIEndpointsConfig stores the API endpoint addresses
