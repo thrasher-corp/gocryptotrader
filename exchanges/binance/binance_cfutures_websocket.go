@@ -13,6 +13,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
@@ -65,9 +66,9 @@ func (b *Binance) WsCFutureConnect() error {
 }
 
 // GenerateDefaultCFuturesSubscriptions genearates a list of subscription instances.
-func (b *Binance) GenerateDefaultCFuturesSubscriptions() ([]stream.ChannelSubscription, error) {
+func (b *Binance) GenerateDefaultCFuturesSubscriptions() ([]subscription.Subscription, error) {
 	var channels = defaultCFuturesSubscriptions
-	var subscriptions []stream.ChannelSubscription
+	var subscriptions []subscription.Subscription
 	pairs, err := b.FetchTradablePairs(context.Background(), asset.CoinMarginedFutures)
 	if err != nil {
 		return nil, err
@@ -76,11 +77,11 @@ func (b *Binance) GenerateDefaultCFuturesSubscriptions() ([]stream.ChannelSubscr
 		pairs = pairs[:3]
 	}
 	for z := range channels {
-		var subscription stream.ChannelSubscription
+		var subsc subscription.Subscription
 		switch channels[z] {
 		case contractInfoAllChan, forceOrderAllChan,
 			bookTickerAllChan, tickerAllChan, miniTickerAllChan:
-			subscriptions = append(subscriptions, stream.ChannelSubscription{
+			subscriptions = append(subscriptions, subscription.Subscription{
 				Channel: channels[z],
 			})
 		case aggTradeChan, depthChan, markPriceChan, tickerChan,
@@ -89,26 +90,26 @@ func (b *Binance) GenerateDefaultCFuturesSubscriptions() ([]stream.ChannelSubscr
 			for y := range pairs {
 				lp := pairs[y].Lower()
 				lp.Delimiter = ""
-				subscription = stream.ChannelSubscription{
+				subsc = subscription.Subscription{
 					Channel: lp.String() + channels[z],
 				}
 				switch channels[z] {
 				case depthChan:
-					subscription.Channel += "@100ms"
+					subsc.Channel += "@100ms"
 				case klineChan, indexPriceKlineCFuturesChan, markPriceKlineCFuturesChan:
-					subscription.Channel += "_" + getKlineIntervalString(kline.FiveMin)
+					subsc.Channel += "_" + getKlineIntervalString(kline.FiveMin)
 				}
-				subscriptions = append(subscriptions, subscription)
+				subscriptions = append(subscriptions, subsc)
 			}
 		case continuousKline:
 			for y := range pairs {
 				lp := pairs[y].Lower()
 				lp.Delimiter = ""
-				subscription = stream.ChannelSubscription{
+				subsc = subscription.Subscription{
 					// Contract types:""perpetual", "current_quarter", "next_quarter""
 					Channel: lp.String() + "_PERPETUAL@" + channels[z] + "_" + getKlineIntervalString(kline.FiveMin),
 				}
-				subscriptions = append(subscriptions, subscription)
+				subscriptions = append(subscriptions, subsc)
 			}
 		default:
 			return nil, errors.New("unsupported subscription")

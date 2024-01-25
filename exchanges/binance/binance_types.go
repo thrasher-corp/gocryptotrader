@@ -2022,7 +2022,7 @@ type CommissionInfo struct {
 	Seller string `json:"seller"`
 }
 
-// SystemStatus
+// SystemStatus holds system status code and message
 type SystemStatus struct {
 	Status  int64  `json:"status"` // 0: normal，1：system maintenance
 	Message string `json:"msg"`    // "normal", "system_maintenance"
