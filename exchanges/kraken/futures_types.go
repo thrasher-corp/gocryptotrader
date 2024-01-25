@@ -322,6 +322,9 @@ type FuturesTicker struct {
 	Suspended             bool    `json:"suspended"`
 	FundingRate           float64 `json:"fundingRate"`
 	FundingRatePrediction float64 `json:"fundingRatePrediction"`
+	IndexPrice            float64 `json:"indexPrice"`
+	PostOnly              bool    `json:"postOnly"`
+	Change24H             float64 `json:"change24h"`
 }
 
 // FuturesSendOrderData stores send order data
