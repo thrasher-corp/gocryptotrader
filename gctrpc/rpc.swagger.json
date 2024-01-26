@@ -7580,7 +7580,7 @@
         "channel": {
           "type": "string"
         },
-        "currency": {
+        "pair": {
           "type": "string"
         },
         "asset": {

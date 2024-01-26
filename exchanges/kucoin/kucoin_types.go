@@ -34,6 +34,8 @@ var (
 	errSizeOrFundIsRequired      = errors.New("at least one required among size and funds")
 	errInvalidLeverage           = errors.New("invalid leverage value")
 	errInvalidClientOrderID      = errors.New("no client order ID supplied, this endpoint requires a UUID or similar string")
+	errInvalidMsgType            = errors.New("message type field not valid")
+	errSubscriptionPairRequired  = errors.New("pair required for manual subscriptions")
 
 	subAccountRegExp           = regexp.MustCompile("^[a-zA-Z0-9]{7-32}$")
 	subAccountPassphraseRegExp = regexp.MustCompile("^[a-zA-Z0-9]{7-24}$")
