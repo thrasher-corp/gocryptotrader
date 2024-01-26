@@ -286,7 +286,6 @@ func (w *Websocket) Connect() error {
 	}
 	w.setConnectedStatus(true)
 	w.setConnectingStatus(false)
-	w.setInit(true)
 
 	if !w.IsConnectionMonitorRunning() {
 		err = w.connectionMonitor()
@@ -369,9 +368,7 @@ func (w *Websocket) dataMonitor() {
 				case <-w.ShutdownC:
 					return
 				default:
-					log.Warnf(log.WebsocketMgr,
-						"%s exchange backlog in websocket processing detected",
-						w.exchangeName)
+					log.Warnf(log.WebsocketMgr, "%s exchange backlog in websocket processing detected", w.exchangeName)
 					select {
 					case w.ToRoutine <- d:
 					case <-w.ShutdownC:
@@ -396,26 +393,19 @@ func (w *Websocket) connectionMonitor() error {
 		timer := time.NewTimer(delay)
 		for {
 			if w.verbose {
-				log.Debugf(log.WebsocketMgr,
-					"%v websocket: running connection monitor cycle\n",
-					w.exchangeName)
+				log.Debugf(log.WebsocketMgr, "%v websocket: running connection monitor cycle", w.exchangeName)
 			}
 			if !w.IsEnabled() {
 				if w.verbose {
-					log.Debugf(log.WebsocketMgr,
-						"%v websocket: connectionMonitor - websocket disabled, shutting down\n",
-						w.exchangeName)
+					log.Debugf(log.WebsocketMgr, "%v websocket: connectionMonitor - websocket disabled, shutting down", w.exchangeName)
 				}
 				if w.IsConnected() {
-					err := w.Shutdown()
-					if err != nil {
+					if err := w.Shutdown(); err != nil {
 						log.Errorln(log.WebsocketMgr, err)
 					}
 				}
 				if w.verbose {
-					log.Debugf(log.WebsocketMgr,
-						"%v websocket: connection monitor exiting\n",
-						w.exchangeName)
+					log.Debugf(log.WebsocketMgr, "%v websocket: connection monitor exiting", w.exchangeName)
 				}
 				timer.Stop()
 				w.setConnectionMonitorRunning(false)
@@ -424,10 +414,7 @@ func (w *Websocket) connectionMonitor() error {
 			select {
 			case err := <-w.ReadMessageErrors:
 				if IsDisconnectionError(err) {
-					w.setInit(false)
-					log.Warnf(log.WebsocketMgr,
-						"%v websocket has been disconnected. Reason: %v",
-						w.exchangeName, err)
+					log.Warnf(log.WebsocketMgr, "%v websocket has been disconnected. Reason: %v", w.exchangeName, err)
 					w.setConnectedStatus(false)
 				}
 
@@ -459,21 +446,16 @@ func (w *Websocket) Shutdown() error {
 	defer w.m.Unlock()
 
 	if !w.IsConnected() {
-		return fmt.Errorf("%v websocket: cannot shutdown %w",
-			w.exchangeName,
-			ErrNotConnected)
+		return fmt.Errorf("%v websocket: cannot shutdown %w", w.exchangeName, ErrNotConnected)
 	}
 
 	// TODO: Interrupt connection and or close connection when it is re-established.
 	if w.IsConnecting() {
-		return fmt.Errorf("%v websocket: cannot shutdown, in the process of reconnection",
-			w.exchangeName)
+		return fmt.Errorf("%v websocket: cannot shutdown, in the process of reconnection", w.exchangeName)
 	}
 
 	if w.verbose {
-		log.Debugf(log.WebsocketMgr,
-			"%v websocket: shutting down websocket\n",
-			w.exchangeName)
+		log.Debugf(log.WebsocketMgr, "%v websocket: shutting down websocket", w.exchangeName)
 	}
 
 	defer w.Orderbook.FlushBuffer()
@@ -501,9 +483,7 @@ func (w *Websocket) Shutdown() error {
 	w.setConnectedStatus(false)
 	w.setConnectingStatus(false)
 	if w.verbose {
-		log.Debugf(log.WebsocketMgr,
-			"%v websocket: completed websocket shutdown\n",
-			w.exchangeName)
+		log.Debugf(log.WebsocketMgr, "%v websocket: completed websocket shutdown", w.exchangeName)
 	}
 	return nil
 }
@@ -582,9 +562,7 @@ func (w *Websocket) trafficMonitor() {
 			select {
 			case <-w.ShutdownC:
 				if w.verbose {
-					log.Debugf(log.WebsocketMgr,
-						"%v websocket: trafficMonitor shutdown message received\n",
-						w.exchangeName)
+					log.Debugf(log.WebsocketMgr, "%v websocket: trafficMonitor shutdown message received", w.exchangeName)
 				}
 				trafficTimer.Stop()
 				w.setTrafficMonitorRunning(false)
@@ -601,10 +579,7 @@ func (w *Websocket) trafficMonitor() {
 				trafficTimer.Reset(w.trafficTimeout)
 			case <-trafficTimer.C: // Falls through when timer runs out
 				if w.verbose {
-					log.Warnf(log.WebsocketMgr,
-						"%v websocket: has not received a traffic alert in %v. Reconnecting",
-						w.exchangeName,
-						w.trafficTimeout)
+					log.Warnf(log.WebsocketMgr, "%v websocket: has not received a traffic alert in %v. Reconnecting", w.exchangeName, w.trafficTimeout)
 				}
 				trafficTimer.Stop()
 				w.setTrafficMonitorRunning(false)
@@ -612,9 +587,7 @@ func (w *Websocket) trafficMonitor() {
 				if !w.IsConnecting() && w.IsConnected() {
 					err := w.Shutdown()
 					if err != nil {
-						log.Errorf(log.WebsocketMgr,
-							"%v websocket: trafficMonitor shutdown err: %s",
-							w.exchangeName, err)
+						log.Errorf(log.WebsocketMgr, "%v websocket: trafficMonitor shutdown err: %s", w.exchangeName, err)
 					}
 				}
 
@@ -680,19 +653,6 @@ func (w *Websocket) IsEnabled() bool {
 	w.fieldMutex.RLock()
 	defer w.fieldMutex.RUnlock()
 	return w.enabled
-}
-
-func (w *Websocket) setInit(b bool) {
-	w.fieldMutex.Lock()
-	w.Init = b
-	w.fieldMutex.Unlock()
-}
-
-// IsInit returns status of init
-func (w *Websocket) IsInit() bool {
-	w.fieldMutex.RLock()
-	defer w.fieldMutex.RUnlock()
-	return w.Init
 }
 
 func (w *Websocket) setTrafficMonitorRunning(b bool) {
@@ -820,28 +780,22 @@ func (w *Websocket) GetWebsocketURL() string {
 
 // SetProxyAddress sets websocket proxy address
 func (w *Websocket) SetProxyAddress(proxyAddr string) error {
+	w.m.Lock()
+
 	if proxyAddr != "" {
-		_, err := url.ParseRequestURI(proxyAddr)
-		if err != nil {
-			return fmt.Errorf("%v websocket: cannot set proxy address error '%v'",
-				w.exchangeName,
-				err)
+		if _, err := url.ParseRequestURI(proxyAddr); err != nil {
+			w.m.Unlock()
+			return fmt.Errorf("%v websocket: cannot set proxy address error '%v'", w.exchangeName, err)
 		}
 
 		if w.proxyAddr == proxyAddr {
-			return fmt.Errorf("%v websocket: cannot set proxy address to the same address '%v'",
-				w.exchangeName,
-				w.proxyAddr)
+			w.m.Unlock()
+			return fmt.Errorf("%v websocket: cannot set proxy address to the same address '%v'", w.exchangeName, w.proxyAddr)
 		}
 
-		log.Debugf(log.ExchangeSys,
-			"%s websocket: setting websocket proxy: %s\n",
-			w.exchangeName,
-			proxyAddr)
+		log.Debugf(log.ExchangeSys, "%s websocket: setting websocket proxy: %s", w.exchangeName, proxyAddr)
 	} else {
-		log.Debugf(log.ExchangeSys,
-			"%s websocket: removing websocket proxy\n",
-			w.exchangeName)
+		log.Debugf(log.ExchangeSys, "%s websocket: removing websocket proxy", w.exchangeName)
 	}
 
 	if w.Conn != nil {
@@ -852,15 +806,17 @@ func (w *Websocket) SetProxyAddress(proxyAddr string) error {
 	}
 
 	w.proxyAddr = proxyAddr
-	if w.IsInit() && w.IsEnabled() {
-		if w.IsConnected() {
-			err := w.Shutdown()
-			if err != nil {
-				return err
-			}
+
+	if w.IsConnected() {
+		w.m.Unlock()
+		if err := w.Shutdown(); err != nil {
+			return err
 		}
 		return w.Connect()
 	}
+
+	w.m.Unlock()
+
 	return nil
 }
 
