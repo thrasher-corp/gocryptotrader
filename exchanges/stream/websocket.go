@@ -270,6 +270,8 @@ func (w *Websocket) Connect() error {
 			w.exchangeName)
 	}
 
+	w.subscriptions = subscriptionMap{}
+
 	w.dataMonitor()
 	w.trafficMonitor()
 	w.setConnectingStatus(true)
