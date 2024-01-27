@@ -64,6 +64,7 @@ var (
 	errNoSubscriptionsSupplied              = errors.New("no subscriptions supplied")
 	errChannelAlreadySubscribed             = errors.New("channel already subscribed")
 	errInvalidChannelState                  = errors.New("invalid Channel state")
+	errSameProxyAddress                     = errors.New("cannot set proxy address to the same address")
 )
 
 var globalReporter Reporter
@@ -262,12 +263,10 @@ func (w *Websocket) Connect() error {
 		return errors.New(WebsocketNotEnabled)
 	}
 	if w.IsConnecting() {
-		return fmt.Errorf("%v Websocket already attempting to connect",
-			w.exchangeName)
+		return fmt.Errorf("%v Websocket already attempting to connect", w.exchangeName)
 	}
 	if w.IsConnected() {
-		return fmt.Errorf("%v Websocket already connected",
-			w.exchangeName)
+		return fmt.Errorf("%v Websocket already connected", w.exchangeName)
 	}
 
 	w.subscriptionMutex.Lock()
@@ -281,8 +280,7 @@ func (w *Websocket) Connect() error {
 	err := w.connector()
 	if err != nil {
 		w.setConnectingStatus(false)
-		return fmt.Errorf("%v Error connecting %s",
-			w.exchangeName, err)
+		return fmt.Errorf("%v Error connecting %w", w.exchangeName, err)
 	}
 	w.setConnectedStatus(true)
 	w.setConnectingStatus(false)
@@ -290,10 +288,7 @@ func (w *Websocket) Connect() error {
 	if !w.IsConnectionMonitorRunning() {
 		err = w.connectionMonitor()
 		if err != nil {
-			log.Errorf(log.WebsocketMgr,
-				"%s cannot start websocket connection monitor %v",
-				w.GetName(),
-				err)
+			log.Errorf(log.WebsocketMgr, "%s cannot start websocket connection monitor %v", w.GetName(), err)
 		}
 	}
 
@@ -785,12 +780,12 @@ func (w *Websocket) SetProxyAddress(proxyAddr string) error {
 	if proxyAddr != "" {
 		if _, err := url.ParseRequestURI(proxyAddr); err != nil {
 			w.m.Unlock()
-			return fmt.Errorf("%v websocket: cannot set proxy address error '%v'", w.exchangeName, err)
+			return fmt.Errorf("%v websocket: cannot set proxy address: %w", w.exchangeName, err)
 		}
 
 		if w.proxyAddr == proxyAddr {
 			w.m.Unlock()
-			return fmt.Errorf("%v websocket: cannot set proxy address to the same address '%v'", w.exchangeName, w.proxyAddr)
+			return fmt.Errorf("%v websocket: %w '%v'", w.exchangeName, errSameProxyAddress, w.proxyAddr)
 		}
 
 		log.Debugf(log.ExchangeSys, "%s websocket: setting websocket proxy: %s", w.exchangeName, proxyAddr)

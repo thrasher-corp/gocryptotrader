@@ -18,6 +18,7 @@ import (
 
 	"github.com/gorilla/websocket"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
@@ -28,6 +29,10 @@ const (
 	websocketTestURL = "wss://www.bitmex.com/realtime"
 	useProxyTests    = false                     // Disabled by default. Freely available proxy servers that work all the time are difficult to find
 	proxyURL         = "http://212.186.171.4:80" // Replace with a usable proxy server
+)
+
+var (
+	errDastardlyReason = errors.New("cannot shutdown due to some dastardly reason")
 )
 
 var dialer websocket.Dialer
@@ -92,12 +97,12 @@ type dodgyConnection struct {
 
 // override websocket connection method to produce a wicked terrible error
 func (d *dodgyConnection) Shutdown() error {
-	return errors.New("cannot shutdown due to some dastardly reason")
+	return errDastardlyReason
 }
 
 // override websocket connection method to produce a wicked terrible error
 func (d *dodgyConnection) Connect() error {
-	return errors.New("cannot connect due to some dastardly reason")
+	return errDastardlyReason
 }
 
 func TestSetup(t *testing.T) {
@@ -349,152 +354,102 @@ func TestWebsocket(t *testing.T) {
 			Name: "test",
 		},
 	})
-	if !errors.Is(err, errWebsocketAlreadyInitialised) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errWebsocketAlreadyInitialised)
-	}
+	assert.ErrorIs(t, err, errWebsocketAlreadyInitialised, "SetProxyAddress should error correctly")
 
 	ws := *New()
 	err = ws.SetProxyAddress("garbagio")
-	if err == nil {
-		t.Error("error cannot be nil")
-	}
+	assert.ErrorContains(t, err, "invalid URI for request", "SetProxyAddress should error correctly")
 
 	ws.Conn = &WebsocketConnection{}
 	ws.AuthConn = &WebsocketConnection{}
 	ws.setEnabled(true)
+
 	err = ws.SetProxyAddress("https://192.168.0.1:1337")
-	if err == nil {
-		t.Error("error cannot be nil")
-	}
+	assert.NoError(t, err, "SetProxyAddress should not error when not yet connected")
+
 	ws.setConnectedStatus(true)
 	ws.ShutdownC = make(chan struct{})
 	ws.Wg = &sync.WaitGroup{}
-	err = ws.SetProxyAddress("https://192.168.0.1:1336")
-	if err == nil {
-		t.Error("SetProxyAddress", err)
-	}
 
 	err = ws.SetProxyAddress("https://192.168.0.1:1336")
-	if err == nil {
-		t.Error("SetProxyAddress", err)
-	}
+	assert.ErrorIs(t, err, errNoConnectFunc, "SetProxyAddress should call Connect and error from there") // This test asserts we actually set the proxy address, etc
+
+	err = ws.SetProxyAddress("https://192.168.0.1:1336")
+	assert.ErrorIs(t, err, errSameProxyAddress, "SetProxyAddress should error correctly")
 	ws.setEnabled(false)
 
 	// removing proxy
 	err = ws.SetProxyAddress("")
-	if err != nil {
-		t.Error(err)
-	}
+	assert.NoError(t, err, "SetProxyAddress should not error when removing proxy")
+
 	// reinstate proxy
 	err = ws.SetProxyAddress("http://localhost:1337")
-	if err != nil {
-		t.Error(err)
-	}
-	// conflict proxy
-	err = ws.SetProxyAddress("http://localhost:1337")
-	if err == nil {
-		t.Error("error cannot be nil")
-	}
-	err = ws.Setup(defaultSetup)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if ws.GetName() != "exchangeName" {
-		t.Error("WebsocketSetup")
-	}
+	assert.NoError(t, err, "SetProxyAddress should not error")
 
-	if !ws.IsEnabled() {
-		t.Error("WebsocketSetup")
-	}
+	err = ws.Setup(defaultSetup) // Sets to enabled again
+	require.NoError(t, err, "Setup may not error")
+
+	assert.Equal(t, "exchangeName", ws.GetName(), "GetName should return correctly")
+	assert.True(t, ws.IsEnabled(), "Websocket should be enabled by Setup")
 
 	ws.setEnabled(false)
-	if ws.IsEnabled() {
-		t.Error("WebsocketSetup")
-	}
+	assert.False(t, ws.IsEnabled(), "Websocket should be disabled by setEnabled(false)")
+
 	ws.setEnabled(true)
-	if !ws.IsEnabled() {
-		t.Error("WebsocketSetup")
-	}
+	assert.True(t, ws.IsEnabled(), "Websocket should be enabled by setEnabled(true)")
 
-	if ws.GetProxyAddress() != "http://localhost:1337" {
-		t.Error("WebsocketSetup")
-	}
+	assert.Equal(t, "http://localhost:1337", ws.GetProxyAddress(), "GetProxyAddress should return correctly")
+	assert.Equal(t, "wss://testRunningURL", ws.GetWebsocketURL(), "GetWebsocketURL should return correctly")
+	assert.Equal(t, time.Second*5, ws.trafficTimeout, "trafficTimeout should default correctly")
 
-	if ws.GetWebsocketURL() != "wss://testRunningURL" {
-		t.Error("WebsocketSetup")
-	}
-	if ws.trafficTimeout != time.Second*5 {
-		t.Error("WebsocketSetup")
-	}
-	// -- Not connected shutdown
 	err = ws.Shutdown()
-	if err == nil {
-		t.Fatal("should not be connected to able to shut down")
-	}
+	assert.ErrorIs(t, err, ErrNotConnected, "Shutdown should error when not Connected")
 
 	ws.setConnectedStatus(true)
 	ws.Conn = &dodgyConnection{}
 	err = ws.Shutdown()
-	if err == nil {
-		t.Fatal("error cannot be nil")
-	}
+	assert.ErrorIs(t, err, errDastardlyReason, "Shutdown should error correctly with a dodgy conn")
 
 	ws.Conn = &WebsocketConnection{}
 
 	ws.setConnectedStatus(true)
 	ws.AuthConn = &dodgyConnection{}
 	err = ws.Shutdown()
-	if err == nil {
-		t.Fatal("error cannot be nil ")
-	}
+	assert.ErrorIs(t, err, errDastardlyReason, "Shutdown should error correctly with a dodgy authConn")
 
 	ws.AuthConn = &WebsocketConnection{}
 	ws.setConnectedStatus(false)
 
-	// -- Normal connect
 	err = ws.Connect()
-	if err != nil {
-		t.Fatal("WebsocketSetup", err)
-	}
+	assert.NoError(t, err, "Connect should not error")
 
 	ws.defaultURL = "ws://demos.kaazing.com/echo"
 	ws.defaultURLAuth = "ws://demos.kaazing.com/echo"
 
 	err = ws.SetWebsocketURL("", false, false)
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.NoError(t, err, "SetWebsocketURL should not error")
+
 	err = ws.SetWebsocketURL("ws://demos.kaazing.com/echo", false, false)
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.NoError(t, err, "SetWebsocketURL should not error")
+
 	err = ws.SetWebsocketURL("", true, false)
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.NoError(t, err, "SetWebsocketURL should not error")
+
 	err = ws.SetWebsocketURL("ws://demos.kaazing.com/echo", true, false)
-	if err != nil {
-		t.Fatal(err)
-	}
-	// Attempt reconnect
+	assert.NoError(t, err, "SetWebsocketURL should not error")
+
 	err = ws.SetWebsocketURL("ws://demos.kaazing.com/echo", true, true)
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.NoError(t, err, "SetWebsocketURL should not error on reconnect")
+
 	// -- initiate the reconnect which is usually handled by connection monitor
 	err = ws.Connect()
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.NoError(t, err, "ReConnect called manually should not error")
+
 	err = ws.Connect()
-	if err == nil {
-		t.Fatal("should already be connected")
-	}
-	// -- Normal shutdown
+	assert.ErrorIs(t, err, errAlreadyConnected, "ReConnect should error when already connected")
+
 	err = ws.Shutdown()
-	if err != nil {
-		t.Fatal("WebsocketSetup", err)
-	}
+	assert.NoError(t, err, "Shutdown should not error")
 	ws.Wg.Wait()
 }
 
