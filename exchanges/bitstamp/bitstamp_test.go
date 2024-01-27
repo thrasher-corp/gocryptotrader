@@ -66,7 +66,7 @@ func TestGetFee(t *testing.T) {
 	fee, err := b.GetFee(context.Background(), feeBuilder)
 	assert.NoError(t, err, "GetFee should not error")
 	if mockTests {
-		assert.NotEmpty(t, fee, "Pair should not be empty")
+		assert.NotEmpty(t, fee, "Fee should not be empty")
 	}
 
 	// CryptocurrencyTradeFee High quantity
@@ -123,7 +123,7 @@ func TestGetFee(t *testing.T) {
 	feeBuilder = setFeeBuilder()
 	feeBuilder.FeeType = exchange.InternationalBankWithdrawalFee
 	feeBuilder.FiatCurrency = currency.HKD
-	_, err = b.GetFee(context.Background(), feeBuilder)
+	fee, err = b.GetFee(context.Background(), feeBuilder)
 	assert.NoError(t, err, "GetFee should not error")
 	assert.NotEmpty(t, fee, "Pair should not be empty")
 }
@@ -565,9 +565,6 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 func TestModifyOrder(t *testing.T) {
 	t.Parallel()
 
-	if !mockTests {
-		sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
-	}
 	_, err := b.ModifyOrder(context.Background(), &order.Modify{AssetType: asset.Spot})
 	assert.ErrorIs(t, err, common.ErrFunctionNotSupported)
 }
@@ -904,9 +901,8 @@ func TestGetRecentTrades(t *testing.T) {
 	t.Parallel()
 
 	currencyPair, err := currency.NewPairFromString("LTCUSD")
-	if err != nil {
-		t.Error("Invalid pair")
-	}
+	assert.NoError(t, err, "NewPairFromString should not error")
+
 	tr, err := b.GetRecentTrades(context.Background(), currencyPair, asset.Spot)
 	assert.NoError(t, err, "GetRecentTrades should not error")
 	assert.NotEmpty(t, tr, "Trades should not be empty")
