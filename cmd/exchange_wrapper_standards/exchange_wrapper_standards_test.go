@@ -34,7 +34,6 @@ func TestMain(m *testing.M) {
 	if skipAdditionalWrapperCITests() {
 		return
 	}
-	request.MaxRequestJobs = 200
 	os.Exit(m.Run())
 }
 

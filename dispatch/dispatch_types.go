@@ -29,8 +29,8 @@ type Dispatcher struct {
 	// then publish the data across the full registered channels for that uuid.
 	// See relayer() method below.
 	routes map[uuid.UUID][]chan interface{}
-	// rMtx protects the routes variable ensuring acceptable read/write access
-	rMtx sync.RWMutex
+	// routesMtx protects the routes variable ensuring acceptable read/write access
+	routesMtx sync.Mutex
 
 	// Persistent buffered job queue for relayers
 	jobs chan job

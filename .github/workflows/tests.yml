@@ -23,7 +23,7 @@ jobs:
             skip_wrapper_tests: true
           - os: macos-13 # beta
             goarch: amd64
-            psql: false 
+            psql: true
             skip_wrapper_tests: true
           - os: windows-latest
             goarch: amd64
@@ -40,7 +40,7 @@ jobs:
 
     - name: Setup Postgres
       if: matrix.psql == true
-      uses: ikalnytskyi/action-setup-postgres@v4
+      uses: ikalnytskyi/action-setup-postgres@v5
       with:
         database: gct_dev_ci
       id: postgres
@@ -80,7 +80,7 @@ jobs:
       shell: bash
 
     - name: Test
-      run: |
+      run: | # PGSERVICEFILE isn't supported by lib/pq and will cause a panic if set
         unset PGSERVICEFILE
         if [ "${{ matrix.goarch }}" = "386" ]; then
           go test -coverprofile coverage.txt -covermode atomic ./...
@@ -116,7 +116,7 @@ jobs:
       uses: docker/setup-buildx-action@v3
 
     - name: Cache Docker layers
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
         path: /tmp/.docker-buildx-cache
         key: ${{ runner.os }}-docker-buildx-${{ hashFiles('./.github/workflows/arm64.Dockerfile') }}-${{ github.sha }}

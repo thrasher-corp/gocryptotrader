@@ -18,6 +18,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
@@ -455,7 +456,7 @@ func (p *Poloniex) processResponse(result *SubscriptionResponse, instance interf
 }
 
 // GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
-func (p *Poloniex) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, error) {
+func (p *Poloniex) GenerateDefaultSubscriptions() ([]subscription.Subscription, error) {
 	enabledCurrencies, err := p.GetEnabledPairs(asset.Spot)
 	if err != nil {
 		return nil, err
@@ -466,7 +467,7 @@ func (p *Poloniex) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription,
 			cnlOrders,
 			cnlBalances}...)
 	}
-	subscriptions := make([]stream.ChannelSubscription, 0, 6*len(enabledCurrencies))
+	subscriptions := make([]subscription.Subscription, 0, 6*len(enabledCurrencies))
 	for i := range channels {
 		switch channels[i] {
 		case cnlSymbols, cnlTrades, cnlTicker, cnlBooks, cnlBookLevel2:
@@ -477,10 +478,10 @@ func (p *Poloniex) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription,
 						"depth": 20,
 					}
 				}
-				subscriptions = append(subscriptions, stream.ChannelSubscription{
-					Currency: enabledCurrencies[x],
-					Channel:  channels[i],
-					Params:   params,
+				subscriptions = append(subscriptions, subscription.Subscription{
+					Pair:    enabledCurrencies[x],
+					Channel: channels[i],
+					Params:  params,
 				})
 			}
 		case cnlCurrencies:
@@ -488,33 +489,33 @@ func (p *Poloniex) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription,
 			for x := range enabledCurrencies {
 				_, okay := currencyMaps[enabledCurrencies[x].Base]
 				if !okay {
-					subscriptions = append(subscriptions, stream.ChannelSubscription{
-						Channel:  channels[i],
-						Currency: currency.Pair{Base: enabledCurrencies[x].Base},
+					subscriptions = append(subscriptions, subscription.Subscription{
+						Channel: channels[i],
+						Pair:    currency.Pair{Base: enabledCurrencies[x].Base},
 					})
 					currencyMaps[enabledCurrencies[x].Base] = struct{}{}
 				}
 				_, okay = currencyMaps[enabledCurrencies[x].Quote]
 				if !okay {
-					subscriptions = append(subscriptions, stream.ChannelSubscription{
-						Channel:  channels[i],
-						Currency: currency.Pair{Base: enabledCurrencies[x].Quote},
+					subscriptions = append(subscriptions, subscription.Subscription{
+						Channel: channels[i],
+						Pair:    currency.Pair{Base: enabledCurrencies[x].Quote},
 					})
 					currencyMaps[enabledCurrencies[x].Quote] = struct{}{}
 				}
 			}
 		case cnlCandles:
 			for x := range enabledCurrencies {
-				subscriptions = append(subscriptions, stream.ChannelSubscription{
-					Channel:  channels[i],
-					Currency: enabledCurrencies[x],
+				subscriptions = append(subscriptions, subscription.Subscription{
+					Channel: channels[i],
+					Pair:    enabledCurrencies[x],
 					Params: map[string]interface{}{
 						"interval": kline.FiveMin,
 					},
 				})
 			}
 		case cnlOrders, cnlBalances, cnlExchange:
-			subscriptions = append(subscriptions, stream.ChannelSubscription{
+			subscriptions = append(subscriptions, subscription.Subscription{
 				Channel: channels[i],
 			})
 		}
@@ -522,7 +523,7 @@ func (p *Poloniex) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription,
 	return subscriptions, nil
 }
 
-func (p *Poloniex) handleSubscriptions(operation string, subscs []stream.ChannelSubscription) ([]SubscriptionPayload, error) {
+func (p *Poloniex) handleSubscriptions(operation string, subscs []subscription.Subscription) ([]SubscriptionPayload, error) {
 	pairsMap := map[string]*SubscriptionPayload{}
 	currencies := make(map[string]struct{})
 	payloads := []SubscriptionPayload{}
@@ -538,7 +539,7 @@ func (p *Poloniex) handleSubscriptions(operation string, subscs []stream.Channel
 				}
 				pairsMap[subscs[x].Channel] = sp
 			}
-			sp.Symbols = append(sp.Symbols, subscs[x].Currency.String())
+			sp.Symbols = append(sp.Symbols, subscs[x].Pair.String())
 			if subscs[x].Channel == cnlBooks {
 				depth, okay := subscs[x].Params["depth"]
 				if okay {
@@ -555,12 +556,12 @@ func (p *Poloniex) handleSubscriptions(operation string, subscs []stream.Channel
 				}
 				pairsMap[subscs[x].Channel] = sp
 			}
-			_, okay = currencies[subscs[x].Currency.Base.Upper().String()]
+			_, okay = currencies[subscs[x].Pair.Base.Upper().String()]
 			if !okay {
-				sp.Currencies = append(sp.Currencies, subscs[x].Currency.Base.String())
-				currencies[subscs[x].Currency.Base.Upper().String()] = struct{}{}
+				sp.Currencies = append(sp.Currencies, subscs[x].Pair.Base.String())
+				currencies[subscs[x].Pair.Base.Upper().String()] = struct{}{}
 			}
-			currencies[subscs[x].Currency.Base.String()] = struct{}{}
+			currencies[subscs[x].Pair.Base.String()] = struct{}{}
 		case cnlCandles:
 			interval, okay := subscs[x].Params["interval"].(kline.Interval)
 			if !okay {
@@ -580,7 +581,7 @@ func (p *Poloniex) handleSubscriptions(operation string, subscs []stream.Channel
 				}
 				pairsMap[channelName] = sp
 			}
-			sp.Symbols = append(sp.Symbols, subscs[x].Currency.String())
+			sp.Symbols = append(sp.Symbols, subscs[x].Pair.String())
 		case cnlOrders:
 			payloads = append(payloads, SubscriptionPayload{
 				Event:   operation,
@@ -603,7 +604,7 @@ func (p *Poloniex) handleSubscriptions(operation string, subscs []stream.Channel
 }
 
 // Subscribe sends a websocket message to receive data from the channel
-func (p *Poloniex) Subscribe(subs []stream.ChannelSubscription) error {
+func (p *Poloniex) Subscribe(subs []subscription.Subscription) error {
 	var canUseAuthenticate bool
 	if p.Websocket.CanUseAuthenticatedEndpoints() {
 		canUseAuthenticate = true
@@ -633,7 +634,7 @@ func (p *Poloniex) Subscribe(subs []stream.ChannelSubscription) error {
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
-func (p *Poloniex) Unsubscribe(unsub []stream.ChannelSubscription) error {
+func (p *Poloniex) Unsubscribe(unsub []subscription.Subscription) error {
 	var canUseAuthenticate bool
 	if p.IsWebsocketAuthenticationSupported() && p.Websocket.CanUseAuthenticatedEndpoints() {
 		canUseAuthenticate = true

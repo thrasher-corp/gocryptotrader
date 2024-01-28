@@ -30,6 +30,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/buffer"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
@@ -210,6 +211,12 @@ func (b *Binance) SetDefaults() {
 				),
 				GlobalResultLimit: 1000,
 			},
+		},
+		Subscriptions: []*subscription.Subscription{
+			{Enabled: true, Channel: subscription.TickerChannel},
+			{Enabled: true, Channel: subscription.AllTradesChannel},
+			{Enabled: true, Channel: subscription.CandlesChannel, Interval: kline.OneMin},
+			{Enabled: true, Channel: subscription.OrderbookChannel, Interval: kline.HundredMilliseconds},
 		},
 	}
 
