@@ -359,8 +359,8 @@ func (ku *Kucoin) GetFuturesTickers(ctx context.Context) ([]*ticker.Price, error
 	errC := make(chan error, len(pairs))
 
 	for i := range pairs {
-		p, err := ku.FormatExchangeCurrency(pairs[i], asset.Futures)
-		if err != nil {
+		var p currency.Pair
+		if p, err = ku.FormatExchangeCurrency(pairs[i], asset.Futures); err != nil {
 			errC <- err
 			break
 		}
@@ -368,7 +368,8 @@ func (ku *Kucoin) GetFuturesTickers(ctx context.Context) ([]*ticker.Price, error
 		go func() {
 			defer wg.Done()
 
-			if tick, err := ku.GetFuturesTicker(ctx, p.String()); err != nil {
+			var tick *FuturesTicker
+			if tick, err = ku.GetFuturesTicker(ctx, p.String()); err != nil {
 				errC <- err
 			} else {
 				tickersC <- &ticker.Price{
@@ -388,9 +389,13 @@ func (ku *Kucoin) GetFuturesTickers(ctx context.Context) ([]*ticker.Price, error
 	wg.Wait()
 	close(tickersC)
 	close(errC)
-
+	var errs error
 	for err := range errC {
 		return nil, err
+	}
+	errs = common.AppendError(errs, err)
+	if errs != nil {
+		return nil, errs
 	}
 
 	tickers := make([]*ticker.Price, 0, len(pairs))
@@ -422,6 +427,9 @@ func (ku *Kucoin) UpdateTickers(ctx context.Context, assetType asset.Item) error
 			return err
 		}
 		pairs, err := ku.GetEnabledPairs(asset.Futures)
+		if err != nil {
+			return err
+		}
 		for x := range ticks {
 			var pair currency.Pair
 			pair, err = currency.NewPairFromStrings(ticks[x].BaseCurrency, ticks[x].Symbol[len(ticks[x].BaseCurrency):])
@@ -442,7 +450,7 @@ func (ku *Kucoin) UpdateTickers(ctx context.Context, assetType asset.Item) error
 				AssetType:    assetType,
 			})
 			if err != nil {
-				return err
+				errs = common.AppendError(errs, err)
 			}
 		}
 	case asset.Spot, asset.Margin:
