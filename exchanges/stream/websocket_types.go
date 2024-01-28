@@ -25,14 +25,21 @@ const (
 
 type subscriptionMap map[any]*subscription.Subscription
 
+type State int
+
+const (
+	uninitialised State = iota
+	disconnected
+	connecting
+	connected
+)
+
 // Websocket defines a return type for websocket connections via the interface
 // wrapper for routine processing
 type Websocket struct {
 	canUseAuthenticatedEndpoints bool
 	enabled                      bool
-	Init                         bool
-	connected                    bool
-	connecting                   bool
+	state                        state
 	verbose                      bool
 	connectionMonitorRunning     bool
 	trafficMonitorRunning        bool

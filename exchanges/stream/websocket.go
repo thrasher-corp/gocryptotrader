@@ -78,7 +78,6 @@ func SetupGlobalReporter(r Reporter) {
 // New initialises the websocket struct
 func New() *Websocket {
 	return &Websocket{
-		Init:              true,
 		DataHandler:       make(chan interface{}, defaultJobBuffer),
 		ToRoutine:         make(chan interface{}, defaultJobBuffer),
 		TrafficAlert:      make(chan struct{}),
@@ -99,7 +98,7 @@ func (w *Websocket) Setup(s *WebsocketSetup) error {
 		return errWebsocketSetupIsNil
 	}
 
-	if !w.Init {
+	if w.state != uninitialised {
 		return fmt.Errorf("%s %w", w.exchangeName, errWebsocketAlreadyInitialised)
 	}
 
@@ -613,7 +612,7 @@ func (w *Websocket) trafficMonitor() {
 
 func (w *Websocket) setConnectedStatus(b bool) {
 	w.fieldMutex.Lock()
-	w.connected = b
+	w.state = connected
 	w.fieldMutex.Unlock()
 }
 
@@ -621,12 +620,12 @@ func (w *Websocket) setConnectedStatus(b bool) {
 func (w *Websocket) IsConnected() bool {
 	w.fieldMutex.RLock()
 	defer w.fieldMutex.RUnlock()
-	return w.connected
+	return w.state == connected
 }
 
 func (w *Websocket) setConnectingStatus(b bool) {
 	w.fieldMutex.Lock()
-	w.connecting = b
+	w.state = connecting
 	w.fieldMutex.Unlock()
 }
 
