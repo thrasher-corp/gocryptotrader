@@ -8,6 +8,7 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 )
 
 // WsOptionsConnect connects to options a websocket feed
@@ -42,8 +43,8 @@ func (by *Bybit) WsOptionsConnect() error {
 }
 
 // GenerateOptionsDefaultSubscriptions generates default subscription
-func (by *Bybit) GenerateOptionsDefaultSubscriptions() ([]stream.ChannelSubscription, error) {
-	var subscriptions []stream.ChannelSubscription
+func (by *Bybit) GenerateOptionsDefaultSubscriptions() ([]subscription.Subscription, error) {
+	var subscriptions []subscription.Subscription
 	var channels = []string{chanOrderbook, chanPublicTrade, chanPublicTicker}
 	pairs, err := by.GetEnabledPairs(asset.Options)
 	if err != nil {
@@ -52,10 +53,10 @@ func (by *Bybit) GenerateOptionsDefaultSubscriptions() ([]stream.ChannelSubscrip
 	for z := range pairs {
 		for x := range channels {
 			subscriptions = append(subscriptions,
-				stream.ChannelSubscription{
-					Channel:  channels[x],
-					Currency: pairs[z],
-					Asset:    asset.Options,
+				subscription.Subscription{
+					Channel: channels[x],
+					Pair:    pairs[z],
+					Asset:   asset.Options,
 				})
 		}
 	}
@@ -63,16 +64,16 @@ func (by *Bybit) GenerateOptionsDefaultSubscriptions() ([]stream.ChannelSubscrip
 }
 
 // OptionSubscribe sends a subscription message to options public channels.
-func (by *Bybit) OptionSubscribe(channelSubscriptions []stream.ChannelSubscription) error {
+func (by *Bybit) OptionSubscribe(channelSubscriptions []subscription.Subscription) error {
 	return by.handleOptionsPayloadSubscription("subscribe", channelSubscriptions)
 }
 
 // OptionUnsubscribe sends an unsubscription messages through options public channels.
-func (by *Bybit) OptionUnsubscribe(channelSubscriptions []stream.ChannelSubscription) error {
+func (by *Bybit) OptionUnsubscribe(channelSubscriptions []subscription.Subscription) error {
 	return by.handleOptionsPayloadSubscription("unsubscribe", channelSubscriptions)
 }
 
-func (by *Bybit) handleOptionsPayloadSubscription(operation string, channelSubscriptions []stream.ChannelSubscription) error {
+func (by *Bybit) handleOptionsPayloadSubscription(operation string, channelSubscriptions []subscription.Subscription) error {
 	optionsWebsocket, err := by.Websocket.GetAssetWebsocket(asset.Options)
 	if err != nil {
 		return err

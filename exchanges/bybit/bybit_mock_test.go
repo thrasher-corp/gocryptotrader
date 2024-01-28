@@ -14,7 +14,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/mock"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 )
 
@@ -36,7 +35,6 @@ func TestMain(m *testing.M) {
 	}
 
 	b.SkipAuthCheck = true
-	request.MaxRequestJobs = 100
 	bybitConfig.API.Credentials.Key = apiKey
 	bybitConfig.API.Credentials.Secret = apiSecret
 	bybitConfig.API.AuthenticatedSupport = true
@@ -62,7 +60,6 @@ func TestMain(m *testing.M) {
 			log.Fatal(err)
 		}
 	}
-	request.MaxRequestJobs = 100
 	err = b.UpdateTradablePairs(context.Background(), true)
 	if err != nil {
 		log.Fatal("Bybit setup error", err)

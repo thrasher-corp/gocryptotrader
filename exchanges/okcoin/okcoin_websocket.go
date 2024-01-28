@@ -21,6 +21,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
@@ -589,9 +590,9 @@ func (o *Okcoin) wsProcessOrderbook(respRaw []byte, obChannel string) error {
 // ReSubscribeSpecificOrderbook removes the subscription and the subscribes
 // again to fetch a new snapshot in the event of a de-sync event.
 func (o *Okcoin) ReSubscribeSpecificOrderbook(obChannel string, p currency.Pair) error {
-	subscription := []stream.ChannelSubscription{{
-		Channel:  obChannel,
-		Currency: p,
+	subscription := []subscription.Subscription{{
+		Channel: obChannel,
+		Pair:    p,
 	}}
 	if err := o.Unsubscribe(subscription); err != nil {
 		return err
@@ -771,8 +772,8 @@ func (o *Okcoin) CalculateOrderbookUpdateChecksum(orderbookData *orderbook.Base)
 
 // GenerateDefaultSubscriptions Adds default subscriptions to websocket to be
 // handled by ManageSubscriptions()
-func (o *Okcoin) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, error) {
-	var subscriptions []stream.ChannelSubscription
+func (o *Okcoin) GenerateDefaultSubscriptions() ([]subscription.Subscription, error) {
+	var subscriptions []subscription.Subscription
 	pairs, err := o.GetEnabledPairs(asset.Spot)
 	if err != nil {
 		return nil, err
@@ -795,7 +796,7 @@ func (o *Okcoin) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, e
 	for s := range channels {
 		switch channels[s] {
 		case wsInstruments:
-			subscriptions = append(subscriptions, stream.ChannelSubscription{
+			subscriptions = append(subscriptions, subscription.Subscription{
 				Channel: channels[s],
 				Asset:   asset.Spot,
 			})
@@ -806,20 +807,20 @@ func (o *Okcoin) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, e
 			wsCandle5m, wsCandle3m, wsCandle1m, wsCandle3Mutc, wsCandle1Mutc, wsCandle1Wutc, wsCandle1Dutc,
 			wsCandle2Dutc, wsCandle3Dutc, wsCandle5Dutc, wsCandle12Hutc, wsCandle6Hutc:
 			for p := range pairs {
-				subscriptions = append(subscriptions, stream.ChannelSubscription{
-					Channel:  channels[s],
-					Currency: pairs[p],
+				subscriptions = append(subscriptions, subscription.Subscription{
+					Channel: channels[s],
+					Pair:    pairs[p],
 				})
 			}
 		case wsStatus:
-			subscriptions = append(subscriptions, stream.ChannelSubscription{
+			subscriptions = append(subscriptions, subscription.Subscription{
 				Channel: channels[s],
 			})
 		case wsAccount:
 			currenciesMap := map[currency.Code]bool{}
 			for p := range pairs {
 				if reserved, okay := currenciesMap[pairs[p].Base]; !okay && !reserved {
-					subscriptions = append(subscriptions, stream.ChannelSubscription{
+					subscriptions = append(subscriptions, subscription.Subscription{
 						Channel: channels[s],
 						Params: map[string]interface{}{
 							"ccy": pairs[p].Base,
@@ -830,7 +831,7 @@ func (o *Okcoin) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, e
 			}
 			for p := range pairs {
 				if reserved, okay := currenciesMap[pairs[p].Quote]; !okay && !reserved {
-					subscriptions = append(subscriptions, stream.ChannelSubscription{
+					subscriptions = append(subscriptions, subscription.Subscription{
 						Channel: channels[s],
 						Params: map[string]interface{}{
 							"ccy": pairs[p].Quote,
@@ -841,10 +842,10 @@ func (o *Okcoin) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, e
 			}
 		case wsOrder, wsOrdersAlgo, wsAlgoAdvance:
 			for p := range pairs {
-				subscriptions = append(subscriptions, stream.ChannelSubscription{
-					Channel:  channels[s],
-					Currency: pairs[p],
-					Asset:    asset.Spot,
+				subscriptions = append(subscriptions, subscription.Subscription{
+					Channel: channels[s],
+					Pair:    pairs[p],
+					Asset:   asset.Spot,
 				})
 			}
 		default:
@@ -855,23 +856,23 @@ func (o *Okcoin) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, e
 }
 
 // Subscribe sends a websocket message to receive data from the channel
-func (o *Okcoin) Subscribe(channelsToSubscribe []stream.ChannelSubscription) error {
+func (o *Okcoin) Subscribe(channelsToSubscribe []subscription.Subscription) error {
 	return o.handleSubscriptions("subscribe", channelsToSubscribe)
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
-func (o *Okcoin) Unsubscribe(channelsToUnsubscribe []stream.ChannelSubscription) error {
+func (o *Okcoin) Unsubscribe(channelsToUnsubscribe []subscription.Subscription) error {
 	return o.handleSubscriptions("unsubscribe", channelsToUnsubscribe)
 }
 
-func (o *Okcoin) handleSubscriptions(operation string, subs []stream.ChannelSubscription) error {
+func (o *Okcoin) handleSubscriptions(operation string, subs []subscription.Subscription) error {
 	subscriptionRequest := WebsocketEventRequest{Operation: operation, Arguments: []map[string]string{}}
 	authRequest := WebsocketEventRequest{Operation: operation, Arguments: []map[string]string{}}
 	temp := WebsocketEventRequest{Operation: operation, Arguments: []map[string]string{}}
 	authTemp := WebsocketEventRequest{Operation: operation, Arguments: []map[string]string{}}
 	var err error
-	var channels []stream.ChannelSubscription
-	var authChannels []stream.ChannelSubscription
+	var channels []subscription.Subscription
+	var authChannels []subscription.Subscription
 	spotWebsocket, err := o.Websocket.GetAssetWebsocket(asset.Spot)
 	if err != nil {
 		return fmt.Errorf("%w asset type: %v", err, asset.Spot)
@@ -902,8 +903,8 @@ func (o *Okcoin) handleSubscriptions(operation string, subs []stream.ChannelSubs
 		if subs[i].Asset != asset.Empty {
 			argument["instType"] = strings.ToUpper(subs[i].Asset.String())
 		}
-		if !subs[i].Currency.IsEmpty() {
-			argument["instId"] = subs[i].Currency.String()
+		if !subs[i].Pair.IsEmpty() {
+			argument["instId"] = subs[i].Pair.String()
 		}
 		if authenticatedChannelSubscription {
 			authTemp.Arguments = append(authTemp.Arguments, argument)

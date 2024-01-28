@@ -3,6 +3,7 @@ package huobi
 import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
 type errorCapture struct {
@@ -520,16 +521,40 @@ type Tickers struct {
 	Data []Ticker `json:"data"`
 }
 
+// FuturesBatchTicker holds ticker data
+type FuturesBatchTicker struct {
+	ID             float64      `json:"id"`
+	Timestamp      int64        `json:"ts"`
+	Ask            [2]float64   `json:"ask"`
+	Bid            [2]float64   `json:"bid"`
+	BusinessType   string       `json:"business_type"`
+	ContractCode   string       `json:"contract_code"`
+	Open           types.Number `json:"open"`
+	Close          types.Number `json:"close"`
+	Low            types.Number `json:"low"`
+	High           types.Number `json:"high"`
+	Amount         types.Number `json:"amount"`
+	Count          float64      `json:"count"`
+	Volume         types.Number `json:"vol"`
+	TradeTurnover  types.Number `json:"trade_turnover"`
+	TradePartition string       `json:"trade_partition"`
+	Symbol         string       `json:"symbol"` // If ContractCode is empty, Symbol is populated
+}
+
 // Ticker latest ticker data
 type Ticker struct {
-	Amount float64 `json:"amount"`
-	Close  float64 `json:"close"`
-	Count  int64   `json:"count"`
-	High   float64 `json:"high"`
-	Low    float64 `json:"low"`
-	Open   float64 `json:"open"`
-	Symbol string  `json:"symbol"`
-	Volume float64 `json:"vol"`
+	Symbol  string  `json:"symbol"`
+	Open    float64 `json:"open"`
+	High    float64 `json:"high"`
+	Low     float64 `json:"low"`
+	Close   float64 `json:"close"`
+	Amount  float64 `json:"amount"`
+	Volume  float64 `json:"vol"`
+	Count   float64 `json:"count"`
+	Bid     float64 `json:"bid"`
+	BidSize float64 `json:"bidSize"`
+	Ask     float64 `json:"ask"`
+	AskSize float64 `json:"askSize"`
 }
 
 // OrderBookDataRequestParamsType var for request param types

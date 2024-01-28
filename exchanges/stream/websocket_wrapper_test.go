@@ -9,6 +9,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 )
 
 func TestWebsocketWrapperSetup(t *testing.T) {
@@ -74,10 +75,10 @@ func TestGetAssetWebsocket(t *testing.T) {
 		DefaultURL:   "testDefaultURL",
 		RunningURL:   "wss://testRunningURL",
 		Connector:    func() error { return nil },
-		Subscriber:   func(_ []ChannelSubscription) error { return nil },
-		Unsubscriber: func(_ []ChannelSubscription) error { return nil },
-		GenerateSubscriptions: func() ([]ChannelSubscription, error) {
-			return []ChannelSubscription{
+		Subscriber:   func(_ []subscription.Subscription) error { return nil },
+		Unsubscriber: func(_ []subscription.Subscription) error { return nil },
+		GenerateSubscriptions: func() ([]subscription.Subscription, error) {
+			return []subscription.Subscription{
 				{Channel: "TestSub"},
 			}, nil
 		},
@@ -131,10 +132,10 @@ func TestWebsocketWrapper(t *testing.T) {
 		DefaultURL:   "testDefaultURL",
 		RunningURL:   "wss://testRunningURL",
 		Connector:    func() error { return nil },
-		Subscriber:   func(_ []ChannelSubscription) error { return nil },
-		Unsubscriber: func(_ []ChannelSubscription) error { return nil },
-		GenerateSubscriptions: func() ([]ChannelSubscription, error) {
-			return []ChannelSubscription{
+		Subscriber:   func(_ []subscription.Subscription) error { return nil },
+		Unsubscriber: func(_ []subscription.Subscription) error { return nil },
+		GenerateSubscriptions: func() ([]subscription.Subscription, error) {
+			return []subscription.Subscription{
 				{Channel: "TestSub"},
 			}, nil
 		},

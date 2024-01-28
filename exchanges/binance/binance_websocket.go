@@ -16,6 +16,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
@@ -560,35 +561,59 @@ func (b *Binance) UpdateLocalBuffer(wsdp *WebsocketDepthStream) (bool, error) {
 }
 
 // GenerateSubscriptions generates the default subscription set
-func (b *Binance) GenerateSubscriptions() ([]stream.ChannelSubscription, error) {
-	var channels = []string{"@ticker", "@trade", "@kline_1m", "@depth@100ms"}
-	var subscriptions []stream.ChannelSubscription
-	assets := b.GetAssetTypes(true)
-	for x := range assets {
-		if assets[x] == asset.Spot {
-			pairs, err := b.GetEnabledPairs(assets[x])
-			if err != nil {
-				return nil, err
-			}
-
-			for y := range pairs {
-				for z := range channels {
-					lp := pairs[y].Lower()
-					lp.Delimiter = ""
-					subscriptions = append(subscriptions, stream.ChannelSubscription{
-						Channel:  lp.String() + channels[z],
-						Currency: pairs[y],
-						Asset:    assets[x],
-					})
-				}
-			}
+func (b *Binance) GenerateSubscriptions() ([]subscription.Subscription, error) {
+	var channels = make([]string, 0, len(b.Features.Subscriptions))
+	for i := range b.Features.Subscriptions {
+		name, err := channelName(b.Features.Subscriptions[i])
+		if err != nil {
+			return nil, err
+		}
+		channels = append(channels, name)
+	}
+	var subscriptions []subscription.Subscription
+	pairs, err := b.GetEnabledPairs(asset.Spot)
+	if err != nil {
+		return nil, err
+	}
+	for y := range pairs {
+		for z := range channels {
+			lp := pairs[y].Lower()
+			lp.Delimiter = ""
+			subscriptions = append(subscriptions, subscription.Subscription{
+				Channel: lp.String() + "@" + channels[z],
+				Pair:    pairs[y],
+				Asset:   asset.Spot,
+			})
 		}
 	}
 	return subscriptions, nil
 }
 
+// channelName converts a Subscription Config into binance format channel suffix
+func channelName(s *subscription.Subscription) (string, error) {
+	name, ok := subscriptionNames[s.Channel]
+	if !ok {
+		return name, fmt.Errorf("%w: %s", stream.ErrSubscriptionNotSupported, s.Channel)
+	}
+
+	switch s.Channel {
+	case subscription.OrderbookChannel:
+		if s.Levels != 0 {
+			name += "@" + strconv.Itoa(s.Levels)
+		}
+		if s.Interval.Duration() == time.Second {
+			name += "@1000ms"
+		} else {
+			name += "@" + s.Interval.Short()
+		}
+	case subscription.CandlesChannel:
+		name += "_" + s.Interval.Short()
+	}
+	return name, nil
+}
+
 // Subscribe subscribes to a set of channels
-func (b *Binance) Subscribe(channelsToSubscribe []stream.ChannelSubscription) error {
+func (b *Binance) Subscribe(channelsToSubscribe []subscription.Subscription) error {
 	payload := WsPayload{
 		Method: "SUBSCRIBE",
 	}
@@ -617,7 +642,7 @@ func (b *Binance) Subscribe(channelsToSubscribe []stream.ChannelSubscription) er
 }
 
 // Unsubscribe unsubscribes from a set of channels
-func (b *Binance) Unsubscribe(channelsToUnsubscribe []stream.ChannelSubscription) error {
+func (b *Binance) Unsubscribe(channelsToUnsubscribe []subscription.Subscription) error {
 	payload := WsPayload{
 		Method: "UNSUBSCRIBE",
 	}

@@ -17,6 +17,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
@@ -552,9 +553,9 @@ func (b *Bitmex) processOrderbook(data []OrderBookL2, action string, p currency.
 }
 
 // GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
-func (b *Bitmex) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, error) {
+func (b *Bitmex) GenerateDefaultSubscriptions() ([]subscription.Subscription, error) {
 	channels := []string{bitmexWSOrderbookL2, bitmexWSTrade}
-	subscriptions := []stream.ChannelSubscription{
+	subscriptions := []subscription.Subscription{
 		{
 			Channel: bitmexWSAnnouncement,
 		},
@@ -576,10 +577,10 @@ func (b *Bitmex) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, e
 					// There are no L2 orderbook for index assets
 					continue
 				}
-				subscriptions = append(subscriptions, stream.ChannelSubscription{
-					Channel:  channels[z] + ":" + pFmt.Format(contracts[y]),
-					Currency: contracts[y],
-					Asset:    assets[x],
+				subscriptions = append(subscriptions, subscription.Subscription{
+					Channel: channels[z] + ":" + pFmt.Format(contracts[y]),
+					Pair:    contracts[y],
+					Asset:   assets[x],
 				})
 			}
 		}
@@ -588,7 +589,7 @@ func (b *Bitmex) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, e
 }
 
 // GenerateAuthenticatedSubscriptions Adds authenticated subscriptions to websocket to be handled by ManageSubscriptions()
-func (b *Bitmex) GenerateAuthenticatedSubscriptions() ([]stream.ChannelSubscription, error) {
+func (b *Bitmex) GenerateAuthenticatedSubscriptions() ([]subscription.Subscription, error) {
 	if !b.Websocket.CanUseAuthenticatedEndpoints() {
 		return nil, nil
 	}
@@ -604,7 +605,7 @@ func (b *Bitmex) GenerateAuthenticatedSubscriptions() ([]stream.ChannelSubscript
 	channels := []string{bitmexWSExecution,
 		bitmexWSPosition,
 	}
-	subscriptions := []stream.ChannelSubscription{
+	subscriptions := []subscription.Subscription{
 		{
 			Channel: bitmexWSAffiliate,
 		},
@@ -626,10 +627,10 @@ func (b *Bitmex) GenerateAuthenticatedSubscriptions() ([]stream.ChannelSubscript
 	}
 	for i := range channels {
 		for j := range contracts {
-			subscriptions = append(subscriptions, stream.ChannelSubscription{
-				Channel:  channels[i] + ":" + pFmt.Format(contracts[j]),
-				Currency: contracts[j],
-				Asset:    asset.PerpetualContract,
+			subscriptions = append(subscriptions, subscription.Subscription{
+				Channel: channels[i] + ":" + pFmt.Format(contracts[j]),
+				Pair:    contracts[j],
+				Asset:   asset.PerpetualContract,
 			})
 		}
 	}
@@ -637,7 +638,7 @@ func (b *Bitmex) GenerateAuthenticatedSubscriptions() ([]stream.ChannelSubscript
 }
 
 // Subscribe subscribes to a websocket channel
-func (b *Bitmex) Subscribe(channelsToSubscribe []stream.ChannelSubscription) error {
+func (b *Bitmex) Subscribe(channelsToSubscribe []subscription.Subscription) error {
 	spotWebsocket, err := b.Websocket.GetAssetWebsocket(asset.Spot)
 	if err != nil {
 		return fmt.Errorf("%w asset type: %v", err, asset.Spot)
@@ -657,7 +658,7 @@ func (b *Bitmex) Subscribe(channelsToSubscribe []stream.ChannelSubscription) err
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
-func (b *Bitmex) Unsubscribe(channelsToUnsubscribe []stream.ChannelSubscription) error {
+func (b *Bitmex) Unsubscribe(channelsToUnsubscribe []subscription.Subscription) error {
 	spotWebsocket, err := b.Websocket.GetAssetWebsocket(asset.Spot)
 	if err != nil {
 		return fmt.Errorf("%w asset type: %v", err, asset.Spot)

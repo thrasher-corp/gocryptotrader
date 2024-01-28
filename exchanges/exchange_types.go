@@ -14,6 +14,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 )
 
 // Endpoint authentication types
@@ -149,8 +150,9 @@ type WithdrawalHistory struct {
 // Features stores the supported and enabled features
 // for the exchange
 type Features struct {
-	Supports FeaturesSupported
-	Enabled  FeaturesEnabled
+	Supports      FeaturesSupported
+	Enabled       FeaturesEnabled
+	Subscriptions []*subscription.Subscription
 }
 
 // FeaturesEnabled stores the exchange enabled features

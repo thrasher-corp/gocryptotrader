@@ -10,6 +10,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
@@ -207,10 +208,10 @@ func (w *WrapperWebsocket) FlushChannels() error {
 
 // GetSubscriptions returns a copied list of subscriptions of all asset type websocket connections
 // and is a private member that cannot be manipulated
-func (w *WrapperWebsocket) GetSubscriptions() []ChannelSubscription {
+func (w *WrapperWebsocket) GetSubscriptions() []subscription.Subscription {
 	w.subscriptionMutex.Lock()
 	defer w.subscriptionMutex.Unlock()
-	subscriptions := []ChannelSubscription{}
+	subscriptions := []subscription.Subscription{}
 	for x := range w.AssetTypeWebsockets {
 		subscriptions = append(subscriptions, w.AssetTypeWebsockets[x].GetSubscriptions()...)
 	}
@@ -218,13 +219,13 @@ func (w *WrapperWebsocket) GetSubscriptions() []ChannelSubscription {
 }
 
 // SubscribeToChannels appends supplied channels to channelsToSubscribe
-func (w *WrapperWebsocket) SubscribeToChannels(channels []ChannelSubscription) error {
+func (w *WrapperWebsocket) SubscribeToChannels(channels []subscription.Subscription) error {
 	if len(channels) == 0 {
 		return fmt.Errorf("%s websocket: cannot subscribe no channels supplied",
 			w.exchangeName)
 	}
 	var err error
-	var filteredChannels []ChannelSubscription
+	var filteredChannels []subscription.Subscription
 	for x := range w.AssetTypeWebsockets {
 		filteredChannels, err = w.AssetTypeWebsockets[x].SubscriptionFilter(channels, x)
 		if err != nil {
@@ -259,7 +260,7 @@ func (w *WrapperWebsocket) Enable() error {
 }
 
 // UnsubscribeChannels unsubscribes from a websocket channel
-func (w *WrapperWebsocket) UnsubscribeChannels(channels []ChannelSubscription) error {
+func (w *WrapperWebsocket) UnsubscribeChannels(channels []subscription.Subscription) error {
 	if len(channels) == 0 {
 		return fmt.Errorf("%s websocket: channels not populated cannot remove",
 			w.exchangeName)
@@ -570,8 +571,8 @@ func (w *WrapperWebsocket) AddWebsocket(s *WebsocketSetup) (*Websocket, error) {
 	}
 	assetWebsocket := &Websocket{
 		Init:                   true,
-		Subscribe:              make(chan []ChannelSubscription),
-		Unsubscribe:            make(chan []ChannelSubscription),
+		Subscribe:              make(chan []subscription.Subscription),
+		Unsubscribe:            make(chan []subscription.Subscription),
 		GenerateSubs:           s.GenerateSubscriptions,
 		Subscriber:             s.Subscriber,
 		Unsubscriber:           s.Unsubscriber,

@@ -9,18 +9,19 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fill"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/buffer"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 )
 
 // DefaultTestSetup represents a default asset websocket connection instance setup request parameter.
 var DefaultTestSetup = &WebsocketSetup{
-	DefaultURL:   "testDefaultURL",
-	RunningURL:   "wss://testRunningURL",
+	DefaultURL:   "ws://something.com",
+	RunningURL:   "ws://something.com",
 	Connector:    func() error { return nil },
-	Subscriber:   func(_ []ChannelSubscription) error { return nil },
-	Unsubscriber: func(_ []ChannelSubscription) error { return nil },
-	GenerateSubscriptions: func() ([]ChannelSubscription, error) {
-		return []ChannelSubscription{
+	Subscriber:   func(_ []subscription.Subscription) error { return nil },
+	Unsubscriber: func(_ []subscription.Subscription) error { return nil },
+	GenerateSubscriptions: func() ([]subscription.Subscription, error) {
+		return []subscription.Subscription{
 			{Channel: "TestSub"},
 			{Channel: "TestSub2"},
 			{Channel: "TestSub3"},
@@ -33,14 +34,17 @@ var DefaultTestSetup = &WebsocketSetup{
 // DefaultWrapperSetup represents a default websockets wrapper setup.
 var DefaultWrapperSetup = &WebsocketWrapperSetup{
 	ExchangeConfig: &config.Exchange{
+		Enabled:                 true,
+		WebsocketTrafficTimeout: time.Second * 30,
+		Name:                    "test",
 		Features: &config.FeaturesConfig{
-			Enabled: config.FeaturesEnabledConfig{Websocket: true},
+			Enabled: config.FeaturesEnabledConfig{
+				Websocket: true,
+			},
 		},
 		API: config.APIConfig{
 			AuthenticatedWebsocketSupport: true,
 		},
-		WebsocketTrafficTimeout: time.Second * 5,
-		Name:                    "exchangeName",
 	},
 	Features: &protocol.Features{
 		Subscribe:   true,

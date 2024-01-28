@@ -19,6 +19,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 )
 
 // Binance is the overarching type across the Binance package
@@ -106,6 +107,13 @@ var (
 	errAmountMustBeSet                        = errors.New("amount must not be <= 0")
 	errEitherLoanOrCollateralAmountsMustBeSet = errors.New("either loan or collateral amounts must be set")
 )
+
+var subscriptionNames = map[string]string{
+	subscription.TickerChannel:    "ticker",
+	subscription.OrderbookChannel: "depth",
+	subscription.CandlesChannel:   "kline",
+	subscription.AllTradesChannel: "trade",
+}
 
 // GetExchangeInfo returns exchange information. Check binance_types for more
 // information

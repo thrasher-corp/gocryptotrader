@@ -8,6 +8,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 )
 
 // WsLinearConnect connects to linear a websocket feed
@@ -44,8 +45,8 @@ func (by *Bybit) WsLinearConnect() error {
 }
 
 // GenerateLinearDefaultSubscriptions generates default subscription
-func (by *Bybit) GenerateLinearDefaultSubscriptions() ([]stream.ChannelSubscription, error) {
-	var subscriptions []stream.ChannelSubscription
+func (by *Bybit) GenerateLinearDefaultSubscriptions() ([]subscription.Subscription, error) {
+	var subscriptions []subscription.Subscription
 	var channels = []string{chanOrderbook, chanPublicTrade, chanPublicTicker}
 	pairs, err := by.GetEnabledPairs(asset.USDTMarginedFutures)
 	if err != nil {
@@ -64,10 +65,10 @@ func (by *Bybit) GenerateLinearDefaultSubscriptions() ([]stream.ChannelSubscript
 		for p := range linearPairMap[a] {
 			for x := range channels {
 				subscriptions = append(subscriptions,
-					stream.ChannelSubscription{
-						Channel:  channels[x],
-						Currency: pairs[p],
-						Asset:    a,
+					subscription.Subscription{
+						Channel: channels[x],
+						Pair:    pairs[p],
+						Asset:   a,
 					})
 			}
 		}
@@ -76,16 +77,16 @@ func (by *Bybit) GenerateLinearDefaultSubscriptions() ([]stream.ChannelSubscript
 }
 
 // LinearSubscribe sends a subscription message to linear public channels.
-func (by *Bybit) LinearSubscribe(channelSubscriptions []stream.ChannelSubscription) error {
+func (by *Bybit) LinearSubscribe(channelSubscriptions []subscription.Subscription) error {
 	return by.handleLinearPayloadSubscription("subscribe", channelSubscriptions)
 }
 
 // LinearUnsubscribe sends an unsubscription messages through linear public channels.
-func (by *Bybit) LinearUnsubscribe(channelSubscriptions []stream.ChannelSubscription) error {
+func (by *Bybit) LinearUnsubscribe(channelSubscriptions []subscription.Subscription) error {
 	return by.handleLinearPayloadSubscription("unsubscribe", channelSubscriptions)
 }
 
-func (by *Bybit) handleLinearPayloadSubscription(operation string, channelSubscriptions []stream.ChannelSubscription) error {
+func (by *Bybit) handleLinearPayloadSubscription(operation string, channelSubscriptions []subscription.Subscription) error {
 	linearWebsocket, err := by.Websocket.GetAssetWebsocket(asset.USDTMarginedFutures)
 	if err != nil {
 		return err

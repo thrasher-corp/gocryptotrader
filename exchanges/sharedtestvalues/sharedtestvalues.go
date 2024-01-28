@@ -18,6 +18,7 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 )
 
 // This package is only to be referenced in test files
@@ -61,8 +62,8 @@ func NewTestWebsocket() *stream.Websocket {
 		ToRoutine:         make(chan interface{}, 1000),
 		TrafficAlert:      make(chan struct{}),
 		ReadMessageErrors: make(chan error),
-		Subscribe:         make(chan []stream.ChannelSubscription, 10),
-		Unsubscribe:       make(chan []stream.ChannelSubscription, 10),
+		Subscribe:         make(chan []subscription.Subscription, 10),
+		Unsubscribe:       make(chan []subscription.Subscription, 10),
 		Match:             stream.NewMatch(),
 	}
 }

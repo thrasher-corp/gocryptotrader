@@ -19,6 +19,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
@@ -553,36 +554,36 @@ func (p *Poloniex) WsProcessOrderbookUpdate(sequenceNumber float64, data []inter
 }
 
 // GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
-func (p *Poloniex) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, error) {
-	enabledCurrencies, err := p.GetEnabledPairs(asset.Spot)
+func (p *Poloniex) GenerateDefaultSubscriptions() ([]subscription.Subscription, error) {
+	enabledPairs, err := p.GetEnabledPairs(asset.Spot)
 	if err != nil {
 		return nil, err
 	}
 
-	subscriptions := make([]stream.ChannelSubscription, 0, len(enabledCurrencies))
-	subscriptions = append(subscriptions, stream.ChannelSubscription{
+	subscriptions := make([]subscription.Subscription, 0, len(enabledPairs))
+	subscriptions = append(subscriptions, subscription.Subscription{
 		Channel: strconv.FormatInt(wsTickerDataID, 10),
 	})
 
 	if p.IsWebsocketAuthenticationSupported() {
-		subscriptions = append(subscriptions, stream.ChannelSubscription{
+		subscriptions = append(subscriptions, subscription.Subscription{
 			Channel: strconv.FormatInt(wsAccountNotificationID, 10),
 		})
 	}
 
-	for j := range enabledCurrencies {
-		enabledCurrencies[j].Delimiter = currency.UnderscoreDelimiter
-		subscriptions = append(subscriptions, stream.ChannelSubscription{
-			Channel:  "orderbook",
-			Currency: enabledCurrencies[j],
-			Asset:    asset.Spot,
+	for j := range enabledPairs {
+		enabledPairs[j].Delimiter = currency.UnderscoreDelimiter
+		subscriptions = append(subscriptions, subscription.Subscription{
+			Channel: "orderbook",
+			Pair:    enabledPairs[j],
+			Asset:   asset.Spot,
 		})
 	}
 	return subscriptions, nil
 }
 
 // Subscribe sends a websocket message to receive data from the channel
-func (p *Poloniex) Subscribe(sub []stream.ChannelSubscription) error {
+func (p *Poloniex) Subscribe(sub []subscription.Subscription) error {
 	spotWebsocket, err := p.Websocket.GetAssetWebsocket(asset.Spot)
 	if err != nil {
 		return fmt.Errorf("%w asset type: %v", err, asset.Spot)
@@ -615,7 +616,7 @@ channels:
 			sub[i].Channel):
 			subscriptionRequest.Channel = wsTickerDataID
 		default:
-			subscriptionRequest.Channel = sub[i].Currency.String()
+			subscriptionRequest.Channel = sub[i].Pair.String()
 		}
 
 		err := spotWebsocket.Conn.SendJSONMessage(subscriptionRequest)
@@ -633,7 +634,7 @@ channels:
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
-func (p *Poloniex) Unsubscribe(unsub []stream.ChannelSubscription) error {
+func (p *Poloniex) Unsubscribe(unsub []subscription.Subscription) error {
 	spotWebsocket, err := p.Websocket.GetAssetWebsocket(asset.Spot)
 	if err != nil {
 		return fmt.Errorf("%w asset type: %v", err, asset.Spot)
@@ -666,7 +667,7 @@ channels:
 			unsub[i].Channel):
 			unsubscriptionRequest.Channel = wsTickerDataID
 		default:
-			unsubscriptionRequest.Channel = unsub[i].Currency.String()
+			unsubscriptionRequest.Channel = unsub[i].Pair.String()
 		}
 		err := spotWebsocket.Conn.SendJSONMessage(unsubscriptionRequest)
 		if err != nil {

@@ -16,6 +16,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
@@ -553,9 +554,9 @@ func (bi *Binanceus) UpdateLocalBuffer(wsdp *WebsocketDepthStream) (bool, error)
 }
 
 // GenerateSubscriptions generates the default subscription set
-func (bi *Binanceus) GenerateSubscriptions() ([]stream.ChannelSubscription, error) {
+func (bi *Binanceus) GenerateSubscriptions() ([]subscription.Subscription, error) {
 	var channels = []string{"@ticker", "@trade", "@kline_1m", "@depth@100ms"}
-	var subscriptions []stream.ChannelSubscription
+	var subscriptions []subscription.Subscription
 
 	pairs, err := bi.GetEnabledPairs(asset.Spot)
 	if err != nil {
@@ -571,10 +572,10 @@ subs:
 				log.Warnf(log.WebsocketMgr, "BinanceUS has 1024 subscription limit, only subscribing within limit. Requested %v", len(pairs)*len(channels))
 				break subs
 			}
-			subscriptions = append(subscriptions, stream.ChannelSubscription{
-				Channel:  lp.String() + channels[z],
-				Currency: pairs[y],
-				Asset:    asset.Spot,
+			subscriptions = append(subscriptions, subscription.Subscription{
+				Channel: lp.String() + channels[z],
+				Pair:    pairs[y],
+				Asset:   asset.Spot,
 			})
 		}
 	}
@@ -583,7 +584,7 @@ subs:
 }
 
 // Subscribe subscribes to a set of channels
-func (bi *Binanceus) Subscribe(channelsToSubscribe []stream.ChannelSubscription) error {
+func (bi *Binanceus) Subscribe(channelsToSubscribe []subscription.Subscription) error {
 	spotWebsocket, err := bi.Websocket.GetAssetWebsocket(asset.Spot)
 	if err != nil {
 		return fmt.Errorf("%w asset type: %v", err, asset.Spot)
@@ -612,7 +613,7 @@ func (bi *Binanceus) Subscribe(channelsToSubscribe []stream.ChannelSubscription)
 }
 
 // Unsubscribe unsubscribes from a set of channels
-func (bi *Binanceus) Unsubscribe(channelsToUnsubscribe []stream.ChannelSubscription) error {
+func (bi *Binanceus) Unsubscribe(channelsToUnsubscribe []subscription.Subscription) error {
 	spotWebsocket, err := bi.Websocket.GetAssetWebsocket(asset.Spot)
 	if err != nil {
 		return fmt.Errorf("%w asset type: %v", err, asset.Spot)
