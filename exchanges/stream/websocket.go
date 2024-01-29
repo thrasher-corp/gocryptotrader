@@ -65,6 +65,8 @@ var (
 	errChannelAlreadySubscribed             = errors.New("channel already subscribed")
 	errInvalidChannelState                  = errors.New("invalid Channel state")
 	errSameProxyAddress                     = errors.New("cannot set proxy address to the same address")
+	errNoConnectFunc                        = errors.New("connect func not set")
+	errAlreadyConnected                     = errors.New("already connected")
 )
 
 var globalReporter Reporter
@@ -75,8 +77,8 @@ func SetupGlobalReporter(r Reporter) {
 	globalReporter = r
 }
 
-// New initialises the websocket struct
-func New() *Websocket {
+// NewWebsocket initialises the websocket struct
+func NewWebsocket() *Websocket {
 	return &Websocket{
 		DataHandler:       make(chan interface{}, defaultJobBuffer),
 		ToRoutine:         make(chan interface{}, defaultJobBuffer),
@@ -98,7 +100,7 @@ func (w *Websocket) Setup(s *WebsocketSetup) error {
 		return errWebsocketSetupIsNil
 	}
 
-	if w.state != uninitialised {
+	if w.IsInitialised() {
 		return fmt.Errorf("%s %w", w.exchangeName, errWebsocketAlreadyInitialised)
 	}
 
@@ -188,6 +190,8 @@ func (w *Websocket) Setup(s *WebsocketSetup) error {
 		return fmt.Errorf("%s %w", w.exchangeName, errInvalidMaxSubscriptions)
 	}
 	w.MaxSubscriptionsPerConnection = s.MaxWebsocketSubscriptionsPerConnection
+	w.setState(disconnected)
+
 	return nil
 }
 
@@ -253,7 +257,7 @@ func (w *Websocket) SetupNewConnection(c ConnectionSetup) error {
 // function
 func (w *Websocket) Connect() error {
 	if w.connector == nil {
-		return errors.New("websocket connect function not set, cannot continue")
+		return errNoConnectFunc
 	}
 	w.m.Lock()
 	defer w.m.Unlock()
@@ -274,15 +278,14 @@ func (w *Websocket) Connect() error {
 
 	w.dataMonitor()
 	w.trafficMonitor()
-	w.setConnectingStatus(true)
+	w.setState(connecting)
 
 	err := w.connector()
 	if err != nil {
-		w.setConnectingStatus(false)
+		w.setState(disconnected)
 		return fmt.Errorf("%v Error connecting %w", w.exchangeName, err)
 	}
-	w.setConnectedStatus(true)
-	w.setConnectingStatus(false)
+	w.setState(connected)
 
 	if !w.IsConnectionMonitorRunning() {
 		err = w.connectionMonitor()
@@ -310,6 +313,7 @@ func (w *Websocket) Connect() error {
 }
 
 // Disable disables the exchange websocket protocol
+// Note that connectionMonitor will be responsible for shutting down the websocket after disabling
 func (w *Websocket) Disable() error {
 	if !w.IsEnabled() {
 		return fmt.Errorf("%w for exchange '%s'", ErrAlreadyDisabled, w.exchangeName)
@@ -409,7 +413,7 @@ func (w *Websocket) connectionMonitor() error {
 			case err := <-w.ReadMessageErrors:
 				if IsDisconnectionError(err) {
 					log.Warnf(log.WebsocketMgr, "%v websocket has been disconnected. Reason: %v", w.exchangeName, err)
-					w.setConnectedStatus(false)
+					w.setState(disconnected)
 				}
 
 				w.DataHandler <- err
@@ -474,8 +478,7 @@ func (w *Websocket) Shutdown() error {
 	close(w.ShutdownC)
 	w.Wg.Wait()
 	w.ShutdownC = make(chan struct{})
-	w.setConnectedStatus(false)
-	w.setConnectingStatus(false)
+	w.setState(disconnected)
 	if w.verbose {
 		log.Debugf(log.WebsocketMgr, "%v websocket: completed websocket shutdown", w.exchangeName)
 	}
@@ -569,7 +572,7 @@ func (w *Websocket) trafficMonitor() {
 					default:
 					}
 				}
-				w.setConnectedStatus(true)
+				w.setState(connected)
 				trafficTimer.Reset(w.trafficTimeout)
 			case <-trafficTimer.C: // Falls through when timer runs out
 				if w.verbose {
@@ -610,30 +613,31 @@ func (w *Websocket) trafficMonitor() {
 	}()
 }
 
-func (w *Websocket) setConnectedStatus(b bool) {
+// IsInitialised returns whether the websocket has been Setup() already
+func (w *Websocket) IsInitialised() bool {
+	w.fieldMutex.RLock()
+	defer w.fieldMutex.RUnlock()
+	return w.state != uninitialised
+}
+
+func (w *Websocket) setState(s state) {
 	w.fieldMutex.Lock()
-	w.state = connected
+	w.state = s
 	w.fieldMutex.Unlock()
 }
 
-// IsConnected returns status of connection
+// IsConnected returns whether the websocket is connected
 func (w *Websocket) IsConnected() bool {
 	w.fieldMutex.RLock()
 	defer w.fieldMutex.RUnlock()
 	return w.state == connected
 }
 
-func (w *Websocket) setConnectingStatus(b bool) {
-	w.fieldMutex.Lock()
-	w.state = connecting
-	w.fieldMutex.Unlock()
-}
-
-// IsConnecting returns status of connecting
+// IsConnecting returns whether the websocket is connecting
 func (w *Websocket) IsConnecting() bool {
 	w.fieldMutex.RLock()
 	defer w.fieldMutex.RUnlock()
-	return w.connecting
+	return w.state == connecting
 }
 
 func (w *Websocket) setEnabled(b bool) {
@@ -642,7 +646,7 @@ func (w *Websocket) setEnabled(b bool) {
 	w.fieldMutex.Unlock()
 }
 
-// IsEnabled returns status of enabled
+// IsEnabled returns whether the websocket is enabled
 func (w *Websocket) IsEnabled() bool {
 	w.fieldMutex.RLock()
 	defer w.fieldMutex.RUnlock()

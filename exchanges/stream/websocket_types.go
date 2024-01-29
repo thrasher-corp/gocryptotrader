@@ -25,10 +25,10 @@ const (
 
 type subscriptionMap map[any]*subscription.Subscription
 
-type State int
+type state int
 
 const (
-	uninitialised State = iota
+	uninitialised state = iota
 	disconnected
 	connecting
 	connected
