@@ -368,9 +368,8 @@ func (ku *Kucoin) GetFuturesTickers(ctx context.Context) ([]*ticker.Price, error
 		go func() {
 			defer wg.Done()
 
-			var tick *FuturesTicker
-			if tick, err = ku.GetFuturesTicker(ctx, p.String()); err != nil {
-				errC <- err
+			if tick, err2 := ku.GetFuturesTicker(ctx, p.String()); err2 != nil {
+				errC <- err2
 			} else {
 				tickersC <- &ticker.Price{
 					Last:         tick.Price.Float64(),
