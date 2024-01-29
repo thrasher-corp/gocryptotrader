@@ -175,59 +175,83 @@ func executeExchangeWrapperTests(ctx context.Context, t *testing.T, exch exchang
 	t.Helper()
 	iExchange := reflect.TypeOf(&exch).Elem()
 	actualExchange := reflect.ValueOf(exch)
+
+	var firstPriority []string
+	var secondPriority []string
+
 	for x := 0; x < iExchange.NumMethod(); x++ {
 		methodName := iExchange.Method(x).Name
 		if _, ok := excludedMethodNames[methodName]; ok {
 			continue
 		}
-		method := actualExchange.MethodByName(methodName)
 
-		var assetLen int
-		for y := 0; y < method.Type().NumIn(); y++ {
-			input := method.Type().In(y)
-			if input.AssignableTo(assetParam) ||
-				input.AssignableTo(orderSubmitParam) ||
-				input.AssignableTo(orderModifyParam) ||
-				input.AssignableTo(orderCancelParam) ||
-				input.AssignableTo(orderCancelsParam) ||
-				input.AssignableTo(pairKeySliceParam) ||
-				input.AssignableTo(getOrdersRequestParam) ||
-				input.AssignableTo(pairKeySliceParam) {
-				// this allows wrapper functions that support assets types
-				// to be tested with all supported assets
-				assetLen = len(assetParams) - 1
-			}
-		}
-		tt := time.Now()
-		e := time.Date(tt.Year(), tt.Month(), tt.Day()-1, 0, 0, 0, 0, time.UTC)
-		s := e.Add(-time.Hour * 24 * 2)
-		if methodName == "GetHistoricTrades" {
-			// limit trade history
-			e = time.Now()
-			s = e.Add(-time.Minute * 3)
-		}
-		for y := 0; y <= assetLen; y++ {
-			inputs := make([]reflect.Value, method.Type().NumIn())
-			argGenerator := &MethodArgumentGenerator{
-				Exchange:    exch,
-				AssetParams: assetParams[y],
-				MethodName:  methodName,
-				Start:       s,
-				End:         e,
-			}
-			for z := 0; z < method.Type().NumIn(); z++ {
-				argGenerator.MethodInputType = method.Type().In(z)
-				generatedArg := generateMethodArg(ctx, t, argGenerator)
-				inputs[z] = *generatedArg
-			}
-			assetY := assetParams[y].Asset.String()
-			pairY := assetParams[y].Pair.String()
-			t.Run(methodName+"-"+assetY+"-"+pairY, func(t *testing.T) {
-				t.Parallel()
-				CallExchangeMethod(t, method, inputs, methodName, exch)
-			})
+		if strings.Contains(methodName, "Update") {
+			// Update functions are tested first as they are required for other
+			// functions to work.
+			firstPriority = append(firstPriority, methodName)
+		} else {
+			secondPriority = append(secondPriority, methodName)
 		}
 	}
+	handleExchangeWrapperTests(ctx, t, actualExchange, firstPriority, exch, assetParams, "PRIORITY GROUP")
+	handleExchangeWrapperTests(ctx, t, actualExchange, secondPriority, exch, assetParams, "SECONDARY GROUP")
+}
+
+func handleExchangeWrapperTests(ctx context.Context, t *testing.T, actualExchange reflect.Value, methodNames []string, exch exchange.IBotExchange, assetParams []assetPair, groupTestID string) {
+	t.Helper()
+	t.Run(groupTestID, func(t *testing.T) {
+		for x := range methodNames {
+			method := actualExchange.MethodByName(methodNames[x])
+
+			var assetLen int
+			for y := 0; y < method.Type().NumIn(); y++ {
+				input := method.Type().In(y)
+				if input.AssignableTo(assetParam) ||
+					input.AssignableTo(orderSubmitParam) ||
+					input.AssignableTo(orderModifyParam) ||
+					input.AssignableTo(orderCancelParam) ||
+					input.AssignableTo(orderCancelsParam) ||
+					input.AssignableTo(pairKeySliceParam) ||
+					input.AssignableTo(getOrdersRequestParam) ||
+					input.AssignableTo(pairKeySliceParam) {
+					// this allows wrapper functions that support assets types
+					// to be tested with all supported assets
+					assetLen = len(assetParams) - 1
+				}
+			}
+			tt := time.Now()
+			e := time.Date(tt.Year(), tt.Month(), tt.Day()-1, 0, 0, 0, 0, time.UTC)
+			s := e.Add(-time.Hour * 24 * 2)
+			if methodNames[x] == "GetHistoricTrades" {
+				// limit trade history
+				e = time.Now()
+				s = e.Add(-time.Minute * 3)
+			}
+			for y := 0; y <= assetLen; y++ {
+				inputs := make([]reflect.Value, method.Type().NumIn())
+				argGenerator := &MethodArgumentGenerator{
+					Exchange:    exch,
+					AssetParams: assetParams[y],
+					MethodName:  methodNames[x],
+					Start:       s,
+					End:         e,
+				}
+				for z := 0; z < method.Type().NumIn(); z++ {
+					argGenerator.MethodInputType = method.Type().In(z)
+					generatedArg := generateMethodArg(ctx, t, argGenerator)
+					inputs[z] = *generatedArg
+				}
+				assetY := assetParams[y].Asset.String()
+				pairY := assetParams[y].Pair.String()
+
+				methodNameBro := methodNames[x]
+				t.Run(methodNames[x]+"-"+assetY+"-"+pairY, func(t *testing.T) {
+					t.Parallel()
+					CallExchangeMethod(t, method, inputs, methodNameBro, exch)
+				})
+			}
+		}
+	})
 }
 
 // CallExchangeMethod will call an exchange's method using generated arguments
@@ -584,6 +608,7 @@ var excludedMethodNames = map[string]struct{}{
 	"GetLeverage":                      {},
 	"SetMarginType":                    {},
 	"ChangePositionMargin":             {},
+	"FetchAccountInfo":                 {}, // Cannot be set correctly with UpdateAccountInfo
 }
 
 // blockedCIExchanges are exchanges that are not able to be tested on CI
