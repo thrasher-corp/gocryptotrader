@@ -20,6 +20,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
@@ -121,7 +122,7 @@ func (g *Gateio) WsFuturesConnect() error {
 }
 
 // GenerateFuturesDefaultSubscriptions returns default subscriptions information.
-func (g *Gateio) GenerateFuturesDefaultSubscriptions() ([]stream.ChannelSubscription, error) {
+func (g *Gateio) GenerateFuturesDefaultSubscriptions() ([]subscription.Subscription, error) {
 	channelsToSubscribe := defaultFuturesSubscriptions
 	if g.Websocket.CanUseAuthenticatedEndpoints() {
 		channelsToSubscribe = append(channelsToSubscribe,
@@ -134,7 +135,7 @@ func (g *Gateio) GenerateFuturesDefaultSubscriptions() ([]stream.ChannelSubscrip
 	if err != nil {
 		return nil, err
 	}
-	subscriptions := make([]stream.ChannelSubscription, len(channelsToSubscribe)*len(pairs))
+	subscriptions := make([]subscription.Subscription, len(channelsToSubscribe)*len(pairs))
 	count := 0
 	for i := range channelsToSubscribe {
 		for j := range pairs {
@@ -153,10 +154,10 @@ func (g *Gateio) GenerateFuturesDefaultSubscriptions() ([]stream.ChannelSubscrip
 			if err != nil {
 				return nil, err
 			}
-			subscriptions[count] = stream.ChannelSubscription{
-				Channel:  channelsToSubscribe[i],
-				Currency: fpair.Upper(),
-				Params:   params,
+			subscriptions[count] = subscription.Subscription{
+				Channel: channelsToSubscribe[i],
+				Pair:    fpair.Upper(),
+				Params:  params,
 			}
 			count++
 		}
@@ -165,12 +166,12 @@ func (g *Gateio) GenerateFuturesDefaultSubscriptions() ([]stream.ChannelSubscrip
 }
 
 // FuturesSubscribe sends a websocket message to stop receiving data from the channel
-func (g *Gateio) FuturesSubscribe(channelsToUnsubscribe []stream.ChannelSubscription) error {
+func (g *Gateio) FuturesSubscribe(channelsToUnsubscribe []subscription.Subscription) error {
 	return g.handleFuturesSubscription("subscribe", channelsToUnsubscribe)
 }
 
 // FuturesUnsubscribe sends a websocket message to stop receiving data from the channel
-func (g *Gateio) FuturesUnsubscribe(channelsToUnsubscribe []stream.ChannelSubscription) error {
+func (g *Gateio) FuturesUnsubscribe(channelsToUnsubscribe []subscription.Subscription) error {
 	return g.handleFuturesSubscription("unsubscribe", channelsToUnsubscribe)
 }
 
@@ -269,7 +270,7 @@ func (g *Gateio) wsHandleFuturesData(respRaw []byte, assetType asset.Item) error
 }
 
 // handleFuturesSubscription sends a websocket message to receive data from the channel
-func (g *Gateio) handleFuturesSubscription(event string, channelsToSubscribe []stream.ChannelSubscription) error {
+func (g *Gateio) handleFuturesSubscription(event string, channelsToSubscribe []subscription.Subscription) error {
 	payloads, err := g.generateFuturesPayload(event, channelsToSubscribe)
 	if err != nil {
 		return err
@@ -306,7 +307,7 @@ func (g *Gateio) handleFuturesSubscription(event string, channelsToSubscribe []s
 	return nil
 }
 
-func (g *Gateio) generateFuturesPayload(event string, channelsToSubscribe []stream.ChannelSubscription) ([2][]WsInput, error) {
+func (g *Gateio) generateFuturesPayload(event string, channelsToSubscribe []subscription.Subscription) ([2][]WsInput, error) {
 	if len(channelsToSubscribe) == 0 {
 		return [2][]WsInput{}, errors.New("cannot generate payload, no channels supplied")
 	}
@@ -323,7 +324,7 @@ func (g *Gateio) generateFuturesPayload(event string, channelsToSubscribe []stre
 		var auth *WsAuthInput
 		timestamp := time.Now()
 		var params []string
-		params = []string{channelsToSubscribe[i].Currency.String()}
+		params = []string{channelsToSubscribe[i].Pair.String()}
 		if g.Websocket.CanUseAuthenticatedEndpoints() {
 			switch channelsToSubscribe[i].Channel {
 			case futuresOrdersChannel, futuresUserTradesChannel,
@@ -387,7 +388,7 @@ func (g *Gateio) generateFuturesPayload(event string, channelsToSubscribe []stre
 				params = append(params, intervalString)
 			}
 		}
-		if strings.HasPrefix(channelsToSubscribe[i].Currency.Quote.Upper().String(), "USDT") {
+		if strings.HasPrefix(channelsToSubscribe[i].Pair.Quote.Upper().String(), "USDT") {
 			payloads[0] = append(payloads[0], WsInput{
 				ID:      g.Websocket.Conn.GenerateMessageID(false),
 				Event:   event,

@@ -31,33 +31,6 @@ type Response struct {
 	Raw  []byte
 }
 
-// DefaultChannelKey is the fallback key for AddSuccessfulSubscriptions
-type DefaultChannelKey struct {
-	Channel  string
-	Currency currency.Pair
-	Asset    asset.Item
-}
-
-// ChannelState tracks the status of a subscription channel
-type ChannelState uint8
-
-const (
-	ChannelStateUnknown  ChannelState = iota // ChannelStateUnknown means subscription state is not registered, but doesn't imply Inactive
-	ChannelSubscribing                       // ChannelSubscribing means channel is in the process of subscribing
-	ChannelSubscribed                        // ChannelSubscribed means the channel has finished a successful and acknowledged subscription
-	ChannelUnsubscribing                     // ChannelUnsubscribing means the channel has started to unsubscribe, but not yet confirmed
-)
-
-// ChannelSubscription container for streaming subscription channels
-type ChannelSubscription struct {
-	Key      any
-	Channel  string
-	Currency currency.Pair
-	Asset    asset.Item
-	Params   map[string]interface{}
-	State    ChannelState
-}
-
 // ConnectionSetup defines variables for an individual stream connection
 type ConnectionSetup struct {
 	ResponseCheckTimeout    time.Duration

@@ -92,7 +92,6 @@ type ExchangeTuningSettings struct {
 	DisableExchangeAutoPairUpdates      bool
 	EnableExchangeRESTSupport           bool
 	EnableExchangeWebsocketSupport      bool
-	MaxHTTPRequestJobsLimit             int
 	TradeBufferProcessingInterval       time.Duration
 	RequestMaxRetryAttempts             int
 	AlertSystemPreAllocationCommsBuffer int // See exchanges/alert.go
