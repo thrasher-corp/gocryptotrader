@@ -362,7 +362,7 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 			})
 
 			var fetchTickerResponse *ticker.Price
-			fetchTickerResponse, err = e.FetchTicker(p, assetTypes[i])
+			fetchTickerResponse, err = e.FetchTicker(context.TODO(), p, assetTypes[i])
 			msg = ""
 			if err != nil {
 				msg = err.Error()
@@ -390,7 +390,7 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 			})
 
 			var fetchOrderbookResponse *orderbook.Base
-			fetchOrderbookResponse, err = e.FetchOrderbook(p, assetTypes[i])
+			fetchOrderbookResponse, err = e.FetchOrderbook(context.TODO(), p, assetTypes[i])
 			msg = ""
 			if err != nil {
 				msg = err.Error()

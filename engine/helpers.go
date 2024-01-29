@@ -582,7 +582,7 @@ func (bot *Engine) GetSpecificOrderbook(p currency.Pair, exchangeName string, as
 	if err != nil {
 		return nil, err
 	}
-	return exch.FetchOrderbook(p, assetType)
+	return exch.FetchOrderbook(context.TODO(), p, assetType)
 }
 
 // GetSpecificTicker returns a specific ticker given the currency,
@@ -592,7 +592,7 @@ func (bot *Engine) GetSpecificTicker(p currency.Pair, exchangeName string, asset
 	if err != nil {
 		return nil, err
 	}
-	return exch.FetchTicker(p, assetType)
+	return exch.FetchTicker(context.TODO(), p, assetType)
 }
 
 // GetCollatedExchangeAccountInfoByCoin collates individual exchange account
@@ -850,7 +850,7 @@ func (bot *Engine) GetAllActiveTickers() []EnabledExchangeCurrencies {
 				continue
 			}
 			for z := range currencies {
-				tp, err := exchanges[x].FetchTicker(currencies[z], assets[y])
+				tp, err := exchanges[x].FetchTicker(context.TODO(), currencies[z], assets[y])
 				if err != nil {
 					log.Errorf(log.ExchangeSys, "Exchange %s failed to retrieve %s ticker. Err: %s\n", exchName,
 						currencies[z].String(),
