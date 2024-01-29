@@ -485,35 +485,22 @@ func (b *Binance) SeedLocalCacheWithBook(p currency.Pair, orderbookNew *OrderBoo
 
 // UpdateLocalBuffer updates and returns the most recent iteration of the orderbook
 func (b *Binance) UpdateLocalBuffer(wsdp *WebsocketDepthStream) (bool, error) {
-	enabledPairs, err := b.GetEnabledPairs(asset.Spot)
+	pair, err := b.MatchSymbolWithAvailablePairs(wsdp.Pair, asset.Spot, false)
 	if err != nil {
 		return false, err
 	}
-
-	format, err := b.GetPairFormat(asset.Spot, true)
+	err = b.obm.stageWsUpdate(wsdp, pair, asset.Spot)
 	if err != nil {
-		return false, err
-	}
-
-	currencyPair, err := currency.NewPairFromFormattedPairs(wsdp.Pair,
-		enabledPairs,
-		format)
-	if err != nil {
-		return false, err
-	}
-
-	err = b.obm.stageWsUpdate(wsdp, currencyPair, asset.Spot)
-	if err != nil {
-		init, err2 := b.obm.checkIsInitialSync(currencyPair)
+		init, err2 := b.obm.checkIsInitialSync(pair)
 		if err2 != nil {
 			return false, err2
 		}
 		return init, err
 	}
 
-	err = b.applyBufferUpdate(currencyPair)
+	err = b.applyBufferUpdate(pair)
 	if err != nil {
-		b.flushAndCleanup(currencyPair)
+		b.flushAndCleanup(pair)
 	}
 
 	return false, err
