@@ -1883,7 +1883,7 @@ func (b *Base) ParallelChanOp(channels []subscription.Subscription, m func([]sub
 // associated with the exchange.
 // NOTE: UpdateTicker (or if supported UpdateTickers) method must be
 // called first to update the ticker map.
-func (b *Base) FetchTicker(ctx context.Context, p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
+func (b *Base) FetchTicker(_ context.Context, p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
 	return ticker.GetTicker(b.Name, p, assetType)
 }
 
@@ -1891,7 +1891,7 @@ func (b *Base) FetchTicker(ctx context.Context, p currency.Pair, assetType asset
 // associated with the exchange.
 // NOTE: UpdateOrderbook method must be called first to update the orderbook
 // map.
-func (b *Base) FetchOrderbook(ctx context.Context, p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
+func (b *Base) FetchOrderbook(_ context.Context, p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
 	return orderbook.Get(b.Name, p, assetType)
 }
 
