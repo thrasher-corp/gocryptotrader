@@ -85,7 +85,6 @@ _b in this context is an `IBotExchange` implemented struct_
 | Okx | Yes | Yes | Yes |
 | Poloniex | Yes | Yes | Yes |
 | Yobit | Yes | NA | No |
-| ZB.COM | Yes | Yes | No |
 
 
 ### Please click GoDocs chevron above to view current GoDoc information for this package
