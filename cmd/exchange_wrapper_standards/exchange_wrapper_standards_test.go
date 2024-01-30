@@ -185,9 +185,7 @@ func executeExchangeWrapperTests(ctx context.Context, t *testing.T, exch exchang
 			continue
 		}
 
-		if strings.Contains(methodName, "Update") {
-			// Update functions are tested first as they are required for other
-			// functions to work.
+		if _, ok := priorityMethodNames[methodName]; ok {
 			firstPriority = append(firstPriority, methodName)
 		} else {
 			secondPriority = append(secondPriority, methodName)
@@ -229,10 +227,11 @@ func handleExchangeWrapperTests(ctx context.Context, t *testing.T, actualExchang
 			}
 			for y := 0; y <= assetLen; y++ {
 				inputs := make([]reflect.Value, method.Type().NumIn())
+				methodName := methodNames[x]
 				argGenerator := &MethodArgumentGenerator{
 					Exchange:    exch,
 					AssetParams: assetParams[y],
-					MethodName:  methodNames[x],
+					MethodName:  methodName,
 					Start:       s,
 					End:         e,
 				}
@@ -244,10 +243,9 @@ func handleExchangeWrapperTests(ctx context.Context, t *testing.T, actualExchang
 				assetY := assetParams[y].Asset.String()
 				pairY := assetParams[y].Pair.String()
 
-				methodNameBro := methodNames[x]
-				t.Run(methodNames[x]+"-"+assetY+"-"+pairY, func(t *testing.T) {
+				t.Run(methodName+"-"+assetY+"-"+pairY, func(t *testing.T) {
 					t.Parallel()
-					CallExchangeMethod(t, method, inputs, methodNameBro, exch)
+					CallExchangeMethod(t, method, inputs, methodName, exch)
 				})
 			}
 		}
@@ -565,6 +563,12 @@ func generateMethodArg(ctx context.Context, t *testing.T, argGenerator *MethodAr
 type assetPair struct {
 	Pair  currency.Pair
 	Asset asset.Item
+}
+
+// priorityMethodNames are called before other exchange functions
+var priorityMethodNames = map[string]struct{}{
+	"UpdateTickers":   {}, // Is required before FetchTickers is called
+	"UpdateOrderbook": {}, // Is required before FetchOrderbook is called
 }
 
 // excludedMethodNames represent the functions that are not

@@ -30,10 +30,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stats"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/gctscript/vm"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
@@ -750,94 +748,6 @@ func TestGetExchangeNamesByCurrency(t *testing.T) {
 		assetType)
 	if len(result) > 0 {
 		t.Fatal("Unexpected result")
-	}
-}
-
-func TestGetSpecificOrderbook(t *testing.T) {
-	t.Parallel()
-	e := CreateTestBot(t)
-
-	base := orderbook.Base{
-		Pair:     currency.NewPair(currency.BTC, currency.USD),
-		Bids:     []orderbook.Item{{Price: 1000, Amount: 1}},
-		Exchange: "Bitstamp",
-		Asset:    asset.Spot,
-	}
-
-	err := base.Process()
-	if err != nil {
-		t.Fatal("Unexpected result", err)
-	}
-
-	btsusd, err := currency.NewPairFromStrings("BTC", "USD")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	ob, err := e.GetSpecificOrderbook(btsusd, testExchange, asset.Spot)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if ob.Bids[0].Price != 1000 {
-		t.Fatal("Unexpected result")
-	}
-
-	ethltc, err := currency.NewPairFromStrings("ETH", "LTC")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	_, err = e.GetSpecificOrderbook(ethltc, testExchange, asset.Spot)
-	if err == nil {
-		t.Fatal("Unexpected result")
-	}
-
-	err = e.UnloadExchange(testExchange)
-	if err != nil {
-		t.Error(err)
-	}
-}
-
-func TestGetSpecificTicker(t *testing.T) {
-	t.Parallel()
-	e := CreateTestBot(t)
-	p, err := currency.NewPairFromStrings("BTC", "USD")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	err = ticker.ProcessTicker(&ticker.Price{
-		Pair:         p,
-		Last:         1000,
-		AssetType:    asset.Spot,
-		ExchangeName: testExchange})
-	if err != nil {
-		t.Fatal("ProcessTicker error", err)
-	}
-
-	tick, err := e.GetSpecificTicker(p, testExchange, asset.Spot)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if tick.Last != 1000 {
-		t.Fatal("Unexpected result")
-	}
-
-	ethltc, err := currency.NewPairFromStrings("ETH", "LTC")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	_, err = e.GetSpecificTicker(ethltc, testExchange, asset.Spot)
-	if err == nil {
-		t.Fatal("Unexpected result")
-	}
-
-	err = e.UnloadExchange(testExchange)
-	if err != nil {
-		t.Error(err)
 	}
 }
 

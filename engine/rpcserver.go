@@ -376,7 +376,7 @@ func (s *RPCServer) GetExchangeInfo(_ context.Context, r *gctrpc.GenericExchange
 
 // GetTicker returns the ticker for a specified exchange, currency pair and
 // asset type
-func (s *RPCServer) GetTicker(_ context.Context, r *gctrpc.GetTickerRequest) (*gctrpc.TickerResponse, error) {
+func (s *RPCServer) GetTicker(ctx context.Context, r *gctrpc.GetTickerRequest) (*gctrpc.TickerResponse, error) {
 	a, err := asset.New(r.AssetType)
 	if err != nil {
 		return nil, err
@@ -387,24 +387,18 @@ func (s *RPCServer) GetTicker(_ context.Context, r *gctrpc.GetTickerRequest) (*g
 		return nil, err
 	}
 
-	err = checkParams(r.Exchange, e, a, currency.Pair{
+	pair := currency.Pair{
 		Delimiter: r.Pair.Delimiter,
 		Base:      currency.NewCode(r.Pair.Base),
 		Quote:     currency.NewCode(r.Pair.Quote),
-	})
+	}
+
+	err = checkParams(r.Exchange, e, a, pair)
 	if err != nil {
 		return nil, err
 	}
 
-	t, err := s.GetSpecificTicker(
-		currency.Pair{
-			Delimiter: r.Pair.Delimiter,
-			Base:      currency.NewCode(r.Pair.Base),
-			Quote:     currency.NewCode(r.Pair.Quote),
-		},
-		r.Exchange,
-		a,
-	)
+	t, err := e.FetchTicker(ctx, pair, a)
 	if err != nil {
 		return nil, err
 	}
@@ -461,43 +455,41 @@ func (s *RPCServer) GetTickers(_ context.Context, _ *gctrpc.GetTickersRequest) (
 
 // GetOrderbook returns an orderbook for a specific exchange, currency pair
 // and asset type
-func (s *RPCServer) GetOrderbook(_ context.Context, r *gctrpc.GetOrderbookRequest) (*gctrpc.OrderbookResponse, error) {
+func (s *RPCServer) GetOrderbook(ctx context.Context, r *gctrpc.GetOrderbookRequest) (*gctrpc.OrderbookResponse, error) {
 	a, err := asset.New(r.AssetType)
 	if err != nil {
 		return nil, err
 	}
 
-	ob, err := s.GetSpecificOrderbook(currency.Pair{
-		Delimiter: r.Pair.Delimiter,
-		Base:      currency.NewCode(r.Pair.Base),
-		Quote:     currency.NewCode(r.Pair.Quote),
-	},
-		r.Exchange,
-		a,
-	)
+	e, err := s.GetExchangeByName(r.Exchange)
 	if err != nil {
 		return nil, err
 	}
 
-	bids := make([]*gctrpc.OrderbookItem, 0, len(ob.Bids))
-	asks := make([]*gctrpc.OrderbookItem, 0, len(ob.Asks))
-	ch := make(chan bool)
+	pair := currency.Pair{
+		Delimiter: r.Pair.Delimiter,
+		Base:      currency.NewCode(r.Pair.Base),
+		Quote:     currency.NewCode(r.Pair.Quote),
+	}
 
+	ob, err := e.FetchOrderbook(ctx, pair, a)
+	if err != nil {
+		return nil, err
+	}
+
+	bids := make([]*gctrpc.OrderbookItem, len(ob.Bids))
+	ch := make(chan struct{})
 	go func() {
-		for _, b := range ob.Bids {
-			bids = append(bids, &gctrpc.OrderbookItem{
-				Amount: b.Amount,
-				Price:  b.Price,
-			})
+		for x := range ob.Bids {
+			bids[x].Amount = ob.Bids[x].Amount
+			bids[x].Price = ob.Bids[x].Price
 		}
-		ch <- true
+		close(ch)
 	}()
-
-	for _, a := range ob.Asks {
-		asks = append(asks, &gctrpc.OrderbookItem{
-			Amount: a.Amount,
-			Price:  a.Price,
-		})
+	asks := make([]*gctrpc.OrderbookItem, len(ob.Asks))
+	for x := range ob.Asks {
+		asks[x].Amount = ob.Asks[x].Amount
+		asks[x].Price = ob.Asks[x].Price
 	}
 	<-ch
 

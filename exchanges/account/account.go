@@ -19,9 +19,12 @@ func init() {
 }
 
 var (
+	// ErrExchangeHoldingsNotFound is a common error for when an exchange
+	// holdings cannot be found
+	ErrExchangeHoldingsNotFound = errors.New("exchange holdings not found")
+
 	errHoldingsIsNil                = errors.New("holdings cannot be nil")
 	errExchangeNameUnset            = errors.New("exchange name unset")
-	errExchangeHoldingsNotFound     = errors.New("exchange holdings not found")
 	errAssetHoldingsNotFound        = errors.New("asset holdings not found")
 	errExchangeAccountsNotFound     = errors.New("exchange accounts not found")
 	errNoExchangeSubAccountBalances = errors.New("no exchange sub account balances")
@@ -93,7 +96,7 @@ func GetHoldings(exch string, creds *Credentials, assetType asset.Item) (Holding
 	defer service.mu.Unlock()
 	accounts, ok := service.exchangeAccounts[exch]
 	if !ok {
-		return Holdings{}, fmt.Errorf("%s %s %w", exch, assetType, errExchangeHoldingsNotFound)
+		return Holdings{}, fmt.Errorf("%s %s %w", exch, assetType, ErrExchangeHoldingsNotFound)
 	}
 
 	subAccountHoldings, ok := accounts.SubAccounts[*creds]
@@ -173,7 +176,7 @@ func GetBalance(exch, subAccount string, creds *Credentials, ai asset.Item, c cu
 
 	accounts, ok := service.exchangeAccounts[exch]
 	if !ok {
-		return nil, fmt.Errorf("%s %w", exch, errExchangeHoldingsNotFound)
+		return nil, fmt.Errorf("%s %w", exch, ErrExchangeHoldingsNotFound)
 	}
 
 	subAccounts, ok := accounts.SubAccounts[*creds]
