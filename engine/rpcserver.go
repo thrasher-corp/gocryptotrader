@@ -220,6 +220,7 @@ func (s *RPCServer) authClient(handler http.Handler) http.Handler {
 		if !ok || username != s.Config.RemoteControl.Username || password != s.Config.RemoteControl.Password {
 			w.Header().Set("WWW-Authenticate", `Basic realm="restricted"`)
 			http.Error(w, "Access denied", http.StatusUnauthorized)
+			log.Warnf(log.GRPCSys, "gRPC proxy server unauthorised access attempt. IP: %s Path: %s\n", r.RemoteAddr, r.URL.Path)
 			return
 		}
 		handler.ServeHTTP(w, r)
