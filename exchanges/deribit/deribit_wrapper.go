@@ -248,7 +248,7 @@ func (d *Deribit) FetchTradablePairs(ctx context.Context, assetType asset.Item) 
 		return nil, fmt.Errorf("%s: %w - %v", d.Name, asset.ErrNotSupported, assetType)
 	}
 	var resp currency.Pairs
-	for _, x := range []string{"BTC", "ETH", "USDC", "USDT"} {
+	for _, x := range []string{"BTC", "ETH", "USDC", "USDT", "EURR"} {
 		var instrumentsData []InstrumentData
 		var err error
 		if d.Websocket.IsConnected() {

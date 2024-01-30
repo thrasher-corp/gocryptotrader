@@ -84,6 +84,7 @@ const (
 	submitCancel                     = "private/cancel"
 	submitCancelAll                  = "private/cancel_all"
 	submitCancelAllByCurrency        = "private/cancel_all_by_currency"
+	submitCancelAllByKind            = "private/cancel_all_by_kind_or_type"
 	submitCancelAllByInstrument      = "private/cancel_all_by_instrument"
 	submitCancelByLabel              = "private/cancel_by_label"
 	submitClosePosition              = "private/close_position"
@@ -556,6 +557,17 @@ func (d *Deribit) GetOrderbookByInstrumentID(ctx context.Context, instrumentID i
 	return resp, d.SendHTTPRequest(ctx, exchange.RestFutures, nonMatchingEPL, common.EncodeURLValues(getOrderbookByInstrumentID, params), &resp)
 }
 
+// GetSupportedIndexNames retrieves the identifiers of all supported Price Indexes
+// 'type' represents Type of a cryptocurrency price index. possible 'all', 'spot', 'derivative'
+func (d *Deribit) GetSupportedIndexNames(ctx context.Context, priceIndexType string) (interface{}, error) {
+	params := url.Values{}
+	if priceIndexType != "" {
+		params.Set("type", priceIndexType)
+	}
+	var resp []string
+	return resp, d.SendHTTPRequest(ctx, exchange.RestSpot, nonMatchingEPL, common.EncodeURLValues("public/get_supported_index_names", params), &resp)
+}
+
 // GetRequestForQuote retrieves RFQ information.
 func (d *Deribit) GetRequestForQuote(ctx context.Context, ccy, kind string) ([]RequestForQuote, error) {
 	if ccy == "" {
@@ -631,6 +643,8 @@ func (d *Deribit) GetResolutionFromInterval(interval kline.Interval) (string, er
 		return "720", nil
 	case kline.OneDay:
 		return "1D", nil
+	case kline.Interval(0):
+		return "raw", nil
 	default:
 		return "", kline.ErrUnsupportedInterval
 	}
@@ -1601,21 +1615,54 @@ func (d *Deribit) SubmitCancelAll(ctx context.Context) (int64, error) {
 }
 
 // SubmitCancelAllByCurrency sends a request to cancel all user orders for the specified currency
-func (d *Deribit) SubmitCancelAllByCurrency(ctx context.Context, ccy, kind, orderType string) (int64, error) {
-	if ccy == "" {
-		return 0, fmt.Errorf("%w '%s'", errInvalidCurrency, ccy)
+func (d *Deribit) SubmitCancelAllByCurrency(ctx context.Context, ccy currency.Code, kind, orderType string) (int64, error) {
+	if ccy.IsEmpty() {
+		return 0, fmt.Errorf("%w '%s'", currency.ErrCurrencyCodeEmpty, ccy)
 	}
 	params := url.Values{}
-	params.Set("currency", ccy)
+	params.Set("currency", ccy.String())
 	if kind != "" {
 		params.Set("kind", kind)
 	}
 	if orderType != "" {
-		params.Set("order_type", orderType)
+		params.Set("type", orderType)
 	}
 	var resp int64
 	return resp, d.SendHTTPAuthRequest(ctx, exchange.RestFutures, matchingEPL, http.MethodGet,
 		submitCancelAllByCurrency, params, &resp)
+}
+
+// SubmitCancelAllByKind cancels all orders in currency(currencies), optionally filtered by instrument kind and/or order type.
+// 'kind' instrument kind . Possible values: 'future', 'option', 'spot', 'future_combo', 'option_combo', 'combo', 'any'
+func (d *Deribit) SubmitCancelAllByKind(ctx context.Context, ccy currency.Code, kind, orderType string, detailed bool) (interface{}, error) {
+	if ccy.IsEmpty() {
+		return 0, fmt.Errorf("%w '%s'", currency.ErrCurrencyCodeEmpty, ccy)
+	}
+	params := url.Values{}
+	params.Set("currency", ccy.String())
+	if kind != "" {
+		params.Set("kind", kind)
+	}
+	if orderType != "" {
+		params.Set("type", orderType)
+	}
+	if detailed {
+		params.Set("detailed", "true")
+		return d.submitCancelAllByKindDetailed(ctx, params)
+	}
+	return d.submitCancelAllByKind(ctx, params)
+}
+
+// submitCancelAllByKind returns the total number of successfully cancelled orders
+func (d *Deribit) submitCancelAllByKind(ctx context.Context, params url.Values) (int64, error) {
+	var resp int64
+	return resp, d.SendHTTPAuthRequest(ctx, exchange.RestSpot, matchingEPL, http.MethodGet, submitCancelAllByKind, params, &resp)
+}
+
+// submitCancelAllByKind returns the *CancelResponse instances of successfully cancelled orders
+func (d *Deribit) submitCancelAllByKindDetailed(ctx context.Context, params url.Values) (*CancelResponse, error) {
+	var resp *CancelResponse
+	return resp, d.SendHTTPAuthRequest(ctx, exchange.RestSpot, matchingEPL, http.MethodGet, submitCancelAllByKind, params, &resp)
 }
 
 // SubmitCancelAllByInstrument sends a request to cancel all user orders for the specified instrument
@@ -2091,7 +2138,7 @@ func (d *Deribit) SendHTTPAuthRequest(ctx context.Context, ep exchange.URL, epl 
 	str2Sign := strTS + "\n" + n.String() + "\n" + reqDataStr
 	creds, err := d.GetCredentials(ctx)
 	if err != nil {
-		return err
+		return request.ErrAuthRequestFailed
 	}
 	hmac, err := crypto.GetHMAC(crypto.HashSHA256,
 		[]byte(str2Sign),
@@ -2109,20 +2156,19 @@ func (d *Deribit) SendHTTPAuthRequest(ctx context.Context, ep exchange.URL, epl 
 		Data    json.RawMessage `json:"result"`
 		Error   ErrInfo         `json:"error"`
 	}
-	item := &request.Item{
-		Method:        method,
-		Path:          endpoint + deribitAPIVersion + "/" + common.EncodeURLValues(path, params),
-		Headers:       headers,
-		Result:        &tempData,
-		Verbose:       d.Verbose,
-		HTTPDebugging: d.HTTPDebugging,
-		HTTPRecording: d.HTTPRecording,
-	}
 	err = d.SendPayload(context.Background(), epl, func() (*request.Item, error) {
-		return item, nil
+		return &request.Item{
+			Method:        method,
+			Path:          endpoint + deribitAPIVersion + "/" + common.EncodeURLValues(path, params),
+			Headers:       headers,
+			Result:        &tempData,
+			Verbose:       d.Verbose,
+			HTTPDebugging: d.HTTPDebugging,
+			HTTPRecording: d.HTTPRecording,
+		}, nil
 	}, request.AuthenticatedRequest)
 	if err != nil {
-		return err
+		return fmt.Errorf("%w %v", request.ErrAuthRequestFailed, err)
 	}
 	if tempData.Error.Code != 0 {
 		var errParamInfo string

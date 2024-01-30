@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
@@ -452,6 +453,18 @@ func (d *Deribit) WSRetrieveOrderbookByInstrumentID(instrumentID int64, depth fl
 	}
 	var resp *Orderbook
 	return resp, d.SendWSRequest(nonMatchingEPL, getOrderbookByInstrumentID, input, &resp, false)
+}
+
+// WsRetrieveSupportedIndexNames retrieves the identifiers of all supported Price Indexes
+// 'type' represents Type of a cryptocurrency price index. possible 'all', 'spot', 'derivative'
+func (d *Deribit) WsRetrieveSupportedIndexNames(priceIndexType string) (interface{}, error) {
+	input := &struct {
+		PriceIndexType string `json:"type,omitempty"`
+	}{
+		PriceIndexType: priceIndexType,
+	}
+	var resp []string
+	return resp, d.SendWSRequest(nonMatchingEPL, "public/get_supported_index_names", input, &resp, false)
 }
 
 // WSRetrieveRequestForQuote retrieves RFQ information.
@@ -1415,12 +1428,12 @@ func (d *Deribit) WSSubmitCancelAll() (int64, error) {
 // WSSubmitCancelAllByCurrency sends a request to cancel all user orders for the specified currency through the websocket connection.
 func (d *Deribit) WSSubmitCancelAllByCurrency(symbol, kind, orderType string) (int64, error) {
 	if symbol == "" {
-		return 0, fmt.Errorf("%w \"%s\"", errInvalidCurrency, symbol)
+		return 0, fmt.Errorf("%w \"%s\"", currency.ErrSymbolStringEmpty, symbol)
 	}
 	input := &struct {
 		Currency  string `json:"currency"`
-		Kind      string `json:"kind"`
-		OrderType string `json:"order_type"`
+		Kind      string `json:"kind,omitempty"`
+		OrderType string `json:"order_type,omitempty"`
 	}{
 		Currency:  symbol,
 		Kind:      kind,
@@ -1437,9 +1450,9 @@ func (d *Deribit) WSSubmitCancelAllByInstrument(instrument, orderType string, de
 	}
 	input := &struct {
 		Instrument    string `json:"instrument_name"`
-		OrderType     string `json:"type"`
-		Detailed      bool   `json:"detailed"`
-		IncludeCombos bool   `json:"include_combos"`
+		OrderType     string `json:"type,omitempty"`
+		Detailed      bool   `json:"detailed,omitempty"`
+		IncludeCombos bool   `json:"include_combos,omitempty"`
 	}{
 		Instrument:    instrument,
 		OrderType:     orderType,
@@ -1448,6 +1461,41 @@ func (d *Deribit) WSSubmitCancelAllByInstrument(instrument, orderType string, de
 	}
 	var resp int64
 	return resp, d.SendWSRequest(matchingEPL, submitCancelAllByInstrument, input, &resp, true)
+}
+
+// WsSubmitCancelAllByKind cancels all orders in currency(currencies), optionally filtered by instrument kind and/or order type.
+// 'kind' Instrument kind. Possible values: 'future', 'option', 'spot', 'future_combo', 'option_combo', 'combo', 'any'
+func (d *Deribit) WsSubmitCancelAllByKind(ccy currency.Code, kind, orderType string, detailed bool) (interface{}, error) {
+	if ccy.IsEmpty() {
+		return 0, fmt.Errorf("%w '%s'", currency.ErrCurrencyCodeEmpty, ccy)
+	}
+	input := &struct {
+		Currency  string `json:"currency"`
+		Kind      string `json:"kind,omitempty"`
+		OrderType string `json:"type,omitempty"`
+		Detailed  bool   `json:"detailed,omitempty"`
+	}{
+		Currency:  ccy.String(),
+		Kind:      kind,
+		OrderType: orderType,
+		Detailed:  detailed,
+	}
+	if detailed {
+		return d.wsSubmitCancelAllByKindDetailed(input)
+	}
+	return d.wsSubmitCancelAllByKind(input)
+}
+
+// submitCancelAllByKind returns the total number of successfully cancelled orders through the websocket stream.
+func (d *Deribit) wsSubmitCancelAllByKind(input interface{}) (int64, error) {
+	var resp int64
+	return resp, d.SendWSRequest(matchingEPL, submitCancelAllByKind, input, &resp, true)
+}
+
+// wsSubmitCancelAllByKindDetailed returns the *CancelResponse instances of successfully cancelled orders through the websocket stream.
+func (d *Deribit) wsSubmitCancelAllByKindDetailed(input interface{}) (*CancelResponse, error) {
+	var resp *CancelResponse
+	return resp, d.SendWSRequest(matchingEPL, submitCancelAllByKind, input, &resp, true)
 }
 
 // WSSubmitCancelByLabel sends a request to cancel all user orders for the specified label through the websocket connection.

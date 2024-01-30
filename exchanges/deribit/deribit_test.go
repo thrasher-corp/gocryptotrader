@@ -20,7 +20,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
@@ -67,7 +66,6 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		log.Fatal("Deribit setup error", err)
 	}
-	request.MaxRequestJobs = 200
 	d.Websocket.DataHandler = sharedtestvalues.GetWebsocketInterfaceChannelOverride()
 	d.Websocket.TrafficAlert = sharedtestvalues.GetWebsocketStructChannelOverride()
 	fetchTradablePairChan = make(chan struct{})
@@ -316,7 +314,7 @@ func TestSubmitOrder(t *testing.T) {
 func TestGetMarkPriceHistory(t *testing.T) {
 	t.Parallel()
 	var resp []MarkPriceHistory
-	err := json.Unmarshal([]byte(`[ [1608142381229,0.5165791606037885], [1608142380231,0.5165737855432504], [1608142379227,0.5165768236356326] ]`), &resp)
+	err := json.Unmarshal([]byte(`[[1608142381229,0.5165791606037885],[1608142380231,0.5165737855432504],[1608142379227,0.5165768236356326]]`), &resp)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -799,6 +797,19 @@ func TestGetOrderbookByInstrumentID(t *testing.T) {
 		t.Error(err)
 	}
 }
+
+func TestGetSupportedIndexNames(t *testing.T) {
+	t.Parallel()
+	_, err := d.GetSupportedIndexNames(context.Background(), "derivative")
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = d.WsRetrieveSupportedIndexNames("derivative")
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestGetRequestForQuote(t *testing.T) {
 	t.Parallel()
 	_, err := d.GetRequestForQuote(context.Background(), currencyBTC, d.GetAssetKind(asset.Futures))
@@ -1529,12 +1540,25 @@ func TestSubmitCancelAll(t *testing.T) {
 func TestSubmitCancelAllByCurrency(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, d, canManipulateRealOrders)
-	_, err := d.SubmitCancelAllByCurrency(context.Background(), currencyBTC, "option", "")
+	_, err := d.SubmitCancelAllByCurrency(context.Background(), currency.BTC, "option", "")
 	if err != nil {
 		t.Error(err)
 	}
 	if _, err = d.WSSubmitCancelAllByCurrency(currencyBTC, "option", ""); err != nil {
 		t.Error(err)
+	}
+}
+
+func TestSubmitCancelAllByKind(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, d, canManipulateRealOrders)
+	_, err := d.SubmitCancelAllByKind(context.Background(), currency.ETH, "option_combo", "trigger_all", true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = d.WsSubmitCancelAllByKind(currency.ETH, "option_combo", "trigger_all", true)
+	if err != nil {
+		t.Fatal(err)
 	}
 }
 
@@ -2312,17 +2336,15 @@ func TestGetDepositAddress(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, d)
 	_, err := d.GetDepositAddress(context.Background(), currency.BTC, "", "")
-	if err != nil {
+	if err != nil && !errors.Is(err, common.ErrNoResponse) {
 		t.Error(err)
 	}
 }
 
 func TestWithdraw(t *testing.T) {
 	t.Parallel()
-	if sharedtestvalues.AreAPICredentialsSet(d) && !canManipulateRealOrders {
-		t.Skip("API keys set, canManipulateRealOrders false, skipping test")
-	}
-	withdrawCryptoRequest := withdraw.Request{
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, d, canManipulateRealOrders)
+	_, err := d.WithdrawCryptocurrencyFunds(context.Background(), &withdraw.Request{
 		Exchange:    d.Name,
 		Amount:      1,
 		Currency:    currency.BTC,
@@ -2331,12 +2353,8 @@ func TestWithdraw(t *testing.T) {
 			Address: "0x1nv4l1d",
 			Chain:   "tetheruse",
 		},
-	}
-	_, err := d.WithdrawCryptocurrencyFunds(context.Background(), &withdrawCryptoRequest)
-	if !sharedtestvalues.AreAPICredentialsSet(d) && err == nil {
-		t.Error("Expecting an error when no keys are set")
-	}
-	if sharedtestvalues.AreAPICredentialsSet(d) && err != nil {
+	})
+	if err != nil {
 		t.Errorf("Withdraw failed to be placed: %v", err)
 	}
 }

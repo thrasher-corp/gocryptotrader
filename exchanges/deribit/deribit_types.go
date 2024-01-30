@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
+	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
 const (
@@ -620,26 +621,24 @@ type AccountSummaryData struct {
 			Burst int64 `json:"burst"`
 		} `json:"matching_engine"`
 	} `json:"limits"`
-	InitialMargin             float64 `json:"initial_margin"`
-	ProjectedInitialMargin    float64 `json:"projected_initial_margin"`
-	MaintenanceMargin         float64 `json:"maintenance_margin"`
-	SessionRPL                float64 `json:"session_rpl"`
-	InteruserTransfersEnabled bool    `json:"interuser_transfers_enabled"`
-	OptionsVega               float64 `json:"options_vega"`
-	ProjectedDeltaTotal       float64 `json:"projected_delta_total"`
-	Email                     string  `json:"email"`
-	FuturesSessionUPL         float64 `json:"futures_session_upl"`
-	AvailableFunds            float64 `json:"available_funds"`
-	OptionsValue              float64 `json:"options_value"`
-	DeltaTotalMap             struct {
-	} `json:"delta_total_map"`
-	ProjectedMaintenanceMargin   float64 `json:"projected_maintenance_margin"`
-	EstimatedLiquidationRatio    float64 `json:"estimated_liquidation_ratio"`
-	PortfolioMarginingEnabled    bool    `json:"portfolio_margining_enabled"`
-	EstimatedLiquidationRatioMap struct {
-	} `json:"estimated_liquidation_ratio_map"`
-	FeeBalance  float64 `json:"fee_balance"`
-	SpotReserve float64 `json:"spot_reserve"`
+	InitialMargin                float64            `json:"initial_margin"`
+	ProjectedInitialMargin       float64            `json:"projected_initial_margin"`
+	MaintenanceMargin            float64            `json:"maintenance_margin"`
+	SessionRPL                   float64            `json:"session_rpl"`
+	InteruserTransfersEnabled    bool               `json:"interuser_transfers_enabled"`
+	OptionsVega                  float64            `json:"options_vega"`
+	ProjectedDeltaTotal          float64            `json:"projected_delta_total"`
+	Email                        string             `json:"email"`
+	FuturesSessionUPL            float64            `json:"futures_session_upl"`
+	AvailableFunds               float64            `json:"available_funds"`
+	OptionsValue                 float64            `json:"options_value"`
+	DeltaTotalMap                map[string]float64 `json:"delta_total_map"`
+	ProjectedMaintenanceMargin   float64            `json:"projected_maintenance_margin"`
+	EstimatedLiquidationRatio    float64            `json:"estimated_liquidation_ratio"`
+	PortfolioMarginingEnabled    bool               `json:"portfolio_margining_enabled"`
+	EstimatedLiquidationRatioMap map[string]float64 `json:"estimated_liquidation_ratio_map"`
+	FeeBalance                   float64            `json:"fee_balance"`
+	SpotReserve                  float64            `json:"spot_reserve"`
 }
 
 // APIKeyData stores data regarding the api key
@@ -1428,4 +1427,36 @@ type ErrInfo struct {
 		Reason string `json:"reason"`
 	} `json:"data"`
 	Code int64 `json:"code"`
+}
+
+// CancelResponse represents a detailed order cancel response.
+type CancelResponse struct {
+	Currency       string `json:"currency"`
+	Type           string `json:"type"`
+	InstrumentName string `json:"instrument_name"`
+	Result         []struct {
+		Web                 bool                 `json:"web"`
+		Triggered           bool                 `json:"triggered"`
+		TriggerPrice        float64              `json:"trigger_price"`
+		Trigger             string               `json:"trigger"`
+		TimeInForce         string               `json:"time_in_force"`
+		StopPrice           float64              `json:"stop_price"`
+		Replaced            bool                 `json:"replaced"`
+		ReduceOnly          bool                 `json:"reduce_only"`
+		Price               types.Number         `json:"price"`
+		PostOnly            bool                 `json:"post_only"`
+		OrderType           string               `json:"order_type"`
+		OrderState          string               `json:"order_state"`
+		OrderID             string               `json:"order_id"`
+		MaxShow             int64                `json:"max_show"`
+		LastUpdateTimestamp convert.ExchangeTime `json:"last_update_timestamp"`
+		Label               string               `json:"label"`
+		IsRebalance         bool                 `json:"is_rebalance"`
+		IsLiquidation       bool                 `json:"is_liquidation"`
+		InstrumentName      string               `json:"instrument_name"`
+		Direction           string               `json:"direction"`
+		CreationTimestamp   convert.ExchangeTime `json:"creation_timestamp"`
+		API                 bool                 `json:"api"`
+		Amount              float64              `json:"amount"`
+	} `json:"result"`
 }

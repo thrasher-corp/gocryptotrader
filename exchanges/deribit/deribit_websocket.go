@@ -15,9 +15,11 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
@@ -814,8 +816,8 @@ func (d *Deribit) processOrderbook(respRaw []byte, channels []string) error {
 }
 
 // GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
-func (d *Deribit) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, error) {
-	var subscriptions []stream.ChannelSubscription
+func (d *Deribit) GenerateDefaultSubscriptions() ([]subscription.Subscription, error) {
+	var subscriptions []subscription.Subscription
 	assets := d.GetAssetTypes(false)
 	subscriptionChannels := defaultSubscriptions
 	if d.Websocket.CanUseAuthenticatedEndpoints() {
@@ -853,9 +855,9 @@ func (d *Deribit) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, 
 						continue
 					}
 					subscriptions = append(subscriptions,
-						stream.ChannelSubscription{
-							Channel:  subscriptionChannels[x],
-							Currency: assetPairs[a][z],
+						subscription.Subscription{
+							Channel: subscriptionChannels[x],
+							Pair:    assetPairs[a][z],
 							Params: map[string]interface{}{
 								"resolution": "1D",
 							},
@@ -873,10 +875,10 @@ func (d *Deribit) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, 
 						a == asset.Futures) || (a != asset.Spot && a != asset.Futures) {
 						continue
 					}
-					subscriptions = append(subscriptions, stream.ChannelSubscription{
-						Channel:  subscriptionChannels[x],
-						Currency: assetPairs[a][z],
-						Asset:    a,
+					subscriptions = append(subscriptions, subscription.Subscription{
+						Channel: subscriptionChannels[x],
+						Pair:    assetPairs[a][z],
+						Asset:   a,
 					})
 				}
 			}
@@ -889,24 +891,20 @@ func (d *Deribit) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, 
 						continue
 					}
 					subscriptions = append(subscriptions,
-						stream.ChannelSubscription{
-							Channel:  subscriptionChannels[x],
-							Currency: assetPairs[a][z],
-							Params: map[string]interface{}{
-								// if needed, group and depth of orderbook can be passed as follow "group":    "250", "depth":    "20",
-								"interval": "100ms",
-							},
-							Asset: a,
+						subscription.Subscription{
+							Channel: subscriptionChannels[x],
+							Pair:    assetPairs[a][z],
+							// if needed, group and depth of orderbook can be passed as follow "group":    "250", "depth":    "20",
+							Interval: kline.HundredMilliseconds,
+							Asset:    a,
 						},
 					)
 					if d.Websocket.CanUseAuthenticatedEndpoints() {
-						subscriptions = append(subscriptions, stream.ChannelSubscription{
+						subscriptions = append(subscriptions, subscription.Subscription{
 							Channel:  orderbookChannel,
-							Currency: assetPairs[a][z],
+							Pair:     assetPairs[a][z],
 							Asset:    a,
-							Params: map[string]interface{}{
-								"interval": "raw",
-							},
+							Interval: kline.Interval(0),
 						})
 					}
 				}
@@ -921,13 +919,11 @@ func (d *Deribit) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, 
 						continue
 					}
 					subscriptions = append(subscriptions,
-						stream.ChannelSubscription{
+						subscription.Subscription{
 							Channel:  subscriptionChannels[x],
-							Currency: assetPairs[a][z],
-							Params: map[string]interface{}{
-								"interval": "100ms",
-							},
-							Asset: a,
+							Pair:     assetPairs[a][z],
+							Interval: kline.HundredMilliseconds,
+							Asset:    a,
 						})
 				}
 			}
@@ -940,13 +936,11 @@ func (d *Deribit) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, 
 						continue
 					}
 					subscriptions = append(subscriptions,
-						stream.ChannelSubscription{
+						subscription.Subscription{
 							Channel:  subscriptionChannels[x],
-							Currency: assetPairs[a][z],
-							Params: map[string]interface{}{
-								"interval": "100ms",
-							},
-							Asset: a,
+							Pair:     assetPairs[a][z],
+							Interval: kline.HundredMilliseconds,
+							Asset:    a,
 						})
 				}
 			}
@@ -957,18 +951,18 @@ func (d *Deribit) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, 
 				currencyPairsName := make(map[currency.Code]bool, 2*len(assetPairs[a]))
 				for z := range assetPairs[a] {
 					if okay = currencyPairsName[assetPairs[a][z].Base]; !okay {
-						subscriptions = append(subscriptions, stream.ChannelSubscription{
-							Asset:    a,
-							Channel:  subscriptionChannels[x],
-							Currency: currency.Pair{Base: assetPairs[a][z].Base},
+						subscriptions = append(subscriptions, subscription.Subscription{
+							Asset:   a,
+							Channel: subscriptionChannels[x],
+							Pair:    currency.Pair{Base: assetPairs[a][z].Base},
 						})
 						currencyPairsName[assetPairs[a][z].Base] = true
 					}
 					if okay = currencyPairsName[assetPairs[a][z].Quote]; !okay {
-						subscriptions = append(subscriptions, stream.ChannelSubscription{
-							Asset:    a,
-							Channel:  subscriptionChannels[x],
-							Currency: currency.Pair{Base: assetPairs[a][z].Quote},
+						subscriptions = append(subscriptions, subscription.Subscription{
+							Asset:   a,
+							Channel: subscriptionChannels[x],
+							Pair:    currency.Pair{Base: assetPairs[a][z].Quote},
 						})
 						currencyPairsName[assetPairs[a][z].Quote] = true
 					}
@@ -984,24 +978,20 @@ func (d *Deribit) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, 
 				var okay bool
 				for z := range assetPairs[a] {
 					if okay = currencyPairsName[assetPairs[a][z].Base]; !okay {
-						subscriptions = append(subscriptions, stream.ChannelSubscription{
+						subscriptions = append(subscriptions, subscription.Subscription{
 							Asset:    a,
 							Channel:  subscriptionChannels[x],
-							Currency: currency.Pair{Base: assetPairs[a][z].Base},
-							Params: map[string]interface{}{
-								"interval": "100ms",
-							},
+							Pair:     currency.Pair{Base: assetPairs[a][z].Base},
+							Interval: kline.HundredMilliseconds,
 						})
 						currencyPairsName[assetPairs[a][z].Base] = true
 					}
 					if okay = currencyPairsName[assetPairs[a][z].Quote]; !okay {
-						subscriptions = append(subscriptions, stream.ChannelSubscription{
+						subscriptions = append(subscriptions, subscription.Subscription{
 							Asset:    a,
 							Channel:  subscriptionChannels[x],
-							Currency: currency.Pair{Base: assetPairs[a][z].Quote},
-							Params: map[string]interface{}{
-								"interval": "100ms",
-							},
+							Pair:     currency.Pair{Base: assetPairs[a][z].Quote},
+							Interval: kline.HundredMilliseconds,
 						})
 						currencyPairsName[assetPairs[a][z].Quote] = true
 					}
@@ -1015,18 +1005,18 @@ func (d *Deribit) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, 
 				var okay bool
 				for z := range assetPairs[a] {
 					if okay = currencyPairsName[assetPairs[a][z].Base]; !okay {
-						subscriptions = append(subscriptions, stream.ChannelSubscription{
-							Channel:  subscriptionChannels[x],
-							Currency: currency.Pair{Base: assetPairs[a][z].Base},
-							Asset:    a,
+						subscriptions = append(subscriptions, subscription.Subscription{
+							Channel: subscriptionChannels[x],
+							Pair:    currency.Pair{Base: assetPairs[a][z].Base},
+							Asset:   a,
 						})
 						currencyPairsName[assetPairs[a][z].Base] = true
 					}
 					if okay = currencyPairsName[assetPairs[a][z].Quote]; !okay {
-						subscriptions = append(subscriptions, stream.ChannelSubscription{
-							Channel:  subscriptionChannels[x],
-							Currency: currency.Pair{Base: assetPairs[a][z].Quote},
-							Asset:    a,
+						subscriptions = append(subscriptions, subscription.Subscription{
+							Channel: subscriptionChannels[x],
+							Pair:    currency.Pair{Base: assetPairs[a][z].Quote},
+							Asset:   a,
 						})
 						currencyPairsName[assetPairs[a][z].Quote] = true
 					}
@@ -1037,7 +1027,7 @@ func (d *Deribit) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, 
 			platformStateChannel,
 			userLockChannel,
 			platformStatePublicMethodsStateChannel:
-			subscriptions = append(subscriptions, stream.ChannelSubscription{
+			subscriptions = append(subscriptions, subscription.Subscription{
 				Channel: subscriptionChannels[x],
 			})
 		case priceIndexChannel,
@@ -1047,7 +1037,7 @@ func (d *Deribit) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, 
 			markPriceOptionsChannel,
 			estimatedExpirationPriceChannel:
 			for i := range indexENUMS {
-				subscriptions = append(subscriptions, stream.ChannelSubscription{
+				subscriptions = append(subscriptions, subscription.Subscription{
 					Channel: subscriptionChannels[x],
 					Params: map[string]interface{}{
 						"index_name": indexENUMS[i],
@@ -1059,7 +1049,7 @@ func (d *Deribit) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, 
 	return subscriptions, nil
 }
 
-func (d *Deribit) generatePayloadFromSubscriptionInfos(operation string, subscs []stream.ChannelSubscription) ([]WsSubscriptionInput, error) {
+func (d *Deribit) generatePayloadFromSubscriptionInfos(operation string, subscs []subscription.Subscription) ([]WsSubscriptionInput, error) {
 	subscriptionPayloads := make([]WsSubscriptionInput, len(subscs))
 	for x := range subscs {
 		subscription := WsSubscriptionInput{
@@ -1077,16 +1067,16 @@ func (d *Deribit) generatePayloadFromSubscriptionInfos(operation string, subscs 
 			subscription.Method = "private/" + operation
 		}
 		var instrumentID string
-		if !subscs[x].Currency.IsEmpty() {
+		if !subscs[x].Pair.IsEmpty() {
 			pairFormat, err := d.GetPairFormat(asset.Spot, true)
 			if err != nil {
 				return nil, err
 			}
-			subscs[x].Currency = subscs[x].Currency.Format(pairFormat)
+			subscs[x].Pair = subscs[x].Pair.Format(pairFormat)
 			if subscs[x].Asset == asset.Futures {
-				instrumentID = d.formatFuturesTradablePair(subscs[x].Currency.Format(pairFormat))
+				instrumentID = d.formatFuturesTradablePair(subscs[x].Pair.Format(pairFormat))
 			} else {
-				instrumentID = subscs[x].Currency.String()
+				instrumentID = subscs[x].Pair.String()
 			}
 		}
 		switch subscs[x].Channel {
@@ -1097,33 +1087,33 @@ func (d *Deribit) generatePayloadFromSubscriptionInfos(operation string, subscs 
 			userLockChannel:
 			subscription.Params["channels"] = []string{subscs[x].Channel}
 		case orderbookChannel:
-			if subscs[x].Currency.IsEmpty() {
+			if subscs[x].Pair.IsEmpty() {
 				return nil, currency.ErrCurrencyPairEmpty
 			}
-			interval, okay := subscs[x].Params["interval"].(string)
-			if !okay {
-				interval = "100ms"
+			intervalString, err := d.GetResolutionFromInterval(subscs[x].Interval)
+			if err != nil {
+				return nil, err
 			}
 			group, okay := subscs[x].Params["group"].(string)
 			if !okay {
-				subscription.Params["channels"] = []string{orderbookChannel + "." + instrumentID + "." + interval}
+				subscription.Params["channels"] = []string{orderbookChannel + "." + instrumentID + "." + intervalString}
 				break
 			}
 			depth, okay := subscs[x].Params["depth"].(string)
 			if !okay {
-				subscription.Params["channels"] = []string{orderbookChannel + "." + instrumentID + "." + interval}
+				subscription.Params["channels"] = []string{orderbookChannel + "." + instrumentID + "." + intervalString}
 				break
 			}
-			subscription.Params["channels"] = []string{orderbookChannel + "." + instrumentID + "." + group + "." + depth + "." + interval}
+			subscription.Params["channels"] = []string{orderbookChannel + "." + instrumentID + "." + group + "." + depth + "." + intervalString}
 		case chartTradesChannel:
-			if subscs[x].Currency.IsEmpty() {
+			if subscs[x].Pair.IsEmpty() {
 				return nil, currency.ErrCurrencyPairEmpty
 			}
 			resolution, okay := subscs[x].Params["resolution"].(string)
 			if !okay {
 				resolution = "1D"
 			}
-			subscription.Params["channels"] = []string{chartTradesChannel + "." + d.formatFuturesTradablePair(subscs[x].Currency) + "." + resolution}
+			subscription.Params["channels"] = []string{chartTradesChannel + "." + d.formatFuturesTradablePair(subscs[x].Pair) + "." + resolution}
 		case priceIndexChannel,
 			priceRankingChannel,
 			priceStatisticsChannel,
@@ -1137,33 +1127,33 @@ func (d *Deribit) generatePayloadFromSubscriptionInfos(operation string, subscs 
 			subscription.Params["channels"] = []string{subscs[x].Channel + "." + indexName}
 		case instrumentStateChannel:
 			kind := d.GetAssetKind(subscs[x].Asset)
-			currencyCode := subscs[x].Currency.Base.Upper().String()
+			currencyCode := subscs[x].Pair.Base.Upper().String()
 			if currencyCode != currencyBTC && currencyCode != currencyETH && currencyCode != currencySOL && currencyCode != currencyUSDC {
 				currencyCode = "any"
 			}
 			subscription.Params["channels"] = []string{"instrument.state." + kind + "." + currencyCode}
 		case rawUsersOrdersKindCurrencyChannel:
 			kind := d.GetAssetKind(subscs[x].Asset)
-			currencyCode := subscs[x].Currency.Base.Upper().String()
+			currencyCode := subscs[x].Pair.Base.Upper().String()
 			if currencyCode != currencyBTC && currencyCode != currencyETH && currencyCode != currencySOL && currencyCode != currencyUSDC {
 				currencyCode = "any"
 			}
 			subscription.Params["channels"] = []string{"user.orders." + kind + "." + currencyCode + ".raw"}
 		case quoteChannel,
 			incrementalTickerChannel:
-			if subscs[x].Currency.IsEmpty() {
+			if subscs[x].Pair.IsEmpty() {
 				return nil, currency.ErrCurrencyPairEmpty
 			}
 			subscription.Params["channels"] = []string{subscs[x].Channel + "." + instrumentID}
 		case rawUserOrdersChannel:
-			if subscs[x].Currency.IsEmpty() {
+			if subscs[x].Pair.IsEmpty() {
 				return nil, currency.ErrCurrencyPairEmpty
 			}
 			subscription.Params["channels"] = []string{"user.orders." + instrumentID + ".raw"}
 		case requestForQuoteChannel,
 			userMMPTriggerChannel,
 			userPortfolioChannel:
-			currencyCode := subscs[x].Currency.Base.Upper().String()
+			currencyCode := subscs[x].Pair.Base.Upper().String()
 			if currencyCode != currencyBTC && currencyCode != currencyETH && currencyCode != currencySOL && currencyCode != currencyUSDC {
 				currencyCode = "any"
 			}
@@ -1174,7 +1164,7 @@ func (d *Deribit) generatePayloadFromSubscriptionInfos(operation string, subscs 
 			tickerChannel,
 			perpetualChannel,
 			userTradesChannelByInstrument:
-			if subscs[x].Currency.IsEmpty() {
+			if subscs[x].Pair.IsEmpty() {
 				return nil, currency.ErrCurrencyPairEmpty
 			}
 			interval, okay := subscs[x].Params["interval"].(string)
@@ -1187,7 +1177,7 @@ func (d *Deribit) generatePayloadFromSubscriptionInfos(operation string, subscs 
 			rawUsersOrdersWithKindCurrencyAndIntervalChannel,
 			userTradesByKindCurrencyAndIntervalChannel:
 			kind := d.GetAssetKind(subscs[x].Asset)
-			currencyCode := subscs[x].Currency.Base.Upper().String()
+			currencyCode := subscs[x].Pair.Base.Upper().String()
 			if currencyCode != currencyBTC && currencyCode != currencyETH && currencyCode != currencySOL && currencyCode != currencyUSDC {
 				currencyCode = "any"
 			}
@@ -1222,16 +1212,16 @@ func filterSubscriptionPayloads(subscription []WsSubscriptionInput) []WsSubscrip
 }
 
 // Subscribe sends a websocket message to receive data from the channel
-func (d *Deribit) Subscribe(channelsToSubscribe []stream.ChannelSubscription) error {
+func (d *Deribit) Subscribe(channelsToSubscribe []subscription.Subscription) error {
 	return d.handleSubscription("subscribe", channelsToSubscribe)
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
-func (d *Deribit) Unsubscribe(channelsToUnsubscribe []stream.ChannelSubscription) error {
+func (d *Deribit) Unsubscribe(channelsToUnsubscribe []subscription.Subscription) error {
 	return d.handleSubscription("unsubscribe", channelsToUnsubscribe)
 }
 
-func (d *Deribit) handleSubscription(operation string, channels []stream.ChannelSubscription) error {
+func (d *Deribit) handleSubscription(operation string, channels []subscription.Subscription) error {
 	payloads, err := d.generatePayloadFromSubscriptionInfos(operation, channels)
 	if err != nil {
 		return err
