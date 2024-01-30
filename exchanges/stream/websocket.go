@@ -270,6 +270,10 @@ func (w *Websocket) Connect() error {
 			w.exchangeName)
 	}
 
+	w.subscriptionMutex.Lock()
+	w.subscriptions = subscriptionMap{}
+	w.subscriptionMutex.Unlock()
+
 	w.dataMonitor()
 	w.trafficMonitor()
 	w.setConnectingStatus(true)
