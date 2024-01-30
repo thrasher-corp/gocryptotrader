@@ -3652,6 +3652,9 @@ func (ok *Okx) GetLeadTraderCurrencyPreferences(ctx context.Context, instrumentT
 // Instrument type "SPOT" "SWAP"
 func (ok *Okx) GetLeadTraderCurrentLeadPositions(ctx context.Context, instrumentType, uniqueCode, afterSubPositionID,
 	beforeSubPositionID string, limit int64) ([]LeadTraderCurrentLeadPosition, error) {
+	if instrumentType != "SWAP" {
+		return nil, fmt.Errorf("%w asset: %s", asset.ErrNotSupported, instrumentType)
+	}
 	if uniqueCode == "" {
 		return nil, errUniqueCodeRequired
 	}
@@ -3675,6 +3678,9 @@ func (ok *Okx) GetLeadTraderCurrentLeadPositions(ctx context.Context, instrument
 
 // GetLeadTraderLeadPositionHistory retrieve the lead trader completed leading position of the last 3 months. Returns reverse chronological order with subPosId.
 func (ok *Okx) GetLeadTraderLeadPositionHistory(ctx context.Context, instrumentType, uniqueCode, afterSubPositionID, beforeSubPositionID string, limit int64) ([]LeadPosition, error) {
+	if instrumentType != "SWAP" {
+		return nil, fmt.Errorf("%w asset: %s", asset.ErrNotSupported, instrumentType)
+	}
 	if uniqueCode == "" {
 		return nil, errUniqueCodeRequired
 	}

@@ -4226,6 +4226,10 @@ func TestGetLeadTraderCurrencyPreferences(t *testing.T) {
 func TestGetLeadTraderCurrentLeadPositions(t *testing.T) {
 	t.Parallel()
 	_, err := ok.GetLeadTraderCurrentLeadPositions(context.Background(), "SPOT", "213E8C92DC61EFAC", "", "", 10)
+	if !errors.Is(err, asset.ErrNotSupported) {
+		t.Errorf("expected %v, got %v", asset.ErrNotSupported, err)
+	}
+	_, err = ok.GetLeadTraderCurrentLeadPositions(context.Background(), "SWAP", "213E8C92DC61EFAC", "", "", 10)
 	if err != nil {
 		t.Error(err)
 	}
@@ -4234,6 +4238,10 @@ func TestGetLeadTraderCurrentLeadPositions(t *testing.T) {
 func TestGetLeadTraderLeadPositionHistory(t *testing.T) {
 	t.Parallel()
 	_, err := ok.GetLeadTraderLeadPositionHistory(context.Background(), "SPOT", "213E8C92DC61EFAC", "", "", 10)
+	if !errors.Is(err, asset.ErrNotSupported) {
+		t.Fatalf("expected %v, got %v", asset.ErrNotSupported, err)
+	}
+	_, err = ok.GetLeadTraderLeadPositionHistory(context.Background(), "SWAP", "213E8C92DC61EFAC", "", "", 10)
 	if err != nil {
 		t.Fatal(err)
 	}
