@@ -3424,9 +3424,10 @@ func TestGetOpenInterest(t *testing.T) {
 	})
 	assert.ErrorIs(t, err, asset.ErrNotSupported, "GetOpenInterest should error correctly")
 
+	var resp []futures.OpenInterest
 	for _, a := range []asset.Item{asset.Futures, asset.DeliveryFutures} {
 		p := getPair(t, a)
-		resp, err := g.GetOpenInterest(context.Background(), key.PairAsset{
+		resp, err = g.GetOpenInterest(context.Background(), key.PairAsset{
 			Base:  p.Base.Item,
 			Quote: p.Quote.Item,
 			Asset: a,
@@ -3435,7 +3436,7 @@ func TestGetOpenInterest(t *testing.T) {
 		assert.Lenf(t, resp, 1, "GetOpenInterest should return 1 item for %s asset", a)
 	}
 
-	resp, err := g.GetOpenInterest(context.Background())
+	resp, err = g.GetOpenInterest(context.Background())
 	assert.NoError(t, err, "GetOpenInterest should not error")
 	assert.NotEmpty(t, resp, "GetOpenInterest should return some items")
 }
