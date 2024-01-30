@@ -481,15 +481,13 @@ func (s *RPCServer) GetOrderbook(ctx context.Context, r *gctrpc.GetOrderbookRequ
 	ch := make(chan struct{})
 	go func() {
 		for x := range ob.Bids {
-			bids[x].Amount = ob.Bids[x].Amount
-			bids[x].Price = ob.Bids[x].Price
+			bids[x] = &gctrpc.OrderbookItem{Amount: ob.Bids[x].Amount, Price: ob.Bids[x].Price}
 		}
 		close(ch)
 	}()
 	asks := make([]*gctrpc.OrderbookItem, len(ob.Asks))
 	for x := range ob.Asks {
-		asks[x].Amount = ob.Asks[x].Amount
-		asks[x].Price = ob.Asks[x].Price
+		asks[x] = &gctrpc.OrderbookItem{Amount: ob.Asks[x].Amount, Price: ob.Asks[x].Price}
 	}
 	<-ch
 
