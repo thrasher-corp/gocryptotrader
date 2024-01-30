@@ -612,7 +612,7 @@ var excludedMethodNames = map[string]struct{}{
 	"GetLeverage":                      {},
 	"SetMarginType":                    {},
 	"ChangePositionMargin":             {},
-	"FetchAccountInfo":                 {}, // Account info is not retreived in these tests
+	"FetchAccountInfo":                 {}, // Account info is not retrieved in these tests
 }
 
 // blockedCIExchanges are exchanges that are not able to be tested on CI
