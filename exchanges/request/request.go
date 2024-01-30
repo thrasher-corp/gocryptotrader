@@ -9,7 +9,6 @@ import (
 	"net/http"
 	"net/http/httputil"
 	"net/url"
-	"sync/atomic"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -40,7 +39,6 @@ var (
 	// ErrAuthRequestFailed is a wrapping error to denote that it's an auth request that failed
 	ErrAuthRequestFailed = errors.New("authenticated request failed")
 
-	errMaxRequestJobs         = errors.New("max request jobs reached")
 	errRequestFunctionIsNil   = errors.New("request function is nil")
 	errRequestItemNil         = errors.New("request item is nil")
 	errInvalidPath            = errors.New("invalid path")
@@ -93,13 +91,7 @@ func (r *Requester) SendPayload(ctx context.Context, ep EndpointLimit, newReques
 		return errRequestFunctionIsNil
 	}
 
-	if atomic.LoadInt32(&r.jobs) >= MaxRequestJobs {
-		return errMaxRequestJobs
-	}
-
-	atomic.AddInt32(&r.jobs, 1)
 	err := r.doRequest(ctx, ep, newRequest)
-	atomic.AddInt32(&r.jobs, -1)
 	if err != nil && requestType == AuthenticatedRequest {
 		err = common.AppendError(err, ErrAuthRequestFailed)
 	}
