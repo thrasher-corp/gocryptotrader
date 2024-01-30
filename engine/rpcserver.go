@@ -420,8 +420,8 @@ func (s *RPCServer) GetTicker(ctx context.Context, r *gctrpc.GetTickerRequest) (
 
 // GetTickers returns a list of tickers for all enabled exchanges and all
 // enabled currency pairs
-func (s *RPCServer) GetTickers(_ context.Context, _ *gctrpc.GetTickersRequest) (*gctrpc.GetTickersResponse, error) {
-	activeTickers := s.GetAllActiveTickers()
+func (s *RPCServer) GetTickers(ctx context.Context, _ *gctrpc.GetTickersRequest) (*gctrpc.GetTickersResponse, error) {
+	activeTickers := s.GetAllActiveTickers(ctx)
 	tickers := make([]*gctrpc.Tickers, len(activeTickers))
 
 	for x := range activeTickers {

@@ -809,7 +809,7 @@ func (bot *Engine) GetExchangeNames(enabledOnly bool) []string {
 }
 
 // GetAllActiveTickers returns all enabled exchange tickers
-func (bot *Engine) GetAllActiveTickers() []EnabledExchangeCurrencies {
+func (bot *Engine) GetAllActiveTickers(ctx context.Context) []EnabledExchangeCurrencies {
 	var tickerData []EnabledExchangeCurrencies
 	exchanges := bot.GetExchanges()
 	for x := range exchanges {
@@ -828,7 +828,7 @@ func (bot *Engine) GetAllActiveTickers() []EnabledExchangeCurrencies {
 				continue
 			}
 			for z := range currencies {
-				tp, err := exchanges[x].FetchTicker(context.TODO(), currencies[z], assets[y])
+				tp, err := exchanges[x].FetchTicker(ctx, currencies[z], assets[y])
 				if err != nil {
 					log.Errorf(log.ExchangeSys, "Exchange %s failed to retrieve %s ticker. Err: %s\n", exchName,
 						currencies[z].String(),
