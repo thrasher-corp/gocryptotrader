@@ -125,7 +125,7 @@ func TestGetFee(t *testing.T) {
 	feeBuilder.FiatCurrency = currency.HKD
 	fee, err = b.GetFee(context.Background(), feeBuilder)
 	assert.NoError(t, err, "GetFee should not error")
-	assert.NotEmpty(t, fee, "Pair should not be empty")
+	assert.NotEmpty(t, fee, "Fee should not be empty")
 }
 
 func TestGetAccountTradingFee(t *testing.T) {
@@ -172,19 +172,19 @@ func TestGetAccountTradingFees(t *testing.T) {
 func TestGetTicker(t *testing.T) {
 	t.Parallel()
 
-	ticker, err := b.GetTicker(context.Background(),
+	tick, err := b.GetTicker(context.Background(),
 		currency.BTC.String()+currency.USD.String(), false)
 	assert.NoError(t, err, "GetTicker should not error")
-	assert.Positive(t, ticker.Ask, "Ask should be positive")
-	assert.Positive(t, ticker.Bid, "Bid should be positive")
-	assert.Positive(t, ticker.High, "High should be positive")
-	assert.Positive(t, ticker.Low, "Low should be positive")
-	assert.Positive(t, ticker.Last, "Last should be positive")
-	assert.Positive(t, ticker.Open, "Open should be positive")
-	assert.Positive(t, ticker.Volume, "Volume should be positive")
-	assert.Positive(t, ticker.Vwap, "Vwap should be positive")
-	assert.NotEmpty(t, ticker.Timestamp, "Timestamp should not be empty")
-	assert.Contains(t, []order.Side{order.Buy, order.Sell}, ticker.Side.Side(), "Side should be either Buy or Sell")
+	assert.Positive(t, tick.Ask, "Ask should be positive")
+	assert.Positive(t, tick.Bid, "Bid should be positive")
+	assert.Positive(t, tick.High, "High should be positive")
+	assert.Positive(t, tick.Low, "Low should be positive")
+	assert.Positive(t, tick.Last, "Last should be positive")
+	assert.Positive(t, tick.Open, "Open should be positive")
+	assert.Positive(t, tick.Volume, "Volume should be positive")
+	assert.Positive(t, tick.Vwap, "Vwap should be positive")
+	assert.NotEmpty(t, tick.Timestamp, "Timestamp should not be empty")
+	assert.Contains(t, []order.Side{order.Buy, order.Sell}, tick.Side.Side(), "Side should be either Buy or Sell")
 }
 
 func TestGetOrderbook(t *testing.T) {
@@ -511,12 +511,12 @@ func TestSubmitOrder(t *testing.T) {
 			Base:  currency.BTC,
 			Quote: currency.USD,
 		},
-		Side:      order.Buy,
-		Type:      order.Limit,
-		Price:     2211.00,
-		Amount:    45,
-		ClientID:  "123456789",
-		AssetType: asset.Spot,
+		Side:          order.Buy,
+		Type:          order.Limit,
+		Price:         2211.00,
+		Amount:        45,
+		ClientOrderID: "123456789",
+		AssetType:     asset.Spot,
 	})
 	if !mockTests {
 		assert.ErrorContains(t, err, "You have only 0 USD available. Check your account balance for details.")
@@ -524,7 +524,7 @@ func TestSubmitOrder(t *testing.T) {
 		assert.NoError(t, err, "SubmitOrder should not error")
 		assert.Equal(t, float64(45), o.Amount, "Amount should be correct")
 		assert.Equal(t, asset.Spot, o.AssetType, "AssetType should be correct")
-		assert.Equal(t, "123456789", o.ClientID, "ClientID should be correct")
+		assert.Equal(t, "123456789", o.ClientOrderID, "ClientOrderID should be correct")
 		assert.Equal(t, "1234123412341234", o.OrderID, "OrderID should be correct")
 		assert.Equal(t, 2211.0, o.Price, "Price should be correct")
 		assert.Equal(t, btcusdPair, o.Pair, "Pair should be correct")
@@ -920,9 +920,7 @@ func TestGetHistoricTrades(t *testing.T) {
 	t.Parallel()
 
 	currencyPair, err := currency.NewPairFromString("LTCUSD")
-	if err != nil {
-		t.Error("Invalid pair")
-	}
+	assert.NoError(t, err, "NewPairFromString should not error")
 	_, err = b.GetHistoricTrades(context.Background(),
 		currencyPair, asset.Spot, time.Now().Add(-time.Minute*15), time.Now())
 	assert.ErrorIs(t, err, common.ErrFunctionNotSupported)
