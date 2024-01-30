@@ -390,9 +390,8 @@ func (ku *Kucoin) GetFuturesTickers(ctx context.Context) ([]*ticker.Price, error
 	close(errC)
 	var errs error
 	for err := range errC {
-		return nil, err
+		errs = common.AppendError(errs, err)
 	}
-	errs = common.AppendError(errs, err)
 	if errs != nil {
 		return nil, errs
 	}
