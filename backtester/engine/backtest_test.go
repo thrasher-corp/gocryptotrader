@@ -11,6 +11,7 @@ import (
 
 	"github.com/gofrs/uuid"
 	"github.com/shopspring/decimal"
+	"github.com/stretchr/testify/assert"
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/config"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data"
@@ -1882,36 +1883,23 @@ func TestExecuteStrategy(t *testing.T) {
 func TestNewBacktesterFromConfigs(t *testing.T) {
 	t.Parallel()
 	_, err := NewBacktesterFromConfigs(nil, nil)
-	if !errors.Is(err, gctcommon.ErrNilPointer) {
-		t.Errorf("received '%v' expected '%v'", err, gctcommon.ErrNilPointer)
-	}
+	assert.ErrorIs(t, err, gctcommon.ErrNilPointer, "NewBacktesterFromConfigs should error on nil for both configs")
 
-	strat1 := filepath.Join("..", "config", "strategyexamples", "dca-api-candles.strat")
-	cfg, err := config.ReadStrategyConfigFromFile(strat1)
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	cfg, err := config.ReadStrategyConfigFromFile(filepath.Join("..", "config", "strategyexamples", "dca-api-candles.strat"))
+	assert.NoError(t, err, "ReadStrategyConfigFromFile should not error")
+
 	dc, err := config.GenerateDefaultConfig()
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v' expected '%v'", err, nil)
-	}
+	assert.NoError(t, err, "GenerateDefaultConfig should not error")
 
 	_, err = NewBacktesterFromConfigs(cfg, nil)
-	if !errors.Is(err, gctcommon.ErrNilPointer) {
-		t.Errorf("received '%v' expected '%v'", err, gctcommon.ErrNilPointer)
-	}
+	assert.ErrorIs(t, err, gctcommon.ErrNilPointer, "NewBacktesterFromConfigs should error on nil default config")
 
 	_, err = NewBacktesterFromConfigs(nil, dc)
-	if !errors.Is(err, gctcommon.ErrNilPointer) {
-		t.Errorf("received '%v' expected '%v'", err, gctcommon.ErrNilPointer)
-	}
+	assert.ErrorIs(t, err, gctcommon.ErrNilPointer, "NewBacktesterFromConfigs should error on nil config")
 
 	bt, err := NewBacktesterFromConfigs(cfg, dc)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received '%v' expected '%v'", err, nil)
-	}
-	if bt.MetaData.DateLoaded.IsZero() {
-		t.Errorf("received '%v' expected '%v'", bt.MetaData.DateLoaded, "a date")
+	if assert.NoError(t, err, "NewBacktesterFromConfigs should not error") {
+		assert.False(t, bt.MetaData.DateLoaded.IsZero(), "DateLoaded should have a non-zero date")
 	}
 }
 

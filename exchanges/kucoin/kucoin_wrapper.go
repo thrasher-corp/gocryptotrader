@@ -29,6 +29,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/buffer"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
@@ -162,6 +163,21 @@ func (ku *Kucoin) SetDefaults() {
 				),
 				GlobalResultLimit: 1500,
 			},
+		},
+		Subscriptions: []*subscription.Subscription{
+			// Where we can we use generic names
+			{Enabled: true, Channel: subscription.TickerChannel},                                         // marketTickerChannel
+			{Enabled: true, Channel: subscription.AllTradesChannel},                                      // marketMatchChannel
+			{Enabled: true, Channel: subscription.OrderbookChannel, Interval: kline.HundredMilliseconds}, // marketOrderbookLevel2Channels
+			{Enabled: true, Channel: futuresTickerV2Channel},
+			{Enabled: true, Channel: futuresOrderbookLevel2Depth50Channel},
+			{Enabled: true, Channel: marginFundingbookChangeChannel, Authenticated: true},
+			{Enabled: true, Channel: accountBalanceChannel, Authenticated: true},
+			{Enabled: true, Channel: marginPositionChannel, Authenticated: true},
+			{Enabled: true, Channel: marginLoanChannel, Authenticated: true},
+			{Enabled: true, Channel: futuresTradeOrderChannel, Authenticated: true},
+			{Enabled: true, Channel: futuresStopOrdersLifecycleEventChannel, Authenticated: true},
+			{Enabled: true, Channel: futuresAccountBalanceEventChannel, Authenticated: true},
 		},
 	}
 	ku.Requester, err = request.New(ku.Name,

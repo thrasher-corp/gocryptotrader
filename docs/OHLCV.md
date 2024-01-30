@@ -89,5 +89,4 @@ A helper tool [cmd/dbseed](../cmd/dbseed/README.md) has been created for assisti
 | Okcoin         | Y           |  
 | Okx            | Y           |         
 | Poloniex       | Y           |          
-| Yobit          |            |    
-| ZB             | Y           |          
+| Yobit          |             |           
