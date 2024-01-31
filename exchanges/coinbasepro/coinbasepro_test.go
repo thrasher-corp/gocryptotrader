@@ -13,6 +13,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/buger/jsonparser"
 	"github.com/gofrs/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -25,6 +26,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	gctlog "github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
@@ -76,6 +78,8 @@ const (
 	errExpectedFeeRange        = "expected fee range of %v and %v, received %v"
 	errJsonNumberIntoString    = "json: cannot unmarshal number into Go value of type string"
 	errParseIntValueOutOfRange = `strconv.ParseInt: parsing "922337203685477580700": value out of range`
+	errParseUintInvalidSyntax  = `strconv.ParseUint: parsing "l": invalid syntax`
+	errJsonInvalidCharacter    = `invalid character ':' after array element`
 
 	expectedTimestamp = "1970-01-01 00:20:34 +0000 UTC"
 
@@ -822,19 +826,6 @@ func TestUpdateUser(t *testing.T) {
 	assert.NotEmpty(t, resp, errExpectedNonEmpty)
 }
 
-func TestCreateWallet(t *testing.T) {
-	_, err := c.CreateWallet(context.Background(), "")
-	if !errors.Is(err, errCurrencyEmpty) {
-		t.Errorf(errExpectMismatch, err, errCurrencyEmpty)
-	}
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, c, canManipulateRealOrders)
-	resp, err := c.CreateWallet(context.Background(), testCrypto.String())
-	if err != nil {
-		t.Error(err)
-	}
-	assert.NotEmpty(t, resp, errExpectedNonEmpty)
-}
-
 func TestGetAllWallets(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, c)
 	pagIn := PaginationInp{Limit: 2}
@@ -870,46 +861,6 @@ func TestGetWalletByID(t *testing.T) {
 		t.Error(err)
 	}
 	assert.NotEmpty(t, resp, errExpectedNonEmpty)
-}
-
-func TestUpdateWalletName(t *testing.T) {
-	_, err := c.UpdateWalletName(context.Background(), "", "")
-	if !errors.Is(err, errWalletIDEmpty) {
-		t.Errorf(errExpectMismatch, err, errWalletIDEmpty)
-	}
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, c, canManipulateRealOrders)
-	wID, err := c.GetAllWallets(context.Background(), PaginationInp{})
-	if err != nil {
-		t.Error(err)
-	}
-	if len(wID.Data) == 0 {
-		t.Fatal(errExpectedNonEmpty)
-	}
-	resp, err := c.UpdateWalletName(context.Background(), wID.Data[len(wID.Data)-1].ID, "Wallet Tested by GCT")
-	if err != nil {
-		t.Error(err)
-	}
-	assert.NotEmpty(t, resp, errExpectedNonEmpty)
-}
-
-func TestDeleteWallet(t *testing.T) {
-	err := c.DeleteWallet(context.Background(), "")
-	if !errors.Is(err, errWalletIDEmpty) {
-		t.Errorf(errExpectMismatch, err, errWalletIDEmpty)
-	}
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, c, canManipulateRealOrders)
-	wID, err := c.CreateWallet(context.Background(), testCrypto.String())
-	if err != nil {
-		t.Error(err)
-	}
-	// As of now, it seems like this next step always fails. DeleteWallet only lets you delete non-primary
-	// non-fiat wallets, but the only non-primary wallet is fiat. Trying to create a secondary wallet for
-	// any cryptocurrency using CreateWallet simply returns the details of the existing primary wallet.
-	t.Skip("endpoint bugged on their end, skipping")
-	err = c.DeleteWallet(context.Background(), wID.Data.ID)
-	if err != nil {
-		t.Error(err)
-	}
 }
 
 func TestCreateAddress(t *testing.T) {
@@ -1765,8 +1716,12 @@ func TestGetOrderInfo(t *testing.T) {
 }
 
 func TestGetDepositAddress(t *testing.T) {
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, c, canManipulateRealOrders)
-	_, err := c.GetDepositAddress(context.Background(), currency.BTC, "", "")
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, c)
+	_, err := c.GetDepositAddress(context.Background(), currency.NewCode("fake currency that doesn't exist"), "", "")
+	if !errors.Is(err, errNoWalletForCurrency) {
+		t.Errorf(errExpectMismatch, err, errNoWalletForCurrency)
+	}
+	_, err = c.GetDepositAddress(context.Background(), testCrypto, "", "")
 	if err != nil {
 		t.Error(err)
 	}
@@ -2114,8 +2069,70 @@ func TestStringToFloatPtr(t *testing.T) {
 	}
 }
 
-func TestWsSomethingOrOther(t *testing.T) {
+func TestWsConnect(t *testing.T) {
+	c.Websocket.Disable()
+	err := c.WsConnect()
+	if err.Error() != stream.WebsocketNotEnabled {
+		t.Errorf(errExpectMismatch, err, stream.WebsocketNotEnabled)
+	}
+	c.Websocket.Enable()
+	err = c.WsConnect()
+	if err != nil {
+		t.Error(err)
+	}
+}
 
+func TestWsHandleData(t *testing.T) {
+	c.Websocket.DataHandler = make(chan interface{}, 4)
+	_, err := c.wsHandleData(nil, 0)
+	if !errors.Is(err, jsonparser.KeyPathNotFoundError) {
+		t.Errorf(errExpectMismatch, err, jsonparser.KeyPathNotFoundError)
+	}
+	mockJson := []byte(`{"sequence_num": "l"}`)
+	_, err = c.wsHandleData(mockJson, 0)
+	if err.Error() != errParseUintInvalidSyntax {
+		t.Errorf(errExpectMismatch, err, errParseUintInvalidSyntax)
+	}
+	mockJson = []byte(`{"sequence_num": 1, /\\/"""}`)
+	_, err = c.wsHandleData(mockJson, 0)
+	if !errors.Is(err, jsonparser.KeyPathNotFoundError) {
+		t.Errorf(errExpectMismatch, err, jsonparser.KeyPathNotFoundError)
+	}
+	mockJson = []byte(`{"sequence_num": 0, "channel": "subscriptions"}`)
+	_, err = c.wsHandleData(mockJson, 0)
+	if err != nil {
+		t.Error(err)
+	}
+	mockJson = []byte(`{"sequence_num": 0, "channel": "", "events":}`)
+	_, err = c.wsHandleData(mockJson, 0)
+	if !errors.Is(err, jsonparser.UnknownValueTypeError) {
+		t.Errorf(errExpectMismatch, err, jsonparser.UnknownValueTypeError)
+	}
+	mockJson = []byte(`{"sequence_num": 0, "channel": "status", "events": ["type": 1234]}`)
+	_, err = c.wsHandleData(mockJson, 0)
+	if err.Error() != errJsonInvalidCharacter {
+		t.Errorf(errExpectMismatch, err, errJsonInvalidCharacter)
+	}
+	mockJson = []byte(`{"sequence_num": 0, "channel": "status", "events": [{"type": "moo"}]}`)
+	_, err = c.wsHandleData(mockJson, 0)
+	if err != nil {
+		t.Error(err)
+	}
+	mockJson = []byte(`{"sequence_num": 0, "channel": "error", "events": [{"type": "moo"}]}`)
+	_, err = c.wsHandleData(mockJson, 0)
+	if err != nil {
+		t.Error(err)
+	}
+	mockJson = []byte(`{"sequence_num": 0, "channel": "ticker", "events": ["type": ""}]}`)
+	_, err = c.wsHandleData(mockJson, 0)
+	if err.Error() != errJsonInvalidCharacter {
+		t.Errorf(errExpectMismatch, err, errJsonInvalidCharacter)
+	}
+	mockJson = []byte(`{"sequence_num": 0, "channel": "ticker", "events": [{"type": "moo", "tickers": [{"price": "1.1"}]}]}`)
+	_, err = c.wsHandleData(mockJson, 0)
+	if err != nil {
+		t.Error(err)
+	}
 }
 
 func skipTestIfLowOnFunds(t *testing.T) {

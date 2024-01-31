@@ -1251,13 +1251,13 @@ type WebsocketOrderDataHolder struct {
 // 	Changes   [][3]string `json:"changes"`
 // }
 
-type wsGen struct {
-	Channel     string        `json:"channel"`
-	ClientID    string        `json:"client_id"`
-	Timestamp   time.Time     `json:"timestamp"`
-	SequenceNum uint64        `json:"sequence_num"`
-	Events      []interface{} `json:"events"`
-}
+// type wsGen struct {
+// 	Channel     string        `json:"channel"`
+// 	ClientID    string        `json:"client_id"`
+// 	Timestamp   time.Time     `json:"timestamp"`
+// 	SequenceNum uint64        `json:"sequence_num"`
+// 	Events      []interface{} `json:"events"`
+// }
 
 // type wsStatus struct {
 // 	Currencies []struct {

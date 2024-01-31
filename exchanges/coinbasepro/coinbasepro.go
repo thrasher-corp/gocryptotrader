@@ -90,6 +90,7 @@ const (
 	errUnknownEndpointLimit = "unknown endpoint limit %v"
 	errUnknownL2DataType    = "unknown l2update data type %v"
 	errUnknownSide          = "unknown side %v"
+	warnSequenceIssue       = "Out of order sequence number. Received %v, expected %v"
 )
 
 var (
@@ -119,8 +120,8 @@ var (
 	errNameEmpty              = errors.New("name cannot be empty")
 	errPortfolioIDEmpty       = errors.New("portfolio id cannot be empty")
 	errFeeTypeNotSupported    = errors.New("fee type not supported")
-	errNoEventsWS             = errors.New("no events returned from websocket")
 	errCantDecodePrivKey      = errors.New("cannot decode private key")
+	errNoWalletForCurrency    = errors.New("no wallet found for currency, address creation impossible")
 )
 
 // GetAllAccounts returns information on all trading accounts associated with the API key
@@ -474,7 +475,7 @@ func (c *CoinbasePro) GetAllOrders(ctx context.Context, productID, userNativeCur
 		pathParams, nil, true, &resp, nil)
 }
 
-// GetFills returns information of recent fills on the specified profile
+// GetFills returns information of recent fills on the specified order
 func (c *CoinbasePro) GetFills(ctx context.Context, orderID, productID, cursor string, startDate, endDate time.Time, limit uint16) (FillResponse, error) {
 	var resp FillResponse
 	var params Params
@@ -503,14 +504,14 @@ func (c *CoinbasePro) GetFills(ctx context.Context, orderID, productID, cursor s
 }
 
 // GetOrderByID returns a single order by order id.
-func (c *CoinbasePro) GetOrderByID(ctx context.Context, orderID, clientID, userNativeCurrency string) (*GetOrderResponse, error) {
+func (c *CoinbasePro) GetOrderByID(ctx context.Context, orderID, clientOID, userNativeCurrency string) (*GetOrderResponse, error) {
 	if orderID == "" {
 		return nil, errOrderIDEmpty
 	}
 	var resp GetOrderResponse
 	var params Params
 	params.urlVals = url.Values{}
-	params.urlVals.Set("client_order_id", clientID)
+	params.urlVals.Set("client_order_id", clientOID)
 	params.urlVals.Set("user_native_currency", userNativeCurrency)
 
 	path := fmt.Sprintf("%s%s/%s/%s", coinbaseV3, coinbaseOrders, coinbaseHistorical, orderID)
@@ -854,20 +855,6 @@ func (c *CoinbasePro) UpdateUser(ctx context.Context, name, timeZone, nativeCurr
 		coinbaseV2+coinbaseUser, "", req, false, &resp, nil)
 }
 
-// CreateWallet creates a new wallet for the specified currency
-func (c *CoinbasePro) CreateWallet(ctx context.Context, currency string) (*GenWalletResponse, error) {
-	if currency == "" {
-		return nil, errCurrencyEmpty
-	}
-
-	path := fmt.Sprintf("%s%s/%s", coinbaseV2, coinbaseAccounts, currency)
-
-	var resp *GenWalletResponse
-
-	return resp, c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet,
-		path, "", nil, false, &resp, nil)
-}
-
 // GetAllWallets lists all accounts associated with the API key
 func (c *CoinbasePro) GetAllWallets(ctx context.Context, pag PaginationInp) (GetAllWalletsResponse, error) {
 	var resp GetAllWalletsResponse
@@ -902,34 +889,6 @@ func (c *CoinbasePro) GetWalletByID(ctx context.Context, walletID, currency stri
 
 	return resp, c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet,
 		path, "", nil, false, &resp, nil)
-}
-
-// UpdateWalletName updates the name of a wallet
-func (c *CoinbasePro) UpdateWalletName(ctx context.Context, walletID, newName string) (*GenWalletResponse, error) {
-	if walletID == "" {
-		return nil, errWalletIDEmpty
-	}
-
-	path := fmt.Sprintf("%s%s/%s", coinbaseV2, coinbaseAccounts, walletID)
-
-	req := map[string]interface{}{"name": newName}
-
-	var resp *GenWalletResponse
-
-	return resp, c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPut,
-		path, "", req, false, &resp, nil)
-}
-
-// DeleteWallet deletes a wallet
-func (c *CoinbasePro) DeleteWallet(ctx context.Context, walletID string) error {
-	if walletID == "" {
-		return errWalletIDEmpty
-	}
-
-	path := fmt.Sprintf("%s%s/%s", coinbaseV2, coinbaseAccounts, walletID)
-
-	return c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodDelete, path, "", nil,
-		false, nil, nil)
 }
 
 // CreateAddress generates a crypto address for depositing to the specified wallet

@@ -73,6 +73,8 @@ func (c *CoinbasePro) SetDefaults() {
 		log.Errorln(log.ExchangeSys, err)
 	}
 
+	// c.SetKeyChain(account.Primary, account.Secondary)
+
 	c.Features = exchange.Features{
 		Supports: exchange.FeaturesSupported{
 			REST:      true,
@@ -828,11 +830,7 @@ func (c *CoinbasePro) GetDepositAddress(ctx context.Context, cryptocurrency curr
 		}
 	}
 	if targetWalletID == "" {
-		createWalResp, err := c.CreateWallet(ctx, cryptocurrency.String())
-		if err != nil {
-			return nil, err
-		}
-		targetWalletID = createWalResp.Data.ID
+		return nil, errNoWalletForCurrency
 	}
 	resp, err := c.CreateAddress(ctx, targetWalletID, "")
 	if err != nil {

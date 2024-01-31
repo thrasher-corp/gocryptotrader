@@ -18,7 +18,7 @@ const (
 	coinbaseV2Rate     = 10000
 
 	coinbaseWSInterval = time.Second
-	coinbaseWSRate     = 75
+	coinbaseWSRate     = 750
 )
 
 const (

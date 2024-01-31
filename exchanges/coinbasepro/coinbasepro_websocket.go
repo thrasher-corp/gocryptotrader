@@ -11,8 +11,10 @@ import (
 	"encoding/pem"
 	"fmt"
 	"net/http"
+	_ "net/http/pprof"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/buger/jsonparser"
@@ -24,7 +26,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
@@ -54,29 +55,91 @@ func (c *CoinbasePro) WsConnect() error {
 func (c *CoinbasePro) wsReadData() {
 	defer c.Websocket.Wg.Done()
 
+	var seqCount uint64
+
 	for {
 		resp := c.Websocket.Conn.ReadMessage()
 		if resp.Raw == nil {
 			return
 		}
-		err := c.wsHandleData(resp.Raw)
+		warn, err := c.wsHandleData(resp.Raw, seqCount)
 		if err != nil {
 			c.Websocket.DataHandler <- err
 		}
+		if warn != "" {
+			c.Websocket.DataHandler <- warn
+			tempStr := strings.SplitN(warn, "Out of order sequence number. Received ", 2)[1]
+			tempStr = strings.SplitN(tempStr, ", expected ", 2)[0]
+			tempNum, err := strconv.ParseUint(tempStr, 10, 64)
+			if err != nil {
+				c.Websocket.DataHandler <- err
+			} else {
+				seqCount = tempNum
+			}
+		}
+		seqCount++
 	}
 }
 
-func (c *CoinbasePro) wsHandleData(respRaw []byte) error {
-	// fmt.Println("WHADDUP:", string(respRaw))
-	genData := wsGen{}
-	err := json.Unmarshal(respRaw, &genData)
-	if err != nil {
-		return err
-	}
+var meow sync.Mutex
+var count int
+var wcTime time.Duration
+var bruh bool
 
-	if genData.Channel == "subscriptions" || genData.Channel == "heartbeats" {
-		return nil
+func WOW(tThen time.Time, msg []byte) {
+	meow.Lock()
+	if !bruh {
+		bruh = true
+		go func() {
+			for {
+				select {
+				case <-time.After(time.Second * 5):
+					meow.Lock()
+					fmt.Printf("COINBASEPRO: %v\n", count)
+					count = 0
+					wcTime = 0
+					meow.Unlock()
+				}
+			}
+		}()
 	}
+	this := time.Since(tThen)
+	if wcTime == 0 || this > wcTime {
+		fmt.Printf("Uh-oh, we took %s to process this message\n", this)
+		wcTime = this
+		if this > time.Millisecond*50 {
+			fmt.Printf("Oh jeez, I think I found the big one! %s\n", msg)
+		}
+	}
+	count++
+	meow.Unlock()
+}
+
+var alreadyDone bool
+
+func launchProfiling() {
+	if alreadyDone {
+		return
+	}
+	alreadyDone = true
+	// go func() {
+	// 	http.ListenAndServe("localhost:6060", nil)
+	// }()
+	// fmt.Print("30 second pause, 1")
+	// time.Sleep(time.Second * 30)
+	// fmt.Print("5 second pause, 1")
+	// time.Sleep(time.Second * 5)
+}
+
+func (c *CoinbasePro) wsHandleData(respRaw []byte, seqCount uint64) (string, error) {
+	// fmt.Println("WHADDUP:", string(respRaw))
+
+	// genData := wsGen{}
+	var warnString string
+	// err := json.Unmarshal(respRaw, &genData)
+	// if err != nil {
+	// 	return warnString, err
+	// }
 
 	// fmt.Printf("=== OH NOO LOOK AT THIS DATA WE HAVE TO DEAL WITH: %s ===\n", genData.Events)
 
@@ -91,24 +154,54 @@ func (c *CoinbasePro) wsHandleData(respRaw []byte) error {
 	// }
 	// fmt.Printf("===== AWESOME, WE'VE GOT THE GOOD DATA: %v =====\n", specData)
 
-	if len(genData.Events) == 0 {
-		return errNoEventsWS
+	// if len(genData.Events) == 0 {
+	// 	return warnString, errNoEventsWS
+	// }
+
+	seqData, _, _, err := jsonparser.Get(respRaw, "sequence_num")
+	if err != nil {
+		return warnString, err
+	}
+
+	seqNum, err := strconv.ParseUint(string(seqData), 10, 64)
+	if err != nil {
+		return warnString, err
+	}
+
+	if seqNum != seqCount {
+		warnString = fmt.Sprintf(warnSequenceIssue, seqNum,
+			seqCount)
+	}
+
+	channelRaw, _, _, err := jsonparser.Get(respRaw, "channel")
+	if err != nil {
+		return warnString, err
+	}
+
+	channel := string(channelRaw)
+
+	tn := time.Now()
+	defer WOW(tn, channelRaw)
+
+	if channel == "subscriptions" || channel == "heartbeats" {
+		return warnString, nil
 	}
 
 	data, _, _, err := jsonparser.Get(respRaw, "events")
 	if err != nil {
-		return err
+		return warnString, err
 	}
 	// fmt.Printf("==== WEEWOO WE'VE GOT THE NASTY DATA: %s ====\n", data)
 
-	switch genData.Channel {
+	switch channel {
 	case "status":
 		wsStatus := []WebsocketProductHolder{}
 
 		err = json.Unmarshal(data, &wsStatus)
 		if err != nil {
-			return err
+			return warnString, err
 		}
+		c.Websocket.DataHandler <- wsStatus
 
 	case "error":
 		c.Websocket.DataHandler <- errors.New(string(respRaw))
@@ -117,13 +210,20 @@ func (c *CoinbasePro) wsHandleData(respRaw []byte) error {
 
 		err = json.Unmarshal(data, &wsTicker)
 		if err != nil {
-			return err
+			return warnString, err
+		}
+
+		sliToSend := []ticker.Price{}
+
+		timestamp, err := getTimestamp(respRaw)
+		if err != nil {
+			return warnString, err
 		}
 
 		for i := range wsTicker {
 			for j := range wsTicker[i].Tickers {
-				c.Websocket.DataHandler <- &ticker.Price{
-					LastUpdated:  genData.Timestamp,
+				sliToSend = append(sliToSend, ticker.Price{
+					LastUpdated:  timestamp,
 					Pair:         wsTicker[i].Tickers[j].ProductID,
 					AssetType:    asset.Spot,
 					ExchangeName: c.Name,
@@ -131,22 +231,30 @@ func (c *CoinbasePro) wsHandleData(respRaw []byte) error {
 					Low:          wsTicker[i].Tickers[j].Low24H,
 					Last:         wsTicker[i].Tickers[j].Price,
 					Volume:       wsTicker[i].Tickers[j].Volume24H,
-				}
+				})
 			}
 		}
+		c.Websocket.DataHandler <- sliToSend
 		// fmt.Printf("=== WOOT, IT WORKED ===\n")
 	case "candles":
 		wsCandles := []WebsocketCandleHolder{}
 
 		err = json.Unmarshal(data, &wsCandles)
 		if err != nil {
-			return err
+			return warnString, err
+		}
+
+		sliToSend := []stream.KlineData{}
+
+		timestamp, err := getTimestamp(respRaw)
+		if err != nil {
+			return warnString, err
 		}
 
 		for i := range wsCandles {
 			for j := range wsCandles[i].Candles {
-				c.Websocket.DataHandler <- &stream.KlineData{
-					Timestamp:  genData.Timestamp,
+				sliToSend = append(sliToSend, stream.KlineData{
+					Timestamp:  timestamp,
 					Pair:       wsCandles[i].Candles[j].ProductID,
 					AssetType:  asset.Spot,
 					Exchange:   c.Name,
@@ -156,21 +264,24 @@ func (c *CoinbasePro) wsHandleData(respRaw []byte) error {
 					HighPrice:  wsCandles[i].Candles[j].High,
 					LowPrice:   wsCandles[i].Candles[j].Low,
 					Volume:     wsCandles[i].Candles[j].Volume,
-				}
+				})
 			}
 		}
+		c.Websocket.DataHandler <- sliToSend
 	// fmt.Print("=== RECEIVED AND PROCESSED ===\n")
 	case "market_trades":
 		wsTrades := []WebsocketMarketTradeHolder{}
 
 		err = json.Unmarshal(data, &wsTrades)
 		if err != nil {
-			return err
+			return warnString, err
 		}
+
+		sliToSend := []trade.Data{}
 
 		for i := range wsTrades {
 			for j := range wsTrades[i].Trades {
-				c.Websocket.DataHandler <- &trade.Data{
+				sliToSend = append(sliToSend, trade.Data{
 					TID:          wsTrades[i].Trades[j].TradeID,
 					Exchange:     c.Name,
 					CurrencyPair: wsTrades[i].Trades[j].ProductID,
@@ -179,29 +290,35 @@ func (c *CoinbasePro) wsHandleData(respRaw []byte) error {
 					Price:        wsTrades[i].Trades[j].Price,
 					Amount:       wsTrades[i].Trades[j].Size,
 					Timestamp:    wsTrades[i].Trades[j].Time,
-				}
+				})
 			}
 		}
+		c.Websocket.DataHandler <- sliToSend
 		// fmt.Print("=== RECEIVED AND PROCESSED ===\n")
 	case "l2_data":
 		var wsL2 []WebsocketOrderbookDataHolder
 		err := json.Unmarshal(data, &wsL2)
 		if err != nil {
-			return err
+			return warnString, err
+		}
+
+		timestamp, err := getTimestamp(respRaw)
+		if err != nil {
+			return warnString, err
 		}
 
 		for i := range wsL2 {
 			// fmt.Printf("======== DATA THAT WE JUST HIT: %v ========\n", wsL2[i])
 			switch wsL2[i].Type {
 			case "snapshot":
-				err = c.ProcessSnapshot(wsL2[i], genData.Timestamp)
+				err = c.ProcessSnapshot(wsL2[i], timestamp)
 			case "update":
-				err = c.ProcessUpdate(wsL2[i], genData.Timestamp)
+				err = c.ProcessUpdate(wsL2[i], timestamp)
 			default:
 				err = errors.Errorf(errUnknownL2DataType, wsL2[i].Type)
 			}
 			if err != nil {
-				return err
+				return warnString, err
 			}
 
 		}
@@ -209,9 +326,10 @@ func (c *CoinbasePro) wsHandleData(respRaw []byte) error {
 		var wsUser []WebsocketOrderDataHolder
 		err := json.Unmarshal(data, &wsUser)
 		if err != nil {
-			return err
+			return warnString, err
 		}
 
+		sliToSend := []order.Detail{}
 		for i := range wsUser {
 			for j := range wsUser[i].Orders {
 				var oType order.Type
@@ -235,7 +353,7 @@ func (c *CoinbasePro) wsHandleData(respRaw []byte) error {
 					continue
 				}
 
-				c.Websocket.DataHandler <- &order.Detail{
+				sliToSend = append(sliToSend, order.Detail{
 					Price:           wsUser[i].Orders[j].AveragePrice,
 					Amount:          wsUser[i].Orders[j].CumulativeQuantity + wsUser[i].Orders[j].LeavesQuantity,
 					ExecutedAmount:  wsUser[i].Orders[j].CumulativeQuantity,
@@ -250,15 +368,16 @@ func (c *CoinbasePro) wsHandleData(respRaw []byte) error {
 					AssetType:       asset.Spot,
 					Date:            wsUser[i].Orders[j].CreationTime,
 					Pair:            wsUser[i].Orders[j].ProductID,
-				}
+				})
 			}
 		}
+		c.Websocket.DataHandler <- sliToSend
 
 	default:
 		c.Websocket.DataHandler <- stream.UnhandledMessageWarning{Message: c.Name + stream.UnhandledMessage + string(respRaw)}
-		return nil
+		return warnString, nil
 	}
-	return nil
+	return warnString, nil
 }
 
 func statusToStandardStatus(stat string) (order.Status, error) {
@@ -347,12 +466,13 @@ func processBidAskArray(data WebsocketOrderbookDataHolder) ([]orderbook.Item, []
 func (c *CoinbasePro) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, error) {
 	var channels = []string{
 		"heartbeats",
+		// "status",
 		"ticker",
-		"ticker_batch",
+		// "ticker_batch",
 		"candles",
-		"market_trades",
+		// "market_trades",
 		"level2",
-		"user",
+		// "user",
 	}
 	enabledCurrencies, err := c.GetEnabledPairs(asset.Spot)
 	if err != nil {
@@ -376,7 +496,7 @@ func (c *CoinbasePro) GenerateDefaultSubscriptions() ([]stream.ChannelSubscripti
 	return subscriptions, nil
 }
 
-func (c *CoinbasePro) sendRequest(msgType, channel string, productID currency.Pair, rLim RateLimit) error {
+func (c *CoinbasePro) sendRequest(msgType, channel string, productIDs currency.Pairs) error {
 	creds, err := c.GetCredentials(context.Background())
 	if err != nil {
 		return err
@@ -384,7 +504,7 @@ func (c *CoinbasePro) sendRequest(msgType, channel string, productID currency.Pa
 
 	n := strconv.FormatInt(time.Now().Unix(), 10)
 
-	message := n + channel + productID.String()
+	message := n + channel + productIDs.Join()
 
 	hmac, err := crypto.GetHMAC(crypto.HashSHA256,
 		[]byte(message),
@@ -400,7 +520,7 @@ func (c *CoinbasePro) sendRequest(msgType, channel string, productID currency.Pa
 
 	req := WebsocketSubscribe{
 		Type:       msgType,
-		ProductIDs: []string{productID.String()},
+		ProductIDs: productIDs.Strings(),
 		Channel:    channel,
 		Signature:  hex.EncodeToString(hmac),
 		// JWT:       jwt,
@@ -408,14 +528,15 @@ func (c *CoinbasePro) sendRequest(msgType, channel string, productID currency.Pa
 		Timestamp: n,
 	}
 
-	reqMarshal, _ := json.Marshal(req)
+	// reqMarshal, _ := json.Marshal(req)
 
-	fmt.Print(string(reqMarshal))
+	// fmt.Print(string(reqMarshal))
 
-	err = rLim.Limit(context.Background(), WSRate)
+	// err = rLim.Limit(context.Background(), WSRate)
 	if err != nil {
 		return err
 	}
+	// data, err := c.Websocket.Conn.SendMessageReturnResponse(nil, req)
 	err = c.Websocket.Conn.SendJSONMessage(req)
 	if err != nil {
 		return err
@@ -426,7 +547,9 @@ func (c *CoinbasePro) sendRequest(msgType, channel string, productID currency.Pa
 // Subscribe sends a websocket message to receive data from the channel
 func (c *CoinbasePro) Subscribe(channelsToSubscribe []stream.ChannelSubscription) error {
 
-	fmt.Printf("SUBSCRIBE: %v\n", channelsToSubscribe)
+	launchProfiling()
+
+	// fmt.Printf("SUBSCRIBE: %v\n", channelsToSubscribe)
 	// 	var creds *account.Credentials
 	// 	var err error
 	// 	if c.IsWebsocketAuthenticationSupported() {
@@ -470,15 +593,25 @@ func (c *CoinbasePro) Subscribe(channelsToSubscribe []stream.ChannelSubscription
 	// 		}
 	// 	}
 
-	var rLim RateLimit
+	// var (
+	// 	rLim RateLimit
+	// )
 
-	rLim.RateLimWS = request.NewRateLimit(coinbaseWSInterval, coinbaseWSRate)
+	chanKeys := make(map[string]currency.Pairs)
+
+	// rLim.RateLimWS = request.NewRateLimit(coinbaseWSInterval, coinbaseWSRate)
 
 	for i := range channelsToSubscribe {
-		err := c.sendRequest("subscribe", channelsToSubscribe[i].Channel, channelsToSubscribe[i].Currency, rLim)
+		chanKeys[channelsToSubscribe[i].Channel] =
+			chanKeys[channelsToSubscribe[i].Channel].Add(channelsToSubscribe[i].Currency)
+
+	}
+	for s := range chanKeys {
+		err := c.sendRequest("subscribe", s, chanKeys[s])
 		if err != nil {
 			return err
 		}
+		time.Sleep(time.Millisecond * 10)
 	}
 
 	c.Websocket.AddSuccessfulSubscriptions(channelsToSubscribe...)
@@ -487,34 +620,20 @@ func (c *CoinbasePro) Subscribe(channelsToSubscribe []stream.ChannelSubscription
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
 func (c *CoinbasePro) Unsubscribe(channelsToUnsubscribe []stream.ChannelSubscription) error {
-	unsubscribe := WebsocketSubscribe{
-		Type: "unsubscribe",
-	}
+	chanKeys := make(map[string]currency.Pairs)
 
 	for i := range channelsToUnsubscribe {
-		p := channelsToUnsubscribe[i].Currency.String()
-		if !common.StringDataCompare(unsubscribe.ProductIDs, p) && p != "" {
-			unsubscribe.ProductIDs = append(unsubscribe.ProductIDs, p)
-		}
-
-		if unsubscribe.Channel == channelsToUnsubscribe[i].Channel {
-			unsubscribe.Channel = channelsToUnsubscribe[i].Channel
-
-		}
+		chanKeys[channelsToUnsubscribe[i].Channel] =
+			chanKeys[channelsToUnsubscribe[i].Channel].Add(channelsToUnsubscribe[i].Currency)
 
 	}
-	var rLim RateLimit
 
-	rLim.RateLimWS = request.NewRateLimit(coinbaseWSInterval, coinbaseWSRate)
-
-	err := rLim.Limit(context.Background(), WSRate)
-	if err != nil {
-		return err
-	}
-
-	err = c.Websocket.Conn.SendJSONMessage(unsubscribe)
-	if err != nil {
-		return err
+	for s := range chanKeys {
+		err := c.sendRequest("unsubscribe", s, chanKeys[s])
+		if err != nil {
+			return err
+		}
+		time.Sleep(time.Millisecond * 10)
 	}
 
 	c.Websocket.RemoveSubscriptions(channelsToUnsubscribe...)
@@ -578,6 +697,18 @@ func (c *CoinbasePro) GetJWT(ctx context.Context, uri string) (string, error) {
 	sigEncode := Base64URLEncode(sig)
 
 	return headEncode + "." + bodyEncode + "." + sigEncode, nil
+}
+
+func getTimestamp(rawData []byte) (time.Time, error) {
+	data, _, _, err := jsonparser.Get(rawData, "timestamp")
+	if err != nil {
+		return time.Time{}, err
+	}
+	timestamp, err := time.Parse(time.RFC3339, string(data))
+	if err != nil {
+		return time.Time{}, err
+	}
+	return timestamp, nil
 }
 
 // Base64URLEncode is a helper function that does some tweaks to standard Base64 encoding, in a way
