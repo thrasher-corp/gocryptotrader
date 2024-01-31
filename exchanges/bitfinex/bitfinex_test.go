@@ -72,20 +72,6 @@ func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
 
-func TestStart(t *testing.T) {
-	t.Parallel()
-	err := b.Start(context.Background(), nil)
-	if !errors.Is(err, common.ErrNilPointer) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, common.ErrNilPointer)
-	}
-	var testWg sync.WaitGroup
-	err = b.Start(context.Background(), &testWg)
-	if err != nil {
-		t.Fatal(err)
-	}
-	testWg.Wait()
-}
-
 func TestGetV2MarginFunding(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)

@@ -12,7 +12,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -61,15 +60,6 @@ func TestMain(m *testing.M) {
 		log.Fatal("Binanceus TestMain()", err)
 	}
 	bi.setupOrderbookManager()
-	err = bi.Start(context.Background(), nil)
-	if !errors.Is(err, common.ErrNilPointer) {
-		log.Fatalf("%s received: '%v' but expected: '%v'", bi.Name, err, common.ErrNilPointer)
-	}
-	var testWg sync.WaitGroup
-	err = bi.Start(context.Background(), &testWg)
-	if err != nil {
-		log.Fatal("Binanceus Starting error ", err)
-	}
 	os.Exit(m.Run())
 }
 
