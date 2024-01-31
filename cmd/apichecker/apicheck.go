@@ -38,7 +38,6 @@ const (
 	pathBitmex           = "https://www.bitmex.com/static/md/en-US/apiChangelog"
 	pathANX              = "https://anxv3.docs.apiary.io/"
 	pathPoloniex         = "https://docs.poloniex.com/#changelog"
-	pathIbBit            = "https://api.itbit.com/docs"
 	pathBTCMarkets       = "https://api.btcmarkets.net/openapi/info/index.yaml"
 	pathEXMO             = "https://exmo.com/en/api/"
 	pathBitstamp         = "https://www.bitstamp.net/api/"
@@ -468,8 +467,6 @@ func checkChangeLog(htmlData *HTMLScrapingData) (string, error) {
 		dataStrings, err = htmlScrapeANX(htmlData)
 	case pathPoloniex:
 		dataStrings, err = htmlScrapePoloniex(htmlData)
-	case pathIbBit:
-		dataStrings, err = htmlScrapeItBit(htmlData)
 	case pathBTCMarkets:
 		dataStrings, err = htmlScrapeBTCMarkets(htmlData)
 	case pathEXMO:
@@ -954,41 +951,6 @@ loop:
 									}
 								}
 							}
-						}
-					}
-				}
-			}
-		}
-	}
-	return resp, nil
-}
-
-// htmlScrapeItBit gets the check string for ItBit Exchange
-func htmlScrapeItBit(htmlData *HTMLScrapingData) ([]string, error) {
-	var resp []string
-	temp, err := sendHTTPGetRequest(htmlData.Path, nil)
-	if err != nil {
-		return nil, err
-	}
-	defer temp.Body.Close()
-	tokenizer := html.NewTokenizer(temp.Body)
-loop:
-	for {
-		next := tokenizer.Next()
-		switch next {
-		case html.ErrorToken:
-			break loop
-		case html.StartTagToken:
-			token := tokenizer.Token()
-			if token.Data == htmlData.TokenData {
-				for _, z := range token.Attr {
-					if z.Key == htmlData.Key {
-						r, err := regexp.Compile(htmlData.RegExp)
-						if err != nil {
-							return resp, err
-						}
-						if r.MatchString(z.Val) {
-							resp = append(resp, z.Val)
 						}
 					}
 				}
