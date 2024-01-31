@@ -65,16 +65,17 @@ const (
 	// Authenticated endpoints
 
 	// wallet eps
-	cancelTransferByID         = "private/cancel_transfer_by_id"
-	cancelWithdrawal           = "private/cancel_withdrawal"
-	createDepositAddress       = "private/create_deposit_address"
-	getCurrentDepositAddress   = "private/get_current_deposit_address"
-	getDeposits                = "private/get_deposits"
-	getTransfers               = "private/get_transfers"
-	getWithdrawals             = "private/get_withdrawals"
-	submitTransferToSubaccount = "private/submit_transfer_to_subaccount"
-	submitTransferToUser       = "private/submit_transfer_to_user"
-	submitWithdraw             = "private/withdraw"
+	cancelTransferByID               = "private/cancel_transfer_by_id"
+	cancelWithdrawal                 = "private/cancel_withdrawal"
+	createDepositAddress             = "private/create_deposit_address"
+	getCurrentDepositAddress         = "private/get_current_deposit_address"
+	getDeposits                      = "private/get_deposits"
+	getTransfers                     = "private/get_transfers"
+	getWithdrawals                   = "private/get_withdrawals"
+	submitTransferBetweenSubAccounts = "private/submit_transfer_between_subaccounts"
+	submitTransferToSubaccount       = "private/submit_transfer_to_subaccount"
+	submitTransferToUser             = "private/submit_transfer_to_user"
+	submitWithdraw                   = "private/withdraw"
 
 	// trading endpoints
 	submitBuy                        = "private/buy"
@@ -91,13 +92,16 @@ const (
 	getMargins                       = "private/get_margins"
 	getMMPConfig                     = "private/get_mmp_config"
 	getOpenOrdersByCurrency          = "private/get_open_orders_by_currency"
+	getOpenOrdersByLabel             = "private/get_open_orders_by_label"
 	getOpenOrdersByInstrument        = "private/get_open_orders_by_instrument"
 	getOrderHistoryByCurrency        = "private/get_order_history_by_currency"
 	getOrderHistoryByInstrument      = "private/get_order_history_by_instrument"
 	getOrderMarginByIDs              = "private/get_order_margin_by_ids"
 	getOrderState                    = "private/get_order_state"
+	getOrderStateByLabel             = "private/get_order_state_by_label"
 	getTriggerOrderHistory           = "private/get_trigger_order_history"
 	getUserTradesByCurrency          = "private/get_user_trades_by_currency"
+	getUserTradesByCurrencyAndTime   = "private/get_user_trades_by_currency_and_time"
 	getUserTradesByInstrument        = "private/get_user_trades_by_instrument"
 	getUserTradesByInstrumentAndTime = "private/get_user_trades_by_instrument_and_time"
 	getUserTradesByOrder             = "private/get_user_trades_by_order"
@@ -111,12 +115,13 @@ const (
 	getAnnouncements                  = "public/get_announcements"
 	getPublicPortfolioMargins         = "public/get_portfolio_margins"
 	changeAPIKeyName                  = "private/change_api_key_name"
+	changeMarginModel                 = "private/change_margin_model"
 	changeScopeInAPIKey               = "private/change_scope_in_api_key"
 	changeSubAccountName              = "private/change_subaccount_name"
 	createAPIKey                      = "private/create_api_key"
 	createSubAccount                  = "private/create_subaccount"
 	disableAPIKey                     = "private/disable_api_key"
-	disableTFAForSubaccount           = "private/disable_tfa_for_subaccount"
+	editAPIKey                        = "private/edit_api_key"
 	enableAffiliateProgram            = "private/enable_affiliate_program"
 	enableAPIKey                      = "private/enable_api_key"
 	getAccessLog                      = "private/get_access_log"
@@ -132,11 +137,14 @@ const (
 	getTransactionLog                 = "private/get_transaction_log"
 	getUserLocks                      = "private/get_user_locks"
 	listAPIKeys                       = "private/list_api_keys"
+	listCustodyAccounts               = "private/list_custody_accounts"
 	removeAPIKey                      = "private/remove_api_key"
 	removeSubAccount                  = "private/remove_subaccount"
+	resetAPIKey                       = "private/reset_api_key"
 	setAnnouncementAsRead             = "private/set_announcement_as_read"
 	setEmailForSubAccount             = "private/set_email_for_subaccount"
 	setEmailLanguage                  = "private/set_email_language"
+	setSelfTradingConfig              = "private/set_self_trading_config"
 	toggleNotificationsFromSubAccount = "private/toggle_notifications_from_subaccount"
 	togglePortfolioMargining          = "private/toggle_portfolio_margining"
 	toggleSubAccountLogin             = "private/toggle_subaccount_login"
@@ -153,7 +161,13 @@ const (
 	getLastBlockTradesByCurrency   = "private/get_last_block_trades_by_currency"
 	invalidateBlockTradesSignature = "private/invalidate_block_trade_signature"
 	movePositions                  = "private/move_positions"
+	simulateBlockPosition          = "private/simulate_block_trade"
 	verifyBlockTrades              = "private/verify_block_trade"
+
+	// roles
+
+	roleMaker = "maker"
+	roleTaker = "taker"
 )
 
 // GetBookSummaryByCurrency gets book summary data for currency requested
@@ -855,6 +869,30 @@ func (d *Deribit) GetWithdrawals(ctx context.Context, ccy string, count, offset 
 		getWithdrawals, params, &resp)
 }
 
+// SubmitTransferBetweenSubAccounts transfer funds between two (sub)accounts.
+// Id of the source (sub)account. Can be found in My Account >> Subaccounts tab. By default, it is the Id of the account which made the request.
+// However, if a different "source" is specified, the user must possess the mainaccount scope, and only other subaccounts can be designated as the source.
+func (d *Deribit) SubmitTransferBetweenSubAccounts(ctx context.Context, ccy currency.Code, amount float64, destinationID int64, source string) (*TransferData, error) {
+	if ccy.IsEmpty() {
+		return nil, fmt.Errorf("%w '%s'", errInvalidCurrency, ccy)
+	}
+	if amount <= 0 {
+		return nil, errInvalidAmount
+	}
+	if destinationID <= 0 {
+		return nil, errInvalidDestinationID
+	}
+	params := url.Values{}
+	params.Set("currency", ccy.String())
+	params.Set("destination", strconv.FormatInt(destinationID, 10))
+	params.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
+	if source != "" {
+		params.Set("source", source)
+	}
+	var resp *TransferData
+	return resp, d.SendHTTPAuthRequest(ctx, exchange.RestFutures, nonMatchingEPL, http.MethodGet, submitTransferBetweenSubAccounts, params, &resp)
+}
+
 // SubmitTransferToSubAccount submits a request to transfer a currency to a subaccount
 func (d *Deribit) SubmitTransferToSubAccount(ctx context.Context, ccy string, amount float64, destinationID int64) (*TransferData, error) {
 	if ccy == "" {
@@ -967,6 +1005,25 @@ func (d *Deribit) ChangeAPIKeyName(ctx context.Context, id int64, name string) (
 		changeAPIKeyName, params, &resp)
 }
 
+// ChangeMarginModel change margin model
+// Margin model: 'cross_pm', 'cross_sm', 'segregated_pm', 'segregated_sm'
+// 'dry_run': If true request returns the result without switching the margining model. Default: false
+func (d *Deribit) ChangeMarginModel(ctx context.Context, userID int64, marginModel string, dryRun bool) ([]TogglePortfolioMarginResponse, error) {
+	if marginModel == "" {
+		return nil, errors.New("missing margin model")
+	}
+	params := url.Values{}
+	params.Set("margin_model", marginModel)
+	if userID != 0 {
+		params.Set("user_id", strconv.FormatInt(userID, 10))
+	}
+	if dryRun {
+		params.Set("dry_run", "true")
+	}
+	var resp []TogglePortfolioMarginResponse
+	return resp, d.SendHTTPAuthRequest(ctx, exchange.RestFutures, nonMatchingEPL, http.MethodGet, changeMarginModel, params, &resp)
+}
+
 // ChangeScopeInAPIKey changes the scope of the api key requested
 func (d *Deribit) ChangeScopeInAPIKey(ctx context.Context, id int64, maxScope string) (*APIKeyData, error) {
 	if id <= 0 {
@@ -1037,23 +1094,42 @@ func (d *Deribit) DisableAPIKey(ctx context.Context, id int64) (*APIKeyData, err
 		disableAPIKey, params, &resp)
 }
 
-// DisableTFAForSubAccount disables two factor authentication for the subaccount linked to the requested id
-func (d *Deribit) DisableTFAForSubAccount(ctx context.Context, sid int64) error {
-	if sid <= 0 {
-		return fmt.Errorf("%w, invalid subaccount user id", errInvalidID)
+// EditAPIKey edits existing API key. At least one parameter is required.
+// Describes maximal access for tokens generated with given key, possible values:
+// trade:[read, read_write, none],
+// wallet:[read, read_write, none],
+// account:[read, read_write, none],
+// block_trade:[read, read_write, none].
+func (d *Deribit) EditAPIKey(ctx context.Context, id int64, maxScope, name string, enabled bool, enabledFeatures, ipWhitelist []string) (*APIKeyData, error) {
+	if id == 0 {
+		return nil, errors.New("invalid api key id")
+	}
+	if maxScope == "" {
+		return nil, errors.New("max scope is required")
 	}
 	params := url.Values{}
-	params.Set("sid", strconv.FormatInt(sid, 10))
-	var resp string
-	err := d.SendHTTPAuthRequest(ctx, exchange.RestFutures, nonMatchingEPL, http.MethodGet,
-		disableTFAForSubaccount, params, &resp)
-	if err != nil {
-		return err
+	if name != "" {
+		params.Set("name", name)
 	}
-	if resp != "ok" {
-		return fmt.Errorf("disabling 2fa for subaccount %v failed", sid)
+	if enabled {
+		params.Set("enabled", "true")
 	}
-	return nil
+	if len(enabledFeatures) > 0 {
+		enabledFeaturesByte, err := json.Marshal(enabledFeatures)
+		if err != nil {
+			return nil, err
+		}
+		params.Set("enabled_features", string(enabledFeaturesByte))
+	}
+	if len(ipWhitelist) > 0 {
+		ipWhitelistByte, err := json.Marshal(ipWhitelist)
+		if err != nil {
+			return nil, err
+		}
+		params.Set("ip_whitelist", string(ipWhitelistByte))
+	}
+	var resp *APIKeyData
+	return resp, d.SendHTTPAuthRequest(ctx, exchange.RestFutures, nonMatchingEPL, http.MethodGet, editAPIKey, params, &resp)
 }
 
 // EnableAffiliateProgram enables the affiliate program
@@ -1230,6 +1306,17 @@ func (d *Deribit) ListAPIKeys(ctx context.Context, tfa string) ([]APIKeyData, er
 		listAPIKeys, params, &resp)
 }
 
+// GetCustodyAccounts retrieves user custody accounts list.
+func (d *Deribit) GetCustodyAccounts(ctx context.Context, ccy currency.Code) ([]CustodyAccount, error) {
+	if ccy.IsEmpty() {
+		return nil, currency.ErrCurrencyCodeEmpty
+	}
+	params := url.Values{}
+	params.Set("currency", ccy.String())
+	var resp []CustodyAccount
+	return resp, d.SendHTTPAuthRequest(ctx, exchange.RestFutures, nonMatchingEPL, http.MethodGet, listCustodyAccounts, params, &resp)
+}
+
 // RemoveAPIKey removes api key vid ID
 func (d *Deribit) RemoveAPIKey(ctx context.Context, id int64) error {
 	if id <= 0 {
@@ -1285,7 +1372,7 @@ func (d *Deribit) ResetAPIKey(ctx context.Context, id int64) (*APIKeyData, error
 	params.Set("id", strconv.FormatInt(id, 10))
 	var resp *APIKeyData
 	return resp, d.SendHTTPAuthRequest(ctx, exchange.RestFutures, nonMatchingEPL, http.MethodGet,
-		"private/reset_api_key", params, &resp)
+		resetAPIKey, params, &resp)
 }
 
 // SetAnnouncementAsRead sets an announcement as read
@@ -1359,6 +1446,24 @@ func (d *Deribit) SetEmailLanguage(ctx context.Context, language string) error {
 		return fmt.Errorf("could not set the email language to %v", language)
 	}
 	return nil
+}
+
+// SetSelfTradingConfig configure self trading behavior
+// mode: Self trading prevention behavior. Possible values: 'reject_taker', 'cancel_maker'
+// extended_to_subaccounts: If value is true trading is prevented between subaccounts of given account
+func (d *Deribit) SetSelfTradingConfig(ctx context.Context, mode string, extendedToSubaccounts bool) (string, error) {
+	if mode == "" {
+		return "", errors.New("self trading mode is required")
+	}
+	params := url.Values{}
+	params.Set("mode", mode)
+	if extendedToSubaccounts {
+		params.Set("extended_to_subaccounts", "true")
+	} else {
+		params.Set("extended_to_subaccounts", "false")
+	}
+	var resp string
+	return resp, d.SendHTTPAuthRequest(ctx, exchange.RestFutures, nonMatchingEPL, http.MethodGet, setSelfTradingConfig, params, &resp)
 }
 
 // ToggleNotificationsFromSubAccount toggles the notifications from a subaccount specified
@@ -1634,9 +1739,9 @@ func (d *Deribit) SubmitCancelAllByCurrency(ctx context.Context, ccy currency.Co
 
 // SubmitCancelAllByKind cancels all orders in currency(currencies), optionally filtered by instrument kind and/or order type.
 // 'kind' instrument kind . Possible values: 'future', 'option', 'spot', 'future_combo', 'option_combo', 'combo', 'any'
-func (d *Deribit) SubmitCancelAllByKind(ctx context.Context, ccy currency.Code, kind, orderType string, detailed bool) (interface{}, error) {
+func (d *Deribit) SubmitCancelAllByKind(ctx context.Context, ccy currency.Code, kind, orderType string, detailed bool) (*OrderCancelationResponse, error) {
 	if ccy.IsEmpty() {
-		return 0, fmt.Errorf("%w '%s'", currency.ErrCurrencyCodeEmpty, ccy)
+		return nil, fmt.Errorf("%w '%s'", currency.ErrCurrencyCodeEmpty, ccy)
 	}
 	params := url.Values{}
 	params.Set("currency", ccy.String())
@@ -1648,28 +1753,16 @@ func (d *Deribit) SubmitCancelAllByKind(ctx context.Context, ccy currency.Code, 
 	}
 	if detailed {
 		params.Set("detailed", "true")
-		return d.submitCancelAllByKindDetailed(ctx, params)
 	}
-	return d.submitCancelAllByKind(ctx, params)
-}
-
-// submitCancelAllByKind returns the total number of successfully cancelled orders
-func (d *Deribit) submitCancelAllByKind(ctx context.Context, params url.Values) (int64, error) {
-	var resp int64
-	return resp, d.SendHTTPAuthRequest(ctx, exchange.RestSpot, matchingEPL, http.MethodGet, submitCancelAllByKind, params, &resp)
-}
-
-// submitCancelAllByKind returns the *CancelResponse instances of successfully cancelled orders
-func (d *Deribit) submitCancelAllByKindDetailed(ctx context.Context, params url.Values) (*CancelResponse, error) {
-	var resp *CancelResponse
+	var resp *OrderCancelationResponse
 	return resp, d.SendHTTPAuthRequest(ctx, exchange.RestSpot, matchingEPL, http.MethodGet, submitCancelAllByKind, params, &resp)
 }
 
 // SubmitCancelAllByInstrument sends a request to cancel all user orders for the specified instrument
-func (d *Deribit) SubmitCancelAllByInstrument(ctx context.Context, instrument, orderType string, detailed, includeCombos bool) (int64, error) {
+func (d *Deribit) SubmitCancelAllByInstrument(ctx context.Context, instrument, orderType string, detailed, includeCombos bool) (*OrderCancelationResponse, error) {
 	params, err := checkInstrument(instrument)
 	if err != nil {
-		return 0, err
+		return nil, err
 	}
 	if orderType != "" {
 		params.Set("type", orderType)
@@ -1680,18 +1773,9 @@ func (d *Deribit) SubmitCancelAllByInstrument(ctx context.Context, instrument, o
 	if includeCombos {
 		params.Set("include_combos", "true")
 	}
-	var resp interface{}
-	err = d.SendHTTPAuthRequest(ctx, exchange.RestFutures, matchingEPL, http.MethodGet,
+	var resp *OrderCancelationResponse
+	return resp, d.SendHTTPAuthRequest(ctx, exchange.RestFutures, matchingEPL, http.MethodGet,
 		submitCancelAllByInstrument, params, &resp)
-	if err != nil {
-		return 0, err
-	}
-	switch result := resp.(type) {
-	case int64:
-		return result, nil
-	default:
-		return 0, errNoOrderDeleted
-	}
 }
 
 // SubmitCancelByLabel sends a request to cancel all user orders for the specified label
@@ -1752,7 +1836,7 @@ func (d *Deribit) GetMMPConfig(ctx context.Context, ccy string) (*MMPConfigData,
 		getMMPConfig, params, &resp)
 }
 
-// GetOpenOrdersByCurrency sends a request to fetch open orders data sorted by requested params
+// GetOpenOrdersByCurrency retrieves open orders data sorted by requested params
 func (d *Deribit) GetOpenOrdersByCurrency(ctx context.Context, ccy, kind, orderType string) ([]OrderData, error) {
 	if ccy == "" {
 		return nil, fmt.Errorf("%w '%s'", errInvalidCurrency, ccy)
@@ -1768,6 +1852,21 @@ func (d *Deribit) GetOpenOrdersByCurrency(ctx context.Context, ccy, kind, orderT
 	var resp []OrderData
 	return resp, d.SendHTTPAuthRequest(ctx, exchange.RestFutures, nonMatchingEPL, http.MethodGet,
 		getOpenOrdersByCurrency, params, &resp)
+}
+
+// GetOpenOrdersByLabel retrieves open orders using label and currency
+func (d *Deribit) GetOpenOrdersByLabel(ctx context.Context, ccy currency.Code, label string) ([]OrderData, error) {
+	if ccy.IsEmpty() {
+		return nil, currency.ErrCurrencyCodeEmpty
+	}
+	params := url.Values{}
+	params.Set("currency", ccy.String())
+	if label != "" {
+		params.Set("label", label)
+	}
+	var resp []OrderData
+	return resp, d.SendHTTPAuthRequest(ctx, exchange.RestFutures, nonMatchingEPL, http.MethodGet,
+		getOpenOrdersByLabel, params, &resp)
 }
 
 // GetOpenOrdersByInstrument sends a request to fetch open orders data sorted by requested params
@@ -1861,6 +1960,20 @@ func (d *Deribit) GetOrderState(ctx context.Context, orderID string) (*OrderData
 		getOrderState, params, &resp)
 }
 
+// GetOrderStateByLabel retrieves an order state by label and currency
+func (d *Deribit) GetOrderStateByLabel(ctx context.Context, ccy currency.Code, label string) (*OrderData, error) {
+	if ccy.IsEmpty() {
+		return nil, currency.ErrCurrencyCodeEmpty
+	}
+	params := url.Values{}
+	params.Set("currency", ccy.String())
+	if label != "" {
+		params.Set("label", label)
+	}
+	var resp *OrderData
+	return resp, d.SendHTTPAuthRequest(ctx, exchange.RestFutures, nonMatchingEPL, http.MethodGet, getOrderStateByLabel, params, &resp)
+}
+
 // GetTriggerOrderHistory sends a request to fetch order state of the order id provided
 func (d *Deribit) GetTriggerOrderHistory(ctx context.Context, ccy, instrumentName, continuation string, count int64) (*OrderData, error) {
 	if ccy == "" {
@@ -1935,8 +2048,7 @@ func (d *Deribit) GetUserTradesByCurrencyAndTime(ctx context.Context, ccy, kind,
 		params.Set("end_timestamp", strconv.FormatInt(endTime.UnixMilli(), 10))
 	}
 	var resp *UserTradesData
-	return resp, d.SendHTTPAuthRequest(ctx, exchange.RestFutures, nonMatchingEPL, http.MethodGet,
-		"private/get_user_trades_by_currency_and_time", params, &resp)
+	return resp, d.SendHTTPAuthRequest(ctx, exchange.RestFutures, nonMatchingEPL, http.MethodGet, getUserTradesByCurrencyAndTime, params, &resp)
 }
 
 // GetUserTradesByInstrument sends a request to fetch user trades sorted by instrument
@@ -2253,7 +2365,7 @@ func (d *Deribit) ExecuteBlockTrade(ctx context.Context, timestampMS time.Time, 
 	if nonce == "" {
 		return nil, errMissingNonce
 	}
-	if role != "maker" && role != "taker" {
+	if role != roleMaker && role != roleTaker {
 		return nil, errInvalidTradeRole
 	}
 	if len(trades) == 0 {
@@ -2303,7 +2415,7 @@ func (d *Deribit) VerifyBlockTrade(ctx context.Context, timestampMS time.Time, n
 	if nonce == "" {
 		return "", errMissingNonce
 	}
-	if role != "maker" && role != "taker" {
+	if role != roleMaker && role != roleTaker {
 		return "", errInvalidTradeRole
 	}
 	if len(trades) == 0 {
@@ -2437,6 +2549,40 @@ func (d *Deribit) MovePositions(ctx context.Context, ccy string, sourceSubAccoun
 	params.Set("trades", string(values))
 	var resp []BlockTradeMoveResponse
 	return resp, d.SendHTTPAuthRequest(ctx, exchange.RestFutures, nonMatchingEPL, http.MethodGet, movePositions, params, &resp)
+}
+
+// SimulateBlockTrade checks if a block trade can be executed
+func (d *Deribit) SimulateBlockTrade(ctx context.Context, role string, trades []BlockTradeParam) (bool, error) {
+	if role != roleMaker && role != roleTaker {
+		return false, errInvalidTradeRole
+	}
+	if len(trades) == 0 {
+		return false, errNoArgumentPassed
+	}
+	for x := range trades {
+		if trades[x].InstrumentName == "" {
+			return false, fmt.Errorf("%w, empty string", errInvalidInstrumentName)
+		}
+		trades[x].Direction = strings.ToLower(trades[x].Direction)
+		if trades[x].Direction != sideBUY && trades[x].Direction != sideSELL {
+			return false, errInvalidOrderSideOrDirection
+		}
+		if trades[x].Amount <= 0 {
+			return false, errInvalidAmount
+		}
+		if trades[x].Price < 0 {
+			return false, fmt.Errorf("%w, trade price can't be negative", errInvalidPrice)
+		}
+	}
+	values, err := json.Marshal(trades)
+	if err != nil {
+		return false, err
+	}
+	params := url.Values{}
+	params.Set("role", role)
+	params.Set("trades", string(values))
+	var resp bool
+	return resp, d.SendHTTPAuthRequest(ctx, exchange.RestFutures, matchingEPL, http.MethodGet, simulateBlockPosition, params, resp)
 }
 
 // GetAssetKind returns the asset type (kind) string representation.

@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
-	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
 const (
@@ -487,6 +486,7 @@ type OrderData struct {
 	AveragePrice        float64              `json:"average_price"`
 	API                 bool                 `json:"api"`
 	Amount              float64              `json:"amount"`
+	IsRebalance         bool                 `json:"is_rebalance"`
 }
 
 // PrivateTradeData stores data of a private buy, sell or edit
@@ -962,19 +962,18 @@ type UserLock struct {
 	Currency string `json:"currency"`
 }
 
+// PortfolioMarginState represents a portfolio margin state information.
+type PortfolioMarginState struct {
+	MaintenanceMarginRate float64 `json:"maintenance_margin_rate"`
+	InitialMarginRate     float64 `json:"initial_margin_rate"`
+	AvailableBalance      float64 `json:"available_balance"`
+}
+
 // TogglePortfolioMarginResponse represents a response from toggling portfolio margin for currency.
 type TogglePortfolioMarginResponse struct {
-	OldState struct {
-		MaintenanceMarginRate float64 `json:"maintenance_margin_rate"`
-		InitialMarginRate     float64 `json:"initial_margin_rate"`
-		AvailableBalance      float64 `json:"available_balance"`
-	} `json:"old_state"`
-	NewState struct {
-		MaintenanceMarginRate float64 `json:"maintenance_margin_rate"`
-		InitialMarginRate     float64 `json:"initial_margin_rate"`
-		AvailableBalance      float64 `json:"available_balance"`
-	} `json:"new_state"`
-	Currency string `json:"currency"`
+	OldState PortfolioMarginState `json:"old_state"`
+	NewState PortfolioMarginState `json:"new_state"`
+	Currency string               `json:"currency"`
 }
 
 // BlockTradeResponse represents a block trade response.
@@ -1443,7 +1442,7 @@ type CancelResponse struct {
 		StopPrice           float64              `json:"stop_price"`
 		Replaced            bool                 `json:"replaced"`
 		ReduceOnly          bool                 `json:"reduce_only"`
-		Price               types.Number         `json:"price"`
+		PriceType           string               `json:"price"`
 		PostOnly            bool                 `json:"post_only"`
 		OrderType           string               `json:"order_type"`
 		OrderState          string               `json:"order_state"`
@@ -1459,4 +1458,35 @@ type CancelResponse struct {
 		API                 bool                 `json:"api"`
 		Amount              float64              `json:"amount"`
 	} `json:"result"`
+}
+
+// OrderCancelationResponse represents an order cancellation response
+type OrderCancelationResponse struct {
+	CancelResponse *CancelResponse
+	CancelCount    int
+}
+
+// UnmarshalJSON represents an order cancellation response
+func (a *OrderCancelationResponse) UnmarshalJSON(data []byte) error {
+	err := json.Unmarshal(data, &a.CancelCount)
+	if err != nil {
+		err = json.Unmarshal(data, &a.CancelResponse)
+		if err != nil {
+			println(err.Error())
+			return err
+		}
+		a.CancelCount = len(a.CancelResponse.Result)
+	}
+	return nil
+}
+
+// CustodyAccount retrieves user custody accounts list.
+type CustodyAccount struct {
+	Name                          string  `json:"name"`
+	Currency                      string  `json:"currency"`
+	ClientID                      string  `json:"client_id"`
+	Balance                       float64 `json:"balance"`
+	WithdrawalsRequireSecurityKey bool    `json:"withdrawals_require_security_key"`
+	PendingWithdrawalBalance      float64 `json:"pending_withdrawal_balance"`
+	AutoDeposit                   bool    `json:"auto_deposit"`
 }

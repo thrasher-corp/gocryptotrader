@@ -713,6 +713,32 @@ func (d *Deribit) WSRetrieveWithdrawals(symbol string, count, offset int64) (*Wi
 	return resp, d.SendWSRequest(nonMatchingEPL, getWithdrawals, input, &resp, true)
 }
 
+// WsSubmitTransferBetweenSubAccounts transfer funds between two (sub)accounts.
+func (d *Deribit) WsSubmitTransferBetweenSubAccounts(ccy currency.Code, amount float64, destinationID int64, source string) (*TransferData, error) {
+	if ccy.IsEmpty() {
+		return nil, currency.ErrCurrencyCodeEmpty
+	}
+	if amount < 0 {
+		return nil, fmt.Errorf("%w, amount : %f", order.ErrAmountBelowMin, amount)
+	}
+	if destinationID == 0 {
+		return nil, errInvalidDestinationID
+	}
+	input := &struct {
+		Currency    string  `json:"currency"`
+		Amount      float64 `json:"amount"`
+		Destination int64   `json:"destination"`
+		Source      string  `json:"source,omitempty"`
+	}{
+		Currency:    ccy.String(),
+		Amount:      amount,
+		Destination: destinationID,
+		Source:      source,
+	}
+	var resp *TransferData
+	return resp, d.SendWSRequest(nonMatchingEPL, submitTransferBetweenSubAccounts, input, &resp, true)
+}
+
 // WSSubmitTransferToSubAccount submits a request to transfer a currency to a subaccount
 func (d *Deribit) WSSubmitTransferToSubAccount(symbol string, amount float64, destinationID int64) (*TransferData, error) {
 	if symbol == "" {
@@ -844,6 +870,26 @@ func (d *Deribit) WSChangeAPIKeyName(id int64, name string) (*APIKeyData, error)
 	return resp, d.SendWSRequest(nonMatchingEPL, changeAPIKeyName, input, &resp, true)
 }
 
+// WsChangeMarginModel change margin model
+// Margin model: 'cross_pm', 'cross_sm', 'segregated_pm', 'segregated_sm'
+// 'dry_run': If true request returns the result without switching the margining model. Default: false
+func (d *Deribit) WsChangeMarginModel(userID int64, marginModel string, dryRun bool) ([]TogglePortfolioMarginResponse, error) {
+	if marginModel == "" {
+		return nil, errors.New("missing margin model")
+	}
+	input := &struct {
+		MarginModel string `json:"margin_model"`
+		UserID      int64  `json:"user_id"`
+		DryRun      bool   `json:"dry_run,omitempty"`
+	}{
+		MarginModel: marginModel,
+		UserID:      userID,
+		DryRun:      dryRun,
+	}
+	var resp []TogglePortfolioMarginResponse
+	return resp, d.SendWSRequest(nonMatchingEPL, changeMarginModel, input, &resp, true)
+}
+
 // WSChangeScopeInAPIKey changes the name of the requested subaccount id through the websocket connection.
 func (d *Deribit) WSChangeScopeInAPIKey(id int64, maxScope string) (*APIKeyData, error) {
 	if id <= 0 {
@@ -949,25 +995,36 @@ func (d *Deribit) WSDisableAPIKey(id int64) (interface{}, error) {
 	return &resp, nil
 }
 
-// WSDisableTFAForSubAccount disables two factor authentication for the subaccount linked to the requested id through the websocket connection.
-func (d *Deribit) WSDisableTFAForSubAccount(sid int64) error {
-	if sid <= 0 {
-		return fmt.Errorf("%w, invalid subaccount user id", errInvalidID)
+// WsEditAPIKey edits existing API key. At least one parameter is required.
+// Describes maximal access for tokens generated with given key, possible values:
+// trade:[read, read_write, none],
+// wallet:[read, read_write, none],
+// account:[read, read_write, none],
+// block_trade:[read, read_write, none].
+func (d *Deribit) WsEditAPIKey(id int64, maxScope, name string, enabled bool, enabledFeatures, ipWhitelist []string) (*APIKeyData, error) {
+	if id == 0 {
+		return nil, errors.New("invalid api key id")
+	}
+	if maxScope == "" {
+		return nil, errors.New("max scope is required")
 	}
 	input := &struct {
-		SID int64 `json:"sid"`
+		ID              int64    `json:"id"`
+		MaxScope        string   `json:"max_scope"`
+		Name            string   `json:"name,omitempty"`
+		Enabled         bool     `json:"enabled,omitempty"`
+		EnabledFeatures []string `json:"enabled_features,omitempty"`
+		IPWhitelist     []string `json:"ip_whitelist,omitempty"`
 	}{
-		SID: sid,
+		ID:              id,
+		MaxScope:        maxScope,
+		Name:            name,
+		Enabled:         enabled,
+		EnabledFeatures: enabledFeatures,
+		IPWhitelist:     ipWhitelist,
 	}
-	var resp string
-	err := d.SendWSRequest(nonMatchingEPL, disableTFAForSubaccount, input, &resp, true)
-	if err != nil {
-		return err
-	}
-	if resp != "ok" {
-		return fmt.Errorf("disabling 2fa for subaccount %v failed", sid)
-	}
-	return nil
+	var resp *APIKeyData
+	return resp, d.SendWSRequest(nonMatchingEPL, editAPIKey, input, &resp, true)
 }
 
 // WSEnableAffiliateProgram enables the affiliate program through the websocket connection.
@@ -1143,6 +1200,15 @@ func (d *Deribit) WSListAPIKeys(tfa string) ([]APIKeyData, error) {
 	return resp, d.SendWSRequest(nonMatchingEPL, listAPIKeys, map[string]string{"tfa": tfa}, &resp, true)
 }
 
+// WsRetrieveCustodyAccounts retrieves user custody accounts
+func (d *Deribit) WsRetrieveCustodyAccounts(ccy currency.Code) ([]CustodyAccount, error) {
+	if ccy.IsEmpty() {
+		return nil, currency.ErrCurrencyCodeEmpty
+	}
+	var resp []CustodyAccount
+	return resp, d.SendWSRequest(nonMatchingEPL, listCustodyAccounts, &map[string]string{"currency": ccy.String()}, &resp, true)
+}
+
 // WSRemoveAPIKey removes api key vid ID through the websocket connection.
 func (d *Deribit) WSRemoveAPIKey(id int64) error {
 	if id <= 0 {
@@ -1191,7 +1257,7 @@ func (d *Deribit) WSResetAPIKey(id int64) error {
 		return fmt.Errorf("%w, invalid announcement id", errInvalidID)
 	}
 	var resp string
-	err := d.SendWSRequest(nonMatchingEPL, setAnnouncementAsRead, map[string]int64{"announcement_id": id}, &resp, true)
+	err := d.SendWSRequest(nonMatchingEPL, resetAPIKey, map[string]int64{"announcement_id": id}, &resp, true)
 	if err != nil {
 		return err
 	}
@@ -1254,6 +1320,24 @@ func (d *Deribit) WSSetEmailLanguage(language string) error {
 		return fmt.Errorf("could not set the email language to %v", language)
 	}
 	return nil
+}
+
+// WsSetSelfTradingConfig configure self trading behavior through the websocket connection.
+// mode: Self trading prevention behavior. Possible values: 'reject_taker', 'cancel_maker'
+// extended_to_subaccounts: If value is true trading is prevented between subaccounts of given account
+func (d *Deribit) WsSetSelfTradingConfig(mode string, extendedToSubaccounts bool) (string, error) {
+	if mode == "" {
+		return "", errors.New("self trading mode is required")
+	}
+	input := &struct {
+		Mode                  string `json:"mode"`
+		ExtendedToSubAccounts bool   `json:"extended_to_subaccounts"`
+	}{
+		Mode:                  mode,
+		ExtendedToSubAccounts: extendedToSubaccounts,
+	}
+	var resp string
+	return resp, d.SendWSRequest(nonMatchingEPL, setSelfTradingConfig, input, &resp, true)
 }
 
 // WSSetPasswordForSubAccount sets a password for subaccount usage through the websocket connection.
@@ -1420,15 +1504,15 @@ func (d *Deribit) WSSubmitCancel(orderID string) (*PrivateCancelData, error) {
 }
 
 // WSSubmitCancelAll sends a request to cancel all user orders in all currencies and instruments
-func (d *Deribit) WSSubmitCancelAll() (int64, error) {
-	var resp int64
+func (d *Deribit) WSSubmitCancelAll() (*OrderCancelationResponse, error) {
+	var resp *OrderCancelationResponse
 	return resp, d.SendWSRequest(matchingEPL, submitCancelAll, nil, &resp, true)
 }
 
 // WSSubmitCancelAllByCurrency sends a request to cancel all user orders for the specified currency through the websocket connection.
-func (d *Deribit) WSSubmitCancelAllByCurrency(symbol, kind, orderType string) (int64, error) {
+func (d *Deribit) WSSubmitCancelAllByCurrency(symbol, kind, orderType string) (*OrderCancelationResponse, error) {
 	if symbol == "" {
-		return 0, fmt.Errorf("%w \"%s\"", currency.ErrSymbolStringEmpty, symbol)
+		return nil, fmt.Errorf("%w \"%s\"", currency.ErrSymbolStringEmpty, symbol)
 	}
 	input := &struct {
 		Currency  string `json:"currency"`
@@ -1439,14 +1523,14 @@ func (d *Deribit) WSSubmitCancelAllByCurrency(symbol, kind, orderType string) (i
 		Kind:      kind,
 		OrderType: orderType,
 	}
-	var resp int64
+	var resp *OrderCancelationResponse
 	return resp, d.SendWSRequest(matchingEPL, submitCancelAllByCurrency, input, &resp, true)
 }
 
 // WSSubmitCancelAllByInstrument sends a request to cancel all user orders for the specified instrument through the websocket connection.
-func (d *Deribit) WSSubmitCancelAllByInstrument(instrument, orderType string, detailed, includeCombos bool) (int64, error) {
+func (d *Deribit) WSSubmitCancelAllByInstrument(instrument, orderType string, detailed, includeCombos bool) (*OrderCancelationResponse, error) {
 	if instrument == "" {
-		return 0, errInvalidInstrumentName
+		return nil, errInvalidInstrumentName
 	}
 	input := &struct {
 		Instrument    string `json:"instrument_name"`
@@ -1459,7 +1543,7 @@ func (d *Deribit) WSSubmitCancelAllByInstrument(instrument, orderType string, de
 		Detailed:      detailed,
 		IncludeCombos: includeCombos,
 	}
-	var resp int64
+	var resp *OrderCancelationResponse
 	return resp, d.SendWSRequest(matchingEPL, submitCancelAllByInstrument, input, &resp, true)
 }
 
@@ -1480,26 +1564,12 @@ func (d *Deribit) WsSubmitCancelAllByKind(ccy currency.Code, kind, orderType str
 		OrderType: orderType,
 		Detailed:  detailed,
 	}
-	if detailed {
-		return d.wsSubmitCancelAllByKindDetailed(input)
-	}
-	return d.wsSubmitCancelAllByKind(input)
-}
-
-// submitCancelAllByKind returns the total number of successfully cancelled orders through the websocket stream.
-func (d *Deribit) wsSubmitCancelAllByKind(input interface{}) (int64, error) {
-	var resp int64
-	return resp, d.SendWSRequest(matchingEPL, submitCancelAllByKind, input, &resp, true)
-}
-
-// wsSubmitCancelAllByKindDetailed returns the *CancelResponse instances of successfully cancelled orders through the websocket stream.
-func (d *Deribit) wsSubmitCancelAllByKindDetailed(input interface{}) (*CancelResponse, error) {
-	var resp *CancelResponse
+	var resp *OrderCancelationResponse
 	return resp, d.SendWSRequest(matchingEPL, submitCancelAllByKind, input, &resp, true)
 }
 
 // WSSubmitCancelByLabel sends a request to cancel all user orders for the specified label through the websocket connection.
-func (d *Deribit) WSSubmitCancelByLabel(label, symbol string) (int64, error) {
+func (d *Deribit) WSSubmitCancelByLabel(label, symbol string) (*OrderCancelationResponse, error) {
 	input := &struct {
 		Label    string `json:"label"`
 		Currency string `json:"currency,omitempty"`
@@ -1507,7 +1577,7 @@ func (d *Deribit) WSSubmitCancelByLabel(label, symbol string) (int64, error) {
 		Label:    label,
 		Currency: symbol,
 	}
-	var resp int64
+	var resp *OrderCancelationResponse
 	return resp, d.SendWSRequest(matchingEPL, submitCancelByLabel, input, &resp, true)
 }
 
@@ -1562,7 +1632,7 @@ func (d *Deribit) WSRetrieveMMPConfig(symbol string) (*MMPConfigData, error) {
 	return resp, d.SendWSRequest(nonMatchingEPL, getMMPConfig, map[string]string{"currency": symbol}, &resp, true)
 }
 
-// WSRetrieveOpenOrdersByCurrency sends a request to fetch open orders data sorted by requested params
+// WSRetrieveOpenOrdersByCurrency retrieves open order by symbol and kind
 func (d *Deribit) WSRetrieveOpenOrdersByCurrency(symbol, kind, orderType string) ([]OrderData, error) {
 	if symbol == "" {
 		return nil, fmt.Errorf("%w \"%s\"", errInvalidCurrency, symbol)
@@ -1578,6 +1648,22 @@ func (d *Deribit) WSRetrieveOpenOrdersByCurrency(symbol, kind, orderType string)
 	}
 	var resp []OrderData
 	return resp, d.SendWSRequest(nonMatchingEPL, getOpenOrdersByCurrency, input, &resp, true)
+}
+
+// WSRetrieveOpenOrdersByLabel retrieves open order by label and currency
+func (d *Deribit) WSRetrieveOpenOrdersByLabel(ccy currency.Code, label string) ([]OrderData, error) {
+	if ccy.IsEmpty() {
+		return nil, currency.ErrCurrencyCodeEmpty
+	}
+	input := &struct {
+		Currency string `json:"currency"`
+		Label    string `json:"label"`
+	}{
+		Currency: ccy.String(),
+		Label:    label,
+	}
+	var resp []OrderData
+	return resp, d.SendWSRequest(nonMatchingEPL, getOpenOrdersByLabel, input, &resp, true)
 }
 
 // WSRetrieveOpenOrdersByInstrument sends a request to fetch open orders data sorted by requested params through the websocket connection.
@@ -1660,6 +1746,22 @@ func (d *Deribit) WSRetrievesOrderState(orderID string) (*OrderData, error) {
 	return resp, d.SendWSRequest(nonMatchingEPL, getOrderState, map[string]string{"order_id": orderID}, &resp, true)
 }
 
+// WsRetrieveOrderStateByLabel retrieves an order state by label and currency
+func (d *Deribit) WsRetrieveOrderStateByLabel(ccy currency.Code, label string) (*OrderData, error) {
+	if ccy.IsEmpty() {
+		return nil, currency.ErrCurrencyCodeEmpty
+	}
+	input := &struct {
+		Currency string `json:"currency"`
+		Label    string `json:"label"`
+	}{
+		Currency: ccy.String(),
+		Label:    label,
+	}
+	var resp *OrderData
+	return resp, d.SendWSRequest(nonMatchingEPL, getOrderStateByLabel, input, &resp, true)
+}
+
 // WSRetrieveTriggerOrderHistory sends a request to fetch order state of the order id provided through the websocket connection.
 func (d *Deribit) WSRetrieveTriggerOrderHistory(symbol, instrumentName, continuation string, count int64) (*OrderData, error) {
 	if symbol == "" {
@@ -1707,24 +1809,22 @@ func (d *Deribit) WSRetrieveUserTradesByCurrency(symbol, kind, startID, endID, s
 }
 
 // WSRetrieveUserTradesByCurrencyAndTime retrieves user trades sorted by currency and time through the websocket connection.
-func (d *Deribit) WSRetrieveUserTradesByCurrencyAndTime(symbol, kind, sorting string, count int64, includeOld bool, startTime, endTime time.Time) (*UserTradesData, error) {
+func (d *Deribit) WSRetrieveUserTradesByCurrencyAndTime(symbol, kind, sorting string, count int64, startTime, endTime time.Time) (*UserTradesData, error) {
 	if symbol == "" {
 		return nil, fmt.Errorf("%w \"%s\"", errInvalidCurrency, symbol)
 	}
 	input := &struct {
-		Currency   string `json:"currency"`
-		Kind       string `json:"kind,omitempty"`
-		StartTime  int64  `json:"start_time,omitempty"`
-		EndTime    int64  `json:"end_time,omitempty"`
-		Sorting    string `json:"sorting,omitempty"`
-		Count      int64  `json:"count,omitempty"`
-		IncludeOld bool   `json:"include_old,omitempty"`
+		Currency  string `json:"currency"`
+		Kind      string `json:"kind,omitempty"`
+		StartTime int64  `json:"start_time,omitempty"`
+		EndTime   int64  `json:"end_time,omitempty"`
+		Sorting   string `json:"sorting,omitempty"`
+		Count     int64  `json:"count,omitempty"`
 	}{
-		Currency:   symbol,
-		Kind:       kind,
-		Sorting:    sorting,
-		Count:      count,
-		IncludeOld: includeOld,
+		Currency: symbol,
+		Kind:     kind,
+		Sorting:  sorting,
+		Count:    count,
 	}
 	if !startTime.IsZero() {
 		input.StartTime = startTime.UnixMilli()
@@ -1733,7 +1833,7 @@ func (d *Deribit) WSRetrieveUserTradesByCurrencyAndTime(symbol, kind, sorting st
 		input.EndTime = endTime.UnixMilli()
 	}
 	var resp *UserTradesData
-	return resp, d.SendWSRequest(nonMatchingEPL, getUserTradesByCurrency, input, &resp, true)
+	return resp, d.SendWSRequest(nonMatchingEPL, getUserTradesByCurrencyAndTime, input, &resp, true)
 }
 
 // WSRetrieveUserTradesByInstrument retrieves user trades sorted by instrument through the websocket connection.
@@ -1987,7 +2087,7 @@ func (d *Deribit) WSExecuteBlockTrade(timestampMS time.Time, nonce, role, symbol
 	if nonce == "" {
 		return nil, errMissingNonce
 	}
-	if role != "maker" && role != "taker" {
+	if role != roleMaker && role != roleTaker {
 		return nil, errInvalidTradeRole
 	}
 	if len(trades) == 0 {
@@ -2039,7 +2139,7 @@ func (d *Deribit) WSVerifyBlockTrade(timestampMS time.Time, nonce, role, symbol 
 	if nonce == "" {
 		return "", errMissingNonce
 	}
-	if role != "maker" && role != "taker" {
+	if role != roleMaker && role != roleTaker {
 		return "", errInvalidTradeRole
 	}
 	if len(trades) == 0 {
@@ -2165,6 +2265,40 @@ func (d *Deribit) WSMovePositions(symbol string, sourceSubAccountUID, targetSubA
 	}
 	var resp []BlockTradeMoveResponse
 	return resp, d.SendWSRequest(nonMatchingEPL, movePositions, input, &resp, true)
+}
+
+// WsSimulateBlockTrade checks if a block trade can be executed through the websocket stream.
+func (d *Deribit) WsSimulateBlockTrade(role string, trades []BlockTradeParam) (bool, error) {
+	if role != roleMaker && role != roleTaker {
+		return false, errInvalidTradeRole
+	}
+	if len(trades) == 0 {
+		return false, errNoArgumentPassed
+	}
+	for x := range trades {
+		if trades[x].InstrumentName == "" {
+			return false, fmt.Errorf("%w, empty string", errInvalidInstrumentName)
+		}
+		trades[x].Direction = strings.ToLower(trades[x].Direction)
+		if trades[x].Direction != sideBUY && trades[x].Direction != sideSELL {
+			return false, errInvalidOrderSideOrDirection
+		}
+		if trades[x].Amount <= 0 {
+			return false, errInvalidAmount
+		}
+		if trades[x].Price < 0 {
+			return false, fmt.Errorf("%w, trade price can't be negative", errInvalidPrice)
+		}
+	}
+	input := &struct {
+		Role   string            `json:"role"`
+		Trades []BlockTradeParam `json:"trades"`
+	}{
+		Role:   role,
+		Trades: trades,
+	}
+	var resp bool
+	return resp, d.SendWSRequest(matchingEPL, simulateBlockPosition, input, resp, true)
 }
 
 // SendWSRequest sends a request through the websocket connection.

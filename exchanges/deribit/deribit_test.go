@@ -996,6 +996,19 @@ func TestGetWithdrawals(t *testing.T) {
 	}
 }
 
+func TestSubmitTransferBetweenSubAccounts(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, d, canManipulateRealOrders)
+	_, err := d.SubmitTransferBetweenSubAccounts(context.Background(), currency.EURR, 12345, 4, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = d.WsSubmitTransferBetweenSubAccounts(currency.EURR, 12345, 2, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestSubmitTransferToSubAccount(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, d, canManipulateRealOrders)
@@ -1086,6 +1099,19 @@ func TestChangeAPIKeyName(t *testing.T) {
 	}
 }
 
+func TestChangeMarginModel(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, d, canManipulateRealOrders)
+	_, err := d.ChangeMarginModel(context.Background(), 2, "segregated_pm", false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = d.WsChangeMarginModel(2, "segregated_pm", false)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestChangeScopeInAPIKey(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, d, canManipulateRealOrders)
@@ -1146,16 +1172,16 @@ func TestDisableAPIKey(t *testing.T) {
 	}
 }
 
-func TestDisableTFAForSubAccount(t *testing.T) {
+func TestEditAPIKey(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, d, canManipulateRealOrders)
-	// Use with caution will reduce the security of the account
-	err := d.DisableTFAForSubAccount(context.Background(), 1)
+	_, err := d.EditAPIKey(context.Background(), 1234, "trade", "", false, []string{"read", "read_write"}, []string{})
 	if err != nil {
-		t.Error(err)
+		t.Fatal(err)
 	}
-	if err = d.WSDisableTFAForSubAccount(1); err != nil {
-		t.Error(err)
+	_, err = d.WsEditAPIKey(1234, "trade", "", false, []string{"read", "read_write"}, []string{})
+	if err != nil {
+		t.Fatal(err)
 	}
 }
 
@@ -1336,6 +1362,19 @@ func TestListAPIKeys(t *testing.T) {
 	}
 }
 
+func TestGetCustodyAccounts(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, d)
+	_, err := d.GetCustodyAccounts(context.Background(), currency.BTC)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = d.WsRetrieveCustodyAccounts(currency.BTC)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestRemoveAPIKey(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, d)
@@ -1362,7 +1401,7 @@ func TestRemoveSubAccount(t *testing.T) {
 
 func TestResetAPIKey(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, d)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, d, canManipulateRealOrders)
 	_, err := d.ResetAPIKey(context.Background(), 1)
 	if err != nil {
 		t.Error(err)
@@ -1402,6 +1441,19 @@ func TestSetEmailLanguage(t *testing.T) {
 	}
 	if err := d.WSSetEmailLanguage("en"); err != nil {
 		t.Error(err)
+	}
+}
+
+func TestSetSelfTradingConfig(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, d, canManipulateRealOrders)
+	_, err := d.SetSelfTradingConfig(context.Background(), "reject_taker", false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = d.WsSetSelfTradingConfig("reject_taker", false)
+	if err != nil {
+		t.Fatal(err)
 	}
 }
 
@@ -1641,6 +1693,19 @@ func TestGetOpenOrdersByCurrency(t *testing.T) {
 	}
 }
 
+func TestGetOpenOrdersByLabel(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, d, canManipulateRealOrders)
+	_, err := d.GetOpenOrdersByLabel(context.Background(), currency.EURR, "the-label")
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = d.WSRetrieveOpenOrdersByLabel(currency.EURR, "the-label")
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestGetOpenOrdersByInstrument(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, d)
@@ -1701,6 +1766,19 @@ func TestGetOrderState(t *testing.T) {
 	}
 }
 
+func TestGetOrderStateByLabel(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, d)
+	_, err := d.GetOrderStateByLabel(context.Background(), currency.EURR, "the-label")
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = d.WsRetrieveOrderStateByLabel(currency.EURR, "the-label")
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestGetTriggerOrderHistory(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, d)
@@ -1739,7 +1817,7 @@ func TestGetUserTradesByCurrencyAndTime(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	if _, err = d.WSRetrieveUserTradesByCurrencyAndTime(currencyETH, "future", "default", 5, false, time.Now().Add(-time.Hour*4), time.Now()); err != nil {
+	if _, err = d.WSRetrieveUserTradesByCurrencyAndTime(currencyETH, "future", "default", 5, time.Now().Add(-time.Hour*4), time.Now()); err != nil {
 		t.Error(err)
 	}
 }
@@ -2142,6 +2220,37 @@ func TestMovePositions(t *testing.T) {
 	})
 	if err != nil {
 		t.Error(err)
+	}
+}
+
+func TestSimulateBlockTrade(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, d)
+	info, err := d.GetInstrumentData(context.Background(), "BTC-PERPETUAL")
+	if err != nil {
+		t.Skip(err)
+	}
+	_, err = d.SimulateBlockTrade(context.Background(), "maker", []BlockTradeParam{
+		{
+			Price:          0.777 * 25000,
+			InstrumentName: btcPerpInstrument,
+			Direction:      "buy",
+			Amount:         info.MinimumTradeAmount*5 + (200000 - info.MinimumTradeAmount*5) + 10,
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = d.WsSimulateBlockTrade("taker", []BlockTradeParam{
+		{
+			Price:          0.777 * 25000,
+			InstrumentName: btcPerpInstrument,
+			Direction:      "buy",
+			Amount:         info.MinimumTradeAmount*5 + (200000 - info.MinimumTradeAmount*5) + 10,
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
 	}
 }
 
@@ -2871,5 +2980,15 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 	}
 	if got := limits.MinimumBaseAmount; got != instrumentInfo[0].MinimumTradeAmount {
 		t.Errorf("Pair: %s Expected: %v Got: %v", spotTradablePair, instrumentInfo[0].MinimumTradeAmount, got)
+	}
+}
+
+func TestUnmarshalCancelResponse(t *testing.T) {
+	t.Parallel()
+	data := `{ "currency": "BTC", "type": "trigger", "instrument_name": "ETH-PERPETUAL", "result": [{ "web": true, "triggered": false, "trigger_price": 1628.7, "trigger": "last_price", "time_in_force": "good_til_cancelled", "stop_price": 1628.7, "replaced": false, "reduce_only": false, "price": "market_price", "post_only": false, "order_type": "stop_market", "order_state": "untriggered", "order_id": "ETH-SLTS-250756", "max_show": 100, "last_update_timestamp": 1634206091071, "label": "", "is_rebalance": false, "is_liquidation": false, "instrument_name": "ETH-PERPETUAL", "direction": "sell", "creation_timestamp": 1634206000230, "api": false, "amount": 100 }] }`
+	var resp OrderCancelationResponse
+	err := json.Unmarshal([]byte(data), &resp)
+	if err != nil {
+		t.Fatal(err)
 	}
 }
