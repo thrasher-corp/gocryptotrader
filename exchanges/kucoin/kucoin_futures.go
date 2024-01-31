@@ -24,7 +24,7 @@ const (
 	// Public market endpoints
 	kucoinFuturesOpenContracts    = "/v1/contracts/active"
 	kucoinFuturesContract         = "/v1/contracts/"
-	kucoinFuturesRealTimeTicker   = "/v1/ticker"
+	kucoinFuturesTicker           = "/v1/ticker"
 	kucoinFuturesFullOrderbook    = "/v1/level2/snapshot"
 	kucoinFuturesPartOrderbook20  = "/v1/level2/depth20"
 	kucoinFuturesPartOrderbook100 = "/v1/level2/depth100"
@@ -86,15 +86,15 @@ func (ku *Kucoin) GetFuturesContract(ctx context.Context, symbol string) (*Contr
 	return resp, ku.SendHTTPRequest(ctx, exchange.RestFutures, defaultFuturesEPL, kucoinFuturesContract+symbol, &resp)
 }
 
-// GetFuturesRealTimeTicker get real time ticker
-func (ku *Kucoin) GetFuturesRealTimeTicker(ctx context.Context, symbol string) (*FuturesTicker, error) {
+// GetFuturesTicker get real time ticker
+func (ku *Kucoin) GetFuturesTicker(ctx context.Context, symbol string) (*FuturesTicker, error) {
 	if symbol == "" {
 		return nil, errors.New("symbol can't be empty")
 	}
 	params := url.Values{}
 	params.Set("symbol", symbol)
 	var resp *FuturesTicker
-	return resp, ku.SendHTTPRequest(ctx, exchange.RestFutures, defaultFuturesEPL, common.EncodeURLValues(kucoinFuturesRealTimeTicker, params), &resp)
+	return resp, ku.SendHTTPRequest(ctx, exchange.RestFutures, defaultFuturesEPL, common.EncodeURLValues(kucoinFuturesTicker, params), &resp)
 }
 
 // GetFuturesOrderbook gets full orderbook for a specified symbol

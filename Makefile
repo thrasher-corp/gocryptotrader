@@ -4,7 +4,6 @@ LINTPKG = github.com/golangci/golangci-lint/cmd/golangci-lint@v1.54.0
 LINTBIN = $(GOPATH)/bin/golangci-lint
 GCTLISTENPORT=9050
 GCTPROFILERLISTENPORT=8085
-CRON = $(TRAVIS_EVENT_TYPE)
 DRIVER ?= psql
 RACE_FLAG := $(if $(NO_RACE_TEST),,-race)
 CONFIG_FLAG = $(if $(CONFIG),-config $(CONFIG),)
@@ -24,11 +23,7 @@ linter:
 check: linter test
 
 test:
-ifeq ($(CRON), cron)
-	go test $(RACE_FLAG) -tags=mock_test_off -coverprofile=coverage.txt -covermode=atomic  ./...
-else
 	go test $(RACE_FLAG) -coverprofile=coverage.txt -covermode=atomic  ./...
-endif
 
 build:
 	go build $(LDFLAGS)

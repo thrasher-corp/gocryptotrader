@@ -5,6 +5,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
@@ -19,6 +20,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
@@ -70,9 +72,9 @@ type IBotExchange interface {
 	EnableRateLimiter() error
 	GetServerTime(ctx context.Context, ai asset.Item) (time.Time, error)
 	GetWebsocket() (*stream.Websocket, error)
-	SubscribeToWebsocketChannels(channels []stream.ChannelSubscription) error
-	UnsubscribeToWebsocketChannels(channels []stream.ChannelSubscription) error
-	GetSubscriptions() ([]stream.ChannelSubscription, error)
+	SubscribeToWebsocketChannels(channels []subscription.Subscription) error
+	UnsubscribeToWebsocketChannels(channels []subscription.Subscription) error
+	GetSubscriptions() ([]subscription.Subscription, error)
 	FlushWebsocketChannels() error
 	AuthenticateWebsocket(ctx context.Context) error
 	GetOrderExecutionLimits(a asset.Item, cp currency.Pair) (order.MinMaxLevel, error)
@@ -158,6 +160,7 @@ type FunctionalityChecker interface {
 
 // FuturesManagement manages futures orders, pnl and collateral calculations
 type FuturesManagement interface {
+	GetOpenInterest(context.Context, ...key.PairAsset) ([]futures.OpenInterest, error)
 	ScaleCollateral(ctx context.Context, calculator *futures.CollateralCalculator) (*collateral.ByCurrency, error)
 	GetPositionSummary(context.Context, *futures.PositionSummaryRequest) (*futures.PositionSummary, error)
 	CalculateTotalCollateral(context.Context, *futures.TotalCollateralCalculator) (*futures.TotalCollateralResponse, error)
