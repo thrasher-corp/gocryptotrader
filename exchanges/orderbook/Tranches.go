@@ -12,7 +12,7 @@ import (
 const FullLiquidityExhaustedPercentage = -100
 
 var (
-	errIDCannotBeMatched               = errors.New("cannot match ID on linked list")
+	errIDCannotBeMatched               = errors.New("cannot match ID")
 	errCollisionDetected               = errors.New("cannot insert update, collision detected")
 	errAmountCannotBeLessOrEqualToZero = errors.New("amount cannot be less than or equal to zero")
 	errInvalidNominalSlippage          = errors.New("invalid slippage amount, its value must be greater than or equal to zero")
@@ -27,50 +27,50 @@ var (
 	errNoLiquidity                     = errors.New("no liquidity")
 )
 
-type linkedList []Item
+// Tranches defines a slice of orderbook Tranche
+type Tranches []Tranche
 
 // comparison defines expected functionality to compare between two reference
 // price levels
 type comparison func(float64, float64) bool
 
-// load iterates across new items and refreshes linked list. It creates a linked
-// list exactly the same as the item slice that is supplied, if items is of nil
-// value it will flush entire list.
-func (ll *linkedList) load(items Items) {
-	if len(items) == 0 {
-		*ll = (*ll)[:0] // Flush
+// load iterates across new tranches and refreshes stored slice with this
+// incoming snapshot.
+func (ts *Tranches) load(incoming Tranches) {
+	if len(incoming) == 0 {
+		*ts = (*ts)[:0] // Flush
 		return
 	}
-	if len(items) <= len(*ll) {
-		copy(*ll, items)         // Reuse
-		*ll = (*ll)[:len(items)] // Flush excess
+	if len(incoming) <= len(*ts) {
+		copy(*ts, incoming)         // Reuse
+		*ts = (*ts)[:len(incoming)] // Flush excess
 		return
 	}
-	if len(items) > cap(*ll) {
-		*ll = make([]Item, len(items)) // Extend
-		copy(*ll, items)               // Copy
+	if len(incoming) > cap(*ts) {
+		*ts = make([]Tranche, len(incoming)) // Extend
+		copy(*ts, incoming)                  // Copy
 		return
 	}
-	*ll = (*ll)[:0]             // Flush
-	*ll = append(*ll, items...) // Append
+	*ts = (*ts)[:0]                // Flush
+	*ts = append(*ts, incoming...) // Append
 }
 
 // updateByID amends price by corresponding ID and returns an error if not found
-func (ll linkedList) updateByID(updts []Item) error {
+func (ts Tranches) updateByID(updts []Tranche) error {
 updates:
 	for x := range updts {
-		for y := range ll {
-			if updts[x].ID != ll[y].ID { // Filter IDs that don't match
+		for y := range ts {
+			if updts[x].ID != ts[y].ID { // Filter IDs that don't match
 				continue
 			}
 			if updts[x].Price > 0 {
 				// Only apply changes when zero values are not present, Bitmex
 				// for example sends 0 price values.
-				ll[y].Price = updts[x].Price
-				ll[y].StrPrice = updts[x].StrPrice
+				ts[y].Price = updts[x].Price
+				ts[y].StrPrice = updts[x].StrPrice
 			}
-			ll[y].Amount = updts[x].Amount
-			ll[y].StrAmount = updts[x].StrAmount
+			ts[y].Amount = updts[x].Amount
+			ts[y].StrAmount = updts[x].StrAmount
 			continue updates
 		}
 		return fmt.Errorf("update error: %w ID: %d not found",
@@ -81,15 +81,15 @@ updates:
 }
 
 // deleteByID deletes reference by ID
-func (ll *linkedList) deleteByID(updts Items, bypassErr bool) error {
+func (ts *Tranches) deleteByID(updts Tranches, bypassErr bool) error {
 updates:
 	for x := range updts {
-		for y := range *ll {
-			if updts[x].ID != (*ll)[y].ID {
+		for y := range *ts {
+			if updts[x].ID != (*ts)[y].ID {
 				continue
 			}
 
-			*ll = append((*ll)[:y], (*ll)[y+1:]...)
+			*ts = append((*ts)[:y], (*ts)[y+1:]...)
 			continue updates
 		}
 		if !bypassErr {
@@ -102,165 +102,167 @@ updates:
 }
 
 // amount returns total depth liquidity and value
-func (ll linkedList) amount() (liquidity, value float64) {
-	for x := range ll {
-		liquidity += ll[x].Amount
-		value += ll[x].Amount * ll[x].Price
+func (ts Tranches) amount() (liquidity, value float64) {
+	for x := range ts {
+		liquidity += ts[x].Amount
+		value += ts[x].Amount * ts[x].Price
 	}
 	return
 }
 
-// retrieve returns a full slice of contents from the linked list
-func (ll linkedList) retrieve(count int) Items {
-	if count == 0 || len(ll) < count {
-		count = len(ll)
+// retrieve returns a a slice of contents from the stored Tranches up to the
+// count length. If count is zero or greater than the length of the stored
+// Tranches, the entire slice is returned.
+func (ll Tranches) retrieve(count int) Tranches {
+	if count == 0 || len(ll) <= count {
+		// In this situation we have to allocate a new slice to prevent the
+		// caller from modifying the underlying array.
+		bucket := make(Tranches, len(ll))
+		copy(bucket, ll)
+		return bucket
 	}
-	return Items(ll[:count])
+	// This will auto allocate a slice because it is a reduction of the
+	// underlying array.
+	return ll[:count]
 }
 
 // updateInsertByPrice amends, inserts, moves and cleaves length of depth by
 // updates
-func (ll *linkedList) updateInsertByPrice(updts Items, maxChainLength int, compare func(float64, float64) bool) {
+func (ts *Tranches) updateInsertByPrice(updts Tranches, maxChainLength int, compare func(float64, float64) bool) {
 updateroo:
 	for x := range updts {
-		for y := range *ll {
+		for y := range *ts {
 			switch {
-			case (*ll)[y].Price == updts[x].Price:
+			case (*ts)[y].Price == updts[x].Price:
 				if updts[x].Amount <= 0 {
 					// Delete
-					if y+1 == len(*ll) {
-						*ll = (*ll)[:y]
+					if y+1 == len(*ts) {
+						*ts = (*ts)[:y]
 					} else {
-						*ll = append((*ll)[:y], (*ll)[y+1:]...)
+						*ts = append((*ts)[:y], (*ts)[y+1:]...)
 					}
 				} else {
 					// Update
-					(*ll)[y].Amount = updts[x].Amount
-					(*ll)[y].StrAmount = updts[x].StrAmount
+					(*ts)[y].Amount = updts[x].Amount
+					(*ts)[y].StrAmount = updts[x].StrAmount
 				}
 				continue updateroo
-			case compare((*ll)[y].Price, updts[x].Price):
+			case compare((*ts)[y].Price, updts[x].Price):
 				if updts[x].Amount > 0 {
-					*ll = append(*ll, Item{})    // Extend
-					copy((*ll)[y+1:], (*ll)[y:]) // Copy elements from index y onwards one position to the right
-					(*ll)[y] = updts[x]          // Insert updts[x] at index y
+					*ts = append(*ts, Tranche{}) // Extend
+					copy((*ts)[y+1:], (*ts)[y:]) // Copy elements from index y onwards one position to the right
+					(*ts)[y] = updts[x]          // Insert updts[x] at index y
 				}
 				continue updateroo
 			}
 		}
 		if updts[x].Amount > 0 {
-			*ll = append(*ll, updts[x])
+			*ts = append(*ts, updts[x])
 		}
 	}
-	// Reduces length of total linked list chain to a maxChainLength value
-	if maxChainLength != 0 && len(*ll) > maxChainLength {
-		*ll = (*ll)[:maxChainLength]
+	// Reduces length of total stored slice length to a maxChainLength value
+	if maxChainLength != 0 && len(*ts) > maxChainLength {
+		*ts = (*ts)[:maxChainLength]
 	}
 }
 
 // updateInsertByID updates or inserts if not found for a bid or ask depth
-// 1) node ID found amount amended (best case)
-// 2) node ID found amount and price amended and node moved to correct position
-// (medium case)
-// 3) Update price exceeds traversal node price before ID found, save node
-// address for either; node ID matches then re-address node or end of depth pop
-// a node from the stack (worst case)
-func (ll *linkedList) updateInsertByID(updts Items, compare comparison) error {
+func (ts *Tranches) updateInsertByID(updts Tranches, compare comparison) error {
 updates:
 	for x := range updts {
 		if updts[x].Amount <= 0 {
 			return errAmountCannotBeLessOrEqualToZero
 		}
 		var popped bool
-		for y := 0; y < len(*ll); y++ {
-			if (*ll)[y].ID == updts[x].ID {
-				if (*ll)[y].Price != updts[x].Price { // Price level change
-					if y+1 == len(*ll) { // end of depth
+		for y := 0; y < len(*ts); y++ {
+			if (*ts)[y].ID == updts[x].ID {
+				if (*ts)[y].Price != updts[x].Price { // Price level change
+					if y+1 == len(*ts) { // end of depth
 						// no movement needed just a re-adjustment
-						(*ll)[y] = updts[x]
+						(*ts)[y] = updts[x]
 						continue updates
 					}
-					copy((*ll)[y:], (*ll)[y+1:]) // remove him: cya m8
-					*ll = (*ll)[:len(*ll)-1]     // keep underlying array
+					copy((*ts)[y:], (*ts)[y+1:]) // RM tranche and shift left
+					*ts = (*ts)[:len(*ts)-1]     // Unlink residual element from end of slice
 					y--                          // adjust index
 					popped = true
 					continue // continue through node depth
 				}
 				// no price change, amend amount and continue update
-				(*ll)[y].Amount = updts[x].Amount
-				(*ll)[y].StrAmount = updts[x].StrAmount
+				(*ts)[y].Amount = updts[x].Amount
+				(*ts)[y].StrAmount = updts[x].StrAmount
 				continue updates // continue to next update
 			}
 
-			if compare((*ll)[y].Price, updts[x].Price) {
-				*ll = append(*ll, Item{})    // Extend
-				copy((*ll)[y+1:], (*ll)[y:]) // Copy elements from index y onwards one position to the right
-				(*ll)[y] = updts[x]          // Insert updts[x] at index y
+			if compare((*ts)[y].Price, updts[x].Price) {
+				*ts = append(*ts, Tranche{}) // Extend
+				copy((*ts)[y+1:], (*ts)[y:]) // Copy elements from index y onwards one position to the right
+				(*ts)[y] = updts[x]          // Insert updts[x] at index y
 
 				if popped { // already found ID and popped
 					continue updates
 				}
 
 				// search for ID
-				for z := y + 1; z < len(*ll); z++ {
-					if (*ll)[z].ID == updts[x].ID {
-						copy((*ll)[z:], (*ll)[z+1:]) // remove him: cya m8
-						*ll = (*ll)[:len(*ll)-1]     // keep underlying array
+				for z := y + 1; z < len(*ts); z++ {
+					if (*ts)[z].ID == updts[x].ID {
+						copy((*ts)[z:], (*ts)[z+1:]) // RM tranche and shift left
+						*ts = (*ts)[:len(*ts)-1]     // Unlink residual element from end of slice
 						break
 					}
 				}
 				continue updates
 			}
 		}
-		*ll = append(*ll, updts[x])
+		*ts = append(*ts, updts[x])
 	}
 	return nil
 }
 
 // insertUpdates inserts new updates for bids or asks based on price level
-func (ll *linkedList) insertUpdates(updts Items, comp comparison) error {
+func (ts *Tranches) insertUpdates(updts Tranches, comp comparison) error {
 updaterino:
 	for x := range updts {
-		if len(*ll) == 0 { // TODO: Offset this and outline
-			*ll = append(*ll, updts[x])
+		if len(*ts) == 0 {
+			*ts = append(*ts, updts[x])
 			continue
 		}
 
-		for y := range *ll {
+		for y := range *ts {
 			switch {
-			case (*ll)[y].Price == updts[x].Price: // Price already found
+			case (*ts)[y].Price == updts[x].Price: // Price already found
 				return fmt.Errorf("%w for price %f", errCollisionDetected, updts[x].Price)
-			case comp((*ll)[y].Price, updts[x].Price): // price at correct spot
-				*ll = append((*ll)[:y], append([]Item{updts[x]}, (*ll)[y:]...)...)
+			case comp((*ts)[y].Price, updts[x].Price): // price at correct spot
+				*ts = append((*ts)[:y], append([]Tranche{updts[x]}, (*ts)[y:]...)...)
 				continue updaterino
 			}
 		}
-		*ll = append(*ll, updts[x])
+		*ts = append(*ts, updts[x])
 	}
 	return nil
 }
 
 // getHeadPriceNoLock gets best/head price
-func (ll linkedList) getHeadPriceNoLock() (float64, error) {
-	if len(ll) == 0 {
+func (ts Tranches) getHeadPriceNoLock() (float64, error) {
+	if len(ts) == 0 {
 		return 0, errNoLiquidity
 	}
-	return ll[0].Price, nil
+	return ts[0].Price, nil
 }
 
 // getHeadVolumeNoLock gets best/head volume
-func (ll linkedList) getHeadVolumeNoLock() (float64, error) {
-	if len(ll) == 0 {
+func (ts Tranches) getHeadVolumeNoLock() (float64, error) {
+	if len(ts) == 0 {
 		return 0, errNoLiquidity
 	}
-	return ll[0].Amount, nil
+	return ts[0].Amount, nil
 }
 
 // getMovementByQuotation traverses through orderbook liquidity using quotation
 // currency as a limiter and returns orderbook movement details. Swap boolean
 // allows the swap of sold and purchased to reduce code so it doesn't need to be
 // specific to bid or ask.
-func (ll linkedList) getMovementByQuotation(quote, refPrice float64, swap bool) (*Movement, error) {
+func (ts Tranches) getMovementByQuotation(quote, refPrice float64, swap bool) (*Movement, error) {
 	if quote <= 0 {
 		return nil, errQuoteAmountInvalid
 	}
@@ -269,32 +271,32 @@ func (ll linkedList) getMovementByQuotation(quote, refPrice float64, swap bool) 
 		return nil, errInvalidReferencePrice
 	}
 
-	head, err := ll.getHeadPriceNoLock()
+	head, err := ts.getHeadPriceNoLock()
 	if err != nil {
 		return nil, err
 	}
 
 	m := Movement{StartPrice: refPrice}
-	for x := range ll {
-		trancheValue := ll[x].Amount * ll[x].Price
+	for x := range ts {
+		trancheValue := ts[x].Amount * ts[x].Price
 		leftover := quote - trancheValue
 		if leftover < 0 {
 			m.Purchased += quote
-			m.Sold += quote / trancheValue * ll[x].Amount
+			m.Sold += quote / trancheValue * ts[x].Amount
 			// This tranche is not consumed so the book shifts to this price.
-			m.EndPrice = ll[x].Price
+			m.EndPrice = ts[x].Price
 			quote = 0
 			break
 		}
 		// Full tranche consumed
-		m.Purchased += ll[x].Price * ll[x].Amount
-		m.Sold += ll[x].Amount
+		m.Purchased += ts[x].Price * ts[x].Amount
+		m.Sold += ts[x].Amount
 		quote = leftover
 		if leftover == 0 {
 			// Price no longer exists on the book so use next full price tranche
 			// to calculate book impact. If available.
-			if x+1 < len(ll) {
-				m.EndPrice = ll[x+1].Price
+			if x+1 < len(ts) {
+				m.EndPrice = ts[x+1].Price
 			} else {
 				m.FullBookSideConsumed = true
 			}
@@ -308,7 +310,7 @@ func (ll linkedList) getMovementByQuotation(quote, refPrice float64, swap bool) 
 // as a limiter and returns orderbook movement details. Swap boolean allows the
 // swap of sold and purchased to reduce code so it doesn't need to be specific
 // to bid or ask.
-func (ll linkedList) getMovementByBase(base, refPrice float64, swap bool) (*Movement, error) {
+func (ts Tranches) getMovementByBase(base, refPrice float64, swap bool) (*Movement, error) {
 	if base <= 0 {
 		return nil, errBaseAmountInvalid
 	}
@@ -317,31 +319,31 @@ func (ll linkedList) getMovementByBase(base, refPrice float64, swap bool) (*Move
 		return nil, errInvalidReferencePrice
 	}
 
-	head, err := ll.getHeadPriceNoLock()
+	head, err := ts.getHeadPriceNoLock()
 	if err != nil {
 		return nil, err
 	}
 
 	m := Movement{StartPrice: refPrice}
-	for x := range ll {
-		leftover := base - ll[x].Amount
+	for x := range ts {
+		leftover := base - ts[x].Amount
 		if leftover < 0 {
-			m.Purchased += ll[x].Price * base
+			m.Purchased += ts[x].Price * base
 			m.Sold += base
 			// This tranche is not consumed so the book shifts to this price.
-			m.EndPrice = ll[x].Price
+			m.EndPrice = ts[x].Price
 			base = 0
 			break
 		}
 		// Full tranche consumed
-		m.Purchased += ll[x].Price * ll[x].Amount
-		m.Sold += ll[x].Amount
+		m.Purchased += ts[x].Price * ts[x].Amount
+		m.Sold += ts[x].Amount
 		base = leftover
 		if leftover == 0 {
 			// Price no longer exists on the book so use next full price tranche
 			// to calculate book impact.
-			if x+1 < len(ll) {
-				m.EndPrice = ll[x+1].Price
+			if x+1 < len(ts) {
+				m.EndPrice = ts[x+1].Price
 			} else {
 				m.FullBookSideConsumed = true
 			}
@@ -351,11 +353,8 @@ func (ll linkedList) getMovementByBase(base, refPrice float64, swap bool) (*Move
 	return m.finalizeFields(m.Purchased, m.Sold, head, base, swap)
 }
 
-// bids embed a linked list to attach methods for bid depth specific
-// functionality
-type bids struct {
-	linkedList
-}
+// bidTranches bid depth specific functionality
+type bidTranches struct{ Tranches }
 
 // bidCompare ensures price is in correct descending alignment (can inline)
 func bidCompare(left, right float64) bool {
@@ -364,24 +363,24 @@ func bidCompare(left, right float64) bool {
 
 // updateInsertByPrice amends, inserts, moves and cleaves length of depth by
 // updates
-func (ll *bids) updateInsertByPrice(updts Items, maxChainLength int) {
-	ll.linkedList.updateInsertByPrice(updts, maxChainLength, bidCompare)
+func (bids *bidTranches) updateInsertByPrice(updts Tranches, maxChainLength int) {
+	bids.Tranches.updateInsertByPrice(updts, maxChainLength, bidCompare)
 }
 
 // updateInsertByID updates or inserts if not found
-func (ll *bids) updateInsertByID(updts Items) error {
-	return ll.linkedList.updateInsertByID(updts, bidCompare)
+func (bids *bidTranches) updateInsertByID(updts Tranches) error {
+	return bids.Tranches.updateInsertByID(updts, bidCompare)
 }
 
 // insertUpdates inserts new updates for bids based on price level
-func (ll *bids) insertUpdates(updts Items) error {
-	return ll.linkedList.insertUpdates(updts, bidCompare)
+func (bids *bidTranches) insertUpdates(updts Tranches) error {
+	return bids.Tranches.insertUpdates(updts, bidCompare)
 }
 
 // hitBidsByNominalSlippage hits the bids by the required nominal slippage
 // percentage, calculated from the reference price and returns orderbook
 // movement details.
-func (ll *bids) hitBidsByNominalSlippage(slippage, refPrice float64) (*Movement, error) {
+func (bids *bidTranches) hitBidsByNominalSlippage(slippage, refPrice float64) (*Movement, error) {
 	if slippage < 0 {
 		return nil, errInvalidNominalSlippage
 	}
@@ -394,16 +393,16 @@ func (ll *bids) hitBidsByNominalSlippage(slippage, refPrice float64) (*Movement,
 		return nil, errInvalidReferencePrice
 	}
 
-	if len(ll.linkedList) == 0 {
+	if len(bids.Tranches) == 0 {
 		return nil, errNoLiquidity
 	}
 
 	nominal := &Movement{StartPrice: refPrice, EndPrice: refPrice}
 	var cumulativeValue, cumulativeAmounts float64
-	for x := range ll.linkedList {
-		totalTrancheValue := ll.linkedList[x].Price * ll.linkedList[x].Amount
+	for x := range bids.Tranches {
+		totalTrancheValue := bids.Tranches[x].Price * bids.Tranches[x].Amount
 		currentFullValue := totalTrancheValue + cumulativeValue
-		currentTotalAmounts := cumulativeAmounts + ll.linkedList[x].Amount
+		currentTotalAmounts := cumulativeAmounts + bids.Tranches[x].Amount
 
 		nominal.AverageOrderCost = currentFullValue / currentTotalAmounts
 		percent := math.CalculatePercentageGainOrLoss(nominal.AverageOrderCost, refPrice)
@@ -420,24 +419,24 @@ func (ll *bids) hitBidsByNominalSlippage(slippage, refPrice float64) (*Movement,
 			}
 			comparative := targetCost * cumulativeAmounts
 			comparativeDiff := comparative - cumulativeValue
-			trancheTargetPriceDiff := ll.linkedList[x].Price - targetCost
+			trancheTargetPriceDiff := bids.Tranches[x].Price - targetCost
 			trancheAmountExpectation := comparativeDiff / trancheTargetPriceDiff
 			nominal.NominalPercentage = slippage
 			nominal.Sold = cumulativeAmounts + trancheAmountExpectation
-			nominal.Purchased += trancheAmountExpectation * ll.linkedList[x].Price
+			nominal.Purchased += trancheAmountExpectation * bids.Tranches[x].Price
 			nominal.AverageOrderCost = nominal.Purchased / nominal.Sold
-			nominal.EndPrice = ll.linkedList[x].Price
+			nominal.EndPrice = bids.Tranches[x].Price
 			return nominal, nil
 		}
 
-		nominal.EndPrice = ll.linkedList[x].Price
+		nominal.EndPrice = bids.Tranches[x].Price
 		cumulativeValue = currentFullValue
 		nominal.NominalPercentage = percent
-		nominal.Sold += ll.linkedList[x].Amount
+		nominal.Sold += bids.Tranches[x].Amount
 		nominal.Purchased += totalTrancheValue
 		cumulativeAmounts = currentTotalAmounts
 		if slippage == percent {
-			nominal.FullBookSideConsumed = x+1 >= len(ll.linkedList)
+			nominal.FullBookSideConsumed = x+1 >= len(bids.Tranches)
 			return nominal, nil
 		}
 	}
@@ -448,7 +447,7 @@ func (ll *bids) hitBidsByNominalSlippage(slippage, refPrice float64) (*Movement,
 // hitBidsByImpactSlippage hits the bids by the required impact slippage
 // percentage, calculated from the reference price and returns orderbook
 // movement details.
-func (ll *bids) hitBidsByImpactSlippage(slippage, refPrice float64) (*Movement, error) {
+func (bids *bidTranches) hitBidsByImpactSlippage(slippage, refPrice float64) (*Movement, error) {
 	if slippage <= 0 {
 		return nil, errInvalidImpactSlippage
 	}
@@ -461,25 +460,25 @@ func (ll *bids) hitBidsByImpactSlippage(slippage, refPrice float64) (*Movement, 
 		return nil, errInvalidReferencePrice
 	}
 
-	if len(ll.linkedList) == 0 {
+	if len(bids.Tranches) == 0 {
 		return nil, errNoLiquidity
 	}
 
 	impact := &Movement{StartPrice: refPrice, EndPrice: refPrice}
-	for x := range ll.linkedList {
-		percent := math.CalculatePercentageGainOrLoss(ll.linkedList[x].Price, refPrice)
+	for x := range bids.Tranches {
+		percent := math.CalculatePercentageGainOrLoss(bids.Tranches[x].Price, refPrice)
 		if percent != 0 {
 			percent *= -1
 		}
-		impact.EndPrice = ll.linkedList[x].Price
+		impact.EndPrice = bids.Tranches[x].Price
 		impact.ImpactPercentage = percent
 		if slippage <= percent {
 			// Don't include this tranche amount as this consumes the tranche
 			// book price, thus obtaining a higher percentage impact.
 			return impact, nil
 		}
-		impact.Sold += ll.linkedList[x].Amount
-		impact.Purchased += ll.linkedList[x].Amount * ll.linkedList[x].Price
+		impact.Sold += bids.Tranches[x].Amount
+		impact.Purchased += bids.Tranches[x].Amount * bids.Tranches[x].Price
 		impact.AverageOrderCost = impact.Purchased / impact.Sold
 	}
 	impact.FullBookSideConsumed = true
@@ -487,11 +486,8 @@ func (ll *bids) hitBidsByImpactSlippage(slippage, refPrice float64) (*Movement, 
 	return impact, nil
 }
 
-// asks embed a linked list to attach methods for ask depth specific
-// functionality
-type asks struct {
-	linkedList
-}
+// askTranches ask depth specific functionality
+type askTranches struct{ Tranches }
 
 // askCompare ensures price is in correct ascending alignment (can inline)
 func askCompare(left, right float64) bool {
@@ -500,24 +496,24 @@ func askCompare(left, right float64) bool {
 
 // updateInsertByPrice amends, inserts, moves and cleaves length of depth by
 // updates
-func (ll *asks) updateInsertByPrice(updts Items, maxChainLength int) {
-	ll.linkedList.updateInsertByPrice(updts, maxChainLength, askCompare)
+func (ask *askTranches) updateInsertByPrice(updts Tranches, maxChainLength int) {
+	ask.Tranches.updateInsertByPrice(updts, maxChainLength, askCompare)
 }
 
 // updateInsertByID updates or inserts if not found
-func (ll *asks) updateInsertByID(updts Items) error {
-	return ll.linkedList.updateInsertByID(updts, askCompare)
+func (ask *askTranches) updateInsertByID(updts Tranches) error {
+	return ask.Tranches.updateInsertByID(updts, askCompare)
 }
 
 // insertUpdates inserts new updates for asks based on price level
-func (ll *asks) insertUpdates(updts Items) error {
-	return ll.linkedList.insertUpdates(updts, askCompare)
+func (ask *askTranches) insertUpdates(updts Tranches) error {
+	return ask.Tranches.insertUpdates(updts, askCompare)
 }
 
 // liftAsksByNominalSlippage lifts the asks by the required nominal slippage
 // percentage, calculated from the reference price and returns orderbook
 // movement details.
-func (ll *asks) liftAsksByNominalSlippage(slippage, refPrice float64) (*Movement, error) {
+func (ask *askTranches) liftAsksByNominalSlippage(slippage, refPrice float64) (*Movement, error) {
 	if slippage < 0 {
 		return nil, errInvalidNominalSlippage
 	}
@@ -526,16 +522,16 @@ func (ll *asks) liftAsksByNominalSlippage(slippage, refPrice float64) (*Movement
 		return nil, errInvalidReferencePrice
 	}
 
-	if len(ll.linkedList) == 0 {
+	if len(ask.Tranches) == 0 {
 		return nil, errNoLiquidity
 	}
 
 	nominal := &Movement{StartPrice: refPrice, EndPrice: refPrice}
 	var cumulativeAmounts float64
-	for x := range ll.linkedList {
-		totalTrancheValue := ll.linkedList[x].Price * ll.linkedList[x].Amount
+	for x := range ask.Tranches {
+		totalTrancheValue := ask.Tranches[x].Price * ask.Tranches[x].Amount
 		currentValue := totalTrancheValue + nominal.Sold
-		currentAmounts := cumulativeAmounts + ll.linkedList[x].Amount
+		currentAmounts := cumulativeAmounts + ask.Tranches[x].Amount
 
 		nominal.AverageOrderCost = currentValue / currentAmounts
 		percent := math.CalculatePercentageGainOrLoss(nominal.AverageOrderCost, refPrice)
@@ -550,19 +546,19 @@ func (ll *asks) liftAsksByNominalSlippage(slippage, refPrice float64) (*Movement
 
 			comparative := targetCost * cumulativeAmounts
 			comparativeDiff := comparative - nominal.Sold
-			trancheTargetPriceDiff := ll.linkedList[x].Price - targetCost
+			trancheTargetPriceDiff := ask.Tranches[x].Price - targetCost
 			trancheAmountExpectation := comparativeDiff / trancheTargetPriceDiff
 			nominal.NominalPercentage = slippage
-			nominal.Sold += trancheAmountExpectation * ll.linkedList[x].Price
+			nominal.Sold += trancheAmountExpectation * ask.Tranches[x].Price
 			nominal.Purchased += trancheAmountExpectation
 			nominal.AverageOrderCost = nominal.Sold / nominal.Purchased
-			nominal.EndPrice = ll.linkedList[x].Price
+			nominal.EndPrice = ask.Tranches[x].Price
 			return nominal, nil
 		}
 
-		nominal.EndPrice = ll.linkedList[x].Price
+		nominal.EndPrice = ask.Tranches[x].Price
 		nominal.Sold = currentValue
-		nominal.Purchased += ll.linkedList[x].Amount
+		nominal.Purchased += ask.Tranches[x].Amount
 		nominal.NominalPercentage = percent
 		if slippage == percent {
 			return nominal, nil
@@ -576,7 +572,7 @@ func (ll *asks) liftAsksByNominalSlippage(slippage, refPrice float64) (*Movement
 // liftAsksByImpactSlippage lifts the asks by the required impact slippage
 // percentage, calculated from the reference price and returns orderbook
 // movement details.
-func (ll *asks) liftAsksByImpactSlippage(slippage, refPrice float64) (*Movement, error) {
+func (ask *askTranches) liftAsksByImpactSlippage(slippage, refPrice float64) (*Movement, error) {
 	if slippage <= 0 {
 		return nil, errInvalidImpactSlippage
 	}
@@ -585,22 +581,22 @@ func (ll *asks) liftAsksByImpactSlippage(slippage, refPrice float64) (*Movement,
 		return nil, errInvalidReferencePrice
 	}
 
-	if len(ll.linkedList) == 0 {
+	if len(ask.Tranches) == 0 {
 		return nil, errNoLiquidity
 	}
 
 	impact := &Movement{StartPrice: refPrice, EndPrice: refPrice}
-	for x := range ll.linkedList {
-		percent := math.CalculatePercentageGainOrLoss(ll.linkedList[x].Price, refPrice)
+	for x := range ask.Tranches {
+		percent := math.CalculatePercentageGainOrLoss(ask.Tranches[x].Price, refPrice)
 		impact.ImpactPercentage = percent
-		impact.EndPrice = ll.linkedList[x].Price
+		impact.EndPrice = ask.Tranches[x].Price
 		if slippage <= percent {
 			// Don't include this tranche amount as this consumes the tranche
 			// book price, thus obtaining a higher percentage impact.
 			return impact, nil
 		}
-		impact.Sold += ll.linkedList[x].Amount * ll.linkedList[x].Price
-		impact.Purchased += ll.linkedList[x].Amount
+		impact.Sold += ask.Tranches[x].Amount * ask.Tranches[x].Price
+		impact.Purchased += ask.Tranches[x].Amount
 		impact.AverageOrderCost = impact.Sold / impact.Purchased
 	}
 	impact.FullBookSideConsumed = true
