@@ -7,7 +7,6 @@ import (
 	"sort"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/shopspring/decimal"
@@ -272,96 +271,6 @@ func (k *Kraken) Setup(exch *config.Exchange) error {
 		URL:                  krakenAuthWSURL,
 		Authenticated:        true,
 	})
-}
-
-// Start starts the Kraken go routine
-func (k *Kraken) Start(ctx context.Context, wg *sync.WaitGroup) error {
-	if wg == nil {
-		return fmt.Errorf("%T %w", wg, common.ErrNilPointer)
-	}
-	wg.Add(1)
-	go func() {
-		k.Run(ctx)
-		wg.Done()
-	}()
-	return nil
-}
-
-// Run implements the Kraken wrapper
-func (k *Kraken) Run(ctx context.Context) {
-	if k.Verbose {
-		k.PrintEnabledPairs()
-	}
-
-	forceUpdate := false
-	if !k.BypassConfigFormatUpgrades {
-		format, err := k.GetPairFormat(asset.UseDefault(), false)
-		if err != nil {
-			log.Errorf(log.ExchangeSys,
-				"%s failed to update tradable pairs. Err: %s",
-				k.Name,
-				err)
-			return
-		}
-		enabled, err := k.GetEnabledPairs(asset.UseDefault())
-		if err != nil {
-			log.Errorf(log.ExchangeSys,
-				"%s failed to update tradable pairs. Err: %s",
-				k.Name,
-				err)
-			return
-		}
-
-		avail, err := k.GetAvailablePairs(asset.UseDefault())
-		if err != nil {
-			log.Errorf(log.ExchangeSys,
-				"%s failed to update tradable pairs. Err: %s",
-				k.Name,
-				err)
-			return
-		}
-
-		if !common.StringDataContains(enabled.Strings(), format.Delimiter) ||
-			!common.StringDataContains(avail.Strings(), format.Delimiter) ||
-			common.StringDataContains(avail.Strings(), "ZUSD") {
-			var p currency.Pairs
-			p, err = currency.NewPairsFromStrings([]string{currency.XBT.String() +
-				format.Delimiter +
-				currency.USD.String()})
-			if err != nil {
-				log.Errorf(log.ExchangeSys,
-					"%s failed to update currencies. Err: %s\n",
-					k.Name,
-					err)
-			} else {
-				log.Warnf(log.ExchangeSys, exchange.ResetConfigPairsWarningMessage, k.Name, asset.UseDefault(), p)
-				forceUpdate = true
-
-				err = k.UpdatePairs(p, asset.UseDefault(), true, true)
-				if err != nil {
-					log.Errorf(log.ExchangeSys,
-						"%s failed to update currencies. Err: %s\n",
-						k.Name,
-						err)
-				}
-			}
-		}
-	}
-
-	if k.GetEnabledFeatures().AutoPairUpdates || forceUpdate {
-		if err := k.UpdateTradablePairs(ctx, forceUpdate); err != nil {
-			log.Errorf(log.ExchangeSys,
-				"%s failed to update tradable pairs. Err: %s",
-				k.Name,
-				err)
-		}
-	}
-
-	for _, a := range k.GetAssetTypes(true) {
-		if err := k.UpdateOrderExecutionLimits(ctx, a); err != nil && err != common.ErrNotYetImplemented {
-			log.Errorln(log.ExchangeSys, err.Error())
-		}
-	}
 }
 
 // UpdateOrderExecutionLimits sets exchange execution order limits for an asset type

@@ -6,7 +6,6 @@ import (
 	"sort"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -153,35 +152,6 @@ func (l *Lbank) Setup(exch *config.Exchange) error {
 		}
 	}
 	return nil
-}
-
-// Start starts the Lbank go routine
-func (l *Lbank) Start(ctx context.Context, wg *sync.WaitGroup) error {
-	if wg == nil {
-		return fmt.Errorf("%T %w", wg, common.ErrNilPointer)
-	}
-	wg.Add(1)
-	go func() {
-		l.Run(ctx)
-		wg.Done()
-	}()
-	return nil
-}
-
-// Run implements the Lbank wrapper
-func (l *Lbank) Run(ctx context.Context) {
-	if l.Verbose {
-		l.PrintEnabledPairs()
-	}
-
-	if !l.GetEnabledFeatures().AutoPairUpdates {
-		return
-	}
-
-	err := l.UpdateTradablePairs(ctx, false)
-	if err != nil {
-		log.Errorf(log.ExchangeSys, "%s failed to update tradable pairs. Err: %s", l.Name, err)
-	}
 }
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs

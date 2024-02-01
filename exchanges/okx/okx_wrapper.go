@@ -8,7 +8,6 @@ import (
 	"sort"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/shopspring/decimal"
@@ -257,49 +256,6 @@ func (ok *Okx) Setup(exch *config.Exchange) error {
 		Authenticated:        true,
 		RateLimit:            500,
 	})
-}
-
-// Start starts the Okx go routine
-func (ok *Okx) Start(ctx context.Context, wg *sync.WaitGroup) error {
-	if wg == nil {
-		return fmt.Errorf("%T %w", wg, common.ErrNilPointer)
-	}
-	wg.Add(1)
-	go func() {
-		ok.Run(ctx)
-		wg.Done()
-	}()
-	return nil
-}
-
-// Run implements the Okx wrapper
-func (ok *Okx) Run(ctx context.Context) {
-	if ok.Verbose {
-		log.Debugf(log.ExchangeSys,
-			"%s Websocket: %s.",
-			ok.Name,
-			common.IsEnabled(ok.Websocket.IsEnabled()))
-		ok.PrintEnabledPairs()
-	}
-
-	assetTypes := ok.GetAssetTypes(false)
-	for i := range assetTypes {
-		if err := ok.UpdateOrderExecutionLimits(ctx, assetTypes[i]); err != nil {
-			log.Errorf(log.ExchangeSys,
-				"%s failed to set exchange order execution limits. Err: %v",
-				ok.Name,
-				err)
-		}
-	}
-
-	if ok.GetEnabledFeatures().AutoPairUpdates {
-		if err := ok.UpdateTradablePairs(ctx, false); err != nil {
-			log.Errorf(log.ExchangeSys,
-				"%s failed to update tradable pairs. Err: %s",
-				ok.Name,
-				err)
-		}
-	}
 }
 
 // Shutdown calls Base.Shutdown and then shuts down the response multiplexer

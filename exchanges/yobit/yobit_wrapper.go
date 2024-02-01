@@ -7,7 +7,6 @@ import (
 	"math"
 	"sort"
 	"strconv"
-	"sync"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -125,38 +124,6 @@ func (y *Yobit) Setup(exch *config.Exchange) error {
 		return nil
 	}
 	return y.SetupDefaults(exch)
-}
-
-// Start starts the WEX go routine
-func (y *Yobit) Start(ctx context.Context, wg *sync.WaitGroup) error {
-	if wg == nil {
-		return fmt.Errorf("%T %w", wg, common.ErrNilPointer)
-	}
-	wg.Add(1)
-	go func() {
-		y.Run(ctx)
-		wg.Done()
-	}()
-	return nil
-}
-
-// Run implements the Yobit wrapper
-func (y *Yobit) Run(ctx context.Context) {
-	if y.Verbose {
-		y.PrintEnabledPairs()
-	}
-
-	if !y.GetEnabledFeatures().AutoPairUpdates {
-		return
-	}
-
-	err := y.UpdateTradablePairs(ctx, false)
-	if err != nil {
-		log.Errorf(log.ExchangeSys,
-			"%s failed to update tradable pairs. Err: %s",
-			y.Name,
-			err)
-	}
 }
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs

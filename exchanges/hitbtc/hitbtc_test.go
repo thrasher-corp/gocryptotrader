@@ -2,11 +2,9 @@ package hitbtc
 
 import (
 	"context"
-	"errors"
 	"log"
 	"net/http"
 	"os"
-	"sync"
 	"testing"
 	"time"
 
@@ -63,20 +61,6 @@ func TestMain(m *testing.M) {
 	}
 
 	os.Exit(m.Run())
-}
-
-func TestStart(t *testing.T) {
-	t.Parallel()
-	err := h.Start(context.Background(), nil)
-	if !errors.Is(err, common.ErrNilPointer) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, common.ErrNilPointer)
-	}
-	var testWg sync.WaitGroup
-	err = h.Start(context.Background(), &testWg)
-	if err != nil {
-		t.Fatal(err)
-	}
-	testWg.Wait()
 }
 
 func TestGetOrderbook(t *testing.T) {

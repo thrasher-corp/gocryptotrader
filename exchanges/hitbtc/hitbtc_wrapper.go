@@ -7,7 +7,6 @@ import (
 	"sort"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -197,90 +196,6 @@ func (h *HitBTC) Setup(exch *config.Exchange) error {
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
 	})
-}
-
-// Start starts the HitBTC go routine
-func (h *HitBTC) Start(ctx context.Context, wg *sync.WaitGroup) error {
-	if wg == nil {
-		return fmt.Errorf("%T %w", wg, common.ErrNilPointer)
-	}
-	wg.Add(1)
-	go func() {
-		h.Run(ctx)
-		wg.Done()
-	}()
-	return nil
-}
-
-// Run implements the HitBTC wrapper
-func (h *HitBTC) Run(ctx context.Context) {
-	if h.Verbose {
-		log.Debugf(log.ExchangeSys, "%s Websocket: %s (url: %s).\n", h.Name, common.IsEnabled(h.Websocket.IsEnabled()), hitbtcWebsocketAddress)
-		h.PrintEnabledPairs()
-	}
-
-	forceUpdate := false
-	if !h.BypassConfigFormatUpgrades {
-		format, err := h.GetPairFormat(asset.Spot, false)
-		if err != nil {
-			log.Errorf(log.ExchangeSys,
-				"%s failed to update tradable pairs. Err: %s",
-				h.Name,
-				err)
-			return
-		}
-		enabled, err := h.GetEnabledPairs(asset.Spot)
-		if err != nil {
-			log.Errorf(log.ExchangeSys,
-				"%s failed to update tradable pairs. Err: %s",
-				h.Name,
-				err)
-			return
-		}
-
-		avail, err := h.GetAvailablePairs(asset.Spot)
-		if err != nil {
-			log.Errorf(log.ExchangeSys,
-				"%s failed to update tradable pairs. Err: %s",
-				h.Name,
-				err)
-			return
-		}
-
-		if !common.StringDataContains(enabled.Strings(), format.Delimiter) ||
-			!common.StringDataContains(avail.Strings(), format.Delimiter) {
-			enabledPairs := []string{currency.BTC.String() + format.Delimiter + currency.USD.String()}
-			log.Warnf(log.ExchangeSys, exchange.ResetConfigPairsWarningMessage, h.Name, asset.Spot, enabledPairs)
-			forceUpdate = true
-			var p currency.Pairs
-			p, err = currency.NewPairsFromStrings(enabledPairs)
-			if err != nil {
-				log.Errorf(log.ExchangeSys,
-					"%s failed to update tradable pairs. Err: %s",
-					h.Name,
-					err)
-				return
-			}
-			err = h.UpdatePairs(p, asset.Spot, true, true)
-			if err != nil {
-				log.Errorf(log.ExchangeSys,
-					"%s failed to update enabled currencies.\n",
-					h.Name)
-			}
-		}
-	}
-
-	if !h.GetEnabledFeatures().AutoPairUpdates && !forceUpdate {
-		return
-	}
-
-	err := h.UpdateTradablePairs(ctx, forceUpdate)
-	if err != nil {
-		log.Errorf(log.ExchangeSys,
-			"%s failed to update tradable pairs. Err: %s",
-			h.Name,
-			err)
-	}
 }
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs

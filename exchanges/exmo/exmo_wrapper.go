@@ -7,7 +7,6 @@ import (
 	"sort"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -137,35 +136,6 @@ func (e *EXMO) Setup(exch *config.Exchange) error {
 		return nil
 	}
 	return e.SetupDefaults(exch)
-}
-
-// Start starts the EXMO go routine
-func (e *EXMO) Start(ctx context.Context, wg *sync.WaitGroup) error {
-	if wg == nil {
-		return fmt.Errorf("%T %w", wg, common.ErrNilPointer)
-	}
-	wg.Add(1)
-	go func() {
-		e.Run(ctx)
-		wg.Done()
-	}()
-	return nil
-}
-
-// Run implements the EXMO wrapper
-func (e *EXMO) Run(ctx context.Context) {
-	if e.Verbose {
-		e.PrintEnabledPairs()
-	}
-
-	if !e.GetEnabledFeatures().AutoPairUpdates {
-		return
-	}
-
-	err := e.UpdateTradablePairs(ctx, false)
-	if err != nil {
-		log.Errorf(log.ExchangeSys, "%s failed to update tradable pairs. Err: %s", e.Name, err)
-	}
 }
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs

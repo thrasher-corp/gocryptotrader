@@ -7,7 +7,6 @@ import (
 	"sort"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -208,61 +207,6 @@ func (p *Poloniex) Setup(exch *config.Exchange) error {
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
 	})
-}
-
-// Start starts the Poloniex go routine
-func (p *Poloniex) Start(ctx context.Context, wg *sync.WaitGroup) error {
-	if wg == nil {
-		return fmt.Errorf("%T %w", wg, common.ErrNilPointer)
-	}
-	wg.Add(1)
-	go func() {
-		p.Run(ctx)
-		wg.Done()
-	}()
-	return nil
-}
-
-// Run implements the Poloniex wrapper
-func (p *Poloniex) Run(ctx context.Context) {
-	if p.Verbose {
-		log.Debugf(log.ExchangeSys,
-			"%s Websocket: %s (url: %s).\n",
-			p.Name,
-			common.IsEnabled(p.Websocket.IsEnabled()),
-			poloniexWebsocketAddress)
-		p.PrintEnabledPairs()
-	}
-
-	forceUpdate := false
-
-	avail, err := p.GetAvailablePairs(asset.Spot)
-	if err != nil {
-		log.Errorf(log.ExchangeSys,
-			"%s failed to update tradable pairs. Err: %s",
-			p.Name,
-			err)
-		return
-	}
-
-	if common.StringDataCompare(avail.Strings(), "BTC_USDT") {
-		log.Warnf(log.ExchangeSys,
-			"%s contains invalid pair, forcing upgrade of available currencies.\n",
-			p.Name)
-		forceUpdate = true
-	}
-
-	if !p.GetEnabledFeatures().AutoPairUpdates && !forceUpdate {
-		return
-	}
-
-	err = p.UpdateTradablePairs(ctx, forceUpdate)
-	if err != nil {
-		log.Errorf(log.ExchangeSys,
-			"%s failed to update tradable pairs. Err: %s",
-			p.Name,
-			err)
-	}
 }
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs
