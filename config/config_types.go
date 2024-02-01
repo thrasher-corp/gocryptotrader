@@ -76,7 +76,6 @@ const (
 	DefaultUnsetAccountPlan       = "accountPlan"
 )
 
-// Variables here are used for configuration
 var (
 	Cfg                 Config
 	m                   sync.Mutex

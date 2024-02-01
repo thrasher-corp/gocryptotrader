@@ -22,7 +22,7 @@ import (
 
 // TestInstance takes an empty exchange instance and loads config for it from testdata/configtest and connects a NewTestWebsocket
 func TestInstance(e exchange.IBotExchange) error {
-	cfg := config.GetConfig()
+	cfg := &config.Config{}
 	err := cfg.LoadConfig("../../testdata/configtest.json", true)
 	if err != nil {
 		return fmt.Errorf("LoadConfig() error: %w", err)
