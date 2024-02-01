@@ -277,8 +277,8 @@ func (b *BTSE) wsHandleData(respRaw []byte) error {
 			return err
 		}
 		newOB := orderbook.Base{
-			Bids: make(orderbook.Items, 0, len(t.Data.BuyQuote)),
-			Asks: make(orderbook.Items, 0, len(t.Data.SellQuote)),
+			Bids: make(orderbook.Tranches, 0, len(t.Data.BuyQuote)),
+			Asks: make(orderbook.Tranches, 0, len(t.Data.SellQuote)),
 		}
 		var price, amount float64
 		for i := range t.Data.SellQuote {
@@ -295,7 +295,7 @@ func (b *BTSE) wsHandleData(respRaw []byte) error {
 			if b.orderbookFilter(price, amount) {
 				continue
 			}
-			newOB.Asks = append(newOB.Asks, orderbook.Item{
+			newOB.Asks = append(newOB.Asks, orderbook.Tranche{
 				Price:  price,
 				Amount: amount,
 			})
@@ -314,7 +314,7 @@ func (b *BTSE) wsHandleData(respRaw []byte) error {
 			if b.orderbookFilter(price, amount) {
 				continue
 			}
-			newOB.Bids = append(newOB.Bids, orderbook.Item{
+			newOB.Bids = append(newOB.Bids, orderbook.Tranche{
 				Price:  price,
 				Amount: amount,
 			})

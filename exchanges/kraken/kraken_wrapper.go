@@ -520,16 +520,16 @@ func (k *Kraken) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType
 		if err != nil {
 			return book, err
 		}
-		book.Bids = make([]orderbook.Item, len(orderbookNew.Bids))
+		book.Bids = make([]orderbook.Tranche, len(orderbookNew.Bids))
 		for x := range orderbookNew.Bids {
-			book.Bids[x] = orderbook.Item{
+			book.Bids[x] = orderbook.Tranche{
 				Amount: orderbookNew.Bids[x].Amount,
 				Price:  orderbookNew.Bids[x].Price,
 			}
 		}
-		book.Asks = make([]orderbook.Item, len(orderbookNew.Asks))
+		book.Asks = make([]orderbook.Tranche, len(orderbookNew.Asks))
 		for y := range orderbookNew.Asks {
-			book.Asks[y] = orderbook.Item{
+			book.Asks[y] = orderbook.Tranche{
 				Amount: orderbookNew.Asks[y].Amount,
 				Price:  orderbookNew.Asks[y].Price,
 			}
@@ -540,16 +540,16 @@ func (k *Kraken) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType
 		if err != nil {
 			return book, err
 		}
-		book.Asks = make([]orderbook.Item, len(futuresOB.Orderbook.Asks))
+		book.Asks = make([]orderbook.Tranche, len(futuresOB.Orderbook.Asks))
 		for x := range futuresOB.Orderbook.Asks {
-			book.Asks[x] = orderbook.Item{
+			book.Asks[x] = orderbook.Tranche{
 				Price:  futuresOB.Orderbook.Asks[x][0],
 				Amount: futuresOB.Orderbook.Asks[x][1],
 			}
 		}
-		book.Bids = make([]orderbook.Item, len(futuresOB.Orderbook.Bids))
+		book.Bids = make([]orderbook.Tranche, len(futuresOB.Orderbook.Bids))
 		for y := range futuresOB.Orderbook.Bids {
-			book.Bids[y] = orderbook.Item{
+			book.Bids[y] = orderbook.Tranche{
 				Price:  futuresOB.Orderbook.Bids[y][0],
 				Amount: futuresOB.Orderbook.Bids[y][1],
 			}

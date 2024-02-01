@@ -211,7 +211,7 @@ func (i *ItBit) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType 
 		return book, err
 	}
 
-	book.Bids = make(orderbook.Items, len(orderbookNew.Bids))
+	book.Bids = make(orderbook.Tranches, len(orderbookNew.Bids))
 	for x := range orderbookNew.Bids {
 		var price, amount float64
 		price, err = strconv.ParseFloat(orderbookNew.Bids[x][0], 64)
@@ -222,13 +222,13 @@ func (i *ItBit) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType 
 		if err != nil {
 			return book, err
 		}
-		book.Bids[x] = orderbook.Item{
+		book.Bids[x] = orderbook.Tranche{
 			Amount: amount,
 			Price:  price,
 		}
 	}
 
-	book.Asks = make(orderbook.Items, len(orderbookNew.Asks))
+	book.Asks = make(orderbook.Tranches, len(orderbookNew.Asks))
 	for x := range orderbookNew.Asks {
 		var price, amount float64
 		price, err = strconv.ParseFloat(orderbookNew.Asks[x][0], 64)
@@ -239,7 +239,7 @@ func (i *ItBit) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType 
 		if err != nil {
 			return book, err
 		}
-		book.Asks[x] = orderbook.Item{
+		book.Asks[x] = orderbook.Tranche{
 			Amount: amount,
 			Price:  price,
 		}

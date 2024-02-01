@@ -300,17 +300,17 @@ func (h *HitBTC) WsProcessOrderbookSnapshot(ob *WsOrderbook) error {
 	}
 
 	newOrderBook := orderbook.Base{
-		Bids: make(orderbook.Items, len(ob.Params.Bid)),
-		Asks: make(orderbook.Items, len(ob.Params.Ask)),
+		Bids: make(orderbook.Tranches, len(ob.Params.Bid)),
+		Asks: make(orderbook.Tranches, len(ob.Params.Ask)),
 	}
 	for i := range ob.Params.Bid {
-		newOrderBook.Bids[i] = orderbook.Item{
+		newOrderBook.Bids[i] = orderbook.Tranche{
 			Amount: ob.Params.Bid[i].Size,
 			Price:  ob.Params.Bid[i].Price,
 		}
 	}
 	for i := range ob.Params.Ask {
-		newOrderBook.Asks[i] = orderbook.Item{
+		newOrderBook.Asks[i] = orderbook.Tranche{
 			Amount: ob.Params.Ask[i].Size,
 			Price:  ob.Params.Ask[i].Price,
 		}
@@ -422,17 +422,17 @@ func (h *HitBTC) WsProcessOrderbookUpdate(update *WsOrderbook) error {
 		return nil
 	}
 
-	bids := make(orderbook.Items, len(update.Params.Bid))
+	bids := make(orderbook.Tranches, len(update.Params.Bid))
 	for i := range update.Params.Bid {
-		bids[i] = orderbook.Item{
+		bids[i] = orderbook.Tranche{
 			Price:  update.Params.Bid[i].Price,
 			Amount: update.Params.Bid[i].Size,
 		}
 	}
 
-	asks := make(orderbook.Items, len(update.Params.Ask))
+	asks := make(orderbook.Tranches, len(update.Params.Ask))
 	for i := range update.Params.Ask {
-		asks[i] = orderbook.Item{
+		asks[i] = orderbook.Tranche{
 			Price:  update.Params.Ask[i].Price,
 			Amount: update.Params.Ask[i].Size,
 		}

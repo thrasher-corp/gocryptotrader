@@ -3461,13 +3461,13 @@ func TestGetOrderbookMovement(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	bid := []orderbook.Item{
+	bid := []orderbook.Tranche{
 		{Price: 10, Amount: 1},
 		{Price: 9, Amount: 1},
 		{Price: 8, Amount: 1},
 		{Price: 7, Amount: 1},
 	}
-	ask := []orderbook.Item{
+	ask := []orderbook.Tranche{
 		{Price: 11, Amount: 1},
 		{Price: 12, Amount: 1},
 		{Price: 13, Amount: 1},
@@ -3574,13 +3574,13 @@ func TestGetOrderbookAmountByNominal(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	bid := []orderbook.Item{
+	bid := []orderbook.Tranche{
 		{Price: 10, Amount: 1},
 		{Price: 9, Amount: 1},
 		{Price: 8, Amount: 1},
 		{Price: 7, Amount: 1},
 	}
-	ask := []orderbook.Item{
+	ask := []orderbook.Tranche{
 		{Price: 11, Amount: 1},
 		{Price: 12, Amount: 1},
 		{Price: 13, Amount: 1},
@@ -3680,13 +3680,13 @@ func TestGetOrderbookAmountByImpact(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	bid := []orderbook.Item{
+	bid := []orderbook.Tranche{
 		{Price: 10, Amount: 1},
 		{Price: 9, Amount: 1},
 		{Price: 8, Amount: 1},
 		{Price: 7, Amount: 1},
 	}
-	ask := []orderbook.Item{
+	ask := []orderbook.Tranche{
 		{Price: 11, Amount: 1},
 		{Price: 12, Amount: 1},
 		{Price: 13, Amount: 1},

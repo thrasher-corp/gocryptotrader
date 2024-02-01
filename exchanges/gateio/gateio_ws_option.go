@@ -562,12 +562,12 @@ func (g *Gateio) processOptionsOrderbookSnapshotPushData(event string, incoming 
 			LastUpdated:     data.Timestamp.Time(),
 			VerifyOrderbook: g.CanVerifyOrderbook,
 		}
-		base.Asks = make([]orderbook.Item, len(data.Asks))
+		base.Asks = make([]orderbook.Tranche, len(data.Asks))
 		for x := range data.Asks {
 			base.Asks[x].Amount = data.Asks[x].Size
 			base.Asks[x].Price = data.Asks[x].Price.Float64()
 		}
-		base.Bids = make([]orderbook.Item, len(data.Bids))
+		base.Bids = make([]orderbook.Tranche, len(data.Bids))
 		for x := range data.Bids {
 			base.Bids[x].Amount = data.Bids[x].Size
 			base.Bids[x].Price = data.Bids[x].Price.Float64()
@@ -579,18 +579,18 @@ func (g *Gateio) processOptionsOrderbookSnapshotPushData(event string, incoming 
 	if err != nil {
 		return err
 	}
-	dataMap := map[string][2][]orderbook.Item{}
+	dataMap := map[string][2][]orderbook.Tranche{}
 	for x := range data {
 		ab, ok := dataMap[data[x].CurrencyPair]
 		if !ok {
-			ab = [2][]orderbook.Item{}
+			ab = [2][]orderbook.Tranche{}
 		}
 		if data[x].Amount > 0 {
-			ab[1] = append(ab[1], orderbook.Item{
+			ab[1] = append(ab[1], orderbook.Tranche{
 				Price: data[x].Price.Float64(), Amount: data[x].Amount,
 			})
 		} else {
-			ab[0] = append(ab[0], orderbook.Item{
+			ab[0] = append(ab[0], orderbook.Tranche{
 				Price: data[x].Price.Float64(), Amount: -data[x].Amount,
 			})
 		}

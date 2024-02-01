@@ -2044,7 +2044,7 @@ func TestGetHistoricTrades(t *testing.T) {
 }
 
 var testOb = orderbook.Base{
-	Asks: []orderbook.Item{
+	Asks: []orderbook.Tranche{
 		// NOTE: 0.00000500 float64 == 0.000005
 		{Price: 0.05005, StrPrice: "0.05005", Amount: 0.00000500, StrAmount: "0.00000500"},
 		{Price: 0.05010, StrPrice: "0.05010", Amount: 0.00000500, StrAmount: "0.00000500"},
@@ -2057,7 +2057,7 @@ var testOb = orderbook.Base{
 		{Price: 0.05045, StrPrice: "0.05045", Amount: 0.00000500, StrAmount: "0.00000500"},
 		{Price: 0.05050, StrPrice: "0.05050", Amount: 0.00000500, StrAmount: "0.00000500"},
 	},
-	Bids: []orderbook.Item{
+	Bids: []orderbook.Tranche{
 		{Price: 0.05000, StrPrice: "0.05000", Amount: 0.00000500, StrAmount: "0.00000500"},
 		{Price: 0.04995, StrPrice: "0.04995", Amount: 0.00000500, StrAmount: "0.00000500"},
 		{Price: 0.04990, StrPrice: "0.04990", Amount: 0.00000500, StrAmount: "0.00000500"},

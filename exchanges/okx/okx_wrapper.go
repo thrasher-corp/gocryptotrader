@@ -495,16 +495,16 @@ func (ok *Okx) UpdateOrderbook(ctx context.Context, pair currency.Pair, assetTyp
 	if err != nil {
 		return nil, err
 	}
-	book.Bids = make(orderbook.Items, len(orderBookD.Bids))
+	book.Bids = make(orderbook.Tranches, len(orderBookD.Bids))
 	for x := range orderBookD.Bids {
-		book.Bids[x] = orderbook.Item{
+		book.Bids[x] = orderbook.Tranche{
 			Amount: orderBookD.Bids[x].BaseCurrencies,
 			Price:  orderBookD.Bids[x].DepthPrice,
 		}
 	}
-	book.Asks = make(orderbook.Items, len(orderBookD.Asks))
+	book.Asks = make(orderbook.Tranches, len(orderBookD.Asks))
 	for x := range orderBookD.Asks {
-		book.Asks[x] = orderbook.Item{
+		book.Asks[x] = orderbook.Tranche{
 			Amount: orderBookD.Asks[x].NumberOfContracts,
 			Price:  orderBookD.Asks[x].DepthPrice,
 		}

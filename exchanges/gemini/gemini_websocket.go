@@ -530,8 +530,8 @@ func (g *Gemini) wsProcessUpdate(result *wsL2MarketData) error {
 		return err
 	}
 
-	bids := make([]orderbook.Item, 0, len(result.Changes))
-	asks := make([]orderbook.Item, 0, len(result.Changes))
+	bids := make([]orderbook.Tranche, 0, len(result.Changes))
+	asks := make([]orderbook.Tranche, 0, len(result.Changes))
 
 	for x := range result.Changes {
 		price, err := strconv.ParseFloat(result.Changes[x][1], 64)
@@ -542,7 +542,7 @@ func (g *Gemini) wsProcessUpdate(result *wsL2MarketData) error {
 		if err != nil {
 			return err
 		}
-		obItem := orderbook.Item{
+		obItem := orderbook.Tranche{
 			Amount: amount,
 			Price:  price,
 		}
