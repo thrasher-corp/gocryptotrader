@@ -37,8 +37,8 @@ type Depth struct {
 	asks
 	bids
 
-	// unexported stack of nodes
-	stack *stack
+	// // unexported stack of nodes
+	// stack *stack
 
 	alert.Notice
 
@@ -56,9 +56,9 @@ type Depth struct {
 // NewDepth returns a new depth item
 func NewDepth(id uuid.UUID) *Depth {
 	return &Depth{
-		stack: newStack(),
-		_ID:   id,
-		mux:   service.Mux,
+		// stack: newStack(),
+		_ID: id,
+		mux: service.Mux,
 	}
 }
 
@@ -107,8 +107,8 @@ func (d *Depth) LoadSnapshot(bids, asks []Item, lastUpdateID int64, lastUpdated 
 	d.lastUpdateID = lastUpdateID
 	d.lastUpdated = lastUpdated
 	d.restSnapshot = updateByREST
-	d.bids.load(bids, d.stack, lastUpdated)
-	d.asks.load(asks, d.stack, lastUpdated)
+	d.bids.load(bids)
+	d.asks.load(asks)
 	d.validationError = nil
 	d.Alert()
 	return nil
@@ -119,9 +119,8 @@ func (d *Depth) LoadSnapshot(bids, asks []Item, lastUpdateID int64, lastUpdated 
 func (d *Depth) invalidate(withReason error) error {
 	d.lastUpdateID = 0
 	d.lastUpdated = time.Time{}
-	tn := time.Now()
-	d.bids.load(nil, d.stack, tn)
-	d.asks.load(nil, d.stack, tn)
+	d.bids.load(nil)
+	d.asks.load(nil)
 	d.validationError = fmt.Errorf("%s %s %s Reason: [%w]",
 		d.exchange,
 		d.pair,
@@ -160,10 +159,10 @@ func (d *Depth) UpdateBidAskByPrice(update *Update) error {
 			errLastUpdatedNotSet)
 	}
 	if len(update.Bids) != 0 {
-		d.bids.updateInsertByPrice(update.Bids, d.stack, d.options.maxDepth, update.UpdateTime)
+		d.bids.updateInsertByPrice(update.Bids, d.options.maxDepth)
 	}
 	if len(update.Asks) != 0 {
-		d.asks.updateInsertByPrice(update.Asks, d.stack, d.options.maxDepth, update.UpdateTime)
+		d.asks.updateInsertByPrice(update.Asks, d.options.maxDepth)
 	}
 	d.updateAndAlert(update)
 	return nil
@@ -210,13 +209,13 @@ func (d *Depth) DeleteBidAskByID(update *Update, bypassErr bool) error {
 			errLastUpdatedNotSet)
 	}
 	if len(update.Bids) != 0 {
-		err := d.bids.deleteByID(update.Bids, d.stack, bypassErr, update.UpdateTime)
+		err := d.bids.deleteByID(update.Bids, bypassErr)
 		if err != nil {
 			return d.invalidate(err)
 		}
 	}
 	if len(update.Asks) != 0 {
-		err := d.asks.deleteByID(update.Asks, d.stack, bypassErr, update.UpdateTime)
+		err := d.asks.deleteByID(update.Asks, bypassErr)
 		if err != nil {
 			return d.invalidate(err)
 		}
@@ -237,13 +236,13 @@ func (d *Depth) InsertBidAskByID(update *Update) error {
 			errLastUpdatedNotSet)
 	}
 	if len(update.Bids) != 0 {
-		err := d.bids.insertUpdates(update.Bids, d.stack)
+		err := d.bids.insertUpdates(update.Bids)
 		if err != nil {
 			return d.invalidate(err)
 		}
 	}
 	if len(update.Asks) != 0 {
-		err := d.asks.insertUpdates(update.Asks, d.stack)
+		err := d.asks.insertUpdates(update.Asks)
 		if err != nil {
 			return d.invalidate(err)
 		}
@@ -264,13 +263,13 @@ func (d *Depth) UpdateInsertByID(update *Update) error {
 			errLastUpdatedNotSet)
 	}
 	if len(update.Bids) != 0 {
-		err := d.bids.updateInsertByID(update.Bids, d.stack)
+		err := d.bids.updateInsertByID(update.Bids)
 		if err != nil {
 			return d.invalidate(err)
 		}
 	}
 	if len(update.Asks) != 0 {
-		err := d.asks.updateInsertByID(update.Asks, d.stack)
+		err := d.asks.updateInsertByID(update.Asks)
 		if err != nil {
 			return d.invalidate(err)
 		}
@@ -340,7 +339,7 @@ func (d *Depth) GetAskLength() (int, error) {
 	if d.validationError != nil {
 		return 0, d.validationError
 	}
-	return d.asks.length, nil
+	return len(d.asks.linkedList), nil
 }
 
 // GetBidLength returns length of bids
@@ -350,7 +349,7 @@ func (d *Depth) GetBidLength() (int, error) {
 	if d.validationError != nil {
 		return 0, d.validationError
 	}
-	return d.bids.length, nil
+	return len(d.bids.linkedList), nil
 }
 
 // TotalBidAmounts returns the total amount of bids and the total orderbook

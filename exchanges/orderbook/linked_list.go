@@ -3,7 +3,6 @@ package orderbook
 import (
 	"errors"
 	"fmt"
-	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common/math"
 )
@@ -25,14 +24,10 @@ var (
 	errInvalidCost                     = errors.New("invalid cost amount")
 	errInvalidAmount                   = errors.New("invalid amount")
 	errInvalidHeadPrice                = errors.New("invalid head price")
+	errNoLiquidity                     = errors.New("no liquidity")
 )
 
-// linkedList defines a linked list for a depth level, reutilisation of nodes
-// to and from a stack.
-type linkedList struct {
-	length int
-	head   *Node
-}
+type linkedList []Item
 
 // comparison defines expected functionality to compare between two reference
 // price levels
@@ -41,69 +36,41 @@ type comparison func(float64, float64) bool
 // load iterates across new items and refreshes linked list. It creates a linked
 // list exactly the same as the item slice that is supplied, if items is of nil
 // value it will flush entire list.
-func (ll *linkedList) load(items Items, stack *stack, tn time.Time) {
-	// Tip sets up a pointer to a struct field variable pointer. This is used
-	// so when a node is popped from the stack we can reference that current
-	// nodes' struct 'next' field and set on next iteration without utilising
-	// assignment for example `prev.Next = *node`.
-	var tip = &ll.head
-	// Prev denotes a place holder to node and all of its next references need
-	// to be pushed back onto stack.
-	var prev *Node
-	for i := range items {
-		if *tip == nil {
-			// Extend node chain
-			*tip = stack.Pop()
-			// Set current node prev to last node
-			(*tip).Prev = prev
-			ll.length++
-		}
-		// Set item value
-		(*tip).Value = items[i]
-		// Set previous to current node
-		prev = *tip
-		// Set tip to next node
-		tip = &(*tip).Next
+func (ll *linkedList) load(items Items) {
+	if len(items) == 0 {
+		*ll = (*ll)[:0] // Flush
+		return
 	}
-
-	// Push has references to dangling nodes that need to be removed and pushed
-	// back onto stack for reuse
-	var push *Node
-	// Cleave unused reference chain from main chain
-	if prev == nil {
-		// The entire chain will need to be pushed back on to stack
-		push = *tip
-		ll.head = nil
-	} else {
-		push = prev.Next
-		prev.Next = nil
+	if len(items) <= len(*ll) {
+		copy(*ll, items)         // Reuse
+		*ll = (*ll)[:len(items)] // Flush excess
+		return
 	}
-
-	// Push unused pointers back on stack
-	for push != nil {
-		pending := push.Next
-		stack.Push(push, tn)
-		ll.length--
-		push = pending
+	if len(items) > cap(*ll) {
+		*ll = make([]Item, len(items)) // Extend
+		copy(*ll, items)               // Copy
+		return
 	}
+	*ll = (*ll)[:0]             // Flush
+	*ll = append(*ll, items...) // Append
 }
 
 // updateByID amends price by corresponding ID and returns an error if not found
-func (ll *linkedList) updateByID(updts []Item) error {
+func (ll linkedList) updateByID(updts []Item) error {
 updates:
 	for x := range updts {
-		for tip := ll.head; tip != nil; tip = tip.Next {
-			if updts[x].ID != tip.Value.ID { // Filter IDs that don't match
+		for y := range ll {
+			if updts[x].ID != ll[y].ID { // Filter IDs that don't match
 				continue
 			}
 			if updts[x].Price > 0 {
 				// Only apply changes when zero values are not present, Bitmex
 				// for example sends 0 price values.
-				tip.Value.Price = updts[x].Price
-				tip.Value.StrPrice = updts[x].StrPrice
+				ll[y].Price = updts[x].Price
+				ll[y].StrPrice = updts[x].StrPrice
 			}
-			tip.Value.Amount = updts[x].Amount
-			tip.Value.StrAmount = updts[x].StrAmount
+			ll[y].Amount = updts[x].Amount
+			ll[y].StrAmount = updts[x].StrAmount
 			continue updates
 		}
 		return fmt.Errorf("update error: %w ID: %d not found",
@@ -114,14 +81,15 @@ updates:
 }
 
 // deleteByID deletes reference by ID
-func (ll *linkedList) deleteByID(updts Items, stack *stack, bypassErr bool, tn time.Time) error {
+func (ll *linkedList) deleteByID(updts Items, bypassErr bool) error {
 updates:
 	for x := range updts {
-		for tip := &ll.head; *tip != nil; tip = &(*tip).Next {
-			if updts[x].ID != (*tip).Value.ID {
+		for y := range *ll {
+			if updts[x].ID != (*ll)[y].ID {
 				continue
 			}
-			stack.Push(deleteAtTip(ll, tip), tn)
+
+			*ll = append((*ll)[:y], (*ll)[y+1:]...)
 			continue updates
 		}
 		if !bypassErr {
@@ -133,102 +101,60 @@ updates:
 	return nil
 }
 
-// cleanup reduces the max size of the depth length if exceeded. Is used after
-// updates have been applied instead of adhoc, reason being its easier to prune
-// at the end. (can't inline)
-func (ll *linkedList) cleanup(maxChainLength int, stack *stack, tn time.Time) {
-	// Reduces the max length of total linked list chain, occurs after updates
-	// have been implemented as updates can push length out of bounds, if
-	// cleaved after that update, new update might not applied correctly.
-	n := ll.head
-	for i := 0; i < maxChainLength; i++ {
-		if n.Next == nil {
-			return
-		}
-		n = n.Next
-	}
-
-	// cleave reference to current node
-	if n.Prev != nil {
-		n.Prev.Next = nil
-	} else {
-		ll.head = nil
-	}
-
-	var pruned int
-	for n != nil {
-		pruned++
-		pending := n.Next
-		stack.Push(n, tn)
-		n = pending
-	}
-	ll.length -= pruned
-}
-
 // amount returns total depth liquidity and value
-func (ll *linkedList) amount() (liquidity, value float64) {
-	for tip := ll.head; tip != nil; tip = tip.Next {
-		liquidity += tip.Value.Amount
-		value += tip.Value.Amount * tip.Value.Price
+func (ll linkedList) amount() (liquidity, value float64) {
+	for x := range ll {
+		liquidity += ll[x].Amount
+		value += ll[x].Amount * ll[x].Price
 	}
 	return
 }
 
 // retrieve returns a full slice of contents from the linked list
-func (ll *linkedList) retrieve(count int) Items {
-	if count == 0 || ll.length < count {
-		count = ll.length
+func (ll linkedList) retrieve(count int) Items {
+	if count == 0 || len(ll) < count {
+		count = len(ll)
 	}
-	depth := make(Items, count)
-	for i, tip := 0, ll.head; i < count && tip != nil; i, tip = i+1, tip.Next {
-		depth[i] = tip.Value
-	}
-	return depth
+	return Items(ll[:count])
 }
 
 // updateInsertByPrice amends, inserts, moves and cleaves length of depth by
 // updates
-func (ll *linkedList) updateInsertByPrice(updts Items, stack *stack, maxChainLength int, compare func(float64, float64) bool, tn time.Time) {
+func (ll *linkedList) updateInsertByPrice(updts Items, maxChainLength int, compare func(float64, float64) bool) {
+updateroo:
 	for x := range updts {
-		for tip := &ll.head; ; tip = &(*tip).Next {
-			if *tip == nil {
-				insertHeadSpecific(ll, &updts[x], stack)
-				break
-			}
-			if (*tip).Value.Price == updts[x].Price { // Match check
-				if updts[x].Amount <= 0 { // Capture delete update
-					stack.Push(deleteAtTip(ll, tip), tn)
-				} else { // Amend current amount value
-					(*tip).Value.Amount = updts[x].Amount
-					(*tip).Value.StrAmount = updts[x].StrAmount
+		for y := range *ll {
+			switch {
+			case (*ll)[y].Price == updts[x].Price:
+				if updts[x].Amount <= 0 {
+					// Delete
+					if y+1 == len(*ll) {
+						*ll = (*ll)[:y]
+					} else {
+						*ll = append((*ll)[:y], (*ll)[y+1:]...)
+					}
+				} else {
+					// Update
+					(*ll)[y].Amount = updts[x].Amount
+					(*ll)[y].StrAmount = updts[x].StrAmount
 				}
-				break // Continue updates
-			}
-
-			if compare((*tip).Value.Price, updts[x].Price) { // Insert
-				// This check below filters zero values and provides an
-				// optimisation for when select exchanges send a delete update
-				// to a non-existent price level (OTC/Hidden order) so we can
-				// break instantly and reduce the traversal of the entire chain.
+				continue updateroo
+			case compare((*ll)[y].Price, updts[x].Price):
 				if updts[x].Amount > 0 {
-					insertAtTip(ll, tip, &updts[x], stack)
+					*ll = append(*ll, Item{})    // Extend
+					copy((*ll)[y+1:], (*ll)[y:]) // Copy elements from index y onwards one position to the right
+					(*ll)[y] = updts[x]          // Insert updts[x] at index y
 				}
-				break // Continue updates
+				continue updateroo
 			}
-
-			if (*tip).Next == nil { // Tip is at tail
-				// This check below is just a catch all in the event the above
-				// zero value check fails
-				if updts[x].Amount > 0 {
-					insertAtTail(ll, tip, &updts[x], stack)
-				}
-				break
-			}
+		}
+		if updts[x].Amount > 0 {
+			*ll = append(*ll, updts[x])
 		}
 	}
 	// Reduces length of total linked list chain to a maxChainLength value
-	if maxChainLength != 0 && ll.length > maxChainLength {
-		ll.cleanup(maxChainLength, stack, tn)
+	if maxChainLength != 0 && len(*ll) > maxChainLength {
+		*ll = (*ll)[:maxChainLength]
 	}
 }
 
@@ -239,155 +165,102 @@ func (ll *linkedList) updateInsertByPrice(updts Items, stack *stack, maxChainLen
 // 3) Update price exceeds traversal node price before ID found, save node
 // address for either; node ID matches then re-address node or end of depth pop
 // a node from the stack (worst case)
-func (ll *linkedList) updateInsertByID(updts Items, stack *stack, compare comparison) error {
+func (ll *linkedList) updateInsertByID(updts Items, compare comparison) error {
 updates:
 	for x := range updts {
 		if updts[x].Amount <= 0 {
 			return errAmountCannotBeLessOrEqualToZero
 		}
-		// bookmark allows for saving of a position of a node in the event that
-		// an update price exceeds the current node price. We can then match an
-		// ID and re-assign that ID's node to that positioning without popping
-		// from the stack and then pushing to the stack later for cleanup.
-		// If the ID is not found we can pop from stack then insert into that
-		// price level
-		var bookmark *Node
-		for tip := ll.head; tip != nil; tip = tip.Next {
-			if tip.Value.ID == updts[x].ID {
-				if tip.Value.Price != updts[x].Price { // Price level change
-					if tip.Next == nil {
+		var popped bool
+		for y := 0; y < len(*ll); y++ {
+			if (*ll)[y].ID == updts[x].ID {
+				if (*ll)[y].Price != updts[x].Price { // Price level change
+					if y+1 == len(*ll) { // end of depth
 						// no movement needed just a re-adjustment
-						tip.Value.Price = updts[x].Price
-						tip.Value.StrPrice = updts[x].StrPrice
-						tip.Value.Amount = updts[x].Amount
-						tip.Value.StrAmount = updts[x].StrAmount
+						(*ll)[y] = updts[x]
 						continue updates
 					}
-					// bookmark tip to move this node to correct price level
-					bookmark = tip
+					copy((*ll)[y:], (*ll)[y+1:]) // remove him: cya m8
+					*ll = (*ll)[:len(*ll)-1]     // keep underlying array
+					y--                          // adjust index
+					popped = true
 					continue // continue through node depth
 				}
 				// no price change, amend amount and continue update
-				tip.Value.Amount = updts[x].Amount
-				tip.Value.StrAmount = updts[x].StrAmount
+				(*ll)[y].Amount = updts[x].Amount
+				(*ll)[y].StrAmount = updts[x].StrAmount
 				continue updates // continue to next update
 			}
 
-			if compare(tip.Value.Price, updts[x].Price) {
-				if bookmark != nil { // shift bookmarked node to current tip
-					bookmark.Value = updts[x]
-					move(&ll.head, bookmark, tip)
+			if compare((*ll)[y].Price, updts[x].Price) {
+				*ll = append(*ll, Item{})    // Extend
+				copy((*ll)[y+1:], (*ll)[y:]) // Copy elements from index y onwards one position to the right
+				(*ll)[y] = updts[x]          // Insert updts[x] at index y
+
+				if popped { // already found ID and popped
 					continue updates
 				}
 
 				// search for ID
-				for n := tip.Next; n != nil; n = n.Next {
-					if n.Value.ID == updts[x].ID {
-						n.Value = updts[x]
-						// inserting before the tip
-						move(&ll.head, n, tip)
-						continue updates
+				for z := y + 1; z < len(*ll); z++ {
+					if (*ll)[z].ID == updts[x].ID {
+						copy((*ll)[z:], (*ll)[z+1:]) // remove him: cya m8
+						*ll = (*ll)[:len(*ll)-1]     // keep underlying array
+						break
 					}
 				}
-				// ID not matched in depth so add correct level for insert
-				if tip.Next == nil {
-					n := stack.Pop()
-					n.Value = updts[x]
-					ll.length++
-					if tip.Prev == nil {
-						tip.Prev = n
-						n.Next = tip
-						ll.head = n
-						continue updates
-					}
-					tip.Prev.Next = n
-					n.Prev = tip.Prev
-					tip.Prev = n
-					n.Next = tip
-					continue updates
-				}
-				bookmark = tip
-				break
-			}
-
-			if tip.Next == nil {
-				if shiftBookmark(tip, &bookmark, &ll.head, &updts[x]) {
-					continue updates
-				}
+				continue updates
 			}
 		}
-		n := stack.Pop()
-		n.Value = updts[x]
-		insertNodeAtBookmark(ll, bookmark, n) // Won't inline with stack
+		*ll = append(*ll, updts[x])
 	}
 	return nil
 }
 
 // insertUpdates inserts new updates for bids or asks based on price level
-func (ll *linkedList) insertUpdates(updts Items, stack *stack, comp comparison) error {
+func (ll *linkedList) insertUpdates(updts Items, comp comparison) error {
+updaterino:
 	for x := range updts {
-		var prev *Node
-		for tip := &ll.head; ; tip = &(*tip).Next {
-			if *tip == nil { // Head
-				n := stack.Pop()
-				n.Value = updts[x]
-				n.Prev = prev
-				ll.length++
-				*tip = n
-				break // Continue updates
-			}
-
-			if (*tip).Value.Price == updts[x].Price { // Price already found
-				return fmt.Errorf("%w for price %f",
-					errCollisionDetected,
-					updts[x].Price)
-			}
-
-			if comp((*tip).Value.Price, updts[x].Price) { // Alignment
-				n := stack.Pop()
-				n.Value = updts[x]
-				n.Prev = prev
-				ll.length++
-				// Reference current with new node
-				(*tip).Prev = n
-				// Push tip to the right
-				n.Next = *tip
-				// This is the same as prev.Next = n
-				*tip = n
-				break // Continue updates
-			}
-
-			if (*tip).Next == nil { // Tail
-				insertAtTail(ll, tip, &updts[x], stack)
-				break // Continue updates
-			}
-			prev = *tip
+		if len(*ll) == 0 { // TODO: Offset this and outline
+			*ll = append(*ll, updts[x])
+			continue
 		}
+
+		for y := range *ll {
+			switch {
+			case (*ll)[y].Price == updts[x].Price: // Price already found
+				return fmt.Errorf("%w for price %f", errCollisionDetected, updts[x].Price)
+			case comp((*ll)[y].Price, updts[x].Price): // price at correct spot
+				*ll = append((*ll)[:y], append([]Item{updts[x]}, (*ll)[y:]...)...)
+				continue updaterino
+			}
+		}
+		*ll = append(*ll, updts[x])
 	}
 	return nil
 }
 
 // getHeadPriceNoLock gets best/head price
-func (ll *linkedList) getHeadPriceNoLock() (float64, error) {
-	if ll.head == nil {
+func (ll linkedList) getHeadPriceNoLock() (float64, error) {
+	if len(ll) == 0 {
 		return 0, errNoLiquidity
 	}
-	return ll.head.Value.Price, nil
+	return ll[0].Price, nil
 }
 
 // getHeadVolumeNoLock gets best/head volume
-func (ll *linkedList) getHeadVolumeNoLock() (float64, error) {
-	if ll.head == nil {
+func (ll linkedList) getHeadVolumeNoLock() (float64, error) {
+	if len(ll) == 0 {
 		return 0, errNoLiquidity
 	}
-	return ll.head.Value.Amount, nil
+	return ll[0].Amount, nil
 }
 
 // getMovementByQuotation traverses through orderbook liquidity using quotation
 // currency as a limiter and returns orderbook movement details. Swap boolean
 // allows the swap of sold and purchased to reduce code so it doesn't need to be
 // specific to bid or ask.
-func (ll *linkedList) getMovementByQuotation(quote, refPrice float64, swap bool) (*Movement, error) {
+func (ll linkedList) getMovementByQuotation(quote, refPrice float64, swap bool) (*Movement, error) {
 	if quote <= 0 {
 		return nil, errQuoteAmountInvalid
 	}
@@ -402,29 +275,30 @@ func (ll *linkedList) getMovementByQuotation(quote, refPrice float64, swap bool)
 	}
 
 	m := Movement{StartPrice: refPrice}
-	for tip := ll.head; tip != nil; tip = tip.Next {
-		trancheValue := tip.Value.Amount * tip.Value.Price
+	for x := range ll {
+		trancheValue := ll[x].Amount * ll[x].Price
 		leftover := quote - trancheValue
 		if leftover < 0 {
 			m.Purchased += quote
-			m.Sold += quote / trancheValue * tip.Value.Amount
+			m.Sold += quote / trancheValue * ll[x].Amount
 			// This tranche is not consumed so the book shifts to this price.
-			m.EndPrice = tip.Value.Price
+			m.EndPrice = ll[x].Price
 			quote = 0
 			break
 		}
 		// Full tranche consumed
-		m.Purchased += tip.Value.Price * tip.Value.Amount
-		m.Sold += tip.Value.Amount
+		m.Purchased += ll[x].Price * ll[x].Amount
+		m.Sold += ll[x].Amount
 		quote = leftover
 		if leftover == 0 {
 			// Price no longer exists on the book so use next full price tranche
 			// to calculate book impact. If available.
-			if tip.Next != nil {
-				m.EndPrice = tip.Next.Value.Price
+			if x+1 < len(ll) {
+				m.EndPrice = ll[x+1].Price
 			} else {
 				m.FullBookSideConsumed = true
 			}
+			break
 		}
 	}
 	return m.finalizeFields(m.Purchased, m.Sold, head, quote, swap)
@@ -434,7 +308,7 @@ func (ll *linkedList) getMovementByQuotation(quote, refPrice float64, swap bool)
 // as a limiter and returns orderbook movement details. Swap boolean allows the
 // swap of sold and purchased to reduce code so it doesn't need to be specific
 // to bid or ask.
-func (ll *linkedList) getMovementByBase(base, refPrice float64, swap bool) (*Movement, error) {
+func (ll linkedList) getMovementByBase(base, refPrice float64, swap bool) (*Movement, error) {
 	if base <= 0 {
 		return nil, errBaseAmountInvalid
 	}
@@ -449,28 +323,29 @@ func (ll *linkedList) getMovementByBase(base, refPrice float64, swap bool) (*Mov
 	}
 
 	m := Movement{StartPrice: refPrice}
-	for tip := ll.head; tip != nil; tip = tip.Next {
-		leftover := base - tip.Value.Amount
+	for x := range ll {
+		leftover := base - ll[x].Amount
 		if leftover < 0 {
-			m.Purchased += tip.Value.Price * base
+			m.Purchased += ll[x].Price * base
 			m.Sold += base
 			// This tranche is not consumed so the book shifts to this price.
-			m.EndPrice = tip.Value.Price
+			m.EndPrice = ll[x].Price
 			base = 0
 			break
 		}
 		// Full tranche consumed
-		m.Purchased += tip.Value.Price * tip.Value.Amount
-		m.Sold += tip.Value.Amount
+		m.Purchased += ll[x].Price * ll[x].Amount
+		m.Sold += ll[x].Amount
 		base = leftover
 		if leftover == 0 {
 			// Price no longer exists on the book so use next full price tranche
 			// to calculate book impact.
-			if tip.Next != nil {
-				m.EndPrice = tip.Next.Value.Price
+			if x+1 < len(ll) {
+				m.EndPrice = ll[x+1].Price
 			} else {
 				m.FullBookSideConsumed = true
 			}
+			break
 		}
 	}
 	return m.finalizeFields(m.Purchased, m.Sold, head, base, swap)
@@ -489,18 +364,18 @@ func bidCompare(left, right float64) bool {
 
 // updateInsertByPrice amends, inserts, moves and cleaves length of depth by
 // updates
-func (ll *bids) updateInsertByPrice(updts Items, stack *stack, maxChainLength int, tn time.Time) {
-	ll.linkedList.updateInsertByPrice(updts, stack, maxChainLength, bidCompare, tn)
+func (ll *bids) updateInsertByPrice(updts Items, maxChainLength int) {
+	ll.linkedList.updateInsertByPrice(updts, maxChainLength, bidCompare)
 }
 
 // updateInsertByID updates or inserts if not found
-func (ll *bids) updateInsertByID(updts Items, stack *stack) error {
-	return ll.linkedList.updateInsertByID(updts, stack, bidCompare)
+func (ll *bids) updateInsertByID(updts Items) error {
+	return ll.linkedList.updateInsertByID(updts, bidCompare)
 }
 
 // insertUpdates inserts new updates for bids based on price level
-func (ll *bids) insertUpdates(updts Items, stack *stack) error {
-	return ll.linkedList.insertUpdates(updts, stack, bidCompare)
+func (ll *bids) insertUpdates(updts Items) error {
+	return ll.linkedList.insertUpdates(updts, bidCompare)
 }
 
 // hitBidsByNominalSlippage hits the bids by the required nominal slippage
@@ -519,16 +394,16 @@ func (ll *bids) hitBidsByNominalSlippage(slippage, refPrice float64) (*Movement,
 		return nil, errInvalidReferencePrice
 	}
 
-	if ll.head == nil {
+	if len(ll.linkedList) == 0 {
 		return nil, errNoLiquidity
 	}
 
 	nominal := &Movement{StartPrice: refPrice, EndPrice: refPrice}
 	var cumulativeValue, cumulativeAmounts float64
-	for tip := ll.head; tip != nil; tip = tip.Next {
-		totalTrancheValue := tip.Value.Price * tip.Value.Amount
+	for x := range ll.linkedList {
+		totalTrancheValue := ll.linkedList[x].Price * ll.linkedList[x].Amount
 		currentFullValue := totalTrancheValue + cumulativeValue
-		currentTotalAmounts := cumulativeAmounts + tip.Value.Amount
+		currentTotalAmounts := cumulativeAmounts + ll.linkedList[x].Amount
 
 		nominal.AverageOrderCost = currentFullValue / currentTotalAmounts
 		percent := math.CalculatePercentageGainOrLoss(nominal.AverageOrderCost, refPrice)
@@ -545,24 +420,24 @@ func (ll *bids) hitBidsByNominalSlippage(slippage, refPrice float64) (*Movement,
 			}
 			comparative := targetCost * cumulativeAmounts
 			comparativeDiff := comparative - cumulativeValue
-			trancheTargetPriceDiff := tip.Value.Price - targetCost
+			trancheTargetPriceDiff := ll.linkedList[x].Price - targetCost
 			trancheAmountExpectation := comparativeDiff / trancheTargetPriceDiff
 			nominal.NominalPercentage = slippage
 			nominal.Sold = cumulativeAmounts + trancheAmountExpectation
-			nominal.Purchased += trancheAmountExpectation * tip.Value.Price
+			nominal.Purchased += trancheAmountExpectation * ll.linkedList[x].Price
 			nominal.AverageOrderCost = nominal.Purchased / nominal.Sold
-			nominal.EndPrice = tip.Value.Price
+			nominal.EndPrice = ll.linkedList[x].Price
 			return nominal, nil
 		}
 
-		nominal.EndPrice = tip.Value.Price
+		nominal.EndPrice = ll.linkedList[x].Price
 		cumulativeValue = currentFullValue
 		nominal.NominalPercentage = percent
-		nominal.Sold += tip.Value.Amount
+		nominal.Sold += ll.linkedList[x].Amount
 		nominal.Purchased += totalTrancheValue
 		cumulativeAmounts = currentTotalAmounts
 		if slippage == percent {
-			nominal.FullBookSideConsumed = tip.Next == nil
+			nominal.FullBookSideConsumed = x+1 >= len(ll.linkedList)
 			return nominal, nil
 		}
 	}
@@ -586,25 +461,25 @@ func (ll *bids) hitBidsByImpactSlippage(slippage, refPrice float64) (*Movement, 
 		return nil, errInvalidReferencePrice
 	}
 
-	if ll.head == nil {
+	if len(ll.linkedList) == 0 {
 		return nil, errNoLiquidity
 	}
 
 	impact := &Movement{StartPrice: refPrice, EndPrice: refPrice}
-	for tip := ll.head; tip != nil; tip = tip.Next {
-		percent := math.CalculatePercentageGainOrLoss(tip.Value.Price, refPrice)
+	for x := range ll.linkedList {
+		percent := math.CalculatePercentageGainOrLoss(ll.linkedList[x].Price, refPrice)
 		if percent != 0 {
 			percent *= -1
 		}
-		impact.EndPrice = tip.Value.Price
+		impact.EndPrice = ll.linkedList[x].Price
 		impact.ImpactPercentage = percent
 		if slippage <= percent {
 			// Don't include this tranche amount as this consumes the tranche
 			// book price, thus obtaining a higher percentage impact.
 			return impact, nil
 		}
-		impact.Sold += tip.Value.Amount
-		impact.Purchased += tip.Value.Amount * tip.Value.Price
+		impact.Sold += ll.linkedList[x].Amount
+		impact.Purchased += ll.linkedList[x].Amount * ll.linkedList[x].Price
 		impact.AverageOrderCost = impact.Purchased / impact.Sold
 	}
 	impact.FullBookSideConsumed = true
@@ -625,18 +500,18 @@ func askCompare(left, right float64) bool {
 
 // updateInsertByPrice amends, inserts, moves and cleaves length of depth by
 // updates
-func (ll *asks) updateInsertByPrice(updts Items, stack *stack, maxChainLength int, tn time.Time) {
-	ll.linkedList.updateInsertByPrice(updts, stack, maxChainLength, askCompare, tn)
+func (ll *asks) updateInsertByPrice(updts Items, maxChainLength int) {
+	ll.linkedList.updateInsertByPrice(updts, maxChainLength, askCompare)
 }
 
 // updateInsertByID updates or inserts if not found
-func (ll *asks) updateInsertByID(updts Items, stack *stack) error {
-	return ll.linkedList.updateInsertByID(updts, stack, askCompare)
+func (ll *asks) updateInsertByID(updts Items) error {
+	return ll.linkedList.updateInsertByID(updts, askCompare)
 }
 
 // insertUpdates inserts new updates for asks based on price level
-func (ll *asks) insertUpdates(updts Items, stack *stack) error {
-	return ll.linkedList.insertUpdates(updts, stack, askCompare)
+func (ll *asks) insertUpdates(updts Items) error {
+	return ll.linkedList.insertUpdates(updts, askCompare)
 }
 
 // liftAsksByNominalSlippage lifts the asks by the required nominal slippage
@@ -651,16 +526,16 @@ func (ll *asks) liftAsksByNominalSlippage(slippage, refPrice float64) (*Movement
 		return nil, errInvalidReferencePrice
 	}
 
-	if ll.head == nil {
+	if len(ll.linkedList) == 0 {
 		return nil, errNoLiquidity
 	}
 
 	nominal := &Movement{StartPrice: refPrice, EndPrice: refPrice}
 	var cumulativeAmounts float64
-	for tip := ll.head; tip != nil; tip = tip.Next {
-		totalTrancheValue := tip.Value.Price * tip.Value.Amount
+	for x := range ll.linkedList {
+		totalTrancheValue := ll.linkedList[x].Price * ll.linkedList[x].Amount
 		currentValue := totalTrancheValue + nominal.Sold
-		currentAmounts := cumulativeAmounts + tip.Value.Amount
+		currentAmounts := cumulativeAmounts + ll.linkedList[x].Amount
 
 		nominal.AverageOrderCost = currentValue / currentAmounts
 		percent := math.CalculatePercentageGainOrLoss(nominal.AverageOrderCost, refPrice)
@@ -675,19 +550,19 @@ func (ll *asks) liftAsksByNominalSlippage(slippage, refPrice float64) (*Movement
 
 			comparative := targetCost * cumulativeAmounts
 			comparativeDiff := comparative - nominal.Sold
-			trancheTargetPriceDiff := tip.Value.Price - targetCost
+			trancheTargetPriceDiff := ll.linkedList[x].Price - targetCost
 			trancheAmountExpectation := comparativeDiff / trancheTargetPriceDiff
 			nominal.NominalPercentage = slippage
-			nominal.Sold += trancheAmountExpectation * tip.Value.Price
+			nominal.Sold += trancheAmountExpectation * ll.linkedList[x].Price
 			nominal.Purchased += trancheAmountExpectation
 			nominal.AverageOrderCost = nominal.Sold / nominal.Purchased
-			nominal.EndPrice = tip.Value.Price
+			nominal.EndPrice = ll.linkedList[x].Price
 			return nominal, nil
 		}
 
-		nominal.EndPrice = tip.Value.Price
+		nominal.EndPrice = ll.linkedList[x].Price
 		nominal.Sold = currentValue
-		nominal.Purchased += tip.Value.Amount
+		nominal.Purchased += ll.linkedList[x].Amount
 		nominal.NominalPercentage = percent
 		if slippage == percent {
 			return nominal, nil
@@ -710,160 +585,27 @@ func (ll *asks) liftAsksByImpactSlippage(slippage, refPrice float64) (*Movement,
 		return nil, errInvalidReferencePrice
 	}
 
-	if ll.head == nil {
+	if len(ll.linkedList) == 0 {
 		return nil, errNoLiquidity
 	}
 
 	impact := &Movement{StartPrice: refPrice, EndPrice: refPrice}
-	for tip := ll.head; tip != nil; tip = tip.Next {
-		percent := math.CalculatePercentageGainOrLoss(tip.Value.Price, refPrice)
+	for x := range ll.linkedList {
+		percent := math.CalculatePercentageGainOrLoss(ll.linkedList[x].Price, refPrice)
 		impact.ImpactPercentage = percent
-		impact.EndPrice = tip.Value.Price
+		impact.EndPrice = ll.linkedList[x].Price
 		if slippage <= percent {
 			// Don't include this tranche amount as this consumes the tranche
 			// book price, thus obtaining a higher percentage impact.
 			return impact, nil
 		}
-		impact.Sold += tip.Value.Amount * tip.Value.Price
-		impact.Purchased += tip.Value.Amount
+		impact.Sold += ll.linkedList[x].Amount * ll.linkedList[x].Price
+		impact.Purchased += ll.linkedList[x].Amount
 		impact.AverageOrderCost = impact.Sold / impact.Purchased
 	}
 	impact.FullBookSideConsumed = true
 	impact.ImpactPercentage = FullLiquidityExhaustedPercentage
 	return impact, nil
-}
-
-// move moves a node from a point in a node chain to another node position,
-// this left justified towards head as element zero is the top of the depth
-// side. (can inline)
-func move(head **Node, from, to *Node) {
-	if from.Next != nil { // From is at tail
-		from.Next.Prev = from.Prev
-	}
-	if from.Prev == nil { // From is at head
-		(*head).Next.Prev = nil
-		*head = (*head).Next
-	} else {
-		from.Prev.Next = from.Next
-	}
-	// insert from node next to 'to' node
-	if to.Prev == nil { // Destination is at head position
-		*head = from
-	} else {
-		to.Prev.Next = from
-	}
-	from.Prev = to.Prev
-	to.Prev = from
-	from.Next = to
-}
-
-// deleteAtTip removes a node from tip target returns old node (can inline)
-func deleteAtTip(ll *linkedList, tip **Node) *Node {
-	// Old is a placeholder for current tips node value to push
-	// back on to the stack.
-	old := *tip
-	switch {
-	case old.Prev == nil: // At head position
-		// shift current tip head to the right
-		*tip = old.Next
-		// Remove reference to node from chain
-		if old.Next != nil { // This is when liquidity hits zero
-			old.Next.Prev = nil
-		}
-	case old.Next == nil: // At tail position
-		// Remove reference to node from chain
-		old.Prev.Next = nil
-	default:
-		// Reference prior node in chain to next node in chain
-		// bypassing current node
-		old.Prev.Next = old.Next
-		old.Next.Prev = old.Prev
-	}
-	ll.length--
-	return old
-}
-
-// insertAtTip inserts at a tip target (can inline)
-func insertAtTip(ll *linkedList, tip **Node, updt *Item, stack *stack) {
-	n := stack.Pop()
-	n.Value = *updt
-	n.Next = *tip
-	n.Prev = (*tip).Prev
-	if (*tip).Prev == nil { // Tip is at head
-		// Replace head which will push everything to the right
-		// when this node will reference new node below
-		*tip = n
-	} else {
-		// Reference new node to previous node
-		(*tip).Prev.Next = n
-	}
-	// Reference next node to new node
-	n.Next.Prev = n
-	ll.length++
-}
-
-// insertAtTail inserts at tail end of node chain (can inline)
-func insertAtTail(ll *linkedList, tip **Node, updt *Item, stack *stack) {
-	n := stack.Pop()
-	n.Value = *updt
-	// Reference tip to new node
-	(*tip).Next = n
-	// Reference new node with current tip
-	n.Prev = *tip
-	ll.length++
-}
-
-// insertHeadSpecific inserts at head specifically there might be an instance
-// where the liquidity on an exchange does fall to zero through a streaming
-// endpoint then it comes back online. (can inline)
-func insertHeadSpecific(ll *linkedList, updt *Item, stack *stack) {
-	n := stack.Pop()
-	n.Value = *updt
-	ll.head = n
-	ll.length++
-}
-
-// insertNodeAtBookmark inserts a new node at a bookmarked node position
-// returns if a node needs to replace head (can inline)
-func insertNodeAtBookmark(ll *linkedList, bookmark, n *Node) {
-	switch {
-	case bookmark == nil: // Zero liquidity and we are rebuilding from scratch
-		ll.head = n
-	case bookmark.Prev == nil:
-		n.Prev = bookmark.Prev
-		bookmark.Prev = n
-		n.Next = bookmark
-		ll.head = n
-	case bookmark.Next == nil:
-		n.Prev = bookmark
-		bookmark.Next = n
-	default:
-		bookmark.Prev.Next = n
-		n.Prev = bookmark.Prev
-		bookmark.Prev = n
-		n.Next = bookmark
-	}
-	ll.length++
-}
-
-// shiftBookmark moves a bookmarked node to the tip's next position or if nil,
-// sets tip as bookmark (can inline)
-func shiftBookmark(tip *Node, bookmark, head **Node, updt *Item) bool {
-	if *bookmark == nil { // End of the chain and no bookmark set
-		*bookmark = tip // Set tip to bookmark so we can set a new node there
-		return false
-	}
-	(*bookmark).Value = *updt
-	(*bookmark).Next.Prev = (*bookmark).Prev
-	if (*bookmark).Prev == nil { // Bookmark is at head
-		*head = (*bookmark).Next
-	} else {
-		(*bookmark).Prev.Next = (*bookmark).Next
-	}
-	tip.Next = *bookmark
-	(*bookmark).Prev = tip
-	(*bookmark).Next = nil
-	return true
 }
 
 // finalizeFields sets average order costing, percentages, slippage cost and

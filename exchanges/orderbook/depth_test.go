@@ -35,7 +35,7 @@ func TestGetLength(t *testing.T) {
 	assert.NoError(t, err, "GetAskLength should not error")
 	assert.Zero(t, askLen, "ask length should be zero")
 
-	d.asks.load([]Item{{Price: 1337}}, d.stack, time.Now())
+	d.asks.load([]Item{{Price: 1337}})
 
 	askLen, err = d.GetAskLength()
 	assert.NoError(t, err, "GetAskLength should not error")
@@ -55,7 +55,7 @@ func TestGetLength(t *testing.T) {
 	assert.NoError(t, err, "GetBidLength should not error")
 	assert.Zero(t, bidLen, "bid length should be zero")
 
-	d.bids.load([]Item{{Price: 1337}}, d.stack, time.Now())
+	d.bids.load([]Item{{Price: 1337}})
 
 	bidLen, err = d.GetBidLength()
 	assert.NoError(t, err, "GetBidLength should not error")
@@ -65,8 +65,8 @@ func TestGetLength(t *testing.T) {
 func TestRetrieve(t *testing.T) {
 	t.Parallel()
 	d := NewDepth(id)
-	d.asks.load([]Item{{Price: 1337}}, d.stack, time.Now())
-	d.bids.load([]Item{{Price: 1337}}, d.stack, time.Now())
+	d.asks.load([]Item{{Price: 1337}})
+	d.bids.load([]Item{{Price: 1337}})
 	d.options = options{
 		exchange:               "THE BIG ONE!!!!!!",
 		pair:                   currency.NewPair(currency.THETA, currency.USD),
@@ -125,8 +125,8 @@ func TestTotalAmounts(t *testing.T) {
 	assert.Zero(t, liquidity, "total ask liquidity should be zero")
 	assert.Zero(t, value, "total ask value should be zero")
 
-	d.asks.load([]Item{{Price: 1337, Amount: 1}}, d.stack, time.Now())
-	d.bids.load([]Item{{Price: 1337, Amount: 10}}, d.stack, time.Now())
+	d.asks.load([]Item{{Price: 1337, Amount: 1}})
+	d.bids.load([]Item{{Price: 1337, Amount: 10}})
 
 	liquidity, value, err = d.TotalBidAmounts()
 	assert.NoError(t, err, "TotalBidAmounts should not error")
