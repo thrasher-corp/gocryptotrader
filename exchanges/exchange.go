@@ -46,8 +46,6 @@ const (
 	DefaultWebsocketResponseMaxLimit = time.Second * 7
 	// DefaultWebsocketOrderbookBufferLimit is the maximum number of orderbook updates that get stored before being applied
 	DefaultWebsocketOrderbookBufferLimit = 5
-	// ResetConfigPairsWarningMessage is displayed when a currency pair format in the config needs to be updated
-	ResetConfigPairsWarningMessage = "%s Enabled and available pairs for %s reset due to config upgrade, please enable the ones you would like to use again. Defaulting to %v"
 )
 
 var (
@@ -1875,4 +1873,73 @@ func (b *Base) ParallelChanOp(channels []subscription.Subscription, m func([]sub
 	}
 
 	return errs
+}
+
+// Bootstrap function allows for exchange authors to supplement or override common startup actions
+// If exchange.Bootstrap returns false or error it will not perform any other actions.
+// If it returns true, or is not implemented by the exchange, it will:
+// * Print debug startup information
+// * UpdateOrderExecutionLimits
+// * UpdateTradablePairs
+func Bootstrap(ctx context.Context, b IBotExchange) error {
+	if continueBootstrap, err := b.Bootstrap(ctx); !continueBootstrap || err != nil {
+		return err
+	}
+
+	if b.IsVerbose() {
+		if b.GetSupportedFeatures().Websocket {
+			wsURL := ""
+			wsEnabled := false
+			if w, err := b.GetWebsocket(); err == nil {
+				wsURL = w.GetWebsocketURL()
+				wsEnabled = w.IsEnabled()
+			}
+			log.Debugf(log.ExchangeSys, "%s Websocket: %s. (url: %s)", b.GetName(), common.IsEnabled(wsEnabled), wsURL)
+		} else {
+			log.Debugf(log.ExchangeSys, "%s Websocket: Unsupported", b.GetName())
+		}
+		b.PrintEnabledPairs()
+	}
+
+	if b.GetEnabledFeatures().AutoPairUpdates {
+		if err := b.UpdateTradablePairs(ctx, false); err != nil {
+			return fmt.Errorf("failed to update tradable pairs: %w", err)
+		}
+	}
+
+	a := b.GetAssetTypes(true)
+	var wg sync.WaitGroup
+	errC := make(chan error, len(a))
+	for i := range a {
+		wg.Add(1)
+		go func(a asset.Item) {
+			defer wg.Done()
+			if err := b.UpdateOrderExecutionLimits(ctx, a); err != nil && !errors.Is(err, common.ErrNotYetImplemented) {
+				errC <- fmt.Errorf("failed to set exchange order execution limits: %w", err)
+			}
+		}(a[i])
+	}
+	wg.Wait()
+	close(errC)
+
+	var err error
+	for e := range errC {
+		err = common.AppendError(err, e)
+	}
+
+	return err
+}
+
+// Bootstrap is a fallback method for exchange startup actions
+// Exchange authors should override this if they wish to customise startup actions
+// Return true or an error to all default Bootstrap actions to occur afterwards
+// or false to signal that no further bootstrapping should occur
+func (b *Base) Bootstrap(_ context.Context) (continueBootstrap bool, err error) {
+	continueBootstrap = true
+	return
+}
+
+// IsVerbose returns if the exchange is set to verbose
+func (b *Base) IsVerbose() bool {
+	return b.Verbose
 }

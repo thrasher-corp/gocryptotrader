@@ -3,7 +3,6 @@ package bitstamp
 import (
 	"context"
 	"errors"
-	"sync"
 	"testing"
 	"time"
 
@@ -38,20 +37,6 @@ func setFeeBuilder() *exchange.FeeBuilder {
 		Pair:          currency.NewPair(currency.LTC, currency.BTC),
 		PurchasePrice: 1800,
 	}
-}
-
-func TestStart(t *testing.T) {
-	t.Parallel()
-	err := b.Start(context.Background(), nil)
-	if !errors.Is(err, common.ErrNilPointer) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, common.ErrNilPointer)
-	}
-	var testWg sync.WaitGroup
-	err = b.Start(context.Background(), &testWg)
-	if err != nil {
-		t.Fatal(err)
-	}
-	testWg.Wait()
 }
 
 // TestGetFeeByTypeOfflineTradeFee logic test
