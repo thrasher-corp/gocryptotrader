@@ -36,9 +36,6 @@ type Depth struct {
 	askTranches
 	bidTranches
 
-	// // unexported stack of nodes
-	// stack *stack
-
 	alert.Notice
 
 	mux *dispatch.Mux
