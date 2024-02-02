@@ -347,62 +347,6 @@ func (ku *Kucoin) UpdateTradablePairs(ctx context.Context, forceUpdate bool) err
 	return nil
 }
 
-// GetFuturesTickers does n * REST requests based on enabled pairs of the futures asset type
-func (ku *Kucoin) GetFuturesTickers(ctx context.Context) ([]*ticker.Price, error) {
-	pairs, err := ku.GetEnabledPairs(asset.Futures)
-	if err != nil {
-		return nil, err
-	}
-
-	var wg sync.WaitGroup
-	tickersC := make(chan *ticker.Price, len(pairs))
-	errC := make(chan error, len(pairs))
-
-	for i := range pairs {
-		var p currency.Pair
-		if p, err = ku.FormatExchangeCurrency(pairs[i], asset.Futures); err != nil {
-			errC <- err
-			break
-		}
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-
-			if tick, err2 := ku.GetFuturesTicker(ctx, p.String()); err2 != nil {
-				errC <- err2
-			} else {
-				tickersC <- &ticker.Price{
-					Last:         tick.Price.Float64(),
-					Bid:          tick.BestBidPrice.Float64(),
-					Ask:          tick.BestAskPrice.Float64(),
-					Volume:       tick.Size,
-					Pair:         p,
-					LastUpdated:  tick.FilledTime.Time(),
-					ExchangeName: ku.Name,
-					AssetType:    asset.Futures,
-				}
-			}
-		}()
-	}
-
-	wg.Wait()
-	close(tickersC)
-	close(errC)
-	var errs error
-	for err := range errC {
-		errs = common.AppendError(errs, err)
-	}
-	if errs != nil {
-		return nil, errs
-	}
-
-	tickers := make([]*ticker.Price, 0, len(pairs))
-	for tick := range tickersC {
-		tickers = append(tickers, tick)
-	}
-	return tickers, nil
-}
-
 // UpdateTicker updates and returns the ticker for a currency pair
 func (ku *Kucoin) UpdateTicker(ctx context.Context, p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
 	p, err := ku.FormatExchangeCurrency(p, assetType)
