@@ -414,7 +414,7 @@ func TestDeleteByID(t *testing.T) {
 	}
 }
 
-// 20476837	        53.17 ns/op	       0 B/op	       0 allocs/op
+// 26724331	        44.69 ns/op	       0 B/op	       0 allocs/op
 func BenchmarkDeleteByID(b *testing.B) {
 	asks := Tranches{}
 	asksSnapshot := Tranches{
@@ -1869,4 +1869,22 @@ func TestFinalizeFields(t *testing.T) {
 	mov, err := m.finalizeFields(20000*151.11585, 20000, 151.08, 0, false)
 	assert.NoError(t, err, "finalizeFields should not error")
 	assert.InDelta(t, 717.0, mov.SlippageCost, 0.000000001, "SlippageCost should be correct")
+}
+
+// 8384302	       150.9 ns/op	     480 B/op	       1 allocs/op
+func BenchmarkRetrieve(b *testing.B) {
+	asks := Tranches{}
+	asksSnapshot := Tranches{
+		{Price: 1, Amount: 1, ID: 1},
+		{Price: 3, Amount: 1, ID: 3},
+		{Price: 5, Amount: 1, ID: 5},
+		{Price: 7, Amount: 1, ID: 7},
+		{Price: 9, Amount: 1, ID: 9},
+		{Price: 11, Amount: 1, ID: 11},
+	}
+	asks.load(asksSnapshot)
+
+	for i := 0; i < b.N; i++ {
+		_ = asks.retrieve(6)
+	}
 }

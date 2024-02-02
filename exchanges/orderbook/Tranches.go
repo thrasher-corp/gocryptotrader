@@ -89,7 +89,12 @@ updates:
 				continue
 			}
 
-			*ts = append((*ts)[:y], (*ts)[y+1:]...)
+			if y < len(*ts) {
+				copy((*ts)[y:], (*ts)[y+1:])
+				*ts = (*ts)[:len(*ts)-1]
+			} else {
+				*ts = append((*ts)[:y], (*ts)[y+1:]...)
+			}
 			continue updates
 		}
 		if !bypassErr {
@@ -114,16 +119,10 @@ func (ts Tranches) amount() (liquidity, value float64) {
 // count length. If count is zero or greater than the length of the stored
 // Tranches, the entire slice is returned.
 func (ts Tranches) retrieve(count int) Tranches {
-	if count == 0 || len(ts) <= count {
-		// In this situation we have to allocate a new slice to prevent the
-		// caller from modifying the underlying array.
-		bucket := make(Tranches, len(ts))
-		copy(bucket, ts)
-		return bucket
+	if count == 0 || count >= len(ts) {
+		count = len(ts)
 	}
-	// This will auto allocate a slice because it is a reduction of the
-	// underlying array.
-	return ts[:count]
+	return append(Tranches{}, ts[:count]...)
 }
 
 // updateInsertByPrice amends, inserts, moves and cleaves length of depth by
@@ -139,7 +138,8 @@ updates:
 					if y+1 == len(*ts) {
 						*ts = (*ts)[:y]
 					} else {
-						*ts = append((*ts)[:y], (*ts)[y+1:]...)
+						copy((*ts)[y:], (*ts)[y+1:])
+						*ts = (*ts)[:len(*ts)-1]
 					}
 				} else {
 					// Update
