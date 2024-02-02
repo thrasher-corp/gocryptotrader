@@ -129,7 +129,7 @@ func (ts Tranches) retrieve(count int) Tranches {
 // updateInsertByPrice amends, inserts, moves and cleaves length of depth by
 // updates
 func (ts *Tranches) updateInsertByPrice(updts Tranches, maxChainLength int, compare func(float64, float64) bool) {
-updateroo:
+updates:
 	for x := range updts {
 		for y := range *ts {
 			switch {
@@ -146,14 +146,14 @@ updateroo:
 					(*ts)[y].Amount = updts[x].Amount
 					(*ts)[y].StrAmount = updts[x].StrAmount
 				}
-				continue updateroo
+				continue updates
 			case compare((*ts)[y].Price, updts[x].Price):
 				if updts[x].Amount > 0 {
 					*ts = append(*ts, Tranche{}) // Extend
 					copy((*ts)[y+1:], (*ts)[y:]) // Copy elements from index y onwards one position to the right
 					(*ts)[y] = updts[x]          // Insert updts[x] at index y
 				}
-				continue updateroo
+				continue updates
 			}
 		}
 		if updts[x].Amount > 0 {
@@ -221,7 +221,7 @@ updates:
 
 // insertUpdates inserts new updates for bids or asks based on price level
 func (ts *Tranches) insertUpdates(updts Tranches, comp comparison) error {
-updaterino:
+updates:
 	for x := range updts {
 		if len(*ts) == 0 {
 			*ts = append(*ts, updts[x])
@@ -234,7 +234,7 @@ updaterino:
 				return fmt.Errorf("%w for price %f", errCollisionDetected, updts[x].Price)
 			case comp((*ts)[y].Price, updts[x].Price): // price at correct spot
 				*ts = append((*ts)[:y], append([]Tranche{updts[x]}, (*ts)[y:]...)...)
-				continue updaterino
+				continue updates
 			}
 		}
 		*ts = append(*ts, updts[x])
