@@ -76,10 +76,14 @@ const (
 	DefaultUnsetAccountPlan       = "accountPlan"
 )
 
+// Public errors exported by this package
 var (
-	Cfg                 Config
-	m                   sync.Mutex
 	ErrExchangeNotFound = errors.New("exchange not found")
+)
+
+var (
+	cfg Config
+	m   sync.Mutex
 )
 
 // Config is the overarching object that holds all the information for
