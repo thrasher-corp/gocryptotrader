@@ -56,9 +56,9 @@ var bid = Tranches{
 }
 
 // Display displays depth content for tests
-func (ll Tranches) display() {
-	for x := range ll {
-		fmt.Printf("NODE: %+v %p \n", ll[x], &ll[x])
+func (ts Tranches) display() {
+	for x := range ts {
+		fmt.Printf("Tranche: %+v %p \n", ts[x], &ts[x])
 	}
 	fmt.Println()
 }
