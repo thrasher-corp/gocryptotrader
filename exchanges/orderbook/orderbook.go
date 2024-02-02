@@ -339,13 +339,13 @@ func (ts *Tranches) Reverse() {
 // SortAsks sorts ask items to the correct ascending order if pricing values are
 // scattered. If order from exchange is descending consider using the Reverse
 // function.
-func (elem Tranches) SortAsks() {
-	sort.Slice(elem, func(i, j int) bool { return elem[i].Price < elem[j].Price })
+func (ts Tranches) SortAsks() {
+	sort.Slice(ts, func(i, j int) bool { return ts[i].Price < ts[j].Price })
 }
 
 // SortBids sorts bid items to the correct descending order if pricing values
 // are scattered. If order from exchange is ascending consider using the Reverse
 // function.
-func (elem Tranches) SortBids() {
-	sort.Slice(elem, func(i, j int) bool { return elem[i].Price > elem[j].Price })
+func (ts Tranches) SortBids() {
+	sort.Slice(ts, func(i, j int) bool { return ts[i].Price > ts[j].Price })
 }

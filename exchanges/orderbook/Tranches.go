@@ -110,20 +110,20 @@ func (ts Tranches) amount() (liquidity, value float64) {
 	return
 }
 
-// retrieve returns a a slice of contents from the stored Tranches up to the
+// retrieve returns a slice of contents from the stored Tranches up to the
 // count length. If count is zero or greater than the length of the stored
 // Tranches, the entire slice is returned.
-func (ll Tranches) retrieve(count int) Tranches {
-	if count == 0 || len(ll) <= count {
+func (ts Tranches) retrieve(count int) Tranches {
+	if count == 0 || len(ts) <= count {
 		// In this situation we have to allocate a new slice to prevent the
 		// caller from modifying the underlying array.
-		bucket := make(Tranches, len(ll))
-		copy(bucket, ll)
+		bucket := make(Tranches, len(ts))
+		copy(bucket, ts)
 		return bucket
 	}
 	// This will auto allocate a slice because it is a reduction of the
 	// underlying array.
-	return ll[:count]
+	return ts[:count]
 }
 
 // updateInsertByPrice amends, inserts, moves and cleaves length of depth by
