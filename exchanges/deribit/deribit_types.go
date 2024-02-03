@@ -72,6 +72,8 @@ type UnmarshalError struct {
 
 // BookSummaryData stores summary data
 type BookSummaryData struct {
+	InterestRate           float64              `json:"interest_rate"`
+	AskPrice               float64              `json:"ask_price"`
 	VolumeUSD              float64              `json:"volume_usd"`
 	Volume                 float64              `json:"volume"`
 	QuoteCurrency          string               `json:"quote_currency"`
@@ -87,7 +89,11 @@ type BookSummaryData struct {
 	CreationTimestamp      convert.ExchangeTime `json:"creation_timestamp"`
 	BidPrice               float64              `json:"bid_price"`
 	BaseCurrency           string               `json:"base_currency"`
-	AskPrice               float64              `json:"ask_price"`
+	Funding8H              float64              `json:"funding_8h,omitempty"`
+	CurrentFunding         float64              `json:"current_funding,omitempty"`
+	UnderlyingIndex        float64              `json:"underlying_index"`
+	UnderlyingPrice        float64              `json:"underlying_price"`
+	VolumeNotional         float64              `json:"volume_notional"`
 }
 
 // ContractSizeData stores contract size for given instrument
@@ -125,6 +131,7 @@ type DeliveryPriceData struct {
 // FundingChartData stores futures funding chart data
 type FundingChartData struct {
 	CurrentInterest float64 `json:"current_interest"`
+	Interest8H      float64 `json:"interest_8h"`
 	Data            []struct {
 		IndexPrice float64              `json:"index_price"`
 		Interest8H float64              `json:"interest_8h"`
@@ -147,6 +154,13 @@ type HistoricalVolatilityData struct {
 	Value     float64
 }
 
+// IndexPrice holds index price for the instruments
+type IndexPrice struct {
+	BTC float64 `json:"BTC"`
+	ETH float64 `json:"ETH"`
+	Edp float64 `json:"edp"`
+}
+
 // IndexPriceData gets index price data
 type IndexPriceData struct {
 	EstimatedDeliveryPrice float64 `json:"estimated_delivery_price"`
@@ -155,20 +169,20 @@ type IndexPriceData struct {
 
 // InstrumentData gets data for instruments
 type InstrumentData struct {
+	InstrumentName               string               `json:"instrument_name"`
 	BaseCurrency                 string               `json:"base_currency"`
+	Kind                         string               `json:"kind"`
+	OptionType                   string               `json:"option_type"`
+	QuoteCurrency                string               `json:"quote_currency"`
 	BlockTradeCommission         float64              `json:"block_trade_commission"`
 	ContractSize                 float64              `json:"contract_size"`
 	CreationTimestamp            convert.ExchangeTime `json:"creation_timestamp"`
 	ExpirationTimestamp          convert.ExchangeTime `json:"expiration_timestamp"`
-	InstrumentName               string               `json:"instrument_name"`
 	IsActive                     bool                 `json:"is_active"`
-	Kind                         string               `json:"kind"`
 	Leverage                     float64              `json:"leverage"`
 	MaxLeverage                  float64              `json:"max_leverage"`
 	MakerCommission              float64              `json:"maker_commission"`
 	MinimumTradeAmount           float64              `json:"min_trade_amount"`
-	OptionType                   string               `json:"option_type"`
-	QuoteCurrency                string               `json:"quote_currency"`
 	TickSize                     float64              `json:"tick_size"`
 	TakerCommission              float64              `json:"taker_commission"`
 	Strike                       float64              `json:"strike"`
@@ -180,6 +194,12 @@ type InstrumentData struct {
 	CounterCurrency              string               `json:"counter_currency"`
 	MaximumLiquidationCommission float64              `json:"max_liquidation_commission"`
 	FutureType                   string               `json:"future_type"`
+	TickSizeSteps                []struct {
+		AbovePrice float64 `json:"above_price"`
+		TickSize   float64 `json:"tick_size"`
+	} `json:"tick_size_steps"`
+	BlockTradeTickSize       float64 `json:"block_trade_tick_size"`
+	BlockTradeMinTradeAmount int64   `json:"block_trade_min_trade_amount"`
 }
 
 // SettlementsData stores data for settlement futures
@@ -1489,4 +1509,30 @@ type CustodyAccount struct {
 	WithdrawalsRequireSecurityKey bool    `json:"withdrawals_require_security_key"`
 	PendingWithdrawalBalance      float64 `json:"pending_withdrawal_balance"`
 	AutoDeposit                   bool    `json:"auto_deposit"`
+}
+
+// LockedCurrenciesStatus represents locked currencies status information.
+type LockedCurrenciesStatus struct {
+	LockedCurrencies []string `json:"locked_currencies"`
+	Locked           string   `json:"locked"`
+}
+
+// DeribitInfo holds deribit version
+type DeribitInfo struct {
+	Version string `json:"version"`
+}
+
+// CancelOnDisconnect holds scope and status information for cancel-on-disconnect
+type CancelOnDisconnect struct {
+	Scope  string `json:"scope"`
+	Enable bool   `json:"enabled"`
+}
+
+// RefreshTokenInfo holds access token information.
+type RefreshTokenInfo struct {
+	AccessToken      string `json:"access_token"`
+	ExpiresInSeconds int64  `json:"expires_in"`
+	RefreshToken     string `json:"refresh_token"`
+	Scope            string `json:"scope"`
+	TokenType        string `json:"token_type"`
 }

@@ -2344,3 +2344,77 @@ func TestUnmarshalCancelResponse(t *testing.T) {
 	err := json.Unmarshal([]byte(data), &resp)
 	assert.NoError(t, err)
 }
+
+func TestGetLockedStatus(t *testing.T) {
+	t.Parallel()
+	_, err := d.GetLockedStatus(context.Background())
+	assert.NoError(t, err)
+}
+
+func TestSayHello(t *testing.T) {
+	t.Parallel()
+	_, err := d.SayHello("Sami", "")
+	assert.NoError(t, err)
+}
+
+func TestGetCancelOnDisconnect(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, d)
+	_, err := d.GetCancelOnDisconnect(context.Background(), "account")
+	assert.NoError(t, err)
+	_, err = d.WsRetrieveCancelOnDisconnect("connection")
+	assert.NoError(t, err)
+}
+
+func TestDisableCancelOnDisconnect(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, d, canManipulateRealOrders)
+	_, err := d.DisableCancelOnDisconnect(context.Background(), "connection")
+	assert.NoError(t, err)
+	_, err = d.WsDisableCancelOnDisconnect("connection")
+	assert.NoError(t, err)
+}
+
+func TestEnableCancelOnDisconnect(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, d, canManipulateRealOrders)
+	_, err := d.EnableCancelOnDisconnect(context.Background(), "account")
+	assert.NoError(t, err)
+	_, err = d.WsEnableCancelOnDisconnect("connection")
+	assert.NoError(t, err)
+}
+
+func TestLogout(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, d, canManipulateRealOrders)
+	err := d.WsLogout(true)
+	assert.NoError(t, err)
+}
+
+func TestExchangeToken(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, d)
+	_, err := d.ExchangeToken(context.Background(), "1568800656974.1CWcuzUS.MGy49NK4hpTwvR1OYWfpqMEkH4T4oDg4tNIcrM7KdeyxXRcSFqiGzA_D4Cn7mqWocHmlS89FFmUYcmaN2H7lNKKTnhRg5EtrzsFCCiuyN0Wv9y-LbGLV3-Ojv_kbD50FoScQ8BDXS5b_w6Ir1MqEdQ3qFZ3MLcvlPiIgG2BqyJX3ybYnVpIlrVrrdYD1-lkjLcjxOBNJvvUKNUAzkQ",
+		1234)
+	assert.NoError(t, err)
+	_, err = d.WsExchangeToken("1568800656974.1CWcuzUS.MGy49NK4hpTwvR1OYWfpqMEkH4T4oDg4tNIcrM7KdeyxXRcSFqiGzA_D4Cn7mqWocHmlS89FFmUYcmaN2H7lNKKTnhRg5EtrzsFCCiuyN0Wv9y-LbGLV3-Ojv_kbD50FoScQ8BDXS5b_w6Ir1MqEdQ3qFZ3MLcvlPiIgG2BqyJX3ybYnVpIlrVrrdYD1-lkjLcjxOBNJvvUKNUAzkQ",
+		1234)
+	assert.NoError(t, err)
+
+}
+
+func TestForkToken(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, d)
+	_, err := d.ForkToken(context.Background(), "1568800656974.1CWcuzUS.MGy49NK4hpTwvR1OYWfpqMEkH4T4oDg4tNIcrM7KdeyxXRcSFqiGzA_D4Cn7mqWocHmlS89FFmUYcmaN2H7lNKKTnhRg5EtrzsFCCiuyN0Wv9y-LbGLV3-Ojv_kbD50FoScQ8BDXS5b_w6Ir1MqEdQ3qFZ3MLcvlPiIgG2BqyJX3ybYnVpIlrVrrdYD1-lkjLcjxOBNJvvUKNUAzkQ", "Sami")
+	assert.NoError(t, err)
+	_, err = d.WsForkToken("1568800656974.1CWcuzUS.MGy49NK4hpTwvR1OYWfpqMEkH4T4oDg4tNIcrM7KdeyxXRcSFqiGzA_D4Cn7mqWocHmlS89FFmUYcmaN2H7lNKKTnhRg5EtrzsFCCiuyN0Wv9y-LbGLV3-Ojv_kbD50FoScQ8BDXS5b_w6Ir1MqEdQ3qFZ3MLcvlPiIgG2BqyJX3ybYnVpIlrVrrdYD1-lkjLcjxOBNJvvUKNUAzkQ", "Sami")
+	assert.NoError(t, err)
+}
+
+func TestWsConnet(t *testing.T) {
+	t.Parallel()
+	err := d.WsConnect()
+	assert.NoError(t, err)
+	time.Sleep(time.Second * 23)
+}

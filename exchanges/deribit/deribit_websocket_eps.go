@@ -2078,6 +2078,121 @@ func (d *Deribit) WSCreateCombo(args []ComboParam) (*ComboDetail, error) {
 	return resp, d.SendWSRequest(nonMatchingEPL, createCombos, map[string]interface{}{"trades": args}, &resp, true)
 }
 
+// WsLogout gracefully close websocket connection, when COD (Cancel On Disconnect) is enabled orders are not cancelled
+func (d *Deribit) WsLogout(invalidateToken bool) error {
+	input := struct {
+		InvalidateToken bool `json:"invalidate_token,omitempty"`
+	}{
+		InvalidateToken: invalidateToken,
+	}
+	return d.SendWSRequest(nonMatchingEPL, "private/logout", input, &struct{}{}, true)
+}
+
+// WsEnableCancelOnDisconnect enable Cancel On Disconnect for the connection.
+// After enabling Cancel On Disconnect all orders created by the connection will be removed when the connection is closed.
+func (d *Deribit) WsEnableCancelOnDisconnect(scope string) (string, error) {
+	input := &struct {
+		Scope string `json:"scope,omitempty"`
+	}{
+		Scope: scope,
+	}
+	var resp string
+	return resp, d.SendWSRequest(nonMatchingEPL, "private/enable_cancel_on_disconnect", input, &resp, true)
+}
+
+// WsDisableCancelOnDisconnect isable Cancel On Disconnect for the connection.
+// When change is applied for the account, then every newly opened connection will start with inactive Cancel on Disconnect.
+// scope: possible values are 'connection', 'account'
+func (d *Deribit) WsDisableCancelOnDisconnect(scope string) (string, error) {
+	input := &struct {
+		Scope string `json:"scope,omitempty"`
+	}{
+		Scope: scope,
+	}
+	var resp string
+	return resp, d.SendWSRequest(nonMatchingEPL, "private/disable_cancel_on_disconnect", input, &resp, true)
+}
+
+// SayHello method used to introduce the client software connected to Deribit platform over websocket.
+// It returns version information
+func (d *Deribit) SayHello(clientName, clientVersion string) (*DeribitInfo, error) {
+	if clientName == "" {
+		return nil, errors.New("client name is required")
+	}
+	input := &struct {
+		ClientName    string `json:"client_name"`
+		ClientVersion string `json:"client_version"`
+	}{
+		ClientName:    clientName,
+		ClientVersion: clientVersion,
+	}
+	var resp *DeribitInfo
+	return resp, d.SendWSRequest(nonMatchingEPL, "public/hello", input, &resp, false)
+}
+
+// WsRetrieveCancelOnDisconnect read current Cancel On Disconnect configuration for the account.
+// 'scope': Specifies if Cancel On Disconnect change should be applied/checked for the current connection or the account (default - connection)
+// Scope connection can be used only when working via Websocket.
+func (d *Deribit) WsRetrieveCancelOnDisconnect(scope string) (*CancelOnDisconnect, error) {
+	input := &struct {
+		Scope string `json:"scope,omitempty"`
+	}{
+		Scope: scope,
+	}
+	var resp *CancelOnDisconnect
+	return resp, d.SendWSRequest(nonMatchingEPL, "private/get_cancel_on_disconnect", input, &resp, true)
+}
+
+// WsExchangeToken generates a token for a new subject id. This method can be used to switch between subaccounts.
+func (d *Deribit) WsExchangeToken(refreshToken string, subjectID int64) (*RefreshTokenInfo, error) {
+	if refreshToken == "" {
+		return nil, errors.New("refresh token is required")
+	}
+	if subjectID == 0 {
+		return nil, errors.New("subject id is required")
+	}
+	input := &struct {
+		RefreshToken string `json:"retresh_token"`
+		SubjectID    int64  `json:"subject_id"`
+	}{
+		RefreshToken: refreshToken,
+		SubjectID:    subjectID,
+	}
+	var resp *RefreshTokenInfo
+	return resp, d.SendWSRequest(nonMatchingEPL, "public/exchange_token", input, &resp, true)
+}
+
+// WsForkToken generates a token for a new named session. This method can be used only with session scoped tokens.
+func (d *Deribit) WsForkToken(refreshToken, sessionName string) (*RefreshTokenInfo, error) {
+	if refreshToken == "" {
+		return nil, errors.New("refresh token is required")
+	}
+	if sessionName != "" {
+		return nil, errors.New("session_name is required")
+	}
+	input := &struct {
+		RefreshToken string `json:"refresh_token"`
+		SessionName  string `json:"session_name"`
+	}{
+		RefreshToken: refreshToken,
+		SessionName:  sessionName,
+	}
+	var resp *RefreshTokenInfo
+	return resp, d.SendWSRequest(nonMatchingEPL, "public/fork_token", input, &resp, true)
+}
+
+// UnsubscribeAll unsubscribe from all the public channels subscribed so far.
+func (d *Deribit) UnsubscribeAll() (string, error) {
+	var resp string
+	return resp, d.SendWSRequest(nonMatchingEPL, "public/unsubscribe_all", nil, &resp, false)
+}
+
+// PrivateUnsubscribeAll
+func (d *Deribit) PrivateUnsubscribeAll() (string, error) {
+	var resp string
+	return resp, d.SendWSRequest(nonMatchingEPL, "private/unsubscribe_all", nil, &resp, false)
+}
+
 // ------------------------------------------------------------------------------------------------
 
 // WSExecuteBlockTrade executes a block trade request

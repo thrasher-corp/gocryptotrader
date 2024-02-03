@@ -308,13 +308,13 @@ func (d *Deribit) GetHistoricalVolatility(ctx context.Context, ccy string) ([]Hi
 }
 
 // GetCurrencyIndexPrice retrieves the current index price for the instruments, for the selected currency.
-func (d *Deribit) GetCurrencyIndexPrice(ctx context.Context, ccy string) (map[string]float64, error) {
+func (d *Deribit) GetCurrencyIndexPrice(ctx context.Context, ccy string) (*IndexPrice, error) {
 	if ccy == "" {
 		return nil, fmt.Errorf("%w '%s'", errInvalidCurrency, strings.ToUpper(ccy))
 	}
 	params := url.Values{}
 	params.Set("currency", ccy)
-	var resp map[string]float64
+	var resp *IndexPrice
 	return resp, d.SendHTTPRequest(ctx, exchange.RestFutures, nonMatchingEPL, common.EncodeURLValues(getCurrencyIndexPrice, params), &resp)
 }
 
@@ -366,7 +366,7 @@ func (d *Deribit) GetInstrumentsData(ctx context.Context, ccy, kind string, expi
 }
 
 // GetLastSettlementsByCurrency gets last settlement data by currency
-func (d *Deribit) GetLastSettlementsByCurrency(ctx context.Context, ccy, settlementType, continuation string, count int64, startTime time.Time) (*SettlementsData, error) {
+func (d *Deribit) GetLastSettlementsByCurrency(ctx context.Context, ccy, settlementType, continuation string, count int64, searchStartTime time.Time) (*SettlementsData, error) {
 	if ccy == "" {
 		return nil, fmt.Errorf("%w '%s'", errInvalidCurrency, strings.ToUpper(ccy))
 	}
@@ -381,8 +381,8 @@ func (d *Deribit) GetLastSettlementsByCurrency(ctx context.Context, ccy, settlem
 	if count != 0 {
 		params.Set("count", strconv.FormatInt(count, 10))
 	}
-	if !startTime.IsZero() {
-		params.Set("search_start_timestamp", strconv.FormatInt(startTime.UnixMilli(), 10))
+	if !searchStartTime.IsZero() {
+		params.Set("search_start_timestamp", strconv.FormatInt(searchStartTime.UnixMilli(), 10))
 	}
 	var resp *SettlementsData
 	return resp, d.SendHTTPRequest(ctx, exchange.RestFutures, nonMatchingEPL,
@@ -2583,6 +2583,77 @@ func (d *Deribit) SimulateBlockTrade(ctx context.Context, role string, trades []
 	params.Set("trades", string(values))
 	var resp bool
 	return resp, d.SendHTTPAuthRequest(ctx, exchange.RestFutures, matchingEPL, http.MethodGet, simulateBlockPosition, params, resp)
+}
+
+// GetLockedStatus retrieves information about locked currencies
+func (d *Deribit) GetLockedStatus(ctx context.Context) (*LockedCurrenciesStatus, error) {
+	var resp *LockedCurrenciesStatus
+	return resp, d.SendHTTPRequest(ctx, exchange.RestSpot, nonMatchingEPL, "public/status", &resp)
+}
+
+// GetCancelOnDisconnect read current Cancel On Disconnect configuration for the account.
+// 'scope': Specifies if Cancel On Disconnect change should be applied/checked for the current connection or the account (default - connection)
+// Scope connection can be used only when working via Websocket.
+func (d *Deribit) GetCancelOnDisconnect(ctx context.Context, scope string) (*CancelOnDisconnect, error) {
+	params := url.Values{}
+	if scope != "" {
+		params.Set("scope", scope)
+	}
+	var resp *CancelOnDisconnect
+	return resp, d.SendHTTPAuthRequest(ctx, exchange.RestSpot, nonMatchingEPL, "private/get_cancel_on_disconnect", http.MethodGet, params, &resp)
+}
+
+// DisableCancelOnDisconnect isable Cancel On Disconnect for the connection.
+// When change is applied for the account, then every newly opened connection will start with inactive Cancel on Disconnect.
+// scope: possible values are 'connection', 'account'
+func (d *Deribit) DisableCancelOnDisconnect(ctx context.Context, scope string) (string, error) {
+	params := url.Values{}
+	if scope != "" {
+		params.Set("scope", scope)
+	}
+	var resp string
+	return resp, d.SendHTTPAuthRequest(ctx, exchange.RestSpot, nonMatchingEPL, http.MethodGet, "private/disable_cancel_on_disconnect", params, &resp)
+}
+
+// EnableCancelOnDisconnect enable Cancel On Disconnect for the connection.
+// After enabling Cancel On Disconnect all orders created by the connection will be removed when the connection is closed.
+func (d *Deribit) EnableCancelOnDisconnect(ctx context.Context, scope string) (string, error) {
+	params := url.Values{}
+	if scope != "" {
+		params.Set("scope", scope)
+	}
+	var resp string
+	return resp, d.SendHTTPAuthRequest(ctx, exchange.RestSpot, nonMatchingEPL, http.MethodGet, "private/enable_cancel_on_disconnect", params, &resp)
+}
+
+// ExchangeToken generates a token for a new subject id. This method can be used to switch between subaccounts.
+func (d *Deribit) ExchangeToken(ctx context.Context, refreshToken string, subjectID int64) (*RefreshTokenInfo, error) {
+	if refreshToken == "" {
+		return nil, errors.New("refresh token is required")
+	}
+	if subjectID == 0 {
+		return nil, errors.New("subject id is required")
+	}
+	params := url.Values{}
+	params.Set("refresh_token", refreshToken)
+	params.Set("subject_id", strconv.FormatInt(subjectID, 10))
+	var resp *RefreshTokenInfo
+	return resp, d.SendHTTPAuthRequest(ctx, exchange.RestSpot, nonMatchingEPL, http.MethodGet, "public/exchange_token", params, &resp)
+}
+
+// ForkToken generates a token for a new named session. This method can be used only with session scoped tokens.
+func (d *Deribit) ForkToken(ctx context.Context, refreshToken, sessionName string) (*RefreshTokenInfo, error) {
+	if refreshToken == "" {
+		return nil, errors.New("refresh token is required")
+	}
+	if sessionName != "" {
+		return nil, errors.New("session_name is required")
+	}
+	params := url.Values{}
+	params.Set("refresh_token", refreshToken)
+	params.Set("session_name", sessionName)
+	var resp *RefreshTokenInfo
+	return resp, d.SendHTTPRequest(ctx, exchange.RestSpot, nonMatchingEPL, common.EncodeURLValues("public/fork_token", params), &resp)
 }
 
 // GetAssetKind returns the asset type (kind) string representation.
