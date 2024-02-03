@@ -40,19 +40,23 @@ var (
 var (
 	errAlreadyRunning                       = errors.New("connection monitor is already running")
 	errExchangeConfigIsNil                  = errors.New("exchange config is nil")
+	errExchangeConfigEmpty                  = errors.New("exchange config is empty")
 	errWebsocketIsNil                       = errors.New("websocket is nil")
 	errWebsocketSetupIsNil                  = errors.New("websocket setup is nil")
 	errWebsocketAlreadyInitialised          = errors.New("websocket already initialised")
+	errWebsocketAlreadyEnabled              = errors.New("websocket already enabled")
 	errWebsocketFeaturesIsUnset             = errors.New("websocket features is unset")
 	errConfigFeaturesIsNil                  = errors.New("exchange config features is nil")
 	errDefaultURLIsEmpty                    = errors.New("default url is empty")
 	errRunningURLIsEmpty                    = errors.New("running url cannot be empty")
 	errInvalidWebsocketURL                  = errors.New("invalid websocket url")
-	errExchangeConfigNameUnset              = errors.New("exchange config name unset")
+	errExchangeConfigNameEmpty              = errors.New("exchange config name empty")
 	errInvalidTrafficTimeout                = errors.New("invalid traffic timeout")
+	errTrafficAlertNil                      = errors.New("traffic alert is nil")
 	errWebsocketSubscriberUnset             = errors.New("websocket subscriber function needs to be set")
 	errWebsocketUnsubscriberUnset           = errors.New("websocket unsubscriber functionality allowed but unsubscriber function not set")
 	errWebsocketConnectorUnset              = errors.New("websocket connector function not set")
+	errReadMessageErrorsNil                 = errors.New("read message errors is nil")
 	errWebsocketSubscriptionsGeneratorUnset = errors.New("websocket subscriptions generator function needs to be set")
 	errClosedConnection                     = errors.New("use of closed network connection")
 	errSubscriptionsExceedsLimit            = errors.New("subscriptions exceeds limit")
@@ -65,6 +69,7 @@ var (
 	errAlreadyConnected                     = errors.New("websocket already connected")
 	errCannotShutdown                       = errors.New("websocket cannot shutdown")
 	errAlreadyReconnecting                  = errors.New("websocket in the process of reconnection")
+	errConnSetup                            = errors.New("error in connection setup")
 )
 
 var globalReporter Reporter
@@ -107,7 +112,7 @@ func (w *Websocket) Setup(s *WebsocketSetup) error {
 	}
 
 	if s.ExchangeConfig.Name == "" {
-		return errExchangeConfigNameUnset
+		return errExchangeConfigNameEmpty
 	}
 	w.exchangeName = s.ExchangeConfig.Name
 	w.verbose = s.ExchangeConfig.Verbose
@@ -196,22 +201,22 @@ func (w *Websocket) Setup(s *WebsocketSetup) error {
 // SetupNewConnection sets up an auth or unauth streaming connection
 func (w *Websocket) SetupNewConnection(c ConnectionSetup) error {
 	if w == nil {
-		return errors.New("setting up new connection error: websocket is nil")
+		return fmt.Errorf("%w: %w", errConnSetup, errWebsocketIsNil)
 	}
 	if c == (ConnectionSetup{}) {
-		return errors.New("setting up new connection error: websocket connection configuration empty")
+		return fmt.Errorf("%w: %w", errConnSetup, errExchangeConfigEmpty)
 	}
 
 	if w.exchangeName == "" {
-		return errors.New("setting up new connection error: exchange name not set, please call setup first")
+		return fmt.Errorf("%w: %w", errConnSetup, errExchangeConfigNameEmpty)
 	}
 
 	if w.TrafficAlert == nil {
-		return errors.New("setting up new connection error: traffic alert is nil, please call setup first")
+		return fmt.Errorf("%w: %w", errConnSetup, errTrafficAlertNil)
 	}
 
 	if w.ReadMessageErrors == nil {
-		return errors.New("setting up new connection error: read message errors is nil, please call setup first")
+		return fmt.Errorf("%w: %w", errConnSetup, errReadMessageErrorsNil)
 	}
 
 	connectionURL := w.GetWebsocketURL()
@@ -314,7 +319,7 @@ func (w *Websocket) Connect() error {
 // Note that connectionMonitor will be responsible for shutting down the websocket after disabling
 func (w *Websocket) Disable() error {
 	if !w.IsEnabled() {
-		return fmt.Errorf("%w for exchange '%s'", ErrAlreadyDisabled, w.exchangeName)
+		return fmt.Errorf("%s %w", w.exchangeName, ErrAlreadyDisabled)
 	}
 
 	w.setEnabled(false)
@@ -324,8 +329,7 @@ func (w *Websocket) Disable() error {
 // Enable enables the exchange websocket protocol
 func (w *Websocket) Enable() error {
 	if w.IsConnected() || w.IsEnabled() {
-		return fmt.Errorf("websocket is already enabled for exchange %s",
-			w.exchangeName)
+		return fmt.Errorf("%s %w", w.exchangeName, errWebsocketAlreadyEnabled)
 	}
 
 	w.setEnabled(true)
@@ -490,7 +494,7 @@ func (w *Websocket) FlushChannels() error {
 	}
 
 	if !w.IsConnected() {
-		return fmt.Errorf("%s websocket: service not connected", w.exchangeName)
+		return fmt.Errorf("%s %w", w.exchangeName, ErrNotConnected)
 	}
 
 	if w.features.Subscribe {

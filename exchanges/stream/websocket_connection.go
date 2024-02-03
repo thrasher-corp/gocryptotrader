@@ -50,9 +50,7 @@ func (w *WebsocketConnection) SendMessageReturnResponse(signature, request inter
 		return payload, nil
 	case <-timer.C:
 		timer.Stop()
-		return nil, fmt.Errorf("%s websocket connection: timeout waiting for response with signature: %v",
-			w.ExchangeName,
-			signature)
+		return nil, fmt.Errorf("%s websocket connection: timeout waiting for response with signature: %v", w.ExchangeName, signature)
 	}
 }
 
@@ -72,25 +70,14 @@ func (w *WebsocketConnection) Dial(dialer *websocket.Dialer, headers http.Header
 	w.Connection, conStatus, err = dialer.Dial(w.URL, headers)
 	if err != nil {
 		if conStatus != nil {
-			return fmt.Errorf("%s websocket connection: %v %v %v Error: %v",
-				w.ExchangeName,
-				w.URL,
-				conStatus,
-				conStatus.StatusCode,
-				err)
+			return fmt.Errorf("%s websocket connection: %v %v %v Error: %w", w.ExchangeName, w.URL, conStatus, conStatus.StatusCode, err)
 		}
-		return fmt.Errorf("%s websocket connection: %v Error: %v",
-			w.ExchangeName,
-			w.URL,
-			err)
+		return fmt.Errorf("%s websocket connection: %v Error: %w", w.ExchangeName, w.URL, err)
 	}
 	defer conStatus.Body.Close()
 
 	if w.Verbose {
-		log.Infof(log.WebsocketMgr,
-			"%v Websocket connected to %s\n",
-			w.ExchangeName,
-			w.URL)
+		log.Infof(log.WebsocketMgr, "%v Websocket connected to %s\n", w.ExchangeName, w.URL)
 	}
 	select {
 	case w.Traffic <- struct{}{}:
