@@ -32,7 +32,7 @@ const (
 )
 
 var (
-	errDastardlyReason = errors.New("cannot shutdown due to some dastardly reason")
+	errDastardlyReason = errors.New("some dastardly reason")
 )
 
 var dialer websocket.Dialer
@@ -73,7 +73,7 @@ var defaultSetup = &WebsocketSetup{
 			AuthenticatedWebsocketSupport: true,
 		},
 		WebsocketTrafficTimeout: time.Second * 5,
-		Name:                    "exchangeName",
+		Name:                    "GTX",
 	},
 	DefaultURL:   "testDefaultURL",
 	RunningURL:   "wss://testRunningURL",
@@ -97,147 +97,106 @@ type dodgyConnection struct {
 
 // override websocket connection method to produce a wicked terrible error
 func (d *dodgyConnection) Shutdown() error {
-	return errDastardlyReason
+	return fmt.Errorf("%w: %w", errCannotShutdown, errDastardlyReason)
 }
 
 // override websocket connection method to produce a wicked terrible error
 func (d *dodgyConnection) Connect() error {
-	return errDastardlyReason
+	return fmt.Errorf("cannot connect: %w", errDastardlyReason)
 }
 
 func TestSetup(t *testing.T) {
 	t.Parallel()
 	var w *Websocket
 	err := w.Setup(nil)
-	if !errors.Is(err, errWebsocketIsNil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errWebsocketIsNil)
-	}
+	assert.ErrorIs(t, err, errWebsocketIsNil, "Setup should error correctly")
 
 	w = &Websocket{DataHandler: make(chan interface{})}
 	err = w.Setup(nil)
-	if !errors.Is(err, errWebsocketSetupIsNil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errWebsocketSetupIsNil)
-	}
+	assert.ErrorIs(t, err, errWebsocketSetupIsNil, "Setup should error correctly")
 
 	websocketSetup := &WebsocketSetup{}
-	err = w.Setup(websocketSetup)
-	if !errors.Is(err, errWebsocketAlreadyInitialised) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errWebsocketAlreadyInitialised)
-	}
 
-	w.setState(disconnected)
 	err = w.Setup(websocketSetup)
-	if !errors.Is(err, errExchangeConfigIsNil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errExchangeConfigIsNil)
-	}
+	assert.ErrorIs(t, err, errExchangeConfigIsNil, "Setup should error correctly")
 
 	websocketSetup.ExchangeConfig = &config.Exchange{}
 	err = w.Setup(websocketSetup)
-	if !errors.Is(err, errExchangeConfigNameUnset) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errExchangeConfigNameUnset)
-	}
-	websocketSetup.ExchangeConfig.Name = "testname"
+	assert.ErrorIs(t, err, errExchangeConfigNameUnset, "Setup should error correctly")
 
+	websocketSetup.ExchangeConfig.Name = "testname"
 	err = w.Setup(websocketSetup)
-	if !errors.Is(err, errWebsocketFeaturesIsUnset) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errWebsocketFeaturesIsUnset)
-	}
+	assert.ErrorIs(t, err, errWebsocketFeaturesIsUnset, "Setup should error correctly")
 
 	websocketSetup.Features = &protocol.Features{}
 	err = w.Setup(websocketSetup)
-	if !errors.Is(err, errConfigFeaturesIsNil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errConfigFeaturesIsNil)
-	}
+	assert.ErrorIs(t, err, errConfigFeaturesIsNil, "Setup should error correctly")
 
 	websocketSetup.ExchangeConfig.Features = &config.FeaturesConfig{}
 	err = w.Setup(websocketSetup)
-	if !errors.Is(err, errWebsocketConnectorUnset) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errWebsocketConnectorUnset)
-	}
+	assert.ErrorIs(t, err, errWebsocketConnectorUnset, "Setup should error correctly")
 
 	websocketSetup.Connector = func() error { return nil }
 	err = w.Setup(websocketSetup)
-	if !errors.Is(err, errWebsocketSubscriberUnset) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errWebsocketSubscriberUnset)
-	}
+	assert.ErrorIs(t, err, errWebsocketSubscriberUnset, "Setup should error correctly")
 
 	websocketSetup.Subscriber = func([]subscription.Subscription) error { return nil }
 	websocketSetup.Features.Unsubscribe = true
 	err = w.Setup(websocketSetup)
-	if !errors.Is(err, errWebsocketUnsubscriberUnset) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errWebsocketUnsubscriberUnset)
-	}
+	assert.ErrorIs(t, err, errWebsocketUnsubscriberUnset, "Setup should error correctly")
 
 	websocketSetup.Unsubscriber = func([]subscription.Subscription) error { return nil }
 	err = w.Setup(websocketSetup)
-	if !errors.Is(err, errWebsocketSubscriptionsGeneratorUnset) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errWebsocketSubscriptionsGeneratorUnset)
-	}
+	assert.ErrorIs(t, err, errWebsocketSubscriptionsGeneratorUnset, "Setup should error correctly")
 
 	websocketSetup.GenerateSubscriptions = func() ([]subscription.Subscription, error) { return nil, nil }
 	err = w.Setup(websocketSetup)
-	if !errors.Is(err, errDefaultURLIsEmpty) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errDefaultURLIsEmpty)
-	}
+	assert.ErrorIs(t, err, errDefaultURLIsEmpty, "Setup should error correctly")
 
 	websocketSetup.DefaultURL = "test"
 	err = w.Setup(websocketSetup)
-	if !errors.Is(err, errRunningURLIsEmpty) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errRunningURLIsEmpty)
-	}
+	assert.ErrorIs(t, err, errRunningURLIsEmpty, "Setup should error correctly")
 
 	websocketSetup.RunningURL = "http://www.google.com"
 	err = w.Setup(websocketSetup)
-	if !errors.Is(err, errInvalidWebsocketURL) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errInvalidWebsocketURL)
-	}
+	assert.ErrorIs(t, err, errInvalidWebsocketURL, "Setup should error correctly")
 
 	websocketSetup.RunningURL = "wss://www.google.com"
 	websocketSetup.RunningURLAuth = "http://www.google.com"
 	err = w.Setup(websocketSetup)
-	if !errors.Is(err, errInvalidWebsocketURL) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errInvalidWebsocketURL)
-	}
+	assert.ErrorIs(t, err, errInvalidWebsocketURL, "Setup should error correctly")
 
 	websocketSetup.RunningURLAuth = "wss://www.google.com"
 	err = w.Setup(websocketSetup)
-	if !errors.Is(err, errInvalidTrafficTimeout) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errInvalidTrafficTimeout)
-	}
+	assert.ErrorIs(t, err, errInvalidTrafficTimeout, "Setup should error correctly")
 
 	websocketSetup.ExchangeConfig.WebsocketTrafficTimeout = time.Minute
 	err = w.Setup(websocketSetup)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: %v but expected: %v", err, nil)
-	}
+	assert.NoError(t, err, "Setup should not error")
 }
 
 func TestTrafficMonitorTimeout(t *testing.T) {
 	t.Parallel()
 	ws := NewWebsocket()
-	if err := ws.Setup(defaultSetup); err != nil {
-		t.Fatal(err)
-	}
-	ws.trafficTimeout = time.Second * 2
+	err := ws.Setup(defaultSetup)
+	require.NoError(t, err, "Setup must not error")
+
+	ws.trafficTimeout = time.Millisecond * 42
 	ws.ShutdownC = make(chan struct{})
 	ws.trafficMonitor()
-	if !ws.IsTrafficMonitorRunning() {
-		t.Fatal("traffic monitor should be running")
-	}
+	assert.True(t, ws.IsTrafficMonitorRunning(), "traffic monitor should be running")
+
 	// Deploy traffic alert
 	ws.TrafficAlert <- struct{}{}
 	// try to add another traffic monitor
 	ws.trafficMonitor()
-	if !ws.IsTrafficMonitorRunning() {
-		t.Fatal("traffic monitor should be running")
-	}
+	assert.True(t, ws.IsTrafficMonitorRunning(), "traffic monitor should be running")
+
 	// prevent shutdown routine
 	ws.setState(disconnected)
 	// await timeout closure
 	ws.Wg.Wait()
-	if ws.IsTrafficMonitorRunning() {
-		t.Error("should be dead")
-	}
+	assert.False(t, ws.IsTrafficMonitorRunning(), "traffic monitor should be not be running")
 }
 
 func TestIsDisconnectionError(t *testing.T) {
@@ -351,7 +310,7 @@ func TestWebsocket(t *testing.T) {
 	err := ws.SetProxyAddress("garbagio")
 	assert.ErrorContains(t, err, "invalid URI for request", "SetProxyAddress should error correctly")
 
-	ws.Conn = &WebsocketConnection{}
+	ws.Conn = &dodgyConnection{}
 	ws.AuthConn = &WebsocketConnection{}
 	ws.setEnabled(true)
 
@@ -361,7 +320,7 @@ func TestWebsocket(t *testing.T) {
 	err = ws.Setup(defaultSetup)
 	assert.ErrorIs(t, err, errWebsocketAlreadyInitialised, "Setup should error correctly if called twice")
 
-	assert.Equal(t, "exchangeName", ws.GetName(), "GetName should return correctly")
+	assert.Equal(t, "GTX", ws.GetName(), "GetName should return correctly")
 	assert.True(t, ws.IsEnabled(), "Websocket should be enabled by Setup")
 
 	ws.setEnabled(false)
@@ -376,38 +335,31 @@ func TestWebsocket(t *testing.T) {
 	ws.setState(connected)
 
 	err = ws.SetProxyAddress("https://192.168.0.1:1336")
-	assert.ErrorIs(t, err, errNoConnectFunc, "SetProxyAddress should call Connect and error from there") // This test asserts we actually set the proxy address, etc
+	assert.ErrorIs(t, err, errDastardlyReason, "SetProxyAddress should call Connect and error from there")
 
 	err = ws.SetProxyAddress("https://192.168.0.1:1336")
 	assert.ErrorIs(t, err, errSameProxyAddress, "SetProxyAddress should error correctly")
-	ws.setEnabled(false)
 
 	// removing proxy
 	err = ws.SetProxyAddress("")
-	assert.NoError(t, err, "SetProxyAddress should not error when removing proxy")
+	assert.ErrorIs(t, err, errDastardlyReason, "SetProxyAddress should call Shutdown and error from there")
+	assert.ErrorIs(t, err, errCannotShutdown, "SetProxyAddress should call Shutdown and error from there")
+
+	ws.Conn = &WebsocketConnection{}
+	ws.setEnabled(true)
 
 	// reinstate proxy
 	err = ws.SetProxyAddress("http://localhost:1337")
 	assert.NoError(t, err, "SetProxyAddress should not error")
-
 	assert.Equal(t, "http://localhost:1337", ws.GetProxyAddress(), "GetProxyAddress should return correctly")
 	assert.Equal(t, "wss://testRunningURL", ws.GetWebsocketURL(), "GetWebsocketURL should return correctly")
 	assert.Equal(t, time.Second*5, ws.trafficTimeout, "trafficTimeout should default correctly")
-
-	err = ws.Shutdown()
-	assert.ErrorIs(t, err, ErrNotConnected, "Shutdown should error when not Connected")
-
-	ws.setState(connected)
-	ws.Conn = &dodgyConnection{}
-	err = ws.Shutdown()
-	assert.ErrorIs(t, err, errDastardlyReason, "Shutdown should error correctly with a dodgy conn")
-
-	ws.Conn = &WebsocketConnection{}
 
 	ws.setState(connected)
 	ws.AuthConn = &dodgyConnection{}
 	err = ws.Shutdown()
 	assert.ErrorIs(t, err, errDastardlyReason, "Shutdown should error correctly with a dodgy authConn")
+	assert.ErrorIs(t, err, errCannotShutdown, "Shutdown should error correctly with a dodgy authConn")
 
 	ws.AuthConn = &WebsocketConnection{}
 	ws.setState(disconnected)

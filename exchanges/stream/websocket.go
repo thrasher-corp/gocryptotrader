@@ -65,8 +65,10 @@ var (
 	errChannelAlreadySubscribed             = errors.New("channel already subscribed")
 	errInvalidChannelState                  = errors.New("invalid Channel state")
 	errSameProxyAddress                     = errors.New("cannot set proxy address to the same address")
-	errNoConnectFunc                        = errors.New("connect func not set")
-	errAlreadyConnected                     = errors.New("already connected")
+	errNoConnectFunc                        = errors.New("websocket connect func not set")
+	errAlreadyConnected                     = errors.New("websocket already connected")
+	errCannotShutdown                       = errors.New("websocket cannot shutdown")
+	errAlreadyReconnecting                  = errors.New("websocket in the process of reconnection")
 )
 
 var globalReporter Reporter
@@ -266,10 +268,10 @@ func (w *Websocket) Connect() error {
 		return errors.New(WebsocketNotEnabled)
 	}
 	if w.IsConnecting() {
-		return fmt.Errorf("%v Websocket already attempting to connect", w.exchangeName)
+		return fmt.Errorf("%v %w", w.exchangeName, errAlreadyReconnecting)
 	}
 	if w.IsConnected() {
-		return fmt.Errorf("%v Websocket already connected", w.exchangeName)
+		return fmt.Errorf("%v %w", w.exchangeName, errAlreadyConnected)
 	}
 
 	w.subscriptionMutex.Lock()
@@ -444,12 +446,12 @@ func (w *Websocket) Shutdown() error {
 	defer w.m.Unlock()
 
 	if !w.IsConnected() {
-		return fmt.Errorf("%v websocket: cannot shutdown %w", w.exchangeName, ErrNotConnected)
+		return fmt.Errorf("%v %w: %w", w.exchangeName, errCannotShutdown, ErrNotConnected)
 	}
 
 	// TODO: Interrupt connection and or close connection when it is re-established.
 	if w.IsConnecting() {
-		return fmt.Errorf("%v websocket: cannot shutdown, in the process of reconnection", w.exchangeName)
+		return fmt.Errorf("%v %w: %w ", w.exchangeName, errCannotShutdown, errAlreadyReconnecting)
 	}
 
 	if w.verbose {
