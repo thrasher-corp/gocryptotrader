@@ -24,24 +24,20 @@ const (
 	defaultTrafficPeriod = time.Second
 )
 
+// Public websocket errors
 var (
-	// ErrSubscriptionNotFound defines an error when a subscription is not found
-	ErrSubscriptionNotFound = errors.New("subscription not found")
-	// ErrSubscribedAlready defines an error when a channel is already subscribed
-	ErrSubscribedAlready = errors.New("duplicate subscription")
-	// ErrSubscriptionFailure defines an error when a subscription fails
-	ErrSubscriptionFailure = errors.New("subscription failure")
-	// ErrSubscriptionNotSupported defines an error when a subscription channel is not supported by an exchange
+	ErrWebsocketNotEnabled      = errors.New("websocket not enabled")
+	ErrSubscriptionNotFound     = errors.New("subscription not found")
+	ErrSubscribedAlready        = errors.New("duplicate subscription")
+	ErrSubscriptionFailure      = errors.New("subscription failure")
 	ErrSubscriptionNotSupported = errors.New("subscription channel not supported ")
-	// ErrUnsubscribeFailure defines an error when a unsubscribe fails
-	ErrUnsubscribeFailure = errors.New("unsubscribe failure")
-	// ErrChannelInStateAlready defines an error when a subscription channel is already in a new state
-	ErrChannelInStateAlready = errors.New("channel already in state")
-	// ErrAlreadyDisabled is returned when you double-disable the websocket
-	ErrAlreadyDisabled = errors.New("websocket already disabled")
-	// ErrNotConnected defines an error when websocket is not connected
-	ErrNotConnected = errors.New("websocket is not connected")
+	ErrUnsubscribeFailure       = errors.New("unsubscribe failure")
+	ErrChannelInStateAlready    = errors.New("channel already in state")
+	ErrAlreadyDisabled          = errors.New("websocket already disabled")
+	ErrNotConnected             = errors.New("websocket is not connected")
+)
 
+var (
 	errAlreadyRunning                       = errors.New("connection monitor is already running")
 	errExchangeConfigIsNil                  = errors.New("exchange config is nil")
 	errWebsocketIsNil                       = errors.New("websocket is nil")
@@ -265,7 +261,7 @@ func (w *Websocket) Connect() error {
 	defer w.m.Unlock()
 
 	if !w.IsEnabled() {
-		return errors.New(WebsocketNotEnabled)
+		return ErrWebsocketNotEnabled
 	}
 	if w.IsConnecting() {
 		return fmt.Errorf("%v %w", w.exchangeName, errAlreadyReconnecting)
@@ -490,7 +486,7 @@ func (w *Websocket) Shutdown() error {
 // FlushChannels flushes channel subscriptions when there is a pair/asset change
 func (w *Websocket) FlushChannels() error {
 	if !w.IsEnabled() {
-		return fmt.Errorf("%s websocket: service not enabled", w.exchangeName)
+		return fmt.Errorf("%s %w", w.exchangeName, ErrWebsocketNotEnabled)
 	}
 
 	if !w.IsConnected() {

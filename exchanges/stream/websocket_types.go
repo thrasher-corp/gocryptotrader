@@ -15,8 +15,6 @@ import (
 
 // Websocket functionality list and state consts
 const (
-	// WebsocketNotEnabled alerts of a disabled websocket
-	WebsocketNotEnabled                = "exchange_websocket_not_enabled"
 	WebsocketNotAuthenticatedUsingRest = "%v - Websocket not authenticated, using REST\n"
 	Ping                               = "ping"
 	Pong                               = "pong"

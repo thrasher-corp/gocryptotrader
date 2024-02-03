@@ -201,105 +201,62 @@ func TestTrafficMonitorTimeout(t *testing.T) {
 
 func TestIsDisconnectionError(t *testing.T) {
 	t.Parallel()
-	isADisconnectionError := IsDisconnectionError(errors.New("errorText"))
-	if isADisconnectionError {
-		t.Error("Its not")
-	}
-	isADisconnectionError = IsDisconnectionError(&websocket.CloseError{
-		Code: 1006,
-		Text: "errorText",
-	})
-	if !isADisconnectionError {
-		t.Error("It is")
-	}
-
-	isADisconnectionError = IsDisconnectionError(&net.OpError{
-		Err: errClosedConnection,
-	})
-	if isADisconnectionError {
-		t.Error("It's not")
-	}
-
-	isADisconnectionError = IsDisconnectionError(&net.OpError{
-		Err: errors.New("errText"),
-	})
-	if !isADisconnectionError {
-		t.Error("It is")
-	}
+	assert.False(t, IsDisconnectionError(errors.New("errorText")), "IsDisconnectionError should return false")
+	assert.True(t, IsDisconnectionError(&websocket.CloseError{Code: 1006, Text: "errorText"}), "IsDisconnectionError should return true")
+	assert.False(t, IsDisconnectionError(&net.OpError{Err: errClosedConnection}), "IsDisconnectionError should return false")
+	assert.True(t, IsDisconnectionError(&net.OpError{Err: errors.New("errText")}), "IsDisconnectionError should return true")
 }
 
 func TestConnectionMessageErrors(t *testing.T) {
 	t.Parallel()
 	var wsWrong = &Websocket{}
 	err := wsWrong.Connect()
-	if err == nil {
-		t.Fatal("error cannot be nil")
-	}
+	assert.ErrorIs(t, err, errNoConnectFunc, "Connect should error correctly")
 
 	wsWrong.connector = func() error { return nil }
 	err = wsWrong.Connect()
-	if err == nil {
-		t.Fatal("error cannot be nil")
-	}
+	assert.ErrorIs(t, err, ErrWebsocketNotEnabled, "Connect should error correctly")
 
 	wsWrong.setEnabled(true)
 	wsWrong.setState(connecting)
 	wsWrong.Wg = &sync.WaitGroup{}
 	err = wsWrong.Connect()
-	if err == nil {
-		t.Fatal("error cannot be nil")
-	}
+	assert.ErrorIs(t, err, errAlreadyReconnecting, "Connect should error correctly")
 
 	wsWrong.setState(disconnected)
-	wsWrong.connector = func() error { return errors.New("edge case error of dooooooom") }
+	wsWrong.connector = func() error { return errDastardlyReason }
 	err = wsWrong.Connect()
-	if err == nil {
-		t.Fatal("error cannot be nil")
-	}
+	assert.ErrorIs(t, err, errDastardlyReason, "Connect should error correctly")
 
 	ws := NewWebsocket()
 	err = ws.Setup(defaultSetup)
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err, "Setup must not error")
 	ws.trafficTimeout = time.Minute
 	ws.connector = func() error { return nil }
 
 	err = ws.Connect()
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err, "Connect must not error")
 
 	ws.TrafficAlert <- struct{}{}
 
-	timer := time.NewTimer(900 * time.Millisecond)
-	ws.ReadMessageErrors <- errors.New("errorText")
-	select {
-	case err := <-ws.ToRoutine:
-		errText, ok := err.(error)
-		if !ok {
-			t.Error("unable to type assert error")
-		} else if errText.Error() != "errorText" {
-			t.Errorf("Expected 'errorText', received %v", err)
-		}
-	case <-timer.C:
-		t.Error("Timeout waiting for datahandler to receive error")
-	}
-	ws.ReadMessageErrors <- &websocket.CloseError{
-		Code: 1006,
-		Text: "errorText",
-	}
-outer:
-	for {
+	c := func(tb *assert.CollectT) {
 		select {
-		case err := <-ws.ToRoutine:
-			if _, ok := err.(*websocket.CloseError); !ok {
-				t.Errorf("Error is not a disconnection error: %v", err)
+		case v := <-ws.ToRoutine:
+			switch err := v.(type) {
+			case *websocket.CloseError:
+				assert.Equal(tb, "SpecialText", err.Text, "Should get correct Close Error")
+			case error:
+				assert.ErrorIs(tb, err, errDastardlyReason, "Should get the correct error")
 			}
-		case <-timer.C:
-			break outer
+		default:
 		}
 	}
+
+	ws.ReadMessageErrors <- errDastardlyReason
+	assert.EventuallyWithT(t, c, 900*time.Millisecond, 10*time.Millisecond, "Should get an error down the routine")
+
+	ws.ReadMessageErrors <- &websocket.CloseError{Code: 1006, Text: "SpecialText"}
+	assert.EventuallyWithT(t, c, 900*time.Millisecond, 10*time.Millisecond, "Should get an error down the routine")
 }
 
 func TestWebsocket(t *testing.T) {
@@ -1041,9 +998,7 @@ func TestFlushChannels(t *testing.T) {
 
 	dodgyWs := Websocket{}
 	err := dodgyWs.FlushChannels()
-	if err == nil {
-		t.Fatal("error cannot be nil")
-	}
+	assert.ErrorIs(t, err, ErrWebsocketNotEnabled, "FlushChannels should error correctly")
 
 	dodgyWs.setEnabled(true)
 	err = dodgyWs.FlushChannels()
