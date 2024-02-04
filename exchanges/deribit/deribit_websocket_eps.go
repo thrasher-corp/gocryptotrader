@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
-	"reflect"
 	"strings"
 	"time"
 
@@ -544,7 +543,7 @@ func (d *Deribit) WSRetrieveVolatilityIndexData(symbol, resolution string, start
 		EndTimestamp:   endTime.UnixMilli(),
 	}
 	var resp VolatilityIndexRawData
-	err = d.SendWSRequest(nonMatchingEPL, getVolatilityIndexData, input, &resp, false)
+	err = d.SendWSRequest(nonMatchingEPL, getVolatilityIndex, input, &resp, false)
 	if err != nil {
 		return nil, err
 	}
@@ -2115,7 +2114,7 @@ func (d *Deribit) WsDisableCancelOnDisconnect(scope string) (string, error) {
 
 // SayHello method used to introduce the client software connected to Deribit platform over websocket.
 // It returns version information
-func (d *Deribit) SayHello(clientName, clientVersion string) (*DeribitInfo, error) {
+func (d *Deribit) SayHello(clientName, clientVersion string) (*Info, error) {
 	if clientName == "" {
 		return nil, errors.New("client name is required")
 	}
@@ -2126,7 +2125,7 @@ func (d *Deribit) SayHello(clientName, clientVersion string) (*DeribitInfo, erro
 		ClientName:    clientName,
 		ClientVersion: clientVersion,
 	}
-	var resp *DeribitInfo
+	var resp *Info
 	return resp, d.SendWSRequest(nonMatchingEPL, "public/hello", input, &resp, false)
 }
 
@@ -2187,8 +2186,8 @@ func (d *Deribit) UnsubscribeAll() (string, error) {
 	return resp, d.SendWSRequest(nonMatchingEPL, "public/unsubscribe_all", nil, &resp, false)
 }
 
-// PrivateUnsubscribeAll
-func (d *Deribit) PrivateUnsubscribeAll() (string, error) {
+// UnsubscribeAllPrivateChannels sends an unsubscribe request to cancel all private channels subscriptions
+func (d *Deribit) UnsubscribeAllPrivateChannels() (string, error) {
 	var resp string
 	return resp, d.SendWSRequest(nonMatchingEPL, "private/unsubscribe_all", nil, &resp, false)
 }
@@ -2419,10 +2418,6 @@ func (d *Deribit) WsSimulateBlockTrade(role string, trades []BlockTradeParam) (b
 // SendWSRequest sends a request through the websocket connection.
 // both authenticated and public endpoints are allowed.
 func (d *Deribit) SendWSRequest(epl request.EndpointLimit, method string, params, response interface{}, authenticated bool) error {
-	respVal := reflect.ValueOf(response)
-	if respVal.Kind() != reflect.Pointer {
-		return errInvalidResponseReceiver
-	}
 	if authenticated && !d.Websocket.CanUseAuthenticatedEndpoints() {
 		return errWebsocketConnectionNotAuthenticated
 	}

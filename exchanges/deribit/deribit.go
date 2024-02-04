@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
-	"reflect"
 	"strconv"
 	"strings"
 	"time"
@@ -59,7 +58,7 @@ const (
 	getRFQ                           = "public/get_rfqs"
 	getTradeVolumes                  = "public/get_trade_volumes"
 	getTradingViewChartData          = "public/get_tradingview_chart_data"
-	getVolatilityIndexData           = "public/get_volatility_index_data"
+	getVolatilityIndex               = "public/get_volatility_index_data"
 	getTicker                        = "public/ticker"
 
 	// Authenticated endpoints
@@ -336,8 +335,8 @@ func (d *Deribit) GetIndexPriceNames(ctx context.Context) ([]string, error) {
 	return resp, d.SendHTTPRequest(ctx, exchange.RestFutures, nonMatchingEPL, getIndexPriceNames, &resp)
 }
 
-// GetInstrumentData gets data for a requested instrument
-func (d *Deribit) GetInstrumentData(ctx context.Context, instrument string) (*InstrumentData, error) {
+// GetInstrument retrieves instrument detail
+func (d *Deribit) GetInstrument(ctx context.Context, instrument string) (*InstrumentData, error) {
 	params, err := checkInstrument(instrument)
 	if err != nil {
 		return nil, err
@@ -347,8 +346,8 @@ func (d *Deribit) GetInstrumentData(ctx context.Context, instrument string) (*In
 		common.EncodeURLValues(getInstrument, params), &resp)
 }
 
-// GetInstrumentsData gets data for all available instruments
-func (d *Deribit) GetInstrumentsData(ctx context.Context, ccy, kind string, expired bool) ([]InstrumentData, error) {
+// GetInstruments gets data for all available instruments
+func (d *Deribit) GetInstruments(ctx context.Context, ccy, kind string, expired bool) ([]InstrumentData, error) {
 	if ccy == "" {
 		return nil, fmt.Errorf("%w '%s'", errInvalidCurrency, strings.ToUpper(ccy))
 	}
@@ -543,8 +542,8 @@ func checkInstrument(instrumentName string) (url.Values, error) {
 	return params, nil
 }
 
-// GetOrderbookData gets data orderbook of requested instrument
-func (d *Deribit) GetOrderbookData(ctx context.Context, instrument string, depth int64) (*Orderbook, error) {
+// GetOrderbook gets data orderbook of requested instrument
+func (d *Deribit) GetOrderbook(ctx context.Context, instrument string, depth int64) (*Orderbook, error) {
 	params, err := checkInstrument(instrument)
 	if err != nil {
 		return nil, err
@@ -607,8 +606,8 @@ func (d *Deribit) GetTradeVolumes(ctx context.Context, extended bool) ([]TradeVo
 		common.EncodeURLValues(getTradeVolumes, params), &resp)
 }
 
-// GetTradingViewChartData gets volatility index data for the requested instrument
-func (d *Deribit) GetTradingViewChartData(ctx context.Context, instrument, resolution string, startTime, endTime time.Time) (*TVChartData, error) {
+// GetTradingViewChart gets volatility index data for the requested instrument
+func (d *Deribit) GetTradingViewChart(ctx context.Context, instrument, resolution string, startTime, endTime time.Time) (*TVChartData, error) {
 	params, err := checkInstrument(instrument)
 	if err != nil {
 		return nil, err
@@ -664,8 +663,8 @@ func (d *Deribit) GetResolutionFromInterval(interval kline.Interval) (string, er
 	}
 }
 
-// GetVolatilityIndexData gets volatility index data for the requested currency
-func (d *Deribit) GetVolatilityIndexData(ctx context.Context, ccy, resolution string, startTime, endTime time.Time) ([]VolatilityIndexData, error) {
+// GetVolatilityIndex gets volatility index for the requested currency
+func (d *Deribit) GetVolatilityIndex(ctx context.Context, ccy, resolution string, startTime, endTime time.Time) ([]VolatilityIndexData, error) {
 	if ccy == "" {
 		return nil, fmt.Errorf("%w '%s'", errInvalidCurrency, ccy)
 	}
@@ -683,7 +682,7 @@ func (d *Deribit) GetVolatilityIndexData(ctx context.Context, ccy, resolution st
 	params.Set("resolution", resolution)
 	var resp VolatilityIndexRawData
 	err = d.SendHTTPRequest(ctx, exchange.RestFutures, nonMatchingEPL,
-		common.EncodeURLValues(getVolatilityIndexData, params), &resp)
+		common.EncodeURLValues(getVolatilityIndex, params), &resp)
 	if err != nil {
 		return nil, err
 	}
@@ -712,10 +711,6 @@ func (d *Deribit) GetPublicTicker(ctx context.Context, instrument string) (*Tick
 
 // SendHTTPRequest sends an unauthenticated HTTP request
 func (d *Deribit) SendHTTPRequest(ctx context.Context, ep exchange.URL, epl request.EndpointLimit, path string, result interface{}) error {
-	respVal := reflect.ValueOf(result)
-	if respVal.Kind() != reflect.Pointer {
-		return errInvalidResponseReceiver
-	}
 	endpoint, err := d.API.Endpoints.GetURL(ep)
 	if err != nil {
 		return err
@@ -2236,10 +2231,6 @@ func (d *Deribit) GetSettlementHistoryByCurency(ctx context.Context, ccy, settle
 
 // SendHTTPAuthRequest sends an authenticated request to deribit api
 func (d *Deribit) SendHTTPAuthRequest(ctx context.Context, ep exchange.URL, epl request.EndpointLimit, method, path string, params url.Values, result interface{}) error {
-	respVal := reflect.ValueOf(result)
-	if respVal.Kind() != reflect.Pointer {
-		return errInvalidResponseReceiver
-	}
 	endpoint, err := d.API.Endpoints.GetURL(ep)
 	if err != nil {
 		return err

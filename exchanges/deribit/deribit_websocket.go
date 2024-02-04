@@ -189,7 +189,6 @@ func (d *Deribit) wsHandleData(respRaw []byte) error {
 		return d.Websocket.Conn.SendJSONMessage(pingMessage)
 	}
 	if response.ID > 2 {
-		println(string(respRaw))
 		if !d.Websocket.Match.IncomingWithData(response.ID, respRaw) {
 			return fmt.Errorf("can't send ws incoming data to Matched channel with RequestID: %d", response.ID)
 		}
@@ -1222,12 +1221,10 @@ func (d *Deribit) Unsubscribe(channelsToUnsubscribe []subscription.Subscription)
 }
 
 func (d *Deribit) handleSubscription(operation string, channels []subscription.Subscription) error {
-	println("Channels: ", len(channels))
 	payloads, err := d.generatePayloadFromSubscriptionInfos(operation, channels)
 	if err != nil {
 		return err
 	}
-	println("Payloads: ", len(payloads))
 	for x := range payloads {
 		data, err := d.Websocket.Conn.SendMessageReturnResponse(payloads[x].ID, payloads[x])
 		if err != nil {

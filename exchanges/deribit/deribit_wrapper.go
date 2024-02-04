@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/shopspring/decimal"
@@ -209,39 +208,6 @@ func (d *Deribit) Setup(exch *config.Exchange) error {
 	})
 }
 
-// Start starts the Deribit go routine
-func (d *Deribit) Start(ctx context.Context, wg *sync.WaitGroup) error {
-	if wg == nil {
-		return common.ErrNilPointer
-	}
-	wg.Add(1)
-	go func() {
-		d.Run(ctx)
-		wg.Done()
-	}()
-	return nil
-}
-
-// Run implements the Deribit wrapper
-func (d *Deribit) Run(ctx context.Context) {
-	if d.Verbose {
-		log.Debugf(log.ExchangeSys,
-			"%s Websocket: %s.",
-			d.Name,
-			common.IsEnabled(d.Websocket.IsEnabled()))
-		d.PrintEnabledPairs()
-	}
-	if !d.GetEnabledFeatures().AutoPairUpdates {
-		return
-	}
-	if err := d.UpdateTradablePairs(ctx, true); err != nil {
-		log.Errorf(log.ExchangeSys,
-			"%s failed to update tradable pairs. Err: %s",
-			d.Name,
-			err)
-	}
-}
-
 // FetchTradablePairs returns a list of the exchanges tradable pairs
 func (d *Deribit) FetchTradablePairs(ctx context.Context, assetType asset.Item) (currency.Pairs, error) {
 	if !d.SupportsAsset(assetType) {
@@ -254,7 +220,7 @@ func (d *Deribit) FetchTradablePairs(ctx context.Context, assetType asset.Item) 
 		if d.Websocket.IsConnected() {
 			instrumentsData, err = d.WSRetrieveInstrumentsData(x, d.GetAssetKind(assetType), false)
 		} else {
-			instrumentsData, err = d.GetInstrumentsData(ctx, x, d.GetAssetKind(assetType), false)
+			instrumentsData, err = d.GetInstruments(ctx, x, d.GetAssetKind(assetType), false)
 		}
 		if err != nil {
 			return nil, err
@@ -374,7 +340,7 @@ func (d *Deribit) UpdateOrderbook(ctx context.Context, p currency.Pair, assetTyp
 	if d.Websocket.IsConnected() {
 		obData, err = d.WSRetrieveOrderbookData(instrumentID, 50)
 	} else {
-		obData, err = d.GetOrderbookData(ctx, instrumentID, 50)
+		obData, err = d.GetOrderbook(ctx, instrumentID, 50)
 	}
 	if err != nil {
 		return nil, err
@@ -385,19 +351,25 @@ func (d *Deribit) UpdateOrderbook(ctx context.Context, p currency.Pair, assetTyp
 		Asset:           assetType,
 		VerifyOrderbook: d.CanVerifyOrderbook,
 	}
-	book.Asks = make([]orderbook.Item, len(obData.Asks))
+	book.Asks = []orderbook.Item{}
 	for x := range book.Asks {
-		book.Asks[x] = orderbook.Item{
+		if obData.Asks[x][0] == 0 {
+			continue
+		}
+		book.Asks = append(book.Asks, orderbook.Item{
 			Price:  obData.Asks[x][0],
 			Amount: obData.Asks[x][1],
-		}
+		})
 	}
-	book.Bids = make([]orderbook.Item, len(obData.Bids))
+	book.Bids = []orderbook.Item{}
 	for x := range book.Bids {
-		book.Bids[x] = orderbook.Item{
+		if obData.Bids[x][0] == 0 {
+			continue
+		}
+		book.Bids = append(book.Bids, orderbook.Item{
 			Price:  obData.Bids[x][0],
 			Amount: obData.Bids[x][1],
-		}
+		})
 	}
 	err = book.Process()
 	if err != nil {
@@ -1118,7 +1090,7 @@ func (d *Deribit) GetHistoricCandles(ctx context.Context, pair currency.Pair, a 
 		if d.Websocket.IsConnected() {
 			tradingViewData, err = d.WSRetrievesTradingViewChartData(d.formatFuturesTradablePair(req.RequestFormatted), intervalString, start, end)
 		} else {
-			tradingViewData, err = d.GetTradingViewChartData(ctx, d.formatFuturesTradablePair(req.RequestFormatted), intervalString, start, end)
+			tradingViewData, err = d.GetTradingViewChart(ctx, d.formatFuturesTradablePair(req.RequestFormatted), intervalString, start, end)
 		}
 		if err != nil {
 			return nil, err
@@ -1169,7 +1141,7 @@ func (d *Deribit) GetHistoricCandlesExtended(ctx context.Context, pair currency.
 			if d.Websocket.IsConnected() {
 				tradingViewData, err = d.WSRetrievesTradingViewChartData(d.formatFuturesTradablePair(req.RequestFormatted), intervalString, req.RangeHolder.Ranges[x].Start.Time, req.RangeHolder.Ranges[x].End.Time)
 			} else {
-				tradingViewData, err = d.GetTradingViewChartData(ctx, d.formatFuturesTradablePair(req.RequestFormatted), intervalString, req.RangeHolder.Ranges[x].Start.Time, req.RangeHolder.Ranges[x].End.Time)
+				tradingViewData, err = d.GetTradingViewChart(ctx, d.formatFuturesTradablePair(req.RequestFormatted), intervalString, req.RangeHolder.Ranges[x].Start.Time, req.RangeHolder.Ranges[x].End.Time)
 			}
 			if err != nil {
 				return nil, err
@@ -1272,7 +1244,7 @@ func (d *Deribit) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) 
 		if d.Websocket.IsConnected() {
 			instrumentsData, err = d.WSRetrieveInstrumentsData(x, d.GetAssetKind(a), false)
 		} else {
-			instrumentsData, err = d.GetInstrumentsData(ctx, x, d.GetAssetKind(a), false)
+			instrumentsData, err = d.GetInstruments(ctx, x, d.GetAssetKind(a), false)
 		}
 		if err != nil {
 			return err

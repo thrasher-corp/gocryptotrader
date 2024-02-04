@@ -41,7 +41,6 @@ var (
 	errInvalidID                           = errors.New("invalid id")
 	errInvalidEmailAddress                 = errors.New("invalid email address")
 	errMalformedData                       = errors.New("malformed data")
-	errInvalidResponseReceiver             = errors.New("invalid response receiver; must be a non nil pointer")
 	errWebsocketConnectionNotAuthenticated = errors.New("websocket connection is not authenticated")
 	errResolutionNotSet                    = errors.New("resolution not set")
 	errInvalidDestinationID                = errors.New("invalid destination address")
@@ -91,7 +90,7 @@ type BookSummaryData struct {
 	BaseCurrency           string               `json:"base_currency"`
 	Funding8H              float64              `json:"funding_8h,omitempty"`
 	CurrentFunding         float64              `json:"current_funding,omitempty"`
-	UnderlyingIndex        float64              `json:"underlying_index"`
+	UnderlyingIndex        string               `json:"underlying_index"`
 	UnderlyingPrice        float64              `json:"underlying_price"`
 	VolumeNotional         float64              `json:"volume_notional"`
 }
@@ -1492,7 +1491,6 @@ func (a *OrderCancelationResponse) UnmarshalJSON(data []byte) error {
 	if err != nil {
 		err = json.Unmarshal(data, &a.CancelResponse)
 		if err != nil {
-			println(err.Error())
 			return err
 		}
 		a.CancelCount = len(a.CancelResponse.Result)
@@ -1517,8 +1515,8 @@ type LockedCurrenciesStatus struct {
 	Locked           string   `json:"locked"`
 }
 
-// DeribitInfo holds deribit version
-type DeribitInfo struct {
+// Info holds version information
+type Info struct {
 	Version string `json:"version"`
 }
 
