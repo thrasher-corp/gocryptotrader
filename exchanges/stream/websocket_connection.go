@@ -272,7 +272,7 @@ func (w *WebsocketConnection) parseBinaryResponse(resp []byte) ([]byte, error) {
 	return standardMessage, reader.Close()
 }
 
-// GenerateMessageID Creates a messageID to checkout
+// GenerateMessageID Creates a random message ID
 func (w *WebsocketConnection) GenerateMessageID(highPrec bool) int64 {
 	var min int64 = 1e8
 	var max int64 = 2e8

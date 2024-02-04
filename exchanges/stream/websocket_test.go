@@ -801,13 +801,12 @@ func TestCanUseAuthenticatedWebsocketForWrapper(t *testing.T) {
 func TestGenerateMessageID(t *testing.T) {
 	t.Parallel()
 	wc := WebsocketConnection{}
-	var id int64
-	for i := 0; i < 10; i++ {
-		newID := wc.GenerateMessageID(true)
-		if id == newID {
-			t.Fatal("ID generation is not unique")
-		}
-		id = newID
+	const spins = 1000
+	ids := make([]int64, spins)
+	for i := 0; i < spins; i++ {
+		id := wc.GenerateMessageID(true)
+		assert.NotContains(t, ids, id, "GenerateMessageID must not generate the same ID twice")
+		ids[i] = id
 	}
 }
 
