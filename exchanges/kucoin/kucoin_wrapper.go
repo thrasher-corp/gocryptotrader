@@ -330,6 +330,7 @@ func (ku *Kucoin) UpdateTicker(ctx context.Context, p currency.Pair, assetType a
 
 // UpdateTickers updates all currency pairs of a given asset type
 func (ku *Kucoin) UpdateTickers(ctx context.Context, assetType asset.Item) error {
+	var errs error
 	switch assetType {
 	case asset.Futures:
 		ticks, err := ku.GetFuturesOpenContracts(ctx)
@@ -360,10 +361,9 @@ func (ku *Kucoin) UpdateTickers(ctx context.Context, assetType asset.Item) error
 				AssetType:    assetType,
 			})
 			if err != nil {
-				return err
+				errs = common.AppendError(errs, err)
 			}
 		}
-		return nil
 	case asset.Spot, asset.Margin:
 		ticks, err := ku.GetTickers(ctx)
 		if err != nil {
@@ -395,14 +395,14 @@ func (ku *Kucoin) UpdateTickers(ctx context.Context, assetType asset.Item) error
 					LastUpdated:  ticks.Time.Time(),
 				})
 				if err != nil {
-					return err
+					errs = common.AppendError(errs, err)
 				}
 			}
 		}
 	default:
 		return fmt.Errorf("%w %v", asset.ErrNotSupported, assetType)
 	}
-	return nil
+	return errs
 }
 
 // FetchTicker returns the ticker for a currency pair
