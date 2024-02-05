@@ -478,9 +478,7 @@ func (ku *Kucoin) UpdateOrderbook(ctx context.Context, pair currency.Pair, asset
 
 // UpdateAccountInfo retrieves balances for all enabled currencies
 func (ku *Kucoin) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
-	holding := account.Holdings{
-		Exchange: ku.Name,
-	}
+	holding := account.Holdings{Exchange: ku.Name}
 	err := ku.CurrencyPairs.IsAssetEnabled(assetType)
 	if err != nil {
 		return holding, fmt.Errorf("%w %v", asset.ErrNotSupported, assetType)
