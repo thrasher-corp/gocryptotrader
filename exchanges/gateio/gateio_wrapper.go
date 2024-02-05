@@ -1086,7 +1086,7 @@ func (g *Gateio) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Submi
 		fOrder, err := g.PlaceFuturesOrder(ctx, &OrderCreateParams{
 			Contract:    s.Pair,
 			Size:        amountWithDirection,
-			Price:       types.Number(s.Price),
+			Price:       strconv.FormatFloat(s.Price, 'f', -1, 64), // Cannot be an empty string, requires "0" for market orders.
 			Settle:      settle,
 			ReduceOnly:  s.ReduceOnly,
 			TimeInForce: timeInForce,
@@ -1098,7 +1098,12 @@ func (g *Gateio) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Submi
 		if err != nil {
 			return nil, err
 		}
-		status, err := order.StringToOrderStatus(fOrder.Status)
+		var status order.Status
+		if s.Type == order.Market {
+			status, err = order.StringToOrderStatus(fOrder.FinishAs)
+		} else {
+			status, err = order.StringToOrderStatus(fOrder.Status)
+		}
 		if err != nil {
 			return nil, err
 		}
@@ -1109,6 +1114,7 @@ func (g *Gateio) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Submi
 		response.ReduceOnly = fOrder.IsReduceOnly
 		response.Amount = math.Abs(fOrder.Size)
 		response.Price = fOrder.OrderPrice.Float64()
+		response.AverageExecutedPrice = fOrder.FillPrice.Float64()
 		return response, nil
 	case asset.DeliveryFutures:
 		settle, err := g.getSettlementFromCurrency(s.Pair, false)
@@ -1128,7 +1134,7 @@ func (g *Gateio) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Submi
 		newOrder, err := g.PlaceDeliveryOrder(ctx, &OrderCreateParams{
 			Contract:    s.Pair,
 			Size:        amountWithDirection,
-			Price:       types.Number(s.Price),
+			Price:       strconv.FormatFloat(s.Price, 'f', -1, 64), // Cannot be an empty string, requires "0" for market orders.
 			Settle:      settle,
 			ReduceOnly:  s.ReduceOnly,
 			TimeInForce: timeInForce,
@@ -1141,7 +1147,12 @@ func (g *Gateio) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Submi
 		if err != nil {
 			return nil, err
 		}
-		status, err := order.StringToOrderStatus(newOrder.Status)
+		var status order.Status
+		if s.Type == order.Market {
+			status, err = order.StringToOrderStatus(newOrder.FinishAs)
+		} else {
+			status, err = order.StringToOrderStatus(newOrder.Status)
+		}
 		if err != nil {
 			return nil, err
 		}
@@ -1151,6 +1162,7 @@ func (g *Gateio) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Submi
 		response.ClientOrderID = newOrder.Text
 		response.Amount = math.Abs(newOrder.Size)
 		response.Price = newOrder.OrderPrice.Float64()
+		response.AverageExecutedPrice = newOrder.FillPrice.Float64()
 		return response, nil
 	case asset.Options:
 		optionOrder, err := g.PlaceOptionOrder(ctx, OptionOrderParam{
@@ -1732,24 +1744,25 @@ func (g *Gateio) GetActiveOrders(ctx context.Context, req *order.MultiOrderReque
 					futuresOrders[x].RemainingAmount = math.Abs(futuresOrders[x].RemainingAmount)
 				}
 				orders = append(orders, order.Detail{
-					Status:             status,
-					Amount:             futuresOrders[x].Size,
-					ContractAmount:     futuresOrders[x].Size,
-					Pair:               pair,
-					OrderID:            strconv.FormatInt(futuresOrders[x].ID, 10),
-					Price:              futuresOrders[x].OrderPrice.Float64(),
-					ExecutedAmount:     futuresOrders[x].Size - futuresOrders[x].RemainingAmount,
-					RemainingAmount:    futuresOrders[x].RemainingAmount,
-					LastUpdated:        futuresOrders[x].FinishTime.Time(),
-					Date:               futuresOrders[x].CreateTime.Time(),
-					ExecutionNote:      futuresOrders[x].Text,
-					Exchange:           g.Name,
-					AssetType:          req.AssetType,
-					Side:               side,
-					Type:               order.Limit,
-					SettlementCurrency: currency.NewCode(key),
-					ReduceOnly:         futuresOrders[x].IsReduceOnly,
-					PostOnly:           futuresOrders[x].TimeInForce == "poc",
+					Status:               status,
+					Amount:               futuresOrders[x].Size,
+					ContractAmount:       futuresOrders[x].Size,
+					Pair:                 pair,
+					OrderID:              strconv.FormatInt(futuresOrders[x].ID, 10),
+					Price:                futuresOrders[x].OrderPrice.Float64(),
+					ExecutedAmount:       futuresOrders[x].Size - futuresOrders[x].RemainingAmount,
+					RemainingAmount:      futuresOrders[x].RemainingAmount,
+					LastUpdated:          futuresOrders[x].FinishTime.Time(),
+					Date:                 futuresOrders[x].CreateTime.Time(),
+					ExecutionNote:        futuresOrders[x].Text,
+					Exchange:             g.Name,
+					AssetType:            req.AssetType,
+					Side:                 side,
+					Type:                 order.Limit,
+					SettlementCurrency:   currency.NewCode(key),
+					ReduceOnly:           futuresOrders[x].IsReduceOnly,
+					PostOnly:             futuresOrders[x].TimeInForce == "poc",
+					AverageExecutedPrice: futuresOrders[x].FillPrice.Float64(),
 				})
 			}
 		}

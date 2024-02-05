@@ -21,7 +21,7 @@ const (
 	gtcTIF = "gtc" // good-'til-canceled
 	iocTIF = "ioc" // immediate-or-cancel
 	pocTIF = "poc"
-	focTIF = "foc" // fill-or-kill
+	fokTIF = "fok" // fill-or-kill
 
 	// frequently used order Status
 
@@ -1797,7 +1797,7 @@ type OrderCreateParams struct {
 	Contract      currency.Pair `json:"contract"`
 	Size          float64       `json:"size"`
 	Iceberg       int64         `json:"iceberg"`
-	Price         types.Number  `json:"price,omitempty"`
+	Price         string        `json:"price,omitempty"` // NOTE: Market orders require string "0"
 	TimeInForce   string        `json:"tif,omitempty"`
 	Text          string        `json:"text,omitempty"`
 	ClosePosition bool          `json:"close,omitempty"`

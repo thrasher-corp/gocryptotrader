@@ -164,6 +164,7 @@ var (
 	errInvalidSubAccountUserID       = errors.New("sub-account user id is required")
 	errCannotParseSettlementCurrency = errors.New("cannot derive settlement currency")
 	errMissingAPIKey                 = errors.New("missing API key information")
+	errInvalidTextValue              = errors.New("invalid text value, needs prefix `-t`")
 )
 
 // Gateio is the overarching type across this package
@@ -2329,11 +2330,14 @@ func (g *Gateio) PlaceFuturesOrder(ctx context.Context, arg *OrderCreateParams) 
 	if arg.Size == 0 {
 		return nil, fmt.Errorf("%w, specify positive number to make a bid, and negative number to ask", errInvalidOrderSide)
 	}
-	if arg.TimeInForce != gtcTIF && arg.TimeInForce != iocTIF && arg.TimeInForce != pocTIF && arg.TimeInForce != focTIF {
+	if arg.TimeInForce != gtcTIF && arg.TimeInForce != iocTIF && arg.TimeInForce != pocTIF && arg.TimeInForce != fokTIF {
 		return nil, errInvalidTimeInForce
 	}
-	if arg.Price < 0 {
+	if arg.Price == "" {
 		return nil, errInvalidPrice
+	}
+	if arg.Price == "0" && arg.TimeInForce != iocTIF && arg.TimeInForce != fokTIF {
+		return nil, errInvalidTimeInForce
 	}
 	if arg.AutoSize != "" && (arg.AutoSize == "close_long" || arg.AutoSize == "close_short") {
 		return nil, errInvalidAutoSizeValue
@@ -2428,17 +2432,17 @@ func (g *Gateio) PlaceBatchFuturesOrders(ctx context.Context, settle string, arg
 		if args[x].TimeInForce != gtcTIF &&
 			args[x].TimeInForce != iocTIF &&
 			args[x].TimeInForce != pocTIF &&
-			args[x].TimeInForce != focTIF {
+			args[x].TimeInForce != fokTIF {
 			return nil, errInvalidTimeInForce
 		}
-		if args[x].Price > 0 && args[x].TimeInForce == iocTIF {
-			args[x].Price = 0
-		}
-		if args[x].Price < 0 {
+		if args[x].Price == "" {
 			return nil, errInvalidPrice
 		}
+		if args[x].Price == "0" && args[x].TimeInForce != iocTIF && args[x].TimeInForce != fokTIF {
+			return nil, errInvalidTimeInForce
+		}
 		if args[x].Text != "" && !strings.HasPrefix(args[x].Text, "t-") {
-			args[x].Text = "t-" + args[x].Text
+			return nil, errInvalidTextValue
 		}
 		if args[x].AutoSize != "" && (args[x].AutoSize == "close_long" || args[x].AutoSize == "close_short") {
 			return nil, errInvalidAutoSizeValue
@@ -2960,10 +2964,10 @@ func (g *Gateio) PlaceDeliveryOrder(ctx context.Context, arg *OrderCreateParams)
 	if arg.Size == 0 {
 		return nil, fmt.Errorf("%w, specify positive number to make a bid, and negative number to ask", errInvalidOrderSide)
 	}
-	if arg.TimeInForce != gtcTIF && arg.TimeInForce != iocTIF && arg.TimeInForce != pocTIF && arg.TimeInForce != focTIF {
+	if arg.TimeInForce != gtcTIF && arg.TimeInForce != iocTIF && arg.TimeInForce != pocTIF && arg.TimeInForce != fokTIF {
 		return nil, errInvalidTimeInForce
 	}
-	if arg.Price < 0 {
+	if arg.Price == "" {
 		return nil, errInvalidPrice
 	}
 	if arg.AutoSize != "" && (arg.AutoSize == "close_long" || arg.AutoSize == "close_short") {
