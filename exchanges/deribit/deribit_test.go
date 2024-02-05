@@ -7,6 +7,7 @@ import (
 	"log"
 	"os"
 	"strconv"
+	"sync"
 	"testing"
 	"time"
 
@@ -37,6 +38,7 @@ var (
 	d                                                                                                            = &Deribit{}
 	futuresTradablePair, optionsTradablePair, optionComboTradablePair, futureComboTradablePair, spotTradablePair currency.Pair
 	fetchTradablePairChan                                                                                        chan struct{}
+	tradablePairsFetchedStatusLock                                                                               = sync.Mutex{}
 	tradablePairsFetched                                                                                         bool
 )
 
@@ -2275,15 +2277,20 @@ func instantiateTradablePairs() {
 			log.Fatalf("enabled %v for asset type %v", currency.ErrCurrencyPairsEmpty, asset.FutureCombo)
 		}
 		futureComboTradablePair = tradablePair[0]
+		tradablePairsFetchedStatusLock.Lock()
 		tradablePairsFetched = true
+		tradablePairsFetchedStatusLock.Unlock()
 		close(tpfChan)
 	}(fetchTradablePairChan)
 }
 
 func sleepUntilTradablePairsUpdated() {
+	tradablePairsFetchedStatusLock.Lock()
 	if tradablePairsFetched {
+		tradablePairsFetchedStatusLock.Unlock()
 		return
 	}
+	tradablePairsFetchedStatusLock.Unlock()
 	<-fetchTradablePairChan
 }
 
