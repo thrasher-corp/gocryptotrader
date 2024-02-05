@@ -2039,7 +2039,8 @@ func (ku *Kucoin) SynchroniseFees(ctx context.Context, a asset.Item) error {
 			break
 		}
 
-		batch, err := ku.GetTradingFee(ctx, enabled[left:right])
+		var batch []Fees
+		batch, err = ku.GetTradingFee(ctx, enabled[left:right])
 		if err != nil {
 			return err
 		}
@@ -2056,13 +2057,10 @@ func (ku *Kucoin) SynchroniseFees(ctx context.Context, a asset.Item) error {
 		if !enabled.Contains(pair, true) {
 			continue
 		}
-		fee.Load(ku.Name, pair, a, fees[x].MakerFeeRate, fees[x].TakerFeeRate)
+		err = fee.Load(ku.Name, pair, a, fees[x].MakerFeeRate, fees[x].TakerFeeRate)
+		if err != nil {
+			return err
+		}
 	}
 	return nil
-}
-
-// GetPercentageFeeRates returns the maker and taker percentage fee rates for
-// the asset.
-func (ku *Kucoin) GetPercentageFeeRates(pair currency.Pair, a asset.Item) (fee.Rates, error) {
-	return fee.RetrievePercentageRates(ku.Name, pair, a)
 }

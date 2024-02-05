@@ -18,8 +18,7 @@ var (
 	exchangeFees       = Fees{all: make(map[key.ExchangePairAsset]Rates)}
 )
 
-// exchangeFees holds the fees for each exchange, this is centralised so that
-// it can be shared across multiple exchange memory copy instances.
+// Fees holds the fees for each exchange.
 type Fees struct {
 	all map[key.ExchangePairAsset]Rates
 	mtx sync.RWMutex
@@ -53,7 +52,9 @@ func Load(exch string, pair currency.Pair, a asset.Item, makerRate, takerRate fl
 	return nil
 }
 
-// Retrieve returns the fee for a specific exchange, pair and asset type
+// RetrievePercentageRates returns the fee for a specific exchange, pair and
+// asset type
+// TODO: Add credentials support to differentiate between keys.
 func RetrievePercentageRates(exch string, pair currency.Pair, a asset.Item) (Rates, error) {
 	if exch == "" {
 		return Rates{}, ErrExchangeNameEmpty

@@ -1190,7 +1190,7 @@ func (b *Base) GetSubscriptions() ([]subscription.Subscription, error) {
 }
 
 // AuthenticateWebsocket sends an authentication message to the websocket
-func (b *Base) AuthenticateWebsocket(_ context.Context) error {
+func (b *Base) AuthenticateWebsocket(context.Context) error {
 	return common.ErrFunctionNotSupported
 }
 
@@ -1529,13 +1529,13 @@ func (a *AssetWebsocketSupport) IsAssetWebsocketSupported(aType asset.Item) bool
 }
 
 // UpdateCurrencyStates updates currency states
-func (b *Base) UpdateCurrencyStates(_ context.Context, _ asset.Item) error {
+func (b *Base) UpdateCurrencyStates(context.Context, asset.Item) error {
 	return common.ErrNotYetImplemented
 }
 
 // GetAvailableTransferChains returns a list of supported transfer chains based
 // on the supplied cryptocurrency
-func (b *Base) GetAvailableTransferChains(_ context.Context, _ currency.Code) ([]string, error) {
+func (b *Base) GetAvailableTransferChains(context.Context, currency.Code) ([]string, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
@@ -1725,19 +1725,19 @@ func (b *Base) ScaleCollateral(context.Context, *futures.CollateralCalculator) (
 
 // CalculateTotalCollateral takes in n collateral calculators to determine an overall
 // standing in a singular currency
-func (b *Base) CalculateTotalCollateral(_ context.Context, _ *futures.TotalCollateralCalculator) (*futures.TotalCollateralResponse, error) {
+func (b *Base) CalculateTotalCollateral(context.Context, *futures.TotalCollateralCalculator) (*futures.TotalCollateralResponse, error) {
 	return nil, common.ErrNotYetImplemented
 }
 
 // GetCollateralCurrencyForContract returns the collateral currency for an asset and contract pair
-func (b *Base) GetCollateralCurrencyForContract(_ asset.Item, _ currency.Pair) (currency.Code, asset.Item, error) {
+func (b *Base) GetCollateralCurrencyForContract(asset.Item, currency.Pair) (currency.Code, asset.Item, error) {
 	return currency.Code{}, asset.Empty, common.ErrNotYetImplemented
 }
 
 // GetCurrencyForRealisedPNL returns where to put realised PNL
 // example 1: Bybit universal margin PNL is paid out in USD to your spot wallet
 // example 2: Binance coin margined futures pays returns using the same currency eg BTC
-func (b *Base) GetCurrencyForRealisedPNL(_ asset.Item, _ currency.Pair) (currency.Code, asset.Item, error) {
+func (b *Base) GetCurrencyForRealisedPNL(asset.Item, currency.Pair) (currency.Code, asset.Item, error) {
 	return currency.Code{}, asset.Empty, common.ErrNotYetImplemented
 }
 
@@ -1773,32 +1773,32 @@ func (b *Base) IsPerpetualFutureCurrency(asset.Item, currency.Pair) (bool, error
 }
 
 // SetCollateralMode sets the account's collateral mode for the asset type
-func (b *Base) SetCollateralMode(_ context.Context, _ asset.Item, _ collateral.Mode) error {
+func (b *Base) SetCollateralMode(context.Context, asset.Item, collateral.Mode) error {
 	return common.ErrNotYetImplemented
 }
 
 // GetCollateralMode returns the account's collateral mode for the asset type
-func (b *Base) GetCollateralMode(_ context.Context, _ asset.Item) (collateral.Mode, error) {
+func (b *Base) GetCollateralMode(context.Context, asset.Item) (collateral.Mode, error) {
 	return 0, common.ErrNotYetImplemented
 }
 
 // SetMarginType sets the account's margin type for the asset type
-func (b *Base) SetMarginType(_ context.Context, _ asset.Item, _ currency.Pair, _ margin.Type) error {
+func (b *Base) SetMarginType(context.Context, asset.Item, currency.Pair, margin.Type) error {
 	return common.ErrNotYetImplemented
 }
 
 // ChangePositionMargin changes the margin type for a position
-func (b *Base) ChangePositionMargin(_ context.Context, _ *margin.PositionChangeRequest) (*margin.PositionChangeResponse, error) {
+func (b *Base) ChangePositionMargin(context.Context, *margin.PositionChangeRequest) (*margin.PositionChangeResponse, error) {
 	return nil, common.ErrNotYetImplemented
 }
 
 // SetLeverage sets the account's initial leverage for the asset type and pair
-func (b *Base) SetLeverage(_ context.Context, _ asset.Item, _ currency.Pair, _ margin.Type, _ float64, _ order.Side) error {
+func (b *Base) SetLeverage(context.Context, asset.Item, currency.Pair, margin.Type, float64, order.Side) error {
 	return common.ErrNotYetImplemented
 }
 
 // GetLeverage gets the account's initial leverage for the asset type and pair
-func (b *Base) GetLeverage(_ context.Context, _ asset.Item, _ currency.Pair, _ margin.Type, _ order.Side) (float64, error) {
+func (b *Base) GetLeverage(context.Context, asset.Item, currency.Pair, margin.Type, order.Side) (float64, error) {
 	return -1, common.ErrNotYetImplemented
 }
 
@@ -1935,7 +1935,7 @@ func Bootstrap(ctx context.Context, b IBotExchange) error {
 // Exchange authors should override this if they wish to customise startup actions
 // Return true or an error to all default Bootstrap actions to occur afterwards
 // or false to signal that no further bootstrapping should occur
-func (b *Base) Bootstrap(_ context.Context) (continueBootstrap bool, err error) {
+func (b *Base) Bootstrap(context.Context) (continueBootstrap bool, err error) {
 	continueBootstrap = true
 	return
 }
@@ -1946,12 +1946,12 @@ func (b *Base) IsVerbose() bool {
 }
 
 // SynchroniseFees updates the fee schedule for the exchange
-func (b *Base) SynchroniseFees(ctx context.Context, a asset.Item) error {
+func (b *Base) SynchroniseFees(context.Context, asset.Item) error {
 	return common.ErrNotYetImplemented
 }
 
 // GetPercentageFeeRates returns the maker and taker percentage fee rates for
-// the asset.
+// the asset. TODO: Add credentials/context support to differentiate between keys.
 func (b *Base) GetPercentageFeeRates(pair currency.Pair, a asset.Item) (fee.Rates, error) {
-	return fee.Rates{}, common.ErrNotYetImplemented
+	return fee.RetrievePercentageRates(b.Name, pair, a)
 }

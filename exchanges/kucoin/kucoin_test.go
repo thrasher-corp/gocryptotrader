@@ -2773,33 +2773,23 @@ func TestGetOpenInterest(t *testing.T) {
 func TestSynchroniseFees(t *testing.T) {
 	t.Parallel()
 	err := ku.SynchroniseFees(context.Background(), asset.Binary)
-	if !errors.Is(err, asset.ErrNotSupported) {
-		t.Error(err)
-	}
+	assert.ErrorIs(t, err, asset.ErrNotSupported)
 
 	err = ku.SynchroniseFees(context.Background(), asset.Futures)
-	if !errors.Is(err, common.ErrNotYetImplemented) {
-		t.Error(err)
-	}
+	assert.ErrorIs(t, err, common.ErrNotYetImplemented)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ku)
-
+	ku.Verbose = true
 	err = ku.SynchroniseFees(context.Background(), asset.Spot)
-	if err != nil {
-		t.Error(err)
-	}
+	require.NoError(t, err)
 
 	enabled, err := ku.GetEnabledPairs(asset.Spot)
-	if err != nil {
-		t.Error(err)
-	}
+	require.NoError(t, err)
 
 	for x := range enabled {
 		var rates fee.Rates
 		rates, err = ku.GetPercentageFeeRates(enabled[x], asset.Spot)
-		if err != nil {
-			t.Fatal(err)
-		}
+		require.NoError(t, err)
 		assert.NotEmpty(t, rates, "fee rates should not be empty")
 	}
 }

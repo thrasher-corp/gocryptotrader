@@ -137,8 +137,6 @@ const (
 	kucoinTradingFee = "/v1/trade-fees"
 )
 
-var errMaximumOf10Symbols = errors.New("maximum of 10 symbols")
-
 // GetSymbols gets pairs details on the exchange
 // For market details see endpoint: https://www.kucoin.com/docs/rest/spot-trading/market-data/get-market-list
 func (ku *Kucoin) GetSymbols(ctx context.Context, market string) ([]SymbolInfo, error) {

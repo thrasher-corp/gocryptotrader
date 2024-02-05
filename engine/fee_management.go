@@ -12,13 +12,13 @@ import (
 // StartFeeSynchronisationManager starts the fee synchronisation manager which
 // will update the fee schedule for each exchange. This will also synchronise
 // trading pairs for each asset type.
-func (e *Engine) StartFeeSynchronisationManager(ctx context.Context) error {
+func (bot *Engine) StartFeeSynchronisationManager(ctx context.Context) error {
 	go func() {
 		timer := time.NewTimer(0)
 		firstRun := true
 		for range timer.C {
-			log.Infof(log.ExchangeSys, "Synchronisinng exchange fees for %d exchanges\n", len(e.GetExchanges()))
-			exchs := e.GetExchanges()
+			exchs := bot.GetExchanges()
+			log.Infof(log.ExchangeSys, "Synchronisinng exchange fees for %d exchanges\n", len(exchs))
 			for i := range exchs {
 				if !exchs[i].IsRESTAuthenticationSupported() && !exchs[i].IsWebsocketAuthenticationSupported() {
 					continue
