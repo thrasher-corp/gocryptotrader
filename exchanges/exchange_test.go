@@ -15,6 +15,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/collateral"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/fee"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
@@ -3338,7 +3339,6 @@ func TestSynchroniseFees(t *testing.T) {
 
 func TestGetPercentageFeeRates(t *testing.T) {
 	t.Parallel()
-	if _, err := (&Base{}).GetPercentageFeeRates(currency.EMPTYPAIR, asset.Spot); !errors.Is(err, common.ErrNotYetImplemented) {
-		t.Errorf("received: %v, expected: %v", err, common.ErrNotYetImplemented)
-	}
+	_, err := (&Base{Name: "test"}).GetPercentageFeeRates(currency.NewBTCUSD(), asset.Spot)
+	assert.ErrorIs(t, err, fee.ErrFeeRateNotFound)
 }
