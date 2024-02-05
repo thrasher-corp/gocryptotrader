@@ -1797,13 +1797,13 @@ type OrderCreateParams struct {
 	Contract      currency.Pair `json:"contract"`
 	Size          float64       `json:"size"`
 	Iceberg       int64         `json:"iceberg"`
-	Price         string        `json:"price,omitempty"` // NOTE: Market orders require string "0"
-	TimeInForce   string        `json:"tif,omitempty"`
-	Text          string        `json:"text,omitempty"`
+	Price         string        `json:"price"` // NOTE: Market orders require string "0"
+	TimeInForce   string        `json:"tif"`
+	Text          string        `json:"text"`
 	ClosePosition bool          `json:"close,omitempty"`
 	ReduceOnly    bool          `json:"reduce_only,omitempty"`
 	AutoSize      string        `json:"auto_size,omitempty"`
-	Settle        string        `json:"-"`
+	Settle        string        `json:"-"` // Used in URL.
 }
 
 // Order represents future order response
