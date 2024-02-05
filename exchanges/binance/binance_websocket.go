@@ -10,12 +10,14 @@ import (
 	"strings"
 	"time"
 
+	"github.com/buger/jsonparser"
 	"github.com/gorilla/websocket"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
@@ -24,6 +26,10 @@ import (
 const (
 	binanceDefaultWebsocketURL = "wss://stream.binance.com:9443/stream"
 	pingDelay                  = time.Minute * 9
+
+	wsSubscribeMethod         = "SUBSCRIBE"
+	wsUnsubscribeMethod       = "UNSUBSCRIBE"
+	wsListSubscriptionsMethod = "LIST_SUBSCRIPTIONS"
 )
 
 var listenKey string
@@ -38,6 +44,7 @@ var (
 	// maxWSOrderbookWorkers defines a max amount of workers allowed to execute
 	// jobs from the job channel
 	maxWSOrderbookWorkers = 10
+	errUnknownError       = errors.New("unknown error")
 )
 
 // WsConnect initiates a websocket connection
@@ -163,21 +170,18 @@ func (b *Binance) wsHandleData(respRaw []byte) error {
 		return err
 	}
 
+	if id, err := jsonparser.GetInt(respRaw, "id"); err == nil {
+		if b.Websocket.Match.IncomingWithData(id, respRaw) {
+			return nil
+		}
+	}
+
 	if r, ok := multiStreamData["result"]; ok {
 		if r == nil {
 			return nil
 		}
 	}
 
-	if method, ok := multiStreamData["method"].(string); ok {
-		// TODO handle subscription handling
-		if strings.EqualFold(method, "subscribe") {
-			return nil
-		}
-		if strings.EqualFold(method, "unsubscribe") {
-			return nil
-		}
-	}
 	if newdata, ok := multiStreamData["data"].(map[string]interface{}); ok {
 		if e, ok := newdata["e"].(string); ok {
 			switch e {
@@ -548,80 +552,139 @@ func (b *Binance) UpdateLocalBuffer(wsdp *WebsocketDepthStream) (bool, error) {
 }
 
 // GenerateSubscriptions generates the default subscription set
-func (b *Binance) GenerateSubscriptions() ([]stream.ChannelSubscription, error) {
-	var channels = []string{"@ticker", "@trade", "@kline_1m", "@depth@100ms"}
-	var subscriptions []stream.ChannelSubscription
-	assets := b.GetAssetTypes(true)
-	for x := range assets {
-		if assets[x] == asset.Spot {
-			pairs, err := b.GetEnabledPairs(assets[x])
-			if err != nil {
-				return nil, err
-			}
-
-			for y := range pairs {
-				for z := range channels {
-					lp := pairs[y].Lower()
-					lp.Delimiter = ""
-					subscriptions = append(subscriptions, stream.ChannelSubscription{
-						Channel:  lp.String() + channels[z],
-						Currency: pairs[y],
-						Asset:    assets[x],
-					})
-				}
-			}
+func (b *Binance) GenerateSubscriptions() ([]subscription.Subscription, error) {
+	var channels = make([]string, 0, len(b.Features.Subscriptions))
+	for i := range b.Features.Subscriptions {
+		name, err := channelName(b.Features.Subscriptions[i])
+		if err != nil {
+			return nil, err
+		}
+		channels = append(channels, name)
+	}
+	var subscriptions []subscription.Subscription
+	pairs, err := b.GetEnabledPairs(asset.Spot)
+	if err != nil {
+		return nil, err
+	}
+	for y := range pairs {
+		for z := range channels {
+			lp := pairs[y].Lower()
+			lp.Delimiter = ""
+			subscriptions = append(subscriptions, subscription.Subscription{
+				Channel: lp.String() + "@" + channels[z],
+				Pair:    pairs[y],
+				Asset:   asset.Spot,
+			})
 		}
 	}
 	return subscriptions, nil
 }
 
+// channelName converts a Subscription Config into binance format channel suffix
+func channelName(s *subscription.Subscription) (string, error) {
+	name, ok := subscriptionNames[s.Channel]
+	if !ok {
+		return name, fmt.Errorf("%w: %s", stream.ErrSubscriptionNotSupported, s.Channel)
+	}
+
+	switch s.Channel {
+	case subscription.OrderbookChannel:
+		if s.Levels != 0 {
+			name += "@" + strconv.Itoa(s.Levels)
+		}
+		if s.Interval.Duration() == time.Second {
+			name += "@1000ms"
+		} else {
+			name += "@" + s.Interval.Short()
+		}
+	case subscription.CandlesChannel:
+		name += "_" + s.Interval.Short()
+	}
+	return name, nil
+}
+
 // Subscribe subscribes to a set of channels
-func (b *Binance) Subscribe(channelsToSubscribe []stream.ChannelSubscription) error {
-	payload := WsPayload{
-		Method: "SUBSCRIBE",
-	}
-	for i := range channelsToSubscribe {
-		payload.Params = append(payload.Params, channelsToSubscribe[i].Channel)
-		if i%50 == 0 && i != 0 {
-			err := b.Websocket.Conn.SendJSONMessage(payload)
-			if err != nil {
-				return err
-			}
-			payload.Params = []string{}
+func (b *Binance) Subscribe(channels []subscription.Subscription) error {
+	return b.ParallelChanOp(channels, b.subscribeToChan, 50)
+}
+
+// subscribeToChan handles a single subscription and parses the result
+// on success it adds the subscription to the websocket
+func (b *Binance) subscribeToChan(chans []subscription.Subscription) error {
+	id := b.Websocket.Conn.GenerateMessageID(false)
+
+	cNames := make([]string, len(chans))
+	for i := range chans {
+		c := chans[i]
+		cNames[i] = c.Channel
+		c.State = subscription.SubscribingState
+		if err := b.Websocket.AddSubscription(&c); err != nil {
+			return fmt.Errorf("%w Channel: %s Pair: %s Error: %w", stream.ErrSubscriptionFailure, c.Channel, c.Pair, err)
 		}
 	}
-	if len(payload.Params) > 0 {
-		err := b.Websocket.Conn.SendJSONMessage(payload)
-		if err != nil {
-			return err
+
+	req := WsPayload{
+		Method: wsSubscribeMethod,
+		Params: cNames,
+		ID:     id,
+	}
+
+	respRaw, err := b.Websocket.Conn.SendMessageReturnResponse(id, req)
+	if err == nil {
+		if v, d, _, rErr := jsonparser.Get(respRaw, "result"); rErr != nil {
+			err = rErr
+		} else if d != jsonparser.Null { // null is the only expected and acceptable response
+			err = fmt.Errorf("%w: %s", errUnknownError, v)
 		}
 	}
-	b.Websocket.AddSuccessfulSubscriptions(channelsToSubscribe...)
-	return nil
+
+	if err != nil {
+		b.Websocket.RemoveSubscriptions(chans...)
+		err = fmt.Errorf("%w: %w; Channels: %s", stream.ErrSubscriptionFailure, err, strings.Join(cNames, ", "))
+		b.Websocket.DataHandler <- err
+	} else {
+		b.Websocket.AddSuccessfulSubscriptions(chans...)
+	}
+
+	return err
 }
 
 // Unsubscribe unsubscribes from a set of channels
-func (b *Binance) Unsubscribe(channelsToUnsubscribe []stream.ChannelSubscription) error {
-	payload := WsPayload{
-		Method: "UNSUBSCRIBE",
+func (b *Binance) Unsubscribe(channels []subscription.Subscription) error {
+	return b.ParallelChanOp(channels, b.unsubscribeFromChan, 50)
+}
+
+// unsubscribeFromChan sends a websocket message to stop receiving data from a channel
+func (b *Binance) unsubscribeFromChan(chans []subscription.Subscription) error {
+	id := b.Websocket.Conn.GenerateMessageID(false)
+
+	cNames := make([]string, len(chans))
+	for i := range chans {
+		cNames[i] = chans[i].Channel
 	}
-	for i := range channelsToUnsubscribe {
-		payload.Params = append(payload.Params, channelsToUnsubscribe[i].Channel)
-		if i%50 == 0 && i != 0 {
-			err := b.Websocket.Conn.SendJSONMessage(payload)
-			if err != nil {
-				return err
-			}
-			payload.Params = []string{}
+
+	req := WsPayload{
+		Method: wsUnsubscribeMethod,
+		Params: cNames,
+		ID:     id,
+	}
+
+	respRaw, err := b.Websocket.Conn.SendMessageReturnResponse(id, req)
+	if err == nil {
+		if v, d, _, rErr := jsonparser.Get(respRaw, "result"); rErr != nil {
+			err = rErr
+		} else if d != jsonparser.Null { // null is the only expected and acceptable response
+			err = fmt.Errorf("%w: %s", errUnknownError, v)
 		}
 	}
-	if len(payload.Params) > 0 {
-		err := b.Websocket.Conn.SendJSONMessage(payload)
-		if err != nil {
-			return err
-		}
+
+	if err != nil {
+		err = fmt.Errorf("%w: %w; Channels: %s", stream.ErrUnsubscribeFailure, err, strings.Join(cNames, ", "))
+		b.Websocket.DataHandler <- err
+	} else {
+		b.Websocket.RemoveSubscriptions(chans...)
 	}
-	b.Websocket.RemoveSubscriptions(channelsToUnsubscribe...)
+
 	return nil
 }
 

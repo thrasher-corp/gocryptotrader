@@ -7,18 +7,23 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
+	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/collateral"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/banking"
 )
 
@@ -1258,8 +1263,8 @@ func TestSetupDefaults(t *testing.T) {
 		DefaultURL:            "ws://something.com",
 		RunningURL:            "ws://something.com",
 		Connector:             func() error { return nil },
-		GenerateSubscriptions: func() ([]stream.ChannelSubscription, error) { return []stream.ChannelSubscription{}, nil },
-		Subscriber:            func(cs []stream.ChannelSubscription) error { return nil },
+		GenerateSubscriptions: func() ([]subscription.Subscription, error) { return []subscription.Subscription{}, nil },
+		Subscriber:            func(cs []subscription.Subscription) error { return nil },
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -1607,8 +1612,8 @@ func TestIsWebsocketEnabled(t *testing.T) {
 		DefaultURL:            "ws://something.com",
 		RunningURL:            "ws://something.com",
 		Connector:             func() error { return nil },
-		GenerateSubscriptions: func() ([]stream.ChannelSubscription, error) { return nil, nil },
-		Subscriber:            func(cs []stream.ChannelSubscription) error { return nil },
+		GenerateSubscriptions: func() ([]subscription.Subscription, error) { return nil, nil },
+		Subscriber:            func(cs []subscription.Subscription) error { return nil },
 	})
 	if err != nil {
 		t.Error(err)
@@ -3208,6 +3213,120 @@ func TestIsPairEnabled(t *testing.T) {
 	if !enabled {
 		t.Fatal("expected true")
 	}
+}
+
+func TestGetOpenInterest(t *testing.T) {
+	t.Parallel()
+	var b Base
+	if _, err := b.GetOpenInterest(context.Background()); !errors.Is(err, common.ErrFunctionNotSupported) {
+		t.Errorf("received: %v, expected: %v", err, common.ErrFunctionNotSupported)
+	}
+}
+
+// FakeBase is used to override functions
+type FakeBase struct{ Base }
+
+func (f *FakeBase) GetOpenInterest(context.Context, ...key.PairAsset) ([]futures.OpenInterest, error) {
+	return []futures.OpenInterest{
+		{
+			Key: key.ExchangePairAsset{
+				Exchange: f.Name,
+				Base:     currency.BTC.Item,
+				Quote:    currency.BONK.Item,
+				Asset:    asset.Futures,
+			},
+			OpenInterest: 1337,
+		},
+	}, nil
+}
+
+func TestGetCachedOpenInterest(t *testing.T) {
+	t.Parallel()
+	var b FakeBase
+	b.Features.Supports.FuturesCapabilities.OpenInterest = OpenInterestSupport{
+		Supported: true,
+	}
+	_, err := b.GetCachedOpenInterest(context.Background())
+	assert.ErrorIs(t, err, common.ErrFunctionNotSupported)
+	b.Features.Supports.FuturesCapabilities.OpenInterest.SupportedViaTicker = true
+	b.Name = "test"
+	err = ticker.ProcessTicker(&ticker.Price{
+		ExchangeName: "test",
+		Pair:         currency.NewPair(currency.BTC, currency.BONK),
+		AssetType:    asset.Futures,
+		OpenInterest: 1337,
+	})
+	assert.NoError(t, err)
+
+	_, err = b.GetCachedOpenInterest(context.Background())
+	assert.NoError(t, err)
+
+	_, err = b.GetCachedOpenInterest(context.Background(), key.PairAsset{
+		Base:  currency.BTC.Item,
+		Quote: currency.BONK.Item,
+		Asset: asset.Futures,
+	})
+	assert.NoError(t, err)
+}
+
+// TestSetSubscriptionsFromConfig tests the setting and loading of subscriptions from config and exchange defaults
+func TestSetSubscriptionsFromConfig(t *testing.T) {
+	t.Parallel()
+	b := Base{
+		Config: &config.Exchange{
+			Features: &config.FeaturesConfig{},
+		},
+	}
+	subs := []*subscription.Subscription{
+		{Channel: subscription.CandlesChannel, Interval: kline.OneDay, Enabled: true},
+	}
+	b.Features.Subscriptions = subs
+	b.SetSubscriptionsFromConfig()
+	assert.ElementsMatch(t, subs, b.Config.Features.Subscriptions, "Config Subscriptions should be updated")
+	assert.ElementsMatch(t, subs, b.Features.Subscriptions, "Subscriptions should be the same")
+
+	subs = []*subscription.Subscription{
+		{Channel: subscription.OrderbookChannel, Interval: kline.OneDay, Enabled: true},
+	}
+	b.Config.Features.Subscriptions = subs
+	b.SetSubscriptionsFromConfig()
+	assert.ElementsMatch(t, subs, b.Features.Subscriptions, "Subscriptions should be updated from Config")
+	assert.ElementsMatch(t, subs, b.Config.Features.Subscriptions, "Config Subscriptions should be the same")
+}
+
+// TestParallelChanOp unit tests the helper func ParallelChanOp
+func TestParallelChanOp(t *testing.T) {
+	t.Parallel()
+	c := []subscription.Subscription{
+		{Channel: "red"},
+		{Channel: "blue"},
+		{Channel: "violent"},
+		{Channel: "spin"},
+		{Channel: "charm"},
+	}
+	run := make(chan struct{}, len(c)*2)
+	b := Base{}
+	errC := make(chan error, 1)
+	go func() {
+		errC <- b.ParallelChanOp(c, func(c []subscription.Subscription) error {
+			time.Sleep(300 * time.Millisecond)
+			run <- struct{}{}
+			switch c[0].Channel {
+			case "spin", "violent":
+				return errors.New(c[0].Channel)
+			}
+			return nil
+		}, 1)
+	}()
+	f := func(ct *assert.CollectT) {
+		if assert.Len(ct, errC, 1, "Should eventually have an error") {
+			err := <-errC
+			assert.ErrorContains(ct, err, "violent", "Should get a violent error")
+			assert.ErrorContains(ct, err, "spin", "Should get a spin error")
+		}
+	}
+	assert.EventuallyWithT(t, f, 500*time.Millisecond, 50*time.Millisecond, "ParallelChanOp should complete within 500ms not 5*300ms")
+	assert.Len(t, run, len(c), "Every channel was run to completion")
 }
 
 func TestSynchroniseFees(t *testing.T) {
