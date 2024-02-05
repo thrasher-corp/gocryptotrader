@@ -1,9 +1,11 @@
 package kline
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -141,6 +143,31 @@ func (i Interval) Short() string {
 		s = s[:len(s)-2]
 	}
 	return s
+}
+
+// UnmarshalJSON implements the json.Unmarshaler interface for Intervals
+// It does not validate the duration is aligned, only that it is a parsable duration
+func (i *Interval) UnmarshalJSON(text []byte) error {
+	text = bytes.Trim(text, `"`)
+	if len(bytes.TrimLeft(text, `0123456789`)) > 0 { // contains non-numerics, ParseDuration can handle errors
+		d, err := time.ParseDuration(string(text))
+		if err != nil {
+			return err
+		}
+		*i = Interval(d)
+	} else {
+		n, err := strconv.ParseInt(string(text), 10, 64)
+		if err != nil {
+			return err
+		}
+		*i = Interval(n)
+	}
+	return nil
+}
+
+// MarshalText implements the TextMarshaler interface for Intervals
+func (i Interval) MarshalText() ([]byte, error) {
+	return []byte(i.Short()), nil
 }
 
 // addPadding inserts padding time aligned when exchanges do not supply all data

@@ -1850,9 +1850,18 @@ func (c *Config) UpdateConfig(configPath string, newCfg *Config, dryrun bool) er
 	return c.LoadConfig(configPath, dryrun)
 }
 
-// GetConfig returns a pointer to a configuration object
+// GetConfig returns the global shared config instance
 func GetConfig() *Config {
-	return &Cfg
+	m.Lock()
+	defer m.Unlock()
+	return &cfg
+}
+
+// SetConfig sets the global shared config instance
+func SetConfig(c *Config) {
+	m.Lock()
+	defer m.Unlock()
+	cfg = *c
 }
 
 // RemoveExchange removes an exchange config
