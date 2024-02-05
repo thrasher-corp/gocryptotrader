@@ -668,7 +668,7 @@ func BenchmarkReverse(b *testing.B) {
 	}
 }
 
-// 20209	     56385 ns/op	   49189 B/op	       2 allocs/op (old)
+// 361266	      3556 ns/op	      24 B/op	       1 allocs/op (old)
 // 385783	      3000 ns/op	     152 B/op	       3 allocs/op (new)
 func BenchmarkSortAsksDecending(b *testing.B) {
 	s := deploySliceOrdered()
@@ -679,7 +679,7 @@ func BenchmarkSortAsksDecending(b *testing.B) {
 	}
 }
 
-// 14924	     79199 ns/op	   49206 B/op	       3 allocs/op (old)
+// 266998	      4292 ns/op	      40 B/op	       2 allocs/op (old)
 // 372396	      3001 ns/op	     152 B/op	       3 allocs/op (new)
 func BenchmarkSortBidsAscending(b *testing.B) {
 	s := deploySliceOrdered()
@@ -691,7 +691,7 @@ func BenchmarkSortBidsAscending(b *testing.B) {
 	}
 }
 
-// 9842	    	133761 ns/op	   49194 B/op	       2 allocs/op (old)
+// 22119	     46532 ns/op	      35 B/op	       1 allocs/op (old)
 // 16233	     76951 ns/op	     167 B/op	       3 allocs/op (new)
 func BenchmarkSortAsksStandard(b *testing.B) {
 	s := deployUnorderedSlice()
@@ -702,7 +702,7 @@ func BenchmarkSortAsksStandard(b *testing.B) {
 	}
 }
 
-// 7058	    	155057 ns/op	   49214 B/op	       3 allocs/op (old)
+// 19504	     62518 ns/op	      53 B/op	       2 allocs/op (old)
 // 15698	     72859 ns/op	     168 B/op	       3 allocs/op (new)
 func BenchmarkSortBidsStandard(b *testing.B) {
 	s := deployUnorderedSlice()
@@ -713,7 +713,7 @@ func BenchmarkSortBidsStandard(b *testing.B) {
 	}
 }
 
-// 20565	     57001 ns/op	   49188 B/op	       2 allocs/op (old)
+// 376708	      3559 ns/op	      24 B/op 		   1 allocs/op (old)
 // 377113	      3020 ns/op	     152 B/op	       3 allocs/op (new)
 func BenchmarkSortAsksAscending(b *testing.B) {
 	s := deploySliceOrdered()
@@ -724,7 +724,7 @@ func BenchmarkSortAsksAscending(b *testing.B) {
 	}
 }
 
-// 12565	     97257 ns/op	   49208 B/op	       3 allocs/op (old)
+// 262874	      4364 ns/op	      40 B/op	       2 allocs/op (old)
 // 401788	      3348 ns/op	     152 B/op	       3 allocs/op (new)
 func BenchmarkSortBidsDescending(b *testing.B) {
 	s := deploySliceOrdered()
