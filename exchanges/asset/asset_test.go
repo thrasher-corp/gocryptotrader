@@ -187,12 +187,6 @@ func TestIsFutures(t *testing.T) {
 			item:      USDCMarginedFutures,
 			isFutures: true,
 		}, {
-			item:      Options,
-			isFutures: true,
-		}, {
-			item:      OptionCombo,
-			isFutures: true,
-		}, {
 			item:      FutureCombo,
 			isFutures: true,
 		},
@@ -203,6 +197,40 @@ func TestIsFutures(t *testing.T) {
 			t.Parallel()
 			if testScenario.item.IsFutures() != testScenario.isFutures {
 				t.Errorf("expected %v isFutures to be %v", testScenario.item, testScenario.isFutures)
+			}
+		})
+	}
+}
+
+func TestIsOptions(t *testing.T) {
+	t.Parallel()
+	type scenario struct {
+		item      Item
+		isOptions bool
+	}
+	scenarios := []scenario{
+		{
+			item:      Options,
+			isOptions: true,
+		}, {
+			item:      OptionCombo,
+			isOptions: true,
+		},
+		{
+			item:      Futures,
+			isOptions: false,
+		},
+		{
+			item:      Empty,
+			isOptions: false,
+		},
+	}
+	for _, s := range scenarios {
+		testScenario := s
+		t.Run(testScenario.item.String(), func(t *testing.T) {
+			t.Parallel()
+			if testScenario.item.IsOptions() != testScenario.isOptions {
+				t.Errorf("expected %v isFutures to be %v", testScenario.item, testScenario.isOptions)
 			}
 		})
 	}
