@@ -6,7 +6,6 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"sync"
 	"testing"
 	"time"
 
@@ -22,6 +21,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/banking"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
@@ -61,20 +61,6 @@ func TestMain(m *testing.M) {
 		log.Fatal("CoinbasePro setup error", err)
 	}
 	os.Exit(m.Run())
-}
-
-func TestStart(t *testing.T) {
-	t.Parallel()
-	err := c.Start(context.Background(), nil)
-	if !errors.Is(err, common.ErrNilPointer) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, common.ErrNilPointer)
-	}
-	var testWg sync.WaitGroup
-	err = c.Start(context.Background(), &testWg)
-	if err != nil {
-		t.Fatal(err)
-	}
-	testWg.Wait()
 }
 
 func TestGetProducts(t *testing.T) {
@@ -704,10 +690,10 @@ func TestWsAuth(t *testing.T) {
 	}
 	go c.wsReadData(context.Background())
 
-	err = c.Subscribe(context.Background(), []stream.ChannelSubscription{
+	err = c.Subscribe(context.Background(), []subscription.Subscription{
 		{
-			Channel:  "user",
-			Currency: testPair,
+			Channel: "user",
+			Pair:    testPair,
 		},
 	})
 	if err != nil {

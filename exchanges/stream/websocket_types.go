@@ -10,6 +10,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fill"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/buffer"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 )
 
@@ -32,7 +33,7 @@ const (
 
 // SubscriptionAllowed defines if the websocket should automatically subscribe
 type SubscriptionAllowed uint8
-type subscriptionMap map[any]*ChannelSubscription
+type subscriptionMap map[any]*subscription.Subscription
 
 // Websocket defines a return type for websocket connections via the interface
 // wrapper for routine processing
@@ -60,18 +61,18 @@ type Websocket struct {
 
 	subscriptionMutex sync.RWMutex
 	subscriptions     subscriptionMap
-	Subscribe         chan []ChannelSubscription
-	Unsubscribe       chan []ChannelSubscription
+	Subscribe         chan []subscription.Subscription
+	Unsubscribe       chan []subscription.Subscription
 
 	// Subscriber function for package defined websocket subscriber
 	// functionality
-	Subscriber func(context.Context, []ChannelSubscription) error
+	Subscriber func(context.Context, []subscription.Subscription) error
 	// Unsubscriber function for packaged defined websocket unsubscriber
 	// functionality
-	Unsubscriber func(context.Context, []ChannelSubscription) error
+	Unsubscriber func(context.Context, []subscription.Subscription) error
 	// GenerateSubs function for package defined websocket generate
 	// subscriptions functionality
-	GenerateSubs func() ([]ChannelSubscription, error)
+	GenerateSubs func() ([]subscription.Subscription, error)
 
 	DataHandler chan interface{}
 	ToRoutine   chan interface{}
@@ -118,9 +119,9 @@ type WebsocketSetup struct {
 	RunningURL            string
 	RunningURLAuth        string
 	Connector             func(context.Context) error
-	Subscriber            func(context.Context, []ChannelSubscription) error
-	Unsubscriber          func(context.Context, []ChannelSubscription) error
-	GenerateSubscriptions func() ([]ChannelSubscription, error)
+	Subscriber            func(context.Context, []subscription.Subscription) error
+	Unsubscriber          func(context.Context, []subscription.Subscription) error
+	GenerateSubscriptions func() ([]subscription.Subscription, error)
 	Features              *protocol.Features
 
 	// Local orderbook buffer config values

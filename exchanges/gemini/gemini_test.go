@@ -5,7 +5,6 @@ import (
 	"errors"
 	"net/url"
 	"strings"
-	"sync"
 	"testing"
 	"time"
 
@@ -31,20 +30,6 @@ const (
 const testCurrency = "btcusd"
 
 var g = &Gemini{}
-
-func TestStart(t *testing.T) {
-	t.Parallel()
-	err := g.Start(context.Background(), nil)
-	if !errors.Is(err, common.ErrNilPointer) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, common.ErrNilPointer)
-	}
-	var testWg sync.WaitGroup
-	err = g.Start(context.Background(), &testWg)
-	if err != nil {
-		t.Fatal(err)
-	}
-	testWg.Wait()
-}
 
 func TestGetSymbols(t *testing.T) {
 	t.Parallel()

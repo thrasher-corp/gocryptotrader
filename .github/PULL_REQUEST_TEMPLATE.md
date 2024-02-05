@@ -30,5 +30,5 @@ also consider improving test coverage whilst working on a certain feature or pac
 - [ ] I have made corresponding changes to the documentation and regenerated documentation via the documentation tool
 - [ ] My changes generate no new warnings
 - [ ] I have added tests that prove my fix is effective or that my feature works
-- [ ] New and existing unit tests pass locally and on Github Actions/AppVeyor with my changes
+- [ ] New and existing unit tests pass locally and on Github Actions with my changes
 - [ ] Any dependent changes have been merged and published in downstream modules

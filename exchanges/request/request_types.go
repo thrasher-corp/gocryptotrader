@@ -11,17 +11,15 @@ import (
 
 // Const vars for rate limiter
 const (
-	DefaultMaxRequestJobs   int32 = 50
-	DefaultMaxRetryAttempts       = 3
-	DefaultMutexLockTimeout       = 50 * time.Millisecond
-	drainBodyLimit                = 100000
-	proxyTLSTimeout               = 15 * time.Second
-	userAgent                     = "User-Agent"
+	DefaultMaxRetryAttempts = 3
+	DefaultMutexLockTimeout = 50 * time.Millisecond
+	drainBodyLimit          = 100000
+	proxyTLSTimeout         = 15 * time.Second
+	userAgent               = "User-Agent"
 )
 
 // Vars for rate limiter
 var (
-	MaxRequestJobs   = DefaultMaxRequestJobs
 	MaxRetryAttempts = DefaultMaxRetryAttempts
 	globalReporter   Reporter
 )
@@ -34,7 +32,6 @@ type Requester struct {
 	name               string
 	userAgent          string
 	maxRetries         int
-	jobs               int32
 	Nonce              nonce.Nonce
 	disableRateLimiter int32
 	backoff            Backoff

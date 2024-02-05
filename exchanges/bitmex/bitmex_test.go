@@ -6,12 +6,13 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"sync"
 	"testing"
 	"time"
 
 	"github.com/gorilla/websocket"
+	"github.com/stretchr/testify/assert"
 	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -57,20 +58,6 @@ func TestMain(m *testing.M) {
 		log.Fatal("Bitmex setup error", err)
 	}
 	os.Exit(m.Run())
-}
-
-func TestStart(t *testing.T) {
-	t.Parallel()
-	err := b.Start(context.Background(), nil)
-	if !errors.Is(err, common.ErrNilPointer) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, common.ErrNilPointer)
-	}
-	var testWg sync.WaitGroup
-	err = b.Start(context.Background(), &testWg)
-	if err != nil {
-		t.Fatal(err)
-	}
-	testWg.Wait()
 }
 
 func TestGetFullFundingHistory(t *testing.T) {
@@ -1314,4 +1301,44 @@ func TestIsPerpetualFutureCurrency(t *testing.T) {
 	if !isPerp {
 		t.Error("expected true")
 	}
+}
+
+func TestGetOpenInterest(t *testing.T) {
+	t.Parallel()
+	cp1 := currency.NewPair(currency.XBT, currency.USD)
+	cp2 := currency.NewPair(currency.DOGE, currency.USD)
+	sharedtestvalues.SetupCurrencyPairsForExchangeAsset(t, b, asset.PerpetualContract, cp1, cp2)
+
+	resp, err := b.GetOpenInterest(context.Background(), key.PairAsset{
+		Base:  currency.XBT.Item,
+		Quote: currency.USD.Item,
+		Asset: asset.PerpetualContract,
+	})
+	assert.NoError(t, err)
+	assert.NotEmpty(t, resp)
+
+	resp, err = b.GetOpenInterest(context.Background(),
+		key.PairAsset{
+			Base:  currency.XBT.Item,
+			Quote: currency.USD.Item,
+			Asset: asset.PerpetualContract,
+		},
+		key.PairAsset{
+			Base:  currency.DOGE.Item,
+			Quote: currency.USD.Item,
+			Asset: asset.PerpetualContract,
+		})
+	assert.NoError(t, err)
+	assert.NotEmpty(t, resp)
+
+	resp, err = b.GetOpenInterest(context.Background())
+	assert.NoError(t, err)
+	assert.NotEmpty(t, resp)
+
+	_, err = b.GetOpenInterest(context.Background(), key.PairAsset{
+		Base:  currency.BTC.Item,
+		Quote: currency.USDT.Item,
+		Asset: asset.Spot,
+	})
+	assert.ErrorIs(t, err, asset.ErrNotSupported)
 }

@@ -2,7 +2,6 @@ package bitstamp
 
 import (
 	"errors"
-	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
 )
@@ -25,15 +24,16 @@ var errWSPairParsingError = errors.New("unable to parse currency pair from wsRes
 
 // Ticker holds ticker information
 type Ticker struct {
-	Last      float64 `json:"last,string"`
-	High      float64 `json:"high,string"`
-	Low       float64 `json:"low,string"`
-	Vwap      float64 `json:"vwap,string"`
-	Volume    float64 `json:"volume,string"`
-	Bid       float64 `json:"bid,string"`
-	Ask       float64 `json:"ask,string"`
-	Timestamp int64   `json:"timestamp,string"`
-	Open      float64 `json:"open,string"`
+	Last      float64   `json:"last,string"`
+	High      float64   `json:"high,string"`
+	Low       float64   `json:"low,string"`
+	Vwap      float64   `json:"vwap,string"`
+	Volume    float64   `json:"volume,string"`
+	Bid       float64   `json:"bid,string"`
+	Ask       float64   `json:"ask,string"`
+	Timestamp int64     `json:"timestamp,string"`
+	Open      float64   `json:"open,string"`
+	Side      orderSide `json:"side,string"`
 }
 
 // OrderbookBase holds singular price information
@@ -156,7 +156,7 @@ type DepositAddress struct {
 // WithdrawalRequests holds request information on withdrawals
 type WithdrawalRequests struct {
 	OrderID       int64         `json:"id"`
-	Date          time.Time     `json:"datetime"`
+	Date          string        `json:"datetime"`
 	Type          int64         `json:"type"`
 	Amount        float64       `json:"amount,string"`
 	Status        int64         `json:"status"`
@@ -167,12 +167,12 @@ type WithdrawalRequests struct {
 
 // CryptoWithdrawalResponse response from a crypto withdrawal request
 type CryptoWithdrawalResponse struct {
-	ID int64 `json:"id"`
+	ID int64 `json:"withdrawal_id"`
 }
 
 // FIATWithdrawalResponse response from a fiat withdrawal request
 type FIATWithdrawalResponse struct {
-	ID int64 `json:"id"`
+	ID int64 `json:"withdrawal_id"`
 }
 
 // UnconfirmedBTCTransactions holds address information about unconfirmed
