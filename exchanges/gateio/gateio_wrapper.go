@@ -8,7 +8,6 @@ import (
 	"sort"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/shopspring/decimal"
@@ -247,33 +246,6 @@ func (g *Gateio) Setup(exch *config.Exchange) error {
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
 	})
-}
-
-// Start starts the GateIO go routine
-func (g *Gateio) Start(ctx context.Context, wg *sync.WaitGroup) error {
-	if wg == nil {
-		return fmt.Errorf("%T %w", wg, common.ErrNilPointer)
-	}
-	wg.Add(1)
-	go func() {
-		g.Run(ctx)
-		wg.Done()
-	}()
-	return nil
-}
-
-// Run implements the GateIO wrapper
-func (g *Gateio) Run(ctx context.Context) {
-	if g.Verbose {
-		g.PrintEnabledPairs()
-	}
-	if !g.GetEnabledFeatures().AutoPairUpdates {
-		return
-	}
-	err := g.UpdateTradablePairs(ctx, false)
-	if err != nil {
-		log.Errorf(log.ExchangeSys, "%s failed to update tradable pairs. Err: %s", g.Name, err)
-	}
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair

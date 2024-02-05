@@ -7,7 +7,6 @@ import (
 	"sort"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 	"unicode"
 
@@ -257,52 +256,6 @@ func (b *Bitfinex) Setup(exch *config.Exchange) error {
 		URL:                  authenticatedBitfinexWebsocketEndpoint,
 		Authenticated:        true,
 	})
-}
-
-// Start starts the Bitfinex go routine
-func (b *Bitfinex) Start(ctx context.Context, wg *sync.WaitGroup) error {
-	if wg == nil {
-		return fmt.Errorf("%T %w", wg, common.ErrNilPointer)
-	}
-	wg.Add(1)
-	go func() {
-		b.Run(ctx)
-		wg.Done()
-	}()
-	return nil
-}
-
-// Run implements the Bitfinex wrapper
-func (b *Bitfinex) Run(ctx context.Context) {
-	if b.Verbose {
-		log.Debugf(log.ExchangeSys,
-			"%s Websocket: %s.",
-			b.Name,
-			common.IsEnabled(b.Websocket.IsEnabled()))
-		b.PrintEnabledPairs()
-	}
-
-	if b.GetEnabledFeatures().AutoPairUpdates {
-		if err := b.UpdateTradablePairs(ctx, false); err != nil {
-			log.Errorf(log.ExchangeSys,
-				"%s failed to update tradable pairs. Err: %s",
-				b.Name,
-				err)
-		}
-	}
-	for _, a := range b.GetAssetTypes(true) {
-		if err := b.UpdateOrderExecutionLimits(ctx, a); err != nil && err != common.ErrNotYetImplemented {
-			log.Errorln(log.ExchangeSys, err.Error())
-		}
-	}
-
-	err := b.UpdateTradablePairs(ctx, false)
-	if err != nil {
-		log.Errorf(log.ExchangeSys,
-			"%s failed to update tradable pairs. Err: %s",
-			b.Name,
-			err)
-	}
 }
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs
