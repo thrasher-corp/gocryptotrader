@@ -103,6 +103,9 @@ func (w *Websocket) Setup(s *WebsocketSetup) error {
 		return errWebsocketSetupIsNil
 	}
 
+	w.m.Lock()
+	defer w.m.Unlock()
+
 	if w.IsInitialised() {
 		return fmt.Errorf("%s %w", w.exchangeName, errWebsocketAlreadyInitialised)
 	}
