@@ -564,10 +564,10 @@ func (b *Bitstamp) GetOrderInfo(ctx context.Context, orderID string, _ currency.
 	th := make([]order.TradeHistory, len(o.Transactions))
 	for i := range o.Transactions {
 		th[i] = order.TradeHistory{
-			TID:    strconv.FormatInt(o.Transactions[i].TradeID, 10),
-			Price:  o.Transactions[i].Price,
-			Fee:    o.Transactions[i].Fee,
-			Amount: o.Transactions[i].BTC,
+			TID:   strconv.FormatInt(o.Transactions[i].TradeID, 10),
+			Price: o.Transactions[i].Price,
+			Fee:   o.Transactions[i].Fee,
+			//Amount: o.Transactions[i].BTC,??????????
 		}
 	}
 	orderDate, err := time.Parse(time.DateTime, o.DateTime)
@@ -576,8 +576,7 @@ func (b *Bitstamp) GetOrderInfo(ctx context.Context, orderID string, _ currency.
 	}
 
 	return &order.Detail{
-		Amount:  o.Amount,
-		Price:   o.Price,
+		Amount:  o.AmountRemaining,
 		OrderID: o.ID,
 		Date:    orderDate,
 		Trades:  th,

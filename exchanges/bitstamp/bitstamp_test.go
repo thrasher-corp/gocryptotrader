@@ -184,6 +184,8 @@ func TestGetTicker(t *testing.T) {
 	assert.Positive(t, tick.Open, "Open should be positive")
 	assert.Positive(t, tick.Volume, "Volume should be positive")
 	assert.Positive(t, tick.Vwap, "Vwap should be positive")
+	assert.Positive(t, tick.Open24, "Open24 should be positive")
+	assert.NotEmpty(t, tick.PercentChange24, "PercentChange24 should be positive")
 	assert.NotEmpty(t, tick.Timestamp, "Timestamp should not be empty")
 	assert.Contains(t, []order.Side{order.Buy, order.Sell}, tick.Side.Side(), "Side should be either Buy or Sell")
 }
@@ -359,11 +361,14 @@ func TestGetOpenOrders(t *testing.T) {
 	if mockTests {
 		assert.NotEmpty(t, o, "Orders should not be empty")
 		for _, res := range o {
-			assert.Equal(t, "2022-01-31 14:43:15", res.DateTime, "order date should match")
-			assert.Equal(t, int64(1234123412341234), res.ID, "order ID should match")
-			assert.Equal(t, 0.50000000, res.Amount, "amount should match")
-			assert.Equal(t, 100.00, res.Price, "price should match")
-			assert.Equal(t, 0, res.Type, "type should match")
+			assert.Equal(t, "2022-01-31 14:43:15", res.DateTime, "DateTime should match")
+			assert.Equal(t, int64(1234123412341234), res.ID, "ID should match")
+			assert.Equal(t, 0.50000000, res.Amount, "Amount should match")
+			assert.Equal(t, 100.00, res.Price, "Price should match")
+			assert.Equal(t, 0, res.Type, "Type should match")
+			assert.Equal(t, 0.50000000, res.AmountAtCreate, "AmountAtCreate should match")
+			assert.Equal(t, 110.00, res.LimitPrice, "LimitPrice should match")
+			assert.Equal(t, "1234123412341234", res.ClientOrderID, "ClientOrderID should match")
 		}
 	}
 }
@@ -379,11 +384,19 @@ func TestGetOrderStatus(t *testing.T) {
 		assert.ErrorContains(t, err, "Order not found")
 	} else {
 		assert.NoError(t, err, "TestGetOrderStatus should not error")
-		assert.Equal(t, "2022-01-31 14:43:15", o.DateTime, "order date should match")
-		assert.Equal(t, "1458532827766784", o.ID, "order ID should match")
-		assert.Equal(t, 200.00, o.Amount, "amount should match")
-		assert.Equal(t, 50.00, o.Price, "price should match")
-		assert.Equal(t, 0, o.Type, "type should match")
+		assert.Equal(t, "2022-01-31 14:43:15", o.DateTime, "DateTime should match")
+		assert.Equal(t, "1458532827766784", o.ID, "OrderID should match")
+		assert.Equal(t, 100.00, o.AmountRemaining, "AmountRemaining should match")
+		assert.Equal(t, 0, o.Type, "Type should match")
+		assert.Equal(t, "0.50000000", o.ClientOrderID, "ClientOrderID should match")
+		assert.Equal(t, "BTC/USD", o.Symbol, "Symbol should match")
+		for _, tr := range o.Transactions {
+			assert.Equal(t, "2022-01-31 14:43:15", tr.DateTime, "DateTime should match")
+			assert.Equal(t, 50.00, tr.Price, "Price should match")
+			assert.Equal(t, 101.00, tr.FromCurrency, "FromCurrency should match")
+			assert.Equal(t, float64(1), tr.ToCurrency, "ToCurrency should match")
+			assert.Equal(t, 0, o.Type, "Type should match")
+		}
 	}
 }
 
@@ -406,6 +419,8 @@ func TestGetWithdrawalRequests(t *testing.T) {
 			assert.Equal(t, "NsOeFbQhRnpGzNIThWGBTkQwRJqTNOGPVhYavrVyMfkAyMUmIlUpFIwGTzSvpeOP", req.TransactionID, "TransactionID should match")
 			assert.Equal(t, int64(2), req.Status, "Status should match")
 			assert.Equal(t, int64(0), req.Type, "Type should match")
+			assert.Equal(t, "bitcoin", req.Network, "Network should match")
+			assert.Equal(t, int64(1), req.TxID, "TxID should match")
 		}
 	}
 }
@@ -421,7 +436,9 @@ func TestGetUnconfirmedBitcoinDeposits(t *testing.T) {
 	if mockTests {
 		assert.NotEmpty(t, d, "Deposits should not be empty")
 		for _, res := range d {
-			assert.Equal(t, "0x6a56f5b80f04b4fd70d64d72e1396698635e5436", res.Address)
+			assert.Equal(t, "0x6a56f5b80f04b4fd70d64d72e1396698635e5436", res.Address, "Address should match")
+			assert.Equal(t, 89473951, res.DestinationTag, "DestinationTag should match")
+			assert.Equal(t, "299576079", res.MemoID, "MemoID should match")
 		}
 	}
 }
@@ -981,10 +998,12 @@ func TestGetOrderInfo(t *testing.T) {
 	o, err := b.GetOrderInfo(context.Background(), "1458532827766784", btcusdPair, asset.Spot)
 	if mockTests {
 		assert.NoError(t, err, "GetOrderInfo should not error")
-		assert.Equal(t, time.Date(2022, time.January, 31, 14, 43, 15, 0, time.UTC), o.Date, "order date should match")
-		assert.Equal(t, "1458532827766784", o.OrderID, "order ID should match")
-		assert.Equal(t, 200.00, o.Amount, "amount should match")
-		assert.Equal(t, 50.00, o.Price, "price should match")
+		assert.Equal(t, time.Date(2022, time.January, 31, 14, 43, 15, 0, time.UTC), o.Date, "Date should match")
+		assert.Equal(t, "1458532827766784", o.OrderID, "OrderID should match")
+		assert.Equal(t, 100.00, o.Amount, "Amount should match")
+		for _, tr := range o.Trades {
+			assert.Equal(t, 50.00, tr.Price, "Price should match")
+		}
 	} else {
 		assert.ErrorContains(t, err, "authenticated request failed Order not found")
 	}
