@@ -7,7 +7,6 @@ import (
 	"log"
 	"os"
 	"strconv"
-	"sync"
 	"testing"
 	"time"
 
@@ -38,7 +37,6 @@ var (
 	d                                                                                                            = &Deribit{}
 	futuresTradablePair, optionsTradablePair, optionComboTradablePair, futureComboTradablePair, spotTradablePair currency.Pair
 	fetchTradablePairChan                                                                                        chan struct{}
-	tradablePairsFetchedStatusLock                                                                               = sync.Mutex{}
 	tradablePairsFetched                                                                                         bool
 )
 
@@ -2225,58 +2223,60 @@ func instantiateTradablePairs() {
 		var err error
 		futuresTradablePair, err = currency.NewPairFromString(btcPerpInstrument)
 		if err != nil {
-			tpfChan <- struct{}{}
+			close(tpfChan)
 			log.Fatal(err)
 		}
 
 		spotTradablePair, err = currency.NewPairFromString("BTC_USDC")
 		if err != nil {
-			tpfChan <- struct{}{}
+			close(tpfChan)
 			log.Fatal(err)
 		}
 		assets := []asset.Item{asset.Futures, asset.Options, asset.OptionCombo, asset.FutureCombo}
 		for x := range assets {
+			// This loop only fetches tradable pairs of selected assets.
 			var pairs currency.Pairs
 			pairs, err = d.FetchTradablePairs(context.Background(), assets[x])
 			if err != nil {
-				tpfChan <- struct{}{}
+				close(tpfChan)
 				log.Fatalf("%v, while fetching tradable pairs of asset type %v", err, assets[x])
 			}
 			err = d.UpdatePairs(pairs, assets[x], false, true)
 			if err != nil {
-				tpfChan <- struct{}{}
+				close(tpfChan)
 				log.Fatalf("%v, while updating tradable pairs of asset type %v", err, assets[x])
 			}
 		}
 		var tradablePair currency.Pairs
 		tradablePair, err = d.GetEnabledPairs(asset.Options)
 		if err != nil {
-			tpfChan <- struct{}{}
+			close(tpfChan)
 			log.Fatalf("failed to update tradable pairs. Err: %v", err)
 		} else if len(tradablePair) == 0 {
-			tpfChan <- struct{}{}
+			close(tpfChan)
 			log.Fatalf("enabled %v for asset type %v", currency.ErrCurrencyPairsEmpty, asset.Options)
 		}
 		optionsTradablePair = tradablePair[0]
 		tradablePair, err = d.GetEnabledPairs(asset.OptionCombo)
 		if err != nil {
-			tpfChan <- struct{}{}
+			close(tpfChan)
 			log.Fatalf("failed to update tradable pairs. Err: %v", err)
 		} else if len(tradablePair) == 0 {
-			tpfChan <- struct{}{}
+			close(tpfChan)
 			log.Fatalf("enabled %v for asset type %v", currency.ErrCurrencyPairsEmpty, asset.OptionCombo)
 		}
 		optionComboTradablePair = tradablePair[0]
 		tradablePair, err = d.GetEnabledPairs(asset.FutureCombo)
 		if err != nil {
-			tpfChan <- struct{}{}
+			close(tpfChan)
 			log.Fatalf("failed to update tradable pairs. Err: %v", err)
 		} else if len(tradablePair) == 0 {
-			tpfChan <- struct{}{}
+			close(tpfChan)
 			log.Fatalf("enabled %v for asset type %v", currency.ErrCurrencyPairsEmpty, asset.FutureCombo)
 		}
 		futureComboTradablePair = tradablePair[0]
-		tpfChan <- struct{}{}
+		tradablePairsFetched = true
+		close(tpfChan)
 	}(fetchTradablePairChan)
 }
 
@@ -2285,14 +2285,6 @@ func sleepUntilTradablePairsUpdated() {
 		return
 	}
 	<-fetchTradablePairChan
-	if !tradablePairsFetched {
-		tradablePairsFetchedStatusLock.Lock()
-		tradablePairsFetched = true
-		close(fetchTradablePairChan)
-		time.Sleep(time.Millisecond * 100)
-		fetchTradablePairChan = make(chan struct{})
-		tradablePairsFetchedStatusLock.Unlock()
-	}
 }
 
 func TestGetLatestFundingRates(t *testing.T) {
