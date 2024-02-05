@@ -1665,12 +1665,12 @@ func (b *Bitfinex) ConfigureWS() error {
 }
 
 // Subscribe sends a websocket message to receive data from channels
-func (b *Bitfinex) Subscribe(ctx context.Context, channels []subscription.Subscription) error {
+func (b *Bitfinex) Subscribe(_ context.Context, channels []subscription.Subscription) error {
 	return b.ParallelChanOp(channels, b.subscribeToChan, 1)
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from channels
-func (b *Bitfinex) Unsubscribe(ctx context.Context, channels []subscription.Subscription) error {
+func (b *Bitfinex) Unsubscribe(_ context.Context, channels []subscription.Subscription) error {
 	return b.ParallelChanOp(channels, b.unsubscribeFromChan, 1)
 }
 
