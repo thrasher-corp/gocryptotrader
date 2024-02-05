@@ -14,6 +14,23 @@
     }
    ]
   },
+  "/api/ripple_address/": {
+    "POST": [
+     {
+      "data": {
+        "address": "rvYAfWj5gh67oV6fW32ZzP3Aw4Eubs59B",
+        "destination_tag": 89473951
+        },
+      "queryString": "",
+      "bodyParams": "key=\u0026nonce=1560479820465818675\u0026signature=71962D6BBDFE3BF42BAC455E3A9C410FA90286148A6C299BAC1B44234072DA45",
+      "headers": {
+       "Content-Type": [
+        "application/x-www-form-urlencoded"
+       ]
+      }
+     }
+    ]
+   },
   "/api/bitcoin_withdrawal/": {
    "POST": [
     {
@@ -72,10 +89,27 @@
    "POST": [
     {
      "data": {
-      "error": "Order not found"
+        "id": "1458532827766784",
+        "datetime": "2022-01-31 14:43:15",
+        "type": 0,
+        "status": "Open",
+        "market": "BTC/USD",
+        "price":"50.00",
+        "transactions": [
+            {
+                "tid": 1,
+                "price": "50.00",
+                "{from_currency}": "101.00",
+                "{to_currency}": "1",
+                "fee": "1.00",
+                "datetime": "2022-01-31 14:43:15",
+                "type": 0
+                }
+        ],
+        "amount": "200.00"
      },
      "queryString": "",
-     "bodyParams": "id=1337\u0026key=\u0026nonce=1560480481012757775\u0026signature=71E0C3A3B0CE4C96C9AC0C6519C3F4801A46C52C5C9BAAADB8642CE65F0CF385",
+     "bodyParams": "id=1458532827766784&key=FUId9Nby1VbZrGgZHfzGbswd4CDcp6Ar&nonce=1700374285822027000&signature=0B7C759A57B10EC315CE3A53480EDC720BE9BCD2CCEA86313808914484483386",
      "headers": {
       "Content-Type": [
        "application/x-www-form-urlencoded"
@@ -87,7 +121,11 @@
   "/api/unconfirmed_btc/": {
    "POST": [
     {
-     "data": [],
+     "data": [{
+     "address": "0x6a56f5b80f04b4fd70d64d72e1396698635e5436",
+     "destination_tag": 89473951,
+     "memo_id": "299576079"
+     }],
      "queryString": "",
      "bodyParams": "key=\u0026nonce=1560479341665583985\u0026signature=8E4563D286BB5EEE45093DA708A8F78780B20CA5B1631E308E9C5CB64ACFE8D3",
      "headers": {
@@ -105,7 +143,6 @@
       "bch_available": "0.00000000",
       "bch_balance": "0.00000000",
       "bch_reserved": "0.00000000",
-      "bch_withdrawal_fee": "0.00000000",
       "bch_withdrawal_fee": "0.25",
       "btc_available": "9.1000000",
       "btc_balance": "11.20000000",
@@ -157,7 +194,8 @@
                     {
                         "maker": "0.3",
                         "taker": "0.2"
-                    }
+                    },
+                "market": "ltcbtc"
             },
             "queryString": "",
             "bodyParams": "key=\u0026nonce=1690610275327495000\u0026signature=B619E1AEF317B95D3BB28025F36EEF94CABCDE425CE3E13E8A1861C0A9777F2A",
@@ -178,14 +216,16 @@
                 "fees": {
                         "maker": "0.3",
                         "taker": "0.2"
-                    }
+                    },
+                "market": "ltcbtc"
                 },
                 {
                 "currency_pair":"btcusd",
                 "fees": {
                         "maker": "0.3",
                         "taker": "0.2"
-                    }
+                    },
+                "market": "ltcbtc"
                 }
             ],
             "queryString": "",
@@ -202,15 +242,16 @@
    "POST": [
     {
      "data": {
-      "status": "error",
-      "reason": {
-       "__all__": [
-        "You can only buy 0.00000000 BTC. Check your account balance for details."
-       ]
-      }
+        "id": "1234123412341234",
+    "market": "BTC/USD",
+    "datetime": "2022-01-31 14:43:15.796000",
+    "type": "0",
+    "price": "2211.00",
+    "amount": "45.00000000",
+    "client_order_id": "123456789"
      },
      "queryString": "",
-     "bodyParams": "amount=1\u0026key=\u0026nonce=1560469416881040806\u0026price=1\u0026signature=D683BE07779B299B730F334C94758EBC56E264FC5C96C87B64E5ECC670421D65",
+     "bodyParams": "amount=45\u0026key=\u0026nonce=1560469416881040806\u0026price=1\u0026signature=D683BE07779B299B730F334C94758EBC56E264FC5C96C87B64E5ECC670421D65",
      "headers": {
       "Content-Type": [
        "application/x-www-form-urlencoded"
@@ -219,14 +260,40 @@
     }
    ]
   },
+  "/api/v2/buy/btcusd/": {
+    "POST": [
+     {
+      "data": {
+        "id": "1234123412341234",
+        "market": "BTC/USD",
+        "datetime": "2022-01-31 14:43:15.796000",
+        "type": "1",
+        "price": "2211.00",
+        "amount": "45",
+        "client_order_id": "123456789"
+        },
+      "queryString": "",
+      "bodyParams": "amount=45&key=FUId9Nby1VbZrGgZHfzGbswd4CDcp6Ar&nonce=1700378043980665000&price=2211&signature=2D0A359D16FCA1FD6185E9B8C007F294154AF296659AF2FF965695B6452B0C40",
+      "headers": {
+       "Content-Type": [
+        "application/x-www-form-urlencoded"
+       ]
+      }
+     }
+    ]
+   },
   "/api/v2/cancel_order/": {
    "POST": [
     {
      "data": {
-      "error": "Order not found"
+        "id": 1453282316578816,
+        "amount": 0.02035278,
+        "price": 2100.45,
+        "type": 0,
+        "market": "BTC/USD"
      },
      "queryString": "",
-     "bodyParams": "id=1234\u0026key=\u0026nonce=1560467884949723197\u0026signature=79D88FC2BC3AECBFDD27F70EF5DDBB485349F45129C58EE725BAEE0DF7818452",
+     "bodyParams": "id=1453282316578816\u0026key=\u0026nonce=1560467884949723197\u0026signature=79D88FC2BC3AECBFDD27F70EF5DDBB485349F45129C58EE725BAEE0DF7818452",
      "headers": {
       "Content-Type": [
        "application/x-www-form-urlencoded"
@@ -24378,7 +24445,18 @@
   "/api/v2/open_orders/all/": {
    "POST": [
     {
-     "data": [],
+     "data": [{
+        "id": "1234123412341234",
+        "datetime": "2022-01-31 14:43:15",
+        "type": "0",
+        "price": "100.00",
+        "amount": "0.50000000",
+        "amount_at_create": "0.50000000",
+        "currency_pair": "BTC/USD",
+        "market": "BTC/USD",
+        "limit_price": "110.00",
+        "client_order_id": "1234123412341234"
+        }],
      "queryString": "",
      "bodyParams": "key=\u0026nonce=1560473214020947705\u0026signature=4530400B3F02B223F5AFE62DA3B18A09757A32882D9798B9AA78D70DE976316F",
      "headers": {
@@ -24392,7 +24470,17 @@
   "/api/v2/open_orders/btcusd/": {
    "POST": [
     {
-     "data": [],
+     "data": [{
+        "amount": "0.50000000",
+        "amount_at_create": "0.50000000",
+        "client_order_id": "1234123412341234",
+        "datetime": "2022-01-31 14:43:15",
+        "id": "1234123412341234",
+        "limit_price": "110.00",
+        "market": "BTC/USD",
+        "price": "100.00",
+        "type": "0"
+        }],
      "queryString": "",
      "bodyParams": "key=\u0026nonce=1560480749904299481\u0026signature=C1DCFCFC6E3122D12ACCA57178F781658DA6690DCAE4F56EC13998D5FCE9DF5D",
      "headers": {
@@ -63767,16 +63855,19 @@
    "GET": [
     {
      "data": {
-      "high": "8335.56",
-      "last": "8213.59",
-      "timestamp": "1560482195",
-      "bid": "8210.38",
-      "vwap": "8190.45",
-      "volume": "6793.04518082",
-      "low": "8049.22",
-      "ask": "8213.59",
-      "open": "8235.44"
-     },
+        "ask": "2211.00",
+        "bid": "2188.97",
+        "high": "2811.00",
+        "last": "2211.00",
+        "low": "2188.97",
+        "open": "2211.00",
+        "open_24": "2211.00",
+        "percent_change_24": "13.57",
+        "side": "0",
+        "timestamp": "1643640186",
+        "volume": "213.26801100",
+        "vwap": "2189.80"
+    },
      "queryString": "",
      "bodyParams": "\u003cnil\u003e",
      "headers": {}
@@ -67867,11 +67958,10 @@
     {
      "data": {
       "code": "API0000",
-      "reason": "Missing key, signature and nonce parameters",
-      "status": "error"
+      "status": "ok"
      },
      "queryString": "",
-     "bodyParams": "amount=0.01\u0026currency=btc\u0026key=\u0026nonce=1563774326032825427\u0026signature=0EEA71F2E4811F720A9C5D294D33A75404D2C0902C120D976A50B68946F699C9\u0026subAccount=testAccount",
+     "bodyParams": "amount=10000&currency=BTC&key=FUId9Nby1VbZrGgZHfzGbswd4CDcp6Ar&nonce=1700382096969064000&signature=0EAAF413A980752F4018A6DD083B4AA9470AF839AD5862D8E803CAE8C6813C43&subAccount=1234567",
      "headers": {
       "Content-Type": [
        "application/x-www-form-urlencoded"
@@ -68216,15 +68306,10 @@
    "POST": [
     {
      "data": {
-      "status": "error",
-      "reason": {
-       "amount": [
-        "You have only 0.00 USD available. Check your account balance for details."
-       ]
-      }
+        "withdrawal_id": 1
      },
      "queryString": "",
-     "bodyParams": "account_currency=USD\u0026address=123+Fake+St\u0026amount=-1\u0026bank_address=123+Fake+St\u0026bank_city=Tarry+Town\u0026bank_country=AU\u0026bank_name=Federal+Reserve+Bank\u0026bank_postal_code=2088\u0026bic=CTBAAU2S\u0026city=Tarry+Town\u0026comment=WITHDRAW+IT+ALL\u0026country=AU\u0026currency=USD\u0026iban=IT60X0542811101000000123456\u0026key=\u0026name=Satoshi+Nakamoto\u0026nonce=1560404081220544346\u0026postal_code=2088\u0026signature=17C71D3A9175255D46D786E9709B815E6C1B450B0E4E60B622EF35F0AD966B70\u0026type=international",
+     "bodyParams": "account_currency=USD&address=123+Fake+St&amount=10&bic=CTBAAU2S&city=Tarry+Town&comment=WITHDRAW+IT+ALL&country=AU&iban=IT60X0542811101000000123456&key=FUId9Nby1VbZrGgZHfzGbswd4CDcp6Ar&name=Satoshi+Nakamoto&nonce=1700299995971938000&postal_code=2088&signature=8FAD96A92BBA8F4D6599906E1553B0186A8503F97FA1581C838B5049BB253DAE&type=sepa",
      "headers": {
       "Content-Type": [
        "application/x-www-form-urlencoded"
@@ -68233,23 +68318,85 @@
     },
     {
      "data": {
-      "status": "error",
-      "reason": {
-       "amount": [
-        "You have only 0.00 USD available. Check your account balance for details."
-       ]
-      }
+        "withdrawal_id": 1
      },
      "queryString": "",
-     "bodyParams": "account_currency=USD\u0026address=123+Fake+St\u0026amount=-1\u0026bic=CTBAAU2S\u0026city=Tarry+Town\u0026comment=WITHDRAW+IT+ALL\u0026country=AU\u0026iban=IT60X0542811101000000123456\u0026key=\u0026name=Satoshi+Nakamoto\u0026nonce=1560405334882045192\u0026postal_code=2088\u0026signature=1EB01441F5FB1FA1335EF5586D86F210101F641768C7568A4F9D592AA529628B\u0026type=sepa",
+     "bodyParams": "account_currency=USD&address=123+Fake+St&amount=50&bank_address=123+Fake+St&bank_city=Tarry+Town&bank_country=AU&bank_name=Federal+Reserve+Bank&bank_postal_code=2088&bic=CTBAAU2S&city=Tarry+Town&comment=WITHDRAW+IT+ALL&country=AU&currency=USD&iban=IT60X0542811101000000123456&key=FUId9Nby1VbZrGgZHfzGbswd4CDcp6Ar&name=Satoshi+Nakamoto&nonce=1700301535927143000&postal_code=2088&signature=56886D87E0F1D4F3A197FC24B9D0CD1D17931B5E589ABF1D3B521AF3B45DBFEE&type=international",
      "headers": {
       "Content-Type": [
        "application/x-www-form-urlencoded"
       ]
      }
-    }
+    },
+    {
+        "data": {
+           "status": "error",
+           "reason": {
+            "amount": [
+             "You have only 0.00 USD available. Check your account balance for details."
+            ]
+           }
+        },
+        "queryString": "",
+        "bodyParams": "account_currency=USD&address=123+Fake+St&amount=10&bic=CTBAAU2S&city=Tarry+Town&comment=WITHDRAW+IT+ALL&country=AU&iban=IT60X0542811101000000123456&key=FUId9Nby1VbZrGgZHfzGbswd4CDcp6Ar&name=Satoshi+Nakamoto&nonce=1700299995971938000&postal_code=2088&signature=8FAD96A92BBA8F4D6599906E1553B0186A8503F97FA1581C838B5049BB253DAE&type=sepa",
+        "headers": {
+         "Content-Type": [
+          "application/x-www-form-urlencoded"
+         ]
+        }
+       },
+       {
+        "data": {
+           "status": "error",
+           "reason": {
+            "amount": [
+             "You have only 0.00 USD available. Check your account balance for details."
+            ]
+           }
+        },
+        "queryString": "",
+        "bodyParams": "account_currency=USD&address=123+Fake+St&amount=50&bank_address=123+Fake+St&bank_city=Tarry+Town&bank_country=AU&bank_name=Federal+Reserve+Bank&bank_postal_code=2088&bic=CTBAAU2S&city=Tarry+Town&comment=WITHDRAW+IT+ALL&country=AU&currency=USD&iban=IT60X0542811101000000123456&key=FUId9Nby1VbZrGgZHfzGbswd4CDcp6Ar&name=Satoshi+Nakamoto&nonce=1702376984181107000&postal_code=2088&signature=7493E07560ED08C05D1BFE6E1726EB76EF90AD9DC874AD5DFE3EBB50D94C0940&type=international",
+        "headers": {
+         "Content-Type": [
+          "application/x-www-form-urlencoded"
+         ]
+        }
+       }
    ]
   },
+  "/api/v2/btc_withdrawal/": {
+    "POST": [
+     {
+      "data": {
+         "withdrawal_id": 1
+      },
+      "queryString": "",
+      "bodyParams": "address=bc1qk0jareu4jytc0cfrhr5wgshsq8282awpavfahc&amount=6&key=FUId9Nby1VbZrGgZHfzGbswd4CDcp6Ar&nonce=1700299173646350000&signature=5D7281469C1E57BDAE13FF2C967F69B95C51A4496BEB92F040BC7345D517B911",
+      "headers": {
+       "Content-Type": [
+        "application/x-www-form-urlencoded"
+       ]
+      }
+     },
+     {
+      "data": {
+       "status": "error",
+       "reason": {
+        "amount": [
+         "You have only 0.00 USD available. Check your account balance for details."
+        ]
+       }
+      },
+      "queryString": "",
+      "bodyParams": "account_currency=USD\u0026address=123+Fake+St\u0026amount=-1\u0026bic=CTBAAU2S\u0026city=Tarry+Town\u0026comment=WITHDRAW+IT+ALL\u0026country=AU\u0026iban=IT60X0542811101000000123456\u0026key=\u0026name=Satoshi+Nakamoto\u0026nonce=1560405334882045192\u0026postal_code=2088\u0026signature=1EB01441F5FB1FA1335EF5586D86F210101F641768C7568A4F9D592AA529628B\u0026type=sepa",
+      "headers": {
+       "Content-Type": [
+        "application/x-www-form-urlencoded"
+       ]
+      }
+     }
+    ]
+   },
   "/api/v2/xrp_address/": {
    "POST": [
     {
@@ -68289,7 +68436,28 @@
        "application/x-www-form-urlencoded"
       ]
      }
-    }
+    }, 
+    {
+        "data": [{
+           "address": "aMDHooGmAkyrsaQiKhAORhSNTmoRzxqWIO",
+           "amount": "0.00006000",
+           "currency": "BTC",
+           "datetime": "2022-01-31 16:07:32",
+           "id": 1,
+           "network": "bitcoin",
+           "status": 2,
+           "transaction_id": "NsOeFbQhRnpGzNIThWGBTkQwRJqTNOGPVhYavrVyMfkAyMUmIlUpFIwGTzSvpeOP",
+           "txid": 1,
+           "type": 0
+        }],
+        "queryString": "",
+        "bodyParams": "key=&nonce=1701424773861988000&signature=63D3A30E29FF85C814715111F8AC138B0D658C01D45A2EDDCE1E0F09B354DA88",
+        "headers": {
+         "Content-Type": [
+          "application/x-www-form-urlencoded"
+         ]
+        }
+       }
    ]
   },
   "/api/v2/websockets_token/": {

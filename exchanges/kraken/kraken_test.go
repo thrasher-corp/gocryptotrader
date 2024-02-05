@@ -2200,9 +2200,7 @@ func TestGetFuturesContractDetails(t *testing.T) {
 	}
 
 	_, err = k.GetFuturesContractDetails(context.Background(), asset.Futures)
-	if !errors.Is(err, nil) {
-		t.Error(err)
-	}
+	assert.NoError(t, err, "GetFuturesContractDetails should not error")
 }
 
 func TestGetLatestFundingRates(t *testing.T) {
