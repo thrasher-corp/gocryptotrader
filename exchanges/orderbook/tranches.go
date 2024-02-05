@@ -46,13 +46,8 @@ func (ts *Tranches) load(incoming Tranches) {
 		*ts = (*ts)[:len(incoming)] // Flush excess
 		return
 	}
-	if len(incoming) > cap(*ts) {
-		*ts = make([]Tranche, len(incoming)) // Extend
-		copy(*ts, incoming)                  // Copy
-		return
-	}
-	*ts = (*ts)[:0]                // Flush
-	*ts = append(*ts, incoming...) // Append
+	*ts = make([]Tranche, len(incoming)) // Extend
+	copy(*ts, incoming)                  // Copy
 }
 
 // updateByID amends price by corresponding ID and returns an error if not found
