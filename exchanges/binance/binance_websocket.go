@@ -164,267 +164,258 @@ func (b *Binance) wsReadData() {
 }
 
 func (b *Binance) wsHandleData(respRaw []byte) error {
-	resultString, err := jsonparser.GetUnsafeString(respRaw, "result")
-	if err != nil && !errors.Is(err, jsonparser.KeyPathNotFoundError) {
-		return err
-	}
-
 	if id, err := jsonparser.GetInt(respRaw, "id"); err == nil {
 		if b.Websocket.Match.IncomingWithData(id, respRaw) {
 			return nil
 		}
 	}
 
-	if r, ok := multiStreamData["result"]; ok {
-		if r == nil {
+	if resultString, err := jsonparser.GetUnsafeString(respRaw, "result"); err == nil {
+		if resultString == "null" {
+			return nil
+		}
+	}
+	jsonData, _, _, err := jsonparser.Get(respRaw, "data")
+	if err != nil {
+		return fmt.Errorf("%s %s %s", b.Name, stream.UnhandledMessage, string(respRaw))
+	}
+	var event string
+	event, err = jsonparser.GetUnsafeString(jsonData, "e")
+	if err == nil {
+		switch event {
+		case "outboundAccountPosition":
+			var data wsAccountPosition
+			err = json.Unmarshal(respRaw, &data)
+			if err != nil {
+				return fmt.Errorf("%v - Could not convert to outboundAccountPosition structure %s",
+					b.Name,
+					err)
+			}
+			b.Websocket.DataHandler <- data
+			return nil
+		case "balanceUpdate":
+			var data wsBalanceUpdate
+			err = json.Unmarshal(respRaw, &data)
+			if err != nil {
+				return fmt.Errorf("%v - Could not convert to balanceUpdate structure %s",
+					b.Name,
+					err)
+			}
+			b.Websocket.DataHandler <- data
+			return nil
+		case "executionReport":
+			var data wsOrderUpdate
+			err = json.Unmarshal(respRaw, &data)
+			if err != nil {
+				return fmt.Errorf("%v - Could not convert to executionReport structure %s",
+					b.Name,
+					err)
+			}
+			avgPrice := 0.0
+			if data.Data.CumulativeFilledQuantity != 0 {
+				avgPrice = data.Data.CumulativeQuoteTransactedQuantity / data.Data.CumulativeFilledQuantity
+			}
+			remainingAmount := data.Data.Quantity - data.Data.CumulativeFilledQuantity
+			var pair currency.Pair
+			var assetType asset.Item
+			pair, assetType, err = b.GetRequestFormattedPairAndAssetType(data.Data.Symbol)
+			if err != nil {
+				return err
+			}
+			var feeAsset currency.Code
+			if data.Data.CommissionAsset != "" {
+				feeAsset = currency.NewCode(data.Data.CommissionAsset)
+			}
+			orderID := strconv.FormatInt(data.Data.OrderID, 10)
+			var orderStatus order.Status
+			orderStatus, err = stringToOrderStatus(data.Data.OrderStatus)
+			if err != nil {
+				b.Websocket.DataHandler <- order.ClassificationError{
+					Exchange: b.Name,
+					OrderID:  orderID,
+					Err:      err,
+				}
+			}
+			clientOrderID := data.Data.ClientOrderID
+			if orderStatus == order.Cancelled {
+				clientOrderID = data.Data.CancelledClientOrderID
+			}
+			var orderType order.Type
+			orderType, err = order.StringToOrderType(data.Data.OrderType)
+			if err != nil {
+				b.Websocket.DataHandler <- order.ClassificationError{
+					Exchange: b.Name,
+					OrderID:  orderID,
+					Err:      err,
+				}
+			}
+			var orderSide order.Side
+			orderSide, err = order.StringToOrderSide(data.Data.Side)
+			if err != nil {
+				b.Websocket.DataHandler <- order.ClassificationError{
+					Exchange: b.Name,
+					OrderID:  orderID,
+					Err:      err,
+				}
+			}
+			b.Websocket.DataHandler <- &order.Detail{
+				Price:                data.Data.Price,
+				Amount:               data.Data.Quantity,
+				AverageExecutedPrice: avgPrice,
+				ExecutedAmount:       data.Data.CumulativeFilledQuantity,
+				RemainingAmount:      remainingAmount,
+				Cost:                 data.Data.CumulativeQuoteTransactedQuantity,
+				CostAsset:            pair.Quote,
+				Fee:                  data.Data.Commission,
+				FeeAsset:             feeAsset,
+				Exchange:             b.Name,
+				OrderID:              orderID,
+				ClientOrderID:        clientOrderID,
+				Type:                 orderType,
+				Side:                 orderSide,
+				Status:               orderStatus,
+				AssetType:            assetType,
+				Date:                 data.Data.OrderCreationTime,
+				LastUpdated:          data.Data.TransactionTime,
+				Pair:                 pair,
+			}
+			return nil
+		case "listStatus":
+			var data wsListStatus
+			err = json.Unmarshal(respRaw, &data)
+			if err != nil {
+				return fmt.Errorf("%v - Could not convert to listStatus structure %s",
+					b.Name,
+					err)
+			}
+			b.Websocket.DataHandler <- data
 			return nil
 		}
 	}
 
-	var jsonData []byte
-	jsonData, _, _, err = jsonparser.Get(respRaw, "data")
-	if err != nil && !errors.Is(err, jsonparser.KeyPathNotFoundError) {
+	streamStr, err := jsonparser.GetUnsafeString(respRaw, "stream")
+	if err != nil {
+		if errors.Is(err, jsonparser.KeyPathNotFoundError) {
+			return fmt.Errorf("%s %s %s", b.Name, stream.UnhandledMessage, string(respRaw))
+		}
 		return err
 	}
-	if err == nil {
-		var e string
-		e, err = jsonparser.GetUnsafeString(jsonData, "e")
-		if err != nil && !errors.Is(err, jsonparser.KeyPathNotFoundError) {
-			return err
-		}
-		if err == nil {
-			switch e {
-			case "outboundAccountPosition":
-				var data wsAccountPosition
-				err = json.Unmarshal(respRaw, &data)
-				if err != nil {
-					return fmt.Errorf("%v - Could not convert to outboundAccountPosition structure %s",
-						b.Name,
-						err)
-				}
-				b.Websocket.DataHandler <- data
-				return nil
-			case "balanceUpdate":
-				var data wsBalanceUpdate
-				err = json.Unmarshal(respRaw, &data)
-				if err != nil {
-					return fmt.Errorf("%v - Could not convert to balanceUpdate structure %s",
-						b.Name,
-						err)
-				}
-				b.Websocket.DataHandler <- data
-				return nil
-			case "executionReport":
-				var data wsOrderUpdate
-				err = json.Unmarshal(respRaw, &data)
-				if err != nil {
-					return fmt.Errorf("%v - Could not convert to executionReport structure %s",
-						b.Name,
-						err)
-				}
-				avgPrice := 0.0
-				if data.Data.CumulativeFilledQuantity != 0 {
-					avgPrice = data.Data.CumulativeQuoteTransactedQuantity / data.Data.CumulativeFilledQuantity
-				}
-				remainingAmount := data.Data.Quantity - data.Data.CumulativeFilledQuantity
-				var pair currency.Pair
-				var assetType asset.Item
-				pair, assetType, err = b.GetRequestFormattedPairAndAssetType(data.Data.Symbol)
-				if err != nil {
-					return err
-				}
-				var feeAsset currency.Code
-				if data.Data.CommissionAsset != "" {
-					feeAsset = currency.NewCode(data.Data.CommissionAsset)
-				}
-				orderID := strconv.FormatInt(data.Data.OrderID, 10)
-				var orderStatus order.Status
-				orderStatus, err = stringToOrderStatus(data.Data.OrderStatus)
-				if err != nil {
-					b.Websocket.DataHandler <- order.ClassificationError{
-						Exchange: b.Name,
-						OrderID:  orderID,
-						Err:      err,
-					}
-				}
-				clientOrderID := data.Data.ClientOrderID
-				if orderStatus == order.Cancelled {
-					clientOrderID = data.Data.CancelledClientOrderID
-				}
-				var orderType order.Type
-				orderType, err = order.StringToOrderType(data.Data.OrderType)
-				if err != nil {
-					b.Websocket.DataHandler <- order.ClassificationError{
-						Exchange: b.Name,
-						OrderID:  orderID,
-						Err:      err,
-					}
-				}
-				var orderSide order.Side
-				orderSide, err = order.StringToOrderSide(data.Data.Side)
-				if err != nil {
-					b.Websocket.DataHandler <- order.ClassificationError{
-						Exchange: b.Name,
-						OrderID:  orderID,
-						Err:      err,
-					}
-				}
-				b.Websocket.DataHandler <- &order.Detail{
-					Price:                data.Data.Price,
-					Amount:               data.Data.Quantity,
-					AverageExecutedPrice: avgPrice,
-					ExecutedAmount:       data.Data.CumulativeFilledQuantity,
-					RemainingAmount:      remainingAmount,
-					Cost:                 data.Data.CumulativeQuoteTransactedQuantity,
-					CostAsset:            pair.Quote,
-					Fee:                  data.Data.Commission,
-					FeeAsset:             feeAsset,
-					Exchange:             b.Name,
-					OrderID:              orderID,
-					ClientOrderID:        clientOrderID,
-					Type:                 orderType,
-					Side:                 orderSide,
-					Status:               orderStatus,
-					AssetType:            assetType,
-					Date:                 data.Data.OrderCreationTime,
-					LastUpdated:          data.Data.TransactionTime,
-					Pair:                 pair,
-				}
-				return nil
-			case "listStatus":
-				var data wsListStatus
-				err = json.Unmarshal(respRaw, &data)
-				if err != nil {
-					return fmt.Errorf("%v - Could not convert to listStatus structure %s",
-						b.Name,
-						err)
-				}
-				b.Websocket.DataHandler <- data
-				return nil
-			}
-		}
+	streamType := strings.Split(streamStr, "@")
+	if len(streamType) <= 1 {
+		return fmt.Errorf("%s %s %s", b.Name, stream.UnhandledMessage, string(respRaw))
 	}
-	var streamStr string
-	streamStr, err = jsonparser.GetUnsafeString(respRaw, "stream")
-	if err != nil && !errors.Is(err, jsonparser.KeyPathNotFoundError) {
+	var (
+		pair      currency.Pair
+		isEnabled bool
+		symbol    string
+	)
+	symbol, err = jsonparser.GetUnsafeString(jsonData, "s")
+	if err != nil {
+		// there should be a symbol returned for all data types below
 		return err
 	}
-	if err == nil {
-		streamType := strings.Split(streamStr, "@")
-		if len(streamType) > 1 {
-			var (
-				pair      currency.Pair
-				isEnabled bool
-				symbol    string
-			)
-			symbol, err = jsonparser.GetUnsafeString(jsonData, "s")
-			if err != nil {
-				// there should be a symbol returned for all data types below
-				return err
-			}
-			pair, isEnabled, err = b.MatchSymbolCheckEnabled(symbol, asset.Spot, false)
-			if err != nil {
-				return err
-			}
-			if !isEnabled {
-				return nil
-			}
-			switch streamType[1] {
-			case "trade":
-				saveTradeData := b.IsSaveTradeDataEnabled()
-				if !saveTradeData &&
-					!b.IsTradeFeedEnabled() {
-					return nil
-				}
+	pair, isEnabled, err = b.MatchSymbolCheckEnabled(symbol, asset.Spot, false)
+	if err != nil {
+		return err
+	}
+	if !isEnabled {
+		return nil
+	}
+	switch streamType[1] {
+	case "trade":
+		saveTradeData := b.IsSaveTradeDataEnabled()
+		if !saveTradeData &&
+			!b.IsTradeFeedEnabled() {
+			return nil
+		}
 
-				var t TradeStream
-				err = json.Unmarshal(jsonData, &t)
-				if err != nil {
-					return fmt.Errorf("%v - Could not unmarshal trade data: %s",
-						b.Name,
-						err)
-				}
-				return b.Websocket.Trade.Update(saveTradeData,
-					trade.Data{
-						CurrencyPair: pair,
-						Timestamp:    t.TimeStamp,
-						Price:        t.Price.Float64(),
-						Amount:       t.Quantity.Float64(),
-						Exchange:     b.Name,
-						AssetType:    asset.Spot,
-						TID:          strconv.FormatInt(t.TradeID, 10),
-					})
-			case "ticker":
-				var t TickerStream
-				err = json.Unmarshal(jsonData, &t)
-				if err != nil {
-					return fmt.Errorf("%v - Could not convert to a TickerStream structure %s",
-						b.Name,
-						err.Error())
-				}
-				b.Websocket.DataHandler <- &ticker.Price{
-					ExchangeName: b.Name,
-					Open:         t.OpenPrice.Float64(),
-					Close:        t.ClosePrice.Float64(),
-					Volume:       t.TotalTradedVolume.Float64(),
-					QuoteVolume:  t.TotalTradedQuoteVolume.Float64(),
-					High:         t.HighPrice.Float64(),
-					Low:          t.LowPrice.Float64(),
-					Bid:          t.BestBidPrice.Float64(),
-					Ask:          t.BestAskPrice.Float64(),
-					Last:         t.LastPrice.Float64(),
-					LastUpdated:  t.EventTime,
-					AssetType:    asset.Spot,
-					Pair:         pair,
-				}
-				return nil
-			case "kline_1m", "kline_3m", "kline_5m", "kline_15m", "kline_30m", "kline_1h", "kline_2h", "kline_4h",
-				"kline_6h", "kline_8h", "kline_12h", "kline_1d", "kline_3d", "kline_1w", "kline_1M":
-				var kline KlineStream
-				err = json.Unmarshal(jsonData, &kline)
-				if err != nil {
-					return fmt.Errorf("%v - Could not convert to a KlineStream structure %s",
-						b.Name,
-						err)
-				}
-				b.Websocket.DataHandler <- stream.KlineData{
-					Timestamp:  kline.EventTime,
-					Pair:       pair,
-					AssetType:  asset.Spot,
-					Exchange:   b.Name,
-					StartTime:  kline.Kline.StartTime,
-					CloseTime:  kline.Kline.CloseTime,
-					Interval:   kline.Kline.Interval,
-					OpenPrice:  kline.Kline.OpenPrice.Float64(),
-					ClosePrice: kline.Kline.ClosePrice.Float64(),
-					HighPrice:  kline.Kline.HighPrice.Float64(),
-					LowPrice:   kline.Kline.LowPrice.Float64(),
-					Volume:     kline.Kline.Volume.Float64(),
-				}
-				return nil
-			case "depth":
-				var depth WebsocketDepthStream
-				err = json.Unmarshal(jsonData, &depth)
-				if err != nil {
-					return fmt.Errorf("%v - Could not convert to depthStream structure %s",
-						b.Name,
-						err)
-				}
-				var init bool
-				init, err = b.UpdateLocalBuffer(&depth)
-				if err != nil {
-					if init {
-						return nil
-					}
-					return fmt.Errorf("%v - UpdateLocalCache error: %s",
-						b.Name,
-						err)
-				}
+		var t TradeStream
+		err = json.Unmarshal(jsonData, &t)
+		if err != nil {
+			return fmt.Errorf("%v - Could not unmarshal trade data: %s",
+				b.Name,
+				err)
+		}
+		return b.Websocket.Trade.Update(saveTradeData,
+			trade.Data{
+				CurrencyPair: pair,
+				Timestamp:    t.TimeStamp,
+				Price:        t.Price.Float64(),
+				Amount:       t.Quantity.Float64(),
+				Exchange:     b.Name,
+				AssetType:    asset.Spot,
+				TID:          strconv.FormatInt(t.TradeID, 10),
+			})
+	case "ticker":
+		var t TickerStream
+		err = json.Unmarshal(jsonData, &t)
+		if err != nil {
+			return fmt.Errorf("%v - Could not convert to a TickerStream structure %s",
+				b.Name,
+				err.Error())
+		}
+		b.Websocket.DataHandler <- &ticker.Price{
+			ExchangeName: b.Name,
+			Open:         t.OpenPrice.Float64(),
+			Close:        t.ClosePrice.Float64(),
+			Volume:       t.TotalTradedVolume.Float64(),
+			QuoteVolume:  t.TotalTradedQuoteVolume.Float64(),
+			High:         t.HighPrice.Float64(),
+			Low:          t.LowPrice.Float64(),
+			Bid:          t.BestBidPrice.Float64(),
+			Ask:          t.BestAskPrice.Float64(),
+			Last:         t.LastPrice.Float64(),
+			LastUpdated:  t.EventTime,
+			AssetType:    asset.Spot,
+			Pair:         pair,
+		}
+		return nil
+	case "kline_1m", "kline_3m", "kline_5m", "kline_15m", "kline_30m", "kline_1h", "kline_2h", "kline_4h",
+		"kline_6h", "kline_8h", "kline_12h", "kline_1d", "kline_3d", "kline_1w", "kline_1M":
+		var kline KlineStream
+		err = json.Unmarshal(jsonData, &kline)
+		if err != nil {
+			return fmt.Errorf("%v - Could not convert to a KlineStream structure %s",
+				b.Name,
+				err)
+		}
+		b.Websocket.DataHandler <- stream.KlineData{
+			Timestamp:  kline.EventTime,
+			Pair:       pair,
+			AssetType:  asset.Spot,
+			Exchange:   b.Name,
+			StartTime:  kline.Kline.StartTime,
+			CloseTime:  kline.Kline.CloseTime,
+			Interval:   kline.Kline.Interval,
+			OpenPrice:  kline.Kline.OpenPrice.Float64(),
+			ClosePrice: kline.Kline.ClosePrice.Float64(),
+			HighPrice:  kline.Kline.HighPrice.Float64(),
+			LowPrice:   kline.Kline.LowPrice.Float64(),
+			Volume:     kline.Kline.Volume.Float64(),
+		}
+		return nil
+	case "depth":
+		var depth WebsocketDepthStream
+		err = json.Unmarshal(jsonData, &depth)
+		if err != nil {
+			return fmt.Errorf("%v - Could not convert to depthStream structure %s",
+				b.Name,
+				err)
+		}
+		var init bool
+		init, err = b.UpdateLocalBuffer(&depth)
+		if err != nil {
+			if init {
 				return nil
 			}
+			return fmt.Errorf("%v - UpdateLocalCache error: %s",
+				b.Name,
+				err)
 		}
+		return nil
+	default:
+		return fmt.Errorf("%s %s %s", b.Name, stream.UnhandledMessage, string(respRaw))
 	}
-	return fmt.Errorf("%s %s %s", b.Name, stream.UnhandledMessage, string(respRaw))
 }
 
 func stringToOrderStatus(status string) (order.Status, error) {

@@ -1967,7 +1967,7 @@ func BenchmarkWsHandleData(bb *testing.B) {
 	data, err := os.ReadFile("testdata/wsHandleData.json")
 	require.NoError(bb, err)
 	lines := bytes.Split(data, []byte("\n"))
-	require.Len(bb, lines, 10)
+	require.Len(bb, lines, 8)
 	go func() {
 		for {
 			<-b.Websocket.DataHandler
