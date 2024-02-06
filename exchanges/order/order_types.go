@@ -224,9 +224,6 @@ type Detail struct {
 	MarginType           margin.Type
 	Trades               []TradeHistory
 	SettlementCurrency   currency.Code
-	// ExecutionNote is used to store any additional information like where the
-	// order was executed either front end or api.
-	ExecutionNote string
 }
 
 // Filter contains all properties an order can be filtered for

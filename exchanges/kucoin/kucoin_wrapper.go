@@ -485,7 +485,7 @@ func (ku *Kucoin) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (
 	}
 	switch assetType {
 	case asset.Futures:
-		balances := make([]account.Balance,  2)
+		balances := make([]account.Balance, 2)
 		for i, settlement := range []string{"XBT", "USDT"} {
 			accountH, err := ku.GetFuturesAccountOverview(ctx, settlement)
 			if err != nil {
@@ -497,7 +497,7 @@ func (ku *Kucoin) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (
 				Total:    accountH.AvailableBalance + accountH.FrozenFunds,
 				Hold:     accountH.FrozenFunds,
 				Free:     accountH.AvailableBalance,
-			})
+			}
 		}
 		holding.Accounts = append(holding.Accounts, account.SubAccount{
 			AssetType:  assetType,
@@ -919,6 +919,11 @@ func (ku *Kucoin) GetOrderInfo(ctx context.Context, orderID string, pair currenc
 		if err != nil {
 			return nil, err
 		}
+		if side == order.Sell {
+			side = order.Short
+		} else if side == order.Buy {
+			side = order.Long
+		}
 		if !pair.IsEmpty() && !nPair.Equal(pair) {
 			return nil, fmt.Errorf("order with id %s and currency Pair %v does not exist", orderID, pair)
 		}
@@ -1084,9 +1089,13 @@ func (ku *Kucoin) GetActiveOrders(ctx context.Context, getOrdersRequest *order.M
 				continue
 			}
 			var dPair currency.Pair
-			dPair, err = ku.MatchSymbolWithAvailablePairs(futuresOrders.Items[x].Symbol, getOrdersRequest.AssetType, false)
+			var enabled bool
+			dPair, enabled, err = ku.MatchSymbolCheckEnabled(futuresOrders.Items[x].Symbol, getOrdersRequest.AssetType, false)
 			if err != nil {
 				return nil, err
+			}
+			if !enabled {
+				continue
 			}
 			side, err := order.StringToOrderSide(futuresOrders.Items[x].Side)
 			if err != nil {
@@ -1126,7 +1135,6 @@ func (ku *Kucoin) GetActiveOrders(ctx context.Context, getOrdersRequest *order.M
 				Status:             status,
 				SettlementCurrency: currency.NewCode(futuresOrders.Items[x].SettleCurrency),
 				Leverage:           futuresOrders.Items[x].Leverage,
-				ExecutionNote:      futuresOrders.Items[x].Remark,
 				AssetType:          getOrdersRequest.AssetType,
 				HiddenOrder:        futuresOrders.Items[x].Hidden,
 			})
