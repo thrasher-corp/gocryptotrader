@@ -1696,11 +1696,7 @@ func (g *Gateio) GetActiveOrders(ctx context.Context, req *order.MultiOrderReque
 		} else {
 			for x := range req.Pairs {
 				var s string
-				if req.AssetType == asset.Futures {
-					s, err = g.getSettlementFromCurrency(req.Pairs[x], true)
-				} else {
-					s, err = g.getSettlementFromCurrency(req.Pairs[x], false)
-				}
+				s, err = g.getSettlementFromCurrency(req.Pairs[x], req.AssetType == asset.Futures)
 				if err != nil {
 					return nil, err
 				}
