@@ -1193,8 +1193,8 @@ func (g *Gateio) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Submi
 	}
 }
 
-// getFuturesAmountWithDirection sets the amount to a negative value if shorting.
-func getFuturesAmountWithDirection(s *order.Submit) (float64, error) {
+// getFutureOrderSize sets the amount to a negative value if shorting.
+func getFutureOrderSize(s *order.Submit) (float64, error) {
 	switch {
 	case s.Side.IsLong():
 	case s.Side.IsShort():
