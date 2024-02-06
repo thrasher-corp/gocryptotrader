@@ -164,7 +164,7 @@ var (
 	errInvalidSubAccountUserID       = errors.New("sub-account user id is required")
 	errCannotParseSettlementCurrency = errors.New("cannot derive settlement currency")
 	errMissingAPIKey                 = errors.New("missing API key information")
-	errInvalidTextValue              = errors.New("invalid text value, needs prefix `-t`")
+	errInvalidTextValue              = errors.New("invalid text value, requires prefix `t-`")
 )
 
 // Gateio is the overarching type across this package
