@@ -415,7 +415,11 @@ func (w *Websocket) connectionMonitor() error {
 			case err := <-w.ReadMessageErrors:
 				if IsDisconnectionError(err) {
 					log.Warnf(log.WebsocketMgr, "%v websocket has been disconnected. Reason: %v", w.exchangeName, err)
-					w.setState(disconnected)
+					if w.IsConnected() {
+						if shutdownErr := w.Shutdown(); shutdownErr != nil {
+							log.Errorf(log.WebsocketMgr, "%v websocket: connectionMonitor shutdown err: %s", w.exchangeName, shutdownErr)
+						}
+					}
 				}
 
 				w.DataHandler <- err
