@@ -726,7 +726,6 @@ func (ku *Kucoin) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Subm
 			Price:         s.Price,
 			StopPrice:     s.TriggerPrice,
 			Leverage:      s.Leverage,
-			VisibleSize:   0,
 			ReduceOnly:    s.ReduceOnly,
 			PostOnly:      s.PostOnly,
 			Hidden:        s.Hidden})
