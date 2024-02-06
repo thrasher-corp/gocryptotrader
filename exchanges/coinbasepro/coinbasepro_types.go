@@ -337,6 +337,25 @@ type FillResponse struct {
 	Cursor string `json:"cursor"`
 }
 
+// PreviewOrderResp contains information on the effects of placing an order, returned by
+// PreviewOrder
+type PreviewOrderResp struct {
+	OrderTotal       float64  `json:"order_total,string"`
+	CommissionTotal  float64  `json:"commission_total,string"`
+	Errs             []string `json:"errs"`
+	Warning          []string `json:"warning"`
+	QuoteSize        float64  `json:"quote_size,string"`
+	BaseSize         float64  `json:"base_size,string"`
+	BestBid          float64  `json:"best_bid,string"`
+	BestAsk          float64  `json:"best_ask,string"`
+	IsMax            bool     `json:"is_max"`
+	OrderMarginTotal float64  `json:"order_margin_total,string"`
+	Leverage         float64  `json:"leverage,string"`
+	LongLeverage     float64  `json:"long_leverage,string"`
+	ShortLeverage    float64  `json:"short_leverage,string"`
+	Slippage         float64  `json:"slippage,string"`
+}
+
 // SimplePortfolioData is a sub-struct used in the types AllPortfolioResponse,
 // SimplePortfolioResponse, and DetailedPortfolioResponse
 type SimplePortfolioData struct {
@@ -498,6 +517,78 @@ type ListFuturesSweepsResponse struct {
 		Status          string    `json:"status"`
 		ScheduledTime   time.Time `json:"scheduled_time"`
 	} `json:"sweeps"`
+}
+
+// PerpetualsPortfolioSummary contains information on perpetuals portfolio balances, used as
+// a sub-struct in the types GetPerpetualsPortfolioSummary, AllPerpPosResponse, and
+// OnePerpPosResponse
+type PerpetualsPortfolioSummary struct {
+	PortfolioUUID              string  `json:"portfolio_uuid"`
+	Collateral                 float64 `json:"collateral,string"`
+	PositionNotional           float64 `json:"position_notional,string"`
+	OpenPositionNotional       float64 `json:"open_position_notional,string"`
+	PendingFees                float64 `json:"pending_fees,string"`
+	Borrow                     float64 `json:"borrow,string"`
+	AccruedInterest            float64 `json:"accrued_interest,string"`
+	RollingDebt                float64 `json:"rolling_debt,string"`
+	PortfolioInitialMargin     float64 `json:"portfolio_initial_margin,string"`
+	PortfolioIMNotional        ValCur  `json:"portfolio_im_notional"`
+	PortfolioMaintenanceMargin float64 `json:"portfolio_maintenance_margin,string"`
+	PortfolioMMNotional        ValCur  `json:"portfolio_mm_notional"`
+	LiquidationPercentage      float64 `json:"liquidation_percentage,string"`
+	LiquidationBuffer          float64 `json:"liquidation_buffer,string"`
+	MarginType                 string  `json:"margin_type"`
+	MarginFlags                string  `json:"margin_flags"`
+	LiquidationStatus          string  `json:"liquidation_status"`
+	UnrealizedPNL              ValCur  `json:"unrealized_pnl"`
+	BuyingPower                ValCur  `json:"buying_power"`
+	TotalBalance               ValCur  `json:"total_balance"`
+	MaxWithDrawal              ValCur  `json:"max_withdrawal"`
+}
+
+// PerpetualPortResponse contains information on perpetuals portfolio balances, returned by
+// GetPerpetualsPortfolioSummary
+type PerpetualPortResponse struct {
+	Summary PerpetualsPortfolioSummary `json:"summary"`
+}
+
+// PerpPositionDetail contains information on a single perpetuals position, used as a sub-struct
+// in the types AllPerpPosResponse and OnePerpPosResponse
+type PerpPositionDetail struct {
+	ProductID             string                     `json:"product_id"`
+	ProductUUID           string                     `json:"product_uuid"`
+	Symbol                string                     `json:"symbol"`
+	VWAP                  ValCur                     `json:"vwap"`
+	PositionSide          string                     `json:"position_side"`
+	NetSize               float64                    `json:"net_size,string"`
+	BuyOrderSize          float64                    `json:"buy_order_size,string"`
+	SellOrderSize         float64                    `json:"sell_order_size,string"`
+	IMContribution        float64                    `json:"im_contribution,string"`
+	UnrealizedPNL         ValCur                     `json:"unrealized_pnl"`
+	MarkPrice             ValCur                     `json:"mark_price"`
+	LiquidationPrice      ValCur                     `json:"liquidation_price"`
+	Leverage              float64                    `json:"leverage,string"`
+	IMNotional            ValCur                     `json:"im_notional"`
+	MMNotional            ValCur                     `json:"mm_notional"`
+	PositionNotional      ValCur                     `json:"position_notional"`
+	MarginType            string                     `json:"margin_type"`
+	LiquidationBuffer     float64                    `json:"liquidation_buffer,string"`
+	LiquidationPercentage float64                    `json:"liquidation_percentage,string"`
+	PortfolioSummary      PerpetualsPortfolioSummary `json:"portfolio_summary"`
+}
+
+// PerpetualPositionsResponse contains information on perpetuals positions, returned by
+// GetAllPerpetualsPositions
+type AllPerpPosResponse struct {
+	Positions        []PerpPositionDetail       `json:"positions"`
+	PortfolioSummary PerpetualsPortfolioSummary `json:"portfolio_summary"`
+}
+
+// OnePerpPosResponse contains information on a single perpetuals position, returned by
+// GetPerpetualsPositionByID
+type OnePerpPosResponse struct {
+	Position         PerpPositionDetail         `json:"position"`
+	PortfolioSummary PerpetualsPortfolioSummary `json:"portfolio_summary"`
 }
 
 // TransactionSummary contains a summary of transaction fees, volume, and the like. Returned

@@ -39,6 +39,7 @@ const (
 	coinbaseFills              = "fills"
 	coinbaseCandles            = "candles"
 	coinbaseTicker             = "ticker"
+	coinbasePreview            = "preview"
 	coinbasePortfolios         = "portfolios"
 	coinbaseMoveFunds          = "move_funds"
 	coinbaseCFM                = "cfm"
@@ -46,6 +47,9 @@ const (
 	coinbasePositions          = "positions"
 	coinbaseSweeps             = "sweeps"
 	coinbaseSchedule           = "schedule"
+	coinbaseIntx               = "intx"
+	coinbaseAllocate           = "allocate"
+	coinbasePortfolio          = "portfolio"
 	coinbaseTransactionSummary = "transaction_summary"
 	coinbaseConvert            = "convert"
 	coinbaseQuote              = "quote"
@@ -122,6 +126,7 @@ var (
 	errFeeTypeNotSupported    = errors.New("fee type not supported")
 	errCantDecodePrivKey      = errors.New("cannot decode private key")
 	errNoWalletForCurrency    = errors.New("no wallet found for currency, address creation impossible")
+	errChannelNameUnknown     = errors.New("unknown channel name")
 )
 
 // GetAllAccounts returns information on all trading accounts associated with the API key
@@ -301,61 +306,17 @@ func (c *CoinbasePro) PlaceOrder(ctx context.Context, clientOID, productID, side
 		return nil, errAmountEmpty
 	}
 
-	var orderConfig OrderConfiguration
-
-	switch orderType {
-	case order.Market.String(), order.ImmediateOrCancel.String():
-		orderConfig.MarketMarketIOC = &MarketMarketIOC{}
-		if side == order.Buy.String() {
-			orderConfig.MarketMarketIOC.QuoteSize = strconv.FormatFloat(amount, 'f', -1, 64)
-		}
-		if side == order.Sell.String() {
-			orderConfig.MarketMarketIOC.BaseSize = strconv.FormatFloat(amount, 'f', -1, 64)
-		}
-	case order.Limit.String():
-		if endTime == (time.Time{}) {
-			orderConfig.LimitLimitGTC = &LimitLimitGTC{}
-			orderConfig.LimitLimitGTC.BaseSize = strconv.FormatFloat(amount, 'f', -1, 64)
-			orderConfig.LimitLimitGTC.LimitPrice = strconv.FormatFloat(limitPrice, 'f', -1, 64)
-			orderConfig.LimitLimitGTC.PostOnly = postOnly
-		} else {
-			orderConfig.LimitLimitGTD = &LimitLimitGTD{}
-			orderConfig.LimitLimitGTD.BaseSize = strconv.FormatFloat(amount, 'f', -1, 64)
-			orderConfig.LimitLimitGTD.LimitPrice = strconv.FormatFloat(limitPrice, 'f', -1, 64)
-			orderConfig.LimitLimitGTD.PostOnly = postOnly
-			orderConfig.LimitLimitGTD.EndTime = endTime
-		}
-	case order.StopLimit.String():
-		if endTime == (time.Time{}) {
-			orderConfig.StopLimitStopLimitGTC = &StopLimitStopLimitGTC{}
-			orderConfig.StopLimitStopLimitGTC.BaseSize = strconv.FormatFloat(amount, 'f', -1, 64)
-			orderConfig.StopLimitStopLimitGTC.LimitPrice = strconv.FormatFloat(limitPrice, 'f', -1,
-				64)
-			orderConfig.StopLimitStopLimitGTC.StopPrice = strconv.FormatFloat(stopPrice, 'f', -1, 64)
-			orderConfig.StopLimitStopLimitGTC.StopDirection = stopDirection
-		} else {
-			orderConfig.StopLimitStopLimitGTD = &StopLimitStopLimitGTD{}
-			orderConfig.StopLimitStopLimitGTD.BaseSize = strconv.FormatFloat(amount, 'f', -1, 64)
-			orderConfig.StopLimitStopLimitGTD.LimitPrice = strconv.FormatFloat(limitPrice, 'f', -1,
-				64)
-			orderConfig.StopLimitStopLimitGTD.StopPrice = strconv.FormatFloat(stopPrice, 'f', -1, 64)
-			orderConfig.StopLimitStopLimitGTD.StopDirection = stopDirection
-			orderConfig.StopLimitStopLimitGTD.EndTime = endTime
-		}
-	default:
-		return nil, errInvalidOrderType
+	orderConfig, err := prepareOrderConfig(orderType, side, stopDirection, amount, limitPrice, stopPrice, endTime,
+		postOnly)
+	if err != nil {
+		return nil, err
 	}
 
 	req := map[string]interface{}{"client_order_id": clientOID, "product_id": productID,
 		"side": side, "order_configuration": orderConfig, "self_trade_prevention_id": stpID,
 		"leverage": strconv.FormatFloat(leverage, 'f', -1, 64), "retail_portfolio_id": rpID}
 
-	if marginType == "ISOLATED" || marginType == "CROSS" {
-		req["margin_type"] = marginType
-	}
-	if marginType == "MULTI" {
-		req["margin_type"] = "CROSS"
-	}
+	prepareMarginType(marginType, req)
 
 	var resp PlaceOrderResp
 
@@ -518,6 +479,35 @@ func (c *CoinbasePro) GetOrderByID(ctx context.Context, orderID, clientOID, user
 	pathParams := common.EncodeURLValues("", params.urlVals)
 
 	return &resp, c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, pathParams, nil, true, &resp, nil)
+}
+
+// PreviewOrder simulates the results of an order request
+func (c *CoinbasePro) PreviewOrder(ctx context.Context, productID, side, orderType, stopDirection, marginType string, commissionValue, amount, limitPrice, stopPrice, tradableBalance, leverage float64, postOnly, isMax, skipFCMRiskCheck bool, endTime time.Time) (*PreviewOrderResp, error) {
+	if amount == 0 {
+		return nil, errAmountEmpty
+	}
+
+	orderConfig, err := prepareOrderConfig(orderType, side, stopDirection, amount, limitPrice, stopPrice, endTime,
+		postOnly)
+	if err != nil {
+		return nil, err
+	}
+
+	commissionRate := map[string]string{"value": strconv.FormatFloat(commissionValue, 'f', -1, 64)}
+
+	req := map[string]interface{}{"product_id": productID, "side": side, "commission_rate": commissionRate,
+		"order_configuration": orderConfig, "is_max": isMax,
+		"tradable_balance":    strconv.FormatFloat(tradableBalance, 'f', -1, 64),
+		"skip_fcm_risk_check": skipFCMRiskCheck, "leverage": strconv.FormatFloat(leverage, 'f', -1, 64)}
+
+	prepareMarginType(marginType, req)
+
+	var resp *PreviewOrderResp
+
+	path := fmt.Sprintf("%s%s/%s", coinbaseV3, coinbaseOrders, coinbasePreview)
+
+	return resp, c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, path, "", req, true,
+		&resp, nil)
 }
 
 // GetAllPortfolios returns a list of portfolios associated with the user
@@ -692,6 +682,75 @@ func (c *CoinbasePro) CancelPendingFuturesSweep(ctx context.Context) (SuccessBoo
 	var resp SuccessBool
 
 	return resp, c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodDelete,
+		path, "", nil, true, &resp, nil)
+}
+
+// AllocatePortfolio allocates funds to a position in your perpetuals portfolio
+func (c *CoinbasePro) AllocatePortfolio(ctx context.Context, portfolioID, productID, currency string, amount float64) error {
+	if portfolioID == "" {
+		return errPortfolioIDEmpty
+	}
+	if productID == "" {
+		return errProductIDEmpty
+	}
+	if currency == "" {
+		return errCurrencyEmpty
+	}
+	if amount == 0 {
+		return errAmountEmpty
+	}
+
+	req := map[string]interface{}{"portfolio_uuid": portfolioID, "symbol": productID, "currency": currency,
+		"amount": strconv.FormatFloat(amount, 'f', -1, 64)}
+
+	path := fmt.Sprintf("%s%s/%s", coinbaseV3, coinbaseIntx, coinbaseAllocate)
+
+	return c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost,
+		path, "", req, true, nil, nil)
+}
+
+// GetPerpetualsPortfolioSummary returns a summary of your perpetuals portfolio
+func (c *CoinbasePro) GetPerpetualsPortfolioSummary(ctx context.Context, portfolioID string) (PerpetualPortResponse, error) {
+	var resp PerpetualPortResponse
+
+	if portfolioID == "" {
+		return resp, errPortfolioIDEmpty
+	}
+
+	path := fmt.Sprintf("%s%s/%s/%s", coinbaseV3, coinbaseIntx, coinbasePortfolio, portfolioID)
+
+	return resp, c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet,
+		path, "", nil, true, &resp, nil)
+}
+
+// GetAllPerpetualsPositions returns a list of all open positions in your perpetuals portfolio
+func (c *CoinbasePro) GetAllPerpetualsPositions(ctx context.Context, portfolioID string) (AllPerpPosResponse, error) {
+	var resp AllPerpPosResponse
+
+	if portfolioID == "" {
+		return resp, errPortfolioIDEmpty
+	}
+
+	path := fmt.Sprintf("%s%s/%s/%s", coinbaseV3, coinbaseIntx, coinbasePositions, portfolioID)
+
+	return resp, c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet,
+		path, "", nil, true, &resp, nil)
+}
+
+// GetPerpetualsPositionByID returns information on a single open position in your perpetuals portfolio
+func (c *CoinbasePro) GetPerpetualsPositionByID(ctx context.Context, portfolioID, productID string) (OnePerpPosResponse, error) {
+	var resp OnePerpPosResponse
+
+	if portfolioID == "" {
+		return resp, errPortfolioIDEmpty
+	}
+	if productID == "" {
+		return resp, errProductIDEmpty
+	}
+
+	path := fmt.Sprintf("%s%s/%s/%s/%s", coinbaseV3, coinbaseIntx, coinbasePositions, portfolioID, productID)
+
+	return resp, c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet,
 		path, "", nil, true, &resp, nil)
 }
 
@@ -1271,7 +1330,7 @@ func (c *CoinbasePro) SendHTTPRequest(ctx context.Context, ep exchange.URL, path
 }
 
 // SendAuthenticatedHTTPRequest sends an authenticated HTTP request
-func (c *CoinbasePro) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.URL, method, path, queryParams string, bodyParams map[string]interface{}, istrue bool, result interface{}, returnHead *http.Header) (err error) {
+func (c *CoinbasePro) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.URL, method, path, queryParams string, bodyParams map[string]interface{}, isVersion3 bool, result interface{}, returnHead *http.Header) (err error) {
 	creds, err := c.GetCredentials(ctx)
 	if err != nil {
 		return err
@@ -1282,7 +1341,7 @@ func (c *CoinbasePro) SendAuthenticatedHTTPRequest(ctx context.Context, ep excha
 	}
 
 	// Version 2 wants query params in the path during signing
-	if !istrue {
+	if !isVersion3 {
 		path = path + queryParams
 	}
 
@@ -1322,7 +1381,7 @@ func (c *CoinbasePro) SendAuthenticatedHTTPRequest(ctx context.Context, ep excha
 		headers["CB-VERSION"] = "2023-11-13"
 
 		// Version 3 only wants query params in the path when the request is sent
-		if istrue {
+		if isVersion3 {
 			path = path + queryParams
 		}
 
@@ -1339,7 +1398,7 @@ func (c *CoinbasePro) SendAuthenticatedHTTPRequest(ctx context.Context, ep excha
 		}, nil
 	}
 	rateLim := V2Rate
-	if istrue {
+	if isVersion3 {
 		rateLim = V3Rate
 	}
 
@@ -1485,6 +1544,65 @@ func (p *Params) preparePagination(pag PaginationInp) {
 	}
 	if pag.EndingBefore != "" {
 		p.urlVals.Set("ending_before", pag.EndingBefore)
+	}
+}
+
+// prepareOrderConfig is a helper function that popoulates the OrderConfiguration struct
+func prepareOrderConfig(orderType, side, stopDirection string, amount, limitPrice, stopPrice float64, endTime time.Time, postOnly bool) (OrderConfiguration, error) {
+	var orderConfig OrderConfiguration
+
+	switch orderType {
+	case order.Market.String(), order.ImmediateOrCancel.String():
+		orderConfig.MarketMarketIOC = &MarketMarketIOC{}
+		if side == order.Buy.String() {
+			orderConfig.MarketMarketIOC.QuoteSize = strconv.FormatFloat(amount, 'f', -1, 64)
+		}
+		if side == order.Sell.String() {
+			orderConfig.MarketMarketIOC.BaseSize = strconv.FormatFloat(amount, 'f', -1, 64)
+		}
+	case order.Limit.String():
+		if endTime == (time.Time{}) {
+			orderConfig.LimitLimitGTC = &LimitLimitGTC{}
+			orderConfig.LimitLimitGTC.BaseSize = strconv.FormatFloat(amount, 'f', -1, 64)
+			orderConfig.LimitLimitGTC.LimitPrice = strconv.FormatFloat(limitPrice, 'f', -1, 64)
+			orderConfig.LimitLimitGTC.PostOnly = postOnly
+		} else {
+			orderConfig.LimitLimitGTD = &LimitLimitGTD{}
+			orderConfig.LimitLimitGTD.BaseSize = strconv.FormatFloat(amount, 'f', -1, 64)
+			orderConfig.LimitLimitGTD.LimitPrice = strconv.FormatFloat(limitPrice, 'f', -1, 64)
+			orderConfig.LimitLimitGTD.PostOnly = postOnly
+			orderConfig.LimitLimitGTD.EndTime = endTime
+		}
+	case order.StopLimit.String():
+		if endTime == (time.Time{}) {
+			orderConfig.StopLimitStopLimitGTC = &StopLimitStopLimitGTC{}
+			orderConfig.StopLimitStopLimitGTC.BaseSize = strconv.FormatFloat(amount, 'f', -1, 64)
+			orderConfig.StopLimitStopLimitGTC.LimitPrice = strconv.FormatFloat(limitPrice, 'f', -1,
+				64)
+			orderConfig.StopLimitStopLimitGTC.StopPrice = strconv.FormatFloat(stopPrice, 'f', -1, 64)
+			orderConfig.StopLimitStopLimitGTC.StopDirection = stopDirection
+		} else {
+			orderConfig.StopLimitStopLimitGTD = &StopLimitStopLimitGTD{}
+			orderConfig.StopLimitStopLimitGTD.BaseSize = strconv.FormatFloat(amount, 'f', -1, 64)
+			orderConfig.StopLimitStopLimitGTD.LimitPrice = strconv.FormatFloat(limitPrice, 'f', -1,
+				64)
+			orderConfig.StopLimitStopLimitGTD.StopPrice = strconv.FormatFloat(stopPrice, 'f', -1, 64)
+			orderConfig.StopLimitStopLimitGTD.StopDirection = stopDirection
+			orderConfig.StopLimitStopLimitGTD.EndTime = endTime
+		}
+	default:
+		return orderConfig, errInvalidOrderType
+	}
+	return orderConfig, nil
+}
+
+// prepareMarginType is a helper function that properly formats the margin type for the request
+func prepareMarginType(marginType string, req map[string]interface{}) {
+	if marginType == "ISOLATED" || marginType == "CROSS" {
+		req["margin_type"] = marginType
+	}
+	if marginType == "MULTI" {
+		req["margin_type"] = "CROSS"
 	}
 }
 

@@ -335,22 +335,19 @@ func (c *CoinbasePro) wsHandleData(respRaw []byte, seqCount uint64) (string, err
 				var oType order.Type
 				oType, err = order.StringToOrderType(wsUser[i].Orders[j].OrderType)
 				if err != nil {
-					c.Websocket.DataHandler <- stream.UnhandledMessageWarning{Message: c.Name + stream.UnhandledMessage + string(respRaw)}
-					continue
+					return warnString, err
 				}
 
 				var oSide order.Side
 				oSide, err = order.StringToOrderSide(wsUser[i].Orders[j].OrderSide)
 				if err != nil {
-					c.Websocket.DataHandler <- stream.UnhandledMessageWarning{Message: c.Name + stream.UnhandledMessage + string(respRaw)}
-					continue
+					return warnString, err
 				}
 
 				var oStatus order.Status
 				oStatus, err = statusToStandardStatus(wsUser[i].Orders[j].Status)
 				if err != nil {
-					c.Websocket.DataHandler <- stream.UnhandledMessageWarning{Message: c.Name + stream.UnhandledMessage + string(respRaw)}
-					continue
+					return warnString, err
 				}
 
 				sliToSend = append(sliToSend, order.Detail{
@@ -374,27 +371,9 @@ func (c *CoinbasePro) wsHandleData(respRaw []byte, seqCount uint64) (string, err
 		c.Websocket.DataHandler <- sliToSend
 
 	default:
-		c.Websocket.DataHandler <- stream.UnhandledMessageWarning{Message: c.Name + stream.UnhandledMessage + string(respRaw)}
-		return warnString, nil
+		return warnString, errChannelNameUnknown
 	}
 	return warnString, nil
-}
-
-func statusToStandardStatus(stat string) (order.Status, error) {
-	switch stat {
-	case "received":
-		return order.New, nil
-	case "open":
-		return order.Active, nil
-	case "done":
-		return order.Filled, nil
-	case "match":
-		return order.PartiallyFilled, nil
-	case "change", "activate":
-		return order.Active, nil
-	default:
-		return order.UnknownStatus, fmt.Errorf("%s not recognised as status type", stat)
-	}
 }
 
 // ProcessSnapshot processes the initial orderbook snap shot
@@ -439,40 +418,17 @@ func (c *CoinbasePro) ProcessUpdate(update WebsocketOrderbookDataHolder, timesta
 	return c.Websocket.Orderbook.Update(&obU)
 }
 
-// processBidAskArray is a helper function that turns WebsocketOrderbookDataHolder into arrays
-// of bids and asks
-func processBidAskArray(data WebsocketOrderbookDataHolder) ([]orderbook.Item, []orderbook.Item, error) {
-	var bids, asks []orderbook.Item
-	for i := range data.Changes {
-		switch data.Changes[i].Side {
-		case "bid":
-			bids = append(bids, orderbook.Item{
-				Price:  data.Changes[i].PriceLevel,
-				Amount: data.Changes[i].NewQuantity,
-			})
-		case "offer":
-			asks = append(asks, orderbook.Item{
-				Price:  data.Changes[i].PriceLevel,
-				Amount: data.Changes[i].NewQuantity,
-			})
-		default:
-			return nil, nil, errors.Errorf(errUnknownSide, data.Changes[i].Side)
-		}
-	}
-	return bids, asks, nil
-}
-
 // GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
 func (c *CoinbasePro) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, error) {
 	var channels = []string{
 		"heartbeats",
-		// "status",
+		"status",
 		"ticker",
-		// "ticker_batch",
+		"ticker_batch",
 		"candles",
-		// "market_trades",
+		"market_trades",
 		"level2",
-		// "user",
+		"user",
 	}
 	enabledCurrencies, err := c.GetEnabledPairs(asset.Spot)
 	if err != nil {
@@ -494,54 +450,6 @@ func (c *CoinbasePro) GenerateDefaultSubscriptions() ([]stream.ChannelSubscripti
 		}
 	}
 	return subscriptions, nil
-}
-
-func (c *CoinbasePro) sendRequest(msgType, channel string, productIDs currency.Pairs) error {
-	creds, err := c.GetCredentials(context.Background())
-	if err != nil {
-		return err
-	}
-
-	n := strconv.FormatInt(time.Now().Unix(), 10)
-
-	message := n + channel + productIDs.Join()
-
-	hmac, err := crypto.GetHMAC(crypto.HashSHA256,
-		[]byte(message),
-		[]byte(creds.Secret))
-	if err != nil {
-		return err
-	}
-
-	// jwt, err := c.GetJWT(context.Background(), "")
-	// if err != nil {
-	// 	return err
-	// }
-
-	req := WebsocketSubscribe{
-		Type:       msgType,
-		ProductIDs: productIDs.Strings(),
-		Channel:    channel,
-		Signature:  hex.EncodeToString(hmac),
-		// JWT:       jwt,
-		Key:       creds.Key,
-		Timestamp: n,
-	}
-
-	// reqMarshal, _ := json.Marshal(req)
-
-	// fmt.Print(string(reqMarshal))
-
-	// err = rLim.Limit(context.Background(), WSRate)
-	if err != nil {
-		return err
-	}
-	// data, err := c.Websocket.Conn.SendMessageReturnResponse(nil, req)
-	err = c.Websocket.Conn.SendJSONMessage(req)
-	if err != nil {
-		return err
-	}
-	return nil
 }
 
 // Subscribe sends a websocket message to receive data from the channel
@@ -673,7 +581,7 @@ func (c *CoinbasePro) GetJWT(ctx context.Context, uri string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	headEncode := Base64URLEncode(headJson)
+	headEncode := base64URLEncode(headJson)
 
 	c.jwtLastRegen = time.Now()
 
@@ -686,7 +594,7 @@ func (c *CoinbasePro) GetJWT(ctx context.Context, uri string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	bodyEncode := Base64URLEncode(bodyJson)
+	bodyEncode := base64URLEncode(bodyJson)
 
 	hash := sha256.Sum256([]byte(headEncode + "." + bodyEncode))
 
@@ -694,11 +602,13 @@ func (c *CoinbasePro) GetJWT(ctx context.Context, uri string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	sigEncode := Base64URLEncode(sig)
+	sigEncode := base64URLEncode(sig)
 
 	return headEncode + "." + bodyEncode + "." + sigEncode, nil
 }
 
+// getTimestamp is a helper function which pulls a RFC3339-formatted timestamp from a byte slice
+// of JSON data
 func getTimestamp(rawData []byte) (time.Time, error) {
 	data, _, _, err := jsonparser.Get(rawData, "timestamp")
 	if err != nil {
@@ -711,9 +621,100 @@ func getTimestamp(rawData []byte) (time.Time, error) {
 	return timestamp, nil
 }
 
+// sendRequest is a helper function which sends a websocket message to the Coinbase server
+func (c *CoinbasePro) sendRequest(msgType, channel string, productIDs currency.Pairs) error {
+	creds, err := c.GetCredentials(context.Background())
+	if err != nil {
+		return err
+	}
+
+	n := strconv.FormatInt(time.Now().Unix(), 10)
+
+	message := n + channel + productIDs.Join()
+
+	hmac, err := crypto.GetHMAC(crypto.HashSHA256,
+		[]byte(message),
+		[]byte(creds.Secret))
+	if err != nil {
+		return err
+	}
+
+	// jwt, err := c.GetJWT(context.Background(), "")
+	// if err != nil {
+	// 	return err
+	// }
+
+	req := WebsocketSubscribe{
+		Type:       msgType,
+		ProductIDs: productIDs.Strings(),
+		Channel:    channel,
+		Signature:  hex.EncodeToString(hmac),
+		// JWT:       jwt,
+		Key:       creds.Key,
+		Timestamp: n,
+	}
+
+	// reqMarshal, _ := json.Marshal(req)
+
+	// fmt.Print(string(reqMarshal))
+
+	// err = rLim.Limit(context.Background(), WSRate)
+	if err != nil {
+		return err
+	}
+	// data, err := c.Websocket.Conn.SendMessageReturnResponse(nil, req)
+	err = c.Websocket.Conn.SendJSONMessage(req)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+// processBidAskArray is a helper function that turns WebsocketOrderbookDataHolder into arrays
+// of bids and asks
+func processBidAskArray(data WebsocketOrderbookDataHolder) ([]orderbook.Item, []orderbook.Item, error) {
+	var bids, asks []orderbook.Item
+	for i := range data.Changes {
+		switch data.Changes[i].Side {
+		case "bid":
+			bids = append(bids, orderbook.Item{
+				Price:  data.Changes[i].PriceLevel,
+				Amount: data.Changes[i].NewQuantity,
+			})
+		case "offer":
+			asks = append(asks, orderbook.Item{
+				Price:  data.Changes[i].PriceLevel,
+				Amount: data.Changes[i].NewQuantity,
+			})
+		default:
+			return nil, nil, errors.Errorf(errUnknownSide, data.Changes[i].Side)
+		}
+	}
+	return bids, asks, nil
+}
+
+// statusToStandardStatus is a helper function that converts a Coinbase Pro status string to a
+// standardised order.Status type
+func statusToStandardStatus(stat string) (order.Status, error) {
+	switch stat {
+	case "received":
+		return order.New, nil
+	case "open":
+		return order.Active, nil
+	case "done":
+		return order.Filled, nil
+	case "match":
+		return order.PartiallyFilled, nil
+	case "change", "activate":
+		return order.Active, nil
+	default:
+		return order.UnknownStatus, fmt.Errorf("%s not recognised as status type", stat)
+	}
+}
+
 // Base64URLEncode is a helper function that does some tweaks to standard Base64 encoding, in a way
 // which JWT requires
-func Base64URLEncode(b []byte) string {
+func base64URLEncode(b []byte) string {
 	s := crypto.Base64Encode(b)
 	s = strings.Split(s, "=")[0]
 	s = strings.ReplaceAll(s, "+", "-")

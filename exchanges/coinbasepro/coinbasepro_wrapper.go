@@ -166,6 +166,7 @@ func (c *CoinbasePro) Setup(exch *config.Exchange) error {
 		return err
 	}
 	if !exch.Enabled {
+		panic("BRUHS")
 		c.SetEnabled(false)
 		return nil
 	}
