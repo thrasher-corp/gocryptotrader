@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/common/key"
@@ -3224,9 +3225,7 @@ func TestGetOpenInterest(t *testing.T) {
 }
 
 // FakeBase is used to override functions
-type FakeBase struct {
-	Base
-}
+type FakeBase struct{ Base }
 
 func (f *FakeBase) GetOpenInterest(context.Context, ...key.PairAsset) ([]futures.OpenInterest, error) {
 	return []futures.OpenInterest{
@@ -3241,6 +3240,13 @@ func (f *FakeBase) GetOpenInterest(context.Context, ...key.PairAsset) ([]futures
 		},
 	}, nil
 }
+
+func (f *FakeBase) SetDefaults() {
+	f.Name = "test"
+	f.Requester, _ = request.New("test", common.NewHTTPClientWithTimeout(time.Second))
+	f.Features.Supports.RESTCapabilities.AutoPairUpdates = true
+}
+func (f *FakeBase) UpdateTradablePairs(context.Context, bool) error { return nil }
 
 func TestGetCachedOpenInterest(t *testing.T) {
 	t.Parallel()
@@ -3329,4 +3335,30 @@ func TestParallelChanOp(t *testing.T) {
 	}
 	assert.EventuallyWithT(t, f, 500*time.Millisecond, 50*time.Millisecond, "ParallelChanOp should complete within 500ms not 5*300ms")
 	assert.Len(t, run, len(c), "Every channel was run to completion")
+}
+
+func TestGetDefaultConfig(t *testing.T) {
+	t.Parallel()
+
+	exch := &FakeBase{}
+
+	_, err := exch.GetDefaultConfig(context.Background(), nil)
+	assert.ErrorIs(t, err, errExchangeIsNil)
+
+	_, err = exch.GetDefaultConfig(context.Background(), &FakeBase{})
+	assert.ErrorIs(t, err, errExchangeMismatch)
+
+	c, err := exch.GetDefaultConfig(context.Background(), exch)
+	require.NoError(t, err)
+
+	assert.Equal(t, "test", c.Name)
+	cpy := exch.Requester
+
+	// Test below demonstrates that the requester is not overwritten so that
+	// SetDefaults is not called twice.
+	c, err = exch.GetDefaultConfig(context.Background(), exch)
+	require.NoError(t, err)
+
+	assert.Equal(t, "test", c.Name)
+	assert.Equal(t, cpy, exch.Requester)
 }

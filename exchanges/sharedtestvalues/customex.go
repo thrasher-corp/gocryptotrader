@@ -267,7 +267,7 @@ func (c *CustomEx) GetSubscriptions() ([]subscription.Subscription, error) {
 }
 
 // GetDefaultConfig is a mock method for CustomEx
-func (c *CustomEx) GetDefaultConfig(context.Context, exchange.IBotExchange) (*config.Exchange, error) {
+func (c *CustomEx) GetDefaultConfig(context.Context, exchange.LimitedScope) (*config.Exchange, error) {
 	return nil, nil
 }
 

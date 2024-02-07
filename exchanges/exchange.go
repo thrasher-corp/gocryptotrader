@@ -1946,7 +1946,7 @@ func (b *Base) IsVerbose() bool {
 }
 
 // GetDefaultConfig returns a default exchange config
-func (b *Base) GetDefaultConfig(ctx context.Context, instance IBotExchange) (*config.Exchange, error) {
+func (b *Base) GetDefaultConfig(ctx context.Context, instance LimitedScope) (*config.Exchange, error) {
 	if instance == nil {
 		return nil, errExchangeIsNil
 	}
