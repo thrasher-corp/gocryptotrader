@@ -2296,21 +2296,6 @@ func TestCancelAllOrders(t *testing.T) {
 	}
 }
 
-func TestGeneratePayloads(t *testing.T) {
-	t.Parallel()
-	subscriptions, err := ku.GenerateDefaultSubscriptions()
-	if err != nil {
-		t.Error(err)
-	}
-	payload, err := ku.expandManualSubscriptions(subscriptions)
-	if err != nil {
-		t.Error(err)
-	}
-	if len(payload) >= len(subscriptions) {
-		t.Error("due to batching payload should be a reduction to the subscription list")
-	}
-}
-
 const (
 	subUserResponseJSON              = `{"userId":"635002438793b80001dcc8b3", "uid":62356, "subName":"margin01", "status":2, "type":4, "access":"Margin", "createdAt":1666187844000, "remarks":null }`
 	positionSettlementPushData       = `{"userId": "xbc453tg732eba53a88ggyt8c", "topic": "/contract/position:XBTUSDM", "subject": "position.settlement", "data": { "fundingTime": 1551770400000, "qty": 100, "markPrice": 3610.85, "fundingRate": -0.002966, "fundingFee": -296, "ts": 1547697294838004923, "settleCurrency": "XBT" } }`

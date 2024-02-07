@@ -14,8 +14,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
-const maxSubscriptionsPerBatch = 100
-
 var (
 	validPeriods = []string{
 		"1min", "3min", "5min", "15min", "30min", "1hour", "2hour", "4hour", "6hour", "8hour", "12hour", "1day", "1week",
@@ -785,12 +783,11 @@ type WSConnMessages struct {
 
 // WsSubscriptionInput represents a subscription information structure.
 type WsSubscriptionInput struct {
-	ID              string `json:"id"`
-	Type            string `json:"type"`
-	Topic           string `json:"topic"`
-	PrivateChannel  bool   `json:"privateChannel"`
-	Response        bool   `json:"response,omitempty"`
-	subscriberCount int    // internal use to track outbound batching
+	ID             string `json:"id"`
+	Type           string `json:"type"`
+	Topic          string `json:"topic"`
+	PrivateChannel bool   `json:"privateChannel"`
+	Response       bool   `json:"response,omitempty"`
 }
 
 // WsPushData represents a push data from a server.
@@ -1503,12 +1500,6 @@ type MarginOrderParam struct {
 	Iceberg             bool          `json:"iceberg,omitempty"`
 	VisibleSize         float64       `json:"visibleSize,omitempty,string"`
 	Funds               float64       `json:"funds,string,omitempty"`
-}
-
-// Batcher defines a slice of WsSubscriptionInput that will be used to subscribe
-// to the websocket channel.
-type Batcher struct {
-	outbound []WsSubscriptionInput
 }
 
 // Level2Depth5Or20 stores the orderbook data for the level 5 or level 20
