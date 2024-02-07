@@ -45,6 +45,8 @@ type Price struct {
 	Open         float64       `json:"Open"`
 	Close        float64       `json:"Close"`
 	OpenInterest float64       `json:"OpenInterest"`
+	MarkPrice    float64       `json:"MarkPrice"`
+	IndexPrice   float64       `json:"IndexPrice"`
 	Pair         currency.Pair `json:"Pair"`
 	ExchangeName string        `json:"exchangeName"`
 	AssetType    asset.Item    `json:"assetType"`
