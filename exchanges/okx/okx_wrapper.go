@@ -40,28 +40,6 @@ const (
 	okxWebsocketResponseMaxLimit = time.Second * 3
 )
 
-// GetDefaultConfig returns a default exchange config
-func (ok *Okx) GetDefaultConfig(ctx context.Context) (*config.Exchange, error) {
-	ok.SetDefaults()
-	exchCfg, err := ok.GetStandardConfig()
-	if err != nil {
-		return nil, err
-	}
-
-	err = ok.SetupDefaults(exchCfg)
-	if err != nil {
-		return nil, err
-	}
-
-	if ok.Features.Supports.RESTCapabilities.AutoPairUpdates {
-		err = ok.UpdateTradablePairs(ctx, true)
-		if err != nil {
-			return nil, err
-		}
-	}
-	return exchCfg, nil
-}
-
 // SetDefaults sets the basic defaults for Okx
 func (ok *Okx) SetDefaults() {
 	ok.Name = "Okx"

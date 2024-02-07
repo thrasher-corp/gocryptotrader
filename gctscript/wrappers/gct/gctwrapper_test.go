@@ -39,8 +39,7 @@ func TestMain(m *testing.M) {
 		log.Print(err)
 		os.Exit(1)
 	}
-	exch.SetDefaults()
-	cfg, err := exch.GetDefaultConfig(context.Background())
+	cfg, err := exch.GetDefaultConfig(context.Background(), exch)
 	if err != nil {
 		log.Fatal(err)
 	}

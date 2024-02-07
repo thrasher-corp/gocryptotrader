@@ -63,7 +63,8 @@ type IBotExchange interface {
 	SetHTTPClientUserAgent(ua string) error
 	GetHTTPClientUserAgent() (string, error)
 	SetClientProxyAddress(addr string) error
-	GetDefaultConfig(ctx context.Context) (*config.Exchange, error)
+	// GetDefaultConfig returns a default exchange config
+	GetDefaultConfig(ctx context.Context, instance IBotExchange) (*config.Exchange, error)
 	GetBase() *Base
 	GetHistoricCandles(ctx context.Context, pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error)
 	GetHistoricCandlesExtended(ctx context.Context, pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error)

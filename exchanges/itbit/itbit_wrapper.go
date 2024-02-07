@@ -28,29 +28,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
-// GetDefaultConfig returns a default exchange config
-func (i *ItBit) GetDefaultConfig(ctx context.Context) (*config.Exchange, error) {
-	i.SetDefaults()
-	exchCfg, err := i.GetStandardConfig()
-	if err != nil {
-		return nil, err
-	}
-
-	err = i.SetupDefaults(exchCfg)
-	if err != nil {
-		return nil, err
-	}
-
-	if i.Features.Supports.RESTCapabilities.AutoPairUpdates {
-		err = i.UpdateTradablePairs(ctx, true)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	return exchCfg, nil
-}
-
 // SetDefaults sets the defaults for the exchange
 func (i *ItBit) SetDefaults() {
 	i.Name = "ITBIT"

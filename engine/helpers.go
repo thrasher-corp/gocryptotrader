@@ -1057,7 +1057,7 @@ func NewExchangeByNameWithDefaults(ctx context.Context, name string) (exchange.I
 	if err != nil {
 		return nil, err
 	}
-	defaultConfig, err := exch.GetDefaultConfig(ctx)
+	defaultConfig, err := exch.GetDefaultConfig(ctx, exch)
 	if err != nil {
 		return nil, err
 	}

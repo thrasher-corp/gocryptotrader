@@ -62,6 +62,7 @@ var (
 	errSetDefaultsNotCalled              = errors.New("set defaults not called")
 	errExchangeIsNil                     = errors.New("exchange is nil")
 	errBatchSizeZero                     = errors.New("batch size cannot be 0")
+	errExchangeMismatch                  = errors.New("exchange instance does not match base")
 )
 
 // SetRequester sets the instance of the requester
@@ -1942,4 +1943,38 @@ func (b *Base) Bootstrap(_ context.Context) (continueBootstrap bool, err error) 
 // IsVerbose returns if the exchange is set to verbose
 func (b *Base) IsVerbose() bool {
 	return b.Verbose
+}
+
+// GetDefaultConfig returns a default exchange config
+func (b *Base) GetDefaultConfig(ctx context.Context, instance IBotExchange) (*config.Exchange, error) {
+	if instance == nil {
+		return nil, errExchangeIsNil
+	}
+
+	if instance.GetBase() != b {
+		return nil, errExchangeMismatch
+	}
+
+	if instance.GetName() == "" {
+		instance.SetDefaults()
+	}
+
+	exchCfg, err := b.GetStandardConfig()
+	if err != nil {
+		return nil, err
+	}
+
+	err = b.SetupDefaults(exchCfg)
+	if err != nil {
+		return nil, err
+	}
+
+	if b.Features.Supports.RESTCapabilities.AutoPairUpdates {
+		err = instance.UpdateTradablePairs(ctx, true)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return exchCfg, nil
 }
