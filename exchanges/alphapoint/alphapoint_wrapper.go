@@ -26,11 +26,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
-// Bootstrap loads the exchange and performs initialisation tasks
-func (a *Alphapoint) Bootstrap(_ context.Context) (continueBootstrap bool, err error) {
-	return false, common.ErrNotYetImplemented
-}
-
 // SetDefaults sets current default settings
 func (a *Alphapoint) SetDefaults() {
 	a.Name = "Alphapoint"
