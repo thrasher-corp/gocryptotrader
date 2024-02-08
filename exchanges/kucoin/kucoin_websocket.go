@@ -203,9 +203,6 @@ func (ku *Kucoin) wsHandleData(respData []byte) error {
 		if !ku.Websocket.Match.IncomingWithData("msgID:"+resp.ID, respData) {
 			return fmt.Errorf("message listener not found: %s", resp.ID)
 		}
-		if resp.Type == "error" {
-			return fmt.Errorf("error message received ID:%s message:%s", resp.ID, resp.Data)
-		}
 		return nil
 	}
 	topicInfo := strings.Split(resp.Topic, ":")
