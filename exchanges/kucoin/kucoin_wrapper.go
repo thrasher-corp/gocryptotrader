@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"sort"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/shopspring/decimal"
@@ -248,52 +247,6 @@ func (ku *Kucoin) Setup(exch *config.Exchange) error {
 	})
 }
 
-// Start starts the Kucoin go routine
-func (ku *Kucoin) Start(ctx context.Context, wg *sync.WaitGroup) error {
-	if wg == nil {
-		return fmt.Errorf("%T %w", wg, common.ErrNilPointer)
-	}
-	wg.Add(1)
-	go func() {
-		ku.Run(ctx)
-		wg.Done()
-	}()
-	return nil
-}
-
-// Run implements the Kucoin wrapper
-func (ku *Kucoin) Run(ctx context.Context) {
-	if ku.Verbose {
-		log.Debugf(log.ExchangeSys,
-			"%s Websocket: %s.",
-			ku.Name,
-			common.IsEnabled(ku.Websocket.IsEnabled()))
-		ku.PrintEnabledPairs()
-	}
-
-	assetTypes := ku.GetAssetTypes(false)
-	for i := range assetTypes {
-		if err := ku.UpdateOrderExecutionLimits(ctx, assetTypes[i]); err != nil && !errors.Is(err, common.ErrNotYetImplemented) {
-			log.Errorf(log.ExchangeSys,
-				"%s failed to set exchange order execution limits. Err: %v",
-				ku.Name,
-				err)
-		}
-	}
-
-	if !ku.GetEnabledFeatures().AutoPairUpdates {
-		return
-	}
-
-	err := ku.UpdateTradablePairs(ctx, true)
-	if err != nil {
-		log.Errorf(log.ExchangeSys,
-			"%s failed to update tradable pairs. Err: %s",
-			ku.Name,
-			err)
-	}
-}
-
 // FetchTradablePairs returns a list of the exchanges tradable pairs
 func (ku *Kucoin) FetchTradablePairs(ctx context.Context, assetType asset.Item) (currency.Pairs, error) {
 	var cp currency.Pair
@@ -377,6 +330,7 @@ func (ku *Kucoin) UpdateTicker(ctx context.Context, p currency.Pair, assetType a
 
 // UpdateTickers updates all currency pairs of a given asset type
 func (ku *Kucoin) UpdateTickers(ctx context.Context, assetType asset.Item) error {
+	var errs error
 	switch assetType {
 	case asset.Futures:
 		ticks, err := ku.GetFuturesOpenContracts(ctx)
@@ -407,10 +361,9 @@ func (ku *Kucoin) UpdateTickers(ctx context.Context, assetType asset.Item) error
 				AssetType:    assetType,
 			})
 			if err != nil {
-				return err
+				errs = common.AppendError(errs, err)
 			}
 		}
-		return nil
 	case asset.Spot, asset.Margin:
 		ticks, err := ku.GetTickers(ctx)
 		if err != nil {
@@ -442,14 +395,14 @@ func (ku *Kucoin) UpdateTickers(ctx context.Context, assetType asset.Item) error
 					LastUpdated:  ticks.Time.Time(),
 				})
 				if err != nil {
-					return err
+					errs = common.AppendError(errs, err)
 				}
 			}
 		}
 	default:
 		return fmt.Errorf("%w %v", asset.ErrNotSupported, assetType)
 	}
-	return nil
+	return errs
 }
 
 // FetchTicker returns the ticker for a currency pair

@@ -73,22 +73,6 @@ func TestUpdateTradablePairs(t *testing.T) {
 	}
 }
 
-func TestStart(t *testing.T) {
-	t.Parallel()
-	err := b.Start(context.Background(), nil)
-	assert.ErrorIs(t, err, common.ErrNilPointer, "Start with no WG should error correctly")
-
-	var testWg sync.WaitGroup
-	err = b.Start(context.Background(), &testWg)
-	assert.NoError(t, err, "Start should not error")
-	done := make(chan struct{}, 1)
-	go func() {
-		testWg.Wait()
-		done <- struct{}{}
-	}()
-	assert.Eventually(t, func() bool { return len(done) > 0 }, 10*time.Second, 100*time.Millisecond, "Start should complete")
-}
-
 func TestFetchFundingHistory(t *testing.T) {
 	_, err := b.FetchFundingHistory(context.Background(), "")
 	assert.NoError(t, err, "FetchFundingHistory should not error")

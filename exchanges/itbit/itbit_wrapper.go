@@ -6,7 +6,6 @@ import (
 	"net/url"
 	"sort"
 	"strconv"
-	"sync"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -115,26 +114,6 @@ func (i *ItBit) Setup(exch *config.Exchange) error {
 		return nil
 	}
 	return i.SetupDefaults(exch)
-}
-
-// Start starts the ItBit go routine
-func (i *ItBit) Start(ctx context.Context, wg *sync.WaitGroup) error {
-	if wg == nil {
-		return fmt.Errorf("%T %w", wg, common.ErrNilPointer)
-	}
-	wg.Add(1)
-	go func() {
-		i.Run(ctx)
-		wg.Done()
-	}()
-	return nil
-}
-
-// Run implements the ItBit wrapper
-func (i *ItBit) Run(_ context.Context) {
-	if i.Verbose {
-		i.PrintEnabledPairs()
-	}
 }
 
 // GetServerTime returns the current exchange server time.
