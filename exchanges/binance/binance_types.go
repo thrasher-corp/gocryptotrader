@@ -193,8 +193,8 @@ type WebsocketDepthStream struct {
 	Pair          string               `json:"s"`
 	FirstUpdateID int64                `json:"U"`
 	LastUpdateID  int64                `json:"u"`
-	UpdateBids    [][2]interface{}     `json:"b"`
-	UpdateAsks    [][2]interface{}     `json:"a"`
+	UpdateBids    [][2]types.Number    `json:"b"`
+	UpdateAsks    [][2]types.Number    `json:"a"`
 }
 
 // RecentTradeRequestParams represents Klines request data.
@@ -220,8 +220,8 @@ type TradeStream struct {
 	EventTime      convert.ExchangeTime `json:"E"`
 	Symbol         string               `json:"s"`
 	TradeID        int64                `json:"t"`
-	Price          string               `json:"p"`
-	Quantity       string               `json:"q"`
+	Price          types.Number         `json:"p"`
+	Quantity       types.Number         `json:"q"`
 	BuyerOrderID   int64                `json:"b"`
 	SellerOrderID  int64                `json:"a"`
 	TimeStamp      convert.ExchangeTime `json:"T"`
@@ -245,16 +245,16 @@ type KlineStreamData struct {
 	Interval                 string               `json:"i"`
 	FirstTradeID             int64                `json:"f"`
 	LastTradeID              int64                `json:"L"`
-	OpenPrice                float64              `json:"o,string"`
-	ClosePrice               float64              `json:"c,string"`
-	HighPrice                float64              `json:"h,string"`
-	LowPrice                 float64              `json:"l,string"`
-	Volume                   float64              `json:"v,string"`
+	OpenPrice                types.Number         `json:"o"`
+	ClosePrice               types.Number         `json:"c"`
+	HighPrice                types.Number         `json:"h"`
+	LowPrice                 types.Number         `json:"l"`
+	Volume                   types.Number         `json:"v"`
 	NumberOfTrades           int64                `json:"n"`
 	KlineClosed              bool                 `json:"x"`
-	Quote                    float64              `json:"q,string"`
-	TakerBuyBaseAssetVolume  float64              `json:"V,string"`
-	TakerBuyQuoteAssetVolume float64              `json:"Q,string"`
+	Quote                    types.Number         `json:"q"`
+	TakerBuyBaseAssetVolume  types.Number         `json:"V"`
+	TakerBuyQuoteAssetVolume types.Number         `json:"Q"`
 }
 
 // TickerStream holds the ticker stream data
@@ -262,21 +262,21 @@ type TickerStream struct {
 	EventType              string               `json:"e"`
 	EventTime              convert.ExchangeTime `json:"E"`
 	Symbol                 string               `json:"s"`
-	PriceChange            float64              `json:"p,string"`
-	PriceChangePercent     float64              `json:"P,string"`
-	WeightedAvgPrice       float64              `json:"w,string"`
-	ClosePrice             float64              `json:"x,string"`
-	LastPrice              float64              `json:"c,string"`
-	LastPriceQuantity      float64              `json:"Q,string"`
-	BestBidPrice           float64              `json:"b,string"`
-	BestBidQuantity        float64              `json:"B,string"`
-	BestAskPrice           float64              `json:"a,string"`
-	BestAskQuantity        float64              `json:"A,string"`
-	OpenPrice              float64              `json:"o,string"`
-	HighPrice              float64              `json:"h,string"`
-	LowPrice               float64              `json:"l,string"`
-	TotalTradedVolume      float64              `json:"v,string"`
-	TotalTradedQuoteVolume float64              `json:"q,string"`
+	PriceChange            types.Number         `json:"p"`
+	PriceChangePercent     types.Number         `json:"P"`
+	WeightedAvgPrice       types.Number         `json:"w"`
+	ClosePrice             types.Number         `json:"x"`
+	LastPrice              types.Number         `json:"c"`
+	LastPriceQuantity      types.Number         `json:"Q"`
+	BestBidPrice           types.Number         `json:"b"`
+	BestBidQuantity        types.Number         `json:"B"`
+	BestAskPrice           types.Number         `json:"a"`
+	BestAskQuantity        types.Number         `json:"A"`
+	OpenPrice              types.Number         `json:"o"`
+	HighPrice              types.Number         `json:"h"`
+	LowPrice               types.Number         `json:"l"`
+	TotalTradedVolume      types.Number         `json:"v"`
+	TotalTradedQuoteVolume types.Number         `json:"q"`
 	OpenTime               convert.ExchangeTime `json:"O"`
 	CloseTime              convert.ExchangeTime `json:"C"`
 	FirstTradeID           int64                `json:"F"`

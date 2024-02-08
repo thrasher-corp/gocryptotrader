@@ -7,7 +7,6 @@ import (
 	"sort"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/shopspring/decimal"
@@ -297,100 +296,6 @@ func (b *Binance) Setup(exch *config.Exchange) error {
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
 		RateLimit:            wsRateLimitMilliseconds,
 	})
-}
-
-// Start starts the Binance go routine
-func (b *Binance) Start(ctx context.Context, wg *sync.WaitGroup) error {
-	if wg == nil {
-		return fmt.Errorf("%T %w", wg, common.ErrNilPointer)
-	}
-	wg.Add(1)
-	go func() {
-		b.Run(ctx)
-		wg.Done()
-	}()
-	return nil
-}
-
-// Run implements the Binance wrapper
-func (b *Binance) Run(ctx context.Context) {
-	if b.Verbose {
-		log.Debugf(log.ExchangeSys,
-			"%s Websocket: %s. (url: %s).\n",
-			b.Name,
-			common.IsEnabled(b.Websocket.IsEnabled()),
-			b.Websocket.GetWebsocketURL())
-		b.PrintEnabledPairs()
-	}
-
-	forceUpdate := false
-	a := b.GetAssetTypes(true)
-	for x := range a {
-		if err := b.UpdateOrderExecutionLimits(ctx, a[x]); err != nil {
-			log.Errorf(log.ExchangeSys,
-				"%s failed to set exchange order execution limits. Err: %v",
-				b.Name,
-				err)
-		}
-		if a[x] == asset.USDTMarginedFutures && !b.BypassConfigFormatUpgrades {
-			format, err := b.GetPairFormat(asset.USDTMarginedFutures, false)
-			if err != nil {
-				log.Errorf(log.ExchangeSys, "%s failed to get enabled currencies. Err %s\n",
-					b.Name,
-					err)
-				return
-			}
-			var enabled, avail currency.Pairs
-			enabled, err = b.CurrencyPairs.GetPairs(asset.USDTMarginedFutures, true)
-			if err != nil {
-				log.Errorf(log.ExchangeSys, "%s failed to get enabled currencies. Err %s\n",
-					b.Name,
-					err)
-				return
-			}
-
-			avail, err = b.CurrencyPairs.GetPairs(asset.USDTMarginedFutures, false)
-			if err != nil {
-				log.Errorf(log.ExchangeSys, "%s failed to get available currencies. Err %s\n",
-					b.Name,
-					err)
-				return
-			}
-			if !common.StringDataContains(enabled.Strings(), format.Delimiter) ||
-				!common.StringDataContains(avail.Strings(), format.Delimiter) {
-				var enabledPairs currency.Pairs
-				enabledPairs, err = currency.NewPairsFromStrings([]string{
-					currency.BTC.String() + format.Delimiter + currency.USDT.String(),
-				})
-				if err != nil {
-					log.Errorf(log.ExchangeSys, "%s failed to update currencies. Err %s\n",
-						b.Name,
-						err)
-				} else {
-					log.Warnf(log.ExchangeSys, exchange.ResetConfigPairsWarningMessage, b.Name, a[x], enabledPairs)
-					forceUpdate = true
-					err = b.UpdatePairs(enabledPairs, a[x], true, true)
-					if err != nil {
-						log.Errorf(log.ExchangeSys,
-							"%s failed to update currencies. Err: %s\n",
-							b.Name,
-							err)
-					}
-				}
-			}
-		}
-	}
-
-	if !b.GetEnabledFeatures().AutoPairUpdates && !forceUpdate {
-		return
-	}
-
-	if err := b.UpdateTradablePairs(ctx, forceUpdate); err != nil {
-		log.Errorf(log.ExchangeSys,
-			"%s failed to update tradable pairs. Err: %s",
-			b.Name,
-			err)
-	}
 }
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs
