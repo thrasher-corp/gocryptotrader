@@ -172,12 +172,14 @@ func StartRPCServer(engine *Engine) {
 
 // StartRPCRESTProxy starts a gRPC proxy
 func (s *RPCServer) StartRPCRESTProxy() {
-	log.Debugf(log.GRPCSys, "gRPC proxy server support enabled. Starting gRPC proxy server on http://%v.\n", s.Config.RemoteControl.GRPC.GRPCProxyListenAddress)
+	log.Debugf(log.GRPCSys, "gRPC proxy server support enabled. Starting gRPC proxy server on https://%v.\n", s.Config.RemoteControl.GRPC.GRPCProxyListenAddress)
 
 	targetDir := utils.GetTLSDir(s.Settings.DataDir)
-	creds, err := credentials.NewClientTLSFromFile(filepath.Join(targetDir, "cert.pem"), "")
+	certFile := filepath.Join(targetDir, "cert.pem")
+	keyFile := filepath.Join(targetDir, "key.pem")
+	creds, err := credentials.NewClientTLSFromFile(certFile, "")
 	if err != nil {
-		log.Errorf(log.GRPCSys, "Unabled to start gRPC proxy. Err: %s\n", err)
+		log.Errorf(log.GRPCSys, "Unable to start gRPC proxy. Err: %s\n", err)
 		return
 	}
 
@@ -200,14 +202,29 @@ func (s *RPCServer) StartRPCRESTProxy() {
 			Addr:              s.Config.RemoteControl.GRPC.GRPCProxyListenAddress,
 			ReadHeaderTimeout: time.Minute,
 			ReadTimeout:       time.Minute,
+			Handler:           s.authClient(mux),
 		}
 
-		if err = server.ListenAndServe(); err != nil {
-			log.Errorf(log.GRPCSys, "GRPC proxy failed to server: %s\n", err)
+		if err = server.ListenAndServeTLS(certFile, keyFile); err != nil {
+			log.Errorf(log.GRPCSys, "gRPC proxy server failed to serve: %s\n", err)
+			return
 		}
 	}()
 
 	log.Debugln(log.GRPCSys, "gRPC proxy server started!")
+}
+
+func (s *RPCServer) authClient(handler http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		username, password, ok := r.BasicAuth()
+		if !ok || username != s.Config.RemoteControl.Username || password != s.Config.RemoteControl.Password {
+			w.Header().Set("WWW-Authenticate", `Basic realm="restricted"`)
+			http.Error(w, "Access denied", http.StatusUnauthorized)
+			log.Warnf(log.GRPCSys, "gRPC proxy server unauthorised access attempt. IP: %s Path: %s\n", r.RemoteAddr, r.URL.Path)
+			return
+		}
+		handler.ServeHTTP(w, r)
+	})
 }
 
 // GetInfo returns info about the current GoCryptoTrader session
@@ -310,7 +327,7 @@ func (s *RPCServer) DisableExchange(_ context.Context, r *gctrpc.GenericExchange
 
 // EnableExchange enables an exchange
 func (s *RPCServer) EnableExchange(_ context.Context, r *gctrpc.GenericExchangeNameRequest) (*gctrpc.GenericResponse, error) {
-	err := s.LoadExchange(r.Exchange, nil)
+	err := s.LoadExchange(r.Exchange)
 	if err != nil {
 		return nil, err
 	}

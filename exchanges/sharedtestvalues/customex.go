@@ -2,7 +2,6 @@ package sharedtestvalues
 
 import (
 	"context"
-	"sync"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -31,11 +30,6 @@ type CustomEx struct {
 
 // Setup is a mock method for CustomEx
 func (c *CustomEx) Setup(_ *config.Exchange) error {
-	return nil
-}
-
-// Start is a mock method for CustomEx
-func (c *CustomEx) Start(_ context.Context, _ *sync.WaitGroup) error {
 	return nil
 }
 

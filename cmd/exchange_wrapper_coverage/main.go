@@ -32,18 +32,19 @@ func main() {
 
 	log.Printf("Loading exchanges..")
 	var wg sync.WaitGroup
-	for x := range exchange.Exchanges {
-		if exchange.Exchanges[x] == "ftx" {
+	for i := range exchange.Exchanges {
+		name := exchange.Exchanges[i]
+		if name == "ftx" {
 			log.Println("Skipping exchange FTX...")
 			continue
 		}
-		err = engine.Bot.LoadExchange(exchange.Exchanges[x], &wg)
-		if err != nil {
-			log.Printf("Failed to load exchange %s. Err: %s",
-				exchange.Exchanges[x],
-				err)
-			continue
-		}
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			if err := engine.Bot.LoadExchange(name); err != nil {
+				log.Printf("Failed to load exchange %s. Err: %s", name, err)
+			}
+		}()
 	}
 	wg.Wait()
 	log.Println("Done.")
