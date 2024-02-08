@@ -524,8 +524,8 @@ type GetTradesParams struct {
 	StartTime  *time.Time `json:"startTime"`
 	EndTime    *time.Time `json:"endTime"`
 	FromID     uint64     `json:"fromId"`
-	Limit      uint       `json:"limit"`
-	RecvWindow uint       `json:"recvWindow"`
+	Limit      uint64     `json:"limit"`
+	RecvWindow uint64     `json:"recvWindow"`
 }
 
 // Trade this struct represents a trade response.
@@ -599,8 +599,8 @@ type OCOOrdersRequestParams struct {
 	FromID     uint64
 	StartTime  time.Time
 	EndTime    time.Time
-	Limit      uint
-	RecvWindow uint
+	Limit      uint64
+	RecvWindow uint64
 }
 
 // OCOOrdersDeleteRequestParams holds the params to delete a new order
@@ -609,7 +609,7 @@ type OCOOrdersDeleteRequestParams struct {
 	OrderListID       uint64
 	ListClientOrderID string
 	NewClientOrderID  string
-	RecvWindow        uint
+	RecvWindow        uint64
 }
 
 // OTC endpoints

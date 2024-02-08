@@ -593,11 +593,11 @@ func TestSubscriptionState(t *testing.T) {
 	ws.AddSuccessfulSubscriptions(*c)
 	found = ws.GetSubscription(42)
 	assert.NotNil(t, found, "Should find the subscription")
-	assert.Equal(t, found.State, subscription.SubscribedState, "Subscription should be subscribed state")
+	assert.Equal(t, subscription.SubscribedState, found.State, "Subscription should be subscribed state")
 
 	assert.NoError(t, ws.SetSubscriptionState(c, subscription.UnsubscribingState), "Setting Unsub state should not error")
 	found = ws.GetSubscription(42)
-	assert.Equal(t, found.State, subscription.UnsubscribingState, "Subscription should be unsubscribing state")
+	assert.Equal(t, subscription.UnsubscribingState, found.State, "Subscription should be unsubscribing state")
 }
 
 // TestRemoveSubscriptions tests removing a subscription
@@ -1060,7 +1060,7 @@ func TestGetChannelDifference(t *testing.T) {
 	}
 	subs, unsubs := web.GetChannelDifference(newChans)
 	assert.Len(t, subs, 3, "Should get the correct number of subs")
-	assert.Len(t, unsubs, 0, "Should get the correct number of unsubs")
+	assert.Empty(t, unsubs, "Should get the correct number of unsubs")
 
 	web.AddSuccessfulSubscriptions(subs...)
 
@@ -1071,7 +1071,7 @@ func TestGetChannelDifference(t *testing.T) {
 	}
 
 	subs, unsubs = web.GetChannelDifference(flushedSubs)
-	assert.Len(t, subs, 0, "Should get the correct number of subs")
+	assert.Empty(t, subs, "Should get the correct number of subs")
 	assert.Len(t, unsubs, 2, "Should get the correct number of unsubs")
 
 	flushedSubs = []subscription.Subscription{
@@ -1085,12 +1085,12 @@ func TestGetChannelDifference(t *testing.T) {
 
 	subs, unsubs = web.GetChannelDifference(flushedSubs)
 	if assert.Len(t, subs, 1, "Should get the correct number of subs") {
-		assert.Equal(t, subs[0].Channel, "Test4", "Should subscribe to the right channel")
+		assert.Equal(t, "Test4", subs[0].Channel, "Should subscribe to the right channel")
 	}
 	if assert.Len(t, unsubs, 2, "Should get the correct number of unsubs") {
 		sort.Slice(unsubs, func(i, j int) bool { return unsubs[i].Channel <= unsubs[j].Channel })
-		assert.Equal(t, unsubs[0].Channel, "Test1", "Should unsubscribe from the right channels")
-		assert.Equal(t, unsubs[1].Channel, "Test3", "Should unsubscribe from the right channels")
+		assert.Equal(t, "Test1", unsubs[0].Channel, "Should unsubscribe from the right channels")
+		assert.Equal(t, "Test3", unsubs[1].Channel, "Should unsubscribe from the right channels")
 	}
 }
 
