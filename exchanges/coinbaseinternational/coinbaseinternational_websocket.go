@@ -18,6 +18,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
@@ -97,7 +98,7 @@ func (co *CoinbaseInternational) wsHandleData(respRaw []byte) error {
 	}
 	switch resp.Type {
 	case "SUBSCRIBE":
-		subsccefulySubscribedChannels := []stream.ChannelSubscription{}
+		subsccefulySubscribedChannels := []subscription.Subscription{}
 		for x := range resp.Channels {
 			pairs, err := currency.NewPairsFromStrings(resp.Channels[x].ProductIDs)
 			if err != nil {
@@ -105,15 +106,15 @@ func (co *CoinbaseInternational) wsHandleData(respRaw []byte) error {
 			}
 			for p := range pairs {
 				subsccefulySubscribedChannels = append(subsccefulySubscribedChannels,
-					stream.ChannelSubscription{
-						Channel:  resp.Channels[x].Name,
-						Currency: pairs[p],
+					subscription.Subscription{
+						Channel: resp.Channels[x].Name,
+						Pair:    pairs[p],
 					})
 			}
 		}
 		co.Websocket.AddSuccessfulSubscriptions(subsccefulySubscribedChannels...)
 	case "UNSUBSCRIBE":
-		subsccefulySubscribedChannels := []stream.ChannelSubscription{}
+		subsccefulySubscribedChannels := []subscription.Subscription{}
 		for x := range resp.Channels {
 			pairs, err := currency.NewPairsFromStrings(resp.Channels[x].ProductIDs)
 			if err != nil {
@@ -121,9 +122,9 @@ func (co *CoinbaseInternational) wsHandleData(respRaw []byte) error {
 			}
 			for p := range pairs {
 				subsccefulySubscribedChannels = append(subsccefulySubscribedChannels,
-					stream.ChannelSubscription{
-						Channel:  resp.Channels[x].Name,
-						Currency: pairs[p],
+					subscription.Subscription{
+						Channel: resp.Channels[x].Name,
+						Pair:    pairs[p],
 					})
 			}
 		}
@@ -293,7 +294,7 @@ func (co *CoinbaseInternational) processInstruments(respRaw []byte) error {
 }
 
 // GenerateSubscriptionPayload generates a subscription payloads list.
-func (co *CoinbaseInternational) GenerateSubscriptionPayload(subscriptions []stream.ChannelSubscription, operation string) ([]SubscriptionInput, error) {
+func (co *CoinbaseInternational) GenerateSubscriptionPayload(subscriptions []subscription.Subscription, operation string) ([]SubscriptionInput, error) {
 	if len(subscriptions) == 0 {
 		return nil, errEmptyArgument
 	}
@@ -307,7 +308,7 @@ func (co *CoinbaseInternational) GenerateSubscriptionPayload(subscriptions []str
 		if !okay {
 			channelPairsMap[subscriptions[x].Channel] = currency.Pairs{}
 		}
-		channelPairsMap[subscriptions[x].Channel] = channelPairsMap[subscriptions[x].Channel].Add(subscriptions[x].Currency.Format(format))
+		channelPairsMap[subscriptions[x].Channel] = channelPairsMap[subscriptions[x].Channel].Add(subscriptions[x].Pair.Format(format))
 	}
 	payloads := make([]SubscriptionInput, 0, len(channelPairsMap))
 	var payload *SubscriptionInput
@@ -404,18 +405,18 @@ func (co *CoinbaseInternational) signSubscriptionPayload(creds *account.Credenti
 }
 
 // GenerateDefaultSubscriptions generates default subscription
-func (co *CoinbaseInternational) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, error) {
+func (co *CoinbaseInternational) GenerateDefaultSubscriptions() ([]subscription.Subscription, error) {
 	enabledPairs, err := co.GetEnabledPairs(asset.Spot)
 	if err != nil {
 		return nil, err
 	}
-	subscriptions := make([]stream.ChannelSubscription, 0, len(enabledPairs))
+	subscriptions := make([]subscription.Subscription, 0, len(enabledPairs))
 	for p := range enabledPairs {
 		for x := range defaultSubscriptions {
-			subscriptions = append(subscriptions, stream.ChannelSubscription{
-				Channel:  defaultSubscriptions[x],
-				Currency: enabledPairs[p],
-				Asset:    asset.Spot,
+			subscriptions = append(subscriptions, subscription.Subscription{
+				Channel: defaultSubscriptions[x],
+				Pair:    enabledPairs[p],
+				Asset:   asset.Spot,
 			})
 		}
 	}
@@ -423,7 +424,7 @@ func (co *CoinbaseInternational) GenerateDefaultSubscriptions() ([]stream.Channe
 }
 
 // Subscribe subscribe to channels
-func (co *CoinbaseInternational) Subscribe(subscriptions []stream.ChannelSubscription) error {
+func (co *CoinbaseInternational) Subscribe(subscriptions []subscription.Subscription) error {
 	subscriptionPayloads, err := co.GenerateSubscriptionPayload(subscriptions, "SUBSCRIBE")
 	if err != nil {
 		return err
@@ -432,7 +433,7 @@ func (co *CoinbaseInternational) Subscribe(subscriptions []stream.ChannelSubscri
 }
 
 // Unsubscribe unsubscribe to channels
-func (co *CoinbaseInternational) Unsubscribe(subscriptions []stream.ChannelSubscription) error {
+func (co *CoinbaseInternational) Unsubscribe(subscriptions []subscription.Subscription) error {
 	subscriptionPayloads, err := co.GenerateSubscriptionPayload(subscriptions, "UNSUBSCRIBE")
 	if err != nil {
 		return err
