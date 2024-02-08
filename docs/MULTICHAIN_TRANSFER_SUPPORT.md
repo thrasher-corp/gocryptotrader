@@ -69,4 +69,3 @@ $ ./gctcli withdrawcryptofunds --exchange=binance --currency=USDT --address=TJU9
 | Okx | Yes | Yes | |
 | Poloniex | Yes | Yes | |
 | Yobit | No | No | |
-| ZB.COM | Yes | No | Addresses must be created via their website first |

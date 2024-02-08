@@ -20,6 +20,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
@@ -104,7 +105,7 @@ func (g *Gateio) WsOptionsConnect() error {
 }
 
 // GenerateOptionsDefaultSubscriptions generates list of channel subscriptions for options asset type.
-func (g *Gateio) GenerateOptionsDefaultSubscriptions() ([]stream.ChannelSubscription, error) {
+func (g *Gateio) GenerateOptionsDefaultSubscriptions() ([]subscription.Subscription, error) {
 	channelsToSubscribe := defaultOptionsSubscriptions
 	var userID int64
 	if g.Websocket.CanUseAuthenticatedEndpoints() {
@@ -129,7 +130,7 @@ func (g *Gateio) GenerateOptionsDefaultSubscriptions() ([]stream.ChannelSubscrip
 		}
 	}
 getEnabledPairs:
-	var subscriptions []stream.ChannelSubscription
+	var subscriptions []subscription.Subscription
 	pairs, err := g.GetEnabledPairs(asset.Options)
 	if err != nil {
 		return nil, err
@@ -162,17 +163,17 @@ getEnabledPairs:
 			if err != nil {
 				return nil, err
 			}
-			subscriptions = append(subscriptions, stream.ChannelSubscription{
-				Channel:  channelsToSubscribe[i],
-				Currency: fpair.Upper(),
-				Params:   params,
+			subscriptions = append(subscriptions, subscription.Subscription{
+				Channel: channelsToSubscribe[i],
+				Pair:    fpair.Upper(),
+				Params:  params,
 			})
 		}
 	}
 	return subscriptions, nil
 }
 
-func (g *Gateio) generateOptionsPayload(event string, channelsToSubscribe []stream.ChannelSubscription) ([]WsInput, error) {
+func (g *Gateio) generateOptionsPayload(event string, channelsToSubscribe []subscription.Subscription) ([]WsInput, error) {
 	if len(channelsToSubscribe) == 0 {
 		return nil, errors.New("cannot generate payload, no channels supplied")
 	}
@@ -189,7 +190,7 @@ func (g *Gateio) generateOptionsPayload(event string, channelsToSubscribe []stre
 			optionsUnderlyingPriceChannel,
 			optionsUnderlyingCandlesticksChannel:
 			var uly currency.Pair
-			uly, err = g.GetUnderlyingFromCurrencyPair(channelsToSubscribe[i].Currency)
+			uly, err = g.GetUnderlyingFromCurrencyPair(channelsToSubscribe[i].Pair)
 			if err != nil {
 				return nil, err
 			}
@@ -197,8 +198,8 @@ func (g *Gateio) generateOptionsPayload(event string, channelsToSubscribe []stre
 		case optionsBalancesChannel:
 			// options.balance channel does not require underlying or contract
 		default:
-			channelsToSubscribe[i].Currency.Delimiter = currency.UnderscoreDelimiter
-			params = append(params, channelsToSubscribe[i].Currency.String())
+			channelsToSubscribe[i].Pair.Delimiter = currency.UnderscoreDelimiter
+			params = append(params, channelsToSubscribe[i].Pair.String())
 		}
 		switch channelsToSubscribe[i].Channel {
 		case optionsOrderbookChannel:
@@ -298,17 +299,17 @@ func (g *Gateio) wsReadOptionsConnData() {
 }
 
 // OptionsSubscribe sends a websocket message to stop receiving data for asset type options
-func (g *Gateio) OptionsSubscribe(channelsToUnsubscribe []stream.ChannelSubscription) error {
+func (g *Gateio) OptionsSubscribe(channelsToUnsubscribe []subscription.Subscription) error {
 	return g.handleOptionsSubscription("subscribe", channelsToUnsubscribe)
 }
 
 // OptionsUnsubscribe sends a websocket message to stop receiving data for asset type options
-func (g *Gateio) OptionsUnsubscribe(channelsToUnsubscribe []stream.ChannelSubscription) error {
+func (g *Gateio) OptionsUnsubscribe(channelsToUnsubscribe []subscription.Subscription) error {
 	return g.handleOptionsSubscription("unsubscribe", channelsToUnsubscribe)
 }
 
 // handleOptionsSubscription sends a websocket message to receive data from the channel
-func (g *Gateio) handleOptionsSubscription(event string, channelsToSubscribe []stream.ChannelSubscription) error {
+func (g *Gateio) handleOptionsSubscription(event string, channelsToSubscribe []subscription.Subscription) error {
 	payloads, err := g.generateOptionsPayload(event, channelsToSubscribe)
 	if err != nil {
 		return err

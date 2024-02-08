@@ -301,17 +301,6 @@ func TestDoRequest(t *testing.T) {
 		t.Fatalf("received: %v but expected: %v", err, newError)
 	}
 
-	// max request job ceiling
-	r.jobs = MaxRequestJobs
-	err = r.SendPayload(ctx, UnAuth, func() (*Item, error) {
-		return &Item{Path: testURL}, nil
-	}, UnauthenticatedRequest)
-	if !errors.Is(err, errMaxRequestJobs) {
-		t.Fatalf("received: %v but expected: %v", err, errMaxRequestJobs)
-	}
-	// reset jobs
-	r.jobs = 0
-
 	r._HTTPClient, err = newProtectedClient(common.NewHTTPClientWithTimeout(0))
 	if err != nil {
 		t.Fatal(err)

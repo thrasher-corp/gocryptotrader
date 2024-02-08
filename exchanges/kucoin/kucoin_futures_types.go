@@ -54,7 +54,7 @@ type Contract struct {
 	Status                  string               `json:"status"`
 	FundingFeeRate          float64              `json:"fundingFeeRate"`
 	PredictedFundingFeeRate float64              `json:"predictedFundingFeeRate"`
-	OpenInterest            string               `json:"openInterest"`
+	OpenInterest            types.Number         `json:"openInterest"`
 	TurnoverOf24h           float64              `json:"turnoverOf24h"`
 	VolumeOf24h             float64              `json:"volumeOf24h"`
 	MarkPrice               float64              `json:"markPrice"`

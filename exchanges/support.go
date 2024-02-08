@@ -40,5 +40,4 @@ var Exchanges = []string{
 	"okx",
 	"poloniex",
 	"yobit",
-	"zb",
 }
