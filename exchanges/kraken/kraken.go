@@ -31,7 +31,7 @@ const (
 	krakenFuturesVersion          = "3"
 )
 
-// Kraken is the overarching type across the alphapoint package
+// Kraken is the overarching type across the kraken package
 type Kraken struct {
 	exchange.Base
 	wsRequestMtx sync.Mutex
