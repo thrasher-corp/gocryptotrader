@@ -7,7 +7,6 @@ import (
 	"log"
 	"os"
 	"strings"
-	"sync"
 	"testing"
 	"time"
 
@@ -86,20 +85,6 @@ func contextGenerate() context.Context {
 		ctx = context.WithValue(ctx, testNetKey("testnet"), useTestNet)
 	}
 	return ctx
-}
-
-func TestStart(t *testing.T) {
-	t.Parallel()
-	err := ok.Start(contextGenerate(), nil)
-	if !errors.Is(err, common.ErrNilPointer) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, common.ErrNilPointer)
-	}
-	var testWg sync.WaitGroup
-	err = ok.Start(contextGenerate(), &testWg)
-	if err != nil {
-		t.Fatal(err)
-	}
-	testWg.Wait()
 }
 
 func TestGetTickers(t *testing.T) {

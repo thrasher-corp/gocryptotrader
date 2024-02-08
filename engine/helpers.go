@@ -107,7 +107,7 @@ func (bot *Engine) GetRPCEndpoints() (map[string]RPCEndpoint, error) {
 		},
 		grpcProxyName: {
 			Started:    bot.Settings.EnableGRPCProxy,
-			ListenAddr: "http://" + bot.Config.RemoteControl.GRPC.GRPCProxyListenAddress,
+			ListenAddr: "https://" + bot.Config.RemoteControl.GRPC.GRPCProxyListenAddress,
 		},
 		DeprecatedName: {
 			Started:    bot.Settings.EnableDeprecatedRPC,

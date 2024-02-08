@@ -2,10 +2,8 @@ package itbit
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"net/url"
-	"sync"
 	"testing"
 	"time"
 
@@ -31,20 +29,6 @@ const (
 
 func TestMain(_ *testing.M) {
 	fmt.Println("ItBit API deprecated, skipping tests")
-}
-
-func TestStart(t *testing.T) {
-	t.Parallel()
-	err := i.Start(context.Background(), nil)
-	if !errors.Is(err, common.ErrNilPointer) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, common.ErrNilPointer)
-	}
-	var testWg sync.WaitGroup
-	err = i.Start(context.Background(), &testWg)
-	if err != nil {
-		t.Fatal(err)
-	}
-	testWg.Wait()
 }
 
 func TestGetTicker(t *testing.T) {

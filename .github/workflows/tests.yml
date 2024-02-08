@@ -92,7 +92,9 @@ jobs:
         GOARCH: ${{ matrix.goarch }}
 
     - name: Upload coverage to Codecov
-      uses: codecov/codecov-action@v3
+      uses: codecov/codecov-action@v4
+      env:
+        CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
 
   backend-arm64:
     name: GoCryptoTrader back-end (ubuntu-latest, arm64, false, true)

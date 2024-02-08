@@ -2,7 +2,6 @@ package exchange
 
 import (
 	"context"
-	"sync"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common/key"
@@ -30,7 +29,7 @@ import (
 // GoCryptoTrader
 type IBotExchange interface {
 	Setup(exch *config.Exchange) error
-	Start(ctx context.Context, wg *sync.WaitGroup) error
+	Bootstrap(context.Context) (continueBootstrap bool, err error)
 	SetDefaults()
 	Shutdown() error
 	GetName() string
@@ -81,6 +80,9 @@ type IBotExchange interface {
 	CheckOrderExecutionLimits(a asset.Item, cp currency.Pair, price, amount float64, orderType order.Type) error
 	UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) error
 	GetCredentials(ctx context.Context) (*account.Credentials, error)
+	EnsureOnePairEnabled() error
+	PrintEnabledPairs()
+	IsVerbose() bool
 
 	// ValidateAPICredentials function validates the API keys by sending an
 	// authenticated REST request. See exchange specific wrapper implementation.
