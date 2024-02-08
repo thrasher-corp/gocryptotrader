@@ -1505,7 +1505,7 @@ type MarginOrderParam struct {
 // Level2Depth5Or20 stores the orderbook data for the level 5 or level 20
 // orderbook
 type Level2Depth5Or20 struct {
-	Asks      [][2]string `json:"asks"`
-	Bids      [][2]string `json:"bids"`
-	Timestamp int64       `json:"timestamp"`
+	Asks      [][2]types.Number `json:"asks"`
+	Bids      [][2]types.Number `json:"bids"`
+	Timestamp int64             `json:"timestamp"`
 }

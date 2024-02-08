@@ -884,26 +884,14 @@ func (ku *Kucoin) processOrderbook(respData []byte, symbol string) error {
 
 	asks := make([]orderbook.Item, len(response.Asks))
 	for x := range response.Asks {
-		asks[x].Price, err = strconv.ParseFloat(response.Asks[x][0], 64)
-		if err != nil {
-			return err
-		}
-		asks[x].Amount, err = strconv.ParseFloat(response.Asks[x][1], 64)
-		if err != nil {
-			return err
-		}
+		asks[x].Price = response.Asks[x][0].Float64()
+		asks[x].Amount = response.Asks[x][1].Float64()
 	}
 
 	bids := make([]orderbook.Item, len(response.Bids))
 	for x := range response.Bids {
-		bids[x].Price, err = strconv.ParseFloat(response.Bids[x][0], 64)
-		if err != nil {
-			return err
-		}
-		bids[x].Amount, err = strconv.ParseFloat(response.Bids[x][1], 64)
-		if err != nil {
-			return err
-		}
+		bids[x].Price = response.Bids[x][0].Float64()
+		bids[x].Amount = response.Bids[x][1].Float64()
 	}
 
 	assets, err := ku.listOfAssetsCurrencyPairEnabledFor(pair)
@@ -1010,8 +998,6 @@ func (ku *Kucoin) handleSubscriptions(subs []subscription.Subscription, operatio
 			PrivateChannel: subs[i].Authenticated,
 			Response:       true,
 		}
-		bruh, _ := json.Marshal(req)
-		fmt.Println(string(bruh))
 		if respRaw, err := ku.Websocket.Conn.SendMessageReturnResponse("msgID:"+msgID, req); err != nil {
 			errs = common.AppendError(errs, err)
 		} else {
@@ -1073,7 +1059,6 @@ func (ku *Kucoin) GenerateDefaultSubscriptions() ([]subscription.Subscription, e
 		}
 		subscriptions = append(subscriptions, subs...)
 	}
-	fmt.Printf("DEFAULT: %+v\n", subscriptions)
 	return subscriptions, nil
 }
 
