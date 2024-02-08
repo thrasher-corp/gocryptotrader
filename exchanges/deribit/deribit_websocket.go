@@ -112,15 +112,7 @@ func (d *Deribit) WsConnect() error {
 			d.Websocket.SetCanUseAuthenticatedEndpoints(false)
 		}
 	}
-	err = d.Websocket.Conn.SendJSONMessage(setHeartBeatMessage)
-	if err != nil {
-		return err
-	}
-	subscriptions, err := d.GenerateDefaultSubscriptions()
-	if err != nil {
-		return err
-	}
-	return d.Subscribe(subscriptions)
+	return d.Websocket.Conn.SendJSONMessage(setHeartBeatMessage)
 }
 
 func (d *Deribit) wsLogin(ctx context.Context) error {

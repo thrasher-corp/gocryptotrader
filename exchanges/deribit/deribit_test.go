@@ -2395,12 +2395,3 @@ func TestForkToken(t *testing.T) {
 	_, err = d.WsForkToken("1568800656974.1CWcuzUS.MGy49NK4hpTwvR1OYWfpqMEkH4T4oDg4tNIcrM7KdeyxXRcSFqiGzA_D4Cn7mqWocHmlS89FFmUYcmaN2H7lNKKTnhRg5EtrzsFCCiuyN0Wv9y-LbGLV3-Ojv_kbD50FoScQ8BDXS5b_w6Ir1MqEdQ3qFZ3MLcvlPiIgG2BqyJX3ybYnVpIlrVrrdYD1-lkjLcjxOBNJvvUKNUAzkQ", "Sami")
 	assert.NoError(t, err)
 }
-
-func TestWsConnect(t *testing.T) {
-	t.Parallel()
-	err := d.WsConnect()
-	if err != nil {
-		t.Fatal(err)
-	}
-	time.Sleep(time.Second * 20)
-}
