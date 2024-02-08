@@ -351,7 +351,7 @@ func (d *Deribit) UpdateOrderbook(ctx context.Context, p currency.Pair, assetTyp
 		Asset:           assetType,
 		VerifyOrderbook: d.CanVerifyOrderbook,
 	}
-	book.Asks = []orderbook.Item{}
+	book.Asks = make(orderbook.Items, 0, len(obData.Asks))
 	for x := range book.Asks {
 		if obData.Asks[x][0] == 0 {
 			continue
@@ -361,7 +361,7 @@ func (d *Deribit) UpdateOrderbook(ctx context.Context, p currency.Pair, assetTyp
 			Amount: obData.Asks[x][1],
 		})
 	}
-	book.Bids = []orderbook.Item{}
+	book.Bids = make(orderbook.Items, 0, len(obData.Bids))
 	for x := range book.Bids {
 		if obData.Bids[x][0] == 0 {
 			continue

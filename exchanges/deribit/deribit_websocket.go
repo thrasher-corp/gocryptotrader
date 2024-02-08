@@ -112,7 +112,15 @@ func (d *Deribit) WsConnect() error {
 			d.Websocket.SetCanUseAuthenticatedEndpoints(false)
 		}
 	}
-	return d.Websocket.Conn.SendJSONMessage(setHeartBeatMessage)
+	err = d.Websocket.Conn.SendJSONMessage(setHeartBeatMessage)
+	if err != nil {
+		return err
+	}
+	subscriptions, err := d.GenerateDefaultSubscriptions()
+	if err != nil {
+		return err
+	}
+	return d.Subscribe(subscriptions)
 }
 
 func (d *Deribit) wsLogin(ctx context.Context) error {
@@ -1167,11 +1175,15 @@ func (d *Deribit) generatePayloadFromSubscriptionInfos(operation string, subscs 
 			if subscs[x].Pair.IsEmpty() {
 				return nil, currency.ErrCurrencyPairEmpty
 			}
-			if subscs[x].Interval == kline.Interval(0) {
+			if subscs[x].Interval.Duration() == 0 {
 				subscription.Params["channels"] = []string{subscs[x].Channel + instrumentID}
-			} else if d.Websocket.CanUseAuthenticatedEndpoints() {
-				subscription.Params["channels"] = []string{subscs[x].Channel + instrumentID + "." + d.FormatExchangeKlineInterval(subscs[x].Interval)}
+				continue
 			}
+			intervalString, err := d.GetResolutionFromInterval(subscs[x].Interval)
+			if err != nil {
+				return nil, err
+			}
+			subscription.Params["channels"] = []string{subscs[x].Channel + instrumentID + "." + intervalString}
 		case userChangesCurrencyChannel,
 			tradesWithKindChannel,
 			rawUsersOrdersWithKindCurrencyAndIntervalChannel,
@@ -1181,33 +1193,21 @@ func (d *Deribit) generatePayloadFromSubscriptionInfos(operation string, subscs 
 			if currencyCode != currencyBTC && currencyCode != currencyETH && currencyCode != currencySOL && currencyCode != currencyUSDC {
 				currencyCode = "any"
 			}
-			if subscs[x].Interval == kline.Interval(0) {
+			if subscs[x].Interval.Duration() == 0 {
 				subscription.Params["channels"] = []string{subscs[x].Channel + "." + kind + "." + currencyCode}
-			} else if d.Websocket.CanUseAuthenticatedEndpoints() {
-				subscription.Params["channels"] = []string{subscs[x].Channel + "." + kind + "." + currencyCode + "." + d.FormatExchangeKlineInterval(subscs[x].Interval)}
+				continue
 			}
+			intervalString, err := d.GetResolutionFromInterval(subscs[x].Interval)
+			if err != nil {
+				return nil, err
+			}
+			subscription.Params["channels"] = []string{subscs[x].Channel + "." + kind + "." + currencyCode + "." + intervalString}
 		default:
 			return nil, errUnsupportedChannel
 		}
 		subscriptionPayloads[x] = subscription
 	}
-	return subscriptionPayloads, nil
-}
-
-func filterSubscriptionPayloads(subscription []WsSubscriptionInput) []WsSubscriptionInput {
-	newSubscriptionsMap := map[string]bool{}
-	newSubscriptions := []WsSubscriptionInput{}
-	for x := range subscription {
-		channels := subscription[x].Params["channels"]
-		if len(channels) == 0 {
-			continue
-		}
-		if !newSubscriptionsMap[channels[0]] {
-			newSubscriptionsMap[channels[0]] = true
-			newSubscriptions = append(newSubscriptions, subscription[x])
-		}
-	}
-	return newSubscriptions
+	return filterSubscriptionPayloads(subscriptionPayloads), nil
 }
 
 // Subscribe sends a websocket message to receive data from the channel
@@ -1218,6 +1218,21 @@ func (d *Deribit) Subscribe(channelsToSubscribe []subscription.Subscription) err
 // Unsubscribe sends a websocket message to stop receiving data from the channel
 func (d *Deribit) Unsubscribe(channelsToUnsubscribe []subscription.Subscription) error {
 	return d.handleSubscription("unsubscribe", channelsToUnsubscribe)
+}
+
+func filterSubscriptionPayloads(subscription []WsSubscriptionInput) []WsSubscriptionInput {
+	newSubscriptionsMap := map[string]bool{}
+	newSubscriptions := make([]WsSubscriptionInput, 0, len(subscription))
+	for x := range subscription {
+		if len(subscription[x].Params["channels"]) == 0 {
+			continue
+		}
+		if !newSubscriptionsMap[subscription[x].Params["channels"][0]] {
+			newSubscriptionsMap[subscription[x].Params["channels"][0]] = true
+			newSubscriptions = append(newSubscriptions, subscription[x])
+		}
+	}
+	return newSubscriptions
 }
 
 func (d *Deribit) handleSubscription(operation string, channels []subscription.Subscription) error {
