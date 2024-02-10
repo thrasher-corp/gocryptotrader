@@ -31,11 +31,12 @@ const (
 
 // Public errors
 var (
-	ErrNotFound       = errors.New("subscription not found")
-	ErrNotSinglePair  = errors.New("only single pair subscriptions expected")
-	ErrInStateAlready = errors.New("subscription already in state")
-	ErrInvalidState   = errors.New("invalid subscription state")
-	ErrDuplicate      = errors.New("duplicate subscription")
+	ErrNotFound             = errors.New("subscription not found")
+	ErrNotSinglePair        = errors.New("only single pair subscriptions expected")
+	ErrInStateAlready       = errors.New("subscription already in state")
+	ErrInvalidState         = errors.New("invalid subscription state")
+	ErrDuplicate            = errors.New("duplicate subscription")
+	ErrBatchingNotSupported = errors.New("subscription batching is not supported")
 )
 
 // State tracks the status of a subscription channel
@@ -126,4 +127,13 @@ func (s *Subscription) Match(key any) bool {
 	}
 
 	return true
+}
+
+// Clone returns a copy of a subscription
+func (s *Subscription) Clone() *Subscription {
+	s.m.RLock()
+	n := *s //nolint:govet // Replacing lock immediately below
+	s.m.RUnlock()
+	n.m = sync.RWMutex{}
+	return &n
 }

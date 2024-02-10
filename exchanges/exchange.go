@@ -1852,7 +1852,7 @@ func (b *Base) ParallelChanOp(channels subscription.List, m func(subscription.Li
 	var j int
 	for i := 0; i < len(channels); i += batchSize {
 		j += batchSize
-		if j >= len(channels) {
+		if j > len(channels) {
 			j = len(channels)
 		}
 		wg.Add(1)
