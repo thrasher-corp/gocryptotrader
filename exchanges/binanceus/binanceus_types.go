@@ -300,8 +300,8 @@ type AccountStatusResponse struct {
 // TradeStatus represents trade status and holds list of trade status indicator Item instances.
 type TradeStatus struct {
 	IsLocked           bool                                  `json:"isLocked"`
-	PlannedRecoverTime uint                                  `json:"plannedRecoverTime"`
-	TriggerCondition   map[string]uint                       `json:"triggerCondition"`
+	PlannedRecoverTime uint64                                `json:"plannedRecoverTime"`
+	TriggerCondition   map[string]uint64                     `json:"triggerCondition"`
 	Indicators         map[string]TradingStatusIndicatorItem `json:"indicators"`
 	UpdateTime         time.Time                             `json:"updateTime"`
 }
@@ -340,7 +340,7 @@ type AssetHistory struct {
 // including for staking, referrals and airdrops etc.
 type AssetDistributionHistories struct {
 	Rows  []AssetHistory `json:"rows"`
-	Total uint           `json:"total"`
+	Total uint64         `json:"total"`
 }
 
 // SubAccount  holds a single sub account instance in a Binance US account.
@@ -359,7 +359,7 @@ type TransferHistory struct {
 	From      string    `json:"from"`
 	To        string    `json:"to"`
 	Asset     string    `json:"asset"`
-	Qty       uint      `json:"qty,string"`
+	Qty       uint64    `json:"qty,string"`
 	TimeStamp time.Time `json:"time"`
 }
 
@@ -398,9 +398,9 @@ type SubAccountAssets struct {
 type OrderRateLimit struct {
 	RateLimitType string `json:"rateLimitType"`
 	Interval      string `json:"interval"`
-	IntervalNum   uint   `json:"intervalNum"`
-	Limit         uint   `json:"limit"`
-	Count         uint   `json:"count"`
+	IntervalNum   uint64 `json:"intervalNum"`
+	Limit         uint64 `json:"limit"`
+	Count         uint64 `json:"count"`
 }
 
 // RequestParamsOrderType trade order type
@@ -504,7 +504,7 @@ type OrderRequestParams struct {
 	Symbol            string `json:"symbol"` // REQUIRED
 	OrderID           uint64 `json:"orderId"`
 	OrigClientOrderID string `json:"origClientOrderId"`
-	recvWindow        uint
+	recvWindow        uint64
 }
 
 // CancelOrderRequestParams this struct will be used as a parameter for
@@ -514,7 +514,7 @@ type CancelOrderRequestParams struct {
 	OrderID               string
 	ClientSuppliedOrderID string
 	NewClientOrderID      string
-	RecvWindow            uint
+	RecvWindow            uint64
 }
 
 // GetTradesParams  request param to get the trade history
@@ -1076,7 +1076,7 @@ type OCBSOrderRequestParams struct {
 	OrderID   string
 	StartTime time.Time
 	EndTime   time.Time
-	Limit     uint
+	Limit     uint64
 }
 
 // OCBSTradeOrdersResponse holds the quantity and list of OCBS Orders.
