@@ -73,8 +73,8 @@ var defaultSetup = &WebsocketSetup{
 	DefaultURL:   "testDefaultURL",
 	RunningURL:   "wss://testRunningURL",
 	Connector:    func() error { return nil },
-	Subscriber:   func(_ []subscription.Subscription) error { return nil },
-	Unsubscriber: func(_ []subscription.Subscription) error { return nil },
+	Subscriber:   func([]subscription.Subscription) error { return nil },
+	Unsubscriber: func([]subscription.Subscription) error { return nil },
 	GenerateSubscriptions: func() ([]subscription.Subscription, error) {
 		return []subscription.Subscription{
 			{Channel: "TestSub"},
@@ -1283,7 +1283,7 @@ func TestEnable(t *testing.T) {
 		GenerateSubs: func() ([]subscription.Subscription, error) {
 			return []subscription.Subscription{{Channel: "test"}}, nil
 		},
-		Subscriber: func(_ []subscription.Subscription) error { return nil },
+		Subscriber: func([]subscription.Subscription) error { return nil },
 	}
 
 	err := web.Enable()

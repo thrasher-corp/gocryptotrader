@@ -406,7 +406,7 @@ func TestDoRequest(t *testing.T) {
 func TestDoRequest_Retries(t *testing.T) {
 	t.Parallel()
 
-	backoff := func(_ int) time.Duration {
+	backoff := func(int) time.Duration {
 		return 0
 	}
 	r, err := New("test", new(http.Client), WithBackoff(backoff))
@@ -449,7 +449,7 @@ func TestDoRequest_Retries(t *testing.T) {
 func TestDoRequest_RetryNonRecoverable(t *testing.T) {
 	t.Parallel()
 
-	backoff := func(_ int) time.Duration {
+	backoff := func(int) time.Duration {
 		return 0
 	}
 	r, err := New("test", new(http.Client), WithBackoff(backoff))
@@ -471,7 +471,7 @@ func TestDoRequest_NotRetryable(t *testing.T) {
 	t.Parallel()
 
 	notRetryErr := errors.New("not retryable")
-	retry := func(_ *http.Response, _ error) (bool, error) {
+	retry := func(*http.Response, error) (bool, error) {
 		return false, notRetryErr
 	}
 	backoff := func(n int) time.Duration {
