@@ -1283,7 +1283,7 @@ func TestEnable(t *testing.T) {
 		GenerateSubs: func() ([]subscription.Subscription, error) {
 			return []subscription.Subscription{{Channel: "test"}}, nil
 		},
-		Subscriber: func(cs []subscription.Subscription) error { return nil },
+		Subscriber: func(_ []subscription.Subscription) error { return nil },
 	}
 
 	err := web.Enable()
