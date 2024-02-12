@@ -94,6 +94,8 @@ func MockWSInstance[T any, PT interface {
 
 	b := e.GetBase()
 	b.SkipAuthCheck = true
+	b.API.AuthenticatedWebsocketSupport = true
+
 	err := b.API.Endpoints.SetRunning("RestSpotURL", s.URL)
 	require.NoError(tb, err, "Endpoints.SetRunning should not error for RestSpotURL")
 	for _, auth := range []bool{true, false} {
