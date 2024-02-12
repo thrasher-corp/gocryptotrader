@@ -750,13 +750,16 @@ func (d *Deribit) processOrderbook(respRaw []byte, channels []string) error {
 				Asks:            asks,
 				Bids:            bids,
 				Asset:           assetType,
+				LastUpdateID:    orderbookData.ChangeID,
 			})
 		} else if orderbookData.Type == "change" {
 			return d.Websocket.Orderbook.Update(&orderbook.Update{
-				Asks:  asks,
-				Bids:  bids,
-				Pair:  cp,
-				Asset: assetType,
+				Asks:       asks,
+				Bids:       bids,
+				Pair:       cp,
+				Asset:      assetType,
+				UpdateID:   orderbookData.ChangeID,
+				UpdateTime: orderbookData.Timestamp.Time(),
 			})
 		}
 	} else if len(channels) == 5 {
@@ -805,11 +808,13 @@ func (d *Deribit) processOrderbook(respRaw []byte, channels []string) error {
 			}
 		}
 		return d.Websocket.Orderbook.LoadSnapshot(&orderbook.Base{
-			Asks:     asks,
-			Bids:     bids,
-			Pair:     cp,
-			Asset:    assetType,
-			Exchange: d.Name,
+			Asks:         asks,
+			Bids:         bids,
+			Pair:         cp,
+			Asset:        assetType,
+			Exchange:     d.Name,
+			LastUpdateID: orderbookData.ChangeID,
+			LastUpdated:  orderbookData.Timestamp.Time(),
 		})
 	}
 	return nil

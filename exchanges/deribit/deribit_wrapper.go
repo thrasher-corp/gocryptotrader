@@ -1118,9 +1118,9 @@ func (d *Deribit) GetHistoricCandles(ctx context.Context, pair currency.Pair, a 
 		}
 		return req.ProcessResponse(listCandles)
 	case asset.OptionCombo, asset.FutureCombo, asset.Options:
-		// TODO: orderbook for asset item option_combo, future_combo, and option not supported yet
+		// TODO: candlestick data for asset item option_combo, future_combo, and option not supported yet
 	}
-	return nil, fmt.Errorf("%w orderbook for asset type %v", asset.ErrNotSupported, a)
+	return nil, fmt.Errorf("%w candlestick data for asset type %v", asset.ErrNotSupported, a)
 }
 
 // GetHistoricCandlesExtended returns candles between a time period for a set time interval
@@ -1167,9 +1167,9 @@ func (d *Deribit) GetHistoricCandlesExtended(ctx context.Context, pair currency.
 		}
 		return req.ProcessResponse(timeSeries)
 	case asset.OptionCombo, asset.FutureCombo, asset.Options:
-		// TODO: orderbook for asset item option_combo, future_combo, and option not supported yet
+		// TODO: candlestick data for asset item option_combo, future_combo, and option not supported yet
 	}
-	return nil, fmt.Errorf("%w orderbook for asset type %v", asset.ErrNotSupported, a)
+	return nil, fmt.Errorf("%w candlestick data for asset type %v", asset.ErrNotSupported, a)
 }
 
 // GetServerTime returns the current exchange server time.
