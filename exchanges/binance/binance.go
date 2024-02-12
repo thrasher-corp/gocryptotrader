@@ -7,8 +7,10 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"slices"
 	"sort"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -1209,72 +1211,67 @@ func (b *Binance) MaintainWsAuthStreamKey(ctx context.Context) error {
 	}, request.AuthenticatedRequest)
 }
 
-// FetchSpotExchangeLimits fetches spot order execution limits
-func (b *Binance) FetchSpotExchangeLimits(ctx context.Context) ([]order.MinMaxLevel, error) {
-	var limits []order.MinMaxLevel
-	spot, err := b.GetExchangeInfo(ctx)
+// FetchExchangeLimits fetches order execution limits filtered by asset
+func (b *Binance) FetchExchangeLimits(ctx context.Context, a asset.Item) ([]order.MinMaxLevel, error) {
+	if a != asset.Spot && a != asset.Margin {
+		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, a)
+	}
+
+	resp, err := b.GetExchangeInfo(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	for x := range spot.Symbols {
+	aUpper := strings.ToUpper(a.String())
+
+	limits := make([]order.MinMaxLevel, 0, len(resp.Symbols))
+	for _, s := range resp.Symbols {
 		var cp currency.Pair
-		cp, err = currency.NewPairFromStrings(spot.Symbols[x].BaseAsset,
-			spot.Symbols[x].QuoteAsset)
+		cp, err = currency.NewPairFromStrings(s.BaseAsset, s.QuoteAsset)
 		if err != nil {
 			return nil, err
 		}
-		var assets []asset.Item
-		for y := range spot.Symbols[x].Permissions {
-			switch spot.Symbols[x].Permissions[y] {
-			case "SPOT":
-				assets = append(assets, asset.Spot)
-			case "MARGIN":
-				assets = append(assets, asset.Margin)
-			default:
-				// "LEVERAGED", "TRD_GRP_003", "TRD_GRP_004", "TRD_GRP_005" etc are unused permissions
-				// for spot exchange limits
+
+		if !slices.Contains(s.Permissions, aUpper) {
+			continue
+		}
+
+		l := order.MinMaxLevel{
+			Pair:  cp,
+			Asset: a,
+		}
+
+		for _, f := range s.Filters {
+			// TODO: Unhandled filters:
+			// maxPosition, trailingDelta, percentPriceBySide, maxNumAlgoOrders
+			switch f.FilterType {
+			case priceFilter:
+				l.MinPrice = f.MinPrice
+				l.MaxPrice = f.MaxPrice
+				l.PriceStepIncrementSize = f.TickSize
+			case percentPriceFilter:
+				l.MultiplierUp = f.MultiplierUp
+				l.MultiplierDown = f.MultiplierDown
+				l.AveragePriceMinutes = f.AvgPriceMinutes
+			case lotSizeFilter:
+				l.MaximumBaseAmount = f.MaxQty
+				l.MinimumBaseAmount = f.MinQty
+				l.AmountStepIncrementSize = f.StepSize
+			case notionalFilter:
+				l.MinNotional = f.MinNotional
+			case icebergPartsFilter:
+				l.MaxIcebergParts = f.Limit
+			case marketLotSizeFilter:
+				l.MarketMinQty = f.MinQty
+				l.MarketMaxQty = f.MaxQty
+				l.MarketStepIncrementSize = f.StepSize
+			case maxNumOrdersFilter:
+				l.MaxTotalOrders = f.MaxNumOrders
+				l.MaxAlgoOrders = f.MaxNumAlgoOrders
 			}
 		}
 
-		for z := range assets {
-			l := order.MinMaxLevel{
-				Pair:  cp,
-				Asset: assets[z],
-			}
-
-			for _, f := range spot.Symbols[x].Filters {
-				// TODO: Unhandled filters:
-				// maxPosition, trailingDelta, percentPriceBySide, maxNumAlgoOrders
-				switch f.FilterType {
-				case priceFilter:
-					l.MinPrice = f.MinPrice
-					l.MaxPrice = f.MaxPrice
-					l.PriceStepIncrementSize = f.TickSize
-				case percentPriceFilter:
-					l.MultiplierUp = f.MultiplierUp
-					l.MultiplierDown = f.MultiplierDown
-					l.AveragePriceMinutes = f.AvgPriceMinutes
-				case lotSizeFilter:
-					l.MaximumBaseAmount = f.MaxQty
-					l.MinimumBaseAmount = f.MinQty
-					l.AmountStepIncrementSize = f.StepSize
-				case notionalFilter:
-					l.MinNotional = f.MinNotional
-				case icebergPartsFilter:
-					l.MaxIcebergParts = f.Limit
-				case marketLotSizeFilter:
-					l.MarketMinQty = f.MinQty
-					l.MarketMaxQty = f.MaxQty
-					l.MarketStepIncrementSize = f.StepSize
-				case maxNumOrdersFilter:
-					l.MaxTotalOrders = f.MaxNumOrders
-					l.MaxAlgoOrders = f.MaxNumAlgoOrders
-				}
-			}
-
-			limits = append(limits, l)
-		}
+		limits = append(limits, l)
 	}
 	return limits, nil
 }
