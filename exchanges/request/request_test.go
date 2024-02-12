@@ -25,12 +25,12 @@ import (
 const unexpected = "unexpected values"
 
 var testURL string
-var serverLimit *rate.Limiter
+var serverLimit *RateLimiterWithToken
 
 func TestMain(m *testing.M) {
 	serverLimitInterval := time.Millisecond * 500
-	serverLimit = NewRateLimit(serverLimitInterval, 1)
-	serverLimitRetry := NewRateLimit(serverLimitInterval, 1)
+	serverLimit = NewRateLimit(serverLimitInterval, 1, 1)
+	serverLimitRetry := NewRateLimit(serverLimitInterval, 1, 1)
 	sm := http.NewServeMux()
 	sm.HandleFunc("/", func(w http.ResponseWriter, req *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
@@ -101,24 +101,24 @@ func TestMain(m *testing.M) {
 
 func TestNewRateLimit(t *testing.T) {
 	t.Parallel()
-	r := NewRateLimit(time.Second*10, 5)
+	r := NewRateLimit(time.Second*10, 5, 1)
 	if r.Limit() != 0.5 {
 		t.Fatal(unexpected)
 	}
 
 	// Ensures rate limiting factor is the same
-	r = NewRateLimit(time.Second*2, 1)
+	r = NewRateLimit(time.Second*2, 1, 1)
 	if r.Limit() != 0.5 {
 		t.Fatal(unexpected)
 	}
 
 	// Test for open rate limit
-	r = NewRateLimit(time.Second*2, 0)
+	r = NewRateLimit(time.Second*2, 0, 1)
 	if r.Limit() != rate.Inf {
 		t.Fatal(unexpected)
 	}
 
-	r = NewRateLimit(0, 69)
+	r = NewRateLimit(0, 69, 1)
 	if r.Limit() != rate.Inf {
 		t.Fatal(unexpected)
 	}
@@ -199,34 +199,32 @@ func TestCheckRequest(t *testing.T) {
 }
 
 type GlobalLimitTest struct {
-	Auth   *rate.Limiter
-	UnAuth *rate.Limiter
+	Auth   *RateLimiterWithToken
+	UnAuth *RateLimiterWithToken
 }
 
 var errEndpointLimitNotFound = errors.New("endpoint limit not found")
 
-func (g *GlobalLimitTest) Limit(ctx context.Context, e EndpointLimit) error {
+func (g *GlobalLimitTest) Limit(ctx context.Context, e EndpointLimit) (*RateLimiterWithToken, error) {
 	switch e {
 	case Auth:
 		if g.Auth == nil {
-			return errors.New("auth rate not set")
+			return nil, errors.New("auth rate not set")
 		}
-		return g.Auth.Wait(ctx)
+		return g.Auth, nil
 	case UnAuth:
 		if g.UnAuth == nil {
-			return errors.New("unauth rate not set")
+			return nil, errors.New("unauth rate not set")
 		}
-		return g.UnAuth.Wait(ctx)
+		return g.UnAuth, nil
 	default:
-		return fmt.Errorf("cannot execute functionality: %d %w",
-			e,
-			errEndpointLimitNotFound)
+		return nil, fmt.Errorf("cannot execute functionality: %d %w", e, errEndpointLimitNotFound)
 	}
 }
 
 var globalshell = GlobalLimitTest{
-	Auth:   NewRateLimit(time.Millisecond*600, 1),
-	UnAuth: NewRateLimit(time.Second*1, 100)}
+	Auth:   NewRateLimit(time.Millisecond*600, 1, 1),
+	UnAuth: NewRateLimit(time.Second*1, 100, 1)}
 
 func TestDoRequest(t *testing.T) {
 	t.Parallel()
@@ -560,16 +558,11 @@ func TestSetProxy(t *testing.T) {
 }
 
 func TestBasicLimiter(t *testing.T) {
-	r, err := New("test",
-		new(http.Client),
-		WithLimiter(NewBasicRateLimit(time.Second, 1)))
+	r, err := New("test", new(http.Client), WithLimiter(NewBasicRateLimit(time.Second, 1, 1)))
 	if err != nil {
 		t.Fatal(err)
 	}
-	i := Item{
-		Path:   "http://www.google.com",
-		Method: http.MethodGet,
-	}
+	i := Item{Path: "http://www.google.com", Method: http.MethodGet}
 	ctx := context.Background()
 
 	tn := time.Now()
@@ -594,9 +587,7 @@ func TestBasicLimiter(t *testing.T) {
 }
 
 func TestEnableDisableRateLimit(t *testing.T) {
-	r, err := New("TestRequest",
-		new(http.Client),
-		WithLimiter(NewBasicRateLimit(time.Minute, 1)))
+	r, err := New("TestRequest", new(http.Client), WithLimiter(NewBasicRateLimit(time.Minute, 1, 1)))
 	if err != nil {
 		t.Fatal(err)
 	}
