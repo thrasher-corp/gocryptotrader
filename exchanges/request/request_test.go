@@ -3,7 +3,6 @@ package request
 import (
 	"context"
 	"errors"
-	"fmt"
 	"io"
 	"log"
 	"math"
@@ -198,37 +197,13 @@ func TestCheckRequest(t *testing.T) {
 	}
 }
 
-type GlobalLimitTest struct {
-	Auth   *RateLimiterWithToken
-	UnAuth *RateLimiterWithToken
-}
-
-var errEndpointLimitNotFound = errors.New("endpoint limit not found")
-
-func (g *GlobalLimitTest) Limit(ctx context.Context, e EndpointLimit) (*RateLimiterWithToken, error) {
-	switch e {
-	case Auth:
-		if g.Auth == nil {
-			return nil, errors.New("auth rate not set")
-		}
-		return g.Auth, nil
-	case UnAuth:
-		if g.UnAuth == nil {
-			return nil, errors.New("unauth rate not set")
-		}
-		return g.UnAuth, nil
-	default:
-		return nil, fmt.Errorf("cannot execute functionality: %d %w", e, errEndpointLimitNotFound)
-	}
-}
-
-var globalshell = GlobalLimitTest{
+var globalshell = RateLimitDefinitions{
 	Auth:   NewRateLimit(time.Millisecond*600, 1, 1),
 	UnAuth: NewRateLimit(time.Second*1, 100, 1)}
 
 func TestDoRequest(t *testing.T) {
 	t.Parallel()
-	r, err := New("test", new(http.Client), WithLimiter(&globalshell))
+	r, err := New("test", new(http.Client), WithLimiter(globalshell))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -265,13 +240,9 @@ func TestDoRequest(t *testing.T) {
 	}
 
 	// Invalid/missing endpoint limit
-	err = r.SendPayload(ctx, Unset, func() (*Item, error) {
-		return &Item{
-			Path: testURL,
-		}, nil
-	}, UnauthenticatedRequest)
-	if !errors.Is(err, errEndpointLimitNotFound) {
-		t.Fatalf("expected: %v but received: %v", errEndpointLimitNotFound, err)
+	err = r.SendPayload(ctx, Unset, func() (*Item, error) { return &Item{Path: testURL}, nil }, UnauthenticatedRequest)
+	if !errors.Is(err, errSpecificRateLimiterIsNil) {
+		t.Fatalf("expected: %v but received: %v", errSpecificRateLimiterIsNil, err)
 	}
 
 	// Force debug
@@ -492,9 +463,7 @@ func TestDoRequest_NotRetryable(t *testing.T) {
 
 func TestGetNonce(t *testing.T) {
 	t.Parallel()
-	r, err := New("test",
-		new(http.Client),
-		WithLimiter(&globalshell))
+	r, err := New("test", new(http.Client), WithLimiter(globalshell))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -504,7 +473,7 @@ func TestGetNonce(t *testing.T) {
 
 	r2, err := New("test",
 		new(http.Client),
-		WithLimiter(&globalshell))
+		WithLimiter(globalshell))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -515,9 +484,7 @@ func TestGetNonce(t *testing.T) {
 
 func TestGetNonceMillis(t *testing.T) {
 	t.Parallel()
-	r, err := New("test",
-		new(http.Client),
-		WithLimiter(&globalshell))
+	r, err := New("test", new(http.Client), WithLimiter(globalshell))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -533,9 +500,7 @@ func TestSetProxy(t *testing.T) {
 	if !errors.Is(err, ErrRequestSystemIsNil) {
 		t.Fatalf("received: '%v', but expected: '%v'", err, ErrRequestSystemIsNil)
 	}
-	r, err = New("test",
-		&http.Client{Transport: new(http.Transport)},
-		WithLimiter(&globalshell))
+	r, err = New("test", &http.Client{Transport: new(http.Transport)}, WithLimiter(globalshell))
 	if err != nil {
 		t.Fatal(err)
 	}

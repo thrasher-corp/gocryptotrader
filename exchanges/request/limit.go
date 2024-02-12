@@ -47,12 +47,15 @@ type EndpointLimit uint16
 // requests.
 type Tokens uint8
 
-// Limiter interface groups rate limit functionality defined in the REST
-// wrapper for extended rate limiting configuration i.e. Shells of rate
-// limits with a global rate for sub rates.
-type Limiter interface {
-	Limit(context.Context, EndpointLimit) (*RateLimiterWithToken, error)
-}
+// RateLimitDefinitions is a map of endpoint limits to rate limiters
+type RateLimitDefinitions map[interface{}]*RateLimiterWithToken
+
+// // Limiter interface groups rate limit functionality defined in the REST
+// // wrapper for extended rate limiting configuration i.e. Shells of rate
+// // limits with a global rate for sub rates.
+// type Limiter interface {
+// 	Limit(context.Context, EndpointLimit) (*RateLimiterWithToken, error)
+// }
 
 // RateLimiterWithToken is a rate limiter coupled with a token count which
 // refers to the number or weighting of the request. This is used to define
@@ -89,8 +92,9 @@ func NewRateLimit(interval time.Duration, actions int, tokens Tokens) *RateLimit
 
 // NewBasicRateLimit returns an object that implements the limiter interface
 // for basic rate limit
-func NewBasicRateLimit(interval time.Duration, actions int, tokens Tokens) Limiter {
-	return &BasicLimit{NewRateLimit(interval, actions, tokens)}
+func NewBasicRateLimit(interval time.Duration, actions int, tokens Tokens) RateLimitDefinitions {
+	rl := NewRateLimit(interval, actions, tokens)
+	return RateLimitDefinitions{Unset: rl, Auth: rl, UnAuth: rl}
 }
 
 // InitiateRateLimit sleeps for designated end point rate limits
@@ -105,17 +109,14 @@ func (r *Requester) InitiateRateLimit(ctx context.Context, e EndpointLimit) erro
 		return fmt.Errorf("cannot rate limit request %w", errLimiterSystemIsNil)
 	}
 
-	rateLimiter, err := r.limiter.Limit(ctx, e)
-	if err != nil {
-		return err
-	}
+	rateLimiter := r.limiter[e]
 
 	if rateLimiter == nil {
-		return fmt.Errorf("cannot rate limit request %w", errSpecificRateLimiterIsNil)
+		return fmt.Errorf("cannot rate limit request %w for endpoint %d", errSpecificRateLimiterIsNil, e)
 	}
 
 	if rateLimiter.Tokens <= 0 {
-		return fmt.Errorf("cannot rate limit request %w", errInvalidTokenCount)
+		return fmt.Errorf("cannot rate limit request %w for endpoint %d", errInvalidTokenCount, e)
 	}
 
 	var finalDelay time.Duration
