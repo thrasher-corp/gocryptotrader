@@ -69,13 +69,13 @@ const (
 
 // ExchangeInfo holds the full exchange information type
 type ExchangeInfo struct {
-	Code            int64                `json:"code"`
+	Code            int                  `json:"code"`
 	Msg             string               `json:"msg"`
 	Timezone        string               `json:"timezone"`
 	ServerTime      convert.ExchangeTime `json:"serverTime"`
-	RateLimits      []RateLimitItem      `json:"rateLimits"`
+	RateLimits      []*RateLimitItem     `json:"rateLimits"`
 	ExchangeFilters interface{}          `json:"exchangeFilters"`
-	Symbols         []struct {
+	Symbols         []*struct {
 		Symbol                     string        `json:"symbol"`
 		Status                     string        `json:"status"`
 		BaseAsset                  string        `json:"baseAsset"`
