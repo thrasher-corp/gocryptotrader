@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -48,11 +49,13 @@ const (
 	testnetFutures = "https://testnet.binancefuture.com"
 
 	// Public endpoints
+	exchangeTime      = "/api/v3/time"
 	exchangeInfo      = "/api/v3/exchangeInfo"
 	orderBookDepth    = "/api/v3/depth"
 	recentTrades      = "/api/v3/trades"
 	aggregatedTrades  = "/api/v3/aggTrades"
 	candleStick       = "/api/v3/klines"
+	uiKline           = "/api/v3/uiKlines"
 	averagePrice      = "/api/v3/avgPrice"
 	priceChange       = "/api/v3/ticker/24hr"
 	symbolPrice       = "/api/v3/ticker/price"
@@ -134,6 +137,14 @@ var subscriptionNames = map[string]string{
 	subscription.OrderbookChannel: "depth",
 	subscription.CandlesChannel:   "kline",
 	subscription.AllTradesChannel: "trade",
+}
+
+// GetExchangeServerTime retrieves the server time.
+func (b *Binance) GetExchangeServerTime(ctx context.Context) (time.Time, error) {
+	resp := &struct {
+		ServerTime convert.ExchangeTime `json:"serverTime"`
+	}{}
+	return resp.ServerTime.Time(), b.SendHTTPRequest(ctx, exchange.RestSpot, exchangeTime, spotExchangeInfo, resp)
 }
 
 // GetExchangeInfo returns exchange information. Check binance_types for more
@@ -392,6 +403,15 @@ func (b *Binance) batchAggregateTrades(ctx context.Context, arg *AggregatedTrade
 // startTime: startTime filter for kline data
 // endTime: endTime filter for the kline data
 func (b *Binance) GetSpotKline(ctx context.Context, arg *KlinesRequestParams) ([]CandleStick, error) {
+	return b.retrieveSpotKline(ctx, arg, candleStick)
+}
+
+// GetUIKline return modified kline data, optimized for presentation of candlestick charts.
+func (b *Binance) GetUIKline(ctx context.Context, arg *KlinesRequestParams) ([]CandleStick, error) {
+	return b.retrieveSpotKline(ctx, arg, uiKline)
+}
+
+func (b *Binance) retrieveSpotKline(ctx context.Context, arg *KlinesRequestParams, urlPath string) ([]CandleStick, error) {
 	symbol, err := b.FormatSymbol(arg.Symbol, asset.Spot)
 	if err != nil {
 		return nil, err
@@ -410,7 +430,7 @@ func (b *Binance) GetSpotKline(ctx context.Context, arg *KlinesRequestParams) ([
 		params.Set("endTime", timeString(arg.EndTime))
 	}
 
-	path := candleStick + "?" + params.Encode()
+	path := urlPath + "?" + params.Encode()
 	var resp [][]types.Number
 	err = b.SendHTTPRequest(ctx,
 		exchange.RestSpotSupplementary,
