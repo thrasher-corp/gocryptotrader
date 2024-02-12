@@ -1083,14 +1083,12 @@ func TestGetMarkPriceKline(t *testing.T) {
 func TestGetExchangeInfo(t *testing.T) {
 	t.Parallel()
 	info, err := b.GetExchangeInfo(context.Background())
-	if err != nil {
-		t.Error(err)
-	}
+	require.NoError(t, err, "GetExchangeInfo must not error")
 	if mockTests {
-		serverTime := time.Date(2022, 2, 25, 3, 50, 40, int(601*time.Millisecond), time.UTC)
-		if !info.ServerTime.Equal(serverTime) {
-			t.Errorf("Expected %v, got %v", serverTime, info.ServerTime)
-		}
+		exp := time.Date(2022, 2, 25, 3, 50, 40, int(601*time.Millisecond), time.UTC)
+		assert.True(t, info.ServerTime.Equal(exp), "ServerTime should be correct")
+	} else {
+		assert.WithinRange(t, info.ServerTime, time.Now().Add(-24*time.Hour), time.Now().Add(24*time.Hour), "ServerTime should be within a day of now")
 	}
 }
 
@@ -2782,93 +2780,61 @@ func TestFormatUSDTMarginedFuturesPair(t *testing.T) {
 	}
 }
 
-func TestFetchSpotExchangeLimits(t *testing.T) {
+func TestFetchExchangeLimits(t *testing.T) {
 	t.Parallel()
-	limits, err := b.FetchSpotExchangeLimits(context.Background())
-	if !errors.Is(err, nil) {
-		t.Errorf("received '%v', expected '%v'", err, nil)
-	}
-	if len(limits) == 0 {
-		t.Error("expected a response")
-	}
+	limits, err := b.FetchExchangeLimits(context.Background(), asset.Spot)
+	assert.NoError(t, err, "FetchExchangeLimits should not error")
+	assert.NotEmpty(t, limits, "Should get some limits back")
+
+	limits, err = b.FetchExchangeLimits(context.Background(), asset.Margin)
+	assert.NoError(t, err, "FetchExchangeLimits should not error")
+	assert.NotEmpty(t, limits, "Should get some limits back")
+
+	_, err = b.FetchExchangeLimits(context.Background(), asset.Futures)
+	assert.ErrorIs(t, err, asset.ErrNotSupported, "FetchExchangeLimits should error on other asset types")
 }
 
 func TestUpdateOrderExecutionLimits(t *testing.T) {
 	t.Parallel()
+
 	tests := map[asset.Item]currency.Pair{
 		asset.Spot:   currency.NewPair(currency.BTC, currency.USDT),
 		asset.Margin: currency.NewPair(currency.ETH, currency.BTC),
 	}
 	for _, a := range []asset.Item{asset.CoinMarginedFutures, asset.USDTMarginedFutures} {
 		pairs, err := b.FetchTradablePairs(context.Background(), a)
-		if err != nil {
-			t.Errorf("Error fetching dated %s pairs for test: %v", a, err)
-		}
+		require.NoErrorf(t, err, "FetchTradablePairs should not error for %s", a)
+		require.NotEmptyf(t, pairs, "Should get some pairs for %s", a)
 		tests[a] = pairs[0]
 	}
 
 	for _, a := range b.GetAssetTypes(false) {
-		if err := b.UpdateOrderExecutionLimits(context.Background(), a); err != nil {
-			t.Error("Binance UpdateOrderExecutionLimits() error", err)
-			continue
-		}
+		err := b.UpdateOrderExecutionLimits(context.Background(), a)
+		require.NoError(t, err, "UpdateOrderExecutionLimits should not error")
 
 		p := tests[a]
 		limits, err := b.GetOrderExecutionLimits(a, p)
-		if err != nil {
-			t.Errorf("Binance GetOrderExecutionLimits() error during TestUpdateOrderExecutionLimits; Asset: %s Pair: %s Err: %v", a, p, err)
-			continue
-		}
-		if limits.MinPrice == 0 {
-			t.Errorf("Binance UpdateOrderExecutionLimits empty MinPrice; Asset: %s, Pair: %s, Got: %v", a, p, limits.MinPrice)
-		}
-		if limits.MaxPrice == 0 {
-			t.Errorf("Binance UpdateOrderExecutionLimits empty MaxPrice; Asset: %s, Pair: %s, Got: %v", a, p, limits.MaxPrice)
-		}
-		if limits.PriceStepIncrementSize == 0 {
-			t.Errorf("Binance UpdateOrderExecutionLimits empty PriceStepIncrementSize; Asset: %s, Pair: %s, Got: %v", a, p, limits.PriceStepIncrementSize)
-		}
-		if limits.MinimumBaseAmount == 0 {
-			t.Errorf("Binance UpdateOrderExecutionLimits empty MinAmount; Asset: %s, Pair: %s, Got: %v", a, p, limits.MinimumBaseAmount)
-		}
-		if limits.MaximumBaseAmount == 0 {
-			t.Errorf("Binance UpdateOrderExecutionLimits empty MaxAmount; Asset: %s, Pair: %s, Got: %v", a, p, limits.MaximumBaseAmount)
-		}
-		if limits.AmountStepIncrementSize == 0 {
-			t.Errorf("Binance UpdateOrderExecutionLimits empty AmountStepIncrementSize; Asset: %s, Pair: %s, Got: %v", a, p, limits.AmountStepIncrementSize)
-		}
-		if a == asset.USDTMarginedFutures && limits.MinNotional == 0 {
-			t.Errorf("Binance UpdateOrderExecutionLimits empty MinNotional; Asset: %s, Pair: %s, Got: %v", a, p, limits.MinNotional)
-		}
-		if limits.MarketMaxQty == 0 {
-			t.Errorf("Binance UpdateOrderExecutionLimits empty MarketMaxQty; Asset: %s, Pair: %s, Got: %v", a, p, limits.MarketMaxQty)
-		}
-		if limits.MaxTotalOrders == 0 {
-			t.Errorf("Binance UpdateOrderExecutionLimits empty MaxTotalOrders; Asset: %s, Pair: %s, Got: %v", a, p, limits.MaxTotalOrders)
-		}
-
-		if a == asset.Spot || a == asset.Margin {
-			if limits.MaxIcebergParts == 0 {
-				t.Errorf("Binance UpdateOrderExecutionLimits empty MaxIcebergParts; Asset: %s, Pair: %s, Got: %v", a, p, limits.MaxIcebergParts)
-			}
-		}
-
-		if a == asset.CoinMarginedFutures || a == asset.USDTMarginedFutures {
-			if limits.MultiplierUp == 0 {
-				t.Errorf("Binance UpdateOrderExecutionLimits empty MultiplierUp; Asset: %s, Pair: %s, Got: %v", a, p, limits.MultiplierUp)
-			}
-			if limits.MultiplierDown == 0 {
-				t.Errorf("Binance UpdateOrderExecutionLimits empty MultiplierDown; Asset: %s, Pair: %s, Got: %v", a, p, limits.MultiplierDown)
-			}
-			if limits.MarketMinQty == 0 {
-				t.Errorf("Binance UpdateOrderExecutionLimits empty MarketMinQty; Asset: %s, Pair: %s, Got: %v", a, p, limits.MarketMinQty)
-			}
-			if limits.MarketStepIncrementSize == 0 {
-				t.Errorf("Binance UpdateOrderExecutionLimits empty MarketStepIncrementSize; Asset: %s, Pair: %s, Got: %v", a, p, limits.MarketStepIncrementSize)
-			}
-			if limits.MaxAlgoOrders == 0 {
-				t.Errorf("Binance UpdateOrderExecutionLimits empty MaxAlgoOrders; Asset: %s, Pair: %s, Got: %v", a, p, limits.MaxAlgoOrders)
-			}
+		require.NoErrorf(t, err, "GetOrderExecutionLimits should not error for %s pair %s", a, p)
+		assert.Positivef(t, limits.MinPrice, "MinPrice must be positive for %s pair %s", a, p)
+		assert.Positivef(t, limits.MaxPrice, "MaxPrice must be positive for %s pair %s", a, p)
+		assert.Positivef(t, limits.PriceStepIncrementSize, "PriceStepIncrementSize must be positive for %s pair %s", a, p)
+		assert.Positivef(t, limits.MinimumBaseAmount, "MinimumBaseAmount must be positive for %s pair %s", a, p)
+		assert.Positivef(t, limits.MaximumBaseAmount, "MaximumBaseAmount must be positive for %s pair %s", a, p)
+		assert.Positivef(t, limits.AmountStepIncrementSize, "AmountStepIncrementSize must be positive for %s pair %s", a, p)
+		assert.Positivef(t, limits.MarketMaxQty, "MarketMaxQty must be positive for %s pair %s", a, p)
+		assert.Positivef(t, limits.MaxTotalOrders, "MaxTotalOrders must be positive for %s pair %s", a, p)
+		switch a {
+		case asset.Spot, asset.Margin:
+			assert.Positivef(t, limits.MaxIcebergParts, "MaxIcebergParts must be positive for %s pair %s", a, p)
+		case asset.USDTMarginedFutures:
+			assert.Positivef(t, limits.MinNotional, "MinNotional must be positive for %s pair %s", a, p)
+			fallthrough
+		case asset.CoinMarginedFutures:
+			assert.Positivef(t, limits.MultiplierUp, "MultiplierUp must be positive for %s pair %s", a, p)
+			assert.Positivef(t, limits.MultiplierDown, "MultiplierDown must be positive for %s pair %s", a, p)
+			assert.Positivef(t, limits.MarketMinQty, "MarketMinQty must be positive for %s pair %s", a, p)
+			assert.Positivef(t, limits.MarketStepIncrementSize, "MarketStepIncrementSize must be positive for %s pair %s", a, p)
+			assert.Positivef(t, limits.MaxAlgoOrders, "MaxAlgoOrders must be positive for %s pair %s", a, p)
 		}
 	}
 }
