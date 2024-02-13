@@ -29,7 +29,7 @@ type Binance struct {
 	exchange.Base
 	// Valid string list that is required by the exchange
 	validLimits []int
-	obm         *orderbookManager
+	*exchange.OrderbookBuilder
 }
 
 const (

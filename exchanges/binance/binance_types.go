@@ -1,12 +1,10 @@
 package binance
 
 import (
-	"sync"
 	"time"
 
 	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/currency"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
@@ -894,29 +892,6 @@ type CrossMarginInterestData struct {
 		} `json:"specs"`
 	} `json:"data"`
 	Success bool `json:"success"`
-}
-
-// orderbookManager defines a way of managing and maintaining synchronisation
-// across connections and assets.
-type orderbookManager struct {
-	state map[currency.Code]map[currency.Code]map[asset.Item]*update
-	sync.Mutex
-
-	jobs chan job
-}
-
-type update struct {
-	buffer            chan *WebsocketDepthStream
-	fetchingBook      bool
-	initialSync       bool
-	needsFetchingBook bool
-	lastUpdateID      int64
-}
-
-// job defines a synchronisation job that tells a go routine to fetch an
-// orderbook via the REST protocol
-type job struct {
-	Pair currency.Pair
 }
 
 // UserMarginInterestHistoryResponse user margin interest history response
