@@ -19,7 +19,7 @@ const (
 // As per https://docs.poloniex.com/#http-api
 func SetRateLimit() request.RateLimitDefinitions {
 	return request.RateLimitDefinitions{
-		request.Auth:   request.NewRateLimit(poloniexRateInterval, poloniexAuthRate, 1),
-		request.UnAuth: request.NewRateLimit(poloniexRateInterval, poloniexUnauthRate, 1),
+		request.Auth:   request.NewRateLimitWithToken(poloniexRateInterval, poloniexAuthRate, 1),
+		request.UnAuth: request.NewRateLimitWithToken(poloniexRateInterval, poloniexUnauthRate, 1),
 	}
 }

@@ -50,13 +50,6 @@ type Tokens uint8
 // RateLimitDefinitions is a map of endpoint limits to rate limiters
 type RateLimitDefinitions map[interface{}]*RateLimiterWithToken
 
-// // Limiter interface groups rate limit functionality defined in the REST
-// // wrapper for extended rate limiting configuration i.e. Shells of rate
-// // limits with a global rate for sub rates.
-// type Limiter interface {
-// 	Limit(context.Context, EndpointLimit) (*RateLimiterWithToken, error)
-// }
-
 // RateLimiterWithToken is a rate limiter coupled with a token count which
 // refers to the number or weighting of the request. This is used to define
 // the rate limit for a specific endpoint.
@@ -79,21 +72,33 @@ func (r Reservations) CancelAll() {
 // NewRateLimit creates a new RateLimit based of time interval and how many
 // actions allowed and breaks it down to an actions-per-second basis -- Burst
 // rate is kept as one as this is not supported for out-bound requests.
-func NewRateLimit(interval time.Duration, actions int, tokens Tokens) *RateLimiterWithToken {
+func NewRateLimit(interval time.Duration, actions int) *rate.Limiter {
 	if actions <= 0 || interval <= 0 {
 		// Returns an un-restricted rate limiter
-		return &RateLimiterWithToken{rate.NewLimiter(rate.Inf, 1), tokens}
+		return rate.NewLimiter(rate.Inf, 1)
 	}
 
 	i := 1 / interval.Seconds()
 	rps := i * float64(actions)
-	return &RateLimiterWithToken{rate.NewLimiter(rate.Limit(rps), 1), tokens}
+	return rate.NewLimiter(rate.Limit(rps), 1)
+}
+
+// NewRateLimitWithToken creates a new RateLimit based of time interval and how
+// many actions allowed. This also has a token count which refers to the number
+// or weighting of the request. This is used to define the rate limit for a
+// specific endpoint.
+func NewRateLimitWithToken(interval time.Duration, actions int, tokens Tokens) *RateLimiterWithToken {
+	return GetRateLimiterWithToken(NewRateLimit(interval, actions), tokens)
+}
+
+func GetRateLimiterWithToken(l *rate.Limiter, t Tokens) *RateLimiterWithToken {
+	return &RateLimiterWithToken{l, t}
 }
 
 // NewBasicRateLimit returns an object that implements the limiter interface
 // for basic rate limit
 func NewBasicRateLimit(interval time.Duration, actions int, tokens Tokens) RateLimitDefinitions {
-	rl := NewRateLimit(interval, actions, tokens)
+	rl := NewRateLimitWithToken(interval, actions, tokens)
 	return RateLimitDefinitions{Unset: rl, Auth: rl, UnAuth: rl}
 }
 

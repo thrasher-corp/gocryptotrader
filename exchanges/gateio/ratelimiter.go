@@ -40,15 +40,15 @@ const (
 // SetRateLimit returns the rate limiter for the exchange
 func SetRateLimit() request.RateLimitDefinitions {
 	return request.RateLimitDefinitions{
-		spotDefaultEPL:               request.NewRateLimit(oneSecondInterval, spotPublicRate, 1),
-		spotPrivateEPL:               request.NewRateLimit(oneSecondInterval, spotPrivateRate, 1),
-		spotPlaceOrdersEPL:           request.NewRateLimit(oneSecondInterval, spotPlaceOrdersRate, 1),
-		spotCancelOrdersEPL:          request.NewRateLimit(oneSecondInterval, spotCancelOrdersRate, 1),
-		perpetualSwapDefaultEPL:      request.NewRateLimit(oneSecondInterval, perpetualSwapPublicRate, 1),
-		perpetualSwapPlaceOrdersEPL:  request.NewRateLimit(oneSecondInterval, perpetualSwapPlaceOrdersRate, 1),
-		perpetualSwapPrivateEPL:      request.NewRateLimit(oneSecondInterval, perpetualSwapPrivateRate, 1),
-		perpetualSwapCancelOrdersEPL: request.NewRateLimit(oneSecondInterval, perpetualSwapCancelOrdersRate, 1),
-		walletEPL:                    request.NewRateLimit(oneSecondInterval, walletRate, 1),
-		withdrawalEPL:                request.NewRateLimit(threeSecondsInterval, withdrawalRate, 1),
+		spotDefaultEPL:               request.NewRateLimitWithToken(oneSecondInterval, spotPublicRate, 1),
+		spotPrivateEPL:               request.NewRateLimitWithToken(oneSecondInterval, spotPrivateRate, 1),
+		spotPlaceOrdersEPL:           request.NewRateLimitWithToken(oneSecondInterval, spotPlaceOrdersRate, 1),
+		spotCancelOrdersEPL:          request.NewRateLimitWithToken(oneSecondInterval, spotCancelOrdersRate, 1),
+		perpetualSwapDefaultEPL:      request.NewRateLimitWithToken(oneSecondInterval, perpetualSwapPublicRate, 1),
+		perpetualSwapPlaceOrdersEPL:  request.NewRateLimitWithToken(oneSecondInterval, perpetualSwapPlaceOrdersRate, 1),
+		perpetualSwapPrivateEPL:      request.NewRateLimitWithToken(oneSecondInterval, perpetualSwapPrivateRate, 1),
+		perpetualSwapCancelOrdersEPL: request.NewRateLimitWithToken(oneSecondInterval, perpetualSwapCancelOrdersRate, 1),
+		walletEPL:                    request.NewRateLimitWithToken(oneSecondInterval, walletRate, 1),
+		withdrawalEPL:                request.NewRateLimitWithToken(threeSecondsInterval, withdrawalRate, 1),
 	}
 }

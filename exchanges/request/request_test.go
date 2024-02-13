@@ -28,8 +28,8 @@ var serverLimit *RateLimiterWithToken
 
 func TestMain(m *testing.M) {
 	serverLimitInterval := time.Millisecond * 500
-	serverLimit = NewRateLimit(serverLimitInterval, 1, 1)
-	serverLimitRetry := NewRateLimit(serverLimitInterval, 1, 1)
+	serverLimit = NewRateLimitWithToken(serverLimitInterval, 1, 1)
+	serverLimitRetry := NewRateLimitWithToken(serverLimitInterval, 1, 1)
 	sm := http.NewServeMux()
 	sm.HandleFunc("/", func(w http.ResponseWriter, req *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
@@ -98,26 +98,26 @@ func TestMain(m *testing.M) {
 	os.Exit(issues)
 }
 
-func TestNewRateLimit(t *testing.T) {
+func TestNewRateLimitWithToken(t *testing.T) {
 	t.Parallel()
-	r := NewRateLimit(time.Second*10, 5, 1)
+	r := NewRateLimitWithToken(time.Second*10, 5, 1)
 	if r.Limit() != 0.5 {
 		t.Fatal(unexpected)
 	}
 
 	// Ensures rate limiting factor is the same
-	r = NewRateLimit(time.Second*2, 1, 1)
+	r = NewRateLimitWithToken(time.Second*2, 1, 1)
 	if r.Limit() != 0.5 {
 		t.Fatal(unexpected)
 	}
 
 	// Test for open rate limit
-	r = NewRateLimit(time.Second*2, 0, 1)
+	r = NewRateLimitWithToken(time.Second*2, 0, 1)
 	if r.Limit() != rate.Inf {
 		t.Fatal(unexpected)
 	}
 
-	r = NewRateLimit(0, 69, 1)
+	r = NewRateLimitWithToken(0, 69, 1)
 	if r.Limit() != rate.Inf {
 		t.Fatal(unexpected)
 	}
@@ -198,8 +198,8 @@ func TestCheckRequest(t *testing.T) {
 }
 
 var globalshell = RateLimitDefinitions{
-	Auth:   NewRateLimit(time.Millisecond*600, 1, 1),
-	UnAuth: NewRateLimit(time.Second*1, 100, 1)}
+	Auth:   NewRateLimitWithToken(time.Millisecond*600, 1, 1),
+	UnAuth: NewRateLimitWithToken(time.Second*1, 100, 1)}
 
 func TestDoRequest(t *testing.T) {
 	t.Parallel()

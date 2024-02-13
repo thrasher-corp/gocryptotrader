@@ -20,8 +20,8 @@ const (
 // SetRateLimit returns the rate limit for the exchange
 func SetRateLimit() request.RateLimitDefinitions {
 	return request.RateLimitDefinitions{
-		marketRequests:  request.NewRateLimit(hitbtcRateInterval, hitbtcMarketDataReqRate, 1),
-		tradingRequests: request.NewRateLimit(hitbtcRateInterval, hitbtcTradingReqRate, 1),
-		otherRequests:   request.NewRateLimit(hitbtcRateInterval, hitbtcAllOthers, 1),
+		marketRequests:  request.NewRateLimitWithToken(hitbtcRateInterval, hitbtcMarketDataReqRate, 1),
+		tradingRequests: request.NewRateLimitWithToken(hitbtcRateInterval, hitbtcTradingReqRate, 1),
+		otherRequests:   request.NewRateLimitWithToken(hitbtcRateInterval, hitbtcAllOthers, 1),
 	}
 }

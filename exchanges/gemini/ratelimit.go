@@ -16,7 +16,7 @@ const (
 // SetRateLimit returns the rate limit for the exchange
 func SetRateLimit() request.RateLimitDefinitions {
 	return request.RateLimitDefinitions{
-		request.Auth:   request.NewRateLimit(geminiRateInterval, geminiAuthRate, 1),
-		request.UnAuth: request.NewRateLimit(geminiRateInterval, geminiUnauthRate, 1),
+		request.Auth:   request.NewRateLimitWithToken(geminiRateInterval, geminiAuthRate, 1),
+		request.UnAuth: request.NewRateLimitWithToken(geminiRateInterval, geminiUnauthRate, 1),
 	}
 }

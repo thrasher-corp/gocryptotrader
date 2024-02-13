@@ -32,7 +32,7 @@ func (e *ExchangeRates) Setup(config base.Settings) error {
 	var err error
 	e.Requester, err = request.New(e.Name,
 		common.NewHTTPClientWithTimeout(base.DefaultTimeOut),
-		request.WithLimiter(request.NewBasicRateLimit(rateLimitInterval, requestRate)))
+		request.WithLimiter(request.NewBasicRateLimit(rateLimitInterval, requestRate, 1)))
 	return err
 }
 
