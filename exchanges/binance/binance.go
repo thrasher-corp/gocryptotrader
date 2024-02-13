@@ -58,8 +58,10 @@ const (
 	uiKline           = "/api/v3/uiKlines"
 	averagePrice      = "/api/v3/avgPrice"
 	priceChange       = "/api/v3/ticker/24hr"
+	tradingDayTicker  = "/api/v3/ticker/tradingDay"
 	symbolPrice       = "/api/v3/ticker/price"
 	bestPrice         = "/api/v3/ticker/bookTicker"
+	tickersPath       = "/api/v3/ticker"
 	userAccountStream = "/api/v3/userDataStream"
 	perpExchangeInfo  = "/fapi/v1/exchangeInfo"
 	historicalTrades  = "/api/v3/historicalTrades"
@@ -85,6 +87,11 @@ const (
 	depositHistory              = "/sapi/v1/capital/deposit/hisrec"
 	withdrawHistory             = "/sapi/v1/capital/withdraw/history"
 	depositAddress              = "/sapi/v1/capital/deposit/address"
+	assetDustBTC                = "/sapi/v1/asset/dust-btc"
+	assetDusts                  = "/sapi/v1/asset/dust"
+	assetDividendRecord         = "/sapi/v1/asset/assetDividend"
+	assetDetail                 = "/sapi/v1/asset/assetDetail"
+	assetTransfer               = "/sapi/v1/asset/transfer"
 
 	// Account endpoints
 	accountStatus           = "/sapi/v1/account/status"
@@ -508,6 +515,30 @@ func (b *Binance) GetTickers(ctx context.Context) ([]PriceChangeStats, error) {
 		exchange.RestSpotSupplementary, priceChange, spotPriceChangeAllRate, &resp)
 }
 
+// GetTradingDayTicker retrieves the price change statistics for the trading day
+// possible tickerType values: FULL or MINI
+func (b *Binance) GetTradingDayTicker(ctx context.Context, symbols currency.Pairs, timeZone, tickerType string) ([]PriceChangeStats, error) {
+	if len(symbols) == 0 {
+		return nil, currency.ErrCurrencyPairsEmpty
+	}
+	params := url.Values{}
+	if len(symbols) > 1 {
+		params.Set("symbols", "["+strings.Join(symbols.Strings(), "")+"]")
+	} else if len(symbols) == 1 && !symbols[0].IsEmpty() {
+		params.Set("symbol", symbols[0].String())
+	} else {
+		return nil, currency.ErrCurrencyPairEmpty
+	}
+	if timeZone != "" {
+		params.Set("timeZone", timeZone)
+	}
+	if tickerType != "" {
+		params.Set("type", tickerType)
+	}
+	var resp PriceChangesWrapper
+	return resp, b.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, common.EncodeURLValues(tradingDayTicker, params), spotPriceChangeAllRate, &resp)
+}
+
 // GetLatestSpotPrice returns latest spot price of symbol
 //
 // symbol: string of currency pair
@@ -548,6 +579,33 @@ func (b *Binance) GetBestPrice(ctx context.Context, symbol currency.Pair) (BestP
 
 	return resp,
 		b.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, path, rateLimit, &resp)
+}
+
+// GetTickerData openTime always starts on a minute, while the closeTime is the current time of the request.
+// As such, the effective window will be up to 59999ms wider than windowSize.
+// possible windowSize values are FULL and MINI
+func (b *Binance) GetTickerData(ctx context.Context, symbols currency.Pairs, windowSize time.Duration, tickerType string) ([]PriceChangeStats, error) {
+	if len(symbols) == 0 {
+		return nil, currency.ErrCurrencyPairsEmpty
+	}
+	params := url.Values{}
+	if len(symbols) > 1 {
+		params.Set("symbols", "["+strings.Join(symbols.Strings(), "")+"]")
+	} else if len(symbols) == 1 && !symbols[0].IsEmpty() {
+		params.Set("symbol", symbols[0].String())
+	} else {
+		return nil, currency.ErrCurrencyPairEmpty
+	}
+	if windowSize < time.Minute {
+		params.Set("windowSize", strconv.FormatInt(int64(windowSize/time.Minute), 10)+"m")
+	} else if windowSize > (time.Hour * 24) {
+		params.Set("windowSize", strconv.FormatInt(int64(windowSize/(time.Hour*24)), 10)+"h")
+	}
+	if tickerType != "" {
+		params.Set("type", tickerType)
+	}
+	var resp PriceChangesWrapper
+	return resp, b.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues(tickersPath, params), spotDefaultRate, &resp)
 }
 
 // NewOrder sends a new order to Binance
@@ -1163,6 +1221,100 @@ func (b *Binance) GetDepositAddressForCurrency(ctx context.Context, currency, ch
 	var d DepositAddress
 	return &d,
 		b.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, depositAddress, params, spotDefaultRate, &d)
+}
+
+// GetAssetsThatCanBeConvertedIntoBNB retrieves assets that can be converted into BNB
+func (b *Binance) GetAssetsThatCanBeConvertedIntoBNB(ctx context.Context, accountType string) (*AssetsDust, error) {
+	params := url.Values{}
+	if accountType != "" {
+		params.Set("accountType", accountType)
+	}
+	var resp *AssetsDust
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, assetDustBTC, params, spotDefaultRate, &resp)
+}
+
+// DustTransfer convert dust assets to BNB.
+func (b *Binance) DustTransfer(ctx context.Context, assets []string, accountType string) (*Dusts, error) {
+	if len(assets) == 0 {
+		return nil, fmt.Errorf("%w, assets must not be empty", currency.ErrCurrencyCodeEmpty)
+	}
+	params := url.Values{}
+	params.Set("assets", strings.Join(assets, ","))
+	if accountType != "" {
+		params.Set("accountType", accountType)
+	}
+	var resp *Dusts
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, assetDusts, params, spotDefaultRate, &resp)
+}
+
+// GetAssetDevidendRecords query asset dividend record.
+func (b *Binance) GetAssetDevidendRecords(ctx context.Context, asset currency.Code, startTime, endTime time.Time, limit int64) (interface{}, error) {
+	if asset.IsEmpty() {
+		return nil, currency.ErrCurrencyCodeEmpty
+	}
+	params := url.Values{}
+	params.Set("asset", asset.String())
+	if startTime.IsZero() {
+		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+	}
+	if endTime.IsZero() {
+		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	var resp *AssetDividendRecord
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, assetDividendRecord, params, spotDefaultRate, &resp)
+}
+
+// GetAssetDetail fetches details of assets supported on Binance
+func (b *Binance) GetAssetDetail(ctx context.Context, asset currency.Code) (map[string]DividendAsset, error) {
+	params := url.Values{}
+	if !asset.IsEmpty() {
+		params.Set("asset", asset.String())
+	}
+	var resp map[string]DividendAsset
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, assetDetail, params, spotDefaultRate, &resp)
+}
+
+// GetTradeFees fetch trade fee
+func (b *Binance) GetTradeFees(ctx context.Context, symbol currency.Pair) ([]TradeFee, error) {
+	params := url.Values{}
+	if !symbol.IsEmpty() {
+		params.Set("symbol", symbol.String())
+	}
+	var resp []TradeFee
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/asset/tradeFee", params, spotDefaultRate, &resp)
+}
+
+// UserUniversalTransfer transfers an asset
+// You need to enable Permits Universal Transfer option for the API Key which requests this endpoint.
+// fromSymbol must be sent when type are ISOLATEDMARGIN_MARGIN and ISOLATEDMARGIN_ISOLATEDMARGIN
+// toSymbol must be sent when type are MARGIN_ISOLATEDMARGIN and ISOLATEDMARGIN_ISOLATEDMARGIN
+func (b *Binance) UserUniversalTransfer(ctx context.Context, transferType string, amount float64, asset currency.Code, fromSymbol, toSymbol string) (string, error) {
+	if transferType == "" {
+		return "", errors.New("transfer type is required")
+	}
+	if asset.IsEmpty() {
+		return "", fmt.Errorf("asset %w", currency.ErrCurrencyCodeEmpty)
+	}
+	if amount <= 0 {
+		return "", order.ErrAmountBelowMin
+	}
+	params := url.Values{}
+	params.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
+	params.Set("type", transferType)
+	params.Set("asset", asset.String())
+	if fromSymbol == "" {
+		params.Set("fromSymbol", fromSymbol)
+	}
+	if toSymbol == "" {
+		params.Set("toSymbol", toSymbol)
+	}
+	resp := &struct {
+		TransferID string `json:"tranId"`
+	}{}
+	return resp.TransferID, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/sapi/v1/asset/transfer", params, spotDefaultRate, &resp)
 }
 
 // GetAccountStatus fetch account status detail.

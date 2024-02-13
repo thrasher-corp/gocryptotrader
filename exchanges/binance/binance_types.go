@@ -1,6 +1,7 @@
 package binance
 
 import (
+	"encoding/json"
 	"sync"
 	"time"
 
@@ -373,6 +374,25 @@ type CandleStick struct {
 type AveragePrice struct {
 	Mins  int64   `json:"mins"`
 	Price float64 `json:"price,string"`
+}
+
+// PriceChangesWrapper to be used when the response is either a single PriceChangeStats instance or a slice.
+type PriceChangesWrapper []PriceChangeStats
+
+func (a *PriceChangesWrapper) UnmarshalJSON(data []byte) error {
+	var singlePriceChange *PriceChangeStats
+	err := json.Unmarshal(data, &singlePriceChange)
+	if err != nil {
+		var resp []PriceChangeStats
+		err = json.Unmarshal(data, a)
+		if err != nil {
+			return err
+		}
+		*a = resp
+		return nil
+	}
+	*a = []PriceChangeStats{*singlePriceChange}
+	return nil
 }
 
 // PriceChangeStats contains statistics for the last 24 hours trade
@@ -819,6 +839,64 @@ type DepositAddress struct {
 	Coin    string `json:"coin"`
 	Tag     string `json:"tag"`
 	URL     string `json:"url"`
+}
+
+// AssetsDust represents assets that can be converted into BNB
+type AssetsDust struct {
+	Details []struct {
+		Asset            string `json:"asset"`
+		AssetFullName    string `json:"assetFullName"`
+		AmountFree       string `json:"amountFree"`
+		ToBTC            string `json:"toBTC"`
+		ToBNB            string `json:"toBNB"`
+		ToBNBOffExchange string `json:"toBNBOffExchange"`
+		Exchange         string `json:"exchange"`
+	} `json:"details"`
+	TotalTransferBtc   string `json:"totalTransferBtc"`
+	TotalTransferBNB   string `json:"totalTransferBNB"`
+	DribbletPercentage string `json:"dribbletPercentage"`
+}
+
+// Dusts represents a response after converting assets to BNB
+type Dusts struct {
+	TotalServiceCharge string `json:"totalServiceCharge"`
+	TotalTransfered    string `json:"totalTransfered"`
+	TransferResult     []struct {
+		Amount              types.Number         `json:"amount"`
+		FromAsset           string               `json:"fromAsset"`
+		OperateTime         convert.ExchangeTime `json:"operateTime"`
+		ServiceChargeAmount types.Number         `json:"serviceChargeAmount"`
+		TranID              int64                `json:"tranId"`
+		TransferedAmount    types.Number         `json:"transferedAmount"`
+	} `json:"transferResult"`
+}
+
+// AssetDividendRecord represents an asset dividend record.
+type AssetDividendRecord struct {
+	Rows []struct {
+		ID      int64                `json:"id"`
+		Amount  types.Number         `json:"amount"`
+		Asset   string               `json:"asset"`
+		DivTime convert.ExchangeTime `json:"divTime"`
+		EnInfo  string               `json:"enInfo"`
+		TranID  int64                `json:"tranId"`
+	} `json:"rows"`
+	Total int64 `json:"total"`
+}
+
+// DividendAsset represents details of assets
+type DividendAsset struct {
+	MinWithdrawAmount string  `json:"minWithdrawAmount"`
+	DepositStatus     bool    `json:"depositStatus"`
+	WithdrawFee       float64 `json:"withdrawFee"`
+	WithdrawStatus    bool    `json:"withdrawStatus"`
+}
+
+// TradeFee represents a trading fee for an asset.
+type TradeFee struct {
+	Symbol          string       `json:"symbol"`
+	MakerCommission types.Number `json:"makerCommission"`
+	TakerCommission types.Number `json:"takerCommission"`
 }
 
 // UserAccountStream contains a key to maintain an authorised

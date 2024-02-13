@@ -952,6 +952,12 @@ func TestGetTickers(t *testing.T) {
 	assert.NoError(t, err)
 }
 
+func TestGetTradingDayTicker(t *testing.T) {
+	t.Parallel()
+	_, err := b.GetTradingDayTicker(context.Background(), currency.Pairs{currency.NewPair(currency.BTC, currency.USDT)}, "", "")
+	assert.NoError(t, err)
+}
+
 func TestGetLatestSpotPrice(t *testing.T) {
 	t.Parallel()
 
@@ -963,6 +969,61 @@ func TestGetBestPrice(t *testing.T) {
 	t.Parallel()
 
 	_, err := b.GetBestPrice(context.Background(), currency.NewPair(currency.BTC, currency.USDT))
+	assert.NoError(t, err)
+}
+
+func TestGetTickerData(t *testing.T) {
+	t.Parallel()
+	_, err := b.GetTickerData(context.Background(), []currency.Pair{}, time.Minute*20, "FULL")
+	assert.NoError(t, err)
+}
+
+func TestGetDepositAddressForCurrency(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	_, err := b.GetDepositAddressForCurrency(context.Background(), "BTC", "")
+	assert.NoError(t, err)
+}
+
+func TestGetAssetsThatCanBeConvertedIntoBNB(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	_, err := b.GetAssetsThatCanBeConvertedIntoBNB(context.Background(), "MINI")
+	assert.NoError(t, err)
+}
+
+func TestDustTransfer(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	_, err := b.DustTransfer(context.Background(), []string{"BTC", "USDT"}, "SPOT")
+	assert.NoError(t, err)
+}
+
+func TestGetAssetDevidendRecords(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	_, err := b.GetAssetDevidendRecords(context.Background(), currency.BTC, time.Now().Add(-time.Hour*48), time.Now(), 0)
+	assert.NoError(t, err)
+}
+
+func TestGetAssetDetail(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	_, err := b.GetAssetDetail(context.Background(), currency.BTC)
+	assert.NoError(t, err)
+}
+
+func TestGetTradeFees(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	_, err := b.GetTradeFees(context.Background(), currency.Pair{Base: currency.BTC, Quote: currency.USDT})
+	assert.NoError(t, err)
+}
+
+func TestUserUniversalTransfer(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	_, err := b.UserUniversalTransfer(context.Background(), "MAIN_UMFUTURE", 123.234, currency.BTC, "", "")
 	assert.NoError(t, err)
 }
 
