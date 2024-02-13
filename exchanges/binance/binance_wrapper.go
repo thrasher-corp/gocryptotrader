@@ -646,6 +646,14 @@ func (b *Binance) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (
 	info.Exchange = b.Name
 	switch assetType {
 	case asset.Spot:
+		creds, err := b.GetCredentials(ctx)
+		if err != nil {
+			return info, err
+		}
+		if creds.SubAccount != "" {
+			// TODO: implement sub-account endpoints
+			return info, common.ErrNotYetImplemented
+		}
 		raw, err := b.GetAccount(ctx)
 		if err != nil {
 			return info, err

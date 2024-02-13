@@ -25,7 +25,6 @@ var (
 	errAssetHoldingsNotFound        = errors.New("asset holdings not found")
 	errExchangeAccountsNotFound     = errors.New("exchange accounts not found")
 	errNoExchangeSubAccountBalances = errors.New("no exchange sub account balances")
-	errNoBalanceFound               = errors.New("no balance found")
 	errBalanceIsNil                 = errors.New("balance is nil")
 	errNoCredentialBalances         = errors.New("no balances associated with credentials")
 	errCredentialsAreNil            = errors.New("credentials are nil")
@@ -107,6 +106,7 @@ func GetHoldings(exch string, creds *Credentials, assetType asset.Item) (Holding
 
 	var currencyBalances = make([]Balance, 0, len(subAccountHoldings))
 	accountsHoldings := make([]SubAccount, 0, len(subAccountHoldings))
+	cpy := *creds
 	for mapKey, assetHoldings := range subAccountHoldings {
 		if mapKey.Asset != assetType {
 			continue
@@ -122,30 +122,24 @@ func GetHoldings(exch string, creds *Credentials, assetType asset.Item) (Holding
 		})
 		assetHoldings.m.Unlock()
 
-		if len(currencyBalances) == 0 {
-			continue
-		}
-
-		cpy := *creds
 		if cpy.SubAccount == "" {
+			// TODO: fix this backwards population
+			// the subAccount here may not be associated with the balance across all subAccountHoldings
 			cpy.SubAccount = mapKey.SubAccount
 		}
-
-		accountsHoldings = append(accountsHoldings, SubAccount{
-			Credentials: Protected{creds: cpy},
-			ID:          mapKey.SubAccount,
-			AssetType:   mapKey.Asset,
-			Currencies:  currencyBalances,
-		})
-		break
 	}
-
-	if len(accountsHoldings) == 0 {
+	if len(currencyBalances) == 0 {
 		return Holdings{}, fmt.Errorf("%s %s %w",
 			exch,
 			assetType,
 			errAssetHoldingsNotFound)
 	}
+	accountsHoldings = append(accountsHoldings, SubAccount{
+		Credentials: Protected{creds: cpy},
+		ID:          cpy.SubAccount,
+		AssetType:   assetType,
+		Currencies:  currencyBalances,
+	})
 	return Holdings{Exchange: exch, Accounts: accountsHoldings}, nil
 }
 
