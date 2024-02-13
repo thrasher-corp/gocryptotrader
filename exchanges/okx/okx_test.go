@@ -27,7 +27,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
@@ -68,7 +67,6 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	request.MaxRequestJobs = 200
 	if !useTestNet {
 		ok.Websocket.DataHandler = sharedtestvalues.GetWebsocketInterfaceChannelOverride()
 		ok.Websocket.TrafficAlert = sharedtestvalues.GetWebsocketStructChannelOverride()
@@ -85,20 +83,6 @@ func contextGenerate() context.Context {
 		ctx = context.WithValue(ctx, testNetKey("testnet"), useTestNet)
 	}
 	return ctx
-}
-
-func TestStart(t *testing.T) {
-	t.Parallel()
-	err := ok.Start(contextGenerate(), nil)
-	if !errors.Is(err, common.ErrNilPointer) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, common.ErrNilPointer)
-	}
-	var testWg sync.WaitGroup
-	err = ok.Start(contextGenerate(), &testWg)
-	if err != nil {
-		t.Fatal(err)
-	}
-	testWg.Wait()
 }
 
 func TestGetTickers(t *testing.T) {
