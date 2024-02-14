@@ -25,7 +25,7 @@ jobs:
           git fetch origin master
           git remote -v
           git status
-          git merge origin/master --no-edit
+          git merge origin/master --no-edit --allow-unrelated-histories
 
   backend-psql:
     name: GoCryptoTrader back-end
