@@ -32,25 +32,25 @@ func TestMain(m *testing.M) {
 	serverLimit = NewRateLimit(serverLimitInterval, 1)
 	serverLimitRetry := NewRateLimit(serverLimitInterval, 1)
 	sm := http.NewServeMux()
-	sm.HandleFunc("/", func(w http.ResponseWriter, req *http.Request) {
+	sm.HandleFunc("/", func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		_, err := io.WriteString(w, `{"response":true}`)
 		if err != nil {
 			log.Fatal(err)
 		}
 	})
-	sm.HandleFunc("/error", func(w http.ResponseWriter, req *http.Request) {
+	sm.HandleFunc("/error", func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusBadRequest)
 		_, err := io.WriteString(w, `{"error":true}`)
 		if err != nil {
 			log.Fatal(err)
 		}
 	})
-	sm.HandleFunc("/timeout", func(w http.ResponseWriter, req *http.Request) {
+	sm.HandleFunc("/timeout", func(w http.ResponseWriter, _ *http.Request) {
 		time.Sleep(time.Millisecond * 100)
 		w.WriteHeader(http.StatusGatewayTimeout)
 	})
-	sm.HandleFunc("/rate", func(w http.ResponseWriter, req *http.Request) {
+	sm.HandleFunc("/rate", func(w http.ResponseWriter, _ *http.Request) {
 		if !serverLimit.Allow() {
 			http.Error(w,
 				http.StatusText(http.StatusTooManyRequests),
@@ -66,7 +66,7 @@ func TestMain(m *testing.M) {
 			log.Fatal(err)
 		}
 	})
-	sm.HandleFunc("/rate-retry", func(w http.ResponseWriter, req *http.Request) {
+	sm.HandleFunc("/rate-retry", func(w http.ResponseWriter, _ *http.Request) {
 		if !serverLimitRetry.Allow() {
 			w.Header().Add("Retry-After", strconv.Itoa(int(math.Round(serverLimitInterval.Seconds()))))
 			http.Error(w,
@@ -83,7 +83,7 @@ func TestMain(m *testing.M) {
 			log.Fatal(err)
 		}
 	})
-	sm.HandleFunc("/always-retry", func(w http.ResponseWriter, req *http.Request) {
+	sm.HandleFunc("/always-retry", func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Add("Retry-After", time.Now().Format(time.RFC1123))
 		w.WriteHeader(http.StatusTooManyRequests)
 		_, err := io.WriteString(w, `{"response":false}`)
@@ -406,7 +406,7 @@ func TestDoRequest(t *testing.T) {
 func TestDoRequest_Retries(t *testing.T) {
 	t.Parallel()
 
-	backoff := func(n int) time.Duration {
+	backoff := func(int) time.Duration {
 		return 0
 	}
 	r, err := New("test", new(http.Client), WithBackoff(backoff))
@@ -449,7 +449,7 @@ func TestDoRequest_Retries(t *testing.T) {
 func TestDoRequest_RetryNonRecoverable(t *testing.T) {
 	t.Parallel()
 
-	backoff := func(n int) time.Duration {
+	backoff := func(int) time.Duration {
 		return 0
 	}
 	r, err := New("test", new(http.Client), WithBackoff(backoff))
@@ -471,7 +471,7 @@ func TestDoRequest_NotRetryable(t *testing.T) {
 	t.Parallel()
 
 	notRetryErr := errors.New("not retryable")
-	retry := func(resp *http.Response, err error) (bool, error) {
+	retry := func(*http.Response, error) (bool, error) {
 		return false, notRetryErr
 	}
 	backoff := func(n int) time.Duration {

@@ -141,7 +141,7 @@ func (b *Binance) GetOrderBook(ctx context.Context, obd OrderBookDataRequestPara
 		return nil, err
 	}
 	params.Set("symbol", symbol)
-	params.Set("limit", fmt.Sprintf("%d", obd.Limit))
+	params.Set("limit", strconv.Itoa(obd.Limit))
 
 	var resp OrderBookData
 	if err := b.SendHTTPRequest(ctx,
@@ -202,7 +202,7 @@ func (b *Binance) GetMostRecentTrades(ctx context.Context, rtr RecentTradeReques
 		return nil, err
 	}
 	params.Set("symbol", symbol)
-	params.Set("limit", fmt.Sprintf("%d", rtr.Limit))
+	params.Set("limit", strconv.Itoa(rtr.Limit))
 
 	path := recentTrades + "?" + params.Encode()
 
@@ -221,10 +221,10 @@ func (b *Binance) GetHistoricalTrades(ctx context.Context, symbol string, limit 
 	params := url.Values{}
 
 	params.Set("symbol", symbol)
-	params.Set("limit", fmt.Sprintf("%d", limit))
+	params.Set("limit", strconv.Itoa(limit))
 	// else return most recent trades
 	if fromID > 0 {
-		params.Set("fromId", fmt.Sprintf("%d", fromID))
+		params.Set("fromId", strconv.FormatInt(fromID, 10))
 	}
 
 	path := historicalTrades + "?" + params.Encode()
