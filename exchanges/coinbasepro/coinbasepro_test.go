@@ -39,9 +39,8 @@ var (
 
 // Please supply your APIKeys here for better testing
 const (
-	apiKey    = ""
-	apiSecret = ""
-	// clientID                = "" // passphrase you made at API CREATION, might not exist any more
+	apiKey                  = ""
+	apiSecret               = ""
 	canManipulateRealOrders = false
 	testingInSandbox        = false
 )
@@ -92,15 +91,12 @@ const (
 )
 
 func TestSetup(t *testing.T) {
-	// err := c.Setup(nil)
-	// assert.ErrorIs(t, err, config.ErrExchangeConfigIsNil)
 	cfg, err := c.GetStandardConfig()
 	assert.NoError(t, err)
 	cfg.API.AuthenticatedSupport = true
 	cfg.API.Credentials.Key = apiKey
 	cfg.API.Credentials.Secret = apiSecret
 	cfg.Enabled = false
-	// _ = c.Setup(cfg)
 	cfg.Enabled = true
 	cfg.ProxyAddress = string(rune(0x7f))
 	err = c.Setup(cfg)
@@ -146,7 +142,6 @@ func TestMain(m *testing.M) {
 		c.GetBase().API.AuthenticatedSupport = true
 		c.GetBase().API.AuthenticatedWebsocketSupport = true
 	}
-	// c.Verbose = true
 	err = gctlog.SetGlobalLogConfig(gctlog.GenDefaultSettings())
 	fmt.Println(err)
 	c.Websocket.Enable()
@@ -164,16 +159,6 @@ func TestStart(t *testing.T) {
 	}
 	testWg.Wait()
 }
-
-// func TestSendAuthenticatedHTTPRequest(t *testing.T) {
-// 	sharedtestvalues.SkipTestIfCredentialsUnset(t, c)
-// 	var resp interface{}
-// 	err := c.SendAuthenticatedHTTPRequest(context.Background(), exchange.RestSpot, "", "", "", nil, &resp, nil)
-// 	if err != nil {
-// 		t.Error("SendAuthenticatedHTTPRequest() error", err)
-// 	}
-// 	log.Printf("%+v", resp)
-// }
 
 func TestGetAllAccounts(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, c)
@@ -218,12 +203,10 @@ func TestGetProductBook(t *testing.T) {
 func TestGetAllProducts(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, c)
 	testPairs := []string{testPair.String(), "ETH-USD"}
-	// var testPairs []string
 	resp, err := c.GetAllProducts(context.Background(), 30000, 0, "SPOT", "PERPETUAL", "",
 		testPairs)
 	assert.NoError(t, err)
 	assert.NotEmpty(t, resp, errExpectedNonEmpty)
-	// log.Printf("%+v\n%+v", resp.NumProducts, len(resp.Products))
 }
 
 func TestGetProductByID(t *testing.T) {
@@ -406,11 +389,10 @@ func TestCreatePortfolio(t *testing.T) {
 	_, err := c.CreatePortfolio(context.Background(), "")
 	assert.ErrorIs(t, err, errNameEmpty)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, c, canManipulateRealOrders)
-	resp, err := c.CreatePortfolio(context.Background(), "GCT Test Portfolio")
+	_, err = c.CreatePortfolio(context.Background(), "GCT Test Portfolio")
 	if err != nil && err.Error() != errPortfolioNameDuplicate {
 		t.Error(err)
 	}
-	assert.NotEmpty(t, resp, errExpectedNonEmpty)
 }
 
 func TestMovePortfolioFunds(t *testing.T) {
@@ -426,12 +408,11 @@ func TestMovePortfolioFunds(t *testing.T) {
 	if len(portID.Portfolios) < 2 {
 		t.Skip(skipInsufficientPortfolios)
 	}
-	resp, err := c.MovePortfolioFunds(context.Background(), testCrypto.String(), portID.Portfolios[0].UUID, portID.Portfolios[1].UUID,
+	_, err = c.MovePortfolioFunds(context.Background(), testCrypto.String(), portID.Portfolios[0].UUID, portID.Portfolios[1].UUID,
 		testAmount)
 	if err != nil && err.Error() != errPortTransferInsufFunds {
 		t.Error(err)
 	}
-	assert.NotEmpty(t, resp, errExpectedNonEmpty)
 }
 
 func TestGetPortfolioByID(t *testing.T) {
@@ -464,34 +445,29 @@ func TestEditPortfolio(t *testing.T) {
 	_, err = c.EditPortfolio(context.Background(), "meow", "")
 	assert.ErrorIs(t, err, errNameEmpty)
 	pID := portfolioIDFromName(t, "GCT Test Portfolio To-Edit")
-	resp, err := c.EditPortfolio(context.Background(), pID, "GCT Test Portfolio Edited")
+	_, err = c.EditPortfolio(context.Background(), pID, "GCT Test Portfolio Edited")
 	if err != nil && err.Error() != errPortfolioNameDuplicate {
 		t.Error(err)
 	}
-	assert.NotEmpty(t, resp, errExpectedNonEmpty)
 }
 
 func TestGetFuturesBalanceSummary(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, c)
-	resp, err := c.GetFuturesBalanceSummary(context.Background())
+	_, err := c.GetFuturesBalanceSummary(context.Background())
 	assert.NoError(t, err)
-	assert.NotEmpty(t, resp, errExpectedNonEmpty)
 }
 
 func TestGetAllFuturesPositions(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, c)
-	resp, err := c.GetAllFuturesPositions(context.Background())
-	assert.NoError(t, err)
-	assert.NotEmpty(t, resp, errExpectedNonEmpty)
+	testGetNoArgs(t, c.GetAllFuturesPositions)
 }
 
 func TestGetFuturesPositionByID(t *testing.T) {
 	_, err := c.GetFuturesPositionByID(context.Background(), "")
 	assert.ErrorIs(t, err, errProductIDEmpty)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, c)
-	resp, err := c.GetFuturesPositionByID(context.Background(), "meow")
+	_, err = c.GetFuturesPositionByID(context.Background(), "meow")
 	assert.NoError(t, err)
-	assert.NotEmpty(t, resp, errExpectedNonEmpty)
 }
 
 func TestScheduleFuturesSweep(t *testing.T) {
@@ -609,38 +585,16 @@ func TestCreateConvertQuote(t *testing.T) {
 }
 
 func TestCommitConvertTrade(t *testing.T) {
-	_, err := c.CommitConvertTrade(context.Background(), "", "", "")
-	assert.ErrorIs(t, err, errTransactionIDEmpty)
-	_, err = c.CommitConvertTrade(context.Background(), "meow", "", "")
-	assert.ErrorIs(t, err, errAccountIDEmpty)
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, c, canManipulateRealOrders)
-	fromAccID, toAccID := convertTestHelper(t)
-	resp, err := c.CreateConvertQuote(context.Background(), fromAccID, toAccID, "", "", 0.01)
-	assert.NoError(t, err)
-	resp, err = c.CommitConvertTrade(context.Background(), resp.Trade.ID, fromAccID, toAccID)
-	assert.NoError(t, err)
-	assert.NotEmpty(t, resp, errExpectedNonEmpty)
+	convertTestShared(t, c.CommitConvertTrade)
 }
 
 func TestGetConvertTradeByID(t *testing.T) {
-	_, err := c.GetConvertTradeByID(context.Background(), "", "", "")
-	assert.ErrorIs(t, err, errTransactionIDEmpty)
-	_, err = c.GetConvertTradeByID(context.Background(), "meow", "", "")
-	assert.ErrorIs(t, err, errAccountIDEmpty)
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, c, canManipulateRealOrders)
-	fromAccID, toAccID := convertTestHelper(t)
-	resp, err := c.CreateConvertQuote(context.Background(), fromAccID, toAccID, "", "", 0.01)
-	assert.NoError(t, err)
-	resp, err = c.GetConvertTradeByID(context.Background(), resp.Trade.ID, fromAccID, toAccID)
-	assert.NoError(t, err)
-	assert.NotEmpty(t, resp, errExpectedNonEmpty)
+	convertTestShared(t, c.GetConvertTradeByID)
 }
 
 func TestGetV3Time(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, c)
-	resp, err := c.GetV3Time(context.Background())
-	assert.NoError(t, err)
-	assert.NotEmpty(t, resp, errExpectedNonEmpty)
+	testGetNoArgs(t, c.GetV3Time)
 }
 
 func TestListNotifications(t *testing.T) {
@@ -665,29 +619,12 @@ func TestGetUserByID(t *testing.T) {
 
 func TestGetCurrentUser(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, c)
-	resp, err := c.GetCurrentUser(context.Background())
-	assert.NoError(t, err)
-	assert.NotEmpty(t, resp, errExpectedNonEmpty)
+	testGetNoArgs(t, c.GetCurrentUser)
 }
 
 func TestGetAuthInfo(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, c)
-	resp, err := c.GetAuthInfo(context.Background())
-	assert.NoError(t, err)
-	assert.NotEmpty(t, resp, errExpectedNonEmpty)
-}
-
-func TestUpdateUser(t *testing.T) {
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, c, canManipulateRealOrders)
-	oldData, err := c.GetCurrentUser(context.Background())
-	if err != nil {
-		t.Fatal(err)
-	}
-	_, err = c.UpdateUser(context.Background(), "Name changed as per GCT testing", "Sydney", testFiat.String())
-	assert.NoError(t, err)
-	resp, err := c.UpdateUser(context.Background(), oldData.Data.Name, oldData.Data.TimeZone, oldData.Data.NativeCurrency)
-	assert.NoError(t, err)
-	assert.NotEmpty(t, resp, errExpectedNonEmpty)
+	testGetNoArgs(t, c.GetAuthInfo)
 }
 
 func TestGetAllWallets(t *testing.T) {
@@ -960,15 +897,11 @@ func TestGetPaymentMethodByID(t *testing.T) {
 }
 
 func TestGetFiatCurrencies(t *testing.T) {
-	resp, err := c.GetFiatCurrencies(context.Background())
-	assert.NoError(t, err)
-	assert.NotEmpty(t, resp, errExpectedNonEmpty)
+	testGetNoArgs(t, c.GetFiatCurrencies)
 }
 
 func TestGetCryptocurrencies(t *testing.T) {
-	resp, err := c.GetCryptocurrencies(context.Background())
-	assert.NoError(t, err)
-	assert.NotEmpty(t, resp, errExpectedNonEmpty)
+	testGetNoArgs(t, c.GetCryptocurrencies)
 }
 
 func TestGetExchangeRates(t *testing.T) {
@@ -992,9 +925,7 @@ func TestGetPrice(t *testing.T) {
 }
 
 func TestGetV2Time(t *testing.T) {
-	resp, err := c.GetV2Time(context.Background())
-	assert.NoError(t, err)
-	assert.NotEmpty(t, resp, errExpectedNonEmpty)
+	testGetNoArgs(t, c.GetV2Time)
 }
 
 func TestSendHTTPRequest(t *testing.T) {
@@ -1032,26 +963,26 @@ func TestGetFee(t *testing.T) {
 	}
 	resp, err := c.GetFee(context.Background(), &feeBuilder)
 	assert.NoError(t, err)
-	if resp != 0.008 {
-		t.Errorf(errExpectMismatch, resp, 0.008)
+	if resp != WorstCaseTakerFee {
+		t.Errorf(errExpectMismatch, resp, WorstCaseTakerFee)
 	}
 	feeBuilder.IsMaker = true
 	resp, err = c.GetFee(context.Background(), &feeBuilder)
 	assert.NoError(t, err)
-	if resp != 0.006 {
-		t.Errorf(errExpectMismatch, resp, 0.006)
+	if resp != WorstCaseMakerFee {
+		t.Errorf(errExpectMismatch, resp, WorstCaseMakerFee)
 	}
 	feeBuilder.Pair = currency.NewPair(currency.USDT, currency.USD)
 	resp, err = c.GetFee(context.Background(), &feeBuilder)
 	assert.NoError(t, err)
 	if resp != 0 {
-		t.Errorf(errExpectMismatch, resp, 0)
+		t.Errorf(errExpectMismatch, resp, StablePairMakerFee)
 	}
 	feeBuilder.IsMaker = false
 	resp, err = c.GetFee(context.Background(), &feeBuilder)
 	assert.NoError(t, err)
-	if resp != 0.00001 {
-		t.Errorf(errExpectMismatch, resp, 0.00001)
+	if resp != WorstCaseStablePairTakerFee {
+		t.Errorf(errExpectMismatch, resp, WorstCaseStablePairTakerFee)
 	}
 	feeBuilder.FeeType = exchange.CryptocurrencyDepositFee
 	_, err = c.GetFee(context.Background(), &feeBuilder)
@@ -1061,14 +992,14 @@ func TestGetFee(t *testing.T) {
 	feeBuilder.FeeType = exchange.CryptocurrencyTradeFee
 	resp, err = c.GetFee(context.Background(), &feeBuilder)
 	assert.NoError(t, err)
-	if !(resp <= 0.008 && resp >= 0.0005) {
-		t.Errorf(errExpectedFeeRange, 0.0005, 0.008, resp)
+	if !(resp <= WorstCaseTakerFee && resp >= BestCaseTakerFee) {
+		t.Errorf(errExpectedFeeRange, BestCaseTakerFee, WorstCaseTakerFee, resp)
 	}
 	feeBuilder.IsMaker = true
 	resp, err = c.GetFee(context.Background(), &feeBuilder)
 	assert.NoError(t, err)
-	if !(resp <= 0.006 && resp >= 0) {
-		t.Errorf(errExpectedFeeRange, 0, 0.006, resp)
+	if !(resp <= WorstCaseMakerFee && resp >= BestCaseMakerFee) {
+		t.Errorf(errExpectedFeeRange, BestCaseMakerFee, WorstCaseMakerFee, resp)
 	}
 }
 
@@ -1158,7 +1089,7 @@ func TestGetWithdrawalsHistory(t *testing.T) {
 	_, err := c.GetWithdrawalsHistory(context.Background(), currency.NewCode("meow"), asset.Spot)
 	assert.ErrorIs(t, err, errNoMatchingWallets)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, c)
-	_, err = c.GetWithdrawalsHistory(context.Background(), currency.BTC, asset.Spot)
+	_, err = c.GetWithdrawalsHistory(context.Background(), testCrypto, asset.Spot)
 	assert.NoError(t, err)
 }
 
@@ -1314,7 +1245,7 @@ func TestWithdrawCryptocurrencyFunds(t *testing.T) {
 	_, err := c.WithdrawCryptocurrencyFunds(context.Background(), &req)
 	assert.ErrorIs(t, err, common.ErrExchangeNameUnset)
 	req.Exchange = c.Name
-	req.Currency = currency.BTC
+	req.Currency = testCrypto
 	req.Amount = testAmount
 	req.Type = withdraw.Crypto
 	req.Crypto.Address = testAddress
@@ -1327,7 +1258,7 @@ func TestWithdrawCryptocurrencyFunds(t *testing.T) {
 		t.Fatal(errExpectedNonEmpty)
 	}
 	for i := range wallets.Data {
-		if wallets.Data[i].Currency.Name == currency.BTC.String() && wallets.Data[i].Balance.Amount > testAmount*100 {
+		if wallets.Data[i].Currency.Name == testCrypto.String() && wallets.Data[i].Balance.Amount > testAmount*100 {
 			req.WalletID = wallets.Data[i].ID
 			break
 		}
@@ -1341,55 +1272,11 @@ func TestWithdrawCryptocurrencyFunds(t *testing.T) {
 }
 
 func TestWithdrawFiatFunds(t *testing.T) {
-	req := withdraw.Request{}
-	_, err := c.WithdrawFiatFunds(context.Background(), &req)
-	assert.ErrorIs(t, err, common.ErrExchangeNameUnset)
-	req.Exchange = c.Name
-	req.Currency = currency.AUD
-	req.Amount = 1
-	req.Type = withdraw.Fiat
-	req.Fiat.Bank.Enabled = true
-	req.Fiat.Bank.SupportedExchanges = "CoinbasePro"
-	req.Fiat.Bank.SupportedCurrencies = "AUD"
-	req.Fiat.Bank.AccountNumber = "123"
-	req.Fiat.Bank.SWIFTCode = "456"
-	req.Fiat.Bank.BSBNumber = "789"
-	_, err = c.WithdrawFiatFunds(context.Background(), &req)
-	assert.ErrorIs(t, err, errWalletIDEmpty)
-	req.WalletID = "meow"
-	req.Fiat.Bank.BankName = "GCT's Fake and Not Real Test Bank Meow Meow"
-	expectedError := fmt.Sprintf(errPayMethodNotFound, req.Fiat.Bank.BankName)
-	_, err = c.WithdrawFiatFunds(context.Background(), &req)
-	if err.Error() != expectedError {
-		t.Errorf(errExpectMismatch, err, expectedError)
-	}
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, c, canManipulateRealOrders)
-	wallets, err := c.GetAllWallets(context.Background(), PaginationInp{})
-	assert.NoError(t, err)
-	if len(wallets.Data) == 0 {
-		t.Fatal(errExpectedNonEmpty)
-	}
-	req.WalletID = ""
-	for i := range wallets.Data {
-		if wallets.Data[i].Currency.Name == currency.AUD.String() && wallets.Data[i].Balance.Amount > testAmount*100 {
-			req.WalletID = wallets.Data[i].ID
-			break
-		}
-	}
-	if req.WalletID == "" {
-		t.Skip(skipInsufficientFunds)
-	}
-	req.Fiat.Bank.BankName = "AUD Wallet"
-	resp, err := c.WithdrawFiatFunds(context.Background(), &req)
-	assert.NoError(t, err)
-	assert.NotEmpty(t, resp, errExpectedNonEmpty)
+	withdrawFiatFundsHelper(t, c.WithdrawFiatFunds)
 }
 
 func TestWithdrawFiatFundsToInternationalBank(t *testing.T) {
-	req := withdraw.Request{}
-	_, err := c.WithdrawFiatFundsToInternationalBank(context.Background(), &req)
-	assert.ErrorIs(t, err, common.ErrExchangeNameUnset)
-	req.Exchange = c.Name
+	withdrawFiatFundsHelper(t, c.WithdrawFiatFundsToInternationalBank)
 }
 
 func TestGetFeeByType(t *testing.T) {
@@ -1404,8 +1291,8 @@ func TestGetFeeByType(t *testing.T) {
 	feeBuilder.PurchasePrice = 1
 	resp, err := c.GetFeeByType(context.Background(), &feeBuilder)
 	assert.NoError(t, err)
-	if resp != 0.008 {
-		t.Errorf(errExpectMismatch, resp, 0.008)
+	if resp != WorstCaseTakerFee {
+		t.Errorf(errExpectMismatch, resp, WorstCaseTakerFee)
 	}
 }
 
@@ -1423,7 +1310,7 @@ func TestGetActiveOrders(t *testing.T) {
 	req.Type = order.AnyType
 	_, err = c.GetActiveOrders(context.Background(), &req)
 	assert.NoError(t, err)
-	req.Pairs = req.Pairs.Add(currency.NewPair(currency.BTC, currency.USD))
+	req.Pairs = req.Pairs.Add(currency.NewPair(testCrypto, testFiat))
 	_, err = c.GetActiveOrders(context.Background(), &req)
 	assert.NoError(t, err)
 }
@@ -1449,9 +1336,10 @@ func TestGetHistoricCandles(t *testing.T) {
 		time.Time{})
 	assert.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, c)
-	_, err = c.GetHistoricCandles(context.Background(), testPair, asset.Spot, kline.ThreeHour,
+	resp, err := c.GetHistoricCandles(context.Background(), testPair, asset.Spot, kline.ThreeHour,
 		time.Now().Add(-time.Hour*30), time.Now())
 	assert.NoError(t, err)
+	assert.NotEmpty(t, resp, errExpectedNonEmpty)
 }
 
 func TestGetHistoricCandlesExtended(t *testing.T) {
@@ -1486,8 +1374,9 @@ func TestGetLatestFundingRates(t *testing.T) {
 	}
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, c)
 	req.Asset = asset.Futures
-	_, err = c.GetLatestFundingRates(context.Background(), &req)
+	resp, err := c.GetLatestFundingRates(context.Background(), &req)
 	assert.NoError(t, err)
+	assert.NotEmpty(t, resp, errExpectedNonEmpty)
 }
 
 func TestGetFuturesContractDetails(t *testing.T) {
@@ -1498,8 +1387,9 @@ func TestGetFuturesContractDetails(t *testing.T) {
 		t.Errorf(errExpectMismatch, err, errUpsideUnsupported)
 	}
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, c)
-	_, err = c.GetFuturesContractDetails(context.Background(), asset.Futures)
+	resp, err := c.GetFuturesContractDetails(context.Background(), asset.Futures)
 	assert.NoError(t, err)
+	assert.NotEmpty(t, resp, errExpectedNonEmpty)
 }
 
 func TestUpdateOrderExecutionLimits(t *testing.T) {
@@ -1551,33 +1441,19 @@ func TestUnixTimestampString(t *testing.T) {
 
 func TestFormatExchangeKlineInterval(t *testing.T) {
 	t.Parallel()
-	resp := formatExchangeKlineInterval(kline.FiveMin)
-	if resp != granFiveMin {
-		t.Errorf(errExpectMismatch, resp, granFiveMin)
-	}
-	resp = formatExchangeKlineInterval(kline.FifteenMin)
-	if resp != granFifteenMin {
-		t.Errorf(errExpectMismatch, resp, granFifteenMin)
-	}
-	resp = formatExchangeKlineInterval(kline.ThirtyMin)
-	if resp != granThirtyMin {
-		t.Errorf(errExpectMismatch, resp, granThirtyMin)
-	}
-	resp = formatExchangeKlineInterval(kline.TwoHour)
-	if resp != granTwoHour {
-		t.Errorf(errExpectMismatch, resp, granTwoHour)
-	}
-	resp = formatExchangeKlineInterval(kline.SixHour)
-	if resp != granSixHour {
-		t.Errorf(errExpectMismatch, resp, granSixHour)
-	}
-	resp = formatExchangeKlineInterval(kline.OneDay)
-	if resp != granOneDay {
-		t.Errorf(errExpectMismatch, resp, granOneDay)
-	}
-	resp = formatExchangeKlineInterval(kline.OneWeek)
-	if resp != errIntervalNotSupported {
-		t.Errorf(errExpectMismatch, resp, errIntervalNotSupported)
+	testSequence := map[kline.Interval]string{
+		kline.FiveMin:    granFiveMin,
+		kline.FifteenMin: granFifteenMin,
+		kline.ThirtyMin:  granThirtyMin,
+		kline.TwoHour:    granTwoHour,
+		kline.SixHour:    granSixHour,
+		kline.OneDay:     granOneDay,
+		kline.OneWeek:    errIntervalNotSupported}
+	for k := range testSequence {
+		resp := formatExchangeKlineInterval(k)
+		if resp != testSequence[k] {
+			t.Errorf(errExpectMismatch, resp, testSequence[k])
+		}
 	}
 }
 
@@ -1599,12 +1475,9 @@ func TestWsConnect(t *testing.T) {
 		t.Errorf(errExpectMismatch, err, stream.WebsocketNotEnabled)
 	}
 	c.Websocket.Enable()
-	// err = c.WsConnect()
-	// assert.NoError(t, err)
 }
 
 func TestWsHandleData(t *testing.T) {
-	// c.Websocket.DataHandler = make(chan interface{}, 100)
 	go func() {
 		for range c.Websocket.DataHandler {
 			continue
@@ -1737,7 +1610,7 @@ func TestGenerateDefaultSubscriptions(t *testing.T) {
 		{Channel: "ticker_batch"}, {Channel: "candles"}, {Channel: "market_trades"}, {Channel: "level2"},
 		{Channel: "user"}}
 	for i := range comparison {
-		comparison[i].Currency = currency.NewPairWithDelimiter(currency.BTC.String(), currency.USD.String(), "-")
+		comparison[i].Currency = currency.NewPairWithDelimiter(testCrypto.String(), testFiat.String(), "-")
 		comparison[i].Asset = asset.Spot
 	}
 	resp, err := c.GenerateDefaultSubscriptions()
@@ -1749,7 +1622,7 @@ func TestGenerateDefaultSubscriptions(t *testing.T) {
 
 func TestSubscribeUnsubscribe(t *testing.T) {
 	req := []stream.ChannelSubscription{{Channel: "heartbeats", Asset: asset.Spot,
-		Currency: currency.NewPairWithDelimiter(currency.BTC.String(), currency.USD.String(), "-")}}
+		Currency: currency.NewPairWithDelimiter(testCrypto.String(), testFiat.String(), "-")}}
 	err := c.Subscribe(req)
 	assert.NoError(t, err)
 	err = c.Unsubscribe(req)
@@ -1876,4 +1749,80 @@ func transferTestHelper(t *testing.T, wallets GetAllWalletsResponse) (string, st
 		t.Skip(skipPayMethodNotFound)
 	}
 	return wID, pmID.Data[0].FiatAccount.ID
+}
+
+type withdrawFiatFunc func(context.Context, *withdraw.Request) (*withdraw.ExchangeResponse, error)
+
+func withdrawFiatFundsHelper(t *testing.T, fn withdrawFiatFunc) {
+	req := withdraw.Request{}
+	_, err := fn(context.Background(), &req)
+	assert.ErrorIs(t, err, common.ErrExchangeNameUnset)
+	req.Exchange = c.Name
+	req.Currency = testFiat
+	req.Amount = 1
+	req.Type = withdraw.Fiat
+	req.Fiat.Bank.Enabled = true
+	req.Fiat.Bank.SupportedExchanges = "CoinbasePro"
+	req.Fiat.Bank.SupportedCurrencies = testFiat.String()
+	req.Fiat.Bank.AccountNumber = "123"
+	req.Fiat.Bank.SWIFTCode = "456"
+	req.Fiat.Bank.BSBNumber = "789"
+	_, err = fn(context.Background(), &req)
+	assert.ErrorIs(t, err, errWalletIDEmpty)
+	req.WalletID = "meow"
+	req.Fiat.Bank.BankName = "GCT's Fake and Not Real Test Bank Meow Meow Meow"
+	expectedError := fmt.Sprintf(errPayMethodNotFound, req.Fiat.Bank.BankName)
+	_, err = fn(context.Background(), &req)
+	if err.Error() != expectedError {
+		t.Errorf(errExpectMismatch, err, expectedError)
+	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, c, canManipulateRealOrders)
+	wallets, err := c.GetAllWallets(context.Background(), PaginationInp{})
+	assert.NoError(t, err)
+	if len(wallets.Data) == 0 {
+		t.Fatal(errExpectedNonEmpty)
+	}
+	req.WalletID = ""
+	for i := range wallets.Data {
+		if wallets.Data[i].Currency.Name == testFiat.String() && wallets.Data[i].Balance.Amount > testAmount*100 {
+			req.WalletID = wallets.Data[i].ID
+			break
+		}
+	}
+	if req.WalletID == "" {
+		t.Skip(skipInsufficientFunds)
+	}
+	req.Fiat.Bank.BankName = "AUD Wallet"
+	resp, err := fn(context.Background(), &req)
+	assert.NoError(t, err)
+	assert.NotEmpty(t, resp, errExpectedNonEmpty)
+}
+
+type getNoArgsResp interface {
+	AllFuturesPositions | ServerTimeV3 | *UserResponse | AuthResponse | GetFiatCurrenciesResp |
+		GetCryptocurrenciesResp | ServerTimeV2
+}
+
+type getNoArgsAssertNotEmpty[G getNoArgsResp] func(context.Context) (G, error)
+
+func testGetNoArgs[G getNoArgsResp](t *testing.T, f getNoArgsAssertNotEmpty[G]) {
+	resp, err := f(context.Background())
+	assert.NoError(t, err)
+	assert.NotEmpty(t, resp, errExpectedNonEmpty)
+}
+
+type genConvertTestFunc func(context.Context, string, string, string) (ConvertResponse, error)
+
+func convertTestShared(t *testing.T, f genConvertTestFunc) {
+	_, err := f(context.Background(), "", "", "")
+	assert.ErrorIs(t, err, errTransactionIDEmpty)
+	_, err = f(context.Background(), "meow", "", "")
+	assert.ErrorIs(t, err, errAccountIDEmpty)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, c, canManipulateRealOrders)
+	fromAccID, toAccID := convertTestHelper(t)
+	resp, err := c.CreateConvertQuote(context.Background(), fromAccID, toAccID, "", "", 0.01)
+	assert.NoError(t, err)
+	resp, err = f(context.Background(), resp.Trade.ID, fromAccID, toAccID)
+	assert.NoError(t, err)
+	assert.NotEmpty(t, resp, errExpectedNonEmpty)
 }

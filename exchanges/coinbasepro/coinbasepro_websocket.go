@@ -14,7 +14,6 @@ import (
 	_ "net/http/pprof"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/buger/jsonparser"
@@ -81,82 +80,9 @@ func (c *CoinbasePro) wsReadData() {
 	}
 }
 
-var meow sync.Mutex
-var count int
-var wcTime time.Duration
-var bruh bool
-
-func WOW(tThen time.Time, msg []byte) {
-	meow.Lock()
-	if !bruh {
-		bruh = true
-		go func() {
-			for {
-				select {
-				case <-time.After(time.Second * 5):
-					meow.Lock()
-					fmt.Printf("COINBASEPRO: %v\n", count)
-					count = 0
-					wcTime = 0
-					meow.Unlock()
-				}
-			}
-		}()
-	}
-	this := time.Since(tThen)
-	if wcTime == 0 || this > wcTime {
-		fmt.Printf("Uh-oh, we took %s to process this message\n", this)
-		wcTime = this
-		if this > time.Millisecond*50 {
-			fmt.Printf("Oh jeez, I think I found the big one! %s\n", msg)
-		}
-	}
-	count++
-	meow.Unlock()
-}
-
-var alreadyDone bool
-
-func launchProfiling() {
-	if alreadyDone {
-		return
-	}
-	alreadyDone = true
-	// go func() {
-	// 	http.ListenAndServe("localhost:6060", nil)
-	// }()
-	// fmt.Print("30 second pause, 1")
-	// time.Sleep(time.Second * 30)
-	// fmt.Print("5 second pause, 1")
-	// time.Sleep(time.Second * 5)
-}
-
+// wsHandleData handles all the websocket data coming from the websocket connection
 func (c *CoinbasePro) wsHandleData(respRaw []byte, seqCount uint64) (string, error) {
-	// fmt.Println("WHADDUP:", string(respRaw))
-
-	// genData := wsGen{}
 	var warnString string
-	// err := json.Unmarshal(respRaw, &genData)
-	// if err != nil {
-	// 	return warnString, err
-	// }
-
-	// fmt.Printf("=== OH NOO LOOK AT THIS DATA WE HAVE TO DEAL WITH: %s ===\n", genData.Events)
-
-	// data, _, _, err := jsonparser.Get(respRaw, "events")
-	// if err != nil {
-	// 	return err
-	// }
-	// specData := []WebsocketTickerHolder{}
-	// err = json.Unmarshal(data, &specData)
-	// if err != nil {
-	// 	return err
-	// }
-	// fmt.Printf("===== AWESOME, WE'VE GOT THE GOOD DATA: %v =====\n", specData)
-
-	// if len(genData.Events) == 0 {
-	// 	return warnString, errNoEventsWS
-	// }
 
 	seqData, _, _, err := jsonparser.Get(respRaw, "sequence_num")
 	if err != nil {
@@ -180,9 +106,6 @@ func (c *CoinbasePro) wsHandleData(respRaw []byte, seqCount uint64) (string, err
 
 	channel := string(channelRaw)
 
-	tn := time.Now()
-	defer WOW(tn, channelRaw)
-
 	if channel == "subscriptions" || channel == "heartbeats" {
 		return warnString, nil
 	}
@@ -191,7 +114,6 @@ func (c *CoinbasePro) wsHandleData(respRaw []byte, seqCount uint64) (string, err
 	if err != nil {
 		return warnString, err
 	}
-	// fmt.Printf("==== WEEWOO WE'VE GOT THE NASTY DATA: %s ====\n", data)
 
 	switch channel {
 	case "status":
@@ -235,7 +157,6 @@ func (c *CoinbasePro) wsHandleData(respRaw []byte, seqCount uint64) (string, err
 			}
 		}
 		c.Websocket.DataHandler <- sliToSend
-		// fmt.Printf("=== WOOT, IT WORKED ===\n")
 	case "candles":
 		wsCandles := []WebsocketCandleHolder{}
 
@@ -268,7 +189,6 @@ func (c *CoinbasePro) wsHandleData(respRaw []byte, seqCount uint64) (string, err
 			}
 		}
 		c.Websocket.DataHandler <- sliToSend
-	// fmt.Print("=== RECEIVED AND PROCESSED ===\n")
 	case "market_trades":
 		wsTrades := []WebsocketMarketTradeHolder{}
 
@@ -294,7 +214,6 @@ func (c *CoinbasePro) wsHandleData(respRaw []byte, seqCount uint64) (string, err
 			}
 		}
 		c.Websocket.DataHandler <- sliToSend
-		// fmt.Print("=== RECEIVED AND PROCESSED ===\n")
 	case "l2_data":
 		var wsL2 []WebsocketOrderbookDataHolder
 		err := json.Unmarshal(data, &wsL2)
@@ -308,7 +227,6 @@ func (c *CoinbasePro) wsHandleData(respRaw []byte, seqCount uint64) (string, err
 		}
 
 		for i := range wsL2 {
-			// fmt.Printf("======== DATA THAT WE JUST HIT: %v ========\n", wsL2[i])
 			switch wsL2[i].Type {
 			case "snapshot":
 				err = c.ProcessSnapshot(wsL2[i], timestamp)
@@ -397,8 +315,6 @@ func (c *CoinbasePro) ProcessSnapshot(snapshot WebsocketOrderbookDataHolder, tim
 
 // ProcessUpdate updates the orderbook local cache
 func (c *CoinbasePro) ProcessUpdate(update WebsocketOrderbookDataHolder, timestamp time.Time) error {
-	// fmt.Printf("====== DATA THAT WE'RE USING TO UPDATE: %v ======\n", update)
-
 	bids, asks, err := processBidAskArray(update)
 
 	if err != nil {
@@ -412,8 +328,6 @@ func (c *CoinbasePro) ProcessUpdate(update WebsocketOrderbookDataHolder, timesta
 		UpdateTime: timestamp,
 		Asset:      asset.Spot,
 	}
-
-	// fmt.Printf("===== WE'RE ABOUT TO UPDATE THE ORDERBOOK: %v =====\n", obU)
 
 	return c.Websocket.Orderbook.Update(&obU)
 }
@@ -454,60 +368,7 @@ func (c *CoinbasePro) GenerateDefaultSubscriptions() ([]stream.ChannelSubscripti
 
 // Subscribe sends a websocket message to receive data from the channel
 func (c *CoinbasePro) Subscribe(channelsToSubscribe []stream.ChannelSubscription) error {
-
-	launchProfiling()
-
-	// fmt.Printf("SUBSCRIBE: %v\n", channelsToSubscribe)
-	// 	var creds *account.Credentials
-	// 	var err error
-	// 	if c.IsWebsocketAuthenticationSupported() {
-	// 		creds, err = c.GetCredentials(context.TODO())
-	// 		if err != nil {
-	// 			return err
-	// 		}
-	// 	}
-
-	// 	subscribe := WebsocketSubscribe{
-	// 		Type: "subscribe",
-	// 	}
-
-	// subscriptions:
-	// 	for i := range channelsToSubscribe {
-	// 		p := channelsToSubscribe[i].Currency.String()
-	// 		if !common.StringDataCompare(subscribe.ProductIDs, p) && p != "" {
-	// 			subscribe.ProductIDs = append(subscribe.ProductIDs, p)
-	// 		}
-
-	// 		if subscribe.Channel == channelsToSubscribe[i].Channel {
-	// 			continue subscriptions
-	// 		}
-
-	// 		subscribe.Channel = channelsToSubscribe[i].Channel
-
-	// 		if (channelsToSubscribe[i].Channel == "user" ||
-	// 			channelsToSubscribe[i].Channel == "full") && creds != nil {
-	// 			n := strconv.FormatInt(time.Now().Unix(), 10)
-	// 			message := n + http.MethodGet + "/users/self/verify"
-	// 			var hmac []byte
-	// 			hmac, err = crypto.GetHMAC(crypto.HashSHA256,
-	// 				[]byte(message),
-	// 				[]byte(creds.Secret))
-	// 			if err != nil {
-	// 				return err
-	// 			}
-	// 			subscribe.Signature = crypto.Base64Encode(hmac)
-	// 			subscribe.Key = creds.Key
-	// 			subscribe.Timestamp = n
-	// 		}
-	// 	}
-
-	// var (
-	// 	rLim RateLimit
-	// )
-
 	chanKeys := make(map[string]currency.Pairs)
-
-	// rLim.RateLimWS = request.NewRateLimit(coinbaseWSInterval, coinbaseWSRate)
 
 	for i := range channelsToSubscribe {
 		chanKeys[channelsToSubscribe[i].Channel] =
@@ -639,30 +500,21 @@ func (c *CoinbasePro) sendRequest(msgType, channel string, productIDs currency.P
 		return err
 	}
 
-	// jwt, err := c.GetJWT(context.Background(), "")
-	// if err != nil {
-	// 	return err
-	// }
+	// TODO: Implement JWT authentication once our REST implementation moves to it, or if there's
+	// an exchange-wide reform to enable multiple sets of authentication credentials
 
-	req := WebsocketSubscribe{
+	req := WebsocketRequest{
 		Type:       msgType,
 		ProductIDs: productIDs.Strings(),
 		Channel:    channel,
 		Signature:  hex.EncodeToString(hmac),
-		// JWT:       jwt,
-		Key:       creds.Key,
-		Timestamp: n,
+		Key:        creds.Key,
+		Timestamp:  n,
 	}
 
-	// reqMarshal, _ := json.Marshal(req)
-
-	// fmt.Print(string(reqMarshal))
-
-	// err = rLim.Limit(context.Background(), WSRate)
 	if err != nil {
 		return err
 	}
-	// data, err := c.Websocket.Conn.SendMessageReturnResponse(nil, req)
 	err = c.Websocket.Conn.SendJSONMessage(req)
 	if err != nil {
 		return err

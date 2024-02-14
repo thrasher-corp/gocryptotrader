@@ -95,6 +95,17 @@ const (
 	errUnknownL2DataType    = "unknown l2update data type %v"
 	errUnknownSide          = "unknown side %v"
 	warnSequenceIssue       = "Out of order sequence number. Received %v, expected %v"
+
+	// While the exchange's fee pages say the worst taker/maker fees are 0.002 lower than the ones listed
+	// here, the data returned by the GetTransactionsSummary endpoint are consistent with these worst
+	// case scenarios. The best case scenarios are untested, and assumed to be in line with the fee pages
+	WorstCaseTakerFee           = 0.008
+	WorstCaseMakerFee           = 0.006
+	BestCaseTakerFee            = 0.0005
+	BestCaseMakerFee            = 0
+	StablePairMakerFee          = 0
+	WorstCaseStablePairTakerFee = 0.000045
+	BestCaseStablePairTakerFee  = 0.00001
 )
 
 var (
@@ -127,6 +138,7 @@ var (
 	errCantDecodePrivKey      = errors.New("cannot decode private key")
 	errNoWalletForCurrency    = errors.New("no wallet found for currency, address creation impossible")
 	errChannelNameUnknown     = errors.New("unknown channel name")
+	errNoWalletsReturned      = errors.New("no wallets returned")
 )
 
 // GetAllAccounts returns information on all trading accounts associated with the API key
@@ -863,6 +875,7 @@ func (c *CoinbasePro) ListNotifications(ctx context.Context, pag PaginationInp) 
 		coinbaseV2+coinbaseNotifications, pathParams, nil, false, &resp, nil)
 }
 
+// GetUserByID returns information about a user, given their ID
 func (c *CoinbasePro) GetUserByID(ctx context.Context, userID string) (*UserResponse, error) {
 	if userID == "" {
 		return nil, errUserIDEmpty
@@ -892,26 +905,6 @@ func (c *CoinbasePro) GetAuthInfo(ctx context.Context) (AuthResponse, error) {
 
 	return resp, c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet,
 		path, "", nil, false, &resp, nil)
-}
-
-// UpdateUser modifies certain user preferences
-func (c *CoinbasePro) UpdateUser(ctx context.Context, name, timeZone, nativeCurrency string) (*UserResponse, error) {
-	var resp *UserResponse
-
-	req := map[string]interface{}{}
-
-	if name != "" {
-		req["name"] = name
-	}
-	if timeZone != "" {
-		req["time_zone"] = timeZone
-	}
-	if nativeCurrency != "" {
-		req["native_currency"] = nativeCurrency
-	}
-
-	return resp, c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPut,
-		coinbaseV2+coinbaseUser, "", req, false, &resp, nil)
 }
 
 // GetAllWallets lists all accounts associated with the API key
@@ -1366,19 +1359,14 @@ func (c *CoinbasePro) SendAuthenticatedHTTPRequest(ctx context.Context, ep excha
 			return nil, err
 		}
 
-		// jwt, err := c.GetJWT(ctx, method+" "+path)
-		// if err != nil {
-		// 	return nil, err
-		// }
-		// fmt.Printf("Here's the JWT you were looking for: %s\n", jwt)
+		// TODO: Implement JWT authentication once it's supported by all endpoints we care about
 
 		headers := make(map[string]string)
 		headers["CB-ACCESS-KEY"] = creds.Key
 		headers["CB-ACCESS-SIGN"] = hex.EncodeToString(hmac)
-		// headers["Authorization"] = "Bearer " + jwt
 		headers["CB-ACCESS-TIMESTAMP"] = n
 		headers["Content-Type"] = "application/json"
-		headers["CB-VERSION"] = "2023-11-13"
+		headers["CB-VERSION"] = "2024-02-14"
 
 		// Version 3 only wants query params in the path when the request is sent
 		if isVersion3 {
@@ -1476,14 +1464,15 @@ func (c *CoinbasePro) GetFee(ctx context.Context, feeBuilder *exchange.FeeBuilde
 		}
 	case feeBuilder.IsMaker && isStablePair(feeBuilder.Pair) &&
 		(feeBuilder.FeeType == exchange.CryptocurrencyTradeFee || feeBuilder.FeeType == exchange.OfflineTradeFee):
-		fee = 0
+		fee = StablePairMakerFee
 	case !feeBuilder.IsMaker && isStablePair(feeBuilder.Pair) &&
 		(feeBuilder.FeeType == exchange.CryptocurrencyTradeFee || feeBuilder.FeeType == exchange.OfflineTradeFee):
-		fee = 0.00001
+		fee = WorstCaseStablePairTakerFee
 	case feeBuilder.IsMaker && !isStablePair(feeBuilder.Pair) && feeBuilder.FeeType == exchange.OfflineTradeFee:
-		fee = 0.006
+		fee = WorstCaseMakerFee
+		fmt.Printf("IsMaker is %v\n", feeBuilder.IsMaker)
 	case !feeBuilder.IsMaker && !isStablePair(feeBuilder.Pair) && feeBuilder.FeeType == exchange.OfflineTradeFee:
-		fee = 0.008
+		fee = WorstCaseTakerFee
 	default:
 		return 0, errFeeTypeNotSupported
 	}
@@ -1532,6 +1521,7 @@ func (p *Params) prepareDateString(startDate, endDate time.Time, labelStart, lab
 	return err
 }
 
+// PreparePagination formats pagination information in the way the exchange expects
 func (p *Params) preparePagination(pag PaginationInp) {
 	if pag.Limit != 0 {
 		p.urlVals.Set("limit", strconv.FormatInt(int64(pag.Limit), 10))
@@ -1547,7 +1537,7 @@ func (p *Params) preparePagination(pag PaginationInp) {
 	}
 }
 
-// prepareOrderConfig is a helper function that popoulates the OrderConfiguration struct
+// prepareOrderConfig populates the OrderConfiguration struct
 func prepareOrderConfig(orderType, side, stopDirection string, amount, limitPrice, stopPrice float64, endTime time.Time, postOnly bool) (OrderConfiguration, error) {
 	var orderConfig OrderConfiguration
 
@@ -1596,7 +1586,7 @@ func prepareOrderConfig(orderType, side, stopDirection string, amount, limitPric
 	return orderConfig, nil
 }
 
-// prepareMarginType is a helper function that properly formats the margin type for the request
+// prepareMarginType properly formats the margin type for the request
 func prepareMarginType(marginType string, req map[string]interface{}) {
 	if marginType == "ISOLATED" || marginType == "CROSS" {
 		req["margin_type"] = marginType

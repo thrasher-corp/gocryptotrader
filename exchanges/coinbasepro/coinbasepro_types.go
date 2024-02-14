@@ -26,7 +26,8 @@ type Version bool
 type FiatTransferType bool
 
 // ValCur is a sub-struct used in the types Account, NativeAndRaw, DetailedPortfolioResponse,
-// FuturesBalanceSummary, ListFuturesSweepsResponse, FeeStruct, AmScale, and ConvertResponse
+// FuturesBalanceSummary, ListFuturesSweepsResponse, PerpetualsPortfolioSummary, PerpPositionDetail,
+// FeeStruct, AmScale, and ConvertResponse
 type ValCur struct {
 	Value    float64 `json:"value,string"`
 	Currency string  `json:"currency"`
@@ -56,6 +57,11 @@ type AllAccountsResponse struct {
 	HasNext  bool      `json:"has_next"`
 	Cursor   string    `json:"cursor"`
 	Size     uint8     `json:"size"`
+}
+
+// Params is used within functions to make the setting of parameters easier
+type Params struct {
+	urlVals url.Values
 }
 
 // OneAccountResponse is a temporary struct used for unmarshalling in GetAccountByID
@@ -159,7 +165,7 @@ type AllProducts struct {
 }
 
 // UnixTimestamp is a type used to unmarshal unix timestamps returned from
-// the exchange, used in the type History
+// the exchange, used in the types History and WebsocketCandle
 type UnixTimestamp time.Time
 
 // History holds historic rate information, returned by GetHistoricRates
@@ -228,7 +234,7 @@ type StopLimitStopLimitGTD struct {
 	StopDirection string    `json:"stop_direction"`
 }
 
-// OrderConfiguration is a struct used in the formation of requests for PlaceOrder, and is
+// OrderConfiguration is a struct used in the formation of requests in PrepareOrderConfig, and is
 // a sub-struct used in the types PlaceOrderResp and GetOrderResponse
 type OrderConfiguration struct {
 	MarketMarketIOC       *MarketMarketIOC       `json:"market_market_ioc,omitempty"`
@@ -520,7 +526,7 @@ type ListFuturesSweepsResponse struct {
 }
 
 // PerpetualsPortfolioSummary contains information on perpetuals portfolio balances, used as
-// a sub-struct in the types GetPerpetualsPortfolioSummary, AllPerpPosResponse, and
+// a sub-struct in the types PerpetualPortResponse, PerpPositionDetail, AllPerpPosResponse, and
 // OnePerpPosResponse
 type PerpetualsPortfolioSummary struct {
 	PortfolioUUID              string  `json:"portfolio_uuid"`
@@ -729,6 +735,7 @@ type ConvertResponse struct {
 	} `json:"trade"`
 }
 
+// ServerTimeV3 holds information on the server's time, returned by GetV3Time
 type ServerTimeV3 struct {
 	Iso               time.Time `json:"iso"`
 	EpochSeconds      int64     `json:"epochSeconds,string"`
@@ -736,7 +743,7 @@ type ServerTimeV3 struct {
 }
 
 // IDResource holds an ID, resource type, and associated data, used in ListNotificationsResponse,
-// TransactionData, DeposWithdrData, PaymentMethodData, and PaymentMethod
+// TransactionData, DeposWithdrData, and PaymentMethodData
 type IDResource struct {
 	ID           string `json:"id"`
 	Resource     string `json:"resource"`
@@ -769,7 +776,7 @@ type PaginationInp struct {
 }
 
 // AmCur is a sub-struct used in ListNotificationsResponse, WalletData, TransactionData,
-// DeposWithdrData, PaymentMethodData, LimitStruct, and PaymentMethod
+// DeposWithdrData, and PaymentMethodData
 type AmCur struct {
 	Amount   float64 `json:"amount,string"`
 	Currency string  `json:"currency"`
@@ -819,13 +826,13 @@ type ListNotificationsResponse struct {
 	} `json:"data"`
 }
 
-// CodeName is a sub-struct holding a code and a name, used in UserResponse and CoinbaseAccounts
+// CodeName is a sub-struct holding a code and a name, used in UserResponse
 type CodeName struct {
 	Code string `json:"code"`
 	Name string `json:"name"`
 }
 
-// UserResponse holds information on a user, returned by GetUserByID, GetCurrentUser, and UpdateUser
+// UserResponse holds information on a user, returned by GetUserByID and GetCurrentUser
 type UserResponse struct {
 	Data struct {
 		ID              string `json:"id"`
@@ -914,8 +921,7 @@ type WalletData struct {
 	AllowWithdrawals bool      `json:"allow_withdrawals"`
 }
 
-// GenWalletResponse holds information on a single wallet, returned by CreateWallet,
-// GetWalletByID, and UpdateWalletName
+// GenWalletResponse holds information on a single wallet, returned by GetWalletByID
 type GenWalletResponse struct {
 	Data WalletData `json:"data"`
 }
@@ -926,8 +932,7 @@ type GetAllWalletsResponse struct {
 	Data       []WalletData   `json:"data"`
 }
 
-// AddressInfo holds an address and a destination tag, used in AddressData, AddAddressRequest,
-// AddAddressResponse, and CryptoAddressResponse
+// AddressInfo holds an address and a destination tag, used in AddressData
 type AddressInfo struct {
 	Address        string `json:"address"`
 	DestinationTag string `json:"destination_tag"`
@@ -1161,8 +1166,8 @@ type ServerTimeV2 struct {
 	} `json:"data"`
 }
 
-// WebsocketSubscribe takes in subscription information
-type WebsocketSubscribe struct {
+// WebsocketRequest is an aspect of constructing a requst to the websocket server, used in sendRequest
+type WebsocketRequest struct {
 	Type       string   `json:"type"`
 	ProductIDs []string `json:"product_ids,omitempty"`
 	Channel    string   `json:"channel,omitempty"`
@@ -1172,52 +1177,7 @@ type WebsocketSubscribe struct {
 	JWT        string   `json:"jwt,omitempty"`
 }
 
-// // WsChannels defines outgoing channels for subscription purposes
-// type WsChannels struct {
-// 	Name       string   `json:"name"`
-// 	ProductIDs []string `json:"product_ids,omitempty"`
-// }
-
-// wsOrderReceived holds websocket received values
-// type wsOrderReceived struct {
-// 	Type          string    `json:"type"`
-// 	OrderID       string    `json:"order_id"`
-// 	OrderType     string    `json:"order_type"`
-// 	Size          float64   `json:"size,string"`
-// 	Price         float64   `json:"price,omitempty,string"`
-// 	Funds         float64   `json:"funds,omitempty,string"`
-// 	Side          string    `json:"side"`
-// 	ClientOID     string    `json:"client_oid"`
-// 	ProductID     string    `json:"product_id"`
-// 	Sequence      int64     `json:"sequence"`
-// 	Time          time.Time `json:"time"`
-// 	RemainingSize float64   `json:"remaining_size,string"`
-// 	NewSize       float64   `json:"new_size,string"`
-// 	OldSize       float64   `json:"old_size,string"`
-// 	Reason        string    `json:"reason"`
-// 	Timestamp     float64   `json:"timestamp,string"`
-// 	UserID        string    `json:"user_id"`
-// 	ProfileID     string    `json:"profile_id"`
-// 	StopType      string    `json:"stop_type"`
-// 	StopPrice     float64   `json:"stop_price,string"`
-// 	TakerFeeRate  float64   `json:"taker_fee_rate,string"`
-// 	Private       bool      `json:"private"`
-// 	TradeID       int64     `json:"trade_id"`
-// 	MakerOrderID  string    `json:"maker_order_id"`
-// 	TakerOrderID  string    `json:"taker_order_id"`
-// 	TakerUserID   string    `json:"taker_user_id"`
-// }
-
-// WebsocketHeartBeat defines JSON response for a heart beat message
-// type WebsocketHeartBeat struct {
-// 	Type        string `json:"type"`
-// 	Sequence    int64  `json:"sequence"`
-// 	LastTradeID int64  `json:"last_trade_id"`
-// 	ProductID   string `json:"product_id"`
-// 	Time        string `json:"time"`
-// }
-
-// WebsocketTicker defines ticker websocket response
+// WebsocketTicker defines a ticker websocket response, used in WebsocketTickerHolder
 type WebsocketTicker struct {
 	Type                     string        `json:"type"`
 	ProductID                currency.Pair `json:"product_id"`
@@ -1230,13 +1190,13 @@ type WebsocketTicker struct {
 	PricePercentageChange24H float64       `json:"price_percent_chg_24_h,string"`
 }
 
-// WebsocketTickerHolder holds a variety of ticker responses
+// WebsocketTickerHolder holds a variety of ticker responses, used when wsHandleData processes tickers
 type WebsocketTickerHolder struct {
 	Type    string            `json:"type"`
 	Tickers []WebsocketTicker `json:"tickers"`
 }
 
-// WebsocketCandle defines a candle websocket response
+// WebsocketCandle defines a candle websocket response, used in WebsocketCandleHolder
 type WebsocketCandle struct {
 	Start     UnixTimestamp `json:"start"`
 	Low       float64       `json:"low,string"`
@@ -1247,13 +1207,13 @@ type WebsocketCandle struct {
 	ProductID currency.Pair `json:"product_id"`
 }
 
-// WebsocketCandleHolder holds a variety of candle responses
+// WebsocketCandleHolder holds a variety of candle responses, used when wsHandleData processes candles
 type WebsocketCandleHolder struct {
 	Type    string            `json:"type"`
 	Candles []WebsocketCandle `json:"candles"`
 }
 
-// WebsocketMarketTrade defines a market trade websocket response
+// WebsocketMarketTrade defines a market trade websocket response, used in WebsocketMarketTradeHolder
 type WebsocketMarketTrade struct {
 	TradeID   string        `json:"trade_id"`
 	ProductID currency.Pair `json:"product_id"`
@@ -1263,13 +1223,14 @@ type WebsocketMarketTrade struct {
 	Time      time.Time     `json:"time"`
 }
 
-// WebsocketMarketTradeHolder holds a variety of market trade responses
+// WebsocketMarketTradeHolder holds a variety of market trade responses, used when wsHandleData
+// processes trades
 type WebsocketMarketTradeHolder struct {
 	Type   string                 `json:"type"`
 	Trades []WebsocketMarketTrade `json:"trades"`
 }
 
-// WebsocketProduct defines a product websocket response
+// WebsocketProduct defines a product websocket response, used in WebsocketProductHolder
 type WebsocketProduct struct {
 	ProductType    string        `json:"product_type"`
 	ID             currency.Pair `json:"id"`
@@ -1283,13 +1244,14 @@ type WebsocketProduct struct {
 	MinMarketFunds float64       `json:"min_market_funds,string"`
 }
 
-// WebsocketProductHolder holds a variety of product responses
+// WebsocketProductHolder holds a variety of product responses, used when wsHandleData processes
+// an update on a product's status
 type WebsocketProductHolder struct {
 	Type     string             `json:"type"`
 	Products []WebsocketProduct `json:"products"`
 }
 
-// WebsocketOrderbookData defines a websocket orderbook response
+// WebsocketOrderbookData defines a websocket orderbook response, used in WebsocketOrderbookDataHolder
 type WebsocketOrderbookData struct {
 	Side        string    `json:"side"`
 	EventTime   time.Time `json:"event_time"`
@@ -1297,14 +1259,15 @@ type WebsocketOrderbookData struct {
 	NewQuantity float64   `json:"new_quantity,string"`
 }
 
-// WebsocketOrderbookDataHolder holds a variety of orderbook responses
+// WebsocketOrderbookDataHolder holds a variety of orderbook responses, used when wsHandleData processes
+// orderbooks, as well as under typical operation of ProcessSnapshot, ProcessUpdate, and processBidAskArray
 type WebsocketOrderbookDataHolder struct {
 	Type      string                   `json:"type"`
 	ProductID currency.Pair            `json:"product_id"`
 	Changes   []WebsocketOrderbookData `json:"updates"`
 }
 
-// WebsocketOrderData defines a websocket order response
+// WebsocketOrderData defines a websocket order response, used in WebsocketOrderDataHolder
 type WebsocketOrderData struct {
 	OrderID            string        `json:"order_id"`
 	ClientOrderID      string        `json:"client_order_id"`
@@ -1319,69 +1282,8 @@ type WebsocketOrderData struct {
 	OrderType          string        `json:"order_type"`
 }
 
-// WebsocketOrderDataHolder holds a variety of order responses
+// WebsocketOrderDataHolder holds a variety of order responses, used when wsHandleData processes orders
 type WebsocketOrderDataHolder struct {
 	Type   string               `json:"type"`
 	Orders []WebsocketOrderData `json:"orders"`
-}
-
-// WebsocketOrderbookSnapshot defines a snapshot response
-// type WebsocketOrderbookSnapshot struct {
-// 	ProductID string      `json:"product_id"`
-// 	Type      string      `json:"type"`
-// 	Bids      [][2]string `json:"bids"`
-// 	Asks      [][2]string `json:"asks"`
-// 	Time      time.Time   `json:"time"`
-// }
-
-// WebsocketL2Update defines an update on the L2 orderbooks
-// type WebsocketL2Update struct {
-// 	Type      string      `json:"type"`
-// 	ProductID string      `json:"product_id"`
-// 	Time      time.Time   `json:"time"`
-// 	Changes   [][3]string `json:"changes"`
-// }
-
-// type wsGen struct {
-// 	Channel     string        `json:"channel"`
-// 	ClientID    string        `json:"client_id"`
-// 	Timestamp   time.Time     `json:"timestamp"`
-// 	SequenceNum uint64        `json:"sequence_num"`
-// 	Events      []interface{} `json:"events"`
-// }
-
-// type wsStatus struct {
-// 	Currencies []struct {
-// 		ConvertibleTo []string    `json:"convertible_to"`
-// 		Details       struct{}    `json:"details"`
-// 		ID            string      `json:"id"`
-// 		MaxPrecision  float64     `json:"max_precision,string"`
-// 		MinSize       float64     `json:"min_size,string"`
-// 		Name          string      `json:"name"`
-// 		Status        string      `json:"status"`
-// 		StatusMessage interface{} `json:"status_message"`
-// 	} `json:"currencies"`
-// 	Products []struct {
-// 		BaseCurrency   string      `json:"base_currency"`
-// 		BaseIncrement  float64     `json:"base_increment,string"`
-// 		BaseMaxSize    float64     `json:"base_max_size,string"`
-// 		BaseMinSize    float64     `json:"base_min_size,string"`
-// 		CancelOnly     bool        `json:"cancel_only"`
-// 		DisplayName    string      `json:"display_name"`
-// 		ID             string      `json:"id"`
-// 		LimitOnly      bool        `json:"limit_only"`
-// 		MaxMarketFunds float64     `json:"max_market_funds,string"`
-// 		MinMarketFunds float64     `json:"min_market_funds,string"`
-// 		PostOnly       bool        `json:"post_only"`
-// 		QuoteCurrency  string      `json:"quote_currency"`
-// 		QuoteIncrement float64     `json:"quote_increment,string"`
-// 		Status         string      `json:"status"`
-// 		StatusMessage  interface{} `json:"status_message"`
-// 	} `json:"products"`
-// 	Type string `json:"type"`
-// }
-
-// Params is used within functions to make the setting of parameters easier
-type Params struct {
-	urlVals url.Values
 }

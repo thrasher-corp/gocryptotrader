@@ -3,7 +3,6 @@ package coinbasepro
 import (
 	"context"
 	"encoding/hex"
-	"errors"
 	"fmt"
 	"strconv"
 	"sync"
@@ -60,10 +59,8 @@ func (c *CoinbasePro) GetDefaultConfig(ctx context.Context) (*config.Exchange, e
 func (c *CoinbasePro) SetDefaults() {
 	c.Name = "CoinbasePro"
 	c.Enabled = true
-	c.Verbose = true
 	c.API.CredentialsValidator.RequiresKey = true
 	c.API.CredentialsValidator.RequiresSecret = true
-	// c.API.CredentialsValidator.RequiresClientID = true
 	c.API.CredentialsValidator.RequiresBase64DecodeSecret = false
 
 	requestFmt := &currency.PairFormat{Delimiter: currency.DashDelimiter, Uppercase: true}
@@ -72,8 +69,6 @@ func (c *CoinbasePro) SetDefaults() {
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
-
-	// c.SetKeyChain(account.Primary, account.Secondary)
 
 	c.Features = exchange.Features{
 		Supports: exchange.FeaturesSupported{
@@ -166,7 +161,6 @@ func (c *CoinbasePro) Setup(exch *config.Exchange) error {
 		return err
 	}
 	if !exch.Enabled {
-		panic("BRUHS")
 		c.SetEnabled(false)
 		return nil
 	}
@@ -194,7 +188,6 @@ func (c *CoinbasePro) Setup(exch *config.Exchange) error {
 		},
 	})
 	if err != nil {
-		fmt.Println("COINBASE ISSUE")
 		return err
 	}
 
@@ -347,7 +340,6 @@ func (c *CoinbasePro) FetchAccountInfo(ctx context.Context, assetType asset.Item
 		return account.Holdings{}, err
 	}
 	acc, err := account.GetHoldings(c.Name, creds, assetType)
-	fmt.Printf("Error: %v\n", err)
 	if err != nil {
 		return c.UpdateAccountInfo(ctx, assetType)
 	}
@@ -504,7 +496,7 @@ func (c *CoinbasePro) GetAccountFundingHistory(ctx context.Context) ([]exchange.
 		return nil, err
 	}
 	if len(wallIDs.Data) == 0 {
-		return nil, errors.New("no wallets returned")
+		return nil, errNoWalletsReturned
 	}
 
 	var accHistory []DeposWithdrData
@@ -549,7 +541,7 @@ func (c *CoinbasePro) GetWithdrawalsHistory(ctx context.Context, cur currency.Co
 		return nil, err
 	}
 	if len(tempWallIDs.Data) == 0 {
-		return nil, errors.New("no wallets returned")
+		return nil, errNoWalletsReturned
 	}
 
 	var wallIDs []string
@@ -1303,7 +1295,8 @@ func (c *CoinbasePro) cancelOrdersReturnMapAndCount(ctx context.Context, o []ord
 	return status, counter, nil
 }
 
-// processFundingData is a helper function for GetAccountFundingHistory and GetWithdrawalsHistory
+// processFundingData is a helper function for GetAccountFundingHistory and GetWithdrawalsHistory,
+// transforming the data returned by the Coinbase API into a format suitable for the exchange package
 func (c *CoinbasePro) processFundingData(accHistory []DeposWithdrData, cryptoHistory []TransactionData) []exchange.FundingHistory {
 	fundingData := make([]exchange.FundingHistory, len(accHistory)+len(cryptoHistory))
 	for i := range accHistory {
@@ -1386,6 +1379,7 @@ func formatExchangeKlineInterval(interval kline.Interval) string {
 }
 
 // getOrderRespToOrderDetail is a helper function used in GetOrderInfo, GetActiveOrders, and GetOrderHistory
+// to convert data returned by the Coinbase API into a format suitable for the exchange package
 func (c *CoinbasePro) getOrderRespToOrderDetail(genOrderDetail *GetOrderResponse, pair currency.Pair, assetItem asset.Item) (*order.Detail, error) {
 	var amount float64
 	var quoteAmount float64
