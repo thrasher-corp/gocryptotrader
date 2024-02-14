@@ -3351,7 +3351,7 @@ func TestWsDepthUpdate(t *testing.T) {
 	defer binanceOrderBookLock.Unlock()
 
 	seedLastUpdateID := int64(161)
-	fetcher := func(ctx context.Context, pair currency.Pair, a asset.Item) (*orderbook.Base, error) {
+	fetcher := func(_ context.Context, pair currency.Pair, a asset.Item) (*orderbook.Base, error) {
 		return &orderbook.Base{
 			Exchange:    b.Name,
 			Pair:        pair,
@@ -3403,9 +3403,8 @@ func TestWsDepthUpdate(t *testing.T) {
 	  ]
 	}}`)
 
-	if err := b.wsHandleData(update1); err != nil {
-		t.Error(err)
-	}
+	err = b.wsHandleData(update1)
+	require.NoError(t, err)
 
 	time.Sleep(time.Millisecond * 100) // Wait until book update is processed in different goroutine
 

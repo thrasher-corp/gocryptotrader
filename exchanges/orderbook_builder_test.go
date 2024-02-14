@@ -24,7 +24,8 @@ func (w *websocketProvider) GetWebsocket() (*stream.Websocket, error) {
 	websocketOfJustice := &stream.Websocket{}
 	websocketOfJustice.DataHandler = make(chan interface{})
 	go func() {
-		for range websocketOfJustice.DataHandler {
+		for {
+			<-websocketOfJustice.DataHandler
 		}
 	}()
 	err := websocketOfJustice.Orderbook.Setup(&config.Exchange{}, &buffer.Config{}, websocketOfJustice.DataHandler)

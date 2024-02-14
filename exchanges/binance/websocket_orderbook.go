@@ -65,7 +65,7 @@ func (b *Binance) GetBuildableBook(ctx context.Context, p currency.Pair, a asset
 	}
 	return &orderbook.Base{
 		Pair:            p,
-		Asset:           asset.Spot,
+		Asset:           a,
 		Exchange:        b.Name,
 		LastUpdateID:    ob.LastUpdateID,
 		VerifyOrderbook: b.CanVerifyOrderbook,

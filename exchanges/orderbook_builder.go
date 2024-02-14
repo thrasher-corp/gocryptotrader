@@ -2,6 +2,7 @@ package exchange
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sync"
 
@@ -24,10 +25,10 @@ const (
 )
 
 var (
-	errShutdownBuilderServices            = fmt.Errorf("orderbook builder services have been shutdown")
-	errOrderbookFetchingFunctionUndefined = fmt.Errorf("orderbook fetching function undefined")
-	errOrderbookCheckingFunctionUndefined = fmt.Errorf("orderbook checking function undefined")
-	errOrderbookUpdateIsNil               = fmt.Errorf("orderbook update is nil")
+	errShutdownBuilderServices            = errors.New("orderbook builder services have been shutdown")
+	errOrderbookFetchingFunctionUndefined = errors.New("orderbook fetching function undefined")
+	errOrderbookCheckingFunctionUndefined = errors.New("orderbook checking function undefined")
+	errOrderbookUpdateIsNil               = errors.New("orderbook update is nil")
 )
 
 // state is an enum that defines the state of the orderbook tracker
