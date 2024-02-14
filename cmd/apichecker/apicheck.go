@@ -550,7 +550,7 @@ func addExch(exchName, checkType string, data interface{}, isUpdate bool) error 
 	}
 	if canUpdateTrello() {
 		if !isUpdate {
-			err := trelloCreateNewCheck(fmt.Sprintf("%s 1", exchName))
+			err := trelloCreateNewCheck(exchName + " 1")
 			if err != nil {
 				return err
 			}
@@ -1187,7 +1187,7 @@ func nameStateChanges(currentName, currentState string) (string, error) {
 		}
 		name = fmt.Sprintf("%s %s", strings.Split(currentName, " ")[0], strings.Split(currentName, " ")[1])
 		if !exists {
-			return fmt.Sprintf("%s 1", name), nil
+			return name + " 1", nil
 		}
 		num, err = strconv.ParseInt(strings.Split(currentName, " ")[2], 10, 64)
 		if err != nil {
@@ -1198,7 +1198,7 @@ func nameStateChanges(currentName, currentState string) (string, error) {
 			exists = true
 			name = strings.Split(currentName, " ")[0]
 			if !exists {
-				return fmt.Sprintf("%s 1", name), nil
+				return name + " 1", nil
 			}
 			num, err = strconv.ParseInt(strings.Split(currentName, " ")[1], 10, 64)
 			if err != nil {
@@ -1206,7 +1206,7 @@ func nameStateChanges(currentName, currentState string) (string, error) {
 			}
 		}
 		if !exists {
-			return fmt.Sprintf("%s 1", name), nil
+			return name + " 1", nil
 		}
 	}
 
