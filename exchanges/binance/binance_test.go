@@ -1023,7 +1023,56 @@ func TestGetTradeFees(t *testing.T) {
 func TestUserUniversalTransfer(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
-	_, err := b.UserUniversalTransfer(context.Background(), "MAIN_UMFUTURE", 123.234, currency.BTC, "", "")
+	_, err := b.UserUniversalTransfer(context.Background(), MAIN_UMFUTURE, 123.234, currency.BTC, "", "")
+	assert.NoError(t, err)
+}
+
+func TestGetUserUniversalTransferHistory(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	_, err := b.GetUserUniversalTransferHistory(context.Background(), UMFUTURE_MARGIN, time.Time{}, time.Time{}, 0, 1234.56, "BTC", "USDT")
+	assert.NoError(t, err)
+}
+
+func TestGetFundingAssets(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	_, err := b.GetFundingAssets(context.Background(), currency.BTC, true)
+	assert.NoError(t, err)
+}
+
+func TestGetUserAssets(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	_, err := b.GetUserAssets(context.Background(), currency.BTC, true)
+	assert.NoError(t, err)
+}
+
+func TestConvertBUSD(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	_, err := b.ConvertBUSD(context.Background(), "12321412312", "MAIN", currency.ETH, currency.USD, 1234)
+	assert.NoError(t, err)
+}
+
+func TestBUSDConvertHistory(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	_, err := b.BUSDConvertHistory(context.Background(), "transaction-id", "233423423", "CARD", currency.BTC, currency.USD, 123)
+	assert.NoError(t, err)
+}
+
+func TestGetCloudMiningPaymentAndRefundHistory(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	_, err := b.GetCloudMiningPaymentAndRefundHistory(context.Background(), 0, 0, "1234", currency.BTC, time.Time{}, time.Now(), 0)
+	assert.NoError(t, err)
+}
+
+func TestGetAPIKeyPermission(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	_, err := b.GetAPIKeyPermission(context.Background())
 	assert.NoError(t, err)
 }
 

@@ -1097,7 +1097,7 @@ func (b *Binance) UAccountForcedOrders(ctx context.Context, symbol currency.Pair
 // GetPerpMarkets returns exchange information. Check binance_types for more information
 func (b *Binance) GetPerpMarkets(ctx context.Context) (PerpsExchangeInfo, error) {
 	var resp PerpsExchangeInfo
-	return resp, b.SendHTTPRequest(ctx, exchange.RestUSDTMargined, perpExchangeInfo, uFuturesDefaultRate, &resp)
+	return resp, b.SendHTTPRequest(ctx, exchange.RestUSDTMargined, "/fapi/v1/exchangeInfo", uFuturesDefaultRate, &resp)
 }
 
 // FetchUSDTMarginExchangeLimits fetches USDT margined order execution limits

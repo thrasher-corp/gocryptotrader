@@ -53,6 +53,152 @@ const (
 	markPriceKlineCFuturesChan  = "@markPriceKline"
 )
 
+// TransferTypes represents asset transfer typess
+type TransferTypes uint8
+
+const (
+	MAIN_UMFUTURE TransferTypes = iota
+	MAIN_CMFUTURE
+	MAIN_MARGIN
+	UMFUTURE_MAIN
+	UMFUTURE_MARGIN
+	CMFUTURE_MAIN
+	CMFUTURE_MARGIN
+	MARGIN_MAIN
+	MARGIN_UMFUTURE
+	MARGIN_CMFUTURE
+	ISOLATEDMARGIN_MARGIN
+	MARGIN_ISOLATEDMARGIN
+	ISOLATEDMARGIN_ISOLATEDMARGIN
+	MAIN_FUNDING
+	FUNDING_MAIN
+	FUNDING_UMFUTURE
+	UMFUTURE_FUNDING
+	MARGIN_FUNDING
+	FUNDING_MARGIN
+	FUNDING_CMFUTURE
+	CMFUTURE_FUNDING
+	MAIN_OPTION
+	OPTION_MAIN
+	UMFUTURE_OPTION
+	OPTION_UMFUTURE
+	MARGIN_OPTION
+	OPTION_MARGIN
+	FUNDING_OPTION
+	OPTION_FUNDING
+	MAIN_PORTFOLIO_MARGIN
+	PORTFOLIO_MARGIN_MAIN
+	MAIN_ISOLATED_MARGIN
+	ISOLATED_MARGIN_MAIN
+)
+
+// String returns a string representation of transfer type
+func (a TransferTypes) String() string {
+	switch a {
+	case MAIN_UMFUTURE:
+		// Spot account transfer to USDⓈ-M Futures account
+		return "MAIN_UMFUTURE"
+	case MAIN_CMFUTURE:
+		// Spot account transfer to COIN-M Futures account
+		return "MAIN_CMFUTURE"
+	case MAIN_MARGIN:
+		// Spot account transfer to Margin（cross）account
+		return "MAIN_MARGIN"
+	case UMFUTURE_MAIN:
+		// USDⓈ-M Futures account transfer to Spot account
+		return "UMFUTURE_MAIN"
+	case UMFUTURE_MARGIN:
+		// USDⓈ-M Futures account transfer to Margin（cross）account
+		return "UMFUTURE_MARGIN"
+	case CMFUTURE_MAIN:
+		// COIN-M Futures account transfer to Spot account
+		return "CMFUTURE_MAIN"
+	case CMFUTURE_MARGIN:
+		// COIN-M Futures account transfer to Margin(cross) account
+		return "CMFUTURE_MARGIN"
+	case MARGIN_MAIN:
+		// Margin（cross）account transfer to Spot account
+		return "MARGIN_MAIN"
+	case MARGIN_UMFUTURE:
+		// Margin（cross）account transfer to USDⓈ-M Futures
+		return "MARGIN_UMFUTURE"
+	case MARGIN_CMFUTURE:
+		// Margin（cross）account transfer to COIN-M Futures
+		return "MARGIN_CMFUTURE"
+	case ISOLATEDMARGIN_MARGIN:
+		// Isolated margin account transfer to Margin(cross) account
+		return "ISOLATEDMARGIN_MARGIN"
+	case MARGIN_ISOLATEDMARGIN:
+		// Margin(cross) account transfer to Isolated margin account
+		return "MARGIN_ISOLATEDMARGIN"
+	case ISOLATEDMARGIN_ISOLATEDMARGIN:
+		// Isolated margin account transfer to Isolated margin account
+		return "ISOLATEDMARGIN_ISOLATEDMARGIN"
+	case MAIN_FUNDING:
+		// Spot account transfer to Funding account
+		return "MAIN_FUNDING"
+	case FUNDING_MAIN:
+		// Funding account transfer to Spot account
+		return "FUNDING_MAIN"
+	case FUNDING_UMFUTURE:
+		// Funding account transfer to UMFUTURE account
+		return "FUNDING_UMFUTURE"
+	case UMFUTURE_FUNDING:
+		// UMFUTURE account transfer to Funding account
+		return "UMFUTURE_FUNDING"
+	case MARGIN_FUNDING:
+		// MARGIN account transfer to Funding account
+		return "MARGIN_FUNDING"
+	case FUNDING_MARGIN:
+		// Funding account transfer to Margin account
+		return "FUNDING_MARGIN"
+	case FUNDING_CMFUTURE:
+		// Funding account transfer to CMFUTURE account
+		return "FUNDING_CMFUTURE"
+	case CMFUTURE_FUNDING:
+		// CMFUTURE account transfer to Funding account
+		return "CMFUTURE_FUNDING"
+	case MAIN_OPTION:
+		// Spot account transfer to Options account
+		return "MAIN_OPTION"
+	case OPTION_MAIN:
+		// Options account transfer to Spot account
+		return "OPTION_MAIN"
+	case UMFUTURE_OPTION:
+		// USDⓈ-M Futures account transfer to Options account
+		return "UMFUTURE_OPTION"
+	case OPTION_UMFUTURE:
+		// Options account transfer to USDⓈ-M Futures account
+		return "OPTION_UMFUTURE"
+	case MARGIN_OPTION:
+		// Margin（cross）account transfer to Options account
+		return "MARGIN_OPTION"
+	case OPTION_MARGIN:
+		// Options account transfer to Margin（cross）account
+		return "OPTION_MARGIN"
+	case FUNDING_OPTION:
+		// Funding account transfer to Options account
+		return "FUNDING_OPTION"
+	case OPTION_FUNDING:
+		// Options account transfer to Funding account
+		return "OPTION_FUNDING"
+	case MAIN_PORTFOLIO_MARGIN:
+		// Spot account transfer to Portfolio Margin account
+		return "MAIN_PORTFOLIO_MARGIN"
+	case PORTFOLIO_MARGIN_MAIN:
+		// Portfolio Margin account transfer to Spot account
+		return "PORTFOLIO_MARGIN_MAIN"
+	case MAIN_ISOLATED_MARGIN:
+		// Spot account transfer to Isolated margin account
+		return "MAIN_ISOLATED_MARGIN"
+	case ISOLATED_MARGIN_MAIN:
+		// Isolated margin account transfer to Spot account
+		return "ISOLATED_MARGIN_MAIN"
+	default:
+		return ""
+	}
+}
+
 type filterType string
 
 const (
@@ -897,6 +1043,83 @@ type TradeFee struct {
 	Symbol          string       `json:"symbol"`
 	MakerCommission types.Number `json:"makerCommission"`
 	TakerCommission types.Number `json:"takerCommission"`
+}
+
+// UniversalTransferHistory query user universal transfer history
+type UniversalTransferHistory struct {
+	Total int64          `json:"total"`
+	Rows  []TransferItem `json:"rows"`
+}
+
+// TransferItem represents a universal transfer information
+type TransferItem struct {
+	Asset     string               `json:"asset"`
+	Amount    types.Number         `json:"amount"`
+	Type      string               `json:"type"`
+	Status    string               `json:"status"`
+	TranID    int64                `json:"tranId"`
+	Timestamp convert.ExchangeTime `json:"timestamp"`
+}
+
+// FundingAsset represents a funding asset
+type FundingAsset struct {
+	Asset        string       `json:"asset"`
+	Free         types.Number `json:"free"`
+	Locked       types.Number `json:"locked"`
+	Freeze       types.Number `json:"freeze"`
+	Withdrawing  string       `json:"withdrawing"`
+	IPoable      string       `json:"ipoable"`
+	BtcValuation string       `json:"btcValuation"`
+}
+
+// AssetConverResponse represents a response after converting a BUSD
+type AssetConverResponse struct {
+	TransactionID string `json:"tranId"`
+	Status        string `json:"status"`
+}
+
+// BUSDConvertHistory represents a BUSD conversion history
+type BUSDConvertHistory struct {
+	Total int `json:"total"`
+	Rows  []struct {
+		TranID         int64                `json:"tranId"`
+		Type           int64                `json:"type"`
+		Time           convert.ExchangeTime `json:"time"`
+		DeductedAsset  string               `json:"deductedAsset"`
+		DeductedAmount types.Number         `json:"deductedAmount"`
+		TargetAsset    string               `json:"targetAsset"`
+		TargetAmount   types.Number         `json:"targetAmount"`
+		Status         string               `json:"status"`
+		AccountType    string               `json:"accountType"`
+	} `json:"rows"`
+}
+
+// CloudMiningPR cloud-mining payment and refund history
+type CloudMiningPR struct {
+	Total int64 `json:"total"`
+	Rows  []struct {
+		CreateTime convert.ExchangeTime `json:"createTime"`
+		TranID     int64                `json:"tranId"`
+		Type       int64                `json:"type"`
+		Asset      string               `json:"asset"`
+		Amount     types.Number         `json:"amount"`
+		Status     string               `json:"status"`
+	} `json:"rows"`
+}
+
+// APIKeyPermissions represents the API key permissions
+type APIKeyPermissions struct {
+	IPRestrict                   bool                 `json:"ipRestrict"`
+	CreateTime                   convert.ExchangeTime `json:"createTime"`
+	EnableInternalTransfer       bool                 `json:"enableInternalTransfer"`
+	EnableFutures                bool                 `json:"enableFutures"`
+	EnablePortfolioMarginTrading bool                 `json:"enablePortfolioMarginTrading"`
+	EnableVanillaOptions         bool                 `json:"enableVanillaOptions"`
+	PermitsUniversalTransfer     bool                 `json:"permitsUniversalTransfer"`
+	EnableReading                bool                 `json:"enableReading"`
+	EnableSpotAndMarginTrading   bool                 `json:"enableSpotAndMarginTrading"`
+	EnableWithdrawals            bool                 `json:"enableWithdrawals"`
+	EnableMargin                 bool                 `json:"enableMargin"`
 }
 
 // UserAccountStream contains a key to maintain an authorised

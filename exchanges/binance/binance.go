@@ -48,55 +48,8 @@ const (
 	testnetSpotURL = "https://testnet.binance.vision/api"
 	testnetFutures = "https://testnet.binancefuture.com"
 
-	// Public endpoints
-	exchangeTime      = "/api/v3/time"
-	exchangeInfo      = "/api/v3/exchangeInfo"
-	orderBookDepth    = "/api/v3/depth"
-	recentTrades      = "/api/v3/trades"
-	aggregatedTrades  = "/api/v3/aggTrades"
-	candleStick       = "/api/v3/klines"
-	uiKline           = "/api/v3/uiKlines"
-	averagePrice      = "/api/v3/avgPrice"
-	priceChange       = "/api/v3/ticker/24hr"
-	tradingDayTicker  = "/api/v3/ticker/tradingDay"
-	symbolPrice       = "/api/v3/ticker/price"
-	bestPrice         = "/api/v3/ticker/bookTicker"
-	tickersPath       = "/api/v3/ticker"
-	userAccountStream = "/api/v3/userDataStream"
-	perpExchangeInfo  = "/fapi/v1/exchangeInfo"
-	historicalTrades  = "/api/v3/historicalTrades"
-
-	// Margin endpoints
-	marginInterestHistory = "/sapi/v1/margin/interestHistory"
-
-	// Authenticated endpoints
-	newOrderTest      = "/api/v3/order/test"
-	orderEndpoint     = "/api/v3/order"
-	openOrders        = "/api/v3/openOrders"
-	allOrders         = "/api/v3/allOrders"
-	accountInfo       = "/api/v3/account"
-	marginAccountInfo = "/sapi/v1/margin/account"
-
 	// Wallet endpoints
-	systemStatus                = "/sapi/v1/system/status"
-	allCoinsInfo                = "/sapi/v1/capital/config/getall"
-	accountSnapshot             = "/sapi/v1/accountSnapshot"
-	disableFastWithdrawalSwitch = "/sapi/v1/account/disableFastWithdrawSwitch"
-	enableFastWithdrawalSwitch  = "/sapi/v1/account/enableFastWithdrawSwitch"
-	withdrawEndpoint            = "/sapi/v1/capital/withdraw/apply"
-	depositHistory              = "/sapi/v1/capital/deposit/hisrec"
-	withdrawHistory             = "/sapi/v1/capital/withdraw/history"
-	depositAddress              = "/sapi/v1/capital/deposit/address"
-	assetDustBTC                = "/sapi/v1/asset/dust-btc"
-	assetDusts                  = "/sapi/v1/asset/dust"
-	assetDividendRecord         = "/sapi/v1/asset/assetDividend"
-	assetDetail                 = "/sapi/v1/asset/assetDetail"
-	assetTransfer               = "/sapi/v1/asset/transfer"
-
-	// Account endpoints
-	accountStatus           = "/sapi/v1/account/status"
-	accountAPITradingStatus = "/sapi/v1/account/apiTradingStatus"
-	dustAssetsLog           = "/sapi/v1/asset/dribblet"
+	assetTransfer = "/sapi/v1/asset/transfer"
 
 	// Crypto loan endpoints
 	loanIncomeHistory            = "/sapi/v1/loan/income"
@@ -151,7 +104,7 @@ func (b *Binance) GetExchangeServerTime(ctx context.Context) (time.Time, error) 
 	resp := &struct {
 		ServerTime convert.ExchangeTime `json:"serverTime"`
 	}{}
-	return resp.ServerTime.Time(), b.SendHTTPRequest(ctx, exchange.RestSpot, exchangeTime, spotExchangeInfo, resp)
+	return resp.ServerTime.Time(), b.SendHTTPRequest(ctx, exchange.RestSpot, "/api/v3/time", spotExchangeInfo, resp)
 }
 
 // GetExchangeInfo returns exchange information. Check binance_types for more
@@ -159,7 +112,7 @@ func (b *Binance) GetExchangeServerTime(ctx context.Context) (time.Time, error) 
 func (b *Binance) GetExchangeInfo(ctx context.Context) (ExchangeInfo, error) {
 	var resp ExchangeInfo
 	return resp, b.SendHTTPRequest(ctx,
-		exchange.RestSpotSupplementary, exchangeInfo, spotExchangeInfo, &resp)
+		exchange.RestSpotSupplementary, "/api/v3/exchangeInfo", spotExchangeInfo, &resp)
 }
 
 // GetOrderBook returns full orderbook information
@@ -183,7 +136,7 @@ func (b *Binance) GetOrderBook(ctx context.Context, obd OrderBookDataRequestPara
 	var resp OrderBookData
 	if err := b.SendHTTPRequest(ctx,
 		exchange.RestSpotSupplementary,
-		orderBookDepth+"?"+params.Encode(),
+		"/api/v3/depth?"+params.Encode(),
 		orderbookLimit(obd.Limit), &resp); err != nil {
 		return nil, err
 	}
@@ -219,7 +172,7 @@ func (b *Binance) GetMostRecentTrades(ctx context.Context, rtr RecentTradeReques
 	params.Set("symbol", symbol)
 	params.Set("limit", fmt.Sprintf("%d", rtr.Limit))
 
-	path := recentTrades + "?" + params.Encode()
+	path := "/api/v3/trades?" + params.Encode()
 
 	var resp []RecentTrade
 	return resp, b.SendHTTPRequest(ctx,
@@ -241,10 +194,8 @@ func (b *Binance) GetHistoricalTrades(ctx context.Context, symbol string, limit 
 	if fromID > 0 {
 		params.Set("fromId", fmt.Sprintf("%d", fromID))
 	}
-
-	path := historicalTrades + "?" + params.Encode()
 	return resp,
-		b.SendAPIKeyHTTPRequest(ctx, exchange.RestSpotSupplementary, path, spotDefaultRate, &resp)
+		b.SendAPIKeyHTTPRequest(ctx, exchange.RestSpotSupplementary, common.EncodeURLValues("/api/v3/historicalTrades", params), spotDefaultRate, &resp)
 }
 
 // GetUserMarginInterestHistory returns margin interest history for the user
@@ -277,9 +228,8 @@ func (b *Binance) GetUserMarginInterestHistory(ctx context.Context, assetCurrenc
 		params.Set("archived", "true")
 	}
 
-	path := marginInterestHistory + "?" + params.Encode()
 	var resp UserMarginInterestHistoryResponse
-	return &resp, b.SendAPIKeyHTTPRequest(ctx, exchange.RestSpotSupplementary, path, spotDefaultRate, &resp)
+	return &resp, b.SendAPIKeyHTTPRequest(ctx, exchange.RestSpotSupplementary, common.EncodeURLValues("/sapi/v1/margin/interestHistory", params), spotDefaultRate, &resp)
 }
 
 // GetAggregatedTrades returns aggregated trade activity.
@@ -322,7 +272,7 @@ func (b *Binance) GetAggregatedTrades(ctx context.Context, arg *AggregatedTradeR
 		return nil, errors.New("please set StartTime or FromId, but not both")
 	}
 	var resp []AggregatedTrade
-	path := aggregatedTrades + "?" + params.Encode()
+	path := "/api/v3/aggTrades?" + params.Encode()
 	return resp, b.SendHTTPRequest(ctx,
 		exchange.RestSpotSupplementary, path, spotDefaultRate, &resp)
 }
@@ -352,7 +302,7 @@ func (b *Binance) batchAggregateTrades(ctx context.Context, arg *AggregatedTrade
 			}
 			params.Set("startTime", timeString(start))
 			params.Set("endTime", timeString(start.Add(increment)))
-			path := aggregatedTrades + "?" + params.Encode()
+			path := "/api/v3/aggTrades?" + params.Encode()
 			err := b.SendHTTPRequest(ctx,
 				exchange.RestSpotSupplementary, path, spotDefaultRate, &resp)
 			if err != nil {
@@ -369,7 +319,7 @@ func (b *Binance) batchAggregateTrades(ctx context.Context, arg *AggregatedTrade
 	for ; arg.Limit == 0 || len(resp) < arg.Limit; fromID = resp[len(resp)-1].ATradeID {
 		// Keep requesting new data after last retrieved trade
 		params.Set("fromId", strconv.FormatInt(fromID, 10))
-		path := aggregatedTrades + "?" + params.Encode()
+		path := "/api/v3/aggTrades?" + params.Encode()
 		var additionalTrades []AggregatedTrade
 		err := b.SendHTTPRequest(ctx,
 			exchange.RestSpotSupplementary,
@@ -410,12 +360,12 @@ func (b *Binance) batchAggregateTrades(ctx context.Context, arg *AggregatedTrade
 // startTime: startTime filter for kline data
 // endTime: endTime filter for the kline data
 func (b *Binance) GetSpotKline(ctx context.Context, arg *KlinesRequestParams) ([]CandleStick, error) {
-	return b.retrieveSpotKline(ctx, arg, candleStick)
+	return b.retrieveSpotKline(ctx, arg, "/api/v3/klines")
 }
 
 // GetUIKline return modified kline data, optimized for presentation of candlestick charts.
 func (b *Binance) GetUIKline(ctx context.Context, arg *KlinesRequestParams) ([]CandleStick, error) {
-	return b.retrieveSpotKline(ctx, arg, uiKline)
+	return b.retrieveSpotKline(ctx, arg, "/api/v3/uiKlines")
 }
 
 func (b *Binance) retrieveSpotKline(ctx context.Context, arg *KlinesRequestParams, urlPath string) ([]CandleStick, error) {
@@ -481,7 +431,7 @@ func (b *Binance) GetAveragePrice(ctx context.Context, symbol currency.Pair) (Av
 	}
 	params.Set("symbol", symbolValue)
 
-	path := averagePrice + "?" + params.Encode()
+	path := "/api/v3/avgPrice?" + params.Encode()
 
 	return resp, b.SendHTTPRequest(ctx,
 		exchange.RestSpotSupplementary, path, spotDefaultRate, &resp)
@@ -502,7 +452,7 @@ func (b *Binance) GetPriceChangeStats(ctx context.Context, symbol currency.Pair)
 		}
 		params.Set("symbol", symbolValue)
 	}
-	path := priceChange + "?" + params.Encode()
+	path := "/api/v3/ticker/24hr?" + params.Encode()
 
 	return resp, b.SendHTTPRequest(ctx,
 		exchange.RestSpotSupplementary, path, rateLimit, &resp)
@@ -512,7 +462,7 @@ func (b *Binance) GetPriceChangeStats(ctx context.Context, symbol currency.Pair)
 func (b *Binance) GetTickers(ctx context.Context) ([]PriceChangeStats, error) {
 	var resp []PriceChangeStats
 	return resp, b.SendHTTPRequest(ctx,
-		exchange.RestSpotSupplementary, priceChange, spotPriceChangeAllRate, &resp)
+		exchange.RestSpotSupplementary, "/api/v3/ticker/24hr", spotPriceChangeAllRate, &resp)
 }
 
 // GetTradingDayTicker retrieves the price change statistics for the trading day
@@ -536,7 +486,7 @@ func (b *Binance) GetTradingDayTicker(ctx context.Context, symbols currency.Pair
 		params.Set("type", tickerType)
 	}
 	var resp PriceChangesWrapper
-	return resp, b.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, common.EncodeURLValues(tradingDayTicker, params), spotPriceChangeAllRate, &resp)
+	return resp, b.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, common.EncodeURLValues("/api/v3/ticker/tradingDay", params), spotPriceChangeAllRate, &resp)
 }
 
 // GetLatestSpotPrice returns latest spot price of symbol
@@ -554,7 +504,7 @@ func (b *Binance) GetLatestSpotPrice(ctx context.Context, symbol currency.Pair) 
 		}
 		params.Set("symbol", symbolValue)
 	}
-	path := symbolPrice + "?" + params.Encode()
+	path := "/api/v3/ticker/price?" + params.Encode()
 
 	return resp,
 		b.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, path, rateLimit, &resp)
@@ -575,7 +525,7 @@ func (b *Binance) GetBestPrice(ctx context.Context, symbol currency.Pair) (BestP
 		}
 		params.Set("symbol", symbolValue)
 	}
-	path := bestPrice + "?" + params.Encode()
+	path := "/api/v3/ticker/bookTicker?" + params.Encode()
 
 	return resp,
 		b.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, path, rateLimit, &resp)
@@ -605,13 +555,13 @@ func (b *Binance) GetTickerData(ctx context.Context, symbols currency.Pairs, win
 		params.Set("type", tickerType)
 	}
 	var resp PriceChangesWrapper
-	return resp, b.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues(tickersPath, params), spotDefaultRate, &resp)
+	return resp, b.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues("/api/v3/ticker", params), spotDefaultRate, &resp)
 }
 
 // NewOrder sends a new order to Binance
 func (b *Binance) NewOrder(ctx context.Context, o *NewOrderRequest) (NewOrderResponse, error) {
 	var resp NewOrderResponse
-	if err := b.newOrder(ctx, orderEndpoint, o, &resp); err != nil {
+	if err := b.newOrder(ctx, "/api/v3/order", o, &resp); err != nil {
 		return resp, err
 	}
 
@@ -625,7 +575,7 @@ func (b *Binance) NewOrder(ctx context.Context, o *NewOrderRequest) (NewOrderRes
 // NewOrderTest sends a new test order to Binance
 func (b *Binance) NewOrderTest(ctx context.Context, o *NewOrderRequest) error {
 	var resp NewOrderResponse
-	return b.newOrder(ctx, newOrderTest, o, &resp)
+	return b.newOrder(ctx, "/api/v3/order/test", o, &resp)
 }
 
 func (b *Binance) newOrder(ctx context.Context, api string, o *NewOrderRequest, resp *NewOrderResponse) error {
@@ -685,7 +635,7 @@ func (b *Binance) CancelExistingOrder(ctx context.Context, symbol currency.Pair,
 	if origClientOrderID != "" {
 		params.Set("origClientOrderId", origClientOrderID)
 	}
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodDelete, orderEndpoint, params, spotOrderRate, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodDelete, "/api/v3/order", params, spotOrderRate, &resp)
 }
 
 // OpenOrders Current open orders. Get all open orders on a symbol.
@@ -710,7 +660,7 @@ func (b *Binance) OpenOrders(ctx context.Context, pair currency.Pair) ([]TradeOr
 	if err := b.SendAuthHTTPRequest(ctx,
 		exchange.RestSpotSupplementary,
 		http.MethodGet,
-		openOrders,
+		"/api/v3/openOrders",
 		params,
 		openOrdersLimit(p),
 		&resp); err != nil {
@@ -741,7 +691,7 @@ func (b *Binance) AllOrders(ctx context.Context, symbol currency.Pair, orderID, 
 	if err := b.SendAuthHTTPRequest(ctx,
 		exchange.RestSpotSupplementary,
 		http.MethodGet,
-		allOrders,
+		"/api/v3/allOrders",
 		params,
 		spotAllOrdersRate,
 		&resp); err != nil {
@@ -768,7 +718,7 @@ func (b *Binance) QueryOrder(ctx context.Context, symbol currency.Pair, origClie
 
 	if err := b.SendAuthHTTPRequest(ctx,
 		exchange.RestSpotSupplementary,
-		http.MethodGet, orderEndpoint,
+		http.MethodGet, "/api/v3/order",
 		params, spotOrderQueryRate,
 		&resp); err != nil {
 		return resp, err
@@ -792,7 +742,7 @@ func (b *Binance) GetAccount(ctx context.Context) (*Account, error) {
 
 	if err := b.SendAuthHTTPRequest(ctx,
 		exchange.RestSpotSupplementary,
-		http.MethodGet, accountInfo,
+		http.MethodGet, "/api/v3/account",
 		params, spotAccountInformationRate,
 		&resp); err != nil {
 		return &resp.Account, err
@@ -812,7 +762,7 @@ func (b *Binance) GetMarginAccount(ctx context.Context) (*MarginAccount, error) 
 
 	if err := b.SendAuthHTTPRequest(ctx,
 		exchange.RestSpotSupplementary,
-		http.MethodGet, marginAccountInfo,
+		http.MethodGet, "/sapi/v1/margin/account",
 		params, spotAccountInformationRate,
 		&resp); err != nil {
 		return &resp, err
@@ -1007,7 +957,7 @@ func getCryptocurrencyWithdrawalFee(c currency.Code) float64 {
 // "normal", "system_maintenance"
 func (b *Binance) GetSystemStatus(ctx context.Context) (*SystemStatus, error) {
 	var resp *SystemStatus
-	return resp, b.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, systemStatus, walletSystemStatus, &resp)
+	return resp, b.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, "/sapi/v1/system/status", walletSystemStatus, &resp)
 }
 
 // GetAllCoinsInfo returns details about all supported coins(available for deposit and withdraw)
@@ -1016,7 +966,7 @@ func (b *Binance) GetAllCoinsInfo(ctx context.Context) ([]CoinInfo, error) {
 	if err := b.SendAuthHTTPRequest(ctx,
 		exchange.RestSpotSupplementary,
 		http.MethodGet,
-		allCoinsInfo,
+		"/sapi/v1/capital/config/getall",
 		nil,
 		spotDefaultRate,
 		&resp); err != nil {
@@ -1042,19 +992,19 @@ func (b *Binance) GetDailyAccountSnapshot(ctx context.Context, tradeType string,
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	var resp *DailyAccountSnapshot
-	return resp, b.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues(accountSnapshot, params), spotDefaultRate, &resp)
+	return resp, b.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues("/sapi/v1/accountSnapshot", params), spotDefaultRate, &resp)
 }
 
 // DisableFastWithdrawalSwitch disables fast withdrawal switch
 // This request will disable fastwithdraw switch under your account.
 // You need to enable "trade" option for the api key which requests this endpoint.
 func (b *Binance) DisableFastWithdrawalSwitch(ctx context.Context) error {
-	return b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, disableFastWithdrawalSwitch, nil, spotDefaultRate, &struct{}{})
+	return b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/sapi/v1/account/disableFastWithdrawSwitch", nil, spotDefaultRate, &struct{}{})
 }
 
 // EnableFastWithdrawalSwitch enable fastwithdraw switch under your account.
 func (b *Binance) EnableFastWithdrawalSwitch(ctx context.Context) error {
-	return b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, enableFastWithdrawalSwitch, nil, spotDefaultRate, &struct{}{})
+	return b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/sapi/v1/account/enableFastWithdrawSwitch", nil, spotDefaultRate, &struct{}{})
 }
 
 // WithdrawCrypto sends cryptocurrency to the address of your choosing
@@ -1089,7 +1039,7 @@ func (b *Binance) WithdrawCrypto(ctx context.Context, cryptoAsset, withdrawOrder
 	if err := b.SendAuthHTTPRequest(ctx,
 		exchange.RestSpotSupplementary,
 		http.MethodPost,
-		withdrawEndpoint,
+		"/sapi/v1/capital/withdraw/apply",
 		params,
 		spotDefaultRate,
 		&resp); err != nil {
@@ -1147,7 +1097,7 @@ func (b *Binance) DepositHistory(ctx context.Context, c currency.Code, status st
 	if err := b.SendAuthHTTPRequest(ctx,
 		exchange.RestSpotSupplementary,
 		http.MethodGet,
-		depositHistory,
+		"/sapi/v1/capital/deposit/hisrec",
 		params,
 		spotDefaultRate,
 		&response); err != nil {
@@ -1200,7 +1150,7 @@ func (b *Binance) WithdrawHistory(ctx context.Context, c currency.Code, status s
 	if err := b.SendAuthHTTPRequest(ctx,
 		exchange.RestSpotSupplementary,
 		http.MethodGet,
-		withdrawHistory,
+		"/sapi/v1/capital/withdraw/history",
 		params,
 		spotDefaultRate,
 		&withdrawStatus); err != nil {
@@ -1220,7 +1170,7 @@ func (b *Binance) GetDepositAddressForCurrency(ctx context.Context, currency, ch
 	params.Set("recvWindow", "10000")
 	var d DepositAddress
 	return &d,
-		b.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, depositAddress, params, spotDefaultRate, &d)
+		b.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, "/sapi/v1/capital/deposit/address", params, spotDefaultRate, &d)
 }
 
 // GetAssetsThatCanBeConvertedIntoBNB retrieves assets that can be converted into BNB
@@ -1230,7 +1180,7 @@ func (b *Binance) GetAssetsThatCanBeConvertedIntoBNB(ctx context.Context, accoun
 		params.Set("accountType", accountType)
 	}
 	var resp *AssetsDust
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, assetDustBTC, params, spotDefaultRate, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/sapi/v1/asset/dust-btc", params, spotDefaultRate, &resp)
 }
 
 // DustTransfer convert dust assets to BNB.
@@ -1244,7 +1194,7 @@ func (b *Binance) DustTransfer(ctx context.Context, assets []string, accountType
 		params.Set("accountType", accountType)
 	}
 	var resp *Dusts
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, assetDusts, params, spotDefaultRate, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/sapi/v1/asset/dust", params, spotDefaultRate, &resp)
 }
 
 // GetAssetDevidendRecords query asset dividend record.
@@ -1264,7 +1214,7 @@ func (b *Binance) GetAssetDevidendRecords(ctx context.Context, asset currency.Co
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	var resp *AssetDividendRecord
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, assetDividendRecord, params, spotDefaultRate, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/asset/assetDividend", params, spotDefaultRate, &resp)
 }
 
 // GetAssetDetail fetches details of assets supported on Binance
@@ -1274,7 +1224,7 @@ func (b *Binance) GetAssetDetail(ctx context.Context, asset currency.Code) (map[
 		params.Set("asset", asset.String())
 	}
 	var resp map[string]DividendAsset
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, assetDetail, params, spotDefaultRate, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/asset/assetDetail", params, spotDefaultRate, &resp)
 }
 
 // GetTradeFees fetch trade fee
@@ -1291,8 +1241,8 @@ func (b *Binance) GetTradeFees(ctx context.Context, symbol currency.Pair) ([]Tra
 // You need to enable Permits Universal Transfer option for the API Key which requests this endpoint.
 // fromSymbol must be sent when type are ISOLATEDMARGIN_MARGIN and ISOLATEDMARGIN_ISOLATEDMARGIN
 // toSymbol must be sent when type are MARGIN_ISOLATEDMARGIN and ISOLATEDMARGIN_ISOLATEDMARGIN
-func (b *Binance) UserUniversalTransfer(ctx context.Context, transferType string, amount float64, asset currency.Code, fromSymbol, toSymbol string) (string, error) {
-	if transferType == "" {
+func (b *Binance) UserUniversalTransfer(ctx context.Context, transferType TransferTypes, amount float64, asset currency.Code, fromSymbol, toSymbol string) (string, error) {
+	if transferType == 0 {
 		return "", errors.New("transfer type is required")
 	}
 	if asset.IsEmpty() {
@@ -1303,7 +1253,7 @@ func (b *Binance) UserUniversalTransfer(ctx context.Context, transferType string
 	}
 	params := url.Values{}
 	params.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
-	params.Set("type", transferType)
+	params.Set("type", transferType.String())
 	params.Set("asset", asset.String())
 	if fromSymbol == "" {
 		params.Set("fromSymbol", fromSymbol)
@@ -1317,18 +1267,159 @@ func (b *Binance) UserUniversalTransfer(ctx context.Context, transferType string
 	return resp.TransferID, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/sapi/v1/asset/transfer", params, spotDefaultRate, &resp)
 }
 
+// GetUserUniversalTransferHistory retrieves user universal transfer history
+func (b *Binance) GetUserUniversalTransferHistory(ctx context.Context, transferType TransferTypes, startTime, endTime time.Time, current int64, size float64, fromSymbol, toSymbol string) (*UniversalTransferHistory, error) {
+	if transferType == 0 {
+		return nil, errors.New("transfer type is required")
+	}
+	params := url.Values{}
+	params.Set("type", transferType.String())
+	if !startTime.IsZero() {
+		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+	}
+	if !endTime.IsZero() {
+		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
+	}
+	if current != 0 {
+		params.Set("current", strconv.FormatInt(current, 10))
+	}
+	if size > 0 {
+		params.Set("size", strconv.FormatFloat(size, 'f', -1, 64))
+	}
+	if fromSymbol != "" {
+		params.Set("fromSymbol", fromSymbol)
+	}
+	if toSymbol != "" {
+		params.Set("toSymbol", toSymbol)
+	}
+	var resp *UniversalTransferHistory
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/asset/transfer", params, spotDefaultRate, &resp)
+}
+
+// GetFundingAssets funding wallet
+func (b *Binance) GetFundingAssets(ctx context.Context, asset currency.Code, needBTCValuation bool) ([]FundingAsset, error) {
+	params := url.Values{}
+	if !asset.IsEmpty() {
+		params.Set("asset", asset.String())
+	}
+	if needBTCValuation {
+		params.Set("needBtcValuation", "true")
+	}
+	var resp []FundingAsset
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/sapi/v1/asset/get-funding-asset", params, spotDefaultRate, &resp)
+}
+
+// GetuserAssets get user assets, just for positive data.
+func (b *Binance) GetUserAssets(ctx context.Context, ccy currency.Code, needBTCValuation bool) ([]FundingAsset, error) {
+	params := url.Values{}
+	if !ccy.IsEmpty() {
+		params.Set("asset", ccy.String())
+	}
+	if needBTCValuation {
+		params.Set("needBtcValuation", "true")
+	}
+	var resp []FundingAsset
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/sapi/v3/asset/getUserAsset", params, spotDefaultRate, &resp)
+}
+
+// ConvertBUSD convert transfer, convert between BUSD and stablecoins.
+// accountType: possible values are MAIN and CARD
+func (b *Binance) ConvertBUSD(ctx context.Context, clientTransactionID, accountType string, assetCcy, targetAsset currency.Code, amount float64) (*AssetConverResponse, error) {
+	if clientTransactionID == "" {
+		return nil, errors.New("client transaction ID is required")
+	}
+	if assetCcy.IsEmpty() {
+		return nil, fmt.Errorf("%w assetCcy is empty", currency.ErrCurrencyCodeEmpty)
+	}
+	if amount <= 0 {
+		return nil, order.ErrAmountBelowMin
+	}
+	if targetAsset.IsEmpty() {
+		return nil, fmt.Errorf("%w targetAsset is empty", currency.ErrCurrencyCodeEmpty)
+	}
+	params := url.Values{}
+	params.Set("clientTranId", clientTransactionID)
+	params.Set("asset", assetCcy.String())
+	params.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
+	params.Set("targetAsset", targetAsset.String())
+	if accountType != "" {
+		params.Set("accountType", accountType)
+	}
+	var resp *AssetConverResponse
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/sapi/v1/asset/convert-transfer", params, spotDefaultRate, &resp)
+}
+
+// BUSDConvertHistory convert transfer, convert between BUSD and stablecoins.
+func (b *Binance) BUSDConvertHistory(ctx context.Context, transactionID, clientTransactionID, accountType string, assetCcy, targetAsset currency.Code, amount float64) (*BUSDConvertHistory, error) {
+	params := url.Values{}
+	if transactionID != "" {
+		params.Set("tranid", transactionID)
+	}
+	if clientTransactionID != "" {
+		params.Set("clientTranId", clientTransactionID)
+	}
+	if !assetCcy.IsEmpty() {
+		params.Set("asset", assetCcy.String())
+	}
+	if amount != 0 {
+		params.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
+	}
+	if !targetAsset.IsEmpty() {
+		params.Set("targetAsset", targetAsset.String())
+	}
+	if accountType != "" {
+		params.Set("accountType", accountType)
+	}
+	var resp *BUSDConvertHistory
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/asset/convert-transfer/queryByPage", params, spotDefaultRate, &resp)
+}
+
+// GetCloudMiningPaymentAndRefundHistory retrieves cloud-mining payment and refund history
+func (b *Binance) GetCloudMiningPaymentAndRefundHistory(ctx context.Context, transactionID, current int64, clientTransactionID string, assetCcy currency.Code, startTime, endTime time.Time, size float64) (*CloudMiningPR, error) {
+	params := url.Values{}
+	if transactionID != 0 {
+		params.Set("tranId", strconv.FormatInt(transactionID, 10))
+	}
+	if current != 0 {
+		params.Set("current", strconv.FormatInt(current, 10))
+	}
+	if clientTransactionID != "" {
+		params.Set("clientTranId", clientTransactionID)
+	}
+	if !assetCcy.IsEmpty() {
+		params.Set("asset", assetCcy.String())
+	}
+	if !startTime.IsZero() {
+		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+	}
+	if !endTime.IsZero() {
+		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
+	}
+	if size != 0 {
+		params.Set("size", strconv.FormatFloat(size, 'f', -1, 64))
+	}
+	var resp *CloudMiningPR
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/asset/ledger-transfer/cloud-mining/queryByPage", params, spotDefaultRate, &resp)
+}
+
+// func (b *Binance) /sapi/v1/account/apiRestrictions
+func (b *Binance) GetAPIKeyPermission(ctx context.Context) (*APIKeyPermissions, error) {
+	var resp *APIKeyPermissions
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/account/apiRestrictions", nil, spotDefaultRate, &resp)
+}
+
 // GetAccountStatus fetch account status detail.
 func (b *Binance) GetAccountStatus(ctx context.Context) (string, error) {
 	resp := &struct {
 		Data string `json:"data"`
 	}{}
-	return resp.Data, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, accountStatus, nil, spotDefaultRate, &resp)
+	return resp.Data, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/account/status", nil, spotDefaultRate, &resp)
 }
 
 // GetAccountTradingAPIStatus fetch account api trading status detail.
 func (b *Binance) GetAccountTradingAPIStatus(ctx context.Context) (*TradingAPIAccountStatus, error) {
 	var resp *TradingAPIAccountStatus
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, accountAPITradingStatus, nil, spotDefaultRate, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/account/apiTradingStatus", nil, spotDefaultRate, &resp)
 }
 
 // GetDustLog retrieves record of small or fractional amounts of assets that accumulate in a user's account
@@ -1344,7 +1435,7 @@ func (b *Binance) GetDustLog(ctx context.Context, accountType string, startTime,
 		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
 	}
 	var resp *DustLog
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, dustAssetsLog, params, spotDefaultRate, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/asset/dribblet", params, spotDefaultRate, &resp)
 }
 
 // GetWsAuthStreamKey will retrieve a key to use for authorised WS streaming
@@ -1364,7 +1455,7 @@ func (b *Binance) GetWsAuthStreamKey(ctx context.Context) (string, error) {
 	headers["X-MBX-APIKEY"] = creds.Key
 	item := &request.Item{
 		Method:        http.MethodPost,
-		Path:          endpointPath + userAccountStream,
+		Path:          endpointPath + "/api/v3/userDataStream",
 		Headers:       headers,
 		Result:        &resp,
 		Verbose:       b.Verbose,
@@ -1397,7 +1488,7 @@ func (b *Binance) MaintainWsAuthStreamKey(ctx context.Context) error {
 		return err
 	}
 
-	path := endpointPath + userAccountStream
+	path := endpointPath + "/api/v3/userDataStream"
 	params := url.Values{}
 	params.Set("listenKey", listenKey)
 	path = common.EncodeURLValues(path, params)
