@@ -471,7 +471,7 @@ func (bi *Binanceus) GetWithdrawalsHistory(ctx context.Context, c currency.Code,
 			return nil, err
 		}
 		resp[i] = exchange.WithdrawalHistory{
-			Status:          fmt.Sprint(withdrawals[i].Status),
+			Status:          strconv.FormatInt(withdrawals[i].Status, 10),
 			TransferID:      withdrawals[i].ID,
 			Currency:        withdrawals[i].Coin,
 			Amount:          withdrawals[i].Amount,
@@ -501,7 +501,7 @@ func (bi *Binanceus) GetRecentTrades(ctx context.Context, p currency.Pair, asset
 	resp := make([]trade.Data, len(tradeData))
 	for i := range tradeData {
 		resp[i] = trade.Data{
-			TID:          fmt.Sprint(tradeData[i].ID),
+			TID:          strconv.FormatInt(tradeData[i].ID, 10),
 			Exchange:     bi.Name,
 			AssetType:    assetType,
 			CurrencyPair: p,

@@ -1350,7 +1350,7 @@ func (ku *Kucoin) GetFeeByType(ctx context.Context, feeBuilder *exchange.FeeBuil
 			}
 			return feeBuilder.Amount * fee.TakerFeeRate, nil
 		}
-		return 0, fmt.Errorf("can't construct fee")
+		return 0, errors.New("can't construct fee")
 	}
 }
 
