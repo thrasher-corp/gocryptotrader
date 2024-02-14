@@ -348,7 +348,7 @@ func (bi *Binanceus) GetOrderBookDepth(ctx context.Context, arg *OrderBookDataRe
 		return nil, err
 	}
 	params.Set("symbol", symbol)
-	params.Set("limit", fmt.Sprintf("%d", arg.Limit))
+	params.Set("limit", strconv.FormatInt(arg.Limit, 10))
 	var resp OrderBookData
 	if err := bi.SendHTTPRequest(ctx,
 		exchange.RestSpotSupplementary,
@@ -955,7 +955,7 @@ func (bi *Binanceus) GetSubaccountAssets(ctx context.Context, email string) (*Su
 	}
 	params := url.Values{}
 	timestamp := time.Now().UnixMilli()
-	params.Set("timestamp", fmt.Sprintf("%d", timestamp))
+	params.Set("timestamp", strconv.FormatInt(timestamp, 10))
 	params.Set("email", email)
 	//
 	return &resp, bi.SendAuthHTTPRequest(ctx,
@@ -1184,7 +1184,7 @@ func (bi *Binanceus) GetTrades(ctx context.Context, arg *GetTradesParams) ([]Tra
 		params.Set("fromId", strconv.Itoa(int(arg.FromID)))
 	}
 	if arg.Limit > 0 && arg.Limit < 1000 {
-		params.Set("limit", fmt.Sprint(arg.Limit))
+		params.Set("limit", strconv.FormatUint(arg.Limit, 10))
 	} else if arg.Limit > 1000 {
 		params.Set("limit", strconv.Itoa(1000))
 	}
@@ -1244,7 +1244,7 @@ func (bi *Binanceus) CreateNewOCOOrder(ctx context.Context, arg *OCOOrderInputPa
 // GetOCOOrder to retrieve a specific OCO order based on provided optional parameters.
 func (bi *Binanceus) GetOCOOrder(ctx context.Context, arg *GetOCOOrderRequestParams) (*OCOOrderResponse, error) {
 	params := url.Values{}
-	params.Set("timestamp", fmt.Sprint(time.Now().UnixMilli()))
+	params.Set("timestamp", strconv.FormatInt(time.Now().UnixMilli(), 10))
 	switch {
 	case arg.OrderListID != "":
 		params.Set("orderListId", arg.OrderListID)
@@ -1261,23 +1261,23 @@ func (bi *Binanceus) GetOCOOrder(ctx context.Context, arg *GetOCOOrderRequestPar
 // GetAllOCOOrder to retrieve all OCO orders based on provided optional parameters. Please note the maximum limit is 1,000 orders.
 func (bi *Binanceus) GetAllOCOOrder(ctx context.Context, arg *OCOOrdersRequestParams) ([]OCOOrderResponse, error) {
 	params := url.Values{}
-	params.Set("timestamp", fmt.Sprint(time.Now().UnixMilli()))
+	params.Set("timestamp", strconv.FormatInt(time.Now().UnixMilli(), 10))
 	var response []OCOOrderResponse
 	if arg.FromID > 0 {
-		params.Set("fromId", fmt.Sprint(arg.FromID))
+		params.Set("fromId", strconv.FormatUint(arg.FromID, 10))
 	} else {
 		if arg.StartTime.Unix() > 0 && arg.StartTime.Before(arg.EndTime) {
-			params.Set("startTime", fmt.Sprint(arg.StartTime.UnixMilli()))
-			params.Set("endTime", fmt.Sprint(arg.EndTime.UnixMilli()))
+			params.Set("startTime", strconv.FormatInt(arg.StartTime.UnixMilli(), 10))
+			params.Set("endTime", strconv.FormatInt(arg.EndTime.UnixMilli(), 10))
 		} else if arg.StartTime.Unix() > 0 {
-			params.Set("startTime", fmt.Sprint(arg.StartTime.UnixMilli()))
+			params.Set("startTime", strconv.FormatInt(arg.StartTime.UnixMilli(), 10))
 		}
 	}
 	if arg.Limit > 0 {
-		params.Set("limit", fmt.Sprint(arg.Limit))
+		params.Set("limit", strconv.FormatUint(arg.Limit, 10))
 	}
 	if arg.RecvWindow > 0 {
-		params.Set("recvWindow", fmt.Sprint(arg.RecvWindow))
+		params.Set("recvWindow", strconv.FormatUint(arg.RecvWindow, 10))
 	}
 	return response, bi.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary,
 		http.MethodGet, ocoAllOrderList,
@@ -1286,11 +1286,11 @@ func (bi *Binanceus) GetAllOCOOrder(ctx context.Context, arg *OCOOrdersRequestPa
 }
 
 // GetOpenOCOOrders to query open OCO orders.
-func (bi *Binanceus) GetOpenOCOOrders(ctx context.Context, recvWindow uint) ([]OCOOrderResponse, error) {
+func (bi *Binanceus) GetOpenOCOOrders(ctx context.Context, recvWindow uint64) ([]OCOOrderResponse, error) {
 	params := url.Values{}
-	params.Set("timestamp", fmt.Sprint(time.Now().UnixMilli()))
+	params.Set("timestamp", strconv.FormatInt(time.Now().UnixMilli(), 10))
 	if recvWindow > 0 {
-		params.Set("recvWindow", fmt.Sprint(recvWindow))
+		params.Set("recvWindow", strconv.FormatUint(recvWindow, 10))
 	} else {
 		params.Set("recvWindow", "30000")
 	}
@@ -1304,7 +1304,7 @@ func (bi *Binanceus) GetOpenOCOOrders(ctx context.Context, recvWindow uint) ([]O
 func (bi *Binanceus) CancelOCOOrder(ctx context.Context, arg *OCOOrdersDeleteRequestParams) (*OCOFullOrderResponse, error) {
 	var response OCOFullOrderResponse
 	params := url.Values{}
-	params.Set("timestamp", fmt.Sprint(time.Now().UnixMilli()))
+	params.Set("timestamp", strconv.FormatInt(time.Now().UnixMilli(), 10))
 	switch {
 	case arg.OrderListID > 0:
 		params.Set("orderListId", strconv.Itoa(int(arg.OrderListID)))
@@ -1314,7 +1314,7 @@ func (bi *Binanceus) CancelOCOOrder(ctx context.Context, arg *OCOOrdersDeleteReq
 		return nil, errIncompleteArguments
 	}
 	if arg.RecvWindow > 0 {
-		params.Set("recvWindow", fmt.Sprint(arg.RecvWindow))
+		params.Set("recvWindow", strconv.FormatUint(arg.RecvWindow, 10))
 	}
 	return &response, bi.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary,
 		http.MethodGet, ocoOrderList,
@@ -1389,7 +1389,7 @@ func (bi *Binanceus) GetOTCTradeOrder(ctx context.Context, orderID uint64) (*OTC
 	}
 	orderIDStr := strconv.FormatUint(orderID, 10)
 	params.Set("orderId", orderIDStr)
-	params.Set("timestamp", fmt.Sprint(time.Now().UnixMilli()))
+	params.Set("timestamp", strconv.FormatInt(time.Now().UnixMilli(), 10))
 	path := otcTradeOrders + orderIDStr
 	return &response, bi.SendAuthHTTPRequest(ctx,
 		exchange.RestSpotSupplementary,
@@ -1679,16 +1679,16 @@ func (bi *Binanceus) DepositHistory(ctx context.Context, c currency.Code, status
 func (bi *Binanceus) FiatDepositHistory(ctx context.Context, arg *FiatWithdrawalRequestParams) (FiatAssetsHistory, error) {
 	params := url.Values{}
 	if !(arg.EndTime.IsZero()) && !(arg.EndTime.Before(time.Now())) {
-		params.Set("endTime", fmt.Sprint(arg.EndTime.UnixMilli()))
+		params.Set("endTime", strconv.FormatInt(arg.EndTime.UnixMilli(), 10))
 	}
 	if !(arg.StartTime.IsZero()) && !(arg.StartTime.After(time.Now())) {
-		params.Set("startTime", fmt.Sprint(arg.StartTime.UnixMilli()))
+		params.Set("startTime", strconv.FormatInt(arg.StartTime.UnixMilli(), 10))
 	}
 	if arg.FiatCurrency != "" {
 		params.Set("fiatCurrency", arg.FiatCurrency)
 	}
 	if arg.Offset > 0 {
-		params.Set("offset", fmt.Sprint(arg.Offset))
+		params.Set("offset", strconv.FormatInt(arg.Offset, 10))
 	}
 	if arg.PaymentChannel != "" {
 		params.Set("paymentChannel", arg.PaymentChannel)
@@ -1696,7 +1696,7 @@ func (bi *Binanceus) FiatDepositHistory(ctx context.Context, arg *FiatWithdrawal
 	if arg.PaymentMethod != "" {
 		params.Set("paymentMethod", arg.PaymentMethod)
 	}
-	params.Set("timestamp", fmt.Sprint(time.Now().UnixMilli()))
+	params.Set("timestamp", strconv.FormatInt(time.Now().UnixMilli(), 10))
 	var response FiatAssetsHistory
 	return response, bi.SendAuthHTTPRequest(ctx,
 		exchange.RestSpotSupplementary, http.MethodGet,

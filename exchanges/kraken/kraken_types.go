@@ -5,7 +5,8 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
+	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
 const (
@@ -130,7 +131,9 @@ type AssetPairs struct {
 // Ticker is a standard ticker type
 type Ticker struct {
 	Ask                        float64
+	AskSize                    float64
 	Bid                        float64
+	BidSize                    float64
 	Last                       float64
 	Volume                     float64
 	VolumeWeightedAveragePrice float64
@@ -145,15 +148,15 @@ type Tickers map[string]Ticker
 
 // TickerResponse holds ticker information before its put into the Ticker struct
 type TickerResponse struct {
-	Ask                        []string `json:"a"`
-	Bid                        []string `json:"b"`
-	Last                       []string `json:"c"`
-	Volume                     []string `json:"v"`
-	VolumeWeightedAveragePrice []string `json:"p"`
-	Trades                     []int64  `json:"t"`
-	Low                        []string `json:"l"`
-	High                       []string `json:"h"`
-	Open                       string   `json:"o"`
+	Ask                        [3]types.Number `json:"a"`
+	Bid                        [3]types.Number `json:"b"`
+	Last                       [2]types.Number `json:"c"`
+	Volume                     [2]types.Number `json:"v"`
+	VolumeWeightedAveragePrice [2]types.Number `json:"p"`
+	Trades                     [2]int64        `json:"t"`
+	Low                        [2]types.Number `json:"l"`
+	High                       [2]types.Number `json:"h"`
+	Open                       types.Number    `json:"o"`
 }
 
 // OpenHighLowClose contains ticker event information
@@ -393,7 +396,7 @@ type TradeVolumeFee struct {
 // AddOrderResponse type
 type AddOrderResponse struct {
 	Description    OrderDescription `json:"descr"`
-	TransactionIds []string         `json:"txid"`
+	TransactionIDs []string         `json:"txid"`
 }
 
 // WithdrawInformation Used to check withdrawal fees
@@ -497,11 +500,11 @@ type WithdrawStatusResponse struct {
 
 // WebsocketSubscriptionEventRequest handles WS subscription events
 type WebsocketSubscriptionEventRequest struct {
-	Event        string                       `json:"event"`           // subscribe
-	RequestID    int64                        `json:"reqid,omitempty"` // Optional, client originated ID reflected in response message.
-	Pairs        []string                     `json:"pair,omitempty"`  // Array of currency pairs (pair1,pair2,pair3).
-	Subscription WebsocketSubscriptionData    `json:"subscription,omitempty"`
-	Channels     []stream.ChannelSubscription `json:"-"` // Keeps track of associated subscriptions in batched outgoings
+	Event        string                      `json:"event"`           // subscribe
+	RequestID    int64                       `json:"reqid,omitempty"` // Optional, client originated ID reflected in response message.
+	Pairs        []string                    `json:"pair,omitempty"`  // Array of currency pairs (pair1,pair2,pair3).
+	Subscription WebsocketSubscriptionData   `json:"subscription,omitempty"`
+	Channels     []subscription.Subscription `json:"-"` // Keeps track of associated subscriptions in batched outgoings
 }
 
 // WebsocketBaseEventRequest Just has an "event" property

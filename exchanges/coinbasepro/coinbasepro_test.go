@@ -2,18 +2,19 @@ package coinbasepro
 
 import (
 	"context"
+	"net/http"
 	"strconv"
 	"strings"
 
 	"fmt"
 	"log"
 	"os"
-	"sync"
 	"testing"
 	"time"
 
 	"github.com/buger/jsonparser"
 	"github.com/gofrs/uuid"
+	"github.com/gorilla/websocket"
 	"github.com/stretchr/testify/assert"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
@@ -26,6 +27,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	gctlog "github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
@@ -105,12 +107,6 @@ func TestSetup(t *testing.T) {
 	}
 }
 
-func TestWrapperStart(t *testing.T) {
-	wg := sync.WaitGroup{}
-	err := c.Start(context.Background(), &wg)
-	assert.NoError(t, err)
-}
-
 func TestMain(m *testing.M) {
 	c.SetDefaults()
 	if testingInSandbox {
@@ -143,21 +139,10 @@ func TestMain(m *testing.M) {
 		c.GetBase().API.AuthenticatedWebsocketSupport = true
 	}
 	err = gctlog.SetGlobalLogConfig(gctlog.GenDefaultSettings())
-	fmt.Println(err)
-	c.Websocket.Enable()
-	os.Exit(m.Run())
-}
-
-func TestStart(t *testing.T) {
-	t.Parallel()
-	err := c.Start(context.Background(), nil)
-	assert.ErrorIs(t, err, common.ErrNilPointer)
-	var testWg sync.WaitGroup
-	err = c.Start(context.Background(), &testWg)
 	if err != nil {
-		t.Fatal(err)
+		log.Fatal(err)
 	}
-	testWg.Wait()
+	os.Exit(m.Run())
 }
 
 func TestGetAllAccounts(t *testing.T) {
@@ -302,7 +287,7 @@ func TestEditOrderPreview(t *testing.T) {
 	assert.ErrorIs(t, err, errOrderIDEmpty)
 	_, err = c.EditOrderPreview(context.Background(), "meow", 0, 0)
 	assert.ErrorIs(t, err, errSizeAndPriceZero)
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, c, canManipulateRealOrders)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, c)
 	skipTestIfLowOnFunds(t)
 	id, err := uuid.NewV4()
 	assert.NoError(t, err)
@@ -371,6 +356,7 @@ func TestPreviewOrder(t *testing.T) {
 	assert.ErrorIs(t, err, errAmountEmpty)
 	_, err = c.PreviewOrder(context.Background(), "", "", "", "", "", 0, 1, 0, 0, 0, 0, false, false, false, time.Time{})
 	assert.ErrorIs(t, err, errInvalidOrderType)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, c)
 	skipTestIfLowOnFunds(t)
 	resp, err := c.PreviewOrder(context.Background(), testPair.String(), "BUY", "MARKET", "", "", 0, 1, 0, 0, 0, 0, false,
 		false, false, time.Time{})
@@ -939,6 +925,7 @@ func TestSendAuthenticatedHTTPRequest(t *testing.T) {
 	fc := &CoinbasePro{}
 	err := fc.SendAuthenticatedHTTPRequest(context.Background(), exchange.EdgeCase3, "", "", "", nil, false, nil, nil)
 	assert.ErrorIs(t, err, exchange.ErrCredentialsAreEmpty)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, c)
 	err = c.SendAuthenticatedHTTPRequest(context.Background(), exchange.EdgeCase3, "", "", "", nil, false, nil, nil)
 	if err.Error() != errNoEndpointPathEdgeCase3 {
 		t.Errorf(errExpectMismatch, err, errNoEndpointPathEdgeCase3)
@@ -1069,11 +1056,11 @@ func TestFetchOrderbook(t *testing.T) {
 func TestUpdateOrderbook(t *testing.T) {
 	_, err := c.UpdateOrderbook(context.Background(), currency.Pair{}, asset.Empty)
 	assert.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, c)
 	_, err = c.UpdateOrderbook(context.Background(), currency.NewPairWithDelimiter("meow", "woof", "-"), asset.Spot)
 	if err.Error() != errInvalidProductID {
 		t.Errorf(errExpectMismatch, err, errInvalidProductID)
 	}
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, c)
 	resp, err := c.UpdateOrderbook(context.Background(), testPair, asset.Spot)
 	assert.NoError(t, err)
 	assert.NotEmpty(t, resp, errExpectedNonEmpty)
@@ -1086,9 +1073,9 @@ func TestGetAccountFundingHistory(t *testing.T) {
 }
 
 func TestGetWithdrawalsHistory(t *testing.T) {
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, c)
 	_, err := c.GetWithdrawalsHistory(context.Background(), currency.NewCode("meow"), asset.Spot)
 	assert.ErrorIs(t, err, errNoMatchingWallets)
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, c)
 	_, err = c.GetWithdrawalsHistory(context.Background(), testCrypto, asset.Spot)
 	assert.NoError(t, err)
 }
@@ -1232,9 +1219,9 @@ func TestGetOrderInfo(t *testing.T) {
 }
 
 func TestGetDepositAddress(t *testing.T) {
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, c)
 	_, err := c.GetDepositAddress(context.Background(), currency.NewCode("fake currency that doesn't exist"), "", "")
 	assert.ErrorIs(t, err, errNoWalletForCurrency)
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, c)
 	resp, err := c.GetDepositAddress(context.Background(), testCrypto, "", "")
 	assert.NoError(t, err)
 	assert.NotEmpty(t, resp, errExpectedNonEmpty)
@@ -1457,6 +1444,58 @@ func TestFormatExchangeKlineInterval(t *testing.T) {
 	}
 }
 
+// TestWsAuth dials websocket, sends login request.
+func TestWsAuth(t *testing.T) {
+	if !c.Websocket.IsEnabled() && !c.API.AuthenticatedWebsocketSupport || !sharedtestvalues.AreAPICredentialsSet(c) {
+		t.Skip(stream.WebsocketNotEnabled)
+	}
+	var dialer websocket.Dialer
+	err := c.Websocket.Conn.Dial(&dialer, http.Header{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	go c.wsReadData()
+
+	err = c.Subscribe([]subscription.Subscription{
+		{
+			Channel: "user",
+			Pair:    testPair,
+		},
+	})
+	if err != nil {
+		t.Error(err)
+	}
+	timer := time.NewTimer(sharedtestvalues.WebsocketResponseDefaultTimeout)
+	select {
+	case badResponse := <-c.Websocket.DataHandler:
+		t.Error(badResponse)
+	case <-timer.C:
+	}
+	timer.Stop()
+}
+
+func TestStatusToStandardStatus(t *testing.T) {
+	type TestCases struct {
+		Case   string
+		Result order.Status
+	}
+	testCases := []TestCases{
+		{Case: "received", Result: order.New},
+		{Case: "open", Result: order.Active},
+		{Case: "done", Result: order.Filled},
+		{Case: "match", Result: order.PartiallyFilled},
+		{Case: "change", Result: order.Active},
+		{Case: "activate", Result: order.Active},
+		{Case: "LOL", Result: order.UnknownStatus},
+	}
+	for i := range testCases {
+		result, _ := statusToStandardStatus(testCases[i].Case)
+		if result != testCases[i].Result {
+			t.Errorf("Expected: %v, received: %v", testCases[i].Result, result)
+		}
+	}
+}
+
 func TestStringToFloatPtr(t *testing.T) {
 	t.Parallel()
 	err := stringToFloatPtr(nil, "")
@@ -1606,11 +1645,11 @@ func TestProcessSnapshotUpdate(t *testing.T) {
 }
 
 func TestGenerateDefaultSubscriptions(t *testing.T) {
-	comparison := []stream.ChannelSubscription{{Channel: "heartbeats"}, {Channel: "status"}, {Channel: "ticker"},
+	comparison := []subscription.Subscription{{Channel: "heartbeats"}, {Channel: "status"}, {Channel: "ticker"},
 		{Channel: "ticker_batch"}, {Channel: "candles"}, {Channel: "market_trades"}, {Channel: "level2"},
 		{Channel: "user"}}
 	for i := range comparison {
-		comparison[i].Currency = currency.NewPairWithDelimiter(testCrypto.String(), testFiat.String(), "-")
+		comparison[i].Pair = currency.NewPairWithDelimiter(testCrypto.String(), testFiat.String(), "-")
 		comparison[i].Asset = asset.Spot
 	}
 	resp, err := c.GenerateDefaultSubscriptions()
@@ -1621,8 +1660,9 @@ func TestGenerateDefaultSubscriptions(t *testing.T) {
 }
 
 func TestSubscribeUnsubscribe(t *testing.T) {
-	req := []stream.ChannelSubscription{{Channel: "heartbeats", Asset: asset.Spot,
-		Currency: currency.NewPairWithDelimiter(testCrypto.String(), testFiat.String(), "-")}}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, c)
+	req := []subscription.Subscription{{Channel: "heartbeats", Asset: asset.Spot,
+		Pair: currency.NewPairWithDelimiter(testCrypto.String(), testFiat.String(), "-")}}
 	err := c.Subscribe(req)
 	assert.NoError(t, err)
 	err = c.Unsubscribe(req)
@@ -1630,6 +1670,7 @@ func TestSubscribeUnsubscribe(t *testing.T) {
 }
 
 func TestGetJWT(t *testing.T) {
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, c)
 	creds, err := c.GetCredentials(context.Background())
 	assert.NoError(t, err)
 	_, err = c.GetJWT(context.Background(), "")
@@ -1769,6 +1810,7 @@ func withdrawFiatFundsHelper(t *testing.T, fn withdrawFiatFunc) {
 	req.Fiat.Bank.BSBNumber = "789"
 	_, err = fn(context.Background(), &req)
 	assert.ErrorIs(t, err, errWalletIDEmpty)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, c)
 	req.WalletID = "meow"
 	req.Fiat.Bank.BankName = "GCT's Fake and Not Real Test Bank Meow Meow Meow"
 	expectedError := fmt.Sprintf(errPayMethodNotFound, req.Fiat.Bank.BankName)

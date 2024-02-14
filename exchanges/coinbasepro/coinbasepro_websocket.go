@@ -26,6 +26,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 )
@@ -243,6 +244,9 @@ func (c *CoinbasePro) wsHandleData(respRaw []byte, seqCount uint64) (string, err
 	case "user":
 		var wsUser []WebsocketOrderDataHolder
 		err := json.Unmarshal(data, &wsUser)
+		// case "match", "last_match":
+		// 	var wsOrder wsOrderReceived
+		// 	err := json.Unmarshal(respRaw, &wsOrder)
 		if err != nil {
 			return warnString, err
 		}
@@ -333,7 +337,7 @@ func (c *CoinbasePro) ProcessUpdate(update WebsocketOrderbookDataHolder, timesta
 }
 
 // GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
-func (c *CoinbasePro) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, error) {
+func (c *CoinbasePro) GenerateDefaultSubscriptions() ([]subscription.Subscription, error) {
 	var channels = []string{
 		"heartbeats",
 		"status",
@@ -344,22 +348,22 @@ func (c *CoinbasePro) GenerateDefaultSubscriptions() ([]stream.ChannelSubscripti
 		"level2",
 		"user",
 	}
-	enabledCurrencies, err := c.GetEnabledPairs(asset.Spot)
+	enabledPairs, err := c.GetEnabledPairs(asset.Spot)
 	if err != nil {
 		return nil, err
 	}
-	var subscriptions []stream.ChannelSubscription
+	var subscriptions []subscription.Subscription
 	for i := range channels {
-		for j := range enabledCurrencies {
-			fPair, err := c.FormatExchangeCurrency(enabledCurrencies[j],
+		for j := range enabledPairs {
+			fPair, err := c.FormatExchangeCurrency(enabledPairs[j],
 				asset.Spot)
 			if err != nil {
 				return nil, err
 			}
-			subscriptions = append(subscriptions, stream.ChannelSubscription{
-				Channel:  channels[i],
-				Currency: fPair,
-				Asset:    asset.Spot,
+			subscriptions = append(subscriptions, subscription.Subscription{
+				Channel: channels[i],
+				Pair:    fPair,
+				Asset:   asset.Spot,
 			})
 		}
 	}
@@ -367,12 +371,12 @@ func (c *CoinbasePro) GenerateDefaultSubscriptions() ([]stream.ChannelSubscripti
 }
 
 // Subscribe sends a websocket message to receive data from the channel
-func (c *CoinbasePro) Subscribe(channelsToSubscribe []stream.ChannelSubscription) error {
+func (c *CoinbasePro) Subscribe(channelsToSubscribe []subscription.Subscription) error {
 	chanKeys := make(map[string]currency.Pairs)
 
 	for i := range channelsToSubscribe {
 		chanKeys[channelsToSubscribe[i].Channel] =
-			chanKeys[channelsToSubscribe[i].Channel].Add(channelsToSubscribe[i].Currency)
+			chanKeys[channelsToSubscribe[i].Channel].Add(channelsToSubscribe[i].Pair)
 
 	}
 	for s := range chanKeys {
@@ -388,12 +392,12 @@ func (c *CoinbasePro) Subscribe(channelsToSubscribe []stream.ChannelSubscription
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
-func (c *CoinbasePro) Unsubscribe(channelsToUnsubscribe []stream.ChannelSubscription) error {
+func (c *CoinbasePro) Unsubscribe(channelsToUnsubscribe []subscription.Subscription) error {
 	chanKeys := make(map[string]currency.Pairs)
 
 	for i := range channelsToUnsubscribe {
 		chanKeys[channelsToUnsubscribe[i].Channel] =
-			chanKeys[channelsToUnsubscribe[i].Channel].Add(channelsToUnsubscribe[i].Currency)
+			chanKeys[channelsToUnsubscribe[i].Channel].Add(channelsToUnsubscribe[i].Pair)
 
 	}
 

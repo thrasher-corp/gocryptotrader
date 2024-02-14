@@ -6,7 +6,6 @@ import (
 	"sort"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -213,42 +212,6 @@ func (bi *Binanceus) Setup(exch *config.Exchange) error {
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
 		RateLimit:            wsRateLimitMilliseconds,
 	})
-}
-
-// Start starts the Binanceus go routine
-func (bi *Binanceus) Start(ctx context.Context, wg *sync.WaitGroup) error {
-	if wg == nil {
-		return fmt.Errorf("%T %w", wg, common.ErrNilPointer)
-	}
-	wg.Add(1)
-	go func() {
-		bi.Run(ctx)
-		wg.Done()
-	}()
-	return nil
-}
-
-// Run implements the Binanceus wrapper
-func (bi *Binanceus) Run(ctx context.Context) {
-	if bi.Verbose {
-		log.Debugf(log.ExchangeSys,
-			"%s Websocket: %s.",
-			bi.Name,
-			common.IsEnabled(bi.Websocket.IsEnabled()))
-		bi.PrintEnabledPairs()
-	}
-
-	if !bi.GetEnabledFeatures().AutoPairUpdates {
-		return
-	}
-
-	err := bi.UpdateTradablePairs(ctx, false)
-	if err != nil {
-		log.Errorf(log.ExchangeSys,
-			"%s failed to update tradable pairs. Err: %s",
-			bi.Name,
-			err)
-	}
 }
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs
@@ -508,7 +471,7 @@ func (bi *Binanceus) GetWithdrawalsHistory(ctx context.Context, c currency.Code,
 			return nil, err
 		}
 		resp[i] = exchange.WithdrawalHistory{
-			Status:          fmt.Sprint(withdrawals[i].Status),
+			Status:          strconv.FormatInt(withdrawals[i].Status, 10),
 			TransferID:      withdrawals[i].ID,
 			Currency:        withdrawals[i].Coin,
 			Amount:          withdrawals[i].Amount,
@@ -538,7 +501,7 @@ func (bi *Binanceus) GetRecentTrades(ctx context.Context, p currency.Pair, asset
 	resp := make([]trade.Data, len(tradeData))
 	for i := range tradeData {
 		resp[i] = trade.Data{
-			TID:          fmt.Sprint(tradeData[i].ID),
+			TID:          strconv.FormatInt(tradeData[i].ID, 10),
 			Exchange:     bi.Name,
 			AssetType:    assetType,
 			CurrencyPair: p,

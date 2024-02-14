@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"sort"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/shopspring/decimal"
@@ -29,6 +28,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/buffer"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
@@ -163,6 +163,21 @@ func (ku *Kucoin) SetDefaults() {
 				GlobalResultLimit: 1500,
 			},
 		},
+		Subscriptions: []*subscription.Subscription{
+			// Where we can we use generic names
+			{Enabled: true, Channel: subscription.TickerChannel},                                         // marketTickerChannel
+			{Enabled: true, Channel: subscription.AllTradesChannel},                                      // marketMatchChannel
+			{Enabled: true, Channel: subscription.OrderbookChannel, Interval: kline.HundredMilliseconds}, // marketOrderbookLevel2Channels
+			{Enabled: true, Channel: futuresTickerV2Channel},
+			{Enabled: true, Channel: futuresOrderbookLevel2Depth50Channel},
+			{Enabled: true, Channel: marginFundingbookChangeChannel, Authenticated: true},
+			{Enabled: true, Channel: accountBalanceChannel, Authenticated: true},
+			{Enabled: true, Channel: marginPositionChannel, Authenticated: true},
+			{Enabled: true, Channel: marginLoanChannel, Authenticated: true},
+			{Enabled: true, Channel: futuresTradeOrderChannel, Authenticated: true},
+			{Enabled: true, Channel: futuresStopOrdersLifecycleEventChannel, Authenticated: true},
+			{Enabled: true, Channel: futuresAccountBalanceEventChannel, Authenticated: true},
+		},
 	}
 	ku.Requester, err = request.New(ku.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
@@ -230,52 +245,6 @@ func (ku *Kucoin) Setup(exch *config.Exchange) error {
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
 		RateLimit:            500,
 	})
-}
-
-// Start starts the Kucoin go routine
-func (ku *Kucoin) Start(ctx context.Context, wg *sync.WaitGroup) error {
-	if wg == nil {
-		return fmt.Errorf("%T %w", wg, common.ErrNilPointer)
-	}
-	wg.Add(1)
-	go func() {
-		ku.Run(ctx)
-		wg.Done()
-	}()
-	return nil
-}
-
-// Run implements the Kucoin wrapper
-func (ku *Kucoin) Run(ctx context.Context) {
-	if ku.Verbose {
-		log.Debugf(log.ExchangeSys,
-			"%s Websocket: %s.",
-			ku.Name,
-			common.IsEnabled(ku.Websocket.IsEnabled()))
-		ku.PrintEnabledPairs()
-	}
-
-	assetTypes := ku.GetAssetTypes(false)
-	for i := range assetTypes {
-		if err := ku.UpdateOrderExecutionLimits(ctx, assetTypes[i]); err != nil && !errors.Is(err, common.ErrNotYetImplemented) {
-			log.Errorf(log.ExchangeSys,
-				"%s failed to set exchange order execution limits. Err: %v",
-				ku.Name,
-				err)
-		}
-	}
-
-	if !ku.GetEnabledFeatures().AutoPairUpdates {
-		return
-	}
-
-	err := ku.UpdateTradablePairs(ctx, true)
-	if err != nil {
-		log.Errorf(log.ExchangeSys,
-			"%s failed to update tradable pairs. Err: %s",
-			ku.Name,
-			err)
-	}
 }
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs
@@ -361,6 +330,7 @@ func (ku *Kucoin) UpdateTicker(ctx context.Context, p currency.Pair, assetType a
 
 // UpdateTickers updates all currency pairs of a given asset type
 func (ku *Kucoin) UpdateTickers(ctx context.Context, assetType asset.Item) error {
+	var errs error
 	switch assetType {
 	case asset.Futures:
 		ticks, err := ku.GetFuturesOpenContracts(ctx)
@@ -391,10 +361,9 @@ func (ku *Kucoin) UpdateTickers(ctx context.Context, assetType asset.Item) error
 				AssetType:    assetType,
 			})
 			if err != nil {
-				return err
+				errs = common.AppendError(errs, err)
 			}
 		}
-		return nil
 	case asset.Spot, asset.Margin:
 		ticks, err := ku.GetTickers(ctx)
 		if err != nil {
@@ -426,14 +395,14 @@ func (ku *Kucoin) UpdateTickers(ctx context.Context, assetType asset.Item) error
 					LastUpdated:  ticks.Time.Time(),
 				})
 				if err != nil {
-					return err
+					errs = common.AppendError(errs, err)
 				}
 			}
 		}
 	default:
 		return fmt.Errorf("%w %v", asset.ErrNotSupported, assetType)
 	}
-	return nil
+	return errs
 }
 
 // FetchTicker returns the ticker for a currency pair
@@ -1381,7 +1350,7 @@ func (ku *Kucoin) GetFeeByType(ctx context.Context, feeBuilder *exchange.FeeBuil
 			}
 			return feeBuilder.Amount * fee.TakerFeeRate, nil
 		}
-		return 0, fmt.Errorf("can't construct fee")
+		return 0, errors.New("can't construct fee")
 	}
 }
 

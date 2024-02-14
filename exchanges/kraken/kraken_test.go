@@ -8,12 +8,12 @@ import (
 	"net/http"
 	"os"
 	"strings"
-	"sync"
 	"testing"
 	"time"
 
 	"github.com/gorilla/websocket"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/common/key"
@@ -29,6 +29,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
@@ -67,20 +69,6 @@ func TestMain(m *testing.M) {
 		log.Fatal(err)
 	}
 	os.Exit(m.Run())
-}
-
-func TestStart(t *testing.T) {
-	t.Parallel()
-	err := k.Start(context.Background(), nil)
-	if !errors.Is(err, common.ErrNilPointer) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, common.ErrNilPointer)
-	}
-	var testWg sync.WaitGroup
-	err = k.Start(context.Background(), &testWg)
-	if err != nil {
-		t.Fatal(err)
-	}
-	testWg.Wait()
 }
 
 func TestGetCurrentServerTime(t *testing.T) {
@@ -172,15 +160,30 @@ func TestUpdateTicker(t *testing.T) {
 
 func TestUpdateTickers(t *testing.T) {
 	t.Parallel()
-	err := k.UpdateTickers(context.Background(), asset.Spot)
-	if err != nil {
-		t.Error(err)
+	ap, err := k.GetAvailablePairs(asset.Spot)
+	require.NoError(t, err)
+	err = k.CurrencyPairs.StorePairs(asset.Spot, ap, true)
+	require.NoError(t, err)
+	err = k.UpdateTickers(context.Background(), asset.Spot)
+	assert.NoError(t, err)
+	for i := range ap {
+		_, err = ticker.GetTicker(k.Name, ap[i], asset.Spot)
+		assert.NoError(t, err)
 	}
 
+	ap, err = k.GetAvailablePairs(asset.Futures)
+	require.NoError(t, err)
+	err = k.CurrencyPairs.StorePairs(asset.Futures, ap, true)
+	require.NoError(t, err)
 	err = k.UpdateTickers(context.Background(), asset.Futures)
-	if err != nil {
-		t.Error(err)
+	assert.NoError(t, err)
+	for i := range ap {
+		_, err = ticker.GetTicker(k.Name, ap[i], asset.Futures)
+		assert.NoError(t, err)
 	}
+
+	err = k.UpdateTickers(context.Background(), asset.Index)
+	assert.ErrorIs(t, err, asset.ErrNotSupported)
 }
 
 func TestUpdateOrderbook(t *testing.T) {
@@ -454,7 +457,7 @@ func TestGetAssets(t *testing.T) {
 func TestSeedAssetTranslator(t *testing.T) {
 	t.Parallel()
 	// Test currency pair
-	if r := assetTranslator.LookupAltname("XXBTZUSD"); r != "XBTUSD" {
+	if r := assetTranslator.LookupAltName("XXBTZUSD"); r != "XBTUSD" {
 		t.Error("unexpected result")
 	}
 	if r := assetTranslator.LookupCurrency("XBTUSD"); r != "XXBTZUSD" {
@@ -462,7 +465,7 @@ func TestSeedAssetTranslator(t *testing.T) {
 	}
 
 	// Test fiat currency
-	if r := assetTranslator.LookupAltname("ZUSD"); r != "USD" {
+	if r := assetTranslator.LookupAltName("ZUSD"); r != "USD" {
 		t.Error("unexpected result")
 	}
 	if r := assetTranslator.LookupCurrency("USD"); r != "ZUSD" {
@@ -470,7 +473,7 @@ func TestSeedAssetTranslator(t *testing.T) {
 	}
 
 	// Test cryptocurrency
-	if r := assetTranslator.LookupAltname("XXBT"); r != "XBT" {
+	if r := assetTranslator.LookupAltName("XXBT"); r != "XBT" {
 		t.Error("unexpected result")
 	}
 	if r := assetTranslator.LookupCurrency("XBT"); r != "XXBT" {
@@ -481,15 +484,15 @@ func TestSeedAssetTranslator(t *testing.T) {
 func TestSeedAssets(t *testing.T) {
 	t.Parallel()
 	var a assetTranslatorStore
-	if r := a.LookupAltname("ZUSD"); r != "" {
+	if r := a.LookupAltName("ZUSD"); r != "" {
 		t.Error("unexpected result")
 	}
 	a.Seed("ZUSD", "USD")
-	if r := a.LookupAltname("ZUSD"); r != "USD" {
+	if r := a.LookupAltName("ZUSD"); r != "USD" {
 		t.Error("unexpected result")
 	}
 	a.Seed("ZUSD", "BLA")
-	if r := a.LookupAltname("ZUSD"); r != "USD" {
+	if r := a.LookupAltName("ZUSD"); r != "USD" {
 		t.Error("unexpected result")
 	}
 }
@@ -1245,10 +1248,10 @@ func setupWsTests(t *testing.T) {
 // TestWebsocketSubscribe tests returning a message with an id
 func TestWebsocketSubscribe(t *testing.T) {
 	setupWsTests(t)
-	err := k.Subscribe([]stream.ChannelSubscription{
+	err := k.Subscribe([]subscription.Subscription{
 		{
-			Channel:  defaultSubscribedChannels[0],
-			Currency: currency.NewPairWithDelimiter("XBT", "USD", "/"),
+			Channel: defaultSubscribedChannels[0],
+			Pair:    currency.NewPairWithDelimiter("XBT", "USD", "/"),
 		},
 	})
 	if err != nil {
@@ -1950,7 +1953,7 @@ func TestGetHistoricCandles(t *testing.T) {
 		t.Error(err)
 	}
 	err = k.CurrencyPairs.EnablePair(asset.Futures, pairs[0])
-	if err != nil && errors.Is(err, currency.ErrPairAlreadyEnabled) {
+	if err != nil && !errors.Is(err, currency.ErrPairAlreadyEnabled) {
 		t.Error(err)
 	}
 	_, err = k.GetHistoricCandles(context.Background(), pairs[0], asset.Futures, kline.OneHour, time.Now().Add(-time.Hour*12), time.Now())
@@ -2197,9 +2200,7 @@ func TestGetFuturesContractDetails(t *testing.T) {
 	}
 
 	_, err = k.GetFuturesContractDetails(context.Background(), asset.Futures)
-	if !errors.Is(err, nil) {
-		t.Error(err)
-	}
+	assert.NoError(t, err, "GetFuturesContractDetails should not error")
 }
 
 func TestGetLatestFundingRates(t *testing.T) {
@@ -2298,7 +2299,7 @@ func TestGetOpenInterest(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotEmpty(t, resp)
 
-	_, err = k.GetOpenInterest(context.Background())
+	resp, err = k.GetOpenInterest(context.Background())
 	assert.NoError(t, err)
 	assert.NotEmpty(t, resp)
 }

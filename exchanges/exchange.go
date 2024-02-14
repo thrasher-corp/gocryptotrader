@@ -9,6 +9,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 	"unicode"
 
@@ -28,6 +29,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
@@ -44,8 +46,6 @@ const (
 	DefaultWebsocketResponseMaxLimit = time.Second * 7
 	// DefaultWebsocketOrderbookBufferLimit is the maximum number of orderbook updates that get stored before being applied
 	DefaultWebsocketOrderbookBufferLimit = 5
-	// ResetConfigPairsWarningMessage is displayed when a currency pair format in the config needs to be updated
-	ResetConfigPairsWarningMessage = "%s Enabled and available pairs for %s reset due to config upgrade, please enable the ones you would like to use again. Defaulting to %v"
 )
 
 var (
@@ -61,6 +61,7 @@ var (
 	errAssetConfigFormatIsNil            = errors.New("asset type config format is nil")
 	errSetDefaultsNotCalled              = errors.New("set defaults not called")
 	errExchangeIsNil                     = errors.New("exchange is nil")
+	errBatchSizeZero                     = errors.New("batch size cannot be 0")
 )
 
 // SetRequester sets the instance of the requester
@@ -157,7 +158,35 @@ func (b *Base) SetFeatureDefaults() {
 			b.SetFillsFeedStatus(b.Config.Features.Enabled.FillsFeed)
 		}
 
+		b.SetSubscriptionsFromConfig()
+
 		b.Features.Enabled.AutoPairUpdates = b.Config.Features.Enabled.AutoPairUpdates
+	}
+}
+
+// SetSubscriptionsFromConfig sets the subscriptions from config
+// If the subscriptions config is empty then Config will be updated from the exchange subscriptions,
+// allowing e.SetDefaults to set default subscriptions for an exchange to update user's config
+// Subscriptions not Enabled are skipped, meaning that e.Features.Subscriptions only contains Enabled subscriptions
+func (b *Base) SetSubscriptionsFromConfig() {
+	b.settingsMutex.Lock()
+	defer b.settingsMutex.Unlock()
+	if len(b.Config.Features.Subscriptions) == 0 {
+		b.Config.Features.Subscriptions = b.Features.Subscriptions
+		return
+	}
+	b.Features.Subscriptions = []*subscription.Subscription{}
+	for _, s := range b.Config.Features.Subscriptions {
+		if s.Enabled {
+			b.Features.Subscriptions = append(b.Features.Subscriptions, s)
+		}
+	}
+	if b.Verbose {
+		names := make([]string, 0, len(b.Features.Subscriptions))
+		for _, s := range b.Features.Subscriptions {
+			names = append(names, s.Channel)
+		}
+		log.Debugf(log.ExchangeSys, "Set %v 'Subscriptions' to %v", b.Name, strings.Join(names, ", "))
 	}
 }
 
@@ -1135,7 +1164,7 @@ func (b *Base) FlushWebsocketChannels() error {
 
 // SubscribeToWebsocketChannels appends to ChannelsToSubscribe
 // which lets websocket.manageSubscriptions handle subscribing
-func (b *Base) SubscribeToWebsocketChannels(channels []stream.ChannelSubscription) error {
+func (b *Base) SubscribeToWebsocketChannels(channels []subscription.Subscription) error {
 	if b.Websocket == nil {
 		return common.ErrFunctionNotSupported
 	}
@@ -1144,7 +1173,7 @@ func (b *Base) SubscribeToWebsocketChannels(channels []stream.ChannelSubscriptio
 
 // UnsubscribeToWebsocketChannels removes from ChannelsToSubscribe
 // which lets websocket.manageSubscriptions handle unsubscribing
-func (b *Base) UnsubscribeToWebsocketChannels(channels []stream.ChannelSubscription) error {
+func (b *Base) UnsubscribeToWebsocketChannels(channels []subscription.Subscription) error {
 	if b.Websocket == nil {
 		return common.ErrFunctionNotSupported
 	}
@@ -1152,7 +1181,7 @@ func (b *Base) UnsubscribeToWebsocketChannels(channels []stream.ChannelSubscript
 }
 
 // GetSubscriptions returns a copied list of subscriptions
-func (b *Base) GetSubscriptions() ([]stream.ChannelSubscription, error) {
+func (b *Base) GetSubscriptions() ([]subscription.Subscription, error) {
 	if b.Websocket == nil {
 		return nil, common.ErrFunctionNotSupported
 	}
@@ -1810,4 +1839,107 @@ func (b *Base) IsPairEnabled(pair currency.Pair, a asset.Item) (bool, error) {
 // GetOpenInterest returns the open interest rate for a given asset pair
 func (b *Base) GetOpenInterest(context.Context, ...key.PairAsset) ([]futures.OpenInterest, error) {
 	return nil, common.ErrFunctionNotSupported
+}
+
+// ParallelChanOp performs a single method call in parallel across streams and waits to return any errors
+func (b *Base) ParallelChanOp(channels []subscription.Subscription, m func([]subscription.Subscription) error, batchSize int) error {
+	wg := sync.WaitGroup{}
+	errC := make(chan error, len(channels))
+	if batchSize == 0 {
+		return errBatchSizeZero
+	}
+
+	var j int
+	for i := 0; i < len(channels); i += batchSize {
+		j += batchSize
+		if j >= len(channels) {
+			j = len(channels)
+		}
+		wg.Add(1)
+		go func(c []subscription.Subscription) {
+			defer wg.Done()
+			if err := m(c); err != nil {
+				errC <- err
+			}
+		}(channels[i:j])
+	}
+
+	wg.Wait()
+	close(errC)
+
+	var errs error
+	for err := range errC {
+		errs = common.AppendError(errs, err)
+	}
+
+	return errs
+}
+
+// Bootstrap function allows for exchange authors to supplement or override common startup actions
+// If exchange.Bootstrap returns false or error it will not perform any other actions.
+// If it returns true, or is not implemented by the exchange, it will:
+// * Print debug startup information
+// * UpdateOrderExecutionLimits
+// * UpdateTradablePairs
+func Bootstrap(ctx context.Context, b IBotExchange) error {
+	if continueBootstrap, err := b.Bootstrap(ctx); !continueBootstrap || err != nil {
+		return err
+	}
+
+	if b.IsVerbose() {
+		if b.GetSupportedFeatures().Websocket {
+			wsURL := ""
+			wsEnabled := false
+			if w, err := b.GetWebsocket(); err == nil {
+				wsURL = w.GetWebsocketURL()
+				wsEnabled = w.IsEnabled()
+			}
+			log.Debugf(log.ExchangeSys, "%s Websocket: %s. (url: %s)", b.GetName(), common.IsEnabled(wsEnabled), wsURL)
+		} else {
+			log.Debugf(log.ExchangeSys, "%s Websocket: Unsupported", b.GetName())
+		}
+		b.PrintEnabledPairs()
+	}
+
+	if b.GetEnabledFeatures().AutoPairUpdates {
+		if err := b.UpdateTradablePairs(ctx, false); err != nil {
+			return fmt.Errorf("failed to update tradable pairs: %w", err)
+		}
+	}
+
+	a := b.GetAssetTypes(true)
+	var wg sync.WaitGroup
+	errC := make(chan error, len(a))
+	for i := range a {
+		wg.Add(1)
+		go func(a asset.Item) {
+			defer wg.Done()
+			if err := b.UpdateOrderExecutionLimits(ctx, a); err != nil && !errors.Is(err, common.ErrNotYetImplemented) {
+				errC <- fmt.Errorf("failed to set exchange order execution limits: %w", err)
+			}
+		}(a[i])
+	}
+	wg.Wait()
+	close(errC)
+
+	var err error
+	for e := range errC {
+		err = common.AppendError(err, e)
+	}
+
+	return err
+}
+
+// Bootstrap is a fallback method for exchange startup actions
+// Exchange authors should override this if they wish to customise startup actions
+// Return true or an error to all default Bootstrap actions to occur afterwards
+// or false to signal that no further bootstrapping should occur
+func (b *Base) Bootstrap(_ context.Context) (continueBootstrap bool, err error) {
+	continueBootstrap = true
+	return
+}
+
+// IsVerbose returns if the exchange is set to verbose
+func (b *Base) IsVerbose() bool {
+	return b.Verbose
 }

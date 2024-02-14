@@ -56,7 +56,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stats"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/yobit"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/zb"
 	"github.com/thrasher-corp/gocryptotrader/gctscript/vm"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
@@ -108,7 +107,7 @@ func (bot *Engine) GetRPCEndpoints() (map[string]RPCEndpoint, error) {
 		},
 		grpcProxyName: {
 			Started:    bot.Settings.EnableGRPCProxy,
-			ListenAddr: "http://" + bot.Config.RemoteControl.GRPC.GRPCProxyListenAddress,
+			ListenAddr: "https://" + bot.Config.RemoteControl.GRPC.GRPCProxyListenAddress,
 		},
 		DeprecatedName: {
 			Started:    bot.Settings.EnableDeprecatedRPC,
@@ -640,7 +639,7 @@ func GetCollatedExchangeAccountInfoByCoin(accounts []account.Holdings) map[curre
 func GetExchangeHighestPriceByCurrencyPair(p currency.Pair, a asset.Item) (string, error) {
 	result := stats.SortExchangesByPrice(p, a, true)
 	if len(result) == 0 {
-		return "", fmt.Errorf("no stats for supplied currency pair and asset type")
+		return "", errors.New("no stats for supplied currency pair and asset type")
 	}
 
 	return result[0].Exchange, nil
@@ -651,7 +650,7 @@ func GetExchangeHighestPriceByCurrencyPair(p currency.Pair, a asset.Item) (strin
 func GetExchangeLowestPriceByCurrencyPair(p currency.Pair, assetType asset.Item) (string, error) {
 	result := stats.SortExchangesByPrice(p, assetType, false)
 	if len(result) == 0 {
-		return "", fmt.Errorf("no stats for supplied currency pair and asset type")
+		return "", errors.New("no stats for supplied currency pair and asset type")
 	}
 
 	return result[0].Exchange, nil
@@ -963,7 +962,7 @@ func genCert(targetDir string) error {
 
 	certData := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: derBytes})
 	if certData == nil {
-		return fmt.Errorf("cert data is nil")
+		return errors.New("cert data is nil")
 	}
 
 	b, err := x509.MarshalECPrivateKey(privKey)
@@ -973,7 +972,7 @@ func genCert(targetDir string) error {
 
 	keyData := pem.EncodeToMemory(&pem.Block{Type: "EC PRIVATE KEY", Bytes: b})
 	if keyData == nil {
-		return fmt.Errorf("key pem data is nil")
+		return errors.New("key pem data is nil")
 	}
 
 	err = file.Write(filepath.Join(targetDir, "key.pem"), keyData)
@@ -1045,8 +1044,6 @@ func NewSupportedExchangeByName(name string) (exchange.IBotExchange, error) {
 		return new(poloniex.Poloniex), nil
 	case "yobit":
 		return new(yobit.Yobit), nil
-	case "zb":
-		return new(zb.ZB), nil
 	default:
 		return nil, fmt.Errorf("'%s', %w", name, ErrExchangeNotFound)
 	}
