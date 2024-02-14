@@ -1938,7 +1938,7 @@ type SettlementHistoryItem struct {
 
 // SubAccountParams represents subaccount creation parameters
 type SubAccountParams struct {
-	LoginName string `json:"login_name,"`
+	LoginName string `json:"login_name"`
 	Remark    string `json:"remark,omitempty"`
 	Email     string `json:"email,omitempty"`    // The sub-account's password.
 	Password  string `json:"password,omitempty"` // The sub-account's email address.

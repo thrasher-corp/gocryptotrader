@@ -141,21 +141,21 @@ func (s *GRPCServer) StartRPCRESTProxy() error {
 func (s *GRPCServer) authenticateClient(ctx context.Context) (context.Context, error) {
 	md, ok := metadata.FromIncomingContext(ctx)
 	if !ok {
-		return ctx, fmt.Errorf("unable to extract metadata")
+		return ctx, errors.New("unable to extract metadata")
 	}
 
 	authStr, ok := md["authorization"]
 	if !ok {
-		return ctx, fmt.Errorf("authorization header missing")
+		return ctx, errors.New("authorization header missing")
 	}
 
 	if !strings.Contains(authStr[0], "Basic") {
-		return ctx, fmt.Errorf("basic not found in authorization header")
+		return ctx, errors.New("basic not found in authorization header")
 	}
 
 	decoded, err := crypto.Base64Decode(strings.Split(authStr[0], " ")[1])
 	if err != nil {
-		return ctx, fmt.Errorf("unable to base64 decode authorization header")
+		return ctx, errors.New("unable to base64 decode authorization header")
 	}
 
 	creds := strings.Split(string(decoded), ":")
@@ -164,7 +164,7 @@ func (s *GRPCServer) authenticateClient(ctx context.Context) (context.Context, e
 
 	if username != s.config.GRPC.Username ||
 		password != s.config.GRPC.Password {
-		return ctx, fmt.Errorf("username/password mismatch")
+		return ctx, errors.New("username/password mismatch")
 	}
 	return ctx, nil
 }

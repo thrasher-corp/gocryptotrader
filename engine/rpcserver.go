@@ -91,21 +91,21 @@ type RPCServer struct {
 func (s *RPCServer) authenticateClient(ctx context.Context) (context.Context, error) {
 	md, ok := metadata.FromIncomingContext(ctx)
 	if !ok {
-		return ctx, fmt.Errorf("unable to extract metadata")
+		return ctx, errors.New("unable to extract metadata")
 	}
 
 	authStr, ok := md["authorization"]
 	if !ok {
-		return ctx, fmt.Errorf("authorization header missing")
+		return ctx, errors.New("authorization header missing")
 	}
 
 	if !strings.Contains(authStr[0], "Basic") {
-		return ctx, fmt.Errorf("basic not found in authorization header")
+		return ctx, errors.New("basic not found in authorization header")
 	}
 
 	decoded, err := crypto.Base64Decode(strings.Split(authStr[0], " ")[1])
 	if err != nil {
-		return ctx, fmt.Errorf("unable to base64 decode authorization header")
+		return ctx, errors.New("unable to base64 decode authorization header")
 	}
 
 	cred := strings.Split(string(decoded), ":")
@@ -114,7 +114,7 @@ func (s *RPCServer) authenticateClient(ctx context.Context) (context.Context, er
 
 	if username != s.Config.RemoteControl.Username ||
 		password != s.Config.RemoteControl.Password {
-		return ctx, fmt.Errorf("username/password mismatch")
+		return ctx, errors.New("username/password mismatch")
 	}
 	ctx, err = account.ParseCredentialsMetadata(ctx, md)
 	if err != nil {
@@ -878,7 +878,7 @@ func (s *RPCServer) RemovePortfolioAddress(_ context.Context, r *gctrpc.RemovePo
 func (s *RPCServer) GetForexProviders(_ context.Context, _ *gctrpc.GetForexProvidersRequest) (*gctrpc.GetForexProvidersResponse, error) {
 	providers := s.Config.GetForexProviders()
 	if len(providers) == 0 {
-		return nil, fmt.Errorf("forex providers is empty")
+		return nil, errors.New("forex providers is empty")
 	}
 
 	forexProviders := make([]*gctrpc.ForexProvider, len(providers))
@@ -904,7 +904,7 @@ func (s *RPCServer) GetForexRates(_ context.Context, _ *gctrpc.GetForexRatesRequ
 	}
 
 	if len(rates) == 0 {
-		return nil, fmt.Errorf("forex rates is empty")
+		return nil, errors.New("forex rates is empty")
 	}
 
 	forexRates := make([]*gctrpc.ForexRatesConversion, 0, len(rates))
@@ -2604,7 +2604,7 @@ func (s *RPCServer) GCTScriptStatus(_ context.Context, _ *gctrpc.GCTScriptStatus
 		Status: fmt.Sprintf("%v of %v virtual machines running", gctscript.VMSCount.Len(), s.gctScriptManager.GetMaxVirtualMachines()),
 	}
 
-	gctscript.AllVMSync.Range(func(k, v interface{}) bool {
+	gctscript.AllVMSync.Range(func(_, v interface{}) bool {
 		vm, ok := v.(*gctscript.VM)
 		if !ok {
 			log.Errorf(log.GRPCSys, "%v", common.GetTypeAssertError("*gctscript.VM", v))
@@ -2843,7 +2843,7 @@ func (s *RPCServer) GCTScriptListAll(context.Context, *gctrpc.GCTScriptListAllRe
 
 	resp := &gctrpc.GCTScriptStatusResponse{}
 	err := filepath.Walk(gctscript.ScriptPath,
-		func(path string, info os.FileInfo, err error) error {
+		func(path string, _ os.FileInfo, err error) error {
 			if err != nil {
 				return err
 			}
@@ -3290,7 +3290,7 @@ func (s *RPCServer) ConvertTradesToCandles(_ context.Context, r *gctrpc.ConvertT
 		return nil, err
 	}
 	if len(klineItem.Candles) == 0 {
-		return nil, fmt.Errorf("no candles generated from trades")
+		return nil, errors.New("no candles generated from trades")
 	}
 
 	resp := &gctrpc.GetHistoricCandlesResponse{

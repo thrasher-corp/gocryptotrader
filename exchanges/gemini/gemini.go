@@ -80,7 +80,7 @@ func (g *Gemini) GetSymbolDetails(ctx context.Context, symbol string) ([]SymbolD
 // GetTicker returns information about recent trading activity for the symbol
 func (g *Gemini) GetTicker(ctx context.Context, currencyPair string) (TickerV2, error) {
 	ticker := TickerV2{}
-	path := fmt.Sprintf("/v2/ticker/%s", currencyPair)
+	path := "/v2/ticker/" + currencyPair
 	err := g.SendHTTPRequest(ctx, exchange.RestSpot, path, &ticker)
 	if err != nil {
 		return ticker, err
@@ -334,7 +334,7 @@ func (g *Gemini) GetCryptoDepositAddress(ctx context.Context, depositAddlabel, c
 	response := DepositAddress{}
 	req := make(map[string]interface{})
 
-	if len(depositAddlabel) > 0 {
+	if depositAddlabel != "" {
 		req["label"] = depositAddlabel
 	}
 

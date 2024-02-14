@@ -44,13 +44,13 @@ type ExchangeInfo struct {
 	Msg        string    `json:"msg"`
 	Timezone   string    `json:"timezone"`
 	ServerTime time.Time `json:"serverTime"`
-	RateLimits []struct {
+	RateLimits []*struct {
 		RateLimitType string `json:"rateLimitType"`
 		Interval      string `json:"interval"`
 		Limit         int    `json:"limit"`
 	} `json:"rateLimits"`
 	ExchangeFilters interface{} `json:"exchangeFilters"`
-	Symbols         []struct {
+	Symbols         []*struct {
 		Symbol                     string        `json:"symbol"`
 		Status                     string        `json:"status"`
 		BaseAsset                  string        `json:"baseAsset"`
