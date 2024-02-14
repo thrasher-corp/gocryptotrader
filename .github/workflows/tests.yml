@@ -23,7 +23,6 @@ jobs:
       - name: Merge master into test
         run: |
           git fetch origin master
-          git checkout test
           git merge origin/master --no-edit
 
   backend-psql:
