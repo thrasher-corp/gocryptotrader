@@ -24,6 +24,7 @@ jobs:
         run: |
           git fetch origin master
           git remote -v
+          git status
           git merge origin/master --no-edit
 
   backend-psql:
