@@ -25,6 +25,8 @@ jobs:
           git fetch origin master
           git remote -v
           git status
+          git config user.email "dummy@example.com"
+          git config user.name "Dummy Name"
           git merge origin/master --allow-unrelated-histories --no-edit
 
   backend-psql:
