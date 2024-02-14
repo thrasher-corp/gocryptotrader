@@ -1,10 +1,34 @@
-on: [push, pull_request]
+on: 
+  push:
+    branches:
+      - master
+  pull_request:
+    branches:
+      - master
+
 name: CI
+
 env:
   GO_VERSION: 1.22.x
+  
 jobs:
+  merge_master_to_test_and_ci:
+    name: Merge master to test and CI
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # Merge master into test branch
+      - name: Merge master into test
+        run: |
+          git fetch origin master
+          git checkout test
+          git merge origin/master --no-edit
+
   backend-psql:
     name: GoCryptoTrader back-end
+    needs: merge_master_to_test_and_ci
     strategy:
       fail-fast: false
       matrix:
