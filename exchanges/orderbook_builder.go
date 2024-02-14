@@ -85,6 +85,12 @@ func NewOrderbookBuilder(exch IBotExchange, fetcher OrderbookFetcher, checker Or
 	}, nil
 }
 
+// Process processes an incoming orderbook update. If the orderbook tracker
+// does not exist, it will create a new tracker and fetch the orderbook from
+// the REST API. If the orderbook tracker exists and is in the process of
+// fetching the orderbook, it will append the update to the pending updates
+// list. If the orderbook tracker exists and has fetched the orderbook, it will
+// apply the update to the orderbook inline with this caller thread.
 func (o *OrderbookBuilder) Process(ctx context.Context, update *orderbook.Update) error {
 	if update == nil {
 		return errOrderbookUpdateIsNil
