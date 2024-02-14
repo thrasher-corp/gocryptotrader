@@ -460,7 +460,6 @@ func TestGetDepositAddress(t *testing.T) {
 	}
 }
 
-//nolint:gocritic // Only used as a testing helper function in this package
 func setupWsAuth(t *testing.T) {
 	t.Helper()
 	if wsSetupRan {

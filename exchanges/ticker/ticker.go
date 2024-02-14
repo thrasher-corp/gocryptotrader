@@ -18,12 +18,13 @@ var (
 	ErrNoTickerFound = errors.New("no ticker found")
 	// ErrBidEqualsAsk error for locked markets
 	ErrBidEqualsAsk = errors.New("bid equals ask this is a crossed or locked market")
+	// ErrExchangeNameIsEmpty is an error for when an exchange name is empty
+	ErrExchangeNameIsEmpty = errors.New("exchange name is empty")
 
-	errInvalidTicker       = errors.New("invalid ticker")
-	errTickerNotFound      = errors.New("ticker not found")
-	errExchangeNameIsEmpty = errors.New("exchange name is empty")
-	errBidGreaterThanAsk   = errors.New("bid greater than ask this is a crossed or locked market")
-	errExchangeNotFound    = errors.New("exchange not found")
+	errInvalidTicker     = errors.New("invalid ticker")
+	errTickerNotFound    = errors.New("ticker not found")
+	errBidGreaterThanAsk = errors.New("bid greater than ask this is a crossed or locked market")
+	errExchangeNotFound  = errors.New("exchange not found")
 )
 
 func init() {
@@ -71,7 +72,7 @@ func SubscribeToExchangeTickers(exchange string) (dispatch.Pipe, error) {
 // GetTicker checks and returns a requested ticker if it exists
 func GetTicker(exchange string, p currency.Pair, a asset.Item) (*Price, error) {
 	if exchange == "" {
-		return nil, errExchangeNameIsEmpty
+		return nil, ErrExchangeNameIsEmpty
 	}
 	if p.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
@@ -104,7 +105,7 @@ func GetExchangeTickers(exchange string) ([]*Price, error) {
 
 func (s *Service) getExchangeTickers(exchange string) ([]*Price, error) {
 	if exchange == "" {
-		return nil, errExchangeNameIsEmpty
+		return nil, ErrExchangeNameIsEmpty
 	}
 	exchange = strings.ToLower(exchange)
 	s.mu.Lock()
@@ -148,7 +149,7 @@ func ProcessTicker(p *Price) error {
 	}
 
 	if p.ExchangeName == "" {
-		return fmt.Errorf(ErrExchangeNameUnset)
+		return ErrExchangeNameIsEmpty
 	}
 
 	if p.Pair.IsEmpty() {
@@ -240,7 +241,7 @@ func (s *Service) setItemID(t *Ticker, p *Price, exch string) error {
 // getAssociations links a singular book with its dispatch associations
 func (s *Service) getAssociations(exch string) ([]uuid.UUID, error) {
 	if exch == "" {
-		return nil, errExchangeNameIsEmpty
+		return nil, ErrExchangeNameIsEmpty
 	}
 	var ids []uuid.UUID
 	exchangeID, ok := s.Exchange[exch]

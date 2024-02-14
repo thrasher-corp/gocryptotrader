@@ -583,7 +583,7 @@ func (h *HUOBI) GetOpenOrders(ctx context.Context, symbol currency.Pair, account
 	}
 	vals.Set("symbol", symbolValue)
 	vals.Set("accountID", accountID)
-	if len(side) > 0 {
+	if side != "" {
 		vals.Set("side", side)
 	}
 	vals.Set("size", strconv.FormatInt(size, 10))

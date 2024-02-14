@@ -3,7 +3,7 @@ package currency
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
+	"strconv"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -965,7 +965,7 @@ func TestGetOrderParameters(t *testing.T) {
 
 	for i, tc := range testCases {
 		tc := tc
-		t.Run(fmt.Sprintf("%d", i), func(t *testing.T) {
+		t.Run(strconv.Itoa(i), func(t *testing.T) {
 			t.Parallel()
 			var resp *OrderParameters
 			var err error
@@ -1032,7 +1032,7 @@ func TestIsAssociated(t *testing.T) {
 
 	for x := range testCases {
 		x := x
-		t.Run(fmt.Sprintf("%d", x), func(t *testing.T) {
+		t.Run(strconv.Itoa(x), func(t *testing.T) {
 			t.Parallel()
 			if testCases[x].Pair.IsAssociated(testCases[x].associate) != testCases[x].expectedResult {
 				t.Fatalf("Test %d failed. Expected %v, received %v", x, testCases[x].expectedResult, testCases[x].Pair.IsAssociated(testCases[x].associate))
