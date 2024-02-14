@@ -527,10 +527,10 @@ func (p *Poloniex) WsProcessOrderbookUpdate(sequenceNumber float64, data []inter
 	}
 
 	update := &orderbook.Update{
-		Pair:       pair,
-		Asset:      asset.Spot,
-		UpdateID:   int64(sequenceNumber),
-		UpdateTime: time.UnixMilli(tsMilli),
+		Pair:         pair,
+		Asset:        asset.Spot,
+		LastUpdateID: int64(sequenceNumber),
+		UpdateTime:   time.UnixMilli(tsMilli),
 	}
 	if bs == 1 {
 		update.Bids = []orderbook.Item{{Price: price, Amount: volume}}

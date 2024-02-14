@@ -87,7 +87,7 @@ func (b *Binance) WsConnect() error {
 	b.Websocket.Wg.Add(1)
 	go b.wsReadData()
 
-	b.OrderbookBuilder = exchange.NewOrderbookBuilder(b, b.GetBuildableBook)
+	b.OrderbookBuilder = exchange.NewOrderbookBuilder(b, b.GetBuildableBook, b.Validate)
 	return nil
 }
 
@@ -116,6 +116,7 @@ func (b *Binance) KeepAuthKeyAlive() {
 // wsReadData receives and passes on websocket messages for processing
 func (b *Binance) wsReadData() {
 	defer b.Websocket.Wg.Done()
+	defer b.OrderbookBuilder.Release()
 
 	for {
 		resp := b.Websocket.Conn.ReadMessage()

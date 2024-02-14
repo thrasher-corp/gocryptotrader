@@ -380,7 +380,7 @@ func (d *Depth) TotalAskAmounts() (liquidity, value float64, err error) {
 // updateAndAlert updates the last updated ID and when it was updated to the
 // recent update. Then alerts all pending routines. NOTE: This requires locking.
 func (d *Depth) updateAndAlert(update *Update) {
-	d.lastUpdateID = update.UpdateID
+	d.lastUpdateID = update.LastUpdateID
 	d.lastUpdated = update.UpdateTime
 	d.Alert()
 }

@@ -10,7 +10,9 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 )
 
-// ProcessUpdate processes the websocket orderbook update
+// ProcessUpdate processes the websocket orderbook update in conjunction with
+// the orderbook builder so as to fetch the orderbook snapshot via REST
+// and apply the updates to the orderbook.
 func (b *Binance) ProcessUpdate(ctx context.Context, ws *WebsocketDepthStream) error {
 	pair, enabled, err := b.MatchSymbolCheckEnabled(ws.Pair, asset.Spot, false)
 	if err != nil {
@@ -34,17 +36,18 @@ func (b *Binance) ProcessUpdate(ctx context.Context, ws *WebsocketDepthStream) e
 		}
 	}
 	return b.OrderbookBuilder.Process(ctx, &orderbook.Update{
-		Bids:       updateBid,
-		Asks:       updateAsk,
-		Pair:       pair,
-		UpdateID:   ws.LastUpdateID,
-		UpdateTime: ws.Timestamp,
-		Asset:      asset.Spot,
+		Bids:          updateBid,
+		Asks:          updateAsk,
+		Pair:          pair,
+		FirstUpdateID: ws.FirstUpdateID,
+		LastUpdateID:  ws.LastUpdateID,
+		UpdateTime:    ws.Timestamp,
+		Asset:         asset.Spot,
 	})
 }
 
 // GetBuildableBook fetches an orderbook to build a local cache for websocket
-// streaming
+// streaming in conjunction with the orderbook builder.
 func (b *Binance) GetBuildableBook(ctx context.Context, p currency.Pair, a asset.Item) (*orderbook.Base, error) {
 	ob, err := b.GetOrderBook(ctx, OrderBookDataRequestParams{p, 1000})
 	if err != nil {
@@ -72,25 +75,19 @@ func (b *Binance) GetBuildableBook(ctx context.Context, p currency.Pair, a asset
 	}, nil
 }
 
+// Validate validates an incoming orderbook update against and old stored orderbook.
 func (b *Binance) Validate(loaded *orderbook.Base, incoming *orderbook.Update, initialSync bool) (skip bool, err error) {
-	if incoming.UpdateID <= loaded.LastUpdateID {
-		// Drop any event where u is <= lastUpdateId in the snapshot.
-		return false, nil
+	if incoming.LastUpdateID <= loaded.LastUpdateID {
+		// Drop any event where `lastUpdateID` is <= lastUpdateId in the snapshot.
+		return true, nil
 	}
 
 	if initialSync {
-		return false, nil
+		// The first processed event should have `firstUpdateID` <= lastUpdateId+1 AND `lastUpdateID` >= lastUpdateId+1.
+		if id := loaded.LastUpdateID + 1; incoming.FirstUpdateID > id || incoming.LastUpdateID < id {
+			return false, fmt.Errorf("initial websocket orderbook sync failure for pair %s and asset %s", incoming.Pair, incoming.Asset)
+		}
 	}
-
-	id := loaded.LastUpdateID + 1
-	// The first processed event should have U <= lastUpdateId+1 AND
-	// u >= lastUpdateId+1.
-	if incoming.FirstUpdateID > id || updt.LastUpdateID < id {
-		return false, fmt.Errorf("initial websocket orderbook sync failure for pair %s and asset %s",
-			incoming.Pair,
-			incoming.Asset)
-	}
-	u.initialSync = false
 
 	return false, nil
 }

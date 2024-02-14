@@ -520,12 +520,12 @@ func (ku *Kucoin) processFuturesOrderbookLevel5(respData []byte, instrument stri
 		return err
 	}
 	return ku.Websocket.Orderbook.Update(&orderbook.Update{
-		UpdateID:   resp.Sequence,
-		UpdateTime: resp.Timestamp.Time(),
-		Asset:      asset.Futures,
-		Bids:       resp.Bids,
-		Asks:       resp.Asks,
-		Pair:       cp,
+		LastUpdateID: resp.Sequence,
+		UpdateTime:   resp.Timestamp.Time(),
+		Asset:        asset.Futures,
+		Bids:         resp.Bids,
+		Asks:         resp.Asks,
+		Pair:         cp,
 	})
 }
 
@@ -1245,12 +1245,12 @@ func (ku *Kucoin) ProcessUpdate(cp currency.Pair, a asset.Item, ws *WsOrderbook)
 	}
 
 	return ku.Websocket.Orderbook.Update(&orderbook.Update{
-		Bids:       updateBid,
-		Asks:       updateAsk,
-		Pair:       cp,
-		UpdateID:   ws.SequenceEnd,
-		UpdateTime: ws.TimeMS.Time(),
-		Asset:      a,
+		Bids:         updateBid,
+		Asks:         updateAsk,
+		Pair:         cp,
+		LastUpdateID: ws.SequenceEnd,
+		UpdateTime:   ws.TimeMS.Time(),
+		Asset:        a,
 	})
 }
 

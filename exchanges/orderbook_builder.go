@@ -9,20 +9,41 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
+	"github.com/thrasher-corp/gocryptotrader/log"
+)
+
+const (
+	requiresFetch state = iota
+	fetching
+	fetched
+
+	// defaultWindow defines a max amount of workers that a concurrently
+	// fetching using the request package. This is to prevent a single
+	// exchange from being overloaded with requests.
+	defaultWindow = 10
+)
+
+var (
+	errShutdownBuilderServices            = fmt.Errorf("orderbook builder services have been shutdown")
+	errOrderbookFetchingFunctionUndefined = fmt.Errorf("orderbook fetching function undefined")
+	errOrderbookCheckingFunctionUndefined = fmt.Errorf("orderbook checking function undefined")
+	errOrderbookUpdateIsNil               = fmt.Errorf("orderbook update is nil")
 )
 
 // state is an enum that defines the state of the orderbook tracker
 type state uint8
 
-const (
-	RequiresFetch state = iota
-	Fetching
-	Fetched
-
-	// maxWSOrderbookWorkers defines a max amount of workers allowed to execute
-	// jobs from the job channel
-	maxWSOrderbookWorkers = 10
-)
+// OrderbookBuilder is a type that helps build the initial state of an orderbook
+// from a REST request and then maintains the orderbook state via websocket.
+type OrderbookBuilder struct {
+	exch     IBotExchange
+	store    map[key.PairAsset]*tracker
+	fetcher  OrderbookFetcher
+	checker  OrderbookChecker
+	tm       ticketMachine
+	shutdown chan struct{}
+	mtx      sync.Mutex
+}
 
 // OrderbookFetcher is a wrapper defined function that is used to fetch an
 // orderbook from the REST API of an exchange. It is used to retrieve the
@@ -32,91 +53,101 @@ type OrderbookFetcher func(ctx context.Context, pair currency.Pair, a asset.Item
 // OrderbookChecker is a wrapper defined function that is used to check the
 // incoming orderbook update against the current orderbook state. It is used
 // to determine if the incoming update should be applied to the orderbook.
-type OrderbookChecker func(loaded *orderbook.Base, incoming *orderbook.Update) (skip bool, err error)
-
-// OrderbookBuilder is a type that helps build the initial state of an orderbook
-// from a REST request and then maintains the orderbook state via websocket.
-type OrderbookBuilder struct {
-	exch    IBotExchange
-	store   map[key.PairAsset]*tracker
-	fetcher OrderbookFetcher
-	checker OrderbookChecker
-	mtx     sync.Mutex
-}
+type OrderbookChecker func(loaded *orderbook.Base, incoming *orderbook.Update, isInitialSync bool) (skip bool, err error)
 
 // tracker is a type that holds the state of the orderbook and the pending
 // updates that need to be applied to the orderbook.
 type tracker struct {
 	state          state
 	pendingUpdates []*orderbook.Update
+	initFinished   bool
 	m              sync.Mutex
 }
 
-func NewOrderbookBuilder(exch IBotExchange, fetcher OrderbookFetcher, checker OrderbookChecker) *OrderbookBuilder {
-	return &OrderbookBuilder{
-		exch:    exch,
-		store:   make(map[key.PairAsset]*tracker),
-		fetcher: fetcher,
+// NewOrderbookBuilder returns a new instance of OrderbookBuilder. It requires
+// an exchange, a fetcher and a checker function to be defined.
+func NewOrderbookBuilder(exch IBotExchange, fetcher OrderbookFetcher, checker OrderbookChecker) (*OrderbookBuilder, error) {
+	if exch == nil {
+		return nil, errExchangeIsNil
 	}
+	if fetcher == nil {
+		return nil, errOrderbookFetchingFunctionUndefined
+	}
+	if checker == nil {
+		return nil, errOrderbookCheckingFunctionUndefined
+	}
+	return &OrderbookBuilder{
+		exch:     exch,
+		store:    make(map[key.PairAsset]*tracker),
+		fetcher:  fetcher,
+		checker:  checker,
+		shutdown: make(chan struct{}),
+	}, nil
 }
 
 func (o *OrderbookBuilder) Process(ctx context.Context, update *orderbook.Update) error {
+	if update == nil {
+		return errOrderbookUpdateIsNil
+	}
+
+	if update.Pair.IsEmpty() {
+		return currency.ErrCurrencyPairEmpty
+	}
+
+	if !update.Asset.IsValid() {
+		return asset.ErrInvalidAsset
+	}
+
 	o.mtx.Lock()
 	defer o.mtx.Unlock()
 
-	ident := key.PairAsset{
-		Base:  update.Pair.Base.Item,
-		Quote: update.Pair.Quote.Item,
-		Asset: update.Asset,
-	}
-
-	track, ok := o.store[ident]
+	i := key.PairAsset{Base: update.Pair.Base.Item, Quote: update.Pair.Quote.Item, Asset: update.Asset}
+	track, ok := o.store[i]
 	if !ok {
 		track = &tracker{}
-		o.store[ident] = track
+		o.store[i] = track
 	}
 
 	track.m.Lock()
+	defer track.m.Unlock()
+
 	switch track.state {
-	case RequiresFetch:
-		fmt.Println("fetching orderbook...")
-		track.state = Fetching
+	case requiresFetch:
+		track.state = fetching
 		go func() {
-			err := o.fetchAndApplyUpdate(context.Background(), update.Pair, update.Asset)
+			err := o.fetchAndApplyUpdate(ctx, update.Pair, update.Asset)
 			if err != nil {
-				fmt.Println(err)
+				log.Warnf(log.ExchangeSys, "OrderbookBuilder fetchAndApplyUpdate error: %v", err)
 			}
 		}()
 		fallthrough
-	case Fetching:
-		fmt.Println("pending update...")
+	case fetching:
 		track.pendingUpdates = append(track.pendingUpdates, update)
-	case Fetched:
-		fmt.Println("applying update...")
+	case fetched:
 		ws, err := o.exch.GetWebsocket()
 		if err != nil {
-			track.m.Unlock()
 			return err
 		}
 		check, err := ws.Orderbook.GetOrderbook(update.Pair, update.Asset)
 		if err != nil {
-			track.m.Unlock()
 			return err
 		}
 
-		_, err = o.checker(check, update)
+		skipUpdate, err := o.checker(check, update, !track.initFinished)
 		if err != nil {
-			track.m.Unlock()
 			return err
+		}
+
+		if skipUpdate {
+			return nil
 		}
 
 		err = ws.Orderbook.Update(update)
 		if err != nil {
-			track.m.Unlock()
 			return err
 		}
+		track.initFinished = true
 	}
-	track.m.Unlock()
 
 	return nil
 }
@@ -125,7 +156,19 @@ func (o *OrderbookBuilder) Process(ctx context.Context, update *orderbook.Update
 // The fetcher function is defined by the exchange wrapper and is used to
 // retrieve the orderbook from the REST API.
 func (o *OrderbookBuilder) fetchAndApplyUpdate(ctx context.Context, pair currency.Pair, a asset.Item) error {
+	ticket := o.tm.getTicket()
+	select {
+	case <-ctx.Done():
+		o.tm.releaseTicket()
+		return ctx.Err()
+	case <-o.shutdown:
+		o.tm.releaseTicket()
+		return errShutdownBuilderServices
+	case <-ticket:
+	}
+
 	ob, err := o.fetcher(ctx, pair, a)
+	o.tm.releaseTicket()
 	if err != nil {
 		return err
 	}
@@ -149,378 +192,75 @@ func (o *OrderbookBuilder) fetchAndApplyUpdate(ctx context.Context, pair currenc
 
 	track.m.Lock()
 	defer track.m.Unlock()
-	track.state = Fetched
+	track.state = fetched
+
+	check, err := ws.Orderbook.GetOrderbook(pair, a)
+	if err != nil {
+		return err
+	}
+
 	defer func() { track.pendingUpdates = track.pendingUpdates[:0] }()
 
-	fmt.Println("applying pending updates...")
 	for _, update := range track.pendingUpdates {
-		err := ws.Orderbook.Update(update)
+		skipUpdate, err := o.checker(check, update, !track.initFinished)
 		if err != nil {
 			return err
 		}
+
+		if skipUpdate {
+			continue
+		}
+
+		err = ws.Orderbook.Update(update)
+		if err != nil {
+			return err
+		}
+
+		track.initFinished = true
 	}
 
 	return nil
 }
 
-// func (b *OrderbookBuilder) setupOrderbookManager() {
-// 	if b.obm == nil {
-// 		b.obm = &orderbookManager{
-// 			state: make(map[currency.Code]map[currency.Code]map[asset.Item]*update),
-// 			jobs:  make(chan job, maxWSOrderbookJobs),
-// 		}
-// 	} else {
-// 		// Change state on reconnect for initial sync.
-// 		for _, m1 := range b.obm.state {
-// 			for _, m2 := range m1 {
-// 				for _, update := range m2 {
-// 					update.initialSync = true
-// 					update.needsFetchingBook = true
-// 					update.lastUpdateID = 0
-// 				}
-// 			}
-// 		}
-// 	}
+// Release releases the resources used by the orderbook builder
+func (o *OrderbookBuilder) Release() {
+	close(o.shutdown)
+}
 
-// 	for i := 0; i < maxWSOrderbookWorkers; i++ {
-// 		// 10 workers for synchronising book
-// 		b.SynchroniseWebsocketOrderbook()
-// 	}
-// }
+// ticketMachine is a type that is used to limit the amount of concurrent
+// requests that can be made to an exchange. This is to prevent a single
+// exchange from being overloaded with requests.
+type ticketMachine struct {
+	pending []chan struct{}
+	m       sync.Mutex
+}
 
-// // setNeedsFetchingBook completes the book fetching initiation.
-// func (o *OrderbookBuilder) setNeedsFetchingBook(pair currency.Pair) error {
-// 	o.Lock()
-// 	defer o.Unlock()
-// 	state, ok := o.state[pair.Base][pair.Quote][asset.Spot]
-// 	if !ok {
-// 		return fmt.Errorf("could not match pair %s and asset type %s in hash table",
-// 			pair,
-// 			asset.Spot)
-// 	}
-// 	state.needsFetchingBook = true
-// 	return nil
-// }
+// getTicket returns a channel that is closed when the caller can proceed with
+// their request. If the amount of pending requests is less than the default
+// window, the channel is closed immediately.
+func (t *ticketMachine) getTicket() chan struct{} {
+	t.m.Lock()
+	defer t.m.Unlock()
+	ticket := make(chan struct{})
+	t.pending = append(t.pending, ticket)
+	l := len(t.pending)
+	if l <= defaultWindow {
+		close(ticket)
+	}
+	return ticket
+}
 
-// // SynchroniseWebsocketOrderbook synchronises full orderbook for currency pair
-// // asset
-// func (b *OrderbookBuilder) SynchroniseWebsocketOrderbook() {
-// 	b.Websocket.Wg.Add(1)
-// 	go func() {
-// 		defer b.Websocket.Wg.Done()
-// 		for {
-// 			select {
-// 			case <-b.Websocket.ShutdownC:
-// 				for {
-// 					select {
-// 					case <-b.obm.jobs:
-// 					default:
-// 						return
-// 					}
-// 				}
-// 			case j := <-b.obm.jobs:
-// 				err := b.processJob(j.Pair)
-// 				if err != nil {
-// 					log.Errorf(log.WebsocketMgr,
-// 						"%s processing websocket orderbook error %v",
-// 						b.Name, err)
-// 				}
-// 			}
-// 		}
-// 	}()
-// }
-
-// // processJob fetches and processes orderbook updates
-// func (b *OrderbookBuilder) processJob(p currency.Pair) error {
-// 	err := b.SeedLocalCache(context.TODO(), p)
-// 	if err != nil {
-// 		return fmt.Errorf("%s %s seeding local cache for orderbook error: %v",
-// 			p, asset.Spot, err)
-// 	}
-
-// 	err = b.obm.stopFetchingBook(p)
-// 	if err != nil {
-// 		return err
-// 	}
-
-// 	// Immediately apply the buffer updates so we don't wait for a
-// 	// new update to initiate this.
-// 	err = b.applyBufferUpdate(p)
-// 	if err != nil {
-// 		b.flushAndCleanup(p)
-// 		return err
-// 	}
-// 	return nil
-// }
-
-// // flushAndCleanup flushes orderbook and clean local cache
-// func (b *OrderbookBuilder) flushAndCleanup(p currency.Pair) {
-// 	errClean := b.Websocket.Orderbook.FlushOrderbook(p, asset.Spot)
-// 	if errClean != nil {
-// 		log.Errorf(log.WebsocketMgr,
-// 			"%s flushing websocket error: %v",
-// 			b.Name,
-// 			errClean)
-// 	}
-// 	errClean = b.obm.cleanup(p)
-// 	if errClean != nil {
-// 		log.Errorf(log.WebsocketMgr, "%s cleanup websocket error: %v",
-// 			b.Name,
-// 			errClean)
-// 	}
-// }
-
-// // stageWsUpdate stages websocket update to roll through updates that need to
-// // be applied to a fetched orderbook via REST.
-// func (o *OrderbookBuilder) stageWsUpdate(u *WebsocketDepthStream, pair currency.Pair, a asset.Item) error {
-// 	o.Lock()
-// 	defer o.Unlock()
-// 	m1, ok := o.state[pair.Base]
-// 	if !ok {
-// 		m1 = make(map[currency.Code]map[asset.Item]*update)
-// 		o.state[pair.Base] = m1
-// 	}
-
-// 	m2, ok := m1[pair.Quote]
-// 	if !ok {
-// 		m2 = make(map[asset.Item]*update)
-// 		m1[pair.Quote] = m2
-// 	}
-
-// 	state, ok := m2[a]
-// 	if !ok {
-// 		state = &update{
-// 			// 100ms update assuming we might have up to a 10 second delay.
-// 			// There could be a potential 100 updates for the currency.
-// 			buffer:            make(chan *WebsocketDepthStream, maxWSUpdateBuffer),
-// 			fetchingBook:      false,
-// 			initialSync:       true,
-// 			needsFetchingBook: true,
-// 		}
-// 		m2[a] = state
-// 	}
-
-// 	if state.lastUpdateID != 0 && u.FirstUpdateID != state.lastUpdateID+1 {
-// 		// While listening to the stream, each new event's U should be
-// 		// equal to the previous event's u+1.
-// 		return fmt.Errorf("websocket orderbook synchronisation failure for pair %s and asset %s", pair, a)
-// 	}
-// 	state.lastUpdateID = u.LastUpdateID
-
-// 	select {
-// 	// Put update in the channel buffer to be processed
-// 	case state.buffer <- u:
-// 		return nil
-// 	default:
-// 		<-state.buffer    // pop one element
-// 		state.buffer <- u // to shift buffer on fail
-// 		return fmt.Errorf("channel blockage for %s, asset %s and connection",
-// 			pair, a)
-// 	}
-// }
-
-// // handleFetchingBook checks if a full book is being fetched or needs to be
-// // fetched
-// func (o *OrderbookBuilder) handleFetchingBook(pair currency.Pair) (fetching, needsFetching bool, err error) {
-// 	o.Lock()
-// 	defer o.Unlock()
-// 	state, ok := o.state[pair.Base][pair.Quote][asset.Spot]
-// 	if !ok {
-// 		return false,
-// 			false,
-// 			fmt.Errorf("check is fetching book cannot match currency pair %s asset type %s",
-// 				pair,
-// 				asset.Spot)
-// 	}
-
-// 	if state.fetchingBook {
-// 		return true, false, nil
-// 	}
-
-// 	if state.needsFetchingBook {
-// 		state.needsFetchingBook = false
-// 		state.fetchingBook = true
-// 		return false, true, nil
-// 	}
-// 	return false, false, nil
-// }
-
-// // stopFetchingBook completes the book fetching.
-// func (o *OrderbookBuilder) stopFetchingBook(pair currency.Pair) error {
-// 	o.Lock()
-// 	defer o.Unlock()
-// 	state, ok := o.state[pair.Base][pair.Quote][asset.Spot]
-// 	if !ok {
-// 		return fmt.Errorf("could not match pair %s and asset type %s in hash table",
-// 			pair,
-// 			asset.Spot)
-// 	}
-// 	if !state.fetchingBook {
-// 		return fmt.Errorf("fetching book already set to false for %s %s",
-// 			pair,
-// 			asset.Spot)
-// 	}
-// 	state.fetchingBook = false
-// 	return nil
-// }
-
-// // completeInitialSync sets if an asset type has completed its initial sync
-// func (o *OrderbookBuilder) completeInitialSync(pair currency.Pair) error {
-// 	o.Lock()
-// 	defer o.Unlock()
-// 	state, ok := o.state[pair.Base][pair.Quote][asset.Spot]
-// 	if !ok {
-// 		return fmt.Errorf("complete initial sync cannot match currency pair %s asset type %s",
-// 			pair,
-// 			asset.Spot)
-// 	}
-// 	if !state.initialSync {
-// 		return fmt.Errorf("initial sync already set to false for %s %s",
-// 			pair,
-// 			asset.Spot)
-// 	}
-// 	state.initialSync = false
-// 	return nil
-// }
-
-// // checkIsInitialSync checks status if the book is Initial Sync being via the REST
-// // protocol.
-// func (o *OrderbookBuilder) checkIsInitialSync(pair currency.Pair) (bool, error) {
-// 	o.Lock()
-// 	defer o.Unlock()
-// 	state, ok := o.state[pair.Base][pair.Quote][asset.Spot]
-// 	if !ok {
-// 		return false,
-// 			fmt.Errorf("checkIsInitialSync of orderbook cannot match currency pair %s asset type %s",
-// 				pair,
-// 				asset.Spot)
-// 	}
-// 	return state.initialSync, nil
-// }
-
-// // fetchBookViaREST pushes a job of fetching the orderbook via the REST protocol
-// // to get an initial full book that we can apply our buffered updates too.
-// func (o *OrderbookBuilder) fetchBookViaREST(pair currency.Pair) error {
-// 	o.Lock()
-// 	defer o.Unlock()
-
-// 	state, ok := o.state[pair.Base][pair.Quote][asset.Spot]
-// 	if !ok {
-// 		return fmt.Errorf("fetch book via rest cannot match currency pair %s asset type %s",
-// 			pair,
-// 			asset.Spot)
-// 	}
-
-// 	state.initialSync = true
-// 	state.fetchingBook = true
-
-// 	select {
-// 	case o.jobs <- job{pair}:
-// 		return nil
-// 	default:
-// 		return fmt.Errorf("%s %s book synchronisation channel blocked up",
-// 			pair,
-// 			asset.Spot)
-// 	}
-// }
-
-// func (o *OrderbookBuilder) checkAndProcessUpdate(processor func(currency.Pair, asset.Item, *WebsocketDepthStream) error, pair currency.Pair, recent *orderbook.Base) error {
-// 	o.Lock()
-// 	defer o.Unlock()
-// 	state, ok := o.state[pair.Base][pair.Quote][asset.Spot]
-// 	if !ok {
-// 		return fmt.Errorf("could not match pair [%s] asset type [%s] in hash table to process websocket orderbook update",
-// 			pair, asset.Spot)
-// 	}
-
-// 	// This will continuously remove updates from the buffered channel and
-// 	// apply them to the current orderbook.
-// buffer:
-// 	for {
-// 		select {
-// 		case d := <-state.buffer:
-// 			process, err := state.validate(d, recent)
-// 			if err != nil {
-// 				return err
-// 			}
-// 			if process {
-// 				err := processor(pair, asset.Spot, d)
-// 				if err != nil {
-// 					return fmt.Errorf("%s %s processing update error: %w",
-// 						pair, asset.Spot, err)
-// 				}
-// 			}
-// 		default:
-// 			break buffer
-// 		}
-// 	}
-// 	return nil
-// }
-
-// // validate checks for correct update alignment
-// func (u *update) validate(updt *WebsocketDepthStream, recent *orderbook.Base) (bool, error) {
-// 	if updt.LastUpdateID <= recent.LastUpdateID {
-// 		// Drop any event where u is <= lastUpdateId in the snapshot.
-// 		return false, nil
-// 	}
-
-// 	id := recent.LastUpdateID + 1
-// 	if u.initialSync {
-// 		// The first processed event should have U <= lastUpdateId+1 AND
-// 		// u >= lastUpdateId+1.
-// 		if updt.FirstUpdateID > id || updt.LastUpdateID < id {
-// 			return false, fmt.Errorf("initial websocket orderbook sync failure for pair %s and asset %s",
-// 				recent.Pair,
-// 				asset.Spot)
-// 		}
-// 		u.initialSync = false
-// 	}
-// 	return true, nil
-// }
-
-// // cleanup cleans up buffer and reset fetch and init
-// func (o *OrderbookBuilder) cleanup(pair currency.Pair) error {
-// 	o.Lock()
-// 	state, ok := o.state[pair.Base][pair.Quote][asset.Spot]
-// 	if !ok {
-// 		o.Unlock()
-// 		return fmt.Errorf("cleanup cannot match %s %s to hash table",
-// 			pair,
-// 			asset.Spot)
-// 	}
-
-// bufferEmpty:
-// 	for {
-// 		select {
-// 		case <-state.buffer:
-// 			// bleed and discard buffer
-// 		default:
-// 			break bufferEmpty
-// 		}
-// 	}
-// 	o.Unlock()
-// 	// disable rest orderbook synchronisation
-// 	_ = o.stopFetchingBook(pair)
-// 	_ = o.completeInitialSync(pair)
-// 	_ = o.stopNeedsFetchingBook(pair)
-// 	return nil
-// }
-
-// // stopNeedsFetchingBook completes the book fetching initiation.
-// func (o *OrderbookBuilder) stopNeedsFetchingBook(pair currency.Pair) error {
-// 	o.Lock()
-// 	defer o.Unlock()
-// 	state, ok := o.state[pair.Base][pair.Quote][asset.Spot]
-// 	if !ok {
-// 		return fmt.Errorf("could not match pair %s and asset type %s in hash table",
-// 			pair,
-// 			asset.Spot)
-// 	}
-// 	if !state.needsFetchingBook {
-// 		return fmt.Errorf("needs fetching book already set to false for %s %s",
-// 			pair,
-// 			asset.Spot)
-// 	}
-// 	state.needsFetchingBook = false
-// 	return nil
-// }
+// releaseTicket releases the first ticket in the queue and closes the channel
+// if the amount of pending requests is greater than the default window.
+func (t *ticketMachine) releaseTicket() {
+	t.m.Lock()
+	defer t.m.Unlock()
+	l := len(t.pending)
+	if l == 0 {
+		return
+	}
+	t.pending = t.pending[1:]
+	if l > defaultWindow {
+		close(t.pending[defaultWindow-1])
+	}
+}

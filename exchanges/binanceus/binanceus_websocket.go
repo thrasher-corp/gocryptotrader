@@ -703,12 +703,12 @@ func (bi *Binanceus) ProcessUpdate(cp currency.Pair, a asset.Item, ws *Websocket
 	}
 
 	return bi.Websocket.Orderbook.Update(&orderbook.Update{
-		Bids:       updateBid,
-		Asks:       updateAsk,
-		Pair:       cp,
-		UpdateID:   ws.LastUpdateID,
-		UpdateTime: ws.Timestamp,
-		Asset:      a,
+		Bids:         updateBid,
+		Asks:         updateAsk,
+		Pair:         cp,
+		LastUpdateID: ws.LastUpdateID,
+		UpdateTime:   ws.Timestamp,
+		Asset:        a,
 	})
 }
 
