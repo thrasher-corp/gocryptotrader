@@ -91,6 +91,8 @@ func NewRateLimitWithToken(interval time.Duration, actions int, tokens Tokens) *
 	return GetRateLimiterWithToken(NewRateLimit(interval, actions), tokens)
 }
 
+// GetRateLimiterWithToken couples a rate limiter with a token count into an
+// accepted defined rate limiter with token struct
 func GetRateLimiterWithToken(l *rate.Limiter, t Tokens) *RateLimiterWithToken {
 	return &RateLimiterWithToken{l, t}
 }
