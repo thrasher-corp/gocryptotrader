@@ -74,6 +74,11 @@ func (b *Binance) WsConnect() error {
 			err)
 	}
 
+	b.OrderbookBuilder, err = exchange.NewOrderbookBuilder(b, b.GetBuildableBook, b.Validate)
+	if err != nil {
+		return err
+	}
+
 	if b.Websocket.CanUseAuthenticatedEndpoints() {
 		go b.KeepAuthKeyAlive()
 	}
@@ -87,7 +92,6 @@ func (b *Binance) WsConnect() error {
 	b.Websocket.Wg.Add(1)
 	go b.wsReadData()
 
-	b.OrderbookBuilder = exchange.NewOrderbookBuilder(b, b.GetBuildableBook, b.Validate)
 	return nil
 }
 

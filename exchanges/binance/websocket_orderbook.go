@@ -75,7 +75,7 @@ func (b *Binance) GetBuildableBook(ctx context.Context, p currency.Pair, a asset
 	}, nil
 }
 
-// Validate validates an incoming orderbook update against and old stored orderbook.
+// Validate validates an incoming orderbook update against an old stored orderbook.
 func (b *Binance) Validate(loaded *orderbook.Base, incoming *orderbook.Update, initialSync bool) (skip bool, err error) {
 	if incoming.LastUpdateID <= loaded.LastUpdateID {
 		// Drop any event where `lastUpdateID` is <= lastUpdateId in the snapshot.

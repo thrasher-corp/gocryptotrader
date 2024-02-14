@@ -27,6 +27,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
@@ -2085,119 +2086,6 @@ func TestWsTradeUpdate(t *testing.T) {
 	}
 }
 
-func TestWsDepthUpdate(t *testing.T) {
-	binanceOrderBookLock.Lock()
-	defer binanceOrderBookLock.Unlock()
-	b.setupOrderbookManager()
-	seedLastUpdateID := int64(161)
-	book := OrderBook{
-		Asks: []OrderbookItem{
-			{Price: 6621.80000000, Quantity: 0.00198100},
-			{Price: 6622.14000000, Quantity: 4.00000000},
-			{Price: 6622.46000000, Quantity: 2.30000000},
-			{Price: 6622.47000000, Quantity: 1.18633300},
-			{Price: 6622.64000000, Quantity: 4.00000000},
-			{Price: 6622.73000000, Quantity: 0.02900000},
-			{Price: 6622.76000000, Quantity: 0.12557700},
-			{Price: 6622.81000000, Quantity: 2.08994200},
-			{Price: 6622.82000000, Quantity: 0.01500000},
-			{Price: 6623.17000000, Quantity: 0.16831300},
-		},
-		Bids: []OrderbookItem{
-			{Price: 6621.55000000, Quantity: 0.16356700},
-			{Price: 6621.45000000, Quantity: 0.16352600},
-			{Price: 6621.41000000, Quantity: 0.86091200},
-			{Price: 6621.25000000, Quantity: 0.16914100},
-			{Price: 6621.23000000, Quantity: 0.09193600},
-			{Price: 6621.22000000, Quantity: 0.00755100},
-			{Price: 6621.13000000, Quantity: 0.08432000},
-			{Price: 6621.03000000, Quantity: 0.00172000},
-			{Price: 6620.94000000, Quantity: 0.30506700},
-			{Price: 6620.93000000, Quantity: 0.00200000},
-		},
-		LastUpdateID: seedLastUpdateID,
-	}
-
-	update1 := []byte(`{"stream":"btcusdt@depth","data":{
-	  "e": "depthUpdate", 
-	  "E": 123456788,     
-	  "s": "BTCUSDT",      
-	  "U": 157,           
-	  "u": 160,           
-	  "b": [              
-		["6621.45", "0.3"]
-	  ],
-	  "a": [              
-		["6622.46", "1.5"]
-	  ]
-	}}`)
-
-	p := currency.NewPairWithDelimiter("BTC", "USDT", "-")
-	if err := b.SeedLocalCacheWithBook(p, &book); err != nil {
-		t.Fatal(err)
-	}
-
-	if err := b.wsHandleData(update1); err != nil {
-		t.Error(err)
-	}
-
-	b.obm.state[currency.BTC][currency.USDT][asset.Spot].fetchingBook = false
-
-	ob, err := b.Websocket.Orderbook.GetOrderbook(p, asset.Spot)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if exp, got := seedLastUpdateID, ob.LastUpdateID; got != exp {
-		t.Fatalf("Unexpected Last update id of orderbook for old update. Exp: %d, got: %d", exp, got)
-	}
-	if exp, got := 2.3, ob.Asks[2].Amount; got != exp {
-		t.Fatalf("Ask altered by outdated update. Exp: %f, got %f", exp, got)
-	}
-	if exp, got := 0.163526, ob.Bids[1].Amount; got != exp {
-		t.Fatalf("Bid altered by outdated update. Exp: %f, got %f", exp, got)
-	}
-
-	update2 := []byte(`{"stream":"btcusdt@depth","data":{
-	  "e": "depthUpdate", 
-	  "E": 123456789,     
-	  "s": "BTCUSDT",      
-	  "U": 161,           
-	  "u": 165,           
-	  "b": [           
-		["6621.45", "0.163526"]
-	  ],
-	  "a": [             
-		["6622.46", "2.3"], 
-		["6622.47", "1.9"]
-	  ]
-	}}`)
-
-	if err = b.wsHandleData(update2); err != nil {
-		t.Error(err)
-	}
-
-	ob, err = b.Websocket.Orderbook.GetOrderbook(p, asset.Spot)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if exp, got := int64(165), ob.LastUpdateID; got != exp {
-		t.Fatalf("Unexpected Last update id of orderbook for new update. Exp: %d, got: %d", exp, got)
-	}
-	if exp, got := 2.3, ob.Asks[2].Amount; got != exp {
-		t.Fatalf("Unexpected Ask amount. Exp: %f, got %f", exp, got)
-	}
-	if exp, got := 1.9, ob.Asks[3].Amount; got != exp {
-		t.Fatalf("Unexpected Ask amount. Exp: %f, got %f", exp, got)
-	}
-	if exp, got := 0.163526, ob.Bids[1].Amount; got != exp {
-		t.Fatalf("Unexpected Bid amount. Exp: %f, got %f", exp, got)
-	}
-
-	// reset order book sync status
-	b.obm.state[currency.BTC][currency.USDT][asset.Spot].lastUpdateID = 0
-}
-
 func TestWsBalanceUpdate(t *testing.T) {
 	t.Parallel()
 	pressXToJSON := []byte(`{"stream":"jTfvpakT2yT0hVIo5gYWVihZhdM2PrBgJUZ5PyfZ4EVpCkx4Uoxk5timcrQc","data":{
@@ -2422,14 +2310,6 @@ func TestGetAvailableTransferChains(t *testing.T) {
 	}
 }
 
-func TestSeedLocalCache(t *testing.T) {
-	t.Parallel()
-	err := b.SeedLocalCache(context.Background(), currency.NewPair(currency.BTC, currency.USDT))
-	if err != nil {
-		t.Fatal(err)
-	}
-}
-
 func TestGenerateSubscriptions(t *testing.T) {
 	t.Parallel()
 	expected := []subscription.Subscription{}
@@ -2487,38 +2367,6 @@ func TestChannelName(t *testing.T) {
 	n, err = channelName(&subscription.Subscription{Channel: subscription.CandlesChannel})
 	assert.NoError(t, err, "Candles channel should not error")
 	assert.Equal(t, "kline_0s", n, "Candles with no interval should return 0s") // It's not channelName's job to supply defaults
-}
-
-var websocketDepthUpdate = []byte(`{"E":1608001030784,"U":7145637266,"a":[["19455.19000000","0.59490200"],["19455.37000000","0.00000000"],["19456.11000000","0.00000000"],["19456.16000000","0.00000000"],["19458.67000000","0.06400000"],["19460.73000000","0.05139800"],["19461.43000000","0.00000000"],["19464.59000000","0.00000000"],["19466.03000000","0.45000000"],["19466.36000000","0.00000000"],["19508.67000000","0.00000000"],["19572.96000000","0.00217200"],["24386.00000000","0.00256600"]],"b":[["19455.18000000","2.94649200"],["19453.15000000","0.01233600"],["19451.18000000","0.00000000"],["19446.85000000","0.11427900"],["19446.74000000","0.00000000"],["19446.73000000","0.00000000"],["19444.45000000","0.14937800"],["19426.75000000","0.00000000"],["19416.36000000","0.36052100"]],"e":"depthUpdate","s":"BTCUSDT","u":7145637297}`)
-
-func TestProcessUpdate(t *testing.T) {
-	t.Parallel()
-	binanceOrderBookLock.Lock()
-	defer binanceOrderBookLock.Unlock()
-	p := currency.NewPair(currency.BTC, currency.USDT)
-	var depth WebsocketDepthStream
-	err := json.Unmarshal(websocketDepthUpdate, &depth)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	err = b.obm.stageWsUpdate(&depth, p, asset.Spot)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	err = b.obm.fetchBookViaREST(p)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	err = b.obm.cleanup(p)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	// reset order book sync status
-	b.obm.state[currency.BTC][currency.USDT][asset.Spot].lastUpdateID = 0
 }
 
 func TestUFuturesHistoricalTrades(t *testing.T) {
@@ -3486,4 +3334,131 @@ func TestGetOpenInterest(t *testing.T) {
 		Asset: asset.Spot,
 	})
 	assert.ErrorIs(t, err, asset.ErrNotSupported)
+}
+
+func TestGetBuildableBook(t *testing.T) {
+	t.Parallel()
+	ob, err := b.GetBuildableBook(context.Background(), currency.NewPair(currency.BTC, currency.USDT), asset.Spot)
+	require.NoError(t, err)
+	assert.NotEmpty(t, ob.Asks)
+	assert.NotEmpty(t, ob.Bids)
+	assert.Len(t, ob.Asks, 1000)
+	assert.Len(t, ob.Bids, 1000)
+}
+
+func TestWsDepthUpdate(t *testing.T) {
+	binanceOrderBookLock.Lock()
+	defer binanceOrderBookLock.Unlock()
+
+	seedLastUpdateID := int64(161)
+	fetcher := func(ctx context.Context, pair currency.Pair, a asset.Item) (*orderbook.Base, error) {
+		return &orderbook.Base{
+			Exchange:    b.Name,
+			Pair:        pair,
+			Asset:       a,
+			LastUpdated: time.Now(),
+			Asks: []orderbook.Item{
+				{Price: 6621.80000000, Amount: 0.00198100},
+				{Price: 6622.14000000, Amount: 4.00000000},
+				{Price: 6622.46000000, Amount: 2.30000000},
+				{Price: 6622.47000000, Amount: 1.18633300},
+				{Price: 6622.64000000, Amount: 4.00000000},
+				{Price: 6622.73000000, Amount: 0.02900000},
+				{Price: 6622.76000000, Amount: 0.12557700},
+				{Price: 6622.81000000, Amount: 2.08994200},
+				{Price: 6622.82000000, Amount: 0.01500000},
+				{Price: 6623.17000000, Amount: 0.16831300},
+			},
+			Bids: []orderbook.Item{
+				{Price: 6621.55000000, Amount: 0.16356700},
+				{Price: 6621.45000000, Amount: 0.16352600},
+				{Price: 6621.41000000, Amount: 0.86091200},
+				{Price: 6621.25000000, Amount: 0.16914100},
+				{Price: 6621.23000000, Amount: 0.09193600},
+				{Price: 6621.22000000, Amount: 0.00755100},
+				{Price: 6621.13000000, Amount: 0.08432000},
+				{Price: 6621.03000000, Amount: 0.00172000},
+				{Price: 6620.94000000, Amount: 0.30506700},
+				{Price: 6620.93000000, Amount: 0.00200000},
+			},
+			LastUpdateID: seedLastUpdateID,
+		}, nil
+	}
+
+	var err error
+	b.OrderbookBuilder, err = exchange.NewOrderbookBuilder(b, fetcher, b.Validate)
+	require.NoError(t, err)
+
+	update1 := []byte(`{"stream":"btcusdt@depth","data":{
+	  "e": "depthUpdate",
+	  "E": 123456788,
+	  "s": "BTCUSDT",
+	  "U": 157,
+	  "u": 160,
+	  "b": [
+		["6621.45", "0.3"]
+	  ],
+	  "a": [
+		["6622.46", "1.5"]
+	  ]
+	}}`)
+
+	if err := b.wsHandleData(update1); err != nil {
+		t.Error(err)
+	}
+
+	time.Sleep(time.Millisecond * 100) // Wait until book update is processed in different goroutine
+
+	pair := currency.NewPair(currency.BTC, currency.USDT)
+
+	ob, err := b.Websocket.Orderbook.GetOrderbook(pair, asset.Spot)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if exp, got := seedLastUpdateID, ob.LastUpdateID; got != exp {
+		t.Fatalf("Unexpected Last update id of orderbook for old update. Exp: %d, got: %d", exp, got)
+	}
+	if exp, got := 2.3, ob.Asks[2].Amount; got != exp {
+		t.Fatalf("Ask altered by outdated update. Exp: %f, got %f", exp, got)
+	}
+	if exp, got := 0.163526, ob.Bids[1].Amount; got != exp {
+		t.Fatalf("Bid altered by outdated update. Exp: %f, got %f", exp, got)
+	}
+
+	update2 := []byte(`{"stream":"btcusdt@depth","data":{
+	  "e": "depthUpdate",
+	  "E": 123456789,
+	  "s": "BTCUSDT",
+	  "U": 161,
+	  "u": 165,
+	  "b": [
+		["6621.45", "0.163526"]
+	  ],
+	  "a": [
+		["6622.46", "2.3"],
+		["6622.47", "1.9"]
+	  ]
+	}}`)
+
+	if err = b.wsHandleData(update2); err != nil {
+		t.Error(err)
+	}
+
+	ob, err = b.Websocket.Orderbook.GetOrderbook(pair, asset.Spot)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if exp, got := int64(165), ob.LastUpdateID; got != exp {
+		t.Fatalf("Unexpected Last update id of orderbook for new update. Exp: %d, got: %d", exp, got)
+	}
+	if exp, got := 2.3, ob.Asks[2].Amount; got != exp {
+		t.Fatalf("Unexpected Ask amount. Exp: %f, got %f", exp, got)
+	}
+	if exp, got := 1.9, ob.Asks[3].Amount; got != exp {
+		t.Fatalf("Unexpected Ask amount. Exp: %f, got %f", exp, got)
+	}
+	if exp, got := 0.163526, ob.Bids[1].Amount; got != exp {
+		t.Fatalf("Unexpected Bid amount. Exp: %f, got %f", exp, got)
+	}
 }
