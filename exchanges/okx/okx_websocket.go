@@ -1752,7 +1752,7 @@ func (ok *Okx) WsCancelOrder(arg CancelOrderRequestParam) (*OrderData, error) {
 		return nil, errMissingInstrumentID
 	}
 	if arg.OrderID == "" && arg.ClientOrderID == "" {
-		return nil, fmt.Errorf("either order id or client supplier id is required")
+		return nil, errors.New("either order id or client supplier id is required")
 	}
 	if !ok.Websocket.CanUseAuthenticatedEndpoints() {
 		return nil, errWebsocketStreamNotAuthenticated
@@ -1802,7 +1802,7 @@ func (ok *Okx) WsCancelMultipleOrder(args []CancelOrderRequestParam) ([]OrderDat
 			return nil, errMissingInstrumentID
 		}
 		if arg.OrderID == "" && arg.ClientOrderID == "" {
-			return nil, fmt.Errorf("either order id or client supplier id is required")
+			return nil, errors.New("either order id or client supplier id is required")
 		}
 	}
 	if !ok.Websocket.CanUseAuthenticatedEndpoints() {

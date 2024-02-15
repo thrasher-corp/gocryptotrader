@@ -941,7 +941,7 @@ func (ok *Okx) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitR
 		return nil, fmt.Errorf("%w: %v", asset.ErrNotSupported, s.AssetType)
 	}
 	if s.Amount <= 0 {
-		return nil, fmt.Errorf("amount, or size (sz) of quantity to buy or sell hast to be greater than zero ")
+		return nil, errors.New("amount, or size (sz) of quantity to buy or sell hast to be greater than zero")
 	}
 	pairFormat, err := ok.GetPairFormat(s.AssetType, true)
 	if err != nil {
@@ -2195,7 +2195,7 @@ func (ok *Okx) ChangePositionMargin(ctx context.Context, req *margin.PositionCha
 	if req.MarginSide == "" {
 		req.MarginSide = "net"
 	}
-	r := IncreaseDecreaseMarginInput{
+	r := &IncreaseDecreaseMarginInput{
 		InstrumentID: fPair.String(),
 		PositionSide: req.MarginSide,
 		Type:         marginType,
