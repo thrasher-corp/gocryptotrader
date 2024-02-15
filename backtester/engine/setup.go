@@ -858,7 +858,7 @@ func (bt *BackTest) loadData(cfg *config.Config, exch gctexchange.IBotExchange, 
 		return nil, err
 	}
 	if resp == nil {
-		return nil, fmt.Errorf("processing error, response returned nil")
+		return nil, errors.New("processing error, response returned nil")
 	}
 
 	resp.Item.UnderlyingPair = underlyingPair

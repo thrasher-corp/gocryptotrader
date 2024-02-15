@@ -10,12 +10,8 @@ import (
 	"os"
 	"testing"
 
-	"github.com/thrasher-corp/gocryptotrader/config"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/mock"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
+	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 )
-
-const mockfile = "../../testdata/http_mock/binance/binance.json"
 
 var mockTests = true
 
@@ -23,47 +19,20 @@ func TestMain(m *testing.M) {
 	if useTestNet {
 		log.Fatal("cannot use testnet with mock tests")
 	}
-	cfg := config.GetConfig()
-	err := cfg.LoadConfig("../../testdata/configtest.json", true)
-	if err != nil {
-		log.Fatal("Binance load config error", err)
+
+	b = new(Binance)
+	if err := testexch.TestInstance(b); err != nil {
+		log.Fatal(err)
 	}
-	binanceConfig, err := cfg.GetExchangeConfig("Binance")
-	if err != nil {
-		log.Fatal("Binance Setup() init error", err)
-	}
-	b.SkipAuthCheck = true
-	binanceConfig.API.AuthenticatedSupport = true
-	binanceConfig.API.Credentials.Key = apiKey
-	binanceConfig.API.Credentials.Secret = apiSecret
-	b.SetDefaults()
-	b.Websocket = sharedtestvalues.NewTestWebsocket()
-	err = b.Setup(binanceConfig)
-	if err != nil {
-		log.Fatal("Binance setup error", err)
+
+	if err := testexch.MockHTTPInstance(b); err != nil {
+		log.Fatal(err)
 	}
 
 	b.setupOrderbookManager()
-
-	serverDetails, newClient, err := mock.NewVCRServer(mockfile)
-	if err != nil {
-		log.Fatalf("Mock server error %s", err)
-	}
-	err = b.SetHTTPClient(newClient)
-	if err != nil {
-		log.Fatalf("Mock server error %s", err)
-	}
-	endpointMap := b.API.Endpoints.GetURLMap()
-	for k := range endpointMap {
-		err = b.API.Endpoints.SetRunning(k, serverDetails)
-		if err != nil {
-			log.Fatal(err)
-		}
-	}
-	log.Printf(sharedtestvalues.MockTesting, b.Name)
-	err = b.UpdateTradablePairs(context.Background(), true)
-	if err != nil {
+	if err := b.UpdateTradablePairs(context.Background(), true); err != nil {
 		log.Fatal(err)
 	}
+
 	os.Exit(m.Run())
 }

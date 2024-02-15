@@ -1039,7 +1039,7 @@ func (b *Bitfinex) AuthenticateWebsocket(ctx context.Context) error {
 
 // appendOptionalDelimiter ensures that a delimiter is present for long character currencies
 func (b *Bitfinex) appendOptionalDelimiter(p *currency.Pair) {
-	if (len(p.Base.String()) > 3 && len(p.Quote.String()) > 0) ||
+	if (len(p.Base.String()) > 3 && !p.Quote.IsEmpty()) ||
 		len(p.Quote.String()) > 3 {
 		p.Delimiter = ":"
 	}
@@ -1204,7 +1204,7 @@ func (b *Bitfinex) GetAvailableTransferChains(ctx context.Context, cryptocurrenc
 
 	availChains := acceptableMethods.lookup(cryptocurrency)
 	if len(availChains) == 0 {
-		return nil, fmt.Errorf("unable to find any available chains")
+		return nil, errors.New("unable to find any available chains")
 	}
 	return availChains, nil
 }

@@ -64,7 +64,7 @@ func New() (*Engine, error) {
 	newEngineMutex.Lock()
 	defer newEngineMutex.Unlock()
 	var b Engine
-	b.Config = &config.Cfg
+	b.Config = config.GetConfig()
 
 	err := b.Config.LoadConfig("", false)
 	if err != nil {

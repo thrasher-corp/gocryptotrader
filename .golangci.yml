@@ -17,7 +17,6 @@ linters:
     - govet
     - ineffassign
     - staticcheck
-    - typecheck
 #   - unused
 
 # disabled by default linters
@@ -51,6 +50,7 @@ linters:
     - gocheckcompilerdirectives
 #   - gochecknoglobals
 #   - gochecknoinits
+    - gochecksumtype
 #   - gocognit
     - goconst
     - gocritic
@@ -72,6 +72,7 @@ linters:
     - grouper
 #   - ifshort // deprecated by its owner
 #   - importas
+#   - inamedparam
 #   - interfacebloat
 #   - interfacer // deprecated by its owner
 #   - ireturn
@@ -94,9 +95,11 @@ linters:
 #   - nosnakecase // deprecated by its owner, replaced by revive 'var-naming'
     - nosprintfhostport
 #   - paralleltest
+    - perfsprint
     - prealloc
     - predeclared
 #   - promlinter
+#   - protogetter
     - reassign
     - revive
     - rowserrcheck
@@ -104,9 +107,11 @@ linters:
     - sqlclosecheck
 #   - structcheck // abandoned by its owner, replaced by unused
     - stylecheck
+    - tagalign
 #   - tagliatelle
     - tenv
     - testableexamples
+    - testifylint
 #   - testpackage
     - thelper
     - tparallel
@@ -136,6 +141,11 @@ linters-settings:
       - importShadow
       - methodExprCall
       - evalOrder
+  testifylint:
+    enable-all: true
+    disable:
+      - require-error
+      - float-compare
 
 issues:
   max-issues-per-linter: 0

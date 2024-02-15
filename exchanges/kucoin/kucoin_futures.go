@@ -7,14 +7,17 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
+	"sync"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 )
 
 const (
@@ -95,6 +98,64 @@ func (ku *Kucoin) GetFuturesTicker(ctx context.Context, symbol string) (*Futures
 	params.Set("symbol", symbol)
 	var resp *FuturesTicker
 	return resp, ku.SendHTTPRequest(ctx, exchange.RestFutures, defaultFuturesEPL, common.EncodeURLValues(kucoinFuturesTicker, params), &resp)
+}
+
+// GetFuturesTickers does n * REST requests based on enabled pairs of the futures asset type
+func (ku *Kucoin) GetFuturesTickers(ctx context.Context) ([]*ticker.Price, error) {
+	pairs, err := ku.GetEnabledPairs(asset.Futures)
+	if err != nil {
+		return nil, err
+	}
+
+	var wg sync.WaitGroup
+	tickersC := make(chan *ticker.Price, len(pairs))
+	errC := make(chan error, len(pairs))
+
+	for i := range pairs {
+		var p currency.Pair
+		if p, err = ku.FormatExchangeCurrency(pairs[i], asset.Futures); err != nil {
+			errC <- err
+			break
+		}
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+
+			if tick, err2 := ku.GetFuturesTicker(ctx, p.String()); err2 != nil {
+				errC <- err2
+			} else {
+				tickersC <- &ticker.Price{
+					Last:         tick.Price.Float64(),
+					Bid:          tick.BestBidPrice.Float64(),
+					Ask:          tick.BestAskPrice.Float64(),
+					BidSize:      tick.BestBidSize,
+					AskSize:      tick.BestAskSize,
+					Volume:       tick.Size,
+					Pair:         p,
+					LastUpdated:  tick.FilledTime.Time(),
+					ExchangeName: ku.Name,
+					AssetType:    asset.Futures,
+				}
+			}
+		}()
+	}
+
+	wg.Wait()
+	close(tickersC)
+	close(errC)
+	var errs error
+	for err := range errC {
+		errs = common.AppendError(errs, err)
+	}
+	if errs != nil {
+		return nil, errs
+	}
+
+	tickers := make([]*ticker.Price, 0, len(pairs))
+	for tick := range tickersC {
+		tickers = append(tickers, tick)
+	}
+	return tickers, nil
 }
 
 // GetFuturesOrderbook gets full orderbook for a specified symbol
