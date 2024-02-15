@@ -162,6 +162,7 @@ var (
 	errUserIDRequired                         = errors.New("uid is required")
 	errSubPositionCloseTypeRequired           = errors.New("sub position close type")
 	errUniqueCodeRequired                     = errors.New("unique code is required")
+	errLastDaysRequired                       = errors.New("last days required")
 	errCopyInstrumentIDTypeRequired           = errors.New("copy instrument ID type is required")
 	errInvalidChecksum                        = errors.New("invalid checksum")
 )
@@ -3402,7 +3403,7 @@ func (ok *Okx) GetUnrealizedProfitSharingDetails(ctx context.Context, instrument
 
 // SetFirstCopySettings set first copy settings for the certain lead trader. You need to first copy settings after stopping copying.
 func (ok *Okx) SetFirstCopySettings(ctx context.Context, arg *FirstCopySettings) (*ResponseSuccess, error) {
-	err := processFirstCopySettings(arg)
+	err := validateFirstCopySettings(arg)
 	if err != nil {
 		return nil, err
 	}
@@ -3412,7 +3413,7 @@ func (ok *Okx) SetFirstCopySettings(ctx context.Context, arg *FirstCopySettings)
 
 // AmendCopySettings amends need to use this endpoint for amending copy settings
 func (ok *Okx) AmendCopySettings(ctx context.Context, arg *FirstCopySettings) (*ResponseSuccess, error) {
-	err := processFirstCopySettings(arg)
+	err := validateFirstCopySettings(arg)
 	if err != nil {
 		return nil, err
 	}
@@ -3420,7 +3421,7 @@ func (ok *Okx) AmendCopySettings(ctx context.Context, arg *FirstCopySettings) (*
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, amendFirstCopySettingsEPL, http.MethodPost, "copytrading/amend-copy-settings", arg, &resp, true)
 }
 
-func processFirstCopySettings(arg *FirstCopySettings) error {
+func validateFirstCopySettings(arg *FirstCopySettings) error {
 	if arg == nil || *arg == (FirstCopySettings{}) {
 		return errNilArgument
 	}
@@ -3600,7 +3601,7 @@ func (ok *Okx) GetDailyLeadTraderPNL(ctx context.Context, instrumentType, unique
 		return nil, errUniqueCodeRequired
 	}
 	if lastDays == "" {
-		return nil, errors.New("last days require")
+		return nil, errLastDaysRequired
 	}
 	params := url.Values{}
 	params.Set("uniqueCode", uniqueCode)
@@ -3618,7 +3619,7 @@ func (ok *Okx) GetLeadTraderStats(ctx context.Context, instrumentType, uniqueCod
 		return nil, errUniqueCodeRequired
 	}
 	if lastDays == "" {
-		return nil, errors.New("last days require")
+		return nil, errLastDaysRequired
 	}
 	params := url.Values{}
 	params.Set("uniqueCode", uniqueCode)
@@ -3636,7 +3637,7 @@ func (ok *Okx) GetLeadTraderCurrencyPreferences(ctx context.Context, instrumentT
 		return nil, errUniqueCodeRequired
 	}
 	if lastDays == "" {
-		return nil, errors.New("last days require")
+		return nil, errLastDaysRequired
 	}
 	params := url.Values{}
 	params.Set("uniqueCode", uniqueCode)

@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"errors"
 	"reflect"
-	"strconv"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
@@ -120,8 +119,8 @@ type IndexTicker struct {
 
 // OrderBookResponse holds the order asks and bids at a specific timestamp
 type OrderBookResponse struct {
-	Asks                [][4]string          `json:"asks"`
-	Bids                [][4]string          `json:"bids"`
+	Asks                [][4]types.Number    `json:"asks"`
+	Bids                [][4]types.Number    `json:"bids"`
 	GenerationTimeStamp convert.ExchangeTime `json:"ts"`
 }
 
@@ -169,27 +168,11 @@ func (a *OrderBookResponse) GetOrderBookResponseDetail() (*OrderBookResponseDeta
 func (a *OrderBookResponse) GetAsks() ([]OrderAsk, error) {
 	asks := make([]OrderAsk, len(a.Asks))
 	for x := range a.Asks {
-		depthPrice, er := strconv.ParseFloat(a.Asks[x][0], 64)
-		if er != nil {
-			return nil, er
-		}
-		contracts, er := strconv.ParseFloat(a.Asks[x][1], 64)
-		if er != nil {
-			return nil, er
-		}
-		liquidation, er := strconv.ParseInt(a.Asks[x][2], 10, 64)
-		if er != nil {
-			return nil, er
-		}
-		orders, er := strconv.ParseInt(a.Asks[x][3], 10, 64)
-		if er != nil {
-			return nil, er
-		}
 		asks[x] = OrderAsk{
-			DepthPrice:        depthPrice,
-			NumberOfContracts: contracts,
-			LiquidationOrders: liquidation,
-			NumberOfOrders:    orders,
+			DepthPrice:        a.Asks[x][0].Float64(),
+			NumberOfContracts: a.Asks[x][1].Float64(),
+			LiquidationOrders: a.Asks[x][2].Int64(),
+			NumberOfOrders:    a.Asks[x][3].Int64(),
 		}
 	}
 	return asks, nil
@@ -199,34 +182,18 @@ func (a *OrderBookResponse) GetAsks() ([]OrderAsk, error) {
 func (a *OrderBookResponse) GetBids() ([]OrderBid, error) {
 	bids := make([]OrderBid, len(a.Bids))
 	for x := range a.Bids {
-		depthPrice, er := strconv.ParseFloat(a.Bids[x][0], 64)
-		if er != nil {
-			return nil, er
-		}
-		currencies, er := strconv.ParseFloat(a.Bids[x][1], 64)
-		if er != nil {
-			return nil, er
-		}
-		liquidation, er := strconv.ParseInt(a.Bids[x][2], 10, 64)
-		if er != nil {
-			return nil, er
-		}
-		orders, er := strconv.ParseInt(a.Bids[x][3], 10, 64)
-		if er != nil {
-			return nil, er
-		}
 		bids[x] = OrderBid{
-			DepthPrice:        depthPrice,
-			BaseCurrencies:    currencies,
-			LiquidationOrders: liquidation,
-			NumberOfOrders:    orders,
+			DepthPrice:        a.Asks[x][0].Float64(),
+			BaseCurrencies:    a.Asks[x][1].Float64(),
+			LiquidationOrders: a.Asks[x][2].Int64(),
+			NumberOfOrders:    a.Asks[x][3].Int64(),
 		}
 	}
 	return bids, nil
 }
 
 // IndexCandlestickSlices represents index candlestick history represented by a slice of string
-type IndexCandlestickSlices [][6]string
+type IndexCandlestickSlices [][6]types.Number
 
 // ExtractIndexCandlestick extracts IndexCandlestick instance from slice of string.
 func (a IndexCandlestickSlices) ExtractIndexCandlestick() ([]CandlestickHistoryItem, error) {
@@ -235,30 +202,15 @@ func (a IndexCandlestickSlices) ExtractIndexCandlestick() ([]CandlestickHistoryI
 	}
 	candles := make([]CandlestickHistoryItem, len(a))
 	for i := range a {
-		timestamp, err := strconv.ParseInt(a[i][0], 10, 64)
-		if err != nil {
-			return nil, err
-		}
+		timestamp := a[i][0].Int64()
 		candles[i] = CandlestickHistoryItem{
 			Timestamp: time.UnixMilli(timestamp),
 		}
-		candles[i].OpenPrice, err = strconv.ParseFloat(a[i][1], 64)
-		if err != nil {
-			return nil, err
-		}
-		candles[i].HighestPrice, err = strconv.ParseFloat(a[i][2], 64)
-		if err != nil {
-			return nil, err
-		}
-		candles[i].LowestPrice, err = strconv.ParseFloat(a[i][3], 64)
-		if err != nil {
-			return nil, err
-		}
-		candles[i].ClosePrice, err = strconv.ParseFloat(a[i][4], 64)
-		if err != nil {
-			return nil, err
-		}
-		if a[i][5] == "1" {
+		candles[i].OpenPrice = a[i][1].Float64()
+		candles[i].HighestPrice = a[i][2].Float64()
+		candles[i].LowestPrice = a[i][3].Float64()
+		candles[i].ClosePrice = a[i][4].Float64()
+		if a[i][5].Int64() == 1 {
 			candles[i].Confirm = StateCompleted
 		} else {
 			candles[i].Confirm = StateUncompleted
@@ -300,7 +252,7 @@ type TradeResponse struct {
 }
 
 // InstrumentFamilyTrade represents transaction information of instrument.
-// nstrument family, e.g. BTC-USD Applicable to OPTION
+// instrument family, e.g. BTC-USD Applicable to OPTION
 type InstrumentFamilyTrade struct {
 	Vol24H    types.Number `json:"vol24h"`
 	TradeInfo []struct {
@@ -390,7 +342,7 @@ type Instrument struct {
 	ContractMultiplier              types.Number         `json:"ctMult"`
 	ContractValueCurrency           string               `json:"ctValCcy"`
 	OptionType                      string               `json:"optType"`
-	StrikePrice                     string               `json:"stk"`
+	StrikePrice                     types.Number         `json:"stk"`
 	ListTime                        convert.ExchangeTime `json:"listTime"`
 	ExpTime                         convert.ExchangeTime `json:"expTime"`
 	MaxLeverage                     types.Number         `json:"lever"`
@@ -463,7 +415,7 @@ type OptionMarketDataResponse struct {
 	GammaBS        types.Number         `json:"gammaBS"`
 	ThetaBS        types.Number         `json:"thetaBS"`
 	VegaBS         types.Number         `json:"vegaBS"`
-	RealVol        string               `json:"realVol"`
+	RealVol        types.Number         `json:"realVol"`
 	BidVolatility  types.Number         `json:"bidVol"`
 	AskVolatility  types.Number         `json:"askVol"`
 	MarkVolatility types.Number         `json:"markVol"`
@@ -476,13 +428,13 @@ type OptionMarketDataResponse struct {
 type DeliveryEstimatedPrice struct {
 	InstrumentType         string               `json:"instType"`
 	InstrumentID           string               `json:"instId"`
-	EstimatedDeliveryPrice string               `json:"settlePx"`
+	EstimatedDeliveryPrice types.Number         `json:"settlePx"`
 	Timestamp              convert.ExchangeTime `json:"ts"`
 }
 
 // DiscountRate represents the discount rate amount, currency, and other discount related information.
 type DiscountRate struct {
-	Amount            string                 `json:"amt"`
+	Amount            types.Number           `json:"amt"`
 	Currency          string                 `json:"ccy"`
 	DiscountInfo      []DiscountRateInfoItem `json:"discountInfo"`
 	DiscountRateLevel string                 `json:"discountLv"`
@@ -490,7 +442,7 @@ type DiscountRate struct {
 
 // DiscountRateInfoItem represents discount info list item for discount rate response
 type DiscountRateInfoItem struct {
-	DiscountRate string       `json:"discountRate"`
+	DiscountRate types.Number `json:"discountRate"`
 	MaxAmount    types.Number `json:"maxAmt"`
 	MinAmount    types.Number `json:"minAmt"`
 }
@@ -526,7 +478,7 @@ type LiquidationOrder struct {
 // LiquidationOrderDetailItem represents the detail information of liquidation order
 type LiquidationOrderDetailItem struct {
 	BankruptcyLoss        string               `json:"bkLoss"`
-	BankruptcyPx          string               `json:"bkPx"`
+	BankruptcyPx          types.Number         `json:"bkPx"`
 	Currency              string               `json:"ccy"`
 	PosSide               string               `json:"posSide"`
 	Side                  string               `json:"side"` // May be empty
@@ -3565,7 +3517,7 @@ type SignalBotOrderDetail struct {
 	ClientSuppliedAlgoID string               `json:"algoClOrdId"`
 	AlgoOrderType        string               `json:"algoOrdType"`
 	InstrumentType       string               `json:"instType"`
-	InstrumentIds        []string             `json:"instIds"`
+	InstrumentIDs        []string             `json:"instIds"`
 	CreationTime         convert.ExchangeTime `json:"cTime"`
 	UpdateTime           convert.ExchangeTime `json:"uTime"`
 	State                string               `json:"state"`

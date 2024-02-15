@@ -346,7 +346,7 @@ func (ok *Okx) FetchTradablePairs(ctx context.Context, a asset.Item) (currency.P
 
 // UpdateTradablePairs updates the exchanges available pairs and stores them in the exchanges config
 func (ok *Okx) UpdateTradablePairs(ctx context.Context, forceUpdate bool) error {
-	assetTypes := ok.GetAssetTypes(true)
+	assetTypes := ok.GetAssetTypes(false)
 	for i := range assetTypes {
 		pairs, err := ok.FetchTradablePairs(ctx, assetTypes[i])
 		if err != nil {

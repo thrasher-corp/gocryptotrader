@@ -28,6 +28,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
+	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
 // Please supply your own keys here to do authenticated endpoint testing
@@ -731,9 +732,7 @@ func TestCancelRfq(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
 
 	_, err := ok.CancelRfq(contextGenerate(), CancelRfqRequestParam{})
-	if err != nil && !errors.Is(err, errMissingRfqIDAndClientRfqID) {
-		t.Errorf("Okx CancelRfq() expecting %v, but found %v", errMissingRfqIDAndClientRfqID, err)
-	}
+	assert.Falsef(t, err != nil && !errors.Is(err, errMissingRfqIDAndClientRfqID), "Okx CancelRfq() expecting %v, but found %v", errMissingRfqIDAndClientRfqID, err)
 	_, err = ok.CancelRfq(context.Background(), CancelRfqRequestParam{
 		ClientRfqID: "somersdjskfjsdkfjxvxv",
 	})
@@ -745,9 +744,7 @@ func TestMultipleCancelRfq(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
 
 	_, err := ok.CancelMultipleRfqs(contextGenerate(), CancelRfqRequestsParam{})
-	if err != nil && !errors.Is(err, errMissingRfqIDAndClientRfqID) {
-		t.Errorf("Okx CancelMultipleRfqs() expecting %v, but found %v", errMissingRfqIDAndClientRfqID, err)
-	}
+	assert.Falsef(t, err != nil && !errors.Is(err, errMissingRfqIDAndClientRfqID), "expecting %v, but found %v", errMissingRfqIDAndClientRfqID, err)
 	_, err = ok.CancelMultipleRfqs(contextGenerate(), CancelRfqRequestsParam{
 		ClientRfqIDs: []string{"somersdjskfjsdkfjxvxv"},
 	})
@@ -766,7 +763,7 @@ func TestExecuteQuote(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
 
 	_, err := ok.ExecuteQuote(contextGenerate(), ExecuteQuoteParams{})
-	assert.Falsef(t, err != nil && !errors.Is(err, errMissingRfqIDOrQuoteID), "Okx ExecuteQuote() expected %v, but found %v", errMissingRfqIDOrQuoteID, err)
+	assert.Truef(t, err == nil || errors.Is(err, errMissingRfqIDOrQuoteID), "Okx ExecuteQuote() expected %v, but found %v", errMissingRfqIDOrQuoteID, err)
 	_, err = ok.ExecuteQuote(contextGenerate(), ExecuteQuoteParams{
 		RfqID:   "22540",
 		QuoteID: "84073",
@@ -812,10 +809,9 @@ func TestCreateQuote(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
 
-	if _, err := ok.CreateQuote(contextGenerate(), CreateQuoteParams{}); err != nil && !errors.Is(err, errMissingRfqID) {
-		t.Errorf("Okx CreateQuote() expecting %v, but found %v", errMissingRfqID, err)
-	}
-	_, err := ok.CreateQuote(contextGenerate(), CreateQuoteParams{
+	_, err := ok.CreateQuote(contextGenerate(), CreateQuoteParams{})
+	assert.Truef(t, err == nil || errors.Is(err, errMissingRfqID), "Okx CreateQuote() expecting %v, but found %v", errMissingRfqID, err)
+	_, err = ok.CreateQuote(contextGenerate(), CreateQuoteParams{
 		RfqID:     "12345",
 		QuoteSide: order.Buy.Lower(),
 		Legs: []QuoteLeg{
@@ -1216,15 +1212,13 @@ func TestSetPositionMode(t *testing.T) {
 func TestSetLeverageRate(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
-
-	if _, err := ok.SetLeverageRate(contextGenerate(), SetLeverageInput{
+	_, err := ok.SetLeverageRate(contextGenerate(), SetLeverageInput{
 		Currency:     "USDT",
 		Leverage:     5,
 		MarginMode:   "cross",
 		InstrumentID: "BTC-USDT",
-	}); err != nil && !errors.Is(err, errNoValidResponseFromServer) {
-		t.Error("Okx SetLeverageRate() error", err)
-	}
+	})
+	assert.Truef(t, err == nil || errors.Is(err, errNoValidResponseFromServer), "Okx SetLeverageRate() error", err)
 }
 
 func TestGetMaximumBuySellAmountOROpenAmount(t *testing.T) {
@@ -1413,18 +1407,15 @@ func TestGetSubaccountTradingBalance(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
 
-	if _, err := ok.GetSubaccountTradingBalance(contextGenerate(), ""); err != nil && !errors.Is(err, errMissingRequiredParameterSubaccountName) {
-		t.Errorf("Okx GetSubaccountTradingBalance() expecting \"%v\", but found \"%v\"", errMissingRequiredParameterSubaccountName, err)
-	}
-	if _, err := ok.GetSubaccountTradingBalance(contextGenerate(), "test1"); err != nil && !strings.Contains(err.Error(), "sub-account does not exist") {
-		t.Error("Okx GetSubaccountTradingBalance() error", err)
-	}
+	_, err := ok.GetSubaccountTradingBalance(contextGenerate(), "")
+	assert.Truef(t, err == nil || errors.Is(err, errMissingRequiredParameterSubaccountName), "Okx GetSubaccountTradingBalance() expecting \"%v\", but found \"%v\"", errMissingRequiredParameterSubaccountName, err)
+	_, err = ok.GetSubaccountTradingBalance(contextGenerate(), "test1")
+	assert.True(t, err == nil || strings.Contains(err.Error(), "sub-account does not exist"), "Okx GetSubaccountTradingBalance() error", err)
 }
 
 func TestGetSubaccountFundingBalance(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
-
 	if _, err := ok.GetSubaccountFundingBalance(contextGenerate(), "test1", ""); err != nil && !strings.Contains(err.Error(), "Sub-account test1 does not exists") && !strings.Contains(err.Error(), "59510") {
 		t.Error("Okx GetSubaccountFundingBalance() error", err)
 	}
@@ -1439,7 +1430,6 @@ func TestGetSubAccountMaximumWithdrawal(t *testing.T) {
 func TestHistoryOfSubaccountTransfer(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
-
 	_, err := ok.HistoryOfSubaccountTransfer(contextGenerate(), "", "0", "", time.Time{}, time.Time{}, 1)
 	assert.NoError(t, err)
 }
@@ -1455,24 +1445,19 @@ func TestMasterAccountsManageTransfersBetweenSubaccounts(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
 
-	if _, err := ok.MasterAccountsManageTransfersBetweenSubaccounts(contextGenerate(), SubAccountAssetTransferParams{Currency: "BTC", Amount: 1200, From: 9, To: 9, FromSubAccount: "", ToSubAccount: "", LoanTransfer: true}); err != nil && !errors.Is(err, errInvalidSubaccount) {
-		t.Error("Okx MasterAccountsManageTransfersBetweenSubaccounts() error", err)
-	}
-	if _, err := ok.MasterAccountsManageTransfersBetweenSubaccounts(contextGenerate(), SubAccountAssetTransferParams{Currency: "BTC", Amount: 1200, From: 8, To: 8, FromSubAccount: "", ToSubAccount: "", LoanTransfer: true}); err != nil && !errors.Is(err, errInvalidSubaccount) {
-		t.Error("Okx MasterAccountsManageTransfersBetweenSubaccounts() error", err)
-	}
-	if _, err := ok.MasterAccountsManageTransfersBetweenSubaccounts(contextGenerate(), SubAccountAssetTransferParams{Currency: "BTC", Amount: 1200, From: 6, To: 6, FromSubAccount: "test1", ToSubAccount: "test2", LoanTransfer: true}); err != nil && !strings.Contains(err.Error(), "Sub-account test1 does not exists") {
-		t.Error("Okx MasterAccountsManageTransfersBetweenSubaccounts() error", err)
-	}
+	_, err := ok.MasterAccountsManageTransfersBetweenSubaccounts(contextGenerate(), SubAccountAssetTransferParams{Currency: "BTC", Amount: 1200, From: 9, To: 9, FromSubAccount: "", ToSubAccount: "", LoanTransfer: true})
+	assert.Falsef(t, err != nil && !errors.Is(err, errInvalidSubaccount), "Okx MasterAccountsManageTransfersBetweenSubaccounts() error", err)
+	_, err = ok.MasterAccountsManageTransfersBetweenSubaccounts(contextGenerate(), SubAccountAssetTransferParams{Currency: "BTC", Amount: 1200, From: 8, To: 8, FromSubAccount: "", ToSubAccount: "", LoanTransfer: true})
+	assert.Falsef(t, err != nil && !errors.Is(err, errInvalidSubaccount), "Okx MasterAccountsManageTransfersBetweenSubaccounts() error", err)
+	_, err = ok.MasterAccountsManageTransfersBetweenSubaccounts(contextGenerate(), SubAccountAssetTransferParams{Currency: "BTC", Amount: 1200, From: 6, To: 6, FromSubAccount: "test1", ToSubAccount: "test2", LoanTransfer: true})
+	assert.Falsef(t, err != nil && !strings.Contains(err.Error(), "Sub-account test1 does not exists"), "Okx MasterAccountsManageTransfersBetweenSubaccounts() error", err)
 }
 
 func TestSetPermissionOfTransferOut(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
-
-	if _, err := ok.SetPermissionOfTransferOut(contextGenerate(), PermissionOfTransfer{SubAcct: "Test1"}); err != nil && !strings.Contains(err.Error(), "Sub-account does not exist") {
-		t.Error("Okx SetPermissionOfTransferOut() error", err)
-	}
+	_, err := ok.SetPermissionOfTransferOut(contextGenerate(), PermissionOfTransfer{SubAcct: "Test1"})
+	assert.Falsef(t, err != nil && !strings.Contains(err.Error(), "Sub-account does not exist"), "Okx SetPermissionOfTransferOut() error", err)
 }
 
 func TestGetCustodyTradingSubaccountList(t *testing.T) {
@@ -1619,18 +1604,14 @@ func TestGetGridAlgoSubOrders(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
 
-	if _, err := ok.GetGridAlgoSubOrders(contextGenerate(), "", "", "", "", "", "", 2); err != nil && !errors.Is(err, errMissingAlgoOrderType) {
-		t.Errorf("Okx GetGridAlgoSubOrders() expecting %v, but found %v", err, errMissingAlgoOrderType)
-	}
-	if _, err := ok.GetGridAlgoSubOrders(contextGenerate(), "grid", "", "", "", "", "", 2); err != nil && !errors.Is(err, errMissingAlgoOrderID) {
-		t.Errorf("Okx GetGridAlgoSubOrders() expecting %v, but found %v", err, errMissingAlgoOrderID)
-	}
-	if _, err := ok.GetGridAlgoSubOrders(contextGenerate(), "grid", "1234", "", "", "", "", 2); err != nil && !errors.Is(err, errMissingSubOrderType) {
-		t.Errorf("Okx GetGridAlgoSubOrders() expecting %v, but found %v", err, errMissingSubOrderType)
-	}
-	if _, err := ok.GetGridAlgoSubOrders(contextGenerate(), "grid", "1234", "live", "", "", "", 2); err != nil && !errors.Is(err, errMissingSubOrderType) {
-		t.Errorf("Okx GetGridAlgoSubOrders() expecting %v, but found %v", err, errMissingSubOrderType)
-	}
+	_, err := ok.GetGridAlgoSubOrders(contextGenerate(), "", "", "", "", "", "", 2)
+	assert.Falsef(t, err != nil && !errors.Is(err, errMissingAlgoOrderType), "Okx GetGridAlgoSubOrders() expecting %v, but found %v", err, errMissingAlgoOrderType)
+	_, err = ok.GetGridAlgoSubOrders(contextGenerate(), "grid", "", "", "", "", "", 2)
+	assert.Falsef(t, err != nil && !errors.Is(err, errMissingAlgoOrderID), "Okx GetGridAlgoSubOrders() expecting %v, but found %v", err, errMissingAlgoOrderID)
+	_, err = ok.GetGridAlgoSubOrders(contextGenerate(), "grid", "1234", "", "", "", "", 2)
+	assert.Falsef(t, err != nil && !errors.Is(err, errMissingSubOrderType), "Okx GetGridAlgoSubOrders() expecting %v, but found %v", err, errMissingSubOrderType)
+	_, err = ok.GetGridAlgoSubOrders(contextGenerate(), "grid", "1234", "live", "", "", "", 2)
+	assert.Falsef(t, err != nil && !errors.Is(err, errMissingSubOrderType), "Okx GetGridAlgoSubOrders() expecting %v, but found %v", err, errMissingSubOrderType)
 }
 
 const spotGridAlgoOrderPosition = `{"adl": "1","algoId": "449327675342323712","avgPx": "29215.0142857142857149","cTime": "1653400065917","ccy": "USDT","imr": "2045.386","instId": "BTC-USDT-SWAP","instType": "SWAP","last": "29206.7","lever": "5","liqPx": "661.1684795867162","markPx": "29213.9","mgnMode": "cross","mgnRatio": "217.19370606167573","mmr": "40.907720000000005","notionalUsd": "10216.70307","pos": "35","posSide": "net","uTime": "1653400066938","upl": "1.674999999999818","uplRatio": "0.0008190504784478"}`
@@ -1642,28 +1623,23 @@ func TestGetGridAlgoOrderPositions(t *testing.T) {
 	var resp AlgoOrderPosition
 	err := json.Unmarshal([]byte(spotGridAlgoOrderPosition), &resp)
 	assert.NoError(t, err)
-	if _, err := ok.GetGridAlgoOrderPositions(contextGenerate(), "", ""); err != nil && !errors.Is(err, errInvalidAlgoOrderType) {
-		t.Errorf("Okx GetGridAlgoOrderPositions() expecting %v, but found %v", errInvalidAlgoOrderType, err)
-	}
-	if _, err := ok.GetGridAlgoOrderPositions(contextGenerate(), "contract_grid", ""); err != nil && !errors.Is(err, errMissingAlgoOrderID) {
-		t.Errorf("Okx GetGridAlgoOrderPositions() expecting %v, but found %v", errMissingAlgoOrderID, err)
-	}
-	if _, err := ok.GetGridAlgoOrderPositions(contextGenerate(), "contract_grid", ""); err != nil && !errors.Is(err, errMissingAlgoOrderID) {
-		t.Errorf("Okx GetGridAlgoOrderPositions() expecting %v, but found %v", errMissingAlgoOrderID, err)
-	}
-	if _, err := ok.GetGridAlgoOrderPositions(contextGenerate(), "contract_grid", "448965992920907776"); err != nil && !strings.Contains(err.Error(), "The strategy does not exist or has stopped") {
-		t.Errorf("Okx GetGridAlgoOrderPositions() expecting %v, but found %v", errMissingAlgoOrderID, err)
-	}
+	_, err = ok.GetGridAlgoOrderPositions(contextGenerate(), "", "")
+	assert.Falsef(t, err != nil && !errors.Is(err, errInvalidAlgoOrderType), "Okx GetGridAlgoOrderPositions() expecting %v, but found %v", errInvalidAlgoOrderType, err)
+	_, err = ok.GetGridAlgoOrderPositions(contextGenerate(), "contract_grid", "")
+	assert.Falsef(t, err != nil && !errors.Is(err, errMissingAlgoOrderID), "Okx GetGridAlgoOrderPositions() expecting %v, but found %v", errMissingAlgoOrderID, err)
+	_, err = ok.GetGridAlgoOrderPositions(contextGenerate(), "contract_grid", "")
+	assert.Falsef(t, err != nil && !errors.Is(err, errMissingAlgoOrderID), "Okx GetGridAlgoOrderPositions() expecting %v, but found %v", errMissingAlgoOrderID, err)
+	_, err = ok.GetGridAlgoOrderPositions(contextGenerate(), "contract_grid", "448965992920907776")
+	assert.Falsef(t, err != nil && !strings.Contains(err.Error(), "The strategy does not exist or has stopped"), "Okx GetGridAlgoOrderPositions() expecting %v, but found %v", errMissingAlgoOrderID, err)
 }
 
 func TestSpotGridWithdrawProfit(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
 
-	if _, err := ok.SpotGridWithdrawProfit(contextGenerate(), ""); err != nil && !errors.Is(err, errMissingAlgoOrderID) {
-		t.Errorf("Okx SpotGridWithdrawProfit() expecting %v, but found %v", errMissingAlgoOrderID, err)
-	}
-	_, err := ok.SpotGridWithdrawProfit(contextGenerate(), "1234")
+	_, err := ok.SpotGridWithdrawProfit(contextGenerate(), "")
+	assert.Falsef(t, err != nil && !errors.Is(err, errMissingAlgoOrderID), "Okx SpotGridWithdrawProfit() expecting %v, but found %v", errMissingAlgoOrderID, err)
+	_, err = ok.SpotGridWithdrawProfit(contextGenerate(), "1234")
 	assert.NoError(t, err)
 }
 
@@ -1671,18 +1647,16 @@ func TestComputeMarginBalance(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
 
-	if _, err := ok.ComputeMarginBalance(contextGenerate(), MarginBalanceParam{
+	_, err := ok.ComputeMarginBalance(contextGenerate(), MarginBalanceParam{
 		AlgoID: "123456",
 		Type:   "other",
-	}); err != nil && !errors.Is(err, errInvalidMarginTypeAdjust) {
-		t.Errorf("%s ComputeMarginBalance() expected %v, but found %v", ok.Name, errInvalidMarginTypeAdjust, err)
-	}
-	if _, err := ok.ComputeMarginBalance(contextGenerate(), MarginBalanceParam{
+	})
+	assert.Falsef(t, err != nil && !errors.Is(err, errInvalidMarginTypeAdjust), "%s ComputeMarginBalance() expected %v, but found %v", ok.Name, errInvalidMarginTypeAdjust, err)
+	_, err = ok.ComputeMarginBalance(contextGenerate(), MarginBalanceParam{
 		AlgoID: "123456",
 		Type:   "add",
-	}); err != nil && !strings.Contains(err.Error(), "The strategy does not exist or has stopped") {
-		t.Errorf("%s ComputeMarginBalance() error %v", ok.Name, err)
-	}
+	})
+	assert.Falsef(t, err != nil && !strings.Contains(err.Error(), "The strategy does not exist or has stopped"), "%s ComputeMarginBalance() error %v", ok.Name, err)
 }
 
 func TestAdjustMarginBalance(t *testing.T) {
@@ -2104,11 +2078,8 @@ func TestGetOrderHistory(t *testing.T) {
 		Side:      order.Buy,
 	}
 	_, err := ok.GetOrderHistory(contextGenerate(), &getOrdersRequest)
-	if err == nil {
-		t.Errorf("Okx GetOrderHistory() Expected: %v. received nil", err)
-	} else if err != nil && !errors.Is(err, errMissingAtLeast1CurrencyPair) {
-		t.Errorf("Okx GetOrderHistory() Expected: %v, but found %v", errMissingAtLeast1CurrencyPair, err)
-	}
+	assert.ErrorIsf(t, err, nil, "Okx GetOrderHistory() Expected: %v. received nil", err)
+	assert.Falsef(t, err != nil && !errors.Is(err, errMissingAtLeast1CurrencyPair), "Okx GetOrderHistory() Expected: %v, but found %v", errMissingAtLeast1CurrencyPair, err)
 	getOrdersRequest.Pairs = []currency.Pair{
 		currency.NewPair(currency.LTC,
 			currency.BTC)}
@@ -2149,9 +2120,7 @@ func TestGetHistoricCandles(t *testing.T) {
 	assert.NoError(t, err, err)
 
 	_, err = ok.GetHistoricCandles(contextGenerate(), pair, asset.Spot, kline.Interval(time.Hour*4), startTime, endTime)
-	if !errors.Is(err, kline.ErrRequestExceedsExchangeLimits) {
-		t.Errorf("received: '%v' but expected: '%v'", err, kline.ErrRequestExceedsExchangeLimits)
-	}
+	assert.ErrorIs(t, err, kline.ErrRequestExceedsExchangeLimits)
 }
 
 func TestGetHistoricCandlesExtended(t *testing.T) {
@@ -2752,8 +2721,8 @@ func TestInstrument(t *testing.T) {
 	err := json.Unmarshal([]byte(instrumentJSON), &i)
 	assert.NoError(t, err)
 
-	assert.False(t, i.Alias != "", "expected empty alias")
-	assert.False(t, i.BaseCurrency != "", "expected empty base currency")
+	assert.Empty(t, i.Alias, "expected empty alias")
+	assert.Empty(t, i.BaseCurrency, "expected empty base currency")
 	assert.False(t, i.Category != "1", "expected 1 category")
 	assert.False(t, i.ContractMultiplier != 1, "expected 1 contract multiplier")
 	assert.False(t, i.ContractType != "linear", "expected linear contract type")
@@ -2775,11 +2744,11 @@ func TestInstrument(t *testing.T) {
 		"expected 100000000.0000000000000000 max trigger order size")
 	assert.False(t, i.MaxQuantityOfSpotTwapLimitOrder != 0, "expected empty max TWAP size")
 	assert.False(t, i.MinimumOrderSize != 1, "expected 1 min size")
-	assert.False(t, i.OptionType != "", "expected empty option type")
-	assert.False(t, i.QuoteCurrency != "", "expected empty quote currency")
+	assert.Empty(t, i.OptionType, "expected empty option type")
+	assert.Empty(t, i.QuoteCurrency, "expected empty quote currency")
 	assert.False(t, i.SettlementCurrency != currency.USDC.String(), "expected USDC settlement currency")
 	assert.False(t, i.State != "live", "expected live state")
-	assert.False(t, i.StrikePrice != "", "expected empty strike price")
+	assert.Empty(t, i.StrikePrice, "expected empty strike price")
 	assert.False(t, i.TickSize != 0.1, "expected 0.1 tick size")
 	assert.False(t, i.Underlying != "BTC-USDC", "expected BTC-USDC underlying")
 }
@@ -2816,7 +2785,7 @@ func TestGetHistoricalFundingRates(t *testing.T) {
 
 	r.StartDate = time.Now().Add(-time.Hour * 24 * 120)
 	_, err = ok.GetHistoricalFundingRates(contextGenerate(), r)
-	assert.True(t, errors.Is(err, fundingrate.ErrFundingRateOutsideLimits), err)
+	assert.ErrorIs(t, err, fundingrate.ErrFundingRateOutsideLimits)
 
 	r.RespectHistoryLimits = true
 	_, err = ok.GetHistoricalFundingRates(contextGenerate(), r)
@@ -2839,31 +2808,31 @@ func TestIsPerpetualFutureCurrency(t *testing.T) {
 func TestGetAssetsFromInstrumentTypeOrID(t *testing.T) {
 	t.Parallel()
 	_, err := ok.GetAssetsFromInstrumentTypeOrID("", "")
-	assert.True(t, errors.Is(err, errEmptyArgument), err)
+	assert.ErrorIs(t, err, errEmptyArgument)
 
 	assets, err := ok.GetAssetsFromInstrumentTypeOrID("SPOT", "")
 	assert.NoError(t, err)
-	assert.Falsef(t, len(assets) != 1, "received %v expected %v", len(assets), 1)
-	assert.Falsef(t, assets[0] != asset.Spot, "received %v expected %v", assets[0], asset.Spot)
+	assert.Len(t, assets, 1)
+	assert.Equal(t, asset.Spot, assets[0])
 
 	assets, err = ok.GetAssetsFromInstrumentTypeOrID("", ok.CurrencyPairs.Pairs[asset.Futures].Enabled[0].String())
 	assert.NoError(t, err)
-	assert.False(t, len(assets) != 1, "received %v expected %v", len(assets), 1)
-	assert.Falsef(t, assets[0] != asset.Futures, "received %v expected %v", assets[0], asset.Futures)
+	assert.Len(t, assets, 1)
+	assert.Equal(t, asset.Futures, assets[0])
 
 	assets, err = ok.GetAssetsFromInstrumentTypeOrID("", ok.CurrencyPairs.Pairs[asset.PerpetualSwap].Enabled[0].String())
 	assert.NoError(t, err)
-	assert.Falsef(t, len(assets) != 1, "received %v expected %v", len(assets), 1)
-	assert.Falsef(t, assets[0] != asset.PerpetualSwap, "received %v expected %v", assets[0], asset.PerpetualSwap)
+	assert.Len(t, assets, 1)
+	assert.Equal(t, asset.PerpetualSwap, assets[0])
 
 	_, err = ok.GetAssetsFromInstrumentTypeOrID("", "test")
-	assert.True(t, errors.Is(err, currency.ErrCurrencyNotSupported), err)
+	assert.ErrorIs(t, err, currency.ErrCurrencyNotSupported)
 
 	_, err = ok.GetAssetsFromInstrumentTypeOrID("", "test-test")
-	assert.True(t, errors.Is(err, asset.ErrNotSupported), err)
+	assert.ErrorIs(t, err, asset.ErrNotSupported)
 
 	assets, err = ok.GetAssetsFromInstrumentTypeOrID("", ok.CurrencyPairs.Pairs[asset.Margin].Enabled[0].String())
-	assert.True(t, errors.Is(err, nil), err)
+	assert.NoError(t, err)
 	var found bool
 	for i := range assets {
 		if assets[i] == asset.Margin {
@@ -2871,9 +2840,8 @@ func TestGetAssetsFromInstrumentTypeOrID(t *testing.T) {
 		}
 	}
 	assert.Truef(t, found, "received %v expected %v", assets, asset.Margin)
-
 	assets, err = ok.GetAssetsFromInstrumentTypeOrID("", ok.CurrencyPairs.Pairs[asset.Spot].Enabled[0].String())
-	assert.True(t, errors.Is(err, nil), err)
+	assert.NoError(t, err)
 	found = false
 	for i := range assets {
 		if assets[i] == asset.Spot {
@@ -2886,7 +2854,7 @@ func TestGetAssetsFromInstrumentTypeOrID(t *testing.T) {
 func TestSetMarginType(t *testing.T) {
 	t.Parallel()
 	err := ok.SetMarginType(contextGenerate(), asset.Spot, currency.NewBTCUSDT(), margin.Isolated)
-	assert.Truef(t, errors.Is(err, common.ErrFunctionNotSupported), "received '%v', expected '%v'", err, asset.ErrNotSupported)
+	assert.ErrorIs(t, err, common.ErrFunctionNotSupported)
 }
 
 func TestChangePositionMargin(t *testing.T) {
@@ -2908,18 +2876,18 @@ func TestGetCollateralMode(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
 	_, err := ok.GetCollateralMode(contextGenerate(), asset.Spot)
-	assert.Falsef(t, errors.Is(err, nil), "received '%v', expected '%v'", err, nil)
+	assert.NoError(t, err)
 	_, err = ok.GetCollateralMode(contextGenerate(), asset.Futures)
-	assert.True(t, !errors.Is(err, nil), "received '%v', expected '%v'", err, nil)
+	assert.NoErrorf(t, err, "received '%v', expected '%v'", err, nil)
 	_, err = ok.GetCollateralMode(contextGenerate(), asset.USDTMarginedFutures)
-	assert.False(t, errors.Is(err, asset.ErrNotSupported), "received '%v', expected '%v'", err, asset.ErrNotSupported)
+	assert.ErrorIsf(t, err, asset.ErrNotSupported, "received '%v', expected '%v'", err, asset.ErrNotSupported)
 }
 
 func TestSetCollateralMode(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
 	err := ok.SetCollateralMode(contextGenerate(), asset.Spot, collateral.SingleMode)
-	assert.Falsef(t, errors.Is(err, common.ErrFunctionNotSupported), "received '%v', expected '%v'", err, asset.ErrNotSupported)
+	assert.ErrorIsf(t, err, common.ErrFunctionNotSupported, "received '%v', expected '%v'", err, asset.ErrNotSupported)
 }
 
 func TestGetPositionSummary(t *testing.T) {
@@ -2948,7 +2916,7 @@ func TestGetPositionSummary(t *testing.T) {
 		Pair:           pp[0],
 		UnderlyingPair: currency.NewBTCUSDT(),
 	})
-	assert.True(t, !errors.Is(err, futures.ErrNotFuturesAsset), "received '%v', expected '%v'", err, futures.ErrNotFuturesAsset)
+	assert.ErrorIsf(t, err, futures.ErrNotFuturesAsset, "received '%v', expected '%v'", err, futures.ErrNotFuturesAsset)
 }
 
 func TestGetFuturesPositions(t *testing.T) {
@@ -2963,13 +2931,12 @@ func TestGetFuturesPositions(t *testing.T) {
 		EndDate:   time.Now(),
 	})
 	assert.NoError(t, err)
-
 	_, err = ok.GetFuturesPositionOrders(contextGenerate(), &futures.PositionsRequest{
 		Asset:     asset.Spot,
 		Pairs:     []currency.Pair{pp[0]},
 		StartDate: time.Now().Add(time.Hour * 24 * -7),
 	})
-	assert.True(t, !errors.Is(err, asset.ErrNotSupported), "received '%v', expected '%v'", err, asset.ErrNotSupported)
+	assert.ErrorIsf(t, err, asset.ErrNotSupported, "received '%v', expected '%v'", err, asset.ErrNotSupported)
 }
 
 func TestGetLeverage(t *testing.T) {
@@ -2981,7 +2948,7 @@ func TestGetLeverage(t *testing.T) {
 	assert.NoError(t, err)
 
 	_, err = ok.GetLeverage(contextGenerate(), asset.Futures, pp[0], margin.Isolated, order.UnknownSide)
-	assert.True(t, !errors.Is(err, errOrderSideRequired), "received '%v', expected '%v'", err, errOrderSideRequired)
+	assert.ErrorIsf(t, err, errOrderSideRequired, "received '%v', expected '%v'", err, errOrderSideRequired)
 
 	_, err = ok.GetLeverage(contextGenerate(), asset.Futures, pp[0], margin.Isolated, order.Long)
 	assert.NoError(t, err)
@@ -2990,7 +2957,7 @@ func TestGetLeverage(t *testing.T) {
 	assert.NoError(t, err)
 
 	_, err = ok.GetLeverage(contextGenerate(), asset.Futures, pp[0], margin.Isolated, order.CouldNotBuy)
-	assert.True(t, !errors.Is(err, errInvalidOrderSide), "received '%v', expected '%v'", err, errInvalidOrderSide)
+	assert.ErrorIsf(t, err, errInvalidOrderSide, "received '%v', expected '%v'", err, errInvalidOrderSide)
 }
 
 func TestSetLeverage(t *testing.T) {
@@ -3002,32 +2969,32 @@ func TestSetLeverage(t *testing.T) {
 	assert.NoError(t, err)
 
 	err = ok.SetLeverage(contextGenerate(), asset.Futures, pp[0], margin.Isolated, 5, order.UnknownSide)
-	assert.True(t, !errors.Is(err, errOrderSideRequired), "received '%v', expected '%v'", err, errOrderSideRequired)
+	assert.ErrorIsf(t, err, errOrderSideRequired, "received '%v', expected '%v'", err, errOrderSideRequired)
 
 	err = ok.SetLeverage(contextGenerate(), asset.Futures, pp[0], margin.Isolated, 5, order.Long)
-	assert.True(t, err != nil, err)
+	assert.NoError(t, err)
 
 	err = ok.SetLeverage(contextGenerate(), asset.Futures, pp[0], margin.Isolated, 5, order.Short)
-	assert.True(t, err != nil, err)
+	assert.NoError(t, err)
 
 	err = ok.SetLeverage(contextGenerate(), asset.Futures, pp[0], margin.Isolated, 5, order.CouldNotBuy)
-	assert.True(t, !errors.Is(err, errInvalidOrderSide), "received '%v', expected '%v'", err, errInvalidOrderSide)
+	assert.ErrorIs(t, err, errInvalidOrderSide, "received '%v', expected '%v'", err, errInvalidOrderSide)
 
 	err = ok.SetLeverage(contextGenerate(), asset.Spot, pp[0], margin.Multi, 5, order.UnknownSide)
-	assert.True(t, !errors.Is(err, asset.ErrNotSupported), "received '%v', expected '%v'", err, asset.ErrNotSupported)
+	assert.ErrorIsf(t, err, asset.ErrNotSupported, "received '%v', expected '%v'", err, asset.ErrNotSupported)
 }
 
 func TestGetFuturesContractDetails(t *testing.T) {
 	t.Parallel()
 	_, err := ok.GetFuturesContractDetails(context.Background(), asset.Spot)
-	assert.False(t, !errors.Is(err, futures.ErrNotFuturesAsset), err)
+	assert.ErrorIs(t, err, futures.ErrNotFuturesAsset)
 	_, err = ok.GetFuturesContractDetails(context.Background(), asset.USDTMarginedFutures)
-	assert.False(t, !errors.Is(err, asset.ErrNotSupported), err)
+	assert.ErrorIs(t, err, asset.ErrNotSupported)
 
 	_, err = ok.GetFuturesContractDetails(context.Background(), asset.Futures)
-	assert.False(t, !errors.Is(err, nil), err)
+	assert.NoError(t, err)
 	_, err = ok.GetFuturesContractDetails(context.Background(), asset.PerpetualSwap)
-	assert.False(t, !errors.Is(err, nil), err)
+	assert.NoError(t, err)
 }
 
 func TestWsProcessOrderbook5(t *testing.T) {
@@ -3041,13 +3008,13 @@ func TestWsProcessOrderbook5(t *testing.T) {
 	got, err := orderbook.Get("okx", required, asset.Spot)
 	require.NoError(t, err)
 
-	assert.False(t, len(got.Asks) != 5, "expected %v, received %v", 5, len(got.Asks))
-	assert.False(t, len(got.Bids) != 5, "expected %v, received %v", 5, len(got.Bids))
+	assert.Len(t, got.Asks, 5)
+	assert.Len(t, got.Bids, 5)
 	// Book replicated to margin
 	got, err = orderbook.Get("okx", required, asset.Margin)
 	require.NoError(t, err)
-	assert.Falsef(t, len(got.Asks) != 5, "expected %v, received %v", 5, len(got.Asks))
-	assert.Falsef(t, len(got.Bids) != 5, "expected %v, received %v", 5, len(got.Bids))
+	assert.Len(t, got.Asks, 5)
+	assert.Len(t, got.Bids, 5)
 }
 
 func TestGetLeverateEstimatedInfo(t *testing.T) {
@@ -3370,7 +3337,7 @@ func TestCloseLeadingPosition(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
 	_, err := ok.CloseLeadingPosition(context.Background(), &CloseLeadingPositionParam{})
-	assert.Truef(t, !errors.Is(err, errNilArgument), "expected %v, got %v", errNilArgument, err)
+	assert.ErrorIsf(t, err, errNilArgument, "expected %v, got %v", errNilArgument, err)
 	_, err = ok.CloseLeadingPosition(context.Background(), &CloseLeadingPositionParam{
 		SubPositionID: "518541406042591232",
 	})
@@ -3472,7 +3439,7 @@ func TestGetMultipleLeverages(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
 	_, err := ok.GetMultipleLeverages(context.Background(), "", "213E8C92DC61EFAC", "")
-	assert.True(t, !errors.Is(err, errMissingMarginMode), "expected %v, got %v", errMissingMarginMode, err)
+	assert.ErrorIs(t, err, errMissingMarginMode)
 	_, err = ok.GetMultipleLeverages(context.Background(), "isolated", "213E8C92DC61EFAC", "")
 	assert.NoError(t, err)
 }
@@ -3541,7 +3508,7 @@ func TestGetLeadTraderCurrencyPreferences(t *testing.T) {
 func TestGetLeadTraderCurrentLeadPositions(t *testing.T) {
 	t.Parallel()
 	_, err := ok.GetLeadTraderCurrentLeadPositions(context.Background(), "SPOT", "213E8C92DC61EFAC", "", "", 10)
-	assert.Falsef(t, !errors.Is(err, asset.ErrNotSupported), "expected %v, got %v", asset.ErrNotSupported, err)
+	assert.ErrorIs(t, err, asset.ErrNotSupported)
 	_, err = ok.GetLeadTraderCurrentLeadPositions(context.Background(), "SWAP", "213E8C92DC61EFAC", "", "", 10)
 	assert.NoError(t, err)
 }
@@ -3677,10 +3644,11 @@ func TestGetOptionsTickBands(t *testing.T) {
 
 func TestExtractIndexCandlestick(t *testing.T) {
 	t.Parallel()
-	data := IndexCandlestickSlices([][6]string{{"1597026383085", "3.721", "3.743", "3.677", "3.708", "1"}, {"1597026383085", "3.731", "3.799", "3.494", "3.72", "1"}})
+	data := IndexCandlestickSlices([][6]types.Number{{1597026383085, 3.721, 3.743, 3.677, 3.708, 1},
+		{1597026383085, 3.731, 3.799, 3.494, 3.72, 1}})
 	candlesticks, err := data.ExtractIndexCandlestick()
 	assert.NoError(t, err)
-	assert.False(t, len(candlesticks) != 2, "expected candles with length 2, got %d", len(candlesticks))
+	assert.Len(t, candlesticks, 2)
 }
 
 func TestGetHistoricIndexAndMarkPriceCandlesticks(t *testing.T) {
@@ -3729,7 +3697,7 @@ func TestGetInviteesDetail(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
 	_, err := ok.GetInviteesDetail(context.Background(), "")
-	assert.True(t, errors.Is(err, errUserIDRequired), "expected %v, got %v", errUserIDRequired, err)
+	assert.ErrorIs(t, err, errUserIDRequired)
 	_, err = ok.GetInviteesDetail(context.Background(), "1234")
 	assert.NoError(t, err)
 }
