@@ -16,12 +16,7 @@ import (
 )
 
 const (
-	defaultJobBuffer = 5000
-	// defaultTrafficPeriod defines a period of pause for the traffic monitor,
-	// as there are periods with large incoming traffic alerts which requires a
-	// timer reset, this limits work on this routine to a more effective rate
-	// of check.
-	defaultTrafficPeriod = time.Second
+	jobBuffer = 5000
 )
 
 // Public websocket errors
@@ -37,6 +32,7 @@ var (
 	ErrNotConnected             = errors.New("websocket is not connected")
 )
 
+// Private websocket errors
 var (
 	errAlreadyRunning                       = errors.New("connection monitor is already running")
 	errExchangeConfigIsNil                  = errors.New("exchange config is nil")
@@ -72,7 +68,10 @@ var (
 	errConnSetup                            = errors.New("error in connection setup")
 )
 
-var globalReporter Reporter
+var (
+	globalReporter       Reporter
+	trafficCheckInterval = time.Second
+)
 
 // SetupGlobalReporter sets a reporter interface to be used
 // for all exchange requests
@@ -83,9 +82,9 @@ func SetupGlobalReporter(r Reporter) {
 // NewWebsocket initialises the websocket struct
 func NewWebsocket() *Websocket {
 	return &Websocket{
-		DataHandler:       make(chan interface{}, defaultJobBuffer),
-		ToRoutine:         make(chan interface{}, defaultJobBuffer),
-		TrafficAlert:      make(chan struct{}),
+		DataHandler:       make(chan interface{}, jobBuffer),
+		ToRoutine:         make(chan interface{}, jobBuffer),
+		TrafficAlert:      make(chan struct{}, 1),
 		ReadMessageErrors: make(chan error),
 		Subscribe:         make(chan []subscription.Subscription),
 		Unsubscribe:       make(chan []subscription.Subscription),
@@ -545,9 +544,9 @@ func (w *Websocket) FlushChannels() error {
 	return w.Connect()
 }
 
-// trafficMonitor uses a timer of WebsocketTrafficLimitTime and once it expires,
-// it will reconnect if the TrafficAlert channel has not received any data. The
-// trafficTimer will reset on each traffic alert
+// trafficMonitor waits trafficCheckInterval before checking for a trafficAlert
+// 1 slot buffer means that connection will only write to trafficAlert once per trafficCheckInterval to avoid read/write flood in high traffic
+// Otherwise we Shutdown the connection after trafficTimeout, unless it's connecting. connectionMonitor is responsible for Connecting again
 func (w *Websocket) trafficMonitor() {
 	if w.IsTrafficMonitorRunning() {
 		return
@@ -556,61 +555,44 @@ func (w *Websocket) trafficMonitor() {
 	w.Wg.Add(1)
 
 	go func() {
-		var trafficTimer = time.NewTimer(w.trafficTimeout)
-		pause := make(chan struct{})
+		t := time.NewTimer(w.trafficTimeout)
 		for {
 			select {
 			case <-w.ShutdownC:
 				if w.verbose {
 					log.Debugf(log.WebsocketMgr, "%v websocket: trafficMonitor shutdown message received", w.exchangeName)
 				}
-				trafficTimer.Stop()
+				t.Stop()
 				w.setTrafficMonitorRunning(false)
 				w.Wg.Done()
 				return
-			case <-w.TrafficAlert:
-				if !trafficTimer.Stop() {
-					select {
-					case <-trafficTimer.C:
-					default:
+			case <-time.After(trafficCheckInterval):
+				select {
+				case <-w.TrafficAlert:
+					w.setState(connected)
+					if !t.Stop() {
+						<-t.C
 					}
+					t.Reset(w.trafficTimeout)
+				default:
 				}
-				w.setState(connected)
-				trafficTimer.Reset(w.trafficTimeout)
-			case <-trafficTimer.C: // Falls through when timer runs out
+			case <-t.C:
+				if w.IsConnecting() {
+					t.Reset(w.trafficTimeout)
+					break
+				}
 				if w.verbose {
 					log.Warnf(log.WebsocketMgr, "%v websocket: has not received a traffic alert in %v. Reconnecting", w.exchangeName, w.trafficTimeout)
 				}
-				trafficTimer.Stop()
-				w.setTrafficMonitorRunning(false)
-				w.Wg.Done() // without this the w.Shutdown() call below will deadlock
-				if !w.IsConnecting() && w.IsConnected() {
+				w.setTrafficMonitorRunning(false) // Cannot defer lest Connect is called after Shutdown but before deferred call
+				w.Wg.Done()                       // Without this the w.Shutdown() call below will deadlock
+				if w.IsConnected() {
 					err := w.Shutdown()
 					if err != nil {
 						log.Errorf(log.WebsocketMgr, "%v websocket: trafficMonitor shutdown err: %s", w.exchangeName, err)
 					}
 				}
-
 				return
-			}
-
-			if w.IsConnected() {
-				// Routine pausing mechanism
-				go func(p chan<- struct{}) {
-					time.Sleep(defaultTrafficPeriod)
-					select {
-					case p <- struct{}{}:
-					default:
-					}
-				}(pause)
-				select {
-				case <-w.ShutdownC:
-					trafficTimer.Stop()
-					w.setTrafficMonitorRunning(false)
-					w.Wg.Done()
-					return
-				case <-pause:
-				}
 			}
 		}
 	}()

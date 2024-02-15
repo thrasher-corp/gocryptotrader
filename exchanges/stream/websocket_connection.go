@@ -227,7 +227,7 @@ func (w *WebsocketConnection) ReadMessage() Response {
 
 	select {
 	case w.Traffic <- struct{}{}:
-	default: // causes contention, just bypass if there is no receiver.
+	default: // Non-Blocking write ensures 1 buffered signal per trafficCheckInterval to avoid flooding
 	}
 
 	var standardMessage []byte
