@@ -2,6 +2,7 @@ package stream
 
 import (
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -23,10 +24,8 @@ const (
 
 type subscriptionMap map[any]*subscription.Subscription
 
-type state int
-
 const (
-	uninitialised state = iota
+	uninitialised uint32 = iota
 	disconnected
 	connecting
 	connected
@@ -35,13 +34,13 @@ const (
 // Websocket defines a return type for websocket connections via the interface
 // wrapper for routine processing
 type Websocket struct {
-	canUseAuthenticatedEndpoints bool
-	enabled                      bool
-	state                        state
+	canUseAuthenticatedEndpoints atomic.Bool
+	enabled                      atomic.Bool
+	state                        atomic.Uint32
 	verbose                      bool
-	connectionMonitorRunning     bool
-	trafficMonitorRunning        bool
-	dataMonitorRunning           bool
+	connectionMonitorRunning     atomic.Bool
+	trafficMonitorRunning        atomic.Bool
+	dataMonitorRunning           atomic.Bool
 	trafficTimeout               time.Duration
 	connectionMonitorDelay       time.Duration
 	proxyAddr                    string
@@ -51,7 +50,6 @@ type Websocket struct {
 	runningURLAuth               string
 	exchangeName                 string
 	m                            sync.Mutex
-	fieldMutex                   sync.RWMutex
 	connector                    func() error
 
 	subscriptionMutex sync.RWMutex

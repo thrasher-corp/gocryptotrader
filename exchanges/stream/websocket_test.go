@@ -478,7 +478,7 @@ func TestConnectionMonitorNoConnection(t *testing.T) {
 	ws.ShutdownC = make(chan struct{}, 1)
 	ws.exchangeName = "hello"
 	ws.Wg = &sync.WaitGroup{}
-	ws.enabled = true
+	ws.setEnabled(true)
 	err := ws.connectionMonitor()
 	require.NoError(t, err, "connectionMonitor must not error")
 	assert.True(t, ws.IsConnectionMonitorRunning(), "IsConnectionMonitorRunning should return true")
@@ -792,9 +792,10 @@ func TestCanUseAuthenticatedWebsocketForWrapper(t *testing.T) {
 	assert.False(t, ws.CanUseAuthenticatedWebsocketForWrapper(), "CanUseAuthenticatedWebsocketForWrapper should return false")
 
 	ws.setState(connected)
+	require.True(t, ws.IsConnected(), "IsConnected must return true")
 	assert.False(t, ws.CanUseAuthenticatedWebsocketForWrapper(), "CanUseAuthenticatedWebsocketForWrapper should return false")
 
-	ws.canUseAuthenticatedEndpoints = true
+	ws.SetCanUseAuthenticatedEndpoints(true)
 	assert.True(t, ws.CanUseAuthenticatedWebsocketForWrapper(), "CanUseAuthenticatedWebsocketForWrapper should return true")
 }
 
@@ -951,9 +952,7 @@ func TestFlushChannels(t *testing.T) {
 	err = dodgyWs.FlushChannels()
 	assert.ErrorIs(t, err, ErrNotConnected, "FlushChannels should error correctly")
 
-	web := Websocket{
-		enabled:      true,
-		state:        connected,
+	w := Websocket{
 		connector:    connect,
 		ShutdownC:    make(chan struct{}),
 		Subscriber:   newgen.SUBME,
@@ -966,6 +965,8 @@ func TestFlushChannels(t *testing.T) {
 		// in FlushChannels() so the traffic monitor doesn't time out and turn
 		// this to an unconnected state
 	}
+	w.setEnabled(true)
+	w.setState(connected)
 
 	problemFunc := func() ([]subscription.Subscription, error) {
 		return nil, errDastardlyReason
@@ -978,40 +979,40 @@ func TestFlushChannels(t *testing.T) {
 	// Disable pair and flush system
 	newgen.EnabledPairs = []currency.Pair{
 		currency.NewPair(currency.BTC, currency.AUD)}
-	web.GenerateSubs = func() ([]subscription.Subscription, error) {
+	w.GenerateSubs = func() ([]subscription.Subscription, error) {
 		return []subscription.Subscription{{Channel: "test"}}, nil
 	}
-	err = web.FlushChannels()
+	err = w.FlushChannels()
 	assert.NoError(t, err, "FlushChannels should not error")
 
-	web.features.FullPayloadSubscribe = true
-	web.GenerateSubs = problemFunc
-	err = web.FlushChannels() // error on full subscribeToChannels
+	w.features.FullPayloadSubscribe = true
+	w.GenerateSubs = problemFunc
+	err = w.FlushChannels() // error on full subscribeToChannels
 	assert.ErrorIs(t, err, errDastardlyReason, "FlushChannels should error correctly")
 
-	web.GenerateSubs = noSub
-	err = web.FlushChannels() // No subs to unsub
+	w.GenerateSubs = noSub
+	err = w.FlushChannels() // No subs to unsub
 	assert.NoError(t, err, "FlushChannels should not error")
 
-	web.GenerateSubs = newgen.generateSubs
-	subs, err := web.GenerateSubs()
+	w.GenerateSubs = newgen.generateSubs
+	subs, err := w.GenerateSubs()
 	require.NoError(t, err, "GenerateSubs must not error")
 
-	web.AddSuccessfulSubscriptions(subs...)
-	err = web.FlushChannels()
+	w.AddSuccessfulSubscriptions(subs...)
+	err = w.FlushChannels()
 	assert.NoError(t, err, "FlushChannels should not error")
-	web.features.FullPayloadSubscribe = false
-	web.features.Subscribe = true
+	w.features.FullPayloadSubscribe = false
+	w.features.Subscribe = true
 
-	web.GenerateSubs = problemFunc
-	err = web.FlushChannels()
+	w.GenerateSubs = problemFunc
+	err = w.FlushChannels()
 	assert.ErrorIs(t, err, errDastardlyReason, "FlushChannels should error correctly")
 
-	web.GenerateSubs = newgen.generateSubs
-	err = web.FlushChannels()
+	w.GenerateSubs = newgen.generateSubs
+	err = w.FlushChannels()
 	assert.NoError(t, err, "FlushChannels should not error")
-	web.subscriptionMutex.Lock()
-	web.subscriptions = subscriptionMap{
+	w.subscriptionMutex.Lock()
+	w.subscriptions = subscriptionMap{
 		41: {
 			Key:     41,
 			Channel: "match channel",
@@ -1023,34 +1024,34 @@ func TestFlushChannels(t *testing.T) {
 			Pair:    currency.NewPair(currency.THETA, currency.USDT),
 		},
 	}
-	web.subscriptionMutex.Unlock()
+	w.subscriptionMutex.Unlock()
 
-	err = web.FlushChannels()
+	err = w.FlushChannels()
 	assert.NoError(t, err, "FlushChannels should not error")
 
-	err = web.FlushChannels()
+	err = w.FlushChannels()
 	assert.NoError(t, err, "FlushChannels should not error")
 
-	web.setState(connected)
-	web.features.Unsubscribe = true
-	err = web.FlushChannels()
+	w.setState(connected)
+	w.features.Unsubscribe = true
+	err = w.FlushChannels()
 	assert.NoError(t, err, "FlushChannels should not error")
 }
 
 func TestDisable(t *testing.T) {
 	t.Parallel()
-	web := Websocket{
-		enabled:   true,
-		state:     connected,
+	w := Websocket{
 		ShutdownC: make(chan struct{}),
 	}
-	require.NoError(t, web.Disable(), "Disable must not error")
-	assert.ErrorIs(t, web.Disable(), ErrAlreadyDisabled, "Disable should error correctly")
+	w.setEnabled(true)
+	w.setState(connected)
+	require.NoError(t, w.Disable(), "Disable must not error")
+	assert.ErrorIs(t, w.Disable(), ErrAlreadyDisabled, "Disable should error correctly")
 }
 
 func TestEnable(t *testing.T) {
 	t.Parallel()
-	web := Websocket{
+	w := Websocket{
 		connector: connect,
 		Wg:        new(sync.WaitGroup),
 		ShutdownC: make(chan struct{}),
@@ -1060,8 +1061,8 @@ func TestEnable(t *testing.T) {
 		Subscriber: func([]subscription.Subscription) error { return nil },
 	}
 
-	require.NoError(t, web.Enable(), "Enable must not error")
-	assert.ErrorIs(t, web.Enable(), errWebsocketAlreadyEnabled, "Enable should error correctly")
+	require.NoError(t, w.Enable(), "Enable must not error")
+	assert.ErrorIs(t, w.Enable(), errWebsocketAlreadyEnabled, "Enable should error correctly")
 }
 
 func TestSetupNewConnection(t *testing.T) {

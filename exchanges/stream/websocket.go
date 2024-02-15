@@ -128,7 +128,7 @@ func (w *Websocket) Setup(s *WebsocketSetup) error {
 	if s.ExchangeConfig.Features == nil {
 		return fmt.Errorf("%s %w", w.exchangeName, errConfigFeaturesIsNil)
 	}
-	w.enabled = s.ExchangeConfig.Features.Enabled.Websocket
+	w.setEnabled(s.ExchangeConfig.Features.Enabled.Websocket)
 
 	if s.Connector == nil {
 		return fmt.Errorf("%s %w", w.exchangeName, errWebsocketConnectorUnset)
@@ -388,9 +388,7 @@ func (w *Websocket) connectionMonitor() error {
 	if w.checkAndSetMonitorRunning() {
 		return errAlreadyRunning
 	}
-	w.fieldMutex.RLock()
 	delay := w.connectionMonitorDelay
-	w.fieldMutex.RUnlock()
 
 	go func() {
 		timer := time.NewTimer(delay)
@@ -618,104 +616,73 @@ func (w *Websocket) trafficMonitor() {
 	}()
 }
 
-// IsInitialised returns whether the websocket has been Setup() already
-func (w *Websocket) IsInitialised() bool {
-	w.fieldMutex.RLock()
-	defer w.fieldMutex.RUnlock()
-	return w.state != uninitialised
+func (w *Websocket) setState(s uint32) {
+	w.state.Store(s)
 }
 
-func (w *Websocket) setState(s state) {
-	w.fieldMutex.Lock()
-	w.state = s
-	w.fieldMutex.Unlock()
+// IsInitialised returns whether the websocket has been Setup() already
+func (w *Websocket) IsInitialised() bool {
+	return w.state.Load() != uninitialised
 }
 
 // IsConnected returns whether the websocket is connected
 func (w *Websocket) IsConnected() bool {
-	w.fieldMutex.RLock()
-	defer w.fieldMutex.RUnlock()
-	return w.state == connected
+	return w.state.Load() == connected
 }
 
 // IsConnecting returns whether the websocket is connecting
 func (w *Websocket) IsConnecting() bool {
-	w.fieldMutex.RLock()
-	defer w.fieldMutex.RUnlock()
-	return w.state == connecting
+	return w.state.Load() == connecting
 }
 
 func (w *Websocket) setEnabled(b bool) {
-	w.fieldMutex.Lock()
-	w.enabled = b
-	w.fieldMutex.Unlock()
+	w.enabled.Store(b)
 }
 
 // IsEnabled returns whether the websocket is enabled
 func (w *Websocket) IsEnabled() bool {
-	w.fieldMutex.RLock()
-	defer w.fieldMutex.RUnlock()
-	return w.enabled
+	return w.enabled.Load()
 }
 
 func (w *Websocket) setTrafficMonitorRunning(b bool) {
-	w.fieldMutex.Lock()
-	w.trafficMonitorRunning = b
-	w.fieldMutex.Unlock()
+	w.trafficMonitorRunning.Store(b)
 }
 
 // IsTrafficMonitorRunning returns status of the traffic monitor
 func (w *Websocket) IsTrafficMonitorRunning() bool {
-	w.fieldMutex.RLock()
-	defer w.fieldMutex.RUnlock()
-	return w.trafficMonitorRunning
+	return w.trafficMonitorRunning.Load()
 }
 
 func (w *Websocket) checkAndSetMonitorRunning() (alreadyRunning bool) {
-	w.fieldMutex.Lock()
-	defer w.fieldMutex.Unlock()
-	if w.connectionMonitorRunning {
-		return true
-	}
-	w.connectionMonitorRunning = true
-	return false
+	return !w.connectionMonitorRunning.CompareAndSwap(false, true)
 }
 
 func (w *Websocket) setConnectionMonitorRunning(b bool) {
-	w.fieldMutex.Lock()
-	w.connectionMonitorRunning = b
-	w.fieldMutex.Unlock()
+	w.connectionMonitorRunning.Store(b)
 }
 
 // IsConnectionMonitorRunning returns status of connection monitor
 func (w *Websocket) IsConnectionMonitorRunning() bool {
-	w.fieldMutex.RLock()
-	defer w.fieldMutex.RUnlock()
-	return w.connectionMonitorRunning
+	return w.connectionMonitorRunning.Load()
 }
 
 func (w *Websocket) setDataMonitorRunning(b bool) {
-	w.fieldMutex.Lock()
-	w.dataMonitorRunning = b
-	w.fieldMutex.Unlock()
+	w.dataMonitorRunning.Store(b)
 }
 
 // IsDataMonitorRunning returns status of data monitor
 func (w *Websocket) IsDataMonitorRunning() bool {
-	w.fieldMutex.RLock()
-	defer w.fieldMutex.RUnlock()
-	return w.dataMonitorRunning
+	return w.dataMonitorRunning.Load()
 }
 
 // CanUseAuthenticatedWebsocketForWrapper Handles a common check to
 // verify whether a wrapper can use an authenticated websocket endpoint
 func (w *Websocket) CanUseAuthenticatedWebsocketForWrapper() bool {
-	if w.IsConnected() && w.CanUseAuthenticatedEndpoints() {
-		return true
-	} else if w.IsConnected() && !w.CanUseAuthenticatedEndpoints() {
-		log.Infof(log.WebsocketMgr,
-			WebsocketNotAuthenticatedUsingRest,
-			w.exchangeName)
+	if w.IsConnected() {
+		if w.CanUseAuthenticatedEndpoints() {
+			return true
+		}
+		log.Infof(log.WebsocketMgr, WebsocketNotAuthenticatedUsingRest, w.exchangeName)
 	}
 	return false
 }
@@ -994,20 +961,14 @@ func (w *Websocket) GetSubscriptions() []subscription.Subscription {
 	return subs
 }
 
-// SetCanUseAuthenticatedEndpoints sets canUseAuthenticatedEndpoints val in
-// a thread safe manner
-func (w *Websocket) SetCanUseAuthenticatedEndpoints(val bool) {
-	w.fieldMutex.Lock()
-	defer w.fieldMutex.Unlock()
-	w.canUseAuthenticatedEndpoints = val
+// SetCanUseAuthenticatedEndpoints sets canUseAuthenticatedEndpoints val in a thread safe manner
+func (w *Websocket) SetCanUseAuthenticatedEndpoints(b bool) {
+	w.canUseAuthenticatedEndpoints.Store(b)
 }
 
-// CanUseAuthenticatedEndpoints gets canUseAuthenticatedEndpoints val in
-// a thread safe manner
+// CanUseAuthenticatedEndpoints gets canUseAuthenticatedEndpoints val in a thread safe manner
 func (w *Websocket) CanUseAuthenticatedEndpoints() bool {
-	w.fieldMutex.RLock()
-	defer w.fieldMutex.RUnlock()
-	return w.canUseAuthenticatedEndpoints
+	return w.canUseAuthenticatedEndpoints.Load()
 }
 
 // IsDisconnectionError Determines if the error sent over chan ReadMessageErrors is a disconnection error
