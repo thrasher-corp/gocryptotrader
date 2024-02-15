@@ -2886,7 +2886,7 @@ func TestConvertContractShortHandToExpiry(t *testing.T) {
 	cp := currency.NewPair(currency.BTC, currency.NewCode("CW"))
 	cp, err := h.convertContractShortHandToExpiry(cp, tt)
 	assert.NoError(t, err)
-	assert.NotEqual(t, cp.Quote.String(), "CW")
+	assert.NotEqual(t, "CW", cp.Quote.String())
 	tick, err := h.FetchTicker(context.Background(), cp, asset.Futures)
 	if assert.NoError(t, err) {
 		assert.NotZero(t, tick.Close)
@@ -2895,7 +2895,7 @@ func TestConvertContractShortHandToExpiry(t *testing.T) {
 	cp = currency.NewPair(currency.BTC, currency.NewCode("NW"))
 	cp, err = h.convertContractShortHandToExpiry(cp, tt)
 	assert.NoError(t, err)
-	assert.NotEqual(t, cp.Quote.String(), "NW")
+	assert.NotEqual(t, "NW", cp.Quote.String())
 	tick, err = h.FetchTicker(context.Background(), cp, asset.Futures)
 	if assert.NoError(t, err) {
 		assert.NotZero(t, tick.Close)
@@ -2904,7 +2904,7 @@ func TestConvertContractShortHandToExpiry(t *testing.T) {
 	cp = currency.NewPair(currency.BTC, currency.NewCode("CQ"))
 	cp, err = h.convertContractShortHandToExpiry(cp, tt)
 	assert.NoError(t, err)
-	assert.NotEqual(t, cp.Quote.String(), "CQ")
+	assert.NotEqual(t, "CQ", cp.Quote.String())
 	tick, err = h.FetchTicker(context.Background(), cp, asset.Futures)
 	if assert.NoError(t, err) {
 		assert.NotZero(t, tick.Close)
@@ -2915,12 +2915,12 @@ func TestConvertContractShortHandToExpiry(t *testing.T) {
 	tt = time.Date(2021, 6, 3, 0, 0, 0, 0, time.UTC)
 	cp, err = h.convertContractShortHandToExpiry(cp, tt)
 	assert.NoError(t, err)
-	assert.Equal(t, cp.Quote.String(), "210625")
+	assert.Equal(t, "210625", cp.Quote.String())
 
 	cp = currency.NewPair(currency.BTC, currency.NewCode("CW"))
 	cp, err = h.convertContractShortHandToExpiry(cp, tt)
 	assert.NoError(t, err)
-	assert.Equal(t, cp.Quote.String(), "210604")
+	assert.Equal(t, "210604", cp.Quote.String())
 
 	cp = currency.NewPair(currency.BTC, currency.NewCode("CWif hat"))
 	_, err = h.convertContractShortHandToExpiry(cp, tt)
@@ -2930,7 +2930,7 @@ func TestConvertContractShortHandToExpiry(t *testing.T) {
 	cp = currency.NewPair(currency.BTC, currency.NewCode("NQ"))
 	cp, err = h.convertContractShortHandToExpiry(cp, tt)
 	assert.NoError(t, err)
-	assert.NotEqual(t, cp.Quote.String(), "NQ")
+	assert.NotEqual(t, "NQ", cp.Quote.String())
 	tick, err = h.FetchTicker(context.Background(), cp, asset.Futures)
 	if err != nil {
 		// Huobi doesn't always have a next-quarter contract, return if no data found
