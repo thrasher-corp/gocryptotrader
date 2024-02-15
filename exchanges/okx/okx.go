@@ -725,7 +725,7 @@ func (ok *Okx) AmendAlgoOrder(ctx context.Context, arg *AmendAlgoOrderParam) (*A
 		return nil, errMissingInstrumentID
 	}
 	if arg.AlgoID == "" && arg.ClientSuppliedAlgoOrderID == "" {
-		return nil, fmt.Errorf("%w eiither 'algoId' or 'algoClOrdId' is required", errMissingAlgoOrderID)
+		return nil, fmt.Errorf("%w either 'algoId' or 'algoClOrdId' is required", errMissingAlgoOrderID)
 	}
 	var resp *AmendAlgoResponse
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, amendAlgoOrderEPL, http.MethodPost, "trade/amend-algos", arg, &resp, true)
