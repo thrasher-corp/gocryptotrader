@@ -4252,7 +4252,7 @@ func TestRPCProxyAuthClient(t *testing.T) {
 		},
 	}
 
-	dummyHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	dummyHandler := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		_, err := w.Write([]byte("MEOW"))
 		require.NoError(t, err, "Write should not error")

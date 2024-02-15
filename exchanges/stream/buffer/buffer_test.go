@@ -460,7 +460,7 @@ func TestOrderbookLastUpdateID(t *testing.T) {
 			exp, itemArray[1][0].Price)
 	}
 
-	holder.checksum = func(state *orderbook.Base, checksum uint32) error { return errors.New("testerino") }
+	holder.checksum = func(*orderbook.Base, uint32) error { return errors.New("testerino") }
 
 	// this update invalidates the book
 	err = holder.Update(&orderbook.Update{
@@ -479,7 +479,7 @@ func TestOrderbookLastUpdateID(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	holder.checksum = func(state *orderbook.Base, checksum uint32) error { return nil }
+	holder.checksum = func(*orderbook.Base, uint32) error { return nil }
 	holder.updateIDProgression = true
 
 	for i := range itemArray {

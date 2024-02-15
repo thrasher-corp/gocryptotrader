@@ -10,7 +10,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/database/drivers"
 )
 
-//nolint:gocritic // Only used as a testing helper function in this package
 func CreateDatabase(t *testing.T) {
 	t.Helper()
 	// fun workarounds to globals ruining testing

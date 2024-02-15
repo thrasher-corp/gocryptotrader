@@ -1106,8 +1106,8 @@ type TransferResponse struct {
 
 // SubUID represents a sub-users ID
 type SubUID struct {
-	SubMemberIds             []string `json:"subMemberIds"`
-	TransferableSubMemberIds []string `json:"transferableSubMemberIds"`
+	SubMemberIDs             []string `json:"subMemberIds"`
+	TransferableSubMemberIDs []string `json:"transferableSubMemberIds"`
 }
 
 // AllowedDepositCoinInfo represents coin deposit information.
@@ -1555,7 +1555,7 @@ type CoinRepaymentResponse struct {
 	RepayID            string               `json:"repayId"`
 	RepayMarginOrderID string               `json:"repayMarginOrderId"`
 	RepayTime          convert.ExchangeTime `json:"repayTime"`
-	TransactIds        []struct {
+	TransactIDs        []struct {
 		RepaidAmount       types.Number `json:"repaidAmount"`
 		RepaidInterest     types.Number `json:"repaidInterest"`
 		RepaidPrincipal    types.Number `json:"repaidPrincipal"`

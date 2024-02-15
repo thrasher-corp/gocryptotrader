@@ -555,7 +555,7 @@ func (y *Yobit) WithdrawCryptocurrencyFunds(ctx context.Context, withdrawRequest
 	if err != nil {
 		return nil, err
 	}
-	if len(resp.Error) > 0 {
+	if resp.Error != "" {
 		return nil, errors.New(resp.Error)
 	}
 	return &withdraw.ExchangeResponse{}, nil
