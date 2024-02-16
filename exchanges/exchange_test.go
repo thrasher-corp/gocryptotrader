@@ -3399,7 +3399,8 @@ func TestUpdateTradablePairs(t *testing.T) {
 	err = exch.UpdateTradablePairs(context.Background(), exch)
 	assert.ErrorIs(t, err, errSetupNotCalled)
 
-	exch.Setup(&config.Exchange{Name: "test", Enabled: true})
+	err = exch.Setup(&config.Exchange{Name: "test", Enabled: true})
+	require.NoError(t, err)
 
 	err = exch.UpdateTradablePairs(context.Background(), exch)
 	require.NoError(t, err)

@@ -1983,20 +1983,20 @@ func (b *Base) GetDefaultConfig(ctx context.Context, instance LimitedScope) (*co
 
 // UpdateTradablePairs updates the exchanges available pairs and stores them in
 // the exchanges config.
-func (h *Base) UpdateTradablePairs(ctx context.Context, instance LimitedScope) error {
-	assets := h.GetAssetTypes(false)
+func (b *Base) UpdateTradablePairs(ctx context.Context, instance LimitedScope) error {
+	assets := b.GetAssetTypes(false)
 	if len(assets) == 0 {
-		return fmt.Errorf("%s %w: no specific asset types are set", h.GetName(), errSetDefaultsNotCalled)
+		return fmt.Errorf("%s %w: no specific asset types are set", b.GetName(), errSetDefaultsNotCalled)
 	}
 	for x := range assets {
 		pairs, err := instance.FetchTradablePairs(ctx, assets[x])
 		if err != nil {
 			return err
 		}
-		err = h.UpdatePairs(pairs, assets[x], false)
+		err = b.UpdatePairs(pairs, assets[x], false)
 		if err != nil {
 			return err
 		}
 	}
-	return h.EnsureOnePairEnabled()
+	return b.EnsureOnePairEnabled()
 }
