@@ -602,33 +602,15 @@ func (ok *Okx) UpdateOrderbook(ctx context.Context, pair currency.Pair, assetTyp
 			}
 			book.Bids = make(orderbook.Items, len(spreadOrderbook[y].Bids))
 			for a := range spreadOrderbook[y].Bids {
-				book.Bids[a].Price, err = strconv.ParseFloat(spreadOrderbook[y].Bids[a][0], 64)
-				if err != nil {
-					return nil, err
-				}
-				book.Bids[a].Amount, err = strconv.ParseFloat(spreadOrderbook[y].Bids[a][1], 64)
-				if err != nil {
-					return nil, err
-				}
-				book.Bids[a].OrderCount, err = strconv.ParseInt(spreadOrderbook[y].Bids[a][2], 10, 64)
-				if err != nil {
-					return nil, err
-				}
+				book.Bids[a].Price = spreadOrderbook[y].Bids[a][0].Float64()
+				book.Bids[a].Amount = spreadOrderbook[y].Bids[a][1].Float64()
+				book.Bids[a].OrderCount = spreadOrderbook[y].Bids[a][2].Int64()
 			}
 			book.Asks = make(orderbook.Items, len(spreadOrderbook[y].Asks))
 			for a := range spreadOrderbook[y].Asks {
-				book.Asks[a].Price, err = strconv.ParseFloat(spreadOrderbook[y].Asks[a][0], 64)
-				if err != nil {
-					return nil, err
-				}
-				book.Asks[a].Amount, err = strconv.ParseFloat(spreadOrderbook[y].Asks[a][1], 64)
-				if err != nil {
-					return nil, err
-				}
-				book.Asks[a].OrderCount, err = strconv.ParseInt(spreadOrderbook[y].Asks[a][2], 10, 64)
-				if err != nil {
-					return nil, err
-				}
+				book.Asks[a].Price = spreadOrderbook[y].Asks[a][0].Float64()
+				book.Asks[a].Amount = spreadOrderbook[y].Asks[a][1].Float64()
+				book.Asks[a].OrderCount = spreadOrderbook[y].Asks[a][2].Int64()
 			}
 			err = book.Process()
 			if err != nil {
@@ -668,14 +650,14 @@ func (ok *Okx) UpdateOrderbook(ctx context.Context, pair currency.Pair, assetTyp
 		book.Bids = make(orderbook.Items, len(orderBookD.Bids))
 		for x := range orderBookD.Bids {
 			book.Bids[x] = orderbook.Item{
-				Amount: orderBookD.Bids[x].BaseCurrencies,
+				Amount: orderBookD.Bids[x].Amount,
 				Price:  orderBookD.Bids[x].DepthPrice,
 			}
 		}
 		book.Asks = make(orderbook.Items, len(orderBookD.Asks))
 		for x := range orderBookD.Asks {
 			book.Asks[x] = orderbook.Item{
-				Amount: orderBookD.Asks[x].NumberOfContracts,
+				Amount: orderBookD.Asks[x].Amount,
 				Price:  orderBookD.Asks[x].DepthPrice,
 			}
 		}

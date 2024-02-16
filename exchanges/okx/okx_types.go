@@ -126,34 +126,26 @@ type OrderBookResponse struct {
 
 // OrderBookResponseDetail holds the order asks and bids in a struct field with the corresponding order generation timestamp.
 type OrderBookResponseDetail struct {
-	Asks                []OrderAsk
-	Bids                []OrderBid
+	Asks                []OrderbookItemDetail
+	Bids                []OrderbookItemDetail
 	GenerationTimestamp time.Time
 }
 
-// OrderAsk represents currencies bid detailed information.
-type OrderAsk struct {
+// OrderbookItemDetail represents currencies bid detailed information.
+type OrderbookItemDetail struct {
 	DepthPrice        float64
-	NumberOfContracts float64
-	LiquidationOrders int64
-	NumberOfOrders    int64
-}
-
-// OrderBid represents currencies bid detailed information.
-type OrderBid struct {
-	DepthPrice        float64
-	BaseCurrencies    float64
+	Amount            float64
 	LiquidationOrders int64
 	NumberOfOrders    int64
 }
 
 // GetOrderBookResponseDetail returns the OrderBookResponseDetail instance from OrderBookResponse object.
 func (a *OrderBookResponse) GetOrderBookResponseDetail() (*OrderBookResponseDetail, error) {
-	asks, er := a.GetAsks()
+	asks, er := GetItems(a.Asks)
 	if er != nil {
 		return nil, er
 	}
-	bids, er := a.GetBids()
+	bids, er := GetItems(a.Bids)
 	if er != nil {
 		return nil, er
 	}
@@ -164,32 +156,18 @@ func (a *OrderBookResponse) GetOrderBookResponseDetail() (*OrderBookResponseDeta
 	}, nil
 }
 
-// GetAsks returns list of asks from an order book response instance.
-func (a *OrderBookResponse) GetAsks() ([]OrderAsk, error) {
-	asks := make([]OrderAsk, len(a.Asks))
-	for x := range a.Asks {
-		asks[x] = OrderAsk{
-			DepthPrice:        a.Asks[x][0].Float64(),
-			NumberOfContracts: a.Asks[x][1].Float64(),
-			LiquidationOrders: a.Asks[x][2].Int64(),
-			NumberOfOrders:    a.Asks[x][3].Int64(),
+// GetItems returns list of an OrderbookItemDetail instances.
+func GetItems(data [][4]types.Number) ([]OrderbookItemDetail, error) {
+	items := make([]OrderbookItemDetail, len(data))
+	for x := range data {
+		items[x] = OrderbookItemDetail{
+			DepthPrice:        data[x][0].Float64(),
+			Amount:            data[x][1].Float64(),
+			LiquidationOrders: data[x][2].Int64(),
+			NumberOfOrders:    data[x][3].Int64(),
 		}
 	}
-	return asks, nil
-}
-
-// GetBids returns list of order bids instance from list of slice.
-func (a *OrderBookResponse) GetBids() ([]OrderBid, error) {
-	bids := make([]OrderBid, len(a.Bids))
-	for x := range a.Bids {
-		bids[x] = OrderBid{
-			DepthPrice:        a.Asks[x][0].Float64(),
-			BaseCurrencies:    a.Asks[x][1].Float64(),
-			LiquidationOrders: a.Asks[x][2].Int64(),
-			NumberOfOrders:    a.Asks[x][3].Int64(),
-		}
-	}
-	return bids, nil
+	return items, nil
 }
 
 // IndexCandlestickSlices represents index candlestick history represented by a slice of string
@@ -2630,8 +2608,8 @@ type SpreadInstrument struct {
 // SpreadOrderbook holds spread orderbook information.
 type SpreadOrderbook struct {
 	// Asks and Bids are [3]string; price, quantity, and # number of orders at the price
-	Asks      [][]string           `json:"asks"`
-	Bids      [][]string           `json:"bids"`
+	Asks      [][]types.Number     `json:"asks"`
+	Bids      [][]types.Number     `json:"bids"`
 	Timestamp convert.ExchangeTime `json:"ts"`
 }
 
