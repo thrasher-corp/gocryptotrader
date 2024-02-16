@@ -176,49 +176,35 @@ func (g *Gateio) SetDefaults() {
 	g.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	g.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
 	g.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
-}
 
-// Setup sets user configuration
-func (g *Gateio) Setup(exch *config.Exchange) error {
-	err := exch.Validate()
-	if err != nil {
-		return err
-	}
-	if !exch.Enabled {
-		g.SetEnabled(false)
-		return nil
-	}
-	err = g.SetupDefaults(exch)
-	if err != nil {
-		return err
-	}
+	g.PostSetupRequirements = func(_ context.Context, exch *config.Exchange) error {
+		wsRunningURL, err := g.API.Endpoints.GetURL(exchange.WebsocketSpot)
+		if err != nil {
+			return err
+		}
 
-	wsRunningURL, err := g.API.Endpoints.GetURL(exchange.WebsocketSpot)
-	if err != nil {
-		return err
+		err = g.Websocket.Setup(&stream.WebsocketSetup{
+			ExchangeConfig:        exch,
+			DefaultURL:            gateioWebsocketEndpoint,
+			RunningURL:            wsRunningURL,
+			Connector:             g.WsConnect,
+			Subscriber:            g.Subscribe,
+			Unsubscriber:          g.Unsubscribe,
+			GenerateSubscriptions: g.GenerateDefaultSubscriptions,
+			Features:              &g.Features.Supports.WebsocketCapabilities,
+			FillsFeed:             g.Features.Enabled.FillsFeed,
+			TradeFeed:             g.Features.Enabled.TradeFeed,
+		})
+		if err != nil {
+			return err
+		}
+		return g.Websocket.SetupNewConnection(stream.ConnectionSetup{
+			URL:                  gateioWebsocketEndpoint,
+			RateLimit:            gateioWebsocketRateLimit,
+			ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
+			ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
+		})
 	}
-
-	err = g.Websocket.Setup(&stream.WebsocketSetup{
-		ExchangeConfig:        exch,
-		DefaultURL:            gateioWebsocketEndpoint,
-		RunningURL:            wsRunningURL,
-		Connector:             g.WsConnect,
-		Subscriber:            g.Subscribe,
-		Unsubscriber:          g.Unsubscribe,
-		GenerateSubscriptions: g.GenerateDefaultSubscriptions,
-		Features:              &g.Features.Supports.WebsocketCapabilities,
-		FillsFeed:             g.Features.Enabled.FillsFeed,
-		TradeFeed:             g.Features.Enabled.TradeFeed,
-	})
-	if err != nil {
-		return err
-	}
-	return g.Websocket.SetupNewConnection(stream.ConnectionSetup{
-		URL:                  gateioWebsocketEndpoint,
-		RateLimit:            gateioWebsocketRateLimit,
-		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
-		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
-	})
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair

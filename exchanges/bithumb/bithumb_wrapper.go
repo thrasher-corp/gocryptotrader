@@ -130,50 +130,35 @@ func (b *Bithumb) SetDefaults() {
 	b.Websocket = stream.New()
 	b.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	b.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
-}
+	b.PostSetupRequirements = func(_ context.Context, exch *config.Exchange) error {
+		location, err = time.LoadLocation("Asia/Seoul")
+		if err != nil {
+			return err
+		}
 
-// Setup takes in the supplied exchange configuration details and sets params
-func (b *Bithumb) Setup(exch *config.Exchange) error {
-	err := exch.Validate()
-	if err != nil {
-		return err
-	}
-	if !exch.Enabled {
-		b.SetEnabled(false)
-		return nil
-	}
-	err = b.SetupDefaults(exch)
-	if err != nil {
-		return err
-	}
+		ePoint, err := b.API.Endpoints.GetURL(exchange.WebsocketSpot)
+		if err != nil {
+			return err
+		}
+		err = b.Websocket.Setup(&stream.WebsocketSetup{
+			ExchangeConfig:        exch,
+			DefaultURL:            wsEndpoint,
+			RunningURL:            ePoint,
+			Connector:             b.WsConnect,
+			Subscriber:            b.Subscribe,
+			GenerateSubscriptions: b.GenerateSubscriptions,
+			Features:              &b.Features.Supports.WebsocketCapabilities,
+		})
+		if err != nil {
+			return err
+		}
 
-	location, err = time.LoadLocation("Asia/Seoul")
-	if err != nil {
-		return err
+		return b.Websocket.SetupNewConnection(stream.ConnectionSetup{
+			ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
+			ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
+			RateLimit:            wsRateLimitMillisecond,
+		})
 	}
-
-	ePoint, err := b.API.Endpoints.GetURL(exchange.WebsocketSpot)
-	if err != nil {
-		return err
-	}
-	err = b.Websocket.Setup(&stream.WebsocketSetup{
-		ExchangeConfig:        exch,
-		DefaultURL:            wsEndpoint,
-		RunningURL:            ePoint,
-		Connector:             b.WsConnect,
-		Subscriber:            b.Subscribe,
-		GenerateSubscriptions: b.GenerateSubscriptions,
-		Features:              &b.Features.Supports.WebsocketCapabilities,
-	})
-	if err != nil {
-		return err
-	}
-
-	return b.Websocket.SetupNewConnection(stream.ConnectionSetup{
-		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
-		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
-		RateLimit:            wsRateLimitMillisecond,
-	})
 }
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs

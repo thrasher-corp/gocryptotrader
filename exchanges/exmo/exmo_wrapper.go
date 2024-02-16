@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
-	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
@@ -101,18 +100,6 @@ func (e *EXMO) SetDefaults() {
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
-}
-
-// Setup takes in the supplied exchange configuration details and sets params
-func (e *EXMO) Setup(exch *config.Exchange) error {
-	if err := exch.Validate(); err != nil {
-		return err
-	}
-	if !exch.Enabled {
-		e.SetEnabled(false)
-		return nil
-	}
-	return e.SetupDefaults(exch)
 }
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs

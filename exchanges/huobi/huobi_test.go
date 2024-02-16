@@ -60,7 +60,7 @@ func TestMain(m *testing.M) {
 	hConfig.API.Credentials.Key = apiKey
 	hConfig.API.Credentials.Secret = apiSecret
 	h.Websocket = sharedtestvalues.NewTestWebsocket()
-	err = h.Setup(hConfig)
+	err = h.Setup(context.Background(), hConfig)
 	if err != nil {
 		log.Fatal("Huobi setup error", err)
 	}

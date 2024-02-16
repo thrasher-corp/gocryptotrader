@@ -177,52 +177,37 @@ func (ku *Kucoin) SetDefaults() {
 	ku.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	ku.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
 	ku.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
-}
-
-// Setup takes in the supplied exchange configuration details and sets params
-func (ku *Kucoin) Setup(exch *config.Exchange) error {
-	err := exch.Validate()
-	if err != nil {
-		return err
-	}
-	if !exch.Enabled {
-		ku.SetEnabled(false)
-		return nil
-	}
-	err = ku.SetupDefaults(exch)
-	if err != nil {
-		return err
-	}
-
-	wsRunningEndpoint, err := ku.API.Endpoints.GetURL(exchange.WebsocketSpot)
-	if err != nil {
-		return err
-	}
-	err = ku.Websocket.Setup(
-		&stream.WebsocketSetup{
-			ExchangeConfig:        exch,
-			DefaultURL:            kucoinWebsocketURL,
-			RunningURL:            wsRunningEndpoint,
-			Connector:             ku.WsConnect,
-			Subscriber:            ku.Subscribe,
-			Unsubscriber:          ku.Unsubscribe,
-			GenerateSubscriptions: ku.GenerateDefaultSubscriptions,
-			Features:              &ku.Features.Supports.WebsocketCapabilities,
-			OrderbookBufferConfig: buffer.Config{
-				SortBuffer:            true,
-				SortBufferByUpdateIDs: true,
-				UpdateIDProgression:   true,
-			},
-			TradeFeed: ku.Features.Enabled.TradeFeed,
+	ku.PostSetupRequirements = func(_ context.Context, exch *config.Exchange) error {
+		wsRunningEndpoint, err := ku.API.Endpoints.GetURL(exchange.WebsocketSpot)
+		if err != nil {
+			return err
+		}
+		err = ku.Websocket.Setup(
+			&stream.WebsocketSetup{
+				ExchangeConfig:        exch,
+				DefaultURL:            kucoinWebsocketURL,
+				RunningURL:            wsRunningEndpoint,
+				Connector:             ku.WsConnect,
+				Subscriber:            ku.Subscribe,
+				Unsubscriber:          ku.Unsubscribe,
+				GenerateSubscriptions: ku.GenerateDefaultSubscriptions,
+				Features:              &ku.Features.Supports.WebsocketCapabilities,
+				OrderbookBufferConfig: buffer.Config{
+					SortBuffer:            true,
+					SortBufferByUpdateIDs: true,
+					UpdateIDProgression:   true,
+				},
+				TradeFeed: ku.Features.Enabled.TradeFeed,
+			})
+		if err != nil {
+			return err
+		}
+		return ku.Websocket.SetupNewConnection(stream.ConnectionSetup{
+			ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
+			ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
+			RateLimit:            500,
 		})
-	if err != nil {
-		return err
 	}
-	return ku.Websocket.SetupNewConnection(stream.ConnectionSetup{
-		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
-		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
-		RateLimit:            500,
-	})
 }
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs

@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
-	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
@@ -89,18 +88,6 @@ func (y *Yobit) SetDefaults() {
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
-}
-
-// Setup sets exchange configuration parameters for Yobit
-func (y *Yobit) Setup(exch *config.Exchange) error {
-	if err := exch.Validate(); err != nil {
-		return err
-	}
-	if !exch.Enabled {
-		y.SetEnabled(false)
-		return nil
-	}
-	return y.SetupDefaults(exch)
 }
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs

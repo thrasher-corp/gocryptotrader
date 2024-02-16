@@ -43,7 +43,7 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	err = exch.Setup(cfg)
+	err = exch.Setup(context.Background(), cfg)
 	if err != nil {
 		log.Fatal(err)
 	}

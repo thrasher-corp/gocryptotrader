@@ -199,64 +199,48 @@ func (by *Bybit) SetDefaults() {
 	by.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	by.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
 	by.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
-}
+	by.PostSetupRequirements = func(_ context.Context, exch *config.Exchange) error {
+		wsRunningEndpoint, err := by.API.Endpoints.GetURL(exchange.WebsocketSpot)
+		if err != nil {
+			return err
+		}
 
-// Setup takes in the supplied exchange configuration details and sets params
-func (by *Bybit) Setup(exch *config.Exchange) error {
-	err := exch.Validate()
-	if err != nil {
-		return err
-	}
-	if !exch.Enabled {
-		by.SetEnabled(false)
-		return nil
-	}
-
-	err = by.SetupDefaults(exch)
-	if err != nil {
-		return err
-	}
-
-	wsRunningEndpoint, err := by.API.Endpoints.GetURL(exchange.WebsocketSpot)
-	if err != nil {
-		return err
-	}
-
-	err = by.Websocket.Setup(
-		&stream.WebsocketSetup{
-			ExchangeConfig:        exch,
-			DefaultURL:            spotPublic,
-			RunningURL:            wsRunningEndpoint,
-			RunningURLAuth:        websocketPrivate,
-			Connector:             by.WsConnect,
-			Subscriber:            by.Subscribe,
-			Unsubscriber:          by.Unsubscribe,
-			GenerateSubscriptions: by.GenerateDefaultSubscriptions,
-			Features:              &by.Features.Supports.WebsocketCapabilities,
-			OrderbookBufferConfig: buffer.Config{
-				SortBuffer:            true,
-				SortBufferByUpdateIDs: true,
-			},
-			TradeFeed: by.Features.Enabled.TradeFeed,
+		err = by.Websocket.Setup(
+			&stream.WebsocketSetup{
+				ExchangeConfig:        exch,
+				DefaultURL:            spotPublic,
+				RunningURL:            wsRunningEndpoint,
+				RunningURLAuth:        websocketPrivate,
+				Connector:             by.WsConnect,
+				Subscriber:            by.Subscribe,
+				Unsubscriber:          by.Unsubscribe,
+				GenerateSubscriptions: by.GenerateDefaultSubscriptions,
+				Features:              &by.Features.Supports.WebsocketCapabilities,
+				OrderbookBufferConfig: buffer.Config{
+					SortBuffer:            true,
+					SortBufferByUpdateIDs: true,
+				},
+				TradeFeed: by.Features.Enabled.TradeFeed,
+			})
+		if err != nil {
+			return err
+		}
+		err = by.Websocket.SetupNewConnection(stream.ConnectionSetup{
+			URL:                  by.Websocket.GetWebsocketURL(),
+			ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
+			ResponseMaxLimit:     bybitWebsocketTimer,
 		})
-	if err != nil {
-		return err
-	}
-	err = by.Websocket.SetupNewConnection(stream.ConnectionSetup{
-		URL:                  by.Websocket.GetWebsocketURL(),
-		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
-		ResponseMaxLimit:     bybitWebsocketTimer,
-	})
-	if err != nil {
-		return err
-	}
+		if err != nil {
+			return err
+		}
 
-	return by.Websocket.SetupNewConnection(stream.ConnectionSetup{
-		URL:                  websocketPrivate,
-		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
-		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
-		Authenticated:        true,
-	})
+		return by.Websocket.SetupNewConnection(stream.ConnectionSetup{
+			URL:                  websocketPrivate,
+			ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
+			ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
+			Authenticated:        true,
+		})
+	}
 }
 
 // AuthenticateWebsocket sends an authentication message to the websocket

@@ -28,11 +28,6 @@ type CustomEx struct {
 	exchange.Base
 }
 
-// Setup is a mock method for CustomEx
-func (c *CustomEx) Setup(_ *config.Exchange) error {
-	return nil
-}
-
 // SetDefaults is a mock method for CustomEx
 func (c *CustomEx) SetDefaults() {
 }

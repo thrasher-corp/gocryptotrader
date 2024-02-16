@@ -133,56 +133,41 @@ func (o *Okcoin) SetDefaults() {
 	o.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	o.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
 	o.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
-}
-
-// Setup sets user exchange configuration settings
-func (o *Okcoin) Setup(exch *config.Exchange) error {
-	err := exch.Validate()
-	if err != nil {
-		return err
+	o.PostSetupRequirements = func(_ context.Context, exch *config.Exchange) error {
+		wsEndpoint, err := o.API.Endpoints.GetURL(exchange.WebsocketSpot)
+		if err != nil {
+			return err
+		}
+		err = o.Websocket.Setup(&stream.WebsocketSetup{
+			ExchangeConfig:        exch,
+			DefaultURL:            wsEndpoint,
+			RunningURL:            wsEndpoint,
+			RunningURLAuth:        okcoinPrivateWebsocketURL,
+			Connector:             o.WsConnect,
+			Subscriber:            o.Subscribe,
+			Unsubscriber:          o.Unsubscribe,
+			GenerateSubscriptions: o.GenerateDefaultSubscriptions,
+			Features:              &o.Features.Supports.WebsocketCapabilities,
+		})
+		if err != nil {
+			return err
+		}
+		err = o.Websocket.SetupNewConnection(stream.ConnectionSetup{
+			RateLimit:            okcoinWsRateLimit,
+			ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
+			ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
+		})
+		if err != nil {
+			return err
+		}
+		return o.Websocket.SetupNewConnection(stream.ConnectionSetup{
+			ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
+			ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
+			URL:                  okcoinPrivateWebsocketURL,
+			RateLimit:            okcoinWsRateLimit,
+			Authenticated:        true,
+		})
 	}
-	if !exch.Enabled {
-		o.SetEnabled(false)
-		return nil
-	}
-	err = o.SetupDefaults(exch)
-	if err != nil {
-		return err
-	}
-
-	wsEndpoint, err := o.API.Endpoints.GetURL(exchange.WebsocketSpot)
-	if err != nil {
-		return err
-	}
-	err = o.Websocket.Setup(&stream.WebsocketSetup{
-		ExchangeConfig:        exch,
-		DefaultURL:            wsEndpoint,
-		RunningURL:            wsEndpoint,
-		RunningURLAuth:        okcoinPrivateWebsocketURL,
-		Connector:             o.WsConnect,
-		Subscriber:            o.Subscribe,
-		Unsubscriber:          o.Unsubscribe,
-		GenerateSubscriptions: o.GenerateDefaultSubscriptions,
-		Features:              &o.Features.Supports.WebsocketCapabilities,
-	})
-	if err != nil {
-		return err
-	}
-	err = o.Websocket.SetupNewConnection(stream.ConnectionSetup{
-		RateLimit:            okcoinWsRateLimit,
-		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
-		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
-	})
-	if err != nil {
-		return err
-	}
-	return o.Websocket.SetupNewConnection(stream.ConnectionSetup{
-		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
-		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
-		URL:                  okcoinPrivateWebsocketURL,
-		RateLimit:            okcoinWsRateLimit,
-		Authenticated:        true,
-	})
 }
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs

@@ -110,23 +110,7 @@ func ({{.Variable}} *{{.CapitalName}}) SetDefaults() {
 	{{.Variable}}.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	{{.Variable}}.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
 	{{.Variable}}.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
-}
-
-// Setup takes in the supplied exchange configuration details and sets params
-func ({{.Variable}} *{{.CapitalName}}) Setup(exch *config.Exchange) error {
-	err := exch.Validate()
-	if err != nil {
-		return err
-	}
-	if !exch.Enabled {
-		{{.Variable}}.SetEnabled(false)
-		return nil
-	}
-	err = {{.Variable}}.SetupDefaults(exch)
-	if err != nil {
-		return err
-	}
-
+	{{.Variable}}.PostSetupRequirements = func(ctx context.Context, exch *config.Exchange) error {
 	/*
 	wsRunningEndpoint, err := {{.Variable}}.API.Endpoints.GetURL(exchange.WebsocketSpot)
 	if err != nil {
@@ -159,6 +143,7 @@ func ({{.Variable}} *{{.CapitalName}}) Setup(exch *config.Exchange) error {
 	}
 	*/
 	return nil
+	}
 }
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs

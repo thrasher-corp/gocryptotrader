@@ -144,52 +144,37 @@ func (bi *Binanceus) SetDefaults() {
 	bi.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	bi.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
 	bi.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
-}
+	bi.PostSetupRequirements = func(_ context.Context, exch *config.Exchange) error {
+		ePoint, err := bi.API.Endpoints.GetURL(exchange.WebsocketSpot)
+		if err != nil {
+			return err
+		}
 
-// Setup takes in the supplied exchange configuration details and sets params
-func (bi *Binanceus) Setup(exch *config.Exchange) error {
-	err := exch.Validate()
-	if err != nil {
-		return err
-	}
-	if !exch.Enabled {
-		bi.SetEnabled(false)
-		return nil
-	}
-	err = bi.SetupDefaults(exch)
-	if err != nil {
-		return err
-	}
+		err = bi.Websocket.Setup(&stream.WebsocketSetup{
+			ExchangeConfig:        exch,
+			DefaultURL:            binanceusDefaultWebsocketURL,
+			RunningURL:            ePoint,
+			Connector:             bi.WsConnect,
+			Subscriber:            bi.Subscribe,
+			Unsubscriber:          bi.Unsubscribe,
+			GenerateSubscriptions: bi.GenerateSubscriptions,
+			Features:              &bi.Features.Supports.WebsocketCapabilities,
+			OrderbookBufferConfig: buffer.Config{
+				SortBuffer:            true,
+				SortBufferByUpdateIDs: true,
+			},
+			TradeFeed: bi.Features.Enabled.TradeFeed,
+		})
+		if err != nil {
+			return err
+		}
 
-	ePoint, err := bi.API.Endpoints.GetURL(exchange.WebsocketSpot)
-	if err != nil {
-		return err
+		return bi.Websocket.SetupNewConnection(stream.ConnectionSetup{
+			ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
+			ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
+			RateLimit:            wsRateLimitMilliseconds,
+		})
 	}
-
-	err = bi.Websocket.Setup(&stream.WebsocketSetup{
-		ExchangeConfig:        exch,
-		DefaultURL:            binanceusDefaultWebsocketURL,
-		RunningURL:            ePoint,
-		Connector:             bi.WsConnect,
-		Subscriber:            bi.Subscribe,
-		Unsubscriber:          bi.Unsubscribe,
-		GenerateSubscriptions: bi.GenerateSubscriptions,
-		Features:              &bi.Features.Supports.WebsocketCapabilities,
-		OrderbookBufferConfig: buffer.Config{
-			SortBuffer:            true,
-			SortBufferByUpdateIDs: true,
-		},
-		TradeFeed: bi.Features.Enabled.TradeFeed,
-	})
-	if err != nil {
-		return err
-	}
-
-	return bi.Websocket.SetupNewConnection(stream.ConnectionSetup{
-		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
-		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
-		RateLimit:            wsRateLimitMilliseconds,
-	})
 }
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs

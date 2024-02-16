@@ -2000,3 +2000,27 @@ func (b *Base) UpdateTradablePairs(ctx context.Context, instance LimitedScope) e
 	}
 	return b.EnsureOnePairEnabled()
 }
+
+// Setup takes in an exchange configuration and sets all parameters
+func (b *Base) Setup(ctx context.Context, exch *config.Exchange) error {
+	err := exch.Validate()
+	if err != nil {
+		return err
+	}
+	if !exch.Enabled {
+		b.SetEnabled(false)
+		return nil
+	}
+	err = b.SetupDefaults(exch)
+	if err != nil {
+		return err
+	}
+
+	if b.PostSetupRequirements != nil {
+		err = b.PostSetupRequirements(ctx, exch)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}

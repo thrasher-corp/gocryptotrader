@@ -51,7 +51,7 @@ func TestMain(m *testing.M) {
 	okcoinConfig.API.Credentials.Secret = apiSecret
 	okcoinConfig.API.Credentials.ClientID = passphrase
 	o.Websocket = sharedtestvalues.NewTestWebsocket()
-	err = o.Setup(okcoinConfig)
+	err = o.Setup(context.Background(), okcoinConfig)
 	if err != nil {
 		log.Fatal("Okcoin setup error", err)
 	}

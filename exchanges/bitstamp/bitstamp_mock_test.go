@@ -5,6 +5,7 @@
 package bitstamp
 
 import (
+	"context"
 	"log"
 	"os"
 	"testing"
@@ -41,7 +42,7 @@ func TestMain(m *testing.M) {
 	}
 	b.SetDefaults()
 	b.Websocket = sharedtestvalues.NewTestWebsocket()
-	err = b.Setup(bitstampConfig)
+	err = b.Setup(context.Background(), bitstampConfig)
 	if err != nil {
 		log.Fatal("Bitstamp setup error", err)
 	}

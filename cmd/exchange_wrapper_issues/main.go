@@ -342,7 +342,7 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 		}
 
 		log.Printf("Setup config for %v %v %v", base.GetName(), assetTypes[i], p)
-		err = e.Setup(base.Config)
+		err = e.Setup(context.Background(), base.Config)
 		if err != nil {
 			log.Printf("%v Encountered error reloading config: '%v'", base.GetName(), err)
 		}

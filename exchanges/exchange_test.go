@@ -3254,24 +3254,6 @@ func (f *FakeBase) FetchTradablePairs(context.Context, asset.Item) (currency.Pai
 	return currency.Pairs{currency.NewPair(currency.BTC, currency.USDT)}, nil
 }
 
-func (f *FakeBase) Setup(exch *config.Exchange) error {
-	// TODO: Abstract from wrapper.
-	err := exch.Validate()
-	if err != nil {
-		return err
-	}
-	if !exch.Enabled {
-		f.SetEnabled(false)
-		return nil
-	}
-	err = f.SetupDefaults(exch)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
 func TestGetCachedOpenInterest(t *testing.T) {
 	t.Parallel()
 	var b FakeBase
@@ -3399,7 +3381,7 @@ func TestUpdateTradablePairs(t *testing.T) {
 	err = exch.UpdateTradablePairs(context.Background(), exch)
 	assert.ErrorIs(t, err, errSetupNotCalled)
 
-	err = exch.Setup(&config.Exchange{Name: "test", Enabled: true})
+	err = exch.Setup(context.Background(), &config.Exchange{Name: "test", Enabled: true})
 	require.NoError(t, err)
 
 	err = exch.UpdateTradablePairs(context.Background(), exch)

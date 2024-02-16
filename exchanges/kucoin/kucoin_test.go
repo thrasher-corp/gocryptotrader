@@ -72,7 +72,7 @@ func TestMain(m *testing.M) {
 	ku.SetDefaults()
 	ku.Websocket = sharedtestvalues.NewTestWebsocket()
 	ku.Websocket.Orderbook = buffer.Orderbook{}
-	err = ku.Setup(exchCfg)
+	err = ku.Setup(context.Background(), exchCfg)
 	if err != nil {
 		log.Fatal(err)
 	}

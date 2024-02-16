@@ -126,50 +126,35 @@ func (c *CoinbasePro) SetDefaults() {
 	c.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	c.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
 	c.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
-}
 
-// Setup initialises the exchange parameters with the current configuration
-func (c *CoinbasePro) Setup(exch *config.Exchange) error {
-	err := exch.Validate()
-	if err != nil {
-		return err
-	}
-	if !exch.Enabled {
-		c.SetEnabled(false)
-		return nil
-	}
-	err = c.SetupDefaults(exch)
-	if err != nil {
-		return err
-	}
+	c.PostSetupRequirements = func(_ context.Context, exch *config.Exchange) error {
+		wsRunningURL, err := c.API.Endpoints.GetURL(exchange.WebsocketSpot)
+		if err != nil {
+			return err
+		}
 
-	wsRunningURL, err := c.API.Endpoints.GetURL(exchange.WebsocketSpot)
-	if err != nil {
-		return err
-	}
+		err = c.Websocket.Setup(&stream.WebsocketSetup{
+			ExchangeConfig:        exch,
+			DefaultURL:            coinbaseproWebsocketURL,
+			RunningURL:            wsRunningURL,
+			Connector:             c.WsConnect,
+			Subscriber:            c.Subscribe,
+			Unsubscriber:          c.Unsubscribe,
+			GenerateSubscriptions: c.GenerateDefaultSubscriptions,
+			Features:              &c.Features.Supports.WebsocketCapabilities,
+			OrderbookBufferConfig: buffer.Config{
+				SortBuffer: true,
+			},
+		})
+		if err != nil {
+			return err
+		}
 
-	err = c.Websocket.Setup(&stream.WebsocketSetup{
-		ExchangeConfig:        exch,
-		DefaultURL:            coinbaseproWebsocketURL,
-		RunningURL:            wsRunningURL,
-		Connector:             c.WsConnect,
-		Subscriber:            c.Subscribe,
-		Unsubscriber:          c.Unsubscribe,
-		GenerateSubscriptions: c.GenerateDefaultSubscriptions,
-		Features:              &c.Features.Supports.WebsocketCapabilities,
-		OrderbookBufferConfig: buffer.Config{
-			SortBuffer: true,
-		},
-	})
-	if err != nil {
-		fmt.Println("COINBASE ISSUE")
-		return err
+		return c.Websocket.SetupNewConnection(stream.ConnectionSetup{
+			ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
+			ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
+		})
 	}
-
-	return c.Websocket.SetupNewConnection(stream.ConnectionSetup{
-		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
-		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
-	})
 }
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs

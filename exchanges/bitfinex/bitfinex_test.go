@@ -52,7 +52,7 @@ func TestMain(m *testing.M) {
 		log.Fatal("Bitfinex Setup() init error")
 	}
 	b.Websocket = sharedtestvalues.NewTestWebsocket()
-	err = b.Setup(bfxConfig)
+	err = b.Setup(context.Background(), bfxConfig)
 	if err != nil {
 		log.Fatal("Bitfinex setup error", err)
 	}

@@ -1102,61 +1102,56 @@ channels:
 
 - Complete websocket setup in wrapper:
 
-Add websocket functionality if supported to Setup:
+Add websocket functionality if supported to SetDefaults:
 
 ```go
 // Setup takes in the supplied exchange configuration details and sets params
-func (f *FTX) Setup(exch *config.Exchange) error {
-	err := exch.Validate()
-	if err != nil {
-		return err
-	}
-	if !exch.Enabled {
-		f.SetEnabled(false)
-		return nil
-	}
-	err = f.SetupDefaults(exch)
-	if err != nil {
-		return err
-	}
+func (f *FTX) SetDefaults() error {
 
-	// Websocket details setup below
-	err = f.Websocket.Setup(&stream.WebsocketSetup{
-		ExchangeConfig:        	exch,
-		// DefaultURL defines the default endpoint in the event a rollback is 
-		// needed via gctcli.
-		DefaultURL:             ftxWSURL, 
-		RunningURL:             exch.API.Endpoints.WebsocketURL,
-		// Connector function outlined above.
-		Connector:              f.WsConnect, 
-		// Subscriber function outlined above.
-		Subscriber:             f.Subscribe, 
-		// Unsubscriber function outlined above.
-		UnSubscriber:           f.Unsubscribe,
-		// GenerateDefaultSubscriptions function outlined above. 
-		GenerateSubscriptions:  f.GenerateDefaultSubscriptions, 
-		// Defines the capabilities of the websocket outlined in supported 
-		// features struct. This allows the websocket connection to be flushed 
-		// appropriately if we have a pair/asset enable/disable change. This is 
-		// outlined below.
-		Features:               &f.Features.Supports.WebsocketCapabilities, 
+	bi.Websocket = stream.New()
+	bi.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
+	bi.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
+	bi.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
+	// Below is executed after initial exchange config setup.
+	bi.PostSetupRequirements = func(ctx context.Context, exch *config.Exchange) error {
+		// Websocket details setup below
+		err = f.Websocket.Setup(&stream.WebsocketSetup{
+			ExchangeConfig:        	exch,
+			// DefaultURL defines the default endpoint in the event a rollback is 
+			// needed via gctcli.
+			DefaultURL:             ftxWSURL, 
+			RunningURL:             exch.API.Endpoints.WebsocketURL,
+			// Connector function outlined above.
+			Connector:              f.WsConnect, 
+			// Subscriber function outlined above.
+			Subscriber:             f.Subscribe, 
+			// Unsubscriber function outlined above.
+			UnSubscriber:           f.Unsubscribe,
+			// GenerateDefaultSubscriptions function outlined above. 
+			GenerateSubscriptions:  f.GenerateDefaultSubscriptions, 
+			// Defines the capabilities of the websocket outlined in supported 
+			// features struct. This allows the websocket connection to be flushed 
+			// appropriately if we have a pair/asset enable/disable change. This is 
+			// outlined below.
+			Features:               &f.Features.Supports.WebsocketCapabilities, 
 
-		// Orderbook buffer specific variables for processing orderbook updates 
-		// via websocket feed: 
-		// SortBuffer            bool 
-		// SortBufferByUpdateIDs bool 
-		// UpdateEntriesByID     bool 
-	})
-	if err != nil {
-		return err
+			// Orderbook buffer specific variables for processing orderbook updates 
+			// via websocket feed: 
+			// SortBuffer            bool 
+			// SortBufferByUpdateIDs bool 
+			// UpdateEntriesByID     bool 
+		})
+		if err != nil {
+			return err
+		}
+		// Sets up a new connection for the websocket, there are two separate connections denoted by the ConnectionSetup struct auth bool.
+		return f.Websocket.SetupNewConnection(stream.ConnectionSetup{
+			ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
+			ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
+			// RateLimit            int64  rudimentary rate limit that sleeps connection in milliseconds before sending designated payload
+			// Authenticated        bool  sets if the connection is dedicated for an authenticated websocket stream which can be accessed from the Websocket field variable AuthConn e.g. f.Websocket.AuthConn
+		})
 	}
-	// Sets up a new connection for the websocket, there are two separate connections denoted by the ConnectionSetup struct auth bool.
-	return f.Websocket.SetupNewConnection(stream.ConnectionSetup{
-		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
-		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
-		// RateLimit            int64  rudimentary rate limit that sleeps connection in milliseconds before sending designated payload
-		// Authenticated        bool  sets if the connection is dedicated for an authenticated websocket stream which can be accessed from the Websocket field variable AuthConn e.g. f.Websocket.AuthConn
-	})
 }
 ```
 

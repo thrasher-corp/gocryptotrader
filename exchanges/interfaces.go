@@ -28,7 +28,7 @@ import (
 // IBotExchange enforces standard functions for all exchanges supported in
 // GoCryptoTrader
 type IBotExchange interface {
-	Setup(exch *config.Exchange) error
+	Setup(ctx context.Context, exch *config.Exchange) error
 	Bootstrap(context.Context) (continueBootstrap bool, err error)
 	SetDefaults()
 	Shutdown() error

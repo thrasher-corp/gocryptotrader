@@ -104,31 +104,17 @@ func (l *Lbank) SetDefaults() {
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
-}
 
-// Setup sets exchange configuration profile
-func (l *Lbank) Setup(exch *config.Exchange) error {
-	err := exch.Validate()
-	if err != nil {
-		return err
-	}
-	if !exch.Enabled {
-		l.SetEnabled(false)
+	l.PostSetupRequirements = func(ctx context.Context, exch *config.Exchange) error {
+		if l.API.AuthenticatedSupport {
+			err = l.loadPrivKey(ctx)
+			if err != nil {
+				l.API.AuthenticatedSupport = false
+				log.Errorf(log.ExchangeSys, "%s couldn't load private key, setting authenticated support to false", l.Name)
+			}
+		}
 		return nil
 	}
-	err = l.SetupDefaults(exch)
-	if err != nil {
-		return err
-	}
-
-	if l.API.AuthenticatedSupport {
-		err = l.loadPrivKey(context.TODO())
-		if err != nil {
-			l.API.AuthenticatedSupport = false
-			log.Errorf(log.ExchangeSys, "%s couldn't load private key, setting authenticated support to false", l.Name)
-		}
-	}
-	return nil
 }
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs

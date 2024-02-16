@@ -60,7 +60,7 @@ func TestMain(m *testing.M) {
 	krakenConfig.API.Credentials.Key = apiKey
 	krakenConfig.API.Credentials.Secret = apiSecret
 	k.Websocket = sharedtestvalues.NewTestWebsocket()
-	err = k.Setup(krakenConfig)
+	err = k.Setup(context.Background(), krakenConfig)
 	if err != nil {
 		log.Fatal(err)
 	}

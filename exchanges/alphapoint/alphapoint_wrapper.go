@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
-	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
@@ -77,11 +76,6 @@ func (a *Alphapoint) SetDefaults() {
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
-}
-
-// Setup takes in the supplied exchange configuration details and sets params
-func (a *Alphapoint) Setup(_ *config.Exchange) error {
-	return common.ErrFunctionNotSupported
 }
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs

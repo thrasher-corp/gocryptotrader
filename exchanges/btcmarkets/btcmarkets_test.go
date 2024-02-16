@@ -48,7 +48,7 @@ func TestMain(m *testing.M) {
 	bConfig.API.Credentials.Secret = apiSecret
 	bConfig.API.AuthenticatedSupport = true
 	b.Websocket = sharedtestvalues.NewTestWebsocket()
-	err = b.Setup(bConfig)
+	err = b.Setup(context.Background(), bConfig)
 	if err != nil {
 		log.Fatal(err)
 	}

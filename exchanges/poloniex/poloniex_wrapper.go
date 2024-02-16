@@ -140,50 +140,35 @@ func (p *Poloniex) SetDefaults() {
 	p.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	p.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
 	p.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
-}
+	p.PostSetupRequirements = func(_ context.Context, exch *config.Exchange) error {
+		wsRunningURL, err := p.API.Endpoints.GetURL(exchange.WebsocketSpot)
+		if err != nil {
+			return err
+		}
 
-// Setup sets user exchange configuration settings
-func (p *Poloniex) Setup(exch *config.Exchange) error {
-	err := exch.Validate()
-	if err != nil {
-		return err
-	}
-	if !exch.Enabled {
-		p.SetEnabled(false)
-		return nil
-	}
-	err = p.SetupDefaults(exch)
-	if err != nil {
-		return err
-	}
+		err = p.Websocket.Setup(&stream.WebsocketSetup{
+			ExchangeConfig:        exch,
+			DefaultURL:            poloniexWebsocketAddress,
+			RunningURL:            wsRunningURL,
+			Connector:             p.WsConnect,
+			Subscriber:            p.Subscribe,
+			Unsubscriber:          p.Unsubscribe,
+			GenerateSubscriptions: p.GenerateDefaultSubscriptions,
+			Features:              &p.Features.Supports.WebsocketCapabilities,
+			OrderbookBufferConfig: buffer.Config{
+				SortBuffer:            true,
+				SortBufferByUpdateIDs: true,
+			},
+		})
+		if err != nil {
+			return err
+		}
 
-	wsRunningURL, err := p.API.Endpoints.GetURL(exchange.WebsocketSpot)
-	if err != nil {
-		return err
+		return p.Websocket.SetupNewConnection(stream.ConnectionSetup{
+			ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
+			ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
+		})
 	}
-
-	err = p.Websocket.Setup(&stream.WebsocketSetup{
-		ExchangeConfig:        exch,
-		DefaultURL:            poloniexWebsocketAddress,
-		RunningURL:            wsRunningURL,
-		Connector:             p.WsConnect,
-		Subscriber:            p.Subscribe,
-		Unsubscriber:          p.Unsubscribe,
-		GenerateSubscriptions: p.GenerateDefaultSubscriptions,
-		Features:              &p.Features.Supports.WebsocketCapabilities,
-		OrderbookBufferConfig: buffer.Config{
-			SortBuffer:            true,
-			SortBufferByUpdateIDs: true,
-		},
-	})
-	if err != nil {
-		return err
-	}
-
-	return p.Websocket.SetupNewConnection(stream.ConnectionSetup{
-		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
-		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
-	})
 }
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs

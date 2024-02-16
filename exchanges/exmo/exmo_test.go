@@ -39,7 +39,7 @@ func TestMain(m *testing.M) {
 		log.Fatal("Exmo Setup() init error")
 	}
 
-	err = e.Setup(exmoConf)
+	err = e.Setup(context.Background(), exmoConf)
 	if err != nil {
 		log.Fatal("Exmo setup error", err)
 	}

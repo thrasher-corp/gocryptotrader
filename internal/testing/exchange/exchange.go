@@ -1,6 +1,7 @@
 package exchange
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"log"
@@ -39,7 +40,7 @@ func TestInstance(e exchange.IBotExchange) error {
 	e.SetDefaults()
 	b := e.GetBase()
 	b.Websocket = sharedtestvalues.NewTestWebsocket()
-	err = e.Setup(exchConf)
+	err = e.Setup(context.Background(), exchConf)
 	if err != nil {
 		return fmt.Errorf("Setup() error: %w", err)
 	}

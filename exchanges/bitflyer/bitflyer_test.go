@@ -42,7 +42,7 @@ func TestMain(m *testing.M) {
 	bitflyerConfig.API.Credentials.Key = apiKey
 	bitflyerConfig.API.Credentials.Secret = apiSecret
 	b.SetDefaults()
-	err = b.Setup(bitflyerConfig)
+	err = b.Setup(context.Background(), bitflyerConfig)
 	if err != nil {
 		log.Fatal("Bitflyer setup error", err)
 	}

@@ -36,9 +36,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
-const (
-	okxWebsocketResponseMaxLimit = time.Second * 3
-)
+const okxWebsocketResponseMaxLimit = time.Second * 3
 
 // SetDefaults sets the basic defaults for Okx
 func (ok *Okx) SetDefaults() {
@@ -172,68 +170,55 @@ func (ok *Okx) SetDefaults() {
 	ok.WebsocketResponseMaxLimit = okxWebsocketResponseMaxLimit
 	ok.WebsocketResponseCheckTimeout = okxWebsocketResponseMaxLimit
 	ok.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
-}
+	ok.PostSetupRequirements = func(_ context.Context, exch *config.Exchange) error {
+		ok.WsResponseMultiplexer = wsRequestDataChannelsMultiplexer{
+			WsResponseChannelsMap: make(map[string]*wsRequestInfo),
+			Register:              make(chan *wsRequestInfo),
+			Unregister:            make(chan string),
+			Message:               make(chan *wsIncomingData),
+			shutdown:              make(chan bool),
+		}
 
-// Setup takes in the supplied exchange configuration details and sets params
-func (ok *Okx) Setup(exch *config.Exchange) error {
-	if err := exch.Validate(); err != nil {
-		return err
-	}
-	if !exch.Enabled {
-		ok.SetEnabled(false)
-		return nil
-	}
-	if err := ok.SetupDefaults(exch); err != nil {
-		return err
-	}
+		wsRunningEndpoint, err := ok.API.Endpoints.GetURL(exchange.WebsocketSpot)
+		if err != nil {
+			return err
+		}
+		if err := ok.Websocket.Setup(&stream.WebsocketSetup{
+			ExchangeConfig:                         exch,
+			DefaultURL:                             okxAPIWebsocketPublicURL,
+			RunningURL:                             wsRunningEndpoint,
+			Connector:                              ok.WsConnect,
+			Subscriber:                             ok.Subscribe,
+			Unsubscriber:                           ok.Unsubscribe,
+			GenerateSubscriptions:                  ok.GenerateDefaultSubscriptions,
+			Features:                               &ok.Features.Supports.WebsocketCapabilities,
+			MaxWebsocketSubscriptionsPerConnection: 240,
+			OrderbookBufferConfig: buffer.Config{
+				Checksum: ok.CalculateUpdateOrderbookChecksum,
+			},
+		}); err != nil {
+			return err
+		}
 
-	ok.WsResponseMultiplexer = wsRequestDataChannelsMultiplexer{
-		WsResponseChannelsMap: make(map[string]*wsRequestInfo),
-		Register:              make(chan *wsRequestInfo),
-		Unregister:            make(chan string),
-		Message:               make(chan *wsIncomingData),
-		shutdown:              make(chan bool),
-	}
+		go ok.WsResponseMultiplexer.Run()
 
-	wsRunningEndpoint, err := ok.API.Endpoints.GetURL(exchange.WebsocketSpot)
-	if err != nil {
-		return err
-	}
-	if err := ok.Websocket.Setup(&stream.WebsocketSetup{
-		ExchangeConfig:                         exch,
-		DefaultURL:                             okxAPIWebsocketPublicURL,
-		RunningURL:                             wsRunningEndpoint,
-		Connector:                              ok.WsConnect,
-		Subscriber:                             ok.Subscribe,
-		Unsubscriber:                           ok.Unsubscribe,
-		GenerateSubscriptions:                  ok.GenerateDefaultSubscriptions,
-		Features:                               &ok.Features.Supports.WebsocketCapabilities,
-		MaxWebsocketSubscriptionsPerConnection: 240,
-		OrderbookBufferConfig: buffer.Config{
-			Checksum: ok.CalculateUpdateOrderbookChecksum,
-		},
-	}); err != nil {
-		return err
-	}
+		if err := ok.Websocket.SetupNewConnection(stream.ConnectionSetup{
+			URL:                  okxAPIWebsocketPublicURL,
+			ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
+			ResponseMaxLimit:     okxWebsocketResponseMaxLimit,
+			RateLimit:            500,
+		}); err != nil {
+			return err
+		}
 
-	go ok.WsResponseMultiplexer.Run()
-
-	if err := ok.Websocket.SetupNewConnection(stream.ConnectionSetup{
-		URL:                  okxAPIWebsocketPublicURL,
-		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
-		ResponseMaxLimit:     okxWebsocketResponseMaxLimit,
-		RateLimit:            500,
-	}); err != nil {
-		return err
+		return ok.Websocket.SetupNewConnection(stream.ConnectionSetup{
+			URL:                  okxAPIWebsocketPrivateURL,
+			ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
+			ResponseMaxLimit:     okxWebsocketResponseMaxLimit,
+			Authenticated:        true,
+			RateLimit:            500,
+		})
 	}
-
-	return ok.Websocket.SetupNewConnection(stream.ConnectionSetup{
-		URL:                  okxAPIWebsocketPrivateURL,
-		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
-		ResponseMaxLimit:     okxWebsocketResponseMaxLimit,
-		Authenticated:        true,
-		RateLimit:            500,
-	})
 }
 
 // Shutdown calls Base.Shutdown and then shuts down the response multiplexer

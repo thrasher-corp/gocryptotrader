@@ -62,7 +62,7 @@ func TestMain(m *testing.M) {
 	if !useTestNet {
 		ok.Websocket = sharedtestvalues.NewTestWebsocket()
 	}
-	err = ok.Setup(exchCfg)
+	err = ok.Setup(context.Background(), exchCfg)
 	if err != nil {
 		log.Fatal(err)
 	}

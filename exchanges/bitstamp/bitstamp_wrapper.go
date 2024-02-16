@@ -127,47 +127,32 @@ func (b *Bitstamp) SetDefaults() {
 	b.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	b.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
 	b.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
-}
+	b.PostSetupRequirements = func(_ context.Context, exch *config.Exchange) error {
+		wsURL, err := b.API.Endpoints.GetURL(exchange.WebsocketSpot)
+		if err != nil {
+			return err
+		}
 
-// Setup sets configuration values to bitstamp
-func (b *Bitstamp) Setup(exch *config.Exchange) error {
-	err := exch.Validate()
-	if err != nil {
-		return err
-	}
-	if !exch.Enabled {
-		b.SetEnabled(false)
-		return nil
-	}
-	err = b.SetupDefaults(exch)
-	if err != nil {
-		return err
-	}
+		err = b.Websocket.Setup(&stream.WebsocketSetup{
+			ExchangeConfig:        exch,
+			DefaultURL:            bitstampWSURL,
+			RunningURL:            wsURL,
+			Connector:             b.WsConnect,
+			Subscriber:            b.Subscribe,
+			Unsubscriber:          b.Unsubscribe,
+			GenerateSubscriptions: b.generateDefaultSubscriptions,
+			Features:              &b.Features.Supports.WebsocketCapabilities,
+		})
+		if err != nil {
+			return err
+		}
 
-	wsURL, err := b.API.Endpoints.GetURL(exchange.WebsocketSpot)
-	if err != nil {
-		return err
+		return b.Websocket.SetupNewConnection(stream.ConnectionSetup{
+			URL:                  b.Websocket.GetWebsocketURL(),
+			ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
+			ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
+		})
 	}
-
-	err = b.Websocket.Setup(&stream.WebsocketSetup{
-		ExchangeConfig:        exch,
-		DefaultURL:            bitstampWSURL,
-		RunningURL:            wsURL,
-		Connector:             b.WsConnect,
-		Subscriber:            b.Subscribe,
-		Unsubscriber:          b.Unsubscribe,
-		GenerateSubscriptions: b.generateDefaultSubscriptions,
-		Features:              &b.Features.Supports.WebsocketCapabilities,
-	})
-	if err != nil {
-		return err
-	}
-
-	return b.Websocket.SetupNewConnection(stream.ConnectionSetup{
-		URL:                  b.Websocket.GetWebsocketURL(),
-		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
-		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
-	})
 }
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs

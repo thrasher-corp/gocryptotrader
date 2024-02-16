@@ -50,7 +50,7 @@ func TestMain(m *testing.M) {
 	hitbtcConfig.API.Credentials.Key = apiKey
 	hitbtcConfig.API.Credentials.Secret = apiSecret
 	h.Websocket = sharedtestvalues.NewTestWebsocket()
-	err = h.Setup(hitbtcConfig)
+	err = h.Setup(context.Background(), hitbtcConfig)
 	if err != nil {
 		log.Fatal("HitBTC setup error", err)
 	}

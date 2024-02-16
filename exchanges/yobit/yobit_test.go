@@ -44,7 +44,7 @@ func TestMain(m *testing.M) {
 	conf.API.Credentials.Secret = apiSecret
 	conf.API.AuthenticatedSupport = true
 
-	err = y.Setup(conf)
+	err = y.Setup(context.Background(), conf)
 	if err != nil {
 		log.Fatal("Yobit setup error", err)
 	}

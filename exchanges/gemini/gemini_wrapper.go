@@ -109,64 +109,49 @@ func (g *Gemini) SetDefaults() {
 	g.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	g.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
 	g.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
-}
-
-// Setup sets exchange configuration parameters
-func (g *Gemini) Setup(exch *config.Exchange) error {
-	err := exch.Validate()
-	if err != nil {
-		return err
-	}
-	if !exch.Enabled {
-		g.SetEnabled(false)
-		return nil
-	}
-	err = g.SetupDefaults(exch)
-	if err != nil {
-		return err
-	}
-
-	if exch.UseSandbox {
-		err = g.API.Endpoints.SetRunning(exchange.RestSpot.String(), geminiSandboxAPIURL)
-		if err != nil {
-			log.Errorln(log.ExchangeSys, err)
+	g.PostSetupRequirements = func(_ context.Context, exch *config.Exchange) error {
+		if exch.UseSandbox {
+			err = g.API.Endpoints.SetRunning(exchange.RestSpot.String(), geminiSandboxAPIURL)
+			if err != nil {
+				log.Errorln(log.ExchangeSys, err)
+			}
 		}
-	}
 
-	wsRunningURL, err := g.API.Endpoints.GetURL(exchange.WebsocketSpot)
-	if err != nil {
-		return err
-	}
+		wsRunningURL, err := g.API.Endpoints.GetURL(exchange.WebsocketSpot)
+		if err != nil {
+			return err
+		}
 
-	err = g.Websocket.Setup(&stream.WebsocketSetup{
-		ExchangeConfig:        exch,
-		DefaultURL:            geminiWebsocketEndpoint,
-		RunningURL:            wsRunningURL,
-		Connector:             g.WsConnect,
-		Subscriber:            g.Subscribe,
-		Unsubscriber:          g.Unsubscribe,
-		GenerateSubscriptions: g.GenerateDefaultSubscriptions,
-		Features:              &g.Features.Supports.WebsocketCapabilities,
-	})
-	if err != nil {
-		return err
-	}
+		err = g.Websocket.Setup(&stream.WebsocketSetup{
+			ExchangeConfig:        exch,
+			DefaultURL:            geminiWebsocketEndpoint,
+			RunningURL:            wsRunningURL,
+			Connector:             g.WsConnect,
+			Subscriber:            g.Subscribe,
+			Unsubscriber:          g.Unsubscribe,
+			GenerateSubscriptions: g.GenerateDefaultSubscriptions,
+			Features:              &g.Features.Supports.WebsocketCapabilities,
+		})
+		if err != nil {
+			return err
+		}
 
-	err = g.Websocket.SetupNewConnection(stream.ConnectionSetup{
-		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
-		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
-		URL:                  geminiWebsocketEndpoint + "/v2/" + geminiWsMarketData,
-	})
-	if err != nil {
-		return err
-	}
+		err = g.Websocket.SetupNewConnection(stream.ConnectionSetup{
+			ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
+			ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
+			URL:                  geminiWebsocketEndpoint + "/v2/" + geminiWsMarketData,
+		})
+		if err != nil {
+			return err
+		}
 
-	return g.Websocket.SetupNewConnection(stream.ConnectionSetup{
-		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
-		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
-		URL:                  geminiWebsocketEndpoint + "/v1/" + geminiWsOrderEvents,
-		Authenticated:        true,
-	})
+		return g.Websocket.SetupNewConnection(stream.ConnectionSetup{
+			ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
+			ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
+			URL:                  geminiWebsocketEndpoint + "/v1/" + geminiWsOrderEvents,
+			Authenticated:        true,
+		})
+	}
 }
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs

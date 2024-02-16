@@ -87,7 +87,7 @@ func setupExchange(ctx context.Context, t *testing.T, name string, cfg *config.C
 	exchCfg.API.AuthenticatedSupport = true
 	exchCfg.API.Credentials = getExchangeCredentials(name)
 
-	err = exch.Setup(exchCfg)
+	err = exch.Setup(ctx, exchCfg)
 	if err != nil {
 		t.Fatalf("Cannot setup %v exchange Setup %v", name, err)
 	}

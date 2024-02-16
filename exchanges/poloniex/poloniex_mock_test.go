@@ -5,6 +5,7 @@
 package poloniex
 
 import (
+	"context"
 	"log"
 	"os"
 	"testing"
@@ -34,7 +35,7 @@ func TestMain(m *testing.M) {
 	poloniexConfig.API.Credentials.Secret = apiSecret
 	p.SetDefaults()
 	p.Websocket = sharedtestvalues.NewTestWebsocket()
-	err = p.Setup(poloniexConfig)
+	err = p.Setup(context.Background(), poloniexConfig)
 	if err != nil {
 		log.Fatal("Poloniex setup error", err)
 	}

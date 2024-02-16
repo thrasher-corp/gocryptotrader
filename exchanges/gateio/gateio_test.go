@@ -54,7 +54,7 @@ func TestMain(m *testing.M) {
 	g.Websocket = sharedtestvalues.NewTestWebsocket()
 	gConf.Features.Enabled.FillsFeed = true
 	gConf.Features.Enabled.TradeFeed = true
-	err = g.Setup(gConf)
+	err = g.Setup(context.Background(), gConf)
 	if err != nil {
 		log.Fatal("GateIO setup error", err)
 	}

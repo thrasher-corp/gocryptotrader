@@ -48,7 +48,7 @@ func TestMain(m *testing.M) {
 	coinutCfg.API.Credentials.Key = apiKey
 	coinutCfg.API.Credentials.ClientID = clientID
 	c.Websocket = sharedtestvalues.NewTestWebsocket()
-	err = c.Setup(coinutCfg)
+	err = c.Setup(context.Background(), coinutCfg)
 	if err != nil {
 		log.Fatal("Coinut setup error", err)
 	}

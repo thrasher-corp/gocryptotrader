@@ -128,51 +128,36 @@ func (h *HitBTC) SetDefaults() {
 	h.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	h.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
 	h.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
-}
+	h.PostSetupRequirements = func(_ context.Context, exch *config.Exchange) error {
+		wsRunningURL, err := h.API.Endpoints.GetURL(exchange.WebsocketSpot)
+		if err != nil {
+			return err
+		}
 
-// Setup sets user exchange configuration settings
-func (h *HitBTC) Setup(exch *config.Exchange) error {
-	err := exch.Validate()
-	if err != nil {
-		return err
-	}
-	if !exch.Enabled {
-		h.SetEnabled(false)
-		return nil
-	}
-	err = h.SetupDefaults(exch)
-	if err != nil {
-		return err
-	}
+		err = h.Websocket.Setup(&stream.WebsocketSetup{
+			ExchangeConfig:        exch,
+			DefaultURL:            hitbtcWebsocketAddress,
+			RunningURL:            wsRunningURL,
+			Connector:             h.WsConnect,
+			Subscriber:            h.Subscribe,
+			Unsubscriber:          h.Unsubscribe,
+			GenerateSubscriptions: h.GenerateDefaultSubscriptions,
+			Features:              &h.Features.Supports.WebsocketCapabilities,
+			OrderbookBufferConfig: buffer.Config{
+				SortBuffer:            true,
+				SortBufferByUpdateIDs: true,
+			},
+		})
+		if err != nil {
+			return err
+		}
 
-	wsRunningURL, err := h.API.Endpoints.GetURL(exchange.WebsocketSpot)
-	if err != nil {
-		return err
+		return h.Websocket.SetupNewConnection(stream.ConnectionSetup{
+			RateLimit:            rateLimit,
+			ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
+			ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
+		})
 	}
-
-	err = h.Websocket.Setup(&stream.WebsocketSetup{
-		ExchangeConfig:        exch,
-		DefaultURL:            hitbtcWebsocketAddress,
-		RunningURL:            wsRunningURL,
-		Connector:             h.WsConnect,
-		Subscriber:            h.Subscribe,
-		Unsubscriber:          h.Unsubscribe,
-		GenerateSubscriptions: h.GenerateDefaultSubscriptions,
-		Features:              &h.Features.Supports.WebsocketCapabilities,
-		OrderbookBufferConfig: buffer.Config{
-			SortBuffer:            true,
-			SortBufferByUpdateIDs: true,
-		},
-	})
-	if err != nil {
-		return err
-	}
-
-	return h.Websocket.SetupNewConnection(stream.ConnectionSetup{
-		RateLimit:            rateLimit,
-		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
-		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
-	})
 }
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs

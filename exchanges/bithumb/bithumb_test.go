@@ -46,7 +46,7 @@ func TestMain(m *testing.M) {
 	bitConfig.API.Credentials.Key = apiKey
 	bitConfig.API.Credentials.Secret = apiSecret
 
-	err = b.Setup(bitConfig)
+	err = b.Setup(context.Background(), bitConfig)
 	if err != nil {
 		log.Fatal("Bithumb setup error", err)
 	}

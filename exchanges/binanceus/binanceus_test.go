@@ -55,7 +55,7 @@ func TestMain(m *testing.M) {
 	bi.SetDefaults()
 	bi.Websocket = sharedtestvalues.NewTestWebsocket()
 	bi.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
-	err = bi.Setup(exchCfg)
+	err = bi.Setup(context.Background(), exchCfg)
 	if err != nil {
 		log.Fatal("Binanceus TestMain()", err)
 	}

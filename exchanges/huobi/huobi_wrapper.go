@@ -183,58 +183,44 @@ func (h *HUOBI) SetDefaults() {
 	h.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	h.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
 	h.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
-}
 
-// Setup sets user configuration
-func (h *HUOBI) Setup(exch *config.Exchange) error {
-	err := exch.Validate()
-	if err != nil {
-		return err
-	}
-	if !exch.Enabled {
-		h.SetEnabled(false)
-		return nil
-	}
-	err = h.SetupDefaults(exch)
-	if err != nil {
-		return err
-	}
+	h.PostSetupRequirements = func(ctx context.Context, exch *config.Exchange) error {
+		wsRunningURL, err := h.API.Endpoints.GetURL(exchange.WebsocketSpot)
+		if err != nil {
+			return err
+		}
 
-	wsRunningURL, err := h.API.Endpoints.GetURL(exchange.WebsocketSpot)
-	if err != nil {
-		return err
-	}
+		err = h.Websocket.Setup(&stream.WebsocketSetup{
+			ExchangeConfig:        exch,
+			DefaultURL:            wsMarketURL,
+			RunningURL:            wsRunningURL,
+			Connector:             h.WsConnect,
+			Subscriber:            h.Subscribe,
+			Unsubscriber:          h.Unsubscribe,
+			GenerateSubscriptions: h.GenerateDefaultSubscriptions,
+			Features:              &h.Features.Supports.WebsocketCapabilities,
+		})
+		if err != nil {
+			return err
+		}
 
-	err = h.Websocket.Setup(&stream.WebsocketSetup{
-		ExchangeConfig:        exch,
-		DefaultURL:            wsMarketURL,
-		RunningURL:            wsRunningURL,
-		Connector:             h.WsConnect,
-		Subscriber:            h.Subscribe,
-		Unsubscriber:          h.Unsubscribe,
-		GenerateSubscriptions: h.GenerateDefaultSubscriptions,
-		Features:              &h.Features.Supports.WebsocketCapabilities,
-	})
-	if err != nil {
-		return err
-	}
+		err = h.Websocket.SetupNewConnection(stream.ConnectionSetup{
+			RateLimit:            rateLimit,
+			ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
+			ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
+		})
+		if err != nil {
+			return err
+		}
 
-	err = h.Websocket.SetupNewConnection(stream.ConnectionSetup{
-		RateLimit:            rateLimit,
-		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
-		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
-	})
-	if err != nil {
-		return err
+		return h.Websocket.SetupNewConnection(stream.ConnectionSetup{
+			RateLimit:            rateLimit,
+			ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
+			ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
+			URL:                  wsAccountsOrdersURL,
+			Authenticated:        true,
+		})
 	}
-
-	return h.Websocket.SetupNewConnection(stream.ConnectionSetup{
-		RateLimit:            rateLimit,
-		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
-		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
-		URL:                  wsAccountsOrdersURL,
-		Authenticated:        true,
-	})
 }
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs
