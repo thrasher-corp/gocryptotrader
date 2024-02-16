@@ -86,11 +86,6 @@ func (c *CustomEx) FetchTradablePairs(_ context.Context, _ asset.Item) (currency
 	return nil, nil
 }
 
-// UpdateTradablePairs is a mock method for CustomEx
-func (c *CustomEx) UpdateTradablePairs(_ context.Context, _ bool) error {
-	return nil
-}
-
 // GetEnabledPairs is a mock method for CustomEx
 func (c *CustomEx) GetEnabledPairs(_ asset.Item) (currency.Pairs, error) {
 	return nil, nil

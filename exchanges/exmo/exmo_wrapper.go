@@ -138,20 +138,6 @@ func (e *EXMO) FetchTradablePairs(ctx context.Context, a asset.Item) (currency.P
 	return pairs, nil
 }
 
-// UpdateTradablePairs updates the exchanges available pairs and stores
-// them in the exchanges config
-func (e *EXMO) UpdateTradablePairs(ctx context.Context, forceUpdate bool) error {
-	pairs, err := e.FetchTradablePairs(ctx, asset.Spot)
-	if err != nil {
-		return err
-	}
-	err = e.UpdatePairs(pairs, asset.Spot, false, forceUpdate)
-	if err != nil {
-		return err
-	}
-	return e.EnsureOnePairEnabled()
-}
-
 // UpdateTickers updates the ticker for all currency pairs of a given asset type
 func (e *EXMO) UpdateTickers(ctx context.Context, a asset.Item) error {
 	if !e.SupportsAsset(a) {

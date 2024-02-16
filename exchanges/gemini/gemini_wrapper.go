@@ -199,20 +199,6 @@ func (g *Gemini) FetchTradablePairs(ctx context.Context, a asset.Item) (currency
 	return pairs, nil
 }
 
-// UpdateTradablePairs updates the exchanges available pairs and stores
-// them in the exchanges config
-func (g *Gemini) UpdateTradablePairs(ctx context.Context, forceUpdate bool) error {
-	pairs, err := g.FetchTradablePairs(ctx, asset.Spot)
-	if err != nil {
-		return err
-	}
-	err = g.UpdatePairs(pairs, asset.Spot, false, forceUpdate)
-	if err != nil {
-		return err
-	}
-	return g.EnsureOnePairEnabled()
-}
-
 // UpdateAccountInfo Retrieves balances for all enabled currencies for the
 // Gemini exchange
 func (g *Gemini) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {

@@ -211,20 +211,6 @@ func (p *Poloniex) FetchTradablePairs(ctx context.Context, _ asset.Item) (curren
 	return pairs, nil
 }
 
-// UpdateTradablePairs updates the exchanges available pairs and stores
-// them in the exchanges config
-func (p *Poloniex) UpdateTradablePairs(ctx context.Context, forceUpgrade bool) error {
-	pairs, err := p.FetchTradablePairs(ctx, asset.Spot)
-	if err != nil {
-		return err
-	}
-	err = p.UpdatePairs(pairs, asset.Spot, false, forceUpgrade)
-	if err != nil {
-		return err
-	}
-	return p.EnsureOnePairEnabled()
-}
-
 // UpdateTickers updates the ticker for all currency pairs of a given asset type
 func (p *Poloniex) UpdateTickers(ctx context.Context, a asset.Item) error {
 	tick, err := p.GetTicker(ctx)

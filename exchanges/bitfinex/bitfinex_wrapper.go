@@ -262,24 +262,6 @@ func (b *Bitfinex) FetchTradablePairs(ctx context.Context, a asset.Item) (curren
 	return pairs, nil
 }
 
-// UpdateTradablePairs updates the exchanges available pairs and stores
-// them in the exchanges config
-func (b *Bitfinex) UpdateTradablePairs(ctx context.Context, forceUpdate bool) error {
-	assets := b.CurrencyPairs.GetAssetTypes(false)
-	for i := range assets {
-		pairs, err := b.FetchTradablePairs(ctx, assets[i])
-		if err != nil {
-			return err
-		}
-
-		err = b.UpdatePairs(pairs, assets[i], false, forceUpdate)
-		if err != nil {
-			return err
-		}
-	}
-	return b.EnsureOnePairEnabled()
-}
-
 // UpdateOrderExecutionLimits sets exchange execution order limits for an asset type
 func (b *Bitfinex) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) error {
 	if a != asset.Spot {

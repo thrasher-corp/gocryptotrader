@@ -302,23 +302,6 @@ func (h *HUOBI) FetchTradablePairs(ctx context.Context, a asset.Item) (currency.
 	return pairs, nil
 }
 
-// UpdateTradablePairs updates the exchanges available pairs and stores
-// them in the exchanges config
-func (h *HUOBI) UpdateTradablePairs(ctx context.Context, forceUpdate bool) error {
-	assets := h.GetAssetTypes(false)
-	for x := range assets {
-		pairs, err := h.FetchTradablePairs(ctx, assets[x])
-		if err != nil {
-			return err
-		}
-		err = h.UpdatePairs(pairs, assets[x], false, forceUpdate)
-		if err != nil {
-			return err
-		}
-	}
-	return h.EnsureOnePairEnabled()
-}
-
 // UpdateTickers updates the ticker for all currency pairs of a given asset type
 func (h *HUOBI) UpdateTickers(ctx context.Context, a asset.Item) error {
 	switch a {

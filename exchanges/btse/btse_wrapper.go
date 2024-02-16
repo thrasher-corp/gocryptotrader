@@ -247,23 +247,6 @@ func (b *BTSE) FetchTradablePairs(ctx context.Context, a asset.Item) (currency.P
 	return pairs, nil
 }
 
-// UpdateTradablePairs updates the exchanges available pairs and stores
-// them in the exchanges config
-func (b *BTSE) UpdateTradablePairs(ctx context.Context, forceUpdate bool) error {
-	a := b.GetAssetTypes(false)
-	for i := range a {
-		pairs, err := b.FetchTradablePairs(ctx, a[i])
-		if err != nil {
-			return err
-		}
-		err = b.UpdatePairs(pairs, a[i], false, forceUpdate)
-		if err != nil {
-			return err
-		}
-	}
-	return b.EnsureOnePairEnabled()
-}
-
 // UpdateTickers updates the ticker for all currency pairs of a given asset type
 func (b *BTSE) UpdateTickers(ctx context.Context, a asset.Item) error {
 	if !b.SupportsAsset(a) {

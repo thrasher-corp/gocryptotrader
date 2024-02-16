@@ -820,7 +820,7 @@ func TestWsAuth(t *testing.T) {
 
 func TestUpdateTradablePairs(t *testing.T) {
 	t.Parallel()
-	err := b.UpdateTradablePairs(context.Background(), true)
+	err := b.UpdateTradablePairs(context.Background(), b)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1061,7 +1061,7 @@ func TestWsTrades(t *testing.T) {
 
 func TestGetRecentTrades(t *testing.T) {
 	t.Parallel()
-	err := b.UpdateTradablePairs(context.Background(), false)
+	err := b.UpdateTradablePairs(context.Background(), b)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1074,7 +1074,7 @@ func TestGetRecentTrades(t *testing.T) {
 
 func TestGetHistoricTrades(t *testing.T) {
 	t.Parallel()
-	err := b.UpdateTradablePairs(context.Background(), false)
+	err := b.UpdateTradablePairs(context.Background(), b)
 	if err != nil {
 		t.Fatal(err)
 	}

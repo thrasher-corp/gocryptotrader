@@ -94,12 +94,6 @@ func (a *Alphapoint) GetServerTime(_ context.Context, _ asset.Item) (time.Time, 
 	return time.Time{}, common.ErrFunctionNotSupported
 }
 
-// UpdateTradablePairs updates the exchanges available pairs and stores
-// them in the exchanges config
-func (a *Alphapoint) UpdateTradablePairs(_ context.Context, _ bool) error {
-	return common.ErrFunctionNotSupported
-}
-
 // UpdateAccountInfo retrieves balances for all enabled currencies on the
 // Alphapoint exchange
 func (a *Alphapoint) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {

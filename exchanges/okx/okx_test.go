@@ -1928,7 +1928,7 @@ var updatePairsGuard sync.Once
 func updatePairsOnce(tb testing.TB) {
 	tb.Helper()
 	updatePairsGuard.Do(func() {
-		err := ok.UpdateTradablePairs(context.Background(), true)
+		err := ok.UpdateTradablePairs(context.Background(), ok)
 		assert.NoError(tb, err, "UpdateTradablePairs should not error")
 	})
 }

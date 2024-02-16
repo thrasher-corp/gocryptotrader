@@ -195,20 +195,6 @@ func (h *HitBTC) FetchTradablePairs(ctx context.Context, _ asset.Item) (currency
 	return pairs, nil
 }
 
-// UpdateTradablePairs updates the exchanges available pairs and stores
-// them in the exchanges config
-func (h *HitBTC) UpdateTradablePairs(ctx context.Context, forceUpdate bool) error {
-	pairs, err := h.FetchTradablePairs(ctx, asset.Spot)
-	if err != nil {
-		return err
-	}
-	err = h.UpdatePairs(pairs, asset.Spot, false, forceUpdate)
-	if err != nil {
-		return err
-	}
-	return h.EnsureOnePairEnabled()
-}
-
 // UpdateTickers updates the ticker for all currency pairs of a given asset type
 func (h *HitBTC) UpdateTickers(ctx context.Context, a asset.Item) error {
 	tick, err := h.GetTickers(ctx)

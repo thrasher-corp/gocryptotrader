@@ -42,7 +42,7 @@ type IBotExchange interface {
 	FetchOrderbook(ctx context.Context, p currency.Pair, a asset.Item) (*orderbook.Base, error)
 	UpdateOrderbook(ctx context.Context, p currency.Pair, a asset.Item) (*orderbook.Base, error)
 	FetchTradablePairs(ctx context.Context, a asset.Item) (currency.Pairs, error)
-	UpdateTradablePairs(ctx context.Context, forceUpdate bool) error
+	UpdateTradablePairs(context.Context, LimitedScope) error
 	GetEnabledPairs(a asset.Item) (currency.Pairs, error)
 	GetAvailablePairs(a asset.Item) (currency.Pairs, error)
 	SetPairs(pairs currency.Pairs, a asset.Item, enabled bool) error
@@ -195,5 +195,5 @@ type LimitedScope interface {
 	GetBase() *Base
 	GetName() string
 	SetDefaults()
-	UpdateTradablePairs(context.Context, bool) error
+	FetchTradablePairs(context.Context, asset.Item) (currency.Pairs, error)
 }

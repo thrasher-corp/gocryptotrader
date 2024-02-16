@@ -218,20 +218,6 @@ func (bi *Binanceus) FetchTradablePairs(ctx context.Context, a asset.Item) (curr
 	return pairs, nil
 }
 
-// UpdateTradablePairs updates the exchanges available pairs and stores
-// them in the exchanges config
-func (bi *Binanceus) UpdateTradablePairs(ctx context.Context, forceUpdate bool) error {
-	pairs, err := bi.FetchTradablePairs(ctx, asset.Spot)
-	if err != nil {
-		return err
-	}
-	err = bi.UpdatePairs(pairs, asset.Spot, false, forceUpdate)
-	if err != nil {
-		return err
-	}
-	return bi.EnsureOnePairEnabled()
-}
-
 // UpdateTicker updates and returns the ticker for a currency pair
 func (bi *Binanceus) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Item) (*ticker.Price, error) {
 	if p.IsEmpty() {

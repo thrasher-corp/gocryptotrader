@@ -369,23 +369,6 @@ func getCategoryName(a asset.Item) string {
 	}
 }
 
-// UpdateTradablePairs updates the exchanges available pairs and stores
-// them in the exchanges config
-func (by *Bybit) UpdateTradablePairs(ctx context.Context, forceUpdate bool) error {
-	assetTypes := by.GetAssetTypes(true)
-	for i := range assetTypes {
-		pairs, err := by.FetchTradablePairs(ctx, assetTypes[i])
-		if err != nil {
-			return err
-		}
-		err = by.UpdatePairs(pairs, assetTypes[i], false, forceUpdate)
-		if err != nil {
-			return err
-		}
-	}
-	return by.EnsureOnePairEnabled()
-}
-
 // UpdateTickers updates the ticker for all currency pairs of a given asset type
 func (by *Bybit) UpdateTickers(ctx context.Context, assetType asset.Item) error {
 	enabled, err := by.GetEnabledPairs(assetType)

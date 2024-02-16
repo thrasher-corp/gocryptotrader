@@ -274,26 +274,6 @@ func (ku *Kucoin) FetchTradablePairs(ctx context.Context, assetType asset.Item) 
 	}
 }
 
-// UpdateTradablePairs updates the exchanges available pairs and stores
-// them in the exchanges config
-func (ku *Kucoin) UpdateTradablePairs(ctx context.Context, forceUpdate bool) error {
-	assets := ku.GetAssetTypes(true)
-	for a := range assets {
-		pairs, err := ku.FetchTradablePairs(ctx, assets[a])
-		if err != nil {
-			return err
-		}
-		if len(pairs) == 0 {
-			return fmt.Errorf("%v; no tradable pairs", currency.ErrCurrencyPairsEmpty)
-		}
-		err = ku.UpdatePairs(pairs, assets[a], false, forceUpdate)
-		if err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
 // UpdateTicker updates and returns the ticker for a currency pair
 func (ku *Kucoin) UpdateTicker(ctx context.Context, p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
 	p, err := ku.FormatExchangeCurrency(p, assetType)

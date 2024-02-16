@@ -269,22 +269,6 @@ func (ok *Okx) FetchTradablePairs(ctx context.Context, a asset.Item) (currency.P
 	return pairs, nil
 }
 
-// UpdateTradablePairs updates the exchanges available pairs and stores them in the exchanges config
-func (ok *Okx) UpdateTradablePairs(ctx context.Context, forceUpdate bool) error {
-	assetTypes := ok.GetAssetTypes(false)
-	for i := range assetTypes {
-		pairs, err := ok.FetchTradablePairs(ctx, assetTypes[i])
-		if err != nil {
-			return fmt.Errorf("%w for asset %v", err, assetTypes[i])
-		}
-		err = ok.UpdatePairs(pairs, assetTypes[i], false, forceUpdate)
-		if err != nil {
-			return fmt.Errorf("%w for asset %v", err, assetTypes[i])
-		}
-	}
-	return ok.EnsureOnePairEnabled()
-}
-
 // UpdateOrderExecutionLimits sets exchange execution order limits for an asset type
 func (ok *Okx) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) error {
 	insts, err := ok.getInstrumentsForAsset(ctx, a)

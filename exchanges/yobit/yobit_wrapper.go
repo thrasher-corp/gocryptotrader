@@ -124,20 +124,6 @@ func (y *Yobit) FetchTradablePairs(ctx context.Context, _ asset.Item) (currency.
 	return pairs, nil
 }
 
-// UpdateTradablePairs updates the exchanges available pairs and stores
-// them in the exchanges config
-func (y *Yobit) UpdateTradablePairs(ctx context.Context, forceUpdate bool) error {
-	pairs, err := y.FetchTradablePairs(ctx, asset.Spot)
-	if err != nil {
-		return err
-	}
-	err = y.UpdatePairs(pairs, asset.Spot, false, forceUpdate)
-	if err != nil {
-		return err
-	}
-	return y.EnsureOnePairEnabled()
-}
-
 // UpdateTickers updates the ticker for all currency pairs of a given asset type
 func (y *Yobit) UpdateTickers(ctx context.Context, a asset.Item) error {
 	enabledPairs, err := y.GetEnabledPairs(a)

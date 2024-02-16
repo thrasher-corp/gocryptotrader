@@ -3246,7 +3246,10 @@ func (f *FakeBase) SetDefaults() {
 	f.Requester, _ = request.New("test", common.NewHTTPClientWithTimeout(time.Second))
 	f.Features.Supports.RESTCapabilities.AutoPairUpdates = true
 }
-func (f *FakeBase) UpdateTradablePairs(context.Context, bool) error { return nil }
+
+func (f *FakeBase) FetchTradablePairs(context.Context, asset.Item) (currency.Pairs, error) {
+	return nil, nil
+}
 
 func TestGetCachedOpenInterest(t *testing.T) {
 	t.Parallel()

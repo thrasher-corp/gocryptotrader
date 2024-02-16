@@ -55,7 +55,7 @@ func TestMain(m *testing.M) {
 		log.Fatal("HitBTC setup error", err)
 	}
 
-	err = h.UpdateTradablePairs(context.Background(), false)
+	err = h.UpdateTradablePairs(context.Background(), h)
 	if err != nil {
 		log.Fatal("HitBTC setup error", err)
 	}

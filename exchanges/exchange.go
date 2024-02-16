@@ -1903,7 +1903,7 @@ func Bootstrap(ctx context.Context, b IBotExchange) error {
 	}
 
 	if b.GetEnabledFeatures().AutoPairUpdates {
-		if err := b.UpdateTradablePairs(ctx, false); err != nil {
+		if err := b.UpdateTradablePairs(ctx, b); err != nil {
 			return fmt.Errorf("failed to update tradable pairs: %w", err)
 		}
 	}
@@ -1970,11 +1970,28 @@ func (b *Base) GetDefaultConfig(ctx context.Context, instance LimitedScope) (*co
 	}
 
 	if b.Features.Supports.RESTCapabilities.AutoPairUpdates {
-		err = instance.UpdateTradablePairs(ctx, true)
+		err = b.UpdateTradablePairs(ctx, instance)
 		if err != nil {
 			return nil, err
 		}
 	}
 
 	return exchCfg, nil
+}
+
+// UpdateTradablePairs updates the exchanges available pairs and stores them in
+// the exchanges config.
+func (h *Base) UpdateTradablePairs(ctx context.Context, instance LimitedScope) error {
+	assets := h.GetAssetTypes(false)
+	for x := range assets {
+		pairs, err := instance.FetchTradablePairs(ctx, assets[x])
+		if err != nil {
+			return err
+		}
+		err = h.UpdatePairs(pairs, assets[x], false, true)
+		if err != nil {
+			return err
+		}
+	}
+	return h.EnsureOnePairEnabled()
 }

@@ -30,7 +30,7 @@ func TestMain(m *testing.M) {
 	}
 
 	b.setupOrderbookManager()
-	if err := b.UpdateTradablePairs(context.Background(), true); err != nil {
+	if err := b.UpdateTradablePairs(context.Background(), b); err != nil {
 		log.Fatal(err)
 	}
 

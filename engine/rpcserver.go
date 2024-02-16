@@ -3015,7 +3015,7 @@ func (s *RPCServer) UpdateExchangeSupportedPairs(ctx context.Context, r *gctrpc.
 			errors.New("cannot auto pair update for exchange, a manual update is needed")
 	}
 
-	err = exch.UpdateTradablePairs(ctx, false)
+	err = exch.UpdateTradablePairs(ctx, exch)
 	if err != nil {
 		return nil, err
 	}

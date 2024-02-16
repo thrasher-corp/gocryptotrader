@@ -195,20 +195,6 @@ func (b *Bithumb) FetchTradablePairs(ctx context.Context, _ asset.Item) (currenc
 	return pairs, nil
 }
 
-// UpdateTradablePairs updates the exchanges available pairs and stores
-// them in the exchanges config
-func (b *Bithumb) UpdateTradablePairs(ctx context.Context, forceUpdate bool) error {
-	pairs, err := b.FetchTradablePairs(ctx, asset.Spot)
-	if err != nil {
-		return err
-	}
-	err = b.UpdatePairs(pairs, asset.Spot, false, forceUpdate)
-	if err != nil {
-		return err
-	}
-	return b.EnsureOnePairEnabled()
-}
-
 // UpdateTickers updates the ticker for all currency pairs of a given asset type
 func (b *Bithumb) UpdateTickers(ctx context.Context, a asset.Item) error {
 	tickers, err := b.GetAllTickers(ctx)

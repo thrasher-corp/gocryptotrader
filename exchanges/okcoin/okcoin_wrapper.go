@@ -210,23 +210,6 @@ func (o *Okcoin) FetchTradablePairs(ctx context.Context, a asset.Item) (currency
 	return pairs, nil
 }
 
-// UpdateTradablePairs updates the exchanges available pairs and stores
-// them in the exchanges config
-func (o *Okcoin) UpdateTradablePairs(ctx context.Context, forceUpdate bool) error {
-	assets := o.GetAssetTypes(true)
-	for a := range assets {
-		pairs, err := o.FetchTradablePairs(ctx, assets[a])
-		if err != nil {
-			return err
-		}
-		err = o.UpdatePairs(pairs, assets[a], false, forceUpdate)
-		if err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
 // UpdateTickers updates the ticker for all currency pairs of a given asset type
 func (o *Okcoin) UpdateTickers(ctx context.Context, a asset.Item) error {
 	if !o.SupportsAsset(a) {

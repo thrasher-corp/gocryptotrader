@@ -230,7 +230,7 @@ func TestFetchTradablePairs(t *testing.T) {
 
 func TestUpdateTradablePairs(t *testing.T) {
 	t.Parallel()
-	err := b.UpdateTradablePairs(context.Background(), true)
+	err := b.UpdateTradablePairs(context.Background(), b)
 	assert.NoError(t, err, "UpdateTradablePairs should not error")
 }
 

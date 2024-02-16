@@ -199,20 +199,6 @@ func (b *BTCMarkets) FetchTradablePairs(ctx context.Context, a asset.Item) (curr
 	return pairs, nil
 }
 
-// UpdateTradablePairs updates the exchanges available pairs and stores
-// them in the exchanges config
-func (b *BTCMarkets) UpdateTradablePairs(ctx context.Context, forceUpdate bool) error {
-	pairs, err := b.FetchTradablePairs(ctx, asset.Spot)
-	if err != nil {
-		return err
-	}
-	err = b.UpdatePairs(pairs, asset.Spot, false, forceUpdate)
-	if err != nil {
-		return err
-	}
-	return b.EnsureOnePairEnabled()
-}
-
 // UpdateTickers updates the ticker for all currency pairs of a given asset type
 func (b *BTCMarkets) UpdateTickers(ctx context.Context, a asset.Item) error {
 	allPairs, err := b.GetEnabledPairs(a)

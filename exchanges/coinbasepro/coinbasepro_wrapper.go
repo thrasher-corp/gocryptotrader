@@ -194,20 +194,6 @@ func (c *CoinbasePro) FetchTradablePairs(ctx context.Context, _ asset.Item) (cur
 	return pairs, nil
 }
 
-// UpdateTradablePairs updates the exchanges available pairs and stores
-// them in the exchanges config
-func (c *CoinbasePro) UpdateTradablePairs(ctx context.Context, forceUpdate bool) error {
-	pairs, err := c.FetchTradablePairs(ctx, asset.Spot)
-	if err != nil {
-		return err
-	}
-	err = c.UpdatePairs(pairs, asset.Spot, false, forceUpdate)
-	if err != nil {
-		return err
-	}
-	return c.EnsureOnePairEnabled()
-}
-
 // UpdateAccountInfo retrieves balances for all enabled currencies for the
 // coinbasepro exchange
 func (c *CoinbasePro) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {

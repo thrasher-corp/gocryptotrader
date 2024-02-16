@@ -2400,7 +2400,7 @@ func TestGetFundingHistory(t *testing.T) {
 }
 
 func getFirstTradablePairOfAssets() {
-	if err := ku.UpdateTradablePairs(context.Background(), true); err != nil {
+	if err := ku.UpdateTradablePairs(context.Background(), ku); err != nil {
 		log.Fatalf("Kucoin error while updating tradable pairs. %v", err)
 	}
 	enabledPairs, err := ku.GetEnabledPairs(asset.Spot)

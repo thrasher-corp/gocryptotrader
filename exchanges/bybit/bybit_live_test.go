@@ -51,7 +51,7 @@ func TestMain(m *testing.M) {
 }
 
 func instantiateTradablePairs() error {
-	err := b.UpdateTradablePairs(context.Background(), true)
+	err := b.UpdateTradablePairs(context.Background(), b)
 	if err != nil {
 		return err
 	}

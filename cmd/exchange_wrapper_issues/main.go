@@ -419,7 +419,7 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 				Response:   jsonifyInterface([]interface{}{fetchTradablePairsResponse}),
 			})
 			// r6
-			err = e.UpdateTradablePairs(context.TODO(), false)
+			err = e.UpdateTradablePairs(context.TODO(), e)
 			msg = ""
 			if err != nil {
 				msg = err.Error()

@@ -506,26 +506,6 @@ func (g *Gateio) FetchTradablePairs(ctx context.Context, a asset.Item) (currency
 	}
 }
 
-// UpdateTradablePairs updates the exchanges available pairs and stores
-// them in the exchanges config
-func (g *Gateio) UpdateTradablePairs(ctx context.Context, forceUpdate bool) error {
-	assets := g.GetAssetTypes(false)
-	for x := range assets {
-		pairs, err := g.FetchTradablePairs(ctx, assets[x])
-		if err != nil {
-			return err
-		}
-		if len(pairs) == 0 {
-			return errors.New("no tradable pairs found")
-		}
-		err = g.UpdatePairs(pairs, assets[x], false, forceUpdate)
-		if err != nil {
-			return err
-		}
-	}
-	return g.EnsureOnePairEnabled()
-}
-
 // UpdateTickers updates the ticker for all currency pairs of a given asset type
 func (g *Gateio) UpdateTickers(ctx context.Context, a asset.Item) error {
 	if !g.SupportsAsset(a) {

@@ -65,7 +65,7 @@ func TestMain(m *testing.M) {
 		log.Fatal("Huobi setup error", err)
 	}
 
-	err = h.UpdateTradablePairs(context.Background(), true)
+	err = h.UpdateTradablePairs(context.Background(), h)
 	if err != nil {
 		log.Fatal("Huobi setup error", err)
 	}
