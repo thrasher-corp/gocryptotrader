@@ -425,7 +425,7 @@ func TestPlaceMultipleOrders(t *testing.T) {
 
 	var params []PlaceOrderRequestParam
 	err := json.Unmarshal([]byte(placeMultipleOrderParamsJSON), &params)
-	assert.NoError(t, err, err)
+	assert.NoError(t, err)
 
 	_, err = ok.PlaceMultipleOrders(contextGenerate(),
 		params)
@@ -490,21 +490,14 @@ func TestClosePositions(t *testing.T) {
 func TestGetOrderDetail(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
-
-	_, err := ok.GetOrderDetail(contextGenerate(), &OrderDetailRequestParam{
-		InstrumentID: "BTC-USDT",
-		OrderID:      "2510789768709120",
-	})
-	assert.False(t, !strings.Contains(err.Error(), "Order does not exist"), err)
+	_, err := ok.GetOrderDetail(contextGenerate(), &OrderDetailRequestParam{InstrumentID: "BTC-USDT", OrderID: "2510789768709120"})
+	assert.True(t, err == nil || strings.Contains(err.Error(), "Order does not exist"), err)
 }
 
 func TestGetOrderList(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
-
-	_, err := ok.GetOrderList(contextGenerate(), &OrderListRequestParams{
-		Limit: 1,
-	})
+	_, err := ok.GetOrderList(contextGenerate(), &OrderListRequestParams{Limit: 1})
 	assert.NoError(t, err)
 }
 
@@ -1848,7 +1841,7 @@ func TestUpdateOrderbook(t *testing.T) {
 	_, err := ok.UpdateOrderbook(contextGenerate(), currency.NewPair(currency.BTC, currency.NewCode("USDT-SWAP")), asset.Spot)
 	assert.NoError(t, err)
 	spreadPair, err := currency.NewPairDelimiter("BTC-USDT-SWAP_BTC-USDT-240126", currency.UnderscoreDelimiter)
-	assert.NoError(t, err, err)
+	assert.NoError(t, err)
 	_, err = ok.UpdateOrderbook(contextGenerate(), spreadPair, asset.Spread)
 	assert.NoError(t, err)
 }
@@ -1899,7 +1892,7 @@ func TestSubmitOrder(t *testing.T) {
 
 	var resp []PlaceOrderRequestParam
 	err := json.Unmarshal([]byte(placeOrderArgs), &resp)
-	assert.NoError(t, err, err)
+	assert.NoError(t, err)
 	var orderSubmission = &order.Submit{
 		Pair: currency.Pair{
 			Base:  currency.LTC,
@@ -1917,7 +1910,7 @@ func TestSubmitOrder(t *testing.T) {
 	assert.NoError(t, err, "Okx SubmitOrder() error", err)
 
 	cp, err := currency.NewPairFromString("BTC-USDT-230630")
-	assert.NoError(t, err, err)
+	assert.NoError(t, err)
 
 	orderSubmission = &order.Submit{
 		Pair:       cp,
@@ -2078,7 +2071,7 @@ func TestGetOrderHistory(t *testing.T) {
 		Side:      order.Buy,
 	}
 	_, err := ok.GetOrderHistory(contextGenerate(), &getOrdersRequest)
-	assert.ErrorIsf(t, err, nil, "Okx GetOrderHistory() Expected: %v. received nil", err)
+	assert.NoError(t, err)
 	assert.Falsef(t, err != nil && !errors.Is(err, errMissingAtLeast1CurrencyPair), "Okx GetOrderHistory() Expected: %v, but found %v", errMissingAtLeast1CurrencyPair, err)
 	getOrdersRequest.Pairs = []currency.Pair{
 		currency.NewPair(currency.LTC,
@@ -2117,7 +2110,7 @@ func TestGetHistoricCandles(t *testing.T) {
 	startTime := time.Date(2021, 2, 1, 0, 0, 0, 0, time.UTC)
 	endTime := startTime.AddDate(0, 0, 100)
 	_, err := ok.GetHistoricCandles(contextGenerate(), pair, asset.Spot, kline.OneDay, startTime, endTime)
-	assert.NoError(t, err, err)
+	assert.NoError(t, err)
 
 	_, err = ok.GetHistoricCandles(contextGenerate(), pair, asset.Spot, kline.Interval(time.Hour*4), startTime, endTime)
 	assert.ErrorIs(t, err, kline.ErrRequestExceedsExchangeLimits)
@@ -2245,6 +2238,7 @@ var pushDataMap = map[string]string{
 	"Recurring Buy Order":                   `{"arg": {"channel": "algo-recurring-buy", "instType": "SPOT", "uid": "447*******584" }, "data": [{ "algoClOrdId": "", "algoId": "644497312047435776", "algoOrdType": "recurring", "amt": "100", "cTime": "1699932133373", "cycles": "0", "instType": "SPOT", "investmentAmt": "0", "investmentCcy": "USDC", "mktCap": "0", "nextInvestTime": "1699934415300", "pTime": "1699933314691", "period": "hourly", "pnlRatio": "0", "recurringDay": "", "recurringHour": "1", "recurringList": [{ "avgPx": "0", "ccy": "BTC", "profit": "0", "px": "36482", "ratio": "0.2", "totalAmt": "0" }, { "avgPx": "0", "ccy": "ETH", "profit": "0", "px": "2057.54", "ratio": "0.8", "totalAmt": "0" }], "recurringTime": "12", "state": "running", "stgyName": "stg1", "tag": "", "timeZone": "8", "totalAnnRate": "0", "totalPnl": "0", "uTime": "1699932136249" }] }`,
 	"Liquidation Orders":                    `{"arg": {"channel": "liquidation-orders", "instType": "SWAP" }, "data": [ { "details": [ { "bkLoss": "0", "bkPx": "0.007831", "ccy": "", "posSide": "short", "side": "buy", "sz": "13", "ts": "1692266434010" } ], "instFamily": "IOST-USDT", "instId": "IOST-USDT-SWAP", "instType": "SWAP", "uly": "IOST-USDT"}]}`,
 	"Economic Calendar":                     `{"arg": {"channel": "economic-calendar" }, "data": [ { "calendarId": "319275", "date": "1597026383085", "region": "United States", "category": "Manufacturing PMI", "event": "S&P Global Manufacturing PMI Final", "refDate": "1597026383085", "actual": "49.2", "previous": "47.3", "forecast": "49.3", "importance": "2", "prevInitial": "", "ccy": "", "unit": "", "ts": "1698648096590" } ] }`,
+	"Failure":                               `{ "event": "error", "code": "60012", "msg": "Invalid request: {\"op\": \"subscribe\", \"args\":[{ \"channel\" : \"block-tickers\", \"instId\" : \"LTC-USD-200327\"}]}", "connId": "a4d3ae55" }`,
 }
 
 func TestPushData(t *testing.T) {
@@ -2709,7 +2703,7 @@ func TestGetIntervalEnum(t *testing.T) {
 			t.Parallel()
 
 			r := ok.GetIntervalEnum(tt.Interval, tt.AppendUTC)
-			assert.False(t, r != tt.Expected, "%s: received: %s but expected: %s", tt.Description, r, tt.Expected)
+			assert.Equalf(t, tt.Expected, r, "%s: received: %s but expected: %s", tt.Description, r, tt.Expected)
 		})
 	}
 }
@@ -2723,34 +2717,34 @@ func TestInstrument(t *testing.T) {
 
 	assert.Empty(t, i.Alias, "expected empty alias")
 	assert.Empty(t, i.BaseCurrency, "expected empty base currency")
-	assert.False(t, i.Category != "1", "expected 1 category")
-	assert.False(t, i.ContractMultiplier != 1, "expected 1 contract multiplier")
-	assert.False(t, i.ContractType != "linear", "expected linear contract type")
-	assert.False(t, i.ContractValue.Float64() != 0.0001, "expected 0.0001 contract value")
-	assert.False(t, i.ContractValueCurrency != currency.BTC.String(), "expected BTC contract value currency")
-	assert.False(t, !i.ExpTime.Time().IsZero(), "expected empty expiry time")
-	assert.False(t, i.InstrumentFamily != "BTC-USDC", "expected BTC-USDC instrument family")
-	assert.False(t, i.InstrumentID != "BTC-USDC-SWAP", "expected BTC-USDC-SWAP instrument ID")
+	assert.Equal(t, "1", i.Category, "expected 1 category")
+	assert.Equal(t, 1, i.ContractMultiplier, "expected 1 contract multiplier")
+	assert.Equal(t, "linear", i.ContractType, "expected linear contract type")
+	assert.Equal(t, 0.0001, i.ContractValue.Float64(), "expected 0.0001 contract value")
+	assert.Equal(t, currency.BTC.String(), i.ContractValueCurrency, "expected BTC contract value currency")
+	assert.True(t, i.ExpTime.Time().IsZero(), "expected empty expiry time")
+	assert.Equal(t, "BTC-USDC", i.InstrumentFamily, "expected BTC-USDC instrument family")
+	assert.Equal(t, "BTC-USDC-SWAP", i.InstrumentID, "expected BTC-USDC-SWAP instrument ID")
 	swap := ok.GetInstrumentTypeFromAssetItem(asset.PerpetualSwap)
-	assert.False(t, i.InstrumentType != swap, "expected SWAP instrument type")
-	assert.False(t, i.MaxLeverage != 125, "expected 125 leverage")
-	assert.False(t, i.ListTime.Time().UnixMilli() != 1666076190000, "expected 1666076190000 listing time")
-	assert.False(t, i.LotSize != 1, "expected 1 lot size")
-	assert.False(t, i.MaxSpotIcebergSize != 100000000.0000000000000000, "expected 100000000.0000000000000000 max iceberg order size")
-	assert.False(t, i.MaxQuantityOfSpotLimitOrder != 100000000, "expected 100000000 max limit order size")
-	assert.False(t, i.MaxQuantityOfMarketLimitOrder != 85000, "expected 85000 max market order size")
-	assert.False(t, i.MaxStopSize != 85000, "expected 85000 max stop order size")
-	assert.False(t, i.MaxTriggerSize != 100000000.0000000000000000,
+	assert.Equal(t, swap, i.InstrumentType, "expected SWAP instrument type")
+	assert.Equal(t, 125, i.MaxLeverage, "expected 125 leverage")
+	assert.Equal(t, 1666076190000, i.ListTime.Time().UnixMilli(), "expected 1666076190000 listing time")
+	assert.Equal(t, 1, i.LotSize, "expected 1 lot size")
+	assert.Equal(t, 100000000.0000000000000000, i.MaxSpotIcebergSize, "expected 100000000.0000000000000000 max iceberg order size")
+	assert.Equal(t, 100000000, i.MaxQuantityOfSpotLimitOrder, "expected 100000000 max limit order size")
+	assert.Equal(t, 85000, i.MaxQuantityOfMarketLimitOrder, "expected 85000 max market order size")
+	assert.Equal(t, 85000, i.MaxStopSize, "expected 85000 max stop order size")
+	assert.Equal(t, 100000000.0000000000000000, i.MaxTriggerSize,
 		"expected 100000000.0000000000000000 max trigger order size")
-	assert.False(t, i.MaxQuantityOfSpotTwapLimitOrder != 0, "expected empty max TWAP size")
-	assert.False(t, i.MinimumOrderSize != 1, "expected 1 min size")
+	assert.Equal(t, 0, i.MaxQuantityOfSpotTwapLimitOrder, "expected empty max TWAP size")
+	assert.Equal(t, 1, i.MinimumOrderSize, "expected 1 min size")
 	assert.Empty(t, i.OptionType, "expected empty option type")
 	assert.Empty(t, i.QuoteCurrency, "expected empty quote currency")
-	assert.False(t, i.SettlementCurrency != currency.USDC.String(), "expected USDC settlement currency")
-	assert.False(t, i.State != "live", "expected live state")
+	assert.Equal(t, currency.USDC.String(), i.SettlementCurrency, "expected USDC settlement currency")
+	assert.Equal(t, "live", i.State, "expected live state")
 	assert.Empty(t, i.StrikePrice, "expected empty strike price")
-	assert.False(t, i.TickSize != 0.1, "expected 0.1 tick size")
-	assert.False(t, i.Underlying != "BTC-USDC", "expected BTC-USDC underlying")
+	assert.Equal(t, 0.1, i.TickSize, "expected 0.1 tick size")
+	assert.Equal(t, "BTC-USDC", i.Underlying, "expected BTC-USDC underlying")
 }
 
 func TestGetLatestFundingRate(t *testing.T) {
@@ -3745,7 +3739,6 @@ func TestGetOpenInterest(t *testing.T) {
 	)
 	assert.NoError(t, err)
 	assert.NotEmpty(t, resp)
-
 	resp, err = ok.GetOpenInterest(context.Background())
 	assert.NoError(t, err)
 	assert.NotEmpty(t, resp)

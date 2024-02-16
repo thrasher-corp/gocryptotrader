@@ -2979,10 +2979,10 @@ func (ok *Okx) ComputeMinInvestment(ctx context.Context, arg *ComputeInvestmentD
 		return nil, fmt.Errorf("%w, minPrice = %f", order.ErrPriceBelowMin, arg.MaxPrice)
 	}
 	if arg.GridNumber == 0 {
-		return nil, fmt.Errorf("grid number is required")
+		return nil, errors.New("grid number is required")
 	}
 	if arg.RunType == "" {
-		return nil, fmt.Errorf("runType is required; possible values are 1: Arithmetic, 2: Geometric")
+		return nil, errors.New("runType is required; possible values are 1: Arithmetic, 2: Geometric")
 	}
 	if arg.AlgoOrderType == "contract_grid" {
 		switch arg.Direction {
@@ -3082,7 +3082,7 @@ func (ok *Okx) GetSignalBotSubOrders(ctx context.Context, algoID, algoOrderType,
 		return nil, errInvalidAlgoOrderType
 	}
 	if subOrderType == "" && clientOrderID == "" {
-		return nil, errors.New("either client order ID or  sub-order state is required")
+		return nil, errors.New("either client order ID or sub-order state is required")
 	}
 	params := url.Values{}
 	params.Set("algoId", algoID)
@@ -3933,12 +3933,12 @@ func (ok *Okx) GetInstrumentTypeFromAssetItem(a asset.Item) string {
 
 // GetUnderlying returns the instrument ID for the corresponding asset pairs and asset type( Instrument Type )
 func (ok *Okx) GetUnderlying(pair currency.Pair, a asset.Item) (string, error) {
+	if !pair.IsPopulated() {
+		return "", errIncompleteCurrencyPair
+	}
 	format, err := ok.GetPairFormat(a, false)
 	if err != nil {
 		return "", err
-	}
-	if !pair.IsPopulated() {
-		return "", errIncompleteCurrencyPair
 	}
 	return pair.Base.String() + format.Delimiter + pair.Quote.String(), nil
 }
@@ -4547,11 +4547,11 @@ func (ok *Okx) GetPublicSpreadTrades(ctx context.Context, spreadID string) ([]Sp
 
 // GetInstruments Retrieve a list of instruments with open contracts.
 func (ok *Okx) GetInstruments(ctx context.Context, arg *InstrumentsFetchParams) ([]Instrument, error) {
-	params := url.Values{}
-	arg.InstrumentType = strings.ToUpper(arg.InstrumentType)
 	if arg.InstrumentType == "" {
 		return nil, errMissingRequiredArgInstType
 	}
+	params := url.Values{}
+	arg.InstrumentType = strings.ToUpper(arg.InstrumentType)
 	params.Set("instType", arg.InstrumentType)
 	if arg.Underlying != "" {
 		params.Set("uly", arg.Underlying)
@@ -4568,13 +4568,13 @@ func (ok *Okx) GetDeliveryHistory(ctx context.Context, instrumentType, underlyin
 	if underlying == "" {
 		return nil, errMissingRequiredUnderlying
 	}
+	if limit <= 0 || limit > 100 {
+		return nil, errLimitValueExceedsMaxOf100
+	}
 	params := url.Values{}
 	instrumentType = strings.ToUpper(instrumentType)
 	if instrumentType != "" {
 		params.Set("instType", instrumentType)
-	}
-	if limit <= 0 || limit > 100 {
-		return nil, errLimitValueExceedsMaxOf100
 	}
 	params.Set("uly", underlying)
 	if !after.IsZero() {
@@ -4590,10 +4590,10 @@ func (ok *Okx) GetDeliveryHistory(ctx context.Context, instrumentType, underlyin
 
 // GetOpenInterestData retrieves the total open interest for contracts on OKX
 func (ok *Okx) GetOpenInterestData(ctx context.Context, instType, uly, instID string) ([]OpenInterest, error) {
-	instType = strings.ToUpper(instType)
 	if instType == "" {
 		return nil, errMissingRequiredArgInstType
 	}
+	instType = strings.ToUpper(instType)
 	params := url.Values{}
 	params.Set("instType", instType)
 	if uly != "" {
@@ -4903,8 +4903,8 @@ func (ok *Okx) GetOptionsTickBands(ctx context.Context, instrumentType, instrume
 
 // GetSupportCoins retrieves the currencies supported by the trading data endpoints
 func (ok *Okx) GetSupportCoins(ctx context.Context) (*SupportedCoinsData, error) {
-	var response SupportedCoinsData
-	return &response, ok.SendHTTPRequest(ctx, exchange.RestSpot, getSupportCoinEPL, http.MethodGet, "rubik/stat/trading-data/support-coin", nil, &response, false, true)
+	var response *SupportedCoinsData
+	return response, ok.SendHTTPRequest(ctx, exchange.RestSpot, getSupportCoinEPL, http.MethodGet, "rubik/stat/trading-data/support-coin", nil, &response, false, true)
 }
 
 // GetTakerVolume retrieves the taker volume for both buyers and sellers.

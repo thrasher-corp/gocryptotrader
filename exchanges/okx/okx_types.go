@@ -2790,10 +2790,10 @@ func (w *wsIncomingData) copyToPlaceOrderResponse() (*WsPlaceOrderResponse, erro
 	}, nil
 }
 
-// copyResponseToInterface returns unmarshals the response data into the dataHolder interface.
+// copyResponseToInterface unmarshals the response data into the dataHolder interface.
 func (w *wsIncomingData) copyResponseToInterface(dataHolder interface{}) error {
 	rv := reflect.ValueOf(dataHolder)
-	if rv.Kind() != reflect.Pointer /* TODO: || rv.IsNil()*/ {
+	if rv.Kind() != reflect.Pointer {
 		return errInvalidResponseParam
 	}
 	if len(w.Data) == 0 {
