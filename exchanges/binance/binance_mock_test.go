@@ -5,7 +5,6 @@
 package binance
 
 import (
-	"context"
 	"log"
 	"os"
 	"testing"
@@ -30,9 +29,5 @@ func TestMain(m *testing.M) {
 	}
 
 	b.setupOrderbookManager()
-	if err := b.UpdateTradablePairs(context.Background(), b); err != nil {
-		log.Fatal(err)
-	}
-
 	os.Exit(m.Run())
 }

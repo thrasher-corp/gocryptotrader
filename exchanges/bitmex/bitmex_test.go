@@ -820,10 +820,7 @@ func TestWsAuth(t *testing.T) {
 
 func TestUpdateTradablePairs(t *testing.T) {
 	t.Parallel()
-	err := b.UpdateTradablePairs(context.Background(), b)
-	if err != nil {
-		t.Fatal(err)
-	}
+	sharedtestvalues.UpdatePairsOnce(t, context.Background(), b)
 }
 
 func TestWsPositionUpdate(t *testing.T) {
@@ -1061,12 +1058,9 @@ func TestWsTrades(t *testing.T) {
 
 func TestGetRecentTrades(t *testing.T) {
 	t.Parallel()
-	err := b.UpdateTradablePairs(context.Background(), b)
-	if err != nil {
-		t.Fatal(err)
-	}
+	sharedtestvalues.UpdatePairsOnce(t, context.Background(), b)
 	currencyPair := b.CurrencyPairs.Pairs[asset.Futures].Available[0]
-	_, err = b.GetRecentTrades(context.Background(), currencyPair, asset.Futures)
+	_, err := b.GetRecentTrades(context.Background(), currencyPair, asset.Futures)
 	if err != nil {
 		t.Error(err)
 	}
@@ -1074,12 +1068,9 @@ func TestGetRecentTrades(t *testing.T) {
 
 func TestGetHistoricTrades(t *testing.T) {
 	t.Parallel()
-	err := b.UpdateTradablePairs(context.Background(), b)
-	if err != nil {
-		t.Fatal(err)
-	}
+	sharedtestvalues.UpdatePairsOnce(t, context.Background(), b)
 	currencyPair := b.CurrencyPairs.Pairs[asset.Futures].Available[0]
-	_, err = b.GetHistoricTrades(context.Background(), currencyPair, asset.Futures, time.Now().Add(-time.Minute), time.Now())
+	_, err := b.GetHistoricTrades(context.Background(), currencyPair, asset.Futures, time.Now().Add(-time.Minute), time.Now())
 	if err != nil {
 		t.Error(err)
 	}

@@ -4,7 +4,6 @@ import (
 	"context"
 	"log"
 	"os"
-	"sync"
 	"testing"
 	"time"
 
@@ -60,7 +59,7 @@ func TestMain(m *testing.M) {
 
 func TestUpdateTradablePairs(t *testing.T) {
 	t.Parallel()
-	updatePairsOnce(t)
+	sharedtestvalues.UpdatePairsOnce(t, context.Background(), b)
 	expected := map[asset.Item][]string{
 		asset.Spot:    {"BTCUSD", "BTCUSDT", "ETHBTC"},
 		asset.Futures: {"BTCPFC", "ETHPFC"},
@@ -712,16 +711,6 @@ func TestIsPerpetualFutureCurrency(t *testing.T) {
 	isPerp, err = b.IsPerpetualFutureCurrency(asset.Futures, spotPair)
 	assert.NoError(t, err, "IsPerpetualFutureCurrency should not error")
 	assert.False(t, isPerp, "IsPerpetualFutureCurrency should return false for a spot pair")
-}
-
-var updatePairsGuard sync.Once
-
-func updatePairsOnce(tb testing.TB) {
-	tb.Helper()
-	updatePairsGuard.Do(func() {
-		err := b.UpdateTradablePairs(context.Background(), b)
-		assert.NoError(tb, err, "UpdateTradablePairs should not error")
-	})
 }
 
 func TestGetOpenInterest(t *testing.T) {

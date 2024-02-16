@@ -64,11 +64,12 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	err = k.UpdateTradablePairs(context.Background(), k)
-	if err != nil {
-		log.Fatal(err)
-	}
 	os.Exit(m.Run())
+}
+
+func TestUpdateTradablePairs(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.UpdatePairsOnce(t, context.Background(), k)
 }
 
 func TestGetCurrentServerTime(t *testing.T) {

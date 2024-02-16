@@ -3,6 +3,7 @@ package sharedtestvalues
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -226,4 +227,11 @@ func SetupCurrencyPairsForExchangeAsset(t *testing.T, exch exchange.IBotExchange
 			t.Fatal(err)
 		}
 	}
+}
+
+var pairOnce sync.Once
+
+func UpdatePairsOnce(t testing.TB, ctx context.Context, exch exchange.IBotExchange) {
+	t.Helper()
+	pairOnce.Do(func() { assert.NoError(t, exch.UpdateTradablePairs(ctx, exch), "UpdateTradablePairs should not error") })
 }

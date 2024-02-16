@@ -7,7 +7,6 @@ import (
 	"log"
 	"os"
 	"strconv"
-	"sync"
 	"testing"
 	"time"
 
@@ -152,17 +151,7 @@ func TestGetPairs(t *testing.T) {
 
 func TestUpdateTradablePairs(t *testing.T) {
 	t.Parallel()
-	updatePairsOnce(t)
-}
-
-var updatePairsGuard sync.Once
-
-func updatePairsOnce(tb testing.TB) {
-	tb.Helper()
-	updatePairsGuard.Do(func() {
-		err := b.UpdateTradablePairs(context.Background(), b)
-		assert.NoError(tb, err, "UpdateTradablePairs should not error")
-	})
+	sharedtestvalues.UpdatePairsOnce(t, context.Background(), b)
 }
 
 func TestUpdateOrderExecutionLimits(t *testing.T) {
@@ -557,7 +546,7 @@ func TestUpdateTicker(t *testing.T) {
 func TestUpdateTickers(t *testing.T) {
 	t.Parallel()
 
-	updatePairsOnce(t)
+	sharedtestvalues.UpdatePairsOnce(t, context.Background(), b)
 
 	assets := b.GetAssetTypes(false)
 	for _, a := range assets {

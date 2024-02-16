@@ -50,13 +50,12 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		log.Fatal("Bithumb setup error", err)
 	}
-
-	err = b.UpdateTradablePairs(context.Background(), b)
-	if err != nil {
-		log.Fatal("Bithumb Setup() init error", err)
-	}
-
 	os.Exit(m.Run())
+}
+
+func TestUpdateTradablePairs(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.UpdatePairsOnce(t, context.Background(), b)
 }
 
 func TestGetTradablePairs(t *testing.T) {

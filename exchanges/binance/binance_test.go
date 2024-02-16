@@ -72,6 +72,11 @@ func getTime() (start, end time.Time) {
 	return tn.Add(-offset), tn
 }
 
+func TestUpdateTradablePairs(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.UpdatePairsOnce(t, context.Background(), b)
+}
+
 func TestUServerTime(t *testing.T) {
 	t.Parallel()
 	_, err := b.UServerTime(context.Background())

@@ -64,12 +64,12 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		log.Fatal("Huobi setup error", err)
 	}
-
-	err = h.UpdateTradablePairs(context.Background(), h)
-	if err != nil {
-		log.Fatal("Huobi setup error", err)
-	}
 	os.Exit(m.Run())
+}
+
+func TestUpdateTradablePairs(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.UpdatePairsOnce(t, context.Background(), h)
 }
 
 func setupWsTests(t *testing.T) {

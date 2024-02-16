@@ -230,8 +230,7 @@ func TestFetchTradablePairs(t *testing.T) {
 
 func TestUpdateTradablePairs(t *testing.T) {
 	t.Parallel()
-	err := b.UpdateTradablePairs(context.Background(), b)
-	assert.NoError(t, err, "UpdateTradablePairs should not error")
+	sharedtestvalues.UpdatePairsOnce(t, context.Background(), b)
 }
 
 func TestUpdateOrderExecutionLimits(t *testing.T) {

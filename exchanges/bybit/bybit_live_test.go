@@ -51,10 +51,7 @@ func TestMain(m *testing.M) {
 }
 
 func instantiateTradablePairs() error {
-	err := b.UpdateTradablePairs(context.Background(), b)
-	if err != nil {
-		return err
-	}
+	sharedtestvalues.UpdatePairsOnce(t, context.Background(), b)
 	tradables, err := b.GetEnabledPairs(asset.Spot)
 	if err != nil {
 		return err
