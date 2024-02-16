@@ -1105,12 +1105,12 @@ func (ok *Okx) wsProcessOrderBooks(data []byte) error {
 	pair.Delimiter = currency.DashDelimiter
 	for i := range response.Data {
 		if response.Action == wsOrderbookSnapshot {
-			err = ok.WsProcessSnapshotOrderBook(response.Data[i], pair, assets)
+			err = ok.WsProcessSnapshotOrderBook(&response.Data[i], pair, assets)
 		} else {
 			if len(response.Data[i].Asks) == 0 && len(response.Data[i].Bids) == 0 {
 				return nil
 			}
-			err = ok.WsProcessUpdateOrderbook(response.Data[i], pair, assets)
+			err = ok.WsProcessUpdateOrderbook(&response.Data[i], pair, assets)
 		}
 		if err != nil {
 			if errors.Is(err, errInvalidChecksum) {
@@ -1139,7 +1139,7 @@ func (ok *Okx) wsProcessOrderBooks(data []byte) error {
 }
 
 // WsProcessSnapshotOrderBook processes snapshot order books
-func (ok *Okx) WsProcessSnapshotOrderBook(data WsOrderBookData, pair currency.Pair, assets []asset.Item) error {
+func (ok *Okx) WsProcessSnapshotOrderBook(data *WsOrderBookData, pair currency.Pair, assets []asset.Item) error {
 	signedChecksum, err := ok.CalculateOrderbookChecksum(data)
 	if err != nil {
 		return fmt.Errorf("%w %v: unable to calculate orderbook checksum: %s",
@@ -1182,7 +1182,7 @@ func (ok *Okx) WsProcessSnapshotOrderBook(data WsOrderBookData, pair currency.Pa
 // WsProcessUpdateOrderbook updates an existing orderbook using websocket data
 // After merging WS data, it will sort, validate and finally update the existing
 // orderbook
-func (ok *Okx) WsProcessUpdateOrderbook(data WsOrderBookData, pair currency.Pair, assets []asset.Item) error {
+func (ok *Okx) WsProcessUpdateOrderbook(data *WsOrderBookData, pair currency.Pair, assets []asset.Item) error {
 	update := orderbook.Update{
 		Pair:       pair,
 		UpdateTime: data.Timestamp.Time(),
@@ -1244,7 +1244,7 @@ func (ok *Okx) CalculateUpdateOrderbookChecksum(orderbookData *orderbook.Base, c
 }
 
 // CalculateOrderbookChecksum alternates over the first 25 bid and ask entries from websocket data.
-func (ok *Okx) CalculateOrderbookChecksum(orderbookData WsOrderBookData) (int32, error) {
+func (ok *Okx) CalculateOrderbookChecksum(orderbookData *WsOrderBookData) (int32, error) {
 	var checksum strings.Builder
 	for i := 0; i < allowableIterations; i++ {
 		if len(orderbookData.Bids)-1 >= i {
