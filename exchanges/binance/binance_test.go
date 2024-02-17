@@ -1990,8 +1990,8 @@ func TestSubscribe(t *testing.T) {
 		b = testexch.MockWSInstance[Binance](t, func(msg []byte, w *websocket.Conn) error {
 			var req WsPayload
 			err := json.Unmarshal(msg, &req)
-			require.NoErrorf(t, err, "Unmarshal should not error on msg: %s", msg)
-			require.Lenf(t, req.Params, len(channels), "Params should only have 2 channels for %s", req.Method) // Failure might mean mockWSInstance default Subs is not empty
+			require.NoErrorf(t, err, "Unmarshal must not error on msg: %s", msg)
+			require.Lenf(t, req.Params, len(channels), "Params must only have 2 channels for %s", req.Method) // Failure might mean mockWSInstance default Subs is not empty
 			assert.Equalf(t, "dogeusdt@ticker", req.Params[0], "Channel name should be correct for %s", req.Method)
 			assert.Equalf(t, "dogeusdt@trade", req.Params[1], "Channel name should be correct for %s", req.Method)
 			return w.WriteMessage(websocket.TextMessage, []byte(fmt.Sprintf(`{"result":null,"id":%d}`, req.ID)))
@@ -2000,9 +2000,9 @@ func TestSubscribe(t *testing.T) {
 		testexch.SetupWs(t, b)
 	}
 	err := b.Subscribe(channels)
-	require.NoError(t, err, "Subscribe should not error")
+	require.NoError(t, err, "Subscribe must not error")
 	err = b.Unsubscribe(channels)
-	require.NoError(t, err, "Unsubscribe should not error")
+	require.NoError(t, err, "Unsubscribe must not error")
 }
 
 func TestSubscribeBadResp(t *testing.T) {
@@ -2013,7 +2013,7 @@ func TestSubscribeBadResp(t *testing.T) {
 	b := testexch.MockWSInstance[Binance](t, func(msg []byte, w *websocket.Conn) error { //nolint:govet // shadow
 		var req WsPayload
 		err := json.Unmarshal(msg, &req)
-		require.NoError(t, err, "Unmarshal should not error")
+		require.NoError(t, err, "Unmarshal must not error")
 		return w.WriteMessage(websocket.TextMessage, []byte(fmt.Sprintf(`{"result":{"error":"carrots"},"id":%d}`, req.ID)))
 	})
 	err := b.Subscribe(channels)
