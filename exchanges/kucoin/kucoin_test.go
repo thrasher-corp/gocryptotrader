@@ -191,6 +191,12 @@ func TestGetFiatPrice(t *testing.T) {
 	assert.NoError(t, err)
 }
 
+func TestGetLeveragedTokenInfo(t *testing.T) {
+	t.Parallel()
+	_, err := ku.GetLeveragedTokenInfo(context.Background(), "BTC")
+	assert.NoError(t, err)
+}
+
 func TestGetMarkPrice(t *testing.T) {
 	t.Parallel()
 	_, err := ku.GetMarkPrice(context.Background(), "USDT-BTC")
@@ -223,10 +229,40 @@ func TestGetMarginRiskLimit(t *testing.T) {
 func TestPostBorrowOrder(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ku, canManipulateRealOrders)
-	_, err := ku.PostBorrowOrder(context.Background(), "USDT", "FOK", "", 10, 0)
+	_, err := ku.PostMarginBorrowOrder(context.Background(),
+		&MarginBorrowParam{
+			Currency:    currency.USDT,
+			TimeInForce: "FOK", Size: 0})
 	assert.NoError(t, err)
+	_, err = ku.PostMarginBorrowOrder(context.Background(),
+		&MarginBorrowParam{
+			Currency:    currency.USDT,
+			TimeInForce: "IOC",
+			Size:        0.05,
+		})
+	assert.NoError(t, err)
+}
 
-	_, err = ku.PostBorrowOrder(context.Background(), "USDT", "IOC", "7,14,28", 10, 0.05)
+func TestGetMarginBorrowingHistory(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, ku)
+	_, err := ku.GetMarginBorrowingHistory(context.Background(), currency.BTC, true, currency.EMPTYPAIR, "", time.Time{}, time.Now().Add(-time.Hour*80), 0, 10)
+	assert.NoError(t, err)
+}
+
+func TestPostRepayment(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, ku, canManipulateRealOrders)
+	_, err := ku.PostRepayment(context.Background(), &RepayParam{
+		Currency: currency.USDT,
+		Size:     0.05})
+	require.NoError(t, err)
+}
+
+func TestGetRepaymentHistory(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, ku)
+	_, err := ku.GetRepaymentHistory(context.Background(), currency.BTC, true, currency.EMPTYPAIR, "", time.Time{}, time.Now().Add(-time.Hour*80), 0, 10)
 	assert.NoError(t, err)
 }
 
@@ -239,143 +275,6 @@ func TestGetBorrowOrder(t *testing.T) {
 	require.NoError(t, err)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ku)
 	_, err = ku.GetBorrowOrder(context.Background(), "orderID")
-	assert.NoError(t, err)
-}
-
-const outstandingRecordResponseJSON = `{"currentPage": 0, "pageSize": 0, "totalNum": 0, "totalPage": 0, "items": [ { "tradeId": "1231141", "currency": "USDT", "accruedInterest": "0.22121", "dailyIntRate": "0.0021", "liability": "1.32121", "maturityTime": "1544657947759", "principal": "1.22121", "repaidSize": "0", "term": 7, "createdAt": "1544657947759" } ] }`
-
-func TestGetOutstandingRecord(t *testing.T) {
-	t.Parallel()
-	var resp *OutstandingRecordResponse
-	err := json.Unmarshal([]byte(outstandingRecordResponseJSON), &resp)
-	assert.NoError(t, err)
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, ku)
-	_, err = ku.GetOutstandingRecord(context.Background(), "BTC")
-	assert.NoError(t, err)
-}
-
-const repaidRecordJSON = `{"pageSize": 0, "totalNum": 0, "totalPage": 0, "currentPage": 0, "items": [ { "tradeId": "1231141", "currency": "USDT", "dailyIntRate": "0.0021", "interest": "0.22121", "principal": "1.22121", "repaidSize": "0", "repayTime": "1544657947759", "term": 7 } ] }`
-
-func TestGetRepaidRecord(t *testing.T) {
-	t.Parallel()
-	var resp *RepaidRecordsResponse
-	err := json.Unmarshal([]byte(repaidRecordJSON), &resp)
-	assert.NoError(t, err)
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, ku)
-	_, err = ku.GetRepaidRecord(context.Background(), "BTC")
-	assert.NoError(t, err)
-}
-
-func TestOneClickRepayment(t *testing.T) {
-	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, ku, canManipulateRealOrders)
-	err := ku.OneClickRepayment(context.Background(), "BTC", "RECENTLY_EXPIRE_FIRST", 2.5)
-	assert.NoError(t, err)
-}
-
-func TestSingleOrderRepayment(t *testing.T) {
-	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, ku, canManipulateRealOrders)
-	err := ku.SingleOrderRepayment(context.Background(), "BTC", "fa3e34c980062c10dad74016", 2.5)
-	assert.NoError(t, err)
-}
-
-func TestPostLendOrder(t *testing.T) {
-	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, ku, canManipulateRealOrders)
-	_, err := ku.PostLendOrder(context.Background(), "BTC", 0.0001, 5, 7)
-	assert.NoError(t, err)
-}
-
-func TestCancelLendOrder(t *testing.T) {
-	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, ku, canManipulateRealOrders)
-	err := ku.CancelLendOrder(context.Background(), "OrderID")
-	assert.NoError(t, err)
-}
-
-func TestSetAutoLend(t *testing.T) {
-	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, ku, canManipulateRealOrders)
-	err := ku.SetAutoLend(context.Background(), "BTC", 0.0002, 0.005, 7, true)
-	assert.NoError(t, err)
-}
-
-const activeOrderResponseJSON = `[ { "orderId": "5da59f5ef943c033b2b643e4", "currency": "BTC", "size": "0.51", "filledSize": "0", "dailyIntRate": "0.0001", "term": 7, "createdAt": 1571135326913 } ]`
-
-func TestGetActiveOrder(t *testing.T) {
-	t.Parallel()
-	var resp []LendOrder
-	err := json.Unmarshal([]byte(activeOrderResponseJSON), &resp)
-	require.NoError(t, err)
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, ku)
-	_, err = ku.GetActiveOrder(context.Background(), "")
-	assert.NoError(t, err)
-
-	_, err = ku.GetActiveOrder(context.Background(), "BTC")
-	assert.NoError(t, err)
-}
-
-func TestGetLendHistory(t *testing.T) {
-	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, ku)
-	_, err := ku.GetLendHistory(context.Background(), "")
-	assert.NoError(t, err)
-	_, err = ku.GetLendHistory(context.Background(), "BTC")
-	assert.NoError(t, err)
-}
-
-const activeLentOrderResponseJSON = `[ { "tradeId": "5da6dba0f943c0c81f5d5db5", "currency": "BTC", "size": "0.51", "accruedInterest": "0", "repaid": "0.10999968", "dailyIntRate": "0.0001", "term": 14, "maturityTime": 1572425888958 } ]`
-
-func TestGetUnsettleLendOrder(t *testing.T) {
-	t.Parallel()
-	var resp []UnsettleLendOrder
-	err := json.Unmarshal([]byte(activeLentOrderResponseJSON), &resp)
-	require.NoError(t, err)
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, ku)
-	_, err = ku.GetUnsettledLendOrder(context.Background(), "")
-	assert.NoError(t, err)
-
-	_, err = ku.GetUnsettledLendOrder(context.Background(), "BTC")
-	assert.NoError(t, err)
-}
-
-const settledLendOrderResponseJSON = `[{ "tradeId": "5da59fe6f943c033b2b6440b", "currency": "BTC", "size": "0.51", "interest": "0.00004899", "repaid": "0.510041641", "dailyIntRate": "0.0001", "term": 7, "settledAt": 1571216254767, "note": "The account of the borrowers reached a negative balance, and the system has supplemented the loss via the insurance fund. Deposit funds: 0.51." } ]`
-
-func TestGetSettleLendOrder(t *testing.T) {
-	t.Parallel()
-	var resp []SettleLendOrder
-	err := json.Unmarshal([]byte(settledLendOrderResponseJSON), &resp)
-	require.NoError(t, err)
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, ku)
-	_, err = ku.GetSettledLendOrder(context.Background(), "")
-	assert.NoError(t, err)
-	_, err = ku.GetSettledLendOrder(context.Background(), "BTC")
-	assert.NoError(t, err)
-}
-
-func TestGetAccountLendRecord(t *testing.T) {
-	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, ku)
-	_, err := ku.GetAccountLendRecord(context.Background(), "")
-	assert.NoError(t, err)
-	_, err = ku.GetAccountLendRecord(context.Background(), "BTC")
-	assert.NoError(t, err)
-}
-
-func TestGetLendingMarketData(t *testing.T) {
-	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, ku)
-	_, err := ku.GetLendingMarketData(context.Background(), "BTC", 0)
-	assert.NoError(t, err)
-	_, err = ku.GetLendingMarketData(context.Background(), "BTC", 7)
-	assert.NoError(t, err)
-}
-
-func TestGetMarginTradeData(t *testing.T) {
-	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, ku)
-	_, err := ku.GetMarginTradeData(context.Background(), "BTC")
 	assert.NoError(t, err)
 }
 
@@ -399,45 +298,6 @@ func TestGetSingleIsolatedMarginAccountInfo(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ku)
 	_, err := ku.GetSingleIsolatedMarginAccountInfo(context.Background(), "BTC-USDT")
-	assert.NoError(t, err)
-}
-
-func TestInitiateIsolateMarginBorrowing(t *testing.T) {
-	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, ku, canManipulateRealOrders)
-	_, err := ku.InitiateIsolatedMarginBorrowing(context.Background(), "BTC-USDT", "USDT", "FOK", "", 10, 0)
-	assert.NoError(t, err)
-}
-
-func TestGetIsolatedOutstandingRepaymentRecords(t *testing.T) {
-	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, ku)
-	_, err := ku.GetIsolatedOutstandingRepaymentRecords(context.Background(), "", "", 0, 0)
-	assert.NoError(t, err)
-	_, err = ku.GetIsolatedOutstandingRepaymentRecords(context.Background(), "BTC-USDT", "USDT", 0, 0)
-	assert.NoError(t, err)
-}
-
-func TestGetIsolatedMarginRepaymentRecords(t *testing.T) {
-	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, ku)
-	_, err := ku.GetIsolatedMarginRepaymentRecords(context.Background(), "", "", 0, 0)
-	assert.NoError(t, err)
-	_, err = ku.GetIsolatedMarginRepaymentRecords(context.Background(), "BTC-USDT", "USDT", 0, 0)
-	assert.NoError(t, err)
-}
-
-func TestInitiateIsolatedMarginQuickRepayment(t *testing.T) {
-	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, ku, canManipulateRealOrders)
-	err := ku.InitiateIsolatedMarginQuickRepayment(context.Background(), "BTC-USDT", "USDT", "RECENTLY_EXPIRE_FIRST", 10)
-	assert.NoError(t, err)
-}
-
-func TestInitiateIsolatedMarginSingleRepayment(t *testing.T) {
-	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, ku, canManipulateRealOrders)
-	err := ku.InitiateIsolatedMarginSingleRepayment(context.Background(), "BTC-USDT", "USDT", "628c570f7818320001d52b69", 10)
 	assert.NoError(t, err)
 }
 
@@ -533,7 +393,7 @@ func TestPostMarginOrder(t *testing.T) {
 			ClientOrderID: "5bd6e9286d99522a52e458de",
 			Side:          "buy", Symbol: marginTradablePair,
 			OrderType: "market", Funds: 1234,
-			Remark: "remark", MarginMode: "cross", Price: 1000, PostOnly: true, AutoBorrow: true})
+			Remark: "remark", MarginModel: "cross", Price: 1000, PostOnly: true, AutoBorrow: true})
 	assert.NoError(t, err)
 }
 
@@ -701,7 +561,44 @@ func TestGetAllAccounts(t *testing.T) {
 func TestGetAccount(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ku)
-	_, err := ku.GetAccount(context.Background(), "62fcd1969474ea0001fd20e4")
+	_, err := ku.GetAccountDetail(context.Background(), "")
+	assert.ErrorIs(t, err, errAccountIDMissing)
+	_, err = ku.GetAccountDetail(context.Background(), "62fcd1969474ea0001fd20e4")
+	assert.NoError(t, err)
+}
+
+func TestGetCrossMarginAccountsDetail(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, ku)
+	_, err := ku.GetCrossMarginAccountsDetail(context.Background(), "KCS", "MARGIN_V2")
+	assert.NoError(t, err)
+}
+
+func TestGetIsolatedMarginAccountDetail(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, ku)
+	_, err := ku.GetIsolatedMarginAccountDetail(context.Background(), "BTCUSDT", "BTC", "")
+	assert.NoError(t, err)
+}
+
+func TestGetFuturesAccountDetail(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, ku)
+	_, err := ku.GetFuturesAccountDetail(context.Background(), "XBT")
+	assert.NoError(t, err)
+}
+
+func TestGetSubAccounts(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, ku)
+	_, err := ku.GetSubAccounts(context.Background(), "5caefba7d9575a0688f83c45", false)
+	assert.NoError(t, err)
+}
+
+func TestGetAllFuturesSubAccountBalances(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, ku)
+	_, err := ku.GetAllFuturesSubAccountBalances(context.Background(), "BTC")
 	assert.NoError(t, err)
 }
 
@@ -717,6 +614,41 @@ func TestGetAccountLedgers(t *testing.T) {
 	assert.NoError(t, err)
 }
 
+func TestGetAccountLedgersHFTrade(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, ku)
+	_, err := ku.GetAccountLedgersHFTrade(context.Background(), "BTC", "", "", 0, 10, time.Time{}, time.Now())
+	require.NoError(t, err)
+}
+
+func TestGetAccountLedgerHFMargin(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, ku)
+	_, err := ku.GetAccountLedgerHFMargin(context.Background(), "BTC", "", "", 0, 0, time.Time{}, time.Time{})
+	assert.NoError(t, err)
+}
+
+func TestGetFuturesAccountLedgers(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, ku)
+	_, err := ku.GetFuturesAccountLedgers(context.Background(), "BTC", true, time.Time{}, time.Now(), 0, 100)
+	assert.NoError(t, err)
+}
+
+func TestGetAllSubAccountsInfoV1(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, ku)
+	_, err := ku.GetAllSubAccountsInfoV1(context.Background())
+	require.NoError(t, err)
+}
+
+func TestGetAllSubAccountsInfoV2(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, ku)
+	_, err := ku.GetAllSubAccountsInfoV2(context.Background(), 0, 30)
+	require.NoError(t, err)
+}
+
 func TestGetAccountSummaryInformation(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ku)
@@ -724,17 +656,17 @@ func TestGetAccountSummaryInformation(t *testing.T) {
 	assert.NoError(t, err)
 }
 
-func TestGetSubAccountBalance(t *testing.T) {
-	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, ku)
-	_, err := ku.GetSubAccountBalance(context.Background(), "62fcd1969474ea0001fd20e4", false)
-	assert.NoError(t, err)
-}
-
 func TestGetAggregatedSubAccountBalance(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ku)
 	_, err := ku.GetAggregatedSubAccountBalance(context.Background())
+	assert.NoError(t, err)
+}
+
+func TestGetAllSubAccountsBalanceV2(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, ku)
+	_, err := ku.GetAllSubAccountsBalanceV2(context.Background())
 	assert.NoError(t, err)
 }
 
@@ -750,6 +682,32 @@ func TestGetTransferableBalance(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ku)
 	_, err := ku.GetTransferableBalance(context.Background(), "BTC", "MAIN", "")
 	assert.NoError(t, err)
+}
+
+func TestGetUniversalTransfer(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, ku, canManipulateRealOrders)
+	_, err := ku.GetUniversalTransfer(context.Background(), &UniversalTransferParam{})
+	require.ErrorIs(t, err, common.ErrNilPointer)
+	_, err = ku.GetUniversalTransfer(context.Background(), &UniversalTransferParam{
+		ClientSuppliedOrderID: "64ccc0f164781800010d8c09",
+		TransferType:          "INTERNAL",
+		Currency:              currency.BTC,
+		Amount:                1,
+		FromAccountType:       "TRADE",
+		ToAccountType:         "CONTRACT",
+	})
+	assert.NoError(t, err)
+	_, err = ku.GetUniversalTransfer(context.Background(), &UniversalTransferParam{
+		ClientSuppliedOrderID: "64ccc0f164781800010d8c09",
+		TransferType:          "PARENT_TO_SUB",
+		Currency:              currency.BTC,
+		Amount:                1,
+		FromAccountType:       "TRADE",
+		ToUserID:              "62f5f5d4d72aaf000122707e",
+		ToAccountType:         "CONTRACT",
+	})
+	require.NoError(t, err)
 }
 
 func TestTransferMainToSubAccount(t *testing.T) {
@@ -824,7 +782,7 @@ func TestGetWithdrawalList(t *testing.T) {
 func TestGetHistoricalWithdrawalList(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ku)
-	_, err := ku.GetHistoricalWithdrawalList(context.Background(), "", "", time.Time{}, time.Time{}, 0, 0)
+	_, err := ku.GetHistoricalWithdrawalList(context.Background(), "", "", time.Time{}, time.Time{})
 	assert.NoError(t, err)
 }
 
@@ -1831,7 +1789,6 @@ func TestCreateSpotAPIsForSubAccount(t *testing.T) {
 	_, err := ku.CreateSpotAPIsForSubAccount(context.Background(), &SpotAPISubAccountParams{
 		SubAccountName: "gocryptoTrader1",
 		Passphrase:     "mysecretPassphrase123",
-		Remark:         "123456",
 	})
 	assert.NoError(t, err)
 }
@@ -1845,7 +1802,6 @@ func TestModifySubAccountSpotAPIs(t *testing.T) {
 	_, err = ku.ModifySubAccountSpotAPIs(context.Background(), &SpotAPISubAccountParams{
 		SubAccountName: "gocryptoTrader1",
 		Passphrase:     "mysecretPassphrase123",
-		Remark:         "123456",
 	})
 	assert.NoError(t, err)
 }
@@ -1853,7 +1809,7 @@ func TestModifySubAccountSpotAPIs(t *testing.T) {
 func TestDeleteSubAccountSpotAPI(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ku, canManipulateRealOrders)
-	_, err := ku.DeleteSubAccountSpotAPI(context.Background(), apiKey, "mysecretPassphrase123", "gocryptoTrader1")
+	_, err := ku.DeleteSubAccountSpotAPI(context.Background(), apiKey, "gocryptoTrader1")
 	assert.NoError(t, err)
 }
 

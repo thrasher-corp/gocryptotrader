@@ -511,9 +511,9 @@ func (ku *Kucoin) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (
 				Currencies: []account.Balance{
 					{
 						Currency: currency.NewCode(accountH[x].Currency),
-						Total:    accountH[x].Balance,
-						Hold:     accountH[x].Holds,
-						Free:     accountH[x].Available,
+						Total:    accountH[x].Balance.Float64(),
+						Hold:     accountH[x].Holds.Float64(),
+						Free:     accountH[x].Available.Float64(),
 					}},
 			})
 		}
@@ -586,7 +586,7 @@ func (ku *Kucoin) GetWithdrawalsHistory(ctx context.Context, c currency.Code, a 
 	switch a {
 	case asset.Spot:
 		var withdrawals *HistoricalDepositWithdrawalResponse
-		withdrawals, err = ku.GetHistoricalWithdrawalList(ctx, c.String(), "", time.Time{}, time.Time{}, 0, 0)
+		withdrawals, err = ku.GetHistoricalWithdrawalList(ctx, c.String(), "", time.Time{}, time.Time{})
 		if err != nil {
 			return nil, err
 		}
@@ -758,7 +758,7 @@ func (ku *Kucoin) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Subm
 		o, err := ku.PostMarginOrder(ctx,
 			&MarginOrderParam{ClientOrderID: s.ClientOrderID,
 				Side: sideString, Symbol: s.Pair,
-				OrderType: s.Type.Lower(), MarginMode: marginModeToString(s.MarginType),
+				OrderType: s.Type.Lower(), MarginModel: marginModeToString(s.MarginType),
 				Price: s.Price, Size: s.Amount,
 				VisibleSize: s.Amount, PostOnly: s.PostOnly,
 				Hidden: s.Hidden, AutoBorrow: s.AutoBorrow})
