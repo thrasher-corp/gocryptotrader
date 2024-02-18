@@ -143,7 +143,7 @@ func TestGetTradesByDate(t *testing.T) {
 	if !trades.IsAccepted {
 		t.Error("Alphapoint trades.IsAccepted value is true")
 	}
-	if len(trades.RejectReason) > 0 {
+	if trades.RejectReason != "" {
 		t.Error("Alphapoint trades.IsAccepted value has been returned")
 	}
 	if trades.StartDate < 0 {
