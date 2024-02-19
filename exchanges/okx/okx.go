@@ -735,7 +735,7 @@ func (ok *Okx) AmendAlgoOrder(ctx context.Context, arg *AmendAlgoOrderParam) (*A
 // GetAlgoOrderDetail retrieves algo order details.
 func (ok *Okx) GetAlgoOrderDetail(ctx context.Context, algoID, algoClientOrderID string) (*AlgoOrderDetail, error) {
 	if algoID == "" && algoClientOrderID == "" {
-		return nil, fmt.Errorf("%w eiither 'algoId' or 'algoClOrdId' is required", errMissingAlgoOrderID)
+		return nil, fmt.Errorf("%w either 'algoId' or 'algoClOrdId' is required", errMissingAlgoOrderID)
 	}
 	params := url.Values{}
 	params.Set("algoId", algoID)
@@ -2613,7 +2613,7 @@ func (ok *Okx) SetSubAccountVIPLoanAllocation(ctx context.Context, arg *SubAccou
 		if arg.Alloc[a].SubAcct == "" {
 			return false, errMissingRequiredParameterSubaccountName
 		}
-		if arg.Alloc[a].LoanAlloc < 0 || arg.Alloc[a].LoanAlloc > 100 {
+		if arg.Alloc[a].LoanAlloc < 0 {
 			return false, errInvalidLoanAllocationValue
 		}
 	}
