@@ -51,11 +51,14 @@ var (
 	errInvalidSubaccountPassword           = errors.New("subaccount password can not be empty")
 	errUserIDRequired                      = errors.New("userID is required")
 	errInvalidOrderSideOrDirection         = errors.New("invalid direction, only 'buy' or 'sell' are supported")
+	errDifferentInstruments                = errors.New("given instruments should have the same currency")
 	errZeroTimestamp                       = errors.New("zero timestamps are not allowed")
 	errMissingBlockTradeID                 = errors.New("missing block trade id")
 	errMissingSubAccountID                 = errors.New("missing subaccount id")
 	errNoOrderDeleted                      = errors.New("no order deleted")
 	errUnsupportedInstrumentFormat         = errors.New("unsupported instrument type format")
+	errSessionNameRequired                 = errors.New("session_name is required")
+	errRefreshTokenRequired                = errors.New("refresh token is required")
 
 	websocketRequestTimeout = time.Second * 30
 )
@@ -1481,7 +1484,7 @@ type CancelResponse struct {
 
 // OrderCancelationResponse represents an order cancellation response
 type OrderCancelationResponse struct {
-	CancelResponse *CancelResponse
+	CancelResponse []CancelResponse
 	CancelCount    int
 }
 
@@ -1491,9 +1494,15 @@ func (a *OrderCancelationResponse) UnmarshalJSON(data []byte) error {
 	if err != nil {
 		err = json.Unmarshal(data, &a.CancelResponse)
 		if err != nil {
-			return err
+			var resp CancelResponse
+			err = json.Unmarshal(data, &resp)
+			if err != nil {
+				return err
+			}
+			a.CancelResponse = []CancelResponse{resp}
+			return nil
 		}
-		a.CancelCount = len(a.CancelResponse.Result)
+		a.CancelCount = len(a.CancelResponse)
 	}
 	return nil
 }

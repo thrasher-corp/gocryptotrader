@@ -158,8 +158,9 @@ func (d *Deribit) SetDefaults() {
 	}
 	d.API.Endpoints = d.NewEndpoints()
 	err = d.API.Endpoints.SetDefaultEndpoints(map[exchange.URL]string{
-		exchange.RestFutures: "https://www.deribit.com",
-		exchange.RestSpot:    "https://test.deribit.com",
+		exchange.RestFutures:           "https://www.deribit.com",
+		exchange.RestSpot:              "https://www.deribit.com",
+		exchange.RestSpotSupplementary: "https://test.deribit.com",
 	})
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)

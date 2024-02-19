@@ -502,7 +502,7 @@ func (d *Deribit) WSRetrievesTradingViewChartData(instrument, resolution string,
 		return nil, err
 	}
 	if resolution == "" {
-		return nil, fmt.Errorf("unsupported resolution, resolution can not be empty")
+		return nil, errors.New("unsupported resolution, resolution can not be empty")
 	}
 	input := &struct {
 		Instrument     string `json:"instrument_name,omitempty"`
@@ -529,7 +529,7 @@ func (d *Deribit) WSRetrieveVolatilityIndexData(symbol, resolution string, start
 		return nil, err
 	}
 	if resolution == "" {
-		return nil, fmt.Errorf("unsupported resolution, resolution can not be empty")
+		return nil, errResolutionNotSet
 	}
 	input := &struct {
 		Currency       string `json:"currency,omitempty"`
@@ -691,7 +691,13 @@ func (d *Deribit) WSRetrieveCurrentDepositAddress(symbol string) (*DepositAddres
 		Currency: symbol,
 	}
 	var resp *DepositAddressData
-	return resp, d.SendWSRequest(nonMatchingEPL, getCurrentDepositAddress, input, &resp, true)
+	err := d.SendWSRequest(nonMatchingEPL, getCurrentDepositAddress, input, &resp, true)
+	if err != nil {
+		return nil, err
+	} else if resp == nil {
+		return nil, common.ErrNoResponse
+	}
+	return resp, nil
 }
 
 // WSRetrieveWithdrawals retrieves withdrawals data for a requested currency through the websocket connection.
@@ -926,7 +932,7 @@ func (d *Deribit) WSChangeSubAccountName(sid int64, name string) error {
 		return err
 	}
 	if resp != "ok" {
-		return fmt.Errorf("subaccount name change failed")
+		return errors.New("subaccount name change failed")
 	}
 	return nil
 }
@@ -1034,7 +1040,7 @@ func (d *Deribit) WSEnableAffiliateProgram() error {
 		return err
 	}
 	if resp != "ok" {
-		return fmt.Errorf("could not enable affiliate program")
+		return errors.New("could not enable affiliate program")
 	}
 	return nil
 }
@@ -1232,7 +1238,7 @@ func (d *Deribit) WSRemoveAPIKey(id int64) error {
 		return nil
 	}
 	if resp != "ok" {
-		return fmt.Errorf("removal of the api key requested failed")
+		return errors.New("removal of the api key requested failed")
 	}
 	return nil
 }
@@ -2021,9 +2027,9 @@ func (d *Deribit) WSRetrieveSettlementHistoryByCurency(symbol, settlementType, c
 	return resp, d.SendWSRequest(nonMatchingEPL, getSettlementHistoryByCurrency, input, &resp, true)
 }
 
-// WSRetrieveComboIDS Retrieves available combos.
+// WSRetrieveComboIDs Retrieves available combos.
 // This method can be used to get the list of all combos, or only the list of combos in the given state.
-func (d *Deribit) WSRetrieveComboIDS(symbol, state string) ([]string, error) {
+func (d *Deribit) WSRetrieveComboIDs(symbol, state string) ([]string, error) {
 	if symbol == "" {
 		return nil, fmt.Errorf("%w \"%s\"", errInvalidCurrency, symbol)
 	}
@@ -2035,7 +2041,7 @@ func (d *Deribit) WSRetrieveComboIDS(symbol, state string) ([]string, error) {
 		State:    state,
 	}
 	var resp []string
-	return resp, d.SendWSRequest(nonMatchingEPL, getComboIDS, input, &resp, false)
+	return resp, d.SendWSRequest(nonMatchingEPL, getComboIDs, input, &resp, false)
 }
 
 // WSRetrieveComboDetails retrieves information about a combo through the websocket connection.
@@ -2164,10 +2170,10 @@ func (d *Deribit) WsExchangeToken(refreshToken string, subjectID int64) (*Refres
 // WsForkToken generates a token for a new named session. This method can be used only with session scoped tokens.
 func (d *Deribit) WsForkToken(refreshToken, sessionName string) (*RefreshTokenInfo, error) {
 	if refreshToken == "" {
-		return nil, errors.New("refresh token is required")
+		return nil, errRefreshTokenRequired
 	}
-	if sessionName != "" {
-		return nil, errors.New("session_name is required")
+	if sessionName == "" {
+		return nil, errSessionNameRequired
 	}
 	input := &struct {
 		RefreshToken string `json:"refresh_token"`
@@ -2487,7 +2493,7 @@ func (d *Deribit) sendWsPayload(ep request.EndpointLimit, input *WsRequest, resp
 					return fmt.Errorf("deadline would be exceeded by retry, err: %v", err)
 				}
 				cancelFunc()
-				return fmt.Errorf("deadline would be exceeded by retry")
+				return errors.New("deadline would be exceeded by retry")
 			}
 
 			if d.Verbose {

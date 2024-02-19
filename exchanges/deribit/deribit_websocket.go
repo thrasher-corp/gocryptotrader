@@ -823,7 +823,7 @@ func (d *Deribit) processOrderbook(respRaw []byte, channels []string) error {
 // GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
 func (d *Deribit) GenerateDefaultSubscriptions() ([]subscription.Subscription, error) {
 	var subscriptions []subscription.Subscription
-	assets := d.GetAssetTypes(false)
+	assets := d.GetAssetTypes(true)
 	subscriptionChannels := defaultSubscriptions
 	if d.Websocket.CanUseAuthenticatedEndpoints() {
 		subscriptionChannels = append(
@@ -918,7 +918,7 @@ func (d *Deribit) GenerateDefaultSubscriptions() ([]subscription.Subscription, e
 			tradesChannel:
 			for _, a := range assets {
 				for z := range assetPairs[a] {
-					if ((assetPairs[a][z].Quote.Upper().String() == "PERPETUAL" ||
+					if ((assetPairs[a][z].Quote.Upper().String() != "PERPETUAL" &&
 						!strings.Contains(assetPairs[a][z].Quote.Upper().String(), "PERPETUAL")) &&
 						a == asset.Futures) || (a != asset.Spot && a != asset.Futures) {
 						continue

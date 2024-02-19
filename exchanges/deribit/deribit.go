@@ -150,7 +150,7 @@ const (
 
 	// Combo Books Endpoints
 	getComboDetails = "public/get_combo_details"
-	getComboIDS     = "public/get_combo_ids"
+	getComboIDs     = "public/get_combo_ids"
 	getCombos       = "public/get_combos"
 	createCombos    = "private/create_combo"
 
@@ -1050,7 +1050,7 @@ func (d *Deribit) ChangeSubAccountName(ctx context.Context, sid int64, name stri
 		return err
 	}
 	if resp != "ok" {
-		return fmt.Errorf("subaccount name change failed")
+		return errors.New("subaccount name change failed")
 	}
 	return nil
 }
@@ -1136,7 +1136,7 @@ func (d *Deribit) EnableAffiliateProgram(ctx context.Context) error {
 		return err
 	}
 	if resp != "ok" {
-		return fmt.Errorf("could not enable affiliate program")
+		return errors.New("could not enable affiliate program")
 	}
 	return nil
 }
@@ -1338,7 +1338,7 @@ func (d *Deribit) RemoveAPIKey(ctx context.Context, id int64) error {
 		return nil
 	}
 	if resp != "ok" {
-		return fmt.Errorf("removal of the api key requested failed")
+		return errors.New("removal of the api key requested failed")
 	}
 	return nil
 }
@@ -1937,7 +1937,7 @@ func (d *Deribit) GetOrderMarginsByID(ctx context.Context, ids []string) ([]Orde
 	if err != nil {
 		return nil, err
 	}
-	params.Set("ids[]", string(val))
+	params.Set("ids", string(val))
 	var resp []OrderData
 	return resp, d.SendHTTPAuthRequest(ctx, exchange.RestFutures, nonMatchingEPL, http.MethodGet,
 		getOrderMarginByIDs, params, &resp)
@@ -1956,7 +1956,7 @@ func (d *Deribit) GetOrderState(ctx context.Context, orderID string) (*OrderData
 }
 
 // GetOrderStateByLabel retrieves an order state by label and currency
-func (d *Deribit) GetOrderStateByLabel(ctx context.Context, ccy currency.Code, label string) (*OrderData, error) {
+func (d *Deribit) GetOrderStateByLabel(ctx context.Context, ccy currency.Code, label string) ([]OrderData, error) {
 	if ccy.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
@@ -1965,7 +1965,7 @@ func (d *Deribit) GetOrderStateByLabel(ctx context.Context, ccy currency.Code, l
 	if label != "" {
 		params.Set("label", label)
 	}
-	var resp *OrderData
+	var resp []OrderData
 	return resp, d.SendHTTPAuthRequest(ctx, exchange.RestFutures, nonMatchingEPL, http.MethodGet, getOrderStateByLabel, params, &resp)
 }
 
@@ -2285,9 +2285,9 @@ func (d *Deribit) SendHTTPAuthRequest(ctx context.Context, ep exchange.URL, epl 
 
 // Combo Books endpoints'
 
-// GetComboIDS Retrieves available combos.
+// GetComboIDs Retrieves available combos.
 // This method can be used to get the list of all combos, or only the list of combos in the given state.
-func (d *Deribit) GetComboIDS(ctx context.Context, ccy, state string) ([]string, error) {
+func (d *Deribit) GetComboIDs(ctx context.Context, ccy, state string) ([]string, error) {
 	if ccy == "" {
 		return nil, fmt.Errorf("%w '%s'", errInvalidCurrency, ccy)
 	}
@@ -2297,7 +2297,7 @@ func (d *Deribit) GetComboIDS(ctx context.Context, ccy, state string) ([]string,
 		params.Set("state", state)
 	}
 	var resp []string
-	return resp, d.SendHTTPRequest(ctx, exchange.RestFutures, nonMatchingEPL, common.EncodeURLValues(getComboIDS, params), &resp)
+	return resp, d.SendHTTPRequest(ctx, exchange.RestFutures, nonMatchingEPL, common.EncodeURLValues(getComboIDs, params), &resp)
 }
 
 // GetComboDetails retrieves information about a combo
@@ -2327,9 +2327,12 @@ func (d *Deribit) CreateCombo(ctx context.Context, args []ComboParam) (*ComboDet
 	if len(args) == 0 {
 		return nil, errNoArgumentPassed
 	}
+	instrument := args[0].InstrumentName
 	for x := range args {
 		if args[x].InstrumentName == "" {
 			return nil, fmt.Errorf("%w, empty string", errInvalidInstrumentName)
+		} else if instrument != args[x].InstrumentName {
+			return nil, errDifferentInstruments
 		}
 		args[x].Direction = strings.ToLower(args[x].Direction)
 		if args[x].Direction != sideBUY && args[x].Direction != sideSELL {
@@ -2620,7 +2623,7 @@ func (d *Deribit) EnableCancelOnDisconnect(ctx context.Context, scope string) (s
 // ExchangeToken generates a token for a new subject id. This method can be used to switch between subaccounts.
 func (d *Deribit) ExchangeToken(ctx context.Context, refreshToken string, subjectID int64) (*RefreshTokenInfo, error) {
 	if refreshToken == "" {
-		return nil, errors.New("refresh token is required")
+		return nil, errRefreshTokenRequired
 	}
 	if subjectID == 0 {
 		return nil, errors.New("subject id is required")
@@ -2635,10 +2638,10 @@ func (d *Deribit) ExchangeToken(ctx context.Context, refreshToken string, subjec
 // ForkToken generates a token for a new named session. This method can be used only with session scoped tokens.
 func (d *Deribit) ForkToken(ctx context.Context, refreshToken, sessionName string) (*RefreshTokenInfo, error) {
 	if refreshToken == "" {
-		return nil, errors.New("refresh token is required")
+		return nil, errRefreshTokenRequired
 	}
-	if sessionName != "" {
-		return nil, errors.New("session_name is required")
+	if sessionName == "" {
+		return nil, errSessionNameRequired
 	}
 	params := url.Values{}
 	params.Set("refresh_token", refreshToken)
