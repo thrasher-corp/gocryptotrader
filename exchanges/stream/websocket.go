@@ -58,7 +58,6 @@ var (
 	errSubscriptionsExceedsLimit            = errors.New("subscriptions exceeds limit")
 	errInvalidMaxSubscriptions              = errors.New("max subscriptions cannot be less than 0")
 	errNoSubscriptionsSupplied              = errors.New("no subscriptions supplied")
-	errChannelAlreadySubscribed             = errors.New("channel already subscribed")
 	errInvalidChannelState                  = errors.New("invalid Channel state")
 	errSameProxyAddress                     = errors.New("cannot set proxy address to the same address")
 	errNoConnectFunc                        = errors.New("websocket connect func not set")
@@ -1003,7 +1002,7 @@ func (w *Websocket) checkSubscriptions(subs []subscription.Subscription) error {
 	for i := range subs {
 		key := subs[i].EnsureKeyed()
 		if _, ok := w.subscriptions[key]; ok {
-			return fmt.Errorf("%w for %+v", errChannelAlreadySubscribed, subs[i])
+			return fmt.Errorf("%w for %+v", ErrSubscribedAlready, subs[i])
 		}
 	}
 
