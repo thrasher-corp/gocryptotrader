@@ -27,7 +27,7 @@ import (
 type CustomEx struct{ exchange.Base }
 
 // Setup is a mock method for CustomEx
-func (c *CustomEx) Setup(_ *config.Exchange) error { return nil }
+func (c *CustomEx) Setup(*config.Exchange) error { return nil }
 
 // SetDefaults is a mock method for CustomEx
 func (c *CustomEx) SetDefaults() {}
@@ -42,72 +42,72 @@ func (c *CustomEx) IsEnabled() bool { return true }
 func (c *CustomEx) SetEnabled(bool) {}
 
 // ValidateAPICredentials is a mock method for CustomEx
-func (c *CustomEx) ValidateAPICredentials(_ context.Context, _ asset.Item) error { return nil }
+func (c *CustomEx) ValidateAPICredentials(context.Context, asset.Item) error { return nil }
 
 // FetchTicker is a mock method for CustomEx
-func (c *CustomEx) FetchTicker(_ context.Context, _ currency.Pair, _ asset.Item) (*ticker.Price, error) {
+func (c *CustomEx) FetchTicker(context.Context, currency.Pair, asset.Item) (*ticker.Price, error) {
 	return nil, nil
 }
 
 // UpdateTickers is a mock method for CustomEx
-func (c *CustomEx) UpdateTickers(_ context.Context, _ asset.Item) error { return nil }
+func (c *CustomEx) UpdateTickers(context.Context, asset.Item) error { return nil }
 
 // UpdateTicker is a mock method for CustomEx
-func (c *CustomEx) UpdateTicker(_ context.Context, _ currency.Pair, _ asset.Item) (*ticker.Price, error) {
+func (c *CustomEx) UpdateTicker(context.Context, currency.Pair, asset.Item) (*ticker.Price, error) {
 	return nil, nil
 }
 
 // FetchOrderbook is a mock method for CustomEx
-func (c *CustomEx) FetchOrderbook(_ context.Context, _ currency.Pair, _ asset.Item) (*orderbook.Base, error) {
+func (c *CustomEx) FetchOrderbook(context.Context, currency.Pair, asset.Item) (*orderbook.Base, error) {
 	return nil, nil
 }
 
 // UpdateOrderbook is a mock method for CustomEx
-func (c *CustomEx) UpdateOrderbook(_ context.Context, _ currency.Pair, _ asset.Item) (*orderbook.Base, error) {
+func (c *CustomEx) UpdateOrderbook(context.Context, currency.Pair, asset.Item) (*orderbook.Base, error) {
 	return nil, nil
 }
 
 // FetchTradablePairs is a mock method for CustomEx
-func (c *CustomEx) FetchTradablePairs(_ context.Context, _ asset.Item) (currency.Pairs, error) {
+func (c *CustomEx) FetchTradablePairs(context.Context, asset.Item) (currency.Pairs, error) {
 	return nil, nil
 }
 
 // UpdateTradablePairs is a mock method for CustomEx
-func (c *CustomEx) UpdateTradablePairs(_ context.Context, _ bool) error { return nil }
+func (c *CustomEx) UpdateTradablePairs(context.Context, bool) error { return nil }
 
 // GetEnabledPairs is a mock method for CustomEx
-func (c *CustomEx) GetEnabledPairs(_ asset.Item) (currency.Pairs, error) {
+func (c *CustomEx) GetEnabledPairs(asset.Item) (currency.Pairs, error) {
 	return nil, nil
 }
 
 // GetAvailablePairs is a mock method for CustomEx
-func (c *CustomEx) GetAvailablePairs(_ asset.Item) (currency.Pairs, error) {
+func (c *CustomEx) GetAvailablePairs(asset.Item) (currency.Pairs, error) {
 	return nil, nil
 }
 
 // FetchAccountInfo is a mock method for CustomEx
-func (c *CustomEx) FetchAccountInfo(_ context.Context, _ asset.Item) (account.Holdings, error) {
+func (c *CustomEx) FetchAccountInfo(context.Context, asset.Item) (account.Holdings, error) {
 	return account.Holdings{}, nil
 }
 
 // UpdateAccountInfo is a mock method for CustomEx
-func (c *CustomEx) UpdateAccountInfo(_ context.Context, _ asset.Item) (account.Holdings, error) {
+func (c *CustomEx) UpdateAccountInfo(context.Context, asset.Item) (account.Holdings, error) {
 	return account.Holdings{}, nil
 }
 
 // SetPairs is a mock method for CustomEx
-func (c *CustomEx) SetPairs(_ currency.Pairs, _ asset.Item, _ bool) error { return nil }
+func (c *CustomEx) SetPairs(currency.Pairs, asset.Item, bool) error { return nil }
 
 // GetAssetTypes is a mock method for CustomEx
-func (c *CustomEx) GetAssetTypes(_ bool) asset.Items { return nil }
+func (c *CustomEx) GetAssetTypes(bool) asset.Items { return nil }
 
 // GetRecentTrades is a mock method for CustomEx
-func (c *CustomEx) GetRecentTrades(_ context.Context, _ currency.Pair, _ asset.Item) ([]trade.Data, error) {
+func (c *CustomEx) GetRecentTrades(context.Context, currency.Pair, asset.Item) ([]trade.Data, error) {
 	return nil, nil
 }
 
 // GetHistoricTrades is a mock method for CustomEx
-func (c *CustomEx) GetHistoricTrades(_ context.Context, _ currency.Pair, _ asset.Item, _, _ time.Time) ([]trade.Data, error) {
+func (c *CustomEx) GetHistoricTrades(context.Context, currency.Pair, asset.Item, time.Time, time.Time) ([]trade.Data, error) {
 	return nil, nil
 }
 
@@ -123,7 +123,7 @@ func (c *CustomEx) GetServerTime(context.Context, asset.Item) (time.Time, error)
 }
 
 // GetFeeByType is a mock method for CustomEx
-func (c *CustomEx) GetFeeByType(_ context.Context, _ *exchange.FeeBuilder) (float64, error) {
+func (c *CustomEx) GetFeeByType(context.Context, *exchange.FeeBuilder) (float64, error) {
 	return 0.0, nil
 }
 
@@ -137,78 +137,78 @@ func (c *CustomEx) GetWithdrawPermissions() uint32 { return 0 }
 func (c *CustomEx) FormatWithdrawPermissions() string { return "" }
 
 // SupportsWithdrawPermissions is a mock method for CustomEx
-func (c *CustomEx) SupportsWithdrawPermissions(_ uint32) bool { return false }
+func (c *CustomEx) SupportsWithdrawPermissions(uint32) bool { return false }
 
 // GetAccountFundingHistory is a mock method for CustomEx
-func (c *CustomEx) GetAccountFundingHistory(_ context.Context) ([]exchange.FundingHistory, error) {
+func (c *CustomEx) GetAccountFundingHistory(context.Context) ([]exchange.FundingHistory, error) {
 	return nil, nil
 }
 
 // SubmitOrder is a mock method for CustomEx
-func (c *CustomEx) SubmitOrder(_ context.Context, _ *order.Submit) (*order.SubmitResponse, error) {
+func (c *CustomEx) SubmitOrder(context.Context, *order.Submit) (*order.SubmitResponse, error) {
 	return nil, nil
 }
 
 // ModifyOrder is a mock method for CustomEx
-func (c *CustomEx) ModifyOrder(_ context.Context, _ *order.Modify) (*order.ModifyResponse, error) {
+func (c *CustomEx) ModifyOrder(context.Context, *order.Modify) (*order.ModifyResponse, error) {
 	return nil, nil
 }
 
 // CancelOrder is a mock method for CustomEx
-func (c *CustomEx) CancelOrder(_ context.Context, _ *order.Cancel) error { return nil }
+func (c *CustomEx) CancelOrder(context.Context, *order.Cancel) error { return nil }
 
 // CancelBatchOrders is a mock method for CustomEx
-func (c *CustomEx) CancelBatchOrders(_ context.Context, _ []order.Cancel) (*order.CancelBatchResponse, error) {
+func (c *CustomEx) CancelBatchOrders(context.Context, []order.Cancel) (*order.CancelBatchResponse, error) {
 	return nil, nil
 }
 
 // CancelAllOrders is a mock method for CustomEx
-func (c *CustomEx) CancelAllOrders(_ context.Context, _ *order.Cancel) (order.CancelAllResponse, error) {
+func (c *CustomEx) CancelAllOrders(context.Context, *order.Cancel) (order.CancelAllResponse, error) {
 	return order.CancelAllResponse{}, nil
 }
 
 // GetOrderInfo is a mock method for CustomEx
-func (c *CustomEx) GetOrderInfo(_ context.Context, _ string, _ currency.Pair, _ asset.Item) (*order.Detail, error) {
+func (c *CustomEx) GetOrderInfo(context.Context, string, currency.Pair, asset.Item) (*order.Detail, error) {
 	return nil, nil
 }
 
 // GetDepositAddress is a mock method for CustomEx
-func (c *CustomEx) GetDepositAddress(_ context.Context, _ currency.Code, _, _ string) (*deposit.Address, error) {
+func (c *CustomEx) GetDepositAddress(context.Context, currency.Code, string, string) (*deposit.Address, error) {
 	return nil, nil
 }
 
 // GetOrderHistory is a mock method for CustomEx
-func (c *CustomEx) GetOrderHistory(_ context.Context, _ *order.MultiOrderRequest) (order.FilteredOrders, error) {
+func (c *CustomEx) GetOrderHistory(context.Context, *order.MultiOrderRequest) (order.FilteredOrders, error) {
 	return nil, nil
 }
 
 // GetWithdrawalsHistory is a mock method for CustomEx
-func (c *CustomEx) GetWithdrawalsHistory(_ context.Context, _ currency.Code, _ asset.Item) ([]exchange.WithdrawalHistory, error) {
+func (c *CustomEx) GetWithdrawalsHistory(context.Context, currency.Code, asset.Item) ([]exchange.WithdrawalHistory, error) {
 	return []exchange.WithdrawalHistory{}, nil
 }
 
 // GetActiveOrders is a mock method for CustomEx
-func (c *CustomEx) GetActiveOrders(_ context.Context, _ *order.MultiOrderRequest) (order.FilteredOrders, error) {
+func (c *CustomEx) GetActiveOrders(context.Context, *order.MultiOrderRequest) (order.FilteredOrders, error) {
 	return []order.Detail{}, nil
 }
 
 // WithdrawCryptocurrencyFunds is a mock method for CustomEx
-func (c *CustomEx) WithdrawCryptocurrencyFunds(_ context.Context, _ *withdraw.Request) (*withdraw.ExchangeResponse, error) {
+func (c *CustomEx) WithdrawCryptocurrencyFunds(context.Context, *withdraw.Request) (*withdraw.ExchangeResponse, error) {
 	return nil, nil
 }
 
 // WithdrawFiatFunds is a mock method for CustomEx
-func (c *CustomEx) WithdrawFiatFunds(_ context.Context, _ *withdraw.Request) (*withdraw.ExchangeResponse, error) {
+func (c *CustomEx) WithdrawFiatFunds(context.Context, *withdraw.Request) (*withdraw.ExchangeResponse, error) {
 	return nil, nil
 }
 
 // WithdrawFiatFundsToInternationalBank is a mock method for CustomEx
-func (c *CustomEx) WithdrawFiatFundsToInternationalBank(_ context.Context, _ *withdraw.Request) (*withdraw.ExchangeResponse, error) {
+func (c *CustomEx) WithdrawFiatFundsToInternationalBank(context.Context, *withdraw.Request) (*withdraw.ExchangeResponse, error) {
 	return nil, nil
 }
 
 // SetHTTPClientUserAgent is a mock method for CustomEx
-func (c *CustomEx) SetHTTPClientUserAgent(_ string) error { return nil }
+func (c *CustomEx) SetHTTPClientUserAgent(string) error { return nil }
 
 // GetHTTPClientUserAgent is a mock method for CustomEx
 func (c *CustomEx) GetHTTPClientUserAgent() (string, error) {
@@ -229,7 +229,7 @@ func (c *CustomEx) GetSubscriptions() ([]subscription.Subscription, error) {
 }
 
 // GetDefaultConfig is a mock method for CustomEx
-func (c *CustomEx) GetDefaultConfig(_ context.Context) (*config.Exchange, error) {
+func (c *CustomEx) GetDefaultConfig(context.Context) (*config.Exchange, error) {
 	return nil, nil
 }
 
@@ -237,15 +237,15 @@ func (c *CustomEx) GetDefaultConfig(_ context.Context) (*config.Exchange, error)
 func (c *CustomEx) GetBase() *exchange.Base { return nil }
 
 // SupportsAsset is a mock method for CustomEx
-func (c *CustomEx) SupportsAsset(_ asset.Item) bool { return false }
+func (c *CustomEx) SupportsAsset(asset.Item) bool { return false }
 
 // GetHistoricCandles is a mock method for CustomEx
-func (c *CustomEx) GetHistoricCandles(_ context.Context, _ currency.Pair, _ asset.Item, _ kline.Interval, _, _ time.Time) (*kline.Item, error) {
+func (c *CustomEx) GetHistoricCandles(context.Context, currency.Pair, asset.Item, kline.Interval, time.Time, time.Time) (*kline.Item, error) {
 	return &kline.Item{}, nil
 }
 
 // GetHistoricCandlesExtended is a mock method for CustomEx
-func (c *CustomEx) GetHistoricCandlesExtended(_ context.Context, _ currency.Pair, _ asset.Item, _ kline.Interval, _, _ time.Time) (*kline.Item, error) {
+func (c *CustomEx) GetHistoricCandlesExtended(context.Context, currency.Pair, asset.Item, kline.Interval, time.Time, time.Time) (*kline.Item, error) {
 	return &kline.Item{}, nil
 }
 
@@ -275,34 +275,34 @@ func (c *CustomEx) UnsubscribeToWebsocketChannels(context.Context, []subscriptio
 }
 
 // IsAssetWebsocketSupported is a mock method for CustomEx
-func (c *CustomEx) IsAssetWebsocketSupported(_ asset.Item) bool { return false }
+func (c *CustomEx) IsAssetWebsocketSupported(asset.Item) bool { return false }
 
 // FlushWebsocketChannels is a mock method for CustomEx
 func (c *CustomEx) FlushWebsocketChannels(context.Context) error { return nil }
 
 // AuthenticateWebsocket is a mock method for CustomEx
-func (c *CustomEx) AuthenticateWebsocket(_ context.Context) error { return nil }
+func (c *CustomEx) AuthenticateWebsocket(context.Context) error { return nil }
 
 // GetOrderExecutionLimits is a mock method for CustomEx
-func (c *CustomEx) GetOrderExecutionLimits(_ asset.Item, _ currency.Pair) (order.MinMaxLevel, error) {
+func (c *CustomEx) GetOrderExecutionLimits(asset.Item, currency.Pair) (order.MinMaxLevel, error) {
 	return order.MinMaxLevel{}, nil
 }
 
 // CheckOrderExecutionLimits is a mock method for CustomEx
-func (c *CustomEx) CheckOrderExecutionLimits(_ asset.Item, _ currency.Pair, _, _ float64, _ order.Type) error {
+func (c *CustomEx) CheckOrderExecutionLimits(asset.Item, currency.Pair, float64, float64, order.Type) error {
 	return nil
 }
 
 // UpdateOrderExecutionLimits is a mock method for CustomEx
-func (c *CustomEx) UpdateOrderExecutionLimits(_ context.Context, _ asset.Item) error { return nil }
+func (c *CustomEx) UpdateOrderExecutionLimits(context.Context, asset.Item) error { return nil }
 
 // GetHistoricalFundingRates returns funding rates for a given asset and currency for a time period
-func (c *CustomEx) GetHistoricalFundingRates(_ context.Context, _ *fundingrate.HistoricalRatesRequest) (*fundingrate.HistoricalRates, error) {
+func (c *CustomEx) GetHistoricalFundingRates(context.Context, *fundingrate.HistoricalRatesRequest) (*fundingrate.HistoricalRates, error) {
 	return nil, nil
 }
 
 // GetLatestFundingRates returns the latest funding rates data
-func (c *CustomEx) GetLatestFundingRates(_ context.Context, _ *fundingrate.LatestRateRequest) ([]fundingrate.LatestRateResponse, error) {
+func (c *CustomEx) GetLatestFundingRates(context.Context, *fundingrate.LatestRateRequest) ([]fundingrate.LatestRateResponse, error) {
 	return nil, nil
 }
 

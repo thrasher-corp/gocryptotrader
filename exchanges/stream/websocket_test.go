@@ -160,7 +160,7 @@ func TestSetup(t *testing.T) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errWebsocketConnectorUnset)
 	}
 
-	websocketSetup.Connector = func(ctx context.Context) error { return nil }
+	websocketSetup.Connector = func(context.Context) error { return nil }
 	err = w.Setup(websocketSetup)
 	if !errors.Is(err, errWebsocketSubscriberUnset) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errWebsocketSubscriberUnset)
@@ -282,7 +282,7 @@ func TestConnectionMessageErrors(t *testing.T) {
 		t.Fatal("error cannot be nil")
 	}
 
-	wsWrong.connector = func(ctx context.Context) error { return nil }
+	wsWrong.connector = func(context.Context) error { return nil }
 	err = wsWrong.Connect(context.Background(), AutoSubscribe)
 	if err == nil {
 		t.Fatal("error cannot be nil")
@@ -297,7 +297,7 @@ func TestConnectionMessageErrors(t *testing.T) {
 	}
 
 	wsWrong.setConnectedStatus(false)
-	wsWrong.connector = func(ctx context.Context) error { return errors.New("edge case error of dooooooom") }
+	wsWrong.connector = func(context.Context) error { return errors.New("edge case error of dooooooom") }
 	err = wsWrong.Connect(context.Background(), AutoSubscribe)
 	if err == nil {
 		t.Fatal("error cannot be nil")
@@ -309,7 +309,7 @@ func TestConnectionMessageErrors(t *testing.T) {
 		t.Fatal(err)
 	}
 	ws.trafficTimeout = time.Minute
-	ws.connector = func(ctx context.Context) error { return nil }
+	ws.connector = func(context.Context) error { return nil }
 
 	err = ws.Connect(context.Background(), AutoSubscribe)
 	if err != nil {
