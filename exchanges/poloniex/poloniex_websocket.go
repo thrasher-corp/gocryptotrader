@@ -562,7 +562,7 @@ func (p *Poloniex) GenerateDefaultSubscriptions() ([]subscription.Subscription, 
 		enabledPairs[j].Delimiter = currency.UnderscoreDelimiter
 		subscriptions = append(subscriptions, subscription.Subscription{
 			Channel: "orderbook",
-			Pair:    enabledPairs[j],
+			Pairs:   enabledPairs[j],
 			Asset:   asset.Spot,
 		})
 	}
@@ -599,7 +599,7 @@ channels:
 			sub[i].Channel):
 			subscriptionRequest.Channel = wsTickerDataID
 		default:
-			subscriptionRequest.Channel = sub[i].Pair.String()
+			subscriptionRequest.Channel = sub[i].Pairs.String()
 		}
 
 		err := p.Websocket.Conn.SendJSONMessage(subscriptionRequest)
@@ -646,7 +646,7 @@ channels:
 			unsub[i].Channel):
 			unsubscriptionRequest.Channel = wsTickerDataID
 		default:
-			unsubscriptionRequest.Channel = unsub[i].Pair.String()
+			unsubscriptionRequest.Channel = unsub[i].Pairs.String()
 		}
 		err := p.Websocket.Conn.SendJSONMessage(unsubscriptionRequest)
 		if err != nil {

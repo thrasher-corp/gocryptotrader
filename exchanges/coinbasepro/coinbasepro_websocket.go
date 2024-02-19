@@ -390,7 +390,7 @@ func (c *CoinbasePro) GenerateDefaultSubscriptions() ([]subscription.Subscriptio
 			}
 			subscriptions = append(subscriptions, subscription.Subscription{
 				Channel: channels[i],
-				Pair:    fPair,
+				Pairs:   fPair,
 				Asset:   asset.Spot,
 			})
 		}
@@ -414,7 +414,7 @@ func (c *CoinbasePro) Subscribe(channelsToSubscribe []subscription.Subscription)
 	}
 	productIDs := make([]string, 0, len(channelsToSubscribe))
 	for i := range channelsToSubscribe {
-		p := channelsToSubscribe[i].Pair.String()
+		p := channelsToSubscribe[i].Pairs.String()
 		if p != "" && !common.StringDataCompare(productIDs, p) {
 			// get all unique productIDs in advance as we generate by channels
 			productIDs = append(productIDs, p)
@@ -466,7 +466,7 @@ func (c *CoinbasePro) Unsubscribe(channelsToUnsubscribe []subscription.Subscript
 	}
 	productIDs := make([]string, 0, len(channelsToUnsubscribe))
 	for i := range channelsToUnsubscribe {
-		p := channelsToUnsubscribe[i].Pair.String()
+		p := channelsToUnsubscribe[i].Pairs.String()
 		if p != "" && !common.StringDataCompare(productIDs, p) {
 			// get all unique productIDs in advance as we generate by channels
 			productIDs = append(productIDs, p)

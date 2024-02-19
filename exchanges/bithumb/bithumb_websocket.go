@@ -167,9 +167,9 @@ func (b *Bithumb) wsHandleData(respRaw []byte) error {
 }
 
 // GenerateSubscriptions generates the default subscription set
-func (b *Bithumb) GenerateSubscriptions() ([]subscription.Subscription, error) {
+func (b *Bithumb) GenerateSubscriptions() (subscription.List, error) {
 	var channels = []string{"ticker", "transaction", "orderbookdepth"}
-	var subscriptions []subscription.Subscription
+	var subscriptions subscription.List
 	pairs, err := b.GetEnabledPairs(asset.Spot)
 	if err != nil {
 		return nil, err
@@ -180,20 +180,20 @@ func (b *Bithumb) GenerateSubscriptions() ([]subscription.Subscription, error) {
 		return nil, err
 	}
 
-	for x := range pairs {
-		for y := range channels {
-			subscriptions = append(subscriptions, subscription.Subscription{
-				Channel: channels[y],
-				Pair:    pairs[x].Format(pFmt),
-				Asset:   asset.Spot,
-			})
-		}
+	pairs.Format(pFmt)
+
+	for y := range channels {
+		subscriptions = append(subscriptions, &subscription.Subscription{
+			Channel: channels[y],
+			Pairs:   pairs,
+			Asset:   asset.Spot,
+		})
 	}
 	return subscriptions, nil
 }
 
 // Subscribe subscribes to a set of channels
-func (b *Bithumb) Subscribe(channelsToSubscribe []subscription.Subscription) error {
+func (b *Bithumb) Subscribe(channelsToSubscribe subscription.List) error {
 	subs := make(map[string]*WsSubscribe)
 	for i := range channelsToSubscribe {
 		s, ok := subs[channelsToSubscribe[i].Channel]
@@ -203,7 +203,7 @@ func (b *Bithumb) Subscribe(channelsToSubscribe []subscription.Subscription) err
 			}
 			subs[channelsToSubscribe[i].Channel] = s
 		}
-		s.Symbols = append(s.Symbols, channelsToSubscribe[i].Pair)
+		s.Symbols = channelsToSubscribe[i].Pairs
 	}
 
 	tSub, ok := subs["ticker"]
@@ -217,6 +217,6 @@ func (b *Bithumb) Subscribe(channelsToSubscribe []subscription.Subscription) err
 			return err
 		}
 	}
-	b.Websocket.AddSuccessfulSubscriptions(channelsToSubscribe...)
+	b.Websocket.AddSuccessfulSubscriptions(channelsToSubscribe)
 	return nil
 }

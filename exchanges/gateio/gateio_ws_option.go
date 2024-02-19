@@ -165,7 +165,7 @@ getEnabledPairs:
 			}
 			subscriptions = append(subscriptions, subscription.Subscription{
 				Channel: channelsToSubscribe[i],
-				Pair:    fpair.Upper(),
+				Pairs:   fpair.Upper(),
 				Params:  params,
 			})
 		}
@@ -190,7 +190,7 @@ func (g *Gateio) generateOptionsPayload(event string, channelsToSubscribe []subs
 			optionsUnderlyingPriceChannel,
 			optionsUnderlyingCandlesticksChannel:
 			var uly currency.Pair
-			uly, err = g.GetUnderlyingFromCurrencyPair(channelsToSubscribe[i].Pair)
+			uly, err = g.GetUnderlyingFromCurrencyPair(channelsToSubscribe[i].Pairs)
 			if err != nil {
 				return nil, err
 			}
@@ -198,8 +198,8 @@ func (g *Gateio) generateOptionsPayload(event string, channelsToSubscribe []subs
 		case optionsBalancesChannel:
 			// options.balance channel does not require underlying or contract
 		default:
-			channelsToSubscribe[i].Pair.Delimiter = currency.UnderscoreDelimiter
-			params = append(params, channelsToSubscribe[i].Pair.String())
+			channelsToSubscribe[i].Pairs.Delimiter = currency.UnderscoreDelimiter
+			params = append(params, channelsToSubscribe[i].Pairs.String())
 		}
 		switch channelsToSubscribe[i].Channel {
 		case optionsOrderbookChannel:

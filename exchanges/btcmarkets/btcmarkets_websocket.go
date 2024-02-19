@@ -336,7 +336,7 @@ func (b *BTCMarkets) generateDefaultSubscriptions() ([]subscription.Subscription
 		for j := range enabledCurrencies {
 			subscriptions = append(subscriptions, subscription.Subscription{
 				Channel: channels[i],
-				Pair:    enabledCurrencies[j],
+				Pairs:   enabledCurrencies[j],
 				Asset:   asset.Spot,
 			})
 		}
@@ -370,10 +370,10 @@ func (b *BTCMarkets) Subscribe(subs []subscription.Subscription) error {
 			authenticate = true
 		}
 		payload.Channels = append(payload.Channels, subs[i].Channel)
-		if subs[i].Pair.IsEmpty() {
+		if subs[i].Pairs.IsEmpty() {
 			continue
 		}
-		pair := subs[i].Pair.String()
+		pair := subs[i].Pairs.String()
 		if common.StringDataCompare(payload.MarketIDs, pair) {
 			continue
 		}
@@ -415,11 +415,11 @@ func (b *BTCMarkets) Unsubscribe(subs []subscription.Subscription) error {
 	}
 	for i := range subs {
 		payload.Channels = append(payload.Channels, subs[i].Channel)
-		if subs[i].Pair.IsEmpty() {
+		if subs[i].Pairs.IsEmpty() {
 			continue
 		}
 
-		pair := subs[i].Pair.String()
+		pair := subs[i].Pairs.String()
 		if common.StringDataCompare(payload.MarketIDs, pair) {
 			continue
 		}
@@ -439,7 +439,7 @@ func (b *BTCMarkets) Unsubscribe(subs []subscription.Subscription) error {
 func (b *BTCMarkets) ReSubscribeSpecificOrderbook(pair currency.Pair) error {
 	sub := []subscription.Subscription{{
 		Channel: wsOB,
-		Pair:    pair,
+		Pairs:   pair,
 		Asset:   asset.Spot,
 	}}
 	if err := b.Unsubscribe(sub); err != nil {

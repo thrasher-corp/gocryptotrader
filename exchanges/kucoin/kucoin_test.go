@@ -2542,7 +2542,7 @@ func TestProcessMarketSnapshot(t *testing.T) {
 func TestSubscribeMarketSnapshot(t *testing.T) {
 	t.Parallel()
 	setupWS()
-	err := ku.Subscribe([]subscription.Subscription{{Channel: marketSymbolSnapshotChannel, Pair: currency.Pair{Base: currency.BTC}}})
+	err := ku.Subscribe([]subscription.Subscription{{Channel: marketSymbolSnapshotChannel, Pairs: currency.Pair{Base: currency.BTC}}})
 	assert.NoError(t, err, "Subscribe to MarketSnapshot should not error")
 }
 

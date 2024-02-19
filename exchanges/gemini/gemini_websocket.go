@@ -80,7 +80,7 @@ func (g *Gemini) GenerateDefaultSubscriptions() ([]subscription.Subscription, er
 		for y := range pairs {
 			subscriptions = append(subscriptions, subscription.Subscription{
 				Channel: channels[x],
-				Pair:    pairs[y],
+				Pairs:   pairs[y],
 				Asset:   asset.Spot,
 			})
 		}
@@ -100,10 +100,10 @@ func (g *Gemini) Subscribe(channelsToSubscribe []subscription.Subscription) erro
 
 	var pairs currency.Pairs
 	for x := range channelsToSubscribe {
-		if pairs.Contains(channelsToSubscribe[x].Pair, true) {
+		if pairs.Contains(channelsToSubscribe[x].Pairs, true) {
 			continue
 		}
-		pairs = append(pairs, channelsToSubscribe[x].Pair)
+		pairs = append(pairs, channelsToSubscribe[x].Pairs)
 	}
 
 	fmtPairs, err := g.FormatExchangeCurrencies(pairs, asset.Spot)
@@ -144,10 +144,10 @@ func (g *Gemini) Unsubscribe(channelsToUnsubscribe []subscription.Subscription) 
 
 	var pairs currency.Pairs
 	for x := range channelsToUnsubscribe {
-		if pairs.Contains(channelsToUnsubscribe[x].Pair, true) {
+		if pairs.Contains(channelsToUnsubscribe[x].Pairs, true) {
 			continue
 		}
-		pairs = append(pairs, channelsToUnsubscribe[x].Pair)
+		pairs = append(pairs, channelsToUnsubscribe[x].Pairs)
 	}
 
 	fmtPairs, err := g.FormatExchangeCurrencies(pairs, asset.Spot)

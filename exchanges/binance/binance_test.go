@@ -1982,7 +1982,7 @@ func BenchmarkWsHandleData(bb *testing.B) {
 func TestSubscribe(t *testing.T) {
 	t.Parallel()
 	b := b
-	channels := []subscription.Subscription{
+	channels := subscription.List{
 		{Channel: "btcusdt@ticker"},
 		{Channel: "btcusdt@trade"},
 	}
@@ -2007,7 +2007,7 @@ func TestSubscribe(t *testing.T) {
 
 func TestSubscribeBadResp(t *testing.T) {
 	t.Parallel()
-	channels := []subscription.Subscription{
+	channels := subscription.List{
 		{Channel: "moons@ticker"},
 	}
 	b := testexch.MockWSInstance[Binance](t, func(msg []byte, w *websocket.Conn) error { //nolint:govet // shadow
@@ -2432,14 +2432,14 @@ func TestSeedLocalCache(t *testing.T) {
 
 func TestGenerateSubscriptions(t *testing.T) {
 	t.Parallel()
-	expected := []subscription.Subscription{}
+	expected := subscription.List{}
 	pairs, err := b.GetEnabledPairs(asset.Spot)
 	assert.NoError(t, err, "GetEnabledPairs should not error")
 	for _, p := range pairs {
 		for _, c := range []string{"kline_1m", "depth@100ms", "ticker", "trade"} {
-			expected = append(expected, subscription.Subscription{
+			expected = append(expected, &subscription.Subscription{
 				Channel: p.Format(currency.PairFormat{Delimiter: "", Uppercase: false}).String() + "@" + c,
-				Pair:    p,
+				Pairs:   currency.Pairs{p},
 				Asset:   asset.Spot,
 			})
 		}

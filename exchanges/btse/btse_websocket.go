@@ -377,7 +377,7 @@ func (b *BTSE) GenerateDefaultSubscriptions() ([]subscription.Subscription, erro
 		for j := range pairs {
 			subscriptions = append(subscriptions, subscription.Subscription{
 				Channel: fmt.Sprintf(channels[i], pairs[j]),
-				Pair:    pairs[j],
+				Pairs:   pairs[j],
 				Asset:   asset.Spot,
 			})
 		}
@@ -396,7 +396,7 @@ func (b *BTSE) Subscribe(channelsToSubscribe []subscription.Subscription) error 
 	if err != nil {
 		return err
 	}
-	b.Websocket.AddSuccessfulSubscriptions(channelsToSubscribe...)
+	b.Websocket.AddSuccessfulSubscriptions(channelsToSubscribe)
 	return nil
 }
 

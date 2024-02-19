@@ -693,7 +693,7 @@ func TestWsAuth(t *testing.T) {
 	err = c.Subscribe([]subscription.Subscription{
 		{
 			Channel: "user",
-			Pair:    testPair,
+			Pairs:   testPair,
 		},
 	})
 	if err != nil {

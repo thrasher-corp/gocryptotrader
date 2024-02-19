@@ -71,9 +71,9 @@ type WsTransaction struct {
 
 // WsSubscribe is used to subscribe to the ws channel.
 type WsSubscribe struct {
-	Type      string          `json:"type"`
-	Symbols   []currency.Pair `json:"symbols"`
-	TickTypes []string        `json:"tickTypes,omitempty"`
+	Type      string         `json:"type"`
+	Symbols   currency.Pairs `json:"symbols"`
+	TickTypes []string       `json:"tickTypes,omitempty"`
 }
 
 // orderbookManager defines a way of managing and maintaining synchronisation

@@ -609,7 +609,7 @@ func (c *COINUT) GenerateDefaultSubscriptions() ([]subscription.Subscription, er
 		for j := range enabledPairs {
 			subscriptions = append(subscriptions, subscription.Subscription{
 				Channel: channels[i],
-				Pair:    enabledPairs[j],
+				Pairs:   enabledPairs[j],
 				Asset:   asset.Spot,
 			})
 		}
@@ -621,7 +621,7 @@ func (c *COINUT) GenerateDefaultSubscriptions() ([]subscription.Subscription, er
 func (c *COINUT) Subscribe(channelsToSubscribe []subscription.Subscription) error {
 	var errs error
 	for i := range channelsToSubscribe {
-		fPair, err := c.FormatExchangeCurrency(channelsToSubscribe[i].Pair, asset.Spot)
+		fPair, err := c.FormatExchangeCurrency(channelsToSubscribe[i].Pairs, asset.Spot)
 		if err != nil {
 			errs = common.AppendError(errs, err)
 			continue
@@ -650,7 +650,7 @@ func (c *COINUT) Subscribe(channelsToSubscribe []subscription.Subscription) erro
 func (c *COINUT) Unsubscribe(channelToUnsubscribe []subscription.Subscription) error {
 	var errs error
 	for i := range channelToUnsubscribe {
-		fPair, err := c.FormatExchangeCurrency(channelToUnsubscribe[i].Pair, asset.Spot)
+		fPair, err := c.FormatExchangeCurrency(channelToUnsubscribe[i].Pairs, asset.Spot)
 		if err != nil {
 			errs = common.AppendError(errs, err)
 			continue

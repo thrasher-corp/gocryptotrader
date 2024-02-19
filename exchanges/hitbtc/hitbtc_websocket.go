@@ -492,7 +492,7 @@ func (h *HitBTC) GenerateDefaultSubscriptions() ([]subscription.Subscription, er
 			enabledCurrencies[j].Delimiter = ""
 			subscriptions = append(subscriptions, subscription.Subscription{
 				Channel: channels[i],
-				Pair:    fPair,
+				Pairs:   fPair,
 				Asset:   asset.Spot,
 			})
 		}
@@ -509,8 +509,8 @@ func (h *HitBTC) Subscribe(channelsToSubscribe []subscription.Subscription) erro
 			ID:     h.Websocket.Conn.GenerateMessageID(false),
 		}
 
-		if channelsToSubscribe[i].Pair.String() != "" {
-			subscribe.Params.Symbol = channelsToSubscribe[i].Pair.String()
+		if channelsToSubscribe[i].Pairs.String() != "" {
+			subscribe.Params.Symbol = channelsToSubscribe[i].Pairs.String()
 		}
 		if strings.EqualFold(channelsToSubscribe[i].Channel, "subscribeTrades") {
 			subscribe.Params.Limit = 100
@@ -546,7 +546,7 @@ func (h *HitBTC) Unsubscribe(channelsToUnsubscribe []subscription.Subscription) 
 			Method:         unsubscribeChannel,
 		}
 
-		unsubscribe.Params.Symbol = channelsToUnsubscribe[i].Pair.String()
+		unsubscribe.Params.Symbol = channelsToUnsubscribe[i].Pairs.String()
 		if strings.EqualFold(unsubscribeChannel, "unsubscribeTrades") {
 			unsubscribe.Params.Limit = 100
 		} else if strings.EqualFold(unsubscribeChannel, "unsubscribeCandles") {

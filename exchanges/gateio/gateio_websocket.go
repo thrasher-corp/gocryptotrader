@@ -680,7 +680,7 @@ func (g *Gateio) GenerateDefaultSubscriptions() ([]subscription.Subscription, er
 
 			subscriptions = append(subscriptions, subscription.Subscription{
 				Channel: channelsToSubscribe[i],
-				Pair:    fpair.Upper(),
+				Pairs:   fpair.Upper(),
 				Asset:   assetType,
 				Params:  params,
 			})
@@ -738,8 +738,8 @@ func (g *Gateio) generatePayload(event string, channelsToSubscribe []subscriptio
 	for i := range channelsToSubscribe {
 		var auth *WsAuthInput
 		timestamp := time.Now()
-		channelsToSubscribe[i].Pair.Delimiter = currency.UnderscoreDelimiter
-		params := []string{channelsToSubscribe[i].Pair.String()}
+		channelsToSubscribe[i].Pairs.Delimiter = currency.UnderscoreDelimiter
+		params := []string{channelsToSubscribe[i].Pairs.String()}
 		switch channelsToSubscribe[i].Channel {
 		case spotOrderbookChannel:
 			interval, okay := channelsToSubscribe[i].Params["interval"].(kline.Interval)

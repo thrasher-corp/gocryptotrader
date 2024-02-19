@@ -176,7 +176,7 @@ func (g *Gateio) GenerateDeliveryFuturesDefaultSubscriptions() ([]subscription.S
 			}
 			subscriptions = append(subscriptions, subscription.Subscription{
 				Channel: channelsToSubscribe[i],
-				Pair:    fpair.Upper(),
+				Pairs:   fpair.Upper(),
 				Params:  params,
 			})
 		}
@@ -246,7 +246,7 @@ func (g *Gateio) generateDeliveryFuturesPayload(event string, channelsToSubscrib
 		var auth *WsAuthInput
 		timestamp := time.Now()
 		var params []string
-		params = []string{channelsToSubscribe[i].Pair.String()}
+		params = []string{channelsToSubscribe[i].Pairs.String()}
 		if g.Websocket.CanUseAuthenticatedEndpoints() {
 			switch channelsToSubscribe[i].Channel {
 			case futuresOrdersChannel, futuresUserTradesChannel,
@@ -310,7 +310,7 @@ func (g *Gateio) generateDeliveryFuturesPayload(event string, channelsToSubscrib
 				params = append(params, intervalString)
 			}
 		}
-		if strings.HasPrefix(channelsToSubscribe[i].Pair.Quote.Upper().String(), "USDT") {
+		if strings.HasPrefix(channelsToSubscribe[i].Pairs.Quote.Upper().String(), "USDT") {
 			payloads[0] = append(payloads[0], WsInput{
 				ID:      g.Websocket.Conn.GenerateMessageID(false),
 				Event:   event,

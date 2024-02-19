@@ -560,7 +560,7 @@ subs:
 			}
 			subscriptions = append(subscriptions, subscription.Subscription{
 				Channel: lp.String() + channels[z],
-				Pair:    pairs[y],
+				Pairs:   currency.Pairs{pairs[y]},
 				Asset:   asset.Spot,
 			})
 		}
