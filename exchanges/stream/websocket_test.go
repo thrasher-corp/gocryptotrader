@@ -486,7 +486,7 @@ func TestSubscribeUnsubscribe(t *testing.T) {
 	}
 	assert.Nil(t, ws.GetSubscription(nil), "GetSubscription by nil should return nil")
 	assert.Nil(t, ws.GetSubscription(45), "GetSubscription by invalid key should return nil")
-	assert.ErrorIs(t, ws.SubscribeToChannels(subs), errChannelAlreadySubscribed, "Subscribe should error when already subscribed")
+	assert.ErrorIs(t, ws.SubscribeToChannels(subs), ErrSubscribedAlready, "Subscribe should error when already subscribed")
 	assert.ErrorIs(t, ws.SubscribeToChannels(nil), errNoSubscriptionsSupplied, "Subscribe to nil should error")
 	assert.NoError(t, ws.UnsubscribeChannels(subs), "Unsubscribing should not error")
 }
@@ -1270,7 +1270,7 @@ func TestCheckSubscriptions(t *testing.T) {
 
 	ws.subscriptions = subscriptionMap{42: {Key: 42, Channel: "test"}}
 	err = ws.checkSubscriptions([]subscription.Subscription{{Key: 42, Channel: "test"}})
-	assert.ErrorIs(t, err, errChannelAlreadySubscribed, "checkSubscriptions should error correctly")
+	assert.ErrorIs(t, err, ErrSubscribedAlready, "checkSubscriptions should error correctly")
 
 	err = ws.checkSubscriptions([]subscription.Subscription{{}})
 	assert.NoError(t, err, "checkSubscriptions should not error")
