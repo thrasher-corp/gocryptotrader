@@ -342,11 +342,11 @@ func (b *Bithumb) GetOrders(ctx context.Context, orderID, transactionType string
 
 	params.Set("order_currency", orderCurrency.Upper().String())
 
-	if len(orderID) > 0 {
+	if orderID != "" {
 		params.Set("order_id", orderID)
 	}
 
-	if len(transactionType) > 0 {
+	if transactionType != "" {
 		params.Set("type", transactionType)
 	}
 
@@ -454,7 +454,7 @@ func (b *Bithumb) WithdrawCrypto(ctx context.Context, address, destination, curr
 
 	params := url.Values{}
 	params.Set("address", address)
-	if len(destination) > 0 {
+	if destination != "" {
 		params.Set("destination", destination)
 	}
 	params.Set("currency", strings.ToUpper(currency))

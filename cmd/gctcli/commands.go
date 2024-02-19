@@ -1775,7 +1775,7 @@ func cancelOrder(c *cli.Context) error {
 
 	// pair is optional, but if it's set, do a validity check
 	var p currency.Pair
-	if len(currencyPair) > 0 {
+	if currencyPair != "" {
 		if !validPair(currencyPair) {
 			return errInvalidPair
 		}
@@ -1917,7 +1917,7 @@ func cancelBatchOrders(c *cli.Context) error {
 
 	// pair is optional, but if it's set, do a validity check
 	var p currency.Pair
-	if len(currencyPair) > 0 {
+	if currencyPair != "" {
 		if !validPair(currencyPair) {
 			return errInvalidPair
 		}
@@ -2208,19 +2208,19 @@ func addEvent(c *cli.Context) error {
 	if c.IsSet("exchange") {
 		exchangeName = c.String("exchange")
 	} else {
-		return fmt.Errorf("exchange name is required")
+		return errors.New("exchange name is required")
 	}
 
 	if c.IsSet("item") {
 		item = c.String("item")
 	} else {
-		return fmt.Errorf("item is required")
+		return errors.New("item is required")
 	}
 
 	if c.IsSet("condition") {
 		condition = c.String("condition")
 	} else {
-		return fmt.Errorf("condition is required")
+		return errors.New("condition is required")
 	}
 
 	if c.IsSet("price") {
@@ -2242,7 +2242,7 @@ func addEvent(c *cli.Context) error {
 	if c.IsSet("pair") {
 		currencyPair = c.String("pair")
 	} else {
-		return fmt.Errorf("currency pair is required")
+		return errors.New("currency pair is required")
 	}
 
 	if !validPair(currencyPair) {
@@ -2261,7 +2261,7 @@ func addEvent(c *cli.Context) error {
 	if c.IsSet("action") {
 		action = c.String("action")
 	} else {
-		return fmt.Errorf("action is required")
+		return errors.New("action is required")
 	}
 
 	p, err := currency.NewPairDelimiter(currencyPair, pairDelimiter)

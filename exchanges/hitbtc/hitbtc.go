@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -21,12 +22,12 @@ const (
 	apiURL = "https://api.hitbtc.com"
 
 	// Public
-	apiV2Trades    = "api/2/public/trades"
-	apiV2Currency  = "api/2/public/currency"
-	apiV2Symbol    = "api/2/public/symbol"
-	apiV2Ticker    = "api/2/public/ticker"
-	apiV2Orderbook = "api/2/public/orderbook"
-	apiV2Candles   = "api/2/public/candles"
+	apiV2Trades    = "/api/2/public/trades"
+	apiV2Currency  = "/api/2/public/currency"
+	apiV2Symbol    = "/api/2/public/symbol"
+	apiV2Ticker    = "/api/2/public/ticker"
+	apiV2Orderbook = "/api/2/public/orderbook"
+	apiV2Candles   = "/api/2/public/candles"
 
 	// Authenticated
 	apiV2Balance        = "api/2/trading/balance"
@@ -58,10 +59,8 @@ func (h *HitBTC) GetCurrencies(ctx context.Context) (map[string]Currencies, erro
 		Data []Currencies
 	}
 	resp := Response{}
-	path := fmt.Sprintf("/%s", apiV2Currency)
-
 	ret := make(map[string]Currencies)
-	err := h.SendHTTPRequest(ctx, exchange.RestSpot, path, &resp.Data)
+	err := h.SendHTTPRequest(ctx, exchange.RestSpot, apiV2Currency, &resp.Data)
 	if err != nil {
 		return ret, err
 	}
@@ -79,7 +78,7 @@ func (h *HitBTC) GetCurrency(ctx context.Context, currency string) (Currencies, 
 		Data Currencies
 	}
 	resp := Response{}
-	path := fmt.Sprintf("/%s/%s", apiV2Currency, currency)
+	path := apiV2Currency + "/" + currency
 
 	return resp.Data, h.SendHTTPRequest(ctx, exchange.RestSpot, path, &resp.Data)
 }
@@ -91,7 +90,7 @@ func (h *HitBTC) GetCurrency(ctx context.Context, currency string) (Currencies, 
 // of the base currency.
 func (h *HitBTC) GetSymbols(ctx context.Context, symbol string) ([]string, error) {
 	var resp []Symbol
-	path := fmt.Sprintf("/%s/%s", apiV2Symbol, symbol)
+	path := apiV2Symbol + "/" + symbol
 
 	ret := make([]string, 0, len(resp))
 	err := h.SendHTTPRequest(ctx, exchange.RestSpot, path, &resp)
@@ -109,22 +108,20 @@ func (h *HitBTC) GetSymbols(ctx context.Context, symbol string) ([]string, error
 // all their details.
 func (h *HitBTC) GetSymbolsDetailed(ctx context.Context) ([]Symbol, error) {
 	var resp []Symbol
-	path := fmt.Sprintf("/%s", apiV2Symbol)
-	return resp, h.SendHTTPRequest(ctx, exchange.RestSpot, path, &resp)
+	return resp, h.SendHTTPRequest(ctx, exchange.RestSpot, apiV2Symbol, &resp)
 }
 
 // GetTicker returns ticker information
 func (h *HitBTC) GetTicker(ctx context.Context, symbol string) (TickerResponse, error) {
 	var resp TickerResponse
-	path := fmt.Sprintf("/%s/%s", apiV2Ticker, symbol)
+	path := apiV2Ticker + "/" + symbol
 	return resp, h.SendHTTPRequest(ctx, exchange.RestSpot, path, &resp)
 }
 
 // GetTickers returns ticker information
 func (h *HitBTC) GetTickers(ctx context.Context) ([]TickerResponse, error) {
 	var resp []TickerResponse
-	path := fmt.Sprintf("/%s/", apiV2Ticker)
-	return resp, h.SendHTTPRequest(ctx, exchange.RestSpot, path, &resp)
+	return resp, h.SendHTTPRequest(ctx, exchange.RestSpot, apiV2Ticker, &resp)
 }
 
 // GetTrades returns trades from hitbtc
@@ -150,10 +147,7 @@ func (h *HitBTC) GetTrades(ctx context.Context, currencyPair, by, sort string, f
 	}
 
 	var resp []TradeHistory
-	path := fmt.Sprintf("/%s/%s?%s",
-		apiV2Trades,
-		currencyPair,
-		urlValues.Encode())
+	path := common.EncodeURLValues(apiV2Trades+"/"+currencyPair, urlValues)
 	return resp, h.SendHTTPRequest(ctx, exchange.RestSpot, path, &resp)
 }
 
@@ -168,10 +162,7 @@ func (h *HitBTC) GetOrderbook(ctx context.Context, currencyPair string, limit in
 	}
 
 	var resp Orderbook
-	path := fmt.Sprintf("/%s/%s?%s",
-		apiV2Orderbook,
-		currencyPair,
-		vals.Encode())
+	path := common.EncodeURLValues(apiV2Orderbook+"/"+currencyPair, vals)
 	err := h.SendHTTPRequest(ctx, exchange.RestSpot, path, &resp)
 	if err != nil {
 		return nil, err
@@ -206,7 +197,7 @@ func (h *HitBTC) GetCandles(ctx context.Context, currencyPair, limit, period str
 	}
 
 	var resp []ChartData
-	path := "/" + apiV2Candles + "/" + currencyPair + "?" + vals.Encode()
+	path := common.EncodeURLValues(apiV2Candles+"/"+currencyPair, vals)
 	return resp, h.SendHTTPRequest(ctx, exchange.RestSpot, path, &resp)
 }
 

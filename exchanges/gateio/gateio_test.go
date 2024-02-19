@@ -1858,7 +1858,7 @@ func TestGetUsersLiquidationHistoryForSpecifiedUnderlying(t *testing.T) {
 func TestPlaceOptionOrder(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, g, canManipulateRealOrders)
-	_, err := g.PlaceOptionOrder(context.Background(), OptionOrderParam{
+	_, err := g.PlaceOptionOrder(context.Background(), &OptionOrderParam{
 		Contract:    getPair(t, asset.Options).String(),
 		OrderSize:   -1,
 		Iceberg:     0,
