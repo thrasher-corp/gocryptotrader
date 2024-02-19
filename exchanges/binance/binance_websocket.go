@@ -301,7 +301,7 @@ func (b *Binance) wsHandleData(respRaw []byte) error {
 			return nil
 		case "outboundAccountInfo":
 			var data wsAccountInfo
-			err := json.Unmarshal(respRaw, &data)
+			err = json.Unmarshal(respRaw, &data)
 			if err != nil {
 				return fmt.Errorf("%v - Could not convert to outboundAccountInfo structure %s",
 					b.Name,

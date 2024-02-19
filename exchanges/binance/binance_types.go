@@ -1591,7 +1591,7 @@ type WsRollingWindowPriceParams struct {
 // SymbolTickerItem holds symbol and price information
 type SymbolTickerItem struct {
 	Symbol string       `json:"symbol"`
-	Price  types.Number `json:"price" `
+	Price  types.Number `json:"price"`
 }
 
 // SymbolTickers holds symbol and price ticker information.
