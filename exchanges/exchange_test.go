@@ -1270,8 +1270,8 @@ func TestSetupDefaults(t *testing.T) {
 		DefaultURL:            "ws://something.com",
 		RunningURL:            "ws://something.com",
 		Connector:             func() error { return nil },
-		GenerateSubscriptions: func() ([]subscription.Subscription, error) { return []subscription.Subscription{}, nil },
-		Subscriber:            func([]subscription.Subscription) error { return nil },
+		GenerateSubscriptions: func() (subscription.List, error) { return subscription.List{}, nil },
+		Subscriber:            func(subscription.List) error { return nil },
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -1619,8 +1619,8 @@ func TestIsWebsocketEnabled(t *testing.T) {
 		DefaultURL:            "ws://something.com",
 		RunningURL:            "ws://something.com",
 		Connector:             func() error { return nil },
-		GenerateSubscriptions: func() ([]subscription.Subscription, error) { return nil, nil },
-		Subscriber:            func([]subscription.Subscription) error { return nil },
+		GenerateSubscriptions: func() (subscription.List, error) { return nil, nil },
+		Subscriber:            func(subscription.List) error { return nil },
 	})
 	if err != nil {
 		t.Error(err)
@@ -3267,7 +3267,7 @@ func TestSetSubscriptionsFromConfig(t *testing.T) {
 			Features: &config.FeaturesConfig{},
 		},
 	}
-	subs := []*subscription.Subscription{
+	subs := subscription.List{
 		{Channel: subscription.CandlesChannel, Interval: kline.OneDay, Enabled: true},
 	}
 	b.Features.Subscriptions = subs
@@ -3275,7 +3275,7 @@ func TestSetSubscriptionsFromConfig(t *testing.T) {
 	assert.ElementsMatch(t, subs, b.Config.Features.Subscriptions, "Config Subscriptions should be updated")
 	assert.ElementsMatch(t, subs, b.Features.Subscriptions, "Subscriptions should be the same")
 
-	subs = []*subscription.Subscription{
+	subs = subscription.List{
 		{Channel: subscription.OrderbookChannel, Interval: kline.OneDay, Enabled: true},
 	}
 	b.Config.Features.Subscriptions = subs
@@ -3287,7 +3287,7 @@ func TestSetSubscriptionsFromConfig(t *testing.T) {
 // TestParallelChanOp unit tests the helper func ParallelChanOp
 func TestParallelChanOp(t *testing.T) {
 	t.Parallel()
-	c := []subscription.Subscription{
+	c := subscription.List{
 		{Channel: "red"},
 		{Channel: "blue"},
 		{Channel: "violent"},
@@ -3298,7 +3298,7 @@ func TestParallelChanOp(t *testing.T) {
 	b := Base{}
 	errC := make(chan error, 1)
 	go func() {
-		errC <- b.ParallelChanOp(c, func(c []subscription.Subscription) error {
+		errC <- b.ParallelChanOp(c, func(c subscription.List) error {
 			time.Sleep(300 * time.Millisecond)
 			run <- struct{}{}
 			switch c[0].Channel {
