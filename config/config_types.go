@@ -317,9 +317,9 @@ type FeaturesEnabledConfig struct {
 
 // FeaturesConfig stores the exchanges supported and enabled features
 type FeaturesConfig struct {
-	Supports      FeaturesSupportedConfig      `json:"supports"`
-	Enabled       FeaturesEnabledConfig        `json:"enabled"`
-	Subscriptions []*subscription.Subscription `json:"subscriptions,omitempty"`
+	Supports      FeaturesSupportedConfig `json:"supports"`
+	Enabled       FeaturesEnabledConfig   `json:"enabled"`
+	Subscriptions subscription.List       `json:"subscriptions,omitempty"`
 }
 
 // APIEndpointsConfig stores the API endpoint addresses
