@@ -165,10 +165,14 @@ func TestFixtureToDataHandler(t *testing.T, seed, e exchange.IBotExchange, fixtu
 	assert.NoError(t, err, "Loading currency pairs should not error")
 
 	b.Name = "fixture"
-	b.Websocket = &stream.Websocket{
-		Wg:          new(sync.WaitGroup),
-		DataHandler: make(chan interface{}, 128),
+
+	if b.Websocket == nil {
+		b.Websocket = &stream.Websocket{
+			Wg:          new(sync.WaitGroup),
+			DataHandler: make(chan interface{}, 128),
+		}
 	}
+
 	b.API.Endpoints = b.NewEndpoints()
 
 	fixture, err := os.Open(fixturePath)
