@@ -5,12 +5,12 @@ import (
 	"fmt"
 	"net"
 	"net/url"
-	"sync"
 	"time"
 
 	"github.com/gorilla/websocket"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
@@ -22,12 +22,9 @@ const (
 // Public websocket errors
 var (
 	ErrWebsocketNotEnabled      = errors.New("websocket not enabled")
-	ErrSubscriptionNotFound     = errors.New("subscription not found")
-	ErrSubscribedAlready        = errors.New("duplicate subscription")
 	ErrSubscriptionFailure      = errors.New("subscription failure")
 	ErrSubscriptionNotSupported = errors.New("subscription channel not supported ")
 	ErrUnsubscribeFailure       = errors.New("unsubscribe failure")
-	ErrChannelInStateAlready    = errors.New("channel already in state")
 	ErrAlreadyDisabled          = errors.New("websocket already disabled")
 	ErrNotConnected             = errors.New("websocket is not connected")
 )
@@ -58,7 +55,6 @@ var (
 	errSubscriptionsExceedsLimit            = errors.New("subscriptions exceeds limit")
 	errInvalidMaxSubscriptions              = errors.New("max subscriptions cannot be less than 0")
 	errNoSubscriptionsSupplied              = errors.New("no subscriptions supplied")
-	errInvalidChannelState                  = errors.New("invalid Channel state")
 	errSameProxyAddress                     = errors.New("cannot set proxy address to the same address")
 	errNoConnectFunc                        = errors.New("websocket connect func not set")
 	errAlreadyConnected                     = errors.New("websocket already connected")
@@ -83,11 +79,12 @@ func NewWebsocket() *Websocket {
 	return &Websocket{
 		DataHandler:       make(chan interface{}, jobBuffer),
 		ToRoutine:         make(chan interface{}, jobBuffer),
+		ShutdownC:         make(chan struct{}),
 		TrafficAlert:      make(chan struct{}, 1),
 		ReadMessageErrors: make(chan error),
-		Subscribe:         make(chan []subscription.Subscription),
-		Unsubscribe:       make(chan []subscription.Subscription),
 		Match:             NewMatch(),
+		subscriptions:     subscription.NewStore(),
+		features:          &protocol.Features{},
 	}
 }
 
@@ -180,7 +177,6 @@ func (w *Websocket) Setup(s *WebsocketSetup) error {
 	w.trafficTimeout = s.ExchangeConfig.WebsocketTrafficTimeout
 
 	w.ShutdownC = make(chan struct{})
-	w.Wg = new(sync.WaitGroup)
 	w.SetCanUseAuthenticatedEndpoints(s.ExchangeConfig.API.AuthenticatedWebsocketSupport)
 
 	if err := w.Orderbook.Setup(s.ExchangeConfig, &s.OrderbookBufferConfig, w.DataHandler); err != nil {
@@ -242,7 +238,7 @@ func (w *Websocket) SetupNewConnection(c ConnectionSetup) error {
 		Traffic:           w.TrafficAlert,
 		readMessageErrors: w.ReadMessageErrors,
 		ShutdownC:         w.ShutdownC,
-		Wg:                w.Wg,
+		Wg:                &w.Wg,
 		Match:             w.Match,
 		RateLimit:         c.RateLimit,
 		Reporter:          c.ConnectionLevelReporter,
@@ -276,9 +272,10 @@ func (w *Websocket) Connect() error {
 		return fmt.Errorf("%v %w", w.exchangeName, errAlreadyConnected)
 	}
 
-	w.subscriptionMutex.Lock()
-	w.subscriptions = subscriptionMap{}
-	w.subscriptionMutex.Unlock()
+	if w.subscriptions == nil {
+		return common.ErrNilPointer
+	}
+	w.subscriptions.Clear()
 
 	w.dataMonitor()
 	w.trafficMonitor()
@@ -302,17 +299,12 @@ func (w *Websocket) Connect() error {
 	if err != nil {
 		return fmt.Errorf("%s websocket: %w", w.exchangeName, common.AppendError(ErrSubscriptionFailure, err))
 	}
-	if len(subs) == 0 {
-		return nil
+	if len(subs) != 0 {
+		if err := w.SubscribeToChannels(subs); err != nil {
+			return err
+		}
 	}
-	err = w.checkSubscriptions(subs)
-	if err != nil {
-		return fmt.Errorf("%s websocket: %w", w.exchangeName, common.AppendError(ErrSubscriptionFailure, err))
-	}
-	err = w.Subscriber(subs)
-	if err != nil {
-		return fmt.Errorf("%s websocket: %w", w.exchangeName, common.AppendError(ErrSubscriptionFailure, err))
-	}
+
 	return nil
 }
 
@@ -468,9 +460,7 @@ func (w *Websocket) Shutdown() error {
 	}
 
 	// flush any subscriptions from last connection if needed
-	w.subscriptionMutex.Lock()
-	w.subscriptions = subscriptionMap{}
-	w.subscriptionMutex.Unlock()
+	w.subscriptions.Clear()
 
 	w.setState(disconnected)
 
@@ -526,9 +516,7 @@ func (w *Websocket) FlushChannels() error {
 
 		if len(newsubs) != 0 {
 			// Purge subscription list as there will be conflicts
-			w.subscriptionMutex.Lock()
-			w.subscriptions = subscriptionMap{}
-			w.subscriptionMutex.Unlock()
+			w.subscriptions.Clear()
 			return w.SubscribeToChannels(newsubs)
 		}
 		return nil
@@ -785,163 +773,127 @@ func (w *Websocket) GetName() string {
 
 // GetChannelDifference finds the difference between the subscribed channels
 // and the new subscription list when pairs are disabled or enabled.
-func (w *Websocket) GetChannelDifference(genSubs []subscription.Subscription) (sub, unsub []subscription.Subscription) {
-	w.subscriptionMutex.RLock()
-	unsubMap := make(map[any]subscription.Subscription, len(w.subscriptions))
-	for k, c := range w.subscriptions {
-		unsubMap[k] = *c
+func (w *Websocket) GetChannelDifference(newSubs subscription.List) (sub, unsub subscription.List) {
+	if w.subscriptions == nil {
+		w.subscriptions = subscription.NewStore()
 	}
-	w.subscriptionMutex.RUnlock()
-
-	for i := range genSubs {
-		key := genSubs[i].EnsureKeyed()
-		if _, ok := unsubMap[key]; ok {
-			delete(unsubMap, key) // If it's in both then we remove it from the unsubscribe list
-		} else {
-			sub = append(sub, genSubs[i]) // If it's in genSubs but not existing subs we want to subscribe
-		}
-	}
-
-	for x := range unsubMap {
-		unsub = append(unsub, unsubMap[x])
-	}
-
-	return
+	return w.subscriptions.Diff(newSubs)
 }
 
-// UnsubscribeChannels unsubscribes from a websocket channel
-func (w *Websocket) UnsubscribeChannels(channels []subscription.Subscription) error {
+// UnsubscribeChannels unsubscribes from a list of websocket channel
+func (w *Websocket) UnsubscribeChannels(channels subscription.List) error {
 	if len(channels) == 0 {
 		return fmt.Errorf("%s websocket: %w", w.exchangeName, errNoSubscriptionsSupplied)
 	}
-	w.subscriptionMutex.RLock()
-
-	for i := range channels {
-		key := channels[i].EnsureKeyed()
-		if _, ok := w.subscriptions[key]; !ok {
-			w.subscriptionMutex.RUnlock()
-			return fmt.Errorf("%s websocket: %w: %+v", w.exchangeName, ErrSubscriptionNotFound, channels[i])
+	if w.subscriptions == nil {
+		return common.ErrNilPointer
+	}
+	for _, s := range channels {
+		if w.subscriptions.Get(s) == nil {
+			return fmt.Errorf("%s websocket: %w: %s", w.exchangeName, subscription.ErrNotFound, s)
 		}
 	}
-	w.subscriptionMutex.RUnlock()
 	return w.Unsubscriber(channels)
 }
 
 // ResubscribeToChannel resubscribes to channel
-func (w *Websocket) ResubscribeToChannel(subscribedChannel *subscription.Subscription) error {
-	err := w.UnsubscribeChannels([]subscription.Subscription{*subscribedChannel})
+func (w *Websocket) ResubscribeToChannel(s *subscription.Subscription) error {
+	l := subscription.List{s}
+	err := w.UnsubscribeChannels(l)
 	if err != nil {
 		return err
 	}
-	return w.SubscribeToChannels([]subscription.Subscription{*subscribedChannel})
+	return w.SubscribeToChannels(l)
 }
 
-// SubscribeToChannels appends supplied channels to channelsToSubscribe
-func (w *Websocket) SubscribeToChannels(channels []subscription.Subscription) error {
-	if err := w.checkSubscriptions(channels); err != nil {
+// SubscribeToChannels subscribes to websocket channels using the exchange specific Subscriber method
+// Errors are returned for duplicates or exceeding max Subscriptions
+func (w *Websocket) SubscribeToChannels(subs subscription.List) error {
+	subs.PruneNil()
+	if err := w.checkSubscriptions(subs); err != nil {
 		return fmt.Errorf("%s websocket: %w", w.exchangeName, common.AppendError(ErrSubscriptionFailure, err))
 	}
-	if err := w.Subscriber(channels); err != nil {
+	if err := w.Subscriber(subs); err != nil {
 		return fmt.Errorf("%s websocket: %w", w.exchangeName, common.AppendError(ErrSubscriptionFailure, err))
 	}
 	return nil
 }
 
-// AddSubscription adds a subscription to the subscription lists
-// Unlike AddSubscriptions this method will error if the subscription already exists
-func (w *Websocket) AddSubscription(c *subscription.Subscription) error {
-	w.subscriptionMutex.Lock()
-	defer w.subscriptionMutex.Unlock()
+// AddSubscriptions adds subscriptions to the subscription store
+func (w *Websocket) AddSubscriptions(subs ...*subscription.Subscription) error {
+	if w == nil {
+		return common.ErrNilPointer
+	}
 	if w.subscriptions == nil {
-		w.subscriptions = subscriptionMap{}
+		w.subscriptions = subscription.NewStore()
 	}
-	key := c.EnsureKeyed()
-	if _, ok := w.subscriptions[key]; ok {
-		return ErrSubscribedAlready
+	var errs error
+	for _, s := range subs {
+		if err := w.subscriptions.Add(s); err != nil {
+			errs = common.AppendError(errs, err)
+		}
 	}
-
-	n := *c // Fresh copy; we don't want to use the pointer we were given and allow encapsulation/locks to be bypassed
-	w.subscriptions[key] = &n
-
-	return nil
+	return errs
 }
 
-// SetSubscriptionState sets an existing subscription state
-// returns an error if the subscription is not found, or the new state is already set
-func (w *Websocket) SetSubscriptionState(c *subscription.Subscription, state subscription.State) error {
-	w.subscriptionMutex.Lock()
-	defer w.subscriptionMutex.Unlock()
+// AddSuccessfulSubscriptions marks subscriptions as subscribed and adds them to the subscription store
+func (w *Websocket) AddSuccessfulSubscriptions(subs ...*subscription.Subscription) error {
+	if w == nil {
+		return common.ErrNilPointer
+	}
 	if w.subscriptions == nil {
-		w.subscriptions = subscriptionMap{}
+		w.subscriptions = subscription.NewStore()
 	}
-	key := c.EnsureKeyed()
-	p, ok := w.subscriptions[key]
-	if !ok {
-		return ErrSubscriptionNotFound
+	var errs error
+	for _, s := range subs {
+		err := s.SetState(subscription.SubscribedState)
+		if err == nil {
+			err = w.subscriptions.Add(s)
+		}
+		if err != nil {
+			errs = common.AppendError(errs, err)
+		}
 	}
-	if state == p.State {
-		return ErrChannelInStateAlready
-	}
-	if state > subscription.UnsubscribingState {
-		return errInvalidChannelState
-	}
-	p.State = state
-	return nil
-}
-
-// AddSuccessfulSubscriptions adds subscriptions to the subscription lists that
-// has been successfully subscribed
-func (w *Websocket) AddSuccessfulSubscriptions(channels ...subscription.Subscription) {
-	w.subscriptionMutex.Lock()
-	defer w.subscriptionMutex.Unlock()
-	if w.subscriptions == nil {
-		w.subscriptions = subscriptionMap{}
-	}
-	for _, cN := range channels { //nolint:gocritic // See below comment
-		c := cN // cN is an iteration var; Not safe to make a pointer to
-		key := c.EnsureKeyed()
-		c.State = subscription.SubscribedState
-		w.subscriptions[key] = &c
-	}
+	return errs
 }
 
 // RemoveSubscriptions removes subscriptions from the subscription list
-func (w *Websocket) RemoveSubscriptions(channels ...subscription.Subscription) {
-	w.subscriptionMutex.Lock()
-	defer w.subscriptionMutex.Unlock()
-	if w.subscriptions == nil {
-		w.subscriptions = subscriptionMap{}
+func (w *Websocket) RemoveSubscriptions(subs ...*subscription.Subscription) error {
+	if w == nil || w.subscriptions == nil {
+		return common.ErrNilPointer
 	}
-	for i := range channels {
-		key := channels[i].EnsureKeyed()
-		delete(w.subscriptions, key)
+	var errs error
+	for _, s := range subs {
+		err := s.SetState(subscription.InactiveState)
+		if err == subscription.ErrInStateAlready {
+			err = nil
+		}
+		if err == nil {
+			err = w.subscriptions.Remove(s)
+		}
+		if err != nil {
+			errs = common.AppendError(errs, err)
+		}
 	}
+	return errs
 }
 
-// GetSubscription returns a pointer to a copy of the subscription at the key provided
+// GetSubscription returns a subscription at the key provided
 // returns nil if no subscription is at that key or the key is nil
+// Keys can implement subscription.MatchableKey in order to provide custom matching logic
 func (w *Websocket) GetSubscription(key any) *subscription.Subscription {
-	if key == nil || w == nil || w.subscriptions == nil {
+	if w == nil || w.subscriptions == nil || key == nil {
 		return nil
 	}
-	w.subscriptionMutex.RLock()
-	defer w.subscriptionMutex.RUnlock()
-	if s, ok := w.subscriptions[key]; ok {
-		c := *s
-		return &c
-	}
-	return nil
+	return w.subscriptions.Get(key)
 }
 
 // GetSubscriptions returns a new slice of the subscriptions
-func (w *Websocket) GetSubscriptions() []subscription.Subscription {
-	w.subscriptionMutex.RLock()
-	defer w.subscriptionMutex.RUnlock()
-	subs := make([]subscription.Subscription, 0, len(w.subscriptions))
-	for _, c := range w.subscriptions {
-		subs = append(subs, *c)
+func (w *Websocket) GetSubscriptions() subscription.List {
+	if w == nil || w.subscriptions == nil {
+		return nil
 	}
-	return subs
+	return w.subscriptions.List()
 }
 
 // SetCanUseAuthenticatedEndpoints sets canUseAuthenticatedEndpoints val in a thread safe manner
@@ -977,28 +929,28 @@ func checkWebsocketURL(s string) error {
 	return nil
 }
 
-// checkSubscriptions checks subscriptions against the max subscription limit
-// and if the subscription already exists.
-func (w *Websocket) checkSubscriptions(subs []subscription.Subscription) error {
+// checkSubscriptions checks subscriptions against the max subscription limit and if the subscription already exists
+// The subscription state is not considered when counting existing subscriptions
+func (w *Websocket) checkSubscriptions(subs subscription.List) error {
 	if len(subs) == 0 {
 		return errNoSubscriptionsSupplied
 	}
+	if w.subscriptions == nil {
+		return common.ErrNilPointer
+	}
 
-	w.subscriptionMutex.RLock()
-	defer w.subscriptionMutex.RUnlock()
-
-	if w.MaxSubscriptionsPerConnection > 0 && len(w.subscriptions)+len(subs) > w.MaxSubscriptionsPerConnection {
+	existing := w.subscriptions.Len()
+	if w.MaxSubscriptionsPerConnection > 0 && existing+len(subs) > w.MaxSubscriptionsPerConnection {
 		return fmt.Errorf("%w: current subscriptions: %v, incoming subscriptions: %v, max subscriptions per connection: %v - please reduce enabled pairs",
 			errSubscriptionsExceedsLimit,
-			len(w.subscriptions),
+			existing,
 			len(subs),
 			w.MaxSubscriptionsPerConnection)
 	}
 
-	for i := range subs {
-		key := subs[i].EnsureKeyed()
-		if _, ok := w.subscriptions[key]; ok {
-			return fmt.Errorf("%w for %+v", ErrSubscribedAlready, subs[i])
+	for _, s := range subs {
+		if found := w.subscriptions.Get(s); found != nil {
+			return fmt.Errorf("%w for %s", subscription.ErrDuplicate, s)
 		}
 	}
 
