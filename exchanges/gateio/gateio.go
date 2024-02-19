@@ -2275,7 +2275,7 @@ func (g *Gateio) UpdatePositionMarginInDualMode(ctx context.Context, settle stri
 	params := url.Values{}
 	params.Set("change", strconv.FormatFloat(change, 'f', -1, 64))
 	if dualSide != "dual_long" && dualSide != "dual_short" {
-		return nil, fmt.Errorf("invalid 'dual_side' should be 'dual_short' or 'dual_long'")
+		return nil, errors.New("invalid 'dual_side' should be 'dual_short' or 'dual_long'")
 	}
 	params.Set("dual_side", dualSide)
 	var response []Position
@@ -3204,13 +3204,13 @@ func (g *Gateio) GetDeliveryPriceTriggeredOrder(ctx context.Context, settle stri
 		return nil, fmt.Errorf("%w, only time in force value 'gtc' and 'ioc' are supported", errInvalidTimeInForce)
 	}
 	if arg.Trigger.StrategyType != 0 && arg.Trigger.StrategyType != 1 {
-		return nil, fmt.Errorf("strategy type must be 0 or 1, 0: by price, and 1: by price gap")
+		return nil, errors.New("strategy type must be 0 or 1, 0: by price, and 1: by price gap")
 	}
 	if arg.Trigger.Rule != 1 && arg.Trigger.Rule != 2 {
-		return nil, fmt.Errorf("invalid trigger condition('rule') value, rule must be 1 or 2")
+		return nil, errors.New("invalid trigger condition('rule') value, rule must be 1 or 2")
 	}
 	if arg.Trigger.PriceType != 0 && arg.Trigger.PriceType != 1 && arg.Trigger.PriceType != 2 {
-		return nil, fmt.Errorf("price type must be 0 or 1 or 2")
+		return nil, errors.New("price type must be 0 or 1 or 2")
 	}
 	if arg.Trigger.Price <= 0 {
 		return nil, errors.New("invalid argument: trigger.price")
@@ -3482,7 +3482,7 @@ func (g *Gateio) GetUsersLiquidationHistoryForSpecifiedUnderlying(ctx context.Co
 }
 
 // PlaceOptionOrder creates an options order
-func (g *Gateio) PlaceOptionOrder(ctx context.Context, arg OptionOrderParam) (*OptionOrderResponse, error) {
+func (g *Gateio) PlaceOptionOrder(ctx context.Context, arg *OptionOrderParam) (*OptionOrderResponse, error) {
 	if arg.Contract == "" {
 		return nil, errInvalidOrMissingContractParam
 	}

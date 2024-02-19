@@ -78,7 +78,7 @@ func (b *Bithumb) wsHandleData(respRaw []byte) error {
 		return err
 	}
 
-	if len(resp.Status) > 0 {
+	if resp.Status != "" {
 		if resp.Status == "0000" {
 			return nil
 		}

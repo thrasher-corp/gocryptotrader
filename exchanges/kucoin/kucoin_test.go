@@ -1995,7 +1995,7 @@ func TestPushData(t *testing.T) {
 func verifySubs(tb testing.TB, subs []subscription.Subscription, a asset.Item, prefix string, expected ...string) {
 	tb.Helper()
 	var sub *subscription.Subscription
-	for i, s := range subs {
+	for i, s := range subs { //nolint:gocritic // prefer convenience over performance here for tests
 		if s.Asset == a && strings.HasPrefix(s.Channel, prefix) {
 			if len(expected) == 1 && !strings.Contains(s.Channel, expected[0]) {
 				continue
@@ -2510,7 +2510,7 @@ func TestProcessMarketSnapshot(t *testing.T) {
 					assert.Equal(t, time.UnixMilli(1700555340197), v.LastUpdated, "datetime")
 					assert.Contains(t, []asset.Item{asset.Spot, asset.Margin}, v.AssetType, "AssetType is Spot or Margin")
 					seenAssetTypes[v.AssetType]++
-					assert.Equal(t, seenAssetTypes[v.AssetType], 1, "Each Asset Type is sent only once per unique snapshot")
+					assert.Equal(t, 1, seenAssetTypes[v.AssetType], "Each Asset Type is sent only once per unique snapshot")
 					assert.Equal(t, 0.054846, v.High, "high")
 					assert.Equal(t, 0.053778, v.Last, "lastTradedPrice")
 					assert.Equal(t, 0.05364, v.Low, "low")
@@ -2640,7 +2640,7 @@ func TestChangePositionMargin(t *testing.T) {
 
 	req.NewAllocatedMargin = 1337
 	_, err = ku.ChangePositionMargin(context.Background(), req)
-	assert.ErrorIs(t, err, nil)
+	assert.NoError(t, err)
 }
 
 func TestGetFuturesPositionSummary(t *testing.T) {
@@ -2659,7 +2659,7 @@ func TestGetFuturesPositionSummary(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ku, canManipulateRealOrders)
 	req.Pair = currency.NewPair(currency.XBT, currency.USDTM)
 	_, err = ku.GetFuturesPositionSummary(context.Background(), req)
-	assert.ErrorIs(t, err, nil)
+	assert.NoError(t, err)
 }
 
 func TestGetFuturesPositionOrders(t *testing.T) {
@@ -2685,7 +2685,7 @@ func TestGetFuturesPositionOrders(t *testing.T) {
 	req.EndDate = time.Now()
 	req.StartDate = req.EndDate.Add(-time.Hour * 24 * 7)
 	_, err = ku.GetFuturesPositionOrders(context.Background(), req)
-	assert.ErrorIs(t, err, nil)
+	assert.NoError(t, err)
 
 	req.StartDate = req.EndDate.Add(-time.Hour * 24 * 30)
 	_, err = ku.GetFuturesPositionOrders(context.Background(), req)
@@ -2693,7 +2693,7 @@ func TestGetFuturesPositionOrders(t *testing.T) {
 
 	req.RespectOrderHistoryLimits = true
 	_, err = ku.GetFuturesPositionOrders(context.Background(), req)
-	assert.ErrorIs(t, err, nil)
+	assert.NoError(t, err)
 }
 
 func TestUpdateOrderExecutionLimits(t *testing.T) {

@@ -893,8 +893,8 @@ func (w *Websocket) GetChannelDifference(genSubs []subscription.Subscription) (s
 		}
 	}
 
-	for _, c := range unsubMap {
-		unsub = append(unsub, c)
+	for x := range unsubMap {
+		unsub = append(unsub, unsubMap[x])
 	}
 
 	return
@@ -988,7 +988,7 @@ func (w *Websocket) AddSuccessfulSubscriptions(channels ...subscription.Subscrip
 	if w.subscriptions == nil {
 		w.subscriptions = subscriptionMap{}
 	}
-	for _, cN := range channels {
+	for _, cN := range channels { //nolint:gocritic // See below comment
 		c := cN // cN is an iteration var; Not safe to make a pointer to
 		key := c.EnsureKeyed()
 		c.State = subscription.SubscribedState
