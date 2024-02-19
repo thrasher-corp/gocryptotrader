@@ -148,13 +148,15 @@ func SetupWs(tb testing.TB, e exchange.IBotExchange) {
 	}
 
 	b := e.GetBase()
-	if !b.Websocket.IsEnabled() {
+	w, err := b.GetWebsocket()
+	if err != nil || !b.Websocket.IsEnabled() {
 		tb.Skip("Websocket not enabled")
 	}
-	if b.Websocket.IsConnected() {
+	if w.IsConnected() {
 		return
 	}
-	err := b.Websocket.Connect()
+
+	err = w.Connect()
 	require.NoError(tb, err, "WsConnect should not error")
 
 	setupWsOnce[e] = true

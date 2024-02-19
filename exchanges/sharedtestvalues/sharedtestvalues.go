@@ -9,7 +9,6 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
-	"sync"
 	"testing"
 	"time"
 
@@ -18,7 +17,6 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 )
 
 // This package is only to be referenced in test files
@@ -61,8 +59,6 @@ func NewTestWebsocket() *stream.Websocket {
 		ToRoutine:         make(chan interface{}, 1000),
 		TrafficAlert:      make(chan struct{}),
 		ReadMessageErrors: make(chan error),
-		Subscribe:         make(chan []subscription.Subscription, 10),
-		Unsubscribe:       make(chan []subscription.Subscription, 10),
 		Match:             stream.NewMatch(),
 	}
 }
@@ -168,7 +164,6 @@ func TestFixtureToDataHandler(t *testing.T, seed, e exchange.IBotExchange, fixtu
 
 	if b.Websocket == nil {
 		b.Websocket = &stream.Websocket{
-			Wg:          new(sync.WaitGroup),
 			DataHandler: make(chan interface{}, 128),
 		}
 	}

@@ -52,6 +52,19 @@ func (p Pairs) Strings() []string {
 	return list
 }
 
+// String is a convenience method returning a comma-separated string of uppercase currencies using / as delimiter
+func (p Pairs) String() string {
+	f := PairFormat{
+		Delimiter: "/",
+		Uppercase: true,
+	}
+	l := make([]string, len(p))
+	for i, pair := range p {
+		l[i] = f.Format(pair)
+	}
+	return strings.Join(l, ",")
+}
+
 // Join returns a comma separated list of currency pairs
 func (p Pairs) Join() string {
 	return strings.Join(p.Strings(), ",")

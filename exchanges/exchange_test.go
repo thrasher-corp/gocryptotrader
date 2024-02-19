@@ -1263,8 +1263,8 @@ func TestSetupDefaults(t *testing.T) {
 		DefaultURL:            "ws://something.com",
 		RunningURL:            "ws://something.com",
 		Connector:             func() error { return nil },
-		GenerateSubscriptions: func() ([]subscription.Subscription, error) { return []subscription.Subscription{}, nil },
-		Subscriber:            func([]subscription.Subscription) error { return nil },
+		GenerateSubscriptions: func() (subscription.List, error) { return subscription.List{}, nil },
+		Subscriber:            func(subscription.List) error { return nil },
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -3279,7 +3279,7 @@ func TestSetSubscriptionsFromConfig(t *testing.T) {
 			Features: &config.FeaturesConfig{},
 		},
 	}
-	subs := []*subscription.Subscription{
+	subs := subscription.List{
 		{Channel: subscription.CandlesChannel, Interval: kline.OneDay, Enabled: true},
 	}
 	b.Features.Subscriptions = subs
@@ -3287,7 +3287,7 @@ func TestSetSubscriptionsFromConfig(t *testing.T) {
 	assert.ElementsMatch(t, subs, b.Config.Features.Subscriptions, "Config Subscriptions should be updated")
 	assert.ElementsMatch(t, subs, b.Features.Subscriptions, "Subscriptions should be the same")
 
-	subs = []*subscription.Subscription{
+	subs = subscription.List{
 		{Channel: subscription.OrderbookChannel, Interval: kline.OneDay, Enabled: true},
 	}
 	b.Config.Features.Subscriptions = subs

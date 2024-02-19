@@ -22,8 +22,6 @@ const (
 	UnhandledMessage                   = " - Unhandled websocket message: "
 )
 
-type subscriptionMap map[any]*subscription.Subscription
-
 const (
 	uninitialised uint32 = iota
 	disconnected
@@ -53,19 +51,14 @@ type Websocket struct {
 	connector                    func() error
 
 	subscriptionMutex sync.RWMutex
-	subscriptions     subscriptionMap
-	Subscribe         chan []subscription.Subscription
-	Unsubscribe       chan []subscription.Subscription
+	subscriptions     *subscription.Store
 
-	// Subscriber function for package defined websocket subscriber
-	// functionality
-	Subscriber func([]subscription.Subscription) error
-	// Unsubscriber function for packaged defined websocket unsubscriber
-	// functionality
-	Unsubscriber func([]subscription.Subscription) error
-	// GenerateSubs function for package defined websocket generate
-	// subscriptions functionality
-	GenerateSubs func() ([]subscription.Subscription, error)
+	// Subscriber function for exchange specific subscribe implementation
+	Subscriber func(subscription.List) error
+	// Subscriber function for exchange specific unsubscribe implementation
+	Unsubscriber func(subscription.List) error
+	// GenerateSubs function for exchange specific generating subscriptions from Features.Subscriptions, Pairs and Assets
+	GenerateSubs func() (subscription.List, error)
 
 	DataHandler chan interface{}
 	ToRoutine   chan interface{}
@@ -74,7 +67,7 @@ type Websocket struct {
 
 	// shutdown synchronises shutdown event across routines
 	ShutdownC chan struct{}
-	Wg        *sync.WaitGroup
+	Wg        sync.WaitGroup
 
 	// Orderbook is a local buffer of orderbooks
 	Orderbook buffer.Orderbook
@@ -112,9 +105,9 @@ type WebsocketSetup struct {
 	RunningURL            string
 	RunningURLAuth        string
 	Connector             func() error
-	Subscriber            func([]subscription.Subscription) error
-	Unsubscriber          func([]subscription.Subscription) error
-	GenerateSubscriptions func() ([]subscription.Subscription, error)
+	Subscriber            func(subscription.List) error
+	Unsubscriber          func(subscription.List) error
+	GenerateSubscriptions func() (subscription.List, error)
 	Features              *protocol.Features
 
 	// Local orderbook buffer config values
