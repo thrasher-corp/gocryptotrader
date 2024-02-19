@@ -215,22 +215,22 @@ func (ku *Kucoin) wsHandleData(respData []byte) error {
 		} else {
 			instruments = topicInfo[1]
 		}
-		return ku.processTicker(resp.Data, instruments)
+		return ku.processTicker(resp.Data, instruments, topicInfo[0])
 	case strings.HasPrefix(marketSymbolSnapshotChannel, topicInfo[0]):
-		return ku.processMarketSnapshot(resp.Data)
+		return ku.processMarketSnapshot(resp.Data, topicInfo[0])
 	case strings.HasPrefix(marketOrderbookLevel2Channels, topicInfo[0]):
-		return ku.processOrderbookWithDepth(respData, topicInfo[1])
+		return ku.processOrderbookWithDepth(respData, topicInfo[1], topicInfo[0])
 	case strings.HasPrefix(marketOrderbookLevel2to5Channel, topicInfo[0]),
 		strings.HasPrefix(marketOrderbokLevel2To50Channel, topicInfo[0]):
-		return ku.processOrderbook(resp.Data, topicInfo[1])
+		return ku.processOrderbook(resp.Data, topicInfo[1], topicInfo[0])
 	case strings.HasPrefix(marketCandlesChannel, topicInfo[0]):
 		symbolAndInterval := strings.Split(topicInfo[1], currency.UnderscoreDelimiter)
 		if len(symbolAndInterval) != 2 {
 			return errMalformedData
 		}
-		return ku.processCandlesticks(resp.Data, symbolAndInterval[0], symbolAndInterval[1])
+		return ku.processCandlesticks(resp.Data, symbolAndInterval[0], symbolAndInterval[1], topicInfo[0])
 	case strings.HasPrefix(marketMatchChannel, topicInfo[0]):
-		return ku.processTradeData(resp.Data, topicInfo[1])
+		return ku.processTradeData(resp.Data, topicInfo[1], topicInfo[0])
 	case strings.HasPrefix(indexPriceIndicatorChannel, topicInfo[0]):
 		var response WsPriceIndicator
 		return ku.processData(resp.Data, &response)
@@ -241,7 +241,7 @@ func (ku *Kucoin) wsHandleData(respData []byte) error {
 		var response WsMarginFundingBook
 		return ku.processData(resp.Data, &response)
 	case strings.HasPrefix(privateSpotTradeOrders, topicInfo[0]):
-		return ku.processOrderChangeEvent(resp.Data)
+		return ku.processOrderChangeEvent(resp.Data, topicInfo[0])
 	case strings.HasPrefix(accountBalanceChannel, topicInfo[0]):
 		return ku.processAccountBalanceChange(resp.Data)
 	case strings.HasPrefix(marginPositionChannel, topicInfo[0]):
@@ -640,7 +640,7 @@ func (ku *Kucoin) processAccountBalanceChange(respData []byte) error {
 	return nil
 }
 
-func (ku *Kucoin) processOrderChangeEvent(respData []byte) error {
+func (ku *Kucoin) processOrderChangeEvent(respData []byte, topic string) error {
 	response := WsTradeOrder{}
 	err := json.Unmarshal(respData, &response)
 	if err != nil {
@@ -663,7 +663,7 @@ func (ku *Kucoin) processOrderChangeEvent(respData []byte) error {
 		return err
 	}
 	// TODO: should amend this function as we need to know the order asset type when we call it
-	assets, err := ku.listOfAssetsCurrencyPairEnabledFor(pair)
+	assets, err := ku.CalculateAssets(topic, pair)
 	if err != nil {
 		return err
 	}
@@ -688,7 +688,7 @@ func (ku *Kucoin) processOrderChangeEvent(respData []byte) error {
 	return nil
 }
 
-func (ku *Kucoin) processTradeData(respData []byte, instrument string) error {
+func (ku *Kucoin) processTradeData(respData []byte, instrument, topic string) error {
 	response := WsTrade{}
 	err := json.Unmarshal(respData, &response)
 	if err != nil {
@@ -707,7 +707,7 @@ func (ku *Kucoin) processTradeData(respData []byte, instrument string) error {
 	if err != nil {
 		return err
 	}
-	assets, err := ku.listOfAssetsCurrencyPairEnabledFor(pair)
+	assets, err := ku.CalculateAssets(topic, pair)
 	if err != nil {
 		return err
 	}
@@ -729,7 +729,7 @@ func (ku *Kucoin) processTradeData(respData []byte, instrument string) error {
 	return nil
 }
 
-func (ku *Kucoin) processTicker(respData []byte, instrument string) error {
+func (ku *Kucoin) processTicker(respData []byte, instrument, topic string) error {
 	response := WsTicker{}
 	err := json.Unmarshal(respData, &response)
 	if err != nil {
@@ -739,7 +739,7 @@ func (ku *Kucoin) processTicker(respData []byte, instrument string) error {
 	if err != nil {
 		return err
 	}
-	assets, err := ku.listOfAssetsCurrencyPairEnabledFor(pair)
+	assets, err := ku.CalculateAssets(topic, pair)
 	if err != nil {
 		return err
 	}
@@ -763,7 +763,7 @@ func (ku *Kucoin) processTicker(respData []byte, instrument string) error {
 	return nil
 }
 
-func (ku *Kucoin) processCandlesticks(respData []byte, instrument, intervalString string) error {
+func (ku *Kucoin) processCandlesticks(respData []byte, instrument, intervalString, topic string) error {
 	pair, err := currency.NewPairFromString(instrument)
 	if err != nil {
 		return err
@@ -777,7 +777,7 @@ func (ku *Kucoin) processCandlesticks(respData []byte, instrument, intervalStrin
 	if err != nil {
 		return err
 	}
-	assets, err := ku.listOfAssetsCurrencyPairEnabledFor(pair)
+	assets, err := ku.CalculateAssets(topic, pair)
 	if err != nil {
 		return err
 	}
@@ -802,7 +802,7 @@ func (ku *Kucoin) processCandlesticks(respData []byte, instrument, intervalStrin
 	return nil
 }
 
-func (ku *Kucoin) processOrderbookWithDepth(respData []byte, instrument string) error {
+func (ku *Kucoin) processOrderbookWithDepth(respData []byte, instrument, topic string) error {
 	pair, err := currency.NewPairFromString(instrument)
 	if err != nil {
 		return err
@@ -814,7 +814,7 @@ func (ku *Kucoin) processOrderbookWithDepth(respData []byte, instrument string) 
 	if err != nil {
 		return err
 	}
-	assets, err := ku.listOfAssetsCurrencyPairEnabledFor(pair)
+	assets, err := ku.CalculateAssets(topic, pair)
 	if err != nil {
 		return err
 	}
@@ -867,7 +867,7 @@ func (ku *Kucoin) UpdateLocalBuffer(wsdp *WsOrderbook, assetType asset.Item) (bo
 	return false, err
 }
 
-func (ku *Kucoin) processOrderbook(respData []byte, symbol string) error {
+func (ku *Kucoin) processOrderbook(respData []byte, symbol, topic string) error {
 	var response Level2Depth5Or20
 	err := json.Unmarshal(respData, &response)
 	if err != nil {
@@ -891,7 +891,7 @@ func (ku *Kucoin) processOrderbook(respData []byte, symbol string) error {
 		bids[x].Amount = response.Bids[x][1].Float64()
 	}
 
-	assets, err := ku.listOfAssetsCurrencyPairEnabledFor(pair)
+	assets, err := ku.CalculateAssets(topic, pair)
 	if err != nil {
 		return err
 	}
@@ -914,7 +914,7 @@ func (ku *Kucoin) processOrderbook(respData []byte, symbol string) error {
 	return nil
 }
 
-func (ku *Kucoin) processMarketSnapshot(respData []byte) error {
+func (ku *Kucoin) processMarketSnapshot(respData []byte, topic string) error {
 	response := WsSnapshot{}
 	err := json.Unmarshal(respData, &response)
 	if err != nil {
@@ -924,7 +924,7 @@ func (ku *Kucoin) processMarketSnapshot(respData []byte) error {
 	if err != nil {
 		return err
 	}
-	assets, err := ku.listOfAssetsCurrencyPairEnabledFor(pair)
+	assets, err := ku.CalculateAssets(topic, pair)
 	if err != nil {
 		return err
 	}
@@ -1724,20 +1724,41 @@ func (o *orderbookManager) stopNeedsFetchingBook(pair currency.Pair, assetType a
 	return nil
 }
 
-func (ku *Kucoin) listOfAssetsCurrencyPairEnabledFor(cp currency.Pair) ([]asset.Item, error) {
-	// Return all asset types that are enabled and check.
-	assetTypes := ku.CurrencyPairs.GetAssetTypes(true)
-	target := 0 // filter in place
-	for i := range assetTypes {
-		pairs, err := ku.CurrencyPairs.GetPairs(assetTypes[i], true)
-		if err != nil {
+// CalculateAssets returns the available asset types for a currency pair
+func (ku *Kucoin) CalculateAssets(topic string, cp currency.Pair) ([]asset.Item, error) {
+	switch {
+	case cp.Quote.Equal(currency.USDTM), strings.HasPrefix(topic, "/contract"):
+		if err := ku.CurrencyPairs.IsAssetEnabled(asset.Futures); err != nil {
+			if !errors.Is(err, asset.ErrNotSupported) {
+				return nil, err
+			}
+			return nil, nil
+		}
+		return []asset.Item{asset.Futures}, nil
+	case strings.HasPrefix(topic, "/margin"), strings.HasPrefix(topic, "/index"):
+		if err := ku.CurrencyPairs.IsAssetEnabled(asset.Margin); err != nil {
+			if !errors.Is(err, asset.ErrNotSupported) {
+				return nil, err
+			}
+			return nil, nil
+		}
+		return []asset.Item{asset.Margin}, nil
+	default:
+		resp := make([]asset.Item, 0, 2)
+		spotEnabled, err := ku.IsPairEnabled(cp, asset.Spot)
+		if err != nil && !errors.Is(currency.ErrCurrencyNotFound, err) {
 			return nil, err
 		}
-
-		if pairs.Contains(cp, true) {
-			assetTypes[target] = assetTypes[i]
-			target++
+		if spotEnabled {
+			resp = append(resp, asset.Spot)
 		}
+		marginEnabled, err := ku.IsPairEnabled(cp, asset.Margin)
+		if err != nil && !errors.Is(currency.ErrCurrencyNotFound, err) {
+			return nil, err
+		}
+		if marginEnabled {
+			resp = append(resp, asset.Margin)
+		}
+		return resp, nil
 	}
-	return assetTypes[:target], nil
 }

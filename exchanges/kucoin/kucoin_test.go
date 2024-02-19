@@ -2483,7 +2483,7 @@ func TestProcessOrderbook(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	err = ku.processOrderbook([]byte(orderbookLevel5PushData), "BTC-USDT")
+	err = ku.processOrderbook([]byte(orderbookLevel5PushData), "BTC-USDT", "")
 	if err != nil {
 		t.Error(err)
 	}

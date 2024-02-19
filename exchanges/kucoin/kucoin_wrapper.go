@@ -370,33 +370,28 @@ func (ku *Kucoin) UpdateTickers(ctx context.Context, assetType asset.Item) error
 			return err
 		}
 		for t := range ticks.Tickers {
-			pair, err := currency.NewPairFromString(ticks.Tickers[t].Symbol)
-			if err != nil {
+			pair, enabled, err := ku.MatchSymbolCheckEnabled(ticks.Tickers[t].Symbol, assetType, true)
+			if err != nil && !errors.Is(err, currency.ErrPairNotFound) {
 				return err
 			}
-			assets, err := ku.listOfAssetsCurrencyPairEnabledFor(pair)
-			if err != nil {
-				return err
+			if !enabled {
+				continue
 			}
-			for x := range assets {
-				if assets[x] != assetType {
-					continue
-				}
-				err = ticker.ProcessTicker(&ticker.Price{
-					Last:         ticks.Tickers[t].Last,
-					High:         ticks.Tickers[t].High,
-					Low:          ticks.Tickers[t].Low,
-					Volume:       ticks.Tickers[t].Volume,
-					Ask:          ticks.Tickers[t].Sell,
-					Bid:          ticks.Tickers[t].Buy,
-					Pair:         pair,
-					ExchangeName: ku.Name,
-					AssetType:    assets[x],
-					LastUpdated:  ticks.Time.Time(),
-				})
-				if err != nil {
-					errs = common.AppendError(errs, err)
-				}
+
+			err = ticker.ProcessTicker(&ticker.Price{
+				Last:         ticks.Tickers[t].Last,
+				High:         ticks.Tickers[t].High,
+				Low:          ticks.Tickers[t].Low,
+				Volume:       ticks.Tickers[t].Volume,
+				Ask:          ticks.Tickers[t].Sell,
+				Bid:          ticks.Tickers[t].Buy,
+				Pair:         pair,
+				ExchangeName: ku.Name,
+				AssetType:    assetType,
+				LastUpdated:  ticks.Time.Time(),
+			})
+			if err != nil {
+				errs = common.AppendError(errs, err)
 			}
 		}
 	default:
