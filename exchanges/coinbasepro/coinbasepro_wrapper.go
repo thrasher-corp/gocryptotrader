@@ -254,11 +254,12 @@ func (c *CoinbasePro) UpdateAccountInfo(ctx context.Context, assetType asset.Ite
 		done           bool
 		err            error
 		cursor         string
+		accountResp    AllAccountsResponse
 	)
 	response.Exchange = c.Name
 
 	for !done {
-		accountResp, err := c.GetAllAccounts(ctx, 250, cursor)
+		accountResp, err = c.GetAllAccounts(ctx, 250, cursor)
 		if err != nil {
 			return response, err
 		}
@@ -411,7 +412,7 @@ func (c *CoinbasePro) UpdateOrderbook(ctx context.Context, p currency.Pair, asse
 	if p.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
-	if err := c.CurrencyPairs.IsAssetEnabled(assetType); err != nil {
+	if err = c.CurrencyPairs.IsAssetEnabled(assetType); err != nil {
 		return nil, err
 	}
 	book := &orderbook.Base{

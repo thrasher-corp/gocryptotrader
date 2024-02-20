@@ -168,7 +168,8 @@ func (c *CoinbasePro) wsHandleData(respRaw []byte, seqCount uint64) (string, err
 
 		sliToSend := []stream.KlineData{}
 
-		timestamp, err := getTimestamp(respRaw)
+		var timestamp time.Time
+		timestamp, err = getTimestamp(respRaw)
 		if err != nil {
 			return warnString, err
 		}
