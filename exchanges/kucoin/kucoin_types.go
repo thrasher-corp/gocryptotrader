@@ -28,6 +28,7 @@ var (
 	errMultipleDepositAddress    = errors.New("multiple deposit addresses")
 	errInvalidResultInterface    = errors.New("result interface has to be pointer")
 	errInvalidSubAccountName     = errors.New("invalid sub-account name")
+	errAPIKeyRequired            = errors.New("account API key is required")
 	errInvalidPassPhraseInstance = errors.New("invalid passphrase string")
 	errNoValidResponseFromServer = errors.New("no valid response from server")
 	errMissingOrderbookSequence  = errors.New("missing orderbook sequence")
@@ -786,6 +787,75 @@ type TransferableBalanceInfo struct {
 	Transferable float64 `json:"transferable,string"`
 }
 
+// FundTransferFuturesParam holds parameter values for internal transfer
+type FundTransferFuturesParam struct {
+	Amount             float64       `json:"amount"`
+	Currency           currency.Code `json:"currency"`
+	RecieveAccountType string        `json:"recAccountType"` // possible values are: MAIN and TRADE
+}
+
+// FundTransferToFuturesParam holds request parameters to transfer funds to futures account.
+type FundTransferToFuturesParam struct {
+	Amount             float64       `json:"amount"`
+	Currency           currency.Code `json:"currency"`
+	PaymentAccountType string        `json:"payAccountType"` // Payment account type, including MAIN,TRADE
+}
+
+// InnerTransferToMainAndTradeResponse represents a detailed response after transfering fund to main and trade accounts.
+type InnerTransferToMainAndTradeResponse struct {
+	ApplyID        string               `json:"applyId"`
+	BizNo          string               `json:"bizNo"`
+	PayAccountType string               `json:"payAccountType"`
+	PayTag         string               `json:"payTag"`
+	Remark         string               `json:"remark"`
+	RecAccountType string               `json:"recAccountType"`
+	RecTag         string               `json:"recTag"`
+	RecRemark      string               `json:"recRemark"`
+	RecSystem      string               `json:"recSystem"`
+	Status         string               `json:"status"`
+	Currency       string               `json:"currency"`
+	Amount         types.Number         `json:"amount"`
+	Fee            types.Number         `json:"fee"`
+	SerialNumber   int64                `json:"sn"`
+	Reason         string               `json:"reason"`
+	CreatedAt      convert.ExchangeTime `json:"createdAt"`
+	UpdatedAt      convert.ExchangeTime `json:"updatedAt"`
+}
+
+// FundTransferToFuturesResponse response struct after transfering fund to Futures account
+type FundTransferToFuturesResponse struct {
+	Code    string `json:"code"`
+	Message string `json:"msg"`
+	Retry   bool   `json:"retry"`
+	Success bool   `json:"success"`
+}
+
+// FuturesTransferOutResponse represents a list of transfer out instance.
+type FuturesTransferOutResponse struct {
+	CurrentPage int `json:"currentPage"`
+	PageSize    int `json:"pageSize"`
+	TotalNum    int `json:"totalNum"`
+	TotalPage   int `json:"totalPage"`
+	Items       []struct {
+		ApplyID   string               `json:"applyId"`
+		Currency  string               `json:"currency"`
+		RecRemark string               `json:"recRemark"`
+		RecSystem string               `json:"recSystem"`
+		Status    string               `json:"status"`
+		Amount    types.Number         `json:"amount"`
+		Reason    string               `json:"reason"`
+		Offset    int64                `json:"offset"`
+		CreatedAt convert.ExchangeTime `json:"createdAt"`
+		Remark    string               `json:"remark"`
+	} `json:"items"`
+}
+
+// DepositAddressParams represents a deposit address creation parameters
+type DepositAddressParams struct {
+	Currency currency.Code `json:"currency"`
+	Chain    string        `json:"chain,omitempty"`
+}
+
 // DepositAddress represents deposit address information for Spot and Margin trading.
 type DepositAddress struct {
 	Address string `json:"address"`
@@ -1454,11 +1524,14 @@ type AccountLedgerResponse struct {
 // SpotAPISubAccountParams parameters for Spot APIs for sub-accounts
 type SpotAPISubAccountParams struct {
 	SubAccountName string `json:"subName"`
-	APIKey         string `json:"apiKey"`
 	Passphrase     string `json:"passphrase"`
-	Permission     string `json:"permission,omitempty"`    // Permissions(Only "General" and "Trade" permissions can be set, such as "General, Trade". The default is "General")
+	Remark         string `json:"remark"`
+	Permission     string `json:"permission,omitempty"`    // Permissions(Only General、Spot、Futures、Margin permissions can be set, such as "General, Trade". The default is "General")
 	IPWhitelist    string `json:"ipWhitelist,omitempty"`   // IP whitelist(You may add up to 20 IPs. Use a halfwidth comma to each IP)
 	Expire         int64  `json:"expire,string,omitempty"` // API expiration time; Never expire(default)-1，30Day30，90Day90，180Day180，360Day360
+
+	// used when modifying sub-account API key
+	APIKey string `json:"apiKey"`
 }
 
 // SubAccountResponse represents the sub-user detail.
@@ -1509,11 +1582,12 @@ type SpotAPISubAccount struct {
 	Permission  string `json:"permission"`
 	SubName     string `json:"subName"`
 
+	Remark    string               `json:"remark"`
+	CreatedAt convert.ExchangeTime `json:"createdAt"`
+
 	// TODO: to be removed if not used any other place
-	Remark     string               `json:"remark"`
-	APISecret  string               `json:"apiSecret"`
-	Passphrase string               `json:"passphrase"`
-	CreatedAt  convert.ExchangeTime `json:"createdAt"`
+	APISecret  string `json:"apiSecret"`
+	Passphrase string `json:"passphrase"`
 }
 
 // DeleteSubAccountResponse represents delete sub-account response.

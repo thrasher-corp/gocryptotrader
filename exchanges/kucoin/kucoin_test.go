@@ -724,13 +724,50 @@ func TestMakeInnerTransfer(t *testing.T) {
 	assert.NoError(t, err)
 }
 
+func TestTransferToMainOrTradeAccount(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, ku, canManipulateRealOrders)
+	_, err := ku.TransferToMainOrTradeAccount(context.Background(), &FundTransferFuturesParam{})
+	assert.ErrorIs(t, err, common.ErrNilPointer)
+	_, err = ku.TransferToMainOrTradeAccount(context.Background(), &FundTransferFuturesParam{
+		Amount:             1,
+		Currency:           currency.USDT,
+		RecieveAccountType: "MAIN",
+	})
+	assert.NoError(t, err)
+}
+
+func TestTransferToFuturesAccount(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, ku, canManipulateRealOrders)
+	_, err := ku.TransferToFuturesAccount(context.Background(), &FundTransferToFuturesParam{})
+	require.ErrorIs(t, err, common.ErrNilPointer)
+	_, err = ku.TransferToFuturesAccount(context.Background(), &FundTransferToFuturesParam{
+		Amount:             1,
+		Currency:           currency.USDT,
+		PaymentAccountType: "MAIN",
+	})
+	assert.NoError(t, err)
+}
+
+func TestGetFuturesTransferOutRequestRecords(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, ku)
+	_, err := ku.GetFuturesTransferOutRequestRecords(context.Background(), time.Time{}, time.Now(), "", "", "BTC", 0, 10)
+	assert.NoError(t, err)
+}
+
 func TestCreateDepositAddress(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ku, canManipulateRealOrders)
-	_, err := ku.CreateDepositAddress(context.Background(), "BTC", "")
+	_, err := ku.CreateDepositAddress(context.Background(), &DepositAddressParams{
+		Currency: currency.BTC,
+	})
 	assert.NoError(t, err)
-
-	_, err = ku.CreateDepositAddress(context.Background(), "USDT", "TRC20")
+	_, err = ku.CreateDepositAddress(context.Background(),
+		&DepositAddressParams{
+			Currency: currency.USDT,
+			Chain:    "TRC20"})
 	assert.NoError(t, err)
 }
 
@@ -1789,6 +1826,7 @@ func TestCreateSpotAPIsForSubAccount(t *testing.T) {
 	_, err := ku.CreateSpotAPIsForSubAccount(context.Background(), &SpotAPISubAccountParams{
 		SubAccountName: "gocryptoTrader1",
 		Passphrase:     "mysecretPassphrase123",
+		Remark:         "the-remark",
 	})
 	assert.NoError(t, err)
 }
@@ -1803,13 +1841,19 @@ func TestModifySubAccountSpotAPIs(t *testing.T) {
 		SubAccountName: "gocryptoTrader1",
 		Passphrase:     "mysecretPassphrase123",
 	})
+	require.ErrorIs(t, err, errAPIKeyRequired)
+	_, err = ku.ModifySubAccountSpotAPIs(context.Background(), &SpotAPISubAccountParams{
+		SubAccountName: "gocryptoTrader1",
+		Passphrase:     "mysecretPassphrase123",
+		APIKey:         apiKey,
+	})
 	assert.NoError(t, err)
 }
 
 func TestDeleteSubAccountSpotAPI(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ku, canManipulateRealOrders)
-	_, err := ku.DeleteSubAccountSpotAPI(context.Background(), apiKey, "gocryptoTrader1")
+	_, err := ku.DeleteSubAccountSpotAPI(context.Background(), apiKey, "gocryptoTrader1", "the-passphrase")
 	assert.NoError(t, err)
 }
 

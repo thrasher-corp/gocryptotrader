@@ -852,7 +852,7 @@ func (ku *Kucoin) CreateSubUser(ctx context.Context, subAccountName, password, r
 }
 
 // GetSubAccountSpotAPIList used to obtain a list of Spot APIs pertaining to a sub-account.
-func (ku *Kucoin) GetSubAccountSpotAPIList(ctx context.Context, subAccountName, apiKeys string) (*SubAccountResponse, error) {
+func (ku *Kucoin) GetSubAccountSpotAPIList(ctx context.Context, subAccountName, apiKeys string) ([]SpotAPISubAccount, error) {
 	if subAccountRegExp.MatchString(subAccountName) {
 		return nil, errInvalidSubAccountName
 	}
@@ -861,7 +861,7 @@ func (ku *Kucoin) GetSubAccountSpotAPIList(ctx context.Context, subAccountName, 
 	if apiKeys != "" {
 		params.Set("apiKey", apiKeys)
 	}
-	var resp *SubAccountResponse
+	var resp []SpotAPISubAccount
 	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, defaultSpotEPL, http.MethodGet, common.EncodeURLValues("/v1/sub/api-key", params), nil, &resp)
 }
 
@@ -873,6 +873,9 @@ func (ku *Kucoin) CreateSpotAPIsForSubAccount(ctx context.Context, arg *SpotAPIS
 	if subAccountPassphraseRegExp.MatchString(arg.Passphrase) {
 		return nil, fmt.Errorf("%w, must contain 7-32 characters. cannot contain any spaces", errInvalidPassPhraseInstance)
 	}
+	if arg.Remark == "" {
+		return nil, errors.New("a remarks with a 24 characters max length is required")
+	}
 	var resp *SpotAPISubAccount
 	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, defaultSpotEPL, http.MethodPost, "/v1/sub/api-key", &arg, &resp)
 }
@@ -882,6 +885,9 @@ func (ku *Kucoin) ModifySubAccountSpotAPIs(ctx context.Context, arg *SpotAPISubA
 	if subAccountRegExp.MatchString(arg.SubAccountName) {
 		return nil, errInvalidSubAccountName
 	}
+	if arg.APIKey == "" {
+		return nil, errAPIKeyRequired
+	}
 	if subAccountPassphraseRegExp.MatchString(arg.Passphrase) {
 		return nil, fmt.Errorf("%w, must contain 7-32 characters. cannot contain any spaces", errInvalidPassPhraseInstance)
 	}
@@ -890,16 +896,20 @@ func (ku *Kucoin) ModifySubAccountSpotAPIs(ctx context.Context, arg *SpotAPISubA
 }
 
 // DeleteSubAccountSpotAPI delete sub-account Spot APIs.
-func (ku *Kucoin) DeleteSubAccountSpotAPI(ctx context.Context, apiKey, subAccountName string) (*DeleteSubAccountResponse, error) {
+func (ku *Kucoin) DeleteSubAccountSpotAPI(ctx context.Context, apiKey, subAccountName, passphrase string) (*DeleteSubAccountResponse, error) {
 	if subAccountRegExp.MatchString(subAccountName) {
 		return nil, errInvalidSubAccountName
 	}
 	if apiKey == "" {
 		return nil, errors.New("apiKey is required")
 	}
+	if passphrase == "" {
+		return nil, errInvalidPassPhraseInstance
+	}
 	params := url.Values{}
 	params.Set("apiKey", apiKey)
 	params.Set("subName", subAccountName)
+	params.Set("passphrase", passphrase)
 	var resp *DeleteSubAccountResponse
 	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, defaultSpotEPL, http.MethodDelete, common.EncodeURLValues("/v1/sub/api-key", params), nil, &resp)
 }
@@ -1143,6 +1153,7 @@ func (ku *Kucoin) GetPaginatedSubAccountInformation(ctx context.Context, current
 }
 
 // GetTransferableBalance get the transferable balance of a specified account
+// The account type:MAIN、TRADE、TRADE_HF、MARGIN、ISOLATED
 func (ku *Kucoin) GetTransferableBalance(ctx context.Context, ccy, accountType, tag string) (*TransferableBalanceInfo, error) {
 	if ccy == "" {
 		return nil, currency.ErrCurrencyCodeEmpty
@@ -1181,7 +1192,7 @@ func (ku *Kucoin) GetUniversalTransfer(ctx context.Context, arg *UniversalTransf
 		return "", fmt.Errorf("%w, toAccountType is empty", errAccountTypeMissing)
 	}
 	var resp string
-	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, defaultSpotEPL, http.MethodPost, "v3/accounts/universal-transfer", arg, &resp)
+	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, defaultSpotEPL, http.MethodPost, "/v3/accounts/universal-transfer", arg, &resp)
 }
 
 // TransferMainToSubAccount used to transfer funds from main account to sub-account
@@ -1254,18 +1265,77 @@ func (ku *Kucoin) MakeInnerTransfer(ctx context.Context, clientOID, ccy, from, t
 	return resp.OrderID, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, defaultSpotEPL, http.MethodPost, "/v2/accounts/inner-transfer", params, &resp)
 }
 
+// TransferToMainOrTradeAccount transfers fund from KuCoin Futures account to Main or Trade accounts.
+func (ku *Kucoin) TransferToMainOrTradeAccount(ctx context.Context, arg *FundTransferFuturesParam) (*InnerTransferToMainAndTradeResponse, error) {
+	if arg == nil || *arg == (FundTransferFuturesParam{}) {
+		return nil, common.ErrNilPointer
+	}
+	if arg.Amount <= 0 {
+		return nil, order.ErrAmountBelowMin
+	}
+	if arg.Currency.IsEmpty() {
+		return nil, currency.ErrCurrencyPairEmpty
+	}
+	if arg.RecieveAccountType != "MAIN" && arg.RecieveAccountType != "TRADE" {
+		return nil, fmt.Errorf("invalid receive account type %s, only TRADE and MAIN are supported", arg.RecieveAccountType)
+	}
+	var resp *InnerTransferToMainAndTradeResponse
+	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, defaultSpotEPL, http.MethodPost, "/v3/transfer-out", arg, &resp)
+}
+
+// TransferToFuturesAccount transfers fund from KuCoin Futures account to Main or Trade accounts.
+func (ku *Kucoin) TransferToFuturesAccount(ctx context.Context, arg *FundTransferToFuturesParam) (*FundTransferToFuturesResponse, error) {
+	if arg == nil || *arg == (FundTransferToFuturesParam{}) {
+		return nil, common.ErrNilPointer
+	}
+	if arg.Amount <= 0 {
+		return nil, order.ErrAmountBelowMin
+	}
+	if arg.Currency.IsEmpty() {
+		return nil, currency.ErrCurrencyPairEmpty
+	}
+	if arg.PaymentAccountType != "MAIN" && arg.PaymentAccountType != "TRADE" {
+		return nil, fmt.Errorf("invalid receive account type %s, only TRADE and MAIN are supported", arg.PaymentAccountType)
+	}
+	var resp *FundTransferToFuturesResponse
+	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, defaultSpotEPL, http.MethodPost, "/v1/transfer-in", arg, &resp)
+}
+
+// GetFuturesTransferOutRequestRecords retrieves futures transfers out requests.
+func (ku *Kucoin) GetFuturesTransferOutRequestRecords(ctx context.Context, startAt, endAt time.Time, status, queryStatus, ccy string, currentPage, pageSize int64) (*FuturesTransferOutResponse, error) {
+	params := url.Values{}
+	if !startAt.IsZero() {
+		params.Set("startAt", strconv.FormatInt(startAt.UnixMilli(), 10))
+	}
+	if !endAt.IsZero() {
+		params.Set("endAt", strconv.FormatInt(endAt.UnixMilli(), 10))
+	}
+	if status != "" {
+		params.Set("status", status)
+	}
+	if queryStatus != "" {
+		params.Set("queryStatus", queryStatus)
+	}
+	if ccy != "" {
+		params.Set("currency", ccy)
+	}
+	if currentPage != 0 {
+		params.Set("currentPage", strconv.FormatInt(currentPage, 10))
+	}
+	if pageSize != 0 {
+		params.Set("pageSize", strconv.FormatInt(pageSize, 10))
+	}
+	var resp *FuturesTransferOutResponse
+	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, defaultSpotEPL, http.MethodGet, common.EncodeURLValues("/v1/transfer-list", params), nil, &resp)
+}
+
 // CreateDepositAddress create a deposit address for a currency you intend to deposit
-func (ku *Kucoin) CreateDepositAddress(ctx context.Context, ccy, chain string) (*DepositAddress, error) {
-	if ccy == "" {
+func (ku *Kucoin) CreateDepositAddress(ctx context.Context, arg *DepositAddressParams) (*DepositAddress, error) {
+	if arg.Currency.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
-	params := make(map[string]interface{})
-	params["currency"] = ccy
-	if chain != "" {
-		params["chain"] = chain
-	}
 	var resp *DepositAddress
-	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, defaultSpotEPL, http.MethodPost, "/v1/deposit-addresses", params, &resp)
+	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, defaultSpotEPL, http.MethodPost, "/v1/deposit-addresses", arg, &resp)
 }
 
 // GetDepositAddressesV2 get all deposit addresses for the currency you intend to deposit
@@ -1386,6 +1456,7 @@ func (ku *Kucoin) GetWithdrawalQuotas(ctx context.Context, ccy, chain string) (*
 
 // ApplyWithdrawal create a withdrawal request
 // The endpoint was deprecated for futures, please transfer assets from the FUTURES account to the MAIN account first, and then withdraw from the MAIN account
+// Withdrawal fee deduct types are: INTERNAL and EXTERNAL
 func (ku *Kucoin) ApplyWithdrawal(ctx context.Context, ccy, address, memo, remark, chain, feeDeductType string, isInner bool, amount float64) (string, error) {
 	if ccy == "" {
 		return "", currency.ErrCurrencyPairEmpty
@@ -1422,6 +1493,9 @@ func (ku *Kucoin) ApplyWithdrawal(ctx context.Context, ccy, address, memo, remar
 
 // CancelWithdrawal used to cancel a withdrawal request
 func (ku *Kucoin) CancelWithdrawal(ctx context.Context, withdrawalID string) error {
+	if withdrawalID == "" {
+		return errors.New("withdrawal ID is required")
+	}
 	return ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, defaultSpotEPL, http.MethodDelete, "/v1/withdrawals/"+withdrawalID, nil, &struct{}{})
 }
 
