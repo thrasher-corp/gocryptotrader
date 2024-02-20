@@ -1093,7 +1093,6 @@ func (c *CoinbasePro) GetLatestFundingRates(ctx context.Context, r *fundingrate.
 	funding := make([]fundingrate.LatestRateResponse, len(products.Products))
 
 	for i := range products.Products {
-
 		pair, err := currency.NewPairFromString(products.Products[i].ID)
 		if err != nil {
 			return nil, err
@@ -1158,7 +1157,6 @@ func (c *CoinbasePro) GetFuturesContractDetails(ctx context.Context, item asset.
 
 // UpdateOrderExecutionLimits updates order execution limits
 func (c *CoinbasePro) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) error {
-
 	var data AllProducts
 	var err error
 	switch a {

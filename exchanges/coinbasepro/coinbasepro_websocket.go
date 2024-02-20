@@ -137,7 +137,8 @@ func (c *CoinbasePro) wsHandleData(respRaw []byte, seqCount uint64) (string, err
 
 		sliToSend := []ticker.Price{}
 
-		timestamp, err := getTimestamp(respRaw)
+		var timestamp time.Time
+		timestamp, err = getTimestamp(respRaw)
 		if err != nil {
 			return warnString, err
 		}
@@ -392,7 +393,6 @@ func (c *CoinbasePro) Unsubscribe(channelsToUnsubscribe []subscription.Subscript
 	for i := range channelsToUnsubscribe {
 		chanKeys[channelsToUnsubscribe[i].Channel] =
 			chanKeys[channelsToUnsubscribe[i].Channel].Add(channelsToUnsubscribe[i].Pair)
-
 	}
 
 	for s := range chanKeys {

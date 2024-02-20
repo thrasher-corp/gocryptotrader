@@ -466,7 +466,6 @@ func TestScheduleFuturesSweep(t *testing.T) {
 		for i := range curSweeps.Sweeps {
 			if curSweeps.Sweeps[i].Status == "PENDING" {
 				preCancel = true
-
 			}
 		}
 	}
@@ -503,7 +502,6 @@ func TestCancelPendingFuturesSweep(t *testing.T) {
 		if err != nil {
 			t.Error(err)
 		}
-
 	}
 	_, err = c.CancelPendingFuturesSweep(context.Background())
 	assert.NoError(t, err)
@@ -1316,7 +1314,6 @@ func TestGetOrderHistory(t *testing.T) {
 	req.Pairs = req.Pairs.Add(testPair)
 	_, err = c.GetOrderHistory(context.Background(), &req)
 	assert.NoError(t, err)
-
 }
 
 func TestGetHistoricCandles(t *testing.T) {
@@ -1820,7 +1817,7 @@ func withdrawFiatFundsHelper(t *testing.T, fn withdrawFiatFunc) {
 	assert.ErrorIs(t, err, errWalletIDEmpty)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, c)
 	req.WalletID = "meow"
-	req.Fiat.Bank.BankName = "GCT's Fake and Not Real Test Bank Meow Meow Meow"
+	req.Fiat.Bank.BankName = "GCT's Officially Fake and Not Real Test Bank"
 	expectedError := fmt.Sprintf(errPayMethodNotFound, req.Fiat.Bank.BankName)
 	_, err = fn(context.Background(), &req)
 	if err.Error() != expectedError {

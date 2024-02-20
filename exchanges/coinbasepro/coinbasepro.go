@@ -1373,7 +1373,8 @@ func (c *CoinbasePro) SendAuthenticatedHTTPRequest(ctx context.Context, ep excha
 
 		message := n + method + path + string(payload)
 
-		hmac, err := crypto.GetHMAC(crypto.HashSHA256,
+		var hmac []byte
+		hmac, err = crypto.GetHMAC(crypto.HashSHA256,
 			[]byte(message),
 			[]byte(creds.Secret))
 		if err != nil {
@@ -1426,7 +1427,7 @@ func (c *CoinbasePro) SendAuthenticatedHTTPRequest(ctx context.Context, ep excha
 		PreviewFailureReason  string `json:"preview_failure_reason"`
 		NewOrderFailureReason string `json:"new_order_failure_reason"`
 	}{}
-	if err := json.Unmarshal(interim, &singleErrCap); err == nil {
+	if err = json.Unmarshal(interim, &singleErrCap); err == nil {
 		if singleErrCap.Message != "" {
 			errMessage := fmt.Sprintf("message: %s, error type: %s, error details: %s, edit failure reason: %s, preview failure reason: %s, new order failure reason: %s",
 				singleErrCap.Message, singleErrCap.ErrorType, singleErrCap.ErrorDetails, singleErrCap.EditFailureReason,
