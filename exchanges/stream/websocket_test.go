@@ -182,7 +182,9 @@ func TestSetup(t *testing.T) {
 	assert.NoError(t, err, "Setup should not error")
 }
 
-func TestTrafficMonitorTimeout(t *testing.T) {
+// TestTrafficMonitorTrafficAlerts ensures multiple traffic alerts work and only process one trafficAlert per interval
+// ensures shutdown works after traffic alerts
+func TestTrafficMonitorTrafficAlerts(t *testing.T) {
 	t.Parallel()
 	ws := NewWebsocket()
 	err := ws.Setup(defaultSetup)
@@ -190,7 +192,6 @@ func TestTrafficMonitorTimeout(t *testing.T) {
 
 	signal := struct{}{}
 	patience := 10 * time.Millisecond
-	// trafficCheckInterval is changed in TestMain to avoid racing
 	ws.trafficTimeout = 200 * time.Millisecond
 	ws.ShutdownC = make(chan struct{})
 
@@ -200,7 +201,6 @@ func TestTrafficMonitorTimeout(t *testing.T) {
 	assert.True(t, ws.IsTrafficMonitorRunning(), "traffic monitor should be running")
 	require.Equal(t, disconnected, ws.state.Load(), "websocket must be disconnected")
 
-	// Behaviour: Test multiple traffic alerts work and only process one trafficAlert per interval
 	for i := 0; i < 2; i++ {
 		ws.state.Store(disconnected)
 
@@ -226,17 +226,24 @@ func TestTrafficMonitorTimeout(t *testing.T) {
 		assert.Truef(t, ws.IsConnected(), "state should still be connected; Check #%d", i)
 	}
 
-	// Behaviour: Shuts down websocket and exits on timeout
 	require.EventuallyWithT(t, func(c *assert.CollectT) {
 		assert.Equal(c, disconnected, ws.state.Load(), "websocket must be disconnected")
 		assert.False(c, ws.IsTrafficMonitorRunning(), "trafficMonitor should be shut down")
-	}, 2*ws.trafficTimeout, patience, "trafficTimeout should trigger a shutdown")
+	}, 2*ws.trafficTimeout, patience, "trafficTimeout should trigger a shutdown once we stop feeding trafficAlerts")
+}
 
-	// Behaviour: connecting status doesn't trigger shutdown
+// TestTrafficMonitorConnecting ensure connecting status doesn't trigger shutdown
+func TestTrafficMonitorConnecting(t *testing.T) {
+	t.Parallel()
+	ws := NewWebsocket()
+	err := ws.Setup(defaultSetup)
+	require.NoError(t, err, "Setup must not error")
+
+	ws.ShutdownC = make(chan struct{})
 	ws.state.Store(connecting)
 	ws.trafficTimeout = 50 * time.Millisecond
 	ws.trafficMonitor()
-	assert.True(t, ws.IsTrafficMonitorRunning(), "traffic monitor should be running")
+	require.True(t, ws.IsTrafficMonitorRunning(), "traffic monitor should be running")
 	require.Equal(t, connecting, ws.state.Load(), "websocket must be connecting")
 	<-time.After(4 * ws.trafficTimeout)
 	require.Equal(t, connecting, ws.state.Load(), "websocket must still be connecting after several checks")
@@ -244,9 +251,17 @@ func TestTrafficMonitorTimeout(t *testing.T) {
 	require.EventuallyWithT(t, func(c *assert.CollectT) {
 		assert.Equal(c, disconnected, ws.state.Load(), "websocket must be disconnected")
 		assert.False(c, ws.IsTrafficMonitorRunning(), "trafficMonitor should be shut down")
-	}, 4*ws.trafficTimeout, patience, "trafficTimeout should trigger a shutdown after connecting status changes")
+	}, 4*ws.trafficTimeout, 10*time.Millisecond, "trafficTimeout should trigger a shutdown after connecting status changes")
+}
 
-	// Behaviour: shutdown is processed and waitgroup is cleared
+// TestTrafficMonitorShutdown ensure shutdown is processed and waitgroup is cleared
+func TestTrafficMonitorShutdown(t *testing.T) {
+	t.Parallel()
+	ws := NewWebsocket()
+	err := ws.Setup(defaultSetup)
+	require.NoError(t, err, "Setup must not error")
+
+	ws.ShutdownC = make(chan struct{})
 	ws.state.Store(connected)
 	ws.trafficTimeout = time.Minute
 	ws.trafficMonitor()
