@@ -412,7 +412,8 @@ func (c *CoinbasePro) UpdateOrderbook(ctx context.Context, p currency.Pair, asse
 	if p.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
-	if err = c.CurrencyPairs.IsAssetEnabled(assetType); err != nil {
+	err = c.CurrencyPairs.IsAssetEnabled(assetType)
+	if err != nil {
 		return nil, err
 	}
 	book := &orderbook.Base{
