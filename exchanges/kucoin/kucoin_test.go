@@ -2021,7 +2021,7 @@ func verifySubs(tb testing.TB, subs []subscription.Subscription, a asset.Item, p
 // Pairs for Subscription tests:
 // Only in Spot: BTC-USDT, ETH-USDT
 // In Both: ETH-BTC, LTC-USDT
-// Only in Margin: XMR-BTC, SOL-USDC
+// Only in Margin: TRX-BTC, SOL-USDC
 
 func TestGenerateDefaultSubscriptions(t *testing.T) {
 	t.Parallel()
@@ -2032,7 +2032,7 @@ func TestGenerateDefaultSubscriptions(t *testing.T) {
 	assert.Len(t, subs, 12, "Should generate the correct number of subs when not logged in")
 	for _, p := range []string{"ticker", "match", "level2"} {
 		verifySubs(t, subs, asset.Spot, "/market/"+p+":", "BTC-USDT", "ETH-USDT", "LTC-USDT", "ETH-BTC")
-		verifySubs(t, subs, asset.Margin, "/market/"+p+":", "SOL-USDC", "XMR-BTC")
+		verifySubs(t, subs, asset.Margin, "/market/"+p+":", "SOL-USDC", "TRX-BTC")
 	}
 	for _, c := range []string{"ETHUSDCM", "XBTUSDCM", "SOLUSDTM"} {
 		verifySubs(t, subs, asset.Futures, "/contractMarket/tickerV2:", c)
@@ -2055,18 +2055,18 @@ func TestGenerateAuthSubscriptions(t *testing.T) {
 	assert.Len(t, subs, 25, "Should generate the correct number of subs when logged in")
 	for _, p := range []string{"ticker", "match", "level2"} {
 		verifySubs(t, subs, asset.Spot, "/market/"+p+":", "BTC-USDT", "ETH-USDT", "LTC-USDT", "ETH-BTC")
-		verifySubs(t, subs, asset.Margin, "/market/"+p+":", "SOL-USDC", "XMR-BTC")
+		verifySubs(t, subs, asset.Margin, "/market/"+p+":", "SOL-USDC", "TRX-BTC")
 	}
 	for _, c := range []string{"ETHUSDCM", "XBTUSDCM", "SOLUSDTM"} {
 		verifySubs(t, subs, asset.Futures, "/contractMarket/tickerV2:", c)
 		verifySubs(t, subs, asset.Futures, "/contractMarket/level2Depth50:", c)
 	}
-	for _, c := range []string{"SOL", "BTC", "XMR", "LTC", "USDC", "USDT", "ETH"} {
+	for _, c := range []string{"SOL", "BTC", "TRX", "LTC", "USDC", "USDT", "ETH"} {
 		verifySubs(t, subs, asset.Margin, "/margin/loan:", c)
 	}
 	verifySubs(t, subs, asset.Spot, "/account/balance")
 	verifySubs(t, subs, asset.Margin, "/margin/position")
-	verifySubs(t, subs, asset.Margin, "/margin/fundingBook:", "SOL", "BTC", "XMR", "LTC", "USDT", "USDC", "ETH")
+	verifySubs(t, subs, asset.Margin, "/margin/fundingBook:", "SOL", "BTC", "TRX", "LTC", "USDT", "USDC", "ETH")
 	verifySubs(t, subs, asset.Futures, "/contractAccount/wallet")
 	verifySubs(t, subs, asset.Futures, "/contractMarket/advancedOrders")
 	verifySubs(t, subs, asset.Futures, "/contractMarket/tradeOrders")
@@ -2092,7 +2092,7 @@ func TestGenerateCandleSubscription(t *testing.T) {
 	for _, c := range []string{"BTC-USDT", "ETH-USDT", "LTC-USDT", "ETH-BTC"} {
 		verifySubs(t, subs, asset.Spot, "/market/candles:", c+"_4hour")
 	}
-	for _, c := range []string{"SOL-USDC", "XMR-BTC"} {
+	for _, c := range []string{"SOL-USDC", "TRX-BTC"} {
 		verifySubs(t, subs, asset.Margin, "/market/candles:", c+"_4hour")
 	}
 }
@@ -2117,7 +2117,7 @@ func TestGenerateMarketSubscription(t *testing.T) {
 	for _, c := range []string{"BTC", "ETH", "LTC", "USDT"} {
 		verifySubs(t, subs, asset.Spot, "/market/snapshot:", c)
 	}
-	for _, c := range []string{"SOL", "USDC", "XMR"} {
+	for _, c := range []string{"SOL", "USDC", "TRX"} {
 		verifySubs(t, subs, asset.Margin, "/market/snapshot:", c)
 	}
 }
@@ -2503,7 +2503,7 @@ func TestProcessMarketSnapshot(t *testing.T) {
 					assert.Equal(t, 0.004445, v.High, "high")
 					assert.Equal(t, 0.004415, v.Last, "lastTradedPrice")
 					assert.Equal(t, 0.004191, v.Low, "low")
-					assert.Equal(t, currency.NewPairWithDelimiter("XMR", "BTC", "-"), v.Pair, "symbol")
+					assert.Equal(t, currency.NewPairWithDelimiter("TRX", "BTC", "-"), v.Pair, "symbol")
 					assert.Equal(t, 13097.3357, v.Volume, "volume")
 					assert.Equal(t, 57.44552981, v.QuoteVolume, "volValue")
 				case 2, 3:
