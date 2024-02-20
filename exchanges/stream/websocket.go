@@ -70,7 +70,7 @@ var (
 
 var (
 	globalReporter       Reporter
-	trafficCheckInterval = time.Second
+	trafficCheckInterval = 100 * time.Millisecond
 )
 
 // SetupGlobalReporter sets a reporter interface to be used
@@ -569,7 +569,6 @@ func (w *Websocket) trafficMonitor() {
 			case <-time.After(trafficCheckInterval):
 				select {
 				case <-w.TrafficAlert:
-					w.setState(connected)
 					if !t.Stop() {
 						<-t.C
 					}
@@ -577,7 +576,13 @@ func (w *Websocket) trafficMonitor() {
 				default:
 				}
 			case <-t.C:
-				if w.IsConnecting() {
+				checkAgain := w.IsConnecting()
+				select {
+				case <-w.TrafficAlert:
+					checkAgain = true
+				default:
+				}
+				if checkAgain {
 					t.Reset(w.trafficTimeout)
 					break
 				}
