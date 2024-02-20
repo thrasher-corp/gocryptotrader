@@ -448,6 +448,9 @@ func (c *CoinbasePro) GetAllOrders(ctx context.Context, productID, userNativeCur
 	if contractExpiryType != "" {
 		params.urlVals.Set("contract_expiry_type", contractExpiryType)
 	}
+	if retailPortfolioID != "" {
+		params.urlVals.Set("retail_portfolio_id", retailPortfolioID)
+	}
 	if orderType != "" {
 		params.urlVals.Set("order_type", orderType)
 	}
@@ -1215,8 +1218,15 @@ func (c *CoinbasePro) GetFiatTransferByID(ctx context.Context, walletID, deposit
 		return nil, errDepositIDEmpty
 	}
 
-	path := fmt.Sprintf("%s%s/%s/%s/%s", coinbaseV2, coinbaseAccounts, walletID,
-		coinbaseDeposits, depositID)
+	var path string
+	switch transferType {
+	case FiatDeposit:
+		path = fmt.Sprintf("%s%s/%s/%s/%s", coinbaseV2, coinbaseAccounts, walletID,
+			coinbaseDeposits, depositID)
+	case FiatWithdrawal:
+		path = fmt.Sprintf("%s%s/%s/%s/%s", coinbaseV2, coinbaseAccounts, walletID,
+			coinbaseWithdrawals, depositID)
+	}
 
 	var resp *GenDeposWithdrResp
 

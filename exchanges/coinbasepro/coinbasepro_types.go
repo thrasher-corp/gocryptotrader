@@ -489,7 +489,7 @@ type FuturesBalanceSummary struct {
 // FuturesPosition contains information on a single futures position, returned by
 // GetFuturesPositionByID and used as a sub-struct in the type AllFuturesPositions
 type FuturesPosition struct {
-	// This may belong in a struct of its own called "position", requring a bit
+	// This may belong in a struct of its own called "position", requiring a bit
 	// more abstraction, but for the moment I'll assume it doesn't
 	ProductID         string    `json:"product_id"`
 	ExpirationTime    time.Time `json:"expiration_time"`
@@ -1166,7 +1166,7 @@ type ServerTimeV2 struct {
 	} `json:"data"`
 }
 
-// WebsocketRequest is an aspect of constructing a requst to the websocket server, used in sendRequest
+// WebsocketRequest is an aspect of constructing a request to the websocket server, used in sendRequest
 type WebsocketRequest struct {
 	Type       string   `json:"type"`
 	ProductIDs []string `json:"product_ids,omitempty"`

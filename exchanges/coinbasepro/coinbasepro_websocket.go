@@ -238,14 +238,10 @@ func (c *CoinbasePro) wsHandleData(respRaw []byte, seqCount uint64) (string, err
 			if err != nil {
 				return warnString, err
 			}
-
 		}
 	case "user":
 		var wsUser []WebsocketOrderDataHolder
 		err := json.Unmarshal(data, &wsUser)
-		// case "match", "last_match":
-		// 	var wsOrder wsOrderReceived
-		// 	err := json.Unmarshal(respRaw, &wsOrder)
 		if err != nil {
 			return warnString, err
 		}
@@ -376,7 +372,6 @@ func (c *CoinbasePro) Subscribe(channelsToSubscribe []subscription.Subscription)
 	for i := range channelsToSubscribe {
 		chanKeys[channelsToSubscribe[i].Channel] =
 			chanKeys[channelsToSubscribe[i].Channel].Add(channelsToSubscribe[i].Pair)
-
 	}
 	for s := range chanKeys {
 		err := c.sendRequest("subscribe", s, chanKeys[s])
@@ -454,11 +449,11 @@ func (c *CoinbasePro) GetJWT(ctx context.Context, uri string) (string, error) {
 	if uri != "" {
 		body["uri"] = uri
 	}
-	bodyJson, err := json.Marshal(body)
+	bodyJSON, err := json.Marshal(body)
 	if err != nil {
 		return "", err
 	}
-	bodyEncode := base64URLEncode(bodyJson)
+	bodyEncode := base64URLEncode(bodyJSON)
 
 	hash := sha256.Sum256([]byte(headEncode + "." + bodyEncode))
 
@@ -527,8 +522,7 @@ func (c *CoinbasePro) sendRequest(msgType, channel string, productIDs currency.P
 
 // processBidAskArray is a helper function that turns WebsocketOrderbookDataHolder into arrays
 // of bids and asks
-func processBidAskArray(data *WebsocketOrderbookDataHolder) ([]orderbook.Item, []orderbook.Item, error) {
-	var bids, asks []orderbook.Item
+func processBidAskArray(data *WebsocketOrderbookDataHolder) (bids, asks []orderbook.Item, err error) {
 	for i := range data.Changes {
 		switch data.Changes[i].Side {
 		case "bid":

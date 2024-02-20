@@ -60,30 +60,31 @@ const (
 	skipInsufficientFundsOrWallets = "insufficient funds or wallets for test, skipping"
 	skipInsufficientTransactions   = "insufficient transactions for test, skipping"
 
-	errExpectMismatch          = "received: '%v' but expected: '%v'"
-	errExpectedNonEmpty        = "expected non-empty response"
-	errOrder0CancelFail        = "order 0 failed to cancel"
-	errIDNotSet                = "ID not set"
-	errx7f                     = "setting proxy address error parse \"\\x7f\": net/url: invalid control character in URL"
-	errPortfolioNameDuplicate  = `CoinbasePro unsuccessful HTTP status code: 409 raw response: {"error":"CONFLICT","error_details":"[PORTFOLIO_ERROR_CODE_ALREADY_EXISTS] the requested portfolio name already exists","message":"[PORTFOLIO_ERROR_CODE_ALREADY_EXISTS] the requested portfolio name already exists"}, authenticated request failed`
-	errPortTransferInsufFunds  = `CoinbasePro unsuccessful HTTP status code: 429 raw response: {"error":"unknown","error_details":"[PORTFOLIO_ERROR_CODE_INSUFFICIENT_FUNDS] insufficient funds in source account","message":"[PORTFOLIO_ERROR_CODE_INSUFFICIENT_FUNDS] insufficient funds in source account"}, authenticated request failed`
-	errInvalidProductID        = `CoinbasePro unsuccessful HTTP status code: 400 raw response: {"error":"INVALID_ARGUMENT","error_details":"valid product_id is required","message":"valid product_id is required"}, authenticated request failed`
-	errFeeBuilderNil           = "*exchange.FeeBuilder nil pointer"
-	errUnsupportedAssetType    = " unsupported asset type"
-	errUpsideUnsupported       = "unsupported asset type upsideprofitcontract"
-	errBlorboGranularity       = "invalid granularity blorbo, allowed granularities are: [ONE_MINUTE FIVE_MINUTE FIFTEEN_MINUTE THIRTY_MINUTE ONE_HOUR TWO_HOUR SIX_HOUR ONE_DAY]"
-	errNoEndpointPathEdgeCase3 = "no endpoint path found for the given key: EdgeCase3URL"
-	errJSONUnsupportedChan     = "json: unsupported type: chan struct {}, authenticated request failed"
-	errExpectedFeeRange        = "expected fee range of %v and %v, received %v"
-	errJSONNumberIntoString    = "json: cannot unmarshal number into Go value of type string"
-	errParseIntValueOutOfRange = `strconv.ParseInt: parsing "922337203685477580700": value out of range`
-	errParseUintInvalidSyntax  = `strconv.ParseUint: parsing "l": invalid syntax`
-	errJSONInvalidCharacter    = `invalid character ':' after array element`
-	errL2DataMoo               = "unknown l2update data type moo"
-	errUnrecognisedOrderType   = `'' unrecognised order type`
-	errOrderSideInvalid        = `'' order side is invalid`
-	errUnrecognisedStatusType  = " not recognised as status type"
-	errFakeSide                = "unknown side fakeside"
+	errExpectMismatch            = "received: '%v' but expected: '%v'"
+	errExpectedNonEmpty          = "expected non-empty response"
+	errOrder0CancelFail          = "order 0 failed to cancel"
+	errIDNotSet                  = "ID not set"
+	errx7f                       = "setting proxy address error parse \"\\x7f\": net/url: invalid control character in URL"
+	errPortfolioNameDuplicate    = `CoinbasePro unsuccessful HTTP status code: 409 raw response: {"error":"CONFLICT","error_details":"[PORTFOLIO_ERROR_CODE_ALREADY_EXISTS] the requested portfolio name already exists","message":"[PORTFOLIO_ERROR_CODE_ALREADY_EXISTS] the requested portfolio name already exists"}, authenticated request failed`
+	errPortTransferInsufFunds    = `CoinbasePro unsuccessful HTTP status code: 429 raw response: {"error":"unknown","error_details":"[PORTFOLIO_ERROR_CODE_INSUFFICIENT_FUNDS] insufficient funds in source account","message":"[PORTFOLIO_ERROR_CODE_INSUFFICIENT_FUNDS] insufficient funds in source account"}, authenticated request failed`
+	errInvalidProductID          = `CoinbasePro unsuccessful HTTP status code: 400 raw response: {"error":"INVALID_ARGUMENT","error_details":"valid product_id is required","message":"valid product_id is required"}, authenticated request failed`
+	errFeeBuilderNil             = "*exchange.FeeBuilder nil pointer"
+	errUnsupportedAssetType      = " unsupported asset type"
+	errUpsideUnsupported         = "unsupported asset type upsideprofitcontract"
+	errBlorboGranularity         = "invalid granularity blorbo, allowed granularities are: [ONE_MINUTE FIVE_MINUTE FIFTEEN_MINUTE THIRTY_MINUTE ONE_HOUR TWO_HOUR SIX_HOUR ONE_DAY]"
+	errNoEndpointPathEdgeCase3   = "no endpoint path found for the given key: EdgeCase3URL"
+	errJSONUnsupportedChan       = "json: unsupported type: chan struct {}, authenticated request failed"
+	errExpectedFeeRange          = "expected fee range of %v and %v, received %v"
+	errJSONNumberIntoString      = "json: cannot unmarshal number into Go value of type string"
+	errParseIntValueOutOfRange   = `strconv.ParseInt: parsing "922337203685477580700": value out of range`
+	errParseUintInvalidSyntax    = `strconv.ParseUint: parsing "l": invalid syntax`
+	errJSONInvalidCharacter      = `invalid character ':' after array element`
+	errL2DataMoo                 = "unknown l2update data type moo"
+	errUnrecognisedOrderType     = `'' unrecognised order type`
+	errOrderSideInvalid          = `'' order side is invalid`
+	errUnrecognisedStatusType    = " not recognised as status type"
+	errFakeSide                  = "unknown side fakeside"
+	errCoinbaseWSAlreadyDisabled = "websocket already disabled for exchange 'CoinbasePro'"
 
 	expectedTimestamp = "1970-01-01 00:20:34 +0000 UTC"
 
@@ -1509,8 +1510,11 @@ func TestStringToFloatPtr(t *testing.T) {
 }
 
 func TestWsConnect(t *testing.T) {
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, c)
 	err := c.Websocket.Disable()
-	assert.NoError(t, err)
+	if err != nil && err.Error() != errCoinbaseWSAlreadyDisabled {
+		t.Error(err)
+	}
 	err = c.WsConnect()
 	if err.Error() != stream.WebsocketNotEnabled {
 		t.Errorf(errExpectMismatch, err, stream.WebsocketNotEnabled)
@@ -1527,105 +1531,105 @@ func TestWsHandleData(t *testing.T) {
 	}()
 	_, err := c.wsHandleData(nil, 0)
 	assert.ErrorIs(t, err, jsonparser.KeyPathNotFoundError)
-	mockJson := []byte(`{"sequence_num": "l"}`)
-	_, err = c.wsHandleData(mockJson, 0)
+	mockJSON := []byte(`{"sequence_num": "l"}`)
+	_, err = c.wsHandleData(mockJSON, 0)
 	if err.Error() != errParseUintInvalidSyntax {
 		t.Errorf(errExpectMismatch, err, errParseUintInvalidSyntax)
 	}
-	mockJson = []byte(`{"sequence_num": 1, /\\/"""}`)
-	_, err = c.wsHandleData(mockJson, 0)
+	mockJSON = []byte(`{"sequence_num": 1, /\\/"""}`)
+	_, err = c.wsHandleData(mockJSON, 0)
 	assert.ErrorIs(t, err, jsonparser.KeyPathNotFoundError)
-	mockJson = []byte(`{"sequence_num": 0, "channel": "subscriptions"}`)
-	_, err = c.wsHandleData(mockJson, 0)
+	mockJSON = []byte(`{"sequence_num": 0, "channel": "subscriptions"}`)
+	_, err = c.wsHandleData(mockJSON, 0)
 	assert.NoError(t, err)
-	mockJson = []byte(`{"sequence_num": 0, "channel": "", "events":}`)
-	_, err = c.wsHandleData(mockJson, 0)
+	mockJSON = []byte(`{"sequence_num": 0, "channel": "", "events":}`)
+	_, err = c.wsHandleData(mockJSON, 0)
 	assert.ErrorIs(t, err, jsonparser.UnknownValueTypeError)
-	mockJson = []byte(`{"sequence_num": 0, "channel": "status", "events": ["type": 1234]}`)
-	_, err = c.wsHandleData(mockJson, 0)
+	mockJSON = []byte(`{"sequence_num": 0, "channel": "status", "events": ["type": 1234]}`)
+	_, err = c.wsHandleData(mockJSON, 0)
 	if err.Error() != errJSONInvalidCharacter {
 		t.Errorf(errExpectMismatch, err, errJSONInvalidCharacter)
 	}
-	mockJson = []byte(`{"sequence_num": 0, "channel": "status", "events": [{"type": "moo"}]}`)
-	_, err = c.wsHandleData(mockJson, 0)
+	mockJSON = []byte(`{"sequence_num": 0, "channel": "status", "events": [{"type": "moo"}]}`)
+	_, err = c.wsHandleData(mockJSON, 0)
 	assert.NoError(t, err)
-	mockJson = []byte(`{"sequence_num": 0, "channel": "error", "events": [{"type": "moo"}]}`)
-	_, err = c.wsHandleData(mockJson, 0)
+	mockJSON = []byte(`{"sequence_num": 0, "channel": "error", "events": [{"type": "moo"}]}`)
+	_, err = c.wsHandleData(mockJSON, 0)
 	assert.NoError(t, err)
-	mockJson = []byte(`{"sequence_num": 0, "channel": "ticker", "events": ["type": ""}]}`)
-	_, err = c.wsHandleData(mockJson, 0)
+	mockJSON = []byte(`{"sequence_num": 0, "channel": "ticker", "events": ["type": ""}]}`)
+	_, err = c.wsHandleData(mockJSON, 0)
 	if err.Error() != errJSONInvalidCharacter {
 		t.Errorf(errExpectMismatch, err, errJSONInvalidCharacter)
 	}
-	mockJson = []byte(`{"sequence_num": 0, "channel": "ticker", "events": [{"type": "moo", "tickers": [{"price": "1.1"}]}]}`)
-	_, err = c.wsHandleData(mockJson, 0)
+	mockJSON = []byte(`{"sequence_num": 0, "channel": "ticker", "events": [{"type": "moo", "tickers": [{"price": "1.1"}]}]}`)
+	_, err = c.wsHandleData(mockJSON, 0)
 	assert.ErrorIs(t, err, jsonparser.KeyPathNotFoundError)
-	mockJson = []byte(`{"sequence_num": 0, "channel": "ticker", "timestamp": "2006-01-02T15:04:05Z", "events": [{"type": "moo", "tickers": [{"price": "1.1"}]}]}`)
-	_, err = c.wsHandleData(mockJson, 0)
+	mockJSON = []byte(`{"sequence_num": 0, "channel": "ticker", "timestamp": "2006-01-02T15:04:05Z", "events": [{"type": "moo", "tickers": [{"price": "1.1"}]}]}`)
+	_, err = c.wsHandleData(mockJSON, 0)
 	assert.NoError(t, err)
-	mockJson = []byte(`{"sequence_num": 0, "channel": "candles", "events": ["type": ""}]}`)
-	_, err = c.wsHandleData(mockJson, 0)
+	mockJSON = []byte(`{"sequence_num": 0, "channel": "candles", "events": ["type": ""}]}`)
+	_, err = c.wsHandleData(mockJSON, 0)
 	if err.Error() != errJSONInvalidCharacter {
 		t.Errorf(errExpectMismatch, err, errJSONInvalidCharacter)
 	}
-	mockJson = []byte(`{"sequence_num": 0, "channel": "candles", "events": [{"type": "moo", "candles": [{"low": "1.1"}]}]}`)
-	_, err = c.wsHandleData(mockJson, 0)
+	mockJSON = []byte(`{"sequence_num": 0, "channel": "candles", "events": [{"type": "moo", "candles": [{"low": "1.1"}]}]}`)
+	_, err = c.wsHandleData(mockJSON, 0)
 	assert.ErrorIs(t, err, jsonparser.KeyPathNotFoundError)
-	mockJson = []byte(`{"sequence_num": 0, "channel": "candles", "timestamp": "2006-01-02T15:04:05Z", "events": [{"type": "moo", "candles": [{"low": "1.1"}]}]}`)
-	_, err = c.wsHandleData(mockJson, 0)
+	mockJSON = []byte(`{"sequence_num": 0, "channel": "candles", "timestamp": "2006-01-02T15:04:05Z", "events": [{"type": "moo", "candles": [{"low": "1.1"}]}]}`)
+	_, err = c.wsHandleData(mockJSON, 0)
 	assert.NoError(t, err)
-	mockJson = []byte(`{"sequence_num": 0, "channel": "market_trades", "events": ["type": ""}]}`)
-	_, err = c.wsHandleData(mockJson, 0)
+	mockJSON = []byte(`{"sequence_num": 0, "channel": "market_trades", "events": ["type": ""}]}`)
+	_, err = c.wsHandleData(mockJSON, 0)
 	if err.Error() != errJSONInvalidCharacter {
 		t.Errorf(errExpectMismatch, err, errJSONInvalidCharacter)
 	}
-	mockJson = []byte(`{"sequence_num": 0, "channel": "market_trades", "events": [{"type": "moo", "trades": [{"price": "1.1"}]}]}`)
-	_, err = c.wsHandleData(mockJson, 0)
+	mockJSON = []byte(`{"sequence_num": 0, "channel": "market_trades", "events": [{"type": "moo", "trades": [{"price": "1.1"}]}]}`)
+	_, err = c.wsHandleData(mockJSON, 0)
 	assert.NoError(t, err)
-	mockJson = []byte(`{"sequence_num": 0, "channel": "l2_data", "events": ["type": ""}]}`)
-	_, err = c.wsHandleData(mockJson, 0)
+	mockJSON = []byte(`{"sequence_num": 0, "channel": "l2_data", "events": ["type": ""}]}`)
+	_, err = c.wsHandleData(mockJSON, 0)
 	if err.Error() != errJSONInvalidCharacter {
 		t.Errorf(errExpectMismatch, err, errJSONInvalidCharacter)
 	}
-	mockJson = []byte(`{"sequence_num": 0, "channel": "l2_data", "events": [{"type": "moo", "updates": [{"price_level": "1.1"}]}]}`)
-	_, err = c.wsHandleData(mockJson, 0)
+	mockJSON = []byte(`{"sequence_num": 0, "channel": "l2_data", "events": [{"type": "moo", "updates": [{"price_level": "1.1"}]}]}`)
+	_, err = c.wsHandleData(mockJSON, 0)
 	assert.ErrorIs(t, err, jsonparser.KeyPathNotFoundError)
-	mockJson = []byte(`{"sequence_num": 0, "channel": "l2_data", "timestamp": "2006-01-02T15:04:05Z", "events": [{"type": "moo", "updates": [{"price_level": "1.1"}]}]}`)
-	_, err = c.wsHandleData(mockJson, 0)
+	mockJSON = []byte(`{"sequence_num": 0, "channel": "l2_data", "timestamp": "2006-01-02T15:04:05Z", "events": [{"type": "moo", "updates": [{"price_level": "1.1"}]}]}`)
+	_, err = c.wsHandleData(mockJSON, 0)
 	if err.Error() != errL2DataMoo {
 		t.Errorf(errExpectMismatch, err, errL2DataMoo)
 	}
-	mockJson = []byte(`{"sequence_num": 0, "channel": "l2_data", "timestamp": "2006-01-02T15:04:05Z", "events": [{"type": "snapshot", "product_id": "BTC-USD", "updates": [{"side": "bid", "price_level": "1.1", "new_quantity": "2.2"}]}]}`)
-	_, err = c.wsHandleData(mockJson, 0)
+	mockJSON = []byte(`{"sequence_num": 0, "channel": "l2_data", "timestamp": "2006-01-02T15:04:05Z", "events": [{"type": "snapshot", "product_id": "BTC-USD", "updates": [{"side": "bid", "price_level": "1.1", "new_quantity": "2.2"}]}]}`)
+	_, err = c.wsHandleData(mockJSON, 0)
 	assert.NoError(t, err)
-	mockJson = []byte(`{"sequence_num": 0, "channel": "l2_data", "timestamp": "2006-01-02T15:04:05Z", "events": [{"type": "update", "product_id": "BTC-USD", "updates": [{"side": "bid", "price_level": "1.1", "new_quantity": "2.2"}]}]}`)
-	_, err = c.wsHandleData(mockJson, 0)
+	mockJSON = []byte(`{"sequence_num": 0, "channel": "l2_data", "timestamp": "2006-01-02T15:04:05Z", "events": [{"type": "update", "product_id": "BTC-USD", "updates": [{"side": "bid", "price_level": "1.1", "new_quantity": "2.2"}]}]}`)
+	_, err = c.wsHandleData(mockJSON, 0)
 	assert.NoError(t, err)
-	mockJson = []byte(`{"sequence_num": 0, "channel": "user", "events": ["type": ""}]}`)
-	_, err = c.wsHandleData(mockJson, 0)
+	mockJSON = []byte(`{"sequence_num": 0, "channel": "user", "events": ["type": ""}]}`)
+	_, err = c.wsHandleData(mockJSON, 0)
 	if err.Error() != errJSONInvalidCharacter {
 		t.Errorf(errExpectMismatch, err, errJSONInvalidCharacter)
 	}
-	mockJson = []byte(`{"sequence_num": 0, "channel": "user", "events": [{"type": "moo", "orders": [{"total_fees": "1.1"}]}]}`)
-	_, err = c.wsHandleData(mockJson, 0)
+	mockJSON = []byte(`{"sequence_num": 0, "channel": "user", "events": [{"type": "moo", "orders": [{"total_fees": "1.1"}]}]}`)
+	_, err = c.wsHandleData(mockJSON, 0)
 	if err.Error() != errUnrecognisedOrderType {
 		t.Errorf(errExpectMismatch, err, errUnrecognisedOrderType)
 	}
-	mockJson = []byte(`{"sequence_num": 0, "channel": "user", "events": [{"type": "moo", "orders": [{"total_fees": "1.1", "order_type": "ioc"}]}]}`)
-	_, err = c.wsHandleData(mockJson, 0)
+	mockJSON = []byte(`{"sequence_num": 0, "channel": "user", "events": [{"type": "moo", "orders": [{"total_fees": "1.1", "order_type": "ioc"}]}]}`)
+	_, err = c.wsHandleData(mockJSON, 0)
 	if err.Error() != errOrderSideInvalid {
 		t.Errorf(errExpectMismatch, err, errOrderSideInvalid)
 	}
-	mockJson = []byte(`{"sequence_num": 0, "channel": "user", "events": [{"type": "moo", "orders": [{"total_fees": "1.1", "order_type": "ioc", "order_side": "buy"}]}]}`)
-	_, err = c.wsHandleData(mockJson, 0)
+	mockJSON = []byte(`{"sequence_num": 0, "channel": "user", "events": [{"type": "moo", "orders": [{"total_fees": "1.1", "order_type": "ioc", "order_side": "buy"}]}]}`)
+	_, err = c.wsHandleData(mockJSON, 0)
 	if err.Error() != errUnrecognisedStatusType {
 		t.Errorf(errExpectMismatch, err, errUnrecognisedStatusType)
 	}
-	mockJson = []byte(`{"sequence_num": 0, "channel": "user", "events": [{"type": "moo", "orders": [{"total_fees": "1.1", "order_type": "ioc", "order_side": "buy", "status": "done"}]}]}`)
-	_, err = c.wsHandleData(mockJson, 0)
+	mockJSON = []byte(`{"sequence_num": 0, "channel": "user", "events": [{"type": "moo", "orders": [{"total_fees": "1.1", "order_type": "ioc", "order_side": "buy", "status": "done"}]}]}`)
+	_, err = c.wsHandleData(mockJSON, 0)
 	assert.NoError(t, err)
-	mockJson = []byte(`{"sequence_num": 0, "channel": "fakechan", "events": ["type": ""}]}`)
-	_, err = c.wsHandleData(mockJson, 0)
+	mockJSON = []byte(`{"sequence_num": 0, "channel": "fakechan", "events": ["type": ""}]}`)
+	_, err = c.wsHandleData(mockJSON, 0)
 	assert.ErrorIs(t, err, errChannelNameUnknown)
 }
 
@@ -1751,17 +1755,13 @@ func getINTXPortfolio(t *testing.T) string {
 	return targetID
 }
 
-func convertTestHelper(t *testing.T) (string, string) {
+func convertTestHelper(t *testing.T) (fromAccID, toAccID string) {
 	t.Helper()
 	accIDs, err := c.GetAllAccounts(context.Background(), 250, "")
 	assert.NoError(t, err)
 	if len(accIDs.Accounts) == 0 {
 		t.Fatal(errExpectedNonEmpty)
 	}
-	var (
-		fromAccID string
-		toAccID   string
-	)
 	for x := range accIDs.Accounts {
 		if accIDs.Accounts[x].Currency == "USDC" {
 			fromAccID = accIDs.Accounts[x].UUID
@@ -1779,14 +1779,13 @@ func convertTestHelper(t *testing.T) (string, string) {
 	return fromAccID, toAccID
 }
 
-func transferTestHelper(t *testing.T, wallets GetAllWalletsResponse) (string, string) {
+func transferTestHelper(t *testing.T, wallets GetAllWalletsResponse) (srcWalletID, tarWalletID string) {
 	t.Helper()
 	var hasValidFunds bool
-	var wID string
 	for i := range wallets.Data {
 		if wallets.Data[i].Currency.Code == testFiat.String() && wallets.Data[i].Balance.Amount > 10 {
 			hasValidFunds = true
-			wID = wallets.Data[i].ID
+			srcWalletID = wallets.Data[i].ID
 		}
 	}
 	if !hasValidFunds {
@@ -1797,7 +1796,7 @@ func transferTestHelper(t *testing.T, wallets GetAllWalletsResponse) (string, st
 	if len(pmID.Data) == 0 {
 		t.Skip(skipPayMethodNotFound)
 	}
-	return wID, pmID.Data[0].FiatAccount.ID
+	return srcWalletID, pmID.Data[0].FiatAccount.ID
 }
 
 type withdrawFiatFunc func(context.Context, *withdraw.Request) (*withdraw.ExchangeResponse, error)

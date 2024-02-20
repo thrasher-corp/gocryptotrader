@@ -707,9 +707,9 @@ func (c *CoinbasePro) CancelAllOrders(ctx context.Context, can *order.Cancel) (o
 	if len(ordStatus) == 0 {
 		return resp, errNoMatchingOrders
 	}
-	var orders []order.Cancel
+	orders := make([]order.Cancel, len(ordIDs))
 	for i := range ordIDs {
-		orders = append(orders, order.Cancel{OrderID: ordIDs[i].OrderID})
+		orders[i] = order.Cancel{OrderID: ordIDs[i].OrderID}
 	}
 
 	batchResp, count, err := c.cancelOrdersReturnMapAndCount(ctx, orders)
@@ -773,7 +773,7 @@ func (c *CoinbasePro) GetOrderInfo(ctx context.Context, orderID string, pair cur
 }
 
 // GetDepositAddress returns a deposit address for a specified currency
-func (c *CoinbasePro) GetDepositAddress(ctx context.Context, cryptocurrency currency.Code, _, chain string) (*deposit.Address, error) {
+func (c *CoinbasePro) GetDepositAddress(ctx context.Context, cryptocurrency currency.Code, _, _ string) (*deposit.Address, error) {
 	allWalResp, err := c.GetAllWallets(ctx, PaginationInp{})
 	if err != nil {
 		return nil, err
@@ -1090,7 +1090,7 @@ func (c *CoinbasePro) GetLatestFundingRates(ctx context.Context, r *fundingrate.
 		return nil, err
 	}
 
-	var funding []fundingrate.LatestRateResponse
+	funding := make([]fundingrate.LatestRateResponse, len(products.Products))
 
 	for i := range products.Products {
 
@@ -1103,13 +1103,13 @@ func (c *CoinbasePro) GetLatestFundingRates(ctx context.Context, r *fundingrate.
 			Rate: decimal.NewFromFloat(products.Products[i].FutureProductDetails.PerpetualDetails.FundingRate.Float64()),
 		}
 
-		funding = append(funding, fundingrate.LatestRateResponse{
+		funding[i] = fundingrate.LatestRateResponse{
 			Exchange:    c.Name,
 			Asset:       r.Asset,
 			Pair:        pair,
 			LatestRate:  funRate,
 			TimeChecked: time.Now(),
-		})
+		}
 	}
 
 	return funding, nil
@@ -1129,7 +1129,7 @@ func (c *CoinbasePro) GetFuturesContractDetails(ctx context.Context, item asset.
 		return nil, err
 	}
 
-	var contracts []futures.Contract
+	contracts := make([]futures.Contract, len(products.Products))
 
 	for i := range products.Products {
 		pair, err := currency.NewPairFromString(products.Products[i].ID)
@@ -1139,7 +1139,7 @@ func (c *CoinbasePro) GetFuturesContractDetails(ctx context.Context, item asset.
 		funRate := fundingrate.Rate{Time: products.Products[i].FutureProductDetails.PerpetualDetails.FundingTime,
 			Rate: decimal.NewFromFloat(products.Products[i].FutureProductDetails.PerpetualDetails.FundingRate.Float64()),
 		}
-		contracts = append(contracts, futures.Contract{
+		contracts[i] = futures.Contract{
 			Exchange:             c.Name,
 			Name:                 pair,
 			Asset:                item,
@@ -1150,7 +1150,7 @@ func (c *CoinbasePro) GetFuturesContractDetails(ctx context.Context, item asset.
 			SettlementCurrencies: []currency.Code{currency.NewCode(products.Products[i].QuoteCurrencyID)},
 			Multiplier:           products.Products[i].BaseIncrement.Float64(),
 			LatestRate:           funRate,
-		})
+		}
 	}
 
 	return contracts, nil
@@ -1173,7 +1173,7 @@ func (c *CoinbasePro) UpdateOrderExecutionLimits(ctx context.Context, a asset.It
 		return err
 	}
 
-	var limits []order.MinMaxLevel
+	limits := make([]order.MinMaxLevel, len(data.Products))
 
 	for i := range data.Products {
 		pair, err := currency.NewPairFromString(data.Products[i].ID)
@@ -1181,7 +1181,7 @@ func (c *CoinbasePro) UpdateOrderExecutionLimits(ctx context.Context, a asset.It
 			return err
 		}
 
-		limits = append(limits, order.MinMaxLevel{
+		limits[i] = order.MinMaxLevel{
 			Pair:                    pair,
 			Asset:                   a,
 			MinPrice:                data.Products[i].QuoteMinSize.Float64(),
@@ -1194,7 +1194,7 @@ func (c *CoinbasePro) UpdateOrderExecutionLimits(ctx context.Context, a asset.It
 			AmountStepIncrementSize: data.Products[i].BaseIncrement.Float64(),
 			QuoteStepIncrementSize:  data.Products[i].QuoteIncrement.Float64(),
 			MaxTotalOrders:          1000,
-		})
+		}
 	}
 
 	return c.LoadLimits(limits)
@@ -1218,12 +1218,12 @@ func (c *CoinbasePro) fetchFutures(ctx context.Context) (AllProducts, error) {
 
 // cancelOrdersReturnMapAndCount is a helper function for CancelBatchOrders and CancelAllOrders,
 // calling the appropriate Coinbase endpoint, and returning information useful to both
-func (c *CoinbasePro) cancelOrdersReturnMapAndCount(ctx context.Context, o []order.Cancel) (map[string]string, int64, error) {
+func (c *CoinbasePro) cancelOrdersReturnMapAndCount(ctx context.Context, o []order.Cancel) (status map[string]string, count int64, err error) {
 	ordToCancel := len(o)
 	if ordToCancel == 0 {
 		return nil, 0, errOrderIDEmpty
 	}
-	status := make(map[string]string)
+	status = make(map[string]string)
 	ordIDSlice := make([]string, ordToCancel)
 	for i := range o {
 		err := o[i].Validate(o[i].StandardCancel())
