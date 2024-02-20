@@ -21,6 +21,7 @@ const (
 	coinbaseWSRate     = 750
 )
 
+// Coinbase pro rate limits
 const (
 	V2Rate request.EndpointLimit = iota
 	V3Rate

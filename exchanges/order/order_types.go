@@ -362,6 +362,7 @@ const (
 	ConditionalStop // One-way stop order
 )
 
+// AllOrderTypes collects all order types for easy and consistent comparisons
 var AllOrderTypes = Limit |
 	Market |
 	PostOnly |
@@ -440,6 +441,7 @@ type FilteredOrders []Detail
 // last trade price goes below the TriggerPrice
 type StopDirection bool
 
+// StopDirection types
 const (
 	StopUp   StopDirection = true
 	StopDown StopDirection = false

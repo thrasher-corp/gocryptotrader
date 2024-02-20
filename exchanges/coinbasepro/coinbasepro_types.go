@@ -583,7 +583,7 @@ type PerpPositionDetail struct {
 	PortfolioSummary      PerpetualsPortfolioSummary `json:"portfolio_summary"`
 }
 
-// PerpetualPositionsResponse contains information on perpetuals positions, returned by
+// AllPerpPosResponse contains information on perpetuals positions, returned by
 // GetAllPerpetualsPositions
 type AllPerpPosResponse struct {
 	Positions        []PerpPositionDetail       `json:"positions"`
@@ -928,8 +928,8 @@ type GenWalletResponse struct {
 
 // GetAllWalletsResponse holds information on many wallets, returned by GetAllWallets
 type GetAllWalletsResponse struct {
-	Pagination PaginationResp `json:"pagination"`
-	Data       []WalletData   `json:"data"`
+	Pagination *PaginationResp `json:"pagination"`
+	Data       []WalletData    `json:"data"`
 }
 
 // AddressInfo holds an address and a destination tag, used in AddressData

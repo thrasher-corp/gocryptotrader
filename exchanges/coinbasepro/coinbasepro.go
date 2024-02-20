@@ -71,23 +71,21 @@ const (
 	coinbasePrices             = "prices"
 	coinbaseTime               = "time"
 
-	FiatDeposit     FiatTransferType = false
-	FiatWithdrawal  FiatTransferType = true
-	pageNone                         = ""
-	pageBefore                       = "before"
-	pageAfter                        = "after"
-	unknownContract                  = "UNKNOWN_CONTRACT_EXPIRY_TYPE"
-	granUnknown                      = "UNKNOWN_GRANULARITY"
-	granOneMin                       = "ONE_MINUTE"
-	granFiveMin                      = "FIVE_MINUTE"
-	granFifteenMin                   = "FIFTEEN_MINUTE"
-	granThirtyMin                    = "THIRTY_MINUTE"
-	granOneHour                      = "ONE_HOUR"
-	granTwoHour                      = "TWO_HOUR"
-	granSixHour                      = "SIX_HOUR"
-	granOneDay                       = "ONE_DAY"
-	startDateString                  = "start_date"
-	endDateString                    = "end_date"
+	pageNone        = ""
+	pageBefore      = "before"
+	pageAfter       = "after"
+	unknownContract = "UNKNOWN_CONTRACT_EXPIRY_TYPE"
+	granUnknown     = "UNKNOWN_GRANULARITY"
+	granOneMin      = "ONE_MINUTE"
+	granFiveMin     = "FIVE_MINUTE"
+	granFifteenMin  = "FIFTEEN_MINUTE"
+	granThirtyMin   = "THIRTY_MINUTE"
+	granOneHour     = "ONE_HOUR"
+	granTwoHour     = "TWO_HOUR"
+	granSixHour     = "SIX_HOUR"
+	granOneDay      = "ONE_DAY"
+	startDateString = "start_date"
+	endDateString   = "end_date"
 
 	errPayMethodNotFound    = "payment method '%v' not found"
 	errIntervalNotSupported = "interval not supported"
@@ -95,10 +93,19 @@ const (
 	errUnknownL2DataType    = "unknown l2update data type %v"
 	errUnknownSide          = "unknown side %v"
 	warnSequenceIssue       = "Out of order sequence number. Received %v, expected %v"
+)
 
-	// While the exchange's fee pages say the worst taker/maker fees are 0.002 lower than the ones listed
-	// here, the data returned by the GetTransactionsSummary endpoint are consistent with these worst
-	// case scenarios. The best case scenarios are untested, and assumed to be in line with the fee pages
+// Constants defining whether a transfer is a deposit or withdrawal, used to simplify
+// interactions with a few endpoints
+const (
+	FiatDeposit    FiatTransferType = false
+	FiatWithdrawal FiatTransferType = true
+)
+
+// While the exchange's fee pages say the worst taker/maker fees are 0.002 lower than the ones listed
+// here, the data returned by the GetTransactionsSummary endpoint are consistent with these worst
+// case scenarios. The best case scenarios are untested, and assumed to be in line with the fee pages
+const (
 	WorstCaseTakerFee           = 0.008
 	WorstCaseMakerFee           = 0.006
 	BestCaseTakerFee            = 0.0005
@@ -129,7 +136,7 @@ var (
 	errInvalidPriceType       = errors.New("price type must be spot, buy, or sell")
 	errInvalidOrderType       = errors.New("order type must be market, limit, or stop")
 	errNoMatchingWallets      = errors.New("no matching wallets returned")
-	errOrderModFailNoErr      = errors.New("order modification failed but no error returned")
+	errOrderModFailNoRet      = errors.New("order modification failed but no error returned")
 	errNoMatchingOrders       = errors.New("no matching orders returned")
 	errPointerNil             = errors.New("relevant pointer is nil")
 	errNameEmpty              = errors.New("name cannot be empty")
@@ -218,6 +225,10 @@ func (c *CoinbasePro) GetAllProducts(ctx context.Context, limit, offset int32, p
 
 	if contractExpiryType != "" {
 		params.urlVals.Set("contract_expiry_type", contractExpiryType)
+	}
+
+	if expiringContractStatus != "" {
+		params.urlVals.Set("expiring_contract_status", expiringContractStatus)
 	}
 
 	if len(productIDs) > 0 {
@@ -1335,7 +1346,7 @@ func (c *CoinbasePro) SendAuthenticatedHTTPRequest(ctx context.Context, ep excha
 
 	// Version 2 wants query params in the path during signing
 	if !isVersion3 {
-		path = path + queryParams
+		path += queryParams
 	}
 
 	interim := json.RawMessage{}
@@ -1370,7 +1381,7 @@ func (c *CoinbasePro) SendAuthenticatedHTTPRequest(ctx context.Context, ep excha
 
 		// Version 3 only wants query params in the path when the request is sent
 		if isVersion3 {
-			path = path + queryParams
+			path += queryParams
 		}
 
 		return &request.Item{
@@ -1596,6 +1607,7 @@ func prepareMarginType(marginType string, req map[string]interface{}) {
 	}
 }
 
+// String implements the stringer interface
 func (f FiatTransferType) String() string {
 	if f {
 		return "withdrawal"
@@ -1603,6 +1615,7 @@ func (f FiatTransferType) String() string {
 	return "deposit"
 }
 
+// UnmarshalJSON unmarshals the JSON input into a UnixTimestamp type
 func (t *UnixTimestamp) UnmarshalJSON(b []byte) error {
 	var timestampStr string
 	err := json.Unmarshal(b, &timestampStr)
@@ -1617,10 +1630,12 @@ func (t *UnixTimestamp) UnmarshalJSON(b []byte) error {
 	return nil
 }
 
+// String implements the stringer interface
 func (t *UnixTimestamp) String() string {
 	return t.Time().String()
 }
 
+// Time returns the time.Time representation of the UnixTimestamp
 func (t UnixTimestamp) Time() time.Time {
 	return time.Time(t)
 }

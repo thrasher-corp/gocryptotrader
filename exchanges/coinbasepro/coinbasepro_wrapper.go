@@ -570,12 +570,12 @@ func (c *CoinbasePro) GetWithdrawalsHistory(ctx context.Context, cur currency.Co
 }
 
 // GetRecentTrades returns the most recent trades for a currency and asset
-func (c *CoinbasePro) GetRecentTrades(ctx context.Context, p currency.Pair, assetType asset.Item) ([]trade.Data, error) {
+func (c *CoinbasePro) GetRecentTrades(_ context.Context, _ currency.Pair, _ asset.Item) ([]trade.Data, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
 // GetHistoricTrades returns historic trade data within the timeframe provided
-func (c *CoinbasePro) GetHistoricTrades(ctx context.Context, p currency.Pair, assetType asset.Item, startDate, endDate time.Time) ([]trade.Data, error) {
+func (c *CoinbasePro) GetHistoricTrades(_ context.Context, _ currency.Pair, _ asset.Item, _, _ time.Time) ([]trade.Data, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
@@ -649,7 +649,7 @@ func (c *CoinbasePro) ModifyOrder(ctx context.Context, m *order.Modify) (*order.
 		return nil, err
 	}
 	if !success.Success {
-		return nil, errOrderModFailNoErr
+		return nil, errOrderModFailNoRet
 	}
 
 	return m.DeriveModifyResponse()

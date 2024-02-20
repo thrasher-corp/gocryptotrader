@@ -2,13 +2,12 @@ package coinbasepro
 
 import (
 	"context"
-	"net/http"
-	"strconv"
-	"strings"
-
 	"fmt"
 	"log"
+	"net/http"
 	"os"
+	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -74,12 +73,12 @@ const (
 	errUpsideUnsupported       = "unsupported asset type upsideprofitcontract"
 	errBlorboGranularity       = "invalid granularity blorbo, allowed granularities are: [ONE_MINUTE FIVE_MINUTE FIFTEEN_MINUTE THIRTY_MINUTE ONE_HOUR TWO_HOUR SIX_HOUR ONE_DAY]"
 	errNoEndpointPathEdgeCase3 = "no endpoint path found for the given key: EdgeCase3URL"
-	errJsonUnsupportedChan     = "json: unsupported type: chan struct {}, authenticated request failed"
+	errJSONUnsupportedChan     = "json: unsupported type: chan struct {}, authenticated request failed"
 	errExpectedFeeRange        = "expected fee range of %v and %v, received %v"
-	errJsonNumberIntoString    = "json: cannot unmarshal number into Go value of type string"
+	errJSONNumberIntoString    = "json: cannot unmarshal number into Go value of type string"
 	errParseIntValueOutOfRange = `strconv.ParseInt: parsing "922337203685477580700": value out of range`
 	errParseUintInvalidSyntax  = `strconv.ParseUint: parsing "l": invalid syntax`
-	errJsonInvalidCharacter    = `invalid character ':' after array element`
+	errJSONInvalidCharacter    = `invalid character ':' after array element`
 	errL2DataMoo               = "unknown l2update data type moo"
 	errUnrecognisedOrderType   = `'' unrecognised order type`
 	errOrderSideInvalid        = `'' order side is invalid`
@@ -110,9 +109,10 @@ func TestSetup(t *testing.T) {
 func TestMain(m *testing.M) {
 	c.SetDefaults()
 	if testingInSandbox {
-		c.API.Endpoints.SetDefaultEndpoints(map[exchange.URL]string{
+		err := c.API.Endpoints.SetDefaultEndpoints(map[exchange.URL]string{
 			exchange.RestSpot: coinbaseproSandboxAPIURL,
 		})
+		log.Fatal("failed to set sandbox endpoint", err)
 	}
 	cfg := config.GetConfig()
 	err := cfg.LoadConfig("../../testdata/configtest.json", true)
@@ -188,7 +188,7 @@ func TestGetProductBook(t *testing.T) {
 func TestGetAllProducts(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, c)
 	testPairs := []string{testPair.String(), "ETH-USD"}
-	resp, err := c.GetAllProducts(context.Background(), 30000, 0, "SPOT", "PERPETUAL", "",
+	resp, err := c.GetAllProducts(context.Background(), 30000, 0, "SPOT", "PERPETUAL", "STATUS_ALL",
 		testPairs)
 	assert.NoError(t, err)
 	assert.NotEmpty(t, resp, errExpectedNonEmpty)
@@ -516,7 +516,7 @@ func TestAllocatePortfolio(t *testing.T) {
 	err = c.AllocatePortfolio(context.Background(), "meow", "bark", "", 0)
 	assert.ErrorIs(t, err, errCurrencyEmpty)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, c, canManipulateRealOrders)
-	pID := portfolioIDFromType(t, "INTX")
+	pID := getINTXPortfolio(t)
 	err = c.AllocatePortfolio(context.Background(), pID, testCrypto.String(), "USD", 0.001337)
 	assert.NoError(t, err)
 }
@@ -524,7 +524,7 @@ func TestAllocatePortfolio(t *testing.T) {
 func TestGetPerpetualsPortfolioSummary(t *testing.T) {
 	_, err := c.GetPerpetualsPortfolioSummary(context.Background(), "")
 	assert.ErrorIs(t, err, errPortfolioIDEmpty)
-	pID := portfolioIDFromType(t, "INTX")
+	pID := getINTXPortfolio(t)
 	resp, err := c.GetPerpetualsPortfolioSummary(context.Background(), pID)
 	assert.NoError(t, err)
 	assert.NotEmpty(t, resp, errExpectedNonEmpty)
@@ -533,7 +533,7 @@ func TestGetPerpetualsPortfolioSummary(t *testing.T) {
 func TestGetAllPerpetualsPositions(t *testing.T) {
 	_, err := c.GetAllPerpetualsPositions(context.Background(), "")
 	assert.ErrorIs(t, err, errPortfolioIDEmpty)
-	pID := portfolioIDFromType(t, "INTX")
+	pID := getINTXPortfolio(t)
 	_, err = c.GetAllPerpetualsPositions(context.Background(), pID)
 	assert.NoError(t, err)
 }
@@ -543,7 +543,7 @@ func TestGetPerpetualsPositionByID(t *testing.T) {
 	assert.ErrorIs(t, err, errPortfolioIDEmpty)
 	_, err = c.GetPerpetualsPositionByID(context.Background(), "meow", "")
 	assert.ErrorIs(t, err, errProductIDEmpty)
-	pID := portfolioIDFromType(t, "INTX")
+	pID := getINTXPortfolio(t)
 	_, err = c.GetPerpetualsPositionByID(context.Background(), pID, testPair.String())
 	assert.NoError(t, err)
 }
@@ -933,8 +933,8 @@ func TestSendAuthenticatedHTTPRequest(t *testing.T) {
 	ch := make(chan struct{})
 	body := map[string]interface{}{"Unmarshalable": ch}
 	err = c.SendAuthenticatedHTTPRequest(context.Background(), exchange.RestSpot, "", "", "", body, false, nil, nil)
-	if err.Error() != errJsonUnsupportedChan {
-		t.Errorf(errExpectMismatch, err, errJsonUnsupportedChan)
+	if err.Error() != errJSONUnsupportedChan {
+		t.Errorf(errExpectMismatch, err, errJSONUnsupportedChan)
 	}
 }
 
@@ -1405,8 +1405,8 @@ func TestUnixTimestampUnmarshalJSON(t *testing.T) {
 	t.Parallel()
 	var u UnixTimestamp
 	err := u.UnmarshalJSON([]byte("0"))
-	if err.Error() != errJsonNumberIntoString {
-		t.Errorf(errExpectMismatch, err, errJsonNumberIntoString)
+	if err.Error() != errJSONNumberIntoString {
+		t.Errorf(errExpectMismatch, err, errJSONNumberIntoString)
 	}
 	err = u.UnmarshalJSON([]byte("\"922337203685477580700\""))
 	if err.Error() != errParseIntValueOutOfRange {
@@ -1419,7 +1419,8 @@ func TestUnixTimestampUnmarshalJSON(t *testing.T) {
 func TestUnixTimestampString(t *testing.T) {
 	t.Parallel()
 	var u UnixTimestamp
-	u.UnmarshalJSON([]byte("\"1234\""))
+	err := u.UnmarshalJSON([]byte("\"1234\""))
+	assert.NoError(t, err)
 	s := u.String()
 	if s != expectedTimestamp {
 		t.Errorf(errExpectMismatch, s, expectedTimestamp)
@@ -1508,12 +1509,14 @@ func TestStringToFloatPtr(t *testing.T) {
 }
 
 func TestWsConnect(t *testing.T) {
-	c.Websocket.Disable()
-	err := c.WsConnect()
+	err := c.Websocket.Disable()
+	assert.NoError(t, err)
+	err = c.WsConnect()
 	if err.Error() != stream.WebsocketNotEnabled {
 		t.Errorf(errExpectMismatch, err, stream.WebsocketNotEnabled)
 	}
-	c.Websocket.Enable()
+	err = c.Websocket.Enable()
+	assert.NoError(t, err)
 }
 
 func TestWsHandleData(t *testing.T) {
@@ -1540,8 +1543,8 @@ func TestWsHandleData(t *testing.T) {
 	assert.ErrorIs(t, err, jsonparser.UnknownValueTypeError)
 	mockJson = []byte(`{"sequence_num": 0, "channel": "status", "events": ["type": 1234]}`)
 	_, err = c.wsHandleData(mockJson, 0)
-	if err.Error() != errJsonInvalidCharacter {
-		t.Errorf(errExpectMismatch, err, errJsonInvalidCharacter)
+	if err.Error() != errJSONInvalidCharacter {
+		t.Errorf(errExpectMismatch, err, errJSONInvalidCharacter)
 	}
 	mockJson = []byte(`{"sequence_num": 0, "channel": "status", "events": [{"type": "moo"}]}`)
 	_, err = c.wsHandleData(mockJson, 0)
@@ -1551,8 +1554,8 @@ func TestWsHandleData(t *testing.T) {
 	assert.NoError(t, err)
 	mockJson = []byte(`{"sequence_num": 0, "channel": "ticker", "events": ["type": ""}]}`)
 	_, err = c.wsHandleData(mockJson, 0)
-	if err.Error() != errJsonInvalidCharacter {
-		t.Errorf(errExpectMismatch, err, errJsonInvalidCharacter)
+	if err.Error() != errJSONInvalidCharacter {
+		t.Errorf(errExpectMismatch, err, errJSONInvalidCharacter)
 	}
 	mockJson = []byte(`{"sequence_num": 0, "channel": "ticker", "events": [{"type": "moo", "tickers": [{"price": "1.1"}]}]}`)
 	_, err = c.wsHandleData(mockJson, 0)
@@ -1562,8 +1565,8 @@ func TestWsHandleData(t *testing.T) {
 	assert.NoError(t, err)
 	mockJson = []byte(`{"sequence_num": 0, "channel": "candles", "events": ["type": ""}]}`)
 	_, err = c.wsHandleData(mockJson, 0)
-	if err.Error() != errJsonInvalidCharacter {
-		t.Errorf(errExpectMismatch, err, errJsonInvalidCharacter)
+	if err.Error() != errJSONInvalidCharacter {
+		t.Errorf(errExpectMismatch, err, errJSONInvalidCharacter)
 	}
 	mockJson = []byte(`{"sequence_num": 0, "channel": "candles", "events": [{"type": "moo", "candles": [{"low": "1.1"}]}]}`)
 	_, err = c.wsHandleData(mockJson, 0)
@@ -1573,16 +1576,16 @@ func TestWsHandleData(t *testing.T) {
 	assert.NoError(t, err)
 	mockJson = []byte(`{"sequence_num": 0, "channel": "market_trades", "events": ["type": ""}]}`)
 	_, err = c.wsHandleData(mockJson, 0)
-	if err.Error() != errJsonInvalidCharacter {
-		t.Errorf(errExpectMismatch, err, errJsonInvalidCharacter)
+	if err.Error() != errJSONInvalidCharacter {
+		t.Errorf(errExpectMismatch, err, errJSONInvalidCharacter)
 	}
 	mockJson = []byte(`{"sequence_num": 0, "channel": "market_trades", "events": [{"type": "moo", "trades": [{"price": "1.1"}]}]}`)
 	_, err = c.wsHandleData(mockJson, 0)
 	assert.NoError(t, err)
 	mockJson = []byte(`{"sequence_num": 0, "channel": "l2_data", "events": ["type": ""}]}`)
 	_, err = c.wsHandleData(mockJson, 0)
-	if err.Error() != errJsonInvalidCharacter {
-		t.Errorf(errExpectMismatch, err, errJsonInvalidCharacter)
+	if err.Error() != errJSONInvalidCharacter {
+		t.Errorf(errExpectMismatch, err, errJSONInvalidCharacter)
 	}
 	mockJson = []byte(`{"sequence_num": 0, "channel": "l2_data", "events": [{"type": "moo", "updates": [{"price_level": "1.1"}]}]}`)
 	_, err = c.wsHandleData(mockJson, 0)
@@ -1600,8 +1603,8 @@ func TestWsHandleData(t *testing.T) {
 	assert.NoError(t, err)
 	mockJson = []byte(`{"sequence_num": 0, "channel": "user", "events": ["type": ""}]}`)
 	_, err = c.wsHandleData(mockJson, 0)
-	if err.Error() != errJsonInvalidCharacter {
-		t.Errorf(errExpectMismatch, err, errJsonInvalidCharacter)
+	if err.Error() != errJSONInvalidCharacter {
+		t.Errorf(errExpectMismatch, err, errJSONInvalidCharacter)
 	}
 	mockJson = []byte(`{"sequence_num": 0, "channel": "user", "events": [{"type": "moo", "orders": [{"total_fees": "1.1"}]}]}`)
 	_, err = c.wsHandleData(mockJson, 0)
@@ -1629,18 +1632,18 @@ func TestWsHandleData(t *testing.T) {
 func TestProcessSnapshotUpdate(t *testing.T) {
 	req := WebsocketOrderbookDataHolder{Changes: []WebsocketOrderbookData{{Side: "fakeside", PriceLevel: 1.1,
 		NewQuantity: 2.2}}, ProductID: currency.NewBTCUSD()}
-	err := c.ProcessSnapshot(req, time.Time{})
+	err := c.ProcessSnapshot(&req, time.Time{})
 	if err.Error() != errFakeSide {
 		t.Errorf(errExpectMismatch, err, errFakeSide)
 	}
-	err = c.ProcessUpdate(req, time.Time{})
+	err = c.ProcessUpdate(&req, time.Time{})
 	if err.Error() != errFakeSide {
 		t.Errorf(errExpectMismatch, err, errFakeSide)
 	}
 	req.Changes[0].Side = "offer"
-	err = c.ProcessSnapshot(req, time.Now())
+	err = c.ProcessSnapshot(&req, time.Now())
 	assert.NoError(t, err)
-	err = c.ProcessUpdate(req, time.Now())
+	err = c.ProcessUpdate(&req, time.Now())
 	assert.NoError(t, err)
 }
 
@@ -1682,6 +1685,7 @@ func TestGetJWT(t *testing.T) {
 }
 
 func skipTestIfLowOnFunds(t *testing.T) {
+	t.Helper()
 	accounts, err := c.GetAllAccounts(context.Background(), 250, "")
 	assert.NoError(t, err)
 	if len(accounts.Accounts) == 0 {
@@ -1699,6 +1703,7 @@ func skipTestIfLowOnFunds(t *testing.T) {
 }
 
 func portfolioIDFromName(t *testing.T, targetName string) string {
+	t.Helper()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, c, canManipulateRealOrders)
 	createResp, err := c.CreatePortfolio(context.Background(), targetName)
 	var targetID string
@@ -1725,7 +1730,8 @@ func portfolioIDFromName(t *testing.T, targetName string) string {
 	return targetID
 }
 
-func portfolioIDFromType(t *testing.T, targetType string) string {
+func getINTXPortfolio(t *testing.T) string {
+	t.Helper()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, c)
 	resp, err := c.GetAllPortfolios(context.Background(), "")
 	assert.NoError(t, err)
@@ -1734,7 +1740,7 @@ func portfolioIDFromType(t *testing.T, targetType string) string {
 	}
 	var targetID string
 	for i := range resp.Portfolios {
-		if resp.Portfolios[i].Type == targetType {
+		if resp.Portfolios[i].Type == "INTX" {
 			targetID = resp.Portfolios[i].UUID
 			break
 		}
@@ -1746,6 +1752,7 @@ func portfolioIDFromType(t *testing.T, targetType string) string {
 }
 
 func convertTestHelper(t *testing.T) (string, string) {
+	t.Helper()
 	accIDs, err := c.GetAllAccounts(context.Background(), 250, "")
 	assert.NoError(t, err)
 	if len(accIDs.Accounts) == 0 {
@@ -1773,6 +1780,7 @@ func convertTestHelper(t *testing.T) (string, string) {
 }
 
 func transferTestHelper(t *testing.T, wallets GetAllWalletsResponse) (string, string) {
+	t.Helper()
 	var hasValidFunds bool
 	var wID string
 	for i := range wallets.Data {
@@ -1795,6 +1803,7 @@ func transferTestHelper(t *testing.T, wallets GetAllWalletsResponse) (string, st
 type withdrawFiatFunc func(context.Context, *withdraw.Request) (*withdraw.ExchangeResponse, error)
 
 func withdrawFiatFundsHelper(t *testing.T, fn withdrawFiatFunc) {
+	t.Helper()
 	req := withdraw.Request{}
 	_, err := fn(context.Background(), &req)
 	assert.ErrorIs(t, err, common.ErrExchangeNameUnset)
@@ -1848,6 +1857,7 @@ type getNoArgsResp interface {
 type getNoArgsAssertNotEmpty[G getNoArgsResp] func(context.Context) (G, error)
 
 func testGetNoArgs[G getNoArgsResp](t *testing.T, f getNoArgsAssertNotEmpty[G]) {
+	t.Helper()
 	resp, err := f(context.Background())
 	assert.NoError(t, err)
 	assert.NotEmpty(t, resp, errExpectedNonEmpty)
@@ -1856,6 +1866,7 @@ func testGetNoArgs[G getNoArgsResp](t *testing.T, f getNoArgsAssertNotEmpty[G]) 
 type genConvertTestFunc func(context.Context, string, string, string) (ConvertResponse, error)
 
 func convertTestShared(t *testing.T, f genConvertTestFunc) {
+	t.Helper()
 	_, err := f(context.Background(), "", "", "")
 	assert.ErrorIs(t, err, errTransactionIDEmpty)
 	_, err = f(context.Background(), "meow", "", "")

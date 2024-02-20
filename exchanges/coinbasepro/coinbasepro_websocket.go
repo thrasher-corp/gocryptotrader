@@ -11,7 +11,6 @@ import (
 	"encoding/pem"
 	"fmt"
 	"net/http"
-	_ "net/http/pprof"
 	"strconv"
 	"strings"
 	"time"
@@ -230,9 +229,9 @@ func (c *CoinbasePro) wsHandleData(respRaw []byte, seqCount uint64) (string, err
 		for i := range wsL2 {
 			switch wsL2[i].Type {
 			case "snapshot":
-				err = c.ProcessSnapshot(wsL2[i], timestamp)
+				err = c.ProcessSnapshot(&wsL2[i], timestamp)
 			case "update":
-				err = c.ProcessUpdate(wsL2[i], timestamp)
+				err = c.ProcessUpdate(&wsL2[i], timestamp)
 			default:
 				err = errors.Errorf(errUnknownL2DataType, wsL2[i].Type)
 			}
@@ -299,7 +298,7 @@ func (c *CoinbasePro) wsHandleData(respRaw []byte, seqCount uint64) (string, err
 }
 
 // ProcessSnapshot processes the initial orderbook snap shot
-func (c *CoinbasePro) ProcessSnapshot(snapshot WebsocketOrderbookDataHolder, timestamp time.Time) error {
+func (c *CoinbasePro) ProcessSnapshot(snapshot *WebsocketOrderbookDataHolder, timestamp time.Time) error {
 	bids, asks, err := processBidAskArray(snapshot)
 
 	if err != nil {
@@ -318,7 +317,7 @@ func (c *CoinbasePro) ProcessSnapshot(snapshot WebsocketOrderbookDataHolder, tim
 }
 
 // ProcessUpdate updates the orderbook local cache
-func (c *CoinbasePro) ProcessUpdate(update WebsocketOrderbookDataHolder, timestamp time.Time) error {
+func (c *CoinbasePro) ProcessUpdate(update *WebsocketOrderbookDataHolder, timestamp time.Time) error {
 	bids, asks, err := processBidAskArray(update)
 
 	if err != nil {
@@ -442,11 +441,11 @@ func (c *CoinbasePro) GetJWT(ctx context.Context, uri string) (string, error) {
 	}
 
 	head := map[string]interface{}{"kid": creds.ClientID, "typ": "JWT", "alg": "ES256", "nonce": nonce}
-	headJson, err := json.Marshal(head)
+	headJSON, err := json.Marshal(head)
 	if err != nil {
 		return "", err
 	}
-	headEncode := base64URLEncode(headJson)
+	headEncode := base64URLEncode(headJSON)
 
 	c.jwtLastRegen = time.Now()
 
@@ -528,7 +527,7 @@ func (c *CoinbasePro) sendRequest(msgType, channel string, productIDs currency.P
 
 // processBidAskArray is a helper function that turns WebsocketOrderbookDataHolder into arrays
 // of bids and asks
-func processBidAskArray(data WebsocketOrderbookDataHolder) ([]orderbook.Item, []orderbook.Item, error) {
+func processBidAskArray(data *WebsocketOrderbookDataHolder) ([]orderbook.Item, []orderbook.Item, error) {
 	var bids, asks []orderbook.Item
 	for i := range data.Changes {
 		switch data.Changes[i].Side {
