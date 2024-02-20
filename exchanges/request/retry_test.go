@@ -34,7 +34,7 @@ func TestDefaultRetryPolicy(t *testing.T) {
 		},
 		"Too Many Requests": {
 			Args: args{Response: &http.Response{StatusCode: http.StatusTooManyRequests}},
-			Want: want{Retry: false},
+			Want: want{Retry: true},
 		},
 		"Not Found": {
 			Args: args{Response: &http.Response{StatusCode: http.StatusNotFound}},

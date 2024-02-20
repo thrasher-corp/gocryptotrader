@@ -21,8 +21,7 @@ func DefaultRetryPolicy(resp *http.Response, err error) (bool, error) {
 	}
 
 	if resp.StatusCode == http.StatusTooManyRequests {
-		// If we've sent too many requests, we shouldn't immediately retry.
-		return false, nil
+		return true, nil
 	}
 
 	if resp.Header.Get(headerRetryAfter) != "" {
