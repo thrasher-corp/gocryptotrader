@@ -40,12 +40,10 @@ type Okcoin struct {
 }
 
 var (
-	errNilArgument                            = errors.New("nil argument")
 	errInvalidAmount                          = errors.New("invalid amount value")
 	errInvalidPrice                           = errors.New("invalid price value")
 	errAddressMustNotBeEmptyString            = errors.New("address must be a non-empty string")
 	errSubAccountNameRequired                 = errors.New("sub-account name is required")
-	errNoValidResponseFromServer              = errors.New("no valid response")
 	errTransferIDOrClientIDRequired           = errors.New("either transfer id or client id is required")
 	errInvalidWithdrawalMethod                = errors.New("withdrawal method must be specified")
 	errInvalidTransactionFeeValue             = errors.New("invalid transaction fee value")
@@ -364,8 +362,8 @@ func (o *Okcoin) GetAccountAssetValuation(ctx context.Context, ccy currency.Code
 
 // FundsTransfer transfer of funds between your funding account and trading account, and from the master account to sub-accounts.
 func (o *Okcoin) FundsTransfer(ctx context.Context, arg *FundingTransferRequest) (*FundingTransferItem, error) {
-	if arg == nil {
-		return nil, errNilArgument
+	if arg == nil || *arg == (FundingTransferRequest{}) {
+		return nil, fmt.Errorf("%w, argument can not be null", common.ErrNilPointer)
 	}
 	if arg.Currency.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
@@ -388,7 +386,7 @@ func (o *Okcoin) FundsTransfer(ctx context.Context, arg *FundingTransferRequest)
 		return nil, err
 	}
 	if len(resp) == 0 {
-		return nil, errNoValidResponseFromServer
+		return nil, common.ErrNoResponse
 	}
 	return &resp[0], nil
 }
@@ -505,7 +503,7 @@ func (o *Okcoin) GetDepositHistory(ctx context.Context, ccy currency.Code, depos
 // 4: 'on chain' a trusted crypto currency address.
 func (o *Okcoin) Withdrawal(ctx context.Context, arg *WithdrawalRequest) ([]WithdrawalResponse, error) {
 	if arg == nil {
-		return nil, errNilArgument
+		return nil, fmt.Errorf("%w, argument can not be null", common.ErrNilPointer)
 	}
 	if arg.Currency.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
@@ -530,7 +528,7 @@ func (o *Okcoin) Withdrawal(ctx context.Context, arg *WithdrawalRequest) ([]With
 // The minimum withdrawal amount is approximately 0.000001 BTC. Sub-account does not support withdrawal.
 func (o *Okcoin) SubmitLightningWithdrawals(ctx context.Context, arg *LightningWithdrawalsRequest) ([]LightningWithdrawals, error) {
 	if arg == nil {
-		return nil, errNilArgument
+		return nil, fmt.Errorf("%w, argument can not be null", common.ErrNilPointer)
 	}
 	if arg.Currency.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
@@ -553,7 +551,7 @@ func (o *Okcoin) CancelWithdrawal(ctx context.Context, arg *WithdrawalCancellati
 		return nil, err
 	}
 	if len(resp) == 0 {
-		return nil, errNoValidResponseFromServer
+		return nil, common.ErrNoResponse
 	}
 	return &resp[0], nil
 }
@@ -768,7 +766,7 @@ func (o *Okcoin) GetAvailableRFQPairs(ctx context.Context) ([]AvailableRFQPair, 
 // RequestQuote query current market quotation information
 func (o *Okcoin) RequestQuote(ctx context.Context, arg *QuoteRequestArg) ([]RFQQuoteResponse, error) {
 	if arg == nil {
-		return nil, errNilArgument
+		return nil, fmt.Errorf("%w, argument can not be null", common.ErrNilPointer)
 	}
 	if arg.BaseCurrency.IsEmpty() {
 		return nil, fmt.Errorf("%w, base currency", currency.ErrCurrencyCodeEmpty)
@@ -792,7 +790,7 @@ func (o *Okcoin) RequestQuote(ctx context.Context, arg *QuoteRequestArg) ([]RFQQ
 // PlaceRFQOrder submit RFQ order
 func (o *Okcoin) PlaceRFQOrder(ctx context.Context, arg *PlaceRFQOrderRequest) ([]RFQOrderResponse, error) {
 	if arg == nil {
-		return nil, errNilArgument
+		return nil, fmt.Errorf("%w, argument can not be null", common.ErrNilPointer)
 	}
 	if arg.ClientDefinedTradeRequestID == "" {
 		return nil, errClientRequestIDRequired
@@ -859,7 +857,7 @@ func (o *Okcoin) GetRFQOrderHistory(ctx context.Context, begin, end time.Time, p
 // Deposit posts a fiat deposit to an account
 func (o *Okcoin) Deposit(ctx context.Context, arg *FiatDepositRequestArg) ([]FiatDepositResponse, error) {
 	if arg == nil {
-		return nil, errNilArgument
+		return nil, fmt.Errorf("%w, argument can not be null", common.ErrNilPointer)
 	}
 	if arg.ChannelID == "" {
 		return nil, errChannelIDRequired
@@ -885,7 +883,7 @@ func (o *Okcoin) CancelFiatDeposit(ctx context.Context, depositID string) (*Canc
 		return nil, err
 	}
 	if len(resp) == 0 {
-		return nil, errNoValidResponseFromServer
+		return nil, common.ErrNoResponse
 	}
 	return &resp[0], nil
 }
@@ -922,7 +920,7 @@ func (o *Okcoin) GetFiatDepositHistory(ctx context.Context, ccy currency.Code, c
 // FiatWithdrawal submit fiat withdrawal operations.
 func (o *Okcoin) FiatWithdrawal(ctx context.Context, arg *FiatWithdrawalParam) (*FiatWithdrawalResponse, error) {
 	if arg == nil {
-		return nil, errNilArgument
+		return nil, fmt.Errorf("%w, argument can not be null", common.ErrNilPointer)
 	}
 	if arg.ChannelID == "" {
 		return nil, errChannelIDRequired
@@ -939,7 +937,7 @@ func (o *Okcoin) FiatWithdrawal(ctx context.Context, arg *FiatWithdrawalParam) (
 		return nil, err
 	}
 	if len(resp) == 0 {
-		return nil, errNoValidResponseFromServer
+		return nil, common.ErrNoResponse
 	}
 	return &resp[0], nil
 }
@@ -957,7 +955,7 @@ func (o *Okcoin) FiatCancelWithdrawal(ctx context.Context, withdrawalID string) 
 		return "", err
 	}
 	if len(resp) == 0 {
-		return "", errNoValidResponseFromServer
+		return "", common.ErrNoResponse
 	}
 	return resp[0].WithdrawalID, nil
 }
@@ -1123,7 +1121,7 @@ func (o *Okcoin) AccountBalanceTransfer(ctx context.Context, arg *IntraAccountTr
 		return nil, err
 	}
 	if len(resp) == 0 {
-		return nil, errNoValidResponseFromServer
+		return nil, common.ErrNoResponse
 	}
 	return &resp[0], nil
 }
@@ -1132,7 +1130,7 @@ func (o *Okcoin) AccountBalanceTransfer(ctx context.Context, arg *IntraAccountTr
 
 func (a *PlaceTradeOrderParam) validateTradeOrderParameter() error {
 	if a == nil {
-		return errNilArgument
+		return fmt.Errorf("%w, argument can not be null", common.ErrNilPointer)
 	}
 	if a.InstrumentID.IsEmpty() {
 		return fmt.Errorf("%w, instrument id is required", currency.ErrCurrencyPairEmpty)
@@ -1164,7 +1162,7 @@ func (o *Okcoin) PlaceOrder(ctx context.Context, arg *PlaceTradeOrderParam) (*Tr
 		return nil, err
 	}
 	if len(resp) == 0 {
-		return nil, errNoValidResponseFromServer
+		return nil, common.ErrNoResponse
 	}
 	if resp[0].SCode != "0" {
 		return nil, fmt.Errorf("code: %s msg: %s", resp[0].SCode, resp[0].SMsg)
@@ -1176,7 +1174,7 @@ func (o *Okcoin) PlaceOrder(ctx context.Context, arg *PlaceTradeOrderParam) (*Tr
 func (o *Okcoin) PlaceMultipleOrder(ctx context.Context, args []PlaceTradeOrderParam) ([]TradeOrderResponse, error) {
 	var err error
 	if len(args) == 0 {
-		return nil, fmt.Errorf("%w, 0 length place order requests", errNilArgument)
+		return nil, fmt.Errorf("%w, 0 length place order requests", fmt.Errorf("%w, argument can not be null", common.ErrNilPointer))
 	}
 	for x := range args {
 		err = args[x].validateTradeOrderParameter()
@@ -1191,7 +1189,7 @@ func (o *Okcoin) PlaceMultipleOrder(ctx context.Context, args []PlaceTradeOrderP
 // CancelTradeOrder cancels a single trade order
 func (o *Okcoin) CancelTradeOrder(ctx context.Context, arg *CancelTradeOrderRequest) (*TradeOrderResponse, error) {
 	if arg == nil {
-		return nil, errNilArgument
+		return nil, fmt.Errorf("%w, argument can not be null", common.ErrNilPointer)
 	}
 	if arg.InstrumentID == "" {
 		return nil, errMissingInstrumentID
@@ -1205,7 +1203,7 @@ func (o *Okcoin) CancelTradeOrder(ctx context.Context, arg *CancelTradeOrderRequ
 		return nil, err
 	}
 	if len(resp) == 0 {
-		return nil, errNoValidResponseFromServer
+		return nil, common.ErrNoResponse
 	}
 	if resp[0].SCode != "0" {
 		return nil, fmt.Errorf("code: %s msg: %s", resp[0].SCode, resp[0].SMsg)
@@ -1215,7 +1213,7 @@ func (o *Okcoin) CancelTradeOrder(ctx context.Context, arg *CancelTradeOrderRequ
 
 func (arg *CancelTradeOrderRequest) validate() error {
 	if arg == nil {
-		return errNilArgument
+		return fmt.Errorf("%w, argument can not be null", common.ErrNilPointer)
 	}
 	if arg.InstrumentID == "" {
 		return errMissingInstrumentID
@@ -1231,7 +1229,7 @@ func (arg *CancelTradeOrderRequest) validate() error {
 func (o *Okcoin) CancelMultipleOrders(ctx context.Context, args []CancelTradeOrderRequest) ([]TradeOrderResponse, error) {
 	var err error
 	if len(args) == 0 {
-		return nil, fmt.Errorf("%w, 0 length place order requests", errNilArgument)
+		return nil, fmt.Errorf("%w, 0 length place order requests", fmt.Errorf("%w, argument can not be null", common.ErrNilPointer))
 	}
 	for x := range args {
 		err = args[x].validate()
@@ -1245,7 +1243,7 @@ func (o *Okcoin) CancelMultipleOrders(ctx context.Context, args []CancelTradeOrd
 
 func (a *AmendTradeOrderRequestParam) validate() error {
 	if a == nil {
-		return errNilArgument
+		return fmt.Errorf("%w, argument can not be null", common.ErrNilPointer)
 	}
 	if a.InstrumentID == "" {
 		return errMissingInstrumentID
@@ -1271,7 +1269,7 @@ func (o *Okcoin) AmendOrder(ctx context.Context, arg *AmendTradeOrderRequestPara
 		return nil, err
 	}
 	if len(resp) == 0 {
-		return nil, errNoValidResponseFromServer
+		return nil, common.ErrNoResponse
 	}
 	if resp[0].StatusCode != "0" {
 		return nil, fmt.Errorf("code: %s msg: %s", resp[0].StatusCode, resp[0].StatusMessage)
@@ -1282,7 +1280,7 @@ func (o *Okcoin) AmendOrder(ctx context.Context, arg *AmendTradeOrderRequestPara
 // AmendMultipleOrder amends multiple trade orders.
 func (o *Okcoin) AmendMultipleOrder(ctx context.Context, args []AmendTradeOrderRequestParam) ([]AmendTradeOrderResponse, error) {
 	if len(args) == 0 {
-		return nil, fmt.Errorf("%w, please provide at least one trade order amendment request", errNilArgument)
+		return nil, fmt.Errorf("%w, please provide at least one trade order amendment request", fmt.Errorf("%w, argument can not be null", common.ErrNilPointer))
 	}
 	for x := range args {
 		err := args[x].validate()
@@ -1413,7 +1411,7 @@ func (o *Okcoin) GetTransactionDetails3Months(ctx context.Context, instrumentTyp
 
 func (arg *AlgoOrderRequestParam) validateAlgoOrder() error {
 	if arg == nil {
-		return errNilArgument
+		return fmt.Errorf("%w, argument can not be null", common.ErrNilPointer)
 	}
 	if arg.InstrumentID == "" {
 		return errMissingInstrumentID
@@ -1518,7 +1516,7 @@ func (o *Okcoin) PlaceAlgoOrder(ctx context.Context, arg *AlgoOrderRequestParam)
 		return nil, err
 	}
 	if len(resp) == 0 {
-		return nil, errNoValidResponseFromServer
+		return nil, common.ErrNoResponse
 	}
 	if resp[0].StatusCode != "0" {
 		return nil, fmt.Errorf("code: %s msg: %s", resp[0].StatusCode, resp[0].StatusMsg)
@@ -1530,7 +1528,7 @@ func (o *Okcoin) PlaceAlgoOrder(ctx context.Context, arg *AlgoOrderRequestParam)
 // A maximum of 10 orders can be canceled per request. Request parameters should be passed in the form of an array.
 func (o *Okcoin) CancelAlgoOrder(ctx context.Context, args []CancelAlgoOrderRequestParam) ([]AlgoOrderResponse, error) {
 	if len(args) == 0 {
-		return nil, errNilArgument
+		return nil, fmt.Errorf("%w, argument can not be null", common.ErrNilPointer)
 	}
 	for a := range args {
 		if args[a].InstrumentID == "" {
@@ -1548,7 +1546,7 @@ func (o *Okcoin) CancelAlgoOrder(ctx context.Context, args []CancelAlgoOrderRequ
 // A maximum of 10 orders can be canceled per request. Request parameters should be passed in the form of an array.
 func (o *Okcoin) CancelAdvancedAlgoOrder(ctx context.Context, args []CancelAlgoOrderRequestParam) ([]AlgoOrderResponse, error) {
 	if len(args) == 0 {
-		return nil, errNilArgument
+		return nil, fmt.Errorf("%w, argument can not be null", common.ErrNilPointer)
 	}
 	for a := range args {
 		if args[a].InstrumentID == "" {
