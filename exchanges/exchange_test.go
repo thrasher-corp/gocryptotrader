@@ -1264,7 +1264,7 @@ func TestSetupDefaults(t *testing.T) {
 		RunningURL:            "ws://something.com",
 		Connector:             func() error { return nil },
 		GenerateSubscriptions: func() ([]subscription.Subscription, error) { return []subscription.Subscription{}, nil },
-		Subscriber:            func(cs []subscription.Subscription) error { return nil },
+		Subscriber:            func([]subscription.Subscription) error { return nil },
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -1613,7 +1613,7 @@ func TestIsWebsocketEnabled(t *testing.T) {
 		RunningURL:            "ws://something.com",
 		Connector:             func() error { return nil },
 		GenerateSubscriptions: func() ([]subscription.Subscription, error) { return nil, nil },
-		Subscriber:            func(cs []subscription.Subscription) error { return nil },
+		Subscriber:            func([]subscription.Subscription) error { return nil },
 	})
 	if err != nil {
 		t.Error(err)

@@ -1,6 +1,6 @@
 module github.com/thrasher-corp/gocryptotrader
 
-go 1.21
+go 1.22
 
 require (
 	github.com/buger/jsonparser v1.1.1
@@ -28,7 +28,7 @@ require (
 	golang.org/x/text v0.14.0
 	golang.org/x/time v0.5.0
 	google.golang.org/genproto/googleapis/api v0.0.0-20240125205218-1f4bbc51befe
-	google.golang.org/grpc v1.61.0
+	google.golang.org/grpc v1.61.1
 	google.golang.org/protobuf v1.32.0
 )
 

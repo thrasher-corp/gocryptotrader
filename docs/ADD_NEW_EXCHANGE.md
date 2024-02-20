@@ -213,7 +213,6 @@ Yes means supported, No means not yet implemented and NA means protocol unsuppor
 | Gemini | Yes | Yes | No |
 | HitBTC | Yes | Yes | No |
 | Huobi.Pro | Yes | Yes | NA |
-| ItBit | Yes | NA | No |
 | Kraken | Yes | Yes | NA |
 | Kucoin | Yes | Yes | No |
 | Lbank | Yes | No | NA |
@@ -243,7 +242,6 @@ var Exchanges = []string{
 	"gemini",
 	"hitbtc",
 	"huobi",
-	"itbit",
 	"kraken",
 	"kucoin",
 	"lbank",
