@@ -995,7 +995,7 @@ func (ku *Kucoin) GetFuturesAccountDetail(ctx context.Context, ccy string) (*Fut
 	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, defaultSpotEPL, http.MethodGet, common.EncodeURLValues("/v1/account-overview", params), nil, &resp)
 }
 
-// retrieves all sub-account informations
+// GetSubAccounts retrieves all sub-account information
 func (ku *Kucoin) GetSubAccounts(ctx context.Context, subUserID string, includeBaseAmount bool) (*SubAccounts, error) {
 	if subUserID == "" {
 		return nil, errors.New("sub users ID is required")

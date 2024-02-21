@@ -801,7 +801,7 @@ type FundTransferToFuturesParam struct {
 	PaymentAccountType string        `json:"payAccountType"` // Payment account type, including MAIN,TRADE
 }
 
-// InnerTransferToMainAndTradeResponse represents a detailed response after transfering fund to main and trade accounts.
+// InnerTransferToMainAndTradeResponse represents a detailed response after transferring fund to main and trade accounts.
 type InnerTransferToMainAndTradeResponse struct {
 	ApplyID        string               `json:"applyId"`
 	BizNo          string               `json:"bizNo"`
@@ -822,7 +822,7 @@ type InnerTransferToMainAndTradeResponse struct {
 	UpdatedAt      convert.ExchangeTime `json:"updatedAt"`
 }
 
-// FundTransferToFuturesResponse response struct after transfering fund to Futures account
+// FundTransferToFuturesResponse response struct after transferring fund to Futures account
 type FundTransferToFuturesResponse struct {
 	Code    string `json:"code"`
 	Message string `json:"msg"`
