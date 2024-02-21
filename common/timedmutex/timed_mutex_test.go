@@ -24,7 +24,7 @@ func BenchmarkTimedMutexTimeUnlockNotPrimed(b *testing.B) {
 }
 
 // 95322825				15.51 ns/op	       0 B/op	       0 allocs/op (prev)
-// 239158972	        4.621 ns/op	       0 B/op	       0 allocs/op
+// 239158972			4.621 ns/op	       0 B/op	       0 allocs/op
 func BenchmarkTimedMutexTimeUnlockPrimed(b *testing.B) {
 	tm := NewTimedMutex(0)
 	tm.LockForDuration()
