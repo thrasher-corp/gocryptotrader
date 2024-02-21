@@ -65,7 +65,7 @@ func (b *Binance) WsCFutureConnect() error {
 	return nil
 }
 
-// GenerateDefaultCFuturesSubscriptions genearates a list of subscription instances.
+// GenerateDefaultCFuturesSubscriptions generates a list of subscription instances.
 func (b *Binance) GenerateDefaultCFuturesSubscriptions() ([]subscription.Subscription, error) {
 	var channels = defaultCFuturesSubscriptions
 	var subscriptions []subscription.Subscription
