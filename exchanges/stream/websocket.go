@@ -477,10 +477,11 @@ func (w *Websocket) Shutdown() error {
 	w.subscriptions = subscriptionMap{}
 	w.subscriptionMutex.Unlock()
 
+	w.setState(disconnected)
+
 	close(w.ShutdownC)
 	w.Wg.Wait()
 	w.ShutdownC = make(chan struct{})
-	w.setState(disconnected)
 	if w.verbose {
 		log.Debugf(log.WebsocketMgr, "%v websocket: completed websocket shutdown", w.exchangeName)
 	}
