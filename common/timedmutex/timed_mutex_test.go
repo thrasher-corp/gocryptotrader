@@ -5,8 +5,10 @@ import (
 	"time"
 )
 
+// 1000000	        1074 ns/op	     136 B/op	       4 allocs/op (prev)
+// 2423571	       503.9 ns/op	       0 B/op	       0 allocs/op (current)
 func BenchmarkTimedMutexTime(b *testing.B) {
-	tm := NewTimedMutex(20 * time.Millisecond)
+	tm := NewTimedMutex(0)
 	for i := 0; i < b.N; i++ {
 		tm.LockForDuration()
 	}
