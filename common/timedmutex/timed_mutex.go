@@ -8,11 +8,16 @@ import (
 
 // TimedMutex is a blocking mutex which will unlock after a specified time
 type TimedMutex struct {
-	primary   sync.Mutex
+	// primary mutex is the main lock that will be unlocked after the duration
+	primary sync.Mutex
+	// secondary mutex is used to protect the timer
 	secondary sync.Mutex
 	timer     *time.Timer
-	primed    atomic.Bool
-	duration  time.Duration
+	// primed is used to determine if the timer has been started this is
+	// slightly more performant than checking the timer directly and interacting
+	// with a RW mutex.
+	primed   atomic.Bool
+	duration time.Duration
 }
 
 // NewTimedMutex creates a new timed mutex with a specified duration
