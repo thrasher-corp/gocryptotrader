@@ -23,10 +23,10 @@ const (
 )
 
 const (
-	uninitialised uint32 = iota
-	disconnected
-	connecting
-	connected
+	uninitialisedState uint32 = iota
+	disconnectedState
+	connectingState
+	connectedState
 )
 
 // Websocket defines a return type for websocket connections via the interface
