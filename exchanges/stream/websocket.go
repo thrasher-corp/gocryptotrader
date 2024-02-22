@@ -190,7 +190,7 @@ func (w *Websocket) Setup(s *WebsocketSetup) error {
 		return fmt.Errorf("%s %w", w.exchangeName, errInvalidMaxSubscriptions)
 	}
 	w.MaxSubscriptionsPerConnection = s.MaxWebsocketSubscriptionsPerConnection
-	w.setState(disconnected)
+	w.setState(disconnectedState)
 
 	return nil
 }
@@ -279,14 +279,14 @@ func (w *Websocket) Connect() error {
 
 	w.dataMonitor()
 	w.trafficMonitor()
-	w.setState(connecting)
+	w.setState(connectingState)
 
 	err := w.connector()
 	if err != nil {
-		w.setState(disconnected)
+		w.setState(disconnectedState)
 		return fmt.Errorf("%v Error connecting %w", w.exchangeName, err)
 	}
-	w.setState(connected)
+	w.setState(connectedState)
 
 	if !w.IsConnectionMonitorRunning() {
 		err = w.connectionMonitor()
@@ -462,7 +462,7 @@ func (w *Websocket) Shutdown() error {
 	// flush any subscriptions from last connection if needed
 	w.subscriptions.Clear()
 
-	w.setState(disconnected)
+	w.setState(disconnectedState)
 
 	close(w.ShutdownC)
 	w.Wg.Wait()
@@ -593,17 +593,17 @@ func (w *Websocket) setState(s uint32) {
 
 // IsInitialised returns whether the websocket has been Setup() already
 func (w *Websocket) IsInitialised() bool {
-	return w.state.Load() != uninitialised
+	return w.state.Load() != uninitialisedState
 }
 
 // IsConnected returns whether the websocket is connected
 func (w *Websocket) IsConnected() bool {
-	return w.state.Load() == connected
+	return w.state.Load() == connectedState
 }
 
 // IsConnecting returns whether the websocket is connecting
 func (w *Websocket) IsConnecting() bool {
-	return w.state.Load() == connecting
+	return w.state.Load() == connectingState
 }
 
 func (w *Websocket) setEnabled(b bool) {
