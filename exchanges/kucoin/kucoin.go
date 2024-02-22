@@ -221,8 +221,23 @@ func (ku *Kucoin) GetCurrencies(ctx context.Context) ([]Currency, error) {
 	return resp, ku.SendHTTPRequest(ctx, exchange.RestSpot, defaultSpotEPL, "/v1/currencies", &resp)
 }
 
-// GetCurrencyDetail gets currency detail using currency code and chain information.
-func (ku *Kucoin) GetCurrencyDetail(ctx context.Context, ccy, chain string) (*CurrencyDetail, error) {
+// GetCurrenciesV3 the V3 of retrieving list of currencies
+func (ku *Kucoin) GetCurrenciesV3(ctx context.Context) ([]CurrencyDetail, error) {
+	var resp []CurrencyDetail
+	return resp, ku.SendHTTPRequest(ctx, exchange.RestSpot, defaultSpotEPL, "/v3/currencies", &resp)
+}
+
+// GetCurrencyDetailV2 V2 endpoint to gets currency detail using currency code and chain information.
+func (ku *Kucoin) GetCurrencyDetailV2(ctx context.Context, ccy, chain string) (*CurrencyDetail, error) {
+	return ku.getCurrencyDetail(ctx, ccy, chain, "/v2/currencies/")
+}
+
+// GetCurrencyDetailV3 V3 endpoint to gets currency detail using currency code and chain information.
+func (ku *Kucoin) GetCurrencyDetailV3(ctx context.Context, ccy, chain string) (*CurrencyDetail, error) {
+	return ku.getCurrencyDetail(ctx, ccy, chain, "/v3/currencies/")
+}
+
+func (ku *Kucoin) getCurrencyDetail(ctx context.Context, ccy, chain, path string) (*CurrencyDetail, error) {
 	if ccy == "" {
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
@@ -231,11 +246,11 @@ func (ku *Kucoin) GetCurrencyDetail(ctx context.Context, ccy, chain string) (*Cu
 		params.Set("chain", chain)
 	}
 	var resp *CurrencyDetail
-	return resp, ku.SendHTTPRequest(ctx, exchange.RestSpot, defaultSpotEPL, common.EncodeURLValues("/v2/currencies/"+strings.ToUpper(ccy), params), &resp)
+	return resp, ku.SendHTTPRequest(ctx, exchange.RestSpot, defaultSpotEPL, common.EncodeURLValues(path+strings.ToUpper(ccy), params), &resp)
 }
 
 // GetFiatPrice gets fiat prices of currencies, default base currency is USD
-func (ku *Kucoin) GetFiatPrice(ctx context.Context, base, currencies string) (map[string]string, error) {
+func (ku *Kucoin) GetFiatPrice(ctx context.Context, base, currencies string) (map[string]types.Number, error) {
 	params := url.Values{}
 	if base != "" {
 		params.Set("base", base)
@@ -243,7 +258,7 @@ func (ku *Kucoin) GetFiatPrice(ctx context.Context, base, currencies string) (ma
 	if currencies != "" {
 		params.Set("currencies", currencies)
 	}
-	var resp map[string]string
+	var resp map[string]types.Number
 	return resp, ku.SendHTTPRequest(ctx, exchange.RestSpot, defaultSpotEPL, common.EncodeURLValues("/v1/prices", params), &resp)
 }
 
@@ -442,6 +457,95 @@ func (ku *Kucoin) GetCurrentServerTime(ctx context.Context) (time.Time, error) {
 func (ku *Kucoin) GetServiceStatus(ctx context.Context) (*ServiceStatus, error) {
 	var resp *ServiceStatus
 	return resp, ku.SendHTTPRequest(ctx, exchange.RestSpot, defaultSpotEPL, "/v1/status", &resp)
+}
+
+// --------------------------------------------- Spot High Frequency(HF) Pro Account ---------------------------
+
+// SpotHFPlaceOrder places a high frequency spot order
+// There are two types of orders: (limit) order: set price and quantity for the transaction. (market) order : set amount or quantity for the transaction.
+func (ku *Kucoin) SpotHFPlaceOrder(ctx context.Context, arg *PlaceHFParam) (string, error) {
+	return ku.spotHFPlaceOrder(ctx, arg, "/v1/hf/orders")
+}
+
+// SpotPlaceHFOrderTest order test endpoint, the request parameters and return parameters of this endpoint are exactly the same as the order endpoint,
+// and can be used to verify whether the signature is correct and other operations.
+func (ku *Kucoin) SpotPlaceHFOrderTest(ctx context.Context, arg *PlaceHFParam) (string, error) {
+	return ku.spotHFPlaceOrder(ctx, arg, "/v1/hf/orders/test")
+}
+
+func (ku *Kucoin) spotHFPlaceOrder(ctx context.Context, arg *PlaceHFParam, path string) (string, error) {
+	if arg == nil || *arg == (PlaceHFParam{}) {
+		return "", common.ErrNilPointer
+	}
+	if arg.Symbol.IsEmpty() {
+		return "", currency.ErrSymbolStringEmpty
+	}
+	if arg.OrderType == "" {
+		return "", order.ErrTypeIsInvalid
+	}
+	if arg.Side == "" {
+		return "", order.ErrSideIsInvalid
+	}
+	if arg.Price <= 0 {
+		return "", order.ErrPriceBelowMin
+	}
+	if arg.Size <= 0 {
+		return "", order.ErrAmountBelowMin
+	}
+	resp := &struct {
+		OrderID string `json:"orderId"`
+	}{}
+	return resp.OrderID, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, defaultSpotEPL, http.MethodPost, path, arg, &resp)
+}
+
+// SyncPlaceHFOrder this interface will synchronously return the order information after the order matching is completed.
+func (ku *Kucoin) SyncPlaceHFOrder(ctx context.Context, arg *PlaceHFParam) (*SyncPlaceHForderParam, error) {
+	if arg == nil || *arg == (PlaceHFParam{}) {
+		return nil, common.ErrNilPointer
+	}
+	if arg.Symbol.IsEmpty() {
+		return nil, currency.ErrSymbolStringEmpty
+	}
+	if arg.OrderType == "" {
+		return nil, order.ErrTypeIsInvalid
+	}
+	if arg.Side == "" {
+		return nil, order.ErrSideIsInvalid
+	}
+	if arg.Price <= 0 {
+		return nil, order.ErrPriceBelowMin
+	}
+	if arg.Size <= 0 {
+		return nil, order.ErrAmountBelowMin
+	}
+	var resp *SyncPlaceHForderParam
+	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, defaultSpotEPL, http.MethodPost, "/v1/hf/orders/sync", arg, &resp)
+}
+
+// PlaceMultipleOrders endpoint supports sequential batch order placement from a single endpoint. A maximum of 5orders can be placed simultaneously.
+func (ku *Kucoin) PlaceMultipleOrders(ctx context.Context, args []PlaceHFParam) ([]PlaceOrderResp, error) {
+	if len(args) == 0 {
+		return nil, common.ErrNilPointer
+	}
+	for i := range args {
+		if args[i].Symbol.IsEmpty() {
+			return nil, currency.ErrSymbolStringEmpty
+		}
+		if args[i].OrderType == "" {
+			return nil, order.ErrTypeIsInvalid
+		}
+		if args[i].Side == "" {
+			return nil, order.ErrSideIsInvalid
+		}
+		if args[i].Price <= 0 {
+			return nil, order.ErrPriceBelowMin
+		}
+		if args[i].Size <= 0 {
+			return nil, order.ErrAmountBelowMin
+		}
+	}
+	var resp []PlaceOrderResp
+	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, defaultSpotEPL, http.MethodPost, "/v1/hf/orders/multi", &PlaceOrderParams{OrderList: args}, &resp)
 }
 
 // PostOrder used to place two types of orders: limit and market
@@ -1500,6 +1604,7 @@ func (ku *Kucoin) CancelWithdrawal(ctx context.Context, withdrawalID string) err
 }
 
 // GetBasicFee get basic fee rate of users
+// Currency type: '0'-crypto currency, '1'-fiat currency. default is '0'-crypto currency
 func (ku *Kucoin) GetBasicFee(ctx context.Context, currencyType string) (*Fees, error) {
 	params := url.Values{}
 	if currencyType != "" {

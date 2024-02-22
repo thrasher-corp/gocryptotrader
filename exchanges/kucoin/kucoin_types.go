@@ -123,6 +123,8 @@ type tickerInfoBase struct {
 	MakerFeeRate     float64 `json:"makerFeeRate,string"`
 	TakerCoefficient float64 `json:"takerCoefficient,string"`
 	MakerCoefficient float64 `json:"makerCoefficient,string"`
+	BestBidSize      float64 `json:"bestBidSize,string"`
+	BestAskSize      float64 `json:"bestAskSize,string"`
 }
 
 // TickerInfo stores ticker information
@@ -405,6 +407,57 @@ type baseRepaymentRecord struct {
 type ServiceStatus struct {
 	Status  string `json:"status"`
 	Message string `json:"msg"`
+}
+
+// PlaceHFParam represents a place HF order parameters.
+type PlaceHFParam struct {
+	ClientOrderID       string        `json:"clientOid,omitempty"`
+	Symbol              currency.Pair `json:"symbol"`
+	OrderType           string        `json:"type"`
+	Side                string        `json:"side"`
+	SelfTradePrevention string        `json:"stp,omitempty"`
+	OrderTags           string        `json:"tags,omitempty"`
+	Remark              string        `json:"remark,omitempty"`
+
+	// Additional 'limit' order parameters
+	Price       float64 `json:"price,string,omitempty"`
+	Size        float64 `json:"size,string,omitempty"`
+	TimeInForce string  `json:"timeInForce"`
+	CancelAfter int64   `json:"cancelAfter"`
+	PostOnly    bool    `json:"postOnly"`
+	Hidden      bool    `json:"hidden"`
+	Iceberg     bool    `json:"iceberg"`
+	VisibleSize float64 `json:"visibleSize"`
+
+	// Additional 'market' parameters
+	Funds string `json:"funds"`
+}
+
+// PlaceOrderResp represents a place order response
+type PlaceOrderResp struct {
+	OrderID string `json:"orderId"`
+	Success bool   `json:"success"`
+}
+
+// SyncPlaceHForderParam represents a request parameter for high frequency sync orders
+type SyncPlaceHForderParam struct {
+	OrderID       string               `json:"orderId"`
+	OrderTime     convert.ExchangeTime `json:"orderTime"`
+	OriginSize    types.Number         `json:"originSize"`
+	OriginFunds   string               `json:"originFunds"`
+	DealSize      types.Number         `json:"dealSize"`
+	DealFunds     string               `json:"dealFunds"`
+	RemainSize    types.Number         `json:"remainSize"`
+	RemainFunds   types.Number         `json:"remainFunds"`
+	CanceledSize  string               `json:"canceledSize"`
+	CanceledFunds string               `json:"canceledFunds"`
+	Status        string               `json:"status"`
+	MatchTime     convert.ExchangeTime `json:"matchTime"`
+}
+
+// PlaceOrderParams represents a batch place order parameters.
+type PlaceOrderParams struct {
+	OrderList []PlaceHFParam `json:"orderList"`
 }
 
 // CompletedRepaymentRecord represents repayment records of isolated margin positions

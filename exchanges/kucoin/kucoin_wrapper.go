@@ -1485,7 +1485,7 @@ func (ku *Kucoin) GetAvailableTransferChains(ctx context.Context, cryptocurrency
 	if cryptocurrency.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
-	currencyDetail, err := ku.GetCurrencyDetail(ctx, cryptocurrency.String(), "")
+	currencyDetail, err := ku.GetCurrencyDetailV3(ctx, cryptocurrency.String(), "")
 	if err != nil {
 		return nil, err
 	}

@@ -87,8 +87,8 @@ func TestMain(m *testing.M) {
 func TestGetSymbols(t *testing.T) {
 	t.Parallel()
 	symbols, err := ku.GetSymbols(context.Background(), "")
-	assert.NoError(t, err)
-	assert.NotEmpty(t, symbols, "should return all available spot/margin symbols")
+	require.NoError(t, err)
+	require.NotEmpty(t, symbols, "should return all available spot/margin symbols")
 	// Using market string reduces the scope of what is returned.
 	symbols, err = ku.GetSymbols(context.Background(), "ETF")
 	assert.NoError(t, err)
@@ -162,7 +162,7 @@ func TestGetTradeHistory(t *testing.T) {
 func TestGetKlines(t *testing.T) {
 	t.Parallel()
 	_, err := ku.GetKlines(context.Background(), "BTC-USDT", "1week", time.Time{}, time.Time{})
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	_, err = ku.GetKlines(context.Background(), "BTC-USDT", "5min", time.Now().Add(-time.Hour*1), time.Now())
 	assert.NoError(t, err)
 }
@@ -173,19 +173,34 @@ func TestGetCurrencies(t *testing.T) {
 	assert.NoError(t, err)
 }
 
+func TestGetCurrenciesV3(t *testing.T) {
+	t.Parallel()
+	_, err := ku.GetCurrenciesV3(context.Background())
+	assert.NoError(t, err)
+}
+
 func TestGetCurrency(t *testing.T) {
 	t.Parallel()
-	_, err := ku.GetCurrencyDetail(context.Background(), "BTC", "")
-	assert.NoError(t, err)
+	_, err := ku.GetCurrencyDetailV2(context.Background(), "BTC", "")
+	require.NoError(t, err)
 
-	_, err = ku.GetCurrencyDetail(context.Background(), "BTC", "ETH")
+	_, err = ku.GetCurrencyDetailV2(context.Background(), "BTC", "ETH")
+	assert.NoError(t, err)
+}
+
+func TestGetCurrencyV3(t *testing.T) {
+	t.Parallel()
+	_, err := ku.GetCurrencyDetailV3(context.Background(), "BTC", "")
+	require.NoError(t, err)
+
+	_, err = ku.GetCurrencyDetailV3(context.Background(), "BTC", "ETH")
 	assert.NoError(t, err)
 }
 
 func TestGetFiatPrice(t *testing.T) {
 	t.Parallel()
 	_, err := ku.GetFiatPrice(context.Background(), "", "")
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	_, err = ku.GetFiatPrice(context.Background(), "EUR", "ETH,BTC")
 	assert.NoError(t, err)
@@ -220,7 +235,7 @@ func TestGetMarginRiskLimit(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ku)
 	_, err := ku.GetMarginRiskLimit(context.Background(), "cross")
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	_, err = ku.GetMarginRiskLimit(context.Background(), "isolated")
 	assert.NoError(t, err)
@@ -233,7 +248,7 @@ func TestPostBorrowOrder(t *testing.T) {
 		&MarginBorrowParam{
 			Currency:    currency.USDT,
 			TimeInForce: "FOK", Size: 0})
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	_, err = ku.PostMarginBorrowOrder(context.Background(),
 		&MarginBorrowParam{
 			Currency:    currency.USDT,
@@ -289,7 +304,7 @@ func TestGetIsolatedMarginAccountInfo(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ku)
 	_, err := ku.GetIsolatedMarginAccountInfo(context.Background(), "")
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	_, err = ku.GetIsolatedMarginAccountInfo(context.Background(), "USDT")
 	assert.NoError(t, err)
 }
@@ -319,7 +334,7 @@ func TestPostOrder(t *testing.T) {
 	// default order type is limit
 	_, err := ku.PostOrder(context.Background(), &SpotOrderParam{
 		ClientOrderID: ""})
-	assert.ErrorIs(t, err, errInvalidClientOrderID)
+	require.ErrorIs(t, err, errInvalidClientOrderID)
 
 	customID, err := uuid.NewV4()
 	require.NoError(t, err)
@@ -327,22 +342,21 @@ func TestPostOrder(t *testing.T) {
 	_, err = ku.PostOrder(context.Background(), &SpotOrderParam{
 		ClientOrderID: customID.String(), Symbol: spotTradablePair,
 		OrderType: ""})
-
-	assert.ErrorIs(t, err, order.ErrSideIsInvalid)
+	require.ErrorIs(t, err, order.ErrSideIsInvalid)
 	_, err = ku.PostOrder(context.Background(), &SpotOrderParam{
 		ClientOrderID: customID.String(), Symbol: currency.EMPTYPAIR,
 		Size: 0.1, Side: "buy", Price: 234565})
 
-	assert.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
+	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 	_, err = ku.PostOrder(context.Background(), &SpotOrderParam{
 		ClientOrderID: customID.String(), Side: "buy",
 		Symbol:    spotTradablePair,
 		OrderType: "limit", Size: 0.1})
-	assert.ErrorIs(t, err, errInvalidPrice)
+	require.ErrorIs(t, err, errInvalidPrice)
 	_, err = ku.PostOrder(context.Background(), &SpotOrderParam{
 		ClientOrderID: customID.String(), Symbol: spotTradablePair, Side: "buy",
 		OrderType: "limit", Price: 234565})
-	assert.ErrorIs(t, err, errInvalidSize)
+	require.ErrorIs(t, err, errInvalidSize)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ku, canManipulateRealOrders)
 	_, err = ku.PostOrder(context.Background(), &SpotOrderParam{
@@ -360,24 +374,24 @@ func TestPostMarginOrder(t *testing.T) {
 	// default order type is limit
 	_, err := ku.PostMarginOrder(context.Background(), &MarginOrderParam{
 		ClientOrderID: ""})
-	assert.ErrorIs(t, err, errInvalidClientOrderID)
+	require.ErrorIs(t, err, errInvalidClientOrderID)
 	_, err = ku.PostMarginOrder(context.Background(), &MarginOrderParam{
 		ClientOrderID: "5bd6e9286d99522a52e458de", Symbol: marginTradablePair,
 		OrderType: ""})
-	assert.ErrorIs(t, err, order.ErrSideIsInvalid)
+	require.ErrorIs(t, err, order.ErrSideIsInvalid)
 	_, err = ku.PostMarginOrder(context.Background(), &MarginOrderParam{
 		ClientOrderID: "5bd6e9286d99522a52e458de", Symbol: currency.EMPTYPAIR,
 		Size: 0.1, Side: "buy", Price: 234565})
-	assert.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
+	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 	_, err = ku.PostMarginOrder(context.Background(), &MarginOrderParam{
 		ClientOrderID: "5bd6e9286d99522a52e458de", Side: "buy",
 		Symbol:    marginTradablePair,
 		OrderType: "limit", Size: 0.1})
-	assert.ErrorIs(t, err, errInvalidPrice)
+	require.ErrorIs(t, err, errInvalidPrice)
 	_, err = ku.PostMarginOrder(context.Background(), &MarginOrderParam{
 		ClientOrderID: "5bd6e9286d99522a52e458de", Symbol: marginTradablePair, Side: "buy",
 		OrderType: "limit", Price: 234565})
-	assert.ErrorIs(t, err, errInvalidSize)
+	require.ErrorIs(t, err, errInvalidSize)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ku, canManipulateRealOrders)
 	// default order type is limit and margin mode is cross
 	_, err = ku.PostMarginOrder(context.Background(),
@@ -385,7 +399,7 @@ func TestPostMarginOrder(t *testing.T) {
 			ClientOrderID: "5bd6e9286d99522a52e458de",
 			Side:          "buy", Symbol: marginTradablePair,
 			Price: 1000, Size: 0.1, PostOnly: true})
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	// market isolated order
 	_, err = ku.PostMarginOrder(context.Background(),
@@ -447,7 +461,7 @@ func TestGetOrders(t *testing.T) {
 	t.Parallel()
 	var resp *OrdersListResponse
 	err := json.Unmarshal([]byte(ordersListResponseJSON), &resp)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ku)
 
 	_, err = ku.ListOrders(context.Background(), "", "", "", "", "", time.Time{}, time.Time{})
@@ -479,7 +493,7 @@ func TestGetFills(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ku)
 	_, err := ku.GetFills(context.Background(), "", "", "", "", "", time.Time{}, time.Time{})
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	_, err = ku.GetFills(context.Background(), "5c35c02703aa673ceec2a168", "BTC-USDT", "buy", "limit", "TRADE", time.Now().Add(-time.Hour*12), time.Now())
 	assert.NoError(t, err)
 }
@@ -2232,4 +2246,81 @@ func TestGetOpenInterest(t *testing.T) {
 	resp, err = nu.GetOpenInterest(context.Background())
 	assert.NoError(t, err)
 	assert.NotEmpty(t, resp)
+}
+
+func TestSpotHFPlaceOrder(t *testing.T) {
+	t.Parallel()
+	// sharedtestvalues.SkipTestIfCredentialsUnset(t, ku, canManipulateRealOrders)
+	_, err := ku.SpotHFPlaceOrder(context.Background(), &PlaceHFParam{})
+	require.ErrorIs(t, err, common.ErrNilPointer)
+	_, err = ku.SpotHFPlaceOrder(context.Background(), &PlaceHFParam{
+		TimeInForce: "GTT",
+		Symbol:      currency.Pair{Base: currency.ETH, Delimiter: "-", Quote: currency.BTC},
+		OrderType:   "limit",
+		Side:        order.Sell.String(),
+		Price:       1234,
+		Size:        1,
+	})
+	assert.NoError(t, err)
+}
+
+func TestSpotPlaceHFOrderTest(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, ku, canManipulateRealOrders)
+	_, err := ku.SpotPlaceHFOrderTest(context.Background(), &PlaceHFParam{})
+	require.ErrorIs(t, err, common.ErrNilPointer)
+	_, err = ku.SpotPlaceHFOrderTest(context.Background(), &PlaceHFParam{
+		TimeInForce: "GTT",
+		Symbol:      currency.Pair{Base: currency.ETH, Delimiter: "-", Quote: currency.BTC},
+		OrderType:   "limit",
+		Side:        order.Sell.String(),
+		Price:       1234,
+		Size:        1,
+	})
+	assert.NoError(t, err)
+}
+
+func TestSyncPlaceHFOrder(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, ku, canManipulateRealOrders)
+	_, err := ku.SyncPlaceHFOrder(context.Background(), &PlaceHFParam{})
+	require.ErrorIs(t, err, common.ErrNilPointer)
+	_, err = ku.SyncPlaceHFOrder(context.Background(), &PlaceHFParam{
+		TimeInForce: "GTT",
+		Symbol:      currency.Pair{Base: currency.ETH, Delimiter: "-", Quote: currency.BTC},
+		OrderType:   "limit",
+		Side:        order.Sell.String(),
+		Price:       1234,
+		Size:        1,
+	})
+	assert.NoError(t, err)
+}
+
+func TestPlaceMultipleOrders(t *testing.T) {
+	t.Parallel()
+	_, err := ku.PlaceMultipleOrders(context.Background(), []PlaceHFParam{
+		{TimeInForce: "GTT",
+			Symbol:    currency.Pair{Base: currency.ETH, Delimiter: "-", Quote: currency.BTC},
+			OrderType: "limit",
+			Side:      order.Sell.String(),
+			Price:     1234,
+			Size:      1},
+		{
+			ClientOrderID: "3d07008668054da6b3cb12e432c2b13a",
+			Side:          "buy",
+			OrderType:     "limit",
+			Price:         0.01,
+			Size:          1,
+			Symbol:        currency.Pair{Base: currency.ETH, Delimiter: "-", Quote: currency.USDT},
+		},
+		{
+			ClientOrderID: "37245dbe6e134b5c97732bfb36cd4a9d",
+			Side:          "buy",
+			OrderType:     "limit",
+			Price:         0.01,
+			Size:          1,
+			Symbol:        currency.Pair{Base: currency.ETH, Delimiter: "-", Quote: currency.USDT},
+		},
+	})
+	assert.NoError(t, err)
 }
