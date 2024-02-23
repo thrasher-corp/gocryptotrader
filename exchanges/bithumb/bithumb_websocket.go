@@ -2,7 +2,6 @@ package bithumb
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"net/http"
 	"time"
@@ -29,7 +28,7 @@ var (
 // WsConnect initiates a websocket connection
 func (b *Bithumb) WsConnect() error {
 	if !b.Websocket.IsEnabled() || !b.IsEnabled() {
-		return errors.New(stream.WebsocketNotEnabled)
+		return stream.ErrWebsocketNotEnabled
 	}
 
 	var dialer websocket.Dialer
