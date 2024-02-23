@@ -499,7 +499,7 @@ func (ku *Kucoin) spotHFPlaceOrder(ctx context.Context, arg *PlaceHFParam, path 
 }
 
 // SyncPlaceHFOrder this interface will synchronously return the order information after the order matching is completed.
-func (ku *Kucoin) SyncPlaceHFOrder(ctx context.Context, arg *PlaceHFParam) (*SyncPlaceHForderParam, error) {
+func (ku *Kucoin) SyncPlaceHFOrder(ctx context.Context, arg *PlaceHFParam) (*SyncPlaceHFOrderResp, error) {
 	if arg == nil || *arg == (PlaceHFParam{}) {
 		return nil, common.ErrNilPointer
 	}
@@ -518,7 +518,7 @@ func (ku *Kucoin) SyncPlaceHFOrder(ctx context.Context, arg *PlaceHFParam) (*Syn
 	if arg.Size <= 0 {
 		return nil, order.ErrAmountBelowMin
 	}
-	var resp *SyncPlaceHForderParam
+	var resp *SyncPlaceHFOrderResp
 	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, defaultSpotEPL, http.MethodPost, "/v1/hf/orders/sync", arg, &resp)
 }
 
@@ -546,6 +546,250 @@ func (ku *Kucoin) PlaceMultipleOrders(ctx context.Context, args []PlaceHFParam) 
 	}
 	var resp []PlaceOrderResp
 	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, defaultSpotEPL, http.MethodPost, "/v1/hf/orders/multi", &PlaceOrderParams{OrderList: args}, &resp)
+}
+
+// SyncPlaceMultipleHFOrders this interface will synchronously return the order information after the order matching is completed
+func (ku *Kucoin) SyncPlaceMultipleHFOrders(ctx context.Context, args []PlaceHFParam) ([]SyncPlaceHFOrderResp, error) {
+	if len(args) == 0 {
+		return nil, common.ErrNilPointer
+	}
+	for i := range args {
+		if args[i].Symbol.IsEmpty() {
+			return nil, currency.ErrSymbolStringEmpty
+		}
+		if args[i].OrderType == "" {
+			return nil, order.ErrTypeIsInvalid
+		}
+		if args[i].Side == "" {
+			return nil, order.ErrSideIsInvalid
+		}
+		if args[i].Price <= 0 {
+			return nil, order.ErrPriceBelowMin
+		}
+		if args[i].Size <= 0 {
+			return nil, order.ErrAmountBelowMin
+		}
+	}
+	var resp []SyncPlaceHFOrderResp
+	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, defaultSpotEPL, http.MethodPost, "/v1/hf/orders/multi/sync", args, &resp)
+}
+
+// ModifyHFOrder modifies a high frequency order.
+func (ku *Kucoin) ModifyHFOrder(ctx context.Context, arg *ModifyHFOrderParam) (string, error) {
+	if arg == nil || *arg == (ModifyHFOrderParam{}) {
+		return "", common.ErrNilPointer
+	}
+	if arg.Symbol.IsEmpty() {
+		return "", currency.ErrCurrencyPairEmpty
+	}
+	resp := &struct {
+		NewOrderID string `json:"newOrderId"`
+	}{}
+	return resp.NewOrderID, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, defaultSpotEPL, http.MethodPost, "/v1/hf/orders/alter", arg, &resp)
+}
+
+// CancelHFOrder used to cancel a high-frequency order by orderId.
+func (ku *Kucoin) CancelHFOrder(ctx context.Context, orderID, symbol string) (string, error) {
+	if orderID == "" {
+		return "", order.ErrOrderIDNotSet
+	}
+	if symbol == "" {
+		return "", currency.ErrSymbolStringEmpty
+	}
+	resp := &struct {
+		OrderID string `json:"orderId"`
+	}{}
+	return resp.OrderID, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, defaultSpotEPL, http.MethodDelete, "/v1/hf/orders/"+orderID+"?symbol="+symbol, nil, &resp)
+}
+
+// SyncCancelHFOrder this interface will synchronously return the order information after the order canceling is completed.
+func (ku *Kucoin) SyncCancelHFOrder(ctx context.Context, orderID, symbol string) (*SyncCancelHFOrderResp, error) {
+	if orderID == "" {
+		return nil, order.ErrOrderIDNotSet
+	}
+	return ku.syncCancelHFOrder(ctx, orderID, symbol, "/v1/hf/orders/sync/")
+}
+
+// SyncCancelHFOrderByClientOrderID this interface will synchronously return the order information after the order canceling is completed.
+func (ku *Kucoin) SyncCancelHFOrderByClientOrderID(ctx context.Context, clientOrderID, symbol string) (*SyncCancelHFOrderResp, error) {
+	if clientOrderID == "" {
+		return nil, errInvalidClientOrderID
+	}
+	return ku.syncCancelHFOrder(ctx, clientOrderID, symbol, "/v1/hf/orders/sync/client-order/")
+}
+
+func (ku *Kucoin) syncCancelHFOrder(ctx context.Context, id, symbol, path string) (*SyncCancelHFOrderResp, error) {
+	if symbol == "" {
+		return nil, currency.ErrSymbolStringEmpty
+	}
+	var resp *SyncCancelHFOrderResp
+	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, defaultSpotEPL, http.MethodDelete, path+id+"?symbol="+symbol, nil, &resp)
+}
+
+// CancelHFOrderByClientOrderID sends out a request to cancel a high-frequency order using clientOid.
+func (ku *Kucoin) CancelHFOrderByClientOrderID(ctx context.Context, clientOrderID, symbol string) (string, error) {
+	if clientOrderID == "" {
+		return "", errInvalidClientOrderID
+	}
+	if symbol == "" {
+		return "", currency.ErrSymbolStringEmpty
+	}
+	resp := &struct {
+		ClientOrderID string `json:"clientOid"`
+	}{}
+	return resp.ClientOrderID, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, defaultSpotEPL, http.MethodGet, "/v1/hf/orders/client-order/"+clientOrderID+"?symbol="+symbol, nil, &resp)
+}
+
+// CancelSpecifiedNumberHFOrdersByOrderID cancel the specified quantity of the order according to the orderId.
+func (ku *Kucoin) CancelSpecifiedNumberHFOrdersByOrderID(ctx context.Context, orderID, symbol string, cancelSize float64) (*CancelOrderByNumberResponse, error) {
+	if orderID == "" {
+		return nil, order.ErrOrderIDNotSet
+	}
+	if symbol == "" {
+		return nil, currency.ErrSymbolStringEmpty
+	}
+	if cancelSize == 0 {
+		return nil, errors.New("invalid cancel size")
+	}
+	params := url.Values{}
+	params.Set("symbol", symbol)
+	params.Set("cancelSize", strconv.FormatFloat(cancelSize, 'f', -1, 64))
+	var resp *CancelOrderByNumberResponse
+	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, defaultSpotEPL, http.MethodDelete, common.EncodeURLValues("/v1/hf/orders/cancel/"+orderID, params), nil, &resp)
+}
+
+// CancelAllHFOrdersBySymbol cancel all open high-frequency orders (orders created through
+func (ku *Kucoin) CancelAllHFOrdersBySymbol(ctx context.Context, symbol string) (string, error) {
+	var resp string
+	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, defaultSpotEPL, http.MethodDelete, "/v1/hf/orders?symbol="+symbol, nil, &resp)
+}
+
+// CancelAllHFOrders cancels all HF orders for all symbol.
+func (ku *Kucoin) CancelAllHFOrders(ctx context.Context) (*CancelAllHFOrdersResponse, error) {
+	var resp *CancelAllHFOrdersResponse
+	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, defaultSpotEPL, http.MethodDelete, "/v1/hf/orders/cancelAll", nil, &resp)
+}
+
+// GetActiveHFOrders obtain all active order lists, and the return value of the active order interface is the paged data of all uncompleted order lists.
+func (ku *Kucoin) GetActiveHFOrders(ctx context.Context, symbol string) ([]HFOrder, error) {
+	if symbol == "" {
+		return nil, currency.ErrSymbolStringEmpty
+	}
+	var resp []HFOrder
+	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, defaultSpotEPL, http.MethodGet, "/v1/hf/orders/active?symbol="+symbol, nil, &resp)
+}
+
+// GetSymbolsWithActiveHFOrderList retrieves all trading pairs that the user has active orders
+func (ku *Kucoin) GetSymbolsWithActiveHFOrderList(ctx context.Context) ([]string, error) {
+	resp := &struct {
+		Symbols []string `json:"symbols"`
+	}{}
+	return resp.Symbols, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, defaultSpotEPL, http.MethodGet, "/v1/hf/orders/active/symbols", nil, &resp)
+}
+
+// GetHFCompletedOrderList obtains a list of filled HF orders and returns paginated data. The returned data is sorted in descending order based on the latest order update times.
+func (ku *Kucoin) GetHFCompletedOrderList(ctx context.Context, symbol, side, orderType, lastID string, startAt, endAt time.Time, limit int64) (*CompletedHFOrder, error) {
+	if symbol == "" {
+		return nil, currency.ErrSymbolStringEmpty
+	}
+	params := url.Values{}
+	params.Set("symbol", symbol)
+	if side != "" {
+		params.Set("side", side)
+	}
+	if orderType != "" {
+		params.Set("type", orderType)
+	}
+	if !startAt.IsZero() {
+		params.Set("startAt", strconv.FormatInt(startAt.UnixMilli(), 10))
+	}
+	if !endAt.IsZero() {
+		params.Set("endAt", strconv.FormatInt(endAt.UnixMilli(), 10))
+	}
+	if lastID == "" {
+		params.Set("lastId", lastID)
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	var resp *CompletedHFOrder
+	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, defaultSpotEPL, http.MethodGet, common.EncodeURLValues("/v1/hf/orders/done", params), nil, &resp)
+}
+
+// GetHFOrderDetailsByOrderID obtain information for a single HF order using the order id.
+// If the order is not an active order, you can only get data within the time range of 3 _ 24 hours (ie: from the current time to 3 _ 24 hours ago).
+func (ku *Kucoin) GetHFOrderDetailsByOrderID(ctx context.Context, orderID, symbol string) (*HFOrder, error) {
+	return ku.getHFOrderDetailsByID(ctx, orderID, symbol, "/v1/hf/orders/client-order/")
+}
+
+// GetHFOrderDetailsByClientOrderID used to obtain information about a single order using clientOid. If the order does not exist, then there will be a prompt saying that the order does not exist.
+func (ku *Kucoin) GetHFOrderDetailsByClientOrderID(ctx context.Context, clientOrderID, symbol string) (*HFOrder, error) {
+	return ku.getHFOrderDetailsByID(ctx, clientOrderID, symbol, "/v1/hf/orders/client-order/")
+}
+
+func (ku *Kucoin) getHFOrderDetailsByID(ctx context.Context, orderID, symbol, path string) (*HFOrder, error) {
+	if orderID == "" {
+		return nil, order.ErrOrderIDNotSet
+	}
+	if symbol == "" {
+		return nil, currency.ErrSymbolStringEmpty
+	}
+	var resp *HFOrder
+	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, defaultSpotEPL, http.MethodGet, path+orderID+"?symbol="+symbol, nil, &resp)
+}
+
+// AutoCancelHFOrderSetting automatically cancel all orders of the set trading pair after the specified time.
+// If this interface is not called again for renewal or cancellation before the set time,
+// the system will help the user to cancel the order of the corresponding trading pair. Otherwise it will not.
+func (ku *Kucoin) AutoCancelHFOrderSetting(ctx context.Context, timeout int64, symbols []string) (*AutoCancelHFOrderResponse, error) {
+	if timeout == 0 {
+		return nil, errors.New("timeout values required")
+	}
+	arg := make(map[string]interface{})
+	arg["timeout"] = timeout
+	if len(symbols) != 0 {
+		arg["symbols"] = symbols
+	}
+	var resp *AutoCancelHFOrderResponse
+	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, defaultSpotEPL, http.MethodPost, "/v1/hf/orders/dead-cancel-all", arg, &resp)
+}
+
+// AutoCancelHFOrderSettingQuery query the settings of automatic order cancellation
+func (ku *Kucoin) AutoCancelHFOrderSettingQuery(ctx context.Context) (*AutoCancelHFOrderResponse, error) {
+	var resp *AutoCancelHFOrderResponse
+	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, defaultSpotEPL, http.MethodGet, "/v1/hf/orders/dead-cancel-all/query", nil, &resp)
+}
+
+// GetHFFilledList retrievesa list of the latest HF transaction details. The returned results are paginated. The data is sorted in descending order according to time.
+func (ku *Kucoin) GetHFFilledList(ctx context.Context, orderID, symbol, side, orderType, lastID string, startAt, endAt time.Time, limit int64) (*HFOrderFills, error) {
+	if symbol == "" {
+		return nil, currency.ErrSymbolStringEmpty
+	}
+	params := url.Values{}
+	params.Set("symbol", symbol)
+	if orderID != "" {
+		params.Set("orderId", orderID)
+	}
+	if side != "" {
+		params.Set("side", side)
+	}
+	if orderType != "" {
+		params.Set("type", orderType)
+	}
+	if !startAt.IsZero() {
+		params.Set("startAt", strconv.FormatInt(startAt.UnixMilli(), 10))
+	}
+	if !endAt.IsZero() {
+		params.Set("endAt", strconv.FormatInt(endAt.UnixMilli(), 10))
+	}
+	if lastID != "" {
+		params.Set("lastId", lastID)
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	var resp *HFOrderFills
+	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, defaultSpotEPL, http.MethodGet, common.EncodeURLValues("/v1/hf/fills", params), nil, &resp)
 }
 
 // PostOrder used to place two types of orders: limit and market

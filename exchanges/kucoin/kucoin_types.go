@@ -433,14 +433,34 @@ type PlaceHFParam struct {
 	Funds string `json:"funds"`
 }
 
+// ModifyHFOrderParam represents a modify high frequency order parameter
+type ModifyHFOrderParam struct {
+	Symbol        currency.Pair `json:"symbol"`
+	ClientOrderID string        `json:"clientOid,omitempty"`
+	OrderID       string        `json:"orderId,omitempty"`
+	NewPrice      float64       `json:"newPrice,omitempty,string"`
+	NewSize       float64       `json:"newSize,omitempty,string"`
+}
+
+// SyncCancelHFOrderResp represents a cancel sync high frequency order.
+type SyncCancelHFOrderResp struct {
+	OrderID      string       `json:"orderId"`
+	OriginSize   types.Number `json:"originSize"`
+	OriginFunds  string       `json:"originFunds"`
+	DealSize     types.Number `json:"dealSize"`
+	RemainSize   types.Number `json:"remainSize"`
+	CanceledSize types.Number `json:"canceledSize"`
+	Status       string       `json:"status"`
+}
+
 // PlaceOrderResp represents a place order response
 type PlaceOrderResp struct {
 	OrderID string `json:"orderId"`
 	Success bool   `json:"success"`
 }
 
-// SyncPlaceHForderParam represents a request parameter for high frequency sync orders
-type SyncPlaceHForderParam struct {
+// SyncPlaceHFOrderResp represents a request parameter for high frequency sync orders
+type SyncPlaceHFOrderResp struct {
 	OrderID       string               `json:"orderId"`
 	OrderTime     convert.ExchangeTime `json:"orderTime"`
 	OriginSize    types.Number         `json:"originSize"`
@@ -453,6 +473,100 @@ type SyncPlaceHForderParam struct {
 	CanceledFunds string               `json:"canceledFunds"`
 	Status        string               `json:"status"`
 	MatchTime     convert.ExchangeTime `json:"matchTime"`
+}
+
+// CancelOrderByNumberResponse represents response for canceling an order by number
+type CancelOrderByNumberResponse struct {
+	OrderID    string `json:"orderId"`
+	CancelSize string `json:"cancelSize"`
+}
+
+// CancelAllHFOrdersResponse represents a response for cancelling all high-frequency orders.
+type CancelAllHFOrdersResponse struct {
+	SucceedSymbols []string `json:"succeedSymbols"`
+	FailedSymbols  []struct {
+		Symbol string `json:"symbol"`
+		Error  string `json:"error"`
+	} `json:"failedSymbols"`
+}
+
+// HFOrder represents a high-frequency order instance.
+type HFOrder struct {
+	ID                  string               `json:"id"`
+	Symbol              string               `json:"symbol"`
+	OpType              string               `json:"opType"`
+	Type                string               `json:"type"`
+	Side                string               `json:"side"`
+	Price               types.Number         `json:"price"`
+	Size                types.Number         `json:"size"`
+	Funds               string               `json:"funds"`
+	DealFunds           string               `json:"dealFunds"`
+	DealSize            types.Number         `json:"dealSize"`
+	Fee                 types.Number         `json:"fee"`
+	FeeCurrency         string               `json:"feeCurrency"`
+	SelfTradePrevention string               `json:"stp"`
+	TimeInForce         string               `json:"timeInForce"`
+	PostOnly            bool                 `json:"postOnly"`
+	Hidden              bool                 `json:"hidden"`
+	Iceberg             bool                 `json:"iceberg"`
+	VisibleSize         types.Number         `json:"visibleSize"`
+	CancelAfter         int64                `json:"cancelAfter"`
+	Channel             string               `json:"channel"`
+	ClientOid           string               `json:"clientOid"`
+	Remark              string               `json:"remark"`
+	Tags                string               `json:"tags"`
+	Active              bool                 `json:"active"`
+	InOrderBook         bool                 `json:"inOrderBook"`
+	CancelExist         bool                 `json:"cancelExist"`
+	CreatedAt           convert.ExchangeTime `json:"createdAt"`
+	LastUpdatedAt       convert.ExchangeTime `json:"lastUpdatedAt"`
+	TradeType           string               `json:"tradeType"`
+	CancelledSize       types.Number         `json:"cancelledSize"`
+	CancelledFunds      string               `json:"cancelledFunds"`
+	RemainSize          types.Number         `json:"remainSize"`
+	RemainFunds         string               `json:"remainFunds"`
+}
+
+// CompletedHFOrder represents a completed HF orders list
+type CompletedHFOrder struct {
+	LastID int64     `json:"lastId"`
+	Items  []HFOrder `json:"items"`
+}
+
+// AutoCancelHFOrderResponse represents an auto cancel HF order response
+type AutoCancelHFOrderResponse struct {
+	Timeout     int64                `json:"timeout"`
+	Symbols     string               `json:"symbols"`
+	CurrentTime convert.ExchangeTime `json:"currentTime"`
+	TriggerTime convert.ExchangeTime `json:"triggerTime"`
+}
+
+// HFOrderFill represents an HF order fill
+type HFOrderFill struct {
+	ID             int64                `json:"id"`
+	Symbol         string               `json:"symbol"`
+	TradeID        int64                `json:"tradeId"`
+	OrderID        string               `json:"orderId"`
+	CounterOrderID string               `json:"counterOrderId"`
+	Side           string               `json:"side"`
+	Liquidity      string               `json:"liquidity"`
+	ForceTaker     bool                 `json:"forceTaker"`
+	Price          types.Number         `json:"price"`
+	Size           types.Number         `json:"size"`
+	Funds          string               `json:"funds"`
+	Fee            types.Number         `json:"fee"`
+	FeeRate        types.Number         `json:"feeRate"`
+	FeeCurrency    string               `json:"feeCurrency"`
+	Stop           string               `json:"stop"`
+	TradeType      string               `json:"tradeType"`
+	OrderType      string               `json:"type"`
+	CreatedAt      convert.ExchangeTime `json:"createdAt"`
+}
+
+// HFOrderFills represents an HF order list
+type HFOrderFills struct {
+	Items  []HFOrderFill `json:"items"`
+	LastID int64         `json:"lastId"`
 }
 
 // PlaceOrderParams represents a batch place order parameters.

@@ -2298,6 +2298,7 @@ func TestSyncPlaceHFOrder(t *testing.T) {
 
 func TestPlaceMultipleOrders(t *testing.T) {
 	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, ku, canManipulateRealOrders)
 	_, err := ku.PlaceMultipleOrders(context.Background(), []PlaceHFParam{
 		{TimeInForce: "GTT",
 			Symbol:    currency.Pair{Base: currency.ETH, Delimiter: "-", Quote: currency.BTC},
@@ -2322,5 +2323,148 @@ func TestPlaceMultipleOrders(t *testing.T) {
 			Symbol:        currency.Pair{Base: currency.ETH, Delimiter: "-", Quote: currency.USDT},
 		},
 	})
+	assert.NoError(t, err)
+}
+
+func TestSyncPlaceMultipleHFOrders(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, ku, canManipulateRealOrders)
+	_, err := ku.SyncPlaceMultipleHFOrders(context.Background(), []PlaceHFParam{
+		{TimeInForce: "GTT",
+			Symbol:    currency.Pair{Base: currency.ETH, Delimiter: "-", Quote: currency.BTC},
+			OrderType: "limit",
+			Side:      order.Sell.String(),
+			Price:     1234,
+			Size:      1},
+		{
+			ClientOrderID: "3d07008668054da6b3cb12e432c2b13a",
+			Side:          "buy",
+			OrderType:     "limit",
+			Price:         0.01,
+			Size:          1,
+			Symbol:        currency.Pair{Base: currency.ETH, Delimiter: "-", Quote: currency.USDT},
+		},
+		{
+			ClientOrderID: "37245dbe6e134b5c97732bfb36cd4a9d",
+			Side:          "buy",
+			OrderType:     "limit",
+			Price:         0.01,
+			Size:          1,
+			Symbol:        currency.Pair{Base: currency.ETH, Delimiter: "-", Quote: currency.USDT},
+		},
+	})
+	assert.NoError(t, err)
+}
+
+func TestModifyHFOrder(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, ku, canManipulateRealOrders)
+	_, err := ku.ModifyHFOrder(context.Background(), &ModifyHFOrderParam{})
+	assert.ErrorIs(t, err, common.ErrNilPointer)
+}
+
+func TestCancelHFOrder(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, ku, canManipulateRealOrders)
+	_, err := ku.CancelHFOrder(context.Background(), "630625dbd9180300014c8d52", "BTC-USDT")
+	assert.NoError(t, err)
+}
+
+func TestSyncCancelHFOrder(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, ku, canManipulateRealOrders)
+	_, err := ku.SyncCancelHFOrder(context.Background(), "641d67ea162d47000160bfb8", "BTC-USDT")
+	assert.NoError(t, err)
+}
+
+func TestSyncCancelHFOrderByClientOrderID(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, ku, canManipulateRealOrders)
+	_, err := ku.SyncCancelHFOrderByClientOrderID(context.Background(), "client-order-id", "BTC-ETH")
+	assert.NoError(t, err)
+}
+
+func TestCancelHFOrderByClientOrderID(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, ku, canManipulateRealOrders)
+	_, err := ku.CancelHFOrderByClientOrderID(context.Background(), "client-order-id", "BTC-ETH")
+	assert.NoError(t, err)
+}
+
+func TestCancelSpecifiedNumberHFOrdersByOrderID(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, ku, canManipulateRealOrders)
+	_, err := ku.CancelSpecifiedNumberHFOrdersByOrderID(context.Background(), "1", "ETH-USDT", 10.0)
+	assert.NoError(t, err)
+}
+
+func TestCancelAllHFOrdersBySymbol(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, ku, canManipulateRealOrders)
+	_, err := ku.CancelAllHFOrdersBySymbol(context.Background(), "BTC-USDT")
+	assert.NoError(t, err)
+}
+
+func TestCancelAllHFOrders(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, ku, canManipulateRealOrders)
+	_, err := ku.CancelAllHFOrders(context.Background())
+	assert.NoError(t, err)
+}
+
+func TestGetActiveHFOrders(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, ku)
+	_, err := ku.GetActiveHFOrders(context.Background(), "BTC-USDT")
+	assert.ErrorIs(t, err, currency.ErrSymbolStringEmpty)
+	_, err = ku.GetActiveHFOrders(context.Background(), "BTC-USDT")
+	assert.NoError(t, err)
+}
+
+func TestGetSymbolsWithActiveHFOrderList(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, ku)
+	_, err := ku.GetSymbolsWithActiveHFOrderList(context.Background())
+	assert.NoError(t, err)
+}
+
+func TestGetHFCompletedOrderList(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, ku)
+	_, err := ku.GetHFCompletedOrderList(context.Background(), "BTC-ETH", "sell", "limit", "", time.Time{}, time.Now(), 0)
+	assert.NoError(t, err)
+}
+
+func TestGetHFOrderDetailsByOrderID(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, ku)
+	_, err := ku.GetHFOrderDetailsByOrderID(context.Background(), "1234567", "BTC-ETH")
+	assert.NoError(t, err)
+}
+
+func TestGetHFOrderDetailsByClientOrderID(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, ku)
+	_, err := ku.GetHFOrderDetailsByClientOrderID(context.Background(), "6d539dc614db312", "BTC-ETH")
+	assert.NoError(t, err)
+}
+
+func TestAutoCancelHFOrderSetting(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, ku, canManipulateRealOrders)
+	_, err := ku.AutoCancelHFOrderSetting(context.Background(), 450, []string{})
+	assert.NoError(t, err)
+}
+
+func TestAutoCancelHFOrderSettingQuery(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, ku)
+	_, err := ku.AutoCancelHFOrderSettingQuery(context.Background())
+	assert.NoError(t, err)
+}
+
+func TestGetHFFilledList(t *testing.T) {
+	t.Parallel()
+	_, err := ku.GetHFFilledList(context.Background(), "", "BTC-USDT", "sell", "market", "", time.Time{}, time.Now(), 0)
 	assert.NoError(t, err)
 }
