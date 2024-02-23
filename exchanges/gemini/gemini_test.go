@@ -556,7 +556,7 @@ func TestWsAuth(t *testing.T) {
 	if !g.Websocket.IsEnabled() &&
 		!g.API.AuthenticatedWebsocketSupport ||
 		!sharedtestvalues.AreAPICredentialsSet(g) {
-		t.Skip(stream.WebsocketNotEnabled)
+		t.Skip(stream.ErrWebsocketNotEnabled.Error())
 	}
 	var dialer websocket.Dialer
 	go g.wsReadData()
