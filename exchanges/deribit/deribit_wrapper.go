@@ -1114,7 +1114,6 @@ func (d *Deribit) GetHistoricCandles(ctx context.Context, pair currency.Pair, a 
 				Low:    tradingViewData.Low[x],
 				Close:  tradingViewData.Close[x],
 				Volume: tradingViewData.Volume[x],
-				Time:   time.UnixMilli(tradingViewData.Ticks[x]),
 			}
 		}
 		return req.ProcessResponse(listCandles)
@@ -1162,7 +1161,6 @@ func (d *Deribit) GetHistoricCandlesExtended(ctx context.Context, pair currency.
 					Low:    tradingViewData.Low[x],
 					Close:  tradingViewData.Close[x],
 					Volume: tradingViewData.Volume[x],
-					Time:   time.UnixMilli(tradingViewData.Ticks[x]),
 				})
 			}
 		}
@@ -1184,8 +1182,66 @@ func (d *Deribit) AuthenticateWebsocket(ctx context.Context) error {
 }
 
 // GetFuturesContractDetails returns all contracts from the exchange by asset type
-func (d *Deribit) GetFuturesContractDetails(context.Context, asset.Item) ([]futures.Contract, error) {
-	return nil, common.ErrFunctionNotSupported
+func (d *Deribit) GetFuturesContractDetails(ctx context.Context, item asset.Item) ([]futures.Contract, error) {
+	if !item.IsFutures() {
+		return nil, futures.ErrNotFuturesAsset
+	}
+	if item != asset.Futures {
+		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, item)
+	}
+	resp := []futures.Contract{}
+	for _, ccy := range []string{"BTC", "ETH", "USDC", "USDT", "EURR"} {
+		var marketSummary []InstrumentData
+		var err error
+		if d.Websocket.IsConnected() {
+			marketSummary, err = d.WSRetrieveInstrumentsData(ccy, d.GetAssetKind(item), false)
+		} else {
+			marketSummary, err = d.GetInstruments(ctx, ccy, d.GetAssetKind(item), false)
+		}
+		if err != nil {
+			return nil, err
+		}
+		for i := range marketSummary {
+			if marketSummary[i].Kind != "future" {
+				continue
+			}
+			var cp currency.Pair
+			cp, err = currency.NewPairFromString(marketSummary[i].InstrumentName)
+			if err != nil {
+				return nil, err
+			}
+			var ct futures.ContractType
+			switch marketSummary[i].SettlementPeriod {
+			case "day":
+				ct = futures.Daily
+			case "week":
+				ct = futures.Weekly
+			case "month":
+				ct = futures.Monthly
+			case "perpetual":
+				ct = futures.Perpetual
+			}
+			var contractSettlementType futures.ContractSettlementType
+			if marketSummary[i].InstrumentType == "reversed" {
+				contractSettlementType = futures.Inverse
+			} else {
+				contractSettlementType = futures.Linear
+			}
+			resp = append(resp, futures.Contract{
+				Exchange:             d.Name,
+				Name:                 cp,
+				Underlying:           currency.NewPair(currency.NewCode(marketSummary[i].BaseCurrency), currency.NewCode(marketSummary[i].QuoteCurrency)),
+				Asset:                item,
+				SettlementCurrencies: []currency.Code{currency.NewCode(marketSummary[i].SettlementCurrency)},
+				StartDate:            marketSummary[i].CreationTimestamp.Time(),
+				EndDate:              marketSummary[i].ExpirationTimestamp.Time(),
+				SettlementType:       contractSettlementType,
+				IsActive:             marketSummary[i].IsActive,
+				Type:                 ct,
+			})
+		}
+	}
+	return resp, nil
 }
 
 // GetLatestFundingRates returns the latest funding rates data

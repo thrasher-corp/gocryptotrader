@@ -202,6 +202,7 @@ type InstrumentData struct {
 	} `json:"tick_size_steps"`
 	BlockTradeTickSize       float64 `json:"block_trade_tick_size"`
 	BlockTradeMinTradeAmount int64   `json:"block_trade_min_trade_amount"`
+	InstrumentType           string  `json:"instrument_type"`
 }
 
 // SettlementsData stores data for settlement futures

@@ -134,14 +134,14 @@ func TestFetchRecentTrades(t *testing.T) {
 func TestGetHistoricCandles(t *testing.T) {
 	t.Parallel()
 	_, err := d.GetHistoricCandles(context.Background(), futuresTradablePair, asset.Futures, kline.FifteenMin, time.Now().Add(-time.Minute*5), time.Now())
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	_, err = d.GetHistoricCandles(context.Background(), spotTradablePair, asset.Spot, kline.FifteenMin, time.Now().Add(-time.Minute*5), time.Now())
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	sleepUntilTradablePairsUpdated()
 	_, err = d.GetHistoricCandles(context.Background(), optionsTradablePair, asset.Options, kline.FifteenMin, time.Now().Add(-time.Minute*5), time.Now())
-	assert.ErrorIs(t, err, asset.ErrNotSupported)
+	require.ErrorIs(t, err, asset.ErrNotSupported)
 	_, err = d.GetHistoricCandles(context.Background(), futureComboTradablePair, asset.FutureCombo, kline.FifteenMin, time.Now().Add(-time.Hour), time.Now())
-	assert.ErrorIs(t, err, asset.ErrNotSupported)
+	require.ErrorIs(t, err, asset.ErrNotSupported)
 	_, err = d.GetHistoricCandles(context.Background(), optionComboTradablePair, asset.OptionCombo, kline.FifteenMin, time.Now().Add(-time.Hour), time.Now())
 	assert.ErrorIs(t, err, asset.ErrNotSupported)
 }
@@ -2889,5 +2889,11 @@ func TestWsForkToken(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, d)
 	_, err := d.WsForkToken("1568800656974.1CWcuzUS.MGy49NK4hpTwvR1OYWfpqMEkH4T4oDg4tNIcrM7KdeyxXRcSFqiGzA_D4Cn7mqWocHmlS89FFmUYcmaN2H7lNKKTnhRg5EtrzsFCCiuyN0Wv9y-LbGLV3-Ojv_kbD50FoScQ8BDXS5b_w6Ir1MqEdQ3qFZ3MLcvlPiIgG2BqyJX3ybYnVpIlrVrrdYD1-lkjLcjxOBNJvvUKNUAzkQ", "Sami")
+	require.NoError(t, err)
+}
+
+func TestGetFuturesContractDetails(t *testing.T) {
+	t.Parallel()
+	_, err := d.GetFuturesContractDetails(context.Background(), asset.Futures)
 	require.NoError(t, err)
 }
