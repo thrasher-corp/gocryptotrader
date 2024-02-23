@@ -2465,6 +2465,7 @@ func TestAutoCancelHFOrderSettingQuery(t *testing.T) {
 
 func TestGetHFFilledList(t *testing.T) {
 	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, ku)
 	_, err := ku.GetHFFilledList(context.Background(), "", "BTC-USDT", "sell", "market", "", time.Time{}, time.Now(), 0)
 	assert.NoError(t, err)
 }
