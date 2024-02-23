@@ -221,7 +221,7 @@ func TestTrafficMonitorTrafficAlerts(t *testing.T) {
 			}
 		}
 
-		require.Eventuallyf(t, func() bool { return len(ws.TrafficAlert) == 0 }, 6*trafficCheckInterval, patience, "trafficAlert should be drained; Check #%d", i)
+		require.Eventuallyf(t, func() bool { return len(ws.TrafficAlert) == 0 }, 5*time.Second, patience, "trafficAlert should be drained; Check #%d", i)
 		assert.Truef(t, ws.IsConnected(), "state should still be connected; Check #%d", i)
 	}
 
