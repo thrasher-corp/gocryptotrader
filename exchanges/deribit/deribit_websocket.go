@@ -3,7 +3,6 @@ package deribit
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -96,7 +95,7 @@ var (
 // WsConnect starts a new connection with the websocket API
 func (d *Deribit) WsConnect() error {
 	if !d.Websocket.IsEnabled() || !d.IsEnabled() {
-		return errors.New(stream.WebsocketNotEnabled)
+		return stream.ErrWebsocketNotEnabled
 	}
 	var dialer websocket.Dialer
 	err := d.Websocket.Conn.Dial(&dialer, http.Header{})
