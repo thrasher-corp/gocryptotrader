@@ -1106,16 +1106,20 @@ func (d *Deribit) GetHistoricCandles(ctx context.Context, pair currency.Pair, a 
 			len(tradingViewData.Volume) != checkLen {
 			return nil, fmt.Errorf("%s - %v: invalid trading view chart data received", a, req.RequestFormatted)
 		}
-		listCandles := make([]kline.Candle, len(tradingViewData.Ticks))
+		listCandles := make([]kline.Candle, 0, len(tradingViewData.Ticks))
 		for x := range tradingViewData.Ticks {
-			listCandles[x] = kline.Candle{
+			timeInfo := time.UnixMilli(tradingViewData.Ticks[x])
+			if timeInfo.Before(start) {
+				continue
+			}
+			listCandles = append(listCandles, kline.Candle{
 				Open:   tradingViewData.Open[x],
 				High:   tradingViewData.High[x],
 				Low:    tradingViewData.Low[x],
 				Close:  tradingViewData.Close[x],
 				Volume: tradingViewData.Volume[x],
-				Time:   time.UnixMilli(tradingViewData.Ticks[x]),
-			}
+				Time:   timeInfo,
+			})
 		}
 		return req.ProcessResponse(listCandles)
 	case asset.OptionCombo, asset.FutureCombo, asset.Options:
@@ -1155,6 +1159,10 @@ func (d *Deribit) GetHistoricCandlesExtended(ctx context.Context, pair currency.
 				len(tradingViewData.Volume) != checkLen {
 				return nil, fmt.Errorf("%s - %v: invalid trading view chart data received", a, d.formatFuturesTradablePair(req.RequestFormatted))
 			}
+			timeInfo := time.UnixMilli(tradingViewData.Ticks[x]).UTC()
+			if timeInfo.Before(start) {
+				continue
+			}
 			for x := range tradingViewData.Ticks {
 				timeSeries = append(timeSeries, kline.Candle{
 					Open:   tradingViewData.Open[x],
@@ -1162,7 +1170,7 @@ func (d *Deribit) GetHistoricCandlesExtended(ctx context.Context, pair currency.
 					Low:    tradingViewData.Low[x],
 					Close:  tradingViewData.Close[x],
 					Volume: tradingViewData.Volume[x],
-					Time:   time.UnixMilli(tradingViewData.Ticks[x]),
+					Time:   timeInfo,
 				})
 			}
 		}
