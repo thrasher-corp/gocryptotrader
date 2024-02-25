@@ -795,6 +795,16 @@ func (ku *Kucoin) GetHFFilledList(ctx context.Context, orderID, symbol, side, or
 // PostOrder used to place two types of orders: limit and market
 // Note: use this only for SPOT trades
 func (ku *Kucoin) PostOrder(ctx context.Context, arg *SpotOrderParam) (string, error) {
+	return ku.handlePostOrder(ctx, arg, "/v1/orders")
+}
+
+// PostOrderTest used to verify whether the signature is correct and other operations.
+// After placing an order, the order will not enter the matching system, and the order cannot be queried.
+func (ku *Kucoin) PostOrderTest(ctx context.Context, arg *SpotOrderParam) (string, error) {
+	return ku.handlePostOrder(ctx, arg, "/v1/orders/test")
+}
+
+func (ku *Kucoin) handlePostOrder(ctx context.Context, arg *SpotOrderParam, path string) (string, error) {
 	if arg.ClientOrderID == "" {
 		// NOTE: 128 bit max length character string. UUID recommended.
 		return "", errInvalidClientOrderID
@@ -829,7 +839,7 @@ func (ku *Kucoin) PostOrder(ctx context.Context, arg *SpotOrderParam) (string, e
 		} `json:"data"`
 		Error
 	}
-	return resp.Data.OrderID, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, placeOrderEPL, http.MethodPost, "/v1/orders", &arg, &resp)
+	return resp.Data.OrderID, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, placeOrderEPL, http.MethodPost, path, &arg, &resp)
 }
 
 // PostMarginOrder used to place two types of margin orders: limit and market
@@ -1016,7 +1026,9 @@ func (ku *Kucoin) GetRecentFills(ctx context.Context) ([]Fill, error) {
 }
 
 // PostStopOrder used to place two types of stop orders: limit and market
-func (ku *Kucoin) PostStopOrder(ctx context.Context, clientOID, side, symbol, orderType, remark, stop, stp, tradeType, timeInForce string, size, price, stopPrice, cancelAfter, visibleSize, funds float64, postOnly, hidden, iceberg bool) (string, error) {
+func (ku *Kucoin) PostStopOrder(ctx context.Context, clientOID, side, symbol, orderType, remark, stop, stp,
+	tradeType, timeInForce string, size, price, stopPrice, cancelAfter, visibleSize,
+	funds float64, postOnly, hidden, iceberg bool) (string, error) {
 	if clientOID == "" {
 		return "", errors.New("clientOid can not be empty")
 	}
@@ -1026,25 +1038,25 @@ func (ku *Kucoin) PostStopOrder(ctx context.Context, clientOID, side, symbol, or
 	if symbol == "" {
 		return "", fmt.Errorf("%w, empty symbol", currency.ErrCurrencyPairEmpty)
 	}
-	params := make(map[string]interface{})
-	params["clientOid"] = clientOID
-	params["side"] = side
-	params["symbol"] = symbol
+	arg := make(map[string]interface{})
+	arg["clientOid"] = clientOID
+	arg["side"] = side
+	arg["symbol"] = symbol
 	if remark != "" {
-		params["remark"] = remark
+		arg["remark"] = remark
 	}
 	if stop != "" {
-		params["stop"] = stop
+		arg["stop"] = stop
 		if stopPrice <= 0 {
 			return "", errors.New("stopPrice is required")
 		}
-		params["stopPrice"] = strconv.FormatFloat(stopPrice, 'f', -1, 64)
+		arg["stopPrice"] = strconv.FormatFloat(stopPrice, 'f', -1, 64)
 	}
 	if stp != "" {
-		params["stp"] = stp
+		arg["stp"] = stp
 	}
 	if tradeType != "" {
-		params["tradeType"] = tradeType
+		arg["tradeType"] = tradeType
 	}
 	orderType = strings.ToLower(orderType)
 	switch orderType {
@@ -1052,29 +1064,29 @@ func (ku *Kucoin) PostStopOrder(ctx context.Context, clientOID, side, symbol, or
 		if price <= 0 {
 			return "", errors.New("price is required")
 		}
-		params["price"] = strconv.FormatFloat(price, 'f', -1, 64)
+		arg["price"] = strconv.FormatFloat(price, 'f', -1, 64)
 		if size <= 0 {
 			return "", errors.New("size can not be zero or negative")
 		}
-		params["size"] = strconv.FormatFloat(size, 'f', -1, 64)
+		arg["size"] = strconv.FormatFloat(size, 'f', -1, 64)
 		if timeInForce != "" {
-			params["timeInForce"] = timeInForce
+			arg["timeInForce"] = timeInForce
 		}
 		if cancelAfter > 0 && timeInForce == "GTT" {
-			params["cancelAfter"] = strconv.FormatFloat(cancelAfter, 'f', -1, 64)
+			arg["cancelAfter"] = strconv.FormatFloat(cancelAfter, 'f', -1, 64)
 		}
-		params["postOnly"] = postOnly
-		params["hidden"] = hidden
-		params["iceberg"] = iceberg
+		arg["postOnly"] = postOnly
+		arg["hidden"] = hidden
+		arg["iceberg"] = iceberg
 		if visibleSize > 0 {
-			params["visibleSize"] = strconv.FormatFloat(visibleSize, 'f', -1, 64)
+			arg["visibleSize"] = strconv.FormatFloat(visibleSize, 'f', -1, 64)
 		}
 	case "market":
 		switch {
 		case size > 0:
-			params["size"] = strconv.FormatFloat(size, 'f', -1, 64)
+			arg["size"] = strconv.FormatFloat(size, 'f', -1, 64)
 		case funds > 0:
-			params["funds"] = strconv.FormatFloat(funds, 'f', -1, 64)
+			arg["funds"] = strconv.FormatFloat(funds, 'f', -1, 64)
 		default:
 			return "", errSizeOrFundIsRequired
 		}
@@ -1082,13 +1094,13 @@ func (ku *Kucoin) PostStopOrder(ctx context.Context, clientOID, side, symbol, or
 		return "", fmt.Errorf("%w, order type: %s", order.ErrTypeIsInvalid, orderType)
 	}
 	if orderType != "" {
-		params["type"] = orderType
+		arg["type"] = orderType
 	}
 	resp := struct {
 		OrderID string `json:"orderId"`
 		Error
 	}{}
-	return resp.OrderID, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, placeOrderEPL, http.MethodPost, "/v1/stop-order", params, &resp)
+	return resp.OrderID, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, placeOrderEPL, http.MethodPost, "/v1/stop-order", arg, &resp)
 }
 
 // CancelStopOrder used to cancel single stop order previously placed
@@ -1176,6 +1188,304 @@ func (ku *Kucoin) CancelStopOrderByClientID(ctx context.Context, symbol, clientO
 	}
 	var resp *CancelOrderResponse
 	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, defaultSpotEPL, http.MethodDelete, common.EncodeURLValues("/v1/stop-order/cancelOrderByClientOid", params), nil, &resp)
+}
+
+// ------------------------------------------------ OCO Order -----------------------------------------------------------------
+
+// PlaceOCOOrder creates a new One cancel other(OCO) order.
+func (ku *Kucoin) PlaceOCOOrder(ctx context.Context, arg *OCOOrderParams) (string, error) {
+	if arg == nil || *arg == (OCOOrderParams{}) {
+		return "", common.ErrNilPointer
+	}
+	if arg.Symbol.IsEmpty() {
+		return "", currency.ErrCurrencyPairEmpty
+	}
+	if arg.Side == "" {
+		return "", order.ErrSideIsInvalid
+	}
+	if arg.Price <= 0 {
+		return "", order.ErrPriceBelowMin
+	}
+	if arg.Size <= 0 {
+		return "", errInvalidSize
+	}
+	if arg.StopPrice <= 0 {
+		return "", fmt.Errorf("%w stop price = %f", order.ErrPriceBelowMin, arg.StopPrice)
+	}
+	if arg.LimitPrice <= 0 {
+		return "", fmt.Errorf("%w limit price = %f", order.ErrPriceBelowMin, arg.LimitPrice)
+	}
+	if arg.ClientOrderID == "" {
+		return "", errInvalidClientOrderID
+	}
+	resp := &struct {
+		OrderID string `json:"orderId"`
+	}{}
+	return resp.OrderID, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, defaultSpotEPL, http.MethodPost, "/v3/oco/order", &arg, &resp)
+}
+
+// CancelOCOOrderByOrderID cancels a single oco order previously placed by order ID.
+func (ku *Kucoin) CancelOCOOrderByOrderID(ctx context.Context, orderID string) (*OCOOrderCancellationResponse, error) {
+	return ku.cancelOrderByID(ctx, "/v3/oco/order/", orderID)
+}
+
+// CancelOCOOrderByClientOrderID cancels a single oco order previously placed by client order ID.
+func (ku *Kucoin) CancelOCOOrderByClientOrderID(ctx context.Context, clientOrderID string) (*OCOOrderCancellationResponse, error) {
+	return ku.cancelOrderByID(ctx, "/v3/oco/client-order/", clientOrderID)
+}
+
+func (ku *Kucoin) cancelOrderByID(ctx context.Context, path, id string) (*OCOOrderCancellationResponse, error) {
+	var resp *OCOOrderCancellationResponse
+	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, defaultSpotEPL, http.MethodDelete, path+id, nil, &resp)
+}
+
+// CancelOCOMultipleOrders batch cancel OCO orders through orderIds.
+func (ku *Kucoin) CancelOCOMultipleOrders(ctx context.Context, orderIDs []string, symbol string) (*OCOOrderCancellationResponse, error) {
+	params := url.Values{}
+	if len(orderIDs) > 0 {
+		params.Set("orderIds", strings.Join(orderIDs, ","))
+	}
+	if symbol != "" {
+		params.Set("symbol", symbol)
+	}
+	var resp *OCOOrderCancellationResponse
+	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, defaultSpotEPL, http.MethodDelete, common.EncodeURLValues("/v3/oco/orders", params), nil, &resp)
+}
+
+// GetOCOOrderInfoByOrderID to get a oco order information via the order ID.
+func (ku *Kucoin) GetOCOOrderInfoByOrderID(ctx context.Context, orderID string) (*OCOOrderInfo, error) {
+	return ku.getOrderInfoByID(ctx, orderID, "/v3/oco/order/")
+}
+
+// GetOCOOrderInfoByClientOrderID to get a oco order information via the client order ID.
+func (ku *Kucoin) GetOCOOrderInfoByClientOrderID(ctx context.Context, clientOrderID string) (*OCOOrderInfo, error) {
+	return ku.getOrderInfoByID(ctx, clientOrderID, "/v3/oco/client-order/")
+}
+
+func (ku *Kucoin) getOrderInfoByID(ctx context.Context, id, path string) (*OCOOrderInfo, error) {
+	if id == "" {
+		return nil, order.ErrOrderIDNotSet
+	}
+	var resp *OCOOrderInfo
+	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, defaultSpotEPL, http.MethodGet, path+id, nil, &resp)
+}
+
+// GetOCOOrderDetailsByOrderID get a oco order detail via the order ID.
+func (ku *Kucoin) GetOCOOrderDetailsByOrderID(ctx context.Context, orderID string) (*OCOOrderDetail, error) {
+	if orderID == "" {
+		return nil, order.ErrOrderIDNotSet
+	}
+	var resp *OCOOrderDetail
+	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, defaultSpotEPL, http.MethodGet, "/v3/oco/order/details/"+orderID, nil, &resp)
+}
+
+// GetOCOOrderList retrieves list of OCO orders.
+func (ku *Kucoin) GetOCOOrderList(ctx context.Context, pageSize, currentPage, symbol string, startAt, endAt time.Time, orderIDs []string) (*OCOOrders, error) {
+	if pageSize == "" {
+		return nil, errors.New("pageSize cannot be empty")
+	}
+	if currentPage == "" {
+		return nil, errors.New("currentPage connot be empty")
+	}
+	params := url.Values{}
+	params.Set("pageSize", pageSize)
+	params.Set("currentPage", currentPage)
+	if symbol != "" {
+		params.Set("symbol", symbol)
+	}
+	if !startAt.IsZero() {
+		params.Set("startAt", strconv.FormatInt(startAt.UnixMilli(), 10))
+	}
+	if !endAt.IsZero() {
+		params.Set("endAt", strconv.FormatInt(endAt.UnixMilli(), 10))
+	}
+	if len(orderIDs) == 0 {
+		params.Set("orderIds", strings.Join(orderIDs, ","))
+	}
+	var resp *OCOOrders
+	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, defaultSpotEPL, http.MethodGet, common.EncodeURLValues("/v3/oco/orders", params), nil, &resp)
+}
+
+// ----------------------------------------------------------- Margin HF Trade -------------------------------------------------------------
+
+// PlaceMarginHFOrder used to place cross-margin or isolated-margin high-frequency margin trading
+func (ku *Kucoin) PlaceMarginHFOrder(ctx context.Context, arg *PlaceMarginHFOrderParam) (*MarginHFOrderResponse, error) {
+	return ku.placeMarginHFOrder(ctx, arg, "/v3/hf/margin/order")
+}
+
+// PlaceMarginHFOrderTest used to verify whether the signature is correct and other operations. After placing an order,
+// the order will not enter the matching system, and the order cannot be queried.
+func (ku *Kucoin) PlaceMarginHFOrderTest(ctx context.Context, arg *PlaceMarginHFOrderParam) (*MarginHFOrderResponse, error) {
+	return ku.placeMarginHFOrder(ctx, arg, "/v3/hf/margin/order/test")
+}
+
+func (ku *Kucoin) placeMarginHFOrder(ctx context.Context, arg *PlaceMarginHFOrderParam, path string) (*MarginHFOrderResponse, error) {
+	if arg == nil || *arg == (PlaceMarginHFOrderParam{}) {
+		return nil, common.ErrNilPointer
+	}
+	if arg.ClientOrderID == "" {
+		return nil, order.ErrClientOrderIDNotSupported
+	}
+	if arg.Side == "" {
+		return nil, order.ErrSideIsInvalid
+	}
+	if arg.Symbol.IsEmpty() {
+		return nil, currency.ErrCurrencyPairEmpty
+	}
+	if arg.Price <= 0 {
+		return nil, order.ErrPriceBelowMin
+	}
+	if arg.Size <= 0 {
+		return nil, order.ErrAmountBelowMin
+	}
+	var resp *MarginHFOrderResponse
+	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, defaultSpotEPL, http.MethodPost, path, arg, &resp)
+}
+
+// CancelHFOrderByOrderID cancels a single order by orderId. If the order cannot be canceled (sold or canceled),
+// an error message will be returned, and the reason can be obtained according to the returned msg.
+func (ku *Kucoin) CancelMarginHFOrderByOrderID(ctx context.Context, orderID, symbol string) (string, error) {
+	return ku.cancelMarginHFOrderByID(ctx, orderID, symbol, "/v3/hf/margin/orders/")
+}
+
+// CancelMarginHFOrderByClientOrderID to cancel a single order by clientOid.
+func (ku *Kucoin) CancelMarginHFOrderByClientOrderID(ctx context.Context, clientOrderID, symbol string) (string, error) {
+	return ku.cancelMarginHFOrderByID(ctx, clientOrderID, symbol, "/v3/hf/margin/orders/client-order/")
+}
+
+func (ku *Kucoin) cancelMarginHFOrderByID(ctx context.Context, id, symbol, path string) (string, error) {
+	if id == "" {
+		return "", order.ErrOrderIDNotSet
+	}
+	if symbol == "" {
+		return "", currency.ErrSymbolStringEmpty
+	}
+	resp := &struct {
+		OrderID string `json:"orderId"`
+	}{}
+	return resp.OrderID, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, defaultSpotEPL, http.MethodDelete, path+id+"?symbol="+symbol, nil, &resp)
+}
+
+// CancelAllMarginHFOrdersBySymbol cancel all open high-frequency Margin orders(orders created through POST /api/v3/hf/margin/order).
+// Transaction type: MARGIN_TRADE - cross margin trade, MARGIN_ISOLATED_TRADE - isolated margin trade
+func (ku *Kucoin) CancelAllMarginHFOrdersBySymbol(ctx context.Context, symbol, tradeType string) (string, error) {
+	if symbol == "" {
+		return "", currency.ErrSymbolStringEmpty
+	}
+	if tradeType == "" {
+		return "", errTradeTypeMissing
+	}
+	params := url.Values{}
+	params.Set("symbol", symbol)
+	params.Set("tradeType", tradeType)
+	var resp string
+	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, defaultSpotEPL, http.MethodDelete, common.EncodeURLValues("/v3/hf/margin/orders", params), nil, &resp)
+}
+
+// GetActiveMarginHFOrders retrieves list if active high-frequency margin orders
+func (ku *Kucoin) GetActiveMarginHFOrders(ctx context.Context, symbol, tradeType string) ([]HFMarginOrderDetail, error) {
+	params := url.Values{}
+	if symbol != "" {
+		params.Set("symbol", symbol)
+	}
+	if tradeType != "" {
+		params.Set("tradeType", tradeType)
+	}
+	var resp []HFMarginOrderDetail
+	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, defaultSpotEPL, http.MethodGet, common.EncodeURLValues("/v3/hf/margin/orders/active", params), nil, &resp)
+}
+
+// GetFilledHFMarginOrders list of filled margin HF orders and returns paginated data.
+// The returned data is sorted in descending order based on the latest order update times.
+func (ku *Kucoin) GetFilledHFMarginOrders(ctx context.Context, symbol, tradeType, side, orderType string, startAt, endAt time.Time, lastID, limit int64) (*FilledMarginHFOrdersResponse, error) {
+	if symbol == "" {
+		return nil, currency.ErrSymbolStringEmpty
+	}
+	if tradeType == "" {
+		return nil, errTradeTypeMissing
+	}
+	params := url.Values{}
+	params.Set("symbol", symbol)
+	params.Set("tradeType", tradeType)
+	if side != "" {
+		params.Set("side", side)
+	}
+	if orderType != "" {
+		params.Set("type", orderType)
+	}
+	if !startAt.IsZero() {
+		params.Set("startAt", strconv.FormatInt(startAt.UnixMilli(), 10))
+	}
+	if !endAt.IsZero() {
+		params.Set("endAt", strconv.FormatInt(endAt.UnixMilli(), 10))
+	}
+	if lastID > 0 {
+		params.Set("lastId", strconv.FormatInt(lastID, 10))
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	var resp *FilledMarginHFOrdersResponse
+	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, defaultSpotEPL, http.MethodGet, common.EncodeURLValues("/v3/hf/margin/orders/done", params), nil, &resp)
+}
+
+// GetMarginHFOrderDetailByOrderID retrieves the detail of a HF margin order by order ID.
+func (ku *Kucoin) GetMarginHFOrderDetailByOrderID(ctx context.Context, orderID, symbol string) (*HFMarginOrderDetail, error) {
+	return ku.getMarginHFOrderDetailByID(ctx, orderID, symbol, "/v3/hf/margin/orders/")
+}
+
+// GetMarginHFOrderDetailByClientOrderID retrieves the detaul of a HF margin order by client order ID.
+func (ku *Kucoin) GetMarginHFOrderDetailByClientOrderID(ctx context.Context, clientOrderID, symbol string) (*HFMarginOrderDetail, error) {
+	return ku.getMarginHFOrderDetailByID(ctx, clientOrderID, symbol, "/v3/hf/margin/orders/client-order/")
+}
+
+func (ku *Kucoin) getMarginHFOrderDetailByID(ctx context.Context, orderID, symbol, path string) (*HFMarginOrderDetail, error) {
+	if symbol == "" {
+		return nil, currency.ErrSymbolStringEmpty
+	}
+	if orderID == "" {
+		return nil, order.ErrOrderIDNotSet
+	}
+	params := url.Values{}
+	params.Set("symbol", symbol)
+	params.Set("orderId", orderID)
+	var resp *HFMarginOrderDetail
+	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, defaultSpotEPL, http.MethodGet, "/v3/hf/margin/orders/"+orderID+"?symbol="+symbol, nil, &resp)
+}
+
+// GetMarginHFTradeFills to obtain a list of the latest margin HF transaction details. The returned results are paginated. The data is sorted in descending order according to time.
+func (ku *Kucoin) GetMarginHFTradeFills(ctx context.Context, orderID, symbol, tradeType, side, orderType string, startAt, endAt time.Time, lastID, limit int64) (*HFMarginOrderTransaction, error) {
+	if tradeType == "" {
+		return nil, errTransferTypeMissing
+	}
+	params := url.Values{}
+	params.Set("tradeType", tradeType)
+	if orderID != "" {
+		params.Set("orderId", orderID)
+	}
+	if symbol != "" {
+		params.Set("symbol", symbol)
+	}
+	if side != "" {
+		params.Set("side", side)
+	}
+	if orderType != "" {
+		params.Set("type", orderType)
+	}
+	if !startAt.IsZero() {
+		params.Set("startAt", strconv.FormatInt(startAt.UnixMilli(), 10))
+	}
+	if !endAt.IsZero() {
+		params.Set("endAt", strconv.FormatInt(endAt.UnixMilli(), 10))
+	}
+	if lastID > 0 {
+		params.Set("lastId", strconv.FormatInt(lastID, 10))
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	var resp *HFMarginOrderTransaction
+	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, defaultSpotEPL, http.MethodGet, common.EncodeURLValues("/v3/hf/margin/fills", params), nil, &resp)
 }
 
 // CreateSubUser creates a new sub-user for the account.

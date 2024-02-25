@@ -37,6 +37,7 @@ var (
 	errInvalidClientOrderID      = errors.New("no client order ID supplied, this endpoint requires a UUID or similar string")
 	errAccountTypeMissing        = errors.New("account type is required")
 	errTransferTypeMissing       = errors.New("transfer type is required")
+	errTradeTypeMissing          = errors.New("trade type is missing")
 	errTimeInForceRequired       = errors.New("time in force is required")
 	errInvalidMsgType            = errors.New("message type field not valid")
 	errSubscriptionPairRequired  = errors.New("pair required for manual subscriptions")
@@ -1883,4 +1884,159 @@ type UniversalTransferParam struct {
 	ToUserID              string        `json:"toUserId"`
 	ToAccountType         string        `json:"toAccountType"`
 	ToAccountTag          string        `json:"toAccountTag"`
+}
+
+// OCOOrderParams represents a an OCO order creation parameter
+type OCOOrderParams struct {
+	Symbol        currency.Pair `json:"symbol"`
+	Side          string        `json:"side"`
+	Price         float64       `json:"price,string"`
+	Size          float64       `json:"size,string"`
+	StopPrice     float64       `json:"stopPrice,string"`
+	LimitPrice    float64       `json:"limitPrice,string"`
+	TradeType     string        `json:"tradeType,omitempty"`
+	ClientOrderID string        `json:"clientOid"`
+	Remark        string        `json:"remark,omitempty"`
+}
+
+// OCOOrderCancellationResponse represents an order cancellation response.
+type OCOOrderCancellationResponse struct {
+	CancelledOrderIds []string `json:"cancelledOrderIds"`
+}
+
+// OCOOrderInfo represents an order info
+type OCOOrderInfo struct {
+	OrderID       string               `json:"orderId"`
+	Symbol        string               `json:"symbol"`
+	ClientOrderID string               `json:"clientOid"`
+	OrderTime     convert.ExchangeTime `json:"orderTime"`
+	Status        string               `json:"status"`
+}
+
+// OCOOrderDetail represents an oco order detail via the order ID.
+type OCOOrderDetail struct {
+	OrderID   string               `json:"orderId"`
+	Symbol    string               `json:"symbol"`
+	ClientOid string               `json:"clientOid"`
+	OrderTime convert.ExchangeTime `json:"orderTime"`
+	Status    string               `json:"status"`
+	Orders    []struct {
+		ID        string       `json:"id"`
+		Symbol    string       `json:"symbol"`
+		Side      string       `json:"side"`
+		Price     types.Number `json:"price"`
+		StopPrice types.Number `json:"stopPrice"`
+		Size      types.Number `json:"size"`
+		Status    string       `json:"status"`
+	} `json:"orders"`
+}
+
+// OCOOrders represents an OCO orders list
+type OCOOrders struct {
+	CurrentPage int `json:"currentPage"`
+	PageSize    int `json:"pageSize"`
+	TotalNum    int `json:"totalNum"`
+	TotalPage   int `json:"totalPage"`
+	Items       []struct {
+		OrderID   string               `json:"orderId"`
+		Symbol    string               `json:"symbol"`
+		ClientOid string               `json:"clientOid"`
+		OrderTime convert.ExchangeTime `json:"orderTime"`
+		Status    string               `json:"status"`
+	} `json:"items"`
+}
+
+// PlaceMarginHFOrderParam represents a margin HF order parameters.
+type PlaceMarginHFOrderParam struct {
+	ClientOrderID       string        `json:"clientOid"`
+	Side                string        `json:"side"`
+	Symbol              currency.Pair `json:"symbol"`
+	OrderType           string        `json:"type,omitempty"`
+	SelfTradePrevention string        `json:"stp,omitempty"`
+	IsIsolated          bool          `json:"isIsolated,omitempty"`
+	AutoBorrow          bool          `json:"autoBorrow,omitempty"`
+	AutoRepay           bool          `json:"autoRepay,omitempty"`
+	Price               float64       `json:"price,string"`
+	Size                float64       `json:"size,string"`
+	TimeInForce         string        `json:"timeInForce,omitempty,string"`
+	CancelAfter         int64         `json:"cancelAfter,omitempty,string"`
+	PostOnly            bool          `json:"postOnly,omitempty,string"`
+	Hidden              bool          `json:"hidden,omitempty,string"`
+	Iceberg             bool          `json:"iceberg,omitempty,string"`
+	VisibleSize         float64       `json:"visibleSize,omitempty,string"`
+	Funds               string        `json:"funds,omitempty"`
+}
+
+// MarginHFOrderResponse  represents a margin HF order creation response.
+type MarginHFOrderResponse struct {
+	OrderID     string  `json:"orderId"`
+	BorrowSize  float64 `json:"borrowSize"`
+	LoanApplyID string  `json:"loanApplyId"`
+}
+
+// HFMarginOrderDetail represents a high-frequency margin order detail
+type HFMarginOrderDetail struct {
+	ID                  string               `json:"id"`
+	Symbol              string               `json:"symbol"`
+	OpType              string               `json:"opType"`
+	Type                string               `json:"type"`
+	Side                string               `json:"side"`
+	Price               types.Number         `json:"price"`
+	Size                types.Number         `json:"size"`
+	Funds               string               `json:"funds"`
+	DealFunds           string               `json:"dealFunds"`
+	DealSize            types.Number         `json:"dealSize"`
+	Fee                 types.Number         `json:"fee"`
+	FeeCurrency         string               `json:"feeCurrency"`
+	SelfTradePrevention string               `json:"stp"`
+	TimeInForce         string               `json:"timeInForce"`
+	PostOnly            bool                 `json:"postOnly"`
+	Hidden              bool                 `json:"hidden"`
+	Iceberg             bool                 `json:"iceberg"`
+	VisibleSize         types.Number         `json:"visibleSize"`
+	CancelAfter         int64                `json:"cancelAfter"`
+	Channel             string               `json:"channel"`
+	ClientOrderID       string               `json:"clientOid"`
+	Remark              string               `json:"remark"`
+	Tags                string               `json:"tags"`
+	Active              bool                 `json:"active"`
+	InOrderBook         bool                 `json:"inOrderBook"`
+	CancelExist         bool                 `json:"cancelExist"`
+	CreatedAt           convert.ExchangeTime `json:"createdAt"`
+	LastUpdatedAt       convert.ExchangeTime `json:"lastUpdatedAt"`
+	TradeType           string               `json:"tradeType"`
+}
+
+// FilledMarginHFOrdersResponse represents a filled HF margin orders
+type FilledMarginHFOrdersResponse struct {
+	LastID int64                 `json:"lastId"`
+	Items  []HFMarginOrderDetail `json:"items"`
+}
+
+// HFMarginOrderTrade represents a HF margin order trade item.
+type HFMarginOrderTrade struct {
+	ID             int64                `json:"id"`
+	Symbol         string               `json:"symbol"`
+	TradeID        int64                `json:"tradeId"`
+	OrderID        string               `json:"orderId"`
+	CounterOrderID string               `json:"counterOrderId"`
+	Side           string               `json:"side"`
+	Liquidity      string               `json:"liquidity"`
+	ForceTaker     bool                 `json:"forceTaker"`
+	Price          types.Number         `json:"price"`
+	Size           types.Number         `json:"size"`
+	Funds          types.Number         `json:"funds"`
+	Fee            types.Number         `json:"fee"`
+	FeeRate        types.Number         `json:"feeRate"`
+	FeeCurrency    string               `json:"feeCurrency"`
+	Stop           string               `json:"stop"`
+	TradeType      string               `json:"tradeType"`
+	Type           string               `json:"type"`
+	CreatedAt      convert.ExchangeTime `json:"createdAt"`
+}
+
+// HFMarginOrderTransaction represents a HF margin order transaction detail.
+type HFMarginOrderTransaction struct {
+	Items  []HFMarginOrderTrade `json:"items"`
+	LastID int64                `json:"lastId"`
 }

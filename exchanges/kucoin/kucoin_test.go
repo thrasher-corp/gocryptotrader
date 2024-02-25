@@ -369,6 +369,47 @@ func TestPostOrder(t *testing.T) {
 	assert.NoError(t, err)
 }
 
+func TestPostOrderTest(t *testing.T) {
+	t.Parallel()
+
+	// default order type is limit
+	_, err := ku.PostOrderTest(context.Background(), &SpotOrderParam{
+		ClientOrderID: ""})
+	require.ErrorIs(t, err, errInvalidClientOrderID)
+
+	customID, err := uuid.NewV4()
+	require.NoError(t, err)
+
+	_, err = ku.PostOrderTest(context.Background(), &SpotOrderParam{
+		ClientOrderID: customID.String(), Symbol: spotTradablePair,
+		OrderType: ""})
+	require.ErrorIs(t, err, order.ErrSideIsInvalid)
+	_, err = ku.PostOrderTest(context.Background(), &SpotOrderParam{
+		ClientOrderID: customID.String(), Symbol: currency.EMPTYPAIR,
+		Size: 0.1, Side: "buy", Price: 234565})
+
+	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
+	_, err = ku.PostOrderTest(context.Background(), &SpotOrderParam{
+		ClientOrderID: customID.String(), Side: "buy",
+		Symbol:    spotTradablePair,
+		OrderType: "limit", Size: 0.1})
+	require.ErrorIs(t, err, errInvalidPrice)
+	_, err = ku.PostOrderTest(context.Background(), &SpotOrderParam{
+		ClientOrderID: customID.String(), Symbol: spotTradablePair, Side: "buy",
+		OrderType: "limit", Price: 234565})
+	require.ErrorIs(t, err, errInvalidSize)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, ku)
+	_, err = ku.PostOrderTest(context.Background(), &SpotOrderParam{
+		ClientOrderID: customID.String(),
+		Side:          "buy",
+		Symbol:        spotTradablePair,
+		OrderType:     "limit",
+		Size:          0.005,
+		Price:         1000})
+	assert.NoError(t, err)
+}
+
 func TestPostMarginOrder(t *testing.T) {
 	t.Parallel()
 	// default order type is limit
@@ -2467,5 +2508,182 @@ func TestGetHFFilledList(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ku)
 	_, err := ku.GetHFFilledList(context.Background(), "", "BTC-USDT", "sell", "market", "", time.Time{}, time.Now(), 0)
+	assert.NoError(t, err)
+}
+
+func TestPlaceOCOOrder(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, ku, canManipulateRealOrders)
+	_, err := ku.PlaceOCOOrder(context.Background(), &OCOOrderParams{})
+	assert.ErrorIs(t, err, common.ErrNilPointer)
+	_, err = ku.PlaceOCOOrder(context.Background(), &OCOOrderParams{
+		Symbol:        spotTradablePair,
+		Side:          order.Buy.String(),
+		Price:         1.234,
+		Size:          1,
+		StopPrice:     1.14,
+		LimitPrice:    1.2,
+		TradeType:     "TRADE",
+		ClientOrderID: "6572fdd65723280007deb5e0",
+	})
+	assert.NoError(t, err)
+}
+
+func TestCancelOrderByOrderID(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, ku, canManipulateRealOrders)
+	_, err := ku.CancelOCOOrderByOrderID(context.Background(), "6572fdd65723280007deb5e0")
+	assert.NoError(t, err)
+}
+
+func TestCancelOrderByClientOrderID(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, ku, canManipulateRealOrders)
+	_, err := ku.CancelOCOOrderByClientOrderID(context.Background(), "6572fdd65723280007deb5e0")
+	assert.NoError(t, err)
+}
+
+func TestCancelMultipleOrders(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, ku, canManipulateRealOrders)
+	_, err := ku.CancelOCOMultipleOrders(context.Background(), []string{}, "FRM-USDT")
+	assert.NoError(t, err)
+}
+
+func TestGetOrderInfoByOrderID(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, ku)
+	_, err := ku.GetOCOOrderInfoByOrderID(context.Background(), "order-id-here")
+	require.NoError(t, err)
+}
+
+func TestGetOrderInfoByClientOrderID(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, ku)
+	_, err := ku.GetOCOOrderInfoByClientOrderID(context.Background(), "client-order-id-here")
+	require.NoError(t, err)
+}
+
+func TestGetOrderDetailsByOrderID(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, ku)
+	_, err := ku.GetOCOOrderDetailsByOrderID(context.Background(), "order-id-here")
+	assert.NoError(t, err)
+}
+
+func TestGetOCOOrderList(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, ku)
+	_, err := ku.GetOCOOrderList(context.Background(), "0", "0", "BTC-USDT", time.Time{}, time.Now(), []string{})
+	assert.NoError(t, err)
+}
+
+func TestPlaceMarginHFOrder(t *testing.T) {
+	t.Parallel()
+	_, err := ku.PlaceMarginHFOrder(context.Background(), &PlaceMarginHFOrderParam{})
+	require.ErrorIs(t, err, common.ErrNilPointer)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, ku)
+	_, err = ku.PlaceMarginHFOrder(context.Background(), &PlaceMarginHFOrderParam{
+		ClientOrderID:       "first-order",
+		Side:                "sell",
+		Symbol:              currency.Pair{Base: currency.BTC, Delimiter: currency.DashDelimiter, Quote: currency.ETH},
+		OrderType:           "market",
+		SelfTradePrevention: "CB",
+		Price:               1234,
+		Size:                0.0000001,
+	})
+	assert.NoError(t, err)
+}
+
+func TestPlaceMarginHFOrderTest(t *testing.T) {
+	t.Parallel()
+	_, err := ku.PlaceMarginHFOrderTest(context.Background(), &PlaceMarginHFOrderParam{})
+	require.ErrorIs(t, err, common.ErrNilPointer)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, ku)
+	_, err = ku.PlaceMarginHFOrderTest(context.Background(), &PlaceMarginHFOrderParam{
+		ClientOrderID:       "first-order",
+		Side:                "sell",
+		Symbol:              currency.Pair{Base: currency.BTC, Delimiter: currency.DashDelimiter, Quote: currency.ETH},
+		OrderType:           "market",
+		SelfTradePrevention: "CB",
+		Price:               1234,
+		Size:                0.0000001,
+	})
+	assert.NoError(t, err)
+}
+
+func TestCancelMarginHFOrderByOrderID(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, ku)
+	_, err := ku.CancelMarginHFOrderByOrderID(context.Background(), "", "BTC-USD")
+	assert.ErrorIs(t, err, order.ErrOrderIDNotSet)
+	_, err = ku.CancelMarginHFOrderByOrderID(context.Background(), "order-id-here", "")
+	assert.ErrorIs(t, err, currency.ErrSymbolStringEmpty)
+	_, err = ku.CancelMarginHFOrderByOrderID(context.Background(), "order-id-here", "BTC-USD")
+	assert.NoError(t, err)
+}
+
+func TestCancelMarginHFOrderByClientOrderID(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, ku, canManipulateRealOrders)
+	_, err := ku.CancelMarginHFOrderByClientOrderID(context.Background(), "", "BTC-USD")
+	assert.ErrorIs(t, err, order.ErrOrderIDNotSet)
+	_, err = ku.CancelMarginHFOrderByClientOrderID(context.Background(), "order-id-here", "")
+	assert.ErrorIs(t, err, currency.ErrSymbolStringEmpty)
+	_, err = ku.CancelMarginHFOrderByClientOrderID(context.Background(), "order-id-here", "BTC-USD")
+	assert.NoError(t, err)
+}
+
+func TestCancelAllMarginHFOrdersBySymbol(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, ku, canManipulateRealOrders)
+	_, err := ku.CancelAllMarginHFOrdersBySymbol(context.Background(), "BTC-USD", "MARGIN_TRADE")
+	require.NoError(t, err)
+	_, err = ku.CancelAllMarginHFOrdersBySymbol(context.Background(), "BTC-USD", "MARGIN_ISOLATED_TRADE")
+	assert.NoError(t, err)
+}
+
+func TestGetActiveMarginHFOrders(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, ku)
+	_, err := ku.GetActiveMarginHFOrders(context.Background(), "BTC-USD", "MARGIN_TRADE")
+	assert.NoError(t, err)
+}
+
+func TestGetFilledHFMarginOrders(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, ku)
+	_, err := ku.GetFilledHFMarginOrders(context.Background(), "BTC-USD", "MARGIN_TRADE", "sell", "limit", time.Time{}, time.Now(), 0, 20)
+	require.ErrorIs(t, err, errTradeTypeMissing)
+	_, err = ku.GetFilledHFMarginOrders(context.Background(), "", "MARGIN_TRADE", "sell", "limit", time.Time{}, time.Now(), 0, 20)
+	require.ErrorIs(t, err, currency.ErrSymbolStringEmpty)
+	_, err = ku.GetFilledHFMarginOrders(context.Background(), "", "MARGIN_TRADE", "sell", "limit", time.Time{}, time.Now(), 0, 20)
+	assert.NoError(t, err)
+}
+
+func TestGetMarginHFOrderDetailByOrderID(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, ku)
+	_, err := ku.GetMarginHFOrderDetailByOrderID(context.Background(), "", "BTC-ETH")
+	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
+	_, err = ku.GetMarginHFOrderDetailByOrderID(context.Background(), "the-order-id", "BTC-ETH")
+	assert.NoError(t, err)
+}
+
+func TestGetMarginHFOrderDetailByClientOrderID(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, ku)
+	_, err := ku.GetMarginHFOrderDetailByClientOrderID(context.Background(), "", "BTC-ETH")
+	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
+	_, err = ku.GetMarginHFOrderDetailByClientOrderID(context.Background(), "the-client-order-id", "BTC-ETH")
+	assert.NoError(t, err)
+}
+
+func TestGetMarginHFTradeFills(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, ku)
+	_, err := ku.GetMarginHFTradeFills(context.Background(), "", "", "MARGIN_TRADE", "sell", "market", time.Time{}, time.Now(), 0, 30)
+	require.ErrorIs(t, err, errTradeTypeMissing)
+	_, err = ku.GetMarginHFTradeFills(context.Background(), "MARGIN_TRADE", "", "MARGIN_TRADE", "sell", "market", time.Time{}, time.Now(), 0, 30)
 	assert.NoError(t, err)
 }
