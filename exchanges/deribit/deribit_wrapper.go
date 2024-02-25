@@ -1114,6 +1114,7 @@ func (d *Deribit) GetHistoricCandles(ctx context.Context, pair currency.Pair, a 
 				Low:    tradingViewData.Low[x],
 				Close:  tradingViewData.Close[x],
 				Volume: tradingViewData.Volume[x],
+				Time:   time.UnixMilli(tradingViewData.Ticks[x]),
 			}
 		}
 		return req.ProcessResponse(listCandles)
@@ -1161,6 +1162,7 @@ func (d *Deribit) GetHistoricCandlesExtended(ctx context.Context, pair currency.
 					Low:    tradingViewData.Low[x],
 					Close:  tradingViewData.Close[x],
 					Volume: tradingViewData.Volume[x],
+					Time:   time.UnixMilli(tradingViewData.Ticks[x]),
 				})
 			}
 		}
