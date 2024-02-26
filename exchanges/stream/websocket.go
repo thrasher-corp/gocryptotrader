@@ -348,18 +348,10 @@ func (w *Websocket) dataMonitor() {
 
 	go func() {
 		defer func() {
-			for {
-				// Bleeds data from the websocket connection if needed
-				select {
-				case <-w.DataHandler:
-				default:
-					w.setDataMonitorRunning(false)
-					w.Wg.Done()
-					return
-				}
-			}
+			w.setDataMonitorRunning(false)
+			w.Wg.Done()
 		}()
-
+		full := 0
 		for {
 			select {
 			case <-w.ShutdownC:
@@ -367,14 +359,14 @@ func (w *Websocket) dataMonitor() {
 			case d := <-w.DataHandler:
 				select {
 				case w.ToRoutine <- d:
-				case <-w.ShutdownC:
-					return
+					if full {
+						full = false
+					}
 				default:
-					log.Warnf(log.WebsocketMgr, "%s exchange backlog in websocket processing detected", w.exchangeName)
-					select {
-					case w.ToRoutine <- d:
-					case <-w.ShutdownC:
-						return
+					if !full {
+						full = true
+						// If this becomes prone to flapping we could drain the buffer, but that's extreme and we'd like to avoid it if possible
+						log.Warnf(log.WebsocketMgr, "%s exchange backlog in websocket ToRoutine consumer channel; dropping messages", w.exchangeName)
 					}
 				}
 			}
@@ -413,6 +405,7 @@ func (w *Websocket) connectionMonitor() error {
 			}
 			select {
 			case err := <-w.ReadMessageErrors:
+				w.DataHandler <- err
 				if IsDisconnectionError(err) {
 					log.Warnf(log.WebsocketMgr, "%v websocket has been disconnected. Reason: %v", w.exchangeName, err)
 					if w.IsConnected() {
@@ -421,8 +414,6 @@ func (w *Websocket) connectionMonitor() error {
 						}
 					}
 				}
-
-				w.DataHandler <- err
 			case <-timer.C:
 				if !w.IsConnecting() && !w.IsConnected() {
 					err := w.Connect()

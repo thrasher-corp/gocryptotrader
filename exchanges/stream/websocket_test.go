@@ -326,8 +326,6 @@ func TestConnectionMessageErrors(t *testing.T) {
 	err = ws.Connect()
 	require.NoError(t, err, "Connect must not error")
 
-	ws.TrafficAlert <- struct{}{}
-
 	c := func(tb *assert.CollectT) {
 		select {
 		case v, ok := <-ws.ToRoutine:
@@ -345,6 +343,7 @@ func TestConnectionMessageErrors(t *testing.T) {
 		}
 	}
 
+	ws.TrafficAlert <- struct{}{}
 	ws.ReadMessageErrors <- errDastardlyReason
 	assert.EventuallyWithT(t, c, 2*time.Second, 10*time.Millisecond, "Should get an error down the routine")
 
