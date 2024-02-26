@@ -1901,7 +1901,7 @@ type OCOOrderParams struct {
 
 // OCOOrderCancellationResponse represents an order cancellation response.
 type OCOOrderCancellationResponse struct {
-	CancelledOrderIds []string `json:"cancelledOrderIds"`
+	CancelledOrderIDs []string `json:"cancelledOrderIds"`
 }
 
 // OCOOrderInfo represents an order info

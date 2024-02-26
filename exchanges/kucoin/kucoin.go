@@ -40,6 +40,8 @@ var locker sync.Mutex
 const (
 	kucoinAPIURL        = "https://api.kucoin.com/api"
 	kucoinAPIKeyVersion = "2"
+
+	symbolQuery = "?symbol="
 )
 
 // GetSymbols gets pairs details on the exchange
@@ -599,7 +601,7 @@ func (ku *Kucoin) CancelHFOrder(ctx context.Context, orderID, symbol string) (st
 	resp := &struct {
 		OrderID string `json:"orderId"`
 	}{}
-	return resp.OrderID, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, defaultSpotEPL, http.MethodDelete, "/v1/hf/orders/"+orderID+"?symbol="+symbol, nil, &resp)
+	return resp.OrderID, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, defaultSpotEPL, http.MethodDelete, "/v1/hf/orders/"+orderID+symbolQuery+symbol, nil, &resp)
 }
 
 // SyncCancelHFOrder this interface will synchronously return the order information after the order canceling is completed.
@@ -623,7 +625,7 @@ func (ku *Kucoin) syncCancelHFOrder(ctx context.Context, id, symbol, path string
 		return nil, currency.ErrSymbolStringEmpty
 	}
 	var resp *SyncCancelHFOrderResp
-	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, defaultSpotEPL, http.MethodDelete, path+id+"?symbol="+symbol, nil, &resp)
+	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, defaultSpotEPL, http.MethodDelete, path+id+symbolQuery+symbol, nil, &resp)
 }
 
 // CancelHFOrderByClientOrderID sends out a request to cancel a high-frequency order using clientOid.
@@ -637,7 +639,7 @@ func (ku *Kucoin) CancelHFOrderByClientOrderID(ctx context.Context, clientOrderI
 	resp := &struct {
 		ClientOrderID string `json:"clientOid"`
 	}{}
-	return resp.ClientOrderID, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, defaultSpotEPL, http.MethodGet, "/v1/hf/orders/client-order/"+clientOrderID+"?symbol="+symbol, nil, &resp)
+	return resp.ClientOrderID, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, defaultSpotEPL, http.MethodGet, "/v1/hf/orders/client-order/"+clientOrderID+symbolQuery+symbol, nil, &resp)
 }
 
 // CancelSpecifiedNumberHFOrdersByOrderID cancel the specified quantity of the order according to the orderId.
@@ -735,7 +737,7 @@ func (ku *Kucoin) getHFOrderDetailsByID(ctx context.Context, orderID, symbol, pa
 		return nil, currency.ErrSymbolStringEmpty
 	}
 	var resp *HFOrder
-	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, defaultSpotEPL, http.MethodGet, path+orderID+"?symbol="+symbol, nil, &resp)
+	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, defaultSpotEPL, http.MethodGet, path+orderID+symbolQuery+symbol, nil, &resp)
 }
 
 // AutoCancelHFOrderSetting automatically cancel all orders of the set trading pair after the specified time.
@@ -842,8 +844,17 @@ func (ku *Kucoin) handlePostOrder(ctx context.Context, arg *SpotOrderParam, path
 	return resp.Data.OrderID, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, placeOrderEPL, http.MethodPost, path, &arg, &resp)
 }
 
+// PostMarginOrderTest a test endpoint used to place two types of margin orders: limit and margin.
+func (ku *Kucoin) PostMarginOrderTest(ctx context.Context, arg *MarginOrderParam) (*PostMarginOrderResp, error) {
+	return ku.postMarginOrder(ctx, arg, "/v1/margin/order/test")
+}
+
 // PostMarginOrder used to place two types of margin orders: limit and market
 func (ku *Kucoin) PostMarginOrder(ctx context.Context, arg *MarginOrderParam) (*PostMarginOrderResp, error) {
+	return ku.postMarginOrder(ctx, arg, "/v1/margin/order")
+}
+
+func (ku *Kucoin) postMarginOrder(ctx context.Context, arg *MarginOrderParam, path string) (*PostMarginOrderResp, error) {
 	if arg.ClientOrderID == "" {
 		return nil, errInvalidClientOrderID
 	}
@@ -877,7 +888,7 @@ func (ku *Kucoin) PostMarginOrder(ctx context.Context, arg *MarginOrderParam) (*
 		PostMarginOrderResp
 		Error
 	}{}
-	return &resp.PostMarginOrderResp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, placeMarginOrdersEPL, http.MethodPost, "/v1/margin/order", &arg, &resp)
+	return &resp.PostMarginOrderResp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, placeMarginOrdersEPL, http.MethodPost, path, &arg, &resp)
 }
 
 // PostBulkOrder used to place 5 orders at the same time. The order type must be a limit order of the same symbol
@@ -1285,7 +1296,7 @@ func (ku *Kucoin) GetOCOOrderList(ctx context.Context, pageSize, currentPage, sy
 		return nil, errors.New("pageSize cannot be empty")
 	}
 	if currentPage == "" {
-		return nil, errors.New("currentPage connot be empty")
+		return nil, errors.New("currentPage cannot be empty")
 	}
 	params := url.Values{}
 	params.Set("pageSize", pageSize)
@@ -1342,7 +1353,7 @@ func (ku *Kucoin) placeMarginHFOrder(ctx context.Context, arg *PlaceMarginHFOrde
 	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, defaultSpotEPL, http.MethodPost, path, arg, &resp)
 }
 
-// CancelHFOrderByOrderID cancels a single order by orderId. If the order cannot be canceled (sold or canceled),
+// CancelMarginHFOrderByOrderID cancels a single order by orderId. If the order cannot be canceled (sold or canceled),
 // an error message will be returned, and the reason can be obtained according to the returned msg.
 func (ku *Kucoin) CancelMarginHFOrderByOrderID(ctx context.Context, orderID, symbol string) (string, error) {
 	return ku.cancelMarginHFOrderByID(ctx, orderID, symbol, "/v3/hf/margin/orders/")
@@ -1363,7 +1374,7 @@ func (ku *Kucoin) cancelMarginHFOrderByID(ctx context.Context, id, symbol, path 
 	resp := &struct {
 		OrderID string `json:"orderId"`
 	}{}
-	return resp.OrderID, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, defaultSpotEPL, http.MethodDelete, path+id+"?symbol="+symbol, nil, &resp)
+	return resp.OrderID, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, defaultSpotEPL, http.MethodDelete, path+id+symbolQuery+symbol, nil, &resp)
 }
 
 // CancelAllMarginHFOrdersBySymbol cancel all open high-frequency Margin orders(orders created through POST /api/v3/hf/margin/order).
@@ -1450,7 +1461,7 @@ func (ku *Kucoin) getMarginHFOrderDetailByID(ctx context.Context, orderID, symbo
 	params.Set("symbol", symbol)
 	params.Set("orderId", orderID)
 	var resp *HFMarginOrderDetail
-	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, defaultSpotEPL, http.MethodGet, "/v3/hf/margin/orders/"+orderID+"?symbol="+symbol, nil, &resp)
+	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, defaultSpotEPL, http.MethodGet, path+orderID+symbolQuery+symbol, nil, &resp)
 }
 
 // GetMarginHFTradeFills to obtain a list of the latest margin HF transaction details. The returned results are paginated. The data is sorted in descending order according to time.

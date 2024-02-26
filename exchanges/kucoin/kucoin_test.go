@@ -452,6 +452,48 @@ func TestPostMarginOrder(t *testing.T) {
 	assert.NoError(t, err)
 }
 
+func TestPostMarginOrderTest(t *testing.T) {
+	t.Parallel()
+	// default order type is limit
+	_, err := ku.PostMarginOrderTest(context.Background(), &MarginOrderParam{
+		ClientOrderID: ""})
+	require.ErrorIs(t, err, errInvalidClientOrderID)
+	_, err = ku.PostMarginOrderTest(context.Background(), &MarginOrderParam{
+		ClientOrderID: "5bd6e9286d99522a52e458de", Symbol: marginTradablePair,
+		OrderType: ""})
+	require.ErrorIs(t, err, order.ErrSideIsInvalid)
+	_, err = ku.PostMarginOrderTest(context.Background(), &MarginOrderParam{
+		ClientOrderID: "5bd6e9286d99522a52e458de", Symbol: currency.EMPTYPAIR,
+		Size: 0.1, Side: "buy", Price: 234565})
+	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
+	_, err = ku.PostMarginOrderTest(context.Background(), &MarginOrderParam{
+		ClientOrderID: "5bd6e9286d99522a52e458de", Side: "buy",
+		Symbol:    marginTradablePair,
+		OrderType: "limit", Size: 0.1})
+	require.ErrorIs(t, err, errInvalidPrice)
+	_, err = ku.PostMarginOrderTest(context.Background(), &MarginOrderParam{
+		ClientOrderID: "5bd6e9286d99522a52e458de", Symbol: marginTradablePair, Side: "buy",
+		OrderType: "limit", Price: 234565})
+	require.ErrorIs(t, err, errInvalidSize)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, ku)
+	// default order type is limit and margin mode is cross
+	_, err = ku.PostMarginOrderTest(context.Background(),
+		&MarginOrderParam{
+			ClientOrderID: "5bd6e9286d99522a52e458de",
+			Side:          "buy", Symbol: marginTradablePair,
+			Price: 1000, Size: 0.1, PostOnly: true})
+	require.NoError(t, err)
+
+	// market isolated order
+	_, err = ku.PostMarginOrderTest(context.Background(),
+		&MarginOrderParam{
+			ClientOrderID: "5bd6e9286d99522a52e458de",
+			Side:          "buy", Symbol: marginTradablePair,
+			OrderType: "market", Funds: 1234,
+			Remark: "remark", MarginModel: "cross", Price: 1000, PostOnly: true, AutoBorrow: true})
+	assert.NoError(t, err)
+}
+
 func TestPostBulkOrder(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ku, canManipulateRealOrders)
@@ -2291,7 +2333,7 @@ func TestGetOpenInterest(t *testing.T) {
 
 func TestSpotHFPlaceOrder(t *testing.T) {
 	t.Parallel()
-	// sharedtestvalues.SkipTestIfCredentialsUnset(t, ku, canManipulateRealOrders)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, ku, canManipulateRealOrders)
 	_, err := ku.SpotHFPlaceOrder(context.Background(), &PlaceHFParam{})
 	require.ErrorIs(t, err, common.ErrNilPointer)
 	_, err = ku.SpotHFPlaceOrder(context.Background(), &PlaceHFParam{
