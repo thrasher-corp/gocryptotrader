@@ -2229,7 +2229,7 @@ func (ku *Kucoin) GetInterestRate(ctx context.Context, ccy currency.Code) ([]Int
 	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, defaultSpotEPL, http.MethodGet, "/v3/project/marketInterestRate?currency="+ccy.String(), nil, &resp)
 }
 
-// MarginLendingSubscription retrieves margin lending subscription informations.
+// MarginLendingSubscription retrieves margin lending subscription information.
 func (ku *Kucoin) MarginLendingSubscription(ctx context.Context, ccy currency.Code, size, interestRate float64) (*OrderNumberResponse, error) {
 	if ccy.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
