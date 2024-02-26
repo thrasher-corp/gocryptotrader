@@ -271,7 +271,7 @@ func (ku *Kucoin) GetLeveragedTokenInfo(ctx context.Context, ccy string) ([]Leve
 		params.Set("currency", ccy)
 	}
 	var resp []LeveragedTokenInfo
-	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, defaultSpotEPL, http.MethodGet, common.EncodeURLValues("v3/etf/info", params), nil, &resp)
+	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, defaultSpotEPL, http.MethodGet, common.EncodeURLValues("/v3/etf/info", params), nil, &resp)
 }
 
 // GetMarkPrice gets index price of the specified pair
@@ -293,6 +293,25 @@ func (ku *Kucoin) GetMarginConfiguration(ctx context.Context) (*MarginConfigurat
 func (ku *Kucoin) GetMarginAccount(ctx context.Context) (*MarginAccounts, error) {
 	var resp *MarginAccounts
 	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, defaultSpotEPL, http.MethodGet, "/v1/margin/account", nil, &resp)
+}
+
+// GetCrossIsolatedMarginRiskLimitCurrencyConfig risk limit and currency configuration of cross margin/isolated margin.
+// isIsolated: true - isolated, false - cross ; default false
+func (ku *Kucoin) GetCrossIsolatedMarginRiskLimitCurrencyConfig(ctx context.Context, isIsolated bool, symbol, ccy string) (*CurrencyConfigurationResponse, error) {
+	params := url.Values{}
+	if isIsolated {
+		params.Set("isIsolated", "true")
+	} else {
+		params.Set("isIsolated", "false")
+	}
+	if symbol != "" {
+		params.Set("symbol", symbol)
+	}
+	if ccy != "" {
+		params.Set("currency", ccy)
+	}
+	var resp *CurrencyConfigurationResponse
+	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, defaultSpotEPL, http.MethodGet, common.EncodeURLValues("/v3/margin/currencies", params), nil, &resp)
 }
 
 // GetMarginRiskLimit gets cross/isolated margin risk limit, default model is cross margin
@@ -2187,6 +2206,136 @@ func (ku *Kucoin) GetTradingFee(ctx context.Context, pairs currency.Pairs) ([]Fe
 	}
 	var resp []Fees
 	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, defaultSpotEPL, http.MethodGet, "/v1/trade-fees?symbols="+pairs.Upper().Join(), nil, &resp)
+}
+
+// ----------------------------------------------------------  Lending Market ----------------------------------------------------------------------------
+
+// GetLendingCurrencyInformation retrieves a lending currency information.
+func (ku *Kucoin) GetLendingCurrencyInformation(ctx context.Context, ccy string) ([]LendingCurrencyInfo, error) {
+	params := url.Values{}
+	if ccy != "" {
+		params.Set("currency", ccy)
+	}
+	var resp []LendingCurrencyInfo
+	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, defaultSpotEPL, http.MethodGet, common.EncodeURLValues("/v3/project/list", params), nil, &resp)
+}
+
+// GetInterestRate retrieves the interest rates of the margin lending market over the past 7 days.
+func (ku *Kucoin) GetInterestRate(ctx context.Context, ccy currency.Code) ([]InterestRate, error) {
+	if ccy.IsEmpty() {
+		return nil, currency.ErrCurrencyCodeEmpty
+	}
+	var resp []InterestRate
+	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, defaultSpotEPL, http.MethodGet, "/v3/project/marketInterestRate?currency="+ccy.String(), nil, &resp)
+}
+
+// MarginLendingSubscription retrieves margin lending subscription informations.
+func (ku *Kucoin) MarginLendingSubscription(ctx context.Context, ccy currency.Code, size, interestRate float64) (*OrderNumberResponse, error) {
+	if ccy.IsEmpty() {
+		return nil, currency.ErrCurrencyCodeEmpty
+	}
+	if size <= 0 {
+		return nil, order.ErrAmountBelowMin
+	}
+	if interestRate <= 0 {
+		return nil, errMissingInterestRate
+	}
+	arg := map[string]interface{}{
+		"currency":     ccy.String(),
+		"size":         size,
+		"interestRate": interestRate,
+	}
+	var resp *OrderNumberResponse
+	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, defaultSpotEPL, http.MethodPost, "/v3/purchase", arg, &resp)
+}
+
+// Redemption initiate redemptions of margin lending.
+func (ku *Kucoin) Redemption(ctx context.Context, ccy currency.Code, size float64, purchaseOrderNo string) (*OrderNumberResponse, error) {
+	if ccy.IsEmpty() {
+		return nil, currency.ErrCurrencyCodeEmpty
+	}
+	if size <= 0 {
+		return nil, order.ErrAmountBelowMin
+	}
+	if purchaseOrderNo == "" {
+		return nil, errMissingPurchaseOrderNumber
+	}
+	arg := map[string]interface{}{
+		"currency":        ccy.String(),
+		"size":            size,
+		"purchaseOrderNo": purchaseOrderNo,
+	}
+	var resp *OrderNumberResponse
+	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, defaultSpotEPL, http.MethodPost, "/v3/redeem", arg, &resp)
+}
+
+// ModifySubscriptionOrder is used to update the interest rates of subscription orders, which will take effect at the beginning of the next hour.
+func (ku *Kucoin) ModifySubscriptionOrder(ctx context.Context, ccy currency.Code, purchaseOrderNo string, interestRate float64) (*ModifySubscriptionOrderResponse, error) {
+	if ccy.IsEmpty() {
+		return nil, currency.ErrCurrencyCodeEmpty
+	}
+	if interestRate <= 0 {
+		return nil, errMissingInterestRate
+	}
+	if purchaseOrderNo == "" {
+		return nil, errMissingPurchaseOrderNumber
+	}
+	arg := map[string]interface{}{
+		"currency":        ccy.String(),
+		"interestRate":    interestRate,
+		"purchaseOrderNo": purchaseOrderNo,
+	}
+	var resp *ModifySubscriptionOrderResponse
+	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, defaultSpotEPL, http.MethodPost, "/v3/lend/purchase/update", arg, &resp)
+}
+
+// GetRedemptionOrders query for the redemption orders.
+// Status: DONE-completed; PENDING-settling
+func (ku *Kucoin) GetRedemptionOrders(ctx context.Context, ccy currency.Code, redeemOrderNo, status string, currentPage, pageSize int64) (*RedemptionOrdersResponse, error) {
+	if ccy.IsEmpty() {
+		return nil, currency.ErrCurrencyCodeEmpty
+	}
+	if status == "" {
+		return nil, errors.New("status is missing")
+	}
+	params := url.Values{}
+	params.Set("currency", ccy.String())
+	params.Set("status", status)
+	if redeemOrderNo != "" {
+		params.Set("redeemOrderNo", redeemOrderNo)
+	}
+	if currentPage > 0 {
+		params.Set("currentPage", strconv.FormatInt(currentPage, 10))
+	}
+	if pageSize > 0 {
+		params.Set("pageSize", strconv.FormatInt(pageSize, 10))
+	}
+	var resp *RedemptionOrdersResponse
+	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, defaultSpotEPL, http.MethodGet, common.EncodeURLValues("/v3/redeem/orders", params), nil, &resp)
+}
+
+// GetSubscriptionOrders provides pagination query for the subscription orders.
+func (ku *Kucoin) GetSubscriptionOrders(ctx context.Context, ccy currency.Code, purchaseOrderNo, status string, currentPage, pageSize int64) (*SubscriptionOrdersResponse, error) {
+	if ccy.IsEmpty() {
+		return nil, currency.ErrCurrencyCodeEmpty
+	}
+	if status == "" {
+		return nil, errors.New("status is missing")
+	}
+	params := url.Values{}
+	params.Set("currency", ccy.String())
+	params.Set("status", status)
+	if purchaseOrderNo != "" {
+		params.Set("purchaseOrderNo", purchaseOrderNo)
+	}
+	if currentPage > 0 {
+		params.Set("currentPage", strconv.FormatInt(currentPage, 10))
+	}
+	if pageSize > 0 {
+		params.Set("pageSize", strconv.FormatInt(pageSize, 10))
+	}
+	var resp *SubscriptionOrdersResponse
+	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, defaultSpotEPL, http.MethodGet, common.EncodeURLValues("/v3/purchase/orders", params), nil, &resp)
 }
 
 // SendHTTPRequest sends an unauthenticated HTTP request

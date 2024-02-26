@@ -19,28 +19,30 @@ var (
 		"1min", "3min", "5min", "15min", "30min", "1hour", "2hour", "4hour", "6hour", "8hour", "12hour", "1day", "1week",
 	}
 
-	errInvalidResponseReceiver   = errors.New("invalid response receiver")
-	errInvalidPrice              = errors.New("invalid price")
-	errInvalidStopPriceType      = errors.New("stopPriceType is required")
-	errInvalidSize               = errors.New("invalid size")
-	errMalformedData             = errors.New("malformed data")
-	errNoDepositAddress          = errors.New("no deposit address found")
-	errMultipleDepositAddress    = errors.New("multiple deposit addresses")
-	errInvalidResultInterface    = errors.New("result interface has to be pointer")
-	errInvalidSubAccountName     = errors.New("invalid sub-account name")
-	errAPIKeyRequired            = errors.New("account API key is required")
-	errInvalidPassPhraseInstance = errors.New("invalid passphrase string")
-	errNoValidResponseFromServer = errors.New("no valid response from server")
-	errMissingOrderbookSequence  = errors.New("missing orderbook sequence")
-	errSizeOrFundIsRequired      = errors.New("at least one required among size and funds")
-	errInvalidLeverage           = errors.New("invalid leverage value")
-	errInvalidClientOrderID      = errors.New("no client order ID supplied, this endpoint requires a UUID or similar string")
-	errAccountTypeMissing        = errors.New("account type is required")
-	errTransferTypeMissing       = errors.New("transfer type is required")
-	errTradeTypeMissing          = errors.New("trade type is missing")
-	errTimeInForceRequired       = errors.New("time in force is required")
-	errInvalidMsgType            = errors.New("message type field not valid")
-	errSubscriptionPairRequired  = errors.New("pair required for manual subscriptions")
+	errInvalidResponseReceiver    = errors.New("invalid response receiver")
+	errInvalidPrice               = errors.New("invalid price")
+	errInvalidStopPriceType       = errors.New("stopPriceType is required")
+	errInvalidSize                = errors.New("invalid size")
+	errMalformedData              = errors.New("malformed data")
+	errNoDepositAddress           = errors.New("no deposit address found")
+	errMultipleDepositAddress     = errors.New("multiple deposit addresses")
+	errInvalidResultInterface     = errors.New("result interface has to be pointer")
+	errInvalidSubAccountName      = errors.New("invalid sub-account name")
+	errAPIKeyRequired             = errors.New("account API key is required")
+	errInvalidPassPhraseInstance  = errors.New("invalid passphrase string")
+	errNoValidResponseFromServer  = errors.New("no valid response from server")
+	errMissingOrderbookSequence   = errors.New("missing orderbook sequence")
+	errSizeOrFundIsRequired       = errors.New("at least one required among size and funds")
+	errInvalidLeverage            = errors.New("invalid leverage value")
+	errInvalidClientOrderID       = errors.New("no client order ID supplied, this endpoint requires a UUID or similar string")
+	errAccountTypeMissing         = errors.New("account type is required")
+	errTransferTypeMissing        = errors.New("transfer type is required")
+	errTradeTypeMissing           = errors.New("trade type is missing")
+	errTimeInForceRequired        = errors.New("time in force is required")
+	errInvalidMsgType             = errors.New("message type field not valid")
+	errSubscriptionPairRequired   = errors.New("pair required for manual subscriptions")
+	errMissingPurchaseOrderNumber = errors.New("missing purchase order number")
+	errMissingInterestRate        = errors.New("interest rate is required")
 
 	subAccountRegExp           = regexp.MustCompile("^[a-zA-Z0-9]{7-32}$")
 	subAccountPassphraseRegExp = regexp.MustCompile("^[a-zA-Z0-9]{7-24}$")
@@ -252,6 +254,41 @@ type MarginAccount struct {
 type MarginAccounts struct {
 	Accounts  []MarginAccount `json:"accounts"`
 	DebtRatio float64         `json:"debtRatio,string"`
+}
+
+// CurrencyConfigurationResponse currency configuration of cross margin/isolated margin.
+type CurrencyConfigurationResponse struct {
+	Timestamp         int64  `json:"timestamp"`
+	Currency          string `json:"currency"`
+	BorrowMaxAmount   string `json:"borrowMaxAmount"`
+	BuyMaxAmount      string `json:"buyMaxAmount"`
+	HoldMaxAmount     string `json:"holdMaxAmount"`
+	BorrowCoefficient string `json:"borrowCoefficient"`
+	MarginCoefficient string `json:"marginCoefficient"`
+	Precision         int    `json:"precision"`
+	BorrowMinAmount   string `json:"borrowMinAmount"`
+	BorrowMinUnit     string `json:"borrowMinUnit"`
+	BorrowEnabled     bool   `json:"borrowEnabled"`
+
+	Symbol                 string       `json:"symbol,omitempty"`
+	BaseMaxBorrowAmount    types.Number `json:"baseMaxBorrowAmount,omitempty"`
+	QuoteMaxBorrowAmount   types.Number `json:"quoteMaxBorrowAmount,omitempty"`
+	BaseMaxBuyAmount       types.Number `json:"baseMaxBuyAmount,omitempty"`
+	QuoteMaxBuyAmount      types.Number `json:"quoteMaxBuyAmount,omitempty"`
+	BaseMaxHoldAmount      types.Number `json:"baseMaxHoldAmount,omitempty"`
+	QuoteMaxHoldAmount     types.Number `json:"quoteMaxHoldAmount,omitempty"`
+	BasePrecision          float64      `json:"basePrecision,omitempty"`
+	QuotePrecision         float64      `json:"quotePrecision,omitempty"`
+	BaseBorrowCoefficient  string       `json:"baseBorrowCoefficient,omitempty"`
+	QuoteBorrowCoefficient string       `json:"quoteBorrowCoefficient,omitempty"`
+	BaseMarginCoefficient  string       `json:"baseMarginCoefficient,omitempty"`
+	QuoteMarginCoefficient string       `json:"quoteMarginCoefficient,omitempty"`
+	BaseBorrowMinAmount    any          `json:"baseBorrowMinAmount,omitempty"`
+	BaseBorrowMinUnit      any          `json:"baseBorrowMinUnit,omitempty"`
+	QuoteBorrowMinAmount   types.Number `json:"quoteBorrowMinAmount,omitempty"`
+	QuoteBorrowMinUnit     string       `json:"quoteBorrowMinUnit,omitempty"`
+	BaseBorrowEnabled      bool         `json:"baseBorrowEnabled,omitempty"`
+	QuoteBorrowEnabled     bool         `json:"quoteBorrowEnabled,omitempty"`
 }
 
 // MarginRiskLimit stores margin risk limit
@@ -1118,6 +1155,79 @@ type Fees struct {
 	Symbol       string  `json:"symbol"`
 	TakerFeeRate float64 `json:"takerFeeRate,string"`
 	MakerFeeRate float64 `json:"makerFeeRate,string"`
+}
+
+// LendingCurrencyInfo represents a lending currency information
+type LendingCurrencyInfo struct {
+	Currency           string       `json:"currency"`
+	PurchaseEnable     bool         `json:"purchaseEnable"`
+	RedeemEnable       bool         `json:"redeemEnable"`
+	Increment          string       `json:"increment"`
+	MinPurchaseSize    types.Number `json:"minPurchaseSize"`
+	MinInterestRate    types.Number `json:"minInterestRate"`
+	MaxInterestRate    types.Number `json:"maxInterestRate"`
+	InterestIncrement  string       `json:"interestIncrement"`
+	MaxPurchaseSize    types.Number `json:"maxPurchaseSize"`
+	MarketInterestRate types.Number `json:"marketInterestRate"`
+	AutoPurchaseEnable bool         `json:"autoPurchaseEnable"`
+}
+
+// InterestRate represents a currency interest rate.
+type InterestRate struct {
+	Time               convert.ExchangeTime `json:"time"`
+	MarketInterestRate string               `json:"marketInterestRate"`
+}
+
+// OrderNumberResponse represents a response for margin trading lending and redemption.
+type OrderNumberResponse struct {
+	OrderNo string `json:"orderNo"`
+}
+
+// ModifySubscriptionOrderResponse represents a modify subscription order response.
+type ModifySubscriptionOrderResponse struct {
+	Success bool   `json:"success"`
+	Code    string `json:"code"`
+	Msg     string `json:"msg"`
+	Retry   bool   `json:"retry"`
+}
+
+// RedemptionOrdersResponse represents a response for querying list of redemption orders.
+type RedemptionOrdersResponse struct {
+	CurrentPage int64             `json:"currentPage"`
+	PageSize    int64             `json:"pageSize"`
+	TotalNum    int64             `json:"totalNum"`
+	TotalPage   int64             `json:"totalPage"`
+	Items       []RedemptionOrder `json:"items"`
+}
+
+// RedemptionOrder represents a single redemption order instance.
+type RedemptionOrder struct {
+	Currency        string               `json:"currency"`
+	PurchaseOrderNo string               `json:"purchaseOrderNo"`
+	RedeemOrderNo   string               `json:"redeemOrderNo"`
+	RedeemAmount    types.Number         `json:"redeemAmount"`
+	ReceiptAmount   types.Number         `json:"receiptAmount"`
+	ApplyTime       convert.ExchangeTime `json:"applyTime"`
+	Status          string               `json:"status"`
+}
+
+// SubscriptionOrdersResponse represents list of subscription orders response.
+type SubscriptionOrdersResponse struct {
+	CurrentPage int64 `json:"currentPage"`
+	PageSize    int64 `json:"pageSize"`
+	TotalNum    int64 `json:"totalNum"`
+	TotalPage   int64 `json:"totalPage"`
+	Items       []struct {
+		Currency        string               `json:"currency"`
+		PurchaseOrderNo string               `json:"purchaseOrderNo"`
+		PurchaseAmount  types.Number         `json:"purchaseAmount"`
+		LendAmount      types.Number         `json:"lendAmount"`
+		RedeemAmount    types.Number         `json:"redeemAmount"`
+		InterestRate    types.Number         `json:"interestRate"`
+		IncomeAmount    types.Number         `json:"incomeAmount"`
+		ApplyTime       convert.ExchangeTime `json:"applyTime"`
+		Status          string               `json:"status"`
+	} `json:"items"`
 }
 
 // WSInstanceServers response connection token and websocket instance server information.

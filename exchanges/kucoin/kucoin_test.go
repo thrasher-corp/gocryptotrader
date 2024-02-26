@@ -231,6 +231,13 @@ func TestGetMarginAccount(t *testing.T) {
 	assert.NoError(t, err)
 }
 
+func TestGetCrossIsolatedMarginRiskLimitCurrencyConfig(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, ku)
+	_, err := ku.GetCrossIsolatedMarginRiskLimitCurrencyConfig(context.Background(), false, "", "BTC")
+	assert.NoError(t, err)
+}
+
 func TestGetMarginRiskLimit(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ku)
@@ -2727,5 +2734,54 @@ func TestGetMarginHFTradeFills(t *testing.T) {
 	_, err := ku.GetMarginHFTradeFills(context.Background(), "", "", "MARGIN_TRADE", "sell", "market", time.Time{}, time.Now(), 0, 30)
 	require.ErrorIs(t, err, errTradeTypeMissing)
 	_, err = ku.GetMarginHFTradeFills(context.Background(), "MARGIN_TRADE", "", "MARGIN_TRADE", "sell", "market", time.Time{}, time.Now(), 0, 30)
+	assert.NoError(t, err)
+}
+
+func TestGetLendingCurrencyInformation(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, ku)
+	_, err := ku.GetLendingCurrencyInformation(context.Background(), "ETH")
+	assert.NoError(t, err)
+}
+
+func TestGetInterestRate(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, ku)
+	_, err := ku.GetInterestRate(context.Background(), currency.ETH)
+	assert.NoError(t, err)
+}
+
+func TestMarginLendingSubscription(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, ku, canManipulateRealOrders)
+	_, err := ku.MarginLendingSubscription(context.Background(), currency.ETH, 1, 0.22)
+	assert.NoError(t, err)
+}
+
+func TestRedemption(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, ku, canManipulateRealOrders)
+	_, err := ku.Redemption(context.Background(), currency.ETH, 1, "1245")
+	require.NoError(t, err)
+}
+
+func TestModifySubscriptionOrder(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, ku, canManipulateRealOrders)
+	_, err := ku.ModifySubscriptionOrder(context.Background(), currency.ETH, "12345", 1.23)
+	assert.NoError(t, err)
+}
+
+func TestGetRedemptionOrders(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, ku)
+	_, err := ku.GetRedemptionOrders(context.Background(), currency.BTC, "2234", "PENDING", 0, 20)
+	assert.NoError(t, err)
+}
+
+func TestGetSubscriptionOrders(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, ku)
+	_, err := ku.GetSubscriptionOrders(context.Background(), currency.BTC, "2234", "DONE", 0, 20)
 	assert.NoError(t, err)
 }
