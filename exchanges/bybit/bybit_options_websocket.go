@@ -6,6 +6,7 @@ import (
 	"strconv"
 
 	"github.com/gorilla/websocket"
+	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
@@ -51,7 +52,7 @@ func (by *Bybit) GenerateOptionsDefaultSubscriptions() ([]subscription.Subscript
 			subscriptions = append(subscriptions,
 				subscription.Subscription{
 					Channel: channels[x],
-					Pair:    pairs[z],
+					Pairs:   currency.Pairs{pairs[z]},
 					Asset:   asset.Options,
 				})
 		}
@@ -60,16 +61,16 @@ func (by *Bybit) GenerateOptionsDefaultSubscriptions() ([]subscription.Subscript
 }
 
 // OptionSubscribe sends a subscription message to options public channels.
-func (by *Bybit) OptionSubscribe(channelSubscriptions []subscription.Subscription) error {
+func (by *Bybit) OptionSubscribe(channelSubscriptions subscription.List) error {
 	return by.handleOptionsPayloadSubscription("subscribe", channelSubscriptions)
 }
 
 // OptionUnsubscribe sends an unsubscription messages through options public channels.
-func (by *Bybit) OptionUnsubscribe(channelSubscriptions []subscription.Subscription) error {
+func (by *Bybit) OptionUnsubscribe(channelSubscriptions subscription.List) error {
 	return by.handleOptionsPayloadSubscription("unsubscribe", channelSubscriptions)
 }
 
-func (by *Bybit) handleOptionsPayloadSubscription(operation string, channelSubscriptions []subscription.Subscription) error {
+func (by *Bybit) handleOptionsPayloadSubscription(operation string, channelSubscriptions subscription.List) error {
 	payloads, err := by.handleSubscriptions(asset.Options, operation, channelSubscriptions)
 	if err != nil {
 		return err

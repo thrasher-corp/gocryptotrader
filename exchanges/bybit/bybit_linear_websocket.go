@@ -63,7 +63,7 @@ func (by *Bybit) GenerateLinearDefaultSubscriptions() ([]subscription.Subscripti
 				subscriptions = append(subscriptions,
 					subscription.Subscription{
 						Channel: channels[x],
-						Pair:    pairs[p],
+						Pairs:   currency.Pairs{pairs[p]},
 						Asset:   a,
 					})
 			}
@@ -73,16 +73,16 @@ func (by *Bybit) GenerateLinearDefaultSubscriptions() ([]subscription.Subscripti
 }
 
 // LinearSubscribe sends a subscription message to linear public channels.
-func (by *Bybit) LinearSubscribe(channelSubscriptions []subscription.Subscription) error {
+func (by *Bybit) LinearSubscribe(channelSubscriptions subscription.List) error {
 	return by.handleLinearPayloadSubscription("subscribe", channelSubscriptions)
 }
 
 // LinearUnsubscribe sends an unsubscription messages through linear public channels.
-func (by *Bybit) LinearUnsubscribe(channelSubscriptions []subscription.Subscription) error {
+func (by *Bybit) LinearUnsubscribe(channelSubscriptions subscription.List) error {
 	return by.handleLinearPayloadSubscription("unsubscribe", channelSubscriptions)
 }
 
-func (by *Bybit) handleLinearPayloadSubscription(operation string, channelSubscriptions []subscription.Subscription) error {
+func (by *Bybit) handleLinearPayloadSubscription(operation string, channelSubscriptions subscription.List) error {
 	payloads, err := by.handleSubscriptions(asset.USDTMarginedFutures, operation, channelSubscriptions)
 	if err != nil {
 		return err

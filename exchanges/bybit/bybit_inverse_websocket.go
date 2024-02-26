@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"github.com/gorilla/websocket"
+	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
@@ -44,7 +45,7 @@ func (by *Bybit) GenerateInverseDefaultSubscriptions() ([]subscription.Subscript
 			subscriptions = append(subscriptions,
 				subscription.Subscription{
 					Channel: channels[x],
-					Pair:    pairs[z],
+					Pairs:   currency.Pairs{pairs[z]},
 					Asset:   asset.CoinMarginedFutures,
 				})
 		}
@@ -53,16 +54,16 @@ func (by *Bybit) GenerateInverseDefaultSubscriptions() ([]subscription.Subscript
 }
 
 // InverseSubscribe sends a subscription message to linear public channels.
-func (by *Bybit) InverseSubscribe(channelSubscriptions []subscription.Subscription) error {
+func (by *Bybit) InverseSubscribe(channelSubscriptions subscription.List) error {
 	return by.handleInversePayloadSubscription("subscribe", channelSubscriptions)
 }
 
 // InverseUnsubscribe sends an unsubscription messages through linear public channels.
-func (by *Bybit) InverseUnsubscribe(channelSubscriptions []subscription.Subscription) error {
+func (by *Bybit) InverseUnsubscribe(channelSubscriptions subscription.List) error {
 	return by.handleInversePayloadSubscription("unsubscribe", channelSubscriptions)
 }
 
-func (by *Bybit) handleInversePayloadSubscription(operation string, channelSubscriptions []subscription.Subscription) error {
+func (by *Bybit) handleInversePayloadSubscription(operation string, channelSubscriptions subscription.List) error {
 	payloads, err := by.handleSubscriptions(asset.CoinMarginedFutures, operation, channelSubscriptions)
 	if err != nil {
 		return err
