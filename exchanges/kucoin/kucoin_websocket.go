@@ -97,7 +97,7 @@ var (
 // WsConnect creates a new websocket connection.
 func (ku *Kucoin) WsConnect() error {
 	if !ku.Websocket.IsEnabled() || !ku.IsEnabled() {
-		return errors.New(stream.WebsocketNotEnabled)
+		return stream.ErrWebsocketNotEnabled
 	}
 	fetchedFuturesSnapshotOrderbook = map[string]bool{}
 	var dialer websocket.Dialer
