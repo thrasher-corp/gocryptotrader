@@ -396,6 +396,13 @@ func TestMovePortfolioFunds(t *testing.T) {
 	if len(portID) < 2 {
 		t.Skip(skipInsufficientPortfolios)
 	}
+	// TODO: The API's set up so that the funds on a portfolio can only be checked one portfolio at a time,
+	// so studiously checking for a valid portfolio to send funds from would take ages. And so, this aims to
+	// fail gracefully if there's not enough funds. However, as of this week, the exchange returns a 429 header,
+	// indicating the rate limit was hit when it wasn't, and so prompting GCT to keep ramming its head into it
+	// until something gives and it fails badly. I think either they'll need to fix that, we'll need to waste
+	// a bunch of time to fail gracefully, or we'll have to rewrite some core retry policy stuff to deal with
+	// cases like this.
 	_, err = c.MovePortfolioFunds(context.Background(), testCrypto.String(), portID[0].UUID, portID[1].UUID,
 		testAmount)
 	if err != nil && err.Error() != errPortTransferInsufFunds {
