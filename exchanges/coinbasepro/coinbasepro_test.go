@@ -1516,9 +1516,7 @@ func TestWsConnect(t *testing.T) {
 		t.Error(err)
 	}
 	err = c.WsConnect()
-	if err.Error() != stream.WebsocketNotEnabled {
-		t.Errorf(errExpectMismatch, err, stream.WebsocketNotEnabled)
-	}
+	assert.ErrorIs(t, err, stream.ErrWebsocketNotEnabled)
 	err = c.Websocket.Enable()
 	assert.NoError(t, err)
 }
