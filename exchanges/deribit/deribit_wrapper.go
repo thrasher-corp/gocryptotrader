@@ -128,10 +128,15 @@ func (d *Deribit) SetDefaults() {
 					kline.IntervalCapacity{Interval: kline.ThirtyMin},
 					kline.IntervalCapacity{Interval: kline.OneHour},
 					kline.IntervalCapacity{Interval: kline.TwoHour},
-					kline.IntervalCapacity{Interval: kline.ThreeHour},
-					kline.IntervalCapacity{Interval: kline.SixHour},
-					kline.IntervalCapacity{Interval: kline.TwelveHour},
-					kline.IntervalCapacity{Interval: kline.OneDay},
+					// NOTE: The supported time intervals below are returned
+					// offset to +8 hours. This may lead to
+					// issues with candle quality and conversion as the
+					// intervals may be broken up. The below intervals
+					// are therefore constructed from the intervals above.
+					// kline.IntervalCapacity{Interval: kline.ThreeHour},
+					// kline.IntervalCapacity{Interval: kline.SixHour},
+					// kline.IntervalCapacity{Interval: kline.TwelveHour},
+					// kline.IntervalCapacity{Interval: kline.OneDay},
 				),
 				GlobalResultLimit: 500,
 			},
@@ -1108,7 +1113,7 @@ func (d *Deribit) GetHistoricCandles(ctx context.Context, pair currency.Pair, a 
 		}
 		listCandles := make([]kline.Candle, 0, len(tradingViewData.Ticks))
 		for x := range tradingViewData.Ticks {
-			timeInfo := time.UnixMilli(tradingViewData.Ticks[x])
+			timeInfo := time.UnixMilli(tradingViewData.Ticks[x]).UTC()
 			if timeInfo.Before(start) {
 				continue
 			}
@@ -1159,17 +1164,17 @@ func (d *Deribit) GetHistoricCandlesExtended(ctx context.Context, pair currency.
 				len(tradingViewData.Volume) != checkLen {
 				return nil, fmt.Errorf("%s - %v: invalid trading view chart data received", a, d.formatFuturesTradablePair(req.RequestFormatted))
 			}
-			timeInfo := time.UnixMilli(tradingViewData.Ticks[x]).UTC()
-			if timeInfo.Before(start) {
-				continue
-			}
-			for x := range tradingViewData.Ticks {
+			for i := range tradingViewData.Ticks {
+				timeInfo := time.UnixMilli(tradingViewData.Ticks[i]).UTC()
+				if timeInfo.Before(start) {
+					continue
+				}
 				timeSeries = append(timeSeries, kline.Candle{
-					Open:   tradingViewData.Open[x],
-					High:   tradingViewData.High[x],
-					Low:    tradingViewData.Low[x],
-					Close:  tradingViewData.Close[x],
-					Volume: tradingViewData.Volume[x],
+					Open:   tradingViewData.Open[i],
+					High:   tradingViewData.High[i],
+					Low:    tradingViewData.Low[i],
+					Close:  tradingViewData.Close[i],
+					Volume: tradingViewData.Volume[i],
 					Time:   timeInfo,
 				})
 			}
@@ -1247,6 +1252,7 @@ func (d *Deribit) GetFuturesContractDetails(ctx context.Context, item asset.Item
 				EndDate:              marketSummary[i].ExpirationTimestamp.Time(),
 				SettlementType:       contractSettlementType,
 				IsActive:             marketSummary[i].IsActive,
+				MaxLeverage:          marketSummary[i].MaxLeverage,
 				Type:                 ct,
 			})
 		}

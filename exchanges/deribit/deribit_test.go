@@ -133,31 +133,39 @@ func TestFetchRecentTrades(t *testing.T) {
 
 func TestGetHistoricCandles(t *testing.T) {
 	t.Parallel()
-	_, err := d.GetHistoricCandles(context.Background(), futuresTradablePair, asset.Futures, kline.FifteenMin, time.Now().Add(-time.Minute*5), time.Now())
+	start := time.Now().Add(-time.Hour)
+	end := time.Now()
+	resp, err := d.GetHistoricCandles(context.Background(), futuresTradablePair, asset.Futures, kline.FifteenMin, start, end)
 	require.NoError(t, err)
-	_, err = d.GetHistoricCandles(context.Background(), spotTradablePair, asset.Spot, kline.FifteenMin, time.Now().Add(-time.Minute*5), time.Now())
+	assert.NotEmpty(t, resp)
+	resp, err = d.GetHistoricCandles(context.Background(), spotTradablePair, asset.Spot, kline.FifteenMin, start, end)
 	require.NoError(t, err)
+	assert.NotEmpty(t, resp)
 	sleepUntilTradablePairsUpdated()
-	_, err = d.GetHistoricCandles(context.Background(), optionsTradablePair, asset.Options, kline.FifteenMin, time.Now().Add(-time.Minute*5), time.Now())
+	_, err = d.GetHistoricCandles(context.Background(), optionsTradablePair, asset.Options, kline.FifteenMin, start, end)
 	require.ErrorIs(t, err, asset.ErrNotSupported)
-	_, err = d.GetHistoricCandles(context.Background(), futureComboTradablePair, asset.FutureCombo, kline.FifteenMin, time.Now().Add(-time.Hour), time.Now())
+	_, err = d.GetHistoricCandles(context.Background(), futureComboTradablePair, asset.FutureCombo, kline.FifteenMin, start, end)
 	require.ErrorIs(t, err, asset.ErrNotSupported)
-	_, err = d.GetHistoricCandles(context.Background(), optionComboTradablePair, asset.OptionCombo, kline.FifteenMin, time.Now().Add(-time.Hour), time.Now())
+	_, err = d.GetHistoricCandles(context.Background(), optionComboTradablePair, asset.OptionCombo, kline.FifteenMin, start, end)
 	assert.ErrorIs(t, err, asset.ErrNotSupported)
 }
 
 func TestGetHistoricCandlesExtended(t *testing.T) {
 	t.Parallel()
-	_, err := d.GetHistoricCandlesExtended(context.Background(), futuresTradablePair, asset.Futures, kline.FifteenMin, time.Now().Add(-time.Hour*550), time.Now().Add(-time.Hour*150))
+	start := time.Now().Add(-time.Hour * 24 * 90).Truncate(kline.OneDay.Duration()).UTC()
+	end := time.Now().UTC()
+	resp, err := d.GetHistoricCandlesExtended(context.Background(), futuresTradablePair, asset.Futures, kline.OneDay, start, end)
 	assert.NoError(t, err)
-	_, err = d.GetHistoricCandlesExtended(context.Background(), spotTradablePair, asset.Spot, kline.FifteenMin, time.Now().Add(-time.Hour*550), time.Now().Add(-time.Hour*150))
+	assert.NotEmpty(t, resp)
+	resp, err = d.GetHistoricCandlesExtended(context.Background(), spotTradablePair, asset.Spot, kline.OneDay, start, end)
 	assert.NoError(t, err)
+	assert.NotEmpty(t, resp)
 	sleepUntilTradablePairsUpdated()
-	_, err = d.GetHistoricCandlesExtended(context.Background(), optionsTradablePair, asset.Options, kline.FifteenMin, time.Now().Add(-time.Hour*550), time.Now().Add(-time.Hour*150))
+	_, err = d.GetHistoricCandlesExtended(context.Background(), optionsTradablePair, asset.Options, kline.OneDay, start, end)
 	assert.ErrorIs(t, err, asset.ErrNotSupported)
-	_, err = d.GetHistoricCandlesExtended(context.Background(), futureComboTradablePair, asset.FutureCombo, kline.FifteenMin, time.Now().Add(-time.Hour*550), time.Now().Add(-time.Hour*150))
+	_, err = d.GetHistoricCandlesExtended(context.Background(), futureComboTradablePair, asset.FutureCombo, kline.OneDay, start, end)
 	assert.ErrorIs(t, err, asset.ErrNotSupported)
-	_, err = d.GetHistoricCandlesExtended(context.Background(), optionComboTradablePair, asset.OptionCombo, kline.FifteenMin, time.Now().Add(-time.Hour*550), time.Now().Add(-time.Hour*150))
+	_, err = d.GetHistoricCandlesExtended(context.Background(), optionComboTradablePair, asset.OptionCombo, kline.OneDay, start, end)
 	assert.ErrorIs(t, err, asset.ErrNotSupported)
 }
 
@@ -1257,10 +1265,6 @@ func TestGetCustodyAccounts(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, d)
 	_, err := d.GetCustodyAccounts(context.Background(), currency.BTC)
 	require.NoError(t, err)
-}
-
-func Test(t *testing.T) {
-	t.Parallel()
 }
 
 func TestWsRetrieveCustodyAccounts(t *testing.T) {
