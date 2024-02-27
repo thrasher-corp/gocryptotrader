@@ -351,7 +351,7 @@ func (w *Websocket) dataMonitor() {
 			w.setDataMonitorRunning(false)
 			w.Wg.Done()
 		}()
-		full := 0
+		dropped := 0
 		for {
 			select {
 			case <-w.ShutdownC:
@@ -359,15 +359,16 @@ func (w *Websocket) dataMonitor() {
 			case d := <-w.DataHandler:
 				select {
 				case w.ToRoutine <- d:
-					if full {
-						full = false
+					if dropped != 0 {
+						log.Infof(log.WebsocketMgr, "%s exchange websocket ToRoutine channel buffer recovered; %d messages were dropped", w.exchangeName, dropped)
+						dropped = 0
 					}
 				default:
-					if !full {
-						full = true
+					if dropped == 0 {
 						// If this becomes prone to flapping we could drain the buffer, but that's extreme and we'd like to avoid it if possible
-						log.Warnf(log.WebsocketMgr, "%s exchange backlog in websocket ToRoutine consumer channel; dropping messages", w.exchangeName)
+						log.Warnf(log.WebsocketMgr, "%s exchange websocket ToRoutine channel buffer full; dropping messages", w.exchangeName)
 					}
+					dropped++
 				}
 			}
 		}
