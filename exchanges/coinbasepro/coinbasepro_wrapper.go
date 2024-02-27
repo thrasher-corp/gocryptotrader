@@ -752,7 +752,7 @@ func (c *CoinbasePro) WithdrawCryptocurrencyFunds(ctx context.Context, withdrawR
 	}
 	t := time.Now().UnixNano()
 	u := math.Float64bits(withdrawRequest.Amount)
-	t = t ^ int64(u)
+	t ^= int64(u)
 	message := strconv.FormatInt(t, 10)
 	resp, err := c.SendMoney(ctx, "send", withdrawRequest.WalletID, withdrawRequest.Crypto.Address,
 		withdrawRequest.Currency.String(), withdrawRequest.Description, message, "",
