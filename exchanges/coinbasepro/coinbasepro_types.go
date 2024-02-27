@@ -61,7 +61,7 @@ type AllAccountsResponse struct {
 
 // Params is used within functions to make the setting of parameters easier
 type Params struct {
-	urlVals url.Values
+	url.Values
 }
 
 // OneAccountResponse is a temporary struct used for unmarshalling in GetAccountByID
@@ -84,8 +84,8 @@ type ProductBook struct {
 	Time      time.Time `json:"time"`
 }
 
-// BestBidAsk holds the best bid and ask prices for a variety of products, returned by
-// GetBestBidAsk
+// BestBidAsk holds the best bid and ask prices for a variety of products, used for
+// unmarshalling in GetBestBidAsk
 type BestBidAsk struct {
 	Pricebooks []ProductBook `json:"pricebooks"`
 }
@@ -168,16 +168,20 @@ type AllProducts struct {
 // the exchange, used in the types History and WebsocketCandle
 type UnixTimestamp time.Time
 
-// History holds historic rate information, returned by GetHistoricRates
+// CandleStruct holds historic trade information, used as a sub-struct in History,
+// and returned by GetHistoricRates
+type CandleStruct struct {
+	Start  UnixTimestamp `json:"start"`
+	Low    float64       `json:"low,string"`
+	High   float64       `json:"high,string"`
+	Open   float64       `json:"open,string"`
+	Close  float64       `json:"close,string"`
+	Volume float64       `json:"volume,string"`
+}
+
+// History holds historic rate information, used for unmarshalling in GetHistoricRates
 type History struct {
-	Candles []struct {
-		Start  UnixTimestamp `json:"start"`
-		Low    float64       `json:"low,string"`
-		High   float64       `json:"high,string"`
-		Open   float64       `json:"open,string"`
-		Close  float64       `json:"close,string"`
-		Volume float64       `json:"volume,string"`
-	} `json:"candles"`
+	Candles []CandleStruct `json:"candles"`
 }
 
 // Ticker holds basic ticker information, returned by GetTicker
@@ -258,14 +262,18 @@ type PlaceOrderResp struct {
 	OrderConfiguration OrderConfiguration `json:"order_configuration"`
 }
 
-// CancelOrderResp contains information on attempted order cancellations, returned by
-// CancelOrders
+// OrderCancelDetail contains information on attempted order cancellations, used as a
+// sub-struct by CancelOrdersResp, and returned by CancelOrders
+type OrderCancelDetail struct {
+	Success       bool   `json:"success"`
+	FailureReason string `json:"failure_reason"`
+	OrderID       string `json:"order_id"`
+}
+
+// CancelOrderResp contains information on attempted order cancellations, used for unmarshalling
+// by CancelOrders
 type CancelOrderResp struct {
-	Results []struct {
-		Success       bool   `json:"success"`
-		FailureReason string `json:"failure_reason"`
-		OrderID       string `json:"order_id"`
-	} `json:"results"`
+	Results []OrderCancelDetail `json:"results"`
 }
 
 // EditOrderPreviewResp contains information on the effects of editing an order,
@@ -371,8 +379,8 @@ type SimplePortfolioData struct {
 	Deleted bool   `json:"deleted"`
 }
 
-// AllPortfolioResponse contains a brief overview of the user's portfolios, returned by
-// GetAllPortfolios
+// AllPortfolioResponse contains a brief overview of the user's portfolios, used in unmarshalling
+// for GetAllPortfolios
 type AllPortfolioResponse struct {
 	Portfolios []SimplePortfolioData `json:"portfolios"`
 }
@@ -501,28 +509,32 @@ type FuturesPosition struct {
 	DailyRealizedPNL  float64   `json:"daily_realized_pnl,string"`
 }
 
-// AllFuturesPositions contains information on all futures positions, returned by
-// GetAllFuturesPositions
+// AllFuturesPositions contains information on all futures positions, used in unmarshalling
+// by GetAllFuturesPositions
 type AllFuturesPositions struct {
 	Positions []FuturesPosition `json:"positions"`
 }
 
-// SuccessBool is returned by some endpoints to indicate a failure or a success. Returned
-// by EditOrder, ScheduleFuturesSweep, and CancelPendingFuturesSweep
+// SuccessBool is returned by some endpoints to indicate a failure or a success. Used in
+// unmarshalling by EditOrder, ScheduleFuturesSweep, and CancelPendingFuturesSweep
 type SuccessBool struct {
 	Success bool `json:"success"`
 }
 
+// SweepData contains information on pending and processing sweep requests, used as a
+// sub-struct in ListFuturesSweepsResponse, and returned by ListFuturesSweeps
+type SweepData struct {
+	ID              string    `json:"id"`
+	RequestedAmount ValCur    `json:"requested_amount"`
+	ShouldSweepAll  bool      `json:"should_sweep_all"`
+	Status          string    `json:"status"`
+	ScheduledTime   time.Time `json:"scheduled_time"`
+}
+
 // ListFuturesSweepsResponse contains information on pending and processing sweep
-// requests. Returned by ListFuturesSweeps
+// requests. Used in unmarshalling by ListFuturesSweeps
 type ListFuturesSweepsResponse struct {
-	Sweeps []struct {
-		ID              string    `json:"id"`
-		RequestedAmount ValCur    `json:"requested_amount"`
-		ShouldSweepAll  bool      `json:"should_sweep_all"`
-		Status          string    `json:"status"`
-		ScheduledTime   time.Time `json:"scheduled_time"`
-	} `json:"sweeps"`
+	Sweeps []SweepData `json:"sweeps"`
 }
 
 // PerpetualsPortfolioSummary contains information on perpetuals portfolio balances, used as
@@ -1116,29 +1128,37 @@ type GenPaymentMethodResp struct {
 	Data PaymentMethodData `json:"data"`
 }
 
-// GetFiatCurrenciesResp holds information on fiat currencies. Returned by
-// GetFiatCurrencies
-type GetFiatCurrenciesResp struct {
-	Data []struct {
-		ID      string  `json:"id"`
-		Name    string  `json:"name"`
-		MinSize float64 `json:"min_size,string"`
-	}
+// FiatData holds information on fiat currencies. Used as a sub-struct in
+// GetFiatCurrenciesResp, and returned by GetFiatCurrencies
+type FiatData struct {
+	ID      string  `json:"id"`
+	Name    string  `json:"name"`
+	MinSize float64 `json:"min_size,string"`
 }
 
-// GetCryptocurrenciesResp holds information on cryptocurrencies. Returned by
-// GetCryptocurrencies
+// GetFiatCurrenciesResp holds information on fiat currencies. Used for
+// unmarshalling in GetFiatCurrencies
+type GetFiatCurrenciesResp struct {
+	Data []FiatData `json:"data"`
+}
+
+// CryptoData holds information on cryptocurrencies. Used as a sub-struct in
+// GetCryptocurrenciesResp, and returned by GetCryptocurrencies
+type CryptoData struct {
+	Code         string `json:"code"`
+	Name         string `json:"name"`
+	Color        string `json:"color"`
+	SortIndex    uint16 `json:"sort_index"`
+	Exponent     uint8  `json:"exponent"`
+	Type         string `json:"type"`
+	AddressRegex string `json:"address_regex"`
+	AssetID      string `json:"asset_id"`
+}
+
+// GetCryptocurrenciesResp holds information on cryptocurrencies. Used for
+// unmarshalling in GetCryptocurrencies
 type GetCryptocurrenciesResp struct {
-	Data []struct {
-		Code         string `json:"code"`
-		Name         string `json:"name"`
-		Color        string `json:"color"`
-		SortIndex    uint16 `json:"sort_index"`
-		Exponent     uint8  `json:"exponent"`
-		Type         string `json:"type"`
-		AddressRegex string `json:"address_regex"`
-		AssetID      string `json:"asset_id"`
-	}
+	Data []CryptoData `json:"data"`
 }
 
 // GetExchangeRatesResp holds information on exchange rates. Returned by GetExchangeRates

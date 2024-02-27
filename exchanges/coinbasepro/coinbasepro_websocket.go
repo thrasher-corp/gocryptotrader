@@ -44,7 +44,6 @@ func (c *CoinbasePro) WsConnect() error {
 	if err != nil {
 		return err
 	}
-
 	c.Websocket.Wg.Add(1)
 	go c.wsReadData()
 	return nil
@@ -53,9 +52,7 @@ func (c *CoinbasePro) WsConnect() error {
 // wsReadData receives and passes on websocket messages for processing
 func (c *CoinbasePro) wsReadData() {
 	defer c.Websocket.Wg.Done()
-
 	var seqCount uint64
-
 	for {
 		resp := c.Websocket.Conn.ReadMessage()
 		if resp.Raw == nil {
@@ -83,66 +80,52 @@ func (c *CoinbasePro) wsReadData() {
 // wsHandleData handles all the websocket data coming from the websocket connection
 func (c *CoinbasePro) wsHandleData(respRaw []byte, seqCount uint64) (string, error) {
 	var warnString string
-
 	seqData, _, _, err := jsonparser.Get(respRaw, "sequence_num")
 	if err != nil {
 		return warnString, err
 	}
-
 	seqNum, err := strconv.ParseUint(string(seqData), 10, 64)
 	if err != nil {
 		return warnString, err
 	}
-
 	if seqNum != seqCount {
 		warnString = fmt.Sprintf(warnSequenceIssue, seqNum,
 			seqCount)
 	}
-
 	channelRaw, _, _, err := jsonparser.Get(respRaw, "channel")
 	if err != nil {
 		return warnString, err
 	}
-
 	channel := string(channelRaw)
-
 	if channel == "subscriptions" || channel == "heartbeats" {
 		return warnString, nil
 	}
-
 	data, _, _, err := jsonparser.Get(respRaw, "events")
 	if err != nil {
 		return warnString, err
 	}
-
 	switch channel {
 	case "status":
 		wsStatus := []WebsocketProductHolder{}
-
 		err = json.Unmarshal(data, &wsStatus)
 		if err != nil {
 			return warnString, err
 		}
 		c.Websocket.DataHandler <- wsStatus
-
 	case "error":
 		c.Websocket.DataHandler <- errors.New(string(respRaw))
 	case "ticker", "ticker_batch":
 		wsTicker := []WebsocketTickerHolder{}
-
 		err = json.Unmarshal(data, &wsTicker)
 		if err != nil {
 			return warnString, err
 		}
-
 		sliToSend := []ticker.Price{}
-
 		var timestamp time.Time
 		timestamp, err = getTimestamp(respRaw)
 		if err != nil {
 			return warnString, err
 		}
-
 		for i := range wsTicker {
 			for j := range wsTicker[i].Tickers {
 				sliToSend = append(sliToSend, ticker.Price{
@@ -160,20 +143,16 @@ func (c *CoinbasePro) wsHandleData(respRaw []byte, seqCount uint64) (string, err
 		c.Websocket.DataHandler <- sliToSend
 	case "candles":
 		wsCandles := []WebsocketCandleHolder{}
-
 		err = json.Unmarshal(data, &wsCandles)
 		if err != nil {
 			return warnString, err
 		}
-
 		sliToSend := []stream.KlineData{}
-
 		var timestamp time.Time
 		timestamp, err = getTimestamp(respRaw)
 		if err != nil {
 			return warnString, err
 		}
-
 		for i := range wsCandles {
 			for j := range wsCandles[i].Candles {
 				sliToSend = append(sliToSend, stream.KlineData{
@@ -193,14 +172,11 @@ func (c *CoinbasePro) wsHandleData(respRaw []byte, seqCount uint64) (string, err
 		c.Websocket.DataHandler <- sliToSend
 	case "market_trades":
 		wsTrades := []WebsocketMarketTradeHolder{}
-
 		err = json.Unmarshal(data, &wsTrades)
 		if err != nil {
 			return warnString, err
 		}
-
 		sliToSend := []trade.Data{}
-
 		for i := range wsTrades {
 			for j := range wsTrades[i].Trades {
 				sliToSend = append(sliToSend, trade.Data{
@@ -222,12 +198,10 @@ func (c *CoinbasePro) wsHandleData(respRaw []byte, seqCount uint64) (string, err
 		if err != nil {
 			return warnString, err
 		}
-
 		timestamp, err := getTimestamp(respRaw)
 		if err != nil {
 			return warnString, err
 		}
-
 		for i := range wsL2 {
 			switch wsL2[i].Type {
 			case "snapshot":
@@ -247,7 +221,6 @@ func (c *CoinbasePro) wsHandleData(respRaw []byte, seqCount uint64) (string, err
 		if err != nil {
 			return warnString, err
 		}
-
 		sliToSend := []order.Detail{}
 		for i := range wsUser {
 			for j := range wsUser[i].Orders {
@@ -256,19 +229,16 @@ func (c *CoinbasePro) wsHandleData(respRaw []byte, seqCount uint64) (string, err
 				if err != nil {
 					return warnString, err
 				}
-
 				var oSide order.Side
 				oSide, err = order.StringToOrderSide(wsUser[i].Orders[j].OrderSide)
 				if err != nil {
 					return warnString, err
 				}
-
 				var oStatus order.Status
 				oStatus, err = statusToStandardStatus(wsUser[i].Orders[j].Status)
 				if err != nil {
 					return warnString, err
 				}
-
 				sliToSend = append(sliToSend, order.Detail{
 					Price:           wsUser[i].Orders[j].AveragePrice,
 					Amount:          wsUser[i].Orders[j].CumulativeQuantity + wsUser[i].Orders[j].LeavesQuantity,
@@ -288,7 +258,6 @@ func (c *CoinbasePro) wsHandleData(respRaw []byte, seqCount uint64) (string, err
 			}
 		}
 		c.Websocket.DataHandler <- sliToSend
-
 	default:
 		return warnString, errChannelNameUnknown
 	}
@@ -298,11 +267,9 @@ func (c *CoinbasePro) wsHandleData(respRaw []byte, seqCount uint64) (string, err
 // ProcessSnapshot processes the initial orderbook snap shot
 func (c *CoinbasePro) ProcessSnapshot(snapshot *WebsocketOrderbookDataHolder, timestamp time.Time) error {
 	bids, asks, err := processBidAskArray(snapshot)
-
 	if err != nil {
 		return err
 	}
-
 	return c.Websocket.Orderbook.LoadSnapshot(&orderbook.Base{
 		Bids:            bids,
 		Asks:            asks,
@@ -317,11 +284,9 @@ func (c *CoinbasePro) ProcessSnapshot(snapshot *WebsocketOrderbookDataHolder, ti
 // ProcessUpdate updates the orderbook local cache
 func (c *CoinbasePro) ProcessUpdate(update *WebsocketOrderbookDataHolder, timestamp time.Time) error {
 	bids, asks, err := processBidAskArray(update)
-
 	if err != nil {
 		return err
 	}
-
 	obU := orderbook.Update{
 		Bids:       bids,
 		Asks:       asks,
@@ -329,7 +294,6 @@ func (c *CoinbasePro) ProcessUpdate(update *WebsocketOrderbookDataHolder, timest
 		UpdateTime: timestamp,
 		Asset:      asset.Spot,
 	}
-
 	return c.Websocket.Orderbook.Update(&obU)
 }
 
@@ -370,7 +334,6 @@ func (c *CoinbasePro) GenerateDefaultSubscriptions() ([]subscription.Subscriptio
 // Subscribe sends a websocket message to receive data from the channel
 func (c *CoinbasePro) Subscribe(channelsToSubscribe []subscription.Subscription) error {
 	chanKeys := make(map[string]currency.Pairs)
-
 	for i := range channelsToSubscribe {
 		chanKeys[channelsToSubscribe[i].Channel] =
 			chanKeys[channelsToSubscribe[i].Channel].Add(channelsToSubscribe[i].Pair)
@@ -382,7 +345,6 @@ func (c *CoinbasePro) Subscribe(channelsToSubscribe []subscription.Subscription)
 		}
 		time.Sleep(time.Millisecond * 10)
 	}
-
 	c.Websocket.AddSuccessfulSubscriptions(channelsToSubscribe...)
 	return nil
 }
@@ -390,12 +352,10 @@ func (c *CoinbasePro) Subscribe(channelsToSubscribe []subscription.Subscription)
 // Unsubscribe sends a websocket message to stop receiving data from the channel
 func (c *CoinbasePro) Unsubscribe(channelsToUnsubscribe []subscription.Subscription) error {
 	chanKeys := make(map[string]currency.Pairs)
-
 	for i := range channelsToUnsubscribe {
 		chanKeys[channelsToUnsubscribe[i].Channel] =
 			chanKeys[channelsToUnsubscribe[i].Channel].Add(channelsToUnsubscribe[i].Pair)
 	}
-
 	for s := range chanKeys {
 		err := c.sendRequest("unsubscribe", s, chanKeys[s])
 		if err != nil {
@@ -403,7 +363,6 @@ func (c *CoinbasePro) Unsubscribe(channelsToUnsubscribe []subscription.Subscript
 		}
 		time.Sleep(time.Millisecond * 10)
 	}
-
 	c.Websocket.RemoveSubscriptions(channelsToUnsubscribe...)
 	return nil
 }
@@ -415,36 +374,29 @@ func (c *CoinbasePro) GetJWT(ctx context.Context, uri string) (string, error) {
 	if c.jwtLastRegen.Add(time.Minute*2).After(time.Now()) && uri != "" {
 		return c.jwt, nil
 	}
-
 	creds, err := c.GetCredentials(ctx)
 	if err != nil {
 		return "", err
 	}
-
 	block, _ := pem.Decode([]byte(creds.Secret))
 	if block == nil {
 		return "", errCantDecodePrivKey
 	}
-
 	key, err := x509.ParseECPrivateKey(block.Bytes)
 	if err != nil {
 		return "", err
 	}
-
 	nonce, err := common.GenerateRandomString(64, "1234567890ABCDEF")
 	if err != nil {
 		return "", err
 	}
-
 	head := map[string]interface{}{"kid": creds.ClientID, "typ": "JWT", "alg": "ES256", "nonce": nonce}
 	headJSON, err := json.Marshal(head)
 	if err != nil {
 		return "", err
 	}
 	headEncode := base64URLEncode(headJSON)
-
 	c.jwtLastRegen = time.Now()
-
 	body := map[string]interface{}{"iss": "coinbase-cloud", "nbf": time.Now().Unix(),
 		"exp": time.Now().Add(time.Minute * 2).Unix(), "sub": creds.ClientID, "aud": "retail_rest_api_proxy"}
 	if uri != "" {
@@ -455,15 +407,12 @@ func (c *CoinbasePro) GetJWT(ctx context.Context, uri string) (string, error) {
 		return "", err
 	}
 	bodyEncode := base64URLEncode(bodyJSON)
-
 	hash := sha256.Sum256([]byte(headEncode + "." + bodyEncode))
-
 	sig, err := ecdsa.SignASN1(rand.Reader, key, hash[:])
 	if err != nil {
 		return "", err
 	}
 	sigEncode := base64URLEncode(sig)
-
 	return headEncode + "." + bodyEncode + "." + sigEncode, nil
 }
 
@@ -487,21 +436,16 @@ func (c *CoinbasePro) sendRequest(msgType, channel string, productIDs currency.P
 	if err != nil {
 		return err
 	}
-
 	n := strconv.FormatInt(time.Now().Unix(), 10)
-
 	message := n + channel + productIDs.Join()
-
 	hmac, err := crypto.GetHMAC(crypto.HashSHA256,
 		[]byte(message),
 		[]byte(creds.Secret))
 	if err != nil {
 		return err
 	}
-
 	// TODO: Implement JWT authentication once our REST implementation moves to it, or if there's
 	// an exchange-wide reform to enable multiple sets of authentication credentials
-
 	req := WebsocketRequest{
 		Type:       msgType,
 		ProductIDs: productIDs.Strings(),
@@ -510,7 +454,6 @@ func (c *CoinbasePro) sendRequest(msgType, channel string, productIDs currency.P
 		Key:        creds.Key,
 		Timestamp:  n,
 	}
-
 	if err != nil {
 		return err
 	}

@@ -21,6 +21,19 @@ func TestString(t *testing.T) {
 	}
 }
 
+func TestUpper(t *testing.T) {
+	t.Parallel()
+	a := Spot
+	if a.Upper() != "SPOT" {
+		t.Fatal("TestUpper returned an unexpected result")
+	}
+
+	a = 0
+	if a.Upper() != "" {
+		t.Fatal("TestUpper returned an unexpected result")
+	}
+}
+
 func TestToStringArray(t *testing.T) {
 	t.Parallel()
 	a := Items{Spot, Futures}

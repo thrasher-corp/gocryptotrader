@@ -189,7 +189,7 @@ func TestGetProductBook(t *testing.T) {
 func TestGetAllProducts(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, c)
 	testPairs := []string{testPair.String(), "ETH-USD"}
-	resp, err := c.GetAllProducts(context.Background(), 30000, 0, "SPOT", "PERPETUAL", "STATUS_ALL",
+	resp, err := c.GetAllProducts(context.Background(), 30000, 1, "SPOT", "PERPETUAL", "STATUS_ALL",
 		testPairs)
 	assert.NoError(t, err)
 	assert.NotEmpty(t, resp, errExpectedNonEmpty)
@@ -222,7 +222,7 @@ func TestGetTicker(t *testing.T) {
 	_, err := c.GetTicker(context.Background(), "", 1, time.Time{}, time.Time{})
 	assert.ErrorIs(t, err, errProductIDEmpty)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, c)
-	resp, err := c.GetTicker(context.Background(), testPair.String(), 5, time.Time{}, time.Time{})
+	resp, err := c.GetTicker(context.Background(), testPair.String(), 5, time.Now().Add(-time.Minute*5), time.Now())
 	assert.NoError(t, err)
 	assert.NotEmpty(t, resp, errExpectedNonEmpty)
 }
@@ -347,7 +347,8 @@ func TestGetOrderByID(t *testing.T) {
 	if len(ordID.Orders) == 0 {
 		t.Skip(skipInsufficientOrders)
 	}
-	resp, err := c.GetOrderByID(context.Background(), ordID.Orders[0].OrderID, ordID.Orders[0].ClientOID, "")
+	resp, err := c.GetOrderByID(context.Background(), ordID.Orders[0].OrderID, ordID.Orders[0].ClientOID,
+		testFiat.String())
 	assert.NoError(t, err)
 	assert.NotEmpty(t, resp, errExpectedNonEmpty)
 }
@@ -392,10 +393,10 @@ func TestMovePortfolioFunds(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, c, canManipulateRealOrders)
 	portID, err := c.GetAllPortfolios(context.Background(), "")
 	assert.NoError(t, err)
-	if len(portID.Portfolios) < 2 {
+	if len(portID) < 2 {
 		t.Skip(skipInsufficientPortfolios)
 	}
-	_, err = c.MovePortfolioFunds(context.Background(), testCrypto.String(), portID.Portfolios[0].UUID, portID.Portfolios[1].UUID,
+	_, err = c.MovePortfolioFunds(context.Background(), testCrypto.String(), portID[0].UUID, portID[1].UUID,
 		testAmount)
 	if err != nil && err.Error() != errPortTransferInsufFunds {
 		t.Error(err)
@@ -408,13 +409,13 @@ func TestGetPortfolioByID(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, c)
 	portID, err := c.GetAllPortfolios(context.Background(), "")
 	assert.NoError(t, err)
-	if len(portID.Portfolios) == 0 {
+	if len(portID) == 0 {
 		t.Fatal(errExpectedNonEmpty)
 	}
-	resp, err := c.GetPortfolioByID(context.Background(), portID.Portfolios[0].UUID)
+	resp, err := c.GetPortfolioByID(context.Background(), portID[0].UUID)
 	assert.NoError(t, err)
-	if resp.Breakdown.Portfolio != portID.Portfolios[0] {
-		t.Errorf(errExpectMismatch, resp.Breakdown.Portfolio, portID.Portfolios[0])
+	if resp.Breakdown.Portfolio != portID[0] {
+		t.Errorf(errExpectMismatch, resp.Breakdown.Portfolio, portID[0])
 	}
 }
 
@@ -446,7 +447,8 @@ func TestGetFuturesBalanceSummary(t *testing.T) {
 
 func TestGetAllFuturesPositions(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, c)
-	testGetNoArgs(t, c.GetAllFuturesPositions)
+	_, err := c.GetAllFuturesPositions(context.Background())
+	assert.NoError(t, err)
 }
 
 func TestGetFuturesPositionByID(t *testing.T) {
@@ -462,9 +464,9 @@ func TestScheduleFuturesSweep(t *testing.T) {
 	curSweeps, err := c.ListFuturesSweeps(context.Background())
 	assert.NoError(t, err)
 	preCancel := false
-	if len(curSweeps.Sweeps) > 0 {
-		for i := range curSweeps.Sweeps {
-			if curSweeps.Sweeps[i].Status == "PENDING" {
+	if len(curSweeps) > 0 {
+		for i := range curSweeps {
+			if curSweeps[i].Status == "PENDING" {
 				preCancel = true
 			}
 		}
@@ -490,9 +492,9 @@ func TestCancelPendingFuturesSweep(t *testing.T) {
 	curSweeps, err := c.ListFuturesSweeps(context.Background())
 	assert.NoError(t, err)
 	partialSkip := false
-	if len(curSweeps.Sweeps) > 0 {
-		for i := range curSweeps.Sweeps {
-			if curSweeps.Sweeps[i].Status == "PENDING" {
+	if len(curSweeps) > 0 {
+		for i := range curSweeps {
+			if curSweeps[i].Status == "PENDING" {
 				partialSkip = true
 			}
 		}
@@ -551,8 +553,8 @@ func TestGetTransactionSummary(t *testing.T) {
 	_, err := c.GetTransactionSummary(context.Background(), time.Unix(2, 2), time.Unix(1, 1), "", "", "")
 	assert.ErrorIs(t, err, common.ErrStartAfterEnd)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, c)
-	resp, err := c.GetTransactionSummary(context.Background(), time.Unix(1, 1), time.Now(), "", asset.Spot.Upper(),
-		"UNKNOWN_CONTRACT_EXPIRY_TYPE")
+	resp, err := c.GetTransactionSummary(context.Background(), time.Unix(1, 1), time.Now(), testFiat.String(),
+		asset.Spot.Upper(), "UNKNOWN_CONTRACT_EXPIRY_TYPE")
 	assert.NoError(t, err)
 	assert.NotEmpty(t, resp, errExpectedNonEmpty)
 }
@@ -901,12 +903,6 @@ func TestGetPrice(t *testing.T) {
 	resp, err := c.GetPrice(context.Background(), testPair.String(), asset.Spot.String())
 	assert.NoError(t, err)
 	assert.NotEmpty(t, resp, errExpectedNonEmpty)
-	resp, err = c.GetPrice(context.Background(), testPair.String(), "buy")
-	assert.NoError(t, err)
-	assert.NotEmpty(t, resp, errExpectedNonEmpty)
-	resp, err = c.GetPrice(context.Background(), testPair.String(), "sell")
-	assert.NoError(t, err)
-	assert.NotEmpty(t, resp, errExpectedNonEmpty)
 }
 
 func TestGetV2Time(t *testing.T) {
@@ -922,16 +918,16 @@ func TestSendHTTPRequest(t *testing.T) {
 
 func TestSendAuthenticatedHTTPRequest(t *testing.T) {
 	fc := &CoinbasePro{}
-	err := fc.SendAuthenticatedHTTPRequest(context.Background(), exchange.EdgeCase3, "", "", "", nil, false, nil, nil)
+	err := fc.SendAuthenticatedHTTPRequest(context.Background(), exchange.EdgeCase3, "", "", nil, nil, false, nil, nil)
 	assert.ErrorIs(t, err, exchange.ErrCredentialsAreEmpty)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, c)
-	err = c.SendAuthenticatedHTTPRequest(context.Background(), exchange.EdgeCase3, "", "", "", nil, false, nil, nil)
+	err = c.SendAuthenticatedHTTPRequest(context.Background(), exchange.EdgeCase3, "", "", nil, nil, false, nil, nil)
 	if err.Error() != errNoEndpointPathEdgeCase3 {
 		t.Errorf(errExpectMismatch, err, errNoEndpointPathEdgeCase3)
 	}
 	ch := make(chan struct{})
 	body := map[string]interface{}{"Unmarshalable": ch}
-	err = c.SendAuthenticatedHTTPRequest(context.Background(), exchange.RestSpot, "", "", "", body, false, nil, nil)
+	err = c.SendAuthenticatedHTTPRequest(context.Background(), exchange.RestSpot, "", "", nil, body, false, nil, nil)
 	if err.Error() != errJSONUnsupportedChan {
 		t.Errorf(errExpectMismatch, err, errJSONUnsupportedChan)
 	}
@@ -1716,12 +1712,12 @@ func portfolioIDFromName(t *testing.T, targetName string) string {
 		if err != nil {
 			t.Error(err)
 		}
-		if len(getResp.Portfolios) == 0 {
+		if len(getResp) == 0 {
 			t.Fatal(errExpectedNonEmpty)
 		}
-		for i := range getResp.Portfolios {
-			if getResp.Portfolios[i].Name == targetName {
-				targetID = getResp.Portfolios[i].UUID
+		for i := range getResp {
+			if getResp[i].Name == targetName {
+				targetID = getResp[i].UUID
 				break
 			}
 		}
@@ -1736,13 +1732,13 @@ func getINTXPortfolio(t *testing.T) string {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, c)
 	resp, err := c.GetAllPortfolios(context.Background(), "")
 	assert.NoError(t, err)
-	if len(resp.Portfolios) == 0 {
+	if len(resp) == 0 {
 		t.Skip(skipInsufficientPortfolios)
 	}
 	var targetID string
-	for i := range resp.Portfolios {
-		if resp.Portfolios[i].Type == "INTX" {
-			targetID = resp.Portfolios[i].UUID
+	for i := range resp {
+		if resp[i].Type == "INTX" {
+			targetID = resp[i].UUID
 			break
 		}
 	}
@@ -1776,7 +1772,7 @@ func convertTestHelper(t *testing.T) (fromAccID, toAccID string) {
 	return fromAccID, toAccID
 }
 
-func transferTestHelper(t *testing.T, wallets GetAllWalletsResponse) (srcWalletID, tarWalletID string) {
+func transferTestHelper(t *testing.T, wallets *GetAllWalletsResponse) (srcWalletID, tarWalletID string) {
 	t.Helper()
 	var hasValidFunds bool
 	for i := range wallets.Data {
@@ -1846,8 +1842,8 @@ func withdrawFiatFundsHelper(t *testing.T, fn withdrawFiatFunc) {
 }
 
 type getNoArgsResp interface {
-	AllFuturesPositions | ServerTimeV3 | *UserResponse | AuthResponse | GetFiatCurrenciesResp |
-		GetCryptocurrenciesResp | ServerTimeV2
+	*ServerTimeV3 | *UserResponse | *AuthResponse | []FiatData |
+		[]CryptoData | *ServerTimeV2
 }
 
 type getNoArgsAssertNotEmpty[G getNoArgsResp] func(context.Context) (G, error)
@@ -1859,7 +1855,7 @@ func testGetNoArgs[G getNoArgsResp](t *testing.T, f getNoArgsAssertNotEmpty[G]) 
 	assert.NotEmpty(t, resp, errExpectedNonEmpty)
 }
 
-type genConvertTestFunc func(context.Context, string, string, string) (ConvertResponse, error)
+type genConvertTestFunc func(context.Context, string, string, string) (*ConvertResponse, error)
 
 func convertTestShared(t *testing.T, f genConvertTestFunc) {
 	t.Helper()
