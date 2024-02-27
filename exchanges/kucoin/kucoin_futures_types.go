@@ -141,6 +141,13 @@ type FuturesFundingRate struct {
 	PredictedValue float64 `json:"predictedValue"`
 }
 
+// FundingHistoryItem represents funding hidtory item
+type FundingHistoryItem struct {
+	Symbol      string               `json:"symbol"`
+	FundingRate float64              `json:"fundingRate"`
+	Timepoint   convert.ExchangeTime `json:"timepoint"`
+}
+
 // FuturesKline stores kline data
 type FuturesKline struct {
 	StartTime time.Time
@@ -281,6 +288,12 @@ type FuturesPosition struct {
 	SettleCurrency       string               `json:"settleCurrency"`
 	MaintainMargin       float64              `json:"maintainMargin"`
 	RiskLimitLevel       int64                `json:"riskLimitLevel"`
+}
+
+// WithdrawMarginResponse represents a response data after withdrawing a margin.
+type WithdrawMarginResponse struct {
+	Symbol         string  `json:"symbol"`
+	WithdrawAmount float64 `json:"withdrawAmount"`
 }
 
 // FuturesRiskLimitLevel represents futures risk limit level information.

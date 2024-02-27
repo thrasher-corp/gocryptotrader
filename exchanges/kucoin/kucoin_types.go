@@ -1904,6 +1904,11 @@ type FuturesInterestRateResponse struct {
 	HasMore bool                  `json:"hasMore"`
 }
 
+// TransactionVolume represents a 24 hour transaction volume.
+type TransactionVolume struct {
+	TurnoverOf24H int `json:"turnoverOf24h"`
+}
+
 // FuturesTransactionHistoryResponse represents a futures transaction history response.
 type FuturesTransactionHistoryResponse struct {
 	List    []FuturesTransactionHistory `json:"dataList"`
@@ -1920,23 +1925,35 @@ type FuturesFundingHistoryResponse struct {
 type FuturesOrderParam struct {
 	ClientOrderID string        `json:"clientOid"`
 	Side          string        `json:"side"`
-	Symbol        currency.Pair `json:"symbol,omitempty"`
-	OrderType     string        `json:"type"`
-	Remark        string        `json:"remark,omitempty"`
-	Stop          string        `json:"stp,omitempty"`           // [optional] Either `down` or `up`. Requires stopPrice and stopPriceType to be defined
-	StopPriceType string        `json:"stopPriceType,omitempty"` // [optional] Either TP, IP or MP, Need to be defined if stop is specified. `TP` for trade price, `MP` for Mark price, and "IP" for index price.
-	TimeInForce   string        `json:"timeInForce,omitempty"`
-	Size          float64       `json:"size,omitempty,string"`
-	Price         float64       `json:"price,string,omitempty"`
-	StopPrice     float64       `json:"stopPrice,omitempty,string"`
-	Leverage      float64       `json:"leverage,omitempty,string"`
-	VisibleSize   float64       `json:"visibleSize,omitempty,string"`
-	ReduceOnly    bool          `json:"reduceOnly,omitempty"`
-	CloseOrder    bool          `json:"closeOrder,omitempty"`
-	ForceHold     bool          `json:"forceHold,omitempty"`
-	PostOnly      bool          `json:"postOnly,omitempty"`
-	Hidden        bool          `json:"hidden,omitempty"`
-	Iceberg       bool          `json:"iceberg,omitempty"`
+	Symbol        currency.Pair `json:"symbol"`
+	Leverage      float64       `json:"leverage,string"`
+
+	Size  float64 `json:"size,omitempty,string"`
+	Price float64 `json:"price,string,omitempty"`
+
+	OrderType           string  `json:"type"`
+	Remark              string  `json:"remark,omitempty"`
+	Stop                string  `json:"stop,omitempty"`          // Either down or up. Requires stopPrice and stopPriceType to be defined
+	StopPriceType       string  `json:"stopPriceType,omitempty"` // [optional] Either TP, IP or MP, Need to be defined if stop is specified. `TP` for trade price, `MP` for Mark price, and "IP" for index price.
+	StopPrice           float64 `json:"stopPrice,omitempty,string"`
+	ReduceOnly          bool    `json:"reduceOnly,omitempty"`
+	CloseOrder          bool    `json:"closeOrder,omitempty"`
+	ForceHold           bool    `json:"forceHold,omitempty"`
+	SelfTradePrevention string  `json:"stp,omitempty"` // self trade prevention, CN, CO, CB. Not supported DC at the moment
+	TimeInForce         string  `json:"timeInForce,omitempty"`
+	VisibleSize         float64 `json:"visibleSize,omitempty,string"` // The maximum visible size of an iceberg order
+	PostOnly            bool    `json:"postOnly,omitempty"`
+	Hidden              bool    `json:"hidden,omitempty"`
+	Iceberg             bool    `json:"iceberg,omitempty"`
+}
+
+// FuturesOrderRespItem represents a single futures order placing response in placing multiple orders.
+type FuturesOrderRespItem struct {
+	OrderID       string `json:"orderId"`
+	ClientOrderID string `json:"clientOid"`
+	Symbol        string `json:"symbol"`
+	Code          string `json:"code"`
+	Msg           string `json:"msg"`
 }
 
 // SpotOrderParam represents the spot place order request parameters.

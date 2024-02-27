@@ -487,7 +487,7 @@ func (ku *Kucoin) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (
 	}
 	switch assetType {
 	case asset.Futures:
-		accountH, err := ku.GetFuturesAccountOverview(ctx, "")
+		accountH, err := ku.GetFuturesAccountOverview(ctx, currency.EMPTYCODE)
 		if err != nil {
 			return account.Holdings{}, err
 		}
@@ -604,7 +604,7 @@ func (ku *Kucoin) GetWithdrawalsHistory(ctx context.Context, c currency.Code, a 
 		return resp, nil
 	case asset.Futures:
 		var futuresWithdrawals *FuturesWithdrawalsListResponse
-		futuresWithdrawals, err = ku.GetFuturesWithdrawalList(ctx, c.String(), "", time.Time{}, time.Time{})
+		futuresWithdrawals, err = ku.GetFuturesWithdrawalList(ctx, c, "", time.Time{}, time.Time{})
 		if err != nil {
 			return nil, err
 		}
@@ -822,7 +822,7 @@ func (ku *Kucoin) CancelOrder(ctx context.Context, ord *order.Cancel) error {
 		}
 		return err
 	case asset.Futures:
-		_, err := ku.CancelFuturesOrder(ctx, ord.OrderID)
+		_, err := ku.CancelFuturesOrderByOrderID(ctx, ord.OrderID)
 		if err != nil {
 			return err
 		}
@@ -865,7 +865,7 @@ func (ku *Kucoin) CancelAllOrders(ctx context.Context, orderCancellation *order.
 			return order.CancelAllResponse{}, err
 		}
 	case asset.Futures:
-		values, err = ku.CancelAllFuturesOpenOrders(ctx, orderCancellation.Pair.String())
+		values, err = ku.CancelMultipleFuturesLimitOrders(ctx, orderCancellation.Pair.String())
 		if err != nil {
 			return result, err
 		}
@@ -895,7 +895,7 @@ func (ku *Kucoin) GetOrderInfo(ctx context.Context, orderID string, pair currenc
 	}
 	switch assetType {
 	case asset.Futures:
-		orderDetail, err := ku.GetFuturesOrderDetails(ctx, orderID)
+		orderDetail, err := ku.GetFuturesOrderDetails(ctx, orderID, "")
 		if err != nil {
 			return nil, err
 		}
@@ -970,7 +970,7 @@ func (ku *Kucoin) GetOrderInfo(ctx context.Context, orderID string, pair currenc
 func (ku *Kucoin) GetDepositAddress(ctx context.Context, c currency.Code, _, _ string) (*deposit.Address, error) {
 	ad, err := ku.GetDepositAddressesV2(ctx, c.Upper().String())
 	if err != nil {
-		fad, err := ku.GetFuturesDepositAddress(ctx, c.String())
+		fad, err := ku.GetFuturesDepositAddress(ctx, c)
 		if err != nil {
 			return nil, err
 		}
@@ -1781,7 +1781,7 @@ func (ku *Kucoin) GetFuturesPositionSummary(ctx context.Context, r *futures.Posi
 		settlementType = contracts[i].SettlementType
 	}
 
-	ao, err := ku.GetFuturesAccountOverview(ctx, fPair.String())
+	ao, err := ku.GetFuturesAccountOverview(ctx, fPair.Base)
 	if err != nil {
 		return nil, err
 	}
