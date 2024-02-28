@@ -37,7 +37,7 @@ import (
 // unfundedFuturesAccount defines an error string when an account associated
 // with a settlement currency has not been funded. Use specific pairs to avoid
 // this error.
-const unfundedFuturesAccount = `{"label":"USER_NOT_FOUND","message":"please transfer funds first to create futures account"}`
+const unfundedFuturesAccount = `please transfer funds first to create futures account`
 
 // GetDefaultConfig returns a default exchange config
 func (g *Gateio) GetDefaultConfig(ctx context.Context) (*config.Exchange, error) {
@@ -1695,14 +1695,16 @@ func (g *Gateio) GetActiveOrders(ctx context.Context, req *order.MultiOrderReque
 				return nil, err
 			}
 			for x := range futuresOrders {
-				if futuresOrders[x].Status != "open" {
-					continue
-				}
 				var pair currency.Pair
 				pair, err = currency.NewPairFromString(futuresOrders[x].Contract)
 				if err != nil {
 					return nil, err
 				}
+
+				if futuresOrders[x].Status != "open" || (len(req.Pairs) > 0 && !req.Pairs.Contains(pair, true)) {
+					continue
+				}
+
 				side, amount, remaining := getSideAndAmountFromSize(futuresOrders[x].Size, futuresOrders[x].RemainingAmount)
 				orders = append(orders, order.Detail{
 					Status:               order.Open,
