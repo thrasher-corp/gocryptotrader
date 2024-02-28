@@ -855,11 +855,8 @@ func TestGetMostRecentTrades(t *testing.T) {
 func TestGetHistoricalTrades(t *testing.T) {
 	t.Parallel()
 	_, err := b.GetHistoricalTrades(context.Background(), "BTCUSDT", 5, -1)
-	if !mockTests && err == nil {
-		t.Errorf("Binance GetHistoricalTrades() error: %v", "expected error")
-	} else if mockTests && err != nil {
-		t.Errorf("Binance GetHistoricalTrades() error: %v", err)
-	}
+	require.False(t, !mockTests && err == nil, "expected error")
+	assert.False(t, mockTests && err != nil, err)
 }
 
 func TestGetAggregatedTrades(t *testing.T) {
@@ -925,14 +922,9 @@ func TestQueryOrder(t *testing.T) {
 	t.Parallel()
 
 	_, err := b.QueryOrder(context.Background(), currency.NewPair(currency.BTC, currency.USDT), "", 1337)
-	switch {
-	case sharedtestvalues.AreAPICredentialsSet(b) && err != nil:
-		t.Error("QueryOrder() error", err)
-	case !sharedtestvalues.AreAPICredentialsSet(b) && err == nil && !mockTests:
-		t.Error("QueryOrder() expecting an error when no keys are set")
-	case mockTests && err != nil:
-		t.Error("Mock QueryOrder() error", err)
-	}
+	require.False(t, sharedtestvalues.AreAPICredentialsSet(b) && err != nil, err)
+	require.False(t, !sharedtestvalues.AreAPICredentialsSet(b) && err == nil && !mockTests, "expecting an error when no keys are set")
+	require.False(t, mockTests && err != nil, err)
 }
 
 func TestOpenOrders(t *testing.T) {
@@ -948,16 +940,10 @@ func TestOpenOrders(t *testing.T) {
 
 func TestAllOrders(t *testing.T) {
 	t.Parallel()
-
 	_, err := b.AllOrders(context.Background(), currency.NewPair(currency.BTC, currency.USDT), "", "")
-	switch {
-	case sharedtestvalues.AreAPICredentialsSet(b) && err != nil:
-		t.Error("AllOrders() error", err)
-	case !sharedtestvalues.AreAPICredentialsSet(b) && err == nil && !mockTests:
-		t.Error("AllOrders() expecting an error when no keys are set")
-	case mockTests && err != nil:
-		t.Error("Mock AllOrders() error", err)
-	}
+	require.False(t, sharedtestvalues.AreAPICredentialsSet(b) && err != nil, err)
+	require.False(t, !sharedtestvalues.AreAPICredentialsSet(b) && err == nil && !mockTests, "expecting an error when no keys are set")
+	require.False(t, mockTests && err != nil, err)
 }
 
 // TestGetFeeByTypeOfflineTradeFee logic test
@@ -968,13 +954,9 @@ func TestGetFeeByTypeOfflineTradeFee(t *testing.T) {
 	_, err := b.GetFeeByType(context.Background(), feeBuilder)
 	require.NoError(t, err)
 	if !sharedtestvalues.AreAPICredentialsSet(b) || mockTests {
-		if feeBuilder.FeeType != exchange.OfflineTradeFee {
-			t.Errorf("Expected %v, received %v", exchange.OfflineTradeFee, feeBuilder.FeeType)
-		}
+		require.Equal(t, exchange.OfflineTradeFee, feeBuilder.FeeType)
 	} else {
-		if feeBuilder.FeeType != exchange.CryptocurrencyTradeFee {
-			t.Errorf("Expected %v, received %v", exchange.CryptocurrencyTradeFee, feeBuilder.FeeType)
-		}
+		require.Equal(t, exchange.CryptocurrencyTradeFee, feeBuilder.FeeType)
 	}
 }
 
@@ -1040,9 +1022,7 @@ func TestFormatWithdrawPermissions(t *testing.T) {
 
 	expectedResult := exchange.AutoWithdrawCryptoText + " & " + exchange.NoFiatWithdrawalsText
 	withdrawPermissions := b.FormatWithdrawPermissions()
-	if withdrawPermissions != expectedResult {
-		t.Errorf("Expected: %s, Received: %s", expectedResult, withdrawPermissions)
-	}
+	require.Equal(t, expectedResult, withdrawPermissions)
 }
 
 func TestGetActiveOrders(t *testing.T) {
@@ -1057,14 +1037,9 @@ func TestGetActiveOrders(t *testing.T) {
 	}
 
 	_, err = b.GetActiveOrders(context.Background(), &getOrdersRequest)
-	switch {
-	case sharedtestvalues.AreAPICredentialsSet(b) && err != nil:
-		t.Error("GetActiveOrders() error", err)
-	case !sharedtestvalues.AreAPICredentialsSet(b) && err == nil && !mockTests:
-		t.Error("GetActiveOrders() expecting an error when no keys are set")
-	case mockTests && err != nil:
-		t.Error("Mock GetActiveOrders() error", err)
-	}
+	require.False(t, sharedtestvalues.AreAPICredentialsSet(b) && err != nil, err)
+	require.False(t, !sharedtestvalues.AreAPICredentialsSet(b) && err == nil && !mockTests, "expecting an error when no keys are set")
+	require.False(t, mockTests && err != nil, err)
 }
 
 func TestGetOrderHistory(t *testing.T) {
@@ -1084,14 +1059,9 @@ func TestGetOrderHistory(t *testing.T) {
 			currency.BTC)}
 
 	_, err = b.GetOrderHistory(context.Background(), &getOrdersRequest)
-	switch {
-	case sharedtestvalues.AreAPICredentialsSet(b) && err != nil:
-		t.Error("GetOrderHistory() error", err)
-	case !sharedtestvalues.AreAPICredentialsSet(b) && err == nil && !mockTests:
-		t.Error("GetOrderHistory() expecting an error when no keys are set")
-	case mockTests && err != nil:
-		t.Error("Mock GetOrderHistory() error", err)
-	}
+	require.False(t, sharedtestvalues.AreAPICredentialsSet(b) && err != nil, err)
+	require.False(t, !sharedtestvalues.AreAPICredentialsSet(b) && err == nil && !mockTests, "expecting an error when no keys are set")
+	require.False(t, mockTests && err != nil, err)
 }
 
 func TestNewOrderTest(t *testing.T) {
@@ -1107,14 +1077,9 @@ func TestNewOrderTest(t *testing.T) {
 	}
 
 	err := b.NewOrderTest(context.Background(), req)
-	switch {
-	case sharedtestvalues.AreAPICredentialsSet(b) && err != nil:
-		t.Error("NewOrderTest() error", err)
-	case !sharedtestvalues.AreAPICredentialsSet(b) && err == nil && !mockTests:
-		t.Error("NewOrderTest() expecting an error when no keys are set")
-	case mockTests && err != nil:
-		t.Error("Mock NewOrderTest() error", err)
-	}
+	require.False(t, sharedtestvalues.AreAPICredentialsSet(b) && err != nil, err)
+	require.False(t, !sharedtestvalues.AreAPICredentialsSet(b) && err == nil && !mockTests, "expecting an error when no keys are set")
+	require.False(t, mockTests && err != nil, err)
 
 	req = &NewOrderRequest{
 		Symbol:        currency.NewPair(currency.LTC, currency.BTC),
@@ -1125,14 +1090,9 @@ func TestNewOrderTest(t *testing.T) {
 	}
 
 	err = b.NewOrderTest(context.Background(), req)
-	switch {
-	case sharedtestvalues.AreAPICredentialsSet(b) && err != nil:
-		t.Error("NewOrderTest() error", err)
-	case !sharedtestvalues.AreAPICredentialsSet(b) && err == nil && !mockTests:
-		t.Error("NewOrderTest() expecting an error when no keys are set")
-	case mockTests && err != nil:
-		t.Error("Mock NewOrderTest() error", err)
-	}
+	require.False(t, sharedtestvalues.AreAPICredentialsSet(b) && err != nil, err)
+	require.False(t, !sharedtestvalues.AreAPICredentialsSet(b) && err == nil && !mockTests, "expecting an error when no keys are set")
+	require.False(t, mockTests && err != nil, err)
 }
 
 func TestGetHistoricTrades(t *testing.T) {
@@ -1238,13 +1198,9 @@ func TestGetAggregatedTradesBatched(t *testing.T) {
 			}
 			result, err := b.GetAggregatedTrades(context.Background(), tt.args)
 			assert.NoError(t, err)
-			if len(result) != tt.numExpected {
-				t.Errorf("GetAggregatedTradesBatched() expected %v entries, got %v", tt.numExpected, len(result))
-			}
+			assert.Lenf(t, result, tt.numExpected, "expected %v entries, got %v", tt.numExpected, len(result))
 			lastTradeTime := result[len(result)-1].TimeStamp
-			if !lastTradeTime.Time().Equal(tt.lastExpected) {
-				t.Errorf("last trade expected %v, got %v", tt.lastExpected.UTC(), lastTradeTime.Time().UTC())
-			}
+			require.True(t, lastTradeTime.Time().Equal(tt.lastExpected), "last trade expected %v, got %v", tt.lastExpected.UTC(), lastTradeTime.Time().UTC())
 		})
 	}
 }
@@ -1286,10 +1242,7 @@ func TestGetAggregatedTradesErrors(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 			_, err := b.GetAggregatedTrades(context.Background(), tt.args)
-			if err == nil {
-				t.Errorf("Binance.GetAggregatedTrades() error = %v, wantErr true", err)
-				return
-			}
+			require.Error(t, err)
 		})
 	}
 }
@@ -1320,14 +1273,9 @@ func TestSubmitOrder(t *testing.T) {
 	}
 
 	_, err := b.SubmitOrder(context.Background(), orderSubmission)
-	switch {
-	case sharedtestvalues.AreAPICredentialsSet(b) && err != nil:
-		t.Error("SubmitOrder() error", err)
-	case !sharedtestvalues.AreAPICredentialsSet(b) && err == nil && !mockTests:
-		t.Error("SubmitOrder() expecting an error when no keys are set")
-	case mockTests && err != nil:
-		t.Error("Mock SubmitOrder() error", err)
-	}
+	require.False(t, sharedtestvalues.AreAPICredentialsSet(b) && err != nil, err)
+	require.False(t, !sharedtestvalues.AreAPICredentialsSet(b) && err == nil && !mockTests, "expecting an error when no keys are set")
+	assert.False(t, mockTests && err != nil, err)
 }
 
 func TestCancelExchangeOrder(t *testing.T) {
@@ -1345,14 +1293,9 @@ func TestCancelExchangeOrder(t *testing.T) {
 	}
 
 	err := b.CancelOrder(context.Background(), orderCancellation)
-	switch {
-	case sharedtestvalues.AreAPICredentialsSet(b) && err != nil:
-		t.Error("CancelExchangeOrder() error", err)
-	case !sharedtestvalues.AreAPICredentialsSet(b) && err == nil && !mockTests:
-		t.Error("CancelExchangeOrder() expecting an error when no keys are set")
-	case mockTests && err != nil:
-		t.Error("Mock CancelExchangeOrder() error", err)
-	}
+	require.False(t, sharedtestvalues.AreAPICredentialsSet(b) && err != nil, err)
+	require.False(t, !sharedtestvalues.AreAPICredentialsSet(b) && err == nil && !mockTests, "expecting an error when no keys are set")
+	require.False(t, mockTests && err != nil, err)
 }
 
 func TestCancelAllExchangeOrders(t *testing.T) {
@@ -1370,14 +1313,9 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 	}
 
 	_, err := b.CancelAllOrders(context.Background(), orderCancellation)
-	switch {
-	case sharedtestvalues.AreAPICredentialsSet(b) && err != nil:
-		t.Error("CancelAllExchangeOrders() error", err)
-	case !sharedtestvalues.AreAPICredentialsSet(b) && err == nil && !mockTests:
-		t.Error("CancelAllExchangeOrders() expecting an error when no keys are set")
-	case mockTests && err != nil:
-		t.Error("Mock CancelAllExchangeOrders() error", err)
-	}
+	require.False(t, sharedtestvalues.AreAPICredentialsSet(b) && err != nil, err)
+	require.False(t, !sharedtestvalues.AreAPICredentialsSet(b) && err == nil && !mockTests, "expecting an error when no keys are set")
+	assert.False(t, mockTests && err != nil, err)
 }
 
 func TestGetAccountInfo(t *testing.T) {
@@ -1451,9 +1389,7 @@ func TestWrapperGetOrderHistory(t *testing.T) {
 	_, err = b.GetOrderHistory(context.Background(), &order.MultiOrderRequest{
 		AssetType: asset.USDTMarginedFutures,
 	})
-	if err == nil {
-		t.Errorf("expecting an error since invalid param combination is given. Got err: %v", err)
-	}
+	assert.Error(t, err, "expecting an error since invalid param combination is given. Got err: %v", err)
 }
 
 func TestCancelOrder(t *testing.T) {
@@ -1521,12 +1457,8 @@ func TestWithdraw(t *testing.T) {
 
 	_, err := b.WithdrawCryptocurrencyFunds(context.Background(),
 		&withdrawCryptoRequest)
-	switch {
-	case sharedtestvalues.AreAPICredentialsSet(b) && err != nil:
-		t.Error("Withdraw() error", err)
-	case !sharedtestvalues.AreAPICredentialsSet(b) && err == nil && !mockTests:
-		t.Error("Withdraw() expecting an error when no keys are set")
-	}
+	require.False(t, sharedtestvalues.AreAPICredentialsSet(b) && err != nil, err)
+	assert.False(t, !sharedtestvalues.AreAPICredentialsSet(b) && err == nil && !mockTests, "expecting an error when no keys are set")
 }
 
 func TestDepositHistory(t *testing.T) {
@@ -1535,12 +1467,8 @@ func TestDepositHistory(t *testing.T) {
 		sharedtestvalues.SkipTestIfCannotManipulateOrders(t, b, canManipulateRealOrders)
 	}
 	_, err := b.DepositHistory(context.Background(), currency.ETH, "", time.Time{}, time.Time{}, 0, 10000)
-	switch {
-	case sharedtestvalues.AreAPICredentialsSet(b) && err != nil:
-		t.Error(err)
-	case !sharedtestvalues.AreAPICredentialsSet(b) && err == nil && !mockTests:
-		t.Error("expecting an error when no keys are set")
-	}
+	require.False(t, sharedtestvalues.AreAPICredentialsSet(b) && err != nil, err)
+	assert.False(t, !sharedtestvalues.AreAPICredentialsSet(b) && err == nil && !mockTests, "expecting an error when no keys are set")
 }
 
 func TestWithdrawHistory(t *testing.T) {
@@ -1549,43 +1477,30 @@ func TestWithdrawHistory(t *testing.T) {
 		sharedtestvalues.SkipTestIfCannotManipulateOrders(t, b, canManipulateRealOrders)
 	}
 	_, err := b.GetWithdrawalsHistory(context.Background(), currency.ETH, asset.Spot)
-	switch {
-	case sharedtestvalues.AreAPICredentialsSet(b) && err != nil:
-		t.Error("GetWithdrawalsHistory() error", err)
-	case !sharedtestvalues.AreAPICredentialsSet(b) && err == nil && !mockTests:
-		t.Error("GetWithdrawalsHistory() expecting an error when no keys are set")
-	}
+	require.False(t, sharedtestvalues.AreAPICredentialsSet(b) && err != nil, err)
+	assert.False(t, !sharedtestvalues.AreAPICredentialsSet(b) && err == nil && !mockTests, "expecting an error when no keys are set")
 }
 
 func TestWithdrawFiat(t *testing.T) {
 	t.Parallel()
 	_, err := b.WithdrawFiatFunds(context.Background(),
 		&withdraw.Request{})
-	if err != common.ErrFunctionNotSupported {
-		t.Errorf("Expected '%v', received: '%v'", common.ErrFunctionNotSupported, err)
-	}
+	assert.Equal(t, err, common.ErrFunctionNotSupported)
 }
 
 func TestWithdrawInternationalBank(t *testing.T) {
 	t.Parallel()
 	_, err := b.WithdrawFiatFundsToInternationalBank(context.Background(),
 		&withdraw.Request{})
-	if err != common.ErrFunctionNotSupported {
-		t.Errorf("Expected '%v', received: '%v'", common.ErrFunctionNotSupported, err)
-	}
+	require.Equal(t, err, common.ErrFunctionNotSupported)
 }
 
 func TestGetDepositAddress(t *testing.T) {
 	t.Parallel()
 	_, err := b.GetDepositAddress(context.Background(), currency.USDT, "", currency.BNB.String())
-	switch {
-	case sharedtestvalues.AreAPICredentialsSet(b) && err != nil:
-		t.Error("GetDepositAddress() error", err)
-	case !sharedtestvalues.AreAPICredentialsSet(b) && err == nil && !mockTests:
-		t.Error("GetDepositAddress() error cannot be nil")
-	case mockTests && err != nil:
-		t.Error("Mock GetDepositAddress() error", err)
-	}
+	require.False(t, sharedtestvalues.AreAPICredentialsSet(b) && err != nil, err)
+	require.False(t, !sharedtestvalues.AreAPICredentialsSet(b) && err == nil && !mockTests, "error cannot be nil")
+	require.False(t, mockTests && err != nil, err)
 }
 
 func BenchmarkWsHandleData(bb *testing.B) {
@@ -1607,7 +1522,7 @@ func BenchmarkWsHandleData(bb *testing.B) {
 	bb.ResetTimer()
 	for i := 0; i < bb.N; i++ {
 		for x := range lines {
-			assert.NoError(bb, b.wsHandleData(lines[x]))
+			require.NoError(bb, b.wsHandleData(lines[x]))
 		}
 	}
 }
@@ -1623,7 +1538,7 @@ func TestSubscribe(t *testing.T) {
 		b = testexch.MockWSInstance[Binance](t, func(msg []byte, w *websocket.Conn) error {
 			var req WsPayload
 			err := json.Unmarshal(msg, &req)
-			require.NoError(t, err, "Unmarshal should not error")
+			require.NoError(t, err, "unmarshal should not error")
 			require.Len(t, req.Params, len(channels), "Params should only have 2 channel") // Failure might mean mockWSInstance default Subs is not empty
 			assert.Equal(t, req.Params[0], channels[0].Channel, "Channel name should be correct")
 			assert.Equal(t, req.Params[1], channels[1].Channel, "Channel name should be correct")
@@ -1771,15 +1686,12 @@ func TestWsDepthUpdate(t *testing.T) {
 	ob, err := b.Websocket.Orderbook.GetOrderbook(p, asset.Spot)
 	require.NoError(t, err)
 
-	if exp, got := seedLastUpdateID, ob.LastUpdateID; got != exp {
-		t.Fatalf("Unexpected Last update id of orderbook for old update. Exp: %d, got: %d", exp, got)
-	}
-	if exp, got := 2.3, ob.Asks[2].Amount; got != exp {
-		t.Fatalf("Ask altered by outdated update. Exp: %f, got %f", exp, got)
-	}
-	if exp, got := 0.163526, ob.Bids[1].Amount; got != exp {
-		t.Fatalf("Bid altered by outdated update. Exp: %f, got %f", exp, got)
-	}
+	exp, got := seedLastUpdateID, ob.LastUpdateID
+	require.Equalf(t, exp, got, "Last update id of orderbook for old update. Exp: %d, got: %d", exp, got)
+	expAmnt, gotAmnt := 2.3, ob.Asks[2].Amount
+	require.Equalf(t, expAmnt, gotAmnt, "Ask altered by outdated update. Exp: %f, got %f", expAmnt, gotAmnt)
+	expAmnt, gotAmnt = 0.163526, ob.Bids[1].Amount
+	assert.Equalf(t, expAmnt, gotAmnt, "Bid altered by outdated update. Exp: %f, got %f", expAmnt, gotAmnt)
 
 	update2 := []byte(`{"stream":"btcusdt@depth","data":{
 	  "e": "depthUpdate", 
@@ -1801,18 +1713,14 @@ func TestWsDepthUpdate(t *testing.T) {
 
 	ob, err = b.Websocket.Orderbook.GetOrderbook(p, asset.Spot)
 	require.NoError(t, err)
-	if exp, got := int64(165), ob.LastUpdateID; got != exp {
-		t.Fatalf("Unexpected Last update id of orderbook for new update. Exp: %d, got: %d", exp, got)
-	}
-	if exp, got := 2.3, ob.Asks[2].Amount; got != exp {
-		t.Fatalf("Unexpected Ask amount. Exp: %f, got %f", exp, got)
-	}
-	if exp, got := 1.9, ob.Asks[3].Amount; got != exp {
-		t.Fatalf("Unexpected Ask amount. Exp: %f, got %f", exp, got)
-	}
-	if exp, got := 0.163526, ob.Bids[1].Amount; got != exp {
-		t.Fatalf("Unexpected Bid amount. Exp: %f, got %f", exp, got)
-	}
+	exp, got = int64(165), ob.LastUpdateID
+	require.Equalf(t, exp, got, "Unexpected Last update id of orderbook for new update. Exp: %d, got: %d", exp, got)
+	expAmnt, gotAmnt = 2.3, ob.Asks[2].Amount
+	require.Equalf(t, expAmnt, gotAmnt, "Unexpected Ask amount. Exp: %f, got %f", expAmnt, gotAmnt)
+	expAmnt, gotAmnt = 1.9, ob.Asks[3].Amount
+	require.Equal(t, expAmnt, gotAmnt, "Unexpected Ask amount. Exp: %f, got %f", exp, got)
+	expAmnt, gotAmnt = 0.163526, ob.Bids[1].Amount
+	require.Equal(t, expAmnt, gotAmnt, "Unexpected Bid amount. Exp: %f, got %f", exp, got)
 
 	// reset order book sync status
 	b.obm.state[currency.BTC][currency.USDT][asset.Spot].lastUpdateID = 0
@@ -1821,12 +1729,12 @@ func TestWsDepthUpdate(t *testing.T) {
 func TestWsBalanceUpdate(t *testing.T) {
 	t.Parallel()
 	pressXToJSON := []byte(`{"stream":"jTfvpakT2yT0hVIo5gYWVihZhdM2PrBgJUZ5PyfZ4EVpCkx4Uoxk5timcrQc","data":{
-  "e": "balanceUpdate",         
-  "E": 1573200697110,           
-  "a": "BTC",                   
-  "d": "100.00000000",          
-  "T": 1573200697068            
-}}`)
+	"e": "balanceUpdate",         
+	"E": 1573200697110,           
+	"a": "BTC",                   
+	"d": "100.00000000",          
+	"T": 1573200697068            
+	}}`)
 	err := b.wsHandleData(pressXToJSON)
 	assert.NoError(t, err)
 }
@@ -1834,55 +1742,46 @@ func TestWsBalanceUpdate(t *testing.T) {
 func TestWsOCO(t *testing.T) {
 	t.Parallel()
 	pressXToJSON := []byte(`{"stream":"jTfvpakT2yT0hVIo5gYWVihZhdM2PrBgJUZ5PyfZ4EVpCkx4Uoxk5timcrQc","data":{
-  "e": "listStatus",                
-  "E": 1564035303637,               
-  "s": "ETHBTC",                    
-  "g": 2,                           
-  "c": "OCO",                       
-  "l": "EXEC_STARTED",              
-  "L": "EXECUTING",                 
-  "r": "NONE",                      
-  "C": "F4QN4G8DlFATFlIUQ0cjdD",    
-  "T": 1564035303625,               
-  "O": [                            
-    {
-      "s": "ETHBTC",                
-      "i": 17,                      
-      "c": "AJYsMjErWJesZvqlJCTUgL" 
-    },
-    {
-      "s": "ETHBTC",
-      "i": 18,
-      "c": "bfYPSQdLoqAJeNrOr9adzq"
-    }
-  ]
-}}`)
+	"e": "listStatus",                
+	"E": 1564035303637,               
+	"s": "ETHBTC",                    
+	"g": 2,                           
+	"c": "OCO",                       
+	"l": "EXEC_STARTED",              
+	"L": "EXECUTING",                 
+	"r": "NONE",                      
+	"C": "F4QN4G8DlFATFlIUQ0cjdD",    
+	"T": 1564035303625,               
+	"O": [                            
+		{
+		"s": "ETHBTC",                
+		"i": 17,                      
+		"c": "AJYsMjErWJesZvqlJCTUgL" 
+		},
+		{
+		"s": "ETHBTC",
+		"i": 18,
+		"c": "bfYPSQdLoqAJeNrOr9adzq"
+		}
+	]
+	}}`)
 	err := b.wsHandleData(pressXToJSON)
 	assert.NoError(t, err)
 }
 
 func TestGetWsAuthStreamKey(t *testing.T) {
 	key, err := b.GetWsAuthStreamKey(context.Background())
-	switch {
-	case mockTests && err != nil,
-		!mockTests && sharedtestvalues.AreAPICredentialsSet(b) && err != nil:
-		t.Fatal(err)
-	case !mockTests && !sharedtestvalues.AreAPICredentialsSet(b) && err == nil:
-		t.Fatal("Expected error")
-	}
-
-	assert.False(t, key == "" && (sharedtestvalues.AreAPICredentialsSet(b) || mockTests), "Expected key")
+	require.False(t, mockTests && err != nil,
+		!mockTests && sharedtestvalues.AreAPICredentialsSet(b) && err != nil, err)
+	require.False(t, !mockTests && !sharedtestvalues.AreAPICredentialsSet(b) && err == nil, "expected error")
+	assert.False(t, key == "" && (sharedtestvalues.AreAPICredentialsSet(b) || mockTests), "expected key")
 }
 
 func TestMaintainWsAuthStreamKey(t *testing.T) {
 	err := b.MaintainWsAuthStreamKey(context.Background())
-	switch {
-	case mockTests && err != nil,
-		!mockTests && sharedtestvalues.AreAPICredentialsSet(b) && err != nil:
-		t.Fatal(err)
-	case !mockTests && !sharedtestvalues.AreAPICredentialsSet(b) && err == nil:
-		t.Fatal("Expected error")
-	}
+	require.False(t, mockTests && err != nil,
+		!mockTests && sharedtestvalues.AreAPICredentialsSet(b) && err != nil, err)
+	assert.False(t, !mockTests && !sharedtestvalues.AreAPICredentialsSet(b) && err == nil, "expected error")
 }
 
 func TestExecutionTypeToOrderStatus(t *testing.T) {
@@ -1902,9 +1801,7 @@ func TestExecutionTypeToOrderStatus(t *testing.T) {
 	}
 	for i := range testCases {
 		result, _ := stringToOrderStatus(testCases[i].Case)
-		if result != testCases[i].Result {
-			t.Errorf("Expected: %v, received: %v", testCases[i].Result, result)
-		}
+		require.Equal(t, result, testCases[i].Result, "Expected: %v, received: %v", testCases[i].Result, result)
 	}
 }
 
@@ -1926,9 +1823,7 @@ func TestGetHistoricCandles(t *testing.T) {
 	require.NoError(t, err)
 	startTime = time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)
 	_, err = b.GetHistoricCandles(context.Background(), pair, asset.Spot, kline.Interval(time.Hour*7), startTime, end)
-	if !errors.Is(err, kline.ErrRequestExceedsExchangeLimits) {
-		t.Fatalf("received: '%v', but expected: '%v'", err, kline.ErrRequestExceedsExchangeLimits)
-	}
+	require.ErrorIs(t, err, kline.ErrRequestExceedsExchangeLimits)
 }
 
 func TestGetHistoricCandlesExtended(t *testing.T) {
@@ -1979,10 +1874,7 @@ func TestBinance_FormatExchangeKlineInterval(t *testing.T) {
 
 		t.Run(test.name, func(t *testing.T) {
 			ret := b.FormatExchangeKlineInterval(test.interval)
-
-			if ret != test.output {
-				t.Fatalf("unexpected result return expected: %v received: %v", test.output, ret)
-			}
+			require.Equal(t, ret, test.output, "unexpected result return expected: %v received: %v", test.output, ret)
 		})
 	}
 }
@@ -2006,14 +1898,9 @@ func TestGetRecentTrades(t *testing.T) {
 func TestGetAvailableTransferChains(t *testing.T) {
 	t.Parallel()
 	_, err := b.GetAvailableTransferChains(context.Background(), currency.BTC)
-	switch {
-	case sharedtestvalues.AreAPICredentialsSet(b) && err != nil:
-		t.Error(err)
-	case !sharedtestvalues.AreAPICredentialsSet(b) && err == nil && !mockTests:
-		t.Error("error cannot be nil")
-	case mockTests && err != nil:
-		t.Error(err)
-	}
+	require.False(t, sharedtestvalues.AreAPICredentialsSet(b) && err != nil, err)
+	require.False(t, !sharedtestvalues.AreAPICredentialsSet(b) && err == nil && !mockTests, "error cannot be nil")
+	require.False(t, mockTests && err != nil, err)
 }
 
 func TestSeedLocalCache(t *testing.T) {
@@ -2141,9 +2028,7 @@ func TestSetExchangeOrderExecutionLimits(t *testing.T) {
 	require.ErrorIs(t, err, order.ErrAmountBelowMin)
 
 	err = limit.Conforms(0.01, 1, order.Limit)
-	if !errors.Is(err, order.ErrPriceBelowMin) {
-		t.Fatalf("expected %v, but received %v", order.ErrPriceBelowMin, err)
-	}
+	assert.ErrorIs(t, err, order.ErrPriceBelowMin)
 }
 
 func TestWsOrderExecutionReport(t *testing.T) {
@@ -2182,9 +2067,7 @@ func TestWsOrderExecutionReport(t *testing.T) {
 	res := <-b.Websocket.DataHandler
 	switch r := res.(type) {
 	case *order.Detail:
-		if !reflect.DeepEqual(expectedResult, *r) {
-			t.Errorf("Results do not match:\nexpected: %v\nreceived: %v", expectedResult, *r)
-		}
+		assert.True(t, reflect.DeepEqual(expectedResult, *r), "results do not match:\nexpected: %v\nreceived: %v", expectedResult, *r)
 	default:
 		t.Fatalf("expected type order.Detail, found %T", res)
 	}
@@ -2253,9 +2136,7 @@ func TestFormatExchangeCurrency(t *testing.T) {
 			t.Parallel()
 			result, err := b.FormatExchangeCurrency(tt.pair, tt.asset)
 			assert.NoError(t, err)
-			if result.Delimiter != tt.expectedDelimiter {
-				t.Errorf("received '%v' expected '%v'", result.Delimiter, tt.expectedDelimiter)
-			}
+			assert.Equal(t, tt.expectedDelimiter, result.Delimiter)
 		})
 	}
 }
@@ -2312,9 +2193,7 @@ func TestFormatSymbol(t *testing.T) {
 			t.Parallel()
 			result, err := b.FormatSymbol(tt.pair, tt.asset)
 			assert.NoError(t, err)
-			if result != tt.expectedString {
-				t.Errorf("received '%v' expected '%v'", result, tt.expectedString)
-			}
+			assert.Equal(t, tt.expectedString, result)
 		})
 	}
 }
@@ -2323,25 +2202,21 @@ func TestFormatUSDTMarginedFuturesPair(t *testing.T) {
 	t.Parallel()
 	pairFormat := currency.PairFormat{Uppercase: true}
 	resp := b.formatUSDTMarginedFuturesPair(currency.NewPair(currency.DOGE, currency.USDT), pairFormat)
-	if resp.String() != "DOGEUSDT" {
-		t.Errorf("received '%v' expected '%v'", resp.String(), "DOGEUSDT")
-	}
+	assert.Equal(t, "DOGEUSDT", resp.String())
 
 	resp = b.formatUSDTMarginedFuturesPair(currency.NewPair(currency.DOGE, currency.NewCode("1234567890")), pairFormat)
-	if resp.String() != "DOGE_1234567890" {
-		t.Errorf("received '%v' expected '%v'", resp.String(), "DOGE_1234567890")
-	}
+	assert.Equal(t, "DOGE_1234567890", resp.String())
 }
 
 func TestFetchExchangeLimits(t *testing.T) {
 	t.Parallel()
 	limits, err := b.FetchExchangeLimits(context.Background(), asset.Spot)
-	assert.NoError(t, err)
-	assert.NotEmpty(t, limits, "Should get some limits back")
+	require.NoError(t, err)
+	require.NotEmpty(t, limits, "Should get some limits back")
 
 	limits, err = b.FetchExchangeLimits(context.Background(), asset.Margin)
-	assert.NoError(t, err)
-	assert.NotEmpty(t, limits, "Should get some limits back")
+	require.NoError(t, err)
+	require.NotEmpty(t, limits, "Should get some limits back")
 
 	_, err = b.FetchExchangeLimits(context.Background(), asset.Futures)
 	assert.ErrorIs(t, err, asset.ErrNotSupported, "FetchExchangeLimits should error on other asset types")
@@ -2368,14 +2243,14 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 		p := tests[a]
 		limits, err := b.GetOrderExecutionLimits(a, p)
 		require.NoErrorf(t, err, "GetOrderExecutionLimits should not error for %s pair %s", a, p)
-		assert.Positivef(t, limits.MinPrice, "MinPrice must be positive for %s pair %s", a, p)
-		assert.Positivef(t, limits.MaxPrice, "MaxPrice must be positive for %s pair %s", a, p)
-		assert.Positivef(t, limits.PriceStepIncrementSize, "PriceStepIncrementSize must be positive for %s pair %s", a, p)
-		assert.Positivef(t, limits.MinimumBaseAmount, "MinimumBaseAmount must be positive for %s pair %s", a, p)
-		assert.Positivef(t, limits.MaximumBaseAmount, "MaximumBaseAmount must be positive for %s pair %s", a, p)
-		assert.Positivef(t, limits.AmountStepIncrementSize, "AmountStepIncrementSize must be positive for %s pair %s", a, p)
-		assert.Positivef(t, limits.MarketMaxQty, "MarketMaxQty must be positive for %s pair %s", a, p)
-		assert.Positivef(t, limits.MaxTotalOrders, "MaxTotalOrders must be positive for %s pair %s", a, p)
+		require.Positivef(t, limits.MinPrice, "MinPrice must be positive for %s pair %s", a, p)
+		require.Positivef(t, limits.MaxPrice, "MaxPrice must be positive for %s pair %s", a, p)
+		require.Positivef(t, limits.PriceStepIncrementSize, "PriceStepIncrementSize must be positive for %s pair %s", a, p)
+		require.Positivef(t, limits.MinimumBaseAmount, "MinimumBaseAmount must be positive for %s pair %s", a, p)
+		require.Positivef(t, limits.MaximumBaseAmount, "MaximumBaseAmount must be positive for %s pair %s", a, p)
+		require.Positivef(t, limits.AmountStepIncrementSize, "AmountStepIncrementSize must be positive for %s pair %s", a, p)
+		require.Positivef(t, limits.MarketMaxQty, "MarketMaxQty must be positive for %s pair %s", a, p)
+		require.Positivef(t, limits.MaxTotalOrders, "MaxTotalOrders must be positive for %s pair %s", a, p)
 		switch a {
 		case asset.Spot, asset.Margin:
 			assert.Positivef(t, limits.MaxIcebergParts, "MaxIcebergParts must be positive for %s pair %s", a, p)
@@ -2507,13 +2382,9 @@ func TestGetCollateralMode(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
 	_, err := b.GetCollateralMode(context.Background(), asset.Spot)
-	if !errors.Is(err, asset.ErrNotSupported) {
-		t.Errorf("received '%v', expected '%v'", err, asset.ErrNotSupported)
-	}
+	assert.ErrorIs(t, err, asset.ErrNotSupported)
 	_, err = b.GetCollateralMode(context.Background(), asset.CoinMarginedFutures)
-	if !errors.Is(err, asset.ErrNotSupported) {
-		t.Errorf("received '%v', expected '%v'", err, asset.ErrNotSupported)
-	}
+	assert.ErrorIs(t, err, asset.ErrNotSupported)
 	_, err = b.GetCollateralMode(context.Background(), asset.USDTMarginedFutures)
 	assert.NoError(t, err)
 }
@@ -2522,19 +2393,13 @@ func TestSetCollateralMode(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
 	err := b.SetCollateralMode(context.Background(), asset.Spot, collateral.SingleMode)
-	if !errors.Is(err, asset.ErrNotSupported) {
-		t.Errorf("received '%v', expected '%v'", err, asset.ErrNotSupported)
-	}
+	assert.ErrorIs(t, err, asset.ErrNotSupported)
 	err = b.SetCollateralMode(context.Background(), asset.CoinMarginedFutures, collateral.SingleMode)
-	if !errors.Is(err, asset.ErrNotSupported) {
-		t.Errorf("received '%v', expected '%v'", err, asset.ErrNotSupported)
-	}
+	assert.ErrorIs(t, err, asset.ErrNotSupported)
 	err = b.SetCollateralMode(context.Background(), asset.USDTMarginedFutures, collateral.MultiMode)
 	assert.NoError(t, err)
 	err = b.SetCollateralMode(context.Background(), asset.USDTMarginedFutures, collateral.PortfolioMode)
-	if !errors.Is(err, order.ErrCollateralInvalid) {
-		t.Errorf("received '%v', expected '%v'", err, order.ErrCollateralInvalid)
-	}
+	assert.ErrorIs(t, err, order.ErrCollateralInvalid)
 }
 
 func TestChangePositionMargin(t *testing.T) {
@@ -2661,21 +2526,16 @@ func TestGetCryptoLoansIncomeHistory(t *testing.T) {
 
 func TestCryptoLoanBorrow(t *testing.T) {
 	t.Parallel()
-	if _, err := b.CryptoLoanBorrow(context.Background(), currency.EMPTYCODE, 1000, currency.BTC, 1, 7); !errors.Is(err, errLoanCoinMustBeSet) {
-		t.Errorf("received %v, expected %v", err, errLoanCoinMustBeSet)
-	}
-	if _, err := b.CryptoLoanBorrow(context.Background(), currency.USDT, 1000, currency.EMPTYCODE, 1, 7); !errors.Is(err, errCollateralCoinMustBeSet) {
-		t.Errorf("received %v, expected %v", err, errCollateralCoinMustBeSet)
-	}
-	if _, err := b.CryptoLoanBorrow(context.Background(), currency.USDT, 0, currency.BTC, 1, 0); !errors.Is(err, errLoanTermMustBeSet) {
-		t.Errorf("received %v, expected %v", err, errLoanTermMustBeSet)
-	}
-	if _, err := b.CryptoLoanBorrow(context.Background(), currency.USDT, 0, currency.BTC, 0, 7); !errors.Is(err, errEitherLoanOrCollateralAmountsMustBeSet) {
-		t.Errorf("received %v, expected %v", err, errEitherLoanOrCollateralAmountsMustBeSet)
-	}
-
+	_, err := b.CryptoLoanBorrow(context.Background(), currency.EMPTYCODE, 1000, currency.BTC, 1, 7)
+	require.ErrorIs(t, err, errLoanCoinMustBeSet)
+	_, err = b.CryptoLoanBorrow(context.Background(), currency.USDT, 1000, currency.EMPTYCODE, 1, 7)
+	assert.ErrorIs(t, err, errCollateralCoinMustBeSet)
+	_, err = b.CryptoLoanBorrow(context.Background(), currency.USDT, 0, currency.BTC, 1, 0)
+	require.ErrorIs(t, err, errLoanTermMustBeSet)
+	_, err = b.CryptoLoanBorrow(context.Background(), currency.USDT, 0, currency.BTC, 0, 7)
+	assert.ErrorIs(t, err, errEitherLoanOrCollateralAmountsMustBeSet)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
-	_, err := b.CryptoLoanBorrow(context.Background(), currency.USDT, 1000, currency.BTC, 1, 7)
+	_, err = b.CryptoLoanBorrow(context.Background(), currency.USDT, 1000, currency.BTC, 1, 7)
 	assert.NoError(t, err)
 }
 
@@ -2695,15 +2555,13 @@ func TestCryptoLoanOngoingOrders(t *testing.T) {
 
 func TestCryptoLoanRepay(t *testing.T) {
 	t.Parallel()
-	if _, err := b.CryptoLoanRepay(context.Background(), 0, 1000, 1, false); !errors.Is(err, errOrderIDMustBeSet) {
-		t.Errorf("received %v, expected %v", err, errOrderIDMustBeSet)
-	}
-	if _, err := b.CryptoLoanRepay(context.Background(), 42069, 0, 1, false); !errors.Is(err, errAmountMustBeSet) {
-		t.Errorf("received %v, expected %v", err, errAmountMustBeSet)
-	}
+	_, err := b.CryptoLoanRepay(context.Background(), 0, 1000, 1, false)
+	require.ErrorIs(t, err, errOrderIDMustBeSet)
+	_, err = b.CryptoLoanRepay(context.Background(), 42069, 0, 1, false)
+	assert.ErrorIs(t, err, errAmountMustBeSet)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
-	_, err := b.CryptoLoanRepay(context.Background(), 42069, 1000, 1, false)
+	_, err = b.CryptoLoanRepay(context.Background(), 42069, 1000, 1, false)
 	assert.NoError(t, err)
 }
 
@@ -2716,15 +2574,13 @@ func TestCryptoLoanRepaymentHistory(t *testing.T) {
 
 func TestCryptoLoanAdjustLTV(t *testing.T) {
 	t.Parallel()
-	if _, err := b.CryptoLoanAdjustLTV(context.Background(), 0, true, 1); !errors.Is(err, errOrderIDMustBeSet) {
-		t.Errorf("received %v, expected %v", err, errOrderIDMustBeSet)
-	}
-	if _, err := b.CryptoLoanAdjustLTV(context.Background(), 42069, true, 0); !errors.Is(err, errAmountMustBeSet) {
-		t.Errorf("received %v, expected %v", err, errAmountMustBeSet)
-	}
+	_, err := b.CryptoLoanAdjustLTV(context.Background(), 0, true, 1)
+	require.ErrorIs(t, err, errOrderIDMustBeSet)
+	_, err = b.CryptoLoanAdjustLTV(context.Background(), 42069, true, 0)
+	require.ErrorIs(t, err, errAmountMustBeSet)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
-	_, err := b.CryptoLoanAdjustLTV(context.Background(), 42069, true, 1)
+	_, err = b.CryptoLoanAdjustLTV(context.Background(), 42069, true, 1)
 	assert.NoError(t, err)
 }
 
@@ -2774,18 +2630,15 @@ func TestCryptoLoanCustomiseMarginCall(t *testing.T) {
 
 func TestFlexibleLoanBorrow(t *testing.T) {
 	t.Parallel()
-	if _, err := b.FlexibleLoanBorrow(context.Background(), currency.EMPTYCODE, currency.USDC, 1, 0); !errors.Is(err, errLoanCoinMustBeSet) {
-		t.Errorf("received %v, expected %v", err, errLoanCoinMustBeSet)
-	}
-	if _, err := b.FlexibleLoanBorrow(context.Background(), currency.ATOM, currency.EMPTYCODE, 1, 0); !errors.Is(err, errCollateralCoinMustBeSet) {
-		t.Errorf("received %v, expected %v", err, errCollateralCoinMustBeSet)
-	}
-	if _, err := b.FlexibleLoanBorrow(context.Background(), currency.ATOM, currency.USDC, 0, 0); !errors.Is(err, errEitherLoanOrCollateralAmountsMustBeSet) {
-		t.Errorf("received %v, expected %v", err, errEitherLoanOrCollateralAmountsMustBeSet)
-	}
+	_, err := b.FlexibleLoanBorrow(context.Background(), currency.EMPTYCODE, currency.USDC, 1, 0)
+	require.ErrorIs(t, err, errLoanCoinMustBeSet)
+	_, err = b.FlexibleLoanBorrow(context.Background(), currency.ATOM, currency.EMPTYCODE, 1, 0)
+	require.ErrorIs(t, err, errCollateralCoinMustBeSet)
+	_, err = b.FlexibleLoanBorrow(context.Background(), currency.ATOM, currency.USDC, 0, 0)
+	require.ErrorIs(t, err, errEitherLoanOrCollateralAmountsMustBeSet)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
-	_, err := b.FlexibleLoanBorrow(context.Background(), currency.ATOM, currency.USDC, 1, 0)
+	_, err = b.FlexibleLoanBorrow(context.Background(), currency.ATOM, currency.USDC, 1, 0)
 	assert.NoError(t, err)
 }
 
@@ -2806,18 +2659,15 @@ func TestFlexibleLoanBorrowHistory(t *testing.T) {
 func TestFlexibleLoanRepay(t *testing.T) {
 	t.Parallel()
 
-	if _, err := b.FlexibleLoanRepay(context.Background(), currency.EMPTYCODE, currency.BTC, 1, false, false); !errors.Is(err, errLoanCoinMustBeSet) {
-		t.Errorf("received %v, expected %v", err, errLoanCoinMustBeSet)
-	}
-	if _, err := b.FlexibleLoanRepay(context.Background(), currency.USDT, currency.EMPTYCODE, 1, false, false); !errors.Is(err, errCollateralCoinMustBeSet) {
-		t.Errorf("received %v, expected %v", err, errCollateralCoinMustBeSet)
-	}
-	if _, err := b.FlexibleLoanRepay(context.Background(), currency.USDT, currency.BTC, 0, false, false); !errors.Is(err, errAmountMustBeSet) {
-		t.Errorf("received %v, expected %v", err, errAmountMustBeSet)
-	}
+	_, err := b.FlexibleLoanRepay(context.Background(), currency.EMPTYCODE, currency.BTC, 1, false, false)
+	require.ErrorIs(t, err, errLoanCoinMustBeSet)
+	_, err = b.FlexibleLoanRepay(context.Background(), currency.USDT, currency.EMPTYCODE, 1, false, false)
+	require.ErrorIs(t, err, errCollateralCoinMustBeSet)
+	_, err = b.FlexibleLoanRepay(context.Background(), currency.USDT, currency.BTC, 0, false, false)
+	require.ErrorIs(t, err, errAmountMustBeSet)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
-	_, err := b.FlexibleLoanRepay(context.Background(), currency.ATOM, currency.USDC, 1, false, false)
+	_, err = b.FlexibleLoanRepay(context.Background(), currency.ATOM, currency.USDC, 1, false, false)
 	assert.NoError(t, err)
 }
 
@@ -2830,15 +2680,13 @@ func TestFlexibleLoanRepayHistory(t *testing.T) {
 
 func TestFlexibleLoanAdjustLTV(t *testing.T) {
 	t.Parallel()
-	if _, err := b.FlexibleLoanAdjustLTV(context.Background(), currency.EMPTYCODE, currency.BTC, 1, true); !errors.Is(err, errLoanCoinMustBeSet) {
-		t.Errorf("received %v, expected %v", err, errLoanCoinMustBeSet)
-	}
-	if _, err := b.FlexibleLoanAdjustLTV(context.Background(), currency.USDT, currency.EMPTYCODE, 1, true); !errors.Is(err, errCollateralCoinMustBeSet) {
-		t.Errorf("received %v, expected %v", err, errCollateralCoinMustBeSet)
-	}
+	_, err := b.FlexibleLoanAdjustLTV(context.Background(), currency.EMPTYCODE, currency.BTC, 1, true)
+	require.ErrorIs(t, err, errLoanCoinMustBeSet)
+	_, err = b.FlexibleLoanAdjustLTV(context.Background(), currency.USDT, currency.EMPTYCODE, 1, true)
+	require.ErrorIs(t, err, errCollateralCoinMustBeSet)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
-	_, err := b.FlexibleLoanAdjustLTV(context.Background(), currency.USDT, currency.BTC, 1, true)
+	_, err = b.FlexibleLoanAdjustLTV(context.Background(), currency.USDT, currency.BTC, 1, true)
 	assert.NoError(t, err)
 }
 
@@ -2912,9 +2760,7 @@ func TestHandleData(t *testing.T) {
 	t.Parallel()
 	for x := range messageMap {
 		err := b.wsHandleFuturesData([]byte(messageMap[x]), asset.USDTMarginedFutures)
-		if err != nil {
-			t.Errorf("%s: %v", x, err)
-		}
+		require.NoError(t, err)
 	}
 }
 
@@ -3225,11 +3071,7 @@ func TestWsCancelOCOOrder(t *testing.T) {
 	}
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
 	_, err := b.WsCancelOCOOrder(
-		currency.NewPair(currency.BTC, currency.USDT),
-		"someID",
-		"12354",
-		"",
-		0)
+		currency.NewPair(currency.BTC, currency.USDT), "someID", "12354", "", 0)
 	require.NoError(t, err)
 }
 
