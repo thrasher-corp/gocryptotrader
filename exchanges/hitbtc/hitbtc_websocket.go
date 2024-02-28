@@ -34,7 +34,7 @@ const (
 // WsConnect starts a new connection with the websocket API
 func (h *HitBTC) WsConnect() error {
 	if !h.Websocket.IsEnabled() || !h.IsEnabled() {
-		return errors.New(stream.WebsocketNotEnabled)
+		return stream.ErrWebsocketNotEnabled
 	}
 	var dialer websocket.Dialer
 	err := h.Websocket.Conn.Dial(&dialer, http.Header{})

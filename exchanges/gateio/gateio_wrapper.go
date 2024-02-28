@@ -194,7 +194,7 @@ func (g *Gateio) SetDefaults() {
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
-	g.Websocket = stream.New()
+	g.Websocket = stream.NewWebsocket()
 	g.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	g.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
 	g.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
@@ -1130,7 +1130,7 @@ func (g *Gateio) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Submi
 		response.Price = newOrder.OrderPrice.Float64()
 		return response, nil
 	case asset.Options:
-		optionOrder, err := g.PlaceOptionOrder(ctx, OptionOrderParam{
+		optionOrder, err := g.PlaceOptionOrder(ctx, &OptionOrderParam{
 			Contract:   s.Pair.String(),
 			OrderSize:  s.Amount,
 			Price:      types.Number(s.Price),

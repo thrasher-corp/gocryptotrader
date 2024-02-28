@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -47,9 +48,7 @@ func TestGetFeeByTypeOfflineTradeFee(t *testing.T) {
 
 	var feeBuilder = setFeeBuilder()
 	_, err := p.GetFeeByType(context.Background(), feeBuilder)
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 	if !sharedtestvalues.AreAPICredentialsSet(p) {
 		assert.Falsef(t, feeBuilder.FeeType != exchange.OfflineTradeFee, "Expected %v, received %v",
 			exchange.OfflineTradeFee,
@@ -281,9 +280,7 @@ func TestWithdrawInternationalBank(t *testing.T) {
 func TestGetHistoricCandles(t *testing.T) {
 	t.Parallel()
 	pair, err := currency.NewPairFromString("BTC_USDT")
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 	var start, end time.Time
 	if mockTests {
 		start = time.Unix(1588741402, 0)
@@ -293,17 +290,13 @@ func TestGetHistoricCandles(t *testing.T) {
 		end = time.Now()
 	}
 	_, err = p.GetHistoricCandles(context.Background(), pair, asset.Spot, kline.FiveMin, start, end)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	assert.NoError(t, err, "received: '%v' but expected: '%v'", err, nil)
 }
 
 func TestGetHistoricCandlesExtended(t *testing.T) {
 	t.Parallel()
 	pair, err := currency.NewPairFromString("BTC_USDT")
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 	var start, end time.Time
 	if mockTests {
 		start = time.Unix(1588741402, 0)
@@ -313,17 +306,13 @@ func TestGetHistoricCandlesExtended(t *testing.T) {
 		end = time.Now()
 	}
 	_, err = p.GetHistoricCandlesExtended(context.Background(), pair, asset.Spot, kline.FiveMin, start, end)
-	if !errors.Is(err, nil) {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 }
 
 func TestGetRecentTrades(t *testing.T) {
 	t.Parallel()
 	currencyPair, err := currency.NewPairFromString("BTC_XMR")
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 	if mockTests {
 		t.Skip("relies on time.Now()")
 	}
@@ -334,9 +323,7 @@ func TestGetRecentTrades(t *testing.T) {
 func TestGetHistoricTrades(t *testing.T) {
 	t.Parallel()
 	currencyPair, err := currency.NewPairFromString("BTC_XMR")
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 	tStart := time.Date(2020, 6, 6, 0, 0, 0, 0, time.UTC)
 	tEnd := time.Date(2020, 6, 6, 1, 0, 0, 0, time.UTC)
 	if !mockTests {
@@ -352,9 +339,7 @@ func TestGetHistoricTrades(t *testing.T) {
 func TestUpdateTicker(t *testing.T) {
 	t.Parallel()
 	cp, err := currency.NewPairFromString("BTC_USDT")
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 	_, err = p.UpdateTicker(context.Background(), cp, asset.Spot)
 	assert.NoError(t, err)
 }
@@ -368,9 +353,7 @@ func TestUpdateTickers(t *testing.T) {
 func TestGetAvailableTransferChains(t *testing.T) {
 	t.Parallel()
 	_, err := p.GetAvailableTransferChains(context.Background(), currency.USDT)
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 }
 
 func TestGetAccountFundingHistory(t *testing.T) {
@@ -418,9 +401,7 @@ func TestCancelBatchOrders(t *testing.T) {
 func TestGetServerTime(t *testing.T) {
 	t.Parallel()
 	st, err := p.GetServerTime(context.Background(), asset.Spot)
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 	assert.False(t, st.IsZero(), "expected a valid time")
 }
 
@@ -479,9 +460,7 @@ func TestGetMarketPrices(t *testing.T) {
 func TestGetMarketPrice(t *testing.T) {
 	t.Parallel()
 	pair, err := currency.NewPairFromString("TRX_USDC")
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 	_, err = p.GetMarketPrice(context.Background(), pair)
 	assert.NoError(t, err)
 }
@@ -495,9 +474,7 @@ func TestGetMarkPrices(t *testing.T) {
 func TestGetMarkPrice(t *testing.T) {
 	t.Parallel()
 	pair, err := currency.NewPairFromString("BTC_USDT")
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 	_, err = p.GetMarkPrice(context.Background(), pair)
 	assert.NoError(t, err)
 }
@@ -505,9 +482,7 @@ func TestGetMarkPrice(t *testing.T) {
 func TestMarkPriceComponents(t *testing.T) {
 	t.Parallel()
 	pair, err := currency.NewPairFromString("BTC_USDT")
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 	_, err = p.MarkPriceComponents(context.Background(), pair)
 	assert.NoError(t, err)
 }
@@ -515,9 +490,7 @@ func TestMarkPriceComponents(t *testing.T) {
 func TestGetOrderbook(t *testing.T) {
 	t.Parallel()
 	pair, err := currency.NewPairFromString("BTC_USDT")
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 	_, err = p.GetOrderbook(context.Background(), pair, 0, 0)
 	assert.NoError(t, err)
 }
@@ -525,9 +498,7 @@ func TestGetOrderbook(t *testing.T) {
 func TestUpdateOrderbook(t *testing.T) {
 	t.Parallel()
 	pair, err := currency.NewPairFromString("BTC_USDT")
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 	_, err = p.UpdateOrderbook(context.Background(), pair, asset.Spot)
 	assert.NoError(t, err)
 }
@@ -535,9 +506,7 @@ func TestUpdateOrderbook(t *testing.T) {
 func TestGetCandlesticks(t *testing.T) {
 	t.Parallel()
 	pair, err := currency.NewPairFromString("BTC_USDT")
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 	_, err = p.GetCandlesticks(context.Background(), pair, kline.FiveMin, time.Time{}, time.Time{}, 0)
 	assert.NoError(t, err)
 }
@@ -545,9 +514,7 @@ func TestGetCandlesticks(t *testing.T) {
 func TestGetTrades(t *testing.T) {
 	t.Parallel()
 	pair, err := currency.NewPairFromString("BTC_USDT")
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 	_, err = p.GetTrades(context.Background(), pair, 10)
 	assert.NoError(t, err)
 }
@@ -561,9 +528,7 @@ func TestGetTickers(t *testing.T) {
 func TestGetTicker(t *testing.T) {
 	t.Parallel()
 	pair, err := currency.NewPairFromString("BTC_USDT")
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 	_, err = p.GetTicker(context.Background(), pair)
 	assert.NoError(t, err)
 }
@@ -780,9 +745,7 @@ func TestGetOrderInfo(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, p)
 	pair, err := currency.NewPairFromString("BTC_USDT")
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 	_, err = p.GetOrderInfo(context.Background(), "1234", pair, asset.Spot)
 	assert.NoError(t, err)
 }
@@ -886,9 +849,7 @@ func TestMaximumBuySellAmount(t *testing.T) {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, p)
 	}
 	pair, err := currency.NewPairFromString("BTC_USDT")
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 	_, err = p.MaximumBuySellAmount(context.Background(), pair)
 	assert.NoError(t, err)
 }
@@ -901,9 +862,7 @@ func TestPlaceOrder(t *testing.T) {
 	_, err = p.PlaceOrder(context.Background(), &PlaceOrderParams{})
 	assert.Truef(t, errors.Is(err, currency.ErrCurrencyPairEmpty), "expected %v, got %v", currency.ErrCurrencyPairEmpty, err)
 	pair, err := currency.NewPairFromString("BTC_USDT")
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 	_, err = p.PlaceOrder(context.Background(), &PlaceOrderParams{
 		Symbol: pair,
 	})
@@ -930,9 +889,7 @@ func TestPlaceBatchOrders(t *testing.T) {
 	_, err = p.PlaceBatchOrders(context.Background(), []PlaceOrderParams{{}})
 	assert.Truef(t, errors.Is(err, currency.ErrCurrencyPairEmpty), "expected %v, got %v", currency.ErrCurrencyPairEmpty, err)
 	pair, err := currency.NewPairFromString("BTC_USDT")
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 	_, err = p.PlaceBatchOrders(context.Background(), []PlaceOrderParams{
 		{
 			Symbol: pair,
@@ -1007,9 +964,7 @@ func TestGetOpenOrders(t *testing.T) {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, p)
 	}
 	pair, err := currency.NewPairFromString("BTC_USDT")
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 	_, err = p.GetOpenOrders(context.Background(), pair, "", "NEXT", "", 10)
 	assert.NoError(t, err)
 }
@@ -1071,9 +1026,7 @@ func TestCreateSmartOrder(t *testing.T) {
 	})
 	assert.Truef(t, errors.Is(err, currency.ErrCurrencyPairEmpty), "expected %v, got %v", currency.ErrCurrencyPairEmpty, err)
 	pair, err := currency.NewPairFromString("BTC_USDT")
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 	_, err = p.CreateSmartOrder(context.Background(), &SmartOrderRequestParam{
 		Symbol: pair,
 	})
@@ -1150,9 +1103,7 @@ func TestGetOrdersHistory(t *testing.T) {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, p)
 	}
 	pair, err := currency.NewPairFromString("BTC_USDT")
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 	_, err = p.GetOrdersHistory(context.Background(), pair, "SPOT", "", "", "", "", 0, 10, time.Time{}, time.Time{}, false)
 	assert.NoError(t, err)
 }
@@ -1163,9 +1114,7 @@ func TestGetSmartOrderHistory(t *testing.T) {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, p)
 	}
 	pair, err := currency.NewPairFromString("BTC_USDT")
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 	_, err = p.GetSmartOrderHistory(context.Background(), pair, "SPOT", "", "", "", "", 0, 10, time.Time{}, time.Time{}, false)
 	assert.NoError(t, err)
 }
@@ -1173,9 +1122,7 @@ func TestGetSmartOrderHistory(t *testing.T) {
 func TestGetTradeHistory(t *testing.T) {
 	t.Parallel()
 	pair, err := currency.NewPairFromString("BTC_USDT")
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 	_, err = p.GetTradeHistory(context.Background(), currency.Pairs{pair}, "", 0, 0, time.Time{}, time.Time{})
 	assert.NoError(t, err)
 }
@@ -1216,14 +1163,10 @@ const dummyPush = `{ "channel": "abebe", "data": [] }`
 func TestWsPushData(t *testing.T) {
 	t.Parallel()
 	err := p.wsHandleData([]byte(dummyPush))
-	if err == nil {
-		t.Fatal("expected unhandled message error")
-	}
+	require.ErrorIs(t, err, nil)
 	for key, value := range pushMessages {
 		err = p.wsHandleData([]byte(value))
-		if err != nil {
-			t.Fatalf("%s error %s: %v", p.Name, key, err)
-		}
+		require.NoErrorf(t, err, "%s error %s: %v", p.Name, key, err)
 	}
 }
 
@@ -1248,9 +1191,7 @@ func TestWsCreateOrder(t *testing.T) {
 	_, err = p.WsCreateOrder(&PlaceOrderParams{})
 	assert.Truef(t, errors.Is(err, currency.ErrCurrencyPairEmpty), "expected %v, got %v", currency.ErrCurrencyPairEmpty, err)
 	pair, err := currency.NewPairFromString("BTC_USDT")
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 	_, err = p.WsCreateOrder(&PlaceOrderParams{
 		Symbol: pair,
 	})
@@ -1289,20 +1230,14 @@ func TestWsCancelAllTradeOrders(t *testing.T) {
 func TestUpdateOrderExecutionLimits(t *testing.T) {
 	t.Parallel()
 	err := p.UpdateOrderExecutionLimits(context.Background(), asset.Spot)
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 	instruments, err := p.GetSymbolInformation(context.Background(), currency.EMPTYPAIR)
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 	if len(instruments) == 0 {
 		t.Fatal("invalid instrument information found")
 	}
 	cp, err := currency.NewPairFromString(instruments[0].Symbol)
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 	limits, err := p.GetOrderExecutionLimits(asset.Spot, cp)
 	assert.NoErrorf(t, err, "Asset: %s Pair: %s Err: %v", asset.Spot, cp, err)
 	assert.Falsef(t, limits.PriceStepIncrementSize != instruments[0].SymbolTradeLimit.PriceScale, "PriceStepIncrementSize; Asset: %s Pair: %s Expected: %v Got: %v", asset.Spot, cp, instruments[0].SymbolTradeLimit.PriceScale, limits.PriceStepIncrementSize)

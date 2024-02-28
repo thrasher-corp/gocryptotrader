@@ -87,7 +87,7 @@ var cancelOrdersStatus = make(map[int64]*struct {
 // WsConnect initiates a websocket connection
 func (k *Kraken) WsConnect() error {
 	if !k.Websocket.IsEnabled() || !k.IsEnabled() {
-		return errors.New(stream.WebsocketNotEnabled)
+		return stream.ErrWebsocketNotEnabled
 	}
 
 	var dialer websocket.Dialer
@@ -838,7 +838,7 @@ func (k *Kraken) wsProcessOrderBook(channelData *WebsocketChannelData, data map[
 	if asksExist || bidsExist {
 		checksum, ok := data["c"].(string)
 		if !ok {
-			return fmt.Errorf("could not process orderbook update checksum not found")
+			return errors.New("could not process orderbook update checksum not found")
 		}
 
 		k.wsRequestMtx.Lock()
@@ -1414,7 +1414,7 @@ func (k *Kraken) wsCancelOrders(orderIDs []string) error {
 	if cancelOrdersStatus[id].Error != "" || len(orderIDs) != successful { // strange Kraken logic ...
 		var reason string
 		if cancelOrdersStatus[id].Error != "" {
-			reason = fmt.Sprintf(" Reason: %s", cancelOrdersStatus[id].Error)
+			reason = " Reason: " + cancelOrdersStatus[id].Error
 		}
 		return fmt.Errorf("%s cancelled %d out of %d orders.%s",
 			k.Name, successful, len(orderIDs), reason)

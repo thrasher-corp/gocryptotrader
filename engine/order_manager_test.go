@@ -653,20 +653,20 @@ func TestSubmitOrderAlreadyInStore(t *testing.T) {
 		Exchange:  testExchange,
 	}
 	submitResp, err := submitReq.DeriveSubmitResponse("batman.obvs")
-	assert.Nil(t, err, "Deriving a SubmitResp should not error")
+	assert.NoError(t, err, "Deriving a SubmitResp should not error")
 
 	id, err := uuid.NewV4()
-	assert.Nil(t, err, "uuid should not error")
+	assert.NoError(t, err, "uuid should not error")
 	d, err := submitResp.DeriveDetail(id)
-	assert.Nil(t, err, "Derive Detail should not error")
+	assert.NoError(t, err, "Derive Detail should not error")
 
 	d.ClientOrderID = "SecretSquirrelSauce"
 	err = m.orderStore.add(d)
-	assert.Nil(t, err, "Adding an order should not error")
+	assert.NoError(t, err, "Adding an order should not error")
 
 	resp, err := m.SubmitFakeOrder(submitReq, submitResp, false)
 
-	if assert.Nil(t, err, "SumbitFakeOrder should not error that the order is already in the store") {
+	if assert.NoError(t, err, "SumbitFakeOrder should not error that the order is already in the store") {
 		assert.Equal(t, d.ClientOrderID, resp.ClientOrderID, "resp should contain the ClientOrderID from the store")
 	}
 }
@@ -1712,7 +1712,7 @@ func TestGetByDetail(t *testing.T) {
 	}
 
 	assert.Nil(t, m.orderStore.getByDetail(od), "Fetching a non-stored order should return nil")
-	assert.Nil(t, m.orderStore.add(od), "Adding the details should not error")
+	assert.NoError(t, m.orderStore.add(od), "Adding the details should not error")
 
 	byOrig := m.orderStore.getByDetail(od)
 	byID := m.orderStore.getByDetail(id)

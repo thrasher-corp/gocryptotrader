@@ -3,7 +3,6 @@ package poloniex
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"net/http"
 	"strings"
@@ -57,7 +56,7 @@ var onceOrderbook map[string]struct{}
 // WsConnect initiates a websocket connection
 func (p *Poloniex) WsConnect() error {
 	if !p.Websocket.IsEnabled() || !p.IsEnabled() {
-		return errors.New(stream.WebsocketNotEnabled)
+		return stream.ErrWebsocketNotEnabled
 	}
 	var dialer websocket.Dialer
 	err := p.Websocket.Conn.Dial(&dialer, http.Header{})

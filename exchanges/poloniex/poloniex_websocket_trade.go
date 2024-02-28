@@ -2,7 +2,6 @@ package poloniex
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"strconv"
 
@@ -63,7 +62,7 @@ func (p *Poloniex) WsCancelAllTradeOrders(symbols, accountTypes []string) ([]WsC
 // SendWebsocketRequest represents a websocket request through the authenticated connections.
 func (p *Poloniex) SendWebsocketRequest(event string, arg, response interface{}) error {
 	if !p.Websocket.IsConnected() || !p.Websocket.CanUseAuthenticatedEndpoints() {
-		return errors.New(stream.WebsocketNotEnabled)
+		return stream.ErrWebsocketNotEnabled
 	}
 	input := &struct {
 		ID     string      `json:"id"`

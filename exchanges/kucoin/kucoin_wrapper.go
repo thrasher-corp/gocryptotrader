@@ -195,7 +195,7 @@ func (ku *Kucoin) SetDefaults() {
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
-	ku.Websocket = stream.New()
+	ku.Websocket = stream.NewWebsocket()
 	ku.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	ku.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
 	ku.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
@@ -1350,7 +1350,7 @@ func (ku *Kucoin) GetFeeByType(ctx context.Context, feeBuilder *exchange.FeeBuil
 			}
 			return feeBuilder.Amount * fee.TakerFeeRate, nil
 		}
-		return 0, fmt.Errorf("can't construct fee")
+		return 0, errors.New("can't construct fee")
 	}
 }
 
