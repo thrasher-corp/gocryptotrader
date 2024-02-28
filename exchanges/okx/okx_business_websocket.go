@@ -3,7 +3,6 @@ package okx
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -20,8 +19,8 @@ import (
 
 const (
 
-	// okxBusinessWebsocket
-	okxBusinessWebsocket = "wss://ws.okx.com:8443/ws/v5/business"
+	// okxBusinessWebsocketURL
+	okxBusinessWebsocketURL = "wss://ws.okx.com:8443/ws/v5/business"
 )
 
 var (
@@ -46,13 +45,13 @@ var (
 // WsConnectBusiness connects to a business wbesocket channel.
 func (ok *Okx) WsConnectBusiness() error {
 	if !ok.Websocket.IsEnabled() || !ok.IsEnabled() {
-		return errors.New(stream.WebsocketNotEnabled)
+		return stream.ErrWebsocketNotEnabled
 	}
 	var dialer websocket.Dialer
 	dialer.ReadBufferSize = 8192
 	dialer.WriteBufferSize = 8192
 
-	ok.Websocket.Conn.SetURL(okxBusinessWebsocket)
+	ok.Websocket.Conn.SetURL(okxBusinessWebsocketURL)
 	err := ok.Websocket.Conn.Dial(&dialer, http.Header{})
 	if err != nil {
 		return err

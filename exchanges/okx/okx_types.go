@@ -2722,12 +2722,6 @@ func (a *SpreadOrderInfo) GetSCode() string { return a.SCode }
 // GetSMsg returns a status message value
 func (a *SpreadOrderInfo) GetSMsg() string { return a.SMsg }
 
-// WsSpreadOrderResponse holds websocket spread order response.
-type WsSpreadOrderResponse struct {
-	OperationResponse
-	Data []SpreadOrderInfo `json:"data"`
-}
-
 type wsRequestInfo struct {
 	ID             string
 	Chan           chan *wsIncomingData
