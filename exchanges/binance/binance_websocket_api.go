@@ -35,7 +35,7 @@ var websocketStatusCodes = map[int64]string{
 // WsConnectAPI creates a new websocket connection to API server
 func (b *Binance) WsConnectAPI() error {
 	if !b.Websocket.IsEnabled() || !b.IsEnabled() {
-		return errors.New(stream.WebsocketNotEnabled)
+		return stream.ErrWebsocketNotEnabled
 	}
 
 	var err error

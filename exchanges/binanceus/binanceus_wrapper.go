@@ -162,7 +162,7 @@ func (bi *Binanceus) SetDefaults() {
 			"%s setting default endpoints error %v",
 			bi.Name, err)
 	}
-	bi.Websocket = stream.New()
+	bi.Websocket = stream.NewWebsocket()
 	bi.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	bi.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
 	bi.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
