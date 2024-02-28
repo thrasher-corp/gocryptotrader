@@ -41,7 +41,7 @@ var (
 // WsConnect initiates a websocket connection
 func (c *COINUT) WsConnect() error {
 	if !c.Websocket.IsEnabled() || !c.IsEnabled() {
-		return errors.New(stream.WebsocketNotEnabled)
+		return stream.ErrWebsocketNotEnabled
 	}
 	var dialer websocket.Dialer
 	err := c.Websocket.Conn.Dial(&dialer, http.Header{})

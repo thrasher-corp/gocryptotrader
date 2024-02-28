@@ -198,7 +198,7 @@ func TestSetClientProxyAddress(t *testing.T) {
 		Name:      "rawr",
 		Requester: requester}
 
-	newBase.Websocket = stream.New()
+	newBase.Websocket = stream.NewWebsocket()
 	err = newBase.SetClientProxyAddress("")
 	if err != nil {
 		t.Error(err)
@@ -1251,7 +1251,7 @@ func TestSetupDefaults(t *testing.T) {
 	}
 
 	// Test websocket support
-	b.Websocket = stream.New()
+	b.Websocket = stream.NewWebsocket()
 	b.Features.Supports.Websocket = true
 	err = b.Websocket.Setup(&stream.WebsocketSetup{
 		ExchangeConfig: &config.Exchange{
@@ -1596,7 +1596,7 @@ func TestIsWebsocketEnabled(t *testing.T) {
 		t.Error("exchange doesn't support websocket")
 	}
 
-	b.Websocket = stream.New()
+	b.Websocket = stream.NewWebsocket()
 	err := b.Websocket.Setup(&stream.WebsocketSetup{
 		ExchangeConfig: &config.Exchange{
 			Enabled:                 true,

@@ -51,7 +51,7 @@ func getKlineIntervalString(interval kline.Interval) string {
 // WsUFuturesConnect initiates a websocket connection
 func (b *Binance) WsUFuturesConnect() error {
 	if !b.Websocket.IsEnabled() || !b.IsEnabled() {
-		return errors.New(stream.WebsocketNotEnabled)
+		return stream.ErrWebsocketNotEnabled
 	}
 	var err error
 	var dialer websocket.Dialer

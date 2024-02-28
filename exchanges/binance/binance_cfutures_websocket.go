@@ -32,7 +32,7 @@ var defaultCFuturesSubscriptions = []string{
 // WsCFutureConnect initiates a websocket connection to coin margined futures websocket
 func (b *Binance) WsCFutureConnect() error {
 	if !b.Websocket.IsEnabled() || !b.IsEnabled() {
-		return errors.New(stream.WebsocketNotEnabled)
+		return stream.ErrWebsocketNotEnabled
 	}
 	var err error
 	var dialer websocket.Dialer

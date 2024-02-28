@@ -1215,7 +1215,7 @@ func setupWsTests(t *testing.T) {
 		return
 	}
 	if !k.Websocket.IsEnabled() && !k.API.AuthenticatedWebsocketSupport || !sharedtestvalues.AreAPICredentialsSet(k) {
-		t.Skip(stream.WebsocketNotEnabled)
+		t.Skip(stream.ErrWebsocketNotEnabled.Error())
 	}
 	var dialer websocket.Dialer
 	err := k.Websocket.Conn.Dial(&dialer, http.Header{})
