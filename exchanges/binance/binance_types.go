@@ -1251,9 +1251,9 @@ type WsListStatusData struct {
 
 // WsPayload defines the payload through the websocket connection
 type WsPayload struct {
-	Method string        `json:"method"`
-	Params []interface{} `json:"params"`
-	ID     int64         `json:"id"`
+	Method string   `json:"method"`
+	Params []string `json:"params"`
+	ID     int64    `json:"id"`
 }
 
 // CrossMarginInterestData stores cross margin data for borrowing
@@ -1892,7 +1892,7 @@ type WsRollingWindowPriceParams struct {
 // SymbolTickerItem holds symbol and price information
 type SymbolTickerItem struct {
 	Symbol string       `json:"symbol"`
-	Price  types.Number `json:"price" `
+	Price  types.Number `json:"price"`
 }
 
 // SymbolTickers holds symbol and price ticker information.

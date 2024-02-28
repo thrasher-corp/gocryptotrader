@@ -34,6 +34,5 @@ func TestMain(m *testing.M) {
 		log.Fatal(err)
 	}
 	setupWs()
-
 	os.Exit(m.Run())
 }

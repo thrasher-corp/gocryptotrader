@@ -65,7 +65,7 @@ func (b *Binance) WsCFutureConnect() error {
 	return nil
 }
 
-// GenerateDefaultCFuturesSubscriptions genearates a list of subscription instances.
+// GenerateDefaultCFuturesSubscriptions generates a list of subscription instances.
 func (b *Binance) GenerateDefaultCFuturesSubscriptions() ([]subscription.Subscription, error) {
 	var channels = defaultCFuturesSubscriptions
 	var subscriptions []subscription.Subscription
@@ -77,7 +77,7 @@ func (b *Binance) GenerateDefaultCFuturesSubscriptions() ([]subscription.Subscri
 		pairs = pairs[:3]
 	}
 	for z := range channels {
-		var subsc subscription.Subscription
+		var chSubscription subscription.Subscription
 		switch channels[z] {
 		case contractInfoAllChan, forceOrderAllChan,
 			bookTickerAllChan, tickerAllChan, miniTickerAllChan:
@@ -90,26 +90,26 @@ func (b *Binance) GenerateDefaultCFuturesSubscriptions() ([]subscription.Subscri
 			for y := range pairs {
 				lp := pairs[y].Lower()
 				lp.Delimiter = ""
-				subsc = subscription.Subscription{
+				chSubscription = subscription.Subscription{
 					Channel: lp.String() + channels[z],
 				}
 				switch channels[z] {
 				case depthChan:
-					subsc.Channel += "@100ms"
+					chSubscription.Channel += "@100ms"
 				case klineChan, indexPriceKlineCFuturesChan, markPriceKlineCFuturesChan:
-					subsc.Channel += "_" + getKlineIntervalString(kline.FiveMin)
+					chSubscription.Channel += "_" + getKlineIntervalString(kline.FiveMin)
 				}
-				subscriptions = append(subscriptions, subsc)
+				subscriptions = append(subscriptions, chSubscription)
 			}
 		case continuousKline:
 			for y := range pairs {
 				lp := pairs[y].Lower()
 				lp.Delimiter = ""
-				subsc = subscription.Subscription{
+				chSubscription = subscription.Subscription{
 					// Contract types:""perpetual", "current_quarter", "next_quarter""
 					Channel: lp.String() + "_PERPETUAL@" + channels[z] + "_" + getKlineIntervalString(kline.FiveMin),
 				}
-				subscriptions = append(subscriptions, subsc)
+				subscriptions = append(subscriptions, chSubscription)
 			}
 		default:
 			return nil, errors.New("unsupported subscription")

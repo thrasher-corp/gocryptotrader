@@ -660,7 +660,7 @@ func (b *Binance) handleSubscriptions(operation string, subscriptionChannels []s
 			if err != nil {
 				return err
 			}
-			payload.Params = []interface{}{}
+			payload.Params = []string{}
 			payload.ID = b.Websocket.Conn.GenerateMessageID(false)
 		}
 	}
@@ -691,7 +691,7 @@ func (b *Binance) GenerateUFuturesDefaultSubscriptions() ([]subscription.Subscri
 		pairs = pairs[:3]
 	}
 	for z := range channels {
-		var subsc subscription.Subscription
+		var chSubscription subscription.Subscription
 		switch channels[z] {
 		case assetIndexAllChan, contractInfoAllChan, forceOrderAllChan,
 			bookTickerAllChan, tickerAllChan, miniTickerAllChan, markPriceAllChan:
@@ -706,27 +706,27 @@ func (b *Binance) GenerateUFuturesDefaultSubscriptions() ([]subscription.Subscri
 			for y := range pairs {
 				lp := pairs[y].Lower()
 				lp.Delimiter = ""
-				subsc = subscription.Subscription{
+				chSubscription = subscription.Subscription{
 					Channel: lp.String() + channels[z],
 				}
 				switch channels[z] {
 				case depthChan:
-					subsc.Channel += "@100ms"
+					chSubscription.Channel += "@100ms"
 				case klineChan:
-					subsc.Channel += "_" + getKlineIntervalString(kline.FiveMin)
+					chSubscription.Channel += "_" + getKlineIntervalString(kline.FiveMin)
 				}
-				subscriptions = append(subscriptions, subsc)
+				subscriptions = append(subscriptions, chSubscription)
 			}
 		case continuousKline:
 			for y := range pairs {
 				lp := pairs[y].Lower()
 				lp.Delimiter = ""
-				subsc = subscription.Subscription{
+				chSubscription = subscription.Subscription{
 					// Contract types:"PERPETUAL", "CURRENT_MONTH", "NEXT_MONTH", "CURRENT_QUARTER", "NEXT_QUARTER"
 					// by default we are subscribing to PERPETUAL contract types
 					Channel: lp.String() + "_PERPETUAL@" + channels[z] + "_" + getKlineIntervalString(kline.FifteenMin),
 				}
-				subscriptions = append(subscriptions, subsc)
+				subscriptions = append(subscriptions, chSubscription)
 			}
 		default:
 			return nil, errors.New("unsupported subscription")
@@ -752,7 +752,11 @@ func (b *Binance) ListSubscriptions() ([]string, error) {
 // SetProperty to set a property for the websocket connection you are using.
 func (b *Binance) SetProperty(property string, value interface{}) error {
 	// Currently, the only property can be set is to set whether "combined" stream payloads are enabled are not.
-	req := &WsPayload{
+	req := &struct {
+		ID     int64         `json:"method"`
+		Method string        `json:"params"`
+		Params []interface{} `json:"id"`
+	}{
 		ID:     b.Websocket.Conn.GenerateMessageID(false),
 		Method: "SET_PROPERTY",
 		Params: []interface{}{
