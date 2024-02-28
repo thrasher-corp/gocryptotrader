@@ -14,7 +14,7 @@ import (
 // WsOptionsConnect connects to options a websocket feed
 func (by *Bybit) WsOptionsConnect() error {
 	if !by.Websocket.IsEnabled() || !by.IsEnabled() || !by.IsAssetWebsocketSupported(asset.Options) {
-		return errWebsocketNotEnabled
+		return stream.ErrWebsocketNotEnabled
 	}
 	by.Websocket.Conn.SetURL(optionPublic)
 	var dialer websocket.Dialer

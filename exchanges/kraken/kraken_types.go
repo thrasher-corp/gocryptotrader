@@ -396,7 +396,7 @@ type TradeVolumeFee struct {
 // AddOrderResponse type
 type AddOrderResponse struct {
 	Description    OrderDescription `json:"descr"`
-	TransactionIds []string         `json:"txid"`
+	TransactionIDs []string         `json:"txid"`
 }
 
 // WithdrawInformation Used to check withdrawal fees

@@ -8,7 +8,6 @@ import (
 	"sort"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/shopspring/decimal"
@@ -191,7 +190,7 @@ func (ok *Okx) SetDefaults() {
 		log.Errorln(log.ExchangeSys, err)
 	}
 
-	ok.Websocket = stream.New()
+	ok.Websocket = stream.NewWebsocket()
 	ok.WebsocketResponseMaxLimit = okxWebsocketResponseMaxLimit
 	ok.WebsocketResponseCheckTimeout = okxWebsocketResponseMaxLimit
 	ok.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
@@ -257,49 +256,6 @@ func (ok *Okx) Setup(exch *config.Exchange) error {
 		Authenticated:        true,
 		RateLimit:            500,
 	})
-}
-
-// Start starts the Okx go routine
-func (ok *Okx) Start(ctx context.Context, wg *sync.WaitGroup) error {
-	if wg == nil {
-		return fmt.Errorf("%T %w", wg, common.ErrNilPointer)
-	}
-	wg.Add(1)
-	go func() {
-		ok.Run(ctx)
-		wg.Done()
-	}()
-	return nil
-}
-
-// Run implements the Okx wrapper
-func (ok *Okx) Run(ctx context.Context) {
-	if ok.Verbose {
-		log.Debugf(log.ExchangeSys,
-			"%s Websocket: %s.",
-			ok.Name,
-			common.IsEnabled(ok.Websocket.IsEnabled()))
-		ok.PrintEnabledPairs()
-	}
-
-	assetTypes := ok.GetAssetTypes(false)
-	for i := range assetTypes {
-		if err := ok.UpdateOrderExecutionLimits(ctx, assetTypes[i]); err != nil {
-			log.Errorf(log.ExchangeSys,
-				"%s failed to set exchange order execution limits. Err: %v",
-				ok.Name,
-				err)
-		}
-	}
-
-	if ok.GetEnabledFeatures().AutoPairUpdates {
-		if err := ok.UpdateTradablePairs(ctx, false); err != nil {
-			log.Errorf(log.ExchangeSys,
-				"%s failed to update tradable pairs. Err: %s",
-				ok.Name,
-				err)
-		}
-	}
 }
 
 // Shutdown calls Base.Shutdown and then shuts down the response multiplexer
@@ -781,7 +737,7 @@ func (ok *Okx) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitR
 		return nil, fmt.Errorf("%w: %v", asset.ErrNotSupported, s.AssetType)
 	}
 	if s.Amount <= 0 {
-		return nil, fmt.Errorf("amount, or size (sz) of quantity to buy or sell hast to be greater than zero ")
+		return nil, errors.New("amount, or size (sz) of quantity to buy or sell hast to be greater than zero")
 	}
 	pairFormat, err := ok.GetPairFormat(s.AssetType, true)
 	if err != nil {
@@ -1828,7 +1784,7 @@ func (ok *Okx) ChangePositionMargin(ctx context.Context, req *margin.PositionCha
 	if req.MarginSide == "" {
 		req.MarginSide = "net"
 	}
-	r := IncreaseDecreaseMarginInput{
+	r := &IncreaseDecreaseMarginInput{
 		InstrumentID: fPair.String(),
 		PositionSide: req.MarginSide,
 		Type:         marginType,

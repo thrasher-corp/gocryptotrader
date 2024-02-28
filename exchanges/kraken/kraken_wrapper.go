@@ -7,7 +7,6 @@ import (
 	"sort"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/shopspring/decimal"
@@ -210,7 +209,7 @@ func (k *Kraken) SetDefaults() {
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
-	k.Websocket = stream.New()
+	k.Websocket = stream.NewWebsocket()
 	k.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	k.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
 	k.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
@@ -272,96 +271,6 @@ func (k *Kraken) Setup(exch *config.Exchange) error {
 		URL:                  krakenAuthWSURL,
 		Authenticated:        true,
 	})
-}
-
-// Start starts the Kraken go routine
-func (k *Kraken) Start(ctx context.Context, wg *sync.WaitGroup) error {
-	if wg == nil {
-		return fmt.Errorf("%T %w", wg, common.ErrNilPointer)
-	}
-	wg.Add(1)
-	go func() {
-		k.Run(ctx)
-		wg.Done()
-	}()
-	return nil
-}
-
-// Run implements the Kraken wrapper
-func (k *Kraken) Run(ctx context.Context) {
-	if k.Verbose {
-		k.PrintEnabledPairs()
-	}
-
-	forceUpdate := false
-	if !k.BypassConfigFormatUpgrades {
-		format, err := k.GetPairFormat(asset.UseDefault(), false)
-		if err != nil {
-			log.Errorf(log.ExchangeSys,
-				"%s failed to update tradable pairs. Err: %s",
-				k.Name,
-				err)
-			return
-		}
-		enabled, err := k.GetEnabledPairs(asset.UseDefault())
-		if err != nil {
-			log.Errorf(log.ExchangeSys,
-				"%s failed to update tradable pairs. Err: %s",
-				k.Name,
-				err)
-			return
-		}
-
-		avail, err := k.GetAvailablePairs(asset.UseDefault())
-		if err != nil {
-			log.Errorf(log.ExchangeSys,
-				"%s failed to update tradable pairs. Err: %s",
-				k.Name,
-				err)
-			return
-		}
-
-		if !common.StringDataContains(enabled.Strings(), format.Delimiter) ||
-			!common.StringDataContains(avail.Strings(), format.Delimiter) ||
-			common.StringDataContains(avail.Strings(), "ZUSD") {
-			var p currency.Pairs
-			p, err = currency.NewPairsFromStrings([]string{currency.XBT.String() +
-				format.Delimiter +
-				currency.USD.String()})
-			if err != nil {
-				log.Errorf(log.ExchangeSys,
-					"%s failed to update currencies. Err: %s\n",
-					k.Name,
-					err)
-			} else {
-				log.Warnf(log.ExchangeSys, exchange.ResetConfigPairsWarningMessage, k.Name, asset.UseDefault(), p)
-				forceUpdate = true
-
-				err = k.UpdatePairs(p, asset.UseDefault(), true, true)
-				if err != nil {
-					log.Errorf(log.ExchangeSys,
-						"%s failed to update currencies. Err: %s\n",
-						k.Name,
-						err)
-				}
-			}
-		}
-	}
-
-	if k.GetEnabledFeatures().AutoPairUpdates || forceUpdate {
-		if err := k.UpdateTradablePairs(ctx, forceUpdate); err != nil {
-			log.Errorf(log.ExchangeSys,
-				"%s failed to update tradable pairs. Err: %s",
-				k.Name,
-				err)
-		}
-	}
-
-	for _, a := range k.GetAssetTypes(true) {
-		if err := k.UpdateOrderExecutionLimits(ctx, a); err != nil && err != common.ErrNotYetImplemented {
-			log.Errorln(log.ExchangeSys, err.Error())
-		}
-	}
 }
 
 // UpdateOrderExecutionLimits sets exchange execution order limits for an asset type
@@ -871,8 +780,8 @@ func (k *Kraken) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Submi
 			if err != nil {
 				return nil, err
 			}
-			if len(response.TransactionIds) > 0 {
-				orderID = strings.Join(response.TransactionIds, ", ")
+			if len(response.TransactionIDs) > 0 {
+				orderID = strings.Join(response.TransactionIDs, ", ")
 			}
 		}
 		if s.Type == order.Market {
@@ -1565,7 +1474,7 @@ func (k *Kraken) GetOrderHistory(ctx context.Context, getOrdersRequest *order.Mu
 						Pair:      pairs[p],
 					})
 				default:
-					return orders, fmt.Errorf("invalid orderHistory data")
+					return orders, errors.New("invalid orderHistory data")
 				}
 			}
 		}
@@ -1657,7 +1566,7 @@ func compatibleOrderSide(side string) (order.Side, error) {
 	case strings.EqualFold(order.Sell.String(), side):
 		return order.Sell, nil
 	}
-	return order.AnySide, fmt.Errorf("invalid side received")
+	return order.AnySide, errors.New("invalid side received")
 }
 
 func compatibleOrderType(orderType string) (order.Type, error) {
@@ -1670,7 +1579,7 @@ func compatibleOrderType(orderType string) (order.Type, error) {
 	case "take_profit":
 		resp = order.TakeProfit
 	default:
-		return resp, fmt.Errorf("invalid orderType")
+		return resp, errors.New("invalid orderType")
 	}
 	return resp, nil
 }
@@ -1685,7 +1594,7 @@ func compatibleFillOrderType(fillType string) (order.Type, error) {
 	case "liquidation":
 		resp = order.Liquidation
 	default:
-		return resp, fmt.Errorf("invalid orderPriceType")
+		return resp, errors.New("invalid orderPriceType")
 	}
 	return resp, nil
 }

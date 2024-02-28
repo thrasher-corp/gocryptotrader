@@ -115,6 +115,21 @@ func TestGetAllTickers(t *testing.T) {
 	}
 }
 
+func TestGetFuturesTickers(t *testing.T) {
+	t.Parallel()
+	tickers, err := ku.GetFuturesTickers(context.Background())
+	assert.NoError(t, err, "GetFuturesTickers should not error")
+	for i := range tickers {
+		assert.Positive(t, tickers[i].Last, "Last should be positive")
+		assert.Positive(t, tickers[i].Bid, "Bid should be positive")
+		assert.Positive(t, tickers[i].Ask, "Ask should be positive")
+		assert.NotEmpty(t, tickers[i].Pair, "Pair should not be empty")
+		assert.NotEmpty(t, tickers[i].LastUpdated, "LastUpdated should not be empty")
+		assert.Equal(t, ku.Name, tickers[i].ExchangeName, "Exchange name should be correct")
+		assert.Equal(t, asset.Futures, tickers[i].AssetType, "Asset type should be correct")
+	}
+}
+
 func TestGet24hrStats(t *testing.T) {
 	t.Parallel()
 	_, err := ku.Get24hrStats(context.Background(), "BTC-USDT")
@@ -1666,21 +1681,21 @@ func TestUpdateOrderbook(t *testing.T) {
 }
 func TestUpdateTickers(t *testing.T) {
 	t.Parallel()
-	err := ku.UpdateTickers(context.Background(), asset.Spot)
-	if err != nil {
-		t.Fatal(err)
-	}
-	err = ku.UpdateTickers(context.Background(), asset.Margin)
-	if err != nil {
-		t.Fatal(err)
-	}
-	err = ku.UpdateTickers(context.Background(), asset.Futures)
-	if err != nil {
-		t.Fatal(err)
-	}
-	err = ku.UpdateTickers(context.Background(), asset.Empty)
-	if !errors.Is(err, asset.ErrNotSupported) {
-		t.Fatal(err)
+	for _, a := range ku.GetAssetTypes(true) {
+		err := ku.UpdateTickers(context.Background(), a)
+		assert.NoError(t, err, "UpdateTickers should not error")
+		pairs, err := ku.GetEnabledPairs(a)
+		assert.NoError(t, err, "GetEnabledPairs should not error")
+		for _, p := range pairs {
+			tick, err := ticker.GetTicker(ku.Name, p, a)
+			if assert.NoError(t, err, "GetTicker %s %s should not error", a, p) {
+				assert.Positive(t, tick.Last, "%s %s Tick Last should be positive", a, p)
+				assert.NotEmpty(t, tick.Pair, "%s %s Tick Pair should not be empty", a, p)
+				assert.Equal(t, ku.Name, tick.ExchangeName, "ExchangeName should be correct")
+				assert.Equal(t, a, tick.AssetType, "AssetType should be correct")
+				assert.NotEmpty(t, tick.LastUpdated, "%s %s Tick LastUpdated should not be empty", a, p)
+			}
+		}
 	}
 }
 func TestUpdateTicker(t *testing.T) {
@@ -1980,7 +1995,7 @@ func TestPushData(t *testing.T) {
 func verifySubs(tb testing.TB, subs []subscription.Subscription, a asset.Item, prefix string, expected ...string) {
 	tb.Helper()
 	var sub *subscription.Subscription
-	for i, s := range subs {
+	for i, s := range subs { //nolint:gocritic // prefer convenience over performance here for tests
 		if s.Asset == a && strings.HasPrefix(s.Channel, prefix) {
 			if len(expected) == 1 && !strings.Contains(s.Channel, expected[0]) {
 				continue
@@ -2006,7 +2021,7 @@ func verifySubs(tb testing.TB, subs []subscription.Subscription, a asset.Item, p
 // Pairs for Subscription tests:
 // Only in Spot: BTC-USDT, ETH-USDT
 // In Both: ETH-BTC, LTC-USDT
-// Only in Margin: XMR-BTC, SOL-USDC
+// Only in Margin: TRX-BTC, SOL-USDC
 
 func TestGenerateDefaultSubscriptions(t *testing.T) {
 	t.Parallel()
@@ -2017,7 +2032,7 @@ func TestGenerateDefaultSubscriptions(t *testing.T) {
 	assert.Len(t, subs, 12, "Should generate the correct number of subs when not logged in")
 	for _, p := range []string{"ticker", "match", "level2"} {
 		verifySubs(t, subs, asset.Spot, "/market/"+p+":", "BTC-USDT", "ETH-USDT", "LTC-USDT", "ETH-BTC")
-		verifySubs(t, subs, asset.Margin, "/market/"+p+":", "SOL-USDC", "XMR-BTC")
+		verifySubs(t, subs, asset.Margin, "/market/"+p+":", "SOL-USDC", "TRX-BTC")
 	}
 	for _, c := range []string{"ETHUSDCM", "XBTUSDCM", "SOLUSDTM"} {
 		verifySubs(t, subs, asset.Futures, "/contractMarket/tickerV2:", c)
@@ -2040,18 +2055,18 @@ func TestGenerateAuthSubscriptions(t *testing.T) {
 	assert.Len(t, subs, 25, "Should generate the correct number of subs when logged in")
 	for _, p := range []string{"ticker", "match", "level2"} {
 		verifySubs(t, subs, asset.Spot, "/market/"+p+":", "BTC-USDT", "ETH-USDT", "LTC-USDT", "ETH-BTC")
-		verifySubs(t, subs, asset.Margin, "/market/"+p+":", "SOL-USDC", "XMR-BTC")
+		verifySubs(t, subs, asset.Margin, "/market/"+p+":", "SOL-USDC", "TRX-BTC")
 	}
 	for _, c := range []string{"ETHUSDCM", "XBTUSDCM", "SOLUSDTM"} {
 		verifySubs(t, subs, asset.Futures, "/contractMarket/tickerV2:", c)
 		verifySubs(t, subs, asset.Futures, "/contractMarket/level2Depth50:", c)
 	}
-	for _, c := range []string{"SOL", "BTC", "XMR", "LTC", "USDC", "USDT", "ETH"} {
+	for _, c := range []string{"SOL", "BTC", "TRX", "LTC", "USDC", "USDT", "ETH"} {
 		verifySubs(t, subs, asset.Margin, "/margin/loan:", c)
 	}
 	verifySubs(t, subs, asset.Spot, "/account/balance")
 	verifySubs(t, subs, asset.Margin, "/margin/position")
-	verifySubs(t, subs, asset.Margin, "/margin/fundingBook:", "SOL", "BTC", "XMR", "LTC", "USDT", "USDC", "ETH")
+	verifySubs(t, subs, asset.Margin, "/margin/fundingBook:", "SOL", "BTC", "TRX", "LTC", "USDT", "USDC", "ETH")
 	verifySubs(t, subs, asset.Futures, "/contractAccount/wallet")
 	verifySubs(t, subs, asset.Futures, "/contractMarket/advancedOrders")
 	verifySubs(t, subs, asset.Futures, "/contractMarket/tradeOrders")
@@ -2077,7 +2092,7 @@ func TestGenerateCandleSubscription(t *testing.T) {
 	for _, c := range []string{"BTC-USDT", "ETH-USDT", "LTC-USDT", "ETH-BTC"} {
 		verifySubs(t, subs, asset.Spot, "/market/candles:", c+"_4hour")
 	}
-	for _, c := range []string{"SOL-USDC", "XMR-BTC"} {
+	for _, c := range []string{"SOL-USDC", "TRX-BTC"} {
 		verifySubs(t, subs, asset.Margin, "/market/candles:", c+"_4hour")
 	}
 }
@@ -2102,7 +2117,7 @@ func TestGenerateMarketSubscription(t *testing.T) {
 	for _, c := range []string{"BTC", "ETH", "LTC", "USDT"} {
 		verifySubs(t, subs, asset.Spot, "/market/snapshot:", c)
 	}
-	for _, c := range []string{"SOL", "USDC", "XMR"} {
+	for _, c := range []string{"SOL", "USDC", "TRX"} {
 		verifySubs(t, subs, asset.Margin, "/market/snapshot:", c)
 	}
 }
@@ -2488,14 +2503,14 @@ func TestProcessMarketSnapshot(t *testing.T) {
 					assert.Equal(t, 0.004445, v.High, "high")
 					assert.Equal(t, 0.004415, v.Last, "lastTradedPrice")
 					assert.Equal(t, 0.004191, v.Low, "low")
-					assert.Equal(t, currency.NewPairWithDelimiter("XMR", "BTC", "-"), v.Pair, "symbol")
+					assert.Equal(t, currency.NewPairWithDelimiter("TRX", "BTC", "-"), v.Pair, "symbol")
 					assert.Equal(t, 13097.3357, v.Volume, "volume")
 					assert.Equal(t, 57.44552981, v.QuoteVolume, "volValue")
 				case 2, 3:
 					assert.Equal(t, time.UnixMilli(1700555340197), v.LastUpdated, "datetime")
 					assert.Contains(t, []asset.Item{asset.Spot, asset.Margin}, v.AssetType, "AssetType is Spot or Margin")
 					seenAssetTypes[v.AssetType]++
-					assert.Equal(t, seenAssetTypes[v.AssetType], 1, "Each Asset Type is sent only once per unique snapshot")
+					assert.Equal(t, 1, seenAssetTypes[v.AssetType], "Each Asset Type is sent only once per unique snapshot")
 					assert.Equal(t, 0.054846, v.High, "high")
 					assert.Equal(t, 0.053778, v.Last, "lastTradedPrice")
 					assert.Equal(t, 0.05364, v.Low, "low")
@@ -2625,7 +2640,7 @@ func TestChangePositionMargin(t *testing.T) {
 
 	req.NewAllocatedMargin = 1337
 	_, err = ku.ChangePositionMargin(context.Background(), req)
-	assert.ErrorIs(t, err, nil)
+	assert.NoError(t, err)
 }
 
 func TestGetFuturesPositionSummary(t *testing.T) {
@@ -2644,7 +2659,7 @@ func TestGetFuturesPositionSummary(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ku, canManipulateRealOrders)
 	req.Pair = currency.NewPair(currency.XBT, currency.USDTM)
 	_, err = ku.GetFuturesPositionSummary(context.Background(), req)
-	assert.ErrorIs(t, err, nil)
+	assert.NoError(t, err)
 }
 
 func TestGetFuturesPositionOrders(t *testing.T) {
@@ -2670,7 +2685,7 @@ func TestGetFuturesPositionOrders(t *testing.T) {
 	req.EndDate = time.Now()
 	req.StartDate = req.EndDate.Add(-time.Hour * 24 * 7)
 	_, err = ku.GetFuturesPositionOrders(context.Background(), req)
-	assert.ErrorIs(t, err, nil)
+	assert.NoError(t, err)
 
 	req.StartDate = req.EndDate.Add(-time.Hour * 24 * 30)
 	_, err = ku.GetFuturesPositionOrders(context.Background(), req)
@@ -2678,7 +2693,7 @@ func TestGetFuturesPositionOrders(t *testing.T) {
 
 	req.RespectOrderHistoryLimits = true
 	_, err = ku.GetFuturesPositionOrders(context.Background(), req)
-	assert.ErrorIs(t, err, nil)
+	assert.NoError(t, err)
 }
 
 func TestUpdateOrderExecutionLimits(t *testing.T) {

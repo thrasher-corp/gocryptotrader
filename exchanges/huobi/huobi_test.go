@@ -7,7 +7,6 @@ import (
 	"os"
 	"strconv"
 	"strings"
-	"sync"
 	"testing"
 	"time"
 
@@ -79,7 +78,7 @@ func setupWsTests(t *testing.T) {
 		return
 	}
 	if !h.Websocket.IsEnabled() && !h.API.AuthenticatedWebsocketSupport || !sharedtestvalues.AreAPICredentialsSet(h) {
-		t.Skip(stream.WebsocketNotEnabled)
+		t.Skip(stream.ErrWebsocketNotEnabled.Error())
 	}
 	comms = make(chan WsMessage, sharedtestvalues.WebsocketChannelOverrideCapacity)
 	go h.wsReadData()
@@ -94,20 +93,6 @@ func setupWsTests(t *testing.T) {
 	}
 
 	wsSetupRan = true
-}
-
-func TestStart(t *testing.T) {
-	t.Parallel()
-	err := h.Start(context.Background(), nil)
-	if !errors.Is(err, common.ErrNilPointer) {
-		t.Errorf("received: '%v' but expected: '%v'", err, common.ErrNilPointer)
-	}
-	var testWg sync.WaitGroup
-	err = h.Start(context.Background(), &testWg)
-	if err != nil {
-		t.Error(err)
-	}
-	testWg.Wait()
 }
 
 func TestGetCurrenciesIncludingChains(t *testing.T) {
@@ -2901,7 +2886,7 @@ func TestConvertContractShortHandToExpiry(t *testing.T) {
 	cp := currency.NewPair(currency.BTC, currency.NewCode("CW"))
 	cp, err := h.convertContractShortHandToExpiry(cp, tt)
 	assert.NoError(t, err)
-	assert.NotEqual(t, cp.Quote.String(), "CW")
+	assert.NotEqual(t, "CW", cp.Quote.String())
 	tick, err := h.FetchTicker(context.Background(), cp, asset.Futures)
 	if assert.NoError(t, err) {
 		assert.NotZero(t, tick.Close)
@@ -2910,7 +2895,7 @@ func TestConvertContractShortHandToExpiry(t *testing.T) {
 	cp = currency.NewPair(currency.BTC, currency.NewCode("NW"))
 	cp, err = h.convertContractShortHandToExpiry(cp, tt)
 	assert.NoError(t, err)
-	assert.NotEqual(t, cp.Quote.String(), "NW")
+	assert.NotEqual(t, "NW", cp.Quote.String())
 	tick, err = h.FetchTicker(context.Background(), cp, asset.Futures)
 	if assert.NoError(t, err) {
 		assert.NotZero(t, tick.Close)
@@ -2919,7 +2904,7 @@ func TestConvertContractShortHandToExpiry(t *testing.T) {
 	cp = currency.NewPair(currency.BTC, currency.NewCode("CQ"))
 	cp, err = h.convertContractShortHandToExpiry(cp, tt)
 	assert.NoError(t, err)
-	assert.NotEqual(t, cp.Quote.String(), "CQ")
+	assert.NotEqual(t, "CQ", cp.Quote.String())
 	tick, err = h.FetchTicker(context.Background(), cp, asset.Futures)
 	if assert.NoError(t, err) {
 		assert.NotZero(t, tick.Close)
@@ -2930,12 +2915,12 @@ func TestConvertContractShortHandToExpiry(t *testing.T) {
 	tt = time.Date(2021, 6, 3, 0, 0, 0, 0, time.UTC)
 	cp, err = h.convertContractShortHandToExpiry(cp, tt)
 	assert.NoError(t, err)
-	assert.Equal(t, cp.Quote.String(), "210625")
+	assert.Equal(t, "210625", cp.Quote.String())
 
 	cp = currency.NewPair(currency.BTC, currency.NewCode("CW"))
 	cp, err = h.convertContractShortHandToExpiry(cp, tt)
 	assert.NoError(t, err)
-	assert.Equal(t, cp.Quote.String(), "210604")
+	assert.Equal(t, "210604", cp.Quote.String())
 
 	cp = currency.NewPair(currency.BTC, currency.NewCode("CWif hat"))
 	_, err = h.convertContractShortHandToExpiry(cp, tt)
@@ -2945,7 +2930,7 @@ func TestConvertContractShortHandToExpiry(t *testing.T) {
 	cp = currency.NewPair(currency.BTC, currency.NewCode("NQ"))
 	cp, err = h.convertContractShortHandToExpiry(cp, tt)
 	assert.NoError(t, err)
-	assert.NotEqual(t, cp.Quote.String(), "NQ")
+	assert.NotEqual(t, "NQ", cp.Quote.String())
 	tick, err = h.FetchTicker(context.Background(), cp, asset.Futures)
 	if err != nil {
 		// Huobi doesn't always have a next-quarter contract, return if no data found

@@ -211,13 +211,13 @@ func (c *CoinbasePro) GetTrades(ctx context.Context, currencyPair string) ([]Tra
 func (c *CoinbasePro) GetHistoricRates(ctx context.Context, currencyPair, start, end string, granularity int64) ([]History, error) {
 	values := url.Values{}
 
-	if len(start) > 0 {
+	if start != "" {
 		values.Set("start", start)
 	} else {
 		values.Set("start", "")
 	}
 
-	if len(end) > 0 {
+	if end != "" {
 		values.Set("end", end)
 	} else {
 		values.Set("end", "")
@@ -469,7 +469,7 @@ func (c *CoinbasePro) CancelAllExistingOrders(ctx context.Context, currencyPair 
 	var resp []string
 	req := make(map[string]interface{})
 
-	if len(currencyPair) > 0 {
+	if currencyPair != "" {
 		req["product_id"] = currencyPair
 	}
 	return resp, c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodDelete, coinbaseproOrders, req, &resp)

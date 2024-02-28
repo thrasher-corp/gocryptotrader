@@ -206,10 +206,10 @@ func Logo() string {
 	sb := strings.Builder{}
 	sb.WriteString("                                                                                \n")
 	sb.WriteString("                               " + CMDColours.White + "@@@@@@@@@@@@@@@@@                                \n")
-	sb.WriteString("                            " + CMDColours.White + "@@@@@@@@@@@@@@@@@@@@@@@    " + CMDColours.Grey + ",,,,,," + CMDColours.White + "                   \n")
+	sb.WriteString("                            " + CMDColours.White + "@@@@@@@@@@@@@@@@@@@@@@@    " + CMDColours.Grey + ",,,,,," + CMDColours.White + "                   \n") //nolint:goconst // not needed for this glorious logo
 	sb.WriteString("                           " + CMDColours.White + "@@@@@@@@" + CMDColours.Grey + ",,,,,    " + CMDColours.White + "@@@@@@@@@" + CMDColours.Grey + ",,,,,,,," + CMDColours.White + "                   \n")
 	sb.WriteString("                         " + CMDColours.White + "@@@@@@@@" + CMDColours.Grey + ",,,,,,,       " + CMDColours.White + "@@@@@@@" + CMDColours.Grey + ",,,,,,," + CMDColours.White + "                   \n")
-	sb.WriteString("                         " + CMDColours.White + "@@@@@@" + CMDColours.Grey + "(,,,,,,,,      " + CMDColours.Grey + ",," + CMDColours.White + "@@@@@@@" + CMDColours.Grey + ",,,,,," + CMDColours.White + "                   \n")
+	sb.WriteString("                         " + CMDColours.White + "@@@@@@" + CMDColours.Grey + "(,,,,,,,,      " + CMDColours.Grey + ",," + CMDColours.White + "@@@@@@@" + CMDColours.Grey + ",,,,,," + CMDColours.White + "                   \n") //nolint:goconst // not needed for this glorious logo
 	sb.WriteString("                      " + CMDColours.Grey + ",," + CMDColours.White + "@@@@@@" + CMDColours.Grey + ",,,,,,,,,   #,,,,,,,,,,,,,,,,,," + CMDColours.White + "                   \n")
 	sb.WriteString("                   " + CMDColours.Grey + ",,,,*" + CMDColours.White + "@@@@@@" + CMDColours.Grey + ",,,,,,,,,,,,,,,,,,,,,,,,,," + CMDColours.Green + "%%%%%%%" + CMDColours.White + "                \n")
 	sb.WriteString("                " + CMDColours.Grey + ",,,,,,,*" + CMDColours.White + "@@@@@@" + CMDColours.Grey + ",,,,,,,,,,,,,," + CMDColours.Green + "%%%%%" + CMDColours.Grey + " ,,,,,," + CMDColours.Grey + "%" + CMDColours.Green + "%%%%%%" + CMDColours.White + "                 \n")

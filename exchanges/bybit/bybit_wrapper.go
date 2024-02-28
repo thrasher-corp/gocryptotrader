@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"sort"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/shopspring/decimal"
@@ -217,7 +216,7 @@ func (by *Bybit) SetDefaults() {
 		log.Errorln(log.ExchangeSys, err)
 	}
 
-	by.Websocket = stream.New()
+	by.Websocket = stream.NewWebsocket()
 	by.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	by.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
 	by.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
@@ -284,42 +283,6 @@ func (by *Bybit) Setup(exch *config.Exchange) error {
 // AuthenticateWebsocket sends an authentication message to the websocket
 func (by *Bybit) AuthenticateWebsocket(ctx context.Context) error {
 	return by.WsAuth(ctx)
-}
-
-// Start starts the Bybit go routine
-func (by *Bybit) Start(ctx context.Context, wg *sync.WaitGroup) error {
-	if wg == nil {
-		return fmt.Errorf("%T %w", wg, common.ErrNilPointer)
-	}
-	wg.Add(1)
-	go func() {
-		by.Run(ctx)
-		wg.Done()
-	}()
-	return nil
-}
-
-// Run implements the Bybit wrapper
-func (by *Bybit) Run(ctx context.Context) {
-	if by.Verbose {
-		log.Debugf(log.ExchangeSys,
-			"%s Websocket: %s.",
-			by.Name,
-			common.IsEnabled(by.Websocket.IsEnabled()))
-		by.PrintEnabledPairs()
-	}
-
-	if !by.GetEnabledFeatures().AutoPairUpdates {
-		return
-	}
-
-	err := by.UpdateTradablePairs(ctx, false)
-	if err != nil {
-		log.Errorf(log.ExchangeSys,
-			"%s failed to update tradable pairs. Err: %s",
-			by.Name,
-			err)
-	}
 }
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs

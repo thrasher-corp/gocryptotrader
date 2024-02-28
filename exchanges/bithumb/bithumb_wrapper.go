@@ -7,7 +7,6 @@ import (
 	"math"
 	"sort"
 	"strconv"
-	"sync"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -151,7 +150,7 @@ func (b *Bithumb) SetDefaults() {
 		log.Errorln(log.ExchangeSys, err)
 	}
 
-	b.Websocket = stream.New()
+	b.Websocket = stream.NewWebsocket()
 	b.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	b.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
 }
@@ -198,43 +197,6 @@ func (b *Bithumb) Setup(exch *config.Exchange) error {
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
 		RateLimit:            wsRateLimitMillisecond,
 	})
-}
-
-// Start starts the Bithumb go routine
-func (b *Bithumb) Start(ctx context.Context, wg *sync.WaitGroup) error {
-	if wg == nil {
-		return fmt.Errorf("%T %w", wg, common.ErrNilPointer)
-	}
-	wg.Add(1)
-	go func() {
-		b.Run(ctx)
-		wg.Done()
-	}()
-	return nil
-}
-
-// Run implements the Bithumb wrapper
-func (b *Bithumb) Run(ctx context.Context) {
-	if b.Verbose {
-		b.PrintEnabledPairs()
-	}
-
-	err := b.UpdateOrderExecutionLimits(ctx, asset.Empty)
-	if err != nil {
-		log.Errorf(log.ExchangeSys,
-			"%s failed to set exchange order execution limits. Err: %v",
-			b.Name,
-			err)
-	}
-
-	if !b.GetEnabledFeatures().AutoPairUpdates {
-		return
-	}
-
-	err = b.UpdateTradablePairs(ctx, false)
-	if err != nil {
-		log.Errorf(log.ExchangeSys, "%s failed to update tradable pairs. Err: %s", b.Name, err)
-	}
 }
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs

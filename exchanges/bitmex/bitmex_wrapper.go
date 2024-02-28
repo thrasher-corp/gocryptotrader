@@ -8,7 +8,6 @@ import (
 	"sort"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/shopspring/decimal"
@@ -176,7 +175,7 @@ func (b *Bitmex) SetDefaults() {
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
-	b.Websocket = stream.New()
+	b.Websocket = stream.NewWebsocket()
 	b.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	b.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
 	b.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
@@ -223,44 +222,6 @@ func (b *Bitmex) Setup(exch *config.Exchange) error {
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
 		URL:                  bitmexWSURL,
 	})
-}
-
-// Start starts the Bitmex go routine
-func (b *Bitmex) Start(ctx context.Context, wg *sync.WaitGroup) error {
-	if wg == nil {
-		return fmt.Errorf("%T %w", wg, common.ErrNilPointer)
-	}
-	wg.Add(1)
-	go func() {
-		b.Run(ctx)
-		wg.Done()
-	}()
-	return nil
-}
-
-// Run implements the Bitmex wrapper
-func (b *Bitmex) Run(ctx context.Context) {
-	if b.Verbose {
-		wsEndpoint, err := b.API.Endpoints.GetURL(exchange.WebsocketSpot)
-		if err != nil {
-			log.Errorln(log.ExchangeSys, err)
-		}
-		log.Debugf(log.ExchangeSys,
-			"%s Websocket: %s. (url: %s).\n",
-			b.Name,
-			common.IsEnabled(b.Websocket.IsEnabled()),
-			wsEndpoint)
-		b.PrintEnabledPairs()
-	}
-
-	if !b.GetEnabledFeatures().AutoPairUpdates {
-		return
-	}
-
-	err := b.UpdateTradablePairs(ctx, false)
-	if err != nil {
-		log.Errorf(log.ExchangeSys, "%s failed to update tradable pairs. Err: %s", b.Name, err)
-	}
 }
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs
