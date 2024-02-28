@@ -1070,6 +1070,11 @@ func (ku *Kucoin) expandSubscription(baseSub *subscription.Subscription, assetPa
 	if !s.Asset.IsValid() {
 		s.Asset = getChannelsAssetType(s.Channel)
 	}
+
+	if len(assetPairs[s.Asset]) == 0 {
+		return nil, nil
+	}
+
 	switch {
 	case s.Channel == marginLoanChannel:
 		for _, c := range assetPairs[asset.Margin].GetCurrencies() {

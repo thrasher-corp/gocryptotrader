@@ -1123,9 +1123,6 @@ func (ku *Kucoin) GetActiveOrders(ctx context.Context, getOrdersRequest *order.M
 		if err != nil {
 			return nil, err
 		}
-		if err != nil {
-			return nil, err
-		}
 		for x := range spotOrders.Items {
 			if !spotOrders.Items[x].IsActive {
 				continue
