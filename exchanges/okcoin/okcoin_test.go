@@ -70,8 +70,9 @@ func TestFetchTradablePair(t *testing.T) {
 	t.Parallel()
 	_, err := o.GetInstruments(context.Background(), "", "")
 	require.ErrorIs(t, err, errInstrumentTypeMissing)
-	_, err = o.GetInstruments(context.Background(), "SPOT", "")
+	result, err := o.GetInstruments(context.Background(), "SPOT", "")
 	require.NoError(t, err)
+	assert.NotNil(t, result)
 }
 
 func TestGetSystemStatus(t *testing.T) {
