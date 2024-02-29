@@ -1612,8 +1612,8 @@ func TestIsWebsocketEnabled(t *testing.T) {
 		DefaultURL:            "ws://something.com",
 		RunningURL:            "ws://something.com",
 		Connector:             func() error { return nil },
-		GenerateSubscriptions: func() ([]subscription.Subscription, error) { return nil, nil },
-		Subscriber:            func([]subscription.Subscription) error { return nil },
+		GenerateSubscriptions: func() (subscription.List, error) { return nil, nil },
+		Subscriber:            func(subscription.List) error { return nil },
 	})
 	if err != nil {
 		t.Error(err)
@@ -3299,7 +3299,7 @@ func TestSetSubscriptionsFromConfig(t *testing.T) {
 // TestParallelChanOp unit tests the helper func ParallelChanOp
 func TestParallelChanOp(t *testing.T) {
 	t.Parallel()
-	c := []subscription.Subscription{
+	c := subscription.List{
 		{Channel: "red"},
 		{Channel: "blue"},
 		{Channel: "violent"},
@@ -3310,7 +3310,7 @@ func TestParallelChanOp(t *testing.T) {
 	b := Base{}
 	errC := make(chan error, 1)
 	go func() {
-		errC <- b.ParallelChanOp(c, func(c []subscription.Subscription) error {
+		errC <- b.ParallelChanOp(c, func(c subscription.List) error {
 			time.Sleep(300 * time.Millisecond)
 			run <- struct{}{}
 			switch c[0].Channel {

@@ -54,13 +54,10 @@ func GetWebsocketStructChannelOverride() chan struct{} {
 
 // NewTestWebsocket returns a test websocket object
 func NewTestWebsocket() *stream.Websocket {
-	return &stream.Websocket{
-		DataHandler:       make(chan interface{}, WebsocketChannelOverrideCapacity),
-		ToRoutine:         make(chan interface{}, 1000),
-		TrafficAlert:      make(chan struct{}),
-		ReadMessageErrors: make(chan error),
-		Match:             stream.NewMatch(),
-	}
+	w := stream.NewWebsocket()
+	w.DataHandler = make(chan interface{}, WebsocketChannelOverrideCapacity)
+	w.ToRoutine = make(chan interface{}, 1000)
+	return w
 }
 
 // SkipTestIfCredentialsUnset is a test helper function checking if the

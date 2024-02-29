@@ -175,7 +175,7 @@ func (b *Base) SetSubscriptionsFromConfig() {
 		b.Config.Features.Subscriptions = b.Features.Subscriptions
 		return
 	}
-	b.Features.Subscriptions = []*subscription.Subscription{}
+	b.Features.Subscriptions = subscription.List{}
 	for _, s := range b.Config.Features.Subscriptions {
 		if s.Enabled {
 			b.Features.Subscriptions = append(b.Features.Subscriptions, s)
@@ -1164,7 +1164,7 @@ func (b *Base) FlushWebsocketChannels() error {
 
 // SubscribeToWebsocketChannels appends to ChannelsToSubscribe
 // which lets websocket.manageSubscriptions handle subscribing
-func (b *Base) SubscribeToWebsocketChannels(channels []*subscription.Subscription) error {
+func (b *Base) SubscribeToWebsocketChannels(channels subscription.List) error {
 	if b.Websocket == nil {
 		return common.ErrFunctionNotSupported
 	}
@@ -1173,7 +1173,7 @@ func (b *Base) SubscribeToWebsocketChannels(channels []*subscription.Subscriptio
 
 // UnsubscribeToWebsocketChannels removes from ChannelsToSubscribe
 // which lets websocket.manageSubscriptions handle unsubscribing
-func (b *Base) UnsubscribeToWebsocketChannels(channels []*subscription.Subscription) error {
+func (b *Base) UnsubscribeToWebsocketChannels(channels subscription.List) error {
 	if b.Websocket == nil {
 		return common.ErrFunctionNotSupported
 	}
@@ -1181,7 +1181,7 @@ func (b *Base) UnsubscribeToWebsocketChannels(channels []*subscription.Subscript
 }
 
 // GetSubscriptions returns a copied list of subscriptions
-func (b *Base) GetSubscriptions() ([]*subscription.Subscription, error) {
+func (b *Base) GetSubscriptions() (subscription.List, error) {
 	if b.Websocket == nil {
 		return nil, common.ErrFunctionNotSupported
 	}
