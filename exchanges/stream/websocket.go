@@ -260,7 +260,7 @@ func (w *Websocket) SetupNewConnection(c ConnectionSetup) error {
 
 // Connect initiates a websocket connection by using a package defined connection
 // function
-func (w *Websocket) Connect() error {
+func (w *Websocket) Connect(allowAutoSubscribe SubscriptionAllowed) error {
 	if w.connector == nil {
 		return errNoConnectFunc
 	}
@@ -299,6 +299,10 @@ func (w *Websocket) Connect() error {
 		}
 	}
 
+	if allowAutoSubscribe != AutoSubscribe {
+		return nil // Defer subscription
+	}
+
 	subs, err := w.GenerateSubs() // regenerate state on new connection
 	if err != nil {
 		return fmt.Errorf("%s websocket: %w", w.exchangeName, common.AppendError(ErrSubscriptionFailure, err))
@@ -329,13 +333,13 @@ func (w *Websocket) Disable() error {
 }
 
 // Enable enables the exchange websocket protocol
-func (w *Websocket) Enable() error {
+func (w *Websocket) Enable(allowAutoSubscribe SubscriptionAllowed) error {
 	if w.IsConnected() || w.IsEnabled() {
 		return fmt.Errorf("%s %w", w.exchangeName, errWebsocketAlreadyEnabled)
 	}
 
 	w.setEnabled(true)
-	return w.Connect()
+	return w.Connect(allowAutoSubscribe)
 }
 
 // dataMonitor monitors job throughput and logs if there is a back log of data
@@ -421,7 +425,7 @@ func (w *Websocket) connectionMonitor() error {
 				w.DataHandler <- err
 			case <-timer.C:
 				if !w.IsConnecting() && !w.IsConnected() {
-					err := w.Connect()
+					err := w.Connect(AutoSubscribe)
 					if err != nil {
 						log.Errorln(log.WebsocketMgr, err)
 					}
@@ -489,7 +493,7 @@ func (w *Websocket) Shutdown() error {
 }
 
 // FlushChannels flushes channel subscriptions when there is a pair/asset change
-func (w *Websocket) FlushChannels() error {
+func (w *Websocket) FlushChannels(allowAutoSubscribe SubscriptionAllowed) error {
 	if !w.IsEnabled() {
 		return fmt.Errorf("%s %w", w.exchangeName, ErrWebsocketNotEnabled)
 	}
@@ -542,7 +546,7 @@ func (w *Websocket) FlushChannels() error {
 	if err := w.Shutdown(); err != nil {
 		return err
 	}
-	return w.Connect()
+	return w.Connect(allowAutoSubscribe)
 }
 
 // trafficMonitor waits trafficCheckInterval before checking for a trafficAlert
@@ -737,7 +741,7 @@ func (w *Websocket) GetWebsocketURL() string {
 }
 
 // SetProxyAddress sets websocket proxy address
-func (w *Websocket) SetProxyAddress(proxyAddr string) error {
+func (w *Websocket) SetProxyAddress(proxyAddr string, allowAutoSubscribe SubscriptionAllowed) error {
 	w.m.Lock()
 
 	if proxyAddr != "" {
@@ -770,7 +774,7 @@ func (w *Websocket) SetProxyAddress(proxyAddr string) error {
 		if err := w.Shutdown(); err != nil {
 			return err
 		}
-		return w.Connect()
+		return w.Connect(allowAutoSubscribe)
 	}
 
 	w.m.Unlock()

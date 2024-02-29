@@ -299,22 +299,22 @@ func TestIsDisconnectionError(t *testing.T) {
 func TestConnectionMessageErrors(t *testing.T) {
 	t.Parallel()
 	var wsWrong = &Websocket{}
-	err := wsWrong.Connect()
+	err := wsWrong.Connect(AutoSubscribe)
 	assert.ErrorIs(t, err, errNoConnectFunc, "Connect should error correctly")
 
 	wsWrong.connector = func() error { return nil }
-	err = wsWrong.Connect()
+	err = wsWrong.Connect(AutoSubscribe)
 	assert.ErrorIs(t, err, ErrWebsocketNotEnabled, "Connect should error correctly")
 
 	wsWrong.setEnabled(true)
 	wsWrong.setState(connecting)
 	wsWrong.Wg = &sync.WaitGroup{}
-	err = wsWrong.Connect()
+	err = wsWrong.Connect(AutoSubscribe)
 	assert.ErrorIs(t, err, errAlreadyReconnecting, "Connect should error correctly")
 
 	wsWrong.setState(disconnected)
 	wsWrong.connector = func() error { return errDastardlyReason }
-	err = wsWrong.Connect()
+	err = wsWrong.Connect(AutoSubscribe)
 	assert.ErrorIs(t, err, errDastardlyReason, "Connect should error correctly")
 
 	ws := NewWebsocket()
@@ -323,7 +323,7 @@ func TestConnectionMessageErrors(t *testing.T) {
 	ws.trafficTimeout = time.Minute
 	ws.connector = func() error { return nil }
 
-	err = ws.Connect()
+	err = ws.Connect(AutoSubscribe)
 	require.NoError(t, err, "Connect must not error")
 
 	ws.TrafficAlert <- struct{}{}
@@ -353,7 +353,7 @@ func TestWebsocket(t *testing.T) {
 
 	ws := NewWebsocket()
 
-	err := ws.SetProxyAddress("garbagio")
+	err := ws.SetProxyAddress("garbagio", AutoSubscribe)
 	assert.ErrorContains(t, err, "invalid URI for request", "SetProxyAddress should error correctly")
 
 	ws.Conn = &dodgyConnection{}
@@ -375,19 +375,19 @@ func TestWebsocket(t *testing.T) {
 	ws.setEnabled(true)
 	assert.True(t, ws.IsEnabled(), "Websocket should be enabled by setEnabled(true)")
 
-	err = ws.SetProxyAddress("https://192.168.0.1:1337")
+	err = ws.SetProxyAddress("https://192.168.0.1:1337", AutoSubscribe)
 	assert.NoError(t, err, "SetProxyAddress should not error when not yet connected")
 
 	ws.setState(connected)
 
-	err = ws.SetProxyAddress("https://192.168.0.1:1336")
+	err = ws.SetProxyAddress("https://192.168.0.1:1336", AutoSubscribe)
 	assert.ErrorIs(t, err, errDastardlyReason, "SetProxyAddress should call Connect and error from there")
 
-	err = ws.SetProxyAddress("https://192.168.0.1:1336")
+	err = ws.SetProxyAddress("https://192.168.0.1:1336", AutoSubscribe)
 	assert.ErrorIs(t, err, errSameProxyAddress, "SetProxyAddress should error correctly")
 
 	// removing proxy
-	err = ws.SetProxyAddress("")
+	err = ws.SetProxyAddress("", AutoSubscribe)
 	assert.ErrorIs(t, err, errDastardlyReason, "SetProxyAddress should call Shutdown and error from there")
 	assert.ErrorIs(t, err, errCannotShutdown, "SetProxyAddress should call Shutdown and error from there")
 
@@ -395,7 +395,7 @@ func TestWebsocket(t *testing.T) {
 	ws.setEnabled(true)
 
 	// reinstate proxy
-	err = ws.SetProxyAddress("http://localhost:1337")
+	err = ws.SetProxyAddress("http://localhost:1337", AutoSubscribe)
 	assert.NoError(t, err, "SetProxyAddress should not error")
 	assert.Equal(t, "http://localhost:1337", ws.GetProxyAddress(), "GetProxyAddress should return correctly")
 	assert.Equal(t, "wss://testRunningURL", ws.GetWebsocketURL(), "GetWebsocketURL should return correctly")
@@ -410,7 +410,7 @@ func TestWebsocket(t *testing.T) {
 	ws.AuthConn = &WebsocketConnection{}
 	ws.setState(disconnected)
 
-	err = ws.Connect()
+	err = ws.Connect(AutoSubscribe)
 	assert.NoError(t, err, "Connect should not error")
 
 	ws.defaultURL = "ws://demos.kaazing.com/echo"
@@ -432,10 +432,10 @@ func TestWebsocket(t *testing.T) {
 	assert.NoError(t, err, "SetWebsocketURL should not error on reconnect")
 
 	// -- initiate the reconnect which is usually handled by connection monitor
-	err = ws.Connect()
+	err = ws.Connect(AutoSubscribe)
 	assert.NoError(t, err, "ReConnect called manually should not error")
 
-	err = ws.Connect()
+	err = ws.Connect(AutoSubscribe)
 	assert.ErrorIs(t, err, errAlreadyConnected, "ReConnect should error when already connected")
 
 	err = ws.Shutdown()
@@ -1034,11 +1034,11 @@ func TestFlushChannels(t *testing.T) {
 	}}
 
 	dodgyWs := Websocket{}
-	err := dodgyWs.FlushChannels()
+	err := dodgyWs.FlushChannels(AutoSubscribe)
 	assert.ErrorIs(t, err, ErrWebsocketNotEnabled, "FlushChannels should error correctly")
 
 	dodgyWs.setEnabled(true)
-	err = dodgyWs.FlushChannels()
+	err = dodgyWs.FlushChannels(AutoSubscribe)
 	assert.ErrorIs(t, err, ErrNotConnected, "FlushChannels should error correctly")
 
 	w := Websocket{
@@ -1071,16 +1071,16 @@ func TestFlushChannels(t *testing.T) {
 	w.GenerateSubs = func() ([]subscription.Subscription, error) {
 		return []subscription.Subscription{{Channel: "test"}}, nil
 	}
-	err = w.FlushChannels()
+	err = w.FlushChannels(AutoSubscribe)
 	assert.NoError(t, err, "FlushChannels should not error")
 
 	w.features.FullPayloadSubscribe = true
 	w.GenerateSubs = problemFunc
-	err = w.FlushChannels() // error on full subscribeToChannels
+	err = w.FlushChannels(AutoSubscribe) // error on full subscribeToChannels
 	assert.ErrorIs(t, err, errDastardlyReason, "FlushChannels should error correctly")
 
 	w.GenerateSubs = noSub
-	err = w.FlushChannels() // No subs to unsub
+	err = w.FlushChannels(AutoSubscribe) // No subs to unsub
 	assert.NoError(t, err, "FlushChannels should not error")
 
 	w.GenerateSubs = newgen.generateSubs
@@ -1088,17 +1088,17 @@ func TestFlushChannels(t *testing.T) {
 	require.NoError(t, err, "GenerateSubs must not error")
 
 	w.AddSuccessfulSubscriptions(subs...)
-	err = w.FlushChannels()
+	err = w.FlushChannels(AutoSubscribe)
 	assert.NoError(t, err, "FlushChannels should not error")
 	w.features.FullPayloadSubscribe = false
 	w.features.Subscribe = true
 
 	w.GenerateSubs = problemFunc
-	err = w.FlushChannels()
+	err = w.FlushChannels(AutoSubscribe)
 	assert.ErrorIs(t, err, errDastardlyReason, "FlushChannels should error correctly")
 
 	w.GenerateSubs = newgen.generateSubs
-	err = w.FlushChannels()
+	err = w.FlushChannels(AutoSubscribe)
 	assert.NoError(t, err, "FlushChannels should not error")
 	w.subscriptionMutex.Lock()
 	w.subscriptions = subscriptionMap{
@@ -1115,15 +1115,15 @@ func TestFlushChannels(t *testing.T) {
 	}
 	w.subscriptionMutex.Unlock()
 
-	err = w.FlushChannels()
+	err = w.FlushChannels(AutoSubscribe)
 	assert.NoError(t, err, "FlushChannels should not error")
 
-	err = w.FlushChannels()
+	err = w.FlushChannels(AutoSubscribe)
 	assert.NoError(t, err, "FlushChannels should not error")
 
 	w.setState(connected)
 	w.features.Unsubscribe = true
-	err = w.FlushChannels()
+	err = w.FlushChannels(AutoSubscribe)
 	assert.NoError(t, err, "FlushChannels should not error")
 }
 
@@ -1150,8 +1150,8 @@ func TestEnable(t *testing.T) {
 		Subscriber: func([]subscription.Subscription) error { return nil },
 	}
 
-	require.NoError(t, w.Enable(), "Enable must not error")
-	assert.ErrorIs(t, w.Enable(), errWebsocketAlreadyEnabled, "Enable should error correctly")
+	require.NoError(t, w.Enable(AutoSubscribe), "Enable must not error")
+	assert.ErrorIs(t, w.Enable(AutoSubscribe), errWebsocketAlreadyEnabled, "Enable should error correctly")
 }
 
 func TestSetupNewConnection(t *testing.T) {

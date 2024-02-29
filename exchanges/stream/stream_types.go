@@ -10,6 +10,18 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
+// SubscriptionAllowed defines if the websocket should automatically subscribe
+type SubscriptionAllowed uint8
+
+const (
+	// AutoSubscribe defines if the websocket should automatically subscribe
+	// to channels on connection.
+	AutoSubscribe SubscriptionAllowed = 1
+	// DeferSubscribe defines if the websocket should defer subscription to
+	// channels until after connection.
+	DeferSubscribe SubscriptionAllowed = 0
+)
+
 // Connection defines a streaming services connection
 type Connection interface {
 	Dial(*websocket.Dialer, http.Header) error
