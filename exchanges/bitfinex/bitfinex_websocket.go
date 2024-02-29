@@ -149,7 +149,7 @@ func (b *Bitfinex) wsHandleData(respRaw []byte) error {
 				return b.handleWSChannelUpdate(c, eventType, d)
 			}
 			if b.Verbose {
-				log.Warnf(log.ExchangeSys, "%s %s; dropped WS message: %s", b.Name, stream.ErrSubscriptionNotFound, respRaw)
+				log.Warnf(log.ExchangeSys, "%s %s; dropped WS message: %s", b.Name, subscription.ErrNotFound, respRaw)
 			}
 			// We didn't have a mapping for this chanID; This probably means we have unsubscribed OR
 			// received our first message before processing the sub chanID
@@ -501,7 +501,7 @@ func (b *Bitfinex) handleWSSubscribed(respRaw []byte) error {
 
 	c := b.Websocket.GetSubscription(subID)
 	if c == nil {
-		return fmt.Errorf("%w: %w subID: %s", stream.ErrSubscriptionFailure, stream.ErrSubscriptionNotFound, subID)
+		return fmt.Errorf("%w: %w subID: %s", stream.ErrSubscriptionFailure, subscription.ErrNotFound, subID)
 	}
 
 	chanID, err := jsonparser.GetInt(respRaw, "chanId")
@@ -511,9 +511,10 @@ func (b *Bitfinex) handleWSSubscribed(respRaw []byte) error {
 
 	// Note: chanID's int type avoids conflicts with the string type subID key because of the type difference
 	c.Key = int(chanID)
+	c.SetState(subscription.SubscribedState)
 
 	// subscribeToChan removes the old subID keyed Subscription
-	b.Websocket.AddSuccessfulSubscriptions(*c)
+	b.Websocket.AddSubscription(c)
 
 	if b.Verbose {
 		log.Debugf(log.ExchangeSys, "%s Subscribed to Channel: %s Pair: %s ChannelID: %d\n", b.Name, c.Channel, c.Pairs, chanID)
@@ -1664,13 +1665,15 @@ func (b *Bitfinex) resubOrderbook(c *subscription.Subscription) error {
 			log.Errorf(log.ExchangeSys, "%s error resubscribing orderbook: %v", b.Name, err)
 		}
 	}()
+
+	return nil
 }
 
 // GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
-func (b *Bitfinex) GenerateDefaultSubscriptions() ([]subscription.Subscription, error) {
+func (b *Bitfinex) GenerateDefaultSubscriptions() (subscription.List, error) {
 	var channels = []string{wsBook, wsTrades, wsTicker, wsCandles}
 
-	var subscriptions []subscription.Subscription
+	var subscriptions subscription.List
 	assets := b.GetAssetTypes(true)
 	for i := range assets {
 		if !b.IsAssetWebsocketSupported(assets[i]) {
@@ -1693,9 +1696,9 @@ func (b *Bitfinex) GenerateDefaultSubscriptions() ([]subscription.Subscription, 
 					params[CandlesPeriodKey] = "30"
 				}
 
-				subscriptions = append(subscriptions, subscription.Subscription{
+				subscriptions = append(subscriptions, &subscription.Subscription{
 					Channel: channels[j],
-					Pairs:   enabledPairs[k],
+					Pairs:   currency.Pairs{enabledPairs[k]},
 					Params:  params,
 					Asset:   assets[i],
 				})
@@ -1715,24 +1718,24 @@ func (b *Bitfinex) ConfigureWS() error {
 }
 
 // Subscribe sends a websocket message to receive data from channels
-func (b *Bitfinex) Subscribe(channels []subscription.Subscription) error {
+func (b *Bitfinex) Subscribe(channels subscription.List) error {
 	return b.ParallelChanOp(channels, b.subscribeToChan, 1)
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from channels
-func (b *Bitfinex) Unsubscribe(channels []subscription.Subscription) error {
+func (b *Bitfinex) Unsubscribe(channels subscription.List) error {
 	return b.ParallelChanOp(channels, b.unsubscribeFromChan, 1)
 }
 
 // subscribeToChan handles a single subscription and parses the result
 // on success it adds the subscription to the websocket
-func (b *Bitfinex) subscribeToChan(chans []subscription.Subscription) error {
+func (b *Bitfinex) subscribeToChan(chans subscription.List) error {
 	if len(chans) != 1 {
 		return errors.New("subscription batching limited to 1")
 	}
 
 	c := chans[0]
-	req, err := subscribeReq(&c)
+	req, err := subscribeReq(c)
 	if err != nil {
 		return fmt.Errorf("%w: %w; Channel: %s Pair: %s", stream.ErrSubscriptionFailure, err, c.Channel, c.Pairs)
 	}
@@ -1746,14 +1749,14 @@ func (b *Bitfinex) subscribeToChan(chans []subscription.Subscription) error {
 	// Otherwise we might drop the first messages after the subscribed resp
 	c.Key = subID // Note subID string type avoids conflicts with later chanID key
 
-	c.State = subscription.SubscribingState
-	err = b.Websocket.AddSubscription(&c)
+	c.SetState(subscription.SubscribingState)
+	err = b.Websocket.AddSubscription(c)
 	if err != nil {
 		return fmt.Errorf("%w Channel: %s Pair: %s Error: %w", stream.ErrSubscriptionFailure, c.Channel, c.Pairs, err)
 	}
 
 	// Always remove the temporary subscription keyed by subID
-	defer b.Websocket.RemoveSubscriptions(c)
+	defer b.Websocket.RemoveSubscription(c)
 
 	respRaw, err := b.Websocket.Conn.SendMessageReturnResponse("subscribe:"+subID, req)
 	if err != nil {
@@ -1772,10 +1775,10 @@ func (b *Bitfinex) subscribeToChan(chans []subscription.Subscription) error {
 // subscribeReq returns a map of request params for subscriptions
 func subscribeReq(c *subscription.Subscription) (map[string]interface{}, error) {
 	if c == nil {
-		return common.ErrNilPointer
+		return nil, common.ErrNilPointer
 	}
 	if len(c.Pairs) != 1 {
-		return subscription.ErrNotSinglePair
+		return nil, subscription.ErrNotSinglePair
 	}
 	pair := c.Pairs[0]
 	req := map[string]interface{}{
@@ -1833,7 +1836,7 @@ func subscribeReq(c *subscription.Subscription) (map[string]interface{}, error) 
 }
 
 // unsubscribeFromChan sends a websocket message to stop receiving data from a channel
-func (b *Bitfinex) unsubscribeFromChan(chans []subscription.Subscription) error {
+func (b *Bitfinex) unsubscribeFromChan(chans subscription.List) error {
 	if len(chans) != 1 {
 		return errors.New("subscription batching limited to 1")
 	}
@@ -1859,7 +1862,7 @@ func (b *Bitfinex) unsubscribeFromChan(chans []subscription.Subscription) error 
 		return wErr
 	}
 
-	b.Websocket.RemoveSubscriptions(c)
+	b.Websocket.RemoveSubscription(c)
 
 	return nil
 }
