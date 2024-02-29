@@ -3,6 +3,7 @@ package exchangewrapperstandards
 import (
 	"context"
 	"errors"
+	"fmt"
 	"os"
 	"reflect"
 	"strings"
@@ -38,7 +39,7 @@ func TestMain(m *testing.M) {
 }
 
 // singleExchangeOverride enter an exchange name to only test that exchange
-var singleExchangeOverride = ""
+var singleExchangeOverride = "gateio"
 
 func TestAllExchangeWrappers(t *testing.T) {
 	t.Parallel()
@@ -448,6 +449,7 @@ func generateMethodArg(ctx context.Context, t *testing.T, argGenerator *MethodAr
 			ClientID:          "1337",
 			ClientOrderID:     "13371337",
 			ImmediateOrCancel: true,
+			Leverage:          1,
 		})
 	case argGenerator.MethodInputType.AssignableTo(orderModifyParam):
 		input = reflect.ValueOf(&order.Modify{
@@ -490,6 +492,8 @@ func generateMethodArg(ctx context.Context, t *testing.T, argGenerator *MethodAr
 			AssetType:   argGenerator.AssetParams.Asset,
 			Pairs:       currency.Pairs{argGenerator.AssetParams.Pair},
 		})
+		fmt.Println("GETORDERS:", argGenerator.AssetParams.Pair)
+		fmt.Println("GETORDERS:", argGenerator.AssetParams.Asset)
 	case argGenerator.MethodInputType.AssignableTo(marginTypeParam):
 		input = reflect.ValueOf(margin.Isolated)
 	case argGenerator.MethodInputType.AssignableTo(collateralModeParam):
