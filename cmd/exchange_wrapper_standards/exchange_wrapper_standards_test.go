@@ -3,7 +3,6 @@ package exchangewrapperstandards
 import (
 	"context"
 	"errors"
-	"fmt"
 	"os"
 	"reflect"
 	"strings"
@@ -39,7 +38,7 @@ func TestMain(m *testing.M) {
 }
 
 // singleExchangeOverride enter an exchange name to only test that exchange
-var singleExchangeOverride = "gateio"
+var singleExchangeOverride = ""
 
 func TestAllExchangeWrappers(t *testing.T) {
 	t.Parallel()
@@ -245,6 +244,11 @@ func CallExchangeMethod(t *testing.T, methodToCall reflect.Value, methodValues [
 		if isUnacceptableError(t, err) != nil {
 			literalInputs := make([]interface{}, len(methodValues))
 			for j := range methodValues {
+				if methodValues[j].Kind() == reflect.Ptr {
+					// dereference pointers just to add a bit more clarity
+					literalInputs[j] = methodValues[j].Elem().Interface()
+					continue
+				}
 				literalInputs[j] = methodValues[j].Interface()
 			}
 			t.Errorf("%v Func '%v' Error: '%v'. Inputs: %v.", exch.GetName(), methodName, err, literalInputs)
@@ -492,8 +496,6 @@ func generateMethodArg(ctx context.Context, t *testing.T, argGenerator *MethodAr
 			AssetType:   argGenerator.AssetParams.Asset,
 			Pairs:       currency.Pairs{argGenerator.AssetParams.Pair},
 		})
-		fmt.Println("GETORDERS:", argGenerator.AssetParams.Pair)
-		fmt.Println("GETORDERS:", argGenerator.AssetParams.Asset)
 	case argGenerator.MethodInputType.AssignableTo(marginTypeParam):
 		input = reflect.ValueOf(margin.Isolated)
 	case argGenerator.MethodInputType.AssignableTo(collateralModeParam):
