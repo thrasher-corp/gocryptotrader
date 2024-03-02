@@ -15,7 +15,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/key"
-	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -26,7 +25,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/buffer"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
@@ -41,45 +39,27 @@ const (
 	canManipulateRealOrders = false
 )
 
-var (
-	ku                                                        = &Kucoin{}
-	spotTradablePair, marginTradablePair, futuresTradablePair currency.Pair
-)
+var ku *Kucoin
+var spotTradablePair, marginTradablePair, futuresTradablePair currency.Pair
 
 func TestMain(m *testing.M) {
-	ku.SetDefaults()
-	cfg := config.GetConfig()
-	err := cfg.LoadConfig("../../testdata/configtest.json", true)
-	if err != nil {
+	ku = new(Kucoin)
+	if err := testexch.TestInstance(ku); err != nil {
 		log.Fatal(err)
 	}
 
-	exchCfg, err := cfg.GetExchangeConfig("Kucoin")
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	exchCfg.API.AuthenticatedSupport = true
-	exchCfg.API.AuthenticatedWebsocketSupport = true
-
-	exchCfg.API.Credentials.Key = apiKey
-	exchCfg.API.Credentials.Secret = apiSecret
-	exchCfg.API.Credentials.ClientID = passPhrase
 	if apiKey != "" && apiSecret != "" && passPhrase != "" {
+		ku.API.AuthenticatedSupport = true
+		ku.API.AuthenticatedWebsocketSupport = true
+		ku.API.CredentialsValidator.RequiresBase64DecodeSecret = false
+		ku.SetCredentials(apiKey, apiSecret, passPhrase, "", "", "")
 		ku.Websocket.SetCanUseAuthenticatedEndpoints(true)
 	}
 
-	ku.SetDefaults()
-	ku.Websocket = sharedtestvalues.NewTestWebsocket()
-	ku.Websocket.Orderbook = buffer.Orderbook{}
-	err = ku.Setup(exchCfg)
-	if err != nil {
-		log.Fatal(err)
-	}
-	ku.Websocket.DataHandler = sharedtestvalues.GetWebsocketInterfaceChannelOverride()
-	ku.Websocket.TrafficAlert = sharedtestvalues.GetWebsocketStructChannelOverride()
-	setupWS()
 	getFirstTradablePairOfAssets()
+	ku.setupOrderbookManager()
+	fetchedFuturesSnapshotOrderbook = map[string]bool{}
+
 	os.Exit(m.Run())
 }
 
@@ -1992,10 +1972,10 @@ func TestPushData(t *testing.T) {
 	sharedtestvalues.TestFixtureToDataHandler(t, ku, n, "testdata/wsHandleData.json", ku.wsHandleData)
 }
 
-func verifySubs(tb testing.TB, subs []subscription.Subscription, a asset.Item, prefix string, expected ...string) {
+func verifySubs(tb testing.TB, subs subscription.List, a asset.Item, prefix string, expected ...string) {
 	tb.Helper()
 	var sub *subscription.Subscription
-	for i, s := range subs { //nolint:gocritic // prefer convenience over performance here for tests
+	for i, s := range subs {
 		if s.Asset == a && strings.HasPrefix(s.Channel, prefix) {
 			if len(expected) == 1 && !strings.Contains(s.Channel, expected[0]) {
 				continue
@@ -2004,7 +1984,7 @@ func verifySubs(tb testing.TB, subs []subscription.Subscription, a asset.Item, p
 				assert.Failf(tb, "Too many subs with prefix", "Asset %s; Prefix %s", a.String(), prefix)
 				return
 			}
-			sub = &subs[i]
+			sub = subs[i]
 		}
 	}
 	if assert.NotNil(tb, sub, "Should find a sub for asset %s with prefix %s for %s", a.String(), prefix, strings.Join(expected, ", ")) {
@@ -2023,12 +2003,11 @@ func verifySubs(tb testing.TB, subs []subscription.Subscription, a asset.Item, p
 // In Both: ETH-BTC, LTC-USDT
 // Only in Margin: TRX-BTC, SOL-USDC
 
-func TestGenerateDefaultSubscriptions(t *testing.T) {
+func TestGenerateSubscriptions(t *testing.T) {
 	t.Parallel()
 
-	subs, err := ku.GenerateDefaultSubscriptions()
-
-	assert.NoError(t, err, "GenerateDefaultSubscriptions should not error")
+	subs, err := ku.generateSubscriptions()
+	require.NoError(t, err, "GenerateDefaultSubscriptions must not error")
 
 	assert.Len(t, subs, 11, "Should generate the correct number of subs when not logged in")
 
@@ -2049,15 +2028,13 @@ func TestGenerateDefaultSubscriptions(t *testing.T) {
 func TestGenerateAuthSubscriptions(t *testing.T) {
 	t.Parallel()
 
-	// Create a parallel safe Kucoin to mess with
-	nu := new(Kucoin)
-	nu.Base.Features = ku.Base.Features
-	assert.NoError(t, nu.CurrencyPairs.Load(&ku.CurrencyPairs), "Loading Pairs should not error")
-	nu.Websocket = sharedtestvalues.NewTestWebsocket()
-	nu.Websocket.SetCanUseAuthenticatedEndpoints(true)
+	ku := new(Kucoin) //nolint:govet // Intentional shadow of ku to avoid future copy/paste mistakes
+	require.NoError(t, testexch.TestInstance(ku), "TestInstance must not error")
+	ku.Websocket.SetCanUseAuthenticatedEndpoints(true)
 
-	subs, err := nu.GenerateDefaultSubscriptions()
-	assert.NoError(t, err, "GenerateDefaultSubscriptions with Auth should not error")
+	subs, err := ku.generateSubscriptions()
+	require.NoError(t, err, "GenerateDefaultSubscriptions with Auth must not error")
+
 	assert.Len(t, subs, 24, "Should generate the correct number of subs when logged in")
 
 	verifySubs(t, subs, asset.Spot, "/market/ticker:all") // This takes care of margin as well.
@@ -2086,20 +2063,17 @@ func TestGenerateAuthSubscriptions(t *testing.T) {
 func TestGenerateCandleSubscription(t *testing.T) {
 	t.Parallel()
 
-	// Create a parallel safe Kucoin to mess with
-	nu := new(Kucoin)
-	nu.Base.Features = ku.Base.Features
-	nu.Websocket = sharedtestvalues.NewTestWebsocket()
-	assert.NoError(t, nu.CurrencyPairs.Load(&ku.CurrencyPairs), "Loading Pairs should not error")
+	ku := new(Kucoin) //nolint:govet // Intentional shadow of ku to avoid future copy/paste mistakes
+	require.NoError(t, testexch.TestInstance(ku), "TestInstance must not error")
 
-	nu.Features.Subscriptions = []*subscription.Subscription{
+	ku.Features.Subscriptions = subscription.List{
 		{Channel: subscription.CandlesChannel, Interval: kline.FourHour},
 	}
 
-	subs, err := nu.GenerateDefaultSubscriptions()
+	subs, err := ku.generateSubscriptions()
 	assert.NoError(t, err, "GenerateDefaultSubscriptions with Candles should not error")
 
-	assert.Len(t, subs, 6, "Should generate the correct number of subs for candles")
+	assert.Len(t, subs, 6, "Should generate the correct kumber of subs for candles")
 	for _, c := range []string{"BTC-USDT", "ETH-USDT", "LTC-USDT", "ETH-BTC"} {
 		verifySubs(t, subs, asset.Spot, "/market/candles:", c+"_4hour")
 	}
@@ -2111,17 +2085,14 @@ func TestGenerateCandleSubscription(t *testing.T) {
 func TestGenerateMarketSubscription(t *testing.T) {
 	t.Parallel()
 
-	// Create a parallel safe Kucoin to mess with
-	nu := new(Kucoin)
-	nu.Base.Features = ku.Base.Features
-	nu.Websocket = sharedtestvalues.NewTestWebsocket()
-	assert.NoError(t, nu.CurrencyPairs.Load(&ku.CurrencyPairs), "Loading Pairs should not error")
+	ku := new(Kucoin) //nolint:govet // Intentional shadow of ku to avoid future copy/paste mistakes
+	require.NoError(t, testexch.TestInstance(ku), "TestInstance must not error")
 
-	nu.Features.Subscriptions = []*subscription.Subscription{
+	ku.Features.Subscriptions = subscription.List{
 		{Channel: marketSnapshotChannel},
 	}
 
-	subs, err := nu.GenerateDefaultSubscriptions()
+	subs, err := ku.generateSubscriptions()
 	assert.NoError(t, err, "GenerateDefaultSubscriptions with MarketSnapshot should not error")
 
 	assert.Len(t, subs, 7, "Should generate the correct number of subs for snapshot")
@@ -2383,19 +2354,6 @@ func TestGetPaginatedListOfSubAccounts(t *testing.T) {
 	}
 }
 
-func setupWS() {
-	if !ku.Websocket.IsEnabled() {
-		return
-	}
-	if !sharedtestvalues.AreAPICredentialsSet(ku) {
-		ku.Websocket.SetCanUseAuthenticatedEndpoints(false)
-	}
-	err := ku.WsConnect()
-	if err != nil {
-		log.Fatal(err)
-	}
-}
-
 func TestGetFundingHistory(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ku)
@@ -2547,8 +2505,12 @@ func TestProcessMarketSnapshot(t *testing.T) {
 
 func TestSubscribeMarketSnapshot(t *testing.T) {
 	t.Parallel()
-	setupWS()
-	err := ku.Subscribe([]subscription.Subscription{{Channel: marketSymbolSnapshotChannel, Pair: currency.Pair{Base: currency.BTC}}})
+
+	ku := new(Kucoin) //nolint:govet // Intentional shadow of ku to avoid future copy/paste mistakes
+	require.NoError(t, testexch.TestInstance(ku), "TestInstance must not error")
+	testexch.SetupWs(t, ku)
+
+	err := ku.Subscribe(subscription.List{{Channel: marketSymbolSnapshotChannel, Pairs: currency.Pairs{currency.Pair{Base: currency.BTC}}}})
 	assert.NoError(t, err, "Subscribe to MarketSnapshot should not error")
 }
 
