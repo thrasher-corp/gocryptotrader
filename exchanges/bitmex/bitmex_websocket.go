@@ -545,9 +545,9 @@ func (b *Bitmex) processOrderbook(data []OrderBookL2, action string, p currency.
 }
 
 // GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
-func (b *Bitmex) GenerateDefaultSubscriptions() ([]subscription.Subscription, error) {
+func (b *Bitmex) GenerateDefaultSubscriptions() (subscription.List, error) {
 	channels := []string{bitmexWSOrderbookL2, bitmexWSTrade}
-	subscriptions := []subscription.Subscription{
+	subscriptions := subscription.List{
 		{
 			Channel: bitmexWSAnnouncement,
 		},
@@ -569,9 +569,9 @@ func (b *Bitmex) GenerateDefaultSubscriptions() ([]subscription.Subscription, er
 					// There are no L2 orderbook for index assets
 					continue
 				}
-				subscriptions = append(subscriptions, subscription.Subscription{
+				subscriptions = append(subscriptions, &subscription.Subscription{
 					Channel: channels[z] + ":" + pFmt.Format(contracts[y]),
-					Pair:    contracts[y],
+					Pairs:   currency.Pairs{contracts[y]},
 					Asset:   assets[x],
 				})
 			}
@@ -581,7 +581,7 @@ func (b *Bitmex) GenerateDefaultSubscriptions() ([]subscription.Subscription, er
 }
 
 // GenerateAuthenticatedSubscriptions Adds authenticated subscriptions to websocket to be handled by ManageSubscriptions()
-func (b *Bitmex) GenerateAuthenticatedSubscriptions() ([]subscription.Subscription, error) {
+func (b *Bitmex) GenerateAuthenticatedSubscriptions() (subscription.List, error) {
 	if !b.Websocket.CanUseAuthenticatedEndpoints() {
 		return nil, nil
 	}
@@ -597,31 +597,19 @@ func (b *Bitmex) GenerateAuthenticatedSubscriptions() ([]subscription.Subscripti
 	channels := []string{bitmexWSExecution,
 		bitmexWSPosition,
 	}
-	subscriptions := []subscription.Subscription{
-		{
-			Channel: bitmexWSAffiliate,
-		},
-		{
-			Channel: bitmexWSOrder,
-		},
-		{
-			Channel: bitmexWSMargin,
-		},
-		{
-			Channel: bitmexWSPrivateNotifications,
-		},
-		{
-			Channel: bitmexWSTransact,
-		},
-		{
-			Channel: bitmexWSWallet,
-		},
+	subscriptions := subscription.List{
+		{Channel: bitmexWSAffiliate},
+		{Channel: bitmexWSOrder},
+		{Channel: bitmexWSMargin},
+		{Channel: bitmexWSPrivateNotifications},
+		{Channel: bitmexWSTransact},
+		{Channel: bitmexWSWallet},
 	}
 	for i := range channels {
 		for j := range contracts {
-			subscriptions = append(subscriptions, subscription.Subscription{
+			subscriptions = append(subscriptions, &subscription.Subscription{
 				Channel: channels[i] + ":" + pFmt.Format(contracts[j]),
-				Pair:    contracts[j],
+				Pairs:   currency.Pairs{contracts[j]},
 				Asset:   asset.PerpetualContract,
 			})
 		}
@@ -630,7 +618,7 @@ func (b *Bitmex) GenerateAuthenticatedSubscriptions() ([]subscription.Subscripti
 }
 
 // Subscribe subscribes to a websocket channel
-func (b *Bitmex) Subscribe(channelsToSubscribe []subscription.Subscription) error {
+func (b *Bitmex) Subscribe(channelsToSubscribe subscription.List) error {
 	var subscriber WebsocketRequest
 	subscriber.Command = "subscribe"
 	for i := range channelsToSubscribe {
@@ -638,15 +626,14 @@ func (b *Bitmex) Subscribe(channelsToSubscribe []subscription.Subscription) erro
 			channelsToSubscribe[i].Channel)
 	}
 	err := b.Websocket.Conn.SendJSONMessage(subscriber)
-	if err != nil {
-		return err
+	if err == nil {
+		err = b.Websocket.AddSuccessfulSubscriptions(channelsToSubscribe...)
 	}
-	b.Websocket.AddSuccessfulSubscriptions(channelsToSubscribe...)
-	return nil
+	return err
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
-func (b *Bitmex) Unsubscribe(channelsToUnsubscribe []subscription.Subscription) error {
+func (b *Bitmex) Unsubscribe(channelsToUnsubscribe subscription.List) error {
 	var unsubscriber WebsocketRequest
 	unsubscriber.Command = "unsubscribe"
 
@@ -655,11 +642,10 @@ func (b *Bitmex) Unsubscribe(channelsToUnsubscribe []subscription.Subscription) 
 			channelsToUnsubscribe[i].Channel)
 	}
 	err := b.Websocket.Conn.SendJSONMessage(unsubscriber)
-	if err != nil {
-		return err
+	if err == nil {
+		err = b.Websocket.RemoveSubscriptions(channelsToUnsubscribe...)
 	}
-	b.Websocket.RemoveSubscriptions(channelsToUnsubscribe...)
-	return nil
+	return err
 }
 
 // WebsocketSendAuth sends an authenticated subscription
