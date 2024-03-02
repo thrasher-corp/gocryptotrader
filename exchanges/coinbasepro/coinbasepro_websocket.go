@@ -366,7 +366,7 @@ func (c *CoinbasePro) ProcessUpdate(update *WebsocketL2Update) error {
 }
 
 // GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
-func (c *CoinbasePro) GenerateDefaultSubscriptions() ([]subscription.Subscription, error) {
+func (c *CoinbasePro) GenerateDefaultSubscriptions() (subscription.List, error) {
 	var channels = []string{"heartbeat",
 		"level2_batch", /*Other orderbook feeds require authentication. This is batched in 50ms lots.*/
 		"ticker",
@@ -376,7 +376,7 @@ func (c *CoinbasePro) GenerateDefaultSubscriptions() ([]subscription.Subscriptio
 	if err != nil {
 		return nil, err
 	}
-	var subscriptions []subscription.Subscription
+	var subscriptions subscription.List
 	for i := range channels {
 		if (channels[i] == "user" || channels[i] == "full") &&
 			!c.IsWebsocketAuthenticationSupported() {
@@ -388,9 +388,9 @@ func (c *CoinbasePro) GenerateDefaultSubscriptions() ([]subscription.Subscriptio
 			if err != nil {
 				return nil, err
 			}
-			subscriptions = append(subscriptions, subscription.Subscription{
+			subscriptions = append(subscriptions, &subscription.Subscription{
 				Channel: channels[i],
-				Pair:    fPair,
+				Pairs:   currency.Pairs{fPair},
 				Asset:   asset.Spot,
 			})
 		}
@@ -399,7 +399,7 @@ func (c *CoinbasePro) GenerateDefaultSubscriptions() ([]subscription.Subscriptio
 }
 
 // Subscribe sends a websocket message to receive data from the channel
-func (c *CoinbasePro) Subscribe(channelsToSubscribe []subscription.Subscription) error {
+func (c *CoinbasePro) Subscribe(channelsToSubscribe subscription.List) error {
 	var creds *account.Credentials
 	var err error
 	if c.IsWebsocketAuthenticationSupported() {
@@ -414,7 +414,7 @@ func (c *CoinbasePro) Subscribe(channelsToSubscribe []subscription.Subscription)
 	}
 	productIDs := make([]string, 0, len(channelsToSubscribe))
 	for i := range channelsToSubscribe {
-		p := channelsToSubscribe[i].Pair.String()
+		p := channelsToSubscribe[i].Pairs.String()
 		if p != "" && !common.StringDataCompare(productIDs, p) {
 			// get all unique productIDs in advance as we generate by channels
 			productIDs = append(productIDs, p)
@@ -452,21 +452,20 @@ subscriptions:
 		subscribe.Channels = append(subscribe.Channels, subChan)
 	}
 	err = c.Websocket.Conn.SendJSONMessage(subscribe)
-	if err != nil {
-		return err
+	if err == nil {
+		err = c.Websocket.AddSuccessfulSubscriptions(channelsToSubscribe...)
 	}
-	c.Websocket.AddSuccessfulSubscriptions(channelsToSubscribe...)
-	return nil
+	return err
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
-func (c *CoinbasePro) Unsubscribe(channelsToUnsubscribe []subscription.Subscription) error {
+func (c *CoinbasePro) Unsubscribe(channelsToUnsubscribe subscription.List) error {
 	unsubscribe := WebsocketSubscribe{
 		Type: "unsubscribe",
 	}
 	productIDs := make([]string, 0, len(channelsToUnsubscribe))
 	for i := range channelsToUnsubscribe {
-		p := channelsToUnsubscribe[i].Pair.String()
+		p := channelsToUnsubscribe[i].Pairs.String()
 		if p != "" && !common.StringDataCompare(productIDs, p) {
 			// get all unique productIDs in advance as we generate by channels
 			productIDs = append(productIDs, p)
@@ -487,9 +486,8 @@ unsubscriptions:
 		})
 	}
 	err := c.Websocket.Conn.SendJSONMessage(unsubscribe)
-	if err != nil {
-		return err
+	if err == nil {
+		err = c.Websocket.RemoveSubscriptions(channelsToUnsubscribe...)
 	}
-	c.Websocket.RemoveSubscriptions(channelsToUnsubscribe...)
-	return nil
+	return err
 }
