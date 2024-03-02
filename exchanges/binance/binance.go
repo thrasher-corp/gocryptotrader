@@ -104,7 +104,7 @@ func (b *Binance) GetExchangeServerTime(ctx context.Context) (time.Time, error) 
 	resp := &struct {
 		ServerTime convert.ExchangeTime `json:"serverTime"`
 	}{}
-	return resp.ServerTime.Time(), b.SendHTTPRequest(ctx, exchange.RestSpot, "/api/v3/time", spotExchangeInfo, resp)
+	return resp.ServerTime.Time(), b.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, "/api/v3/time", spotExchangeInfo, resp)
 }
 
 // GetExchangeInfo returns exchange information. Check binance_types for more
@@ -472,11 +472,12 @@ func (b *Binance) GetTradingDayTicker(ctx context.Context, symbols currency.Pair
 		return nil, currency.ErrCurrencyPairsEmpty
 	}
 	params := url.Values{}
-	if len(symbols) > 1 {
+	switch {
+	case len(symbols) > 1:
 		params.Set("symbols", "["+strings.Join(symbols.Strings(), "")+"]")
-	} else if len(symbols) == 1 && !symbols[0].IsEmpty() {
+	case len(symbols) == 1 && !symbols[0].IsEmpty():
 		params.Set("symbol", symbols[0].String())
-	} else {
+	default:
 		return nil, currency.ErrCurrencyPairEmpty
 	}
 	if timeZone != "" {
@@ -539,11 +540,12 @@ func (b *Binance) GetTickerData(ctx context.Context, symbols currency.Pairs, win
 		return nil, currency.ErrCurrencyPairsEmpty
 	}
 	params := url.Values{}
-	if len(symbols) > 1 {
+	switch {
+	case len(symbols) > 1:
 		params.Set("symbols", "["+strings.Join(symbols.Strings(), "")+"]")
-	} else if len(symbols) == 1 && !symbols[0].IsEmpty() {
+	case len(symbols) == 1 && !symbols[0].IsEmpty():
 		params.Set("symbol", symbols[0].String())
-	} else {
+	default:
 		return nil, currency.ErrCurrencyPairEmpty
 	}
 	if windowSize < time.Minute {
@@ -555,7 +557,7 @@ func (b *Binance) GetTickerData(ctx context.Context, symbols currency.Pairs, win
 		params.Set("type", tickerType)
 	}
 	var resp PriceChangesWrapper
-	return resp, b.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues("/api/v3/ticker", params), spotDefaultRate, &resp)
+	return resp, b.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, common.EncodeURLValues("/api/v3/ticker", params), spotDefaultRate, &resp)
 }
 
 // NewOrder sends a new order to Binance
@@ -1309,7 +1311,7 @@ func (b *Binance) GetFundingAssets(ctx context.Context, asset currency.Code, nee
 	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/sapi/v1/asset/get-funding-asset", params, spotDefaultRate, &resp)
 }
 
-// GetuserAssets get user assets, just for positive data.
+// GetUserAssets get user assets, just for positive data.
 func (b *Binance) GetUserAssets(ctx context.Context, ccy currency.Code, needBTCValuation bool) ([]FundingAsset, error) {
 	params := url.Values{}
 	if !ccy.IsEmpty() {
@@ -1402,7 +1404,7 @@ func (b *Binance) GetCloudMiningPaymentAndRefundHistory(ctx context.Context, tra
 	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/asset/ledger-transfer/cloud-mining/queryByPage", params, spotDefaultRate, &resp)
 }
 
-// func (b *Binance) /sapi/v1/account/apiRestrictions
+// GetAPIKeyPermission retrieves API key ermissions detail.
 func (b *Binance) GetAPIKeyPermission(ctx context.Context) (*APIKeyPermissions, error) {
 	var resp *APIKeyPermissions
 	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/account/apiRestrictions", nil, spotDefaultRate, &resp)

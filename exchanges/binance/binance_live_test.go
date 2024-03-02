@@ -48,6 +48,6 @@ func TestMain(m *testing.M) {
 	if err := b.UpdateTradablePairs(context.Background(), true); err != nil {
 		log.Fatal("Binance setup error", err)
 	}
-
+	b.HTTPRecording = true
 	os.Exit(m.Run())
 }

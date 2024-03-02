@@ -169,8 +169,9 @@ func TestUCompressedTrades(t *testing.T) {
 	_, err := b.UCompressedTrades(context.Background(), currency.NewPair(currency.BTC, currency.USDT), "", 5, time.Time{}, time.Time{})
 	assert.NoError(t, err)
 	start, end := getTime()
-	_, err = b.UCompressedTrades(context.Background(), currency.NewPair(currency.LTC, currency.USDT), "", 0, start, end)
-	assert.NoError(t, err)
+	result, err := b.UCompressedTrades(context.Background(), currency.NewPair(currency.LTC, currency.USDT), "", 0, start, end)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
 }
 
 func TestUKlineData(t *testing.T) {
@@ -808,10 +809,11 @@ func TestGetMarkPriceKline(t *testing.T) {
 
 func TestGetExchangeInfo(t *testing.T) {
 	t.Parallel()
+	b.Verbose = true
 	info, err := b.GetExchangeInfo(context.Background())
 	require.NoError(t, err, "GetExchangeInfo must not error")
 	if mockTests {
-		exp := time.Date(2022, 2, 25, 3, 50, 40, int(601*time.Millisecond), time.UTC)
+		exp := time.UnixMilli(1709402408490)
 		assert.True(t, info.ServerTime.Time().Equal(exp), "ServerTime should be correct")
 	} else {
 		assert.WithinRange(t, info.ServerTime.Time(), time.Now().Add(-24*time.Hour), time.Now().Add(24*time.Hour), "ServerTime should be within a day of now")
@@ -934,7 +936,10 @@ func TestGetBestPrice(t *testing.T) {
 
 func TestGetTickerData(t *testing.T) {
 	t.Parallel()
+	b.Verbose = true
 	_, err := b.GetTickerData(context.Background(), []currency.Pair{}, time.Minute*20, "FULL")
+	require.ErrorIs(t, err, currency.ErrCurrencyPairsEmpty)
+	_, err = b.GetTickerData(context.Background(), []currency.Pair{{Base: currency.BTC, Quote: currency.USDT}}, time.Minute*20, "FULL")
 	assert.NoError(t, err)
 }
 
@@ -983,14 +988,14 @@ func TestGetTradeFees(t *testing.T) {
 func TestUserUniversalTransfer(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
-	_, err := b.UserUniversalTransfer(context.Background(), MAIN_UMFUTURE, 123.234, currency.BTC, "", "")
+	_, err := b.UserUniversalTransfer(context.Background(), ttMainUMFuture, 123.234, currency.BTC, "", "")
 	assert.NoError(t, err)
 }
 
 func TestGetUserUniversalTransferHistory(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
-	_, err := b.GetUserUniversalTransferHistory(context.Background(), UMFUTURE_MARGIN, time.Time{}, time.Time{}, 0, 1234.56, "BTC", "USDT")
+	_, err := b.GetUserUniversalTransferHistory(context.Background(), ttUMFutureMargin, time.Time{}, time.Time{}, 0, 1234.56, "BTC", "USDT")
 	assert.NoError(t, err)
 }
 
@@ -1058,6 +1063,7 @@ func TestOpenOrders(t *testing.T) {
 
 func TestAllOrders(t *testing.T) {
 	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	_, err := b.AllOrders(context.Background(), currency.NewPair(currency.BTC, currency.USDT), "", "")
 	require.False(t, sharedtestvalues.AreAPICredentialsSet(b) && err != nil, err)
 	require.False(t, !sharedtestvalues.AreAPICredentialsSet(b) && err == nil && !mockTests, "expecting an error when no keys are set")
@@ -1541,7 +1547,7 @@ func TestGetOrderInfo(t *testing.T) {
 	tradablePairs, err := b.FetchTradablePairs(context.Background(),
 		asset.CoinMarginedFutures)
 	assert.NoError(t, err)
-	assert.False(t, len(tradablePairs) == 0, "no tradable pairs")
+	assert.NotEmpty(t, tradablePairs, "no tradable pairs")
 	_, err = b.GetOrderInfo(context.Background(), "123", tradablePairs[0], asset.CoinMarginedFutures)
 	assert.NoError(t, err)
 }
@@ -1550,7 +1556,7 @@ func TestModifyOrder(t *testing.T) {
 	t.Parallel()
 	_, err := b.ModifyOrder(context.Background(),
 		&order.Modify{AssetType: asset.Spot})
-	assert.False(t, err == nil, "error cannot be nil")
+	assert.NoError(t, err)
 }
 
 func TestGetAllCoinsInfo(t *testing.T) {
@@ -2145,7 +2151,7 @@ func TestSetExchangeOrderExecutionLimits(t *testing.T) {
 	limit, err := b.GetOrderExecutionLimits(asset.CoinMarginedFutures, cmfCP)
 	require.NoError(t, err)
 
-	require.Empty(t, limit, "exchange limit should be loaded")
+	require.NotEmpty(t, limit, "exchange limit should be loaded")
 
 	err = limit.Conforms(0.000001, 0.1, order.Limit)
 	require.ErrorIs(t, err, order.ErrAmountBelowMin)
@@ -2701,7 +2707,6 @@ func TestCryptoLoanAdjustLTV(t *testing.T) {
 	require.ErrorIs(t, err, errOrderIDMustBeSet)
 	_, err = b.CryptoLoanAdjustLTV(context.Background(), 42069, true, 0)
 	require.ErrorIs(t, err, errAmountMustBeSet)
-
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
 	_, err = b.CryptoLoanAdjustLTV(context.Background(), 42069, true, 1)
 	assert.NoError(t, err)
@@ -2745,7 +2750,6 @@ func TestCryptoLoanCustomiseMarginCall(t *testing.T) {
 	t.Parallel()
 	_, err := b.CryptoLoanCustomiseMarginCall(context.Background(), 0, currency.BTC, 0)
 	assert.NotEmpty(t, err)
-
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
 	_, err = b.CryptoLoanCustomiseMarginCall(context.Background(), 1337, currency.BTC, .70)
 	assert.NoError(t, err)
@@ -2759,7 +2763,6 @@ func TestFlexibleLoanBorrow(t *testing.T) {
 	require.ErrorIs(t, err, errCollateralCoinMustBeSet)
 	_, err = b.FlexibleLoanBorrow(context.Background(), currency.ATOM, currency.USDC, 0, 0)
 	require.ErrorIs(t, err, errEitherLoanOrCollateralAmountsMustBeSet)
-
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
 	_, err = b.FlexibleLoanBorrow(context.Background(), currency.ATOM, currency.USDC, 1, 0)
 	assert.NoError(t, err)
@@ -2781,7 +2784,6 @@ func TestFlexibleLoanBorrowHistory(t *testing.T) {
 
 func TestFlexibleLoanRepay(t *testing.T) {
 	t.Parallel()
-
 	_, err := b.FlexibleLoanRepay(context.Background(), currency.EMPTYCODE, currency.BTC, 1, false, false)
 	require.ErrorIs(t, err, errLoanCoinMustBeSet)
 	_, err = b.FlexibleLoanRepay(context.Background(), currency.USDT, currency.EMPTYCODE, 1, false, false)
@@ -2860,6 +2862,9 @@ func TestUGetFundingRateInfo(t *testing.T) {
 
 func TestWsUFuturesConnect(t *testing.T) {
 	t.Parallel()
+	if mockTests {
+		t.SkipNow()
+	}
 	err := b.WsUFuturesConnect()
 	require.NoError(t, err)
 }
@@ -2889,6 +2894,9 @@ func TestHandleData(t *testing.T) {
 
 func TestListSubscriptions(t *testing.T) {
 	t.Parallel()
+	if mockTests {
+		t.SkipNow()
+	}
 	if !b.Websocket.IsConnected() {
 		err := b.WsUFuturesConnect()
 		require.NoError(t, err)
@@ -2899,6 +2907,9 @@ func TestListSubscriptions(t *testing.T) {
 
 func TestSetProperty(t *testing.T) {
 	t.Parallel()
+	if mockTests {
+		t.SkipNow()
+	}
 	if !b.Websocket.IsConnected() {
 		err := b.WsUFuturesConnect()
 		require.NoError(t, err)
@@ -2907,14 +2918,11 @@ func TestSetProperty(t *testing.T) {
 	require.NoError(t, err)
 }
 
-func TestWsConnect(t *testing.T) {
-	t.Parallel()
-	err := b.WsConnect()
-	require.NoError(t, err)
-}
-
 func TestGetWsOrderbook(t *testing.T) {
 	t.Parallel()
+	if mockTests {
+		t.SkipNow()
+	}
 	if !b.IsAPIStreamConnected() {
 		t.Skip(apiStreamingIsNotConnected)
 	}
@@ -2924,6 +2932,9 @@ func TestGetWsOrderbook(t *testing.T) {
 
 func TestGetWsMostRecentTrades(t *testing.T) {
 	t.Parallel()
+	if mockTests {
+		t.SkipNow()
+	}
 	if !b.IsAPIStreamConnected() {
 		t.Skip(apiStreamingIsNotConnected)
 	}
@@ -2936,6 +2947,9 @@ func TestGetWsMostRecentTrades(t *testing.T) {
 
 func TestGetWsAggregatedTrades(t *testing.T) {
 	t.Parallel()
+	if mockTests {
+		t.SkipNow()
+	}
 	if !b.IsAPIStreamConnected() {
 		t.Skip(apiStreamingIsNotConnected)
 	}
@@ -2948,6 +2962,9 @@ func TestGetWsAggregatedTrades(t *testing.T) {
 
 func TestGetWsKlines(t *testing.T) {
 	t.Parallel()
+	if mockTests {
+		t.SkipNow()
+	}
 	start, end := getTime()
 	if !b.IsAPIStreamConnected() {
 		t.Skip(apiStreamingIsNotConnected)
@@ -2964,6 +2981,9 @@ func TestGetWsKlines(t *testing.T) {
 
 func TestGetWsOptimizedCandlestick(t *testing.T) {
 	t.Parallel()
+	if mockTests {
+		t.SkipNow()
+	}
 	start, end := getTime()
 	if !b.IsAPIStreamConnected() {
 		t.Skip(apiStreamingIsNotConnected)
@@ -2987,6 +3007,9 @@ func setupWs() {
 
 func TestGetCurrenctAveragePrice(t *testing.T) {
 	t.Parallel()
+	if mockTests {
+		t.SkipNow()
+	}
 	if !b.IsAPIStreamConnected() {
 		t.Skip(apiStreamingIsNotConnected)
 	}
@@ -2996,6 +3019,9 @@ func TestGetCurrenctAveragePrice(t *testing.T) {
 
 func TestGetWs24HourPriceChanges(t *testing.T) {
 	t.Parallel()
+	if mockTests {
+		t.SkipNow()
+	}
 	if !b.IsAPIStreamConnected() {
 		t.Skip(apiStreamingIsNotConnected)
 	}
@@ -3007,6 +3033,9 @@ func TestGetWs24HourPriceChanges(t *testing.T) {
 
 func TestGetWsTradingDayTickers(t *testing.T) {
 	t.Parallel()
+	if mockTests {
+		t.SkipNow()
+	}
 	if !b.IsAPIStreamConnected() {
 		t.Skip(apiStreamingIsNotConnected)
 	}
@@ -3018,6 +3047,9 @@ func TestGetWsTradingDayTickers(t *testing.T) {
 
 func TestGetSymbolPriceTicker(t *testing.T) {
 	t.Parallel()
+	if mockTests {
+		t.SkipNow()
+	}
 	if !b.IsAPIStreamConnected() {
 		t.Skip(apiStreamingIsNotConnected)
 	}
@@ -3027,6 +3059,9 @@ func TestGetSymbolPriceTicker(t *testing.T) {
 
 func TestGetWsSymbolOrderbookTicker(t *testing.T) {
 	t.Parallel()
+	if mockTests {
+		t.SkipNow()
+	}
 	if !b.IsAPIStreamConnected() {
 		t.Skip(apiStreamingIsNotConnected)
 	}
@@ -3041,30 +3076,30 @@ func TestGetWsSymbolOrderbookTicker(t *testing.T) {
 
 func TestGetQuerySessionStatus(t *testing.T) {
 	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	if !b.IsAPIStreamConnected() {
 		t.Skip(apiStreamingIsNotConnected)
 	}
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	_, err := b.GetQuerySessionStatus()
 	require.NoError(t, err)
 }
 
 func TestGetLogOutOfSession(t *testing.T) {
 	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	if !b.IsAPIStreamConnected() {
 		t.Skip(apiStreamingIsNotConnected)
 	}
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	_, err := b.GetLogOutOfSession()
 	require.NoError(t, err)
 }
 
 func TestPlaceNewOrder(t *testing.T) {
 	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
 	if !b.IsAPIStreamConnected() {
 		t.Skip(apiStreamingIsNotConnected)
 	}
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
 	_, err := b.WsPlaceNewOrder(&TradeOrderRequestParam{
 		Symbol:      "BTCUSDT",
 		Side:        "SELL",
@@ -3078,10 +3113,10 @@ func TestPlaceNewOrder(t *testing.T) {
 
 func TestValidatePlaceNewOrderRequest(t *testing.T) {
 	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
 	if !b.IsAPIStreamConnected() {
 		t.Skip(apiStreamingIsNotConnected)
 	}
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
 	err := b.ValidatePlaceNewOrderRequest(&TradeOrderRequestParam{
 		Symbol:      "BTCUSDT",
 		Side:        "SELL",
@@ -3095,10 +3130,10 @@ func TestValidatePlaceNewOrderRequest(t *testing.T) {
 
 func TestWsQueryOrder(t *testing.T) {
 	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	if !b.IsAPIStreamConnected() {
 		t.Skip(apiStreamingIsNotConnected)
 	}
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	_, err := b.WsQueryOrder(&QueryOrderParam{
 		Symbol:  "BTCUSDT",
 		OrderID: 12345,
@@ -3121,10 +3156,10 @@ func TestSignRequest(t *testing.T) {
 
 func TestWsCancelAndReplaceTradeOrder(t *testing.T) {
 	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
 	if !b.IsAPIStreamConnected() {
 		t.Skip(apiStreamingIsNotConnected)
 	}
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
 	_, err := b.WsCancelAndReplaceTradeOrder(&WsCancelAndReplaceParam{
 		Symbol:                    "BTCUSDT",
 		CancelReplaceMode:         "ALLOW_FAILURE",
@@ -3140,30 +3175,30 @@ func TestWsCancelAndReplaceTradeOrder(t *testing.T) {
 
 func TestWsCurrentOpenOrders(t *testing.T) {
 	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
 	if !b.IsAPIStreamConnected() {
 		t.Skip(apiStreamingIsNotConnected)
 	}
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
 	_, err := b.WsCurrentOpenOrders(currency.NewPair(currency.BTC, currency.USDT), 6000)
 	require.NoError(t, err)
 }
 
 func TestWsCancelOpenOrders(t *testing.T) {
 	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
 	if !b.IsAPIStreamConnected() {
 		t.Skip(apiStreamingIsNotConnected)
 	}
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
 	_, err := b.WsCancelOpenOrders(currency.NewPair(currency.BTC, currency.USDT), 6000)
 	require.NoError(t, err)
 }
 
 func TestWsPlaceOCOOrder(t *testing.T) {
 	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
 	if !b.IsAPIStreamConnected() {
 		t.Skip(apiStreamingIsNotConnected)
 	}
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
 	_, err := b.WsPlaceOCOOrder(&PlaceOCOOrderParam{
 		Symbol:               "BTCUSDT",
 		Side:                 "SELL",
@@ -3179,20 +3214,20 @@ func TestWsPlaceOCOOrder(t *testing.T) {
 
 func TestWsQueryOCOOrder(t *testing.T) {
 	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	if !b.IsAPIStreamConnected() {
 		t.Skip(apiStreamingIsNotConnected)
 	}
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	_, err := b.WsQueryOCOOrder("123456788", 0, 0)
 	require.NoError(t, err)
 }
 
 func TestWsCancelOCOOrder(t *testing.T) {
 	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
 	if !b.IsAPIStreamConnected() {
 		t.Skip(apiStreamingIsNotConnected)
 	}
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
 	_, err := b.WsCancelOCOOrder(
 		currency.NewPair(currency.BTC, currency.USDT), "someID", "12354", "", 0)
 	require.NoError(t, err)
@@ -3200,20 +3235,20 @@ func TestWsCancelOCOOrder(t *testing.T) {
 
 func TestWsCurrentOpenOCOOrders(t *testing.T) {
 	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	if !b.IsAPIStreamConnected() {
 		t.Skip(apiStreamingIsNotConnected)
 	}
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	_, err := b.WsCurrentOpenOCOOrders(0)
 	require.NoError(t, err)
 }
 
 func TestWsPlaceNewSOROrder(t *testing.T) {
 	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
 	if !b.IsAPIStreamConnected() {
 		t.Skip(apiStreamingIsNotConnected)
 	}
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
 	_, err := b.WsPlaceNewSOROrder(&WsOSRPlaceOrderParams{
 		Symbol:      "BTCUSDT",
 		Side:        "BUY",
@@ -3227,10 +3262,10 @@ func TestWsPlaceNewSOROrder(t *testing.T) {
 
 func TestWsTestNewOrderUsingSOR(t *testing.T) {
 	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
 	if !b.IsAPIStreamConnected() {
 		t.Skip(apiStreamingIsNotConnected)
 	}
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
 	err := b.WsTestNewOrderUsingSOR(&WsOSRPlaceOrderParams{
 		Symbol:      "BTCUSDT",
 		Side:        "BUY",
@@ -3269,30 +3304,30 @@ func TestSortingTest(t *testing.T) {
 
 func TestGetAccountInformation(t *testing.T) {
 	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	if !b.IsAPIStreamConnected() {
 		t.Skip(apiStreamingIsNotConnected)
 	}
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	_, err := b.GetWsAccountInfo(0)
 	require.NoError(t, err)
 }
 
 func TestWsQueryAccountOrderRateLimits(t *testing.T) {
 	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	if !b.IsAPIStreamConnected() {
 		t.Skip(apiStreamingIsNotConnected)
 	}
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	_, err := b.WsQueryAccountOrderRateLimits(0)
 	require.NoError(t, err)
 }
 
 func TestWsQueryAccountOrderHistory(t *testing.T) {
 	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	if !b.IsAPIStreamConnected() {
 		t.Skip(apiStreamingIsNotConnected)
 	}
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	_, err := b.WsQueryAccountOrderHistory(&AccountOrderRequestParam{
 		Symbol:    "BTCUSDT",
 		StartTime: time.Now().Add(-time.Hour * 24 * 10).UnixMilli(),
@@ -3304,20 +3339,20 @@ func TestWsQueryAccountOrderHistory(t *testing.T) {
 
 func TestWsQueryAccountOCOOrderHistory(t *testing.T) {
 	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	if !b.IsAPIStreamConnected() {
 		t.Skip(apiStreamingIsNotConnected)
 	}
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	_, err := b.WsQueryAccountOCOOrderHistory(0, 0, 0, time.Time{}, time.Time{})
 	require.NoError(t, err)
 }
 
 func TestWsAccountTradeHistory(t *testing.T) {
 	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	if !b.IsAPIStreamConnected() {
 		t.Skip(apiStreamingIsNotConnected)
 	}
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	_, err := b.WsAccountTradeHistory(&AccountOrderRequestParam{
 		Symbol:  "BTCUSDT",
 		OrderID: 1234,
@@ -3327,60 +3362,60 @@ func TestWsAccountTradeHistory(t *testing.T) {
 
 func TestWsAccountPreventedMatches(t *testing.T) {
 	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	if !b.IsAPIStreamConnected() {
 		t.Skip(apiStreamingIsNotConnected)
 	}
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	_, err := b.WsAccountPreventedMatches(currency.NewPair(currency.BTC, currency.USDT), 1223456, 0, 0, 0, 0)
 	require.NoError(t, err)
 }
 
 func TestWsAccountAllocation(t *testing.T) {
 	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	if !b.IsAPIStreamConnected() {
 		t.Skip(apiStreamingIsNotConnected)
 	}
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	_, err := b.WsAccountAllocation(currency.NewPair(currency.BTC, currency.USDT), time.Time{}, time.Now(), 0, 0, 0, 19)
 	require.NoError(t, err)
 }
 
 func TestWsAccountCommissionRates(t *testing.T) {
 	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	if !b.IsAPIStreamConnected() {
 		t.Skip(apiStreamingIsNotConnected)
 	}
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	_, err := b.WsAccountCommissionRates(currency.NewPair(currency.BTC, currency.USDT))
 	require.NoError(t, err)
 }
 
 func TestWsStartUserDataStream(t *testing.T) {
 	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	if !b.IsAPIStreamConnected() {
 		t.Skip(apiStreamingIsNotConnected)
 	}
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	_, err := b.WsStartUserDataStream()
 	require.NoError(t, err)
 }
 
 func TestWsPingUserDataStream(t *testing.T) {
 	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	if !b.IsAPIStreamConnected() {
 		t.Skip(apiStreamingIsNotConnected)
 	}
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	err := b.WsPingUserDataStream("xs0mRXdAKlIPDRFrlPcw0qI41Eh3ixNntmymGyhrhgqo7L6FuLaWArTD7RLP")
 	require.NoError(t, err)
 }
 
 func TestWsStopUserDataStream(t *testing.T) {
 	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
 	if !b.IsAPIStreamConnected() {
 		t.Skip(apiStreamingIsNotConnected)
 	}
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
 	err := b.WsStopUserDataStream("xs0mRXdAKlIPDRFrlPcw0qI41Eh3ixNntmymGyhrhgqo7L6FuLaWArTD7RLP")
 	require.NoError(t, err)
 }

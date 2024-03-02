@@ -57,141 +57,141 @@ const (
 type TransferTypes uint8
 
 const (
-	MAIN_UMFUTURE TransferTypes = iota
-	MAIN_CMFUTURE
-	MAIN_MARGIN
-	UMFUTURE_MAIN
-	UMFUTURE_MARGIN
-	CMFUTURE_MAIN
-	CMFUTURE_MARGIN
-	MARGIN_MAIN
-	MARGIN_UMFUTURE
-	MARGIN_CMFUTURE
-	ISOLATEDMARGIN_MARGIN
-	MARGIN_ISOLATEDMARGIN
-	ISOLATEDMARGIN_ISOLATEDMARGIN
-	MAIN_FUNDING
-	FUNDING_MAIN
-	FUNDING_UMFUTURE
-	UMFUTURE_FUNDING
-	MARGIN_FUNDING
-	FUNDING_MARGIN
-	FUNDING_CMFUTURE
-	CMFUTURE_FUNDING
-	MAIN_OPTION
-	OPTION_MAIN
-	UMFUTURE_OPTION
-	OPTION_UMFUTURE
-	MARGIN_OPTION
-	OPTION_MARGIN
-	FUNDING_OPTION
-	OPTION_FUNDING
-	MAIN_PORTFOLIO_MARGIN
-	PORTFOLIO_MARGIN_MAIN
-	MAIN_ISOLATED_MARGIN
-	ISOLATED_MARGIN_MAIN
+	ttMainUMFuture TransferTypes = iota
+	ttMainCMFuture
+	ttMainMargin
+	ttUMFutureMain
+	ttUMFutureMargin
+	ttCMFutureMain
+	ttCMFutureMargin
+	ttMarginMain
+	ttMarginUMFuture
+	ttMarginCMFuture
+	ttIsolatedMarginMargin
+	ttMarginIsolatedMargin
+	ttIsolatedMarginIsolatedMargin
+	ttMainFunding
+	ttFundingMain
+	ttFundingUMFuture
+	ttUMFutureFunding
+	ttMarginFunding
+	ttFundingMargin
+	ttFundingCMFuture
+	ttCMFutureFunding
+	ttMainOption
+	ttOptionMain
+	ttUMFutureOption
+	ttOptionUMFuture
+	ttMarginOption
+	ttOptionMargin
+	ttFundingOption
+	ttOptionFunding
+	ttMainPortfolioMargin
+	ttPortfolioMarginMain
+	ttMainIsolatedMargin
+	ttIsolatedMarginMain
 )
 
 // String returns a string representation of transfer type
 func (a TransferTypes) String() string {
 	switch a {
-	case MAIN_UMFUTURE:
+	case ttMainUMFuture:
 		// Spot account transfer to USDⓈ-M Futures account
 		return "MAIN_UMFUTURE"
-	case MAIN_CMFUTURE:
+	case ttMainCMFuture:
 		// Spot account transfer to COIN-M Futures account
 		return "MAIN_CMFUTURE"
-	case MAIN_MARGIN:
+	case ttMainMargin:
 		// Spot account transfer to Margin（cross）account
 		return "MAIN_MARGIN"
-	case UMFUTURE_MAIN:
+	case ttUMFutureMain:
 		// USDⓈ-M Futures account transfer to Spot account
 		return "UMFUTURE_MAIN"
-	case UMFUTURE_MARGIN:
+	case ttUMFutureMargin:
 		// USDⓈ-M Futures account transfer to Margin（cross）account
 		return "UMFUTURE_MARGIN"
-	case CMFUTURE_MAIN:
+	case ttCMFutureMain:
 		// COIN-M Futures account transfer to Spot account
 		return "CMFUTURE_MAIN"
-	case CMFUTURE_MARGIN:
+	case ttCMFutureMargin:
 		// COIN-M Futures account transfer to Margin(cross) account
 		return "CMFUTURE_MARGIN"
-	case MARGIN_MAIN:
+	case ttMarginMain:
 		// Margin（cross）account transfer to Spot account
 		return "MARGIN_MAIN"
-	case MARGIN_UMFUTURE:
+	case ttMarginUMFuture:
 		// Margin（cross）account transfer to USDⓈ-M Futures
 		return "MARGIN_UMFUTURE"
-	case MARGIN_CMFUTURE:
+	case ttMarginCMFuture:
 		// Margin（cross）account transfer to COIN-M Futures
 		return "MARGIN_CMFUTURE"
-	case ISOLATEDMARGIN_MARGIN:
+	case ttIsolatedMarginMargin:
 		// Isolated margin account transfer to Margin(cross) account
 		return "ISOLATEDMARGIN_MARGIN"
-	case MARGIN_ISOLATEDMARGIN:
+	case ttMarginIsolatedMargin:
 		// Margin(cross) account transfer to Isolated margin account
 		return "MARGIN_ISOLATEDMARGIN"
-	case ISOLATEDMARGIN_ISOLATEDMARGIN:
+	case ttIsolatedMarginIsolatedMargin:
 		// Isolated margin account transfer to Isolated margin account
 		return "ISOLATEDMARGIN_ISOLATEDMARGIN"
-	case MAIN_FUNDING:
+	case ttMainFunding:
 		// Spot account transfer to Funding account
 		return "MAIN_FUNDING"
-	case FUNDING_MAIN:
+	case ttFundingMain:
 		// Funding account transfer to Spot account
 		return "FUNDING_MAIN"
-	case FUNDING_UMFUTURE:
+	case ttFundingUMFuture:
 		// Funding account transfer to UMFUTURE account
 		return "FUNDING_UMFUTURE"
-	case UMFUTURE_FUNDING:
+	case ttUMFutureFunding:
 		// UMFUTURE account transfer to Funding account
 		return "UMFUTURE_FUNDING"
-	case MARGIN_FUNDING:
+	case ttMarginFunding:
 		// MARGIN account transfer to Funding account
 		return "MARGIN_FUNDING"
-	case FUNDING_MARGIN:
+	case ttFundingMargin:
 		// Funding account transfer to Margin account
 		return "FUNDING_MARGIN"
-	case FUNDING_CMFUTURE:
+	case ttFundingCMFuture:
 		// Funding account transfer to CMFUTURE account
 		return "FUNDING_CMFUTURE"
-	case CMFUTURE_FUNDING:
+	case ttCMFutureFunding:
 		// CMFUTURE account transfer to Funding account
 		return "CMFUTURE_FUNDING"
-	case MAIN_OPTION:
+	case ttMainOption:
 		// Spot account transfer to Options account
 		return "MAIN_OPTION"
-	case OPTION_MAIN:
+	case ttOptionMain:
 		// Options account transfer to Spot account
 		return "OPTION_MAIN"
-	case UMFUTURE_OPTION:
+	case ttUMFutureOption:
 		// USDⓈ-M Futures account transfer to Options account
 		return "UMFUTURE_OPTION"
-	case OPTION_UMFUTURE:
+	case ttOptionUMFuture:
 		// Options account transfer to USDⓈ-M Futures account
 		return "OPTION_UMFUTURE"
-	case MARGIN_OPTION:
+	case ttMarginOption:
 		// Margin（cross）account transfer to Options account
 		return "MARGIN_OPTION"
-	case OPTION_MARGIN:
+	case ttOptionMargin:
 		// Options account transfer to Margin（cross）account
 		return "OPTION_MARGIN"
-	case FUNDING_OPTION:
+	case ttFundingOption:
 		// Funding account transfer to Options account
 		return "FUNDING_OPTION"
-	case OPTION_FUNDING:
+	case ttOptionFunding:
 		// Options account transfer to Funding account
 		return "OPTION_FUNDING"
-	case MAIN_PORTFOLIO_MARGIN:
+	case ttMainPortfolioMargin:
 		// Spot account transfer to Portfolio Margin account
 		return "MAIN_PORTFOLIO_MARGIN"
-	case PORTFOLIO_MARGIN_MAIN:
+	case ttPortfolioMarginMain:
 		// Portfolio Margin account transfer to Spot account
 		return "PORTFOLIO_MARGIN_MAIN"
-	case MAIN_ISOLATED_MARGIN:
+	case ttMainIsolatedMargin:
 		// Spot account transfer to Isolated margin account
 		return "MAIN_ISOLATED_MARGIN"
-	case ISOLATED_MARGIN_MAIN:
+	case ttIsolatedMarginMain:
 		// Isolated margin account transfer to Spot account
 		return "ISOLATED_MARGIN_MAIN"
 	default:
@@ -525,6 +525,7 @@ type AveragePrice struct {
 // PriceChangesWrapper to be used when the response is either a single PriceChangeStats instance or a slice.
 type PriceChangesWrapper []PriceChangeStats
 
+// UnmarshalJSON decerializes byte data into PriceChanceWrapper instance.
 func (a *PriceChangesWrapper) UnmarshalJSON(data []byte) error {
 	var singlePriceChange *PriceChangeStats
 	err := json.Unmarshal(data, &singlePriceChange)
