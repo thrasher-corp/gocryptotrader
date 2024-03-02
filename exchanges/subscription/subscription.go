@@ -129,3 +129,12 @@ func (s *Subscription) Match(key any) bool {
 
 	return true
 }
+
+// Clone returns a copy of a subscription
+func (s *Subscription) Clone() *Subscription {
+	s.m.RLock()
+	n := *s //nolint:govet // Replacing lock immediately below
+	s.m.RUnlock()
+	n.m = sync.RWMutex{}
+	return &n
+}
