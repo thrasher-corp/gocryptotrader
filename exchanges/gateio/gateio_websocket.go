@@ -625,7 +625,7 @@ func (g *Gateio) processCrossMarginLoans(data []byte) error {
 }
 
 // GenerateDefaultSubscriptions returns default subscriptions
-func (g *Gateio) GenerateDefaultSubscriptions() ([]subscription.Subscription, error) {
+func (g *Gateio) GenerateDefaultSubscriptions() (subscription.List, error) {
 	channelsToSubscribe := defaultSubscriptions
 	if g.Websocket.CanUseAuthenticatedEndpoints() {
 		channelsToSubscribe = append(channelsToSubscribe, []string{
@@ -638,7 +638,7 @@ func (g *Gateio) GenerateDefaultSubscriptions() ([]subscription.Subscription, er
 		channelsToSubscribe = append(channelsToSubscribe, spotTradesChannel)
 	}
 
-	var subscriptions []subscription.Subscription
+	var subscriptions subscription.List
 	var err error
 	for i := range channelsToSubscribe {
 		var pairs []currency.Pair
@@ -678,9 +678,9 @@ func (g *Gateio) GenerateDefaultSubscriptions() ([]subscription.Subscription, er
 				return nil, err
 			}
 
-			subscriptions = append(subscriptions, subscription.Subscription{
+			subscriptions = append(subscriptions, &subscription.Subscription{
 				Channel: channelsToSubscribe[i],
-				Pair:    fpair.Upper(),
+				Pairs:   currency.Pairs{fpair.Upper()},
 				Asset:   assetType,
 				Params:  params,
 			})
@@ -690,7 +690,7 @@ func (g *Gateio) GenerateDefaultSubscriptions() ([]subscription.Subscription, er
 }
 
 // handleSubscription sends a websocket message to receive data from the channel
-func (g *Gateio) handleSubscription(event string, channelsToSubscribe []subscription.Subscription) error {
+func (g *Gateio) handleSubscription(event string, channelsToSubscribe subscription.List) error {
 	payloads, err := g.generatePayload(event, channelsToSubscribe)
 	if err != nil {
 		return err
@@ -711,16 +711,19 @@ func (g *Gateio) handleSubscription(event string, channelsToSubscribe []subscrip
 				continue
 			}
 			if payloads[k].Event == "subscribe" {
-				g.Websocket.AddSuccessfulSubscriptions(channelsToSubscribe[k])
+				err = g.Websocket.AddSuccessfulSubscriptions(channelsToSubscribe[k])
 			} else {
-				g.Websocket.RemoveSubscriptions(channelsToSubscribe[k])
+				err = g.Websocket.RemoveSubscriptions(channelsToSubscribe[k])
+			}
+			if err != nil {
+				errs = common.AppendError(errs, err)
 			}
 		}
 	}
 	return errs
 }
 
-func (g *Gateio) generatePayload(event string, channelsToSubscribe []subscription.Subscription) ([]WsInput, error) {
+func (g *Gateio) generatePayload(event string, channelsToSubscribe subscription.List) ([]WsInput, error) {
 	if len(channelsToSubscribe) == 0 {
 		return nil, errors.New("cannot generate payload, no channels supplied")
 	}
@@ -736,10 +739,13 @@ func (g *Gateio) generatePayload(event string, channelsToSubscribe []subscriptio
 	var intervalString string
 	payloads := make([]WsInput, 0, len(channelsToSubscribe))
 	for i := range channelsToSubscribe {
+		if len(channelsToSubscribe[i].Pairs) > 1 {
+			return nil, subscription.ErrNotSinglePair
+		}
 		var auth *WsAuthInput
 		timestamp := time.Now()
-		channelsToSubscribe[i].Pair.Delimiter = currency.UnderscoreDelimiter
-		params := []string{channelsToSubscribe[i].Pair.String()}
+		channelsToSubscribe[i].Pairs[0].Delimiter = currency.UnderscoreDelimiter
+		params := []string{channelsToSubscribe[i].Pairs[0].String()}
 		switch channelsToSubscribe[i].Channel {
 		case spotOrderbookChannel:
 			interval, okay := channelsToSubscribe[i].Params["interval"].(kline.Interval)
@@ -837,12 +843,12 @@ func (g *Gateio) generatePayload(event string, channelsToSubscribe []subscriptio
 }
 
 // Subscribe sends a websocket message to stop receiving data from the channel
-func (g *Gateio) Subscribe(channelsToUnsubscribe []subscription.Subscription) error {
+func (g *Gateio) Subscribe(channelsToUnsubscribe subscription.List) error {
 	return g.handleSubscription("subscribe", channelsToUnsubscribe)
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
-func (g *Gateio) Unsubscribe(channelsToUnsubscribe []subscription.Subscription) error {
+func (g *Gateio) Unsubscribe(channelsToUnsubscribe subscription.List) error {
 	return g.handleSubscription("unsubscribe", channelsToUnsubscribe)
 }
 
