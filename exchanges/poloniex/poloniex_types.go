@@ -351,10 +351,16 @@ type WebsocketTrollboxMessage struct {
 	Reputation    float64
 }
 
-// WsCommand defines the request params after a websocket connection has been
-// established
-type WsCommand struct {
-	Command string      `json:"command"`
+type wsOp string
+
+const (
+	wsSubscribeOp   wsOp = "subscribe"
+	wsUnsubscribeOp wsOp = "unsubscribe"
+)
+
+// wsCommand defines the request params after a websocket connection has been established
+type wsCommand struct {
+	Command wsOp        `json:"command"`
 	Channel interface{} `json:"channel"`
 	APIKey  string      `json:"key,omitempty"`
 	Payload string      `json:"payload,omitempty"`
@@ -467,9 +473,9 @@ type WsTradeNotificationResponse struct {
 	Date          time.Time
 }
 
-// WsAuthorisationRequest Authenticated Ws Account data request
-type WsAuthorisationRequest struct {
-	Command string `json:"command"`
+// wsAuthorisationRequest Authenticated Ws Account data request
+type wsAuthorisationRequest struct {
+	Command wsOp   `json:"command"`
 	Channel int64  `json:"channel"`
 	Sign    string `json:"sign"`
 	Key     string `json:"key"`
