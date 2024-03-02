@@ -3,6 +3,8 @@ package subscription
 import (
 	"errors"
 	"fmt"
+	"maps"
+	"slices"
 	"sync"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -43,15 +45,15 @@ type State uint8
 
 // Subscription container for streaming subscriptions
 type Subscription struct {
-	Enabled       bool                   `json:"enabled"`
-	Key           any                    `json:"-"`
-	Channel       string                 `json:"channel,omitempty"`
-	Pairs         currency.Pairs         `json:"pairs,omitempty"`
-	Asset         asset.Item             `json:"asset,omitempty"`
-	Params        map[string]interface{} `json:"params,omitempty"`
-	Interval      kline.Interval         `json:"interval,omitempty"`
-	Levels        int                    `json:"levels,omitempty"`
-	Authenticated bool                   `json:"authenticated,omitempty"`
+	Enabled       bool           `json:"enabled"`
+	Key           any            `json:"-"`
+	Channel       string         `json:"channel,omitempty"`
+	Pairs         currency.Pairs `json:"pairs,omitempty"`
+	Asset         asset.Item     `json:"asset,omitempty"`
+	Params        map[string]any `json:"params,omitempty"`
+	Interval      kline.Interval `json:"interval,omitempty"`
+	Levels        int            `json:"levels,omitempty"`
+	Authenticated bool           `json:"authenticated,omitempty"`
 	state         State
 	m             sync.RWMutex
 }
@@ -127,4 +129,27 @@ func (s *Subscription) Match(key any) bool {
 	}
 
 	return true
+}
+
+// Clone returns a copy of a subscription
+// Key is set to nil, because most Key types contain a pointer to the subscription, and because the clone isn't added to the store yet
+// Users should allow a default key to be assigned on AddSubscription or can SetKey as necessary
+func (s *Subscription) Clone() *Subscription {
+	s.m.RLock()
+	c := &Subscription{
+		Key:           nil,
+		Enabled:       s.Enabled,
+		Channel:       s.Channel,
+		Asset:         s.Asset,
+		Params:        s.Params,
+		Interval:      s.Interval,
+		Levels:        s.Levels,
+		Authenticated: s.Authenticated,
+		state:         s.state,
+		Pairs:         s.Pairs,
+	}
+	s.Pairs = slices.Clone(s.Pairs)
+	s.Params = maps.Clone(s.Params)
+	s.m.RUnlock()
+	return c
 }
