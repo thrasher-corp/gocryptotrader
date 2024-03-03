@@ -33,6 +33,11 @@ import (
 type Kucoin struct {
 	exchange.Base
 	obm *orderbookManager
+
+	// HFSpot whether a high-frequency spot order is enabled or not.
+	HFSpot bool
+	// HFMargin whether a high-frequency margin order is enabled or not.
+	HFMargin bool
 }
 
 var locker sync.Mutex
@@ -482,9 +487,9 @@ func (ku *Kucoin) GetServiceStatus(ctx context.Context) (*ServiceStatus, error) 
 
 // --------------------------------------------- Spot High Frequency(HF) Pro Account ---------------------------
 
-// SpotHFPlaceOrder places a high frequency spot order
+// HFSpotPlaceOrder places a high frequency spot order
 // There are two types of orders: (limit) order: set price and quantity for the transaction. (market) order : set amount or quantity for the transaction.
-func (ku *Kucoin) SpotHFPlaceOrder(ctx context.Context, arg *PlaceHFParam) (string, error) {
+func (ku *Kucoin) HFSpotPlaceOrder(ctx context.Context, arg *PlaceHFParam) (string, error) {
 	return ku.spotHFPlaceOrder(ctx, arg, "/v1/hf/orders")
 }
 
@@ -681,6 +686,9 @@ func (ku *Kucoin) CancelSpecifiedNumberHFOrdersByOrderID(ctx context.Context, or
 
 // CancelAllHFOrdersBySymbol cancel all open high-frequency orders (orders created through
 func (ku *Kucoin) CancelAllHFOrdersBySymbol(ctx context.Context, symbol string) (string, error) {
+	if symbol == "" {
+		return "", currency.ErrSymbolStringEmpty
+	}
 	var resp string
 	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, defaultSpotEPL, http.MethodDelete, "/v1/hf/orders?symbol="+symbol, nil, &resp)
 }
@@ -692,11 +700,11 @@ func (ku *Kucoin) CancelAllHFOrders(ctx context.Context) (*CancelAllHFOrdersResp
 }
 
 // GetActiveHFOrders obtain all active order lists, and the return value of the active order interface is the paged data of all uncompleted order lists.
-func (ku *Kucoin) GetActiveHFOrders(ctx context.Context, symbol string) ([]HFOrder, error) {
+func (ku *Kucoin) GetActiveHFOrders(ctx context.Context, symbol string) ([]HFOrderDetail, error) {
 	if symbol == "" {
 		return nil, currency.ErrSymbolStringEmpty
 	}
-	var resp []HFOrder
+	var resp []HFOrderDetail
 	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, defaultSpotEPL, http.MethodGet, "/v1/hf/orders/active?symbol="+symbol, nil, &resp)
 }
 
@@ -739,23 +747,23 @@ func (ku *Kucoin) GetHFCompletedOrderList(ctx context.Context, symbol, side, ord
 
 // GetHFOrderDetailsByOrderID obtain information for a single HF order using the order id.
 // If the order is not an active order, you can only get data within the time range of 3 _ 24 hours (ie: from the current time to 3 _ 24 hours ago).
-func (ku *Kucoin) GetHFOrderDetailsByOrderID(ctx context.Context, orderID, symbol string) (*HFOrder, error) {
+func (ku *Kucoin) GetHFOrderDetailsByOrderID(ctx context.Context, orderID, symbol string) (*HFOrderDetail, error) {
 	return ku.getHFOrderDetailsByID(ctx, orderID, symbol, "/v1/hf/orders/client-order/")
 }
 
 // GetHFOrderDetailsByClientOrderID used to obtain information about a single order using clientOid. If the order does not exist, then there will be a prompt saying that the order does not exist.
-func (ku *Kucoin) GetHFOrderDetailsByClientOrderID(ctx context.Context, clientOrderID, symbol string) (*HFOrder, error) {
+func (ku *Kucoin) GetHFOrderDetailsByClientOrderID(ctx context.Context, clientOrderID, symbol string) (*HFOrderDetail, error) {
 	return ku.getHFOrderDetailsByID(ctx, clientOrderID, symbol, "/v1/hf/orders/client-order/")
 }
 
-func (ku *Kucoin) getHFOrderDetailsByID(ctx context.Context, orderID, symbol, path string) (*HFOrder, error) {
+func (ku *Kucoin) getHFOrderDetailsByID(ctx context.Context, orderID, symbol, path string) (*HFOrderDetail, error) {
 	if orderID == "" {
 		return nil, order.ErrOrderIDNotSet
 	}
 	if symbol == "" {
 		return nil, currency.ErrSymbolStringEmpty
 	}
-	var resp *HFOrder
+	var resp *HFOrderDetail
 	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, defaultSpotEPL, http.MethodGet, path+orderID+symbolQuery+symbol, nil, &resp)
 }
 
@@ -1413,7 +1421,7 @@ func (ku *Kucoin) CancelAllMarginHFOrdersBySymbol(ctx context.Context, symbol, t
 }
 
 // GetActiveMarginHFOrders retrieves list if active high-frequency margin orders
-func (ku *Kucoin) GetActiveMarginHFOrders(ctx context.Context, symbol, tradeType string) ([]HFMarginOrderDetail, error) {
+func (ku *Kucoin) GetActiveMarginHFOrders(ctx context.Context, symbol, tradeType string) ([]HFOrderDetail, error) {
 	params := url.Values{}
 	if symbol != "" {
 		params.Set("symbol", symbol)
@@ -1421,7 +1429,7 @@ func (ku *Kucoin) GetActiveMarginHFOrders(ctx context.Context, symbol, tradeType
 	if tradeType != "" {
 		params.Set("tradeType", tradeType)
 	}
-	var resp []HFMarginOrderDetail
+	var resp []HFOrderDetail
 	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, defaultSpotEPL, http.MethodGet, common.EncodeURLValues("/v3/hf/margin/orders/active", params), nil, &resp)
 }
 
@@ -1460,16 +1468,16 @@ func (ku *Kucoin) GetFilledHFMarginOrders(ctx context.Context, symbol, tradeType
 }
 
 // GetMarginHFOrderDetailByOrderID retrieves the detail of a HF margin order by order ID.
-func (ku *Kucoin) GetMarginHFOrderDetailByOrderID(ctx context.Context, orderID, symbol string) (*HFMarginOrderDetail, error) {
+func (ku *Kucoin) GetMarginHFOrderDetailByOrderID(ctx context.Context, orderID, symbol string) (*HFOrderDetail, error) {
 	return ku.getMarginHFOrderDetailByID(ctx, orderID, symbol, "/v3/hf/margin/orders/")
 }
 
 // GetMarginHFOrderDetailByClientOrderID retrieves the detaul of a HF margin order by client order ID.
-func (ku *Kucoin) GetMarginHFOrderDetailByClientOrderID(ctx context.Context, clientOrderID, symbol string) (*HFMarginOrderDetail, error) {
+func (ku *Kucoin) GetMarginHFOrderDetailByClientOrderID(ctx context.Context, clientOrderID, symbol string) (*HFOrderDetail, error) {
 	return ku.getMarginHFOrderDetailByID(ctx, clientOrderID, symbol, "/v3/hf/margin/orders/client-order/")
 }
 
-func (ku *Kucoin) getMarginHFOrderDetailByID(ctx context.Context, orderID, symbol, path string) (*HFMarginOrderDetail, error) {
+func (ku *Kucoin) getMarginHFOrderDetailByID(ctx context.Context, orderID, symbol, path string) (*HFOrderDetail, error) {
 	if symbol == "" {
 		return nil, currency.ErrSymbolStringEmpty
 	}
@@ -1479,7 +1487,7 @@ func (ku *Kucoin) getMarginHFOrderDetailByID(ctx context.Context, orderID, symbo
 	params := url.Values{}
 	params.Set("symbol", symbol)
 	params.Set("orderId", orderID)
-	var resp *HFMarginOrderDetail
+	var resp *HFOrderDetail
 	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, defaultSpotEPL, http.MethodGet, path+orderID+symbolQuery+symbol, nil, &resp)
 }
 

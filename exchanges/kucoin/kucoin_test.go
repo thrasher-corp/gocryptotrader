@@ -208,6 +208,7 @@ func TestGetFiatPrice(t *testing.T) {
 
 func TestGetLeveragedTokenInfo(t *testing.T) {
 	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, ku)
 	_, err := ku.GetLeveragedTokenInfo(context.Background(), "BTC")
 	assert.NoError(t, err)
 }
@@ -1062,8 +1063,9 @@ func TestGetFuturesPremiumIndex(t *testing.T) {
 
 func TestGet24HourFuturesTransactionVolume(t *testing.T) {
 	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, ku)
 	resp, err := ku.Get24HourFuturesTransactionVolume(context.Background())
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NotNil(t, resp)
 }
 
@@ -2423,9 +2425,9 @@ func TestGetOpenInterest(t *testing.T) {
 func TestSpotHFPlaceOrder(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ku, canManipulateRealOrders)
-	_, err := ku.SpotHFPlaceOrder(context.Background(), &PlaceHFParam{})
+	_, err := ku.HFSpotPlaceOrder(context.Background(), &PlaceHFParam{})
 	require.ErrorIs(t, err, common.ErrNilPointer)
-	_, err = ku.SpotHFPlaceOrder(context.Background(), &PlaceHFParam{
+	_, err = ku.HFSpotPlaceOrder(context.Background(), &PlaceHFParam{
 		TimeInForce: "GTT",
 		Symbol:      currency.Pair{Base: currency.ETH, Delimiter: "-", Quote: currency.BTC},
 		OrderType:   "limit",

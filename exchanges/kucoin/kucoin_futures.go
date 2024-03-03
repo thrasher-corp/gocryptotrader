@@ -538,7 +538,6 @@ func (ku *Kucoin) GetFuturesOrderDetails(ctx context.Context, orderID, clientOrd
 	if clientOrderID != "" {
 		params.Set("clientOid", clientOrderID)
 	}
-	println(common.EncodeURLValues(path+orderID, params))
 	var resp *FuturesOrder
 	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestFutures, defaultFuturesEPL, http.MethodGet, common.EncodeURLValues(path+orderID, params), nil, &resp)
 }
