@@ -7642,7 +7642,7 @@
         "channel": {
           "type": "string"
         },
-        "pair": {
+        "pairs": {
           "type": "string"
         },
         "asset": {
