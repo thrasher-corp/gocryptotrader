@@ -11,75 +11,92 @@ import (
 )
 
 const (
-	threeSecondsInterval = time.Second * 3
-	oneMinuteInterval    = time.Minute
+	thirtySecondsInterval = time.Second * 30
 )
 
 // RateLimit implements the request.Limiter interface
 type RateLimit struct {
-	RetrieveAccountLedger              *rate.Limiter
-	MasterSubUserTransfer              *rate.Limiter
-	RetrieveDepositList                *rate.Limiter
-	RetrieveV1HistoricalDepositList    *rate.Limiter
-	RetrieveWithdrawalList             *rate.Limiter
-	RetrieveV1HistoricalWithdrawalList *rate.Limiter
-	PlaceOrder                         *rate.Limiter
-	PlaceMarginOrders                  *rate.Limiter
-	PlaceBulkOrders                    *rate.Limiter
-	CancelOrder                        *rate.Limiter
-	CancelAllOrders                    *rate.Limiter
-	ListOrders                         *rate.Limiter
-	ListFills                          *rate.Limiter
-	RetrieveFullOrderbook              *rate.Limiter
-	RetrieveMarginAccount              *rate.Limiter
-	SpotRate                           *rate.Limiter
-	FuturesRate                        *rate.Limiter
-
-	FRetrieveAccountOverviewRate     *rate.Limiter
-	FRetrieveTransactionHistoryRate  *rate.Limiter
-	FPlaceOrderRate                  *rate.Limiter
-	FCancelAnOrderRate               *rate.Limiter
-	FLimitOrderMassCancelationRate   *rate.Limiter
-	FRetrieveOrderListRate           *rate.Limiter
-	FRetrieveFillsRate               *rate.Limiter
-	FRecentFillsRate                 *rate.Limiter
-	FRetrievePositionListRate        *rate.Limiter
-	FRetrieveFundingHistoryRate      *rate.Limiter
-	FRetrieveFullOrderbookLevel2Rate *rate.Limiter
+	SpotRate       *rate.Limiter
+	FuturesRate    *rate.Limiter
+	ManagementRate *rate.Limiter
+	PublicRate     *rate.Limiter
 }
 
 const (
-	// for spot endpoints
-	retrieveAccountLedgerEPL request.EndpointLimit = iota
-	masterSubUserTransferEPL
-	retrieveDepositListEPL
-	retrieveV1HistoricalDepositListEPL
-	retrieveWithdrawalListEPL
+	accountSummaryInfoEPL request.EndpointLimit = iota
+	allAccountEPL
+	accountDetailEPL
+	accountLedgersEPL
+	hfAccountLedgersEPL
+	hfAccountLedgersMarginEPL
+	futuresAccountLedgersEPL
+	subAccountInfoV1EPL
+	allSubAccountsInfoV2EPL
+	createSubUserEPL
+	subAccountsEPL
+	subAccountBalancesEPL
+	allSubAccountBalancesV2EPL
+	subAccountSpotAPIListEPL
+	createSpotAPIForSubAccountEPL
+	modifySubAccountSpotAPIEPL
+	deleteSubAccountSpotAPIEPL
+	marginAccountDetailEPL
+	crossMarginAccountsDetailEPL
+	isolatedMarginAccountDetailEPL
+	futuresAccountsDetailEPL
+	allFuturesSubAccountBalancesEPL
+	createDepositAddressEPL
+	depositAddressesV2EPL
+	depositAddressesV1EPL
+	depositListEPL
+	historicDepositListEPL
+	withdrawalListEPL
 	retrieveV1HistoricalWithdrawalListEPL
-	placeOrderEPL
-	placeMarginOrdersEPL
-	placeBulkOrdersEPL
-	cancelOrderEPL
-	cancelAllOrdersEPL
-	listOrdersEPL
-	listFillsEPL
-	retrieveFullOrderbookEPL
-	retrieveMarginAccountEPL
-	defaultSpotEPL
-
-	// for futures endpoints
-	futuresRetrieveAccountOverviewEPL
-	futuresRetrieveTransactionHistoryEPL
-	futuresPlaceOrderEPL
-	futuresCancelAnOrderEPL
-	futuresLimitOrderMassCancelationEPL
-	futuresRetrieveOrderListEPL
-	futuresRetrieveFillsEPL
-	futuresRecentFillsEPL
-	futuresRetrievePositionListEPL
-	futuresRetrieveFundingHistoryEPL
-	futuresRetrieveFullOrderbookLevel2EPL
-	defaultFuturesEPL
+	withdrawalQuotaEPL
+	applyWithdrawalEPL
+	cancelWithdrawalsEPL
+	getTransferablesEPL
+	flexiTransferEPL
+	masterSubUserTransferEPL
+	innerTransferEPL
+	toMainOrTradeAccountEPL
+	toFuturesAccountEPL
+	futuresTransferOutRequestRecordsEPL
+	basicFeesEPL
+	tradeFeesEPL
+	spotCurrenciesV3EPL
+	spotCurrencyDetailEPL
+	symbolsEPL
+	tickersEPL
+	allTickersEPL
+	statistics24HrEPL
+	marketListEPL
+	partOrderbook20EPL
+	partOrderbook100EPL
+	fullOrderbookEPL
+	tradeHistoryEPL
+	klinesEPL
+	fiatPriceEPL
+	currentServerTimeEPL
+	serviceStatusEPL
+	hfPlaceOrderEPL
+	hfSyncPlaceOrderEPL
+	hfMultipleOrdersEPL
+	hfSyncPlaceMultipleHFOrdersEPL
+	hfModifyOrderEPL
+	cancelHFOrderEPL
+	hfSyncCancelOrderEPL
+	hfCancelOrderByClientOrderIDEPL
+	cancelSpecifiedNumberHFOrdersByOrderIDEPL
+	hfCancelAllOrdersBySymbolEPL
+	hfCancelAllOrdersEPL
+	hfGetAllActiveOrdersEPL
+	hfSymbolsWithActiveOrdersEPL
+	hfCompletedOrderListEPL
+	hfOrderDetailByOrderIDEPL
+	autoCancelHFOrderSettingEPL
+	autoCancelHFOrderSettingQueryEPL
+	hfFilledListEPL
 )
 
 // Limit executes rate limiting functionality for Kucoin
@@ -87,62 +104,155 @@ func (r *RateLimit) Limit(ctx context.Context, epl request.EndpointLimit) error 
 	var limiter *rate.Limiter
 	var tokens int
 	switch epl {
-	case retrieveAccountLedgerEPL:
-		return r.RetrieveAccountLedger.Wait(ctx)
-	case masterSubUserTransferEPL:
-		return r.MasterSubUserTransfer.Wait(ctx)
-	case retrieveDepositListEPL:
-		return r.RetrieveDepositList.Wait(ctx)
-	case retrieveV1HistoricalDepositListEPL:
-		return r.RetrieveV1HistoricalDepositList.Wait(ctx)
-	case retrieveWithdrawalListEPL:
-		return r.RetrieveWithdrawalList.Wait(ctx)
+	case accountSummaryInfoEPL:
+		limiter, tokens = r.ManagementRate, 20
+	case allAccountEPL:
+		limiter, tokens = r.ManagementRate, 5
+	case accountDetailEPL:
+		limiter, tokens = r.ManagementRate, 5
+	case accountLedgersEPL:
+		limiter, tokens = r.ManagementRate, 2
+	case hfAccountLedgersEPL:
+		limiter, tokens = r.SpotRate, 2
+	case hfAccountLedgersMarginEPL:
+		limiter, tokens = r.SpotRate, 2
+	case futuresAccountLedgersEPL:
+		limiter, tokens = r.SpotRate, 2
+	case subAccountInfoV1EPL:
+		limiter, tokens = r.ManagementRate, 20
+	case allSubAccountsInfoV2EPL:
+		limiter, tokens = r.ManagementRate, 20
+	case createSubUserEPL:
+		limiter, tokens = r.ManagementRate, 20
+	case subAccountsEPL:
+		limiter, tokens = r.ManagementRate, 15
+	case subAccountBalancesEPL:
+		limiter, tokens = r.ManagementRate, 20
+	case allSubAccountBalancesV2EPL:
+		limiter, tokens = r.ManagementRate, 20
+	case subAccountSpotAPIListEPL:
+		limiter, tokens = r.ManagementRate, 20
+	case createSpotAPIForSubAccountEPL:
+		limiter, tokens = r.ManagementRate, 20
+	case modifySubAccountSpotAPIEPL:
+		limiter, tokens = r.ManagementRate, 30
+	case deleteSubAccountSpotAPIEPL:
+		limiter, tokens = r.ManagementRate, 30
+	case marginAccountDetailEPL:
+		limiter, tokens = r.SpotRate, 40
+	case crossMarginAccountsDetailEPL:
+		limiter, tokens = r.SpotRate, 15
+	case isolatedMarginAccountDetailEPL:
+		limiter, tokens = r.SpotRate, 15
+	case futuresAccountsDetailEPL:
+		limiter, tokens = r.FuturesRate, 5
+	case allFuturesSubAccountBalancesEPL:
+		limiter, tokens = r.FuturesRate, 6
+	case createDepositAddressEPL:
+		limiter, tokens = r.ManagementRate, 20
+	case depositAddressesV2EPL:
+		limiter, tokens = r.ManagementRate, 5
+	case depositAddressesV1EPL:
+		limiter, tokens = r.ManagementRate, 5
+	case depositListEPL:
+		limiter, tokens = r.ManagementRate, 5
+	case historicDepositListEPL:
+		limiter, tokens = r.ManagementRate, 5
+	case withdrawalListEPL:
+		limiter, tokens = r.ManagementRate, 20
 	case retrieveV1HistoricalWithdrawalListEPL:
-		return r.RetrieveV1HistoricalWithdrawalList.Wait(ctx)
-	case placeOrderEPL:
-		return r.PlaceOrder.Wait(ctx)
-	case placeMarginOrdersEPL:
-		return r.PlaceMarginOrders.Wait(ctx)
-	case placeBulkOrdersEPL:
-		return r.PlaceBulkOrders.Wait(ctx)
-	case cancelOrderEPL:
-		return r.CancelOrder.Wait(ctx)
-	case cancelAllOrdersEPL:
-		return r.CancelAllOrders.Wait(ctx)
-	case listOrdersEPL:
-		return r.ListOrders.Wait(ctx)
-	case listFillsEPL:
-		return r.ListFills.Wait(ctx)
-	case retrieveFullOrderbookEPL:
-		return r.RetrieveFullOrderbook.Wait(ctx)
-	case retrieveMarginAccountEPL:
-		return r.RetrieveMarginAccount.Wait(ctx)
-	case futuresRetrieveAccountOverviewEPL:
-		return r.FRetrieveAccountOverviewRate.Wait(ctx)
-	case futuresRetrieveTransactionHistoryEPL:
-		return r.FRetrieveTransactionHistoryRate.Wait(ctx)
-	case futuresPlaceOrderEPL:
-		return r.FPlaceOrderRate.Wait(ctx)
-	case futuresCancelAnOrderEPL:
-		return r.FCancelAnOrderRate.Wait(ctx)
-	case futuresLimitOrderMassCancelationEPL:
-		return r.FLimitOrderMassCancelationRate.Wait(ctx)
-	case futuresRetrieveOrderListEPL:
-		return r.FRetrieveOrderListRate.Wait(ctx)
-	case futuresRetrieveFillsEPL:
-		return r.FRetrieveFillsRate.Wait(ctx)
-	case futuresRecentFillsEPL:
-		return r.FRecentFillsRate.Wait(ctx)
-	case futuresRetrievePositionListEPL:
-		return r.FRetrievePositionListRate.Wait(ctx)
-	case futuresRetrieveFundingHistoryEPL:
-		return r.FRetrieveFundingHistoryRate.Wait(ctx)
-	case futuresRetrieveFullOrderbookLevel2EPL:
-		return r.FRetrieveFullOrderbookLevel2Rate.Wait(ctx)
-	case defaultSpotEPL:
+		limiter, tokens = r.ManagementRate, 20
+	case withdrawalQuotaEPL:
+		limiter, tokens = r.ManagementRate, 20
+	case applyWithdrawalEPL:
+		limiter, tokens = r.ManagementRate, 5
+	case cancelWithdrawalsEPL:
+		limiter, tokens = r.ManagementRate, 20
+	case getTransferablesEPL:
+		limiter, tokens = r.ManagementRate, 20
+	case flexiTransferEPL:
+		limiter, tokens = r.ManagementRate, 4
+	case masterSubUserTransferEPL:
+		limiter, tokens = r.ManagementRate, 30
+	case innerTransferEPL:
+		limiter, tokens = r.ManagementRate, 10
+	case toMainOrTradeAccountEPL:
+		limiter, tokens = r.ManagementRate, 20
+	case toFuturesAccountEPL:
+		limiter, tokens = r.ManagementRate, 20
+	case futuresTransferOutRequestRecordsEPL:
+		limiter, tokens = r.ManagementRate, 20
+	case basicFeesEPL:
+		limiter, tokens = r.SpotRate, 3
+	case tradeFeesEPL:
+		limiter, tokens = r.SpotRate, 3
+	case spotCurrenciesV3EPL:
+		limiter, tokens = r.PublicRate, 3
+	case spotCurrencyDetailEPL:
+		limiter, tokens = r.PublicRate, 3
+	case symbolsEPL:
+		limiter, tokens = r.PublicRate, 4
+	case tickersEPL:
+		limiter, tokens = r.PublicRate, 2
+	case allTickersEPL:
+		limiter, tokens = r.PublicRate, 15
+	case statistics24HrEPL:
+		limiter, tokens = r.PublicRate, 15
+	case marketListEPL:
+		limiter, tokens = r.PublicRate, 3
+	case partOrderbook20EPL:
+		limiter, tokens = r.PublicRate, 2
+	case partOrderbook100EPL:
+		limiter, tokens = r.PublicRate, 4
+	case fullOrderbookEPL:
+		limiter, tokens = r.SpotRate, 3
+	case tradeHistoryEPL:
+		limiter, tokens = r.PublicRate, 3
+	case klinesEPL:
+		limiter, tokens = r.PublicRate, 3
+	case fiatPriceEPL:
+		limiter, tokens = r.PublicRate, 3
+	case currentServerTimeEPL:
+		limiter, tokens = r.PublicRate, 3
+	case serviceStatusEPL:
+		limiter, tokens = r.PublicRate, 3
+	case hfPlaceOrderEPL:
 		limiter, tokens = r.SpotRate, 1
-	case defaultFuturesEPL:
-		limiter, tokens = r.FuturesRate, 1
+	case hfSyncPlaceOrderEPL:
+		limiter, tokens = r.SpotRate, 1
+	case hfMultipleOrdersEPL:
+		limiter, tokens = r.SpotRate, 1
+	case hfSyncPlaceMultipleHFOrdersEPL:
+		limiter, tokens = r.SpotRate, 1
+	case hfModifyOrderEPL:
+		limiter, tokens = r.SpotRate, 3
+	case cancelHFOrderEPL:
+		limiter, tokens = r.SpotRate, 1
+	case hfSyncCancelOrderEPL:
+		limiter, tokens = r.SpotRate, 1
+	case hfCancelOrderByClientOrderIDEPL:
+		limiter, tokens = r.SpotRate, 1
+	case cancelSpecifiedNumberHFOrdersByOrderIDEPL:
+		limiter, tokens = r.SpotRate, 2
+	case hfCancelAllOrdersBySymbolEPL:
+		limiter, tokens = r.SpotRate, 2
+	case hfCancelAllOrdersEPL:
+		limiter, tokens = r.SpotRate, 30
+	case hfGetAllActiveOrdersEPL:
+		limiter, tokens = r.SpotRate, 2
+	case hfSymbolsWithActiveOrdersEPL:
+		limiter, tokens = r.SpotRate, 2
+	case hfCompletedOrderListEPL:
+		limiter, tokens = r.SpotRate, 2
+	case hfOrderDetailByOrderIDEPL:
+		limiter, tokens = r.SpotRate, 2
+	case autoCancelHFOrderSettingEPL:
+		limiter, tokens = r.SpotRate, 2
+	case autoCancelHFOrderSettingQueryEPL:
+		limiter, tokens = r.SpotRate, 2
+	case hfFilledListEPL:
+		limiter, tokens = r.SpotRate, 2
+
 	default:
 		return errors.New("endpoint rate limit functionality not found")
 	}
@@ -173,38 +283,10 @@ func (r *RateLimit) Limit(ctx context.Context, epl request.EndpointLimit) error 
 // SetRateLimit returns a RateLimit instance, which implements the request.Limiter interface.
 func SetRateLimit() *RateLimit {
 	return &RateLimit{
-		// spot specific rate limiters
-		RetrieveAccountLedger:              request.NewRateLimit(threeSecondsInterval, 18),
-		MasterSubUserTransfer:              request.NewRateLimit(threeSecondsInterval, 3),
-		RetrieveDepositList:                request.NewRateLimit(threeSecondsInterval, 6),
-		RetrieveV1HistoricalDepositList:    request.NewRateLimit(threeSecondsInterval, 6),
-		RetrieveWithdrawalList:             request.NewRateLimit(threeSecondsInterval, 6),
-		RetrieveV1HistoricalWithdrawalList: request.NewRateLimit(threeSecondsInterval, 6),
-		PlaceOrder:                         request.NewRateLimit(threeSecondsInterval, 45),
-		PlaceMarginOrders:                  request.NewRateLimit(threeSecondsInterval, 45),
-		PlaceBulkOrders:                    request.NewRateLimit(threeSecondsInterval, 3),
-		CancelOrder:                        request.NewRateLimit(threeSecondsInterval, 60),
-		CancelAllOrders:                    request.NewRateLimit(threeSecondsInterval, 3),
-		ListOrders:                         request.NewRateLimit(threeSecondsInterval, 30),
-		ListFills:                          request.NewRateLimit(threeSecondsInterval, 9),
-		RetrieveFullOrderbook:              request.NewRateLimit(threeSecondsInterval, 30),
-		RetrieveMarginAccount:              request.NewRateLimit(threeSecondsInterval, 1),
-
 		// default spot and futures rates
-		SpotRate:    request.NewRateLimit(oneMinuteInterval, 1200),
-		FuturesRate: request.NewRateLimit(oneMinuteInterval, 1200),
-
-		// futures specific rate limiters
-		FRetrieveAccountOverviewRate:     request.NewRateLimit(threeSecondsInterval, 30),
-		FRetrieveTransactionHistoryRate:  request.NewRateLimit(threeSecondsInterval, 9),
-		FPlaceOrderRate:                  request.NewRateLimit(threeSecondsInterval, 30),
-		FCancelAnOrderRate:               request.NewRateLimit(threeSecondsInterval, 40),
-		FLimitOrderMassCancelationRate:   request.NewRateLimit(threeSecondsInterval, 9),
-		FRetrieveOrderListRate:           request.NewRateLimit(threeSecondsInterval, 30),
-		FRetrieveFillsRate:               request.NewRateLimit(threeSecondsInterval, 9),
-		FRecentFillsRate:                 request.NewRateLimit(threeSecondsInterval, 9),
-		FRetrievePositionListRate:        request.NewRateLimit(threeSecondsInterval, 9),
-		FRetrieveFundingHistoryRate:      request.NewRateLimit(threeSecondsInterval, 9),
-		FRetrieveFullOrderbookLevel2Rate: request.NewRateLimit(threeSecondsInterval, 30),
+		SpotRate:       request.NewRateLimit(thirtySecondsInterval, 3000),
+		FuturesRate:    request.NewRateLimit(thirtySecondsInterval, 2000),
+		ManagementRate: request.NewRateLimit(thirtySecondsInterval, 2000),
+		PublicRate:     request.NewRateLimit(thirtySecondsInterval, 2000),
 	}
 }
