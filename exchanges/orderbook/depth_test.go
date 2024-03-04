@@ -202,10 +202,10 @@ func TestUpdateBidAskByPrice(t *testing.T) {
 	assert.NoError(t, err, "UpdateBidAskByPrice should not error")
 
 	updates := &Update{
-		Bids:       Items{{Price: 1337, Amount: 2, ID: 1}},
-		Asks:       Items{{Price: 1338, Amount: 3, ID: 2}},
-		UpdateID:   1,
-		UpdateTime: time.Now(),
+		Bids:         Items{{Price: 1337, Amount: 2, ID: 1}},
+		Asks:         Items{{Price: 1338, Amount: 3, ID: 2}},
+		LastUpdateID: 1,
+		UpdateTime:   time.Now(),
 	}
 	err = d.UpdateBidAskByPrice(updates)
 	assert.NoError(t, err, "UpdateBidAskByPrice should not error")
@@ -216,10 +216,10 @@ func TestUpdateBidAskByPrice(t *testing.T) {
 	assert.Equal(t, 2.0, ob.Bids[0].Amount, "Bids amount should be correct")
 
 	updates = &Update{
-		Bids:       Items{{Price: 1337, Amount: 0, ID: 1}},
-		Asks:       Items{{Price: 1338, Amount: 0, ID: 2}},
-		UpdateID:   2,
-		UpdateTime: time.Now(),
+		Bids:         Items{{Price: 1337, Amount: 0, ID: 1}},
+		Asks:         Items{{Price: 1338, Amount: 0, ID: 2}},
+		LastUpdateID: 2,
+		UpdateTime:   time.Now(),
 	}
 	err = d.UpdateBidAskByPrice(updates)
 	assert.NoError(t, err, "UpdateBidAskByPrice should not error")

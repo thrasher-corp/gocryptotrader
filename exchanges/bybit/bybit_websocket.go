@@ -863,12 +863,12 @@ func (by *Bybit) wsProcessOrderbook(assetType asset.Item, resp *WebsocketRespons
 		}
 	} else {
 		err = by.Websocket.Orderbook.Update(&orderbook.Update{
-			Pair:       cp,
-			Asks:       asks,
-			Bids:       bids,
-			Asset:      assetType,
-			UpdateID:   result.Sequence,
-			UpdateTime: resp.Timestamp.Time(),
+			Pair:         cp,
+			Asks:         asks,
+			Bids:         bids,
+			Asset:        assetType,
+			LastUpdateID: result.Sequence,
+			UpdateTime:   resp.Timestamp.Time(),
 		})
 		if err != nil {
 			return err

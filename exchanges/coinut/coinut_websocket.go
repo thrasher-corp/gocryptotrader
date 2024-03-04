@@ -584,10 +584,10 @@ func (c *COINUT) WsProcessOrderbookUpdate(update *WsOrderbookUpdate) error {
 	}
 
 	bufferUpdate := &orderbook.Update{
-		Pair:       p,
-		UpdateID:   update.TransID,
-		Asset:      asset.Spot,
-		UpdateTime: time.Now(), // No time sent
+		Pair:         p,
+		LastUpdateID: update.TransID,
+		Asset:        asset.Spot,
+		UpdateTime:   time.Now(), // No time sent
 	}
 	if strings.EqualFold(update.Side, order.Buy.Lower()) {
 		bufferUpdate.Bids = []orderbook.Item{{Price: update.Price, Amount: update.Volume}}

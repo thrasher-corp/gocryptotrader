@@ -104,7 +104,7 @@ func (w *Orderbook) Update(u *orderbook.Update) error {
 	}
 
 	// out of order update ID can be skipped
-	if w.updateIDProgression && u.UpdateID <= book.updateID {
+	if w.updateIDProgression && u.LastUpdateID <= book.updateID {
 		if w.verbose {
 			log.Warnf(log.WebsocketMgr,
 				"Exchange %s CurrencyPair: %s AssetType: %s out of order websocket update received",
@@ -221,7 +221,7 @@ func (w *Orderbook) processBufferUpdate(o *orderbookHolder, u *orderbook.Update)
 		// sort by last updated to ensure each update is in order
 		if w.sortBufferByUpdateIDs {
 			sort.Slice(*o.buffer, func(i, j int) bool {
-				return (*o.buffer)[i].UpdateID < (*o.buffer)[j].UpdateID
+				return (*o.buffer)[i].LastUpdateID < (*o.buffer)[j].LastUpdateID
 			})
 		} else {
 			sort.Slice(*o.buffer, func(i, j int) bool {
@@ -259,7 +259,7 @@ func (w *Orderbook) processObUpdate(o *orderbookHolder, u *orderbook.Update) err
 		if err != nil {
 			return o.ob.Invalidate(err)
 		}
-		o.updateID = u.UpdateID
+		o.updateID = u.LastUpdateID
 	}
 	return nil
 }

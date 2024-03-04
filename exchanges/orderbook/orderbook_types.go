@@ -154,9 +154,10 @@ const (
 
 // Update and things and stuff
 type Update struct {
-	UpdateID   int64 // Used when no time is provided
-	UpdateTime time.Time
-	Asset      asset.Item
+	FirstUpdateID int64 // If ID is ranged this is the first ID; used for validation purposes
+	LastUpdateID  int64 // Used when no time is provided
+	UpdateTime    time.Time
+	Asset         asset.Item
 	Action
 	Bids []Item
 	Asks []Item

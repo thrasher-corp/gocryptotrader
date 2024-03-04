@@ -383,12 +383,12 @@ func TestSortIDs(t *testing.T) {
 		asks := itemArray[i]
 		bids := itemArray[i]
 		err = holder.Update(&orderbook.Update{
-			Bids:       bids,
-			Asks:       asks,
-			Pair:       cp,
-			UpdateID:   int64(i),
-			Asset:      asset.Spot,
-			UpdateTime: time.Now(),
+			Bids:         bids,
+			Asks:         asks,
+			Pair:         cp,
+			LastUpdateID: int64(i),
+			Asset:        asset.Spot,
+			UpdateTime:   time.Now(),
 		})
 		if err != nil {
 			t.Fatal(err)
@@ -429,11 +429,11 @@ func TestOutOfOrderIDs(t *testing.T) {
 	for i := range itemArray {
 		asks := itemArray[i]
 		err = holder.Update(&orderbook.Update{
-			Asks:       asks,
-			Pair:       cp,
-			UpdateID:   outOFOrderIDs[i],
-			Asset:      asset.Spot,
-			UpdateTime: time.Now(),
+			Asks:         asks,
+			Pair:         cp,
+			LastUpdateID: outOFOrderIDs[i],
+			Asset:        asset.Spot,
+			UpdateTime:   time.Now(),
 		})
 		if err != nil {
 			t.Fatal(err)
@@ -464,11 +464,11 @@ func TestOrderbookLastUpdateID(t *testing.T) {
 
 	// this update invalidates the book
 	err = holder.Update(&orderbook.Update{
-		Asks:       []orderbook.Item{{Price: 999999}},
-		Pair:       cp,
-		UpdateID:   -1,
-		Asset:      asset.Spot,
-		UpdateTime: time.Now(),
+		Asks:         []orderbook.Item{{Price: 999999}},
+		Pair:         cp,
+		LastUpdateID: -1,
+		Asset:        asset.Spot,
+		UpdateTime:   time.Now(),
 	})
 	if !errors.Is(err, orderbook.ErrOrderbookInvalid) {
 		t.Fatalf("received: %v but expected: %v", err, orderbook.ErrOrderbookInvalid)
@@ -485,11 +485,11 @@ func TestOrderbookLastUpdateID(t *testing.T) {
 	for i := range itemArray {
 		asks := itemArray[i]
 		err = holder.Update(&orderbook.Update{
-			Asks:       asks,
-			Pair:       cp,
-			UpdateID:   int64(i) + 1,
-			Asset:      asset.Spot,
-			UpdateTime: time.Now(),
+			Asks:         asks,
+			Pair:         cp,
+			LastUpdateID: int64(i) + 1,
+			Asset:        asset.Spot,
+			UpdateTime:   time.Now(),
 		})
 		if err != nil {
 			t.Fatal(err)
@@ -498,10 +498,10 @@ func TestOrderbookLastUpdateID(t *testing.T) {
 
 	// out of order
 	err = holder.Update(&orderbook.Update{
-		Asks:     []orderbook.Item{{Price: 999999}},
-		Pair:     cp,
-		UpdateID: 1,
-		Asset:    asset.Spot,
+		Asks:         []orderbook.Item{{Price: 999999}},
+		Pair:         cp,
+		LastUpdateID: 1,
+		Asset:        asset.Spot,
 	})
 	if err != nil {
 		t.Fatal(err)

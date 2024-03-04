@@ -456,12 +456,12 @@ func (h *HitBTC) WsProcessOrderbookUpdate(update *WsOrderbook) error {
 	}
 
 	return h.Websocket.Orderbook.Update(&orderbook.Update{
-		Asks:       asks,
-		Bids:       bids,
-		Pair:       p,
-		UpdateID:   update.Params.Sequence,
-		Asset:      asset.Spot,
-		UpdateTime: update.Params.Timestamp,
+		Asks:         asks,
+		Bids:         bids,
+		Pair:         p,
+		LastUpdateID: update.Params.Sequence,
+		Asset:        asset.Spot,
+		UpdateTime:   update.Params.Timestamp,
 	})
 }
 
