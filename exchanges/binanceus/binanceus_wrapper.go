@@ -30,28 +30,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
-// GetDefaultConfig returns a default exchange config
-func (bi *Binanceus) GetDefaultConfig(ctx context.Context) (*config.Exchange, error) {
-	bi.SetDefaults()
-	exchCfg, err := bi.GetStandardConfig()
-	if err != nil {
-		return nil, err
-	}
-
-	err = bi.SetupDefaults(exchCfg)
-	if err != nil {
-		return nil, err
-	}
-
-	if bi.Features.Supports.RESTCapabilities.AutoPairUpdates {
-		err := bi.UpdateTradablePairs(ctx, true)
-		if err != nil {
-			return nil, err
-		}
-	}
-	return exchCfg, nil
-}
-
 // SetDefaults sets the basic defaults for Binanceus
 func (bi *Binanceus) SetDefaults() {
 	bi.Name = "Binanceus"
@@ -238,20 +216,6 @@ func (bi *Binanceus) FetchTradablePairs(ctx context.Context, a asset.Item) (curr
 		pairs = append(pairs, pair)
 	}
 	return pairs, nil
-}
-
-// UpdateTradablePairs updates the exchanges available pairs and stores
-// them in the exchanges config
-func (bi *Binanceus) UpdateTradablePairs(ctx context.Context, forceUpdate bool) error {
-	pairs, err := bi.FetchTradablePairs(ctx, asset.Spot)
-	if err != nil {
-		return err
-	}
-	err = bi.UpdatePairs(pairs, asset.Spot, false, forceUpdate)
-	if err != nil {
-		return err
-	}
-	return bi.EnsureOnePairEnabled()
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair

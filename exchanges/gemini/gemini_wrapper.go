@@ -31,29 +31,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
-// GetDefaultConfig returns a default exchange config
-func (g *Gemini) GetDefaultConfig(ctx context.Context) (*config.Exchange, error) {
-	g.SetDefaults()
-	exchCfg, err := g.GetStandardConfig()
-	if err != nil {
-		return nil, err
-	}
-
-	err = g.SetupDefaults(exchCfg)
-	if err != nil {
-		return nil, err
-	}
-
-	if g.Features.Supports.RESTCapabilities.AutoPairUpdates {
-		err := g.UpdateTradablePairs(ctx, true)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	return exchCfg, nil
-}
-
 // SetDefaults sets package defaults for gemini exchange
 func (g *Gemini) SetDefaults() {
 	g.Name = "Gemini"
@@ -220,20 +197,6 @@ func (g *Gemini) FetchTradablePairs(ctx context.Context, a asset.Item) (currency
 		pairs = append(pairs, cp)
 	}
 	return pairs, nil
-}
-
-// UpdateTradablePairs updates the exchanges available pairs and stores
-// them in the exchanges config
-func (g *Gemini) UpdateTradablePairs(ctx context.Context, forceUpdate bool) error {
-	pairs, err := g.FetchTradablePairs(ctx, asset.Spot)
-	if err != nil {
-		return err
-	}
-	err = g.UpdatePairs(pairs, asset.Spot, false, forceUpdate)
-	if err != nil {
-		return err
-	}
-	return g.EnsureOnePairEnabled()
 }
 
 // UpdateAccountInfo Retrieves balances for all enabled currencies for the

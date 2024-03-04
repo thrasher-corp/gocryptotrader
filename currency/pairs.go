@@ -278,7 +278,7 @@ func (p Pairs) FindDifferences(incoming Pairs, pairFmt PairFormat) (PairDifferen
 	return PairDifference{
 		New:              newPairs,
 		Remove:           removedPairs,
-		FormatDifference: p.HasFormatDifference(pairFmt),
+		FormatDifference: len(p) > 0 && len(incoming) > 0 && p.HasFormatDifference(pairFmt),
 	}, nil
 }
 

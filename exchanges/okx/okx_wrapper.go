@@ -40,28 +40,6 @@ const (
 	okxWebsocketResponseMaxLimit = time.Second * 3
 )
 
-// GetDefaultConfig returns a default exchange config
-func (ok *Okx) GetDefaultConfig(ctx context.Context) (*config.Exchange, error) {
-	ok.SetDefaults()
-	exchCfg, err := ok.GetStandardConfig()
-	if err != nil {
-		return nil, err
-	}
-
-	err = ok.SetupDefaults(exchCfg)
-	if err != nil {
-		return nil, err
-	}
-
-	if ok.Features.Supports.RESTCapabilities.AutoPairUpdates {
-		err = ok.UpdateTradablePairs(ctx, true)
-		if err != nil {
-			return nil, err
-		}
-	}
-	return exchCfg, nil
-}
-
 // SetDefaults sets the basic defaults for Okx
 func (ok *Okx) SetDefaults() {
 	ok.Name = "Okx"
@@ -289,22 +267,6 @@ func (ok *Okx) FetchTradablePairs(ctx context.Context, a asset.Item) (currency.P
 		}
 	}
 	return pairs, nil
-}
-
-// UpdateTradablePairs updates the exchanges available pairs and stores them in the exchanges config
-func (ok *Okx) UpdateTradablePairs(ctx context.Context, forceUpdate bool) error {
-	assetTypes := ok.GetAssetTypes(false)
-	for i := range assetTypes {
-		pairs, err := ok.FetchTradablePairs(ctx, assetTypes[i])
-		if err != nil {
-			return fmt.Errorf("%w for asset %v", err, assetTypes[i])
-		}
-		err = ok.UpdatePairs(pairs, assetTypes[i], false, forceUpdate)
-		if err != nil {
-			return fmt.Errorf("%w for asset %v", err, assetTypes[i])
-		}
-	}
-	return ok.EnsureOnePairEnabled()
 }
 
 // UpdateOrderExecutionLimits sets exchange execution order limits for an asset type

@@ -34,29 +34,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
-// GetDefaultConfig returns a default exchange config
-func (k *Kraken) GetDefaultConfig(ctx context.Context) (*config.Exchange, error) {
-	k.SetDefaults()
-	exchCfg, err := k.GetStandardConfig()
-	if err != nil {
-		return nil, err
-	}
-
-	err = k.SetupDefaults(exchCfg)
-	if err != nil {
-		return nil, err
-	}
-
-	if k.Features.Supports.RESTCapabilities.AutoPairUpdates {
-		err = k.UpdateTradablePairs(ctx, true)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	return exchCfg, nil
-}
-
 // SetDefaults sets current default settings
 func (k *Kraken) SetDefaults() {
 	k.Name = "Kraken"
@@ -376,22 +353,6 @@ func (k *Kraken) FetchTradablePairs(ctx context.Context, a asset.Item) (currency
 		}
 	}
 	return pairs, nil
-}
-
-// UpdateTradablePairs updates the exchanges available pairs and stores them in the exchanges config
-func (k *Kraken) UpdateTradablePairs(ctx context.Context, forceUpdate bool) error {
-	assets := k.GetAssetTypes(false)
-	for x := range assets {
-		pairs, err := k.FetchTradablePairs(ctx, assets[x])
-		if err != nil {
-			return err
-		}
-		err = k.UpdatePairs(pairs, assets[x], false, forceUpdate)
-		if err != nil {
-			return err
-		}
-	}
-	return k.EnsureOnePairEnabled()
 }
 
 // UpdateTickers updates the ticker for all currency pairs of a given asset type

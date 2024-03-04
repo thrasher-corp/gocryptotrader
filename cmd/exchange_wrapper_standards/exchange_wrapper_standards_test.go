@@ -92,7 +92,7 @@ func setupExchange(ctx context.Context, t *testing.T, name string, cfg *config.C
 		t.Fatalf("Cannot setup %v exchange Setup %v", name, err)
 	}
 
-	err = exch.UpdateTradablePairs(ctx, true)
+	err = exch.UpdateTradablePairs(ctx, exch)
 	if err != nil && !errors.Is(err, context.DeadlineExceeded) {
 		t.Fatalf("Cannot setup %v UpdateTradablePairs %v", name, err)
 	}

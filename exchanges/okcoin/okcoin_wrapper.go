@@ -28,27 +28,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
-// GetDefaultConfig returns a default exchange config
-func (o *Okcoin) GetDefaultConfig(ctx context.Context) (*config.Exchange, error) {
-	o.SetDefaults()
-	exchCfg, err := o.GetStandardConfig()
-	if err != nil {
-		return nil, err
-	}
-
-	err = o.SetupDefaults(exchCfg)
-	if err != nil {
-		return nil, err
-	}
-	if o.Features.Supports.RESTCapabilities.AutoPairUpdates {
-		err = o.UpdateTradablePairs(ctx, true)
-		if err != nil {
-			return nil, err
-		}
-	}
-	return exchCfg, nil
-}
-
 // SetDefaults method assigns the default values for Okcoin
 func (o *Okcoin) SetDefaults() {
 	o.SetErrorDefaults()
@@ -229,23 +208,6 @@ func (o *Okcoin) FetchTradablePairs(ctx context.Context, a asset.Item) (currency
 	}
 
 	return pairs, nil
-}
-
-// UpdateTradablePairs updates the exchanges available pairs and stores
-// them in the exchanges config
-func (o *Okcoin) UpdateTradablePairs(ctx context.Context, forceUpdate bool) error {
-	assets := o.GetAssetTypes(true)
-	for a := range assets {
-		pairs, err := o.FetchTradablePairs(ctx, assets[a])
-		if err != nil {
-			return err
-		}
-		err = o.UpdatePairs(pairs, assets[a], false, forceUpdate)
-		if err != nil {
-			return err
-		}
-	}
-	return nil
 }
 
 // UpdateTickers updates the ticker for all currency pairs of a given asset type

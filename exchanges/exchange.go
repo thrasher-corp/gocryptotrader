@@ -62,6 +62,8 @@ var (
 	errSetDefaultsNotCalled              = errors.New("set defaults not called")
 	errExchangeIsNil                     = errors.New("exchange is nil")
 	errBatchSizeZero                     = errors.New("batch size cannot be 0")
+	errExchangeMismatch                  = errors.New("exchange instance does not match base")
+	errSetupNotCalled                    = errors.New("setup not called")
 )
 
 // SetRequester sets the instance of the requester
@@ -697,7 +699,11 @@ func (b *Base) EnsureOnePairEnabled() error {
 
 // UpdatePairs updates the exchange currency pairs for either enabledPairs or
 // availablePairs
-func (b *Base) UpdatePairs(incoming currency.Pairs, a asset.Item, enabled, force bool) error {
+func (b *Base) UpdatePairs(incoming currency.Pairs, a asset.Item, enabled bool) error {
+	if b.Config == nil || b.Config.CurrencyPairs == nil {
+		return fmt.Errorf("cannot update pairs %w", errSetupNotCalled)
+	}
+
 	pFmt, err := b.GetPairFormat(a, false)
 	if err != nil {
 		return err
@@ -718,7 +724,7 @@ func (b *Base) UpdatePairs(incoming currency.Pairs, a asset.Item, enabled, force
 		return err
 	}
 
-	if force || len(diff.New) != 0 || len(diff.Remove) != 0 || diff.FormatDifference {
+	if len(diff.New) != 0 || len(diff.Remove) != 0 || diff.FormatDifference {
 		var updateType string
 		if enabled {
 			updateType = "enabled"
@@ -726,30 +732,27 @@ func (b *Base) UpdatePairs(incoming currency.Pairs, a asset.Item, enabled, force
 			updateType = "available"
 		}
 
-		if force {
-			log.Debugf(log.ExchangeSys,
-				"%s forced update of %s [%v] pairs.",
+		if diff.FormatDifference {
+			log.Debugf(log.ExchangeSys, "%s Updating %s pairs [%v] - Format difference detected.\n",
 				b.Name,
 				updateType,
 				strings.ToUpper(a.String()))
-		} else {
-			if len(diff.New) > 0 {
-				log.Debugf(log.ExchangeSys,
-					"%s Updating %s pairs [%v] - Added: %s.\n",
-					b.Name,
-					updateType,
-					strings.ToUpper(a.String()),
-					diff.New)
-			}
-			if len(diff.Remove) > 0 {
-				log.Debugf(log.ExchangeSys,
-					"%s Updating %s pairs [%v] - Removed: %s.\n",
-					b.Name,
-					updateType,
-					strings.ToUpper(a.String()),
-					diff.Remove)
-			}
 		}
+		if len(diff.New) > 0 {
+			log.Debugf(log.ExchangeSys, "%s Updating %s pairs [%v] - Added: %s.\n",
+				b.Name,
+				updateType,
+				strings.ToUpper(a.String()),
+				diff.New)
+		}
+		if len(diff.Remove) > 0 {
+			log.Debugf(log.ExchangeSys, "%s Updating %s pairs [%v] - Removed: %s.\n",
+				b.Name,
+				updateType,
+				strings.ToUpper(a.String()),
+				diff.Remove)
+		}
+
 		err = b.Config.CurrencyPairs.StorePairs(a, incoming, enabled)
 		if err != nil {
 			return err
@@ -1902,7 +1905,7 @@ func Bootstrap(ctx context.Context, b IBotExchange) error {
 	}
 
 	if b.GetEnabledFeatures().AutoPairUpdates {
-		if err := b.UpdateTradablePairs(ctx, false); err != nil {
+		if err := b.UpdateTradablePairs(ctx, b); err != nil {
 			return fmt.Errorf("failed to update tradable pairs: %w", err)
 		}
 	}
@@ -1942,4 +1945,58 @@ func (b *Base) Bootstrap(_ context.Context) (continueBootstrap bool, err error) 
 // IsVerbose returns if the exchange is set to verbose
 func (b *Base) IsVerbose() bool {
 	return b.Verbose
+}
+
+// GetDefaultConfig returns a default exchange config
+func (b *Base) GetDefaultConfig(ctx context.Context, instance LimitedScope) (*config.Exchange, error) {
+	if instance == nil {
+		return nil, errExchangeIsNil
+	}
+
+	if instance.GetBase() != b {
+		return nil, errExchangeMismatch
+	}
+
+	if instance.GetName() == "" {
+		instance.SetDefaults()
+	}
+
+	exchCfg, err := b.GetStandardConfig()
+	if err != nil {
+		return nil, err
+	}
+
+	err = b.SetupDefaults(exchCfg)
+	if err != nil {
+		return nil, err
+	}
+
+	if b.Features.Supports.RESTCapabilities.AutoPairUpdates {
+		err = b.UpdateTradablePairs(ctx, instance)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return exchCfg, nil
+}
+
+// UpdateTradablePairs updates the exchanges available pairs and stores them in
+// the exchanges config.
+func (b *Base) UpdateTradablePairs(ctx context.Context, instance LimitedScope) error {
+	assets := b.GetAssetTypes(false)
+	if len(assets) == 0 {
+		return fmt.Errorf("%s %w: no specific asset types are set", b.GetName(), errSetDefaultsNotCalled)
+	}
+	for x := range assets {
+		pairs, err := instance.FetchTradablePairs(ctx, assets[x])
+		if err != nil {
+			return err
+		}
+		err = b.UpdatePairs(pairs, assets[x], false)
+		if err != nil {
+			return err
+		}
+	}
+	return b.EnsureOnePairEnabled()
 }

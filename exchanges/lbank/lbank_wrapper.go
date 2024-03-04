@@ -28,29 +28,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
-// GetDefaultConfig returns a default exchange config
-func (l *Lbank) GetDefaultConfig(ctx context.Context) (*config.Exchange, error) {
-	l.SetDefaults()
-	exchCfg, err := l.GetStandardConfig()
-	if err != nil {
-		return nil, err
-	}
-
-	err = l.SetupDefaults(exchCfg)
-	if err != nil {
-		return nil, err
-	}
-
-	if l.Features.Supports.RESTCapabilities.AutoPairUpdates {
-		err = l.UpdateTradablePairs(ctx, true)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	return exchCfg, nil
-}
-
 // SetDefaults sets the basic defaults for Lbank
 func (l *Lbank) SetDefaults() {
 	l.Name = "Lbank"
@@ -161,20 +138,6 @@ func (l *Lbank) FetchTradablePairs(ctx context.Context, _ asset.Item) (currency.
 		return nil, err
 	}
 	return currency.NewPairsFromStrings(currencies)
-}
-
-// UpdateTradablePairs updates the exchanges available pairs and stores
-// them in the exchanges config
-func (l *Lbank) UpdateTradablePairs(ctx context.Context, forceUpdate bool) error {
-	pairs, err := l.FetchTradablePairs(ctx, asset.Spot)
-	if err != nil {
-		return err
-	}
-	err = l.UpdatePairs(pairs, asset.Spot, false, forceUpdate)
-	if err != nil {
-		return err
-	}
-	return l.EnsureOnePairEnabled()
 }
 
 // UpdateTickers updates the ticker for all currency pairs of a given asset type

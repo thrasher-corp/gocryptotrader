@@ -60,7 +60,7 @@ func TestMain(m *testing.M) {
 			log.Fatal(err)
 		}
 	}
-	err = b.UpdateTradablePairs(context.Background(), true)
+	err = b.UpdateTradablePairs(context.Background(), b)
 	if err != nil {
 		log.Fatal("Bybit setup error", err)
 	}

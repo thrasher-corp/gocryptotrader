@@ -33,27 +33,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
-// GetDefaultConfig returns a default exchange config
-func (by *Bybit) GetDefaultConfig(ctx context.Context) (*config.Exchange, error) {
-	by.SetDefaults()
-	exchCfg, err := by.GetStandardConfig()
-	if err != nil {
-		return nil, err
-	}
-	err = by.SetupDefaults(exchCfg)
-	if err != nil {
-		return nil, err
-	}
-
-	if by.Features.Supports.RESTCapabilities.AutoPairUpdates {
-		err := by.UpdateTradablePairs(ctx, false)
-		if err != nil {
-			return nil, err
-		}
-	}
-	return exchCfg, nil
-}
-
 // SetDefaults sets the basic defaults for Bybit
 func (by *Bybit) SetDefaults() {
 	by.Name = "Bybit"
@@ -388,23 +367,6 @@ func getCategoryName(a asset.Item) string {
 	default:
 		return ""
 	}
-}
-
-// UpdateTradablePairs updates the exchanges available pairs and stores
-// them in the exchanges config
-func (by *Bybit) UpdateTradablePairs(ctx context.Context, forceUpdate bool) error {
-	assetTypes := by.GetAssetTypes(true)
-	for i := range assetTypes {
-		pairs, err := by.FetchTradablePairs(ctx, assetTypes[i])
-		if err != nil {
-			return err
-		}
-		err = by.UpdatePairs(pairs, assetTypes[i], false, forceUpdate)
-		if err != nil {
-			return err
-		}
-	}
-	return by.EnsureOnePairEnabled()
 }
 
 // UpdateTickers updates the ticker for all currency pairs of a given asset type

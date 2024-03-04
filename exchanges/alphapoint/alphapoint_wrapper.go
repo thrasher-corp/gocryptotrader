@@ -26,16 +26,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
-// GetDefaultConfig returns a default exchange config for Alphapoint
-func (a *Alphapoint) GetDefaultConfig(_ context.Context) (*config.Exchange, error) {
-	return nil, common.ErrFunctionNotSupported
-}
-
-// Bootstrap loads the exchange and performs initialisation tasks
-func (a *Alphapoint) Bootstrap(_ context.Context) (continueBootstrap bool, err error) {
-	return false, common.ErrNotYetImplemented
-}
-
 // SetDefaults sets current default settings
 func (a *Alphapoint) SetDefaults() {
 	a.Name = "Alphapoint"
@@ -102,12 +92,6 @@ func (a *Alphapoint) FetchTradablePairs(_ context.Context, _ asset.Item) (curren
 // GetServerTime returns the current exchange server time.
 func (a *Alphapoint) GetServerTime(_ context.Context, _ asset.Item) (time.Time, error) {
 	return time.Time{}, common.ErrFunctionNotSupported
-}
-
-// UpdateTradablePairs updates the exchanges available pairs and stores
-// them in the exchanges config
-func (a *Alphapoint) UpdateTradablePairs(_ context.Context, _ bool) error {
-	return common.ErrFunctionNotSupported
 }
 
 // UpdateAccountInfo retrieves balances for all enabled currencies on the

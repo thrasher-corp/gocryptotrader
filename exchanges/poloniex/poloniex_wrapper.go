@@ -31,29 +31,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
-// GetDefaultConfig returns a default exchange config
-func (p *Poloniex) GetDefaultConfig(ctx context.Context) (*config.Exchange, error) {
-	p.SetDefaults()
-	exchCfg, err := p.GetStandardConfig()
-	if err != nil {
-		return nil, err
-	}
-
-	err = p.SetupDefaults(exchCfg)
-	if err != nil {
-		return nil, err
-	}
-
-	if p.Features.Supports.RESTCapabilities.AutoPairUpdates {
-		err = p.UpdateTradablePairs(ctx, true)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	return exchCfg, nil
-}
-
 // SetDefaults sets default settings for poloniex
 func (p *Poloniex) SetDefaults() {
 	p.Name = "Poloniex"
@@ -232,20 +209,6 @@ func (p *Poloniex) FetchTradablePairs(ctx context.Context, _ asset.Item) (curren
 		pairs = append(pairs, pair)
 	}
 	return pairs, nil
-}
-
-// UpdateTradablePairs updates the exchanges available pairs and stores
-// them in the exchanges config
-func (p *Poloniex) UpdateTradablePairs(ctx context.Context, forceUpgrade bool) error {
-	pairs, err := p.FetchTradablePairs(ctx, asset.Spot)
-	if err != nil {
-		return err
-	}
-	err = p.UpdatePairs(pairs, asset.Spot, false, forceUpgrade)
-	if err != nil {
-		return err
-	}
-	return p.EnsureOnePairEnabled()
 }
 
 // UpdateTickers updates the ticker for all currency pairs of a given asset type

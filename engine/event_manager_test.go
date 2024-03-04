@@ -281,8 +281,7 @@ func TestCheckEventCondition(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	exch.SetDefaults()
-	conf, err := exch.GetDefaultConfig(context.Background())
+	conf, err := exch.GetDefaultConfig(context.Background(), exch)
 	if err != nil {
 		t.Error(err)
 	}

@@ -42,7 +42,7 @@ type IBotExchange interface {
 	FetchOrderbook(ctx context.Context, p currency.Pair, a asset.Item) (*orderbook.Base, error)
 	UpdateOrderbook(ctx context.Context, p currency.Pair, a asset.Item) (*orderbook.Base, error)
 	FetchTradablePairs(ctx context.Context, a asset.Item) (currency.Pairs, error)
-	UpdateTradablePairs(ctx context.Context, forceUpdate bool) error
+	UpdateTradablePairs(context.Context, LimitedScope) error
 	GetEnabledPairs(a asset.Item) (currency.Pairs, error)
 	GetAvailablePairs(a asset.Item) (currency.Pairs, error)
 	SetPairs(pairs currency.Pairs, a asset.Item, enabled bool) error
@@ -63,7 +63,8 @@ type IBotExchange interface {
 	SetHTTPClientUserAgent(ua string) error
 	GetHTTPClientUserAgent() (string, error)
 	SetClientProxyAddress(addr string) error
-	GetDefaultConfig(ctx context.Context) (*config.Exchange, error)
+	// GetDefaultConfig returns a default exchange config
+	GetDefaultConfig(ctx context.Context, instance LimitedScope) (*config.Exchange, error)
 	GetBase() *Base
 	GetHistoricCandles(ctx context.Context, pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error)
 	GetHistoricCandlesExtended(ctx context.Context, pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error)
@@ -187,4 +188,12 @@ type MarginManagement interface {
 	GetMarginRatesHistory(context.Context, *margin.RateHistoryRequest) (*margin.RateHistoryResponse, error)
 	futures.PNLCalculation
 	GetFuturesContractDetails(ctx context.Context, item asset.Item) ([]futures.Contract, error)
+}
+
+// LimitedScope defines a subset of the exchange interface
+type LimitedScope interface {
+	GetBase() *Base
+	GetName() string
+	SetDefaults()
+	FetchTradablePairs(context.Context, asset.Item) (currency.Pairs, error)
 }
