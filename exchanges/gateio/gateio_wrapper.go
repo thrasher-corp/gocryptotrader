@@ -516,9 +516,6 @@ func (g *Gateio) FetchTradablePairs(ctx context.Context, a asset.Item) (currency
 					return nil, err
 				}
 				cp.Quote = currency.NewCode(strings.ReplaceAll(cp.Quote.String(), currency.UnderscoreDelimiter, currency.DashDelimiter))
-				if err != nil {
-					return nil, err
-				}
 				pairs = append(pairs, cp)
 			}
 		}

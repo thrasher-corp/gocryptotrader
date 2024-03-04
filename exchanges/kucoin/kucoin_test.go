@@ -2027,13 +2027,19 @@ func TestGenerateDefaultSubscriptions(t *testing.T) {
 	t.Parallel()
 
 	subs, err := ku.GenerateDefaultSubscriptions()
+
 	assert.NoError(t, err, "GenerateDefaultSubscriptions should not error")
 
-	assert.Len(t, subs, 12, "Should generate the correct number of subs when not logged in")
-	for _, p := range []string{"ticker", "match", "level2"} {
-		verifySubs(t, subs, asset.Spot, "/market/"+p+":", "BTC-USDT", "ETH-USDT", "LTC-USDT", "ETH-BTC")
-		verifySubs(t, subs, asset.Margin, "/market/"+p+":", "SOL-USDC", "TRX-BTC")
-	}
+	assert.Len(t, subs, 11, "Should generate the correct number of subs when not logged in")
+
+	verifySubs(t, subs, asset.Spot, "/market/ticker:all") // This takes care of margin as well.
+
+	verifySubs(t, subs, asset.Spot, "/market/match:", "BTC-USDT", "ETH-USDT", "LTC-USDT", "ETH-BTC")
+	verifySubs(t, subs, asset.Margin, "/market/match:", "SOL-USDC", "TRX-BTC")
+
+	verifySubs(t, subs, asset.Spot, "/spotMarket/level2Depth5:", "BTC-USDT", "ETH-USDT", "LTC-USDT", "ETH-BTC")
+	verifySubs(t, subs, asset.Margin, "/spotMarket/level2Depth5:", "SOL-USDC", "TRX-BTC")
+
 	for _, c := range []string{"ETHUSDCM", "XBTUSDCM", "SOLUSDTM"} {
 		verifySubs(t, subs, asset.Futures, "/contractMarket/tickerV2:", c)
 		verifySubs(t, subs, asset.Futures, "/contractMarket/level2Depth50:", c)
@@ -2052,11 +2058,16 @@ func TestGenerateAuthSubscriptions(t *testing.T) {
 
 	subs, err := nu.GenerateDefaultSubscriptions()
 	assert.NoError(t, err, "GenerateDefaultSubscriptions with Auth should not error")
-	assert.Len(t, subs, 25, "Should generate the correct number of subs when logged in")
-	for _, p := range []string{"ticker", "match", "level2"} {
-		verifySubs(t, subs, asset.Spot, "/market/"+p+":", "BTC-USDT", "ETH-USDT", "LTC-USDT", "ETH-BTC")
-		verifySubs(t, subs, asset.Margin, "/market/"+p+":", "SOL-USDC", "TRX-BTC")
-	}
+	assert.Len(t, subs, 24, "Should generate the correct number of subs when logged in")
+
+	verifySubs(t, subs, asset.Spot, "/market/ticker:all") // This takes care of margin as well.
+
+	verifySubs(t, subs, asset.Spot, "/market/match:", "BTC-USDT", "ETH-USDT", "LTC-USDT", "ETH-BTC")
+	verifySubs(t, subs, asset.Margin, "/market/match:", "SOL-USDC", "TRX-BTC")
+
+	verifySubs(t, subs, asset.Spot, "/spotMarket/level2Depth5:", "BTC-USDT", "ETH-USDT", "LTC-USDT", "ETH-BTC")
+	verifySubs(t, subs, asset.Margin, "/spotMarket/level2Depth5:", "SOL-USDC", "TRX-BTC")
+
 	for _, c := range []string{"ETHUSDCM", "XBTUSDCM", "SOLUSDTM"} {
 		verifySubs(t, subs, asset.Futures, "/contractMarket/tickerV2:", c)
 		verifySubs(t, subs, asset.Futures, "/contractMarket/level2Depth50:", c)
@@ -2472,7 +2483,7 @@ func TestProcessOrderbook(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	err = ku.processOrderbook([]byte(orderbookLevel5PushData), "BTC-USDT")
+	err = ku.processOrderbook([]byte(orderbookLevel5PushData), "BTC-USDT", "")
 	if err != nil {
 		t.Error(err)
 	}
