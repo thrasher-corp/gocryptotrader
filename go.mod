@@ -4,7 +4,7 @@ go 1.22
 
 require (
 	github.com/buger/jsonparser v1.1.1
-	github.com/d5/tengo/v2 v2.16.1
+	github.com/d5/tengo/v2 v2.17.0
 	github.com/gofrs/uuid v4.4.0+incompatible
 	github.com/gorilla/mux v1.8.1
 	github.com/gorilla/websocket v1.5.1
