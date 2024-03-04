@@ -603,23 +603,7 @@ func (ku *Kucoin) GetWithdrawalsHistory(ctx context.Context, c currency.Code, a 
 		}
 		return resp, nil
 	case asset.Futures:
-		var futuresWithdrawals *FuturesWithdrawalsListResponse
-		futuresWithdrawals, err = ku.GetFuturesWithdrawalList(ctx, c, "", time.Time{}, time.Time{})
-		if err != nil {
-			return nil, err
-		}
-		resp := make([]exchange.WithdrawalHistory, len(futuresWithdrawals.Items))
-		for y := range futuresWithdrawals.Items {
-			resp[y] = exchange.WithdrawalHistory{
-				Status:       futuresWithdrawals.Items[y].Status,
-				CryptoTxID:   futuresWithdrawals.Items[y].WalletTxID,
-				Timestamp:    futuresWithdrawals.Items[y].CreatedAt.Time(),
-				Amount:       futuresWithdrawals.Items[y].Amount,
-				Currency:     c.String(),
-				TransferType: "withdrawal",
-			}
-		}
-		return resp, nil
+		return nil, common.ErrNotYetImplemented
 	default:
 		return nil, fmt.Errorf("withdrawal %w for asset type %v", asset.ErrNotSupported, a)
 	}
@@ -1162,15 +1146,7 @@ func (ku *Kucoin) GetOrderInfo(ctx context.Context, orderID string, pair currenc
 func (ku *Kucoin) GetDepositAddress(ctx context.Context, c currency.Code, _, _ string) (*deposit.Address, error) {
 	ad, err := ku.GetDepositAddressesV2(ctx, c.Upper().String())
 	if err != nil {
-		fad, err := ku.GetFuturesDepositAddress(ctx, c)
-		if err != nil {
-			return nil, err
-		}
-		return &deposit.Address{
-			Address: fad.Address,
-			Chain:   fad.Chain,
-			Tag:     fad.Memo,
-		}, nil
+		return nil, err
 	}
 	if len(ad) > 1 {
 		return nil, errMultipleDepositAddress
