@@ -369,34 +369,29 @@ func (ku *Kucoin) UpdateTickers(ctx context.Context, assetType asset.Item) error
 		if err != nil {
 			return err
 		}
-		pairs, err := ku.GetEnabledPairs(assetType)
-		if err != nil {
-			return err
-		}
 		for t := range ticks.Tickers {
-			pair, err := currency.NewPairFromString(ticks.Tickers[t].Symbol)
-			if err != nil {
+			pair, enabled, err := ku.MatchSymbolCheckEnabled(ticks.Tickers[t].Symbol, assetType, true)
+			if err != nil && !errors.Is(err, currency.ErrPairNotFound) {
 				return err
 			}
-			if !pairs.Contains(pair, true) {
+			if !enabled {
 				continue
 			}
-			for _, assetType := range ku.listOfAssetsCurrencyPairEnabledFor(pair) {
-				err = ticker.ProcessTicker(&ticker.Price{
-					Last:         ticks.Tickers[t].Last,
-					High:         ticks.Tickers[t].High,
-					Low:          ticks.Tickers[t].Low,
-					Volume:       ticks.Tickers[t].Volume,
-					Ask:          ticks.Tickers[t].Sell,
-					Bid:          ticks.Tickers[t].Buy,
-					Pair:         pair,
-					ExchangeName: ku.Name,
-					AssetType:    assetType,
-					LastUpdated:  ticks.Time.Time(),
-				})
-				if err != nil {
-					errs = common.AppendError(errs, err)
-				}
+
+			err = ticker.ProcessTicker(&ticker.Price{
+				Last:         ticks.Tickers[t].Last,
+				High:         ticks.Tickers[t].High,
+				Low:          ticks.Tickers[t].Low,
+				Volume:       ticks.Tickers[t].Volume,
+				Ask:          ticks.Tickers[t].Sell,
+				Bid:          ticks.Tickers[t].Buy,
+				Pair:         pair,
+				ExchangeName: ku.Name,
+				AssetType:    assetType,
+				LastUpdated:  ticks.Time.Time(),
+			})
+			if err != nil {
+				errs = common.AppendError(errs, err)
 			}
 		}
 	default:
@@ -1125,9 +1120,6 @@ func (ku *Kucoin) GetActiveOrders(ctx context.Context, getOrdersRequest *order.M
 			return nil, fmt.Errorf("asset type: %v order type: %v err: %w", getOrdersRequest.AssetType, getOrdersRequest.Type, err)
 		}
 		spotOrders, err := ku.ListOrders(ctx, "active", pair, sideString, oType, "", getOrdersRequest.StartTime, getOrdersRequest.EndTime)
-		if err != nil {
-			return nil, err
-		}
 		if err != nil {
 			return nil, err
 		}
