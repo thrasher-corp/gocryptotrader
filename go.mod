@@ -23,7 +23,7 @@ require (
 	github.com/thrasher-corp/sqlboiler v1.0.1-0.20191001234224-71e17f37a85e
 	github.com/urfave/cli/v2 v2.27.1
 	github.com/volatiletech/null v8.0.0+incompatible
-	golang.org/x/crypto v0.19.0
+	golang.org/x/crypto v0.20.0
 	golang.org/x/net v0.21.0
 	golang.org/x/text v0.14.0
 	golang.org/x/time v0.5.0
