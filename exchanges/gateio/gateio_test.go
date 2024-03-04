@@ -3507,7 +3507,7 @@ func TestGetTypeFromTimeInForce(t *testing.T) {
 
 	typeResp, postOnly = getTypeFromTimeInForce("fok")
 	assert.Equal(t, order.Market, typeResp, "should be market order")
-	assert.False(t, postOnly, "should return true")
+	assert.False(t, postOnly, "should return false")
 }
 
 func TestGetSideAndAmountFromSize(t *testing.T) {
