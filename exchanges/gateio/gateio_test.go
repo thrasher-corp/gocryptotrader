@@ -3495,7 +3495,7 @@ func TestGetTypeFromTimeInForce(t *testing.T) {
 	t.Parallel()
 	typeResp, postOnly := getTypeFromTimeInForce("gtc")
 	assert.Equal(t, order.Limit, typeResp, "should be a limit order")
-	assert.False(t, postOnly, "should return true")
+	assert.False(t, postOnly, "should return false")
 
 	typeResp, postOnly = getTypeFromTimeInForce("ioc")
 	assert.Equal(t, order.Market, typeResp, "should be market order")
