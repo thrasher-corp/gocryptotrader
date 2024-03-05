@@ -80,7 +80,7 @@ func (g *Gateio) WsFuturesConnect() error {
 		return err
 	}
 
-	err = g.Websocket.SetupNewConnection(stream.ConnectionSetup{
+	err = g.Websocket.SetupNewConnection(&stream.ConnectionSetup{
 		URL:                  futuresWebsocketBtcURL,
 		RateLimit:            gateioWebsocketRateLimit,
 		ResponseCheckTimeout: g.Config.WebsocketResponseCheckTimeout,

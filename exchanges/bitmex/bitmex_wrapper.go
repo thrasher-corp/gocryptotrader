@@ -217,7 +217,7 @@ func (b *Bitmex) Setup(exch *config.Exchange) error {
 	if err != nil {
 		return err
 	}
-	return b.Websocket.SetupNewConnection(stream.ConnectionSetup{
+	return b.Websocket.SetupNewConnection(&stream.ConnectionSetup{
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
 		URL:                  bitmexWSURL,

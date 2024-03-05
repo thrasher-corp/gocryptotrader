@@ -241,7 +241,7 @@ func (b *Bitfinex) Setup(exch *config.Exchange) error {
 		return err
 	}
 
-	err = b.Websocket.SetupNewConnection(stream.ConnectionSetup{
+	err = b.Websocket.SetupNewConnection(&stream.ConnectionSetup{
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
 		URL:                  publicBitfinexWebsocketEndpoint,
@@ -250,7 +250,7 @@ func (b *Bitfinex) Setup(exch *config.Exchange) error {
 		return err
 	}
 
-	return b.Websocket.SetupNewConnection(stream.ConnectionSetup{
+	return b.Websocket.SetupNewConnection(&stream.ConnectionSetup{
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
 		URL:                  authenticatedBitfinexWebsocketEndpoint,

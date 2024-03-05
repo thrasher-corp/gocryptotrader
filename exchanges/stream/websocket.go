@@ -201,11 +201,11 @@ func (w *Websocket) Setup(s *WebsocketSetup) error {
 }
 
 // SetupNewConnection sets up an auth or unauth streaming connection
-func (w *Websocket) SetupNewConnection(c ConnectionSetup) error {
+func (w *Websocket) SetupNewConnection(c *ConnectionSetup) error {
 	if w == nil {
 		return fmt.Errorf("%w: %w", errConnSetup, errWebsocketIsNil)
 	}
-	if c == (ConnectionSetup{}) {
+	if c == nil {
 		return fmt.Errorf("%w: %w", errConnSetup, errExchangeConfigEmpty)
 	}
 
@@ -250,8 +250,10 @@ func (w *Websocket) SetupNewConnection(c ConnectionSetup) error {
 	}
 
 	if c.Authenticated {
+		w.AuthHandler = c.Handler
 		w.AuthConn = newConn
 	} else {
+		w.UnAuthHandler = c.Handler
 		w.Conn = newConn
 	}
 
@@ -290,6 +292,17 @@ func (w *Websocket) Connect() error {
 		w.setState(disconnected)
 		return fmt.Errorf("%v Error connecting %w", w.exchangeName, err)
 	}
+
+	if w.Conn != nil {
+		w.Wg.Add(1)
+		go w.listen(w.Conn, w.UnAuthHandler)
+	}
+
+	if w.AuthConn != nil && w.CanUseAuthenticatedEndpoints() {
+		w.Wg.Add(1)
+		go w.listen(w.AuthConn, w.AuthHandler)
+	}
+
 	w.setState(connected)
 
 	if !w.IsConnectionMonitorRunning() {
@@ -1008,4 +1021,18 @@ func (w *Websocket) checkSubscriptions(subs []subscription.Subscription) error {
 	}
 
 	return nil
+}
+
+// listen listens to the websocket connection and handles incoming data
+func (w *Websocket) listen(conn Connection, handler func(incoming []byte) error) {
+	defer w.Wg.Done()
+	for {
+		resp := conn.ReadMessage()
+		if resp.Raw == nil {
+			return
+		}
+		if err := handler(resp.Raw); err != nil {
+			w.DataHandler <- err
+		}
+	}
 }

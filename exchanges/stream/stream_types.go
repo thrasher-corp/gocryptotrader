@@ -39,6 +39,7 @@ type ConnectionSetup struct {
 	URL                     string
 	Authenticated           bool
 	ConnectionLevelReporter Reporter
+	Handler                 func(incoming []byte) error
 }
 
 // PingHandler container for ping handler settings

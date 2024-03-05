@@ -235,7 +235,7 @@ func (g *Gateio) Setup(exch *config.Exchange) error {
 	if err != nil {
 		return err
 	}
-	return g.Websocket.SetupNewConnection(stream.ConnectionSetup{
+	return g.Websocket.SetupNewConnection(&stream.ConnectionSetup{
 		URL:                  gateioWebsocketEndpoint,
 		RateLimit:            gateioWebsocketRateLimit,
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,

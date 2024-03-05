@@ -93,9 +93,12 @@ type Websocket struct {
 	features          *protocol.Features
 
 	// Standard stream connection
-	Conn Connection
+	Conn          Connection
+	UnAuthHandler func([]byte) error
+
 	// Authenticated stream connection
-	AuthConn Connection
+	AuthConn    Connection
+	AuthHandler func([]byte) error
 
 	// Latency reporter
 	ExchangeLevelReporter Reporter

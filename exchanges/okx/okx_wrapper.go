@@ -240,21 +240,23 @@ func (ok *Okx) Setup(exch *config.Exchange) error {
 
 	go ok.WsResponseMultiplexer.Run()
 
-	if err := ok.Websocket.SetupNewConnection(stream.ConnectionSetup{
+	if err := ok.Websocket.SetupNewConnection(&stream.ConnectionSetup{
 		URL:                  okxAPIWebsocketPublicURL,
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     okxWebsocketResponseMaxLimit,
 		RateLimit:            500,
+		Handler:              ok.WsHandleData,
 	}); err != nil {
 		return err
 	}
 
-	return ok.Websocket.SetupNewConnection(stream.ConnectionSetup{
+	return ok.Websocket.SetupNewConnection(&stream.ConnectionSetup{
 		URL:                  okxAPIWebsocketPrivateURL,
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     okxWebsocketResponseMaxLimit,
 		Authenticated:        true,
 		RateLimit:            500,
+		Handler:              ok.WsHandleData,
 	})
 }
 
@@ -838,12 +840,8 @@ func (ok *Okx) ModifyOrder(ctx context.Context, action *order.Modify) (*order.Mo
 	if action.Pair.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
-	instrumentID := pairFormat.Format(action.Pair)
-	if err != nil {
-		return nil, err
-	}
 	amendRequest := AmendOrderRequestParams{
-		InstrumentID:  instrumentID,
+		InstrumentID:  pairFormat.Format(action.Pair),
 		NewQuantity:   action.Amount,
 		OrderID:       action.OrderID,
 		ClientOrderID: action.ClientOrderID,
@@ -906,8 +904,6 @@ func (ok *Okx) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*order.
 		if !ok.SupportsAsset(ord.AssetType) {
 			return nil, fmt.Errorf("%w: %v", asset.ErrNotSupported, ord.AssetType)
 		}
-
-		var instrumentID string
 		var pairFormat currency.PairFormat
 		pairFormat, err = ok.GetPairFormat(ord.AssetType, true)
 		if err != nil {
@@ -916,12 +912,8 @@ func (ok *Okx) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*order.
 		if !ord.Pair.IsPopulated() {
 			return nil, errIncompleteCurrencyPair
 		}
-		instrumentID = pairFormat.Format(ord.Pair)
-		if err != nil {
-			return nil, err
-		}
 		cancelOrderParams[x] = CancelOrderRequestParam{
-			InstrumentID:  instrumentID,
+			InstrumentID:  pairFormat.Format(ord.Pair),
 			OrderID:       ord.OrderID,
 			ClientOrderID: ord.ClientOrderID,
 		}

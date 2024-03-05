@@ -242,7 +242,7 @@ func (h *HUOBI) Setup(exch *config.Exchange) error {
 		return err
 	}
 
-	err = h.Websocket.SetupNewConnection(stream.ConnectionSetup{
+	err = h.Websocket.SetupNewConnection(&stream.ConnectionSetup{
 		RateLimit:            rateLimit,
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
@@ -251,7 +251,7 @@ func (h *HUOBI) Setup(exch *config.Exchange) error {
 		return err
 	}
 
-	return h.Websocket.SetupNewConnection(stream.ConnectionSetup{
+	return h.Websocket.SetupNewConnection(&stream.ConnectionSetup{
 		RateLimit:            rateLimit,
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
