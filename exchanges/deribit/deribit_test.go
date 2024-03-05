@@ -96,7 +96,7 @@ func TestUpdateTicker(t *testing.T) {
 func TestUpdateOrderbook(t *testing.T) {
 	t.Parallel()
 	_, err := d.UpdateOrderbook(context.Background(), spotTradablePair, asset.Spot)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	_, err = d.UpdateOrderbook(context.Background(), futuresTradablePair, asset.Futures)
 	assert.NoError(t, err)
 	sleepUntilTradablePairsUpdated()
@@ -624,6 +624,9 @@ func TestGetOrderbookData(t *testing.T) {
 
 func TestWSRetrieveOrderbookData(t *testing.T) {
 	t.Parallel()
+	if !d.Websocket.IsConnected() {
+		t.Skip("websocket is not connected")
+	}
 	_, err := d.WSRetrieveOrderbookData(btcPerpInstrument, 0)
 	require.NoError(t, err)
 }
@@ -1620,7 +1623,7 @@ func TestGetOpenOrdersByCurrency(t *testing.T) {
 	assert.NoError(t, err)
 }
 
-func TestX(t *testing.T) {
+func TestWSRetrieveOpenOrdersByCurrency(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, d)
 	_, err := d.WSRetrieveOpenOrdersByCurrency(currencyBTC, "option", "all")
@@ -2266,14 +2269,14 @@ func TestFetchTicker(t *testing.T) {
 func TestFetchOrderbook(t *testing.T) {
 	t.Parallel()
 	_, err := d.FetchOrderbook(context.Background(), futuresTradablePair, asset.Futures)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	_, err = d.FetchOrderbook(context.Background(), spotTradablePair, asset.Spot)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	sleepUntilTradablePairsUpdated()
 	_, err = d.FetchOrderbook(context.Background(), futureComboTradablePair, asset.FutureCombo)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	_, err = d.FetchOrderbook(context.Background(), optionComboTradablePair, asset.OptionCombo)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	_, err = d.FetchOrderbook(context.Background(), optionsTradablePair, asset.Options)
 	assert.NoError(t, err)
 }
@@ -2781,7 +2784,7 @@ func TestGetLatestFundingRates(t *testing.T) {
 		Pair:                 currency.NewPair(currency.BTC, currency.USDT),
 		IncludePredictedRate: true,
 	})
-	assert.ErrorIs(t, err, asset.ErrNotSupported)
+	require.ErrorIs(t, err, asset.ErrNotSupported)
 	_, err = d.GetLatestFundingRates(context.Background(), &fundingrate.LatestRateRequest{
 		Asset: asset.Futures,
 		Pair:  futuresTradablePair,
@@ -2792,13 +2795,13 @@ func TestGetLatestFundingRates(t *testing.T) {
 func TestUpdateOrderExecutionLimits(t *testing.T) {
 	t.Parallel()
 	err := d.UpdateOrderExecutionLimits(context.Background(), asset.Spot)
-	assert.NoErrorf(t, err, "Error fetching %s pairs for test: %v", asset.Spot, err)
+	require.NoErrorf(t, err, "Error fetching %s pairs for test: %v", asset.Spot, err)
 	instrumentInfo, err := d.GetInstruments(context.Background(), "BTC", d.GetAssetKind(asset.Spot), false)
-	assert.NoError(t, err)
-	assert.NotEmpty(t, instrumentInfo, "invalid instrument information found")
+	require.NoError(t, err)
+	require.NotEmpty(t, instrumentInfo, "invalid instrument information found")
 	limits, err := d.GetOrderExecutionLimits(asset.Spot, spotTradablePair)
-	assert.NoErrorf(t, err, "Asset: %s Pair: %s Err: %v", asset.Spot, spotTradablePair, err)
-	assert.Equalf(t, instrumentInfo[0].TickSize, limits.PriceStepIncrementSize, "Asset: %s Pair: %s Expected: %v Got: %v", asset.Spot, spotTradablePair, instrumentInfo[0].TickSize, limits.MinimumBaseAmount)
+	require.NoErrorf(t, err, "Asset: %s Pair: %s Err: %v", asset.Spot, spotTradablePair, err)
+	require.Equalf(t, instrumentInfo[0].TickSize, limits.PriceStepIncrementSize, "Asset: %s Pair: %s Expected: %v Got: %v", asset.Spot, spotTradablePair, instrumentInfo[0].TickSize, limits.MinimumBaseAmount)
 	assert.Equalf(t, instrumentInfo[0].MinimumTradeAmount, limits.MinimumBaseAmount, "Pair: %s Expected: %v Got: %v", spotTradablePair, instrumentInfo[0].MinimumTradeAmount, limits.MinimumBaseAmount)
 }
 

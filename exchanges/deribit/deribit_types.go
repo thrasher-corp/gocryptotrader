@@ -265,10 +265,11 @@ func (a *MarkPriceHistory) UnmarshalJSON(data []byte) error {
 
 // Orderbook stores orderbook data
 type Orderbook struct {
-	UnderlyingPrice float64              `json:"underlying_price"`
-	UnderlyingIndex string               `json:"underlying_index"`
-	Timestamp       convert.ExchangeTime `json:"timestamp"`
-	Stats           struct {
+	EstimatedDeliveryPrice float64              `json:"estimated_delivery_price"`
+	UnderlyingPrice        float64              `json:"underlying_price"`
+	UnderlyingIndex        string               `json:"underlying_index"`
+	Timestamp              convert.ExchangeTime `json:"timestamp"`
+	Stats                  struct {
 		Volume      float64 `json:"volume"`
 		PriceChange float64 `json:"price_change"`
 		Low         float64 `json:"low"`
@@ -292,16 +293,16 @@ type Orderbook struct {
 		Theta float64 `json:"theta"`
 		Vega  float64 `json:"vega"`
 	} `json:"greeks"`
-	Funding8H      float64      `json:"funding_8h"`
-	CurrentFunding float64      `json:"current_funding"`
-	ChangeID       int64        `json:"change_id"`
-	Bids           [][2]float64 `json:"bids"`
-	Asks           [][2]float64 `json:"asks"`
-	BidIV          float64      `json:"bid_iv"`
-	BestBidPrice   float64      `json:"best_bid_price"`
-	BestBidAmount  float64      `json:"best_bid_amount"`
-	BestAskAmount  float64      `json:"best_ask_amount"`
-	AskIV          float64      `json:"ask_iv"`
+	Funding8H      float64     `json:"funding_8h"`
+	CurrentFunding float64     `json:"current_funding"`
+	ChangeID       int64       `json:"change_id"`
+	Bids           [][]float64 `json:"bids"`
+	Asks           [][]float64 `json:"asks"`
+	BidIV          float64     `json:"bid_iv"`
+	BestBidPrice   float64     `json:"best_bid_price"`
+	BestBidAmount  float64     `json:"best_bid_amount"`
+	BestAskAmount  float64     `json:"best_ask_amount"`
+	AskIV          float64     `json:"ask_iv"`
 }
 
 // TradeVolumesData stores data for trade volumes

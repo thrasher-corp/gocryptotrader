@@ -304,6 +304,9 @@ func (d *Deribit) UpdateTicker(ctx context.Context, p currency.Pair, assetType a
 		Low:          tickerData.Stats.Low,
 		Last:         tickerData.LastPrice,
 		Volume:       tickerData.Stats.Volume,
+		Close:        tickerData.LastPrice,
+		IndexPrice:   tickerData.IndexPrice,
+		MarkPrice:    tickerData.MarkPrice,
 	}
 	err = ticker.ProcessTicker(&resp)
 	if err != nil {
@@ -358,8 +361,8 @@ func (d *Deribit) UpdateOrderbook(ctx context.Context, p currency.Pair, assetTyp
 		VerifyOrderbook: d.CanVerifyOrderbook,
 	}
 	book.Asks = make(orderbook.Items, 0, len(obData.Asks))
-	for x := range book.Asks {
-		if obData.Asks[x][0] == 0 {
+	for x := range obData.Asks {
+		if obData.Asks[x][0] == 0 || obData.Asks[x][1] == 0 {
 			continue
 		}
 		book.Asks = append(book.Asks, orderbook.Item{
@@ -368,8 +371,8 @@ func (d *Deribit) UpdateOrderbook(ctx context.Context, p currency.Pair, assetTyp
 		})
 	}
 	book.Bids = make(orderbook.Items, 0, len(obData.Bids))
-	for x := range book.Bids {
-		if obData.Bids[x][0] == 0 {
+	for x := range obData.Bids {
+		if obData.Bids[x][0] == 0 || obData.Bids[x][1] == 0 {
 			continue
 		}
 		book.Bids = append(book.Bids, orderbook.Item{

@@ -428,7 +428,7 @@ func (d *Deribit) WSRetrieveOrderbookData(instrument string, depth int64) (*Orde
 		return nil, fmt.Errorf("%w, instrument_name is missing", errInvalidInstrumentName)
 	}
 	input := &struct {
-		Instrument string `json:"instrument_name,omitempty"`
+		Instrument string `json:"instrument_name"`
 		Depth      int64  `json:"depth,omitempty"`
 	}{
 		Instrument: instrument,
@@ -2456,12 +2456,17 @@ func (d *Deribit) sendWsPayload(ep request.EndpointLimit, input *WsRequest, resp
 	if input == nil {
 		return fmt.Errorf("%w, input can not be ", common.ErrNilPointer)
 	}
-	ctx, cancelFunc := context.WithDeadline(context.Background(), time.Now().Add(websocketRequestTimeout))
+	deadline := time.Now().Add(websocketRequestTimeout)
+	ctx, cancelFunc := context.WithDeadline(context.Background(), deadline)
+	defer func() {
+		if time.Now().After(deadline) {
+			cancelFunc()
+		}
+	}()
 	for attempt := 1; ; attempt++ {
 		// Initiate a rate limit reservation and sleep on requested endpoint
 		err := d.Requester.InitiateRateLimit(ctx, ep)
 		if err != nil {
-			cancelFunc()
 			return fmt.Errorf("failed to rate limit Websocket request: %w", err)
 		}
 
@@ -2471,12 +2476,10 @@ func (d *Deribit) sendWsPayload(ep request.EndpointLimit, input *WsRequest, resp
 		var payload []byte
 		payload, err = d.Websocket.Conn.SendMessageReturnResponse(input.ID, input)
 		if err != nil {
-			cancelFunc()
 			return err
 		}
 		err = json.Unmarshal(payload, response)
 		if err != nil {
-			cancelFunc()
 			return err
 		}
 		switch response.Error.Code {
@@ -2489,10 +2492,8 @@ func (d *Deribit) sendWsPayload(ep request.EndpointLimit, input *WsRequest, resp
 			}
 			if dl, ok := ctx.Deadline(); ok && dl.Before(time.Now().Add(delay)) {
 				if err != nil {
-					cancelFunc()
-					return fmt.Errorf("deadline would be exceeded by retry, err: %v", err)
+					return err
 				}
-				cancelFunc()
 				return errors.New("deadline would be exceeded by retry")
 			}
 
@@ -2506,7 +2507,6 @@ func (d *Deribit) sendWsPayload(ep request.EndpointLimit, input *WsRequest, resp
 			time.Sleep(delay)
 			continue
 		default:
-			cancelFunc()
 			return nil
 		}
 	}
