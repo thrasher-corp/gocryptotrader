@@ -41,9 +41,8 @@ const (
 	USDTMarginedFutures
 	USDCMarginedFutures
 	Options
-
-	// Added to represent a USDT and USDC based linear derivatives(futures/perpetual) assets in Bybit V5.
-	LinearContract
+	LinearContract // Added to represent a USDT and USDC based linear derivatives(futures/perpetual) assets in Bybit V5.
+	All
 
 	futuresFlag   = PerpetualContract | PerpetualSwap | Futures | DeliveryFutures | UpsideProfitContract | DownsideProfitContract | CoinMarginedFutures | USDTMarginedFutures | USDCMarginedFutures | LinearContract
 	supportedFlag = Spot | Margin | CrossMargin | MarginFunding | Index | Binary | PerpetualContract | PerpetualSwap | Futures | DeliveryFutures | UpsideProfitContract | DownsideProfitContract | CoinMarginedFutures | USDTMarginedFutures | USDCMarginedFutures | Options | LinearContract
@@ -65,6 +64,7 @@ const (
 	usdtMarginedFutures    = "usdtmarginedfutures"
 	usdcMarginedFutures    = "usdcmarginedfutures"
 	options                = "options"
+	all                    = "all"
 )
 
 var (
@@ -111,6 +111,8 @@ func (a Item) String() string {
 		return usdcMarginedFutures
 	case Options:
 		return options
+	case All:
+		return all
 	default:
 		return ""
 	}
@@ -212,11 +214,10 @@ func New(input string) (Item, error) {
 		return USDCMarginedFutures, nil
 	case options, "option":
 		return Options, nil
+	case all:
+		return All, nil
 	default:
-		return 0, fmt.Errorf("%w '%v', only supports %s",
-			ErrNotSupported,
-			input,
-			supportedList)
+		return 0, fmt.Errorf("%w '%v', only supports %s", ErrNotSupported, input, supportedList)
 	}
 }
 
