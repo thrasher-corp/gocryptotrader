@@ -100,16 +100,19 @@ type SubmitResponse struct {
 	Pair      currency.Pair
 	AssetType asset.Item
 
-	TimeInForce   TimeInForce
-	PostOnly      bool
-	ReduceOnly    bool
-	Leverage      float64
-	Price         float64
-	Amount        float64
-	QuoteAmount   float64
-	TriggerPrice  float64
-	ClientID      string
-	ClientOrderID string
+	TimeInForce          TimeInForce
+	PostOnly             bool
+	ReduceOnly           bool
+	Leverage             float64
+	Price                float64
+	Amount               float64
+	QuoteAmount          float64
+	TriggerPrice         float64
+	ClientID             string
+	ClientOrderID        string
+	ImmediateOrCancel    bool
+	FillOrKill           bool
+	AverageExecutedPrice float64
 
 	LastUpdated time.Time
 	Date        time.Time
@@ -219,6 +222,7 @@ type Detail struct {
 	Pair                 currency.Pair
 	MarginType           margin.Type
 	Trades               []TradeHistory
+	SettlementCurrency   currency.Code
 }
 
 // Filter contains all properties an order can be filtered for
