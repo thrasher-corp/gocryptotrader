@@ -326,26 +326,29 @@ func TestConnectionMessageErrors(t *testing.T) {
 	err = ws.Connect()
 	require.NoError(t, err, "Connect must not error")
 
-	ws.TrafficAlert <- struct{}{}
-
 	c := func(tb *assert.CollectT) {
 		select {
-		case v := <-ws.ToRoutine:
+		case v, ok := <-ws.ToRoutine:
+			require.True(tb, ok, "ToRoutine should not be closed on us")
 			switch err := v.(type) {
 			case *websocket.CloseError:
 				assert.Equal(tb, "SpecialText", err.Text, "Should get correct Close Error")
 			case error:
 				assert.ErrorIs(tb, err, errDastardlyReason, "Should get the correct error")
+			default:
+				assert.Failf(tb, "Wrong data type sent to ToRoutine", "Got type: %T", err)
 			}
 		default:
+			assert.Fail(tb, "Nothing available on ToRoutine")
 		}
 	}
 
+	ws.TrafficAlert <- struct{}{}
 	ws.ReadMessageErrors <- errDastardlyReason
-	assert.EventuallyWithT(t, c, 900*time.Millisecond, 10*time.Millisecond, "Should get an error down the routine")
+	assert.EventuallyWithT(t, c, 2*time.Second, 10*time.Millisecond, "Should get an error down the routine")
 
 	ws.ReadMessageErrors <- &websocket.CloseError{Code: 1006, Text: "SpecialText"}
-	assert.EventuallyWithT(t, c, 900*time.Millisecond, 10*time.Millisecond, "Should get an error down the routine")
+	assert.EventuallyWithT(t, c, 2*time.Second, 10*time.Millisecond, "Should get an error down the routine")
 }
 
 func TestWebsocket(t *testing.T) {
