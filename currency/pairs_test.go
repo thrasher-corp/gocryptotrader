@@ -816,3 +816,85 @@ func TestPairs_GetFormatting(t *testing.T) {
 		t.Error(err)
 	}
 }
+
+func TestGetPairsByQuote(t *testing.T) {
+	t.Parallel()
+
+	var available Pairs
+	if _, err := available.GetPairsByQuote(EMPTYCODE); !errors.Is(err, ErrCurrencyPairsEmpty) {
+		t.Fatalf("received: '%v' but expected '%v'", err, ErrCurrencyPairsEmpty)
+	}
+
+	available = Pairs{
+		NewPair(BTC, USD),
+		NewPair(LTC, USD),
+		NewPair(USD, NZD),
+		NewPair(LTC, USDT),
+		NewPair(LTC, DAI),
+		NewPair(USDT, XRP),
+		NewPair(DAI, XRP),
+	}
+
+	if _, err := available.GetPairsByQuote(EMPTYCODE); !errors.Is(err, ErrCurrencyCodeEmpty) {
+		t.Fatalf("received: '%v' but expected '%v'", err, ErrCurrencyCodeEmpty)
+	}
+
+	got, err := available.GetPairsByQuote(USD)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected '%v'", err, nil)
+	}
+
+	if len(got) != 2 {
+		t.Fatalf("received: '%v' but expected '%v'", len(got), 2)
+	}
+
+	got, err = available.GetPairsByQuote(BTC)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected '%v'", err, nil)
+	}
+
+	if len(got) != 0 {
+		t.Fatalf("received: '%v' but expected '%v'", len(got), 0)
+	}
+}
+
+func TestGetPairsByBase(t *testing.T) {
+	t.Parallel()
+
+	var available Pairs
+	if _, err := available.GetPairsByBase(EMPTYCODE); !errors.Is(err, ErrCurrencyPairsEmpty) {
+		t.Fatalf("received: '%v' but expected '%v'", err, ErrCurrencyPairsEmpty)
+	}
+
+	available = Pairs{
+		NewPair(BTC, USD),
+		NewPair(LTC, USD),
+		NewPair(USD, NZD),
+		NewPair(LTC, USDT),
+		NewPair(LTC, DAI),
+		NewPair(USDT, XRP),
+		NewPair(DAI, XRP),
+	}
+
+	if _, err := available.GetPairsByBase(EMPTYCODE); !errors.Is(err, ErrCurrencyCodeEmpty) {
+		t.Fatalf("received: '%v' but expected '%v'", err, ErrCurrencyCodeEmpty)
+	}
+
+	got, err := available.GetPairsByBase(USD)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected '%v'", err, nil)
+	}
+
+	if len(got) != 1 {
+		t.Fatalf("received: '%v' but expected '%v'", len(got), 1)
+	}
+
+	got, err = available.GetPairsByBase(LTC)
+	if !errors.Is(err, nil) {
+		t.Fatalf("received: '%v' but expected '%v'", err, nil)
+	}
+
+	if len(got) != 3 {
+		t.Fatalf("received: '%v' but expected '%v'", len(got), 3)
+	}
+}
