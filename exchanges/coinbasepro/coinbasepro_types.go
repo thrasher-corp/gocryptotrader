@@ -362,17 +362,17 @@ type FillResponse struct {
 
 // WebsocketSubscribe takes in subscription information
 type WebsocketSubscribe struct {
-	Type       string       `json:"type"`
-	ProductIDs []string     `json:"product_ids,omitempty"`
-	Channels   []WsChannels `json:"channels,omitempty"`
-	Signature  string       `json:"signature,omitempty"`
-	Key        string       `json:"key,omitempty"`
-	Passphrase string       `json:"passphrase,omitempty"`
-	Timestamp  string       `json:"timestamp,omitempty"`
+	Type       string   `json:"type"`
+	ProductIDs []string `json:"product_ids,omitempty"`
+	Channels   []any    `json:"channels,omitempty"`
+	Signature  string   `json:"signature,omitempty"`
+	Key        string   `json:"key,omitempty"`
+	Passphrase string   `json:"passphrase,omitempty"`
+	Timestamp  string   `json:"timestamp,omitempty"`
 }
 
-// WsChannels defines outgoing channels for subscription purposes
-type WsChannels struct {
+// WsChannel defines a websocket subscription channel
+type WsChannel struct {
 	Name       string   `json:"name"`
 	ProductIDs []string `json:"product_ids,omitempty"`
 }
