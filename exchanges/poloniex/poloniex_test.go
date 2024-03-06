@@ -2,6 +2,7 @@ package poloniex
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"log"
 	"testing"
@@ -69,14 +70,14 @@ func TestGetFee(t *testing.T) {
 	if sharedtestvalues.AreAPICredentialsSet(p) || mockTests {
 		// CryptocurrencyTradeFee Basic
 		_, err := p.GetFee(context.Background(), feeBuilder)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 
 		// CryptocurrencyTradeFee High quantity
 		feeBuilder = setFeeBuilder()
 		feeBuilder.Amount = 1000
 		feeBuilder.PurchasePrice = 1000
 		_, err = p.GetFee(context.Background(), feeBuilder)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 
 		// CryptocurrencyTradeFee Negative purchase price
 		feeBuilder = setFeeBuilder()
@@ -88,26 +89,26 @@ func TestGetFee(t *testing.T) {
 	feeBuilder = setFeeBuilder()
 	feeBuilder.FeeType = exchange.CryptocurrencyWithdrawalFee
 	_, err := p.GetFee(context.Background(), feeBuilder)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	// CryptocurrencyWithdrawalFee Invalid currency
 	feeBuilder = setFeeBuilder()
 	feeBuilder.Pair.Base = currency.NewCode("hello")
 	feeBuilder.FeeType = exchange.CryptocurrencyWithdrawalFee
 	_, err = p.GetFee(context.Background(), feeBuilder)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	// CryptocurrencyDepositFee Basic
 	feeBuilder = setFeeBuilder()
 	feeBuilder.FeeType = exchange.CryptocurrencyDepositFee
 	_, err = p.GetFee(context.Background(), feeBuilder)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	// InternationalBankDepositFee Basic
 	feeBuilder = setFeeBuilder()
 	feeBuilder.FeeType = exchange.InternationalBankDepositFee
 	_, err = p.GetFee(context.Background(), feeBuilder)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	// InternationalBankWithdrawalFee Basic
 	feeBuilder = setFeeBuilder()
@@ -1061,8 +1062,10 @@ func TestGetSmartOpenOrders(t *testing.T) {
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, p)
 	}
-	_, err := p.GetSmartOpenOrders(context.Background(), 10)
+	result, err := p.GetSmartOpenOrders(context.Background(), 10)
 	assert.NoError(t, err)
+	val, _ := json.Marshal(result)
+	println(string(val))
 }
 
 func TestGetSmartOrderDetail(t *testing.T) {
@@ -1187,9 +1190,9 @@ func TestWsCreateOrder(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, p, canManipulateRealOrders)
 	_, err := p.WsCreateOrder(nil)
-	assert.Truef(t, errors.Is(err, errNilArgument), "expected %v, got %v", errNilArgument, err)
+	require.Truef(t, errors.Is(err, errNilArgument), "expected %v, got %v", errNilArgument, err)
 	_, err = p.WsCreateOrder(&PlaceOrderParams{})
-	assert.Truef(t, errors.Is(err, currency.ErrCurrencyPairEmpty), "expected %v, got %v", currency.ErrCurrencyPairEmpty, err)
+	require.Truef(t, errors.Is(err, currency.ErrCurrencyPairEmpty), "expected %v, got %v", currency.ErrCurrencyPairEmpty, err)
 	pair, err := currency.NewPairFromString("BTC_USDT")
 	require.NoError(t, err)
 	_, err = p.WsCreateOrder(&PlaceOrderParams{
@@ -1239,8 +1242,35 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 	cp, err := currency.NewPairFromString(instruments[0].Symbol)
 	require.NoError(t, err)
 	limits, err := p.GetOrderExecutionLimits(asset.Spot, cp)
-	assert.NoErrorf(t, err, "Asset: %s Pair: %s Err: %v", asset.Spot, cp, err)
-	assert.Falsef(t, limits.PriceStepIncrementSize != instruments[0].SymbolTradeLimit.PriceScale, "PriceStepIncrementSize; Asset: %s Pair: %s Expected: %v Got: %v", asset.Spot, cp, instruments[0].SymbolTradeLimit.PriceScale, limits.PriceStepIncrementSize)
-	assert.Falsef(t, limits.MinimumBaseAmount != instruments[0].SymbolTradeLimit.MinQuantity.Float64(), "MinimumBaseAmount; Pair: %s Expected: %v Got: %v", cp, instruments[0].SymbolTradeLimit.MinQuantity.Float64(), limits.MinimumBaseAmount)
+	require.NoErrorf(t, err, "Asset: %s Pair: %s Err: %v", asset.Spot, cp, err)
+	require.Falsef(t, limits.PriceStepIncrementSize != instruments[0].SymbolTradeLimit.PriceScale, "PriceStepIncrementSize; Asset: %s Pair: %s Expected: %v Got: %v", asset.Spot, cp, instruments[0].SymbolTradeLimit.PriceScale, limits.PriceStepIncrementSize)
+	require.Falsef(t, limits.MinimumBaseAmount != instruments[0].SymbolTradeLimit.MinQuantity.Float64(), "MinimumBaseAmount; Pair: %s Expected: %v Got: %v", cp, instruments[0].SymbolTradeLimit.MinQuantity.Float64(), limits.MinimumBaseAmount)
 	assert.Falsef(t, limits.MinimumQuoteAmount != instruments[0].SymbolTradeLimit.MinAmount.Float64(), "Pair: %s Expected: %v Got: %v", cp, instruments[0].SymbolTradeLimit.MinAmount.Float64(), limits.MinimumQuoteAmount)
+}
+
+// ---- Futures endpoints ---
+
+func TestGetOpenContractList(t *testing.T) {
+	t.Parallel()
+	result, err := p.GetOpenContractList(context.Background())
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetOrderInfoOfTheContract(t *testing.T) {
+	t.Parallel()
+	result, err := p.GetOrderInfoOfTheContract(context.Background(), "BTCUSDTPERP")
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+	val, _ := json.Marshal(result)
+	println(string(val))
+}
+
+func TestGetRealTimeTicker(t *testing.T) {
+	t.Parallel()
+	result, err := p.GetRealTimeTicker(context.Background(), "BTCUSDTPERP")
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+	val, _ := json.Marshal(result)
+	println(string(val))
 }

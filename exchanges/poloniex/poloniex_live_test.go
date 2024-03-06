@@ -42,5 +42,6 @@ func TestMain(m *testing.M) {
 		log.Fatal(err)
 	}
 	setupWS()
+	p.HTTPRecording = false
 	os.Exit(m.Run())
 }
