@@ -1937,7 +1937,7 @@ func (d *Deribit) GetOrderMarginsByID(ctx context.Context, ids []string) ([]Orde
 	if err != nil {
 		return nil, err
 	}
-	params.Set("ids", string(val))
+	params.Set("ids[]", string(val))
 	var resp []OrderData
 	return resp, d.SendHTTPAuthRequest(ctx, exchange.RestFutures, nonMatchingEPL, http.MethodGet,
 		getOrderMarginByIDs, params, &resp)
