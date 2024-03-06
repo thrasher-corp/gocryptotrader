@@ -36,9 +36,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
-const (
-	okxWebsocketResponseMaxLimit = time.Second * 3
-)
+const okxWebsocketResponseMaxLimit = time.Second * 3
 
 // GetDefaultConfig returns a default exchange config
 func (ok *Okx) GetDefaultConfig(ctx context.Context) (*config.Exchange, error) {
@@ -225,15 +223,12 @@ func (ok *Okx) Setup(exch *config.Exchange) error {
 		ExchangeConfig:                         exch,
 		DefaultURL:                             okxAPIWebsocketPublicURL,
 		RunningURL:                             wsRunningEndpoint,
-		Connector:                              ok.WsConnect,
 		Subscriber:                             ok.Subscribe,
 		Unsubscriber:                           ok.Unsubscribe,
 		GenerateSubscriptions:                  ok.GenerateDefaultSubscriptions,
 		Features:                               &ok.Features.Supports.WebsocketCapabilities,
 		MaxWebsocketSubscriptionsPerConnection: 240,
-		OrderbookBufferConfig: buffer.Config{
-			Checksum: ok.CalculateUpdateOrderbookChecksum,
-		},
+		OrderbookBufferConfig:                  buffer.Config{Checksum: ok.CalculateUpdateOrderbookChecksum},
 	}); err != nil {
 		return err
 	}
@@ -246,6 +241,9 @@ func (ok *Okx) Setup(exch *config.Exchange) error {
 		ResponseMaxLimit:     okxWebsocketResponseMaxLimit,
 		RateLimit:            500,
 		Handler:              ok.WsHandleData,
+		Bootstrap:            ok.WsUnAuthBootstrap,
+		ReadBufferSize:       8192,
+		WriteBufferSize:      8192,
 	}); err != nil {
 		return err
 	}
@@ -257,6 +255,9 @@ func (ok *Okx) Setup(exch *config.Exchange) error {
 		Authenticated:        true,
 		RateLimit:            500,
 		Handler:              ok.WsHandleData,
+		Bootstrap:            ok.WsAuthBootstrap,
+		ReadBufferSize:       8192,
+		WriteBufferSize:      8192,
 	})
 }
 

@@ -20,7 +20,6 @@ type Connection interface {
 	SendMessageReturnResponse(signature interface{}, request interface{}) ([]byte, error)
 	SendRawMessage(messageType int, message []byte) error
 	SetURL(string)
-	SetProxy(string)
 	GetURL() string
 	Shutdown() error
 }
@@ -40,6 +39,9 @@ type ConnectionSetup struct {
 	Authenticated           bool
 	ConnectionLevelReporter Reporter
 	Handler                 func(incoming []byte) error
+	Bootstrap               func(conn Connection) error
+	ReadBufferSize          uint
+	WriteBufferSize         uint
 }
 
 // PingHandler container for ping handler settings

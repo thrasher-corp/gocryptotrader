@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"net/http"
 	"net/url"
 	"sync"
 	"time"
@@ -15,9 +16,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
-const (
-	jobBuffer = 5000
-)
+const jobBuffer = 5000
 
 // Public websocket errors
 var (
@@ -51,7 +50,6 @@ var (
 	errTrafficAlertNil                      = errors.New("traffic alert is nil")
 	errWebsocketSubscriberUnset             = errors.New("websocket subscriber function needs to be set")
 	errWebsocketUnsubscriberUnset           = errors.New("websocket unsubscriber functionality allowed but unsubscriber function not set")
-	errWebsocketConnectorUnset              = errors.New("websocket connector function not set")
 	errReadMessageErrorsNil                 = errors.New("read message errors is nil")
 	errWebsocketSubscriptionsGeneratorUnset = errors.New("websocket subscriptions generator function needs to be set")
 	errClosedConnection                     = errors.New("use of closed network connection")
@@ -61,7 +59,6 @@ var (
 	errChannelAlreadySubscribed             = errors.New("channel already subscribed")
 	errInvalidChannelState                  = errors.New("invalid Channel state")
 	errSameProxyAddress                     = errors.New("cannot set proxy address to the same address")
-	errNoConnectFunc                        = errors.New("websocket connect func not set")
 	errAlreadyConnected                     = errors.New("websocket already connected")
 	errCannotShutdown                       = errors.New("websocket cannot shutdown")
 	errAlreadyReconnecting                  = errors.New("websocket in the process of reconnection")
@@ -75,9 +72,7 @@ var (
 
 // SetupGlobalReporter sets a reporter interface to be used
 // for all exchange requests
-func SetupGlobalReporter(r Reporter) {
-	globalReporter = r
-}
+func SetupGlobalReporter(r Reporter) { globalReporter = r }
 
 // NewWebsocket initialises the websocket struct
 func NewWebsocket() *Websocket {
@@ -129,9 +124,6 @@ func (w *Websocket) Setup(s *WebsocketSetup) error {
 	}
 	w.setEnabled(s.ExchangeConfig.Features.Enabled.Websocket)
 
-	if s.Connector == nil {
-		return fmt.Errorf("%s %w", w.exchangeName, errWebsocketConnectorUnset)
-	}
 	w.connector = s.Connector
 
 	if s.Subscriber == nil {
@@ -237,7 +229,6 @@ func (w *Websocket) SetupNewConnection(c *ConnectionSetup) error {
 	newConn := &WebsocketConnection{
 		ExchangeName:      w.exchangeName,
 		URL:               connectionURL,
-		ProxyURL:          w.GetProxyAddress(),
 		Verbose:           w.verbose,
 		ResponseMaxLimit:  c.ResponseMaxLimit,
 		Traffic:           w.TrafficAlert,
@@ -252,9 +243,11 @@ func (w *Websocket) SetupNewConnection(c *ConnectionSetup) error {
 	if c.Authenticated {
 		w.AuthHandler = c.Handler
 		w.AuthConn = newConn
+		w.AuthBootstrap = c.Bootstrap
 	} else {
 		w.UnAuthHandler = c.Handler
 		w.Conn = newConn
+		w.UnAuthBootstrap = c.Bootstrap
 	}
 
 	return nil
@@ -263,9 +256,6 @@ func (w *Websocket) SetupNewConnection(c *ConnectionSetup) error {
 // Connect initiates a websocket connection by using a package defined connection
 // function
 func (w *Websocket) Connect() error {
-	if w.connector == nil {
-		return errNoConnectFunc
-	}
 	w.m.Lock()
 	defer w.m.Unlock()
 
@@ -287,26 +277,39 @@ func (w *Websocket) Connect() error {
 	w.trafficMonitor()
 	w.setState(connecting)
 
-	err := w.connector()
-	if err != nil {
-		w.setState(disconnected)
-		return fmt.Errorf("%v Error connecting %w", w.exchangeName, err)
+	if w.connector != nil {
+		err := w.connector()
+		if err != nil {
+			w.setState(disconnected)
+			return fmt.Errorf("%v Error connecting %w", w.exchangeName, err)
+		}
 	}
 
 	if w.Conn != nil {
-		w.Wg.Add(1)
-		go w.listen(w.Conn, w.UnAuthHandler)
+		err := w.InitialiseConnection(w.Conn, w.UnAuthBootstrap, w.UnAuthHandler)
+		if err != nil {
+			w.setState(disconnected)
+			return fmt.Errorf("unauthenticated connection: %w", err)
+		}
+		if w.verbose {
+			log.Debugf(log.ExchangeSys, "%s successful unauthenticated connection to %v\n", w.exchangeName, w.Conn.GetURL())
+		}
 	}
 
 	if w.AuthConn != nil && w.CanUseAuthenticatedEndpoints() {
-		w.Wg.Add(1)
-		go w.listen(w.AuthConn, w.AuthHandler)
+		err := w.InitialiseConnection(w.AuthConn, w.AuthBootstrap, w.AuthHandler)
+		if err != nil {
+			w.SetCanUseAuthenticatedEndpoints(false)
+			log.Errorf(log.ExchangeSys, "%s cannot use authenticated endpoints: %v", w.exchangeName, err)
+		} else if w.verbose {
+			log.Debugf(log.ExchangeSys, "%s successful authenticated connection to %v\n", w.exchangeName, w.Conn.GetURL())
+		}
 	}
 
 	w.setState(connected)
 
 	if !w.IsConnectionMonitorRunning() {
-		err = w.connectionMonitor()
+		err := w.connectionMonitor()
 		if err != nil {
 			log.Errorf(log.WebsocketMgr, "%s cannot start websocket connection monitor %v", w.GetName(), err)
 		}
@@ -617,64 +620,35 @@ func (w *Websocket) trafficMonitor() {
 	}()
 }
 
-func (w *Websocket) setState(s uint32) {
-	w.state.Store(s)
-}
-
-// IsInitialised returns whether the websocket has been Setup() already
-func (w *Websocket) IsInitialised() bool {
-	return w.state.Load() != uninitialised
-}
-
-// IsConnected returns whether the websocket is connected
-func (w *Websocket) IsConnected() bool {
-	return w.state.Load() == connected
-}
-
-// IsConnecting returns whether the websocket is connecting
-func (w *Websocket) IsConnecting() bool {
-	return w.state.Load() == connecting
-}
-
-func (w *Websocket) setEnabled(b bool) {
-	w.enabled.Store(b)
-}
-
-// IsEnabled returns whether the websocket is enabled
-func (w *Websocket) IsEnabled() bool {
-	return w.enabled.Load()
-}
-
-func (w *Websocket) setTrafficMonitorRunning(b bool) {
-	w.trafficMonitorRunning.Store(b)
-}
-
-// IsTrafficMonitorRunning returns status of the traffic monitor
-func (w *Websocket) IsTrafficMonitorRunning() bool {
-	return w.trafficMonitorRunning.Load()
-}
-
+func (w *Websocket) setState(s uint32)                  { w.state.Store(s) }
+func (w *Websocket) setEnabled(b bool)                  { w.enabled.Store(b) }
+func (w *Websocket) setTrafficMonitorRunning(b bool)    { w.trafficMonitorRunning.Store(b) }
+func (w *Websocket) setConnectionMonitorRunning(b bool) { w.connectionMonitorRunning.Store(b) }
+func (w *Websocket) setDataMonitorRunning(b bool)       { w.dataMonitorRunning.Store(b) }
 func (w *Websocket) checkAndSetMonitorRunning() (alreadyRunning bool) {
 	return !w.connectionMonitorRunning.CompareAndSwap(false, true)
 }
 
-func (w *Websocket) setConnectionMonitorRunning(b bool) {
-	w.connectionMonitorRunning.Store(b)
-}
+// IsInitialised returns whether the websocket has been Setup() already
+func (w *Websocket) IsInitialised() bool { return w.state.Load() != uninitialised }
+
+// IsConnected returns whether the websocket is connected
+func (w *Websocket) IsConnected() bool { return w.state.Load() == connected }
+
+// IsConnecting returns whether the websocket is connecting
+func (w *Websocket) IsConnecting() bool { return w.state.Load() == connecting }
+
+// IsEnabled returns whether the websocket is enabled
+func (w *Websocket) IsEnabled() bool { return w.enabled.Load() }
+
+// IsTrafficMonitorRunning returns status of the traffic monitor
+func (w *Websocket) IsTrafficMonitorRunning() bool { return w.trafficMonitorRunning.Load() }
 
 // IsConnectionMonitorRunning returns status of connection monitor
-func (w *Websocket) IsConnectionMonitorRunning() bool {
-	return w.connectionMonitorRunning.Load()
-}
-
-func (w *Websocket) setDataMonitorRunning(b bool) {
-	w.dataMonitorRunning.Store(b)
-}
+func (w *Websocket) IsConnectionMonitorRunning() bool { return w.connectionMonitorRunning.Load() }
 
 // IsDataMonitorRunning returns status of data monitor
-func (w *Websocket) IsDataMonitorRunning() bool {
-	return w.dataMonitorRunning.Load()
-}
+func (w *Websocket) IsDataMonitorRunning() bool { return w.dataMonitorRunning.Load() }
 
 // CanUseAuthenticatedWebsocketForWrapper Handles a common check to
 // verify whether a wrapper can use an authenticated websocket endpoint
@@ -745,21 +719,22 @@ func (w *Websocket) SetWebsocketURL(url string, auth, reconnect bool) error {
 }
 
 // GetWebsocketURL returns the running websocket URL
-func (w *Websocket) GetWebsocketURL() string {
-	return w.runningURL
-}
+func (w *Websocket) GetWebsocketURL() string { return w.runningURL }
 
 // SetProxyAddress sets websocket proxy address
 func (w *Websocket) SetProxyAddress(proxyAddr string) error {
 	w.m.Lock()
 
+	var p *url.URL
 	if proxyAddr != "" {
-		if _, err := url.ParseRequestURI(proxyAddr); err != nil {
+		var err error
+		p, err = url.ParseRequestURI(proxyAddr)
+		if err != nil {
 			w.m.Unlock()
 			return fmt.Errorf("%v websocket: cannot set proxy address: %w", w.exchangeName, err)
 		}
 
-		if w.proxyAddr == proxyAddr {
+		if w.proxyAddr != nil && w.proxyAddr.String() == p.String() {
 			w.m.Unlock()
 			return fmt.Errorf("%v websocket: %w '%v'", w.exchangeName, errSameProxyAddress, w.proxyAddr)
 		}
@@ -769,20 +744,14 @@ func (w *Websocket) SetProxyAddress(proxyAddr string) error {
 		log.Debugf(log.ExchangeSys, "%s websocket: removing websocket proxy", w.exchangeName)
 	}
 
-	if w.Conn != nil {
-		w.Conn.SetProxy(proxyAddr)
-	}
-	if w.AuthConn != nil {
-		w.AuthConn.SetProxy(proxyAddr)
-	}
-
-	w.proxyAddr = proxyAddr
+	w.proxyAddr = p
 
 	if w.IsConnected() {
 		w.m.Unlock()
 		if err := w.Shutdown(); err != nil {
 			return err
 		}
+		fmt.Println("PEW")
 		return w.Connect()
 	}
 
@@ -792,14 +761,10 @@ func (w *Websocket) SetProxyAddress(proxyAddr string) error {
 }
 
 // GetProxyAddress returns the current websocket proxy
-func (w *Websocket) GetProxyAddress() string {
-	return w.proxyAddr
-}
+func (w *Websocket) GetProxyAddress() *url.URL { return w.proxyAddr }
 
 // GetName returns exchange name
-func (w *Websocket) GetName() string {
-	return w.exchangeName
-}
+func (w *Websocket) GetName() string { return w.exchangeName }
 
 // GetChannelDifference finds the difference between the subscribed channels
 // and the new subscription list when pairs are disabled or enabled.
@@ -1035,4 +1000,39 @@ func (w *Websocket) listen(conn Connection, handler func(incoming []byte) error)
 			w.DataHandler <- err
 		}
 	}
+}
+
+// InitialiseConnection sets up a websocket connection
+func (w *Websocket) InitialiseConnection(conn Connection, bootstrap func(Connection) error, handler func([]byte) error) error {
+	dialer := *websocket.DefaultDialer
+	if w.proxyAddr != nil {
+		// Note: This is a global setting and will affect all websocket
+		// connections. If you need to use a proxy for a single connection you
+		// will need to create a new dialer and set the proxy on that dialer.
+		// This reduces the shared state.
+		dialer.Proxy = http.ProxyURL(w.proxyAddr)
+		fmt.Println("PROXY!", w.proxyAddr.String())
+	}
+
+	fmt.Println("HELLO DEAR")
+
+	err := conn.Dial(&dialer, nil)
+	if err != nil {
+		return fmt.Errorf("%v connecting websocket: %w", w.exchangeName, err)
+	}
+
+	fmt.Println("HELLO DEAR connected")
+
+	if bootstrap != nil {
+		err = bootstrap(conn)
+		if err != nil {
+			return fmt.Errorf("%v bootstrapping websocket connection: %w", w.exchangeName, err)
+		}
+	}
+
+	return nil
+
+	w.Wg.Add(1)
+	go w.listen(conn, handler)
+	return nil
 }

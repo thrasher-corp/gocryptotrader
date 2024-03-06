@@ -213,62 +213,18 @@ const (
 	okxChannelMarkPriceCandle6Hutc  = markPrice + okxChannelCandle6Hutc
 )
 
-// WsConnect initiates a websocket connection
-func (ok *Okx) WsConnect() error {
-	if !ok.Websocket.IsEnabled() || !ok.IsEnabled() {
-		return stream.ErrWebsocketNotEnabled
-	}
-	fmt.Println("connect unauth")
-	var dialer websocket.Dialer
-	dialer.ReadBufferSize = 8192
-	dialer.WriteBufferSize = 8192
+var defaultPingHandler = stream.PingHandler{MessageType: websocket.TextMessage, Message: pingMsg, Delay: time.Second * 20}
 
-	err := ok.Websocket.Conn.Dial(&dialer, http.Header{})
-	if err != nil {
-		return err
-	}
-	// ok.Websocket.Wg.Add(1)
-	// go ok.wsReadData(ok.Websocket.Conn)
-	if ok.Verbose {
-		log.Debugf(log.ExchangeSys, "Successful connection to %v\n",
-			ok.Websocket.GetWebsocketURL())
-	}
-	ok.Websocket.Conn.SetupPingHandler(stream.PingHandler{
-		MessageType: websocket.TextMessage,
-		Message:     pingMsg,
-		Delay:       time.Second * 20,
-	})
-	if ok.IsWebsocketAuthenticationSupported() {
-		var authDialer websocket.Dialer
-		authDialer.ReadBufferSize = 8192
-		authDialer.WriteBufferSize = 8192
-		err = ok.WsAuth(context.TODO(), &authDialer)
-		if err != nil {
-			log.Errorf(log.ExchangeSys, "Error connecting auth socket: %s\n", err.Error())
-			ok.Websocket.SetCanUseAuthenticatedEndpoints(false)
-		}
-	}
+// WsUnAuthBootStrap boostraps the unauthenticated connection
+func (ok *Okx) WsUnAuthBootstrap(conn stream.Connection) error {
+	conn.SetupPingHandler(defaultPingHandler)
 	return nil
 }
 
-// WsAuth will connect to Okx's Private websocket connection and Authenticate with a login payload.
-func (ok *Okx) WsAuth(ctx context.Context, dialer *websocket.Dialer) error {
-	fmt.Println("connect auth")
-	if !ok.Websocket.CanUseAuthenticatedEndpoints() {
-		return fmt.Errorf("%v AuthenticatedWebsocketAPISupport not enabled", ok.Name)
-	}
-	err := ok.Websocket.AuthConn.Dial(dialer, http.Header{})
-	if err != nil {
-		return fmt.Errorf("%v Websocket connection %v error. Error %v", ok.Name, okxAPIWebsocketPrivateURL, err)
-	}
-	// ok.Websocket.Wg.Add(1)
-	// go ok.wsReadData(ok.Websocket.AuthConn)
-	ok.Websocket.AuthConn.SetupPingHandler(stream.PingHandler{
-		MessageType: websocket.TextMessage,
-		Message:     pingMsg,
-		Delay:       time.Second * 20,
-	})
-	creds, err := ok.GetCredentials(ctx)
+// WsAuthBoostrap boostraps the authenticated connection
+func (ok *Okx) WsAuthBootstrap(conn stream.Connection) error {
+	conn.SetupPingHandler(defaultPingHandler)
+	creds, err := ok.GetCredentials(context.TODO()) // TODO: Populate context through websocket services.
 	if err != nil {
 		return err
 	}
@@ -276,25 +232,22 @@ func (ok *Okx) WsAuth(ctx context.Context, dialer *websocket.Dialer) error {
 	timeUnix := time.Now()
 	signPath := "/users/self/verify"
 	hmac, err := crypto.GetHMAC(crypto.HashSHA256,
-		[]byte(strconv.FormatInt(timeUnix.UTC().Unix(), 10)+http.MethodGet+signPath),
+		[]byte(strconv.FormatInt(timeUnix.Unix(), 10)+http.MethodGet+signPath),
 		[]byte(creds.Secret),
 	)
 	if err != nil {
 		return err
 	}
-	base64Sign := crypto.Base64Encode(hmac)
 	request := WebsocketEventRequest{
 		Operation: operationLogin,
-		Arguments: []WebsocketLoginData{
-			{
-				APIKey:     creds.Key,
-				Passphrase: creds.ClientID,
-				Timestamp:  timeUnix,
-				Sign:       base64Sign,
-			},
-		},
+		Arguments: []WebsocketLoginData{{
+			APIKey:     creds.Key,
+			Passphrase: creds.ClientID,
+			Timestamp:  timeUnix,
+			Sign:       crypto.Base64Encode(hmac),
+		}},
 	}
-	err = ok.Websocket.AuthConn.SendJSONMessage(request)
+	err = conn.SendJSONMessage(request)
 	if err != nil {
 		return err
 	}
@@ -334,20 +287,6 @@ func (ok *Okx) WsAuth(ctx context.Context, dialer *websocket.Dialer) error {
 		}
 	}
 }
-
-// // wsReadData sends msgs from public and auth websockets to data handler
-// func (ok *Okx) wsReadData(ws stream.Connection) {
-// 	defer ok.Websocket.Wg.Done()
-// 	for {
-// 		resp := ws.ReadMessage()
-// 		if resp.Raw == nil {
-// 			return
-// 		}
-// 		if err := ok.WsHandleData(resp.Raw); err != nil {
-// 			ok.Websocket.DataHandler <- err
-// 		}
-// 	}
-// }
 
 // Subscribe sends a websocket subscription request to several channels to receive data.
 func (ok *Okx) Subscribe(channelsToSubscribe []subscription.Subscription) error {

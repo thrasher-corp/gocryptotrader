@@ -1,6 +1,7 @@
 package stream
 
 import (
+	"net/url"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -43,7 +44,7 @@ type Websocket struct {
 	dataMonitorRunning           atomic.Bool
 	trafficTimeout               time.Duration
 	connectionMonitorDelay       time.Duration
-	proxyAddr                    string
+	proxyAddr                    *url.URL
 	defaultURL                   string
 	defaultURLAuth               string
 	runningURL                   string
@@ -93,12 +94,14 @@ type Websocket struct {
 	features          *protocol.Features
 
 	// Standard stream connection
-	Conn          Connection
-	UnAuthHandler func([]byte) error
+	Conn            Connection
+	UnAuthHandler   func([]byte) error
+	UnAuthBootstrap func(Connection) error
 
 	// Authenticated stream connection
-	AuthConn    Connection
-	AuthHandler func([]byte) error
+	AuthConn      Connection
+	AuthHandler   func([]byte) error
+	AuthBootstrap func(Connection) error
 
 	// Latency reporter
 	ExchangeLevelReporter Reporter
@@ -146,7 +149,6 @@ type WebsocketConnection struct {
 	RateLimit    int64
 	ExchangeName string
 	URL          string
-	ProxyURL     string
 	Wg           *sync.WaitGroup
 	Connection   *websocket.Conn
 	ShutdownC    chan struct{}

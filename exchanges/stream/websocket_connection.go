@@ -11,7 +11,6 @@ import (
 	"math/big"
 	"net"
 	"net/http"
-	"net/url"
 	"sync/atomic"
 	"time"
 
@@ -56,18 +55,13 @@ func (w *WebsocketConnection) SendMessageReturnResponse(signature, request inter
 
 // Dial sets proxy urls and then connects to the websocket
 func (w *WebsocketConnection) Dial(dialer *websocket.Dialer, headers http.Header) error {
-	if w.ProxyURL != "" {
-		proxy, err := url.Parse(w.ProxyURL)
-		if err != nil {
-			return err
-		}
-		dialer.Proxy = http.ProxyURL(proxy)
-	}
-
 	var err error
 	var conStatus *http.Response
-
 	w.Connection, conStatus, err = dialer.Dial(w.URL, headers)
+
+	fmt.Println("w.URL", w.URL)
+	fmt.Println("conStatus", conStatus)
+	fmt.Println("err", err)
 	if err != nil {
 		if conStatus != nil {
 			return fmt.Errorf("%s websocket connection: %v %v %v Error: %w", w.ExchangeName, w.URL, conStatus, conStatus.StatusCode, err)
@@ -301,11 +295,6 @@ func (w *WebsocketConnection) Shutdown() error {
 // SetURL sets connection URL
 func (w *WebsocketConnection) SetURL(url string) {
 	w.URL = url
-}
-
-// SetProxy sets connection proxy
-func (w *WebsocketConnection) SetProxy(proxy string) {
-	w.ProxyURL = proxy
 }
 
 // GetURL returns the connection URL

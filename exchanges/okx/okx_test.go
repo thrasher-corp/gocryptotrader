@@ -2729,7 +2729,7 @@ func setupWS() {
 	if !sharedtestvalues.AreAPICredentialsSet(ok) {
 		ok.Websocket.SetCanUseAuthenticatedEndpoints(false)
 	}
-	err := ok.WsConnect()
+	err := ok.Websocket.Connect()
 	if err != nil {
 		log.Fatal(err)
 	}
