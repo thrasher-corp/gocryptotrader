@@ -170,9 +170,7 @@ func (s *Service) Retrieve(exchange string, p currency.Pair, a asset.Item) (*Bas
 		Asset: a,
 	}]
 	if !ok {
-		return nil, fmt.Errorf("%w associated with base currency %s",
-			ErrCannotFindOrderbook,
-			p.Quote)
+		return nil, fmt.Errorf("%w associated with currency %s %s", ErrCannotFindOrderbook, p, a)
 	}
 	return book.Retrieve()
 }
