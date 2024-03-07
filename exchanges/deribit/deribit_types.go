@@ -464,7 +464,7 @@ type WithdrawalsData struct {
 // TradeData stores a data for a private trade
 type TradeData struct {
 	TradeSequence  int64                `json:"trade_seq"`
-	TradeID        int64                `json:"trade_id"`
+	TradeID        string               `json:"trade_id"`
 	Timestamp      convert.ExchangeTime `json:"timestamp"`
 	TickDirection  int64                `json:"tick_direction"`
 	State          string               `json:"state"`
@@ -511,6 +511,13 @@ type OrderData struct {
 	API                 bool                 `json:"api"`
 	Amount              float64              `json:"amount"`
 	IsRebalance         bool                 `json:"is_rebalance"`
+}
+
+// InitialMarginInfo represents an initial margin of an order.
+type InitialMarginInfo struct {
+	InitialMarginCurrency string  `json:"initial_margin_currency"`
+	InitialMargin         float64 `json:"initial_margin"`
+	OrderID               string  `json:"order_id"`
 }
 
 // PrivateTradeData stores data of a private buy, sell or edit

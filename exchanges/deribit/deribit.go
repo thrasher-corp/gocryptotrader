@@ -342,7 +342,7 @@ func (d *Deribit) GetInstrument(ctx context.Context, instrument string) (*Instru
 		return nil, err
 	}
 	var resp *InstrumentData
-	return resp, d.SendHTTPRequest(ctx, exchange.RestFutures, nonMatchingEPL,
+	return resp, d.SendHTTPRequest(ctx, exchange.RestSpot, nonMatchingEPL,
 		common.EncodeURLValues(getInstrument, params), &resp)
 }
 
@@ -1588,7 +1588,7 @@ func (d *Deribit) SubmitSell(ctx context.Context, arg *OrderBuyAndSellParams) (*
 	if arg.MaxShow != 0 {
 		params.Set("max_show", strconv.FormatFloat(arg.MaxShow, 'f', -1, 64))
 	}
-	if arg.Price <= 0 {
+	if (arg.OrderType == "limit" || arg.OrderType == "stop_limit") && arg.Price <= 0 {
 		return nil, errInvalidPrice
 	}
 	params.Set("price", strconv.FormatFloat(arg.Price, 'f', -1, 64))
@@ -1614,7 +1614,7 @@ func (d *Deribit) SubmitSell(ctx context.Context, arg *OrderBuyAndSellParams) (*
 		params.Set("advanced", arg.Advanced)
 	}
 	var resp *PrivateTradeData
-	return resp, d.SendHTTPAuthRequest(ctx, exchange.RestFutures, matchingEPL, http.MethodGet, submitSell, params, &resp)
+	return resp, d.SendHTTPAuthRequest(ctx, exchange.RestSpotSupplementary, matchingEPL, http.MethodGet, submitSell, params, &resp)
 }
 
 // SubmitEdit submits an edit order request
@@ -1923,23 +1923,21 @@ func (d *Deribit) GetOrderHistoryByInstrument(ctx context.Context, instrument st
 		params.Set("include_unfilled", "true")
 	}
 	var resp []OrderData
-	return resp, d.SendHTTPAuthRequest(ctx, exchange.RestFutures, nonMatchingEPL, http.MethodGet,
+	return resp, d.SendHTTPAuthRequest(ctx, exchange.RestSpotSupplementary, nonMatchingEPL, http.MethodGet,
 		getOrderHistoryByInstrument, params, &resp)
 }
 
 // GetOrderMarginsByID sends a request to fetch order margins data according to their ids
-func (d *Deribit) GetOrderMarginsByID(ctx context.Context, ids []string) ([]OrderData, error) {
+func (d *Deribit) GetOrderMarginsByID(ctx context.Context, ids []string) ([]InitialMarginInfo, error) {
 	if len(ids) == 0 {
 		return nil, fmt.Errorf("%w, order ids cannot be empty", errInvalidID)
 	}
 	params := url.Values{}
-	val, err := json.Marshal(ids)
-	if err != nil {
-		return nil, err
+	for a := range ids {
+		params.Add("ids[]", ids[a])
 	}
-	params.Set("ids[]", string(val))
-	var resp []OrderData
-	return resp, d.SendHTTPAuthRequest(ctx, exchange.RestFutures, nonMatchingEPL, http.MethodGet,
+	var resp []InitialMarginInfo
+	return resp, d.SendHTTPAuthRequest(ctx, exchange.RestSpotSupplementary, nonMatchingEPL, http.MethodGet,
 		getOrderMarginByIDs, params, &resp)
 }
 
