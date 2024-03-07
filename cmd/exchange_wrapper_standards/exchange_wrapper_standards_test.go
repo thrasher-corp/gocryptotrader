@@ -196,6 +196,7 @@ func executeExchangeWrapperTests(ctx context.Context, t *testing.T, exch exchang
 }
 
 func handleExchangeWrapperTests(ctx context.Context, t *testing.T, actualExchange reflect.Value, methodNames []string, exch exchange.IBotExchange, assetParams []assetPair, groupTestID string) {
+	t.Helper()
 	if groupTestID == "PRIORITY GROUP" {
 		// Some update requests check for authenticated support, but we don't
 		// want to test them. This will fail fetcher functions in secondary
@@ -205,7 +206,6 @@ func handleExchangeWrapperTests(ctx context.Context, t *testing.T, actualExchang
 		exch.GetBase().API.AuthenticatedSupport = true
 	}
 
-	t.Helper()
 	t.Run(groupTestID, func(t *testing.T) {
 		for x := range methodNames {
 			method := actualExchange.MethodByName(methodNames[x])
