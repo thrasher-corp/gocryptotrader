@@ -772,14 +772,14 @@ func (c *CoinbasePro) WithdrawFiatFunds(ctx context.Context, withdrawRequest *wi
 	if withdrawRequest.WalletID == "" {
 		return nil, errWalletIDEmpty
 	}
-	paymentMethods, err := c.GetAllPaymentMethods(ctx, PaginationInp{})
+	paymentMethods, err := c.GetAllPaymentMethods(ctx)
 	if err != nil {
 		return nil, err
 	}
 	selectedWithdrawalMethod := PaymentMethodData{}
-	for i := range paymentMethods.Data {
-		if withdrawRequest.Fiat.Bank.BankName == paymentMethods.Data[i].Name {
-			selectedWithdrawalMethod = paymentMethods.Data[i]
+	for i := range paymentMethods.PaymentMethods {
+		if withdrawRequest.Fiat.Bank.BankName == paymentMethods.PaymentMethods[i].Name {
+			selectedWithdrawalMethod = paymentMethods.PaymentMethods[i]
 			break
 		}
 	}

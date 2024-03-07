@@ -54,6 +54,7 @@ const (
 	coinbaseConvert            = "convert"
 	coinbaseQuote              = "quote"
 	coinbaseTrade              = "trade"
+	coinbasePaymentMethods     = "payment_methods"
 	coinbaseV2                 = "/v2/"
 	coinbaseNotifications      = "notifications"
 	coinbaseUser               = "user"
@@ -63,7 +64,6 @@ const (
 	coinbaseTransactions       = "transactions"
 	coinbaseDeposits           = "deposits"
 	coinbaseCommit             = "commit"
-	coinbasePaymentMethods     = "payment-methods"
 	coinbaseWithdrawals        = "withdrawals"
 	coinbaseCurrencies         = "currencies"
 	coinbaseCrypto             = "crypto"
@@ -779,6 +779,27 @@ func (c *CoinbasePro) GetV3Time(ctx context.Context) (*ServerTimeV3, error) {
 		coinbaseV3+coinbaseTime, nil, nil, true, &resp, nil)
 }
 
+// GetAllPaymentMethods returns a list of all payment methods associated with the user's account
+func (c *CoinbasePro) GetAllPaymentMethods(ctx context.Context) (*GetAllPaymentMethodsResp, error) {
+	var resp *GetAllPaymentMethodsResp
+	req := map[string]interface{}{"currency": "BTC"}
+	path := coinbaseV3 + coinbasePaymentMethods
+	return resp, c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet,
+		path, nil, req, true, &resp, nil)
+}
+
+// GetPaymentMethodByID returns information on a single payment method associated with the user's
+// account
+func (c *CoinbasePro) GetPaymentMethodByID(ctx context.Context, paymentMethodID string) (*GenPaymentMethodResp, error) {
+	if paymentMethodID == "" {
+		return nil, errPaymentMethodEmpty
+	}
+	path := coinbaseV3 + coinbasePaymentMethods + "/" + paymentMethodID
+	var resp *GenPaymentMethodResp
+	return resp, c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet,
+		path, nil, nil, true, &resp, nil)
+}
+
 // ListNotifications lists the notifications the user is subscribed to
 func (c *CoinbasePro) ListNotifications(ctx context.Context, pag PaginationInp) (*ListNotificationsResponse, error) {
 	var resp *ListNotificationsResponse
@@ -1067,28 +1088,6 @@ func (c *CoinbasePro) GetFiatTransferByID(ctx context.Context, walletID, deposit
 		path = coinbaseV2 + coinbaseAccounts + "/" + walletID + "/" + coinbaseWithdrawals + "/" + depositID
 	}
 	var resp *GenDeposWithdrResp
-	return resp, c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet,
-		path, nil, nil, false, &resp, nil)
-}
-
-// GetAllPaymentMethods returns a list of all payment methods associated with the user's account
-func (c *CoinbasePro) GetAllPaymentMethods(ctx context.Context, pag PaginationInp) (*GetAllPaymentMethodsResp, error) {
-	var resp *GetAllPaymentMethodsResp
-	var params Params
-	params.Values = url.Values{}
-	params.preparePagination(pag)
-	return resp, c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet,
-		coinbaseV2+coinbasePaymentMethods, params.Values, nil, false, &resp, nil)
-}
-
-// GetPaymentMethodByID returns information on a single payment method associated with the user's
-// account
-func (c *CoinbasePro) GetPaymentMethodByID(ctx context.Context, paymentMethodID string) (*GenPaymentMethodResp, error) {
-	if paymentMethodID == "" {
-		return nil, errPaymentMethodEmpty
-	}
-	path := coinbaseV2 + coinbasePaymentMethods + "/" + paymentMethodID
-	var resp *GenPaymentMethodResp
 	return resp, c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet,
 		path, nil, nil, false, &resp, nil)
 }

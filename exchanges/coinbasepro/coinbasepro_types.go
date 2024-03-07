@@ -754,6 +754,34 @@ type ServerTimeV3 struct {
 	EpochMilliseconds int64     `json:"epochMillis,string"`
 }
 
+// PaymentMethodData is a sub-type that holds information on a payment method. Used in
+// GetAllPaymentMethodsResp and GenPaymentMethodResp
+type PaymentMethodData struct {
+	ID            string    `json:"id"`
+	Type          string    `json:"type"`
+	Name          string    `json:"name"`
+	Currency      string    `json:"currency"`
+	Verified      bool      `json:"verified"`
+	AllowBuy      bool      `json:"allow_buy"`
+	AllowSell     bool      `json:"allow_sell"`
+	AllowDeposit  bool      `json:"allow_deposit"`
+	AllowWithdraw bool      `json:"allow_withdraw"`
+	CreatedAt     time.Time `json:"created_at"`
+	UpdatedAt     time.Time `json:"updated_at"`
+}
+
+// GetAllPaymentMethodsResp holds information on many payment methods. Returned by
+// GetAllPaymentMethods
+type GetAllPaymentMethodsResp struct {
+	PaymentMethods []PaymentMethodData `json:"payment_methods"`
+}
+
+// GenPaymentMethodResp holds information on a payment method. Returned by
+// GetPaymentMethodByID
+type GenPaymentMethodResp struct {
+	PaymentMethod PaymentMethodData `json:"payment_method"`
+}
+
 // IDResource holds an ID, resource type, and associated data, used in ListNotificationsResponse,
 // TransactionData, DeposWithdrData, and PaymentMethodData
 type IDResource struct {
@@ -1085,47 +1113,6 @@ type GenDeposWithdrResp struct {
 type ManyDeposWithdrResp struct {
 	Pagination PaginationResp    `json:"pagination"`
 	Data       []DeposWithdrData `json:"data"`
-}
-
-// PaymentMethodData is a sub-type that holds information on a payment method. Used in
-// GetAllPaymentMethodsResp and GenPaymentMethodResp
-type PaymentMethodData struct {
-	ID            string    `json:"id"`
-	Type          string    `json:"type"`
-	Name          string    `json:"name"`
-	Currency      string    `json:"currency"`
-	PrimaryBuy    bool      `json:"primary_buy"`
-	PrimarySell   bool      `json:"primary_sell"`
-	AllowBuy      bool      `json:"allow_buy"`
-	AllowSell     bool      `json:"allow_sell"`
-	AllowDeposit  bool      `json:"allow_deposit"`
-	AllowWithdraw bool      `json:"allow_withdraw"`
-	InstantBuy    bool      `json:"instant_buy"`
-	InstantSell   bool      `json:"instant_sell"`
-	CreatedAt     time.Time `json:"created_at"`
-	UpdatedAt     time.Time `json:"updated_at"`
-	Resource      string    `json:"resource"`
-	ResourcePath  string    `json:"resource_path"`
-	Limits        struct {
-		Type string `json:"type"`
-		Name string `json:"name"`
-	} `json:"limits"`
-	FiatAccount           IDResource `json:"fiat_account"`
-	Verified              bool       `json:"verified"`
-	MinimumPurchaseAmount AmCur      `json:"minimum_purchase_amount"`
-}
-
-// GetAllPaymentMethodsResp holds information on many payment methods. Returned by
-// GetAllPaymentMethods
-type GetAllPaymentMethodsResp struct {
-	Pagination PaginationResp      `json:"pagination"`
-	Data       []PaymentMethodData `json:"data"`
-}
-
-// GenPaymentMethodResp holds information on a payment method. Returned by
-// GetPaymentMethodByID
-type GenPaymentMethodResp struct {
-	Data PaymentMethodData `json:"data"`
 }
 
 // FiatData holds information on fiat currencies. Used as a sub-struct in

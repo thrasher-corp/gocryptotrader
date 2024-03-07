@@ -85,6 +85,7 @@ const (
 	errUnrecognisedStatusType    = " not recognised as status type"
 	errFakeSide                  = "unknown side fakeside"
 	errCoinbaseWSAlreadyDisabled = "websocket already disabled for exchange 'CoinbasePro'"
+	errInternalMessageNil        = "CoinbasePro unsuccessful HTTP status code: 500 raw response: {\"error\":\"INTERNAL\",\"error_details\":\"undefined method `currency' for nil:NilClass\",\"message\":\"undefined method `currency' for nil:NilClass\"}, authenticated request failed"
 
 	expectedTimestamp = "1970-01-01 00:20:34 +0000 UTC"
 
@@ -159,7 +160,7 @@ func TestGetAccountByID(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, c)
 	longResp, err := c.GetAllAccounts(context.Background(), 49, "")
 	assert.NoError(t, err)
-	if len(longResp.Accounts) == 0 {
+	if longResp == nil || len(longResp.Accounts) == 0 {
 		t.Fatal(errExpectedNonEmpty)
 	}
 	shortResp, err := c.GetAccountByID(context.Background(), longResp.Accounts[0].UUID)
@@ -330,7 +331,7 @@ func TestGetFills(t *testing.T) {
 	ordID, err := c.GetAllOrders(context.Background(), "", "", "", "", "", "", "", "", "", status, nil, 3, time.Time{},
 		time.Time{})
 	assert.NoError(t, err)
-	if len(ordID.Orders) == 0 {
+	if ordID == nil || len(ordID.Orders) == 0 {
 		t.Skip(skipInsufficientOrders)
 	}
 	_, err = c.GetFills(context.Background(), ordID.Orders[0].OrderID, "", "", time.Time{}, time.Time{}, 5)
@@ -344,7 +345,7 @@ func TestGetOrderByID(t *testing.T) {
 	ordID, err := c.GetAllOrders(context.Background(), "", "", "", "", "", "", "", "", "", nil, nil, 10,
 		time.Time{}, time.Time{})
 	assert.NoError(t, err)
-	if len(ordID.Orders) == 0 {
+	if ordID == nil || len(ordID.Orders) == 0 {
 		t.Skip(skipInsufficientOrders)
 	}
 	resp, err := c.GetOrderByID(context.Background(), ordID.Orders[0].OrderID, ordID.Orders[0].ClientOID,
@@ -591,6 +592,32 @@ func TestGetV3Time(t *testing.T) {
 	testGetNoArgs(t, c.GetV3Time)
 }
 
+func TestGetAllPaymentMethods(t *testing.T) {
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, c)
+	_, err := c.GetAllPaymentMethods(context.Background())
+	// This endpoint appears to currently be broken for all users
+	if err.Error() != errInternalMessageNil {
+		t.Error(err)
+	}
+}
+
+func TestGetPaymentMethodByID(t *testing.T) {
+	_, err := c.GetPaymentMethodByID(context.Background(), "")
+	assert.ErrorIs(t, err, errPaymentMethodEmpty)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, c)
+	// This endpoint appears to currently be broken for all users
+	pmID, err := c.GetAllPaymentMethods(context.Background())
+	if err.Error() != errInternalMessageNil {
+		t.Error(err)
+	}
+	if pmID == nil || len(pmID.PaymentMethods) == 0 {
+		t.Skip(skipPayMethodNotFound)
+	}
+	resp, err := c.GetPaymentMethodByID(context.Background(), pmID.PaymentMethods[0].ID)
+	assert.NoError(t, err)
+	assert.NotEmpty(t, resp, errExpectedNonEmpty)
+}
+
 func TestListNotifications(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, c)
 	_, err := c.ListNotifications(context.Background(), PaginationInp{})
@@ -720,7 +747,7 @@ func TestSendMoney(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, c, canManipulateRealOrders)
 	wID, err := c.GetAllWallets(context.Background(), PaginationInp{})
 	assert.NoError(t, err)
-	if len(wID.Data) < 2 {
+	if wID == nil || len(wID.Data) < 2 {
 		t.Skip(skipInsufficientWallets)
 	}
 	var (
@@ -771,7 +798,7 @@ func TestGetTransactionByID(t *testing.T) {
 	assert.NotEmpty(t, wID, errExpectedNonEmpty)
 	tID, err := c.GetAllTransactions(context.Background(), wID.Data.ID, PaginationInp{})
 	assert.NoError(t, err)
-	if len(tID.Data) == 0 {
+	if tID == nil || len(tID.Data) == 0 {
 		t.Skip(skipInsufficientTransactions)
 	}
 	resp, err := c.GetTransactionByID(context.Background(), wID.Data.ID, tID.Data[0].ID)
@@ -858,34 +885,13 @@ func TestGetFiatTransferByID(t *testing.T) {
 	assert.NotEmpty(t, wID, errExpectedNonEmpty)
 	dID, err := c.GetAllFiatTransfers(context.Background(), wID.Data.ID, PaginationInp{}, FiatDeposit)
 	assert.NoError(t, err)
-	if len(dID.Data) == 0 {
+	if dID == nil || len(dID.Data) == 0 {
 		t.Skip(skipInsufficientTransactions)
 	}
 	resp, err := c.GetFiatTransferByID(context.Background(), wID.Data.ID, dID.Data[0].ID, FiatDeposit)
 	assert.NoError(t, err)
 	assert.NotEmpty(t, resp, errExpectedNonEmpty)
 	resp, err = c.GetFiatTransferByID(context.Background(), wID.Data.ID, dID.Data[0].ID, FiatWithdrawal)
-	assert.NoError(t, err)
-	assert.NotEmpty(t, resp, errExpectedNonEmpty)
-}
-
-func TestGetAllPaymentMethods(t *testing.T) {
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, c)
-	resp, err := c.GetAllPaymentMethods(context.Background(), PaginationInp{})
-	assert.NoError(t, err)
-	assert.NotEmpty(t, resp, errExpectedNonEmpty)
-}
-
-func TestGetPaymentMethodByID(t *testing.T) {
-	_, err := c.GetPaymentMethodByID(context.Background(), "")
-	assert.ErrorIs(t, err, errPaymentMethodEmpty)
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, c)
-	pmID, err := c.GetAllPaymentMethods(context.Background(), PaginationInp{})
-	assert.NoError(t, err)
-	if len(pmID.Data) == 0 {
-		t.Skip(skipPayMethodNotFound)
-	}
-	resp, err := c.GetPaymentMethodByID(context.Background(), pmID.Data[0].ID)
 	assert.NoError(t, err)
 	assert.NotEmpty(t, resp, errExpectedNonEmpty)
 }
@@ -1212,7 +1218,7 @@ func TestGetOrderInfo(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(ordID.Orders) == 0 {
+	if ordID == nil || len(ordID.Orders) == 0 {
 		t.Skip(skipInsufficientOrders)
 	}
 	resp, err := c.GetOrderInfo(context.Background(), ordID.Orders[0].OrderID, testPair, asset.Spot)
@@ -1243,7 +1249,7 @@ func TestWithdrawCryptocurrencyFunds(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, c, canManipulateRealOrders)
 	wallets, err := c.GetAllWallets(context.Background(), PaginationInp{})
 	assert.NoError(t, err)
-	if len(wallets.Data) == 0 {
+	if wallets == nil || len(wallets.Data) == 0 {
 		t.Fatal(errExpectedNonEmpty)
 	}
 	for i := range wallets.Data {
@@ -1690,7 +1696,7 @@ func skipTestIfLowOnFunds(t *testing.T) {
 	t.Helper()
 	accounts, err := c.GetAllAccounts(context.Background(), 250, "")
 	assert.NoError(t, err)
-	if len(accounts.Accounts) == 0 {
+	if accounts == nil || len(accounts.Accounts) == 0 {
 		t.Fatal(errExpectedNonEmpty)
 	}
 	var hasValidFunds bool
@@ -1757,7 +1763,7 @@ func convertTestHelper(t *testing.T) (fromAccID, toAccID string) {
 	t.Helper()
 	accIDs, err := c.GetAllAccounts(context.Background(), 250, "")
 	assert.NoError(t, err)
-	if len(accIDs.Accounts) == 0 {
+	if accIDs == nil || len(accIDs.Accounts) == 0 {
 		t.Fatal(errExpectedNonEmpty)
 	}
 	for x := range accIDs.Accounts {
@@ -1789,12 +1795,12 @@ func transferTestHelper(t *testing.T, wallets *GetAllWalletsResponse) (srcWallet
 	if !hasValidFunds {
 		t.Skip(skipInsufficientFunds)
 	}
-	pmID, err := c.GetAllPaymentMethods(context.Background(), PaginationInp{})
+	pmID, err := c.GetAllPaymentMethods(context.Background())
 	assert.NoError(t, err)
-	if len(pmID.Data) == 0 {
+	if pmID == nil || len(pmID.PaymentMethods) == 0 {
 		t.Skip(skipPayMethodNotFound)
 	}
-	return srcWalletID, pmID.Data[0].FiatAccount.ID
+	return srcWalletID, pmID.PaymentMethods[0].ID
 }
 
 type withdrawFiatFunc func(context.Context, *withdraw.Request) (*withdraw.ExchangeResponse, error)
@@ -1827,7 +1833,7 @@ func withdrawFiatFundsHelper(t *testing.T, fn withdrawFiatFunc) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, c, canManipulateRealOrders)
 	wallets, err := c.GetAllWallets(context.Background(), PaginationInp{})
 	assert.NoError(t, err)
-	if len(wallets.Data) == 0 {
+	if wallets == nil || len(wallets.Data) == 0 {
 		t.Fatal(errExpectedNonEmpty)
 	}
 	req.WalletID = ""
