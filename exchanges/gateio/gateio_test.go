@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/config"
@@ -1117,7 +1118,7 @@ func TestGetFuturesAccountBooks(t *testing.T) {
 func TestGetAllPositionsOfUsers(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, g)
-	if _, err := g.GetAllFuturesPositionsOfUsers(context.Background(), settleUSDT); err != nil {
+	if _, err := g.GetAllFuturesPositionsOfUsers(context.Background(), settleUSDT, true); err != nil {
 		t.Errorf("%s GetAllPositionsOfUsers() error %v", g.Name, err)
 	}
 }
@@ -1177,7 +1178,7 @@ func TestCreateDeliveryOrder(t *testing.T) {
 		Contract:    getPair(t, asset.DeliveryFutures),
 		Size:        6024,
 		Iceberg:     0,
-		Price:       3765,
+		Price:       "3765",
 		Text:        "t-my-custom-id",
 		Settle:      settle,
 		TimeInForce: gtcTIF,
@@ -1388,7 +1389,7 @@ func TestCreateFuturesOrder(t *testing.T) {
 		Contract:    getPair(t, asset.Futures),
 		Size:        6024,
 		Iceberg:     0,
-		Price:       3765,
+		Price:       "3765",
 		TimeInForce: "gtc",
 		Text:        "t-my-custom-id",
 		Settle:      settle,
@@ -1441,7 +1442,7 @@ func TestCreateBatchFuturesOrders(t *testing.T) {
 			Contract:    getPair(t, asset.Futures),
 			Size:        6024,
 			Iceberg:     0,
-			Price:       3765,
+			Price:       "3765",
 			TimeInForce: "gtc",
 			Text:        "t-my-custom-id",
 			Settle:      settle,
@@ -1450,7 +1451,7 @@ func TestCreateBatchFuturesOrders(t *testing.T) {
 			Contract:    currency.NewPair(currency.BTC, currency.USDT),
 			Size:        232,
 			Iceberg:     0,
-			Price:       376225,
+			Price:       "376225",
 			TimeInForce: "gtc",
 			Text:        "t-my-custom-id",
 			Settle:      settleBTC,
@@ -3482,4 +3483,79 @@ func getPair(tb testing.TB, a asset.Item) currency.Pair {
 	pairs[a] = enabledPairs[0]
 
 	return pairs[a]
+}
+
+func TestGetClientOrderIDFromText(t *testing.T) {
+	t.Parallel()
+	assert.Zero(t, getClientOrderIDFromText("api"), "should not return anything")
+	assert.Equal(t, "t-123", getClientOrderIDFromText("t-123"), "should return t-123")
+}
+
+func TestGetTypeFromTimeInForce(t *testing.T) {
+	t.Parallel()
+	typeResp, postOnly := getTypeFromTimeInForce("gtc")
+	assert.Equal(t, order.Limit, typeResp, "should be a limit order")
+	assert.False(t, postOnly, "should return false")
+
+	typeResp, postOnly = getTypeFromTimeInForce("ioc")
+	assert.Equal(t, order.Market, typeResp, "should be market order")
+	assert.False(t, postOnly, "should return false")
+
+	typeResp, postOnly = getTypeFromTimeInForce("poc")
+	assert.Equal(t, order.Limit, typeResp, "should be limit order")
+	assert.True(t, postOnly, "should return true")
+
+	typeResp, postOnly = getTypeFromTimeInForce("fok")
+	assert.Equal(t, order.Market, typeResp, "should be market order")
+	assert.False(t, postOnly, "should return false")
+}
+
+func TestGetSideAndAmountFromSize(t *testing.T) {
+	t.Parallel()
+	side, amount, remaining := getSideAndAmountFromSize(1, 1)
+	assert.Equal(t, order.Long, side, "should be a buy order")
+	assert.Equal(t, 1.0, amount, "should be 1.0")
+	assert.Equal(t, 1.0, remaining, "should be 1.0")
+
+	side, amount, remaining = getSideAndAmountFromSize(-1, -1)
+	assert.Equal(t, order.Short, side, "should be a sell order")
+	assert.Equal(t, 1.0, amount, "should be 1.0")
+	assert.Equal(t, 1.0, remaining, "should be 1.0")
+}
+
+func TestGetFutureOrderSize(t *testing.T) {
+	t.Parallel()
+	_, err := getFutureOrderSize(&order.Submit{Side: order.CouldNotCloseShort, Amount: 1})
+	assert.ErrorIs(t, err, errInvalidOrderSide)
+
+	ret, err := getFutureOrderSize(&order.Submit{Side: order.Buy, Amount: 1})
+	require.NoError(t, err)
+	assert.Equal(t, 1.0, ret)
+
+	ret, err = getFutureOrderSize(&order.Submit{Side: order.Sell, Amount: 1})
+	require.NoError(t, err)
+	assert.Equal(t, -1.0, ret)
+}
+
+func TestGetTimeInForce(t *testing.T) {
+	t.Parallel()
+
+	_, err := getTimeInForce(&order.Submit{Type: order.Market, PostOnly: true})
+	assert.ErrorIs(t, err, errPostOnlyOrderTypeUnsupported)
+
+	ret, err := getTimeInForce(&order.Submit{Type: order.Market})
+	require.NoError(t, err)
+	assert.Equal(t, "ioc", ret)
+
+	ret, err = getTimeInForce(&order.Submit{Type: order.Limit, PostOnly: true})
+	require.NoError(t, err)
+	assert.Equal(t, "poc", ret)
+
+	ret, err = getTimeInForce(&order.Submit{Type: order.Limit})
+	require.NoError(t, err)
+	assert.Equal(t, "gtc", ret)
+
+	ret, err = getTimeInForce(&order.Submit{Type: order.Market, FillOrKill: true})
+	require.NoError(t, err)
+	assert.Equal(t, "fok", ret)
 }
