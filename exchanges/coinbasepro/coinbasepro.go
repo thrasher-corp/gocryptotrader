@@ -1334,7 +1334,7 @@ func (p *Params) prepareDateString(startDate, endDate time.Time, labelStart, lab
 	}
 	p.Values.Set(labelStart, startDate.Format(time.RFC3339))
 	p.Values.Set(labelEnd, endDate.Format(time.RFC3339))
-	return err
+	return nil
 }
 
 // PreparePagination formats pagination information in the way the exchange expects

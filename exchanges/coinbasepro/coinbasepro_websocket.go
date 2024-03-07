@@ -454,31 +454,21 @@ func (c *CoinbasePro) sendRequest(msgType, channel string, productIDs currency.P
 		Key:        creds.Key,
 		Timestamp:  n,
 	}
-	if err != nil {
-		return err
-	}
-	err = c.Websocket.Conn.SendJSONMessage(req)
-	if err != nil {
-		return err
-	}
-	return nil
+	return c.Websocket.Conn.SendJSONMessage(req)
 }
 
 // processBidAskArray is a helper function that turns WebsocketOrderbookDataHolder into arrays
 // of bids and asks
 func processBidAskArray(data *WebsocketOrderbookDataHolder) (bids, asks []orderbook.Item, err error) {
+	bids = make([]orderbook.Item, 0, len(data.Changes))
+	asks = make([]orderbook.Item, 0, len(data.Changes))
 	for i := range data.Changes {
+		change := orderbook.Item{Price: data.Changes[i].PriceLevel, Amount: data.Changes[i].NewQuantity}
 		switch data.Changes[i].Side {
 		case "bid":
-			bids = append(bids, orderbook.Item{
-				Price:  data.Changes[i].PriceLevel,
-				Amount: data.Changes[i].NewQuantity,
-			})
+			bids = append(bids, change)
 		case "offer":
-			asks = append(asks, orderbook.Item{
-				Price:  data.Changes[i].PriceLevel,
-				Amount: data.Changes[i].NewQuantity,
-			})
+			asks = append(asks, change)
 		default:
 			return nil, nil, errors.Errorf(errUnknownSide, data.Changes[i].Side)
 		}
