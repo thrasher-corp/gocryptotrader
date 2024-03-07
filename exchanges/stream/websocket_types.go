@@ -47,8 +47,6 @@ type Websocket struct {
 	proxyAddr                    *url.URL
 	defaultURL                   string
 	defaultURLAuth               string
-	runningURL                   string
-	runningURLAuth               string
 	exchangeName                 string
 	m                            sync.Mutex
 	connector                    func() error
@@ -140,7 +138,7 @@ type WebsocketSetup struct {
 // connection
 type WebsocketConnection struct {
 	Verbose   bool
-	connected int32
+	connected atomic.Bool
 
 	// Gorilla websocket does not allow more than one goroutine to utilise
 	// writes methods

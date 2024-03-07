@@ -11,7 +11,6 @@ import (
 	"math/big"
 	"net"
 	"net/http"
-	"sync/atomic"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -58,10 +57,6 @@ func (w *WebsocketConnection) Dial(dialer *websocket.Dialer, headers http.Header
 	var err error
 	var conStatus *http.Response
 	w.Connection, conStatus, err = dialer.Dial(w.URL, headers)
-
-	fmt.Println("w.URL", w.URL)
-	fmt.Println("conStatus", conStatus)
-	fmt.Println("err", err)
 	if err != nil {
 		if conStatus != nil {
 			return fmt.Errorf("%s websocket connection: %v %v %v Error: %w", w.ExchangeName, w.URL, conStatus, conStatus.StatusCode, err)
@@ -180,18 +175,10 @@ func (w *WebsocketConnection) SetupPingHandler(handler PingHandler) {
 }
 
 // setConnectedStatus sets connection status if changed it will return true.
-// TODO: Swap out these atomic switches and opt for sync.RWMutex.
-func (w *WebsocketConnection) setConnectedStatus(b bool) bool {
-	if b {
-		return atomic.SwapInt32(&w.connected, 1) == 0
-	}
-	return atomic.SwapInt32(&w.connected, 0) == 1
-}
+func (w *WebsocketConnection) setConnectedStatus(b bool) bool { return w.connected.Swap(b) != b }
 
 // IsConnected exposes websocket connection status
-func (w *WebsocketConnection) IsConnected() bool {
-	return atomic.LoadInt32(&w.connected) == 1
-}
+func (w *WebsocketConnection) IsConnected() bool { return w.connected.Load() }
 
 // ReadMessage reads messages, can handle text, gzip and binary
 func (w *WebsocketConnection) ReadMessage() Response {
@@ -293,11 +280,7 @@ func (w *WebsocketConnection) Shutdown() error {
 }
 
 // SetURL sets connection URL
-func (w *WebsocketConnection) SetURL(url string) {
-	w.URL = url
-}
+func (w *WebsocketConnection) SetURL(url string) { w.URL = url }
 
 // GetURL returns the connection URL
-func (w *WebsocketConnection) GetURL() string {
-	return w.URL
-}
+func (w *WebsocketConnection) GetURL() string { return w.URL }

@@ -3058,8 +3058,8 @@ func (s *RPCServer) WebsocketGetInfo(_ context.Context, r *gctrpc.WebsocketGetIn
 		Supported:     exch.SupportsWebsocket(),
 		Enabled:       exch.IsWebsocketEnabled(),
 		Authenticated: w.CanUseAuthenticatedEndpoints(),
-		RunningUrl:    w.GetWebsocketURL(),
-		ProxyAddress:  w.GetProxyAddress(),
+		RunningUrl:    w.GetWebsocketURL(false), // TODO: Add Authenticated URL
+		ProxyAddress:  w.GetProxyAddress().String(),
 	}, nil
 }
 

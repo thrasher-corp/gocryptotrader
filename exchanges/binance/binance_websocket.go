@@ -67,7 +67,7 @@ func (b *Binance) WsConnect() error {
 				err)
 		} else {
 			// cleans on failed connection
-			clean := strings.Split(b.Websocket.GetWebsocketURL(), "?streams=")
+			clean := strings.Split(b.Websocket.GetWebsocketURL(false), "?streams=")
 			authPayload := clean[0] + "?streams=" + listenKey
 			err = b.Websocket.SetWebsocketURL(authPayload, false, false)
 			if err != nil {

@@ -85,7 +85,7 @@ func (o *Okcoin) WsConnect() error {
 	}
 	if o.Verbose {
 		log.Debugf(log.ExchangeSys, "Successful connection to %v\n",
-			o.Websocket.GetWebsocketURL())
+			o.Websocket.GetWebsocketURL(false))
 	}
 	o.Websocket.Conn.SetupPingHandler(stream.PingHandler{
 		Delay:       time.Second * 25,

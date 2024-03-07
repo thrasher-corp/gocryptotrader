@@ -264,7 +264,7 @@ func (by *Bybit) Setup(exch *config.Exchange) error {
 		return err
 	}
 	err = by.Websocket.SetupNewConnection(&stream.ConnectionSetup{
-		URL:                  by.Websocket.GetWebsocketURL(),
+		URL:                  wsRunningEndpoint,
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     bybitWebsocketTimer,
 	})

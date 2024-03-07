@@ -80,7 +80,7 @@ func (g *Gateio) WsDeliveryFuturesConnect() error {
 	go g.wsFunnelDeliveryFuturesConnectionData(g.Websocket.AuthConn)
 	if g.Verbose {
 		log.Debugf(log.ExchangeSys, "successful connection to %v\n",
-			g.Websocket.GetWebsocketURL())
+			g.Websocket.GetWebsocketURL(false))
 	}
 	pingMessage, err := json.Marshal(WsInput{
 		ID:      g.Websocket.Conn.GenerateMessageID(false),

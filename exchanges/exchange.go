@@ -1888,13 +1888,15 @@ func Bootstrap(ctx context.Context, b IBotExchange) error {
 
 	if b.IsVerbose() {
 		if b.GetSupportedFeatures().Websocket {
-			wsURL := ""
+			wsURL := "(url: %s)"
+			wsAuthURL := "(auth url: %s)"
 			wsEnabled := false
 			if w, err := b.GetWebsocket(); err == nil {
-				wsURL = w.GetWebsocketURL()
+				wsURL = "(url:" + w.GetWebsocketURL(false) + ")"
+				wsAuthURL = "(auth url:" + w.GetWebsocketURL(true) + ")"
 				wsEnabled = w.IsEnabled()
 			}
-			log.Debugf(log.ExchangeSys, "%s Websocket: %s. (url: %s)", b.GetName(), common.IsEnabled(wsEnabled), wsURL)
+			log.Debugf(log.ExchangeSys, "%s Websocket: %s. %s %s", b.GetName(), common.IsEnabled(wsEnabled), wsURL, wsAuthURL)
 		} else {
 			log.Debugf(log.ExchangeSys, "%s Websocket: Unsupported", b.GetName())
 		}

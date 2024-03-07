@@ -213,7 +213,7 @@ func (w *Websocket) SetupNewConnection(c *ConnectionSetup) error {
 		return fmt.Errorf("%w: %w", errConnSetup, errReadMessageErrorsNil)
 	}
 
-	connectionURL := w.GetWebsocketURL()
+	connectionURL := w.GetWebsocketURL(c.Authenticated)
 	if c.URL != "" {
 		connectionURL = c.URL
 	}
@@ -315,6 +315,10 @@ func (w *Websocket) Connect() error {
 		}
 	}
 
+	if w.GenerateSubs == nil {
+		return errors.New("generate subscriptions function not set")
+	}
+
 	subs, err := w.GenerateSubs() // regenerate state on new connection
 	if err != nil {
 		return fmt.Errorf("%s websocket: %w", w.exchangeName, common.AppendError(ErrSubscriptionFailure, err))
@@ -336,21 +340,17 @@ func (w *Websocket) Connect() error {
 // Disable disables the exchange websocket protocol
 // Note that connectionMonitor will be responsible for shutting down the websocket after disabling
 func (w *Websocket) Disable() error {
-	if !w.IsEnabled() {
+	if !w.enabled.CompareAndSwap(true, false) {
 		return fmt.Errorf("%s %w", w.exchangeName, ErrAlreadyDisabled)
 	}
-
-	w.setEnabled(false)
 	return nil
 }
 
 // Enable enables the exchange websocket protocol
 func (w *Websocket) Enable() error {
-	if w.IsConnected() || w.IsEnabled() {
+	if w.IsConnected() || !w.enabled.CompareAndSwap(false, true) {
 		return fmt.Errorf("%s %w", w.exchangeName, errWebsocketAlreadyEnabled)
 	}
-
-	w.setEnabled(true)
 	return w.Connect()
 }
 
@@ -664,62 +664,55 @@ func (w *Websocket) CanUseAuthenticatedWebsocketForWrapper() bool {
 
 // SetWebsocketURL sets websocket URL and can refresh underlying connections
 func (w *Websocket) SetWebsocketURL(url string, auth, reconnect bool) error {
-	defaultVals := url == "" || url == config.WebsocketURLNonDefaultMessage
-	if auth {
-		if defaultVals {
+	if url == "" || url == config.WebsocketURLNonDefaultMessage {
+		if auth {
 			url = w.defaultURLAuth
-		}
-
-		err := checkWebsocketURL(url)
-		if err != nil {
-			return err
-		}
-		w.runningURLAuth = url
-
-		if w.verbose {
-			log.Debugf(log.WebsocketMgr,
-				"%s websocket: setting authenticated websocket URL: %s\n",
-				w.exchangeName,
-				url)
-		}
-
-		if w.AuthConn != nil {
-			w.AuthConn.SetURL(url)
-		}
-	} else {
-		if defaultVals {
+		} else {
 			url = w.defaultURL
-		}
-		err := checkWebsocketURL(url)
-		if err != nil {
-			return err
-		}
-		w.runningURL = url
-
-		if w.verbose {
-			log.Debugf(log.WebsocketMgr,
-				"%s websocket: setting unauthenticated websocket URL: %s\n",
-				w.exchangeName,
-				url)
-		}
-
-		if w.Conn != nil {
-			w.Conn.SetURL(url)
 		}
 	}
 
+	err := checkWebsocketURL(url)
+	if err != nil {
+		return err
+	}
+
+	message := "unauthenticated"
+	var conn Connection
+	if auth {
+		message = "authenticated"
+		conn = w.AuthConn
+	} else {
+		conn = w.Conn
+	}
+	if conn != nil {
+		conn.SetURL(url)
+	}
+
+	if w.verbose {
+		log.Debugf(log.WebsocketMgr, "%s websocket: setting %s websocket URL: %s\n", w.exchangeName, message, url)
+	}
+
 	if w.IsConnected() && reconnect {
-		log.Debugf(log.WebsocketMgr,
-			"%s websocket: flushing websocket connection to %s\n",
-			w.exchangeName,
-			url)
+		log.Debugf(log.WebsocketMgr, "%s websocket: flushing websocket connection to %s\n", w.exchangeName, url)
 		return w.Shutdown()
 	}
 	return nil
 }
 
 // GetWebsocketURL returns the running websocket URL
-func (w *Websocket) GetWebsocketURL() string { return w.runningURL }
+func (w *Websocket) GetWebsocketURL(auth bool) string {
+	if auth {
+		if w.AuthConn == nil {
+			return ""
+		}
+		return w.AuthConn.GetURL()
+	}
+	if w.Conn == nil {
+		return ""
+	}
+	return w.Conn.GetURL()
+}
 
 // SetProxyAddress sets websocket proxy address
 func (w *Websocket) SetProxyAddress(proxyAddr string) error {
@@ -751,7 +744,6 @@ func (w *Websocket) SetProxyAddress(proxyAddr string) error {
 		if err := w.Shutdown(); err != nil {
 			return err
 		}
-		fmt.Println("PEW")
 		return w.Connect()
 	}
 
@@ -761,7 +753,12 @@ func (w *Websocket) SetProxyAddress(proxyAddr string) error {
 }
 
 // GetProxyAddress returns the current websocket proxy
-func (w *Websocket) GetProxyAddress() *url.URL { return w.proxyAddr }
+func (w *Websocket) GetProxyAddress() *url.URL {
+	if w.proxyAddr == nil {
+		return &url.URL{}
+	}
+	return w.proxyAddr
+}
 
 // GetName returns exchange name
 func (w *Websocket) GetName() string { return w.exchangeName }
@@ -928,14 +925,10 @@ func (w *Websocket) GetSubscriptions() []subscription.Subscription {
 }
 
 // SetCanUseAuthenticatedEndpoints sets canUseAuthenticatedEndpoints val in a thread safe manner
-func (w *Websocket) SetCanUseAuthenticatedEndpoints(b bool) {
-	w.canUseAuthenticatedEndpoints.Store(b)
-}
+func (w *Websocket) SetCanUseAuthenticatedEndpoints(b bool) { w.canUseAuthenticatedEndpoints.Store(b) }
 
 // CanUseAuthenticatedEndpoints gets canUseAuthenticatedEndpoints val in a thread safe manner
-func (w *Websocket) CanUseAuthenticatedEndpoints() bool {
-	return w.canUseAuthenticatedEndpoints.Load()
-}
+func (w *Websocket) CanUseAuthenticatedEndpoints() bool { return w.canUseAuthenticatedEndpoints.Load() }
 
 // IsDisconnectionError Determines if the error sent over chan ReadMessageErrors is a disconnection error
 func IsDisconnectionError(err error) bool {
@@ -1011,17 +1004,12 @@ func (w *Websocket) InitialiseConnection(conn Connection, bootstrap func(Connect
 		// will need to create a new dialer and set the proxy on that dialer.
 		// This reduces the shared state.
 		dialer.Proxy = http.ProxyURL(w.proxyAddr)
-		fmt.Println("PROXY!", w.proxyAddr.String())
 	}
-
-	fmt.Println("HELLO DEAR")
 
 	err := conn.Dial(&dialer, nil)
 	if err != nil {
 		return fmt.Errorf("%v connecting websocket: %w", w.exchangeName, err)
 	}
-
-	fmt.Println("HELLO DEAR connected")
 
 	if bootstrap != nil {
 		err = bootstrap(conn)
@@ -1029,8 +1017,6 @@ func (w *Websocket) InitialiseConnection(conn Connection, bootstrap func(Connect
 			return fmt.Errorf("%v bootstrapping websocket connection: %w", w.exchangeName, err)
 		}
 	}
-
-	return nil
 
 	w.Wg.Add(1)
 	go w.listen(conn, handler)

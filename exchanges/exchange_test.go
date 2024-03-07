@@ -208,7 +208,7 @@ func TestSetClientProxyAddress(t *testing.T) {
 		t.Error("SetClientProxyAddress parsed invalid URL")
 	}
 
-	if newBase.Websocket.GetProxyAddress() != "" {
+	if newBase.Websocket.GetProxyAddress().String() != "" {
 		t.Error("SetClientProxyAddress error", err)
 	}
 
@@ -223,7 +223,7 @@ func TestSetClientProxyAddress(t *testing.T) {
 		t.Error("trying to set the same proxy addr should thrown an err for ws")
 	}
 
-	if newBase.Websocket.GetProxyAddress() != "http://www.valid.com" {
+	if newBase.Websocket.GetProxyAddress().String() != "http://www.valid.com" {
 		t.Error("SetClientProxyAddress error", err)
 	}
 }
