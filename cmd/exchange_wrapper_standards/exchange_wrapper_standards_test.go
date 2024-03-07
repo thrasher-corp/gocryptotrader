@@ -574,6 +574,7 @@ type assetPair struct {
 // priorityMethodNames are called before other exchange functions
 var priorityMethodNames = map[string]struct{}{
 	"UpdateTickers":   {}, // Is required before FetchTickers is called
+	"UpdateTicker":    {}, // Is required before FetchTicker is called
 	"UpdateOrderbook": {}, // Is required before FetchOrderbook is called
 }
 
