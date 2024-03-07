@@ -153,3 +153,19 @@ func (s *Subscription) Clone() *Subscription {
 	s.m.RUnlock()
 	return c
 }
+
+// SetPairs does what it says on the tin safely for concurrency
+func (s *Subscription) SetPairs(pairs currency.Pairs) {
+	s.m.Lock()
+	s.Pairs = pairs
+	s.m.Unlock()
+}
+
+// AddPairs does what it says on the tin safely for concurrency
+func (s *Subscription) AddPairs(pairs ...currency.Pair) {
+	s.m.Lock()
+	for _, p := range pairs {
+		s.Pairs = s.Pairs.Add(p)
+	}
+	s.m.Unlock()
+}
