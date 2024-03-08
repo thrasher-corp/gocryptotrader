@@ -415,11 +415,7 @@ func (ku *Kucoin) UpdateOrderbook(ctx context.Context, pair currency.Pair, asset
 	case asset.Futures:
 		ordBook, err = ku.GetFuturesOrderbook(ctx, pair.String())
 	case asset.Spot, asset.Margin:
-		if ku.IsRESTAuthenticationSupported() && ku.AreCredentialsValid(ctx) {
-			ordBook, err = ku.GetOrderbook(ctx, pair.String())
-		} else {
-			ordBook, err = ku.GetPartOrderbook100(ctx, pair.String())
-		}
+		ordBook, err = ku.GetPartOrderbook100(ctx, pair.String())
 	default:
 		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, assetType)
 	}

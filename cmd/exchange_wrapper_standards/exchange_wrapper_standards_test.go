@@ -50,7 +50,6 @@ func TestAllExchangeWrappers(t *testing.T) {
 	for i := range cfg.Exchanges {
 		name := strings.ToLower(cfg.Exchanges[i].Name)
 		t.Run(name+" wrapper tests", func(t *testing.T) {
-			t.Parallel()
 			if common.StringDataContains(unsupportedExchangeNames, name) {
 				t.Skipf("skipping unsupported exchange %v", name)
 			}
@@ -62,7 +61,7 @@ func TestAllExchangeWrappers(t *testing.T) {
 				// rather than skipping tests where execution is blocked, provide an expired
 				// context, so no executions can take place
 				var cancelFn context.CancelFunc
-				ctx, cancelFn = context.WithTimeout(context.Background(), 0)
+				ctx, cancelFn = context.WithTimeout(ctx, 0)
 				cancelFn()
 			}
 			exch, assetPairs := setupExchange(ctx, t, name, cfg)
@@ -197,16 +196,10 @@ func executeExchangeWrapperTests(ctx context.Context, t *testing.T, exch exchang
 
 func handleExchangeWrapperTests(ctx context.Context, t *testing.T, actualExchange reflect.Value, methodNames []string, exch exchange.IBotExchange, assetParams []assetPair, groupTestID string) {
 	t.Helper()
-	if groupTestID == "PRIORITY GROUP" {
-		// Some update requests check for authenticated support, but we don't
-		// want to test them. This will fail fetcher functions in secondary
-		// group.
-		exch.GetBase().API.AuthenticatedSupport = false
-	} else {
-		exch.GetBase().API.AuthenticatedSupport = true
-	}
-
 	t.Run(groupTestID, func(t *testing.T) {
+		if groupTestID != "PRIORITY GROUP" {
+			t.Parallel()
+		}
 		for x := range methodNames {
 			method := actualExchange.MethodByName(methodNames[x])
 
