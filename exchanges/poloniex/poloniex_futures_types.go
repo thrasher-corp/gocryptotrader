@@ -87,3 +87,57 @@ type TickerInfo struct {
 	TradeID      string               `json:"tradeId"`
 	Timestamp    convert.ExchangeTime `json:"ts"`
 }
+
+// TickerDetail represents a ticker detail information.
+type TickerDetail struct {
+	Code string     `json:"code"`
+	Data TickerInfo `json:"data"`
+}
+
+// Orderbook iten detail for a single symbol
+type Orderbook struct {
+	Code string `json:"code"`
+	Data struct {
+		Symbol   string           `json:"symbol"`
+		Sequence int64            `json:"sequence"`
+		Asks     [][]types.Number `json:"asks"`
+		Bids     [][]types.Number `json:"bids"`
+
+		// Added for level2 data.
+		Timestamp convert.ExchangeTime `json:"ts"`
+	} `json:"data"`
+}
+
+// OrderbookChange represents an orderbook change data
+type OrderbookChange struct {
+	Symbol   string `json:"symbol"`
+	Sequence int64  `json:"sequence"`
+	Change   string `json:"change"`
+}
+
+// OrderbookChanges represents a list of orderbook data change
+type OrderbookChanges struct {
+	Code string            `json:"code"`
+	Data []OrderbookChange `json:"data"`
+}
+
+// Level3PullingMessage represents a level 3 orderbook data pulled.
+type Level3PullingMessage struct {
+	Symbol    string               `json:"symbol"`
+	Sequence  int64                `json:"sequence"`
+	Side      string               `json:"side,omitempty"`
+	OrderTime convert.ExchangeTime `json:"orderTime,omitempty"`
+	Size      types.Number         `json:"size,omitempty"`
+	OrderID   string               `json:"orderId"`
+	Price     types.Number         `json:"price,omitempty"`
+	Type      string               `json:"type"`
+	ClientOid string               `json:"clientOid,omitempty"`
+	Timestamp convert.ExchangeTime `json:"ts"`
+	Reason    string               `json:"reason,omitempty"`
+}
+
+// Level3PullingMessageResponse represents response for orderbook level 3 pulled missing data.
+type Level3PullingMessageResponse struct {
+	Code string                 `json:"code"`
+	Data []Level3PullingMessage `json:"data"`
+}

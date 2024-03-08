@@ -1271,6 +1271,46 @@ func TestGetRealTimeTicker(t *testing.T) {
 	result, err := p.GetRealTimeTicker(context.Background(), "BTCUSDTPERP")
 	require.NoError(t, err)
 	assert.NotNil(t, result)
-	val, _ := json.Marshal(result)
-	println(string(val))
+}
+
+func TestGetRealTimeTickersOfSymbols(t *testing.T) {
+	t.Parallel()
+	result, err := p.TestGetRealTimeTickersOfSymbols(context.Background())
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetFullOrderbookLevel2(t *testing.T) {
+	t.Parallel()
+	result, err := p.GetFullOrderbookLevel2(context.Background(), "BTCUSDTPERP")
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetPartialOrderbookLevel2(t *testing.T) {
+	t.Parallel()
+	result, err := p.GetPartialOrderbookLevel2(context.Background(), "BTCUSDTPERP", "depth20")
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestLevel2PullingMessages(t *testing.T) {
+	t.Parallel()
+	result, err := p.Level2PullingMessages(context.Background(), "BTCUSDTPERP", 6, 400)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetFullOrderBookLevel3(t *testing.T) {
+	t.Parallel()
+	result, err := p.GetFullOrderBookLevel3(context.Background(), "BTCUSDTPERP")
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestLevel3PullingMessages(t *testing.T) {
+	t.Parallel()
+	result, err := p.Level3PullingMessages(context.Background())
+	require.NoError(t, err)
+	assert.NotNil(t, result)
 }
