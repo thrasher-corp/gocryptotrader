@@ -1841,8 +1841,8 @@ func (d *Deribit) WSRetrieveUserTradesByCurrencyAndTime(symbol, kind, sorting st
 	return resp, d.SendWSRequest(nonMatchingEPL, getUserTradesByCurrencyAndTime, input, &resp, true)
 }
 
-// WSRetrieveUserTradesByInstrument retrieves user trades sorted by instrument through the websocket connection.
-func (d *Deribit) WSRetrieveUserTradesByInstrument(instrument, sorting string, startSeq, endSeq, count int64, includeOld bool) (*UserTradesData, error) {
+// WsRetrieveUserTradesByInstrument retrieves user trades sorted by instrument through the websocket connection.
+func (d *Deribit) WsRetrieveUserTradesByInstrument(instrument, sorting string, startSeq, endSeq, count int64, includeOld bool) (*UserTradesData, error) {
 	if instrument == "" {
 		return nil, errInvalidInstrumentName
 	}

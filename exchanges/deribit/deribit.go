@@ -1614,7 +1614,7 @@ func (d *Deribit) SubmitSell(ctx context.Context, arg *OrderBuyAndSellParams) (*
 		params.Set("advanced", arg.Advanced)
 	}
 	var resp *PrivateTradeData
-	return resp, d.SendHTTPAuthRequest(ctx, exchange.RestSpotSupplementary, matchingEPL, http.MethodGet, submitSell, params, &resp)
+	return resp, d.SendHTTPAuthRequest(ctx, exchange.RestSpot, matchingEPL, http.MethodGet, submitSell, params, &resp)
 }
 
 // SubmitEdit submits an edit order request
@@ -1923,7 +1923,7 @@ func (d *Deribit) GetOrderHistoryByInstrument(ctx context.Context, instrument st
 		params.Set("include_unfilled", "true")
 	}
 	var resp []OrderData
-	return resp, d.SendHTTPAuthRequest(ctx, exchange.RestSpotSupplementary, nonMatchingEPL, http.MethodGet,
+	return resp, d.SendHTTPAuthRequest(ctx, exchange.RestSpot, nonMatchingEPL, http.MethodGet,
 		getOrderHistoryByInstrument, params, &resp)
 }
 
@@ -1937,7 +1937,7 @@ func (d *Deribit) GetOrderMarginsByID(ctx context.Context, ids []string) ([]Init
 		params.Add("ids[]", ids[a])
 	}
 	var resp []InitialMarginInfo
-	return resp, d.SendHTTPAuthRequest(ctx, exchange.RestSpotSupplementary, nonMatchingEPL, http.MethodGet,
+	return resp, d.SendHTTPAuthRequest(ctx, exchange.RestSpot, nonMatchingEPL, http.MethodGet,
 		getOrderMarginByIDs, params, &resp)
 }
 

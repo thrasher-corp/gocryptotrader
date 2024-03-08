@@ -1339,28 +1339,34 @@ func TestWsRetrieveCustodyAccounts(t *testing.T) {
 
 func TestRemoveAPIKey(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, d)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, d, canManipulateRealOrders)
+	if !canManipulateAPIEndpoints {
+		t.Skip("cannot manipulate API endpoints")
+	}
 	err := d.RemoveAPIKey(context.Background(), 1)
 	assert.NoError(t, err)
 }
 
 func TestWSRemoveAPIKey(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, d)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, d, canManipulateRealOrders)
+	if !canManipulateAPIEndpoints {
+		t.Skip("cannot manipulate API endpoints")
+	}
 	err := d.WSRemoveAPIKey(1)
 	assert.NoError(t, err)
 }
 
 func TestRemoveSubAccount(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, d)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, d, canManipulateRealOrders)
 	err := d.RemoveSubAccount(context.Background(), 1)
 	assert.NoError(t, err)
 }
 
 func TestWSRemoveSubAccount(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, d)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, d, canManipulateRealOrders)
 	err := d.WSRemoveSubAccount(1)
 	assert.NoError(t, err)
 }
@@ -1834,10 +1840,10 @@ func TestGetUserTradesByInstrument(t *testing.T) {
 	assert.NoError(t, err)
 }
 
-func TestWSRetrieveUserTradesByInstrument(t *testing.T) {
+func TestWsRetrieveUserTradesByInstrument(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, d)
-	_, err := d.WSRetrieveUserTradesByInstrument(btcPerpInstrument, "asc", 5, 10, 4, true)
+	_, err := d.WsRetrieveUserTradesByInstrument(btcPerpInstrument, "asc", 5, 10, 4, true)
 	assert.NoError(t, err)
 }
 func TestGetUserTradesByInstrumentAndTime(t *testing.T) {
@@ -2933,6 +2939,9 @@ func TestLogout(t *testing.T) {
 func TestExchangeToken(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, d)
+	if !canManipulateAPIEndpoints {
+		t.Skip("cannot manipulate API endpoints")
+	}
 	_, err := d.ExchangeToken(context.Background(), "1568800656974.1CWcuzUS.MGy49NK4hpTwvR1OYWfpqMEkH4T4oDg4tNIcrM7KdeyxXRcSFqiGzA_D4Cn7mqWocHmlS89FFmUYcmaN2H7lNKKTnhRg5EtrzsFCCiuyN0Wv9y-LbGLV3-Ojv_kbD50FoScQ8BDXS5b_w6Ir1MqEdQ3qFZ3MLcvlPiIgG2BqyJX3ybYnVpIlrVrrdYD1-lkjLcjxOBNJvvUKNUAzkQ",
 		1234)
 	assert.NoError(t, err)
@@ -2941,6 +2950,9 @@ func TestExchangeToken(t *testing.T) {
 func TestWsExchangeToken(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, d)
+	if !canManipulateAPIEndpoints {
+		t.Skip("cannot manipulate API endpoints")
+	}
 	_, err := d.WsExchangeToken("1568800656974.1CWcuzUS.MGy49NK4hpTwvR1OYWfpqMEkH4T4oDg4tNIcrM7KdeyxXRcSFqiGzA_D4Cn7mqWocHmlS89FFmUYcmaN2H7lNKKTnhRg5EtrzsFCCiuyN0Wv9y-LbGLV3-Ojv_kbD50FoScQ8BDXS5b_w6Ir1MqEdQ3qFZ3MLcvlPiIgG2BqyJX3ybYnVpIlrVrrdYD1-lkjLcjxOBNJvvUKNUAzkQ",
 		1234)
 	assert.NoError(t, err)
@@ -2948,13 +2960,19 @@ func TestWsExchangeToken(t *testing.T) {
 func TestForkToken(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, d)
+	if !canManipulateAPIEndpoints {
+		t.Skip("cannot manipulate API endpoints")
+	}
 	_, err := d.ForkToken(context.Background(), "1568800656974.1CWcuzUS.MGy49NK4hpTwvR1OYWfpqMEkH4T4oDg4tNIcrM7KdeyxXRcSFqiGzA_D4Cn7mqWocHmlS89FFmUYcmaN2H7lNKKTnhRg5EtrzsFCCiuyN0Wv9y-LbGLV3-Ojv_kbD50FoScQ8BDXS5b_w6Ir1MqEdQ3qFZ3MLcvlPiIgG2BqyJX3ybYnVpIlrVrrdYD1-lkjLcjxOBNJvvUKNUAzkQ", "Sami")
 	assert.NoError(t, err)
 }
 
 func TestWsForkToken(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, d)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, d, canManipulateRealOrders)
+	if !canManipulateAPIEndpoints {
+		t.Skip("cannot manipulate API endpoints")
+	}
 	_, err := d.WsForkToken("1568800656974.1CWcuzUS.MGy49NK4hpTwvR1OYWfpqMEkH4T4oDg4tNIcrM7KdeyxXRcSFqiGzA_D4Cn7mqWocHmlS89FFmUYcmaN2H7lNKKTnhRg5EtrzsFCCiuyN0Wv9y-LbGLV3-Ojv_kbD50FoScQ8BDXS5b_w6Ir1MqEdQ3qFZ3MLcvlPiIgG2BqyJX3ybYnVpIlrVrrdYD1-lkjLcjxOBNJvvUKNUAzkQ", "Sami")
 	require.NoError(t, err)
 }
