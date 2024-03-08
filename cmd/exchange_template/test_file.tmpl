@@ -36,6 +36,7 @@ func TestMain(m *testing.M) {
 	{{ if .WS }} exchCfg.API.AuthenticatedWebsocketSupport = true {{ end }}
 	exchCfg.API.Credentials.Key = apiKey
 	exchCfg.API.Credentials.Secret = apiSecret
+	exchCfg.Enabled = true
 
 	err = {{.Variable}}.Setup(exchCfg)
 	if err != nil {
