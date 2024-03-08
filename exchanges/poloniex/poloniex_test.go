@@ -1314,3 +1314,66 @@ func TestLevel3PullingMessages(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
+
+func TestGetTransactionHistory(t *testing.T) {
+	t.Parallel()
+	result, err := p.GetTransactionHistory(context.Background(), "BTCUSDTPERP")
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetInterestRateList(t *testing.T) {
+	t.Parallel()
+	result, err := p.GetInterestRateList(context.Background(), "BTCUSDTPERP", time.Time{}, time.Now(), false, true, 20)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetIndexList(t *testing.T) {
+	t.Parallel()
+	result, err := p.GetIndexList(context.Background(), "BTCUSDTPERP", time.Time{}, time.Now(), false, true, 20)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetCurrentMarkPrice(t *testing.T) {
+	t.Parallel()
+	result, err := p.GetCurrentMarkPrice(context.Background(), "BTCUSDTPERP")
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetPremiumIndex(t *testing.T) {
+	t.Parallel()
+	result, err := p.GetPremiumIndex(context.Background(), "BTCUSDTPERP", time.Time{}, time.Now(), false, true, 20)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetCurrentFundingRate(t *testing.T) {
+	t.Parallel()
+	result, err := p.GetCurrentFundingRate(context.Background(), "BTCUSDTPERP")
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetFuturesServerTime(t *testing.T) {
+	t.Parallel()
+	result, err := p.GetFuturesServerTime(context.Background())
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetServiceStatus(t *testing.T) {
+	t.Parallel()
+	result, err := p.GetServiceStatus(context.Background())
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetKlineDataOfContract(t *testing.T) {
+	t.Parallel()
+	result, err := p.GetKlineDataOfContract(context.Background(), "BTCUSDTPERP", 123, time.Time{}, time.Now())
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}

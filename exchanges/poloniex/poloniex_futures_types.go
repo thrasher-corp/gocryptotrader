@@ -1,6 +1,8 @@
 package poloniex
 
 import (
+	"time"
+
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
@@ -140,4 +142,102 @@ type Level3PullingMessage struct {
 type Level3PullingMessageResponse struct {
 	Code string                 `json:"code"`
 	Data []Level3PullingMessage `json:"data"`
+}
+
+// TransactionHistory represents a trades for a symbol.
+type TransactionHistory struct {
+	Code string `json:"code"`
+	Data []struct {
+		Sequence     int64                `json:"sequence"`
+		Side         string               `json:"side"`
+		Size         types.Number         `json:"size"`
+		Price        types.Number         `json:"price"`
+		TakerOrderID string               `json:"takerOrderId"`
+		MakerOrderID string               `json:"makerOrderId"`
+		TradeID      string               `json:"tradeId"`
+		Timestamp    convert.ExchangeTime `json:"ts"`
+	} `json:"data"`
+}
+
+// IndexInfo represents an interest rate detail.
+type IndexInfo struct {
+	DataList []struct {
+		Symbol      string  `json:"symbol"`
+		Granularity int     `json:"granularity"`
+		TimePoint   int64   `json:"timePoint"`
+		Value       float64 `json:"value"`
+
+		DecomposionList []struct {
+			Exchange string  `json:"exchange"`
+			Price    float64 `json:"price"`
+			Weight   float64 `json:"weight"`
+		} `json:"decomposionList"`
+	} `json:"dataList"`
+	HasMore bool `json:"hasMore"`
+}
+
+// MarkPriceDetail represents the current mark price.
+type MarkPriceDetail struct {
+	Symbol      string               `json:"symbol"`
+	Granularity int64                `json:"granularity"`
+	TimePoint   convert.ExchangeTime `json:"timePoint"`
+	MarkPrice   float64              `json:"value"`
+	IndexPrice  float64              `json:"indexPrice"`
+}
+
+// FundingRate represents a funding rate response.
+type FundingRate struct {
+	Symbol         string               `json:"symbol"`
+	Granularity    int64                `json:"granularity"`
+	TimePoint      convert.ExchangeTime `json:"timePoint"`
+	Value          float64              `json:"value"`
+	PredictedValue float64              `json:"predictedValue"`
+}
+
+// ServerTimeResponse represents a server time response.
+type ServerTimeResponse struct {
+	Code string               `json:"code"`
+	Msg  string               `json:"msg"`
+	Data convert.ExchangeTime `json:"data"`
+}
+
+// ServiceStatus represents system service status response.
+type ServiceStatus struct {
+	Code string `json:"code"`
+	Data struct {
+		Status  string `json:"status"` //open, close, cancelonly
+		Message string `json:"msg"`    //remark for operation
+	} `json:"data"`
+}
+
+// KlineChartResponse represents K chart.
+type KlineChartResponse struct {
+	Code string      `json:"code"`
+	Data [][]float64 `json:"data"`
+}
+
+// ExtractKlineChart converts the []float64 data into klineChartData instance.
+func (a *KlineChartResponse) ExtractKlineChart() []KlineChartData {
+	chart := make([]KlineChartData, len(a.Data))
+	for i := range a.Data {
+		chart[i] = KlineChartData{
+			Timestamp:     time.UnixMilli(int64(a.Data[i][0])),
+			EntryPrice:    a.Data[i][1],
+			HighestPrice:  a.Data[i][2],
+			LowestPrice:   a.Data[i][3],
+			ClosePrice:    a.Data[i][4],
+			TradingVolume: a.Data[i][5],
+		}
+	}
+	return chart
+}
+
+// KLineChartData represents K chart.
+type KlineChartData struct {
+	Timestamp     time.Time
+	EntryPrice    float64
+	HighestPrice  float64
+	LowestPrice   float64
+	ClosePrice    float64
+	TradingVolume float64
 }

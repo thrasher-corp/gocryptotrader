@@ -636,6 +636,86 @@
     }
    ]
   },
+  "/api/v1/funding-rate/BTCUSDTPERP/current": {
+   "GET": [
+    {
+     "data": {
+      "code": "200000",
+      "data": {
+       "granularity": 28800000,
+       "predictedValue": 0.000122,
+       "symbol": ".BTCUSDTPERPFPI8H",
+       "timePoint": 1709928000000,
+       "value": 0.00042
+      }
+     },
+     "queryString": "",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/api/v1/kline/query": {
+   "GET": [
+    {
+     "data": {
+      "code": "300000",
+      "msg": "Unsupported granularity"
+     },
+     "queryString": "granularity=123\u0026symbol=BTCUSDTPERP\u0026to=1709940841411",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/api/v1/mark-price/BTCUSDTPERP/current": {
+   "GET": [
+    {
+     "data": {
+      "code": "200000",
+      "data": {
+       "granularity": 1000,
+       "indexPrice": 68189.6,
+       "symbol": "BTCUSDTPERP",
+       "timePoint": 1709941046000,
+       "value": 68205.29
+      }
+     },
+     "queryString": "",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/api/v1/status": {
+   "GET": [
+    {
+     "data": {
+      "code": "200000",
+      "data": {
+       "msg": "",
+       "status": "open"
+      }
+     },
+     "queryString": "",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/api/v1/timestamp": {
+   "GET": [
+    {
+     "data": {
+      "code": "200000",
+      "data": 1709940888105
+     },
+     "queryString": "",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
   "/currencies": {
    "GET": [
     {

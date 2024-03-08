@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net/url"
 	"strconv"
+	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -109,4 +110,120 @@ func (p *Poloniex) GetFullOrderBookLevel3(ctx context.Context, symbol string) (*
 func (p *Poloniex) Level3PullingMessages(ctx context.Context) (*Level3PullingMessageResponse, error) {
 	var resp *Level3PullingMessageResponse
 	return resp, p.SendHTTPRequest(ctx, exchange.RestFutures, unauthEPL, "/v2/level3/snapshot", &resp)
+}
+
+// ----------------------------------------------------   Historical Data  ---------------------------------------------------------------
+
+// GetTransactionHistory list the last 100 trades for a symbol.
+func (p *Poloniex) GetTransactionHistory(ctx context.Context, symbol string) (*TransactionHistory, error) {
+	if symbol == "" {
+		return nil, currency.ErrSymbolStringEmpty
+	}
+	var resp *TransactionHistory
+	return resp, p.SendHTTPRequest(ctx, exchange.RestFutures, unauthEPL, "/v1/trade/history?symbol="+symbol, &resp)
+}
+
+func (p *Poloniex) populateIndexParams(symbol string, startAt, endAt time.Time, reverse, forward bool, maxCount int64) url.Values {
+	params := url.Values{}
+	if symbol != "" {
+		params.Set("symbol", symbol)
+	}
+	if !startAt.IsZero() {
+		params.Set("startAt", strconv.FormatInt(startAt.UnixMilli(), 10))
+	}
+	if !endAt.IsZero() {
+		params.Set("endAt", strconv.FormatInt(endAt.UnixMilli(), 10))
+	}
+	if reverse {
+		params.Set("reverse", "true")
+	}
+	if forward {
+		params.Set("forward", "true")
+	}
+	if maxCount > 0 {
+		params.Set("maxCount", strconv.FormatInt(maxCount, 10))
+	}
+	return params
+}
+
+// GetInterestRateList retrieves interest rate list.
+func (p *Poloniex) GetInterestRateList(ctx context.Context, symbol string, startAt, endAt time.Time, reverse, forward bool, maxCount int64) (*IndexInfo, error) {
+	params := p.populateIndexParams(symbol, startAt, endAt, reverse, forward, maxCount)
+	var resp *IndexInfo
+	return resp, p.SendHTTPRequest(ctx, exchange.RestFutures, unauthEPL, common.EncodeURLValues("/v1/interest/query", params), &resp)
+}
+
+// GetIndexList check index list
+func (p *Poloniex) GetIndexList(ctx context.Context, symbol string, startAt, endAt time.Time, reverse, forward bool, maxCount int64) (*IndexInfo, error) {
+	if symbol == "" {
+		return nil, currency.ErrSymbolStringEmpty
+	}
+	params := p.populateIndexParams(symbol, startAt, endAt, reverse, forward, maxCount)
+	var resp *IndexInfo
+	return resp, p.SendHTTPRequest(ctx, exchange.RestFutures, unauthEPL, common.EncodeURLValues("/v1/index/query", params), &resp)
+}
+
+// GetCurrentMarkPrice retrieves the current mark price.
+func (p *Poloniex) GetCurrentMarkPrice(ctx context.Context, symbol string) (*MarkPriceDetail, error) {
+	if symbol == "" {
+		return nil, currency.ErrSymbolStringEmpty
+	}
+	var resp *MarkPriceDetail
+	return resp, p.SendHTTPRequest(ctx, exchange.RestFutures, unauthEPL, "/v1/mark-price/"+symbol+"/current", &resp)
+}
+
+// GetPremiumIndex request to get premium index.
+func (p *Poloniex) GetPremiumIndex(ctx context.Context, symbol string, startAt, endAt time.Time, reverse, forward bool, maxCount int64) (*IndexInfo, error) {
+	if symbol == "" {
+		return nil, currency.ErrSymbolStringEmpty
+	}
+	params := p.populateIndexParams(symbol, startAt, endAt, reverse, forward, maxCount)
+	var resp *IndexInfo
+	return resp, p.SendHTTPRequest(ctx, exchange.RestSpot, unauthEPL, common.EncodeURLValues("/v1/premium/query", params), &resp)
+}
+
+// GetCurrentFundingRate request to check the current mark price.
+func (p *Poloniex) GetCurrentFundingRate(ctx context.Context, symbol string) (*FundingRate, error) {
+	if symbol == "" {
+		return nil, currency.ErrSymbolStringEmpty
+	}
+	var resp *FundingRate
+	return resp, p.SendHTTPRequest(ctx, exchange.RestFutures, unauthEPL, "/v1/funding-rate/"+symbol+"/current", &resp)
+}
+
+// GetFuturesServerTime get the API server time. This is the Unix timestamp.
+func (p *Poloniex) GetFuturesServerTime(ctx context.Context) (*ServerTimeResponse, error) {
+	var resp *ServerTimeResponse
+	return resp, p.SendHTTPRequest(ctx, exchange.RestFutures, unauthEPL, "/v1/timestamp", &resp)
+}
+
+// GetServiceStatus the service status.
+func (p *Poloniex) GetServiceStatus(ctx context.Context) (*ServiceStatus, error) {
+	var resp *ServiceStatus
+	return resp, p.SendHTTPRequest(ctx, exchange.RestFutures, unauthEPL, "/v1/status", &resp)
+}
+
+// GetKlineDataOfContract retrieves candlestick information
+func (p *Poloniex) GetKlineDataOfContract(ctx context.Context, symbol string, granularity int64, from, to time.Time) ([]KlineChartData, error) {
+	if symbol == "" {
+		return nil, currency.ErrSymbolStringEmpty
+	}
+	if granularity == 0 {
+		return nil, errors.New("granularity is required")
+	}
+	params := url.Values{}
+	params.Set("symbol", symbol)
+	params.Set("granularity", strconv.FormatInt(granularity, 10))
+	if !from.IsZero() {
+		params.Set("from", strconv.FormatInt(from.UnixMilli(), 10))
+	}
+	if !to.IsZero() {
+		params.Set("to", strconv.FormatInt(to.UnixMilli(), 10))
+	}
+	var resp *KlineChartResponse
+	err := p.SendHTTPRequest(ctx, exchange.RestFutures, unauthEPL, common.EncodeURLValues("/v1/kline/query", params), &resp)
+	if err != nil {
+		return nil, err
+	}
+	return resp.ExtractKlineChart(), nil
 }
