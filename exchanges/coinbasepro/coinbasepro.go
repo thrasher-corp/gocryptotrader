@@ -24,7 +24,6 @@ import (
 const (
 	coinbaseAPIURL             = "https://api.coinbase.com"
 	coinbaseproSandboxAPIURL   = "https://api-public.sandbox.exchange.coinbase.com/"
-	coinbaseproAPIVersion      = "0"
 	coinbaseV3                 = "/api/v3/brokerage/"
 	coinbaseAccounts           = "accounts"
 	coinbaseBestBidAsk         = "best_bid_ask"
