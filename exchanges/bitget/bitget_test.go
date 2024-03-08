@@ -1,10 +1,14 @@
 package bitget
 
 import (
+	"context"
+	"fmt"
 	"log"
 	"os"
 	"testing"
+	"time"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 )
@@ -55,3 +59,8 @@ func TestInterface(t *testing.T) {
 }
 
 // Implement tests for API endpoints below
+func TestQueryAnnouncements(t *testing.T) {
+	resp, err := bi.QueryAnnouncements(context.Background(), "", time.Time{}, time.Time{})
+	assert.NoError(t, err)
+	fmt.Print(resp)
+}
