@@ -256,39 +256,19 @@ type MarginAccounts struct {
 	DebtRatio float64         `json:"debtRatio,string"`
 }
 
-// CurrencyConfigurationResponse currency configuration of cross margin/isolated margin.
-type CurrencyConfigurationResponse struct {
-	Timestamp         int64  `json:"timestamp"`
-	Currency          string `json:"currency"`
-	BorrowMaxAmount   string `json:"borrowMaxAmount"`
-	BuyMaxAmount      string `json:"buyMaxAmount"`
-	HoldMaxAmount     string `json:"holdMaxAmount"`
-	BorrowCoefficient string `json:"borrowCoefficient"`
-	MarginCoefficient string `json:"marginCoefficient"`
-	Precision         int    `json:"precision"`
-	BorrowMinAmount   string `json:"borrowMinAmount"`
-	BorrowMinUnit     string `json:"borrowMinUnit"`
-	BorrowEnabled     bool   `json:"borrowEnabled"`
-
-	Symbol                 string       `json:"symbol,omitempty"`
-	BaseMaxBorrowAmount    types.Number `json:"baseMaxBorrowAmount,omitempty"`
-	QuoteMaxBorrowAmount   types.Number `json:"quoteMaxBorrowAmount,omitempty"`
-	BaseMaxBuyAmount       types.Number `json:"baseMaxBuyAmount,omitempty"`
-	QuoteMaxBuyAmount      types.Number `json:"quoteMaxBuyAmount,omitempty"`
-	BaseMaxHoldAmount      types.Number `json:"baseMaxHoldAmount,omitempty"`
-	QuoteMaxHoldAmount     types.Number `json:"quoteMaxHoldAmount,omitempty"`
-	BasePrecision          float64      `json:"basePrecision,omitempty"`
-	QuotePrecision         float64      `json:"quotePrecision,omitempty"`
-	BaseBorrowCoefficient  string       `json:"baseBorrowCoefficient,omitempty"`
-	QuoteBorrowCoefficient string       `json:"quoteBorrowCoefficient,omitempty"`
-	BaseMarginCoefficient  string       `json:"baseMarginCoefficient,omitempty"`
-	QuoteMarginCoefficient string       `json:"quoteMarginCoefficient,omitempty"`
-	BaseBorrowMinAmount    any          `json:"baseBorrowMinAmount,omitempty"`
-	BaseBorrowMinUnit      any          `json:"baseBorrowMinUnit,omitempty"`
-	QuoteBorrowMinAmount   types.Number `json:"quoteBorrowMinAmount,omitempty"`
-	QuoteBorrowMinUnit     string       `json:"quoteBorrowMinUnit,omitempty"`
-	BaseBorrowEnabled      bool         `json:"baseBorrowEnabled,omitempty"`
-	QuoteBorrowEnabled     bool         `json:"quoteBorrowEnabled,omitempty"`
+// RiskLimitCurrencyConfig currency configuration of cross margin/isolated margin.
+type RiskLimitCurrencyConfig struct {
+	Timestamp         convert.ExchangeTime `json:"timestamp"`
+	Currency          string               `json:"currency"`
+	BorrowMaxAmount   types.Number         `json:"borrowMaxAmount"`
+	BuyMaxAmount      types.Number         `json:"buyMaxAmount"`
+	HoldMaxAmount     types.Number         `json:"holdMaxAmount"`
+	BorrowCoefficient string               `json:"borrowCoefficient"`
+	MarginCoefficient string               `json:"marginCoefficient"`
+	Precision         float64              `json:"precision"`
+	BorrowMinAmount   types.Number         `json:"borrowMinAmount"`
+	BorrowMinUnit     string               `json:"borrowMinUnit"`
+	BorrowEnabled     bool                 `json:"borrowEnabled"`
 }
 
 // MarginRiskLimit stores margin risk limit
@@ -321,6 +301,15 @@ type RepayParam struct {
 type BorrowAndRepaymentOrderResp struct {
 	OrderNo    string  `json:"orderNo"`
 	ActualSize float64 `json:"actualSize"`
+}
+
+// BorrowRepayDetailResponse a full response of borrow and repay order.
+type BorrowRepayDetailResponse struct {
+	CurrentPage int64                   `json:"currentPage"`
+	PageSize    int64                   `json:"pageSize"`
+	TotalNum    int64                   `json:"totalNum"`
+	TotalPage   int64                   `json:"totalPage"`
+	Items       []BorrowRepayDetailItem `json:"items"`
 }
 
 // BorrowRepayDetailItem represents a borrow and repay order detail
@@ -1869,7 +1858,7 @@ type FuturesInterestRateResponse struct {
 
 // TransactionVolume represents a 24 hour transaction volume.
 type TransactionVolume struct {
-	TurnoverOf24H int `json:"turnoverOf24h"`
+	TurnoverOf24Hr float64 `json:"turnoverOf24h"`
 }
 
 // FuturesTransactionHistoryResponse represents a futures transaction history response.

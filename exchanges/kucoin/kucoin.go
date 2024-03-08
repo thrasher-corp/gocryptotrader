@@ -291,7 +291,7 @@ func (ku *Kucoin) GetMarginAccount(ctx context.Context) (*MarginAccounts, error)
 
 // GetCrossIsolatedMarginRiskLimitCurrencyConfig risk limit and currency configuration of cross margin/isolated margin.
 // isIsolated: true - isolated, false - cross ; default false
-func (ku *Kucoin) GetCrossIsolatedMarginRiskLimitCurrencyConfig(ctx context.Context, isIsolated bool, symbol, ccy string) (*CurrencyConfigurationResponse, error) {
+func (ku *Kucoin) GetCrossIsolatedMarginRiskLimitCurrencyConfig(ctx context.Context, isIsolated bool, symbol, ccy string) ([]RiskLimitCurrencyConfig, error) {
 	params := url.Values{}
 	if isIsolated {
 		params.Set("isIsolated", "true")
@@ -304,7 +304,7 @@ func (ku *Kucoin) GetCrossIsolatedMarginRiskLimitCurrencyConfig(ctx context.Cont
 	if ccy != "" {
 		params.Set("currency", ccy)
 	}
-	var resp *CurrencyConfigurationResponse
+	var resp []RiskLimitCurrencyConfig
 	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, crossIsolatedMarginRiskLimitCurrencyConfigEPL, http.MethodGet, common.EncodeURLValues("/v3/margin/currencies", params), nil, &resp)
 }
 
@@ -330,7 +330,7 @@ func (ku *Kucoin) PostMarginBorrowOrder(ctx context.Context, arg *MarginBorrowPa
 func (ku *Kucoin) GetMarginBorrowingHistory(ctx context.Context, ccy currency.Code, isIsolated bool,
 	symbol currency.Pair, orderNo string,
 	startTime, endTime time.Time,
-	currentPage, pageSize int64) ([]BorrowRepayDetailItem, error) {
+	currentPage, pageSize int64) (*BorrowRepayDetailResponse, error) {
 	if ccy.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
@@ -357,7 +357,7 @@ func (ku *Kucoin) GetMarginBorrowingHistory(ctx context.Context, ccy currency.Co
 	if pageSize != 0 {
 		params.Set("pageSize", strconv.FormatInt(pageSize, 10))
 	}
-	var resp []BorrowRepayDetailItem
+	var resp *BorrowRepayDetailResponse
 	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, marginBorrowingHistoryEPL, http.MethodGet, common.EncodeURLValues("/v3/margin/borrow", params), nil, &resp)
 }
 
@@ -380,7 +380,7 @@ func (ku *Kucoin) PostRepayment(ctx context.Context, arg *RepayParam) (*BorrowAn
 func (ku *Kucoin) GetRepaymentHistory(ctx context.Context, ccy currency.Code, isIsolated bool,
 	symbol currency.Pair, orderNo string,
 	startTime, endTime time.Time,
-	currentPage, pageSize int64) ([]BorrowRepayDetailItem, error) {
+	currentPage, pageSize int64) (*BorrowRepayDetailResponse, error) {
 	if ccy.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
@@ -407,7 +407,7 @@ func (ku *Kucoin) GetRepaymentHistory(ctx context.Context, ccy currency.Code, is
 	if pageSize != 0 {
 		params.Set("pageSize", strconv.FormatInt(pageSize, 10))
 	}
-	var resp []BorrowRepayDetailItem
+	var resp *BorrowRepayDetailResponse
 	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, marginRepaymentHistoryEPL, http.MethodGet, common.EncodeURLValues("/v3/margin/repay", params), nil, &resp)
 }
 

@@ -296,6 +296,12 @@ type WithdrawMarginResponse struct {
 	WithdrawAmount float64 `json:"withdrawAmount"`
 }
 
+// MarginRemovingResponse represents a response data for margin response.
+type MarginRemovingResponse struct {
+	Symbol         string  `json:"symbol"`
+	WithdrawAmount float64 `json:"withdrawAmount"`
+}
+
 // FuturesRiskLimitLevel represents futures risk limit level information.
 type FuturesRiskLimitLevel struct {
 	Symbol         string  `json:"symbol"`

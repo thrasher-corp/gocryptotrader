@@ -468,7 +468,7 @@ func TestPostMarginOrderTest(t *testing.T) {
 func TestPostBulkOrder(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ku, canManipulateRealOrders)
-	req := []OrderRequest{
+	_, err := ku.PostBulkOrder(context.Background(), "BTC-USDT", []OrderRequest{
 		{
 			ClientOID: "3d07008668054da6b3cb12e432c2b13a",
 			Side:      "buy",
@@ -483,8 +483,7 @@ func TestPostBulkOrder(t *testing.T) {
 			Price:     1000,
 			Size:      0.01,
 		},
-	}
-	_, err := ku.PostBulkOrder(context.Background(), "BTC-USDT", req)
+	})
 	assert.NoError(t, err)
 }
 
@@ -621,7 +620,6 @@ func TestCancelStopOrderByClientID(t *testing.T) {
 func TestGetAllAccounts(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ku)
-
 	_, err := ku.GetAllAccounts(context.Background(), "", "")
 	assert.NoError(t, err)
 }
@@ -630,7 +628,7 @@ func TestGetAccount(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ku)
 	_, err := ku.GetAccountDetail(context.Background(), "")
-	assert.ErrorIs(t, err, errAccountIDMissing)
+	require.ErrorIs(t, err, errAccountIDMissing)
 	_, err = ku.GetAccountDetail(context.Background(), "62fcd1969474ea0001fd20e4")
 	assert.NoError(t, err)
 }
@@ -645,7 +643,7 @@ func TestGetCrossMarginAccountsDetail(t *testing.T) {
 func TestGetIsolatedMarginAccountDetail(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ku)
-	_, err := ku.GetIsolatedMarginAccountDetail(context.Background(), "BTCUSDT", "BTC", "")
+	_, err := ku.GetIsolatedMarginAccountDetail(context.Background(), "BTC-USDT", "BTC", "")
 	assert.NoError(t, err)
 }
 
@@ -972,7 +970,7 @@ func TestGetFuturesTicker(t *testing.T) {
 		assert.Positive(t, tick.BestAskPrice.Float64(), "BestAskPrice should be positive")
 		assert.Positive(t, tick.BestAskSize, "BestAskSize should be positive")
 		assert.NotEmpty(t, tick.TradeID, "TradeID should not be empty")
-		assert.WithinRange(t, tick.FilledTime.Time(), time.Now().Add(time.Hour*-24), time.Now(), "FilledTime should be within last 24 hours")
+		assert.WithinRange(t, tick.FilledTime.Time(), time.Now().Add(time.Hour*-24), time.Now())
 	}
 }
 
@@ -1130,13 +1128,12 @@ func TestPostFuturesOrderTest(t *testing.T) {
 		ClientOrderID: "5bd6e9286d99522a52e458de",
 		Side:          "buy",
 		Symbol:        futuresTradablePair,
-		OrderType:     "limit",
+		OrderType:     "market",
 		Remark:        "10",
 		Stop:          "",
 		StopPriceType: "",
 		TimeInForce:   "",
 		Size:          1,
-		Price:         1000,
 		StopPrice:     0,
 		Leverage:      0.02,
 		VisibleSize:   0})
@@ -1787,9 +1784,9 @@ func TestGetWithdrawalsHistory(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ku)
 	_, err := ku.GetWithdrawalsHistory(context.Background(), currency.BTC, asset.Futures)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	_, err = ku.GetWithdrawalsHistory(context.Background(), currency.BTC, asset.Spot)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	_, err = ku.GetWithdrawalsHistory(context.Background(), currency.BTC, asset.Margin)
 	assert.ErrorIs(t, err, asset.ErrNotSupported)
 }
@@ -1797,13 +1794,12 @@ func TestGetWithdrawalsHistory(t *testing.T) {
 func TestGetOrderInfo(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ku)
-	var err error
-	_, err = ku.GetOrderInfo(context.Background(), "123", futuresTradablePair, asset.Futures)
-	assert.NoErrorf(t, err, "expected %s, but found %v", "Order does not exist", err)
+	_, err := ku.GetOrderInfo(context.Background(), "123", futuresTradablePair, asset.Futures)
+	require.NoError(t, err)
 	_, err = ku.GetOrderInfo(context.Background(), "123", futuresTradablePair, asset.Spot)
-	assert.NoErrorf(t, err, "expected %s, but found %v", "Order does not exist", err)
+	require.NoError(t, err)
 	_, err = ku.GetOrderInfo(context.Background(), "123", futuresTradablePair, asset.Margin)
-	assert.NoErrorf(t, err, "expected %s, but found %v", "Order does not exist", err)
+	assert.NoError(t, err)
 }
 
 func TestGetDepositAddress(t *testing.T) {
@@ -1816,15 +1812,14 @@ func TestGetDepositAddress(t *testing.T) {
 func TestWithdrawCryptocurrencyFunds(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ku, canManipulateRealOrders)
-	withdrawCryptoRequest := withdraw.Request{
+	_, err := ku.WithdrawCryptocurrencyFunds(context.Background(), &withdraw.Request{
 		Exchange: ku.Name,
 		Amount:   0.00000000001,
 		Currency: currency.BTC,
 		Crypto: withdraw.CryptoRequest{
 			Address: core.BitcoinDonationAddress,
 		},
-	}
-	_, err := ku.WithdrawCryptocurrencyFunds(context.Background(), &withdrawCryptoRequest)
+	})
 	assert.NoError(t, err)
 }
 
@@ -1933,7 +1928,7 @@ func TestCreateSubUser(t *testing.T) {
 func TestGetSubAccountSpotAPIList(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ku)
-	_, err := ku.GetSubAccountSpotAPIList(context.Background(), "sam", "")
+	_, err := ku.GetSubAccountSpotAPIList(context.Background(), "Sam", "")
 	assert.NoError(t, err)
 }
 
@@ -2766,7 +2761,7 @@ func TestGetInterestRate(t *testing.T) {
 
 func TestMarginLendingSubscription(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, ku, canManipulateRealOrders)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, ku)
 	_, err := ku.MarginLendingSubscription(context.Background(), currency.ETH, 1, 0.22)
 	assert.NoError(t, err)
 }

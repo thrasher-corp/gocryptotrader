@@ -18,6 +18,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
+	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
 const (
@@ -251,7 +252,7 @@ func (ku *Kucoin) GetFuturesPremiumIndex(ctx context.Context, symbol string, sta
 // Get24HourFuturesTransactionVolume retrieves a 24 hour transaction volume.
 func (ku *Kucoin) Get24HourFuturesTransactionVolume(ctx context.Context) (*TransactionVolume, error) {
 	var resp *TransactionVolume
-	return resp, ku.SendHTTPRequest(ctx, exchange.RestFutures, futuresTransactionVolumeEPL, "/v1/trade-statistics", &resp)
+	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestFutures, futuresTransactionVolumeEPL, http.MethodGet, "/v1/trade-statistics", nil, &resp)
 }
 
 // GetFuturesCurrentFundingRate get current funding rate
@@ -623,22 +624,22 @@ func (ku *Kucoin) GetMaxWithdrawMargin(ctx context.Context, symbol string) (floa
 	if symbol == "" {
 		return 0, currency.ErrSymbolStringEmpty
 	}
-	var resp float64
-	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestFutures, maxWithdrawMarginEPL, http.MethodGet, "/v1/margin/maxWithdrawMargin?symbol="+symbol, nil, &resp)
+	var resp types.Number
+	return resp.Float64(), ku.SendAuthHTTPRequest(ctx, exchange.RestFutures, maxWithdrawMarginEPL, http.MethodGet, "/v1/margin/maxWithdrawMargin?symbol="+symbol, nil, &resp)
 }
 
 // RemoveMarginManually removes a margin manually
-func (ku *Kucoin) RemoveMarginManually(ctx context.Context, arg *WithdrawMarginResponse) (float64, error) {
+func (ku *Kucoin) RemoveMarginManually(ctx context.Context, arg *WithdrawMarginResponse) (*MarginRemovingResponse, error) {
 	if arg == nil || *arg == (WithdrawMarginResponse{}) {
-		return 0, common.ErrNilPointer
+		return nil, common.ErrNilPointer
 	}
 	if arg.Symbol == "" {
-		return 0, currency.ErrSymbolStringEmpty
+		return nil, currency.ErrSymbolStringEmpty
 	}
 	if arg.WithdrawAmount <= 0 {
-		return 0, fmt.Errorf("%w, withdrawAmount must be greater than 0", order.ErrAmountBelowMin)
+		return nil, fmt.Errorf("%w, withdrawAmount must be greater than 0", order.ErrAmountBelowMin)
 	}
-	var resp float64
+	var resp *MarginRemovingResponse
 	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, removeMarginManuallyEPL, http.MethodPost, "/v1/margin/withdrawMargin", arg, &resp)
 }
 
