@@ -1635,9 +1635,9 @@ func TestPushData(t *testing.T) {
 func verifySubs(tb testing.TB, subs []subscription.Subscription, a asset.Item, prefix string, expected ...string) {
 	tb.Helper()
 	var sub *subscription.Subscription
-	for i, s := range subs {
-		if s.Asset == a && strings.HasPrefix(s.Channel, prefix) {
-			if len(expected) == 1 && !strings.Contains(s.Channel, expected[0]) {
+	for i := range len(subs) {
+		if subs[i].Asset == a && strings.HasPrefix(subs[i].Channel, prefix) {
+			if len(expected) == 1 && !strings.Contains(subs[i].Channel, expected[0]) {
 				continue
 			}
 			if sub != nil {
