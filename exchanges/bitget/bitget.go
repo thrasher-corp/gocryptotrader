@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"net/url"
 	"strconv"
 	"time"
@@ -24,23 +25,44 @@ const (
 
 	// Public endpoints
 	bitgetPublic        = "public"
-	bitgetAnnouncements = "annoucements"
+	bitgetAnnouncements = "annoucements" // sic
+	bitgetTime          = "time"
 
 	// Authenticated endpoints
+	bitgetCommon    = "common"
+	bitgetTradeRate = "trade-rate"
 
 	// Errors
 	errUnknownEndpointLimit = "unknown endpoint limit %v"
 )
 
-func (bi *Bitget) QueryAnnouncements(ctx context.Context, annType string, startTime, endTime time.Time) (AnnResp, error) {
-	var resp AnnResp
-	vals := url.Values{}
-	vals.Set("annType", annType)
-	vals.Set("startTime", strconv.FormatInt(startTime.Unix(), 10))
-	vals.Set("endTime", strconv.FormatInt(endTime.Unix(), 10))
-	vals.Set("language", "en_US")
+func (bi *Bitget) QueryAnnouncements(ctx context.Context, annType string, startTime, endTime time.Time) (*AnnResp, error) {
+	var params Params
+	params.Values = make(url.Values)
+	err := params.prepareDateString(startTime, endTime)
+	if err != nil {
+		return nil, err
+	}
+	params.Values.Set("annType", annType)
+	params.Values.Set("language", "en_US")
 	path := bitgetPublic + "/" + bitgetAnnouncements
-	return resp, bi.SendHTTPRequest(ctx, exchange.RestSpot, bitgetRate20, path, vals, &resp)
+	var resp *AnnResp
+	return resp, bi.SendHTTPRequest(ctx, exchange.RestSpot, bitgetRate20, path, params.Values, &resp)
+}
+
+func (bi *Bitget) GetTime(ctx context.Context) (*TimeResp, error) {
+	var resp *TimeResp
+	path := bitgetPublic + "/" + bitgetTime
+	return resp, bi.SendHTTPRequest(ctx, exchange.RestSpot, bitgetRate20, path, nil, &resp)
+}
+
+func (bi *Bitget) GetTradeRate(ctx context.Context, symbol, businessType string) (*TradeRateResp, error) {
+	var resp *TradeRateResp
+	vals := url.Values{}
+	vals.Set("symbol", symbol)
+	vals.Set("businessType", businessType)
+	path := bitgetCommon + "/" + bitgetTradeRate
+	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, bitgetRate20, "GET", path, vals, nil, &resp)
 }
 
 // SendAuthenticatedHTTPRequest sends an authenticated HTTP request
@@ -110,4 +132,43 @@ func (bi *Bitget) SendHTTPRequest(ctx context.Context, ep exchange.URL, rateLim 
 		}, nil
 	}
 	return bi.SendPayload(ctx, rateLim, newRequest, request.UnauthenticatedRequest)
+}
+
+// PrepareDateString encodes a set of parameters indicating start & end dates
+func (p *Params) prepareDateString(startDate, endDate time.Time) error {
+	err := common.StartEndTimeCheck(startDate, endDate)
+	if err != nil {
+		if errors.Is(err, common.ErrDateUnset) {
+			return nil
+		}
+		return err
+	}
+	p.Values.Set("startTime", strconv.FormatInt(startDate.UnixMilli(), 10))
+	p.Values.Set("endTime", strconv.FormatInt(endDate.UnixMilli(), 10))
+	return nil
+}
+
+// UnmarshalJSON unmarshals the JSON input into a UnixTimestamp type
+func (t *UnixTimestamp) UnmarshalJSON(b []byte) error {
+	var timestampStr string
+	err := json.Unmarshal(b, &timestampStr)
+	if err != nil {
+		return err
+	}
+	timestamp, err := strconv.ParseInt(timestampStr, 10, 64)
+	if err != nil {
+		return err
+	}
+	*t = UnixTimestamp(time.UnixMilli(timestamp).UTC())
+	return nil
+}
+
+// String implements the stringer interface
+func (t *UnixTimestamp) String() string {
+	return t.Time().String()
+}
+
+// Time returns the time.Time representation of the UnixTimestamp
+func (t *UnixTimestamp) Time() time.Time {
+	return time.Time(*t)
 }

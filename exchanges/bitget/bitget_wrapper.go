@@ -51,6 +51,7 @@ func (bi *Bitget) SetDefaults() {
 	bi.Verbose = true
 	bi.API.CredentialsValidator.RequiresKey = true
 	bi.API.CredentialsValidator.RequiresSecret = true
+	bi.API.CredentialsValidator.RequiresClientID = true
 
 	// If using only one pair format for request and configuration, across all
 	// supported asset types either SPOT and FUTURES etc. You can use the
@@ -233,33 +234,33 @@ func (bi *Bitget) UpdateTicker(ctx context.Context, p currency.Pair, assetType a
 func (bi *Bitget) UpdateTickers(ctx context.Context, assetType asset.Item) error {
 	// NOTE: EXAMPLE FOR GETTING TICKER PRICE
 	/*
-		tick, err := bi.GetTickers()
-		if err != nil {
-			return err
-		}
-	    for y := range tick {
-	        cp, err := currency.NewPairFromString(tick[y].Symbol)
-	        if err != nil {
-	            return err
-	        }
-	        err = ticker.ProcessTicker(&ticker.Price{
-	            Last:         tick[y].LastPrice,
-	            High:         tick[y].HighPrice,
-	            Low:          tick[y].LowPrice,
-	            Bid:          tick[y].BidPrice,
-	            Ask:          tick[y].AskPrice,
-	            Volume:       tick[y].Volume,
-	            QuoteVolume:  tick[y].QuoteVolume,
-	            Open:         tick[y].OpenPrice,
-	            Close:        tick[y].PrevClosePrice,
-	            Pair:         cp,
-	            ExchangeName: b.Name,
-	            AssetType:    assetType,
-	        })
-	        if err != nil {
-	            return err
-	        }
-	    }
+			tick, err := bi.GetTickers()
+			if err != nil {
+				return err
+			}
+		    for y := range tick {
+		        cp, err := currency.NewPairFromString(tick[y].Symbol)
+		        if err != nil {
+		            return err
+		        }
+		        err = ticker.ProcessTicker(&ticker.Price{
+		            Last:         tick[y].LastPrice,
+		            High:         tick[y].HighPrice,
+		            Low:          tick[y].LowPrice,
+		            Bid:          tick[y].BidPrice,
+		            Ask:          tick[y].AskPrice,
+		            Volume:       tick[y].Volume,
+		            QuoteVolume:  tick[y].QuoteVolume,
+		            Open:         tick[y].OpenPrice,
+		            Close:        tick[y].PrevClosePrice,
+		            Pair:         cp,
+		            ExchangeName: b.Name,
+		            AssetType:    assetType,
+		        })
+		        if err != nil {
+		            return err
+		        }
+		    }
 	*/
 	return nil
 }

@@ -2,13 +2,13 @@ package bitget
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"os"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 )
@@ -41,16 +41,19 @@ func TestMain(m *testing.M) {
 	exchCfg.API.AuthenticatedWebsocketSupport = true
 	exchCfg.API.Credentials.Key = apiKey
 	exchCfg.API.Credentials.Secret = apiSecret
+	exchCfg.API.Credentials.ClientID = clientID
+	exchCfg.Enabled = true
 
 	err = bi.Setup(exchCfg)
 	if err != nil {
 		log.Fatal(err)
 	}
 
+	bi.Verbose = true
+
 	os.Exit(m.Run())
 }
 
-// Ensures that this exchange package is compatible with IBotExchange
 func TestInterface(t *testing.T) {
 	var e exchange.IBotExchange
 	if e = new(Bitget); e == nil {
@@ -58,9 +61,19 @@ func TestInterface(t *testing.T) {
 	}
 }
 
-// Implement tests for API endpoints below
 func TestQueryAnnouncements(t *testing.T) {
-	resp, err := bi.QueryAnnouncements(context.Background(), "", time.Time{}, time.Time{})
+	_, err := bi.QueryAnnouncements(context.Background(), "", time.Now().Add(time.Hour), time.Now())
+	assert.ErrorIs(t, err, common.ErrStartAfterEnd)
+	_, err = bi.QueryAnnouncements(context.Background(), "latest_news", time.Time{}, time.Time{})
 	assert.NoError(t, err)
-	fmt.Print(resp)
+}
+
+func TestGetTime(t *testing.T) {
+	_, err := bi.GetTime(context.Background())
+	assert.NoError(t, err)
+}
+
+func TestGetTradeRate(t *testing.T) {
+	_, err := bi.GetTradeRate(context.Background(), "BTCUSD", "spot")
+	assert.NoError(t, err)
 }
