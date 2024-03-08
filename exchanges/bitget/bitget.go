@@ -29,17 +29,25 @@ const (
 	bitgetTime          = "time"
 
 	// Authenticated endpoints
-	bitgetCommon    = "common"
-	bitgetTradeRate = "trade-rate"
+	bitgetCommon     = "common"
+	bitgetTradeRate  = "trade-rate"
+	bitgetTax        = "tax"
+	bitgetSpotRecord = "spot-record"
 
 	// Errors
 	errUnknownEndpointLimit = "unknown endpoint limit %v"
 )
 
+var (
+	errBusinessTypeEmpty = errors.New("businessType cannot be empty")
+	errPairEmpty         = errors.New("currency pair cannot be empty")
+)
+
+// QueryAnnouncement returns announcements from the exchange, filtered by type and time
 func (bi *Bitget) QueryAnnouncements(ctx context.Context, annType string, startTime, endTime time.Time) (*AnnResp, error) {
 	var params Params
 	params.Values = make(url.Values)
-	err := params.prepareDateString(startTime, endTime)
+	err := params.prepareDateString(startTime, endTime, true)
 	if err != nil {
 		return nil, err
 	}
@@ -50,19 +58,43 @@ func (bi *Bitget) QueryAnnouncements(ctx context.Context, annType string, startT
 	return resp, bi.SendHTTPRequest(ctx, exchange.RestSpot, bitgetRate20, path, params.Values, &resp)
 }
 
+// GetTime returns the server's time
 func (bi *Bitget) GetTime(ctx context.Context) (*TimeResp, error) {
 	var resp *TimeResp
 	path := bitgetPublic + "/" + bitgetTime
 	return resp, bi.SendHTTPRequest(ctx, exchange.RestSpot, bitgetRate20, path, nil, &resp)
 }
 
-func (bi *Bitget) GetTradeRate(ctx context.Context, symbol, businessType string) (*TradeRateResp, error) {
-	var resp *TradeRateResp
+// GetTradeRate returns the fees the user would face for trading a given symbol
+func (bi *Bitget) GetTradeRate(ctx context.Context, pair, businessType string) (*TradeRateResp, error) {
+	if pair == "" {
+		return nil, errPairEmpty
+	}
+	if businessType == "" {
+		return nil, errBusinessTypeEmpty
+	}
 	vals := url.Values{}
-	vals.Set("symbol", symbol)
+	vals.Set("symbol", pair)
 	vals.Set("businessType", businessType)
 	path := bitgetCommon + "/" + bitgetTradeRate
-	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, bitgetRate20, "GET", path, vals, nil, &resp)
+	var resp *TradeRateResp
+	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, bitgetRate10, "GET", path, vals, nil, &resp)
+}
+
+// GetSpotTransactionRecords returns the user's spot transaction records
+func (bi *Bitget) GetSpotTransactionRecords(ctx context.Context, currency string, startTime, endTime time.Time, limit, pagination int64) (*SpotTrResp, error) {
+	var params Params
+	params.Values = make(url.Values)
+	err := params.prepareDateString(startTime, endTime, false)
+	if err != nil {
+		return nil, err
+	}
+	params.Values.Set("coin", currency)
+	params.Values.Set("limit", strconv.FormatInt(limit, 10))
+	params.Values.Set("idLessThan", strconv.FormatInt(pagination, 10))
+	path := bitgetTax + "/" + bitgetSpotRecord
+	var resp *SpotTrResp
+	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, bitgetRate10, "GET", path, params.Values, nil, &resp)
 }
 
 // SendAuthenticatedHTTPRequest sends an authenticated HTTP request
@@ -85,7 +117,7 @@ func (bi *Bitget) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.
 		}
 		path = common.EncodeURLValues(path, queryParams)
 		t := strconv.FormatInt(time.Now().UnixMilli(), 10)
-		message := t + method + path + string(payload)
+		message := t + method + "/api/v2/" + path + string(payload)
 		// The exchange also supports user-generated RSA keys, but we haven't implemented that yet
 		var hmac []byte
 		hmac, err = crypto.GetHMAC(crypto.HashSHA256, []byte(message), []byte(creds.Secret))
@@ -135,10 +167,10 @@ func (bi *Bitget) SendHTTPRequest(ctx context.Context, ep exchange.URL, rateLim 
 }
 
 // PrepareDateString encodes a set of parameters indicating start & end dates
-func (p *Params) prepareDateString(startDate, endDate time.Time) error {
+func (p *Params) prepareDateString(startDate, endDate time.Time, ignoreUnset bool) error {
 	err := common.StartEndTimeCheck(startDate, endDate)
 	if err != nil {
-		if errors.Is(err, common.ErrDateUnset) {
+		if errors.Is(err, common.ErrDateUnset) && ignoreUnset {
 			return nil
 		}
 		return err

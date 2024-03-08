@@ -2,6 +2,7 @@ package bitget
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"os"
 	"testing"
@@ -11,6 +12,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 )
 
 // Please supply your own keys here to do authenticated endpoint testing
@@ -64,16 +66,32 @@ func TestInterface(t *testing.T) {
 func TestQueryAnnouncements(t *testing.T) {
 	_, err := bi.QueryAnnouncements(context.Background(), "", time.Now().Add(time.Hour), time.Now())
 	assert.ErrorIs(t, err, common.ErrStartAfterEnd)
-	_, err = bi.QueryAnnouncements(context.Background(), "latest_news", time.Time{}, time.Time{})
+	resp, err := bi.QueryAnnouncements(context.Background(), "latest_news", time.Time{}, time.Time{})
 	assert.NoError(t, err)
+	assert.NotEmpty(t, resp)
 }
 
 func TestGetTime(t *testing.T) {
-	_, err := bi.GetTime(context.Background())
+	resp, err := bi.GetTime(context.Background())
 	assert.NoError(t, err)
+	assert.NotEmpty(t, resp)
 }
 
 func TestGetTradeRate(t *testing.T) {
-	_, err := bi.GetTradeRate(context.Background(), "BTCUSD", "spot")
+	_, err := bi.GetTradeRate(context.Background(), "", "")
+	assert.ErrorIs(t, err, errPairEmpty)
+	_, err = bi.GetTradeRate(context.Background(), "BTCUSDT", "")
+	assert.ErrorIs(t, err, errBusinessTypeEmpty)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
+	resp, err := bi.GetTradeRate(context.Background(), "BTCUSDT", "spot")
 	assert.NoError(t, err)
+	assert.NotEmpty(t, resp)
+}
+
+func TestGetSpotTransactionRecords(t *testing.T) {
+	_, err := bi.GetSpotTransactionRecords(context.Background(), "", time.Time{}, time.Time{}, 0, 0)
+	assert.ErrorIs(t, err, common.ErrDateUnset)
+	resp, err := bi.GetSpotTransactionRecords(context.Background(), "", time.Now().Add(-time.Hour*24*30), time.Now(), 500, -5)
+	assert.NoError(t, err)
+	fmt.Print(resp)
 }

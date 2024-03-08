@@ -39,3 +39,16 @@ type TradeRateResp struct {
 		TakerFeeRate float64 `json:"takerFeeRate,string"`
 	} `json:"data"`
 }
+
+// SpotTrResp holds information on spot transactions
+type SpotTrResp struct {
+	Data []struct {
+		ID          int16         `json:"id"`
+		Coin        string        `json:"coin"`
+		SpotTaxType string        `json:"spotTaxType"`
+		Amount      float64       `json:"amount,string"`
+		Fee         float64       `json:"fee,string"`
+		Balance     float64       `json:"balance,string"`
+		Timestamp   UnixTimestamp `json:"ts"`
+	} `json:"data"`
+}
