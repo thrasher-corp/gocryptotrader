@@ -140,3 +140,185 @@ type P2PMerInfoResp struct {
 		Mobile              string        `json:"mobile"`
 	} `json:"data"`
 }
+
+// P2POrdersResp holds information on P2P orders
+type P2POrdersResp struct {
+	Data struct {
+		OrderList []struct {
+			OrderID        int64         `json:"orderId,string"`
+			OrderNum       int64         `json:"orderNo,string"`
+			AdvNum         int64         `json:"advNo,string"`
+			Side           string        `json:"side"`
+			Count          float64       `json:"count,string"`
+			FiatCurrency   string        `json:"fiat"`
+			CryptoCurrency string        `json:"coin"`
+			Price          float64       `json:"price,string"`
+			WithdrawTime   UnixTimestamp `json:"withdrawTime"`
+			RepresentTime  UnixTimestamp `json:"representTime"`
+			ReleaseTime    UnixTimestamp `json:"releaseTime"`
+			PaymentTime    UnixTimestamp `json:"paymentTime"`
+			Amount         float64       `json:"amount,string"`
+			Status         string        `json:"status"`
+			BuyerRealName  string        `json:"buyerRealName"`
+			SellerRealName string        `json:"sellerRealName"`
+			CreationTime   UnixTimestamp `json:"ctime"`
+			UpdateTime     UnixTimestamp `json:"utime"`
+			PaymentInfo    struct {
+				PayMethodName string `json:"paymethodName"`
+				PayMethodID   string `json:"paymethodId"`
+				PayMethodInfo []struct {
+					Name     string    `json:"name"`
+					Required YesNoBool `json:"required"`
+					Type     string    `json:"type"`
+					Value    string    `json:"value"`
+				} `json:"paymethodInfo"`
+			} `json:"paymentInfo"`
+		} `json:"orderList"`
+		MinOrderID int64 `json:"minOrderId,string"`
+	} `json:"data"`
+}
+
+// P2PAdListResp holds information on P2P advertisements
+type P2PAdListResp struct {
+	Data struct {
+		AdList []struct {
+			AdID            int64         `json:"adId,string"`
+			AdvNum          int64         `json:"advNo,string"`
+			Side            string        `json:"side"`
+			AdSize          float64       `json:"adSize,string"`
+			Size            float64       `json:"size,string"`
+			CryptoCurrency  string        `json:"coin"`
+			Price           float64       `json:"price,string"`
+			CryptoPrecision int64         `json:"coinPrecision,string"`
+			FiatCurrency    string        `json:"fiat"`
+			FiatPrecision   int64         `json:"fiatPrecision,string"`
+			FiatSymbol      string        `json:"fiatSymbol"`
+			Status          string        `json:"status"`
+			Hide            YesNoBool     `json:"hide"`
+			MaxTradeAmount  float64       `json:"maxTradeAmount,string"`
+			MinTradeAmount  float64       `json:"minTradeAmount,string"`
+			PayDuration     int64         `json:"payDuration,string"`
+			TurnoverNum     int64         `json:"turnoverNum,string"`
+			TurnoverRate    float64       `json:"turnoverRate,string"`
+			Label           string        `json:"label"`
+			CreationTime    UnixTimestamp `json:"ctime"`
+			UpdateTime      UnixTimestamp `json:"utime"`
+			UserLimitList   struct {
+				MinCompleteNum     int64     `json:"minCompleteNum,string"`
+				MaxCompleteNum     int64     `json:"maxCompleteNum,string"`
+				PlaceOrderNum      int64     `json:"placeOrderNum,string"`
+				AllowMerchantPlace YesNoBool `json:"allowMerchantPlace"`
+				CompleteRate30D    float64   `json:"completeRate30d,string"`
+				Country            string    `json:"country"`
+			} `json:"userLimitList"`
+			PaymentMethodList []struct {
+				PaymentMethod string `json:"paymentMethod"`
+				PaymentID     int64  `json:"paymentId,string"`
+				PaymentInfo   []struct {
+					Required bool   `json:"required"`
+					Name     string `json:"name"`
+					Type     string `json:"type"`
+				} `json:"paymentInfo"`
+			} `json:"paymentMethodList"`
+			MerchantCertifiedList []struct {
+				ImageURL string `json:"imageUrl"`
+				Desc     string `json:"desc"`
+			} `json:"merchantCertifiedList"`
+		} `json:"advList"`
+	} `json:"data"`
+}
+
+// CrVirSubResp contains information returned when creating virtual sub-accounts
+type CrVirSubResp struct {
+	Data struct {
+		FailureList []struct {
+			SubAccountName string `json:"subaAccountName"`
+		} `json:"failureList"`
+		SuccessList []struct {
+			SubAccountUID  string        `json:"subAccountUid"`
+			SubAccountName string        `json:"subaAccountName"`
+			Status         string        `json:"status"`
+			PermList       []string      `json:"permList"`
+			Label          string        `json:"label"`
+			CreationTime   UnixTimestamp `json:"cTime"`
+			UpdateTime     UnixTimestamp `json:"uTime"`
+		} `json:"successList"`
+	} `json:"data"`
+}
+
+// SuccessBool is a type used to unmarshal strings that are either "success" or "failure" into bools
+type SuccessBool bool
+
+// ModVirSubResp contains information returned when modifying virtual sub-accounts
+type ModVirSubResp struct {
+	Data struct {
+		Success SuccessBool `json:"result"`
+	} `json:"data"`
+}
+
+// CrSubAccAPIKeyResp contains information returned when simultaneously creating a sub-account and
+// an API key
+type CrSubAccAPIKeyResp struct {
+	Data []struct {
+		SubAccountUID    string   `json:"subAccountUid"`
+		SubAccountName   string   `json:"subAccountName"`
+		Label            string   `json:"label"`
+		SubAccountAPIKey string   `json:"subAccountApiKey"`
+		SecretKey        string   `json:"secretKey"`
+		PermList         []string `json:"permList"`
+		IPList           []string `json:"ipList"`
+	} `json:"data"`
+}
+
+// GetVirSubResp contains information on the user's virtual sub-accounts
+type GetVirSubResp struct {
+	Data struct {
+		SubAccountList []struct {
+			SubAccountUID  string        `json:"subAccountUid"`
+			SubAccountName string        `json:"subAccountName"`
+			Label          string        `json:"label"`
+			Status         string        `json:"status"`
+			PermList       []string      `json:"permList"`
+			CreationTime   UnixTimestamp `json:"cTime"`
+			UpdateTime     UnixTimestamp `json:"uTime"`
+		} `json:"subAccountList"`
+		EndID int64 `json:"endId,string"`
+	} `json:"data"`
+}
+
+// AlterAPIKeyResp contains information returned when creating or modifying an API key
+type AlterAPIKeyResp struct {
+	Data struct {
+		SubAccountUID    string   `json:"subAccountUid"`
+		SubAccountApiKey string   `json:"subAccountApiKey"`
+		SecretKey        string   `json:"secretKey"`
+		PermList         []string `json:"permList"`
+		Label            string   `json:"label"`
+		IPList           []string `json:"ipList"`
+	} `json:"data"`
+}
+
+// GetAPIKeyResp contains information on the user's API keys
+type GetAPIKeyResp struct {
+	Data []struct {
+		SubAccountUID    string   `json:"subAccountUid"`
+		SubAccountApiKey string   `json:"subAccountApiKey"`
+		IPList           []string `json:"ipList"`
+		PermList         []string `json:"permList"`
+		Label            string   `json:"label"`
+	} `json:"data"`
+}
+
+// ConvertCoinsResp
+type ConvertCoinsResp struct {
+	Data []struct {
+		Coin      string  `json:"coin"`
+		Available float64 `json:"available,string"`
+		MaxAmount float64 `json:"maxAmount,string"`
+		MinAmount float64 `json:"minAmount,string"`
+	} `json:"data"`
+}
+
+// QuotedPriceResp
+type QuotedPriceResp struct {
+}

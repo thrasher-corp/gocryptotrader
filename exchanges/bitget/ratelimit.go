@@ -9,7 +9,7 @@ import (
 	"golang.org/x/time/rate"
 )
 
-// Coinbasepro rate limit constants
+// Bitget rate limit constants
 const (
 	bitgetRateInterval = time.Second
 	bitgetRate20       = 20

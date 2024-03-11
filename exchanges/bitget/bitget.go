@@ -30,16 +30,28 @@ const (
 	bitgetTime          = "time"
 
 	// Authenticated endpoints
-	bitgetCommon       = "common"
-	bitgetTradeRate    = "trade-rate"
-	bitgetTax          = "tax"
-	bitgetSpotRecord   = "spot-record"
-	bitgetFutureRecord = "future-record"
-	bitgetMarginRecord = "margin-record"
-	bitgetP2PRecord    = "p2p-record"
-	bitgetP2P          = "p2p"
-	bitgetMerchantList = "merchantList"
-	bitgetMerchantInfo = "merchantInfo"
+	bitgetCommon                  = "common"
+	bitgetTradeRate               = "trade-rate"
+	bitgetTax                     = "tax"
+	bitgetSpotRecord              = "spot-record"
+	bitgetFutureRecord            = "future-record"
+	bitgetMarginRecord            = "margin-record"
+	bitgetP2PRecord               = "p2p-record"
+	bitgetP2P                     = "p2p"
+	bitgetMerchantList            = "merchantList"
+	bitgetMerchantInfo            = "merchantInfo"
+	bitgetOrderList               = "orderList"
+	bitgetAdvList                 = "advList"
+	bitgetUser                    = "user"
+	bitgetCreateVirtualSubaccount = "create-virtual-subaccount"
+	bitgetModifyVirtualSubaccount = "modify-virtual-subaccount"
+	bitgetVirtualSubaccountList   = "virtual-subaccount-list"
+	bitgetCreateAPIKey            = "create-virtual-subaccount-apikey"
+	bitgetModifyAPIKey            = "modify-virtual-subaccount-apikey"
+	bitgetAPIKeyList              = "virtual-subaccount-apikey-list"
+	bitgetConvert                 = "convert"
+	bitgetCurrencies              = "currencies"
+	bitgetQuotedPrice             = "quoted-price"
 
 	// Errors
 	errUnknownEndpointLimit = "unknown endpoint limit %v"
@@ -49,6 +61,13 @@ var (
 	errBusinessTypeEmpty = errors.New("businessType cannot be empty")
 	errPairEmpty         = errors.New("currency pair cannot be empty")
 	errProductTypeEmpty  = errors.New("productType cannot be empty")
+	errSubAccountEmpty   = errors.New("subaccounts cannot be empty")
+	errNewStatusEmpty    = errors.New("newStatus cannot be empty")
+	errNewPermsEmpty     = errors.New("newPerms cannot be empty")
+	errPassphraseEmpty   = errors.New("passphrase cannot be empty")
+	errLabelEmpty        = errors.New("label cannot be empty")
+	errAPIKeyEmpty       = errors.New("apiKey cannot be empty")
+	errFromToMutex       = errors.New("exactly one of fromAmount and toAmount must be set")
 )
 
 // QueryAnnouncement returns announcements from the exchange, filtered by type and time
@@ -63,14 +82,14 @@ func (bi *Bitget) QueryAnnouncements(ctx context.Context, annType string, startT
 	params.Values.Set("language", "en_US")
 	path := bitgetPublic + "/" + bitgetAnnouncements
 	var resp *AnnResp
-	return resp, bi.SendHTTPRequest(ctx, exchange.RestSpot, bitgetRate20, path, params.Values, &resp)
+	return resp, bi.SendHTTPRequest(ctx, exchange.RestSpot, Rate20, path, params.Values, &resp)
 }
 
 // GetTime returns the server's time
 func (bi *Bitget) GetTime(ctx context.Context) (*TimeResp, error) {
 	var resp *TimeResp
 	path := bitgetPublic + "/" + bitgetTime
-	return resp, bi.SendHTTPRequest(ctx, exchange.RestSpot, bitgetRate20, path, nil, &resp)
+	return resp, bi.SendHTTPRequest(ctx, exchange.RestSpot, Rate20, path, nil, &resp)
 }
 
 // GetTradeRate returns the fees the user would face for trading a given symbol
@@ -86,7 +105,8 @@ func (bi *Bitget) GetTradeRate(ctx context.Context, pair, businessType string) (
 	vals.Set("businessType", businessType)
 	path := bitgetCommon + "/" + bitgetTradeRate
 	var resp *TradeRateResp
-	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, bitgetRate10, http.MethodGet, path, vals, nil, &resp)
+	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodGet, path, vals,
+		nil, &resp)
 }
 
 // GetSpotTransactionRecords returns the user's spot transaction records
@@ -102,7 +122,8 @@ func (bi *Bitget) GetSpotTransactionRecords(ctx context.Context, currency string
 	params.Values.Set("idLessThan", strconv.FormatInt(pagination, 10))
 	path := bitgetTax + "/" + bitgetSpotRecord
 	var resp *SpotTrResp
-	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, bitgetRate1, http.MethodGet, path, params.Values, nil, &resp)
+	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate1, http.MethodGet, path,
+		params.Values, nil, &resp)
 }
 
 // GetFuturesTransactionRecords returns the user's futures transaction records
@@ -122,7 +143,8 @@ func (bi *Bitget) GetFuturesTransactionRecords(ctx context.Context, productType,
 	params.Values.Set("idLessThan", strconv.FormatInt(pagination, 10))
 	path := bitgetTax + "/" + bitgetFutureRecord
 	var resp *FutureTrResp
-	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, bitgetRate1, http.MethodGet, path, params.Values, nil, &resp)
+	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate1, http.MethodGet, path,
+		params.Values, nil, &resp)
 }
 
 // GetMarginTransactionRecords returns the user's margin transaction records
@@ -139,7 +161,8 @@ func (bi *Bitget) GetMarginTransactionRecords(ctx context.Context, marginType, c
 	params.Values.Set("idLessThan", strconv.FormatInt(pagination, 10))
 	path := bitgetTax + "/" + bitgetMarginRecord
 	var resp *MarginTrResp
-	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, bitgetRate1, http.MethodGet, path, params.Values, nil, &resp)
+	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate1, http.MethodGet, path,
+		params.Values, nil, &resp)
 }
 
 // GetP2PTransactionRecords returns the user's P2P transaction records
@@ -155,7 +178,8 @@ func (bi *Bitget) GetP2PTransactionRecords(ctx context.Context, currency string,
 	params.Values.Set("idLessThan", strconv.FormatInt(pagination, 10))
 	path := bitgetTax + "/" + bitgetP2PRecord
 	var resp *P2PTrResp
-	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, bitgetRate1, http.MethodGet, path, params.Values, nil, &resp)
+	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate1, http.MethodGet, path,
+		params.Values, nil, &resp)
 }
 
 // GetP2PMerchantList returns detailed information on a particular merchant
@@ -167,14 +191,231 @@ func (bi *Bitget) GetP2PMerchantList(ctx context.Context, online, merchantID str
 	vals.Set("idLessThan", strconv.FormatInt(pagination, 10))
 	path := bitgetP2P + "/" + bitgetMerchantList
 	var resp *P2PMerListResp
-	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, bitgetRate10, http.MethodGet, path, vals, nil, &resp)
+	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodGet, path,
+		vals, nil, &resp)
 }
 
-// GetMerchantInfo returns detailed information on the user's merchant
+// GetMerchantInfo returns detailed information on the user as a merchant
 func (bi *Bitget) GetMerchantInfo(ctx context.Context) (*P2PMerInfoResp, error) {
 	path := bitgetP2P + "/" + bitgetMerchantInfo
 	var resp *P2PMerInfoResp
-	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, bitgetRate10, http.MethodGet, path, nil, nil, &resp)
+	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodGet, path, nil, nil, &resp)
+}
+
+// GetMerchantP2POrders returns information on the user's P2P orders
+func (bi *Bitget) GetMerchantP2POrders(ctx context.Context, startTime, endTime time.Time, limit, pagination, adNum, ordNum int64, status, side, cryptoCurrency, fiatCurrency string) (*P2POrdersResp, error) {
+	var params Params
+	params.Values = make(url.Values)
+	err := params.prepareDateString(startTime, endTime, false)
+	if err != nil {
+		return nil, err
+	}
+	params.Values.Set("limit", strconv.FormatInt(limit, 10))
+	params.Values.Set("idLessThan", strconv.FormatInt(pagination, 10))
+	params.Values.Set("advNo", strconv.FormatInt(adNum, 10))
+	params.Values.Set("orderNo", strconv.FormatInt(ordNum, 10))
+	params.Values.Set("status", status)
+	params.Values.Set("side", side)
+	params.Values.Set("coin", cryptoCurrency)
+	// params.Values.Set("language", "en-US")
+	params.Values.Set("fiat", fiatCurrency)
+	path := bitgetP2P + "/" + bitgetOrderList
+	var resp *P2POrdersResp
+	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodGet, path,
+		params.Values, nil, &resp)
+}
+
+// GetMerchantAdvertisementList returns information on a variety of merchant advertisements
+func (bi *Bitget) GetMerchantAdvertisementList(ctx context.Context, startTime, endTime time.Time, limit, pagination, adNum, payMethodID int64, status, side, cryptoCurrency, fiatCurrency, orderBy, sourceType string) (*P2PAdListResp, error) {
+	var params Params
+	params.Values = make(url.Values)
+	err := params.prepareDateString(startTime, endTime, false)
+	if err != nil {
+		return nil, err
+	}
+	params.Values.Set("limit", strconv.FormatInt(limit, 10))
+	params.Values.Set("idLessThan", strconv.FormatInt(pagination, 10))
+	params.Values.Set("advNo", strconv.FormatInt(adNum, 10))
+	params.Values.Set("payMethodId", strconv.FormatInt(payMethodID, 10))
+	params.Values.Set("status", status)
+	params.Values.Set("side", side)
+	params.Values.Set("coin", cryptoCurrency)
+	// params.Values.Set("language", "en-US")
+	params.Values.Set("fiat", fiatCurrency)
+	params.Values.Set("orderBy", orderBy)
+	params.Values.Set("sourceType", sourceType)
+	path := bitgetP2P + "/" + bitgetAdvList
+	var resp *P2PAdListResp
+	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodGet, path,
+		params.Values, nil, &resp)
+}
+
+// CreateVirtualSubaccounts creates a batch of virtual subaccounts. These names must use English letters,
+// no spaces, no numbers, and be exactly 8 characters long.
+func (bi *Bitget) CreateVirtualSubaccounts(ctx context.Context, subaccounts []string) (*CrVirSubResp, error) {
+	if len(subaccounts) == 0 {
+		return nil, errSubAccountEmpty
+	}
+	path := bitgetUser + "/" + bitgetCreateVirtualSubaccount
+	req := make(map[string]interface{})
+	req["subAccountList"] = subaccounts
+	var resp *CrVirSubResp
+	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate5, http.MethodPost, path,
+		nil, req, &resp)
+}
+
+// ModifyVirtualSubaccount changes the permissions and/or status of a virtual subaccount
+func (bi *Bitget) ModifyVirtualSubaccount(ctx context.Context, subaccountID, newStatus string, newPerms []string) (*ModVirSubResp, error) {
+	if subaccountID == "" {
+		return nil, errSubAccountEmpty
+	}
+	if newStatus == "" {
+		return nil, errNewStatusEmpty
+	}
+	if len(newPerms) == 0 {
+		return nil, errNewPermsEmpty
+	}
+	path := bitgetUser + "/" + bitgetModifyVirtualSubaccount
+	req := make(map[string]interface{})
+	req["subAccountUid"] = subaccountID
+	req["status"] = newStatus
+	req["permList"] = newPerms
+	var resp *ModVirSubResp
+	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate5, http.MethodPost, path,
+		nil, req, &resp)
+}
+
+// CreateSubaccountAndAPIKey creates a subaccounts and an API key. Every account can have up to 20 sub-accounts,
+// and every API key can have up to 10 API keys. The name of the sub-account must be exactly 8 English letters.
+// The passphrase of the API key must be 8-32 letters and/or numbers. The label must be 20 or fewer characters.
+// A maximum of 30 IPs can be a part of the whitelist.
+func (bi *Bitget) CreateSubaccountAndAPIKey(ctx context.Context, subaccountName, passphrase, label string, whiteList, permList []string) (*CrSubAccAPIKeyResp, error) {
+	if subaccountName == "" {
+		return nil, errSubAccountEmpty
+	}
+	// if passphrase == "" {
+	// 	return nil, errPassphraseEmpty
+	// }
+	// if label == "" {
+	// 	return nil, errLabelEmpty
+	// }
+	path := bitgetUser + "/" + bitgetCreateVirtualSubaccount
+	req := make(map[string]interface{})
+	req["subAccountName"] = subaccountName
+	req["passphrase"] = passphrase
+	req["label"] = label
+	req["ipList"] = whiteList
+	req["permList"] = permList
+	var resp *CrSubAccAPIKeyResp
+	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate1, http.MethodPost, path,
+		nil, req, &resp)
+}
+
+// GetVirtualSubaccounts returns a list of the user's virtual sub-accounts
+func (bi *Bitget) GetVirtualSubaccounts(ctx context.Context, limit, pagination int64, status string) (*GetVirSubResp, error) {
+	vals := url.Values{}
+	vals.Set("limit", strconv.FormatInt(limit, 10))
+	vals.Set("idLessThan", strconv.FormatInt(pagination, 10))
+	vals.Set("status", status)
+	path := bitgetUser + "/" + bitgetVirtualSubaccountList
+	var resp *GetVirSubResp
+	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodGet, path, vals,
+		nil, &resp)
+}
+
+// CreateAPIKey creates an API key for the selected virtual sub-account
+func (bi *Bitget) CreateAPIKey(ctx context.Context, subaccountID, passphrase, label string, whiteList, permList []string) (*AlterAPIKeyResp, error) {
+	if subaccountID == "" {
+		return nil, errSubAccountEmpty
+	}
+	if passphrase == "" {
+		return nil, errPassphraseEmpty
+	}
+	if label == "" {
+		return nil, errLabelEmpty
+	}
+	path := bitgetUser + "/" + bitgetCreateAPIKey
+	req := make(map[string]interface{})
+	req["subAccountUid"] = subaccountID
+	req["passphrase"] = passphrase
+	req["label"] = label
+	req["ipList"] = whiteList
+	req["permList"] = permList
+	var resp *AlterAPIKeyResp
+	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate5, http.MethodPost, path,
+		nil, req, &resp)
+}
+
+// ModifyAPIKey modifies the label, IP whitelist, and/or permissions of the API key associated with the selected
+// virtual sub-account
+func (bi *Bitget) ModifyAPIKey(ctx context.Context, subaccountID, passphrase, label, apiKey string, whiteList, permList []string) (*AlterAPIKeyResp, error) {
+	if apiKey == "" {
+		return nil, errAPIKeyEmpty
+	}
+	if passphrase == "" {
+		return nil, errPassphraseEmpty
+	}
+	if label == "" {
+		return nil, errLabelEmpty
+	}
+	if subaccountID == "" {
+		return nil, errSubAccountEmpty
+	}
+	path := bitgetUser + "/" + bitgetModifyAPIKey
+	req := make(map[string]interface{})
+	req["subAccountUid"] = subaccountID
+	req["passphrase"] = passphrase
+	req["label"] = label
+	req["subAccountApiKey"] = apiKey
+	req["ipList"] = whiteList
+	req["permList"] = permList
+	var resp *AlterAPIKeyResp
+	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate5, http.MethodPost, path,
+		nil, req, &resp)
+}
+
+// GetAPIKeys lists the API keys associated with the selected virtual sub-account
+func (bi *Bitget) GetAPIKeys(ctx context.Context, subaccountID string) (*GetAPIKeyResp, error) {
+	if subaccountID == "" {
+		return nil, errSubAccountEmpty
+	}
+	vals := url.Values{}
+	vals.Set("subAccountUid", subaccountID)
+	path := bitgetUser + "/" + bitgetAPIKeyList
+	var resp *GetAPIKeyResp
+	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodGet, path, vals,
+		nil, &resp)
+}
+
+// GetConvertCoins returns a list of supported currencies, your balance in those currencies, and the maximum and
+// minimum tradable amounts of those currencies
+func (bi *Bitget) GetConvertCoins(ctx context.Context) (*ConvertCoinsResp, error) {
+	path := bitgetConvert + "/" + bitgetCurrencies
+	var resp *ConvertCoinsResp
+	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodGet, path, nil,
+		nil, &resp)
+}
+
+// GetQuotedPrice
+func (bi *Bitget) GetQuotedPrice(ctx context.Context, fromCurrency, toCurrency string, fromAmount, toAmount float64) (*QuotedPriceResp, error) {
+	if fromCurrency == "" || toCurrency == "" {
+		return nil, errPairEmpty
+	}
+	if (fromAmount == 0 && toAmount == 0) || (fromAmount != 0 && toAmount != 0) {
+		return nil, errFromToMutex
+	}
+	vals := url.Values{}
+	vals.Set("fromCoin", fromCurrency)
+	vals.Set("toCoin", toCurrency)
+	if fromAmount != 0 {
+		vals.Set("fromCoinSize", strconv.FormatFloat(fromAmount, 'f', -1, 64))
+	} else {
+		vals.Set("toCoinSize", strconv.FormatFloat(toAmount, 'f', -1, 64))
+	}
+	path := bitgetConvert + "/" + bitgetQuotedPrice
+	var resp *QuotedPriceResp
+	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodGet, path, vals,
+		nil, &resp)
 }
 
 // SendAuthenticatedHTTPRequest sends an authenticated HTTP request
@@ -289,7 +530,7 @@ func (t *UnixTimestamp) Time() time.Time {
 	return time.Time(*t)
 }
 
-// UnmarshalJSOn unmarshals the JSON input into a YesNoBool type
+// UnmarshalJSON unmarshals the JSON input into a YesNoBool type
 func (y *YesNoBool) UnmarshalJSON(b []byte) error {
 	var yn string
 	err := json.Unmarshal(b, &yn)
@@ -301,6 +542,22 @@ func (y *YesNoBool) UnmarshalJSON(b []byte) error {
 		*y = true
 	case "no":
 		*y = false
+	}
+	return nil
+}
+
+// UnmarshalJSON unmarshals the JSON input into a SuccessBool type
+func (s *SuccessBool) UnmarshalJSON(b []byte) error {
+	var success string
+	err := json.Unmarshal(b, &success)
+	if err != nil {
+		return err
+	}
+	switch success {
+	case "success":
+		*s = true
+	case "failure":
+		*s = false
 	}
 	return nil
 }
