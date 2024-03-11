@@ -17,6 +17,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
@@ -29,7 +30,7 @@ const (
 // WsConnect connects the websocket client
 func (b *BTSE) WsConnect() error {
 	if !b.Websocket.IsEnabled() || !b.IsEnabled() {
-		return errors.New(stream.WebsocketNotEnabled)
+		return stream.ErrWebsocketNotEnabled
 	}
 	var dialer websocket.Dialer
 	err := b.Websocket.Conn.Dial(&dialer, http.Header{})
@@ -360,24 +361,24 @@ func (b *BTSE) orderbookFilter(price, amount float64) bool {
 }
 
 // GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
-func (b *BTSE) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, error) {
+func (b *BTSE) GenerateDefaultSubscriptions() ([]subscription.Subscription, error) {
 	var channels = []string{"orderBookL2Api:%s_0", "tradeHistory:%s"}
 	pairs, err := b.GetEnabledPairs(asset.Spot)
 	if err != nil {
 		return nil, err
 	}
-	var subscriptions []stream.ChannelSubscription
+	var subscriptions []subscription.Subscription
 	if b.Websocket.CanUseAuthenticatedEndpoints() {
-		subscriptions = append(subscriptions, stream.ChannelSubscription{
+		subscriptions = append(subscriptions, subscription.Subscription{
 			Channel: "notificationApi",
 		})
 	}
 	for i := range channels {
 		for j := range pairs {
-			subscriptions = append(subscriptions, stream.ChannelSubscription{
-				Channel:  fmt.Sprintf(channels[i], pairs[j]),
-				Currency: pairs[j],
-				Asset:    asset.Spot,
+			subscriptions = append(subscriptions, subscription.Subscription{
+				Channel: fmt.Sprintf(channels[i], pairs[j]),
+				Pair:    pairs[j],
+				Asset:   asset.Spot,
 			})
 		}
 	}
@@ -385,7 +386,7 @@ func (b *BTSE) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, err
 }
 
 // Subscribe sends a websocket message to receive data from the channel
-func (b *BTSE) Subscribe(channelsToSubscribe []stream.ChannelSubscription) error {
+func (b *BTSE) Subscribe(channelsToSubscribe []subscription.Subscription) error {
 	var sub wsSub
 	sub.Operation = "subscribe"
 	for i := range channelsToSubscribe {
@@ -400,7 +401,7 @@ func (b *BTSE) Subscribe(channelsToSubscribe []stream.ChannelSubscription) error
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
-func (b *BTSE) Unsubscribe(channelsToUnsubscribe []stream.ChannelSubscription) error {
+func (b *BTSE) Unsubscribe(channelsToUnsubscribe []subscription.Subscription) error {
 	var unSub wsSub
 	unSub.Operation = "unsubscribe"
 	for i := range channelsToUnsubscribe {

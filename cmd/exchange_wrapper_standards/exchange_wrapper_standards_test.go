@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/engine"
@@ -30,10 +31,9 @@ import (
 
 func TestMain(m *testing.M) {
 	// only run testing suite for one CI/CD environment
-	if isAppVeyor() || is32BitJob() {
+	if skipAdditionalWrapperCITests() {
 		return
 	}
-	request.MaxRequestJobs = 200
 	os.Exit(m.Run())
 }
 
@@ -190,7 +190,9 @@ func executeExchangeWrapperTests(ctx context.Context, t *testing.T, exch exchang
 				input.AssignableTo(orderModifyParam) ||
 				input.AssignableTo(orderCancelParam) ||
 				input.AssignableTo(orderCancelsParam) ||
-				input.AssignableTo(getOrdersRequestParam) {
+				input.AssignableTo(pairKeySliceParam) ||
+				input.AssignableTo(getOrdersRequestParam) ||
+				input.AssignableTo(pairKeySliceParam) {
 				// this allows wrapper functions that support assets types
 				// to be tested with all supported assets
 				assetLen = len(assetParams) - 1
@@ -242,6 +244,11 @@ func CallExchangeMethod(t *testing.T, methodToCall reflect.Value, methodValues [
 		if isUnacceptableError(t, err) != nil {
 			literalInputs := make([]interface{}, len(methodValues))
 			for j := range methodValues {
+				if methodValues[j].Kind() == reflect.Ptr {
+					// dereference pointers just to add a bit more clarity
+					literalInputs[j] = methodValues[j].Elem().Interface()
+					continue
+				}
 				literalInputs[j] = methodValues[j].Interface()
 			}
 			t.Errorf("%v Func '%v' Error: '%v'. Inputs: %v.", exch.GetName(), methodName, err, literalInputs)
@@ -290,6 +297,7 @@ var (
 	positionSummaryRequestParam = reflect.TypeOf((**futures.PositionSummaryRequest)(nil)).Elem()
 	positionsRequestParam       = reflect.TypeOf((**futures.PositionsRequest)(nil)).Elem()
 	latestRateRequest           = reflect.TypeOf((**fundingrate.LatestRateRequest)(nil)).Elem()
+	pairKeySliceParam           = reflect.TypeOf((*[]key.PairAsset)(nil)).Elem()
 )
 
 // generateMethodArg determines the argument type and returns a pre-made
@@ -315,6 +323,12 @@ func generateMethodArg(ctx context.Context, t *testing.T, argGenerator *MethodAr
 			// OrderID
 			input = reflect.ValueOf("1337")
 		}
+	case argGenerator.MethodInputType.AssignableTo(pairKeySliceParam):
+		input = reflect.ValueOf(key.PairAsset{
+			Base:  argGenerator.AssetParams.Pair.Base.Item,
+			Quote: argGenerator.AssetParams.Pair.Quote.Item,
+			Asset: argGenerator.AssetParams.Asset,
+		})
 	case argGenerator.MethodInputType.AssignableTo(credentialsParam):
 		input = reflect.ValueOf(&account.Credentials{
 			Key:             "test",
@@ -439,6 +453,7 @@ func generateMethodArg(ctx context.Context, t *testing.T, argGenerator *MethodAr
 			ClientID:          "1337",
 			ClientOrderID:     "13371337",
 			ImmediateOrCancel: true,
+			Leverage:          1,
 		})
 	case argGenerator.MethodInputType.AssignableTo(orderModifyParam):
 		input = reflect.ValueOf(&order.Modify{
@@ -593,8 +608,6 @@ var unsupportedExchangeNames = []string{
 	"testexch",
 	"alphapoint",
 	"bitflyer", // Bitflyer has many "ErrNotYetImplemented, which is true, but not what we care to test for here
-	"bittrex",  // the api is about to expire in March, and we haven't updated it yet
-	"itbit",    // itbit has no way of retrieving pair data
 	"btse",     // 	TODO rm once timeout issues resolved
 	"poloniex", // 	outdated API // TODO rm once updated
 }
@@ -755,16 +768,9 @@ Rsd80LrBCVI8ctzrvYRFSugC`
 }
 
 func isCITest() bool {
-	ci := os.Getenv("CI")
-	return ci == "true" /* github actions */ || ci == "True" /* appveyor */
+	return os.Getenv("CI") == "true"
 }
 
-func isAppVeyor() bool {
-	ci := os.Getenv("APPVEYOR")
-	return ci == "True"
-}
-
-func is32BitJob() bool {
-	ci := os.Getenv("GITHUB_JOB")
-	return ci == "backend-32bit"
+func skipAdditionalWrapperCITests() bool {
+	return os.Getenv("SKIP_WRAPPER_CI_TESTS") == "true"
 }

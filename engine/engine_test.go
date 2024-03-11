@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -20,8 +21,7 @@ var blockedCIExchanges = []string{
 }
 
 func isCITest() bool {
-	ci := os.Getenv("CI")
-	return ci == "true" /* github actions */ || ci == "True" /* appveyor */
+	return os.Getenv("CI") == "true"
 }
 
 func TestLoadConfigWithSettings(t *testing.T) {
@@ -243,9 +243,9 @@ func TestDryRunParamInteraction(t *testing.T) {
 			},
 		},
 	}
-	if err := bot.LoadExchange(testExchange, nil); err != nil {
-		t.Error(err)
-	}
+	err := bot.LoadExchange(testExchange)
+	assert.NoError(t, err, "LoadExchange should not error")
+
 	exchCfg, err := bot.Config.GetExchangeConfig(testExchange)
 	if err != nil {
 		t.Error(err)
@@ -263,9 +263,9 @@ func TestDryRunParamInteraction(t *testing.T) {
 	bot.Settings.EnableDryRun = true
 	bot.Settings.CheckParamInteraction = true
 	bot.Settings.EnableExchangeVerbose = true
-	if err = bot.LoadExchange(testExchange, nil); err != nil {
-		t.Error(err)
-	}
+
+	err = bot.LoadExchange(testExchange)
+	assert.NoError(t, err, "LoadExchange should not error")
 
 	exchCfg, err = bot.Config.GetExchangeConfig(testExchange)
 	if err != nil {
@@ -355,7 +355,6 @@ func TestSettingsPrint(t *testing.T) {
 }
 
 var unsupportedDefaultConfigExchanges = []string{
-	"itbit",    // due to unsupported API
 	"poloniex", // poloniex has dropped support for the API GCT has implemented //TODO: drop this when supported
 }
 

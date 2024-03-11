@@ -2,15 +2,12 @@ package okcoin
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"log"
 	"os"
-	"sync"
 	"testing"
 	"time"
 
-	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -64,20 +61,6 @@ func TestMain(m *testing.M) {
 	}
 	setupWS()
 	os.Exit(m.Run())
-}
-
-func TestStart(t *testing.T) {
-	t.Parallel()
-	err := o.Start(context.Background(), nil)
-	if !errors.Is(err, common.ErrNilPointer) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, common.ErrNilPointer)
-	}
-	var testWg sync.WaitGroup
-	err = o.Start(context.Background(), &testWg)
-	if err != nil {
-		t.Fatal(err)
-	}
-	testWg.Wait()
 }
 
 func TestFetchTradablePair(t *testing.T) {
@@ -1766,27 +1749,6 @@ func (o *Okcoin) populateTradablePairs(ctx context.Context) error {
 	}
 	spotTradablePair = enabledPairs[0]
 	return nil
-}
-
-func TestOKCOINNumberUnmarshal(t *testing.T) {
-	type testNumberHolder struct {
-		Numb okcoinNumber `json:"numb"`
-	}
-	var val testNumberHolder
-	data1 := `{ "numb":"12345.65" }`
-	err := json.Unmarshal([]byte(data1), &val)
-	if err != nil {
-		t.Error(err)
-	} else if val.Numb.Float64() != 12345.65 {
-		t.Errorf("found %.2f, but found %.2f", val.Numb.Float64(), 12345.65)
-	}
-	data2 := `{ "numb":"" }`
-	err = json.Unmarshal([]byte(data2), &val)
-	if err != nil {
-		t.Error(err)
-	} else if val.Numb.Float64() != 0 {
-		t.Errorf("found %.2f, but found %d", val.Numb.Float64(), 0)
-	}
 }
 
 func TestGetSubAccounts(t *testing.T) {

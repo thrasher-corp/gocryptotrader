@@ -63,9 +63,13 @@ type Submit struct {
 	QuoteAmount float64
 	// TriggerPrice is mandatory if order type `Stop, Stop Limit or Take Profit`
 	// See btcmarkets_wrapper.go.
-	TriggerPrice  float64
-	ClientID      string // TODO: Shift to credentials
-	ClientOrderID string
+	TriggerPrice float64
+
+	// added to represent a unified trigger price type information such as LastPrice, MarkPrice, and IndexPrice
+	// https://bybit-exchange.github.io/docs/v5/order/create-order
+	TriggerPriceType PriceType
+	ClientID         string // TODO: Shift to credentials
+	ClientOrderID    string
 
 	// The system will first borrow you funds at the optimal interest rate and then place an order for you.
 	// see kucoin_wrapper.go
@@ -80,7 +84,8 @@ type Submit struct {
 	RetrieveFees bool
 	// RetrieveFeeDelay some exchanges take time to properly save order data
 	// and cannot retrieve fees data immediately
-	RetrieveFeeDelay time.Duration
+	RetrieveFeeDelay    time.Duration
+	RiskManagementModes RiskManagementModes
 
 	// Hidden when enabled orders not displaying in order book.
 	Hidden bool
@@ -96,17 +101,18 @@ type SubmitResponse struct {
 	Pair      currency.Pair
 	AssetType asset.Item
 
-	ImmediateOrCancel bool
-	FillOrKill        bool
-	PostOnly          bool
-	ReduceOnly        bool
-	Leverage          float64
-	Price             float64
-	Amount            float64
-	QuoteAmount       float64
-	TriggerPrice      float64
-	ClientID          string
-	ClientOrderID     string
+	ImmediateOrCancel    bool
+	FillOrKill           bool
+	PostOnly             bool
+	ReduceOnly           bool
+	Leverage             float64
+	Price                float64
+	AverageExecutedPrice float64
+	Amount               float64
+	QuoteAmount          float64
+	TriggerPrice         float64
+	ClientID             string
+	ClientOrderID        string
 
 	LastUpdated time.Time
 	Date        time.Time
@@ -142,6 +148,12 @@ type Modify struct {
 	Price             float64
 	Amount            float64
 	TriggerPrice      float64
+
+	// added to represent a unified trigger price type information such as LastPrice, MarkPrice, and IndexPrice
+	// https://bybit-exchange.github.io/docs/v5/order/create-order
+	TriggerPriceType PriceType
+
+	RiskManagementModes RiskManagementModes
 }
 
 // ModifyResponse is an order modifying return type
@@ -211,6 +223,7 @@ type Detail struct {
 	Pair                 currency.Pair
 	MarginType           margin.Type
 	Trades               []TradeHistory
+	SettlementCurrency   currency.Code
 }
 
 // Filter contains all properties an order can be filtered for
@@ -303,6 +316,7 @@ const (
 	Active
 	PartiallyCancelled
 	PartiallyFilled
+	PartiallyFilledCancelled
 	Filled
 	Cancelled
 	PendingCancel
@@ -398,3 +412,34 @@ type ClassificationError struct {
 // forcing required filter operations when calling method Filter() on
 // MultiOrderRequest.
 type FilteredOrders []Detail
+
+// RiskManagement represents a risk management detail information.
+type RiskManagement struct {
+	Enabled          bool
+	TriggerPriceType PriceType
+	Price            float64
+
+	// LimitPrice limit order price when stop-los or take-profit risk management method is triggered
+	LimitPrice float64
+	// OrderType order type when stop-loss or take-profit risk management method is triggered.
+	OrderType Type
+}
+
+// RiskManagementModes represents take-profit and stop-loss risk management methods.
+type RiskManagementModes struct {
+	// Mode take-profit/stop-loss mode
+	Mode       string
+	TakeProfit RiskManagement
+	StopLoss   RiskManagement
+}
+
+// PriceType enforces a standard for price types used for take-profit and stop-loss trigger types
+type PriceType uint8
+
+// price types
+const (
+	LastPrice  PriceType = 0
+	IndexPrice PriceType = 1 << iota
+	MarkPrice
+	UnknownPriceType
+)

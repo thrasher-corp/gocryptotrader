@@ -6,11 +6,11 @@ import (
 	"fmt"
 	"sort"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -28,6 +28,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/buffer"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
@@ -132,6 +133,11 @@ func (ku *Kucoin) SetDefaults() {
 				FundingRateBatching: map[asset.Item]bool{
 					asset.Futures: true,
 				},
+				OpenInterest: exchange.OpenInterestSupport{
+					Supported:          true,
+					SupportedViaTicker: true,
+					SupportsRestBatch:  true,
+				},
 			},
 			MaximumOrderHistory: kline.OneDay.Duration() * 7,
 			WithdrawPermissions: exchange.AutoWithdrawCrypto,
@@ -157,6 +163,21 @@ func (ku *Kucoin) SetDefaults() {
 				GlobalResultLimit: 1500,
 			},
 		},
+		Subscriptions: []*subscription.Subscription{
+			// Where we can we use generic names
+			{Enabled: true, Channel: subscription.TickerChannel},                                         // marketTickerChannel
+			{Enabled: true, Channel: subscription.AllTradesChannel},                                      // marketMatchChannel
+			{Enabled: true, Channel: subscription.OrderbookChannel, Interval: kline.HundredMilliseconds}, // marketOrderbookLevel2Channels
+			{Enabled: true, Channel: futuresTickerV2Channel},
+			{Enabled: true, Channel: futuresOrderbookLevel2Depth50Channel},
+			{Enabled: true, Channel: marginFundingbookChangeChannel, Authenticated: true},
+			{Enabled: true, Channel: accountBalanceChannel, Authenticated: true},
+			{Enabled: true, Channel: marginPositionChannel, Authenticated: true},
+			{Enabled: true, Channel: marginLoanChannel, Authenticated: true},
+			{Enabled: true, Channel: futuresTradeOrderChannel, Authenticated: true},
+			{Enabled: true, Channel: futuresStopOrdersLifecycleEventChannel, Authenticated: true},
+			{Enabled: true, Channel: futuresAccountBalanceEventChannel, Authenticated: true},
+		},
 	}
 	ku.Requester, err = request.New(ku.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
@@ -174,7 +195,7 @@ func (ku *Kucoin) SetDefaults() {
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
-	ku.Websocket = stream.New()
+	ku.Websocket = stream.NewWebsocket()
 	ku.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	ku.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
 	ku.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
@@ -226,42 +247,6 @@ func (ku *Kucoin) Setup(exch *config.Exchange) error {
 	})
 }
 
-// Start starts the Kucoin go routine
-func (ku *Kucoin) Start(ctx context.Context, wg *sync.WaitGroup) error {
-	if wg == nil {
-		return fmt.Errorf("%T %w", wg, common.ErrNilPointer)
-	}
-	wg.Add(1)
-	go func() {
-		ku.Run(ctx)
-		wg.Done()
-	}()
-	return nil
-}
-
-// Run implements the Kucoin wrapper
-func (ku *Kucoin) Run(ctx context.Context) {
-	if ku.Verbose {
-		log.Debugf(log.ExchangeSys,
-			"%s Websocket: %s.",
-			ku.Name,
-			common.IsEnabled(ku.Websocket.IsEnabled()))
-		ku.PrintEnabledPairs()
-	}
-
-	if !ku.GetEnabledFeatures().AutoPairUpdates {
-		return
-	}
-
-	err := ku.UpdateTradablePairs(ctx, true)
-	if err != nil {
-		log.Errorf(log.ExchangeSys,
-			"%s failed to update tradable pairs. Err: %s",
-			ku.Name,
-			err)
-	}
-}
-
 // FetchTradablePairs returns a list of the exchanges tradable pairs
 func (ku *Kucoin) FetchTradablePairs(ctx context.Context, assetType asset.Item) (currency.Pairs, error) {
 	var cp currency.Pair
@@ -294,10 +279,12 @@ func (ku *Kucoin) FetchTradablePairs(ctx context.Context, assetType asset.Item) 
 		}
 		pairs := make(currency.Pairs, 0, len(myPairs))
 		for x := range myPairs {
-			if !myPairs[x].EnableTrading {
+			if !myPairs[x].EnableTrading || (assetType == asset.Margin && !myPairs[x].IsMarginEnabled) {
 				continue
 			}
-			cp, err = currency.NewPairFromString(strings.ToUpper(myPairs[x].Name))
+			// Symbol field must be used to generate pair as this is the symbol
+			// to fetch data from the API. e.g. BSV-USDT name is BCHSV-USDT as symbol.
+			cp, err = currency.NewPairFromString(strings.ToUpper(myPairs[x].Symbol))
 			if err != nil {
 				return nil, err
 			}
@@ -343,6 +330,7 @@ func (ku *Kucoin) UpdateTicker(ctx context.Context, p currency.Pair, assetType a
 
 // UpdateTickers updates all currency pairs of a given asset type
 func (ku *Kucoin) UpdateTickers(ctx context.Context, assetType asset.Item) error {
+	var errs error
 	switch assetType {
 	case asset.Futures:
 		ticks, err := ku.GetFuturesOpenContracts(ctx)
@@ -367,33 +355,30 @@ func (ku *Kucoin) UpdateTickers(ctx context.Context, assetType asset.Item) error
 				High:         ticks[x].HighPrice,
 				Low:          ticks[x].LowPrice,
 				Volume:       ticks[x].VolumeOf24h,
+				OpenInterest: ticks[x].OpenInterest.Float64(),
 				Pair:         pair,
 				ExchangeName: ku.Name,
 				AssetType:    assetType,
 			})
 			if err != nil {
-				return err
+				errs = common.AppendError(errs, err)
 			}
 		}
-		return nil
 	case asset.Spot, asset.Margin:
 		ticks, err := ku.GetTickers(ctx)
 		if err != nil {
 			return err
 		}
-		pairs, err := ku.GetEnabledPairs(assetType)
-		if err != nil {
-			return err
-		}
 		for t := range ticks.Tickers {
-			pair, err := currency.NewPairFromString(ticks.Tickers[t].Symbol)
-			if err != nil {
+			pair, enabled, err := ku.MatchSymbolCheckEnabled(ticks.Tickers[t].Symbol, assetType, true)
+			if err != nil && !errors.Is(err, currency.ErrPairNotFound) {
 				return err
 			}
-			if !pairs.Contains(pair, true) {
+			if !enabled {
 				continue
 			}
-			tick := ticker.Price{
+
+			err = ticker.ProcessTicker(&ticker.Price{
 				Last:         ticks.Tickers[t].Last,
 				High:         ticks.Tickers[t].High,
 				Low:          ticks.Tickers[t].Low,
@@ -404,27 +389,15 @@ func (ku *Kucoin) UpdateTickers(ctx context.Context, assetType asset.Item) error
 				ExchangeName: ku.Name,
 				AssetType:    assetType,
 				LastUpdated:  ticks.Time.Time(),
-			}
-			assetEnabledPairs := ku.listOfAssetsCurrencyPairEnabledFor(pair)
-			if assetEnabledPairs[asset.Spot] && ku.CurrencyPairs.IsAssetEnabled(asset.Spot) == nil {
-				err = ticker.ProcessTicker(&tick)
-				if err != nil {
-					return err
-				}
-			}
-			if assetEnabledPairs[asset.Margin] && ku.CurrencyPairs.IsAssetEnabled(asset.Margin) == nil {
-				marginTick := tick
-				marginTick.AssetType = asset.Margin
-				err = ticker.ProcessTicker(&marginTick)
-				if err != nil {
-					return err
-				}
+			})
+			if err != nil {
+				errs = common.AppendError(errs, err)
 			}
 		}
 	default:
 		return fmt.Errorf("%w %v", asset.ErrNotSupported, assetType)
 	}
-	return nil
+	return errs
 }
 
 // FetchTicker returns the ticker for a currency pair
@@ -500,27 +473,30 @@ func (ku *Kucoin) UpdateOrderbook(ctx context.Context, pair currency.Pair, asset
 
 // UpdateAccountInfo retrieves balances for all enabled currencies
 func (ku *Kucoin) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
-	holding := account.Holdings{
-		Exchange: ku.Name,
-	}
+	holding := account.Holdings{Exchange: ku.Name}
 	err := ku.CurrencyPairs.IsAssetEnabled(assetType)
 	if err != nil {
 		return holding, fmt.Errorf("%w %v", asset.ErrNotSupported, assetType)
 	}
 	switch assetType {
 	case asset.Futures:
-		accountH, err := ku.GetFuturesAccountOverview(ctx, "")
-		if err != nil {
-			return account.Holdings{}, err
-		}
-		holding.Accounts = append(holding.Accounts, account.SubAccount{
-			AssetType: assetType,
-			Currencies: []account.Balance{{
+		balances := make([]account.Balance, 2)
+		for i, settlement := range []string{"XBT", "USDT"} {
+			accountH, err := ku.GetFuturesAccountOverview(ctx, settlement)
+			if err != nil {
+				return account.Holdings{}, err
+			}
+
+			balances[i] = account.Balance{
 				Currency: currency.NewCode(accountH.Currency),
 				Total:    accountH.AvailableBalance + accountH.FrozenFunds,
 				Hold:     accountH.FrozenFunds,
 				Free:     accountH.AvailableBalance,
-			}},
+			}
+		}
+		holding.Accounts = append(holding.Accounts, account.SubAccount{
+			AssetType:  assetType,
+			Currencies: balances,
 		})
 	case asset.Spot, asset.Margin:
 		accountH, err := ku.GetAllAccounts(ctx, "", ku.accountTypeToString(assetType))
@@ -736,26 +712,46 @@ func (ku *Kucoin) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Subm
 	}
 	switch s.AssetType {
 	case asset.Futures:
-		if s.Leverage == 0 {
-			s.Leverage = 1
-		}
 		o, err := ku.PostFuturesOrder(ctx, &FuturesOrderParam{
-			ClientOrderID: s.ClientOrderID, Side: sideString, Symbol: s.Pair,
-			OrderType: s.Type.Lower(), Size: s.Amount, Price: s.Price, StopPrice: s.TriggerPrice,
-			Leverage: s.Leverage, VisibleSize: 0, ReduceOnly: s.ReduceOnly,
-			PostOnly: s.PostOnly, Hidden: s.Hidden})
+			ClientOrderID: s.ClientOrderID,
+			Side:          sideString,
+			Symbol:        s.Pair,
+			OrderType:     s.Type.Lower(),
+			Size:          s.Amount,
+			Price:         s.Price,
+			StopPrice:     s.TriggerPrice,
+			Leverage:      s.Leverage,
+			ReduceOnly:    s.ReduceOnly,
+			PostOnly:      s.PostOnly,
+			Hidden:        s.Hidden})
 		if err != nil {
 			return nil, err
 		}
 		return s.DeriveSubmitResponse(o)
 	case asset.Spot:
-		if s.ClientID != "" && s.ClientOrderID == "" {
-			s.ClientOrderID = s.ClientID
+		timeInForce := ""
+		if s.Type == order.Limit {
+			switch {
+			case s.FillOrKill:
+				timeInForce = "FOK"
+			case s.ImmediateOrCancel:
+				timeInForce = "IOC"
+			case s.PostOnly:
+			default:
+				timeInForce = "GTC"
+			}
 		}
 		o, err := ku.PostOrder(ctx, &SpotOrderParam{
-			ClientOrderID: s.ClientOrderID, Side: sideString,
-			Symbol: s.Pair, OrderType: s.Type.Lower(), Size: s.Amount,
-			Price: s.Price, PostOnly: s.PostOnly, Hidden: s.Hidden})
+			ClientOrderID: s.ClientOrderID,
+			Side:          sideString,
+			Symbol:        s.Pair,
+			OrderType:     s.Type.Lower(),
+			Size:          s.Amount,
+			Price:         s.Price,
+			PostOnly:      s.PostOnly,
+			Hidden:        s.Hidden,
+			TimeInForce:   timeInForce,
+		})
 		if err != nil {
 			return nil, err
 		}
@@ -918,6 +914,11 @@ func (ku *Kucoin) GetOrderInfo(ctx context.Context, orderID string, pair currenc
 		if err != nil {
 			return nil, err
 		}
+		if side == order.Sell {
+			side = order.Short
+		} else if side == order.Buy {
+			side = order.Long
+		}
 		if !pair.IsEmpty() && !nPair.Equal(pair) {
 			return nil, fmt.Errorf("order with id %s and currency Pair %v does not exist", orderID, pair)
 		}
@@ -1059,8 +1060,8 @@ func (ku *Kucoin) GetActiveOrders(ctx context.Context, getOrdersRequest *order.M
 	if err != nil {
 		return nil, err
 	}
-	pair := ""
-	orders := []order.Detail{}
+	var pair string
+	var orders []order.Detail
 	switch getOrdersRequest.AssetType {
 	case asset.Futures:
 		if len(getOrdersRequest.Pairs) == 1 {
@@ -1083,40 +1084,55 @@ func (ku *Kucoin) GetActiveOrders(ctx context.Context, getOrdersRequest *order.M
 				continue
 			}
 			var dPair currency.Pair
-			var isEnabled bool
-			dPair, isEnabled, err = ku.MatchSymbolCheckEnabled(futuresOrders.Items[x].Symbol, getOrdersRequest.AssetType, true)
+			var enabled bool
+			dPair, enabled, err = ku.MatchSymbolCheckEnabled(futuresOrders.Items[x].Symbol, getOrdersRequest.AssetType, false)
 			if err != nil {
 				return nil, err
 			}
-			if !isEnabled {
+			if !enabled {
 				continue
 			}
-			for i := range getOrdersRequest.Pairs {
-				if !getOrdersRequest.Pairs[i].Equal(dPair) {
-					continue
-				}
-				side, err := order.StringToOrderSide(futuresOrders.Items[x].Side)
-				if err != nil {
-					return nil, err
-				}
-				oType, err := order.StringToOrderType(futuresOrders.Items[x].OrderType)
-				if err != nil {
-					return nil, fmt.Errorf("asset type: %v order type: %v err: %w", getOrdersRequest.AssetType, getOrdersRequest.Type, err)
-				}
-				orders = append(orders, order.Detail{
-					OrderID:         futuresOrders.Items[x].ID,
-					Amount:          futuresOrders.Items[x].Size,
-					RemainingAmount: futuresOrders.Items[x].Size - futuresOrders.Items[x].FilledSize,
-					ExecutedAmount:  futuresOrders.Items[x].FilledSize,
-					Exchange:        ku.Name,
-					Date:            futuresOrders.Items[x].CreatedAt.Time(),
-					LastUpdated:     futuresOrders.Items[x].UpdatedAt.Time(),
-					Price:           futuresOrders.Items[x].Price,
-					Side:            side,
-					Type:            oType,
-					Pair:            dPair,
-				})
+			side, err := order.StringToOrderSide(futuresOrders.Items[x].Side)
+			if err != nil {
+				return nil, err
 			}
+			if side == order.Sell {
+				side = order.Short
+			} else if side == order.Buy {
+				side = order.Long
+			}
+			oType, err := order.StringToOrderType(futuresOrders.Items[x].OrderType)
+			if err != nil {
+				return nil, fmt.Errorf("asset type: %v order type: %v err: %w", getOrdersRequest.AssetType, getOrdersRequest.Type, err)
+			}
+
+			status, err := order.StringToOrderStatus(futuresOrders.Items[x].Status)
+			if err != nil {
+				return nil, err
+			}
+
+			orders = append(orders, order.Detail{
+				OrderID:            futuresOrders.Items[x].ID,
+				ClientOrderID:      futuresOrders.Items[x].ClientOid,
+				Amount:             futuresOrders.Items[x].Size,
+				ContractAmount:     futuresOrders.Items[x].Size,
+				RemainingAmount:    futuresOrders.Items[x].Size - futuresOrders.Items[x].FilledSize,
+				ExecutedAmount:     futuresOrders.Items[x].FilledSize,
+				Exchange:           ku.Name,
+				Date:               futuresOrders.Items[x].CreatedAt.Time(),
+				LastUpdated:        futuresOrders.Items[x].UpdatedAt.Time(),
+				Price:              futuresOrders.Items[x].Price,
+				Side:               side,
+				Type:               oType,
+				Pair:               dPair,
+				PostOnly:           futuresOrders.Items[x].PostOnly,
+				ReduceOnly:         futuresOrders.Items[x].ReduceOnly,
+				Status:             status,
+				SettlementCurrency: currency.NewCode(futuresOrders.Items[x].SettleCurrency),
+				Leverage:           futuresOrders.Items[x].Leverage,
+				AssetType:          getOrdersRequest.AssetType,
+				HiddenOrder:        futuresOrders.Items[x].Hidden,
+			})
 		}
 	case asset.Spot, asset.Margin:
 		if len(getOrdersRequest.Pairs) == 1 {
@@ -1131,9 +1147,6 @@ func (ku *Kucoin) GetActiveOrders(ctx context.Context, getOrdersRequest *order.M
 			return nil, fmt.Errorf("asset type: %v order type: %v err: %w", getOrdersRequest.AssetType, getOrdersRequest.Type, err)
 		}
 		spotOrders, err := ku.ListOrders(ctx, "active", pair, sideString, oType, "", getOrdersRequest.StartTime, getOrdersRequest.EndTime)
-		if err != nil {
-			return nil, err
-		}
 		if err != nil {
 			return nil, err
 		}
@@ -1333,7 +1346,7 @@ func (ku *Kucoin) GetFeeByType(ctx context.Context, feeBuilder *exchange.FeeBuil
 	switch feeBuilder.FeeType {
 	case exchange.CryptocurrencyWithdrawalFee,
 		exchange.CryptocurrencyTradeFee:
-		fee, err := ku.GetTradingFee(ctx, feeBuilder.Pair.String())
+		fee, err := ku.GetTradingFee(ctx, currency.Pairs{feeBuilder.Pair})
 		if err != nil {
 			return 0, err
 		}
@@ -1356,7 +1369,7 @@ func (ku *Kucoin) GetFeeByType(ctx context.Context, feeBuilder *exchange.FeeBuil
 			}
 			return feeBuilder.Amount * fee.TakerFeeRate, nil
 		}
-		return 0, fmt.Errorf("can't construct fee")
+		return 0, errors.New("can't construct fee")
 	}
 }
 
@@ -1901,6 +1914,117 @@ func (ku *Kucoin) GetFuturesPositionOrders(ctx context.Context, r *futures.Posit
 				Pair:            fPair,
 			}
 		}
+	}
+	return resp, nil
+}
+
+// UpdateOrderExecutionLimits updates order execution limits
+func (ku *Kucoin) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) error {
+	if !ku.SupportsAsset(a) {
+		return fmt.Errorf("%w %v", asset.ErrNotSupported, a)
+	}
+
+	var limits []order.MinMaxLevel
+	switch a {
+	case asset.Spot, asset.Margin:
+		symbols, err := ku.GetSymbols(ctx, "")
+		if err != nil {
+			return err
+		}
+		limits = make([]order.MinMaxLevel, 0, len(symbols))
+		for x := range symbols {
+			if a == asset.Margin && !symbols[x].IsMarginEnabled {
+				continue
+			}
+			pair, enabled, err := ku.MatchSymbolCheckEnabled(symbols[x].Symbol, a, true)
+			if err != nil && !errors.Is(err, currency.ErrPairNotFound) {
+				return err
+			}
+			if !enabled {
+				continue
+			}
+			limits = append(limits, order.MinMaxLevel{
+				Pair:                    pair,
+				Asset:                   a,
+				AmountStepIncrementSize: symbols[x].BaseIncrement,
+				QuoteStepIncrementSize:  symbols[x].QuoteIncrement,
+				PriceStepIncrementSize:  symbols[x].PriceIncrement,
+				MinimumBaseAmount:       symbols[x].BaseMinSize,
+				MaximumBaseAmount:       symbols[x].BaseMaxSize,
+				MinimumQuoteAmount:      symbols[x].QuoteMinSize,
+				MaximumQuoteAmount:      symbols[x].QuoteMaxSize,
+			})
+		}
+	case asset.Futures:
+		contract, err := ku.GetFuturesOpenContracts(ctx)
+		if err != nil {
+			return err
+		}
+		limits = make([]order.MinMaxLevel, 0, len(contract))
+		for x := range contract {
+			pair, enabled, err := ku.MatchSymbolCheckEnabled(contract[x].Symbol, a, false)
+			if err != nil && !errors.Is(err, currency.ErrPairNotFound) {
+				return err
+			}
+			if !enabled {
+				continue
+			}
+			limits = append(limits, order.MinMaxLevel{
+				Pair:                    pair,
+				Asset:                   a,
+				AmountStepIncrementSize: contract[x].LotSize,
+				QuoteStepIncrementSize:  contract[x].TickSize,
+				MaximumBaseAmount:       contract[x].MaxOrderQty,
+				MaximumQuoteAmount:      contract[x].MaxPrice,
+			})
+		}
+	}
+
+	return ku.LoadLimits(limits)
+}
+
+// GetOpenInterest returns the open interest rate for a given asset pair
+func (ku *Kucoin) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]futures.OpenInterest, error) {
+	for i := range k {
+		if k[i].Asset != asset.Futures {
+			// avoid API calls or returning errors after a successful retrieval
+			return nil, fmt.Errorf("%w %v %v", asset.ErrNotSupported, k[i].Asset, k[i].Pair())
+		}
+	}
+	contracts, err := ku.GetFuturesOpenContracts(ctx)
+	if err != nil {
+		return nil, err
+	}
+	resp := make([]futures.OpenInterest, 0, len(contracts))
+	for i := range contracts {
+		var symbol currency.Pair
+		var enabled bool
+		symbol, enabled, err = ku.MatchSymbolCheckEnabled(contracts[i].Symbol, asset.Futures, true)
+		if err != nil && !errors.Is(err, currency.ErrPairNotFound) {
+			return nil, err
+		}
+		if !enabled {
+			continue
+		}
+		var appendData bool
+		for j := range k {
+			if k[j].Pair().Equal(symbol) {
+				appendData = true
+				break
+			}
+		}
+		if len(k) > 0 && !appendData {
+			continue
+		}
+		resp = append(resp, futures.OpenInterest{
+			Key: key.ExchangePairAsset{
+				Exchange: ku.Name,
+				Base:     symbol.Base.Item,
+				Quote:    symbol.Quote.Item,
+				Asset:    asset.Futures,
+			},
+			OpenInterest: contracts[i].OpenInterest.Float64(),
+		})
 	}
 	return resp, nil
 }

@@ -952,6 +952,10 @@ func (c *Config) CheckExchangeConfigValues() error {
 			c.Exchanges[i].AvailablePairs = nil
 			c.Exchanges[i].EnabledPairs = nil
 		} else {
+			if err := c.Exchanges[i].CurrencyPairs.SetDelimitersFromConfig(); err != nil {
+				return fmt.Errorf("%s: %w", c.Exchanges[i].Name, err)
+			}
+
 			assets := c.Exchanges[i].CurrencyPairs.GetAssetTypes(false)
 			if len(assets) == 0 {
 				c.Exchanges[i].Enabled = false
@@ -1817,7 +1821,6 @@ func (c *Config) LoadConfig(configPath string, dryrun bool) error {
 	if err != nil {
 		return fmt.Errorf(ErrFailureOpeningConfig, configPath, err)
 	}
-
 	return c.CheckConfig()
 }
 
@@ -1847,9 +1850,18 @@ func (c *Config) UpdateConfig(configPath string, newCfg *Config, dryrun bool) er
 	return c.LoadConfig(configPath, dryrun)
 }
 
-// GetConfig returns a pointer to a configuration object
+// GetConfig returns the global shared config instance
 func GetConfig() *Config {
-	return &Cfg
+	m.Lock()
+	defer m.Unlock()
+	return &cfg
+}
+
+// SetConfig sets the global shared config instance
+func SetConfig(c *Config) {
+	m.Lock()
+	defer m.Unlock()
+	cfg = *c
 }
 
 // RemoveExchange removes an exchange config

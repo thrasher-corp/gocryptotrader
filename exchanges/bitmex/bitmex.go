@@ -263,6 +263,15 @@ func (b *Bitmex) GetFullFundingHistory(ctx context.Context, symbol, count, filte
 		&fundingHistory)
 }
 
+// GetInstrument returns instrument data
+func (b *Bitmex) GetInstrument(ctx context.Context, params *GenericRequestParams) ([]Instrument, error) {
+	var instruments []Instrument
+
+	return instruments, b.SendHTTPRequest(ctx, exchange.RestSpot, bitmexEndpointInstruments,
+		params,
+		&instruments)
+}
+
 // GetInstruments returns instrument data
 func (b *Bitmex) GetInstruments(ctx context.Context, params *GenericRequestParams) ([]Instrument, error) {
 	var instruments []Instrument
@@ -966,7 +975,7 @@ func getOfflineTradeFee(price, amount float64) float64 {
 	return 0.000750 * price * amount
 }
 
-// calculateTradingFee returns the fee for trading any currency on Bittrex
+// calculateTradingFee returns the fee for trading any currency on Bitmex
 func calculateTradingFee(purchasePrice, amount float64, isMaker bool) float64 {
 	var fee = 0.000750
 	if isMaker {

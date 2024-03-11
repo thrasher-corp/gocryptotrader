@@ -31,7 +31,7 @@ const (
 	krakenFuturesVersion          = "3"
 )
 
-// Kraken is the overarching type across the alphapoint package
+// Kraken is the overarching type across the kraken package
 type Kraken struct {
 	exchange.Base
 	wsRequestMtx sync.Mutex
@@ -141,17 +141,18 @@ func (k *Kraken) GetTicker(ctx context.Context, symbol currency.Pair) (Ticker, e
 	if len(resp.Error) > 0 {
 		return tick, fmt.Errorf("%s error: %s", k.Name, resp.Error)
 	}
-
 	for i := range resp.Data {
-		tick.Ask, _ = strconv.ParseFloat(resp.Data[i].Ask[0], 64)
-		tick.Bid, _ = strconv.ParseFloat(resp.Data[i].Bid[0], 64)
-		tick.Last, _ = strconv.ParseFloat(resp.Data[i].Last[0], 64)
-		tick.Volume, _ = strconv.ParseFloat(resp.Data[i].Volume[1], 64)
-		tick.VolumeWeightedAveragePrice, _ = strconv.ParseFloat(resp.Data[i].VolumeWeightedAveragePrice[1], 64)
+		tick.Ask = resp.Data[i].Ask[0].Float64()
+		tick.AskSize = resp.Data[i].Ask[2].Float64()
+		tick.Bid = resp.Data[i].Bid[0].Float64()
+		tick.BidSize = resp.Data[i].Bid[2].Float64()
+		tick.Last = resp.Data[i].Last[0].Float64()
+		tick.Volume = resp.Data[i].Volume[1].Float64()
+		tick.VolumeWeightedAveragePrice = resp.Data[i].VolumeWeightedAveragePrice[1].Float64()
 		tick.Trades = resp.Data[i].Trades[1]
-		tick.Low, _ = strconv.ParseFloat(resp.Data[i].Low[1], 64)
-		tick.High, _ = strconv.ParseFloat(resp.Data[i].High[1], 64)
-		tick.Open, _ = strconv.ParseFloat(resp.Data[i].Open, 64)
+		tick.Low = resp.Data[i].Low[1].Float64()
+		tick.High = resp.Data[i].High[1].Float64()
+		tick.Open = resp.Data[i].Open.Float64()
 	}
 	return tick, nil
 }
@@ -161,7 +162,9 @@ func (k *Kraken) GetTicker(ctx context.Context, symbol currency.Pair) (Ticker, e
 // ("LTCUSD,ETCUSD")
 func (k *Kraken) GetTickers(ctx context.Context, pairList string) (map[string]Ticker, error) {
 	values := url.Values{}
-	values.Set("pair", pairList)
+	if pairList != "" {
+		values.Set("pair", pairList)
+	}
 
 	type Response struct {
 		Error []interface{}             `json:"error"`
@@ -180,20 +183,21 @@ func (k *Kraken) GetTickers(ctx context.Context, pairList string) (map[string]Ti
 		return nil, fmt.Errorf("%s error: %s", k.Name, resp.Error)
 	}
 
-	tickers := make(map[string]Ticker)
-
+	tickers := make(map[string]Ticker, len(resp.Data))
 	for i := range resp.Data {
-		tick := Ticker{}
-		tick.Ask, _ = strconv.ParseFloat(resp.Data[i].Ask[0], 64)
-		tick.Bid, _ = strconv.ParseFloat(resp.Data[i].Bid[0], 64)
-		tick.Last, _ = strconv.ParseFloat(resp.Data[i].Last[0], 64)
-		tick.Volume, _ = strconv.ParseFloat(resp.Data[i].Volume[1], 64)
-		tick.VolumeWeightedAveragePrice, _ = strconv.ParseFloat(resp.Data[i].VolumeWeightedAveragePrice[1], 64)
-		tick.Trades = resp.Data[i].Trades[1]
-		tick.Low, _ = strconv.ParseFloat(resp.Data[i].Low[1], 64)
-		tick.High, _ = strconv.ParseFloat(resp.Data[i].High[1], 64)
-		tick.Open, _ = strconv.ParseFloat(resp.Data[i].Open, 64)
-		tickers[i] = tick
+		tickers[i] = Ticker{
+			Ask:                        resp.Data[i].Ask[0].Float64(),
+			AskSize:                    resp.Data[i].Ask[2].Float64(),
+			Bid:                        resp.Data[i].Bid[0].Float64(),
+			BidSize:                    resp.Data[i].Bid[2].Float64(),
+			Last:                       resp.Data[i].Last[0].Float64(),
+			Volume:                     resp.Data[i].Volume[1].Float64(),
+			VolumeWeightedAveragePrice: resp.Data[i].VolumeWeightedAveragePrice[1].Float64(),
+			Trades:                     resp.Data[i].Trades[1],
+			Low:                        resp.Data[i].Low[1].Float64(),
+			High:                       resp.Data[i].High[1].Float64(),
+			Open:                       resp.Data[i].Open.Float64(),
+		}
 	}
 	return tickers, nil
 }
@@ -565,11 +569,11 @@ func (k *Kraken) GetTradeBalance(ctx context.Context, args ...TradeBalanceOption
 	params := url.Values{}
 
 	if args != nil {
-		if len(args[0].Aclass) > 0 {
+		if args[0].Aclass != "" {
 			params.Set("aclass", args[0].Aclass)
 		}
 
-		if len(args[0].Asset) > 0 {
+		if args[0].Asset != "" {
 			params.Set("asset", args[0].Asset)
 		}
 	}
@@ -622,11 +626,11 @@ func (k *Kraken) GetClosedOrders(ctx context.Context, args GetClosedOrdersOption
 		params.Set("userref", strconv.FormatInt(int64(args.UserRef), 10))
 	}
 
-	if len(args.Start) > 0 {
+	if args.Start != "" {
 		params.Set("start", args.Start)
 	}
 
-	if len(args.End) > 0 {
+	if args.End != "" {
 		params.Set("end", args.End)
 	}
 
@@ -634,7 +638,7 @@ func (k *Kraken) GetClosedOrders(ctx context.Context, args GetClosedOrdersOption
 		params.Set("ofs", strconv.FormatInt(args.Ofs, 10))
 	}
 
-	if len(args.CloseTime) > 0 {
+	if args.CloseTime != "" {
 		params.Set("closetime", args.CloseTime)
 	}
 
@@ -685,7 +689,7 @@ func (k *Kraken) GetTradesHistory(ctx context.Context, args ...GetTradesHistoryO
 	params := url.Values{}
 
 	if args != nil {
-		if len(args[0].Type) > 0 {
+		if args[0].Type != "" {
 			params.Set("type", args[0].Type)
 		}
 
@@ -693,11 +697,11 @@ func (k *Kraken) GetTradesHistory(ctx context.Context, args ...GetTradesHistoryO
 			params.Set("trades", "true")
 		}
 
-		if len(args[0].Start) > 0 {
+		if args[0].Start != "" {
 			params.Set("start", args[0].Start)
 		}
 
-		if len(args[0].End) > 0 {
+		if args[0].End != "" {
 			params.Set("end", args[0].End)
 		}
 
@@ -1206,8 +1210,8 @@ func (k *Kraken) GetWebsocketToken(ctx context.Context) (string, error) {
 	return response.Result.Token, nil
 }
 
-// LookupAltname converts a currency into its altname (ZUSD -> USD)
-func (a *assetTranslatorStore) LookupAltname(target string) string {
+// LookupAltName converts a currency into its altName (ZUSD -> USD)
+func (a *assetTranslatorStore) LookupAltName(target string) string {
 	a.l.RLock()
 	alt, ok := a.Assets[target]
 	if !ok {
@@ -1218,7 +1222,7 @@ func (a *assetTranslatorStore) LookupAltname(target string) string {
 	return alt
 }
 
-// LookupAltname converts an altname to its original type (USD -> ZUSD)
+// LookupCurrency converts an altName to its original type (USD -> ZUSD)
 func (a *assetTranslatorStore) LookupCurrency(target string) string {
 	a.l.RLock()
 	for k, v := range a.Assets {
@@ -1247,7 +1251,7 @@ func (a *assetTranslatorStore) Seed(orig, alt string) {
 	a.l.Unlock()
 }
 
-// Seeded returns whether or not the asset translator has been seeded
+// Seeded checks if assets have been seeded
 func (a *assetTranslatorStore) Seeded() bool {
 	a.l.RLock()
 	isSeeded := len(a.Assets) > 0

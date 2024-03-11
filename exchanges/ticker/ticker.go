@@ -14,11 +14,17 @@ import (
 )
 
 var (
-	errInvalidTicker       = errors.New("invalid ticker")
-	errTickerNotFound      = errors.New("ticker not found")
-	errExchangeNameIsEmpty = errors.New("exchange name is empty")
-	errBidEqualsAsk        = errors.New("bid equals ask this is a crossed or locked market")
-	errBidGreaterThanAsk   = errors.New("bid greater than ask this is a crossed or locked market")
+	// ErrNoTickerFound is when a ticker is not found
+	ErrNoTickerFound = errors.New("no ticker found")
+	// ErrBidEqualsAsk error for locked markets
+	ErrBidEqualsAsk = errors.New("bid equals ask this is a crossed or locked market")
+	// ErrExchangeNameIsEmpty is an error for when an exchange name is empty
+	ErrExchangeNameIsEmpty = errors.New("exchange name is empty")
+
+	errInvalidTicker     = errors.New("invalid ticker")
+	errTickerNotFound    = errors.New("ticker not found")
+	errBidGreaterThanAsk = errors.New("bid greater than ask this is a crossed or locked market")
+	errExchangeNotFound  = errors.New("exchange not found")
 )
 
 func init() {
@@ -66,7 +72,7 @@ func SubscribeToExchangeTickers(exchange string) (dispatch.Pipe, error) {
 // GetTicker checks and returns a requested ticker if it exists
 func GetTicker(exchange string, p currency.Pair, a asset.Item) (*Price, error) {
 	if exchange == "" {
-		return nil, errExchangeNameIsEmpty
+		return nil, ErrExchangeNameIsEmpty
 	}
 	if p.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
@@ -84,12 +90,39 @@ func GetTicker(exchange string, p currency.Pair, a asset.Item) (*Price, error) {
 		Asset:    a,
 	}]
 	if !ok {
-		return nil, fmt.Errorf("no tickers associated with asset type %s %s %s",
-			exchange, p, a)
+		return nil, fmt.Errorf("%w %s %s %s",
+			ErrNoTickerFound, exchange, p, a)
 	}
 
 	cpy := tick.Price // Don't let external functions have access to underlying
 	return &cpy, nil
+}
+
+// GetExchangeTickers returns all tickers for a given exchange
+func GetExchangeTickers(exchange string) ([]*Price, error) {
+	return service.getExchangeTickers(exchange)
+}
+
+func (s *Service) getExchangeTickers(exchange string) ([]*Price, error) {
+	if exchange == "" {
+		return nil, ErrExchangeNameIsEmpty
+	}
+	exchange = strings.ToLower(exchange)
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	_, ok := s.Exchange[exchange]
+	if !ok {
+		return nil, fmt.Errorf("%w %v", errExchangeNotFound, exchange)
+	}
+	tickers := make([]*Price, 0, len(s.Tickers))
+	for k, v := range s.Tickers {
+		if k.Exchange != exchange {
+			continue
+		}
+		cpy := v.Price // Don't let external functions have access to underlying
+		tickers = append(tickers, &cpy)
+	}
+	return tickers, nil
 }
 
 // FindLast searches for a currency pair and returns the first available
@@ -116,7 +149,7 @@ func ProcessTicker(p *Price) error {
 	}
 
 	if p.ExchangeName == "" {
-		return fmt.Errorf(ErrExchangeNameUnset)
+		return ErrExchangeNameIsEmpty
 	}
 
 	if p.Pair.IsEmpty() {
@@ -132,7 +165,7 @@ func ProcessTicker(p *Price) error {
 				return fmt.Errorf("%s %s %w",
 					p.ExchangeName,
 					p.Pair,
-					errBidEqualsAsk)
+					ErrBidEqualsAsk)
 			}
 
 			if p.Bid > p.Ask {
@@ -205,10 +238,10 @@ func (s *Service) setItemID(t *Ticker, p *Price, exch string) error {
 	return nil
 }
 
-// getAssociations links a singular book with it's dispatch associations
+// getAssociations links a singular book with its dispatch associations
 func (s *Service) getAssociations(exch string) ([]uuid.UUID, error) {
 	if exch == "" {
-		return nil, errExchangeNameIsEmpty
+		return nil, ErrExchangeNameIsEmpty
 	}
 	var ids []uuid.UUID
 	exchangeID, ok := s.Exchange[exch]

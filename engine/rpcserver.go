@@ -24,6 +24,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/common/file"
 	"github.com/thrasher-corp/gocryptotrader/common/file/archive"
+	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/common/timeperiods"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/database"
@@ -90,21 +91,21 @@ type RPCServer struct {
 func (s *RPCServer) authenticateClient(ctx context.Context) (context.Context, error) {
 	md, ok := metadata.FromIncomingContext(ctx)
 	if !ok {
-		return ctx, fmt.Errorf("unable to extract metadata")
+		return ctx, errors.New("unable to extract metadata")
 	}
 
 	authStr, ok := md["authorization"]
 	if !ok {
-		return ctx, fmt.Errorf("authorization header missing")
+		return ctx, errors.New("authorization header missing")
 	}
 
 	if !strings.Contains(authStr[0], "Basic") {
-		return ctx, fmt.Errorf("basic not found in authorization header")
+		return ctx, errors.New("basic not found in authorization header")
 	}
 
 	decoded, err := crypto.Base64Decode(strings.Split(authStr[0], " ")[1])
 	if err != nil {
-		return ctx, fmt.Errorf("unable to base64 decode authorization header")
+		return ctx, errors.New("unable to base64 decode authorization header")
 	}
 
 	cred := strings.Split(string(decoded), ":")
@@ -113,7 +114,7 @@ func (s *RPCServer) authenticateClient(ctx context.Context) (context.Context, er
 
 	if username != s.Config.RemoteControl.Username ||
 		password != s.Config.RemoteControl.Password {
-		return ctx, fmt.Errorf("username/password mismatch")
+		return ctx, errors.New("username/password mismatch")
 	}
 	ctx, err = account.ParseCredentialsMetadata(ctx, md)
 	if err != nil {
@@ -171,12 +172,14 @@ func StartRPCServer(engine *Engine) {
 
 // StartRPCRESTProxy starts a gRPC proxy
 func (s *RPCServer) StartRPCRESTProxy() {
-	log.Debugf(log.GRPCSys, "gRPC proxy server support enabled. Starting gRPC proxy server on http://%v.\n", s.Config.RemoteControl.GRPC.GRPCProxyListenAddress)
+	log.Debugf(log.GRPCSys, "gRPC proxy server support enabled. Starting gRPC proxy server on https://%v.\n", s.Config.RemoteControl.GRPC.GRPCProxyListenAddress)
 
 	targetDir := utils.GetTLSDir(s.Settings.DataDir)
-	creds, err := credentials.NewClientTLSFromFile(filepath.Join(targetDir, "cert.pem"), "")
+	certFile := filepath.Join(targetDir, "cert.pem")
+	keyFile := filepath.Join(targetDir, "key.pem")
+	creds, err := credentials.NewClientTLSFromFile(certFile, "")
 	if err != nil {
-		log.Errorf(log.GRPCSys, "Unabled to start gRPC proxy. Err: %s\n", err)
+		log.Errorf(log.GRPCSys, "Unable to start gRPC proxy. Err: %s\n", err)
 		return
 	}
 
@@ -199,14 +202,29 @@ func (s *RPCServer) StartRPCRESTProxy() {
 			Addr:              s.Config.RemoteControl.GRPC.GRPCProxyListenAddress,
 			ReadHeaderTimeout: time.Minute,
 			ReadTimeout:       time.Minute,
+			Handler:           s.authClient(mux),
 		}
 
-		if err = server.ListenAndServe(); err != nil {
-			log.Errorf(log.GRPCSys, "GRPC proxy failed to server: %s\n", err)
+		if err = server.ListenAndServeTLS(certFile, keyFile); err != nil {
+			log.Errorf(log.GRPCSys, "gRPC proxy server failed to serve: %s\n", err)
+			return
 		}
 	}()
 
 	log.Debugln(log.GRPCSys, "gRPC proxy server started!")
+}
+
+func (s *RPCServer) authClient(handler http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		username, password, ok := r.BasicAuth()
+		if !ok || username != s.Config.RemoteControl.Username || password != s.Config.RemoteControl.Password {
+			w.Header().Set("WWW-Authenticate", `Basic realm="restricted"`)
+			http.Error(w, "Access denied", http.StatusUnauthorized)
+			log.Warnf(log.GRPCSys, "gRPC proxy server unauthorised access attempt. IP: %s Path: %s\n", r.RemoteAddr, r.URL.Path)
+			return
+		}
+		handler.ServeHTTP(w, r)
+	})
 }
 
 // GetInfo returns info about the current GoCryptoTrader session
@@ -309,7 +327,7 @@ func (s *RPCServer) DisableExchange(_ context.Context, r *gctrpc.GenericExchange
 
 // EnableExchange enables an exchange
 func (s *RPCServer) EnableExchange(_ context.Context, r *gctrpc.GenericExchangeNameRequest) (*gctrpc.GenericResponse, error) {
-	err := s.LoadExchange(r.Exchange, nil)
+	err := s.LoadExchange(r.Exchange)
 	if err != nil {
 		return nil, err
 	}
@@ -860,7 +878,7 @@ func (s *RPCServer) RemovePortfolioAddress(_ context.Context, r *gctrpc.RemovePo
 func (s *RPCServer) GetForexProviders(_ context.Context, _ *gctrpc.GetForexProvidersRequest) (*gctrpc.GetForexProvidersResponse, error) {
 	providers := s.Config.GetForexProviders()
 	if len(providers) == 0 {
-		return nil, fmt.Errorf("forex providers is empty")
+		return nil, errors.New("forex providers is empty")
 	}
 
 	forexProviders := make([]*gctrpc.ForexProvider, len(providers))
@@ -886,7 +904,7 @@ func (s *RPCServer) GetForexRates(_ context.Context, _ *gctrpc.GetForexRatesRequ
 	}
 
 	if len(rates) == 0 {
-		return nil, fmt.Errorf("forex rates is empty")
+		return nil, errors.New("forex rates is empty")
 	}
 
 	forexRates := make([]*gctrpc.ForexRatesConversion, 0, len(rates))
@@ -2586,7 +2604,7 @@ func (s *RPCServer) GCTScriptStatus(_ context.Context, _ *gctrpc.GCTScriptStatus
 		Status: fmt.Sprintf("%v of %v virtual machines running", gctscript.VMSCount.Len(), s.gctScriptManager.GetMaxVirtualMachines()),
 	}
 
-	gctscript.AllVMSync.Range(func(k, v interface{}) bool {
+	gctscript.AllVMSync.Range(func(_, v interface{}) bool {
 		vm, ok := v.(*gctscript.VM)
 		if !ok {
 			log.Errorf(log.GRPCSys, "%v", common.GetTypeAssertError("*gctscript.VM", v))
@@ -2825,7 +2843,7 @@ func (s *RPCServer) GCTScriptListAll(context.Context, *gctrpc.GCTScriptListAllRe
 
 	resp := &gctrpc.GCTScriptStatusResponse{}
 	err := filepath.Walk(gctscript.ScriptPath,
-		func(path string, info os.FileInfo, err error) error {
+		func(path string, _ os.FileInfo, err error) error {
 			if err != nil {
 				return err
 			}
@@ -3102,10 +3120,10 @@ func (s *RPCServer) WebsocketGetSubscriptions(_ context.Context, r *gctrpc.Webso
 		}
 		payload.Subscriptions = append(payload.Subscriptions,
 			&gctrpc.WebsocketSubscription{
-				Channel:  subs[i].Channel,
-				Currency: subs[i].Currency.String(),
-				Asset:    subs[i].Asset.String(),
-				Params:   string(params),
+				Channel: subs[i].Channel,
+				Pair:    subs[i].Pair.String(),
+				Asset:   subs[i].Asset.String(),
+				Params:  string(params),
 			})
 	}
 	return payload, nil
@@ -3272,7 +3290,7 @@ func (s *RPCServer) ConvertTradesToCandles(_ context.Context, r *gctrpc.ConvertT
 		return nil, err
 	}
 	if len(klineItem.Candles) == 0 {
-		return nil, fmt.Errorf("no candles generated from trades")
+		return nil, errors.New("no candles generated from trades")
 	}
 
 	resp := &gctrpc.GetHistoricCandlesResponse{
@@ -5946,5 +5964,55 @@ func (s *RPCServer) ChangePositionMargin(ctx context.Context, r *gctrpc.ChangePo
 		MarginType:         r.MarginType,
 		NewAllocatedMargin: resp.AllocatedMargin,
 		MarginSide:         r.MarginSide,
+	}, nil
+}
+
+// GetOpenInterest fetches the open interest from the exchange
+func (s *RPCServer) GetOpenInterest(ctx context.Context, r *gctrpc.GetOpenInterestRequest) (*gctrpc.GetOpenInterestResponse, error) {
+	if r == nil {
+		return nil, fmt.Errorf("%w GetOpenInterestRequest", common.ErrNilPointer)
+	}
+	exch, err := s.GetExchangeByName(r.Exchange)
+	if err != nil {
+		return nil, err
+	}
+	if !exch.IsEnabled() {
+		return nil, fmt.Errorf("%s %w", r.Exchange, errExchangeNotEnabled)
+	}
+	feat := exch.GetSupportedFeatures()
+	if !feat.FuturesCapabilities.OpenInterest.Supported {
+		return nil, common.ErrFunctionNotSupported
+	}
+	keys := make([]key.PairAsset, len(r.Data))
+	for i := range r.Data {
+		var a asset.Item
+		a, err = asset.New(r.Data[i].Asset)
+		if err != nil {
+			return nil, err
+		}
+		keys[i].Base = currency.NewCode(r.Data[i].Pair.Base).Item
+		keys[i].Quote = currency.NewCode(r.Data[i].Pair.Quote).Item
+		keys[i].Asset = a
+	}
+
+	openInterest, err := exch.GetOpenInterest(ctx, keys...)
+	if err != nil {
+		return nil, err
+	}
+
+	resp := make([]*gctrpc.OpenInterestDataResponse, len(openInterest))
+	for i := range openInterest {
+		resp[i] = &gctrpc.OpenInterestDataResponse{
+			Exchange: openInterest[i].Key.Exchange,
+			Pair: &gctrpc.CurrencyPair{
+				Base:  openInterest[i].Key.Base.String(),
+				Quote: openInterest[i].Key.Quote.String(),
+			},
+			Asset:        openInterest[i].Key.Asset.String(),
+			OpenInterest: openInterest[i].OpenInterest,
+		}
+	}
+	return &gctrpc.GetOpenInterestResponse{
+		Data: resp,
 	}, nil
 }

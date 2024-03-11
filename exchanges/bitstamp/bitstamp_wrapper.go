@@ -7,7 +7,6 @@ import (
 	"math"
 	"sort"
 	"strconv"
-	"sync"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -147,7 +146,7 @@ func (b *Bitstamp) SetDefaults() {
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
-	b.Websocket = stream.New()
+	b.Websocket = stream.NewWebsocket()
 	b.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	b.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
 	b.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
@@ -192,97 +191,6 @@ func (b *Bitstamp) Setup(exch *config.Exchange) error {
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
 	})
-}
-
-// Start starts the Bitstamp go routine
-func (b *Bitstamp) Start(ctx context.Context, wg *sync.WaitGroup) error {
-	if wg == nil {
-		return fmt.Errorf("%T %w", wg, common.ErrNilPointer)
-	}
-	wg.Add(1)
-	go func() {
-		b.Run(ctx)
-		wg.Done()
-	}()
-	return nil
-}
-
-// Run implements the Bitstamp wrapper
-func (b *Bitstamp) Run(ctx context.Context) {
-	if b.Verbose {
-		log.Debugf(log.ExchangeSys,
-			"%s Websocket: %s.",
-			b.Name,
-			common.IsEnabled(b.Websocket.IsEnabled()))
-		b.PrintEnabledPairs()
-	}
-
-	forceUpdate := false
-	if !b.BypassConfigFormatUpgrades {
-		format, err := b.GetPairFormat(asset.Spot, false)
-		if err != nil {
-			log.Errorf(log.ExchangeSys, "%s failed to get pair format. Err %s\n",
-				b.Name,
-				err)
-			return
-		}
-
-		enabled, err := b.CurrencyPairs.GetPairs(asset.Spot, true)
-		if err != nil {
-			log.Errorf(log.ExchangeSys, "%s failed to get enabled currencies. Err %s\n",
-				b.Name,
-				err)
-			return
-		}
-
-		avail, err := b.CurrencyPairs.GetPairs(asset.Spot, false)
-		if err != nil {
-			log.Errorf(log.ExchangeSys, "%s failed to get available currencies. Err %s\n",
-				b.Name,
-				err)
-			return
-		}
-
-		if !common.StringDataContains(enabled.Strings(), format.Delimiter) ||
-			!common.StringDataContains(avail.Strings(), format.Delimiter) {
-			var enabledPairs currency.Pairs
-			enabledPairs, err = currency.NewPairsFromStrings([]string{
-				currency.BTC.String() + format.Delimiter + currency.USD.String(),
-			})
-			if err != nil {
-				log.Errorf(log.ExchangeSys, "%s failed to update currencies. Err %s\n",
-					b.Name,
-					err)
-			} else {
-				log.Warnf(log.ExchangeSys,
-					exchange.ResetConfigPairsWarningMessage, b.Name, asset.Spot, enabledPairs)
-				forceUpdate = true
-
-				err = b.UpdatePairs(enabledPairs, asset.Spot, true, true)
-				if err != nil {
-					log.Errorf(log.ExchangeSys,
-						"%s failed to update currencies. Err: %s\n",
-						b.Name,
-						err)
-				}
-			}
-		}
-	}
-
-	if b.GetEnabledFeatures().AutoPairUpdates || forceUpdate {
-		if err := b.UpdateTradablePairs(ctx, forceUpdate); err != nil {
-			log.Errorf(log.ExchangeSys,
-				"%s failed to update tradable pairs. Err: %s",
-				b.Name,
-				err)
-		}
-	}
-
-	for _, a := range b.GetAssetTypes(true) {
-		if err := b.UpdateOrderExecutionLimits(ctx, a); err != nil && err != common.ErrNotYetImplemented {
-			log.Errorln(log.ExchangeSys, err.Error())
-		}
-	}
 }
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs
@@ -540,10 +448,15 @@ func (b *Bitstamp) GetWithdrawalsHistory(ctx context.Context, c currency.Code, _
 	}
 	resp := make([]exchange.WithdrawalHistory, 0, len(withdrawals))
 	for i := range withdrawals {
+		var tm time.Time
+		tm, err = parseTime(withdrawals[i].Date)
+		if err != nil {
+			return nil, fmt.Errorf("getWithdrawalsHistory unable to parse Date field: %w", err)
+		}
 		if c.IsEmpty() || c.Equal(withdrawals[i].Currency) {
 			resp = append(resp, exchange.WithdrawalHistory{
 				Status:          strconv.FormatInt(withdrawals[i].Status, 10),
-				Timestamp:       withdrawals[i].Date,
+				Timestamp:       tm,
 				Currency:        withdrawals[i].Currency.String(),
 				Amount:          withdrawals[i].Amount,
 				TransferType:    strconv.FormatInt(withdrawals[i].Type, 10),

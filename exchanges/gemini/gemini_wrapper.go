@@ -8,7 +8,6 @@ import (
 	"sort"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -129,7 +128,7 @@ func (g *Gemini) SetDefaults() {
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
-	g.Websocket = stream.New()
+	g.Websocket = stream.NewWebsocket()
 	g.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	g.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
 	g.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
@@ -191,92 +190,6 @@ func (g *Gemini) Setup(exch *config.Exchange) error {
 		URL:                  geminiWebsocketEndpoint + "/v1/" + geminiWsOrderEvents,
 		Authenticated:        true,
 	})
-}
-
-// Start starts the Gemini go routine
-func (g *Gemini) Start(ctx context.Context, wg *sync.WaitGroup) error {
-	if wg == nil {
-		return fmt.Errorf("%T %w", wg, common.ErrNilPointer)
-	}
-	wg.Add(1)
-	go func() {
-		g.Run(ctx)
-		wg.Done()
-	}()
-	return nil
-}
-
-// Run implements the Gemini wrapper
-func (g *Gemini) Run(ctx context.Context) {
-	if g.Verbose {
-		g.PrintEnabledPairs()
-	}
-
-	forceUpdate := false
-	if !g.BypassConfigFormatUpgrades {
-		format, err := g.GetPairFormat(asset.Spot, false)
-		if err != nil {
-			log.Errorf(log.ExchangeSys, "%s failed to get enabled currencies. Err %s\n",
-				g.Name,
-				err)
-			return
-		}
-
-		enabled, err := g.CurrencyPairs.GetPairs(asset.Spot, true)
-		if err != nil {
-			log.Errorf(log.ExchangeSys, "%s failed to get enabled currencies. Err %s\n",
-				g.Name,
-				err)
-			return
-		}
-
-		avail, err := g.CurrencyPairs.GetPairs(asset.Spot, false)
-		if err != nil {
-			log.Errorf(log.ExchangeSys, "%s failed to get available currencies. Err %s\n",
-				g.Name,
-				err)
-			return
-		}
-
-		if !common.StringDataContains(enabled.Strings(), format.Delimiter) ||
-			!common.StringDataContains(avail.Strings(), format.Delimiter) {
-			var enabledPairs currency.Pairs
-			enabledPairs, err = currency.NewPairsFromStrings([]string{
-				currency.BTC.String() + format.Delimiter + currency.USD.String()})
-			if err != nil {
-				log.Errorf(log.ExchangeSys, "%s failed to update currencies. Err %s\n",
-					g.Name,
-					err)
-			} else {
-				log.Warnf(log.ExchangeSys, exchange.ResetConfigPairsWarningMessage, g.Name, asset.Spot, enabledPairs)
-				forceUpdate = true
-
-				err = g.UpdatePairs(enabledPairs, asset.Spot, true, true)
-				if err != nil {
-					log.Errorf(log.ExchangeSys,
-						"%s failed to update currencies. Err: %s\n",
-						g.Name,
-						err)
-				}
-			}
-		}
-	}
-	if err := g.UpdateOrderExecutionLimits(ctx, asset.Spot); err != nil {
-		log.Errorf(log.ExchangeSys,
-			"%s failed to set exchange order execution limits. Err: %v",
-			g.Name,
-			err)
-	}
-	if !g.GetEnabledFeatures().AutoPairUpdates && !forceUpdate {
-		return
-	}
-	err := g.UpdateTradablePairs(ctx, forceUpdate)
-	if err != nil {
-		log.Errorf(log.ExchangeSys,
-			"%s failed to update tradable pairs. Err: %s",
-			g.Name,
-			err)
-	}
 }
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs

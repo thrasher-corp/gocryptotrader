@@ -23,6 +23,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 )
@@ -59,7 +60,7 @@ var fetchedCurrencyPairSnapshotOrderbook = make(map[string]bool)
 // WsConnect initiates a websocket connection
 func (g *Gateio) WsConnect() error {
 	if !g.Websocket.IsEnabled() || !g.IsEnabled() {
-		return errors.New(stream.WebsocketNotEnabled)
+		return stream.ErrWebsocketNotEnabled
 	}
 	err := g.CurrencyPairs.IsAssetEnabled(asset.Spot)
 	if err != nil {
@@ -628,7 +629,7 @@ func (g *Gateio) processCrossMarginLoans(data []byte) error {
 }
 
 // GenerateDefaultSubscriptions returns default subscriptions
-func (g *Gateio) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, error) {
+func (g *Gateio) GenerateDefaultSubscriptions() ([]subscription.Subscription, error) {
 	channelsToSubscribe := defaultSubscriptions
 	if g.Websocket.CanUseAuthenticatedEndpoints() {
 		channelsToSubscribe = append(channelsToSubscribe, []string{
@@ -641,7 +642,7 @@ func (g *Gateio) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, e
 		channelsToSubscribe = append(channelsToSubscribe, spotTradesChannel)
 	}
 
-	var subscriptions []stream.ChannelSubscription
+	var subscriptions []subscription.Subscription
 	var err error
 	for i := range channelsToSubscribe {
 		var pairs []currency.Pair
@@ -681,11 +682,11 @@ func (g *Gateio) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, e
 				return nil, err
 			}
 
-			subscriptions = append(subscriptions, stream.ChannelSubscription{
-				Channel:  channelsToSubscribe[i],
-				Currency: fpair.Upper(),
-				Asset:    assetType,
-				Params:   params,
+			subscriptions = append(subscriptions, subscription.Subscription{
+				Channel: channelsToSubscribe[i],
+				Pair:    fpair.Upper(),
+				Asset:   assetType,
+				Params:  params,
 			})
 		}
 	}
@@ -693,7 +694,7 @@ func (g *Gateio) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, e
 }
 
 // handleSubscription sends a websocket message to receive data from the channel
-func (g *Gateio) handleSubscription(event string, channelsToSubscribe []stream.ChannelSubscription) error {
+func (g *Gateio) handleSubscription(event string, channelsToSubscribe []subscription.Subscription) error {
 	payloads, err := g.generatePayload(event, channelsToSubscribe)
 	if err != nil {
 		return err
@@ -723,7 +724,7 @@ func (g *Gateio) handleSubscription(event string, channelsToSubscribe []stream.C
 	return errs
 }
 
-func (g *Gateio) generatePayload(event string, channelsToSubscribe []stream.ChannelSubscription) ([]WsInput, error) {
+func (g *Gateio) generatePayload(event string, channelsToSubscribe []subscription.Subscription) ([]WsInput, error) {
 	if len(channelsToSubscribe) == 0 {
 		return nil, errors.New("cannot generate payload, no channels supplied")
 	}
@@ -741,8 +742,8 @@ func (g *Gateio) generatePayload(event string, channelsToSubscribe []stream.Chan
 	for i := range channelsToSubscribe {
 		var auth *WsAuthInput
 		timestamp := time.Now()
-		channelsToSubscribe[i].Currency.Delimiter = currency.UnderscoreDelimiter
-		params := []string{channelsToSubscribe[i].Currency.String()}
+		channelsToSubscribe[i].Pair.Delimiter = currency.UnderscoreDelimiter
+		params := []string{channelsToSubscribe[i].Pair.String()}
 		switch channelsToSubscribe[i].Channel {
 		case spotOrderbookChannel:
 			interval, okay := channelsToSubscribe[i].Params["interval"].(kline.Interval)
@@ -840,12 +841,12 @@ func (g *Gateio) generatePayload(event string, channelsToSubscribe []stream.Chan
 }
 
 // Subscribe sends a websocket message to stop receiving data from the channel
-func (g *Gateio) Subscribe(channelsToUnsubscribe []stream.ChannelSubscription) error {
+func (g *Gateio) Subscribe(channelsToUnsubscribe []subscription.Subscription) error {
 	return g.handleSubscription("subscribe", channelsToUnsubscribe)
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
-func (g *Gateio) Unsubscribe(channelsToUnsubscribe []stream.ChannelSubscription) error {
+func (g *Gateio) Unsubscribe(channelsToUnsubscribe []subscription.Subscription) error {
 	return g.handleSubscription("unsubscribe", channelsToUnsubscribe)
 }
 

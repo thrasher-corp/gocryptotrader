@@ -18,6 +18,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
@@ -40,7 +41,7 @@ var (
 // WsConnect initiates a websocket connection
 func (c *COINUT) WsConnect() error {
 	if !c.Websocket.IsEnabled() || !c.IsEnabled() {
-		return errors.New(stream.WebsocketNotEnabled)
+		return stream.ErrWebsocketNotEnabled
 	}
 	var dialer websocket.Dialer
 	err := c.Websocket.Conn.Dial(&dialer, http.Header{})
@@ -597,19 +598,19 @@ func (c *COINUT) WsProcessOrderbookUpdate(update *WsOrderbookUpdate) error {
 }
 
 // GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
-func (c *COINUT) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, error) {
+func (c *COINUT) GenerateDefaultSubscriptions() ([]subscription.Subscription, error) {
 	var channels = []string{"inst_tick", "inst_order_book", "inst_trade"}
-	var subscriptions []stream.ChannelSubscription
-	enabledCurrencies, err := c.GetEnabledPairs(asset.Spot)
+	var subscriptions []subscription.Subscription
+	enabledPairs, err := c.GetEnabledPairs(asset.Spot)
 	if err != nil {
 		return nil, err
 	}
 	for i := range channels {
-		for j := range enabledCurrencies {
-			subscriptions = append(subscriptions, stream.ChannelSubscription{
-				Channel:  channels[i],
-				Currency: enabledCurrencies[j],
-				Asset:    asset.Spot,
+		for j := range enabledPairs {
+			subscriptions = append(subscriptions, subscription.Subscription{
+				Channel: channels[i],
+				Pair:    enabledPairs[j],
+				Asset:   asset.Spot,
 			})
 		}
 	}
@@ -617,10 +618,10 @@ func (c *COINUT) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, e
 }
 
 // Subscribe sends a websocket message to receive data from the channel
-func (c *COINUT) Subscribe(channelsToSubscribe []stream.ChannelSubscription) error {
+func (c *COINUT) Subscribe(channelsToSubscribe []subscription.Subscription) error {
 	var errs error
 	for i := range channelsToSubscribe {
-		fPair, err := c.FormatExchangeCurrency(channelsToSubscribe[i].Currency, asset.Spot)
+		fPair, err := c.FormatExchangeCurrency(channelsToSubscribe[i].Pair, asset.Spot)
 		if err != nil {
 			errs = common.AppendError(errs, err)
 			continue
@@ -646,10 +647,10 @@ func (c *COINUT) Subscribe(channelsToSubscribe []stream.ChannelSubscription) err
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
-func (c *COINUT) Unsubscribe(channelToUnsubscribe []stream.ChannelSubscription) error {
+func (c *COINUT) Unsubscribe(channelToUnsubscribe []subscription.Subscription) error {
 	var errs error
 	for i := range channelToUnsubscribe {
-		fPair, err := c.FormatExchangeCurrency(channelToUnsubscribe[i].Currency, asset.Spot)
+		fPair, err := c.FormatExchangeCurrency(channelToUnsubscribe[i].Pair, asset.Spot)
 		if err != nil {
 			errs = common.AppendError(errs, err)
 			continue

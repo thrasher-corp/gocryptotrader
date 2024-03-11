@@ -7,7 +7,6 @@ import (
 	"math"
 	"sort"
 	"strconv"
-	"sync"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -125,38 +124,6 @@ func (y *Yobit) Setup(exch *config.Exchange) error {
 		return nil
 	}
 	return y.SetupDefaults(exch)
-}
-
-// Start starts the WEX go routine
-func (y *Yobit) Start(ctx context.Context, wg *sync.WaitGroup) error {
-	if wg == nil {
-		return fmt.Errorf("%T %w", wg, common.ErrNilPointer)
-	}
-	wg.Add(1)
-	go func() {
-		y.Run(ctx)
-		wg.Done()
-	}()
-	return nil
-}
-
-// Run implements the Yobit wrapper
-func (y *Yobit) Run(ctx context.Context) {
-	if y.Verbose {
-		y.PrintEnabledPairs()
-	}
-
-	if !y.GetEnabledFeatures().AutoPairUpdates {
-		return
-	}
-
-	err := y.UpdateTradablePairs(ctx, false)
-	if err != nil {
-		log.Errorf(log.ExchangeSys,
-			"%s failed to update tradable pairs. Err: %s",
-			y.Name,
-			err)
-	}
 }
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs
@@ -588,7 +555,7 @@ func (y *Yobit) WithdrawCryptocurrencyFunds(ctx context.Context, withdrawRequest
 	if err != nil {
 		return nil, err
 	}
-	if len(resp.Error) > 0 {
+	if resp.Error != "" {
 		return nil, errors.New(resp.Error)
 	}
 	return &withdraw.ExchangeResponse{}, nil
@@ -771,4 +738,9 @@ func (y *Yobit) GetFuturesContractDetails(context.Context, asset.Item) ([]future
 // GetLatestFundingRates returns the latest funding rates data
 func (y *Yobit) GetLatestFundingRates(context.Context, *fundingrate.LatestRateRequest) ([]fundingrate.LatestRateResponse, error) {
 	return nil, common.ErrFunctionNotSupported
+}
+
+// UpdateOrderExecutionLimits updates order execution limits
+func (y *Yobit) UpdateOrderExecutionLimits(_ context.Context, _ asset.Item) error {
+	return common.ErrNotYetImplemented
 }

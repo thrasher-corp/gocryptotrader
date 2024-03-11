@@ -8,11 +8,11 @@ import (
 	"sort"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -137,6 +137,11 @@ func (b *BTSE) SetDefaults() {
 				FundingRateBatching: map[asset.Item]bool{
 					asset.Futures: true,
 				},
+				OpenInterest: exchange.OpenInterestSupport{
+					Supported:          true,
+					SupportsRestBatch:  true,
+					SupportedViaTicker: true,
+				},
 			},
 		},
 		Enabled: exchange.FeaturesEnabled{
@@ -171,7 +176,7 @@ func (b *BTSE) SetDefaults() {
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
-	b.Websocket = stream.New()
+	b.Websocket = stream.NewWebsocket()
 	b.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	b.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
 	b.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
@@ -222,67 +227,41 @@ func (b *BTSE) Setup(exch *config.Exchange) error {
 	})
 }
 
-// Start starts the BTSE go routine
-func (b *BTSE) Start(ctx context.Context, wg *sync.WaitGroup) error {
-	if wg == nil {
-		return fmt.Errorf("%T %w", wg, common.ErrNilPointer)
-	}
-	wg.Add(1)
-	go func() {
-		b.Run(ctx)
-		wg.Done()
-	}()
-	return nil
-}
-
-// Run implements the BTSE wrapper
-func (b *BTSE) Run(ctx context.Context) {
-	if b.Verbose {
-		b.PrintEnabledPairs()
-	}
-
-	if !b.GetEnabledFeatures().AutoPairUpdates {
-		return
-	}
-
-	err := b.UpdateTradablePairs(ctx, false)
-	if err != nil {
-		log.Errorf(log.ExchangeSys,
-			"%s Failed to update tradable pairs. Error: %s", b.Name, err)
-	}
-}
-
 // FetchTradablePairs returns a list of the exchanges tradable pairs
 func (b *BTSE) FetchTradablePairs(ctx context.Context, a asset.Item) (currency.Pairs, error) {
 	m, err := b.GetMarketSummary(ctx, "", a == asset.Spot)
 	if err != nil {
 		return nil, err
 	}
-	pairs := make([]currency.Pair, 0, len(m))
-	for x := range m {
-		if !m[x].Active ||
-			// BTSE returns 0 for both highest bid and lowest ask if there is
-			// no order book data, so we skip those pairs. There is no way to
-			// take or provide liquidity for these pairs.
-
-			// TODO: Add support for an OTC asset as this eliminates many valid
-			// tradable pairs which are active, OTC only and available on the
-			// front-end.
-			(m[x].LowestAsk == 0 && m[x].HighestBid == 0) {
+	pairs := make(currency.Pairs, 0, len(m))
+	mPairs := m.MillionPairs()
+	for _, l := range m {
+		if !l.Active || !l.HasLiquidity() ||
+			(a == asset.Spot && !l.IsMarketOpenToSpot) { // Skip OTC assets only tradable on web UI
 			continue
 		}
-
-		var pair currency.Pair
-		quote := m[x].Quote
+		if mPairs[l.Symbol] {
+			// BTSE lists M_ symbols for very small pairs, in millions. For those listings, we want to take the M_ listing in preference
+			// to the native listing, since they're often going to appear as locked markets due to size (bid == ask, e.g. 0.0000000003)
+			continue
+		}
+		baseCurr := l.Base
+		var quoteCurr string
 		if a == asset.Futures {
-			symSplit := strings.Split(m[x].Symbol, m[x].Base)
-			if len(symSplit) <= 1 {
+			s := strings.Split(l.Symbol, l.Base) // e.g. RUNEPFC for RUNE-USD futures pair
+			if len(s) <= 1 {
 				continue
 			}
-			quote = symSplit[1]
+			quoteCurr = s[1]
+		} else {
+			s := strings.Split(l.Symbol, currency.DashDelimiter)
+			if len(s) != 2 {
+				continue
+			}
+			baseCurr = s[0]
+			quoteCurr = s[1]
 		}
-
-		pair, err = currency.NewPairFromStrings(m[x].Base, quote)
+		pair, err := currency.NewPairFromStrings(baseCurr, quoteCurr)
 		if err != nil {
 			return nil, err
 		}
@@ -317,29 +296,28 @@ func (b *BTSE) UpdateTickers(ctx context.Context, a asset.Item) error {
 	if err != nil {
 		return err
 	}
+	var errs error
 	for x := range tickers {
-		var pair currency.Pair
-		pair, err = currency.NewPairFromString(tickers[x].Symbol)
-		if err != nil {
-			return err
+		pair, err := currency.NewPairFromString(tickers[x].Symbol)
+		if err == nil {
+			err = ticker.ProcessTicker(&ticker.Price{
+				Pair:         pair,
+				Ask:          tickers[x].LowestAsk,
+				Bid:          tickers[x].HighestBid,
+				Low:          tickers[x].Low24Hr,
+				Last:         tickers[x].Last,
+				Volume:       tickers[x].Volume,
+				High:         tickers[x].High24Hr,
+				OpenInterest: tickers[x].OpenInterest,
+				ExchangeName: b.Name,
+				AssetType:    a})
 		}
-
-		err = ticker.ProcessTicker(&ticker.Price{
-			Pair:         pair,
-			Ask:          tickers[x].LowestAsk,
-			Bid:          tickers[x].HighestBid,
-			Low:          tickers[x].Low24Hr,
-			Last:         tickers[x].Last,
-			Volume:       tickers[x].Volume,
-			High:         tickers[x].High24Hr,
-			ExchangeName: b.Name,
-			AssetType:    a})
 		if err != nil {
-			return err
+			errs = common.AppendError(errs, err)
 		}
 	}
 
-	return nil
+	return errs
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair
@@ -350,7 +328,24 @@ func (b *BTSE) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Item) 
 	if !b.SupportsAsset(a) {
 		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, a)
 	}
-	if err := b.UpdateTickers(ctx, a); err != nil {
+	ticks, err := b.GetMarketSummary(ctx, p.String(), a == asset.Spot)
+	if err != nil {
+		return nil, err
+	}
+	if len(ticks) != 1 {
+		return nil, errors.New("market_summary should return 1 tick for a single ticker")
+	}
+	err = ticker.ProcessTicker(&ticker.Price{
+		Pair:         p,
+		Ask:          ticks[0].LowestAsk,
+		Bid:          ticks[0].HighestBid,
+		Low:          ticks[0].Low24Hr,
+		Last:         ticks[0].Last,
+		Volume:       ticks[0].Volume,
+		High:         ticks[0].High24Hr,
+		ExchangeName: b.Name,
+		AssetType:    a})
+	if err != nil {
 		return nil, err
 	}
 	return ticker.GetTicker(b.Name, p, a)
@@ -1290,4 +1285,55 @@ func (b *BTSE) GetLatestFundingRates(ctx context.Context, r *fundingrate.LatestR
 // IsPerpetualFutureCurrency ensures a given asset and currency is a perpetual future
 func (b *BTSE) IsPerpetualFutureCurrency(a asset.Item, p currency.Pair) (bool, error) {
 	return a == asset.Futures && p.Quote.Equal(currency.PFC), nil
+}
+
+// UpdateOrderExecutionLimits updates order execution limits
+func (b *BTSE) UpdateOrderExecutionLimits(_ context.Context, _ asset.Item) error {
+	return common.ErrNotYetImplemented
+}
+
+// GetOpenInterest returns the open interest rate for a given asset pair
+func (b *BTSE) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]futures.OpenInterest, error) {
+	for i := range k {
+		if k[i].Asset != asset.Futures {
+			// avoid API calls or returning errors after a successful retrieval
+			return nil, fmt.Errorf("%w %v %v", asset.ErrNotSupported, k[i].Asset, k[i].Pair())
+		}
+	}
+	tickers, err := b.GetMarketSummary(ctx, "", false)
+	if err != nil {
+		return nil, err
+	}
+	resp := make([]futures.OpenInterest, 0, len(tickers))
+	for i := range tickers {
+		var symbol currency.Pair
+		var enabled bool
+		symbol, enabled, err = b.MatchSymbolCheckEnabled(tickers[i].Symbol, asset.Futures, false)
+		if err != nil && !errors.Is(err, currency.ErrPairNotFound) {
+			return nil, err
+		}
+		if !enabled {
+			continue
+		}
+		var appendData bool
+		for j := range k {
+			if k[j].Pair().Equal(symbol) {
+				appendData = true
+				break
+			}
+		}
+		if len(k) > 0 && !appendData {
+			continue
+		}
+		resp = append(resp, futures.OpenInterest{
+			Key: key.ExchangePairAsset{
+				Exchange: b.Name,
+				Base:     symbol.Base.Item,
+				Quote:    symbol.Quote.Item,
+				Asset:    asset.Futures,
+			},
+			OpenInterest: tickers[i].OpenInterest,
+		})
+	}
+	return resp, nil
 }

@@ -7,11 +7,11 @@ import (
 	"sort"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 	"unicode"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -198,7 +198,7 @@ func (b *Bitfinex) SetDefaults() {
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
-	b.Websocket = stream.New()
+	b.Websocket = stream.NewWebsocket()
 	b.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	b.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
 	b.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
@@ -256,52 +256,6 @@ func (b *Bitfinex) Setup(exch *config.Exchange) error {
 		URL:                  authenticatedBitfinexWebsocketEndpoint,
 		Authenticated:        true,
 	})
-}
-
-// Start starts the Bitfinex go routine
-func (b *Bitfinex) Start(ctx context.Context, wg *sync.WaitGroup) error {
-	if wg == nil {
-		return fmt.Errorf("%T %w", wg, common.ErrNilPointer)
-	}
-	wg.Add(1)
-	go func() {
-		b.Run(ctx)
-		wg.Done()
-	}()
-	return nil
-}
-
-// Run implements the Bitfinex wrapper
-func (b *Bitfinex) Run(ctx context.Context) {
-	if b.Verbose {
-		log.Debugf(log.ExchangeSys,
-			"%s Websocket: %s.",
-			b.Name,
-			common.IsEnabled(b.Websocket.IsEnabled()))
-		b.PrintEnabledPairs()
-	}
-
-	if b.GetEnabledFeatures().AutoPairUpdates {
-		if err := b.UpdateTradablePairs(ctx, false); err != nil {
-			log.Errorf(log.ExchangeSys,
-				"%s failed to update tradable pairs. Err: %s",
-				b.Name,
-				err)
-		}
-	}
-	for _, a := range b.GetAssetTypes(true) {
-		if err := b.UpdateOrderExecutionLimits(ctx, a); err != nil && err != common.ErrNotYetImplemented {
-			log.Errorln(log.ExchangeSys, err.Error())
-		}
-	}
-
-	err := b.UpdateTradablePairs(ctx, false)
-	if err != nil {
-		log.Errorf(log.ExchangeSys,
-			"%s failed to update tradable pairs. Err: %s",
-			b.Name,
-			err)
-	}
 }
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs
@@ -366,15 +320,17 @@ func (b *Bitfinex) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 
 // UpdateTickers updates the ticker for all currency pairs of a given asset type
 func (b *Bitfinex) UpdateTickers(ctx context.Context, a asset.Item) error {
-	tickerNew, err := b.GetTickerBatch(ctx)
+	t, err := b.GetTickerBatch(ctx)
 	if err != nil {
 		return err
 	}
 
-	for key, val := range tickerNew {
+	var errs error
+	for key, val := range t {
 		pair, enabled, err := b.MatchSymbolCheckEnabled(key[1:], a, true)
 		if err != nil && !errors.Is(err, currency.ErrPairNotFound) {
-			return err
+			errs = common.AppendError(errs, err)
+			continue
 		}
 		if !enabled {
 			continue
@@ -391,10 +347,10 @@ func (b *Bitfinex) UpdateTickers(ctx context.Context, a asset.Item) error {
 			AssetType:    a,
 			ExchangeName: b.Name})
 		if err != nil {
-			return err
+			errs = common.AppendError(errs, err)
 		}
 	}
-	return nil
+	return errs
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair
@@ -1126,7 +1082,7 @@ func (b *Bitfinex) AuthenticateWebsocket(ctx context.Context) error {
 
 // appendOptionalDelimiter ensures that a delimiter is present for long character currencies
 func (b *Bitfinex) appendOptionalDelimiter(p *currency.Pair) {
-	if (len(p.Base.String()) > 3 && len(p.Quote.String()) > 0) ||
+	if (len(p.Base.String()) > 3 && !p.Quote.IsEmpty()) ||
 		len(p.Quote.String()) > 3 {
 		p.Delimiter = ":"
 	}
@@ -1291,7 +1247,7 @@ func (b *Bitfinex) GetAvailableTransferChains(ctx context.Context, cryptocurrenc
 
 	availChains := acceptableMethods.lookup(cryptocurrency)
 	if len(availChains) == 0 {
-		return nil, fmt.Errorf("unable to find any available chains")
+		return nil, errors.New("unable to find any available chains")
 	}
 	return availChains, nil
 }
@@ -1308,6 +1264,12 @@ func (b *Bitfinex) GetFuturesContractDetails(context.Context, asset.Item) ([]fut
 
 // GetLatestFundingRates returns the latest funding rates data
 func (b *Bitfinex) GetLatestFundingRates(context.Context, *fundingrate.LatestRateRequest) ([]fundingrate.LatestRateResponse, error) {
+	// TODO: Add futures support for Bitfinex
+	return nil, common.ErrNotYetImplemented
+}
+
+// GetOpenInterest returns the open interest rate for a given asset pair
+func (b *Bitfinex) GetOpenInterest(context.Context, ...key.PairAsset) ([]futures.OpenInterest, error) {
 	// TODO: Add futures support for Bitfinex
 	return nil, common.ErrNotYetImplemented
 }

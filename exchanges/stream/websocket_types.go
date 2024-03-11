@@ -2,6 +2,7 @@ package stream
 
 import (
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -9,33 +10,37 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fill"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/buffer"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 )
 
 // Websocket functionality list and state consts
 const (
-	// WebsocketNotEnabled alerts of a disabled websocket
-	WebsocketNotEnabled                = "exchange_websocket_not_enabled"
 	WebsocketNotAuthenticatedUsingRest = "%v - Websocket not authenticated, using REST\n"
 	Ping                               = "ping"
 	Pong                               = "pong"
 	UnhandledMessage                   = " - Unhandled websocket message: "
 )
 
-type subscriptionMap map[any]*ChannelSubscription
+type subscriptionMap map[any]*subscription.Subscription
+
+const (
+	uninitialised uint32 = iota
+	disconnected
+	connecting
+	connected
+)
 
 // Websocket defines a return type for websocket connections via the interface
 // wrapper for routine processing
 type Websocket struct {
-	canUseAuthenticatedEndpoints bool
-	enabled                      bool
-	Init                         bool
-	connected                    bool
-	connecting                   bool
+	canUseAuthenticatedEndpoints atomic.Bool
+	enabled                      atomic.Bool
+	state                        atomic.Uint32
 	verbose                      bool
-	connectionMonitorRunning     bool
-	trafficMonitorRunning        bool
-	dataMonitorRunning           bool
+	connectionMonitorRunning     atomic.Bool
+	trafficMonitorRunning        atomic.Bool
+	dataMonitorRunning           atomic.Bool
 	trafficTimeout               time.Duration
 	connectionMonitorDelay       time.Duration
 	proxyAddr                    string
@@ -45,23 +50,22 @@ type Websocket struct {
 	runningURLAuth               string
 	exchangeName                 string
 	m                            sync.Mutex
-	fieldMutex                   sync.RWMutex
 	connector                    func() error
 
 	subscriptionMutex sync.RWMutex
 	subscriptions     subscriptionMap
-	Subscribe         chan []ChannelSubscription
-	Unsubscribe       chan []ChannelSubscription
+	Subscribe         chan []subscription.Subscription
+	Unsubscribe       chan []subscription.Subscription
 
 	// Subscriber function for package defined websocket subscriber
 	// functionality
-	Subscriber func([]ChannelSubscription) error
+	Subscriber func([]subscription.Subscription) error
 	// Unsubscriber function for packaged defined websocket unsubscriber
 	// functionality
-	Unsubscriber func([]ChannelSubscription) error
+	Unsubscriber func([]subscription.Subscription) error
 	// GenerateSubs function for package defined websocket generate
 	// subscriptions functionality
-	GenerateSubs func() ([]ChannelSubscription, error)
+	GenerateSubs func() ([]subscription.Subscription, error)
 
 	DataHandler chan interface{}
 	ToRoutine   chan interface{}
@@ -110,9 +114,9 @@ type WebsocketSetup struct {
 	RunningURL            string
 	RunningURLAuth        string
 	Connector             func() error
-	Subscriber            func([]ChannelSubscription) error
-	Unsubscriber          func([]ChannelSubscription) error
-	GenerateSubscriptions func() ([]ChannelSubscription, error)
+	Subscriber            func([]subscription.Subscription) error
+	Unsubscriber          func([]subscription.Subscription) error
+	GenerateSubscriptions func() ([]subscription.Subscription, error)
 	Features              *protocol.Features
 
 	// Local orderbook buffer config values

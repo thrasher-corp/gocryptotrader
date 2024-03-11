@@ -96,7 +96,7 @@ func (p *Poloniex) GetOrderbook(ctx context.Context, currencyPair string, depth 
 	if currencyPair != "" {
 		vals.Set("currencyPair", currencyPair)
 		resp := OrderbookResponse{}
-		path := fmt.Sprintf("/public?command=returnOrderBook&%s", vals.Encode())
+		path := "/public?command=returnOrderBook&" + vals.Encode()
 		err := p.SendHTTPRequest(ctx, exchange.RestSpot, path, &resp)
 		if err != nil {
 			return oba, err
@@ -141,7 +141,7 @@ func (p *Poloniex) GetOrderbook(ctx context.Context, currencyPair string, depth 
 	} else {
 		vals.Set("currencyPair", "all")
 		resp := OrderbookResponseAll{}
-		path := fmt.Sprintf("/public?command=returnOrderBook&%s", vals.Encode())
+		path := "/public?command=returnOrderBook&" + vals.Encode()
 		err := p.SendHTTPRequest(ctx, exchange.RestSpot, path, &resp.Data)
 		if err != nil {
 			return oba, err
@@ -199,8 +199,7 @@ func (p *Poloniex) GetTradeHistory(ctx context.Context, currencyPair string, sta
 	}
 
 	var resp []TradeHistory
-	path := fmt.Sprintf("/public?command=returnTradeHistory&%s", vals.Encode())
-
+	path := "/public?command=returnTradeHistory&" + vals.Encode()
 	return resp, p.SendHTTPRequest(ctx, exchange.RestSpot, path, &resp)
 }
 
@@ -277,8 +276,7 @@ func (p *Poloniex) GetTimestamp(ctx context.Context) (time.Time, error) {
 // currency, specified by the "currency" GET parameter.
 func (p *Poloniex) GetLoanOrders(ctx context.Context, currency string) (LoanOrders, error) {
 	resp := LoanOrders{}
-	path := fmt.Sprintf("/public?command=returnLoanOrders&currency=%s", currency)
-
+	path := "/public?command=returnLoanOrders&currency=" + currency
 	return resp, p.SendHTTPRequest(ctx, exchange.RestSpot, path, &resp)
 }
 
@@ -463,7 +461,7 @@ func (p *Poloniex) GetAuthenticatedOrderStatus(ctx context.Context, orderID stri
 	values := url.Values{}
 
 	if orderID == "" {
-		return o, fmt.Errorf("no orderID passed")
+		return o, errors.New("no orderID passed")
 	}
 
 	values.Set("orderNumber", orderID)
@@ -501,7 +499,7 @@ func (p *Poloniex) GetAuthenticatedOrderTrades(ctx context.Context, orderID stri
 	values := url.Values{}
 
 	if orderID == "" {
-		return nil, fmt.Errorf("no orderId passed")
+		return nil, errors.New("no orderID passed")
 	}
 
 	values.Set("orderNumber", orderID)
@@ -512,7 +510,7 @@ func (p *Poloniex) GetAuthenticatedOrderTrades(ctx context.Context, orderID stri
 	}
 
 	if len(result) == 0 {
-		return nil, fmt.Errorf("received unexpected response")
+		return nil, errors.New("received unexpected response")
 	}
 
 	switch result[0] {
@@ -528,7 +526,7 @@ func (p *Poloniex) GetAuthenticatedOrderTrades(ctx context.Context, orderID stri
 	case '[': // data received
 		err = json.Unmarshal(result, &o)
 	default:
-		return nil, fmt.Errorf("received unexpected response")
+		return nil, errors.New("received unexpected response")
 	}
 
 	return o, err

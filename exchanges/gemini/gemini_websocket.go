@@ -21,6 +21,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
@@ -38,7 +39,7 @@ var comms = make(chan stream.Response)
 // WsConnect initiates a websocket connection
 func (g *Gemini) WsConnect() error {
 	if !g.Websocket.IsEnabled() || !g.IsEnabled() {
-		return errors.New(stream.WebsocketNotEnabled)
+		return stream.ErrWebsocketNotEnabled
 	}
 
 	var dialer websocket.Dialer
@@ -62,7 +63,7 @@ func (g *Gemini) WsConnect() error {
 }
 
 // GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
-func (g *Gemini) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, error) {
+func (g *Gemini) GenerateDefaultSubscriptions() ([]subscription.Subscription, error) {
 	// See gemini_types.go for more subscription/candle vars
 	var channels = []string{
 		marketDataLevel2,
@@ -74,13 +75,13 @@ func (g *Gemini) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, e
 		return nil, err
 	}
 
-	var subscriptions []stream.ChannelSubscription
+	var subscriptions []subscription.Subscription
 	for x := range channels {
 		for y := range pairs {
-			subscriptions = append(subscriptions, stream.ChannelSubscription{
-				Channel:  channels[x],
-				Currency: pairs[y],
-				Asset:    asset.Spot,
+			subscriptions = append(subscriptions, subscription.Subscription{
+				Channel: channels[x],
+				Pair:    pairs[y],
+				Asset:   asset.Spot,
 			})
 		}
 	}
@@ -88,7 +89,7 @@ func (g *Gemini) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, e
 }
 
 // Subscribe sends a websocket message to receive data from the channel
-func (g *Gemini) Subscribe(channelsToSubscribe []stream.ChannelSubscription) error {
+func (g *Gemini) Subscribe(channelsToSubscribe []subscription.Subscription) error {
 	channels := make([]string, 0, len(channelsToSubscribe))
 	for x := range channelsToSubscribe {
 		if common.StringDataCompareInsensitive(channels, channelsToSubscribe[x].Channel) {
@@ -99,10 +100,10 @@ func (g *Gemini) Subscribe(channelsToSubscribe []stream.ChannelSubscription) err
 
 	var pairs currency.Pairs
 	for x := range channelsToSubscribe {
-		if pairs.Contains(channelsToSubscribe[x].Currency, true) {
+		if pairs.Contains(channelsToSubscribe[x].Pair, true) {
 			continue
 		}
-		pairs = append(pairs, channelsToSubscribe[x].Currency)
+		pairs = append(pairs, channelsToSubscribe[x].Pair)
 	}
 
 	fmtPairs, err := g.FormatExchangeCurrencies(pairs, asset.Spot)
@@ -132,7 +133,7 @@ func (g *Gemini) Subscribe(channelsToSubscribe []stream.ChannelSubscription) err
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
-func (g *Gemini) Unsubscribe(channelsToUnsubscribe []stream.ChannelSubscription) error {
+func (g *Gemini) Unsubscribe(channelsToUnsubscribe []subscription.Subscription) error {
 	channels := make([]string, 0, len(channelsToUnsubscribe))
 	for x := range channelsToUnsubscribe {
 		if common.StringDataCompareInsensitive(channels, channelsToUnsubscribe[x].Channel) {
@@ -143,10 +144,10 @@ func (g *Gemini) Unsubscribe(channelsToUnsubscribe []stream.ChannelSubscription)
 
 	var pairs currency.Pairs
 	for x := range channelsToUnsubscribe {
-		if pairs.Contains(channelsToUnsubscribe[x].Currency, true) {
+		if pairs.Contains(channelsToUnsubscribe[x].Pair, true) {
 			continue
 		}
-		pairs = append(pairs, channelsToUnsubscribe[x].Currency)
+		pairs = append(pairs, channelsToUnsubscribe[x].Pair)
 	}
 
 	fmtPairs, err := g.FormatExchangeCurrencies(pairs, asset.Spot)

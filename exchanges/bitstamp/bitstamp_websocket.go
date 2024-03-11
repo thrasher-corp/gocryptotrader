@@ -18,6 +18,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
@@ -44,7 +45,7 @@ var (
 // WsConnect connects to a websocket feed
 func (b *Bitstamp) WsConnect() error {
 	if !b.Websocket.IsEnabled() || !b.IsEnabled() {
-		return errors.New(stream.WebsocketNotEnabled)
+		return stream.ErrWebsocketNotEnabled
 	}
 	var dialer websocket.Dialer
 	err := b.Websocket.Conn.Dial(&dialer, http.Header{})
@@ -230,30 +231,30 @@ func (b *Bitstamp) handleWSOrder(wsResp *websocketResponse, msg []byte) error {
 	return nil
 }
 
-func (b *Bitstamp) generateDefaultSubscriptions() ([]stream.ChannelSubscription, error) {
+func (b *Bitstamp) generateDefaultSubscriptions() ([]subscription.Subscription, error) {
 	enabledCurrencies, err := b.GetEnabledPairs(asset.Spot)
 	if err != nil {
 		return nil, err
 	}
-	var subscriptions []stream.ChannelSubscription
+	var subscriptions []subscription.Subscription
 	for i := range enabledCurrencies {
 		p, err := b.FormatExchangeCurrency(enabledCurrencies[i], asset.Spot)
 		if err != nil {
 			return nil, err
 		}
 		for j := range defaultSubChannels {
-			subscriptions = append(subscriptions, stream.ChannelSubscription{
-				Channel:  defaultSubChannels[j] + "_" + p.String(),
-				Asset:    asset.Spot,
-				Currency: p,
+			subscriptions = append(subscriptions, subscription.Subscription{
+				Channel: defaultSubChannels[j] + "_" + p.String(),
+				Asset:   asset.Spot,
+				Pair:    p,
 			})
 		}
 		if b.Websocket.CanUseAuthenticatedEndpoints() {
 			for j := range defaultAuthSubChannels {
-				subscriptions = append(subscriptions, stream.ChannelSubscription{
-					Channel:  defaultAuthSubChannels[j] + "_" + p.String(),
-					Asset:    asset.Spot,
-					Currency: p,
+				subscriptions = append(subscriptions, subscription.Subscription{
+					Channel: defaultAuthSubChannels[j] + "_" + p.String(),
+					Asset:   asset.Spot,
+					Pair:    p,
 					Params: map[string]interface{}{
 						"auth": struct{}{},
 					},
@@ -265,7 +266,7 @@ func (b *Bitstamp) generateDefaultSubscriptions() ([]stream.ChannelSubscription,
 }
 
 // Subscribe sends a websocket message to receive data from the channel
-func (b *Bitstamp) Subscribe(channelsToSubscribe []stream.ChannelSubscription) error {
+func (b *Bitstamp) Subscribe(channelsToSubscribe []subscription.Subscription) error {
 	var errs error
 	var auth *WebsocketAuthResponse
 
@@ -303,7 +304,7 @@ func (b *Bitstamp) Subscribe(channelsToSubscribe []stream.ChannelSubscription) e
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
-func (b *Bitstamp) Unsubscribe(channelsToUnsubscribe []stream.ChannelSubscription) error {
+func (b *Bitstamp) Unsubscribe(channelsToUnsubscribe []subscription.Subscription) error {
 	var errs error
 	for i := range channelsToUnsubscribe {
 		req := websocketEventRequest{

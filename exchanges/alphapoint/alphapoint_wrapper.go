@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"strconv"
-	"sync"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -32,9 +31,9 @@ func (a *Alphapoint) GetDefaultConfig(_ context.Context) (*config.Exchange, erro
 	return nil, common.ErrFunctionNotSupported
 }
 
-// Start starts the Aplhapoint go routine
-func (a *Alphapoint) Start(_ context.Context, _ *sync.WaitGroup) error {
-	return common.ErrNotYetImplemented
+// Bootstrap loads the exchange and performs initialisation tasks
+func (a *Alphapoint) Bootstrap(_ context.Context) (continueBootstrap bool, err error) {
+	return false, common.ErrNotYetImplemented
 }
 
 // SetDefaults sets current default settings
@@ -487,4 +486,9 @@ func (a *Alphapoint) GetFuturesContractDetails(context.Context, asset.Item) ([]f
 // GetLatestFundingRates returns the latest funding rates data
 func (a *Alphapoint) GetLatestFundingRates(context.Context, *fundingrate.LatestRateRequest) ([]fundingrate.LatestRateResponse, error) {
 	return nil, common.ErrFunctionNotSupported
+}
+
+// UpdateOrderExecutionLimits updates order execution limits
+func (a *Alphapoint) UpdateOrderExecutionLimits(_ context.Context, _ asset.Item) error {
+	return common.ErrNotYetImplemented
 }

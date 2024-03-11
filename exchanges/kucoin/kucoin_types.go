@@ -11,6 +11,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
+	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
 var (
@@ -32,8 +33,9 @@ var (
 	errMissingOrderbookSequence  = errors.New("missing orderbook sequence")
 	errSizeOrFundIsRequired      = errors.New("at least one required among size and funds")
 	errInvalidLeverage           = errors.New("invalid leverage value")
-	errInvalidClientOrderID      = errors.New("invalid client order ID")
-	errCurrencyPairNotEnabled    = errors.New("currency pair not enabled")
+	errInvalidClientOrderID      = errors.New("no client order ID supplied, this endpoint requires a UUID or similar string")
+	errInvalidMsgType            = errors.New("message type field not valid")
+	errSubscriptionPairRequired  = errors.New("pair required for manual subscriptions")
 
 	subAccountRegExp           = regexp.MustCompile("^[a-zA-Z0-9]{7-32}$")
 	subAccountPassphraseRegExp = regexp.MustCompile("^[a-zA-Z0-9]{7-24}$")
@@ -57,11 +59,14 @@ func (e Error) GetError() error {
 		return err
 	}
 	switch code {
-	case 200000, 200:
+	case 200:
 		return nil
-	default:
-		return fmt.Errorf("code: %s message: %s", e.Code, e.Msg)
+	case 200000:
+		if e.Msg == "" {
+			return nil
+		}
 	}
+	return fmt.Errorf("code: %s message: %s", e.Code, e.Msg)
 }
 
 // SymbolInfo stores symbol information
@@ -809,15 +814,15 @@ type WsTicker struct {
 	Timestamp   convert.ExchangeTime `json:"time"`
 }
 
-// WsSpotTicker represents a spot ticker push data.
-type WsSpotTicker struct {
-	Sequence kucoinNumber       `json:"sequence"`
-	Data     WsSpotTickerDetail `json:"data"`
+// WsSnapshot represents a spot ticker push data.
+type WsSnapshot struct {
+	Sequence types.Number     `json:"sequence"`
+	Data     WsSnapshotDetail `json:"data"`
 }
 
-// WsSpotTickerDetail represents the detail of a spot ticker data.
+// WsSnapshotDetail represents the detail of a spot ticker data.
 // This represents all websocket ticker information pushed as a result of subscription to /market/snapshot:{symbol}, and /market/snapshot:{currency,market}
-type WsSpotTickerDetail struct {
+type WsSnapshotDetail struct {
 	AveragePrice     float64              `json:"averagePrice"`
 	BaseCurrency     string               `json:"baseCurrency"`
 	Board            int64                `json:"board"`
@@ -1069,8 +1074,8 @@ type WsFuturesTicker struct {
 	FilledSize   float64              `json:"size"`
 	TradeID      string               `json:"tradeId"`
 	BestBidSize  float64              `json:"bestBidSize"`
-	BestBidPrice kucoinNumber         `json:"bestBidPrice"`
-	BestAskPrice kucoinNumber         `json:"bestAskPrice"`
+	BestBidPrice types.Number         `json:"bestBidPrice"`
+	BestAskPrice types.Number         `json:"bestAskPrice"`
 	BestAskSize  float64              `json:"bestAskSize"`
 	FilledTime   convert.ExchangeTime `json:"ts"`
 }
@@ -1111,8 +1116,8 @@ type WsOrderbookLevel5 struct {
 type WsOrderbookLevel5Response struct {
 	Timestamp     convert.ExchangeTime `json:"timestamp"`
 	Sequence      int64                `json:"sequence"`
-	Bids          [][2]kucoinNumber    `json:"bids"`
-	Asks          [][2]kucoinNumber    `json:"asks"`
+	Bids          [][2]types.Number    `json:"bids"`
+	Asks          [][2]types.Number    `json:"asks"`
 	PushTimestamp convert.ExchangeTime `json:"ts"`
 }
 
@@ -1496,4 +1501,12 @@ type MarginOrderParam struct {
 	Iceberg             bool          `json:"iceberg,omitempty"`
 	VisibleSize         float64       `json:"visibleSize,omitempty,string"`
 	Funds               float64       `json:"funds,string,omitempty"`
+}
+
+// Level2Depth5Or20 stores the orderbook data for the level 5 or level 20
+// orderbook
+type Level2Depth5Or20 struct {
+	Asks      [][2]types.Number `json:"asks"`
+	Bids      [][2]types.Number `json:"bids"`
+	Timestamp int64             `json:"timestamp"`
 }

@@ -109,7 +109,6 @@ const (
 	marketIndexComponents        = "market/index-components"
 	marketBlockTickers           = "market/block-tickers"
 	marketBlockTicker            = "market/block-ticker"
-	marketBlockTrades            = "market/block-trades"
 
 	// Public endpoints
 	publicInstruments                 = "public/instruments"
@@ -130,6 +129,7 @@ const (
 	publicUnderlyings                 = "public/underlying"
 	publicInsuranceFunds              = "public/insurance-fund"
 	publicCurrencyConvertContract     = "public/convert-contract-coin"
+	publicBlockTrades                 = "public/block-trades"
 
 	// Trading Endpoints
 	tradingDataSupportedCoins      = "rubik/stat/trading-data/support-coin"
@@ -484,7 +484,7 @@ func (ok *Okx) CancelSingleOrder(ctx context.Context, arg CancelOrderRequestPara
 		return nil, errMissingInstrumentID
 	}
 	if arg.OrderID == "" && arg.ClientOrderID == "" {
-		return nil, fmt.Errorf("either order id or client id is required")
+		return nil, errors.New("either order id or client id is required")
 	}
 	var resp []OrderData
 	err := ok.SendHTTPRequest(ctx, exchange.RestSpot, cancelOrderEPL, http.MethodPost, cancelTradeOrder, &arg, &resp, true)
@@ -509,7 +509,7 @@ func (ok *Okx) CancelMultipleOrders(ctx context.Context, args []CancelOrderReque
 			return nil, errMissingInstrumentID
 		}
 		if arg.OrderID == "" && arg.ClientOrderID == "" {
-			return nil, fmt.Errorf("either order id or client id is required")
+			return nil, errors.New("either order id or client id is required")
 		}
 	}
 	var resp []OrderData
@@ -1361,8 +1361,8 @@ func (ok *Okx) GetRfqTrades(ctx context.Context, arg *RfqTradesRequestParams) ([
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getTradesEPL, http.MethodGet, common.EncodeURLValues(rfqTrades, params), nil, &resp, true)
 }
 
-// GetPublicTrades retrieves the recent executed block trades.
-func (ok *Okx) GetPublicTrades(ctx context.Context, beginID, endID string, limit int64) ([]PublicTradesResponse, error) {
+// GetPublicBlockTrades retrieves the recent executed block trades.
+func (ok *Okx) GetPublicBlockTrades(ctx context.Context, beginID, endID string, limit int64) ([]PublicBlockTradesResponse, error) {
 	params := url.Values{}
 	if beginID != "" {
 		params.Set("beginId", beginID)
@@ -1373,8 +1373,8 @@ func (ok *Okx) GetPublicTrades(ctx context.Context, beginID, endID string, limit
 	if limit > 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
-	var resp []PublicTradesResponse
-	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getPublicTradesEPL, http.MethodGet, common.EncodeURLValues(rfqPublicTrades, params), nil, &resp, true)
+	var resp []PublicBlockTradesResponse
+	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getPublicTradesEPL, http.MethodGet, common.EncodeURLValues(rfqPublicTrades, params), nil, &resp, false)
 }
 
 /*************************************** Funding Tradings ********************************/
@@ -2079,7 +2079,7 @@ func (ok *Okx) GetMaximumAvailableTradableAmount(ctx context.Context, instrument
 }
 
 // IncreaseDecreaseMargin Increase or decrease the margin of the isolated position. Margin reduction may result in the change of the actual leverage.
-func (ok *Okx) IncreaseDecreaseMargin(ctx context.Context, arg IncreaseDecreaseMarginInput) (*IncreaseDecreaseMargin, error) {
+func (ok *Okx) IncreaseDecreaseMargin(ctx context.Context, arg *IncreaseDecreaseMarginInput) (*IncreaseDecreaseMargin, error) {
 	if arg.InstrumentID == "" {
 		return nil, errMissingInstrumentID
 	}
@@ -2499,7 +2499,7 @@ func (ok *Okx) HistoryOfSubaccountTransfer(ctx context.Context, currency, subacc
 }
 
 // MasterAccountsManageTransfersBetweenSubaccounts master accounts manage the transfers between sub-accounts applies to master accounts only
-func (ok *Okx) MasterAccountsManageTransfersBetweenSubaccounts(ctx context.Context, arg SubAccountAssetTransferParams) ([]TransferIDInfo, error) {
+func (ok *Okx) MasterAccountsManageTransfersBetweenSubaccounts(ctx context.Context, arg *SubAccountAssetTransferParams) ([]TransferIDInfo, error) {
 	if arg.Currency == "" {
 		return nil, errInvalidCurrencyValue
 	}
@@ -3348,7 +3348,7 @@ func (ok *Okx) GetBlockTrades(ctx context.Context, instrumentID string) ([]Block
 	}
 	params.Set("instId", instrumentID)
 	var resp []BlockTrade
-	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getBlockTradesEPL, http.MethodGet, common.EncodeURLValues(marketBlockTrades, params), nil, &resp, false)
+	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getBlockTradesEPL, http.MethodGet, common.EncodeURLValues(publicBlockTrades, params), nil, &resp, false)
 }
 
 /************************************ Public Data Endpoinst *************************************************/
@@ -3396,8 +3396,8 @@ func (ok *Okx) GetDeliveryHistory(ctx context.Context, instrumentType, underlyin
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getDeliveryExerciseHistoryEPL, http.MethodGet, common.EncodeURLValues(publicDeliveryExerciseHistory, params), nil, &resp, false)
 }
 
-// GetOpenInterest retrieves the total open interest for contracts on OKX
-func (ok *Okx) GetOpenInterest(ctx context.Context, instType, uly, instID string) ([]OpenInterest, error) {
+// GetOpenInterestData retrieves the total open interest for contracts on OKX
+func (ok *Okx) GetOpenInterestData(ctx context.Context, instType, uly, instID string) ([]OpenInterest, error) {
 	params := url.Values{}
 	instType = strings.ToUpper(instType)
 	if instType == "" {
@@ -3858,9 +3858,7 @@ func (ok *Okx) GetLongShortRatio(ctx context.Context, currency string, begin, en
 }
 
 // GetContractsOpenInterestAndVolume retrieves the open interest and trading volume for futures and perpetual swaps.
-func (ok *Okx) GetContractsOpenInterestAndVolume(
-	ctx context.Context, currency string,
-	begin, end time.Time, period kline.Interval) ([]OpenInterestVolume, error) {
+func (ok *Okx) GetContractsOpenInterestAndVolume(ctx context.Context, currency string, begin, end time.Time, period kline.Interval) ([]OpenInterestVolume, error) {
 	params := url.Values{}
 	if currency != "" {
 		params.Set("ccy", currency)
@@ -3909,8 +3907,7 @@ func (ok *Okx) GetContractsOpenInterestAndVolume(
 }
 
 // GetOptionsOpenInterestAndVolume retrieves the open interest and trading volume for options.
-func (ok *Okx) GetOptionsOpenInterestAndVolume(ctx context.Context, currency string,
-	period kline.Interval) ([]OpenInterestVolume, error) {
+func (ok *Okx) GetOptionsOpenInterestAndVolume(ctx context.Context, currency string, period kline.Interval) ([]OpenInterestVolume, error) {
 	params := url.Values{}
 	if currency != "" {
 		params.Set("ccy", currency)

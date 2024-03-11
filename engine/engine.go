@@ -64,7 +64,7 @@ func New() (*Engine, error) {
 	newEngineMutex.Lock()
 	defer newEngineMutex.Unlock()
 	var b Engine
-	b.Config = &config.Cfg
+	b.Config = config.GetConfig()
 
 	err := b.Config.LoadConfig("", false)
 	if err != nil {
@@ -173,7 +173,6 @@ func validateSettings(b *Engine, s *Settings, flagSet FlagSet) {
 	flagSet.WithBool("exchangerates", &b.Settings.EnableExchangeRates, b.Config.Currency.ForexProviders.IsEnabled("exchangerates"))
 	flagSet.WithBool("fixer", &b.Settings.EnableFixer, b.Config.Currency.ForexProviders.IsEnabled("fixer"))
 	flagSet.WithBool("openexchangerates", &b.Settings.EnableOpenExchangeRates, b.Config.Currency.ForexProviders.IsEnabled("openexchangerates"))
-	flagSet.WithBool("exchangeratehost", &b.Settings.EnableExchangeRateHost, b.Config.Currency.ForexProviders.IsEnabled("exchangeratehost"))
 
 	flagSet.WithBool("datahistorymanager", &b.Settings.EnableDataHistoryManager, b.Config.DataHistoryManager.Enabled)
 	flagSet.WithBool("currencystatemanager", &b.Settings.EnableCurrencyStateManager, b.Config.CurrencyStateManager.Enabled != nil && *b.Config.CurrencyStateManager.Enabled)
@@ -213,12 +212,6 @@ func validateSettings(b *Engine, s *Settings, flagSet FlagSet) {
 
 	if b.Settings.EnableEventManager && b.Settings.EventManagerDelay <= 0 {
 		b.Settings.EventManagerDelay = EventSleepDelay
-	}
-
-	// Checks if the flag values are different from the defaults
-	if b.Settings.MaxHTTPRequestJobsLimit != int(request.DefaultMaxRequestJobs) &&
-		b.Settings.MaxHTTPRequestJobsLimit > 0 {
-		request.MaxRequestJobs = int32(b.Settings.MaxHTTPRequestJobsLimit)
 	}
 
 	if b.Settings.TradeBufferProcessingInterval != trade.DefaultProcessorIntervalTime {
@@ -403,12 +396,11 @@ func (bot *Engine) Start() error {
 			ExchangeRates:     bot.Settings.EnableExchangeRates,
 			Fixer:             bot.Settings.EnableFixer,
 			OpenExchangeRates: bot.Settings.EnableOpenExchangeRates,
-			ExchangeRateHost:  bot.Settings.EnableExchangeRateHost,
 		},
 		&bot.Config.Currency,
 		bot.Settings.DataDir,
 	); err != nil {
-		gctlog.Errorf(gctlog.Global, "ExchangeSettings updater system failed to start %s", err)
+		gctlog.Errorf(gctlog.Global, "Currency Converter system failed to start %s", err)
 	}
 
 	if bot.Settings.EnableGRPC {
@@ -677,7 +669,7 @@ func (bot *Engine) Stop() {
 
 	err = currency.ShutdownStorageUpdater()
 	if err != nil {
-		gctlog.Errorf(gctlog.Global, "ExchangeSettings storage system. Error: %v", err)
+		gctlog.Errorf(gctlog.Global, "Currency Converter unable to stop. Error: %v", err)
 	}
 
 	if !bot.Settings.EnableDryRun {
@@ -730,7 +722,7 @@ func (bot *Engine) GetExchanges() []exchange.IBotExchange {
 
 // LoadExchange loads an exchange by name. Optional wait group can be added for
 // external synchronization.
-func (bot *Engine) LoadExchange(name string, wg *sync.WaitGroup) error {
+func (bot *Engine) LoadExchange(name string) error {
 	exch, err := bot.ExchangeManager.NewExchangeByName(name)
 	if err != nil {
 		return err
@@ -854,11 +846,7 @@ func (bot *Engine) LoadExchange(name string, wg *sync.WaitGroup) error {
 		}
 	}
 
-	if wg == nil {
-		wg = &sync.WaitGroup{}
-		defer wg.Wait()
-	}
-	return exch.Start(context.TODO(), wg)
+	return exchange.Bootstrap(context.TODO(), exch)
 }
 
 func (bot *Engine) dryRunParamInteraction(param string) {
@@ -877,7 +865,6 @@ func (bot *Engine) dryRunParamInteraction(param string) {
 
 // SetupExchanges sets up the exchanges used by the Bot
 func (bot *Engine) SetupExchanges() error {
-	var wg sync.WaitGroup
 	configs := bot.Config.GetAllExchangeConfigs()
 	if bot.Settings.EnableAllPairs {
 		bot.dryRunParamInteraction("enableallpairs")
@@ -910,6 +897,7 @@ func (bot *Engine) SetupExchanges() error {
 		bot.dryRunParamInteraction("exchangehttpdebugging")
 	}
 
+	var wg sync.WaitGroup
 	for x := range configs {
 		if !configs[x].Enabled && !bot.Settings.EnableAllExchanges {
 			gctlog.Debugf(gctlog.ExchangeSys, "%s: Exchange support: Disabled\n", configs[x].Name)
@@ -918,17 +906,16 @@ func (bot *Engine) SetupExchanges() error {
 		wg.Add(1)
 		go func(c config.Exchange) {
 			defer wg.Done()
-			err := bot.LoadExchange(c.Name, &wg)
-			if err != nil {
+			if err := bot.LoadExchange(c.Name); err != nil {
 				gctlog.Errorf(gctlog.ExchangeSys, "LoadExchange %s failed: %s\n", c.Name, err)
-				return
+			} else {
+				gctlog.Debugf(gctlog.ExchangeSys,
+					"%s: Exchange support: Enabled (Authenticated API support: %s - Verbose mode: %s).\n",
+					c.Name,
+					common.IsEnabled(c.API.AuthenticatedSupport),
+					common.IsEnabled(c.Verbose),
+				)
 			}
-			gctlog.Debugf(gctlog.ExchangeSys,
-				"%s: Exchange support: Enabled (Authenticated API support: %s - Verbose mode: %s).\n",
-				c.Name,
-				common.IsEnabled(c.API.AuthenticatedSupport),
-				common.IsEnabled(c.Verbose),
-			)
 		}(configs[x])
 	}
 	wg.Wait()

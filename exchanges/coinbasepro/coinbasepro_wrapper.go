@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"sort"
 	"strconv"
-	"sync"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -146,7 +145,7 @@ func (c *CoinbasePro) SetDefaults() {
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
-	c.Websocket = stream.New()
+	c.Websocket = stream.NewWebsocket()
 	c.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	c.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
 	c.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
@@ -194,94 +193,6 @@ func (c *CoinbasePro) Setup(exch *config.Exchange) error {
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
 	})
-}
-
-// Start starts the coinbasepro go routine
-func (c *CoinbasePro) Start(ctx context.Context, wg *sync.WaitGroup) error {
-	if wg == nil {
-		return fmt.Errorf("%T %w", wg, common.ErrNilPointer)
-	}
-	wg.Add(1)
-	go func() {
-		c.Run(ctx)
-		wg.Done()
-	}()
-	return nil
-}
-
-// Run implements the coinbasepro wrapper
-func (c *CoinbasePro) Run(ctx context.Context) {
-	if c.Verbose {
-		log.Debugf(log.ExchangeSys,
-			"%s Websocket: %s. (url: %s).\n",
-			c.Name,
-			common.IsEnabled(c.Websocket.IsEnabled()),
-			coinbaseproWebsocketURL)
-		c.PrintEnabledPairs()
-	}
-
-	forceUpdate := false
-	if !c.BypassConfigFormatUpgrades {
-		format, err := c.GetPairFormat(asset.Spot, false)
-		if err != nil {
-			log.Errorf(log.ExchangeSys,
-				"%s failed to update currencies. Err: %s\n",
-				c.Name,
-				err)
-			return
-		}
-		enabled, err := c.CurrencyPairs.GetPairs(asset.Spot, true)
-		if err != nil {
-			log.Errorf(log.ExchangeSys,
-				"%s failed to update currencies. Err: %s\n",
-				c.Name,
-				err)
-			return
-		}
-
-		avail, err := c.CurrencyPairs.GetPairs(asset.Spot, false)
-		if err != nil {
-			log.Errorf(log.ExchangeSys,
-				"%s failed to update currencies. Err: %s\n",
-				c.Name,
-				err)
-			return
-		}
-
-		if !common.StringDataContains(enabled.Strings(), format.Delimiter) ||
-			!common.StringDataContains(avail.Strings(), format.Delimiter) {
-			var p currency.Pairs
-			p, err = currency.NewPairsFromStrings([]string{currency.BTC.String() +
-				format.Delimiter +
-				currency.USD.String()})
-			if err != nil {
-				log.Errorf(log.ExchangeSys,
-					"%s failed to update currencies. Err: %s\n",
-					c.Name,
-					err)
-			} else {
-				forceUpdate = true
-				log.Warnf(log.ExchangeSys, exchange.ResetConfigPairsWarningMessage, c.Name, asset.Spot, p)
-
-				err = c.UpdatePairs(p, asset.Spot, true, true)
-				if err != nil {
-					log.Errorf(log.ExchangeSys,
-						"%s failed to update currencies. Err: %s\n",
-						c.Name,
-						err)
-				}
-			}
-		}
-	}
-
-	if !c.GetEnabledFeatures().AutoPairUpdates && !forceUpdate {
-		return
-	}
-
-	err := c.UpdateTradablePairs(ctx, forceUpdate)
-	if err != nil {
-		log.Errorf(log.ExchangeSys, "%s failed to update tradable pairs. Err: %s", c.Name, err)
-	}
 }
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs
@@ -990,4 +901,9 @@ func (c *CoinbasePro) GetLatestFundingRates(context.Context, *fundingrate.Latest
 // GetFuturesContractDetails returns all contracts from the exchange by asset type
 func (c *CoinbasePro) GetFuturesContractDetails(context.Context, asset.Item) ([]futures.Contract, error) {
 	return nil, common.ErrFunctionNotSupported
+}
+
+// UpdateOrderExecutionLimits updates order execution limits
+func (c *CoinbasePro) UpdateOrderExecutionLimits(_ context.Context, _ asset.Item) error {
+	return common.ErrNotYetImplemented
 }

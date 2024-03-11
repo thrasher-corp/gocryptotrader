@@ -8,7 +8,6 @@ import (
 	"sort"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -151,7 +150,7 @@ func (b *BTCMarkets) SetDefaults() {
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
-	b.Websocket = stream.New()
+	b.Websocket = stream.NewWebsocket()
 	b.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	b.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
 	b.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
@@ -200,95 +199,6 @@ func (b *BTCMarkets) Setup(exch *config.Exchange) error {
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
 	})
-}
-
-// Start starts the BTC Markets go routine
-func (b *BTCMarkets) Start(ctx context.Context, wg *sync.WaitGroup) error {
-	if wg == nil {
-		return fmt.Errorf("%T %w", wg, common.ErrNilPointer)
-	}
-	wg.Add(1)
-	go func() {
-		b.Run(ctx)
-		wg.Done()
-	}()
-	return nil
-}
-
-// Run implements the BTC Markets wrapper
-func (b *BTCMarkets) Run(ctx context.Context) {
-	if b.Verbose {
-		log.Debugf(log.ExchangeSys,
-			"%s Websocket: %s (url: %s).\n",
-			b.Name,
-			common.IsEnabled(b.Websocket.IsEnabled()),
-			btcMarketsWSURL)
-		b.PrintEnabledPairs()
-	}
-
-	forceUpdate := false
-	pairs, err := b.GetEnabledPairs(asset.Spot)
-	if err != nil {
-		log.Errorf(log.ExchangeSys,
-			"%s Failed to update enabled currencies Err:%s\n",
-			b.Name,
-			err)
-		return
-	}
-	format, err := b.GetPairFormat(asset.Spot, false)
-	if err != nil {
-		log.Errorf(log.ExchangeSys,
-			"%s Failed to update enabled currencies.\n",
-			b.Name)
-		return
-	}
-
-	avail, err := b.GetAvailablePairs(asset.Spot)
-	if err != nil {
-		log.Errorf(log.ExchangeSys,
-			"%s Failed to update enabled currencies.\n",
-			b.Name)
-		return
-	}
-
-	if !common.StringDataContains(pairs.Strings(), format.Delimiter) ||
-		!common.StringDataContains(avail.Strings(), format.Delimiter) {
-		forceUpdate = true
-	}
-	if forceUpdate {
-		enabledPairs := currency.Pairs{currency.Pair{
-			Base:      currency.BTC.Lower(),
-			Quote:     currency.AUD.Lower(),
-			Delimiter: format.Delimiter,
-		},
-		}
-		log.Warnf(log.ExchangeSys, exchange.ResetConfigPairsWarningMessage, b.Name, asset.Spot, enabledPairs)
-		err = b.UpdatePairs(enabledPairs, asset.Spot, true, true)
-		if err != nil {
-			log.Errorf(log.ExchangeSys,
-				"%s Failed to update enabled currencies.\n",
-				b.Name)
-		}
-	}
-
-	err = b.UpdateOrderExecutionLimits(ctx, asset.Spot)
-	if err != nil {
-		log.Errorf(log.ExchangeSys,
-			"%s Failed to update order execution limits. Error: %v\n",
-			b.Name, err)
-	}
-
-	if !b.GetEnabledFeatures().AutoPairUpdates && !forceUpdate {
-		return
-	}
-
-	err = b.UpdateTradablePairs(ctx, forceUpdate)
-	if err != nil {
-		log.Errorf(log.ExchangeSys,
-			"%s failed to update tradable pairs. Err: %s",
-			b.Name,
-			err)
-	}
 }
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs

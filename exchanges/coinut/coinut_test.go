@@ -2,11 +2,9 @@ package coinut
 
 import (
 	"context"
-	"errors"
 	"log"
 	"net/http"
 	"os"
-	"sync"
 	"testing"
 	"time"
 
@@ -68,7 +66,7 @@ func setupWSTestAuth(t *testing.T) {
 	}
 
 	if !c.Websocket.IsEnabled() && !c.API.AuthenticatedWebsocketSupport || !sharedtestvalues.AreAPICredentialsSet(c) {
-		t.Skip(stream.WebsocketNotEnabled)
+		t.Skip(stream.ErrWebsocketNotEnabled.Error())
 	}
 	if sharedtestvalues.AreAPICredentialsSet(c) {
 		c.Websocket.SetCanUseAuthenticatedEndpoints(true)
@@ -89,20 +87,6 @@ func setupWSTestAuth(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-}
-
-func TestStart(t *testing.T) {
-	t.Parallel()
-	err := c.Start(context.Background(), nil)
-	if !errors.Is(err, common.ErrNilPointer) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, common.ErrNilPointer)
-	}
-	var testWg sync.WaitGroup
-	err = c.Start(context.Background(), &testWg)
-	if err != nil {
-		t.Fatal(err)
-	}
-	testWg.Wait()
 }
 
 func TestGetInstruments(t *testing.T) {

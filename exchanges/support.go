@@ -21,7 +21,6 @@ var Exchanges = []string{
 	"bitflyer",
 	"bitmex",
 	"bitstamp",
-	"bittrex",
 	"btc markets",
 	"btse",
 	"bybit",
@@ -32,7 +31,6 @@ var Exchanges = []string{
 	"gemini",
 	"hitbtc",
 	"huobi",
-	"itbit",
 	"kraken",
 	"kucoin",
 	"lbank",
@@ -40,5 +38,4 @@ var Exchanges = []string{
 	"okx",
 	"poloniex",
 	"yobit",
-	"zb",
 }

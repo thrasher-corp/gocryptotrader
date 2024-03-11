@@ -13,10 +13,9 @@ import (
 
 // const values for the ticker package
 const (
-	ErrExchangeNameUnset = "ticker exchange name not set"
-	errPairNotSet        = "ticker currency pair not set"
-	errAssetTypeNotSet   = "ticker asset type not set"
-	errTickerPriceIsNil  = "ticker price is nil"
+	errPairNotSet       = "ticker currency pair not set"
+	errAssetTypeNotSet  = "ticker asset type not set"
+	errTickerPriceIsNil = "ticker price is nil"
 )
 
 // Vars for the ticker package
@@ -44,6 +43,9 @@ type Price struct {
 	PriceATH     float64       `json:"PriceATH"`
 	Open         float64       `json:"Open"`
 	Close        float64       `json:"Close"`
+	OpenInterest float64       `json:"OpenInterest"`
+	MarkPrice    float64       `json:"MarkPrice"`
+	IndexPrice   float64       `json:"IndexPrice"`
 	Pair         currency.Pair `json:"Pair"`
 	ExchangeName string        `json:"exchangeName"`
 	AssetType    asset.Item    `json:"assetType"`

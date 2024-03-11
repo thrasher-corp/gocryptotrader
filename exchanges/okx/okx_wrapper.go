@@ -8,11 +8,11 @@ import (
 	"sort"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -132,9 +132,13 @@ func (ok *Okx) SetDefaults() {
 			},
 			WithdrawPermissions: exchange.AutoWithdrawCrypto,
 			FuturesCapabilities: exchange.FuturesCapabilities{
-				Positions:                 true,
-				Leverage:                  true,
-				CollateralMode:            true,
+				Positions:      true,
+				Leverage:       true,
+				CollateralMode: true,
+				OpenInterest: exchange.OpenInterestSupport{
+					Supported:         true,
+					SupportsRestBatch: true,
+				},
 				FundingRates:              true,
 				MaximumFundingRateHistory: kline.ThreeMonth.Duration(),
 				SupportedFundingRateFrequencies: map[kline.Interval]bool{
@@ -186,7 +190,7 @@ func (ok *Okx) SetDefaults() {
 		log.Errorln(log.ExchangeSys, err)
 	}
 
-	ok.Websocket = stream.New()
+	ok.Websocket = stream.NewWebsocket()
 	ok.WebsocketResponseMaxLimit = okxWebsocketResponseMaxLimit
 	ok.WebsocketResponseCheckTimeout = okxWebsocketResponseMaxLimit
 	ok.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
@@ -252,49 +256,6 @@ func (ok *Okx) Setup(exch *config.Exchange) error {
 		Authenticated:        true,
 		RateLimit:            500,
 	})
-}
-
-// Start starts the Okx go routine
-func (ok *Okx) Start(ctx context.Context, wg *sync.WaitGroup) error {
-	if wg == nil {
-		return fmt.Errorf("%T %w", wg, common.ErrNilPointer)
-	}
-	wg.Add(1)
-	go func() {
-		ok.Run(ctx)
-		wg.Done()
-	}()
-	return nil
-}
-
-// Run implements the Okx wrapper
-func (ok *Okx) Run(ctx context.Context) {
-	if ok.Verbose {
-		log.Debugf(log.ExchangeSys,
-			"%s Websocket: %s.",
-			ok.Name,
-			common.IsEnabled(ok.Websocket.IsEnabled()))
-		ok.PrintEnabledPairs()
-	}
-
-	assetTypes := ok.GetAssetTypes(false)
-	for i := range assetTypes {
-		if err := ok.UpdateOrderExecutionLimits(ctx, assetTypes[i]); err != nil {
-			log.Errorf(log.ExchangeSys,
-				"%s failed to set exchange order execution limits. Err: %v",
-				ok.Name,
-				err)
-		}
-	}
-
-	if ok.GetEnabledFeatures().AutoPairUpdates {
-		if err := ok.UpdateTradablePairs(ctx, false); err != nil {
-			log.Errorf(log.ExchangeSys,
-				"%s failed to update tradable pairs. Err: %s",
-				ok.Name,
-				err)
-		}
-	}
 }
 
 // Shutdown calls Base.Shutdown and then shuts down the response multiplexer
@@ -625,7 +586,7 @@ func (ok *Okx) GetAccountFundingHistory(ctx context.Context) ([]exchange.Funding
 			Status:          strconv.Itoa(depositHistories[x].State),
 			Timestamp:       depositHistories[x].Timestamp.Time(),
 			Currency:        depositHistories[x].Currency,
-			Amount:          depositHistories[x].Amount,
+			Amount:          depositHistories[x].Amount.Float64(),
 			TransferType:    "deposit",
 			CryptoToAddress: depositHistories[x].ToDepositAddress,
 			CryptoTxID:      depositHistories[x].TransactionID,
@@ -637,12 +598,12 @@ func (ok *Okx) GetAccountFundingHistory(ctx context.Context) ([]exchange.Funding
 			Status:          withdrawalHistories[x].StateOfWithdrawal,
 			Timestamp:       withdrawalHistories[x].Timestamp.Time(),
 			Currency:        withdrawalHistories[x].Currency,
-			Amount:          withdrawalHistories[x].Amount,
+			Amount:          withdrawalHistories[x].Amount.Float64(),
 			TransferType:    "withdrawal",
 			CryptoToAddress: withdrawalHistories[x].ToReceivingAddress,
 			CryptoTxID:      withdrawalHistories[x].TransactionID,
 			TransferID:      withdrawalHistories[x].WithdrawalID,
-			Fee:             withdrawalHistories[x].WithdrawalFee,
+			Fee:             withdrawalHistories[x].WithdrawalFee.Float64(),
 			CryptoChain:     withdrawalHistories[x].ChainName,
 		})
 	}
@@ -661,13 +622,13 @@ func (ok *Okx) GetWithdrawalsHistory(ctx context.Context, c currency.Code, _ ass
 			Status:          withdrawals[x].StateOfWithdrawal,
 			Timestamp:       withdrawals[x].Timestamp.Time(),
 			Currency:        withdrawals[x].Currency,
-			Amount:          withdrawals[x].Amount,
+			Amount:          withdrawals[x].Amount.Float64(),
 			TransferType:    "withdrawal",
 			CryptoToAddress: withdrawals[x].ToReceivingAddress,
 			CryptoTxID:      withdrawals[x].TransactionID,
 			CryptoChain:     withdrawals[x].ChainName,
 			TransferID:      withdrawals[x].WithdrawalID,
-			Fee:             withdrawals[x].WithdrawalFee,
+			Fee:             withdrawals[x].WithdrawalFee.Float64(),
 		})
 	}
 	return resp, nil
@@ -696,8 +657,8 @@ func (ok *Okx) GetRecentTrades(ctx context.Context, p currency.Pair, assetType a
 			CurrencyPair: p,
 			AssetType:    assetType,
 			Side:         tradeData[x].Side,
-			Price:        tradeData[x].Price,
-			Amount:       tradeData[x].Quantity,
+			Price:        tradeData[x].Price.Float64(),
+			Amount:       tradeData[x].Quantity.Float64(),
 			Timestamp:    tradeData[x].Timestamp.Time(),
 		}
 	}
@@ -749,8 +710,8 @@ allTrades:
 				Exchange:     ok.Name,
 				CurrencyPair: p,
 				AssetType:    assetType,
-				Price:        trades[i].Price,
-				Amount:       trades[i].Quantity,
+				Price:        trades[i].Price.Float64(),
+				Amount:       trades[i].Quantity.Float64(),
 				Timestamp:    trades[i].Timestamp.Time(),
 				Side:         trades[i].Side,
 			})
@@ -776,7 +737,7 @@ func (ok *Okx) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitR
 		return nil, fmt.Errorf("%w: %v", asset.ErrNotSupported, s.AssetType)
 	}
 	if s.Amount <= 0 {
-		return nil, fmt.Errorf("amount, or size (sz) of quantity to buy or sell hast to be greater than zero ")
+		return nil, errors.New("amount, or size (sz) of quantity to buy or sell hast to be greater than zero")
 	}
 	pairFormat, err := ok.GetPairFormat(s.AssetType, true)
 	if err != nil {
@@ -1823,7 +1784,7 @@ func (ok *Okx) ChangePositionMargin(ctx context.Context, req *margin.PositionCha
 	if req.MarginSide == "" {
 		req.MarginSide = "net"
 	}
-	r := IncreaseDecreaseMarginInput{
+	r := &IncreaseDecreaseMarginInput{
 		InstrumentID: fPair.String(),
 		PositionSide: req.MarginSide,
 		Type:         marginType,
@@ -2242,6 +2203,91 @@ func (ok *Okx) GetFuturesContractDetails(ctx context.Context, item asset.Item) (
 			MarginCurrency:       settleCurr,
 			Multiplier:           result[i].ContractValue.Float64(),
 			MaxLeverage:          result[i].MaxLeverage.Float64(),
+		}
+	}
+	return resp, nil
+}
+
+// GetOpenInterest returns the open interest rate for a given asset pair
+func (ok *Okx) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]futures.OpenInterest, error) {
+	for i := range k {
+		if k[i].Asset != asset.Futures && k[i].Asset != asset.PerpetualSwap {
+			// avoid API calls or returning errors after a successful retrieval
+			return nil, fmt.Errorf("%w %v %v", asset.ErrNotSupported, k[i].Asset, k[i].Pair())
+		}
+	}
+	if len(k) != 1 {
+		var resp []futures.OpenInterest
+		// TODO: Options support
+		instTypes := map[string]asset.Item{
+			"SWAP":    asset.PerpetualSwap,
+			"FUTURES": asset.Futures,
+		}
+		for instType, v := range instTypes {
+			oid, err := ok.GetOpenInterestData(ctx, instType, "", "")
+			if err != nil {
+				return nil, err
+			}
+			for j := range oid {
+				p, isEnabled, err := ok.MatchSymbolCheckEnabled(oid[j].InstrumentID, v, true)
+				if err != nil && !errors.Is(err, currency.ErrPairNotFound) {
+					return nil, err
+				}
+				if !isEnabled {
+					continue
+				}
+				var appendData bool
+				for j := range k {
+					if k[j].Pair().Equal(p) {
+						appendData = true
+						break
+					}
+				}
+				if len(k) > 0 && !appendData {
+					continue
+				}
+				resp = append(resp, futures.OpenInterest{
+					Key: key.ExchangePairAsset{
+						Exchange: ok.Name,
+						Base:     p.Base.Item,
+						Quote:    p.Quote.Item,
+						Asset:    v,
+					},
+					OpenInterest: oid[j].OpenInterest.Float64(),
+				})
+			}
+		}
+		return resp, nil
+	}
+	resp := make([]futures.OpenInterest, 1)
+	instTypes := map[asset.Item]string{
+		asset.PerpetualSwap: "SWAP",
+		asset.Futures:       "FUTURES",
+	}
+	pFmt, err := ok.FormatSymbol(k[0].Pair(), k[0].Asset)
+	if err != nil {
+		return nil, err
+	}
+	oid, err := ok.GetOpenInterestData(ctx, instTypes[k[0].Asset], "", pFmt)
+	if err != nil {
+		return nil, err
+	}
+	for i := range oid {
+		p, isEnabled, err := ok.MatchSymbolCheckEnabled(oid[i].InstrumentID, k[0].Asset, true)
+		if err != nil && !errors.Is(err, currency.ErrPairNotFound) {
+			return nil, err
+		}
+		if !isEnabled {
+			continue
+		}
+		resp[0] = futures.OpenInterest{
+			Key: key.ExchangePairAsset{
+				Exchange: ok.Name,
+				Base:     p.Base.Item,
+				Quote:    p.Quote.Item,
+				Asset:    k[0].Asset,
+			},
+			OpenInterest: oid[i].OpenInterest.Float64(),
 		}
 	}
 	return resp, nil

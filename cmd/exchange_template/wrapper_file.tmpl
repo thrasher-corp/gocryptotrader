@@ -3,8 +3,6 @@ package {{.Name}}
 
 import (
 	"context"
-	"fmt"
-	"sync"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -127,7 +125,7 @@ func ({{.Variable}} *{{.CapitalName}}) SetDefaults() {
 		exchange.RestSpot:  {{.Name}}APIURL,
 		// exchange.WebsocketSpot: {{.Name}}WSAPIURL,
 	})
-	{{.Variable}}.Websocket = stream.New()
+	{{.Variable}}.Websocket = stream.NewWebsocket()
 	{{.Variable}}.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	{{.Variable}}.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
 	{{.Variable}}.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
@@ -180,42 +178,6 @@ func ({{.Variable}} *{{.CapitalName}}) Setup(exch *config.Exchange) error {
 	}
 	*/
 	return nil
-}
-
-// Start starts the {{.CapitalName}} go routine
-func ({{.Variable}} *{{.CapitalName}}) Start(ctx context.Context, wg *sync.WaitGroup) error {
-	if wg == nil {
-		return fmt.Errorf("%T %w", wg, common.ErrNilPointer)
-	}
-	wg.Add(1)
-	go func() {
-		{{.Variable}}.Run(ctx)
-		wg.Done()
-	}()
-	return nil
-}
-
-// Run implements the {{.CapitalName}} wrapper
-func ({{.Variable}} *{{.CapitalName}}) Run(ctx context.Context) {
-	if {{.Variable}}.Verbose {
-	{{ if .WS }} log.Debugf(log.ExchangeSys,
-			"%s Websocket: %s.",
-			{{.Variable}}.Name,
-			common.IsEnabled({{.Variable}}.Websocket.IsEnabled())) {{ end }}
-		{{.Variable}}.PrintEnabledPairs()
-	}
-
-	if !{{.Variable}}.GetEnabledFeatures().AutoPairUpdates {
-		return
-	}
-
-	err := {{.Variable}}.UpdateTradablePairs(ctx, false)
-	if err != nil {
-		log.Errorf(log.ExchangeSys,
-			"%s failed to update tradable pairs. Err: %s",
-			{{.Variable}}.Name,
-			err)
-	}
 }
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs
@@ -553,5 +515,9 @@ func ({{.Variable}} *{{.CapitalName}}) GetLatestFundingRates(_ context.Context, 
 	return nil, common.ErrNotYetImplemented
 }
 
+// UpdateOrderExecutionLimits updates order execution limits
+func ({{.Variable}} *{{.CapitalName}}) UpdateOrderExecutionLimits(_ context.Context, _ asset.Item) error {
+	return common.ErrNotYetImplemented
+}
 
 {{end}}
