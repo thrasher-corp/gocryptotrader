@@ -59,35 +59,11 @@ func (bi *Bitget) SetDefaults() {
 
 	// Request format denotes what the pair as a string will be, when you send
 	// a request to an exchange.
-	requestFmt := &currency.PairFormat{ /*Set pair request formatting details here for e.g.*/ Uppercase: true, Delimiter: ":"}
+	requestFmt := &currency.PairFormat{Uppercase: true}
 	// Config format denotes what the pair as a string will be, when saved to
 	// the config.json file.
 	configFmt := &currency.PairFormat{ /*Set pair request formatting details here*/ }
-	err := bi.SetGlobalPairsManager(requestFmt, configFmt /*multiple assets can be set here using the asset package ie asset.Spot*/)
-	if err != nil {
-		log.Errorln(log.ExchangeSys, err)
-	}
-
-	// If assets require multiple differences in formatting for request and
-	// configuration, another exchange method can be be used e.g. futures
-	// contracts require a dash as a delimiter rather than an underscore. You
-	// can use this example below:
-
-	fmt1 := currency.PairStore{
-		RequestFormat: &currency.PairFormat{Uppercase: true},
-		ConfigFormat:  &currency.PairFormat{Uppercase: true},
-	}
-
-	fmt2 := currency.PairStore{
-		RequestFormat: &currency.PairFormat{Uppercase: true},
-		ConfigFormat:  &currency.PairFormat{Uppercase: true, Delimiter: ":"},
-	}
-
-	err = bi.StoreAssetPairFormat(asset.Spot, fmt1)
-	if err != nil {
-		log.Errorln(log.ExchangeSys, err)
-	}
-	err = bi.StoreAssetPairFormat(asset.Margin, fmt2)
+	err := bi.SetGlobalPairsManager(requestFmt, configFmt, asset.Spot)
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}

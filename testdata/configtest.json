@@ -2653,11 +2653,16 @@
      "uppercase": true
     },
     "configFormat": {
-     "uppercase": true,
-     "delimiter": "-"
+     "uppercase": true
     },
     "useGlobalFormat": true,
-    "pairs": {}
+    "pairs": {
+         "spot": {
+          "assetEnabled": true,
+          "enabled": "BTC-USDT",
+          "available": "BTC-USDT"
+        }
+        }
    },
    "api": {
     "authenticatedSupport": false,

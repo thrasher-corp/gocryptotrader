@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"net/http"
 	"net/url"
 	"strconv"
 	"time"
@@ -29,10 +30,16 @@ const (
 	bitgetTime          = "time"
 
 	// Authenticated endpoints
-	bitgetCommon     = "common"
-	bitgetTradeRate  = "trade-rate"
-	bitgetTax        = "tax"
-	bitgetSpotRecord = "spot-record"
+	bitgetCommon       = "common"
+	bitgetTradeRate    = "trade-rate"
+	bitgetTax          = "tax"
+	bitgetSpotRecord   = "spot-record"
+	bitgetFutureRecord = "future-record"
+	bitgetMarginRecord = "margin-record"
+	bitgetP2PRecord    = "p2p-record"
+	bitgetP2P          = "p2p"
+	bitgetMerchantList = "merchantList"
+	bitgetMerchantInfo = "merchantInfo"
 
 	// Errors
 	errUnknownEndpointLimit = "unknown endpoint limit %v"
@@ -41,6 +48,7 @@ const (
 var (
 	errBusinessTypeEmpty = errors.New("businessType cannot be empty")
 	errPairEmpty         = errors.New("currency pair cannot be empty")
+	errProductTypeEmpty  = errors.New("productType cannot be empty")
 )
 
 // QueryAnnouncement returns announcements from the exchange, filtered by type and time
@@ -78,7 +86,7 @@ func (bi *Bitget) GetTradeRate(ctx context.Context, pair, businessType string) (
 	vals.Set("businessType", businessType)
 	path := bitgetCommon + "/" + bitgetTradeRate
 	var resp *TradeRateResp
-	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, bitgetRate10, "GET", path, vals, nil, &resp)
+	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, bitgetRate10, http.MethodGet, path, vals, nil, &resp)
 }
 
 // GetSpotTransactionRecords returns the user's spot transaction records
@@ -94,7 +102,79 @@ func (bi *Bitget) GetSpotTransactionRecords(ctx context.Context, currency string
 	params.Values.Set("idLessThan", strconv.FormatInt(pagination, 10))
 	path := bitgetTax + "/" + bitgetSpotRecord
 	var resp *SpotTrResp
-	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, bitgetRate10, "GET", path, params.Values, nil, &resp)
+	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, bitgetRate1, http.MethodGet, path, params.Values, nil, &resp)
+}
+
+// GetFuturesTransactionRecords returns the user's futures transaction records
+func (bi *Bitget) GetFuturesTransactionRecords(ctx context.Context, productType, currency string, startTime, endTime time.Time, limit, pagination int64) (*FutureTrResp, error) {
+	if productType == "" {
+		return nil, errProductTypeEmpty
+	}
+	var params Params
+	params.Values = make(url.Values)
+	err := params.prepareDateString(startTime, endTime, false)
+	if err != nil {
+		return nil, err
+	}
+	params.Values.Set("productType", productType)
+	params.Values.Set("marginCoin", currency)
+	params.Values.Set("limit", strconv.FormatInt(limit, 10))
+	params.Values.Set("idLessThan", strconv.FormatInt(pagination, 10))
+	path := bitgetTax + "/" + bitgetFutureRecord
+	var resp *FutureTrResp
+	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, bitgetRate1, http.MethodGet, path, params.Values, nil, &resp)
+}
+
+// GetMarginTransactionRecords returns the user's margin transaction records
+func (bi *Bitget) GetMarginTransactionRecords(ctx context.Context, marginType, currency string, startTime, endTime time.Time, limit, pagination int64) (*MarginTrResp, error) {
+	var params Params
+	params.Values = make(url.Values)
+	err := params.prepareDateString(startTime, endTime, false)
+	if err != nil {
+		return nil, err
+	}
+	params.Values.Set("marginType", marginType)
+	params.Values.Set("coin", currency)
+	params.Values.Set("limit", strconv.FormatInt(limit, 10))
+	params.Values.Set("idLessThan", strconv.FormatInt(pagination, 10))
+	path := bitgetTax + "/" + bitgetMarginRecord
+	var resp *MarginTrResp
+	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, bitgetRate1, http.MethodGet, path, params.Values, nil, &resp)
+}
+
+// GetP2PTransactionRecords returns the user's P2P transaction records
+func (bi *Bitget) GetP2PTransactionRecords(ctx context.Context, currency string, startTime, endTime time.Time, limit, pagination int64) (*P2PTrResp, error) {
+	var params Params
+	params.Values = make(url.Values)
+	err := params.prepareDateString(startTime, endTime, false)
+	if err != nil {
+		return nil, err
+	}
+	params.Values.Set("coin", currency)
+	params.Values.Set("limit", strconv.FormatInt(limit, 10))
+	params.Values.Set("idLessThan", strconv.FormatInt(pagination, 10))
+	path := bitgetTax + "/" + bitgetP2PRecord
+	var resp *P2PTrResp
+	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, bitgetRate1, http.MethodGet, path, params.Values, nil, &resp)
+}
+
+// GetP2PMerchantList returns detailed information on a particular merchant
+func (bi *Bitget) GetP2PMerchantList(ctx context.Context, online, merchantID string, limit, pagination int64) (*P2PMerListResp, error) {
+	vals := url.Values{}
+	vals.Set("online", online)
+	vals.Set("merchantId", merchantID)
+	vals.Set("limit", strconv.FormatInt(limit, 10))
+	vals.Set("idLessThan", strconv.FormatInt(pagination, 10))
+	path := bitgetP2P + "/" + bitgetMerchantList
+	var resp *P2PMerListResp
+	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, bitgetRate10, http.MethodGet, path, vals, nil, &resp)
+}
+
+// GetMerchantInfo returns detailed information on the user's merchant
+func (bi *Bitget) GetMerchantInfo(ctx context.Context) (*P2PMerInfoResp, error) {
+	path := bitgetP2P + "/" + bitgetMerchantInfo
+	var resp *P2PMerInfoResp
+	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, bitgetRate10, http.MethodGet, path, nil, nil, &resp)
 }
 
 // SendAuthenticatedHTTPRequest sends an authenticated HTTP request
@@ -187,6 +267,10 @@ func (t *UnixTimestamp) UnmarshalJSON(b []byte) error {
 	if err != nil {
 		return err
 	}
+	if timestampStr == "" {
+		*t = UnixTimestamp(time.Time{})
+		return nil
+	}
 	timestamp, err := strconv.ParseInt(timestampStr, 10, 64)
 	if err != nil {
 		return err
@@ -203,4 +287,20 @@ func (t *UnixTimestamp) String() string {
 // Time returns the time.Time representation of the UnixTimestamp
 func (t *UnixTimestamp) Time() time.Time {
 	return time.Time(*t)
+}
+
+// UnmarshalJSOn unmarshals the JSON input into a YesNoBool type
+func (y *YesNoBool) UnmarshalJSON(b []byte) error {
+	var yn string
+	err := json.Unmarshal(b, &yn)
+	if err != nil {
+		return err
+	}
+	switch yn {
+	case "yes":
+		*y = true
+	case "no":
+		*y = false
+	}
+	return nil
 }

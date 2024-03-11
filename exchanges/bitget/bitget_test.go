@@ -44,7 +44,6 @@ func TestMain(m *testing.M) {
 	exchCfg.API.Credentials.Key = apiKey
 	exchCfg.API.Credentials.Secret = apiSecret
 	exchCfg.API.Credentials.ClientID = clientID
-	exchCfg.Enabled = true
 
 	err = bi.Setup(exchCfg)
 	if err != nil {
@@ -91,7 +90,47 @@ func TestGetTradeRate(t *testing.T) {
 func TestGetSpotTransactionRecords(t *testing.T) {
 	_, err := bi.GetSpotTransactionRecords(context.Background(), "", time.Time{}, time.Time{}, 0, 0)
 	assert.ErrorIs(t, err, common.ErrDateUnset)
-	resp, err := bi.GetSpotTransactionRecords(context.Background(), "", time.Now().Add(-time.Hour*24*30), time.Now(), 500, -5)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
+	_, err = bi.GetSpotTransactionRecords(context.Background(), "", time.Now().Add(-time.Hour*24*30), time.Now(), 0, 0)
+	assert.NoError(t, err)
+}
+
+func TestGetFuturesTransactionRecords(t *testing.T) {
+	_, err := bi.GetFuturesTransactionRecords(context.Background(), "", "", time.Time{}, time.Time{}, 0, 0)
+	assert.ErrorIs(t, err, errProductTypeEmpty)
+	_, err = bi.GetFuturesTransactionRecords(context.Background(), "woof", "", time.Time{}, time.Time{}, 0, 0)
+	assert.ErrorIs(t, err, common.ErrDateUnset)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
+	_, err = bi.GetFuturesTransactionRecords(context.Background(), "COIN-FUTURES", "", time.Now().Add(-time.Hour*24*30), time.Now(), 0, 0)
+	assert.NoError(t, err)
+}
+
+func TestGetMarginTransactionRecords(t *testing.T) {
+	_, err := bi.GetMarginTransactionRecords(context.Background(), "", "", time.Time{}, time.Time{}, 0, 0)
+	assert.ErrorIs(t, err, common.ErrDateUnset)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
+	_, err = bi.GetMarginTransactionRecords(context.Background(), "", "", time.Now().Add(-time.Hour*24*30), time.Now(), 0, 0)
+	assert.NoError(t, err)
+}
+
+func TestGetP2PTransactionRecords(t *testing.T) {
+	_, err := bi.GetP2PTransactionRecords(context.Background(), "", time.Time{}, time.Time{}, 0, 0)
+	assert.ErrorIs(t, err, common.ErrDateUnset)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
+	_, err = bi.GetP2PTransactionRecords(context.Background(), "", time.Now().Add(-time.Hour*24*30), time.Now(), 0, 0)
+	assert.NoError(t, err)
+}
+
+func TestGetP2PMerchantList(t *testing.T) {
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
+	// Can't currently be properly tested due to not knowing any p2p merchant IDs
+	_, err := bi.GetP2PMerchantList(context.Background(), "", "1", 0, 0)
+	assert.NoError(t, err)
+}
+
+func TestGetMerchantInfo(t *testing.T) {
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
+	resp, err := bi.GetMerchantInfo(context.Background())
 	assert.NoError(t, err)
 	fmt.Print(resp)
 }
