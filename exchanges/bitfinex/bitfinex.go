@@ -1688,7 +1688,7 @@ func (b *Bitfinex) CancelMultipleOrdersV2(ctx context.Context, orderID, clientOr
 					cancelledOrder.AuxLimitPrice = f
 				}
 			}
-			cancelledOrders[y] = cancelledOrder
+			cancelledOrders = append(cancelledOrders, cancelledOrder)
 		}
 	}
 	return cancelledOrders, nil

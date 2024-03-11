@@ -174,7 +174,6 @@ func (b *Bitstamp) Setup(exch *config.Exchange) error {
 
 	err = b.Websocket.Setup(&stream.WebsocketSetup{
 		ExchangeConfig:        exch,
-		DefaultURL:            bitstampWSURL,
 		RunningURL:            wsURL,
 		Connector:             b.WsConnect,
 		Subscriber:            b.Subscribe,

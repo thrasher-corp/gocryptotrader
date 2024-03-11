@@ -215,13 +215,13 @@ const (
 
 var defaultPingHandler = stream.PingHandler{MessageType: websocket.TextMessage, Message: pingMsg, Delay: time.Second * 20}
 
-// WsUnAuthBootStrap boostraps the unauthenticated connection
+// WsUnAuthBootstrap bootstraps the unauthenticated connection
 func (ok *Okx) WsUnAuthBootstrap(conn stream.Connection) error {
 	conn.SetupPingHandler(defaultPingHandler)
 	return nil
 }
 
-// WsAuthBoostrap boostraps the authenticated connection
+// WsAuthBootstrap bootstraps the authenticated connection
 func (ok *Okx) WsAuthBootstrap(conn stream.Connection) error {
 	conn.SetupPingHandler(defaultPingHandler)
 	creds, err := ok.GetCredentials(context.TODO()) // TODO: Populate context through websocket services.

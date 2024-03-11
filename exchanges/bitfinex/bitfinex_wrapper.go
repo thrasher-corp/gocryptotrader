@@ -226,7 +226,6 @@ func (b *Bitfinex) Setup(exch *config.Exchange) error {
 
 	err = b.Websocket.Setup(&stream.WebsocketSetup{
 		ExchangeConfig:        exch,
-		DefaultURL:            publicBitfinexWebsocketEndpoint,
 		RunningURL:            wsEndpoint,
 		Connector:             b.WsConnect,
 		Subscriber:            b.Subscribe,

@@ -42,7 +42,6 @@ var (
 	errWebsocketAlreadyEnabled              = errors.New("websocket already enabled")
 	errWebsocketFeaturesIsUnset             = errors.New("websocket features is unset")
 	errConfigFeaturesIsNil                  = errors.New("exchange config features is nil")
-	errDefaultURLIsEmpty                    = errors.New("default url is empty")
 	errRunningURLIsEmpty                    = errors.New("running url cannot be empty")
 	errInvalidWebsocketURL                  = errors.New("invalid websocket url")
 	errExchangeConfigNameEmpty              = errors.New("exchange config name empty")
@@ -50,6 +49,7 @@ var (
 	errTrafficAlertNil                      = errors.New("traffic alert is nil")
 	errWebsocketSubscriberUnset             = errors.New("websocket subscriber function needs to be set")
 	errWebsocketUnsubscriberUnset           = errors.New("websocket unsubscriber functionality allowed but unsubscriber function not set")
+	errWebsocketConnectorUnset              = errors.New("websocket connector function not set")
 	errReadMessageErrorsNil                 = errors.New("read message errors is nil")
 	errWebsocketSubscriptionsGeneratorUnset = errors.New("websocket subscriptions generator function needs to be set")
 	errClosedConnection                     = errors.New("use of closed network connection")
@@ -63,6 +63,7 @@ var (
 	errCannotShutdown                       = errors.New("websocket cannot shutdown")
 	errAlreadyReconnecting                  = errors.New("websocket in the process of reconnection")
 	errConnSetup                            = errors.New("error in connection setup")
+	errGlobalConnectionHandlerAlreadySet    = errors.New("websocket global connection handler already set")
 )
 
 var (
@@ -145,23 +146,23 @@ func (w *Websocket) Setup(s *WebsocketSetup) error {
 	}
 	w.GenerateSubs = s.GenerateSubscriptions
 
-	if s.DefaultURL == "" {
-		return fmt.Errorf("%s websocket %w", w.exchangeName, errDefaultURLIsEmpty)
-	}
-	w.defaultURL = s.DefaultURL
 	if s.RunningURL == "" {
 		return fmt.Errorf("%s websocket %w", w.exchangeName, errRunningURLIsEmpty)
 	}
+
 	err := w.SetWebsocketURL(s.RunningURL, false, false)
 	if err != nil {
-		return fmt.Errorf("%s %w", w.exchangeName, err)
+		return err
 	}
+
+	w.RunningURL = s.RunningURL
 
 	if s.RunningURLAuth != "" {
 		err = w.SetWebsocketURL(s.RunningURLAuth, true, false)
 		if err != nil {
-			return fmt.Errorf("%s %w", w.exchangeName, err)
+			return err
 		}
+		w.RunningAuthURL = s.RunningURLAuth
 	}
 
 	if s.ExchangeConfig.WebsocketTrafficTimeout < time.Second {
@@ -213,9 +214,25 @@ func (w *Websocket) SetupNewConnection(c *ConnectionSetup) error {
 		return fmt.Errorf("%w: %w", errConnSetup, errReadMessageErrorsNil)
 	}
 
-	connectionURL := w.GetWebsocketURL(c.Authenticated)
-	if c.URL != "" {
-		connectionURL = c.URL
+	if w.connector == nil && c.Handler == nil {
+		return fmt.Errorf("%w: %w", errConnSetup, errWebsocketConnectorUnset)
+	}
+
+	if w.connector != nil && c.Handler != nil {
+		return fmt.Errorf("%w: %w", errConnSetup, errGlobalConnectionHandlerAlreadySet)
+	}
+
+	connectionURL := c.URL
+	if connectionURL == "" {
+		if c.Authenticated {
+			connectionURL = w.RunningAuthURL
+		} else {
+			connectionURL = w.RunningURL
+		}
+	}
+
+	if connectionURL == "" {
+		return fmt.Errorf("%w: %w", errConnSetup, errInvalidWebsocketURL)
 	}
 
 	if c.ConnectionLevelReporter == nil {
@@ -268,6 +285,9 @@ func (w *Websocket) Connect() error {
 	if w.IsConnected() {
 		return fmt.Errorf("%v %w", w.exchangeName, errAlreadyConnected)
 	}
+	if w.GenerateSubs == nil {
+		return fmt.Errorf("%v %w", w.exchangeName, errWebsocketSubscriptionsGeneratorUnset)
+	}
 
 	w.subscriptionMutex.Lock()
 	w.subscriptions = subscriptionMap{}
@@ -285,8 +305,8 @@ func (w *Websocket) Connect() error {
 		}
 	}
 
-	if w.Conn != nil {
-		err := w.InitialiseConnection(w.Conn, w.UnAuthBootstrap, w.UnAuthHandler)
+	if w.connector == nil && w.Conn != nil {
+		err := w.initialiseConnection(w.Conn, w.UnAuthBootstrap, w.UnAuthHandler)
 		if err != nil {
 			w.setState(disconnected)
 			return fmt.Errorf("unauthenticated connection: %w", err)
@@ -296,8 +316,8 @@ func (w *Websocket) Connect() error {
 		}
 	}
 
-	if w.AuthConn != nil && w.CanUseAuthenticatedEndpoints() {
-		err := w.InitialiseConnection(w.AuthConn, w.AuthBootstrap, w.AuthHandler)
+	if w.connector == nil && w.AuthConn != nil && w.CanUseAuthenticatedEndpoints() {
+		err := w.initialiseConnection(w.AuthConn, w.AuthBootstrap, w.AuthHandler)
 		if err != nil {
 			w.SetCanUseAuthenticatedEndpoints(false)
 			log.Errorf(log.ExchangeSys, "%s cannot use authenticated endpoints: %v", w.exchangeName, err)
@@ -313,10 +333,6 @@ func (w *Websocket) Connect() error {
 		if err != nil {
 			log.Errorf(log.WebsocketMgr, "%s cannot start websocket connection monitor %v", w.GetName(), err)
 		}
-	}
-
-	if w.GenerateSubs == nil {
-		return errors.New("generate subscriptions function not set")
 	}
 
 	subs, err := w.GenerateSubs() // regenerate state on new connection
@@ -990,13 +1006,14 @@ func (w *Websocket) listen(conn Connection, handler func(incoming []byte) error)
 			return
 		}
 		if err := handler(resp.Raw); err != nil {
-			w.DataHandler <- err
+			w.DataHandler <- fmt.Errorf("websocket streaming connection %s %s: %w", w.exchangeName, conn.GetURL(), err)
 		}
 	}
 }
 
-// InitialiseConnection sets up a websocket connection
-func (w *Websocket) InitialiseConnection(conn Connection, bootstrap func(Connection) error, handler func([]byte) error) error {
+// initialiseConnection sets up and handles a websocket connection when there
+// is a connection specific setup required.
+func (w *Websocket) initialiseConnection(conn Connection, bootstrap func(Connection) error, handler func([]byte) error) error {
 	dialer := *websocket.DefaultDialer
 	if w.proxyAddr != nil {
 		// Note: This is a global setting and will affect all websocket

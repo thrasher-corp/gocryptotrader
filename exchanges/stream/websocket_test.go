@@ -74,7 +74,6 @@ var defaultSetup = &WebsocketSetup{
 		WebsocketTrafficTimeout: time.Second * 5,
 		Name:                    "GTX",
 	},
-	DefaultURL:   "testDefaultURL",
 	RunningURL:   "wss://testRunningURL",
 	Connector:    func() error { return nil },
 	Subscriber:   func([]subscription.Subscription) error { return nil },
@@ -102,7 +101,7 @@ func (d *dodgyConnection) Connect() error {
 	return fmt.Errorf("cannot connect: %w", errDastardlyReason)
 }
 
-func (d *dodgyConnection) Dial(dialer *websocket.Dialer, header http.Header) error {
+func (d *dodgyConnection) Dial(*websocket.Dialer, http.Header) error {
 	return fmt.Errorf("cannot connect: %w", errDastardlyReason)
 }
 
@@ -129,7 +128,6 @@ func TestMain(m *testing.M) {
 			}
 		}()
 	}))
-	defer mockServer.Close()
 	mockServerURL += strings.Split(mockServer.URL, "//")[1]
 
 	mockProxy = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -146,7 +144,8 @@ func TestMain(m *testing.M) {
 		}
 		actualServerConn, _, err := websocket.DefaultDialer.Dial("ws://"+r.Host, nil)
 		if err != nil {
-			conn.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseInternalServerErr, "Failed to dial actual server from proxy"))
+			err = conn.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseInternalServerErr, "Failed to dial actual server from proxy"))
+			log.Printf("Failed to dial actual server from proxy: %v", err)
 			conn.Close()
 			return
 		}
@@ -175,11 +174,14 @@ func TestMain(m *testing.M) {
 			}
 		}()
 	}))
-	defer mockProxy.Close()
 
 	// Change trafficCheckInterval for TestTrafficMonitorTimeout before parallel tests to avoid racing
 	trafficCheckInterval = 50 * time.Millisecond
-	os.Exit(m.Run())
+
+	code := m.Run()
+	mockProxy.Close()
+	mockServer.Close()
+	os.Exit(code)
 }
 
 func TestSetup(t *testing.T) {
@@ -224,10 +226,6 @@ func TestSetup(t *testing.T) {
 	assert.ErrorIs(t, err, errWebsocketSubscriptionsGeneratorUnset, "Setup should error correctly")
 
 	websocketSetup.GenerateSubscriptions = func() ([]subscription.Subscription, error) { return nil, nil }
-	err = w.Setup(websocketSetup)
-	assert.ErrorIs(t, err, errDefaultURLIsEmpty, "Setup should error correctly")
-
-	websocketSetup.DefaultURL = "test"
 	err = w.Setup(websocketSetup)
 	assert.ErrorIs(t, err, errRunningURLIsEmpty, "Setup should error correctly")
 
@@ -355,8 +353,6 @@ func TestTrafficMonitorShutdown(t *testing.T) {
 	}
 }
 
-type happyConnection struct{ WebsocketConnection }
-
 func TestIsDisconnectionError(t *testing.T) {
 	t.Parallel()
 	assert.False(t, IsDisconnectionError(errors.New("errorText")), "IsDisconnectionError should return false")
@@ -380,6 +376,12 @@ func TestConnectionMessageErrors(t *testing.T) {
 
 	wsWrong.setState(disconnected)
 	wsWrong.connector = func() error { return errDastardlyReason }
+
+	err = wsWrong.Connect()
+	assert.ErrorIs(t, err, errWebsocketSubscriptionsGeneratorUnset, "Connect should error correctly")
+
+	wsWrong.GenerateSubs = func() ([]subscription.Subscription, error) { return nil, nil }
+
 	err = wsWrong.Connect()
 	assert.ErrorIs(t, err, errDastardlyReason, "Connect should error correctly")
 
@@ -412,6 +414,28 @@ func TestConnectionMessageErrors(t *testing.T) {
 
 	ws.ReadMessageErrors <- &websocket.CloseError{Code: 1006, Text: "SpecialText"}
 	assert.EventuallyWithT(t, c, 900*time.Millisecond, 10*time.Millisecond, "Should get an error down the routine")
+
+	// Test individual connection functions
+	ws.connector = nil
+	ws.Conn = &dodgyConnection{}
+	ws.AuthConn = &dodgyConnection{}
+	ws.SetCanUseAuthenticatedEndpoints(true)
+
+	err = ws.Connect()
+	require.ErrorIs(t, err, errDastardlyReason, "Connect should error correctly")
+
+	ws.Conn = &WebsocketConnection{URL: mockServerURL}
+	err = ws.Connect()
+	require.NoError(t, err) // With auth conn will only log errors.
+	assert.False(t, ws.CanUseAuthenticatedEndpoints())
+
+	ws.setState(disconnected)
+
+	ws.SetCanUseAuthenticatedEndpoints(true)
+	ws.AuthConn = &WebsocketConnection{URL: mockServerURL}
+	err = ws.Connect()
+	require.NoError(t, err)
+	assert.True(t, ws.CanUseAuthenticatedEndpoints())
 }
 
 func TestWebsocket(t *testing.T) {
@@ -457,7 +481,7 @@ func TestWebsocket(t *testing.T) {
 	assert.ErrorIs(t, err, errDastardlyReason, "SetProxyAddress should call Shutdown and error from there")
 	assert.ErrorIs(t, err, errCannotShutdown, "SetProxyAddress should call Shutdown and error from there")
 
-	ws.Conn = &happyConnection{WebsocketConnection: WebsocketConnection{URL: mockServerURL}}
+	ws.Conn = &WebsocketConnection{URL: mockServerURL}
 	ws.AuthConn = nil
 	ws.setEnabled(true)
 
@@ -473,7 +497,7 @@ func TestWebsocket(t *testing.T) {
 	assert.ErrorIs(t, err, errDastardlyReason, "Shutdown should error correctly with a dodgy authConn")
 	assert.ErrorIs(t, err, errCannotShutdown, "Shutdown should error correctly with a dodgy authConn")
 
-	ws.AuthConn = &happyConnection{WebsocketConnection: WebsocketConnection{URL: mockServerURL}}
+	ws.AuthConn = &WebsocketConnection{URL: mockServerURL}
 	ws.setState(disconnected)
 
 	err = ws.Connect()

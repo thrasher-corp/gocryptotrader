@@ -163,7 +163,6 @@ func (g *Gemini) Setup(exch *config.Exchange) error {
 
 	err = g.Websocket.Setup(&stream.WebsocketSetup{
 		ExchangeConfig:        exch,
-		DefaultURL:            geminiWebsocketEndpoint,
 		RunningURL:            wsRunningURL,
 		Connector:             g.WsConnect,
 		Subscriber:            g.Subscribe,

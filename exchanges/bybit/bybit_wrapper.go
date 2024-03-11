@@ -246,7 +246,6 @@ func (by *Bybit) Setup(exch *config.Exchange) error {
 	err = by.Websocket.Setup(
 		&stream.WebsocketSetup{
 			ExchangeConfig:        exch,
-			DefaultURL:            spotPublic,
 			RunningURL:            wsRunningEndpoint,
 			RunningURLAuth:        websocketPrivate,
 			Connector:             by.WsConnect,

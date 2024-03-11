@@ -221,7 +221,6 @@ func (ok *Okx) Setup(exch *config.Exchange) error {
 	}
 	if err := ok.Websocket.Setup(&stream.WebsocketSetup{
 		ExchangeConfig:                         exch,
-		DefaultURL:                             okxAPIWebsocketPublicURL,
 		RunningURL:                             wsRunningEndpoint,
 		Subscriber:                             ok.Subscribe,
 		Unsubscriber:                           ok.Unsubscribe,

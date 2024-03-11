@@ -38,10 +38,18 @@ type ConnectionSetup struct {
 	URL                     string
 	Authenticated           bool
 	ConnectionLevelReporter Reporter
-	Handler                 func(incoming []byte) error
-	Bootstrap               func(conn Connection) error
-	ReadBufferSize          uint
-	WriteBufferSize         uint
+	// Handler handles the incoming data from the stream
+	Handler func(incoming []byte) error
+	// Bootstrap handles the initial connection setup bespoke to the exchange
+	Bootstrap       func(conn Connection) error
+	ReadBufferSize  uint
+	WriteBufferSize uint
+
+	// TODO:
+	// * Add generate subscriptions function
+	// * Add max subscriptions
+	// * Remove dedicated auth connection, as everything will be defined per
+	// 	 connection setup.
 }
 
 // PingHandler container for ping handler settings

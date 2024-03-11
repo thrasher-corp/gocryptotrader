@@ -223,7 +223,6 @@ func (ku *Kucoin) Setup(exch *config.Exchange) error {
 	err = ku.Websocket.Setup(
 		&stream.WebsocketSetup{
 			ExchangeConfig:        exch,
-			DefaultURL:            kucoinWebsocketURL,
 			RunningURL:            wsRunningEndpoint,
 			Connector:             ku.WsConnect,
 			Subscriber:            ku.Subscribe,

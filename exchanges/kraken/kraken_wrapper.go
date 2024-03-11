@@ -241,7 +241,6 @@ func (k *Kraken) Setup(exch *config.Exchange) error {
 	}
 	err = k.Websocket.Setup(&stream.WebsocketSetup{
 		ExchangeConfig:        exch,
-		DefaultURL:            krakenWSURL,
 		RunningURL:            wsRunningURL,
 		Connector:             k.WsConnect,
 		Subscriber:            k.Subscribe,

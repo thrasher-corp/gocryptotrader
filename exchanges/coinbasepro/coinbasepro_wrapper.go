@@ -173,7 +173,6 @@ func (c *CoinbasePro) Setup(exch *config.Exchange) error {
 
 	err = c.Websocket.Setup(&stream.WebsocketSetup{
 		ExchangeConfig:        exch,
-		DefaultURL:            coinbaseproWebsocketURL,
 		RunningURL:            wsRunningURL,
 		Connector:             c.WsConnect,
 		Subscriber:            c.Subscribe,

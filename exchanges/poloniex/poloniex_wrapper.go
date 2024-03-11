@@ -187,7 +187,6 @@ func (p *Poloniex) Setup(exch *config.Exchange) error {
 
 	err = p.Websocket.Setup(&stream.WebsocketSetup{
 		ExchangeConfig:        exch,
-		DefaultURL:            poloniexWebsocketAddress,
 		RunningURL:            wsRunningURL,
 		Connector:             p.WsConnect,
 		Subscriber:            p.Subscribe,

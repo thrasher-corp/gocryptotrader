@@ -263,7 +263,6 @@ func (b *Binance) Setup(exch *config.Exchange) error {
 	}
 	err = b.Websocket.Setup(&stream.WebsocketSetup{
 		ExchangeConfig:        exch,
-		DefaultURL:            binanceDefaultWebsocketURL,
 		RunningURL:            ePoint,
 		Connector:             b.WsConnect,
 		Subscriber:            b.Subscribe,

@@ -95,11 +95,13 @@ type Websocket struct {
 	Conn            Connection
 	UnAuthHandler   func([]byte) error
 	UnAuthBootstrap func(Connection) error
+	RunningURL      string // TODO: Remove
 
-	// Authenticated stream connection
-	AuthConn      Connection
-	AuthHandler   func([]byte) error
-	AuthBootstrap func(Connection) error
+	// Authenticated stream connection // TODO: Remove authenticated connection
+	AuthConn       Connection
+	AuthHandler    func([]byte) error
+	AuthBootstrap  func(Connection) error
+	RunningAuthURL string
 
 	// Latency reporter
 	ExchangeLevelReporter Reporter
@@ -111,8 +113,8 @@ type Websocket struct {
 
 // WebsocketSetup defines variables for setting up a websocket connection
 type WebsocketSetup struct {
-	ExchangeConfig        *config.Exchange
-	DefaultURL            string
+	ExchangeConfig *config.Exchange
+	// DefaultURL            string
 	RunningURL            string
 	RunningURLAuth        string
 	Connector             func() error
