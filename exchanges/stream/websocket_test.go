@@ -561,8 +561,8 @@ func TestRemoveSubscriptions(t *testing.T) {
 	assert.Nil(t, ws.GetSubscription(42), "Remove should have removed the sub")
 }
 
-// TestConnectionMonitorNoConnection logic test
-func TestConnectionMonitorNoConnection(t *testing.T) {
+// TestConnectionMonitor logic test
+func TestConnectionMonitor(t *testing.T) {
 	t.Parallel()
 	ws := NewWebsocket()
 	ws.connectionMonitorDelay = 500
@@ -571,11 +571,14 @@ func TestConnectionMonitorNoConnection(t *testing.T) {
 	ws.exchangeName = "hello"
 	ws.Wg = &sync.WaitGroup{}
 	ws.setEnabled(true)
-	err := ws.connectionMonitor()
-	require.NoError(t, err, "connectionMonitor must not error")
-	assert.True(t, ws.IsConnectionMonitorRunning(), "IsConnectionMonitorRunning should return true")
-	err = ws.connectionMonitor()
-	assert.ErrorIs(t, err, errAlreadyRunning, "connectionMonitor should error correctly")
+	go ws.connectionMonitor()
+	require.EventuallyWithT(t, func(c *assert.CollectT) {
+		assert.True(c, ws.IsConnectionMonitorRunning(), "IsConnectionMonitorRunning should return true")
+	}, 5*time.Second, 10*time.Millisecond, "ConnectionMonitor must be running")
+	ws.setEnabled(false)
+	require.EventuallyWithT(t, func(c *assert.CollectT) {
+		assert.False(c, ws.IsConnectionMonitorRunning(), "IsConnectionMonitorRunning should return false")
+	}, 5*time.Second, 10*time.Millisecond, "ConnectionMonitor must not be running")
 }
 
 // TestGetSubscription logic test
