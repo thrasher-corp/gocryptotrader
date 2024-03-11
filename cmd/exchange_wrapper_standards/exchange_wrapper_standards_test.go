@@ -244,6 +244,11 @@ func CallExchangeMethod(t *testing.T, methodToCall reflect.Value, methodValues [
 		if isUnacceptableError(t, err) != nil {
 			literalInputs := make([]interface{}, len(methodValues))
 			for j := range methodValues {
+				if methodValues[j].Kind() == reflect.Ptr {
+					// dereference pointers just to add a bit more clarity
+					literalInputs[j] = methodValues[j].Elem().Interface()
+					continue
+				}
 				literalInputs[j] = methodValues[j].Interface()
 			}
 			t.Errorf("%v Func '%v' Error: '%v'. Inputs: %v.", exch.GetName(), methodName, err, literalInputs)
@@ -448,6 +453,7 @@ func generateMethodArg(ctx context.Context, t *testing.T, argGenerator *MethodAr
 			ClientID:          "1337",
 			ClientOrderID:     "13371337",
 			ImmediateOrCancel: true,
+			Leverage:          1,
 		})
 	case argGenerator.MethodInputType.AssignableTo(orderModifyParam):
 		input = reflect.ValueOf(&order.Modify{
