@@ -170,20 +170,6 @@
    "Disabled": false
   },
   {
-   "Name": "ItBit",
-   "CheckType": "HTML String Check",
-   "Data": {
-    "HTMLData": {
-     "TokenData": "a",
-     "Key": "href",
-     "RegExp": "^https://api.itbit.com/v\\d{1}/$",
-     "CheckString": "https://api.itbit.com/v1/",
-     "Path": "https://api.itbit.com/docs"
-    }
-   },
-   "Disabled": false
-  },
-  {
    "Name": "Bitmex",
    "CheckType": "HTML String Check",
    "Data": {

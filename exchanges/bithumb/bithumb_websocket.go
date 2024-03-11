@@ -3,7 +3,6 @@ package bithumb
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"net/http"
 	"time"
@@ -30,7 +29,7 @@ var (
 // WsConnect initiates a websocket connection
 func (b *Bithumb) WsConnect(ctx context.Context) error {
 	if !b.Websocket.IsEnabled() || !b.IsEnabled() {
-		return errors.New(stream.WebsocketNotEnabled)
+		return stream.ErrWebsocketNotEnabled
 	}
 
 	var dialer websocket.Dialer
@@ -79,7 +78,7 @@ func (b *Bithumb) wsHandleData(respRaw []byte) error {
 		return err
 	}
 
-	if len(resp.Status) > 0 {
+	if resp.Status != "" {
 		if resp.Status == "0000" {
 			return nil
 		}

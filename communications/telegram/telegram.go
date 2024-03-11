@@ -203,7 +203,7 @@ func (t *Telegram) HandleMessages(text string, chatID int64) error {
 		return t.SendMessage(fmt.Sprintf("%s: %s", talkRoot, cmdHelpReply), chatID)
 
 	case strings.Contains(text, cmdStart):
-		return t.SendMessage(fmt.Sprintf("%s: START COMMANDS HERE", talkRoot), chatID)
+		return t.SendMessage(talkRoot+": START COMMANDS HERE", chatID)
 
 	case strings.Contains(text, cmdStatus):
 		return t.SendMessage(fmt.Sprintf("%s: %s", talkRoot, t.GetStatus()), chatID)

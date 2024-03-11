@@ -204,7 +204,7 @@ func TestWrapperGetServerTime(t *testing.T) {
 	t.Parallel()
 	st, err := b.GetServerTime(context.Background(), asset.Spot)
 	assert.NoError(t, err, "GetServerTime should not error")
-	assert.WithinRange(t, st, time.Now().Add(-24*time.Hour), time.Now().Add(24*time.Hour), "Time should be within a day of what now")
+	assert.WithinRange(t, st, time.Now().Add(-24*time.Hour), time.Now().Add(24*time.Hour), "Time should be within a day of now")
 }
 
 func TestGetWalletInformation(t *testing.T) {

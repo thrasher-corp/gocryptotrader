@@ -664,7 +664,7 @@ func TestErrors(t *testing.T) {
 	e5 := errors.New("add vodka")
 
 	// Nil tests
-	assert.Nil(t, AppendError(nil, nil), "Append nil to nil should nil")
+	assert.NoError(t, AppendError(nil, nil), "Append nil to nil should nil")
 	assert.Same(t, AppendError(e1, nil), e1, "Append nil to e1 should e1")
 	assert.Same(t, AppendError(nil, e2), e2, "Append e2 to nil should e2")
 
@@ -676,7 +676,7 @@ func TestErrors(t *testing.T) {
 
 	err = ExcludeError(err, e2)
 	assert.ErrorIs(t, err, e1, "Should still be bored")
-	assert.False(t, errors.Is(err, e2), "Should not be an e2")
+	assert.NotErrorIs(t, err, e2, "Should not be an e2")
 	me, ok := err.(*multiError)
 	if assert.True(t, ok, "Should be a multiError") {
 		assert.Len(t, me.errs, 2, "Should only have 2 errors")
@@ -690,19 +690,26 @@ func TestErrors(t *testing.T) {
 	err = fmt.Errorf("%w: %w", e3, fmt.Errorf("%w: %w", e4, e5))
 	assert.ErrorIs(t, ExcludeError(err, e4), e3, "Excluding e4 should retain e3")
 	assert.ErrorIs(t, ExcludeError(err, e4), e5, "Excluding e4 should retain the vanilla co-wrapped e5")
-	assert.False(t, errors.Is(ExcludeError(err, e4), e4), "e4 should be excluded")
+	assert.NotErrorIs(t, ExcludeError(err, e4), e4, "e4 should be excluded")
 	assert.ErrorIs(t, ExcludeError(err, e5), e3, "Excluding e5 should retain e3")
 	assert.ErrorIs(t, ExcludeError(err, e5), e4, "Excluding e5 should retain the vanilla co-wrapped e4")
-	assert.False(t, errors.Is(ExcludeError(err, e5), e5), "e5 should be excluded")
+	assert.NotErrorIs(t, ExcludeError(err, e5), e5, "e5 should be excluded")
 
 	// Hybrid tests
 	err = AppendError(fmt.Errorf("%w: %w", e4, e5), e3)
 	assert.ErrorIs(t, ExcludeError(err, e4), e3, "Excluding e4 should retain e3")
 	assert.ErrorIs(t, ExcludeError(err, e4), e5, "Excluding e4 should retain the vanilla co-wrapped e5")
-	assert.False(t, errors.Is(ExcludeError(err, e4), e4), "e4 should be excluded")
+	assert.NotErrorIs(t, ExcludeError(err, e4), e4, "e4 should be excluded")
 	assert.ErrorIs(t, ExcludeError(err, e5), e3, "Excluding e5 should retain e3")
 	assert.ErrorIs(t, ExcludeError(err, e5), e4, "Excluding e5 should retain the vanilla co-wrapped e4")
-	assert.False(t, errors.Is(ExcludeError(err, e5), e5), "e4 should be excluded")
+	assert.NotErrorIs(t, ExcludeError(err, e5), e5, "e4 should be excluded")
+
+	// Formatting retention
+	err = AppendError(e1, fmt.Errorf("%w: Run out of `%s`: %w", e3, "sausages", e5))
+	assert.ErrorIs(t, err, e1, "Should be an e1")
+	assert.ErrorIs(t, err, e3, "Should be an e3")
+	assert.ErrorIs(t, err, e5, "Should be an e5")
+	assert.ErrorContains(t, err, "sausages", "Should know about secret sausages")
 }
 
 func TestParseStartEndDate(t *testing.T) {

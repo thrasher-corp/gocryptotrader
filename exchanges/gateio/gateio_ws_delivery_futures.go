@@ -45,7 +45,7 @@ var fetchedFuturesCurrencyPairSnapshotOrderbook = make(map[string]bool)
 // WsDeliveryFuturesConnect initiates a websocket connection for delivery futures account
 func (g *Gateio) WsDeliveryFuturesConnect() error {
 	if !g.Websocket.IsEnabled() || !g.IsEnabled() {
-		return errors.New(stream.WebsocketNotEnabled)
+		return stream.ErrWebsocketNotEnabled
 	}
 	err := g.CurrencyPairs.IsAssetEnabled(asset.DeliveryFutures)
 	if err != nil {
