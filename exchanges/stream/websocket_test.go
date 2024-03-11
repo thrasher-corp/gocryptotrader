@@ -153,7 +153,7 @@ func TestSetup(t *testing.T) {
 	err = w.Setup(websocketSetup)
 	assert.ErrorIs(t, err, errWebsocketConnectorUnset, "Setup should error correctly")
 
-	websocketSetup.Connector = func(ctx context.Context) error { return nil }
+	websocketSetup.Connector = func(context.Context) error { return nil }
 	err = w.Setup(websocketSetup)
 	assert.ErrorIs(t, err, errWebsocketSubscriberUnset, "Setup should error correctly")
 
@@ -331,7 +331,7 @@ func TestConnectionMessageErrors(t *testing.T) {
 	err = ws.Setup(defaultSetup)
 	require.NoError(t, err, "Setup must not error")
 	ws.trafficTimeout = time.Minute
-	ws.connector = func(ctx context.Context) error { return nil }
+	ws.connector = func(context.Context) error { return nil }
 
 	err = ws.Connect(context.Background(), AutoSubscribe)
 	require.NoError(t, err, "Connect must not error")
