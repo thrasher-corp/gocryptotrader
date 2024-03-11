@@ -1,6 +1,7 @@
 package stream
 
 import (
+	"context"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -20,8 +21,17 @@ const (
 	Ping                               = "ping"
 	Pong                               = "pong"
 	UnhandledMessage                   = " - Unhandled websocket message: "
+
+	// AutoSubscribe defines if the websocket should automatically subscribe
+	// to channels on connection.
+	AutoSubscribe SubscriptionAllowed = 1
+	// DeferSubscribe defines if the websocket should defer subscription to
+	// channels until after connection.
+	DeferSubscribe SubscriptionAllowed = 0
 )
 
+// SubscriptionAllowed defines if the websocket should automatically subscribe
+type SubscriptionAllowed uint8
 type subscriptionMap map[any]*subscription.Subscription
 
 const (
@@ -50,7 +60,7 @@ type Websocket struct {
 	runningURLAuth               string
 	exchangeName                 string
 	m                            sync.Mutex
-	connector                    func() error
+	connector                    func(ctx context.Context) error
 
 	subscriptionMutex sync.RWMutex
 	subscriptions     subscriptionMap
@@ -59,10 +69,10 @@ type Websocket struct {
 
 	// Subscriber function for package defined websocket subscriber
 	// functionality
-	Subscriber func([]subscription.Subscription) error
+	Subscriber func(context.Context, []subscription.Subscription) error
 	// Unsubscriber function for packaged defined websocket unsubscriber
 	// functionality
-	Unsubscriber func([]subscription.Subscription) error
+	Unsubscriber func(context.Context, []subscription.Subscription) error
 	// GenerateSubs function for package defined websocket generate
 	// subscriptions functionality
 	GenerateSubs func() ([]subscription.Subscription, error)
@@ -111,9 +121,9 @@ type WebsocketSetup struct {
 	DefaultURL            string
 	RunningURL            string
 	RunningURLAuth        string
-	Connector             func() error
-	Subscriber            func([]subscription.Subscription) error
-	Unsubscriber          func([]subscription.Subscription) error
+	Connector             func(context.Context) error
+	Subscriber            func(context.Context, []subscription.Subscription) error
+	Unsubscriber          func(context.Context, []subscription.Subscription) error
 	GenerateSubscriptions func() ([]subscription.Subscription, error)
 	Features              *protocol.Features
 

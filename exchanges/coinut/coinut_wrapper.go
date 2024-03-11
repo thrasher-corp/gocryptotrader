@@ -343,7 +343,7 @@ func (c *COINUT) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Item
 	if !c.SupportsAsset(a) {
 		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, a)
 	}
-	err := c.loadInstrumentsIfNotLoaded()
+	err := c.loadInstrumentsIfNotLoaded(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -413,7 +413,7 @@ func (c *COINUT) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType
 		Asset:           assetType,
 		VerifyOrderbook: c.CanVerifyOrderbook,
 	}
-	err := c.loadInstrumentsIfNotLoaded()
+	err := c.loadInstrumentsIfNotLoaded(ctx)
 	if err != nil {
 		return book, err
 	}
@@ -542,7 +542,7 @@ func (c *COINUT) SubmitOrder(ctx context.Context, o *order.Submit) (*order.Submi
 		}
 		orderID = response.OrderID
 	} else {
-		err = c.loadInstrumentsIfNotLoaded()
+		err = c.loadInstrumentsIfNotLoaded(ctx)
 		if err != nil {
 			return nil, err
 		}
@@ -619,7 +619,7 @@ func (c *COINUT) CancelOrder(ctx context.Context, o *order.Cancel) error {
 		return err
 	}
 
-	err := c.loadInstrumentsIfNotLoaded()
+	err := c.loadInstrumentsIfNotLoaded(ctx)
 	if err != nil {
 		return err
 	}
@@ -707,7 +707,7 @@ func (c *COINUT) CancelAllOrders(ctx context.Context, details *order.Cancel) (or
 	}
 
 	var cancelAllOrdersResponse order.CancelAllResponse
-	err := c.loadInstrumentsIfNotLoaded()
+	err := c.loadInstrumentsIfNotLoaded(ctx)
 	if err != nil {
 		return cancelAllOrdersResponse, err
 	}
@@ -830,7 +830,7 @@ func (c *COINUT) GetActiveOrders(ctx context.Context, req *order.MultiOrderReque
 		return nil, err
 	}
 
-	err = c.loadInstrumentsIfNotLoaded()
+	err = c.loadInstrumentsIfNotLoaded(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -960,7 +960,7 @@ func (c *COINUT) GetOrderHistory(ctx context.Context, req *order.MultiOrderReque
 		return nil, err
 	}
 
-	err = c.loadInstrumentsIfNotLoaded()
+	err = c.loadInstrumentsIfNotLoaded(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -1077,7 +1077,7 @@ func (c *COINUT) AuthenticateWebsocket(ctx context.Context) error {
 	return c.wsAuthenticate(ctx)
 }
 
-func (c *COINUT) loadInstrumentsIfNotLoaded() error {
+func (c *COINUT) loadInstrumentsIfNotLoaded(ctx context.Context) error {
 	if !c.instrumentMap.IsLoaded() {
 		if c.Websocket.IsConnected() {
 			_, err := c.WsGetInstruments()
@@ -1085,7 +1085,7 @@ func (c *COINUT) loadInstrumentsIfNotLoaded() error {
 				return err
 			}
 		} else {
-			err := c.SeedInstruments(context.TODO())
+			err := c.SeedInstruments(ctx)
 			if err != nil {
 				return err
 			}

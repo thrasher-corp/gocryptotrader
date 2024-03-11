@@ -43,7 +43,7 @@ var (
 )
 
 // WsConnect connects to a websocket feed
-func (b *Bitstamp) WsConnect() error {
+func (b *Bitstamp) WsConnect(ctx context.Context) error {
 	if !b.Websocket.IsEnabled() || !b.IsEnabled() {
 		return stream.ErrWebsocketNotEnabled
 	}
@@ -60,19 +60,19 @@ func (b *Bitstamp) WsConnect() error {
 		Message:     hbMsg,
 		Delay:       hbInterval,
 	})
-	err = b.seedOrderBook(context.TODO())
+	err = b.seedOrderBook(ctx)
 	if err != nil {
 		b.Websocket.DataHandler <- err
 	}
 
 	b.Websocket.Wg.Add(1)
-	go b.wsReadData()
+	go b.wsReadData(ctx)
 
 	return nil
 }
 
 // wsReadData receives and passes on websocket messages for processing
-func (b *Bitstamp) wsReadData() {
+func (b *Bitstamp) wsReadData(ctx context.Context) {
 	defer b.Websocket.Wg.Done()
 
 	for {
@@ -80,13 +80,13 @@ func (b *Bitstamp) wsReadData() {
 		if resp.Raw == nil {
 			return
 		}
-		if err := b.wsHandleData(resp.Raw); err != nil {
+		if err := b.wsHandleData(ctx, resp.Raw); err != nil {
 			b.Websocket.DataHandler <- err
 		}
 	}
 }
 
-func (b *Bitstamp) wsHandleData(respRaw []byte) error {
+func (b *Bitstamp) wsHandleData(_ context.Context, respRaw []byte) error {
 	wsResponse := &websocketResponse{}
 	if err := json.Unmarshal(respRaw, wsResponse); err != nil {
 		return err
@@ -266,14 +266,14 @@ func (b *Bitstamp) generateDefaultSubscriptions() ([]subscription.Subscription, 
 }
 
 // Subscribe sends a websocket message to receive data from the channel
-func (b *Bitstamp) Subscribe(channelsToSubscribe []subscription.Subscription) error {
+func (b *Bitstamp) Subscribe(ctx context.Context, channelsToSubscribe []subscription.Subscription) error {
 	var errs error
 	var auth *WebsocketAuthResponse
 
 	for i := range channelsToSubscribe {
 		if _, ok := channelsToSubscribe[i].Params["auth"]; ok {
 			var err error
-			auth, err = b.FetchWSAuth(context.TODO())
+			auth, err = b.FetchWSAuth(ctx)
 			if err != nil {
 				errs = common.AppendError(errs, err)
 			}
@@ -304,7 +304,7 @@ func (b *Bitstamp) Subscribe(channelsToSubscribe []subscription.Subscription) er
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
-func (b *Bitstamp) Unsubscribe(channelsToUnsubscribe []subscription.Subscription) error {
+func (b *Bitstamp) Unsubscribe(_ context.Context, channelsToUnsubscribe []subscription.Subscription) error {
 	var errs error
 	for i := range channelsToUnsubscribe {
 		req := websocketEventRequest{

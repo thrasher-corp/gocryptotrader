@@ -1,6 +1,7 @@
 package stream
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net"
@@ -260,7 +261,7 @@ func (w *Websocket) SetupNewConnection(c ConnectionSetup) error {
 
 // Connect initiates a websocket connection by using a package defined connection
 // function
-func (w *Websocket) Connect() error {
+func (w *Websocket) Connect(ctx context.Context, allowAutoSubscribe SubscriptionAllowed) error {
 	if w.connector == nil {
 		return errNoConnectFunc
 	}
@@ -285,7 +286,7 @@ func (w *Websocket) Connect() error {
 	w.trafficMonitor()
 	w.setState(connecting)
 
-	err := w.connector()
+	err := w.connector(ctx)
 	if err != nil {
 		w.setState(disconnected)
 		return fmt.Errorf("%v Error connecting %w", w.exchangeName, err)
@@ -293,26 +294,29 @@ func (w *Websocket) Connect() error {
 	w.setState(connected)
 
 	if !w.IsConnectionMonitorRunning() {
-		err = w.connectionMonitor()
+		err = w.connectionMonitor(ctx, allowAutoSubscribe)
 		if err != nil {
 			log.Errorf(log.WebsocketMgr, "%s cannot start websocket connection monitor %v", w.GetName(), err)
 		}
 	}
 
-	subs, err := w.GenerateSubs() // regenerate state on new connection
-	if err != nil {
-		return fmt.Errorf("%s websocket: %w", w.exchangeName, common.AppendError(ErrSubscriptionFailure, err))
-	}
-	if len(subs) == 0 {
-		return nil
-	}
-	err = w.checkSubscriptions(subs)
-	if err != nil {
-		return fmt.Errorf("%s websocket: %w", w.exchangeName, common.AppendError(ErrSubscriptionFailure, err))
-	}
-	err = w.Subscriber(subs)
-	if err != nil {
-		return fmt.Errorf("%s websocket: %w", w.exchangeName, common.AppendError(ErrSubscriptionFailure, err))
+	if allowAutoSubscribe == AutoSubscribe {
+		var subs []subscription.Subscription
+		subs, err = w.GenerateSubs() // regenerate state on new connection
+		if err != nil {
+			return fmt.Errorf("%s websocket: %w", w.exchangeName, common.AppendError(ErrSubscriptionFailure, err))
+		}
+		if len(subs) == 0 {
+			return nil
+		}
+		err = w.checkSubscriptions(subs)
+		if err != nil {
+			return fmt.Errorf("%s websocket: %w", w.exchangeName, common.AppendError(ErrSubscriptionFailure, err))
+		}
+		err = w.Subscriber(ctx, subs)
+		if err != nil {
+			return fmt.Errorf("%s websocket: %w", w.exchangeName, common.AppendError(ErrSubscriptionFailure, err))
+		}
 	}
 	return nil
 }
@@ -329,13 +333,13 @@ func (w *Websocket) Disable() error {
 }
 
 // Enable enables the exchange websocket protocol
-func (w *Websocket) Enable() error {
+func (w *Websocket) Enable(ctx context.Context, allowAutoSubscribe SubscriptionAllowed) error {
 	if w.IsConnected() || w.IsEnabled() {
 		return fmt.Errorf("%s %w", w.exchangeName, errWebsocketAlreadyEnabled)
 	}
 
 	w.setEnabled(true)
-	return w.Connect()
+	return w.Connect(ctx, allowAutoSubscribe)
 }
 
 // dataMonitor monitors job throughput and logs if there is a back log of data
@@ -376,7 +380,7 @@ func (w *Websocket) dataMonitor() {
 }
 
 // connectionMonitor ensures that the WS keeps connecting
-func (w *Websocket) connectionMonitor() error {
+func (w *Websocket) connectionMonitor(ctx context.Context, allowAutoSubscribe SubscriptionAllowed) error {
 	if w.checkAndSetMonitorRunning() {
 		return errAlreadyRunning
 	}
@@ -417,7 +421,7 @@ func (w *Websocket) connectionMonitor() error {
 				}
 			case <-timer.C:
 				if !w.IsConnecting() && !w.IsConnected() {
-					err := w.Connect()
+					err := w.Connect(ctx, allowAutoSubscribe)
 					if err != nil {
 						log.Errorln(log.WebsocketMgr, err)
 					}
@@ -485,7 +489,7 @@ func (w *Websocket) Shutdown() error {
 }
 
 // FlushChannels flushes channel subscriptions when there is a pair/asset change
-func (w *Websocket) FlushChannels() error {
+func (w *Websocket) FlushChannels(ctx context.Context) error {
 	if !w.IsEnabled() {
 		return fmt.Errorf("%s %w", w.exchangeName, ErrWebsocketNotEnabled)
 	}
@@ -503,7 +507,7 @@ func (w *Websocket) FlushChannels() error {
 		subs, unsubs := w.GetChannelDifference(newsubs)
 		if w.features.Unsubscribe {
 			if len(unsubs) != 0 {
-				err := w.UnsubscribeChannels(unsubs)
+				err := w.UnsubscribeChannels(ctx, unsubs)
 				if err != nil {
 					return err
 				}
@@ -513,7 +517,7 @@ func (w *Websocket) FlushChannels() error {
 		if len(subs) < 1 {
 			return nil
 		}
-		return w.SubscribeToChannels(subs)
+		return w.SubscribeToChannels(ctx, subs)
 	} else if w.features.FullPayloadSubscribe {
 		// FullPayloadSubscribe means that the endpoint requires all
 		// subscriptions to be sent via the websocket connection e.g. if you are
@@ -530,7 +534,7 @@ func (w *Websocket) FlushChannels() error {
 			w.subscriptionMutex.Lock()
 			w.subscriptions = subscriptionMap{}
 			w.subscriptionMutex.Unlock()
-			return w.SubscribeToChannels(newsubs)
+			return w.SubscribeToChannels(ctx, newsubs)
 		}
 		return nil
 	}
@@ -538,7 +542,7 @@ func (w *Websocket) FlushChannels() error {
 	if err := w.Shutdown(); err != nil {
 		return err
 	}
-	return w.Connect()
+	return w.Connect(ctx, AutoSubscribe)
 }
 
 // trafficMonitor waits trafficCheckInterval before checking for a trafficAlert
@@ -733,7 +737,7 @@ func (w *Websocket) GetWebsocketURL() string {
 }
 
 // SetProxyAddress sets websocket proxy address
-func (w *Websocket) SetProxyAddress(proxyAddr string) error {
+func (w *Websocket) SetProxyAddress(ctx context.Context, proxyAddr string, allowAutoSubscribe SubscriptionAllowed) error {
 	w.m.Lock()
 
 	if proxyAddr != "" {
@@ -766,7 +770,7 @@ func (w *Websocket) SetProxyAddress(proxyAddr string) error {
 		if err := w.Shutdown(); err != nil {
 			return err
 		}
-		return w.Connect()
+		return w.Connect(ctx, allowAutoSubscribe)
 	}
 
 	w.m.Unlock()
@@ -811,7 +815,7 @@ func (w *Websocket) GetChannelDifference(genSubs []subscription.Subscription) (s
 }
 
 // UnsubscribeChannels unsubscribes from a websocket channel
-func (w *Websocket) UnsubscribeChannels(channels []subscription.Subscription) error {
+func (w *Websocket) UnsubscribeChannels(ctx context.Context, channels []subscription.Subscription) error {
 	if len(channels) == 0 {
 		return fmt.Errorf("%s websocket: %w", w.exchangeName, errNoSubscriptionsSupplied)
 	}
@@ -825,24 +829,24 @@ func (w *Websocket) UnsubscribeChannels(channels []subscription.Subscription) er
 		}
 	}
 	w.subscriptionMutex.RUnlock()
-	return w.Unsubscriber(channels)
+	return w.Unsubscriber(ctx, channels)
 }
 
 // ResubscribeToChannel resubscribes to channel
-func (w *Websocket) ResubscribeToChannel(subscribedChannel *subscription.Subscription) error {
-	err := w.UnsubscribeChannels([]subscription.Subscription{*subscribedChannel})
+func (w *Websocket) ResubscribeToChannel(ctx context.Context, subscribedChannel *subscription.Subscription) error {
+	err := w.UnsubscribeChannels(ctx, []subscription.Subscription{*subscribedChannel})
 	if err != nil {
 		return err
 	}
-	return w.SubscribeToChannels([]subscription.Subscription{*subscribedChannel})
+	return w.SubscribeToChannels(ctx, []subscription.Subscription{*subscribedChannel})
 }
 
 // SubscribeToChannels appends supplied channels to channelsToSubscribe
-func (w *Websocket) SubscribeToChannels(channels []subscription.Subscription) error {
+func (w *Websocket) SubscribeToChannels(ctx context.Context, channels []subscription.Subscription) error {
 	if err := w.checkSubscriptions(channels); err != nil {
 		return fmt.Errorf("%s websocket: %w", w.exchangeName, common.AppendError(ErrSubscriptionFailure, err))
 	}
-	if err := w.Subscriber(channels); err != nil {
+	if err := w.Subscriber(ctx, channels); err != nil {
 		return fmt.Errorf("%s websocket: %w", w.exchangeName, common.AppendError(ErrSubscriptionFailure, err))
 	}
 	return nil

@@ -105,12 +105,12 @@ func (g *Gateio) WsOptionsConnect() error {
 }
 
 // GenerateOptionsDefaultSubscriptions generates list of channel subscriptions for options asset type.
-func (g *Gateio) GenerateOptionsDefaultSubscriptions() ([]subscription.Subscription, error) {
+func (g *Gateio) GenerateOptionsDefaultSubscriptions(ctx context.Context) ([]subscription.Subscription, error) {
 	channelsToSubscribe := defaultOptionsSubscriptions
 	var userID int64
 	if g.Websocket.CanUseAuthenticatedEndpoints() {
 		var err error
-		_, err = g.GetCredentials(context.TODO())
+		_, err = g.GetCredentials(ctx)
 		if err != nil {
 			g.Websocket.SetCanUseAuthenticatedEndpoints(false)
 			goto getEnabledPairs
@@ -304,7 +304,7 @@ func (g *Gateio) OptionsSubscribe(channelsToUnsubscribe []subscription.Subscript
 }
 
 // OptionsUnsubscribe sends a websocket message to stop receiving data for asset type options
-func (g *Gateio) OptionsUnsubscribe(channelsToUnsubscribe []subscription.Subscription) error {
+func (g *Gateio) OptionsUnsubscribe(_ context.Context, channelsToUnsubscribe []subscription.Subscription) error {
 	return g.handleOptionsSubscription("unsubscribe", channelsToUnsubscribe)
 }
 

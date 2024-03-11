@@ -29,7 +29,7 @@ func TestMain(m *testing.M) {
 		log.Fatal(err)
 	}
 
-	b.setupOrderbookManager()
+	b.setupOrderbookManager(context.Background())
 	if err := b.UpdateTradablePairs(context.Background(), true); err != nil {
 		log.Fatal(err)
 	}

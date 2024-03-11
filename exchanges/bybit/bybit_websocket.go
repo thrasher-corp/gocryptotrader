@@ -55,7 +55,7 @@ const (
 )
 
 // WsConnect connects to a websocket feed
-func (by *Bybit) WsConnect() error {
+func (by *Bybit) WsConnect(ctx context.Context) error {
 	if !by.Websocket.IsEnabled() || !by.IsEnabled() || !by.IsAssetWebsocketSupported(asset.Spot) {
 		return stream.ErrWebsocketNotEnabled
 	}
@@ -73,7 +73,7 @@ func (by *Bybit) WsConnect() error {
 	by.Websocket.Wg.Add(1)
 	go by.wsReadData(asset.Spot, by.Websocket.Conn)
 	if by.Websocket.CanUseAuthenticatedEndpoints() {
-		err = by.WsAuth(context.TODO())
+		err = by.WsAuth(ctx)
 		if err != nil {
 			by.Websocket.DataHandler <- err
 			by.Websocket.SetCanUseAuthenticatedEndpoints(false)
@@ -134,7 +134,7 @@ func (by *Bybit) WsAuth(ctx context.Context) error {
 }
 
 // Subscribe sends a websocket message to receive data from the channel
-func (by *Bybit) Subscribe(channelsToSubscribe []subscription.Subscription) error {
+func (by *Bybit) Subscribe(_ context.Context, channelsToSubscribe []subscription.Subscription) error {
 	return by.handleSpotSubscription("subscribe", channelsToSubscribe)
 }
 
@@ -204,7 +204,7 @@ func (by *Bybit) handleSubscriptions(assetType asset.Item, operation string, cha
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
-func (by *Bybit) Unsubscribe(channelsToUnsubscribe []subscription.Subscription) error {
+func (by *Bybit) Unsubscribe(_ context.Context, channelsToUnsubscribe []subscription.Subscription) error {
 	return by.handleSpotSubscription("unsubscribe", channelsToUnsubscribe)
 }
 

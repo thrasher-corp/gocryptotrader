@@ -75,14 +75,13 @@ func (b *Base) SetRequester(r *request.Requester) error {
 }
 
 // SetClientProxyAddress sets a proxy address for REST and websocket requests
-func (b *Base) SetClientProxyAddress(addr string) error {
+func (b *Base) SetClientProxyAddress(ctx context.Context, addr string, allowWebsocketAutoSubscribe stream.SubscriptionAllowed) error {
 	if addr == "" {
 		return nil
 	}
 	proxy, err := url.Parse(addr)
 	if err != nil {
-		return fmt.Errorf("setting proxy address error %s",
-			err)
+		return fmt.Errorf("setting proxy address error %s", err)
 	}
 
 	err = b.Requester.SetProxy(proxy)
@@ -91,10 +90,7 @@ func (b *Base) SetClientProxyAddress(addr string) error {
 	}
 
 	if b.Websocket != nil {
-		err = b.Websocket.SetProxyAddress(addr)
-		if err != nil {
-			return err
-		}
+		return b.Websocket.SetProxyAddress(ctx, addr, allowWebsocketAutoSubscribe)
 	}
 	return nil
 }
@@ -641,7 +637,7 @@ func (b *Base) SetupDefaults(exch *config.Exchange) error {
 
 	b.SetAPICredentialDefaults()
 
-	err = b.SetClientProxyAddress(exch.ProxyAddress)
+	err = b.SetClientProxyAddress(context.TODO(), exch.ProxyAddress, stream.DeferSubscribe)
 	if err != nil {
 		return err
 	}
@@ -1155,29 +1151,29 @@ func (b *Base) IsWebsocketEnabled() bool {
 
 // FlushWebsocketChannels refreshes websocket channel subscriptions based on
 // websocket features. Used in the event of a pair/asset or subscription change.
-func (b *Base) FlushWebsocketChannels() error {
+func (b *Base) FlushWebsocketChannels(ctx context.Context) error {
 	if b.Websocket == nil {
 		return nil
 	}
-	return b.Websocket.FlushChannels()
+	return b.Websocket.FlushChannels(ctx)
 }
 
 // SubscribeToWebsocketChannels appends to ChannelsToSubscribe
 // which lets websocket.manageSubscriptions handle subscribing
-func (b *Base) SubscribeToWebsocketChannels(channels []subscription.Subscription) error {
+func (b *Base) SubscribeToWebsocketChannels(ctx context.Context, channels []subscription.Subscription) error {
 	if b.Websocket == nil {
 		return common.ErrFunctionNotSupported
 	}
-	return b.Websocket.SubscribeToChannels(channels)
+	return b.Websocket.SubscribeToChannels(ctx, channels)
 }
 
 // UnsubscribeToWebsocketChannels removes from ChannelsToSubscribe
 // which lets websocket.manageSubscriptions handle unsubscribing
-func (b *Base) UnsubscribeToWebsocketChannels(channels []subscription.Subscription) error {
+func (b *Base) UnsubscribeToWebsocketChannels(ctx context.Context, channels []subscription.Subscription) error {
 	if b.Websocket == nil {
 		return common.ErrFunctionNotSupported
 	}
-	return b.Websocket.UnsubscribeChannels(channels)
+	return b.Websocket.UnsubscribeChannels(ctx, channels)
 }
 
 // GetSubscriptions returns a copied list of subscriptions

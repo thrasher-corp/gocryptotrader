@@ -66,7 +66,7 @@ const (
 )
 
 // WsConnect initiates a new websocket connection
-func (b *Bitmex) WsConnect() error {
+func (b *Bitmex) WsConnect(ctx context.Context) error {
 	if !b.Websocket.IsEnabled() || !b.IsEnabled() {
 		return stream.ErrWebsocketNotEnabled
 	}
@@ -98,7 +98,7 @@ func (b *Bitmex) WsConnect() error {
 	go b.wsReadData()
 
 	if b.Websocket.CanUseAuthenticatedEndpoints() {
-		err = b.websocketSendAuth(context.TODO())
+		err = b.websocketSendAuth(ctx)
 		if err != nil {
 			log.Errorf(log.ExchangeSys,
 				"%v - authentication failed: %v\n",
@@ -109,7 +109,7 @@ func (b *Bitmex) WsConnect() error {
 			if err != nil {
 				return err
 			}
-			return b.Websocket.SubscribeToChannels(authsubs)
+			return b.Websocket.SubscribeToChannels(ctx, authsubs)
 		}
 	}
 	return nil
@@ -630,7 +630,7 @@ func (b *Bitmex) GenerateAuthenticatedSubscriptions() ([]subscription.Subscripti
 }
 
 // Subscribe subscribes to a websocket channel
-func (b *Bitmex) Subscribe(channelsToSubscribe []subscription.Subscription) error {
+func (b *Bitmex) Subscribe(_ context.Context, channelsToSubscribe []subscription.Subscription) error {
 	var subscriber WebsocketRequest
 	subscriber.Command = "subscribe"
 	for i := range channelsToSubscribe {
@@ -646,7 +646,7 @@ func (b *Bitmex) Subscribe(channelsToSubscribe []subscription.Subscription) erro
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
-func (b *Bitmex) Unsubscribe(channelsToUnsubscribe []subscription.Subscription) error {
+func (b *Bitmex) Unsubscribe(_ context.Context, channelsToUnsubscribe []subscription.Subscription) error {
 	var unsubscriber WebsocketRequest
 	unsubscriber.Command = "unsubscribe"
 

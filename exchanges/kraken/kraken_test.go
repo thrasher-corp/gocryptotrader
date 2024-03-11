@@ -1214,7 +1214,7 @@ func setupWsTests(t *testing.T) {
 	comms := make(chan stream.Response)
 	go k.wsFunnelConnectionData(k.Websocket.Conn, comms)
 	go k.wsFunnelConnectionData(k.Websocket.AuthConn, comms)
-	go k.wsReadData(comms)
+	go k.wsReadData(context.Background(), comms)
 	go func() {
 		err := k.wsPingHandler()
 		if err != nil {
@@ -1227,7 +1227,7 @@ func setupWsTests(t *testing.T) {
 // TestWebsocketSubscribe tests returning a message with an id
 func TestWebsocketSubscribe(t *testing.T) {
 	setupWsTests(t)
-	err := k.Subscribe([]subscription.Subscription{
+	err := k.Subscribe(context.Background(), []subscription.Subscription{
 		{
 			Channel: defaultSubscribedChannels[0],
 			Pair:    currency.NewPairWithDelimiter("XBT", "USD", "/"),
@@ -1285,7 +1285,7 @@ func TestWsPong(t *testing.T) {
 	  "event": "pong",
 	  "reqid": 42
 	}`)
-	err := k.wsHandleData(pressXToJSON)
+	err := k.wsHandleData(context.Background(), pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
@@ -1299,7 +1299,7 @@ func TestWsSystemStatus(t *testing.T) {
 	  "status": "online",
 	  "version": "1.0.0"
 	}`)
-	err := k.wsHandleData(pressXToJSON)
+	err := k.wsHandleData(context.Background(), pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
@@ -1317,7 +1317,7 @@ func TestWsSubscriptionStatus(t *testing.T) {
 		"name": "ticker"
 	  }
 	}`)
-	err := k.wsHandleData(pressXToJSON)
+	err := k.wsHandleData(context.Background(), pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
@@ -1334,7 +1334,7 @@ func TestWsSubscriptionStatus(t *testing.T) {
 		"name": "ohlc"
 	  }
 	}`)
-	err = k.wsHandleData(pressXToJSON)
+	err = k.wsHandleData(context.Background(), pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
@@ -1347,7 +1347,7 @@ func TestWsSubscriptionStatus(t *testing.T) {
 		"name": "ownTrades"
 	  }
 	}`)
-	err = k.wsHandleData(pressXToJSON)
+	err = k.wsHandleData(context.Background(), pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
@@ -1361,7 +1361,7 @@ func TestWsSubscriptionStatus(t *testing.T) {
 		"name": "book"
 	  }
 	}`)
-	err = k.wsHandleData(pressXToJSON)
+	err = k.wsHandleData(context.Background(), pressXToJSON)
 	if err == nil {
 		t.Error("Expected error")
 	}
@@ -1379,7 +1379,7 @@ func TestWsTicker(t *testing.T) {
 		"name": "ticker"
 	  }
 	}`)
-	err := k.wsHandleData(pressXToJSON)
+	err := k.wsHandleData(context.Background(), pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
@@ -1428,7 +1428,7 @@ func TestWsTicker(t *testing.T) {
 	  "ticker",
 	  "XBT/USD"
 	]`)
-	err = k.wsHandleData(pressXToJSON)
+	err = k.wsHandleData(context.Background(), pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
@@ -1446,7 +1446,7 @@ func TestWsOHLC(t *testing.T) {
 		"name": "ohlc"
 	  }
 	}`)
-	err := k.wsHandleData(pressXToJSON)
+	err := k.wsHandleData(context.Background(), pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
@@ -1466,7 +1466,7 @@ func TestWsOHLC(t *testing.T) {
 	  "ohlc-5",
 	  "XBT/USD"
 	]`)
-	err = k.wsHandleData(pressXToJSON)
+	err = k.wsHandleData(context.Background(), pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
@@ -1484,7 +1484,7 @@ func TestWsTrade(t *testing.T) {
 		"name": "trade"
 	  }
 	}`)
-	err := k.wsHandleData(pressXToJSON)
+	err := k.wsHandleData(context.Background(), pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
@@ -1511,7 +1511,7 @@ func TestWsTrade(t *testing.T) {
 	  "trade",
 	  "XBT/USD"
 	]`)
-	err = k.wsHandleData(pressXToJSON)
+	err = k.wsHandleData(context.Background(), pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
@@ -1529,7 +1529,7 @@ func TestWsSpread(t *testing.T) {
 		"name": "spread"
 	  }
 	}`)
-	err := k.wsHandleData(pressXToJSON)
+	err := k.wsHandleData(context.Background(), pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
@@ -1545,7 +1545,7 @@ func TestWsSpread(t *testing.T) {
 	  "spread",
 	  "XBT/USD"
 	]`)
-	err = k.wsHandleData(pressXToJSON)
+	err = k.wsHandleData(context.Background(), pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
@@ -1563,7 +1563,7 @@ func TestWsOrdrbook(t *testing.T) {
 		"name": "book"
 	  }
 	}`)
-	err := k.wsHandleData(pressXToJSON)
+	err := k.wsHandleData(context.Background(), pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
@@ -1678,7 +1678,7 @@ func TestWsOrdrbook(t *testing.T) {
 	  "book-100",
 	  "XBT/USD"
 	]`)
-	err = k.wsHandleData(pressXToJSON)
+	err = k.wsHandleData(context.Background(), pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
@@ -1702,7 +1702,7 @@ func TestWsOrdrbook(t *testing.T) {
 	  "book-10",
 	  "XBT/USD"
 	]`)
-	err = k.wsHandleData(pressXToJSON)
+	err = k.wsHandleData(context.Background(), pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
@@ -1721,7 +1721,7 @@ func TestWsOrdrbook(t *testing.T) {
 	  "book-10",
 	  "XBT/USD"
 	]`)
-	err = k.wsHandleData(pressXToJSON)
+	err = k.wsHandleData(context.Background(), pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
@@ -1794,7 +1794,7 @@ func TestWsOwnTrades(t *testing.T) {
 	  ],
 	  "ownTrades"
 	]`)
-	err := k.wsHandleData(pressXToJSON)
+	err := k.wsHandleData(context.Background(), pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
@@ -1878,7 +1878,7 @@ func TestWsAddOrderJSON(t *testing.T) {
   "status": "ok",
   "txid": "ONPNXH-KMKMU-F4MR5V"
 }`)
-	err := k.wsHandleData(pressXToJSON)
+	err := k.wsHandleData(context.Background(), pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
@@ -1890,7 +1890,7 @@ func TestWsCancelOrderJSON(t *testing.T) {
   "event": "cancelOrderStatus",
   "status": "ok"
 }`)
-	err := k.wsHandleData(pressXToJSON)
+	err := k.wsHandleData(context.Background(), pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
@@ -2141,14 +2141,14 @@ var websocketGSTEUROrderbookUpdates = []string{
 func TestWsOrderbookMax10Depth(t *testing.T) {
 	t.Parallel()
 	for x := range websocketXDGUSDOrderbookUpdates {
-		err := k.wsHandleData([]byte(websocketXDGUSDOrderbookUpdates[x]))
+		err := k.wsHandleData(context.Background(), []byte(websocketXDGUSDOrderbookUpdates[x]))
 		if err != nil {
 			t.Fatal(err)
 		}
 	}
 
 	for x := range websocketLUNAEUROrderbookUpdates {
-		err := k.wsHandleData([]byte(websocketLUNAEUROrderbookUpdates[x]))
+		err := k.wsHandleData(context.Background(), []byte(websocketLUNAEUROrderbookUpdates[x]))
 		// TODO: Known issue with LUNA pairs and big number float precision
 		// storage and checksum calc. Might need to store raw strings as fields
 		// in the orderbook.Item struct.
@@ -2160,7 +2160,7 @@ func TestWsOrderbookMax10Depth(t *testing.T) {
 
 	// This has less than 10 bids and still needs a checksum calc.
 	for x := range websocketGSTEUROrderbookUpdates {
-		err := k.wsHandleData([]byte(websocketGSTEUROrderbookUpdates[x]))
+		err := k.wsHandleData(context.Background(), []byte(websocketGSTEUROrderbookUpdates[x]))
 		if err != nil {
 			t.Fatal(err)
 		}

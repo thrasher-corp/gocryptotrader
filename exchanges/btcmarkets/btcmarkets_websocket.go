@@ -37,7 +37,7 @@ var (
 )
 
 // WsConnect connects to a websocket feed
-func (b *BTCMarkets) WsConnect() error {
+func (b *BTCMarkets) WsConnect(ctx context.Context) error {
 	if !b.Websocket.IsEnabled() || !b.IsEnabled() {
 		return stream.ErrWebsocketNotEnabled
 	}
@@ -51,12 +51,12 @@ func (b *BTCMarkets) WsConnect() error {
 	}
 
 	b.Websocket.Wg.Add(1)
-	go b.wsReadData()
+	go b.wsReadData(ctx)
 	return nil
 }
 
 // wsReadData receives and passes on websocket messages for processing
-func (b *BTCMarkets) wsReadData() {
+func (b *BTCMarkets) wsReadData(ctx context.Context) {
 	defer b.Websocket.Wg.Done()
 
 	for {
@@ -64,7 +64,7 @@ func (b *BTCMarkets) wsReadData() {
 		if resp.Raw == nil {
 			return
 		}
-		err := b.wsHandleData(resp.Raw)
+		err := b.wsHandleData(ctx, resp.Raw)
 		if err != nil {
 			b.Websocket.DataHandler <- err
 		}
@@ -116,7 +116,7 @@ func (w *WebsocketOrderbook) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-func (b *BTCMarkets) wsHandleData(respRaw []byte) error {
+func (b *BTCMarkets) wsHandleData(ctx context.Context, respRaw []byte) error {
 	var wsResponse WsMessageType
 	err := json.Unmarshal(respRaw, &wsResponse)
 	if err != nil {
@@ -158,7 +158,7 @@ func (b *BTCMarkets) wsHandleData(respRaw []byte) error {
 		}
 		if err != nil {
 			if errors.Is(err, orderbook.ErrOrderbookInvalid) {
-				err2 := b.ReSubscribeSpecificOrderbook(ob.Currency)
+				err2 := b.ReSubscribeSpecificOrderbook(ctx, ob.Currency)
 				if err2 != nil {
 					return err2
 				}
@@ -287,7 +287,7 @@ func (b *BTCMarkets) wsHandleData(respRaw []byte) error {
 			}
 		}
 
-		creds, err := b.GetCredentials(context.TODO())
+		creds, err := b.GetCredentials(ctx)
 		if err != nil {
 			b.Websocket.DataHandler <- order.ClassificationError{
 				Exchange: b.Name,
@@ -353,7 +353,7 @@ func (b *BTCMarkets) generateDefaultSubscriptions() ([]subscription.Subscription
 }
 
 // Subscribe sends a websocket message to receive data from the channel
-func (b *BTCMarkets) Subscribe(subs []subscription.Subscription) error {
+func (b *BTCMarkets) Subscribe(ctx context.Context, subs []subscription.Subscription) error {
 	var payload WsSubscribe
 	if len(subs) > 1 {
 		// TODO: Expand this to stream package as this assumes that we are doing
@@ -381,7 +381,7 @@ func (b *BTCMarkets) Subscribe(subs []subscription.Subscription) error {
 	}
 
 	if authenticate {
-		creds, err := b.GetCredentials(context.TODO())
+		creds, err := b.GetCredentials(ctx)
 		if err != nil {
 			return err
 		}
@@ -408,7 +408,7 @@ func (b *BTCMarkets) Subscribe(subs []subscription.Subscription) error {
 }
 
 // Unsubscribe sends a websocket message to manage and remove a subscription.
-func (b *BTCMarkets) Unsubscribe(subs []subscription.Subscription) error {
+func (b *BTCMarkets) Unsubscribe(_ context.Context, subs []subscription.Subscription) error {
 	payload := WsSubscribe{
 		MessageType: removeSubscription,
 		ClientType:  clientType,
@@ -436,16 +436,16 @@ func (b *BTCMarkets) Unsubscribe(subs []subscription.Subscription) error {
 
 // ReSubscribeSpecificOrderbook removes the subscription and the subscribes
 // again to fetch a new snapshot in the event of a de-sync event.
-func (b *BTCMarkets) ReSubscribeSpecificOrderbook(pair currency.Pair) error {
+func (b *BTCMarkets) ReSubscribeSpecificOrderbook(ctx context.Context, pair currency.Pair) error {
 	sub := []subscription.Subscription{{
 		Channel: wsOB,
 		Pair:    pair,
 		Asset:   asset.Spot,
 	}}
-	if err := b.Unsubscribe(sub); err != nil {
+	if err := b.Unsubscribe(ctx, sub); err != nil {
 		return err
 	}
-	return b.Subscribe(sub)
+	return b.Subscribe(ctx, sub)
 }
 
 // checksum provides assurance on current in memory liquidity

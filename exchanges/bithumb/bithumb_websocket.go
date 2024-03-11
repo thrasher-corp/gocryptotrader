@@ -1,6 +1,7 @@
 package bithumb
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -26,7 +27,7 @@ var (
 )
 
 // WsConnect initiates a websocket connection
-func (b *Bithumb) WsConnect() error {
+func (b *Bithumb) WsConnect(ctx context.Context) error {
 	if !b.Websocket.IsEnabled() || !b.IsEnabled() {
 		return stream.ErrWebsocketNotEnabled
 	}
@@ -45,7 +46,7 @@ func (b *Bithumb) WsConnect() error {
 	b.Websocket.Wg.Add(1)
 	go b.wsReadData()
 
-	b.setupOrderbookManager()
+	b.setupOrderbookManager(ctx)
 	return nil
 }
 
@@ -193,7 +194,7 @@ func (b *Bithumb) GenerateSubscriptions() ([]subscription.Subscription, error) {
 }
 
 // Subscribe subscribes to a set of channels
-func (b *Bithumb) Subscribe(channelsToSubscribe []subscription.Subscription) error {
+func (b *Bithumb) Subscribe(_ context.Context, channelsToSubscribe []subscription.Subscription) error {
 	subs := make(map[string]*WsSubscribe)
 	for i := range channelsToSubscribe {
 		s, ok := subs[channelsToSubscribe[i].Channel]

@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"context"
 	"fmt"
 	"sync"
 	"sync/atomic"
@@ -142,7 +143,7 @@ func (m *WebsocketRoutineManager) websocketRoutine() {
 				log.Errorf(log.WebsocketMgr, "%v", err)
 			}
 
-			err = ws.Connect()
+			err = ws.Connect(context.TODO(), stream.AutoSubscribe)
 			if err != nil {
 				log.Errorf(log.WebsocketMgr, "%v", err)
 			}

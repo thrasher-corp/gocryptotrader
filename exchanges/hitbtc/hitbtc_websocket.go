@@ -32,7 +32,7 @@ const (
 )
 
 // WsConnect starts a new connection with the websocket API
-func (h *HitBTC) WsConnect() error {
+func (h *HitBTC) WsConnect(ctx context.Context) error {
 	if !h.Websocket.IsEnabled() || !h.IsEnabled() {
 		return stream.ErrWebsocketNotEnabled
 	}
@@ -46,7 +46,7 @@ func (h *HitBTC) WsConnect() error {
 	go h.wsReadData()
 
 	if h.Websocket.CanUseAuthenticatedEndpoints() {
-		err = h.wsLogin(context.TODO())
+		err = h.wsLogin(ctx)
 		if err != nil {
 			log.Errorf(log.ExchangeSys, "%v - authentication failed: %v\n", h.Name, err)
 		}
@@ -501,7 +501,7 @@ func (h *HitBTC) GenerateDefaultSubscriptions() ([]subscription.Subscription, er
 }
 
 // Subscribe sends a websocket message to receive data from the channel
-func (h *HitBTC) Subscribe(channelsToSubscribe []subscription.Subscription) error {
+func (h *HitBTC) Subscribe(_ context.Context, channelsToSubscribe []subscription.Subscription) error {
 	var errs error
 	for i := range channelsToSubscribe {
 		subscribe := WsRequest{
@@ -533,7 +533,7 @@ func (h *HitBTC) Subscribe(channelsToSubscribe []subscription.Subscription) erro
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
-func (h *HitBTC) Unsubscribe(channelsToUnsubscribe []subscription.Subscription) error {
+func (h *HitBTC) Unsubscribe(_ context.Context, channelsToUnsubscribe []subscription.Subscription) error {
 	var errs error
 	for i := range channelsToUnsubscribe {
 		unsubscribeChannel := strings.Replace(channelsToUnsubscribe[i].Channel,

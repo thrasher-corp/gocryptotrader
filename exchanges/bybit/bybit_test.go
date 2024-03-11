@@ -3054,7 +3054,7 @@ func TestWsConnect(t *testing.T) {
 	if mockTests {
 		t.Skip(skippingWebsocketFunctionsForMockTesting)
 	}
-	err := b.WsConnect()
+	err := b.WsConnect(context.Background())
 	if err != nil {
 		t.Error(err)
 	}

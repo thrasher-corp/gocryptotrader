@@ -85,7 +85,7 @@ var cancelOrdersStatus = make(map[int64]*struct {
 })
 
 // WsConnect initiates a websocket connection
-func (k *Kraken) WsConnect() error {
+func (k *Kraken) WsConnect(ctx context.Context) error {
 	if !k.Websocket.IsEnabled() || !k.IsEnabled() {
 		return stream.ErrWebsocketNotEnabled
 	}
@@ -98,11 +98,11 @@ func (k *Kraken) WsConnect() error {
 
 	comms := make(chan stream.Response)
 	k.Websocket.Wg.Add(2)
-	go k.wsReadData(comms)
+	go k.wsReadData(ctx, comms)
 	go k.wsFunnelConnectionData(k.Websocket.Conn, comms)
 
 	if k.IsWebsocketAuthenticationSupported() {
-		authToken, err = k.GetWebsocketToken(context.TODO())
+		authToken, err = k.GetWebsocketToken(ctx)
 		if err != nil {
 			k.Websocket.SetCanUseAuthenticatedEndpoints(false)
 			log.Errorf(log.ExchangeSys,
@@ -155,7 +155,7 @@ func (k *Kraken) wsFunnelConnectionData(ws stream.Connection, comms chan stream.
 }
 
 // wsReadData receives and passes on websocket messages for processing
-func (k *Kraken) wsReadData(comms chan stream.Response) {
+func (k *Kraken) wsReadData(ctx context.Context, comms chan stream.Response) {
 	defer k.Websocket.Wg.Done()
 
 	for {
@@ -163,7 +163,7 @@ func (k *Kraken) wsReadData(comms chan stream.Response) {
 		case <-k.Websocket.ShutdownC:
 			select {
 			case resp := <-comms:
-				err := k.wsHandleData(resp.Raw)
+				err := k.wsHandleData(ctx, resp.Raw)
 				if err != nil {
 					select {
 					case k.Websocket.DataHandler <- err:
@@ -178,7 +178,7 @@ func (k *Kraken) wsReadData(comms chan stream.Response) {
 			}
 			return
 		case resp := <-comms:
-			err := k.wsHandleData(resp.Raw)
+			err := k.wsHandleData(ctx, resp.Raw)
 			if err != nil {
 				k.Websocket.DataHandler <- fmt.Errorf("%s - unhandled websocket data: %v",
 					k.Name,
@@ -208,7 +208,7 @@ func isAwaitingCancelOrderResponses(requestID int64, success bool) bool {
 	return false
 }
 
-func (k *Kraken) wsHandleData(respRaw []byte) error {
+func (k *Kraken) wsHandleData(ctx context.Context, respRaw []byte) error {
 	if strings.HasPrefix(string(respRaw), "[") {
 		var dataResponse WebsocketDataResponse
 		err := json.Unmarshal(respRaw, &dataResponse)
@@ -216,7 +216,7 @@ func (k *Kraken) wsHandleData(respRaw []byte) error {
 			return err
 		}
 		if _, ok := dataResponse[0].(float64); ok {
-			err = k.wsReadDataResponse(dataResponse)
+			err = k.wsReadDataResponse(ctx, dataResponse)
 			if err != nil {
 				return err
 			}
@@ -409,7 +409,7 @@ func (k *Kraken) wsAuthPingHandler() error {
 }
 
 // wsReadDataResponse classifies the WS response and sends to appropriate handler
-func (k *Kraken) wsReadDataResponse(response WebsocketDataResponse) error {
+func (k *Kraken) wsReadDataResponse(ctx context.Context, response WebsocketDataResponse) error {
 	if cID, ok := response[0].(float64); ok {
 		channelID := int64(cID)
 		channelData, err := getSubscriptionChannelData(channelID)
@@ -449,7 +449,7 @@ func (k *Kraken) wsReadDataResponse(response WebsocketDataResponse) error {
 					ob[k] = v
 				}
 			}
-			return k.wsProcessOrderBook(&channelData, ob)
+			return k.wsProcessOrderBook(ctx, &channelData, ob)
 		case krakenWsSpread:
 			s, ok := response[1].([]interface{})
 			if !ok {
@@ -830,7 +830,7 @@ func (k *Kraken) wsProcessTrades(channelData *WebsocketChannelData, data []inter
 
 // wsProcessOrderBook determines if the orderbook data is partial or update
 // Then sends to appropriate fun
-func (k *Kraken) wsProcessOrderBook(channelData *WebsocketChannelData, data map[string]interface{}) error {
+func (k *Kraken) wsProcessOrderBook(ctx context.Context, channelData *WebsocketChannelData, data map[string]interface{}) error {
 	// NOTE: Updates are a priority so check if it's an update first as we don't
 	// need multiple map lookups to check for snapshot.
 	askData, asksExist := data["a"].([]interface{})
@@ -850,7 +850,7 @@ func (k *Kraken) wsProcessOrderBook(channelData *WebsocketChannelData, data map[
 			go func(resub *subscription.Subscription) {
 				// This was locking the main websocket reader routine and a
 				// backlog occurred. So put this into it's own go routine.
-				errResub := k.Websocket.ResubscribeToChannel(resub)
+				errResub := k.Websocket.ResubscribeToChannel(ctx, resub)
 				if errResub != nil {
 					log.Errorf(log.WebsocketMgr,
 						"resubscription failure for %v: %v",
@@ -1237,7 +1237,7 @@ func (k *Kraken) GenerateDefaultSubscriptions() ([]subscription.Subscription, er
 }
 
 // Subscribe sends a websocket message to receive data from the channel
-func (k *Kraken) Subscribe(channelsToSubscribe []subscription.Subscription) error {
+func (k *Kraken) Subscribe(_ context.Context, channelsToSubscribe []subscription.Subscription) error {
 	var subscriptions = make(map[string]*[]WebsocketSubscriptionEventRequest)
 channels:
 	for i := range channelsToSubscribe {
@@ -1299,7 +1299,7 @@ channels:
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
-func (k *Kraken) Unsubscribe(channelsToUnsubscribe []subscription.Subscription) error {
+func (k *Kraken) Unsubscribe(_ context.Context, channelsToUnsubscribe []subscription.Subscription) error {
 	var unsubs []WebsocketSubscriptionEventRequest
 channels:
 	for x := range channelsToUnsubscribe {

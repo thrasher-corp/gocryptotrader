@@ -39,7 +39,7 @@ var (
 // wss://wsapi-eu.coinut.com
 
 // WsConnect initiates a websocket connection
-func (c *COINUT) WsConnect() error {
+func (c *COINUT) WsConnect(ctx context.Context) error {
 	if !c.Websocket.IsEnabled() || !c.IsEnabled() {
 		return stream.ErrWebsocketNotEnabled
 	}
@@ -50,7 +50,7 @@ func (c *COINUT) WsConnect() error {
 	}
 
 	c.Websocket.Wg.Add(1)
-	go c.wsReadData()
+	go c.wsReadData(ctx)
 
 	if !c.instrumentMap.IsLoaded() {
 		_, err = c.WsGetInstruments()
@@ -58,7 +58,7 @@ func (c *COINUT) WsConnect() error {
 			return err
 		}
 	}
-	err = c.wsAuthenticate(context.TODO())
+	err = c.wsAuthenticate(ctx)
 	if err != nil {
 		c.Websocket.SetCanUseAuthenticatedEndpoints(false)
 		log.Errorln(log.WebsocketMgr, err)
@@ -72,7 +72,7 @@ func (c *COINUT) WsConnect() error {
 }
 
 // wsReadData receives and passes on websocket messages for processing
-func (c *COINUT) wsReadData() {
+func (c *COINUT) wsReadData(ctx context.Context) {
 	defer c.Websocket.Wg.Done()
 
 	for {
@@ -100,7 +100,7 @@ func (c *COINUT) wsReadData() {
 					c.Websocket.DataHandler <- err
 					continue
 				}
-				err = c.wsHandleData(context.TODO(), individualJSON)
+				err = c.wsHandleData(ctx, individualJSON)
 				if err != nil {
 					c.Websocket.DataHandler <- err
 				}
@@ -112,7 +112,7 @@ func (c *COINUT) wsReadData() {
 				c.Websocket.DataHandler <- err
 				continue
 			}
-			err = c.wsHandleData(context.TODO(), resp.Raw)
+			err = c.wsHandleData(ctx, resp.Raw)
 			if err != nil {
 				c.Websocket.DataHandler <- err
 			}
@@ -618,7 +618,7 @@ func (c *COINUT) GenerateDefaultSubscriptions() ([]subscription.Subscription, er
 }
 
 // Subscribe sends a websocket message to receive data from the channel
-func (c *COINUT) Subscribe(channelsToSubscribe []subscription.Subscription) error {
+func (c *COINUT) Subscribe(_ context.Context, channelsToSubscribe []subscription.Subscription) error {
 	var errs error
 	for i := range channelsToSubscribe {
 		fPair, err := c.FormatExchangeCurrency(channelsToSubscribe[i].Pair, asset.Spot)
@@ -647,7 +647,7 @@ func (c *COINUT) Subscribe(channelsToSubscribe []subscription.Subscription) erro
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
-func (c *COINUT) Unsubscribe(channelToUnsubscribe []subscription.Subscription) error {
+func (c *COINUT) Unsubscribe(_ context.Context, channelToUnsubscribe []subscription.Subscription) error {
 	var errs error
 	for i := range channelToUnsubscribe {
 		fPair, err := c.FormatExchangeCurrency(channelToUnsubscribe[i].Pair, asset.Spot)

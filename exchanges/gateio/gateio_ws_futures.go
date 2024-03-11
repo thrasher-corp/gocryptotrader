@@ -166,13 +166,13 @@ func (g *Gateio) GenerateFuturesDefaultSubscriptions() ([]subscription.Subscript
 }
 
 // FuturesSubscribe sends a websocket message to stop receiving data from the channel
-func (g *Gateio) FuturesSubscribe(channelsToUnsubscribe []subscription.Subscription) error {
-	return g.handleFuturesSubscription("subscribe", channelsToUnsubscribe)
+func (g *Gateio) FuturesSubscribe(ctx context.Context, channelsToUnsubscribe []subscription.Subscription) error {
+	return g.handleFuturesSubscription(ctx, "subscribe", channelsToUnsubscribe)
 }
 
 // FuturesUnsubscribe sends a websocket message to stop receiving data from the channel
-func (g *Gateio) FuturesUnsubscribe(channelsToUnsubscribe []subscription.Subscription) error {
-	return g.handleFuturesSubscription("unsubscribe", channelsToUnsubscribe)
+func (g *Gateio) FuturesUnsubscribe(ctx context.Context, channelsToUnsubscribe []subscription.Subscription) error {
+	return g.handleFuturesSubscription(ctx, "unsubscribe", channelsToUnsubscribe)
 }
 
 // wsReadFuturesData read coming messages thought the websocket connection and pass the data to wsHandleData for further process.
@@ -270,8 +270,8 @@ func (g *Gateio) wsHandleFuturesData(respRaw []byte, assetType asset.Item) error
 }
 
 // handleFuturesSubscription sends a websocket message to receive data from the channel
-func (g *Gateio) handleFuturesSubscription(event string, channelsToSubscribe []subscription.Subscription) error {
-	payloads, err := g.generateFuturesPayload(event, channelsToSubscribe)
+func (g *Gateio) handleFuturesSubscription(ctx context.Context, event string, channelsToSubscribe []subscription.Subscription) error {
+	payloads, err := g.generateFuturesPayload(ctx, event, channelsToSubscribe)
 	if err != nil {
 		return err
 	}
@@ -307,14 +307,14 @@ func (g *Gateio) handleFuturesSubscription(event string, channelsToSubscribe []s
 	return nil
 }
 
-func (g *Gateio) generateFuturesPayload(event string, channelsToSubscribe []subscription.Subscription) ([2][]WsInput, error) {
+func (g *Gateio) generateFuturesPayload(ctx context.Context, event string, channelsToSubscribe []subscription.Subscription) ([2][]WsInput, error) {
 	if len(channelsToSubscribe) == 0 {
 		return [2][]WsInput{}, errors.New("cannot generate payload, no channels supplied")
 	}
 	var creds *account.Credentials
 	var err error
 	if g.Websocket.CanUseAuthenticatedEndpoints() {
-		creds, err = g.GetCredentials(context.TODO())
+		creds, err = g.GetCredentials(ctx)
 		if err != nil {
 			g.Websocket.SetCanUseAuthenticatedEndpoints(false)
 		}

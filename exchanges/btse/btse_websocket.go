@@ -28,7 +28,7 @@ const (
 )
 
 // WsConnect connects the websocket client
-func (b *BTSE) WsConnect() error {
+func (b *BTSE) WsConnect(ctx context.Context) error {
 	if !b.Websocket.IsEnabled() || !b.IsEnabled() {
 		return stream.ErrWebsocketNotEnabled
 	}
@@ -46,7 +46,7 @@ func (b *BTSE) WsConnect() error {
 	go b.wsReadData()
 
 	if b.IsWebsocketAuthenticationSupported() {
-		err = b.WsAuthenticate(context.TODO())
+		err = b.WsAuthenticate(ctx)
 		if err != nil {
 			b.Websocket.DataHandler <- err
 			b.Websocket.SetCanUseAuthenticatedEndpoints(false)
@@ -386,7 +386,7 @@ func (b *BTSE) GenerateDefaultSubscriptions() ([]subscription.Subscription, erro
 }
 
 // Subscribe sends a websocket message to receive data from the channel
-func (b *BTSE) Subscribe(channelsToSubscribe []subscription.Subscription) error {
+func (b *BTSE) Subscribe(_ context.Context, channelsToSubscribe []subscription.Subscription) error {
 	var sub wsSub
 	sub.Operation = "subscribe"
 	for i := range channelsToSubscribe {
@@ -401,7 +401,7 @@ func (b *BTSE) Subscribe(channelsToSubscribe []subscription.Subscription) error 
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
-func (b *BTSE) Unsubscribe(channelsToUnsubscribe []subscription.Subscription) error {
+func (b *BTSE) Unsubscribe(_ context.Context, channelsToUnsubscribe []subscription.Subscription) error {
 	var unSub wsSub
 	unSub.Operation = "unsubscribe"
 	for i := range channelsToUnsubscribe {

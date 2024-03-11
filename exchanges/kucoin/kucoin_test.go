@@ -2390,7 +2390,7 @@ func setupWS() {
 	if !sharedtestvalues.AreAPICredentialsSet(ku) {
 		ku.Websocket.SetCanUseAuthenticatedEndpoints(false)
 	}
-	err := ku.WsConnect()
+	err := ku.WsConnect(context.Background())
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -2482,7 +2482,7 @@ func TestProcessOrderbook(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	err = ku.wsHandleData([]byte(orderbookLevel5PushData))
+	err = ku.wsHandleData(context.Background(), []byte(orderbookLevel5PushData))
 	if err != nil {
 		t.Error(err)
 	}
@@ -2548,7 +2548,7 @@ func TestProcessMarketSnapshot(t *testing.T) {
 func TestSubscribeMarketSnapshot(t *testing.T) {
 	t.Parallel()
 	setupWS()
-	err := ku.Subscribe([]subscription.Subscription{{Channel: marketSymbolSnapshotChannel, Pair: currency.Pair{Base: currency.BTC}}})
+	err := ku.Subscribe(context.Background(), []subscription.Subscription{{Channel: marketSymbolSnapshotChannel, Pair: currency.Pair{Base: currency.BTC}}})
 	assert.NoError(t, err, "Subscribe to MarketSnapshot should not error")
 }
 

@@ -60,7 +60,7 @@ const (
 var comms = make(chan WsMessage)
 
 // WsConnect initiates a new websocket connection
-func (h *HUOBI) WsConnect() error {
+func (h *HUOBI) WsConnect(ctx context.Context) error {
 	if !h.Websocket.IsEnabled() || !h.IsEnabled() {
 		return stream.ErrWebsocketNotEnabled
 	}
@@ -78,7 +78,7 @@ func (h *HUOBI) WsConnect() error {
 				h.Name,
 				err)
 		}
-		err = h.wsLogin(context.TODO())
+		err = h.wsLogin(ctx)
 		if err != nil {
 			log.Errorf(log.ExchangeSys,
 				"%v - authentication failed: %v\n",
@@ -546,11 +546,11 @@ func (h *HUOBI) GenerateDefaultSubscriptions() ([]subscription.Subscription, err
 }
 
 // Subscribe sends a websocket message to receive data from the channel
-func (h *HUOBI) Subscribe(channelsToSubscribe []subscription.Subscription) error {
+func (h *HUOBI) Subscribe(ctx context.Context, channelsToSubscribe []subscription.Subscription) error {
 	var creds *account.Credentials
 	if h.Websocket.CanUseAuthenticatedEndpoints() {
 		var err error
-		creds, err = h.GetCredentials(context.TODO())
+		creds, err = h.GetCredentials(ctx)
 		if err != nil {
 			return err
 		}
@@ -586,11 +586,11 @@ func (h *HUOBI) Subscribe(channelsToSubscribe []subscription.Subscription) error
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
-func (h *HUOBI) Unsubscribe(channelsToUnsubscribe []subscription.Subscription) error {
+func (h *HUOBI) Unsubscribe(ctx context.Context, channelsToUnsubscribe []subscription.Subscription) error {
 	var creds *account.Credentials
 	if h.Websocket.CanUseAuthenticatedEndpoints() {
 		var err error
-		creds, err = h.GetCredentials(context.TODO())
+		creds, err = h.GetCredentials(ctx)
 		if err != nil {
 			return err
 		}

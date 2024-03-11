@@ -53,7 +53,7 @@ var (
 )
 
 // WsConnect initiates a websocket connection
-func (p *Poloniex) WsConnect() error {
+func (p *Poloniex) WsConnect(ctx context.Context) error {
 	if !p.Websocket.IsEnabled() || !p.IsEnabled() {
 		return stream.ErrWebsocketNotEnabled
 	}
@@ -63,7 +63,7 @@ func (p *Poloniex) WsConnect() error {
 		return err
 	}
 
-	err = p.loadCurrencyDetails(context.TODO())
+	err = p.loadCurrencyDetails(ctx)
 	if err != nil {
 		return err
 	}
@@ -570,11 +570,11 @@ func (p *Poloniex) GenerateDefaultSubscriptions() ([]subscription.Subscription, 
 }
 
 // Subscribe sends a websocket message to receive data from the channel
-func (p *Poloniex) Subscribe(sub []subscription.Subscription) error {
+func (p *Poloniex) Subscribe(ctx context.Context, sub []subscription.Subscription) error {
 	var creds *account.Credentials
 	if p.IsWebsocketAuthenticationSupported() {
 		var err error
-		creds, err = p.GetCredentials(context.TODO())
+		creds, err = p.GetCredentials(ctx)
 		if err != nil {
 			return err
 		}
@@ -617,11 +617,11 @@ channels:
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
-func (p *Poloniex) Unsubscribe(unsub []subscription.Subscription) error {
+func (p *Poloniex) Unsubscribe(ctx context.Context, unsub []subscription.Subscription) error {
 	var creds *account.Credentials
 	if p.IsWebsocketAuthenticationSupported() {
 		var err error
-		creds, err = p.GetCredentials(context.TODO())
+		creds, err = p.GetCredentials(ctx)
 		if err != nil {
 			return err
 		}
