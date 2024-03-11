@@ -320,17 +320,17 @@ func (w *Orderbook) LoadSnapshot(book *orderbook.Base) error {
 		return err
 	}
 
-	bookKey := key.PairAsset{Base: book.Pair.Base.Item, Quote: book.Pair.Quote.Item, Asset: book.Asset}
+	obKey := key.PairAsset{Base: book.Pair.Base.Item, Quote: book.Pair.Quote.Item, Asset: book.Asset}
 
 	w.mtx.RLock()
-	holder, ok := w.ob[bookKey]
+	holder, ok := w.ob[obKey]
 	if !ok {
 		waitForMainLock := make(chan struct{})
 		go func() { w.mtx.Lock(); close(waitForMainLock) }()
 		w.mtx.RUnlock() // Release read
 		<-waitForMainLock
 		// Re-check if orderbook has been created.
-		holder, ok = w.ob[bookKey]
+		holder, ok = w.ob[obKey]
 		if !ok {
 			// Associate orderbook pointer with local exchange depth map
 			var depth *orderbook.Depth
@@ -351,7 +351,7 @@ func (w *Orderbook) LoadSnapshot(book *orderbook.Base) error {
 			}
 
 			holder = &orderbookHolder{ob: depth, buffer: &buffer, ticker: ticker}
-			w.ob[bookKey] = holder
+			w.ob[obKey] = holder
 			w.mtx.Unlock()
 		} else {
 			w.mtx.Unlock()
