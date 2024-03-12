@@ -34,7 +34,6 @@ var (
 
 // Private websocket errors
 var (
-	errAlreadyRunning                       = errors.New("connection monitor is already running")
 	errExchangeConfigIsNil                  = errors.New("exchange config is nil")
 	errExchangeConfigEmpty                  = errors.New("exchange config is empty")
 	errWebsocketIsNil                       = errors.New("websocket is nil")
@@ -292,9 +291,7 @@ func (w *Websocket) Connect() error {
 	}
 	w.setState(connected)
 
-	if !w.IsConnectionMonitorRunning() {
-		go w.connectionMonitor()
-	}
+	go w.connectionMonitor()
 
 	subs, err := w.GenerateSubs() // regenerate state on new connection
 	if err != nil {
@@ -374,7 +371,6 @@ func (w *Websocket) dataMonitor() {
 
 // connectionMonitor ensures that the WS keeps connecting
 func (w *Websocket) connectionMonitor() {
-	w.setConnectionMonitorRunning(true)
 	delay := w.connectionMonitorDelay
 	timer := time.NewTimer(delay)
 	for {
@@ -394,7 +390,7 @@ func (w *Websocket) connectionMonitor() {
 				log.Debugf(log.WebsocketMgr, "%v websocket: connection monitor exiting", w.exchangeName)
 			}
 			timer.Stop()
-			w.setConnectionMonitorRunning(false)
+			w.connectionMonitorRunning.Store(false)
 			return
 		}
 		select {
@@ -626,19 +622,6 @@ func (w *Websocket) setTrafficMonitorRunning(b bool) {
 // IsTrafficMonitorRunning returns status of the traffic monitor
 func (w *Websocket) IsTrafficMonitorRunning() bool {
 	return w.trafficMonitorRunning.Load()
-}
-
-func (w *Websocket) checkAndSetMonitorRunning() (alreadyRunning bool) {
-	return !w.connectionMonitorRunning.CompareAndSwap(false, true)
-}
-
-func (w *Websocket) setConnectionMonitorRunning(b bool) {
-	w.connectionMonitorRunning.Store(b)
-}
-
-// IsConnectionMonitorRunning returns status of connection monitor
-func (w *Websocket) IsConnectionMonitorRunning() bool {
-	return w.connectionMonitorRunning.Load()
 }
 
 func (w *Websocket) setDataMonitorRunning(b bool) {

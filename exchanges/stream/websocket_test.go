@@ -571,13 +571,14 @@ func TestConnectionMonitor(t *testing.T) {
 	ws.exchangeName = "hello"
 	ws.Wg = &sync.WaitGroup{}
 	ws.setEnabled(true)
+	ws.connectionMonitorRunning.Store(true)
 	go ws.connectionMonitor()
 	require.EventuallyWithT(t, func(c *assert.CollectT) {
-		assert.True(c, ws.IsConnectionMonitorRunning(), "IsConnectionMonitorRunning should return true")
+		assert.True(c, ws.connectionMonitorRunning.Load(), "IsConnectionMonitorRunning should return true")
 	}, 5*time.Second, 10*time.Millisecond, "ConnectionMonitor must be running")
 	ws.setEnabled(false)
 	require.EventuallyWithT(t, func(c *assert.CollectT) {
-		assert.False(c, ws.IsConnectionMonitorRunning(), "IsConnectionMonitorRunning should return false")
+		assert.False(c, ws.connectionMonitorRunning.Load(), "IsConnectionMonitorRunning should return false")
 	}, 5*time.Second, 10*time.Millisecond, "ConnectionMonitor must not be running")
 }
 
