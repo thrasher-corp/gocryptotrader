@@ -1028,8 +1028,7 @@ func (w *Websocket) initialiseConnection(conn Connection, bootstrap func(Connect
 	}
 
 	if bootstrap != nil {
-		err = bootstrap(conn)
-		if err != nil {
+		if err = bootstrap(conn); err != nil {
 			return fmt.Errorf("%v bootstrapping websocket connection: %w", w.exchangeName, err)
 		}
 	}
