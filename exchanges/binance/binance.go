@@ -90,6 +90,7 @@ var (
 	errWebsocketAPICallNotEnabled             = errors.New("websocket API connection not enabled")
 	errTimestampInfoRequired                  = errors.New("timestamp information is required")
 	errListenKeyIsRequired                    = errors.New("listen key is required")
+	errValidEmailRequired                     = errors.New("valid email address is required")
 )
 
 var subscriptionNames = map[string]string{
@@ -1409,6 +1410,317 @@ func (b *Binance) GetAPIKeyPermission(ctx context.Context) (*APIKeyPermissions, 
 	var resp *APIKeyPermissions
 	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/account/apiRestrictions", nil, spotDefaultRate, &resp)
 }
+
+// GetAutoConvertingStableCoins a user's auto-conversion settings in deposit/withdrawal
+func (b *Binance) GetAutoConvertingStableCoins(ctx context.Context) (*AutoConvertingStableCoins, error) {
+	var resp *AutoConvertingStableCoins
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/capital/contract/convertible-coins", nil, spotDefaultRate, &resp)
+}
+
+// SwitchOnOffBUSDAndStableCoinsConversion user can use it to turn on or turn off the BUSD auto-conversion from/to a specific stable coin.
+func (b *Binance) SwitchOnOffBUSDAndStableCoinsConversion(ctx context.Context, coin currency.Code, enable bool) error {
+	if coin.IsEmpty() {
+		return currency.ErrCurrencyCodeEmpty
+	}
+	params := url.Values{}
+	params.Set("coin", coin.String())
+	params.Set("enable", strconv.FormatBool(enable))
+	return b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "capital/contract/convertible-coins", params, spotDefaultRate, &struct{}{})
+}
+
+// OneClickArrivalDepositApply apply deposit credit for expired address
+func (b *Binance) OneClickArrivalDepositApply(ctx context.Context, transactionID string, subAccountID, subUserID, depositID int64) (bool, error) {
+	params := url.Values{}
+	if transactionID != "" {
+		params.Set("txId", transactionID)
+	}
+	if depositID != 0 {
+		params.Set("depositId", strconv.FormatInt(depositID, 10))
+	}
+	if subAccountID != 0 {
+		params.Set("subAccountId", strconv.FormatInt(subAccountID, 10))
+	}
+	if subUserID != 0 {
+		params.Set("subUserID", strconv.FormatInt(subUserID, 10))
+	}
+	var resp bool
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "capital/deposit/credit-apply", params, spotDefaultRate, &resp)
+}
+
+// GetDepositAddressListWithNetwork fetch deposit address list with network.
+func (b *Binance) GetDepositAddressListWithNetwork(ctx context.Context, coin currency.Code, network string) ([]DepositAddressAndNetwork, error) {
+	if coin.IsEmpty() {
+		return nil, currency.ErrCurrencyCodeEmpty
+	}
+	params := url.Values{}
+	params.Set("coin", coin.String())
+	if network != "" {
+		params.Set("network", network)
+	}
+	var resp []DepositAddressAndNetwork
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "capital/deposit/address/list", params, spotDefaultRate, &resp)
+}
+
+// GetUserWalletBalance retrieves user wallet balance.
+func (b *Binance) GetUserWalletBalance(ctx context.Context) ([]UserWalletBalance, error) {
+	var resp []UserWalletBalance
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "asset/wallet/balance", nil, spotDefaultRate, &resp)
+}
+
+// GetUserDelegationHistory query User Delegation History for Master account.
+// The delegation type has two values: delegated or undelegated.
+func (b *Binance) GetUserDelegationHistory(ctx context.Context, email, delegation string, startTime, endTime time.Time, asset currency.Code, current int64, size float64) (*UserDelegationHistory, error) {
+	if !common.MatchesEmailPattern(email) {
+		return nil, errValidEmailRequired
+	}
+	err := common.StartEndTimeCheck(startTime, endTime)
+	if err != nil {
+		return nil, err
+	}
+	params := url.Values{}
+	params.Set("email", email)
+	params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+	params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
+	if !asset.IsEmpty() {
+		params.Set("asset", asset.String())
+	}
+	if delegation != "" {
+		params.Set("type", delegation)
+	}
+	if current != 0 {
+		params.Set("current", strconv.FormatInt(current, 10))
+	}
+	if size != 0 {
+		params.Set("size", strconv.FormatFloat(size, 'f', -1, 64))
+	}
+	var resp *UserDelegationHistory
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "asset/custody/transfer-history", params, spotDefaultRate, &resp)
+}
+
+// GetSymbolsDelistScheduleForSpot symbols delist schedule for spot
+func (b *Binance) GetSymbolsDelistScheduleForSpot(ctx context.Context) ([]DelistSchedule, error) {
+	var resp []DelistSchedule
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "spot/delist-schedule", nil, spotDefaultRate, &resp)
+}
+
+// --------------------------------------------------    ---------------------------------------------------------------------------------
+
+// CreateVirtualSubAccount creates a virtual subaccount information.
+func (b *Binance) CreateVirtualSubAccount(ctx context.Context, subAccountString string) (*VirtualSubAccount, error) {
+	params := url.Values{}
+	if subAccountString != "" {
+		params.Set("subAccountString", subAccountString)
+	}
+	var resp *VirtualSubAccount
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "sub-account/virtualSubAccount", params, spotDefaultRate, &resp)
+}
+
+// GetSubAccountList retrieves sub-account list for Master Account
+func (b *Binance) GetSubAccountList(ctx context.Context, email string, isFreeze bool, page, limit int64) (*SubAccountList, error) {
+	params := url.Values{}
+	if common.MatchesEmailPattern(email) {
+		params.Set("email", email)
+	}
+	if isFreeze {
+		params.Set("isFreeze", "true")
+	}
+	if page > 0 {
+		params.Set("page", strconv.FormatInt(page, 10))
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	var resp *SubAccountList
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "sub-account/list", params, spotDefaultRate, &resp)
+}
+
+// GetSubAccountSpotAssetTransferHistory represents sub-account spot asset transfer history for master account
+func (b *Binance) GetSubAccountSpotAssetTransferHistory(ctx context.Context, fromEmail, toEmail string,
+	startTime, endTime time.Time, page, limit int64) ([]SubAccountSpotAsset, error) {
+	params := url.Values{}
+	if common.MatchesEmailPattern(fromEmail) {
+		params.Set("fromEmail", fromEmail)
+	}
+	if common.MatchesEmailPattern(toEmail) {
+		params.Set("toEmail", toEmail)
+	}
+	if !startTime.IsZero() {
+		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+	}
+	if !endTime.IsZero() {
+		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
+	}
+	if page > 0 {
+		params.Set("page", strconv.FormatInt(page, 10))
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	var resp []SubAccountSpotAsset
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "sub-account/sub/transfer/history", params, spotDefaultRate, &resp)
+}
+
+// GetSubAccountFuturesAssetTransferHistory Query Sub-account Futures Asset Transfer History For Master Account
+func (b *Binance) GetSubAccountFuturesAssetTransferHistory(ctx context.Context, email string, startTime, endTime time.Time, futuresType, page, limit int64) (*AssetTransferHistory, error) {
+	if !common.MatchesEmailPattern(email) {
+		return nil, errValidEmailRequired
+	}
+	if futuresType != 1 && futuresType != 2 {
+		return nil, errors.New("futures types not set")
+	}
+	params := url.Values{}
+	params.Set("email", email)
+	params.Set("futuresType", strconv.FormatInt(futuresType, 10))
+	if !startTime.IsZero() {
+		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+	}
+	if !endTime.IsZero() {
+		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
+	}
+	if page != 0 {
+		params.Set("page", strconv.FormatInt(page, 10))
+	}
+	if limit != 0 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	var resp *AssetTransferHistory
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "sub-account/futures/internalTransfer", params, spotDefaultRate, &resp)
+}
+
+// SubAccountFuturesAssetTransfer sub-account futures asset transfer for master account
+// futuresType: 1:USDT-margined Futures，2: Coin-margined Futures
+func (b *Binance) SubAccountFuturesAssetTransfer(ctx context.Context, fromEmail, toEmail string, futuresType int64,
+	asset currency.Code, amount float64) (*FuturesAssetTransfer, error) {
+	if !common.MatchesEmailPattern(fromEmail) {
+		return nil, fmt.Errorf("%w, fromEmail=%s", errValidEmailRequired, fromEmail)
+	}
+	if !common.MatchesEmailPattern(toEmail) {
+		return nil, fmt.Errorf("%w, toEmail=%s", errValidEmailRequired, toEmail)
+	}
+	if futuresType != 0 && futuresType != 1 {
+		return nil, errors.New("futuresType must be either 1: USDT-margined Futures or 2: Coin-margined Futures")
+	}
+	if !asset.IsEmpty() {
+		return nil, currency.ErrCurrencyCodeEmpty
+	}
+	if amount <= 0 {
+		return nil, order.ErrAmountBelowMin
+	}
+	params := url.Values{}
+	var resp *FuturesAssetTransfer
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "sub-account/futures/internalTransfer", params, spotDefaultRate, &resp)
+}
+
+// GetSubAccountAssets sub-account assets for master account
+func (b *Binance) GetSubAccountAssets(ctx context.Context, email string) (*SubAccountAssets, error) {
+	if !common.MatchesEmailPattern(email) {
+		return nil, errValidEmailRequired
+	}
+	params := url.Values{}
+	params.Set("email", email)
+	var resp *SubAccountAssets
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "sub-account/assets", params, spotDefaultRate, &resp)
+}
+
+// GetSubAccountSpotAssetsSummary retrieves BTC valued asset summary of subaccounts.
+func (b *Binance) GetSubAccountSpotAssetsSummary(ctx context.Context, email string, page, size int64) (*SubAccountSpotSummary, error) {
+	params := url.Values{}
+	if common.MatchesEmailPattern(email) {
+		params.Set("email", email)
+	}
+	if page > 0 {
+		params.Set("page", strconv.FormatInt(page, 10))
+	}
+	if size > 0 {
+		params.Set("size", strconv.FormatInt(size, 10))
+	}
+	var resp *SubAccountSpotSummary
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "sub-account/spotSummary", params, spotDefaultRate, &resp)
+}
+
+// GetSubAccountDepositAddress sub-account deposit address
+func (b *Binance) GetSubAccountDepositAddress(ctx context.Context, email, coin, network string, amount float64) (*SubAccountDepositAddress, error) {
+	if !common.MatchesEmailPattern(email) {
+		return nil, errValidEmailRequired
+	}
+	if coin == "" {
+		return nil, fmt.Errorf("%w, coin=%s", currency.ErrCurrencyCodeEmpty, coin)
+	}
+	params := url.Values{}
+	if network != "" {
+		params.Set("network", network)
+	}
+	if amount > 0 {
+		params.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
+	}
+	var resp *SubAccountDepositAddress
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "capital/deposit/subAddress", params, spotDefaultRate, &resp)
+}
+
+// GetSubAccountDepositHistory retrieves sub-account deposit history
+func (b *Binance) GetSubAccountDepositHistory(ctx context.Context, email, coin string,
+	startTime, endTime time.Time, status, offset, limit int64) (*SubAccountDepositHistory, error) {
+	params := url.Values{}
+	if !common.MatchesEmailPattern(email) {
+		return nil, errValidEmailRequired
+	}
+	params.Set("email", email)
+	if coin != "" {
+		params.Set("coin", coin)
+	}
+	if status != 0 {
+		params.Set("status", strconv.FormatInt(status, 10))
+	}
+	if !startTime.IsZero() {
+		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+	}
+	if !endTime.IsZero() {
+		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	if offset > 0 {
+		params.Set("offset", strconv.FormatInt(offset, 10))
+	}
+	var resp *SubAccountDepositHistory
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "capital/deposit/subHisrec", params, spotDefaultRate, &resp)
+}
+
+// GetSubAccountStatusOnMarginFutures sub-account's status on Margin/Futures for master account
+func (b *Binance) GetSubAccountStatusOnMarginFutures(ctx context.Context, email string) (*SubAccountStatus, error) {
+	params := url.Values{}
+	if common.MatchesEmailPattern(email) {
+		params.Set("email", email)
+	}
+	var resp *SubAccountStatus
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "sub-account/status", params, spotDefaultRate, &resp)
+}
+
+// EnableMarginForSubAccount Enable Margin for Sub-account For Master Account
+func (b *Binance) EnableMarginForSubAccount(ctx context.Context, email string) (*MarginEnablingResponse, error) {
+	if !common.MatchesEmailPattern(email) {
+		return nil, errValidEmailRequired
+	}
+	params := url.Values{}
+	params.Set("email", email)
+	var resp *MarginEnablingResponse
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "sub-account/margin/enable", params, spotDefaultRate, &resp)
+}
+
+// GetDetailOnSubAccountMarginAccount retrieves Detail on Sub-account's Margin Account For Master Account
+func (b *Binance) GetDetailOnSubAccountMarginAccount(ctx context.Context, email string) (*SubAccountMarginAccountDetail, error) {
+	if !common.MatchesEmailPattern(email) {
+		return nil, errValidEmailRequired
+	}
+	params := url.Values{}
+	params.Set("email", email)
+	var resp *SubAccountMarginAccountDetail
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "sub-account/margin/account", params, spotDefaultRate, &resp)
+}
+
+// TODO: next
+// func (b *Binance) GetSummaryOfSubAccountMarginAccount(ctx context.Context, )
 
 // GetAccountStatus fetch account status detail.
 func (b *Binance) GetAccountStatus(ctx context.Context) (string, error) {

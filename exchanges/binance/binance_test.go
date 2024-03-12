@@ -1041,6 +1041,142 @@ func TestGetAPIKeyPermission(t *testing.T) {
 	assert.NoError(t, err)
 }
 
+func TestGetAutoConvertingStableCoins(t *testing.T) {
+	t.Parallel()
+	result, err := b.GetAutoConvertingStableCoins(context.Background())
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestSwitchOnOffBUSDAndStableCoinsConversion(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	err := b.SwitchOnOffBUSDAndStableCoinsConversion(context.Background(), currency.BTC, false)
+	assert.NoError(t, err)
+}
+
+func TestOneClickArrivalDepositApply(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	_, err := b.OneClickArrivalDepositApply(context.Background(), "", 0, 0, 0)
+	require.NoError(t, err)
+}
+
+func TestGetDepositAddressListWithNetwork(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	_, err := b.GetDepositAddressListWithNetwork(context.Background(), currency.BTC, "")
+	require.NoError(t, err)
+}
+
+func TestGetUserWalletBalance(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	_, err := b.GetUserWalletBalance(context.Background())
+	assert.NoError(t, err)
+}
+
+func TestGetUserDelegationHistory(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	_, err := b.GetUserDelegationHistory(context.Background(), "someone@thrasher.com",
+		"Delegate", time.Now().Add(-time.Hour*24*12), time.Now(), currency.BTC, 0, 0)
+	require.NoError(t, err)
+}
+
+func TestGetSymbolsDelistScheduleForSpot(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	_, err := b.GetSymbolsDelistScheduleForSpot(context.Background())
+	assert.NoError(t, err)
+}
+
+func TestCreateVirtualSubAccount(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	_, err := b.CreateVirtualSubAccount(context.Background(), "something-string")
+	require.NoError(t, err)
+}
+
+func TestGetSubAccountList(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	_, err := b.GetSubAccountList(context.Background(), "testsub@gmail.com", false, 0, 10)
+	require.NoError(t, err)
+}
+
+func TestGetSubAccountSpotAssetTransferHistory(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	_, err := b.GetSubAccountSpotAssetTransferHistory(context.Background(), "", "", time.Time{}, time.Now(), 0, 10)
+	assert.NoError(t, err)
+}
+
+func TestGetSubAccountFuturesAssetTransferHistory(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	_, err := b.GetSubAccountFuturesAssetTransferHistory(context.Background(), "", time.Time{}, time.Now(), 0, 0, 0)
+	assert.NoError(t, err)
+}
+
+func TestSubAccountFuturesAssetTransfer(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	_, err := b.SubAccountFuturesAssetTransfer(context.Background(), "from_someone@thrasher.io", "to_someont@thrasher.io", 1, currency.USDT, 0.1)
+	require.NoError(t, err)
+}
+
+func TestGetSubAccountAssets(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	_, err := b.GetSubAccountAssets(context.Background(), "email_address@mail.com")
+	assert.NoError(t, err)
+}
+
+func TestGetSubAccountSpotAssetsSummary(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	_, err := b.GetSubAccountSpotAssetsSummary(context.Background(), "the_address@thrasher.io", 0, 10)
+	require.NoError(t, err)
+}
+
+func TestGetSubAccountDepositAddress(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	_, err := b.GetSubAccountDepositAddress(context.Background(), "the_address@thrasher.io", "BTC", "", 0.1)
+	assert.NoError(t, err)
+}
+
+func TestGetSubAccountDepositHistory(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	_, err := b.GetSubAccountDepositHistory(context.Background(), "someone@thrasher.io", "BTC", time.Time{}, time.Now(), 0, 0, 10)
+	require.NoError(t, err)
+}
+
+func TestGetSubAccountStatusOnMarginFutures(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	_, err := b.GetSubAccountStatusOnMarginFutures(context.Background(), "myemail@mail.com")
+	require.NoError(t, err)
+}
+
+func TestEnableMarginForSubAccount(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	_, err := b.EnableMarginForSubAccount(context.Background(), "sampleemail@email.com")
+	assert.NoError(t, err)
+}
+
+func TestGetDetailOnSubAccountMarginAccount(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	_, err := b.GetDetailOnSubAccountMarginAccount(context.Background(), "com")
+	require.ErrorIs(t, err, errValidEmailRequired)
+	_, err = b.GetDetailOnSubAccountMarginAccount(context.Background(), "test@gmail.com")
+	assert.NoError(t, err)
+}
+
 func TestQueryOrder(t *testing.T) {
 	t.Parallel()
 

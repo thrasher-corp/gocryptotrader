@@ -1123,6 +1123,13 @@ type APIKeyPermissions struct {
 	EnableMargin                 bool                 `json:"enableMargin"`
 }
 
+// AutoConvertingStableCoins represents auto-conversion settings in deposit/withdrawal
+type AutoConvertingStableCoins struct {
+	ConvertEnabled bool              `json:"convertEnabled"`
+	Coins          []string          `json:"coins"`
+	ExchangeRates  map[string]string `json:"exchangeRates"`
+}
+
 // UserAccountStream contains a key to maintain an authorised
 // websocket connection
 type UserAccountStream struct {
@@ -2379,4 +2386,166 @@ type DustLog struct {
 			FromAsset           string               `json:"fromAsset"`
 		} `json:"userAssetDribbletDetails"`
 	} `json:"userAssetDribblets"`
+}
+
+// DepositAddressAndNetwork represents a deposit address with network
+type DepositAddressAndNetwork struct {
+	Coin      string `json:"coin"`
+	Address   string `json:"address"`
+	IsDefault int64  `json:"isDefault"`
+}
+
+// UserWalletBalance represents a user wallet balance information.
+type UserWalletBalance struct {
+	Activate   bool         `json:"activate"`
+	Balance    types.Number `json:"balance"`
+	WalletName string       `json:"walletName"`
+}
+
+// UserDelegationHistory represents a user delegation history
+type UserDelegationHistory struct {
+	Total int64 `json:"total"`
+	Rows  []struct {
+		ClientTranID string               `json:"clientTranId"`
+		TransferType string               `json:"transferType"`
+		Asset        string               `json:"asset"`
+		Amount       types.Number         `json:"amount"`
+		Time         convert.ExchangeTime `json:"time"`
+	} `json:"rows"`
+}
+
+// DelistSchedule symbols delist schedule for spot
+type DelistSchedule struct {
+	DelistTime convert.ExchangeTime `json:"delistTime"`
+	Symbols    []string             `json:"symbols"`
+}
+
+// VirtualSubAccount represents a response information after creating the virtual account.
+type VirtualSubAccount struct {
+	Email string `json:"email"`
+}
+
+// SubAccountList represents a response
+type SubAccountList struct {
+	SubAccounts []struct {
+		Email                       string               `json:"email"`
+		IsFreeze                    bool                 `json:"isFreeze"`
+		CreateTime                  convert.ExchangeTime `json:"createTime"`
+		IsManagedSubAccount         bool                 `json:"isManagedSubAccount"`
+		IsAssetManagementSubAccount bool                 `json:"isAssetManagementSubAccount"`
+	} `json:"subAccounts"`
+}
+
+// SubAccountSpotAsset represents a spot asset transfer item
+type SubAccountSpotAsset struct {
+	From   string               `json:"from"`
+	To     string               `json:"to"`
+	Asset  string               `json:"asset"`
+	Qty    types.Number         `json:"qty"`
+	Status string               `json:"status"`
+	TranID int64                `json:"tranId"`
+	Time   convert.ExchangeTime `json:"time"`
+}
+
+// AssetTransferHistory Query Sub-account Futures Asset Transfer History For Master Account
+type AssetTransferHistory struct {
+	Success     bool  `json:"success"`
+	FuturesType int64 `json:"futuresType"`
+	Transfers   []struct {
+		From   string               `json:"from"`
+		To     string               `json:"to"`
+		Asset  string               `json:"asset"`
+		Qty    types.Number         `json:"qty"`
+		TranID int64                `json:"tranId"`
+		Time   convert.ExchangeTime `json:"time"`
+	} `json:"transfers"`
+}
+
+// FuturesAssetTransfer represents a futures asset transfer response.
+type FuturesAssetTransfer struct {
+	Success       bool   `json:"success"`
+	TransactionID string `json:"txnId"`
+}
+
+// SubAccountAssets represents a sub-account asset
+type SubAccountAssets struct {
+	Balances []struct {
+		Asset  string  `json:"asset"`
+		Free   float64 `json:"free"`
+		Locked float64 `json:"locked"`
+	} `json:"balances"`
+}
+
+// SubAccountSpotSummary asset summary of subaccounts.
+type SubAccountSpotSummary struct {
+	TotalCount                int64  `json:"totalCount"`
+	MasterAccountTotalAsset   string `json:"masterAccountTotalAsset"`
+	SpotSubUserAssetBtcVoList []struct {
+		Email      string       `json:"email"`
+		TotalAsset types.Number `json:"totalAsset"`
+	} `json:"spotSubUserAssetBtcVoList"`
+}
+
+// SubAccountDepositAddress represents a sub-acccount deposit address for master account
+type SubAccountDepositAddress struct {
+	Address string `json:"address"`
+	Coin    string `json:"coin"`
+	Tag     string `json:"tag"`
+	URL     string `json:"url"`
+}
+
+// SubAccountDepositHistory represents a sub account deposit history
+type SubAccountDepositHistory struct {
+	ID            string               `json:"id"`
+	Amount        types.Number         `json:"amount"`
+	Coin          string               `json:"coin"`
+	Network       string               `json:"network"`
+	Status        int64                `json:"status"`
+	Address       string               `json:"address"`
+	AddressTag    string               `json:"addressTag"`
+	TxID          string               `json:"txId"`
+	InsertTime    convert.ExchangeTime `json:"insertTime"`
+	TransferType  int64                `json:"transferType"`
+	ConfirmTimes  string               `json:"confirmTimes"`
+	UnlockConfirm int64                `json:"unlockConfirm"`
+	WalletType    int64                `json:"walletType"`
+}
+
+// SubAccountStatus represents sub-account status on margin/futures for master account.
+type SubAccountStatus struct {
+	Email            string               `json:"email"`
+	IsSubUserEnabled bool                 `json:"isSubUserEnabled"`
+	IsUserActive     bool                 `json:"isUserActive"`
+	InsertTime       convert.ExchangeTime `json:"insertTime"`
+	IsMarginEnabled  bool                 `json:"isMarginEnabled"`
+	IsFutureEnabled  bool                 `json:"isFutureEnabled"`
+	Mobile           int64                `json:"mobile"`
+}
+
+// MarginEnablingResponse represents a Margin sub-account for master account
+type MarginEnablingResponse struct {
+	Email           string `json:"email"`
+	IsMarginEnabled bool   `json:"isMarginEnabled"`
+}
+
+// SubAccountMarginAccountDetail represents a sub-account margin account detail.
+type SubAccountMarginAccountDetail struct {
+	Email               string       `json:"email"`
+	MarginLevel         types.Number `json:"marginLevel"`
+	TotalAssetOfBtc     types.Number `json:"totalAssetOfBtc"`
+	TotalLiabilityOfBtc types.Number `json:"totalLiabilityOfBtc"`
+	TotalNetAssetOfBtc  types.Number `json:"totalNetAssetOfBtc"`
+	MarginTradeCoeffVo  struct {
+		ForceLiquidationBar types.Number `json:"forceLiquidationBar"`
+		MarginCallBar       types.Number `json:"marginCallBar"`
+		NormalBar           types.Number `json:"normalBar"`
+	} `json:"marginTradeCoeffVo"`
+	MarginUserAssetVoList []struct {
+		Asset    string       `json:"asset"`
+		Borrowed types.Number `json:"borrowed"`
+		Free     types.Number `json:"free"`
+		Interest types.Number `json:"interest"`
+		Locked   types.Number `json:"locked"`
+		NetAsset types.Number `json:"netAsset"`
+	} `json:"marginUserAssetVoList"`
 }
