@@ -374,14 +374,18 @@ type TickerData struct {
 	SettlementPrice float64 `json:"settlement_price"`
 	State           string  `json:"state"`
 	Stats           struct {
-		Volume      float64 `json:"volume"`
-		PriceChange float64 `json:"price_change"`
-		Low         float64 `json:"low"`
-		High        float64 `json:"high"`
+		VolumeNotional float64 `json:"volume_notional"`
+		VolumeUSD      float64 `json:"volume_usd"`
+		Volume         float64 `json:"volume"`
+		PriceChange    float64 `json:"price_change"`
+		Low            float64 `json:"low"`
+		High           float64 `json:"high"`
 	} `json:"stats"`
-	Timestamp       convert.ExchangeTime `json:"timestamp"`
-	UnderlyingIndex string               `json:"underlying_index"`
-	UnderlyingPrice float64              `json:"underlying_price"`
+	Timestamp              convert.ExchangeTime `json:"timestamp"`
+	UnderlyingIndex        string               `json:"underlying_index"`
+	UnderlyingPrice        float64              `json:"underlying_price"`
+	EstimatedDeliveryPrice float64              `json:"estimated_delivery_price"`
+	InterestValue          float64              `json:"interest_value"`
 }
 
 // CancelWithdrawalData stores cancel request data for a withdrawal

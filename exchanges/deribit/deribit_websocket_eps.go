@@ -2491,9 +2491,6 @@ func (d *Deribit) sendWsPayload(ep request.EndpointLimit, input *WsRequest, resp
 				delay = after
 			}
 			if dl, ok := ctx.Deadline(); ok && dl.Before(time.Now().Add(delay)) {
-				if err != nil {
-					return err
-				}
 				return errors.New("deadline would be exceeded by retry")
 			}
 

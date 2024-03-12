@@ -307,6 +307,7 @@ func (d *Deribit) UpdateTicker(ctx context.Context, p currency.Pair, assetType a
 		Close:        tickerData.LastPrice,
 		IndexPrice:   tickerData.IndexPrice,
 		MarkPrice:    tickerData.MarkPrice,
+		QuoteVolume:  tickerData.Stats.VolumeUSD,
 	}
 	err = ticker.ProcessTicker(&resp)
 	if err != nil {
