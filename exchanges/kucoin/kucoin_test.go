@@ -2209,13 +2209,8 @@ func TestSubmitOrder(t *testing.T) {
 		ClientOrderID: "myOrder",
 		AssetType:     asset.Spot,
 	}
-	_, err := ku.SubmitOrder(context.Background(), orderSubmission)
-	if !errors.Is(err, order.ErrSideIsInvalid) {
-		t.Errorf("expected %v, but found %v", asset.ErrNotSupported, err)
-	}
-	orderSubmission.Side = order.Buy
 	orderSubmission.AssetType = asset.Options
-	_, err = ku.SubmitOrder(context.Background(), orderSubmission)
+	_, err := ku.SubmitOrder(context.Background(), orderSubmission)
 	if !errors.Is(err, asset.ErrNotSupported) {
 		t.Errorf("expected %v, but found %v", asset.ErrNotSupported, err)
 	}

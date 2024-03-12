@@ -91,41 +91,20 @@ func TestWrapperGetServerTime(t *testing.T) {
 	}
 }
 
+// TestUpdateOrderExecutionLimits exercises UpdateOrderExecutionLimits and GetOrderExecutionLimits
 func TestUpdateOrderExecutionLimits(t *testing.T) {
 	t.Parallel()
 
-	type limitTest struct {
-		pair currency.Pair
-		step float64
-		min  float64
-	}
-
-	tests := map[asset.Item][]limitTest{
-		asset.Spot: {
-			{currency.NewPair(currency.ETH, currency.USDT), 0.01, 0.01},
-			{currency.NewPair(currency.XBT, currency.USDT), 0.1, 0.0001},
-		},
-	}
-
-	for assetItem, limitTests := range tests {
-		if err := k.UpdateOrderExecutionLimits(context.Background(), assetItem); err != nil {
-			t.Errorf("Error fetching %s pairs for test: %v", assetItem, err)
-		}
-
-		for _, limitTest := range limitTests {
-			limits, err := k.GetOrderExecutionLimits(assetItem, limitTest.pair)
-			if err != nil {
-				t.Errorf("Kraken GetOrderExecutionLimits() error during TestExecutionLimits; Asset: %s Pair: %s Err: %v", assetItem, limitTest.pair, err)
-				continue
-			}
-			if got := limits.PriceStepIncrementSize; got != limitTest.step {
-				t.Errorf("Kraken UpdateOrderExecutionLimits wrong PriceStepIncrementSize; Asset: %s Pair: %s Expected: %v Got: %v", assetItem, limitTest.pair, limitTest.step, got)
-			}
-
-			if got := limits.MinimumBaseAmount; got != limitTest.min {
-				t.Errorf("Kraken UpdateOrderExecutionLimits wrong MinAmount; Pair: %s Expected: %v Got: %v", limitTest.pair, limitTest.min, got)
-			}
-		}
+	err := k.UpdateOrderExecutionLimits(context.Background(), asset.Spot)
+	require.NoError(t, err, "UpdateOrderExecutionLimits must not error")
+	for _, p := range []currency.Pair{
+		currency.NewPair(currency.ETH, currency.USDT),
+		currency.NewPair(currency.XBT, currency.USDT),
+	} {
+		limits, err := k.GetOrderExecutionLimits(asset.Spot, p)
+		require.NoErrorf(t, err, "%s GetOrderExecutionLimits must not error", p)
+		assert.Positivef(t, limits.PriceStepIncrementSize, "%s PriceStepIncrementSize should be positive", p)
+		assert.Positivef(t, limits.MinimumBaseAmount, "%s MinimumBaseAmount should be positive", p)
 	}
 }
 

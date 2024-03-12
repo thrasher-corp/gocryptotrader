@@ -380,18 +380,10 @@ func (w *Websocket) dataMonitor() {
 
 	go func() {
 		defer func() {
-			for {
-				// Bleeds data from the websocket connection if needed
-				select {
-				case <-w.DataHandler:
-				default:
-					w.setDataMonitorRunning(false)
-					w.Wg.Done()
-					return
-				}
-			}
+			w.setDataMonitorRunning(false)
+			w.Wg.Done()
 		}()
-
+		dropped := 0
 		for {
 			select {
 			case <-w.ShutdownC:
@@ -399,15 +391,16 @@ func (w *Websocket) dataMonitor() {
 			case d := <-w.DataHandler:
 				select {
 				case w.ToRoutine <- d:
-				case <-w.ShutdownC:
-					return
-				default:
-					log.Warnf(log.WebsocketMgr, "%s exchange backlog in websocket processing detected", w.exchangeName)
-					select {
-					case w.ToRoutine <- d:
-					case <-w.ShutdownC:
-						return
+					if dropped != 0 {
+						log.Infof(log.WebsocketMgr, "%s exchange websocket ToRoutine channel buffer recovered; %d messages were dropped", w.exchangeName, dropped)
+						dropped = 0
 					}
+				default:
+					if dropped == 0 {
+						// If this becomes prone to flapping we could drain the buffer, but that's extreme and we'd like to avoid it if possible
+						log.Warnf(log.WebsocketMgr, "%s exchange websocket ToRoutine channel buffer full; dropping messages", w.exchangeName)
+					}
+					dropped++
 				}
 			}
 		}
@@ -445,12 +438,15 @@ func (w *Websocket) connectionMonitor() error {
 			}
 			select {
 			case err := <-w.ReadMessageErrors:
+				w.DataHandler <- err
 				if IsDisconnectionError(err) {
 					log.Warnf(log.WebsocketMgr, "%v websocket has been disconnected. Reason: %v", w.exchangeName, err)
-					w.setState(disconnected)
+					if w.IsConnected() {
+						if shutdownErr := w.Shutdown(); shutdownErr != nil {
+							log.Errorf(log.WebsocketMgr, "%v websocket: connectionMonitor shutdown err: %s", w.exchangeName, shutdownErr)
+						}
+					}
 				}
-
-				w.DataHandler <- err
 			case <-timer.C:
 				if !w.IsConnecting() && !w.IsConnected() {
 					err := w.Connect()
@@ -1028,7 +1024,7 @@ func (w *Websocket) initialiseConnection(conn Connection, bootstrap func(Connect
 	}
 
 	if bootstrap != nil {
-		if err = bootstrap(conn); err != nil {
+		if err := bootstrap(conn); err != nil {
 			return fmt.Errorf("%v bootstrapping websocket connection: %w", w.exchangeName, err)
 		}
 	}
