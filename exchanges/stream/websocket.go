@@ -1023,8 +1023,7 @@ func (w *Websocket) initialiseConnection(conn Connection, bootstrap func(Connect
 		dialer.Proxy = http.ProxyURL(w.proxyAddr)
 	}
 
-	err := conn.Dial(&dialer, nil)
-	if err != nil {
+	if err := conn.Dial(&dialer, nil); err != nil {
 		return fmt.Errorf("%v connecting websocket: %w", w.exchangeName, err)
 	}
 
