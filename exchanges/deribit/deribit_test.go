@@ -32,9 +32,10 @@ const (
 	apiKey    = ""
 	apiSecret = ""
 
-	canManipulateRealOrders = false
-	btcPerpInstrument       = "BTC-PERPETUAL"
-	useTestNet              = false
+	canManipulateRealOrders   = false
+	canManipulateAPIEndpoints = false
+	btcPerpInstrument         = "BTC-PERPETUAL"
+	useTestNet                = false
 )
 
 var (
@@ -973,14 +974,16 @@ func TestWSRetrieveAccessLog(t *testing.T) {
 
 func TestChangeAPIKeyName(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, d, canManipulateRealOrders)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, d)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, d, canManipulateAPIEndpoints)
 	_, err := d.ChangeAPIKeyName(context.Background(), 1, "TestKey123")
 	assert.NoError(t, err)
 }
 
 func TestWSChangeAPIKeyName(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, d, canManipulateRealOrders)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, d)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, d, canManipulateAPIEndpoints)
 	_, err := d.WSChangeAPIKeyName(1, "TestKey123")
 	assert.NoError(t, err)
 }
@@ -1002,6 +1005,7 @@ func TestWsChangeMarginModel(t *testing.T) {
 func TestChangeScopeInAPIKey(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, d, canManipulateRealOrders)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, d, canManipulateAPIEndpoints)
 	_, err := d.ChangeScopeInAPIKey(context.Background(), 1, "account:read_write")
 	assert.NoError(t, err)
 }
@@ -1009,20 +1013,23 @@ func TestChangeScopeInAPIKey(t *testing.T) {
 func TestWSChangeScopeInAPIKey(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, d, canManipulateRealOrders)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, d, canManipulateAPIEndpoints)
 	_, err := d.WSChangeScopeInAPIKey(1, "account:read_write")
 	assert.NoError(t, err)
 }
 
 func TestChangeSubAccountName(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, d, canManipulateRealOrders)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, d)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, d, canManipulateAPIEndpoints)
 	err := d.ChangeSubAccountName(context.Background(), 1, "new_sub")
 	assert.NoError(t, err)
 }
 
 func TestWSChangeSubAccountName(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, d, canManipulateRealOrders)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, d)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, d, canManipulateAPIEndpoints)
 	err := d.WSChangeSubAccountName(1, "new_sub")
 	assert.NoError(t, err)
 }
@@ -1030,6 +1037,7 @@ func TestWSChangeSubAccountName(t *testing.T) {
 func TestCreateAPIKey(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, d, canManipulateRealOrders)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, d, canManipulateAPIEndpoints)
 	_, err := d.CreateAPIKey(context.Background(), "account:read_write", "new_sub", false)
 	assert.NoError(t, err)
 }
@@ -1037,6 +1045,7 @@ func TestCreateAPIKey(t *testing.T) {
 func TestWSCreateAPIKey(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, d, canManipulateRealOrders)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, d, canManipulateAPIEndpoints)
 	_, err := d.WSCreateAPIKey("account:read_write", "new_sub", false)
 	assert.NoError(t, err)
 }
@@ -1044,6 +1053,7 @@ func TestWSCreateAPIKey(t *testing.T) {
 func TestCreateSubAccount(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, d, canManipulateRealOrders)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, d, canManipulateAPIEndpoints)
 	_, err := d.CreateSubAccount(context.Background())
 	assert.NoError(t, err)
 }
@@ -1051,6 +1061,7 @@ func TestCreateSubAccount(t *testing.T) {
 func TestWSCreateSubAccount(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, d, canManipulateRealOrders)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, d, canManipulateAPIEndpoints)
 	_, err := d.WSCreateSubAccount()
 	assert.NoError(t, err)
 }
@@ -1058,6 +1069,7 @@ func TestWSCreateSubAccount(t *testing.T) {
 func TestDisableAPIKey(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, d, canManipulateRealOrders)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, d, canManipulateAPIEndpoints)
 	_, err := d.DisableAPIKey(context.Background(), 1)
 	assert.NoError(t, err)
 }
@@ -1065,6 +1077,7 @@ func TestDisableAPIKey(t *testing.T) {
 func TestWSDisableAPIKey(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, d, canManipulateRealOrders)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, d, canManipulateAPIEndpoints)
 	_, err := d.WSDisableAPIKey(1)
 	assert.NoError(t, err)
 }
@@ -1072,6 +1085,7 @@ func TestWSDisableAPIKey(t *testing.T) {
 func TestEditAPIKey(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, d, canManipulateRealOrders)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, d, canManipulateAPIEndpoints)
 	_, err := d.EditAPIKey(context.Background(), 1234, "trade", "", false, []string{"read", "read_write"}, []string{})
 	require.NoError(t, err)
 }
@@ -1079,6 +1093,7 @@ func TestEditAPIKey(t *testing.T) {
 func TestWsEditAPIKey(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, d, canManipulateRealOrders)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, d, canManipulateAPIEndpoints)
 	_, err := d.WsEditAPIKey(1234, "trade", "", false, []string{"read", "read_write"}, []string{})
 	require.NoError(t, err)
 }
@@ -1100,6 +1115,7 @@ func TestWSEnableAffiliateProgram(t *testing.T) {
 func TestEnableAPIKey(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, d, canManipulateRealOrders)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, d, canManipulateAPIEndpoints)
 	_, err := d.EnableAPIKey(context.Background(), 1)
 	assert.NoError(t, err)
 }
@@ -1107,6 +1123,7 @@ func TestEnableAPIKey(t *testing.T) {
 func TestWSEnableAPIKey(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, d, canManipulateRealOrders)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, d, canManipulateAPIEndpoints)
 	_, err := d.WSEnableAPIKey(1)
 	assert.NoError(t, err)
 }
@@ -1291,6 +1308,7 @@ func TestWsRetrieveCustodyAccounts(t *testing.T) {
 func TestRemoveAPIKey(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, d, canManipulateRealOrders)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, d, canManipulateAPIEndpoints)
 	err := d.RemoveAPIKey(context.Background(), 1)
 	assert.NoError(t, err)
 }
@@ -1298,6 +1316,7 @@ func TestRemoveAPIKey(t *testing.T) {
 func TestWSRemoveAPIKey(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, d, canManipulateRealOrders)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, d, canManipulateAPIEndpoints)
 	err := d.WSRemoveAPIKey(1)
 	assert.NoError(t, err)
 }
@@ -2883,7 +2902,8 @@ func TestLogout(t *testing.T) {
 }
 func TestExchangeToken(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, d, canManipulateRealOrders)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, d)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, d, canManipulateAPIEndpoints)
 	_, err := d.ExchangeToken(context.Background(), "1568800656974.1CWcuzUS.MGy49NK4hpTwvR1OYWfpqMEkH4T4oDg4tNIcrM7KdeyxXRcSFqiGzA_D4Cn7mqWocHmlS89FFmUYcmaN2H7lNKKTnhRg5EtrzsFCCiuyN0Wv9y-LbGLV3-Ojv_kbD50FoScQ8BDXS5b_w6Ir1MqEdQ3qFZ3MLcvlPiIgG2BqyJX3ybYnVpIlrVrrdYD1-lkjLcjxOBNJvvUKNUAzkQ",
 		1234)
 	assert.NoError(t, err)
@@ -2891,14 +2911,16 @@ func TestExchangeToken(t *testing.T) {
 
 func TestWsExchangeToken(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, d, canManipulateRealOrders)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, d)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, d, canManipulateAPIEndpoints)
 	_, err := d.WsExchangeToken("1568800656974.1CWcuzUS.MGy49NK4hpTwvR1OYWfpqMEkH4T4oDg4tNIcrM7KdeyxXRcSFqiGzA_D4Cn7mqWocHmlS89FFmUYcmaN2H7lNKKTnhRg5EtrzsFCCiuyN0Wv9y-LbGLV3-Ojv_kbD50FoScQ8BDXS5b_w6Ir1MqEdQ3qFZ3MLcvlPiIgG2BqyJX3ybYnVpIlrVrrdYD1-lkjLcjxOBNJvvUKNUAzkQ",
 		1234)
 	assert.NoError(t, err)
 }
 func TestForkToken(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, d, canManipulateRealOrders)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, d)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, d, canManipulateAPIEndpoints)
 	_, err := d.ForkToken(context.Background(), "1568800656974.1CWcuzUS.MGy49NK4hpTwvR1OYWfpqMEkH4T4oDg4tNIcrM7KdeyxXRcSFqiGzA_D4Cn7mqWocHmlS89FFmUYcmaN2H7lNKKTnhRg5EtrzsFCCiuyN0Wv9y-LbGLV3-Ojv_kbD50FoScQ8BDXS5b_w6Ir1MqEdQ3qFZ3MLcvlPiIgG2BqyJX3ybYnVpIlrVrrdYD1-lkjLcjxOBNJvvUKNUAzkQ", "Sami")
 	assert.NoError(t, err)
 }
@@ -2906,6 +2928,7 @@ func TestForkToken(t *testing.T) {
 func TestWsForkToken(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, d, canManipulateRealOrders)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, d, canManipulateAPIEndpoints)
 	_, err := d.WsForkToken("1568800656974.1CWcuzUS.MGy49NK4hpTwvR1OYWfpqMEkH4T4oDg4tNIcrM7KdeyxXRcSFqiGzA_D4Cn7mqWocHmlS89FFmUYcmaN2H7lNKKTnhRg5EtrzsFCCiuyN0Wv9y-LbGLV3-Ojv_kbD50FoScQ8BDXS5b_w6Ir1MqEdQ3qFZ3MLcvlPiIgG2BqyJX3ybYnVpIlrVrrdYD1-lkjLcjxOBNJvvUKNUAzkQ", "Sami")
 	require.NoError(t, err)
 }
