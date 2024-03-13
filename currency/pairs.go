@@ -458,3 +458,37 @@ func (p Pairs) GetFormatting() (PairFormat, error) {
 	}
 	return pFmt, nil
 }
+
+// GetPairsByQuote returns all pairs that have a matching quote currency
+func (p Pairs) GetPairsByQuote(quoteTerm Code) (Pairs, error) {
+	if len(p) == 0 {
+		return nil, ErrCurrencyPairsEmpty
+	}
+	if quoteTerm.IsEmpty() {
+		return nil, ErrCurrencyCodeEmpty
+	}
+	pairs := make(Pairs, 0, len(p))
+	for i := range p {
+		if p[i].Quote.Equal(quoteTerm) {
+			pairs = append(pairs, p[i])
+		}
+	}
+	return pairs, nil
+}
+
+// GetPairsByBase returns all pairs that have a matching base currency
+func (p Pairs) GetPairsByBase(baseTerm Code) (Pairs, error) {
+	if len(p) == 0 {
+		return nil, ErrCurrencyPairsEmpty
+	}
+	if baseTerm.IsEmpty() {
+		return nil, ErrCurrencyCodeEmpty
+	}
+	pairs := make(Pairs, 0, len(p))
+	for i := range p {
+		if p[i].Base.Equal(baseTerm) {
+			pairs = append(pairs, p[i])
+		}
+	}
+	return pairs, nil
+}
