@@ -215,8 +215,8 @@ const (
 
 var defaultPingHandler = stream.PingHandler{MessageType: websocket.TextMessage, Message: pingMsg, Delay: time.Second * 20}
 
-// WsUnAuthBootstrap bootstraps the unauthenticated connection
-func (ok *Okx) WsUnAuthBootstrap(conn stream.Connection) error {
+// WsBootstrap bootstraps the unauthenticated connection
+func (ok *Okx) WsBootstrap(conn stream.Connection) error {
 	conn.SetupPingHandler(defaultPingHandler)
 	return nil
 }

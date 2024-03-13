@@ -140,6 +140,7 @@ func GetMockProxyServer() *httptest.Server {
 			http.Error(w, "Failed to upgrade connection to WebSocket", http.StatusInternalServerError)
 			return
 		}
+
 		actualServerConn, _, err := websocket.DefaultDialer.Dial("ws://"+r.Host, nil)
 		if err != nil {
 			err = conn.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseInternalServerErr, "Failed to dial actual server from proxy"))
@@ -148,18 +149,6 @@ func GetMockProxyServer() *httptest.Server {
 			return
 		}
 		go func() {
-			defer conn.Close()
-			for {
-				messageType, message, err := conn.ReadMessage()
-				if err != nil {
-					return
-				}
-				if err := actualServerConn.WriteMessage(messageType, message); err != nil {
-					return
-				}
-			}
-		}()
-		go func() {
 			defer actualServerConn.Close()
 			for {
 				messageType, message, err := actualServerConn.ReadMessage()
@@ -167,6 +156,18 @@ func GetMockProxyServer() *httptest.Server {
 					return
 				}
 				if err := conn.WriteMessage(messageType, message); err != nil {
+					return
+				}
+			}
+		}()
+		go func() {
+			defer conn.Close()
+			for {
+				messageType, message, err := conn.ReadMessage()
+				if err != nil {
+					return
+				}
+				if err := actualServerConn.WriteMessage(messageType, message); err != nil {
 					return
 				}
 			}

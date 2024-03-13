@@ -309,7 +309,7 @@ func (w *Websocket) Connect() error {
 	}
 
 	if w.connector == nil && w.Conn != nil {
-		err := w.initConnection(w.Conn, w.UnAuthBootstrap, w.UnAuthHandler)
+		err := w.initConnection(w.Conn, w.UnAuthBootstrap, w.UnAuthHandler, w.ReadBufferSize, w.WriteBufferSize)
 		if err != nil {
 			w.state.Store(disconnected)
 			return fmt.Errorf("unauthenticated connection: %w", err)
@@ -320,7 +320,7 @@ func (w *Websocket) Connect() error {
 	}
 
 	if w.connector == nil && w.AuthConn != nil && w.CanUseAuthenticatedEndpoints() {
-		err := w.initConnection(w.AuthConn, w.AuthBootstrap, w.AuthHandler)
+		err := w.initConnection(w.AuthConn, w.AuthBootstrap, w.AuthHandler, w.ReadBufferSize, w.WriteBufferSize)
 		if err != nil {
 			w.SetCanUseAuthenticatedEndpoints(false)
 			log.Errorf(log.ExchangeSys, "%s cannot use authenticated endpoints: %v", w.exchangeName, err)
@@ -713,7 +713,7 @@ func (w *Websocket) SetWebsocketURL(path string, reconnect bool) error {
 	return nil
 }
 
-// SetWebsocketURL sets websocket URL and can refresh underlying connections
+// SetWebsocketAuthURL sets websocket URL and can refresh underlying connections
 func (w *Websocket) SetWebsocketAuthURL(path string, reconnect bool) error {
 	if path == "" || path == config.WebsocketURLNonDefaultMessage {
 		path = w.defaultURLAuth
@@ -1038,8 +1038,10 @@ func (w *Websocket) listen(conn Connection, handler func(incoming []byte) error)
 
 // initConnection sets up and handles a websocket connection when there is a
 // connection specific setup required.
-func (w *Websocket) initConnection(conn Connection, bootstrap func(Connection) error, handler func([]byte) error) error {
+func (w *Websocket) initConnection(conn Connection, bootstrap func(Connection) error, handler func([]byte) error, readBufferSize, writeBufferSize uint) error {
 	dialer := *websocket.DefaultDialer
+	dialer.ReadBufferSize = int(readBufferSize)
+	dialer.WriteBufferSize = int(writeBufferSize)
 	if w.proxyAddr != nil {
 		// Note: This is a global setting and will affect all websocket
 		// connections. If you need to use a proxy for a single connection you

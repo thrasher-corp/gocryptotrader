@@ -96,12 +96,16 @@ type Websocket struct {
 	UnAuthHandler   func([]byte) error
 	UnAuthBootstrap func(Connection) error
 	RunningURL      string // TODO: Remove
+	ReadBufferSize  uint
+	WriteBufferSize uint
 
 	// Authenticated stream connection // TODO: Remove authenticated connection
-	AuthConn       Connection
-	AuthHandler    func([]byte) error
-	AuthBootstrap  func(Connection) error
-	RunningAuthURL string
+	AuthConn            Connection
+	AuthHandler         func([]byte) error
+	AuthBootstrap       func(Connection) error
+	RunningAuthURL      string
+	ReadBufferSizeAuth  uint
+	WriteBufferSizeAuth uint
 
 	// Latency reporter
 	ExchangeLevelReporter Reporter

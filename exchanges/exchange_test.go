@@ -221,7 +221,7 @@ func TestSetClientProxyAddress(t *testing.T) {
 		t.Error("trying to set the same proxy addr should thrown an err for ws")
 	}
 
-	assert.Equal(t, newBase.Websocket.GetProxyAddress().String(), "http://www.valid.com")
+	assert.Equal(t, "http://www.valid.com", newBase.Websocket.GetProxyAddress().String())
 }
 
 func TestSetFeatureDefaults(t *testing.T) {

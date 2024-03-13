@@ -240,7 +240,7 @@ func (ok *Okx) Setup(exch *config.Exchange) error {
 		ResponseMaxLimit:     okxWebsocketResponseMaxLimit,
 		RateLimit:            500,
 		Handler:              ok.WsHandleData,
-		Bootstrap:            ok.WsUnAuthBootstrap,
+		Bootstrap:            ok.WsBootstrap,
 		ReadBufferSize:       8192,
 		WriteBufferSize:      8192,
 	}); err != nil {
