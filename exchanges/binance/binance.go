@@ -1719,8 +1719,173 @@ func (b *Binance) GetDetailOnSubAccountMarginAccount(ctx context.Context, email 
 	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "sub-account/margin/account", params, spotDefaultRate, &resp)
 }
 
-// TODO: next
-// func (b *Binance) GetSummaryOfSubAccountMarginAccount(ctx context.Context, )
+// GetSummaryOfSubAccountMarginAccount retrieves summary of sub-account's margin account for master account
+func (b *Binance) GetSummaryOfSubAccountMarginAccount(ctx context.Context) (*SubAccountMarginAccount, error) {
+	var resp *SubAccountMarginAccount
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "sub-account/margin/accountSummary", nil, spotDefaultRate, &resp)
+}
+
+// EnableFuturesSubAccount enables futures for Sub-account for master account
+func (b *Binance) EnableFuturesSubAccount(ctx context.Context, email string) (*FuturesEnablingResponse, error) {
+	if !common.MatchesEmailPattern(email) {
+		return nil, errValidEmailRequired
+	}
+	params := url.Values{}
+	params.Set("email", email)
+	var resp *FuturesEnablingResponse
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "sub-account/futures/enable", params, spotDefaultRate, &resp)
+}
+
+// GetDetailSubAccountFuturesAccount retrieves detail on sub-account's futures account for master account
+func (b *Binance) GetDetailSubAccountFuturesAccount(ctx context.Context, email string) (*SubAccountsFuturesAccount, error) {
+	if !common.MatchesEmailPattern(email) {
+		return nil, errValidEmailRequired
+	}
+	params := url.Values{}
+	params.Set("email", email)
+	var resp *SubAccountsFuturesAccount
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "sub-account/futures/account", params, spotDefaultRate, &resp)
+}
+
+// GetSummaryOfSubAccountFuturesAccount retrieves summary of sub-account's futures account for master account
+func (b *Binance) GetSummaryOfSubAccountFuturesAccount(ctx context.Context) (*SubAccountsFuturesAccount, error) {
+	var resp *SubAccountsFuturesAccount
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "sub-account/futures/accountSummary", nil, spotDefaultRate, &resp)
+}
+
+// GetFuturesPositionRiskSubAccount retrieves futures position-risk of sub-account for master account
+func (b *Binance) GetFuturesPositionRiskSubAccount(ctx context.Context, email string) (*SubAccountFuturesPositionRisk, error) {
+	if !common.MatchesEmailPattern(email) {
+		return nil, errValidEmailRequired
+	}
+	params := url.Values{}
+	params.Set("email", email)
+	var resp *SubAccountFuturesPositionRisk
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "sub-account/futures/positionRisk", params, spotDefaultRate, &resp)
+}
+
+// FuturesTransferSubAccount transfers futures for sub-account( from master account only)
+// 1: transfer from subaccount's spot account to its USDT-margined futures account 2: transfer from subaccount's USDT-margined futures account to its spot account
+// 3: transfer from subaccount's spot account to its COIN-margined futures account 4:transfer from subaccount's COIN-margined futures account to its spot account
+func (b *Binance) FuturesTransferSubAccount(ctx context.Context, email string, asset currency.Code, amount float64, transferType int64) (string, error) {
+	return b.transferSubAccount(ctx, email, "sub-account/futures/transfer", asset, amount, transferType)
+}
+
+// MarginTransferForSubAccount margin Transfer for Sub-account (For Master Account)
+// transferType: 1: transfer from subaccount's spot account to margin account 2: transfer from subaccount's margin account to its spot account
+func (b *Binance) MarginTransferForSubAccount(ctx context.Context, email string, asset currency.Code, amount float64, transferType int64) (string, error) {
+	return b.transferSubAccount(ctx, email, "sub-account/margin/transfer", asset, amount, transferType)
+}
+
+func (b *Binance) transferSubAccount(ctx context.Context, email, path string, asset currency.Code, amount float64, transferType int64) (string, error) {
+	if !common.MatchesEmailPattern(email) {
+		return "", errValidEmailRequired
+	}
+	if asset.IsEmpty() {
+		return "", currency.ErrCurrencyCodeEmpty
+	}
+	if amount <= 0 {
+		return "", order.ErrAmountBelowMin
+	}
+	if transferType != 1 && transferType != 2 && transferType != 3 && transferType != 4 {
+		return "", errors.New("transfer type is required")
+	}
+	params := url.Values{}
+	params.Set("email", email)
+	params.Set("asset", asset.String())
+	params.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
+	params.Set("type", strconv.FormatInt(transferType, 10))
+	resp := struct {
+		TransactionID string `json:"txnId"`
+	}{}
+	return resp.TransactionID, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, params, spotDefaultRate, &resp)
+}
+
+// TransferToSubAccountOfSameMaster Transfer to Sub-account of Same Master (For Sub-account)
+func (b *Binance) TransferToSubAccountOfSameMaster(ctx context.Context, toEmail string, asset currency.Code, amount float64) (string, error) {
+	if !common.MatchesEmailPattern(toEmail) {
+		return "", errValidEmailRequired
+	}
+	if asset.IsEmpty() {
+		return "", currency.ErrCurrencyCodeEmpty
+	}
+	if amount <= 0 {
+		return "", order.ErrAmountBelowMin
+	}
+	params := url.Values{}
+	params.Set("toEmail", toEmail)
+	params.Set("asset", asset.String())
+	params.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
+	resp := &struct {
+		TransactionID string `json:"txnId"`
+	}{}
+	return resp.TransactionID, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "sub-account/transfer/subToSub", params, spotDefaultRate, &resp)
+}
+
+// FromSubAccountTransferToMaster Transfer to Master (For Sub-account)
+// need to open Enable Spot & Margin Trading permission for the API Key which requests this endpoint.
+func (b *Binance) FromSubAccountTransferToMaster(ctx context.Context, asset currency.Code, amount float64) (string, error) {
+	if asset.IsEmpty() {
+		return "", currency.ErrCurrencyCodeEmpty
+	}
+	if amount <= 0 {
+		return "", order.ErrAmountBelowMin
+	}
+	params := url.Values{}
+	params.Set("asset", asset.String())
+	params.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
+	resp := &struct {
+		TransactionID string `json:"txnId"`
+	}{}
+	return resp.TransactionID, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "sub-account/transfer/subToMaster", params, spotDefaultRate, &resp)
+}
+
+// SubAccountTransferHistory retrieves Sub-account Transfer History (For Sub-account)
+func (b *Binance) SubAccountTransferHistory(ctx context.Context, asset currency.Code, transferType, limit int64, startTime, endTime time.Time) (*SubAccountTransferHistory, error) {
+	params := url.Values{}
+	if !asset.IsEmpty() {
+		params.Set("asset", asset.String())
+	}
+	if transferType != 1 && transferType != 2 {
+		params.Set("type", strconv.FormatInt(transferType, 10))
+	}
+	if !startTime.IsZero() {
+		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+	}
+	if !endTime.IsZero() {
+		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	var resp *SubAccountTransferHistory
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "sub-account/transfer/subUserHistory", params, spotDefaultRate, &resp)
+}
+
+// SubAccountTransferHistoryForSubAccount represents a sub-account transfer history for sub accounts.
+func (b *Binance) SubAccountTransferHistoryForSubAccount(ctx context.Context, asset currency.Code, transferType, limit int64, startTime, endTime time.Time, returnFailHistory bool) (*SubAccountTransferHistoryItem, error) {
+	params := url.Values{}
+	if !asset.IsEmpty() {
+		params.Set("asset", asset.String())
+	}
+	if transferType != 0 {
+		params.Set("type", strconv.FormatInt(transferType, 10))
+	}
+	if !startTime.IsZero() {
+		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+	}
+	if !endTime.IsZero() {
+		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	if returnFailHistory {
+		params.Set("returnFailHistory", "true")
+	}
+	var resp *SubAccountTransferHistoryItem
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "sub-account/transfer/subUserHistory", params, spotDefaultRate, &resp)
+}
 
 // GetAccountStatus fetch account status detail.
 func (b *Binance) GetAccountStatus(ctx context.Context) (string, error) {

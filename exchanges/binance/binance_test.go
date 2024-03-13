@@ -1177,6 +1177,94 @@ func TestGetDetailOnSubAccountMarginAccount(t *testing.T) {
 	assert.NoError(t, err)
 }
 
+func TestGetSummaryOfSubAccountMarginAccount(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetSummaryOfSubAccountMarginAccount(context.Background())
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestEnableFuturesSubAccount(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	_, err := b.EnableFuturesSubAccount(context.Background(), "address@gmail.com")
+	require.NoError(t, err)
+	assert.NoError(t, err)
+}
+
+func TestGetDetailSubAccountFuturesAccount(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	_, err := b.GetDetailSubAccountFuturesAccount(context.Background(), "address@gmail.com")
+	require.NoError(t, err)
+	assert.NoError(t, err)
+}
+
+func TestGetSummaryOfSubAccountFuturesAccount(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	result, err := b.GetSummaryOfSubAccountFuturesAccount(context.Background())
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetFuturesPositionRiskSubAccount(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetFuturesPositionRiskSubAccount(context.Background(), "address@mail.com")
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestFuturesTransferSubAccount(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	result, err := b.FuturesTransferSubAccount(context.Background(), "someone@mail.com", currency.BTC, 1.1, 1)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestMarginTransferForSubAccount(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	result, err := b.MarginTransferForSubAccount(context.Background(), "someone@mail.com", currency.BTC, 1.1, 1)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestTransferToSubAccountOfSameMaster(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.TransferToSubAccountOfSameMaster(context.Background(), "toEmail@thrasher.io", currency.ETH, 10)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestFromSubAccountTransferToMaster(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	result, err := b.FromSubAccountTransferToMaster(context.Background(), currency.LTC, 0.1)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestSubAccountTransferHistory(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	result, err := b.SubAccountTransferHistory(context.Background(), currency.BTC, 1, 10, time.Time{}, time.Now())
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestSubAccountTransferHistoryForSubAccount(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	result, err := b.SubAccountTransferHistoryForSubAccount(context.Background(), currency.LTC, 2, 0, time.Time{}, time.Now(), true)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
 func TestQueryOrder(t *testing.T) {
 	t.Parallel()
 
