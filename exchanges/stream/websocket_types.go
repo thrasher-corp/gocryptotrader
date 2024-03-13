@@ -117,8 +117,7 @@ type Websocket struct {
 
 // WebsocketSetup defines variables for setting up a websocket connection
 type WebsocketSetup struct {
-	ExchangeConfig *config.Exchange
-	// DefaultURL            string
+	ExchangeConfig        *config.Exchange
 	RunningURL            string
 	RunningURLAuth        string
 	Connector             func() error
