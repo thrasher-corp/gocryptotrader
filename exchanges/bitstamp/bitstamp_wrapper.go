@@ -567,7 +567,6 @@ func (b *Bitstamp) GetOrderInfo(ctx context.Context, orderID string, _ currency.
 			TID:   strconv.FormatInt(o.Transactions[i].TradeID, 10),
 			Price: o.Transactions[i].Price,
 			Fee:   o.Transactions[i].Fee,
-			//Amount: o.Transactions[i].BTC,??????????
 		}
 	}
 	orderDate, err := time.Parse(time.DateTime, o.DateTime)
