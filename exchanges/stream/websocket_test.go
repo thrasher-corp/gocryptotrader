@@ -141,13 +141,14 @@ func GetMockProxyServer() *httptest.Server {
 			return
 		}
 
-		actualServerConn, _, err := websocket.DefaultDialer.Dial("ws://"+r.Host, nil)
+		actualServerConn, respBody, err := websocket.DefaultDialer.Dial("ws://"+r.Host, nil)
 		if err != nil {
 			err = conn.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseInternalServerErr, "Failed to dial actual server from proxy"))
 			log.Printf("Failed to dial actual server from proxy: %v", err)
 			conn.Close()
 			return
 		}
+		_ = respBody.Body.Close()
 		go func() {
 			defer actualServerConn.Close()
 			for {
