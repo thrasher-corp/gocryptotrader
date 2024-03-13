@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/config"
@@ -985,12 +986,8 @@ func TestCancelAllQuotes(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
 
 	time, err := ok.CancelAllQuotes(contextGenerate())
-	switch {
-	case err != nil:
-		t.Error("Okx CancelAllQuotes() error", err)
-	case time.IsZero():
-		t.Error("Okx CancelAllQuotes() zero timestamp message ")
-	}
+	require.NoError(t, err, "CancelAllQuotes should not error")
+	assert.NotEmpty(t, time, "CancelAllQuotes should return a time")
 }
 
 func TestGetRfqs(t *testing.T) {
@@ -2262,14 +2259,8 @@ func TestGetOrderHistory(t *testing.T) {
 		Side:      order.Buy,
 	}
 	_, err := ok.GetOrderHistory(contextGenerate(), &getOrdersRequest)
-	if err == nil {
-		t.Errorf("Okx GetOrderHistory() Expected: %v. received nil", err)
-	} else if !errors.Is(err, errMissingAtLeast1CurrencyPair) {
-		t.Errorf("Okx GetOrderHistory() Expected: %v, but found %v", errMissingAtLeast1CurrencyPair, err)
-	}
-	getOrdersRequest.Pairs = []currency.Pair{
-		currency.NewPair(currency.LTC,
-			currency.BTC)}
+	assert.ErrorIs(t, err, currency.ErrCurrencyPairRequired, "GetOrderHistory should error when no pair set")
+	getOrdersRequest.Pairs = []currency.Pair{currency.NewPair(currency.LTC, currency.BTC)}
 	if _, err := ok.GetOrderHistory(contextGenerate(), &getOrdersRequest); err != nil {
 		t.Error("Okx GetOrderHistory() error", err)
 	}

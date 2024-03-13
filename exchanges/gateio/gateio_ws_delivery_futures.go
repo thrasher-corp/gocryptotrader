@@ -52,7 +52,7 @@ func (g *Gateio) WsDeliveryFuturesConnect() error {
 		return err
 	}
 	var dialer websocket.Dialer
-	err = g.Websocket.SetWebsocketURL(deliveryRealUSDTTradingURL, false, true)
+	err = g.Websocket.SetWebsocketURL(deliveryRealUSDTTradingURL, true)
 	if err != nil {
 		return err
 	}
@@ -79,8 +79,7 @@ func (g *Gateio) WsDeliveryFuturesConnect() error {
 	go g.wsFunnelDeliveryFuturesConnectionData(g.Websocket.Conn)
 	go g.wsFunnelDeliveryFuturesConnectionData(g.Websocket.AuthConn)
 	if g.Verbose {
-		log.Debugf(log.ExchangeSys, "successful connection to %v\n",
-			g.Websocket.GetWebsocketURL(false))
+		log.Debugf(log.ExchangeSys, "successful connection to %v\n", g.Websocket.GetWebsocketURL())
 	}
 	pingMessage, err := json.Marshal(WsInput{
 		ID:      g.Websocket.Conn.GenerateMessageID(false),

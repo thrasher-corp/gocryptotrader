@@ -3058,7 +3058,7 @@ func (s *RPCServer) WebsocketGetInfo(_ context.Context, r *gctrpc.WebsocketGetIn
 		Supported:     exch.SupportsWebsocket(),
 		Enabled:       exch.IsWebsocketEnabled(),
 		Authenticated: w.CanUseAuthenticatedEndpoints(),
-		RunningUrl:    w.GetWebsocketURL(false), // TODO: Add Authenticated URL
+		RunningUrl:    w.GetWebsocketURL(), // TODO: Add Authenticated URL
 		ProxyAddress:  w.GetProxyAddress().String(),
 	}, nil
 }
@@ -3163,7 +3163,7 @@ func (s *RPCServer) WebsocketSetURL(_ context.Context, r *gctrpc.WebsocketSetURL
 		return nil, fmt.Errorf("websocket not supported for exchange %s", r.Exchange)
 	}
 
-	err = w.SetWebsocketURL(r.Url, false, true)
+	err = w.SetWebsocketURL(r.Url, true)
 	if err != nil {
 		return nil, err
 	}

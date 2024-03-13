@@ -11,6 +11,7 @@ import (
 	"net"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"os"
 	"sort"
 	"strconv"
@@ -29,18 +30,17 @@ import (
 )
 
 const (
-	websocketTestURL = "wss://www.bitmex.com/realtime"
+	websocketTestURL = "wss://ws.bitmex.com/realtime"
 	useProxyTests    = false                     // Disabled by default. Freely available proxy servers that work all the time are difficult to find
 	proxyURL         = "http://212.186.171.4:80" // Replace with a usable proxy server
 )
 
 var errDastardlyReason = errors.New("some dastardly reason")
 
-var dialer websocket.Dialer
-
 type testStruct struct {
 	Error error
 	WC    WebsocketConnection
+	Proxy string
 }
 
 type testRequest struct {
@@ -105,12 +105,8 @@ func (d *dodgyConnection) Dial(*websocket.Dialer, http.Header) error {
 	return fmt.Errorf("cannot connect: %w", errDastardlyReason)
 }
 
-var mockServer *httptest.Server
-var mockServerURL = "ws://"
-var mockProxy *httptest.Server
-
-func TestMain(m *testing.M) {
-	mockServer = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+func GetMockServer() *httptest.Server {
+	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		upgrader := websocket.Upgrader{}
 		conn, err := upgrader.Upgrade(w, r, nil)
 		if err != nil {
@@ -128,9 +124,11 @@ func TestMain(m *testing.M) {
 			}
 		}()
 	}))
-	mockServerURL += strings.Split(mockServer.URL, "//")[1]
+}
 
-	mockProxy = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+func GetMockProxyServer() *httptest.Server {
+	// TODO: Add TLS support
+	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodConnect {
 			w.WriteHeader(http.StatusOK)
 			return
@@ -174,6 +172,16 @@ func TestMain(m *testing.M) {
 			}
 		}()
 	}))
+}
+
+var mockServer *httptest.Server
+var mockServerURL = "ws://"
+var mockProxy *httptest.Server
+
+func TestMain(m *testing.M) {
+	mockServer = GetMockServer()
+	mockServerURL += strings.Split(mockServer.URL, "//")[1]
+	mockProxy = GetMockProxyServer()
 
 	// Change trafficCheckInterval for TestTrafficMonitorTimeout before parallel tests to avoid racing
 	trafficCheckInterval = 50 * time.Millisecond
@@ -368,13 +376,13 @@ func TestConnectionMessageErrors(t *testing.T) {
 	err := wsWrong.Connect()
 	assert.ErrorIs(t, err, ErrWebsocketNotEnabled, "Connect should error correctly")
 
-	wsWrong.setEnabled(true)
-	wsWrong.setState(connecting)
+	wsWrong.enabled.Store(true)
+	wsWrong.state.Store(connecting)
 	wsWrong.Wg = &sync.WaitGroup{}
 	err = wsWrong.Connect()
 	assert.ErrorIs(t, err, errAlreadyReconnecting, "Connect should error correctly")
 
-	wsWrong.setState(disconnected)
+	wsWrong.state.Store(disconnected)
 	wsWrong.connector = func() error { return errDastardlyReason }
 
 	err = wsWrong.Connect()
@@ -432,7 +440,7 @@ func TestConnectionMessageErrors(t *testing.T) {
 	require.NoError(t, err) // With auth conn will only log errors.
 	assert.False(t, ws.CanUseAuthenticatedEndpoints())
 
-	ws.setState(disconnected)
+	ws.state.Store(disconnected)
 
 	ws.SetCanUseAuthenticatedEndpoints(true)
 	ws.AuthConn = &WebsocketConnection{URL: mockServerURL}
@@ -451,7 +459,7 @@ func TestWebsocket(t *testing.T) {
 
 	ws.Conn = &dodgyConnection{}
 	ws.AuthConn = &dodgyConnection{}
-	ws.setEnabled(true)
+	ws.enabled.Store(true)
 
 	err = ws.Setup(defaultSetup) // Sets to enabled again
 	require.NoError(t, err, "Setup may not error")
@@ -462,16 +470,16 @@ func TestWebsocket(t *testing.T) {
 	assert.Equal(t, "GTX", ws.GetName(), "GetName should return correctly")
 	assert.True(t, ws.IsEnabled(), "Websocket should be enabled by Setup")
 
-	ws.setEnabled(false)
-	assert.False(t, ws.IsEnabled(), "Websocket should be disabled by setEnabled(false)")
+	ws.enabled.Store(false)
+	assert.False(t, ws.IsEnabled(), "Websocket should be disabled by ws.enabled.Store(false)")
 
-	ws.setEnabled(true)
-	assert.True(t, ws.IsEnabled(), "Websocket should be enabled by setEnabled(true)")
+	ws.enabled.Store(true)
+	assert.True(t, ws.IsEnabled(), "Websocket should be enabled by ws.enabled.Store(true)")
 
 	err = ws.SetProxyAddress("https://192.168.0.1:1337")
 	assert.NoError(t, err, "SetProxyAddress should not error when not yet connected")
 
-	ws.setState(connected)
+	ws.state.Store(connected)
 
 	err = ws.SetProxyAddress("https://192.168.0.1:1336")
 	assert.ErrorIs(t, err, errDastardlyReason, "SetProxyAddress should call Connect and error from there")
@@ -486,13 +494,13 @@ func TestWebsocket(t *testing.T) {
 
 	ws.Conn = &WebsocketConnection{URL: mockServerURL}
 	ws.AuthConn = nil
-	ws.setEnabled(true)
+	ws.enabled.Store(true)
 
 	// reinstate proxy
 	err = ws.SetProxyAddress(mockProxy.URL)
 	assert.NoError(t, err, "SetProxyAddress should not error")
 	assert.Equal(t, mockProxy.URL, ws.GetProxyAddress().String(), "GetProxyAddress should return correctly")
-	assert.Equal(t, mockServerURL, ws.GetWebsocketURL(false), "GetWebsocketURL should return correctly")
+	assert.Equal(t, mockServerURL, ws.GetWebsocketURL(), "GetWebsocketURL should return correctly")
 	assert.Equal(t, time.Second*5, ws.trafficTimeout, "trafficTimeout should default correctly")
 
 	ws.AuthConn = &dodgyConnection{}
@@ -501,7 +509,7 @@ func TestWebsocket(t *testing.T) {
 	assert.ErrorIs(t, err, errCannotShutdown, "Shutdown should error correctly with a dodgy authConn")
 
 	ws.AuthConn = &WebsocketConnection{URL: mockServerURL}
-	ws.setState(disconnected)
+	ws.state.Store(disconnected)
 
 	err = ws.Connect()
 	assert.NoError(t, err, "Connect should not error")
@@ -509,19 +517,19 @@ func TestWebsocket(t *testing.T) {
 	ws.defaultURL = "ws://demos.kaazing.com/echo"
 	ws.defaultURLAuth = "ws://demos.kaazing.com/echo"
 
-	err = ws.SetWebsocketURL("", false, false)
+	err = ws.SetWebsocketURL("", false)
 	assert.NoError(t, err, "SetWebsocketURL should not error")
 
-	err = ws.SetWebsocketURL("ws://demos.kaazing.com/echo", false, false)
+	err = ws.SetWebsocketURL("ws://demos.kaazing.com/echo", false)
 	assert.NoError(t, err, "SetWebsocketURL should not error")
 
-	err = ws.SetWebsocketURL("", true, false)
+	err = ws.SetWebsocketAuthURL("", false)
 	assert.NoError(t, err, "SetWebsocketURL should not error")
 
-	err = ws.SetWebsocketURL("ws://demos.kaazing.com/echo", true, false)
+	err = ws.SetWebsocketAuthURL("ws://demos.kaazing.com/echo", false)
 	assert.NoError(t, err, "SetWebsocketURL should not error")
 
-	err = ws.SetWebsocketURL("ws://demos.kaazing.com/echo", true, true)
+	err = ws.SetWebsocketAuthURL("ws://demos.kaazing.com/echo", true)
 	assert.NoError(t, err, "SetWebsocketURL should not error on reconnect")
 
 	// -- initiate the reconnect which is usually handled by connection monitor
@@ -660,7 +668,7 @@ func TestConnectionMonitorNoConnection(t *testing.T) {
 	ws.ShutdownC = make(chan struct{}, 1)
 	ws.exchangeName = "hello"
 	ws.Wg = &sync.WaitGroup{}
-	ws.setEnabled(true)
+	ws.enabled.Store(true)
 	err := ws.connectionMonitor()
 	require.NoError(t, err, "connectionMonitor must not error")
 	assert.True(t, ws.IsConnectionMonitorRunning(), "IsConnectionMonitorRunning should return true")
@@ -713,7 +721,7 @@ func TestSetCanUseAuthenticatedEndpoints(t *testing.T) {
 func TestDial(t *testing.T) {
 	t.Parallel()
 	var testCases = []testStruct{
-		{Error: nil,
+		{
 			WC: WebsocketConnection{
 				ExchangeName:     "test1",
 				Verbose:          true,
@@ -722,32 +730,39 @@ func TestDial(t *testing.T) {
 				ResponseMaxLimit: 7000000000,
 			},
 		},
-		{Error: errors.New(" Error: malformed ws or wss URL"),
+		{
+			Error: errors.New(" Error: malformed ws or wss URL"),
 			WC: WebsocketConnection{
 				ExchangeName:     "test2",
 				Verbose:          true,
-				URL:              "",
 				ResponseMaxLimit: 7000000000,
 			},
 		},
-		{Error: nil,
+		{
 			WC: WebsocketConnection{
-				ExchangeName: "test3",
-				Verbose:      true,
-				URL:          websocketTestURL,
-				// ProxyURL:         proxyURL,
+				ExchangeName:     "test3",
+				Verbose:          true,
+				URL:              websocketTestURL,
 				ResponseMaxLimit: 7000000000,
 			},
+			Proxy: proxyURL, // TODO: Link up to mock proxy server when tls is added
 		},
 	}
 	for i := range testCases {
 		testData := &testCases[i]
 		t.Run(testData.WC.ExchangeName, func(t *testing.T) {
 			t.Parallel()
-			if /*testData.WC.ProxyURL != "" &&*/ !useProxyTests {
-				t.Skip("Proxy testing not enabled, skipping")
+			dialer := *websocket.DefaultDialer
+			if testData.Proxy != "" {
+				if !useProxyTests {
+					t.Skip("proxy testing not enabled skipping")
+				}
+				prox, err := url.Parse(testData.Proxy)
+				require.NoError(t, err)
+				dialer.Proxy = http.ProxyURL(prox)
 			}
-			err := testData.WC.Dial(&dialer, http.Header{})
+
+			err := testData.WC.Dial(&dialer, nil)
 			if err != nil {
 				if testData.Error != nil && strings.Contains(err.Error(), testData.Error.Error()) {
 					return
@@ -762,40 +777,47 @@ func TestDial(t *testing.T) {
 func TestSendMessage(t *testing.T) {
 	t.Parallel()
 	var testCases = []testStruct{
-		{Error: nil, WC: WebsocketConnection{
-			ExchangeName:     "test1",
-			Verbose:          true,
-			URL:              websocketTestURL,
-			RateLimit:        10,
-			ResponseMaxLimit: 7000000000,
+		{
+			WC: WebsocketConnection{
+				ExchangeName:     "test1",
+				Verbose:          true,
+				URL:              websocketTestURL,
+				RateLimit:        10,
+				ResponseMaxLimit: 7000000000,
+			},
 		},
-		},
-		{Error: errors.New(" Error: malformed ws or wss URL"),
+		{
+			Error: errors.New(" Error: malformed ws or wss URL"),
 			WC: WebsocketConnection{
 				ExchangeName:     "test2",
 				Verbose:          true,
-				URL:              "",
 				ResponseMaxLimit: 7000000000,
 			},
 		},
-		{Error: nil,
+		{
 			WC: WebsocketConnection{
-				ExchangeName: "test3",
-				Verbose:      true,
-				URL:          websocketTestURL,
-				// ProxyURL:         proxyURL,
+				ExchangeName:     "test3",
+				Verbose:          true,
+				URL:              websocketTestURL,
 				ResponseMaxLimit: 7000000000,
 			},
+			Proxy: proxyURL, // TODO: Link up to mock proxy server when tls is added
 		},
 	}
 	for i := range testCases {
 		testData := &testCases[i]
 		t.Run(testData.WC.ExchangeName, func(t *testing.T) {
 			t.Parallel()
-			if /*testData.WC.ProxyURL != "" &&*/ !useProxyTests {
-				t.Skip("Proxy testing not enabled, skipping")
+			dialer := *websocket.DefaultDialer
+			if testData.Proxy != "" {
+				if !useProxyTests {
+					t.Skip("proxy testing not enabled skipping")
+				}
+				prox, err := url.Parse(testData.Proxy)
+				require.NoError(t, err)
+				dialer.Proxy = http.ProxyURL(prox)
 			}
-			err := testData.WC.Dial(&dialer, http.Header{})
+			err := testData.WC.Dial(&dialer, nil)
 			if err != nil {
 				if testData.Error != nil && strings.Contains(err.Error(), testData.Error.Error()) {
 					return
@@ -823,10 +845,7 @@ func TestSendMessageWithResponse(t *testing.T) {
 		ResponseMaxLimit: time.Second * 5,
 		Match:            NewMatch(),
 	}
-	if /*wc.ProxyURL != "" &&*/ !useProxyTests {
-		t.Skip("Proxy testing not enabled, skipping")
-	}
-
+	dialer := *websocket.DefaultDialer
 	err := wc.Dial(&dialer, http.Header{})
 	if err != nil {
 		t.Fatal(err)
@@ -899,10 +918,8 @@ func TestSetupPingHandler(t *testing.T) {
 		Wg:               &sync.WaitGroup{},
 	}
 
-	if /*wc.ProxyURL != "" &&*/ !useProxyTests {
-		t.Skip("Proxy testing not enabled, skipping")
-	}
 	wc.ShutdownC = make(chan struct{})
+	dialer := *websocket.DefaultDialer
 	err := wc.Dial(&dialer, http.Header{})
 	if err != nil {
 		t.Fatal(err)
@@ -973,7 +990,7 @@ func TestCanUseAuthenticatedWebsocketForWrapper(t *testing.T) {
 	ws := &Websocket{}
 	assert.False(t, ws.CanUseAuthenticatedWebsocketForWrapper(), "CanUseAuthenticatedWebsocketForWrapper should return false")
 
-	ws.setState(connected)
+	ws.state.Store(connected)
 	require.True(t, ws.IsConnected(), "IsConnected must return true")
 	assert.False(t, ws.CanUseAuthenticatedWebsocketForWrapper(), "CanUseAuthenticatedWebsocketForWrapper should return false")
 
@@ -1130,7 +1147,7 @@ func TestFlushChannels(t *testing.T) {
 	err := dodgyWs.FlushChannels()
 	assert.ErrorIs(t, err, ErrWebsocketNotEnabled, "FlushChannels should error correctly")
 
-	dodgyWs.setEnabled(true)
+	dodgyWs.enabled.Store(true)
 	err = dodgyWs.FlushChannels()
 	assert.ErrorIs(t, err, ErrNotConnected, "FlushChannels should error correctly")
 
@@ -1147,8 +1164,8 @@ func TestFlushChannels(t *testing.T) {
 		// in FlushChannels() so the traffic monitor doesn't time out and turn
 		// this to an unconnected state
 	}
-	w.setEnabled(true)
-	w.setState(connected)
+	w.enabled.Store(true)
+	w.state.Store(connected)
 
 	problemFunc := func() ([]subscription.Subscription, error) {
 		return nil, errDastardlyReason
@@ -1214,7 +1231,7 @@ func TestFlushChannels(t *testing.T) {
 	err = w.FlushChannels()
 	assert.NoError(t, err, "FlushChannels should not error")
 
-	w.setState(connected)
+	w.state.Store(connected)
 	w.features.Unsubscribe = true
 	err = w.FlushChannels()
 	assert.NoError(t, err, "FlushChannels should not error")
@@ -1225,8 +1242,8 @@ func TestDisable(t *testing.T) {
 	w := Websocket{
 		ShutdownC: make(chan struct{}),
 	}
-	w.setEnabled(true)
-	w.setState(connected)
+	w.enabled.Store(true)
+	w.state.Store(connected)
 	require.NoError(t, w.Disable(), "Disable must not error")
 	assert.ErrorIs(t, w.Disable(), ErrAlreadyDisabled, "Disable should error correctly")
 }
@@ -1311,10 +1328,8 @@ func TestLatency(t *testing.T) {
 		Match:            NewMatch(),
 		Reporter:         r,
 	}
-	if /*wc.ProxyURL != "" &&*/ !useProxyTests {
-		t.Skip("Proxy testing not enabled, skipping")
-	}
 
+	dialer := *websocket.DefaultDialer
 	err := wc.Dial(&dialer, http.Header{})
 	if err != nil {
 		t.Fatal(err)

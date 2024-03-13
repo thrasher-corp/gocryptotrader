@@ -61,9 +61,9 @@ func (bi *Binanceus) WsConnect() error {
 				err)
 		} else {
 			// cleans on failed connection
-			clean := strings.Split(bi.Websocket.GetWebsocketURL(false), "?streams=")
+			clean := strings.Split(bi.Websocket.GetWebsocketURL(), "?streams=")
 			authPayload := clean[0] + "?streams=" + listenKey
-			err = bi.Websocket.SetWebsocketURL(authPayload, false, false)
+			err = bi.Websocket.SetWebsocketURL(authPayload, false)
 			if err != nil {
 				return err
 			}

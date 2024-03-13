@@ -1271,7 +1271,7 @@ func (ok *Okx) GetOrderHistory(ctx context.Context, req *order.MultiOrderRequest
 		return nil, errOnlyThreeMonthsSupported
 	}
 	if len(req.Pairs) == 0 {
-		return nil, errMissingAtLeast1CurrencyPair
+		return nil, currency.ErrCurrencyPairRequired
 	}
 	if !ok.SupportsAsset(req.AssetType) {
 		return nil, fmt.Errorf("%w: %v", asset.ErrNotSupported, req.AssetType)

@@ -19,6 +19,8 @@ var (
 	ErrCurrencyNotSupported = errors.New("currency not supported")
 	// ErrCurrencyPairsEmpty returns when a currency.Pairs has len == 0
 	ErrCurrencyPairsEmpty = errors.New("currency pairs is empty")
+	// ErrPairRequired is an error for when a currency pair is required
+	ErrCurrencyPairRequired = errors.New("currency pair required")
 	// EMPTYCODE is an empty currency code
 	EMPTYCODE = Code{}
 	// EMPTYPAIR is an empty currency pair

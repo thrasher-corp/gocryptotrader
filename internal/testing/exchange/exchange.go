@@ -96,10 +96,10 @@ func MockWSInstance[T any, PT interface {
 	b.SkipAuthCheck = true
 	err := b.API.Endpoints.SetRunning("RestSpotURL", s.URL)
 	require.NoError(tb, err, "Endpoints.SetRunning should not error for RestSpotURL")
-	for _, auth := range []bool{true, false} {
-		err = b.Websocket.SetWebsocketURL("ws"+strings.TrimPrefix(s.URL, "http"), auth, true)
-		require.NoErrorf(tb, err, "SetWebsocketURL should not error for auth: %v", auth)
-	}
+	err = b.Websocket.SetWebsocketURL("ws"+strings.TrimPrefix(s.URL, "http"), true)
+	require.NoErrorf(tb, err, "SetWebsocketURL should not error for auth: %v", false)
+	err = b.Websocket.SetWebsocketAuthURL("ws"+strings.TrimPrefix(s.URL, "http"), true)
+	require.NoErrorf(tb, err, "SetWebsocketURL should not error for auth: %v", true)
 
 	b.Features.Subscriptions = []*subscription.Subscription{}
 	err = b.Websocket.Connect()

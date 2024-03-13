@@ -16,12 +16,13 @@ type Connection interface {
 	ReadMessage() Response
 	SendJSONMessage(interface{}) error
 	SetupPingHandler(PingHandler)
-	GenerateMessageID(highPrecision bool) int64
+	GenerateMessageID(highPrecision bool) int64 // TODO: Remove and abstract as this shouldn't be localised to the connection
 	SendMessageReturnResponse(signature interface{}, request interface{}) ([]byte, error)
 	SendRawMessage(messageType int, message []byte) error
 	SetURL(string)
 	GetURL() string
 	Shutdown() error
+	GetType() string
 }
 
 // Response defines generalised data from the stream connection

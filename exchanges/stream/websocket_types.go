@@ -159,4 +159,9 @@ type WebsocketConnection struct {
 	readMessageErrors chan error
 
 	Reporter Reporter
+
+	// Note: This is a temporary solution for broadcasting the type of
+	// connection. TODO: Upgrade to include more information about the
+	// connection.
+	Type string
 }
