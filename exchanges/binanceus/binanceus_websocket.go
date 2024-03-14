@@ -45,7 +45,7 @@ var (
 // WsConnect initiates a websocket connection
 func (bi *Binanceus) WsConnect() error {
 	if !bi.Websocket.IsEnabled() || !bi.IsEnabled() {
-		return errors.New(stream.WebsocketNotEnabled)
+		return stream.ErrWebsocketNotEnabled
 	}
 	var dialer websocket.Dialer
 	dialer.HandshakeTimeout = bi.Config.HTTPTimeout
