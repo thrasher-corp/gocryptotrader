@@ -63,8 +63,6 @@ type IBotExchange interface {
 	SetHTTPClientUserAgent(ua string) error
 	GetHTTPClientUserAgent() (string, error)
 	SetClientProxyAddress(addr string) error
-	// GetDefaultConfig returns a default exchange config
-	GetDefaultConfig(ctx context.Context, instance LimitedScope) (*config.Exchange, error)
 	GetBase() *Base
 	GetHistoricCandles(ctx context.Context, pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error)
 	GetHistoricCandlesExtended(ctx context.Context, pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error)
@@ -188,12 +186,4 @@ type MarginManagement interface {
 	GetMarginRatesHistory(context.Context, *margin.RateHistoryRequest) (*margin.RateHistoryResponse, error)
 	futures.PNLCalculation
 	GetFuturesContractDetails(ctx context.Context, item asset.Item) ([]futures.Contract, error)
-}
-
-// LimitedScope defines a subset of the exchange interface
-type LimitedScope interface {
-	GetBase() *Base
-	GetName() string
-	SetDefaults()
-	UpdateTradablePairs(context.Context, bool) error
 }
