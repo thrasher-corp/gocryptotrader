@@ -366,8 +366,6 @@ func (ok *Okx) handleSubscription(operation string, subscriptions subscription.L
 	defer func() { <-ok.WsRequestSemaphore }()
 	var channels subscription.List
 	var authChannels subscription.List
-	var err error
-	var format currency.PairFormat
 	for i := 0; i < len(subscriptions); i++ {
 		s := subscriptions[i]
 		if len(s.Pairs) > 1 {
@@ -432,7 +430,7 @@ func (ok *Okx) handleSubscription(operation string, subscriptions subscription.L
 				}
 			}
 			if instrumentID == "" {
-				format, err = ok.GetPairFormat(s.Asset, false)
+				format, err := ok.GetPairFormat(s.Asset, false)
 				if err != nil {
 					return err
 				}
@@ -471,10 +469,9 @@ func (ok *Okx) handleSubscription(operation string, subscriptions subscription.L
 		arg.AlgoID = algoID
 
 		if authSubscription {
-			var authChunk []byte
 			authChannels = append(authChannels, s)
 			authRequests.Arguments = append(authRequests.Arguments, arg)
-			authChunk, err = json.Marshal(authRequests)
+			authChunk, err := json.Marshal(authRequests)
 			if err != nil {
 				return err
 			}
@@ -497,10 +494,9 @@ func (ok *Okx) handleSubscription(operation string, subscriptions subscription.L
 				authRequests.Arguments = []SubscriptionInfo{}
 			}
 		} else {
-			var chunk []byte
 			channels = append(channels, s)
 			request.Arguments = append(request.Arguments, arg)
-			chunk, err = json.Marshal(request)
+			chunk, err := json.Marshal(request)
 			if err != nil {
 				return err
 			}
@@ -524,18 +520,17 @@ func (ok *Okx) handleSubscription(operation string, subscriptions subscription.L
 			}
 		}
 	}
+
 	if len(request.Arguments) > 0 {
-		err = ok.Websocket.Conn.SendJSONMessage(request)
-		if err != nil {
+		if err := ok.Websocket.Conn.SendJSONMessage(request); err != nil {
 			return err
 		}
 	}
 
 	if len(authRequests.Arguments) > 0 && ok.Websocket.CanUseAuthenticatedEndpoints() {
-		err = ok.Websocket.AuthConn.SendJSONMessage(authRequests)
-	}
-	if err != nil {
-		return err
+		if err := ok.Websocket.AuthConn.SendJSONMessage(authRequests); err != nil {
+			return err
+		}
 	}
 
 	channels = append(channels, authChannels...)
@@ -1872,8 +1867,6 @@ func (ok *Okx) wsAuthChannelSubscription(operation, channel string, assetType as
 	var instrumentID string
 	var instrumentType string
 	var ccy string
-	var err error
-	var format currency.PairFormat
 	if params.InstrumentType {
 		instrumentType = ok.GetInstrumentTypeFromAssetItem(assetType)
 		if instrumentType != okxInstTypeMargin &&
@@ -1889,17 +1882,14 @@ func (ok *Okx) wsAuthChannelSubscription(operation, channel string, assetType as
 		}
 	}
 	if params.InstrumentID {
-		format, err = ok.GetPairFormat(assetType, false)
-		if err != nil {
-			return err
-		}
 		if !pair.IsPopulated() {
 			return errIncompleteCurrencyPair
 		}
-		instrumentID = format.Format(pair)
+		format, err := ok.GetPairFormat(assetType, false)
 		if err != nil {
-			instrumentID = ""
+			return err
 		}
+		instrumentID = format.Format(pair)
 	}
 	if params.Currency {
 		if !pair.IsEmpty() {
