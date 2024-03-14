@@ -498,6 +498,9 @@ func TestSubscribeUnsubscribe(t *testing.T) {
 
 	ws.Subscriber = func(_ subscription.List) error { return errDastardlyReason }
 	assert.ErrorIs(t, ws.SubscribeToChannels(subs), errDastardlyReason, "Should error correctly when error returned from Subscriber")
+
+	err = ws.SubscribeToChannels(subscription.List{nil})
+	assert.ErrorIs(t, err, common.ErrNilPointer, "Should error correctly when list contains a nil subscription")
 }
 
 // TestResubscribe tests Resubscribing to existing subscriptions

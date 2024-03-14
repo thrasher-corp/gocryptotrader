@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net"
 	"net/url"
+	"slices"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -809,7 +810,9 @@ func (w *Websocket) ResubscribeToChannel(s *subscription.Subscription) error {
 // SubscribeToChannels subscribes to websocket channels using the exchange specific Subscriber method
 // Errors are returned for duplicates or exceeding max Subscriptions
 func (w *Websocket) SubscribeToChannels(subs subscription.List) error {
-	subs.PruneNil()
+	if slices.Contains(subs, nil) {
+		return fmt.Errorf("%s websocket: %w", w.exchangeName, common.AppendError(ErrSubscriptionFailure, common.ErrNilPointer))
+	}
 	if err := w.checkSubscriptions(subs); err != nil {
 		return fmt.Errorf("%s websocket: %w", w.exchangeName, common.AppendError(ErrSubscriptionFailure, err))
 	}
