@@ -3121,7 +3121,7 @@ func (s *RPCServer) WebsocketGetSubscriptions(_ context.Context, r *gctrpc.Webso
 		payload.Subscriptions = append(payload.Subscriptions,
 			&gctrpc.WebsocketSubscription{
 				Channel: subs[i].Channel,
-				Pairs:   strings.Join(subs[i].Pairs.Strings(), ","),
+				Pairs:   subs[i].Pairs.Join(),
 				Asset:   subs[i].Asset.String(),
 				Params:  string(params),
 			})
