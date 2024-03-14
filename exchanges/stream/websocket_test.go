@@ -496,7 +496,7 @@ func TestSubscribeUnsubscribe(t *testing.T) {
 	assert.ErrorIs(t, ws.SubscribeToChannels(nil), errNoSubscriptionsSupplied, "Subscribe to nil should error")
 	assert.NoError(t, ws.UnsubscribeChannels(subs), "Unsubscribing should not error")
 
-	ws.Subscriber = func(_ subscription.List) error { return errDastardlyReason }
+	ws.Subscriber = func(subscription.List) error { return errDastardlyReason }
 	assert.ErrorIs(t, ws.SubscribeToChannels(subs), errDastardlyReason, "Should error correctly when error returned from Subscriber")
 
 	err = ws.SubscribeToChannels(subscription.List{nil})
