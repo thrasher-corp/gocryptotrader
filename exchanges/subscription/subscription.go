@@ -3,7 +3,6 @@ package subscription
 import (
 	"errors"
 	"fmt"
-	"strings"
 	"sync"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -65,7 +64,7 @@ type MatchableKey interface {
 // String implements the Stringer interface for Subscription, giving a human representation of the subscription
 func (s *Subscription) String() string {
 	p := s.Pairs.Format(currency.PairFormat{Uppercase: true, Delimiter: "/"})
-	return fmt.Sprintf("%s %s %s", s.Channel, s.Asset, strings.Join(p.Strings(), ","))
+	return fmt.Sprintf("%s %s %s", s.Channel, s.Asset, p.Join())
 }
 
 // State returns the subscription state
