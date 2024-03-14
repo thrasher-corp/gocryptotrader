@@ -16,9 +16,3 @@ func (l List) Strings() []string {
 	slices.Sort(s)
 	return s
 }
-
-// PruneNil removes in place any nil Subscriptions from the list
-func (l *List) PruneNil() {
-	n := slices.Clip(slices.DeleteFunc(*l, func(s *Subscription) bool { return s == nil }))
-	*l = n
-}
