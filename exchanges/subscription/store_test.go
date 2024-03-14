@@ -41,7 +41,8 @@ func TestNewStoreFromList(t *testing.T) {
 func TestAdd(t *testing.T) {
 	assert.ErrorIs(t, (*Store)(nil).Add(&Subscription{}), common.ErrNilPointer, "Should error nil pointer correctly")
 	assert.ErrorIs(t, (&Store{}).Add(nil), common.ErrNilPointer, "Should error nil pointer correctly")
-	assert.NoError(t, (&Store{}).Add(&Subscription{}), "Should with no map should not error or panic")
+	assert.ErrorIs(t, (&Store{}).Add(&Subscription{}), common.ErrNilPointer, "Should error nil pointer correctly")
+
 	s := NewStore()
 	sub := &Subscription{Channel: TickerChannel}
 	require.NoError(t, s.Add(sub), "Should not error on a standard add")
@@ -87,7 +88,8 @@ func TestGet(t *testing.T) {
 func TestRemove(t *testing.T) {
 	assert.ErrorIs(t, (*Store)(nil).Remove(&Subscription{}), common.ErrNilPointer, "Should error correctly when called on nil")
 	assert.ErrorIs(t, (&Store{}).Remove(nil), common.ErrNilPointer, "Should error correctly when called passing nil")
-	assert.ErrorIs(t, (&Store{}).Remove(&Subscription{}), ErrNotFound, "Should error correctly when called with no subscription map")
+	assert.ErrorIs(t, (&Store{}).Remove(&Subscription{}), common.ErrNilPointer, "Should error correctly when called with no subscription map")
+
 	s := NewStore()
 	require.NoError(t, s.Add(&Subscription{Key: HobbitKey(24), Channel: CandlesChannel}), "Adding subscription must not error")
 	assert.ErrorIs(t, s.Remove(HobbitKey(24)), ErrNotFound, "Should error correctly when called with a non-matching hobbitkey")

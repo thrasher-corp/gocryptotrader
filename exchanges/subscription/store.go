@@ -24,6 +24,9 @@ func NewStore() *Store {
 func NewStoreFromList(l List) (*Store, error) {
 	s := NewStore()
 	for _, sub := range l {
+		if sub == nil {
+			return nil, common.ErrNilPointer
+		}
 		if err := s.add(sub); err != nil {
 			return nil, err
 		}
@@ -35,7 +38,7 @@ func NewStoreFromList(l List) (*Store, error) {
 // Key can be already set; if omitted EnsureKeyed will be used
 // Errors if it already exists
 func (s *Store) Add(sub *Subscription) error {
-	if s == nil || sub == nil {
+	if s == nil || s.m == nil || sub == nil {
 		return common.ErrNilPointer
 	}
 	s.mu.Lock()
@@ -46,9 +49,6 @@ func (s *Store) Add(sub *Subscription) error {
 // Add adds a subscription to the store
 // This method provides no locking protection
 func (s *Store) add(sub *Subscription) error {
-	if s.m == nil {
-		s.m = map[any]*Subscription{}
-	}
 	key := sub.EnsureKeyed()
 	if found := s.get(key); found != nil {
 		return ErrDuplicate
@@ -61,7 +61,7 @@ func (s *Store) add(sub *Subscription) error {
 // If the key passed in is a Subscription then its Key will be used; which may be a pointer to itself.
 // If key implements MatchableKey then key.Match will be used; Note that *Subscription implements MatchableKey
 func (s *Store) Get(key any) *Subscription {
-	if s == nil || s.m == nil {
+	if s == nil || s.m == nil || key == nil {
 		return nil
 	}
 	s.mu.RLock()
@@ -74,9 +74,6 @@ func (s *Store) Get(key any) *Subscription {
 // If key implements MatchableKey then key.Match will be used; Note that *Subscription implements MatchableKey
 // This method provides no locking protection
 func (s *Store) get(key any) *Subscription {
-	if s.m == nil {
-		return nil
-	}
 	switch v := key.(type) {
 	case Subscription:
 		key = v.EnsureKeyed()
@@ -96,7 +93,7 @@ func (s *Store) get(key any) *Subscription {
 // If the key passed in is a Subscription then its Key will be used; which may be a pointer to itself.
 // If key implements MatchableKey then key.Match will be used; Note that *Subscription implements MatchableKey
 func (s *Store) Remove(key any) error {
-	if s == nil || key == nil {
+	if s == nil || s.m == nil || key == nil {
 		return common.ErrNilPointer
 	}
 	s.mu.Lock()
@@ -155,7 +152,7 @@ func (s *Store) match(key MatchableKey) *Subscription {
 // The store Diff is invoked upon is read-lock protected
 // The new store is assumed to be a new instance and enjoys no locking protection
 func (s *Store) Diff(compare List) (added, removed List) {
-	if s == nil {
+	if s == nil || s.m == nil {
 		return
 	}
 	s.mu.RLock()
@@ -178,7 +175,7 @@ func (s *Store) Diff(compare List) (added, removed List) {
 
 // Len returns the number of subscriptions
 func (s *Store) Len() int {
-	if s == nil || s.m == nil {
+	if s == nil {
 		return 0
 	}
 	s.mu.RLock()
