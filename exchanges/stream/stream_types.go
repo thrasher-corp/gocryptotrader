@@ -8,6 +8,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 )
 
 // Connection defines a streaming services connection
@@ -51,6 +52,16 @@ type ConnectionSetup struct {
 	// * Add max subscriptions
 	// * Remove dedicated auth connection, as everything will be defined per
 	// 	 connection setup.
+
+	// This will register the connection setup to the connections manager
+	AllowMultipleConn bool
+
+	// Subscriber function for package defined connection specific websocket subscriber functionality
+	Subscriber func(Connection, []subscription.Subscription) error
+	// Unsubscriber function for packaged defined onnection specific websocket unsubscriber functionality
+	Unsubscriber func(Connection, []subscription.Subscription) error
+	// GenerateSubs function for package defined websocket generate subscriptions functionality
+	GenerateSubs func() ([]subscription.Subscription, error)
 }
 
 // PingHandler container for ping handler settings

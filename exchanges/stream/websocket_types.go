@@ -49,7 +49,7 @@ type Websocket struct {
 	defaultURLAuth               string
 	exchangeName                 string
 	m                            sync.Mutex
-	connector                    func() error
+	connector                    func() error // TODO: Remove in favour of multiple connections
 
 	subscriptionMutex sync.RWMutex
 	subscriptions     subscriptionMap
@@ -91,7 +91,7 @@ type Websocket struct {
 	ReadMessageErrors chan error
 	features          *protocol.Features
 
-	// Standard stream connection
+	// Standard stream connection // TODO: Remove standard connection in favour of multi connection
 	Conn            Connection
 	UnAuthHandler   func([]byte) error
 	UnAuthBootstrap func(Connection) error
@@ -99,13 +99,18 @@ type Websocket struct {
 	ReadBufferSize  uint
 	WriteBufferSize uint
 
-	// Authenticated stream connection // TODO: Remove authenticated connection
+	// Authenticated stream connection // TODO: Remove authenticated connection in favour of multi connection
 	AuthConn            Connection
 	AuthHandler         func([]byte) error
 	AuthBootstrap       func(Connection) error
 	RunningAuthURL      string
 	ReadBufferSizeAuth  uint
 	WriteBufferSizeAuth uint
+
+	// Connections manage multiple websocket connections that will allow for
+	// subscriptions per connection which supports more enabled pairs per
+	// exchange. // TODO: Add support for multi asset
+	Connections Connections
 
 	// Latency reporter
 	ExchangeLevelReporter Reporter

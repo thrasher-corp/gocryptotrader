@@ -226,7 +226,7 @@ func (ok *Okx) Setup(exch *config.Exchange) error {
 		Unsubscriber:                           ok.Unsubscribe,
 		GenerateSubscriptions:                  ok.GenerateDefaultSubscriptions,
 		Features:                               &ok.Features.Supports.WebsocketCapabilities,
-		MaxWebsocketSubscriptionsPerConnection: 240,
+		MaxWebsocketSubscriptionsPerConnection: 50, // When all pairs are enabled for spot this seems to be the limit at which the exchange will start to reject subscriptions
 		OrderbookBufferConfig:                  buffer.Config{Checksum: ok.CalculateUpdateOrderbookChecksum},
 	}); err != nil {
 		return err
@@ -243,6 +243,10 @@ func (ok *Okx) Setup(exch *config.Exchange) error {
 		Bootstrap:            ok.WsBootstrap,
 		ReadBufferSize:       8192,
 		WriteBufferSize:      8192,
+		AllowMultipleConn:    true,
+		GenerateSubs:         ok.GenerateDefaultSubscriptionsConnection,
+		Subscriber:           ok.SubscribeConnection,
+		Unsubscriber:         ok.UnsubscribeConnection,
 	}); err != nil {
 		return err
 	}

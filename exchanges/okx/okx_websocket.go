@@ -65,7 +65,7 @@ const (
 	// wsOrderbookUpdate orderbook push data type 'update'
 	wsOrderbookUpdate = "update"
 	// maxConnByteLen total length of multiple channels cannot exceed 4096 bytes.
-	maxConnByteLen = 4096
+	maxConnByteLen = 64 * 1024
 
 	// Candlestick channels
 	markPrice        = "mark-price-"
@@ -286,6 +286,228 @@ func (ok *Okx) WsAuthBootstrap(conn stream.Connection) error {
 				request.Operation)
 		}
 	}
+}
+
+func (ok *Okx) SubscribeConnection(conn stream.Connection, channelsToSubscribe []subscription.Subscription) error {
+	return ok.handleSubscriptionConnection(conn, operationSubscribe, channelsToSubscribe, ok.Websocket)
+}
+
+func (ok *Okx) UnsubscribeConnection(conn stream.Connection, channelsToUnsubscribe []subscription.Subscription) error {
+	return ok.handleSubscriptionConnection(conn, operationUnsubscribe, channelsToUnsubscribe, ok.Websocket)
+}
+
+func (ok *Okx) GenerateDefaultSubscriptionsConnection() ([]subscription.Subscription, error) {
+	var subscriptions []subscription.Subscription
+	assets := ok.GetAssetTypes(true)
+	subs := make([]string, 0, len(defaultSubscribedChannels))
+	subs = append(subs, defaultSubscribedChannels...)
+	for c := range subs {
+		switch subs[c] {
+		case okxChannelOrders:
+			for x := range assets {
+				subscriptions = append(subscriptions, subscription.Subscription{
+					Channel: subs[c],
+					Asset:   assets[x],
+				})
+			}
+		case okxChannelCandle5m, okxChannelTickers, okxChannelOrderBooks, okxChannelFundingRate, okxChannelOrderBooks5, okxChannelOrderBooks50TBT, okxChannelOrderBooksTBT, okxChannelTrades:
+			for x := range assets {
+				pairs, err := ok.GetEnabledPairs(assets[x])
+				if err != nil {
+					return nil, err
+				}
+				for p := range pairs {
+					subscriptions = append(subscriptions, subscription.Subscription{
+						Channel: subs[c],
+						Asset:   assets[x],
+						Pair:    pairs[p],
+					})
+				}
+			}
+		default:
+			subscriptions = append(subscriptions, subscription.Subscription{
+				Channel: subs[c],
+			})
+		}
+	}
+	return subscriptions, nil
+}
+
+// NOTE: Users can choose to subscribe to one or more channels, and the total length of multiple channels cannot exceed 64 KB.
+func (ok *Okx) handleSubscriptionConnection(conn stream.Connection, operation string, subscriptions []subscription.Subscription, handler stream.AddRemove) error {
+	request := WSSubscriptionInformationList{Operation: operation}
+	authRequests := WSSubscriptionInformationList{Operation: operation}
+	ok.WsRequestSemaphore <- 1
+	defer func() { <-ok.WsRequestSemaphore }()
+	var channels []subscription.Subscription
+	var authChannels []subscription.Subscription
+	var err error
+	var format currency.PairFormat
+	for i := 0; i < len(subscriptions); i++ {
+		arg := SubscriptionInfo{
+			Channel: subscriptions[i].Channel,
+		}
+		var instrumentID string
+		var underlying string
+		var okay bool
+		var instrumentType string
+		var authSubscription bool
+		var algoID string
+		var uid string
+
+		switch arg.Channel {
+		case okxChannelAccount,
+			okxChannelPositions,
+			okxChannelBalanceAndPosition,
+			okxChannelOrders,
+			okxChannelAlgoOrders,
+			okxChannelAlgoAdvance,
+			okxChannelLiquidationWarning,
+			okxChannelAccountGreeks,
+			okxChannelRfqs,
+			okxChannelQuotes,
+			okxChannelStructureBlockTrades,
+			okxChannelSpotGridOrder,
+			okxChannelGridOrdersContract,
+			okxChannelGridPositions,
+			okcChannelGridSubOrders:
+			authSubscription = true
+		}
+
+		if arg.Channel == okxChannelGridPositions {
+			algoID, _ = subscriptions[i].Params["algoId"].(string)
+		}
+
+		if arg.Channel == okcChannelGridSubOrders ||
+			arg.Channel == okxChannelGridPositions {
+			uid, _ = subscriptions[i].Params["uid"].(string)
+		}
+
+		if strings.HasPrefix(arg.Channel, "candle") ||
+			arg.Channel == okxChannelTickers ||
+			arg.Channel == okxChannelOrderBooks ||
+			arg.Channel == okxChannelOrderBooks5 ||
+			arg.Channel == okxChannelOrderBooks50TBT ||
+			arg.Channel == okxChannelOrderBooksTBT ||
+			arg.Channel == okxChannelFundingRate ||
+			arg.Channel == okxChannelTrades {
+			if subscriptions[i].Params["instId"] != "" {
+				instrumentID, okay = subscriptions[i].Params["instId"].(string)
+				if !okay {
+					instrumentID = ""
+				}
+			} else if subscriptions[i].Params["instrumentID"] != "" {
+				instrumentID, okay = subscriptions[i].Params["instrumentID"].(string)
+				if !okay {
+					instrumentID = ""
+				}
+			}
+			if instrumentID == "" {
+				format, err = ok.GetPairFormat(subscriptions[i].Asset, false)
+				if err != nil {
+					return err
+				}
+				if subscriptions[i].Pair.Base.String() == "" || subscriptions[i].Pair.Quote.String() == "" {
+					return errIncompleteCurrencyPair
+				}
+				instrumentID = format.Format(subscriptions[i].Pair)
+			}
+		}
+		if arg.Channel == okxChannelInstruments ||
+			arg.Channel == okxChannelPositions ||
+			arg.Channel == okxChannelOrders ||
+			arg.Channel == okxChannelAlgoOrders ||
+			arg.Channel == okxChannelAlgoAdvance ||
+			arg.Channel == okxChannelLiquidationWarning ||
+			arg.Channel == okxChannelSpotGridOrder ||
+			arg.Channel == okxChannelGridOrdersContract ||
+			arg.Channel == okxChannelEstimatedPrice {
+			instrumentType = ok.GetInstrumentTypeFromAssetItem(subscriptions[i].Asset)
+		}
+
+		if arg.Channel == okxChannelPositions ||
+			arg.Channel == okxChannelOrders ||
+			arg.Channel == okxChannelAlgoOrders ||
+			arg.Channel == okxChannelEstimatedPrice ||
+			arg.Channel == okxChannelOptSummary {
+			underlying, _ = ok.GetUnderlying(subscriptions[i].Pair, subscriptions[i].Asset)
+		}
+		arg.InstrumentID = instrumentID
+		arg.Underlying = underlying
+		arg.InstrumentType = instrumentType
+		arg.UID = uid
+		arg.AlgoID = algoID
+
+		if authSubscription {
+			var authChunk []byte
+			authChannels = append(authChannels, subscriptions[i])
+			authRequests.Arguments = append(authRequests.Arguments, arg)
+			authChunk, err = json.Marshal(authRequests)
+			if err != nil {
+				return err
+			}
+			if len(authChunk) > maxConnByteLen {
+				authRequests.Arguments = authRequests.Arguments[:len(authRequests.Arguments)-1]
+				i--
+				err = conn.SendJSONMessage(authRequests)
+				if err != nil {
+					return err
+				}
+				if operation == operationUnsubscribe {
+					handler.RemoveSubscriptions(channels...)
+				} else {
+					handler.AddSuccessfulSubscriptions(channels...)
+				}
+				authChannels = []subscription.Subscription{}
+				authRequests.Arguments = []SubscriptionInfo{}
+			}
+		} else {
+			var chunk []byte
+			channels = append(channels, subscriptions[i])
+			request.Arguments = append(request.Arguments, arg)
+			chunk, err = json.Marshal(request)
+			if err != nil {
+				return err
+			}
+			if len(chunk) > maxConnByteLen {
+				i--
+				err = conn.SendJSONMessage(request)
+				if err != nil {
+					return err
+				}
+				if operation == operationUnsubscribe {
+					handler.RemoveSubscriptions(channels...)
+				} else {
+					handler.AddSuccessfulSubscriptions(channels...)
+				}
+				channels = []subscription.Subscription{}
+				request.Arguments = []SubscriptionInfo{}
+				continue
+			}
+		}
+	}
+	if len(request.Arguments) > 0 {
+		err = conn.SendJSONMessage(request)
+		if err != nil {
+			return err
+		}
+	}
+
+	if len(authRequests.Arguments) > 0 && ok.Websocket.CanUseAuthenticatedEndpoints() {
+		err = conn.SendJSONMessage(authRequests)
+		if err != nil {
+			return err
+		}
+	}
+
+	if operation == operationUnsubscribe {
+		channels = append(channels, authChannels...)
+		handler.RemoveSubscriptions(channels...)
+	} else {
+		channels = append(channels, authChannels...)
+		handler.AddSuccessfulSubscriptions(channels...)
+	}
+	return nil
 }
 
 // Subscribe sends a websocket subscription request to several channels to receive data.
