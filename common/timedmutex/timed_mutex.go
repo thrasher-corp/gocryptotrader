@@ -21,7 +21,9 @@ type TimedMutex struct {
 }
 
 // NewTimedMutex creates a new timed mutex with a specified duration
-func NewTimedMutex(length time.Duration) *TimedMutex { return &TimedMutex{duration: length} }
+func NewTimedMutex(length time.Duration) *TimedMutex {
+	return &TimedMutex{duration: length}
+}
 
 // LockForDuration will start a timer, lock the mutex, then allow the caller to continue
 // After the duration, the mutex will be unlocked
@@ -47,10 +49,10 @@ func (t *TimedMutex) UnlockIfLocked() bool {
 	}
 
 	t.secondary.Lock()
-	hasStopped := t.timer.Stop()
+	wasStoppedByCall := t.timer.Stop()
 	t.secondary.Unlock()
 
-	if !hasStopped {
+	if !wasStoppedByCall {
 		// Timer has already fired and the mutex has been unlocked.
 		// Timer C channel is not used with AfterFunc, so no need to drain.
 		return false
