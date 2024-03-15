@@ -29,7 +29,7 @@ func NewTimedMutex(length time.Duration) *TimedMutex {
 // After the duration, the mutex will be unlocked
 func (t *TimedMutex) LockForDuration() {
 	t.primary.Lock()
-	if t.primed.CompareAndSwap(false, true) {
+	if !t.primed.Swap(true) {
 		t.secondary.Lock()
 		t.timer = time.AfterFunc(t.duration, func() { t.primary.Unlock() })
 		t.secondary.Unlock()
