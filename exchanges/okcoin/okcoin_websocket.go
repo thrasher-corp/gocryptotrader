@@ -74,7 +74,7 @@ func isAuthenticatedChannel(channel string) bool {
 // WsConnect initiates a websocket connection
 func (o *Okcoin) WsConnect() error {
 	if !o.Websocket.IsEnabled() || !o.IsEnabled() {
-		return errors.New(stream.WebsocketNotEnabled)
+		return stream.ErrWebsocketNotEnabled
 	}
 	var dialer websocket.Dialer
 	dialer.ReadBufferSize = 8192
