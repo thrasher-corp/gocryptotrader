@@ -273,7 +273,7 @@ func openOrdersLimit(symbol string) request.EndpointLimit {
 	return spotOpenOrdersSpecificRate
 }
 
-func orderbookLimit(depth int) request.EndpointLimit {
+func orderbookLimit(depth int64) request.EndpointLimit {
 	switch {
 	case depth <= 100:
 		return spotDefaultRate
