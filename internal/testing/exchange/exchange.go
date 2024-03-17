@@ -106,7 +106,7 @@ func MockWsInstance[T any, PT interface {
 		require.NoErrorf(tb, err, "SetWebsocketURL should not error for auth: %v", auth)
 	}
 
-	// Disable default subscriptions; Would disrupt unit tests
+	// For testing we never want to use the default subscriptions; Tests of GenerateSubscriptions should be exercising it directly
 	b.Features.Subscriptions = subscription.List{}
 	// Exchanges which don't support subscription conf; Can be removed when all exchanges support sub conf
 	b.Websocket.GenerateSubs = func() (subscription.List, error) { return subscription.List{}, nil }
