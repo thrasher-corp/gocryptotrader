@@ -21,7 +21,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 )
 
 // Bybit is the overarching type across this package
@@ -90,7 +89,6 @@ var (
 	errAPIKeyIsNotUnified                      = errors.New("api key is not unified")
 	errEndpointAvailableForNormalAPIKeyHolders = errors.New("endpoint available for normal API key holders only")
 	errInvalidContractLength                   = errors.New("contract length cannot be less than or equal to zero")
-	errWebsocketNotEnabled                     = errors.New(stream.WebsocketNotEnabled)
 )
 
 var (

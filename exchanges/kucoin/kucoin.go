@@ -1845,10 +1845,12 @@ func (ku *Kucoin) orderTypeToString(orderType order.Type) (string, error) {
 }
 
 func (ku *Kucoin) orderSideString(side order.Side) (string, error) {
-	switch side {
-	case order.Buy, order.Sell:
-		return side.Lower(), nil
-	case order.AnySide:
+	switch {
+	case side.IsLong():
+		return order.Buy.Lower(), nil
+	case side.IsShort():
+		return order.Sell.Lower(), nil
+	case side == order.AnySide:
 		return "", nil
 	default:
 		return "", fmt.Errorf("%w, side:%s", order.ErrSideIsInvalid, side.String())
