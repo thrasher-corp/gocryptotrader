@@ -517,7 +517,7 @@ func TestWebsocket(t *testing.T) {
 	assert.NoError(t, err, "Connect should not error")
 
 	ws.defaultURL = "ws://demos.kaazing.com/echo"
-	ws.defaultURLAuth = "ws://demos.kaazing.com/echo"
+	ws.defaultAuthURL = "ws://demos.kaazing.com/echo"
 
 	err = ws.SetWebsocketURL("", false)
 	assert.NoError(t, err, "SetWebsocketURL should not error")

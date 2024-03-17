@@ -45,8 +45,6 @@ type Websocket struct {
 	trafficTimeout               time.Duration
 	connectionMonitorDelay       time.Duration
 	proxyAddr                    *url.URL
-	defaultURL                   string
-	defaultURLAuth               string
 	exchangeName                 string
 	m                            sync.Mutex
 	connector                    func() error
@@ -96,6 +94,7 @@ type Websocket struct {
 	UnAuthHandler   func([]byte) error
 	UnAuthBootstrap func(Connection) error
 	RunningURL      string // TODO: Remove
+	defaultURL      string
 	ReadBufferSize  uint
 	WriteBufferSize uint
 
@@ -104,6 +103,7 @@ type Websocket struct {
 	AuthHandler         func([]byte) error
 	AuthBootstrap       func(Connection) error
 	RunningAuthURL      string
+	defaultAuthURL      string
 	ReadBufferSizeAuth  uint
 	WriteBufferSizeAuth uint
 

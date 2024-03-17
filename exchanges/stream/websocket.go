@@ -155,7 +155,6 @@ func (w *Websocket) Setup(s *WebsocketSetup) error {
 	if err != nil {
 		return err
 	}
-
 	w.RunningURL = s.RunningURL
 
 	if s.RunningURLAuth != "" {
@@ -224,6 +223,8 @@ func (w *Websocket) SetupNewConnection(c *ConnectionSetup) error {
 	}
 
 	connectionURL := c.URL
+	// If the connection URL is not set, use the global URL from the websocket
+	// setup
 	if connectionURL == "" {
 		if c.Authenticated {
 			connectionURL = w.RunningAuthURL
@@ -263,11 +264,17 @@ func (w *Websocket) SetupNewConnection(c *ConnectionSetup) error {
 		w.AuthHandler = c.Handler
 		w.AuthConn = newConn
 		w.AuthBootstrap = c.Bootstrap
+		w.ReadBufferSizeAuth = c.ReadBufferSize
+		w.WriteBufferSizeAuth = c.WriteBufferSize
+		w.defaultAuthURL = c.URL
 	} else {
 		newConn.Type = "public"
 		w.UnAuthHandler = c.Handler
 		w.Conn = newConn
 		w.UnAuthBootstrap = c.Bootstrap
+		w.ReadBufferSize = c.ReadBufferSize
+		w.WriteBufferSize = c.WriteBufferSize
+		w.defaultURL = c.URL
 	}
 
 	return nil
@@ -320,7 +327,7 @@ func (w *Websocket) Connect() error {
 	}
 
 	if w.connector == nil && w.AuthConn != nil && w.CanUseAuthenticatedEndpoints() {
-		err := w.initConnection(w.AuthConn, w.AuthBootstrap, w.AuthHandler, w.ReadBufferSize, w.WriteBufferSize)
+		err := w.initConnection(w.AuthConn, w.AuthBootstrap, w.AuthHandler, w.ReadBufferSizeAuth, w.WriteBufferSizeAuth)
 		if err != nil {
 			w.SetCanUseAuthenticatedEndpoints(false)
 			log.Errorf(log.ExchangeSys, "%s cannot use authenticated endpoints: %v", w.exchangeName, err)
@@ -671,7 +678,9 @@ func (w *Websocket) IsDataMonitorRunning() bool {
 }
 
 // GetName returns exchange name
-func (w *Websocket) GetName() string { return w.exchangeName }
+func (w *Websocket) GetName() string {
+	return w.exchangeName
+}
 
 // CanUseAuthenticatedWebsocketForWrapper Handles a common check to
 // verify whether a wrapper can use an authenticated websocket endpoint
@@ -716,7 +725,7 @@ func (w *Websocket) SetWebsocketURL(path string, reconnect bool) error {
 // SetWebsocketAuthURL sets websocket URL and can refresh underlying connections
 func (w *Websocket) SetWebsocketAuthURL(path string, reconnect bool) error {
 	if path == "" || path == config.WebsocketURLNonDefaultMessage {
-		path = w.defaultURLAuth
+		path = w.defaultAuthURL
 	}
 
 	err := checkWebsocketURL(path)
