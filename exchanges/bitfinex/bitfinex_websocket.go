@@ -1471,10 +1471,10 @@ func (b *Bitfinex) WsInsertSnapshot(p currency.Pair, assetType asset.Item, books
 		return errors.New("no orderbooks submitted")
 	}
 	var book orderbook.Base
-	book.Bids = make(orderbook.Items, 0, len(books))
-	book.Asks = make(orderbook.Items, 0, len(books))
+	book.Bids = make(orderbook.Tranches, 0, len(books))
+	book.Asks = make(orderbook.Tranches, 0, len(books))
 	for i := range books {
-		item := orderbook.Item{
+		item := orderbook.Tranche{
 			ID:     books[i].ID,
 			Amount: books[i].Amount,
 			Price:  books[i].Price,
@@ -1513,13 +1513,13 @@ func (b *Bitfinex) WsUpdateOrderbook(c *subscription.Subscription, p currency.Pa
 	orderbookUpdate := orderbook.Update{
 		Asset:      assetType,
 		Pair:       p,
-		Bids:       make([]orderbook.Item, 0, len(book)),
-		Asks:       make([]orderbook.Item, 0, len(book)),
+		Bids:       make([]orderbook.Tranche, 0, len(book)),
+		Asks:       make([]orderbook.Tranche, 0, len(book)),
 		UpdateTime: time.Now(), // Not included in update
 	}
 
 	for i := range book {
-		item := orderbook.Item{
+		item := orderbook.Tranche{
 			ID:     book[i].ID,
 			Amount: book[i].Amount,
 			Price:  book[i].Price,
@@ -2088,7 +2088,7 @@ func validateCRC32(book *orderbook.Base, token int) error {
 	reOrderByID(book.Asks)
 
 	// RO precision calculation is based on order ID's and amount values
-	var bids, asks []orderbook.Item
+	var bids, asks []orderbook.Tranche
 	for i := 0; i < 25; i++ {
 		if i < len(book.Bids) {
 			bids = append(bids, book.Bids[i])
@@ -2142,10 +2142,10 @@ func validateCRC32(book *orderbook.Base, token int) error {
 // reOrderByID sub sorts orderbook items by its corresponding ID when price
 // levels are the same. TODO: Deprecate and shift to buffer level insertion
 // based off ascending ID.
-func reOrderByID(depth []orderbook.Item) {
+func reOrderByID(depth []orderbook.Tranche) {
 subSort:
 	for x := 0; x < len(depth); {
-		var subset []orderbook.Item
+		var subset []orderbook.Tranche
 		// Traverse forward elements
 		for y := x + 1; y < len(depth); y++ {
 			if depth[x].Price == depth[y].Price &&

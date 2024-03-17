@@ -329,8 +329,8 @@ func (b *Bitstamp) wsUpdateOrderbook(update *websocketOrderBook, p currency.Pair
 	}
 
 	obUpdate := &orderbook.Base{
-		Bids:            make(orderbook.Items, len(update.Bids)),
-		Asks:            make(orderbook.Items, len(update.Asks)),
+		Bids:            make(orderbook.Tranches, len(update.Bids)),
+		Asks:            make(orderbook.Tranches, len(update.Asks)),
 		Pair:            p,
 		LastUpdated:     time.UnixMicro(update.Microtimestamp),
 		Asset:           assetType,
@@ -347,7 +347,7 @@ func (b *Bitstamp) wsUpdateOrderbook(update *websocketOrderBook, p currency.Pair
 		if err != nil {
 			return err
 		}
-		obUpdate.Asks[i] = orderbook.Item{Price: target, Amount: amount}
+		obUpdate.Asks[i] = orderbook.Tranche{Price: target, Amount: amount}
 	}
 	for i := range update.Bids {
 		target, err := strconv.ParseFloat(update.Bids[i][0], 64)
@@ -358,7 +358,7 @@ func (b *Bitstamp) wsUpdateOrderbook(update *websocketOrderBook, p currency.Pair
 		if err != nil {
 			return err
 		}
-		obUpdate.Bids[i] = orderbook.Item{Price: target, Amount: amount}
+		obUpdate.Bids[i] = orderbook.Tranche{Price: target, Amount: amount}
 	}
 	filterOrderbookZeroBidPrice(obUpdate)
 	return b.Websocket.Orderbook.LoadSnapshot(obUpdate)
@@ -385,19 +385,19 @@ func (b *Bitstamp) seedOrderBook(ctx context.Context) error {
 			Asset:           asset.Spot,
 			Exchange:        b.Name,
 			VerifyOrderbook: b.CanVerifyOrderbook,
-			Bids:            make(orderbook.Items, len(orderbookSeed.Bids)),
-			Asks:            make(orderbook.Items, len(orderbookSeed.Asks)),
+			Bids:            make(orderbook.Tranches, len(orderbookSeed.Bids)),
+			Asks:            make(orderbook.Tranches, len(orderbookSeed.Asks)),
 			LastUpdated:     time.Unix(orderbookSeed.Timestamp, 0),
 		}
 
 		for i := range orderbookSeed.Asks {
-			newOrderBook.Asks[i] = orderbook.Item{
+			newOrderBook.Asks[i] = orderbook.Tranche{
 				Price:  orderbookSeed.Asks[i].Price,
 				Amount: orderbookSeed.Asks[i].Amount,
 			}
 		}
 		for i := range orderbookSeed.Bids {
-			newOrderBook.Bids[i] = orderbook.Item{
+			newOrderBook.Bids[i] = orderbook.Tranche{
 				Price:  orderbookSeed.Bids[i].Price,
 				Amount: orderbookSeed.Bids[i].Amount,
 			}

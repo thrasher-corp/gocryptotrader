@@ -755,7 +755,7 @@ func (ok *Okx) wsProcessOrderbook5(data []byte) error {
 		return err
 	}
 
-	asks := make([]orderbook.Item, len(resp.Data[0].Asks))
+	asks := make([]orderbook.Tranche, len(resp.Data[0].Asks))
 	for x := range resp.Data[0].Asks {
 		asks[x].Price, err = strconv.ParseFloat(resp.Data[0].Asks[x][0], 64)
 		if err != nil {
@@ -768,7 +768,7 @@ func (ok *Okx) wsProcessOrderbook5(data []byte) error {
 		}
 	}
 
-	bids := make([]orderbook.Item, len(resp.Data[0].Bids))
+	bids := make([]orderbook.Tranche, len(resp.Data[0].Bids))
 	for x := range resp.Data[0].Bids {
 		bids[x].Price, err = strconv.ParseFloat(resp.Data[0].Bids[x][0], 64)
 		if err != nil {
@@ -929,8 +929,8 @@ func (ok *Okx) WsProcessUpdateOrderbook(data WsOrderBookData, pair currency.Pair
 }
 
 // AppendWsOrderbookItems adds websocket orderbook data bid/asks into an orderbook item array
-func (ok *Okx) AppendWsOrderbookItems(entries [][4]string) ([]orderbook.Item, error) {
-	items := make([]orderbook.Item, len(entries))
+func (ok *Okx) AppendWsOrderbookItems(entries [][4]string) ([]orderbook.Tranche, error) {
+	items := make([]orderbook.Tranche, len(entries))
 	for j := range entries {
 		amount, err := strconv.ParseFloat(entries[j][1], 64)
 		if err != nil {
@@ -940,7 +940,7 @@ func (ok *Okx) AppendWsOrderbookItems(entries [][4]string) ([]orderbook.Item, er
 		if err != nil {
 			return nil, err
 		}
-		items[j] = orderbook.Item{Amount: amount, Price: price}
+		items[j] = orderbook.Tranche{Amount: amount, Price: price}
 	}
 	return items, nil
 }

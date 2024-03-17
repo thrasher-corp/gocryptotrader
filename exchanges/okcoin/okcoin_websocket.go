@@ -504,12 +504,12 @@ func (o *Okcoin) wsProcessOrderbook(respRaw []byte, obChannel string) error {
 			Exchange:    o.Name,
 			LastUpdated: resp.Data[0].Timestamp.Time(),
 		}
-		base.Asks = make([]orderbook.Item, len(resp.Data[0].Asks))
+		base.Asks = make([]orderbook.Tranche, len(resp.Data[0].Asks))
 		for a := range resp.Data[0].Asks {
 			base.Asks[a].Amount = resp.Data[0].Asks[a][1].Float64()
 			base.Asks[a].Price = resp.Data[0].Asks[a][0].Float64()
 		}
-		base.Bids = make([]orderbook.Item, len(resp.Data[0].Bids))
+		base.Bids = make([]orderbook.Tranche, len(resp.Data[0].Bids))
 		for b := range resp.Data[0].Bids {
 			base.Bids[b].Amount = resp.Data[0].Bids[b][1].Float64()
 			base.Bids[b].Price = resp.Data[0].Bids[b][0].Float64()
@@ -697,12 +697,12 @@ func (o *Okcoin) wsProcessCandles(respRaw []byte) error {
 
 // AppendWsOrderbookItems adds websocket orderbook data bid/asks into an
 // orderbook item array
-func (o *Okcoin) AppendWsOrderbookItems(entries [][2]types.Number) ([]orderbook.Item, error) {
-	items := make([]orderbook.Item, len(entries))
+func (o *Okcoin) AppendWsOrderbookItems(entries [][2]types.Number) ([]orderbook.Tranche, error) {
+	items := make([]orderbook.Tranche, len(entries))
 	for j := range entries {
 		amount := entries[j][1].Float64()
 		price := entries[j][0].Float64()
-		items[j] = orderbook.Item{Amount: amount, Price: price}
+		items[j] = orderbook.Tranche{Amount: amount, Price: price}
 	}
 	return items, nil
 }
