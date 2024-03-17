@@ -145,14 +145,16 @@ func (bt *BackTest) SetupFromConfig(cfg *config.Config, templatePath, output str
 				if err != nil {
 					return err
 				}
-				exch.SetDefaults()
-				exchBase := exch.GetBase()
-				exchBase.Verbose = cfg.DataSettings.VerboseExchangeRequests
+
 				var dc *gctconfig.Exchange
-				dc, err = exch.GetDefaultConfig(context.TODO())
+				dc, err = gctexchange.GetDefaultConfig(context.TODO(), exch)
 				if err != nil {
 					return err
 				}
+
+				exchBase := exch.GetBase()
+				exchBase.Verbose = cfg.DataSettings.VerboseExchangeRequests
+
 				err = exch.Setup(dc)
 				if err != nil {
 					return err

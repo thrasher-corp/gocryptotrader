@@ -29,29 +29,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
-// GetDefaultConfig returns a default exchange config
-func (e *EXMO) GetDefaultConfig(ctx context.Context) (*config.Exchange, error) {
-	e.SetDefaults()
-	exchCfg, err := e.GetStandardConfig()
-	if err != nil {
-		return nil, err
-	}
-
-	err = e.SetupDefaults(exchCfg)
-	if err != nil {
-		return nil, err
-	}
-
-	if e.Features.Supports.RESTCapabilities.AutoPairUpdates {
-		err = e.UpdateTradablePairs(ctx, true)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	return exchCfg, nil
-}
-
 // SetDefaults sets the basic defaults for exmo
 func (e *EXMO) SetDefaults() {
 	e.Name = "EXMO"

@@ -13,6 +13,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/engine"
+	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/gctscript/modules"
 	"github.com/thrasher-corp/gocryptotrader/gctscript/modules/gct"
@@ -39,8 +40,7 @@ func TestMain(m *testing.M) {
 		log.Print(err)
 		os.Exit(1)
 	}
-	exch.SetDefaults()
-	cfg, err := exch.GetDefaultConfig(context.Background())
+	cfg, err := exchange.GetDefaultConfig(context.Background(), exch)
 	if err != nil {
 		log.Fatal(err)
 	}

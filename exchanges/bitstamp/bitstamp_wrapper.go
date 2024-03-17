@@ -30,29 +30,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
-// GetDefaultConfig returns a default exchange config
-func (b *Bitstamp) GetDefaultConfig(ctx context.Context) (*config.Exchange, error) {
-	b.SetDefaults()
-	exchCfg, err := b.GetStandardConfig()
-	if err != nil {
-		return nil, err
-	}
-
-	err = b.SetupDefaults(exchCfg)
-	if err != nil {
-		return nil, err
-	}
-
-	if b.Features.Supports.RESTCapabilities.AutoPairUpdates {
-		err = b.UpdateTradablePairs(ctx, true)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	return exchCfg, nil
-}
-
 // SetDefaults sets default for Bitstamp
 func (b *Bitstamp) SetDefaults() {
 	b.Name = "Bitstamp"

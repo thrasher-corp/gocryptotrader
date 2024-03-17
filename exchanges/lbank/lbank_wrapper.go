@@ -28,29 +28,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
-// GetDefaultConfig returns a default exchange config
-func (l *Lbank) GetDefaultConfig(ctx context.Context) (*config.Exchange, error) {
-	l.SetDefaults()
-	exchCfg, err := l.GetStandardConfig()
-	if err != nil {
-		return nil, err
-	}
-
-	err = l.SetupDefaults(exchCfg)
-	if err != nil {
-		return nil, err
-	}
-
-	if l.Features.Supports.RESTCapabilities.AutoPairUpdates {
-		err = l.UpdateTradablePairs(ctx, true)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	return exchCfg, nil
-}
-
 // SetDefaults sets the basic defaults for Lbank
 func (l *Lbank) SetDefaults() {
 	l.Name = "Lbank"

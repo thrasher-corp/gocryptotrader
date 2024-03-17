@@ -31,29 +31,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
-// GetDefaultConfig returns a default exchange config
-func (p *Poloniex) GetDefaultConfig(ctx context.Context) (*config.Exchange, error) {
-	p.SetDefaults()
-	exchCfg, err := p.GetStandardConfig()
-	if err != nil {
-		return nil, err
-	}
-
-	err = p.SetupDefaults(exchCfg)
-	if err != nil {
-		return nil, err
-	}
-
-	if p.Features.Supports.RESTCapabilities.AutoPairUpdates {
-		err = p.UpdateTradablePairs(ctx, true)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	return exchCfg, nil
-}
-
 // SetDefaults sets default settings for poloniex
 func (p *Poloniex) SetDefaults() {
 	p.Name = "Poloniex"

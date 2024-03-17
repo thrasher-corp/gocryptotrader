@@ -39,28 +39,6 @@ import (
 // this error.
 const unfundedFuturesAccount = `please transfer funds first to create futures account`
 
-// GetDefaultConfig returns a default exchange config
-func (g *Gateio) GetDefaultConfig(ctx context.Context) (*config.Exchange, error) {
-	g.SetDefaults()
-	exchCfg, err := g.GetStandardConfig()
-	if err != nil {
-		return nil, err
-	}
-
-	err = g.SetupDefaults(exchCfg)
-	if err != nil {
-		return nil, err
-	}
-
-	if g.Features.Supports.RESTCapabilities.AutoPairUpdates {
-		err = g.UpdateTradablePairs(ctx, true)
-		if err != nil {
-			return nil, err
-		}
-	}
-	return exchCfg, nil
-}
-
 // SetDefaults sets default values for the exchange
 func (g *Gateio) SetDefaults() {
 	g.Name = "GateIO"

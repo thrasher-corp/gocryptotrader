@@ -26,25 +26,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
-// GetDefaultConfig returns a default exchange config
-func ({{.Variable}} *{{.CapitalName}}) GetDefaultConfig(ctx context.Context) (*config.Exchange, error) {
-	{{.Variable}}.SetDefaults()
-	exchCfg := new(config.Exchange)
-	exchCfg.Name = {{.Variable}}.Name
-	exchCfg.HTTPTimeout = exchange.DefaultHTTPTimeout
-	exchCfg.BaseCurrencies = {{.Variable}}.BaseCurrencies
-
-	{{.Variable}}.SetupDefaults(exchCfg)
-
-	if {{.Variable}}.Features.Supports.RESTCapabilities.AutoPairUpdates {
-		err := {{.Variable}}.UpdateTradablePairs(ctx, true)
-		if err != nil {
-			return nil, err
-		}
-	}
-	return exchCfg, nil
-}
-
 // SetDefaults sets the basic defaults for {{.CapitalName}}
 func ({{.Variable}} *{{.CapitalName}}) SetDefaults() {
 	{{.Variable}}.Name = "{{.CapitalName}}"

@@ -36,29 +36,6 @@ const wsRateLimitMillisecond = 1000
 
 var errNotEnoughPairs = errors.New("at least one currency is required to fetch order history")
 
-// GetDefaultConfig returns a default exchange config
-func (b *Bithumb) GetDefaultConfig(ctx context.Context) (*config.Exchange, error) {
-	b.SetDefaults()
-	exchCfg, err := b.GetStandardConfig()
-	if err != nil {
-		return nil, err
-	}
-
-	err = b.SetupDefaults(exchCfg)
-	if err != nil {
-		return nil, err
-	}
-
-	if b.Features.Supports.RESTCapabilities.AutoPairUpdates {
-		err = b.UpdateTradablePairs(ctx, true)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	return exchCfg, nil
-}
-
 // SetDefaults sets the basic defaults for Bithumb
 func (b *Bithumb) SetDefaults() {
 	b.Name = "Bithumb"
