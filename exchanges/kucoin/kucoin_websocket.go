@@ -879,13 +879,13 @@ func (ku *Kucoin) processOrderbook(respData []byte, symbol, topic string) error 
 		return err
 	}
 
-	asks := make([]orderbook.Item, len(response.Asks))
+	asks := make([]orderbook.Tranche, len(response.Asks))
 	for x := range response.Asks {
 		asks[x].Price = response.Asks[x][0].Float64()
 		asks[x].Amount = response.Asks[x][1].Float64()
 	}
 
-	bids := make([]orderbook.Item, len(response.Bids))
+	bids := make([]orderbook.Tranche, len(response.Bids))
 	for x := range response.Bids {
 		bids[x].Price = response.Bids[x][0].Float64()
 		bids[x].Amount = response.Bids[x][1].Float64()
