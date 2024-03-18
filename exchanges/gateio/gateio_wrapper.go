@@ -2561,7 +2561,7 @@ var errPostOnlyOrderTypeUnsupported = errors.New("post only is only supported fo
 // IOC
 func getTimeInForce(s *order.Submit) (string, error) {
 	timeInForce := "gtc" // limit order taker/maker
-	if s.Type == order.Market || s.ImmediateOrCancel {
+	if s.Type == order.Market || s.TimeInForce == order.IOC {
 		timeInForce = "ioc" // market taker only
 	}
 	if s.PostOnly {
@@ -2570,7 +2570,7 @@ func getTimeInForce(s *order.Submit) (string, error) {
 		}
 		timeInForce = "poc" // limit order maker only
 	}
-	if s.FillOrKill {
+	if s.TimeInForce == order.IOC {
 		timeInForce = "fok" // market order entire fill or kill
 	}
 	return timeInForce, nil

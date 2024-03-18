@@ -3555,7 +3555,7 @@ func TestGetTimeInForce(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "gtc", ret)
 
-	ret, err = getTimeInForce(&order.Submit{Type: order.Market, FillOrKill: true})
+	ret, err = getTimeInForce(&order.Submit{Type: order.Market, TimeInForce: order.FOK})
 	require.NoError(t, err)
 	assert.Equal(t, "fok", ret)
 }
