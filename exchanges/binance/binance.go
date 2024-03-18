@@ -91,6 +91,8 @@ var (
 	errTimestampInfoRequired                  = errors.New("timestamp information is required")
 	errListenKeyIsRequired                    = errors.New("listen key is required")
 	errValidEmailRequired                     = errors.New("valid email address is required")
+	errInvalidFuturesType                     = errors.New("invalid futures types")
+	errInvalidAccountType                     = errors.New("invalid account type specified")
 )
 
 var subscriptionNames = map[string]string{
@@ -1566,7 +1568,7 @@ func (b *Binance) GetSubAccountFuturesAssetTransferHistory(ctx context.Context, 
 		return nil, errValidEmailRequired
 	}
 	if futuresType != 1 && futuresType != 2 {
-		return nil, errors.New("futures types not set")
+		return nil, errInvalidFuturesType
 	}
 	params := url.Values{}
 	params.Set("email", email)
@@ -1598,7 +1600,7 @@ func (b *Binance) SubAccountFuturesAssetTransfer(ctx context.Context, fromEmail,
 		return nil, fmt.Errorf("%w, toEmail=%s", errValidEmailRequired, toEmail)
 	}
 	if futuresType != 0 && futuresType != 1 {
-		return nil, errors.New("futuresType must be either 1: USDT-margined Futures or 2: Coin-margined Futures")
+		return nil, fmt.Errorf("%w 1: USDT-margined Futures or 2: Coin-margined Futures", errInvalidFuturesType)
 	}
 	if !asset.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
@@ -1764,6 +1766,22 @@ func (b *Binance) GetFuturesPositionRiskSubAccount(ctx context.Context, email st
 	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "sub-account/futures/positionRisk", params, spotDefaultRate, &resp)
 }
 
+// EnableLeverageTokenForSubAccount enables leverage token sub-account form master account.
+func (b *Binance) EnableLeverageTokenForSubAccount(ctx context.Context, email string, enableElvt bool) (*LeverageToken, error) {
+	if !common.MatchesEmailPattern(email) {
+		return nil, errValidEmailRequired
+	}
+	params := url.Values{}
+	params.Set("email", email)
+	if enableElvt {
+		params.Set("enableElvt", "true")
+	} else {
+		params.Set("enableElvt", "false")
+	}
+	var resp *LeverageToken
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "sub-account/blvt/enable", params, spotDefaultRate, &resp)
+}
+
 // FuturesTransferSubAccount transfers futures for sub-account( from master account only)
 // 1: transfer from subaccount's spot account to its USDT-margined futures account 2: transfer from subaccount's USDT-margined futures account to its spot account
 // 3: transfer from subaccount's spot account to its COIN-margined futures account 4:transfer from subaccount's COIN-margined futures account to its spot account
@@ -1885,6 +1903,102 @@ func (b *Binance) SubAccountTransferHistoryForSubAccount(ctx context.Context, as
 	}
 	var resp *SubAccountTransferHistoryItem
 	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "sub-account/transfer/subUserHistory", params, spotDefaultRate, &resp)
+}
+
+// UniversalTransferForMasterAccount submits a universal transfer using the master account.
+func (b *Binance) UniversalTransferForMasterAccount(ctx context.Context, arg *UniversalTransferParams) (*UniversalTransferResponse, error) {
+	if arg == nil || *arg == (UniversalTransferParams{}) {
+		return nil, common.ErrNilPointer
+	}
+	if arg.FromAccountType == "" {
+		return nil, fmt.Errorf("%w, fromAccountType=%s", errInvalidAccountType, arg.FromAccountType)
+	}
+	if arg.ToAccountType == "" {
+		return nil, fmt.Errorf("%w, toAccountType = %s", errInvalidAccountType, arg.ToAccountType)
+	}
+	if arg.Asset.IsEmpty() {
+		return nil, currency.ErrCurrencyCodeEmpty
+	}
+	if arg.Amount <= 0 {
+		return nil, order.ErrAmountBelowMin
+	}
+	params := url.Values{}
+	params.Set("fromAccountType", arg.FromAccountType)
+	params.Set("toAccountType", arg.ToAccountType)
+	params.Set("asset", arg.Asset.String())
+	params.Set("amount", strconv.FormatFloat(arg.Amount, 'f', -1, 64))
+	if arg.FromEmail != "" {
+		params.Set("fromEmail", arg.FromEmail)
+	}
+	if arg.ToEmail != "" {
+		params.Set("toEmail", arg.ToEmail)
+	}
+	if arg.ClientTransactionID != "" {
+		params.Set("clientTranId", arg.ClientTransactionID)
+	}
+	if arg.Symbol != "" {
+		params.Set("symbol", arg.Symbol)
+	}
+	var resp *UniversalTransferResponse
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "sub-account/universalTransfer", params, spotDefaultRate, &resp)
+}
+
+// GetUniversalTransferHistoryForMasterAccount retrieves universal transfer history for master account.
+func (b *Binance) GetUniversalTransferHistoryForMasterAccount(ctx context.Context, fromEmail, toEmail, clientTransactionID string,
+	startTime, endTime time.Time, page, limit int64) (*UniversalTransfersDetail, error) {
+	params := url.Values{}
+	if fromEmail != "" {
+		params.Set("fromEmail", fromEmail)
+	}
+	if toEmail != "" {
+		params.Set("toEmail", toEmail)
+	}
+	if clientTransactionID != "" {
+		params.Set("clientTranId", clientTransactionID)
+	}
+	if !startTime.IsZero() {
+		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+	}
+	if !endTime.IsZero() {
+		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
+	}
+	if page > 0 {
+		params.Set("page", strconv.FormatInt(page, 10))
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	var resp *UniversalTransfersDetail
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "sub-account/universalTransfer", params, spotDefaultRate, &resp)
+}
+
+// GetDetailOnSubAccountsFuturesAccountV2 retrieves detail on sub-account's futures account V2 for master account
+func (b *Binance) GetDetailOnSubAccountsFuturesAccountV2(ctx context.Context, email string, futuresType int64) (*MarginedFuturesAccount, error) {
+	if !common.MatchesEmailPattern(email) {
+		return nil, errValidEmailRequired
+	}
+	if futuresType != 0 {
+		return nil, errInvalidFuturesType
+	}
+	params := url.Values{}
+	var resp *MarginedFuturesAccount
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "sub-account/futures/account", params, spotDefaultRate, &resp)
+}
+
+// GetSummaryOfSubAccountsFuturesAccountV2 retrieves the summary of sub-account's futures account v2 for master account
+func (b *Binance) GetSummaryOfSubAccountsFuturesAccountV2(ctx context.Context, futuresType, page, limit int64) (*AccountSummary, error) {
+	if futuresType != 0 {
+		return nil, errInvalidFuturesType
+	}
+	params := url.Values{}
+	if page > 0 {
+		params.Set("page", strconv.FormatInt(page, 10))
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	var resp *AccountSummary
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "sub-account/futures/accountSummary", params, spotDefaultRate, &resp)
 }
 
 // GetAccountStatus fetch account status detail.

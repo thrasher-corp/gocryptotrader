@@ -2661,3 +2661,113 @@ type SubAccountTransferHistoryItem struct {
 	TranID          int64                `json:"tranId"`
 	Time            convert.ExchangeTime `json:"time"`
 }
+
+// UniversalTransferParams represents a universal transfer parameters.
+type UniversalTransferParams struct {
+	FromEmail           string        `json:"fromEmail,omitempty"`
+	ToEmail             string        `json:"toEmail,omitempty"`
+	FromAccountType     string        `json:"fromAccountType"`
+	ToAccountType       string        `json:"toAccountType"`
+	ClientTransactionID string        `json:"clientTranId,omitempty"`
+	Symbol              string        `json:"symbol,omitempty"`
+	Asset               currency.Code `json:"asset"`
+	Amount              float64       `json:"amount"`
+}
+
+// UniversalTransferResponse represents a universal transfer response.
+type UniversalTransferResponse struct {
+	TransactionID       string `json:"tranId"`
+	ClientTransactionID string `json:"clientTranId"`
+}
+
+// UniversalTransfersDetail represents a list of universal transfers.
+type UniversalTransfersDetail struct {
+	Result []struct {
+		TranID          int64                `json:"tranId"`
+		FromEmail       string               `json:"fromEmail"`
+		ToEmail         string               `json:"toEmail"`
+		Asset           string               `json:"asset"`
+		Amount          types.Number         `json:"amount"`
+		CreateTimeStamp convert.ExchangeTime `json:"createTimeStamp"`
+		FromAccountType string               `json:"fromAccountType"`
+		ToAccountType   string               `json:"toAccountType"`
+		Status          string               `json:"status"`
+		ClientTranID    string               `json:"clientTranId"`
+	} `json:"result"`
+	TotalCount int64 `json:"totalCount"`
+}
+
+// MarginedFuturesAccount sub-account's futures account
+type MarginedFuturesAccount struct {
+	FutureAccountResp struct {
+		Email  string `json:"email"`
+		Assets []struct {
+			Asset                  string       `json:"asset"`
+			InitialMargin          types.Number `json:"initialMargin"`
+			MaintenanceMargin      types.Number `json:"maintenanceMargin"`
+			MarginBalance          types.Number `json:"marginBalance"`
+			MaxWithdrawAmount      types.Number `json:"maxWithdrawAmount"`
+			OpenOrderInitialMargin types.Number `json:"openOrderInitialMargin"`
+			PositionInitialMargin  types.Number `json:"positionInitialMargin"`
+			UnrealizedProfit       types.Number `json:"unrealizedProfit"`
+			WalletBalance          types.Number `json:"walletBalance"`
+		} `json:"assets"`
+		CanDeposit                  bool                 `json:"canDeposit"`
+		CanTrade                    bool                 `json:"canTrade"`
+		CanWithdraw                 bool                 `json:"canWithdraw"`
+		FeeTier                     int64                `json:"feeTier"`
+		MaxWithdrawAmount           types.Number         `json:"maxWithdrawAmount"`
+		TotalInitialMargin          types.Number         `json:"totalInitialMargin"`
+		TotalMaintenanceMargin      types.Number         `json:"totalMaintenanceMargin"`
+		TotalMarginBalance          types.Number         `json:"totalMarginBalance"`
+		TotalOpenOrderInitialMargin types.Number         `json:"totalOpenOrderInitialMargin"`
+		TotalPositionInitialMargin  types.Number         `json:"totalPositionInitialMargin"`
+		TotalUnrealizedProfit       types.Number         `json:"totalUnrealizedProfit"`
+		TotalWalletBalance          types.Number         `json:"totalWalletBalance"`
+		UpdateTime                  convert.ExchangeTime `json:"updateTime"`
+	} `json:"futureAccountResp"`
+}
+
+// AccountSummary represents sub-account's futures accounts for master account.
+type AccountSummary struct {
+	FutureAccountSummaryResp struct {
+		TotalInitialMargin          types.Number `json:"totalInitialMargin"`
+		TotalMaintenanceMargin      types.Number `json:"totalMaintenanceMargin"`
+		TotalMarginBalance          types.Number `json:"totalMarginBalance"`
+		TotalOpenOrderInitialMargin types.Number `json:"totalOpenOrderInitialMargin"`
+		TotalPositionInitialMargin  types.Number `json:"totalPositionInitialMargin"`
+		TotalUnrealizedProfit       types.Number `json:"totalUnrealizedProfit"`
+		TotalWalletBalance          types.Number `json:"totalWalletBalance"`
+		Asset                       string       `json:"asset"`
+		SubAccountList              []struct {
+			Email                       string       `json:"email"`
+			TotalInitialMargin          types.Number `json:"totalInitialMargin"`
+			TotalMaintenanceMargin      types.Number `json:"totalMaintenanceMargin"`
+			TotalMarginBalance          types.Number `json:"totalMarginBalance"`
+			TotalOpenOrderInitialMargin types.Number `json:"totalOpenOrderInitialMargin"`
+			TotalPositionInitialMargin  types.Number `json:"totalPositionInitialMargin"`
+			TotalUnrealizedProfit       types.Number `json:"totalUnrealizedProfit"`
+			TotalWalletBalance          types.Number `json:"totalWalletBalance"`
+			Asset                       string       `json:"asset"`
+		} `json:"subAccountList"`
+	} `json:"futureAccountSummaryResp,omitempty"`
+	DeliveryAccountSummaryResp struct {
+		TotalMarginBalanceOfBTC    types.Number `json:"totalMarginBalanceOfBTC"`
+		TotalUnrealizedProfitOfBTC types.Number `json:"totalUnrealizedProfitOfBTC"`
+		TotalWalletBalanceOfBTC    types.Number `json:"totalWalletBalanceOfBTC"`
+		Asset                      string       `json:"asset"`
+		SubAccountList             []struct {
+			Email                 string       `json:"email"`
+			TotalMarginBalance    types.Number `json:"totalMarginBalance"`
+			TotalUnrealizedProfit types.Number `json:"totalUnrealizedProfit"`
+			TotalWalletBalance    types.Number `json:"totalWalletBalance"`
+			Asset                 string       `json:"asset"`
+		} `json:"subAccountList"`
+	} `json:"deliveryAccountSummaryResp,omitempty"`
+}
+
+// LeverageToken represents leveraged tokens for sub-accounts.
+type LeverageToken struct {
+	Email      string `json:"email"`
+	EnableBlvt bool   `json:"enableBlvt"`
+}

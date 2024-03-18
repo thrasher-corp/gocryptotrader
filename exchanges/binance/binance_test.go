@@ -1217,6 +1217,13 @@ func TestGetFuturesPositionRiskSubAccount(t *testing.T) {
 	assert.NotNil(t, result)
 }
 
+func TestEnableLeverageTokenForSubAccount(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	result, err := b.EnableLeverageTokenForSubAccount(context.Background(), "someone@thrasher.io", false)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
 func TestFuturesTransferSubAccount(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
@@ -1261,6 +1268,47 @@ func TestSubAccountTransferHistoryForSubAccount(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
 	result, err := b.SubAccountTransferHistoryForSubAccount(context.Background(), currency.LTC, 2, 0, time.Time{}, time.Now(), true)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestUniversalTransferForMasterAccount(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	result, err := b.UniversalTransferForMasterAccount(context.Background(), &UniversalTransferParams{
+		FromEmail:           "source@thrasher.io",
+		ToEmail:             "destination@thrasher.io",
+		FromAccountType:     "ISOLATED_MARGIN",
+		ToAccountType:       "SPOT",
+		ClientTransactionID: "transaction-id",
+		Symbol:              "",
+		Asset:               currency.BTC,
+		Amount:              0.0003,
+	})
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetUniversalTransferHistoryForMasterAccount(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetUniversalTransferHistoryForMasterAccount(context.Background(), "", "", "", time.Time{}, time.Now(), 0, 10)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetDetailOnSubAccountsFuturesAccountV2(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetDetailOnSubAccountsFuturesAccountV2(context.Background(), "address@thrasher.io", 1)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetSummaryOfSubAccountsFuturesAccountV2(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetSummaryOfSubAccountsFuturesAccountV2(context.Background(), 1, 0, 10)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
