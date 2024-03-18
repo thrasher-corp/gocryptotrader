@@ -1,6 +1,7 @@
 package exchange
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"log"
@@ -141,7 +142,7 @@ func SetupWs(tb testing.TB, e exchange.IBotExchange) {
 	setupWsMutex.Lock()
 	defer setupWsMutex.Unlock()
 
-	if _, ok := setupWsOnce[e]; ok {
+	if setupWsOnce[e] {
 		return
 	}
 
@@ -156,4 +157,24 @@ func SetupWs(tb testing.TB, e exchange.IBotExchange) {
 	require.NoError(tb, err, "WsConnect should not error")
 
 	setupWsOnce[e] = true
+}
+
+var updatePairsMutex sync.Mutex
+var updatePairsOnce = make(map[exchange.IBotExchange]bool)
+
+// UpdatePairsOnce ensures pairs are only updated once in parallel tests
+func UpdatePairsOnce(tb testing.TB, e exchange.IBotExchange) {
+	tb.Helper()
+
+	updatePairsMutex.Lock()
+	defer updatePairsMutex.Unlock()
+
+	if updatePairsOnce[e] {
+		return
+	}
+
+	err := e.UpdateTradablePairs(context.Background(), true)
+	require.NoError(tb, err, "UpdateTradablePairs must not error")
+
+	updatePairsOnce[e] = true
 }
