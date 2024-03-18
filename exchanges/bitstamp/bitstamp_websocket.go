@@ -297,7 +297,10 @@ func (b *Bitstamp) Subscribe(channelsToSubscribe []subscription.Subscription) er
 			errs = common.AppendError(errs, err)
 			continue
 		}
-		b.Websocket.AddSuccessfulSubscriptions(channelsToSubscribe[i])
+		err = b.Websocket.AddSuccessfulSubscriptions(nil, channelsToSubscribe[i])
+		if err != nil {
+			errs = common.AppendError(errs, err)
+		}
 	}
 
 	return errs
@@ -309,16 +312,17 @@ func (b *Bitstamp) Unsubscribe(channelsToUnsubscribe []subscription.Subscription
 	for i := range channelsToUnsubscribe {
 		req := websocketEventRequest{
 			Event: "bts:unsubscribe",
-			Data: websocketData{
-				Channel: channelsToUnsubscribe[i].Channel,
-			},
+			Data:  websocketData{Channel: channelsToUnsubscribe[i].Channel},
 		}
 		err := b.Websocket.Conn.SendJSONMessage(req)
 		if err != nil {
 			errs = common.AppendError(errs, err)
 			continue
 		}
-		b.Websocket.RemoveSubscriptions(channelsToUnsubscribe[i])
+		err = b.Websocket.RemoveSubscriptions(channelsToUnsubscribe[i])
+		if err != nil {
+			errs = common.AppendError(errs, err)
+		}
 	}
 	return errs
 }

@@ -594,7 +594,7 @@ func (b *Binance) subscribeToChan(chans []subscription.Subscription) error {
 		err = fmt.Errorf("%w: %w; Channels: %s", stream.ErrSubscriptionFailure, err, strings.Join(cNames, ", "))
 		b.Websocket.DataHandler <- err
 	} else {
-		b.Websocket.AddSuccessfulSubscriptions(chans...)
+		err = b.Websocket.AddSuccessfulSubscriptions(nil, chans...)
 	}
 
 	return err
@@ -633,10 +633,10 @@ func (b *Binance) unsubscribeFromChan(chans []subscription.Subscription) error {
 		err = fmt.Errorf("%w: %w; Channels: %s", stream.ErrUnsubscribeFailure, err, strings.Join(cNames, ", "))
 		b.Websocket.DataHandler <- err
 	} else {
-		b.Websocket.RemoveSubscriptions(chans...)
+		err = b.Websocket.RemoveSubscriptions(chans...)
 	}
 
-	return nil
+	return err
 }
 
 // ProcessUpdate processes the websocket orderbook update

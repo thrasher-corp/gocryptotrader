@@ -403,8 +403,7 @@ func (b *BTCMarkets) Subscribe(subs []subscription.Subscription) error {
 	if err := b.Websocket.Conn.SendJSONMessage(payload); err != nil {
 		return err
 	}
-	b.Websocket.AddSuccessfulSubscriptions(subs...)
-	return nil
+	return b.Websocket.AddSuccessfulSubscriptions(nil, subs...)
 }
 
 // Unsubscribe sends a websocket message to manage and remove a subscription.
@@ -430,8 +429,7 @@ func (b *BTCMarkets) Unsubscribe(subs []subscription.Subscription) error {
 	if err != nil {
 		return err
 	}
-	b.Websocket.RemoveSubscriptions(subs...)
-	return nil
+	return b.Websocket.RemoveSubscriptions(subs...)
 }
 
 // ReSubscribeSpecificOrderbook removes the subscription and the subscribes

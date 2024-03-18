@@ -289,11 +289,11 @@ func (ok *Okx) WsAuthBootstrap(conn stream.Connection) error {
 }
 
 func (ok *Okx) SubscribeConnection(conn stream.Connection, channelsToSubscribe []subscription.Subscription) error {
-	return ok.handleSubscriptionConnection(conn, operationSubscribe, channelsToSubscribe, ok.Websocket)
+	return ok.handleSubscriptionConnection(conn, operationSubscribe, channelsToSubscribe)
 }
 
 func (ok *Okx) UnsubscribeConnection(conn stream.Connection, channelsToUnsubscribe []subscription.Subscription) error {
-	return ok.handleSubscriptionConnection(conn, operationUnsubscribe, channelsToUnsubscribe, ok.Websocket)
+	return ok.handleSubscriptionConnection(conn, operationUnsubscribe, channelsToUnsubscribe)
 }
 
 func (ok *Okx) GenerateDefaultSubscriptionsConnection() ([]subscription.Subscription, error) {
@@ -334,7 +334,7 @@ func (ok *Okx) GenerateDefaultSubscriptionsConnection() ([]subscription.Subscrip
 }
 
 // NOTE: Users can choose to subscribe to one or more channels, and the total length of multiple channels cannot exceed 64 KB.
-func (ok *Okx) handleSubscriptionConnection(conn stream.Connection, operation string, subscriptions []subscription.Subscription, handler stream.AddRemove) error {
+func (ok *Okx) handleSubscriptionConnection(conn stream.Connection, operation string, subscriptions []subscription.Subscription) error {
 	request := WSSubscriptionInformationList{Operation: operation}
 	authRequests := WSSubscriptionInformationList{Operation: operation}
 	ok.WsRequestSemaphore <- 1
@@ -454,9 +454,12 @@ func (ok *Okx) handleSubscriptionConnection(conn stream.Connection, operation st
 					return err
 				}
 				if operation == operationUnsubscribe {
-					handler.RemoveSubscriptions(channels...)
+					err = ok.Websocket.RemoveSubscriptions(channels...)
 				} else {
-					handler.AddSuccessfulSubscriptions(channels...)
+					err = ok.Websocket.AddSuccessfulSubscriptions(conn, channels...)
+				}
+				if err != nil {
+					return err
 				}
 				authChannels = []subscription.Subscription{}
 				authRequests.Arguments = []SubscriptionInfo{}
@@ -476,9 +479,12 @@ func (ok *Okx) handleSubscriptionConnection(conn stream.Connection, operation st
 					return err
 				}
 				if operation == operationUnsubscribe {
-					handler.RemoveSubscriptions(channels...)
+					err = ok.Websocket.RemoveSubscriptions(channels...)
 				} else {
-					handler.AddSuccessfulSubscriptions(channels...)
+					err = ok.Websocket.AddSuccessfulSubscriptions(conn, channels...)
+				}
+				if err != nil {
+					return err
 				}
 				channels = []subscription.Subscription{}
 				request.Arguments = []SubscriptionInfo{}
@@ -502,12 +508,12 @@ func (ok *Okx) handleSubscriptionConnection(conn stream.Connection, operation st
 
 	if operation == operationUnsubscribe {
 		channels = append(channels, authChannels...)
-		handler.RemoveSubscriptions(channels...)
+		err = ok.Websocket.RemoveSubscriptions(channels...)
 	} else {
 		channels = append(channels, authChannels...)
-		handler.AddSuccessfulSubscriptions(channels...)
+		err = ok.Websocket.AddSuccessfulSubscriptions(conn, channels...)
 	}
-	return nil
+	return err
 }
 
 // Subscribe sends a websocket subscription request to several channels to receive data.
@@ -642,9 +648,12 @@ func (ok *Okx) handleSubscription(operation string, subscriptions []subscription
 					return err
 				}
 				if operation == operationUnsubscribe {
-					ok.Websocket.RemoveSubscriptions(channels...)
+					err = ok.Websocket.RemoveSubscriptions(channels...)
 				} else {
-					ok.Websocket.AddSuccessfulSubscriptions(channels...)
+					err = ok.Websocket.AddSuccessfulSubscriptions(nil, channels...)
+				}
+				if err != nil {
+					return err
 				}
 				authChannels = []subscription.Subscription{}
 				authRequests.Arguments = []SubscriptionInfo{}
@@ -664,9 +673,12 @@ func (ok *Okx) handleSubscription(operation string, subscriptions []subscription
 					return err
 				}
 				if operation == operationUnsubscribe {
-					ok.Websocket.RemoveSubscriptions(channels...)
+					err = ok.Websocket.RemoveSubscriptions(channels...)
 				} else {
-					ok.Websocket.AddSuccessfulSubscriptions(channels...)
+					err = ok.Websocket.AddSuccessfulSubscriptions(nil, channels...)
+				}
+				if err != nil {
+					return err
 				}
 				channels = []subscription.Subscription{}
 				request.Arguments = []SubscriptionInfo{}
@@ -693,12 +705,12 @@ func (ok *Okx) handleSubscription(operation string, subscriptions []subscription
 
 	if operation == operationUnsubscribe {
 		channels = append(channels, authChannels...)
-		ok.Websocket.RemoveSubscriptions(channels...)
+		err = ok.Websocket.RemoveSubscriptions(channels...)
 	} else {
 		channels = append(channels, authChannels...)
-		ok.Websocket.AddSuccessfulSubscriptions(channels...)
+		err = ok.Websocket.AddSuccessfulSubscriptions(nil, channels...)
 	}
-	return nil
+	return err
 }
 
 // WsHandleData will read websocket raw data and pass to appropriate handler

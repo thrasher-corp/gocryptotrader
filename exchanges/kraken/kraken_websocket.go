@@ -1284,7 +1284,10 @@ channels:
 					errs = common.AppendError(errs, err)
 					continue
 				}
-				k.Websocket.AddSuccessfulSubscriptions((*subs)[i].Channels...)
+				err = k.Websocket.AddSuccessfulSubscriptions(nil, (*subs)[i].Channels...)
+				if err != nil {
+					errs = common.AppendError(errs, err)
+				}
 				continue
 			}
 			_, err := k.Websocket.Conn.SendMessageReturnResponse((*subs)[i].RequestID, (*subs)[i])
@@ -1292,7 +1295,10 @@ channels:
 				errs = common.AppendError(errs, err)
 				continue
 			}
-			k.Websocket.AddSuccessfulSubscriptions((*subs)[i].Channels...)
+			err = k.Websocket.AddSuccessfulSubscriptions(nil, (*subs)[i].Channels...)
+			if err != nil {
+				errs = common.AppendError(errs, err)
+			}
 		}
 	}
 	return errs
@@ -1348,7 +1354,10 @@ channels:
 				errs = common.AppendError(errs, err)
 				continue
 			}
-			k.Websocket.RemoveSubscriptions(unsubs[i].Channels...)
+			err = k.Websocket.RemoveSubscriptions(unsubs[i].Channels...)
+			if err != nil {
+				errs = common.AppendError(errs, err)
+			}
 			continue
 		}
 
@@ -1357,7 +1366,10 @@ channels:
 			errs = common.AppendError(errs, err)
 			continue
 		}
-		k.Websocket.RemoveSubscriptions(unsubs[i].Channels...)
+		err = k.Websocket.RemoveSubscriptions(unsubs[i].Channels...)
+		if err != nil {
+			errs = common.AppendError(errs, err)
+		}
 	}
 	return errs
 }

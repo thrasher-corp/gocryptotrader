@@ -524,7 +524,10 @@ func (h *HitBTC) Subscribe(channelsToSubscribe []subscription.Subscription) erro
 			errs = common.AppendError(errs, err)
 			continue
 		}
-		h.Websocket.AddSuccessfulSubscriptions(channelsToSubscribe[i])
+		err = h.Websocket.AddSuccessfulSubscriptions(nil, channelsToSubscribe[i])
+		if err != nil {
+			errs = common.AppendError(errs, err)
+		}
 	}
 	if errs != nil {
 		return errs

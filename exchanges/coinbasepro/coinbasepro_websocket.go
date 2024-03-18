@@ -455,8 +455,7 @@ subscriptions:
 	if err != nil {
 		return err
 	}
-	c.Websocket.AddSuccessfulSubscriptions(channelsToSubscribe...)
-	return nil
+	return c.Websocket.AddSuccessfulSubscriptions(nil, channelsToSubscribe...)
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel

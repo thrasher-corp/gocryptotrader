@@ -634,32 +634,27 @@ func (b *Bitmex) Subscribe(channelsToSubscribe []subscription.Subscription) erro
 	var subscriber WebsocketRequest
 	subscriber.Command = "subscribe"
 	for i := range channelsToSubscribe {
-		subscriber.Arguments = append(subscriber.Arguments,
-			channelsToSubscribe[i].Channel)
+		subscriber.Arguments = append(subscriber.Arguments, channelsToSubscribe[i].Channel)
 	}
 	err := b.Websocket.Conn.SendJSONMessage(subscriber)
 	if err != nil {
 		return err
 	}
-	b.Websocket.AddSuccessfulSubscriptions(channelsToSubscribe...)
-	return nil
+	return b.Websocket.AddSuccessfulSubscriptions(nil, channelsToSubscribe...)
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
 func (b *Bitmex) Unsubscribe(channelsToUnsubscribe []subscription.Subscription) error {
 	var unsubscriber WebsocketRequest
 	unsubscriber.Command = "unsubscribe"
-
 	for i := range channelsToUnsubscribe {
-		unsubscriber.Arguments = append(unsubscriber.Arguments,
-			channelsToUnsubscribe[i].Channel)
+		unsubscriber.Arguments = append(unsubscriber.Arguments, channelsToUnsubscribe[i].Channel)
 	}
 	err := b.Websocket.Conn.SendJSONMessage(unsubscriber)
 	if err != nil {
 		return err
 	}
-	b.Websocket.RemoveSubscriptions(channelsToUnsubscribe...)
-	return nil
+	return b.Websocket.RemoveSubscriptions(channelsToUnsubscribe...)
 }
 
 // WebsocketSendAuth sends an authenticated subscription

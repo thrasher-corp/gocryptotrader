@@ -927,16 +927,19 @@ func (o *Okcoin) handleSubscriptions(operation string, subs []subscription.Subsc
 
 			if operation == "unsubscribe" {
 				if authenticatedChannelSubscription {
-					o.Websocket.RemoveSubscriptions(authChannels...)
+					err = o.Websocket.RemoveSubscriptions(authChannels...)
 				} else {
-					o.Websocket.RemoveSubscriptions(channels...)
+					err = o.Websocket.RemoveSubscriptions(channels...)
 				}
 			} else {
 				if authenticatedChannelSubscription {
-					o.Websocket.AddSuccessfulSubscriptions(authChannels...)
+					err = o.Websocket.AddSuccessfulSubscriptions(nil, authChannels...)
 				} else {
-					o.Websocket.AddSuccessfulSubscriptions(channels...)
+					err = o.Websocket.AddSuccessfulSubscriptions(nil, channels...)
 				}
+			}
+			if err != nil {
+				return err
 			}
 			// Drop prior unsubs and chunked payload args on successful unsubscription
 			if authenticatedChannelSubscription {
@@ -969,11 +972,11 @@ func (o *Okcoin) handleSubscriptions(operation string, subs []subscription.Subsc
 		}
 	}
 	if operation == "unsubscribe" {
-		o.Websocket.RemoveSubscriptions(channels...)
+		err = o.Websocket.RemoveSubscriptions(channels...)
 	} else {
-		o.Websocket.AddSuccessfulSubscriptions(channels...)
+		err = o.Websocket.AddSuccessfulSubscriptions(nil, channels...)
 	}
-	return nil
+	return err
 }
 
 // GetCandlesData represents a candlestick instances list.

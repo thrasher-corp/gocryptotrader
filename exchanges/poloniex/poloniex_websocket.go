@@ -593,7 +593,10 @@ channels:
 				errs = common.AppendError(errs, err)
 				continue channels
 			}
-			p.Websocket.AddSuccessfulSubscriptions(sub[i])
+			err = p.Websocket.AddSuccessfulSubscriptions(nil, sub[i])
+			if err != nil {
+				errs = common.AppendError(errs, err)
+			}
 			continue channels
 		case strings.EqualFold(strconv.FormatInt(wsTickerDataID, 10),
 			sub[i].Channel):
@@ -608,7 +611,10 @@ channels:
 			continue
 		}
 
-		p.Websocket.AddSuccessfulSubscriptions(sub[i])
+		err = p.Websocket.AddSuccessfulSubscriptions(nil, sub[i])
+		if err != nil {
+			errs = common.AppendError(errs, err)
+		}
 	}
 	if errs != nil {
 		return errs

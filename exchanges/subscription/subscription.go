@@ -46,6 +46,15 @@ type Subscription struct {
 	Interval      kline.Interval         `json:"interval,omitempty"`
 	Levels        int                    `json:"levels,omitempty"`
 	Authenticated bool                   `json:"authenticated,omitempty"`
+
+	// ConnectionSetup references the main connection setup configuration and
+	// manages the mapping of keys to a pool of connections. It ensures that the
+	// subscription is associated with the correct connection setup.
+	ConnectionSetup any `json:"-"`
+	// Connection is a reference to the specific connection that the
+	// subscription is related to. This is used to ensure that the subscription
+	// is only used with the correct connection.
+	Connection any `json:"-"`
 }
 
 // MarshalJSON generates a JSON representation of a Subscription, specifically for config writing

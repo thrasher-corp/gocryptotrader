@@ -119,17 +119,16 @@ func (g *Gemini) Subscribe(channelsToSubscribe []subscription.Subscription) erro
 		}
 	}
 
-	wsSub := wsSubscribeRequest{
+	err = g.Websocket.Conn.SendJSONMessage(wsSubscribeRequest{
 		Type:          "subscribe",
 		Subscriptions: subs,
-	}
-	err = g.Websocket.Conn.SendJSONMessage(wsSub)
+	})
 	if err != nil {
 		return err
 	}
 
-	g.Websocket.AddSuccessfulSubscriptions(channelsToSubscribe...)
-	return nil
+	return g.Websocket.AddSuccessfulSubscriptions(nil, channelsToSubscribe...)
+
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel

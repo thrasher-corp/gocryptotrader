@@ -381,17 +381,21 @@ func (w *Websocket) Connect() error {
 				window = len(subs)
 			}
 
+			// Split subscriptions into windows
 			for left := 0; left < len(subs); left += window {
 				right := left + window
 				if right > len(subs) {
 					right = len(subs)
 				}
 
-				err = w.checkSubscriptions(configuration, subs[left:right])
+				connectionSubs := subs[left:right]
+
+				err = w.checkSubscriptions(connectionSubs)
 				if err != nil {
 					return err
 				}
 
+				// Only spawn connection if there are subscriptions
 				newConn := &WebsocketConnection{
 					ExchangeName:      w.exchangeName,
 					URL:               configuration.URL,
@@ -406,15 +410,24 @@ func (w *Websocket) Connect() error {
 					Reporter:          configuration.ConnectionLevelReporter,
 				}
 
+				// Apply connection details to subscriptions
+				err = applyConnectionStateToSubscriptions(configuration, newConn, connectionSubs)
+				if err != nil {
+					return err
+				}
+
+				// Append connection to connections pool which are mapped by
+				// the connection setup configuration
 				*conns = append(*conns, newConn)
 
-				// At this stage all connections in `conns` should be cleaned.
+				// Initiate the connection
 				err = w.initConnection(newConn, configuration.Bootstrap, configuration.Handler, configuration.ReadBufferSize, configuration.WriteBufferSize)
 				if err != nil {
 					w.state.Store(disconnected)
 					return fmt.Errorf("%v Error connecting %w", w.exchangeName, err)
 				}
 
+				// Subscribe
 				go func() {
 					err = configuration.Subscriber(newConn, subs[left:right])
 					if err != nil {
@@ -434,13 +447,32 @@ func (w *Websocket) Connect() error {
 	if len(subs) == 0 {
 		return nil
 	}
-	err = w.checkSubscriptions(nil, subs)
+	err = w.checkSubscriptions(subs)
 	if err != nil {
 		return fmt.Errorf("%s websocket: %w", w.exchangeName, common.AppendError(ErrSubscriptionFailure, err))
 	}
 	err = w.Subscriber(subs)
 	if err != nil {
 		return fmt.Errorf("%s websocket: %w", w.exchangeName, common.AppendError(ErrSubscriptionFailure, err))
+	}
+	return nil
+}
+
+// applyConnectionToSubscriptions applies a connection to each individual
+// subscriptions. This is used for multi-connection management.
+func applyConnectionStateToSubscriptions(configuration *ConnectionSetup, conn Connection, subs []subscription.Subscription) error {
+	if configuration == nil {
+		return fmt.Errorf("%w: %w %T", errConnSetup, common.ErrNilPointer, configuration)
+	}
+	if conn == nil {
+		return fmt.Errorf("%w: %w %T", errConnSetup, common.ErrNilPointer, conn)
+	}
+	if len(subs) == 0 {
+		return fmt.Errorf("%w: %w", errConnSetup, errNoSubscriptionsSupplied)
+	}
+	for i := range subs {
+		subs[i].ConnectionSetup = configuration
+		subs[i].Connection = conn
 	}
 	return nil
 }
@@ -617,6 +649,49 @@ func (w *Websocket) Shutdown() error {
 	return nil
 }
 
+// Route is a struct that contains the connection setup and a map of
+// subscriptions to connections. This is used for multi-connection management.
+type Routes map[*ConnectionSetup]map[Connection]*[]subscription.Subscription
+
+// getRoutesFromSubscriptions is a handy little helper function that takes a
+// slice of subscriptions and returns a map of connection setups to a map of
+// connections to a slice of subscriptions. This is used for multi-connection
+// management.
+func getRoutesFromSubscriptions(subs []subscription.Subscription) (Routes, error) {
+	if len(subs) == 0 {
+		return nil, errNoSubscriptionsSupplied
+	}
+
+	routes := make(map[*ConnectionSetup]map[Connection]*[]subscription.Subscription)
+	for i := range subs {
+		key1, ok := subs[i].ConnectionSetup.(*ConnectionSetup)
+		if !ok {
+			return nil, fmt.Errorf("%w: %v", errInvalidChannelState, subs[i].Channel)
+		}
+
+		key2, ok := subs[i].Connection.(Connection)
+		if !ok {
+			return nil, fmt.Errorf("%w: %v", errInvalidChannelState, subs[i].Channel)
+		}
+
+		configConns, ok := routes[key1]
+		if !ok {
+			configConns = make(map[Connection]*[]subscription.Subscription)
+			routes[key1] = configConns
+		}
+
+		conns, ok := configConns[key2]
+		if !ok {
+			conns = &[]subscription.Subscription{}
+			configConns[key2] = conns
+		}
+
+		*conns = append(*conns, subs[i])
+	}
+
+	return nil, nil
+}
+
 // FlushChannels flushes channel subscriptions when there is a pair/asset change
 func (w *Websocket) FlushChannels() error {
 	if !w.IsEnabled() {
@@ -636,16 +711,161 @@ func (w *Websocket) FlushChannels() error {
 		subs, unsubs := w.GetChannelDifference(newsubs)
 		if w.features.Unsubscribe {
 			if len(unsubs) != 0 {
-				err := w.UnsubscribeChannels(unsubs)
-				if err != nil {
-					return err
+				if len(w.Connections) > 0 {
+					var unsubRoutes Routes
+					unsubRoutes, err = getRoutesFromSubscriptions(unsubs)
+					if err != nil {
+						return err
+					}
+
+					// Unsubscribe from channels
+					for config, conns := range unsubRoutes {
+						for conn, subs := range conns {
+							err = config.Unsubscriber(conn, *subs)
+							if err != nil {
+								return err
+							}
+						}
+					}
+
+					// NOTE: At this point we should check if the connection is
+					// still required and if not, remove it from the connections
+					var stateRoutes Routes
+					stateRoutes, err = getRoutesFromSubscriptions(w.GetSubscriptions())
+					if err != nil {
+						return err
+					}
+
+					for config, conns := range stateRoutes {
+					connections:
+						for conn, subs := range conns {
+							if len(*subs) > 0 {
+								continue
+							}
+
+							// Remove connection if there are no subscriptions
+							actual, ok := w.Connections[config]
+							if !ok {
+								return fmt.Errorf("connection setup not found")
+							}
+							for i := range *actual {
+								if (*actual)[i] == conn {
+									err = (*actual)[i].Shutdown()
+									if err != nil {
+										return err
+									}
+									(*actual) = append((*actual)[:i], (*actual)[i+1:]...)
+									continue connections
+								}
+							}
+							return errors.New("connection not found")
+						}
+					}
+
+				} else {
+					err = w.UnsubscribeChannels(unsubs)
+					if err != nil {
+						return err
+					}
 				}
 			}
 		}
 
-		if len(subs) < 1 {
+		if len(subs) == 0 {
 			return nil
 		}
+
+		if len(w.Connections) > 0 {
+			var stateRoutes Routes
+			stateRoutes, err = getRoutesFromSubscriptions(w.GetSubscriptions())
+			if err != nil {
+				return err
+			}
+
+			left := 0
+			// Find empty spots to subscribe to channels
+			for config, conns := range stateRoutes {
+				for conn, alreadySubs := range conns {
+					if w.MaxSubscriptionsPerConnection != 0 && len(*alreadySubs) == w.MaxSubscriptionsPerConnection {
+						continue
+					}
+
+					window := w.MaxSubscriptionsPerConnection - len(*alreadySubs)
+					if window < 0 {
+						window *= -window
+					}
+
+					right := left + window
+
+					if right > len(subs) {
+						right = len(subs)
+					}
+
+					err = config.Subscriber(conn, subs[left:right])
+					if err != nil {
+						return err
+					}
+
+					left = right
+				}
+
+				if left == len(subs) {
+					break
+				}
+
+				if left > len(subs) {
+					return fmt.Errorf("%s %w", w.exchangeName, errSubscriptionsExceedsLimit)
+				}
+
+				// If we have more subscriptions than the max per connection
+				// we need to create a new connection
+				newConn := &WebsocketConnection{
+					ExchangeName:      w.exchangeName,
+					URL:               config.URL,
+					Verbose:           w.verbose,
+					ResponseMaxLimit:  config.ResponseMaxLimit,
+					Traffic:           w.TrafficAlert,
+					readMessageErrors: w.ReadMessageErrors,
+					ShutdownC:         w.ShutdownC,
+					Wg:                w.Wg,
+					Match:             w.Match,
+					RateLimit:         config.RateLimit,
+					Reporter:          config.ConnectionLevelReporter,
+				}
+
+				// Apply connection details to subscriptions
+				err = applyConnectionStateToSubscriptions(config, newConn, subs[left:])
+				if err != nil {
+					return err
+				}
+
+				// Append connection to connections pool which are mapped by
+				// the connection setup configuration
+				actual, ok := w.Connections[config]
+				if !ok {
+					return fmt.Errorf("%s %w", w.exchangeName, common.ErrTypeAssertFailure)
+				}
+
+				*actual = append(*actual, newConn)
+
+				// Initiate the connection
+				err = w.initConnection(newConn, config.Bootstrap, config.Handler, config.ReadBufferSize, config.WriteBufferSize)
+				if err != nil {
+					return fmt.Errorf("%v Error connecting %w", w.exchangeName, err)
+				}
+
+				// Subscribe
+
+				err = config.Subscriber(newConn, subs[left:])
+				if err != nil {
+					return fmt.Errorf("%s websocket: %w", w.exchangeName, common.AppendError(ErrSubscriptionFailure, err))
+				}
+
+				break
+			}
+			return nil
+		}
+
 		return w.SubscribeToChannels(subs)
 	} else if w.features.FullPayloadSubscribe {
 		// FullPayloadSubscribe means that the endpoint requires all
@@ -663,6 +883,11 @@ func (w *Websocket) FlushChannels() error {
 			w.subscriptionMutex.Lock()
 			w.subscriptions = subscriptionMap{}
 			w.subscriptionMutex.Unlock()
+
+			if len(w.Connections) > 0 {
+
+			}
+
 			return w.SubscribeToChannels(newsubs)
 		}
 		return nil
@@ -956,9 +1181,49 @@ func (w *Websocket) ResubscribeToChannel(subscribedChannel *subscription.Subscri
 
 // SubscribeToChannels appends supplied channels to channelsToSubscribe
 func (w *Websocket) SubscribeToChannels(channels []subscription.Subscription) error {
-	if err := w.checkSubscriptions(nil, channels); err != nil {
+	if err := w.checkSubscriptions(channels); err != nil {
 		return fmt.Errorf("%s websocket: %w", w.exchangeName, common.AppendError(ErrSubscriptionFailure, err))
 	}
+
+	if w.connector == nil && len(w.Connections) > 0 {
+		window := w.MaxSubscriptionsPerConnection
+		if window == 0 || window > len(channels) {
+			window = len(channels)
+		}
+
+		// for configuration, conns := range w.Connections {
+		// 	if len(*conns) == 0 {
+		// 		return errors.New("connections should be populated, silly billy")
+		// 	}
+
+		// 	window := w.MaxSubscriptionsPerConnection
+		// 	if window == 0 || window > len(channels) {
+		// 		window = len(channels)
+		// 	}
+
+		// 	for left := 0; left < len(channels); left += window {
+		// 		right := left + window
+		// 		if right > len(channels) {
+		// 			right = len(channels)
+		// 		}
+
+		// 		err := w.checkSubscriptions(channels[left:right])
+		// 		if err != nil {
+		// 			return err
+		// 		}
+
+		// 		for i := range *conns {
+		// 			err = configuration.Subscriber((*conns)[i], channels[left:right])
+		// 			if err != nil {
+		// 				return err
+		// 			}
+		// 		}
+		// 	}
+		// }
+
+		return nil
+	}
+
 	if err := w.Subscriber(channels); err != nil {
 		return fmt.Errorf("%s websocket: %w", w.exchangeName, common.AppendError(ErrSubscriptionFailure, err))
 	}
@@ -1007,29 +1272,29 @@ func (w *Websocket) SetSubscriptionState(c *subscription.Subscription, state sub
 	return nil
 }
 
-type AddRemove interface {
-	AddSuccessfulSubscriptions(...subscription.Subscription)
-	RemoveSubscriptions(...subscription.Subscription)
-}
-
 // AddSuccessfulSubscriptions adds subscriptions to the subscription lists that
 // has been successfully subscribed
-func (w *Websocket) AddSuccessfulSubscriptions(channels ...subscription.Subscription) {
+func (w *Websocket) AddSuccessfulSubscriptions(channels ...subscription.Subscription) error {
 	w.subscriptionMutex.Lock()
 	defer w.subscriptionMutex.Unlock()
 	if w.subscriptions == nil {
 		w.subscriptions = subscriptionMap{}
 	}
-	for _, cN := range channels { //nolint:gocritic // See below comment
-		c := cN // cN is an iteration var; Not safe to make a pointer to
-		key := c.EnsureKeyed()
+	for i := range channels {
+		c := channels[i]
 		c.State = subscription.SubscribedState
+		key := c.EnsureKeyed()
+		_, ok := w.subscriptions[key]
+		if ok {
+			return fmt.Errorf("%w for %+v", errChannelAlreadySubscribed, c)
+		}
 		w.subscriptions[key] = &c
 	}
+	return nil
 }
 
 // RemoveSubscriptions removes subscriptions from the subscription list
-func (w *Websocket) RemoveSubscriptions(channels ...subscription.Subscription) {
+func (w *Websocket) RemoveSubscriptions(channels ...subscription.Subscription) error {
 	w.subscriptionMutex.Lock()
 	defer w.subscriptionMutex.Unlock()
 	if w.subscriptions == nil {
@@ -1037,8 +1302,13 @@ func (w *Websocket) RemoveSubscriptions(channels ...subscription.Subscription) {
 	}
 	for i := range channels {
 		key := channels[i].EnsureKeyed()
+		_, ok := w.subscriptions[key]
+		if !ok {
+			return fmt.Errorf("%w for %+v", ErrSubscriptionNotFound, channels[i])
+		}
 		delete(w.subscriptions, key)
 	}
+	return nil
 }
 
 // GetSubscription returns a pointer to a copy of the subscription at the key provided
@@ -1098,7 +1368,7 @@ func checkWebsocketURL(s string) error {
 
 // checkSubscriptions checks subscriptions against the max subscription limit
 // and if the subscription already exists.
-func (w *Websocket) checkSubscriptions(conn *ConnectionSetup, subs []subscription.Subscription) error {
+func (w *Websocket) checkSubscriptions(subs []subscription.Subscription) error {
 	if len(subs) == 0 {
 		return errNoSubscriptionsSupplied
 	}
