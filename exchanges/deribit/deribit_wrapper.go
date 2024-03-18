@@ -236,9 +236,17 @@ func (d *Deribit) FetchTradablePairs(ctx context.Context, assetType asset.Item) 
 			if !instrumentsData[y].IsActive {
 				continue
 			}
-			cp, err := currency.NewPairFromString(instrumentsData[y].InstrumentName)
-			if err != nil {
-				return nil, err
+			var cp currency.Pair
+			if assetType == asset.Options {
+				cp, err = currency.NewPairDelimiter(instrumentsData[y].InstrumentName, currency.DashDelimiter)
+				if err != nil {
+					return nil, err
+				}
+			} else {
+				cp, err = currency.NewPairFromString(instrumentsData[y].InstrumentName)
+				if err != nil {
+					return nil, err
+				}
 			}
 			resp = resp.Add(cp)
 		}
