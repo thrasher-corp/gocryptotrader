@@ -24,6 +24,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
+	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
@@ -64,7 +65,7 @@ func TestMain(m *testing.M) {
 
 func TestUpdateTradablePairs(t *testing.T) {
 	t.Parallel()
-	updatePairsOnce(t)
+	testexch.UpdatePairsOnce(t, g)
 }
 
 func TestCancelAllExchangeOrders(t *testing.T) {
@@ -3229,7 +3230,7 @@ func TestParseGateioTimeUnmarshal(t *testing.T) {
 
 func TestUpdateOrderExecutionLimits(t *testing.T) {
 	t.Parallel()
-	updatePairsOnce(t)
+	testexch.UpdatePairsOnce(t, g)
 
 	err := g.UpdateOrderExecutionLimits(context.Background(), 1336)
 	if !errors.Is(err, asset.ErrNotSupported) {
@@ -3442,16 +3443,6 @@ func TestGetOpenInterest(t *testing.T) {
 	assert.NotEmpty(t, resp, "GetOpenInterest should return some items")
 }
 
-var updatePairsGuard sync.Once
-
-func updatePairsOnce(tb testing.TB) {
-	tb.Helper()
-	updatePairsGuard.Do(func() {
-		err := g.UpdateTradablePairs(context.Background(), true)
-		assert.NoError(tb, err, "UpdateTradablePairs should not error")
-	})
-}
-
 var pairs = map[asset.Item]currency.Pair{
 	asset.Spot: currency.NewPairWithDelimiter("BTC", "USDT", "_"),
 }
@@ -3473,7 +3464,7 @@ func getPair(tb testing.TB, a asset.Item) currency.Pair {
 		return p
 	}
 
-	updatePairsOnce(tb)
+	testexch.UpdatePairsOnce(tb, g)
 	enabledPairs, err := g.GetEnabledPairs(a)
 	assert.NoErrorf(tb, err, "%s GetEnabledPairs should not error", a)
 	if !assert.NotEmpty(tb, enabledPairs, "%s GetEnabledPairs should not be empty", a) {
