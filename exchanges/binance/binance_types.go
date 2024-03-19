@@ -2648,7 +2648,7 @@ type SubAccountTransferHistory struct {
 	Time            convert.ExchangeTime `json:"time"`
 }
 
-// SubAccountTransferHistoryItem represents aub-account transfer history fro sub-accounts
+// SubAccountTransferHistoryItem represents aub-account transfer history from sub-accounts
 type SubAccountTransferHistoryItem struct {
 	CounterParty    string               `json:"counterParty"`
 	Email           string               `json:"email"`
@@ -2770,4 +2770,165 @@ type AccountSummary struct {
 type LeverageToken struct {
 	Email      string `json:"email"`
 	EnableBlvt bool   `json:"enableBlvt"`
+}
+
+// APIRestrictions holds list of Ip addresses restricted to access the API key.
+type APIRestrictions struct {
+	IPRestrict string               `json:"ipRestrict"`
+	IPList     []string             `json:"ipList"`
+	UpdateTime convert.ExchangeTime `json:"updateTime"`
+	APIKey     string               `json:"apiKey"`
+}
+
+// ManagedSubAccountAssetInfo represents managed sub-account asset information
+type ManagedSubAccountAssetInfo struct {
+	Coin             string       `json:"coin"`
+	Name             string       `json:"name"`
+	TotalBalance     types.Number `json:"totalBalance"`
+	AvailableBalance types.Number `json:"availableBalance"`
+	InOrder          string       `json:"inOrder"`
+	BTCValue         types.Number `json:"btcValue"`
+}
+
+// SubAccountAssetsSnapshot represents a subaccount asset snapshot
+type SubAccountAssetsSnapshot struct {
+	Code        int64  `json:"code"`
+	Msg         string `json:"msg"`
+	SnapshotVos []struct {
+		Data struct {
+			Balances []struct {
+				Asset  string       `json:"asset"`
+				Free   types.Number `json:"free"`
+				Locked types.Number `json:"locked"`
+			} `json:"balances"`
+			TotalAssetOfBTC types.Number `json:"totalAssetOfBtc"`
+		} `json:"data"`
+		Type       string               `json:"type"`
+		UpdateTime convert.ExchangeTime `json:"updateTime"`
+	} `json:"snapshotVos"`
+}
+
+// SubAccountTransferLog represents a managed sub-account transfer log
+type SubAccountTransferLog struct {
+	ManagerSubTransferHistoryVos []struct {
+		FromEmail       string               `json:"fromEmail"`
+		FromAccountType string               `json:"fromAccountType"`
+		ToEmail         string               `json:"toEmail"`
+		ToAccountType   string               `json:"toAccountType"`
+		Asset           string               `json:"asset"`
+		Amount          types.Number         `json:"amount"`
+		ScheduledData   convert.ExchangeTime `json:"scheduledData"`
+		CreateTime      convert.ExchangeTime `json:"createTime"`
+		Status          string               `json:"status"`
+		TranID          int64                `json:"tranId"`
+	} `json:"managerSubTransferHistoryVos"`
+	Count int64 `json:"count"`
+}
+
+// ManagedSubAccountFuturesAssetDetail represents sub-accounts futures asset details.
+type ManagedSubAccountFuturesAssetDetail struct {
+	Code        string `json:"code"`
+	Message     string `json:"message"`
+	SnapshotVos []struct {
+		Type       string               `json:"type"`
+		UpdateTime convert.ExchangeTime `json:"updateTime"`
+		Data       struct {
+			Assets []struct {
+				Asset         string       `json:"asset"`
+				MarginBalance types.Number `json:"marginBalance"`
+				WalletBalance types.Number `json:"walletBalance"`
+			} `json:"assets"`
+			Position []struct {
+				Symbol      string       `json:"symbol"`
+				EntryPrice  types.Number `json:"entryPrice"`
+				MarkPrice   types.Number `json:"markPrice"`
+				PositionAmt types.Number `json:"positionAmt"`
+			} `json:"position"`
+		} `json:"data"`
+	} `json:"snapshotVos"`
+}
+
+// SubAccountMarginAsset represents a sub-account margin asset details response
+type SubAccountMarginAsset struct {
+	MarginLevel         string       `json:"marginLevel"`
+	TotalAssetOfBTC     types.Number `json:"totalAssetOfBtc"`
+	TotalLiabilityOfBTC types.Number `json:"totalLiabilityOfBtc"`
+	TotalNetAssetOfBTC  types.Number `json:"totalNetAssetOfBtc"`
+	UserAssets          []struct {
+		Asset    string       `json:"asset"`
+		Borrowed types.Number `json:"borrowed"`
+		Free     types.Number `json:"free"`
+		Interest types.Number `json:"interest"`
+		Locked   types.Number `json:"locked"`
+		NetAsset types.Number `json:"netAsset"`
+	} `json:"userAssets"`
+}
+
+// ManagedSubAccountList represents a managed sub-account list.
+type ManagedSubAccountList struct {
+	Total                    int64 `json:"total"`
+	ManagerSubUserInfoVoList []struct {
+		RootUserID               int64                `json:"rootUserId"`
+		ManagersubUserID         int64                `json:"managersubUserId"`
+		BindParentUserID         int64                `json:"bindParentUserId"`
+		Email                    string               `json:"email"`
+		InsertTimeStamp          convert.ExchangeTime `json:"insertTimeStamp"`
+		BindParentEmail          string               `json:"bindParentEmail"`
+		IsSubUserEnabled         bool                 `json:"isSubUserEnabled"`
+		IsUserActive             bool                 `json:"isUserActive"`
+		IsMarginEnabled          bool                 `json:"isMarginEnabled"`
+		IsFutureEnabled          bool                 `json:"isFutureEnabled"`
+		IsSignedLVTRiskAgreement bool                 `json:"isSignedLVTRiskAgreement"`
+	} `json:"managerSubUserInfoVoList"`
+}
+
+// SubAccountTransactionStatistics holds a sub-account transaction statistics
+type SubAccountTransactionStatistics struct {
+	Recent30BtcTotal         types.Number `json:"recent30BtcTotal"`
+	Recent30BtcFuturesTotal  types.Number `json:"recent30BtcFuturesTotal"`
+	Recent30BtcMarginTotal   types.Number `json:"recent30BtcMarginTotal"`
+	Recent30BusdTotal        types.Number `json:"recent30BusdTotal"`
+	Recent30BusdFuturesTotal types.Number `json:"recent30BusdFuturesTotal"`
+	Recent30BusdMarginTotal  types.Number `json:"recent30BusdMarginTotal"`
+	TradeInfoVos             []struct {
+		UserID      int64                `json:"userId"`
+		BTC         types.Number         `json:"btc"`
+		BTCFutures  types.Number         `json:"btcFutures"`
+		BTCMargin   types.Number         `json:"btcMargin"`
+		BUSD        types.Number         `json:"busd"`
+		BUSDFutures types.Number         `json:"busdFutures"`
+		BUSDMargin  types.Number         `json:"busdMargin"`
+		Date        convert.ExchangeTime `json:"date"`
+	} `json:"tradeInfoVos"`
+}
+
+// ManagedSubAccountDepositAddres holds managed sub-account deposit address.
+type ManagedSubAccountDepositAddres struct {
+	Coin    string `json:"coin"`
+	Address string `json:"address"`
+	Tag     string `json:"tag"`
+	URL     string `json:"url"`
+}
+
+// OptionsEnablingResponse holds a response after enabling options for sub-account
+type OptionsEnablingResponse struct {
+	Email             string `json:"email"`
+	IsEOptionsEnabled bool   `json:"isEOptionsEnabled"`
+}
+
+// ManagedSubAccountTransferLog represents an asset transfer logs for trading team sub-accounts
+type ManagedSubAccountTransferLog struct {
+	ManagerSubTransferHistoryVos []struct {
+		FromEmail       string               `json:"fromEmail"`
+		FromAccountType string               `json:"fromAccountType"`
+		ToEmail         string               `json:"toEmail"`
+		ToAccountType   string               `json:"toAccountType"`
+		Asset           string               `json:"asset"`
+		Amount          types.Number         `json:"amount"`
+		CreateTime      convert.ExchangeTime `json:"createTime"`
+		ScheduledData   int64                `json:"scheduledData"`
+		Status          string               `json:"status"`
+		TranID          int64                `json:"tranId"`
+	} `json:"managerSubTransferHistoryVos"`
+	Count int64 `json:"count"`
 }

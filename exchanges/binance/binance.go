@@ -91,6 +91,9 @@ var (
 	errTimestampInfoRequired                  = errors.New("timestamp information is required")
 	errListenKeyIsRequired                    = errors.New("listen key is required")
 	errValidEmailRequired                     = errors.New("valid email address is required")
+	errPageNumberRequired                     = errors.New("page number is required")
+	errLimitNumberRequired                    = errors.New("invalid limit")
+	errEmptySubAccountEPIKey                  = errors.New("invalid sub-account API key")
 	errInvalidFuturesType                     = errors.New("invalid futures types")
 	errInvalidAccountType                     = errors.New("invalid account type specified")
 )
@@ -1624,6 +1627,91 @@ func (b *Binance) GetSubAccountAssets(ctx context.Context, email string) (*SubAc
 	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "sub-account/assets", params, spotDefaultRate, &resp)
 }
 
+// GetManagedSubAccountList retrieves investor's managed sub-account list.
+func (b *Binance) GetManagedSubAccountList(ctx context.Context, email string, page, limit int64) (*ManagedSubAccountList, error) {
+	params := url.Values{}
+	if common.MatchesEmailPattern(email) {
+		params.Set("email", email)
+	}
+	if page > 0 {
+		params.Set("page", strconv.FormatInt(page, 10))
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	var resp *ManagedSubAccountList
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "managed-subaccount/info", params, spotDefaultRate, &resp)
+}
+
+// GetSubAccountTransactionStatistics retrieves sub-account Transaction statistics (For Master Account)(USER_DATA).
+func (b *Binance) GetSubAccountTransactionStatistics(ctx context.Context, email string) ([]SubAccountTransactionStatistics, error) {
+	if !common.MatchesEmailPattern(email) {
+		return nil, errValidEmailRequired
+	}
+	params := url.Values{}
+	params.Set("email", email)
+	var resp []SubAccountTransactionStatistics
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "sub-account/transaction-statistics", params, spotDefaultRate, &resp)
+}
+
+// GetManagedSubAccountDepositAddress retrieves investor's managed sub-account deposit address.
+// get managed sub-account deposit address (For Investor Master Account) (USER_DATA)
+func (b *Binance) GetManagedSubAccountDepositAddress(ctx context.Context, coin currency.Code, email, network string) (*ManagedSubAccountDepositAddres, error) {
+	if !common.MatchesEmailPattern(email) {
+		return nil, errValidEmailRequired
+	}
+	if coin.IsEmpty() {
+		return nil, currency.ErrCurrencyCodeEmpty
+	}
+	params := url.Values{}
+	params.Set("coin", coin.String())
+	params.Set("email", email)
+	params.Set("network", network)
+	var resp *ManagedSubAccountDepositAddres
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "managed-subaccount/deposit/address", params, spotDefaultRate, &resp)
+}
+
+// EnableOptionsForSubAccount enables options for sub-account(For master account)
+func (b *Binance) EnableOptionsForSubAccount(ctx context.Context, email string) (*OptionsEnablingResponse, error) {
+	if !common.MatchesEmailPattern(email) {
+		return nil, errValidEmailRequired
+	}
+	params := url.Values{}
+	params.Set("email", email)
+	var resp *OptionsEnablingResponse
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "sub-account/eoptions/enable", params, spotDefaultRate, &resp)
+}
+
+// GetManagedSubAccountTransferLog retrieves managed sub account transfer Log (For Trading Team Sub Account)
+// transfers: Transfer Direction (FROM/TO)
+// transferFunctionAccountType: Transfer function account type (SPOT/MARGIN/ISOLATED_MARGIN/USDT_FUTURE/COIN_FUTURE)
+func (b *Binance) GetManagedSubAccountTransferLog(ctx context.Context, startTime, endTime time.Time,
+	page, limit int64, transfers, transferFunctionAccountType string) (*ManagedSubAccountTransferLog, error) {
+	err := common.StartEndTimeCheck(startTime, endTime)
+	if err != nil {
+		return nil, err
+	}
+	if page < 0 {
+		return nil, errPageNumberRequired
+	}
+	if limit < 0 {
+		return nil, errLimitNumberRequired
+	}
+	params := url.Values{}
+	params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+	params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
+	params.Set("page", strconv.FormatInt(page, 10))
+	params.Set("limit", strconv.FormatInt(limit, 10))
+	if transfers != "" {
+		params.Set("transfers", transfers)
+	}
+	if transferFunctionAccountType != "" {
+		params.Set("transferFunctionAccountType", transferFunctionAccountType)
+	}
+	var resp *ManagedSubAccountTransferLog
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "managed-subaccount/query-trans-log", params, spotDefaultRate, &resp)
+}
+
 // GetSubAccountSpotAssetsSummary retrieves BTC valued asset summary of subaccounts.
 func (b *Binance) GetSubAccountSpotAssetsSummary(ctx context.Context, email string, page, size int64) (*SubAccountSpotSummary, error) {
 	params := url.Values{}
@@ -1779,7 +1867,201 @@ func (b *Binance) EnableLeverageTokenForSubAccount(ctx context.Context, email st
 		params.Set("enableElvt", "false")
 	}
 	var resp *LeverageToken
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "sub-account/blvt/enable", params, spotDefaultRate, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "sub-account/blvt/enable", params, spotDefaultRate, &resp)
+}
+
+// GetIPRestrictionForSubAccountAPIKey retrieves list of IP addresses restricted for the sub account API key(for master account).
+func (b *Binance) GetIPRestrictionForSubAccountAPIKey(ctx context.Context, email, subAccountAPIKey string) (*APIRestrictions, error) {
+	if !common.MatchesEmailPattern(email) {
+		return nil, errValidEmailRequired
+	}
+	if subAccountAPIKey == "" {
+		return nil, errEmptySubAccountEPIKey
+	}
+	params := url.Values{}
+	params.Set("email", email)
+	params.Set("subAccountApiKey", subAccountAPIKey)
+	var resp *APIRestrictions
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "sub-account/subAccountApi/ipRestriction", params, spotDefaultRate, &resp)
+}
+
+// DeleteIPListForSubAccountAPIKey delete IP list for a sub-account API key (For Master Account)
+func (b *Binance) DeleteIPListForSubAccountAPIKey(ctx context.Context, email, subAccountAPIKey, ipAddress string) (*APIRestrictions, error) {
+	if !common.MatchesEmailPattern(email) {
+		return nil, errValidEmailRequired
+	}
+	if subAccountAPIKey == "" {
+		return nil, errEmptySubAccountEPIKey
+	}
+	params := url.Values{}
+	params.Set("email", email)
+	params.Set("subAccountApiKey", subAccountAPIKey)
+	if ipAddress != "" {
+		params.Set("ipAddress", ipAddress)
+	}
+	var resp *APIRestrictions
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodDelete, "sub-account/subAccountApi/ipRestriction/ipList", params, spotDefaultRate, &resp)
+}
+
+// AddIPRestrictionForSubAccountAPIkey adds an IP address into the restricted IP addresses for the subaccount
+func (b *Binance) AddIPRestrictionForSubAccountAPIkey(ctx context.Context, email, subAccountAPIKey, ipAddress string, restricted bool) (*APIRestrictions, error) {
+	if !common.MatchesEmailPattern(email) {
+		return nil, errValidEmailRequired
+	}
+	if subAccountAPIKey == "" {
+		return nil, errEmptySubAccountEPIKey
+	}
+	params := url.Values{}
+	if restricted {
+		params.Set("status", "2")
+	} else {
+		params.Set("status", "1")
+	}
+	params.Set("email", email)
+	params.Set("subAccountApiKey", subAccountAPIKey)
+	if ipAddress != "" {
+		params.Set("ipAddress", ipAddress)
+	}
+	var resp *APIRestrictions
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "sub-account/subAccountApi/ipRestriction/ipList", params, spotDefaultRate, &resp)
+}
+
+// DepositAssetsIntoTheManagedSubAccount deposits an asset into managed sub-account (for investor master account).
+func (b *Binance) DepositAssetsIntoTheManagedSubAccount(ctx context.Context, toEmail string, asset currency.Code, amount float64) (string, error) {
+	if !common.MatchesEmailPattern(toEmail) {
+		return "", fmt.Errorf("%w, toEmail = %s", errValidEmailRequired, toEmail)
+	}
+	if asset.IsEmpty() {
+		return "", currency.ErrCurrencyCodeEmpty
+	}
+	if amount <= 0 {
+		return "", errAmountMustBeSet
+	}
+	params := url.Values{}
+	params.Set("toEmail", toEmail)
+	params.Set("asset", asset.String())
+	params.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
+	resp := &struct {
+		TransactionID string `json:"tranId"`
+	}{}
+	return resp.TransactionID, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "managed-subaccount/deposit", params, spotDefaultRate, &resp)
+}
+
+// GetManagedSubAccountAssetsDetails retrieves managed sub-account assets details for investor master accounts.
+func (b *Binance) GetManagedSubAccountAssetsDetails(ctx context.Context, email string) ([]ManagedSubAccountAssetInfo, error) {
+	if !common.MatchesEmailPattern(email) {
+		return nil, errValidEmailRequired
+	}
+	params := url.Values{}
+	params.Set("email", email)
+	var resp []ManagedSubAccountAssetInfo
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "managed-subaccount/asset", params, spotDefaultRate, &resp)
+}
+
+// WithdrawAssetsFromManagedSubAccount withdraws an asset from managed sub-account(for investor master account).
+func (b *Binance) WithdrawAssetsFromManagedSubAccount(ctx context.Context, fromEmail string, asset currency.Code, amount float64, transferDate time.Time) (string, error) {
+	if !common.MatchesEmailPattern(fromEmail) {
+		return "", fmt.Errorf("%w fromEmail=%s", errValidEmailRequired, fromEmail)
+	}
+	if asset.IsEmpty() {
+		return "", currency.ErrCurrencyCodeEmpty
+	}
+	if amount <= 0 {
+		return "", errAmountMustBeSet
+	}
+	params := url.Values{}
+	params.Set("fromEmail", fromEmail)
+	params.Set("asset", asset.String())
+	params.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
+	if !transferDate.IsZero() {
+		params.Set("transferData", strconv.FormatInt(transferDate.UnixMilli(), 10))
+	}
+	resp := &struct {
+		TransactionID string `json:"tranId"`
+	}{}
+	return resp.TransactionID, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "managed-subaccount/withdraw", params, spotDefaultRate, &resp)
+}
+
+// GetManagedSubAccountSnapshot retrieves managed sub-account snapshot for investor master account.
+func (b *Binance) GetManagedSubAccountSnapshot(ctx context.Context, email, assetType string, startTime, endTime time.Time, limit int64) (*SubAccountAssetsSnapshot, error) {
+	if !common.MatchesEmailPattern(email) {
+		return nil, fmt.Errorf("%w email=%s", errValidEmailRequired, email)
+	}
+	if assetType == "" {
+		return nil, errors.New("invalid assets type")
+	}
+	params := url.Values{}
+	if !startTime.IsZero() {
+		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+	}
+	if !endTime.IsZero() {
+		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	var resp *SubAccountAssetsSnapshot
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "managed-subaccount/accountSnapshot", params, spotDefaultRate, &resp)
+}
+
+// GetManagedSubAccountTransferLogForInvestorMasterAccount retrieves  managed sub account transfer log. This endpoint is available for investor of Managed Sub-Account.
+// A Managed Sub-Account is an account type for investors who value flexibility in asset allocation and account application,
+// while delegating trades to a professional trading team.
+func (b *Binance) GetManagedSubAccountTransferLogForInvestorMasterAccount(ctx context.Context, email string, startTime, endTime time.Time, page, limit int64) (*SubAccountTransferLog, error) {
+	return b.getManagedSubAccountTransferLog(ctx, email, "managed-subaccount/queryTransLogForInvestor", startTime, endTime, page, limit)
+}
+
+// GetManagedSubAccountTransferLogForTradingTeam retrieves managed sub account transfer log.
+// This endpoint is available for investor of Managed Sub-Account. A Managed Sub-Account is an account type for investors who value flexibility in asset allocation and account application,
+// while delegating trades to a professional trading team.
+func (b *Binance) GetManagedSubAccountTransferLogForTradingTeam(ctx context.Context, email string, startTime, endTime time.Time, page, limit int64) (*SubAccountTransferLog, error) {
+	return b.getManagedSubAccountTransferLog(ctx, email, "managed-subaccount/queryTransLogForTradeParent", startTime, endTime, page, limit)
+}
+
+func (b *Binance) getManagedSubAccountTransferLog(ctx context.Context, email, path string, startTime, endTime time.Time, page, limit int64) (*SubAccountTransferLog, error) {
+	if !common.MatchesEmailPattern(email) {
+		return nil, fmt.Errorf("%w, email = %s", errValidEmailRequired, email)
+	}
+	err := common.StartEndTimeCheck(startTime, endTime)
+	if err != nil {
+		return nil, err
+	}
+	if page < 0 {
+		return nil, errors.New("page is required")
+	}
+	if limit <= 0 {
+		return nil, errors.New("limit is required")
+	}
+	params := url.Values{}
+	params.Set("email", email)
+	params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+	params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
+	params.Set("page", strconv.FormatInt(page, 10))
+	params.Set("limit", strconv.FormatInt(limit, 10))
+	var resp *SubAccountTransferLog
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, params, spotDefaultRate, &resp)
+}
+
+// GetManagedSubAccountFutureesAssetDetails retrieves managed sub account futures asset details(For Investor Master Account）(USER_DATA)
+func (b *Binance) GetManagedSubAccountFutureesAssetDetails(ctx context.Context, email string) (*ManagedSubAccountFuturesAssetDetail, error) {
+	if !common.MatchesEmailPattern(email) {
+		return nil, errValidEmailRequired
+	}
+	params := url.Values{}
+	params.Set("email", email)
+	var resp *ManagedSubAccountFuturesAssetDetail
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "managed-subaccount/fetch-future-asset", params, spotDefaultRate, &resp)
+}
+
+// GetManagedSubAccountMarginAssetDetails retrieves managed sub-account margin asset details.
+func (b *Binance) GetManagedSubAccountMarginAssetDetails(ctx context.Context, email string) (*SubAccountMarginAsset, error) {
+	if !common.MatchesEmailPattern(email) {
+		return nil, errValidEmailRequired
+	}
+	params := url.Values{}
+	params.Set("email", email)
+	var resp *SubAccountMarginAsset
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "managed-subaccount/marginAsset", params, spotDefaultRate, &resp)
 }
 
 // FuturesTransferSubAccount transfers futures for sub-account( from master account only)

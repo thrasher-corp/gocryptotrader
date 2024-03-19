@@ -1133,6 +1133,46 @@ func TestGetSubAccountAssets(t *testing.T) {
 	assert.NoError(t, err)
 }
 
+func TestGetManagedSubAccountList(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetManagedSubAccountList(context.Background(), "address@gmail.com", 0, 10)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetSubAccountTransactionStatistics(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetSubAccountTransactionStatistics(context.Background(), "address@thrasher.io")
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetManagedSubAccountDepositAddress(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetManagedSubAccountDepositAddress(context.Background(), currency.ETH, "destination@thrasher.io", "")
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestEnableOptionsForSubAccount(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	result, err := b.EnableOptionsForSubAccount(context.Background(), "address@mail.com")
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetManagedSubAccountTransferLog(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetManagedSubAccountTransferLog(context.Background(), time.Now().Add(-time.Hour*24*50), time.Now().Add(-time.Hour*24*30), 1, 10, "", "MARGIN")
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
 func TestGetSubAccountSpotAssetsSummary(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
@@ -1224,6 +1264,95 @@ func TestEnableLeverageTokenForSubAccount(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
+
+func TestGetIPRestrictionForSubAccountAPIKey(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetIPRestrictionForSubAccountAPIKey(context.Background(), "emailaddress@thrasher.io", apiKey)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestDeleteIPListForSubAccountAPIKey(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	result, err := b.DeleteIPListForSubAccountAPIKey(context.Background(), "emailaddress@thrasher.io", apiKey, "196.168.4.1")
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestAddIPRestrictionForSubAccountAPIkey(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	result, err := b.AddIPRestrictionForSubAccountAPIkey(context.Background(), "address@thrasher.io", apiKey, "", true)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestDepositAssetsIntoTheManagedSubAccount(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	result, err := b.DepositAssetsIntoTheManagedSubAccount(context.Background(), "toemail@mail.com", currency.BTC, 0.0001)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetManagedSubAccountAssetsDetails(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	result, err := b.GetManagedSubAccountAssetsDetails(context.Background(), "emailaddress@thrashser.io")
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestWithdrawAssetsFromManagedSubAccount(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	result, err := b.WithdrawAssetsFromManagedSubAccount(context.Background(), "source@email.com", currency.BTC, 0.0000001, time.Now().Add(-time.Hour*24*50))
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetManagedSubAccountSnapshot(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetManagedSubAccountSnapshot(context.Background(), "address@thrasher.io", "SPOT", time.Time{}, time.Now(), 10)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetManagedSubAccountTransferLogForInvestorMasterAccount(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetManagedSubAccountTransferLogForInvestorMasterAccount(context.Background(), "address@gmail.com", time.Now().Add(-time.Hour*24*50), time.Now().Add(-time.Hour*24*20), 1, 10)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetManagedSubAccountTransferLogForTradingTeam(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetManagedSubAccountTransferLogForTradingTeam(context.Background(), "address@gmail.com", time.Now().Add(-time.Hour*24*50), time.Now().Add(-time.Hour*24*20), 1, 10)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetManagedSubAccountFutureesAssetDetails(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetManagedSubAccountFutureesAssetDetails(context.Background(), "address@email.com")
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetManagedSubAccountMarginAssetDetails(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetManagedSubAccountMarginAssetDetails(context.Background(), "address@gmail.com")
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
 func TestFuturesTransferSubAccount(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
