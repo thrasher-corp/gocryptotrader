@@ -337,7 +337,7 @@ func (w *Websocket) Connect() error {
 		}
 	}
 
-	// With this multiconnection management componant, the connections are
+	// With this multiconnection management component, the connections are
 	// coupled with subscriptions, this will eventually be able to dynamically
 	// add and/or remove connections as needed. NOTE: All connections should be
 	// rolled over to this new system.

@@ -685,7 +685,10 @@ func (c *COINUT) Unsubscribe(channelToUnsubscribe []subscription.Subscription) e
 				channelToUnsubscribe[i].Channel))
 			continue
 		}
-		c.Websocket.RemoveSubscriptions(channelToUnsubscribe[i])
+		err = c.Websocket.RemoveSubscriptions(channelToUnsubscribe[i])
+		if err != nil {
+			errs = common.AppendError(errs, err)
+		}
 	}
 	return errs
 }

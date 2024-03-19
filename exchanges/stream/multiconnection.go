@@ -21,7 +21,7 @@ var (
 // it to expand and contract multiple connections for subscriptions.
 type Connections map[*ConnectionSetup]*[]Connection
 
-// Route is a map that contains the connection setup and a map of subscriptions
+// Routes is a map that contains the connection setup and a map of subscriptions
 // to connections. This is used for multi-connection management.
 type Routes map[*ConnectionSetup]map[Connection]*[]subscription.Subscription
 
