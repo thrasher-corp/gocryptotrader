@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/currency"
 )
 
 // TestNewStore exercises NewStore
@@ -51,37 +51,65 @@ func TestAdd(t *testing.T) {
 	assert.Same(t, sub.Key, sub, "Add should call EnsureKeyed")
 }
 
-// HobbitKey is just a fixture for testing MatchableKey
-type HobbitKey int
+// AllPairsKey is a fixture for testing MatchableKey
+// Subscription.Match will match a key where all the pairs are contained in a subscription
+// This type, on the other hand, requires all pairs to match completely
+// Can be promoted to a public type if use-cases transpire
+type AllPairsKey Subscription
+
+var _ MatchableKey = AllPairsKey{} // Enforce AllPairsKey must implement MatchableKey
 
 // Match implements MatchableKey
-// Returns true if the key provided is twice as big as the actual sub key
-func (f HobbitKey) Match(key any) bool {
-	i, ok := key.(HobbitKey)
-	return ok && int(i)*2 == int(f)
+// Returns true if the key excactly matches the subscription
+func (s AllPairsKey) Match(key any) bool {
+	b, ok := key.(*Subscription)
+	if !ok {
+		return false
+	}
+
+	switch {
+	case b.Channel != s.Channel,
+		b.Asset != s.Asset,
+		b.Pairs.ContainsAll(s.Pairs, true) != nil,
+		s.Pairs.ContainsAll(b.Pairs, true) != nil,
+		b.Levels != s.Levels,
+		b.Interval != s.Interval:
+		return false
+	}
+
+	return true
 }
 
 // TestGet exercises Get and get methods
+// Ensures that key's Match is used, but does not exercise subscription.Match; See TestMatch for that coverage
 func TestGet(t *testing.T) {
 	assert.Nil(t, (*Store)(nil).Get(&Subscription{}), "Should return nil when called on nil")
 	assert.Nil(t, (&Store{}).Get(&Subscription{}), "Should return nil when called with no subscription map")
 	s := NewStore()
 	exp := List{
-		{Channel: OrderbookChannel},
-		{Channel: TickerChannel},
-		{Key: 42, Channel: CandlesChannel},
-		{Key: HobbitKey(24), Channel: CandlesChannel},
+		{Channel: AllOrdersChannel},
+		{Channel: TickerChannel, Pairs: currency.Pairs{btcusdtPair}},
+		{Key: 42, Channel: OrderbookChannel},
+		{Channel: CandlesChannel, Pairs: currency.Pairs{btcusdtPair, ethusdcPair}},
 	}
 	for _, sub := range exp {
 		require.NoError(t, s.Add(sub), "Adding subscription must not error)")
 	}
 
-	assert.Nil(t, s.Get(Subscription{Channel: OrderbookChannel, Asset: asset.Spot}), "Should return nil for an unknown sub")
-	assert.Same(t, exp[0], s.Get(exp[0]), "Should return same pointer for known sub")
-	assert.Same(t, exp[1], s.Get(Subscription{Channel: TickerChannel}), "Should return pointer for known sub passed-by-value")
+	// Tests for the default Subscription key
+	assert.Nil(t, s.Get(Subscription{Channel: OrderbookChannel}), "Should return nil for a sub with a different key type")
+	assert.Same(t, exp[0], s.Get(Subscription{Channel: AllOrdersChannel}), "Should return pointer for known sub passed-by-value")
+	assert.Same(t, exp[1], s.Get(exp[1]), "Should return same pointer for known sub")
 	assert.Same(t, exp[2], s.Get(42), "Should return pointer for simple key lookup")
-	assert.Same(t, exp[3], s.Get(HobbitKey(48)), "Should use MatchableKey interface to find subs")
-	assert.Nil(t, s.Get(HobbitKey(24)), "Should use MatchableKey interface to find subs, therefore not find a HobbitKey 24")
+	assert.Same(t, exp[3], s.Get(Subscription{Channel: CandlesChannel, Pairs: currency.Pairs{btcusdtPair}}), "Should return pointer for single pair lookup")
+	assert.Nil(t, s.Get(Subscription{Channel: CandlesChannel, Pairs: currency.Pairs{btcusdtPair, ltcusdcPair}}), "Should return nil for a bad lookup")
+
+	// Tests for a MatchableKey, ensuring that AllPairsKey works
+	assert.Nil(t, s.Get(AllPairsKey{Channel: CandlesChannel}), "Should return nil without pairs")
+	assert.Nil(t, s.Get(AllPairsKey{Channel: CandlesChannel, Pairs: currency.Pairs{ltcusdcPair}}), "Should return nil with wrong pair")
+	assert.Nil(t, s.Get(AllPairsKey{Channel: CandlesChannel, Pairs: currency.Pairs{btcusdtPair}}), "Should return nil with only one right pair")
+	assert.Same(t, exp[3], s.Get(AllPairsKey{Channel: CandlesChannel, Pairs: currency.Pairs{btcusdtPair, ethusdcPair}}), "Should return pointer when all pairs match")
+	assert.Nil(t, s.Get(AllPairsKey{Channel: CandlesChannel, Pairs: currency.Pairs{btcusdtPair, ethusdcPair, ltcusdcPair}}), "Should return nil when key is superset of pairs")
 }
 
 // TestRemove exercises the Remove method
@@ -91,11 +119,12 @@ func TestRemove(t *testing.T) {
 	assert.ErrorIs(t, (&Store{}).Remove(&Subscription{}), common.ErrNilPointer, "Should error correctly when called with no subscription map")
 
 	s := NewStore()
-	require.NoError(t, s.Add(&Subscription{Key: HobbitKey(24), Channel: CandlesChannel}), "Adding subscription must not error")
-	assert.ErrorIs(t, s.Remove(HobbitKey(24)), ErrNotFound, "Should error correctly when called with a non-matching hobbitkey")
-	assert.NoError(t, s.Remove(HobbitKey(48)), "Should not error correctly when called matching hobbitkey")
-	assert.Nil(t, s.Get(HobbitKey(48)), "Should have removed the sub")
-	assert.ErrorIs(t, s.Remove(HobbitKey(48)), ErrNotFound, "Should error correctly when called twice on same key")
+	require.NoError(t, s.Add(&Subscription{Channel: CandlesChannel, Pairs: currency.Pairs{btcusdtPair, ethusdcPair}}), "Adding subscription must not error")
+	assert.NotNil(t, s.Get(AllPairsKey{Channel: CandlesChannel, Pairs: currency.Pairs{btcusdtPair, ethusdcPair}}), "Should have added the sub")
+	assert.ErrorIs(t, s.Remove(AllPairsKey{Channel: CandlesChannel, Pairs: currency.Pairs{btcusdtPair}}), ErrNotFound, "Should error correctly when called with a non-matching key")
+	assert.NoError(t, s.Remove(AllPairsKey{Channel: CandlesChannel, Pairs: currency.Pairs{btcusdtPair, ethusdcPair}}), "Should not error when called with a matching key")
+	assert.Nil(t, s.Get(AllPairsKey{Channel: CandlesChannel, Pairs: currency.Pairs{btcusdtPair, ethusdcPair}}), "Should have removed the sub")
+	assert.ErrorIs(t, s.Remove(AllPairsKey{Channel: CandlesChannel, Pairs: currency.Pairs{btcusdtPair, ethusdcPair}}), ErrNotFound, "Should error correctly when called twice ")
 }
 
 // TestList exercises the List and Len methods
@@ -126,7 +155,7 @@ func TestStoreClear(t *testing.T) {
 	s := &Store{}
 	assert.NotPanics(t, func() { s.Clear() }, "Should not panic when called with no subscription map")
 	assert.NotNil(t, s.m, "Should create a map when called on an empty Store")
-	require.NoError(t, s.Add(&Subscription{Key: HobbitKey(24), Channel: CandlesChannel}), "Adding subscription must not error")
+	require.NoError(t, s.Add(&Subscription{Channel: CandlesChannel}), "Adding subscription must not error")
 	require.Len(t, s.m, 1, "Must have a subscription")
 	s.Clear()
 	require.Empty(t, s.m, "Map must be empty after clearing")
