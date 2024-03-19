@@ -89,45 +89,52 @@ func TestSubscriptionMarshaling(t *testing.T) {
 }
 
 // TestSubscriptionMatch exercises the Subscription MatchableKey interface implementation
+// Given A.Match(B):
+// Where A is the incoming key, and B is each key in the store
+// Ensures A.Pairs must be a subset of B.Pairs
 func TestSubscriptionMatch(t *testing.T) {
 	t.Parallel()
 	require.Implements(t, (*MatchableKey)(nil), new(Subscription), "Must implement MatchableKey")
-	s := &Subscription{Channel: TickerChannel}
-	assert.NotNil(t, s.EnsureKeyed(), "EnsureKeyed should work")
-	assert.False(t, s.Match(42), "Match should reject an invalid key type")
-	try := &Subscription{Channel: OrderbookChannel}
-	require.False(t, s.Match(try), "Gate 1: Match must reject a bad Channel")
-	try = &Subscription{Channel: TickerChannel}
-	require.True(t, s.Match(Subscription{Channel: TickerChannel}), "Match must accept a pass-by-value subscription")
-	require.True(t, s.Match(try), "Gate 1: Match must accept a good Channel")
-	s.Asset = asset.Spot
-	require.False(t, s.Match(try), "Gate 2: Match must reject a bad Asset")
-	try.Asset = asset.Spot
-	require.True(t, s.Match(try), "Gate 2: Match must accept a good Asset")
 
-	s.Pairs = currency.Pairs{btcusdtPair}
-	require.False(t, s.Match(try), "Gate 3: Match must reject a pair list when searching for no pairs")
-	try.Pairs = s.Pairs
-	s.Pairs = nil
-	require.False(t, s.Match(try), "Gate 4: Match must reject empty Pairs when searching for a list")
-	s.Pairs = try.Pairs
-	require.True(t, s.Match(try), "Gate 5: Match must accept matching pairs")
-	s.Pairs = currency.Pairs{ethusdcPair}
-	require.False(t, s.Match(try), "Gate 5: Match must reject mismatched pairs")
-	s.Pairs = currency.Pairs{btcusdtPair, ethusdcPair}
-	require.True(t, s.Match(try), "Gate 5: Match must accept one of the key pairs matching in sub pairs")
+	key := &Subscription{Channel: TickerChannel}
+	try := &Subscription{Channel: OrderbookChannel}
+
+	assert.NotNil(t, key.EnsureKeyed(), "EnsureKeyed should work")
+	assert.False(t, key.Match(42), "Match should reject an invalid key type")
+
+	require.False(t, key.Match(try), "Gate 1: Match must reject a bad Channel")
+	try = &Subscription{Channel: TickerChannel}
+	require.True(t, key.Match(Subscription{Channel: TickerChannel}), "Match must accept a pass-by-value subscription")
+	require.True(t, key.Match(try), "Gate 1: Match must accept a good Channel")
+	key.Asset = asset.Spot
+	require.False(t, key.Match(try), "Gate 2: Match must reject a bad Asset")
+	try.Asset = asset.Spot
+	require.True(t, key.Match(try), "Gate 2: Match must accept a good Asset")
+
+	key.Pairs = currency.Pairs{btcusdtPair}
+	require.False(t, key.Match(try), "Gate 3: Match must reject B empty Pairs when key has Pairs")
+	try.Pairs = currency.Pairs{btcusdtPair}
+	key.Pairs = nil
+	require.False(t, key.Match(try), "Gate 4: Match must reject B has Pairs when key has empty Pairs")
+	key.Pairs = currency.Pairs{btcusdtPair}
+	require.True(t, key.Match(try), "Gate 5: Match must accept matching pairs")
+	key.Pairs = currency.Pairs{ethusdcPair}
+	require.False(t, key.Match(try), "Gate 5: Match must reject when key.Pairs not in try.Pairs")
+	try.Pairs = currency.Pairs{btcusdtPair, ethusdcPair}
+	require.True(t, key.Match(try), "Gate 5: Match must accept one of the key.Pairs in try.Pairs")
+	key.Pairs = currency.Pairs{btcusdtPair, ethusdcPair}
 	try.Pairs = currency.Pairs{btcusdtPair, ltcusdcPair}
-	require.False(t, s.Match(try), "Gate 5: Match must reject when sub pair list doesn't contain all key pairs")
-	s.Pairs = currency.Pairs{btcusdtPair, ethusdcPair, ltcusdcPair}
-	require.True(t, s.Match(try), "Gate 5: Match must accept all of the key pairs are contained in sub pairs")
-	s.Levels = 4
-	require.False(t, s.Match(try), "Gate 6: Match must reject a bad Level")
+	require.False(t, key.Match(try), "Gate 5: Match must reject when key.Pairs not in try.Pairs")
+	try.Pairs = currency.Pairs{btcusdtPair, ethusdcPair, ltcusdcPair}
+	require.True(t, key.Match(try), "Gate 5: Match must accept when all key.Pairs are subset of try.Pairs")
+	key.Levels = 4
+	require.False(t, key.Match(try), "Gate 6: Match must reject a bad Level")
 	try.Levels = 4
-	require.True(t, s.Match(try), "Gate 6: Match must accept a good Level")
-	s.Interval = kline.FiveMin
-	require.False(t, s.Match(try), "Gate 7: Match must reject a bad Interval")
+	require.True(t, key.Match(try), "Gate 6: Match must accept a good Level")
+	key.Interval = kline.FiveMin
+	require.False(t, key.Match(try), "Gate 7: Match must reject a bad Interval")
 	try.Interval = kline.FiveMin
-	require.True(t, s.Match(try), "Gate 7: Match must accept a good Interval")
+	require.True(t, key.Match(try), "Gate 7: Match must accept a good Interval")
 }
 
 // TestClone exercises Clone
