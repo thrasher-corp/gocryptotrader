@@ -95,17 +95,13 @@ type Websocket struct {
 	Conn            Connection
 	UnAuthHandler   func([]byte) error
 	UnAuthBootstrap func(Connection) error
-	RunningURL      string // TODO: Remove
-	ReadBufferSize  uint
-	WriteBufferSize uint
+	RunningURL      string // TODO: Remove as this is a global.
 
 	// Authenticated stream connection // TODO: Remove authenticated connection in favour of multi connection
-	AuthConn            Connection
-	AuthHandler         func([]byte) error
-	AuthBootstrap       func(Connection) error
-	RunningAuthURL      string
-	ReadBufferSizeAuth  uint
-	WriteBufferSizeAuth uint
+	AuthConn       Connection
+	AuthHandler    func([]byte) error
+	AuthBootstrap  func(Connection) error
+	RunningAuthURL string
 
 	// Connections manage multiple websocket connections that will allow for
 	// subscriptions per connection which supports more enabled pairs per
@@ -172,4 +168,7 @@ type WebsocketConnection struct {
 	// connection. TODO: Upgrade to include more information about the
 	// connection.
 	Type string
+
+	ReadBufferSize  uint
+	WriteBufferSize uint
 }

@@ -594,7 +594,7 @@ func (b *Binance) subscribeToChan(chans []subscription.Subscription) error {
 		err = fmt.Errorf("%w: %w; Channels: %s", stream.ErrSubscriptionFailure, err, strings.Join(cNames, ", "))
 		b.Websocket.DataHandler <- err
 	} else {
-		err = b.Websocket.AddSuccessfulSubscriptions(nil, chans...)
+		err = b.Websocket.AddSuccessfulSubscriptions(chans...)
 	}
 
 	return err

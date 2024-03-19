@@ -54,6 +54,8 @@ func (w *WebsocketConnection) SendMessageReturnResponse(signature, request inter
 
 // Dial sets proxy urls and then connects to the websocket
 func (w *WebsocketConnection) Dial(dialer *websocket.Dialer, headers http.Header) error {
+	dialer.ReadBufferSize = int(w.ReadBufferSize)
+	dialer.WriteBufferSize = int(w.WriteBufferSize)
 	var err error
 	var conStatus *http.Response
 	w.Connection, conStatus, err = dialer.Dial(w.URL, headers)

@@ -297,7 +297,7 @@ func (b *Bitstamp) Subscribe(channelsToSubscribe []subscription.Subscription) er
 			errs = common.AppendError(errs, err)
 			continue
 		}
-		err = b.Websocket.AddSuccessfulSubscriptions(nil, channelsToSubscribe[i])
+		err = b.Websocket.AddSuccessfulSubscriptions(channelsToSubscribe[i])
 		if err != nil {
 			errs = common.AppendError(errs, err)
 		}

@@ -330,7 +330,7 @@ func (g *Gateio) handleOptionsSubscription(event string, channelsToSubscribe []s
 				continue
 			}
 			if payloads[k].Event == "subscribe" {
-				err = g.Websocket.AddSuccessfulSubscriptions(nil, channelsToSubscribe[k])
+				err = g.Websocket.AddSuccessfulSubscriptions(channelsToSubscribe[k])
 			} else {
 				err = g.Websocket.RemoveSubscriptions(channelsToSubscribe[k])
 			}

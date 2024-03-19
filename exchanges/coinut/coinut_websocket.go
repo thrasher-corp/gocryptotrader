@@ -638,7 +638,7 @@ func (c *COINUT) Subscribe(channelsToSubscribe []subscription.Subscription) erro
 			errs = common.AppendError(errs, err)
 			continue
 		}
-		err = c.Websocket.AddSuccessfulSubscriptions(nil, channelsToSubscribe[i])
+		err = c.Websocket.AddSuccessfulSubscriptions(channelsToSubscribe[i])
 		if err != nil {
 			errs = common.AppendError(errs, err)
 		}

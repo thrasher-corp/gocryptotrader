@@ -403,7 +403,7 @@ func (b *BTCMarkets) Subscribe(subs []subscription.Subscription) error {
 	if err := b.Websocket.Conn.SendJSONMessage(payload); err != nil {
 		return err
 	}
-	return b.Websocket.AddSuccessfulSubscriptions(nil, subs...)
+	return b.Websocket.AddSuccessfulSubscriptions(subs...)
 }
 
 // Unsubscribe sends a websocket message to manage and remove a subscription.

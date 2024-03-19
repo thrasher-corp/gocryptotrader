@@ -217,5 +217,5 @@ func (b *Bithumb) Subscribe(channelsToSubscribe []subscription.Subscription) err
 			return err
 		}
 	}
-	return b.Websocket.AddSuccessfulSubscriptions(nil, channelsToSubscribe...)
+	return b.Websocket.AddSuccessfulSubscriptions(channelsToSubscribe...)
 }

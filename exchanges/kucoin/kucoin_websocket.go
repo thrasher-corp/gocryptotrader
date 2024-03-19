@@ -1005,7 +1005,7 @@ func (ku *Kucoin) handleSubscriptions(subs []subscription.Subscription, operatio
 			case rType != "ack":
 				errs = common.AppendError(errs, fmt.Errorf("%w: %s from %s", errInvalidMsgType, rType, respRaw))
 			default:
-				err = ku.Websocket.AddSuccessfulSubscriptions(nil, subs[i])
+				err = ku.Websocket.AddSuccessfulSubscriptions(subs[i])
 				if err != nil {
 					errs = common.AppendError(errs, err)
 				}

@@ -127,7 +127,7 @@ func (g *Gemini) Subscribe(channelsToSubscribe []subscription.Subscription) erro
 		return err
 	}
 
-	return g.Websocket.AddSuccessfulSubscriptions(nil, channelsToSubscribe...)
+	return g.Websocket.AddSuccessfulSubscriptions(channelsToSubscribe...)
 
 }
 

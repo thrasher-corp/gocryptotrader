@@ -513,7 +513,7 @@ func (b *Bitfinex) handleWSSubscribed(respRaw []byte) error {
 	c.Key = int(chanID)
 
 	// subscribeToChan removes the old subID keyed Subscription
-	err = b.Websocket.AddSuccessfulSubscriptions(nil, *c)
+	err = b.Websocket.AddSuccessfulSubscriptions(*c)
 	if err != nil {
 		return err
 	}

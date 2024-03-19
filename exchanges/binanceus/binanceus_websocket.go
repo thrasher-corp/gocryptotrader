@@ -590,7 +590,7 @@ func (bi *Binanceus) Subscribe(channelsToSubscribe []subscription.Subscription) 
 			return err
 		}
 	}
-	return bi.Websocket.AddSuccessfulSubscriptions(nil, channelsToSubscribe...)
+	return bi.Websocket.AddSuccessfulSubscriptions(channelsToSubscribe...)
 }
 
 // Unsubscribe unsubscribes from a set of channels

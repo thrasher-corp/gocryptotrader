@@ -567,7 +567,7 @@ func (h *HUOBI) Subscribe(channelsToSubscribe []subscription.Subscription) error
 				errs = common.AppendError(errs, err)
 				continue
 			}
-			err = h.Websocket.AddSuccessfulSubscriptions(nil, channelsToSubscribe[i])
+			err = h.Websocket.AddSuccessfulSubscriptions(channelsToSubscribe[i])
 			if err != nil {
 				errs = common.AppendError(errs, err)
 			}
@@ -580,7 +580,7 @@ func (h *HUOBI) Subscribe(channelsToSubscribe []subscription.Subscription) error
 			errs = common.AppendError(errs, err)
 			continue
 		}
-		err = h.Websocket.AddSuccessfulSubscriptions(nil, channelsToSubscribe[i])
+		err = h.Websocket.AddSuccessfulSubscriptions(channelsToSubscribe[i])
 		if err != nil {
 			errs = common.AppendError(errs, err)
 		}

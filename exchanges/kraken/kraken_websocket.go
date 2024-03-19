@@ -1284,7 +1284,7 @@ channels:
 					errs = common.AppendError(errs, err)
 					continue
 				}
-				err = k.Websocket.AddSuccessfulSubscriptions(nil, (*subs)[i].Channels...)
+				err = k.Websocket.AddSuccessfulSubscriptions((*subs)[i].Channels...)
 				if err != nil {
 					errs = common.AppendError(errs, err)
 				}
@@ -1295,7 +1295,7 @@ channels:
 				errs = common.AppendError(errs, err)
 				continue
 			}
-			err = k.Websocket.AddSuccessfulSubscriptions(nil, (*subs)[i].Channels...)
+			err = k.Websocket.AddSuccessfulSubscriptions((*subs)[i].Channels...)
 			if err != nil {
 				errs = common.AppendError(errs, err)
 			}

@@ -456,7 +456,7 @@ func (ok *Okx) handleSubscriptionConnection(conn stream.Connection, operation st
 				if operation == operationUnsubscribe {
 					err = ok.Websocket.RemoveSubscriptions(channels...)
 				} else {
-					err = ok.Websocket.AddSuccessfulSubscriptions(conn, channels...)
+					err = ok.Websocket.AddSuccessfulSubscriptions(channels...)
 				}
 				if err != nil {
 					return err
@@ -481,7 +481,7 @@ func (ok *Okx) handleSubscriptionConnection(conn stream.Connection, operation st
 				if operation == operationUnsubscribe {
 					err = ok.Websocket.RemoveSubscriptions(channels...)
 				} else {
-					err = ok.Websocket.AddSuccessfulSubscriptions(conn, channels...)
+					err = ok.Websocket.AddSuccessfulSubscriptions(channels...)
 				}
 				if err != nil {
 					return err
@@ -511,7 +511,7 @@ func (ok *Okx) handleSubscriptionConnection(conn stream.Connection, operation st
 		err = ok.Websocket.RemoveSubscriptions(channels...)
 	} else {
 		channels = append(channels, authChannels...)
-		err = ok.Websocket.AddSuccessfulSubscriptions(conn, channels...)
+		err = ok.Websocket.AddSuccessfulSubscriptions(channels...)
 	}
 	return err
 }
@@ -650,7 +650,7 @@ func (ok *Okx) handleSubscription(operation string, subscriptions []subscription
 				if operation == operationUnsubscribe {
 					err = ok.Websocket.RemoveSubscriptions(channels...)
 				} else {
-					err = ok.Websocket.AddSuccessfulSubscriptions(nil, channels...)
+					err = ok.Websocket.AddSuccessfulSubscriptions(channels...)
 				}
 				if err != nil {
 					return err
@@ -675,7 +675,7 @@ func (ok *Okx) handleSubscription(operation string, subscriptions []subscription
 				if operation == operationUnsubscribe {
 					err = ok.Websocket.RemoveSubscriptions(channels...)
 				} else {
-					err = ok.Websocket.AddSuccessfulSubscriptions(nil, channels...)
+					err = ok.Websocket.AddSuccessfulSubscriptions(channels...)
 				}
 				if err != nil {
 					return err
@@ -708,7 +708,7 @@ func (ok *Okx) handleSubscription(operation string, subscriptions []subscription
 		err = ok.Websocket.RemoveSubscriptions(channels...)
 	} else {
 		channels = append(channels, authChannels...)
-		err = ok.Websocket.AddSuccessfulSubscriptions(nil, channels...)
+		err = ok.Websocket.AddSuccessfulSubscriptions(channels...)
 	}
 	return err
 }
