@@ -285,14 +285,18 @@ func (g *Gateio) processOrderbookTicker(incoming []byte) error {
 		return err
 	}
 
-	return g.Websocket.Orderbook.LoadSnapshot(&orderbook.Base{
-		Exchange:    g.Name,
-		Pair:        data.CurrencyPair,
-		Asset:       asset.Spot,
-		LastUpdated: time.UnixMilli(data.UpdateTimeMS),
-		Bids:        []orderbook.Item{{Price: data.BestBidPrice.Float64(), Amount: data.BestBidAmount.Float64()}},
-		Asks:        []orderbook.Item{{Price: data.BestAskPrice.Float64(), Amount: data.BestAskAmount.Float64()}},
-	})
+	return g.Websocket.Processor.QueueFunction(
+		stream.Key{Type: stream.Book, Asset: asset.Spot, Base: data.CurrencyPair.Base.Item, Quote: data.CurrencyPair.Quote.Item},
+		func() error {
+			return g.Websocket.Orderbook.LoadSnapshot(&orderbook.Base{
+				Exchange:    g.Name,
+				Pair:        data.CurrencyPair,
+				Asset:       asset.Spot,
+				LastUpdated: time.UnixMilli(data.UpdateTimeMS),
+				Bids:        []orderbook.Item{{Price: data.BestBidPrice.Float64(), Amount: data.BestBidAmount.Float64()}},
+				Asks:        []orderbook.Item{{Price: data.BestAskPrice.Float64(), Amount: data.BestAskAmount.Float64()}},
+			})
+		})
 }
 
 func (g *Gateio) processOrderbookUpdate(incoming []byte) error {

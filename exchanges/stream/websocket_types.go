@@ -103,6 +103,8 @@ type Websocket struct {
 	// MaxSubScriptionsPerConnection defines the maximum number of
 	// subscriptions per connection that is allowed by the exchange.
 	MaxSubscriptionsPerConnection int
+
+	Processor *Processor
 }
 
 // WebsocketSetup defines variables for setting up a websocket connection

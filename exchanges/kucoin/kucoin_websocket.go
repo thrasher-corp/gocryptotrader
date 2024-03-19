@@ -191,6 +191,7 @@ func (ku *Kucoin) wsReadData() {
 }
 
 func (ku *Kucoin) wsHandleData(respData []byte) error {
+	// fmt.Println("raw data:", string(respData))
 	resp := WsPushData{}
 	err := json.Unmarshal(respData, &resp)
 	if err != nil {

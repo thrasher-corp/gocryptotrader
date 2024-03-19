@@ -47,7 +47,7 @@ func createSnapshot() (holder *Orderbook, asks, bids orderbook.Items, err error)
 
 	newBook := make(map[key.PairAsset]*orderbookHolder)
 
-	ch := make(chan interface{})
+	ch := make(chan interface{}, 100)
 	go func(<-chan interface{}) { // reader
 		for range ch {
 			continue
