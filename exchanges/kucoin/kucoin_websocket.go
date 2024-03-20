@@ -168,9 +168,9 @@ func (ku *Kucoin) GetAuthenticatedInstanceServers(ctx context.Context) (*WSInsta
 		Data *WSInstanceServers `json:"data"`
 		Error
 	}{}
-	err := ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, defaultSpotEPL, http.MethodPost, privateBullets, nil, &response)
+	err := ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, spotAuthenticationEPL, http.MethodPost, privateBullets, nil, &response)
 	if err != nil && strings.Contains(err.Error(), "400003") {
-		return response.Data, ku.SendAuthHTTPRequest(ctx, exchange.RestFutures, defaultFuturesEPL, http.MethodPost, privateBullets, nil, &response)
+		return response.Data, ku.SendAuthHTTPRequest(ctx, exchange.RestFutures, futuresAuthenticationEPL, http.MethodPost, privateBullets, nil, &response)
 	}
 	return response.Data, err
 }
@@ -1257,42 +1257,19 @@ func (ku *Kucoin) setupOrderbookManager() {
 func (ku *Kucoin) ProcessUpdate(cp currency.Pair, a asset.Item, ws *WsOrderbook) error {
 	updateBid := make([]orderbook.Item, len(ws.Changes.Bids))
 	for i := range ws.Changes.Bids {
-		p, err := strconv.ParseFloat(ws.Changes.Bids[i][0], 64)
-		if err != nil {
-			return err
-		}
-		a, err := strconv.ParseFloat(ws.Changes.Bids[i][1], 64)
-		if err != nil {
-			return err
-		}
 		var sequence int64
-		if len(ws.Changes.Bids[i]) > 2 && ws.Changes.Bids[i][2] != "" {
-			sequence, err = strconv.ParseInt(ws.Changes.Bids[i][2], 10, 64)
-			if err != nil {
-				return err
-			}
+		if len(ws.Changes.Bids[i]) > 2 {
+			sequence = ws.Changes.Bids[i][2].Int64()
 		}
-		updateBid[i] = orderbook.Item{Price: p, Amount: a, ID: sequence}
+		updateBid[i] = orderbook.Item{Price: ws.Changes.Bids[i][0].Float64(), Amount: ws.Changes.Bids[i][1].Float64(), ID: sequence}
 	}
-
 	updateAsk := make([]orderbook.Item, len(ws.Changes.Asks))
 	for i := range ws.Changes.Asks {
-		p, err := strconv.ParseFloat(ws.Changes.Asks[i][0], 64)
-		if err != nil {
-			return err
-		}
-		a, err := strconv.ParseFloat(ws.Changes.Asks[i][1], 64)
-		if err != nil {
-			return err
-		}
 		var sequence int64
-		if len(ws.Changes.Asks[i]) > 2 && ws.Changes.Asks[i][2] != "" {
-			sequence, err = strconv.ParseInt(ws.Changes.Asks[i][2], 10, 64)
-			if err != nil {
-				return err
-			}
+		if len(ws.Changes.Asks[i]) > 2 {
+			sequence = ws.Changes.Asks[i][2].Int64()
 		}
-		updateAsk[i] = orderbook.Item{Price: p, Amount: a, ID: sequence}
+		updateAsk[i] = orderbook.Item{Price: ws.Changes.Asks[i][0].Float64(), Amount: ws.Changes.Asks[i][1].Float64(), ID: sequence}
 	}
 
 	return ku.Websocket.Orderbook.Update(&orderbook.Update{
