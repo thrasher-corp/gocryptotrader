@@ -16,7 +16,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/nonce"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 )
@@ -952,7 +951,7 @@ func (p *Poloniex) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange
 		headers := make(map[string]string)
 		headers["Content-Type"] = "application/x-www-form-urlencoded"
 		headers["Key"] = creds.Key
-		values.Set("nonce", p.Requester.GetNonce(nonce.Nanoseconds).String())
+		values.Set("nonce", p.Requester.GetNonce(time.Now().UnixNano).String())
 		values.Set("command", endpoint)
 
 		hmac, err := crypto.GetHMAC(crypto.HashSHA512,

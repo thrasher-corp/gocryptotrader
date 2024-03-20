@@ -3,18 +3,11 @@ package nonce
 import (
 	"strconv"
 	"sync"
-	"time"
 )
 
-// Type is a type of nonce start value
-type Type uint8
-
-const (
-	// Seconds is a type of nonce start value time.Now().Unix()
-	Seconds Type = iota
-	// Nanoseconds is a type of nonce start value time.Now().UnixNano()
-	Nanoseconds
-)
+// Setter is a function that returns a nonce start value. Values could include
+// the time package functions time.Now().Unix, unixNano etc.
+type Setter func() int64
 
 // Nonce struct holds the nonce value
 type Nonce struct {
@@ -24,16 +17,11 @@ type Nonce struct {
 
 // GetAndIncrement returns the current nonce value and increments it. If value
 // is 0, it will set the value to the current time.
-func (n *Nonce) GetAndIncrement(nonceType Type) Value {
+func (n *Nonce) GetAndIncrement(set Setter) Value {
 	n.m.Lock()
 	defer n.m.Unlock()
 	if n.n == 0 {
-		switch nonceType {
-		case Nanoseconds:
-			n.n = time.Now().UnixNano()
-		case Seconds:
-			n.n = time.Now().Unix()
-		}
+		n.n = set()
 	}
 	val := n.n
 	n.n++

@@ -21,7 +21,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/nonce"
 	"golang.org/x/time/rate"
 )
 
@@ -499,17 +498,17 @@ func TestGetNonce(t *testing.T) {
 	t.Parallel()
 	r, err := New("test", new(http.Client), WithLimiter(&globalshell))
 	require.NoError(t, err)
-	n1 := r.GetNonce(nonce.Seconds)
+	n1 := r.GetNonce(time.Now().Unix)
 	assert.NotZero(t, n1)
-	n2 := r.GetNonce(nonce.Seconds)
+	n2 := r.GetNonce(time.Now().Unix)
 	assert.NotZero(t, n2)
 	assert.NotEqual(t, n1, n2)
 
 	r2, err := New("test", new(http.Client), WithLimiter(&globalshell))
 	require.NoError(t, err)
-	n3 := r2.GetNonce(nonce.Nanoseconds)
+	n3 := r2.GetNonce(time.Now().UnixNano)
 	assert.NotZero(t, n3)
-	n4 := r2.GetNonce(nonce.Nanoseconds)
+	n4 := r2.GetNonce(time.Now().UnixNano)
 	assert.NotZero(t, n4)
 	assert.NotEqual(t, n3, n4)
 
@@ -518,13 +517,13 @@ func TestGetNonce(t *testing.T) {
 }
 
 // 40532461	       30.29 ns/op	       0 B/op	       0 allocs/op (prev)
-// 45759085	       26.52 ns/op	       0 B/op	       0 allocs/op (current)
+// 41983143	       28.44 ns/op	       0 B/op	       0 allocs/op
 func BenchmarkGetNonce(b *testing.B) {
 	r, err := New("test", new(http.Client), WithLimiter(&globalshell))
 	require.NoError(b, err)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		r.GetNonce(nonce.Seconds)
+		r.GetNonce(time.Now().Unix)
 		r.timedLock.UnlockIfLocked()
 	}
 }

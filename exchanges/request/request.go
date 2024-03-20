@@ -289,9 +289,9 @@ func (r *Requester) drainBody(body io.ReadCloser) {
 
 // GetNonce returns a nonce for requests. This locks and enforces concurrent
 // nonce FIFO on the buffered job channel
-func (r *Requester) GetNonce(nonceType nonce.Type) nonce.Value {
+func (r *Requester) GetNonce(set nonce.Setter) nonce.Value {
 	r.timedLock.LockForDuration()
-	return r.Nonce.GetAndIncrement(nonceType)
+	return r.Nonce.GetAndIncrement(set)
 }
 
 // SetProxy sets a proxy address for the client transport
