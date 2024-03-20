@@ -20,6 +20,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
@@ -59,7 +60,7 @@ var responseStream chan SubscriptionRawData
 func (cr *Cryptodotcom) WsConnect() error {
 	responseStream = make(chan SubscriptionRawData)
 	if !cr.Websocket.IsEnabled() || !cr.IsEnabled() {
-		return errors.New(stream.WebsocketNotEnabled)
+		return stream.ErrWebsocketNotEnabled
 	}
 	var dialer websocket.Dialer
 	dialer.ReadBufferSize = 8192
@@ -203,18 +204,18 @@ func (cr *Cryptodotcom) AuthenticateWebsocketConnection() error {
 }
 
 // Subscribe sends a websocket subscription to a channel message through the websocket connection handlers.
-func (cr *Cryptodotcom) Subscribe(subscriptions []stream.ChannelSubscription) error {
+func (cr *Cryptodotcom) Subscribe(subscriptions []subscription.Subscription) error {
 	return cr.handleSubscriptions("subscribe", subscriptions)
 }
 
 // Unsubscribe sends a websocket unsubscription to a channel message through the websocket connection handlers.
-func (cr *Cryptodotcom) Unsubscribe(subscriptions []stream.ChannelSubscription) error {
+func (cr *Cryptodotcom) Unsubscribe(subscriptions []subscription.Subscription) error {
 	return cr.handleSubscriptions("unsubscribe", subscriptions)
 }
 
 // GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
-func (cr *Cryptodotcom) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, error) {
-	var subscriptions []stream.ChannelSubscription
+func (cr *Cryptodotcom) GenerateDefaultSubscriptions() ([]subscription.Subscription, error) {
+	var subscriptions []subscription.Subscription
 	channels := defaultSubscriptions
 	if cr.Websocket.CanUseAuthenticatedEndpoints() {
 		channels = append(
@@ -228,7 +229,7 @@ func (cr *Cryptodotcom) GenerateDefaultSubscriptions() ([]stream.ChannelSubscrip
 	}
 	for x := range channels {
 		if channels[x] == userBalanceCnl {
-			subscriptions = append(subscriptions, stream.ChannelSubscription{
+			subscriptions = append(subscriptions, subscription.Subscription{
 				Channel: channels[x],
 			})
 			continue
@@ -244,14 +245,14 @@ func (cr *Cryptodotcom) GenerateDefaultSubscriptions() ([]stream.ChannelSubscrip
 				userOrderCnl,
 				userTradeCnl,
 				tradeCnl:
-				subscriptions = append(subscriptions, stream.ChannelSubscription{
-					Channel:  channels[x],
-					Currency: enabledPairs[p],
+				subscriptions = append(subscriptions, subscription.Subscription{
+					Channel: channels[x],
+					Pair:    enabledPairs[p],
 				})
 			case candlestickCnl:
-				subscriptions = append(subscriptions, stream.ChannelSubscription{
-					Channel:  channels[x],
-					Currency: enabledPairs[p],
+				subscriptions = append(subscriptions, subscription.Subscription{
+					Channel: channels[x],
+					Pair:    enabledPairs[p],
 					Params: map[string]interface{}{
 						"interval": "5m",
 					},
@@ -264,7 +265,7 @@ func (cr *Cryptodotcom) GenerateDefaultSubscriptions() ([]stream.ChannelSubscrip
 	return subscriptions, nil
 }
 
-func (cr *Cryptodotcom) handleSubscriptions(operation string, subscriptions []stream.ChannelSubscription) error {
+func (cr *Cryptodotcom) handleSubscriptions(operation string, subscriptions []subscription.Subscription) error {
 	subscriptionPayloads, err := cr.generatePayload(operation, subscriptions)
 	if err != nil {
 		return err
@@ -282,7 +283,7 @@ func (cr *Cryptodotcom) handleSubscriptions(operation string, subscriptions []st
 	return nil
 }
 
-func (cr *Cryptodotcom) generatePayload(operation string, subscription []stream.ChannelSubscription) ([]SubscriptionPayload, error) {
+func (cr *Cryptodotcom) generatePayload(operation string, subscription []subscription.Subscription) ([]SubscriptionPayload, error) {
 	subscriptionPayloads := make([]SubscriptionPayload, len(subscription))
 	timestamp := time.Now()
 	for x := range subscription {
@@ -297,13 +298,13 @@ func (cr *Cryptodotcom) generatePayload(operation string, subscription []stream.
 			instrumentOrderbookCnl,
 			tickerCnl,
 			tradeCnl:
-			subscriptionPayloads[x].Params = map[string][]string{"channels": {subscription[x].Channel + "." + subscription[x].Currency.String()}}
+			subscriptionPayloads[x].Params = map[string][]string{"channels": {subscription[x].Channel + "." + subscription[x].Pair.String()}}
 		case candlestickCnl:
 			interval, okay := subscription[x].Params["interval"].(string)
 			if !okay {
 				return nil, kline.ErrInvalidInterval
 			}
-			subscriptionPayloads[x].Params = map[string][]string{"channels": {subscription[x].Channel + "." + interval + "." + subscription[x].Currency.String()}}
+			subscriptionPayloads[x].Params = map[string][]string{"channels": {subscription[x].Channel + "." + interval + "." + subscription[x].Pair.String()}}
 		case userBalanceCnl:
 			subscriptionPayloads[x].Params = map[string][]string{"channels": {subscription[x].Channel}}
 		}
