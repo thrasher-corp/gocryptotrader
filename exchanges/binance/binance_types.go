@@ -2932,3 +2932,123 @@ type ManagedSubAccountTransferLog struct {
 	} `json:"managerSubTransferHistoryVos"`
 	Count int64 `json:"count"`
 }
+
+// OCOOrderResponse represents an OCO order response.
+type OCOOrderResponse struct {
+	OrderListID       int64                `json:"orderListId"`
+	ContingencyType   string               `json:"contingencyType"`
+	ListStatusType    string               `json:"listStatusType"`
+	ListOrderStatus   string               `json:"listOrderStatus"`
+	ListClientOrderID string               `json:"listClientOrderId"`
+	TransactionTime   convert.ExchangeTime `json:"transactionTime"`
+	Symbol            string               `json:"symbol"`
+	Orders            []struct {
+		Symbol        string `json:"symbol"`
+		OrderID       int64  `json:"orderId"`
+		ClientOrderID string `json:"clientOrderId"`
+	} `json:"orders"`
+	OrderReports []struct {
+		Symbol                  string               `json:"symbol"`
+		OrderID                 int64                `json:"orderId"`
+		OrderListID             int64                `json:"orderListId"`
+		ClientOrderID           string               `json:"clientOrderId"`
+		TransactTime            convert.ExchangeTime `json:"transactTime"`
+		Price                   types.Number         `json:"price"`
+		OrigQty                 types.Number         `json:"origQty"`
+		ExecutedQty             types.Number         `json:"executedQty"`
+		CummulativeQuoteQty     types.Number         `json:"cummulativeQuoteQty"`
+		Status                  string               `json:"status"`
+		TimeInForce             string               `json:"timeInForce"`
+		Type                    string               `json:"type"`
+		Side                    string               `json:"side"`
+		StopPrice               types.Number         `json:"stopPrice,omitempty"`
+		WorkingTime             convert.ExchangeTime `json:"workingTime"`
+		SelfTradePreventionMode string               `json:"selfTradePreventionMode"`
+	} `json:"orderReports"`
+}
+
+// OCOOrderParam request parameter to place an OCO order.
+type OCOOrderParam struct {
+	Symbol                  currency.Pair `json:"symbol"`
+	ListClientOrderID       string        `json:"listClientOrderId,omitempty"`
+	Side                    string        `json:"side"`
+	Amount                  float64       `json:"quantity"`
+	LimitClientOrderID      string        `json:"limitClientOrderId,omitempty"`
+	LimitStrategyID         string        `json:"limitStrategyId,omitempty"`
+	LimitStrategyType       string        `json:"limitStrategyType,omitempty"`
+	Price                   float64       `json:"price"`
+	LimitIcebergQuantity    float64       `json:"limitIcebergQty,omitempty"`
+	TrailingDelta           int64         `json:"trailingDelta,omitempty"`
+	StopClientOrderID       string        `json:"stopClientOrderId,omitempty"`
+	StopPrice               float64       `json:"stopPrice"`
+	StopStrategyID          int64         `json:"stopStrategyId,omitempty"`
+	StopStrategyType        int64         `json:"stopStrategyType,omitempty"`
+	StopLimitPrice          float64       `json:"stopLimitPrice,omitempty"`
+	StopIcebergQuantity     float64       `json:"stopIcebergQty,omitempty"`
+	StopLimitTimeInForce    string        `json:"stopLimitTimeInForce,omitempty"`
+	NewOrderRespType        string        `json:"newOrderRespType,omitempty"`
+	SelfTradePreventionMode string        `json:"selfTradePreventionMode,omitempty"`
+}
+
+// SOROrderRequestParams represents a request parameters for SOR orders.
+type SOROrderRequestParams struct {
+	Symbol                  currency.Pair `json:"symbol"`
+	Side                    string        `json:"side"`
+	OrderType               string        `json:"type"`
+	TimeInForce             string        `json:"timeInForce"`
+	Quantity                float64       `json:"quantity"`
+	Price                   float64       `json:"price"`
+	NewClientOrderID        string        `json:"newClientOrderId"`
+	StrategyID              int64         `json:"strategyId"`
+	StrategyType            int64         `json:"strategyType"`
+	IcebergQuantity         float64       `json:"icebergQty"`
+	NewOrderResponseType    string        `json:"newOrderRespType"` // Set the response JSON. 'ACK', 'RESULT', or 'FULL'. Default to 'FULL'
+	SelfTradePreventionMode string        `json:"selfTradePreventionMode"`
+}
+
+// SOROrderResponse represents smart order routing response instance.
+type SOROrderResponse struct {
+	Symbol              string               `json:"symbol"`
+	OrderID             int64                `json:"orderId"`
+	OrderListID         int64                `json:"orderListId"`
+	ClientOrderID       string               `json:"clientOrderId"`
+	TransactTime        convert.ExchangeTime `json:"transactTime"`
+	Price               types.Number         `json:"price"`
+	OrigQty             types.Number         `json:"origQty"`
+	ExecutedQty         types.Number         `json:"executedQty"`
+	CummulativeQuoteQty types.Number         `json:"cummulativeQuoteQty"`
+	Status              string               `json:"status"`
+	TimeInForce         string               `json:"timeInForce"`
+	Type                string               `json:"type"`
+	Side                string               `json:"side"`
+	WorkingTime         convert.ExchangeTime `json:"workingTime"`
+	Fills               []struct {
+		MatchType       string       `json:"matchType"`
+		Price           types.Number `json:"price"`
+		Qty             types.Number `json:"qty"`
+		Commission      string       `json:"commission"`
+		CommissionAsset string       `json:"commissionAsset"`
+		TradeID         int          `json:"tradeId"`
+		AllocID         int          `json:"allocId"`
+	} `json:"fills"`
+	WorkingFloor            string `json:"workingFloor"`
+	SelfTradePreventionMode string `json:"selfTradePreventionMode"`
+	UsedSor                 bool   `json:"usedSor"`
+}
+
+// AccountTradeItem represents an account trade item detail.
+type AccountTradeItem struct {
+	Symbol          string               `json:"symbol"`
+	ID              int64                `json:"id"`
+	OrderID         int64                `json:"orderId"`
+	OrderListID     int64                `json:"orderListId"`
+	Price           types.Number         `json:"price"`
+	Qty             types.Number         `json:"qty"`
+	QuoteQty        types.Number         `json:"quoteQty"`
+	Commission      string               `json:"commission"`
+	CommissionAsset string               `json:"commissionAsset"`
+	Time            convert.ExchangeTime `json:"time"`
+	IsBuyer         bool                 `json:"isBuyer"`
+	IsMaker         bool                 `json:"isMaker"`
+	IsBestMatch     bool                 `json:"isBestMatch"`
+}

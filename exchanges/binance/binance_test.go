@@ -1471,6 +1471,76 @@ func TestAllOrders(t *testing.T) {
 	require.False(t, mockTests && err != nil, err)
 }
 
+func TestNewOCOOrder(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	_, err := b.NewOCOOrder(context.Background(), &OCOOrderParam{})
+	require.ErrorIs(t, err, common.ErrNilPointer)
+	result, err := b.NewOCOOrder(context.Background(), &OCOOrderParam{})
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestCancelOCOOrderList(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	result, err := b.CancelOCOOrderList(context.Background(), "LTCBTC", "", "newderID", "")
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetOCOOrders(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetOCOOrders(context.Background(), "orderListId", "")
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetAllOCOOrders(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetAllOCOOrders(context.Background(), "", time.Time{}, time.Now().Add(-time.Hour*24*10), 10)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetOpenOCOList(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetOpenOCOList(context.Background())
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestNewOrderUsingSOR(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	result, err := b.NewOrderUsingSOR(context.Background(), &SOROrderRequestParams{
+		Symbol:    currency.Pair{Base: currency.BTC, Quote: currency.LTC},
+		Side:      "Buy",
+		OrderType: "LIMIT",
+		Quantity:  0.001,
+	})
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestNewOrderUsingSORTest(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	_, err := b.NewOrderUsingSORTest(context.Background(), &SOROrderRequestParams{})
+	require.ErrorIs(t, err, common.ErrNilPointer)
+	result, err := b.NewOrderUsingSORTest(context.Background(), &SOROrderRequestParams{
+		Symbol:    currency.Pair{Base: currency.BTC, Quote: currency.LTC},
+		Side:      "Buy",
+		OrderType: "LIMIT",
+		Quantity:  0.001,
+	})
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
 // TestGetFeeByTypeOfflineTradeFee logic test
 func TestGetFeeByTypeOfflineTradeFee(t *testing.T) {
 	t.Parallel()
@@ -3898,4 +3968,20 @@ func TestCheckServerTime(t *testing.T) {
 	t.Parallel()
 	_, err := b.GetExchangeServerTime(context.Background())
 	assert.NoError(t, err)
+}
+
+func TestGetAccount(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetAccount(context.Background())
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetAccountTradeList(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetAccountTradeList(context.Background(), "BTCLTC", "", time.Time{}, time.Now().Add(-time.Hour*24), 0, 10)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
 }
