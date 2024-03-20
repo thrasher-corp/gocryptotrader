@@ -116,7 +116,7 @@ func (co *CoinbaseInternational) SetDefaults() {
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
-	co.Websocket = stream.New()
+	co.Websocket = stream.NewWebsocket()
 	co.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	co.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
 	co.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit

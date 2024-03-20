@@ -3,7 +3,6 @@ package coinbaseinternational
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -46,7 +45,7 @@ var defaultSubscriptions = []string{
 // market data updates for orders and trades.
 func (co *CoinbaseInternational) WsConnect() error {
 	if !co.Websocket.IsEnabled() || !co.IsEnabled() {
-		return errors.New(stream.WebsocketNotEnabled)
+		return stream.ErrWebsocketNotEnabled
 	}
 	var dialer = websocket.Dialer{
 		Proxy: http.ProxyFromEnvironment,

@@ -2,13 +2,13 @@ package coinbaseinternational
 
 import (
 	"context"
-	"errors"
 	"log"
 	"os"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -98,18 +98,14 @@ func TestCreateOrder(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, co, canManipulateRealOrders)
 	orderType, err := orderTypeString(order.Limit)
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 	_, err = co.CreateOrder(context.Background(), &OrderRequestParams{
 		Side:       "BUY",
 		BaseSize:   1,
 		Instrument: "BTC-PERP",
 		OrderType:  orderType,
 	})
-	if !errors.Is(err, order.ErrPriceBelowMin) {
-		t.Fatalf("expected %v, got %v", order.ErrAmountBelowMin, err)
-	}
+	require.ErrorIs(t, err, order.ErrPriceBelowMin)
 	_, err = co.CreateOrder(context.Background(), &OrderRequestParams{
 		Side:       "BUY",
 		BaseSize:   1,
@@ -117,18 +113,14 @@ func TestCreateOrder(t *testing.T) {
 		OrderType:  orderType,
 		Price:      12345.67,
 	})
-	if !errors.Is(err, order.ErrOrderIDNotSet) {
-		t.Fatalf("expected %v, got %v", order.ErrOrderIDNotSet, err)
-	}
+	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
 	_, err = co.CreateOrder(context.Background(), &OrderRequestParams{
 		Side:       "BUY",
 		BaseSize:   1,
 		Instrument: "BTC-PERP",
 		OrderType:  orderType,
 	})
-	if !errors.Is(err, order.ErrPriceBelowMin) {
-		t.Fatalf("expected %v, got %v", order.ErrPriceBelowMin, err)
-	}
+	require.ErrorIs(t, err, order.ErrPriceBelowMin)
 	_, err = co.CreateOrder(context.Background(), &OrderRequestParams{
 		ClientOrderID: "123442",
 		Side:          "BUY",
@@ -213,9 +205,7 @@ func TestListPortfolioBalances(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, co)
 	_, err := co.ListPortfolioBalances(context.Background(), "892e8c7c-e979-4cad-b61b-55a197932cf1", "")
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 }
 
 func TestGetPortfolioAssetBalance(t *testing.T) {
@@ -243,9 +233,7 @@ func TestListPortfolioFills(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, co)
 	_, err := co.ListPortfolioFills(context.Background(), "892e8c7c-e979-4cad-b61b-55a197932cf1", "")
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 }
 
 func TestListMatchingTransfers(t *testing.T) {
@@ -292,17 +280,13 @@ func TestCreateCryptoAddress(t *testing.T) {
 func TestFetchTradablePairs(t *testing.T) {
 	t.Parallel()
 	_, err := co.FetchTradablePairs(context.Background(), asset.Spot)
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 }
 
 func TestUpdateTradablePairs(t *testing.T) {
 	t.Parallel()
 	err := co.UpdateTradablePairs(context.Background(), true)
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 }
 
 func TestUpdateTicker(t *testing.T) {
@@ -320,17 +304,13 @@ func TestUpdateTickers(t *testing.T) {
 func TestWsConnect(t *testing.T) {
 	t.Parallel()
 	err := co.WsConnect()
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 }
 
 func TestGenerateSubscriptionPayload(t *testing.T) {
 	t.Parallel()
 	_, err := co.GenerateSubscriptionPayload([]subscription.Subscription{}, "SUBSCRIBE")
-	if !errors.Is(err, errEmptyArgument) {
-		t.Fatalf("expected %v, got %v", errEmptyArgument, err)
-	}
+	require.ErrorIs(t, err, errEmptyArgument)
 	payload, err := co.GenerateSubscriptionPayload([]subscription.Subscription{
 		{Channel: cnlFunding, Pair: currency.Pair{Base: currency.BTC, Delimiter: "-", Quote: currency.USDT}},
 		{Channel: cnlFunding, Pair: currency.Pair{Base: currency.BTC, Delimiter: "-", Quote: currency.USDC}},
@@ -339,11 +319,8 @@ func TestGenerateSubscriptionPayload(t *testing.T) {
 		{Channel: cnlInstruments, Pair: currency.Pair{Base: currency.BTC, Delimiter: "-", Quote: currency.USDC}},
 		{Channel: cnlMatch, Pair: currency.Pair{Base: currency.BTC, Delimiter: "-", Quote: currency.USDT}},
 	}, "SUBSCRIBE")
-	if err != nil {
-		t.Fatal(err)
-	} else if len(payload) != 2 {
-		t.Fatalf("expected payload of length %d, got %d", 2, len(payload))
-	}
+	require.NoError(t, err)
+	require.Len(t, payload, 2)
 }
 
 func TestFetchOrderBook(t *testing.T) {
@@ -355,22 +332,16 @@ func TestFetchOrderBook(t *testing.T) {
 func TestUpdateOrderbook(t *testing.T) {
 	t.Parallel()
 	_, err := co.UpdateOrderbook(context.Background(), btcPerp, asset.Spot)
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 }
 
 func TestUpdateAccountInfo(t *testing.T) {
 	t.Parallel()
 	_, err := co.UpdateAccountInfo(context.Background(), asset.Futures)
-	if !errors.Is(err, asset.ErrNotSupported) {
-		t.Fatalf("expected %v, got %v", asset.ErrNotSupported, err)
-	}
+	require.ErrorIs(t, err, asset.ErrNotSupported)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, co)
 	_, err = co.UpdateAccountInfo(context.Background(), asset.Spot)
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 }
 
 func TestFetchAccountInfo(t *testing.T) {
@@ -384,18 +355,14 @@ func TestGetAccountFundingHistory(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, co)
 	_, err := co.GetAccountFundingHistory(context.Background())
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 }
 
 func TestGetWithdrawalsHistory(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, co)
 	_, err := co.GetWithdrawalsHistory(context.Background(), currency.BTC, asset.Spot)
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 }
 
 func TestGetFeeByType(t *testing.T) {
@@ -501,9 +468,7 @@ func TestWithdrawCryptocurrencyFunds(t *testing.T) {
 			Address:    "3CDJNfdWX8m2NwuGUV3nhXHXEeLygMXoAj",
 			AddressTag: "",
 		}})
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 }
 
 func TestGetActiveOrders(t *testing.T) {
@@ -512,27 +477,19 @@ func TestGetActiveOrders(t *testing.T) {
 	_, err := co.GetActiveOrders(context.Background(), &order.MultiOrderRequest{
 		AssetType: asset.Spot,
 	})
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 }
 
 func TestUpdateOrderExecutionLimits(t *testing.T) {
 	t.Parallel()
 	err := co.UpdateOrderExecutionLimits(context.Background(), asset.Spot)
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 
 	pairs, err := co.FetchTradablePairs(context.Background(), asset.Spot)
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 	for y := range pairs {
 		lim, err := co.GetOrderExecutionLimits(asset.Spot, pairs[y])
-		if err != nil {
-			t.Fatalf("%v %s %v", err, pairs[y], asset.Spot)
-		}
+		require.NoErrorf(t, err, "%v %s %v", err, pairs[y], asset.Spot)
 		assert.NotEmpty(t, lim, "limit cannot be empty")
 	}
 }
