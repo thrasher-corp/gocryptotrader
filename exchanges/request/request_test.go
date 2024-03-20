@@ -18,7 +18,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/nonce"
 	"golang.org/x/time/rate"
 )
 
@@ -494,37 +497,33 @@ func TestDoRequest_NotRetryable(t *testing.T) {
 
 func TestGetNonce(t *testing.T) {
 	t.Parallel()
-	r, err := New("test",
-		new(http.Client),
-		WithLimiter(&globalshell))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if n1, n2 := r.GetNonce(false), r.GetNonce(false); n1 == n2 {
-		t.Fatal(unexpected)
-	}
+	r, err := New("test", new(http.Client), WithLimiter(&globalshell))
+	require.NoError(t, err)
+	n1 := r.GetNonce(nonce.Seconds)
+	assert.NotZero(t, n1)
+	n2 := r.GetNonce(nonce.Seconds)
+	assert.NotZero(t, n2)
+	assert.NotEqual(t, n1, n2)
 
-	r2, err := New("test",
-		new(http.Client),
-		WithLimiter(&globalshell))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if n1, n2 := r2.GetNonce(true), r2.GetNonce(true); n1 == n2 {
-		t.Fatal(unexpected)
-	}
+	r2, err := New("test", new(http.Client), WithLimiter(&globalshell))
+	require.NoError(t, err)
+	n3 := r2.GetNonce(nonce.Nanoseconds)
+	assert.NotZero(t, n3)
+	n4 := r2.GetNonce(nonce.Nanoseconds)
+	assert.NotZero(t, n4)
+	assert.NotEqual(t, n3, n4)
+
+	assert.NotEqual(t, n1, n3)
+	assert.NotEqual(t, n2, n4)
 }
 
-func TestGetNonceMillis(t *testing.T) {
-	t.Parallel()
-	r, err := New("test",
-		new(http.Client),
-		WithLimiter(&globalshell))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if m1, m2 := r.GetNonceMilli(), r.GetNonceMilli(); m1 == m2 {
-		log.Fatal(unexpected)
+// 100	  61560403 ns/op	     156 B/op	       4 allocs/op
+func BenchmarkGetNonce(b *testing.B) {
+	r, err := New("test", new(http.Client), WithLimiter(&globalshell))
+	require.NoError(b, err)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		r.GetNonce(nonce.Seconds)
 	}
 }
 

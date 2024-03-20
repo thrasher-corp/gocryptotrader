@@ -16,6 +16,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/nonce"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
@@ -591,7 +592,7 @@ func (b *Bitstamp) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange
 
 	interim := json.RawMessage{}
 	err = b.SendPayload(ctx, request.Unset, func() (*request.Item, error) {
-		n := b.Requester.GetNonce(true).String()
+		n := b.Requester.GetNonce(nonce.Nanoseconds).String()
 
 		values.Set("key", creds.Key)
 		values.Set("nonce", n)
