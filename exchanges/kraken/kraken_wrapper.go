@@ -251,7 +251,7 @@ func (k *Kraken) Setup(exch *config.Exchange) error {
 		Connector:             k.WsConnect,
 		Subscriber:            k.Subscribe,
 		Unsubscriber:          k.Unsubscribe,
-		GenerateSubscriptions: k.GenerateSubscriptions,
+		GenerateSubscriptions: k.generateSubscriptions,
 		Features:              &k.Features.Supports.WebsocketCapabilities,
 		OrderbookBufferConfig: buffer.Config{SortBuffer: true},
 	})

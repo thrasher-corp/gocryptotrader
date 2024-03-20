@@ -1836,16 +1836,16 @@
         }
       },
       "api": {
-        "authenticatedSupport": true,
-        "authenticatedWebsocketApiSupport": true,
+        "authenticatedSupport": false,
+        "authenticatedWebsocketApiSupport": false,
         "endpoints": {
           "url": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
           "urlSecondary": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
           "websocketURL": "NON_DEFAULT_HTTP_LINK_TO_WEBSOCKET_EXCHANGE_API"
         },
         "credentials": {
-          "key": "Momma",
-          "secret": "Bear"
+          "key": "Key",
+          "secret": "Secret"
         },
         "credentialsValidator": {
           "requiresKey": true,

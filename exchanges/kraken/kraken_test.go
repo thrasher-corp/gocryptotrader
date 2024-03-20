@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"os"
@@ -711,8 +711,8 @@ func TestOrders(t *testing.T) {
 		0.00000001, 0, 0, 0, &args)
 
 	if assert.NoError(t, err, "AddOrder should not error") {
-		if assert.Len(t, resp.TransactionIds, 1, "One TransactionId should be returned") {
-			id := resp.TransactionIds[0]
+		if assert.Len(t, resp.TransactionIDs, 1, "One TransactionId should be returned") {
+			id := resp.TransactionIDs[0]
 			_, err = k.CancelExistingOrder(context.Background(), id)
 			assert.NoErrorf(t, err, "CancelExistingOrder should not error, Please ensure order %s is cancelled manually", id)
 		}
@@ -1166,38 +1166,38 @@ func TestWsSubscribe(t *testing.T) {
 	require.NoError(t, testexch.TestInstance(k), "TestInstance must not error")
 	testexch.SetupWs(t, k)
 
-	err := k.Subscribe([]subscription.Subscription{{Channel: krakenWsTicker, Pair: currency.NewPairWithDelimiter("XBT", "USD", "/")}})
+	err := k.Subscribe(subscription.List{{Channel: krakenWsTicker, Pairs: currency.Pairs{currency.NewPairWithDelimiter("XBT", "USD", "/")}}})
 	assert.NoError(t, err, "Simple subscription should not error")
 	assert.Len(t, k.Websocket.GetSubscriptions(), 1, "Should add 1 Subscription")
 
-	err = k.Subscribe([]subscription.Subscription{{Channel: krakenWsTicker, Pair: currency.NewPairWithDelimiter("XBT", "USD", "/")}})
+	err = k.Subscribe(subscription.List{{Channel: krakenWsTicker, Pairs: currency.Pairs{currency.NewPairWithDelimiter("XBT", "USD", "/")}}})
 	assert.ErrorIs(t, err, stream.ErrSubscriptionFailure, "Resubscribing to the same channel should error with SubFailure")
-	assert.ErrorIs(t, err, stream.ErrSubscribedAlready, "Resubscribing to the same channel should error with SubscribedAlready")
+	assert.ErrorIs(t, err, subscription.ErrDuplicate, "Resubscribing to the same channel should error with SubscribedAlready")
 	assert.Len(t, k.Websocket.GetSubscriptions(), 1, "Should not add a subscription on error")
 
-	err = k.Subscribe([]subscription.Subscription{{Channel: krakenWsTicker, Pair: currency.NewPairWithDelimiter("DWARF", "HOBBIT", "/")}})
+	err = k.Subscribe(subscription.List{{Channel: krakenWsTicker, Pairs: currency.Pairs{currency.NewPairWithDelimiter("DWARF", "HOBBIT", "/")}}})
 	assert.ErrorIs(t, err, stream.ErrSubscriptionFailure, "Simple error subscription should error")
-	assert.ErrorContains(t, err, "Currency pair not supported DWARF/HOBBIT", "Subscribing to an invalid pair should yield the correct error")
+	assert.ErrorContains(t, err, "Currency pair not supported DWARF/HOBBIT", "Subscribing to an invalid pair should error correctly")
 
-	err = k.Subscribe([]subscription.Subscription{
-		{Channel: krakenWsTicker, Pair: currency.NewPairWithDelimiter("ETH", "USD", "/")},
-		{Channel: krakenWsTicker, Pair: currency.NewPairWithDelimiter("DWARF", "HOBBIT", "/")},
-		{Channel: krakenWsTicker, Pair: currency.NewPairWithDelimiter("DWARF", "ELF", "/")},
+	err = k.Subscribe(subscription.List{
+		{Channel: krakenWsTicker, Pairs: currency.Pairs{currency.NewPairWithDelimiter("ETH", "USD", "/")}},
+		{Channel: krakenWsTicker, Pairs: currency.Pairs{currency.NewPairWithDelimiter("DWARF", "HOBBIT", "/")}},
+		{Channel: krakenWsTicker, Pairs: currency.Pairs{currency.NewPairWithDelimiter("DWARF", "ELF", "/")}},
 	})
 	assert.ErrorIs(t, err, stream.ErrSubscriptionFailure, "Mixed error subscription should error")
-	assert.ErrorContains(t, err, "Currency pair not supported DWARF/ELF", "Subscribing to an invalid pair should yield the correct error")
+	assert.ErrorContains(t, err, "Currency pair not supported DWARF/ELF", "Subscribing to an invalid pair should error correctly")
 	assert.Len(t, k.Websocket.GetSubscriptions(), 2, "Should have 2 subscriptions after mixed success/failures")
 
-	err = k.Subscribe([]subscription.Subscription{
-		{Channel: krakenWsTicker, Pair: currency.NewPairWithDelimiter("DWARF", "HOBBIT", "/")},
-		{Channel: krakenWsTicker, Pair: currency.NewPairWithDelimiter("DWARF", "GOBLIN", "/")},
+	err = k.Subscribe(subscription.List{
+		{Channel: krakenWsTicker, Pairs: currency.Pairs{currency.NewPairWithDelimiter("DWARF", "HOBBIT", "/")}},
+		{Channel: krakenWsTicker, Pairs: currency.Pairs{currency.NewPairWithDelimiter("DWARF", "GOBLIN", "/")}},
 	})
 	assert.ErrorIs(t, err, stream.ErrSubscriptionFailure, "Only failing subscriptions should error")
-	assert.ErrorContains(t, err, "Currency pair not supported DWARF/GOBLIN", "Subscribing to an invalid pair should yield the correct error")
+	assert.ErrorContains(t, err, "Currency pair not supported DWARF/GOBLIN", "Subscribing to an invalid pair should error correctly")
 
-	err = k.Subscribe([]subscription.Subscription{
-		{Channel: krakenWsTicker, Pair: currency.NewPairWithDelimiter("ETH", "XBT", "/")},
-		{Channel: krakenWsTicker, Pair: currency.NewPairWithDelimiter("LTC", "ETH", "/")},
+	err = k.Subscribe(subscription.List{
+		{Channel: krakenWsTicker, Pairs: currency.Pairs{currency.NewPairWithDelimiter("ETH", "XBT", "/")}},
+		{Channel: krakenWsTicker, Pairs: currency.Pairs{currency.NewPairWithDelimiter("LTC", "ETH", "/")}},
 	})
 	assert.NoError(t, err, "Multiple successful subscriptions should not error")
 
@@ -1208,19 +1208,17 @@ func TestWsSubscribe(t *testing.T) {
 	assert.NoError(t, err, "Simple Unsubscribe should succeed")
 	assert.Len(t, k.Websocket.GetSubscriptions(), 3, "Should have removed 1 channel")
 
-	err = k.Unsubscribe([]subscription.Subscription{{Channel: krakenWsTicker, Pair: currency.NewPairWithDelimiter("DWARF", "WIZARD", "/"), Key: 1337}})
+	err = k.Unsubscribe(subscription.List{{Channel: krakenWsTicker, Pairs: currency.Pairs{currency.NewPairWithDelimiter("DWARF", "WIZARD", "/")}, Key: 1337}})
 	assert.ErrorIs(t, err, stream.ErrUnsubscribeFailure, "Simple failing Unsubscribe should error UnsubFail")
-	assert.ErrorIs(t, err, stream.ErrSubscriptionNotFound, "Simple failing Unsubscribe should error SubNotFound")
-	assert.ErrorContains(t, err, "DWARF/WIZARD", "Simple failing Unsubscribe should error containing pair")
+	assert.ErrorContains(t, err, "Currency pair not supported DWARF/WIZARD", "Unsubscribing from an invalid pair should error correctly")
 	assert.Len(t, k.Websocket.GetSubscriptions(), 3, "Should not have removed any channels")
 
-	err = k.Unsubscribe([]subscription.Subscription{
+	err = k.Unsubscribe(subscription.List{
 		subs[1],
-		{Channel: krakenWsTicker, Pair: currency.NewPairWithDelimiter("DWARF", "EAGLE", "/"), Key: 1338},
+		{Channel: krakenWsTicker, Pairs: currency.Pairs{currency.NewPairWithDelimiter("DWARF", "EAGLE", "/")}, Key: 1338},
 	})
 	assert.ErrorIs(t, err, stream.ErrUnsubscribeFailure, "Mixed failing Unsubscribe should error UnsubFail")
-	assert.ErrorIs(t, err, stream.ErrSubscriptionNotFound, "Simple failing Unsubscribe should error SubNotFound")
-	assert.ErrorContains(t, err, "DWARF/EAGLE", "Simple failing Unsubscribe should error containing pair")
+	assert.ErrorContains(t, err, "Currency pair not supported DWARF/EAGLE", "Unsubscribing from an invalid pair should error correctly")
 
 	subs = k.Websocket.GetSubscriptions()
 	assert.Len(t, subs, 2, "Should have removed only 1 more channel")
@@ -1232,76 +1230,78 @@ func TestWsSubscribe(t *testing.T) {
 
 // TestWsOrderbookSub tests orderbook subscriptions for MaxDepth params
 func TestWsOrderbookSub(t *testing.T) {
-	setupWs(t)
+	t.Parallel()
 
-	err := k.Subscribe([]subscription.Subscription{{
-		Channel: krakenWsOrderbook,
-		Pair:    currency.NewPairWithDelimiter("XBT", "USD", "/"),
-		Params: map[string]any{
-			ChannelOrderbookDepthKey: 25,
-		}}})
-	assert.NoError(t, err, "Simple subscription should not error")
-	assert.Len(t, k.Websocket.GetSubscriptions(), 1, "Should add 1 Subscription")
+	k := new(Kraken)
+	require.NoError(t, testexch.TestInstance(k), "TestInstance must not error")
+	testexch.SetupWs(t, k)
+
+	err := k.Subscribe(subscription.List{{
+		Channel: subscription.OrderbookChannel,
+		Pairs:   currency.Pairs{currency.NewPairWithDelimiter("XBT", "USD", "/")},
+		Levels:  25,
+	}})
+	require.NoError(t, err, "Simple subscription should not error")
 
 	subs := k.Websocket.GetSubscriptions()
-	assert.Len(t, subs, 1, "Should have 1 subscription channel")
-	key, ok := subs[0].Key.(subscription.DefaultKey)
-	assert.True(t, ok, "Subscription key should be a DefaultChannelKey")
-	assert.Equal(t, "book-25", key.Channel, "Key Channel should be correct")
+	require.Equal(t, 1, len(subs), "Should have 1 subscription channel")
 
 	err = k.Unsubscribe(subs)
 	assert.NoError(t, err, "Unsubscribe should not error")
 	assert.Len(t, k.Websocket.GetSubscriptions(), 0, "Should have successfully removed all channels")
 
-	err = k.Subscribe([]subscription.Subscription{{
-		Channel: krakenWsOrderbook,
-		Pair:    currency.NewPairWithDelimiter("XBT", "USD", "/"),
-		Params: map[string]any{
-			ChannelOrderbookDepthKey: 42,
-		}}})
+	err = k.Subscribe(subscription.List{{
+		Channel: subscription.OrderbookChannel,
+		Pairs:   currency.Pairs{currency.NewPairWithDelimiter("XBT", "USD", "/")},
+		Levels:  42,
+	}})
 	assert.ErrorIs(t, err, stream.ErrSubscriptionFailure, "Bad subscription should error")
 	assert.ErrorContains(t, err, "Subscription depth not supported", "Bad subscription should error about depth")
+
+	require.ErrorIs(t, err, io.EOF, "Must error when trying to use a private channel name")
 }
 
 // TestWsCandlesSub tests candles subscription for Timeframe params
 func TestWsCandlesSub(t *testing.T) {
-	setupWs(t)
+	t.Parallel()
 
-	err := k.Subscribe([]subscription.Subscription{{
-		Channel: krakenWsOHLC,
-		Pair:    currency.NewPairWithDelimiter("XBT", "USD", "/"),
-		Params: map[string]any{
-			ChannelCandlesTimeframeKey: 60,
-		}}})
-	assert.NoError(t, err, "Simple subscription should not error")
-	assert.Len(t, k.Websocket.GetSubscriptions(), 1, "Should add 1 Subscription")
+	k := new(Kraken)
+	require.NoError(t, testexch.TestInstance(k), "TestInstance must not error")
+	testexch.SetupWs(t, k)
+
+	err := k.Subscribe(subscription.List{{
+		Channel:  subscription.CandlesChannel,
+		Pairs:    currency.Pairs{currency.NewPairWithDelimiter("XBT", "USD", "/")},
+		Interval: kline.OneHour,
+	}})
+	require.NoError(t, err, "Simple subscription should not error")
 
 	subs := k.Websocket.GetSubscriptions()
-	assert.Len(t, subs, 1, "Should have 1 subscription channel")
-	key, ok := subs[0].Key.(subscription.DefaultKey)
-	assert.True(t, ok, "Subscription key should be a DefaultChannelKey")
-	assert.Equal(t, "ohlc-60", key.Channel, "Key Channel should be correct")
+	require.Equal(t, 1, len(subs), "Should add 1 Subscription")
 
 	err = k.Unsubscribe(subs)
 	assert.NoError(t, err, "Unsubscribe should not error")
 	assert.Len(t, k.Websocket.GetSubscriptions(), 0, "Should have successfully removed all channels")
 
-	err = k.Subscribe([]subscription.Subscription{{
-		Channel: krakenWsOHLC,
-		Pair:    currency.NewPairWithDelimiter("XBT", "USD", "/"),
-		Params: map[string]any{
-			ChannelCandlesTimeframeKey: 127,
-		}}})
+	err = k.Subscribe(subscription.List{{
+		Channel:  krakenWsOHLC,
+		Pairs:    currency.Pairs{currency.NewPairWithDelimiter("XBT", "USD", "/")},
+		Interval: kline.Interval(time.Minute * time.Duration(127)),
+	}})
 	assert.ErrorIs(t, err, stream.ErrSubscriptionFailure, "Bad subscription should error")
 	assert.ErrorContains(t, err, "Subscription ohlc interval not supported", "Bad subscription should error about interval")
 }
 
 // TestWsOwnTradesSub tests the authenticated WS subscription channel for trades
 func TestWsOwnTradesSub(t *testing.T) {
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, k)
-	setupWs(t)
+	t.Parallel()
 
-	err := k.Subscribe([]subscription.Subscription{{Channel: krakenWsOwnTrades}})
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, k)
+	k := new(Kraken)
+	require.NoError(t, testexch.TestInstance(k), "TestInstance must not error")
+	testexch.SetupWs(t, k)
+
+	err := k.Subscribe(subscription.List{{Channel: krakenWsOwnTrades}})
 	assert.NoError(t, err, "Subsrcibing to ownTrades should not error")
 
 	subs := k.Websocket.GetSubscriptions()
@@ -1316,21 +1316,18 @@ func TestWsOwnTradesSub(t *testing.T) {
 func TestGenerateSubscriptions(t *testing.T) {
 	t.Parallel()
 
-	subs, err := k.GenerateSubscriptions()
-	require.NoError(t, err, "GenerateSubscriptions should not error")
-	expected := []subscription.Subscription{}
+	subs, err := k.generateSubscriptions()
+	require.NoError(t, err, "generateSubscriptions should not error")
 	pairs, err := k.GetEnabledPairs(asset.Spot)
-	for i := range pairs {
-		pairs[i].Delimiter = "/"
-	}
 	require.NoError(t, err, "GetEnabledPairs must not error")
+	pairs = pairs.Format(currency.PairFormat{Uppercase: true, Delimiter: "/"})
 	require.False(t, k.Websocket.CanUseAuthenticatedEndpoints(), "Websocket must not be authenticated by default")
+	expected := subscription.List{}
 	for _, exp := range k.Features.Subscriptions {
 		if exp.Authenticated {
 			continue
 		}
-		s := *exp
-		s.Channel = channelName(s.Channel)
+		s := exp.Clone()
 		s.Asset = asset.Spot
 		s.Pairs = pairs
 		expected = append(expected, s)
@@ -1340,7 +1337,11 @@ func TestGenerateSubscriptions(t *testing.T) {
 
 func TestGetWSToken(t *testing.T) {
 	t.Parallel()
-	setupWs(t)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, k)
+	k := new(Kraken)
+	require.NoError(t, testexch.TestInstance(k), "TestInstance must not error")
+	testexch.SetupWs(t, k)
+
 	resp, err := k.GetWebsocketToken(context.Background())
 	if err != nil {
 		t.Error(err)
@@ -1405,7 +1406,7 @@ func TestWsCancelOrders(t *testing.T) {
 
 func TestWsCancelAllOrders(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, k, canManipulateRealOrders)
-	setupWs(t)
+	testexch.SetupWs(t, k)
 	if _, err := k.wsCancelAllOrders(); err != nil {
 		t.Error(err)
 	}
@@ -1683,7 +1684,7 @@ func TestWsSpread(t *testing.T) {
 	}
 }
 
-func TestWsOrdrbook(t *testing.T) {
+func TestWsOrderbook(t *testing.T) {
 	t.Parallel()
 	pressXToJSON := []byte(`{
 	  "channelID": 13333337,
@@ -1861,7 +1862,6 @@ func TestWsOrdrbook(t *testing.T) {
 
 func TestWsOwnTrades(t *testing.T) {
 	t.Parallel()
-	k.Websocket.AddSuccessfulSubscriptions(subscription.Subscription{Asset: asset.Spot, Channel: krakenWsOwnTrades, Pairs: currency.Pairs{btcusdPair}})
 	pressXToJSON := []byte(`[
 	  [
 		{
@@ -2266,18 +2266,11 @@ func TestWsOrderbookMax10Depth(t *testing.T) {
 		currency.NewPairWithDelimiter("LUNA", "EUR", "/"),
 		currency.NewPairWithDelimiter("GST", "EUR", "/"),
 	}
-	k.Websocket.AddSuccessfulSubscriptions(subscription.Subscription{
-		Key: subscription.Key{
-			Channel: krakenWsOrderbook + "-10",
-			Pairs:   &pairs,
-			Asset:   asset.Spot,
-		},
-		Channel: krakenWsOrderbook,
+	k.Websocket.AddSuccessfulSubscriptions(&subscription.Subscription{
+		Channel: subscription.OrderbookChannel,
 		Pairs:   pairs,
 		Asset:   asset.Spot,
-		Params: map[string]any{
-			ChannelOrderbookDepthKey: 10,
-		},
+		Levels:  10,
 	})
 
 	for x := range websocketXDGUSDOrderbookUpdates {

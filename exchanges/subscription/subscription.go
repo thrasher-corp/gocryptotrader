@@ -33,11 +33,12 @@ const (
 
 // Public errors
 var (
-	ErrNotFound       = errors.New("subscription not found")
-	ErrNotSinglePair  = errors.New("only single pair subscriptions expected")
-	ErrInStateAlready = errors.New("subscription already in state")
-	ErrInvalidState   = errors.New("invalid subscription state")
-	ErrDuplicate      = errors.New("duplicate subscription")
+	ErrNotFound             = errors.New("subscription not found")
+	ErrNotSinglePair        = errors.New("only single pair subscriptions expected")
+	ErrBatchingNotSupported = errors.New("subscription batching not supported")
+	ErrInStateAlready       = errors.New("subscription already in state")
+	ErrInvalidState         = errors.New("invalid subscription state")
+	ErrDuplicate            = errors.New("duplicate subscription")
 )
 
 // State tracks the status of a subscription channel

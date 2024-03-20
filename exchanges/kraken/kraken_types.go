@@ -84,8 +84,7 @@ var (
 
 	errNoWebsocketOrderbookData = errors.New("no websocket orderbook data")
 	errNoRequestID              = errors.New("no RequestID in response")
-	errMaxDepthMissing          = errors.New("max depth missing for orderbook subscription")
-	errTimeframeMissing         = errors.New("timeframe missing for candle subscription")
+	errBadChannelSuffix         = errors.New("bad websocket channel suffix")
 )
 
 // GenericResponse stores general response data for functions that only return success
@@ -546,9 +545,6 @@ type WebsocketSubscriptionEventResponse struct {
 type WebsocketSubscriptionResponseData struct {
 	Name string `json:"name"`
 }
-
-// WebsocketDataResponse defines a websocket data type
-type WebsocketDataResponse []interface{}
 
 // WebsocketErrorResponse defines a websocket error response
 type WebsocketErrorResponse struct {
