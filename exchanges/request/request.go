@@ -1,7 +1,6 @@
 package request
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -172,16 +171,16 @@ func (r *Requester) doRequest(ctx context.Context, endpoint EndpointLimit, newRe
 				log.Debugf(log.RequestSys, "%s request header [%s]: %s", r.name, k, d)
 			}
 			log.Debugf(log.RequestSys, "%s request type: %s", r.name, p.Method)
-			if p.Body != nil {
-				var data []byte
-				// Below reads the body and then resets it for the actual request.
-				data, err = io.ReadAll(p.Body)
-				if err != nil {
-					log.Errorf(log.RequestSys, "%s failed to read request body: %v", r.name, err)
-				} else {
-					p.Body = bytes.NewBuffer(data)
+			if req.GetBody != nil {
+				bodyCopy, bodyErr := req.GetBody()
+				if bodyErr != nil {
+					return bodyErr
 				}
-				log.Debugf(log.RequestSys, "%s request body: %v", r.name, string(data))
+				payload, bodyErr := io.ReadAll(bodyCopy)
+				if bodyErr != nil {
+					return bodyErr
+				}
+				log.Debugf(log.RequestSys, "%s request body: %s", r.name, payload)
 			}
 		}
 
