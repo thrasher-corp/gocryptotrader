@@ -15,6 +15,7 @@ const (
 	bitgetRate20       = 20
 	bitgetRate10       = 10
 	bitgetRate5        = 5
+	bitgetRate3        = 3
 	bitgetRate2        = 2
 	bitgetRate1        = 1
 )
@@ -24,6 +25,7 @@ const (
 	Rate20 request.EndpointLimit = iota
 	Rate10
 	Rate5
+	Rate3
 	Rate2
 	Rate1
 )
@@ -33,6 +35,7 @@ type RateLimit struct {
 	RateLim20 *rate.Limiter
 	RateLim10 *rate.Limiter
 	RateLim5  *rate.Limiter
+	RateLim3  *rate.Limiter
 	RateLim2  *rate.Limiter
 	RateLim1  *rate.Limiter
 }
@@ -46,6 +49,8 @@ func (r *RateLimit) Limit(ctx context.Context, f request.EndpointLimit) error {
 		return r.RateLim10.Wait(ctx)
 	case Rate5:
 		return r.RateLim5.Wait(ctx)
+	case Rate3:
+		return r.RateLim3.Wait(ctx)
 	case Rate2:
 		return r.RateLim2.Wait(ctx)
 	case Rate1:
@@ -61,6 +66,7 @@ func SetRateLimit() *RateLimit {
 		RateLim20: request.NewRateLimit(bitgetRateInterval, bitgetRate20),
 		RateLim10: request.NewRateLimit(bitgetRateInterval, bitgetRate10),
 		RateLim5:  request.NewRateLimit(bitgetRateInterval, bitgetRate5),
+		RateLim3:  request.NewRateLimit(bitgetRateInterval, bitgetRate3),
 		RateLim2:  request.NewRateLimit(bitgetRateInterval, bitgetRate2),
 		RateLim1:  request.NewRateLimit(bitgetRateInterval, bitgetRate1),
 	}

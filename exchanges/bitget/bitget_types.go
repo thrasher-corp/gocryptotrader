@@ -3,6 +3,8 @@ package bitget
 import (
 	"net/url"
 	"time"
+
+	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
 // Params is used within functions to make the setting of parameters easier
@@ -189,9 +191,9 @@ type P2PAdListResp struct {
 			Size            float64       `json:"size,string"`
 			CryptoCurrency  string        `json:"coin"`
 			Price           float64       `json:"price,string"`
-			CryptoPrecision int64         `json:"coinPrecision,string"`
+			CryptoPrecision uint8         `json:"coinPrecision,string"`
 			FiatCurrency    string        `json:"fiat"`
-			FiatPrecision   int64         `json:"fiatPrecision,string"`
+			FiatPrecision   uint8         `json:"fiatPrecision,string"`
 			FiatSymbol      string        `json:"fiatSymbol"`
 			Status          string        `json:"status"`
 			Hide            YesNoBool     `json:"hide"`
@@ -309,7 +311,7 @@ type GetAPIKeyResp struct {
 	} `json:"data"`
 }
 
-// ConvertCoinsResp
+// ConvertCoinsResp contains information on the user's available currencies
 type ConvertCoinsResp struct {
 	Data []struct {
 		Coin      string  `json:"coin"`
@@ -319,6 +321,258 @@ type ConvertCoinsResp struct {
 	} `json:"data"`
 }
 
-// QuotedPriceResp
+// QuotedPriceResp contains information on a queried conversion
 type QuotedPriceResp struct {
+	Data struct {
+		FromCoin     string  `json:"fromCoin"`
+		FromCoinSize float64 `json:"fromCoinSize,string"`
+		ConvertPrice float64 `json:"cnvtPrice,string"`
+		ToCoin       string  `json:"toCoin"`
+		ToCoinSize   float64 `json:"toCoinSize,string"`
+		TraceID      string  `json:"traceId"`
+		Fee          float64 `json:"fee,string"`
+	} `json:"data"`
+}
+
+// CommitConvResp contains information on a committed conversion
+type CommitConvResp struct {
+	Data struct {
+		ToCoin       string        `json:"toCoin"`
+		ToCoinSize   float64       `json:"toCoinSize,string"`
+		ConvertPrice float64       `json:"cnvtPrice,string"`
+		Timestamp    UnixTimestamp `json:"ts"`
+	} `json:"data"`
+}
+
+// ConvHistResp contains information on the user's conversion history
+type ConvHistResp struct {
+	Data struct {
+		DataList []struct {
+			ID           int64         `json:"id,string"`
+			Timestamp    UnixTimestamp `json:"ts"`
+			ConvertPrice float64       `json:"cnvtPrice,string"`
+			Fee          float64       `json:"fee,string"`
+			FromCoinSize float64       `json:"fromCoinSize,string"`
+			FromCoin     string        `json:"fromCoin"`
+			ToCoinSize   float64       `json:"toCoinSize,string"`
+			ToCoin       string        `json:"toCoin"`
+		} `json:"dataList"`
+		EndID int64 `json:"endId,string"`
+	} `json:"data"`
+}
+
+// BGBConvertCoinsResp contains information on the user's available currencies and conversions between those
+// and BGB
+type BGBConvertCoinsResp struct {
+	Data struct {
+		CoinList []struct {
+			Coin         string  `json:"coin"`
+			Available    float64 `json:"available,string"`
+			BGBEstAmount float64 `json:"bgbEstAmount,string"`
+			Precision    uint8   `json:"precision"`
+			FeeDetail    []struct {
+				FeeRate float64 `json:"feeRate,string"`
+				Fee     float64 `json:"fee,string"`
+			} `json:"feeDetail"`
+			CurrentTime UnixTimestamp `json:"cTime"`
+		} `json:"coinList"`
+	} `json:"data"`
+}
+
+// ConvertBGBResp contains information on a series of conversions between BGB and other currencies
+type ConvertBGBResp struct {
+	Data struct {
+		OrderList []struct {
+			Coin    string `json:"coin"`
+			OrderID int64  `json:"orderId,string"`
+		} `json:"orderList"`
+	} `json:"data"`
+}
+
+// BGBConvHistResp contains information on the user's conversion history between BGB and other currencies
+type BGBConvHistResp struct {
+	Data []struct {
+		OrderID       int64   `json:"orderId,string"`
+		FromCoin      string  `json:"fromCoin"`
+		FromAmount    float64 `json:"fromAmount,string"`
+		FromCoinPrice float64 `json:"fromCoinPrice,string"`
+		ToCoin        string  `json:"toCoin"`
+		ToAmount      float64 `json:"toAmount,string"`
+		ToCoinPrice   float64 `json:"toCoinPrice,string"`
+		FeeDetail     struct {
+			FeeCoin string  `json:"feeCoin"`
+			Fee     float64 `json:"fee,string"`
+		} `json:"feeDetail"`
+		Status     SuccessBool   `json:"status"`
+		CreateTime UnixTimestamp `json:"cTime"`
+	} `json:"data"`
+}
+
+// CoinInfoResp contains information on supported spot currencies
+type CoinInfoResp struct {
+	Data []struct {
+		CoinID   uint32 `json:"coinId,string"`
+		Coin     string `json:"coin"`
+		Transfer bool   `json:"transfer,string"`
+		Chains   []struct {
+			Chain             string  `json:"chain"`
+			NeedTag           bool    `json:"needTag,string"`
+			Withdrawable      bool    `json:"withdrawable,string"`
+			Rechargeable      bool    `json:"rechargeable,string"`
+			WithdrawFee       float64 `json:"withdrawFee,string"`
+			ExtraWithdrawFee  float64 `json:"extraWithdrawFee,string"`
+			DepositConfirm    uint16  `json:"depositConfirm,string"`
+			WithdrawConfirm   uint16  `json:"withdrawConfirm,string"`
+			MinDepositAmount  float64 `json:"minDepositAmount,string"`
+			MinWithdrawAmount float64 `json:"minWithdrawAmount,string"`
+			BrowserURL        string  `json:"browserUrl"`
+			ContractAddress   string  `json:"contractAddress"`
+			WithdrawStep      uint8   `json:"withdrawStep,string"`
+		} `json:"chains"`
+	} `json:"data"`
+}
+
+// SymbolInfoResp contains information on supported spot trading pairs
+type SymbolInfoResp struct {
+	Data []struct {
+		Symbol              string  `json:"symbol"`
+		BaseCoin            string  `json:"baseCoin"`
+		QuoteCoin           string  `json:"quoteCoin"`
+		MinTradeAmount      float64 `json:"minTradeAmount,string"`
+		MaxTradeAmount      float64 `json:"maxTradeAmount,string"`
+		TakerFeeRate        float64 `json:"takerFeeRate,string"`
+		MakerFeeRate        float64 `json:"makerFeeRate,string"`
+		PricePrecision      uint8   `json:"pricePrecision,string"`
+		QuantityPrecision   uint8   `json:"quantityPrecision,string"`
+		QuotePrecision      uint8   `json:"quotePrecision,string"`
+		MinTradeUSDT        float64 `json:"minTradeUSDT,string"`
+		Status              string  `json:"status"`
+		BuyLimitPriceRatio  float64 `json:"buyLimitPriceRatio,string"`
+		SellLimitPriceRatio float64 `json:"sellLimitPriceRatio,string"`
+	} `json:"data"`
+}
+
+// VIPFeeRateResp contains information on the different levels of VIP fee rates
+type VIPFeeRateResp struct {
+	Data []struct {
+		Level        uint8   `json:"level,string"`
+		DealAmount   float64 `json:"dealAmount,string"`
+		AssetAmount  float64 `json:"assetAmount,string"`
+		TakerFeeRate float64 `json:"takerFeeRate,string"`
+		MakerFeeRate float64 `json:"makerFeeRate,string"`
+		// 24-hour withdrawal limits
+		BTCWithdrawAmount float64 `json:"btcWithdrawAmount,string"`
+		USDWithdrawAmount float64 `json:"usdWithdrawAmount,string"`
+	} `json:"data"`
+}
+
+// TickerResp contains information on tickers
+type TickerResp struct {
+	Data []struct {
+		Symbol       string        `json:"symbol"`
+		High24H      float64       `json:"high24h,string"`
+		Open         float64       `json:"open,string"`
+		LastPrice    float64       `json:"lastPr,string"`
+		Low24H       float64       `json:"low24h,string"`
+		QuoteVolume  float64       `json:"quoteVolume,string"`
+		BaseVolume   float64       `json:"baseVolume,string"`
+		USDTVolume   float64       `json:"usdtVolume,string"`
+		BidPrice     float64       `json:"bidPr,string"`
+		AskPrice     float64       `json:"askPr,string"`
+		BidSize      float64       `json:"bidSz,string"`
+		AskSize      float64       `json:"askSz,string"`
+		OpenUTC      float64       `json:"openUTC,string"`
+		Timestamp    UnixTimestamp `json:"ts"`
+		ChangeUTC24H float64       `json:"changeUTC24h,string"`
+		Change24H    float64       `json:"change24h,string"`
+	} `json:"data"`
+}
+
+// DepthResp contains information on orderbook bids and asks, and any merging of orders done to them
+type DepthResp struct {
+	Data struct {
+		Asks           [][2]float64  `json:"asks"`
+		Bids           [][2]float64  `json:"bids"`
+		Precision      string        `json:"precision"`
+		Scale          float64       `json:"scale,string"`
+		IsMaxPrecision YesNoBool     `json:"isMaxPrecision"`
+		Timestamp      UnixTimestamp `json:"ts"`
+	} `json:"data"`
+}
+
+// OrderbookResp contains information on orderbook bids and asks
+type OrderbookResp struct {
+	Data struct {
+		Asks      [][2]types.Number `json:"asks"`
+		Bids      [][2]types.Number `json:"bids"`
+		Timestamp UnixTimestamp     `json:"ts"`
+	} `json:"data"`
+}
+
+// CandleResponse contains unsorted candle data
+type CandleResponse struct {
+	Data [][8]interface{} `json:"data"`
+}
+
+// OneCandle contains a single candle
+type OneCandle struct {
+	Timestamp   time.Time
+	Open        float64
+	High        float64
+	Low         float64
+	Close       float64
+	BaseVolume  float64
+	QuoteVolume float64
+	USDTVolume  float64
+}
+
+// CandleData contains sorted candle data
+type CandleData struct {
+	Candles []OneCandle
+}
+
+// FillsResp contains information on a batch of trades
+type FillsResp struct {
+	Data []struct {
+		Symbol    string        `json:"symbol"`
+		TradeID   int64         `json:"tradeId,string"`
+		Side      string        `json:"side"`
+		Price     float64       `json:"price,string"`
+		Size      float64       `json:"size,string"`
+		Timestamp UnixTimestamp `json:"ts"`
+	} `json:"data"`
+}
+
+// OrderResp contains information on an order
+type OrderResp struct {
+	Data struct {
+		OrderID       int64  `json:"orderId,string"`
+		ClientOrderID string `json:"clientOrderId"`
+	} `json:"data"`
+}
+
+// PlaceOrderStruct contains information on an order to be placed
+type PlaceOrderStruct struct {
+	Side          string  `json:"side"`
+	OrderType     string  `json:"orderType"`
+	Strategy      string  `json:"force"`
+	Price         float64 `json:"price,string"`
+	Size          float64 `json:"size,string"`
+	ClientOrderID string  `json:"clientOId"`
+}
+
+// BatchOrderResp contains information on the success or failure of a batch of orders to place or cancel
+type BatchOrderResp struct {
+	Data struct {
+		SuccessList []struct {
+			OrderID       int64  `json:"orderId,string"`
+			ClientOrderID string `json:"clientOrderId"`
+		} `json:"successList"`
+		FailureList []struct {
+			OrderID       int64  `json:"orderId,string"`
+			ClientOrderID string `json:"clientOrderId"`
+			ErrorCode     int64  `json:"errorCode"`
+			ErrorMessage  string `json:"errorMsg"`
+		} `json:"failureList"`
+	} `json:"data"`
 }

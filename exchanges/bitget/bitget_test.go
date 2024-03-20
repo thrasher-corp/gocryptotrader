@@ -3,7 +3,9 @@ package bitget
 import (
 	"context"
 	"log"
+	"net/url"
 	"os"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -22,7 +24,7 @@ const (
 	apiKey                  = ""
 	apiSecret               = ""
 	clientID                = "" // Passphrase made at API key creation
-	canManipulateRealOrders = true
+	canManipulateRealOrders = false
 	testingInSandbox        = false
 
 	testSubAccountName = "GCTTESTA"
@@ -30,17 +32,23 @@ const (
 
 // User-defined variables to aid testing
 var (
-	testCrypto = currency.BTC
-	testFiat   = currency.USDT
-	testPair   = currency.NewPair(testCrypto, testFiat)
+	testCrypto  = currency.BTC
+	testCrypto2 = currency.DOGE // Used for endpoints which consume all available funds
+	testFiat    = currency.USDT
+	testPair    = currency.NewPair(testCrypto, testFiat)
+	testIP      = "14.203.57.50"
+	testAmount  = 0.00001
+	testPrice   = 1e9
 )
 
 // Developer-defined constants to aid testing
 const (
 	skipTestSubAccNotFound       = "test sub-account not found, skipping"
 	skipInsufficientAPIKeysFound = "insufficient API keys found, skipping"
+	skipInsufficientBalance      = "insufficient balance to place order, skipping"
 
-	errorAPIKeyLimitPartial = `Bitget unsuccessful HTTP status code: 400 raw response: {"code":"40063","msg":"API exceeds the maximum limit added","requestTime":`
+	errorAPIKeyLimitPartial         = `Bitget unsuccessful HTTP status code: 400 raw response: {"code":"40063","msg":"API exceeds the maximum limit added","requestTime":`
+	errorInsufficientBalancePartial = `Bitget unsuccessful HTTP status code: 400 raw response: {"code":"43012","msg":"Insufficient balance","requestTime":`
 )
 
 var bi = &Bitget{}
@@ -90,9 +98,7 @@ func TestQueryAnnouncements(t *testing.T) {
 }
 
 func TestGetTime(t *testing.T) {
-	resp, err := bi.GetTime(context.Background())
-	assert.NoError(t, err)
-	assert.NotEmpty(t, resp)
+	testGetNoArgs(t, bi.GetTime)
 }
 
 func TestGetTradeRate(t *testing.T) {
@@ -150,8 +156,7 @@ func TestGetP2PMerchantList(t *testing.T) {
 
 func TestGetMerchantInfo(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
-	_, err := bi.GetMerchantInfo(context.Background())
-	assert.NoError(t, err)
+	testGetNoArgs(t, bi.GetMerchantInfo)
 }
 
 func TestGetMerchantP2POrders(t *testing.T) {
@@ -178,8 +183,9 @@ func TestCreateVirtualSubaccounts(t *testing.T) {
 	_, err := bi.CreateVirtualSubaccounts(context.Background(), []string{})
 	assert.ErrorIs(t, err, errSubAccountEmpty)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
-	_, err = bi.CreateVirtualSubaccounts(context.Background(), []string{testSubAccountName})
+	resp, err := bi.CreateVirtualSubaccounts(context.Background(), []string{testSubAccountName})
 	assert.NoError(t, err)
+	assert.NotEmpty(t, resp)
 }
 
 func TestModifyVirtualSubaccount(t *testing.T) {
@@ -193,8 +199,9 @@ func TestModifyVirtualSubaccount(t *testing.T) {
 	sharedtestvalues.SkipTestIfCannotManipulateOrders(t, bi, canManipulateRealOrders)
 	tarID := subAccTestHelper(t)
 	perms = append(perms, "read")
-	_, err = bi.ModifyVirtualSubaccount(context.Background(), tarID, "normal", perms)
+	resp, err := bi.ModifyVirtualSubaccount(context.Background(), tarID, "normal", perms)
 	assert.NoError(t, err)
+	assert.NotEmpty(t, resp)
 }
 
 func TestCreateSubaccountAndAPIKey(t *testing.T) {
@@ -202,7 +209,7 @@ func TestCreateSubaccountAndAPIKey(t *testing.T) {
 	_, err := bi.CreateSubaccountAndAPIKey(context.Background(), "", "", "", ipL, ipL)
 	assert.ErrorIs(t, err, errSubAccountEmpty)
 	sharedtestvalues.SkipTestIfCannotManipulateOrders(t, bi, canManipulateRealOrders)
-	ipL = append(ipL, "14.203.57.50")
+	ipL = append(ipL, testIP)
 	pL := []string{"read"}
 	// Fails with error "subAccountList not empty" and I'm not sure why. The account I'm testing with is far off
 	// hitting the limit of 20 sub-accounts.
@@ -226,7 +233,7 @@ func TestCreateAPIKey(t *testing.T) {
 	assert.ErrorIs(t, err, errLabelEmpty)
 	sharedtestvalues.SkipTestIfCannotManipulateOrders(t, bi, canManipulateRealOrders)
 	tarID := subAccTestHelper(t)
-	ipL = append(ipL, "14.203.57.50")
+	ipL = append(ipL, testIP)
 	pL := []string{"read"}
 	_, err = bi.CreateAPIKey(context.Background(), tarID, clientID, "neigh whinny", ipL, pL)
 	if err != nil && !strings.Contains(err.Error(), errorAPIKeyLimitPartial) {
@@ -251,9 +258,10 @@ func TestModifyAPIKey(t *testing.T) {
 	if len(resp.Data) == 0 {
 		t.Skip(skipInsufficientAPIKeysFound)
 	}
-	_, err = bi.ModifyAPIKey(context.Background(), tarID, clientID, "oink", resp.Data[0].SubAccountApiKey,
+	resp2, err := bi.ModifyAPIKey(context.Background(), tarID, clientID, "oink", resp.Data[0].SubAccountApiKey,
 		ipL, ipL)
 	assert.NoError(t, err)
+	assert.NotEmpty(t, resp2)
 }
 
 func TestGetAPIKeys(t *testing.T) {
@@ -261,29 +269,213 @@ func TestGetAPIKeys(t *testing.T) {
 	assert.ErrorIs(t, err, errSubAccountEmpty)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
 	tarID := subAccTestHelper(t)
-	_, err = bi.GetAPIKeys(context.Background(), tarID)
+	resp, err := bi.GetAPIKeys(context.Background(), tarID)
 	assert.NoError(t, err)
+	assert.NotEmpty(t, resp)
 }
 
 func TestGetConvertCoints(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
-	_, err := bi.GetConvertCoins(context.Background())
-	assert.NoError(t, err)
+	testGetNoArgs(t, bi.GetConvertCoins)
 }
 
 func TestGetQuotedPrice(t *testing.T) {
 	_, err := bi.GetQuotedPrice(context.Background(), "", "", 0, 0)
-	assert.ErrorIs(t, err, errPairEmpty)
+	assert.ErrorIs(t, err, errCurrencyEmpty)
 	_, err = bi.GetQuotedPrice(context.Background(), "meow", "woof", 0, 0)
 	assert.ErrorIs(t, err, errFromToMutex)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
-	_, err = bi.GetQuotedPrice(context.Background(), testCrypto.String(), testFiat.String(), 0, 1)
+	resp, err := bi.GetQuotedPrice(context.Background(), testCrypto.String(), testFiat.String(), 0, 1)
 	assert.NoError(t, err)
-	_, err = bi.GetQuotedPrice(context.Background(), testCrypto.String(), testFiat.String(), 0.1, 0)
+	assert.NotEmpty(t, resp)
+	resp, err = bi.GetQuotedPrice(context.Background(), testCrypto.String(), testFiat.String(), 0.1, 0)
+	assert.NoError(t, err)
+	assert.NotEmpty(t, resp)
+}
+
+func TestCommitConversion(t *testing.T) {
+	_, err := bi.CommitConversion(context.Background(), "", "", "", 0, 0, 0)
+	assert.ErrorIs(t, err, errCurrencyEmpty)
+	_, err = bi.CommitConversion(context.Background(), testCrypto.String(), testFiat.String(), "", 0, 0, 0)
+	assert.ErrorIs(t, err, errTraceIDEmpty)
+	_, err = bi.CommitConversion(context.Background(), testCrypto.String(), testFiat.String(), "1", 0, 0, 0)
+	assert.ErrorIs(t, err, errAmountEmpty)
+	_, err = bi.CommitConversion(context.Background(), testCrypto.String(), testFiat.String(), "1", 1, 1, 0)
+	assert.ErrorIs(t, err, errPriceEmpty)
+	sharedtestvalues.SkipTestIfCannotManipulateOrders(t, bi, canManipulateRealOrders)
+	resp, err := bi.GetQuotedPrice(context.Background(), testCrypto.String(), testFiat.String(), testAmount, 0)
+	assert.NoError(t, err)
+	_, err = bi.CommitConversion(context.Background(), testCrypto.String(), testFiat.String(), resp.Data.TraceID,
+		resp.Data.FromCoinSize, resp.Data.ToCoinSize, resp.Data.ConvertPrice)
+	if err != nil && !strings.Contains(err.Error(), errorInsufficientBalancePartial) {
+		t.Error(err)
+	}
+}
+
+func TestGetConvertHistory(t *testing.T) {
+	_, err := bi.GetConvertHistory(context.Background(), time.Time{}, time.Time{}, 0, 0)
+	assert.ErrorIs(t, err, common.ErrDateUnset)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
+	_, err = bi.GetConvertHistory(context.Background(), time.Now().Add(-time.Hour*90*24), time.Now(), 1, 0)
 	assert.NoError(t, err)
 }
 
+func TestGetBGBConvertCoins(t *testing.T) {
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
+	testGetNoArgs(t, bi.GetBGBConvertCoins)
+}
+
+func TestConvertBGB(t *testing.T) {
+	var currencies []string
+	_, err := bi.ConvertBGB(context.Background(), currencies)
+	assert.ErrorIs(t, err, errCurrencyEmpty)
+	sharedtestvalues.SkipTestIfCannotManipulateOrders(t, bi, canManipulateRealOrders)
+	currencies = append(currencies, testCrypto2.String())
+	// No matter what currency I use, this returns the error "currency does not support convert"; possibly a bad error
+	// message, with the true issue being lack of funds?
+	_, err = bi.ConvertBGB(context.Background(), currencies)
+	assert.NoError(t, err)
+}
+
+func TestGetBGBConvertHistory(t *testing.T) {
+	_, err := bi.GetBGBConvertHistory(context.Background(), 0, 0, 0, time.Now(), time.Now().Add(-time.Second))
+	assert.ErrorIs(t, err, common.ErrStartAfterEnd)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
+	_, err = bi.GetBGBConvertHistory(context.Background(), 0, 1, 0, time.Time{}, time.Time{})
+	assert.NoError(t, err)
+}
+
+func TestGetCoinInfo(t *testing.T) {
+	resp, err := bi.GetCoinInfo(context.Background(), "")
+	assert.NoError(t, err)
+	assert.NotEmpty(t, resp)
+}
+
+func TestGetSymbolInfo(t *testing.T) {
+	resp, err := bi.GetSymbolInfo(context.Background(), "")
+	assert.NoError(t, err)
+	assert.NotEmpty(t, resp)
+}
+
+func TestGetVIPFeeRate(t *testing.T) {
+	testGetNoArgs(t, bi.GetVIPFeeRate)
+}
+
+func TestGetTickerInformation(t *testing.T) {
+	resp, err := bi.GetTickerInformation(context.Background(), testPair.String())
+	assert.NoError(t, err)
+	assert.NotEmpty(t, resp)
+}
+
+func TestGetMergeDepth(t *testing.T) {
+	_, err := bi.GetMergeDepth(context.Background(), "", "", "")
+	assert.ErrorIs(t, err, errPairEmpty)
+	resp, err := bi.GetMergeDepth(context.Background(), testPair.String(), "scale3", "5")
+	assert.NoError(t, err)
+	assert.NotEmpty(t, resp)
+}
+
+func TestGetOrderbookDepth(t *testing.T) {
+	resp, err := bi.GetOrderbookDepth(context.Background(), testPair.String(), "", 5)
+	assert.NoError(t, err)
+	assert.NotEmpty(t, resp)
+}
+
+func TestGetCandlestickData(t *testing.T) {
+	_, err := bi.GetCandlestickData(context.Background(), "", "", time.Time{}, time.Time{}, 0, false)
+	assert.ErrorIs(t, err, errPairEmpty)
+	_, err = bi.GetCandlestickData(context.Background(), "meow", "", time.Time{}, time.Time{}, 0, false)
+	assert.ErrorIs(t, err, errGranEmpty)
+	_, err = bi.GetCandlestickData(context.Background(), "meow", "woof", time.Time{}, time.Time{}, 5,
+		true)
+	assert.ErrorIs(t, err, errEndTimeEmpty)
+	_, err = bi.GetCandlestickData(context.Background(), "meow", "woof", time.Now(), time.Now().Add(-time.Second), 0,
+		false)
+	assert.ErrorIs(t, err, common.ErrStartAfterEnd)
+	resp, err := bi.GetCandlestickData(context.Background(), testPair.String(), "1min", time.Time{}, time.Time{}, 5,
+		false)
+	assert.NoError(t, err)
+	assert.NotEmpty(t, resp)
+	resp, err = bi.GetCandlestickData(context.Background(), testPair.String(), "1min", time.Time{}, time.Now(), 5,
+		true)
+	assert.NoError(t, err)
+	assert.NotEmpty(t, resp)
+}
+
+func TestGetRecentFills(t *testing.T) {
+	_, err := bi.GetRecentFills(context.Background(), "", 0)
+	assert.ErrorIs(t, err, errPairEmpty)
+	resp, err := bi.GetRecentFills(context.Background(), testPair.String(), 5)
+	assert.NoError(t, err)
+	assert.NotEmpty(t, resp)
+}
+
+func TestGetMarketTrades(t *testing.T) {
+	_, err := bi.GetMarketTrades(context.Background(), "", time.Time{}, time.Time{}, 0, 0)
+	assert.ErrorIs(t, err, errPairEmpty)
+	_, err = bi.GetMarketTrades(context.Background(), "meow", time.Now(), time.Now().Add(-time.Second), 0, 0)
+	assert.ErrorIs(t, err, common.ErrStartAfterEnd)
+	resp, err := bi.GetMarketTrades(context.Background(), testPair.String(), time.Time{}, time.Time{}, 5,
+		1<<63-1)
+	assert.NoError(t, err)
+	assert.NotEmpty(t, resp)
+}
+
+func TestPlaceOrder(t *testing.T) {
+	_, err := bi.PlaceOrder(context.Background(), "", "", "", "", "", 0, 0)
+	assert.ErrorIs(t, err, errPairEmpty)
+	_, err = bi.PlaceOrder(context.Background(), testPair.String(), "", "", "", "", 0, 0)
+	assert.ErrorIs(t, err, errSideEmpty)
+	_, err = bi.PlaceOrder(context.Background(), testPair.String(), "sell", "", "", "", 0, 0)
+	assert.ErrorIs(t, err, errOrderTypeEmpty)
+	_, err = bi.PlaceOrder(context.Background(), testPair.String(), "sell", "limit", "", "", 0, 0)
+	assert.ErrorIs(t, err, errStrategyEmpty)
+	_, err = bi.PlaceOrder(context.Background(), testPair.String(), "sell", "limit", "IOC", "", 0, 0)
+	assert.ErrorIs(t, err, errLimitPriceEmpty)
+	_, err = bi.PlaceOrder(context.Background(), testPair.String(), "sell", "limit", "IOC", "", testPrice, 0)
+	assert.ErrorIs(t, err, errAmountEmpty)
+	sharedtestvalues.SkipTestIfCannotManipulateOrders(t, bi, canManipulateRealOrders)
+	_, err = bi.PlaceOrder(context.Background(), testPair.String(), "sell", "limit", "IOC", "", testPrice, testAmount)
+	if err != nil && !strings.Contains(err.Error(), errorInsufficientBalancePartial) {
+		t.Error(err)
+	}
+}
+
+func TestCancelOrderByID(t *testing.T) {
+	_, err := bi.CancelOrderByID(context.Background(), "", "", 0)
+	assert.ErrorIs(t, err, errPairEmpty)
+	_, err = bi.CancelOrderByID(context.Background(), testPair.String(), "", 0)
+	assert.ErrorIs(t, err, errOrderClientEmpty)
+	sharedtestvalues.SkipTestIfCannotManipulateOrders(t, bi, canManipulateRealOrders)
+	resp, err := bi.PlaceOrder(context.Background(), testPair.String(), "sell", "limit", "GTC", "", testPrice,
+		testAmount)
+	if strings.Contains(err.Error(), errorInsufficientBalancePartial) {
+		t.Skip(skipInsufficientBalance)
+	}
+	if err != nil {
+		t.Error(err)
+	}
+	_, err = bi.CancelOrderByID(context.Background(), testPair.String(), "", resp.Data.OrderID)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+type getNoArgsResp interface {
+	*TimeResp | *P2PMerInfoResp | *ConvertCoinsResp | *BGBConvertCoinsResp | *VIPFeeRateResp
+}
+
+type getNoArgsAssertNotEmpty[G getNoArgsResp] func(context.Context) (G, error)
+
+func testGetNoArgs[G getNoArgsResp](t *testing.T, f getNoArgsAssertNotEmpty[G]) {
+	t.Helper()
+	resp, err := f(context.Background())
+	assert.NoError(t, err)
+	assert.NotEmpty(t, resp)
+}
+
 func subAccTestHelper(t *testing.T) string {
+	t.Helper()
 	resp, err := bi.GetVirtualSubaccounts(context.Background(), 25, 0, "")
 	assert.NoError(t, err)
 	tarID := ""
@@ -298,4 +490,25 @@ func subAccTestHelper(t *testing.T) string {
 		t.Skip(skipTestSubAccNotFound)
 	}
 	return tarID
+}
+
+func aBenchmarkHelper(a, pag int64) {
+	var params Params
+	params.Values = make(url.Values)
+	params.Values.Set("limit", strconv.FormatInt(a, 10))
+	params.Values.Set("idLessThan", strconv.FormatInt(pag, 10))
+}
+
+// 1790454	       664.8 ns/op	      60 B/op	       3 allocs/op
+// 1966866	       637.5 ns/op	      60 B/op	       3 allocs/op
+// 2024174	       520.1 ns/op	      60 B/op	       3 allocs/op
+// 1555105	       662.2 ns/op	      60 B/op	       3 allocs/op
+// 1770181	       666.8 ns/op	      60 B/op	       3 allocs/op
+// 1774210	       722.2 ns/op	      60 B/op	       3 allocs/op
+func BenchmarkGen(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		_ = uint16(i) % 500
+		g := int64(i) % 500
+		aBenchmarkHelper(g, 5e7)
+	}
 }
