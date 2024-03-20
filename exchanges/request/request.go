@@ -177,6 +177,10 @@ func (r *Requester) doRequest(ctx context.Context, endpoint EndpointLimit, newRe
 					return bodyErr
 				}
 				payload, bodyErr := io.ReadAll(bodyCopy)
+				err = bodyCopy.Close()
+				if err != nil {
+					log.Errorf(log.RequestSys, "%s failed to close request body %s", r.name, err)
+				}
 				if bodyErr != nil {
 					return bodyErr
 				}
