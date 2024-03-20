@@ -1283,7 +1283,7 @@ func mockWsCancelOrders(msg []byte, w *websocket.Conn) error {
 func TestWsCancelOrders(t *testing.T) {
 	t.Parallel()
 
-	k := testexch.MockWSInstance[Kraken](t, mockWsCancelOrders, wsMockWrapper) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
+	k := testexch.MockWsInstance[Kraken](t, curryWsMockUpgrader(t, mockWsCancelOrders)) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
 	require.True(t, k.IsWebsocketAuthenticationSupported(), "WS must be authenticated")
 
 	err := k.wsCancelOrders([]string{"RABBIT", "BATFISH", "SQUIRREL", "CATFISH", "MOUSE"})
@@ -2295,13 +2295,15 @@ func TestGetOpenInterest(t *testing.T) {
 	assert.NotEmpty(t, resp)
 }
 
-// wsMockWrapper handles Kraken specific http auth token responses prior to handling off to standard Websocket upgrader
-func wsMockWrapper(tb testing.TB, w http.ResponseWriter, r *http.Request, m testexch.WsMockFunc) {
+// curryWsMockUpgrader handles Kraken specific http auth token responses prior to handling off to standard Websocket upgrader
+func curryWsMockUpgrader(tb testing.TB, h testexch.WsMockFunc) http.HandlerFunc {
 	tb.Helper()
-	if strings.Contains(r.URL.Path, "GetWebSocketsToken") {
-		_, err := w.Write([]byte(`{"result":{"token":"mockAuth"}}`))
-		require.NoError(tb, err, "Write should not error")
-		return
+	return func(w http.ResponseWriter, r *http.Request) {
+		if strings.Contains(r.URL.Path, "GetWebSocketsToken") {
+			_, err := w.Write([]byte(`{"result":{"token":"mockAuth"}}`))
+			require.NoError(tb, err, "Write should not error")
+			return
+		}
+		testexch.WsMockUpgrader(tb, w, r, h)
 	}
-	testexch.WsMockWrapper(tb, w, r, m)
 }

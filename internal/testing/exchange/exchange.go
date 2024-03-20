@@ -77,23 +77,23 @@ func MockHTTPInstance(e exchange.IBotExchange) error {
 
 var upgrader = websocket.Upgrader{}
 
-type HttpMockFunc func(testing.TB, http.ResponseWriter, *http.Request, WsMockFunc)
+// WsMockFunc is a websocket handler to be called with each websocket message
 type WsMockFunc func([]byte, *websocket.Conn) error
 
-// MockWSInstance creates a new Exchange instance with a mock WS instance and HTTP server
-// It accepts an exchange package type argument and a mock WS function
-// An HttpMockFunc can be provided as the last argument, or if nil then WsMockWrapper will be used
+// MockWsInstance creates a new Exchange instance with a mock websocket instance and HTTP server
+// It accepts an exchange package type argument and a http.HandlerFunc
+// See CurryWsMockUpgrader for a convenient way to curry t and a ws mock function
 // It is expected to be run from any WS tests which need a specific response function
-func MockWSInstance[T any, PT interface {
+func MockWsInstance[T any, PT interface {
 	*T
 	exchange.IBotExchange
-}](tb testing.TB, wsMock WsMockFunc, httpMock HttpMockFunc) *T {
+}](tb testing.TB, h http.HandlerFunc) *T {
 	tb.Helper()
 
 	e := PT(new(T))
 	require.NoError(tb, TestInstance(e), "TestInstance setup should not error")
 
-	s := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { httpMock(tb, w, r, wsMock) }))
+	s := httptest.NewServer(h)
 
 	b := e.GetBase()
 	b.SkipAuthCheck = true
@@ -115,8 +115,17 @@ func MockWSInstance[T any, PT interface {
 	return e
 }
 
-// WsMockWrapper handles upgrading an initial HTTP request to WS, and then runs a for loop calling the mock func on each input
-func WsMockWrapper(tb testing.TB, w http.ResponseWriter, r *http.Request, wsHandler WsMockFunc) {
+// CurryWsMockUpgrader curries a WsMockUpgrader with a testing.TB and a mock func
+// bridging the gap between information known before the Server is created and during a request
+func CurryWsMockUpgrader(tb testing.TB, wsHandler WsMockFunc) http.HandlerFunc {
+	tb.Helper()
+	return func(w http.ResponseWriter, r *http.Request) {
+		WsMockUpgrader(tb, w, r, wsHandler)
+	}
+}
+
+// WsMockUpgrader handles upgrading an initial HTTP request to WS, and then runs a for loop calling the mock func on each input
+func WsMockUpgrader(tb testing.TB, w http.ResponseWriter, r *http.Request, wsHandler WsMockFunc) {
 	tb.Helper()
 	c, err := upgrader.Upgrade(w, r, nil)
 	require.NoError(tb, err, "Upgrade connection should not error")
