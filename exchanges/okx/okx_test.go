@@ -8,7 +8,6 @@ import (
 	"log"
 	"os"
 	"strings"
-	"sync"
 	"testing"
 	"time"
 
@@ -28,6 +27,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
+	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
@@ -207,7 +207,7 @@ func TestGetBlockTrade(t *testing.T) {
 		assert.WithinRange(t, trade.Timestamp.Time(), time.Now().Add(time.Hour*-24*7), time.Now(), "Timestamp should be within last 7 days")
 	}
 
-	updatePairsOnce(t)
+	testexch.UpdatePairsOnce(t, ok)
 
 	pairs, err := ok.GetAvailablePairs(asset.Options)
 	assert.NoError(t, err, "GetAvailablePairs should not error")
@@ -1405,7 +1405,7 @@ func TestIncreaseDecreaseMargin(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
 
-	if _, err := ok.IncreaseDecreaseMargin(contextGenerate(), IncreaseDecreaseMarginInput{
+	if _, err := ok.IncreaseDecreaseMargin(contextGenerate(), &IncreaseDecreaseMarginInput{
 		InstrumentID: "BTC-USDT",
 		PositionSide: "long",
 		Type:         "add",
@@ -1620,13 +1620,13 @@ func TestMasterAccountsManageTransfersBetweenSubaccounts(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok, canManipulateRealOrders)
 
-	if _, err := ok.MasterAccountsManageTransfersBetweenSubaccounts(contextGenerate(), SubAccountAssetTransferParams{Currency: "BTC", Amount: 1200, From: 9, To: 9, FromSubAccount: "", ToSubAccount: "", LoanTransfer: true}); err != nil && !errors.Is(err, errInvalidSubaccount) {
+	if _, err := ok.MasterAccountsManageTransfersBetweenSubaccounts(contextGenerate(), &SubAccountAssetTransferParams{Currency: "BTC", Amount: 1200, From: 9, To: 9, FromSubAccount: "", ToSubAccount: "", LoanTransfer: true}); err != nil && !errors.Is(err, errInvalidSubaccount) {
 		t.Error("Okx MasterAccountsManageTransfersBetweenSubaccounts() error", err)
 	}
-	if _, err := ok.MasterAccountsManageTransfersBetweenSubaccounts(contextGenerate(), SubAccountAssetTransferParams{Currency: "BTC", Amount: 1200, From: 8, To: 8, FromSubAccount: "", ToSubAccount: "", LoanTransfer: true}); err != nil && !errors.Is(err, errInvalidSubaccount) {
+	if _, err := ok.MasterAccountsManageTransfersBetweenSubaccounts(contextGenerate(), &SubAccountAssetTransferParams{Currency: "BTC", Amount: 1200, From: 8, To: 8, FromSubAccount: "", ToSubAccount: "", LoanTransfer: true}); err != nil && !errors.Is(err, errInvalidSubaccount) {
 		t.Error("Okx MasterAccountsManageTransfersBetweenSubaccounts() error", err)
 	}
-	if _, err := ok.MasterAccountsManageTransfersBetweenSubaccounts(contextGenerate(), SubAccountAssetTransferParams{Currency: "BTC", Amount: 1200, From: 6, To: 6, FromSubAccount: "test1", ToSubAccount: "test2", LoanTransfer: true}); err != nil && !strings.Contains(err.Error(), "Sub-account test1 does not exists") {
+	if _, err := ok.MasterAccountsManageTransfersBetweenSubaccounts(contextGenerate(), &SubAccountAssetTransferParams{Currency: "BTC", Amount: 1200, From: 6, To: 6, FromSubAccount: "test1", ToSubAccount: "test2", LoanTransfer: true}); err != nil && !strings.Contains(err.Error(), "Sub-account test1 does not exists") {
 		t.Error("Okx MasterAccountsManageTransfersBetweenSubaccounts() error", err)
 	}
 }
@@ -1920,17 +1920,7 @@ func TestFetchTradablePairs(t *testing.T) {
 
 func TestUpdateTradablePairs(t *testing.T) {
 	t.Parallel()
-	updatePairsOnce(t)
-}
-
-var updatePairsGuard sync.Once
-
-func updatePairsOnce(tb testing.TB) {
-	tb.Helper()
-	updatePairsGuard.Do(func() {
-		err := ok.UpdateTradablePairs(context.Background(), true)
-		assert.NoError(tb, err, "UpdateTradablePairs should not error")
-	})
+	testexch.UpdatePairsOnce(t, ok)
 }
 
 func TestUpdateOrderExecutionLimits(t *testing.T) {

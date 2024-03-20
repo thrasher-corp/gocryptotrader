@@ -437,9 +437,7 @@ func TestProcessTicker(t *testing.T) { // non-appending function to tickers
 
 func TestGetAssociation(t *testing.T) {
 	_, err := service.getAssociations("")
-	if !errors.Is(err, errExchangeNameIsEmpty) {
-		t.Errorf("received: %v but expected: %v", err, errExchangeNameIsEmpty)
-	}
+	assert.ErrorIs(t, err, ErrExchangeNameIsEmpty)
 
 	service.mux = nil
 
@@ -453,7 +451,7 @@ func TestGetAssociation(t *testing.T) {
 
 func TestGetExchangeTickersPublic(t *testing.T) {
 	_, err := GetExchangeTickers("")
-	assert.ErrorIs(t, err, errExchangeNameIsEmpty)
+	assert.ErrorIs(t, err, ErrExchangeNameIsEmpty)
 }
 
 func TestGetExchangeTickers(t *testing.T) {
@@ -464,7 +462,7 @@ func TestGetExchangeTickers(t *testing.T) {
 	}
 
 	_, err := s.getExchangeTickers("")
-	assert.ErrorIs(t, err, errExchangeNameIsEmpty)
+	assert.ErrorIs(t, err, ErrExchangeNameIsEmpty)
 
 	_, err = s.getExchangeTickers("test")
 	assert.ErrorIs(t, err, errExchangeNotFound)
@@ -489,5 +487,5 @@ func TestGetExchangeTickers(t *testing.T) {
 	if len(resp) != 1 {
 		t.Fatal("unexpected length")
 	}
-	assert.Equal(t, resp[0].OpenInterest, 1337.0)
+	assert.Equal(t, 1337.0, resp[0].OpenInterest)
 }

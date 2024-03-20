@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strconv"
 	"testing"
 	"time"
 
@@ -120,7 +121,7 @@ func tradeSQLTester(t *testing.T) {
 			Price:     float64(i * (i + 3)),
 			Amount:    float64(i * (i + 2)),
 			Side:      order.Buy.String(),
-			TID:       fmt.Sprintf("%v", i),
+			TID:       strconv.Itoa(i),
 		})
 	}
 	err := Insert(trades...)
@@ -140,7 +141,7 @@ func tradeSQLTester(t *testing.T) {
 			Price:     float64(i * (i + 3)),
 			Amount:    float64(i * (i + 2)),
 			Side:      order.Buy.String(),
-			TID:       fmt.Sprintf("%v", i),
+			TID:       strconv.Itoa(i),
 		})
 	}
 	err = Insert(trades2...)
