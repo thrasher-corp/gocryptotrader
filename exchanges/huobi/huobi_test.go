@@ -2887,7 +2887,7 @@ func TestConvertContractShortHandToExpiry(t *testing.T) {
 	cp, err := h.convertContractShortHandToExpiry(cp, tt)
 	assert.NoError(t, err)
 	assert.NotEqual(t, "CW", cp.Quote.String())
-	tick, err := h.FetchTicker(context.Background(), cp, asset.Futures)
+	tick, err := h.UpdateTicker(context.Background(), cp, asset.Futures)
 	if assert.NoError(t, err) {
 		assert.NotZero(t, tick.Close)
 	}
@@ -2896,7 +2896,7 @@ func TestConvertContractShortHandToExpiry(t *testing.T) {
 	cp, err = h.convertContractShortHandToExpiry(cp, tt)
 	assert.NoError(t, err)
 	assert.NotEqual(t, "NW", cp.Quote.String())
-	tick, err = h.FetchTicker(context.Background(), cp, asset.Futures)
+	tick, err = h.UpdateTicker(context.Background(), cp, asset.Futures)
 	if assert.NoError(t, err) {
 		assert.NotZero(t, tick.Close)
 	}
@@ -2905,7 +2905,7 @@ func TestConvertContractShortHandToExpiry(t *testing.T) {
 	cp, err = h.convertContractShortHandToExpiry(cp, tt)
 	assert.NoError(t, err)
 	assert.NotEqual(t, "CQ", cp.Quote.String())
-	tick, err = h.FetchTicker(context.Background(), cp, asset.Futures)
+	tick, err = h.UpdateTicker(context.Background(), cp, asset.Futures)
 	if assert.NoError(t, err) {
 		assert.NotZero(t, tick.Close)
 	}
@@ -2931,7 +2931,7 @@ func TestConvertContractShortHandToExpiry(t *testing.T) {
 	cp, err = h.convertContractShortHandToExpiry(cp, tt)
 	assert.NoError(t, err)
 	assert.NotEqual(t, "NQ", cp.Quote.String())
-	tick, err = h.FetchTicker(context.Background(), cp, asset.Futures)
+	tick, err = h.UpdateTicker(context.Background(), cp, asset.Futures)
 	if err != nil {
 		// Huobi doesn't always have a next-quarter contract, return if no data found
 		return

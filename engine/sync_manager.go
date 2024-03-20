@@ -602,9 +602,7 @@ func (m *SyncManager) syncTicker(c *currencyPairSyncAgent, e exchange.IBotExchan
 				if m.config.Verbose {
 					log.Debugf(log.SyncMgr, "%s Using recent batching cache", exchangeName)
 				}
-				result, err = e.FetchTicker(context.TODO(),
-					c.Pair,
-					c.Key.Asset)
+				result, err = e.FetchTicker(context.TODO(), c.Pair, c.Key.Asset)
 			}
 		} else {
 			result, err = e.UpdateTicker(context.TODO(),

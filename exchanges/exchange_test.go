@@ -13,12 +13,14 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/collateral"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
@@ -3329,4 +3331,66 @@ func TestParallelChanOp(t *testing.T) {
 	}
 	assert.EventuallyWithT(t, f, 500*time.Millisecond, 50*time.Millisecond, "ParallelChanOp should complete within 500ms not 5*300ms")
 	assert.Len(t, run, len(c), "Every channel was run to completion")
+}
+
+func TestFetchTicker(t *testing.T) {
+	t.Parallel()
+	b := Base{Name: "test"}
+	pair := currency.NewPair(currency.BTC, currency.USDT)
+	_, err := b.FetchTicker(context.Background(), pair, asset.Spot)
+	assert.ErrorIs(t, err, ticker.ErrNoTickerFound)
+
+	err = ticker.ProcessTicker(&ticker.Price{
+		ExchangeName: "test",
+		Pair:         pair,
+		AssetType:    asset.Spot,
+	})
+	assert.NoError(t, err)
+
+	tickerPrice, err := b.FetchTicker(context.Background(), pair, asset.Spot)
+	assert.NoError(t, err)
+	assert.Equal(t, tickerPrice.Pair, pair)
+}
+
+func TestFetchOrderbook(t *testing.T) {
+	t.Parallel()
+	b := Base{Name: "test"}
+	pair := currency.NewPair(currency.BTC, currency.USDT)
+	_, err := b.FetchOrderbook(context.Background(), pair, asset.Spot)
+	assert.ErrorIs(t, err, orderbook.ErrCannotFindOrderbook)
+
+	err = (&orderbook.Base{
+		Exchange: "test",
+		Pair:     pair,
+		Asset:    asset.Spot,
+	}).Process()
+	assert.NoError(t, err)
+
+	ob, err := b.FetchOrderbook(context.Background(), pair, asset.Spot)
+	assert.NoError(t, err)
+	assert.Equal(t, ob.Pair, pair)
+}
+
+func TestFetchAccountInfo(t *testing.T) {
+	t.Parallel()
+	b := Base{Name: "test"}
+
+	creds := &account.Credentials{
+		Key:    "test",
+		Secret: "test",
+	}
+	ctx := account.DeployCredentialsToContext(context.Background(), &account.Credentials{
+		Key:    "test",
+		Secret: "test",
+	})
+	_, err := b.FetchAccountInfo(ctx, asset.Spot)
+	assert.ErrorIs(t, err, account.ErrExchangeHoldingsNotFound)
+
+	err = account.Process(&account.Holdings{Exchange: "test", Accounts: []account.SubAccount{
+		{AssetType: asset.Spot, Currencies: []account.Balance{{Currency: currency.BTC, Total: 1}}},
+	}}, creds)
+	assert.NoError(t, err)
+
+	_, err = b.FetchAccountInfo(ctx, asset.Spot)
+	assert.NoError(t, err)
 }

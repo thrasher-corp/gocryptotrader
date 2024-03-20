@@ -28,7 +28,7 @@ func TestCalculateSlippageByOrderbook(t *testing.T) {
 		t.Fatal(err)
 	}
 	cp := currency.NewPair(currency.BTC, currency.USD)
-	ob, err := b.FetchOrderbook(context.Background(), cp, asset.Spot)
+	ob, err := b.UpdateOrderbook(context.Background(), cp, asset.Spot)
 	if err != nil {
 		t.Error(err)
 	}

@@ -50,7 +50,6 @@ func TestAllExchangeWrappers(t *testing.T) {
 	for i := range cfg.Exchanges {
 		name := strings.ToLower(cfg.Exchanges[i].Name)
 		t.Run(name+" wrapper tests", func(t *testing.T) {
-			t.Parallel()
 			if common.StringDataContains(unsupportedExchangeNames, name) {
 				t.Skipf("skipping unsupported exchange %v", name)
 			}
@@ -62,7 +61,7 @@ func TestAllExchangeWrappers(t *testing.T) {
 				// rather than skipping tests where execution is blocked, provide an expired
 				// context, so no executions can take place
 				var cancelFn context.CancelFunc
-				ctx, cancelFn = context.WithTimeout(context.Background(), 0)
+				ctx, cancelFn = context.WithTimeout(ctx, 0)
 				cancelFn()
 			}
 			exch, assetPairs := setupExchange(ctx, t, name, cfg)
@@ -175,59 +174,82 @@ func executeExchangeWrapperTests(ctx context.Context, t *testing.T, exch exchang
 	t.Helper()
 	iExchange := reflect.TypeOf(&exch).Elem()
 	actualExchange := reflect.ValueOf(exch)
+
+	var firstPriority []string
+	var secondPriority []string
+
 	for x := 0; x < iExchange.NumMethod(); x++ {
 		methodName := iExchange.Method(x).Name
 		if _, ok := excludedMethodNames[methodName]; ok {
 			continue
 		}
-		method := actualExchange.MethodByName(methodName)
 
-		var assetLen int
-		for y := 0; y < method.Type().NumIn(); y++ {
-			input := method.Type().In(y)
-			if input.AssignableTo(assetParam) ||
-				input.AssignableTo(orderSubmitParam) ||
-				input.AssignableTo(orderModifyParam) ||
-				input.AssignableTo(orderCancelParam) ||
-				input.AssignableTo(orderCancelsParam) ||
-				input.AssignableTo(pairKeySliceParam) ||
-				input.AssignableTo(getOrdersRequestParam) ||
-				input.AssignableTo(pairKeySliceParam) {
-				// this allows wrapper functions that support assets types
-				// to be tested with all supported assets
-				assetLen = len(assetParams) - 1
-			}
-		}
-		tt := time.Now()
-		e := time.Date(tt.Year(), tt.Month(), tt.Day()-1, 0, 0, 0, 0, time.UTC)
-		s := e.Add(-time.Hour * 24 * 2)
-		if methodName == "GetHistoricTrades" {
-			// limit trade history
-			e = time.Now()
-			s = e.Add(-time.Minute * 3)
-		}
-		for y := 0; y <= assetLen; y++ {
-			inputs := make([]reflect.Value, method.Type().NumIn())
-			argGenerator := &MethodArgumentGenerator{
-				Exchange:    exch,
-				AssetParams: assetParams[y],
-				MethodName:  methodName,
-				Start:       s,
-				End:         e,
-			}
-			for z := 0; z < method.Type().NumIn(); z++ {
-				argGenerator.MethodInputType = method.Type().In(z)
-				generatedArg := generateMethodArg(ctx, t, argGenerator)
-				inputs[z] = *generatedArg
-			}
-			assetY := assetParams[y].Asset.String()
-			pairY := assetParams[y].Pair.String()
-			t.Run(methodName+"-"+assetY+"-"+pairY, func(t *testing.T) {
-				t.Parallel()
-				CallExchangeMethod(t, method, inputs, methodName, exch)
-			})
+		if _, ok := priorityMethodNames[methodName]; ok {
+			firstPriority = append(firstPriority, methodName)
+		} else {
+			secondPriority = append(secondPriority, methodName)
 		}
 	}
+	handleExchangeWrapperTests(ctx, t, actualExchange, firstPriority, exch, assetParams, "PRIORITY GROUP")
+	handleExchangeWrapperTests(ctx, t, actualExchange, secondPriority, exch, assetParams, "SECONDARY GROUP")
+}
+
+func handleExchangeWrapperTests(ctx context.Context, t *testing.T, actualExchange reflect.Value, methodNames []string, exch exchange.IBotExchange, assetParams []assetPair, groupTestID string) {
+	t.Helper()
+	t.Run(groupTestID, func(t *testing.T) {
+		t.Parallel()
+		for x := range methodNames {
+			method := actualExchange.MethodByName(methodNames[x])
+
+			var assetLen int
+			for y := 0; y < method.Type().NumIn(); y++ {
+				input := method.Type().In(y)
+				if input.AssignableTo(assetParam) ||
+					input.AssignableTo(orderSubmitParam) ||
+					input.AssignableTo(orderModifyParam) ||
+					input.AssignableTo(orderCancelParam) ||
+					input.AssignableTo(orderCancelsParam) ||
+					input.AssignableTo(pairKeySliceParam) ||
+					input.AssignableTo(getOrdersRequestParam) ||
+					input.AssignableTo(pairKeySliceParam) {
+					// this allows wrapper functions that support assets types
+					// to be tested with all supported assets
+					assetLen = len(assetParams) - 1
+				}
+			}
+			tt := time.Now()
+			e := time.Date(tt.Year(), tt.Month(), tt.Day()-1, 0, 0, 0, 0, time.UTC)
+			s := e.Add(-time.Hour * 24 * 2)
+			if methodNames[x] == "GetHistoricTrades" {
+				// limit trade history
+				e = time.Now()
+				s = e.Add(-time.Minute * 3)
+			}
+			for y := 0; y <= assetLen; y++ {
+				inputs := make([]reflect.Value, method.Type().NumIn())
+				methodName := methodNames[x]
+				argGenerator := &MethodArgumentGenerator{
+					Exchange:    exch,
+					AssetParams: assetParams[y],
+					MethodName:  methodName,
+					Start:       s,
+					End:         e,
+				}
+				for z := 0; z < method.Type().NumIn(); z++ {
+					argGenerator.MethodInputType = method.Type().In(z)
+					generatedArg := generateMethodArg(ctx, t, argGenerator)
+					inputs[z] = *generatedArg
+				}
+				assetY := assetParams[y].Asset.String()
+				pairY := assetParams[y].Pair.String()
+
+				t.Run(methodName+"-"+assetY+"-"+pairY, func(t *testing.T) {
+					t.Parallel()
+					CallExchangeMethod(t, method, inputs, methodName, exch)
+				})
+			}
+		}
+	})
 }
 
 // CallExchangeMethod will call an exchange's method using generated arguments
@@ -549,6 +571,13 @@ type assetPair struct {
 	Asset asset.Item
 }
 
+// priorityMethodNames are called before other exchange functions
+var priorityMethodNames = map[string]struct{}{
+	"UpdateTickers":   {}, // Is required before FetchTickers is called
+	"UpdateTicker":    {}, // Is required before FetchTicker is called
+	"UpdateOrderbook": {}, // Is required before FetchOrderbook is called
+}
+
 // excludedMethodNames represent the functions that are not
 // currently tested under this suite due to irrelevance
 // or not worth checking yet
@@ -590,6 +619,7 @@ var excludedMethodNames = map[string]struct{}{
 	"GetLeverage":                      {},
 	"SetMarginType":                    {},
 	"ChangePositionMargin":             {},
+	"FetchAccountInfo":                 {}, // Account info is not retrieved in these tests
 }
 
 // blockedCIExchanges are exchanges that are not able to be tested on CI

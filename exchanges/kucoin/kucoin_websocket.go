@@ -275,7 +275,7 @@ func (ku *Kucoin) wsHandleData(respData []byte) error {
 				return err
 			}
 			var orderbooks *orderbook.Base
-			orderbooks, err = ku.FetchOrderbook(context.Background(), cp, asset.Futures)
+			orderbooks, err = ku.UpdateOrderbook(context.Background(), cp, asset.Futures)
 			if err != nil {
 				return err
 			}
@@ -301,7 +301,7 @@ func (ku *Kucoin) wsHandleData(respData []byte) error {
 			if err != nil {
 				return err
 			}
-			orderbooks, err := ku.FetchOrderbook(context.Background(), cp, asset.Futures)
+			orderbooks, err := ku.UpdateOrderbook(context.Background(), cp, asset.Futures)
 			if err != nil {
 				return err
 			}
