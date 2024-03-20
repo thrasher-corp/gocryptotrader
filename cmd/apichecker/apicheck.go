@@ -1226,11 +1226,11 @@ func sendGetReq(path string, result interface{}) error {
 	if strings.Contains(path, "github") {
 		requester, err = request.New("Apichecker",
 			common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
-			request.WithLimiter(request.NewBasicRateLimit(time.Hour, 60)))
+			request.WithLimiter(request.NewBasicRateLimit(time.Hour, 60, 1)))
 	} else {
 		requester, err = request.New("Apichecker",
 			common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
-			request.WithLimiter(request.NewBasicRateLimit(time.Second, 100)))
+			request.WithLimiter(request.NewBasicRateLimit(time.Second, 100, 1)))
 	}
 	if err != nil {
 		return err
@@ -1249,7 +1249,7 @@ func sendGetReq(path string, result interface{}) error {
 func sendAuthReq(method, path string, result interface{}) error {
 	requester, err := request.New("Apichecker",
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
-		request.WithLimiter(request.NewBasicRateLimit(time.Second*10, 100)))
+		request.WithLimiter(request.NewBasicRateLimit(time.Second*10, 100, 1)))
 	if err != nil {
 		return err
 	}

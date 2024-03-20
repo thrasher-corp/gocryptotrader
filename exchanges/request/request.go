@@ -147,10 +147,12 @@ func (r *Requester) doRequest(ctx context.Context, endpoint EndpointLimit, newRe
 		default:
 		}
 
-		// Initiate a rate limit reservation and sleep on requested endpoint
-		err := r.InitiateRateLimit(ctx, endpoint)
-		if err != nil {
-			return fmt.Errorf("failed to rate limit HTTP request: %w", err)
+		if r.limiter != nil {
+			// Initiate a rate limit reservation and sleep on requested endpoint
+			err := r.InitiateRateLimit(ctx, endpoint)
+			if err != nil {
+				return fmt.Errorf("failed to rate limit HTTP request: %w", err)
+			}
 		}
 
 		p, err := newRequest()
@@ -221,7 +223,15 @@ func (r *Requester) doRequest(ctx context.Context, endpoint EndpointLimit, newRe
 					attempt)
 			}
 
-			time.Sleep(delay)
+			if delay > 0 {
+				// Allow for context cancellation while delaying the retry.
+				select {
+				case <-time.After(delay):
+				case <-ctx.Done():
+					return ctx.Err()
+				}
+			}
+
 			continue
 		}
 
