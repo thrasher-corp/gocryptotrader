@@ -238,7 +238,7 @@ func (b *Binance) SetDefaults() {
 		log.Errorln(log.ExchangeSys, err)
 	}
 
-	b.Websocket = stream.New()
+	b.Websocket = stream.NewWebsocket()
 	b.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	b.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
 }
@@ -646,6 +646,14 @@ func (b *Binance) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (
 	info.Exchange = b.Name
 	switch assetType {
 	case asset.Spot:
+		creds, err := b.GetCredentials(ctx)
+		if err != nil {
+			return info, err
+		}
+		if creds.SubAccount != "" {
+			// TODO: implement sub-account endpoints
+			return info, common.ErrNotYetImplemented
+		}
 		raw, err := b.GetAccount(ctx)
 		if err != nil {
 			return info, err
@@ -965,7 +973,7 @@ func (b *Binance) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Subm
 		case order.Sell:
 			reqSide = "SELL"
 		default:
-			return nil, fmt.Errorf("invalid side")
+			return nil, errors.New("invalid side")
 		}
 
 		var (
@@ -1018,7 +1026,7 @@ func (b *Binance) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Subm
 		case order.Sell:
 			reqSide = "SELL"
 		default:
-			return nil, fmt.Errorf("invalid side")
+			return nil, errors.New("invalid side")
 		}
 		var oType string
 		switch s.Type {
@@ -1549,7 +1557,7 @@ func (b *Binance) GetOrderHistory(ctx context.Context, req *order.MultiOrderRequ
 					return nil, errors.New("endTime cannot be before startTime")
 				}
 				if time.Since(req.StartTime) > time.Hour*24*30 {
-					return nil, fmt.Errorf("can only fetch orders 30 days out")
+					return nil, errors.New("can only fetch orders 30 days out")
 				}
 				orderHistory, err = b.GetAllFuturesOrders(ctx,
 					req.Pairs[i], currency.EMPTYPAIR, req.StartTime, req.EndTime, 0, 0)
@@ -1567,7 +1575,7 @@ func (b *Binance) GetOrderHistory(ctx context.Context, req *order.MultiOrderRequ
 					return nil, err
 				}
 			default:
-				return nil, fmt.Errorf("invalid combination of input params")
+				return nil, errors.New("invalid combination of input params")
 			}
 			for y := range orderHistory {
 				var feeBuilder exchange.FeeBuilder
@@ -1607,7 +1615,7 @@ func (b *Binance) GetOrderHistory(ctx context.Context, req *order.MultiOrderRequ
 					return nil, errors.New("endTime cannot be before startTime")
 				}
 				if time.Since(req.StartTime) > time.Hour*24*7 {
-					return nil, fmt.Errorf("can only fetch orders 7 days out")
+					return nil, errors.New("can only fetch orders 7 days out")
 				}
 				orderHistory, err = b.UAllAccountOrders(ctx,
 					req.Pairs[i], 0, 0, req.StartTime, req.EndTime)
@@ -1625,7 +1633,7 @@ func (b *Binance) GetOrderHistory(ctx context.Context, req *order.MultiOrderRequ
 					return nil, err
 				}
 			default:
-				return nil, fmt.Errorf("invalid combination of input params")
+				return nil, errors.New("invalid combination of input params")
 			}
 			for y := range orderHistory {
 				var feeBuilder exchange.FeeBuilder
@@ -1894,17 +1902,13 @@ func (b *Binance) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) 
 	var err error
 	switch a {
 	case asset.Spot:
-		limits, err = b.FetchSpotExchangeLimits(ctx)
+		limits, err = b.FetchExchangeLimits(ctx, asset.Spot)
 	case asset.USDTMarginedFutures:
 		limits, err = b.FetchUSDTMarginExchangeLimits(ctx)
 	case asset.CoinMarginedFutures:
 		limits, err = b.FetchCoinMarginExchangeLimits(ctx)
 	case asset.Margin:
-		if err = b.CurrencyPairs.IsAssetEnabled(asset.Spot); err != nil {
-			limits, err = b.FetchSpotExchangeLimits(ctx)
-		} else {
-			return nil
-		}
+		limits, err = b.FetchExchangeLimits(ctx, asset.Margin)
 	default:
 		err = fmt.Errorf("%w %v", asset.ErrNotSupported, a)
 	}

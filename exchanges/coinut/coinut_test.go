@@ -66,7 +66,7 @@ func setupWSTestAuth(t *testing.T) {
 	}
 
 	if !c.Websocket.IsEnabled() && !c.API.AuthenticatedWebsocketSupport || !sharedtestvalues.AreAPICredentialsSet(c) {
-		t.Skip(stream.WebsocketNotEnabled)
+		t.Skip(stream.ErrWebsocketNotEnabled.Error())
 	}
 	if sharedtestvalues.AreAPICredentialsSet(c) {
 		c.Websocket.SetCanUseAuthenticatedEndpoints(true)
