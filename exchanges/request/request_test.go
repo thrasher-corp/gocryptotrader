@@ -518,7 +518,8 @@ func TestGetNonce(t *testing.T) {
 }
 
 // 1506830	       769.3 ns/op	     136 B/op	       4 allocs/op (prev master branch)
-// 1491024	       774.0 ns/op	     136 B/op	       4 allocs/op
+// 40532461	       30.29 ns/op	       0 B/op	       0 allocs/op (PR #1486)
+// 45759085	       26.52 ns/op	       0 B/op	       0 allocs/op (Current with PR #1486)
 func BenchmarkGetNonce(b *testing.B) {
 	r, err := New("test", new(http.Client), WithLimiter(&globalshell))
 	require.NoError(b, err)
