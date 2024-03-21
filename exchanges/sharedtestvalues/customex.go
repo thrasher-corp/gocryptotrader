@@ -252,7 +252,7 @@ func (c *CustomEx) GetHTTPClientUserAgent() (string, error) {
 }
 
 // SetClientProxyAddress is a mock method for CustomEx
-func (c *CustomEx) SetClientProxyAddress(_ string) error {
+func (c *CustomEx) SetClientProxyAddress(string, stream.SubscriptionAllowed) error {
 	return nil
 }
 
@@ -332,7 +332,7 @@ func (c *CustomEx) IsAssetWebsocketSupported(_ asset.Item) bool {
 }
 
 // FlushWebsocketChannels is a mock method for CustomEx
-func (c *CustomEx) FlushWebsocketChannels() error {
+func (c *CustomEx) FlushWebsocketChannels(stream.SubscriptionAllowed) error {
 	return nil
 }
 

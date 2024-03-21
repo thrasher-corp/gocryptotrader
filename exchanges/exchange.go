@@ -75,7 +75,7 @@ func (b *Base) SetRequester(r *request.Requester) error {
 }
 
 // SetClientProxyAddress sets a proxy address for REST and websocket requests
-func (b *Base) SetClientProxyAddress(addr string) error {
+func (b *Base) SetClientProxyAddress(addr string, allowAutoSubscribe stream.SubscriptionAllowed) error {
 	if addr == "" {
 		return nil
 	}
@@ -91,7 +91,7 @@ func (b *Base) SetClientProxyAddress(addr string) error {
 	}
 
 	if b.Websocket != nil {
-		err = b.Websocket.SetProxyAddress(addr)
+		err = b.Websocket.SetProxyAddress(addr, allowAutoSubscribe)
 		if err != nil {
 			return err
 		}
@@ -641,7 +641,7 @@ func (b *Base) SetupDefaults(exch *config.Exchange) error {
 
 	b.SetAPICredentialDefaults()
 
-	err = b.SetClientProxyAddress(exch.ProxyAddress)
+	err = b.SetClientProxyAddress(exch.ProxyAddress, stream.DeferSubscribe)
 	if err != nil {
 		return err
 	}
@@ -1155,11 +1155,11 @@ func (b *Base) IsWebsocketEnabled() bool {
 
 // FlushWebsocketChannels refreshes websocket channel subscriptions based on
 // websocket features. Used in the event of a pair/asset or subscription change.
-func (b *Base) FlushWebsocketChannels() error {
+func (b *Base) FlushWebsocketChannels(allowAutoSubscribe stream.SubscriptionAllowed) error {
 	if b.Websocket == nil {
 		return nil
 	}
-	return b.Websocket.FlushChannels()
+	return b.Websocket.FlushChannels(allowAutoSubscribe)
 }
 
 // SubscribeToWebsocketChannels appends to ChannelsToSubscribe
