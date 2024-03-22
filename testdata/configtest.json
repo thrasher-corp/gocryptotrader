@@ -1850,7 +1850,7 @@
         "credentialsValidator": {
           "requiresKey": true,
           "requiresSecret": true,
-          "requiresBase64DecodeSecret": false
+          "requiresBase64DecodeSecret": true
         }
       },
       "features": {
