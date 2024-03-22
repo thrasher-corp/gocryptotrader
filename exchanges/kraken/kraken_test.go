@@ -50,6 +50,10 @@ func TestMain(m *testing.M) {
 	if err := testexch.TestInstance(k); err != nil {
 		log.Fatal(err)
 	}
+	if apiKey != "" && apiSecret != "" {
+		k.API.AuthenticatedSupport = true
+		k.SetCredentials(apiKey, apiSecret, "", "", "", "")
+	}
 	os.Exit(m.Run())
 }
 
