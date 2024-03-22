@@ -1260,9 +1260,6 @@ func mockWsCancelOrders(msg []byte, w *websocket.Conn) error {
 	if err := json.Unmarshal(msg, &req); err != nil {
 		return err
 	}
-	if req.Event != krakenWsCancelOrder {
-		return w.WriteMessage(websocket.TextMessage, []byte(fmt.Sprintf(`{"event":"subscriptionStatus","reqid":%d,"status":"ok"}`, req.RequestID)))
-	}
 	resp := WsCancelOrderResponse{
 		Event:     krakenWsCancelOrderStatus,
 		Status:    "ok",
