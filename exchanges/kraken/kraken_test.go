@@ -1293,7 +1293,7 @@ func TestWsCancelOrders(t *testing.T) {
 	assert.ErrorContains(t, err, "[EOrder:Unknown order]", "Should error containing server error")
 
 	err = k.wsCancelOrders([]string{"RABBIT", "SQUIRREL", "MOUSE"})
-	assert.NoError(t, err, "Should not error without bad txn id")
+	assert.NoError(t, err, "Should not error with valid ids")
 }
 
 func TestWsCancelAllOrders(t *testing.T) {
