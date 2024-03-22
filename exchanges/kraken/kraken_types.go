@@ -721,7 +721,7 @@ type WsCancelOrderRequest struct {
 type WsCancelOrderResponse struct {
 	Event        string `json:"event"`
 	Status       string `json:"status"`
-	ErrorMessage string `json:"errorMessage,omitempty"`
+	ErrorMessage string `json:"errorMessage"`
 	RequestID    int64  `json:"reqid"`
 	Count        int64  `json:"count"`
 }
