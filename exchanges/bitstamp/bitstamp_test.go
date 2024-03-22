@@ -998,8 +998,8 @@ func TestGetOrderInfo(t *testing.T) {
 		require.NoError(t, err, "GetOrderInfo must not error")
 		assert.Equal(t, time.Date(2022, time.January, 31, 14, 43, 15, 0, time.UTC), o.Date, "Date should match")
 		assert.Equal(t, "1458532827766784", o.OrderID, "OrderID should match")
-		assert.Equal(t, order.Open, o.Status, "Status should match")   // TODO as it's failing
-		assert.Equal(t, 200, o.RemainingAmount, "Amount should match") // TODO as it's failing
+		assert.Equal(t, order.Open.String(), o.Status.String(), "Status should match") // TODO as it's failing
+		assert.Equal(t, 200, o.RemainingAmount, "RemainingAmount should match")        // TODO as it's failing
 		for _, tr := range o.Trades {
 			assert.Equal(t, 50.00, tr.Price, "Price should match")
 		}
