@@ -198,101 +198,28 @@ func (k *Kraken) wsHandleData(respRaw []byte) error {
 		return k.wsReadDataResponse(channelName, pair, msg)
 	}
 
-	var eventResponse map[string]interface{}
-	err := json.Unmarshal(respRaw, &eventResponse)
-	if err != nil {
-		return fmt.Errorf("%s - err %s could not parse websocket data: %s",
-			k.Name,
-			err,
-			respRaw)
+	reqId, err := jsonparser.GetInt(respRaw, "reqid")
+	if err == nil && reqId != 0 && k.Websocket.Match.IncomingWithData(reqId, respRaw) {
+		return nil
 	}
 
-	event, ok := eventResponse["event"]
-	if !ok {
+	event, err := jsonparser.GetString(respRaw, "event")
+	if err != nil {
+		return fmt.Errorf("%s - err %s could not parse websocket data: %s", k.Name, err, respRaw)
+	}
+
+	if event == "" {
 		return nil
 	}
 
 	switch event {
 	case stream.Pong, krakenWsHeartbeat:
 		return nil
-	case krakenWsCancelOrderStatus:
-		id, err := jsonparser.GetInt(respRaw, "reqid")
-		if err != nil {
-			return fmt.Errorf("%w 'reqid': %w from message: %s", errParsingWSField, err, respRaw)
-		}
-		if !k.Websocket.Match.IncomingWithData(id, respRaw) {
-			return fmt.Errorf("%v cancel order listener not found", id)
-		}
-	case krakenWsCancelAllOrderStatus:
-		var status WsCancelOrderResponse
-		err := json.Unmarshal(respRaw, &status)
-		if err != nil {
-			return fmt.Errorf("%s - err %s unable to parse WsCancelOrderResponse: %s", k.Name, err, respRaw)
-		}
-
-		var isChannelExist bool
-		if status.RequestID > 0 {
-			isChannelExist = k.Websocket.Match.IncomingWithData(status.RequestID, respRaw)
-		}
-
-		if status.Status == "error" {
-			return fmt.Errorf("%v Websocket status for RequestID %d: '%v'", k.Name, status.RequestID, status.ErrorMessage)
-		}
-
-		if !isChannelExist && status.RequestID > 0 {
-			return fmt.Errorf("can't send ws incoming data to Matched channel with RequestID: %d", status.RequestID)
-		}
+	case krakenWsCancelOrderStatus, krakenWsCancelAllOrderStatus, krakenWsAddOrderStatus, krakenWsSubscriptionStatus:
+		// All of these should have found a listener already
+		return fmt.Errorf("websocket %s listener not found: %v", event, reqId)
 	case krakenWsSystemStatus:
-		var systemStatus wsSystemStatus
-		err := json.Unmarshal(respRaw, &systemStatus)
-		if err != nil {
-			return fmt.Errorf("%s - err %s unable to parse system status response: %s", k.Name, err, respRaw)
-		}
-		if systemStatus.Status != "online" {
-			k.Websocket.DataHandler <- fmt.Errorf("%v Websocket status '%v'", k.Name, systemStatus.Status)
-		}
-		if systemStatus.Version > krakenWSSupportedVersion {
-			log.Warnf(log.ExchangeSys, "%v New version of Websocket API released. Was %v Now %v", k.Name, krakenWSSupportedVersion, systemStatus.Version)
-		}
-	case krakenWsAddOrderStatus:
-		var status WsAddOrderResponse
-		err := json.Unmarshal(respRaw, &status)
-		if err != nil {
-			return fmt.Errorf("%s - err %s unable to parse add order response: %s", k.Name, err, respRaw)
-		}
-
-		var isChannelExist bool
-		if status.RequestID > 0 {
-			isChannelExist = k.Websocket.Match.IncomingWithData(status.RequestID, respRaw)
-		}
-
-		if status.Status == "error" {
-			return fmt.Errorf("%v Websocket status for RequestID %d: '%v'", k.Name, status.RequestID, status.ErrorMessage)
-		}
-
-		k.Websocket.DataHandler <- &order.Detail{
-			Exchange: k.Name,
-			OrderID:  status.TransactionID,
-			Status:   order.New,
-		}
-
-		if !isChannelExist && status.RequestID > 0 {
-			return fmt.Errorf("can't send ws incoming data to Matched channel with RequestID: %d", status.RequestID)
-		}
-	case krakenWsSubscriptionStatus:
-		var sub wsSubscription
-		err := json.Unmarshal(respRaw, &sub)
-		if err != nil {
-			return fmt.Errorf("%s - err %s unable to parse subscription response: %s", k.Name, err, respRaw)
-		}
-		if sub.RequestID == 0 {
-			return fmt.Errorf("%v %w: %v", k.Name, errNoRequestID, respRaw)
-		}
-		k.Websocket.Match.IncomingWithData(sub.RequestID, respRaw)
-
-		if sub.Status != "subscribed" && sub.Status != "unsubscribed" {
-			return fmt.Errorf("%v %v %v", k.Name, sub.RequestID, sub.ErrorMessage)
-		}
+		return k.wsProcessSystemStatus(respRaw)
 	default:
 		k.Websocket.DataHandler <- stream.UnhandledMessageWarning{
 			Message: fmt.Sprintf("%s %s: %s", k.Name, stream.UnhandledMessage, respRaw),
@@ -335,6 +262,21 @@ func (k *Kraken) wsReadDataResponse(channelName string, pair currency.Pair, resp
 	default:
 		return fmt.Errorf("%s received unidentified data for subscription %s: %+v", k.Name, channelName, response)
 	}
+}
+
+func (k *Kraken) wsProcessSystemStatus(respRaw []byte) error {
+	var systemStatus wsSystemStatus
+	err := json.Unmarshal(respRaw, &systemStatus)
+	if err != nil {
+		return fmt.Errorf("%s - err %s unable to parse system status response: %s", k.Name, err, respRaw)
+	}
+	if systemStatus.Status != "online" {
+		k.Websocket.DataHandler <- fmt.Errorf("%v Websocket status '%v'", k.Name, systemStatus.Status)
+	}
+	if systemStatus.Version > krakenWSSupportedVersion {
+		log.Warnf(log.ExchangeSys, "%v New version of Websocket API released. Was %v Now %v", k.Name, krakenWSSupportedVersion, systemStatus.Version)
+	}
+	return nil
 }
 
 func (k *Kraken) wsProcessOwnTrades(ownOrders interface{}) error {
@@ -1258,8 +1200,13 @@ func (k *Kraken) wsAddOrder(request *WsAddOrderRequest) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	if resp.ErrorMessage != "" {
-		return "", errors.New(k.Name + " - " + resp.ErrorMessage)
+	if resp.Status == "error" {
+		return "", errors.New(k.Name + "AddOrder error: " + resp.ErrorMessage)
+	}
+	k.Websocket.DataHandler <- &order.Detail{
+		Exchange: k.Name,
+		OrderID:  resp.TransactionID,
+		Status:   order.New,
 	}
 	return resp.TransactionID, nil
 }
