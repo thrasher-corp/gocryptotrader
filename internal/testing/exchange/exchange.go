@@ -84,6 +84,7 @@ type WsMockFunc func([]byte, *websocket.Conn) error
 // It accepts an exchange package type argument and a http.HandlerFunc
 // See CurryWsMockUpgrader for a convenient way to curry t and a ws mock function
 // It is expected to be run from any WS tests which need a specific response function
+// No default subscriptions will be run since they disrupt unit tests
 func MockWsInstance[T any, PT interface {
 	*T
 	exchange.IBotExchange
@@ -105,6 +106,7 @@ func MockWsInstance[T any, PT interface {
 		require.NoErrorf(tb, err, "SetWebsocketURL should not error for auth: %v", auth)
 	}
 
+	// Disable default subscriptions; Would disrupt unit tests
 	b.Features.Subscriptions = []*subscription.Subscription{}
 	// Exchanges which don't support subscription conf; Can be removed when all exchanges support sub conf
 	b.Websocket.GenerateSubs = func() ([]subscription.Subscription, error) { return []subscription.Subscription{}, nil }
