@@ -241,7 +241,6 @@ func (k *Kraken) Setup(exch *config.Exchange) error {
 	}
 	err = k.Websocket.Setup(&stream.WebsocketSetup{
 		ExchangeConfig:        exch,
-		DefaultURL:            krakenWSURL,
 		RunningURL:            wsRunningURL,
 		Connector:             k.WsConnect,
 		Subscriber:            k.Subscribe,
@@ -254,7 +253,7 @@ func (k *Kraken) Setup(exch *config.Exchange) error {
 		return err
 	}
 
-	err = k.Websocket.SetupNewConnection(stream.ConnectionSetup{
+	err = k.Websocket.SetupNewConnection(&stream.ConnectionSetup{
 		RateLimit:            krakenWsRateLimit,
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
@@ -264,7 +263,7 @@ func (k *Kraken) Setup(exch *config.Exchange) error {
 		return err
 	}
 
-	return k.Websocket.SetupNewConnection(stream.ConnectionSetup{
+	return k.Websocket.SetupNewConnection(&stream.ConnectionSetup{
 		RateLimit:            krakenWsRateLimit,
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,

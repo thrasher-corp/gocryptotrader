@@ -52,7 +52,7 @@ func (g *Gateio) WsDeliveryFuturesConnect() error {
 		return err
 	}
 	var dialer websocket.Dialer
-	err = g.Websocket.SetWebsocketURL(deliveryRealUSDTTradingURL, false, true)
+	err = g.Websocket.SetWebsocketURL(deliveryRealUSDTTradingURL, true)
 	if err != nil {
 		return err
 	}
@@ -60,7 +60,7 @@ func (g *Gateio) WsDeliveryFuturesConnect() error {
 	if err != nil {
 		return err
 	}
-	err = g.Websocket.SetupNewConnection(stream.ConnectionSetup{
+	err = g.Websocket.SetupNewConnection(&stream.ConnectionSetup{
 		URL:                  deliveryRealBTCTradingURL,
 		RateLimit:            gateioWebsocketRateLimit,
 		ResponseCheckTimeout: g.Config.WebsocketResponseCheckTimeout,
@@ -79,8 +79,7 @@ func (g *Gateio) WsDeliveryFuturesConnect() error {
 	go g.wsFunnelDeliveryFuturesConnectionData(g.Websocket.Conn)
 	go g.wsFunnelDeliveryFuturesConnectionData(g.Websocket.AuthConn)
 	if g.Verbose {
-		log.Debugf(log.ExchangeSys, "successful connection to %v\n",
-			g.Websocket.GetWebsocketURL())
+		log.Debugf(log.ExchangeSys, "successful connection to %v\n", g.Websocket.GetWebsocketURL())
 	}
 	pingMessage, err := json.Marshal(WsInput{
 		ID:      g.Websocket.Conn.GenerateMessageID(false),
@@ -222,7 +221,10 @@ func (g *Gateio) handleDeliveryFuturesSubscription(event string, channelsToSubsc
 					errs = common.AppendError(errs, fmt.Errorf("error while %s to channel %s error code: %d message: %s", val[k].Event, val[k].Channel, resp.Error.Code, resp.Error.Message))
 					continue
 				}
-				g.Websocket.AddSuccessfulSubscriptions(channelsToSubscribe[k])
+				err = g.Websocket.AddSuccessfulSubscriptions(channelsToSubscribe[k])
+				if err != nil {
+					errs = common.AppendError(errs, err)
+				}
 			}
 		}
 	}

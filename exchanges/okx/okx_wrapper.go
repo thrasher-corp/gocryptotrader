@@ -36,9 +36,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
-const (
-	okxWebsocketResponseMaxLimit = time.Second * 3
-)
+const okxWebsocketResponseMaxLimit = time.Second * 3
 
 // GetDefaultConfig returns a default exchange config
 func (ok *Okx) GetDefaultConfig(ctx context.Context) (*config.Exchange, error) {
@@ -223,38 +221,46 @@ func (ok *Okx) Setup(exch *config.Exchange) error {
 	}
 	if err := ok.Websocket.Setup(&stream.WebsocketSetup{
 		ExchangeConfig:                         exch,
-		DefaultURL:                             okxAPIWebsocketPublicURL,
 		RunningURL:                             wsRunningEndpoint,
-		Connector:                              ok.WsConnect,
 		Subscriber:                             ok.Subscribe,
 		Unsubscriber:                           ok.Unsubscribe,
 		GenerateSubscriptions:                  ok.GenerateDefaultSubscriptions,
 		Features:                               &ok.Features.Supports.WebsocketCapabilities,
-		MaxWebsocketSubscriptionsPerConnection: 240,
-		OrderbookBufferConfig: buffer.Config{
-			Checksum: ok.CalculateUpdateOrderbookChecksum,
-		},
+		MaxWebsocketSubscriptionsPerConnection: 50, // When all pairs are enabled for spot this seems to be the limit at which the exchange will start to reject subscriptions
+		OrderbookBufferConfig:                  buffer.Config{Checksum: ok.CalculateUpdateOrderbookChecksum},
 	}); err != nil {
 		return err
 	}
 
 	go ok.WsResponseMultiplexer.Run()
 
-	if err := ok.Websocket.SetupNewConnection(stream.ConnectionSetup{
+	if err := ok.Websocket.SetupNewConnection(&stream.ConnectionSetup{
 		URL:                  okxAPIWebsocketPublicURL,
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     okxWebsocketResponseMaxLimit,
 		RateLimit:            500,
+		Handler:              ok.WsHandleData,
+		Bootstrap:            ok.WsBootstrap,
+		ReadBufferSize:       8192,
+		WriteBufferSize:      8192,
+		AllowMultipleConn:    true,
+		GenerateSubs:         ok.GenerateDefaultSubscriptionsConnection,
+		Subscriber:           ok.SubscribeConnection,
+		Unsubscriber:         ok.UnsubscribeConnection,
 	}); err != nil {
 		return err
 	}
 
-	return ok.Websocket.SetupNewConnection(stream.ConnectionSetup{
+	return ok.Websocket.SetupNewConnection(&stream.ConnectionSetup{
 		URL:                  okxAPIWebsocketPrivateURL,
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     okxWebsocketResponseMaxLimit,
 		Authenticated:        true,
 		RateLimit:            500,
+		Handler:              ok.WsHandleData,
+		Bootstrap:            ok.WsAuthBootstrap,
+		ReadBufferSize:       8192,
+		WriteBufferSize:      8192,
 	})
 }
 
@@ -838,12 +844,8 @@ func (ok *Okx) ModifyOrder(ctx context.Context, action *order.Modify) (*order.Mo
 	if action.Pair.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
-	instrumentID := pairFormat.Format(action.Pair)
-	if err != nil {
-		return nil, err
-	}
 	amendRequest := AmendOrderRequestParams{
-		InstrumentID:  instrumentID,
+		InstrumentID:  pairFormat.Format(action.Pair),
 		NewQuantity:   action.Amount,
 		OrderID:       action.OrderID,
 		ClientOrderID: action.ClientOrderID,
@@ -906,8 +908,6 @@ func (ok *Okx) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*order.
 		if !ok.SupportsAsset(ord.AssetType) {
 			return nil, fmt.Errorf("%w: %v", asset.ErrNotSupported, ord.AssetType)
 		}
-
-		var instrumentID string
 		var pairFormat currency.PairFormat
 		pairFormat, err = ok.GetPairFormat(ord.AssetType, true)
 		if err != nil {
@@ -916,12 +916,8 @@ func (ok *Okx) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*order.
 		if !ord.Pair.IsPopulated() {
 			return nil, errIncompleteCurrencyPair
 		}
-		instrumentID = pairFormat.Format(ord.Pair)
-		if err != nil {
-			return nil, err
-		}
 		cancelOrderParams[x] = CancelOrderRequestParam{
-			InstrumentID:  instrumentID,
+			InstrumentID:  pairFormat.Format(ord.Pair),
 			OrderID:       ord.OrderID,
 			ClientOrderID: ord.ClientOrderID,
 		}
@@ -1279,7 +1275,7 @@ func (ok *Okx) GetOrderHistory(ctx context.Context, req *order.MultiOrderRequest
 		return nil, errOnlyThreeMonthsSupported
 	}
 	if len(req.Pairs) == 0 {
-		return nil, errMissingAtLeast1CurrencyPair
+		return nil, currency.ErrCurrencyPairRequired
 	}
 	if !ok.SupportsAsset(req.AssetType) {
 		return nil, fmt.Errorf("%w: %v", asset.ErrNotSupported, req.AssetType)

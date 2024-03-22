@@ -63,7 +63,7 @@ func (bi *Binanceus) WsConnect() error {
 			// cleans on failed connection
 			clean := strings.Split(bi.Websocket.GetWebsocketURL(), "?streams=")
 			authPayload := clean[0] + "?streams=" + listenKey
-			err = bi.Websocket.SetWebsocketURL(authPayload, false, false)
+			err = bi.Websocket.SetWebsocketURL(authPayload, false)
 			if err != nil {
 				return err
 			}
@@ -590,8 +590,7 @@ func (bi *Binanceus) Subscribe(channelsToSubscribe []subscription.Subscription) 
 			return err
 		}
 	}
-	bi.Websocket.AddSuccessfulSubscriptions(channelsToSubscribe...)
-	return nil
+	return bi.Websocket.AddSuccessfulSubscriptions(channelsToSubscribe...)
 }
 
 // Unsubscribe unsubscribes from a set of channels
@@ -615,8 +614,7 @@ func (bi *Binanceus) Unsubscribe(channelsToUnsubscribe []subscription.Subscripti
 			return err
 		}
 	}
-	bi.Websocket.RemoveSubscriptions(channelsToUnsubscribe...)
-	return nil
+	return bi.Websocket.RemoveSubscriptions(channelsToUnsubscribe...)
 }
 
 func (bi *Binanceus) setupOrderbookManager() {
