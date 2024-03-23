@@ -1,6 +1,7 @@
 package kraken
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -995,6 +996,10 @@ func (k *Kraken) subscribeToChan(subs subscription.List) error {
 
 	s := subs[0]
 
+	if err := enforceStandardChannelNames(s); err != nil {
+		return fmt.Errorf("%w %w", stream.ErrSubscriptionFailure, err)
+	}
+
 	r := &WebsocketSubRequest{
 		Event:     krakenWsSubscribe,
 		RequestID: k.Websocket.Conn.GenerateMessageID(false),
@@ -1058,7 +1063,12 @@ func (k *Kraken) unsubscribeFromChan(subs subscription.List) error {
 	if len(subs) != 1 {
 		return subscription.ErrBatchingNotSupported
 	}
+
 	s := subs[0]
+
+	if err := enforceStandardChannelNames(s); err != nil {
+		return fmt.Errorf("%w %w", stream.ErrUnsubscribeFailure, err)
+	}
 
 	r := &WebsocketSubRequest{
 		Event:     krakenWsUnsubscribe,
@@ -1129,16 +1139,24 @@ func apiChannelName(s *subscription.Subscription) string {
 	return s.Channel
 }
 
+func enforceStandardChannelNames(s *subscription.Subscription) error {
+	name := strings.Split(s.Channel, "-")
+	if n, ok := reverseChannelNames[name[0]]; ok && n != s.Channel {
+		return fmt.Errorf("%w: %s => subscription.%s%sChannel", subscription.ErrPrivateChannelName, s.Channel, bytes.ToUpper([]byte{n[0]}), n[1:])
+	}
+	return nil
+}
+
 // fqChannelNameToSub converts an fqChannelName into standard name and subscription params
 // e.g. book-5 => subscription.OrderbookChannel with Levels: 5
 func fqChannelNameToSub(s subscription.Subscription) (*subscription.Subscription, error) {
-	name := s.Channel
+	parts := strings.Split(s.Channel, "-")
+	name := parts[0]
 	if stdName, ok := reverseChannelNames[name]; ok {
 		name = stdName
 	}
 
 	if name == subscription.OrderbookChannel || name == subscription.CandlesChannel {
-		parts := strings.Split(s.Channel, "-")
 		if len(parts) != 2 {
 			return nil, errBadChannelSuffix
 		}

@@ -39,6 +39,7 @@ var (
 	ErrInStateAlready       = errors.New("subscription already in state")
 	ErrInvalidState         = errors.New("invalid subscription state")
 	ErrDuplicate            = errors.New("duplicate subscription")
+	ErrPrivateChannelName   = errors.New("must use standard channel name constants")
 )
 
 // State tracks the status of a subscription channel
