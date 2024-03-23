@@ -28,6 +28,7 @@ var (
 	ErrUnsubscribeFailure       = errors.New("unsubscribe failure")
 	ErrAlreadyDisabled          = errors.New("websocket already disabled")
 	ErrNotConnected             = errors.New("websocket is not connected")
+	ErrNoMessageListener        = errors.New("websocket listener not found for message")
 )
 
 // Private websocket errors

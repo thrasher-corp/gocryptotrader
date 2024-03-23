@@ -218,7 +218,7 @@ func (k *Kraken) wsHandleData(respRaw []byte) error {
 		return nil
 	case krakenWsCancelOrderStatus, krakenWsCancelAllOrderStatus, krakenWsAddOrderStatus, krakenWsSubscriptionStatus:
 		// All of these should have found a listener already
-		return fmt.Errorf("websocket %s listener not found: %v", event, reqId)
+		return fmt.Errorf("%w: %s %v", stream.ErrNoMessageListener, event, reqId)
 	case krakenWsSystemStatus:
 		return k.wsProcessSystemStatus(respRaw)
 	default:
