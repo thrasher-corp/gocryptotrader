@@ -8,7 +8,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
-	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
 var (
@@ -32,13 +31,13 @@ type Instrument struct {
 	MarginTradingEnabled    bool                 `json:"margin_trading_enabled"`
 	MarginTradingEnabled5X  bool                 `json:"margin_trading_enabled_5x"`
 	MarginTradingEnabled10X bool                 `json:"margin_trading_enabled_10x"`
-	MaxQuantity             types.Number         `json:"max_quantity"`
-	MinQuantity             types.Number         `json:"min_quantity"`
-	MaxPrice                types.Number         `json:"max_price"`
-	MinPrice                types.Number         `json:"min_price"`
+	MaxQuantity             SafeNumber           `json:"max_quantity"`
+	MinQuantity             SafeNumber           `json:"min_quantity"`
+	MaxPrice                SafeNumber           `json:"max_price"`
+	MinPrice                SafeNumber           `json:"min_price"`
 	LastUpdateDate          convert.ExchangeTime `json:"last_update_date"`
-	QuantityTickSize        types.Number         `json:"quantity_tick_size"`
-	PriceTickSize           types.Number         `json:"price_tick_size"`
+	QuantityTickSize        SafeNumber           `json:"quantity_tick_size"`
+	PriceTickSize           SafeNumber           `json:"price_tick_size"`
 }
 
 // OrderbookDetail public order book detail.
@@ -82,21 +81,21 @@ type TickersResponse struct {
 
 // TickerItem represents a ticker item.
 type TickerItem struct {
-	HighestTradePrice    types.Number         `json:"h"` // Price of the 24h highest trade
-	LowestTradePrice     types.Number         `json:"l"` // Price of the 24h lowest trade, null if there weren't any trades
-	LatestTradePrice     types.Number         `json:"a"` // The price of the latest trade, null if there weren't any trades
 	InstrumentName       string               `json:"i"`
-	TradedVolume         types.Number         `json:"v"`  // The total 24h traded volume
-	TradedVolumeInUSD24H types.Number         `json:"vv"` // The total 24h traded volume value (in USD)
-	OpenInterest         types.Number         `json:"oi"`
-	PriceChange24H       types.Number         `json:"c"` // 24-hour price change, null if there weren't any trades
-	BestBidPrice         types.Number         `json:"b"` // The current best bid price, null if there aren't any bids
-	BestAskPrice         types.Number         `json:"k"` // The current best ask price, null if there aren't any asks
+	HighestTradePrice    SafeNumber           `json:"h"`  // Price of the 24h highest trade
+	LowestTradePrice     SafeNumber           `json:"l"`  // Price of the 24h lowest trade, null if there weren't any trades
+	LatestTradePrice     SafeNumber           `json:"a"`  // The price of the latest trade, null if there weren't any trades
+	TradedVolume         SafeNumber           `json:"v"`  // The total 24h traded volume
+	TradedVolumeInUSD24H SafeNumber           `json:"vv"` // The total 24h traded volume value (in USD)
+	OpenInterest         string               `json:"oi"`
+	PriceChange24H       SafeNumber           `json:"c"` // 24-hour price change, null if there weren't any trades
+	BestBidPrice         SafeNumber           `json:"b"` // The current best bid price, null if there aren't any bids
+	BestAskPrice         SafeNumber           `json:"k"` // The current best ask price, null if there aren't any asks
 	TradeTimestamp       convert.ExchangeTime `json:"t"`
 
 	// Added for websocket push data.
-	BestBidSize types.Number `json:"bs"`
-	BestAskSize types.Number `json:"ks"`
+	BestBidSize SafeNumber `json:"bs"`
+	BestAskSize SafeNumber `json:"ks"`
 }
 
 // TradesResponse represents public trades for a particular instrument.
@@ -107,8 +106,8 @@ type TradesResponse struct {
 // TradeItem represents a public trade item.
 type TradeItem struct {
 	Side           string               `json:"s"`
-	TradePrice     types.Number         `json:"p"`
-	TradeQuantity  types.Number         `json:"q"`
+	TradePrice     SafeNumber           `json:"p"`
+	TradeQuantity  SafeNumber           `json:"q"`
 	TradeTimestamp convert.ExchangeTime `json:"t"`
 	TradeID        string               `json:"d"`
 	InstrumentName string               `json:"i"`
@@ -448,9 +447,9 @@ type TransactionItem struct {
 	EventDate           string               `json:"event_date"` // format 2021-02-18
 	JournalType         string               `json:"journal_type"`
 	JournalID           string               `json:"journal_id"`
-	TransactionCost     types.Number         `json:"transaction_cost"`
-	TransactionQuantity types.Number         `json:"transaction_qty"`
-	RealizedPnl         types.Number         `json:"realized_pnl"`
+	TransactionCost     SafeNumber           `json:"transaction_cost"`
+	TransactionQuantity SafeNumber           `json:"transaction_qty"`
+	RealizedPnl         SafeNumber           `json:"realized_pnl"`
 	EventTimestampMs    convert.ExchangeTime `json:"event_timestamp_ms"` // Event timestamp in milliseconds
 	EventTimestampNs    convert.ExchangeTime `json:"event_timestamp_ns"` // Event timestamp in nanoseconds
 	ClientOrderID       string               `json:"client_oid"`
@@ -463,8 +462,8 @@ type TransactionItem struct {
 type OTCTrade struct {
 	AccountUUID         string               `json:"account_uuid"`
 	RequestsPerMinute   int64                `json:"requests_per_minute"`
-	MaxTradeValueUSD    types.Number         `json:"max_trade_value_usd"`
-	MinTradeValueUSD    types.Number         `json:"min_trade_value_usd"`
+	MaxTradeValueUSD    SafeNumber           `json:"max_trade_value_usd"`
+	MinTradeValueUSD    SafeNumber           `json:"min_trade_value_usd"`
 	AcceptOtcTcDatetime convert.ExchangeTime `json:"accept_otc_tc_datetime"`
 }
 
@@ -492,14 +491,14 @@ type OTCQuoteResponse struct {
 	QuoteDirection    string               `json:"quote_direction"`
 	BaseCurrency      string               `json:"base_currency"`
 	QuoteCurrency     string               `json:"quote_currency"`
-	BaseCurrencySize  types.Number         `json:"base_currency_size"`
-	QuoteCurrencySize types.Number         `json:"quote_currency_size"`
-	QuoteBuy          types.Number         `json:"quote_buy"`
-	QuoteBuyQuantity  types.Number         `json:"quote_buy_quantity"`
-	QuoteBuyValue     types.Number         `json:"quote_buy_value"`
-	QuoteSell         types.Number         `json:"quote_sell"`
-	QuoteSellQuantity types.Number         `json:"quote_sell_quantity"`
-	QuoteSellValue    types.Number         `json:"quote_sell_value"`
+	BaseCurrencySize  SafeNumber           `json:"base_currency_size"`
+	QuoteCurrencySize SafeNumber           `json:"quote_currency_size"`
+	QuoteBuy          SafeNumber           `json:"quote_buy"`
+	QuoteBuyQuantity  SafeNumber           `json:"quote_buy_quantity"`
+	QuoteBuyValue     SafeNumber           `json:"quote_buy_value"`
+	QuoteSell         SafeNumber           `json:"quote_sell"`
+	QuoteSellQuantity SafeNumber           `json:"quote_sell_quantity"`
+	QuoteSellValue    SafeNumber           `json:"quote_sell_value"`
 	QuoteDuration     int64                `json:"quote_duration"`
 	QuoteTime         convert.ExchangeTime `json:"quote_time"`
 	QuoteExpiryTime   convert.ExchangeTime `json:"quote_expiry_time"`
@@ -513,16 +512,16 @@ type AcceptQuoteResponse struct {
 	QuoteDirection    string               `json:"quote_direction"`
 	BaseCurrency      string               `json:"base_currency"`
 	QuoteCurrency     string               `json:"quote_currency"`
-	BaseCurrencySize  types.Number         `json:"base_currency_size"`
-	QuoteCurrencySize types.Number         `json:"quote_currency_size"`
-	QuoteBuy          types.Number         `json:"quote_buy"`
-	QuoteSell         types.Number         `json:"quote_sell"`
+	BaseCurrencySize  SafeNumber           `json:"base_currency_size"`
+	QuoteCurrencySize SafeNumber           `json:"quote_currency_size"`
+	QuoteBuy          SafeNumber           `json:"quote_buy"`
+	QuoteSell         SafeNumber           `json:"quote_sell"`
 	QuoteDuration     int64                `json:"quote_duration"`
 	QuoteTime         convert.ExchangeTime `json:"quote_time"`
 	QuoteExpiryTime   convert.ExchangeTime `json:"quote_expiry_time"`
-	TradePrice        types.Number         `json:"trade_price"`
-	TradeQuantity     types.Number         `json:"trade_quantity"`
-	TradedValue       types.Number         `json:"trade_value"`
+	TradePrice        SafeNumber           `json:"trade_price"`
+	TradeQuantity     SafeNumber           `json:"trade_quantity"`
+	TradedValue       SafeNumber           `json:"trade_value"`
 	TradeTime         convert.ExchangeTime `json:"trade_time"`
 }
 
@@ -536,9 +535,9 @@ type QuoteHistoryResponse struct {
 		BaseCurrency      string               `json:"base_currency"`
 		QuoteCurrency     string               `json:"quote_currency"`
 		BaseCurrencySize  float64              `json:"base_currency_size"`
-		QuoteCurrencySize types.Number         `json:"quote_currency_size"`
-		QuoteBuy          types.Number         `json:"quote_buy"`
-		QuoteSell         types.Number         `json:"quote_sell"`
+		QuoteCurrencySize SafeNumber           `json:"quote_currency_size"`
+		QuoteBuy          SafeNumber           `json:"quote_buy"`
+		QuoteSell         SafeNumber           `json:"quote_sell"`
 		QuoteDuration     int64                `json:"quote_duration"`
 		QuoteTime         convert.ExchangeTime `json:"quote_time"`
 		QuoteExpiryTime   convert.ExchangeTime `json:"quote_expiry_time"`
@@ -563,17 +562,17 @@ type OTCTradeItem struct {
 	QuoteDirection    string               `json:"quote_direction"`
 	BaseCurrency      string               `json:"base_currency"`
 	QuoteCurrency     string               `json:"quote_currency"`
-	BaseCurrencySize  types.Number         `json:"base_currency_size"`
-	QuoteCurrencySize types.Number         `json:"quote_currency_size"`
+	BaseCurrencySize  SafeNumber           `json:"base_currency_size"`
+	QuoteCurrencySize SafeNumber           `json:"quote_currency_size"`
 	QuoteBuy          string               `json:"quote_buy"`
 	QuoteSell         string               `json:"quote_sell"`
 	QuoteDuration     int64                `json:"quote_duration"`
 	QuoteTime         convert.ExchangeTime `json:"quote_time"`
 	QuoteExpiryTime   convert.ExchangeTime `json:"quote_expiry_time"`
 	TradeDirection    string               `json:"trade_direction"`
-	TradePrice        types.Number         `json:"trade_price"`
-	TradeQuantity     types.Number         `json:"trade_quantity"`
-	TradeValue        types.Number         `json:"trade_value"`
+	TradePrice        SafeNumber           `json:"trade_price"`
+	TradeQuantity     SafeNumber           `json:"trade_quantity"`
+	TradeValue        SafeNumber           `json:"trade_value"`
 	TradeTime         convert.ExchangeTime `json:"trade_time"`
 }
 

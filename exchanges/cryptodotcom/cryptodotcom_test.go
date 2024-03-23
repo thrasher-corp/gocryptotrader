@@ -676,3 +676,13 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 		assert.NotEmpty(t, lim, "limit cannot be empty")
 	}
 }
+
+func TestSafeNumberUnmarshal(t *testing.T) {
+	t.Parallel()
+	result := []byte(`{"value": null}`)
+	resp := &struct {
+		Value SafeNumber `json:"value"`
+	}{}
+	err := json.Unmarshal(result, &resp)
+	require.NoError(t, err)
+}

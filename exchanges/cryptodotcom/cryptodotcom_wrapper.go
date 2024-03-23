@@ -290,7 +290,6 @@ func (cr *Cryptodotcom) UpdateTicker(ctx context.Context, p currency.Pair, asset
 		Low:          tick.Data[0].LowestTradePrice.Float64(),
 		Bid:          tick.Data[0].BestBidPrice.Float64(),
 		Ask:          tick.Data[0].BestAskPrice.Float64(),
-		Open:         tick.Data[0].OpenInterest.Float64(),
 		Last:         tick.Data[0].LatestTradePrice.Float64(),
 		Volume:       tick.Data[0].TradedVolume.Float64(),
 		LastUpdated:  tick.Data[0].TradeTimestamp.Time(),
@@ -326,7 +325,6 @@ func (cr *Cryptodotcom) UpdateTickers(ctx context.Context, assetType asset.Item)
 			Bid:          tick.Data[y].BestBidPrice.Float64(),
 			Ask:          tick.Data[y].BestAskPrice.Float64(),
 			Volume:       tick.Data[y].TradedVolume.Float64(),
-			Open:         tick.Data[y].OpenInterest.Float64(),
 			Pair:         cp,
 			ExchangeName: cr.Name,
 			AssetType:    assetType,
@@ -666,7 +664,7 @@ func (cr *Cryptodotcom) SubmitOrder(ctx context.Context, s *order.Submit) (*orde
 		return nil, fmt.Errorf("%w: %v", asset.ErrNotSupported, s.AssetType)
 	}
 	if s.Amount <= 0 {
-		return nil, fmt.Errorf("amount, or size (sz) of quantity to buy or sell hast to be greater than zero ")
+		return nil, fmt.Errorf("%w, amount to buy or sell hast to be greater than zero ", order.ErrAmountBelowMin)
 	}
 	format, err := cr.GetPairFormat(s.AssetType, false)
 	if err != nil {
@@ -1140,7 +1138,9 @@ func (cr *Cryptodotcom) UpdateOrderExecutionLimits(ctx context.Context, a asset.
 		if err != nil {
 			return err
 		}
-
+		if instrumentsResponse.Instruments[x].MinQuantity.Float64() > instrumentsResponse.Instruments[x].MaxQuantity.Float64() {
+			instrumentsResponse.Instruments[x].MinQuantity, instrumentsResponse.Instruments[x].MaxQuantity = instrumentsResponse.Instruments[x].MaxQuantity, instrumentsResponse.Instruments[x].MinQuantity
+		}
 		limits = append(limits, order.MinMaxLevel{
 			Pair:                    pair,
 			Asset:                   a,
@@ -1152,5 +1152,6 @@ func (cr *Cryptodotcom) UpdateOrderExecutionLimits(ctx context.Context, a asset.
 			MaxPrice:                instrumentsResponse.Instruments[x].MaxPrice.Float64(),
 		})
 	}
+	println("limits: ", len(limits))
 	return cr.LoadLimits(limits)
 }
