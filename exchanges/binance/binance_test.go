@@ -183,6 +183,20 @@ func TestUKlineData(t *testing.T) {
 	assert.NoError(t, err)
 }
 
+func TestGetUFuturesContinuousKlineData(t *testing.T) {
+	t.Parallel()
+	result, err := b.GetUFuturesContinuousKlineData(context.Background(), currency.NewPair(currency.BTC, currency.USDT), "CURRENT_QUARTER", "1d", time.Time{}, time.Time{}, 10)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetIndexOrCandlesticPriceKlineData(t *testing.T) {
+	t.Parallel()
+	result, err := b.GetIndexOrCandlesticPriceKlineData(context.Background(), currency.NewPair(currency.BTC, currency.USDT), "1d", time.Time{}, time.Now(), 0)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
 func TestUGetMarkPrice(t *testing.T) {
 	t.Parallel()
 	_, err := b.UGetMarkPrice(context.Background(), currency.NewPair(currency.BTC, currency.USDT))

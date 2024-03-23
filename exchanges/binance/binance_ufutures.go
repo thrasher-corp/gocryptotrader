@@ -11,11 +11,11 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
-	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
 const (
@@ -204,11 +204,11 @@ func (b *Binance) UCompressedTrades(ctx context.Context, symbol currency.Pair, f
 
 // UKlineData gets kline data for usdt margined futures
 func (b *Binance) UKlineData(ctx context.Context, symbol currency.Pair, interval string, limit int64, startTime, endTime time.Time) ([]FuturesCandleStick, error) {
-	params := url.Values{}
 	symbolValue, err := b.FormatSymbol(symbol, asset.USDTMarginedFutures)
 	if err != nil {
 		return nil, err
 	}
+	params := url.Values{}
 	params.Set("symbol", symbolValue)
 	if !common.StringDataCompare(validFuturesIntervals, interval) {
 		return nil, errors.New("invalid interval")
@@ -236,106 +236,123 @@ func (b *Binance) UKlineData(ctx context.Context, symbol currency.Pair, interval
 		rateBudget = uFuturesKlineMaxRate
 	}
 
-	var data [][10]interface{}
+	var data [][12]types.Number
 	err = b.SendHTTPRequest(ctx, exchange.RestUSDTMargined, ufuturesKlineData+params.Encode(), rateBudget, &data)
 	if err != nil {
 		return nil, err
 	}
-
 	resp := make([]FuturesCandleStick, len(data))
 	for x := range data {
-		var tempData FuturesCandleStick
-		var floatData float64
-		var strData string
-		var ok bool
-
-		floatData, ok = data[x][0].(float64)
-		if !ok {
-			return nil, errors.New("type assertion failed for opentime")
+		resp[x] = FuturesCandleStick{
+			OpenTime:                time.UnixMilli(data[x][0].Int64()),
+			Open:                    data[x][1].Float64(),
+			High:                    data[x][2].Float64(),
+			Low:                     data[x][3].Float64(),
+			Close:                   data[x][4].Float64(),
+			Volume:                  data[x][5].Float64(),
+			CloseTime:               time.UnixMilli(data[x][6].Int64()),
+			QuoteAssetVolume:        data[x][7].Float64(),
+			NumberOfTrades:          data[x][8].Int64(),
+			TakerBuyVolume:          data[x][9].Float64(),
+			TakerBuyBaseAssetVolume: data[x][10].Float64(),
 		}
-		tempData.OpenTime, err = convert.TimeFromUnixTimestampFloat(floatData)
-		if err != nil {
-			return nil, err
-		}
-		strData, ok = data[x][1].(string)
-		if !ok {
-			return nil, errors.New("type assertion failed for open")
-		}
-		floatData, err = strconv.ParseFloat(strData, 64)
-		if err != nil {
-			return nil, err
-		}
-		tempData.Open = floatData
-		strData, ok = data[x][2].(string)
-		if !ok {
-			return nil, errors.New("type assertion failed for high")
-		}
-		floatData, err = strconv.ParseFloat(strData, 64)
-		if err != nil {
-			return nil, err
-		}
-		tempData.High = floatData
-		strData, ok = data[x][3].(string)
-		if !ok {
-			return nil, errors.New("type assertion failed for low")
-		}
-		floatData, err = strconv.ParseFloat(strData, 64)
-		if err != nil {
-			return nil, err
-		}
-		tempData.Low = floatData
-		strData, ok = data[x][4].(string)
-		if !ok {
-			return nil, errors.New("type assertion failed for close")
-		}
-		floatData, err = strconv.ParseFloat(strData, 64)
-		if err != nil {
-			return nil, err
-		}
-		tempData.Close = floatData
-		strData, ok = data[x][5].(string)
-		if !ok {
-			return nil, errors.New("type assertion failed for volume")
-		}
-		floatData, err = strconv.ParseFloat(strData, 64)
-		if err != nil {
-			return nil, err
-		}
-		tempData.Volume = floatData
-		floatData, ok = data[x][6].(float64)
-		if !ok {
-			return nil, errors.New("type assertion failed for close time")
-		}
-		tempData.CloseTime, err = convert.TimeFromUnixTimestampFloat(floatData)
-		if err != nil {
-			return resp, err
-		}
-		strData, ok = data[x][7].(string)
-		if !ok {
-			return nil, errors.New("type assertion failed base asset volume")
-		}
-		floatData, err = strconv.ParseFloat(strData, 64)
-		if err != nil {
-			return nil, err
-		}
-		tempData.BaseAssetVolume = floatData
-		floatData, ok = data[x][8].(float64)
-		if !ok {
-			return nil, errors.New("type assertion failed for taker buy volume")
-		}
-		tempData.TakerBuyVolume = floatData
-		strData, ok = data[x][9].(string)
-		if !ok {
-			return nil, errors.New("type assertion failed for taker buy base asset volume")
-		}
-		floatData, err = strconv.ParseFloat(strData, 64)
-		if err != nil {
-			return nil, err
-		}
-		tempData.TakerBuyBaseAssetVolume = floatData
-		resp[x] = tempData
 	}
 	return resp, nil
+}
+
+// GetUFuturesContinuousKlineData kline/candlestick bars for a specific contract type.
+// Klines are uniquely identified by their open time.
+func (b *Binance) GetUFuturesContinuousKlineData(ctx context.Context, pair currency.Pair, contractType string, interval string, startTime, endTime time.Time, limit int64) (interface{}, error) {
+	if pair.IsEmpty() {
+		return nil, currency.ErrCurrencyPairEmpty
+	}
+	if contractType == "" {
+		return nil, errors.New("contract type is required")
+	}
+	if !common.StringDataCompare(validFuturesIntervals, interval) {
+		return nil, errors.New("invalid interval")
+	}
+	params := url.Values{}
+	params.Set("pair", pair.String())
+	params.Set("contractType", contractType)
+	params.Set("interval", interval)
+	if limit > 0 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	if !startTime.IsZero() && !endTime.IsZero() {
+		if startTime.After(endTime) {
+			return nil, errors.New("startTime cannot be after endTime")
+		}
+		params.Set("startTime", timeString(startTime))
+		params.Set("endTime", timeString(endTime))
+	}
+	rateBudget := uFuturesDefaultRate
+	switch {
+	case limit > 0 && limit <= 100:
+		rateBudget = uFuturesKline100Rate
+	case limit > 100 && limit <= 500:
+		rateBudget = uFuturesKline500Rate
+	case limit > 500 && limit <= 1000:
+		rateBudget = uFuturesKline1000Rate
+	case limit > 1000:
+		rateBudget = uFuturesKlineMaxRate
+	}
+	var resp [][12]types.Number
+	err := b.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues("/fapi/v1/continuousKlines", params), rateBudget, &resp)
+	if err != nil {
+		return nil, err
+	}
+	result := make([]FuturesCandleStick, len(resp))
+	for x := range resp {
+		result[x] = FuturesCandleStick{
+			OpenTime:                time.UnixMilli(resp[x][0].Int64()),
+			Open:                    resp[x][1].Float64(),
+			High:                    resp[x][2].Float64(),
+			Low:                     resp[x][3].Float64(),
+			Close:                   resp[x][4].Float64(),
+			Volume:                  resp[x][5].Float64(),
+			CloseTime:               time.UnixMilli(resp[x][6].Int64()),
+			QuoteAssetVolume:        resp[x][7].Float64(),
+			NumberOfTrades:          resp[x][8].Int64(),
+			TakerBuyVolume:          resp[x][9].Float64(),
+			TakerBuyBaseAssetVolume: resp[x][10].Float64(),
+		}
+	}
+	return result, nil
+}
+
+// GetIndexOrCandlesticPriceKlineData kline/candlestick bars for the index price of a pair.
+// Klines are uniquely identified by their open time.
+func (b *Binance) GetIndexOrCandlesticPriceKlineData(ctx context.Context, pair currency.Pair, interval string, startTime, endTime time.Time, limit int64) ([]FuturesCandleStick, error) {
+	if pair.IsEmpty() {
+		return nil, currency.ErrCurrencyPairEmpty
+	}
+	if !common.StringDataCompare(validFuturesIntervals, interval) {
+		return nil, errors.New("invalid interval")
+	}
+	params := url.Values{}
+	params.Set("pair", pair.String())
+	params.Set("interval", interval)
+	if !startTime.IsZero() && !endTime.IsZero() {
+		if startTime.After(endTime) {
+			return nil, errors.New("startTime cannot be after endTime")
+		}
+		params.Set("startTime", timeString(startTime))
+		params.Set("endTime", timeString(endTime))
+	}
+	rateBudget := uFuturesDefaultRate
+	switch {
+	case limit > 0 && limit <= 100:
+		rateBudget = uFuturesKline100Rate
+	case limit > 100 && limit <= 500:
+		rateBudget = uFuturesKline500Rate
+	case limit > 500 && limit <= 1000:
+		rateBudget = uFuturesKline1000Rate
+	case limit > 1000:
+		rateBudget = uFuturesKlineMaxRate
+	}
+	var resp []FuturesCandleStick
+	return resp, b.SendHTTPRequest(ctx, exchange.RestUSDTMargined, common.EncodeURLValues("/fapi/v1/indexPriceKlines", params), rateBudget, &resp)
 }
 
 // UGetMarkPrice gets mark price data for USDTMarginedFutures

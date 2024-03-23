@@ -72,6 +72,7 @@ type FuturesCandleStick struct {
 	Volume                  float64
 	CloseTime               time.Time
 	BaseAssetVolume         float64
+	QuoteAssetVolume        float64
 	NumberOfTrades          int64
 	TakerBuyVolume          float64
 	TakerBuyBaseAssetVolume float64

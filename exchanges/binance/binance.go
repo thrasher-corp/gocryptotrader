@@ -1653,7 +1653,7 @@ func (b *Binance) SwitchOnOffBUSDAndStableCoinsConversion(ctx context.Context, c
 	params := url.Values{}
 	params.Set("coin", coin.String())
 	params.Set("enable", strconv.FormatBool(enable))
-	return b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "capital/contract/convertible-coins", params, spotDefaultRate, &struct{}{})
+	return b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/sapi/v1/capital/contract/convertible-coins", params, spotDefaultRate, &struct{}{})
 }
 
 // OneClickArrivalDepositApply apply deposit credit for expired address
@@ -1672,7 +1672,7 @@ func (b *Binance) OneClickArrivalDepositApply(ctx context.Context, transactionID
 		params.Set("subUserID", strconv.FormatInt(subUserID, 10))
 	}
 	var resp bool
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "capital/deposit/credit-apply", params, spotDefaultRate, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/sapi/v1/capital/deposit/credit-apply", params, spotDefaultRate, &resp)
 }
 
 // GetDepositAddressListWithNetwork fetch deposit address list with network.
@@ -1686,13 +1686,13 @@ func (b *Binance) GetDepositAddressListWithNetwork(ctx context.Context, coin cur
 		params.Set("network", network)
 	}
 	var resp []DepositAddressAndNetwork
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "capital/deposit/address/list", params, spotDefaultRate, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/capital/deposit/address/list", params, spotDefaultRate, &resp)
 }
 
 // GetUserWalletBalance retrieves user wallet balance.
 func (b *Binance) GetUserWalletBalance(ctx context.Context) ([]UserWalletBalance, error) {
 	var resp []UserWalletBalance
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "asset/wallet/balance", nil, spotDefaultRate, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/asset/wallet/balance", nil, spotDefaultRate, &resp)
 }
 
 // GetUserDelegationHistory query User Delegation History for Master account.
@@ -1722,13 +1722,13 @@ func (b *Binance) GetUserDelegationHistory(ctx context.Context, email, delegatio
 		params.Set("size", strconv.FormatFloat(size, 'f', -1, 64))
 	}
 	var resp *UserDelegationHistory
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "asset/custody/transfer-history", params, spotDefaultRate, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/asset/custody/transfer-history", params, spotDefaultRate, &resp)
 }
 
 // GetSymbolsDelistScheduleForSpot symbols delist schedule for spot
 func (b *Binance) GetSymbolsDelistScheduleForSpot(ctx context.Context) ([]DelistSchedule, error) {
 	var resp []DelistSchedule
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "spot/delist-schedule", nil, spotDefaultRate, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/spot/delist-schedule", nil, spotDefaultRate, &resp)
 }
 
 // --------------------------------------------------    ---------------------------------------------------------------------------------
@@ -1740,7 +1740,7 @@ func (b *Binance) CreateVirtualSubAccount(ctx context.Context, subAccountString 
 		params.Set("subAccountString", subAccountString)
 	}
 	var resp *VirtualSubAccount
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "sub-account/virtualSubAccount", params, spotDefaultRate, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/sub-account/virtualSubAccount", params, spotDefaultRate, &resp)
 }
 
 // GetSubAccountList retrieves sub-account list for Master Account
@@ -1759,7 +1759,7 @@ func (b *Binance) GetSubAccountList(ctx context.Context, email string, isFreeze 
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	var resp *SubAccountList
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "sub-account/list", params, spotDefaultRate, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/sub-account/list", params, spotDefaultRate, &resp)
 }
 
 // GetSubAccountSpotAssetTransferHistory represents sub-account spot asset transfer history for master account
@@ -1785,7 +1785,7 @@ func (b *Binance) GetSubAccountSpotAssetTransferHistory(ctx context.Context, fro
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	var resp []SubAccountSpotAsset
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "sub-account/sub/transfer/history", params, spotDefaultRate, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/sub-account/sub/transfer/history", params, spotDefaultRate, &resp)
 }
 
 // GetSubAccountFuturesAssetTransferHistory Query Sub-account Futures Asset Transfer History For Master Account
@@ -1812,7 +1812,7 @@ func (b *Binance) GetSubAccountFuturesAssetTransferHistory(ctx context.Context, 
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	var resp *AssetTransferHistory
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "sub-account/futures/internalTransfer", params, spotDefaultRate, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/sub-account/futures/internalTransfer", params, spotDefaultRate, &resp)
 }
 
 // SubAccountFuturesAssetTransfer sub-account futures asset transfer for master account
@@ -1836,7 +1836,7 @@ func (b *Binance) SubAccountFuturesAssetTransfer(ctx context.Context, fromEmail,
 	}
 	params := url.Values{}
 	var resp *FuturesAssetTransfer
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "sub-account/futures/internalTransfer", params, spotDefaultRate, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/sapi/v1/sub-account/futures/internalTransfer", params, spotDefaultRate, &resp)
 }
 
 // GetSubAccountAssets sub-account assets for master account
@@ -1847,7 +1847,7 @@ func (b *Binance) GetSubAccountAssets(ctx context.Context, email string) (*SubAc
 	params := url.Values{}
 	params.Set("email", email)
 	var resp *SubAccountAssets
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "sub-account/assets", params, spotDefaultRate, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v4/sub-account/assets", params, spotDefaultRate, &resp)
 }
 
 // GetManagedSubAccountList retrieves investor's managed sub-account list.
@@ -1863,7 +1863,7 @@ func (b *Binance) GetManagedSubAccountList(ctx context.Context, email string, pa
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	var resp *ManagedSubAccountList
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "managed-subaccount/info", params, spotDefaultRate, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/managed-subaccount/info", params, spotDefaultRate, &resp)
 }
 
 // GetSubAccountTransactionStatistics retrieves sub-account Transaction statistics (For Master Account)(USER_DATA).
@@ -1874,7 +1874,7 @@ func (b *Binance) GetSubAccountTransactionStatistics(ctx context.Context, email 
 	params := url.Values{}
 	params.Set("email", email)
 	var resp []SubAccountTransactionStatistics
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "sub-account/transaction-statistics", params, spotDefaultRate, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/sub-account/transaction-statistics", params, spotDefaultRate, &resp)
 }
 
 // GetManagedSubAccountDepositAddress retrieves investor's managed sub-account deposit address.
@@ -1891,7 +1891,7 @@ func (b *Binance) GetManagedSubAccountDepositAddress(ctx context.Context, coin c
 	params.Set("email", email)
 	params.Set("network", network)
 	var resp *ManagedSubAccountDepositAddres
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "managed-subaccount/deposit/address", params, spotDefaultRate, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/managed-subaccount/deposit/address", params, spotDefaultRate, &resp)
 }
 
 // EnableOptionsForSubAccount enables options for sub-account(For master account)
@@ -1902,7 +1902,7 @@ func (b *Binance) EnableOptionsForSubAccount(ctx context.Context, email string) 
 	params := url.Values{}
 	params.Set("email", email)
 	var resp *OptionsEnablingResponse
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "sub-account/eoptions/enable", params, spotDefaultRate, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/sapi/v1/sub-account/eoptions/enable", params, spotDefaultRate, &resp)
 }
 
 // GetManagedSubAccountTransferLog retrieves managed sub account transfer Log (For Trading Team Sub Account)
@@ -1932,7 +1932,7 @@ func (b *Binance) GetManagedSubAccountTransferLog(ctx context.Context, startTime
 		params.Set("transferFunctionAccountType", transferFunctionAccountType)
 	}
 	var resp *ManagedSubAccountTransferLog
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "managed-subaccount/query-trans-log", params, spotDefaultRate, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/managed-subaccount/query-trans-log", params, spotDefaultRate, &resp)
 }
 
 // GetSubAccountSpotAssetsSummary retrieves BTC valued asset summary of subaccounts.
@@ -1948,7 +1948,7 @@ func (b *Binance) GetSubAccountSpotAssetsSummary(ctx context.Context, email stri
 		params.Set("size", strconv.FormatInt(size, 10))
 	}
 	var resp *SubAccountSpotSummary
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "sub-account/spotSummary", params, spotDefaultRate, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/sub-account/spotSummary", params, spotDefaultRate, &resp)
 }
 
 // GetSubAccountDepositAddress sub-account deposit address
@@ -1967,7 +1967,7 @@ func (b *Binance) GetSubAccountDepositAddress(ctx context.Context, email, coin, 
 		params.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
 	}
 	var resp *SubAccountDepositAddress
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "capital/deposit/subAddress", params, spotDefaultRate, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/capital/deposit/subAddress", params, spotDefaultRate, &resp)
 }
 
 // GetSubAccountDepositHistory retrieves sub-account deposit history
@@ -1997,7 +1997,7 @@ func (b *Binance) GetSubAccountDepositHistory(ctx context.Context, email, coin s
 		params.Set("offset", strconv.FormatInt(offset, 10))
 	}
 	var resp *SubAccountDepositHistory
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "capital/deposit/subHisrec", params, spotDefaultRate, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/sapi/v1/capital/deposit/subHisrec", params, spotDefaultRate, &resp)
 }
 
 // GetSubAccountStatusOnMarginFutures sub-account's status on Margin/Futures for master account
@@ -2007,7 +2007,7 @@ func (b *Binance) GetSubAccountStatusOnMarginFutures(ctx context.Context, email 
 		params.Set("email", email)
 	}
 	var resp *SubAccountStatus
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "sub-account/status", params, spotDefaultRate, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/sub-account/status", params, spotDefaultRate, &resp)
 }
 
 // EnableMarginForSubAccount Enable Margin for Sub-account For Master Account
@@ -2018,7 +2018,7 @@ func (b *Binance) EnableMarginForSubAccount(ctx context.Context, email string) (
 	params := url.Values{}
 	params.Set("email", email)
 	var resp *MarginEnablingResponse
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "sub-account/margin/enable", params, spotDefaultRate, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/sapi/v1/sub-account/margin/enable", params, spotDefaultRate, &resp)
 }
 
 // GetDetailOnSubAccountMarginAccount retrieves Detail on Sub-account's Margin Account For Master Account
@@ -2029,13 +2029,13 @@ func (b *Binance) GetDetailOnSubAccountMarginAccount(ctx context.Context, email 
 	params := url.Values{}
 	params.Set("email", email)
 	var resp *SubAccountMarginAccountDetail
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "sub-account/margin/account", params, spotDefaultRate, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/sub-account/margin/account", params, spotDefaultRate, &resp)
 }
 
 // GetSummaryOfSubAccountMarginAccount retrieves summary of sub-account's margin account for master account
 func (b *Binance) GetSummaryOfSubAccountMarginAccount(ctx context.Context) (*SubAccountMarginAccount, error) {
 	var resp *SubAccountMarginAccount
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "sub-account/margin/accountSummary", nil, spotDefaultRate, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/sub-account/margin/accountSummary", nil, spotDefaultRate, &resp)
 }
 
 // EnableFuturesSubAccount enables futures for Sub-account for master account
@@ -2046,7 +2046,7 @@ func (b *Binance) EnableFuturesSubAccount(ctx context.Context, email string) (*F
 	params := url.Values{}
 	params.Set("email", email)
 	var resp *FuturesEnablingResponse
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "sub-account/futures/enable", params, spotDefaultRate, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/sub-account/futures/enable", params, spotDefaultRate, &resp)
 }
 
 // GetDetailSubAccountFuturesAccount retrieves detail on sub-account's futures account for master account
@@ -2057,13 +2057,13 @@ func (b *Binance) GetDetailSubAccountFuturesAccount(ctx context.Context, email s
 	params := url.Values{}
 	params.Set("email", email)
 	var resp *SubAccountsFuturesAccount
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "sub-account/futures/account", params, spotDefaultRate, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/sub-account/futures/accountSummary", params, spotDefaultRate, &resp)
 }
 
 // GetSummaryOfSubAccountFuturesAccount retrieves summary of sub-account's futures account for master account
 func (b *Binance) GetSummaryOfSubAccountFuturesAccount(ctx context.Context) (*SubAccountsFuturesAccount, error) {
 	var resp *SubAccountsFuturesAccount
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "sub-account/futures/accountSummary", nil, spotDefaultRate, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/sub-account/futures/accountSummary", nil, spotDefaultRate, &resp)
 }
 
 // GetFuturesPositionRiskSubAccount retrieves futures position-risk of sub-account for master account
@@ -2074,7 +2074,7 @@ func (b *Binance) GetFuturesPositionRiskSubAccount(ctx context.Context, email st
 	params := url.Values{}
 	params.Set("email", email)
 	var resp *SubAccountFuturesPositionRisk
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "sub-account/futures/positionRisk", params, spotDefaultRate, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v2/sub-account/futures/positionRisk", params, spotDefaultRate, &resp)
 }
 
 // EnableLeverageTokenForSubAccount enables leverage token sub-account form master account.
@@ -2090,7 +2090,7 @@ func (b *Binance) EnableLeverageTokenForSubAccount(ctx context.Context, email st
 		params.Set("enableElvt", "false")
 	}
 	var resp *LeverageToken
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "sub-account/blvt/enable", params, spotDefaultRate, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/sapi/v1/sub-account/blvt/enable", params, spotDefaultRate, &resp)
 }
 
 // GetIPRestrictionForSubAccountAPIKey retrieves list of IP addresses restricted for the sub account API key(for master account).
@@ -2105,7 +2105,7 @@ func (b *Binance) GetIPRestrictionForSubAccountAPIKey(ctx context.Context, email
 	params.Set("email", email)
 	params.Set("subAccountApiKey", subAccountAPIKey)
 	var resp *APIRestrictions
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "sub-account/subAccountApi/ipRestriction", params, spotDefaultRate, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/sub-account/subAccountApi/ipRestriction", params, spotDefaultRate, &resp)
 }
 
 // DeleteIPListForSubAccountAPIKey delete IP list for a sub-account API key (For Master Account)
@@ -2123,7 +2123,7 @@ func (b *Binance) DeleteIPListForSubAccountAPIKey(ctx context.Context, email, su
 		params.Set("ipAddress", ipAddress)
 	}
 	var resp *APIRestrictions
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodDelete, "sub-account/subAccountApi/ipRestriction/ipList", params, spotDefaultRate, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodDelete, "/sapi/v1/sub-account/subAccountApi/ipRestriction/ipList", params, spotDefaultRate, &resp)
 }
 
 // AddIPRestrictionForSubAccountAPIkey adds an IP address into the restricted IP addresses for the subaccount
@@ -2146,7 +2146,7 @@ func (b *Binance) AddIPRestrictionForSubAccountAPIkey(ctx context.Context, email
 		params.Set("ipAddress", ipAddress)
 	}
 	var resp *APIRestrictions
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "sub-account/subAccountApi/ipRestriction/ipList", params, spotDefaultRate, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/sapi/v1/sub-account/subAccountApi/ipRestriction/ipList", params, spotDefaultRate, &resp)
 }
 
 // DepositAssetsIntoTheManagedSubAccount deposits an asset into managed sub-account (for investor master account).
@@ -2167,7 +2167,7 @@ func (b *Binance) DepositAssetsIntoTheManagedSubAccount(ctx context.Context, toE
 	resp := &struct {
 		TransactionID string `json:"tranId"`
 	}{}
-	return resp.TransactionID, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "managed-subaccount/deposit", params, spotDefaultRate, &resp)
+	return resp.TransactionID, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/sapi/v1/managed-subaccount/deposit", params, spotDefaultRate, &resp)
 }
 
 // GetManagedSubAccountAssetsDetails retrieves managed sub-account assets details for investor master accounts.
@@ -2178,7 +2178,7 @@ func (b *Binance) GetManagedSubAccountAssetsDetails(ctx context.Context, email s
 	params := url.Values{}
 	params.Set("email", email)
 	var resp []ManagedSubAccountAssetInfo
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "managed-subaccount/asset", params, spotDefaultRate, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/managed-subaccount/asset", params, spotDefaultRate, &resp)
 }
 
 // WithdrawAssetsFromManagedSubAccount withdraws an asset from managed sub-account(for investor master account).
@@ -2202,7 +2202,7 @@ func (b *Binance) WithdrawAssetsFromManagedSubAccount(ctx context.Context, fromE
 	resp := &struct {
 		TransactionID string `json:"tranId"`
 	}{}
-	return resp.TransactionID, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "managed-subaccount/withdraw", params, spotDefaultRate, &resp)
+	return resp.TransactionID, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/sapi/v1/managed-subaccount/withdraw", params, spotDefaultRate, &resp)
 }
 
 // GetManagedSubAccountSnapshot retrieves managed sub-account snapshot for investor master account.
@@ -2224,21 +2224,21 @@ func (b *Binance) GetManagedSubAccountSnapshot(ctx context.Context, email, asset
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	var resp *SubAccountAssetsSnapshot
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "managed-subaccount/accountSnapshot", params, spotDefaultRate, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/managed-subaccount/accountSnapshot", params, spotDefaultRate, &resp)
 }
 
 // GetManagedSubAccountTransferLogForInvestorMasterAccount retrieves  managed sub account transfer log. This endpoint is available for investor of Managed Sub-Account.
 // A Managed Sub-Account is an account type for investors who value flexibility in asset allocation and account application,
 // while delegating trades to a professional trading team.
 func (b *Binance) GetManagedSubAccountTransferLogForInvestorMasterAccount(ctx context.Context, email string, startTime, endTime time.Time, page, limit int64) (*SubAccountTransferLog, error) {
-	return b.getManagedSubAccountTransferLog(ctx, email, "managed-subaccount/queryTransLogForInvestor", startTime, endTime, page, limit)
+	return b.getManagedSubAccountTransferLog(ctx, email, "/sapi/v1/managed-subaccount/queryTransLogForInvestor", startTime, endTime, page, limit)
 }
 
 // GetManagedSubAccountTransferLogForTradingTeam retrieves managed sub account transfer log.
 // This endpoint is available for investor of Managed Sub-Account. A Managed Sub-Account is an account type for investors who value flexibility in asset allocation and account application,
 // while delegating trades to a professional trading team.
 func (b *Binance) GetManagedSubAccountTransferLogForTradingTeam(ctx context.Context, email string, startTime, endTime time.Time, page, limit int64) (*SubAccountTransferLog, error) {
-	return b.getManagedSubAccountTransferLog(ctx, email, "managed-subaccount/queryTransLogForTradeParent", startTime, endTime, page, limit)
+	return b.getManagedSubAccountTransferLog(ctx, email, "/sapi/v1/managed-subaccount/queryTransLogForTradeParent", startTime, endTime, page, limit)
 }
 
 func (b *Binance) getManagedSubAccountTransferLog(ctx context.Context, email, path string, startTime, endTime time.Time, page, limit int64) (*SubAccountTransferLog, error) {
@@ -2273,7 +2273,7 @@ func (b *Binance) GetManagedSubAccountFutureesAssetDetails(ctx context.Context, 
 	params := url.Values{}
 	params.Set("email", email)
 	var resp *ManagedSubAccountFuturesAssetDetail
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "managed-subaccount/fetch-future-asset", params, spotDefaultRate, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/managed-subaccount/fetch-future-asset", params, spotDefaultRate, &resp)
 }
 
 // GetManagedSubAccountMarginAssetDetails retrieves managed sub-account margin asset details.
@@ -2284,20 +2284,20 @@ func (b *Binance) GetManagedSubAccountMarginAssetDetails(ctx context.Context, em
 	params := url.Values{}
 	params.Set("email", email)
 	var resp *SubAccountMarginAsset
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "managed-subaccount/marginAsset", params, spotDefaultRate, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/managed-subaccount/marginAsset", params, spotDefaultRate, &resp)
 }
 
 // FuturesTransferSubAccount transfers futures for sub-account( from master account only)
 // 1: transfer from subaccount's spot account to its USDT-margined futures account 2: transfer from subaccount's USDT-margined futures account to its spot account
 // 3: transfer from subaccount's spot account to its COIN-margined futures account 4:transfer from subaccount's COIN-margined futures account to its spot account
 func (b *Binance) FuturesTransferSubAccount(ctx context.Context, email string, asset currency.Code, amount float64, transferType int64) (string, error) {
-	return b.transferSubAccount(ctx, email, "sub-account/futures/transfer", asset, amount, transferType)
+	return b.transferSubAccount(ctx, email, "/sapi/v1/sub-account/futures/transfer", asset, amount, transferType)
 }
 
 // MarginTransferForSubAccount margin Transfer for Sub-account (For Master Account)
 // transferType: 1: transfer from subaccount's spot account to margin account 2: transfer from subaccount's margin account to its spot account
 func (b *Binance) MarginTransferForSubAccount(ctx context.Context, email string, asset currency.Code, amount float64, transferType int64) (string, error) {
-	return b.transferSubAccount(ctx, email, "sub-account/margin/transfer", asset, amount, transferType)
+	return b.transferSubAccount(ctx, email, "/sapi/v1/sub-account/margin/transfer", asset, amount, transferType)
 }
 
 func (b *Binance) transferSubAccount(ctx context.Context, email, path string, asset currency.Code, amount float64, transferType int64) (string, error) {
@@ -2342,7 +2342,7 @@ func (b *Binance) TransferToSubAccountOfSameMaster(ctx context.Context, toEmail 
 	resp := &struct {
 		TransactionID string `json:"txnId"`
 	}{}
-	return resp.TransactionID, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "sub-account/transfer/subToSub", params, spotDefaultRate, &resp)
+	return resp.TransactionID, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/sub-account/transfer/subToSub", params, spotDefaultRate, &resp)
 }
 
 // FromSubAccountTransferToMaster Transfer to Master (For Sub-account)
@@ -2360,7 +2360,7 @@ func (b *Binance) FromSubAccountTransferToMaster(ctx context.Context, asset curr
 	resp := &struct {
 		TransactionID string `json:"txnId"`
 	}{}
-	return resp.TransactionID, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "sub-account/transfer/subToMaster", params, spotDefaultRate, &resp)
+	return resp.TransactionID, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/sub-account/transfer/subToMaster", params, spotDefaultRate, &resp)
 }
 
 // SubAccountTransferHistory retrieves Sub-account Transfer History (For Sub-account)
@@ -2382,7 +2382,7 @@ func (b *Binance) SubAccountTransferHistory(ctx context.Context, asset currency.
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	var resp *SubAccountTransferHistory
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "sub-account/transfer/subUserHistory", params, spotDefaultRate, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/sub-account/transfer/subUserHistory", params, spotDefaultRate, &resp)
 }
 
 // SubAccountTransferHistoryForSubAccount represents a sub-account transfer history for sub accounts.
@@ -2407,7 +2407,7 @@ func (b *Binance) SubAccountTransferHistoryForSubAccount(ctx context.Context, as
 		params.Set("returnFailHistory", "true")
 	}
 	var resp *SubAccountTransferHistoryItem
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "sub-account/transfer/subUserHistory", params, spotDefaultRate, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/sub-account/transfer/subUserHistory", params, spotDefaultRate, &resp)
 }
 
 // UniversalTransferForMasterAccount submits a universal transfer using the master account.
@@ -2445,7 +2445,7 @@ func (b *Binance) UniversalTransferForMasterAccount(ctx context.Context, arg *Un
 		params.Set("symbol", arg.Symbol)
 	}
 	var resp *UniversalTransferResponse
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "sub-account/universalTransfer", params, spotDefaultRate, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/sapi/v1/sub-account/universalTransfer", params, spotDefaultRate, &resp)
 }
 
 // GetUniversalTransferHistoryForMasterAccount retrieves universal transfer history for master account.
@@ -2474,7 +2474,7 @@ func (b *Binance) GetUniversalTransferHistoryForMasterAccount(ctx context.Contex
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	var resp *UniversalTransfersDetail
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "sub-account/universalTransfer", params, spotDefaultRate, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/sub-account/universalTransfer", params, spotDefaultRate, &resp)
 }
 
 // GetDetailOnSubAccountsFuturesAccountV2 retrieves detail on sub-account's futures account V2 for master account
@@ -2487,7 +2487,7 @@ func (b *Binance) GetDetailOnSubAccountsFuturesAccountV2(ctx context.Context, em
 	}
 	params := url.Values{}
 	var resp *MarginedFuturesAccount
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "sub-account/futures/account", params, spotDefaultRate, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v2/sub-account/futures/account", params, spotDefaultRate, &resp)
 }
 
 // GetSummaryOfSubAccountsFuturesAccountV2 retrieves the summary of sub-account's futures account v2 for master account
@@ -2503,7 +2503,7 @@ func (b *Binance) GetSummaryOfSubAccountsFuturesAccountV2(ctx context.Context, f
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	var resp *AccountSummary
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "sub-account/futures/accountSummary", params, spotDefaultRate, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v2/sub-account/futures/accountSummary", params, spotDefaultRate, &resp)
 }
 
 // GetAccountStatus fetch account status detail.
