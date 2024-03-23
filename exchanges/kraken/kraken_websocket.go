@@ -218,7 +218,7 @@ func (k *Kraken) wsHandleData(respRaw []byte) error {
 					return fmt.Errorf("%w 'reqid': %w from message: %s", errParsingWSField, err, respRaw)
 				}
 				if !k.Websocket.Match.IncomingWithData(id, respRaw) {
-					return fmt.Errorf("%v cancel order listener not found", id)
+					return fmt.Errorf("%w: %s %v", stream.ErrNoMessageListener, event, id)
 				}
 			case krakenWsCancelAllOrderStatus:
 				var status WsCancelOrderResponse
