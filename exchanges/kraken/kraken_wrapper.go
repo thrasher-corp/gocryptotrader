@@ -851,8 +851,7 @@ func (k *Kraken) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Submi
 	return resp, nil
 }
 
-// ModifyOrder will allow of changing orderbook placement and limit to
-// market conversion
+// ModifyOrder will allow of changing orderbook placement and limit to market conversion
 func (k *Kraken) ModifyOrder(_ context.Context, _ *order.Modify) (*order.ModifyResponse, error) {
 	return nil, common.ErrFunctionNotSupported
 }
@@ -884,7 +883,7 @@ func (k *Kraken) CancelOrder(ctx context.Context, o *order.Cancel) error {
 // CancelBatchOrders cancels an orders by their corresponding ID numbers
 func (k *Kraken) CancelBatchOrders(_ context.Context, o []order.Cancel) (*order.CancelBatchResponse, error) {
 	if !k.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
-		return nil, common.ErrFunctionNotSupported
+		return nil, exchange.ErrAuthenticationSupportNotEnabled
 	}
 
 	ordersList := make([]string, len(o))
