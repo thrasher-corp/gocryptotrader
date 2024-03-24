@@ -197,6 +197,21 @@ func TestGetIndexOrCandlesticPriceKlineData(t *testing.T) {
 	assert.NotNil(t, result)
 }
 
+func TestGetMarkPriceKlineCandlesticks(t *testing.T) {
+	t.Parallel()
+	result, err := b.GetMarkPriceKlineCandlesticks(context.Background(), "BTCUSDT", "1d", time.Time{}, time.Time{}, 10)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetPremiumIndexKlineCandlesticks(t *testing.T) {
+	t.Parallel()
+	b.Verbose = true
+	result, err := b.GetPremiumIndexKlineCandlesticks(context.Background(), "BTCUSDT", "1d", time.Time{}, time.Time{}, 10)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
 func TestUGetMarkPrice(t *testing.T) {
 	t.Parallel()
 	_, err := b.UGetMarkPrice(context.Background(), currency.NewPair(currency.BTC, currency.USDT))
@@ -224,10 +239,21 @@ func TestU24HTickerPriceChangeStats(t *testing.T) {
 
 func TestUSymbolPriceTicker(t *testing.T) {
 	t.Parallel()
-	_, err := b.USymbolPriceTicker(context.Background(), currency.NewPair(currency.BTC, currency.USDT))
+	_, err := b.USymbolPriceTickerV1(context.Background(), currency.NewPair(currency.BTC, currency.USDT))
 	assert.NoError(t, err)
-	_, err = b.USymbolPriceTicker(context.Background(), currency.EMPTYPAIR)
+	_, err = b.USymbolPriceTickerV1(context.Background(), currency.EMPTYPAIR)
 	assert.NoError(t, err)
+}
+
+func TestUSymbolPriceTickerV2(t *testing.T) {
+	t.Parallel()
+	b.Verbose = true
+	result, err := b.USymbolPriceTickerV2(context.Background(), currency.NewPair(currency.BTC, currency.USDT))
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+	result, err = b.USymbolPriceTickerV2(context.Background(), currency.EMPTYPAIR)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
 }
 
 func TestUSymbolOrderbookTicker(t *testing.T) {
@@ -242,6 +268,15 @@ func TestUOpenInterest(t *testing.T) {
 	t.Parallel()
 	_, err := b.UOpenInterest(context.Background(), currency.NewPair(currency.BTC, currency.USDT))
 	assert.NoError(t, err)
+}
+
+func TestGetQuarterlyContractSettlementPrice(t *testing.T) {
+	t.Parallel()
+	result, err := b.GetQuarterlyContractSettlementPrice(context.Background(), currency.NewPair(currency.BTC, currency.USDT))
+	require.NoError(t, err)
+	require.NotNil(t, result)
+	_, err = b.GetQuarterlyContractSettlementPrice(context.Background(), currency.EMPTYPAIR)
+	assert.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 }
 
 func TestUOpenInterestStats(t *testing.T) {
@@ -287,6 +322,26 @@ func TestUTakerBuySellVol(t *testing.T) {
 	assert.NoError(t, err)
 }
 
+func TestGetBasis(t *testing.T) {
+	t.Parallel()
+	result, err := b.GetBasis(context.Background(), currency.NewPair(currency.BTC, currency.USDT), "CURRENT_QUARTER", "15m", time.Time{}, time.Time{}, 20)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+	result, err = b.GetBasis(context.Background(), currency.NewPair(currency.BTC, currency.USDT), "NEXT_QUARTER", "15m", time.Time{}, time.Time{}, 20)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+	result, err = b.GetBasis(context.Background(), currency.NewPair(currency.BTC, currency.USDT), "PERPETUAL", "15m", time.Time{}, time.Time{}, 20)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetHistoricalBLVTNAVCandlesticks(t *testing.T) {
+	t.Parallel()
+	result, err := b.GetHistoricalBLVTNAVCandlesticks(context.Background(), "BTCDOWN", "15m", time.Time{}, time.Time{}, 100)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
 func TestUCompositeIndexInfo(t *testing.T) {
 	t.Parallel()
 	cp, err := currency.NewPairFromString("DEFI-USDT")
@@ -295,6 +350,23 @@ func TestUCompositeIndexInfo(t *testing.T) {
 	assert.NoError(t, err)
 	_, err = b.UCompositeIndexInfo(context.Background(), currency.EMPTYPAIR)
 	assert.NoError(t, err)
+}
+
+func TestGetMultiAssetModeAssetIndex(t *testing.T) {
+	t.Parallel()
+	result, err := b.GetMultiAssetModeAssetIndex(context.Background(), "")
+	require.NoError(t, err)
+	require.NotNil(t, result)
+	result, err = b.GetMultiAssetModeAssetIndex(context.Background(), "BTCUSD")
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetIndexPriceConstituents(t *testing.T) {
+	t.Parallel()
+	result, err := b.GetIndexPriceConstituents(context.Background(), "BTCUSD")
+	require.NoError(t, err)
+	assert.NotNil(t, result)
 }
 
 func TestUFuturesNewOrder(t *testing.T) {
@@ -603,46 +675,46 @@ func TestGetOpenInterestStats(t *testing.T) {
 
 func TestGetTraderFuturesAccountRatio(t *testing.T) {
 	t.Parallel()
-	_, err := b.GetTraderFuturesAccountRatio(context.Background(), "BTCUSD", "5m", 0, time.Time{}, time.Time{})
+	_, err := b.GetTraderFuturesAccountRatio(context.Background(), currency.NewPair(currency.BTC, currency.USD), "5m", 0, time.Time{}, time.Time{})
 	assert.NoError(t, err)
 	start, end := getTime()
-	_, err = b.GetTraderFuturesAccountRatio(context.Background(), "BTCUSD", "5m", 0, start, end)
+	_, err = b.GetTraderFuturesAccountRatio(context.Background(), currency.NewPair(currency.BTC, currency.USD), "5m", 0, start, end)
 	assert.NoError(t, err)
 }
 
 func TestGetTraderFuturesPositionsRatio(t *testing.T) {
 	t.Parallel()
-	_, err := b.GetTraderFuturesPositionsRatio(context.Background(), "BTCUSD", "5m", 0, time.Time{}, time.Time{})
+	_, err := b.GetTraderFuturesPositionsRatio(context.Background(), currency.NewPair(currency.BTC, currency.USD), "5m", 0, time.Time{}, time.Time{})
 	assert.NoError(t, err)
 	start, end := getTime()
-	_, err = b.GetTraderFuturesPositionsRatio(context.Background(), "BTCUSD", "5m", 0, start, end)
+	_, err = b.GetTraderFuturesPositionsRatio(context.Background(), currency.NewPair(currency.BTC, currency.USD), "5m", 0, start, end)
 	assert.NoError(t, err)
 }
 
 func TestGetMarketRatio(t *testing.T) {
 	t.Parallel()
-	_, err := b.GetMarketRatio(context.Background(), "BTCUSD", "5m", 0, time.Time{}, time.Time{})
+	_, err := b.GetMarketRatio(context.Background(), currency.NewPair(currency.BTC, currency.USD), "5m", 0, time.Time{}, time.Time{})
 	assert.NoError(t, err)
 	start, end := getTime()
-	_, err = b.GetMarketRatio(context.Background(), "BTCUSD", "5m", 0, start, end)
+	_, err = b.GetMarketRatio(context.Background(), currency.NewPair(currency.BTC, currency.USD), "5m", 0, start, end)
 	assert.NoError(t, err)
 }
 
 func TestGetFuturesTakerVolume(t *testing.T) {
 	t.Parallel()
-	_, err := b.GetFuturesTakerVolume(context.Background(), "BTCUSD", "ALL", "5m", 0, time.Time{}, time.Time{})
+	_, err := b.GetFuturesTakerVolume(context.Background(), currency.NewPair(currency.BTC, currency.USD), "ALL", "5m", 0, time.Time{}, time.Time{})
 	assert.NoError(t, err)
 	start, end := getTime()
-	_, err = b.GetFuturesTakerVolume(context.Background(), "BTCUSD", "ALL", "5m", 0, start, end)
+	_, err = b.GetFuturesTakerVolume(context.Background(), currency.NewPair(currency.BTC, currency.USD), "ALL", "5m", 0, start, end)
 	assert.NoError(t, err)
 }
 
 func TestFuturesBasisData(t *testing.T) {
 	t.Parallel()
-	_, err := b.GetFuturesBasisData(context.Background(), "BTCUSD", "CURRENT_QUARTER", "5m", 0, time.Time{}, time.Time{})
+	_, err := b.GetFuturesBasisData(context.Background(), currency.NewPair(currency.BTC, currency.USD), "CURRENT_QUARTER", "5m", 0, time.Time{}, time.Time{})
 	assert.NoError(t, err)
 	start, end := getTime()
-	_, err = b.GetFuturesBasisData(context.Background(), "BTCUSD", "CURRENT_QUARTER", "5m", 0, start, end)
+	_, err = b.GetFuturesBasisData(context.Background(), currency.NewPair(currency.BTC, currency.USD), "CURRENT_QUARTER", "5m", 0, start, end)
 	assert.NoError(t, err)
 }
 
@@ -3996,6 +4068,34 @@ func TestGetAccountTradeList(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	result, err := b.GetAccountTradeList(context.Background(), "BTCLTC", "", time.Time{}, time.Now().Add(-time.Hour*24), 0, 10)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestUnmarshalJSONForAssetIndex(t *testing.T) {
+	t.Parallel()
+	var resp AssetIndexResponse
+	data := [][]byte{
+		[]byte(`{ "symbol": "ADAUSD", "time": 1635740268004, "index": "1.92957370", "bidBuffer": "0.10000000", "askBuffer": "0.10000000", "bidRate": "1.73661633", "askRate": "2.12253107", "autoExchangeBidBuffer": "0.05000000", "autoExchangeAskBuffer": "0.05000000", "autoExchangeBidRate": "1.83309501", "autoExchangeAskRate": "2.02605238" }`),
+		[]byte(`[ { "symbol": "ADAUSD", "time": 1635740268004, "index": "1.92957370", "bidBuffer": "0.10000000", "askBuffer": "0.10000000", "bidRate": "1.73661633", "askRate": "2.12253107", "autoExchangeBidBuffer": "0.05000000", "autoExchangeAskBuffer": "0.05000000", "autoExchangeBidRate": "1.83309501", "autoExchangeAskRate": "2.02605238" } ]`),
+	}
+	err := json.Unmarshal(data[0], &resp)
+	require.NoError(t, err)
+	err = json.Unmarshal(data[1], &resp)
+	assert.NoError(t, err)
+}
+
+func TestChangePositionMode(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	err := b.ChangePositionMode(context.Background(), false)
+	assert.NoError(t, err)
+}
+
+func TestGetCurrentPositionMode(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetCurrentPositionMode(context.Background())
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }

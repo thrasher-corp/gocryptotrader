@@ -115,8 +115,8 @@ func (b *Binance) GetExchangeServerTime(ctx context.Context) (time.Time, error) 
 
 // GetExchangeInfo returns exchange information. Check binance_types for more
 // information
-func (b *Binance) GetExchangeInfo(ctx context.Context) (ExchangeInfo, error) {
-	var resp ExchangeInfo
+func (b *Binance) GetExchangeInfo(ctx context.Context) (*ExchangeInfo, error) {
+	var resp *ExchangeInfo
 	return resp, b.SendHTTPRequest(ctx,
 		exchange.RestSpotSupplementary, "/api/v3/exchangeInfo", spotExchangeInfo, &resp)
 }
@@ -170,19 +170,16 @@ func (b *Binance) GetOrderBook(ctx context.Context, obd OrderBookDataRequestPara
 // GetMostRecentTrades returns recent trade activity
 // limit: Up to 500 results returned
 func (b *Binance) GetMostRecentTrades(ctx context.Context, rtr RecentTradeRequestParams) ([]RecentTrade, error) {
-	params := url.Values{}
 	symbol, err := b.FormatSymbol(rtr.Symbol, asset.Spot)
 	if err != nil {
 		return nil, err
 	}
+	params := url.Values{}
 	params.Set("symbol", symbol)
 	params.Set("limit", strconv.FormatInt(rtr.Limit, 10))
-
-	path := "/api/v3/trades?" + params.Encode()
-
 	var resp []RecentTrade
 	return resp, b.SendHTTPRequest(ctx,
-		exchange.RestSpotSupplementary, path, spotDefaultRate, &resp)
+		exchange.RestSpotSupplementary, "/api/v3/trades?"+params.Encode(), spotDefaultRate, &resp)
 }
 
 // GetHistoricalTrades returns historical trade activity
@@ -191,15 +188,14 @@ func (b *Binance) GetMostRecentTrades(ctx context.Context, rtr RecentTradeReques
 // limit: Optional. Default 500; max 1000.
 // fromID:
 func (b *Binance) GetHistoricalTrades(ctx context.Context, symbol string, limit int, fromID int64) ([]HistoricalTrade, error) {
-	var resp []HistoricalTrade
 	params := url.Values{}
-
 	params.Set("symbol", symbol)
 	params.Set("limit", strconv.Itoa(limit))
 	// else return most recent trades
 	if fromID > 0 {
 		params.Set("fromId", strconv.FormatInt(fromID, 10))
 	}
+	var resp []HistoricalTrade
 	return resp,
 		b.SendAPIKeyHTTPRequest(ctx, exchange.RestSpotSupplementary, common.EncodeURLValues("/api/v3/historicalTrades", params), spotDefaultRate, &resp)
 }
@@ -207,7 +203,6 @@ func (b *Binance) GetHistoricalTrades(ctx context.Context, symbol string, limit 
 // GetUserMarginInterestHistory returns margin interest history for the user
 func (b *Binance) GetUserMarginInterestHistory(ctx context.Context, assetCurrency currency.Code, isolatedSymbol currency.Pair, startTime, endTime time.Time, currentPage, size int64, archived bool) (*UserMarginInterestHistoryResponse, error) {
 	params := url.Values{}
-
 	if !assetCurrency.IsEmpty() {
 		params.Set("asset", assetCurrency.String())
 	}
@@ -234,8 +229,8 @@ func (b *Binance) GetUserMarginInterestHistory(ctx context.Context, assetCurrenc
 		params.Set("archived", "true")
 	}
 
-	var resp UserMarginInterestHistoryResponse
-	return &resp, b.SendAPIKeyHTTPRequest(ctx, exchange.RestSpotSupplementary, common.EncodeURLValues("/sapi/v1/margin/interestHistory", params), spotDefaultRate, &resp)
+	var resp *UserMarginInterestHistoryResponse
+	return resp, b.SendAPIKeyHTTPRequest(ctx, exchange.RestSpotSupplementary, common.EncodeURLValues("/sapi/v1/margin/interestHistory", params), spotDefaultRate, &resp)
 }
 
 // GetAggregatedTrades returns aggregated trade activity.
@@ -379,7 +374,6 @@ func (b *Binance) retrieveSpotKline(ctx context.Context, arg *KlinesRequestParam
 	if err != nil {
 		return nil, err
 	}
-
 	params := url.Values{}
 	params.Set("symbol", symbol)
 	params.Set("interval", arg.Interval)
@@ -428,40 +422,35 @@ func (b *Binance) retrieveSpotKline(ctx context.Context, arg *KlinesRequestParam
 // GetAveragePrice returns current average price for a symbol.
 //
 // symbol: string of currency pair
-func (b *Binance) GetAveragePrice(ctx context.Context, symbol currency.Pair) (AveragePrice, error) {
-	resp := AveragePrice{}
-	params := url.Values{}
+func (b *Binance) GetAveragePrice(ctx context.Context, symbol currency.Pair) (*AveragePrice, error) {
 	symbolValue, err := b.FormatSymbol(symbol, asset.Spot)
 	if err != nil {
-		return resp, err
+		return nil, err
 	}
+	params := url.Values{}
 	params.Set("symbol", symbolValue)
-
-	path := "/api/v3/avgPrice?" + params.Encode()
-
+	var resp *AveragePrice
 	return resp, b.SendHTTPRequest(ctx,
-		exchange.RestSpotSupplementary, path, spotDefaultRate, &resp)
+		exchange.RestSpotSupplementary, "/api/v3/avgPrice?"+params.Encode(), spotDefaultRate, &resp)
 }
 
 // GetPriceChangeStats returns price change statistics for the last 24 hours
 //
 // symbol: string of currency pair
-func (b *Binance) GetPriceChangeStats(ctx context.Context, symbol currency.Pair) (PriceChangeStats, error) {
-	resp := PriceChangeStats{}
+func (b *Binance) GetPriceChangeStats(ctx context.Context, symbol currency.Pair) (*PriceChangeStats, error) {
 	params := url.Values{}
 	rateLimit := spotPriceChangeAllRate
 	if !symbol.IsEmpty() {
 		rateLimit = spotDefaultRate
 		symbolValue, err := b.FormatSymbol(symbol, asset.Spot)
 		if err != nil {
-			return resp, err
+			return nil, err
 		}
 		params.Set("symbol", symbolValue)
 	}
-	path := "/api/v3/ticker/24hr?" + params.Encode()
-
+	var resp *PriceChangeStats
 	return resp, b.SendHTTPRequest(ctx,
-		exchange.RestSpotSupplementary, path, rateLimit, &resp)
+		exchange.RestSpotSupplementary, "/api/v3/ticker/24hr?"+params.Encode(), rateLimit, &resp)
 }
 
 // GetTickers returns the ticker data for the last 24 hrs
@@ -499,40 +488,37 @@ func (b *Binance) GetTradingDayTicker(ctx context.Context, symbols currency.Pair
 // GetLatestSpotPrice returns latest spot price of symbol
 //
 // symbol: string of currency pair
-func (b *Binance) GetLatestSpotPrice(ctx context.Context, symbol currency.Pair) (SymbolPrice, error) {
-	resp := SymbolPrice{}
+func (b *Binance) GetLatestSpotPrice(ctx context.Context, symbol currency.Pair) (*SymbolPrice, error) {
 	params := url.Values{}
 	rateLimit := spotSymbolPriceAllRate
 	if !symbol.IsEmpty() {
 		rateLimit = spotDefaultRate
 		symbolValue, err := b.FormatSymbol(symbol, asset.Spot)
 		if err != nil {
-			return resp, err
+			return nil, err
 		}
 		params.Set("symbol", symbolValue)
 	}
-	path := "/api/v3/ticker/price?" + params.Encode()
-
+	var resp *SymbolPrice
 	return resp,
-		b.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, path, rateLimit, &resp)
+		b.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, "/api/v3/ticker/price?"+params.Encode(), rateLimit, &resp)
 }
 
 // GetBestPrice returns the latest best price for symbol
 //
 // symbol: string of currency pair
-func (b *Binance) GetBestPrice(ctx context.Context, symbol currency.Pair) (BestPrice, error) {
-	resp := BestPrice{}
+func (b *Binance) GetBestPrice(ctx context.Context, symbol currency.Pair) (*BestPrice, error) {
 	params := url.Values{}
 	rateLimit := spotOrderbookTickerAllRate
 	if !symbol.IsEmpty() {
 		rateLimit = spotDefaultRate
 		symbolValue, err := b.FormatSymbol(symbol, asset.Spot)
 		if err != nil {
-			return resp, err
+			return nil, err
 		}
 		params.Set("symbol", symbolValue)
 	}
-
+	var resp *BestPrice
 	return resp,
 		b.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, "/api/v3/ticker/bookTicker?"+params.Encode(), rateLimit, &resp)
 }
@@ -586,11 +572,11 @@ func (b *Binance) NewOrderTest(ctx context.Context, o *NewOrderRequest) error {
 }
 
 func (b *Binance) newOrder(ctx context.Context, api string, o *NewOrderRequest, resp *NewOrderResponse) error {
-	params := url.Values{}
 	symbol, err := b.FormatSymbol(o.Symbol, asset.Spot)
 	if err != nil {
 		return err
 	}
+	params := url.Values{}
 	params.Set("symbol", symbol)
 	params.Set("side", o.Side)
 	params.Set("type", string(o.TradeType))
@@ -625,23 +611,20 @@ func (b *Binance) newOrder(ctx context.Context, api string, o *NewOrderRequest, 
 }
 
 // CancelExistingOrder sends a cancel order to Binance
-func (b *Binance) CancelExistingOrder(ctx context.Context, symbol currency.Pair, orderID int64, origClientOrderID string) (CancelOrderResponse, error) {
-	var resp CancelOrderResponse
-
+func (b *Binance) CancelExistingOrder(ctx context.Context, symbol currency.Pair, orderID int64, origClientOrderID string) (*CancelOrderResponse, error) {
 	symbolValue, err := b.FormatSymbol(symbol, asset.Spot)
 	if err != nil {
-		return resp, err
+		return nil, err
 	}
 	params := url.Values{}
 	params.Set("symbol", symbolValue)
-
 	if orderID != 0 {
 		params.Set("orderId", strconv.FormatInt(orderID, 10))
 	}
-
 	if origClientOrderID != "" {
 		params.Set("origClientOrderId", origClientOrderID)
 	}
+	var resp *CancelOrderResponse
 	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodDelete, "/api/v3/order", params, spotOrderRate, &resp)
 }
 
@@ -649,10 +632,9 @@ func (b *Binance) CancelExistingOrder(ctx context.Context, symbol currency.Pair,
 // Careful when accessing this with no symbol: The number of requests counted
 // against the rate limiter is significantly higher
 func (b *Binance) OpenOrders(ctx context.Context, pair currency.Pair) ([]TradeOrder, error) {
-	var resp []TradeOrder
-	params := url.Values{}
 	var p string
 	var err error
+	params := url.Values{}
 	if !pair.IsEmpty() {
 		p, err = b.FormatSymbol(pair, asset.Spot)
 		if err != nil {
@@ -664,29 +646,22 @@ func (b *Binance) OpenOrders(ctx context.Context, pair currency.Pair) ([]TradeOr
 		// error
 		params.Set("recvWindow", "10000")
 	}
-	if err := b.SendAuthHTTPRequest(ctx,
+	var resp []TradeOrder
+	return resp, b.SendAuthHTTPRequest(ctx,
 		exchange.RestSpotSupplementary,
 		http.MethodGet,
 		"/api/v3/openOrders",
-		params,
-		openOrdersLimit(p),
-		&resp); err != nil {
-		return resp, err
-	}
-
-	return resp, nil
+		params, openOrdersLimit(p), &resp)
 }
 
 // AllOrders Get all account orders; active, canceled, or filled.
 // orderId optional param
 // limit optional param, default 500; max 500
 func (b *Binance) AllOrders(ctx context.Context, symbol currency.Pair, orderID, limit string) ([]TradeOrder, error) {
-	var resp []TradeOrder
-
 	params := url.Values{}
 	symbolValue, err := b.FormatSymbol(symbol, asset.Spot)
 	if err != nil {
-		return resp, err
+		return nil, err
 	}
 	params.Set("symbol", symbolValue)
 	if orderID != "" {
@@ -695,16 +670,14 @@ func (b *Binance) AllOrders(ctx context.Context, symbol currency.Pair, orderID, 
 	if limit != "" {
 		params.Set("limit", limit)
 	}
-	if err := b.SendAuthHTTPRequest(ctx,
+	var resp []TradeOrder
+	return resp, b.SendAuthHTTPRequest(ctx,
 		exchange.RestSpotSupplementary,
 		http.MethodGet,
 		"/api/v3/allOrders",
 		params,
 		spotAllOrdersRate,
-		&resp); err != nil {
-		return resp, err
-	}
-	return resp, nil
+		&resp)
 }
 
 // NewOCOOrder places a new one-cancel-other trade order.
@@ -906,13 +879,12 @@ func (b *Binance) newOrderUsingSOR(ctx context.Context, arg *SOROrderRequestPara
 }
 
 // QueryOrder returns information on a past order
-func (b *Binance) QueryOrder(ctx context.Context, symbol currency.Pair, origClientOrderID string, orderID int64) (TradeOrder, error) {
-	var resp TradeOrder
-	params := url.Values{}
+func (b *Binance) QueryOrder(ctx context.Context, symbol currency.Pair, origClientOrderID string, orderID int64) (*TradeOrder, error) {
 	symbolValue, err := b.FormatSymbol(symbol, asset.Spot)
 	if err != nil {
-		return resp, err
+		return nil, err
 	}
+	params := url.Values{}
 	params.Set("symbol", symbolValue)
 	if origClientOrderID != "" {
 		params.Set("origClientOrderId", origClientOrderID)
@@ -920,7 +892,7 @@ func (b *Binance) QueryOrder(ctx context.Context, symbol currency.Pair, origClie
 	if orderID != 0 {
 		params.Set("orderId", strconv.FormatInt(orderID, 10))
 	}
-
+	var resp *TradeOrder
 	if err := b.SendAuthHTTPRequest(ctx,
 		exchange.RestSpotSupplementary,
 		http.MethodGet, "/api/v3/order",
@@ -928,7 +900,6 @@ func (b *Binance) QueryOrder(ctx context.Context, symbol currency.Pair, origClie
 		&resp); err != nil {
 		return resp, err
 	}
-
 	if resp.Code != 0 {
 		return resp, errors.New(resp.Msg)
 	}
@@ -943,12 +914,10 @@ func (b *Binance) GetAccount(ctx context.Context) (*Account, error) {
 	}
 
 	var resp response
-	params := url.Values{}
-
 	if err := b.SendAuthHTTPRequest(ctx,
 		exchange.RestSpotSupplementary,
 		http.MethodGet, "/api/v3/account",
-		params, spotAccountInformationRate,
+		nil, spotAccountInformationRate,
 		&resp); err != nil {
 		return &resp.Account, err
 	}
@@ -956,7 +925,6 @@ func (b *Binance) GetAccount(ctx context.Context) (*Account, error) {
 	if resp.Code != 0 {
 		return &resp.Account, errors.New(resp.Msg)
 	}
-
 	return &resp.Account, nil
 }
 
@@ -988,18 +956,8 @@ func (b *Binance) GetAccountTradeList(ctx context.Context, symbol, orderID strin
 
 // GetMarginAccount returns account information for margin accounts
 func (b *Binance) GetMarginAccount(ctx context.Context) (*MarginAccount, error) {
-	var resp MarginAccount
-	params := url.Values{}
-
-	if err := b.SendAuthHTTPRequest(ctx,
-		exchange.RestSpotSupplementary,
-		http.MethodGet, "/sapi/v1/margin/account",
-		params, spotAccountInformationRate,
-		&resp); err != nil {
-		return &resp, err
-	}
-
-	return &resp, nil
+	var resp *MarginAccount
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, "/sapi/v1/margin/account", nil, spotAccountInformationRate, &resp)
 }
 
 // SendHTTPRequest sends an unauthenticated request
@@ -1134,7 +1092,6 @@ func (b *Binance) SetValues() {
 // GetFee returns an estimate of fee based on type of transaction
 func (b *Binance) GetFee(ctx context.Context, feeBuilder *exchange.FeeBuilder) (float64, error) {
 	var fee float64
-
 	switch feeBuilder.FeeType {
 	case exchange.CryptocurrencyTradeFee:
 		multiplier, err := b.getMultiplier(ctx, feeBuilder.IsMaker)
@@ -1266,7 +1223,7 @@ func (b *Binance) WithdrawCrypto(ctx context.Context, cryptoAsset, withdrawOrder
 		params.Set("name", url.QueryEscape(name))
 	}
 
-	var resp WithdrawResponse
+	var resp *WithdrawResponse
 	if err := b.SendAuthHTTPRequest(ctx,
 		exchange.RestSpotSupplementary,
 		http.MethodPost,
@@ -1399,8 +1356,8 @@ func (b *Binance) GetDepositAddressForCurrency(ctx context.Context, currency, ch
 		params.Set("network", chain)
 	}
 	params.Set("recvWindow", "10000")
-	var d DepositAddress
-	return &d,
+	var d *DepositAddress
+	return d,
 		b.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, "/sapi/v1/capital/deposit/address", params, spotDefaultRate, &d)
 }
 
@@ -2749,8 +2706,8 @@ func (b *Binance) CryptoLoanBorrowHistory(ctx context.Context, orderID int64, lo
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 
-	var resp LoanBorrowHistory
-	return &resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, loanBorrowHistory, params, spotDefaultRate, &resp)
+	var resp *LoanBorrowHistory
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, loanBorrowHistory, params, spotDefaultRate, &resp)
 }
 
 // CryptoLoanOngoingOrders obtains ongoing loan orders
@@ -2771,9 +2728,8 @@ func (b *Binance) CryptoLoanOngoingOrders(ctx context.Context, orderID int64, lo
 	if limit != 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
-
-	var resp CryptoLoanOngoingOrder
-	return &resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, loanOngoingOrders, params, spotDefaultRate, &resp)
+	var resp *CryptoLoanOngoingOrder
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, loanOngoingOrders, params, spotDefaultRate, &resp)
 }
 
 // CryptoLoanRepay repays a crypto loan
@@ -2822,8 +2778,8 @@ func (b *Binance) CryptoLoanRepaymentHistory(ctx context.Context, orderID int64,
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 
-	var resp CryptoLoanRepayHistory
-	return &resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, loanRepaymentHistory, params, spotDefaultRate, &resp)
+	var resp *CryptoLoanRepayHistory
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, loanRepaymentHistory, params, spotDefaultRate, &resp)
 }
 
 // CryptoLoanAdjustLTV adjusts the LTV of a crypto loan
@@ -2844,8 +2800,8 @@ func (b *Binance) CryptoLoanAdjustLTV(ctx context.Context, orderID int64, reduce
 	}
 	params.Set("direction", direction)
 
-	var resp CryptoLoanAdjustLTV
-	return &resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodPost, loanAdjustLTV, params, spotDefaultRate, &resp)
+	var resp *CryptoLoanAdjustLTV
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodPost, loanAdjustLTV, params, spotDefaultRate, &resp)
 }
 
 // CryptoLoanLTVAdjustmentHistory gets the crypto loan LTV adjustment history
@@ -2873,8 +2829,8 @@ func (b *Binance) CryptoLoanLTVAdjustmentHistory(ctx context.Context, orderID in
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 
-	var resp CryptoLoanLTVAdjustmentHistory
-	return &resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, loanLTVAdjustmentHistory, params, spotDefaultRate, &resp)
+	var resp *CryptoLoanLTVAdjustmentHistory
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, loanLTVAdjustmentHistory, params, spotDefaultRate, &resp)
 }
 
 // CryptoLoanAssetsData gets the loanable assets data
@@ -2887,8 +2843,8 @@ func (b *Binance) CryptoLoanAssetsData(ctx context.Context, loanCoin currency.Co
 		params.Set("vipLevel", strconv.FormatInt(vipLevel, 10))
 	}
 
-	var resp LoanableAssetsData
-	return &resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, loanableAssetsData, params, spotDefaultRate, &resp)
+	var resp *LoanableAssetsData
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, loanableAssetsData, params, spotDefaultRate, &resp)
 }
 
 // CryptoLoanCollateralAssetsData gets the collateral assets data
@@ -2900,9 +2856,8 @@ func (b *Binance) CryptoLoanCollateralAssetsData(ctx context.Context, collateral
 	if vipLevel != 0 {
 		params.Set("vipLevel", strconv.FormatInt(vipLevel, 10))
 	}
-
-	var resp CollateralAssetData
-	return &resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, loanCollateralAssetsData, params, spotDefaultRate, &resp)
+	var resp *CollateralAssetData
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, loanCollateralAssetsData, params, spotDefaultRate, &resp)
 }
 
 // CryptoLoanCheckCollateralRepayRate checks the collateral repay rate
@@ -2922,8 +2877,8 @@ func (b *Binance) CryptoLoanCheckCollateralRepayRate(ctx context.Context, loanCo
 	params.Set("collateralCoin", collateralCoin.String())
 	params.Set("repayAmount", strconv.FormatFloat(amount, 'f', -1, 64))
 
-	var resp CollateralRepayRate
-	return &resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, loanCheckCollateralRepayRate, params, spotDefaultRate, &resp)
+	var resp *CollateralRepayRate
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, loanCheckCollateralRepayRate, params, spotDefaultRate, &resp)
 }
 
 // CryptoLoanCustomiseMarginCall customises a loan's margin call
@@ -2941,8 +2896,8 @@ func (b *Binance) CryptoLoanCustomiseMarginCall(ctx context.Context, orderID int
 	}
 	params.Set("marginCall", strconv.FormatFloat(marginCallValue, 'f', -1, 64))
 
-	var resp CustomiseMarginCall
-	return &resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodPost, loanCustomiseMarginCall, params, spotDefaultRate, &resp)
+	var resp *CustomiseMarginCall
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodPost, loanCustomiseMarginCall, params, spotDefaultRate, &resp)
 }
 
 // FlexibleLoanBorrow creates a flexible loan
@@ -2967,8 +2922,8 @@ func (b *Binance) FlexibleLoanBorrow(ctx context.Context, loanCoin, collateralCo
 		params.Set("collateralAmount", strconv.FormatFloat(collateralAmount, 'f', -1, 64))
 	}
 
-	var resp FlexibleLoanBorrow
-	return &resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodPost, flexibleLoanBorrow, params, spotDefaultRate, &resp)
+	var resp *FlexibleLoanBorrow
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodPost, flexibleLoanBorrow, params, spotDefaultRate, &resp)
 }
 
 // FlexibleLoanOngoingOrders gets the flexible loan ongoing orders
@@ -2987,8 +2942,8 @@ func (b *Binance) FlexibleLoanOngoingOrders(ctx context.Context, loanCoin, colla
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 
-	var resp FlexibleLoanOngoingOrder
-	return &resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, flexibleLoanOngoingOrders, params, spotDefaultRate, &resp)
+	var resp *FlexibleLoanOngoingOrder
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, flexibleLoanOngoingOrders, params, spotDefaultRate, &resp)
 }
 
 // FlexibleLoanBorrowHistory gets the flexible loan borrow history
@@ -3013,8 +2968,8 @@ func (b *Binance) FlexibleLoanBorrowHistory(ctx context.Context, loanCoin, colla
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 
-	var resp FlexibleLoanBorrowHistory
-	return &resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, flexibleLoanBorrowHistory, params, spotDefaultRate, &resp)
+	var resp *FlexibleLoanBorrowHistory
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, flexibleLoanBorrowHistory, params, spotDefaultRate, &resp)
 }
 
 // FlexibleLoanRepay repays a flexible loan
@@ -3037,9 +2992,8 @@ func (b *Binance) FlexibleLoanRepay(ctx context.Context, loanCoin, collateralCoi
 	if fullRepayment {
 		params.Set("fullRepayment", "true")
 	}
-
-	var resp FlexibleLoanRepay
-	return &resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodPost, flexibleLoanRepay, params, spotDefaultRate, &resp)
+	var resp *FlexibleLoanRepay
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodPost, flexibleLoanRepay, params, spotDefaultRate, &resp)
 }
 
 // FlexibleLoanRepayHistory gets the flexible loan repayment history
@@ -3064,8 +3018,8 @@ func (b *Binance) FlexibleLoanRepayHistory(ctx context.Context, loanCoin, collat
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 
-	var resp FlexibleLoanRepayHistory
-	return &resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, flexibleLoanRepayHistory, params, spotDefaultRate, &resp)
+	var resp *FlexibleLoanRepayHistory
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, flexibleLoanRepayHistory, params, spotDefaultRate, &resp)
 }
 
 // FlexibleLoanAdjustLTV adjusts the LTV of a flexible loan
@@ -3084,15 +3038,14 @@ func (b *Binance) FlexibleLoanAdjustLTV(ctx context.Context, loanCoin, collatera
 	if reduce {
 		direction = "REDUCED"
 	}
-
 	params := url.Values{}
 	params.Set("loanCoin", loanCoin.String())
 	params.Set("collateralCoin", collateralCoin.String())
 	params.Set("adjustmentAmount", strconv.FormatFloat(amount, 'f', -1, 64))
 	params.Set("direction", direction)
 
-	var resp FlexibleLoanAdjustLTV
-	return &resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodPost, flexibleLoanAdjustLTV, params, spotDefaultRate, &resp)
+	var resp *FlexibleLoanAdjustLTV
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodPost, flexibleLoanAdjustLTV, params, spotDefaultRate, &resp)
 }
 
 // FlexibleLoanLTVAdjustmentHistory gets the flexible loan LTV adjustment history
@@ -3117,8 +3070,8 @@ func (b *Binance) FlexibleLoanLTVAdjustmentHistory(ctx context.Context, loanCoin
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 
-	var resp FlexibleLoanLTVAdjustmentHistory
-	return &resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, flexibleLoanLTVHistory, params, spotDefaultRate, &resp)
+	var resp *FlexibleLoanLTVAdjustmentHistory
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, flexibleLoanLTVHistory, params, spotDefaultRate, &resp)
 }
 
 // FlexibleLoanAssetsData gets the flexible loan assets data
@@ -3127,9 +3080,8 @@ func (b *Binance) FlexibleLoanAssetsData(ctx context.Context, loanCoin currency.
 	if !loanCoin.IsEmpty() {
 		params.Set("loanCoin", loanCoin.String())
 	}
-
-	var resp FlexibleLoanAssetsData
-	return &resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, flexibleLoanAssetsData, params, spotDefaultRate, &resp)
+	var resp *FlexibleLoanAssetsData
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, flexibleLoanAssetsData, params, spotDefaultRate, &resp)
 }
 
 // FlexibleCollateralAssetsData gets the flexible loan collateral assets data
@@ -3138,7 +3090,6 @@ func (b *Binance) FlexibleCollateralAssetsData(ctx context.Context, collateralCo
 	if !collateralCoin.IsEmpty() {
 		params.Set("collateralCoin", collateralCoin.String())
 	}
-
-	var resp FlexibleCollateralAssetsData
-	return &resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, flexibleLoanCollateralAssetsData, params, spotDefaultRate, &resp)
+	var resp *FlexibleCollateralAssetsData
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, flexibleLoanCollateralAssetsData, params, spotDefaultRate, &resp)
 }

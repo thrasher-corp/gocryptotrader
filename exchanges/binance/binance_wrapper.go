@@ -516,7 +516,7 @@ func (b *Binance) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Ite
 		if err != nil {
 			return nil, err
 		}
-		var tick PriceChangeStats
+		var tick *PriceChangeStats
 		if b.IsAPIStreamConnected() {
 			var ticks []PriceChangeStats
 			ticks, err = b.GetWsTradingDayTickers(&PriceChangeRequestParam{
@@ -526,7 +526,7 @@ func (b *Binance) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Ite
 			if err != nil {
 				return nil, err
 			}
-			tick = ticks[0]
+			tick = &ticks[0]
 		} else {
 			tick, err = b.GetPriceChangeStats(ctx, p)
 			if err != nil {
@@ -1081,7 +1081,7 @@ func (b *Binance) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Subm
 			return nil, errors.New("invalid type, check api docs for updates")
 		}
 
-		var o FuturesOrderPlaceData
+		var o *FuturesOrderPlaceData
 		o, err = b.FuturesNewOrder(
 			ctx,
 			&FuturesNewOrderRequest{
@@ -1128,7 +1128,7 @@ func (b *Binance) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Subm
 		default:
 			return nil, errors.New("invalid type, check api docs for updates")
 		}
-		var o UOrderData
+		var o *UOrderData
 		o, err = b.UFuturesNewOrder(ctx,
 			&UFuturesNewOrderRequest{
 				Symbol:           s.Pair,
@@ -1308,7 +1308,7 @@ func (b *Binance) GetOrderInfo(ctx context.Context, orderID string, pair currenc
 	}
 	switch assetType {
 	case asset.Spot:
-		var resp TradeOrder
+		var resp *TradeOrder
 		if b.IsAPIStreamConnected() && b.Websocket.CanUseAuthenticatedEndpoints() && b.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
 			var trades []TradeOrder
 			trades, err = b.WsQueryAccountOrderHistory(&AccountOrderRequestParam{
@@ -1318,7 +1318,7 @@ func (b *Binance) GetOrderInfo(ctx context.Context, orderID string, pair currenc
 			if err != nil {
 				return nil, err
 			}
-			resp = trades[0]
+			resp = &trades[0]
 		} else {
 			resp, err = b.QueryOrder(ctx, pair, "", orderIDInt)
 			if err != nil {
