@@ -752,7 +752,7 @@ func (b *Binance) NewOCOOrder(ctx context.Context, arg *OCOOrderParam) (*OCOOrde
 	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/api/v3/order/oco", params, spotDefaultRate, &resp)
 }
 
-// CancelOCOOrder cancels an entire Order List.
+// CancelOCOOrderList cancels an entire Order List.
 func (b *Binance) CancelOCOOrderList(ctx context.Context, symbol, orderListID, listClientOrderID, newClientOrderID string) (*OCOOrderResponse, error) {
 	if symbol == "" {
 		return nil, currency.ErrSymbolStringEmpty
@@ -823,7 +823,7 @@ func (b *Binance) NewOrderUsingSOR(ctx context.Context, arg *SOROrderRequestPara
 	return b.newOrderUsingSOR(ctx, arg, "/api/v3/sor/order")
 }
 
-// TestNewOrderUsingSOR est new order creation and signature/recvWindow using smart order routing (SOR).
+// NewOrderUsingSORTest est new order creation and signature/recvWindow using smart order routing (SOR).
 // Creates and validates a new order but does not send it into the matching engine.
 func (b *Binance) NewOrderUsingSORTest(ctx context.Context, arg *SOROrderRequestParams) (interface{}, error) {
 	return b.newOrderUsingSOR(ctx, arg, "/api/v3/sor/order/test")

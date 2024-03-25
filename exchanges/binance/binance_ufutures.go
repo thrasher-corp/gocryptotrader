@@ -263,7 +263,7 @@ func (b *Binance) UKlineData(ctx context.Context, symbol currency.Pair, interval
 
 // GetUFuturesContinuousKlineData kline/candlestick bars for a specific contract type.
 // Klines are uniquely identified by their open time.
-func (b *Binance) GetUFuturesContinuousKlineData(ctx context.Context, pair currency.Pair, contractType string, interval string, startTime, endTime time.Time, limit int64) (interface{}, error) {
+func (b *Binance) GetUFuturesContinuousKlineData(ctx context.Context, pair currency.Pair, contractType, interval string, startTime, endTime time.Time, limit int64) (interface{}, error) {
 	if pair.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}

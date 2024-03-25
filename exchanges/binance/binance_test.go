@@ -781,10 +781,26 @@ func TestGetFuturesOrderbookTicker(t *testing.T) {
 	assert.NoError(t, err)
 }
 
+func TestGetCFuturesIndexPriceConstituents(t *testing.T) {
+	t.Parallel()
+	b.Verbose = true
+	_, err := b.GetCFuturesIndexPriceConstituents(context.Background(), currency.EMPTYPAIR)
+	require.ErrorIs(t, err, currency.ErrSymbolStringEmpty)
+	_, err = b.GetCFuturesIndexPriceConstituents(context.Background(), currency.NewPair(currency.BTC, currency.USD))
+	require.NoError(t, err)
+}
+
 func TestOpenInterest(t *testing.T) {
 	t.Parallel()
 	_, err := b.OpenInterest(context.Background(), currency.NewPairWithDelimiter("BTCUSD", "PERP", "_"))
 	assert.NoError(t, err)
+}
+
+func TestCFuturesQuarterlyContractSettlementPrice(t *testing.T) {
+	t.Parallel()
+	result, err := b.CFuturesQuarterlyContractSettlementPrice(context.Background(), currency.NewPair(currency.BTC, currency.USD))
+	require.NoError(t, err)
+	assert.NotNil(t, result)
 }
 
 func TestGetOpenInterestStats(t *testing.T) {
@@ -1013,6 +1029,13 @@ func TestFuturesPositionsADLEstimate(t *testing.T) {
 func TestGetMarkPriceKline(t *testing.T) {
 	t.Parallel()
 	_, err := b.GetMarkPriceKline(context.Background(), currency.NewPairWithDelimiter("BTCUSD", "PERP", "_"), "1M", 5, time.Time{}, time.Time{})
+	assert.NoError(t, err)
+}
+
+func TestGetPremiumIndexKlineData(t *testing.T) {
+	t.Parallel()
+	b.Verbose = true
+	_, err := b.GetPremiumIndexKlineData(context.Background(), currency.NewPairWithDelimiter("BTCUSD", "PERP", "_"), "1M", 5, time.Time{}, time.Time{})
 	assert.NoError(t, err)
 }
 

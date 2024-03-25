@@ -770,3 +770,13 @@ type CFuturesMarketTicker struct {
 	TotalTradedVolume          types.Number `json:"v"`
 	TotalTradedBaseAssetVolume types.Number `json:"q"`
 }
+
+// CFuturesIndexPriceConstituents represents a list of index price constituents
+type CFuturesIndexPriceConstituents struct {
+	Symbol       string               `json:"symbol"`
+	Time         convert.ExchangeTime `json:"time"`
+	Constituents []struct {
+		Exchange string `json:"exchange"`
+		Symbol   string `json:"symbol"`
+	} `json:"constituents"`
+}
