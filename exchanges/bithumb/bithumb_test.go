@@ -466,7 +466,7 @@ func TestModifyOrder(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
 
 	curr, err := currency.NewPairFromString("BTCUSD")
-	require.NoError(t, err, "Must set the currency")
+	require.NoError(t, err, "Issue setting currency")
 
 	_, err = b.ModifyOrder(context.Background(), &order.Modify{
 		OrderID:   "1337",
@@ -550,7 +550,7 @@ func TestGetCandleStick(t *testing.T) {
 func TestGetHistoricCandles(t *testing.T) {
 	t.Parallel()
 	pair, err := currency.NewPairFromString("BTCKRW")
-	require.NoError(t, err, "Must set the currency")
+	require.NoError(t, err, "Issue setting currency")
 	startTime := time.Now().AddDate(0, -1, 0)
 	c, err := b.GetHistoricCandles(context.Background(), pair, asset.Spot, kline.OneDay, startTime, time.Now())
 	require.NoError(t, err, "GetHistoricCandles must not error")
@@ -561,7 +561,7 @@ func TestGetHistoricCandles(t *testing.T) {
 func TestGetHistoricCandlesExtended(t *testing.T) {
 	t.Parallel()
 	pair, err := currency.NewPairFromString("BTCKRW")
-	require.NoError(t, err, "Must set the currency")
+	require.NoError(t, err, "Issue setting currency")
 
 	startTime := time.Now().Add(-time.Hour * 24)
 	_, err = b.GetHistoricCandlesExtended(context.Background(), pair, asset.Spot, kline.OneDay, startTime, time.Now())
@@ -571,14 +571,14 @@ func TestGetHistoricCandlesExtended(t *testing.T) {
 func TestGetRecentTrades(t *testing.T) {
 	t.Parallel()
 	currencyPair, err := currency.NewPairFromString("BTC_KRW")
-	require.NoError(t, err, "Must set the currency")
+	require.NoError(t, err, "Issue setting currency")
 
 	tr, err := b.GetRecentTrades(context.Background(), currencyPair, asset.Spot)
 	require.NoError(t, err, "GetRecentTrades must not error")
 	assert.NotEmpty(t, tr, "Trades should not be empty")
 	for _, req := range tr {
 		assert.Positive(t, req.Amount, "Amount should be positive")
-		assert.Equal(t, currency.NewPairWithDelimiter("BTC", "KRW", "_"), req.CurrencyPair, "Pair should be correct")
+		assert.Equal(t, currencyPair, req.CurrencyPair, "Pair should be correct")
 		assert.Equal(t, asset.Spot, req.AssetType, "AssetType should be set")
 		assert.NotEmpty(t, req.Timestamp, "Timestamp should not be empty")
 		assert.Positive(t, req.Price, "Price should be positive")
@@ -588,7 +588,7 @@ func TestGetRecentTrades(t *testing.T) {
 func TestGetHistoricTrades(t *testing.T) {
 	t.Parallel()
 	currencyPair, err := currency.NewPairFromString("BTC_KRW")
-	require.NoError(t, err, "Must set the currency")
+	require.NoError(t, err, "Issue setting currency")
 
 	_, err = b.GetHistoricTrades(context.Background(),
 		currencyPair, asset.Spot, time.Now().Add(-time.Minute*15), time.Now())
