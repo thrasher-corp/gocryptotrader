@@ -385,6 +385,22 @@ func TestUFuturesNewOrder(t *testing.T) {
 	assert.NoError(t, err)
 }
 
+func TestUModifyOrder(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	result, err := b.UModifyOrder(context.Background(), &USDTOrderUpdateParams{
+		OrderID:           1,
+		OrigClientOrderID: "",
+		Side:              "SELL",
+		PriceMatch:        "TAKE_PROFIT",
+		Symbol:            currency.NewPair(currency.BTC, currency.USD),
+		Amount:            0.0000001,
+		Price:             123455554,
+	})
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
 func TestUPlaceBatchOrders(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
@@ -399,6 +415,41 @@ func TestUPlaceBatchOrders(t *testing.T) {
 	data = append(data, tempData)
 	_, err := b.UPlaceBatchOrders(context.Background(), data)
 	assert.NoError(t, err)
+}
+
+func TestModifyMultipleOrders(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	result, err := b.UModifyMultipleOrders(context.Background(), []USDTOrderUpdateParams{
+		{
+			OrderID:           1,
+			OrigClientOrderID: "",
+			Side:              "SELL",
+			PriceMatch:        "TAKE_PROFIT",
+			Symbol:            currency.NewPair(currency.BTC, currency.USD),
+			Amount:            0.0000001,
+			Price:             123455554,
+		},
+		{
+			OrderID:           1,
+			OrigClientOrderID: "",
+			Side:              "BUY",
+			PriceMatch:        "LIMIT",
+			Symbol:            currency.NewPair(currency.BTC, currency.USD),
+			Amount:            0.0000001,
+			Price:             123455554,
+		},
+	})
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetUSDTOrderModifyHistory(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetUSDTOrderModifyHistory(context.Background(), currency.NewPair(currency.BTC, currency.USD), "", 1234, 10, time.Time{}, time.Time{})
+	require.NoError(t, err)
+	assert.NotNil(t, result)
 }
 
 func TestUGetOrderData(t *testing.T) {
@@ -508,6 +559,70 @@ func TestUPositionsInfoV2(t *testing.T) {
 	assert.NoError(t, err)
 }
 
+func TestUGetCommissionRates(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.UGetCommissionRates(context.Background(), currency.EMPTYPAIR)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetUSDTUserRateLimits(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetUSDTUserRateLimits(context.Background())
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetDownloadIDForFuturesTransactionHistory(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetDownloadIDForFuturesTransactionHistory(context.Background(), time.Now().Add(-time.Hour*24*6), time.Now())
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetFuturesTransactionHistoryDownloadLinkByID(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetFuturesTransactionHistoryDownloadLinkByID(context.Background(), "download-id-here")
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetFuturesOrderHistoryDownloadLinkByID(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetFuturesOrderHistoryDownloadLinkByID(context.Background(), "download-id-here")
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestFuturesTradeDownloadLinkByID(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.FuturesTradeDownloadLinkByID(context.Background(), "download-id-here")
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestUFuturesOrderHistoryDownloadID(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.UFuturesOrderHistoryDownloadID(context.Background(), time.Now().Add(-time.Hour*24*6), time.Now())
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestFuturesTradeHistoryDownloadID(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.FuturesTradeHistoryDownloadID(context.Background(), time.Now().Add(-time.Hour*24*6), time.Now())
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
 func TestUAccountTradesHistory(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
@@ -541,6 +656,14 @@ func TestUAccountForcedOrders(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	_, err := b.UAccountForcedOrders(context.Background(), currency.NewPair(currency.BTC, currency.USDT), "ADL", 5, time.Time{}, time.Time{})
 	assert.NoError(t, err)
+}
+
+func TestUFuturesTradingWuantitativeRulesIndicators(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.UFuturesTradingWuantitativeRulesIndicators(context.Background(), currency.EMPTYPAIR)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
 }
 
 // Coin Margined Futures

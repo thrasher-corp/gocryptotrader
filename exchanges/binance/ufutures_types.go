@@ -540,3 +540,72 @@ type IndexPriceConstituent struct {
 type PositionMode struct {
 	DualSidePosition bool `json:"dualSidePosition"` // "true": Hedge Mode; "false": One-way Mode
 }
+
+// USDTOrderUpdateParams represents an updating parameter of USDT margined futures orders.
+type USDTOrderUpdateParams struct {
+	OrderID           int64         `json:"orderID"`
+	OrigClientOrderID string        `json:"origClientOrderID"`
+	Side              string        `json:"side"`
+	PriceMatch        string        `json:"priceMatch"`
+	Symbol            currency.Pair `json:"symbol"`
+	Amount            float64       `json:"amount"`
+	Price             float64       `json:"price"`
+}
+
+// USDTAmendInfo represents a USDT margined futures order amendment history item.
+type USDTAmendInfo struct {
+	AmendmentID   int64                `json:"amendmentId"`
+	Symbol        string               `json:"symbol"`
+	Pair          string               `json:"pair"`
+	OrderID       int64                `json:"orderId"`
+	ClientOrderID string               `json:"clientOrderId"`
+	Time          convert.ExchangeTime `json:"time"`
+	Amendment     struct {
+		Price struct {
+			Before types.Number `json:"before"`
+			After  types.Number `json:"after"`
+		} `json:"price"`
+		OrigQty struct {
+			Before types.Number `json:"before"`
+			After  types.Number `json:"after"`
+		} `json:"origQty"`
+		Count int64 `json:"count"`
+	} `json:"amendment"`
+	PriceMatch string `json:"priceMatch"`
+}
+
+// TradingQuantitativeRulesIndicators represents a trading quantity rules indicators instance.
+type TradingQuantitativeRulesIndicators struct {
+	Indicators map[string][]struct {
+		IsLocked           bool                 `json:"isLocked"`
+		PlannedRecoverTime convert.ExchangeTime `json:"plannedRecoverTime"`
+		Indicator          string               `json:"indicator"`
+		Value              float64              `json:"value"`
+		TriggerValue       float64              `json:"triggerValue"`
+	} `json:"indicators"`
+	UpdateTime convert.ExchangeTime `json:"updateTime"`
+}
+
+// RateLimitInfo represents users rate limit information
+type RateLimitInfo struct {
+	RateLimitType string `json:"rateLimitType"`
+	Interval      string `json:"interval"`
+	IntervalNum   int64  `json:"intervalNum"`
+	Limit         int64  `json:"limit"`
+}
+
+// UTransactionDownloadID represents a future transaction download ID.
+type UTransactionDownloadID struct {
+	AvgCostTimestampOfLast30D int64  `json:"avgCostTimestampOfLast30d"`
+	DownloadID                string `json:"downloadId"`
+}
+
+// UTransactionHistoryDownloadLink represents a futures transaction history download link
+type UTransactionHistoryDownloadLink struct {
+	DownloadID          string `json:"downloadId"`
+	Status              string `json:"status"` // Enum：completed，processing
+	URL                 string `json:"url"`
+	Notified            bool   `json:"notified"`
+	ExpirationTimestamp int64  `json:"expirationTimestamp"`
+	IsExpired           any    `json:"isExpired"`
+}

@@ -866,12 +866,53 @@ func (b *Binance) UFuturesNewOrder(ctx context.Context, data *UFuturesNewOrderRe
 	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodPost, ufuturesOrder, params, uFuturesOrdersDefaultRate, &resp)
 }
 
+func (b *Binance) validatePlaceOrder(arg *USDTOrderUpdateParams) error {
+	if arg.OrderID == 0 && arg.OrigClientOrderID == "" {
+		return order.ErrOrderIDNotSet
+	}
+	if arg.Symbol.IsEmpty() {
+		return currency.ErrCurrencyPairEmpty
+	}
+	if arg.Side == "" {
+		return order.ErrSideIsInvalid
+	}
+	if arg.Amount <= 0 {
+		return order.ErrAmountBelowMin
+	}
+	if arg.Price <= 0 {
+		return order.ErrPriceBelowMin
+	}
+	return nil
+}
+
 // UModifyOrder order modify function, currently only LIMIT order modification is supported, modified orders will be reordered in the match queue
 // Weight: 1 on 10s order rate limit(X-MBX-ORDER-COUNT-10S); 1 on 1min order rate limit(X-MBX-ORDER-COUNT-1M); 1 on IP rate limit(x-mbx-used-weight-1m);
-func (b *Binance) UModifyOrder(ctx context.Context, orderID, origClientOrderID, symbol, side, priceMatch string, quantity, price float64) (*UOrderData, error) {
-	// TODO: fill the parameters
+// PriceMatch: only avaliable for LIMIT/STOP/TAKE_PROFIT order; can be set to OPPONENT/ OPPONENT_5/ OPPONENT_10/ OPPONENT_20: /QUEUE/ QUEUE_5/ QUEUE_10/ QUEUE_20; Can't be passed together with price
+func (b *Binance) UModifyOrder(ctx context.Context, arg *USDTOrderUpdateParams) (*UOrderData, error) {
+	err := b.validatePlaceOrder(arg)
+	if err != nil {
+		return nil, err
+	}
+	symbolValue, err := b.FormatSymbol(arg.Symbol, asset.USDTMarginedFutures)
+	if err != nil {
+		return nil, err
+	}
+	params := url.Values{}
+	params.Set("symbol", symbolValue)
+	params.Set("side", arg.Side)
+	params.Set("quantity", strconv.FormatFloat(arg.Amount, 'f', -1, 64))
+	params.Set("price", strconv.FormatFloat(arg.Price, 'f', -1, 64))
+	if arg.OrderID != 0 {
+		params.Set("orderId", strconv.FormatInt(arg.OrderID, 10))
+	}
+	if arg.OrigClientOrderID != "" {
+		params.Set("origClientOrderId", arg.OrigClientOrderID)
+	}
+	if arg.PriceMatch != "" {
+		params.Set("priceMatch", arg.PriceMatch)
+	}
 	var resp *UOrderData
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodPut, ufuturesOrder, nil, uFuturesDefaultRate, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodPut, ufuturesOrder, params, uFuturesDefaultRate, &resp)
 }
 
 // UPlaceBatchOrders places batch orders
@@ -910,6 +951,61 @@ func (b *Binance) UPlaceBatchOrders(ctx context.Context, data []PlaceBatchOrderD
 	params.Set("batchOrders", string(jsonData))
 	var resp []UOrderData
 	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodPost, ufuturesBatchOrder, params, uFuturesBatchOrdersRate, &resp)
+}
+
+// UModifyMultipleOrders applies a modification to a batch of usdt margined futures orders.
+func (b *Binance) UModifyMultipleOrders(ctx context.Context, args []USDTOrderUpdateParams) ([]UOrderData, error) {
+	if len(args) == 0 {
+		return nil, common.ErrNilPointer
+	}
+	for a := range args {
+		err := b.validatePlaceOrder(&args[a])
+		if err != nil {
+			return nil, err
+		}
+		args[a].Symbol, err = b.FormatExchangeCurrency(args[a].Symbol, asset.USDTMarginedFutures)
+		if err != nil {
+			return nil, err
+		}
+	}
+	jsonData, err := json.Marshal(args)
+	if err != nil {
+		return nil, err
+	}
+	params := url.Values{}
+	params.Set("batchOrders", string(jsonData))
+	var resp []UOrderData
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodPut, "/fapi/v1/batchOrders", params, uFuturesDefaultRate, &resp)
+}
+
+// GetUSDTOrderModifyHistory retrieves order modification history
+func (b *Binance) GetUSDTOrderModifyHistory(ctx context.Context, symbol currency.Pair, origClientOrderID string, orderID, limit int64, startTime, endTime time.Time) ([]USDTAmendInfo, error) {
+	if symbol.IsEmpty() {
+		return nil, currency.ErrSymbolStringEmpty
+	}
+	if orderID <= 0 && origClientOrderID == "" {
+		return nil, order.ErrOrderIDNotSet
+	}
+	params := url.Values{}
+	params.Set("symbol", symbol.String())
+	if orderID <= 0 {
+		params.Set("orderId", strconv.FormatInt(orderID, 10))
+	}
+	if origClientOrderID != "" {
+		params.Set("origClientOrderId", origClientOrderID)
+	}
+	if !startTime.IsZero() && !endTime.IsZero() {
+		if startTime.After(endTime) {
+			return nil, common.ErrStartAfterEnd
+		}
+		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	var resp []USDTAmendInfo
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodGet, "/fapi/v1/orderAmendment", params, uFuturesDefaultRate, &resp)
 }
 
 // UGetOrderData gets order data for USDTMarginedFutures
@@ -1181,6 +1277,62 @@ func (b *Binance) UGetCommissionRates(ctx context.Context, symbol currency.Pair)
 	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodGet, ufuturesCommissionRate, params, uFuturesDefaultRate, &resp)
 }
 
+// GetUSDTUserRateLimits retrieves users rate limit information.
+func (b *Binance) GetUSDTUserRateLimits(ctx context.Context) ([]RateLimitInfo, error) {
+	var resp []RateLimitInfo
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodGet, "/fapi/v1/rateLimit/order", nil, uFuturesDefaultRate, &resp)
+}
+
+// GetDownloadIDForFuturesTransactionHistory retrieves download ID for futures transaction history
+func (b *Binance) GetDownloadIDForFuturesTransactionHistory(ctx context.Context, startTime, endTime time.Time) (*UTransactionDownloadID, error) {
+	return b.uFuturesDownloadID(ctx, "/fapi/v1/income/asyn", startTime, endTime)
+}
+
+// UFuturesOrderHistoryDownloadID retrieves downloading id futures orders history
+func (b *Binance) UFuturesOrderHistoryDownloadID(ctx context.Context, startTime, endTime time.Time) (*UTransactionDownloadID, error) {
+	return b.uFuturesDownloadID(ctx, "/fapi/v1/order/asyn", startTime, endTime)
+}
+
+func (b *Binance) uFuturesDownloadID(ctx context.Context, path string, startTime, endTime time.Time) (*UTransactionDownloadID, error) {
+	err := common.StartEndTimeCheck(startTime, endTime)
+	if err != nil {
+		return nil, err
+	}
+	params := url.Values{}
+	params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+	params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
+	var resp *UTransactionDownloadID
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodGet, path, params, uFuturesDefaultRate, &resp)
+}
+
+// GetFuturesTransactionHistoryDownloadLinkByID retrieves futures transaction history download link by id
+func (b *Binance) GetFuturesTransactionHistoryDownloadLinkByID(ctx context.Context, downloadID string) (*UTransactionHistoryDownloadLink, error) {
+	return b.uFuturesHistoryDownloadLinkByID(ctx, downloadID, "/fapi/v1/income/asyn/id")
+}
+
+// GetFuturesOrderHistoryDownloadLinkByID retrieves futures order history download link by id
+func (b *Binance) GetFuturesOrderHistoryDownloadLinkByID(ctx context.Context, downloadID string) (*UTransactionHistoryDownloadLink, error) {
+	return b.uFuturesHistoryDownloadLinkByID(ctx, downloadID, "/fapi/v1/order/asyn/id")
+}
+
+func (b *Binance) uFuturesHistoryDownloadLinkByID(ctx context.Context, downloadID, path string) (*UTransactionHistoryDownloadLink, error) {
+	if downloadID == "" {
+		return nil, errors.New("downloadId is required")
+	}
+	var resp *UTransactionHistoryDownloadLink
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodGet, path, url.Values{"downloadID": {downloadID}}, uFuturesDefaultRate, &resp)
+}
+
+// FuturesTradeHistoryDownloadID retrieves download ID for futures trade history
+func (b *Binance) FuturesTradeHistoryDownloadID(ctx context.Context, startTime, endTime time.Time) (*UTransactionDownloadID, error) {
+	return b.uFuturesDownloadID(ctx, "/fapi/v1/trade/asyn", startTime, endTime)
+}
+
+// FuturesTradeDownloadLinkByID retrieves futures trade download link by download id
+func (b *Binance) FuturesTradeDownloadLinkByID(ctx context.Context, downloadID string) (*UTransactionHistoryDownloadLink, error) {
+	return b.uFuturesHistoryDownloadLinkByID(ctx, downloadID, "/fapi/v1/trade/asyn/id")
+}
+
 // UAccountTradesHistory gets account's trade history data for USDTMarginedFutures
 func (b *Binance) UAccountTradesHistory(ctx context.Context, symbol currency.Pair, fromID string, limit int64, startTime, endTime time.Time) ([]UAccountTradeHistory, error) {
 	symbolValue, err := b.FormatSymbol(symbol, asset.USDTMarginedFutures)
@@ -1292,6 +1444,16 @@ func (b *Binance) UAccountForcedOrders(ctx context.Context, symbol currency.Pair
 	}
 	var resp []UForceOrdersData
 	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodGet, ufuturesUsersForceOrders, params, rateLimit, &resp)
+}
+
+// UFuturesTradingWuantitativeRulesIndicators retrieves rules that regulate general trading based on the quantitative indicators
+func (b *Binance) UFuturesTradingWuantitativeRulesIndicators(ctx context.Context, symbol currency.Pair) (*TradingQuantitativeRulesIndicators, error) {
+	params := url.Values{}
+	if !symbol.IsEmpty() {
+		params.Set("symbol", symbol.String())
+	}
+	var resp *TradingQuantitativeRulesIndicators
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodGet, "/fapi/v1/apiTradingStatus", params, uFuturesDefaultRate, &resp)
 }
 
 // GetPerpMarkets returns exchange information. Check binance_types for more information
