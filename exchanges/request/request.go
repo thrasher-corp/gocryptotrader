@@ -171,8 +171,20 @@ func (r *Requester) doRequest(ctx context.Context, endpoint EndpointLimit, newRe
 				log.Debugf(log.RequestSys, "%s request header [%s]: %s", r.name, k, d)
 			}
 			log.Debugf(log.RequestSys, "%s request type: %s", r.name, p.Method)
-			if p.Body != nil {
-				log.Debugf(log.RequestSys, "%s request body: %v", r.name, p.Body)
+			if req.GetBody != nil {
+				bodyCopy, bodyErr := req.GetBody()
+				if bodyErr != nil {
+					return bodyErr
+				}
+				payload, bodyErr := io.ReadAll(bodyCopy)
+				err = bodyCopy.Close()
+				if err != nil {
+					log.Errorf(log.RequestSys, "%s failed to close request body %s", r.name, err)
+				}
+				if bodyErr != nil {
+					return bodyErr
+				}
+				log.Debugf(log.RequestSys, "%s request body: %s", r.name, payload)
 			}
 		}
 
