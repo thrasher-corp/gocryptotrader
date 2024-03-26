@@ -252,8 +252,8 @@ type CrVirSubResp struct {
 // SuccessBool is a type used to unmarshal strings that are either "success" or "failure" into bools
 type SuccessBool bool
 
-// ModVirSubResp contains information returned when modifying virtual sub-accounts
-type ModVirSubResp struct {
+// SuccessBoolResp contains a success bool in the format returned by the exchange
+type SuccessBoolResp struct {
 	Data struct {
 		Success SuccessBool `json:"result"`
 	} `json:"data"`
@@ -436,20 +436,20 @@ type CoinInfoResp struct {
 // SymbolInfoResp contains information on supported spot trading pairs
 type SymbolInfoResp struct {
 	Data []struct {
-		Symbol              string  `json:"symbol"`
-		BaseCoin            string  `json:"baseCoin"`
-		QuoteCoin           string  `json:"quoteCoin"`
-		MinTradeAmount      float64 `json:"minTradeAmount,string"`
-		MaxTradeAmount      float64 `json:"maxTradeAmount,string"`
-		TakerFeeRate        float64 `json:"takerFeeRate,string"`
-		MakerFeeRate        float64 `json:"makerFeeRate,string"`
-		PricePrecision      uint8   `json:"pricePrecision,string"`
-		QuantityPrecision   uint8   `json:"quantityPrecision,string"`
-		QuotePrecision      uint8   `json:"quotePrecision,string"`
-		MinTradeUSDT        float64 `json:"minTradeUSDT,string"`
-		Status              string  `json:"status"`
-		BuyLimitPriceRatio  float64 `json:"buyLimitPriceRatio,string"`
-		SellLimitPriceRatio float64 `json:"sellLimitPriceRatio,string"`
+		Symbol              string       `json:"symbol"`
+		BaseCoin            string       `json:"baseCoin"`
+		QuoteCoin           string       `json:"quoteCoin"`
+		MinTradeAmount      float64      `json:"minTradeAmount,string"`
+		MaxTradeAmount      float64      `json:"maxTradeAmount,string"`
+		TakerFeeRate        float64      `json:"takerFeeRate,string"`
+		MakerFeeRate        float64      `json:"makerFeeRate,string"`
+		PricePrecision      uint8        `json:"pricePrecision,string"`
+		QuantityPrecision   uint8        `json:"quantityPrecision,string"`
+		QuotePrecision      uint8        `json:"quotePrecision,string"`
+		MinTradeUSDT        float64      `json:"minTradeUSDT,string"`
+		Status              string       `json:"status"`
+		BuyLimitPriceRatio  types.Number `json:"buyLimitPriceRatio"`
+		SellLimitPriceRatio types.Number `json:"sellLimitPriceRatio"`
 	} `json:"data"`
 }
 
@@ -581,8 +581,8 @@ type BatchOrderResp struct {
 	} `json:"data"`
 }
 
-// BatchCancelStruct contains information on a batch of orders to cancel
-type BatchCancelStruct struct {
+// OrderIDStruct contains order IDs
+type OrderIDStruct struct {
 	OrderID   int64  `json:"orderId,string,omitempty"`
 	ClientOID string `json:"clientOid,omitempty"`
 }
@@ -682,4 +682,63 @@ type UnfilledOrdersResp struct {
 
 // TradeFillsResp contains information on the user's fulfilled orders
 type TradeFillsResp struct {
+	Data []struct {
+		UserID       string   `json:"userId"` // Check whether this should be a different type
+		Symbol       string   `json:"symbol"`
+		OrderID      EmptyInt `json:"orderId"`
+		TradeID      int64    `json:"tradeId,string"`
+		OrderType    string   `json:"orderType"`
+		Side         string   `json:"side"`
+		PriceAverage float64  `json:"priceAvg,string"`
+		Size         float64  `json:"size,string"`
+		Amount       float64  `json:"amount,string"`
+		FeeDetail    struct {
+			Deduction         YesNoBool    `json:"deduction"`
+			FeeCoin           string       `json:"feeCoin"`
+			TotalDeductionFee types.Number `json:"totalDeductionFee"`
+			TotalFee          float64      `json:"totalFee,string"`
+		} `json:"feeDetail"`
+		TradeScope   string        `json:"tradeScope"`
+		CreationTime UnixTimestamp `json:"cTime"`
+		UpdateTime   UnixTimestamp `json:"uTime"`
+	} `json:"data"`
+}
+
+// OrderIDResp contains order IDs in the format returned by the exchange
+type OrderIDResp struct {
+	Data OrderIDStruct `json:"data"`
+}
+
+// PlanOrderResp contains information on plan orders
+type PlanOrderResp struct {
+	Data struct {
+		NextFlag   bool     `json:"nextFlag"`
+		IDLessThan EmptyInt `json:"idLessThan"`
+		OrderList  []struct {
+			OrderID          int64         `json:"orderId,string"`
+			ClientOrderID    string        `json:"clientOid"`
+			Symbol           string        `json:"symbol"`
+			TriggerPrice     float64       `json:"triggerPrice,string"`
+			OrderType        string        `json:"orderType"`
+			ExecutePrice     types.Number  `json:"executePrice"`
+			PlanType         string        `json:"planType"`
+			Size             float64       `json:"size,string"`
+			Status           string        `json:"status"`
+			Side             string        `json:"side"`
+			TriggerType      string        `json:"triggerType"`
+			EnterPointSource string        `json:"enterPointSource"`
+			CreateTime       UnixTimestamp `json:"cTime"`
+			UpdateTime       UnixTimestamp `json:"uTime"`
+		} `json:"orderList"`
+	} `json:"data"`
+}
+
+// SubOrderResp contains information on sub-orders
+type SubOrderResp struct {
+	Data struct {
+		OrderID int64   `json:"orderId,string"`
+		Price   float64 `json:"price,string"`
+		Type    string  `json:"type"`
+		Status  string  `json:"status"`
+	} `json:"data"`
 }

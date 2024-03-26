@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -196,8 +197,7 @@ func TestModifyVirtualSubaccount(t *testing.T) {
 	assert.ErrorIs(t, err, errNewStatusEmpty)
 	_, err = bi.ModifyVirtualSubaccount(context.Background(), "meow", "woof", perms)
 	assert.ErrorIs(t, err, errNewPermsEmpty)
-	sharedtestvalues.SkipTestIfCannotManipulateOrders(t, bi, canManipulateRealOrders)
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi, canManipulateRealOrders)
 	tarID := subAccTestHelper(t)
 	perms = append(perms, "read")
 	resp, err := bi.ModifyVirtualSubaccount(context.Background(), tarID, "normal", perms)
@@ -209,20 +209,22 @@ func TestCreateSubaccountAndAPIKey(t *testing.T) {
 	ipL := []string{}
 	_, err := bi.CreateSubaccountAndAPIKey(context.Background(), "", "", "", ipL, ipL)
 	assert.ErrorIs(t, err, errSubAccountEmpty)
-	sharedtestvalues.SkipTestIfCannotManipulateOrders(t, bi, canManipulateRealOrders)
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi, canManipulateRealOrders)
 	ipL = append(ipL, testIP)
 	pL := []string{"read"}
 	// Fails with error "subAccountList not empty" and I'm not sure why. The account I'm testing with is far off
 	// hitting the limit of 20 sub-accounts.
+	// Now it's saying that parameter req cannot be empty, still no clue what that means
 	_, err = bi.CreateSubaccountAndAPIKey(context.Background(), "MEOWMEOW", "woofwoof", "neighneighneighneighneigh",
 		ipL, pL)
 	assert.NoError(t, err)
 }
 
 func TestGetVirtualSubaccounts(t *testing.T) {
-	_, err := bi.GetVirtualSubaccounts(context.Background(), 25, 0, "")
-	assert.NoError(t, err)
+	for i := 0; i < 5; i++ {
+		_, err := bi.GetVirtualSubaccounts(context.Background(), 25, 0, "")
+		assert.NoError(t, err)
+	}
 }
 
 func TestCreateAPIKey(t *testing.T) {
@@ -233,8 +235,7 @@ func TestCreateAPIKey(t *testing.T) {
 	assert.ErrorIs(t, err, errPassphraseEmpty)
 	_, err = bi.CreateAPIKey(context.Background(), "woof", "meow", "", ipL, ipL)
 	assert.ErrorIs(t, err, errLabelEmpty)
-	sharedtestvalues.SkipTestIfCannotManipulateOrders(t, bi, canManipulateRealOrders)
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi, canManipulateRealOrders)
 	tarID := subAccTestHelper(t)
 	ipL = append(ipL, testIP)
 	pL := []string{"read"}
@@ -254,8 +255,7 @@ func TestModifyAPIKey(t *testing.T) {
 	assert.ErrorIs(t, err, errLabelEmpty)
 	_, err = bi.ModifyAPIKey(context.Background(), "", "meow", "quack", "woof", ipL, ipL)
 	assert.ErrorIs(t, err, errSubAccountEmpty)
-	sharedtestvalues.SkipTestIfCannotManipulateOrders(t, bi, canManipulateRealOrders)
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi, canManipulateRealOrders)
 	tarID := subAccTestHelper(t)
 	resp, err := bi.GetAPIKeys(context.Background(), tarID)
 	assert.NoError(t, err)
@@ -306,8 +306,7 @@ func TestCommitConversion(t *testing.T) {
 	assert.ErrorIs(t, err, errAmountEmpty)
 	_, err = bi.CommitConversion(context.Background(), testCrypto.String(), testFiat.String(), "1", 1, 1, 0)
 	assert.ErrorIs(t, err, errPriceEmpty)
-	sharedtestvalues.SkipTestIfCannotManipulateOrders(t, bi, canManipulateRealOrders)
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi, canManipulateRealOrders)
 	resp, err := bi.GetQuotedPrice(context.Background(), testCrypto.String(), testFiat.String(), testAmount, 0)
 	assert.NoError(t, err)
 	_, err = bi.CommitConversion(context.Background(), testCrypto.String(), testFiat.String(), resp.Data.TraceID,
@@ -334,8 +333,7 @@ func TestConvertBGB(t *testing.T) {
 	var currencies []string
 	_, err := bi.ConvertBGB(context.Background(), currencies)
 	assert.ErrorIs(t, err, errCurrencyEmpty)
-	sharedtestvalues.SkipTestIfCannotManipulateOrders(t, bi, canManipulateRealOrders)
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi, canManipulateRealOrders)
 	currencies = append(currencies, testCrypto2.String())
 	// No matter what currency I use, this returns the error "currency does not support convert"; possibly a bad error
 	// message, with the true issue being lack of funds?
@@ -440,8 +438,7 @@ func TestPlaceOrder(t *testing.T) {
 	assert.ErrorIs(t, err, errLimitPriceEmpty)
 	_, err = bi.PlaceOrder(context.Background(), testPair.String(), "sell", "limit", "IOC", "", testPrice, 0)
 	assert.ErrorIs(t, err, errAmountEmpty)
-	sharedtestvalues.SkipTestIfCannotManipulateOrders(t, bi, canManipulateRealOrders)
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi, canManipulateRealOrders)
 	_, err = bi.PlaceOrder(context.Background(), testPair.String(), "sell", "limit", "IOC", "", testPrice, testAmount)
 	if err != nil && !strings.Contains(err.Error(), errorInsufficientBalancePartial) {
 		t.Error(err)
@@ -453,8 +450,7 @@ func TestCancelOrderByID(t *testing.T) {
 	assert.ErrorIs(t, err, errPairEmpty)
 	_, err = bi.CancelOrderByID(context.Background(), testPair.String(), "", 0)
 	assert.ErrorIs(t, err, errOrderClientEmpty)
-	sharedtestvalues.SkipTestIfCannotManipulateOrders(t, bi, canManipulateRealOrders)
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi, canManipulateRealOrders)
 	resp, err := bi.PlaceOrder(context.Background(), testPair.String(), "sell", "limit", "GTC", "", testPrice,
 		testAmount)
 	if strings.Contains(err.Error(), errorInsufficientBalancePartial) {
@@ -471,8 +467,7 @@ func TestBatchPlaceOrder(t *testing.T) {
 	assert.ErrorIs(t, err, errPairEmpty)
 	_, err = bi.BatchPlaceOrder(context.Background(), "meow", req)
 	assert.ErrorIs(t, err, errOrdersEmpty)
-	sharedtestvalues.SkipTestIfCannotManipulateOrders(t, bi, canManipulateRealOrders)
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi, canManipulateRealOrders)
 	req = append(req, PlaceOrderStruct{
 		Side:      "sell",
 		OrderType: "limit",
@@ -486,19 +481,18 @@ func TestBatchPlaceOrder(t *testing.T) {
 }
 
 func TestBatchCancelOrders(t *testing.T) {
-	var req []BatchCancelStruct
+	var req []OrderIDStruct
 	_, err := bi.BatchCancelOrders(context.Background(), "", req)
 	assert.ErrorIs(t, err, errPairEmpty)
 	_, err = bi.BatchCancelOrders(context.Background(), "meow", req)
-	assert.ErrorIs(t, err, errOrderClientEmpty)
-	sharedtestvalues.SkipTestIfCannotManipulateOrders(t, bi, canManipulateRealOrders)
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
+	assert.ErrorIs(t, err, errOrderIDEmpty)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi, canManipulateRealOrders)
 	resp, err := bi.PlaceOrder(context.Background(), testPair.String(), "sell", "limit", "IOC", "", testPrice, testAmount)
 	if strings.Contains(err.Error(), errorInsufficientBalancePartial) {
 		t.Skip(skipInsufficientBalance)
 	}
 	assert.NoError(t, err)
-	req = append(req, BatchCancelStruct{
+	req = append(req, OrderIDStruct{
 		OrderID:   int64(resp.Data.OrderID),
 		ClientOID: resp.Data.ClientOrderID,
 	})
@@ -510,8 +504,7 @@ func TestBatchCancelOrders(t *testing.T) {
 func TestCancelOrderBySymbol(t *testing.T) {
 	_, err := bi.CancelOrderBySymbol(context.Background(), "")
 	assert.ErrorIs(t, err, errPairEmpty)
-	sharedtestvalues.SkipTestIfCannotManipulateOrders(t, bi, canManipulateRealOrders)
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi, canManipulateRealOrders)
 	resp, err := bi.CancelOrderBySymbol(context.Background(), testPair.String())
 	assert.NoError(t, err)
 	assert.NotEmpty(t, resp)
@@ -522,6 +515,7 @@ func TestGetOrderDetails(t *testing.T) {
 	assert.ErrorIs(t, err, errOrderClientEmpty)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
 	// Have another look at this test once you can get a better look at OrderIDs
+	// Blech, even with returned data that looks like it should work, this still just returns nothing
 	_, err = bi.GetOrderDetails(context.Background(), 0, "")
 	assert.NoError(t, err)
 }
@@ -552,6 +546,83 @@ func TestGetFills(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
 	_, err = bi.GetFills(context.Background(), testPair.String(), time.Time{}, time.Time{}, 0, 100, 0)
 	assert.NoError(t, err)
+}
+
+func TestPlacePlanOrder(t *testing.T) {
+	_, err := bi.PlacePlanOrder(context.Background(), "", "", "", "", "", "", "", 0, 0, 0)
+	assert.ErrorIs(t, err, errPairEmpty)
+	_, err = bi.PlacePlanOrder(context.Background(), "meow", "", "", "", "", "", "", 0, 0, 0)
+	assert.ErrorIs(t, err, errSideEmpty)
+	_, err = bi.PlacePlanOrder(context.Background(), "meow", "woof", "", "", "", "", "", 0, 0, 0)
+	assert.ErrorIs(t, err, errTriggerPriceEmpty)
+	_, err = bi.PlacePlanOrder(context.Background(), "meow", "woof", "", "", "", "", "", 1, 0, 0)
+	assert.ErrorIs(t, err, errOrderTypeEmpty)
+	_, err = bi.PlacePlanOrder(context.Background(), "meow", "woof", "limit", "", "", "", "", 1, 0, 0)
+	assert.ErrorIs(t, err, errLimitPriceEmpty)
+	_, err = bi.PlacePlanOrder(context.Background(), "meow", "woof", "neigh", "", "", "", "", 1, 0, 0)
+	assert.ErrorIs(t, err, errAmountEmpty)
+	_, err = bi.PlacePlanOrder(context.Background(), "meow", "woof", "neigh", "", "", "", "", 1, 0, 1)
+	assert.ErrorIs(t, err, errTriggerTypeEmpty)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi, canManipulateRealOrders)
+	cID := testSubAccountName + time.Now().String()
+	cID = cID[:50]
+	resp, err := bi.PlacePlanOrder(context.Background(), testPair.String(), "sell", "limit", "", "fill_price", cID,
+		"ioc", testPrice, testPrice, testAmount)
+	assert.NoError(t, err)
+	assert.NotEmpty(t, resp)
+}
+
+func TestModifyPlanOrder(t *testing.T) {
+	_, err := bi.ModifyPlanOrder(context.Background(), 0, "", "", 0, 0, 0)
+	assert.ErrorIs(t, err, errOrderClientEmpty)
+	_, err = bi.ModifyPlanOrder(context.Background(), 0, "meow", "", 0, 0, 0)
+	assert.ErrorIs(t, err, errOrderTypeEmpty)
+	_, err = bi.ModifyPlanOrder(context.Background(), 0, "meow", "woof", 0, 0, 0)
+	assert.ErrorIs(t, err, errTriggerPriceEmpty)
+	_, err = bi.ModifyPlanOrder(context.Background(), 0, "meow", "limit", 1, 0, 0)
+	assert.ErrorIs(t, err, errLimitPriceEmpty)
+	_, err = bi.ModifyPlanOrder(context.Background(), 0, "meow", "woof", 1, 0, 0)
+	assert.ErrorIs(t, err, errAmountEmpty)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi, canManipulateRealOrders)
+	ordID, err := bi.PlacePlanOrder(context.Background(), testPair.String(), "sell", "limit", "", "fill_price", "",
+		"ioc", testPrice, testPrice, testAmount)
+	assert.NoError(t, err)
+	require.NotEmpty(t, ordID)
+	resp, err := bi.ModifyPlanOrder(context.Background(), ordID.Data.OrderID, ordID.Data.ClientOID, "limit",
+		testPrice, testPrice, testAmount)
+	assert.NoError(t, err)
+	assert.NotEmpty(t, resp)
+}
+
+func TestCancelPlanOrder(t *testing.T) {
+	_, err := bi.CancelPlanOrder(context.Background(), 0, "")
+	assert.ErrorIs(t, err, errOrderClientEmpty)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi, canManipulateRealOrders)
+	ordID, err := bi.PlacePlanOrder(context.Background(), testPair.String(), "sell", "limit", "", "fill_price", "",
+		"ioc", testPrice, testPrice, testAmount)
+	assert.NoError(t, err)
+	require.NotEmpty(t, ordID)
+	resp, err := bi.CancelPlanOrder(context.Background(), ordID.Data.OrderID, ordID.Data.ClientOID)
+	assert.NoError(t, err)
+	assert.NotEmpty(t, resp)
+}
+
+func TestGetCurrentPlanOrders(t *testing.T) {
+	_, err := bi.GetCurrentPlanOrders(context.Background(), "", time.Time{}, time.Time{}, 0, 0)
+	assert.ErrorIs(t, err, errPairEmpty)
+	_, err = bi.GetCurrentPlanOrders(context.Background(), "meow", time.Now(), time.Now().Add(-time.Second), 0, 0)
+	assert.ErrorIs(t, err, common.ErrStartAfterEnd)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
+	resp, err := bi.GetCurrentPlanOrders(context.Background(), testPair.String(), time.Time{}, time.Time{}, 5, 0)
+	assert.NoError(t, err)
+	assert.NotEmpty(t, resp)
+}
+
+func TestGetPlanSubOrder(t *testing.T) {
+	_, err := bi.GetPlanSubOrder(context.Background(), "")
+	assert.ErrorIs(t, err, errOrderIDEmpty)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
+
 }
 
 type getNoArgsResp interface {

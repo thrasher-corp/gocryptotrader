@@ -79,6 +79,11 @@ const (
 	bitgetOrderInfo            = "/orderInfo"
 	bitgetUnfilledOrders       = "/unfilled-orders"
 	bitgetHistoryOrders        = "/history-orders"
+	bitgetPlacePlanOrder       = "/place-plan-order"
+	bitgetModifyPlanOrder      = "/modify-plan-order"
+	bitgetCancelPlanOrder      = "/cancel-plan-order"
+	bitgetCurrentPlanOrder     = "/current-plan-order"
+	bitgetPlanSubOrder         = "/plan-sub-order"
 
 	// Errors
 	errUnknownEndpointLimit = "unknown endpoint limit %v"
@@ -114,7 +119,10 @@ var (
 	errStrategyEmpty         = errors.New("strategy cannot be empty")
 	errLimitPriceEmpty       = errors.New("price cannot be empty for limit orders")
 	errOrderClientEmpty      = errors.New("at least one of orderID and clientOrderID must not be empty")
+	errOrderIDEmpty          = errors.New("orderID cannot be empty")
 	errOrdersEmpty           = errors.New("orders cannot be empty")
+	errTriggerPriceEmpty     = errors.New("triggerPrice cannot be empty")
+	errTriggerTypeEmpty      = errors.New("triggerType cannot be empty")
 )
 
 // QueryAnnouncement returns announcements from the exchange, filtered by type and time
@@ -163,8 +171,12 @@ func (bi *Bitget) GetSpotTransactionRecords(ctx context.Context, currency string
 		return nil, err
 	}
 	params.Values.Set("coin", currency)
-	params.Values.Set("limit", strconv.FormatInt(limit, 10))
-	params.Values.Set("idLessThan", strconv.FormatInt(pagination, 10))
+	if limit != 0 {
+		params.Values.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	if pagination != 0 {
+		params.Values.Set("idLessThan", strconv.FormatInt(pagination, 10))
+	}
 	var resp *SpotTrResp
 	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate1, http.MethodGet,
 		bitgetTax+bitgetSpotRecord, params.Values, nil, &resp)
@@ -183,8 +195,12 @@ func (bi *Bitget) GetFuturesTransactionRecords(ctx context.Context, productType,
 	}
 	params.Values.Set("productType", productType)
 	params.Values.Set("marginCoin", currency)
-	params.Values.Set("limit", strconv.FormatInt(limit, 10))
-	params.Values.Set("idLessThan", strconv.FormatInt(pagination, 10))
+	if limit != 0 {
+		params.Values.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	if pagination != 0 {
+		params.Values.Set("idLessThan", strconv.FormatInt(pagination, 10))
+	}
 	var resp *FutureTrResp
 	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate1, http.MethodGet,
 		bitgetTax+bitgetFutureRecord, params.Values, nil, &resp)
@@ -200,8 +216,12 @@ func (bi *Bitget) GetMarginTransactionRecords(ctx context.Context, marginType, c
 	}
 	params.Values.Set("marginType", marginType)
 	params.Values.Set("coin", currency)
-	params.Values.Set("limit", strconv.FormatInt(limit, 10))
-	params.Values.Set("idLessThan", strconv.FormatInt(pagination, 10))
+	if limit != 0 {
+		params.Values.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	if pagination != 0 {
+		params.Values.Set("idLessThan", strconv.FormatInt(pagination, 10))
+	}
 	var resp *MarginTrResp
 	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate1, http.MethodGet,
 		bitgetTax+bitgetMarginRecord, params.Values, nil, &resp)
@@ -216,8 +236,12 @@ func (bi *Bitget) GetP2PTransactionRecords(ctx context.Context, currency string,
 		return nil, err
 	}
 	params.Values.Set("coin", currency)
-	params.Values.Set("limit", strconv.FormatInt(limit, 10))
-	params.Values.Set("idLessThan", strconv.FormatInt(pagination, 10))
+	if limit != 0 {
+		params.Values.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	if pagination != 0 {
+		params.Values.Set("idLessThan", strconv.FormatInt(pagination, 10))
+	}
 	var resp *P2PTrResp
 	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate1, http.MethodGet,
 		bitgetTax+bitgetP2PRecord, params.Values, nil, &resp)
@@ -228,8 +252,12 @@ func (bi *Bitget) GetP2PMerchantList(ctx context.Context, online, merchantID str
 	vals := url.Values{}
 	vals.Set("online", online)
 	vals.Set("merchantId", merchantID)
-	vals.Set("limit", strconv.FormatInt(limit, 10))
-	vals.Set("idLessThan", strconv.FormatInt(pagination, 10))
+	if limit != 0 {
+		vals.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	if pagination != 0 {
+		vals.Set("idLessThan", strconv.FormatInt(pagination, 10))
+	}
 	var resp *P2PMerListResp
 	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodGet,
 		bitgetP2P+bitgetMerchantList, vals, nil, &resp)
@@ -250,8 +278,12 @@ func (bi *Bitget) GetMerchantP2POrders(ctx context.Context, startTime, endTime t
 	if err != nil {
 		return nil, err
 	}
-	params.Values.Set("limit", strconv.FormatInt(limit, 10))
-	params.Values.Set("idLessThan", strconv.FormatInt(pagination, 10))
+	if limit != 0 {
+		params.Values.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	if pagination != 0 {
+		params.Values.Set("idLessThan", strconv.FormatInt(pagination, 10))
+	}
 	params.Values.Set("advNo", strconv.FormatInt(adNum, 10))
 	params.Values.Set("orderNo", strconv.FormatInt(ordNum, 10))
 	params.Values.Set("status", status)
@@ -272,8 +304,12 @@ func (bi *Bitget) GetMerchantAdvertisementList(ctx context.Context, startTime, e
 	if err != nil {
 		return nil, err
 	}
-	params.Values.Set("limit", strconv.FormatInt(limit, 10))
-	params.Values.Set("idLessThan", strconv.FormatInt(pagination, 10))
+	if limit != 0 {
+		params.Values.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	if pagination != 0 {
+		params.Values.Set("idLessThan", strconv.FormatInt(pagination, 10))
+	}
 	params.Values.Set("advNo", strconv.FormatInt(adNum, 10))
 	params.Values.Set("payMethodId", strconv.FormatInt(payMethodID, 10))
 	params.Values.Set("status", status)
@@ -304,7 +340,7 @@ func (bi *Bitget) CreateVirtualSubaccounts(ctx context.Context, subaccounts []st
 }
 
 // ModifyVirtualSubaccount changes the permissions and/or status of a virtual subaccount
-func (bi *Bitget) ModifyVirtualSubaccount(ctx context.Context, subaccountID, newStatus string, newPerms []string) (*ModVirSubResp, error) {
+func (bi *Bitget) ModifyVirtualSubaccount(ctx context.Context, subaccountID, newStatus string, newPerms []string) (*SuccessBoolResp, error) {
 	if subaccountID == "" {
 		return nil, errSubAccountEmpty
 	}
@@ -320,7 +356,7 @@ func (bi *Bitget) ModifyVirtualSubaccount(ctx context.Context, subaccountID, new
 		"status":        newStatus,
 		"permList":      newPerms,
 	}
-	var resp *ModVirSubResp
+	var resp *SuccessBoolResp
 	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate5, http.MethodPost, path,
 		nil, req, &resp)
 }
@@ -348,8 +384,12 @@ func (bi *Bitget) CreateSubaccountAndAPIKey(ctx context.Context, subaccountName,
 // GetVirtualSubaccounts returns a list of the user's virtual sub-accounts
 func (bi *Bitget) GetVirtualSubaccounts(ctx context.Context, limit, pagination int64, status string) (*GetVirSubResp, error) {
 	vals := url.Values{}
-	vals.Set("limit", strconv.FormatInt(limit, 10))
-	vals.Set("idLessThan", strconv.FormatInt(pagination, 10))
+	if limit != 0 {
+		vals.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	if pagination != 0 {
+		vals.Set("idLessThan", strconv.FormatInt(pagination, 10))
+	}
 	vals.Set("status", status)
 	path := bitgetUser + bitgetVirtualSubaccount + "-" + bitgetList
 	var resp *GetVirSubResp
@@ -491,7 +531,9 @@ func (bi *Bitget) GetConvertHistory(ctx context.Context, startTime, endTime time
 	if limit != 0 {
 		params.Values.Set("limit", strconv.FormatInt(limit, 10))
 	}
-	params.Values.Set("idLessThan", strconv.FormatInt(pagination, 10))
+	if pagination != 0 {
+		params.Values.Set("idLessThan", strconv.FormatInt(pagination, 10))
+	}
 	var resp *ConvHistResp
 	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodGet,
 		bitgetConvert+bitgetConvertRecord, params.Values, nil, &resp)
@@ -529,7 +571,9 @@ func (bi *Bitget) GetBGBConvertHistory(ctx context.Context, orderID, limit, pagi
 	if limit != 0 {
 		params.Values.Set("limit", strconv.FormatInt(limit, 10))
 	}
-	params.Values.Set("idLessThan", strconv.FormatInt(pagination, 10))
+	if pagination != 0 {
+		params.Values.Set("idLessThan", strconv.FormatInt(pagination, 10))
+	}
 	var resp *BGBConvHistResp
 	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodGet,
 		bitgetConvert+bitgetBGBConvertRecords, params.Values, nil, &resp)
@@ -729,7 +773,9 @@ func (bi *Bitget) GetMarketTrades(ctx context.Context, pair string, startTime, e
 		return nil, err
 	}
 	params.Values.Set("symbol", pair)
-	params.Values.Set("limit", strconv.FormatInt(limit, 10))
+	if limit != 0 {
+		params.Values.Set("limit", strconv.FormatInt(limit, 10))
+	}
 	if pagination != 0 {
 		params.Values.Set("idLessThan", strconv.FormatInt(pagination, 10))
 	}
@@ -783,9 +829,13 @@ func (bi *Bitget) CancelOrderByID(ctx context.Context, pair, clientOrderID strin
 		return nil, errOrderClientEmpty
 	}
 	req := map[string]interface{}{
-		"symbol":    pair,
-		"orderId":   strconv.FormatInt(orderID, 10),
-		"clientOid": clientOrderID,
+		"symbol": pair,
+	}
+	if orderID == 0 {
+		req["orderId"] = strconv.FormatInt(orderID, 10)
+	}
+	if clientOrderID == "" {
+		req["clientOid"] = clientOrderID
 	}
 	path := bitgetSpot + bitgetTrade + bitgetCancelOrder
 	var resp *OrderResp
@@ -813,12 +863,12 @@ func (bi *Bitget) BatchPlaceOrder(ctx context.Context, pair string, orders []Pla
 }
 
 // BatchCancelOrders cancels up to fifty orders on the exchange
-func (bi *Bitget) BatchCancelOrders(ctx context.Context, pair string, orderIDs []BatchCancelStruct) (*BatchOrderResp, error) {
+func (bi *Bitget) BatchCancelOrders(ctx context.Context, pair string, orderIDs []OrderIDStruct) (*BatchOrderResp, error) {
 	if pair == "" {
 		return nil, errPairEmpty
 	}
 	if len(orderIDs) == 0 {
-		return nil, errOrderClientEmpty
+		return nil, errOrderIDEmpty
 	}
 	req := map[string]interface{}{
 		"symbol":    pair,
@@ -850,7 +900,9 @@ func (bi *Bitget) GetOrderDetails(ctx context.Context, orderID int64, clientOrde
 		return nil, errOrderClientEmpty
 	}
 	vals := url.Values{}
-	vals.Set("orderId", strconv.FormatInt(orderID, 10))
+	if orderID != 0 {
+		vals.Set("orderId", strconv.FormatInt(orderID, 10))
+	}
 	if clientOrderID != "" {
 		vals.Set("clientOid", clientOrderID)
 	}
@@ -889,7 +941,7 @@ func (bi *Bitget) GetOrderDetails(ctx context.Context, orderID int64, clientOrde
 }
 
 // GetUnfilledOrders returns information on the user's unfilled orders
-func (bi *Bitget) GetUnfilledOrders(ctx context.Context, pair string, startTime, endTime time.Time, pagination, limit, orderID int64) (*UnfilledOrdersResp, error) {
+func (bi *Bitget) GetUnfilledOrders(ctx context.Context, pair string, startTime, endTime time.Time, limit, pagination, orderID int64) (*UnfilledOrdersResp, error) {
 	var params Params
 	params.Values = make(url.Values)
 	err := params.prepareDateString(startTime, endTime, true)
@@ -897,8 +949,12 @@ func (bi *Bitget) GetUnfilledOrders(ctx context.Context, pair string, startTime,
 		return nil, err
 	}
 	params.Values.Set("symbol", pair)
-	params.Values.Set("idLessThan", strconv.FormatInt(pagination, 10))
-	params.Values.Set("limit", strconv.FormatInt(limit, 10))
+	if pagination != 0 {
+		params.Values.Set("idLessThan", strconv.FormatInt(pagination, 10))
+	}
+	if limit != 0 {
+		params.Values.Set("limit", strconv.FormatInt(limit, 10))
+	}
 	params.Values.Set("orderId", strconv.FormatInt(orderID, 10))
 	path := bitgetSpot + bitgetTrade + bitgetUnfilledOrders
 	var resp *UnfilledOrdersResp
@@ -907,7 +963,7 @@ func (bi *Bitget) GetUnfilledOrders(ctx context.Context, pair string, startTime,
 }
 
 // GetHistoricalOrders returns the user's order history
-func (bi *Bitget) GetHistoricalOrders(ctx context.Context, pair string, startTime, endTime time.Time, pagination, limit, orderID int64) (*OrderDetailResp, error) {
+func (bi *Bitget) GetHistoricalOrders(ctx context.Context, pair string, startTime, endTime time.Time, limit, pagination, orderID int64) (*OrderDetailResp, error) {
 	var params Params
 	params.Values = make(url.Values)
 	err := params.prepareDateString(startTime, endTime, true)
@@ -915,8 +971,12 @@ func (bi *Bitget) GetHistoricalOrders(ctx context.Context, pair string, startTim
 		return nil, err
 	}
 	params.Values.Set("symbol", pair)
-	params.Values.Set("idLessThan", strconv.FormatInt(pagination, 10))
-	params.Values.Set("limit", strconv.FormatInt(limit, 10))
+	if pagination != 0 {
+		params.Values.Set("idLessThan", strconv.FormatInt(pagination, 10))
+	}
+	if limit != 0 {
+		params.Values.Set("limit", strconv.FormatInt(limit, 10))
+	}
 	params.Values.Set("orderId", strconv.FormatInt(orderID, 10))
 	path := bitgetSpot + bitgetTrade + bitgetHistoryOrders
 	var temp *OrderDetailTemp
@@ -953,7 +1013,7 @@ func (bi *Bitget) GetHistoricalOrders(ctx context.Context, pair string, startTim
 }
 
 // GetFills returns information on the user's fulfilled orders in a certain pair
-func (bi *Bitget) GetFills(ctx context.Context, pair string, startTime, endTime time.Time, pagination, limit, orderID int64) (*TradeFillsResp, error) {
+func (bi *Bitget) GetFills(ctx context.Context, pair string, startTime, endTime time.Time, limit, pagination, orderID int64) (*TradeFillsResp, error) {
 	if pair == "" {
 		return nil, errPairEmpty
 	}
@@ -964,13 +1024,150 @@ func (bi *Bitget) GetFills(ctx context.Context, pair string, startTime, endTime 
 		return nil, err
 	}
 	params.Values.Set("symbol", pair)
-	params.Values.Set("idLessThan", strconv.FormatInt(pagination, 10))
-	params.Values.Set("limit", strconv.FormatInt(limit, 10))
+	if pagination != 0 {
+		params.Values.Set("idLessThan", strconv.FormatInt(pagination, 10))
+	}
+	if limit != 0 {
+		params.Values.Set("limit", strconv.FormatInt(limit, 10))
+	}
 	params.Values.Set("orderId", strconv.FormatInt(orderID, 10))
 	path := bitgetSpot + bitgetTrade + "/" + bitgetFills
 	var resp *TradeFillsResp
+	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodGet, path, params.Values,
+		nil, &resp)
+}
+
+// PlacePlanOrder sets up an order to be placed after certain conditions are met
+func (bi *Bitget) PlacePlanOrder(ctx context.Context, pair, side, orderType, planType, triggerType, clientOrderID, strategy string, triggerPrice, executePrice, amount float64) (*OrderIDResp, error) {
+	if pair == "" {
+		return nil, errPairEmpty
+	}
+	if side == "" {
+		return nil, errSideEmpty
+	}
+	if triggerPrice == 0 {
+		return nil, errTriggerPriceEmpty
+	}
+	if orderType == "" {
+		return nil, errOrderTypeEmpty
+	}
+	if orderType == "limit" && executePrice == 0 {
+		return nil, errLimitPriceEmpty
+	}
+	if amount == 0 {
+		return nil, errAmountEmpty
+	}
+	if triggerType == "" {
+		return nil, errTriggerTypeEmpty
+	}
+	req := map[string]interface{}{
+		"symbol":       pair,
+		"side":         side,
+		"triggerPrice": strconv.FormatFloat(triggerPrice, 'f', -1, 64),
+		"orderType":    orderType,
+		"executePrice": strconv.FormatFloat(executePrice, 'f', -1, 64),
+		"planType":     planType,
+		"size":         strconv.FormatFloat(amount, 'f', -1, 64),
+		"triggerType":  triggerType,
+		"force":        strategy,
+	}
+	if clientOrderID != "" {
+		req["clientOid"] = clientOrderID
+	}
+	path := bitgetSpot + bitgetTrade + bitgetPlacePlanOrder
+	var resp *OrderIDResp
+	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate20, http.MethodPost, path, nil, req,
+		&resp)
+}
+
+// ModifyPlanOrder alters the price, trigger price, amount, or order type of a plan order
+func (bi *Bitget) ModifyPlanOrder(ctx context.Context, orderID int64, clientOrderID, orderType string, triggerPrice, executePrice, amount float64) (*OrderIDResp, error) {
+	if orderID == 0 && clientOrderID == "" {
+		return nil, errOrderClientEmpty
+	}
+	if orderType == "" {
+		return nil, errOrderTypeEmpty
+	}
+	if triggerPrice == 0 {
+		return nil, errTriggerPriceEmpty
+	}
+	if orderType == "limit" && executePrice == 0 {
+		return nil, errLimitPriceEmpty
+	}
+	if amount == 0 {
+		return nil, errAmountEmpty
+	}
+	req := map[string]interface{}{
+		"orderType":    orderType,
+		"triggerPrice": strconv.FormatFloat(triggerPrice, 'f', -1, 64),
+		"executePrice": strconv.FormatFloat(executePrice, 'f', -1, 64),
+		"size":         strconv.FormatFloat(amount, 'f', -1, 64),
+	}
+	if clientOrderID != "" {
+		req["clientOid"] = clientOrderID
+	}
+	if orderID != 0 {
+		req["orderId"] = strconv.FormatInt(orderID, 10)
+	}
+	path := bitgetSpot + bitgetTrade + bitgetModifyPlanOrder
+	var resp *OrderIDResp
+	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate20, http.MethodPost, path, nil, req,
+		&resp)
+}
+
+// CancelPlanOrder cancels a plan order
+func (bi *Bitget) CancelPlanOrder(ctx context.Context, orderID int64, clientOrderID string) (*SuccessBoolResp, error) {
+	if orderID == 0 && clientOrderID == "" {
+		return nil, errOrderClientEmpty
+	}
+	req := make(map[string]interface{})
+	if clientOrderID != "" {
+		req["clientOid"] = clientOrderID
+	}
+	if orderID != 0 {
+		req["orderId"] = strconv.FormatInt(orderID, 10)
+	}
+	path := bitgetSpot + bitgetTrade + bitgetCancelPlanOrder
+	var resp *SuccessBoolResp
+	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate20, http.MethodPost, path, nil, req,
+		&resp)
+}
+
+// GetCurrentPlanOrders returns the user's current plan orders
+func (bi *Bitget) GetCurrentPlanOrders(ctx context.Context, pair string, startTime, endTime time.Time, limit, pagination int64) (*PlanOrderResp, error) {
+	if pair == "" {
+		return nil, errPairEmpty
+	}
+	var params Params
+	params.Values = make(url.Values)
+	err := params.prepareDateString(startTime, endTime, true)
+	if err != nil {
+		return nil, err
+	}
+	params.Values.Set("symbol", pair)
+	if pagination != 0 {
+		params.Values.Set("idLessThan", strconv.FormatInt(pagination, 10))
+	}
+	if limit != 0 {
+		params.Values.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	path := bitgetSpot + bitgetTrade + bitgetCurrentPlanOrder
+	var resp *PlanOrderResp
 	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate20, http.MethodGet, path, params.Values,
 		nil, &resp)
+}
+
+// GetPlanSubOrder returns the sub-orders of a plan order
+func (bi *Bitget) GetPlanSubOrder(ctx context.Context, orderID string) (*SubOrderResp, error) {
+	if orderID == "" {
+		return nil, errOrderIDEmpty
+	}
+	vals := url.Values{}
+	vals.Set("orderId", orderID)
+	path := bitgetSpot + bitgetTrade + bitgetPlanSubOrder
+	var resp *SubOrderResp
+	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate20, http.MethodGet, path, vals, nil,
+		&resp)
 }
 
 // SendAuthenticatedHTTPRequest sends an authenticated HTTP request
