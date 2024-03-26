@@ -29,10 +29,10 @@ import (
 // GetDefaultConfig returns a default exchange config
 func ({{.Variable}} *{{.CapitalName}}) GetDefaultConfig(ctx context.Context) (*config.Exchange, error) {
 	{{.Variable}}.SetDefaults()
-	exchCfg := new(config.Exchange)
-	exchCfg.Name = {{.Variable}}.Name
-	exchCfg.HTTPTimeout = exchange.DefaultHTTPTimeout
-	exchCfg.BaseCurrencies = {{.Variable}}.BaseCurrencies
+	exchCfg, err := {{.Variable}}.GetStandardConfig()
+	if err != nil {
+		return nil, err
+	}
 
 	{{.Variable}}.SetupDefaults(exchCfg)
 
@@ -263,7 +263,7 @@ func ({{.Variable}} *{{.CapitalName}}) UpdateTickers(ctx context.Context, assetT
         }
     }
 	*/
-    return nil
+    return common.ErrNotYetImplemented
 }
 
 // FetchTicker returns the ticker for a currency pair
@@ -437,6 +437,12 @@ func ({{.Variable}} *{{.CapitalName}}) GetOrderInfo(ctx context.Context, orderID
 
 // GetDepositAddress returns a deposit address for a specified currency
 func ({{.Variable}} *{{.CapitalName}}) GetDepositAddress(ctx context.Context, c currency.Code, accountID string, chain string) (*deposit.Address, error) {
+	return nil, common.ErrNotYetImplemented
+}
+
+// GetAvailableTransferChains returns the available transfer blockchains for the specific
+// cryptocurrency
+func ({{.Variable}} *{{.CapitalName}}) GetAvailableTransferChains(ctx context.Context, cryptocurrency currency.Code) ([]string, error) {
 	return nil, common.ErrNotYetImplemented
 }
 
