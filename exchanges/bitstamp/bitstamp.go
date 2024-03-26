@@ -591,7 +591,7 @@ func (b *Bitstamp) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange
 
 	interim := json.RawMessage{}
 	err = b.SendPayload(ctx, request.Unset, func() (*request.Item, error) {
-		n := b.Requester.GetNonce(true).String()
+		n := b.Requester.GetNonce(time.Now().UnixNano).String()
 
 		values.Set("key", creds.Key)
 		values.Set("nonce", n)

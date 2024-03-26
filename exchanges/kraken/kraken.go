@@ -1007,7 +1007,7 @@ func (k *Kraken) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.U
 
 	interim := json.RawMessage{}
 	err = k.SendPayload(ctx, request.Unset, func() (*request.Item, error) {
-		nonce := k.Requester.GetNonce(true).String()
+		nonce := k.Requester.GetNonce(time.Now().UnixNano).String()
 		params.Set("nonce", nonce)
 		encoded := params.Encode()
 		var shasum []byte

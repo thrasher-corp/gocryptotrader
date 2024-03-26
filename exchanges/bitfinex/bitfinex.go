@@ -2092,10 +2092,9 @@ func (b *Bitfinex) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange
 
 	fullPath := ePoint + bitfinexAPIVersion + path
 	return b.SendPayload(ctx, endpoint, func() (*request.Item, error) {
-		n := b.Requester.GetNonce(true)
 		req := make(map[string]interface{})
 		req["request"] = bitfinexAPIVersion + path
-		req["nonce"] = n.String()
+		req["nonce"] = b.Requester.GetNonce(time.Now().UnixNano).String()
 
 		for key, value := range params {
 			req[key] = value

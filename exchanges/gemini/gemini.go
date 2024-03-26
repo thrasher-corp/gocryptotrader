@@ -421,7 +421,7 @@ func (g *Gemini) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.U
 	return g.SendPayload(ctx, request.Auth, func() (*request.Item, error) {
 		req := make(map[string]interface{})
 		req["request"] = fmt.Sprintf("/v%s/%s", geminiAPIVersion, path)
-		req["nonce"] = g.Requester.GetNonce(true).String()
+		req["nonce"] = g.Requester.GetNonce(time.Now().UnixNano).String()
 
 		for key, value := range params {
 			req[key] = value

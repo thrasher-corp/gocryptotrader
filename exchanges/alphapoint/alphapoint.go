@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/gorilla/websocket"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
@@ -581,7 +582,7 @@ func (a *Alphapoint) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchan
 		return err
 	}
 
-	n := a.Requester.GetNonce(true)
+	n := a.Requester.GetNonce(time.Now().UnixNano)
 
 	headers := make(map[string]string)
 	headers["Content-Type"] = "application/json"
