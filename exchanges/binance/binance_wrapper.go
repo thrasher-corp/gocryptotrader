@@ -231,6 +231,7 @@ func (b *Binance) SetDefaults() {
 		exchange.RestSpotSupplementary: apiURL,
 		exchange.RestUSDTMargined:      ufuturesAPIURL,
 		exchange.RestCoinMargined:      cfuturesAPIURL,
+		exchange.RestOptions:           eOptionAPIURL,
 		exchange.EdgeCase1:             "https://www.binance.com",
 		exchange.WebsocketSpot:         binanceDefaultWebsocketURL,
 	})

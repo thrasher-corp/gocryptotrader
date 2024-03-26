@@ -4245,3 +4245,81 @@ func TestGetCurrentPositionMode(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
+
+// ---------------------------  European Option Endpoints test -----------------------------------
+
+func TestCheckEOptionsServerTime(t *testing.T) {
+	t.Parallel()
+	serverTime, err := b.CheckEOptionsServerTime(context.Background())
+	require.NoError(t, err)
+	assert.False(t, serverTime.Time().IsZero())
+}
+func TestGetOptionsExchangeInformation(t *testing.T) {
+	t.Parallel()
+	result, err := b.GetOptionsExchangeInformation(context.Background())
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetEOptionsOrderbook(t *testing.T) {
+	t.Parallel()
+	result, err := b.GetEOptionsOrderbook(context.Background(), "BTC-240330-80500-P", 10)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetEOptionsRecentTrades(t *testing.T) {
+	t.Parallel()
+	result, err := b.GetEOptionsRecentTrades(context.Background(), "BTC-240330-80500-P", 10)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetEOptionsTradeHistory(t *testing.T) {
+	t.Parallel()
+	result, err := b.GetEOptionsTradeHistory(context.Background(), "BTC-240330-80500-P", 0, 10)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetEOptionsCandlesticks(t *testing.T) {
+	t.Parallel()
+	result, err := b.GetEOptionsCandlesticks(context.Background(), "BTC-240330-80500-P", kline.FiveMin, time.Time{}, time.Time{}, 10)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetOptionMarkPrice(t *testing.T) {
+	t.Parallel()
+	result, err := b.GetOptionMarkPrice(context.Background(), "BTC-240330-80500-P")
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetEOptions24hrTickerPriceChangeStatistics(t *testing.T) {
+	t.Parallel()
+	result, err := b.GetEOptions24hrTickerPriceChangeStatistics(context.Background(), "BTC-240330-80500-P")
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetEOptionsSymbolPriceTicker(t *testing.T) {
+	t.Parallel()
+	result, err := b.GetEOptionsSymbolPriceTicker(context.Background(), "BTCUSDT")
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetEOptionsHistoricalExerciseRecords(t *testing.T) {
+	t.Parallel()
+	result, err := b.GetEOptionsHistoricalExerciseRecords(context.Background(), "BTCUSDT", time.Time{}, time.Now(), 10)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetEOptionsOpenInterests(t *testing.T) {
+	t.Parallel()
+	result, err := b.GetEOptionsOpenInterests(context.Background(), "ETH", time.Now().Add(time.Hour*24*50))
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}

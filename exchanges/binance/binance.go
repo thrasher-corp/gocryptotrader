@@ -44,6 +44,7 @@ const (
 	spotAPIURL     = "https://sapi.binance.com"
 	cfuturesAPIURL = "https://dapi.binance.com"
 	ufuturesAPIURL = "https://fapi.binance.com"
+	eOptionAPIURL  = "https://eapi.binance.com"
 
 	testnetSpotURL = "https://testnet.binance.vision/api"
 	testnetFutures = "https://testnet.binancefuture.com"
