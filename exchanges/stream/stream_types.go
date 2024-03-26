@@ -16,13 +16,13 @@ type Connection interface {
 	ReadMessage() Response
 	SendJSONMessage(interface{}) error
 	SetupPingHandler(PingHandler)
-	GenerateMessageID(highPrecision bool) int64
+	GenerateMessageID(highPrecision bool) int64 // TODO: Remove and abstract as this shouldn't be localised to the connection
 	SendMessageReturnResponse(signature interface{}, request interface{}) ([]byte, error)
 	SendRawMessage(messageType int, message []byte) error
 	SetURL(string)
-	SetProxy(string)
 	GetURL() string
 	Shutdown() error
+	GetType() string
 }
 
 // Response defines generalised data from the stream connection
@@ -39,6 +39,18 @@ type ConnectionSetup struct {
 	URL                     string
 	Authenticated           bool
 	ConnectionLevelReporter Reporter
+	// Handler handles the incoming data from the stream
+	Handler func(incoming []byte) error
+	// Bootstrap handles the initial connection setup bespoke to the exchange
+	Bootstrap       func(conn Connection) error
+	ReadBufferSize  uint
+	WriteBufferSize uint
+
+	// TODO:
+	// * Add generate subscriptions function
+	// * Add max subscriptions
+	// * Remove dedicated auth connection, as everything will be defined per
+	// 	 connection setup.
 }
 
 // PingHandler container for ping handler settings

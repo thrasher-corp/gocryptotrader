@@ -204,7 +204,6 @@ func (b *BTSE) Setup(exch *config.Exchange) error {
 
 	err = b.Websocket.Setup(&stream.WebsocketSetup{
 		ExchangeConfig:        exch,
-		DefaultURL:            btseWebsocket,
 		RunningURL:            wsRunningURL,
 		Connector:             b.WsConnect,
 		Subscriber:            b.Subscribe,
@@ -221,7 +220,7 @@ func (b *BTSE) Setup(exch *config.Exchange) error {
 		return err
 	}
 
-	return b.Websocket.SetupNewConnection(stream.ConnectionSetup{
+	return b.Websocket.SetupNewConnection(&stream.ConnectionSetup{
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
 	})

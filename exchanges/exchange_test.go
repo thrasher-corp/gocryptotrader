@@ -208,9 +208,7 @@ func TestSetClientProxyAddress(t *testing.T) {
 		t.Error("SetClientProxyAddress parsed invalid URL")
 	}
 
-	if newBase.Websocket.GetProxyAddress() != "" {
-		t.Error("SetClientProxyAddress error", err)
-	}
+	assert.Empty(t, newBase.Websocket.GetProxyAddress().String(), "SetClientProxyAddress should not set ProxyAddress on error")
 
 	err = newBase.SetClientProxyAddress("http://www.valid.com")
 	if err != nil {
@@ -223,9 +221,7 @@ func TestSetClientProxyAddress(t *testing.T) {
 		t.Error("trying to set the same proxy addr should thrown an err for ws")
 	}
 
-	if newBase.Websocket.GetProxyAddress() != "http://www.valid.com" {
-		t.Error("SetClientProxyAddress error", err)
-	}
+	assert.Equal(t, "http://www.valid.com", newBase.Websocket.GetProxyAddress().String())
 }
 
 func TestSetFeatureDefaults(t *testing.T) {
@@ -1260,7 +1256,6 @@ func TestSetupDefaults(t *testing.T) {
 			Features:                &config.FeaturesConfig{},
 		},
 		Features:              &protocol.Features{},
-		DefaultURL:            "ws://something.com",
 		RunningURL:            "ws://something.com",
 		Connector:             func() error { return nil },
 		GenerateSubscriptions: func() ([]subscription.Subscription, error) { return []subscription.Subscription{}, nil },
@@ -1609,7 +1604,6 @@ func TestIsWebsocketEnabled(t *testing.T) {
 			},
 		},
 		Features:              &protocol.Features{},
-		DefaultURL:            "ws://something.com",
 		RunningURL:            "ws://something.com",
 		Connector:             func() error { return nil },
 		GenerateSubscriptions: func() ([]subscription.Subscription, error) { return nil, nil },

@@ -174,7 +174,6 @@ func (b *Bitstamp) Setup(exch *config.Exchange) error {
 
 	err = b.Websocket.Setup(&stream.WebsocketSetup{
 		ExchangeConfig:        exch,
-		DefaultURL:            bitstampWSURL,
 		RunningURL:            wsURL,
 		Connector:             b.WsConnect,
 		Subscriber:            b.Subscribe,
@@ -186,8 +185,8 @@ func (b *Bitstamp) Setup(exch *config.Exchange) error {
 		return err
 	}
 
-	return b.Websocket.SetupNewConnection(stream.ConnectionSetup{
-		URL:                  b.Websocket.GetWebsocketURL(),
+	return b.Websocket.SetupNewConnection(&stream.ConnectionSetup{
+		URL:                  bitstampWSURL,
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
 	})

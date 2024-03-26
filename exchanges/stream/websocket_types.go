@@ -1,6 +1,7 @@
 package stream
 
 import (
+	"net/url"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -43,11 +44,7 @@ type Websocket struct {
 	dataMonitorRunning           atomic.Bool
 	trafficTimeout               time.Duration
 	connectionMonitorDelay       time.Duration
-	proxyAddr                    string
-	defaultURL                   string
-	defaultURLAuth               string
-	runningURL                   string
-	runningURLAuth               string
+	proxyAddr                    *url.URL
 	exchangeName                 string
 	m                            sync.Mutex
 	connector                    func() error
@@ -93,9 +90,22 @@ type Websocket struct {
 	features          *protocol.Features
 
 	// Standard stream connection
-	Conn Connection
-	// Authenticated stream connection
-	AuthConn Connection
+	Conn            Connection
+	UnAuthHandler   func([]byte) error
+	UnAuthBootstrap func(Connection) error
+	RunningURL      string // TODO: Remove
+	defaultURL      string
+	ReadBufferSize  uint
+	WriteBufferSize uint
+
+	// Authenticated stream connection // TODO: Remove authenticated connection
+	AuthConn            Connection
+	AuthHandler         func([]byte) error
+	AuthBootstrap       func(Connection) error
+	RunningAuthURL      string
+	defaultAuthURL      string
+	ReadBufferSizeAuth  uint
+	WriteBufferSizeAuth uint
 
 	// Latency reporter
 	ExchangeLevelReporter Reporter
@@ -108,7 +118,6 @@ type Websocket struct {
 // WebsocketSetup defines variables for setting up a websocket connection
 type WebsocketSetup struct {
 	ExchangeConfig        *config.Exchange
-	DefaultURL            string
 	RunningURL            string
 	RunningURLAuth        string
 	Connector             func() error
@@ -134,7 +143,7 @@ type WebsocketSetup struct {
 // connection
 type WebsocketConnection struct {
 	Verbose   bool
-	connected int32
+	connected atomic.Bool
 
 	// Gorilla websocket does not allow more than one goroutine to utilise
 	// writes methods
@@ -143,7 +152,6 @@ type WebsocketConnection struct {
 	RateLimit    int64
 	ExchangeName string
 	URL          string
-	ProxyURL     string
 	Wg           *sync.WaitGroup
 	Connection   *websocket.Conn
 	ShutdownC    chan struct{}
@@ -154,4 +162,9 @@ type WebsocketConnection struct {
 	readMessageErrors chan error
 
 	Reporter Reporter
+
+	// Note: This is a temporary solution for broadcasting the type of
+	// connection. TODO: Upgrade to include more information about the
+	// connection.
+	Type string
 }

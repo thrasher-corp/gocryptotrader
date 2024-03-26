@@ -312,7 +312,6 @@ var (
 	errMissingSubOrderType                     = errors.New("missing sub order type")
 	errMissingQuantity                         = errors.New("invalid quantity to buy or sell")
 	errDepositAddressNotFound                  = errors.New("deposit address with the specified currency code and chain not found")
-	errMissingAtLeast1CurrencyPair             = errors.New("at least one currency is required to fetch order history")
 	errNoCandlestickDataFound                  = errors.New("no candlesticks data found")
 	errInvalidWebsocketEvent                   = errors.New("invalid websocket event")
 	errMissingValidChannelInformation          = errors.New("missing channel information")

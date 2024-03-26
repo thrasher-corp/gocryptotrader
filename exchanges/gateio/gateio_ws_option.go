@@ -77,7 +77,7 @@ func (g *Gateio) WsOptionsConnect() error {
 		return err
 	}
 	var dialer websocket.Dialer
-	err = g.Websocket.SetWebsocketURL(optionsWebsocketURL, false, true)
+	err = g.Websocket.SetWebsocketURL(optionsWebsocketURL, true)
 	if err != nil {
 		return err
 	}
