@@ -175,7 +175,7 @@ func (b *Base) SetSubscriptionsFromConfig() {
 		b.Config.Features.Subscriptions = b.Features.Subscriptions
 		return
 	}
-	b.Features.Subscriptions = []*subscription.Subscription{}
+	b.Features.Subscriptions = subscription.List{}
 	for _, s := range b.Config.Features.Subscriptions {
 		if s.Enabled {
 			b.Features.Subscriptions = append(b.Features.Subscriptions, s)
@@ -1164,7 +1164,7 @@ func (b *Base) FlushWebsocketChannels() error {
 
 // SubscribeToWebsocketChannels appends to ChannelsToSubscribe
 // which lets websocket.manageSubscriptions handle subscribing
-func (b *Base) SubscribeToWebsocketChannels(channels []subscription.Subscription) error {
+func (b *Base) SubscribeToWebsocketChannels(channels subscription.List) error {
 	if b.Websocket == nil {
 		return common.ErrFunctionNotSupported
 	}
@@ -1173,7 +1173,7 @@ func (b *Base) SubscribeToWebsocketChannels(channels []subscription.Subscription
 
 // UnsubscribeToWebsocketChannels removes from ChannelsToSubscribe
 // which lets websocket.manageSubscriptions handle unsubscribing
-func (b *Base) UnsubscribeToWebsocketChannels(channels []subscription.Subscription) error {
+func (b *Base) UnsubscribeToWebsocketChannels(channels subscription.List) error {
 	if b.Websocket == nil {
 		return common.ErrFunctionNotSupported
 	}
@@ -1181,7 +1181,7 @@ func (b *Base) UnsubscribeToWebsocketChannels(channels []subscription.Subscripti
 }
 
 // GetSubscriptions returns a copied list of subscriptions
-func (b *Base) GetSubscriptions() ([]subscription.Subscription, error) {
+func (b *Base) GetSubscriptions() (subscription.List, error) {
 	if b.Websocket == nil {
 		return nil, common.ErrFunctionNotSupported
 	}
@@ -1842,7 +1842,7 @@ func (b *Base) GetOpenInterest(context.Context, ...key.PairAsset) ([]futures.Ope
 }
 
 // ParallelChanOp performs a single method call in parallel across streams and waits to return any errors
-func (b *Base) ParallelChanOp(channels []subscription.Subscription, m func([]subscription.Subscription) error, batchSize int) error {
+func (b *Base) ParallelChanOp(channels subscription.List, m func(subscription.List) error, batchSize int) error {
 	wg := sync.WaitGroup{}
 	errC := make(chan error, len(channels))
 	if batchSize == 0 {
@@ -1856,7 +1856,7 @@ func (b *Base) ParallelChanOp(channels []subscription.Subscription, m func([]sub
 			j = len(channels)
 		}
 		wg.Add(1)
-		go func(c []subscription.Subscription) {
+		go func(c subscription.List) {
 			defer wg.Done()
 			if err := m(c); err != nil {
 				errC <- err

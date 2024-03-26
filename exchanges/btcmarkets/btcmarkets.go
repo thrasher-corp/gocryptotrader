@@ -81,13 +81,14 @@ const (
 	immediateOrCancel = "IOC"
 	fillOrKill        = "FOK"
 
-	subscribe     = "subscribe"
-	fundChange    = "fundChange"
-	orderChange   = "orderChange"
-	heartbeat     = "heartbeat"
-	tick          = "tick"
-	wsOB          = "orderbookUpdate"
-	tradeEndPoint = "trade"
+	subscribe           = "subscribe"
+	fundChange          = "fundChange"
+	orderChange         = "orderChange"
+	heartbeat           = "heartbeat"
+	tick                = "tick"
+	wsOrderbookSnapshot = "orderbook"
+	wsOrderbookUpdate   = "orderbookUpdate"
+	tradeEndPoint       = "trade"
 
 	// Subscription management when connection and subscription established
 	addSubscription    = "addSubscription"

@@ -95,6 +95,8 @@ func MockWSInstance[T any, PT interface {
 
 	b := e.GetBase()
 	b.SkipAuthCheck = true
+	b.API.AuthenticatedWebsocketSupport = true
+
 	err := b.API.Endpoints.SetRunning("RestSpotURL", s.URL)
 	require.NoError(tb, err, "Endpoints.SetRunning should not error for RestSpotURL")
 	for _, auth := range []bool{true, false} {
@@ -102,7 +104,11 @@ func MockWSInstance[T any, PT interface {
 		require.NoErrorf(tb, err, "SetWebsocketURL should not error for auth: %v", auth)
 	}
 
-	b.Features.Subscriptions = []*subscription.Subscription{}
+	// For testing we never want to use the default subscriptions; Tests of GenerateSubscriptions should be exercising it directly
+	b.Features.Subscriptions = subscription.List{}
+	// Exchanges which don't support subscription conf; Can be removed when all exchanges support sub conf
+	b.Websocket.GenerateSubs = func() (subscription.List, error) { return subscription.List{}, nil }
+
 	err = b.Websocket.Connect()
 	require.NoError(tb, err, "Connect should not error")
 
@@ -147,13 +153,20 @@ func SetupWs(tb testing.TB, e exchange.IBotExchange) {
 	}
 
 	b := e.GetBase()
-	if !b.Websocket.IsEnabled() {
+	w, err := b.GetWebsocket()
+	if err != nil || !b.Websocket.IsEnabled() {
 		tb.Skip("Websocket not enabled")
 	}
-	if b.Websocket.IsConnected() {
+	if w.IsConnected() {
 		return
 	}
-	err := b.Websocket.Connect()
+
+	// For testing we never want to use the default subscriptions; Tests of GenerateSubscriptions should be exercising it directly
+	b.Features.Subscriptions = subscription.List{}
+	// Exchanges which don't support subscription conf; Can be removed when all exchanges support sub conf
+	w.GenerateSubs = func() (subscription.List, error) { return subscription.List{}, nil }
+
+	err = w.Connect()
 	require.NoError(tb, err, "WsConnect should not error")
 
 	setupWsOnce[e] = true
