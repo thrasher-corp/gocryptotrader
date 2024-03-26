@@ -55,7 +55,10 @@ var (
 	ErrNotYetImplemented = errors.New("not yet implemented")
 	// ErrFunctionNotSupported defines a standardised error for an unsupported
 	// wrapper function by an API
-	ErrFunctionNotSupported  = errors.New("unsupported wrapper function")
+	ErrFunctionNotSupported = errors.New("unsupported wrapper function")
+	// ErrExchangeNameUnset defines a common error across the code base for
+	// when the exchange name is unset
+	ErrExchangeNameUnset     = errors.New("exchange name unset")
 	errInvalidCryptoCurrency = errors.New("invalid crypto currency")
 	// ErrDateUnset is an error for start end check calculations
 	ErrDateUnset = errors.New("date unset")

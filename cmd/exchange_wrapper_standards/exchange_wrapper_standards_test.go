@@ -65,6 +65,12 @@ func TestAllExchangeWrappers(t *testing.T) {
 				ctx, cancelFn = context.WithTimeout(context.Background(), 0)
 				cancelFn()
 			}
+
+			// blocked exchanges are not able to be tested at any level
+			if common.StringDataContains(blockedExchanges, name) {
+				t.Skipf("skipping blocked exchange %v", name)
+			}
+
 			exch, assetPairs := setupExchange(ctx, t, name, cfg)
 			executeExchangeWrapperTests(ctx, t, exch, assetPairs)
 		})
@@ -596,6 +602,11 @@ var excludedMethodNames = map[string]struct{}{
 var blockedCIExchanges = []string{
 	"binance", // binance API is banned from executing within the US where github Actions is ran
 	"bybit",   // bybit API is banned from executing within the US where github Actions is ran
+}
+
+// blockedExchanges are exchanges that are not able to be tested in general
+var blockedExchanges = []string{
+	"coinbasepro", // coinbasepro API requires authentication for almost every endpoint
 }
 
 // unsupportedAssets contains assets that cannot handle

@@ -43,7 +43,6 @@ var (
 	errTimeInForceConflict      = errors.New("multiple time in force options applied")
 	errUnrecognisedOrderType    = errors.New("unrecognised order type")
 	errUnrecognisedOrderStatus  = errors.New("unrecognised order status")
-	errExchangeNameUnset        = errors.New("exchange name unset")
 	errOrderSubmitIsNil         = errors.New("order submit is nil")
 	errOrderSubmitResponseIsNil = errors.New("order submit response is nil")
 	errOrderDetailIsNil         = errors.New("order detail is nil")
@@ -62,7 +61,7 @@ func (s *Submit) Validate(opt ...validate.Checker) error {
 	}
 
 	if s.Exchange == "" {
-		return errExchangeNameUnset
+		return common.ErrExchangeNameUnset
 	}
 
 	if s.Pair.IsEmpty() {
@@ -81,7 +80,7 @@ func (s *Submit) Validate(opt ...validate.Checker) error {
 		return fmt.Errorf("%w %v", ErrSideIsInvalid, s.Side)
 	}
 
-	if s.Type != Market && s.Type != Limit {
+	if AllOrderTypes&s.Type != s.Type || s.Type == UnknownType {
 		return ErrTypeIsInvalid
 	}
 

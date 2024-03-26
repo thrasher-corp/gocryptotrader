@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/dispatch"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -328,8 +329,8 @@ func TestDeployDepth(t *testing.T) {
 		t.Fatal(err)
 	}
 	_, err = DeployDepth("", c, asset.Spot)
-	if !errors.Is(err, errExchangeNameUnset) {
-		t.Fatalf("expecting %s error but received %v", errExchangeNameUnset, err)
+	if !errors.Is(err, common.ErrExchangeNameUnset) {
+		t.Fatalf("expecting %s error but received %v", common.ErrExchangeNameUnset, err)
 	}
 	_, err = DeployDepth("test", currency.EMPTYPAIR, asset.Spot)
 	if !errors.Is(err, errPairNotSet) {

@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/dispatch"
@@ -72,8 +73,8 @@ func TestGetHoldings(t *testing.T) {
 	}
 
 	err = Process(&Holdings{}, nil)
-	if !errors.Is(err, errExchangeNameUnset) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errExchangeNameUnset)
+	if !errors.Is(err, common.ErrExchangeNameUnset) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, common.ErrExchangeNameUnset)
 	}
 
 	holdings := Holdings{
@@ -145,8 +146,8 @@ func TestGetHoldings(t *testing.T) {
 	}
 
 	_, err = GetHoldings("", nil, asset.Spot)
-	if !errors.Is(err, errExchangeNameUnset) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errExchangeNameUnset)
+	if !errors.Is(err, common.ErrExchangeNameUnset) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, common.ErrExchangeNameUnset)
 	}
 
 	_, err = GetHoldings("bla", nil, asset.Spot)
@@ -245,8 +246,8 @@ func TestGetHoldings(t *testing.T) {
 
 func TestGetBalance(t *testing.T) {
 	_, err := GetBalance("", "", nil, asset.Empty, currency.Code{})
-	if !errors.Is(err, errExchangeNameUnset) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errExchangeNameUnset)
+	if !errors.Is(err, common.ErrExchangeNameUnset) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, common.ErrExchangeNameUnset)
 	}
 
 	_, err = GetBalance("bruh", "", nil, asset.Empty, currency.Code{})
@@ -408,8 +409,8 @@ func TestUpdate(t *testing.T) {
 	}
 
 	err = s.Update(&Holdings{}, nil)
-	if !errors.Is(err, errExchangeNameUnset) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errExchangeNameUnset)
+	if !errors.Is(err, common.ErrExchangeNameUnset) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, common.ErrExchangeNameUnset)
 	}
 
 	err = s.Update(&Holdings{
