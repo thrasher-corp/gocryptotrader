@@ -1,6 +1,7 @@
 package bitget
 
 import (
+	"encoding/json"
 	"net/url"
 	"time"
 
@@ -531,8 +532,8 @@ type CandleData struct {
 	Candles []OneCandle
 }
 
-// FillsResp contains information on a batch of trades
-type FillsResp struct {
+// MarketFillsResp contains information on a batch of trades
+type MarketFillsResp struct {
 	Data []struct {
 		Symbol    string        `json:"symbol"`
 		TradeID   int64         `json:"tradeId,string"`
@@ -546,8 +547,8 @@ type FillsResp struct {
 // OrderResp contains information on an order
 type OrderResp struct {
 	Data struct {
-		OrderID       int64  `json:"orderId,string"`
-		ClientOrderID string `json:"clientOrderId"`
+		OrderID       EmptyInt `json:"orderId,string"`
+		ClientOrderID string   `json:"clientOid"`
 	} `json:"data"`
 }
 
@@ -561,18 +562,124 @@ type PlaceOrderStruct struct {
 	ClientOrderID string  `json:"clientOId"`
 }
 
+// EmptyInt is a type used to unmarshal empty string into 0, and numbers encoded as strings into int64
+type EmptyInt int64
+
 // BatchOrderResp contains information on the success or failure of a batch of orders to place or cancel
 type BatchOrderResp struct {
 	Data struct {
 		SuccessList []struct {
-			OrderID       int64  `json:"orderId,string"`
-			ClientOrderID string `json:"clientOrderId"`
+			OrderID       EmptyInt `json:"orderId"`
+			ClientOrderID string   `json:"clientOid"`
 		} `json:"successList"`
 		FailureList []struct {
-			OrderID       int64  `json:"orderId,string"`
-			ClientOrderID string `json:"clientOrderId"`
-			ErrorCode     int64  `json:"errorCode"`
-			ErrorMessage  string `json:"errorMsg"`
+			OrderID       EmptyInt `json:"orderId"`
+			ClientOrderID string   `json:"clientOid"`
+			ErrorCode     int64    `json:"errorCode,string"`
+			ErrorMessage  string   `json:"errorMsg"`
 		} `json:"failureList"`
 	} `json:"data"`
+}
+
+// BatchCancelStruct contains information on a batch of orders to cancel
+type BatchCancelStruct struct {
+	OrderID   int64  `json:"orderId,string,omitempty"`
+	ClientOID string `json:"clientOid,omitempty"`
+}
+
+// SymbolResp holds a single symbol
+type SymbolResp struct {
+	Data struct {
+		Symbol string `json:"symbol"`
+	} `json:"data"`
+}
+
+// OrderDetailTemp contains information on an order in a partially-unmarshalled state
+type OrderDetailTemp struct {
+	Data []struct {
+		UserID           string          `json:"userId"` // Check whether this should be a different type
+		Symbol           string          `json:"symbol"`
+		OrderID          EmptyInt        `json:"orderId"`
+		ClientOrderID    string          `json:"clientOid"`
+		Price            float64         `json:"price,string"`
+		Size             float64         `json:"size,string"`
+		OrderType        string          `json:"orderType"`
+		Side             string          `json:"side"`
+		Status           string          `json:"status"`
+		PriceAverage     float64         `json:"priceAvg,string"`
+		BaseVolume       float64         `json:"baseVolume,string"`
+		QuoteVolume      float64         `json:"quoteVolume,string"`
+		EnterPointSource string          `json:"enterPointSource"`
+		CreateTime       UnixTimestamp   `json:"cTime"`
+		UpdateTime       UnixTimestamp   `json:"uTime"`
+		OrderSource      string          `json:"orderSource"`
+		FeeDetailTemp    json.RawMessage `json:"feeDetail"`
+	}
+}
+
+// FeeDetail contains information on fees
+type FeeDetail struct {
+	AmountCoupons     float64 `json:"c"`
+	AmountDeductedBGB float64 `json:"d"`
+	AmountRemaining   float64 `json:"r"`
+	AmountTotal       float64 `json:"t"`
+	Deduction         bool    `json:"deduction"`
+	FeeCoinCode       string  `json:"feeCoinCode"`
+	TotalFee          float64 `json:"totalFee"`
+	TotalDeductionFee float64 `json:"totalDeductionFee"`
+}
+
+// FeeDetailStore is a map of fee details for better unmarshalling
+type FeeDetailStore map[string]FeeDetail
+
+// OrderDetailData contains information on an order for better unmarshalling
+type OrderDetailData struct {
+	UserID           string // Check whether this should be a different type
+	Symbol           string
+	OrderID          EmptyInt
+	ClientOrderID    string
+	Price            float64
+	Size             float64
+	OrderType        string
+	Side             string
+	Status           string
+	PriceAverage     float64
+	BaseVolume       float64
+	QuoteVolume      float64
+	EnterPointSource string
+	CreateTime       UnixTimestamp
+	UpdateTime       UnixTimestamp
+	OrderSource      string
+	FeeDetail        FeeDetailStore
+}
+
+// OrderDetailResp contains information on an order
+type OrderDetailResp struct {
+	Data []OrderDetailData
+}
+
+// UnfilledOrdersResp contains information on the user's unfilled orders
+type UnfilledOrdersResp struct {
+	Data []struct {
+		UserID           string        `json:"userId"` // Check whether this should be a different type
+		Symbol           string        `json:"symbol"`
+		OrderID          EmptyInt      `json:"orderId"`
+		ClientOrderID    string        `json:"clientOid"`
+		PriceAverage     float64       `json:"priceAvg,string"`
+		Size             float64       `json:"size,string"`
+		OrderType        string        `json:"orderType"`
+		Side             string        `json:"side"`
+		Status           string        `json:"status"`
+		BasePrice        float64       `json:"basePrice,string"`
+		BaseVolume       float64       `json:"baseVolume,string"`
+		QuoteVolume      float64       `json:"quoteVolume,string"`
+		EnterPointSource string        `json:"enterPointSource"`
+		OrderSource      string        `json:"orderSource"`
+		CreateTime       UnixTimestamp `json:"cTime"`
+		UpdateTime       UnixTimestamp `json:"uTime"`
+	} `json:"data"`
+}
+
+// TradeFillsResp contains information on the user's fulfilled orders
+type TradeFillsResp struct {
 }

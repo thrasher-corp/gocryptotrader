@@ -74,6 +74,11 @@ const (
 	bitgetPlaceOrder           = "/place-order"
 	bitgetCancelOrder          = "/cancel-order"
 	bitgetBatchOrders          = "/batch-orders"
+	bitgetBatchCancel          = "/batch-cancel-order"
+	bitgetCancelSymbolOrder    = "/cancel-symbol-order"
+	bitgetOrderInfo            = "/orderInfo"
+	bitgetUnfilledOrders       = "/unfilled-orders"
+	bitgetHistoryOrders        = "/history-orders"
 
 	// Errors
 	errUnknownEndpointLimit = "unknown endpoint limit %v"
@@ -700,7 +705,7 @@ func (bi *Bitget) GetCandlestickData(ctx context.Context, pair, granularity stri
 }
 
 // GetRecentFills returns the most recent trades for a given pair
-func (bi *Bitget) GetRecentFills(ctx context.Context, pair string, limit uint16) (*FillsResp, error) {
+func (bi *Bitget) GetRecentFills(ctx context.Context, pair string, limit uint16) (*MarketFillsResp, error) {
 	if pair == "" {
 		return nil, errPairEmpty
 	}
@@ -708,12 +713,12 @@ func (bi *Bitget) GetRecentFills(ctx context.Context, pair string, limit uint16)
 	vals.Set("symbol", pair)
 	vals.Set("limit", strconv.FormatInt(int64(limit), 10))
 	path := bitgetSpot + bitgetMarket + bitgetFills
-	var resp *FillsResp
+	var resp *MarketFillsResp
 	return resp, bi.SendHTTPRequest(ctx, exchange.RestSpot, Rate10, path, vals, &resp)
 }
 
 // GetMarketTrades returns trades for a given pair within a particular time range, and/or before a certain ID
-func (bi *Bitget) GetMarketTrades(ctx context.Context, pair string, startTime, endTime time.Time, limit, pagination int64) (*FillsResp, error) {
+func (bi *Bitget) GetMarketTrades(ctx context.Context, pair string, startTime, endTime time.Time, limit, pagination int64) (*MarketFillsResp, error) {
 	if pair == "" {
 		return nil, errPairEmpty
 	}
@@ -729,7 +734,7 @@ func (bi *Bitget) GetMarketTrades(ctx context.Context, pair string, startTime, e
 		params.Values.Set("idLessThan", strconv.FormatInt(pagination, 10))
 	}
 	path := bitgetSpot + bitgetMarket + bitgetFillsHistory
-	var resp *FillsResp
+	var resp *MarketFillsResp
 	return resp, bi.SendHTTPRequest(ctx, exchange.RestSpot, Rate10, path, params.Values, &resp)
 }
 
@@ -764,7 +769,8 @@ func (bi *Bitget) PlaceOrder(ctx context.Context, pair, side, orderType, strateg
 	}
 	path := bitgetSpot + bitgetTrade + bitgetPlaceOrder
 	var resp *OrderResp
-	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodPost, path, nil, req,
+	// Has two separate rate limits listed, for some reason
+	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate1, http.MethodPost, path, nil, req,
 		&resp)
 }
 
@@ -797,12 +803,174 @@ func (bi *Bitget) BatchPlaceOrder(ctx context.Context, pair string, orders []Pla
 	}
 	req := map[string]interface{}{
 		"symbol":    pair,
-		"orderData": orders,
+		"orderList": orders,
 	}
 	path := bitgetSpot + bitgetTrade + bitgetBatchOrders
 	var resp *BatchOrderResp
+	// Has two separate rate limits listed, for some reason
+	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate1, http.MethodPost, path, nil, req,
+		&resp)
+}
+
+// BatchCancelOrders cancels up to fifty orders on the exchange
+func (bi *Bitget) BatchCancelOrders(ctx context.Context, pair string, orderIDs []BatchCancelStruct) (*BatchOrderResp, error) {
+	if pair == "" {
+		return nil, errPairEmpty
+	}
+	if len(orderIDs) == 0 {
+		return nil, errOrderClientEmpty
+	}
+	req := map[string]interface{}{
+		"symbol":    pair,
+		"orderList": orderIDs,
+	}
+	path := bitgetSpot + bitgetTrade + bitgetBatchCancel
+	var resp *BatchOrderResp
+	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodPost, path, nil, req,
+		&resp)
+}
+
+// CancelOrderBySymbol cancels orders for a given symbol. Doesn't return information on failures/successes
+func (bi *Bitget) CancelOrderBySymbol(ctx context.Context, pair string) (*SymbolResp, error) {
+	if pair == "" {
+		return nil, errPairEmpty
+	}
+	req := map[string]interface{}{
+		"symbol": pair,
+	}
+	path := bitgetSpot + bitgetTrade + bitgetCancelSymbolOrder
+	var resp *SymbolResp
 	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate5, http.MethodPost, path, nil, req,
 		&resp)
+}
+
+// GetOrderDetails returns information on a single order
+func (bi *Bitget) GetOrderDetails(ctx context.Context, orderID int64, clientOrderID string) (*OrderDetailResp, error) {
+	if orderID == 0 && clientOrderID == "" {
+		return nil, errOrderClientEmpty
+	}
+	vals := url.Values{}
+	vals.Set("orderId", strconv.FormatInt(orderID, 10))
+	if clientOrderID != "" {
+		vals.Set("clientOid", clientOrderID)
+	}
+	path := bitgetSpot + bitgetTrade + bitgetOrderInfo
+	var temp *OrderDetailTemp
+	err := bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate20, http.MethodGet, path, vals, nil,
+		&temp)
+	if err != nil {
+		return nil, err
+	}
+	resp := new(OrderDetailResp)
+	resp.Data = make([]OrderDetailData, len(temp.Data))
+	for i := range temp.Data {
+		resp.Data[i].UserID = temp.Data[i].UserID
+		resp.Data[i].Symbol = temp.Data[i].Symbol
+		resp.Data[i].OrderID = temp.Data[i].OrderID
+		resp.Data[i].ClientOrderID = temp.Data[i].ClientOrderID
+		resp.Data[i].Price = temp.Data[i].Price
+		resp.Data[i].Size = temp.Data[i].Size
+		resp.Data[i].OrderType = temp.Data[i].OrderType
+		resp.Data[i].Side = temp.Data[i].Side
+		resp.Data[i].Status = temp.Data[i].Status
+		resp.Data[i].PriceAverage = temp.Data[i].PriceAverage
+		resp.Data[i].BaseVolume = temp.Data[i].BaseVolume
+		resp.Data[i].QuoteVolume = temp.Data[i].QuoteVolume
+		resp.Data[i].EnterPointSource = temp.Data[i].EnterPointSource
+		resp.Data[i].CreateTime = temp.Data[i].CreateTime
+		resp.Data[i].UpdateTime = temp.Data[i].UpdateTime
+		resp.Data[i].OrderSource = temp.Data[i].OrderSource
+		err = json.Unmarshal(temp.Data[i].FeeDetailTemp, &resp.Data[i].FeeDetail)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return resp, nil
+}
+
+// GetUnfilledOrders returns information on the user's unfilled orders
+func (bi *Bitget) GetUnfilledOrders(ctx context.Context, pair string, startTime, endTime time.Time, pagination, limit, orderID int64) (*UnfilledOrdersResp, error) {
+	var params Params
+	params.Values = make(url.Values)
+	err := params.prepareDateString(startTime, endTime, true)
+	if err != nil {
+		return nil, err
+	}
+	params.Values.Set("symbol", pair)
+	params.Values.Set("idLessThan", strconv.FormatInt(pagination, 10))
+	params.Values.Set("limit", strconv.FormatInt(limit, 10))
+	params.Values.Set("orderId", strconv.FormatInt(orderID, 10))
+	path := bitgetSpot + bitgetTrade + bitgetUnfilledOrders
+	var resp *UnfilledOrdersResp
+	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate20, http.MethodGet, path, params.Values,
+		nil, &resp)
+}
+
+// GetHistoricalOrders returns the user's order history
+func (bi *Bitget) GetHistoricalOrders(ctx context.Context, pair string, startTime, endTime time.Time, pagination, limit, orderID int64) (*OrderDetailResp, error) {
+	var params Params
+	params.Values = make(url.Values)
+	err := params.prepareDateString(startTime, endTime, true)
+	if err != nil {
+		return nil, err
+	}
+	params.Values.Set("symbol", pair)
+	params.Values.Set("idLessThan", strconv.FormatInt(pagination, 10))
+	params.Values.Set("limit", strconv.FormatInt(limit, 10))
+	params.Values.Set("orderId", strconv.FormatInt(orderID, 10))
+	path := bitgetSpot + bitgetTrade + bitgetHistoryOrders
+	var temp *OrderDetailTemp
+	err = bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate20, http.MethodGet, path, params.Values, nil,
+		&temp)
+	if err != nil {
+		return nil, err
+	}
+	resp := new(OrderDetailResp)
+	resp.Data = make([]OrderDetailData, len(temp.Data))
+	for i := range temp.Data {
+		resp.Data[i].UserID = temp.Data[i].UserID
+		resp.Data[i].Symbol = temp.Data[i].Symbol
+		resp.Data[i].OrderID = temp.Data[i].OrderID
+		resp.Data[i].ClientOrderID = temp.Data[i].ClientOrderID
+		resp.Data[i].Price = temp.Data[i].Price
+		resp.Data[i].Size = temp.Data[i].Size
+		resp.Data[i].OrderType = temp.Data[i].OrderType
+		resp.Data[i].Side = temp.Data[i].Side
+		resp.Data[i].Status = temp.Data[i].Status
+		resp.Data[i].PriceAverage = temp.Data[i].PriceAverage
+		resp.Data[i].BaseVolume = temp.Data[i].BaseVolume
+		resp.Data[i].QuoteVolume = temp.Data[i].QuoteVolume
+		resp.Data[i].EnterPointSource = temp.Data[i].EnterPointSource
+		resp.Data[i].CreateTime = temp.Data[i].CreateTime
+		resp.Data[i].UpdateTime = temp.Data[i].UpdateTime
+		resp.Data[i].OrderSource = temp.Data[i].OrderSource
+		err = json.Unmarshal(temp.Data[i].FeeDetailTemp, &resp.Data[i].FeeDetail)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return resp, nil
+}
+
+// GetFills returns information on the user's fulfilled orders in a certain pair
+func (bi *Bitget) GetFills(ctx context.Context, pair string, startTime, endTime time.Time, pagination, limit, orderID int64) (*TradeFillsResp, error) {
+	if pair == "" {
+		return nil, errPairEmpty
+	}
+	var params Params
+	params.Values = make(url.Values)
+	err := params.prepareDateString(startTime, endTime, true)
+	if err != nil {
+		return nil, err
+	}
+	params.Values.Set("symbol", pair)
+	params.Values.Set("idLessThan", strconv.FormatInt(pagination, 10))
+	params.Values.Set("limit", strconv.FormatInt(limit, 10))
+	params.Values.Set("orderId", strconv.FormatInt(orderID, 10))
+	path := bitgetSpot + bitgetTrade + "/" + bitgetFills
+	var resp *TradeFillsResp
+	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate20, http.MethodGet, path, params.Values,
+		nil, &resp)
 }
 
 // SendAuthenticatedHTTPRequest sends an authenticated HTTP request
@@ -946,5 +1114,24 @@ func (s *SuccessBool) UnmarshalJSON(b []byte) error {
 	case "failure":
 		*s = false
 	}
+	return nil
+}
+
+// UnmarshalJSON unmarshals the JSON input into an EmptyInt type
+func (e *EmptyInt) UnmarshalJSON(b []byte) error {
+	var num string
+	err := json.Unmarshal(b, &num)
+	if err != nil {
+		return err
+	}
+	if num == "" {
+		*e = 0
+		return nil
+	}
+	i, err := strconv.ParseInt(num, 10, 64)
+	if err != nil {
+		return err
+	}
+	*e = EmptyInt(i)
 	return nil
 }
