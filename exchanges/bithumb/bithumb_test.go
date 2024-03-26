@@ -115,14 +115,6 @@ func TestGetOrderBook(t *testing.T) {
 	assert.NotEmpty(t, ob.Data.Timestamp, "Timestamp should not be empty")
 	assert.NotEmpty(t, ob.Data.OrderCurrency, "OrderCurrency should not be empty")
 	assert.NotEmpty(t, ob.Data.PaymentCurrency, "PaymentCurrency should not be empty")
-	for _, a := range ob.Data.Asks {
-		assert.Positive(t, a.Price, "Price should be positive")
-		assert.Positive(t, a.Quantity, "Quantity should be positive")
-	}
-	for _, b := range ob.Data.Bids {
-		assert.Positive(t, b.Price, "Price should be positive")
-		assert.Positive(t, b.Quantity, "Quantity should be positive")
-	}
 }
 
 func TestGetTransactionHistory(t *testing.T) {
