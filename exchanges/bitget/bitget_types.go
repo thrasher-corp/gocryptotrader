@@ -742,3 +742,46 @@ type SubOrderResp struct {
 		Status  string  `json:"status"`
 	} `json:"data"`
 }
+
+// AccountInfoResp contains information on the user's account
+type AccountInfoResp struct {
+	Data struct {
+		UserID       int64         `json:"userId,string"`
+		InviterID    int64         `json:"inviterId,string"`
+		ChannelCode  string        `json:"channelCode"`
+		Channel      string        `json:"channel"`
+		IPs          string        `json:"ips"`
+		Authorities  []string      `json:"authorities"`
+		ParentID     int64         `json:"parentId"`
+		TraderType   string        `json:"traderType"`
+		RegisterTime UnixTimestamp `json:"regisTime"`
+	} `json:"data"`
+}
+
+// AssetData contains information on the amount of an assset an account owns
+type AssetData struct {
+	Coin           string        `json:"coin"`
+	Available      float64       `json:"available,string"`
+	Frozen         float64       `json:"frozen,string"`
+	Locked         float64       `json:"locked,string"`
+	LimitAvailable float64       `json:"limitAvailable,string"`
+	UpdateTime     UnixTimestamp `json:"uTime"`
+}
+
+// AccountAssetsResp contains information on the user's assets
+type AccountAssetsResp struct {
+	Data []AssetData `json:"data"`
+}
+
+// SubAccountAssetsResp contains information on assets in a user's sub-accounts
+type SubAccountAssetsResp struct {
+	Data []struct {
+		UserID     int64       `json:"userId,string"`
+		AssetsList []AssetData `json:"assetsList"`
+	} `json:"data"`
+}
+
+// SuccessBoolResp2 contains a success bool in a secondary format returned by the exchange
+type SuccessBoolResp2 struct {
+	Success SuccessBool `json:"data"`
+}

@@ -84,6 +84,14 @@ const (
 	bitgetCancelPlanOrder      = "/cancel-plan-order"
 	bitgetCurrentPlanOrder     = "/current-plan-order"
 	bitgetPlanSubOrder         = "/plan-sub-order"
+	bitgetPlanOrderHistory     = "/history-plan-order"
+	bitgetBatchCancelPlanOrder = "/batch-cancel-plan-order"
+	bitgetAccount              = "account/"
+	bitgetInfo                 = "info"
+	bitgetAssets               = "assets"
+	bitgetSubAccountAssets     = "subaccount-assets"
+	bitgetWallet               = "wallet/"
+	bitgetModifyDepositAccount = "modify-deposit-account"
 
 	// Errors
 	errUnknownEndpointLimit = "unknown endpoint limit %v"
@@ -123,6 +131,8 @@ var (
 	errOrdersEmpty           = errors.New("orders cannot be empty")
 	errTriggerPriceEmpty     = errors.New("triggerPrice cannot be empty")
 	errTriggerTypeEmpty      = errors.New("triggerType cannot be empty")
+	errNonsenseRequest       = errors.New("nonsense request expected error")
+	errAccountTypeEmpty      = errors.New("accountType cannot be empty")
 )
 
 // QueryAnnouncement returns announcements from the exchange, filtered by type and time
@@ -831,10 +841,10 @@ func (bi *Bitget) CancelOrderByID(ctx context.Context, pair, clientOrderID strin
 	req := map[string]interface{}{
 		"symbol": pair,
 	}
-	if orderID == 0 {
+	if orderID != 0 {
 		req["orderId"] = strconv.FormatInt(orderID, 10)
 	}
-	if clientOrderID == "" {
+	if clientOrderID != "" {
 		req["clientOid"] = clientOrderID
 	}
 	path := bitgetSpot + bitgetTrade + bitgetCancelOrder
@@ -1170,6 +1180,81 @@ func (bi *Bitget) GetPlanSubOrder(ctx context.Context, orderID string) (*SubOrde
 		&resp)
 }
 
+// GetPlanOrderHistory returns the user's plan order history
+func (bi *Bitget) GetPlanOrderHistory(ctx context.Context, pair string, startTime, endTime time.Time, limit int32) (*PlanOrderResp, error) {
+	if pair == "" {
+		return nil, errPairEmpty
+	}
+	var params Params
+	params.Values = make(url.Values)
+	err := params.prepareDateString(startTime, endTime, false)
+	if err != nil {
+		return nil, err
+	}
+	params.Values.Set("symbol", pair)
+	if limit != 0 {
+		params.Values.Set("limit", strconv.FormatInt(int64(limit), 10))
+	}
+	path := bitgetSpot + bitgetTrade + bitgetPlanOrderHistory
+	var resp *PlanOrderResp
+	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate20, http.MethodGet, path, params.Values,
+		nil, &resp)
+}
+
+// BatchCancelPlanOrders cancels all plan orders, with the option to restrict to only those for particular pairs
+func (bi *Bitget) BatchCancelPlanOrders(ctx context.Context, pairs []string) (*BatchOrderResp, error) {
+	req := make(map[string]interface{})
+	if len(pairs) > 0 {
+		req["symbolList"] = pairs
+	}
+	path := bitgetSpot + bitgetTrade + bitgetBatchCancelPlanOrder
+	var resp *BatchOrderResp
+	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodPost, path, nil, req,
+		&resp)
+}
+
+// GetAccountInfo returns the user's account information
+func (bi *Bitget) GetAccountInfo(ctx context.Context) (*AccountInfoResp, error) {
+	path := bitgetSpot + bitgetAccount + bitgetInfo
+	var resp *AccountInfoResp
+	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate1, http.MethodGet, path, nil, nil, &resp)
+}
+
+// GetAccountAssets returns information on the user's assets
+func (bi *Bitget) GetAccountAssets(ctx context.Context, currency, assetType string) (*AccountAssetsResp, error) {
+	vals := url.Values{}
+	vals.Set("currency", currency)
+	vals.Set("type", assetType)
+	path := bitgetSpot + bitgetAccount + bitgetAssets
+	var resp *AccountAssetsResp
+	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodGet, path, vals, nil, &resp)
+}
+
+// GetSubAccountAssets returns information on assets in the user's sub-accounts
+func (bi *Bitget) GetSubAccountAssets(ctx context.Context) (*SubAccountAssetsResp, error) {
+	path := bitgetSpot + bitgetAccount + bitgetSubAccountAssets
+	var resp *SubAccountAssetsResp
+	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodGet, path, nil, nil, &resp)
+}
+
+// ModifyDepositAccount changes which account is automatically used for deposits of a particular currency
+func (bi *Bitget) ModifyDepositAccount(ctx context.Context, accountType, currency string) (*SuccessBoolResp2, error) {
+	if accountType == "" {
+		return nil, errAccountTypeEmpty
+	}
+	if currency == "" {
+		return nil, errCurrencyEmpty
+	}
+	req := map[string]interface{}{
+		"coin":        currency,
+		"accountType": accountType,
+	}
+	path := bitgetSpot + bitgetWallet + bitgetModifyDepositAccount
+	var resp *SuccessBoolResp2
+	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodPost, path, nil, req,
+		&resp)
+}
+
 // SendAuthenticatedHTTPRequest sends an authenticated HTTP request
 func (bi *Bitget) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.URL, rateLim request.EndpointLimit, method, path string, queryParams url.Values, bodyParams map[string]interface{}, result interface{}) error {
 	creds, err := bi.GetCredentials(ctx)
@@ -1180,6 +1265,7 @@ func (bi *Bitget) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.
 	if err != nil {
 		return err
 	}
+	path = common.EncodeURLValues(path, queryParams)
 	newRequest := func() (*request.Item, error) {
 		payload := []byte("")
 		if bodyParams != nil {
@@ -1188,7 +1274,6 @@ func (bi *Bitget) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.
 				return nil, err
 			}
 		}
-		path = common.EncodeURLValues(path, queryParams)
 		t := strconv.FormatInt(time.Now().UnixMilli(), 10)
 		message := t + method + "/api/v2/" + path + string(payload)
 		// The exchange also supports user-generated RSA keys, but we haven't implemented that yet
