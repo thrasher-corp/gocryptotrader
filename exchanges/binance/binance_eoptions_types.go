@@ -2,6 +2,7 @@ package binance
 
 import (
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
+	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
@@ -172,4 +173,66 @@ type OpenInterest struct {
 	SumOpenInterest    types.Number         `json:"sumOpenInterest"`
 	SumOpenInterestUSD types.Number         `json:"sumOpenInterestUsd"`
 	Timestamp          convert.ExchangeTime `json:"timestamp"`
+}
+
+// EOptionsAccountInformation represents current account information.
+type EOptionsAccountInformation struct {
+	Asset []struct {
+		AssetType      string       `json:"asset"`
+		MarginBalance  types.Number `json:"marginBalance"`
+		AccountEquity  types.Number `json:"equity"`
+		AvailableFunds string       `json:"available"`
+		Locked         types.Number `json:"locked"`        // locked balance for order and position
+		UnrealizedPNL  types.Number `json:"unrealizedPNL"` // Unrealized profit/loss
+	} `json:"asset"`
+	Greek []struct {
+		Underlying string       `json:"underlying"`
+		Delta      types.Number `json:"delta"`
+		Gamma      types.Number `json:"gamma"`
+		Theta      types.Number `json:"theta"`
+		Vega       types.Number `json:"vega"`
+	} `json:"greek"`
+	RiskLevel string               `json:"riskLevel"`
+	Time      convert.ExchangeTime `json:"time"`
+}
+
+// OptionsOrderParams represents an options order instance.
+type OptionsOrderParams struct {
+	Symbol                  currency.Pair `json:"symbol"`
+	Side                    string        `json:"side"`
+	OrderType               string        `json:"type"`
+	Amount                  float64       `json:"quantity"`
+	Price                   float64       `json:"price"`
+	TimeInForce             string        `json:"timeInForce"`
+	ReduceOnly              bool          `json:"reduceOnly"`
+	PostOnly                bool          `json:"postOnly"`
+	NewOrderResponseType    string        `json:"newOrderRespType"`
+	ClientOrderID           string        `json:"clientOrderId"`
+	IsMarketMakerProtection bool          `json:"isMmp"`
+}
+
+// OptionOrder represents an options order instance.
+type OptionOrder struct {
+	OrderID       int64                `json:"orderId"`
+	ClientOrderID string               `json:"clientOrderId"`
+	Symbol        string               `json:"symbol"`
+	Price         types.Number         `json:"price"`
+	Quantity      types.Number         `json:"quantity"`
+	Side          string               `json:"side"`
+	Type          string               `json:"type"`
+	CreateDate    convert.ExchangeTime `json:"createDate,omitempty"`
+	UpdateTime    convert.ExchangeTime `json:"updateTime"`
+	ExecutedQty   types.Number         `json:"executedQty,omitempty"`
+	Fee           types.Number         `json:"fee,omitempty"`
+	TimeInForce   string               `json:"timeInForce,omitempty"`
+	ReduceOnly    bool                 `json:"reduceOnly,omitempty"`
+	PostOnly      bool                 `json:"postOnly,omitempty"`
+	CreateTime    convert.ExchangeTime `json:"createTime,omitempty"`
+	Status        string               `json:"status,omitempty"`
+	AvgPrice      types.Number         `json:"avgPrice,omitempty"`
+	PriceScale    int64                `json:"priceScale,omitempty"`
+	QuantityScale int64                `json:"quantityScale,omitempty"`
+	OptionSide    string               `json:"optionSide,omitempty"`
+	QuoteAsset    string               `json:"quoteAsset,omitempty"`
+	Mmp           bool                 `json:"mmp,omitempty"` // is market maker protection order, true/false
 }

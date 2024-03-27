@@ -4323,3 +4323,29 @@ func TestGetEOptionsOpenInterests(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
+
+func TestGetOptionsAccountInformation(t *testing.T) {
+	t.Parallel()
+	result, err := b.GetOptionsAccountInformation(context.Background())
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestNewOptionsOrder(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	result, err := b.NewOptionsOrder(context.Background(), &OptionsOrderParams{
+		Symbol:                  currency.Pair{Base: currency.NewCode("BTC"), Delimiter: currency.DashDelimiter, Quote: currency.NewCode("200730-9000-C")},
+		Side:                    "Sell",
+		OrderType:               "LIMIT",
+		Amount:                  0.00001,
+		Price:                   0.00001,
+		ReduceOnly:              false,
+		PostOnly:                true,
+		NewOrderResponseType:    "RESULT",
+		ClientOrderID:           "the-client-order-id",
+		IsMarketMakerProtection: true,
+	})
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}

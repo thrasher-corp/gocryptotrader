@@ -4,8 +4,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/http"
 	"net/url"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -13,6 +15,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
 const (
@@ -169,4 +172,63 @@ func (b *Binance) GetEOptionsOpenInterests(ctx context.Context, underlyingAsset 
 	params.Set("expiration", fmt.Sprintf("%d%s%d", expiration.Day(), expiration.Month(), (expiration.Year()%2000)))
 	var resp []OpenInterest
 	return resp, b.SendHTTPRequest(ctx, exchange.RestOptions, common.EncodeURLValues("/eapi/v1/openInterest", params), spotDefaultRate, &resp)
+}
+
+// ----------------------------------------------------------- Account trade endpoints ---------------------------------------------------------------------
+
+// GetOptionsAccountInformation retrieves the current account information.
+func (b *Binance) GetOptionsAccountInformation(ctx context.Context) (*EOptionsAccountInformation, error) {
+	var resp *EOptionsAccountInformation
+	return resp, b.SendHTTPRequest(ctx, exchange.RestOptions, "/eapi/v1/account", spotDefaultRate, &resp)
+}
+
+// NewOptionsOrder places a new european options order instance.
+func (b *Binance) NewOptionsOrder(ctx context.Context, arg *OptionsOrderParams) (*OptionOrder, error) {
+	if arg == nil || *arg == (OptionsOrderParams{}) {
+		return nil, common.ErrNilPointer
+	}
+	if arg.Symbol.IsEmpty() {
+		return nil, currency.ErrCurrencyPairEmpty
+	}
+	if arg.Side == "" {
+		return nil, order.ErrSideIsInvalid
+	}
+	if arg.OrderType == "" {
+		return nil, order.ErrTypeIsInvalid
+	}
+	if arg.Amount <= 0 {
+		return nil, order.ErrAmountBelowMin
+	}
+	params := url.Values{}
+	params.Set("symbol", arg.Symbol.String())
+	params.Set("side", arg.Side)
+	params.Set("type", arg.OrderType)
+	params.Set("quantity", strconv.FormatFloat(arg.Amount, 'f', -1, 64))
+	arg.OrderType = strings.ToUpper(arg.OrderType)
+	if arg.OrderType == "LIMIT" && arg.Price <= 0 {
+		return nil, fmt.Errorf("%w, price is required for limit orders", order.ErrPriceBelowMin)
+	}
+	if arg.Price > 0 {
+		params.Set("price", strconv.FormatFloat(arg.Price, 'f', -1, 64))
+	}
+	if arg.TimeInForce != "" {
+		params.Set("timeInForce", arg.TimeInForce)
+	}
+	if arg.ReduceOnly {
+		params.Set("reduceOnly", "true")
+	}
+	if arg.PostOnly {
+		params.Set("postOnly", "true")
+	}
+	if arg.NewOrderResponseType != "" {
+		params.Set("newOrderRespType", arg.NewOrderResponseType)
+	}
+	if arg.ClientOrderID != "" {
+		params.Set("clientOrderId", arg.ClientOrderID)
+	}
+	if arg.IsMarketMakerProtection {
+		params.Set("isMmp", "true")
+	}
+	var resp *OptionOrder
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestOptions, http.MethodPost, "/eapi/v1/order", params, spotDefaultRate, &resp)
 }
