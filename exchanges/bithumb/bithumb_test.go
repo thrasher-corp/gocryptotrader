@@ -254,7 +254,7 @@ func TestMarketSellOrder(t *testing.T) {
 
 func TestUpdateTicker(t *testing.T) {
 	t.Parallel()
-	cp := currency.NewPair(currency.QTUM, currency.KRW)
+	cp := currency.NewPairWithDelimiter("QTUM", "KRW", "-")
 	tick, err := b.UpdateTicker(context.Background(), cp, asset.Spot)
 	require.NoError(t, err, "UpdateTicker must not error")
 	assert.Positive(t, tick.High, "High should be positive")
@@ -264,7 +264,7 @@ func TestUpdateTicker(t *testing.T) {
 	assert.NotEmpty(t, tick.Pair, "Pair should not be empty")
 	assert.NotEmpty(t, tick.ExchangeName, "ExchangeName should not be empty")
 	assert.NotEmpty(t, tick.LastUpdated, "LastUpdated should not be empty")
-	assert.Equal(t, currency.NewPairWithDelimiter("QTUM", "KRW", "-"), tick.Pair, "Pair should be correct")
+	assert.Equal(t, cp, tick.Pair, "Pair should be correct")
 }
 
 func TestUpdateTickers(t *testing.T) {
