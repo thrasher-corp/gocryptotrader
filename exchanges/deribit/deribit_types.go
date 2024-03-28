@@ -742,6 +742,12 @@ type PositionData struct {
 	Size                      float64 `json:"size"`
 	SizeCurrency              float64 `json:"size_currency"`
 	TotalProfitLoss           float64 `json:"total_profit_loss"`
+	Theta                     float64 `json:"theta"`
+	Vega                      float64 `json:"vega"`
+	RealizedFunding           float64 `json:"realized_funding"`
+	InterestValue             float64 `json:"interest_value"`
+	Gamma                     float64 `json:"gamma"`
+	FloatingProfitAndLossUSD  float64 `json:"floating_profit_loss_usd"`
 }
 
 // TransactionLogData stores information regarding an account transaction

@@ -2,6 +2,7 @@ package deribit
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
@@ -9,6 +10,7 @@ import (
 
 	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -113,6 +115,24 @@ func (d *Deribit) SetDefaults() {
 				exchange.AutoWithdrawFiat,
 			Kline: kline.ExchangeCapabilitiesSupported{
 				Intervals: true,
+			},
+			FuturesCapabilities: exchange.FuturesCapabilities{
+				Positions:    true,
+				Leverage:     true,
+				FundingRates: true,
+				SupportedFundingRateFrequencies: map[kline.Interval]bool{
+					kline.OneHour:   true,
+					kline.EightHour: true,
+				},
+				FundingRateBatching: map[asset.Item]bool{
+					asset.Futures:     true,
+					asset.Options:     true,
+					asset.OptionCombo: true,
+					asset.FutureCombo: true,
+				},
+				OpenInterest: exchange.OpenInterestSupport{
+					Supported: true,
+				},
 			},
 		},
 		Enabled: exchange.FeaturesEnabled{
@@ -995,7 +1015,7 @@ func (d *Deribit) GetOrderHistory(ctx context.Context, getOrdersRequest *order.M
 	if len(getOrdersRequest.Pairs) == 0 {
 		return nil, currency.ErrCurrencyPairsEmpty
 	}
-	resp := make([]order.Detail, 0, len(getOrdersRequest.Pairs))
+	var resp []order.Detail
 	for x := range getOrdersRequest.Pairs {
 		fmtPair, err := d.FormatExchangeCurrency(getOrdersRequest.Pairs[x], getOrdersRequest.AssetType)
 		if err != nil {
@@ -1229,7 +1249,7 @@ func (d *Deribit) GetFuturesContractDetails(ctx context.Context, item asset.Item
 			return nil, err
 		}
 		for i := range marketSummary {
-			if marketSummary[i].Kind != "future" {
+			if marketSummary[i].Kind != "future" && marketSummary[i].Kind != "future_combo" {
 				continue
 			}
 			var cp currency.Pair
@@ -1262,10 +1282,11 @@ func (d *Deribit) GetFuturesContractDetails(ctx context.Context, item asset.Item
 				SettlementCurrencies: []currency.Code{currency.NewCode(marketSummary[i].SettlementCurrency)},
 				StartDate:            marketSummary[i].CreationTimestamp.Time(),
 				EndDate:              marketSummary[i].ExpirationTimestamp.Time(),
+				Type:                 ct,
 				SettlementType:       contractSettlementType,
 				IsActive:             marketSummary[i].IsActive,
 				MaxLeverage:          marketSummary[i].MaxLeverage,
-				Type:                 ct,
+				Multiplier:           marketSummary[i].ContractSize,
 			})
 		}
 	}
@@ -1285,7 +1306,7 @@ func (d *Deribit) GetLatestFundingRates(ctx context.Context, r *fundingrate.Late
 	if err != nil {
 		return nil, err
 	}
-	if !available.Contains(r.Pair, true) || r.Pair.Quote.String() != "PERPETUAL" {
+	if !available.Contains(r.Pair, true) && r.Pair.Quote.String() != "PERPETUAL" && !strings.HasSuffix(r.Pair.String(), "PERP") {
 		return nil, fmt.Errorf("%w pair: %v", futures.ErrNotPerpetualFuture, r.Pair)
 	}
 	r.Pair, err = d.FormatExchangeCurrency(r.Pair, r.Asset)
@@ -1298,9 +1319,13 @@ func (d *Deribit) GetLatestFundingRates(ctx context.Context, r *fundingrate.Late
 		return nil, err
 	}
 
-	resp := make([]fundingrate.LatestRateResponse, 0, len(fri))
+	resp := make([]fundingrate.LatestRateResponse, 1)
+	latestTime := fri[0].Timestamp.Time()
 	for i := range fri {
-		rate := fundingrate.LatestRateResponse{
+		if fri[i].Timestamp.Time().Before(latestTime) {
+			continue
+		}
+		resp[0] = fundingrate.LatestRateResponse{
 			TimeChecked: time.Now(),
 			Exchange:    d.Name,
 			Asset:       r.Asset,
@@ -1310,7 +1335,7 @@ func (d *Deribit) GetLatestFundingRates(ctx context.Context, r *fundingrate.Late
 				Rate: decimal.NewFromFloat(fri[i].Interest8H),
 			},
 		}
-		resp = append(resp, rate)
+		latestTime = fri[i].Timestamp.Time()
 	}
 	if len(resp) == 0 {
 		return nil, fmt.Errorf("%w %v %v", futures.ErrNotPerpetualFuture, r.Asset, r.Pair)
@@ -1357,4 +1382,216 @@ func (d *Deribit) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) 
 		}
 	}
 	return nil
+}
+
+// GetFuturesPositionSummary returns position summary details for an active position
+func (d *Deribit) GetFuturesPositionSummary(ctx context.Context, r *futures.PositionSummaryRequest) (*futures.PositionSummary, error) {
+	if r == nil {
+		return nil, fmt.Errorf("%w HistoricalRatesRequest", common.ErrNilPointer)
+	}
+	if r.Asset != asset.Futures {
+		return nil, fmt.Errorf("%w %v", futures.ErrNotPerpetualFuture, r.Asset)
+	}
+	if r.Pair.IsEmpty() {
+		return nil, currency.ErrCurrencyPairEmpty
+	}
+	fPair, err := d.FormatExchangeCurrency(r.Pair, r.Asset)
+	if err != nil {
+		return nil, err
+	}
+	var pos []PositionData
+	if d.Websocket.IsConnected() && d.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
+		pos, err = d.WSRetrievePositions(fPair.Base.String(), d.GetAssetKind(r.Asset))
+	} else {
+		pos, err = d.GetPositions(ctx, fPair.Base.String(), d.GetAssetKind(r.Asset))
+	}
+	if err != nil {
+		return nil, err
+	}
+	index := -1
+	for a := range pos {
+		if pos[a].InstrumentName == fPair.String() {
+			index = a
+		}
+	}
+	if index > -1 {
+		return nil, errors.New("position information for the instrument not found")
+	}
+	contracts, err := d.GetFuturesContractDetails(ctx, r.Asset)
+	if err != nil {
+		return nil, err
+	}
+	var multiplier, contractSize float64
+	var settlementType futures.ContractSettlementType
+	for i := range contracts {
+		if !contracts[i].Name.Equal(fPair) {
+			continue
+		}
+		multiplier = contracts[i].Multiplier
+		settlementType = contracts[i].SettlementType
+	}
+
+	var baseSize float64
+	if r.Asset == asset.Futures {
+		baseSize = pos[index].SizeCurrency
+	} else if r.Asset == asset.Options {
+		baseSize = pos[index].Size
+	}
+	contractSize = multiplier * baseSize
+
+	return &futures.PositionSummary{
+		Pair:                      r.Pair,
+		Asset:                     r.Asset,
+		Currency:                  fPair.Base,
+		NotionalSize:              decimal.NewFromFloat(pos[index].MarkPrice),
+		Leverage:                  decimal.NewFromFloat(pos[index].Leverage),
+		InitialMarginRequirement:  decimal.NewFromFloat(pos[index].InitialMargin),
+		EstimatedLiquidationPrice: decimal.NewFromFloat(pos[index].EstimatedLiquidationPrice),
+		MarkPrice:                 decimal.NewFromFloat(pos[index].MarkPrice),
+		CurrentSize:               decimal.NewFromFloat(baseSize),
+		ContractSize:              decimal.NewFromFloat(contractSize),
+		ContractMultiplier:        decimal.NewFromFloat(multiplier),
+		ContractSettlementType:    settlementType,
+		AverageOpenPrice:          decimal.NewFromFloat(pos[index].AveragePrice),
+		UnrealisedPNL:             decimal.NewFromFloat(pos[index].TotalProfitLoss - pos[index].RealizedProfitLoss),
+		RealisedPNL:               decimal.NewFromFloat(pos[index].RealizedProfitLoss),
+		MaintenanceMarginFraction: decimal.NewFromFloat(pos[index].MaintenanceMargin),
+	}, nil
+}
+
+// GetOpenInterest returns the open interest rate for a given asset pair
+func (d *Deribit) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]futures.OpenInterest, error) {
+	if len(k) == 0 {
+		return nil, fmt.Errorf("%w requires pair", common.ErrFunctionNotSupported)
+	}
+	for i := range k {
+		if k[i].Asset == asset.Options || !d.SupportsAsset(k[i].Asset) {
+			return nil, fmt.Errorf("%w %v %v", asset.ErrNotSupported, k[i].Asset, k[i].Pair())
+		}
+	}
+	result := make([]futures.OpenInterest, len(k))
+	var err error
+	var pair currency.Pair
+	for i := range k {
+		pair, err = d.FormatExchangeCurrency(k[i].Pair(), k[i].Asset)
+		if err != nil {
+			return nil, err
+		}
+		var oi []BookSummaryData
+		if d.Websocket.IsConnected() {
+			oi, err = d.WSRetrieveBookBySummary(pair.Base.String(), d.GetAssetKind(k[i].Asset))
+		} else {
+			oi, err = d.GetBookSummaryByCurrency(ctx, pair.Base.String(), d.GetAssetKind(k[i].Asset))
+		}
+		if err != nil {
+			return nil, err
+		}
+		for a := range oi {
+			if oi[a].InstrumentName != pair.String() {
+				continue
+			}
+			result[i] = futures.OpenInterest{
+				Key: key.ExchangePairAsset{
+					Exchange: d.Name,
+					Base:     k[i].Base,
+					Quote:    k[i].Quote,
+					Asset:    k[i].Asset,
+				},
+				OpenInterest: oi[0].OpenInterest,
+			}
+			break
+		}
+	}
+	return result, nil
+}
+
+// IsPerpetualFutureCurrency ensures a given asset and currency is a perpetual future
+// differs by exchange
+func (d *Deribit) IsPerpetualFutureCurrency(assetType asset.Item, pair currency.Pair) (bool, error) {
+	if assetType == asset.Spot {
+		return false, nil
+	} else if strings.EqualFold(pair.Quote.String(), "PERPETUAL") || strings.HasSuffix(pair.String(), "PERP") {
+		return true, nil
+	}
+	if !assetType.IsFutures() {
+		return false, nil
+	}
+	pair, err := d.FormatExchangeCurrency(pair, assetType)
+	if err != nil {
+		return false, err
+	}
+	var instrumentInfo *InstrumentData
+	if d.Websocket.IsConnected() {
+		instrumentInfo, err = d.WSRetrieveInstrumentData(pair.String())
+	} else {
+		instrumentInfo, err = d.GetInstrument(context.Background(), pair.String())
+	}
+	if err != nil {
+		return false, err
+	}
+	return strings.EqualFold(instrumentInfo.SettlementPeriod, "perpetual"), nil
+}
+
+// GetHistoricalFundingRates returns historical funding rates for a future
+func (d *Deribit) GetHistoricalFundingRates(ctx context.Context, r *fundingrate.HistoricalRatesRequest) (*fundingrate.HistoricalRates, error) {
+	if r == nil {
+		return nil, fmt.Errorf("%w LatestRateRequest", common.ErrNilPointer)
+	}
+	if r.Asset != asset.Futures {
+		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, r.Asset)
+	}
+	if r.Pair.IsEmpty() {
+		return nil, currency.ErrCurrencyPairEmpty
+	}
+	if !r.StartDate.IsZero() && !r.EndDate.IsZero() {
+		err := common.StartEndTimeCheck(r.StartDate, r.EndDate)
+		if err != nil {
+			return nil, err
+		}
+	}
+	if r.IncludePayments {
+		return nil, fmt.Errorf("include payments %w", common.ErrNotYetImplemented)
+	}
+	fPair, err := d.FormatExchangeCurrency(r.Pair, r.Asset)
+	if err != nil {
+		return nil, err
+	}
+	var records []FundingRateHistory
+	if d.Websocket.IsConnected() {
+		records, err = d.WSRetrieveFundingRateHistory(fPair.String(), r.StartDate, r.EndDate)
+	} else {
+		records, err = d.GetFundingRateHistory(ctx, fPair.String(), r.StartDate, r.EndDate)
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	if len(records) == 0 {
+		return nil, fundingrate.ErrNoFundingRatesFound
+	}
+	fundingRates := make([]fundingrate.Rate, 0, len(records))
+	for i := range records {
+		if r.EndDate.Before(records[i].Timestamp.Time()) ||
+			r.StartDate.After(records[i].Timestamp.Time()) {
+			continue
+		}
+		fundingRates = append(fundingRates, fundingrate.Rate{
+			Rate: decimal.NewFromFloat(records[i].Interest1H),
+			Time: records[i].Timestamp.Time(),
+		})
+	}
+
+	if len(fundingRates) == 0 {
+		return nil, fundingrate.ErrNoFundingRatesFound
+	}
+	return &fundingrate.HistoricalRates{
+		Exchange:        d.Name,
+		Asset:           r.Asset,
+		Pair:            r.Pair,
+		FundingRates:    fundingRates,
+		StartDate:       fundingRates[len(fundingRates)-1].Time,
+		EndDate:         fundingRates[0].Time,
+		LatestRate:      fundingRates[0],
+		PaymentCurrency: r.PaymentCurrency,
+	}, nil
 }

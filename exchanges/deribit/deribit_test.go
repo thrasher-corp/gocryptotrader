@@ -15,12 +15,14 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
@@ -2815,11 +2817,12 @@ func TestGetLatestFundingRates(t *testing.T) {
 		IncludePredictedRate: true,
 	})
 	require.ErrorIs(t, err, asset.ErrNotSupported)
-	_, err = d.GetLatestFundingRates(context.Background(), &fundingrate.LatestRateRequest{
+	result, err := d.GetLatestFundingRates(context.Background(), &fundingrate.LatestRateRequest{
 		Asset: asset.Futures,
 		Pair:  futuresTradablePair,
 	})
-	assert.NoError(t, err)
+	require.NoError(t, err)
+	require.NotNil(t, result)
 }
 
 func TestUpdateOrderExecutionLimits(t *testing.T) {
@@ -2937,4 +2940,106 @@ func TestGetFuturesContractDetails(t *testing.T) {
 	t.Parallel()
 	_, err := d.GetFuturesContractDetails(context.Background(), asset.Futures)
 	require.NoError(t, err)
+}
+
+func TestGetFuturesPositionSummary(t *testing.T) {
+	t.Parallel()
+	_, err := d.GetFuturesPositionSummary(context.Background(), nil)
+	assert.ErrorIs(t, err, common.ErrNilPointer)
+
+	req := &futures.PositionSummaryRequest{}
+	_, err = d.GetFuturesPositionSummary(context.Background(), req)
+	assert.ErrorIs(t, err, futures.ErrNotPerpetualFuture)
+
+	req.Asset = asset.Futures
+	_, err = d.GetFuturesPositionSummary(context.Background(), req)
+	assert.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, d, canManipulateRealOrders)
+	req.Pair = currency.NewPair(currency.XBT, currency.USDTM)
+	_, err = d.GetFuturesPositionSummary(context.Background(), req)
+	assert.NoError(t, err)
+}
+
+func TestGetOpenInterest(t *testing.T) {
+	t.Parallel()
+	resp, err := d.GetOpenInterest(context.Background(), key.PairAsset{
+		Base:  currency.BTC.Item,
+		Quote: currency.USDT.Item,
+		Asset: asset.FutureCombo,
+	})
+	require.NoError(t, err)
+	require.NotEmpty(t, resp)
+
+	resp, err = d.GetOpenInterest(context.Background(), key.PairAsset{
+		Base:  currency.BTC.Item,
+		Quote: currency.NewCode("PERPETUAL").Item,
+		Asset: asset.Futures,
+	})
+	require.NoError(t, err)
+	require.NotEmpty(t, resp)
+
+	_, err = d.GetOpenInterest(context.Background(), key.PairAsset{
+		Base:  currency.SOL.Item,
+		Quote: currency.USDC.Item,
+		Asset: asset.Spot,
+	})
+	require.NoError(t, err)
+	_, err = d.GetOpenInterest(context.Background(), key.PairAsset{
+		Base:  currency.BTC.Item,
+		Quote: currency.NewCode("21OCT22-25-P").Item,
+		Asset: asset.Options,
+	})
+	assert.ErrorIs(t, err, asset.ErrNotSupported)
+}
+
+func TestIsPerpetualFutureCurrency(t *testing.T) {
+	t.Parallel()
+	is, err := d.IsPerpetualFutureCurrency(asset.Spot, currency.EMPTYPAIR)
+	assert.NoError(t, err)
+	assert.False(t, is)
+	is, err = d.IsPerpetualFutureCurrency(asset.Futures, currency.EMPTYPAIR)
+	assert.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
+	assert.False(t, is)
+	is, err = d.IsPerpetualFutureCurrency(asset.Futures, currency.NewPair(currency.BTC, currency.NewCode("PERPETUAL")))
+	assert.NoError(t, err)
+	assert.True(t, is)
+	pair, err := currency.NewPairFromString("ETH-FS-30DEC22_PERP")
+	if err != nil {
+		require.NoError(t, err)
+	}
+	is, err = d.IsPerpetualFutureCurrency(asset.Futures, pair)
+	assert.NoError(t, err)
+	assert.True(t, is)
+	_, err = d.IsPerpetualFutureCurrency(asset.FutureCombo, currency.NewPair(currency.NewCode("SOL"), currency.NewCode("FS-30DEC22_28OCT22")))
+	assert.NoError(t, err)
+	is, err = d.IsPerpetualFutureCurrency(asset.OptionCombo, currency.NewPair(currency.NewCode("BTC"), currency.NewCode("STRG-21OCT22")))
+	assert.NoError(t, err)
+	assert.False(t, is)
+}
+
+func TestGetHistoricalFundingRates(t *testing.T) {
+	t.Parallel()
+	cp, err := currency.NewPairFromString("BTC-PERPETUAL")
+	if err != nil {
+		t.Error(err)
+	}
+	r := &fundingrate.HistoricalRatesRequest{
+		Asset:           asset.Futures,
+		Pair:            cp,
+		PaymentCurrency: currency.USDT,
+		StartDate:       time.Now().Add(-time.Hour * 24 * 7),
+		EndDate:         time.Now(),
+	}
+	_, err = d.GetHistoricalFundingRates(context.Background(), r)
+	if err != nil {
+		t.Error(err)
+	}
+	r.StartDate = time.Now().Add(-time.Hour * 24 * 120)
+
+	r.RespectHistoryLimits = true
+	_, err = d.GetHistoricalFundingRates(context.Background(), r)
+	if err != nil {
+		t.Error(err)
+	}
 }
