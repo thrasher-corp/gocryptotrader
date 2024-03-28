@@ -99,30 +99,31 @@ func (s *Subscription) EnsureKeyed() any {
 }
 
 // Match returns if the two keys match Channels, Assets, Pairs, Interval and Levels:
+// s is the key being searched for, and eachSubKey is the key of every sub in the store
 // Key Pairs comparison:
 // 1) If s has Empty pairs then only a key without pairs match
 // 2) If len(s.Pairs) >= 1 then a key which contain all the pairs match
 // Such that a subscription for all enabled pairs will be matched when searching for any one pair
-func (s *Subscription) Match(key any) bool {
-	var b *Subscription
-	switch v := key.(type) {
+func (s *Subscription) Match(eachSubKey any) bool {
+	var eachSub *Subscription
+	switch v := eachSubKey.(type) {
 	case *Subscription:
-		b = v
+		eachSub = v
 	case Subscription:
-		b = &v
+		eachSub = &v
 	default:
 		return false
 	}
 
 	switch {
-	case b.Channel != s.Channel,
-		b.Asset != s.Asset,
-		// len(b.Pairs) == 0 && len(s.Pairs) == 0: Okay; continue to next non-pairs check
-		len(b.Pairs) == 0 && len(s.Pairs) != 0,
-		len(b.Pairs) != 0 && len(s.Pairs) == 0,
-		len(s.Pairs) != 0 && b.Pairs.ContainsAll(s.Pairs, true) != nil,
-		b.Levels != s.Levels,
-		b.Interval != s.Interval:
+	case eachSub.Channel != s.Channel,
+		eachSub.Asset != s.Asset,
+		// len(eachSub.Pairs) == 0 && len(s.Pairs) == 0: Okay; continue to next non-pairs check
+		len(eachSub.Pairs) == 0 && len(s.Pairs) != 0,
+		len(eachSub.Pairs) != 0 && len(s.Pairs) == 0,
+		len(s.Pairs) != 0 && eachSub.Pairs.ContainsAll(s.Pairs, true) != nil,
+		eachSub.Levels != s.Levels,
+		eachSub.Interval != s.Interval:
 		return false
 	}
 

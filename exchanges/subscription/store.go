@@ -140,8 +140,8 @@ func (s *Store) Clear() {
 // 2) >=1 pairs then Subscriptions which contain all the pairs will be considered
 // This method provides no locking protection
 func (s *Store) match(key MatchableKey) *Subscription {
-	for anyKey, s := range s.m {
-		if key.Match(anyKey) {
+	for eachKey, s := range s.m {
+		if key.Match(eachKey) {
 			return s
 		}
 	}
