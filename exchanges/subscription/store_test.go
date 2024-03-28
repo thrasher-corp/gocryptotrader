@@ -57,23 +57,23 @@ func TestAdd(t *testing.T) {
 // Can be promoted to a public type if use-cases transpire
 type AllPairsKey Subscription
 
-var _ MatchableKey = AllPairsKey{} // Enforce AllPairsKey must implement MatchableKey
+var _ MatchableKey = &AllPairsKey{} // Enforce AllPairsKey must implement MatchableKey
 
 // Match implements MatchableKey
 // Returns true if the key excactly matches the subscription
-func (s AllPairsKey) Match(key any) bool {
-	b, ok := key.(*Subscription)
+func (s *AllPairsKey) Match(eachSubKey any) bool {
+	eachSub, ok := eachSubKey.(*Subscription)
 	if !ok {
 		return false
 	}
 
 	switch {
-	case b.Channel != s.Channel,
-		b.Asset != s.Asset,
-		b.Pairs.ContainsAll(s.Pairs, true) != nil,
-		s.Pairs.ContainsAll(b.Pairs, true) != nil,
-		b.Levels != s.Levels,
-		b.Interval != s.Interval:
+	case eachSub.Channel != s.Channel,
+		eachSub.Asset != s.Asset,
+		eachSub.Pairs.ContainsAll(s.Pairs, true) != nil,
+		s.Pairs.ContainsAll(eachSub.Pairs, true) != nil,
+		eachSub.Levels != s.Levels,
+		eachSub.Interval != s.Interval:
 		return false
 	}
 
@@ -105,11 +105,11 @@ func TestGet(t *testing.T) {
 	assert.Nil(t, s.Get(Subscription{Channel: CandlesChannel, Pairs: currency.Pairs{btcusdtPair, ltcusdcPair}}), "Should return nil for a bad lookup")
 
 	// Tests for a MatchableKey, ensuring that AllPairsKey works
-	assert.Nil(t, s.Get(AllPairsKey{Channel: CandlesChannel}), "Should return nil without pairs")
-	assert.Nil(t, s.Get(AllPairsKey{Channel: CandlesChannel, Pairs: currency.Pairs{ltcusdcPair}}), "Should return nil with wrong pair")
-	assert.Nil(t, s.Get(AllPairsKey{Channel: CandlesChannel, Pairs: currency.Pairs{btcusdtPair}}), "Should return nil with only one right pair")
-	assert.Same(t, exp[3], s.Get(AllPairsKey{Channel: CandlesChannel, Pairs: currency.Pairs{btcusdtPair, ethusdcPair}}), "Should return pointer when all pairs match")
-	assert.Nil(t, s.Get(AllPairsKey{Channel: CandlesChannel, Pairs: currency.Pairs{btcusdtPair, ethusdcPair, ltcusdcPair}}), "Should return nil when key is superset of pairs")
+	assert.Nil(t, s.Get(&AllPairsKey{Channel: CandlesChannel}), "Should return nil without pairs")
+	assert.Nil(t, s.Get(&AllPairsKey{Channel: CandlesChannel, Pairs: currency.Pairs{ltcusdcPair}}), "Should return nil with wrong pair")
+	assert.Nil(t, s.Get(&AllPairsKey{Channel: CandlesChannel, Pairs: currency.Pairs{btcusdtPair}}), "Should return nil with only one right pair")
+	assert.Same(t, exp[3], s.Get(&AllPairsKey{Channel: CandlesChannel, Pairs: currency.Pairs{btcusdtPair, ethusdcPair}}), "Should return pointer when all pairs match")
+	assert.Nil(t, s.Get(&AllPairsKey{Channel: CandlesChannel, Pairs: currency.Pairs{btcusdtPair, ethusdcPair, ltcusdcPair}}), "Should return nil when key is superset of pairs")
 }
 
 // TestRemove exercises the Remove method
@@ -120,11 +120,11 @@ func TestRemove(t *testing.T) {
 
 	s := NewStore()
 	require.NoError(t, s.Add(&Subscription{Channel: CandlesChannel, Pairs: currency.Pairs{btcusdtPair, ethusdcPair}}), "Adding subscription must not error")
-	assert.NotNil(t, s.Get(AllPairsKey{Channel: CandlesChannel, Pairs: currency.Pairs{btcusdtPair, ethusdcPair}}), "Should have added the sub")
-	assert.ErrorIs(t, s.Remove(AllPairsKey{Channel: CandlesChannel, Pairs: currency.Pairs{btcusdtPair}}), ErrNotFound, "Should error correctly when called with a non-matching key")
-	assert.NoError(t, s.Remove(AllPairsKey{Channel: CandlesChannel, Pairs: currency.Pairs{btcusdtPair, ethusdcPair}}), "Should not error when called with a matching key")
-	assert.Nil(t, s.Get(AllPairsKey{Channel: CandlesChannel, Pairs: currency.Pairs{btcusdtPair, ethusdcPair}}), "Should have removed the sub")
-	assert.ErrorIs(t, s.Remove(AllPairsKey{Channel: CandlesChannel, Pairs: currency.Pairs{btcusdtPair, ethusdcPair}}), ErrNotFound, "Should error correctly when called twice ")
+	assert.NotNil(t, s.Get(&AllPairsKey{Channel: CandlesChannel, Pairs: currency.Pairs{btcusdtPair, ethusdcPair}}), "Should have added the sub")
+	assert.ErrorIs(t, s.Remove(&AllPairsKey{Channel: CandlesChannel, Pairs: currency.Pairs{btcusdtPair}}), ErrNotFound, "Should error correctly when called with a non-matching key")
+	assert.NoError(t, s.Remove(&AllPairsKey{Channel: CandlesChannel, Pairs: currency.Pairs{btcusdtPair, ethusdcPair}}), "Should not error when called with a matching key")
+	assert.Nil(t, s.Get(&AllPairsKey{Channel: CandlesChannel, Pairs: currency.Pairs{btcusdtPair, ethusdcPair}}), "Should have removed the sub")
+	assert.ErrorIs(t, s.Remove(&AllPairsKey{Channel: CandlesChannel, Pairs: currency.Pairs{btcusdtPair, ethusdcPair}}), ErrNotFound, "Should error correctly when called twice ")
 }
 
 // TestList exercises the List and Len methods
