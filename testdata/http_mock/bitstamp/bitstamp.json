@@ -106,7 +106,7 @@
                 "type": 0
                 }
         ],
-        "amount_remaining": "100.00",
+        "amount_remaining": "200.00",
         "client_order_id": "0.50000000"
      },
      "queryString": "",
