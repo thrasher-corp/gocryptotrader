@@ -335,39 +335,29 @@ func (w *Websocket) Enable() error {
 
 // dataMonitor monitors job throughput and logs if there is a back log of data
 func (w *Websocket) dataMonitor() {
-	if w.IsDataMonitorRunning() {
-		return
-	}
-	w.setDataMonitorRunning(true)
 	w.Wg.Add(1)
-
-	go func() {
-		defer func() {
-			w.setDataMonitorRunning(false)
-			w.Wg.Done()
-		}()
-		dropped := 0
-		for {
+	defer w.Wg.Done()
+	dropped := 0
+	for {
+		select {
+		case <-w.ShutdownC:
+			return
+		case d := <-w.DataHandler:
 			select {
-			case <-w.ShutdownC:
-				return
-			case d := <-w.DataHandler:
-				select {
-				case w.ToRoutine <- d:
-					if dropped != 0 {
-						log.Infof(log.WebsocketMgr, "%s exchange websocket ToRoutine channel buffer recovered; %d messages were dropped", w.exchangeName, dropped)
-						dropped = 0
-					}
-				default:
-					if dropped == 0 {
-						// If this becomes prone to flapping we could drain the buffer, but that's extreme and we'd like to avoid it if possible
-						log.Warnf(log.WebsocketMgr, "%s exchange websocket ToRoutine channel buffer full; dropping messages", w.exchangeName)
-					}
-					dropped++
+			case w.ToRoutine <- d:
+				if dropped != 0 {
+					log.Infof(log.WebsocketMgr, "%s exchange websocket ToRoutine channel buffer recovered; %d messages were dropped", w.exchangeName, dropped)
+					dropped = 0
 				}
+			default:
+				if dropped == 0 {
+					// If this becomes prone to flapping we could drain the buffer, but that's extreme and we'd like to avoid it if possible
+					log.Warnf(log.WebsocketMgr, "%s exchange websocket ToRoutine channel buffer full; dropping messages", w.exchangeName)
+				}
+				dropped++
 			}
 		}
-	}()
+	}
 }
 
 // connectionMonitor ensures that the WS keeps connecting
@@ -617,15 +607,6 @@ func (w *Websocket) setTrafficMonitorRunning(b bool) {
 // IsTrafficMonitorRunning returns status of the traffic monitor
 func (w *Websocket) IsTrafficMonitorRunning() bool {
 	return w.trafficMonitorRunning.Load()
-}
-
-func (w *Websocket) setDataMonitorRunning(b bool) {
-	w.dataMonitorRunning.Store(b)
-}
-
-// IsDataMonitorRunning returns status of data monitor
-func (w *Websocket) IsDataMonitorRunning() bool {
-	return w.dataMonitorRunning.Load()
 }
 
 // CanUseAuthenticatedWebsocketForWrapper Handles a common check to
