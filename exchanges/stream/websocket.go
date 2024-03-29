@@ -290,8 +290,9 @@ func (w *Websocket) Connect() error {
 		return fmt.Errorf("%v Error connecting %w", w.exchangeName, err)
 	}
 	w.setState(connected)
-
-	go w.connectionMonitor()
+	if !w.connectionMonitorRunning.CompareAndSwap(false, true) {
+		go w.connectionMonitor()
+	}
 
 	subs, err := w.GenerateSubs() // regenerate state on new connection
 	if err != nil {
@@ -409,12 +410,6 @@ func (w *Websocket) connectionMonitor() {
 				err := w.Connect()
 				if err != nil {
 					log.Errorln(log.WebsocketMgr, err)
-				}
-			}
-			if !timer.Stop() {
-				select {
-				case <-timer.C:
-				default:
 				}
 			}
 			timer.Reset(delay)

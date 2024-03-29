@@ -570,16 +570,12 @@ func TestConnectionMonitor(t *testing.T) {
 	ws.ShutdownC = make(chan struct{}, 1)
 	ws.exchangeName = "hello"
 	ws.Wg = &sync.WaitGroup{}
-	ws.setEnabled(true)
 	ws.connectionMonitorRunning.Store(true)
 	go ws.connectionMonitor()
-	require.EventuallyWithT(t, func(c *assert.CollectT) {
-		assert.True(c, ws.connectionMonitorRunning.Load(), "IsConnectionMonitorRunning should return true")
-	}, 5*time.Second, 10*time.Millisecond, "ConnectionMonitor must be running")
 	ws.setEnabled(false)
-	require.EventuallyWithT(t, func(c *assert.CollectT) {
-		assert.False(c, ws.connectionMonitorRunning.Load(), "IsConnectionMonitorRunning should return false")
-	}, 5*time.Second, 10*time.Millisecond, "ConnectionMonitor must not be running")
+	require.Eventually(t, func() bool {
+		return !ws.connectionMonitorRunning.Load()
+	}, 5*time.Second, 10*time.Millisecond, "ConnectionMonitor must be set to not running")
 }
 
 // TestGetSubscription logic test
