@@ -575,7 +575,7 @@ func (b *Bitstamp) GetOrderInfo(ctx context.Context, orderID string, _ currency.
 	}
 	status, err := order.StringToOrderStatus(o.Status)
 	if err != nil {
-		log.Errorf(log.ExchangeSys, "%s %v", b.Name, err)
+		return nil, err
 	}
 	return &order.Detail{
 		RemainingAmount: o.AmountRemaining,

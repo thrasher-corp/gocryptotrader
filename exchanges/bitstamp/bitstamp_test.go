@@ -366,6 +366,7 @@ func TestGetOpenOrders(t *testing.T) {
 			assert.Equal(t, 0.50000000, res.AmountAtCreate, "AmountAtCreate should match")
 			assert.Equal(t, 110.00, res.LimitPrice, "LimitPrice should match")
 			assert.Equal(t, "1234123412341234", res.ClientOrderID, "ClientOrderID should match")
+			assert.Equal(t, "BTC/USD", res.Market, "Market should match")
 		}
 	}
 }
@@ -386,12 +387,12 @@ func TestGetOrderStatus(t *testing.T) {
 		assert.Equal(t, 200.00, o.AmountRemaining, "AmountRemaining should match")
 		assert.Equal(t, 0, o.Type, "Type should match")
 		assert.Equal(t, "0.50000000", o.ClientOrderID, "ClientOrderID should match")
-		assert.Equal(t, "BTC/USD", o.Symbol, "Symbol should match")
+		assert.Equal(t, "BTC/USD", o.Market, "Market should match")
 		for _, tr := range o.Transactions {
 			assert.Equal(t, "2022-01-31 14:43:15", tr.DateTime, "DateTime should match")
 			assert.Equal(t, 50.00, tr.Price, "Price should match")
 			assert.Equal(t, 101.00, tr.FromCurrency, "FromCurrency should match")
-			assert.Equal(t, float64(1), tr.ToCurrency, "ToCurrency should match")
+			assert.Equal(t, 1.0, tr.ToCurrency, "ToCurrency should match")
 			assert.Equal(t, 0, o.Type, "Type should match")
 		}
 	}
@@ -537,7 +538,7 @@ func TestSubmitOrder(t *testing.T) {
 		assert.ErrorContains(t, err, "You have only 0 USD available. Check your account balance for details.")
 	} else {
 		require.NoError(t, err, "SubmitOrder must not error")
-		assert.Equal(t, float64(45), o.Amount, "Amount should be correct")
+		assert.Equal(t, 45.0, o.Amount, "Amount should be correct")
 		assert.Equal(t, asset.Spot, o.AssetType, "AssetType should be correct")
 		assert.Equal(t, "123456789", o.ClientOrderID, "ClientOrderID should be correct")
 		assert.Equal(t, "1234123412341234", o.OrderID, "OrderID should be correct")
@@ -999,7 +1000,7 @@ func TestGetOrderInfo(t *testing.T) {
 		assert.Equal(t, time.Date(2022, time.January, 31, 14, 43, 15, 0, time.UTC), o.Date, "Date should match")
 		assert.Equal(t, "1458532827766784", o.OrderID, "OrderID should match")
 		assert.Equal(t, order.Open, o.Status, "Status should match")
-		assert.Equal(t, float64(200), o.RemainingAmount, "RemainingAmount should match")
+		assert.Equal(t, 200.00, o.RemainingAmount, "RemainingAmount should match")
 		for _, tr := range o.Trades {
 			assert.Equal(t, 50.00, tr.Price, "Price should match")
 		}

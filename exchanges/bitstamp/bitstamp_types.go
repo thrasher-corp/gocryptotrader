@@ -125,6 +125,7 @@ type Order struct {
 	Currency       string  `json:"currency_pair"`
 	LimitPrice     float64 `json:"limit_price,string"`
 	ClientOrderID  string  `json:"client_order_id"`
+	Market         string  `json:"market"`
 }
 
 // OrderStatus holds order status information
@@ -135,7 +136,7 @@ type OrderStatus struct {
 	DateTime        string  `json:"datetime"`
 	Status          string
 	ClientOrderID   string `json:"client_order_id"`
-	Symbol          string `json:"market"`
+	Market          string `json:"market"`
 	Transactions    []struct {
 		TradeID      int64   `json:"tid"`
 		FromCurrency float64 `json:"{from_currency},string"`
