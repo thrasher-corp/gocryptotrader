@@ -517,59 +517,49 @@ func (w *Websocket) FlushChannels() error {
 // 1 slot buffer means that connection will only write to trafficAlert once per trafficCheckInterval to avoid read/write flood in high traffic
 // Otherwise we Shutdown the connection after trafficTimeout, unless it's connecting. connectionMonitor is responsible for Connecting again
 func (w *Websocket) trafficMonitor() {
-	if w.IsTrafficMonitorRunning() {
-		return
-	}
-	w.setTrafficMonitorRunning(true)
 	w.Wg.Add(1)
-
-	go func() {
-		t := time.NewTimer(w.trafficTimeout)
-		for {
-			select {
-			case <-w.ShutdownC:
-				if w.verbose {
-					log.Debugf(log.WebsocketMgr, "%v websocket: trafficMonitor shutdown message received", w.exchangeName)
-				}
-				t.Stop()
-				w.setTrafficMonitorRunning(false)
-				w.Wg.Done()
-				return
-			case <-time.After(trafficCheckInterval):
-				select {
-				case <-w.TrafficAlert:
-					if !t.Stop() {
-						<-t.C
-					}
-					t.Reset(w.trafficTimeout)
-				default:
-				}
-			case <-t.C:
-				checkAgain := w.IsConnecting()
-				select {
-				case <-w.TrafficAlert:
-					checkAgain = true
-				default:
-				}
-				if checkAgain {
-					t.Reset(w.trafficTimeout)
-					break
-				}
-				if w.verbose {
-					log.Warnf(log.WebsocketMgr, "%v websocket: has not received a traffic alert in %v. Reconnecting", w.exchangeName, w.trafficTimeout)
-				}
-				w.setTrafficMonitorRunning(false) // Cannot defer lest Connect is called after Shutdown but before deferred call
-				w.Wg.Done()                       // Without this the w.Shutdown() call below will deadlock
-				if w.IsConnected() {
-					err := w.Shutdown()
-					if err != nil {
-						log.Errorf(log.WebsocketMgr, "%v websocket: trafficMonitor shutdown err: %s", w.exchangeName, err)
-					}
-				}
-				return
+	t := time.NewTimer(w.trafficTimeout)
+	for {
+		select {
+		case <-w.ShutdownC:
+			if w.verbose {
+				log.Debugf(log.WebsocketMgr, "%v websocket: trafficMonitor shutdown message received", w.exchangeName)
 			}
+			t.Stop()
+			w.Wg.Done()
+			return
+		case <-time.After(trafficCheckInterval):
+			select {
+			case <-w.TrafficAlert:
+				if !t.Stop() {
+					<-t.C
+				}
+				t.Reset(w.trafficTimeout)
+			default:
+			}
+		case <-t.C:
+			checkAgain := w.IsConnecting()
+			select {
+			case <-w.TrafficAlert:
+				checkAgain = true
+			default:
+			}
+			if checkAgain {
+				t.Reset(w.trafficTimeout)
+				break
+			}
+			if w.verbose {
+				log.Warnf(log.WebsocketMgr, "%v websocket: has not received a traffic alert in %v. Reconnecting", w.exchangeName, w.trafficTimeout)
+			}
+			w.Wg.Done() // Without this the w.Shutdown() call below will deadlock
+			if w.IsConnected() {
+				if err := w.Shutdown(); err != nil {
+					log.Errorf(log.WebsocketMgr, "%v websocket: trafficMonitor shutdown err: %s", w.exchangeName, err)
+				}
+			}
+			return
 		}
-	}()
+	}
 }
 
 func (w *Websocket) setState(s uint32) {
@@ -598,15 +588,6 @@ func (w *Websocket) setEnabled(b bool) {
 // IsEnabled returns whether the websocket is enabled
 func (w *Websocket) IsEnabled() bool {
 	return w.enabled.Load()
-}
-
-func (w *Websocket) setTrafficMonitorRunning(b bool) {
-	w.trafficMonitorRunning.Store(b)
-}
-
-// IsTrafficMonitorRunning returns status of the traffic monitor
-func (w *Websocket) IsTrafficMonitorRunning() bool {
-	return w.trafficMonitorRunning.Load()
 }
 
 // CanUseAuthenticatedWebsocketForWrapper Handles a common check to

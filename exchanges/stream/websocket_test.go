@@ -198,8 +198,6 @@ func TestTrafficMonitorTrafficAlerts(t *testing.T) {
 
 	thenish := time.Now()
 	ws.trafficMonitor()
-
-	assert.True(t, ws.IsTrafficMonitorRunning(), "traffic monitor should be running")
 	require.Equal(t, connected, ws.state.Load(), "websocket must be connected")
 
 	for i := 0; i < 6; i++ { // Timeout will happen at 200ms so we want 6 * 50ms checks to pass
@@ -225,10 +223,9 @@ func TestTrafficMonitorTrafficAlerts(t *testing.T) {
 		assert.Truef(t, ws.IsConnected(), "state should still be connected; Check #%d", i)
 	}
 
-	require.EventuallyWithT(t, func(c *assert.CollectT) {
-		assert.Equal(c, disconnected, ws.state.Load(), "websocket must be disconnected")
-		assert.False(c, ws.IsTrafficMonitorRunning(), "trafficMonitor should be shut down")
-	}, 2*ws.trafficTimeout, patience, "trafficTimeout should trigger a shutdown once we stop feeding trafficAlerts")
+	require.Eventually(t, func() bool {
+		return ws.state.Load() == disconnected
+	}, 4*ws.trafficTimeout, 10*time.Millisecond, "websocket must be disconnected")
 }
 
 // TestTrafficMonitorConnecting ensures connecting status doesn't trigger shutdown
@@ -242,15 +239,13 @@ func TestTrafficMonitorConnecting(t *testing.T) {
 	ws.state.Store(connecting)
 	ws.trafficTimeout = 50 * time.Millisecond
 	ws.trafficMonitor()
-	require.True(t, ws.IsTrafficMonitorRunning(), "traffic monitor should be running")
 	require.Equal(t, connecting, ws.state.Load(), "websocket must be connecting")
 	<-time.After(4 * ws.trafficTimeout)
 	require.Equal(t, connecting, ws.state.Load(), "websocket must still be connecting after several checks")
 	ws.state.Store(connected)
-	require.EventuallyWithT(t, func(c *assert.CollectT) {
-		assert.Equal(c, disconnected, ws.state.Load(), "websocket must be disconnected")
-		assert.False(c, ws.IsTrafficMonitorRunning(), "trafficMonitor should be shut down")
-	}, 4*ws.trafficTimeout, 10*time.Millisecond, "trafficTimeout should trigger a shutdown after connecting status changes")
+	require.Eventually(t, func() bool {
+		return ws.state.Load() == disconnected
+	}, 4*ws.trafficTimeout, 10*time.Millisecond, "websocket must be disconnected")
 }
 
 // TestTrafficMonitorShutdown ensures shutdown is processed and waitgroup is cleared
@@ -264,7 +259,6 @@ func TestTrafficMonitorShutdown(t *testing.T) {
 	ws.state.Store(connected)
 	ws.trafficTimeout = time.Minute
 	ws.trafficMonitor()
-	assert.True(t, ws.IsTrafficMonitorRunning(), "traffic monitor should be running")
 
 	wgReady := make(chan bool)
 	go func() {
@@ -280,7 +274,6 @@ func TestTrafficMonitorShutdown(t *testing.T) {
 	close(ws.ShutdownC)
 
 	<-time.After(2 * trafficCheckInterval)
-	assert.False(t, ws.IsTrafficMonitorRunning(), "traffic monitor should be shutdown")
 	select {
 	case <-wgReady:
 	default:
