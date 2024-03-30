@@ -4349,3 +4349,196 @@ func TestNewOptionsOrder(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
+
+func TestPlaceEOptionsOrder(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	result, err := b.PlaceEOptionsOrder(context.Background(), []OptionsOrderParams{
+		{
+			Symbol:                  currency.Pair{Base: currency.NewCode("BTC"), Delimiter: currency.DashDelimiter, Quote: currency.NewCode("200730-9000-C")},
+			Side:                    "Sell",
+			OrderType:               "LIMIT",
+			Amount:                  0.00001,
+			Price:                   0.00001,
+			ReduceOnly:              false,
+			PostOnly:                true,
+			NewOrderResponseType:    "RESULT",
+			ClientOrderID:           "the-client-order-id",
+			IsMarketMakerProtection: true,
+		}, {
+			Symbol:                  currency.Pair{Base: currency.NewCode("BTC"), Delimiter: currency.DashDelimiter, Quote: currency.NewCode("200730-9000-C")},
+			Side:                    "Buy",
+			OrderType:               "Market",
+			Amount:                  0.00001,
+			PostOnly:                true,
+			NewOrderResponseType:    "RESULT",
+			ClientOrderID:           "the-client-order-id-2",
+			IsMarketMakerProtection: true,
+		}})
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetSingleEOptionsOrder(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetSingleEOptionsOrder(context.Background(), "BTC-200730-9000-C", "", 4611875134427365377)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestCancelOptionsOrder(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	result, err := b.CancelOptionsOrder(context.Background(), "BTC-200730-9000-C", "213123", 4611875134427365377)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestMarshal(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	result, err := b.CancelOptionsOrders(context.Background(), "BTC-200730-9000-C", []int64{4611875134427365377}, []string{})
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestCancelAllOptionOrdersOnSpecificSymbol(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	err := b.CancelAllOptionOrdersOnSpecificSymbol(context.Background(), "BTC-200730-9000-C")
+	require.NoError(t, err)
+}
+
+func TestCancelAllOptionsOrdersByUnderlying(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	_, err := b.CancelAllOptionsOrdersByUnderlying(context.Background(), "BTCUSDT")
+	require.NoError(t, err)
+}
+
+func TestGetCurrentOpenOptionsOrders(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	results, err := b.GetCurrentOpenOptionsOrders(context.Background(), "BTC-200730-9000-C", time.Time{}, time.Time{}, 4611875134427365377, 0)
+	require.NoError(t, err)
+	assert.NotNil(t, results)
+}
+
+func TestGetOptionsOrdersHistory(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	results, err := b.GetOptionsOrdersHistory(context.Background(), "BTC-200730-9000-C", time.Time{}, time.Time{}, 4611875134427365377, 0)
+	require.NoError(t, err)
+	assert.NotNil(t, results)
+}
+
+func TestGetOptionPositionInformation(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetOptionPositionInformation(context.Background(), "BTC-200730-9000-C")
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetEOptionsAccountTradeList(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetEOptionsAccountTradeList(context.Background(), "BTC-200730-9000-C", 0, 0, time.Time{}, time.Time{})
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetUserOptionsExerciseRecord(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetUserOptionsExerciseRecord(context.Background(), "BTC-200730-9000-C", time.Time{}, time.Time{}, 0)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetAccountFundingFlow(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetAccountFundingFlow(context.Background(), currency.USDT, 0, 0, time.Time{}, time.Time{})
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetDownloadIDForOptionTransactionHistory(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetDownloadIDForOptionTransactionHistory(context.Background(), time.Now().Add(-time.Hour*24*10), time.Now())
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetOptionTransactionHistoryDownloadLinkByID(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetOptionTransactionHistoryDownloadLinkByID(context.Background(), "download-id")
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetOptionMarginAccountInformation(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetOptionMarginAccountInformation(context.Background())
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestSetMarketMakerProtectionConfig(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	result, err := b.SetOptionsMarketMakerProtectionConfig(context.Background(), &MarketMakerProtectionConfig{
+		Underlying:               "BTCUSDT",
+		WindowTimeInMilliseconds: 3000,
+		FrozenTimeInMilliseconds: 300000,
+		QuantityLimit:            1.5,
+		NetDeltaLimit:            1.5,
+	})
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetOptionsMarketMakerProtection(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetOptionsMarketMakerProtection(context.Background(), "BTCUSDT")
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestResetMarketMaketProtection(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.ResetMarketMaketProtection(context.Background(), "BTCUSDT")
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestSetOptionsAutoCancelAllOpenOrders(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.SetOptionsAutoCancelAllOpenOrders(context.Background(), "BTCUSDT", 30000)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetAutoCancelAllOpenOrdersConfig(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetAutoCancelAllOpenOrdersConfig(context.Background(), "BTCUSDT")
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetOptionsAutoCancelAllOpenOrdersHeartbeat(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	result, err := b.GetOptionsAutoCancelAllOpenOrdersHeartbeat(context.Background(), []string{"ETHUSDT"})
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}

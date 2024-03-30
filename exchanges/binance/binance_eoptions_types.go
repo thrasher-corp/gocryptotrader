@@ -202,13 +202,13 @@ type OptionsOrderParams struct {
 	Side                    string        `json:"side"`
 	OrderType               string        `json:"type"`
 	Amount                  float64       `json:"quantity"`
-	Price                   float64       `json:"price"`
-	TimeInForce             string        `json:"timeInForce"`
-	ReduceOnly              bool          `json:"reduceOnly"`
-	PostOnly                bool          `json:"postOnly"`
-	NewOrderResponseType    string        `json:"newOrderRespType"`
-	ClientOrderID           string        `json:"clientOrderId"`
-	IsMarketMakerProtection bool          `json:"isMmp"`
+	Price                   float64       `json:"price,omitempty"`
+	TimeInForce             string        `json:"timeInForce,omitempty"`
+	ReduceOnly              bool          `json:"reduceOnly,omitempty"`
+	PostOnly                bool          `json:"postOnly,omitempty"`
+	NewOrderResponseType    string        `json:"newOrderRespType,omitempty"`
+	ClientOrderID           string        `json:"clientOrderId,omitempty"`
+	IsMarketMakerProtection bool          `json:"isMmp,omitempty"`
 }
 
 // OptionOrder represents an options order instance.
@@ -227,6 +227,7 @@ type OptionOrder struct {
 	TimeInForce   string               `json:"timeInForce,omitempty"`
 	ReduceOnly    bool                 `json:"reduceOnly,omitempty"`
 	PostOnly      bool                 `json:"postOnly,omitempty"`
+	Source        string               `json:"source"`
 	CreateTime    convert.ExchangeTime `json:"createTime,omitempty"`
 	Status        string               `json:"status,omitempty"`
 	AvgPrice      types.Number         `json:"avgPrice,omitempty"`
@@ -235,4 +236,137 @@ type OptionOrder struct {
 	OptionSide    string               `json:"optionSide,omitempty"`
 	QuoteAsset    string               `json:"quoteAsset,omitempty"`
 	Mmp           bool                 `json:"mmp,omitempty"` // is market maker protection order, true/false
+}
+
+// OptionPosition represents current position position information.
+type OptionPosition struct {
+	AverageEntryPrice string `json:"entryPrice"`
+	Symbol            string `json:"symbol"`
+	Side              string `json:"side"`         // Position Direction
+	Quantity          string `json:"quantity"`     // Number of positions (positive numbers represent long positions, negative number represent short positions)
+	ReducibleQty      string `json:"reducibleQty"` //// Number of positions that can be reduced
+	MarkValue         string `json:"markValue"`
+	Ror               string `json:"ror"`
+	UnrealizedPNL     string `json:"unrealizedPNL"` // Unrealized profit/loss
+	MarkPrice         string `json:"markPrice"`
+	StrikePrice       string `json:"strikePrice"`
+	PositionCost      string `json:"positionCost"`
+	ExpiryTime        int64  `json:"expiryDate"`
+	PriceScale        int    `json:"priceScale"`
+	QuantityScale     int    `json:"quantityScale"`
+	OptionSide        string `json:"optionSide"`
+	QuoteAsset        string `json:"quoteAsset"`
+}
+
+// OptionsAccountTradeItem represents an options account trade item
+type OptionsAccountTradeItem struct {
+	ID             int64                `json:"id"`
+	TradeID        int64                `json:"tradeId"`
+	OrderID        int64                `json:"orderId"`
+	Symbol         string               `json:"symbol"`
+	Price          types.Number         `json:"price"`
+	Quantity       types.Number         `json:"quantity"`
+	Fee            types.Number         `json:"fee"`
+	RealizedProfit types.Number         `json:"realizedProfit"`
+	Side           string               `json:"side"`
+	Type           string               `json:"type"`
+	Volatility     string               `json:"volatility"`
+	Liquidity      string               `json:"liquidity"`
+	QuoteAsset     string               `json:"quoteAsset"`
+	Time           convert.ExchangeTime `json:"time"`
+	PriceScale     int64                `json:"priceScale"`
+	QuantityScale  int64                `json:"quantityScale"`
+	OptionSide     string               `json:"optionSide"`
+}
+
+// UserOptionsExerciseRecord represents options users exercise records
+type UserOptionsExerciseRecord struct {
+	ID            string               `json:"id"`
+	Currency      string               `json:"currency"`
+	Symbol        string               `json:"symbol"`
+	ExercisePrice types.Number         `json:"exercisePrice"`
+	MarkPrice     types.Number         `json:"markPrice"`
+	Quantity      types.Number         `json:"quantity"`
+	Amount        types.Number         `json:"amount"`
+	Fee           types.Number         `json:"fee"`
+	CreateDate    convert.ExchangeTime `json:"createDate"`
+	PriceScale    int64                `json:"priceScale"`
+	QuantityScale int64                `json:"quantityScale"`
+	OptionSide    string               `json:"optionSide"`
+	PositionSide  string               `json:"positionSide"`
+	QuoteAsset    string               `json:"quoteAsset"`
+}
+
+// AccountFunding represents account funding flow
+type AccountFunding struct {
+	ID         int64                `json:"id"`
+	Asset      string               `json:"asset"`
+	Amount     string               `json:"amount"`
+	Type       string               `json:"type"`
+	CreateDate convert.ExchangeTime `json:"createDate"`
+}
+
+// DownloadIDOfOptionsTransaction represents download id information for options transaction.
+type DownloadIDOfOptionsTransaction struct {
+	AvgCostTimestampOfLast30D int64  `json:"avgCostTimestampOfLast30d"`
+	DownloadID                string `json:"downloadId"`
+}
+
+// DownloadIDTransactionHistory represents a transaction history download link information.
+type DownloadIDTransactionHistory struct {
+	DownloadID          string               `json:"downloadId"`
+	Status              string               `json:"status"`
+	URL                 string               `json:"url"`
+	Notified            bool                 `json:"notified"`
+	ExpirationTimestamp convert.ExchangeTime `json:"expirationTimestamp"`
+	IsExpired           any                  `json:"isExpired"`
+}
+
+// OptionMarginAccountInfo represents an account information.
+type OptionMarginAccountInfo struct {
+	Asset []struct {
+		AssetType     string       `json:"asset"`
+		MarginBalance types.Number `json:"marginBalance"`
+		Equity        types.Number `json:"equity"`
+		Available     types.Number `json:"available"`
+		InitialMargin types.Number `json:"initialMargin"`
+		MaintMargin   types.Number `json:"maintMargin"`
+		UnrealizedPNL types.Number `json:"unrealizedPNL"`
+		LpProfit      types.Number `json:"lpProfit"` // Unrealized profit for long position
+	} `json:"asset"`
+	Greek []struct {
+		Underlying string       `json:"underlying"`
+		Delta      types.Number `json:"delta"`
+		Gamma      types.Number `json:"gamma"`
+		Theta      types.Number `json:"theta"`
+		Vega       types.Number `json:"vega"`
+	} `json:"greek"`
+	RiskLevel string               `json:"riskLevel"`
+	Time      convert.ExchangeTime `json:"time"`
+}
+
+// MarketMakerProtectionConfig represents a market maker protection for option market maker.
+type MarketMakerProtectionConfig struct {
+	Underlying               string  `json:"underlying"`
+	WindowTimeInMilliseconds int64   `json:"windowTimeInMilliseconds"`
+	FrozenTimeInMilliseconds int64   `json:"frozenTimeInMilliseconds"`
+	QuantityLimit            float64 `json:"qtyLimit"`
+	NetDeltaLimit            float64 `json:"deltaLimit"`
+}
+
+// MarketMakerProtection represents a market maker protection mechanism for option market maker.
+type MarketMakerProtection struct {
+	UnderlyingID             int64                `json:"underlyingId"`
+	Underlying               string               `json:"underlying"`
+	WindowTimeInMilliseconds convert.ExchangeTime `json:"windowTimeInMilliseconds"`
+	FrozenTimeInMilliseconds convert.ExchangeTime `json:"frozenTimeInMilliseconds"`
+	QtyLimit                 types.Number         `json:"qtyLimit"`
+	DeltaLimit               types.Number         `json:"deltaLimit"`
+	LastTriggerTime          convert.ExchangeTime `json:"lastTriggerTime"`
+}
+
+// UnderlyingCountdown represents a response for cancelling open orders.
+type UnderlyingCountdown struct {
+	Underlying    string `json:"underlying"`
+	CountdownTime int64  `json:"countdownTime"`
 }
