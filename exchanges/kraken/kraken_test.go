@@ -16,7 +16,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
-	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -1829,25 +1828,6 @@ func TestWsAddOrderJSON(t *testing.T) {
 	err := k.wsHandleData(pressXToJSON)
 	if err != nil {
 		t.Error(err)
-	}
-}
-
-func TestParseTime(t *testing.T) {
-	t.Parallel()
-	// Test REST example
-	r := convert.TimeFromUnixTimestampDecimal(1373750306.9819).UTC()
-	if r.Year() != 2013 ||
-		r.Month().String() != "July" ||
-		r.Day() != 13 {
-		t.Error("unexpected result")
-	}
-
-	// Test Websocket time example
-	r = convert.TimeFromUnixTimestampDecimal(1534614098.345543).UTC()
-	if r.Year() != 2018 ||
-		r.Month().String() != "August" ||
-		r.Day() != 18 {
-		t.Error("unexpected result")
 	}
 }
 
