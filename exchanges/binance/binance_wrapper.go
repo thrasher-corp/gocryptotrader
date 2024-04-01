@@ -94,6 +94,16 @@ func (b *Binance) SetDefaults() {
 			Delimiter: currency.UnderscoreDelimiter,
 		},
 	}
+	europeanOptions := currency.PairStore{
+		RequestFormat: &currency.PairFormat{
+			Uppercase: true,
+			Delimiter: currency.DashDelimiter,
+		},
+		ConfigFormat: &currency.PairFormat{
+			Uppercase: true,
+			Delimiter: currency.DashDelimiter,
+		},
+	}
 	err := b.StoreAssetPairFormat(asset.Spot, fmt1)
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
@@ -122,6 +132,14 @@ func (b *Binance) SetDefaults() {
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
+	err = b.StoreAssetPairFormat(asset.Options, europeanOptions)
+	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
+	}
+	// err = b.DisableAssetWebsocketSupport(asset.Options)
+	// if err != nil {
+	// 	log.Errorln(log.ExchangeSys, err)
+	// }
 	b.Features = exchange.Features{
 		Supports: exchange.FeaturesSupported{
 			REST:                true,
@@ -192,6 +210,9 @@ func (b *Binance) SetDefaults() {
 			AutoPairUpdates: true,
 			Kline: kline.ExchangeCapabilitiesEnabled{
 				Intervals: kline.DeployExchangeIntervals(
+					kline.IntervalCapacity{Interval: kline.HundredMilliseconds},
+					kline.IntervalCapacity{Interval: kline.FiveHundredMilliseconds},
+					kline.IntervalCapacity{Interval: kline.ThousandMilliseconds},
 					kline.IntervalCapacity{Interval: kline.OneMin},
 					kline.IntervalCapacity{Interval: kline.ThreeMin},
 					kline.IntervalCapacity{Interval: kline.FiveMin},
@@ -228,6 +249,7 @@ func (b *Binance) SetDefaults() {
 	b.API.Endpoints = b.NewEndpoints()
 	err = b.API.Endpoints.SetDefaultEndpoints(map[exchange.URL]string{
 		exchange.RestSpot:              spotAPIURL,
+		exchange.RestOptions:           "https://eapi.binance.com",
 		exchange.RestSpotSupplementary: apiURL,
 		exchange.RestUSDTMargined:      ufuturesAPIURL,
 		exchange.RestCoinMargined:      cfuturesAPIURL,
@@ -366,6 +388,19 @@ func (b *Binance) FetchTradablePairs(ctx context.Context, a asset.Item) (currenc
 			}
 			pairs = append(pairs, pair)
 		}
+	case asset.Options:
+		exchangeInformation, err := b.GetOptionsExchangeInformation(ctx)
+		if err != nil {
+			return nil, err
+		}
+		pairs = make([]currency.Pair, len(exchangeInformation.OptionSymbols))
+		for a := range exchangeInformation.OptionSymbols {
+			pairs[a], err = currency.NewPairFromString(exchangeInformation.OptionSymbols[a].Symbol)
+			if err != nil {
+				return nil, err
+			}
+		}
+		return pairs, nil
 	}
 	return pairs, nil
 }
