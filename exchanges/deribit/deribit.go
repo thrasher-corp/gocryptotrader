@@ -2583,30 +2583,6 @@ func (d *Deribit) GetLockedStatus(ctx context.Context) (*LockedCurrenciesStatus,
 	return resp, d.SendHTTPRequest(ctx, exchange.RestSpot, nonMatchingEPL, "public/status", &resp)
 }
 
-// GetCancelOnDisconnect read current Cancel On Disconnect configuration for the account.
-// 'scope': Specifies if Cancel On Disconnect change should be applied/checked for the current connection or the account (default - connection)
-// Scope connection can be used only when working via Websocket.
-func (d *Deribit) GetCancelOnDisconnect(ctx context.Context, scope string) (*CancelOnDisconnect, error) {
-	params := url.Values{}
-	if scope != "" {
-		params.Set("scope", scope)
-	}
-	var resp *CancelOnDisconnect
-	return resp, d.SendHTTPAuthRequest(ctx, exchange.RestSpot, nonMatchingEPL, "private/get_cancel_on_disconnect", http.MethodGet, params, &resp)
-}
-
-// DisableCancelOnDisconnect isable Cancel On Disconnect for the connection.
-// When change is applied for the account, then every newly opened connection will start with inactive Cancel on Disconnect.
-// scope: possible values are 'connection', 'account'
-func (d *Deribit) DisableCancelOnDisconnect(ctx context.Context, scope string) (string, error) {
-	params := url.Values{}
-	if scope != "" {
-		params.Set("scope", scope)
-	}
-	var resp string
-	return resp, d.SendHTTPAuthRequest(ctx, exchange.RestSpot, nonMatchingEPL, http.MethodGet, "private/disable_cancel_on_disconnect", params, &resp)
-}
-
 // EnableCancelOnDisconnect enable Cancel On Disconnect for the connection.
 // After enabling Cancel On Disconnect all orders created by the connection will be removed when the connection is closed.
 func (d *Deribit) EnableCancelOnDisconnect(ctx context.Context, scope string) (string, error) {

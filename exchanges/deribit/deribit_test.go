@@ -2858,23 +2858,10 @@ func TestSayHello(t *testing.T) {
 	assert.NoError(t, err)
 }
 
-func TestGetCancelOnDisconnect(t *testing.T) {
-	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, d)
-	_, err := d.GetCancelOnDisconnect(context.Background(), "account")
-	assert.NoError(t, err)
-}
-
 func TestWsRetrieveCancelOnDisconnect(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, d)
 	_, err := d.WsRetrieveCancelOnDisconnect("connection")
-	assert.NoError(t, err)
-}
-func TestDisableCancelOnDisconnect(t *testing.T) {
-	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, d, canManipulateRealOrders)
-	_, err := d.DisableCancelOnDisconnect(context.Background(), "connection")
 	assert.NoError(t, err)
 }
 
