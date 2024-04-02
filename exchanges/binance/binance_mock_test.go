@@ -33,6 +33,6 @@ func TestMain(m *testing.M) {
 	if err := b.UpdateTradablePairs(context.Background(), true); err != nil {
 		log.Fatal(err)
 	}
-	setupWs()
+	// setupWs()
 	os.Exit(m.Run())
 }

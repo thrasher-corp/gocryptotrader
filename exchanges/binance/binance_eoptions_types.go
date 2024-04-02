@@ -1,6 +1,8 @@
 package binance
 
 import (
+	"encoding/json"
+
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/types"
@@ -369,4 +371,185 @@ type MarketMakerProtection struct {
 type UnderlyingCountdown struct {
 	Underlying    string `json:"underlying"`
 	CountdownTime int64  `json:"countdownTime"`
+}
+
+// EOptionsWsTrade represents an european options
+type EOptionsWsTrade struct {
+	EventType          string               `json:"e"`
+	EventTime          convert.ExchangeTime `json:"E"`
+	Symbol             string               `json:"s"`
+	TradeID            int64                `json:"t"`
+	Price              types.Number         `json:"p"`
+	Quantity           types.Number         `json:"q"`
+	BuyOrderID         int64                `json:"b"`
+	SellOrderID        int64                `json:"a"`
+	TradeCompletedTime convert.ExchangeTime `json:"T"`
+	Direction          string               `json:"S"` // direction, -1 for taker sell, 1 for taker buy
+}
+
+// EOptionSubscriptionParam represents a subscription/unsubscription parameter used to
+type EOptionSubscriptionParam struct {
+	Method string   `json:"method"`
+	Params []string `json:"params"`
+	ID     int64    `json:"id"`
+}
+
+// EOptionsOperationResponse represents response coming through the websocket stream
+type EOptionsOperationResponse struct {
+	Error struct {
+		Code    int64  `json:"code"`
+		Message string `json:"message"`
+	} `json:"error"`
+	Result interface{} `json:"result"`
+	ID     int64       `json:"id"`
+}
+
+// OptionsTicker24Hr represents 24-hour ticker data
+type OptionsTicker24Hr struct {
+	EventType                  string               `json:"e"`
+	EventTime                  convert.ExchangeTime `json:"E"`
+	TransactionTime            convert.ExchangeTime `json:"T"`
+	Symbol                     string               `json:"s"`
+	OpeningPrice               types.Number         `json:"o"`
+	HightPrice                 types.Number         `json:"h"`
+	LowPrice                   types.Number         `json:"l"`
+	ClosingPrice               types.Number         `json:"c"`
+	TradingVolume              types.Number         `json:"V"` // Trading volume in contract
+	TradingAmount              types.Number         `json:"A"` // Trading volume in quote asset
+	PriceChangesPercent        types.Number         `json:"P"`
+	PriceChange                string               `json:"p"`
+	VolumeOfLastCompletedTrade string               `json:"Q"` // In contract asset
+	FirstTradeID               string               `json:"F"`
+	LastTradeID                string               `json:"L"`
+	NumberOfTrade              int64                `json:"n"`
+	BestBuyPrice               types.Number         `json:"bo"`
+	BestSellPrice              types.Number         `json:"ao"`
+	BestBuyQuantity            types.Number         `json:"bq"`
+	BestSellQuantity           types.Number         `json:"aq"`
+	BuyImpliedVolatility       types.Number         `json:"b"`
+	SellImpliedVolatility      types.Number         `json:"a"`
+	Delta                      types.Number         `json:"d"`
+	Theta                      types.Number         `json:"t"`
+	Gamma                      types.Number         `json:"g"`
+	Vega                       types.Number         `json:"v"`
+	ImpliedVolatility          types.Number         `json:"vo"`
+	MarkPrice                  types.Number         `json:"mp"`
+	BuyMaximumPrice            types.Number         `json:"hl"`
+	SellMaximumPrice           types.Number         `json:"ll"`
+	EstimatedStrikePrice       types.Number         `json:"eep"`
+}
+
+// OptionsIndexInfo represents options index price information.
+type OptionsIndexInfo struct {
+	EventType        string               `json:"e"`
+	EventTime        convert.ExchangeTime `json:"E"`
+	UnderlyingSymbol string               `json:"s"`
+	Price            types.Number         `json:"p"`
+}
+
+// WsOptionsMarkPrice represents a push data from options mark price.
+type WsOptionsMarkPrice struct {
+	EventType string               `json:"e"`
+	EventTime convert.ExchangeTime `json:"E"`
+	Symbol    string               `json:"s"`
+	MarkPrice types.Number         `json:"mp"`
+}
+
+// WsOptionsKlineData represents an options kline push data
+type WsOptionsKlineData struct {
+	EventType string               `json:"e"`
+	EventTime convert.ExchangeTime `json:"E"`
+	Symbol    string               `json:"s"`
+	KlineData struct {
+		StartTime                 convert.ExchangeTime `json:"t"`
+		EndTime                   convert.ExchangeTime `json:"T"`
+		Symbol                    string               `json:"s"`
+		CandlePeriod              string               `json:"i"`
+		FirstTradeID              int64                `json:"F"`
+		LastID                    int64                `json:"L"`
+		Open                      types.Number         `json:"o"`
+		Close                     types.Number         `json:"c"`
+		High                      types.Number         `json:"h"`
+		Low                       types.Number         `json:"l"`
+		ContractVolume            types.Number         `json:"v"` // Contract or Base
+		NumberOfTrades            int                  `json:"n"`
+		ContractCompleted         bool                 `json:"x"`
+		CompletedTradeAmount      string               `json:"q"` // In quote asset
+		TakerCompletedTradeVolume types.Number         `json:"V"`
+		TakerTradeAmount          types.Number         `json:"Q"`
+	} `json:"k"`
+}
+
+// WsOptionIncomingResp used by wsHandleEOptionsData
+type WsOptionIncomingResp struct {
+	EventType string          `json:"e"`
+	Result    json.RawMessage `json:"result"`
+	ID        int64           `json:"id"`
+	Stream    string          `json:"stream"`
+	Data      json.RawMessage `json:"data"`
+}
+
+// WsOptionIncomingResps list of WsOptionIncomingResp
+type WsOptionIncomingResps struct {
+	Instances []WsOptionIncomingResp
+
+	// To record the information about whther the incoming data was a slice or sing object instance.
+	// Reason: Some slices may have a single element, which creates uncertainity about whether the incoming data is slice or object instance.
+	IsSlice bool
+}
+
+// UnmarshalJSON deserializes incoming object or slice into WsOptionIncomingResps([]WsOptionIncomingResp) instance.
+func (a *WsOptionIncomingResps) UnmarshalJSON(data []byte) error {
+	var resp []WsOptionIncomingResp
+	isSlice := true
+	err := json.Unmarshal(data, &resp)
+	if err != nil {
+		isSlice = false
+		var newResp WsOptionIncomingResp
+		err = json.Unmarshal(data, &newResp)
+		if err != nil {
+			return err
+		}
+		resp = append(resp, newResp)
+	}
+	a.Instances = resp
+	a.IsSlice = isSlice
+	return nil
+}
+
+// WsOpenInterest represents a single open interest instance.
+type WsOpenInterest struct {
+	EventType              string               `json:"e"`
+	EventTime              convert.ExchangeTime `json:"E"`
+	Symbol                 string               `json:"s"`
+	OpenInterestInContract string               `json:"o"` // Base
+	OpenInterestInUSDT     string               `json:"h"`
+}
+
+// WsOptionsNewPair represents a new options pair update information
+type WsOptionsNewPair struct {
+	EventType                 string               `json:"e"`
+	EventTime                 convert.ExchangeTime `json:"E"`
+	ID                        int64                `json:"id"`
+	UnderlyingAssetID         int64                `json:"cid"`
+	UnderlyingIndexOfContract string               `json:"u"`
+	QuotationAsset            string               `json:"qa"`
+	TradingPairName           string               `json:"s"`
+	Unit                      int                  `json:"unit"` // Conversion ratio, the quantity of the underlying asset represented by a single contract
+	MinimumTradeVolume        string               `json:"mq"`   // Minimum trade volume of the underlying asset
+	OptionType                string               `json:"d"`
+	StrikePrice               string               `json:"sp"`
+	ExpirationTime            convert.ExchangeTime `json:"ed"`
+}
+
+// WsOptionsOrderbook represents a partial orderbook websocket stream data
+type WsOptionsOrderbook struct {
+	EventType       string               `json:"e"`
+	EventTime       convert.ExchangeTime `json:"E"`
+	TransactionTime convert.ExchangeTime `json:"T"`
+	OptionSymbol    string               `json:"symbol"`
+	UpdateID        int64                `json:"u"`  // update id in event
+	PUpdateID       int64                `json:"pu"` // same as update id in event
+	Bids            [][2]types.Number    `json:"b"`  // 0: Price 1: Quantity
+	Asks            [][2]types.Number    `json:"a"`
 }

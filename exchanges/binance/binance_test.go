@@ -1054,14 +1054,18 @@ func TestGetExchangeInfo(t *testing.T) {
 
 func TestFetchTradablePairs(t *testing.T) {
 	t.Parallel()
-	_, err := b.FetchTradablePairs(context.Background(), asset.Spot)
-	assert.NoError(t, err)
-
-	_, err = b.FetchTradablePairs(context.Background(), asset.CoinMarginedFutures)
-	assert.NoError(t, err)
-
-	_, err = b.FetchTradablePairs(context.Background(), asset.USDTMarginedFutures)
-	assert.NoError(t, err)
+	results, err := b.FetchTradablePairs(context.Background(), asset.Spot)
+	require.NoError(t, err)
+	require.NotNil(t, results)
+	results, err = b.FetchTradablePairs(context.Background(), asset.CoinMarginedFutures)
+	require.NoError(t, err)
+	require.NotNil(t, results)
+	results, err = b.FetchTradablePairs(context.Background(), asset.USDTMarginedFutures)
+	require.NoError(t, err)
+	require.NotNil(t, results)
+	results, err = b.FetchTradablePairs(context.Background(), asset.Options)
+	require.NoError(t, err)
+	assert.NotNil(t, results)
 }
 
 func TestGetOrderBook(t *testing.T) {
@@ -4254,12 +4258,6 @@ func TestCheckEOptionsServerTime(t *testing.T) {
 	require.NoError(t, err)
 	assert.False(t, serverTime.Time().IsZero())
 }
-func TestGetOptionsExchangeInformation(t *testing.T) {
-	t.Parallel()
-	result, err := b.GetOptionsExchangeInformation(context.Background())
-	require.NoError(t, err)
-	assert.NotNil(t, result)
-}
 
 func TestGetEOptionsOrderbook(t *testing.T) {
 	t.Parallel()
@@ -4541,4 +4539,17 @@ func TestGetOptionsAutoCancelAllOpenOrdersHeartbeat(t *testing.T) {
 	result, err := b.GetOptionsAutoCancelAllOpenOrdersHeartbeat(context.Background(), []string{"ETHUSDT"})
 	require.NoError(t, err)
 	assert.NotNil(t, result)
+}
+func TestWsOptionsConnect(t *testing.T) {
+	t.Parallel()
+	err := b.WsOptionsConnect()
+	require.NoError(t, err)
+	time.Sleep(time.Second * 23)
+}
+
+func TestGetOptionsExchangeInformation(t *testing.T) {
+	t.Parallel()
+	exchangeinformation, err := b.GetOptionsExchangeInformation(context.Background())
+	require.NoError(t, err)
+	assert.NotNil(t, exchangeinformation)
 }

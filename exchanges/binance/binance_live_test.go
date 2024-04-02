@@ -41,7 +41,7 @@ func TestMain(m *testing.M) {
 			}
 		}
 	}
-
+	// b.HTTPRecording = true
 	b.setupOrderbookManager()
 	b.Websocket.DataHandler = sharedtestvalues.GetWebsocketInterfaceChannelOverride()
 	log.Printf(sharedtestvalues.LiveTesting, b.Name)

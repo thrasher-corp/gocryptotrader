@@ -41,9 +41,6 @@ func (b *Binance) WsCFutureConnect() error {
 	wsURL := binanceCFuturesWebsocketURL + "/stream"
 	err = b.Websocket.SetWebsocketURL(wsURL, false, false)
 	if err != nil {
-		return err
-	}
-	if err != nil {
 		b.Websocket.SetCanUseAuthenticatedEndpoints(false)
 		log.Errorf(log.ExchangeSys,
 			"%v unable to connect to authenticated Websocket. Error: %s",
