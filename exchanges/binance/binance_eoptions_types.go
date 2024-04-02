@@ -1,6 +1,8 @@
 package binance
 
 import (
+	"encoding/json"
+
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/types"
@@ -476,4 +478,78 @@ type WsOptionsKlineData struct {
 		TakerCompletedTradeVolume types.Number         `json:"V"`
 		TakerTradeAmount          types.Number         `json:"Q"`
 	} `json:"k"`
+}
+
+// WsOptionIncomingResp used by wsHandleEOptionsData
+type WsOptionIncomingResp struct {
+	EventType string          `json:"e"`
+	Result    json.RawMessage `json:"result"`
+	ID        int64           `json:"id"`
+	Stream    string          `json:"stream"`
+	Data      json.RawMessage `json:"data"`
+}
+
+// WsOptionIncomingResps list of WsOptionIncomingResp
+type WsOptionIncomingResps struct {
+	Instances []WsOptionIncomingResp
+
+	// To record the information about whther the incoming data was a slice or sing object instance.
+	// Reason: Some slices may have a single element, which creates uncertainity about whether the incoming data is slice or object instance.
+	IsSlice bool
+}
+
+// UnmarshalJSON deserializes incoming object or slice into WsOptionIncomingResps([]WsOptionIncomingResp) instance.
+func (a *WsOptionIncomingResps) UnmarshalJSON(data []byte) error {
+	var resp []WsOptionIncomingResp
+	isSlice := true
+	err := json.Unmarshal(data, &resp)
+	if err != nil {
+		isSlice = false
+		var newResp WsOptionIncomingResp
+		err = json.Unmarshal(data, &newResp)
+		if err != nil {
+			return err
+		}
+		resp = append(resp, newResp)
+	}
+	a.Instances = resp
+	a.IsSlice = isSlice
+	return nil
+}
+
+// WsOpenInterest represents a single open interest instance.
+type WsOpenInterest struct {
+	EventType              string               `json:"e"`
+	EventTime              convert.ExchangeTime `json:"E"`
+	Symbol                 string               `json:"s"`
+	OpenInterestInContract string               `json:"o"` // Base
+	OpenInterestInUSDT     string               `json:"h"`
+}
+
+// WsOptionsNewPair represents a new options pair update information
+type WsOptionsNewPair struct {
+	EventType                 string               `json:"e"`
+	EventTime                 convert.ExchangeTime `json:"E"`
+	ID                        int64                `json:"id"`
+	UnderlyingAssetID         int64                `json:"cid"`
+	UnderlyingIndexOfContract string               `json:"u"`
+	QuotationAsset            string               `json:"qa"`
+	TradingPairName           string               `json:"s"`
+	Unit                      int                  `json:"unit"` // Conversion ratio, the quantity of the underlying asset represented by a single contract
+	MinimumTradeVolume        string               `json:"mq"`   // Minimum trade volume of the underlying asset
+	OptionType                string               `json:"d"`
+	StrikePrice               string               `json:"sp"`
+	ExpirationTime            convert.ExchangeTime `json:"ed"`
+}
+
+// WsOptionsOrderbook represents a partial orderbook websocket stream data
+type WsOptionsOrderbook struct {
+	EventType       string               `json:"e"`
+	EventTime       convert.ExchangeTime `json:"E"`
+	TransactionTime convert.ExchangeTime `json:"T"`
+	OptionSymbol    string               `json:"symbol"`
+	UpdateID        int64                `json:"u"`  // update id in event
+	PUpdateID       int64                `json:"pu"` // same as update id in event
+	Bids            [][2]types.Number    `json:"b"`  // 0: Price 1: Quantity
+	Asks            [][2]types.Number    `json:"a"`
 }
