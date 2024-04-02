@@ -235,11 +235,11 @@ type P2PAdListResp struct {
 type CrVirSubResp struct {
 	Data struct {
 		FailureList []struct {
-			SubAccountName string `json:"subaAccountName"`
+			SubaccountName string `json:"subaAccountName"`
 		} `json:"failureList"`
 		SuccessList []struct {
-			SubAccountUID  string        `json:"subAccountUid"`
-			SubAccountName string        `json:"subaAccountName"`
+			SubaccountUID  string        `json:"subAccountUid"`
+			SubaccountName string        `json:"subaAccountName"`
 			Status         string        `json:"status"`
 			PermList       []string      `json:"permList"`
 			Label          string        `json:"label"`
@@ -263,10 +263,10 @@ type SuccessBoolResp struct {
 // an API key
 type CrSubAccAPIKeyResp struct {
 	Data []struct {
-		SubAccountUID    string   `json:"subAccountUid"`
-		SubAccountName   string   `json:"subAccountName"`
+		SubaccountUID    string   `json:"subAccountUid"`
+		SubaccountName   string   `json:"subAccountName"`
 		Label            string   `json:"label"`
-		SubAccountAPIKey string   `json:"subAccountApiKey"`
+		SubaccountAPIKey string   `json:"subAccountApiKey"`
 		SecretKey        string   `json:"secretKey"`
 		PermList         []string `json:"permList"`
 		IPList           []string `json:"ipList"`
@@ -276,9 +276,9 @@ type CrSubAccAPIKeyResp struct {
 // GetVirSubResp contains information on the user's virtual sub-accounts
 type GetVirSubResp struct {
 	Data struct {
-		SubAccountList []struct {
-			SubAccountUID  string        `json:"subAccountUid"`
-			SubAccountName string        `json:"subAccountName"`
+		SubaccountList []struct {
+			SubaccountUID  string        `json:"subAccountUid"`
+			SubaccountName string        `json:"subAccountName"`
 			Label          string        `json:"label"`
 			Status         string        `json:"status"`
 			PermList       []string      `json:"permList"`
@@ -292,8 +292,8 @@ type GetVirSubResp struct {
 // AlterAPIKeyResp contains information returned when creating or modifying an API key
 type AlterAPIKeyResp struct {
 	Data struct {
-		SubAccountUID    string   `json:"subAccountUid"`
-		SubAccountApiKey string   `json:"subAccountApiKey"`
+		SubaccountUID    string   `json:"subAccountUid"`
+		SubaccountApiKey string   `json:"subAccountApiKey"`
 		SecretKey        string   `json:"secretKey"`
 		PermList         []string `json:"permList"`
 		Label            string   `json:"label"`
@@ -304,8 +304,8 @@ type AlterAPIKeyResp struct {
 // GetAPIKeyResp contains information on the user's API keys
 type GetAPIKeyResp struct {
 	Data []struct {
-		SubAccountUID    string   `json:"subAccountUid"`
-		SubAccountApiKey string   `json:"subAccountApiKey"`
+		SubaccountUID    string   `json:"subAccountUid"`
+		SubaccountApiKey string   `json:"subAccountApiKey"`
 		IPList           []string `json:"ipList"`
 		PermList         []string `json:"permList"`
 		Label            string   `json:"label"`
@@ -515,8 +515,8 @@ type CandleResponse struct {
 	Data [][8]interface{} `json:"data"`
 }
 
-// OneCandle contains a single candle
-type OneCandle struct {
+// OneSpotCandle contains a single candle
+type OneSpotCandle struct {
 	Timestamp   time.Time
 	Open        float64
 	High        float64
@@ -527,9 +527,21 @@ type OneCandle struct {
 	USDTVolume  float64
 }
 
+// OneFuturesCandle contains a single candle
+type OneFuturesCandle struct {
+	Timestamp   time.Time
+	Entry       float64
+	High        float64
+	Low         float64
+	Exit        float64
+	BaseVolume  float64
+	QuoteVolume float64
+}
+
 // CandleData contains sorted candle data
 type CandleData struct {
-	Candles []OneCandle
+	SpotCandles    []OneSpotCandle
+	FuturesCandles []OneFuturesCandle
 }
 
 // MarketFillsResp contains information on a batch of trades
@@ -583,8 +595,8 @@ type BatchOrderResp struct {
 
 // OrderIDStruct contains order IDs
 type OrderIDStruct struct {
-	OrderID   int64  `json:"orderId,string,omitempty"`
-	ClientOID string `json:"clientOid,omitempty"`
+	OrderID       int64  `json:"orderId,string,omitempty"`
+	ClientOrderID string `json:"clientOid,omitempty"`
 }
 
 // SymbolResp holds a single symbol
@@ -773,8 +785,8 @@ type AccountAssetsResp struct {
 	Data []AssetData `json:"data"`
 }
 
-// SubAccountAssetsResp contains information on assets in a user's sub-accounts
-type SubAccountAssetsResp struct {
+// SubaccountAssetsResp contains information on assets in a user's sub-accounts
+type SubaccountAssetsResp struct {
 	Data []struct {
 		UserID     int64       `json:"userId,string"`
 		AssetsList []AssetData `json:"assetsList"`
@@ -784,4 +796,358 @@ type SubAccountAssetsResp struct {
 // SuccessBoolResp2 contains a success bool in a secondary format returned by the exchange
 type SuccessBoolResp2 struct {
 	Success SuccessBool `json:"data"`
+}
+
+// SpotAccBillResp contains information on the user's billing history
+type SpotAccBillResp struct {
+	Data []struct {
+		CreationTime UnixTimestamp `json:"cTime"`
+		Coin         string        `json:"coin"`
+		GroupType    string        `json:"groupType"`
+		BusinessType string        `json:"businessType"`
+		Size         float64       `json:"size,string"`
+		Balance      float64       `json:"balance,string"`
+		Fees         float64       `json:"fees,string"`
+		BillID       int64         `json:"billId,string"`
+	} `json:"data"`
+}
+
+// TransferResp contains information on an asset transfer
+type TransferResp struct {
+	Data struct {
+		TransferID    int64  `json:"transferId,string"`
+		ClientOrderID string `json:"clientOid"`
+	} `json:"data"`
+}
+
+// TransferableCoinsResp contains a list of coins that can be transferred between the provided accounts
+type TransferableCoinsResp struct {
+	Data []string `json:"data"`
+}
+
+// SubaccTfrRecResp contains detailed information on asset transfers between sub-accounts
+type SubaccTfrRecResp struct {
+	Data []struct {
+		Coin          string        `json:"coin"`
+		Status        string        `json:"status"`
+		ToType        string        `json:"toType"`
+		FromType      string        `json:"fromType"`
+		Size          float64       `json:"size,string"`
+		Timestamp     UnixTimestamp `json:"ts"`
+		ClientOrderID string        `json:"clientOid"`
+		TransferID    int64         `json:"transferId,string"`
+		FromUserID    int64         `json:"fromUserId,string"`
+		ToUserID      int64         `json:"toUserId,string"`
+	} `json:"data"`
+}
+
+// TransferRecResp contains detailed information on asset transfers
+type TransferRecResp struct {
+	Data []struct {
+		Coin          string        `json:"coin"`
+		Status        string        `json:"status"`
+		ToType        string        `json:"toType"`
+		ToSymbol      string        `json:"toSymbol"`
+		FromType      string        `json:"fromType"`
+		FromSymbol    string        `json:"fromSymbol"`
+		Size          float64       `json:"size,string"`
+		Timestamp     UnixTimestamp `json:"ts"`
+		ClientOrderID string        `json:"clientOid"`
+		TransferID    int64         `json:"transferId,string"`
+	} `json:"data"`
+}
+
+// DepositAddressResp contains information on a deposit address
+type DepositAddressResp struct {
+	Data struct {
+		Address string `json:"address"`
+		Chain   string `json:"chain"`
+		Coin    string `json:"coin"`
+		Tag     string `json:"tag"`
+		URL     string `json:"url"`
+	} `json:"data"`
+}
+
+// SubaccDepRecResp contains detailed information on deposits to sub-accounts
+type SubaccDepRecResp struct {
+	Data []struct {
+		OrderID      int64         `json:"orderId,string"`
+		TradeID      int64         `json:"tradeId,string"`
+		Coin         string        `json:"coin"`
+		Size         float64       `json:"size,string"`
+		Status       string        `json:"status"`
+		FromAddress  string        `json:"fromAddress"`
+		ToAddress    string        `json:"toAddress"`
+		Chain        string        `json:"chain"`
+		Destination  string        `json:"dest"`
+		CreationTime UnixTimestamp `json:"cTime"`
+		UpdateTime   UnixTimestamp `json:"uTime"`
+	} `json:"data"`
+}
+
+// WithdrawRecordsResp contains detailed information on withdrawals
+type WithdrawRecordsResp struct {
+	Data []struct {
+		OrderID       int64         `json:"orderId,string"`
+		TradeID       int64         `json:"tradeId,string"`
+		Coin          string        `json:"coin"`
+		ClientOrderID string        `json:"clientOid"`
+		OrderType     string        `json:"type"`
+		Destination   string        `json:"dest"`
+		Size          float64       `json:"size,string"`
+		Fee           float64       `json:"fee,string"`
+		Status        string        `json:"status"`
+		FromAddress   string        `json:"fromAddress"`
+		ToAddress     string        `json:"toAddress"`
+		Chain         string        `json:"chain"`
+		Confirm       uint32        `json:"confirm,string"`
+		Tag           string        `json:"tag"`
+		CreationTime  UnixTimestamp `json:"cTime"`
+		UpdateTime    UnixTimestamp `json:"uTime"`
+	} `json:"data"`
+}
+
+// CryptoDepRecResp contains detailed information on cryptocurrency deposits
+type CryptoDepRecResp struct {
+	Data []struct {
+		OrderID      int64         `json:"orderId,string"`
+		TradeID      int64         `json:"tradeId,string"`
+		Coin         string        `json:"coin"`
+		OrderType    string        `json:"type"`
+		Size         float64       `json:"size,string"`
+		Status       string        `json:"status"`
+		FromAddress  string        `json:"fromAddress"`
+		ToAddress    string        `json:"toAddress"`
+		Chain        string        `json:"chain"`
+		Destination  string        `json:"dest"`
+		CreationTime UnixTimestamp `json:"cTime"`
+		UpdateTime   UnixTimestamp `json:"uTime"`
+	} `json:"data"`
+}
+
+// FutureTickerResp contains information on a futures ticker
+type FutureTickerResp struct {
+	Data []struct {
+		Symbol            string        `json:"symbol"`
+		LastPrice         float64       `json:"lastPr,string"`
+		AskPrice          float64       `json:"askPr,string"`
+		BidPrice          float64       `json:"bidPr,string"`
+		BidSize           float64       `json:"bidSz,string"`
+		AskSize           float64       `json:"askSz,string"`
+		High24H           float64       `json:"high24h,string"`
+		Low24H            float64       `json:"low24h,string"`
+		Timestamp         UnixTimestamp `json:"ts"`
+		Change24H         float64       `json:"change24h,string"`
+		BaseVolume        float64       `json:"baseVolume,string"`
+		QuoteVolume       float64       `json:"quoteVolume,string"`
+		USDTVolume        float64       `json:"usdtVolume,string"`
+		OpenUTC           float64       `json:"openUtc,string"`
+		ChangeUTC24H      float64       `json:"changeUtc24h,string"`
+		IndexPrice        float64       `json:"indexPrice,string"`
+		FundingRate       float64       `json:"fundingRate,string"`
+		HoldingAmount     float64       `json:"holdingAmount,string"`
+		DeliveryStartTime UnixTimestamp `json:"deliveryStartTime"`
+		DeliveryTime      UnixTimestamp `json:"deliveryTime"`
+		DeliveryStatus    string        `json:"deliveryStatus"`
+		Open24H           float64       `json:"open24h,string"`
+	} `json:"data"`
+}
+
+// CallMode represents the call mode for the futures candlestick endpoints
+type CallMode uint8
+
+const (
+	// CallModeNormal represents the normal call mode
+	CallModeNormal CallMode = iota
+	// CallModeHistory represents the history call mode
+	CallModeHistory
+	// CallModeIndex represents the historical index call mode
+	CallModeIndex
+	// CallModeMark represents the historical mark call mode
+	CallModeMark
+)
+
+// OpenInterestResp contains information on open positions
+type OpenPositionsResp struct {
+	Data struct {
+		OpenInterestList []struct {
+			Symbol string  `json:"symbol"`
+			Size   float64 `json:"size,string"`
+		} `json:"openInterestList"`
+		Timestamp UnixTimestamp `json:"ts"`
+	} `json:"data"`
+}
+
+// FundingTimeResp contains information on funding times
+type FundingTimeResp struct {
+	Data []struct {
+		Symbol          string        `json:"symbol"`
+		NextFundingTime UnixTimestamp `json:"nextFundingTime"`
+		RatePeriod      uint16        `json:"ratePeriod,string"`
+	} `json:"data"`
+}
+
+// FuturesPriceResp contains information on futures prices
+type FuturesPriceResp struct {
+	Data []struct {
+		Symbol     string        `json:"symbol"`
+		Price      float64       `json:"price,string"`
+		IndexPrice float64       `json:"indexPrice,string"`
+		MarkPrice  float64       `json:"markPrice,string"`
+		Timestamp  UnixTimestamp `json:"ts"`
+	} `json:"data"`
+}
+
+// FundingHistoryResp contains information on funding history
+type FundingHistoryResp struct {
+	Data []struct {
+		Symbol      string        `json:"symbol"`
+		FundingRate float64       `json:"fundingRate,string"`
+		FundingTime UnixTimestamp `json:"fundingTime"`
+	} `json:"data"`
+}
+
+// FundingCurrentResp contains information on current funding rates
+type FundingCurrentResp struct {
+	Data []struct {
+		Symbol      string  `json:"symbol"`
+		FundingRate float64 `json:"fundingRate,string"`
+	} `json:"data"`
+}
+
+// ContractConfigResp contains information on contract details
+type ContractConfigResp struct {
+	Data []struct {
+		Symbol                string        `json:"symbol"`
+		BaseCoin              string        `json:"baseCoin"`
+		QuoteCoin             string        `json:"quoteCoin"`
+		BuyLimitPriceRatio    float64       `json:"buyLimitPriceRatio,string"`
+		SellLimitPriceRatio   float64       `json:"sellLimitPriceRatio,string"`
+		FeeRateUpRatio        float64       `json:"feeRateUpRatio,string"`
+		MakerFeeRate          float64       `json:"makerFeeRate,string"`
+		TakerFeeRate          float64       `json:"takerFeeRate,string"`
+		OpenCostUpRatio       float64       `json:"openCostUpRatio,string"`
+		SupportMarginCoins    []string      `json:"supportMarginCoins"`
+		MinTradeNum           float64       `json:"minTradeNum,string"`
+		PriceEndStep          float64       `json:"priceEndStep,string"`
+		VolumePlace           float64       `json:"volumePlace,string"`
+		PricePlace            float64       `json:"pricePlace,string"`
+		SizeMultiplier        float64       `json:"sizeMultiplier,string"`
+		SymbolType            string        `json:"symbolType"`
+		MinTradeUSDT          float64       `json:"minTradeUSDT,string"`
+		MaxSymbolOrderNum     int64         `json:"maxSymbolOrderNum,string"`
+		MaxSymbolOpenOrderNum int64         `json:"maxSymbolOpenOrderNum,string"`
+		MaxPositionNum        int64         `json:"maxPositionNum,string"`
+		SymbolStatus          string        `json:"symbolStatus"`
+		OffTime               int64         `json:"offTime,string"`
+		LimitOpenTime         int64         `json:"limitOpenTime,string"`
+		DeliveryTime          EmptyInt      `json:"deliveryTime"`
+		DeliveryStartTime     EmptyInt      `json:"deliveryStartTime"`
+		DeliveryPeriod        EmptyInt      `json:"deliveryPeriod"`
+		LaunchTime            EmptyInt      `json:"launchTime"`
+		FundInterval          uint16        `json:"fundInterval,string"`
+		MinLever              float64       `json:"minLever,string"`
+		MaxLever              float64       `json:"maxLever,string"`
+		PosLimit              float64       `json:"posLimit,string"`
+		MaintainTime          UnixTimestamp `json:"maintainTime"`
+	} `json:"data"`
+}
+
+// OneAccResp contains information on a single account
+type OneAccResp struct {
+	Data struct {
+		MarginCoin            string       `json:"marginCoin"`
+		Locked                float64      `json:"locked,string"`
+		Available             float64      `json:"available,string"`
+		CrossedMaxAvailable   float64      `json:"crossedMaxAvailable,string"`
+		IsolatedMaxAvailable  float64      `json:"isolatedMaxAvailable,string"`
+		MaxTransferOut        float64      `json:"maxTransferOut,string"`
+		AccountEquity         float64      `json:"accountEquity,string"`
+		USDTEquity            float64      `json:"usdtEquity,string"`
+		BTCEquity             float64      `json:"btcEquity,string"`
+		CrossedRiskRate       float64      `json:"crossedRiskRate,string"`
+		CrossedMarginleverage float64      `json:"crossedMarginleverage"`
+		IsolatedLongLever     float64      `json:"isolatedLongLever"`
+		IsolatedShortLever    float64      `json:"isolatedShortLever"`
+		MarginMode            string       `json:"marginMode"`
+		PosMode               string       `json:"posMode"`
+		UnrealizedPL          types.Number `json:"unrealizedPL"`
+		Coupon                types.Number `json:"coupon,string"`
+		CrossedUnrealizedPL   types.Number `json:"crossedUnrealizedPL"`
+		IsolatedUnrealizedPL  types.Number `json:"isolatedUnrealizedPL"`
+	} `json:"data"`
+}
+
+// FutureAccDetails contains information on a user's futures account
+type FutureAccDetails struct {
+	MarginCoin           string       `json:"marginCoin"`
+	Locked               float64      `json:"locked,string"`
+	Available            float64      `json:"available,string"`
+	CrossedMaxAvailable  float64      `json:"crossedMaxAvailable,string"`
+	IsolatedMaxAvailable float64      `json:"isolatedMaxAvailable,string"`
+	MaxTransferOut       float64      `json:"maxTransferOut,string"`
+	AccountEquity        float64      `json:"accountEquity,string"`
+	USDTEquity           float64      `json:"usdtEquity,string"`
+	BTCEquity            float64      `json:"btcEquity,string"`
+	CrossedRiskRate      float64      `json:"crossedRiskRate,string"`
+	UnrealizedPL         types.Number `json:"unrealizedPL"`
+	Coupon               types.Number `json:"coupon"`
+	CrossedUnrealizedPL  types.Number `json:"crossedUnrealizedPL"`
+	IsolatedUnrealizedPL types.Number `json:"isolatedUnrealizedPL"`
+}
+
+// AllAccResp contains information on all accounts
+type AllAccResp struct {
+	Data []FutureAccDetails `json:"data"`
+}
+
+// SubaccountFuturesResp contains information on futures details of a user's sub-accounts
+type SubaccountFuturesResp struct {
+	Data []struct {
+		UserID    int64              `json:"userId"`
+		AssetList []FutureAccDetails `json:"assetList"`
+	} `json:"data"`
+}
+
+// EstOpenCountResp contains information on the estimated size of open orders
+type EstOpenCountResp struct {
+	Data struct {
+		Size float64 `json:"size,string"`
+	} `json:"data"`
+}
+
+// LeverageResp contains information on the leverage of a position
+type LeverageResp struct {
+	Data struct {
+		Symbol              string       `json:"symbol"`
+		MarginCoin          string       `json:"marginCoin"`
+		LongLeverage        float64      `json:"longLeverage,string"`
+		ShortLeverage       float64      `json:"shortLeverage,string"`
+		CrossMarginLeverage types.Number `json:"crossMarginLeverage"`
+		MarginMode          string       `json:"marginMode"`
+	} `json:"data"`
+}
+
+// PosModeResp contains information on the position mode
+type PosModeResp struct {
+	Data struct {
+		PositionMode string `json:"posMode"`
+	} `json:"data"`
+}
+
+// FutureAccBillResp contains information on futures billing history
+type FutureAccBillResp struct {
+	Data struct {
+		Bills []struct {
+			OrderID      int64         `json:"orderId,string"`
+			Symbol       string        `json:"symbol"`
+			Amount       float64       `json:"amount,string"`
+			Fee          float64       `json:"fee,string"`
+			FeeByCoupon  types.Number  `json:"feeByCoupon"`
+			FeeCoin      string        `json:"feeCoin"`
+			BusinessType string        `json:"businessType"`
+			Coin         string        `json:"coin"`
+			CreateTime   UnixTimestamp `json:"cTime"`
+		} `json:"bills"`
+	} `json:"data"`
 }

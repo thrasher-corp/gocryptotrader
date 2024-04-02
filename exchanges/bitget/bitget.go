@@ -25,73 +25,104 @@ const (
 	bitgetAPIURL = "https://api.bitget.com/api/v2/"
 
 	// Public endpoints
-	bitgetPublic         = "public/"
-	bitgetAnnouncements  = "annoucements" // sic
-	bitgetTime           = "time"
-	bitgetCoins          = "coins"
-	bitgetSymbols        = "symbols"
-	bitgetMarket         = "market/"
-	bitgetVIPFeeRate     = "vip-fee-rate"
-	bitgetTickers        = "tickers"
-	bitgetMergeDepth     = "merge-depth"
-	bitgetOrderbook      = "orderbook"
-	bitgetCandles        = "candles"
-	bitgetHistoryCandles = "history-candles"
-	bitgetFills          = "fills"
-	bitgetFillsHistory   = "fills-history"
+	bitgetPublic              = "public/"
+	bitgetAnnouncements       = "annoucements" // sic
+	bitgetTime                = "time"
+	bitgetCoins               = "coins"
+	bitgetSymbols             = "symbols"
+	bitgetMarket              = "market/"
+	bitgetVIPFeeRate          = "vip-fee-rate"
+	bitgetTickers             = "tickers"
+	bitgetMergeDepth          = "merge-depth"
+	bitgetOrderbook           = "orderbook"
+	bitgetCandles             = "candles"
+	bitgetHistoryCandles      = "history-candles"
+	bitgetFills               = "fills"
+	bitgetFillsHistory        = "fills-history"
+	bitgetTicker              = "ticker"
+	bitgetHistoryIndexCandles = "history-index-candles"
+	bitgetHistoryMarkCandles  = "history-mark-candles"
+	bitgetOpenInterest        = "open-interest"
+	bitgetFundingTime         = "funding-time"
+	bitgetSymbolPrice         = "symbol-price"
+	bitgetHistoryFundRate     = "history-fund-rate"
+	bitgetCurrentFundRate     = "current-fund-rate"
+	bitgetContracts           = "contracts"
 
 	// Mixed endpoints
 	bitgetSpot = "spot/"
+	bitgetMix  = "mix/"
 
 	// Authenticated endpoints
-	bitgetCommon               = "common/"
-	bitgetTradeRate            = "trade-rate"
-	bitgetTax                  = "tax/"
-	bitgetSpotRecord           = "spot-record"
-	bitgetFutureRecord         = "future-record"
-	bitgetMarginRecord         = "margin-record"
-	bitgetP2PRecord            = "p2p-record"
-	bitgetP2P                  = "p2p/"
-	bitgetMerchantList         = "merchantList"
-	bitgetMerchantInfo         = "merchantInfo"
-	bitgetOrderList            = "orderList"
-	bitgetAdvList              = "advList"
-	bitgetUser                 = "user/"
-	bitgetCreate               = "create-"
-	bitgetVirtualSubaccount    = "virtual-subaccount"
-	bitgetModify               = "modify-"
-	bitgetBatchCreateSubAccApi = "batch-create-subaccount-and-apikey"
-	bitgetList                 = "list"
-	bitgetAPIKey               = "apikey"
-	bitgetConvert              = "convert/"
-	bitgetCurrencies           = "currencies"
-	bitgetQuotedPrice          = "quoted-price"
-	bitgetTrade                = "trade"
-	bitgetConvertRecord        = "convert-record"
-	bitgetBGBConvert           = "bgb-convert"
-	bitgetConvertCoinList      = "bgb-convert-coin-list"
-	bitgetBGBConvertRecords    = "bgb-convert-records"
-	bitgetPlaceOrder           = "/place-order"
-	bitgetCancelOrder          = "/cancel-order"
-	bitgetBatchOrders          = "/batch-orders"
-	bitgetBatchCancel          = "/batch-cancel-order"
-	bitgetCancelSymbolOrder    = "/cancel-symbol-order"
-	bitgetOrderInfo            = "/orderInfo"
-	bitgetUnfilledOrders       = "/unfilled-orders"
-	bitgetHistoryOrders        = "/history-orders"
-	bitgetPlacePlanOrder       = "/place-plan-order"
-	bitgetModifyPlanOrder      = "/modify-plan-order"
-	bitgetCancelPlanOrder      = "/cancel-plan-order"
-	bitgetCurrentPlanOrder     = "/current-plan-order"
-	bitgetPlanSubOrder         = "/plan-sub-order"
-	bitgetPlanOrderHistory     = "/history-plan-order"
-	bitgetBatchCancelPlanOrder = "/batch-cancel-plan-order"
-	bitgetAccount              = "account/"
-	bitgetInfo                 = "info"
-	bitgetAssets               = "assets"
-	bitgetSubAccountAssets     = "subaccount-assets"
-	bitgetWallet               = "wallet/"
-	bitgetModifyDepositAccount = "modify-deposit-account"
+	bitgetCommon                   = "common/"
+	bitgetTradeRate                = "trade-rate"
+	bitgetTax                      = "tax/"
+	bitgetSpotRecord               = "spot-record"
+	bitgetFutureRecord             = "future-record"
+	bitgetMarginRecord             = "margin-record"
+	bitgetP2PRecord                = "p2p-record"
+	bitgetP2P                      = "p2p/"
+	bitgetMerchantList             = "merchantList"
+	bitgetMerchantInfo             = "merchantInfo"
+	bitgetOrderList                = "orderList"
+	bitgetAdvList                  = "advList"
+	bitgetUser                     = "user/"
+	bitgetCreate                   = "create-"
+	bitgetVirtualSubaccount        = "virtual-subaccount"
+	bitgetModify                   = "modify-"
+	bitgetBatchCreateSubAccApi     = "batch-create-subaccount-and-apikey"
+	bitgetList                     = "list"
+	bitgetAPIKey                   = "apikey"
+	bitgetConvert                  = "convert/"
+	bitgetCurrencies               = "currencies"
+	bitgetQuotedPrice              = "quoted-price"
+	bitgetTrade                    = "trade"
+	bitgetConvertRecord            = "convert-record"
+	bitgetBGBConvert               = "bgb-convert"
+	bitgetConvertCoinList          = "bgb-convert-coin-list"
+	bitgetBGBConvertRecords        = "bgb-convert-records"
+	bitgetPlaceOrder               = "/place-order"
+	bitgetCancelOrder              = "/cancel-order"
+	bitgetBatchOrders              = "/batch-orders"
+	bitgetBatchCancel              = "/batch-cancel-order"
+	bitgetCancelSymbolOrder        = "/cancel-symbol-order"
+	bitgetOrderInfo                = "/orderInfo"
+	bitgetUnfilledOrders           = "/unfilled-orders"
+	bitgetHistoryOrders            = "/history-orders"
+	bitgetPlacePlanOrder           = "/place-plan-order"
+	bitgetModifyPlanOrder          = "/modify-plan-order"
+	bitgetCancelPlanOrder          = "/cancel-plan-order"
+	bitgetCurrentPlanOrder         = "/current-plan-order"
+	bitgetPlanSubOrder             = "/plan-sub-order"
+	bitgetPlanOrderHistory         = "/history-plan-order"
+	bitgetBatchCancelPlanOrder     = "/batch-cancel-plan-order"
+	bitgetAccount                  = "account"
+	bitgetInfo                     = "/info"
+	bitgetAssets                   = "/assets"
+	bitgetSubaccountAssets         = "/subaccount-assets"
+	bitgetWallet                   = "wallet/"
+	bitgetModifyDepositAccount     = "modify-deposit-account"
+	bitgetBills                    = "/bills"
+	bitgetTransfer                 = "transfer"
+	bitgetTransferCoinInfo         = "transfer-coin-info"
+	bitgetSubaccountTransfer       = "subaccount-transfer"
+	bitgetWithdrawal               = "withdrawal"
+	bitgetSubaccountTransferRecord = "/sub-main-trans-record"
+	bitgetTransferRecord           = "/transferRecords"
+	bitgetDepositAddress           = "deposit-address"
+	bitgetSubaccountDepositAddress = "subaccount-deposit-address"
+	bitgetCancelWithdrawal         = "cancel-withdrawal"
+	bitgetSubaccountDepositRecord  = "subaccount-deposit-records"
+	bitgetWithdrawalRecord         = "withdrawal-records"
+	bitgetDepositRecord            = "deposit-records"
+	bitgetAccounts                 = "/accounts"
+	bitgetSubaccountAssets2        = "/sub-account-assets"
+	bitgetOpenCount                = "/open-count"
+	bitgetSetLeverage              = "/set-leverage"
+	bitgetSetMargin                = "/set-margin"
+	bitgetSetMarginMode            = "/set-margin-mode"
+	bitgetSetPositionMode          = "/set-position-mode"
+	bitgetBill                     = "/bill"
 
 	// Errors
 	errUnknownEndpointLimit = "unknown endpoint limit %v"
@@ -102,7 +133,7 @@ var (
 	errPairEmpty             = errors.New("currency pair cannot be empty")
 	errCurrencyEmpty         = errors.New("currency cannot be empty")
 	errProductTypeEmpty      = errors.New("productType cannot be empty")
-	errSubAccountEmpty       = errors.New("subaccounts cannot be empty")
+	errSubaccountEmpty       = errors.New("subaccounts cannot be empty")
 	errNewStatusEmpty        = errors.New("newStatus cannot be empty")
 	errNewPermsEmpty         = errors.New("newPerms cannot be empty")
 	errPassphraseEmpty       = errors.New("passphrase cannot be empty")
@@ -133,6 +164,20 @@ var (
 	errTriggerTypeEmpty      = errors.New("triggerType cannot be empty")
 	errNonsenseRequest       = errors.New("nonsense request expected error")
 	errAccountTypeEmpty      = errors.New("accountType cannot be empty")
+	errFromTypeEmpty         = errors.New("fromType cannot be empty")
+	errToTypeEmpty           = errors.New("toType cannot be empty")
+	errCurrencyAndPairEmpty  = errors.New("currency and pair cannot both be empty")
+	errFromIDEmpty           = errors.New("fromID cannot be empty")
+	errToIDEmpty             = errors.New("toID cannot be empty")
+	errTransferTypeEmpty     = errors.New("transferType cannot be empty")
+	errAddressEmpty          = errors.New("address cannot be empty")
+	errNoCandleData          = errors.New("no candle data")
+	errMarginCoinEmpty       = errors.New("marginCoin cannot be empty")
+	errOpenAmountEmpty       = errors.New("openAmount cannot be empty")
+	errOpenPriceEmpty        = errors.New("openPrice cannot be empty")
+	errLeverageEmpty         = errors.New("leverage cannot be empty")
+	errMarginModeEmpty       = errors.New("marginMode cannot be empty")
+	errPositionModeEmpty     = errors.New("positionMode cannot be empty")
 )
 
 // QueryAnnouncement returns announcements from the exchange, filtered by type and time
@@ -338,7 +383,7 @@ func (bi *Bitget) GetMerchantAdvertisementList(ctx context.Context, startTime, e
 // no spaces, no numbers, and be exactly 8 characters long.
 func (bi *Bitget) CreateVirtualSubaccounts(ctx context.Context, subaccounts []string) (*CrVirSubResp, error) {
 	if len(subaccounts) == 0 {
-		return nil, errSubAccountEmpty
+		return nil, errSubaccountEmpty
 	}
 	path := bitgetUser + bitgetCreate + bitgetVirtualSubaccount
 	req := map[string]interface{}{
@@ -352,7 +397,7 @@ func (bi *Bitget) CreateVirtualSubaccounts(ctx context.Context, subaccounts []st
 // ModifyVirtualSubaccount changes the permissions and/or status of a virtual subaccount
 func (bi *Bitget) ModifyVirtualSubaccount(ctx context.Context, subaccountID, newStatus string, newPerms []string) (*SuccessBoolResp, error) {
 	if subaccountID == "" {
-		return nil, errSubAccountEmpty
+		return nil, errSubaccountEmpty
 	}
 	if newStatus == "" {
 		return nil, errNewStatusEmpty
@@ -377,7 +422,7 @@ func (bi *Bitget) ModifyVirtualSubaccount(ctx context.Context, subaccountID, new
 // A maximum of 30 IPs can be a part of the whitelist.
 func (bi *Bitget) CreateSubaccountAndAPIKey(ctx context.Context, subaccountName, passphrase, label string, whiteList, permList []string) (*CrSubAccAPIKeyResp, error) {
 	if subaccountName == "" {
-		return nil, errSubAccountEmpty
+		return nil, errSubaccountEmpty
 	}
 	req := map[string]interface{}{
 		"subAccountName": subaccountName,
@@ -410,7 +455,7 @@ func (bi *Bitget) GetVirtualSubaccounts(ctx context.Context, limit, pagination i
 // CreateAPIKey creates an API key for the selected virtual sub-account
 func (bi *Bitget) CreateAPIKey(ctx context.Context, subaccountID, passphrase, label string, whiteList, permList []string) (*AlterAPIKeyResp, error) {
 	if subaccountID == "" {
-		return nil, errSubAccountEmpty
+		return nil, errSubaccountEmpty
 	}
 	if passphrase == "" {
 		return nil, errPassphraseEmpty
@@ -444,7 +489,7 @@ func (bi *Bitget) ModifyAPIKey(ctx context.Context, subaccountID, passphrase, la
 		return nil, errLabelEmpty
 	}
 	if subaccountID == "" {
-		return nil, errSubAccountEmpty
+		return nil, errSubaccountEmpty
 	}
 	path := bitgetUser + bitgetModify + bitgetVirtualSubaccount + "-" + bitgetAPIKey
 	req := make(map[string]interface{})
@@ -462,7 +507,7 @@ func (bi *Bitget) ModifyAPIKey(ctx context.Context, subaccountID, passphrase, la
 // GetAPIKeys lists the API keys associated with the selected virtual sub-account
 func (bi *Bitget) GetAPIKeys(ctx context.Context, subaccountID string) (*GetAPIKeyResp, error) {
 	if subaccountID == "" {
-		return nil, errSubAccountEmpty
+		return nil, errSubaccountEmpty
 	}
 	vals := url.Values{}
 	vals.Set("subAccountUid", subaccountID)
@@ -607,15 +652,16 @@ func (bi *Bitget) GetSymbolInfo(ctx context.Context, pair string) (*SymbolInfoRe
 	return resp, bi.SendHTTPRequest(ctx, exchange.RestSpot, Rate20, path, vals, &resp)
 }
 
-// GetVIPFeeRate returns the different levels of VIP fee rates
-func (bi *Bitget) GetVIPFeeRate(ctx context.Context) (*VIPFeeRateResp, error) {
+// GetSpotVIPFeeRate returns the different levels of VIP fee rates for spot trading
+func (bi *Bitget) GetSpotVIPFeeRate(ctx context.Context) (*VIPFeeRateResp, error) {
 	path := bitgetSpot + bitgetMarket + bitgetVIPFeeRate
 	var resp *VIPFeeRateResp
 	return resp, bi.SendHTTPRequest(ctx, exchange.RestSpot, Rate10, path, nil, &resp)
 }
 
-// GetTickerInformation returns the ticker information for all trading pairs, or a single pair of the user's choice
-func (bi *Bitget) GetTickerInformation(ctx context.Context, pair string) (*TickerResp, error) {
+// GetSpotTickerInformation returns the ticker information for all trading pairs, or a single pair of the user's
+// choice
+func (bi *Bitget) GetSpotTickerInformation(ctx context.Context, pair string) (*TickerResp, error) {
 	vals := url.Values{}
 	vals.Set("symbol", pair)
 	path := bitgetSpot + bitgetMarket + bitgetTickers
@@ -623,10 +669,10 @@ func (bi *Bitget) GetTickerInformation(ctx context.Context, pair string) (*Ticke
 	return resp, bi.SendHTTPRequest(ctx, exchange.RestSpot, Rate20, path, vals, &resp)
 }
 
-// GetMergeDepth returns part of the orderbook, with options to merge orders of similar price levels together,
+// GetSpotMergeDepth returns part of the orderbook, with options to merge orders of similar price levels together,
 // and to change how many results are returned. Limit's a string instead of the typical int64 because the API
 // will accept a value of "max"
-func (bi *Bitget) GetMergeDepth(ctx context.Context, pair, precision, limit string) (*DepthResp, error) {
+func (bi *Bitget) GetSpotMergeDepth(ctx context.Context, pair, precision, limit string) (*DepthResp, error) {
 	if pair == "" {
 		return nil, errPairEmpty
 	}
@@ -651,8 +697,8 @@ func (bi *Bitget) GetOrderbookDepth(ctx context.Context, pair, step string, limi
 	return resp, bi.SendHTTPRequest(ctx, exchange.RestSpot, Rate20, path, vals, &resp)
 }
 
-// GetCandlestickData returns candlestick data for a given trading pair
-func (bi *Bitget) GetCandlestickData(ctx context.Context, pair, granularity string, startTime, endTime time.Time, limit uint16, historic bool) (*CandleData, error) {
+// GetSpotCandlestickData returns candlestick data for a given trading pair
+func (bi *Bitget) GetSpotCandlestickData(ctx context.Context, pair, granularity string, startTime, endTime time.Time, limit uint16, historic bool) (*CandleData, error) {
 	if pair == "" {
 		return nil, errPairEmpty
 	}
@@ -675,91 +721,11 @@ func (bi *Bitget) GetCandlestickData(ctx context.Context, pair, granularity stri
 			return nil, err
 		}
 	}
-	params.Values.Set("symbol", pair)
-	params.Values.Set("granularity", granularity)
-	if limit != 0 {
-		params.Values.Set("limit", strconv.FormatUint(uint64(limit), 10))
-	}
-	var resp *CandleResponse
-	err := bi.SendHTTPRequest(ctx, exchange.RestSpot, Rate20, path, params.Values, &resp)
-	if err != nil {
-		return nil, err
-	}
-	var data CandleData
-	data.Candles = make([]OneCandle, len(resp.Data))
-	for i := range resp.Data {
-		timeTemp, ok := resp.Data[i][0].(string)
-		if !ok {
-			return nil, errTypeAssertTimestamp
-		}
-		timeTemp = (timeTemp)[1 : len(timeTemp)-1]
-		timeTemp2, err := strconv.ParseInt(timeTemp, 10, 64)
-		if err != nil {
-			return nil, err
-		}
-		data.Candles[i].Timestamp = time.Time(UnixTimestamp(time.UnixMilli(timeTemp2).UTC()))
-		openTemp, ok := resp.Data[i][1].(string)
-		if !ok {
-			return nil, errTypeAssertOpenPrice
-		}
-		data.Candles[i].Open, err = strconv.ParseFloat(openTemp, 64)
-		if err != nil {
-			return nil, err
-		}
-		highTemp, ok := resp.Data[i][2].(string)
-		if !ok {
-			return nil, errTypeAssertHighPrice
-		}
-		data.Candles[i].High, err = strconv.ParseFloat(highTemp, 64)
-		if err != nil {
-			return nil, err
-		}
-		lowTemp, ok := resp.Data[i][3].(string)
-		if !ok {
-			return nil, errTypeAssertLowPrice
-		}
-		data.Candles[i].Low, err = strconv.ParseFloat(lowTemp, 64)
-		if err != nil {
-			return nil, err
-		}
-		closeTemp, ok := resp.Data[i][4].(string)
-		if !ok {
-			return nil, errTypeAssertClosePrice
-		}
-		data.Candles[i].Close, err = strconv.ParseFloat(closeTemp, 64)
-		if err != nil {
-			return nil, err
-		}
-		baseVolumeTemp := resp.Data[i][5].(string)
-		if !ok {
-			return nil, errTypeAssertBaseVolume
-		}
-		data.Candles[i].BaseVolume, err = strconv.ParseFloat(baseVolumeTemp, 64)
-		if err != nil {
-			return nil, err
-		}
-		quoteVolumeTemp := resp.Data[i][6].(string)
-		if !ok {
-			return nil, errTypeAssertQuoteVolume
-		}
-		data.Candles[i].QuoteVolume, err = strconv.ParseFloat(quoteVolumeTemp, 64)
-		if err != nil {
-			return nil, err
-		}
-		usdtVolumeTemp := resp.Data[i][7].(string)
-		if !ok {
-			return nil, errTypeAssertUSDTVolume
-		}
-		data.Candles[i].USDTVolume, err = strconv.ParseFloat(usdtVolumeTemp, 64)
-		if err != nil {
-			return nil, err
-		}
-	}
-	return &data, nil
+	return bi.candlestickHelper(ctx, pair, granularity, path, limit, params)
 }
 
-// GetRecentFills returns the most recent trades for a given pair
-func (bi *Bitget) GetRecentFills(ctx context.Context, pair string, limit uint16) (*MarketFillsResp, error) {
+// GetRecentSpotFills returns the most recent trades for a given pair
+func (bi *Bitget) GetRecentSpotFills(ctx context.Context, pair string, limit uint16) (*MarketFillsResp, error) {
 	if pair == "" {
 		return nil, errPairEmpty
 	}
@@ -771,8 +737,8 @@ func (bi *Bitget) GetRecentFills(ctx context.Context, pair string, limit uint16)
 	return resp, bi.SendHTTPRequest(ctx, exchange.RestSpot, Rate10, path, vals, &resp)
 }
 
-// GetMarketTrades returns trades for a given pair within a particular time range, and/or before a certain ID
-func (bi *Bitget) GetMarketTrades(ctx context.Context, pair string, startTime, endTime time.Time, limit, pagination int64) (*MarketFillsResp, error) {
+// GetSpotMarketTrades returns trades for a given pair within a particular time range, and/or before a certain ID
+func (bi *Bitget) GetSpotMarketTrades(ctx context.Context, pair string, startTime, endTime time.Time, limit, pagination int64) (*MarketFillsResp, error) {
 	if pair == "" {
 		return nil, errPairEmpty
 	}
@@ -1230,10 +1196,10 @@ func (bi *Bitget) GetAccountAssets(ctx context.Context, currency, assetType stri
 	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodGet, path, vals, nil, &resp)
 }
 
-// GetSubAccountAssets returns information on assets in the user's sub-accounts
-func (bi *Bitget) GetSubAccountAssets(ctx context.Context) (*SubAccountAssetsResp, error) {
-	path := bitgetSpot + bitgetAccount + bitgetSubAccountAssets
-	var resp *SubAccountAssetsResp
+// GetSpotSubaccountAssets returns information on assets in the user's sub-accounts
+func (bi *Bitget) GetSpotSubaccountAssets(ctx context.Context) (*SubaccountAssetsResp, error) {
+	path := bitgetSpot + bitgetAccount + bitgetSubaccountAssets
+	var resp *SubaccountAssetsResp
 	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodGet, path, nil, nil, &resp)
 }
 
@@ -1253,6 +1219,765 @@ func (bi *Bitget) ModifyDepositAccount(ctx context.Context, accountType, currenc
 	var resp *SuccessBoolResp2
 	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodPost, path, nil, req,
 		&resp)
+}
+
+// GetSpotAccountBills returns a section of the user's billing history
+func (bi *Bitget) GetSpotAccountBills(ctx context.Context, currency, groupType, businessType string, startTime, endTime time.Time, limit, pagination int64) (*SpotAccBillResp, error) {
+	var params Params
+	params.Values = make(url.Values)
+	err := params.prepareDateString(startTime, endTime, true)
+	if err != nil {
+		return nil, err
+	}
+	if currency != "" {
+		params.Values.Set("coin", currency)
+	}
+	params.Values.Set("groupType", groupType)
+	params.Values.Set("businessType", businessType)
+	if limit != 0 {
+		params.Values.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	if pagination != 0 {
+		params.Values.Set("idLessThan", strconv.FormatInt(pagination, 10))
+	}
+	path := bitgetSpot + bitgetAccount + bitgetBills
+	var resp *SpotAccBillResp
+	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodGet, path, params.Values,
+		nil, &resp)
+}
+
+// TransferAsset transfers a certain amount of a currency or pair between different productType accounts
+func (bi *Bitget) TransferAsset(ctx context.Context, fromType, toType, currency, pair, clientOrderID string, amount float64) (*TransferResp, error) {
+	if fromType == "" {
+		return nil, errFromTypeEmpty
+	}
+	if toType == "" {
+		return nil, errToTypeEmpty
+	}
+	if currency == "" && pair == "" {
+		return nil, errCurrencyAndPairEmpty
+	}
+	if amount == 0 {
+		return nil, errAmountEmpty
+	}
+	req := map[string]interface{}{
+		"fromType": fromType,
+		"toType":   toType,
+		"amount":   strconv.FormatFloat(amount, 'f', -1, 64),
+		"coin":     currency,
+		"symbol":   pair,
+	}
+	if clientOrderID != "" {
+		req["clientOid"] = clientOrderID
+	}
+	path := bitgetSpot + bitgetWallet + bitgetTransfer
+	var resp *TransferResp
+	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodPost, path, nil, req,
+		&resp)
+}
+
+// GetTransferableCoinList returns a list of coins that can be transferred between the provided accounts
+func (bi *Bitget) GetTransferableCoinList(ctx context.Context, fromType, toType string) (*TransferableCoinsResp, error) {
+	if fromType == "" {
+		return nil, errFromTypeEmpty
+	}
+	if toType == "" {
+		return nil, errToTypeEmpty
+	}
+	vals := url.Values{}
+	vals.Set("fromType", fromType)
+	vals.Set("toType", toType)
+	path := bitgetSpot + bitgetWallet + bitgetTransferCoinInfo
+	var resp *TransferableCoinsResp
+	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodGet, path, vals, nil,
+		&resp)
+}
+
+// SubaccountTransfer transfers assets between sub-accounts
+func (bi *Bitget) SubaccountTransfer(ctx context.Context, fromType, toType, currency, pair, clientOrderID, fromID, toID string, amount float64) (*TransferResp, error) {
+	if fromType == "" {
+		return nil, errFromTypeEmpty
+	}
+	if toType == "" {
+		return nil, errToTypeEmpty
+	}
+	if currency == "" && pair == "" {
+		return nil, errCurrencyAndPairEmpty
+	}
+	if fromID == "" {
+		return nil, errFromIDEmpty
+	}
+	if toID == "" {
+		return nil, errToIDEmpty
+	}
+	if amount == 0 {
+		return nil, errAmountEmpty
+	}
+	req := map[string]interface{}{
+		"fromType": fromType,
+		"toType":   toType,
+		"amount":   strconv.FormatFloat(amount, 'f', -1, 64),
+		"coin":     currency,
+		"symbol":   pair,
+		"fromId":   fromID,
+		"toId":     toID,
+	}
+	if clientOrderID != "" {
+		req["clientOid"] = clientOrderID
+	}
+	path := bitgetSpot + bitgetWallet + bitgetSubaccountTransfer
+	var resp *TransferResp
+	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodPost, path, nil, req,
+		&resp)
+}
+
+// WithdrawFunds withdraws funds from the user's account
+func (bi *Bitget) WithdrawFunds(ctx context.Context, currency, transferType, address, chain, innerAddressType, areaCode, tag, note, clientOrderID string, amount float64) (*OrderResp, error) {
+	if currency == "" {
+		return nil, errCurrencyEmpty
+	}
+	if transferType == "" {
+		return nil, errTransferTypeEmpty
+	}
+	if address == "" {
+		return nil, errAddressEmpty
+	}
+	if amount == 0 {
+		return nil, errAmountEmpty
+	}
+	req := map[string]interface{}{
+		"coin":         currency,
+		"transferType": transferType,
+		"address":      address,
+		"chain":        chain,
+		"innerToType":  innerAddressType,
+		"areaCode":     areaCode,
+		"tag":          tag,
+		"size":         strconv.FormatFloat(amount, 'f', -1, 64),
+		"remark":       note,
+		"clientOid":    clientOrderID,
+	}
+	path := bitgetSpot + bitgetWallet + bitgetWithdrawal
+	var resp *OrderResp
+	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodPost, path, nil, req,
+		&resp)
+}
+
+// GetSubaccountTransferRecord returns the user's sub-account transfer history
+func (bi *Bitget) GetSubaccountTransferRecord(ctx context.Context, currency, subaccountID, clientOrderID string, startTime, endTime time.Time, limit, pagination int64) (*SubaccTfrRecResp, error) {
+	var params Params
+	params.Values = make(url.Values)
+	err := params.prepareDateString(startTime, endTime, true)
+	if err != nil {
+		return nil, err
+	}
+	params.Values.Set("coin", currency)
+	params.Values.Set("subUid", subaccountID)
+	if clientOrderID != "" {
+		params.Values.Set("clientOid", clientOrderID)
+	}
+	if limit != 0 {
+		params.Values.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	if pagination != 0 {
+		params.Values.Set("idLessThan", strconv.FormatInt(pagination, 10))
+	}
+	path := bitgetSpot + bitgetAccount + bitgetSubaccountTransferRecord
+	var resp *SubaccTfrRecResp
+	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate20, http.MethodGet, path, params.Values,
+		nil, &resp)
+}
+
+// GetTransferRecord returns the user's transfer history
+func (bi *Bitget) GetTransferRecord(ctx context.Context, currency, fromType, clientOrderID string, startTime, endTime time.Time, limit, pagination int64) (*TransferRecResp, error) {
+	if currency == "" {
+		return nil, errCurrencyEmpty
+	}
+	if fromType == "" {
+		return nil, errFromTypeEmpty
+	}
+	var params Params
+	params.Values = make(url.Values)
+	err := params.prepareDateString(startTime, endTime, true)
+	if err != nil {
+		return nil, err
+	}
+	params.Values.Set("coin", currency)
+	params.Values.Set("fromType", fromType)
+	if clientOrderID != "" {
+		params.Values.Set("clientOid", clientOrderID)
+	}
+	if limit != 0 {
+		params.Values.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	if pagination != 0 {
+		params.Values.Set("idLessThan", strconv.FormatInt(pagination, 10))
+	}
+	path := bitgetSpot + bitgetAccount + bitgetTransferRecord
+	var resp *TransferRecResp
+	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate20, http.MethodGet, path, params.Values,
+		nil, &resp)
+}
+
+// GetDepositAddressForCurrency returns the user's deposit address for a particular currency
+func (bi *Bitget) GetDepositAddressForCurrency(ctx context.Context, currency, chain string) (*DepositAddressResp, error) {
+	if currency == "" {
+		return nil, errCurrencyEmpty
+	}
+	vals := url.Values{}
+	vals.Set("coin", currency)
+	vals.Set("chain", chain)
+	path := bitgetSpot + bitgetWallet + bitgetDepositAddress
+	var resp *DepositAddressResp
+	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodGet, path, vals, nil,
+		&resp)
+}
+
+// GetSubaccountDepositAddress returns the deposit address for a particular currency and sub-account
+func (bi *Bitget) GetSubaccountDepositAddress(ctx context.Context, subaccountID, currency, chain string) (*DepositAddressResp, error) {
+	if subaccountID == "" {
+		return nil, errSubaccountEmpty
+	}
+	if currency == "" {
+		return nil, errCurrencyEmpty
+	}
+	vals := url.Values{}
+	vals.Set("subUid", subaccountID)
+	vals.Set("coin", currency)
+	vals.Set("chain", chain)
+	path := bitgetSpot + bitgetWallet + bitgetSubaccountDepositAddress
+	var resp *DepositAddressResp
+	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodGet, path, vals, nil,
+		&resp)
+}
+
+// CancelWithdrawal cancels a large withdrawal request that was placed in the last minute
+func (bi *Bitget) CancelWithdrawal(ctx context.Context, orderID string) (*SuccessBool, error) {
+	if orderID == "" {
+		return nil, errOrderIDEmpty
+	}
+	req := map[string]interface{}{
+		"orderId": orderID,
+	}
+	path := bitgetSpot + bitgetWallet + bitgetCancelWithdrawal
+	var resp *SuccessBool
+	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodPost, path, nil, req,
+		&resp)
+}
+
+// GetSubaccountDepositRecords returns the deposit history for a sub-account
+func (bi *Bitget) GetSubaccountDepositRecords(ctx context.Context, subaccountID, currency string, orderID, pagination, limit int64, startTime, endTime time.Time) (*SubaccDepRecResp, error) {
+	if subaccountID == "" {
+		return nil, errSubaccountEmpty
+	}
+	var params Params
+	params.Values = make(url.Values)
+	err := params.prepareDateString(startTime, endTime, true)
+	if err != nil {
+		return nil, err
+	}
+	params.Values.Set("subUid", subaccountID)
+	params.Values.Set("coin", currency)
+	params.Values.Set("orderId", strconv.FormatInt(orderID, 10))
+	if pagination != 0 {
+		params.Values.Set("idLessThan", strconv.FormatInt(pagination, 10))
+	}
+	if limit != 0 {
+		params.Values.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	path := bitgetSpot + bitgetWallet + bitgetSubaccountDepositRecord
+	var resp *SubaccDepRecResp
+	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodGet, path, params.Values,
+		nil, &resp)
+}
+
+// GetWithdrawalRecords returns the user's withdrawal history
+func (bi *Bitget) GetWithdrawalRecords(ctx context.Context, currency, clientOrderID string, startTime, endTime time.Time, pagination, orderID, limit int64) (*WithdrawRecordsResp, error) {
+	if currency == "" {
+		return nil, errCurrencyEmpty
+	}
+	var params Params
+	params.Values = make(url.Values)
+	err := params.prepareDateString(startTime, endTime, true)
+	if err != nil {
+		return nil, err
+	}
+	params.Values.Set("coin", currency)
+	params.Values.Set("clientOid", clientOrderID)
+	if pagination != 0 {
+		params.Values.Set("idLessThan", strconv.FormatInt(pagination, 10))
+	}
+	params.Values.Set("orderId", strconv.FormatInt(orderID, 10))
+	if limit != 0 {
+		params.Values.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	path := bitgetSpot + bitgetWallet + bitgetWithdrawalRecord
+	var resp *WithdrawRecordsResp
+	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodGet, path, params.Values,
+		nil, &resp)
+}
+
+// GetDepositRecords returns the user's cryptocurrency deposit history
+func (bi *Bitget) GetDepositRecords(ctx context.Context, crypto string, orderID, pagination, limit int64, startTime, endTime time.Time) (*CryptoDepRecResp, error) {
+	var params Params
+	params.Values = make(url.Values)
+	err := params.prepareDateString(startTime, endTime, false)
+	if err != nil {
+		return nil, err
+	}
+	params.Values.Set("coin", crypto)
+	if pagination != 0 {
+		params.Values.Set("idLessThan", strconv.FormatInt(pagination, 10))
+	}
+	params.Values.Set("orderId", strconv.FormatInt(orderID, 10))
+	if limit != 0 {
+		params.Values.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	path := bitgetSpot + bitgetWallet + bitgetDepositRecord
+	var resp *CryptoDepRecResp
+	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodGet, path, params.Values,
+		nil, &resp)
+}
+
+// GetFuturesVIPFeeRate returns the different levels of VIP fee rates for futures trading
+func (bi *Bitget) GetFuturesVIPFeeRate(ctx context.Context) (*VIPFeeRateResp, error) {
+	path := bitgetMix + bitgetMarket + bitgetVIPFeeRate
+	var resp *VIPFeeRateResp
+	return resp, bi.SendHTTPRequest(ctx, exchange.RestSpot, Rate10, path, nil, &resp)
+}
+
+// GetFuturesMergeDepth returns part of the orderbook, with options to merge orders of similar price levels together,
+// and to change how many results are returned. Limit's a string instead of the typical int64 because the API
+// will accept a value of "max"
+func (bi *Bitget) GetFuturesMergeDepth(ctx context.Context, pair, productType, precision, limit string) (*DepthResp, error) {
+	if pair == "" {
+		return nil, errPairEmpty
+	}
+	if productType == "" {
+		return nil, errProductTypeEmpty
+	}
+	vals := url.Values{}
+	vals.Set("symbol", pair)
+	vals.Set("productType", productType)
+	vals.Set("precision", precision)
+	vals.Set("limit", limit)
+	path := bitgetMix + bitgetMarket + bitgetMergeDepth
+	var resp *DepthResp
+	return resp, bi.SendHTTPRequest(ctx, exchange.RestSpot, Rate20, path, vals, &resp)
+}
+
+// GetFuturesTicker returns the ticker information for a pair of the user's choice
+func (bi *Bitget) GetFuturesTicker(ctx context.Context, pair, productType string) (*FutureTickerResp, error) {
+	if pair == "" {
+		return nil, errPairEmpty
+	}
+	if productType == "" {
+		return nil, errProductTypeEmpty
+	}
+	vals := url.Values{}
+	vals.Set("symbol", pair)
+	vals.Set("productType", productType)
+	path := bitgetMix + bitgetMarket + bitgetTicker
+	var resp *FutureTickerResp
+	return resp, bi.SendHTTPRequest(ctx, exchange.RestSpot, Rate20, path, vals, &resp)
+}
+
+// GetAllFuturesTickers returns the ticker information for all pairs
+func (bi *Bitget) GetAllFuturesTickers(ctx context.Context, productType string) (*FutureTickerResp, error) {
+	if productType == "" {
+		return nil, errProductTypeEmpty
+	}
+	vals := url.Values{}
+	vals.Set("productType", productType)
+	path := bitgetMix + bitgetMarket + bitgetTickers
+	var resp *FutureTickerResp
+	return resp, bi.SendHTTPRequest(ctx, exchange.RestSpot, Rate20, path, vals, &resp)
+}
+
+// GetRecentFuturesFills returns the most recent trades for a given pair
+func (bi *Bitget) GetRecentFuturesFills(ctx context.Context, pair, productType string, limit int64) (*MarketFillsResp, error) {
+	if pair == "" {
+		return nil, errPairEmpty
+	}
+	if productType == "" {
+		return nil, errProductTypeEmpty
+	}
+	vals := url.Values{}
+	vals.Set("symbol", pair)
+	vals.Set("productType", productType)
+	if limit != 0 {
+		vals.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	path := bitgetMix + bitgetMarket + bitgetFills
+	var resp *MarketFillsResp
+	return resp, bi.SendHTTPRequest(ctx, exchange.RestSpot, Rate20, path, vals, &resp)
+}
+
+// GetFuturesMarketTrades returns trades for a given pair within a particular time range, and/or before a certain ID
+func (bi *Bitget) GetFuturesMarketTrades(ctx context.Context, pair, productType string, limit, pagination int64, startTime, endTime time.Time) (*MarketFillsResp, error) {
+	if pair == "" {
+		return nil, errPairEmpty
+	}
+	if productType == "" {
+		return nil, errProductTypeEmpty
+	}
+	var params Params
+	params.Values = make(url.Values)
+	err := params.prepareDateString(startTime, endTime, true)
+	if err != nil {
+		return nil, err
+	}
+	params.Values.Set("symbol", pair)
+	params.Values.Set("productType", productType)
+	if limit != 0 {
+		params.Values.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	if pagination != 0 {
+		params.Values.Set("idLessThan", strconv.FormatInt(pagination, 10))
+	}
+	path := bitgetMix + bitgetMarket + bitgetFillsHistory
+	var resp *MarketFillsResp
+	return resp, bi.SendHTTPRequest(ctx, exchange.RestSpot, Rate10, path, params.Values, &resp)
+}
+
+// GetFuturesCandlestickData returns candlestick data for a given pair within a particular time range
+func (bi *Bitget) GetFuturesCandlestickData(ctx context.Context, pair, productType, granularity string, startTime, endTime time.Time, limit uint16, mode CallMode) (*CandleData, error) {
+	if pair == "" {
+		return nil, errPairEmpty
+	}
+	if productType == "" {
+		return nil, errProductTypeEmpty
+	}
+	if granularity == "" {
+		return nil, errGranEmpty
+	}
+	var params Params
+	params.Values = make(url.Values)
+	err := params.prepareDateString(startTime, endTime, true)
+	if err != nil {
+		return nil, err
+	}
+	params.Values.Set("productType", productType)
+	path := bitgetMix + bitgetMarket
+	switch mode {
+	case CallModeNormal:
+		path += bitgetCandles
+	case CallModeHistory:
+		path += bitgetHistoryCandles
+	case CallModeIndex:
+		path += bitgetHistoryIndexCandles
+	case CallModeMark:
+		path += bitgetHistoryMarkCandles
+	}
+	return bi.candlestickHelper(ctx, pair, granularity, path, limit, params)
+}
+
+// GetOpenPositions returns the total positions of a particular pair
+func (bi *Bitget) GetOpenPositions(ctx context.Context, pair, productType string) (*OpenPositionsResp, error) {
+	if pair == "" {
+		return nil, errPairEmpty
+	}
+	if productType == "" {
+		return nil, errProductTypeEmpty
+	}
+	vals := url.Values{}
+	vals.Set("symbol", pair)
+	vals.Set("productType", productType)
+	path := bitgetMix + bitgetMarket + bitgetOpenInterest
+	var resp *OpenPositionsResp
+	return resp, bi.SendHTTPRequest(ctx, exchange.RestSpot, Rate20, path, vals, &resp)
+}
+
+// GetNextFundingTime returns the settlement time and period of a particular contract
+func (bi *Bitget) GetNextFundingTime(ctx context.Context, pair, productType string) (*FundingTimeResp, error) {
+	if pair == "" {
+		return nil, errPairEmpty
+	}
+	if productType == "" {
+		return nil, errProductTypeEmpty
+	}
+	vals := url.Values{}
+	vals.Set("symbol", pair)
+	vals.Set("productType", productType)
+	path := bitgetMix + bitgetMarket + bitgetFundingTime
+	var resp *FundingTimeResp
+	return resp, bi.SendHTTPRequest(ctx, exchange.RestSpot, Rate20, path, vals, &resp)
+}
+
+// GetFuturesPrices returns the current market, index, and mark prices for a given pair
+func (bi *Bitget) GetFuturesPrices(ctx context.Context, pair, productType string) (*FuturesPriceResp, error) {
+	if pair == "" {
+		return nil, errPairEmpty
+	}
+	if productType == "" {
+		return nil, errProductTypeEmpty
+	}
+	vals := url.Values{}
+	vals.Set("symbol", pair)
+	vals.Set("productType", productType)
+	path := bitgetMix + bitgetMarket + bitgetSymbolPrice
+	var resp *FuturesPriceResp
+	return resp, bi.SendHTTPRequest(ctx, exchange.RestSpot, Rate20, path, vals, &resp)
+}
+
+// GetFundingHistorical returns the historical funding rates for a given pair
+func (bi *Bitget) GetFundingHistorical(ctx context.Context, pair, productType string, limit, pagination int64) (*FundingHistoryResp, error) {
+	if pair == "" {
+		return nil, errPairEmpty
+	}
+	if productType == "" {
+		return nil, errProductTypeEmpty
+	}
+	vals := url.Values{}
+	vals.Set("symbol", pair)
+	vals.Set("productType", productType)
+	if limit != 0 {
+		vals.Set("pageSize", strconv.FormatInt(limit, 10))
+	}
+	if pagination != 0 {
+		vals.Set("pageNo", strconv.FormatInt(pagination, 10))
+	}
+	path := bitgetMix + bitgetMarket + bitgetHistoryFundRate
+	var resp *FundingHistoryResp
+	return resp, bi.SendHTTPRequest(ctx, exchange.RestSpot, Rate20, path, vals, &resp)
+}
+
+// GetFundingCurrent returns the current funding rate for a given pair
+func (bi *Bitget) GetFundingCurrent(ctx context.Context, pair, productType string) (*FundingCurrentResp, error) {
+	if pair == "" {
+		return nil, errPairEmpty
+	}
+	if productType == "" {
+		return nil, errProductTypeEmpty
+	}
+	vals := url.Values{}
+	vals.Set("symbol", pair)
+	vals.Set("productType", productType)
+	path := bitgetMix + bitgetMarket + bitgetCurrentFundRate
+	var resp *FundingCurrentResp
+	return resp, bi.SendHTTPRequest(ctx, exchange.RestSpot, Rate20, path, vals, &resp)
+}
+
+// GetContractConfig returns details for a given contract
+func (bi *Bitget) GetContractConfig(ctx context.Context, pair, productType string) (*ContractConfigResp, error) {
+	if pair == "" {
+		return nil, errPairEmpty
+	}
+	if productType == "" {
+		return nil, errProductTypeEmpty
+	}
+	vals := url.Values{}
+	vals.Set("symbol", pair)
+	vals.Set("productType", productType)
+	path := bitgetMix + bitgetMarket + bitgetContracts
+	var resp *ContractConfigResp
+	return resp, bi.SendHTTPRequest(ctx, exchange.RestSpot, Rate20, path, vals, &resp)
+}
+
+// GetOneFuturesAccount returns details for the account associated with a given pair, margin coin, and product type
+func (bi *Bitget) GetOneFuturesAccount(ctx context.Context, pair, productType, marginCoin string) (*OneAccResp, error) {
+	if pair == "" {
+		return nil, errPairEmpty
+	}
+	if productType == "" {
+		return nil, errProductTypeEmpty
+	}
+	if marginCoin == "" {
+		return nil, errMarginCoinEmpty
+	}
+	vals := url.Values{}
+	vals.Set("symbol", pair)
+	vals.Set("productType", productType)
+	vals.Set("marginCoin", marginCoin)
+	path := bitgetMix + bitgetAccount + "/" + bitgetAccount
+	var resp *OneAccResp
+	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodGet, path, vals, nil,
+		&resp)
+}
+
+// GetAllFuturesAccounts returns details for all accounts
+func (bi *Bitget) GetAllFuturesAccounts(ctx context.Context, productType string) (*AllAccResp, error) {
+	if productType == "" {
+		return nil, errProductTypeEmpty
+	}
+	vals := url.Values{}
+	vals.Set("productType", productType)
+	path := bitgetMix + bitgetAccount + bitgetAccounts
+	var resp *AllAccResp
+	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodGet, path, vals, nil,
+		&resp)
+}
+
+// GetFuturesSubaccountAssets returns details on the assets of all sub-accounts
+func (bi *Bitget) GetFuturesSubaccountAssets(ctx context.Context, productType string) (*SubaccountFuturesResp, error) {
+	if productType == "" {
+		return nil, errProductTypeEmpty
+	}
+	vals := url.Values{}
+	vals.Set("productType", productType)
+	path := bitgetMix + bitgetAccount + bitgetSubaccountAssets2
+	var resp *SubaccountFuturesResp
+	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodGet, path, vals, nil,
+		&resp)
+}
+
+// GetEstimatedOpenCount returns the estimated size of open orders for a given pair
+func (bi *Bitget) GetEstimatedOpenCount(ctx context.Context, pair, productType, marginCoin string, openAmount, openPrice, leverage float64) (*EstOpenCountResp, error) {
+	if pair == "" {
+		return nil, errPairEmpty
+	}
+	if productType == "" {
+		return nil, errProductTypeEmpty
+	}
+	if marginCoin == "" {
+		return nil, errMarginCoinEmpty
+	}
+	if openAmount == 0 {
+		return nil, errOpenAmountEmpty
+	}
+	if openPrice == 0 {
+		return nil, errOpenPriceEmpty
+	}
+	vals := url.Values{}
+	vals.Set("symbol", pair)
+	vals.Set("productType", productType)
+	vals.Set("marginCoin", marginCoin)
+	vals.Set("openAmount", strconv.FormatFloat(openAmount, 'f', -1, 64))
+	vals.Set("openPrice", strconv.FormatFloat(openPrice, 'f', -1, 64))
+	if leverage != 0 {
+		vals.Set("leverage", strconv.FormatFloat(leverage, 'f', -1, 64))
+	}
+	path := bitgetMix + bitgetAccount + bitgetOpenCount
+	var resp *EstOpenCountResp
+	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodGet, path, vals, nil,
+		&resp)
+}
+
+// ChangeLeverage changes the leverage for the given pair and product type
+func (bi *Bitget) ChangeLeverage(ctx context.Context, pair, productType, marginCoin, holdSide string, leverage float64) (*LeverageResp, error) {
+	if pair == "" {
+		return nil, errPairEmpty
+	}
+	if productType == "" {
+		return nil, errProductTypeEmpty
+	}
+	if marginCoin == "" {
+		return nil, errMarginCoinEmpty
+	}
+	if leverage == 0 {
+		return nil, errLeverageEmpty
+	}
+	req := map[string]interface{}{
+		"symbol":      pair,
+		"productType": productType,
+		"marginCoin":  marginCoin,
+		"holdSide":    holdSide,
+		"leverage":    strconv.FormatFloat(leverage, 'f', -1, 64),
+	}
+	path := bitgetMix + bitgetAccount + bitgetSetLeverage
+	var resp *LeverageResp
+	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate5, http.MethodPost, path, nil, req,
+		&resp)
+}
+
+// AdjustMargin adds or subtracts margin from a position
+func (bi *Bitget) AdjustMargin(ctx context.Context, pair, productType, marginCoin, holdSide string, amount float64) error {
+	if pair == "" {
+		return errPairEmpty
+	}
+	if productType == "" {
+		return errProductTypeEmpty
+	}
+	if marginCoin == "" {
+		return errMarginCoinEmpty
+	}
+	if amount == 0 {
+		return errAmountEmpty
+	}
+	req := map[string]interface{}{
+		"symbol":      pair,
+		"productType": productType,
+		"marginCoin":  marginCoin,
+		"amount":      strconv.FormatFloat(amount, 'f', -1, 64),
+	}
+	if holdSide != "" {
+		req["holdSide"] = holdSide
+	}
+	path := bitgetMix + bitgetAccount + bitgetSetMargin
+	return bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate5, http.MethodPost, path, nil, req, nil)
+}
+
+// ChangeMarginMode changes the margin mode for a given pair. Can only be done when there the user has no open
+// positions or orders
+func (bi *Bitget) ChangeMarginMode(ctx context.Context, pair, productType, marginCoin, marginMode string) (*LeverageResp, error) {
+	if pair == "" {
+		return nil, errPairEmpty
+	}
+	if productType == "" {
+		return nil, errProductTypeEmpty
+	}
+	if marginCoin == "" {
+		return nil, errMarginCoinEmpty
+	}
+	if marginMode == "" {
+		return nil, errMarginModeEmpty
+	}
+	req := map[string]interface{}{
+		"symbol":      pair,
+		"productType": productType,
+		"marginCoin":  marginCoin,
+		"marginMode":  marginMode,
+	}
+	path := bitgetMix + bitgetAccount + bitgetSetMarginMode
+	var resp *LeverageResp
+	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate5, http.MethodPost, path, nil, req,
+		&resp)
+}
+
+// ChangePositionMode changes the position mode for any pair. Having any positions or orders on any side of any pair
+// may cause this to fail.
+func (bi *Bitget) ChangePositionMode(ctx context.Context, productType, positionMode string) (*PosModeResp, error) {
+	if productType == "" {
+		return nil, errProductTypeEmpty
+	}
+	if positionMode == "" {
+		return nil, errPositionModeEmpty
+	}
+	req := map[string]interface{}{
+		"productType": productType,
+		"posMode":     positionMode,
+	}
+	path := bitgetMix + bitgetAccount + bitgetSetPositionMode
+	var resp *PosModeResp
+	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate5, http.MethodPost, path, nil, req,
+		&resp)
+}
+
+// GetFuturesAccountBills returns a section of the user's billing history
+func (bi *Bitget) GetFuturesAccountBills(ctx context.Context, productType, pair, currency, businessType string, pagination, limit int64, startTime, endTime time.Time) (*FutureAccBillResp, error) {
+	if productType == "" {
+		return nil, errProductTypeEmpty
+	}
+	var params Params
+	params.Values = make(url.Values)
+	err := params.prepareDateString(startTime, endTime, true)
+	if err != nil {
+		return nil, err
+	}
+	params.Values.Set("productType", productType)
+	params.Values.Set("symbol", pair)
+	params.Values.Set("coin", currency)
+	params.Values.Set("businessType", businessType)
+	if pagination != 0 {
+		params.Values.Set("idLessThan", strconv.FormatInt(pagination, 10))
+	}
+	if limit != 0 {
+		params.Values.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	path := bitgetMix + bitgetAccount + bitgetBill
+	var resp *FutureAccBillResp
+	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodGet, path, params.Values,
+		nil, &resp)
 }
 
 // SendAuthenticatedHTTPRequest sends an authenticated HTTP request
@@ -1416,4 +2141,126 @@ func (e *EmptyInt) UnmarshalJSON(b []byte) error {
 	}
 	*e = EmptyInt(i)
 	return nil
+}
+
+// CandlestickHelper pulls out common candlestick functionality to avoid repetition
+func (bi *Bitget) candlestickHelper(ctx context.Context, pair, granularity, path string, limit uint16, params Params) (*CandleData, error) {
+	params.Values.Set("symbol", pair)
+	params.Values.Set("granularity", granularity)
+	if limit != 0 {
+		params.Values.Set("limit", strconv.FormatUint(uint64(limit), 10))
+	}
+	var resp *CandleResponse
+	err := bi.SendHTTPRequest(ctx, exchange.RestSpot, Rate20, path, params.Values, &resp)
+	if err != nil {
+		return nil, err
+	}
+	if len(resp.Data) == 0 {
+		return nil, errNoCandleData
+	}
+	var spot bool
+	var data CandleData
+	if resp.Data[0][7] == nil {
+		data.FuturesCandles = make([]OneFuturesCandle, len(resp.Data))
+	} else {
+		spot = true
+		data.SpotCandles = make([]OneSpotCandle, len(resp.Data))
+	}
+	for i := range resp.Data {
+		timeTemp, ok := resp.Data[i][0].(string)
+		if !ok {
+			return nil, errTypeAssertTimestamp
+		}
+		timeTemp = (timeTemp)[1 : len(timeTemp)-1]
+		timeTemp2, err := strconv.ParseInt(timeTemp, 10, 64)
+		if err != nil {
+			return nil, err
+		}
+		openTemp, ok := resp.Data[i][1].(string)
+		if !ok {
+			return nil, errTypeAssertOpenPrice
+		}
+		highTemp, ok := resp.Data[i][2].(string)
+		if !ok {
+			return nil, errTypeAssertHighPrice
+		}
+		lowTemp, ok := resp.Data[i][3].(string)
+		if !ok {
+			return nil, errTypeAssertLowPrice
+		}
+		closeTemp, ok := resp.Data[i][4].(string)
+		if !ok {
+			return nil, errTypeAssertClosePrice
+		}
+		baseVolumeTemp := resp.Data[i][5].(string)
+		if !ok {
+			return nil, errTypeAssertBaseVolume
+		}
+		quoteVolumeTemp := resp.Data[i][6].(string)
+		if !ok {
+			return nil, errTypeAssertQuoteVolume
+		}
+		if spot {
+			usdtVolumeTemp := resp.Data[i][7].(string)
+			if !ok {
+				return nil, errTypeAssertUSDTVolume
+			}
+			data.SpotCandles[i].Timestamp = time.Time(UnixTimestamp(time.UnixMilli(timeTemp2).UTC()))
+			data.SpotCandles[i].Open, err = strconv.ParseFloat(openTemp, 64)
+			if err != nil {
+				return nil, err
+			}
+			data.SpotCandles[i].High, err = strconv.ParseFloat(highTemp, 64)
+			if err != nil {
+				return nil, err
+			}
+			data.SpotCandles[i].Low, err = strconv.ParseFloat(lowTemp, 64)
+			if err != nil {
+				return nil, err
+			}
+			data.SpotCandles[i].Close, err = strconv.ParseFloat(closeTemp, 64)
+			if err != nil {
+				return nil, err
+			}
+			data.SpotCandles[i].BaseVolume, err = strconv.ParseFloat(baseVolumeTemp, 64)
+			if err != nil {
+				return nil, err
+			}
+			data.SpotCandles[i].QuoteVolume, err = strconv.ParseFloat(quoteVolumeTemp, 64)
+			if err != nil {
+				return nil, err
+			}
+			data.SpotCandles[i].USDTVolume, err = strconv.ParseFloat(usdtVolumeTemp, 64)
+			if err != nil {
+				return nil, err
+			}
+		} else {
+			data.FuturesCandles[i].Timestamp = time.Time(UnixTimestamp(time.UnixMilli(timeTemp2).UTC()))
+			data.FuturesCandles[i].Entry, err = strconv.ParseFloat(openTemp, 64)
+			if err != nil {
+				return nil, err
+			}
+			data.FuturesCandles[i].High, err = strconv.ParseFloat(highTemp, 64)
+			if err != nil {
+				return nil, err
+			}
+			data.FuturesCandles[i].Low, err = strconv.ParseFloat(lowTemp, 64)
+			if err != nil {
+				return nil, err
+			}
+			data.FuturesCandles[i].Exit, err = strconv.ParseFloat(closeTemp, 64)
+			if err != nil {
+				return nil, err
+			}
+			data.FuturesCandles[i].BaseVolume, err = strconv.ParseFloat(baseVolumeTemp, 64)
+			if err != nil {
+				return nil, err
+			}
+			data.FuturesCandles[i].QuoteVolume, err = strconv.ParseFloat(quoteVolumeTemp, 64)
+			if err != nil {
+				return nil, err
+			}
+		}
+	}
+	return &data, nil
 }

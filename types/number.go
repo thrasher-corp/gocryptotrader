@@ -16,8 +16,11 @@ type Number float64
 // UnmarshalJSON implements json.Unmarshaler
 func (f *Number) UnmarshalJSON(data []byte) error {
 	switch c := data[0]; c { // From json.decode literalInterface
-	case 'n', 't', 'f': // null, true, false
+	case 't', 'f': // true, false
 		return fmt.Errorf("%w: %s", errInvalidNumberValue, data)
+	case 'n': // null
+		*f = Number(0) // Set to 0 value
+		return nil
 	case '"': // string
 		if len(data) < 2 || data[len(data)-1] != '"' {
 			return fmt.Errorf("%w: %s", errInvalidNumberValue, data)
