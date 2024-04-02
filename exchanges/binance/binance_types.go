@@ -3052,3 +3052,41 @@ type AccountTradeItem struct {
 	IsMaker         bool                 `json:"isMaker"`
 	IsBestMatch     bool                 `json:"isBestMatch"`
 }
+
+// UMOrder represents a portfolio margin.
+type UMOrder struct {
+	ClientOrderID           string               `json:"clientOrderId"`
+	CumQty                  types.Number         `json:"cumQty"`
+	CumQuote                types.Number         `json:"cumQuote"`
+	ExecutedQty             types.Number         `json:"executedQty"`
+	OrderID                 int64                `json:"orderId"`
+	AvgPrice                types.Number         `json:"avgPrice"`
+	OrigQty                 types.Number         `json:"origQty"`
+	Price                   types.Number         `json:"price"`
+	ReduceOnly              bool                 `json:"reduceOnly"`
+	Side                    string               `json:"side"`
+	PositionSide            string               `json:"positionSide"`
+	Status                  string               `json:"status"`
+	Symbol                  string               `json:"symbol"`
+	TimeInForce             string               `json:"timeInForce"`
+	Type                    string               `json:"type"`
+	SelfTradePreventionMode string               `json:"selfTradePreventionMode"`
+	GoodTillDate            int64                `json:"goodTillDate"`
+	UpdateTime              convert.ExchangeTime `json:"updateTime"`
+}
+
+// UMOrderParam request parameters for UM order
+type UMOrderParam struct {
+	Symbol                  string  `json:"symbol"`
+	Side                    string  `json:"side"`
+	PositionSide            string  `json:"positionSide,omitempty"`
+	OrderType               string  `json:"type"`
+	TimeInForce             string  `json:"timeInForce,omitempty"`
+	Quantity                float64 `json:"quantity,omitempty"`
+	ReduceOnly              bool    `json:"reduceOnly,omitempty"`
+	Price                   float64 `json:"price,omitempty"`
+	NewClientOrderID        string  `json:"newClientOrderId,omitempty"`
+	NewOrderRespType        string  `json:"newOrderRespType,omitempty"`
+	SelfTradePreventionMode string  `json:"selfTradePreventionMode,omitempty"`
+	GoodTillDate            int64   `json:"goodTillDate,omitempty"`
+}

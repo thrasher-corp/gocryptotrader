@@ -4553,3 +4553,41 @@ func TestGetOptionsExchangeInformation(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotNil(t, exchangeinformation)
 }
+
+// ---------------------------------------   Portfolio Margin  ---------------------------------------------
+
+func TestNewUMOrder(t *testing.T) {
+	t.Parallel()
+	result, err := b.NewUMOrder(context.Background(), &UMOrderParam{
+		Symbol:       "BTCUSDT",
+		Side:         "BUY",
+		PositionSide: "BOTH",
+		OrderType:    "market",
+		Quantity:     1,
+		ReduceOnly:   false,
+		// TimeInForce
+		// Price
+		// NewClientOrderID
+		// NewOrderRespType
+	})
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestNewCMOrder(t *testing.T) {
+	t.Parallel()
+	result, err := b.NewCMOrder(context.Background(), &UMOrderParam{
+		Symbol:       "BTCUSDT",
+		Side:         "BUY",
+		PositionSide: "BOTH",
+		OrderType:    "limit",
+		Quantity:     1,
+		ReduceOnly:   false,
+		TimeInForce:  "GTD",
+		Price:        000.1,
+		// NewClientOrderID
+		// NewOrderRespType
+	})
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
