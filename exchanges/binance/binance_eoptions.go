@@ -85,7 +85,7 @@ func (b *Binance) GetEOptionsTradeHistory(ctx context.Context, symbol string, fr
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	var resp []EOptionsTradeItem
-	return resp, b.SendHTTPRequest(ctx, exchange.RestOptions, common.EncodeURLValues("/eapi/v1/historicalTrades", params), spotDefaultRate, &resp)
+	return resp, b.SendAPIKeyHTTPRequest(ctx, exchange.RestOptions, common.EncodeURLValues("/eapi/v1/historicalTrades", params), spotDefaultRate, &resp)
 }
 
 // GetEOptionsCandlesticks retrieves kline/candlestick bars for an option symbol. Klines are uniquely identified by their open time.
@@ -137,7 +137,7 @@ func (b *Binance) GetEOptions24hrTickerPriceChangeStatistics(ctx context.Context
 // GetEOptionsSymbolPriceTicker represents a symbol ticker instances.
 func (b *Binance) GetEOptionsSymbolPriceTicker(ctx context.Context, underlying string) (*EOptionIndexSymbolPriceTicker, error) {
 	if underlying == "" {
-		return nil, errors.New("underlying is required")
+		return nil, errUnderlyingIsRequired
 	}
 	params := url.Values{}
 	params.Set("underlying", underlying)
@@ -167,7 +167,7 @@ func (b *Binance) GetEOptionsHistoricalExerciseRecords(ctx context.Context, unde
 // GetEOptionsOpenInterests retrieves  open interest for specific underlying asset on specific expiration date.
 func (b *Binance) GetEOptionsOpenInterests(ctx context.Context, underlyingAsset string, expiration time.Time) ([]OpenInterest, error) {
 	if underlyingAsset == "" {
-		return nil, errors.New("underlying asset is required")
+		return nil, errUnderlyingIsRequired
 	}
 	if expiration.IsZero() {
 		return nil, errors.New("expiration time is required")

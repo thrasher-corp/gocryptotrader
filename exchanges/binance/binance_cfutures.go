@@ -91,11 +91,11 @@ func (b *Binance) GetFuturesOrderbook(ctx context.Context, symbol currency.Pair,
 
 // GetFuturesPublicTrades gets recent public trades for CoinMarginedFutures,
 func (b *Binance) GetFuturesPublicTrades(ctx context.Context, symbol currency.Pair, limit int64) ([]FuturesPublicTradesData, error) {
-	params := url.Values{}
 	symbolValue, err := b.FormatSymbol(symbol, asset.CoinMarginedFutures)
 	if err != nil {
 		return nil, err
 	}
+	params := url.Values{}
 	params.Set("symbol", symbolValue)
 	if limit > 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
@@ -237,19 +237,16 @@ func (b *Binance) GetFuturesKlineData(ctx context.Context, symbol currency.Pair,
 
 // GetContinuousKlineData gets continuous kline data
 func (b *Binance) GetContinuousKlineData(ctx context.Context, pair, contractType, interval string, limit int64, startTime, endTime time.Time) ([]FuturesCandleStick, error) {
-	params := url.Values{}
-	params.Set("pair", pair)
+	if pair == "" {
+		return nil, currency.ErrSymbolStringEmpty
+	}
 	if !common.StringDataCompare(validContractType, contractType) {
 		return nil, errors.New("invalid contractType")
-	}
-	params.Set("contractType", contractType)
-	if limit > 0 {
-		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	if !common.StringDataCompare(validFuturesIntervals, interval) {
 		return nil, errors.New("invalid interval parsed")
 	}
-	params.Set("interval", interval)
+	params := url.Values{}
 	if !startTime.IsZero() && !endTime.IsZero() {
 		if startTime.After(endTime) {
 			return nil, common.ErrStartAfterEnd
@@ -257,6 +254,12 @@ func (b *Binance) GetContinuousKlineData(ctx context.Context, pair, contractType
 		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
 		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
 	}
+	params.Set("pair", pair)
+	params.Set("contractType", contractType)
+	if limit > 0 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	params.Set("interval", interval)
 
 	rateBudget := getKlineRateBudget(limit)
 	var data [][12]types.Number

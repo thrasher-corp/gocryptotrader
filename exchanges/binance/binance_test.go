@@ -1712,7 +1712,15 @@ func TestNewOCOOrder(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
 	_, err := b.NewOCOOrder(context.Background(), &OCOOrderParam{})
 	require.ErrorIs(t, err, common.ErrNilPointer)
-	result, err := b.NewOCOOrder(context.Background(), &OCOOrderParam{})
+	result, err := b.NewOCOOrder(context.Background(), &OCOOrderParam{
+		Symbol:             currency.NewPair(currency.BTC, currency.USDT),
+		ListClientOrderID:  "1231231231231",
+		Side:               "Buy",
+		Amount:             0.1,
+		LimitClientOrderID: "3423423",
+		Price:              0.001,
+		StopPrice:          1234.21,
+	})
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -4275,6 +4283,7 @@ func TestGetEOptionsRecentTrades(t *testing.T) {
 
 func TestGetEOptionsTradeHistory(t *testing.T) {
 	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	result, err := b.GetEOptionsTradeHistory(context.Background(), "BTC-240330-80500-P", 0, 10)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
@@ -4558,6 +4567,7 @@ func TestGetOptionsExchangeInformation(t *testing.T) {
 
 func TestNewUMOrder(t *testing.T) {
 	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
 	result, err := b.NewUMOrder(context.Background(), &UMOrderParam{
 		Symbol:       "BTCUSDT",
 		Side:         "BUY",
@@ -4576,6 +4586,7 @@ func TestNewUMOrder(t *testing.T) {
 
 func TestNewCMOrder(t *testing.T) {
 	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
 	result, err := b.NewCMOrder(context.Background(), &UMOrderParam{
 		Symbol:       "BTCUSDT",
 		Side:         "BUY",
@@ -4585,8 +4596,54 @@ func TestNewCMOrder(t *testing.T) {
 		ReduceOnly:   false,
 		TimeInForce:  "GTD",
 		Price:        000.1,
-		// NewClientOrderID
-		// NewOrderRespType
+	})
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestMarginAccountBorrow(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	result, err := b.MarginAccountBorrow(context.Background(), currency.USDT, 0.001)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestMarginAccountRepay(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	result, err := b.MarginAccountRepay(context.Background(), currency.USDT, 0.001)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestMarginAccountNewOCO(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	_, err := b.MarginAccountNewOCO(context.Background(), &OCOOrderParam{})
+	require.ErrorIs(t, err, common.ErrNilPointer)
+	result, err := b.NewOCOOrder(context.Background(), &OCOOrderParam{
+		Symbol:             currency.NewPair(currency.BTC, currency.USDT),
+		ListClientOrderID:  "1231231231231",
+		Side:               "Buy",
+		Amount:             0.1,
+		LimitClientOrderID: "3423423",
+		Price:              0.001,
+		StopPrice:          1234.21,
+	})
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestNewUMConditionalOrder(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	result, err := b.NewUMConditionalOrder(context.Background(), &UMConditionalOrderParam{
+		Symbol:       "BTCUSDT",
+		Side:         "Sell",
+		PositionSide: "SHORT",
+		StrategyType: "STOP_MARKET",
+		PriceProtect: true,
 	})
 	require.NoError(t, err)
 	assert.NotNil(t, result)

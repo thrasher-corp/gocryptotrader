@@ -1083,7 +1083,7 @@ type AssetConverResponse struct {
 type BUSDConvertHistory struct {
 	Total int `json:"total"`
 	Rows  []struct {
-		TranID         int64                `json:"tranId"`
+		TransactionID  int64                `json:"tranId"`
 		Type           int64                `json:"type"`
 		Time           convert.ExchangeTime `json:"time"`
 		DeductedAsset  string               `json:"deductedAsset"`
@@ -2638,7 +2638,7 @@ type SubAccountFuturesPositionRisk struct {
 type SubAccountTransferHistory struct {
 	CounterParty    string               `json:"counterParty"`
 	Email           string               `json:"email"`
-	Type            int                  `json:"type"`
+	Type            int64                `json:"type"`
 	Asset           string               `json:"asset"`
 	Quantity        types.Number         `json:"qty"`
 	FromAccountType string               `json:"fromAccountType"`
@@ -2683,7 +2683,7 @@ type UniversalTransferResponse struct {
 // UniversalTransfersDetail represents a list of universal transfers.
 type UniversalTransfersDetail struct {
 	Result []struct {
-		TranID          int64                `json:"tranId"`
+		TransactionID   int64                `json:"tranId"`
 		FromEmail       string               `json:"fromEmail"`
 		ToEmail         string               `json:"toEmail"`
 		Asset           string               `json:"asset"`
@@ -2965,6 +2965,8 @@ type OCOOrderResponse struct {
 		WorkingTime             convert.ExchangeTime `json:"workingTime"`
 		SelfTradePreventionMode string               `json:"selfTradePreventionMode"`
 	} `json:"orderReports"`
+	MarginBuyBorrowAmount types.Number `json:"marginBuyBorrowAmount"`
+	MarginBuyBorrowAsset  string       `json:"marginBuyBorrowAsset"`
 }
 
 // OCOOrderParam request parameter to place an OCO order.
@@ -2974,20 +2976,23 @@ type OCOOrderParam struct {
 	Side                    string        `json:"side"`
 	Amount                  float64       `json:"quantity"`
 	LimitClientOrderID      string        `json:"limitClientOrderId,omitempty"`
-	LimitStrategyID         string        `json:"limitStrategyId,omitempty"`
-	LimitStrategyType       string        `json:"limitStrategyType,omitempty"`
+	StopClientOrderID       string        `json:"stopClientOrderId,omitempty"`
 	Price                   float64       `json:"price"`
 	LimitIcebergQuantity    float64       `json:"limitIcebergQty,omitempty"`
-	TrailingDelta           int64         `json:"trailingDelta,omitempty"`
-	StopClientOrderID       string        `json:"stopClientOrderId,omitempty"`
 	StopPrice               float64       `json:"stopPrice"`
-	StopStrategyID          int64         `json:"stopStrategyId,omitempty"`
-	StopStrategyType        int64         `json:"stopStrategyType,omitempty"`
 	StopLimitPrice          float64       `json:"stopLimitPrice,omitempty"`
 	StopIcebergQuantity     float64       `json:"stopIcebergQty,omitempty"`
-	StopLimitTimeInForce    string        `json:"stopLimitTimeInForce,omitempty"`
+	StopLimitTimeInForce    string        `json:"stopLimitTimeInForce,omitempty"` // Valid values are GTC/FOK/IOC
 	NewOrderRespType        string        `json:"newOrderRespType,omitempty"`
-	SelfTradePreventionMode string        `json:"selfTradePreventionMode,omitempty"`
+	SideEffectType          string        `json:"sideEffectType"`                    // NO_SIDE_EFFECT, MARGIN_BUY, AUTO_REPAY; default NO_SIDE_EFFECT.
+	SelfTradePreventionMode string        `json:"selfTradePreventionMode,omitempty"` // NONE:No STP / EXPIRE_TAKER:expire taker order when STP triggers/ EXPIRE_MAKER:expire taker order when STP triggers/ EXPIRE_BOTH:expire both orders when STP triggers
+
+	// Only used with rest endpoint call
+	TrailingDelta     int64  `json:"trailingDelta,omitempty"`
+	LimitStrategyID   string `json:"limitStrategyId,omitempty"`
+	LimitStrategyType string `json:"limitStrategyType,omitempty"`
+	StopStrategyID    int64  `json:"stopStrategyId,omitempty"`
+	StopStrategyType  int64  `json:"stopStrategyType,omitempty"`
 }
 
 // SOROrderRequestParams represents a request parameters for SOR orders.
@@ -3028,8 +3033,8 @@ type SOROrderResponse struct {
 		Qty             types.Number `json:"qty"`
 		Commission      string       `json:"commission"`
 		CommissionAsset string       `json:"commissionAsset"`
-		TradeID         int          `json:"tradeId"`
-		AllocID         int          `json:"allocId"`
+		TradeID         int64        `json:"tradeId"`
+		AllocID         int64        `json:"allocId"`
 	} `json:"fills"`
 	WorkingFloor            string `json:"workingFloor"`
 	SelfTradePreventionMode string `json:"selfTradePreventionMode"`
@@ -3051,42 +3056,4 @@ type AccountTradeItem struct {
 	IsBuyer         bool                 `json:"isBuyer"`
 	IsMaker         bool                 `json:"isMaker"`
 	IsBestMatch     bool                 `json:"isBestMatch"`
-}
-
-// UMOrder represents a portfolio margin.
-type UMOrder struct {
-	ClientOrderID           string               `json:"clientOrderId"`
-	CumQty                  types.Number         `json:"cumQty"`
-	CumQuote                types.Number         `json:"cumQuote"`
-	ExecutedQty             types.Number         `json:"executedQty"`
-	OrderID                 int64                `json:"orderId"`
-	AvgPrice                types.Number         `json:"avgPrice"`
-	OrigQty                 types.Number         `json:"origQty"`
-	Price                   types.Number         `json:"price"`
-	ReduceOnly              bool                 `json:"reduceOnly"`
-	Side                    string               `json:"side"`
-	PositionSide            string               `json:"positionSide"`
-	Status                  string               `json:"status"`
-	Symbol                  string               `json:"symbol"`
-	TimeInForce             string               `json:"timeInForce"`
-	Type                    string               `json:"type"`
-	SelfTradePreventionMode string               `json:"selfTradePreventionMode"`
-	GoodTillDate            int64                `json:"goodTillDate"`
-	UpdateTime              convert.ExchangeTime `json:"updateTime"`
-}
-
-// UMOrderParam request parameters for UM order
-type UMOrderParam struct {
-	Symbol                  string  `json:"symbol"`
-	Side                    string  `json:"side"`
-	PositionSide            string  `json:"positionSide,omitempty"`
-	OrderType               string  `json:"type"`
-	TimeInForce             string  `json:"timeInForce,omitempty"`
-	Quantity                float64 `json:"quantity,omitempty"`
-	ReduceOnly              bool    `json:"reduceOnly,omitempty"`
-	Price                   float64 `json:"price,omitempty"`
-	NewClientOrderID        string  `json:"newClientOrderId,omitempty"`
-	NewOrderRespType        string  `json:"newOrderRespType,omitempty"`
-	SelfTradePreventionMode string  `json:"selfTradePreventionMode,omitempty"`
-	GoodTillDate            int64   `json:"goodTillDate,omitempty"`
 }

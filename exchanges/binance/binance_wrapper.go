@@ -248,13 +248,14 @@ func (b *Binance) SetDefaults() {
 	}
 	b.API.Endpoints = b.NewEndpoints()
 	err = b.API.Endpoints.SetDefaultEndpoints(map[exchange.URL]string{
-		exchange.RestSpot:              spotAPIURL,
-		exchange.RestOptions:           eOptionAPIURL,
-		exchange.RestSpotSupplementary: apiURL,
-		exchange.RestUSDTMargined:      ufuturesAPIURL,
-		exchange.RestCoinMargined:      cfuturesAPIURL,
-		exchange.EdgeCase1:             "https://www.binance.com",
-		exchange.WebsocketSpot:         binanceDefaultWebsocketURL,
+		exchange.RestSpot:                 spotAPIURL,
+		exchange.RestOptions:              eOptionAPIURL,
+		exchange.RestSpotSupplementary:    apiURL,
+		exchange.RestUSDTMargined:         ufuturesAPIURL,
+		exchange.RestCoinMargined:         cfuturesAPIURL,
+		exchange.RestFuturesSupplementary: pMarginAPIURL,
+		exchange.EdgeCase1:                "https://www.binance.com",
+		exchange.WebsocketSpot:            binanceDefaultWebsocketURL,
 	})
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)

@@ -242,22 +242,22 @@ type OptionOrder struct {
 
 // OptionPosition represents current position position information.
 type OptionPosition struct {
-	AverageEntryPrice string `json:"entryPrice"`
-	Symbol            string `json:"symbol"`
-	Side              string `json:"side"`         // Position Direction
-	Quantity          string `json:"quantity"`     // Number of positions (positive numbers represent long positions, negative number represent short positions)
-	ReducibleQty      string `json:"reducibleQty"` //// Number of positions that can be reduced
-	MarkValue         string `json:"markValue"`
-	Ror               string `json:"ror"`
-	UnrealizedPNL     string `json:"unrealizedPNL"` // Unrealized profit/loss
-	MarkPrice         string `json:"markPrice"`
-	StrikePrice       string `json:"strikePrice"`
-	PositionCost      string `json:"positionCost"`
-	ExpiryTime        int64  `json:"expiryDate"`
-	PriceScale        int    `json:"priceScale"`
-	QuantityScale     int    `json:"quantityScale"`
-	OptionSide        string `json:"optionSide"`
-	QuoteAsset        string `json:"quoteAsset"`
+	AverageEntryPrice string       `json:"entryPrice"`
+	Symbol            string       `json:"symbol"`
+	Side              string       `json:"side"`         // Position Direction
+	Quantity          types.Number `json:"quantity"`     // Number of positions (positive numbers represent long positions, negative number represent short positions)
+	ReducibleQty      string       `json:"reducibleQty"` //// Number of positions that can be reduced
+	MarkValue         string       `json:"markValue"`
+	Ror               string       `json:"ror"`
+	UnrealizedPNL     string       `json:"unrealizedPNL"` // Unrealized profit/loss
+	MarkPrice         string       `json:"markPrice"`
+	StrikePrice       string       `json:"strikePrice"`
+	PositionCost      string       `json:"positionCost"`
+	ExpiryTime        int64        `json:"expiryDate"`
+	PriceScale        int64        `json:"priceScale"`
+	QuantityScale     int64        `json:"quantityScale"`
+	OptionSide        string       `json:"optionSide"`
+	QuoteAsset        string       `json:"quoteAsset"`
 }
 
 // OptionsAccountTradeItem represents an options account trade item
@@ -303,7 +303,7 @@ type UserOptionsExerciseRecord struct {
 type AccountFunding struct {
 	ID         int64                `json:"id"`
 	Asset      string               `json:"asset"`
-	Amount     string               `json:"amount"`
+	Amount     types.Number         `json:"amount"`
 	Type       string               `json:"type"`
 	CreateDate convert.ExchangeTime `json:"createDate"`
 }
@@ -472,7 +472,7 @@ type WsOptionsKlineData struct {
 		High                      types.Number         `json:"h"`
 		Low                       types.Number         `json:"l"`
 		ContractVolume            types.Number         `json:"v"` // Contract or Base
-		NumberOfTrades            int                  `json:"n"`
+		NumberOfTrades            int64                `json:"n"`
 		ContractCompleted         bool                 `json:"x"`
 		CompletedTradeAmount      string               `json:"q"` // In quote asset
 		TakerCompletedTradeVolume types.Number         `json:"V"`
@@ -528,14 +528,14 @@ type WsOpenInterest struct {
 
 // WsOptionsNewPair represents a new options pair update information
 type WsOptionsNewPair struct {
+	ID                        int64                `json:"id"`
 	EventType                 string               `json:"e"`
 	EventTime                 convert.ExchangeTime `json:"E"`
-	ID                        int64                `json:"id"`
 	UnderlyingAssetID         int64                `json:"cid"`
 	UnderlyingIndexOfContract string               `json:"u"`
 	QuotationAsset            string               `json:"qa"`
 	TradingPairName           string               `json:"s"`
-	Unit                      int                  `json:"unit"` // Conversion ratio, the quantity of the underlying asset represented by a single contract
+	Unit                      int64                `json:"unit"` // Conversion ratio, the quantity of the underlying asset represented by a single contract
 	MinimumTradeVolume        string               `json:"mq"`   // Minimum trade volume of the underlying asset
 	OptionType                string               `json:"d"`
 	StrikePrice               string               `json:"sp"`
