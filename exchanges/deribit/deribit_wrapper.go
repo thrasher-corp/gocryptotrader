@@ -306,9 +306,12 @@ func (d *Deribit) UpdateTicker(ctx context.Context, p currency.Pair, assetType a
 		return nil, err
 	}
 	var instrumentID string
-	if assetType == asset.Futures {
+	switch assetType {
+	case asset.Futures:
 		instrumentID = d.formatFuturesTradablePair(p)
-	} else {
+	case asset.Options:
+		instrumentID = d.optionPairToString(p)
+	default:
 		instrumentID = p.String()
 	}
 	var tickerData *TickerData
@@ -369,9 +372,12 @@ func (d *Deribit) UpdateOrderbook(ctx context.Context, p currency.Pair, assetTyp
 		return nil, err
 	}
 	var instrumentID string
-	if assetType == asset.Futures {
+	switch assetType {
+	case asset.Futures:
 		instrumentID = d.formatFuturesTradablePair(p)
-	} else {
+	case asset.Options:
+		instrumentID = d.optionPairToString(p)
+	default:
 		instrumentID = p.String()
 	}
 	var obData *Orderbook
@@ -569,9 +575,14 @@ func (d *Deribit) GetRecentTrades(ctx context.Context, p currency.Pair, assetTyp
 	if err != nil {
 		return nil, err
 	}
-	instrumentID := p.String()
-	if assetType == asset.Futures {
+	var instrumentID string
+	switch assetType {
+	case asset.Futures:
 		instrumentID = d.formatFuturesTradablePair(p)
+	case asset.Options:
+		instrumentID = d.optionPairToString(p)
+	default:
+		instrumentID = p.String()
 	}
 	resp := []trade.Data{}
 	var trades *PublicTradesData
@@ -620,6 +631,8 @@ func (d *Deribit) GetHistoricTrades(ctx context.Context, p currency.Pair, assetT
 	switch assetType {
 	case asset.Futures:
 		instrumentID = d.formatFuturesTradablePair(p)
+	case asset.Options:
+		instrumentID = d.optionPairToString(p)
 	case asset.Spot:
 		instrumentID = p.String()
 	default:

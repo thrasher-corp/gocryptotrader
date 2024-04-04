@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -2752,4 +2753,16 @@ func (d *Deribit) formatFuturesTradablePair(pair currency.Pair) string {
 		instrumentID = pair.String()
 	}
 	return instrumentID
+}
+
+// optionPairToString to format and return an Options currency pairs with the following format: MATIC_USDC-6APR24-0d98-P
+// it has both uppercase or lowercase characters, which we can not achieve with the Upper=true or Upper=false
+func (d *Deribit) optionPairToString(pair currency.Pair) string {
+	subCodes := strings.Split(pair.Quote.String(), currency.DashDelimiter)
+	if len(subCodes) == 3 {
+		if match, err := regexp.MatchString(`^[0-9A-F]{4}$`, subCodes[1]); match && err == nil {
+			subCodes[1] = strings.ToLower(subCodes[1])
+		}
+	}
+	return pair.Base.String() + currency.DashDelimiter + strings.Join(subCodes, currency.DashDelimiter)
 }
