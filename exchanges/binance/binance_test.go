@@ -4276,6 +4276,7 @@ func TestGetEOptionsOrderbook(t *testing.T) {
 
 func TestGetEOptionsRecentTrades(t *testing.T) {
 	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	result, err := b.GetEOptionsRecentTrades(context.Background(), "BTC-240330-80500-P", 10)
 	require.NoError(t, err)
 	assert.NotNil(t, result)

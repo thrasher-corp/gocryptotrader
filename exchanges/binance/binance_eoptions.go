@@ -68,7 +68,7 @@ func (b *Binance) GetEOptionsRecentTrades(ctx context.Context, symbol string, li
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	var resp []EOptionsTradeItem
-	return resp, b.SendHTTPRequest(ctx, exchange.RestOptions, common.EncodeURLValues("/eapi/v1/trades", params), spotDefaultRate, &resp)
+	return resp, b.SendAPIKeyHTTPRequest(ctx, exchange.RestOptions, common.EncodeURLValues("/eapi/v1/trades", params), spotDefaultRate, &resp)
 }
 
 // GetEOptionsTradeHistory retrieves older market historical trades.
@@ -111,7 +111,7 @@ func (b *Binance) GetEOptionsCandlesticks(ctx context.Context, symbol string, in
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	var resp []EOptionsCandlestick
-	return resp, b.SendHTTPRequest(ctx, exchange.RestOptions, common.EncodeURLValues("/eapi/v1/klines", params), spotDefaultRate, &resp)
+	return resp, b.SendAPIKeyHTTPRequest(ctx, exchange.RestOptions, common.EncodeURLValues("/eapi/v1/klines", params), spotDefaultRate, &resp)
 }
 
 // GetOptionMarkPrice option mark price and greek info.
@@ -184,7 +184,7 @@ func (b *Binance) GetEOptionsOpenInterests(ctx context.Context, underlyingAsset 
 // GetOptionsAccountInformation retrieves the current account information.
 func (b *Binance) GetOptionsAccountInformation(ctx context.Context) (*EOptionsAccountInformation, error) {
 	var resp *EOptionsAccountInformation
-	return resp, b.SendHTTPRequest(ctx, exchange.RestOptions, "/eapi/v1/account", spotDefaultRate, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestOptions, http.MethodGet, "/eapi/v1/account", nil, spotDefaultRate, &resp)
 }
 
 // NewOptionsOrder places a new european options order instance.
