@@ -2466,7 +2466,7 @@ func (b *Binance) GetHistoricalFundingRates(ctx context.Context, r *fundingrate.
 			}
 			for j := range income {
 				for x := range pairRate.FundingRates {
-					tt := time.UnixMilli(income[j].Timestamp)
+					tt := income[j].Timestamp.Time()
 					tt = tt.Truncate(time.Duration(fundingRateFrequency) * time.Hour)
 					if !tt.Equal(pairRate.FundingRates[x].Time) {
 						continue

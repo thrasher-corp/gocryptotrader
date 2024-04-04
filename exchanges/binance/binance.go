@@ -1132,7 +1132,7 @@ func (b *Binance) GetAllCoinsInfo(ctx context.Context) ([]CoinInfo, error) {
 		http.MethodGet,
 		"/sapi/v1/capital/config/getall",
 		nil,
-		spotDefaultRate,
+		allCoinInfoRate,
 		&resp); err != nil {
 		return nil, err
 	}

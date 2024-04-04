@@ -33,6 +33,7 @@ const (
 const (
 	spotDefaultRate request.EndpointLimit = iota
 	walletSystemStatus
+	allCoinInfoRate
 	spotExchangeInfo
 	spotHistoricalTradesRate
 	spotOrderbookDepth500Rate
@@ -95,6 +96,24 @@ const (
 	cFuturesOrdersDefaultRate
 	uFuturesMultiAssetMarginRate
 	uFuturesSetMultiAssetMarginRate
+	optionsDefaultRate
+	optionsRecentTradesRate
+	optionsHistoricalTradesRate
+	optionsMarkPriceRate
+	optionsAllTickerPriceStatistics
+	optionsHistoricalExerciseRecordsRate
+	optionsAccountInfoRate
+	optionsDefaultOrderRate
+	optionsBatchOrderRate
+	optionsAllQueryOpenOrdersRate
+	optionsGetOrderHistory
+	optionsPositionInformationRate
+	optionsAccountTradeListRate
+	optionsUserExerciseRecordRate
+	optionsDownloadIDForOptionTrasactionHistoryRate
+	optionsGetTransHistoryDownloadLinkByIDRate
+	optionsMarginAccountInfoRate
+	optionsAutoCancelAllOpenOrdersHeartbeatRate
 )
 
 // RateLimit implements the request.Limiter interface
@@ -105,6 +124,8 @@ type RateLimit struct {
 	UFuturesOrdersRate *rate.Limiter
 	CFuturesRate       *rate.Limiter
 	CFuturesOrdersRate *rate.Limiter
+	EOptionsRate       *rate.Limiter
+	EOptionsOrderRate  *rate.Limiter
 }
 
 // Limit executes rate limiting functionality for Binance
@@ -126,6 +147,8 @@ func (r *RateLimit) Limit(ctx context.Context, f request.EndpointLimit) error {
 		limiter, tokens = r.SpotRate, 10
 	case walletSystemStatus:
 		limiter, tokens = r.SpotRate, 1
+	case allCoinInfoRate:
+		limiter, tokens = r.SpotRate, 10
 	case spotPriceChangeAllRate:
 		limiter, tokens = r.SpotRate, 40
 	case spotOrderbookDepth5000Rate:
@@ -220,6 +243,44 @@ func (r *RateLimit) Limit(ctx context.Context, f request.EndpointLimit) error {
 		limiter, tokens = r.UFuturesRate, 30
 	case uFuturesSetMultiAssetMarginRate:
 		limiter, tokens = r.UFuturesRate, 1
+
+		// Options Rate Limits
+	case optionsDefaultRate:
+		limiter, tokens = r.EOptionsRate, 1
+	case optionsRecentTradesRate:
+		limiter, tokens = r.EOptionsRate, 5
+	case optionsHistoricalTradesRate:
+		limiter, tokens = r.EOptionsRate, 20
+	case optionsMarkPriceRate:
+		limiter, tokens = r.EOptionsRate, 5
+	case optionsAllTickerPriceStatistics:
+		limiter, tokens = r.EOptionsRate, 5
+	case optionsHistoricalExerciseRecordsRate:
+		limiter, tokens = r.EOptionsRate, 3
+	case optionsAccountInfoRate:
+		limiter, tokens = r.EOptionsOrderRate, 3
+	case optionsDefaultOrderRate:
+		limiter, tokens = r.EOptionsOrderRate, 1
+	case optionsBatchOrderRate:
+		limiter, tokens = r.EOptionsOrderRate, 5
+	case optionsAllQueryOpenOrdersRate:
+		limiter, tokens = r.EOptionsOrderRate, 40
+	case optionsGetOrderHistory:
+		limiter, tokens = r.EOptionsOrderRate, 3
+	case optionsPositionInformationRate:
+		limiter, tokens = r.EOptionsRate, 5
+	case optionsAccountTradeListRate:
+		limiter, tokens = r.EOptionsRate, 5
+	case optionsUserExerciseRecordRate:
+		limiter, tokens = r.EOptionsRate, 5
+	case optionsDownloadIDForOptionTrasactionHistoryRate:
+		limiter, tokens = r.EOptionsRate, 5
+	case optionsGetTransHistoryDownloadLinkByIDRate:
+		limiter, tokens = r.EOptionsRate, 5
+	case optionsMarginAccountInfoRate:
+		limiter, tokens = r.EOptionsRate, 3
+	case optionsAutoCancelAllOpenOrdersHeartbeatRate:
+		limiter, tokens = r.EOptionsRate, 10
 	default:
 		limiter, tokens = r.SpotRate, 1
 	}
@@ -257,6 +318,8 @@ func SetRateLimit() *RateLimit {
 		UFuturesOrdersRate: request.NewRateLimit(uFuturesOrderInterval, uFuturesOrderRequestRate),
 		CFuturesRate:       request.NewRateLimit(cFuturesInterval, cFuturesRequestRate),
 		CFuturesOrdersRate: request.NewRateLimit(cFuturesOrderInterval, cFuturesOrderRequestRate),
+		EOptionsRate:       request.NewRateLimit(time.Minute, 400),
+		EOptionsOrderRate:  request.NewRateLimit(time.Minute, 100),
 	}
 }
 

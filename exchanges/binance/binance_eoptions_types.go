@@ -498,25 +498,6 @@ type WsOptionIncomingResps struct {
 	IsSlice bool
 }
 
-// UnmarshalJSON deserializes incoming object or slice into WsOptionIncomingResps([]WsOptionIncomingResp) instance.
-func (a *WsOptionIncomingResps) UnmarshalJSON(data []byte) error {
-	var resp []WsOptionIncomingResp
-	isSlice := true
-	err := json.Unmarshal(data, &resp)
-	if err != nil {
-		isSlice = false
-		var newResp WsOptionIncomingResp
-		err = json.Unmarshal(data, &newResp)
-		if err != nil {
-			return err
-		}
-		resp = append(resp, newResp)
-	}
-	a.Instances = resp
-	a.IsSlice = isSlice
-	return nil
-}
-
 // WsOpenInterest represents a single open interest instance.
 type WsOpenInterest struct {
 	EventType              string               `json:"e"`

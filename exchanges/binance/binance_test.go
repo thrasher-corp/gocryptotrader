@@ -4361,7 +4361,7 @@ func TestNewOptionsOrder(t *testing.T) {
 func TestPlaceEOptionsOrder(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
-	result, err := b.PlaceEOptionsOrder(context.Background(), []OptionsOrderParams{
+	result, err := b.PlaceBatchEOptionsOrder(context.Background(), []OptionsOrderParams{
 		{
 			Symbol:                  currency.Pair{Base: currency.NewCode("BTC"), Delimiter: currency.DashDelimiter, Quote: currency.NewCode("200730-9000-C")},
 			Side:                    "Sell",
@@ -4406,7 +4406,7 @@ func TestCancelOptionsOrder(t *testing.T) {
 func TestMarshal(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
-	result, err := b.CancelOptionsOrders(context.Background(), "BTC-200730-9000-C", []int64{4611875134427365377}, []string{})
+	result, err := b.CancelBatchOptionsOrders(context.Background(), "BTC-200730-9000-C", []int64{4611875134427365377}, []string{})
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -4562,6 +4562,8 @@ func TestGetOptionsExchangeInformation(t *testing.T) {
 	exchangeinformation, err := b.GetOptionsExchangeInformation(context.Background())
 	require.NoError(t, err)
 	assert.NotNil(t, exchangeinformation)
+	val, _ := json.Marshal(exchangeinformation.RateLimits)
+	println(string(val))
 }
 
 // ---------------------------------------   Portfolio Margin  ---------------------------------------------

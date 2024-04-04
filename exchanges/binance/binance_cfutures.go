@@ -70,8 +70,11 @@ func (b *Binance) GetFuturesOrderbook(ctx context.Context, symbol currency.Pair,
 		return nil, err
 	}
 
-	var resp *OrderBook
-	resp.Asks = make([]OrderbookItem, len(data.Asks))
+	resp := &OrderBook{
+		Symbol: symbol.String(),
+		Asks:   make([]OrderbookItem, len(data.Asks)),
+		Bids:   make([]OrderbookItem, len(data.Bids)),
+	}
 	for x := range data.Asks {
 		resp.Asks[x] = OrderbookItem{
 			Price:    data.Asks[x][0].Float64(),
@@ -79,7 +82,6 @@ func (b *Binance) GetFuturesOrderbook(ctx context.Context, symbol currency.Pair,
 		}
 	}
 
-	resp.Bids = make([]OrderbookItem, len(data.Bids))
 	for y := range data.Bids {
 		resp.Bids[y] = OrderbookItem{
 			Price:    data.Bids[y][0].Float64(),
@@ -186,6 +188,9 @@ func (b *Binance) GetFundingRateInfo(ctx context.Context) ([]FundingRateInfoResp
 
 // GetFuturesKlineData gets futures kline data for CoinMarginedFutures,
 func (b *Binance) GetFuturesKlineData(ctx context.Context, symbol currency.Pair, interval string, limit int64, startTime, endTime time.Time) ([]FuturesCandleStick, error) {
+	if !common.StringDataCompare(validFuturesIntervals, interval) {
+		return nil, errors.New("invalid interval parsed")
+	}
 	params := url.Values{}
 	if !symbol.IsEmpty() {
 		symbolValue, err := b.FormatSymbol(symbol, asset.CoinMarginedFutures)
@@ -196,9 +201,6 @@ func (b *Binance) GetFuturesKlineData(ctx context.Context, symbol currency.Pair,
 	}
 	if limit > 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
-	}
-	if !common.StringDataCompare(validFuturesIntervals, interval) {
-		return nil, errors.New("invalid interval parsed")
 	}
 	params.Set("interval", interval)
 	if !startTime.IsZero() && !endTime.IsZero() {
@@ -260,7 +262,6 @@ func (b *Binance) GetContinuousKlineData(ctx context.Context, pair, contractType
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	params.Set("interval", interval)
-
 	rateBudget := getKlineRateBudget(limit)
 	var data [][12]types.Number
 	err := b.SendHTTPRequest(ctx, exchange.RestCoinMargined, "/dapi/v1/continuousKlines?"+params.Encode(), rateBudget, &data)
@@ -288,13 +289,13 @@ func (b *Binance) GetContinuousKlineData(ctx context.Context, pair, contractType
 
 // GetIndexPriceKlines gets continuous kline data
 func (b *Binance) GetIndexPriceKlines(ctx context.Context, pair, interval string, limit int64, startTime, endTime time.Time) ([]FuturesCandleStick, error) {
+	if !common.StringDataCompare(validFuturesIntervals, interval) {
+		return nil, errors.New("invalid interval parsed")
+	}
 	params := url.Values{}
 	params.Set("pair", pair)
 	if limit > 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
-	}
-	if !common.StringDataCompare(validFuturesIntervals, interval) {
-		return nil, errors.New("invalid interval parsed")
 	}
 	params.Set("interval", interval)
 	if !startTime.IsZero() && !endTime.IsZero() {
@@ -304,7 +305,6 @@ func (b *Binance) GetIndexPriceKlines(ctx context.Context, pair, interval string
 		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
 		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
 	}
-
 	rateBudget := getKlineRateBudget(limit)
 	var data [][12]types.Number
 	err := b.SendHTTPRequest(ctx, exchange.RestCoinMargined, "/dapi/v1/indexPriceKlines?"+params.Encode(), rateBudget, &data)
@@ -341,13 +341,13 @@ func (b *Binance) getKline(ctx context.Context, symbol currency.Pair, interval, 
 	if err != nil {
 		return nil, err
 	}
+	if !common.StringDataCompare(validFuturesIntervals, interval) {
+		return nil, fmt.Errorf("%w, interval = %s", kline.ErrInvalidInterval, interval)
+	}
 	params := url.Values{}
 	params.Set("symbol", symbolValue)
 	if limit > 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
-	}
-	if !common.StringDataCompare(validFuturesIntervals, interval) {
-		return nil, fmt.Errorf("%w, interval = %s", kline.ErrInvalidInterval, interval)
 	}
 	params.Set("interval", interval)
 	if !startTime.IsZero() && !endTime.IsZero() {
@@ -357,7 +357,6 @@ func (b *Binance) getKline(ctx context.Context, symbol currency.Pair, interval, 
 		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
 		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
 	}
-
 	var data [][12]types.Number
 	rateBudget := getKlineRateBudget(limit)
 	err = b.SendHTTPRequest(ctx, exchange.RestCoinMargined, common.EncodeURLValues(path, params), rateBudget, &data)
@@ -977,6 +976,10 @@ func (b *Binance) ModifyIsolatedPositionMargin(ctx context.Context, symbol curre
 	if err != nil {
 		return nil, err
 	}
+	cType, ok := validMarginChange[changeType]
+	if !ok {
+		return nil, errors.New("invalid changeType")
+	}
 	params := url.Values{}
 	params.Set("symbol", symbolValue)
 	if positionSide != "" {
@@ -984,10 +987,6 @@ func (b *Binance) ModifyIsolatedPositionMargin(ctx context.Context, symbol curre
 			return nil, errors.New("invalid positionSide")
 		}
 		params.Set("positionSide", positionSide)
-	}
-	cType, ok := validMarginChange[changeType]
-	if !ok {
-		return nil, errors.New("invalid changeType")
 	}
 	params.Set("type", strconv.FormatInt(cType, 10))
 	params.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))

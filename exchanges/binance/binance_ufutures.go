@@ -144,12 +144,11 @@ func (b *Binance) UFuturesOrderbook(ctx context.Context, symbol currency.Pair, l
 
 // URecentTrades gets recent trades for usdt margined futures
 func (b *Binance) URecentTrades(ctx context.Context, symbol currency.Pair, fromID string, limit int64) ([]UPublicTradesData, error) {
-	var resp []UPublicTradesData
-	params := url.Values{}
 	symbolValue, err := b.FormatSymbol(symbol, asset.USDTMarginedFutures)
 	if err != nil {
-		return resp, err
+		return nil, err
 	}
+	params := url.Values{}
 	params.Set("symbol", symbolValue)
 	if fromID != "" {
 		params.Set("fromID", fromID)
@@ -157,16 +156,17 @@ func (b *Binance) URecentTrades(ctx context.Context, symbol currency.Pair, fromI
 	if limit > 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
+	var resp []UPublicTradesData
 	return resp, b.SendHTTPRequest(ctx, exchange.RestUSDTMargined, ufuturesRecentTrades+params.Encode(), uFuturesDefaultRate, &resp)
 }
 
 // UFuturesHistoricalTrades gets historical public trades for USDTMarginedFutures
 func (b *Binance) UFuturesHistoricalTrades(ctx context.Context, symbol currency.Pair, fromID string, limit int64) ([]interface{}, error) {
-	params := url.Values{}
 	symbolValue, err := b.FormatSymbol(symbol, asset.USDTMarginedFutures)
 	if err != nil {
 		return nil, err
 	}
+	params := url.Values{}
 	params.Set("symbol", symbolValue)
 	if fromID != "" {
 		params.Set("fromID", fromID)
@@ -209,11 +209,11 @@ func (b *Binance) UKlineData(ctx context.Context, symbol currency.Pair, interval
 	if err != nil {
 		return nil, err
 	}
-	params := url.Values{}
-	params.Set("symbol", symbolValue)
 	if !common.StringDataCompare(validFuturesIntervals, interval) {
 		return nil, kline.ErrUnsupportedInterval
 	}
+	params := url.Values{}
+	params.Set("symbol", symbolValue)
 	params.Set("interval", interval)
 	if limit > 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
@@ -454,12 +454,11 @@ func (b *Binance) UGetFundingRateInfo(ctx context.Context) ([]FundingRateInfoRes
 
 // UGetFundingHistory gets funding history for USDTMarginedFutures
 func (b *Binance) UGetFundingHistory(ctx context.Context, symbol currency.Pair, limit int64, startTime, endTime time.Time) ([]FundingRateHistory, error) {
-	var resp []FundingRateHistory
 	params := url.Values{}
 	if !symbol.IsEmpty() {
 		symbolValue, err := b.FormatSymbol(symbol, asset.USDTMarginedFutures)
 		if err != nil {
-			return resp, err
+			return nil, err
 		}
 		params.Set("symbol", symbolValue)
 	}
@@ -468,11 +467,12 @@ func (b *Binance) UGetFundingHistory(ctx context.Context, symbol currency.Pair, 
 	}
 	if !startTime.IsZero() && !endTime.IsZero() {
 		if startTime.After(endTime) {
-			return resp, common.ErrStartAfterEnd
+			return nil, common.ErrStartAfterEnd
 		}
 		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
 		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
 	}
+	var resp []FundingRateHistory
 	return resp, b.SendHTTPRequest(ctx, exchange.RestUSDTMargined, ufuturesFundingRateHistory+params.Encode(), uFuturesDefaultRate, &resp)
 }
 
@@ -493,8 +493,7 @@ func (b *Binance) U24HTickerPriceChangeStats(ctx context.Context, symbol currenc
 		return []U24HrPriceChangeStats{tempResp}, err
 	}
 	var resp []U24HrPriceChangeStats
-	err := b.SendHTTPRequest(ctx, exchange.RestUSDTMargined, ufuturesTickerPriceStats+params.Encode(), uFuturesTickerPriceHistoryRate, &resp)
-	return resp, err
+	return resp, b.SendHTTPRequest(ctx, exchange.RestUSDTMargined, ufuturesTickerPriceStats+params.Encode(), uFuturesTickerPriceHistoryRate, &resp)
 }
 
 // USymbolPriceTickerV1 gets symbol price ticker for USDTMarginedFutures V1
@@ -522,8 +521,7 @@ func (b *Binance) uSymbolPriceTicker(ctx context.Context, symbol currency.Pair, 
 		return []USymbolPriceTicker{tempResp}, err
 	}
 	var resp []USymbolPriceTicker
-	err := b.SendHTTPRequest(ctx, exchange.RestUSDTMargined, common.EncodeURLValues(path, params), uFuturesOrderbookTickerAllRate, &resp)
-	return resp, err
+	return resp, b.SendHTTPRequest(ctx, exchange.RestUSDTMargined, common.EncodeURLValues(path, params), uFuturesOrderbookTickerAllRate, &resp)
 }
 
 // GetSymbolPriceTicker retrieves latest price for symbol or symbols
@@ -546,17 +544,16 @@ func (b *Binance) USymbolOrderbookTicker(ctx context.Context, symbol currency.Pa
 		return []USymbolOrderbookTicker{tempResp}, err
 	}
 	var resp []USymbolOrderbookTicker
-	err := b.SendHTTPRequest(ctx, exchange.RestUSDTMargined, ufuturesTickerPriceStats+params.Encode(), uFuturesOrderbookTickerAllRate, &resp)
-	return resp, err
+	return resp, b.SendHTTPRequest(ctx, exchange.RestUSDTMargined, ufuturesTickerPriceStats+params.Encode(), uFuturesOrderbookTickerAllRate, &resp)
 }
 
 // UOpenInterest gets open interest data for USDTMarginedFutures
 func (b *Binance) UOpenInterest(ctx context.Context, symbol currency.Pair) (*UOpenInterestData, error) {
-	params := url.Values{}
 	symbolValue, err := b.FormatSymbol(symbol, asset.USDTMarginedFutures)
 	if err != nil {
 		return nil, err
 	}
+	params := url.Values{}
 	params.Set("symbol", symbolValue)
 	var resp *UOpenInterestData
 	return resp, b.SendHTTPRequest(ctx, exchange.RestUSDTMargined, ufuturesOpenInterest+params.Encode(), uFuturesDefaultRate, &resp)
@@ -573,41 +570,41 @@ func (b *Binance) GetQuarterlyContractSettlementPrice(ctx context.Context, pair 
 
 // UOpenInterestStats gets open interest stats for USDTMarginedFutures
 func (b *Binance) UOpenInterestStats(ctx context.Context, symbol currency.Pair, period string, limit int64, startTime, endTime time.Time) ([]UOpenInterestStats, error) {
-	var resp []UOpenInterestStats
-	params := url.Values{}
 	symbolValue, err := b.FormatSymbol(symbol, asset.USDTMarginedFutures)
 	if err != nil {
-		return resp, err
+		return nil, err
 	}
-	params.Set("symbol", symbolValue)
 	if !common.StringDataCompare(uValidPeriods, period) {
-		return resp, errors.New("invalid period")
+		return nil, errors.New("invalid period")
 	}
+	params := url.Values{}
+	params.Set("symbol", symbolValue)
 	params.Set("period", period)
 	if limit > 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	if !startTime.IsZero() && !endTime.IsZero() {
 		if startTime.After(endTime) {
-			return resp, common.ErrStartAfterEnd
+			return nil, common.ErrStartAfterEnd
 		}
 		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
 		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
 	}
+	var resp []UOpenInterestStats
 	return resp, b.SendHTTPRequest(ctx, exchange.RestUSDTMargined, ufuturesOpenInterestStats+params.Encode(), uFuturesDefaultRate, &resp)
 }
 
 // UTopAcccountsLongShortRatio gets long/short ratio data for top trader accounts in ufutures
 func (b *Binance) UTopAcccountsLongShortRatio(ctx context.Context, symbol currency.Pair, period string, limit int64, startTime, endTime time.Time) ([]ULongShortRatio, error) {
-	params := url.Values{}
 	symbolValue, err := b.FormatSymbol(symbol, asset.USDTMarginedFutures)
 	if err != nil {
 		return nil, err
 	}
-	params.Set("symbol", symbolValue)
 	if !common.StringDataCompare(uValidPeriods, period) {
 		return nil, errors.New("invalid period")
 	}
+	params := url.Values{}
+	params.Set("symbol", symbolValue)
 	params.Set("period", period)
 	if limit > 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
@@ -629,11 +626,11 @@ func (b *Binance) UTopPostionsLongShortRatio(ctx context.Context, symbol currenc
 	if err != nil {
 		return nil, err
 	}
-	params := url.Values{}
-	params.Set("symbol", symbolValue)
 	if !common.StringDataCompare(uValidPeriods, period) {
 		return nil, errors.New("invalid period")
 	}
+	params := url.Values{}
+	params.Set("symbol", symbolValue)
 	params.Set("period", period)
 	if limit > 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
@@ -655,11 +652,11 @@ func (b *Binance) UGlobalLongShortRatio(ctx context.Context, symbol currency.Pai
 	if err != nil {
 		return nil, err
 	}
-	params := url.Values{}
-	params.Set("symbol", symbolValue)
 	if !common.StringDataCompare(uValidPeriods, period) {
 		return nil, errors.New("invalid period")
 	}
+	params := url.Values{}
+	params.Set("symbol", symbolValue)
 	params.Set("period", period)
 	if limit > 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
@@ -917,7 +914,6 @@ func (b *Binance) UModifyOrder(ctx context.Context, arg *USDTOrderUpdateParams) 
 
 // UPlaceBatchOrders places batch orders
 func (b *Binance) UPlaceBatchOrders(ctx context.Context, data []PlaceBatchOrderData) ([]UOrderData, error) {
-	params := url.Values{}
 	for x := range data {
 		unformattedPair, err := currency.NewPairFromString(data[x].Symbol)
 		if err != nil {
@@ -948,6 +944,7 @@ func (b *Binance) UPlaceBatchOrders(ctx context.Context, data []PlaceBatchOrderD
 	if err != nil {
 		return nil, err
 	}
+	params := url.Values{}
 	params.Set("batchOrders", string(jsonData))
 	var resp []UOrderData
 	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodPost, ufuturesBatchOrder, params, uFuturesBatchOrdersRate, &resp)
@@ -1176,11 +1173,11 @@ func (b *Binance) UChangeInitialLeverageRequest(ctx context.Context, symbol curr
 	if err != nil {
 		return nil, err
 	}
-	params := url.Values{}
-	params.Set("symbol", symbolValue)
 	if leverage < 1 || leverage > 125 {
 		return nil, errors.New("invalid leverage")
 	}
+	params := url.Values{}
+	params.Set("symbol", symbolValue)
 	params.Set("leverage", strconv.FormatFloat(leverage, 'f', -1, 64))
 	var resp *UChangeInitialLeverage
 	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodPost, ufuturesChangeInitialLeverage, params, uFuturesDefaultRate, &resp)
@@ -1192,11 +1189,11 @@ func (b *Binance) UChangeInitialMarginType(ctx context.Context, symbol currency.
 	if err != nil {
 		return err
 	}
-	params := url.Values{}
-	params.Set("symbol", symbolValue)
 	if !common.StringDataCompare(validMarginType, marginType) {
 		return errors.New("invalid marginType")
 	}
+	params := url.Values{}
+	params.Set("symbol", symbolValue)
 	params.Set("marginType", marginType)
 	return b.SendAuthHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodPost, ufuturesChangeMarginType, params, uFuturesDefaultRate, nil)
 }
@@ -1207,12 +1204,12 @@ func (b *Binance) UModifyIsolatedPositionMarginReq(ctx context.Context, symbol c
 	if err != nil {
 		return nil, err
 	}
-	params := url.Values{}
-	params.Set("symbol", symbolValue)
 	cType, ok := validMarginChange[changeType]
 	if !ok {
 		return nil, errors.New("invalid margin changeType")
 	}
+	params := url.Values{}
+	params.Set("symbol", symbolValue)
 	params.Set("type", strconv.FormatInt(cType, 10))
 	if positionSide != "" {
 		params.Set("positionSide", positionSide)

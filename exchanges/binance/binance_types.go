@@ -1,7 +1,6 @@
 package binance
 
 import (
-	"encoding/json"
 	"sync"
 	"time"
 
@@ -524,23 +523,6 @@ type AveragePrice struct {
 
 // PriceChangesWrapper to be used when the response is either a single PriceChangeStats instance or a slice.
 type PriceChangesWrapper []PriceChangeStats
-
-// UnmarshalJSON decerializes byte data into PriceChanceWrapper instance.
-func (a *PriceChangesWrapper) UnmarshalJSON(data []byte) error {
-	var singlePriceChange *PriceChangeStats
-	err := json.Unmarshal(data, &singlePriceChange)
-	if err != nil {
-		var resp []PriceChangeStats
-		err = json.Unmarshal(data, a)
-		if err != nil {
-			return err
-		}
-		*a = resp
-		return nil
-	}
-	*a = []PriceChangeStats{*singlePriceChange}
-	return nil
-}
 
 // PriceChangeStats contains statistics for the last 24 hours trade
 type PriceChangeStats struct {

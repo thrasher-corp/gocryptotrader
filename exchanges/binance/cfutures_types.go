@@ -80,72 +80,72 @@ type FuturesCandleStick struct {
 
 // AllLiquidationOrders gets all liquidation orders
 type AllLiquidationOrders struct {
-	Symbol       string  `json:"symbol"`
-	Price        float64 `json:"price,string"`
-	OrigQty      float64 `json:"origQty,string"`
-	ExecutedQty  float64 `json:"executedQty,string"`
-	AveragePrice float64 `json:"averagePrice,string"`
-	Status       string  `json:"status"`
-	TimeInForce  string  `json:"timeInForce"`
-	OrderType    string  `json:"type"`
-	Side         string  `json:"side"`
-	Time         int64   `json:"time"`
+	Symbol       string               `json:"symbol"`
+	Price        float64              `json:"price,string"`
+	OrigQty      float64              `json:"origQty,string"`
+	ExecutedQty  float64              `json:"executedQty,string"`
+	AveragePrice float64              `json:"averagePrice,string"`
+	Status       string               `json:"status"`
+	TimeInForce  string               `json:"timeInForce"`
+	OrderType    string               `json:"type"`
+	Side         string               `json:"side"`
+	Time         convert.ExchangeTime `json:"time"`
 }
 
 // OpenInterestData stores open interest data
 type OpenInterestData struct {
-	Symbol       string  `json:"symbol"`
-	Pair         string  `json:"pair"`
-	OpenInterest float64 `json:"openInterest,string"`
-	ContractType string  `json:"contractType"`
-	Time         int64   `json:"time"`
+	Symbol       string               `json:"symbol"`
+	Pair         string               `json:"pair"`
+	OpenInterest float64              `json:"openInterest,string"`
+	ContractType string               `json:"contractType"`
+	Time         convert.ExchangeTime `json:"time"`
 }
 
 // OpenInterestStats stores stats for open interest data
 type OpenInterestStats struct {
-	Pair                 string  `json:"pair"`
-	ContractType         string  `json:"contractType"`
-	SumOpenInterest      float64 `json:"sumOpenInterest,string"`
-	SumOpenInterestValue float64 `json:"sumOpenInterestValue,string"`
-	Timestamp            int64   `json:"timestamp"`
+	Pair                 string               `json:"pair"`
+	ContractType         string               `json:"contractType"`
+	SumOpenInterest      float64              `json:"sumOpenInterest,string"`
+	SumOpenInterestValue float64              `json:"sumOpenInterestValue,string"`
+	Timestamp            convert.ExchangeTime `json:"timestamp"`
 }
 
 // TopTraderAccountRatio stores account ratio data for top traders
 type TopTraderAccountRatio struct {
-	Pair           string  `json:"pair"`
-	LongShortRatio float64 `json:"longShortRatio,string"`
-	LongAccount    float64 `json:"longAccount,string"`
-	ShortAccount   float64 `json:"shortAccount,string"`
-	Timestamp      int64   `json:"timestamp"`
+	Pair           string               `json:"pair"`
+	LongShortRatio float64              `json:"longShortRatio,string"`
+	LongAccount    float64              `json:"longAccount,string"`
+	ShortAccount   float64              `json:"shortAccount,string"`
+	Timestamp      convert.ExchangeTime `json:"timestamp"`
 }
 
 // TopTraderPositionRatio stores position ratio for top trader accounts
 type TopTraderPositionRatio struct {
-	Pair           string  `json:"pair"`
-	LongShortRatio float64 `json:"longShortRatio,string"`
-	LongPosition   float64 `json:"longPosition,string"`
-	ShortPosition  float64 `json:"shortPosition,string"`
-	Timestamp      int64   `json:"timestamp"`
+	Pair           string               `json:"pair"`
+	LongShortRatio float64              `json:"longShortRatio,string"`
+	LongPosition   float64              `json:"longPosition,string"`
+	ShortPosition  float64              `json:"shortPosition,string"`
+	Timestamp      convert.ExchangeTime `json:"timestamp"`
 }
 
 // GlobalLongShortRatio stores ratio data of all longs vs shorts
 type GlobalLongShortRatio struct {
-	Symbol         string  `json:"symbol"`
-	LongShortRatio float64 `json:"longShortRatio"`
-	LongAccount    float64 `json:"longAccount"`
-	ShortAccount   float64 `json:"shortAccount"`
-	Timestamp      string  `json:"timestamp"`
+	Symbol         string               `json:"symbol"`
+	LongShortRatio float64              `json:"longShortRatio"`
+	LongAccount    float64              `json:"longAccount"`
+	ShortAccount   float64              `json:"shortAccount"`
+	Timestamp      convert.ExchangeTime `json:"timestamp"`
 }
 
 // TakerBuySellVolume stores taker buy sell volume
 type TakerBuySellVolume struct {
-	Pair           string  `json:"pair"`
-	ContractType   string  `json:"contractType"`
-	TakerBuyVolume float64 `json:"takerBuyVol,string"`
-	BuySellRatio   float64 `json:"takerSellVol,string"`
-	BuyVol         float64 `json:"takerBuyVolValue,string"`
-	SellVol        float64 `json:"takerSellVolValue,string"`
-	Timestamp      int64   `json:"timestamp"`
+	Pair           string               `json:"pair"`
+	ContractType   string               `json:"contractType"`
+	TakerBuyVolume float64              `json:"takerBuyVol,string"`
+	BuySellRatio   float64              `json:"takerSellVol,string"`
+	BuyVol         float64              `json:"takerBuyVolValue,string"`
+	SellVol        float64              `json:"takerSellVolValue,string"`
+	Timestamp      convert.ExchangeTime `json:"timestamp"`
 }
 
 // FuturesBasisData gets futures basis data
@@ -156,7 +156,7 @@ type FuturesBasisData struct {
 	IndexPrice   float64 `json:"indexPrice,string"`
 	Basis        float64 `json:"basis,string"`
 	BasisRate    float64 `json:"basisRate,string"`
-	Timestamp    int64   `json:"timestamp"`
+	Timestamp    convert.ExchangeTime   `json:"timestamp"`
 }
 
 // PlaceBatchOrderData stores batch order data for placing
@@ -201,7 +201,7 @@ type BatchCancelOrderData struct {
 	OrigType      string  `json:"origType"`
 	ActivatePrice float64 `json:"activatePrice,string"`
 	PriceRate     float64 `json:"priceRate,string"`
-	UpdateTime    int64   `json:"updateTime"`
+	UpdateTime    convert.ExchangeTime   `json:"updateTime"`
 	WorkingType   string  `json:"workingType"`
 	PriceProtect  bool    `json:"priceProtect"`
 	Code          int64   `json:"code"`
@@ -359,7 +359,7 @@ type FuturesAccountBalanceData struct {
 	CrossWalletBalance float64 `json:"crossWalletBalance,string"`
 	CrossUnPNL         float64 `json:"crossUnPNL,string"`
 	AvailableBalance   float64 `json:"availableBalance,string"`
-	UpdateTime         int64   `json:"updateTime"`
+	UpdateTime         convert.ExchangeTime   `json:"updateTime"`
 }
 
 // FuturesAccountInformationPosition  holds account position data
@@ -441,7 +441,7 @@ type GetPositionMarginChangeHistoryData struct {
 	Amount           float64 `json:"amount"`
 	Asset            string  `json:"asset"`
 	Symbol           string  `json:"symbol"`
-	Timestamp        int64   `json:"time"`
+	Timestamp        convert.ExchangeTime   `json:"time"`
 	MarginChangeType int64   `json:"type"`
 	PositionSide     string  `json:"positionSide"`
 }
@@ -479,7 +479,7 @@ type FuturesAccountTradeList struct {
 	BaseQty         float64 `json:"baseQty"`
 	Commission      float64 `json:"commission"`
 	CommissionAsset string  `json:"commissionAsset"`
-	Timestamp       int64   `json:"timestamp"`
+	Timestamp       convert.ExchangeTime   `json:"timestamp"`
 	PositionSide    string  `json:"positionSide"`
 	Buyer           bool    `json:"buyer"`
 	Maker           bool    `json:"maker"`
@@ -492,7 +492,7 @@ type FuturesIncomeHistoryData struct {
 	Income     float64 `json:"income,string"`
 	Asset      string  `json:"asset"`
 	Info       string  `json:"info"`
-	Timestamp  int64   `json:"time"`
+	Timestamp  convert.ExchangeTime   `json:"time"`
 }
 
 // NotionalBracketData stores notional bracket data
@@ -528,8 +528,8 @@ type ForcedOrdersData struct {
 	WorkingType   string  `json:"workingType"`
 	PriceProtect  float64 `json:"priceProtect,string"`
 	OrigType      string  `json:"origType"`
-	Time          int64   `json:"time"`
-	UpdateTime    int64   `json:"updateTime"`
+	Time          convert.ExchangeTime   `json:"time"`
+	UpdateTime    convert.ExchangeTime   `json:"updateTime"`
 }
 
 // ADLEstimateData stores data for ADL estimates
@@ -548,14 +548,14 @@ type InterestHistoryData struct {
 	Interest    float64 `json:"interest"`
 	LendingType string  `json:"lendingType"`
 	ProductName string  `json:"productName"`
-	Time        string  `json:"time"`
+	Time        convert.ExchangeTime  `json:"time"`
 }
 
 // FundingRateData stores funding rates data
 type FundingRateData struct {
 	Symbol      string  `json:"symbol"`
 	FundingRate float64 `json:"fundingRate,string"`
-	FundingTime int64   `json:"fundingTime"`
+	FundingTime convert.ExchangeTime   `json:"fundingTime"`
 }
 
 // SymbolsData stores perp futures' symbols
@@ -576,7 +576,7 @@ type UFuturesExchangeInfo struct {
 		Limit         int64  `json:"limit"`
 		RateLimitType string `json:"rateLimitType"`
 	} `json:"rateLimits"`
-	ServerTime int64                `json:"serverTime"`
+	ServerTime convert.ExchangeTime                `json:"serverTime"`
 	Symbols    []UFuturesSymbolInfo `json:"symbols"`
 	Timezone   string               `json:"timezone"`
 }
@@ -679,7 +679,7 @@ type CFutureAggregateTrade struct {
 	Quantity         string `json:"q"`
 	FirstTradeID     int64  `json:"f"`
 	LastTradeID      int64  `json:"l"`
-	TradeTime        int64  `json:"T"`
+	TradeTime        convert.ExchangeTime  `json:"T"`
 	IsMarketMaker    bool   `json:"m"`
 }
 

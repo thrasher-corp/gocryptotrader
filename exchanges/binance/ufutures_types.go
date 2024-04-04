@@ -1,7 +1,6 @@
 package binance
 
 import (
-	"encoding/json"
 	"errors"
 
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
@@ -510,21 +509,6 @@ type AssetIndex struct {
 
 // AssetIndexResponse represents a list of asset indexes
 type AssetIndexResponse []AssetIndex
-
-// UnmarshalJSON unmarshals a []byte data in an object or array form to AssetIndexResponse([]AssetIndex) instance.
-func (a *AssetIndexResponse) UnmarshalJSON(data []byte) error {
-	var resp []AssetIndex
-	err := json.Unmarshal(data, &resp)
-	if err != nil {
-		resp = make([]AssetIndex, 1)
-		err := json.Unmarshal(data, &resp[0])
-		if err != nil {
-			return err
-		}
-	}
-	*a = resp
-	return nil
-}
 
 // IndexPriceConstituent represents an index price constituents
 type IndexPriceConstituent struct {
