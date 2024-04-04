@@ -1314,7 +1314,10 @@ func (d *Deribit) GetLatestFundingRates(ctx context.Context, r *fundingrate.Late
 	if !d.SupportsAsset(r.Asset) {
 		return nil, fmt.Errorf("%s %w", r.Asset, asset.ErrNotSupported)
 	}
-	var err error
+	isPerpetual, err := d.IsPerpetualFutureCurrency(r.Asset, r.Pair)
+	if !isPerpetual || err != nil {
+		return nil, futures.ErrNotPerpetualFuture
+	}
 	available, err := d.GetAvailablePairs(r.Asset)
 	if err != nil {
 		return nil, err
