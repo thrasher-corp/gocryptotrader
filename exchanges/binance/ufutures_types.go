@@ -453,19 +453,19 @@ type UForceOrdersData struct {
 type UFuturesNewOrderRequest struct {
 	Symbol           currency.Pair `json:"symbol"`
 	Side             string        `json:"side"`
-	PositionSide     string        `json:"position_side"`
-	OrderType        string        `json:"order_type"`
-	TimeInForce      string        `json:"time_in_force"`
-	NewClientOrderID string        `json:"new_client_order_id"`
-	ClosePosition    string        `json:"close_position"`
-	WorkingType      string        `json:"working_type"`
-	NewOrderRespType string        `json:"new_order_resp_type"`
-	Quantity         float64       `json:"quantity"`
-	Price            float64       `json:"price"`
-	StopPrice        float64       `json:"stop_price"`
-	ActivationPrice  float64       `json:"activation_price"`
-	CallbackRate     float64       `json:"callback_rate"`
-	ReduceOnly       bool          `json:"reduce_only"`
+	PositionSide     string        `json:"position_side,omitempty"`
+	OrderType        string        `json:"order_type,omitempty"`
+	TimeInForce      string        `json:"time_in_force,omitempty"`
+	NewClientOrderID string        `json:"new_client_order_id,omitempty"`
+	ClosePosition    string        `json:"close_position,omitempty"`
+	WorkingType      string        `json:"working_type,omitempty"`
+	NewOrderRespType string        `json:"new_order_resp_type,omitempty"`
+	Quantity         float64       `json:"quantity,omitempty"`
+	Price            float64       `json:"price,omitempty"`
+	StopPrice        float64       `json:"stop_price,omitempty"`
+	ActivationPrice  float64       `json:"activation_price,omitempty"`
+	CallbackRate     float64       `json:"callback_rate,omitempty"`
+	ReduceOnly       bool          `json:"reduce_only,omitempty"`
 }
 
 // WebsocketAPIError represents an error message sent through the websocket API.
@@ -528,12 +528,12 @@ type PositionMode struct {
 // USDTOrderUpdateParams represents an updating parameter of USDT margined futures orders.
 type USDTOrderUpdateParams struct {
 	OrderID           int64         `json:"orderID"`
-	OrigClientOrderID string        `json:"origClientOrderID"`
-	Side              string        `json:"side"`
-	PriceMatch        string        `json:"priceMatch"`
-	Symbol            currency.Pair `json:"symbol"`
-	Amount            float64       `json:"amount"`
-	Price             float64       `json:"price"`
+	OrigClientOrderID string        `json:"origClientOrderID,omitempty"`
+	Side              string        `json:"side,omitempty"`
+	PriceMatch        string        `json:"priceMatch,omitempty"`
+	Symbol            currency.Pair `json:"symbol,omitempty"`
+	Amount            float64       `json:"amount,omitempty"`
+	Price             float64       `json:"price,omitempty"`
 }
 
 // USDTAmendInfo represents a USDT margined futures order amendment history item.

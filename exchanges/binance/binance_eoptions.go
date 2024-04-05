@@ -185,7 +185,7 @@ func (b *Binance) GetEOptionsOpenInterests(ctx context.Context, underlyingAsset 
 // GetOptionsAccountInformation retrieves the current account information.
 func (b *Binance) GetOptionsAccountInformation(ctx context.Context) (*EOptionsAccountInformation, error) {
 	var resp *EOptionsAccountInformation
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestOptions, http.MethodGet, "/eapi/v1/account", nil, optionsAccountInfoRate, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestOptions, http.MethodGet, "/eapi/v1/account", nil, optionsAccountInfoRate, nil, &resp)
 }
 
 // NewOptionsOrder places a new european options order instance.
@@ -236,7 +236,7 @@ func (b *Binance) NewOptionsOrder(ctx context.Context, arg *OptionsOrderParams) 
 		params.Set("isMmp", "true")
 	}
 	var resp *OptionOrder
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestOptions, http.MethodPost, "/eapi/v1/order", params, optionsDefaultOrderRate, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestOptions, http.MethodPost, "/eapi/v1/order", params, optionsDefaultOrderRate, nil, &resp)
 }
 
 // PlaceBatchEOptionsOrder send multiple option orders.
@@ -268,7 +268,7 @@ func (b *Binance) PlaceBatchEOptionsOrder(ctx context.Context, args []OptionsOrd
 	params := url.Values{}
 	params.Set("orders", string(val))
 	var resp []OptionOrder
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestOptions, http.MethodPost, "/eapi/v1/batchOrders", params, optionsBatchOrderRate, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestOptions, http.MethodPost, "/eapi/v1/batchOrders", params, optionsBatchOrderRate, nil, &resp)
 }
 
 // GetSingleEOptionsOrder retrieves a single order status.
@@ -288,7 +288,7 @@ func (b *Binance) GetSingleEOptionsOrder(ctx context.Context, symbol, clientOrde
 		params.Set("orderId", strconv.FormatInt(orderID, 10))
 	}
 	var resp *OptionOrder
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestOptions, http.MethodGet, "/eapi/v1/order", params, optionsDefaultOrderRate, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestOptions, http.MethodGet, "/eapi/v1/order", params, optionsDefaultOrderRate, nil, &resp)
 }
 
 // CancelOptionsOrder represents an options order instance
@@ -308,7 +308,7 @@ func (b *Binance) CancelOptionsOrder(ctx context.Context, symbol, clientOrderID 
 		params.Set("orderId", strconv.FormatInt(orderID, 10))
 	}
 	var resp *OptionOrder
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestOptions, http.MethodDelete, "/eapi/v1/order", params, optionsDefaultOrderRate, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestOptions, http.MethodDelete, "/eapi/v1/order", params, optionsDefaultOrderRate, nil, &resp)
 }
 
 // CancelBatchOptionsOrders cancel an active orders
@@ -336,7 +336,7 @@ func (b *Binance) CancelBatchOptionsOrders(ctx context.Context, symbol string, o
 		params.Set("clientOrderIds", string(vals))
 	}
 	var resp []OptionOrder
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestOptions, http.MethodDelete, "/eapi/v1/batchOrders", params, optionsDefaultOrderRate, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestOptions, http.MethodDelete, "/eapi/v1/batchOrders", params, optionsDefaultOrderRate, nil, &resp)
 }
 
 // CancelAllOptionOrdersOnSpecificSymbol cancels all active order on a symbol
@@ -345,7 +345,7 @@ func (b *Binance) CancelAllOptionOrdersOnSpecificSymbol(ctx context.Context, sym
 	if symbol == "" {
 		params.Set("symbol", symbol)
 	}
-	return b.SendAuthHTTPRequest(ctx, exchange.RestOptions, http.MethodDelete, "/eapi/v1/allOpenOrders", params, optionsDefaultOrderRate, &struct{}{})
+	return b.SendAuthHTTPRequest(ctx, exchange.RestOptions, http.MethodDelete, "/eapi/v1/allOpenOrders", params, optionsDefaultOrderRate, nil, nil)
 }
 
 // CancelAllOptionsOrdersByUnderlying cancel all active orders on specified underlying.
@@ -355,7 +355,7 @@ func (b *Binance) CancelAllOptionsOrdersByUnderlying(ctx context.Context, underl
 		params.Set("underlying", underlying)
 	}
 	var resp int64
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestOptions, http.MethodDelete, "/eapi/v1/allOpenOrdersByUnderlying", params, optionsDefaultOrderRate, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestOptions, http.MethodDelete, "/eapi/v1/allOpenOrdersByUnderlying", params, optionsDefaultOrderRate, nil, &resp)
 }
 
 // GetCurrentOpenOptionsOrders retrieves all open orders. Status: ACCEPTED PARTIALLY_FILLED
@@ -394,7 +394,7 @@ func (b *Binance) getOptionsOrders(ctx context.Context, path, symbol string, sta
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	var resp []OptionOrder
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestOptions, http.MethodGet, path, params, ratelimit, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestOptions, http.MethodGet, path, params, ratelimit, nil, &resp)
 }
 
 // GetOptionPositionInformation retrieves current position information.
@@ -404,7 +404,7 @@ func (b *Binance) GetOptionPositionInformation(ctx context.Context, symbol strin
 		params.Set("symbol", symbol)
 	}
 	var resp []OptionPosition
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestOptions, http.MethodGet, "/eapi/v1/position", params, optionsPositionInformationRate, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestOptions, http.MethodGet, "/eapi/v1/position", params, optionsPositionInformationRate, nil, &resp)
 }
 
 // GetEOptionsAccountTradeList retrieves trades for a specific account and symbol
@@ -426,7 +426,7 @@ func (b *Binance) GetEOptionsAccountTradeList(ctx context.Context, symbol string
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	var resp []OptionsAccountTradeItem
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestOptions, http.MethodGet, "/eapi/v1/userTrades", params, optionsAccountTradeListRate, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestOptions, http.MethodGet, "/eapi/v1/userTrades", params, optionsAccountTradeListRate, nil, &resp)
 }
 
 // GetUserOptionsExerciseRecord retrives account exercise records
@@ -445,7 +445,7 @@ func (b *Binance) GetUserOptionsExerciseRecord(ctx context.Context, symbol strin
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	var resp []UserOptionsExerciseRecord
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestOptions, http.MethodGet, "/eapi/v1/exerciseRecord", params, optionsUserExerciseRecordRate, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestOptions, http.MethodGet, "/eapi/v1/exerciseRecord", params, optionsUserExerciseRecordRate, nil, &resp)
 }
 
 // GetAccountFundingFlow retrieves account funding flows
@@ -468,7 +468,7 @@ func (b *Binance) GetAccountFundingFlow(ctx context.Context, ccy currency.Code, 
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	var resp []AccountFunding
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestOptions, http.MethodGet, "/eapi/v1/bill", params, optionsDefaultRate, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestOptions, http.MethodGet, "/eapi/v1/bill", params, optionsDefaultRate, nil, &resp)
 }
 
 // GetDownloadIDForOptionTransactionHistory retrieves options transaction history
@@ -481,7 +481,7 @@ func (b *Binance) GetDownloadIDForOptionTransactionHistory(ctx context.Context, 
 	params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
 	params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
 	var resp *DownloadIDOfOptionsTransaction
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestOptions, http.MethodGet, "/eapi/v1/income/asyn", params, optionsDownloadIDForOptionTrasactionHistoryRate, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestOptions, http.MethodGet, "/eapi/v1/income/asyn", params, optionsDownloadIDForOptionTrasactionHistoryRate, nil, &resp)
 }
 
 // GetOptionTransactionHistoryDownloadLinkByID retrieves an options transaction history download link by ID.
@@ -492,7 +492,7 @@ func (b *Binance) GetOptionTransactionHistoryDownloadLinkByID(ctx context.Contex
 	params := url.Values{}
 	params.Set("downloadId", downloadID)
 	var resp *DownloadIDTransactionHistory
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestOptions, http.MethodGet, "/eapi/v1/income/asyn/id", params, optionsDefaultRate, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestOptions, http.MethodGet, "/eapi/v1/income/asyn/id", params, optionsDefaultRate, nil, &resp)
 }
 
 // -----------------------------------------------------    Market Maker Endpoint   ----------------------------------------------------------------------------------
@@ -501,7 +501,7 @@ func (b *Binance) GetOptionTransactionHistoryDownloadLinkByID(ctx context.Contex
 // GetOptionMarginAccountInformation retrieves current account information
 func (b *Binance) GetOptionMarginAccountInformation(ctx context.Context) (*OptionMarginAccountInfo, error) {
 	var resp *OptionMarginAccountInfo
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestOptions, http.MethodGet, "/eapi/v1/marginAccount", nil, optionsDefaultRate, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestOptions, http.MethodGet, "/eapi/v1/marginAccount", nil, optionsDefaultRate, nil, &resp)
 }
 
 // SetOptionsMarketMakerProtectionConfig a sets config for market maker protection(MMP) is a set of protection mechanism for option market maker,
@@ -532,7 +532,7 @@ func (b *Binance) SetOptionsMarketMakerProtectionConfig(ctx context.Context, arg
 	params.Set("qtyLimit", strconv.FormatFloat(arg.QuantityLimit, 'f', -1, 64))
 	params.Set("deltaLimit", strconv.FormatFloat(arg.NetDeltaLimit, 'f', -1, 64))
 	var resp *MarketMakerProtection
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestOptions, http.MethodPost, "/eapi/v1/mmpSet", params, optionsDefaultRate, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestOptions, http.MethodPost, "/eapi/v1/mmpSet", params, optionsDefaultRate, nil, &resp)
 }
 
 // GetOptionsMarketMakerProtection retrieves the merket maker protection config
@@ -543,7 +543,7 @@ func (b *Binance) GetOptionsMarketMakerProtection(ctx context.Context, underlyin
 	params := url.Values{}
 	params.Set("underlying", underlying)
 	var resp *MarketMakerProtection
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestOptions, http.MethodGet, "/eapi/v1/mmp", params, optionsDefaultRate, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestOptions, http.MethodGet, "/eapi/v1/mmp", params, optionsDefaultRate, nil, &resp)
 }
 
 // ResetMarketMaketProtection reset MMP, start MMP order again.
@@ -554,7 +554,7 @@ func (b *Binance) ResetMarketMaketProtection(ctx context.Context, underlying str
 	params := url.Values{}
 	params.Set("underlying", underlying)
 	var resp *MarketMakerProtection
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestOptions, http.MethodPost, "/eapi/v1/mmp", params, optionsDefaultRate, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestOptions, http.MethodPost, "/eapi/v1/mmp", params, optionsDefaultRate, nil, &resp)
 }
 
 // SetOptionsAutoCancelAllOpenOrders sets the parameters of the auto-cancel feature which cancels all open orders
@@ -576,7 +576,7 @@ func (b *Binance) SetOptionsAutoCancelAllOpenOrders(ctx context.Context, underly
 	params.Set("underlying", underlying)
 	params.Set("countdownTime", strconv.FormatInt(countdownTime, 10))
 	var resp *UnderlyingCountdown
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestOptions, http.MethodPost, "/eapi/v1/countdownCancelAll", params, optionsDefaultRate, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestOptions, http.MethodPost, "/eapi/v1/countdownCancelAll", params, optionsDefaultRate, nil, &resp)
 }
 
 // GetAutoCancelAllOpenOrdersConfig returns the auto-cancel parameters for each underlying symbol.
@@ -588,7 +588,7 @@ func (b *Binance) GetAutoCancelAllOpenOrdersConfig(ctx context.Context, underlyi
 		params.Set("underlying", underlying)
 	}
 	var resp *UnderlyingCountdown
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestOptions, http.MethodGet, "/eapi/v1/countdownCancelAll", params, optionsDefaultRate, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestOptions, http.MethodGet, "/eapi/v1/countdownCancelAll", params, optionsDefaultRate, nil, &resp)
 }
 
 // GetOptionsAutoCancelAllOpenOrdersHeartbeat resets the time from which the countdown will begin to the time this messaged is received. It should be called repeatedly as heartbeats.
@@ -602,5 +602,5 @@ func (b *Binance) GetOptionsAutoCancelAllOpenOrdersHeartbeat(ctx context.Context
 	resp := &struct {
 		Underlyings []string `json:"underlyings"`
 	}{}
-	return resp.Underlyings, b.SendAuthHTTPRequest(ctx, exchange.RestOptions, http.MethodPost, "/eapi/v1/countdownCancelAllHeartBeat", params, optionsDefaultRate, &resp)
+	return resp.Underlyings, b.SendAuthHTTPRequest(ctx, exchange.RestOptions, http.MethodPost, "/eapi/v1/countdownCancelAllHeartBeat", params, optionsDefaultRate, nil, &resp)
 }

@@ -4641,13 +4641,115 @@ func TestMarginAccountNewOCO(t *testing.T) {
 func TestNewUMConditionalOrder(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
-	result, err := b.NewUMConditionalOrder(context.Background(), &UMConditionalOrderParam{
+	result, err := b.NewUMConditionalOrder(context.Background(), &ConditionalOrderParam{
 		Symbol:       "BTCUSDT",
 		Side:         "Sell",
 		PositionSide: "SHORT",
 		StrategyType: "STOP_MARKET",
 		PriceProtect: true,
 	})
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestNewCMConditionalOrder(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	result, err := b.NewCMConditionalOrder(context.Background(), &ConditionalOrderParam{
+		Symbol:       "BTCUSD_200925",
+		Side:         "Buy",
+		PositionSide: "LONG",
+		StrategyType: "TAKE_PROFIT",
+	})
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestCancelUMOrder(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	result, err := b.CancelUMOrder(context.Background(), "BTCUSDT", "", 1234132)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestCancelCMOrder(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	result, err := b.CancelCMOrder(context.Background(), "BTCUSDT", "", 21321312)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestCancelAllUMOrders(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	result, err := b.CancelAllUMOrders(context.Background(), "BTCUSDT")
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+	assert.Equal(t, 200, result.Code)
+}
+
+func TestCancelAllCMOrders(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	result, err := b.CancelAllCMOrders(context.Background(), "BTCUSDT")
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestCancelMarginAccountOrder(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	result, err := b.CancelMarginAccountOrder(context.Background(), "LTCBTC", "", 12314)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestCancelAllMarginOpenOrdersBySymbol(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	result, err := b.CancelAllMarginOpenOrdersBySymbol(context.Background(), "BTCUSDT")
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestCancelMarginAccountOCOOrders(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	result, err := b.CancelMarginAccountOCOOrders(context.Background(), "LTCBTC", "", "", 0)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestCancelUMConditionalOrder(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	result, err := b.CancelUMConditionalOrder(context.Background(), "LTCBTC", "", 2000)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestCancelCMConditionalOrder(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	result, err := b.CancelCMConditionalOrder(context.Background(), "LTCBTC", "", 1231231)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestCancelAllUMOpenConditionalOrders(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	result, err := b.CancelAllUMOpenConditionalOrders(context.Background(), "BTCUSDT")
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestCancelAllCMOpenConditionalOrders(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	result, err := b.CancelAllCMOpenConditionalOrders(context.Background(), "BTCUSDT")
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }

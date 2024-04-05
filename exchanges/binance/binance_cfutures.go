@@ -121,7 +121,7 @@ func (b *Binance) GetFuturesHistoricalTrades(ctx context.Context, symbol currenc
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	var resp []UPublicTradesData
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestCoinMargined, http.MethodGet, "/dapi/v1/historicalTrades", params, cFuturesHistoricalTradesRate, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestCoinMargined, http.MethodGet, "/dapi/v1/historicalTrades", params, cFuturesHistoricalTradesRate, nil, &resp)
 }
 
 // GetPastPublicTrades gets past public trades for CoinMarginedFutures,
@@ -666,64 +666,24 @@ func (b *Binance) GetFuturesBasisData(ctx context.Context, pair currency.Pair, c
 
 // FuturesNewOrder sends a new futures order to the exchange
 func (b *Binance) FuturesNewOrder(ctx context.Context, x *FuturesNewOrderRequest) (*FuturesOrderPlaceData, error) {
-	symbolValue, err := b.FormatSymbol(x.Symbol, asset.CoinMarginedFutures)
+	var err error
+	x.Symbol, err = b.FormatExchangeCurrency(x.Symbol, asset.CoinMarginedFutures)
 	if err != nil {
 		return nil, err
 	}
-	params := url.Values{}
-	params.Set("symbol", symbolValue)
-	params.Set("side", x.Side)
-	if x.PositionSide != "" {
-		if !common.StringDataCompare(validPositionSide, x.PositionSide) {
-			return nil, errors.New("invalid positionSide")
-		}
-		params.Set("positionSide", x.PositionSide)
-	}
-	params.Set("type", x.OrderType)
-	if string(x.TimeInForce) != "" {
-		params.Set("timeInForce", string(x.TimeInForce))
-	}
-	if x.ReduceOnly {
-		params.Set("reduceOnly", "true")
-	}
-	if x.NewClientOrderID != "" {
-		params.Set("newClientOrderID", x.NewClientOrderID)
-	}
-	if x.ClosePosition != "" {
-		params.Set("closePosition", x.ClosePosition)
+	if x.PositionSide != "" && !common.StringDataCompare(validPositionSide, x.PositionSide) {
+		return nil, errors.New("invalid positionSide")
 	}
 	if x.WorkingType != "" {
 		if !common.StringDataCompare(validWorkingType, x.WorkingType) {
 			return nil, errors.New("invalid workingType")
 		}
-		params.Set("workingType", x.WorkingType)
 	}
-	if x.NewOrderRespType != "" {
-		if !common.StringDataCompare(validNewOrderRespType, x.NewOrderRespType) {
-			return nil, errors.New("invalid newOrderRespType")
-		}
-		params.Set("newOrderRespType", x.NewOrderRespType)
-	}
-	if x.Quantity != 0 {
-		params.Set("quantity", strconv.FormatFloat(x.Quantity, 'f', -1, 64))
-	}
-	if x.Price != 0 {
-		params.Set("price", strconv.FormatFloat(x.Price, 'f', -1, 64))
-	}
-	if x.StopPrice != 0 {
-		params.Set("stopPrice", strconv.FormatFloat(x.StopPrice, 'f', -1, 64))
-	}
-	if x.ActivationPrice != 0 {
-		params.Set("activationPrice", strconv.FormatFloat(x.ActivationPrice, 'f', -1, 64))
-	}
-	if x.CallbackRate != 0 {
-		params.Set("callbackRate", strconv.FormatFloat(x.CallbackRate, 'f', -1, 64))
-	}
-	if x.PriceProtect {
-		params.Set("priceProtect", "TRUE")
+	if x.NewOrderRespType != "" && !common.StringDataCompare(validNewOrderRespType, x.NewOrderRespType) {
+		return nil, errors.New("invalid newOrderRespType")
 	}
 	var resp *FuturesOrderPlaceData
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestCoinMargined, http.MethodPost, "/dapi/v1/order", params, cFuturesOrdersDefaultRate, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestCoinMargined, http.MethodPost, "/dapi/v1/order", nil, cFuturesOrdersDefaultRate, x, &resp)
 }
 
 // FuturesBatchOrder sends a batch order request
@@ -761,7 +721,7 @@ func (b *Binance) FuturesBatchOrder(ctx context.Context, data []PlaceBatchOrderD
 	params := url.Values{}
 	params.Set("batchOrders", string(jsonData))
 	var resp []FuturesOrderPlaceData
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestCoinMargined, http.MethodPost, "/dapi/v1/batchOrders", params, cFuturesBatchOrdersRate, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestCoinMargined, http.MethodPost, "/dapi/v1/batchOrders", params, cFuturesBatchOrdersRate, nil, &resp)
 }
 
 // FuturesBatchCancelOrders sends a batch request to cancel orders
@@ -787,7 +747,7 @@ func (b *Binance) FuturesBatchCancelOrders(ctx context.Context, symbol currency.
 		params.Set("origClientOrderIdList", string(jsonCliOrdIDList))
 	}
 	var resp []BatchCancelOrderData
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestCoinMargined, http.MethodDelete, "/dapi/v1/batchOrders", params, cFuturesOrdersDefaultRate, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestCoinMargined, http.MethodDelete, "/dapi/v1/batchOrders", params, cFuturesOrdersDefaultRate, nil, &resp)
 }
 
 // FuturesGetOrderData gets futures order data
@@ -805,7 +765,7 @@ func (b *Binance) FuturesGetOrderData(ctx context.Context, symbol currency.Pair,
 		params.Set("origClientOrderId", origClientOrderID)
 	}
 	var resp *FuturesOrderGetData
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestCoinMargined, http.MethodGet, "/dapi/v1/order", params, cFuturesOrdersDefaultRate, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestCoinMargined, http.MethodGet, "/dapi/v1/order", params, cFuturesOrdersDefaultRate, nil, &resp)
 }
 
 // FuturesCancelOrder cancels a futures order
@@ -823,7 +783,7 @@ func (b *Binance) FuturesCancelOrder(ctx context.Context, symbol currency.Pair, 
 		params.Set("origClientOrderId", origClientOrderID)
 	}
 	var resp *FuturesOrderGetData
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestCoinMargined, http.MethodDelete, "/dapi/v1/order", params, cFuturesOrdersDefaultRate, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestCoinMargined, http.MethodDelete, "/dapi/v1/order", params, cFuturesOrdersDefaultRate, nil, &resp)
 }
 
 // FuturesCancelAllOpenOrders cancels a futures order
@@ -835,7 +795,7 @@ func (b *Binance) FuturesCancelAllOpenOrders(ctx context.Context, symbol currenc
 	params := url.Values{}
 	params.Set("symbol", symbolValue)
 	var resp *GenericAuthResponse
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestCoinMargined, http.MethodDelete, "/dapi/v1/allOpenOrders", params, cFuturesOrdersDefaultRate, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestCoinMargined, http.MethodDelete, "/dapi/v1/allOpenOrders", params, cFuturesOrdersDefaultRate, nil, &resp)
 }
 
 // AutoCancelAllOpenOrders cancels all open futures orders
@@ -849,7 +809,7 @@ func (b *Binance) AutoCancelAllOpenOrders(ctx context.Context, symbol currency.P
 	params.Set("symbol", symbolValue)
 	params.Set("countdownTime", strconv.FormatInt(countdownTime, 10))
 	var resp *AutoCancelAllOrdersData
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestCoinMargined, http.MethodPost, "/dapi/v1/countdownCancelAll", params, cFuturesCancelAllOrdersRate, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestCoinMargined, http.MethodPost, "/dapi/v1/countdownCancelAll", params, cFuturesCancelAllOrdersRate, nil, &resp)
 }
 
 // FuturesOpenOrderData gets open order data for CoinMarginedFutures
@@ -867,7 +827,7 @@ func (b *Binance) FuturesOpenOrderData(ctx context.Context, symbol currency.Pair
 		params.Set("origClientOrderId", origClientOrderID)
 	}
 	var resp *FuturesOrderGetData
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestCoinMargined, http.MethodGet, "/dapi/v1/openOrder", params, cFuturesOrdersDefaultRate, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestCoinMargined, http.MethodGet, "/dapi/v1/openOrder", params, cFuturesOrdersDefaultRate, nil, &resp)
 }
 
 // GetFuturesAllOpenOrders gets all open orders data for CoinMarginedFutures,
@@ -891,7 +851,7 @@ func (b *Binance) GetFuturesAllOpenOrders(ctx context.Context, symbol currency.P
 		params.Set("pair", pair)
 	}
 	var resp []FuturesOrderData
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestCoinMargined, http.MethodGet, "/dapi/v1/openOrders", params, rateLimit, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestCoinMargined, http.MethodGet, "/dapi/v1/openOrders", params, rateLimit, nil, &resp)
 }
 
 // GetAllFuturesOrders gets all orders active cancelled or filled
@@ -923,19 +883,19 @@ func (b *Binance) GetAllFuturesOrders(ctx context.Context, symbol, pair currency
 		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
 	}
 	var resp []FuturesOrderData
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestCoinMargined, http.MethodGet, "/dapi/v1/allOrders", params, rateLimit, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestCoinMargined, http.MethodGet, "/dapi/v1/allOrders", params, rateLimit, nil, &resp)
 }
 
 // GetFuturesAccountBalance gets account balance data for CoinMarginedFutures, account
 func (b *Binance) GetFuturesAccountBalance(ctx context.Context) ([]FuturesAccountBalanceData, error) {
 	var resp []FuturesAccountBalanceData
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestCoinMargined, http.MethodGet, "/dapi/v1/balance", nil, cFuturesDefaultRate, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestCoinMargined, http.MethodGet, "/dapi/v1/balance", nil, cFuturesDefaultRate, nil, &resp)
 }
 
 // GetFuturesAccountInfo gets account info data for CoinMarginedFutures, account
 func (b *Binance) GetFuturesAccountInfo(ctx context.Context) (*FuturesAccountInformation, error) {
 	var resp *FuturesAccountInformation
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestCoinMargined, http.MethodGet, "/dapi/v1/account", nil, cFuturesAccountInformationRate, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestCoinMargined, http.MethodGet, "/dapi/v1/account", nil, cFuturesAccountInformationRate, nil, &resp)
 }
 
 // FuturesChangeInitialLeverage changes initial leverage for the account
@@ -951,7 +911,7 @@ func (b *Binance) FuturesChangeInitialLeverage(ctx context.Context, symbol curre
 	params.Set("symbol", symbolValue)
 	params.Set("leverage", strconv.FormatFloat(leverage, 'f', -1, 64))
 	var resp *FuturesLeverageData
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestCoinMargined, http.MethodPost, "/dapi/v1/leverage", params, cFuturesDefaultRate, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestCoinMargined, http.MethodPost, "/dapi/v1/leverage", params, cFuturesDefaultRate, nil, &resp)
 }
 
 // FuturesChangeMarginType changes margin type
@@ -967,7 +927,7 @@ func (b *Binance) FuturesChangeMarginType(ctx context.Context, symbol currency.P
 	params.Set("symbol", symbolValue)
 	params.Set("marginType", marginType)
 	var resp *GenericAuthResponse
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestCoinMargined, http.MethodPost, "/dapi/v1/marginType", params, cFuturesDefaultRate, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestCoinMargined, http.MethodPost, "/dapi/v1/marginType", params, cFuturesDefaultRate, nil, &resp)
 }
 
 // ModifyIsolatedPositionMargin changes margin for an isolated position
@@ -991,7 +951,7 @@ func (b *Binance) ModifyIsolatedPositionMargin(ctx context.Context, symbol curre
 	params.Set("type", strconv.FormatInt(cType, 10))
 	params.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
 	var resp *FuturesMarginUpdatedResponse
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestCoinMargined, http.MethodPost, "/dapi/v1/positionMargin", params, cFuturesDefaultRate, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestCoinMargined, http.MethodPost, "/dapi/v1/positionMargin", params, cFuturesDefaultRate, nil, &resp)
 }
 
 // FuturesMarginChangeHistory gets past margin changes for positions
@@ -1018,7 +978,7 @@ func (b *Binance) FuturesMarginChangeHistory(ctx context.Context, symbol currenc
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	var resp []GetPositionMarginChangeHistoryData
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestCoinMargined, http.MethodGet, "/dapi/v1/positionMargin/history", params, cFuturesDefaultRate, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestCoinMargined, http.MethodGet, "/dapi/v1/positionMargin/history", params, cFuturesDefaultRate, nil, &resp)
 }
 
 // FuturesPositionsInfo gets futures positions info
@@ -1033,7 +993,7 @@ func (b *Binance) FuturesPositionsInfo(ctx context.Context, marginAsset, pair st
 		params.Set("pair", pair)
 	}
 	var resp []FuturesPositionInformation
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestCoinMargined, http.MethodGet, "/dapi/v1/positionRisk", params, cFuturesDefaultRate, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestCoinMargined, http.MethodGet, "/dapi/v1/positionRisk", params, cFuturesDefaultRate, nil, &resp)
 }
 
 // FuturesTradeHistory gets trade history for CoinMarginedFutures, account
@@ -1065,7 +1025,7 @@ func (b *Binance) FuturesTradeHistory(ctx context.Context, symbol currency.Pair,
 		params.Set("fromId", strconv.FormatInt(fromID, 10))
 	}
 	var resp []FuturesAccountTradeList
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestCoinMargined, http.MethodGet, "/dapi/v1/userTrades", params, rateLimit, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestCoinMargined, http.MethodGet, "/dapi/v1/userTrades", params, rateLimit, nil, &resp)
 }
 
 // FuturesIncomeHistory gets income history for CoinMarginedFutures,
@@ -1095,7 +1055,7 @@ func (b *Binance) FuturesIncomeHistory(ctx context.Context, symbol currency.Pair
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	var resp []FuturesIncomeHistoryData
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestCoinMargined, http.MethodGet, "/dapi/v1/income", params, cFuturesIncomeHistoryRate, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestCoinMargined, http.MethodGet, "/dapi/v1/income", params, cFuturesIncomeHistoryRate, nil, &resp)
 }
 
 // FuturesNotionalBracket gets futures notional bracket
@@ -1105,7 +1065,7 @@ func (b *Binance) FuturesNotionalBracket(ctx context.Context, pair string) ([]No
 		params.Set("pair", pair)
 	}
 	var resp []NotionalBracketData
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestCoinMargined, http.MethodGet, "/dapi/v1/leverageBracket", params, cFuturesDefaultRate, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestCoinMargined, http.MethodGet, "/dapi/v1/leverageBracket", params, cFuturesDefaultRate, nil, &resp)
 }
 
 // FuturesForceOrders gets futures forced orders
@@ -1132,7 +1092,7 @@ func (b *Binance) FuturesForceOrders(ctx context.Context, symbol currency.Pair, 
 		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
 	}
 	var resp []ForcedOrdersData
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestCoinMargined, http.MethodGet, "/dapi/v1/forceOrders", params, cFuturesDefaultRate, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestCoinMargined, http.MethodGet, "/dapi/v1/forceOrders", params, cFuturesDefaultRate, nil, &resp)
 }
 
 // FuturesPositionsADLEstimate estimates ADL on positions
@@ -1146,7 +1106,7 @@ func (b *Binance) FuturesPositionsADLEstimate(ctx context.Context, symbol curren
 		params.Set("symbol", symbolValue)
 	}
 	var resp []ADLEstimateData
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestCoinMargined, http.MethodGet, "/dapi/v1/adlQuantile", params, cFuturesAccountInformationRate, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestCoinMargined, http.MethodGet, "/dapi/v1/adlQuantile", params, cFuturesAccountInformationRate, nil, &resp)
 }
 
 // FetchCoinMarginExchangeLimits fetches coin margined order execution limits
