@@ -4753,3 +4753,187 @@ func TestCancelAllCMOpenConditionalOrders(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
+
+func TestGetUMOrder(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetUMOrder(context.Background(), "BTCUSDT", "", 1234)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetUMOpenOrder(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetUMOpenOrder(context.Background(), "BTCUSDT", "", 1234)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetAllUMOpenOrders(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetAllUMOpenOrders(context.Background(), "BTCUSDT")
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetAllUMOrders(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetAllUMOrders(context.Background(), "BTCUSDT", time.Now().Add(-time.Hour*24*6), time.Now().Add(-time.Hour*2), 0, 20)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetCMOrder(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetCMOrder(context.Background(), "BTCLTC", "", 1234)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetCMOpenOrder(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetCMOpenOrder(context.Background(), "BTCLTC", "", 1234)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetAllCMOpenOrders(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetAllCMOpenOrders(context.Background(), "BTCUSD_200925", "BTCUSD")
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetAllCMOrders(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetAllCMOrders(context.Background(), "BTCUSD_200925", "BTCUSD", time.Time{}, time.Time{}, 0, 20)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetOpenUMConditionalOrder(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetOpenUMConditionalOrder(context.Background(), "BTCUSDT", "newClientStrategyId", 0)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetAllUMOpenConditionalOrders(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetAllUMOpenConditionalOrders(context.Background(), "BTCUSDT")
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetAllUMConditionalOrderHistory(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetAllUMConditionalOrderHistory(context.Background(), "BTCUSDT", "abc", 123432423)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetAllUMConditionalOrders(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetAllUMConditionalOrders(context.Background(), "BTCUSDT", time.Time{}, time.Now(), 0, 123432423)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetOpenCMConditionalOrder(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetOpenCMConditionalOrder(context.Background(), "BTCUSD", "", 1234)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetAllCMOpenConditionalOrders(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetAllCMOpenConditionalOrders(context.Background(), "BTCUSDT")
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetAllCMConditionalOrderHistory(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetAllCMConditionalOrderHistory(context.Background(), "BTCUSDT", "abc", 123432423)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetAllCMConditionalOrders(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetAllCMConditionalOrders(context.Background(), "BTCUSDT", time.Time{}, time.Now(), 0, 123432423)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetMarginAccountOrder(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetMarginAccountOrder(context.Background(), "BNBBTC", "", 12434)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetCurrentMarginOpenOrder(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetCurrentMarginOpenOrder(context.Background(), "BNBBTC")
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetAllMarginAccountOrders(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetAllMarginAccountOrders(context.Background(), "BNBBTC", time.Time{}, time.Time{}, 0, 10)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetMarginAccountOCO(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetMarginAccountOCO(context.Background(), 0, "123421-abcde")
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetMarginAccountAllOCO(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetMarginAccountAllOCO(context.Background(), time.Now().Add(-time.Hour*24), time.Now(), 0, 12)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetMarginAccountsOpenOCO(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetMarginAccountsOpenOCO(context.Background())
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetMarginAccountTradeList(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetMarginAccountTradeList(context.Background(), "BNBBTC", time.Time{}, time.Time{}, 0, 0, 0)
+	require.NotNil(t, err)
+	assert.NotNil(t, result)
+}

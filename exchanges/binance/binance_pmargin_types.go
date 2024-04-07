@@ -192,3 +192,42 @@ type SuccessResponse struct {
 	Code    int64  `json:"code"`
 	Message string `json:"msg"`
 }
+
+// MarginOrder represents a margin account order
+type MarginOrder struct {
+	ClientOrderID           string               `json:"clientOrderId"`
+	CummulativeQuoteQty     types.Number         `json:"cummulativeQuoteQty"`
+	ExecutedQty             types.Number         `json:"executedQty"`
+	IcebergQty              types.Number         `json:"icebergQty"`
+	IsWorking               bool                 `json:"isWorking"`
+	OrderID                 int                  `json:"orderId"`
+	OrigQty                 types.Number         `json:"origQty"`
+	Price                   types.Number         `json:"price"`
+	Side                    string               `json:"side"`
+	Status                  string               `json:"status"`
+	StopPrice               types.Number         `json:"stopPrice"`
+	Symbol                  string               `json:"symbol"`
+	Time                    convert.ExchangeTime `json:"time"`
+	TimeInForce             string               `json:"timeInForce"`
+	Type                    string               `json:"type"`
+	UpdateTime              convert.ExchangeTime `json:"updateTime"`
+	AccountID               int64                `json:"accountId"`
+	SelfTradePreventionMode string               `json:"selfTradePreventionMode"`
+	PreventedMatchID        any                  `json:"preventedMatchId"`
+	PreventedQuantity       any                  `json:"preventedQuantity"`
+}
+
+// MarginAccountTradeItem represents a margin account trade item.
+type MarginAccountTradeItem struct {
+	ID              int64                `json:"id"`
+	Symbol          string               `json:"symbol"`
+	Commission      string               `json:"commission"`
+	CommissionAsset string               `json:"commissionAsset"`
+	IsBestMatch     bool                 `json:"isBestMatch"`
+	IsBuyer         bool                 `json:"isBuyer"`
+	IsMaker         bool                 `json:"isMaker"`
+	OrderID         int64                `json:"orderId"`
+	Price           types.Number         `json:"price"`
+	Qty             types.Number         `json:"qty"`
+	Time            convert.ExchangeTime `json:"time"`
+}
