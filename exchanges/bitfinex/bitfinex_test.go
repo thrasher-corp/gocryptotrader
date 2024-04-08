@@ -1316,7 +1316,7 @@ func TestWsCancelOffer(t *testing.T) {
 }
 
 func TestWsSubscribedResponse(t *testing.T) {
-	m, err := b.Websocket.Match.Set("subscribe:waiter1")
+	m, err := b.Websocket.Match.Set("subscribe:waiter1", 1)
 	assert.NoError(t, err, "Setting a matcher should not error")
 	err = b.wsHandleData([]byte(`{"event":"subscribed","channel":"ticker","chanId":224555,"subId":"waiter1","symbol":"tBTCUSD","pair":"BTCUSD"}`))
 	if assert.Error(t, err, "Should error if sub is not registered yet") {
