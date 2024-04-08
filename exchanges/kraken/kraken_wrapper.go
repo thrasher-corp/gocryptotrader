@@ -28,7 +28,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/buffer"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
@@ -169,14 +168,7 @@ func (k *Kraken) SetDefaults() {
 				GlobalResultLimit: 720,
 			},
 		},
-		Subscriptions: []*subscription.Subscription{
-			{Enabled: true, Channel: subscription.TickerChannel},
-			{Enabled: true, Channel: subscription.AllTradesChannel},
-			{Enabled: true, Channel: subscription.CandlesChannel, Interval: kline.OneMin},
-			{Enabled: true, Channel: subscription.OrderbookChannel, Levels: 1000},
-			{Enabled: true, Channel: subscription.MyOrdersChannel, Authenticated: true},
-			{Enabled: true, Channel: subscription.MyTradesChannel, Authenticated: true},
-		},
+		Subscriptions: defaultSubscriptions.Clone(),
 	}
 
 	k.Requester, err = request.New(k.Name,

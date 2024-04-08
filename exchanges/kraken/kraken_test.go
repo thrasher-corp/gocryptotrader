@@ -25,7 +25,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
@@ -35,8 +34,8 @@ import (
 
 var (
 	k               *Kraken
-	futuresTestPair = currency.NewPairWithDelimiter("PF", "XBTUSD", "_")
 	spotTestPair    = currency.NewPair(currency.XBT, currency.USD)
+	futuresTestPair = currency.NewPairWithDelimiter("PF", "XBTUSD", "_")
 )
 
 // Please add your own APIkeys to do correct due diligence testing.
@@ -912,42 +911,64 @@ func TestWsSubscribe(t *testing.T) {
 	require.NoError(t, testexch.Setup(k), "Setup Instance must not error")
 	testexch.SetupWs(t, k)
 
-	err := k.Subscribe(subscription.List{{Channel: subscription.TickerChannel, Pairs: currency.Pairs{spotTestPair}}})
-	assert.NoError(t, err, "Simple subscription should not error")
-	assert.Len(t, k.Websocket.GetSubscriptions(), 1, "Should add 1 Subscription")
+	for _, enabled := range []bool{false, true} {
+		require.NoError(t, k.SetPairs(currency.Pairs{
+			spotTestPair,
+			currency.NewPairWithDelimiter("ETH", "USD", "/"),
+			currency.NewPairWithDelimiter("LTC", "ETH", "/"),
+			currency.NewPairWithDelimiter("ETH", "XBT", "/"),
+			// Enable pairs that won't error locally, so we get upstream errors to test error combinations
+			currency.NewPairWithDelimiter("DWARF", "HOBBIT", "/"),
+			currency.NewPairWithDelimiter("DWARF", "GOBLIN", "/"),
+			currency.NewPairWithDelimiter("DWARF", "ELF", "/"),
+		}, asset.Spot, enabled), "SetPairs must not error")
+	}
 
-	err = k.Subscribe(subscription.List{{Channel: subscription.TickerChannel, Pairs: currency.Pairs{spotTestPair}}})
-	assert.ErrorIs(t, err, stream.ErrSubscriptionFailure, "Resubscribing to the same channel should error with SubFailure")
+	err := k.Subscribe(subscription.List{{Asset: asset.Spot, Channel: subscription.TickerChannel, Pairs: currency.Pairs{spotTestPair}}})
+	require.NoError(t, err, "Simple subscription must not error")
+	subs := k.Websocket.GetSubscriptions()
+	require.Len(t, subs, 1, "Should add 1 Subscription")
+	assert.Equal(t, subscription.SubscribedState, subs[0].State(), "Subscription should be subscribed state")
+
+	err = k.Subscribe(subscription.List{{Asset: asset.Spot, Channel: subscription.TickerChannel, Pairs: currency.Pairs{spotTestPair}}})
 	assert.ErrorIs(t, err, subscription.ErrDuplicate, "Resubscribing to the same channel should error with SubscribedAlready")
-	assert.Len(t, k.Websocket.GetSubscriptions(), 1, "Should not add a subscription on error")
+	subs = k.Websocket.GetSubscriptions()
+	require.Len(t, subs, 1, "Should not add a subscription on error")
+	assert.Equal(t, subscription.SubscribedState, subs[0].State(), "Existing subscription state should not change")
 
-	err = k.Subscribe(subscription.List{{Channel: subscription.TickerChannel, Pairs: currency.Pairs{currency.NewPairWithDelimiter("DWARF", "HOBBIT", "/")}}})
-	assert.ErrorIs(t, err, stream.ErrSubscriptionFailure, "Simple error subscription should error")
-	assert.ErrorContains(t, err, "Currency pair not supported DWARF/HOBBIT", "Subscribing to an invalid pair should error correctly")
+	err = k.Subscribe(subscription.List{{Asset: asset.Spot, Channel: subscription.TickerChannel, Pairs: currency.Pairs{currency.NewPairWithDelimiter("DWARF", "HOBBIT", "/")}}})
+	assert.ErrorContains(t, err, "Currency pair not supported; Channel: ticker Pairs: DWARF/HOBBIT", "Subscribing to an invalid pair should error correctly")
+	require.Len(t, k.Websocket.GetSubscriptions(), 1, "Should not add a subscription on error")
 
+	// Mix success and failure
 	err = k.Subscribe(subscription.List{
-		{Channel: subscription.TickerChannel, Pairs: currency.Pairs{currency.NewPairWithDelimiter("ETH", "USD", "/")}},
-		{Channel: subscription.TickerChannel, Pairs: currency.Pairs{currency.NewPairWithDelimiter("DWARF", "HOBBIT", "/")}},
-		{Channel: subscription.TickerChannel, Pairs: currency.Pairs{currency.NewPairWithDelimiter("DWARF", "ELF", "/")}},
+		{Asset: asset.Spot, Channel: subscription.TickerChannel, Pairs: currency.Pairs{currency.NewPairWithDelimiter("ETH", "USD", "/")}},
+		{Asset: asset.Spot, Channel: subscription.TickerChannel, Pairs: currency.Pairs{currency.NewPairWithDelimiter("DWARF", "HOBBIT", "/")}},
+		{Asset: asset.Spot, Channel: subscription.TickerChannel, Pairs: currency.Pairs{currency.NewPairWithDelimiter("DWARF", "ELF", "/")}},
 	})
-	assert.ErrorIs(t, err, stream.ErrSubscriptionFailure, "Mixed error subscription should error")
-	assert.ErrorContains(t, err, "Currency pair not supported DWARF/ELF", "Subscribing to an invalid pair should error correctly")
-	assert.Len(t, k.Websocket.GetSubscriptions(), 2, "Should have 2 subscriptions after mixed success/failures")
+	assert.ErrorContains(t, err, "Currency pair not supported; Channel: ticker Pairs:", "Subscribing to an invalid pair should error correctly")
+	assert.ErrorContains(t, err, "DWARF/HOBBIT", "Subscribing to an invalid pair should error correctly")
+	assert.ErrorContains(t, err, "DWARF/ELF", "Subscribing to an invalid pair should error correctly")
+	require.Len(t, k.Websocket.GetSubscriptions(), 2, "Should have 2 subscriptions after mixed success/failures")
 
+	// Just failures
 	err = k.Subscribe(subscription.List{
-		{Channel: subscription.TickerChannel, Pairs: currency.Pairs{currency.NewPairWithDelimiter("DWARF", "HOBBIT", "/")}},
-		{Channel: subscription.TickerChannel, Pairs: currency.Pairs{currency.NewPairWithDelimiter("DWARF", "GOBLIN", "/")}},
+		{Asset: asset.Spot, Channel: subscription.TickerChannel, Pairs: currency.Pairs{currency.NewPairWithDelimiter("DWARF", "HOBBIT", "/")}},
+		{Asset: asset.Spot, Channel: subscription.TickerChannel, Pairs: currency.Pairs{currency.NewPairWithDelimiter("DWARF", "GOBLIN", "/")}},
 	})
-	assert.ErrorIs(t, err, stream.ErrSubscriptionFailure, "Only failing subscriptions should error")
-	assert.ErrorContains(t, err, "Currency pair not supported DWARF/GOBLIN", "Subscribing to an invalid pair should error correctly")
+	assert.ErrorContains(t, err, "Currency pair not supported; Channel: ticker Pairs:", "Subscribing to an invalid pair should error correctly")
+	assert.ErrorContains(t, err, "DWARF/HOBBIT", "Subscribing to an invalid pair should error correctly")
+	assert.ErrorContains(t, err, "DWARF/GOBLIN", "Subscribing to an invalid pair should error correctly")
+	require.Len(t, k.Websocket.GetSubscriptions(), 2, "Should have 2 subscriptions after mixed success/failures")
 
+	// Just success
 	err = k.Subscribe(subscription.List{
-		{Channel: subscription.TickerChannel, Pairs: currency.Pairs{currency.NewPairWithDelimiter("ETH", "XBT", "/")}},
-		{Channel: subscription.TickerChannel, Pairs: currency.Pairs{currency.NewPairWithDelimiter("LTC", "ETH", "/")}},
+		{Asset: asset.Spot, Channel: subscription.TickerChannel, Pairs: currency.Pairs{currency.NewPairWithDelimiter("ETH", "XBT", "/")}},
+		{Asset: asset.Spot, Channel: subscription.TickerChannel, Pairs: currency.Pairs{currency.NewPairWithDelimiter("LTC", "ETH", "/")}},
 	})
 	assert.NoError(t, err, "Multiple successful subscriptions should not error")
 
-	subs := k.Websocket.GetSubscriptions()
+	subs = k.Websocket.GetSubscriptions()
 	assert.Len(t, subs, 4, "Should have correct number of subscriptions")
 
 	err = k.Unsubscribe(subs[:1])
@@ -955,16 +976,16 @@ func TestWsSubscribe(t *testing.T) {
 	assert.Len(t, k.Websocket.GetSubscriptions(), 3, "Should have removed 1 channel")
 
 	err = k.Unsubscribe(subscription.List{{Channel: subscription.TickerChannel, Pairs: currency.Pairs{currency.NewPairWithDelimiter("DWARF", "WIZARD", "/")}, Key: 1337}})
-	assert.ErrorIs(t, err, stream.ErrUnsubscribeFailure, "Simple failing Unsubscribe should error UnsubFail")
-	assert.ErrorContains(t, err, "Currency pair not supported DWARF/WIZARD", "Unsubscribing from an invalid pair should error correctly")
+	assert.ErrorIs(t, err, subscription.ErrNotFound, "Simple failing Unsubscribe should error NotFound")
+	assert.ErrorContains(t, err, "DWARF/WIZARD", "Unsubscribing from an invalid pair should error correctly")
 	assert.Len(t, k.Websocket.GetSubscriptions(), 3, "Should not have removed any channels")
 
 	err = k.Unsubscribe(subscription.List{
 		subs[1],
-		{Channel: subscription.TickerChannel, Pairs: currency.Pairs{currency.NewPairWithDelimiter("DWARF", "EAGLE", "/")}, Key: 1338},
+		{Asset: asset.Spot, Channel: subscription.TickerChannel, Pairs: currency.Pairs{currency.NewPairWithDelimiter("DWARF", "EAGLE", "/")}, Key: 1338},
 	})
-	assert.ErrorIs(t, err, stream.ErrUnsubscribeFailure, "Mixed failing Unsubscribe should error UnsubFail")
-	assert.ErrorContains(t, err, "Currency pair not supported DWARF/EAGLE", "Unsubscribing from an invalid pair should error correctly")
+	assert.ErrorIs(t, err, subscription.ErrNotFound, "Mixed failing Unsubscribe should error NotFound")
+	assert.ErrorContains(t, err, "Channel: ticker Pairs: DWARF/EAGLE", "Unsubscribing from an invalid pair should error correctly")
 
 	subs = k.Websocket.GetSubscriptions()
 	assert.Len(t, subs, 2, "Should have removed only 1 more channel")
@@ -975,6 +996,7 @@ func TestWsSubscribe(t *testing.T) {
 
 	for _, c := range []string{"ohlc", "ohlc-5"} {
 		err = k.Subscribe(subscription.List{{
+			Asset:   asset.Spot,
 			Channel: c,
 			Pairs:   currency.Pairs{spotTestPair},
 		}})
@@ -992,6 +1014,7 @@ func TestWsOrderbookSub(t *testing.T) {
 	testexch.SetupWs(t, k)
 
 	err := k.Subscribe(subscription.List{{
+		Asset:   asset.Spot,
 		Channel: subscription.OrderbookChannel,
 		Pairs:   currency.Pairs{spotTestPair},
 		Levels:  25,
@@ -1006,11 +1029,11 @@ func TestWsOrderbookSub(t *testing.T) {
 	assert.Empty(t, k.Websocket.GetSubscriptions(), "Should have successfully removed all channels")
 
 	err = k.Subscribe(subscription.List{{
+		Asset:   asset.Spot,
 		Channel: subscription.OrderbookChannel,
 		Pairs:   currency.Pairs{spotTestPair},
 		Levels:  42,
 	}})
-	assert.ErrorIs(t, err, stream.ErrSubscriptionFailure, "Bad subscription should error")
 	assert.ErrorContains(t, err, "Subscription depth not supported", "Bad subscription should error about depth")
 }
 
@@ -1023,6 +1046,7 @@ func TestWsCandlesSub(t *testing.T) {
 	testexch.SetupWs(t, k)
 
 	err := k.Subscribe(subscription.List{{
+		Asset:    asset.Spot,
 		Channel:  subscription.CandlesChannel,
 		Pairs:    currency.Pairs{spotTestPair},
 		Interval: kline.OneHour,
@@ -1037,11 +1061,11 @@ func TestWsCandlesSub(t *testing.T) {
 	assert.Empty(t, k.Websocket.GetSubscriptions(), "Should have successfully removed all channels")
 
 	err = k.Subscribe(subscription.List{{
+		Asset:    asset.Spot,
 		Channel:  subscription.CandlesChannel,
 		Pairs:    currency.Pairs{spotTestPair},
 		Interval: kline.Interval(time.Minute * time.Duration(127)),
 	}})
-	assert.ErrorIs(t, err, stream.ErrSubscriptionFailure, "Bad subscription should error")
 	assert.ErrorContains(t, err, "Subscription ohlc interval not supported", "Bad subscription should error about interval")
 }
 
@@ -1070,28 +1094,38 @@ func TestWsOwnTradesSub(t *testing.T) {
 func TestGenerateSubscriptions(t *testing.T) {
 	t.Parallel()
 
-	subs, err := k.generateSubscriptions()
-	require.NoError(t, err, "generateSubscriptions should not error")
 	pairs, err := k.GetEnabledPairs(asset.Spot)
 	require.NoError(t, err, "GetEnabledPairs must not error")
-	pairs = pairs.Format(currency.PairFormat{Uppercase: true, Delimiter: "/"})
 	require.False(t, k.Websocket.CanUseAuthenticatedEndpoints(), "Websocket must not be authenticated by default")
-	expected := subscription.List{}
-	for _, exp := range k.Features.Subscriptions {
-		if exp.Authenticated {
-			continue
-		}
-		s := exp.Clone()
+	exp := subscription.List{
+		{Channel: subscription.TickerChannel},
+		{Channel: subscription.AllTradesChannel},
+		{Channel: subscription.CandlesChannel, Interval: kline.OneMin},
+		{Channel: subscription.OrderbookChannel, Levels: 1000},
+	}
+	for _, s := range exp {
+		s.QualifiedChannel = channelName(s)
 		s.Asset = asset.Spot
 		s.Pairs = pairs
-		expected = append(expected, s)
 	}
-	testsubs.EqualLists(t, expected, subs)
+	subs, err := k.generateSubscriptions()
+	require.NoError(t, err, "generateSubscriptions should not error")
+	testsubs.EqualLists(t, exp, subs)
+
+	k.Websocket.SetCanUseAuthenticatedEndpoints(true)
+	exp = append(exp, subscription.List{
+		{Channel: subscription.MyOrdersChannel, QualifiedChannel: krakenWsOpenOrders},
+		{Channel: subscription.MyTradesChannel, QualifiedChannel: krakenWsOwnTrades},
+	}...)
+	subs, err = k.generateSubscriptions()
+	require.NoError(t, err, "generateSubscriptions should not error")
+	testsubs.EqualLists(t, exp, subs)
 }
 
 func TestGetWSToken(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, k)
+
 	k := new(Kraken) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
 	require.NoError(t, testexch.Setup(k), "Setup Instance must not error")
 	testexch.SetupWs(t, k)
@@ -1375,13 +1409,15 @@ func TestWsOrderbookMax10Depth(t *testing.T) {
 		currency.NewPairWithDelimiter("LUNA", "EUR", "/"),
 		currency.NewPairWithDelimiter("GST", "EUR", "/"),
 	}
-	err := k.Websocket.AddSuccessfulSubscriptions(&subscription.Subscription{
-		Channel: subscription.OrderbookChannel,
-		Pairs:   pairs,
-		Asset:   asset.Spot,
-		Levels:  10,
-	})
-	require.NoError(t, err, "AddSuccessfulSubscriptions must not error")
+	for _, p := range pairs {
+		err := k.Websocket.AddSuccessfulSubscriptions(&subscription.Subscription{
+			Channel: subscription.OrderbookChannel,
+			Pairs:   currency.Pairs{p},
+			Asset:   asset.Spot,
+			Levels:  10,
+		})
+		require.NoError(t, err, "AddSuccessfulSubscriptions must not error")
+	}
 
 	for x := range websocketXDGUSDOrderbookUpdates {
 		err := k.wsHandleData([]byte(websocketXDGUSDOrderbookUpdates[x]))
