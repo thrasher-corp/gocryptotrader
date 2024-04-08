@@ -56,11 +56,6 @@ type Subscription struct {
 	m             sync.RWMutex
 }
 
-// MatchableKey interface should be implemented by Key types which want a more complex matching than a simple key equality check
-type MatchableKey interface {
-	Match(any) bool
-}
-
 // String implements the Stringer interface for Subscription, giving a human representation of the subscription
 func (s *Subscription) String() string {
 	p := s.Pairs.Format(currency.PairFormat{Uppercase: true, Delimiter: "/"})
@@ -89,45 +84,20 @@ func (s *Subscription) SetState(state State) error {
 	return nil
 }
 
-// EnsureKeyed returns the subscription key
-// If no key exists then a pointer to the subscription itself will be used, since Subscriptions implement MatchableKey
-func (s *Subscription) EnsureKeyed() any {
-	if s.Key == nil {
-		s.Key = s
-	}
-	return s.Key
+// SetKey does what it says on the tin safely for concurrency
+func (s *Subscription) SetKey(key any) {
+	s.m.Lock()
+	defer s.m.Unlock()
+	s.Key = key
 }
 
-// Match returns if the two keys match Channels, Assets, Pairs, Interval and Levels:
-// s is the key being searched for, and eachSubKey is the key of every sub in the store
-// Key Pairs comparison:
-// 1) If s has Empty pairs then only a key without pairs match
-// 2) If len(s.Pairs) >= 1 then a key which contain all the pairs match
-// Such that a subscription for all enabled pairs will be matched when searching for any one pair
-func (s *Subscription) Match(eachSubKey any) bool {
-	var eachSub *Subscription
-	switch v := eachSubKey.(type) {
-	case *Subscription:
-		eachSub = v
-	case Subscription:
-		eachSub = &v
-	default:
-		return false
+// EnsureKeyed returns the subscription key
+// If no key exists then ExactKey will be used
+func (s *Subscription) EnsureKeyed() any {
+	if s.Key == nil {
+		s.Key = &ExactKey{s}
 	}
-
-	switch {
-	case eachSub.Channel != s.Channel,
-		eachSub.Asset != s.Asset,
-		// len(eachSub.Pairs) == 0 && len(s.Pairs) == 0: Okay; continue to next non-pairs check
-		len(eachSub.Pairs) == 0 && len(s.Pairs) != 0,
-		len(eachSub.Pairs) != 0 && len(s.Pairs) == 0,
-		len(s.Pairs) != 0 && eachSub.Pairs.ContainsAll(s.Pairs, true) != nil,
-		eachSub.Levels != s.Levels,
-		eachSub.Interval != s.Interval:
-		return false
-	}
-
-	return true
+	return s.Key
 }
 
 // Clone returns a copy of a subscription

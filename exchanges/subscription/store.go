@@ -141,8 +141,10 @@ func (s *Store) Clear() {
 // This method provides no locking protection
 func (s *Store) match(key MatchableKey) *Subscription {
 	for eachKey, s := range s.m {
-		if key.Match(eachKey) {
-			return s
+		if m, ok := eachKey.(MatchableKey); ok {
+			if key.Match(m) {
+				return s
+			}
 		}
 	}
 	return nil
