@@ -58,11 +58,6 @@ type Subscription struct {
 	m             sync.RWMutex
 }
 
-// MatchableKey interface should be implemented by Key types which want a more complex matching than a simple key equality check
-type MatchableKey interface {
-	Match(any) bool
-}
-
 // String implements the Stringer interface for Subscription, giving a human representation of the subscription
 func (s *Subscription) String() string {
 	p := s.Pairs.Format(currency.PairFormat{Uppercase: true, Delimiter: "/"})
@@ -91,45 +86,29 @@ func (s *Subscription) SetState(state State) error {
 	return nil
 }
 
-// EnsureKeyed returns the subscription key
-// If no key exists then a pointer to the subscription itself will be used, since Subscriptions implement MatchableKey
-func (s *Subscription) EnsureKeyed() any {
-	if s.Key == nil {
-		s.Key = s
-	}
-	return s.Key
+// SetKey does what it says on the tin safely for concurrency
+func (s *Subscription) SetKey(key any) {
+	s.m.Lock()
+	defer s.m.Unlock()
+	s.Key = key
 }
 
-// Match returns if the two keys match Channels, Assets, Pairs, Interval and Levels:
-// s is the key being searched for, and eachSubKey is the key of every sub in the store
-// Key Pairs comparison:
-// 1) If s has Empty pairs then only a key without pairs match
-// 2) If len(s.Pairs) >= 1 then a key which contain all the pairs match
-// Such that a subscription for all enabled pairs will be matched when searching for any one pair
-func (s *Subscription) Match(eachSubKey any) bool {
-	var eachSub *Subscription
-	switch v := eachSubKey.(type) {
-	case *Subscription:
-		eachSub = v
-	case Subscription:
-		eachSub = &v
-	default:
-		return false
+// EnsureKeyed returns the subscription key
+// If no key exists then ExactKey will be used
+func (s *Subscription) EnsureKeyed() any {
+	// Juggle RLock/WLock to minimize concurrent bottleneck for hottest path
+	s.m.RLock()
+	if s.Key != nil {
+		defer s.m.RUnlock()
+		return s.Key
 	}
-
-	switch {
-	case eachSub.Channel != s.Channel,
-		eachSub.Asset != s.Asset,
-		// len(eachSub.Pairs) == 0 && len(s.Pairs) == 0: Okay; continue to next non-pairs check
-		len(eachSub.Pairs) == 0 && len(s.Pairs) != 0,
-		len(eachSub.Pairs) != 0 && len(s.Pairs) == 0,
-		len(s.Pairs) != 0 && eachSub.Pairs.ContainsAll(s.Pairs, true) != nil,
-		eachSub.Levels != s.Levels,
-		eachSub.Interval != s.Interval:
-		return false
+	s.m.RUnlock()
+	s.m.Lock()
+	defer s.m.Unlock()
+	if s.Key == nil { // Ensure race hasn't updated Key whilst we swapped locks
+		s.Key = &ExactKey{s}
 	}
-
-	return true
+	return s.Key
 }
 
 // Clone returns a copy of a subscription
@@ -171,19 +150,5 @@ func (s *Subscription) AddPairs(pairs ...currency.Pair) {
 	for _, p := range pairs {
 		s.Pairs = s.Pairs.Add(p)
 	}
-	s.m.Unlock()
-}
-
-// SetPairs does what it says on the tin safely for currency
-func (s *Subscription) SetPairs(pairs currency.Pairs) {
-	s.m.Lock()
-	s.Pairs = pairs
-	s.m.Unlock()
-}
-
-// AddPair does what it says on the tin safely for concurrency
-func (s *Subscription) AddPair(pair currency.Pair) {
-	s.m.Lock()
-	s.Pairs = s.Pairs.Add(pair)
 	s.m.Unlock()
 }
