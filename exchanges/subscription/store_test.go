@@ -51,35 +51,6 @@ func TestAdd(t *testing.T) {
 	assert.Same(t, sub.Key, sub, "Add should call EnsureKeyed")
 }
 
-// AllPairsKey is a fixture for testing MatchableKey
-// Subscription.Match will match a key where all the pairs are contained in a subscription
-// This type, on the other hand, requires all pairs to match completely
-// Can be promoted to a public type if use-cases transpire
-type AllPairsKey Subscription
-
-var _ MatchableKey = &AllPairsKey{} // Enforce AllPairsKey must implement MatchableKey
-
-// Match implements MatchableKey
-// Returns true if the key excactly matches the subscription
-func (s *AllPairsKey) Match(eachSubKey any) bool {
-	eachSub, ok := eachSubKey.(*Subscription)
-	if !ok {
-		return false
-	}
-
-	switch {
-	case eachSub.Channel != s.Channel,
-		eachSub.Asset != s.Asset,
-		eachSub.Pairs.ContainsAll(s.Pairs, true) != nil,
-		s.Pairs.ContainsAll(eachSub.Pairs, true) != nil,
-		eachSub.Levels != s.Levels,
-		eachSub.Interval != s.Interval:
-		return false
-	}
-
-	return true
-}
-
 // TestGet exercises Get and get methods
 // Ensures that key's Match is used, but does not exercise subscription.Match; See TestMatch for that coverage
 func TestGet(t *testing.T) {
