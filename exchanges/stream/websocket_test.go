@@ -766,7 +766,7 @@ func TestSendMessageReturnResponse(t *testing.T) {
 	// with timeout
 	wc.ResponseMaxLimit = 1
 	_, err = wc.SendMessageReturnResponse(context.Background(), "123", request)
-	assert.ErrorIs(t, err, errMatchTimeout, "SendMessageReturnResponse should error when request ID not found")
+	assert.ErrorIs(t, err, ErrSignatureTimeout, "SendMessageReturnResponse should error when request ID not found")
 }
 
 type reporter struct {
