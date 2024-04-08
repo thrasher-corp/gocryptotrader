@@ -52,7 +52,8 @@ func (s *Store) Add(sub *Subscription) error {
 	return s.add(sub)
 }
 
-// Add adds a subscription to the store
+// add adds a subscription to the store
+// Key can be already set; if omitted EnsureKeyed will be used
 // This method provides no locking protection
 func (s *Store) add(sub *Subscription) error {
 	key := sub.EnsureKeyed()
@@ -61,6 +62,14 @@ func (s *Store) add(sub *Subscription) error {
 	}
 	s.m[key] = sub
 	return nil
+}
+
+// unsafeAdd adds a subscription to the store without checking if it is a duplicate
+// Key can be already set; if omitted EnsureKeyed will be used
+// This method provides no locking protection
+func (s *Store) unsafeAdd(sub *Subscription) {
+	key := sub.EnsureKeyed()
+	s.m[key] = sub
 }
 
 // Get returns a pointer to a subscription or nil if not found

@@ -16,3 +16,17 @@ func (l List) Strings() []string {
 	slices.Sort(s)
 	return s
 }
+
+// GroupPairs groups subscriptions which are identical apart from the Pairs
+// The returned List contains cloned Subscriptions, and the original Subscriptions are left alone
+func (l List) GroupPairs() (n List) {
+	s := NewStore()
+	for _, sub := range l {
+		if found := s.match(&IgnoringPairsKey{sub}); found == nil {
+			s.unsafeAdd(sub.Clone())
+		} else {
+			found.AddPairs(sub.Pairs...)
+		}
+	}
+	return s.List()
+}
