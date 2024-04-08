@@ -4937,3 +4937,210 @@ func TestGetMarginAccountTradeList(t *testing.T) {
 	require.NotNil(t, err)
 	assert.NotNil(t, result)
 }
+
+func TestGetAccountBalance(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetAccountBalance(context.Background(), currency.EMPTYCODE)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetPortfolioMarginAccountInformation(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetPortfolioMarginAccountInformation(context.Background())
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetMarginMaxBorrow(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetMarginMaxBorrow(context.Background())
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetMarginMaxWithdrawal(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetMarginMaxWithdrawal(context.Background(), currency.BTC)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetUMPositionInformation(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetUMPositionInformation(context.Background(), "BTCUSDT")
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetCMPositionInformation(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetCMPositionInformation(context.Background(), currency.ETH, "")
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestChangeUMInitialLeverage(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	result, err := b.ChangeUMInitialLeverage(context.Background(), "BTCUSDT", 29)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestChangeCMInitialLeverage(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	result, err := b.ChangeCMInitialLeverage(context.Background(), "BTCUSDT", 29)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestChangeUMPositionMode(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	result, err := b.ChangeUMPositionMode(context.Background(), true)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestChangeCMPositionMode(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	result, err := b.ChangeCMPositionMode(context.Background(), true)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetUMCurrentPositionMode(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetUMCurrentPositionMode(context.Background())
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetCMCurrentPositionMode(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetCMCurrentPositionMode(context.Background())
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetUMAccountTradeList(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetUMAccountTradeList(context.Background(), "BTCUSDT", time.Now().Add(-time.Hour*24*5), time.Now().Add(-time.Hour*24), 0, 0)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetCMAccountTradeList(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetCMAccountTradeList(context.Background(), "BTCUSDT", time.Now().Add(-time.Hour*24*5), time.Now().Add(-time.Hour*24), 0, 0)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetUMNotionalAndLeverageBrackets(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetUMNotionalAndLeverageBrackets(context.Background(), "BTCUSDT")
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetCMNotionalAndLeverageBrackets(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetCMNotionalAndLeverageBrackets(context.Background(), "BTCUSDT")
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetUsersMarginForceOrders(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetUsersMarginForceOrders(context.Background(), time.Now().Add(-time.Hour*24*5), time.Now().Add(-time.Hour*24), 0, 5)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetUsersUMForceOrderst(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetUsersUMForceOrders(context.Background(), "BTCUSDT", "", time.Time{}, time.Time{}, 10)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetUsersCMForceOrderst(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetUsersCMForceOrders(context.Background(), "BTCUSDT", "", time.Time{}, time.Time{}, 10)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetPortfolioMarginUMTradingQuantitativeRulesIndicator(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetPortfolioMarginUMTradingQuantitativeRulesIndicator(context.Background(), currency.EMPTYPAIR)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetUMUserCommissionRate(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetUMUserCommissionRate(context.Background(), "BTCUSDT")
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+func TestGetCMUserCommissionRate(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetCMUserCommissionRate(context.Background(), "BTCUSD_PERP")
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetMarginLoanRecord(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetMarginLoanRecord(context.Background(), currency.ETH, time.Now().Add(-time.Hour*24*5), time.Now().Add(-time.Hour*24), 0, 10, 1)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetMarginRepayRecord(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetMarginRepayRecord(context.Background(), currency.ETH, time.Now().Add(-time.Hour*24*5), time.Now().Add(-time.Hour*24), 0, 10, 1)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetMarginBorrowOrLoanInterestHistory(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetMarginBorrowOrLoanInterestHistory(context.Background(), currency.ETH, time.Now().Add(-time.Hour*24*5), time.Now().Add(-time.Hour*24), 0, 10, 1)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetPortfolioMarginNegativeBalanceInterestHistory(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetPortfolioMarginNegativeBalanceInterestHistory(context.Background(), currency.ETH, time.Now().Add(-time.Hour*24*5), time.Now().Add(-time.Hour*24), 10)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}

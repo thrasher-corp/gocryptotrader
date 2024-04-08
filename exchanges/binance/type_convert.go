@@ -112,3 +112,18 @@ func (a *AssetIndexResponse) UnmarshalJSON(data []byte) error {
 	*a = resp
 	return nil
 }
+
+// UnmarshalJSON unmarshals a []byte data in an object or array form to AccountBalanceResponse([]AccountBalance) instance.
+func (a *AccountBalanceResponse) UnmarshalJSON(data []byte) error {
+	var resp []AccountBalance
+	err := json.Unmarshal(data, &resp)
+	if err != nil {
+		resp = make([]AccountBalance, 1)
+		err := json.Unmarshal(data, &resp[0])
+		if err != nil {
+			return err
+		}
+	}
+	*a = resp
+	return nil
+}

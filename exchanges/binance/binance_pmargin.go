@@ -653,3 +653,352 @@ func (b *Binance) GetMarginAccountTradeList(ctx context.Context, symbol string, 
 }
 
 //  ---------------------------------------------------  Account Endpoints  -------------------------------------------------------------------------------------
+
+// GetAccountBalance retrieves all account balance information related to an asset/assets(if assetName is not provided).
+func (b *Binance) GetAccountBalance(ctx context.Context, assetName currency.Code) (AccountBalanceResponse, error) {
+	params := url.Values{}
+	if !assetName.IsEmpty() {
+		params.Set("asset", assetName.String())
+	}
+	var resp AccountBalanceResponse
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestFuturesSupplementary, http.MethodGet, "/papi/v1/balance", params, spotDefaultRate, nil, &resp)
+}
+
+// GetPortfolioMarginAccountInformation retrieves an account information
+func (b *Binance) GetPortfolioMarginAccountInformation(ctx context.Context) (*AccountInformation, error) {
+	var resp *AccountInformation
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestFuturesSupplementary, http.MethodGet, "/papi/v1/account", nil, spotDefaultRate, nil, &resp)
+}
+
+// GetMarginMaxBorrow holds the maxium borrowable amount limited by the account level.
+func (b *Binance) GetMarginMaxBorrow(ctx context.Context) (*MaxBorrow, error) {
+	var resp *MaxBorrow
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestFuturesSupplementary, http.MethodGet, "/papi/v1/margin/maxBorrowable", nil, spotDefaultRate, nil, &resp)
+}
+
+// GetMarginMaxWithdrawal retrieves the maximum withdrawal amount allowed for margin account.
+func (b *Binance) GetMarginMaxWithdrawal(ctx context.Context, assetName currency.Code) (float64, error) {
+	if assetName.IsEmpty() {
+		return 0, currency.ErrCurrencyCodeEmpty
+	}
+	resp := &struct {
+		Amount float64 `json:"amount"`
+	}{}
+	params := url.Values{}
+	params.Set("amount", assetName.String())
+	return resp.Amount, b.SendAuthHTTPRequest(ctx, exchange.RestFuturesSupplementary, http.MethodGet, "/papi/v1/margin/maxWithdraw", params, spotDefaultRate, nil, &resp)
+}
+
+// GetUMPositionInformation get current UM position information.
+//
+// for One-way Mode user, the response will only show the "BOTH" positions
+// for Hedge Mode user, the response will show "LONG", and "SHORT" positions.
+func (b *Binance) GetUMPositionInformation(ctx context.Context, symbol string) ([]UMPositionInformation, error) {
+	params := url.Values{}
+	if symbol != "" {
+		params.Set("symbol", symbol)
+	}
+	var resp []UMPositionInformation
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestFuturesSupplementary, http.MethodGet, "/papi/v1/um/positionRisk", params, spotDefaultRate, nil, &resp)
+}
+
+// GetCMPositionInformation retrieves current margin position information.
+func (b *Binance) GetCMPositionInformation(ctx context.Context, marginAsset currency.Code, pair string) ([]CMPositionInformation, error) {
+	params := url.Values{}
+	if !marginAsset.IsEmpty() {
+		params.Set("marginAsset", marginAsset.String())
+	}
+	if pair != "" {
+		params.Set("pair", pair)
+	}
+	var resp []CMPositionInformation
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestFuturesSupplementary, http.MethodGet, "/papi/v1/cm/positionRisk", params, spotDefaultRate, nil, &resp)
+}
+
+// ChangeUMInitialLeverage changes user's initial leverage of specific symbol in UM.
+func (b *Binance) ChangeUMInitialLeverage(ctx context.Context, symbol string, leverage float64) (*InitialLeverage, error) {
+	if symbol == "" {
+		return nil, currency.ErrSymbolStringEmpty
+	}
+	if leverage < 1 || leverage > 125 {
+		return nil, errors.New("invalid leverage, must be between 1 and 125")
+	}
+	params := url.Values{}
+	params.Set("symbol", symbol)
+	params.Set("leverage", strconv.FormatFloat(leverage, 'f', -1, 64))
+	var resp *InitialLeverage
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestFuturesSupplementary, http.MethodPost, "/papi/v1/um/leverage", params, spotDefaultRate, nil, &resp)
+}
+
+// ChangeCMInitialLeverage change user's initial leverage of specific symbol in CM.
+func (b *Binance) ChangeCMInitialLeverage(ctx context.Context, symbol string, leverage float64) (*CMInitialLeverage, error) {
+	if symbol == "" {
+		return nil, currency.ErrSymbolStringEmpty
+	}
+	if leverage < 1 || leverage > 125 {
+		return nil, errors.New("invalid leverage, must be between 1 and 125")
+	}
+	params := url.Values{}
+	params.Set("symbol", symbol)
+	params.Set("leverage", strconv.FormatFloat(leverage, 'f', -1, 64))
+	var resp *CMInitialLeverage
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestFuturesSupplementary, http.MethodPost, "/papi/v1/cm/leverage", params, spotDefaultRate, nil, &resp)
+}
+
+// ChangeUMPositionMode change user's position mode (Hedge Mode or One-way Mode ) on EVERY symbol in UM
+func (b *Binance) ChangeUMPositionMode(ctx context.Context, dualSidePosition bool) (*SuccessResponse, error) {
+	return b.changeUMCMPositionMode(ctx, dualSidePosition, "/papi/v1/um/positionSide/dual")
+}
+
+// ChangeCMPositionMode change user's position mode (Hedge Mode or One-way Mode ) on EVERY symbol in CM
+func (b *Binance) ChangeCMPositionMode(ctx context.Context, dualSidePosition bool) (*SuccessResponse, error) {
+	return b.changeUMCMPositionMode(ctx, dualSidePosition, "/papi/v1/cm/positionSide/dual")
+}
+func (b *Binance) changeUMCMPositionMode(ctx context.Context, dualSidePosition bool, path string) (*SuccessResponse, error) {
+	params := url.Values{}
+	if dualSidePosition {
+		params.Set("dualSidePosition", "true")
+	} else {
+		params.Set("dualSidePosition", "false")
+	}
+	var resp *SuccessResponse
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestFuturesSupplementary, http.MethodPost, path, params, spotDefaultRate, nil, &resp)
+}
+
+// GetUMCurrentPositionMode get user's position mode (Hedge Mode or One-way Mode ) on EVERY symbol in UM
+func (b *Binance) GetUMCurrentPositionMode(ctx context.Context) (*DualPositionMode, error) {
+	return b.getPositionMode(ctx, "/papi/v1/um/positionSide/dual")
+}
+
+// GetCMCurrentPositionMode get user's position mode (Hedge Mode or One-way Mode ) on EVERY symbol in CM
+func (b *Binance) GetCMCurrentPositionMode(ctx context.Context) (*DualPositionMode, error) {
+	return b.getPositionMode(ctx, "/papi/v1/cm/positionSide/dual")
+}
+
+func (b *Binance) getPositionMode(ctx context.Context, path string) (*DualPositionMode, error) {
+	var resp *DualPositionMode
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestFuturesSupplementary, http.MethodGet, path, nil, spotDefaultRate, nil, &resp)
+}
+
+// GetUMAccountTradeList get trades for a specific account and UM symbol.
+func (b *Binance) GetUMAccountTradeList(ctx context.Context, symbol string, startTime, endTime time.Time, fromID, limit int64) ([]UMCMAccountTradeItem, error) {
+	return b.getUMCMAccountTradeList(ctx, symbol, "/papi/v1/um/userTrades", startTime, endTime, fromID, limit)
+}
+
+// GetCMAccountTradeList get trades for a specific account and CM symbol.
+func (b *Binance) GetCMAccountTradeList(ctx context.Context, symbol string, startTime, endTime time.Time, fromID, limit int64) ([]UMCMAccountTradeItem, error) {
+	return b.getUMCMAccountTradeList(ctx, symbol, "/papi/v1/cm/userTrades", startTime, endTime, fromID, limit)
+}
+
+func (b *Binance) getUMCMAccountTradeList(ctx context.Context, symbol, path string, startTime, endTime time.Time, fromID, limit int64) ([]UMCMAccountTradeItem, error) {
+	if symbol == "" {
+		return nil, currency.ErrSymbolStringEmpty
+	}
+	params := url.Values{}
+	params.Set("symbol", symbol)
+	if !startTime.IsZero() && !endTime.IsZero() {
+		err := common.StartEndTimeCheck(startTime, endTime)
+		if err != nil {
+			return nil, err
+		}
+		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
+	}
+	if fromID > 0 {
+		params.Set("fromId", strconv.FormatInt(fromID, 10))
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	var resp []UMCMAccountTradeItem
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestFuturesSupplementary, http.MethodGet, path, params, spotDefaultRate, nil, &resp)
+}
+
+// GetUMNotionalAndLeverageBrackets query UM notional and leverage brackets
+func (b *Binance) GetUMNotionalAndLeverageBrackets(ctx context.Context, symbol string) ([]NotionalAndLeverage, error) {
+	params := url.Values{}
+	if symbol != "" {
+		params.Set("symbol", symbol)
+	}
+	var resp []NotionalAndLeverage
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestFuturesSupplementary, http.MethodGet, "/papi/v1/um/leverageBracket", params, spotDefaultRate, nil, &resp)
+}
+
+// GetCMNotionalAndLeverageBrackets query UM notional and leverage brackets
+func (b *Binance) GetCMNotionalAndLeverageBrackets(ctx context.Context, symbol string) ([]CMNotionalAndLeverage, error) {
+	params := url.Values{}
+	if symbol != "" {
+		params.Set("symbol", symbol)
+	}
+	var resp []CMNotionalAndLeverage
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestFuturesSupplementary, http.MethodGet, "/papi/v1/cm/leverageBracket", params, spotDefaultRate, nil, &resp)
+}
+
+// GetUsersMarginForceOrders query user's margin force orders
+func (b *Binance) GetUsersMarginForceOrders(ctx context.Context, startTime, endTime time.Time, current, size int64) (*MarginForceOrder, error) {
+	params := url.Values{}
+	if !startTime.IsZero() && !endTime.IsZero() {
+		err := common.StartEndTimeCheck(startTime, endTime)
+		if err != nil {
+			return nil, err
+		}
+		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
+	}
+	if current > 0 {
+		params.Set("current", strconv.FormatInt(current, 10))
+	}
+	if size > 0 {
+		params.Set("size", strconv.FormatInt(size, 10))
+	}
+	var resp *MarginForceOrder
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestFuturesSupplementary, http.MethodGet, "/papi/v1/margin/forceOrders", params, spotDefaultRate, nil, &resp)
+}
+
+// GetUsersUMForceOrders query User's UM Force Orders
+func (b *Binance) GetUsersUMForceOrders(ctx context.Context, symbol, autoCloseType string, startTime, endTime time.Time, limit int64) ([]ForceOrder, error) {
+	return b.getUsersUMCMForceOrders(ctx, symbol, autoCloseType, "/papi/v1/um/forceOrders", startTime, endTime, limit)
+}
+
+// GetUsersCMForceOrders query User's CM Force Orders
+func (b *Binance) GetUsersCMForceOrders(ctx context.Context, symbol, autoCloseType string, startTime, endTime time.Time, limit int64) ([]ForceOrder, error) {
+	return b.getUsersUMCMForceOrders(ctx, symbol, autoCloseType, "/papi/v1/cm/forceOrders", startTime, endTime, limit)
+}
+
+func (b *Binance) getUsersUMCMForceOrders(ctx context.Context, symbol, autoCloseType, path string, startTime, endTime time.Time, limit int64) ([]ForceOrder, error) {
+	params := url.Values{}
+	if symbol != "" {
+		params.Set("symbol", symbol)
+	}
+	if !startTime.IsZero() && !endTime.IsZero() {
+		err := common.StartEndTimeCheck(startTime, endTime)
+		if err != nil {
+			return nil, err
+		}
+		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
+	}
+	if autoCloseType != "" {
+		params.Set("autoCloseType", autoCloseType)
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	var resp []ForceOrder
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestFuturesSupplementary, http.MethodGet, path, params, spotDefaultRate, nil, &resp)
+}
+
+// GetPortfolioMarginUMTradingQuantitativeRulesIndicator retrieves rules that regulate general trading based on the quantitative indicators
+func (b *Binance) GetPortfolioMarginUMTradingQuantitativeRulesIndicator(ctx context.Context, symbol currency.Pair) (*TradingQuantitativeRulesIndicators, error) {
+	params := url.Values{}
+	if !symbol.IsEmpty() {
+		params.Set("symbol", symbol.String())
+	}
+	var resp *TradingQuantitativeRulesIndicators
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestFuturesSupplementary, http.MethodGet, "/papi/v1/um/apiTradingStatus", params, uFuturesDefaultRate, nil, &resp)
+}
+
+// GetUMUserCommissionRate retrieves usdt margined account user's commission rate
+func (b *Binance) GetUMUserCommissionRate(ctx context.Context, symbol string) (*CommissionRate, error) {
+	return b.getUserCommissionRate(ctx, symbol, "/papi/v1/um/commissionRate")
+}
+
+// GetCMUserCommissionRate retrieves coin margined account user's commission rate
+func (b *Binance) GetCMUserCommissionRate(ctx context.Context, symbol string) (*CommissionRate, error) {
+	return b.getUserCommissionRate(ctx, symbol, "/papi/v1/cm/commissionRate")
+}
+
+func (b *Binance) getUserCommissionRate(ctx context.Context, symbol, path string) (*CommissionRate, error) {
+	if symbol == "" {
+		return nil, currency.ErrSymbolStringEmpty
+	}
+	params := url.Values{}
+	params.Set("symbol", symbol)
+	var resp *CommissionRate
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestFuturesSupplementary, http.MethodGet, path, params, spotDefaultRate, nil, &resp)
+}
+
+func prepareMarginLoanOrRepayParams(assetName currency.Code, startTime, endTime time.Time, transactionID, current, size int64) (url.Values, error) {
+	params := url.Values{}
+	if !assetName.IsEmpty() {
+		params.Set("assetName", assetName.String())
+	}
+	if transactionID > 0 {
+		params.Set("txId", strconv.FormatInt(transactionID, 10))
+	}
+	if !startTime.IsZero() && !endTime.IsZero() {
+		err := common.StartEndTimeCheck(startTime, endTime)
+		if err != nil {
+			return nil, err
+		}
+		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
+	}
+	if current > 0 {
+		params.Set("current", strconv.FormatInt(current, 10))
+	}
+	if size > 0 {
+		params.Set("size", strconv.FormatInt(size, 10))
+	}
+	return params, nil
+}
+
+// GetMarginLoanRecord query margin loan record
+func (b *Binance) GetMarginLoanRecord(ctx context.Context, assetName currency.Code, startTime, endTime time.Time, transactionID, current, size int64) (*MarginLoanRecord, error) {
+	if assetName.IsEmpty() {
+		return nil, currency.ErrCurrencyCodeEmpty
+	}
+	params, err := prepareMarginLoanOrRepayParams(assetName, startTime, endTime, transactionID, current, size)
+	if err != nil {
+		return nil, err
+	}
+	var resp *MarginLoanRecord
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestFuturesSupplementary, http.MethodGet, "/papi/v1/margin/marginLoan", params, spotDefaultRate, nil, &resp)
+}
+
+// GetMarginRepayRecord query margin repay record.
+func (b *Binance) GetMarginRepayRecord(ctx context.Context, assetName currency.Code, startTime, endTime time.Time, transactionID, current, size int64) (*MarginRepayRecord, error) {
+	if assetName.IsEmpty() {
+		return nil, currency.ErrCurrencyCodeEmpty
+	}
+	params, err := prepareMarginLoanOrRepayParams(assetName, startTime, endTime, transactionID, current, size)
+	if err != nil {
+		return nil, err
+	}
+	var resp *MarginRepayRecord
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestFuturesSupplementary, http.MethodGet, "/papi/v1/margin/repayLoan", params, spotDefaultRate, nil, &resp)
+}
+
+// GetMarginBorrowOrLoanInterestHistory retrieves margin borrow loan interest history
+func (b *Binance) GetMarginBorrowOrLoanInterestHistory(ctx context.Context, assetName currency.Code, startTime, endTime time.Time, transactionID, current, size int64) (*MarginBorrowOrLoanInterest, error) {
+	params, err := prepareMarginLoanOrRepayParams(assetName, startTime, endTime, transactionID, current, size)
+	if err != nil {
+		return nil, err
+	}
+	var resp *MarginBorrowOrLoanInterest
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestFuturesSupplementary, http.MethodGet, "/papi/v1/margin/marginInterestHistory", params, spotDefaultRate, nil, &resp)
+}
+
+// GetPortfolioMarginNegativeBalanceInterestHistory retrieves interest history of negative balance for portfolio margin.
+func (b *Binance) GetPortfolioMarginNegativeBalanceInterestHistory(ctx context.Context, assetName currency.Code, startTime, endTime time.Time, size int64) (*PortfolioMarginNegativeBalanceInterest, error) {
+	params := url.Values{}
+	if !assetName.IsEmpty() {
+		params.Set("asset", assetName.String())
+	}
+	if !startTime.IsZero() && !endTime.IsZero() {
+		err := common.StartEndTimeCheck(startTime, endTime)
+		if err != nil {
+			return nil, err
+		}
+		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
+	}
+	if size > 0 {
+		params.Set("size", strconv.FormatInt(size, 10))
+	}
+	var resp *PortfolioMarginNegativeBalanceInterest
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestFuturesSupplementary, http.MethodGet, "/papi/v1/portfolio/interest-history", params, spotDefaultRate, nil, &resp)
+}
+
+// FundAutoCollection
+// func (b *Binance) FundAutoCollection(ctx context.Context, )
