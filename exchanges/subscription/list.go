@@ -16,3 +16,23 @@ func (l List) Strings() []string {
 	slices.Sort(s)
 	return s
 }
+
+// GroupPairs groups subscriptions which are identical apart from the Pair
+func (l List) GroupPairs() (n List) {
+	for len(l) > 0 {
+		s := l[0]
+		key := &IgnoringPairsKey{s}
+		n = append(n, s)
+		// Remove the first element, and any which match it
+		l = slices.DeleteFunc(l[1:], func(eachSub *Subscription) bool {
+			if m, ok := eachSub.Key.(MatchableKey); ok {
+				if key.Match(m) {
+					s.AddPairs(eachSub.Pairs...)
+					return true
+				}
+			}
+			return false
+		})
+	}
+	return
+}

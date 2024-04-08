@@ -119,9 +119,11 @@ func (s *Subscription) SetPairs(pairs currency.Pairs) {
 	s.m.Unlock()
 }
 
-// AddPair does what it says on the tin safely for concurrency
-func (s *Subscription) AddPair(pair currency.Pair) {
+// AddPairs does what it says on the tin safely for concurrency
+func (s *Subscription) AddPairs(pairs ...currency.Pair) {
 	s.m.Lock()
-	s.Pairs = s.Pairs.Add(pair)
+	for _, p := range pairs {
+		s.Pairs = s.Pairs.Add(p)
+	}
 	s.m.Unlock()
 }
