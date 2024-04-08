@@ -5,7 +5,6 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
@@ -53,9 +52,9 @@ func TestSetState(t *testing.T) {
 func TestEnsureKeyed(t *testing.T) {
 	t.Parallel()
 	s := &Subscription{}
-	k1, ok := s.EnsureKeyed().(*Subscription)
-	if assert.True(t, ok, "EnsureKeyed should return a *Subscription") {
-		assert.Same(t, s, k1, "Key should point to the same struct")
+	k1, ok := s.EnsureKeyed().(MatchableKey)
+	if assert.True(t, ok, "EnsureKeyed should return a MatchableKey") {
+		assert.Same(t, s, k1.GetSubscription(), "Key should point to the same struct")
 	}
 	type platypus string
 	s = &Subscription{
@@ -86,55 +85,6 @@ func TestSubscriptionMarshaling(t *testing.T) {
 	j, err = json.Marshal(&Subscription{Enabled: true, Channel: MyTradesChannel, Authenticated: true})
 	assert.NoError(t, err, "Marshalling should not error")
 	assert.Equal(t, `{"enabled":true,"channel":"myTrades","authenticated":true}`, string(j), "Marshalling should be clean and concise")
-}
-
-// TestSubscriptionMatch exercises the Subscription MatchableKey interface implementation
-// Given A.Match(B):
-// Where A is the incoming key, and B is each key in the store
-// Ensures A.Pairs must be a subset of B.Pairs
-func TestSubscriptionMatch(t *testing.T) {
-	t.Parallel()
-	require.Implements(t, (*MatchableKey)(nil), new(Subscription), "Must implement MatchableKey")
-
-	key := &Subscription{Channel: TickerChannel}
-	try := &Subscription{Channel: OrderbookChannel}
-
-	assert.NotNil(t, key.EnsureKeyed(), "EnsureKeyed should work")
-	assert.False(t, key.Match(42), "Match should reject an invalid key type")
-
-	require.False(t, key.Match(try), "Gate 1: Match must reject a bad Channel")
-	try = &Subscription{Channel: TickerChannel}
-	require.True(t, key.Match(Subscription{Channel: TickerChannel}), "Match must accept a pass-by-value subscription")
-	require.True(t, key.Match(try), "Gate 1: Match must accept a good Channel")
-	key.Asset = asset.Spot
-	require.False(t, key.Match(try), "Gate 2: Match must reject a bad Asset")
-	try.Asset = asset.Spot
-	require.True(t, key.Match(try), "Gate 2: Match must accept a good Asset")
-
-	key.Pairs = currency.Pairs{btcusdtPair}
-	require.False(t, key.Match(try), "Gate 3: Match must reject B empty Pairs when key has Pairs")
-	try.Pairs = currency.Pairs{btcusdtPair}
-	key.Pairs = nil
-	require.False(t, key.Match(try), "Gate 4: Match must reject B has Pairs when key has empty Pairs")
-	key.Pairs = currency.Pairs{btcusdtPair}
-	require.True(t, key.Match(try), "Gate 5: Match must accept matching pairs")
-	key.Pairs = currency.Pairs{ethusdcPair}
-	require.False(t, key.Match(try), "Gate 5: Match must reject when key.Pairs not in try.Pairs")
-	try.Pairs = currency.Pairs{btcusdtPair, ethusdcPair}
-	require.True(t, key.Match(try), "Gate 5: Match must accept one of the key.Pairs in try.Pairs")
-	key.Pairs = currency.Pairs{btcusdtPair, ethusdcPair}
-	try.Pairs = currency.Pairs{btcusdtPair, ltcusdcPair}
-	require.False(t, key.Match(try), "Gate 5: Match must reject when key.Pairs not in try.Pairs")
-	try.Pairs = currency.Pairs{btcusdtPair, ethusdcPair, ltcusdcPair}
-	require.True(t, key.Match(try), "Gate 5: Match must accept when all key.Pairs are subset of try.Pairs")
-	key.Levels = 4
-	require.False(t, key.Match(try), "Gate 6: Match must reject a bad Level")
-	try.Levels = 4
-	require.True(t, key.Match(try), "Gate 6: Match must accept a good Level")
-	key.Interval = kline.FiveMin
-	require.False(t, key.Match(try), "Gate 7: Match must reject a bad Interval")
-	try.Interval = kline.FiveMin
-	require.True(t, key.Match(try), "Gate 7: Match must accept a good Interval")
 }
 
 // TestClone exercises Clone

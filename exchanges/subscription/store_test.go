@@ -48,7 +48,7 @@ func TestAdd(t *testing.T) {
 	require.NoError(t, s.Add(sub), "Should not error on a standard add")
 	assert.NotNil(t, s.get(sub), "Should have stored the sub")
 	assert.ErrorIs(t, s.Add(sub), ErrDuplicate, "Should error on duplicates")
-	assert.Same(t, sub.Key, sub, "Add should call EnsureKeyed")
+	assert.NotNil(t, sub.Key, sub, "Add should call EnsureKeyed")
 }
 
 // TestGet exercises Get and get methods
@@ -75,12 +75,12 @@ func TestGet(t *testing.T) {
 	assert.Same(t, exp[3], s.Get(Subscription{Channel: CandlesChannel, Pairs: currency.Pairs{btcusdtPair}}), "Should return pointer for single pair lookup")
 	assert.Nil(t, s.Get(Subscription{Channel: CandlesChannel, Pairs: currency.Pairs{btcusdtPair, ltcusdcPair}}), "Should return nil for a bad lookup")
 
-	// Tests for a MatchableKey, ensuring that AllPairsKey works
-	assert.Nil(t, s.Get(&AllPairsKey{Channel: CandlesChannel}), "Should return nil without pairs")
-	assert.Nil(t, s.Get(&AllPairsKey{Channel: CandlesChannel, Pairs: currency.Pairs{ltcusdcPair}}), "Should return nil with wrong pair")
-	assert.Nil(t, s.Get(&AllPairsKey{Channel: CandlesChannel, Pairs: currency.Pairs{btcusdtPair}}), "Should return nil with only one right pair")
-	assert.Same(t, exp[3], s.Get(&AllPairsKey{Channel: CandlesChannel, Pairs: currency.Pairs{btcusdtPair, ethusdcPair}}), "Should return pointer when all pairs match")
-	assert.Nil(t, s.Get(&AllPairsKey{Channel: CandlesChannel, Pairs: currency.Pairs{btcusdtPair, ethusdcPair, ltcusdcPair}}), "Should return nil when key is superset of pairs")
+	// Tests for a MatchableKey, ensuring that ExactKey works
+	assert.Nil(t, s.Get(&ExactKey{&Subscription{Channel: CandlesChannel}}), "Should return nil without pairs")
+	assert.Nil(t, s.Get(&ExactKey{&Subscription{Channel: CandlesChannel, Pairs: currency.Pairs{ltcusdcPair}}}), "Should return nil with wrong pair")
+	assert.Nil(t, s.Get(&ExactKey{&Subscription{Channel: CandlesChannel, Pairs: currency.Pairs{btcusdtPair}}}), "Should return nil with only one right pair")
+	assert.Same(t, exp[3], s.Get(&ExactKey{&Subscription{Channel: CandlesChannel, Pairs: currency.Pairs{btcusdtPair, ethusdcPair}}}), "Should return pointer when all pairs match")
+	assert.Nil(t, s.Get(&ExactKey{&Subscription{Channel: CandlesChannel, Pairs: currency.Pairs{btcusdtPair, ethusdcPair, ltcusdcPair}}}), "Should return nil when key is superset of pairs")
 }
 
 // TestRemove exercises the Remove method
@@ -91,11 +91,11 @@ func TestRemove(t *testing.T) {
 
 	s := NewStore()
 	require.NoError(t, s.Add(&Subscription{Channel: CandlesChannel, Pairs: currency.Pairs{btcusdtPair, ethusdcPair}}), "Adding subscription must not error")
-	assert.NotNil(t, s.Get(&AllPairsKey{Channel: CandlesChannel, Pairs: currency.Pairs{btcusdtPair, ethusdcPair}}), "Should have added the sub")
-	assert.ErrorIs(t, s.Remove(&AllPairsKey{Channel: CandlesChannel, Pairs: currency.Pairs{btcusdtPair}}), ErrNotFound, "Should error correctly when called with a non-matching key")
-	assert.NoError(t, s.Remove(&AllPairsKey{Channel: CandlesChannel, Pairs: currency.Pairs{btcusdtPair, ethusdcPair}}), "Should not error when called with a matching key")
-	assert.Nil(t, s.Get(&AllPairsKey{Channel: CandlesChannel, Pairs: currency.Pairs{btcusdtPair, ethusdcPair}}), "Should have removed the sub")
-	assert.ErrorIs(t, s.Remove(&AllPairsKey{Channel: CandlesChannel, Pairs: currency.Pairs{btcusdtPair, ethusdcPair}}), ErrNotFound, "Should error correctly when called twice ")
+	assert.NotNil(t, s.Get(&ExactKey{&Subscription{Channel: CandlesChannel, Pairs: currency.Pairs{btcusdtPair, ethusdcPair}}}), "Should have added the sub")
+	assert.ErrorIs(t, s.Remove(&ExactKey{&Subscription{Channel: CandlesChannel, Pairs: currency.Pairs{btcusdtPair}}}), ErrNotFound, "Should error correctly when called with a non-matching key")
+	assert.NoError(t, s.Remove(&ExactKey{&Subscription{Channel: CandlesChannel, Pairs: currency.Pairs{btcusdtPair, ethusdcPair}}}), "Should not error when called with a matching key")
+	assert.Nil(t, s.Get(&ExactKey{&Subscription{Channel: CandlesChannel, Pairs: currency.Pairs{btcusdtPair, ethusdcPair}}}), "Should have removed the sub")
+	assert.ErrorIs(t, s.Remove(&ExactKey{&Subscription{Channel: CandlesChannel, Pairs: currency.Pairs{btcusdtPair, ethusdcPair}}}), ErrNotFound, "Should error correctly when called twice ")
 }
 
 // TestList exercises the List and Len methods
