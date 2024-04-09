@@ -128,6 +128,7 @@ const (
 	bitgetSinglePosition           = "single-position"
 	bitgetAllPositions             = "all-position" // sic
 	bitgetHistoryPosition          = "history-position"
+	bitgetOrder                    = "order"
 
 	// Errors
 	errUnknownEndpointLimit = "unknown endpoint limit %v"
@@ -765,8 +766,8 @@ func (bi *Bitget) GetSpotMarketTrades(ctx context.Context, pair string, startTim
 	return resp, bi.SendHTTPRequest(ctx, exchange.RestSpot, Rate10, path, params.Values, &resp)
 }
 
-// PlaceOrder places an order on the exchange
-func (bi *Bitget) PlaceOrder(ctx context.Context, pair, side, orderType, strategy, clientOrderID string, price, amount float64) (*OrderResp, error) {
+// PlaceSpotOrder places a spot order on the exchange
+func (bi *Bitget) PlaceSpotOrder(ctx context.Context, pair, side, orderType, strategy, clientOrderID string, price, amount float64, isCopyTradeLeader bool) (*OrderResp, error) {
 	if pair == "" {
 		return nil, errPairEmpty
 	}
@@ -796,8 +797,13 @@ func (bi *Bitget) PlaceOrder(ctx context.Context, pair, side, orderType, strateg
 	}
 	path := bitgetSpot + bitgetTrade + bitgetPlaceOrder
 	var resp *OrderResp
-	// Has two separate rate limits listed, for some reason
-	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate1, http.MethodPost, path, nil, req,
+	// I suspect the two rate limits have to do with distinguishing ordinary traders, and traders who are also
+	// copy trade leaders. Since this isn't detectable, it'll be handled in the relevant functions through a bool
+	rLim := Rate10
+	if isCopyTradeLeader {
+		rLim = Rate1
+	}
+	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, rLim, http.MethodPost, path, nil, req,
 		&resp)
 }
 
@@ -825,7 +831,7 @@ func (bi *Bitget) CancelOrderByID(ctx context.Context, pair, clientOrderID strin
 }
 
 // BatchPlaceOrders places up to fifty orders on the exchange
-func (bi *Bitget) BatchPlaceOrder(ctx context.Context, pair string, orders []PlaceOrderStruct) (*BatchOrderResp, error) {
+func (bi *Bitget) BatchPlaceOrder(ctx context.Context, pair string, orders []PlaceOrderStruct, isCopyTradeLeader bool) (*BatchOrderResp, error) {
 	if pair == "" {
 		return nil, errPairEmpty
 	}
@@ -838,8 +844,11 @@ func (bi *Bitget) BatchPlaceOrder(ctx context.Context, pair string, orders []Pla
 	}
 	path := bitgetSpot + bitgetTrade + bitgetBatchOrders
 	var resp *BatchOrderResp
-	// Has two separate rate limits listed, for some reason
-	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate1, http.MethodPost, path, nil, req,
+	rLim := Rate5
+	if isCopyTradeLeader {
+		rLim = Rate1
+	}
+	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, rLim, http.MethodPost, path, nil, req,
 		&resp)
 }
 
@@ -1138,13 +1147,13 @@ func (bi *Bitget) GetCurrentPlanOrders(ctx context.Context, pair string, startTi
 		nil, &resp)
 }
 
-// GetPlanSubOrder returns the sub-orders of a plan order
+// GetPlanSubOrder returns the sub-orders of a triggered plan order
 func (bi *Bitget) GetPlanSubOrder(ctx context.Context, orderID string) (*SubOrderResp, error) {
 	if orderID == "" {
 		return nil, errOrderIDEmpty
 	}
 	vals := url.Values{}
-	vals.Set("orderId", orderID)
+	vals.Set("planOrderId", orderID)
 	path := bitgetSpot + bitgetTrade + bitgetPlanSubOrder
 	var resp *SubOrderResp
 	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate20, http.MethodGet, path, vals, nil,
@@ -2064,6 +2073,71 @@ func (bi *Bitget) GetHistoricalPositions(ctx context.Context, pair, productType 
 	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate5, http.MethodGet, path, params.Values,
 		nil, &resp)
 }
+
+// PlaceFuturesOrder places a futures order on the exchange
+func (bi *Bitget) PlaceFuturesOrder(ctx context.Context, pair, productType, marginMode, marginCoin, side, tradeSide, orderType, strategy, clientOID, stopSurplusPrice, stopLossPrice string, amount, price float64, reduceOnly, isCopyTradeLeader bool) (*OrderResp, error) {
+	if pair == "" {
+		return nil, errPairEmpty
+	}
+	if productType == "" {
+		return nil, errProductTypeEmpty
+	}
+	if marginMode == "" {
+		return nil, errMarginModeEmpty
+	}
+	if marginCoin == "" {
+		return nil, errMarginCoinEmpty
+	}
+	if side == "" {
+		return nil, errSideEmpty
+	}
+	if orderType == "" {
+		return nil, errOrderTypeEmpty
+	}
+	if amount == 0 {
+		return nil, errAmountEmpty
+	}
+	if orderType == "limit" && price == 0 {
+		return nil, errLimitPriceEmpty
+	}
+	req := map[string]interface{}{
+		"symbol":      pair,
+		"productType": productType,
+		"marginMode":  marginMode,
+		"marginCoin":  marginCoin,
+		"side":        side,
+		"tradeSide":   tradeSide,
+		"orderType":   orderType,
+		"force":       strategy,
+		"size":        strconv.FormatFloat(amount, 'f', -1, 64),
+		"price":       strconv.FormatFloat(price, 'f', -1, 64),
+	}
+	if clientOID != "" {
+		req["clientOid"] = clientOID
+	}
+	if reduceOnly {
+		req["reduceOnly"] = "YES"
+	}
+	req["presetStopSurplusPrice"] = stopSurplusPrice
+	req["presetStopLossPrice"] = stopLossPrice
+	path := bitgetMix + bitgetOrder + bitgetPlaceOrder
+	rLim := Rate10
+	if isCopyTradeLeader {
+		rLim = Rate1
+	}
+	var resp *OrderResp
+	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, rLim, http.MethodPost, path, nil, req,
+		&resp)
+}
+
+// PlaceReversal attempts to close a position, in part or in whole, and open a position of corresponding size
+// on the opposite side. This operation may only be done in part under certain margin levels, market conditions,
+// or other unspecified factors. If a reversal is attempted for an amount greater than the current outstanding position,
+// that position will be closed, and a new position will be opened for the amount of the closed position; not the amount
+// specified in the request. The side specified in the parameter should correspond to the side of the position you're
+// attempting to close; if the original is open_long, use close_long; if the original is open_short, use close_short;
+// if the original is sell_single, use buy_single. If the position is sell_single or buy_single, the amount parameter
+// will be ignored, and the entire position will be closed, with a corresponding amount opened on the opposite side.
 
 // SendAuthenticatedHTTPRequest sends an authenticated HTTP request
 func (bi *Bitget) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.URL, rateLim request.EndpointLimit, method, path string, queryParams url.Values, bodyParams map[string]interface{}, result interface{}) error {
