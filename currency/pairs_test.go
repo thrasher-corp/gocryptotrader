@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"errors"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestPairsUpper(t *testing.T) {
@@ -897,4 +899,27 @@ func TestGetPairsByBase(t *testing.T) {
 	if len(got) != 3 {
 		t.Fatalf("received: '%v' but expected '%v'", len(got), 3)
 	}
+}
+
+// TestPairsSort exercises Pairs.Sort
+func TestPairsSort(t *testing.T) {
+	p := Pairs{NewPair(USDT, BTC), NewPair(DAI, XRP), NewPair(DAI, BTC)}
+	p.Sort()
+	assert.Equal(t, []string{"DAIBTC", "DAIXRP", "USDTBTC"}, p.Strings(), "Pairs should be sorted")
+}
+
+// TestPairsEqual exercises Pairs.Equal
+func TestPairsEqual(t *testing.T) {
+	assert.True(t,
+		Pairs{NewPair(USDT, BTC), NewPair(DAI, XRP), NewPair(DAI, BTC)}.Equal(
+			Pairs{NewPair(DAI, XRP), NewPair(DAI, BTC), NewPair(USDT, BTC)},
+		), "Equal Pairs should return true")
+	assert.False(t,
+		Pairs{NewPair(USD, BTC), NewPair(DAI, XRP), NewPair(DAI, BTC)}.Equal(
+			Pairs{NewPair(DAI, XRP), NewPair(DAI, BTC), NewPair(USDT, BTC)},
+		), "UnEqual Pairs should return false")
+	assert.False(t,
+		Pairs{NewPairWithDelimiter("USDT", "BTC", "-"), NewPair(DAI, XRP), NewPair(DAI, BTC)}.Equal(
+			Pairs{NewPair(DAI, XRP), NewPair(DAI, BTC), NewPair(USDT, BTC)},
+		), "Pairs with different delimiters should return false")
 }
