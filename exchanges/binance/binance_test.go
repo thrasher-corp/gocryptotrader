@@ -5144,3 +5144,85 @@ func TestGetPortfolioMarginNegativeBalanceInterestHistory(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
+
+func TestFundAutoCollection(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	result, err := b.FundAutoCollection(context.Background())
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestFundCollectionByAsset(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	result, err := b.FundCollectionByAsset(context.Background(), currency.EMPTYCODE)
+	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
+	result, err = b.FundCollectionByAsset(context.Background(), currency.ETH)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestBNBTransfer(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	result, err := b.BNBTransfer(context.Background(), 0.0001, "TO_UM")
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func testGetUMAccountDetail(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetUMAccountDetail(context.Background())
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetCMAccountDetail(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetCMAccountDetail(context.Background())
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestChangeAutoRepayFuturesStatus(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.ChangeAutoRepayFuturesStatus(context.Background(), false)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetAutoRepayFuturesStatus(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetAutoRepayFuturesStatus(context.Background())
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestRepayFuturesNegativeBalance(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.RepayFuturesNegativeBalance(context.Background())
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetUMPositionADLQuantileEstimation(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetUMPositionADLQuantileEstimation(context.Background(), "BTCUSDT")
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetCMPositionADLQuantileEstimation(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetCMPositionADLQuantileEstimation(context.Background(), "BTCUSD_200925")
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}

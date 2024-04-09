@@ -472,3 +472,68 @@ type PortfolioMarginNegativeBalanceInterest struct {
 	InterestRate        types.Number         `json:"interestRate"`
 	Principal           string               `json:"principal"`
 }
+
+// IncomeItem represents a USDT margined income item.
+type IncomeItem struct {
+	Symbol       string               `json:"symbol"`
+	IncomeType   string               `json:"incomeType"`
+	IncomeAmount types.Number         `json:"income"`
+	IncomeAsset  string               `json:"asset"`
+	ExtraInfo    string               `json:"info"`
+	Time         convert.ExchangeTime `json:"time"`
+	TranferID    string               `json:"tranId"`
+	TradeID      string               `json:"tradeId"`
+}
+
+// AccountDetail represents account asset and position information.
+type AccountDetail struct {
+	TradeGroupID int `json:"tradeGroupId"`
+	Assets       []struct {
+		Asset                  string               `json:"asset"`
+		CrossWalletBalance     types.Number         `json:"crossWalletBalance"`
+		CrossUnPnl             types.Number         `json:"crossUnPnl"`
+		MaintMargin            types.Number         `json:"maintMargin"`
+		InitialMargin          types.Number         `json:"initialMargin"`
+		PositionInitialMargin  types.Number         `json:"positionInitialMargin"`
+		OpenOrderInitialMargin types.Number         `json:"openOrderInitialMargin"`
+		UpdateTime             convert.ExchangeTime `json:"updateTime"`
+	} `json:"assets"`
+	Positions []struct {
+		Symbol                 string               `json:"symbol"`
+		InitialMargin          types.Number         `json:"initialMargin"`
+		MaintMargin            types.Number         `json:"maintMargin"`
+		UnrealizedProfit       types.Number         `json:"unrealizedProfit"`
+		PositionInitialMargin  types.Number         `json:"positionInitialMargin"`
+		OpenOrderInitialMargin types.Number         `json:"openOrderInitialMargin"`
+		Leverage               types.Number         `json:"leverage"`
+		EntryPrice             types.Number         `json:"entryPrice"`
+		PositionSide           string               `json:"positionSide"`
+		PositionAmt            types.Number         `json:"positionAmt"`
+		UpdateTime             convert.ExchangeTime `json:"updateTime"`
+		BreakEvenPrice         types.Number         `json:"breakEvenPrice"`
+
+		// Used USDT Margined Futures
+		MaxNotional string `json:"maxNotional"`
+		BidNotional string `json:"bidNotional"`
+		AskNotional string `json:"askNotional"`
+
+		// Used Coin Margined Futures
+		MaxQty types.Number `json:"maxQty"`
+	} `json:"positions"`
+}
+
+// AutoRepayStatus represents an auto-repay status
+type AutoRepayStatus struct {
+	AutoRepay bool `json:"autoRepay"`
+}
+
+// ADLQuantileEstimation represents an ADL quantile estimation instance.
+type ADLQuantileEstimation struct {
+	Symbol string `json:"symbol"`
+	// if the positions of the symbol are crossed margined in Hedge Mode, "LONG" and "SHORT" will be returned a same quantile value, and "HEDGE" will be returned instead of "BOTH".
+	ADLQuantile struct {
+		Long  float64 `json:"LONG"`  // adl quantile for "LONG" position in hedge mode
+		Short float64 `json:"SHORT"` // adl qauntile for "SHORT" position in hedge mode
+		Hedge float64 `json:"HEDGE"` // only a sign, ignore the value
+	} `json:"adlQuantile,omitempty"` // adl qunatile for position in one-way mode
+}

@@ -1000,5 +1000,139 @@ func (b *Binance) GetPortfolioMarginNegativeBalanceInterestHistory(ctx context.C
 	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestFuturesSupplementary, http.MethodGet, "/papi/v1/portfolio/interest-history", params, spotDefaultRate, nil, &resp)
 }
 
-// FundAutoCollection
-// func (b *Binance) FundAutoCollection(ctx context.Context, )
+// FundAutoCollection fund collection for Portfolio Margin
+func (b *Binance) FundAutoCollection(ctx context.Context) (string, error) {
+	resp := &struct {
+		Msg string `json:"msg"`
+	}{}
+	return resp.Msg, b.SendAuthHTTPRequest(ctx, exchange.RestFuturesSupplementary, http.MethodPost, "/papi/v1/auto-collection", nil, spotDefaultRate, nil, &resp)
+}
+
+// FundCollectionByAsset transfers specific asset from Futures Account to Margin account
+// The BNB transfer is not be supported
+func (b *Binance) FundCollectionByAsset(ctx context.Context, assetName currency.Code) (string, error) {
+	if assetName.IsEmpty() {
+		return "", currency.ErrCurrencyCodeEmpty
+	}
+	params := url.Values{}
+	params.Set("asset", assetName.String())
+	resp := &struct {
+		Msg string `json:"msg"`
+	}{}
+	return resp.Msg, b.SendAuthHTTPRequest(ctx, exchange.RestFuturesSupplementary, http.MethodPost, "/papi/v1/asset-collection", params, spotDefaultRate, nil, &resp)
+}
+
+// BNBTransfer Transfer BNB assets
+// transferSize: "TO_UM","FROM_UM"
+func (b *Binance) BNBTransfer(ctx context.Context, amount float64, transferSide string) (string, error) {
+	params := url.Values{}
+	if amount > 0 {
+		params.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
+	}
+	if transferSide != "" {
+		params.Set("transferSide", transferSide)
+	}
+	resp := &struct {
+		TransactionID string `json:"transId"`
+	}{}
+	return resp.TransactionID, b.SendAuthHTTPRequest(ctx, exchange.RestFuturesSupplementary, http.MethodPost, "/papi/v1/bnb-transfer", params, spotDefaultRate, nil, &resp)
+}
+
+// GetUMIncomeHistory retrieves USDT margined futures income history
+// possible incomeType values: TRANSFER, WELCOME_BONUS, REALIZED_PNL, FUNDING_FEE, COMMISSION, INSURANCE_CLEAR, REFERRAL_KICKBACK, COMMISSION_REBATE, API_REBATE, CONTEST_REWARD, CROSS_COLLATERAL_TRANSFER, OPTIONS_PREMIUM_FEE, OPTIONS_SETTLE_PROFIT, INTERNAL_TRANSFER, AUTO_EXCHANGE, DELIVERED_SETTELMENT, COIN_SWAP_DEPOSIT, COIN_SWAP_WITHDRAW, POSITION_LIMIT_INCREASE_FEE
+func (b *Binance) GetUMIncomeHistory(ctx context.Context, symbol, incomeType string, startTime, endTime time.Time, limit int64) ([]IncomeItem, error) {
+	return b.getUMCMIncomeHistory(ctx, symbol, incomeType, "/papi/v1/um/income", startTime, endTime, limit)
+}
+
+// GetCMIncomeHistory get current UM account asset and position information.
+func (b *Binance) GetCMIncomeHistory(ctx context.Context, symbol, incomeType string, startTime, endTime time.Time, limit int64) ([]IncomeItem, error) {
+	return b.getUMCMIncomeHistory(ctx, symbol, incomeType, "/papi/v1/cm/income", startTime, endTime, limit)
+}
+
+func (b *Binance) getUMCMIncomeHistory(ctx context.Context, symbol, incomeType, path string, startTime, endTime time.Time, limit int64) ([]IncomeItem, error) {
+	params := url.Values{}
+	if symbol != "" {
+		params.Set("symbol", symbol)
+	}
+	if incomeType == "" {
+		params.Set("incomeType", incomeType)
+	}
+	if !startTime.IsZero() && !endTime.IsZero() {
+		err := common.StartEndTimeCheck(startTime, endTime)
+		if err != nil {
+			return nil, err
+		}
+		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	var resp []IncomeItem
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestFuturesSupplementary, http.MethodGet, path, params, spotDefaultRate, nil, &resp)
+}
+
+// GetUMAccountDetail get current UM account asset and position information.
+func (b *Binance) GetUMAccountDetail(ctx context.Context) (*AccountDetail, error) {
+	return b.getUMCMAccountDetail(ctx, "/papi/v1/um/account")
+}
+
+// GetCMAccountDetail gets current CM account asset and position information.
+func (b *Binance) GetCMAccountDetail(ctx context.Context) (*AccountDetail, error) {
+	return b.getUMCMAccountDetail(ctx, "/papi/v1/cm/account")
+}
+
+func (b *Binance) getUMCMAccountDetail(ctx context.Context, path string) (*AccountDetail, error) {
+	var resp *AccountDetail
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestFuturesSupplementary, http.MethodGet, path, nil, spotDefaultRate, nil, &resp)
+}
+
+// ChangeAutoRepayFuturesStatus change Auto-repay-futures Status
+func (b *Binance) ChangeAutoRepayFuturesStatus(ctx context.Context, autoRepay bool) (string, error) {
+	params := url.Values{}
+	if autoRepay {
+		params.Set("autoRepay", "true")
+	} else {
+		params.Set("autoRepay", "false")
+	}
+	resp := &struct {
+		Msg string `json:"msg"`
+	}{}
+	return resp.Msg, b.SendAuthHTTPRequest(ctx, exchange.RestFuturesSupplementary, http.MethodPost, "/papi/v1/repay-futures-switch", params, spotDefaultRate, nil, &resp)
+}
+
+// GetAutoRepayFuturesStatus query Auto-repay-futures Status
+func (b *Binance) GetAutoRepayFuturesStatus(ctx context.Context) (*AutoRepayStatus, error) {
+	var resp *AutoRepayStatus
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestFuturesSupplementary, http.MethodGet, "/papi/v1/repay-futures-switch", nil, spotDefaultRate, nil, &resp)
+}
+
+// RepayFuturesNegativeBalance repay futures Negative Balance
+func (b *Binance) RepayFuturesNegativeBalance(ctx context.Context) (string, error) {
+	resp := &struct {
+		Msg string `json:"msg"`
+	}{}
+	return resp.Msg, b.SendAuthHTTPRequest(ctx, exchange.RestFuturesSupplementary, http.MethodPost, "/papi/v1/repay-futures-negative-balance", nil, spotDefaultRate, nil, &resp)
+}
+
+// GetUMPositionADLQuantileEstimation retrieves ADL Quantile Estimations for a symbol or symbols
+//
+// Values 0, 1, 2, 3, 4 shows the queue position and possibility of ADL from low to high.
+// For positions of the symbol are in One-way Mode or isolated margined in Hedge Mode, "LONG", "SHORT", and "BOTH" will be returned to show the positions' adl quantiles of different position sides.
+func (b *Binance) GetUMPositionADLQuantileEstimation(ctx context.Context, symbol string) ([]ADLQuantileEstimation, error) {
+	return b.getUMCMPositionADLQuantileEstimation(ctx, symbol, "/papi/v1/um/adlQuantile")
+}
+
+// GetCMPositionADLQuantileEstimation retrieves Coin Margined Futures position ADL Quantile estimation for symbol or symbols
+func (b *Binance) GetCMPositionADLQuantileEstimation(ctx context.Context, symbol string) ([]ADLQuantileEstimation, error) {
+	return b.getUMCMPositionADLQuantileEstimation(ctx, symbol, "/papi/v1/cm/adlQuantile")
+}
+
+func (b *Binance) getUMCMPositionADLQuantileEstimation(ctx context.Context, symbol, path string) ([]ADLQuantileEstimation, error) {
+	params := url.Values{}
+	if symbol != "" {
+		params.Set("symbol", symbol)
+	}
+	var resp []ADLQuantileEstimation
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestFuturesSupplementary, http.MethodGet, path, params, spotDefaultRate, nil, &resp)
+}
