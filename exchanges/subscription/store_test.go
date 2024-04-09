@@ -5,6 +5,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/davecgh/go-spew/spew"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -30,6 +31,7 @@ func TestNewStoreFromList(t *testing.T) {
 	s, err = NewStoreFromList(l)
 	assert.NoError(t, err, "Should not error on empty list")
 	assert.Len(t, s.m, 2, "Map should have 2 values")
+	spew.Dump(s.m)
 	assert.NotNil(t, s.get(l[0]), "Should be able to get a list element")
 
 	l = append(l, &Subscription{Channel: OrderbookChannel})

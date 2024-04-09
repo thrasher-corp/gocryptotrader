@@ -88,8 +88,7 @@ func (k ExactKey) Match(eachKey MatchableKey) bool {
 	switch {
 	case eachSub.Channel != k.Channel,
 		eachSub.Asset != k.Asset,
-		eachSub.Pairs.ContainsAll(k.Pairs, true) != nil,
-		k.Pairs.ContainsAll(eachSub.Pairs, true) != nil,
+		!eachSub.Pairs.Equal(k.Pairs),
 		eachSub.Levels != k.Levels,
 		eachSub.Interval != k.Interval:
 		return false
