@@ -3,10 +3,16 @@ package nonce
 import (
 	"strconv"
 	"sync"
+	"time"
 )
 
-// Setter is a function that returns a nonce start value. Values could include
-// the time package functions time.Now().Unix, unixNano etc.
+// UnixNano and Unix are default nonce setters
+var (
+	UnixNano Setter = func() int64 { return time.Now().UnixNano() }
+	Unix     Setter = func() int64 { return time.Now().Unix() }
+)
+
+// Setter is a function that returns a nonce start value.
 type Setter func() int64
 
 // Nonce struct holds the nonce value
