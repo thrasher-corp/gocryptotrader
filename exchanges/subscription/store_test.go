@@ -67,20 +67,12 @@ func TestGet(t *testing.T) {
 		require.NoError(t, s.Add(sub), "Adding subscription must not error)")
 	}
 
-	// Tests for the default Subscription key
-	assert.Nil(t, s.Get(Subscription{Channel: OrderbookChannel}), "Should return nil for a sub with a different key type")
-	assert.Same(t, exp[0], s.Get(Subscription{Channel: AllOrdersChannel}), "Should return pointer for known sub passed-by-value")
-	assert.Same(t, exp[1], s.Get(exp[1]), "Should return same pointer for known sub")
-	assert.Same(t, exp[2], s.Get(42), "Should return pointer for simple key lookup")
-	assert.Same(t, exp[3], s.Get(Subscription{Channel: CandlesChannel, Pairs: currency.Pairs{btcusdtPair}}), "Should return pointer for single pair lookup")
-	assert.Nil(t, s.Get(Subscription{Channel: CandlesChannel, Pairs: currency.Pairs{btcusdtPair, ltcusdcPair}}), "Should return nil for a bad lookup")
-
 	// Tests for a MatchableKey, ensuring that ExactKey works
-	assert.Nil(t, s.Get(&ExactKey{&Subscription{Channel: CandlesChannel}}), "Should return nil without pairs")
-	assert.Nil(t, s.Get(&ExactKey{&Subscription{Channel: CandlesChannel, Pairs: currency.Pairs{ltcusdcPair}}}), "Should return nil with wrong pair")
-	assert.Nil(t, s.Get(&ExactKey{&Subscription{Channel: CandlesChannel, Pairs: currency.Pairs{btcusdtPair}}}), "Should return nil with only one right pair")
-	assert.Same(t, exp[3], s.Get(&ExactKey{&Subscription{Channel: CandlesChannel, Pairs: currency.Pairs{btcusdtPair, ethusdcPair}}}), "Should return pointer when all pairs match")
-	assert.Nil(t, s.Get(&ExactKey{&Subscription{Channel: CandlesChannel, Pairs: currency.Pairs{btcusdtPair, ethusdcPair, ltcusdcPair}}}), "Should return nil when key is superset of pairs")
+	assert.Nil(t, s.Get(Subscription{Channel: CandlesChannel}), "Should return nil without pairs")
+	assert.Nil(t, s.Get(Subscription{Channel: CandlesChannel, Pairs: currency.Pairs{ltcusdcPair}}), "Should return nil with wrong pair")
+	assert.Nil(t, s.Get(Subscription{Channel: CandlesChannel, Pairs: currency.Pairs{btcusdtPair}}), "Should return nil with only one right pair")
+	assert.Same(t, exp[3], s.Get(Subscription{Channel: CandlesChannel, Pairs: currency.Pairs{btcusdtPair, ethusdcPair}}), "Should return pointer when all pairs match")
+	assert.Nil(t, s.Get(Subscription{Channel: CandlesChannel, Pairs: currency.Pairs{btcusdtPair, ethusdcPair, ltcusdcPair}}), "Should return nil when key is superset of pairs")
 }
 
 // TestRemove exercises the Remove method
