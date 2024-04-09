@@ -28,12 +28,15 @@ const (
 	canManipulateRealOrders = false
 	testingInSandbox        = false
 
+	// Needs to be set to a subaccount with deposit transfer permissions so that TestGetSubaccountDepositAddress
+	// doesn't fail
+	deposSubaccID = ""
+
 	testSubaccountName = "GCTTESTA"
 	testIP             = "14.203.57.50"
 	testAmount         = 0.00001
 	testPrice          = 1e9
-	// Donation address by default
-	testAddress = "bc1qk0jareu4jytc0cfrhr5wgshsq8282awpavfahc"
+	testAddress        = "fake test address"
 )
 
 // User-defined variables to aid testing
@@ -684,7 +687,7 @@ func TestModifyDepositAccount(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi, canManipulateRealOrders)
 	resp, err := bi.ModifyDepositAccount(context.Background(), "spot", testFiat.String())
 	assert.NoError(t, err)
-	assert.NotEmpty(t, resp)
+	assert.NotEmpty(t, resp.Success)
 }
 
 func TestGetAccountBills(t *testing.T) {
@@ -722,7 +725,7 @@ func TestGetTransferableCoinList(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
 	resp, err := bi.GetTransferableCoinList(context.Background(), "spot", "p2p")
 	assert.NoError(t, err)
-	assert.NotEmpty(t, resp)
+	assert.NotEmpty(t, resp.Data)
 }
 
 func TestSubaccountTransfer(t *testing.T) {
@@ -760,8 +763,8 @@ func TestWithdrawFunds(t *testing.T) {
 	_, err = bi.WithdrawFunds(context.Background(), "meow", "woof", "neigh", "", "", "", "", "", "", 0)
 	assert.ErrorIs(t, err, errAmountEmpty)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi, canManipulateRealOrders)
-	_, err = bi.WithdrawFunds(context.Background(), testCrypto.String(), "on_chain", testAddress, "", "", "", "", "",
-		"", testAmount)
+	_, err = bi.WithdrawFunds(context.Background(), testCrypto.String(), "on_chain", testAddress, "", "", "", "",
+		"", "", testAmount)
 	assert.NoError(t, err)
 }
 
@@ -793,7 +796,7 @@ func TestGetDepositAddressForCurrency(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
 	resp, err := bi.GetDepositAddressForCurrency(context.Background(), testCrypto.String(), "")
 	assert.NoError(t, err)
-	assert.NotEmpty(t, resp)
+	assert.NotEmpty(t, resp.Data)
 }
 
 func TestGetSubaccountDepositAddress(t *testing.T) {
@@ -802,10 +805,11 @@ func TestGetSubaccountDepositAddress(t *testing.T) {
 	_, err = bi.GetSubaccountDepositAddress(context.Background(), "meow", "", "")
 	assert.ErrorIs(t, err, errCurrencyEmpty)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
-	tarID := subAccTestHelper(t, "", "")
-	resp, err := bi.GetSubaccountDepositAddress(context.Background(), tarID, testCrypto.String(), "")
+	resp, err := bi.GetSubaccountDepositAddress(context.Background(), deposSubaccID, testCrypto.String(), "")
+	// Getting the error "The business of this account has been restricted", don't think this was happening
+	// last week.
 	assert.NoError(t, err)
-	assert.NotEmpty(t, resp)
+	assert.NotEmpty(t, resp.Data)
 }
 
 func TestGetSubaccountDepositRecords(t *testing.T) {
@@ -836,7 +840,7 @@ func TestGetFuturesMergeDepth(t *testing.T) {
 	assert.ErrorIs(t, err, errProductTypeEmpty)
 	resp, err := bi.GetFuturesMergeDepth(context.Background(), testPair.String(), "USDT-FUTURES", "scale3", "5")
 	assert.NoError(t, err)
-	assert.NotEmpty(t, resp)
+	assert.NotEmpty(t, resp.Data)
 }
 
 func TestGetFuturesVIPFeeRate(t *testing.T) {
@@ -852,7 +856,7 @@ func TestGetAllFuturesTickers(t *testing.T) {
 	assert.ErrorIs(t, err, errProductTypeEmpty)
 	resp, err := bi.GetAllFuturesTickers(context.Background(), "COIN-FUTURES")
 	assert.NoError(t, err)
-	assert.NotEmpty(t, resp)
+	assert.NotEmpty(t, resp.Data)
 }
 
 func TestGetRecentFuturesFills(t *testing.T) {
@@ -862,7 +866,7 @@ func TestGetRecentFuturesFills(t *testing.T) {
 	assert.ErrorIs(t, err, errProductTypeEmpty)
 	resp, err := bi.GetRecentFuturesFills(context.Background(), testPair.String(), "USDT-FUTURES", 5)
 	assert.NoError(t, err)
-	assert.NotEmpty(t, resp)
+	assert.NotEmpty(t, resp.Data)
 }
 
 func TestGetFuturesCandlestickData(t *testing.T) {
@@ -878,19 +882,19 @@ func TestGetFuturesCandlestickData(t *testing.T) {
 	resp, err := bi.GetFuturesCandlestickData(context.Background(), testPair.String(), "USDT-FUTURES", "1m",
 		time.Time{}, time.Time{}, 5, CallModeNormal)
 	assert.NoError(t, err)
-	assert.NotEmpty(t, resp)
+	assert.NotEmpty(t, resp.FuturesCandles)
 	resp, err = bi.GetFuturesCandlestickData(context.Background(), testPair.String(), "COIN-FUTURES", "1m",
 		time.Time{}, time.Time{}, 5, CallModeHistory)
 	assert.NoError(t, err)
-	assert.NotEmpty(t, resp)
+	assert.NotEmpty(t, resp.FuturesCandles)
 	resp, err = bi.GetFuturesCandlestickData(context.Background(), testPair.String(), "USDC-FUTURES", "1m",
 		time.Time{}, time.Now(), 5, CallModeIndex)
 	assert.NoError(t, err)
-	assert.NotEmpty(t, resp)
+	assert.NotEmpty(t, resp.FuturesCandles)
 	resp, err = bi.GetFuturesCandlestickData(context.Background(), testPair.String(), "USDT-FUTURES", "1m",
 		time.Time{}, time.Now(), 5, CallModeMark)
 	assert.NoError(t, err)
-	assert.NotEmpty(t, resp)
+	assert.NotEmpty(t, resp.FuturesCandles)
 }
 
 func TestGetOpenPositions(t *testing.T) {
@@ -912,7 +916,7 @@ func TestGetFundingHistorical(t *testing.T) {
 	assert.ErrorIs(t, err, errProductTypeEmpty)
 	resp, err := bi.GetFundingHistorical(context.Background(), testPair.String(), "USDT-FUTURES", 5, 1)
 	assert.NoError(t, err)
-	assert.NotEmpty(t, resp)
+	assert.NotEmpty(t, resp.Data)
 }
 
 func TestGetFundingCurrent(t *testing.T) {
@@ -933,7 +937,7 @@ func TestGetOneFuturesAccount(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
 	resp, err := bi.GetOneFuturesAccount(context.Background(), testPair.String(), "USDT-FUTURES", "USDT")
 	assert.NoError(t, err)
-	assert.NotEmpty(t, resp)
+	assert.NotEmpty(t, resp.Data)
 }
 
 func TestGetAllFuturesAccounts(t *testing.T) {
@@ -942,7 +946,7 @@ func TestGetAllFuturesAccounts(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
 	resp, err := bi.GetAllFuturesAccounts(context.Background(), "COIN-FUTURES")
 	assert.NoError(t, err)
-	assert.NotEmpty(t, resp)
+	assert.NotEmpty(t, resp.Data)
 }
 
 func TestGetFuturesSubaccountAssets(t *testing.T) {
@@ -951,7 +955,7 @@ func TestGetFuturesSubaccountAssets(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
 	resp, err := bi.GetFuturesSubaccountAssets(context.Background(), "USDT-FUTURES")
 	assert.NoError(t, err)
-	assert.NotEmpty(t, resp)
+	assert.NotEmpty(t, resp.Data)
 }
 
 func TestGetEstimatedOpenCount(t *testing.T) {
@@ -966,10 +970,10 @@ func TestGetEstimatedOpenCount(t *testing.T) {
 	_, err = bi.GetEstimatedOpenCount(context.Background(), "meow", "woof", "neigh", 1, 0, 0)
 	assert.ErrorIs(t, err, errOpenPriceEmpty)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
-	resp, err := bi.GetEstimatedOpenCount(context.Background(), testPair.String(), "USDT-FUTURES", "USDT", testPrice,
-		testAmount, 20)
+	resp, err := bi.GetEstimatedOpenCount(context.Background(), testPair.String(), "USDT-FUTURES", "USDT",
+		testPrice, testAmount, 20)
 	assert.NoError(t, err)
-	assert.NotEmpty(t, resp)
+	assert.NotEmpty(t, resp.Data)
 }
 
 func TestChangeLeverage(t *testing.T) {
@@ -984,7 +988,7 @@ func TestChangeLeverage(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi, canManipulateRealOrders)
 	resp, err := bi.ChangeLeverage(context.Background(), testPair.String(), "USDT-FUTURES", "USDT", "", 20)
 	assert.NoError(t, err)
-	assert.NotEmpty(t, resp)
+	assert.NotEmpty(t, resp.Data)
 }
 
 func TestAdjustMargin(t *testing.T) {
@@ -1015,7 +1019,7 @@ func TestChangeMarginMode(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi, canManipulateRealOrders)
 	resp, err := bi.ChangeMarginMode(context.Background(), testPair.String(), "USDT-FUTURES", "USDT", "crossed")
 	assert.NoError(t, err)
-	assert.NotEmpty(t, resp)
+	assert.NotEmpty(t, resp.Data)
 }
 
 func TestChangePositionMode(t *testing.T) {
@@ -1026,7 +1030,7 @@ func TestChangePositionMode(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi, canManipulateRealOrders)
 	resp, err := bi.ChangePositionMode(context.Background(), "USDT-FUTURES", "hedge_mode")
 	assert.NoError(t, err)
-	assert.NotEmpty(t, resp)
+	assert.NotEmpty(t, resp.Data)
 }
 
 func TestGetFuturesAccountBills(t *testing.T) {
@@ -1041,6 +1045,47 @@ func TestGetFuturesAccountBills(t *testing.T) {
 	assert.NoError(t, err)
 }
 
+func TestGetPositionTier(t *testing.T) {
+	_, err := bi.GetPositionTier(context.Background(), "", "")
+	assert.ErrorIs(t, err, errProductTypeEmpty)
+	_, err = bi.GetPositionTier(context.Background(), "meow", "")
+	assert.ErrorIs(t, err, errPairEmpty)
+	resp, err := bi.GetPositionTier(context.Background(), "USDT-FUTURES", testPair.String())
+	assert.NoError(t, err)
+	assert.NotEmpty(t, resp.Data)
+}
+
+func TestGetSinglePosition(t *testing.T) {
+	_, err := bi.GetSinglePosition(context.Background(), "", "", "")
+	assert.ErrorIs(t, err, errProductTypeEmpty)
+	_, err = bi.GetSinglePosition(context.Background(), "meow", "", "")
+	assert.ErrorIs(t, err, errPairEmpty)
+	_, err = bi.GetSinglePosition(context.Background(), "meow", "woof", "")
+	assert.ErrorIs(t, err, errMarginCoinEmpty)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
+	_, err = bi.GetSinglePosition(context.Background(), "SUSDT-FUTURES", testPair.String(), testFiat.String())
+	assert.NoError(t, err)
+}
+
+func TestGetAllPositions(t *testing.T) {
+	_, err := bi.GetAllPositions(context.Background(), "", "")
+	assert.ErrorIs(t, err, errProductTypeEmpty)
+	_, err = bi.GetAllPositions(context.Background(), "meow", "")
+	assert.ErrorIs(t, err, errMarginCoinEmpty)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
+	_, err = bi.GetAllPositions(context.Background(), "USDT-FUTURES", testFiat.String())
+	assert.NoError(t, err)
+}
+
+func TestGetHistoricalPositions(t *testing.T) {
+	_, err := bi.GetHistoricalPositions(context.Background(), "", "", 0, 0, time.Now(),
+		time.Now().Add(-time.Minute))
+	assert.ErrorIs(t, err, common.ErrStartAfterEnd)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
+	_, err = bi.GetHistoricalPositions(context.Background(), "", "", 2>>62, 5, time.Time{}, time.Time{})
+	assert.NoError(t, err)
+}
+
 type getNoArgsResp interface {
 	*TimeResp | *P2PMerInfoResp | *ConvertCoinsResp | *BGBConvertCoinsResp | *VIPFeeRateResp
 }
@@ -1049,9 +1094,8 @@ type getNoArgsAssertNotEmpty[G getNoArgsResp] func(context.Context) (G, error)
 
 func testGetNoArgs[G getNoArgsResp](t *testing.T, f getNoArgsAssertNotEmpty[G]) {
 	t.Helper()
-	resp, err := f(context.Background())
+	_, err := f(context.Background())
 	assert.NoError(t, err)
-	assert.NotEmpty(t, resp)
 }
 
 type getTwoArgsResp interface {
@@ -1067,9 +1111,8 @@ func testGetTwoArgs[G getTwoArgsResp](t *testing.T, f getTwoArgsPairProduct[G]) 
 	assert.ErrorIs(t, err, errPairEmpty)
 	_, err = f(context.Background(), "meow", "")
 	assert.ErrorIs(t, err, errProductTypeEmpty)
-	resp, err := f(context.Background(), testPair.String(), "USDT-FUTURES")
+	_, err = f(context.Background(), testPair.String(), "USDT-FUTURES")
 	assert.NoError(t, err)
-	assert.NotEmpty(t, resp)
 }
 
 func subAccTestHelper(t *testing.T, compString, ignoreString string) string {

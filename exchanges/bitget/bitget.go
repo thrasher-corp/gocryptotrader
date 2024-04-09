@@ -48,6 +48,7 @@ const (
 	bitgetHistoryFundRate     = "history-fund-rate"
 	bitgetCurrentFundRate     = "current-fund-rate"
 	bitgetContracts           = "contracts"
+	bitgetQueryPositionLever  = "query-position-lever"
 
 	// Mixed endpoints
 	bitgetSpot = "spot/"
@@ -123,6 +124,10 @@ const (
 	bitgetSetMarginMode            = "/set-margin-mode"
 	bitgetSetPositionMode          = "/set-position-mode"
 	bitgetBill                     = "/bill"
+	bitgetPosition                 = "position/"
+	bitgetSinglePosition           = "single-position"
+	bitgetAllPositions             = "all-position" // sic
+	bitgetHistoryPosition          = "history-position"
 
 	// Errors
 	errUnknownEndpointLimit = "unknown endpoint limit %v"
@@ -1977,6 +1982,86 @@ func (bi *Bitget) GetFuturesAccountBills(ctx context.Context, productType, pair,
 	path := bitgetMix + bitgetAccount + bitgetBill
 	var resp *FutureAccBillResp
 	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodGet, path, params.Values,
+		nil, &resp)
+}
+
+// GetPositionTier returns the position configuration for a given pair
+func (bi *Bitget) GetPositionTier(ctx context.Context, productType, pair string) (*PositionTierResp, error) {
+	if productType == "" {
+		return nil, errProductTypeEmpty
+	}
+	if pair == "" {
+		return nil, errPairEmpty
+	}
+	vals := url.Values{}
+	vals.Set("productType", productType)
+	vals.Set("symbol", pair)
+	path := bitgetMix + bitgetMarket + bitgetQueryPositionLever
+	var resp *PositionTierResp
+	return resp, bi.SendHTTPRequest(ctx, exchange.RestSpot, Rate10, path, vals, &resp)
+}
+
+// GetSinglePosition returns position details for a given productType, pair, and marginCoin. The exchange recommends
+// using the websocket feed  instead, as information from this endpoint may be delayed during settlement or market
+// fluctuations
+func (bi *Bitget) GetSinglePosition(ctx context.Context, productType, pair, marginCoin string) (*PositionResp, error) {
+	if productType == "" {
+		return nil, errProductTypeEmpty
+	}
+	if pair == "" {
+		return nil, errPairEmpty
+	}
+	if marginCoin == "" {
+		return nil, errMarginCoinEmpty
+	}
+	vals := url.Values{}
+	vals.Set("productType", productType)
+	vals.Set("symbol", pair)
+	vals.Set("marginCoin", marginCoin)
+	path := bitgetMix + bitgetPosition + bitgetSinglePosition
+	var resp *PositionResp
+	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodGet, path, vals, nil,
+		&resp)
+}
+
+// GetAllPositions returns position details for a given productType and marginCoin. The exchange recommends using
+// the websocket feed  instead, as information from this endpoint may be delayed during settlement or market
+// fluctuations
+func (bi *Bitget) GetAllPositions(ctx context.Context, productType, marginCoin string) (*PositionResp, error) {
+	if productType == "" {
+		return nil, errProductTypeEmpty
+	}
+	if marginCoin == "" {
+		return nil, errMarginCoinEmpty
+	}
+	vals := url.Values{}
+	vals.Set("productType", productType)
+	vals.Set("marginCoin", marginCoin)
+	path := bitgetMix + bitgetPosition + bitgetAllPositions
+	var resp *PositionResp
+	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate5, http.MethodGet, path, vals, nil,
+		&resp)
+}
+
+// GetHistoricalPositions returns historical position details, up to a maximum of three months ago
+func (bi *Bitget) GetHistoricalPositions(ctx context.Context, pair, productType string, pagination, limit int64, startTime, endTime time.Time) (*HistPositionResp, error) {
+	var params Params
+	params.Values = make(url.Values)
+	err := params.prepareDateString(startTime, endTime, true)
+	if err != nil {
+		return nil, err
+	}
+	params.Values.Set("symbol", pair)
+	params.Values.Set("productType", productType)
+	if pagination != 0 {
+		params.Values.Set("idLessThan", strconv.FormatInt(pagination, 10))
+	}
+	if limit != 0 {
+		params.Values.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	path := bitgetMix + bitgetPosition + bitgetHistoryPosition
+	var resp *HistPositionResp
+	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate5, http.MethodGet, path, params.Values,
 		nil, &resp)
 }
 

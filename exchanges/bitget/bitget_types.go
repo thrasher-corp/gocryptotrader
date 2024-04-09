@@ -1070,7 +1070,7 @@ type OneAccResp struct {
 		IsolatedLongLever     float64      `json:"isolatedLongLever"`
 		IsolatedShortLever    float64      `json:"isolatedShortLever"`
 		MarginMode            string       `json:"marginMode"`
-		PosMode               string       `json:"posMode"`
+		PositionMode          string       `json:"posMode"`
 		UnrealizedPL          types.Number `json:"unrealizedPL"`
 		Coupon                types.Number `json:"coupon,string"`
 		CrossedUnrealizedPL   types.Number `json:"crossedUnrealizedPL"`
@@ -1149,5 +1149,66 @@ type FutureAccBillResp struct {
 			Coin         string        `json:"coin"`
 			CreateTime   UnixTimestamp `json:"cTime"`
 		} `json:"bills"`
+	} `json:"data"`
+}
+
+// PositionTierResp contains information on position configurations
+type PositionTierResp struct {
+	Data []struct {
+		Symbol         string  `json:"symbol"`
+		Level          uint8   `json:"level,string"`
+		StartUnit      float64 `json:"startUnit,string"`
+		EndUnit        float64 `json:"endUnit,string"`
+		Leverage       float64 `json:"leverage,string"`
+		KeepMarginRate float64 `json:"keepMarginRate,string"`
+	} `json:"data"`
+}
+
+// PositionResp contains information on positions
+type PositionResp struct {
+	Data []struct {
+		MarginCoin       string        `json:"marginCoin"`
+		Symbol           string        `json:"symbol"`
+		HoldSide         string        `json:"holdSide"`
+		OpenDelegateSize float64       `json:"openDelegateSize,string"`
+		MarginSize       float64       `json:"marginSize,string"`
+		Available        float64       `json:"available,string"`
+		Locked           float64       `json:"locked,string"`
+		Total            float64       `json:"total,string"`
+		Leverage         float64       `json:"leverage,string"`
+		AchievedProfits  float64       `json:"achievedProfits,string"`
+		OpenPriceAverage float64       `json:"openPriceAvg,string"`
+		MarginMode       string        `json:"marginMode"`
+		PositionMode     string        `json:"posMode"`
+		UnrealizedPL     float64       `json:"unrealizedPL,string"`
+		LiquidationPrice float64       `json:"liquidationPrice,string"`
+		KeepMarginRate   float64       `json:"keepMarginRate,string"`
+		MarkPrice        float64       `json:"markPrice,string"`
+		MarginRatio      float64       `json:"marginRatio,string"`
+		CreateTime       UnixTimestamp `json:"cTime"`
+	} `json:"data"`
+}
+
+// HistPositionResp contains information on historical positions
+type HistPositionResp struct {
+	Data struct {
+		List []struct {
+			MarginCoin         string        `json:"marginCoin"`
+			Symbol             string        `json:"symbol"`
+			HoldSide           string        `json:"holdSide"`
+			OpenAveragePrice   float64       `json:"openAvgPrice,string"`
+			CloseAveragePrice  float64       `json:"closeAvgPrice,string"`
+			MarginMode         string        `json:"marginMode"`
+			OpenTotalPosition  float64       `json:"openTotalPos,string"`
+			CloseTotalPosition float64       `json:"closeTotalPos,string"`
+			PNL                float64       `json:"pnl,string"`
+			NetProfit          float64       `json:"netProfit,string"`
+			TotalFunding       float64       `json:"totalFunding,string"`
+			OpenFee            float64       `json:"openFee,string"`
+			CloseFee           float64       `json:"closeFee,string"`
+			UpdateTime         UnixTimestamp `json:"uTime"`
+			CreateTime         UnixTimestamp `json:"cTime"`
+		} `json:"list"`
+		EndID int64 `json:"endId,string"`
 	} `json:"data"`
 }
