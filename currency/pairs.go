@@ -1,10 +1,12 @@
 package currency
 
 import (
+	"cmp"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"math/rand"
+	"slices"
 	"strings"
 
 	"github.com/thrasher-corp/gocryptotrader/log"
@@ -120,8 +122,7 @@ func (p Pairs) Lower() Pairs {
 	return newSlice
 }
 
-// Contains checks to see if a specified pair exists inside a currency pair
-// array
+// Contains checks to see if a specified pair exists inside a currency pair array
 func (p Pairs) Contains(check Pair, exact bool) bool {
 	for i := range p {
 		if (exact && p[i].Equal(check)) ||
@@ -132,8 +133,7 @@ func (p Pairs) Contains(check Pair, exact bool) bool {
 	return false
 }
 
-// ContainsAll checks to see if all pairs supplied are contained within the
-// original pairs list.
+// ContainsAll checks to see if all pairs supplied are contained within the original pairs list
 func (p Pairs) ContainsAll(check Pairs, exact bool) error {
 	if len(check) == 0 {
 		return ErrCurrencyPairsEmpty
@@ -491,4 +491,21 @@ func (p Pairs) GetPairsByBase(baseTerm Code) (Pairs, error) {
 		}
 	}
 	return pairs, nil
+}
+
+// Sort sorts the Pairs in place by String comparison
+func (p Pairs) Sort() {
+	slices.SortFunc(p, func(a, b Pair) int {
+		return cmp.Compare(a.String(), b.String())
+	})
+}
+
+// Equal checks to see if two lists of pairs contain the only the same pairs
+// Does not check inverted pairs
+func (p Pairs) Equal(check Pairs) bool {
+	a := slices.Clone(p)
+	b := slices.Clone(check)
+	a.Sort()
+	b.Sort()
+	return slices.Equal(a, b)
 }
