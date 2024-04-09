@@ -209,7 +209,7 @@ func (c *CoinbasePro) wsHandleData(respRaw []byte, seqCount uint64) (string, err
 			case "update":
 				err = c.ProcessUpdate(&wsL2[i], timestamp)
 			default:
-				err = errors.Errorf(errUnknownL2DataType, wsL2[i].Type)
+				err = fmt.Errorf("%w %v", errUnknownL2DataType, wsL2[i].Type)
 			}
 			if err != nil {
 				return warnString, err
@@ -454,6 +454,10 @@ func (c *CoinbasePro) sendRequest(msgType, channel string, productIDs currency.P
 		Key:        creds.Key,
 		Timestamp:  n,
 	}
+	err = c.InitiateRateLimit(context.Background(), WSRate)
+	if err != nil {
+		return fmt.Errorf("failed to rate limit HTTP request: %w", err)
+	}
 	return c.Websocket.Conn.SendJSONMessage(req)
 }
 
@@ -470,7 +474,7 @@ func processBidAskArray(data *WebsocketOrderbookDataHolder) (bids, asks []orderb
 		case "offer":
 			asks = append(asks, change)
 		default:
-			return nil, nil, errors.Errorf(errUnknownSide, data.Changes[i].Side)
+			return nil, nil, fmt.Errorf("%w %v", errUnknownSide, data.Changes[i].Side)
 		}
 	}
 	return bids, asks, nil
@@ -491,7 +495,7 @@ func statusToStandardStatus(stat string) (order.Status, error) {
 	case "change", "activate":
 		return order.Active, nil
 	default:
-		return order.UnknownStatus, fmt.Errorf("%s not recognised as status type", stat)
+		return order.UnknownStatus, fmt.Errorf("%w %v", errUnrecognisedStatusType, stat)
 	}
 }
 

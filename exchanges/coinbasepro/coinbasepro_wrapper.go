@@ -620,7 +620,7 @@ func (c *CoinbasePro) CancelOrder(ctx context.Context, o *order.Cancel) error {
 		return err
 	}
 	if resp.Status[o.OrderID] != order.Cancelled.String() {
-		return fmt.Errorf("order %s failed to cancel", o.OrderID)
+		return fmt.Errorf("%w %v", errOrderFailedToCancel, o.OrderID)
 	}
 	return err
 }
@@ -784,7 +784,7 @@ func (c *CoinbasePro) WithdrawFiatFunds(ctx context.Context, withdrawRequest *wi
 		}
 	}
 	if selectedWithdrawalMethod.ID == "" {
-		return nil, fmt.Errorf(errPayMethodNotFound, withdrawRequest.Fiat.Bank.BankName)
+		return nil, fmt.Errorf("%w %v", errPayMethodNotFound, withdrawRequest.Fiat.Bank.BankName)
 	}
 	resp, err := c.FiatTransfer(ctx, withdrawRequest.WalletID, withdrawRequest.Currency.String(),
 		selectedWithdrawalMethod.ID, withdrawRequest.Amount, true, FiatWithdrawal)

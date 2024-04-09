@@ -2,9 +2,9 @@ package coinbasepro
 
 import (
 	"context"
+	"fmt"
 	"time"
 
-	"github.com/pkg/errors"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"golang.org/x/time/rate"
 )
@@ -45,7 +45,7 @@ func (r *RateLimit) Limit(ctx context.Context, f request.EndpointLimit) error {
 	case WSRate:
 		return r.RateLimWS.Wait(ctx)
 	default:
-		return errors.Errorf(errUnknownEndpointLimit, f)
+		return fmt.Errorf("%w %v", errUnknownEndpointLimit, f)
 	}
 }
 

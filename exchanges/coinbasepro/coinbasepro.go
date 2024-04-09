@@ -86,11 +86,7 @@ const (
 	startDateString = "start_date"
 	endDateString   = "end_date"
 
-	errPayMethodNotFound    = "payment method '%v' not found"
 	errIntervalNotSupported = "interval not supported"
-	errUnknownEndpointLimit = "unknown endpoint limit %v"
-	errUnknownL2DataType    = "unknown l2update data type %v"
-	errUnknownSide          = "unknown side %v"
 	warnSequenceIssue       = "Out of order sequence number. Received %v, expected %v"
 )
 
@@ -145,6 +141,13 @@ var (
 	errNoWalletForCurrency    = errors.New("no wallet found for currency, address creation impossible")
 	errChannelNameUnknown     = errors.New("unknown channel name")
 	errNoWalletsReturned      = errors.New("no wallets returned")
+	errUnknownEndpointLimit   = errors.New("unknown endpoint limit")
+	errPayMethodNotFound      = errors.New("payment method not found")
+	errUnknownL2DataType      = errors.New("unknown l2update data type")
+	errUnknownSide            = errors.New("unknown side")
+	errInvalidGranularity     = errors.New("invalid granularity")
+	errOrderFailedToCancel    = errors.New("failed to cancel order")
+	errUnrecognisedStatusType = errors.New("unrecognised status type")
 )
 
 // GetAllAccounts returns information on all trading accounts associated with the API key
@@ -248,7 +251,7 @@ func (c *CoinbasePro) GetHistoricRates(ctx context.Context, productID, granulari
 		granThirtyMin, granOneHour, granTwoHour, granSixHour, granOneDay}
 	validGran, _ := common.InArray(granularity, allowedGranularities)
 	if !validGran {
-		return nil, fmt.Errorf("invalid granularity %v, allowed granularities are: %+v",
+		return nil, fmt.Errorf("%w %v, allowed granularities are: %+v", errInvalidGranularity,
 			granularity, allowedGranularities)
 	}
 	vals := url.Values{}
@@ -481,7 +484,10 @@ func (c *CoinbasePro) PreviewOrder(ctx context.Context, productID, side, orderTy
 		"tradable_balance":    strconv.FormatFloat(tradableBalance, 'f', -1, 64),
 		"skip_fcm_risk_check": skipFCMRiskCheck,
 		"leverage":            strconv.FormatFloat(leverage, 'f', -1, 64),
-		"margin_type":         mt}
+	}
+	if mt != "" {
+		req["margin_type"] = mt
+	}
 	var resp *PreviewOrderResp
 	path := coinbaseV3 + coinbaseOrders + "/" + coinbasePreview
 	return resp, c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, path, nil, req, true,
@@ -774,8 +780,7 @@ func (c *CoinbasePro) GetConvertTradeByID(ctx context.Context, tradeID, from, to
 // GetV3Time returns the current server time, calling V3 of the API
 func (c *CoinbasePro) GetV3Time(ctx context.Context) (*ServerTimeV3, error) {
 	var resp *ServerTimeV3
-	return resp, c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet,
-		coinbaseV3+coinbaseTime, nil, nil, true, &resp, nil)
+	return resp, c.SendHTTPRequest(ctx, exchange.RestSpot, coinbaseV3+coinbaseTime, &resp)
 }
 
 // GetAllPaymentMethods returns a list of all payment methods associated with the user's account
@@ -807,17 +812,6 @@ func (c *CoinbasePro) ListNotifications(ctx context.Context, pag PaginationInp) 
 	params.preparePagination(pag)
 	return resp, c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet,
 		coinbaseV2+coinbaseNotifications, params.Values, nil, false, &resp, nil)
-}
-
-// GetUserByID returns information about a user, given their ID
-func (c *CoinbasePro) GetUserByID(ctx context.Context, userID string) (*UserResponse, error) {
-	if userID == "" {
-		return nil, errUserIDEmpty
-	}
-	path := coinbaseV2 + coinbaseUsers + "/" + userID
-	var resp *UserResponse
-	return resp, c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet,
-		path, nil, nil, false, &resp, nil)
 }
 
 // GetCurrentUser returns information about the user associated with the API key
