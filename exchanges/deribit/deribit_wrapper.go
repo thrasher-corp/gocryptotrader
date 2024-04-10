@@ -124,12 +124,6 @@ func (d *Deribit) SetDefaults() {
 					kline.OneHour:   true,
 					kline.EightHour: true,
 				},
-				FundingRateBatching: map[asset.Item]bool{
-					asset.Futures:     true,
-					asset.Options:     true,
-					asset.OptionCombo: true,
-					asset.FutureCombo: true,
-				},
 				OpenInterest: exchange.OpenInterestSupport{
 					Supported: true,
 				},
@@ -1481,7 +1475,8 @@ func (d *Deribit) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]fu
 		return nil, fmt.Errorf("%w requires pair", common.ErrFunctionNotSupported)
 	}
 	for i := range k {
-		if k[i].Asset == asset.Options || !d.SupportsAsset(k[i].Asset) {
+		if k[i].Asset == asset.Spot ||
+			!d.SupportsAsset(k[i].Asset) {
 			return nil, fmt.Errorf("%w %v %v", asset.ErrNotSupported, k[i].Asset, k[i].Pair())
 		}
 	}

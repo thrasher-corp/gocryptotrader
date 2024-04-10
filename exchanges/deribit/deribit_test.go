@@ -138,7 +138,7 @@ func TestFetchRecentTrades(t *testing.T) {
 	assert.NoError(t, err)
 	sleepUntilTradablePairsUpdated()
 	_, err = d.GetRecentTrades(context.Background(), optionsTradablePair, asset.Options)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	_, err = d.GetRecentTrades(context.Background(), optionComboTradablePair, asset.OptionCombo)
 	assert.NoError(t, err)
 	_, err = d.GetRecentTrades(context.Background(), futureComboTradablePair, asset.FutureCombo)
@@ -285,13 +285,14 @@ func TestWSRetrieveMarkPriceHistory(t *testing.T) {
 func TestGetBookSummaryByCurrency(t *testing.T) {
 	t.Parallel()
 	var response BookSummaryData
-	err := json.Unmarshal([]byte(`{	"volume_usd": 0,	"volume": 0,	"quote_currency": "USD",	
-	"price_change": -11.1896349,	"open_interest": 0,	"mid_price": null,	"mark_price": 3579.73,	"low": null,	
-	"last": null,	"instrument_name": "BTC-22FEB19",	"high": null,	"estimated_delivery_price": 3579.73,	"creation_timestamp": 1550230036440,	
+	err := json.Unmarshal([]byte(`{	"volume_usd": 0,	"volume": 0,	"quote_currency": "USD",
+	"price_change": -11.1896349,	"open_interest": 0,	"mid_price": null,	"mark_price": 3579.73,	"low": null,
+	"last": null,	"instrument_name": "BTC-22FEB19",	"high": null,	"estimated_delivery_price": 3579.73,	"creation_timestamp": 1550230036440,
 	"bid_price": null,	"base_currency": "BTC",	"ask_price": null}`), &response)
 	require.NoError(t, err)
-	_, err = d.GetBookSummaryByCurrency(context.Background(), currencyBTC, "")
+	result, err := d.GetBookSummaryByCurrency(context.Background(), currencyBTC, "option")
 	assert.NoError(t, err)
+	require.NotNil(t, result)
 }
 
 func TestWSRetrieveBookBySummary(t *testing.T) {
@@ -2946,8 +2947,8 @@ func TestGetFuturesPositionSummary(t *testing.T) {
 	_, err = d.GetFuturesPositionSummary(context.Background(), req)
 	assert.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, d, canManipulateRealOrders)
-	req.Pair = currency.NewPair(currency.XBT, currency.USDTM)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, d)
+	req.Pair = currency.NewPair(currency.BTC, currency.NewCode("PERPETUAL"))
 	_, err = d.GetFuturesPositionSummary(context.Background(), req)
 	assert.NoError(t, err)
 }
@@ -2955,14 +2956,6 @@ func TestGetFuturesPositionSummary(t *testing.T) {
 func TestGetOpenInterest(t *testing.T) {
 	t.Parallel()
 	resp, err := d.GetOpenInterest(context.Background(), key.PairAsset{
-		Base:  currency.BTC.Item,
-		Quote: currency.USDT.Item,
-		Asset: asset.FutureCombo,
-	})
-	require.NoError(t, err)
-	require.NotEmpty(t, resp)
-
-	resp, err = d.GetOpenInterest(context.Background(), key.PairAsset{
 		Base:  currency.BTC.Item,
 		Quote: currency.NewCode("PERPETUAL").Item,
 		Asset: asset.Futures,
@@ -2975,13 +2968,22 @@ func TestGetOpenInterest(t *testing.T) {
 		Quote: currency.USDC.Item,
 		Asset: asset.Spot,
 	})
+	require.ErrorIs(t, err, asset.ErrNotSupported)
+	sleepUntilTradablePairsUpdated()
+	resp, err = d.GetOpenInterest(context.Background(), key.PairAsset{
+		Base:  futureComboTradablePair.Base.Item,
+		Quote: futureComboTradablePair.Quote.Item,
+		Asset: asset.FutureCombo,
+	})
 	require.NoError(t, err)
+	require.NotEmpty(t, resp)
+
 	_, err = d.GetOpenInterest(context.Background(), key.PairAsset{
 		Base:  currency.BTC.Item,
-		Quote: currency.NewCode("21OCT22-25-P").Item,
+		Quote: optionsTradablePair.Quote.Item,
 		Asset: asset.Options,
 	})
-	assert.ErrorIs(t, err, asset.ErrNotSupported)
+	assert.NoError(t, err)
 }
 
 func TestIsPerpetualFutureCurrency(t *testing.T) {
