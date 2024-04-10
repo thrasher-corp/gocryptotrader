@@ -868,7 +868,7 @@ func (w *Websocket) RemoveSubscriptions(subs ...*subscription.Subscription) erro
 	var errs error
 	for _, s := range subs {
 		err := s.SetState(subscription.InactiveState)
-		if err == subscription.ErrInStateAlready {
+		if errors.Is(err, subscription.ErrInStateAlready) {
 			err = nil
 		}
 		if err == nil {
