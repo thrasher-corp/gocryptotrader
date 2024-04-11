@@ -847,7 +847,7 @@ func (b *Binance) validatePlaceOrder(arg *USDTOrderUpdateParams) error {
 
 // UModifyOrder order modify function, currently only LIMIT order modification is supported, modified orders will be reordered in the match queue
 // Weight: 1 on 10s order rate limit(X-MBX-ORDER-COUNT-10S); 1 on 1min order rate limit(X-MBX-ORDER-COUNT-1M); 1 on IP rate limit(x-mbx-used-weight-1m);
-// PriceMatch: only avaliable for LIMIT/STOP/TAKE_PROFIT order; can be set to OPPONENT/ OPPONENT_5/ OPPONENT_10/ OPPONENT_20: /QUEUE/ QUEUE_5/ QUEUE_10/ QUEUE_20; Can't be passed together with price
+// PriceMatch: only available for LIMIT/STOP/TAKE_PROFIT order; can be set to OPPONENT/ OPPONENT_5/ OPPONENT_10/ OPPONENT_20: /QUEUE/ QUEUE_5/ QUEUE_10/ QUEUE_20; Can't be passed together with price
 func (b *Binance) UModifyOrder(ctx context.Context, arg *USDTOrderUpdateParams) (*UOrderData, error) {
 	err := b.validatePlaceOrder(arg)
 	if err != nil {
@@ -1480,7 +1480,7 @@ func (b *Binance) ChangePositionMode(ctx context.Context, dualPositionMode bool)
 	return b.SendAuthHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodPost, "/fapi/v1/positionSide/dual", params, uFuturesDefaultRate, nil, &struct{}{})
 }
 
-// GetCurrentPositionMode retrieves the currrent position mode
+// GetCurrentPositionMode retrieves the current position mode
 func (b *Binance) GetCurrentPositionMode(ctx context.Context) (*PositionMode, error) {
 	var resp *PositionMode
 	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodGet, "/fapi/v1/positionSide/dual", nil, uFuturesDefaultRate, nil, &resp)

@@ -36,6 +36,9 @@ const (
 	spotDefaultRate request.EndpointLimit = iota
 	walletSystemStatus
 	allCoinInfoRate
+	dailyAccountSnapshotRate
+	fundWithdrawalRate
+	withdrawalHistoryRate
 	spotExchangeInfo
 	spotHistoricalTradesRate
 	spotOrderbookDepth500Rate
@@ -205,6 +208,12 @@ func (r *RateLimit) Limit(ctx context.Context, f request.EndpointLimit) error {
 	case walletSystemStatus:
 		limiter, tokens = r.SpotRate, 1
 	case allCoinInfoRate:
+		limiter, tokens = r.SpotRate, 10
+	case dailyAccountSnapshotRate:
+		limiter, tokens = r.SpotRate, 2400
+	case fundWithdrawalRate:
+		limiter, tokens = r.SpotRate, 600
+	case withdrawalHistoryRate:
 		limiter, tokens = r.SpotRate, 10
 	case spotPriceChangeAllRate:
 		limiter, tokens = r.SpotRate, 40

@@ -28,16 +28,16 @@ import (
 // CM refers to Coin-M Futures
 
 // NewUMOrder send in a new USDT margined order/orders.
-func (b *Binance) NewUMOrder(ctx context.Context, arg *UMOrderParam) (*UM_CM_Order, error) {
+func (b *Binance) NewUMOrder(ctx context.Context, arg *UMOrderParam) (*UMCMOrder, error) {
 	return b.newUMCMOrder(ctx, arg, "/papi/v1/um/order")
 }
 
 // NewCMOrder send in a new Coin margined order/orders.
-func (b *Binance) NewCMOrder(ctx context.Context, arg *UMOrderParam) (*UM_CM_Order, error) {
+func (b *Binance) NewCMOrder(ctx context.Context, arg *UMOrderParam) (*UMCMOrder, error) {
 	return b.newUMCMOrder(ctx, arg, "/papi/v1/cm/order")
 }
 
-func (b *Binance) newUMCMOrder(ctx context.Context, arg *UMOrderParam, path string) (*UM_CM_Order, error) {
+func (b *Binance) newUMCMOrder(ctx context.Context, arg *UMOrderParam, path string) (*UMCMOrder, error) {
 	if arg == nil || (*arg) == (UMOrderParam{}) {
 		return nil, common.ErrNilPointer
 	}
@@ -51,7 +51,8 @@ func (b *Binance) newUMCMOrder(ctx context.Context, arg *UMOrderParam, path stri
 		return nil, order.ErrTypeIsInvalid
 	}
 	arg.OrderType = strings.ToUpper(arg.OrderType)
-	if arg.OrderType == "limit" {
+	switch arg.OrderType {
+	case "limit":
 		if arg.TimeInForce == "" {
 			return nil, errTimestampInfoRequired
 		}
@@ -61,14 +62,14 @@ func (b *Binance) newUMCMOrder(ctx context.Context, arg *UMOrderParam, path stri
 		if arg.Price <= 0 {
 			return nil, order.ErrPriceBelowMin
 		}
-	} else if arg.OrderType == "MARKET" {
+	case "MARKET":
 		if arg.Quantity <= 0 {
 			return nil, order.ErrAmountBelowMin
 		}
-	} else {
+	default:
 		return nil, order.ErrUnsupportedOrderType
 	}
-	var resp *UM_CM_Order
+	var resp *UMCMOrder
 	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestFuturesSupplementary, http.MethodPost, path, nil, pmDefaultRate, arg, &resp)
 }
 
@@ -170,16 +171,16 @@ func (b *Binance) placeConditionalOrder(ctx context.Context, arg *ConditionalOrd
 // -------------------------------------------- Cancel Order Endpoints  ----------------------------------------------------
 
 // CancelCMOrder cancels an active Coin Margined Futures limit order.
-func (b *Binance) CancelCMOrder(ctx context.Context, symbol, origClientOrderID string, orderID int64) (*UM_CM_Order, error) {
+func (b *Binance) CancelCMOrder(ctx context.Context, symbol, origClientOrderID string, orderID int64) (*UMCMOrder, error) {
 	return b.cancelOrder(ctx, symbol, origClientOrderID, "/papi/v1/cm/order", orderID)
 }
 
 // CancelUMOrder cancels an active USDT Margined Futures limit order.
-func (b *Binance) CancelUMOrder(ctx context.Context, symbol, origClientOrderID string, orderID int64) (*UM_CM_Order, error) {
+func (b *Binance) CancelUMOrder(ctx context.Context, symbol, origClientOrderID string, orderID int64) (*UMCMOrder, error) {
 	return b.cancelOrder(ctx, symbol, origClientOrderID, "/papi/v1/um/order", orderID)
 }
 
-func (b *Binance) cancelOrder(ctx context.Context, symbol, origClientOrderID, path string, orderID int64) (*UM_CM_Order, error) {
+func (b *Binance) cancelOrder(ctx context.Context, symbol, origClientOrderID, path string, orderID int64) (*UMCMOrder, error) {
 	if symbol == "" {
 		return nil, currency.ErrSymbolStringEmpty
 	}
@@ -194,7 +195,7 @@ func (b *Binance) cancelOrder(ctx context.Context, symbol, origClientOrderID, pa
 	if origClientOrderID != "" {
 		params.Set("origClientOrderId", origClientOrderID)
 	}
-	var resp *UM_CM_Order
+	var resp *UMCMOrder
 	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestFuturesSupplementary, http.MethodDelete, path, params, pmDefaultRate, nil, &resp)
 }
 
@@ -205,7 +206,7 @@ func (b *Binance) CancelAllUMOrders(ctx context.Context, symbol string) (*Succes
 
 // CancelAllCMOrders cancels all active Coin Margined Futures limit orders on specific symbol
 func (b *Binance) CancelAllCMOrders(ctx context.Context, symbol string) (*SuccessResponse, error) {
-	return b.cancelAllUMCMOrders(context.Background(), symbol, "/papi/v1/cm/allOpenOrders")
+	return b.cancelAllUMCMOrders(ctx, symbol, "/papi/v1/cm/allOpenOrders")
 }
 
 func (b *Binance) cancelAllUMCMOrders(ctx context.Context, symbol, path string) (*SuccessResponse, error) {
@@ -322,16 +323,16 @@ func (b *Binance) cancelAllUMCMOpenConditionalOrders(ctx context.Context, symbol
 
 // GetUMOrder check an USDT Margined order's status
 // Orders can not be found if the order status is CANCELED or EXPIRED
-func (b *Binance) GetUMOrder(ctx context.Context, symbol, origClientOrderID string, orderID int64) (*UM_CM_Order, error) {
-	return b.getUM_CMOrder(ctx, symbol, origClientOrderID, "/papi/v1/um/order", orderID)
+func (b *Binance) GetUMOrder(ctx context.Context, symbol, origClientOrderID string, orderID int64) (*UMCMOrder, error) {
+	return b.getUMCMOrder(ctx, symbol, origClientOrderID, "/papi/v1/um/order", orderID)
 }
 
 // GetUMOpenOrder get current UM open order
-func (b *Binance) GetUMOpenOrder(ctx context.Context, symbol, origClientOrderID string, orderID int64) (*UM_CM_Order, error) {
-	return b.getUM_CMOrder(ctx, symbol, origClientOrderID, "/papi/v1/um/openOrder", orderID)
+func (b *Binance) GetUMOpenOrder(ctx context.Context, symbol, origClientOrderID string, orderID int64) (*UMCMOrder, error) {
+	return b.getUMCMOrder(ctx, symbol, origClientOrderID, "/papi/v1/um/openOrder", orderID)
 }
 
-func (b *Binance) getUM_CMOrder(ctx context.Context, symbol, origClientOrderID, path string, orderID int64) (*UM_CM_Order, error) {
+func (b *Binance) getUMCMOrder(ctx context.Context, symbol, origClientOrderID, path string, orderID int64) (*UMCMOrder, error) {
 	if symbol == "" {
 		return nil, currency.ErrSymbolStringEmpty
 	}
@@ -346,13 +347,13 @@ func (b *Binance) getUM_CMOrder(ctx context.Context, symbol, origClientOrderID, 
 	if origClientOrderID != "" {
 		params.Set("origClientOrderId", origClientOrderID)
 	}
-	var resp *UM_CM_Order
+	var resp *UMCMOrder
 	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestFuturesSupplementary, http.MethodGet, path, params, pmDefaultRate, nil, &resp)
 }
 
 // GetAllUMOpenOrders retrieves all open USDT margined orders.
 // If no symbol is provided, it will load all open USDT orders, taking more ratelimit weight than the ordinary endpoints.
-func (b *Binance) GetAllUMOpenOrders(ctx context.Context, symbol string) ([]UM_CM_Order, error) {
+func (b *Binance) GetAllUMOpenOrders(ctx context.Context, symbol string) ([]UMCMOrder, error) {
 	endpointLimit := pmDefaultRate
 	if symbol == "" {
 		endpointLimit = pmRetrieveAllUMOpenOrdersForAllSymbolRate
@@ -367,11 +368,11 @@ func (b *Binance) GetAllUMOpenOrders(ctx context.Context, symbol string) ([]UM_C
 //
 // If orderId is set, it will get orders >= that orderId. Otherwise most recent orders are returned.
 // The query time period must be less then 7 days.
-func (b *Binance) GetAllUMOrders(ctx context.Context, symbol string, startTime, endTime time.Time, startingOrderID, limit int64) ([]UM_CM_Order, error) {
+func (b *Binance) GetAllUMOrders(ctx context.Context, symbol string, startTime, endTime time.Time, startingOrderID, limit int64) ([]UMCMOrder, error) {
 	return b.getUMOrders(ctx, symbol, "/papi/v1/um/allOrders", startTime, endTime, startingOrderID, limit, pmGetAllUMOrdersRate)
 }
 
-func (b *Binance) getUMOrders(ctx context.Context, symbol, path string, startTime, endTime time.Time, startingOrderID, limit int64, endpointLimit request.EndpointLimit) ([]UM_CM_Order, error) {
+func (b *Binance) getUMOrders(ctx context.Context, symbol, path string, startTime, endTime time.Time, startingOrderID, limit int64, endpointLimit request.EndpointLimit) ([]UMCMOrder, error) {
 	params := url.Values{}
 	if symbol != "" {
 		params.Set("symbol", symbol)
@@ -390,22 +391,22 @@ func (b *Binance) getUMOrders(ctx context.Context, symbol, path string, startTim
 	if limit > 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
-	var resp []UM_CM_Order
+	var resp []UMCMOrder
 	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestFuturesSupplementary, http.MethodGet, path, params, endpointLimit, nil, &resp)
 }
 
 // GetCMOrder retrieves Coin Margined order instance.
-func (b *Binance) GetCMOrder(ctx context.Context, symbol, origClientOrderID string, orderID int64) (*UM_CM_Order, error) {
-	return b.getUM_CMOrder(ctx, symbol, origClientOrderID, "/papi/v1/cm/order", orderID)
+func (b *Binance) GetCMOrder(ctx context.Context, symbol, origClientOrderID string, orderID int64) (*UMCMOrder, error) {
+	return b.getUMCMOrder(ctx, symbol, origClientOrderID, "/papi/v1/cm/order", orderID)
 }
 
 // GetCMOpenOrder retrieves Coin Margined open order instance.
-func (b *Binance) GetCMOpenOrder(ctx context.Context, symbol, origClientOrderID string, orderID int64) (*UM_CM_Order, error) {
-	return b.getUM_CMOrder(ctx, symbol, origClientOrderID, "/papi/v1/cm/openOrder", orderID)
+func (b *Binance) GetCMOpenOrder(ctx context.Context, symbol, origClientOrderID string, orderID int64) (*UMCMOrder, error) {
+	return b.getUMCMOrder(ctx, symbol, origClientOrderID, "/papi/v1/cm/openOrder", orderID)
 }
 
 // GetAllCMOpenOrders retrieves all open Coin Margined futures orders on a symbol.
-func (b *Binance) GetAllCMOpenOrders(ctx context.Context, symbol, pair string) ([]UM_CM_Order, error) {
+func (b *Binance) GetAllCMOpenOrders(ctx context.Context, symbol, pair string) ([]UMCMOrder, error) {
 	endpointLimit := pmDefaultRate
 	if symbol == "" {
 		endpointLimit = pmRetrieveAllCMOpenOrdersForAllSymbolRate
@@ -421,7 +422,7 @@ func (b *Binance) GetAllCMOpenOrders(ctx context.Context, symbol, pair string) (
 // - order status is CANCELED or EXPIRED, AND
 // - order has NO filled trade, AND
 // - created time + 3 days < current time
-func (b *Binance) GetAllCMOrders(ctx context.Context, symbol, pair string, startTime, endTime time.Time, startingOrderID, limit int64) ([]UM_CM_Order, error) {
+func (b *Binance) GetAllCMOrders(ctx context.Context, symbol, pair string, startTime, endTime time.Time, startingOrderID, limit int64) ([]UMCMOrder, error) {
 	endpointLimit := pmAllCMOrderWithSymbolRate
 	if symbol == "" {
 		endpointLimit = pmAllCMOrderWithoutSymbolRate
@@ -429,7 +430,7 @@ func (b *Binance) GetAllCMOrders(ctx context.Context, symbol, pair string, start
 	return b.getCMOrders(ctx, symbol, pair, "/papi/v1/cm/allOrders", startTime, endTime, startingOrderID, limit, endpointLimit)
 }
 
-func (b *Binance) getCMOrders(ctx context.Context, symbol, pair, path string, startTime, endTime time.Time, startingOrderID, limit int64, endpointLimit request.EndpointLimit) ([]UM_CM_Order, error) {
+func (b *Binance) getCMOrders(ctx context.Context, symbol, pair, path string, startTime, endTime time.Time, startingOrderID, limit int64, endpointLimit request.EndpointLimit) ([]UMCMOrder, error) {
 	if symbol == "" && pair == "" {
 		return nil, fmt.Errorf("%w either symbol or pair is required", currency.ErrSymbolStringEmpty)
 	}
@@ -454,13 +455,13 @@ func (b *Binance) getCMOrders(ctx context.Context, symbol, pair, path string, st
 	if limit > 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
-	var resp []UM_CM_Order
+	var resp []UMCMOrder
 	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestFuturesSupplementary, http.MethodGet, path, params, endpointLimit, nil, &resp)
 }
 
 // GetOpenUMConditionalOrder retrieves a conditional USDT margined order
 func (b *Binance) GetOpenUMConditionalOrder(ctx context.Context, symbol, newClientStrategyID string, strategyID int64) (*ConditionalOrder, error) {
-	return b.getOpenUMCMConditionalOrder(context.Background(), symbol, newClientStrategyID, "/papi/v1/um/conditional/openOrder", strategyID)
+	return b.getOpenUMCMConditionalOrder(ctx, symbol, newClientStrategyID, "/papi/v1/um/conditional/openOrder", strategyID)
 }
 
 func (b *Binance) getOpenUMCMConditionalOrder(ctx context.Context, symbol, newClientStrategyID, path string, strategyID int64) (*ConditionalOrder, error) {
@@ -523,12 +524,12 @@ func (b *Binance) getAllUMCMOrders(ctx context.Context, symbol, path, newClientS
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	var resp []ConditionalOrder
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestFuturesSupplementary, http.MethodGet, path, params, pmDefaultRate, nil, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestFuturesSupplementary, http.MethodGet, path, params, endpointLimit, nil, &resp)
 }
 
 // GetOpenCMConditionalOrder get current Coin Margined open conditional order
 func (b *Binance) GetOpenCMConditionalOrder(ctx context.Context, symbol, newClientStrategyID string, strategyID int64) (*ConditionalOrder, error) {
-	return b.getOpenUMCMConditionalOrder(context.Background(), symbol, newClientStrategyID, "", strategyID)
+	return b.getOpenUMCMConditionalOrder(ctx, symbol, newClientStrategyID, "", strategyID)
 }
 
 // GetAllCMOpenConditionalOrders retrieves all open conditional orders on a symbol.
@@ -696,7 +697,7 @@ func (b *Binance) GetPortfolioMarginAccountInformation(ctx context.Context) (*Ac
 	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestFuturesSupplementary, http.MethodGet, "/papi/v1/account", nil, pmGetAccountInformationRate, nil, &resp)
 }
 
-// GetMarginMaxBorrow holds the maxium borrowable amount limited by the account level.
+// GetMarginMaxBorrow holds the maximum borrowable amount limited by the account level.
 func (b *Binance) GetMarginMaxBorrow(ctx context.Context) (*MaxBorrow, error) {
 	var resp *MaxBorrow
 	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestFuturesSupplementary, http.MethodGet, "/papi/v1/margin/maxBorrowable", nil, pmMarginMaxBorrowRate, nil, &resp)
@@ -844,7 +845,7 @@ func (b *Binance) getUMCMAccountTradeList(ctx context.Context, symbol, path stri
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	var resp []UMCMAccountTradeItem
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestFuturesSupplementary, http.MethodGet, path, params, pmDefaultRate, nil, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestFuturesSupplementary, http.MethodGet, path, params, endpointLimit, nil, &resp)
 }
 
 // GetUMNotionalAndLeverageBrackets query UM notional and leverage brackets
@@ -1084,7 +1085,7 @@ func (b *Binance) BNBTransfer(ctx context.Context, amount float64, transferSide 
 }
 
 // GetUMIncomeHistory retrieves USDT margined futures income history
-// possible incomeType values: TRANSFER, WELCOME_BONUS, REALIZED_PNL, FUNDING_FEE, COMMISSION, INSURANCE_CLEAR, REFERRAL_KICKBACK, COMMISSION_REBATE, API_REBATE, CONTEST_REWARD, CROSS_COLLATERAL_TRANSFER, OPTIONS_PREMIUM_FEE, OPTIONS_SETTLE_PROFIT, INTERNAL_TRANSFER, AUTO_EXCHANGE, DELIVERED_SETTELMENT, COIN_SWAP_DEPOSIT, COIN_SWAP_WITHDRAW, POSITION_LIMIT_INCREASE_FEE
+// possible incomeType values: TRANSFER, WELCOME_BONUS, REALIZED_PNL, FUNDING_FEE, COMMISSION, INSURANCE_CLEAR, REFERRAL_KICKBACK, COMMISSION_REBATE, API_REBATE, CONTEST_REWARD, CROSS_COLLATERAL_TRANSFER, OPTIONS_PREMIUM_FEE, OPTIONS_SETTLE_PROFIT, INTERNAL_TRANSFER, AUTO_EXCHANGE, DELIVERED_SETTLEMENT, COIN_SWAP_DEPOSIT, COIN_SWAP_WITHDRAW, POSITION_LIMIT_INCREASE_FEE
 func (b *Binance) GetUMIncomeHistory(ctx context.Context, symbol, incomeType string, startTime, endTime time.Time, limit int64) ([]IncomeItem, error) {
 	return b.getUMCMIncomeHistory(ctx, symbol, incomeType, "/papi/v1/um/income", startTime, endTime, limit, pmGetUMIncomeHistoryRate)
 }

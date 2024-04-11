@@ -29,7 +29,7 @@ import (
 const (
 	eoptionsWebsocketURL = "wss://nbstream.binance.com/eoptions/"
 
-	// For convention, we use the @channel_type patter to represents channels that use underlying asset like ETH otherwise they use symbols or none
+	// For convention, we use the @channel_type pattern to represents channels that use underlying asset like ETH otherwise they use symbols or none
 
 	cnlTrade                    = "trade"  // <symbol>@trade
 	cnlTradeWithUnderlyingAsset = "@trade" // <underlyingAsset>@trade eg. ETH@trade
@@ -198,7 +198,6 @@ func (b *Binance) GenerateEOptionsDefaultSubscriptions() ([]subscription.Subscri
 		pairs = pairs[:3]
 	}
 
-	// var chSubscription subscription.Subscription
 	for z := range channels {
 		switch channels[z] {
 		case cnlTrade, cnlMarkPrice, cnlIndex, cnlTicker, cnlTradeWithUnderlyingAsset:
@@ -237,7 +236,7 @@ func (b *Binance) GenerateEOptionsDefaultSubscriptions() ([]subscription.Subscri
 					Asset:    asset.Options,
 					Interval: kline.FiveHundredMilliseconds,
 					Params: map[string]interface{}{
-						"level": 50, // Valid levels are are 10, 20, 50, 100.
+						"level": 50, // Valid levels are 10, 20, 50, 100.
 					},
 				})
 			}

@@ -5,8 +5,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
-// UM_CM_Order represents a portfolio margin.
-type UM_CM_Order struct {
+// UMCMOrder represents a portfolio margin USDT Margined or Coin Margined order.
+type UMCMOrder struct {
 	ClientOrderID string               `json:"clientOrderId"`
 	CumQty        types.Number         `json:"cumQty"`
 	ExecutedQty   types.Number         `json:"executedQty"`
@@ -160,7 +160,7 @@ type ConditionalOrder struct {
 
 	// Returned for USDT Margined Futures orders only
 	SelfTradePreventionMode string               `json:"selfTradePreventionMode"`
-	GoodTillDate            convert.ExchangeTime `json:"goodTillDate"` //order pre-set auot cancel time for TIF GTD order
+	GoodTillDate            convert.ExchangeTime `json:"goodTillDate"` // order pre-set auto cancel time for TIF GTD order
 
 	Pair string `json:"pair"`
 }
@@ -240,7 +240,7 @@ type AccountBalance struct {
 	CrossMarginBorrowed types.Number         `json:"crossMarginBorrowed"` // principal of cross margin
 	CrossMarginFree     types.Number         `json:"crossMarginFree"`     // free asset of cross margin
 	CrossMarginInterest types.Number         `json:"crossMarginInterest"` // interest of cross margin
-	CrossMarginLocked   types.Number         `json:"crossMarginLocked"`   //lock asset of cross margin
+	CrossMarginLocked   types.Number         `json:"crossMarginLocked"`   // lock asset of cross margin
 	UmWalletBalance     types.Number         `json:"umWalletBalance"`     // wallet balance of um
 	UmUnrealizedPNL     types.Number         `json:"umUnrealizedPNL"`     // unrealized profit of um
 	CmWalletBalance     types.Number         `json:"cmWalletBalance"`     // wallet balance of cm

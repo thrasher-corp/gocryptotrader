@@ -480,7 +480,7 @@ type SettlementPrice struct {
 	DeliveryPrice float64              `json:"deliveryPrice"`
 }
 
-// BasisInfo represents a basis price difference informations between index and futures
+// BasisInfo represents a basis price difference information between index and futures
 type BasisInfo struct {
 	IndexPrice          types.Number         `json:"indexPrice"`
 	ContractType        string               `json:"contractType"`

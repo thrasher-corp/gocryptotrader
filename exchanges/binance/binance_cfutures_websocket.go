@@ -174,7 +174,7 @@ func (b *Binance) wsHandleCFuturesData(respRaw []byte) error {
 		return b.processAggregateTrade(result.Data, asset.CoinMarginedFutures)
 	case "markPrice":
 		return b.processMarkPriceUpdate(result.Data, false)
-	case "depth":
+	case cnlDepth:
 		return b.processOrderbookDepthUpdate(result.Data, asset.CoinMarginedFutures)
 	case continuousKline:
 		return b.processContinuousKlineUpdate(result.Data, asset.CoinMarginedFutures)

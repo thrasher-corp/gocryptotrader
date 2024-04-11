@@ -1003,7 +1003,7 @@ func interfaceToParams(val interface{}) (url.Values, error) {
 }
 
 // SendAuthHTTPRequest sends an authenticated HTTP request
-func (b *Binance) SendAuthHTTPRequest(ctx context.Context, ePath exchange.URL, method, path string, params url.Values, f request.EndpointLimit, arg interface{}, result interface{}) error {
+func (b *Binance) SendAuthHTTPRequest(ctx context.Context, ePath exchange.URL, method, path string, params url.Values, f request.EndpointLimit, arg, result interface{}) error {
 	creds, err := b.GetCredentials(ctx)
 	if err != nil {
 		return err
@@ -1150,16 +1150,10 @@ func (b *Binance) GetSystemStatus(ctx context.Context) (*SystemStatus, error) {
 // GetAllCoinsInfo returns details about all supported coins(available for deposit and withdraw)
 func (b *Binance) GetAllCoinsInfo(ctx context.Context) ([]CoinInfo, error) {
 	var resp []CoinInfo
-	if err := b.SendAuthHTTPRequest(ctx,
-		exchange.RestSpotSupplementary,
-		http.MethodGet,
+	return resp, b.SendAuthHTTPRequest(ctx,
+		exchange.RestSpotSupplementary, http.MethodGet,
 		"/sapi/v1/capital/config/getall",
-		nil,
-		allCoinInfoRate,
-		nil, &resp); err != nil {
-		return nil, err
-	}
-	return resp, nil
+		nil, allCoinInfoRate, nil, &resp)
 }
 
 // GetDailyAccountSnapshot retrieves daily account snapshot
@@ -1179,7 +1173,7 @@ func (b *Binance) GetDailyAccountSnapshot(ctx context.Context, tradeType string,
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	var resp *DailyAccountSnapshot
-	return resp, b.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues("/sapi/v1/accountSnapshot", params), spotDefaultRate, &resp)
+	return resp, b.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues("/sapi/v1/accountSnapshot", params), dailyAccountSnapshotRate, &resp)
 }
 
 // DisableFastWithdrawalSwitch disables fast withdrawal switch
@@ -1223,21 +1217,13 @@ func (b *Binance) WithdrawCrypto(ctx context.Context, cryptoAsset, withdrawOrder
 	}
 
 	var resp *WithdrawResponse
-	if err := b.SendAuthHTTPRequest(ctx,
+	return resp.ID, b.SendAuthHTTPRequest(ctx,
 		exchange.RestSpotSupplementary,
 		http.MethodPost,
 		"/sapi/v1/capital/withdraw/apply",
 		params,
-		spotDefaultRate,
-		nil, &resp); err != nil {
-		return "", err
-	}
-
-	if resp.ID == "" {
-		return "", errors.New("ID is nil")
-	}
-
-	return resp.ID, nil
+		fundWithdrawalRate,
+		nil, &resp)
 }
 
 // DepositHistory returns the deposit history based on the supplied params
@@ -1276,22 +1262,13 @@ func (b *Binance) DepositHistory(ctx context.Context, c currency.Code, status st
 	if offset != 0 {
 		params.Set("offset", strconv.Itoa(offset))
 	}
-
 	if limit != 0 {
 		params.Set("limit", strconv.Itoa(limit))
 	}
-
-	if err := b.SendAuthHTTPRequest(ctx,
-		exchange.RestSpotSupplementary,
-		http.MethodGet,
+	return response, b.SendAuthHTTPRequest(ctx,
+		exchange.RestSpotSupplementary, http.MethodGet,
 		"/sapi/v1/capital/deposit/hisrec",
-		params,
-		spotDefaultRate,
-		nil, &response); err != nil {
-		return nil, err
-	}
-
-	return response, nil
+		params, spotDefaultRate, nil, &response)
 }
 
 // WithdrawHistory gets the status of recent withdrawals
@@ -1334,17 +1311,9 @@ func (b *Binance) WithdrawHistory(ctx context.Context, c currency.Code, status s
 	}
 
 	var withdrawStatus []WithdrawStatusResponse
-	if err := b.SendAuthHTTPRequest(ctx,
-		exchange.RestSpotSupplementary,
-		http.MethodGet,
-		"/sapi/v1/capital/withdraw/history",
-		params,
-		spotDefaultRate,
-		nil, &withdrawStatus); err != nil {
-		return nil, err
-	}
-
-	return withdrawStatus, nil
+	return withdrawStatus, b.SendAuthHTTPRequest(ctx,
+		exchange.RestSpotSupplementary, http.MethodGet,
+		"/sapi/v1/capital/withdraw/history", params, withdrawalHistoryRate, nil, &withdrawStatus)
 }
 
 // GetDepositAddressForCurrency retrieves the wallet address for a given currency
@@ -1356,8 +1325,7 @@ func (b *Binance) GetDepositAddressForCurrency(ctx context.Context, currency, ch
 	}
 	params.Set("recvWindow", "10000")
 	var d *DepositAddress
-	return d,
-		b.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, "/sapi/v1/capital/deposit/address", params, spotDefaultRate, nil, &d)
+	return d, b.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, "/sapi/v1/capital/deposit/address", params, spotDefaultRate, nil, &d)
 }
 
 // GetAssetsThatCanBeConvertedIntoBNB retrieves assets that can be converted into BNB
@@ -2536,12 +2504,10 @@ func (b *Binance) MaintainWsAuthStreamKey(ctx context.Context) error {
 		listenKey, err = b.GetWsAuthStreamKey(ctx)
 		return err
 	}
-
 	creds, err := b.GetCredentials(ctx)
 	if err != nil {
 		return err
 	}
-
 	path := endpointPath + "/api/v3/userDataStream"
 	params := url.Values{}
 	params.Set("listenKey", listenKey)
@@ -2556,7 +2522,6 @@ func (b *Binance) MaintainWsAuthStreamKey(ctx context.Context) error {
 		HTTPDebugging: b.HTTPDebugging,
 		HTTPRecording: b.HTTPRecording,
 	}
-
 	return b.SendPayload(ctx, request.Unset, func() (*request.Item, error) {
 		return item, nil
 	}, request.AuthenticatedRequest)
@@ -2673,7 +2638,6 @@ func (b *Binance) CryptoLoanBorrow(ctx context.Context, loanCoin currency.Code, 
 		params.Set("collateralAmount", strconv.FormatFloat(collateralAmount, 'f', -1, 64))
 	}
 	params.Set("loanTerm", strconv.FormatInt(loanTerm, 10))
-
 	var resp []CryptoLoanBorrow
 	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodPost, "/sapi/v1/loan/borrow", params, spotDefaultRate, nil, &resp)
 }
@@ -2702,7 +2666,6 @@ func (b *Binance) CryptoLoanBorrowHistory(ctx context.Context, orderID int64, lo
 	if limit != 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
-
 	var resp *LoanBorrowHistory
 	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, "/sapi/v1/loan/borrow/history", params, spotDefaultRate, nil, &resp)
 }
@@ -2882,7 +2845,6 @@ func (b *Binance) CryptoLoanCustomiseMarginCall(ctx context.Context, orderID int
 		params.Set("collateralCoin", collateralCoin.String())
 	}
 	params.Set("marginCall", strconv.FormatFloat(marginCallValue, 'f', -1, 64))
-
 	var resp *CustomiseMarginCall
 	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodPost, "/sapi/v1/loan/customize/margin_call", params, spotDefaultRate, nil, &resp)
 }
@@ -2898,7 +2860,6 @@ func (b *Binance) FlexibleLoanBorrow(ctx context.Context, loanCoin, collateralCo
 	if loanAmount == 0 && collateralAmount == 0 {
 		return nil, errEitherLoanOrCollateralAmountsMustBeSet
 	}
-
 	params := url.Values{}
 	params.Set("loanCoin", loanCoin.String())
 	if loanAmount != 0 {
@@ -2908,7 +2869,6 @@ func (b *Binance) FlexibleLoanBorrow(ctx context.Context, loanCoin, collateralCo
 	if collateralAmount != 0 {
 		params.Set("collateralAmount", strconv.FormatFloat(collateralAmount, 'f', -1, 64))
 	}
-
 	var resp *FlexibleLoanBorrow
 	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodPost, "/sapi/v1/loan/flexible/borrow", params, spotDefaultRate, nil, &resp)
 }
@@ -2928,7 +2888,6 @@ func (b *Binance) FlexibleLoanOngoingOrders(ctx context.Context, loanCoin, colla
 	if limit != 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
-
 	var resp *FlexibleLoanOngoingOrder
 	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, "/sapi/v1/loan/flexible/ongoing/orders", params, spotDefaultRate, nil, &resp)
 }
@@ -2954,7 +2913,6 @@ func (b *Binance) FlexibleLoanBorrowHistory(ctx context.Context, loanCoin, colla
 	if limit != 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
-
 	var resp *FlexibleLoanBorrowHistory
 	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, "/sapi/v1/loan/flexible/borrow/history", params, spotDefaultRate, nil, &resp)
 }
@@ -2970,7 +2928,6 @@ func (b *Binance) FlexibleLoanRepay(ctx context.Context, loanCoin, collateralCoi
 	if amount <= 0 {
 		return nil, errAmountMustBeSet
 	}
-
 	params := url.Values{}
 	params.Set("loanCoin", loanCoin.String())
 	params.Set("collateralCoin", collateralCoin.String())
@@ -3004,7 +2961,6 @@ func (b *Binance) FlexibleLoanRepayHistory(ctx context.Context, loanCoin, collat
 	if limit != 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
-
 	var resp *FlexibleLoanRepayHistory
 	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, "/sapi/v1/loan/flexible/repay/history", params, spotDefaultRate, nil, &resp)
 }

@@ -4562,8 +4562,6 @@ func TestGetOptionsExchangeInformation(t *testing.T) {
 	exchangeinformation, err := b.GetOptionsExchangeInformation(context.Background())
 	require.NoError(t, err)
 	assert.NotNil(t, exchangeinformation)
-	val, _ := json.Marshal(exchangeinformation.RateLimits)
-	println(string(val))
 }
 
 // ---------------------------------------   Portfolio Margin  ---------------------------------------------
@@ -4578,10 +4576,6 @@ func TestNewUMOrder(t *testing.T) {
 		OrderType:    "market",
 		Quantity:     1,
 		ReduceOnly:   false,
-		// TimeInForce
-		// Price
-		// NewClientOrderID
-		// NewOrderRespType
 	})
 	require.NoError(t, err)
 	assert.NotNil(t, result)
@@ -4934,7 +4928,7 @@ func TestGetMarginAccountTradeList(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	result, err := b.GetMarginAccountTradeList(context.Background(), "BNBBTC", time.Time{}, time.Time{}, 0, 0, 0)
-	require.NotNil(t, err)
+	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
 
@@ -5156,9 +5150,9 @@ func TestFundAutoCollection(t *testing.T) {
 func TestFundCollectionByAsset(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
-	result, err := b.FundCollectionByAsset(context.Background(), currency.EMPTYCODE)
+	_, err := b.FundCollectionByAsset(context.Background(), currency.EMPTYCODE)
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
-	result, err = b.FundCollectionByAsset(context.Background(), currency.ETH)
+	result, err := b.FundCollectionByAsset(context.Background(), currency.ETH)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -5171,7 +5165,7 @@ func TestBNBTransfer(t *testing.T) {
 	assert.NotNil(t, result)
 }
 
-func testGetUMAccountDetail(t *testing.T) {
+func TestGetUMAccountDetail(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	result, err := b.GetUMAccountDetail(context.Background())

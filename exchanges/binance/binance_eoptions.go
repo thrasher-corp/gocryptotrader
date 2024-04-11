@@ -245,7 +245,7 @@ func (b *Binance) PlaceBatchEOptionsOrder(ctx context.Context, args []OptionsOrd
 		return nil, common.ErrNilPointer
 	}
 	for a := range args {
-		if &args[a] == nil || args[a] == (OptionsOrderParams{}) {
+		if args[a] == (OptionsOrderParams{}) {
 			return nil, common.ErrNilPointer
 		}
 		if args[a].Symbol.IsEmpty() {
@@ -429,7 +429,7 @@ func (b *Binance) GetEOptionsAccountTradeList(ctx context.Context, symbol string
 	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestOptions, http.MethodGet, "/eapi/v1/userTrades", params, optionsAccountTradeListRate, nil, &resp)
 }
 
-// GetUserOptionsExerciseRecord retrives account exercise records
+// GetUserOptionsExerciseRecord retrieves account exercise records
 func (b *Binance) GetUserOptionsExerciseRecord(ctx context.Context, symbol string, startTime, endTime time.Time, limit int64) ([]UserOptionsExerciseRecord, error) {
 	params := url.Values{}
 	if symbol != "" {

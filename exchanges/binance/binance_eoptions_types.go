@@ -240,7 +240,7 @@ type OptionOrder struct {
 	Mmp           bool                 `json:"mmp,omitempty"` // is market maker protection order, true/false
 }
 
-// OptionPosition represents current position position information.
+// OptionPosition represents current position information.
 type OptionPosition struct {
 	AverageEntryPrice string       `json:"entryPrice"`
 	Symbol            string       `json:"symbol"`
@@ -493,8 +493,8 @@ type WsOptionIncomingResp struct {
 type WsOptionIncomingResps struct {
 	Instances []WsOptionIncomingResp
 
-	// To record the information about whther the incoming data was a slice or sing object instance.
-	// Reason: Some slices may have a single element, which creates uncertainity about whether the incoming data is slice or object instance.
+	// To record the information about whether the incoming data was a slice or sing object instance.
+	// Reason: Some slices may have a single element, which creates uncertainty about whether the incoming data is slice or object instance.
 	IsSlice bool
 }
 

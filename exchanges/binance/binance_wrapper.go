@@ -136,10 +136,10 @@ func (b *Binance) SetDefaults() {
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
-	// err = b.DisableAssetWebsocketSupport(asset.Options)
-	// if err != nil {
-	// 	log.Errorln(log.ExchangeSys, err)
-	// }
+	err = b.DisableAssetWebsocketSupport(asset.Options)
+	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
+	}
 	b.Features = exchange.Features{
 		Supports: exchange.FeaturesSupported{
 			REST:                true,
