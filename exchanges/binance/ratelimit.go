@@ -27,6 +27,8 @@ const (
 	uFuturesRequestRate      = 2400
 	uFuturesOrderInterval    = time.Minute
 	uFuturesOrderRequestRate = 1200
+	portfolioMarginRate      = 1200
+	portfolioMarginInterval  = time.Minute
 )
 
 // Binance Spot rate limits
@@ -114,18 +116,73 @@ const (
 	optionsGetTransHistoryDownloadLinkByIDRate
 	optionsMarginAccountInfoRate
 	optionsAutoCancelAllOpenOrdersHeartbeatRate
+
+	// the following are portfolio margin endpoint rates
+	pmDefaultRate
+	pmMarginAccountLoanAndRepayRate
+	pmCancelMarginAccountOpenOrdersOnSymbolRate
+	pmCancelMarginAccountOCORate
+	pmRetrieveAllUMOpenOrdersForAllSymbolRate
+	pmGetAllUMOrdersRate
+	pmRetrieveAllCMOpenOrdersForAllSymbolRate
+	pmAllCMOrderWithSymbolRate
+	pmAllCMOrderWithoutSymbolRate
+	pmUMOpenConditionalOrdersRate
+	pmAllUMConditionalOrdersWithoutSymbolRate
+	pmAllCMOpenConditionalOrdersWithoutSymbolRate
+	pmAllCMConditionalOrderWithoutSymbolRate
+	pmGetMarginAccountOrderRate
+	pmCurrentMarginOpenOrderRate
+	pmAllMarginAccountOrdersRate
+	pmGetMarginAccountOCORate
+	pmGetMarginAccountsAllOCOOrdersRate
+	pmGetMarginAccountsOpenOCOOrdersRate
+	pmGetMarginAccountTradeListRate
+	pmGetAccountBalancesRate
+	pmGetAccountInformationRate
+	pmMarginMaxBorrowRate
+	pmGetMarginMaxWithdrawalRate
+	pmGetUMPositionInformationRate
+	pmGetUMCurrentPositionModeRate
+	pmGetCMCurrentPositionModeRate
+	pmGetUMAccountTradeListRate
+	pmGetCMAccountTradeListWithSymbolRate
+	pmGetCMAccountTradeListWithPairRate
+	pmGetUserUMForceOrdersWithSymbolRate
+	pmGetUserUMForceOrdersWithoutSymbolRate
+	pmGetUserCMForceOrdersWithSymbolRate
+	pmGetUserCMForceOrdersWithoutSymbolRate
+	pmUMTradingQuantitativeRulesIndicatorsRate
+	pmGetUMUserCommissionRate
+	pmGetCMUserCommissionRate
+	pmGetMarginLoanRecordRate
+	pmGetMarginRepayRecordRate
+	pmGetPortfolioMarginNegativeBalanceInterestHistoryRate
+	pmFundAutoCollectionRate
+	pmFundCollectionByAssetRate
+	pmBNBTransferRate
+	pmGetUMIncomeHistoryRate
+	pmGetCMIncomeHistoryRate
+	pmGetUMAccountDetailRate
+	pmGetCMAccountDetailRate
+	pmChangeAutoRepayFuturesStatusRate
+	pmGetAutoRepayFuturesStatusRate
+	pmRepayFuturesNegativeBalanceRate
+	pmGetUMPositionADLQuantileEstimationRate
+	pmGetCMPositionADLQuantileEstimationRate
 )
 
 // RateLimit implements the request.Limiter interface
 type RateLimit struct {
-	SpotRate           *rate.Limiter
-	SpotOrdersRate     *rate.Limiter
-	UFuturesRate       *rate.Limiter
-	UFuturesOrdersRate *rate.Limiter
-	CFuturesRate       *rate.Limiter
-	CFuturesOrdersRate *rate.Limiter
-	EOptionsRate       *rate.Limiter
-	EOptionsOrderRate  *rate.Limiter
+	SpotRate            *rate.Limiter
+	SpotOrdersRate      *rate.Limiter
+	UFuturesRate        *rate.Limiter
+	UFuturesOrdersRate  *rate.Limiter
+	CFuturesRate        *rate.Limiter
+	CFuturesOrdersRate  *rate.Limiter
+	EOptionsRate        *rate.Limiter
+	EOptionsOrderRate   *rate.Limiter
+	PortfolioMarginRate *rate.Limiter
 }
 
 // Limit executes rate limiting functionality for Binance
@@ -281,6 +338,111 @@ func (r *RateLimit) Limit(ctx context.Context, f request.EndpointLimit) error {
 		limiter, tokens = r.EOptionsRate, 3
 	case optionsAutoCancelAllOpenOrdersHeartbeatRate:
 		limiter, tokens = r.EOptionsRate, 10
+
+	case pmDefaultRate:
+		limiter, tokens = r.PortfolioMarginRate, 1
+	case pmMarginAccountLoanAndRepayRate:
+		limiter, tokens = r.PortfolioMarginRate, 100
+	case pmCancelMarginAccountOpenOrdersOnSymbolRate:
+		limiter, tokens = r.PortfolioMarginRate, 5
+	case pmCancelMarginAccountOCORate:
+		limiter, tokens = r.PortfolioMarginRate, 2
+	case pmRetrieveAllUMOpenOrdersForAllSymbolRate:
+		limiter, tokens = r.PortfolioMarginRate, 40
+	case pmGetAllUMOrdersRate:
+		limiter, tokens = r.PortfolioMarginRate, 5
+	case pmRetrieveAllCMOpenOrdersForAllSymbolRate:
+		limiter, tokens = r.PortfolioMarginRate, 40
+	case pmAllCMOrderWithSymbolRate:
+		limiter, tokens = r.PortfolioMarginRate, 20
+	case pmAllCMOrderWithoutSymbolRate:
+		limiter, tokens = r.PortfolioMarginRate, 40
+	case pmUMOpenConditionalOrdersRate:
+		limiter, tokens = r.PortfolioMarginRate, 40
+	case pmAllUMConditionalOrdersWithoutSymbolRate:
+		limiter, tokens = r.PortfolioMarginRate, 40
+	case pmAllCMOpenConditionalOrdersWithoutSymbolRate:
+		limiter, tokens = r.PortfolioMarginRate, 40
+	case pmAllCMConditionalOrderWithoutSymbolRate:
+		limiter, tokens = r.PortfolioMarginRate, 40
+	case pmGetMarginAccountOrderRate:
+		limiter, tokens = r.PortfolioMarginRate, 5
+	case pmCurrentMarginOpenOrderRate:
+		limiter, tokens = r.PortfolioMarginRate, 5
+	case pmAllMarginAccountOrdersRate:
+		limiter, tokens = r.PortfolioMarginRate, 100
+	case pmGetMarginAccountOCORate:
+		limiter, tokens = r.PortfolioMarginRate, 5
+	case pmGetMarginAccountsAllOCOOrdersRate:
+		limiter, tokens = r.PortfolioMarginRate, 100
+	case pmGetMarginAccountsOpenOCOOrdersRate:
+		limiter, tokens = r.PortfolioMarginRate, 5
+	case pmGetMarginAccountTradeListRate:
+		limiter, tokens = r.PortfolioMarginRate, 5
+	case pmGetAccountBalancesRate:
+		limiter, tokens = r.PortfolioMarginRate, 20
+	case pmGetAccountInformationRate:
+		limiter, tokens = r.PortfolioMarginRate, 20
+	case pmMarginMaxBorrowRate:
+		limiter, tokens = r.PortfolioMarginRate, 5
+	case pmGetMarginMaxWithdrawalRate:
+		limiter, tokens = r.PortfolioMarginRate, 5
+	case pmGetUMPositionInformationRate:
+		limiter, tokens = r.PortfolioMarginRate, 5
+	case pmGetUMCurrentPositionModeRate:
+		limiter, tokens = r.PortfolioMarginRate, 30
+	case pmGetCMCurrentPositionModeRate:
+		limiter, tokens = r.PortfolioMarginRate, 30
+	case pmGetUMAccountTradeListRate:
+		limiter, tokens = r.PortfolioMarginRate, 5
+	case pmGetCMAccountTradeListWithSymbolRate:
+		limiter, tokens = r.PortfolioMarginRate, 20
+	case pmGetCMAccountTradeListWithPairRate:
+		limiter, tokens = r.PortfolioMarginRate, 40
+	case pmGetUserUMForceOrdersWithSymbolRate:
+		limiter, tokens = r.PortfolioMarginRate, 20
+	case pmGetUserUMForceOrdersWithoutSymbolRate:
+		limiter, tokens = r.PortfolioMarginRate, 50
+	case pmGetUserCMForceOrdersWithSymbolRate:
+		limiter, tokens = r.PortfolioMarginRate, 20
+	case pmGetUserCMForceOrdersWithoutSymbolRate:
+		limiter, tokens = r.PortfolioMarginRate, 50
+	case pmUMTradingQuantitativeRulesIndicatorsRate:
+		limiter, tokens = r.PortfolioMarginRate, 10
+	case pmGetUMUserCommissionRate:
+		limiter, tokens = r.PortfolioMarginRate, 20
+	case pmGetCMUserCommissionRate:
+		limiter, tokens = r.PortfolioMarginRate, 20
+	case pmGetMarginLoanRecordRate:
+		limiter, tokens = r.PortfolioMarginRate, 10
+	case pmGetMarginRepayRecordRate:
+		limiter, tokens = r.PortfolioMarginRate, 10
+	case pmGetPortfolioMarginNegativeBalanceInterestHistoryRate:
+		limiter, tokens = r.PortfolioMarginRate, 50
+	case pmFundAutoCollectionRate:
+		limiter, tokens = r.PortfolioMarginRate, 750
+	case pmFundCollectionByAssetRate:
+		limiter, tokens = r.PortfolioMarginRate, 30
+	case pmBNBTransferRate:
+		limiter, tokens = r.PortfolioMarginRate, 750
+	case pmGetUMIncomeHistoryRate:
+		limiter, tokens = r.PortfolioMarginRate, 30
+	case pmGetCMIncomeHistoryRate:
+		limiter, tokens = r.PortfolioMarginRate, 30
+	case pmGetUMAccountDetailRate:
+		limiter, tokens = r.PortfolioMarginRate, 5
+	case pmGetCMAccountDetailRate:
+		limiter, tokens = r.PortfolioMarginRate, 5
+	case pmChangeAutoRepayFuturesStatusRate:
+		limiter, tokens = r.PortfolioMarginRate, 750
+	case pmGetAutoRepayFuturesStatusRate:
+		limiter, tokens = r.PortfolioMarginRate, 30
+	case pmRepayFuturesNegativeBalanceRate:
+		limiter, tokens = r.PortfolioMarginRate, 750
+	case pmGetUMPositionADLQuantileEstimationRate:
+		limiter, tokens = r.PortfolioMarginRate, 5
+	case pmGetCMPositionADLQuantileEstimationRate:
+		limiter, tokens = r.PortfolioMarginRate, 5
 	default:
 		limiter, tokens = r.SpotRate, 1
 	}
@@ -312,14 +474,15 @@ func (r *RateLimit) Limit(ctx context.Context, f request.EndpointLimit) error {
 // SetRateLimit returns the rate limit for the exchange
 func SetRateLimit() *RateLimit {
 	return &RateLimit{
-		SpotRate:           request.NewRateLimit(spotInterval, spotRequestRate),
-		SpotOrdersRate:     request.NewRateLimit(spotOrderInterval, spotOrderRequestRate),
-		UFuturesRate:       request.NewRateLimit(uFuturesInterval, uFuturesRequestRate),
-		UFuturesOrdersRate: request.NewRateLimit(uFuturesOrderInterval, uFuturesOrderRequestRate),
-		CFuturesRate:       request.NewRateLimit(cFuturesInterval, cFuturesRequestRate),
-		CFuturesOrdersRate: request.NewRateLimit(cFuturesOrderInterval, cFuturesOrderRequestRate),
-		EOptionsRate:       request.NewRateLimit(time.Minute, 400),
-		EOptionsOrderRate:  request.NewRateLimit(time.Minute, 100),
+		SpotRate:            request.NewRateLimit(spotInterval, spotRequestRate),
+		SpotOrdersRate:      request.NewRateLimit(spotOrderInterval, spotOrderRequestRate),
+		UFuturesRate:        request.NewRateLimit(uFuturesInterval, uFuturesRequestRate),
+		UFuturesOrdersRate:  request.NewRateLimit(uFuturesOrderInterval, uFuturesOrderRequestRate),
+		CFuturesRate:        request.NewRateLimit(cFuturesInterval, cFuturesRequestRate),
+		CFuturesOrdersRate:  request.NewRateLimit(cFuturesOrderInterval, cFuturesOrderRequestRate),
+		EOptionsRate:        request.NewRateLimit(time.Minute, 400),
+		EOptionsOrderRate:   request.NewRateLimit(time.Minute, 100),
+		PortfolioMarginRate: request.NewRateLimit(portfolioMarginInterval, portfolioMarginRate),
 	}
 }
 

@@ -5045,7 +5045,7 @@ func TestGetUMAccountTradeList(t *testing.T) {
 func TestGetCMAccountTradeList(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
-	result, err := b.GetCMAccountTradeList(context.Background(), "BTCUSDT", time.Now().Add(-time.Hour*24*5), time.Now().Add(-time.Hour*24), 0, 0)
+	result, err := b.GetCMAccountTradeList(context.Background(), "BTCUSD_200626", "BTCUSDT", time.Now().Add(-time.Hour*24*5), time.Now().Add(-time.Hour*24), 0, 0)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }

@@ -492,7 +492,7 @@ func (b *Binance) GetOptionTransactionHistoryDownloadLinkByID(ctx context.Contex
 	params := url.Values{}
 	params.Set("downloadId", downloadID)
 	var resp *DownloadIDTransactionHistory
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestOptions, http.MethodGet, "/eapi/v1/income/asyn/id", params, optionsDefaultRate, nil, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestOptions, http.MethodGet, "/eapi/v1/income/asyn/id", params, optionsGetTransHistoryDownloadLinkByIDRate, nil, &resp)
 }
 
 // -----------------------------------------------------    Market Maker Endpoint   ----------------------------------------------------------------------------------
@@ -501,7 +501,7 @@ func (b *Binance) GetOptionTransactionHistoryDownloadLinkByID(ctx context.Contex
 // GetOptionMarginAccountInformation retrieves current account information
 func (b *Binance) GetOptionMarginAccountInformation(ctx context.Context) (*OptionMarginAccountInfo, error) {
 	var resp *OptionMarginAccountInfo
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestOptions, http.MethodGet, "/eapi/v1/marginAccount", nil, optionsDefaultRate, nil, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestOptions, http.MethodGet, "/eapi/v1/marginAccount", nil, optionsMarginAccountInfoRate, nil, &resp)
 }
 
 // SetOptionsMarketMakerProtectionConfig a sets config for market maker protection(MMP) is a set of protection mechanism for option market maker,
@@ -576,7 +576,7 @@ func (b *Binance) SetOptionsAutoCancelAllOpenOrders(ctx context.Context, underly
 	params.Set("underlying", underlying)
 	params.Set("countdownTime", strconv.FormatInt(countdownTime, 10))
 	var resp *UnderlyingCountdown
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestOptions, http.MethodPost, "/eapi/v1/countdownCancelAll", params, optionsDefaultRate, nil, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestOptions, http.MethodPost, "/eapi/v1/countdownCancelAll", params, optionsAutoCancelAllOpenOrdersHeartbeatRate, nil, &resp)
 }
 
 // GetAutoCancelAllOpenOrdersConfig returns the auto-cancel parameters for each underlying symbol.
