@@ -35,6 +35,10 @@ func TestNewStoreFromList(t *testing.T) {
 	l = append(l, &Subscription{Channel: OrderbookChannel})
 	_, err = NewStoreFromList(l)
 	assert.ErrorIs(t, err, ErrDuplicate, "Should error correctly on duplicates")
+
+	l = List{nil, &Subscription{Channel: OrderbookChannel}}
+	_, err = NewStoreFromList(l)
+	assert.ErrorIs(t, err, common.ErrNilPointer, "Should error correctly on nils")
 }
 
 // TestAdd exercises Add and add methods
