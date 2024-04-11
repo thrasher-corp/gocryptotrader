@@ -17,19 +17,19 @@ func (l List) Strings() []string {
 	return s
 }
 
-// GroupPairs groups subscriptions which are identical apart from the Pair
+// GroupPairs groups subscriptions which are identical apart from the Pairs
+// The returned List contains cloned Subscriptions, and the original Subscriptions are left alone
 func (l List) GroupPairs() (n List) {
-	for len(l) > 0 {
-		s := l[0]
+	src := slices.Clone(l)
+	for len(src) > 0 {
+		s := src[0].Clone()
 		key := &IgnoringPairsKey{s}
 		n = append(n, s)
 		// Remove the first element, and any which match it
-		l = slices.DeleteFunc(l[1:], func(eachSub *Subscription) bool {
-			if m, ok := eachSub.Key.(MatchableKey); ok {
-				if key.Match(m) {
-					s.AddPairs(eachSub.Pairs...)
-					return true
-				}
+		src = slices.DeleteFunc(src[1:], func(eachSub *Subscription) bool {
+			if key.Match(&IgnoringPairsKey{eachSub}) {
+				s.AddPairs(eachSub.Pairs...)
+				return true
 			}
 			return false
 		})
