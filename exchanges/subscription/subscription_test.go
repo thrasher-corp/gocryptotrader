@@ -107,3 +107,17 @@ func TestClone(t *testing.T) {
 	a.m.Lock()
 	assert.True(t, b.m.TryLock(), "Clone must use a different Mutex")
 }
+
+// TestSetKey exercises SetKey
+func TestSetKey(t *testing.T) {
+	s := &Subscription{}
+	s.SetKey(14)
+	assert.Equal(t, 14, s.Key, "SetKey should set a key correctly")
+}
+
+// TestSetPairs exercises SetPairs
+func TestSetPairs(t *testing.T) {
+	s := &Subscription{}
+	s.SetPairs(currency.Pairs{btcusdtPair})
+	assert.Equal(t, "BTCUSDT", s.Pairs.Join(), "SetPairs should set a key correctly")
+}
