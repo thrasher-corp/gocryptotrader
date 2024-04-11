@@ -101,14 +101,13 @@ func (s *Subscription) EnsureKeyed() any {
 }
 
 // Clone returns a copy of a subscription
+// Key is set to nil, because any original key is meaningless on a clone
 func (s *Subscription) Clone() *Subscription {
 	s.m.RLock()
 	n := *s //nolint:govet // Replacing lock immediately below
 	s.m.RUnlock()
 	n.m = sync.RWMutex{}
-	if s.Key == s {
-		n.Key = &n
-	}
+	s.Key = nil
 	return &n
 }
 
