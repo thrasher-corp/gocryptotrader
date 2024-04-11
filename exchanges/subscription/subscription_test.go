@@ -96,6 +96,7 @@ func TestClone(t *testing.T) {
 	b := a.Clone()
 	assert.IsType(t, new(Subscription), b, "Clone must return a Subscription pointer")
 	assert.NotSame(t, a, b, "Clone must return a new Subscription")
+	assert.Nil(t, b.Key, "Clone have a nil key")
 	a.m.Lock()
 	assert.True(t, b.m.TryLock(), "Clone must use a different Mutex")
 }
