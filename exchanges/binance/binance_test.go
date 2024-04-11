@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/http"
 	"os"
 	"reflect"
 	"sync"
@@ -27,6 +28,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
@@ -3486,4 +3488,26 @@ func TestGetOpenInterest(t *testing.T) {
 		Asset: asset.Spot,
 	})
 	assert.ErrorIs(t, err, asset.ErrNotSupported)
+}
+
+func TestGetCurrencyTradeURL(t *testing.T) {
+	t.Parallel()
+	cp, err := currency.NewPairFromString("BTCUSDT")
+	require.NoError(t, err)
+	url, err := b.GetCurrencyTradeURL(context.Background(), asset.Spot, cp)
+	require.NoError(t, err)
+	item := &request.Item{
+		Method:        http.MethodGet,
+		Path:          url,
+		Verbose:       b.Verbose,
+		HTTPDebugging: b.HTTPDebugging,
+		HTTPRecording: b.HTTPRecording}
+	if mockTests {
+		// no need to store the result in mockdata
+		return
+	}
+	err = b.SendPayload(context.Background(), spotDefaultRate, func() (*request.Item, error) {
+		return item, nil
+	}, request.UnauthenticatedRequest)
+	assert.NoError(t, err)
 }

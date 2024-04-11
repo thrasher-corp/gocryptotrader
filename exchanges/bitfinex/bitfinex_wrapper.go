@@ -1273,3 +1273,23 @@ func (b *Bitfinex) GetOpenInterest(context.Context, ...key.PairAsset) ([]futures
 	// TODO: Add futures support for Bitfinex
 	return nil, common.ErrNotYetImplemented
 }
+
+// GetCurrencyTradeURL returns the URL to the exchange's trade page for the given asset and currency pair
+func (b *Bitfinex) GetCurrencyTradeURL(_ context.Context, a asset.Item, cp currency.Pair) (string, error) {
+	_, err := b.CurrencyPairs.IsPairEnabled(cp, a)
+	if err != nil {
+		return "", err
+	}
+	symbol, err := b.FormatSymbol(cp, a)
+	if err != nil {
+		return "", err
+	}
+	switch a {
+	case asset.Margin, asset.MarginFunding:
+		return tradeBaseURL + "/f/" + symbol, nil
+	case asset.Spot:
+		return tradeBaseURL + "/t/" + symbol, nil
+	default:
+		return "", fmt.Errorf("%w %v", asset.ErrNotSupported, a)
+	}
+}

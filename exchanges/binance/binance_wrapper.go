@@ -3069,3 +3069,25 @@ func (b *Binance) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]fu
 	}
 	return result, nil
 }
+
+// GetCurrencyTradeURL returns the URL to the exchange's trade page for the given asset and currency pair
+func (b *Binance) GetCurrencyTradeURL(_ context.Context, a asset.Item, cp currency.Pair) (string, error) {
+	_, err := b.CurrencyPairs.IsPairEnabled(cp, a)
+	if err != nil {
+		return "", err
+	}
+	symbol, err := b.FormatSymbol(cp, a)
+	if err != nil {
+		return "", err
+	}
+	switch a {
+	case asset.USDTMarginedFutures:
+		return tradeBaseURL + "en/futures/" + symbol, nil
+	case asset.CoinMarginedFutures:
+		return tradeBaseURL + "en/delivery/" + symbol, nil
+	case asset.Spot:
+		return tradeBaseURL + "trade/" + symbol + "?type=spot", nil
+	default:
+		return "", fmt.Errorf("%w %v", asset.ErrNotSupported, a)
+	}
+}

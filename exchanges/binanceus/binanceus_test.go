@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"log"
+	"net/http"
 	"os"
 	reflects "reflect"
 	"strings"
@@ -12,6 +13,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -19,6 +22,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
@@ -1806,4 +1810,22 @@ func TestGetUsersSpotAssetSnapshot(t *testing.T) {
 	if _, er := bi.GetUsersSpotAssetSnapshot(context.Background(), time.Time{}, time.Time{}, 10, 6); er != nil {
 		t.Error("Binanceus GetUsersSpotAssetSnapshot() error", er)
 	}
+}
+
+func TestGetCurrencyTradeURL(t *testing.T) {
+	t.Parallel()
+	cp, err := currency.NewPairFromString("BTCUSD")
+	require.NoError(t, err)
+	url, err := bi.GetCurrencyTradeURL(context.Background(), asset.Spot, cp)
+	require.NoError(t, err)
+	item := &request.Item{
+		Method:        http.MethodGet,
+		Path:          url,
+		Verbose:       bi.Verbose,
+		HTTPDebugging: bi.HTTPDebugging,
+		HTTPRecording: bi.HTTPRecording}
+	err = bi.SendPayload(context.Background(), spotDefaultRate, func() (*request.Item, error) {
+		return item, nil
+	}, request.UnauthenticatedRequest)
+	assert.NoError(t, err)
 }
