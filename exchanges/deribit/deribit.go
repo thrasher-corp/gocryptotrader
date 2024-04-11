@@ -2760,7 +2760,7 @@ func (d *Deribit) formatFuturesTradablePair(pair currency.Pair) string {
 func (d *Deribit) optionPairToString(pair currency.Pair) string {
 	subCodes := strings.Split(pair.Quote.String(), currency.DashDelimiter)
 	if len(subCodes) == 3 {
-		if match, err := regexp.MatchString(`^[0-9A-F]{4}$`, subCodes[1]); match && err == nil {
+		if match, err := regexp.MatchString(`^[a-zA-Z0-9_]*$`, subCodes[1]); match && err == nil {
 			subCodes[1] = strings.ToLower(subCodes[1])
 		}
 	}
