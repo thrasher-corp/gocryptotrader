@@ -107,7 +107,7 @@ func (s *Subscription) Clone() *Subscription {
 	n := *s //nolint:govet // Replacing lock immediately below
 	s.m.RUnlock()
 	n.m = sync.RWMutex{}
-	s.Key = nil
+	n.Key = nil
 	return &n
 }
 
