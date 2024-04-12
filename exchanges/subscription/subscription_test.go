@@ -93,6 +93,7 @@ func TestClone(t *testing.T) {
 		Channel:  TickerChannel,
 		Interval: kline.OneHour,
 	}
+	a.EnsureKeyed()
 	b := a.Clone()
 	assert.IsType(t, new(Subscription), b, "Clone must return a Subscription pointer")
 	assert.NotSame(t, a, b, "Clone must return a new Subscription")
