@@ -8,23 +8,30 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/collateral"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/banking"
+	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
 const (
@@ -3223,25 +3230,6 @@ func TestGetOpenInterest(t *testing.T) {
 	}
 }
 
-// FakeBase is used to override functions
-type FakeBase struct {
-	Base
-}
-
-func (f *FakeBase) GetOpenInterest(context.Context, ...key.PairAsset) ([]futures.OpenInterest, error) {
-	return []futures.OpenInterest{
-		{
-			Key: key.ExchangePairAsset{
-				Exchange: f.Name,
-				Base:     currency.BTC.Item,
-				Quote:    currency.BONK.Item,
-				Asset:    asset.Futures,
-			},
-			OpenInterest: 1337,
-		},
-	}, nil
-}
-
 func TestGetCachedOpenInterest(t *testing.T) {
 	t.Parallel()
 	var b FakeBase
@@ -3329,4 +3317,183 @@ func TestParallelChanOp(t *testing.T) {
 	}
 	assert.EventuallyWithT(t, f, 500*time.Millisecond, 50*time.Millisecond, "ParallelChanOp should complete within 500ms not 5*300ms")
 	assert.Len(t, run, len(c), "Every channel was run to completion")
+}
+
+func TestGetDefaultConfig(t *testing.T) {
+	t.Parallel()
+
+	exch := &FakeBase{}
+
+	_, err := GetDefaultConfig(context.Background(), nil)
+	assert.ErrorIs(t, err, errExchangeIsNil)
+
+	c, err := GetDefaultConfig(context.Background(), exch)
+	require.NoError(t, err)
+
+	assert.Equal(t, "test", c.Name)
+	cpy := exch.Requester
+
+	// Test below demonstrates that the requester is not overwritten so that
+	// SetDefaults is not called twice.
+	c, err = GetDefaultConfig(context.Background(), exch)
+	require.NoError(t, err)
+
+	assert.Equal(t, "test", c.Name)
+	assert.Equal(t, cpy, exch.Requester)
+}
+
+// FakeBase is used to override functions
+type FakeBase struct{ Base }
+
+func (f *FakeBase) GetOpenInterest(context.Context, ...key.PairAsset) ([]futures.OpenInterest, error) {
+	return []futures.OpenInterest{
+		{
+			Key: key.ExchangePairAsset{
+				Exchange: f.Name,
+				Base:     currency.BTC.Item,
+				Quote:    currency.BONK.Item,
+				Asset:    asset.Futures,
+			},
+			OpenInterest: 1337,
+		},
+	}, nil
+}
+
+func (f *FakeBase) SetDefaults() {
+	f.Name = "test"
+	f.Requester, _ = request.New("test", common.NewHTTPClientWithTimeout(time.Second))
+	f.Features.Supports.RESTCapabilities.AutoPairUpdates = true
+}
+func (f *FakeBase) UpdateTradablePairs(context.Context, bool) error { return nil }
+
+func (f *FakeBase) Setup(*config.Exchange) error {
+	return nil
+}
+
+func (f *FakeBase) CancelAllOrders(context.Context, *order.Cancel) (order.CancelAllResponse, error) {
+	return order.CancelAllResponse{}, nil
+}
+
+func (f *FakeBase) CancelBatchOrders(context.Context, []order.Cancel) (*order.CancelBatchResponse, error) {
+	return nil, nil
+}
+
+func (f *FakeBase) CancelOrder(context.Context, *order.Cancel) error {
+	return nil
+}
+
+func (f *FakeBase) FetchAccountInfo(context.Context, asset.Item) (account.Holdings, error) {
+	return account.Holdings{}, nil
+}
+
+func (f *FakeBase) FetchOrderbook(context.Context, currency.Pair, asset.Item) (*orderbook.Base, error) {
+	return nil, nil
+}
+
+func (f *FakeBase) FetchTicker(context.Context, currency.Pair, asset.Item) (*ticker.Price, error) {
+	return nil, nil
+}
+
+func (f *FakeBase) FetchTradablePairs(context.Context, asset.Item) (currency.Pairs, error) {
+	return nil, nil
+}
+
+func (f *FakeBase) GetAccountFundingHistory(context.Context) ([]FundingHistory, error) {
+	return nil, nil
+}
+
+func (f *FakeBase) ValidateAPICredentials(context.Context, asset.Item) error {
+	return nil
+}
+
+func (f *FakeBase) UpdateTickers(context.Context, asset.Item) error {
+	return nil
+}
+
+func (f *FakeBase) UpdateTicker(context.Context, currency.Pair, asset.Item) (*ticker.Price, error) {
+	return nil, nil
+}
+
+func (f *FakeBase) UpdateOrderbook(context.Context, currency.Pair, asset.Item) (*orderbook.Base, error) {
+	return nil, nil
+}
+
+func (f *FakeBase) UpdateAccountInfo(context.Context, asset.Item) (account.Holdings, error) {
+	return account.Holdings{}, nil
+}
+
+func (f *FakeBase) GetRecentTrades(context.Context, currency.Pair, asset.Item) ([]trade.Data, error) {
+	return nil, nil
+}
+
+func (f *FakeBase) GetHistoricTrades(context.Context, currency.Pair, asset.Item, time.Time, time.Time) ([]trade.Data, error) {
+	return nil, nil
+}
+
+func (f *FakeBase) GetServerTime(context.Context, asset.Item) (time.Time, error) {
+	return time.Now(), nil
+}
+
+func (f *FakeBase) GetFeeByType(context.Context, *FeeBuilder) (float64, error) {
+	return 0.0, nil
+}
+
+func (f *FakeBase) SubmitOrder(context.Context, *order.Submit) (*order.SubmitResponse, error) {
+	return nil, nil
+}
+
+func (f *FakeBase) ModifyOrder(context.Context, *order.Modify) (*order.ModifyResponse, error) {
+	return nil, nil
+}
+
+func (f *FakeBase) GetOrderInfo(context.Context, string, currency.Pair, asset.Item) (*order.Detail, error) {
+	return nil, nil
+}
+
+func (f *FakeBase) GetDepositAddress(context.Context, currency.Code, string, string) (*deposit.Address, error) {
+	return nil, nil
+}
+
+func (f *FakeBase) GetOrderHistory(context.Context, *order.MultiOrderRequest) (order.FilteredOrders, error) {
+	return nil, nil
+}
+
+func (f *FakeBase) GetWithdrawalsHistory(context.Context, currency.Code, asset.Item) ([]WithdrawalHistory, error) {
+	return []WithdrawalHistory{}, nil
+}
+
+func (f *FakeBase) GetActiveOrders(context.Context, *order.MultiOrderRequest) (order.FilteredOrders, error) {
+	return []order.Detail{}, nil
+}
+
+func (f *FakeBase) WithdrawCryptocurrencyFunds(context.Context, *withdraw.Request) (*withdraw.ExchangeResponse, error) {
+	return nil, nil
+}
+
+func (f *FakeBase) WithdrawFiatFunds(context.Context, *withdraw.Request) (*withdraw.ExchangeResponse, error) {
+	return nil, nil
+}
+
+func (f *FakeBase) WithdrawFiatFundsToInternationalBank(context.Context, *withdraw.Request) (*withdraw.ExchangeResponse, error) {
+	return nil, nil
+}
+
+func (f *FakeBase) GetHistoricCandles(context.Context, currency.Pair, asset.Item, kline.Interval, time.Time, time.Time) (*kline.Item, error) {
+	return &kline.Item{}, nil
+}
+
+func (f *FakeBase) GetHistoricCandlesExtended(context.Context, currency.Pair, asset.Item, kline.Interval, time.Time, time.Time) (*kline.Item, error) {
+	return &kline.Item{}, nil
+}
+
+func (f *FakeBase) UpdateOrderExecutionLimits(context.Context, asset.Item) error {
+	return nil
+}
+
+func (f *FakeBase) GetLatestFundingRates(context.Context, *fundingrate.LatestRateRequest) ([]fundingrate.LatestRateResponse, error) {
+	return nil, nil
+}
+
+func (f *FakeBase) GetFuturesContractDetails(context.Context, asset.Item) ([]futures.Contract, error) {
+	return nil, common.ErrFunctionNotSupported
 }
