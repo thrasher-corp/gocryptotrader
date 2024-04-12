@@ -222,20 +222,26 @@ type ExchangeInfo struct {
 	RateLimits      []*RateLimitItem     `json:"rateLimits"`
 	ExchangeFilters interface{}          `json:"exchangeFilters"`
 	Symbols         []*struct {
-		Symbol                     string        `json:"symbol"`
-		Status                     string        `json:"status"`
-		BaseAsset                  string        `json:"baseAsset"`
-		BaseAssetPrecision         int64         `json:"baseAssetPrecision"`
-		QuoteAsset                 string        `json:"quoteAsset"`
-		QuotePrecision             int64         `json:"quotePrecision"`
-		OrderTypes                 []string      `json:"orderTypes"`
-		IcebergAllowed             bool          `json:"icebergAllowed"`
-		OCOAllowed                 bool          `json:"ocoAllowed"`
-		QuoteOrderQtyMarketAllowed bool          `json:"quoteOrderQtyMarketAllowed"`
-		IsSpotTradingAllowed       bool          `json:"isSpotTradingAllowed"`
-		IsMarginTradingAllowed     bool          `json:"isMarginTradingAllowed"`
-		Filters                    []*filterData `json:"filters"`
-		Permissions                []string      `json:"permissions"`
+		Symbol                          string        `json:"symbol"`
+		Status                          string        `json:"status"`
+		BaseAsset                       string        `json:"baseAsset"`
+		BaseAssetPrecision              int64         `json:"baseAssetPrecision"`
+		QuoteAsset                      string        `json:"quoteAsset"`
+		QuotePrecision                  int64         `json:"quotePrecision"`
+		OrderTypes                      []string      `json:"orderTypes"`
+		IcebergAllowed                  bool          `json:"icebergAllowed"`
+		OCOAllowed                      bool          `json:"ocoAllowed"`
+		QuoteOrderQtyMarketAllowed      bool          `json:"quoteOrderQtyMarketAllowed"`
+		IsSpotTradingAllowed            bool          `json:"isSpotTradingAllowed"`
+		IsMarginTradingAllowed          bool          `json:"isMarginTradingAllowed"`
+		Filters                         []*filterData `json:"filters"`
+		Permissions                     []string      `json:"permissions"`
+		QuoteAssetPrecision             int64         `json:"quoteAssetPrecision"`
+		AllowTrailingStop               bool          `json:"allowTrailingStop"`
+		CancelReplaceAllowed            bool          `json:"cancelReplaceAllowed"`
+		PermissionSets                  [][]string    `json:"permissionSets"`
+		DefaultSelfTradePreventionMode  string        `json:"defaultSelfTradePreventionMode"`
+		AllowedSelfTradePreventionModes []string      `json:"allowedSelfTradePreventionModes"`
 	} `json:"symbols"`
 }
 
@@ -355,6 +361,7 @@ type RecentTrade struct {
 	ID           int64                `json:"id"`
 	Price        float64              `json:"price,string"`
 	Quantity     float64              `json:"qty,string"`
+	QuoteQty     string               `json:"quoteQty"`
 	Time         convert.ExchangeTime `json:"time"`
 	IsBuyerMaker bool                 `json:"isBuyerMaker"`
 	IsBestMatch  bool                 `json:"isBestMatch"`

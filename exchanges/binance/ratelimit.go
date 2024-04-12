@@ -41,13 +41,41 @@ const (
 	withdrawalHistoryRate
 	spotExchangeInfo
 	spotHistoricalTradesRate
+	spotOrderbookDepth100Rate
 	spotOrderbookDepth500Rate
 	spotOrderbookDepth1000Rate
 	spotOrderbookDepth5000Rate
+	getRecentTradesListRate
+	getOldTradeLookupRate
 	spotOrderbookTickerAllRate
-	spotPriceChangeAllRate
+	spotBookTickerRate
 	spotSymbolPriceAllRate
+	spotSymbolPriceRate
+	getAggregateTradeListRate
+	getKlineRate
+	getCurrentAveragePriceRate
+	get24HrTickerPriceChangeStatisticsRate
+	getTickers20Rate
+	getTickers100Rate
+	getTickersMoreThan100Rate
+	spotPriceChangeAllRate
 	spotOpenOrdersAllRate
+	depositAddressesRate
+	assetDividendRecordRate
+	userAssetsRate
+	getDepositAddressListInNetworkRate
+	getUserWalletBalanceRate
+	getUserDelegationHistoryRate
+	symbolDelistScheduleForSpotRate
+	getSubAccountAssetRate
+	getSubAccountStatusOnMarginOrFuturesRate
+	subAccountMarginAccountDetailRate
+	getSubAccountSummaryOfMarginAccountRate
+	getDetailSubAccountFuturesAccountRate
+	getFuturesPositionRiskOfSubAccountV1Rate
+	getFuturesSubAccountSummaryV2Rate
+	getManagedSubAccountSnapshotRate
+
 	spotOpenOrdersSpecificRate
 	spotOrderRate
 	spotOrderQueryRate
@@ -195,16 +223,32 @@ func (r *RateLimit) Limit(ctx context.Context, f request.EndpointLimit) error {
 	switch f {
 	case spotDefaultRate:
 		limiter, tokens = r.SpotRate, 1
+	case spotBookTickerRate,
+		spotSymbolPriceRate,
+		getAggregateTradeListRate,
+		getKlineRate,
+		getCurrentAveragePriceRate,
+		get24HrTickerPriceChangeStatisticsRate,
+		getTickers20Rate:
+		limiter, tokens = r.SpotRate, 2
 	case spotOrderbookTickerAllRate,
 		spotSymbolPriceAllRate:
-		limiter, tokens = r.SpotRate, 2
+		limiter, tokens = r.SpotRate, 4
+	case getTickers100Rate:
+		limiter, tokens = r.SpotRate, 40
 	case spotHistoricalTradesRate,
-		spotOrderbookDepth500Rate:
+		spotOrderbookDepth100Rate:
 		limiter, tokens = r.SpotRate, 5
-	case spotOrderbookDepth1000Rate,
-		spotAccountInformationRate,
-		spotExchangeInfo:
+	case spotOrderbookDepth500Rate,
+		getRecentTradesListRate,
+		getOldTradeLookupRate:
+		limiter, tokens = r.SpotRate, 25
+	case spotAccountInformationRate:
 		limiter, tokens = r.SpotRate, 10
+	case spotOrderbookDepth1000Rate:
+		limiter, tokens = r.SpotRate, 50
+	case spotExchangeInfo:
+		limiter, tokens = r.SpotRate, 20
 	case walletSystemStatus:
 		limiter, tokens = r.SpotRate, 1
 	case allCoinInfoRate:
@@ -215,20 +259,46 @@ func (r *RateLimit) Limit(ctx context.Context, f request.EndpointLimit) error {
 		limiter, tokens = r.SpotRate, 600
 	case withdrawalHistoryRate:
 		limiter, tokens = r.SpotRate, 10
-	case spotPriceChangeAllRate:
-		limiter, tokens = r.SpotRate, 40
+	case spotPriceChangeAllRate,
+		getTickersMoreThan100Rate:
+		limiter, tokens = r.SpotRate, 80
+
 	case spotOrderbookDepth5000Rate:
-		limiter, tokens = r.SpotRate, 50
+		limiter, tokens = r.SpotRate, 250
 	case spotOrderRate:
 		limiter, tokens = r.SpotOrdersRate, 1
 	case spotOrderQueryRate:
-		limiter, tokens = r.SpotOrdersRate, 2
+		limiter, tokens = r.SpotOrdersRate, 4
 	case spotOpenOrdersSpecificRate:
 		limiter, tokens = r.SpotOrdersRate, 3
 	case spotAllOrdersRate:
 		limiter, tokens = r.SpotOrdersRate, 10
 	case spotOpenOrdersAllRate:
 		limiter, tokens = r.SpotOrdersRate, 40
+
+	case depositAddressesRate,
+		assetDividendRecordRate:
+		limiter, tokens = r.SpotRate, 10
+	case userAssetsRate:
+		limiter, tokens = r.SpotRate, 5
+	case getDepositAddressListInNetworkRate:
+		limiter, tokens = r.SpotRate, 10
+	case getUserWalletBalanceRate,
+		getUserDelegationHistoryRate,
+		getSubAccountAssetRate:
+		limiter, tokens = r.SpotRate, 60
+	case symbolDelistScheduleForSpotRate:
+		limiter, tokens = r.SpotRate, 100
+	case getSubAccountStatusOnMarginOrFuturesRate,
+		subAccountMarginAccountDetailRate,
+		getSubAccountSummaryOfMarginAccountRate,
+		getDetailSubAccountFuturesAccountRate,
+		getFuturesPositionRiskOfSubAccountV1Rate,
+		getFuturesSubAccountSummaryV2Rate:
+		limiter, tokens = r.SpotRate, 10
+	case getManagedSubAccountSnapshotRate:
+		limiter, tokens = r.SpotRate, 2400
+
 	case uFuturesDefaultRate,
 		uFuturesKline100Rate:
 		limiter, tokens = r.UFuturesRate, 1
@@ -313,145 +383,94 @@ func (r *RateLimit) Limit(ctx context.Context, f request.EndpointLimit) error {
 		// Options Rate Limits
 	case optionsDefaultRate:
 		limiter, tokens = r.EOptionsRate, 1
-	case optionsRecentTradesRate:
+	case optionsRecentTradesRate,
+		optionsMarkPriceRate,
+		optionsAllTickerPriceStatistics,
+		optionsPositionInformationRate,
+		optionsAccountTradeListRate,
+		optionsUserExerciseRecordRate,
+		optionsDownloadIDForOptionTrasactionHistoryRate,
+		optionsGetTransHistoryDownloadLinkByIDRate:
 		limiter, tokens = r.EOptionsRate, 5
 	case optionsHistoricalTradesRate:
 		limiter, tokens = r.EOptionsRate, 20
-	case optionsMarkPriceRate:
-		limiter, tokens = r.EOptionsRate, 5
-	case optionsAllTickerPriceStatistics:
-		limiter, tokens = r.EOptionsRate, 5
-	case optionsHistoricalExerciseRecordsRate:
+	case optionsHistoricalExerciseRecordsRate,
+		optionsMarginAccountInfoRate:
 		limiter, tokens = r.EOptionsRate, 3
-	case optionsAccountInfoRate:
-		limiter, tokens = r.EOptionsOrderRate, 3
+	case optionsAccountInfoRate,
+		optionsBatchOrderRate:
+		limiter, tokens = r.EOptionsOrderRate, 5
 	case optionsDefaultOrderRate:
 		limiter, tokens = r.EOptionsOrderRate, 1
-	case optionsBatchOrderRate:
-		limiter, tokens = r.EOptionsOrderRate, 5
 	case optionsAllQueryOpenOrdersRate:
 		limiter, tokens = r.EOptionsOrderRate, 40
 	case optionsGetOrderHistory:
 		limiter, tokens = r.EOptionsOrderRate, 3
-	case optionsPositionInformationRate:
-		limiter, tokens = r.EOptionsRate, 5
-	case optionsAccountTradeListRate:
-		limiter, tokens = r.EOptionsRate, 5
-	case optionsUserExerciseRecordRate:
-		limiter, tokens = r.EOptionsRate, 5
-	case optionsDownloadIDForOptionTrasactionHistoryRate:
-		limiter, tokens = r.EOptionsRate, 5
-	case optionsGetTransHistoryDownloadLinkByIDRate:
-		limiter, tokens = r.EOptionsRate, 5
-	case optionsMarginAccountInfoRate:
-		limiter, tokens = r.EOptionsRate, 3
 	case optionsAutoCancelAllOpenOrdersHeartbeatRate:
 		limiter, tokens = r.EOptionsRate, 10
 
 	case pmDefaultRate:
 		limiter, tokens = r.PortfolioMarginRate, 1
-	case pmMarginAccountLoanAndRepayRate:
+	case pmMarginAccountLoanAndRepayRate,
+		pmAllMarginAccountOrdersRate,
+		pmGetMarginAccountsAllOCOOrdersRate:
 		limiter, tokens = r.PortfolioMarginRate, 100
-	case pmCancelMarginAccountOpenOrdersOnSymbolRate:
+	case pmCancelMarginAccountOpenOrdersOnSymbolRate,
+		pmGetAllUMOrdersRate,
+		pmGetMarginAccountOrderRate,
+		pmCurrentMarginOpenOrderRate,
+		pmGetMarginAccountOCORate,
+		pmGetMarginAccountsOpenOCOOrdersRate,
+		pmGetMarginAccountTradeListRate,
+		pmMarginMaxBorrowRate,
+		pmGetMarginMaxWithdrawalRate,
+		pmGetUMPositionInformationRate,
+		pmGetUMAccountTradeListRate,
+		pmGetUMAccountDetailRate,
+		pmGetCMAccountDetailRate,
+		pmGetUMPositionADLQuantileEstimationRate,
+		pmGetCMPositionADLQuantileEstimationRate:
 		limiter, tokens = r.PortfolioMarginRate, 5
 	case pmCancelMarginAccountOCORate:
 		limiter, tokens = r.PortfolioMarginRate, 2
-	case pmRetrieveAllUMOpenOrdersForAllSymbolRate:
+	case pmRetrieveAllUMOpenOrdersForAllSymbolRate,
+		pmRetrieveAllCMOpenOrdersForAllSymbolRate,
+		pmAllCMOrderWithoutSymbolRate,
+		pmUMOpenConditionalOrdersRate,
+		pmAllUMConditionalOrdersWithoutSymbolRate,
+		pmAllCMOpenConditionalOrdersWithoutSymbolRate,
+		pmAllCMConditionalOrderWithoutSymbolRate,
+		pmGetCMAccountTradeListWithPairRate:
 		limiter, tokens = r.PortfolioMarginRate, 40
-	case pmGetAllUMOrdersRate:
-		limiter, tokens = r.PortfolioMarginRate, 5
-	case pmRetrieveAllCMOpenOrdersForAllSymbolRate:
-		limiter, tokens = r.PortfolioMarginRate, 40
-	case pmAllCMOrderWithSymbolRate:
+	case pmAllCMOrderWithSymbolRate,
+		pmGetAccountBalancesRate,
+		pmGetAccountInformationRate,
+		pmGetCMAccountTradeListWithSymbolRate,
+		pmGetUserUMForceOrdersWithSymbolRate,
+		pmGetUserCMForceOrdersWithSymbolRate,
+		pmGetUMUserCommissionRate,
+		pmGetCMUserCommissionRate:
 		limiter, tokens = r.PortfolioMarginRate, 20
-	case pmAllCMOrderWithoutSymbolRate:
-		limiter, tokens = r.PortfolioMarginRate, 40
-	case pmUMOpenConditionalOrdersRate:
-		limiter, tokens = r.PortfolioMarginRate, 40
-	case pmAllUMConditionalOrdersWithoutSymbolRate:
-		limiter, tokens = r.PortfolioMarginRate, 40
-	case pmAllCMOpenConditionalOrdersWithoutSymbolRate:
-		limiter, tokens = r.PortfolioMarginRate, 40
-	case pmAllCMConditionalOrderWithoutSymbolRate:
-		limiter, tokens = r.PortfolioMarginRate, 40
-	case pmGetMarginAccountOrderRate:
-		limiter, tokens = r.PortfolioMarginRate, 5
-	case pmCurrentMarginOpenOrderRate:
-		limiter, tokens = r.PortfolioMarginRate, 5
-	case pmAllMarginAccountOrdersRate:
-		limiter, tokens = r.PortfolioMarginRate, 100
-	case pmGetMarginAccountOCORate:
-		limiter, tokens = r.PortfolioMarginRate, 5
-	case pmGetMarginAccountsAllOCOOrdersRate:
-		limiter, tokens = r.PortfolioMarginRate, 100
-	case pmGetMarginAccountsOpenOCOOrdersRate:
-		limiter, tokens = r.PortfolioMarginRate, 5
-	case pmGetMarginAccountTradeListRate:
-		limiter, tokens = r.PortfolioMarginRate, 5
-	case pmGetAccountBalancesRate:
-		limiter, tokens = r.PortfolioMarginRate, 20
-	case pmGetAccountInformationRate:
-		limiter, tokens = r.PortfolioMarginRate, 20
-	case pmMarginMaxBorrowRate:
-		limiter, tokens = r.PortfolioMarginRate, 5
-	case pmGetMarginMaxWithdrawalRate:
-		limiter, tokens = r.PortfolioMarginRate, 5
-	case pmGetUMPositionInformationRate:
-		limiter, tokens = r.PortfolioMarginRate, 5
-	case pmGetUMCurrentPositionModeRate:
+	case pmGetUMCurrentPositionModeRate,
+		pmGetCMCurrentPositionModeRate,
+		pmFundCollectionByAssetRate,
+		pmGetUMIncomeHistoryRate,
+		pmGetCMIncomeHistoryRate,
+		pmGetAutoRepayFuturesStatusRate:
 		limiter, tokens = r.PortfolioMarginRate, 30
-	case pmGetCMCurrentPositionModeRate:
-		limiter, tokens = r.PortfolioMarginRate, 30
-	case pmGetUMAccountTradeListRate:
-		limiter, tokens = r.PortfolioMarginRate, 5
-	case pmGetCMAccountTradeListWithSymbolRate:
-		limiter, tokens = r.PortfolioMarginRate, 20
-	case pmGetCMAccountTradeListWithPairRate:
-		limiter, tokens = r.PortfolioMarginRate, 40
-	case pmGetUserUMForceOrdersWithSymbolRate:
-		limiter, tokens = r.PortfolioMarginRate, 20
-	case pmGetUserUMForceOrdersWithoutSymbolRate:
+	case pmGetUserUMForceOrdersWithoutSymbolRate,
+		pmGetUserCMForceOrdersWithoutSymbolRate,
+		pmGetPortfolioMarginNegativeBalanceInterestHistoryRate:
 		limiter, tokens = r.PortfolioMarginRate, 50
-	case pmGetUserCMForceOrdersWithSymbolRate:
-		limiter, tokens = r.PortfolioMarginRate, 20
-	case pmGetUserCMForceOrdersWithoutSymbolRate:
-		limiter, tokens = r.PortfolioMarginRate, 50
-	case pmUMTradingQuantitativeRulesIndicatorsRate:
+	case pmUMTradingQuantitativeRulesIndicatorsRate,
+		pmGetMarginLoanRecordRate,
+		pmGetMarginRepayRecordRate:
 		limiter, tokens = r.PortfolioMarginRate, 10
-	case pmGetUMUserCommissionRate:
-		limiter, tokens = r.PortfolioMarginRate, 20
-	case pmGetCMUserCommissionRate:
-		limiter, tokens = r.PortfolioMarginRate, 20
-	case pmGetMarginLoanRecordRate:
-		limiter, tokens = r.PortfolioMarginRate, 10
-	case pmGetMarginRepayRecordRate:
-		limiter, tokens = r.PortfolioMarginRate, 10
-	case pmGetPortfolioMarginNegativeBalanceInterestHistoryRate:
-		limiter, tokens = r.PortfolioMarginRate, 50
-	case pmFundAutoCollectionRate:
+	case pmFundAutoCollectionRate,
+		pmBNBTransferRate,
+		pmChangeAutoRepayFuturesStatusRate,
+		pmRepayFuturesNegativeBalanceRate:
 		limiter, tokens = r.PortfolioMarginRate, 750
-	case pmFundCollectionByAssetRate:
-		limiter, tokens = r.PortfolioMarginRate, 30
-	case pmBNBTransferRate:
-		limiter, tokens = r.PortfolioMarginRate, 750
-	case pmGetUMIncomeHistoryRate:
-		limiter, tokens = r.PortfolioMarginRate, 30
-	case pmGetCMIncomeHistoryRate:
-		limiter, tokens = r.PortfolioMarginRate, 30
-	case pmGetUMAccountDetailRate:
-		limiter, tokens = r.PortfolioMarginRate, 5
-	case pmGetCMAccountDetailRate:
-		limiter, tokens = r.PortfolioMarginRate, 5
-	case pmChangeAutoRepayFuturesStatusRate:
-		limiter, tokens = r.PortfolioMarginRate, 750
-	case pmGetAutoRepayFuturesStatusRate:
-		limiter, tokens = r.PortfolioMarginRate, 30
-	case pmRepayFuturesNegativeBalanceRate:
-		limiter, tokens = r.PortfolioMarginRate, 750
-	case pmGetUMPositionADLQuantileEstimationRate:
-		limiter, tokens = r.PortfolioMarginRate, 5
-	case pmGetCMPositionADLQuantileEstimationRate:
-		limiter, tokens = r.PortfolioMarginRate, 5
 	default:
 		limiter, tokens = r.SpotRate, 1
 	}
@@ -514,7 +533,7 @@ func openOrdersLimit(symbol string) request.EndpointLimit {
 func orderbookLimit(depth int64) request.EndpointLimit {
 	switch {
 	case depth <= 100:
-		return spotDefaultRate
+		return spotOrderbookDepth100Rate
 	case depth <= 500:
 		return spotOrderbookDepth500Rate
 	case depth <= 1000:

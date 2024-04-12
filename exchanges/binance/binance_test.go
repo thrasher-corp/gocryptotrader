@@ -37,8 +37,8 @@ import (
 
 // Please supply your own keys here for due diligence testing
 const (
-	apiKey                  = ""
-	apiSecret               = ""
+	apiKey                  = "9J1BvytDNckHcd5sulhchPoz3m1I9aIGhXpYz8TQNCFECo3L28aySjklAilSR3Cx"
+	apiSecret               = "awPwnog2m134JUMbe0yr6mWFy0NM6RWaTa7UWMsX1C0Fgt7na0nVAZDjqOwZocBP"
 	canManipulateRealOrders = false
 	useTestNet              = false
 
@@ -1144,29 +1144,20 @@ func TestGetAveragePrice(t *testing.T) {
 
 func TestGetPriceChangeStats(t *testing.T) {
 	t.Parallel()
-
-	_, err := b.GetPriceChangeStats(context.Background(), currency.NewPair(currency.BTC, currency.USDT))
-	assert.NoError(t, err)
-}
-
-func TestGetTickers(t *testing.T) {
-	t.Parallel()
-
-	_, err := b.GetTickers(context.Background())
+	_, err := b.GetPriceChangeStats(context.Background(), currency.NewPair(currency.BTC, currency.USDT), currency.Pairs{})
 	assert.NoError(t, err)
 }
 
 func TestGetLatestSpotPrice(t *testing.T) {
 	t.Parallel()
-
-	_, err := b.GetLatestSpotPrice(context.Background(), currency.NewPair(currency.BTC, currency.USDT))
+	_, err := b.GetLatestSpotPrice(context.Background(), currency.NewPair(currency.BTC, currency.USDT), currency.Pairs{})
 	assert.NoError(t, err)
 }
 
 func TestGetBestPrice(t *testing.T) {
 	t.Parallel()
 
-	_, err := b.GetBestPrice(context.Background(), currency.NewPair(currency.BTC, currency.USDT))
+	_, err := b.GetBestPrice(context.Background(), currency.NewPair(currency.BTC, currency.USDT), currency.Pairs{})
 	assert.NoError(t, err)
 }
 
@@ -1485,10 +1476,17 @@ func TestGetSummaryOfSubAccountFuturesAccount(t *testing.T) {
 	assert.NotNil(t, result)
 }
 
+func TestGetV1FuturesPositionRiskSubAccount(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetV1FuturesPositionRiskSubAccount(context.Background(), "address@mail.com")
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
 func TestGetFuturesPositionRiskSubAccount(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
-	result, err := b.GetFuturesPositionRiskSubAccount(context.Background(), "address@mail.com")
+	result, err := b.GetV2FuturesPositionRiskSubAccount(context.Background(), "address@mail.com")
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -1504,7 +1502,7 @@ func TestEnableLeverageTokenForSubAccount(t *testing.T) {
 func TestGetIPRestrictionForSubAccountAPIKey(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
-	result, err := b.GetIPRestrictionForSubAccountAPIKey(context.Background(), "emailaddress@thrasher.io", apiKey)
+	result, err := b.GetIPRestrictionForSubAccountAPIKeyV2(context.Background(), "emailaddress@thrasher.io", apiKey)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -1560,7 +1558,7 @@ func TestGetManagedSubAccountSnapshot(t *testing.T) {
 func TestGetManagedSubAccountTransferLogForInvestorMasterAccount(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
-	result, err := b.GetManagedSubAccountTransferLogForInvestorMasterAccount(context.Background(), "address@gmail.com", time.Now().Add(-time.Hour*24*50), time.Now().Add(-time.Hour*24*20), 1, 10)
+	result, err := b.GetManagedSubAccountTransferLogForInvestorMasterAccount(context.Background(), "address@gmail.com", "TO", "SPOT", time.Now().Add(-time.Hour*24*50), time.Now().Add(-time.Hour*24*20), 1, 10)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -1568,7 +1566,7 @@ func TestGetManagedSubAccountTransferLogForInvestorMasterAccount(t *testing.T) {
 func TestGetManagedSubAccountTransferLogForTradingTeam(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
-	result, err := b.GetManagedSubAccountTransferLogForTradingTeam(context.Background(), "address@gmail.com", time.Now().Add(-time.Hour*24*50), time.Now().Add(-time.Hour*24*20), 1, 10)
+	result, err := b.GetManagedSubAccountTransferLogForTradingTeam(context.Background(), "address@gmail.com", "FROM", "ISOLATED_MARGIN", time.Now().Add(-time.Hour*24*50), time.Now().Add(-time.Hour*24*20), 1, 10)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -5219,4 +5217,11 @@ func TestGetCMPositionADLQuantileEstimation(t *testing.T) {
 	result, err := b.GetCMPositionADLQuantileEstimation(context.Background(), "BTCUSD_200925")
 	require.NoError(t, err)
 	assert.NotNil(t, result)
+}
+
+func TestPairsString(t *testing.T) {
+	t.Parallel()
+	val, err := json.Marshal(currency.Pairs{currency.Pair{Base: currency.NewCode("BTC"), Quote: currency.USDT}, currency.NewPair(currency.ETH, currency.USDC)}.Strings())
+	require.NoError(t, err)
+	println(string(val))
 }

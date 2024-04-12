@@ -103,7 +103,6 @@ func (b *Binance) GetOrderBook(ctx context.Context, obd OrderBookDataRequestPara
 	if err := b.CheckLimit(obd.Limit); err != nil {
 		return nil, err
 	}
-
 	symbol, err := b.FormatSymbol(obd.Symbol, asset.Spot)
 	if err != nil {
 		return nil, err
@@ -115,11 +114,10 @@ func (b *Binance) GetOrderBook(ctx context.Context, obd OrderBookDataRequestPara
 	var resp OrderBookData
 	if err := b.SendHTTPRequest(ctx,
 		exchange.RestSpotSupplementary,
-		"/api/v3/depth?"+params.Encode(),
+		common.EncodeURLValues("/api/v3/depth", params),
 		orderbookLimit(obd.Limit), &resp); err != nil {
 		return nil, err
 	}
-
 	orderbook := OrderBook{
 		Bids:         make([]OrderbookItem, len(resp.Bids)),
 		Asks:         make([]OrderbookItem, len(resp.Asks)),
@@ -152,7 +150,7 @@ func (b *Binance) GetMostRecentTrades(ctx context.Context, rtr RecentTradeReques
 	params.Set("limit", strconv.FormatInt(rtr.Limit, 10))
 	var resp []RecentTrade
 	return resp, b.SendHTTPRequest(ctx,
-		exchange.RestSpotSupplementary, "/api/v3/trades?"+params.Encode(), spotDefaultRate, &resp)
+		exchange.RestSpotSupplementary, common.EncodeURLValues("/api/v3/trades", params), getRecentTradesListRate, &resp)
 }
 
 // GetHistoricalTrades returns historical trade activity
@@ -161,6 +159,9 @@ func (b *Binance) GetMostRecentTrades(ctx context.Context, rtr RecentTradeReques
 // limit: Optional. Default 500; max 1000.
 // fromID:
 func (b *Binance) GetHistoricalTrades(ctx context.Context, symbol string, limit int, fromID int64) ([]HistoricalTrade, error) {
+	if symbol == "" {
+		return nil, currency.ErrSymbolStringEmpty
+	}
 	params := url.Values{}
 	params.Set("symbol", symbol)
 	params.Set("limit", strconv.Itoa(limit))
@@ -170,15 +171,12 @@ func (b *Binance) GetHistoricalTrades(ctx context.Context, symbol string, limit 
 	}
 	var resp []HistoricalTrade
 	return resp,
-		b.SendAPIKeyHTTPRequest(ctx, exchange.RestSpotSupplementary, common.EncodeURLValues("/api/v3/historicalTrades", params), spotDefaultRate, &resp)
+		b.SendAPIKeyHTTPRequest(ctx, exchange.RestSpotSupplementary, common.EncodeURLValues("/api/v3/historicalTrades", params), getOldTradeLookupRate, &resp)
 }
 
 // GetUserMarginInterestHistory returns margin interest history for the user
 func (b *Binance) GetUserMarginInterestHistory(ctx context.Context, assetCurrency currency.Code, isolatedSymbol currency.Pair, startTime, endTime time.Time, currentPage, size int64, archived bool) (*UserMarginInterestHistoryResponse, error) {
 	params := url.Values{}
-	if !assetCurrency.IsEmpty() {
-		params.Set("asset", assetCurrency.String())
-	}
 	if !isolatedSymbol.IsEmpty() {
 		fPair, err := b.FormatSymbol(isolatedSymbol, asset.Margin)
 		if err != nil {
@@ -186,11 +184,16 @@ func (b *Binance) GetUserMarginInterestHistory(ctx context.Context, assetCurrenc
 		}
 		params.Set("isolatedSymbol", fPair)
 	}
-	if !startTime.IsZero() {
+	if !startTime.IsZero() && !endTime.IsZero() {
+		err := common.StartEndTimeCheck(startTime, endTime)
+		if err != nil {
+			return nil, err
+		}
 		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
-	}
-	if !endTime.IsZero() {
 		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
+	}
+	if !assetCurrency.IsEmpty() {
+		params.Set("asset", assetCurrency.String())
 	}
 	if currentPage > 0 {
 		params.Set("current", strconv.FormatInt(currentPage, 10))
@@ -226,11 +229,13 @@ func (b *Binance) GetAggregatedTrades(ctx context.Context, arg *AggregatedTradeR
 	if arg.FromID != 0 {
 		params.Set("fromId", strconv.FormatInt(arg.FromID, 10))
 	}
-	if !arg.StartTime.IsZero() {
-		params.Set("startTime", timeString(arg.StartTime))
-	}
-	if !arg.EndTime.IsZero() {
-		params.Set("endTime", timeString(arg.EndTime))
+	if !arg.StartTime.IsZero() && !arg.EndTime.IsZero() {
+		err := common.StartEndTimeCheck(arg.StartTime, arg.EndTime)
+		if err != nil {
+			return nil, err
+		}
+		params.Set("startTime", strconv.FormatInt(arg.StartTime.UnixMilli(), 10))
+		params.Set("endTime", strconv.FormatInt(arg.EndTime.UnixMilli(), 10))
 	}
 
 	// startTime and endTime are set and time between startTime and endTime is more than 1 hour
@@ -243,28 +248,26 @@ func (b *Binance) GetAggregatedTrades(ctx context.Context, arg *AggregatedTradeR
 			// Split the request into multiple
 			return b.batchAggregateTrades(ctx, arg, params)
 		}
-
 		// Can't handle this request locally or remotely
 		// We would receive {"code":-1128,"msg":"Combination of optional parameters invalid."}
 		return nil, errors.New("please set StartTime or FromId, but not both")
 	}
 	var resp []AggregatedTrade
-	path := "/api/v3/aggTrades?" + params.Encode()
 	return resp, b.SendHTTPRequest(ctx,
-		exchange.RestSpotSupplementary, path, spotDefaultRate, &resp)
+		exchange.RestSpotSupplementary, common.EncodeURLValues("/api/v3/aggTrades", params),
+		spotDefaultRate, &resp)
 }
 
 // batchAggregateTrades fetches trades in multiple requests
 // first phase, hourly requests until the first trade (or end time) is reached
 // second phase, limit requests from previous trade until end time (or limit) is reached
 func (b *Binance) batchAggregateTrades(ctx context.Context, arg *AggregatedTradeRequestParams, params url.Values) ([]AggregatedTrade, error) {
-	var resp []AggregatedTrade
 	// prepare first request with only first hour and max limit
 	if arg.Limit == 0 || arg.Limit > 1000 {
 		// Extend from the default of 500
 		params.Set("limit", "1000")
 	}
-
+	var resp []AggregatedTrade
 	var fromID int64
 	if arg.FromID > 0 {
 		fromID = arg.FromID
@@ -280,8 +283,9 @@ func (b *Binance) batchAggregateTrades(ctx context.Context, arg *AggregatedTrade
 			params.Set("startTime", timeString(start))
 			params.Set("endTime", timeString(start.Add(increment)))
 			err := b.SendHTTPRequest(ctx,
-				exchange.RestSpotSupplementary, "/api/v3/aggTrades?"+params.Encode(),
-				spotDefaultRate, &resp)
+				exchange.RestSpotSupplementary,
+				common.EncodeURLValues("/api/v3/aggTrades", params),
+				getAggregateTradeListRate, &resp)
 			if err != nil {
 				return resp, fmt.Errorf("%w %v", err, arg.Symbol)
 			}
@@ -296,11 +300,10 @@ func (b *Binance) batchAggregateTrades(ctx context.Context, arg *AggregatedTrade
 	for ; arg.Limit == 0 || len(resp) < arg.Limit; fromID = resp[len(resp)-1].ATradeID {
 		// Keep requesting new data after last retrieved trade
 		params.Set("fromId", strconv.FormatInt(fromID, 10))
-		path := "/api/v3/aggTrades?" + params.Encode()
 		var additionalTrades []AggregatedTrade
 		err := b.SendHTTPRequest(ctx,
 			exchange.RestSpotSupplementary,
-			path,
+			common.EncodeURLValues("/api/v3/aggTrades", params),
 			spotDefaultRate,
 			&additionalTrades)
 		if err != nil {
@@ -362,13 +365,11 @@ func (b *Binance) retrieveSpotKline(ctx context.Context, arg *KlinesRequestParam
 	if !arg.EndTime.IsZero() {
 		params.Set("endTime", timeString(arg.EndTime))
 	}
-
-	path := urlPath + "?" + params.Encode()
 	var resp [][]types.Number
 	err = b.SendHTTPRequest(ctx,
 		exchange.RestSpotSupplementary,
-		path,
-		spotDefaultRate,
+		common.EncodeURLValues(urlPath, params),
+		getKlineRate,
 		&resp)
 	if err != nil {
 		return nil, err
@@ -407,33 +408,42 @@ func (b *Binance) GetAveragePrice(ctx context.Context, symbol currency.Pair) (*A
 	params.Set("symbol", symbolValue)
 	var resp *AveragePrice
 	return resp, b.SendHTTPRequest(ctx,
-		exchange.RestSpotSupplementary, "/api/v3/avgPrice?"+params.Encode(), spotDefaultRate, &resp)
+		exchange.RestSpotSupplementary, common.EncodeURLValues("/api/v3/avgPrice", params), getCurrentAveragePriceRate, &resp)
 }
 
 // GetPriceChangeStats returns price change statistics for the last 24 hours
 //
 // symbol: string of currency pair
-func (b *Binance) GetPriceChangeStats(ctx context.Context, symbol currency.Pair) (*PriceChangeStats, error) {
+func (b *Binance) GetPriceChangeStats(ctx context.Context, symbol currency.Pair, symbols currency.Pairs) ([]PriceChangeStats, error) {
 	params := url.Values{}
 	rateLimit := spotPriceChangeAllRate
-	if !symbol.IsEmpty() {
-		rateLimit = spotDefaultRate
+	if !symbol.IsEmpty() || (symbol.IsEmpty() && len(symbols) == 1) {
+		if symbol.IsEmpty() && len(symbols) == 1 {
+			symbol = symbols[0]
+		}
+		rateLimit = get24HrTickerPriceChangeStatisticsRate
 		symbolValue, err := b.FormatSymbol(symbol, asset.Spot)
 		if err != nil {
 			return nil, err
 		}
 		params.Set("symbol", symbolValue)
+	} else if len(symbols) > 1 {
+		rateLimit = getTickers20Rate
+		if len(symbols) > 100 {
+			rateLimit = getTickersMoreThan100Rate
+		} else if len(symbols) > 20 {
+			rateLimit = getTickers100Rate
+		}
+		val, err := json.Marshal(symbols.Strings())
+		if err != nil {
+			return nil, err
+		}
+		params.Set("symbols", string(val))
+	} else {
+		rateLimit = spotPriceChangeAllRate
 	}
-	var resp *PriceChangeStats
-	return resp, b.SendHTTPRequest(ctx,
-		exchange.RestSpotSupplementary, "/api/v3/ticker/24hr?"+params.Encode(), rateLimit, &resp)
-}
-
-// GetTickers returns the ticker data for the last 24 hrs
-func (b *Binance) GetTickers(ctx context.Context) ([]PriceChangeStats, error) {
-	var resp []PriceChangeStats
-	return resp, b.SendHTTPRequest(ctx,
-		exchange.RestSpotSupplementary, "/api/v3/ticker/24hr", spotPriceChangeAllRate, &resp)
+	var resp PriceChangesWrapper
+	return resp, b.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, common.EncodeURLValues("/api/v3/ticker/24hr", params), rateLimit, &resp)
 }
 
 // GetTradingDayTicker retrieves the price change statistics for the trading day
@@ -464,39 +474,46 @@ func (b *Binance) GetTradingDayTicker(ctx context.Context, symbols currency.Pair
 // GetLatestSpotPrice returns latest spot price of symbol
 //
 // symbol: string of currency pair
-func (b *Binance) GetLatestSpotPrice(ctx context.Context, symbol currency.Pair) (*SymbolPrice, error) {
+func (b *Binance) GetLatestSpotPrice(ctx context.Context, symbol currency.Pair, symbols currency.Pairs) (*SymbolPrice, error) {
 	params := url.Values{}
 	rateLimit := spotSymbolPriceAllRate
 	if !symbol.IsEmpty() {
-		rateLimit = spotDefaultRate
+		rateLimit = spotSymbolPriceRate
 		symbolValue, err := b.FormatSymbol(symbol, asset.Spot)
 		if err != nil {
 			return nil, err
 		}
 		params.Set("symbol", symbolValue)
+	} else if len(symbols) > 0 {
+		params.Set("symbols", "["+strings.Join(symbols.Strings(), "")+"]")
 	}
 	var resp *SymbolPrice
 	return resp,
-		b.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, "/api/v3/ticker/price?"+params.Encode(), rateLimit, &resp)
+		b.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, common.EncodeURLValues("/api/v3/ticker/price", params), rateLimit, &resp)
 }
 
 // GetBestPrice returns the latest best price for symbol
 //
 // symbol: string of currency pair
-func (b *Binance) GetBestPrice(ctx context.Context, symbol currency.Pair) (*BestPrice, error) {
+func (b *Binance) GetBestPrice(ctx context.Context, symbol currency.Pair, symbols currency.Pairs) (*BestPrice, error) {
 	params := url.Values{}
 	rateLimit := spotOrderbookTickerAllRate
-	if !symbol.IsEmpty() {
-		rateLimit = spotDefaultRate
+	if !symbol.IsEmpty() || (symbol.IsEmpty() && len(symbols) == 1 && !symbols[0].IsEmpty()) {
+		if symbol.IsEmpty() && len(symbols) == 1 {
+			symbol = symbols[0]
+		}
+		rateLimit = spotBookTickerRate
 		symbolValue, err := b.FormatSymbol(symbol, asset.Spot)
 		if err != nil {
 			return nil, err
 		}
 		params.Set("symbol", symbolValue)
+	} else if len(symbols) > 1 {
+		params.Set("symbols", "["+strings.Join(symbols.Strings(), "")+"]")
 	}
 	var resp *BestPrice
 	return resp,
-		b.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, "/api/v3/ticker/bookTicker?"+params.Encode(), rateLimit, &resp)
+		b.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, common.EncodeURLValues("/api/v3/ticker/bookTicker", params), rateLimit, &resp)
 }
 
 // GetTickerData openTime always starts on a minute, while the closeTime is the current time of the request.
@@ -624,10 +641,8 @@ func (b *Binance) OpenOrders(ctx context.Context, pair currency.Pair) ([]TradeOr
 	}
 	var resp []TradeOrder
 	return resp, b.SendAuthHTTPRequest(ctx,
-		exchange.RestSpotSupplementary,
-		http.MethodGet,
-		"/api/v3/openOrders",
-		params, openOrdersLimit(p), nil, &resp)
+		exchange.RestSpotSupplementary, http.MethodGet,
+		"/api/v3/openOrders", params, openOrdersLimit(p), nil, &resp)
 }
 
 // AllOrders Get all account orders; active, canceled, or filled.
@@ -648,13 +663,11 @@ func (b *Binance) AllOrders(ctx context.Context, symbol currency.Pair, orderID, 
 	}
 	var resp []TradeOrder
 	return resp, b.SendAuthHTTPRequest(ctx,
-		exchange.RestSpotSupplementary,
-		http.MethodGet,
-		"/api/v3/allOrders",
-		params,
-		spotAllOrdersRate,
-		nil, &resp)
+		exchange.RestSpotSupplementary, http.MethodGet, "/api/v3/allOrders",
+		params, spotAllOrdersRate, nil, &resp)
 }
+
+// func (b *Binance) CancelAnExistingOrderAndSendNewOrder(ctx context.Context, )
 
 // NewOCOOrder places a new one-cancel-other trade order.
 func (b *Binance) NewOCOOrder(ctx context.Context, arg *OCOOrderParam) (*OCOOrderResponse, error) {
@@ -770,14 +783,16 @@ func (b *Binance) GetOCOOrders(ctx context.Context, orderListID, origiClientOrde
 // GetAllOCOOrders represents a list of OCO orders based on provided optional parameters.
 func (b *Binance) GetAllOCOOrders(ctx context.Context, fromID string, startTime, endTime time.Time, limit int64) ([]OCOOrderResponse, error) {
 	params := url.Values{}
+	if !startTime.IsZero() && !endTime.IsZero() {
+		err := common.StartEndTimeCheck(startTime, endTime)
+		if err != nil {
+			return nil, err
+		}
+		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
+	}
 	if fromID != "" {
 		params.Set("fromId", fromID)
-	}
-	if !startTime.IsZero() {
-		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
-	}
-	if !endTime.IsZero() {
-		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
 	}
 	if limit > 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
@@ -914,10 +929,12 @@ func (b *Binance) GetAccountTradeList(ctx context.Context, symbol, orderID strin
 	if orderID != "" {
 		params.Set("orderId", orderID)
 	}
-	if !startTime.IsZero() {
+	if !startTime.IsZero() && !endTime.IsZero() {
+		err := common.StartEndTimeCheck(startTime, endTime)
+		if err != nil {
+			return nil, err
+		}
 		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
-	}
-	if !endTime.IsZero() {
 		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
 	}
 	if fromID != 0 {
@@ -1163,10 +1180,12 @@ func (b *Binance) GetDailyAccountSnapshot(ctx context.Context, tradeType string,
 	}
 	params := url.Values{}
 	params.Set("type", tradeType)
-	if !startTime.IsZero() {
+	if !startTime.IsZero() && !endTime.IsZero() {
+		err := common.StartEndTimeCheck(startTime, endTime)
+		if err != nil {
+			return nil, err
+		}
 		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
-	}
-	if !endTime.IsZero() {
 		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
 	}
 	if limit > 0 {
@@ -1189,16 +1208,14 @@ func (b *Binance) EnableFastWithdrawalSwitch(ctx context.Context) error {
 }
 
 // WithdrawCrypto sends cryptocurrency to the address of your choosing
-func (b *Binance) WithdrawCrypto(ctx context.Context, cryptoAsset, withdrawOrderID, network, address, addressTag, name, amount string, transactionFeeFlag bool) (string, error) {
-	if cryptoAsset == "" || address == "" || amount == "" {
+func (b *Binance) WithdrawCrypto(ctx context.Context, cryptoAsset, withdrawOrderID, network, address, addressTag, name string, amount float64, transactionFeeFlag bool) (string, error) {
+	if cryptoAsset == "" || address == "" || amount == 0 {
 		return "", errors.New("asset, address and amount must not be empty")
 	}
-
 	params := url.Values{}
 	params.Set("coin", cryptoAsset)
 	params.Set("address", address)
-	params.Set("amount", amount)
-
+	params.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
 	// optional params
 	if withdrawOrderID != "" {
 		params.Set("withdrawOrderId", withdrawOrderID)
@@ -1215,56 +1232,45 @@ func (b *Binance) WithdrawCrypto(ctx context.Context, cryptoAsset, withdrawOrder
 	if name != "" {
 		params.Set("name", url.QueryEscape(name))
 	}
-
 	var resp *WithdrawResponse
 	return resp.ID, b.SendAuthHTTPRequest(ctx,
 		exchange.RestSpotSupplementary,
-		http.MethodPost,
-		"/sapi/v1/capital/withdraw/apply",
-		params,
-		fundWithdrawalRate,
-		nil, &resp)
+		http.MethodPost, "/sapi/v1/capital/withdraw/apply",
+		params, fundWithdrawalRate, nil, &resp)
 }
 
 // DepositHistory returns the deposit history based on the supplied params
 // status `param` used as string to prevent default value 0 (for int) interpreting as EmailSent status
 func (b *Binance) DepositHistory(ctx context.Context, c currency.Code, status string, startTime, endTime time.Time, offset, limit int) ([]DepositHistory, error) {
-	var response []DepositHistory
-
 	params := url.Values{}
-	if !c.IsEmpty() {
-		params.Set("coin", c.String())
-	}
-
 	if status != "" {
 		i, err := strconv.Atoi(status)
 		if err != nil {
 			return nil, fmt.Errorf("wrong param (status): %s. Error: %v", status, err)
 		}
-
 		switch i {
 		case EmailSent, Cancelled, AwaitingApproval, Rejected, Processing, Failure, Completed:
 		default:
 			return nil, fmt.Errorf("wrong param (status): %s", status)
 		}
-
 		params.Set("status", status)
 	}
-
+	if !c.IsEmpty() {
+		params.Set("coin", c.String())
+	}
 	if !startTime.IsZero() {
 		params.Set("startTime", strconv.FormatInt(startTime.UTC().UnixMilli(), 10))
 	}
-
 	if !endTime.IsZero() {
 		params.Set("endTime", strconv.FormatInt(endTime.UTC().UnixMilli(), 10))
 	}
-
 	if offset != 0 {
 		params.Set("offset", strconv.Itoa(offset))
 	}
 	if limit != 0 {
 		params.Set("limit", strconv.Itoa(limit))
 	}
+	var response []DepositHistory
 	return response, b.SendAuthHTTPRequest(ctx,
 		exchange.RestSpotSupplementary, http.MethodGet,
 		"/sapi/v1/capital/deposit/hisrec",
@@ -1325,7 +1331,7 @@ func (b *Binance) GetDepositAddressForCurrency(ctx context.Context, currency, ch
 	}
 	params.Set("recvWindow", "10000")
 	var d *DepositAddress
-	return d, b.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, "/sapi/v1/capital/deposit/address", params, spotDefaultRate, nil, &d)
+	return d, b.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, "/sapi/v1/capital/deposit/address", params, depositAddressesRate, nil, &d)
 }
 
 // GetAssetsThatCanBeConvertedIntoBNB retrieves assets that can be converted into BNB
@@ -1359,17 +1365,19 @@ func (b *Binance) GetAssetDevidendRecords(ctx context.Context, asset currency.Co
 	}
 	params := url.Values{}
 	params.Set("asset", asset.String())
-	if startTime.IsZero() {
+	if !startTime.IsZero() && !endTime.IsZero() {
+		err := common.StartEndTimeCheck(startTime, endTime)
+		if err != nil {
+			return nil, err
+		}
 		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
-	}
-	if endTime.IsZero() {
 		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
 	}
 	if limit > 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	var resp *AssetDividendRecord
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/asset/assetDividend", params, spotDefaultRate, nil, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/asset/assetDividend", params, assetDividendRecordRate, nil, &resp)
 }
 
 // GetAssetDetail fetches details of assets supported on Binance
@@ -1429,10 +1437,12 @@ func (b *Binance) GetUserUniversalTransferHistory(ctx context.Context, transferT
 	}
 	params := url.Values{}
 	params.Set("type", transferType.String())
-	if !startTime.IsZero() {
+	if !startTime.IsZero() && !endTime.IsZero() {
+		err := common.StartEndTimeCheck(startTime, endTime)
+		if err != nil {
+			return nil, err
+		}
 		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
-	}
-	if !endTime.IsZero() {
 		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
 	}
 	if current != 0 {
@@ -1474,7 +1484,7 @@ func (b *Binance) GetUserAssets(ctx context.Context, ccy currency.Code, needBTCV
 		params.Set("needBtcValuation", "true")
 	}
 	var resp []FundingAsset
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/sapi/v3/asset/getUserAsset", params, spotDefaultRate, nil, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/sapi/v3/asset/getUserAsset", params, userAssetsRate, nil, &resp)
 }
 
 // ConvertBUSD convert transfer, convert between BUSD and stablecoins.
@@ -1544,10 +1554,12 @@ func (b *Binance) GetCloudMiningPaymentAndRefundHistory(ctx context.Context, tra
 	if !assetCcy.IsEmpty() {
 		params.Set("asset", assetCcy.String())
 	}
-	if !startTime.IsZero() {
+	if !startTime.IsZero() && !endTime.IsZero() {
+		err := common.StartEndTimeCheck(startTime, endTime)
+		if err != nil {
+			return nil, err
+		}
 		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
-	}
-	if !endTime.IsZero() {
 		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
 	}
 	if size != 0 {
@@ -1610,13 +1622,13 @@ func (b *Binance) GetDepositAddressListWithNetwork(ctx context.Context, coin cur
 		params.Set("network", network)
 	}
 	var resp []DepositAddressAndNetwork
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/capital/deposit/address/list", params, spotDefaultRate, nil, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/capital/deposit/address/list", params, getDepositAddressListInNetworkRate, nil, &resp)
 }
 
 // GetUserWalletBalance retrieves user wallet balance.
 func (b *Binance) GetUserWalletBalance(ctx context.Context) ([]UserWalletBalance, error) {
 	var resp []UserWalletBalance
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/asset/wallet/balance", nil, spotDefaultRate, nil, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/asset/wallet/balance", nil, getUserWalletBalanceRate, nil, &resp)
 }
 
 // GetUserDelegationHistory query User Delegation History for Master account.
@@ -1646,13 +1658,13 @@ func (b *Binance) GetUserDelegationHistory(ctx context.Context, email, delegatio
 		params.Set("size", strconv.FormatFloat(size, 'f', -1, 64))
 	}
 	var resp *UserDelegationHistory
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/asset/custody/transfer-history", params, spotDefaultRate, nil, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/asset/custody/transfer-history", params, getUserDelegationHistoryRate, nil, &resp)
 }
 
 // GetSymbolsDelistScheduleForSpot symbols delist schedule for spot
 func (b *Binance) GetSymbolsDelistScheduleForSpot(ctx context.Context) ([]DelistSchedule, error) {
 	var resp []DelistSchedule
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/spot/delist-schedule", nil, spotDefaultRate, nil, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/spot/delist-schedule", nil, symbolDelistScheduleForSpotRate, nil, &resp)
 }
 
 // --------------------------------------------------    ---------------------------------------------------------------------------------
@@ -1696,10 +1708,12 @@ func (b *Binance) GetSubAccountSpotAssetTransferHistory(ctx context.Context, fro
 	if common.MatchesEmailPattern(toEmail) {
 		params.Set("toEmail", toEmail)
 	}
-	if !startTime.IsZero() {
+	if !startTime.IsZero() && !endTime.IsZero() {
+		err := common.StartEndTimeCheck(startTime, endTime)
+		if err != nil {
+			return nil, err
+		}
 		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
-	}
-	if !endTime.IsZero() {
 		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
 	}
 	if page > 0 {
@@ -1723,10 +1737,12 @@ func (b *Binance) GetSubAccountFuturesAssetTransferHistory(ctx context.Context, 
 	params := url.Values{}
 	params.Set("email", email)
 	params.Set("futuresType", strconv.FormatInt(futuresType, 10))
-	if !startTime.IsZero() {
+	if !startTime.IsZero() && !endTime.IsZero() {
+		err := common.StartEndTimeCheck(startTime, endTime)
+		if err != nil {
+			return nil, err
+		}
 		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
-	}
-	if !endTime.IsZero() {
 		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
 	}
 	if page != 0 {
@@ -1759,6 +1775,11 @@ func (b *Binance) SubAccountFuturesAssetTransfer(ctx context.Context, fromEmail,
 		return nil, order.ErrAmountBelowMin
 	}
 	params := url.Values{}
+	params.Set("fromEmail", fromEmail)
+	params.Set("toEmail", toEmail)
+	params.Set("futuresType", strconv.FormatInt(futuresType, 10))
+	params.Set("asset", asset.String())
+	params.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
 	var resp *FuturesAssetTransfer
 	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/sapi/v1/sub-account/futures/internalTransfer", params, spotDefaultRate, nil, &resp)
 }
@@ -1771,7 +1792,7 @@ func (b *Binance) GetSubAccountAssets(ctx context.Context, email string) (*SubAc
 	params := url.Values{}
 	params.Set("email", email)
 	var resp *SubAccountAssets
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v4/sub-account/assets", params, spotDefaultRate, nil, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v4/sub-account/assets", params, getSubAccountAssetRate, nil, &resp)
 }
 
 // GetManagedSubAccountList retrieves investor's managed sub-account list.
@@ -1803,6 +1824,7 @@ func (b *Binance) GetSubAccountTransactionStatistics(ctx context.Context, email 
 
 // GetManagedSubAccountDepositAddress retrieves investor's managed sub-account deposit address.
 // get managed sub-account deposit address (For Investor Master Account) (USER_DATA)
+// network: can be found in this endpoint /sapi/v1/capital/deposit/address
 func (b *Binance) GetManagedSubAccountDepositAddress(ctx context.Context, coin currency.Code, email, network string) (*ManagedSubAccountDepositAddres, error) {
 	if !common.MatchesEmailPattern(email) {
 		return nil, errValidEmailRequired
@@ -1813,7 +1835,9 @@ func (b *Binance) GetManagedSubAccountDepositAddress(ctx context.Context, coin c
 	params := url.Values{}
 	params.Set("coin", coin.String())
 	params.Set("email", email)
-	params.Set("network", network)
+	if network != "" {
+		params.Set("network", network)
+	}
 	var resp *ManagedSubAccountDepositAddres
 	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/managed-subaccount/deposit/address", params, spotDefaultRate, nil, &resp)
 }
@@ -1897,22 +1921,24 @@ func (b *Binance) GetSubAccountDepositAddress(ctx context.Context, email, coin, 
 // GetSubAccountDepositHistory retrieves sub-account deposit history
 func (b *Binance) GetSubAccountDepositHistory(ctx context.Context, email, coin string,
 	startTime, endTime time.Time, status, offset, limit int64) (*SubAccountDepositHistory, error) {
-	params := url.Values{}
 	if !common.MatchesEmailPattern(email) {
 		return nil, errValidEmailRequired
 	}
+	params := url.Values{}
 	params.Set("email", email)
+	if !startTime.IsZero() && !endTime.IsZero() {
+		err := common.StartEndTimeCheck(startTime, endTime)
+		if err != nil {
+			return nil, err
+		}
+		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
+	}
 	if coin != "" {
 		params.Set("coin", coin)
 	}
 	if status != 0 {
 		params.Set("status", strconv.FormatInt(status, 10))
-	}
-	if !startTime.IsZero() {
-		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
-	}
-	if !endTime.IsZero() {
-		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
 	}
 	if limit > 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
@@ -1931,7 +1957,7 @@ func (b *Binance) GetSubAccountStatusOnMarginFutures(ctx context.Context, email 
 		params.Set("email", email)
 	}
 	var resp *SubAccountStatus
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/sub-account/status", params, spotDefaultRate, nil, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/sub-account/status", params, getSubAccountStatusOnMarginOrFuturesRate, nil, &resp)
 }
 
 // EnableMarginForSubAccount Enable Margin for Sub-account For Master Account
@@ -1953,13 +1979,13 @@ func (b *Binance) GetDetailOnSubAccountMarginAccount(ctx context.Context, email 
 	params := url.Values{}
 	params.Set("email", email)
 	var resp *SubAccountMarginAccountDetail
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/sub-account/margin/account", params, spotDefaultRate, nil, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/sub-account/margin/account", params, subAccountMarginAccountDetailRate, nil, &resp)
 }
 
 // GetSummaryOfSubAccountMarginAccount retrieves summary of sub-account's margin account for master account
 func (b *Binance) GetSummaryOfSubAccountMarginAccount(ctx context.Context) (*SubAccountMarginAccount, error) {
 	var resp *SubAccountMarginAccount
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/sub-account/margin/accountSummary", nil, spotDefaultRate, nil, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/sub-account/margin/accountSummary", nil, getSubAccountSummaryOfMarginAccountRate, nil, &resp)
 }
 
 // EnableFuturesSubAccount enables futures for Sub-account for master account
@@ -1981,7 +2007,7 @@ func (b *Binance) GetDetailSubAccountFuturesAccount(ctx context.Context, email s
 	params := url.Values{}
 	params.Set("email", email)
 	var resp *SubAccountsFuturesAccount
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/sub-account/futures/accountSummary", params, spotDefaultRate, nil, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/sub-account/futures/account", params, getDetailSubAccountFuturesAccountRate, nil, &resp)
 }
 
 // GetSummaryOfSubAccountFuturesAccount retrieves summary of sub-account's futures account for master account
@@ -1990,15 +2016,23 @@ func (b *Binance) GetSummaryOfSubAccountFuturesAccount(ctx context.Context) (*Su
 	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/sub-account/futures/accountSummary", nil, spotDefaultRate, nil, &resp)
 }
 
-// GetFuturesPositionRiskSubAccount retrieves futures position-risk of sub-account for master account
-func (b *Binance) GetFuturesPositionRiskSubAccount(ctx context.Context, email string) (*SubAccountFuturesPositionRisk, error) {
+// GetV1FuturesPositionRiskSubAccount retrieves V1 position-risk of sub-account's futures account.
+func (b *Binance) GetV1FuturesPositionRiskSubAccount(ctx context.Context, email string) (*SubAccountFuturesPositionRisk, error) {
+	return b.getFuturesPositionRiskSubAccount(ctx, email, "/sapi/v1/sub-account/futures/positionRisk", getFuturesPositionRiskOfSubAccountV1Rate)
+}
+
+// GetV2FuturesPositionRiskSubAccount retrieves futures position-risk of sub-account for master account
+func (b *Binance) GetV2FuturesPositionRiskSubAccount(ctx context.Context, email string) (*SubAccountFuturesPositionRisk, error) {
+	return b.getFuturesPositionRiskSubAccount(ctx, email, "/sapi/v2/sub-account/futures/positionRisk", spotDefaultRate)
+}
+func (b *Binance) getFuturesPositionRiskSubAccount(ctx context.Context, email, path string, endpointLimit request.EndpointLimit) (*SubAccountFuturesPositionRisk, error) {
 	if !common.MatchesEmailPattern(email) {
 		return nil, errValidEmailRequired
 	}
 	params := url.Values{}
 	params.Set("email", email)
 	var resp *SubAccountFuturesPositionRisk
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v2/sub-account/futures/positionRisk", params, spotDefaultRate, nil, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, params, endpointLimit, nil, &resp)
 }
 
 // EnableLeverageTokenForSubAccount enables leverage token sub-account form master account.
@@ -2017,8 +2051,8 @@ func (b *Binance) EnableLeverageTokenForSubAccount(ctx context.Context, email st
 	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/sapi/v1/sub-account/blvt/enable", params, spotDefaultRate, nil, &resp)
 }
 
-// GetIPRestrictionForSubAccountAPIKey retrieves list of IP addresses restricted for the sub account API key(for master account).
-func (b *Binance) GetIPRestrictionForSubAccountAPIKey(ctx context.Context, email, subAccountAPIKey string) (*APIRestrictions, error) {
+// GetIPRestrictionForSubAccountAPIKeyV2 retrieves list of IP addresses restricted for the sub account API key(for master account).
+func (b *Binance) GetIPRestrictionForSubAccountAPIKeyV2(ctx context.Context, email, subAccountAPIKey string) (*APIRestrictions, error) {
 	if !common.MatchesEmailPattern(email) {
 		return nil, errValidEmailRequired
 	}
@@ -2130,6 +2164,7 @@ func (b *Binance) WithdrawAssetsFromManagedSubAccount(ctx context.Context, fromE
 }
 
 // GetManagedSubAccountSnapshot retrieves managed sub-account snapshot for investor master account.
+// assetType possible values: "SPOT", "MARGIN"（cross）, "FUTURES"（UM)
 func (b *Binance) GetManagedSubAccountSnapshot(ctx context.Context, email, assetType string, startTime, endTime time.Time, limit int64) (*SubAccountAssetsSnapshot, error) {
 	if !common.MatchesEmailPattern(email) {
 		return nil, fmt.Errorf("%w email=%s", errValidEmailRequired, email)
@@ -2138,34 +2173,40 @@ func (b *Binance) GetManagedSubAccountSnapshot(ctx context.Context, email, asset
 		return nil, errors.New("invalid assets type")
 	}
 	params := url.Values{}
-	if !startTime.IsZero() {
+	params.Set("email", email)
+	params.Set("type", assetType)
+	if !startTime.IsZero() && !endTime.IsZero() {
+		err := common.StartEndTimeCheck(startTime, endTime)
+		if err != nil {
+			return nil, err
+		}
 		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
-	}
-	if !endTime.IsZero() {
 		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
 	}
 	if limit > 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	var resp *SubAccountAssetsSnapshot
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/managed-subaccount/accountSnapshot", params, spotDefaultRate, nil, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/managed-subaccount/accountSnapshot", params, getManagedSubAccountSnapshotRate, nil, &resp)
 }
 
-// GetManagedSubAccountTransferLogForInvestorMasterAccount retrieves  managed sub account transfer log. This endpoint is available for investor of Managed Sub-Account.
+// GetManagedSubAccountTransferLogForInvestorMasterAccount retrieves managed sub account transfer log. This endpoint is available for investor of Managed Sub-Account.
 // A Managed Sub-Account is an account type for investors who value flexibility in asset allocation and account application,
 // while delegating trades to a professional trading team.
-func (b *Binance) GetManagedSubAccountTransferLogForInvestorMasterAccount(ctx context.Context, email string, startTime, endTime time.Time, page, limit int64) (*SubAccountTransferLog, error) {
-	return b.getManagedSubAccountTransferLog(ctx, email, "/sapi/v1/managed-subaccount/queryTransLogForInvestor", startTime, endTime, page, limit)
+func (b *Binance) GetManagedSubAccountTransferLogForInvestorMasterAccount(ctx context.Context, email, transfers, transferFunctionAccountType string, startTime, endTime time.Time, page, limit int64) (*SubAccountTransferLog, error) {
+	return b.getManagedSubAccountTransferLog(ctx, email, transfers, transferFunctionAccountType, "/sapi/v1/managed-subaccount/queryTransLogForInvestor", startTime, endTime, page, limit)
 }
 
 // GetManagedSubAccountTransferLogForTradingTeam retrieves managed sub account transfer log.
 // This endpoint is available for investor of Managed Sub-Account. A Managed Sub-Account is an account type for investors who value flexibility in asset allocation and account application,
 // while delegating trades to a professional trading team.
-func (b *Binance) GetManagedSubAccountTransferLogForTradingTeam(ctx context.Context, email string, startTime, endTime time.Time, page, limit int64) (*SubAccountTransferLog, error) {
-	return b.getManagedSubAccountTransferLog(ctx, email, "/sapi/v1/managed-subaccount/queryTransLogForTradeParent", startTime, endTime, page, limit)
+// transfers: Transfer Direction (FROM/TO)
+// transferFunctionAccountType: Transfer function account type (SPOT/MARGIN/ISOLATED_MARGIN/USDT_FUTURE/COIN_FUTURE)
+func (b *Binance) GetManagedSubAccountTransferLogForTradingTeam(ctx context.Context, email, transfers, transferFunctionAccountType string, startTime, endTime time.Time, page, limit int64) (*SubAccountTransferLog, error) {
+	return b.getManagedSubAccountTransferLog(ctx, email, transfers, transferFunctionAccountType, "/sapi/v1/managed-subaccount/queryTransLogForTradeParent", startTime, endTime, page, limit)
 }
 
-func (b *Binance) getManagedSubAccountTransferLog(ctx context.Context, email, path string, startTime, endTime time.Time, page, limit int64) (*SubAccountTransferLog, error) {
+func (b *Binance) getManagedSubAccountTransferLog(ctx context.Context, email, transfers, transferFunctionAccountType, path string, startTime, endTime time.Time, page, limit int64) (*SubAccountTransferLog, error) {
 	if !common.MatchesEmailPattern(email) {
 		return nil, fmt.Errorf("%w, email = %s", errValidEmailRequired, email)
 	}
@@ -2185,6 +2226,12 @@ func (b *Binance) getManagedSubAccountTransferLog(ctx context.Context, email, pa
 	params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
 	params.Set("page", strconv.FormatInt(page, 10))
 	params.Set("limit", strconv.FormatInt(limit, 10))
+	if transfers != "" {
+		params.Set("transfers", transfers)
+	}
+	if transferFunctionAccountType != "" {
+		params.Set("transferFunctionAccountType", transferFunctionAccountType)
+	}
 	var resp *SubAccountTransferLog
 	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, params, spotDefaultRate, nil, &resp)
 }
@@ -2296,10 +2343,12 @@ func (b *Binance) SubAccountTransferHistory(ctx context.Context, asset currency.
 	if transferType != 1 && transferType != 2 {
 		params.Set("type", strconv.FormatInt(transferType, 10))
 	}
-	if !startTime.IsZero() {
+	if !startTime.IsZero() && !endTime.IsZero() {
+		err := common.StartEndTimeCheck(startTime, endTime)
+		if err != nil {
+			return nil, err
+		}
 		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
-	}
-	if !endTime.IsZero() {
 		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
 	}
 	if limit > 0 {
@@ -2318,10 +2367,12 @@ func (b *Binance) SubAccountTransferHistoryForSubAccount(ctx context.Context, as
 	if transferType != 0 {
 		params.Set("type", strconv.FormatInt(transferType, 10))
 	}
-	if !startTime.IsZero() {
+	if !startTime.IsZero() && !endTime.IsZero() {
+		err := common.StartEndTimeCheck(startTime, endTime)
+		if err != nil {
+			return nil, err
+		}
 		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
-	}
-	if !endTime.IsZero() {
 		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
 	}
 	if limit > 0 {
@@ -2385,10 +2436,12 @@ func (b *Binance) GetUniversalTransferHistoryForMasterAccount(ctx context.Contex
 	if clientTransactionID != "" {
 		params.Set("clientTranId", clientTransactionID)
 	}
-	if !startTime.IsZero() {
+	if !startTime.IsZero() && !endTime.IsZero() {
+		err := common.StartEndTimeCheck(startTime, endTime)
+		if err != nil {
+			return nil, err
+		}
 		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
-	}
-	if !endTime.IsZero() {
 		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
 	}
 	if page > 0 {
@@ -2420,6 +2473,7 @@ func (b *Binance) GetSummaryOfSubAccountsFuturesAccountV2(ctx context.Context, f
 		return nil, errInvalidFuturesType
 	}
 	params := url.Values{}
+	params.Set("futuresType", strconv.FormatInt(futuresType, 10))
 	if page > 0 {
 		params.Set("page", strconv.FormatInt(page, 10))
 	}
@@ -2427,7 +2481,7 @@ func (b *Binance) GetSummaryOfSubAccountsFuturesAccountV2(ctx context.Context, f
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	var resp *AccountSummary
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v2/sub-account/futures/accountSummary", params, spotDefaultRate, nil, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v2/sub-account/futures/accountSummary", params, getFuturesSubAccountSummaryV2Rate, nil, &resp)
 }
 
 // GetAccountStatus fetch account status detail.
@@ -2450,10 +2504,12 @@ func (b *Binance) GetDustLog(ctx context.Context, accountType string, startTime,
 	if accountType == "" {
 		params.Set("accountType", accountType)
 	}
-	if !startTime.IsZero() {
+	if !startTime.IsZero() && !endTime.IsZero() {
+		err := common.StartEndTimeCheck(startTime, endTime)
+		if err != nil {
+			return nil, err
+		}
 		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
-	}
-	if !endTime.IsZero() {
 		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
 	}
 	var resp *DustLog
@@ -2601,10 +2657,12 @@ func (b *Binance) CryptoLoanIncomeHistory(ctx context.Context, curr currency.Cod
 	if loanType != "" {
 		params.Set("type", loanType)
 	}
-	if !startTime.IsZero() {
+	if !startTime.IsZero() && !endTime.IsZero() {
+		err := common.StartEndTimeCheck(startTime, endTime)
+		if err != nil {
+			return nil, err
+		}
 		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
-	}
-	if !endTime.IsZero() {
 		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
 	}
 	if limit != 0 {
@@ -2654,10 +2712,12 @@ func (b *Binance) CryptoLoanBorrowHistory(ctx context.Context, orderID int64, lo
 	if !collateralCoin.IsEmpty() {
 		params.Set("collateralCoin", collateralCoin.String())
 	}
-	if !startTime.IsZero() {
+	if !startTime.IsZero() && !endTime.IsZero() {
+		err := common.StartEndTimeCheck(startTime, endTime)
+		if err != nil {
+			return nil, err
+		}
 		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
-	}
-	if !endTime.IsZero() {
 		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
 	}
 	if current != 0 {
@@ -2714,6 +2774,14 @@ func (b *Binance) CryptoLoanRepay(ctx context.Context, orderID int64, amount flo
 // CryptoLoanRepaymentHistory gets the crypto loan repayment history
 func (b *Binance) CryptoLoanRepaymentHistory(ctx context.Context, orderID int64, loanCoin, collateralCoin currency.Code, startTime, endTime time.Time, current, limit int64) (*CryptoLoanRepayHistory, error) {
 	params := url.Values{}
+	if !startTime.IsZero() && !endTime.IsZero() {
+		err := common.StartEndTimeCheck(startTime, endTime)
+		if err != nil {
+			return nil, err
+		}
+		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
+	}
 	if orderID != 0 {
 		params.Set("orderId", strconv.FormatInt(orderID, 10))
 	}
@@ -2722,12 +2790,6 @@ func (b *Binance) CryptoLoanRepaymentHistory(ctx context.Context, orderID int64,
 	}
 	if !collateralCoin.IsEmpty() {
 		params.Set("collateralCoin", collateralCoin.String())
-	}
-	if !startTime.IsZero() {
-		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
-	}
-	if !endTime.IsZero() {
-		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
 	}
 	if current != 0 {
 		params.Set("current", strconv.FormatInt(current, 10))
@@ -2762,6 +2824,14 @@ func (b *Binance) CryptoLoanAdjustLTV(ctx context.Context, orderID int64, reduce
 // CryptoLoanLTVAdjustmentHistory gets the crypto loan LTV adjustment history
 func (b *Binance) CryptoLoanLTVAdjustmentHistory(ctx context.Context, orderID int64, loanCoin, collateralCoin currency.Code, startTime, endTime time.Time, current, limit int64) (*CryptoLoanLTVAdjustmentHistory, error) {
 	params := url.Values{}
+	if !startTime.IsZero() && !endTime.IsZero() {
+		err := common.StartEndTimeCheck(startTime, endTime)
+		if err != nil {
+			return nil, err
+		}
+		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
+	}
 	if orderID != 0 {
 		params.Set("orderId", strconv.FormatInt(orderID, 10))
 	}
@@ -2770,12 +2840,6 @@ func (b *Binance) CryptoLoanLTVAdjustmentHistory(ctx context.Context, orderID in
 	}
 	if !collateralCoin.IsEmpty() {
 		params.Set("collateralCoin", collateralCoin.String())
-	}
-	if !startTime.IsZero() {
-		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
-	}
-	if !endTime.IsZero() {
-		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
 	}
 	if current != 0 {
 		params.Set("current", strconv.FormatInt(current, 10))
@@ -2901,10 +2965,12 @@ func (b *Binance) FlexibleLoanBorrowHistory(ctx context.Context, loanCoin, colla
 	if !collateralCoin.IsEmpty() {
 		params.Set("collateralCoin", collateralCoin.String())
 	}
-	if !startTime.IsZero() {
+	if !startTime.IsZero() && !endTime.IsZero() {
+		err := common.StartEndTimeCheck(startTime, endTime)
+		if err != nil {
+			return nil, err
+		}
 		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
-	}
-	if !endTime.IsZero() {
 		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
 	}
 	if current != 0 {
@@ -2943,17 +3009,19 @@ func (b *Binance) FlexibleLoanRepay(ctx context.Context, loanCoin, collateralCoi
 // FlexibleLoanRepayHistory gets the flexible loan repayment history
 func (b *Binance) FlexibleLoanRepayHistory(ctx context.Context, loanCoin, collateralCoin currency.Code, startTime, endTime time.Time, current, limit int64) (*FlexibleLoanRepayHistory, error) {
 	params := url.Values{}
+	if !startTime.IsZero() && !endTime.IsZero() {
+		err := common.StartEndTimeCheck(startTime, endTime)
+		if err != nil {
+			return nil, err
+		}
+		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
+	}
 	if !loanCoin.IsEmpty() {
 		params.Set("loanCoin", loanCoin.String())
 	}
 	if !collateralCoin.IsEmpty() {
 		params.Set("collateralCoin", collateralCoin.String())
-	}
-	if !startTime.IsZero() {
-		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
-	}
-	if !endTime.IsZero() {
-		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
 	}
 	if current != 0 {
 		params.Set("current", strconv.FormatInt(current, 10))
@@ -2993,17 +3061,19 @@ func (b *Binance) FlexibleLoanAdjustLTV(ctx context.Context, loanCoin, collatera
 // FlexibleLoanLTVAdjustmentHistory gets the flexible loan LTV adjustment history
 func (b *Binance) FlexibleLoanLTVAdjustmentHistory(ctx context.Context, loanCoin, collateralCoin currency.Code, startTime, endTime time.Time, current, limit int64) (*FlexibleLoanLTVAdjustmentHistory, error) {
 	params := url.Values{}
+	if !startTime.IsZero() && !endTime.IsZero() {
+		err := common.StartEndTimeCheck(startTime, endTime)
+		if err != nil {
+			return nil, err
+		}
+		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
+	}
 	if !loanCoin.IsEmpty() {
 		params.Set("loanCoin", loanCoin.String())
 	}
 	if !collateralCoin.IsEmpty() {
 		params.Set("collateralCoin", collateralCoin.String())
-	}
-	if !startTime.IsZero() {
-		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
-	}
-	if !endTime.IsZero() {
-		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
 	}
 	if current != 0 {
 		params.Set("current", strconv.FormatInt(current, 10))
@@ -3011,7 +3081,6 @@ func (b *Binance) FlexibleLoanLTVAdjustmentHistory(ctx context.Context, loanCoin
 	if limit != 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
-
 	var resp *FlexibleLoanLTVAdjustmentHistory
 	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, "/sapi/v1/loan/flexible/ltv/adjustment/history", params, spotDefaultRate, nil, &resp)
 }

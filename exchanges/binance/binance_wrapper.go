@@ -444,7 +444,7 @@ func (b *Binance) UpdateTickers(ctx context.Context, a asset.Item) error {
 				TickerType: "FULL",
 			})
 		} else {
-			tick, err = b.GetTickers(ctx)
+			tick, err = b.GetPriceChangeStats(ctx, currency.EMPTYPAIR, pairs)
 		}
 		if err != nil {
 			return err
@@ -552,9 +552,8 @@ func (b *Binance) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Ite
 		if err != nil {
 			return nil, err
 		}
-		var tick *PriceChangeStats
+		var ticks []PriceChangeStats
 		if b.IsAPIStreamConnected() {
-			var ticks []PriceChangeStats
 			ticks, err = b.GetWsTradingDayTickers(&PriceChangeRequestParam{
 				Symbol:     p.String(),
 				TickerType: "FULL",
@@ -562,23 +561,25 @@ func (b *Binance) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Ite
 			if err != nil {
 				return nil, err
 			}
-			tick = &ticks[0]
 		} else {
-			tick, err = b.GetPriceChangeStats(ctx, p)
+			ticks, err = b.GetPriceChangeStats(ctx, p, currency.Pairs{})
 			if err != nil {
 				return nil, err
 			}
 		}
+		if len(ticks) != 1 {
+			return nil, ticker.ErrNoTickerFound
+		}
 		err = ticker.ProcessTicker(&ticker.Price{
-			Last:         tick.LastPrice.Float64(),
-			High:         tick.HighPrice.Float64(),
-			Low:          tick.LowPrice.Float64(),
-			Bid:          tick.BidPrice.Float64(),
-			Ask:          tick.AskPrice.Float64(),
-			Volume:       tick.Volume.Float64(),
-			QuoteVolume:  tick.QuoteVolume.Float64(),
-			Open:         tick.OpenPrice.Float64(),
-			Close:        tick.PrevClosePrice.Float64(),
+			Last:         ticks[0].LastPrice.Float64(),
+			High:         ticks[0].HighPrice.Float64(),
+			Low:          ticks[0].LowPrice.Float64(),
+			Bid:          ticks[0].BidPrice.Float64(),
+			Ask:          ticks[0].AskPrice.Float64(),
+			Volume:       ticks[0].Volume.Float64(),
+			QuoteVolume:  ticks[0].QuoteVolume.Float64(),
+			Open:         ticks[0].OpenPrice.Float64(),
+			Close:        ticks[0].PrevClosePrice.Float64(),
 			Pair:         p,
 			ExchangeName: b.Name,
 			AssetType:    a,
@@ -1474,7 +1475,6 @@ func (b *Binance) WithdrawCryptocurrencyFunds(ctx context.Context, withdrawReque
 	if err := withdrawRequest.Validate(); err != nil {
 		return nil, err
 	}
-	amountStr := strconv.FormatFloat(withdrawRequest.Amount, 'f', -1, 64)
 	v, err := b.WithdrawCrypto(ctx,
 		withdrawRequest.Currency.String(),
 		"", // withdrawal order ID
@@ -1482,14 +1482,10 @@ func (b *Binance) WithdrawCryptocurrencyFunds(ctx context.Context, withdrawReque
 		withdrawRequest.Crypto.Address,
 		withdrawRequest.Crypto.AddressTag,
 		withdrawRequest.Description,
-		amountStr,
-		false)
-	if err != nil {
-		return nil, err
-	}
+		withdrawRequest.Amount, false)
 	return &withdraw.ExchangeResponse{
 		ID: v,
-	}, nil
+	}, err
 }
 
 // WithdrawFiatFunds returns a withdrawal ID when a
