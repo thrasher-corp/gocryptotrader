@@ -37,8 +37,8 @@ import (
 
 // Please supply your own keys here for due diligence testing
 const (
-	apiKey                  = "9J1BvytDNckHcd5sulhchPoz3m1I9aIGhXpYz8TQNCFECo3L28aySjklAilSR3Cx"
-	apiSecret               = "awPwnog2m134JUMbe0yr6mWFy0NM6RWaTa7UWMsX1C0Fgt7na0nVAZDjqOwZocBP"
+	apiKey                  = ""
+	apiSecret               = ""
 	canManipulateRealOrders = false
 	useTestNet              = false
 

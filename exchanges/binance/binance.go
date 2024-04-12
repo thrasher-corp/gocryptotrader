@@ -417,7 +417,9 @@ func (b *Binance) GetAveragePrice(ctx context.Context, symbol currency.Pair) (*A
 func (b *Binance) GetPriceChangeStats(ctx context.Context, symbol currency.Pair, symbols currency.Pairs) ([]PriceChangeStats, error) {
 	params := url.Values{}
 	rateLimit := spotPriceChangeAllRate
-	if !symbol.IsEmpty() || (symbol.IsEmpty() && len(symbols) == 1) {
+	switch {
+	case !symbol.IsEmpty(),
+		symbol.IsEmpty() && len(symbols) == 1 && !symbols[0].IsEmpty():
 		if symbol.IsEmpty() && len(symbols) == 1 {
 			symbol = symbols[0]
 		}
@@ -427,7 +429,7 @@ func (b *Binance) GetPriceChangeStats(ctx context.Context, symbol currency.Pair,
 			return nil, err
 		}
 		params.Set("symbol", symbolValue)
-	} else if len(symbols) > 1 {
+	case len(symbols) > 1:
 		rateLimit = getTickers20Rate
 		if len(symbols) > 100 {
 			rateLimit = getTickersMoreThan100Rate
@@ -439,8 +441,6 @@ func (b *Binance) GetPriceChangeStats(ctx context.Context, symbol currency.Pair,
 			return nil, err
 		}
 		params.Set("symbols", string(val))
-	} else {
-		rateLimit = spotPriceChangeAllRate
 	}
 	var resp PriceChangesWrapper
 	return resp, b.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, common.EncodeURLValues("/api/v3/ticker/24hr", params), rateLimit, &resp)
