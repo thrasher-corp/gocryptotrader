@@ -74,7 +74,7 @@ func getTime() (start, end time.Time) {
 
 func TestUpdateTradablePairs(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.UpdatePairsOnce(t, context.Background(), b)
+	testexch.UpdatePairsOnce(t, b)
 }
 
 func TestUServerTime(t *testing.T) {

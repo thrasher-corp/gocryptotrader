@@ -26,6 +26,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
+	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
@@ -151,7 +152,7 @@ func TestGetPairs(t *testing.T) {
 
 func TestUpdateTradablePairs(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.UpdatePairsOnce(t, context.Background(), b)
+	testexch.UpdatePairsOnce(t, b)
 }
 
 func TestUpdateOrderExecutionLimits(t *testing.T) {
@@ -546,7 +547,7 @@ func TestUpdateTicker(t *testing.T) {
 func TestUpdateTickers(t *testing.T) {
 	t.Parallel()
 
-	sharedtestvalues.UpdatePairsOnce(t, context.Background(), b)
+	testexch.UpdatePairsOnce(t, b)
 
 	assets := b.GetAssetTypes(false)
 	for _, a := range assets {
@@ -1117,7 +1118,7 @@ func TestGetDepositAddress(t *testing.T) {
 // TestWsAuth dials websocket, sends login request.
 func TestWsAuth(t *testing.T) {
 	if !b.Websocket.IsEnabled() {
-		t.Skip(stream.WebsocketNotEnabled)
+		t.Skip(stream.ErrWebsocketNotEnabled.Error())
 	}
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	if !b.API.AuthenticatedWebsocketSupport {

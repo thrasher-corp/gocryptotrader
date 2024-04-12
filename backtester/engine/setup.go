@@ -147,7 +147,7 @@ func (bt *BackTest) SetupFromConfig(cfg *config.Config, templatePath, output str
 				}
 
 				var dc *gctconfig.Exchange
-				dc, err = exch.GetDefaultConfig(context.TODO(), exch)
+				dc, err = gctexchange.GetDefaultConfig(context.TODO(), exch)
 				if err != nil {
 					return err
 				}

@@ -27,6 +27,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
+	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
@@ -69,7 +70,7 @@ func TestMain(m *testing.M) {
 
 func TestUpdateTradablePairs(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.UpdatePairsOnce(t, context.Background(), h)
+	testexch.UpdatePairsOnce(t, h)
 }
 
 func setupWsTests(t *testing.T) {
@@ -78,7 +79,7 @@ func setupWsTests(t *testing.T) {
 		return
 	}
 	if !h.Websocket.IsEnabled() && !h.API.AuthenticatedWebsocketSupport || !sharedtestvalues.AreAPICredentialsSet(h) {
-		t.Skip(stream.WebsocketNotEnabled)
+		t.Skip(stream.ErrWebsocketNotEnabled.Error())
 	}
 	comms = make(chan WsMessage, sharedtestvalues.WebsocketChannelOverrideCapacity)
 	go h.wsReadData()

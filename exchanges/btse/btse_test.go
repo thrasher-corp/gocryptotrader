@@ -22,6 +22,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
+	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 )
 
 // Please supply your own keys here to do better tests
@@ -59,7 +60,7 @@ func TestMain(m *testing.M) {
 
 func TestUpdateTradablePairs(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.UpdatePairsOnce(t, context.Background(), b)
+	testexch.UpdatePairsOnce(t, b)
 	expected := map[asset.Item][]string{
 		asset.Spot:    {"BTCUSD", "BTCUSDT", "ETHBTC"},
 		asset.Futures: {"BTCPFC", "ETHPFC"},
@@ -599,6 +600,7 @@ func seedOrderSizeLimitMap() {
 
 func TestWithinLimits(t *testing.T) {
 	t.Parallel()
+	testexch.UpdatePairsOnce(t, b)
 	seedOrderSizeLimitMap()
 	p, _ := currency.NewPairDelimiter("XRP-USD", "-")
 	assert.NoError(t, b.withinLimits(p, 1.0), "withinLimits should not error")
@@ -715,6 +717,7 @@ func TestIsPerpetualFutureCurrency(t *testing.T) {
 
 func TestGetOpenInterest(t *testing.T) {
 	t.Parallel()
+	testexch.UpdatePairsOnce(t, b)
 	cp1 := currency.NewPair(currency.BTC, currency.PFC)
 	cp2 := currency.NewPair(currency.ETH, currency.PFC)
 	sharedtestvalues.SetupCurrencyPairsForExchangeAsset(t, b, asset.Futures, futuresPair, cp1, cp2)

@@ -59,7 +59,7 @@ func setupClient(c *cli.Context) (*grpc.ClientConn, context.CancelFunc, error) {
 
 	var cancel context.CancelFunc
 	c.Context, cancel = context.WithTimeout(c.Context, timeout)
-	conn, err := grpc.DialContext(c.Context, host, opts...)
+	conn, err := grpc.NewClient(host, opts...)
 	return conn, cancel, err
 }
 

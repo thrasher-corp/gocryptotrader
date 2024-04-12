@@ -20,6 +20,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
+	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
@@ -124,7 +125,7 @@ func TestFetchTradablePairs(t *testing.T) {
 
 func TestUpdateTradablePairs(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.UpdatePairsOnce(t, context.Background(), bi)
+	testexch.UpdatePairsOnce(t, bi)
 }
 
 func TestFetchAccountInfo(t *testing.T) {

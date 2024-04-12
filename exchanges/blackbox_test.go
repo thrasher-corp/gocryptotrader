@@ -14,7 +14,7 @@ type mockEx struct {
 	flow chan int
 }
 
-func (m *mockEx) UpdateTradablePairs(context.Context, exchange.LimitedScope) error {
+func (m *mockEx) UpdateTradablePairs(context.Context, exchange.IBotExchange) error {
 	m.flow <- 42
 	return nil
 }

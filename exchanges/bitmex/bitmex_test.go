@@ -24,6 +24,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
+	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
@@ -789,7 +790,7 @@ func TestGetDepositAddress(t *testing.T) {
 func TestWsAuth(t *testing.T) {
 	t.Parallel()
 	if !b.Websocket.IsEnabled() && !b.API.AuthenticatedWebsocketSupport || !sharedtestvalues.AreAPICredentialsSet(b) {
-		t.Skip(stream.WebsocketNotEnabled)
+		t.Skip(stream.ErrWebsocketNotEnabled.Error())
 	}
 	var dialer websocket.Dialer
 	err := b.Websocket.Conn.Dial(&dialer, http.Header{})
@@ -820,7 +821,7 @@ func TestWsAuth(t *testing.T) {
 
 func TestUpdateTradablePairs(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.UpdatePairsOnce(t, context.Background(), b)
+	testexch.UpdatePairsOnce(t, b)
 }
 
 func TestWsPositionUpdate(t *testing.T) {
@@ -1058,7 +1059,7 @@ func TestWsTrades(t *testing.T) {
 
 func TestGetRecentTrades(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.UpdatePairsOnce(t, context.Background(), b)
+	testexch.UpdatePairsOnce(t, b)
 	currencyPair := b.CurrencyPairs.Pairs[asset.Futures].Available[0]
 	_, err := b.GetRecentTrades(context.Background(), currencyPair, asset.Futures)
 	if err != nil {
@@ -1068,7 +1069,7 @@ func TestGetRecentTrades(t *testing.T) {
 
 func TestGetHistoricTrades(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.UpdatePairsOnce(t, context.Background(), b)
+	testexch.UpdatePairsOnce(t, b)
 	currencyPair := b.CurrencyPairs.Pairs[asset.Futures].Available[0]
 	_, err := b.GetHistoricTrades(context.Background(), currencyPair, asset.Futures, time.Now().Add(-time.Minute), time.Now())
 	if err != nil {

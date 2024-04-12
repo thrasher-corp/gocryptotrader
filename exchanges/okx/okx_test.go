@@ -27,6 +27,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
+	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
@@ -206,7 +207,7 @@ func TestGetBlockTrade(t *testing.T) {
 		assert.WithinRange(t, trade.Timestamp.Time(), time.Now().Add(time.Hour*-24*7), time.Now(), "Timestamp should be within last 7 days")
 	}
 
-	sharedtestvalues.UpdatePairsOnce(t, context.Background(), ok)
+	testexch.UpdatePairsOnce(t, ok)
 
 	pairs, err := ok.GetAvailablePairs(asset.Options)
 	assert.NoError(t, err, "GetAvailablePairs should not error")
@@ -1919,7 +1920,7 @@ func TestFetchTradablePairs(t *testing.T) {
 
 func TestUpdateTradablePairs(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.UpdatePairsOnce(t, context.Background(), ok)
+	testexch.UpdatePairsOnce(t, ok)
 }
 
 func TestUpdateOrderExecutionLimits(t *testing.T) {

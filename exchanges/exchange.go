@@ -62,7 +62,6 @@ var (
 	errSetDefaultsNotCalled              = errors.New("set defaults not called")
 	errExchangeIsNil                     = errors.New("exchange is nil")
 	errBatchSizeZero                     = errors.New("batch size cannot be 0")
-	errExchangeMismatch                  = errors.New("exchange instance does not match base")
 	errSetupNotCalled                    = errors.New("setup not called")
 )
 
@@ -1948,18 +1947,16 @@ func (b *Base) IsVerbose() bool {
 }
 
 // GetDefaultConfig returns a default exchange config
-func (b *Base) GetDefaultConfig(ctx context.Context, instance LimitedScope) (*config.Exchange, error) {
-	if instance == nil {
+func GetDefaultConfig(ctx context.Context, exch IBotExchange) (*config.Exchange, error) {
+	if exch == nil {
 		return nil, errExchangeIsNil
 	}
 
-	if instance.GetBase() != b {
-		return nil, errExchangeMismatch
+	if exch.GetName() == "" {
+		exch.SetDefaults()
 	}
 
-	if instance.GetName() == "" {
-		instance.SetDefaults()
-	}
+	b := exch.GetBase()
 
 	exchCfg, err := b.GetStandardConfig()
 	if err != nil {
@@ -1972,7 +1969,7 @@ func (b *Base) GetDefaultConfig(ctx context.Context, instance LimitedScope) (*co
 	}
 
 	if b.Features.Supports.RESTCapabilities.AutoPairUpdates {
-		err = b.UpdateTradablePairs(ctx, instance)
+		err = exch.UpdateTradablePairs(ctx, exch)
 		if err != nil {
 			return nil, err
 		}
@@ -1983,13 +1980,13 @@ func (b *Base) GetDefaultConfig(ctx context.Context, instance LimitedScope) (*co
 
 // UpdateTradablePairs updates the exchanges available pairs and stores them in
 // the exchanges config.
-func (b *Base) UpdateTradablePairs(ctx context.Context, instance LimitedScope) error {
+func (b *Base) UpdateTradablePairs(ctx context.Context, exch IBotExchange) error {
 	assets := b.GetAssetTypes(false)
 	if len(assets) == 0 {
 		return fmt.Errorf("%s %w: no specific asset types are set", b.GetName(), errSetDefaultsNotCalled)
 	}
 	for x := range assets {
-		pairs, err := instance.FetchTradablePairs(ctx, assets[x])
+		pairs, err := exch.FetchTradablePairs(ctx, assets[x])
 		if err != nil {
 			return err
 		}
@@ -2015,7 +2012,6 @@ func (b *Base) Setup(ctx context.Context, exch *config.Exchange) error {
 	if err != nil {
 		return err
 	}
-
 	if b.PostSetupRequirements != nil {
 		err = b.PostSetupRequirements(ctx, exch)
 		if err != nil {

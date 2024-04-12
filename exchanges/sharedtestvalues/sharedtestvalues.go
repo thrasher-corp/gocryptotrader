@@ -3,7 +3,6 @@ package sharedtestvalues
 import (
 	"bufio"
 	"bytes"
-	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -58,7 +57,6 @@ func GetWebsocketStructChannelOverride() chan struct{} {
 // NewTestWebsocket returns a test websocket object
 func NewTestWebsocket() *stream.Websocket {
 	return &stream.Websocket{
-		Init:              true,
 		DataHandler:       make(chan interface{}, WebsocketChannelOverrideCapacity),
 		ToRoutine:         make(chan interface{}, 1000),
 		TrafficAlert:      make(chan struct{}),
@@ -227,11 +225,4 @@ func SetupCurrencyPairsForExchangeAsset(t *testing.T, exch exchange.IBotExchange
 			t.Fatal(err)
 		}
 	}
-}
-
-var pairOnce sync.Once
-
-func UpdatePairsOnce(t testing.TB, ctx context.Context, exch exchange.IBotExchange) {
-	t.Helper()
-	pairOnce.Do(func() { assert.NoError(t, exch.UpdateTradablePairs(ctx, exch), "UpdateTradablePairs should not error") })
 }

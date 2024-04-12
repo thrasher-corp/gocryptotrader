@@ -129,7 +129,7 @@ func (o *Okcoin) SetDefaults() {
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
-	o.Websocket = stream.New()
+	o.Websocket = stream.NewWebsocket()
 	o.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	o.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
 	o.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit

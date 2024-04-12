@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
-	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
@@ -253,11 +252,6 @@ func (c *CustomEx) SupportsREST() bool {
 
 // GetSubscriptions is a mock method for CustomEx
 func (c *CustomEx) GetSubscriptions() ([]subscription.Subscription, error) {
-	return nil, nil
-}
-
-// GetDefaultConfig is a mock method for CustomEx
-func (c *CustomEx) GetDefaultConfig(context.Context, exchange.LimitedScope) (*config.Exchange, error) {
 	return nil, nil
 }
 
