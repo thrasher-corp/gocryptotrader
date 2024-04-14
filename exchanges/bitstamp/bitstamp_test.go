@@ -64,10 +64,10 @@ func TestGetFee(t *testing.T) {
 	var feeBuilder = setFeeBuilder()
 
 	// CryptocurrencyTradeFee Basic
-	fee, err := b.GetFee(context.Background(), feeBuilder)
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	}
+	fee, err := b.GetFee(context.Background(), feeBuilder)
 	require.NoError(t, err, "GetFee must not error")
 	if mockTests {
 		assert.NotEmpty(t, fee, "Fee should not be empty")
