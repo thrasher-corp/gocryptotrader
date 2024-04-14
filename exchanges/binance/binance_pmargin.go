@@ -219,8 +219,8 @@ func (b *Binance) cancelAllUMCMOrders(ctx context.Context, symbol, path string) 
 	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestFuturesSupplementary, http.MethodDelete, path, params, pmDefaultRate, nil, &resp)
 }
 
-// CancelMarginAccountOrder cancels margin account order
-func (b *Binance) CancelMarginAccountOrder(ctx context.Context, symbol, origClientOrderID string, orderID int64) (*MarginOrderResp, error) {
+// PMCancelMarginAccountOrder cancels margin account order
+func (b *Binance) PMCancelMarginAccountOrder(ctx context.Context, symbol, origClientOrderID string, orderID int64) (*MarginOrderResp, error) {
 	if symbol == "" {
 		return nil, currency.ErrSymbolStringEmpty
 	}

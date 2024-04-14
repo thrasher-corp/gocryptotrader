@@ -81,6 +81,16 @@ const (
 	spotOrderQueryRate
 	spotAllOrdersRate
 	spotAccountInformationRate
+	accountTradeListRate
+	currentOrderCountUsageRate
+	queryPreventedMatchsWithRate
+	getAllocationsRate
+	preventedMatchesByOrderIDRate
+	getCommissionRate
+	borrowRepayRecordsInMarginAccountRate
+	getPriceMarginIndexRate
+	marginAccountNewOrderRate
+	marginAccountCancelOrderRate
 	uFuturesDefaultRate
 	uFuturesHistoricalTradesRate
 	uFuturesSymbolOrdersRate
@@ -244,7 +254,9 @@ func (r *RateLimit) Limit(ctx context.Context, f request.EndpointLimit) error {
 		getOldTradeLookupRate:
 		limiter, tokens = r.SpotRate, 25
 	case spotAccountInformationRate:
-		limiter, tokens = r.SpotRate, 10
+		limiter, tokens = r.SpotRate, 20
+	case accountTradeListRate:
+		limiter, tokens = r.SpotRate, 20
 	case spotOrderbookDepth1000Rate:
 		limiter, tokens = r.SpotRate, 50
 	case spotExchangeInfo:
@@ -298,7 +310,24 @@ func (r *RateLimit) Limit(ctx context.Context, f request.EndpointLimit) error {
 		limiter, tokens = r.SpotRate, 10
 	case getManagedSubAccountSnapshotRate:
 		limiter, tokens = r.SpotRate, 2400
-
+	case currentOrderCountUsageRate:
+		limiter, tokens = r.SpotRate, 40
+	case queryPreventedMatchsWithRate:
+		limiter, tokens = r.SpotRate, 2
+	case getAllocationsRate:
+		limiter, tokens = r.SpotRate, 20
+	case preventedMatchesByOrderIDRate:
+		limiter, tokens = r.SpotRate, 20
+	case getCommissionRate:
+		limiter, tokens = r.SpotRate, 20
+	case borrowRepayRecordsInMarginAccountRate:
+		limiter, tokens = r.SpotRate, 10
+	case getPriceMarginIndexRate:
+		limiter, tokens = r.SpotRate, 10
+	case marginAccountNewOrderRate:
+		limiter, tokens = r.SpotOrdersRate, 6
+	case marginAccountCancelOrderRate:
+		limiter, tokens = r.SpotOrdersRate, 10
 	case uFuturesDefaultRate,
 		uFuturesKline100Rate:
 		limiter, tokens = r.UFuturesRate, 1

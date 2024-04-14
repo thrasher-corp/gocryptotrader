@@ -3048,3 +3048,183 @@ type AccountTradeItem struct {
 	IsMaker         bool                 `json:"isMaker"`
 	IsBestMatch     bool                 `json:"isBestMatch"`
 }
+
+// CurrentOrderCountUsage user's current order count usage for all intervals.
+type CurrentOrderCountUsage struct {
+	RateLimitType string `json:"rateLimitType"`
+	Interval      string `json:"interval"`
+	IntervalNum   int64  `json:"intervalNum"`
+	Limit         int64  `json:"limit"`
+	Count         int64  `json:"count"`
+}
+
+// PreventedMatches represents user's prevented matches
+type PreventedMatches struct {
+	Symbol                  string               `json:"symbol"`
+	PreventedMatchID        int64                `json:"preventedMatchId"`
+	TakerOrderID            int64                `json:"takerOrderId"`
+	MakerOrderID            int64                `json:"makerOrderId"`
+	TradeGroupID            int64                `json:"tradeGroupId"`
+	SelfTradePreventionMode string               `json:"selfTradePreventionMode"`
+	Price                   types.Number         `json:"price"`
+	MakerPreventedQuantity  types.Number         `json:"makerPreventedQuantity"`
+	TransactTime            convert.ExchangeTime `json:"transactTime"`
+}
+
+// Allocation represents Smart Order Routing (SOR) order allocation
+type Allocation struct {
+	Symbol          string               `json:"symbol"`
+	AllocationID    int64                `json:"allocationId"`
+	AllocationType  string               `json:"allocationType"`
+	OrderID         int64                `json:"orderId"`
+	OrderListID     int64                `json:"orderListId"`
+	Price           types.Number         `json:"price"`
+	Quantity        types.Number         `json:"qty"`
+	QuoteQty        types.Number         `json:"quoteQty"`
+	Commission      string               `json:"commission"`
+	CommissionAsset string               `json:"commissionAsset"`
+	Time            convert.ExchangeTime `json:"time"`
+	IsBuyer         bool                 `json:"isBuyer"`
+	IsMaker         bool                 `json:"isMaker"`
+	IsAllocator     bool                 `json:"isAllocator"`
+}
+
+// AccountCommissionRate represents an account commission rate
+type AccountCommissionRate struct {
+	Symbol             string `json:"symbol"`
+	StandardCommission struct {
+		Maker  types.Number `json:"maker"`
+		Taker  types.Number `json:"taker"`
+		Buyer  types.Number `json:"buyer"`
+		Seller types.Number `json:"seller"`
+	} `json:"standardCommission"`
+	TaxCommission struct {
+		Maker  types.Number `json:"maker"`
+		Taker  types.Number `json:"taker"`
+		Buyer  types.Number `json:"buyer"`
+		Seller types.Number `json:"seller"`
+	} `json:"taxCommission"`
+	Discount struct {
+		EnabledForAccount bool         `json:"enabledForAccount"`
+		EnabledForSymbol  bool         `json:"enabledForSymbol"`
+		DiscountAsset     string       `json:"discountAsset"`
+		Discount          types.Number `json:"discount"`
+	} `json:"discount"`
+}
+
+// MarginAccountBorrowRepayRecords represents borrow/repay records in Margin account.
+type MarginAccountBorrowRepayRecords struct {
+	Rows []struct {
+		IsolatedSymbol string               `json:"isolatedSymbol"`
+		Amount         types.Number         `json:"amount"`
+		Asset          string               `json:"asset"`
+		Interest       string               `json:"interest"`
+		Principal      string               `json:"principal"`
+		Status         string               `json:"status"`
+		Timestamp      convert.ExchangeTime `json:"timestamp"`
+		TransactionID  int64                `json:"txId"`
+	} `json:"rows"`
+	Total int64 `json:"total"`
+}
+
+// MarginAsset represents margin asset instance.
+type MarginAsset struct {
+	AssetFullName  string               `json:"assetFullName"`
+	AssetName      string               `json:"assetName"`
+	IsBorrowable   bool                 `json:"isBorrowable"`
+	IsMortgageable bool                 `json:"isMortgageable"`
+	UserMinBorrow  types.Number         `json:"userMinBorrow"`
+	UserMinRepay   types.Number         `json:"userMinRepay"`
+	DelistTime     convert.ExchangeTime `json:"delistTime"`
+}
+
+// CrossMarginPairInfo holds cross margin symbols and detail.
+type CrossMarginPairInfo struct {
+	Base          string               `json:"base"`
+	ID            int64                `json:"id"`
+	IsBuyAllowed  bool                 `json:"isBuyAllowed"`
+	IsMarginTrade bool                 `json:"isMarginTrade"`
+	IsSellAllowed bool                 `json:"isSellAllowed"`
+	Quote         string               `json:"quote"`
+	Symbol        string               `json:"symbol"`
+	DelistTime    convert.ExchangeTime `json:"delistTime,omitempty"`
+}
+
+// MarginPriceIndex represents margin account price index
+type MarginPriceIndex struct {
+	CalcTime convert.ExchangeTime `json:"calcTime"`
+	Price    types.Number         `json:"price"`
+	Symbol   string               `json:"symbol"`
+}
+
+// MarginAccountOrderParam represents a margin account order.
+type MarginAccountOrderParam struct {
+	Symbol     currency.Pair `json:"symbol"`
+	IsIsolated bool          `json:"isIsolated,string"`
+	Side       string        `json:"side"`
+	OrderType  string        `json:"type"`
+
+	Quantity                float64 `json:"quantity,omitempty"`
+	QuoteOrderQuantity      float64 `json:"quoteOrderQty,omitempty"`
+	Price                   float64 `json:"price,omitempty"`
+	StopPrice               float64 `json:"stopPrice,omitempty"` // Used with STOP_LOSS, STOP_LOSS_LIMIT, TAKE_PROFIT, and TAKE_PROFIT_LIMIT orders.
+	NewClientOrderID        string  `json:"newClientOrderId,omitempty"`
+	IcebergQuantity         float64 `json:"icebergQty,omitempty"` // Used with LIMIT, STOP_LOSS_LIMIT, and TAKE_PROFIT_LIMIT to create an iceberg order.
+	NewOrderResponseType    string  `json:"newOrderRespType,omitempty"`
+	SideEffectType          string  `json:"sideEffectType,omitempty"` // NO_SIDE_EFFECT, MARGIN_BUY, AUTO_REPAY,AUTO_BORROW_REPAY; default NO_SIDE_EFFECT.
+	TimeInForce             string  `json:"timeInForce,omitempty"`
+	SelfTradePreventionMode string  `json:"selfTradePreventionMode,omitempty"`
+	AutoRepayAtCancel       bool    `json:"autoRepayAtCancel,omitempty"`
+}
+
+// MarginAccountOrder represents a margin account order.
+type MarginAccountOrder struct {
+	Symbol                  string               `json:"symbol"`
+	OrderID                 int64                `json:"orderId"`
+	ClientOrderID           string               `json:"clientOrderId"`
+	OrigClientOrderID       string               `json:"origClientOrderId"`
+	TransactTime            convert.ExchangeTime `json:"transactTime"`
+	Price                   types.Number         `json:"price"`
+	OrigQty                 types.Number         `json:"origQty"`
+	ExecutedQty             types.Number         `json:"executedQty"`
+	CummulativeQuoteQty     string               `json:"cummulativeQuoteQty"`
+	Status                  string               `json:"status"`
+	TimeInForce             string               `json:"timeInForce"`
+	OrderType               string               `json:"type"`
+	IsIsolated              bool                 `json:"isIsolated"`
+	Side                    string               `json:"side"`
+	SelfTradePreventionMode string               `json:"selfTradePreventionMode"`
+}
+
+// MarginAccountOrderDetail represents orders on symbol for margin account.
+type MarginAccountOrderDetail struct {
+	MarginAccountOrder
+
+	ContingencyType   string               `json:"contingencyType,omitempty"`
+	ListStatusType    string               `json:"listStatusType,omitempty"`
+	ListOrderStatus   string               `json:"listOrderStatus,omitempty"`
+	ListClientOrderID string               `json:"listClientOrderId,omitempty"`
+	TransactionTime   convert.ExchangeTime `json:"transactionTime,omitempty"`
+	Orders            []struct {
+		Symbol        string `json:"symbol"`
+		OrderID       int    `json:"orderId"`
+		ClientOrderID string `json:"clientOrderId"`
+	} `json:"orders,omitempty"`
+	OrderReports []struct {
+		Symbol              string       `json:"symbol"`
+		OrigClientOrderID   string       `json:"origClientOrderId"`
+		OrderID             int64        `json:"orderId"`
+		OrderListID         int64        `json:"orderListId"`
+		ClientOrderID       string       `json:"clientOrderId"`
+		Price               types.Number `json:"price"`
+		OrigQty             types.Number `json:"origQty"`
+		ExecutedQty         types.Number `json:"executedQty"`
+		CummulativeQuoteQty types.Number `json:"cummulativeQuoteQty"`
+		Status              string       `json:"status"`
+		TimeInForce         string       `json:"timeInForce"`
+		OrderType           string       `json:"type"`
+		Side                string       `json:"side"`
+		StopPrice           string       `json:"stopPrice,omitempty"`
+		IcebergQty          string       `json:"icebergQty"`
+	} `json:"orderReports,omitempty"`
+}

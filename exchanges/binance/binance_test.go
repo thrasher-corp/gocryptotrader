@@ -4228,6 +4228,102 @@ func TestGetAccountTradeList(t *testing.T) {
 	assert.NotNil(t, result)
 }
 
+func TestGetCurrentOrderCountUsage(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetCurrentOrderCountUsage(context.Background())
+	require.NoError(t, err)
+	require.NotNil(t, result)
+}
+
+func TestGetPreventedMatches(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetPreventedMatches(context.Background(), "BTCUSDT", 0, 12, 0, 10)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetAllocations(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetAllocations(context.Background(), "BTCUSDT", time.Time{}, time.Time{}, 10, 10, 20)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetCommissionRate(t *testing.T) {
+	t.Parallel()
+	result, err := b.GetCommissionRate(context.Background(), "BTCUSDT")
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestMarginAccountBorrowRepay(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	result, err := b.MarginAccountBorrowRepay(context.Background(), currency.ETH, "BTCUSDT", "BORROW", false, 0.1234)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetBorrowOrRepayRecordsInMarginAccount(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetBorrowOrRepayRecordsInMarginAccount(context.Background(), currency.LTC, "", "REPAY", 0, 10, 0, time.Now().Add(-time.Hour*12), time.Now().Add(-time.Hour*6))
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetAllMarginAssets(t *testing.T) {
+	t.Parallel()
+	result, err := b.GetAllMarginAssets(context.Background(), currency.BTC)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetAllCrossMarginPairs(t *testing.T) {
+	t.Parallel()
+	result, err := b.GetAllCrossMarginPairs(context.Background(), "BNBBTC")
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetMarginPriceIndex(t *testing.T) {
+	t.Parallel()
+	result, err := b.GetMarginPriceIndex(context.Background(), "BNBBTC")
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestPostMarginAccountOrder(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	result, err := b.PostMarginAccountOrder(context.Background(), &MarginAccountOrderParam{
+		Symbol:    currency.NewPair(currency.BTC, currency.USDT),
+		Side:      order.Buy.String(),
+		OrderType: order.Limit.String(),
+	})
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestCancelMarginAccountOrder(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	result, err := b.CancelMarginAccountOrder(context.Background(), "BTCUSDT", "", "", true, 12314234)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestMarginAccountCancelAllOpenOrdersOnSymbol(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.MarginAccountCancelAllOpenOrdersOnSymbol(context.Background(), "BTCUSDT", true)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
 func TestUnmarshalJSONForAssetIndex(t *testing.T) {
 	t.Parallel()
 	var resp AssetIndexResponse
@@ -4690,10 +4786,10 @@ func TestCancelAllCMOrders(t *testing.T) {
 	assert.NotNil(t, result)
 }
 
-func TestCancelMarginAccountOrder(t *testing.T) {
+func TestPMCancelMarginAccountOrder(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
-	result, err := b.CancelMarginAccountOrder(context.Background(), "LTCBTC", "", 12314)
+	result, err := b.PMCancelMarginAccountOrder(context.Background(), "LTCBTC", "", 12314)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }

@@ -944,7 +944,234 @@ func (b *Binance) GetAccountTradeList(ctx context.Context, symbol, orderID strin
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	var resp []AccountTradeItem
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/api/v3/myTrades", params, spotDefaultRate, nil, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/api/v3/myTrades", params, accountTradeListRate, nil, &resp)
+}
+
+// GetCurrentOrderCountUsage displays the user's current order count usage for all intervals.
+func (b *Binance) GetCurrentOrderCountUsage(ctx context.Context) ([]CurrentOrderCountUsage, error) {
+	var resp []CurrentOrderCountUsage
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/api/v3/rateLimit/order", nil, currentOrderCountUsageRate, nil, &resp)
+}
+
+// GetPreventedMatches displays the list of orders that were expired because of STP.
+func (b *Binance) GetPreventedMatches(ctx context.Context, symbol string, preventedMatchID, orderID, fromPreventedMatchID, limit int64) ([]PreventedMatches, error) {
+	if symbol == "" {
+		return nil, currency.ErrSymbolStringEmpty
+	}
+	if preventedMatchID == 0 && orderID == 0 {
+		return nil, errors.New("either preventedMatchID or orderID")
+	}
+	params := url.Values{}
+	params.Set("symbol", symbol)
+	rateLimit := preventedMatchesByOrderIDRate
+	if preventedMatchID != 0 {
+		rateLimit = queryPreventedMatchsWithRate
+		params.Set("preventedMatchId", strconv.FormatInt(preventedMatchID, 10))
+	}
+	if orderID != 0 {
+		params.Set("orderId", strconv.FormatInt(orderID, 10))
+	}
+	if fromPreventedMatchID != 0 {
+		params.Set("fromPreventedMatchId", strconv.FormatInt(fromPreventedMatchID, 10))
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	var resp []PreventedMatches
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/api/v3/myPreventedMatches", params, rateLimit, nil, &resp)
+}
+
+// GetAllocations retrieves allocations resulting from SOR order placement.
+func (b *Binance) GetAllocations(ctx context.Context, symbol string, startTime, endTime time.Time, fromAllocationID, orderID, limit int64) ([]Allocation, error) {
+	if symbol == "" {
+		return nil, currency.ErrSymbolStringEmpty
+	}
+	params := url.Values{}
+	params.Set("symbol", symbol)
+	if !startTime.IsZero() && !endTime.IsZero() {
+		err := common.StartEndTimeCheck(startTime, endTime)
+		if err != nil {
+			return nil, err
+		}
+		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
+	}
+	if fromAllocationID > 0 {
+		params.Set("fromAllocationId", strconv.FormatInt(fromAllocationID, 10))
+	}
+	if orderID > 0 {
+		params.Set("orderId", strconv.FormatInt(orderID, 10))
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	var resp []Allocation
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/api/v3/myAllocations", params, getAllocationsRate, nil, &resp)
+}
+
+// GetCommissionRate retrieves current account commission rates.
+func (b *Binance) GetCommissionRate(ctx context.Context, symbol string) (*AccountCommissionRate, error) {
+	if symbol == "" {
+		return nil, currency.ErrSymbolStringEmpty
+	}
+	params := url.Values{}
+	params.Set("symbol", symbol)
+	var resp *AccountCommissionRate
+	return resp, b.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues("/api/v3/account/commission", params), getCommissionRate, &resp)
+}
+
+// MarginAccountBorrowRepay represents a margin account borrow/repay
+// lending type: possible values BORROW or REPAY
+// Symbol is valid only for Isolated margin
+func (b *Binance) MarginAccountBorrowRepay(ctx context.Context, assetName currency.Code, symbol, lendingType string, isIsolated bool, amount float64) (string, error) {
+	if symbol == "" {
+		return "", currency.ErrSymbolStringEmpty
+	}
+	if !assetName.IsEmpty() {
+		return "", currency.ErrCurrencyCodeEmpty
+	}
+	if lendingType == "" {
+		return "", errors.New("lending type is required")
+	}
+	if amount <= 0 {
+		return "", order.ErrAmountBelowMin
+	}
+	params := url.Values{}
+	params.Set("symbol", symbol)
+	params.Set("asset", assetName.String())
+	params.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
+	if isIsolated {
+		params.Set("isIsolated", "TRUE")
+	} else {
+		params.Set("isIsolated", "FALSE")
+	}
+	resp := &struct {
+		TransactionID string `json:"tranId"`
+	}{}
+	return resp.TransactionID, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/sapi/v1/margin/borrow-repay", params, spotDefaultRate, nil, &resp)
+}
+
+// GetBorrowOrRepayRecordsInMarginAccount retrieves borrow/repay records in Margin account.
+// tranId in POST /sapi/v1/margin/loan
+func (b *Binance) GetBorrowOrRepayRecordsInMarginAccount(ctx context.Context, assetName currency.Code, isolatedSymbol, lendingType string, transactionID, current, size int64, startTime, endTime time.Time) (*MarginAccountBorrowRepayRecords, error) {
+	params := url.Values{}
+	if !assetName.IsEmpty() {
+		params.Set("asset", assetName.String())
+	}
+	if isolatedSymbol != "" {
+		params.Set("isolatedSymbol", isolatedSymbol)
+	}
+	if transactionID != 0 {
+		params.Set("txId", strconv.FormatInt(transactionID, 10))
+	}
+	if !startTime.IsZero() && !endTime.IsZero() {
+		err := common.StartEndTimeCheck(startTime, endTime)
+		if err != nil {
+			return nil, err
+		}
+		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
+	}
+	if current > 0 {
+		params.Set("current", strconv.FormatInt(current, 10))
+	}
+	if size > 0 {
+		params.Set("size", strconv.FormatInt(size, 10))
+	}
+	if lendingType != "" {
+		params.Set("type", lendingType)
+	}
+	var resp *MarginAccountBorrowRepayRecords
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/margin/borrow-repay", params, borrowRepayRecordsInMarginAccountRate, nil, &resp)
+}
+
+// GetAllMarginAssets retrieves all margin assets
+func (b *Binance) GetAllMarginAssets(ctx context.Context, assetName currency.Code) ([]MarginAsset, error) {
+	params := url.Values{}
+	if !assetName.IsEmpty() {
+		params.Set("asset", assetName.String())
+	}
+	var resp []MarginAsset
+	return resp, b.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues("/sapi/v1/margin/allAssets", params), spotDefaultRate, &resp)
+}
+
+// GetAllCrossMarginPairs retrieves all cross-margin pairs
+func (b *Binance) GetAllCrossMarginPairs(ctx context.Context, symbol string) ([]CrossMarginPairInfo, error) {
+	params := url.Values{}
+	if symbol != "" {
+		params.Set("symbol", symbol)
+	}
+	var resp []CrossMarginPairInfo
+	return resp, b.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues("/sapi/v1/margin/allPairs", params), spotDefaultRate, &resp)
+}
+
+// GetMarginPriceIndex retrieves margin price index
+func (b *Binance) GetMarginPriceIndex(ctx context.Context, symbol string) (*MarginPriceIndex, error) {
+	if symbol == "" {
+		return nil, currency.ErrSymbolStringEmpty
+	}
+	params := url.Values{}
+	params.Set("symbol", symbol)
+	var resp *MarginPriceIndex
+	return resp, b.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues("/sapi/v1/margin/priceIndex", params), getPriceMarginIndexRate, &resp)
+}
+
+// PostMarginAccountOrder post a new order for margin account.
+// autoRepayAtCancel is suggested to set as “FALSE” to keep liability unrepaid under high frequent new order/cancel order execution
+func (b *Binance) PostMarginAccountOrder(ctx context.Context, arg *MarginAccountOrderParam) (*MarginAccountOrder, error) {
+	if arg.Symbol.IsEmpty() {
+		return nil, currency.ErrCurrencyPairEmpty
+	}
+	if arg.Side == "" {
+		return nil, order.ErrSideIsInvalid
+	}
+	arg.Side = strings.ToUpper(arg.Side)
+	if arg.OrderType == "" {
+		return nil, order.ErrTypeIsInvalid
+	}
+	var resp *MarginAccountOrder
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/sapi/v1/margin/order", nil, marginAccountNewOrderRate, arg, &resp)
+}
+
+// CancelMarginAccountOrder cancels an active order for margin account.
+func (b *Binance) CancelMarginAccountOrder(ctx context.Context, symbol, origClientOrderID, newClientOrderID string, isIsolated bool, orderID int64) (*MarginAccountOrder, error) {
+	if symbol == "" {
+		return nil, currency.ErrSymbolStringEmpty
+	}
+	if orderID == 0 && origClientOrderID == "" {
+		return nil, order.ErrOrderIDNotSet
+	}
+	params := url.Values{}
+	params.Set("symbol", symbol)
+	if isIsolated {
+		params.Set("isIsolated", "TRUE")
+	}
+	if orderID > 0 {
+		params.Set("orderId", strconv.FormatInt(orderID, 10))
+	}
+	if newClientOrderID != "" {
+		params.Set("newClientOrderId", newClientOrderID)
+	}
+	if origClientOrderID != "" {
+		params.Set("origClientOrderId", origClientOrderID)
+	}
+	var resp *MarginAccountOrder
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodDelete, "/sapi/v1/margin/order", params, marginAccountCancelOrderRate, nil, &resp)
+}
+
+// MarginAccountCancelAllOpenOrdersOnSymbol cancels all active orders on a symbol for margin account.
+// This includes OCO orders.
+func (b *Binance) MarginAccountCancelAllOpenOrdersOnSymbol(ctx context.Context, symbol string, isIsolated bool) ([]MarginAccountOrderDetail, error) {
+	if symbol == "" {
+		return nil, currency.ErrSymbolStringEmpty
+	}
+	params := url.Values{}
+	params.Set("symbol", symbol)
+	if isIsolated {
+		params.Set("isIsolated", "TRUE")
+	}
+	var resp []MarginAccountOrderDetail
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/margin/openOrders", params, spotDefaultRate, nil, &resp)
 }
 
 // GetMarginAccount returns account information for margin accounts
