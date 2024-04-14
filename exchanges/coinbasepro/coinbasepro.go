@@ -116,7 +116,6 @@ var (
 	errProductIDEmpty         = errors.New("product id cannot be empty")
 	errOrderIDEmpty           = errors.New("order ids cannot be empty")
 	errOpenPairWithOtherTypes = errors.New("cannot pair open orders with other order types")
-	errUserIDEmpty            = errors.New("user id cannot be empty")
 	errSizeAndPriceZero       = errors.New("size and price cannot both be 0")
 	errCurrencyEmpty          = errors.New("currency cannot be empty")
 	errCurrWalletConflict     = errors.New("exactly one of walletID and currency must be specified")
