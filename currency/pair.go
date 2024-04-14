@@ -77,8 +77,7 @@ func NewPairWithDelimiter(base, quote, delimiter string) Pair {
 	}
 }
 
-// NewPairFromIndex returns a CurrencyPair via a currency string and specific
-// index
+// NewPairFromIndex returns a CurrencyPair via a currency string and specific index
 func NewPairFromIndex(currencyPair, index string) (Pair, error) {
 	i := strings.Index(currencyPair, index)
 	if i == -1 {
