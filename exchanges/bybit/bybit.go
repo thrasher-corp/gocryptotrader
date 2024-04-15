@@ -21,7 +21,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 )
 
 // Bybit is the overarching type across this package
@@ -90,7 +89,6 @@ var (
 	errAPIKeyIsNotUnified                      = errors.New("api key is not unified")
 	errEndpointAvailableForNormalAPIKeyHolders = errors.New("endpoint available for normal API key holders only")
 	errInvalidContractLength                   = errors.New("contract length cannot be less than or equal to zero")
-	errWebsocketNotEnabled                     = errors.New(stream.WebsocketNotEnabled)
 )
 
 var (
@@ -1630,12 +1628,12 @@ func (by *Bybit) GetSubUID(ctx context.Context) (*SubUID, error) {
 // EnableUniversalTransferForSubUID Transfer between sub-sub or main-sub
 // Use this endpoint to enable a subaccount to take part in a universal transfer. It is a one-time switch which, once thrown, enables a subaccount permanently.
 // If not set, your subaccount cannot use universal transfers.
-func (by *Bybit) EnableUniversalTransferForSubUID(ctx context.Context, subMemberIDS ...string) error {
-	if len(subMemberIDS) == 0 {
+func (by *Bybit) EnableUniversalTransferForSubUID(ctx context.Context, subMemberIDs ...string) error {
+	if len(subMemberIDs) == 0 {
 		return errMembersIDsNotSet
 	}
 	arg := map[string][]string{
-		"subMemberIDs": subMemberIDS,
+		"subMemberIDs": subMemberIDs,
 	}
 	return by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, "/v5/asset/transfer/save-transfer-sub-member", nil, &arg, &struct{}{}, saveTransferSubMemberEPL)
 }
@@ -1995,8 +1993,8 @@ func (by *Bybit) GetSubAccountAllAPIKeys(ctx context.Context, subMemberID, curso
 }
 
 // GetUIDWalletType retrieves available wallet types for the master account or sub account
-func (by *Bybit) GetUIDWalletType(ctx context.Context, memberIDS string) (*WalletType, error) {
-	if memberIDS == "" {
+func (by *Bybit) GetUIDWalletType(ctx context.Context, memberIDs string) (*WalletType, error) {
+	if memberIDs == "" {
 		return nil, errMembersIDsNotSet
 	}
 	var resp *WalletType

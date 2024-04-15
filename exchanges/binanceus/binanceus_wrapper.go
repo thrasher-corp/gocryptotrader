@@ -30,28 +30,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
-// GetDefaultConfig returns a default exchange config
-func (bi *Binanceus) GetDefaultConfig(ctx context.Context) (*config.Exchange, error) {
-	bi.SetDefaults()
-	exchCfg, err := bi.GetStandardConfig()
-	if err != nil {
-		return nil, err
-	}
-
-	err = bi.SetupDefaults(exchCfg)
-	if err != nil {
-		return nil, err
-	}
-
-	if bi.Features.Supports.RESTCapabilities.AutoPairUpdates {
-		err := bi.UpdateTradablePairs(ctx, true)
-		if err != nil {
-			return nil, err
-		}
-	}
-	return exchCfg, nil
-}
-
 // SetDefaults sets the basic defaults for Binanceus
 func (bi *Binanceus) SetDefaults() {
 	bi.Name = "Binanceus"
@@ -162,7 +140,7 @@ func (bi *Binanceus) SetDefaults() {
 			"%s setting default endpoints error %v",
 			bi.Name, err)
 	}
-	bi.Websocket = stream.New()
+	bi.Websocket = stream.NewWebsocket()
 	bi.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	bi.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
 	bi.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
@@ -471,7 +449,7 @@ func (bi *Binanceus) GetWithdrawalsHistory(ctx context.Context, c currency.Code,
 			return nil, err
 		}
 		resp[i] = exchange.WithdrawalHistory{
-			Status:          fmt.Sprint(withdrawals[i].Status),
+			Status:          strconv.FormatInt(withdrawals[i].Status, 10),
 			TransferID:      withdrawals[i].ID,
 			Currency:        withdrawals[i].Coin,
 			Amount:          withdrawals[i].Amount,
@@ -501,7 +479,7 @@ func (bi *Binanceus) GetRecentTrades(ctx context.Context, p currency.Pair, asset
 	resp := make([]trade.Data, len(tradeData))
 	for i := range tradeData {
 		resp[i] = trade.Data{
-			TID:          fmt.Sprint(tradeData[i].ID),
+			TID:          strconv.FormatInt(tradeData[i].ID, 10),
 			Exchange:     bi.Name,
 			AssetType:    assetType,
 			CurrencyPair: p,

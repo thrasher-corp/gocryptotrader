@@ -145,14 +145,16 @@ func (bt *BackTest) SetupFromConfig(cfg *config.Config, templatePath, output str
 				if err != nil {
 					return err
 				}
-				exch.SetDefaults()
-				exchBase := exch.GetBase()
-				exchBase.Verbose = cfg.DataSettings.VerboseExchangeRequests
+
 				var dc *gctconfig.Exchange
-				dc, err = exch.GetDefaultConfig(context.TODO())
+				dc, err = gctexchange.GetDefaultConfig(context.TODO(), exch)
 				if err != nil {
 					return err
 				}
+
+				exchBase := exch.GetBase()
+				exchBase.Verbose = cfg.DataSettings.VerboseExchangeRequests
+
 				err = exch.Setup(dc)
 				if err != nil {
 					return err
@@ -858,7 +860,7 @@ func (bt *BackTest) loadData(cfg *config.Config, exch gctexchange.IBotExchange, 
 		return nil, err
 	}
 	if resp == nil {
-		return nil, fmt.Errorf("processing error, response returned nil")
+		return nil, errors.New("processing error, response returned nil")
 	}
 
 	resp.Item.UnderlyingPair = underlyingPair

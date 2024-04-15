@@ -18,7 +18,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/nonce"
 	"golang.org/x/time/rate"
 )
 
@@ -32,25 +35,25 @@ func TestMain(m *testing.M) {
 	serverLimit = NewRateLimit(serverLimitInterval, 1)
 	serverLimitRetry := NewRateLimit(serverLimitInterval, 1)
 	sm := http.NewServeMux()
-	sm.HandleFunc("/", func(w http.ResponseWriter, req *http.Request) {
+	sm.HandleFunc("/", func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		_, err := io.WriteString(w, `{"response":true}`)
 		if err != nil {
 			log.Fatal(err)
 		}
 	})
-	sm.HandleFunc("/error", func(w http.ResponseWriter, req *http.Request) {
+	sm.HandleFunc("/error", func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusBadRequest)
 		_, err := io.WriteString(w, `{"error":true}`)
 		if err != nil {
 			log.Fatal(err)
 		}
 	})
-	sm.HandleFunc("/timeout", func(w http.ResponseWriter, req *http.Request) {
+	sm.HandleFunc("/timeout", func(w http.ResponseWriter, _ *http.Request) {
 		time.Sleep(time.Millisecond * 100)
 		w.WriteHeader(http.StatusGatewayTimeout)
 	})
-	sm.HandleFunc("/rate", func(w http.ResponseWriter, req *http.Request) {
+	sm.HandleFunc("/rate", func(w http.ResponseWriter, _ *http.Request) {
 		if !serverLimit.Allow() {
 			http.Error(w,
 				http.StatusText(http.StatusTooManyRequests),
@@ -66,7 +69,7 @@ func TestMain(m *testing.M) {
 			log.Fatal(err)
 		}
 	})
-	sm.HandleFunc("/rate-retry", func(w http.ResponseWriter, req *http.Request) {
+	sm.HandleFunc("/rate-retry", func(w http.ResponseWriter, _ *http.Request) {
 		if !serverLimitRetry.Allow() {
 			w.Header().Add("Retry-After", strconv.Itoa(int(math.Round(serverLimitInterval.Seconds()))))
 			http.Error(w,
@@ -83,7 +86,7 @@ func TestMain(m *testing.M) {
 			log.Fatal(err)
 		}
 	})
-	sm.HandleFunc("/always-retry", func(w http.ResponseWriter, req *http.Request) {
+	sm.HandleFunc("/always-retry", func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Add("Retry-After", time.Now().Format(time.RFC1123))
 		w.WriteHeader(http.StatusTooManyRequests)
 		_, err := io.WriteString(w, `{"response":false}`)
@@ -406,7 +409,7 @@ func TestDoRequest(t *testing.T) {
 func TestDoRequest_Retries(t *testing.T) {
 	t.Parallel()
 
-	backoff := func(n int) time.Duration {
+	backoff := func(int) time.Duration {
 		return 0
 	}
 	r, err := New("test", new(http.Client), WithBackoff(backoff))
@@ -449,7 +452,7 @@ func TestDoRequest_Retries(t *testing.T) {
 func TestDoRequest_RetryNonRecoverable(t *testing.T) {
 	t.Parallel()
 
-	backoff := func(n int) time.Duration {
+	backoff := func(int) time.Duration {
 		return 0
 	}
 	r, err := New("test", new(http.Client), WithBackoff(backoff))
@@ -471,7 +474,7 @@ func TestDoRequest_NotRetryable(t *testing.T) {
 	t.Parallel()
 
 	notRetryErr := errors.New("not retryable")
-	retry := func(resp *http.Response, err error) (bool, error) {
+	retry := func(*http.Response, error) (bool, error) {
 		return false, notRetryErr
 	}
 	backoff := func(n int) time.Duration {
@@ -494,37 +497,35 @@ func TestDoRequest_NotRetryable(t *testing.T) {
 
 func TestGetNonce(t *testing.T) {
 	t.Parallel()
-	r, err := New("test",
-		new(http.Client),
-		WithLimiter(&globalshell))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if n1, n2 := r.GetNonce(false), r.GetNonce(false); n1 == n2 {
-		t.Fatal(unexpected)
-	}
+	r, err := New("test", new(http.Client), WithLimiter(&globalshell))
+	require.NoError(t, err)
+	n1 := r.GetNonce(nonce.Unix)
+	assert.NotZero(t, n1)
+	n2 := r.GetNonce(nonce.Unix)
+	assert.NotZero(t, n2)
+	assert.NotEqual(t, n1, n2)
 
-	r2, err := New("test",
-		new(http.Client),
-		WithLimiter(&globalshell))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if n1, n2 := r2.GetNonce(true), r2.GetNonce(true); n1 == n2 {
-		t.Fatal(unexpected)
-	}
+	r2, err := New("test", new(http.Client), WithLimiter(&globalshell))
+	require.NoError(t, err)
+	n3 := r2.GetNonce(nonce.UnixNano)
+	assert.NotZero(t, n3)
+	n4 := r2.GetNonce(nonce.UnixNano)
+	assert.NotZero(t, n4)
+	assert.NotEqual(t, n3, n4)
+
+	assert.NotEqual(t, n1, n3)
+	assert.NotEqual(t, n2, n4)
 }
 
-func TestGetNonceMillis(t *testing.T) {
-	t.Parallel()
-	r, err := New("test",
-		new(http.Client),
-		WithLimiter(&globalshell))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if m1, m2 := r.GetNonceMilli(), r.GetNonceMilli(); m1 == m2 {
-		log.Fatal(unexpected)
+// 40532461	       30.29 ns/op	       0 B/op	       0 allocs/op (prev)
+// 45329203	       26.53 ns/op	       0 B/op	       0 allocs/op
+func BenchmarkGetNonce(b *testing.B) {
+	r, err := New("test", new(http.Client), WithLimiter(&globalshell))
+	require.NoError(b, err)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		r.GetNonce(nonce.UnixNano)
+		r.timedLock.UnlockIfLocked()
 	}
 }
 

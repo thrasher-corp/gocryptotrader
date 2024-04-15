@@ -460,14 +460,13 @@ func TestGetDepositAddress(t *testing.T) {
 	}
 }
 
-//nolint:gocritic // Only used as a testing helper function in this package
 func setupWsAuth(t *testing.T) {
 	t.Helper()
 	if wsSetupRan {
 		return
 	}
 	if !h.Websocket.IsEnabled() && !h.API.AuthenticatedWebsocketSupport || !sharedtestvalues.AreAPICredentialsSet(h) {
-		t.Skip(stream.WebsocketNotEnabled)
+		t.Skip(stream.ErrWebsocketNotEnabled.Error())
 	}
 
 	var dialer websocket.Dialer

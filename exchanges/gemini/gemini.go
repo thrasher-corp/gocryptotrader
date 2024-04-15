@@ -15,6 +15,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/nonce"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 )
 
@@ -80,7 +81,7 @@ func (g *Gemini) GetSymbolDetails(ctx context.Context, symbol string) ([]SymbolD
 // GetTicker returns information about recent trading activity for the symbol
 func (g *Gemini) GetTicker(ctx context.Context, currencyPair string) (TickerV2, error) {
 	ticker := TickerV2{}
-	path := fmt.Sprintf("/v2/ticker/%s", currencyPair)
+	path := "/v2/ticker/" + currencyPair
 	err := g.SendHTTPRequest(ctx, exchange.RestSpot, path, &ticker)
 	if err != nil {
 		return ticker, err
@@ -334,7 +335,7 @@ func (g *Gemini) GetCryptoDepositAddress(ctx context.Context, depositAddlabel, c
 	response := DepositAddress{}
 	req := make(map[string]interface{})
 
-	if len(depositAddlabel) > 0 {
+	if depositAddlabel != "" {
 		req["label"] = depositAddlabel
 	}
 
@@ -421,7 +422,7 @@ func (g *Gemini) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.U
 	return g.SendPayload(ctx, request.Auth, func() (*request.Item, error) {
 		req := make(map[string]interface{})
 		req["request"] = fmt.Sprintf("/v%s/%s", geminiAPIVersion, path)
-		req["nonce"] = g.Requester.GetNonce(true).String()
+		req["nonce"] = g.Requester.GetNonce(nonce.UnixNano).String()
 
 		for key, value := range params {
 			req[key] = value

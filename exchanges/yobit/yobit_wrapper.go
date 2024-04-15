@@ -29,29 +29,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
-// GetDefaultConfig returns a default exchange config
-func (y *Yobit) GetDefaultConfig(ctx context.Context) (*config.Exchange, error) {
-	y.SetDefaults()
-	exchCfg, err := y.GetStandardConfig()
-	if err != nil {
-		return nil, err
-	}
-
-	err = y.SetupDefaults(exchCfg)
-	if err != nil {
-		return nil, err
-	}
-
-	if y.Features.Supports.RESTCapabilities.AutoPairUpdates {
-		err = y.UpdateTradablePairs(ctx, true)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	return exchCfg, nil
-}
-
 // SetDefaults sets current default value for Yobit
 func (y *Yobit) SetDefaults() {
 	y.Name = "Yobit"
@@ -555,7 +532,7 @@ func (y *Yobit) WithdrawCryptocurrencyFunds(ctx context.Context, withdrawRequest
 	if err != nil {
 		return nil, err
 	}
-	if len(resp.Error) > 0 {
+	if resp.Error != "" {
 		return nil, errors.New(resp.Error)
 	}
 	return &withdraw.ExchangeResponse{}, nil

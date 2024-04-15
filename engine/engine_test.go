@@ -355,7 +355,6 @@ func TestSettingsPrint(t *testing.T) {
 }
 
 var unsupportedDefaultConfigExchanges = []string{
-	"itbit",    // due to unsupported API
 	"poloniex", // poloniex has dropped support for the API GCT has implemented //TODO: drop this when supported
 }
 
@@ -379,7 +378,7 @@ func TestGetDefaultConfigurations(t *testing.T) {
 				t.Skipf("skipping %s unsupported", name)
 			}
 
-			defaultCfg, err := exch.GetDefaultConfig(context.Background())
+			defaultCfg, err := exchange.GetDefaultConfig(context.Background(), exch)
 			if err != nil {
 				t.Fatal(err)
 			}

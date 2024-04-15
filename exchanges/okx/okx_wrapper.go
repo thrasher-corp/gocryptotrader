@@ -40,28 +40,6 @@ const (
 	okxWebsocketResponseMaxLimit = time.Second * 3
 )
 
-// GetDefaultConfig returns a default exchange config
-func (ok *Okx) GetDefaultConfig(ctx context.Context) (*config.Exchange, error) {
-	ok.SetDefaults()
-	exchCfg, err := ok.GetStandardConfig()
-	if err != nil {
-		return nil, err
-	}
-
-	err = ok.SetupDefaults(exchCfg)
-	if err != nil {
-		return nil, err
-	}
-
-	if ok.Features.Supports.RESTCapabilities.AutoPairUpdates {
-		err = ok.UpdateTradablePairs(ctx, true)
-		if err != nil {
-			return nil, err
-		}
-	}
-	return exchCfg, nil
-}
-
 // SetDefaults sets the basic defaults for Okx
 func (ok *Okx) SetDefaults() {
 	ok.Name = "Okx"
@@ -190,7 +168,7 @@ func (ok *Okx) SetDefaults() {
 		log.Errorln(log.ExchangeSys, err)
 	}
 
-	ok.Websocket = stream.New()
+	ok.Websocket = stream.NewWebsocket()
 	ok.WebsocketResponseMaxLimit = okxWebsocketResponseMaxLimit
 	ok.WebsocketResponseCheckTimeout = okxWebsocketResponseMaxLimit
 	ok.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
@@ -737,7 +715,7 @@ func (ok *Okx) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitR
 		return nil, fmt.Errorf("%w: %v", asset.ErrNotSupported, s.AssetType)
 	}
 	if s.Amount <= 0 {
-		return nil, fmt.Errorf("amount, or size (sz) of quantity to buy or sell hast to be greater than zero ")
+		return nil, errors.New("amount, or size (sz) of quantity to buy or sell hast to be greater than zero")
 	}
 	pairFormat, err := ok.GetPairFormat(s.AssetType, true)
 	if err != nil {
@@ -1784,7 +1762,7 @@ func (ok *Okx) ChangePositionMargin(ctx context.Context, req *margin.PositionCha
 	if req.MarginSide == "" {
 		req.MarginSide = "net"
 	}
-	r := IncreaseDecreaseMarginInput{
+	r := &IncreaseDecreaseMarginInput{
 		InstrumentID: fPair.String(),
 		PositionSide: req.MarginSide,
 		Type:         marginType,

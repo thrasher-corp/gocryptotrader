@@ -36,29 +36,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
-// GetDefaultConfig returns a default exchange config
-func (b *Binance) GetDefaultConfig(ctx context.Context) (*config.Exchange, error) {
-	b.SetDefaults()
-	exchCfg, err := b.GetStandardConfig()
-	if err != nil {
-		return nil, err
-	}
-
-	err = b.SetupDefaults(exchCfg)
-	if err != nil {
-		return nil, err
-	}
-
-	if b.Features.Supports.RESTCapabilities.AutoPairUpdates {
-		err = b.UpdateTradablePairs(ctx, true)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	return exchCfg, nil
-}
-
 // SetDefaults sets the basic defaults for Binance
 func (b *Binance) SetDefaults() {
 	b.Name = "Binance"
@@ -238,7 +215,7 @@ func (b *Binance) SetDefaults() {
 		log.Errorln(log.ExchangeSys, err)
 	}
 
-	b.Websocket = stream.New()
+	b.Websocket = stream.NewWebsocket()
 	b.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	b.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
 }
@@ -646,6 +623,14 @@ func (b *Binance) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (
 	info.Exchange = b.Name
 	switch assetType {
 	case asset.Spot:
+		creds, err := b.GetCredentials(ctx)
+		if err != nil {
+			return info, err
+		}
+		if creds.SubAccount != "" {
+			// TODO: implement sub-account endpoints
+			return info, common.ErrNotYetImplemented
+		}
 		raw, err := b.GetAccount(ctx)
 		if err != nil {
 			return info, err
@@ -965,7 +950,7 @@ func (b *Binance) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Subm
 		case order.Sell:
 			reqSide = "SELL"
 		default:
-			return nil, fmt.Errorf("invalid side")
+			return nil, errors.New("invalid side")
 		}
 
 		var (
@@ -1018,7 +1003,7 @@ func (b *Binance) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Subm
 		case order.Sell:
 			reqSide = "SELL"
 		default:
-			return nil, fmt.Errorf("invalid side")
+			return nil, errors.New("invalid side")
 		}
 		var oType string
 		switch s.Type {
@@ -1549,7 +1534,7 @@ func (b *Binance) GetOrderHistory(ctx context.Context, req *order.MultiOrderRequ
 					return nil, errors.New("endTime cannot be before startTime")
 				}
 				if time.Since(req.StartTime) > time.Hour*24*30 {
-					return nil, fmt.Errorf("can only fetch orders 30 days out")
+					return nil, errors.New("can only fetch orders 30 days out")
 				}
 				orderHistory, err = b.GetAllFuturesOrders(ctx,
 					req.Pairs[i], currency.EMPTYPAIR, req.StartTime, req.EndTime, 0, 0)
@@ -1567,7 +1552,7 @@ func (b *Binance) GetOrderHistory(ctx context.Context, req *order.MultiOrderRequ
 					return nil, err
 				}
 			default:
-				return nil, fmt.Errorf("invalid combination of input params")
+				return nil, errors.New("invalid combination of input params")
 			}
 			for y := range orderHistory {
 				var feeBuilder exchange.FeeBuilder
@@ -1607,7 +1592,7 @@ func (b *Binance) GetOrderHistory(ctx context.Context, req *order.MultiOrderRequ
 					return nil, errors.New("endTime cannot be before startTime")
 				}
 				if time.Since(req.StartTime) > time.Hour*24*7 {
-					return nil, fmt.Errorf("can only fetch orders 7 days out")
+					return nil, errors.New("can only fetch orders 7 days out")
 				}
 				orderHistory, err = b.UAllAccountOrders(ctx,
 					req.Pairs[i], 0, 0, req.StartTime, req.EndTime)
@@ -1625,7 +1610,7 @@ func (b *Binance) GetOrderHistory(ctx context.Context, req *order.MultiOrderRequ
 					return nil, err
 				}
 			default:
-				return nil, fmt.Errorf("invalid combination of input params")
+				return nil, errors.New("invalid combination of input params")
 			}
 			for y := range orderHistory {
 				var feeBuilder exchange.FeeBuilder
