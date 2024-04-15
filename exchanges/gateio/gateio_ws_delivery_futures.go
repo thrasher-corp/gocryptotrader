@@ -246,7 +246,7 @@ func (g *Gateio) generateDeliveryFuturesPayload(event string, channelsToSubscrib
 		}
 	}
 	for i := range channelsToSubscribe {
-		if len(channelsToSubscribe[i].Pairs) > 1 {
+		if len(channelsToSubscribe[i].Pairs) != 1 {
 			return payloads, subscription.ErrNotSinglePair
 		}
 		var auth *WsAuthInput
