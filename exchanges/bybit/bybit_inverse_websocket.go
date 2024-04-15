@@ -12,7 +12,7 @@ import (
 // WsInverseConnect connects to inverse websocket feed
 func (by *Bybit) WsInverseConnect() error {
 	if !by.Websocket.IsEnabled() || !by.IsEnabled() || !by.IsAssetWebsocketSupported(asset.CoinMarginedFutures) {
-		return errWebsocketNotEnabled
+		return stream.ErrWebsocketNotEnabled
 	}
 	by.Websocket.Conn.SetURL(inversePublic)
 	var dialer websocket.Dialer

@@ -45,7 +45,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/gemini"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/hitbtc"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/huobi"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/itbit"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kraken"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kucoin"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/lbank"
@@ -1028,8 +1027,6 @@ func NewSupportedExchangeByName(name string) (exchange.IBotExchange, error) {
 		return new(hitbtc.HitBTC), nil
 	case "huobi":
 		return new(huobi.HUOBI), nil
-	case "itbit":
-		return new(itbit.ItBit), nil
 	case "kraken":
 		return new(kraken.Kraken), nil
 	case "kucoin":
@@ -1057,7 +1054,7 @@ func NewExchangeByNameWithDefaults(ctx context.Context, name string) (exchange.I
 	if err != nil {
 		return nil, err
 	}
-	defaultConfig, err := exch.GetDefaultConfig(ctx)
+	defaultConfig, err := exchange.GetDefaultConfig(ctx, exch)
 	if err != nil {
 		return nil, err
 	}

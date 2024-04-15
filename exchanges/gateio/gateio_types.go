@@ -21,7 +21,7 @@ const (
 	gtcTIF = "gtc" // good-'til-canceled
 	iocTIF = "ioc" // immediate-or-cancel
 	pocTIF = "poc"
-	focTIF = "foc" // fill-or-kill
+	fokTIF = "fok" // fill-or-kill
 
 	// frequently used order Status
 
@@ -1742,19 +1742,19 @@ type Position struct {
 	Size            int64        `json:"size"`
 	Leverage        types.Number `json:"leverage"`
 	RiskLimit       types.Number `json:"risk_limit"`
-	LeverageMax     string       `json:"leverage_max"`
+	LeverageMax     types.Number `json:"leverage_max"`
 	MaintenanceRate types.Number `json:"maintenance_rate"`
 	Value           types.Number `json:"value"`
 	Margin          types.Number `json:"margin"`
 	EntryPrice      types.Number `json:"entry_price"`
 	LiqPrice        types.Number `json:"liq_price"`
 	MarkPrice       types.Number `json:"mark_price"`
-	UnrealisedPnl   string       `json:"unrealised_pnl"`
-	RealisedPnl     string       `json:"realised_pnl"`
-	HistoryPnl      string       `json:"history_pnl"`
-	LastClosePnl    string       `json:"last_close_pnl"`
-	RealisedPoint   string       `json:"realised_point"`
-	HistoryPoint    string       `json:"history_point"`
+	UnrealisedPnl   types.Number `json:"unrealised_pnl"`
+	RealisedPnl     types.Number `json:"realised_pnl"`
+	HistoryPnl      types.Number `json:"history_pnl"`
+	LastClosePnl    types.Number `json:"last_close_pnl"`
+	RealisedPoint   types.Number `json:"realised_point"`
+	HistoryPoint    types.Number `json:"history_point"`
 	AdlRanking      int64        `json:"adl_ranking"`
 	PendingOrders   int64        `json:"pending_orders"`
 	CloseOrder      struct {
@@ -1794,18 +1794,16 @@ type DualModeResponse struct {
 
 // OrderCreateParams represents future order creation parameters
 type OrderCreateParams struct {
-	Contract    currency.Pair `json:"contract"`
-	Size        float64       `json:"size"`
-	Iceberg     int64         `json:"iceberg"`
-	Price       types.Number  `json:"price"`
-	TimeInForce string        `json:"tif"`
-	Text        string        `json:"text"`
-
-	// Optional Parameters
-	ClosePosition bool   `json:"close,omitempty"`
-	ReduceOnly    bool   `json:"reduce_only,omitempty"`
-	AutoSize      string `json:"auto_size,omitempty"`
-	Settle        string `json:"-"`
+	Contract      currency.Pair `json:"contract"`
+	Size          float64       `json:"size"`
+	Iceberg       int64         `json:"iceberg"`
+	Price         string        `json:"price"` // NOTE: Market orders require string "0"
+	TimeInForce   string        `json:"tif"`
+	Text          string        `json:"text"`
+	ClosePosition bool          `json:"close,omitempty"`
+	ReduceOnly    bool          `json:"reduce_only,omitempty"`
+	AutoSize      string        `json:"auto_size,omitempty"`
+	Settle        string        `json:"-"` // Used in URL.
 }
 
 // Order represents future order response
