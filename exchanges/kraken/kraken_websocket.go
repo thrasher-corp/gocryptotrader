@@ -1336,27 +1336,15 @@ func (k *Kraken) wsAddOrder(request *WsAddOrderRequest) (string, error) {
 // wsCancelOrders cancels open orders concurrently
 // It does not use the multiple txId facility of the cancelOrder API because the errors are not specific
 func (k *Kraken) wsCancelOrders(orderIDs []string) error {
-	wg := sync.WaitGroup{}
-	wg.Add(len(orderIDs))
-	errC := make(chan error, len(orderIDs))
+	errs := common.CollectErrors(len(orderIDs))
 	for _, id := range orderIDs {
-		go func(id string) {
-			defer wg.Done()
-			if err := k.wsCancelOrder(id); err != nil {
-				errC <- err
-			}
-		}(id)
+		go func() {
+			defer errs.Wg.Done()
+			errs.C <- k.wsCancelOrder(id)
+		}()
 	}
 
-	wg.Wait()
-	close(errC)
-
-	var errs error
-	for err := range errC {
-		errs = common.AppendError(errs, err)
-	}
-
-	return errs
+	return errs.Collect()
 }
 
 // wsCancelOrder cancels an open order
