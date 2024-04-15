@@ -3,6 +3,8 @@ package subscription
 import (
 	"errors"
 	"fmt"
+	"maps"
+	"slices"
 	"sync"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -45,15 +47,15 @@ type State uint8
 
 // Subscription container for streaming subscriptions
 type Subscription struct {
-	Enabled       bool                   `json:"enabled"`
-	Key           any                    `json:"-"`
-	Channel       string                 `json:"channel,omitempty"`
-	Pairs         currency.Pairs         `json:"pairs,omitempty"`
-	Asset         asset.Item             `json:"asset,omitempty"`
-	Params        map[string]interface{} `json:"params,omitempty"`
-	Interval      kline.Interval         `json:"interval,omitempty"`
-	Levels        int                    `json:"levels,omitempty"`
-	Authenticated bool                   `json:"authenticated,omitempty"`
+	Enabled       bool           `json:"enabled"`
+	Key           any            `json:"-"`
+	Channel       string         `json:"channel,omitempty"`
+	Pairs         currency.Pairs `json:"pairs,omitempty"`
+	Asset         asset.Item     `json:"asset,omitempty"`
+	Params        map[string]any `json:"params,omitempty"`
+	Interval      kline.Interval `json:"interval,omitempty"`
+	Levels        int            `json:"levels,omitempty"`
+	Authenticated bool           `json:"authenticated,omitempty"`
 	state         State
 	m             sync.RWMutex
 }
@@ -106,11 +108,22 @@ func (s *Subscription) EnsureKeyed() any {
 // Key is set to nil, because any original key is meaningless on a clone
 func (s *Subscription) Clone() *Subscription {
 	s.m.RLock()
-	n := *s //nolint:govet // Replacing lock immediately below
+	c := &Subscription{
+		Key:           nil,
+		Enabled:       s.Enabled,
+		Channel:       s.Channel,
+		Asset:         s.Asset,
+		Params:        s.Params,
+		Interval:      s.Interval,
+		Levels:        s.Levels,
+		Authenticated: s.Authenticated,
+		state:         s.state,
+		Pairs:         s.Pairs,
+	}
+	s.Pairs = slices.Clone(s.Pairs)
+	s.Params = maps.Clone(s.Params)
 	s.m.RUnlock()
-	n.m = sync.RWMutex{}
-	n.Key = nil
-	return &n
+	return c
 }
 
 // SetPairs does what it says on the tin safely for currency

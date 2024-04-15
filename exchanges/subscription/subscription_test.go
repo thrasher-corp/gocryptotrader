@@ -92,12 +92,18 @@ func TestClone(t *testing.T) {
 	a := &Subscription{
 		Channel:  TickerChannel,
 		Interval: kline.OneHour,
+		Pairs:    currency.Pairs{btcusdtPair},
+		Params:   map[string]any{"a": 42},
 	}
 	a.EnsureKeyed()
 	b := a.Clone()
 	assert.IsType(t, new(Subscription), b, "Clone must return a Subscription pointer")
 	assert.NotSame(t, a, b, "Clone must return a new Subscription")
 	assert.Nil(t, b.Key, "Clone have a nil key")
+	b.Pairs[0] = ethusdcPair
+	assert.Equal(t, btcusdtPair, a.Pairs[0], "Pairs should be (relatively) deep copied")
+	b.Params["a"] = 12
+	assert.Equal(t, 42, a.Params["a"], "Params should be (relatively) deep copied")
 	a.m.Lock()
 	assert.True(t, b.m.TryLock(), "Clone must use a different Mutex")
 }
