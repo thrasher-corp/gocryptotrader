@@ -12,6 +12,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/nonce"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 )
 
@@ -302,7 +303,7 @@ func (y *Yobit) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.UR
 	}
 
 	return y.SendPayload(ctx, request.Unset, func() (*request.Item, error) {
-		n := y.Requester.GetNonce(false).String()
+		n := y.Requester.GetNonce(nonce.Unix).String()
 
 		params.Set("nonce", n)
 		params.Set("method", path)

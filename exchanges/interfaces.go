@@ -63,8 +63,6 @@ type IBotExchange interface {
 	SetHTTPClientUserAgent(ua string) error
 	GetHTTPClientUserAgent() (string, error)
 	SetClientProxyAddress(ctx context.Context, addr string, allowAutoSubscribe stream.SubscriptionAllowed) error
-	GetDefaultConfig(ctx context.Context) (*config.Exchange, error)
-	GetBase() *Base
 	GetHistoricCandles(ctx context.Context, pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error)
 	GetHistoricCandlesExtended(ctx context.Context, pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error)
 	DisableRateLimiter() error
@@ -83,6 +81,7 @@ type IBotExchange interface {
 	EnsureOnePairEnabled() error
 	PrintEnabledPairs()
 	IsVerbose() bool
+	GetBase() *Base
 
 	// ValidateAPICredentials function validates the API keys by sending an
 	// authenticated REST request. See exchange specific wrapper implementation.

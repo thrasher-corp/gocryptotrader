@@ -28,27 +28,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
-// GetDefaultConfig returns a default exchange config
-func (o *Okcoin) GetDefaultConfig(ctx context.Context) (*config.Exchange, error) {
-	o.SetDefaults()
-	exchCfg, err := o.GetStandardConfig()
-	if err != nil {
-		return nil, err
-	}
-
-	err = o.SetupDefaults(exchCfg)
-	if err != nil {
-		return nil, err
-	}
-	if o.Features.Supports.RESTCapabilities.AutoPairUpdates {
-		err = o.UpdateTradablePairs(ctx, true)
-		if err != nil {
-			return nil, err
-		}
-	}
-	return exchCfg, nil
-}
-
 // SetDefaults method assigns the default values for Okcoin
 func (o *Okcoin) SetDefaults() {
 	o.SetErrorDefaults()

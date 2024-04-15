@@ -228,11 +228,6 @@ func (c *CustomEx) GetSubscriptions() ([]subscription.Subscription, error) {
 	return nil, nil
 }
 
-// GetDefaultConfig is a mock method for CustomEx
-func (c *CustomEx) GetDefaultConfig(context.Context) (*config.Exchange, error) {
-	return nil, nil
-}
-
 // GetBase is a mock method for CustomEx
 func (c *CustomEx) GetBase() *exchange.Base { return nil }
 
