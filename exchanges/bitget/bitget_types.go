@@ -404,8 +404,8 @@ type BGBConvHistResp struct {
 			FeeCoin string  `json:"feeCoin"`
 			Fee     float64 `json:"fee,string"`
 		} `json:"feeDetail"`
-		Status     SuccessBool   `json:"status"`
-		CreateTime UnixTimestamp `json:"cTime"`
+		Status       SuccessBool   `json:"status"`
+		CreationTime UnixTimestamp `json:"cTime"`
 	} `json:"data"`
 }
 
@@ -565,7 +565,7 @@ type OrderResp struct {
 }
 
 // PlaceOrderStruct contains information on an order to be placed
-type PlaceOrderStruct struct {
+type PlaceSpotOrderStruct struct {
 	Side          string  `json:"side"`
 	OrderType     string  `json:"orderType"`
 	Strategy      string  `json:"force"`
@@ -622,7 +622,7 @@ type OrderDetailTemp struct {
 		BaseVolume       float64         `json:"baseVolume,string"`
 		QuoteVolume      float64         `json:"quoteVolume,string"`
 		EnterPointSource string          `json:"enterPointSource"`
-		CreateTime       UnixTimestamp   `json:"cTime"`
+		CreationTime     UnixTimestamp   `json:"cTime"`
 		UpdateTime       UnixTimestamp   `json:"uTime"`
 		OrderSource      string          `json:"orderSource"`
 		FeeDetailTemp    json.RawMessage `json:"feeDetail"`
@@ -644,8 +644,8 @@ type FeeDetail struct {
 // FeeDetailStore is a map of fee details for better unmarshalling
 type FeeDetailStore map[string]FeeDetail
 
-// OrderDetailData contains information on an order for better unmarshalling
-type OrderDetailData struct {
+// SpotOrderDetailData contains information on an order for better unmarshalling
+type SpotOrderDetailData struct {
 	UserID           string // Check whether this should be a different type
 	Symbol           string
 	OrderID          EmptyInt
@@ -659,15 +659,15 @@ type OrderDetailData struct {
 	BaseVolume       float64
 	QuoteVolume      float64
 	EnterPointSource string
-	CreateTime       UnixTimestamp
+	CreationTime     UnixTimestamp
 	UpdateTime       UnixTimestamp
 	OrderSource      string
 	FeeDetail        FeeDetailStore
 }
 
-// OrderDetailResp contains information on an order
-type OrderDetailResp struct {
-	Data []OrderDetailData
+// SpotOrderDetailResp contains information on an order
+type SpotOrderDetailResp struct {
+	Data []SpotOrderDetailData
 }
 
 // UnfilledOrdersResp contains information on the user's unfilled orders
@@ -687,32 +687,35 @@ type UnfilledOrdersResp struct {
 		QuoteVolume      float64       `json:"quoteVolume,string"`
 		EnterPointSource string        `json:"enterPointSource"`
 		OrderSource      string        `json:"orderSource"`
-		CreateTime       UnixTimestamp `json:"cTime"`
+		CreationTime     UnixTimestamp `json:"cTime"`
 		UpdateTime       UnixTimestamp `json:"uTime"`
 	} `json:"data"`
 }
 
-// TradeFillsResp contains information on the user's fulfilled orders
-type TradeFillsResp struct {
+// AbridgedFeeDetail contains some information on fees
+type AbridgedFeeDetail struct {
+	Deduction         YesNoBool    `json:"deduction"`
+	FeeCoin           string       `json:"feeCoin"`
+	TotalDeductionFee types.Number `json:"totalDeductionFee"`
+	TotalFee          float64      `json:"totalFee,string"`
+}
+
+// SpotFillsResp contains information on the user's fulfilled orders
+type SpotFillsResp struct {
 	Data []struct {
-		UserID       string   `json:"userId"` // Check whether this should be a different type
-		Symbol       string   `json:"symbol"`
-		OrderID      EmptyInt `json:"orderId"`
-		TradeID      int64    `json:"tradeId,string"`
-		OrderType    string   `json:"orderType"`
-		Side         string   `json:"side"`
-		PriceAverage float64  `json:"priceAvg,string"`
-		Size         float64  `json:"size,string"`
-		Amount       float64  `json:"amount,string"`
-		FeeDetail    struct {
-			Deduction         YesNoBool    `json:"deduction"`
-			FeeCoin           string       `json:"feeCoin"`
-			TotalDeductionFee types.Number `json:"totalDeductionFee"`
-			TotalFee          float64      `json:"totalFee,string"`
-		} `json:"feeDetail"`
-		TradeScope   string        `json:"tradeScope"`
-		CreationTime UnixTimestamp `json:"cTime"`
-		UpdateTime   UnixTimestamp `json:"uTime"`
+		UserID       string            `json:"userId"` // Check whether this should be a different type
+		Symbol       string            `json:"symbol"`
+		OrderID      EmptyInt          `json:"orderId"`
+		TradeID      int64             `json:"tradeId,string"`
+		OrderType    string            `json:"orderType"`
+		Side         string            `json:"side"`
+		PriceAverage float64           `json:"priceAvg,string"`
+		Size         float64           `json:"size,string"`
+		Amount       float64           `json:"amount,string"`
+		FeeDetail    AbridgedFeeDetail `json:"feeDetail"`
+		TradeScope   string            `json:"tradeScope"`
+		CreationTime UnixTimestamp     `json:"cTime"`
+		UpdateTime   UnixTimestamp     `json:"uTime"`
 	} `json:"data"`
 }
 
@@ -739,7 +742,7 @@ type PlanOrderResp struct {
 			Side             string        `json:"side"`
 			TriggerType      string        `json:"triggerType"`
 			EnterPointSource string        `json:"enterPointSource"`
-			CreateTime       UnixTimestamp `json:"cTime"`
+			CreationTime     UnixTimestamp `json:"cTime"`
 			UpdateTime       UnixTimestamp `json:"uTime"`
 		} `json:"orderList"`
 	} `json:"data"`
@@ -1147,7 +1150,7 @@ type FutureAccBillResp struct {
 			FeeCoin      string        `json:"feeCoin"`
 			BusinessType string        `json:"businessType"`
 			Coin         string        `json:"coin"`
-			CreateTime   UnixTimestamp `json:"cTime"`
+			CreationTime UnixTimestamp `json:"cTime"`
 		} `json:"bills"`
 	} `json:"data"`
 }
@@ -1185,7 +1188,7 @@ type PositionResp struct {
 		KeepMarginRate   float64       `json:"keepMarginRate,string"`
 		MarkPrice        float64       `json:"markPrice,string"`
 		MarginRatio      float64       `json:"marginRatio,string"`
-		CreateTime       UnixTimestamp `json:"cTime"`
+		CreationTime     UnixTimestamp `json:"cTime"`
 	} `json:"data"`
 }
 
@@ -1207,8 +1210,76 @@ type HistPositionResp struct {
 			OpenFee            float64       `json:"openFee,string"`
 			CloseFee           float64       `json:"closeFee,string"`
 			UpdateTime         UnixTimestamp `json:"uTime"`
-			CreateTime         UnixTimestamp `json:"cTime"`
+			CreationTime       UnixTimestamp `json:"cTime"`
 		} `json:"list"`
 		EndID int64 `json:"endId,string"`
+	} `json:"data"`
+}
+
+// PlaceFuturesOrderStruct contains information on an order to be placed
+type PlaceFuturesOrderStruct struct {
+	Size            float64   `json:"size,string"`
+	Price           float64   `json:"price,string"`
+	Side            string    `json:"side"`
+	TradeSide       string    `json:"tradeSide"`
+	OrderType       string    `json:"orderType"`
+	Strategy        string    `json:"force"`
+	ClientOID       string    `json:"clientOId"`
+	ReduceOnly      YesNoBool `json:"reduceOnly"`
+	TakeProfitValue float64   `json:"presetStopSurplusPrice,string,omitempty"`
+	StopLossValue   float64   `json:"presetStopLossPrice,string,omitempty"`
+}
+
+// FuturesOrderDetailResp contains information on a futures order
+type FuturesOrderDetailResp struct {
+	Symbol                 string        `json:"symbol"`
+	Size                   float64       `json:"size,string"`
+	OrderID                EmptyInt      `json:"orderId"`
+	ClientOrderID          string        `json:"clientOid"`
+	BaseVolume             float64       `json:"baseVolume,string"`
+	PriceAverage           float64       `json:"priceAvg,string"`
+	Fee                    types.Number  `json:"fee"`
+	Price                  float64       `json:"price,string"`
+	State                  string        `json:"state"`
+	Side                   string        `json:"side"`
+	Force                  string        `json:"force"`
+	TotalProfits           float64       `json:"totalProfits,string"`
+	PositionSide           string        `json:"positionSide"`
+	MarginCoin             string        `json:"marginCoin"`
+	PresetStopSurplusPrice float64       `json:"presetStopSurplusPrice,string"`
+	PresetStopLossPrice    float64       `json:"presetStopLossPrice,string"`
+	QuoteVolume            float64       `json:"quoteVolume,string"`
+	OrderType              string        `json:"orderType"`
+	Leverage               float64       `json:"leverage,string"`
+	MarginMode             string        `json:"marginMode"`
+	ReduceOnly             YesNoBool     `json:"reduceOnly"`
+	EnterPointSource       string        `json:"enterPointSource"`
+	TradeSide              string        `json:"tradeSide"`
+	PositionMode           string        `json:"posMode"`
+	OrderSource            string        `json:"orderSource"`
+	CreationTime           UnixTimestamp `json:"cTime"`
+	UpdateTime             UnixTimestamp `json:"uTime"`
+}
+
+// FuturesFillsResp contains information on fulfilled futures orders
+type FuturesFillsResp struct {
+	Data struct {
+		FillList []struct {
+			TradeID          int64               `json:"tradeId,string"`
+			Symbol           string              `json:"symbol"`
+			OrderID          int64               `json:"orderId,string"`
+			Price            float64             `json:"price,string"`
+			BaseVolume       float64             `json:"baseVolume,string"`
+			FeeDetail        []AbridgedFeeDetail `json:"feeDetail"`
+			Side             string              `json:"side"`
+			QuoteVolume      float64             `json:"quoteVolume,string"`
+			Profit           float64             `json:"profit,string"`
+			EnterPointSource string              `json:"enterPointSource"`
+			TradeSide        string              `json:"tradeSide"`
+			PositionMode     string              `json:"posMode"`
+			TradeScope       string              `json:"tradeScope"`
+			CreationTime     UnixTimestamp       `json:"cTime"`
+		} `json:"fillList"`
+		EndID EmptyInt `json:"endId"`
 	} `json:"data"`
 }

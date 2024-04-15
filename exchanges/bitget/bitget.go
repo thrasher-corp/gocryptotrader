@@ -129,6 +129,12 @@ const (
 	bitgetAllPositions             = "all-position" // sic
 	bitgetHistoryPosition          = "history-position"
 	bitgetOrder                    = "order"
+	bitgetClickBackhand            = "/click-backhand"
+	bitgetBatchPlaceOrder          = "/batch-place-order"
+	bitgetModifyOrder              = "/modify-order"
+	bitgetBatchCancelOrders        = "/batch-cancel-orders"
+	bitgetClosePositions           = "/close-positions"
+	bitgetDetail                   = "/detail"
 
 	// Errors
 	errUnknownEndpointLimit = "unknown endpoint limit %v"
@@ -184,6 +190,7 @@ var (
 	errLeverageEmpty         = errors.New("leverage cannot be empty")
 	errMarginModeEmpty       = errors.New("marginMode cannot be empty")
 	errPositionModeEmpty     = errors.New("positionMode cannot be empty")
+	errNewClientOrderIDEmpty = errors.New("newClientOrderID cannot be empty")
 )
 
 // QueryAnnouncement returns announcements from the exchange, filtered by type and time
@@ -807,8 +814,8 @@ func (bi *Bitget) PlaceSpotOrder(ctx context.Context, pair, side, orderType, str
 		&resp)
 }
 
-// CancelOrderByID cancels an order on the exchange
-func (bi *Bitget) CancelOrderByID(ctx context.Context, pair, clientOrderID string, orderID int64) (*OrderResp, error) {
+// CancelSpotOrderByID cancels an order on the exchange
+func (bi *Bitget) CancelSpotOrderByID(ctx context.Context, pair, clientOrderID string, orderID int64) (*OrderResp, error) {
 	if pair == "" {
 		return nil, errPairEmpty
 	}
@@ -830,8 +837,8 @@ func (bi *Bitget) CancelOrderByID(ctx context.Context, pair, clientOrderID strin
 		&resp)
 }
 
-// BatchPlaceOrders places up to fifty orders on the exchange
-func (bi *Bitget) BatchPlaceOrder(ctx context.Context, pair string, orders []PlaceOrderStruct, isCopyTradeLeader bool) (*BatchOrderResp, error) {
+// BatchPlaceSpotOrders places up to fifty orders on the exchange
+func (bi *Bitget) BatchPlaceSpotOrders(ctx context.Context, pair string, orders []PlaceSpotOrderStruct, isCopyTradeLeader bool) (*BatchOrderResp, error) {
 	if pair == "" {
 		return nil, errPairEmpty
 	}
@@ -884,8 +891,8 @@ func (bi *Bitget) CancelOrderBySymbol(ctx context.Context, pair string) (*Symbol
 		&resp)
 }
 
-// GetOrderDetails returns information on a single order
-func (bi *Bitget) GetOrderDetails(ctx context.Context, orderID int64, clientOrderID string) (*OrderDetailResp, error) {
+// GetSpotOrderDetails returns information on a single order
+func (bi *Bitget) GetSpotOrderDetails(ctx context.Context, orderID int64, clientOrderID string) (*SpotOrderDetailResp, error) {
 	if orderID == 0 && clientOrderID == "" {
 		return nil, errOrderClientEmpty
 	}
@@ -897,37 +904,7 @@ func (bi *Bitget) GetOrderDetails(ctx context.Context, orderID int64, clientOrde
 		vals.Set("clientOid", clientOrderID)
 	}
 	path := bitgetSpot + bitgetTrade + bitgetOrderInfo
-	var temp *OrderDetailTemp
-	err := bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate20, http.MethodGet, path, vals, nil,
-		&temp)
-	if err != nil {
-		return nil, err
-	}
-	resp := new(OrderDetailResp)
-	resp.Data = make([]OrderDetailData, len(temp.Data))
-	for i := range temp.Data {
-		resp.Data[i].UserID = temp.Data[i].UserID
-		resp.Data[i].Symbol = temp.Data[i].Symbol
-		resp.Data[i].OrderID = temp.Data[i].OrderID
-		resp.Data[i].ClientOrderID = temp.Data[i].ClientOrderID
-		resp.Data[i].Price = temp.Data[i].Price
-		resp.Data[i].Size = temp.Data[i].Size
-		resp.Data[i].OrderType = temp.Data[i].OrderType
-		resp.Data[i].Side = temp.Data[i].Side
-		resp.Data[i].Status = temp.Data[i].Status
-		resp.Data[i].PriceAverage = temp.Data[i].PriceAverage
-		resp.Data[i].BaseVolume = temp.Data[i].BaseVolume
-		resp.Data[i].QuoteVolume = temp.Data[i].QuoteVolume
-		resp.Data[i].EnterPointSource = temp.Data[i].EnterPointSource
-		resp.Data[i].CreateTime = temp.Data[i].CreateTime
-		resp.Data[i].UpdateTime = temp.Data[i].UpdateTime
-		resp.Data[i].OrderSource = temp.Data[i].OrderSource
-		err = json.Unmarshal(temp.Data[i].FeeDetailTemp, &resp.Data[i].FeeDetail)
-		if err != nil {
-			return nil, err
-		}
-	}
-	return resp, nil
+	return bi.spotOrderHelper(ctx, path, vals)
 }
 
 // GetUnfilledOrders returns information on the user's unfilled orders
@@ -953,7 +930,7 @@ func (bi *Bitget) GetUnfilledOrders(ctx context.Context, pair string, startTime,
 }
 
 // GetHistoricalOrders returns the user's order history
-func (bi *Bitget) GetHistoricalOrders(ctx context.Context, pair string, startTime, endTime time.Time, limit, pagination, orderID int64) (*OrderDetailResp, error) {
+func (bi *Bitget) GetHistoricalOrders(ctx context.Context, pair string, startTime, endTime time.Time, limit, pagination, orderID int64) (*SpotOrderDetailResp, error) {
 	var params Params
 	params.Values = make(url.Values)
 	err := params.prepareDateString(startTime, endTime, true)
@@ -969,41 +946,11 @@ func (bi *Bitget) GetHistoricalOrders(ctx context.Context, pair string, startTim
 	}
 	params.Values.Set("orderId", strconv.FormatInt(orderID, 10))
 	path := bitgetSpot + bitgetTrade + bitgetHistoryOrders
-	var temp *OrderDetailTemp
-	err = bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate20, http.MethodGet, path, params.Values, nil,
-		&temp)
-	if err != nil {
-		return nil, err
-	}
-	resp := new(OrderDetailResp)
-	resp.Data = make([]OrderDetailData, len(temp.Data))
-	for i := range temp.Data {
-		resp.Data[i].UserID = temp.Data[i].UserID
-		resp.Data[i].Symbol = temp.Data[i].Symbol
-		resp.Data[i].OrderID = temp.Data[i].OrderID
-		resp.Data[i].ClientOrderID = temp.Data[i].ClientOrderID
-		resp.Data[i].Price = temp.Data[i].Price
-		resp.Data[i].Size = temp.Data[i].Size
-		resp.Data[i].OrderType = temp.Data[i].OrderType
-		resp.Data[i].Side = temp.Data[i].Side
-		resp.Data[i].Status = temp.Data[i].Status
-		resp.Data[i].PriceAverage = temp.Data[i].PriceAverage
-		resp.Data[i].BaseVolume = temp.Data[i].BaseVolume
-		resp.Data[i].QuoteVolume = temp.Data[i].QuoteVolume
-		resp.Data[i].EnterPointSource = temp.Data[i].EnterPointSource
-		resp.Data[i].CreateTime = temp.Data[i].CreateTime
-		resp.Data[i].UpdateTime = temp.Data[i].UpdateTime
-		resp.Data[i].OrderSource = temp.Data[i].OrderSource
-		err = json.Unmarshal(temp.Data[i].FeeDetailTemp, &resp.Data[i].FeeDetail)
-		if err != nil {
-			return nil, err
-		}
-	}
-	return resp, nil
+	return bi.spotOrderHelper(ctx, path, params.Values)
 }
 
-// GetFills returns information on the user's fulfilled orders in a certain pair
-func (bi *Bitget) GetFills(ctx context.Context, pair string, startTime, endTime time.Time, limit, pagination, orderID int64) (*TradeFillsResp, error) {
+// GetSpotFills returns information on the user's fulfilled orders in a certain pair
+func (bi *Bitget) GetSpotFills(ctx context.Context, pair string, startTime, endTime time.Time, limit, pagination, orderID int64) (*SpotFillsResp, error) {
 	if pair == "" {
 		return nil, errPairEmpty
 	}
@@ -1022,7 +969,7 @@ func (bi *Bitget) GetFills(ctx context.Context, pair string, startTime, endTime 
 	}
 	params.Values.Set("orderId", strconv.FormatInt(orderID, 10))
 	path := bitgetSpot + bitgetTrade + "/" + bitgetFills
-	var resp *TradeFillsResp
+	var resp *SpotFillsResp
 	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodGet, path, params.Values,
 		nil, &resp)
 }
@@ -2130,7 +2077,7 @@ func (bi *Bitget) PlaceFuturesOrder(ctx context.Context, pair, productType, marg
 		&resp)
 }
 
-// PlaceReversal attempts to close a position, in part or in whole, and open a position of corresponding size
+// PlaceReversal attempts to close a position, in part or in whole, and opens a position of corresponding size
 // on the opposite side. This operation may only be done in part under certain margin levels, market conditions,
 // or other unspecified factors. If a reversal is attempted for an amount greater than the current outstanding position,
 // that position will be closed, and a new position will be opened for the amount of the closed position; not the amount
@@ -2138,6 +2085,240 @@ func (bi *Bitget) PlaceFuturesOrder(ctx context.Context, pair, productType, marg
 // attempting to close; if the original is open_long, use close_long; if the original is open_short, use close_short;
 // if the original is sell_single, use buy_single. If the position is sell_single or buy_single, the amount parameter
 // will be ignored, and the entire position will be closed, with a corresponding amount opened on the opposite side.
+func (bi *Bitget) PlaceReversal(ctx context.Context, pair, marginCoin, productType, side, tradeSide, clientOID string, amount float64, isCopyTradeLeader bool) (*OrderResp, error) {
+	if pair == "" {
+		return nil, errPairEmpty
+	}
+	if marginCoin == "" {
+		return nil, errMarginCoinEmpty
+	}
+	if productType == "" {
+		return nil, errProductTypeEmpty
+	}
+	if amount == 0 {
+		return nil, errAmountEmpty
+	}
+	req := map[string]interface{}{
+		"symbol":      pair,
+		"marginCoin":  marginCoin,
+		"productType": productType,
+		"side":        side,
+		"tradeSide":   tradeSide,
+		"size":        strconv.FormatFloat(amount, 'f', -1, 64),
+	}
+	if clientOID != "" {
+		req["clientOid"] = clientOID
+	}
+	path := bitgetMix + bitgetOrder + bitgetClickBackhand
+	rLim := Rate10
+	if isCopyTradeLeader {
+		rLim = Rate1
+	}
+	var resp *OrderResp
+	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, rLim, http.MethodPost, path, nil, req,
+		&resp)
+}
+
+// BatchPlaceFuturesOrders places multiple orders at once. Can also be used to modify the take-profit and stop-loss
+// of an open position.
+func (bi *Bitget) BatchPlaceFuturesOrders(ctx context.Context, pair, productType, marginCoin, marginMode string, orders []PlaceFuturesOrderStruct, isCopyTradeLeader bool) (*BatchOrderResp, error) {
+	if pair == "" {
+		return nil, errPairEmpty
+	}
+	if productType == "" {
+		return nil, errProductTypeEmpty
+	}
+	if marginCoin == "" {
+		return nil, errMarginCoinEmpty
+	}
+	if marginMode == "" {
+		return nil, errMarginModeEmpty
+	}
+	if len(orders) == 0 {
+		return nil, errOrdersEmpty
+	}
+	req := map[string]interface{}{
+		"symbol":      pair,
+		"productType": productType,
+		"marginCoin":  marginCoin,
+		"marginMode":  marginMode,
+		"orderList":   orders,
+	}
+	path := bitgetMix + bitgetOrder + bitgetBatchPlaceOrder
+	rLim := Rate10
+	if isCopyTradeLeader {
+		rLim = Rate1
+	}
+	var resp *BatchOrderResp
+	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, rLim, http.MethodPost, path, nil, req,
+		&resp)
+}
+
+// ModifyFuturesOrder can change the size, price, take-profit, and stop-loss of an order. Size and price have to be
+// modified at the same time, or the request will fail. If size and price are altered, the old order will be cancelled,
+// and a new one will be created asynchronously. Due to the asynchronous creation of a new order, a new ClientOrderID
+// must be supplied so it can be tracked.
+func (bi *Bitget) ModifyFuturesOrder(ctx context.Context, orderID int64, clientOrderID, pair, productType, newClientOrderID string, newAmount, newPrice, newTakeProfit, newStopLoss float64) (*OrderResp, error) {
+	if orderID == 0 && clientOrderID == "" {
+		return nil, errOrderClientEmpty
+	}
+	if pair == "" {
+		return nil, errPairEmpty
+	}
+	if productType == "" {
+		return nil, errProductTypeEmpty
+	}
+	if newClientOrderID == "" {
+		return nil, errNewClientOrderIDEmpty
+	}
+	req := map[string]interface{}{
+		"orderId":                   orderID,
+		"clientOid":                 clientOrderID,
+		"symbol":                    pair,
+		"productType":               productType,
+		"newClientOid":              newClientOrderID,
+		"newSize":                   strconv.FormatFloat(newAmount, 'f', -1, 64),
+		"newPrice":                  strconv.FormatFloat(newPrice, 'f', -1, 64),
+		"newPresetStopSurplusPrice": strconv.FormatFloat(newTakeProfit, 'f', -1, 64),
+		"newPresetStopLossPrice":    strconv.FormatFloat(newStopLoss, 'f', -1, 64),
+	}
+	path := bitgetMix + bitgetOrder + bitgetModifyOrder
+	var resp *OrderResp
+	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodPost, path, nil, req,
+		&resp)
+}
+
+// CancelFuturesOrder cancels an order on the exchange
+func (bi *Bitget) CancelFuturesOrder(ctx context.Context, pair, productType, marginCoin, clientOrderId string, orderID int64) (*OrderResp, error) {
+	if pair == "" {
+		return nil, errPairEmpty
+	}
+	if productType == "" {
+		return nil, errProductTypeEmpty
+	}
+	if clientOrderId == "" && orderID == 0 {
+		return nil, errOrderClientEmpty
+	}
+	req := map[string]interface{}{
+		"symbol":      pair,
+		"productType": productType,
+		"marginCoin":  marginCoin,
+		"clientOid":   clientOrderId,
+		"orderId":     orderID,
+	}
+	path := bitgetMix + bitgetOrder + bitgetCancelOrder
+	var resp *OrderResp
+	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodPost, path, nil, req,
+		&resp)
+}
+
+// BatchCancelFuturesOrders cancels multiple orders at once
+func (bi *Bitget) BatchCancelFuturesOrders(ctx context.Context, orderIDs []OrderIDStruct, pair, productType, marginCoin string) (*BatchOrderResp, error) {
+	if productType == "" {
+		return nil, errProductTypeEmpty
+	}
+	req := map[string]interface{}{
+		"symbol":      pair,
+		"productType": productType,
+		"orderList":   orderIDs,
+	}
+	if marginCoin != "" {
+		req["marginCoin"] = marginCoin
+	}
+	path := bitgetMix + bitgetOrder + bitgetBatchCancelOrders
+	var resp *BatchOrderResp
+	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodPost, path, nil, req,
+		&resp)
+}
+
+// FlashClosePosition attempts to close a position at the best available price
+func (bi *Bitget) FlashClosePosition(ctx context.Context, pair, holdSide, productType string) (*BatchOrderResp, error) {
+	if productType == "" {
+		return nil, errProductTypeEmpty
+	}
+	req := map[string]interface{}{
+		"symbol":      pair,
+		"holdSide":    holdSide,
+		"productType": productType,
+	}
+	path := bitgetMix + bitgetOrder + bitgetClosePositions
+	var resp *BatchOrderResp
+	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate1, http.MethodPost, path, nil, req,
+		&resp)
+}
+
+// GetFuturesOrderDetails returns details on a given order
+func (bi *Bitget) GetFuturesOrderDetails(ctx context.Context, pair, productType, clientOrderID string, orderID int64) (*FuturesOrderDetailResp, error) {
+	if pair == "" {
+		return nil, errPairEmpty
+	}
+	if productType == "" {
+		return nil, errProductTypeEmpty
+	}
+	if clientOrderID == "" && orderID == 0 {
+		return nil, errOrderClientEmpty
+	}
+	vals := url.Values{}
+	vals.Set("symbol", pair)
+	vals.Set("productType", productType)
+	vals.Set("clientOid", clientOrderID)
+	vals.Set("orderId", strconv.FormatInt(orderID, 10))
+	path := bitgetMix + bitgetOrder + bitgetDetail
+	var resp *FuturesOrderDetailResp
+	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodGet, path, vals, nil,
+		&resp)
+}
+
+// GetFuturesFills returns fill details
+func (bi *Bitget) GetFuturesFills(ctx context.Context, orderID, pagination, limit int64, pair, productType string, startTime, endTime time.Time) (*FuturesFillsResp, error) {
+	if productType == "" {
+		return nil, errProductTypeEmpty
+	}
+	var params Params
+	params.Values = make(url.Values)
+	err := params.prepareDateString(startTime, endTime, true)
+	if err != nil {
+		return nil, err
+	}
+	params.Values.Set("productType", productType)
+	// if orderID != 0 {
+	params.Values.Set("orderId", strconv.FormatInt(orderID, 10))
+	// }
+	if pagination != 0 {
+		params.Values.Set("idLessThan", strconv.FormatInt(pagination, 10))
+	}
+	if limit != 0 {
+		params.Values.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	path := bitgetMix + bitgetOrder + "/" + bitgetFills
+	var resp *FuturesFillsResp
+	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodGet, path, params.Values,
+		nil, &resp)
+}
+
+// GetFuturesOrderFillHistory returns historical fill details
+func (bi *Bitget) GetFuturesOrderFillHistory(ctx context.Context, pair, productType string, pagination, limit int64, startTime, endTime time.Time) (*FuturesFillsResp, error) {
+	if productType == "" {
+		return nil, errProductTypeEmpty
+	}
+	var params Params
+	params.Values = make(url.Values)
+	err := params.prepareDateString(startTime, endTime, true)
+	if err != nil {
+		return nil, err
+	}
+	params.Values.Set("productType", productType)
+	if pagination != 0 {
+		params.Values.Set("idLessThan", strconv.FormatInt(pagination, 10))
+	}
+	if limit != 0 {
+		params.Values.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	path := bitgetMix + bitgetOrder + bitgetFillsHistory
+	var resp *FuturesFillsResp
+	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodGet, path, params.Values,
+		nil, &resp)
+}
 
 // SendAuthenticatedHTTPRequest sends an authenticated HTTP request
 func (bi *Bitget) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.URL, rateLim request.EndpointLimit, method, path string, queryParams url.Values, bodyParams map[string]interface{}, result interface{}) error {
@@ -2265,6 +2446,14 @@ func (y *YesNoBool) UnmarshalJSON(b []byte) error {
 		*y = false
 	}
 	return nil
+}
+
+// MarshalJSON marshals the YesNoBool type into a JSON string
+func (y YesNoBool) MarshalJSON() ([]byte, error) {
+	if y {
+		return json.Marshal("YES")
+	}
+	return json.Marshal("NO")
 }
 
 // UnmarshalJSON unmarshals the JSON input into a SuccessBool type
@@ -2422,4 +2611,39 @@ func (bi *Bitget) candlestickHelper(ctx context.Context, pair, granularity, path
 		}
 	}
 	return &data, nil
+}
+
+// spotOrderHelper is a helper function for unmarshalling spot order endpoints
+func (bi *Bitget) spotOrderHelper(ctx context.Context, path string, vals url.Values) (*SpotOrderDetailResp, error) {
+	var temp *OrderDetailTemp
+	err := bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate20, http.MethodGet, path, vals, nil,
+		&temp)
+	if err != nil {
+		return nil, err
+	}
+	resp := new(SpotOrderDetailResp)
+	resp.Data = make([]SpotOrderDetailData, len(temp.Data))
+	for i := range temp.Data {
+		resp.Data[i].UserID = temp.Data[i].UserID
+		resp.Data[i].Symbol = temp.Data[i].Symbol
+		resp.Data[i].OrderID = temp.Data[i].OrderID
+		resp.Data[i].ClientOrderID = temp.Data[i].ClientOrderID
+		resp.Data[i].Price = temp.Data[i].Price
+		resp.Data[i].Size = temp.Data[i].Size
+		resp.Data[i].OrderType = temp.Data[i].OrderType
+		resp.Data[i].Side = temp.Data[i].Side
+		resp.Data[i].Status = temp.Data[i].Status
+		resp.Data[i].PriceAverage = temp.Data[i].PriceAverage
+		resp.Data[i].BaseVolume = temp.Data[i].BaseVolume
+		resp.Data[i].QuoteVolume = temp.Data[i].QuoteVolume
+		resp.Data[i].EnterPointSource = temp.Data[i].EnterPointSource
+		resp.Data[i].CreationTime = temp.Data[i].CreationTime
+		resp.Data[i].UpdateTime = temp.Data[i].UpdateTime
+		resp.Data[i].OrderSource = temp.Data[i].OrderSource
+		err = json.Unmarshal(temp.Data[i].FeeDetailTemp, &resp.Data[i].FeeDetail)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return resp, nil
 }
