@@ -168,10 +168,10 @@ func TestGetBestBidAsk(t *testing.T) {
 
 func TestGetProductBook(t *testing.T) {
 	t.Parallel()
-	_, err := c.GetProductBook(context.Background(), "", 0)
+	_, err := c.GetProductBookV3(context.Background(), "", 0)
 	assert.ErrorIs(t, err, errProductIDEmpty)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, c)
-	resp, err := c.GetProductBook(context.Background(), testPair.String(), 2)
+	resp, err := c.GetProductBookV3(context.Background(), testPair.String(), 2)
 	assert.NoError(t, err)
 	assert.NotEmpty(t, resp, errExpectedNonEmpty)
 }
@@ -940,6 +940,92 @@ func TestGetPrice(t *testing.T) {
 func TestGetV2Time(t *testing.T) {
 	t.Parallel()
 	testGetNoArgs(t, c.GetV2Time)
+}
+
+func TestGetAllCurrencies(t *testing.T) {
+	t.Parallel()
+	testGetNoArgs(t, c.GetAllCurrencies)
+}
+
+func TestGetACurrency(t *testing.T) {
+	t.Parallel()
+	_, err := c.GetACurrency(context.Background(), "")
+	assert.ErrorIs(t, err, errCurrencyEmpty)
+	resp, err := c.GetACurrency(context.Background(), testCrypto.String())
+	assert.NoError(t, err)
+	assert.NotEmpty(t, resp, errExpectedNonEmpty)
+}
+
+func TestGetAllTradingPairs(t *testing.T) {
+	t.Parallel()
+	_, err := c.GetAllTradingPairs(context.Background(), "")
+	assert.NoError(t, err)
+}
+
+func TestGetAllPairVolumes(t *testing.T) {
+	t.Parallel()
+	testGetNoArgs(t, c.GetAllPairVolumes)
+}
+
+func TestGetPairDetails(t *testing.T) {
+	t.Parallel()
+	_, err := c.GetPairDetails(context.Background(), "")
+	assert.ErrorIs(t, err, errPairEmpty)
+	resp, err := c.GetPairDetails(context.Background(), testPair.String())
+	assert.NoError(t, err)
+	assert.NotEmpty(t, resp, errExpectedNonEmpty)
+}
+
+func TestGetProductBookV1(t *testing.T) {
+	t.Parallel()
+	_, err := c.GetProductBookV1(context.Background(), "", 0)
+	assert.ErrorIs(t, err, errPairEmpty)
+	resp, err := c.GetProductBookV1(context.Background(), testPair.String(), 2)
+	assert.NoError(t, err)
+	assert.NotEmpty(t, resp, errExpectedNonEmpty)
+	resp, err = c.GetProductBookV1(context.Background(), testPair.String(), 3)
+	assert.NoError(t, err)
+	assert.NotEmpty(t, resp, errExpectedNonEmpty)
+}
+
+func TestGetProductCandles(t *testing.T) {
+	t.Parallel()
+	err := c.GetProductCandles(context.Background(), "", 0, time.Time{}, time.Time{})
+	assert.ErrorIs(t, err, errPairEmpty)
+	err = c.GetProductCandles(context.Background(), testPair.String(), 300, time.Time{}, time.Time{})
+	assert.NoError(t, err)
+}
+
+func TestGetProductStats(t *testing.T) {
+	t.Parallel()
+	_, err := c.GetProductStats(context.Background(), "")
+	assert.ErrorIs(t, err, errPairEmpty)
+	resp, err := c.GetProductStats(context.Background(), testPair.String())
+	assert.NoError(t, err)
+	assert.NotEmpty(t, resp, errExpectedNonEmpty)
+}
+
+func TestGetProductTicker(t *testing.T) {
+	t.Parallel()
+	_, err := c.GetProductTicker(context.Background(), "")
+	assert.ErrorIs(t, err, errPairEmpty)
+	resp, err := c.GetProductTicker(context.Background(), testPair.String())
+	assert.NoError(t, err)
+	assert.NotEmpty(t, resp, errExpectedNonEmpty)
+}
+
+func TestGetProductTrades(t *testing.T) {
+	t.Parallel()
+	_, err := c.GetProductTrades(context.Background(), "", "", "", 0)
+	assert.ErrorIs(t, err, errPairEmpty)
+	resp, err := c.GetProductTrades(context.Background(), testPair.String(), "1", "before", 0)
+	assert.NoError(t, err)
+	assert.NotEmpty(t, resp, errExpectedNonEmpty)
+}
+
+func TestGetAllWrappedAssets(t *testing.T) {
+	t.Parallel()
+	testGetNoArgs(t, c.GetAllWrappedAssets)
 }
 
 func TestSendHTTPRequest(t *testing.T) {
@@ -1863,7 +1949,7 @@ func withdrawFiatFundsHelper(t *testing.T, fn withdrawFiatFunc) {
 
 type getNoArgsResp interface {
 	*ServerTimeV3 | *GetAllPaymentMethodsResp | *UserResponse | *AuthResponse | []FiatData |
-		[]CryptoData | *ServerTimeV2
+		[]CryptoData | *ServerTimeV2 | []CurrencyData | []PairVolumeData | *AllWrappedAssets
 }
 
 type getNoArgsAssertNotEmpty[G getNoArgsResp] func(context.Context) (G, error)

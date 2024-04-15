@@ -113,9 +113,10 @@ func (c *CoinbasePro) SetDefaults() {
 	}
 	c.API.Endpoints = c.NewEndpoints()
 	err = c.API.Endpoints.SetDefaultEndpoints(map[exchange.URL]string{
-		exchange.RestSpot:      coinbaseAPIURL,
-		exchange.RestSandbox:   coinbaseproSandboxAPIURL,
-		exchange.WebsocketSpot: coinbaseproWebsocketURL,
+		exchange.RestSpot:              coinbaseAPIURL,
+		exchange.RestSandbox:           coinbaseproSandboxAPIURL,
+		exchange.WebsocketSpot:         coinbaseproWebsocketURL,
+		exchange.RestSpotSupplementary: coinbaseV1APIURL,
 	})
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
@@ -385,7 +386,7 @@ func (c *CoinbasePro) UpdateOrderbook(ctx context.Context, p currency.Pair, asse
 	if err != nil {
 		return book, err
 	}
-	orderbookNew, err := c.GetProductBook(ctx, fPair.String(), 1000)
+	orderbookNew, err := c.GetProductBookV3(ctx, fPair.String(), 1000)
 	if err != nil {
 		return book, err
 	}

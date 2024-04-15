@@ -10,8 +10,10 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
+	"strings"
 	"time"
 
+	"github.com/gofrs/uuid"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/common/key"
@@ -23,6 +25,7 @@ import (
 
 const (
 	coinbaseAPIURL             = "https://api.coinbase.com"
+	coinbaseV1APIURL           = "https://api.exchange.coinbase.com/"
 	coinbaseproSandboxAPIURL   = "https://api-public.sandbox.exchange.coinbase.com/"
 	coinbaseV3                 = "/api/v3/brokerage/"
 	coinbaseAccounts           = "accounts"
@@ -69,6 +72,11 @@ const (
 	coinbaseExchangeRates      = "exchange-rates"
 	coinbasePrices             = "prices"
 	coinbaseTime               = "time"
+	coinbaseVolumeSummary      = "volume-summary"
+	coinbaseBook               = "book"
+	coinbaseStats              = "stats"
+	coinbaseTrades             = "trades"
+	coinbaseWrappedAssets      = "wrapped-assets"
 
 	pageNone        = ""
 	pageBefore      = "before"
@@ -147,6 +155,10 @@ var (
 	errInvalidGranularity     = errors.New("invalid granularity")
 	errOrderFailedToCancel    = errors.New("failed to cancel order")
 	errUnrecognisedStatusType = errors.New("unrecognised status type")
+	errPairEmpty              = errors.New("pair cannot be empty")
+	errStringConvert          = errors.New("unable to convert into string value")
+	errFloatConvert           = errors.New("unable to convert into float64 value")
+	errConvertGen             = errors.New("unable to convert value")
 )
 
 // GetAllAccounts returns information on all trading accounts associated with the API key
@@ -186,8 +198,8 @@ func (c *CoinbasePro) GetBestBidAsk(ctx context.Context, products []string) ([]P
 		coinbaseV3+coinbaseBestBidAsk, vals, nil, true, &resp, nil)
 }
 
-// GetProductBook returns a list of bids/asks for a single product
-func (c *CoinbasePro) GetProductBook(ctx context.Context, productID string, limit uint16) (*ProductBook, error) {
+// GetProductBookV3 returns a list of bids/asks for a single product
+func (c *CoinbasePro) GetProductBookV3(ctx context.Context, productID string, limit uint16) (*ProductBook, error) {
 	if productID == "" {
 		return nil, errProductIDEmpty
 	}
@@ -1127,6 +1139,232 @@ func (c *CoinbasePro) GetV2Time(ctx context.Context) (*ServerTimeV2, error) {
 	return resp, c.SendHTTPRequest(ctx, exchange.RestSpot, coinbaseV2+coinbaseTime, &resp)
 }
 
+// GetAllCurrencies returns a list of all currencies that Coinbase knows about. These aren't necessarily tradable
+func (c *CoinbasePro) GetAllCurrencies(ctx context.Context) ([]CurrencyData, error) {
+	var resp []CurrencyData
+	return resp, c.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, coinbaseCurrencies, &resp)
+}
+
+// GetACurrency returns information on a single currency specified by the user
+func (c *CoinbasePro) GetACurrency(ctx context.Context, currency string) (*CurrencyData, error) {
+	if currency == "" {
+		return nil, errCurrencyEmpty
+	}
+	var resp *CurrencyData
+	path := coinbaseCurrencies + "/" + currency
+	return resp, c.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, path, &resp)
+}
+
+// GetAllTradingPairs returns a list of currency pairs which are available for trading
+func (c *CoinbasePro) GetAllTradingPairs(ctx context.Context, pairType string) ([]PairData, error) {
+	var resp []PairData
+	vals := url.Values{}
+	if pairType != "" {
+		vals.Set("type", pairType)
+	}
+	path := common.EncodeURLValues(coinbaseProducts, vals)
+	return resp, c.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, path, &resp)
+}
+
+// GetAllPairVolumes returns a list of currency pairs and their associated volumes
+func (c *CoinbasePro) GetAllPairVolumes(ctx context.Context) ([]PairVolumeData, error) {
+	var resp []PairVolumeData
+	path := coinbaseProducts + "/" + coinbaseVolumeSummary
+	return resp, c.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, path, &resp)
+}
+
+// GetPairDetails returns information on a single currency pair
+func (c *CoinbasePro) GetPairDetails(ctx context.Context, pair string) (*PairData, error) {
+	if pair == "" {
+		return nil, errPairEmpty
+	}
+	var resp *PairData
+	path := coinbaseProducts + "/" + pair
+	return resp, c.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, path, &resp)
+}
+
+// GetProductBookV1 returns the order book for the specified currency pair. Level 1 only returns the best bids and asks,
+// Level 2 returns the full order book with orders at the same price aggregated, Level 3 returns the full
+// non-aggregated order book.
+func (c *CoinbasePro) GetProductBookV1(ctx context.Context, pair string, level uint8) (*OrderBook, error) {
+	if pair == "" {
+		return nil, errPairEmpty
+	}
+	var resp OrderBookResp
+	vals := url.Values{}
+	vals.Set("level", strconv.FormatUint(uint64(level), 10))
+	path := common.EncodeURLValues(coinbaseProducts+"/"+pair+"/"+coinbaseBook, vals)
+	err := c.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, path, &resp)
+	if err != nil {
+		return nil, err
+	}
+	ob := &OrderBook{
+		Sequence:    resp.Sequence,
+		Bids:        make([]Orders, len(resp.Bids)),
+		Asks:        make([]Orders, len(resp.Asks)),
+		AuctionMode: resp.AuctionMode,
+		Auction:     resp.Auction,
+		Time:        resp.Time,
+	}
+	for i := range resp.Bids {
+		tempS1, ok := resp.Bids[i][0].(string)
+		if !ok {
+			return nil, fmt.Errorf("%w, %v", errStringConvert, resp.Bids[i][0])
+		}
+		tempF1, err := strconv.ParseFloat(tempS1, 64)
+		if err != nil {
+			return nil, err
+		}
+		tempS2, ok := resp.Bids[i][1].(string)
+		if !ok {
+			return nil, fmt.Errorf("%w, %v", errStringConvert, resp.Bids[i][1])
+		}
+		tempF2, err := strconv.ParseFloat(tempS2, 64)
+		if err != nil {
+			return nil, err
+		}
+		switch tempV := resp.Bids[i][2].(type) {
+		case string:
+			tempU, err := uuid.FromString(tempV)
+			if err != nil {
+				return nil, err
+			}
+			ob.Bids[i] = Orders{Price: tempF1, Size: tempF2, OrderCount: 1, OrderID: tempU}
+		case float64:
+			tempU := uint64(tempV)
+			ob.Bids[i] = Orders{Price: tempF1, Size: tempF2, OrderCount: tempU}
+		}
+	}
+	for i := range resp.Asks {
+		tempS1, ok := resp.Asks[i][0].(string)
+		if !ok {
+			return nil, fmt.Errorf("%w, %v", errStringConvert, resp.Asks[i][0])
+		}
+		tempF1, err := strconv.ParseFloat(tempS1, 64)
+		if err != nil {
+			return nil, err
+		}
+		tempS2, ok := resp.Asks[i][1].(string)
+		if !ok {
+			return nil, fmt.Errorf("%w, %v", errStringConvert, resp.Asks[i][1])
+		}
+		tempF2, err := strconv.ParseFloat(tempS2, 64)
+		if err != nil {
+			return nil, err
+		}
+		switch tempV := resp.Asks[i][2].(type) {
+		case string:
+			tempU, err := uuid.FromString(tempV)
+			if err != nil {
+				return nil, err
+			}
+			ob.Asks[i] = Orders{Price: tempF1, Size: tempF2, OrderCount: 1, OrderID: tempU}
+		case float64:
+			tempU := uint64(tempV)
+			ob.Asks[i] = Orders{Price: tempF1, Size: tempF2, OrderCount: tempU}
+		}
+	}
+	return ob, nil
+}
+
+// GetProductCandles returns historical market data for the specified currency pair.
+func (c *CoinbasePro) GetProductCandles(ctx context.Context, pair string, granularity uint32, startTime, endTime time.Time) error {
+	if pair == "" {
+		return errPairEmpty
+	}
+	var params Params
+	params.Values = url.Values{}
+	params.prepareDateString(startTime, endTime, "start", "end")
+	if granularity != 0 {
+		params.Values.Set("granularity", strconv.FormatUint(uint64(granularity), 10))
+	}
+	path := common.EncodeURLValues(coinbaseProducts+"/"+pair+"/"+coinbaseCandles, params.Values)
+	var resp []RawCandles
+	err := c.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, path, &resp)
+	if err != nil {
+		return err
+	}
+	candles := make([]Candle, len(resp))
+	for i := range resp {
+		f1, ok := resp[i][0].(float64)
+		if !ok {
+			return fmt.Errorf("%w, %v", errFloatConvert, resp[i][0])
+		}
+		ti := int64(f1)
+		t := time.Unix(ti, 0)
+		f2, ok := resp[i][1].(float64)
+		if !ok {
+			return fmt.Errorf("%w, %v", errFloatConvert, resp[i][1])
+		}
+		f3, ok := resp[i][2].(float64)
+		if !ok {
+			return fmt.Errorf("%w, %v", errFloatConvert, resp[i][2])
+		}
+		f4, ok := resp[i][3].(float64)
+		if !ok {
+			return fmt.Errorf("%w, %v", errFloatConvert, resp[i][3])
+		}
+		f5, ok := resp[i][4].(float64)
+		if !ok {
+			return fmt.Errorf("%w, %v", errFloatConvert, resp[i][4])
+		}
+		f6, ok := resp[i][5].(float64)
+		if !ok {
+			return fmt.Errorf("%w, %v", errFloatConvert, resp[i][5])
+		}
+		candles[i] = Candle{
+			Time:   t,
+			Low:    f2,
+			High:   f3,
+			Open:   f4,
+			Close:  f5,
+			Volume: f6,
+		}
+	}
+	return nil
+}
+
+// GetProductStats returns information on a specific pair's price and volume
+func (c *CoinbasePro) GetProductStats(ctx context.Context, pair string) (*ProductStats, error) {
+	if pair == "" {
+		return nil, errPairEmpty
+	}
+	path := coinbaseProducts + "/" + pair + "/" + coinbaseStats
+	var resp *ProductStats
+	return resp, c.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, path, &resp)
+}
+
+// GetProductTicker returns the ticker for the specified currency pair
+func (c *CoinbasePro) GetProductTicker(ctx context.Context, pair string) (*ProductTicker, error) {
+	if pair == "" {
+		return nil, errPairEmpty
+	}
+	path := coinbaseProducts + "/" + pair + "/" + coinbaseTicker
+	var resp *ProductTicker
+	return resp, c.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, path, &resp)
+}
+
+// GetProductTrades returns a list of the latest traides for a pair
+func (c *CoinbasePro) GetProductTrades(ctx context.Context, pair, step, direction string, limit int64) ([]ProductTrades, error) {
+	if pair == "" {
+		return nil, errPairEmpty
+	}
+	vals := url.Values{}
+	if step != "" {
+		vals.Set(direction, step)
+	}
+	vals.Set("limit", strconv.FormatInt(limit, 10))
+	path := common.EncodeURLValues(coinbaseProducts+"/"+pair+"/"+coinbaseTrades, vals)
+	var resp []ProductTrades
+	return resp, c.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, path, &resp)
+}
+
+// GetAllWrappedAssets returns a list of supported wrapped assets
+func (c *CoinbasePro) GetAllWrappedAssets(ctx context.Context) (*AllWrappedAssets, error) {
+	var resp *AllWrappedAssets
+	return resp, c.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, coinbaseWrappedAssets, &resp)
+}
+
 // SendHTTPRequest sends an unauthenticated HTTP request
 func (c *CoinbasePro) SendHTTPRequest(ctx context.Context, ep exchange.URL, path string, result interface{}) error {
 	endpoint, err := c.API.Endpoints.GetURL(ep)
@@ -1141,7 +1379,11 @@ func (c *CoinbasePro) SendHTTPRequest(ctx context.Context, ep exchange.URL, path
 		HTTPDebugging: c.HTTPDebugging,
 		HTTPRecording: c.HTTPRecording,
 	}
-	return c.SendPayload(ctx, request.Unset, func() (*request.Item, error) {
+	rLim := PubRate
+	if strings.Contains(path, coinbaseV2) {
+		rLim = V2Rate
+	}
+	return c.SendPayload(ctx, rLim, func() (*request.Item, error) {
 		return item, nil
 	}, request.UnauthenticatedRequest)
 }

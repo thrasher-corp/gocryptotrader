@@ -4,6 +4,7 @@ import (
 	"net/url"
 	"time"
 
+	"github.com/gofrs/uuid"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -75,7 +76,7 @@ type PriSiz struct {
 	Size  float64 `json:"size,string"`
 }
 
-// ProductBook holds bid and ask prices for a particular product, returned by GetProductBook
+// ProductBook holds bid and ask prices for a particular product, returned by GetProductBookV3
 // and used as a sub-struct in the types BestBidAsk and ProductBookResponse
 type ProductBook struct {
 	ProductID string    `json:"product_id"`
@@ -90,7 +91,7 @@ type BestBidAsk struct {
 	Pricebooks []ProductBook `json:"pricebooks"`
 }
 
-// ProductBookResponse is a temporary struct used for unmarshalling in GetProductBook
+// ProductBookResponse is a temporary struct used for unmarshalling in GetProductBookV3
 type ProductBookResponse struct {
 	Pricebook ProductBook `json:"pricebook"`
 }
@@ -1293,4 +1294,185 @@ type WebsocketOrderData struct {
 type WebsocketOrderDataHolder struct {
 	Type   string               `json:"type"`
 	Orders []WebsocketOrderData `json:"orders"`
+}
+
+// CurrencyData contains information on known currencies, used in GetAllCurrencies and GetACurrency
+type CurrencyData struct {
+	ID            string   `json:"id"`
+	Name          string   `json:"name"`
+	MinSize       string   `json:"min_size"`
+	Status        string   `json:"status"`
+	Message       string   `json:"message"`
+	MaxPrecision  float64  `json:"max_precision,string"`
+	ConvertibleTo []string `json:"convertible_to"`
+	Details       struct {
+		Type                  string   `json:"type"`
+		Symbol                string   `json:"symbol"`
+		NetworkConfirmations  int32    `json:"network_confirmations"`
+		SortOrder             int32    `json:"sort_order"`
+		CryptoAddressLink     string   `json:"crypto_address_link"`
+		CryptoTransactionLink string   `json:"crypto_transaction_link"`
+		PushPaymentMethods    []string `json:"push_payment_methods"`
+		GroupTypes            []string `json:"group_types"`
+		DisplayName           string   `json:"display_name"`
+		ProcessingTimeSeconds int64    `json:"processing_time_seconds"`
+		MinWithdrawalAmount   float64  `json:"min_withdrawal_amount"`
+		MaxWithdrawalAmount   float64  `json:"max_withdrawal_amount"`
+	} `json:"details"`
+	DefaultNetwork    string `json:"default_network"`
+	SupportedNetworks []struct {
+		ID                    string  `json:"id"`
+		Name                  string  `json:"name"`
+		Status                string  `json:"status"`
+		ContractAddress       string  `json:"contract_address"`
+		CryptoAddressLink     string  `json:"crypto_address_link"`
+		CryptoTransactionLink string  `json:"crypto_transaction_link"`
+		MinWithdrawalAmount   float64 `json:"min_withdrawal_amount"`
+		MaxWithdrawalAmount   float64 `json:"max_withdrawal_amount"`
+		NetworkConfirmations  int32   `json:"network_confirmations"`
+		ProcessingTimeSeconds int64   `json:"processing_time_seconds"`
+	} `json:"supported_networks"`
+	DisplayName string `json:"display_name"`
+}
+
+// PairData contains information on available trading pairs, used in GetAllTradingPairs
+type PairData struct {
+	ID                     string       `json:"id"`
+	BaseCurrency           string       `json:"base_currency"`
+	QuoteCurrency          string       `json:"quote_currency"`
+	QuoteIncrement         string       `json:"quote_increment"`
+	BaseIncrement          string       `json:"base_increment"`
+	DisplayName            string       `json:"display_name"`
+	MinMarketFunds         string       `json:"min_market_funds"`
+	MarginEnabled          bool         `json:"margin_enabled"`
+	PostOnly               bool         `json:"post_only"`
+	LimitOnly              bool         `json:"limit_only"`
+	CancelOnly             bool         `json:"cancel_only"`
+	Status                 string       `json:"status"`
+	StatusMessage          string       `json:"status_message"`
+	TradingDisabled        bool         `json:"trading_disabled"`
+	FXStablecoin           bool         `json:"fx_stablecoin"`
+	MaxSlippagePercentage  float64      `json:"max_slippage_percentage,string"`
+	AuctionMode            bool         `json:"auction_mode"`
+	HighBidLimitPercentage types.Number `json:"high_bid_limit_percentage"`
+}
+
+// PairVolumeData contains information on trading pair volume, used in GetAllPairVolumes
+type PairVolumeData struct {
+	ID                     string       `json:"id"`
+	BaseCurrency           string       `json:"base_currency"`
+	QuoteCurrency          string       `json:"quote_currency"`
+	DisplayName            string       `json:"display_name"`
+	MarketTypes            []string     `json:"market_types"`
+	SpotVolume24Hour       types.Number `json:"spot_volume_24hour"`
+	SpotVolume30Day        types.Number `json:"spot_volume_30day"`
+	RFQVolume24Hour        float64      `json:"rfq_volume_24hour,string"`
+	RFQVolume30Day         float64      `json:"rfq_volume_30day,string"`
+	ConversionVolume24Hour float64      `json:"conversion_volume_24hour,string"`
+	ConversionVolume30Day  float64      `json:"conversion_volume_30day,string"`
+}
+
+// Auction holds information on an ongoing auction, used as a sub-struct in OrderBookResp and OrderBook
+type Auction struct {
+	OpenPrice    float64   `json:"open_price,string"`
+	OpenSize     float64   `json:"open_size,string"`
+	BestBidPrice float64   `json:"best_bid_price,string"`
+	BestBidSize  float64   `json:"best_bid_size,string"`
+	BestAskPrice float64   `json:"best_ask_price,string"`
+	BestAskSize  float64   `json:"best_ask_size,string"`
+	AuctionState string    `json:"auction_state"`
+	CanOpen      string    `json:"can_open"`
+	Time         time.Time `json:"time"`
+}
+
+// OrderBookResp holds information on bids and asks for a particular currency pair, used for unmarshalling in
+// GetProductBookV1
+type OrderBookResp struct {
+	Bids        [][3]interface{} `json:"bids"`
+	Asks        [][3]interface{} `json:"asks"`
+	Sequence    float64          `json:"sequence"`
+	AuctionMode bool             `json:"auction_mode"`
+	Auction     Auction          `json:"auction"`
+	Time        time.Time        `json:"time"`
+}
+
+// Orders holds information on orders, used as a sub-struct in OrderBook
+type Orders struct {
+	Price      float64
+	Size       float64
+	OrderCount uint64
+	OrderID    uuid.UUID
+}
+
+// OrderBook holds information on bids and asks for a particular currency pair, used in GetProductBookV1
+type OrderBook struct {
+	Bids        []Orders
+	Asks        []Orders
+	Sequence    float64
+	AuctionMode bool
+	Auction     Auction
+	Time        time.Time
+}
+
+// RawCandles holds raw candle data, used in unmarshalling for GetProductCandles
+type RawCandles [6]interface{}
+
+// Candle holds properly formatted candle data, returned by GetProductCandles
+type Candle struct {
+	Time   time.Time
+	Low    float64
+	High   float64
+	Open   float64
+	Close  float64
+	Volume float64
+}
+
+// ProductStats holds information on a pair's price and volume, returned by GetProductStats
+type ProductStats struct {
+	Open                    float64 `json:"open,string"`
+	High                    float64 `json:"high,string"`
+	Low                     float64 `json:"low,string"`
+	Last                    float64 `json:"last,string"`
+	Volume                  float64 `json:"volume,string"`
+	Volume30Day             float64 `json:"volume_30day,string"`
+	RFQVolume24Hour         float64 `json:"rfq_volume_24hour,string"`
+	RFQVolume30Day          float64 `json:"rfq_volume_30day,string"`
+	ConversionsVolume24Hour float64 `json:"conversions_volume_24hour,string"`
+	ConversionsVolume30Day  float64 `json:"conversions_volume_30day,string"`
+}
+
+// ProductTicker holds information on a pair's price and volume, returned by GetProductTicker
+type ProductTicker struct {
+	Ask               float64   `json:"ask,string"`
+	Bid               float64   `json:"bid,string"`
+	Volume            float64   `json:"volume,string"`
+	TradeID           int32     `json:"trade_id"`
+	Price             float64   `json:"price,string"`
+	Size              float64   `json:"size,string"`
+	Time              time.Time `json:"time"`
+	RFQVolume         float64   `json:"rfq_volume,string"`
+	ConversionsVolume float64   `json:"conversions_volume,string"`
+}
+
+// ProductTrades holds information on a pair's trades, returned by GetProductTrades
+type ProductTrades struct {
+	TradeID int32     `json:"trade_id"`
+	Side    string    `json:"side"`
+	Size    float64   `json:"size,string"`
+	Price   float64   `json:"price,string"`
+	Time    time.Time `json:"time"`
+}
+
+// WrappedAsset holds information on a wrapped asset, used in AllWrappedAssets
+type WrappedAsset struct {
+	ID                string       `json:"id"`
+	CirculatingSupply float64      `json:"circulating_supply,string"`
+	TotalSupply       float64      `json:"total_supply,string"`
+	ConversionRate    float64      `json:"conversion_rate,string"`
+	APY               types.Number `json:"apy"`
+}
+
+// AllWrappedAssets holds information on all wrapped assets, returned by GetAllWrappedAssets
+type AllWrappedAssets struct {
+	WrappedAssets []WrappedAsset `json:"wrapped_assets"`
 }
