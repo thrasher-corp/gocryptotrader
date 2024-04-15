@@ -32,29 +32,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
-// GetDefaultConfig returns a default exchange config
-func (h *HUOBI) GetDefaultConfig(ctx context.Context) (*config.Exchange, error) {
-	h.SetDefaults()
-	exchCfg, err := h.GetStandardConfig()
-	if err != nil {
-		return nil, err
-	}
-
-	err = h.SetupDefaults(exchCfg)
-	if err != nil {
-		return nil, err
-	}
-
-	if h.Features.Supports.RESTCapabilities.AutoPairUpdates {
-		err = h.UpdateTradablePairs(ctx, true)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	return exchCfg, nil
-}
-
 // SetDefaults sets default values for the exchange
 func (h *HUOBI) SetDefaults() {
 	h.Name = "Huobi"

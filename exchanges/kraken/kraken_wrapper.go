@@ -34,29 +34,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
-// GetDefaultConfig returns a default exchange config
-func (k *Kraken) GetDefaultConfig(ctx context.Context) (*config.Exchange, error) {
-	k.SetDefaults()
-	exchCfg, err := k.GetStandardConfig()
-	if err != nil {
-		return nil, err
-	}
-
-	err = k.SetupDefaults(exchCfg)
-	if err != nil {
-		return nil, err
-	}
-
-	if k.Features.Supports.RESTCapabilities.AutoPairUpdates {
-		err = k.UpdateTradablePairs(ctx, true)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	return exchCfg, nil
-}
-
 // SetDefaults sets current default settings
 func (k *Kraken) SetDefaults() {
 	k.Name = "Kraken"
