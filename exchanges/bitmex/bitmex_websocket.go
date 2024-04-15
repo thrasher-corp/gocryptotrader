@@ -624,7 +624,7 @@ func (b *Bitmex) Unsubscribe(subs subscription.List) error {
 	return err
 }
 
-// channelName converts global channel Names used in config of channel input into kucoin channel names
+// channelName converts global channel Names used in config of channel input into bitmex channel names
 // returns the name unchanged if no match is found
 func channelName(name string) string {
 	if s, ok := subscriptionNames[name]; ok {
