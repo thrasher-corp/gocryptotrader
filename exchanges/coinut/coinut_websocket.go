@@ -603,7 +603,7 @@ func (c *COINUT) GenerateDefaultSubscriptions() (subscription.List, error) {
 func (c *COINUT) Subscribe(subs subscription.List) error {
 	var errs error
 	for _, s := range subs {
-		if len(s.Pairs) > 1 {
+		if len(s.Pairs) != 1 {
 			return subscription.ErrNotSinglePair
 		}
 		fPair, err := c.FormatExchangeCurrency(s.Pairs[0], asset.Spot)
@@ -633,7 +633,7 @@ func (c *COINUT) Subscribe(subs subscription.List) error {
 func (c *COINUT) Unsubscribe(channelToUnsubscribe subscription.List) error {
 	var errs error
 	for _, s := range channelToUnsubscribe {
-		if len(s.Pairs) > 1 {
+		if len(s.Pairs) != 1 {
 			return subscription.ErrNotSinglePair
 		}
 		fPair, err := c.FormatExchangeCurrency(s.Pairs[0], asset.Spot)
