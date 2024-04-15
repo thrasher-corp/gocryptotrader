@@ -181,7 +181,7 @@ func (g *Gateio) generateOptionsPayload(event string, channelsToSubscribe subscr
 	var intervalString string
 	payloads := make([]WsInput, len(channelsToSubscribe))
 	for i := range channelsToSubscribe {
-		if len(channelsToSubscribe[i].Pairs) > 1 {
+		if len(channelsToSubscribe[i].Pairs) != 1 {
 			return nil, subscription.ErrNotSinglePair
 		}
 		var auth *WsAuthInput
