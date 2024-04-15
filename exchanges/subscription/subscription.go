@@ -105,7 +105,8 @@ func (s *Subscription) EnsureKeyed() any {
 }
 
 // Clone returns a copy of a subscription
-// Key is set to nil, because any original key is meaningless on a clone
+// Key is set to nil, because most Key types contain a pointer to the subscription, and because the clone isn't added to the store yet
+// Users should allow a default key to be assigned on AddSubscription or can SetKey as necessary
 func (s *Subscription) Clone() *Subscription {
 	s.m.RLock()
 	c := &Subscription{
