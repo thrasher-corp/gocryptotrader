@@ -1198,7 +1198,9 @@ channels:
 		}
 
 		for j := range *s {
-			(*s)[j].Pairs = append((*s)[j].Pairs, channelsToSubscribe[i].Pairs[0].String())
+			for _, p := range channelsToSubscribe[i].Pairs {
+				(*s)[j].Pairs = append((*s)[j].Pairs, p.String())
+			}
 			(*s)[j].Channels = append((*s)[j].Channels, channelsToSubscribe[i])
 			continue channels
 		}
@@ -1214,8 +1216,8 @@ channels:
 		if channelsToSubscribe[i].Channel == "book" {
 			outbound.Subscription.Depth = krakenWsOrderbookDepth
 		}
-		if !channelsToSubscribe[i].Pairs[0].IsEmpty() {
-			outbound.Pairs = []string{channelsToSubscribe[i].Pairs[0].String()}
+		for _, p := range channelsToSubscribe[i].Pairs {
+			outbound.Pairs = append(outbound.Pairs, p.String())
 		}
 		if common.StringDataContains(authenticatedChannels, channelsToSubscribe[i].Channel) {
 			outbound.Subscription.Token = authToken
