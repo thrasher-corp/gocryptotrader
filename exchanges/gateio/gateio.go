@@ -164,6 +164,7 @@ var (
 	errInvalidSubAccountUserID       = errors.New("sub-account user id is required")
 	errCannotParseSettlementCurrency = errors.New("cannot derive settlement currency")
 	errMissingAPIKey                 = errors.New("missing API key information")
+	errInvalidTextValue              = errors.New("invalid text value, requires prefix `t-`")
 )
 
 // Gateio is the overarching type across this package
@@ -554,7 +555,6 @@ func (g *Gateio) CreateBatchOrders(ctx context.Context, args []CreateOrderReques
 	if len(args) > 10 {
 		return nil, fmt.Errorf("%w only 10 orders are canceled at once", errMultipleOrders)
 	}
-	var err error
 	for x := range args {
 		if (x != 0) && args[x-1].Account != args[x].Account {
 			return nil, errDifferentAccount
@@ -573,13 +573,6 @@ func (g *Gateio) CreateBatchOrders(ctx context.Context, args []CreateOrderReques
 			!strings.EqualFold(args[x].Account, asset.CrossMargin.String()) &&
 			!strings.EqualFold(args[x].Account, asset.Margin.String()) {
 			return nil, errors.New("only spot, margin, and cross_margin area allowed")
-		}
-		if args[x].Text == "" {
-			args[x].Text, err = common.GenerateRandomString(10, common.NumberCharacters)
-			if err != nil {
-				return nil, err
-			}
-			args[x].Text = "t-" + args[x].Text
 		}
 		if args[x].Amount <= 0 {
 			return nil, errInvalidAmount
@@ -650,15 +643,6 @@ func (g *Gateio) PlaceSpotOrder(ctx context.Context, arg *CreateOrderRequestData
 		!strings.EqualFold(arg.Account, asset.CrossMargin.String()) &&
 		!strings.EqualFold(arg.Account, asset.Margin.String()) {
 		return nil, errors.New("only 'spot', 'cross_margin', and 'margin' area allowed")
-	}
-	if arg.Text != "" {
-		arg.Text = "t-" + arg.Text
-	} else {
-		randomString, err := common.GenerateRandomString(10, common.NumberCharacters)
-		if err != nil {
-			return nil, err
-		}
-		arg.Text = "t-" + randomString
 	}
 	if arg.Amount <= 0 {
 		return nil, errInvalidAmount
@@ -2155,12 +2139,16 @@ func (g *Gateio) GetFuturesAccountBooks(ctx context.Context, settle string, limi
 }
 
 // GetAllFuturesPositionsOfUsers list all positions of users.
-func (g *Gateio) GetAllFuturesPositionsOfUsers(ctx context.Context, settle string) (*Position, error) {
+func (g *Gateio) GetAllFuturesPositionsOfUsers(ctx context.Context, settle string, realPositionsOnly bool) ([]Position, error) {
 	if settle == "" {
 		return nil, errEmptySettlementCurrency
 	}
-	var response *Position
-	return response, g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, perpetualSwapPrivateEPL, http.MethodGet, futuresPath+settle+"/positions", nil, nil, &response)
+	params := url.Values{}
+	if realPositionsOnly {
+		params.Set("holding", "true")
+	}
+	var response []Position
+	return response, g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, perpetualSwapPrivateEPL, http.MethodGet, futuresPath+settle+"/positions", params, nil, &response)
 }
 
 // GetSinglePosition returns a single position
@@ -2342,20 +2330,14 @@ func (g *Gateio) PlaceFuturesOrder(ctx context.Context, arg *OrderCreateParams) 
 	if arg.Size == 0 {
 		return nil, fmt.Errorf("%w, specify positive number to make a bid, and negative number to ask", errInvalidOrderSide)
 	}
-	if arg.TimeInForce != gtcTIF && arg.TimeInForce != iocTIF && arg.TimeInForce != pocTIF && arg.TimeInForce != focTIF {
+	if arg.TimeInForce != gtcTIF && arg.TimeInForce != iocTIF && arg.TimeInForce != pocTIF && arg.TimeInForce != fokTIF {
 		return nil, errInvalidTimeInForce
 	}
-	if arg.Price < 0 {
+	if arg.Price == "" {
 		return nil, errInvalidPrice
 	}
-	if arg.Text != "" {
-		arg.Text = "t-" + arg.Text
-	} else {
-		randomString, err := common.GenerateRandomString(10, common.NumberCharacters)
-		if err != nil {
-			return nil, err
-		}
-		arg.Text = "t-" + randomString
+	if arg.Price == "0" && arg.TimeInForce != iocTIF && arg.TimeInForce != fokTIF {
+		return nil, errInvalidTimeInForce
 	}
 	if arg.AutoSize != "" && (arg.AutoSize == "close_long" || arg.AutoSize == "close_short") {
 		return nil, errInvalidAutoSizeValue
@@ -2366,10 +2348,13 @@ func (g *Gateio) PlaceFuturesOrder(ctx context.Context, arg *OrderCreateParams) 
 	}
 	var response *Order
 	return response, g.SendAuthenticatedHTTPRequest(ctx,
-		exchange.RestSpot, perpetualSwapPlaceOrdersEPL,
+		exchange.RestSpot,
+		perpetualSwapPlaceOrdersEPL,
 		http.MethodPost,
 		futuresPath+arg.Settle+ordersPath,
-		nil, &arg, &response)
+		nil,
+		&arg,
+		&response)
 }
 
 // GetFuturesOrders retrieves list of futures orders
@@ -2378,11 +2363,10 @@ func (g *Gateio) GetFuturesOrders(ctx context.Context, contract currency.Pair, s
 	if settle == "" {
 		return nil, errEmptySettlementCurrency
 	}
-	if contract.IsInvalid() {
-		return nil, fmt.Errorf("%w, currency pair for contract must not be empty", errInvalidOrMissingContractParam)
-	}
 	params := url.Values{}
-	params.Set("contract", contract.String())
+	if !contract.IsEmpty() {
+		params.Set("contract", contract.String())
+	}
 	if status != statusOpen && status != statusFinished {
 		return nil, fmt.Errorf("%w, only 'open' and 'finished' status are supported", errInvalidOrderStatus)
 	}
@@ -2448,17 +2432,17 @@ func (g *Gateio) PlaceBatchFuturesOrders(ctx context.Context, settle string, arg
 		if args[x].TimeInForce != gtcTIF &&
 			args[x].TimeInForce != iocTIF &&
 			args[x].TimeInForce != pocTIF &&
-			args[x].TimeInForce != focTIF {
+			args[x].TimeInForce != fokTIF {
 			return nil, errInvalidTimeInForce
 		}
-		if args[x].Price > 0 && args[x].TimeInForce == iocTIF {
-			args[x].Price = 0
-		}
-		if args[x].Price < 0 {
+		if args[x].Price == "" {
 			return nil, errInvalidPrice
 		}
+		if args[x].Price == "0" && args[x].TimeInForce != iocTIF && args[x].TimeInForce != fokTIF {
+			return nil, errInvalidTimeInForce
+		}
 		if args[x].Text != "" && !strings.HasPrefix(args[x].Text, "t-") {
-			args[x].Text = "t-" + args[x].Text
+			return nil, errInvalidTextValue
 		}
 		if args[x].AutoSize != "" && (args[x].AutoSize == "close_long" || args[x].AutoSize == "close_short") {
 			return nil, errInvalidAutoSizeValue
@@ -2980,20 +2964,11 @@ func (g *Gateio) PlaceDeliveryOrder(ctx context.Context, arg *OrderCreateParams)
 	if arg.Size == 0 {
 		return nil, fmt.Errorf("%w, specify positive number to make a bid, and negative number to ask", errInvalidOrderSide)
 	}
-	if arg.TimeInForce != gtcTIF && arg.TimeInForce != iocTIF && arg.TimeInForce != pocTIF && arg.TimeInForce != focTIF {
+	if arg.TimeInForce != gtcTIF && arg.TimeInForce != iocTIF && arg.TimeInForce != pocTIF && arg.TimeInForce != fokTIF {
 		return nil, errInvalidTimeInForce
 	}
-	if arg.Price < 0 {
+	if arg.Price == "" {
 		return nil, errInvalidPrice
-	}
-	if arg.Text != "" {
-		arg.Text = "t-" + arg.Text
-	} else {
-		randomString, err := common.GenerateRandomString(10, common.NumberCharacters)
-		if err != nil {
-			return nil, err
-		}
-		arg.Text = "t-" + randomString
 	}
 	if arg.AutoSize != "" && (arg.AutoSize == "close_long" || arg.AutoSize == "close_short") {
 		return nil, errInvalidAutoSizeValue
@@ -3013,11 +2988,10 @@ func (g *Gateio) GetDeliveryOrders(ctx context.Context, contract currency.Pair, 
 	if settle == "" {
 		return nil, errEmptySettlementCurrency
 	}
-	if contract.IsInvalid() {
-		return nil, fmt.Errorf("%w, currency pair for contract must not be empty", errInvalidOrMissingContractParam)
-	}
 	params := url.Values{}
-	params.Set("contract", contract.String())
+	if !contract.IsEmpty() {
+		params.Set("contract", contract.String())
+	}
 	if status != statusOpen && status != statusFinished {
 		return nil, fmt.Errorf("%w, only 'open' and 'finished' status are supported", errInvalidOrderStatus)
 	}
@@ -3498,12 +3472,6 @@ func (g *Gateio) PlaceOptionOrder(ctx context.Context, arg *OptionOrderParam) (*
 	if arg.TimeInForce == iocTIF || arg.Price < 0 {
 		arg.Price = 0
 	}
-	var err error
-	arg.Text, err = common.GenerateRandomString(10, common.NumberCharacters)
-	if err != nil {
-		return nil, err
-	}
-	arg.Text = "t-" + arg.Text
 	var response *OptionOrderResponse
 	return response, g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, perpetualSwapPlaceOrdersEPL, http.MethodPost,
 		gateioOptionsOrders, nil, &arg, &response)
