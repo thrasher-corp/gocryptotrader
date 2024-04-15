@@ -1747,10 +1747,7 @@ func (b *Bitfinex) subscribeToChan(chans subscription.List) error {
 	// Add a temporary Key so we can find this Sub when we get the resp without delay or context switch
 	// Otherwise we might drop the first messages after the subscribed resp
 	c.Key = subID // Note subID string type avoids conflicts with later chanID key
-	if err = c.SetState(subscription.SubscribingState); err == nil {
-		err = b.Websocket.AddSubscriptions(c)
-	}
-	if err != nil {
+	if err = b.Websocket.AddSubscriptions(c); err != nil {
 		return fmt.Errorf("%w Channel: %s Pair: %s Error: %w", stream.ErrSubscriptionFailure, c.Channel, c.Pairs, err)
 	}
 

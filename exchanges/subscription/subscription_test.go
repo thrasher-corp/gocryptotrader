@@ -39,13 +39,13 @@ func TestState(t *testing.T) {
 func TestSetState(t *testing.T) {
 	t.Parallel()
 
-	s := &Subscription{state: UnsubscribingState}
+	s := &Subscription{state: UnsubscribedState}
 
-	for i := InactiveState; i <= UnsubscribingState; i++ {
+	for i := InactiveState; i <= UnsubscribedState; i++ {
 		assert.NoErrorf(t, s.SetState(i), "State should not error setting state %s", i)
 	}
-	assert.ErrorIs(t, s.SetState(UnsubscribingState), ErrInStateAlready, "SetState should error on same state")
-	assert.ErrorIs(t, s.SetState(UnsubscribingState+1), ErrInvalidState, "Setting an invalid state should error")
+	assert.ErrorIs(t, s.SetState(UnsubscribedState), ErrInStateAlready, "SetState should error on same state")
+	assert.ErrorIs(t, s.SetState(UnsubscribedState+1), ErrInvalidState, "Setting an invalid state should error")
 }
 
 // TestEnsureKeyed exercises the key getter and ensures it sets a self-pointer key for non

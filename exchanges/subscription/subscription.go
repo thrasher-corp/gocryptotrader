@@ -17,7 +17,9 @@ const (
 	InactiveState State = iota
 	SubscribingState
 	SubscribedState
+	ResubscribingState
 	UnsubscribingState
+	UnsubscribedState
 )
 
 // Channel constants
@@ -79,7 +81,7 @@ func (s *Subscription) SetState(state State) error {
 	if state == s.state {
 		return ErrInStateAlready
 	}
-	if state > UnsubscribingState {
+	if state > UnsubscribedState {
 		return ErrInvalidState
 	}
 	s.state = state

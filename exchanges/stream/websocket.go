@@ -797,10 +797,14 @@ func (w *Websocket) UnsubscribeChannels(channels subscription.List) error {
 }
 
 // ResubscribeToChannel resubscribes to channel
+// Sets state to Resubscribing, and exchanges which want to maintain a lock on it can respect this state and not RemoveSubscription
+// Errors if subscription is already subscribing
 func (w *Websocket) ResubscribeToChannel(s *subscription.Subscription) error {
 	l := subscription.List{s}
-	err := w.UnsubscribeChannels(l)
-	if err != nil {
+	if err := s.SetState(subscription.ResubscribingState); err != nil {
+		return err
+	}
+	if err := w.UnsubscribeChannels(l); err != nil {
 		return err
 	}
 	return w.SubscribeToChannels(l)
@@ -822,6 +826,7 @@ func (w *Websocket) SubscribeToChannels(subs subscription.List) error {
 }
 
 // AddSubscriptions adds subscriptions to the subscription store
+// Sets state to Subscribing unless the state is already set
 func (w *Websocket) AddSubscriptions(subs ...*subscription.Subscription) error {
 	if w == nil {
 		return fmt.Errorf("%w: AddSubscriptions called on nil Websocket", common.ErrNilPointer)
@@ -831,6 +836,11 @@ func (w *Websocket) AddSubscriptions(subs ...*subscription.Subscription) error {
 	}
 	var errs error
 	for _, s := range subs {
+		if s.State() == subscription.InactiveState {
+			if err := s.SetState(subscription.SubscribingState); err != nil {
+				errs = common.AppendError(errs, err)
+			}
+		}
 		if err := w.subscriptions.Add(s); err != nil {
 			errs = common.AppendError(errs, err)
 		}
@@ -859,21 +869,17 @@ func (w *Websocket) AddSuccessfulSubscriptions(subs ...*subscription.Subscriptio
 	return errs
 }
 
-// RemoveSubscriptions removes subscriptions from the subscription list
+// RemoveSubscriptions removes subscriptions from the subscription list and sets the status to Unsubscribed
 func (w *Websocket) RemoveSubscriptions(subs ...*subscription.Subscription) error {
 	if w == nil || w.subscriptions == nil {
 		return common.ErrNilPointer
 	}
 	var errs error
 	for _, s := range subs {
-		err := s.SetState(subscription.InactiveState)
-		if errors.Is(err, subscription.ErrInStateAlready) {
-			err = nil
+		if err := s.SetState(subscription.UnsubscribedState); err != nil {
+			errs = common.AppendError(errs, err)
 		}
-		if err == nil {
-			err = w.subscriptions.Remove(s)
-		}
-		if err != nil {
+		if err := w.subscriptions.Remove(s); err != nil {
 			errs = common.AppendError(errs, err)
 		}
 	}
