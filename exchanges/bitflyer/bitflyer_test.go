@@ -3,10 +3,13 @@ package bitflyer
 import (
 	"context"
 	"log"
+	"net/http"
 	"os"
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/core"
@@ -14,6 +17,7 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
@@ -451,5 +455,29 @@ func TestGetHistoricTrades(t *testing.T) {
 		currencyPair, asset.Spot, time.Now().Add(-time.Minute*15), time.Now())
 	if err != nil && err != common.ErrFunctionNotSupported {
 		t.Fatal(err)
+	}
+}
+
+func TestGetCurrencyTradeURL(t *testing.T) {
+	t.Parallel()
+	for _, a := range b.GetAssetTypes(false) {
+		pairs, err := b.CurrencyPairs.GetPairs(a, true)
+		if len(pairs) == 0 {
+			continue
+		}
+		require.NoError(t, err, "cant get pairs for %s", a)
+
+		url, err := b.GetCurrencyTradeURL(context.Background(), asset.Spot, pairs[0])
+		require.NoError(t, err)
+		item := &request.Item{
+			Method:        http.MethodGet,
+			Path:          url,
+			Verbose:       b.Verbose,
+			HTTPDebugging: b.HTTPDebugging,
+			HTTPRecording: b.HTTPRecording}
+		err = b.SendPayload(context.Background(), bitflyerPublicRequestRate, func() (*request.Item, error) {
+			return item, nil
+		}, request.UnauthenticatedRequest)
+		assert.NoError(t, err, "could not access url %s", url)
 	}
 }

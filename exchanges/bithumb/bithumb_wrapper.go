@@ -894,9 +894,6 @@ func (b *Bithumb) GetCurrencyTradeURL(_ context.Context, a asset.Item, cp curren
 	if err != nil {
 		return "", err
 	}
-	symbol, err := b.FormatSymbol(cp, a)
-	if err != nil {
-		return "", err
-	}
-	return tradeBaseURL + symbol, nil
+	cp.Delimiter = currency.DashDelimiter
+	return tradeBaseURL + cp.Upper().String(), nil
 }

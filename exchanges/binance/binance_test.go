@@ -3492,22 +3492,28 @@ func TestGetOpenInterest(t *testing.T) {
 
 func TestGetCurrencyTradeURL(t *testing.T) {
 	t.Parallel()
-	cp, err := currency.NewPairFromString("BTCUSDT")
-	require.NoError(t, err)
-	url, err := b.GetCurrencyTradeURL(context.Background(), asset.Spot, cp)
-	require.NoError(t, err)
-	item := &request.Item{
-		Method:        http.MethodGet,
-		Path:          url,
-		Verbose:       b.Verbose,
-		HTTPDebugging: b.HTTPDebugging,
-		HTTPRecording: b.HTTPRecording}
-	if mockTests {
-		// no need to store the result in mockdata
-		return
+	for _, a := range b.GetAssetTypes(false) {
+		pairs, err := b.CurrencyPairs.GetPairs(a, true)
+		if len(pairs) == 0 {
+			continue
+		}
+		require.NoError(t, err, "cant get pairs for %s", a)
+
+		url, err := b.GetCurrencyTradeURL(context.Background(), asset.Spot, pairs[0])
+		require.NoError(t, err)
+		item := &request.Item{
+			Method:        http.MethodGet,
+			Path:          url,
+			Verbose:       b.Verbose,
+			HTTPDebugging: b.HTTPDebugging,
+			HTTPRecording: b.HTTPRecording}
+		if mockTests {
+			// no need to store the result in mockdata
+			continue
+		}
+		err = b.SendPayload(context.Background(), spotDefaultRate, func() (*request.Item, error) {
+			return item, nil
+		}, request.UnauthenticatedRequest)
+		assert.NoError(t, err, "could not access url %s", url)
 	}
-	err = b.SendPayload(context.Background(), spotDefaultRate, func() (*request.Item, error) {
-		return item, nil
-	}, request.UnauthenticatedRequest)
-	assert.NoError(t, err)
 }

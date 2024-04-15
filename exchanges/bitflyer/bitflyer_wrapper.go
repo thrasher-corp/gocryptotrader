@@ -492,9 +492,6 @@ func (b *Bitflyer) GetCurrencyTradeURL(_ context.Context, a asset.Item, cp curre
 	if err != nil {
 		return "", err
 	}
-	symbol, err := b.FormatSymbol(cp, a)
-	if err != nil {
-		return "", err
-	}
-	return tradeBaseURL + symbol, nil
+	cp.Delimiter = ""
+	return tradeBaseURL + cp.Lower().String(), nil
 }
