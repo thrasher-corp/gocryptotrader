@@ -430,6 +430,9 @@ func (ok *Okx) handleSubscription(operation string, subscriptions subscription.L
 				}
 			}
 			if instrumentID == "" {
+				if len(s.Pairs) != 1 {
+					return subscription.ErrNotSinglePair
+				}
 				format, err := ok.GetPairFormat(s.Asset, false)
 				if err != nil {
 					return err
