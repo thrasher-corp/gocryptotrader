@@ -166,7 +166,7 @@ func (by *Bybit) handleSubscriptions(assetType asset.Item, operation string, cha
 		return nil, err
 	}
 	for i := range channelsToSubscribe {
-		if len(channelsToSubscribe[i].Pairs) != 0 {
+		if len(channelsToSubscribe[i].Pairs) != 1 {
 			return nil, subscription.ErrNotSinglePair
 		}
 		pair := channelsToSubscribe[i].Pairs[0]
