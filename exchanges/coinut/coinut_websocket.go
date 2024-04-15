@@ -656,10 +656,10 @@ func (c *COINUT) Unsubscribe(channelToUnsubscribe subscription.List) error {
 		var response map[string]interface{}
 		err = json.Unmarshal(resp, &response)
 		if err == nil {
-			val, ok := response["status"].([]interface{})
+			val, ok := response["status"].([]any)
 			switch {
 			case !ok:
-				err = errors.New("unable to type assert response status")
+				err = common.GetTypeAssertError("status", response["status"])
 			case val[0] != "OK":
 				err = common.AppendError(errs, fmt.Errorf("%v unsubscribe failed for channel %v", c.Name, s.Channel))
 			default:
