@@ -531,14 +531,20 @@ func TestSubscriptions(t *testing.T) {
 	t.Parallel()
 	w := new(Websocket) // Do not use NewWebsocket; We want to exercise w.subs == nil
 	assert.ErrorIs(t, (*Websocket)(nil).AddSubscriptions(nil), common.ErrNilPointer, "Should error correctly when nil websocket")
-	c := &subscription.Subscription{Key: 42, Channel: subscription.TickerChannel}
-	require.NoError(t, w.AddSubscriptions(c), "Adding first subscription should not error")
-	assert.Same(t, c, w.GetSubscription(42), "Get Subscription should retrieve the same subscription")
-	assert.ErrorIs(t, w.AddSubscriptions(c), subscription.ErrDuplicate, "Adding same subscription should return error")
+	s := &subscription.Subscription{Key: 42, Channel: subscription.TickerChannel}
+	require.NoError(t, w.AddSubscriptions(s), "Adding first subscription should not error")
+	assert.Same(t, s, w.GetSubscription(42), "Get Subscription should retrieve the same subscription")
+	assert.ErrorIs(t, w.AddSubscriptions(s), subscription.ErrDuplicate, "Adding same subscription should return error")
+	assert.Equal(t, subscription.SubscribingState, s.State(), "Should set state to Subscribing")
 
-	err := w.RemoveSubscriptions(c)
+	err := w.RemoveSubscriptions(s)
 	require.NoError(t, err, "RemoveSubscriptions must not error")
 	assert.Nil(t, w.GetSubscription(42), "Remove should have removed the sub")
+	assert.Equal(t, subscription.UnsubscribedState, s.State(), "Should set state to Unsubscribed")
+
+	require.NoError(t, s.SetState(subscription.ResubscribingState), "SetState must not error")
+	require.NoError(t, w.AddSubscriptions(s), "Adding first subscription should not error")
+	assert.Equal(t, subscription.ResubscribingState, s.State(), "Should not change resubscribing state")
 }
 
 // TestSuccessfulSubscriptions tests adding, getting and removing subscriptions

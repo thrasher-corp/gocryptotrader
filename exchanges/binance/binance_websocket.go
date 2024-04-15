@@ -569,11 +569,7 @@ func (b *Binance) subscribeToChan(chans subscription.List) error {
 	for i := range chans {
 		c := chans[i]
 		cNames[i] = c.Channel
-		err := c.SetState(subscription.SubscribingState)
-		if err == nil {
-			err = b.Websocket.AddSubscriptions(c)
-		}
-		if err != nil {
+		if err := b.Websocket.AddSubscriptions(c); err != nil {
 			return fmt.Errorf("%w Channel: %s Pair: %s Error: %w", stream.ErrSubscriptionFailure, c.Channel, c.Pairs, err)
 		}
 	}
