@@ -713,7 +713,7 @@ func TestGetCurrencyTradeURL(t *testing.T) {
 		if len(pairs) == 0 {
 			continue
 		}
-		require.NoError(t, err, "cant get pairs for %s", a)
+		require.NoError(t, err, "cannot get pairs for %s", a)
 
 		url, err := b.GetCurrencyTradeURL(context.Background(), a, pairs[0])
 		require.NoError(t, err)

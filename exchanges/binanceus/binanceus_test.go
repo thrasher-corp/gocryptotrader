@@ -1821,18 +1821,16 @@ func TestGetCurrencyTradeURL(t *testing.T) {
 		if len(pairs) == 0 {
 			continue
 		}
-		require.NoError(t, err, "cant get pairs for %s", a)
-
+		require.NoError(t, err, "cannot get pairs for %s", a)
 		url, err := bi.GetCurrencyTradeURL(context.Background(), a, pairs[0])
 		require.NoError(t, err)
-		item := &request.Item{
-			Method:        http.MethodGet,
-			Path:          url,
-			Verbose:       bi.Verbose,
-			HTTPDebugging: bi.HTTPDebugging,
-			HTTPRecording: bi.HTTPRecording}
 		err = bi.SendPayload(context.Background(), request.Unset, func() (*request.Item, error) {
-			return item, nil
+			return &request.Item{
+				Method:        http.MethodGet,
+				Path:          url,
+				Verbose:       bi.Verbose,
+				HTTPDebugging: bi.HTTPDebugging,
+				HTTPRecording: bi.HTTPRecording}, nil
 		}, request.UnauthenticatedRequest)
 		assert.NoError(t, err, "could not access url %s", url)
 	}

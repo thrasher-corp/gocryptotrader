@@ -1014,22 +1014,21 @@ func TestGetCurrencyTradeURL(t *testing.T) {
 		if len(pairs) == 0 {
 			continue
 		}
-		require.NoError(t, err, "cant get pairs for %s", a)
+		require.NoError(t, err, "cannot get pairs for %s", a)
 
 		url, err := b.GetCurrencyTradeURL(context.Background(), a, pairs[0])
 		require.NoError(t, err)
-		item := &request.Item{
-			Method:        http.MethodGet,
-			Path:          url,
-			Verbose:       b.Verbose,
-			HTTPDebugging: b.HTTPDebugging,
-			HTTPRecording: b.HTTPRecording}
 		if mockTests {
 			// no need to store the result
 			continue
 		}
 		err = b.SendPayload(context.Background(), request.Unset, func() (*request.Item, error) {
-			return item, nil
+			return &request.Item{
+				Method:        http.MethodGet,
+				Path:          url,
+				Verbose:       b.Verbose,
+				HTTPDebugging: b.HTTPDebugging,
+				HTTPRecording: b.HTTPRecording}, nil
 		}, request.UnauthenticatedRequest)
 		assert.NoError(t, err, "could not access url %s", url)
 	}

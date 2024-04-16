@@ -3561,7 +3561,7 @@ func TestGetCurrencyTradeURL(t *testing.T) {
 		if len(pairs) == 0 {
 			continue
 		}
-		require.NoError(t, err, "cant get pairs for %s", a)
+		require.NoError(t, err, "cannot get pairs for %s", a)
 		url, err := g.GetCurrencyTradeURL(context.Background(), a, pairs[0])
 		if a == asset.Options {
 			assert.ErrorIs(t, err, asset.ErrNotSupported, "could not access url %s", url)

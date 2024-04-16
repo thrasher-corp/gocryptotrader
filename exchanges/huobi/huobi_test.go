@@ -3004,7 +3004,7 @@ func TestGetCurrencyTradeURL(t *testing.T) {
 		if len(pairs) == 0 {
 			continue
 		}
-		require.NoError(t, err, "cant get pairs for %s", a)
+		require.NoError(t, err, "cannot get pairs for %s", a)
 		url, err := h.GetCurrencyTradeURL(context.Background(), a, pairs[0])
 		if a != asset.Spot && !pairs[0].Quote.Equal(currency.USDT) && !pairs[0].Quote.Equal(currency.USD) {
 			assert.ErrorIs(t, err, common.ErrFunctionNotSupported)
