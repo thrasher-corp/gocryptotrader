@@ -3014,9 +3014,7 @@ func TestIsPerpetualFutureCurrency(t *testing.T) {
 func TestGetHistoricalFundingRates(t *testing.T) {
 	t.Parallel()
 	cp, err := currency.NewPairFromString("BTC-PERPETUAL")
-	if err != nil {
-		t.Error(err)
-	}
+	require.NoError(t, err)
 	r := &fundingrate.HistoricalRatesRequest{
 		Asset:           asset.Futures,
 		Pair:            cp,
@@ -3025,14 +3023,12 @@ func TestGetHistoricalFundingRates(t *testing.T) {
 		EndDate:         time.Now(),
 	}
 	_, err = d.GetHistoricalFundingRates(context.Background(), r)
-	if err != nil {
-		t.Error(err)
-	}
-	r.StartDate = time.Now().Add(-time.Hour * 24 * 120)
+	require.NoError(t, err)
+	r.StartDate = time.Now().Add(-time.Hour * 24 * 20)
 
 	r.RespectHistoryLimits = true
-	_, err = d.GetHistoricalFundingRates(context.Background(), r)
-	if err != nil {
-		t.Error(err)
-	}
+	result, err := d.GetHistoricalFundingRates(context.Background(), r)
+	require.NoError(t, err)
+	require.NotNil(t, result)
+	assert.True(t, result.StartDate.After(r.StartDate))
 }

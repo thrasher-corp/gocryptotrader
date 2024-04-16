@@ -1424,7 +1424,7 @@ func (d *Deribit) GetFuturesPositionSummary(ctx context.Context, r *futures.Posi
 			index = a
 		}
 	}
-	if index > -1 {
+	if index == -1 {
 		return nil, errors.New("position information for the instrument not found")
 	}
 	contracts, err := d.GetFuturesContractDetails(ctx, r.Asset)
@@ -1508,10 +1508,13 @@ func (d *Deribit) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]fu
 					Quote:    k[i].Quote,
 					Asset:    k[i].Asset,
 				},
-				OpenInterest: oi[0].OpenInterest,
+				OpenInterest: oi[a].OpenInterest,
 			}
 			break
 		}
+	}
+	if len(result) == 0 {
+		return nil, fmt.Errorf("%w, no data found for %v", currency.ErrPairNotFound, k)
 	}
 	return result, nil
 }
@@ -1567,31 +1570,42 @@ func (d *Deribit) GetHistoricalFundingRates(ctx context.Context, r *fundingrate.
 	if err != nil {
 		return nil, err
 	}
-	var records []FundingRateHistory
-	if d.Websocket.IsConnected() {
-		records, err = d.WSRetrieveFundingRateHistory(fPair.String(), r.StartDate, r.EndDate)
-	} else {
-		records, err = d.GetFundingRateHistory(ctx, fPair.String(), r.StartDate, r.EndDate)
-	}
-	if err != nil {
-		return nil, err
-	}
+	startDate := r.StartDate
 
-	if len(records) == 0 {
-		return nil, fundingrate.ErrNoFundingRatesFound
-	}
-	fundingRates := make([]fundingrate.Rate, 0, len(records))
-	for i := range records {
-		if r.EndDate.Before(records[i].Timestamp.Time()) ||
-			r.StartDate.After(records[i].Timestamp.Time()) {
-			continue
+	fundingRates := []fundingrate.Rate{}
+	latestRate := new(fundingrate.Rate)
+	for {
+		if startDate.Equal(r.EndDate) || startDate.After(r.EndDate) {
+			break
 		}
-		fundingRates = append(fundingRates, fundingrate.Rate{
-			Rate: decimal.NewFromFloat(records[i].Interest1H),
-			Time: records[i].Timestamp.Time(),
-		})
+		var records []FundingRateHistory
+		if d.Websocket.IsConnected() {
+			records, err = d.WSRetrieveFundingRateHistory(fPair.String(), startDate, r.EndDate)
+		} else {
+			records, err = d.GetFundingRateHistory(ctx, fPair.String(), startDate, r.EndDate)
+		}
+		if err != nil {
+			return nil, err
+		}
+		if len(records) == 0 {
+			break
+		}
+		for i := range records {
+			if r.EndDate.Before(records[i].Timestamp.Time()) ||
+				r.StartDate.After(records[i].Timestamp.Time()) {
+				continue
+			}
+			if records[i].Timestamp.Time().Unix() > latestRate.Time.Unix() {
+				latestRate.Time = records[i].Timestamp.Time()
+				latestRate.Rate = decimal.NewFromFloat(records[i].Interest1H)
+			}
+			fundingRates = append(fundingRates, fundingrate.Rate{
+				Rate: decimal.NewFromFloat(records[i].Interest1H),
+				Time: records[i].Timestamp.Time(),
+			})
+		}
+		startDate = latestRate.Time
 	}
-
 	if len(fundingRates) == 0 {
 		return nil, fundingrate.ErrNoFundingRatesFound
 	}
@@ -1600,9 +1614,9 @@ func (d *Deribit) GetHistoricalFundingRates(ctx context.Context, r *fundingrate.
 		Asset:           r.Asset,
 		Pair:            r.Pair,
 		FundingRates:    fundingRates,
-		StartDate:       fundingRates[len(fundingRates)-1].Time,
-		EndDate:         fundingRates[0].Time,
-		LatestRate:      fundingRates[0],
+		StartDate:       fundingRates[0].Time,
+		EndDate:         r.EndDate,
+		LatestRate:      *latestRate,
 		PaymentCurrency: r.PaymentCurrency,
 	}, nil
 }
