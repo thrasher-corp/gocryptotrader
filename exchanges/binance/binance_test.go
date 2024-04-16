@@ -3196,8 +3196,49 @@ func TestIsPerpetualFutureCurrency(t *testing.T) {
 func TestGetUserMarginInterestHistory(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
-	_, err := b.GetUserMarginInterestHistory(context.Background(), currency.USDT, currency.NewPair(currency.BTC, currency.USDT), time.Now().Add(-time.Hour*24), time.Now(), 1, 10, false)
-	assert.NoError(t, err)
+	result, err := b.GetUserMarginInterestHistory(context.Background(), currency.USDT, "BTCUSDT", time.Now().Add(-time.Hour*24), time.Now(), 1, 10)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetForceLiquidiationRecord(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetForceLiquidiationRecord(context.Background(), time.Now().Add(-time.Hour*24), time.Now(), "BTCUSDT", 0, 12)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetCrossMarginAccountDetail(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetCrossMarginAccountDetail(context.Background())
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetMarginAccountsOrder(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetMarginAccountsOrder(context.Background(), "BTCUSDT", "", false, 112233424)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetMarginAccountsOpenOrders(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetMarginAccountsOpenOrders(context.Background(), "BNBBTC", false)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetMarginAccountAllOrders(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetMarginAccountAllOrders(context.Background(), "BNBBTC", true, time.Time{}, time.Time{}, 0, 20)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
 }
 
 func TestSetAssetsMode(t *testing.T) {
@@ -5315,9 +5356,18 @@ func TestGetCMPositionADLQuantileEstimation(t *testing.T) {
 	assert.NotNil(t, result)
 }
 
-func TestPairsString(t *testing.T) {
+func TestAdjustCrossMarginMaxLeverage(t *testing.T) {
 	t.Parallel()
-	val, err := json.Marshal(currency.Pairs{currency.Pair{Base: currency.NewCode("BTC"), Quote: currency.USDT}, currency.NewPair(currency.ETH, currency.USDC)}.Strings())
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.AdjustCrossMarginMaxLeverage(context.Background(), 10)
 	require.NoError(t, err)
-	println(string(val))
+	assert.NotNil(t, result)
+}
+
+func TestGetCrossMarginTransferHistory(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetCrossMarginTransferHistory(context.Background(), currency.ETH, "ROLL_IN", "", time.Time{}, time.Time{}, 10, 30)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
 }

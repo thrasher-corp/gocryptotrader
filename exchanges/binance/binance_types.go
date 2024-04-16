@@ -657,6 +657,8 @@ type TradeOrder struct {
 
 	PreventedMatchID  int64        `json:"preventedMatchId"`
 	PreventedQuantity types.Number `json:"preventedQuantity"`
+
+	IsIsolated bool `json:"isIsolated"`
 }
 
 // Balance holds query order data
@@ -3227,4 +3229,96 @@ type MarginAccountOrderDetail struct {
 		StopPrice           string       `json:"stopPrice,omitempty"`
 		IcebergQty          string       `json:"icebergQty"`
 	} `json:"orderReports,omitempty"`
+}
+
+// CrossMarginTransferHistory represents a cross-margin transfer history
+type CrossMarginTransferHistory struct {
+	Rows []struct {
+		Amount        types.Number         `json:"amount"`
+		Asset         string               `json:"asset"`
+		Status        string               `json:"status"`
+		Timestamp     convert.ExchangeTime `json:"timestamp"`
+		TransactionID int64                `json:"txId"`
+		TransferType  string               `json:"type"`
+		TransFrom     string               `json:"transFrom,omitempty"` //SPOT,FUTURES,FIAT,DELIVERY,MINING,ISOLATED_MARGIN,FUNDING,MOTHER_SPOT,OPTION,SUB_SPOT,SUB_MARGIN,CROSS_MARGIN
+		TransTo       string               `json:"transTo,omitempty"`   //SPOT,FUTURES,FIAT,DELIVERY,MINING,ISOLATED_MARGIN,FUNDING,MOTHER_SPOT,OPTION,SUB_SPOT,SUB_MARGIN,CROSS_MARGIN
+		FromSymbol    string               `json:"fromSymbol,omitempty"`
+		ToSymbol      string               `json:"toSymbol,omitempty"`
+	} `json:"rows"`
+	Total int64 `json:"total"`
+}
+
+// LiquidiationRecord represents a liquidiation record history
+type LiquidiationRecord struct {
+	Rows []struct {
+		AvgPrice    types.Number         `json:"avgPrice"`
+		ExecutedQty types.Number         `json:"executedQty"`
+		OrderID     int64                `json:"orderId"`
+		Price       types.Number         `json:"price"`
+		Qty         types.Number         `json:"qty"`
+		Side        string               `json:"side"`
+		Symbol      string               `json:"symbol"`
+		TimeInForce string               `json:"timeInForce"`
+		IsIsolated  bool                 `json:"isIsolated"`
+		UpdatedTime convert.ExchangeTime `json:"updatedTime"`
+	} `json:"rows"`
+	Total int64 `json:"total"`
+}
+
+// CrossMarginAccount represents cross margin account detail
+type CrossMarginAccount struct {
+	BorrowEnabled              bool         `json:"borrowEnabled"`
+	MarginLevel                types.Number `json:"marginLevel"`
+	CollateralMarginLevel      types.Number `json:"CollateralMarginLevel"`
+	TotalAssetOfBTC            types.Number `json:"totalAssetOfBtc"`
+	TotalNetAssetOfBTC         types.Number `json:"totalNetAssetOfBtc"`
+	TotalLiabilityOfBTC        types.Number `json:"totalLiabilityOfBtc"`
+	TotalCollateralValueInUSDT types.Number `json:"TotalCollateralValueInUSDT"`
+	TradeEnabled               bool         `json:"tradeEnabled"`
+	TransferEnabled            bool         `json:"transferEnabled"`
+	AccountType                string       `json:"accountType"`
+	UserAssets                 []struct {
+		Asset    string       `json:"asset"`
+		Borrowed types.Number `json:"borrowed"`
+		Free     types.Number `json:"free"`
+		Interest types.Number `json:"interest"`
+		Locked   types.Number `json:"locked"`
+		NetAsset types.Number `json:"netAsset"`
+	} `json:"userAssets"`
+}
+
+// MarginAccountOCOOrder represents a margin one-cancel-other order.
+type MarginAccountOCOOrder struct {
+	OrderListID           int                  `json:"orderListId"`
+	ContingencyType       string               `json:"contingencyType"`
+	ListStatusType        string               `json:"listStatusType"`
+	ListOrderStatus       string               `json:"listOrderStatus"`
+	ListClientOrderID     string               `json:"listClientOrderId"`
+	TransactionTime       convert.ExchangeTime `json:"transactionTime"`
+	Symbol                string               `json:"symbol"`
+	MarginBuyBorrowAmount types.Number         `json:"marginBuyBorrowAmount"`
+	MarginBuyBorrowAsset  string               `json:"marginBuyBorrowAsset"`
+	IsIsolated            bool                 `json:"isIsolated"`
+	Orders                []struct {
+		Symbol        string `json:"symbol"`
+		OrderID       int64  `json:"orderId"`
+		ClientOrderID string `json:"clientOrderId"`
+	} `json:"orders"`
+	OrderReports []struct {
+		Symbol                  string               `json:"symbol"`
+		OrderID                 int64                `json:"orderId"`
+		OrderListID             int64                `json:"orderListId"`
+		ClientOrderID           string               `json:"clientOrderId"`
+		TransactTime            convert.ExchangeTime `json:"transactTime"`
+		Price                   types.Number         `json:"price"`
+		OrigQty                 types.Number         `json:"origQty"`
+		ExecutedQty             types.Number         `json:"executedQty"`
+		CummulativeQuoteQty     types.Number         `json:"cummulativeQuoteQty"`
+		Status                  string               `json:"status"`
+		TimeInForce             string               `json:"timeInForce"`
+		Type                    string               `json:"type"`
+		Side                    string               `json:"side"`
+		StopPrice               types.Number         `json:"stopPrice,omitempty"`
+		SelfTradePreventionMode string               `json:"selfTradePreventionMode"`
+	} `json:"orderReports"`
 }

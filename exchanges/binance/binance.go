@@ -174,41 +174,6 @@ func (b *Binance) GetHistoricalTrades(ctx context.Context, symbol string, limit 
 		b.SendAPIKeyHTTPRequest(ctx, exchange.RestSpotSupplementary, common.EncodeURLValues("/api/v3/historicalTrades", params), getOldTradeLookupRate, &resp)
 }
 
-// GetUserMarginInterestHistory returns margin interest history for the user
-func (b *Binance) GetUserMarginInterestHistory(ctx context.Context, assetCurrency currency.Code, isolatedSymbol currency.Pair, startTime, endTime time.Time, currentPage, size int64, archived bool) (*UserMarginInterestHistoryResponse, error) {
-	params := url.Values{}
-	if !isolatedSymbol.IsEmpty() {
-		fPair, err := b.FormatSymbol(isolatedSymbol, asset.Margin)
-		if err != nil {
-			return nil, err
-		}
-		params.Set("isolatedSymbol", fPair)
-	}
-	if !startTime.IsZero() && !endTime.IsZero() {
-		err := common.StartEndTimeCheck(startTime, endTime)
-		if err != nil {
-			return nil, err
-		}
-		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
-		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
-	}
-	if !assetCurrency.IsEmpty() {
-		params.Set("asset", assetCurrency.String())
-	}
-	if currentPage > 0 {
-		params.Set("current", strconv.FormatInt(currentPage, 10))
-	}
-	if size > 0 {
-		params.Set("size", strconv.FormatInt(size, 10))
-	}
-	if archived {
-		params.Set("archived", "true")
-	}
-
-	var resp *UserMarginInterestHistoryResponse
-	return resp, b.SendAPIKeyHTTPRequest(ctx, exchange.RestSpotSupplementary, common.EncodeURLValues("/sapi/v1/margin/interestHistory", params), spotDefaultRate, &resp)
-}
-
 // GetAggregatedTrades returns aggregated trade activity.
 // If more than one hour of data is requested or asked limit is not supported by exchange
 // then the trades are collected with multiple backend requests.
@@ -1171,7 +1136,184 @@ func (b *Binance) MarginAccountCancelAllOpenOrdersOnSymbol(ctx context.Context, 
 		params.Set("isIsolated", "TRUE")
 	}
 	var resp []MarginAccountOrderDetail
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/margin/openOrders", params, spotDefaultRate, nil, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodDelete, "/sapi/v1/margin/openOrders", params, spotOrderRate, nil, &resp)
+}
+
+// AdjustCrossMarginAccountOrderMaxLeverage adjusts cross-margin account max leverage
+// Can only adjust 3 , 5 or 10，Example:
+// maxLeverage=10 for Cross Margin Pro ，
+// maxLeverage = 5 or 3 for Cross Margin Classic
+// The margin level need higher than the initial risk ratio of adjusted leverage, the initial risk ratio of 3x is 1.5 ,
+// the initial risk ratio of 5x is 1.25, the initial risk ratio of 10x is 2.5.
+func (b *Binance) AdjustCrossMarginMaxLeverage(ctx context.Context, maxLeverage int64) (bool, error) {
+	resp := &struct {
+		Success bool `json:"success"`
+	}{}
+	if maxLeverage < 0 {
+		return false, errors.New("leverage value must be only adjust 3 , 5 or 10")
+	}
+	params := url.Values{}
+	params.Set("maxLeverage", strconv.FormatInt(maxLeverage, 10))
+	return resp.Success, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/sapi/v1/margin/max-leverage", params, spotDefaultRate, nil, &resp)
+}
+
+// GetCrossMarginTransferHistory retrieves cross-margin transfer history in a descending order.
+//
+// The max interval between startTime and endTime is 30 days.
+// Returns data for last 7 days by default
+// Transfer Type possible values: ROLL_IN, ROLL_OUT
+func (b *Binance) GetCrossMarginTransferHistory(ctx context.Context, assetName currency.Code, transferType, isolatedSymbol string, startTime, endTime time.Time, current, size int64) (*CrossMarginTransferHistory, error) {
+	params, err := fillMarginInterestAndTransferHistoryParams(assetName, transferType, isolatedSymbol, startTime, endTime, current, size)
+	if err != nil {
+		return nil, err
+	}
+	var resp *CrossMarginTransferHistory
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/margin/transfer", params, spotDefaultRate, nil, &resp)
+}
+
+func fillMarginInterestAndTransferHistoryParams(assetName currency.Code, transferType, isolatedSymbol string, startTime, endTime time.Time, current, size int64) (url.Values, error) {
+	params := url.Values{}
+	if !assetName.IsEmpty() {
+		params.Set("asset", assetName.String())
+	}
+	if transferType != "" {
+		params.Set("type", transferType)
+	}
+	if isolatedSymbol != "" {
+		params.Set("isolatedSymbol", isolatedSymbol)
+	}
+	if !startTime.IsZero() && !endTime.IsZero() {
+		err := common.StartEndTimeCheck(startTime, endTime)
+		if err != nil {
+			return nil, err
+		}
+		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
+	}
+	if current > 0 {
+		params.Set("current", strconv.FormatInt(current, 10))
+	}
+	if size > 0 {
+		params.Set("size", strconv.FormatInt(size, 10))
+	}
+	return params, nil
+
+}
+
+// GetUserMarginInterestHistory returns margin interest history for the user
+func (b *Binance) GetUserMarginInterestHistory(ctx context.Context, assetName currency.Code, isolatedSymbol string, startTime, endTime time.Time, current, size int64) (*UserMarginInterestHistoryResponse, error) {
+	params, err := fillMarginInterestAndTransferHistoryParams(assetName, "", isolatedSymbol, startTime, endTime, current, size)
+	if err != nil {
+		return nil, err
+	}
+	var resp *UserMarginInterestHistoryResponse
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, "/sapi/v1/margin/interestHistory", params, spotDefaultRate, nil, &resp)
+}
+
+// GetForceLiquidiationRecord retrieves force liquidiation records
+func (b *Binance) GetForceLiquidiationRecord(ctx context.Context, startTime, endTime time.Time, isolatedSymbol string, current, size int64) (*LiquidiationRecord, error) {
+	params := url.Values{}
+	if isolatedSymbol != "" {
+		params.Set("isolatedSymbol", isolatedSymbol)
+	}
+	if !startTime.IsZero() && !endTime.IsZero() {
+		err := common.StartEndTimeCheck(startTime, endTime)
+		if err != nil {
+			return nil, err
+		}
+		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
+	}
+	if current > 0 {
+		params.Set("current", strconv.FormatInt(current, 10))
+	}
+	if size > 0 {
+		params.Set("size", strconv.FormatInt(size, 10))
+	}
+	var resp *LiquidiationRecord
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, "/sapi/v1/margin/forceLiquidationRec", params, spotDefaultRate, nil, &resp)
+}
+
+// GetCrossMarginAccountDetail retrieves cross-margin account details
+func (b *Binance) GetCrossMarginAccountDetail(ctx context.Context) (*CrossMarginAccount, error) {
+	var resp *CrossMarginAccount
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary,
+		http.MethodGet, "/sapi/v1/margin/account", nil,
+		getCrossMarginAccountDetailRate, nil, &resp)
+}
+
+// GetMarginAccountsOrder retrieves margin account's order
+//
+// Either orderId or origClientOrderId must be sent.
+// For some historical orders cummulativeQuoteQty will be < 0, meaning the data is not available at this time.
+func (b *Binance) GetMarginAccountsOrder(ctx context.Context, symbol, origClientOrderID string, isIsolated bool, orderID int64) (*TradeOrder, error) {
+	if symbol == "" {
+		return nil, currency.ErrSymbolStringEmpty
+	}
+	if orderID == 0 && origClientOrderID == "" {
+		return nil, order.ErrOrderIDNotSet
+	}
+	params := url.Values{}
+	params.Set("symbol", symbol)
+	if isIsolated {
+		params.Set("isIsolated", "true")
+	}
+	if orderID > 0 {
+		params.Set("orderId", strconv.FormatInt(orderID, 10))
+	}
+	if origClientOrderID != "" {
+		params.Set("origClientOrderId", origClientOrderID)
+	}
+	var resp *TradeOrder
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, "/sapi/v1/margin/order ", params, getCrossMarginAccountOrderRate, nil, &resp)
+}
+
+// GetMarginAccountsOpenOrders retrieves margin account's open orders
+func (b *Binance) GetMarginAccountsOpenOrders(ctx context.Context, symbol string, isIsolated bool) ([]TradeOrder, error) {
+	params := url.Values{}
+	if symbol != "" {
+		params.Set("symbol", symbol)
+	}
+	if isIsolated {
+		params.Set("isIsolated", "true")
+	}
+	var resp []TradeOrder
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, "/sapi/v1/margin/openOrders", nil, getMarginAccountsOpenOrdersRate, nil, &resp)
+}
+
+// GetMarginAccountAllOrders retrieves all margin account's orders.
+func (b *Binance) GetMarginAccountAllOrders(ctx context.Context, symbol string, isIsolated bool, startTime, endTime time.Time, orderID, limit int64) ([]TradeOrder, error) {
+	if symbol == "" {
+		return nil, currency.ErrSymbolStringEmpty
+	}
+	params := url.Values{}
+	params.Set("symbol", symbol)
+	if isIsolated {
+		params.Set("isIsolated", "TRUE")
+	}
+	if !startTime.IsZero() && !endTime.IsZero() {
+		err := common.StartEndTimeCheck(startTime, endTime)
+		if err != nil {
+			return nil, err
+		}
+		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	if orderID > 0 {
+		params.Set("orderId", strconv.FormatInt(orderID, 10))
+	}
+	var resp []TradeOrder
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, "/sapi/v1/margin/allOrders", nil, marginAccountsAllOrdersRate, nil, &resp)
+}
+
+// NewMarginAccountOCOOrder send in a new OCO for a margin account
+func (b *Binance) NewMarginAccountOCOOrder(ctx context.Context) (*MarginAccountOCOOrder, error) {
+	// TODO: incomplete
+	var resp *MarginAccountOCOOrder
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodPost, "/sapi/v1/margin/order/oco", nil, spotOrderRate, nil, &resp)
 }
 
 // GetMarginAccount returns account information for margin accounts

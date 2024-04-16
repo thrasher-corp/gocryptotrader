@@ -75,6 +75,10 @@ const (
 	getFuturesPositionRiskOfSubAccountV1Rate
 	getFuturesSubAccountSummaryV2Rate
 	getManagedSubAccountSnapshotRate
+	getCrossMarginAccountDetailRate
+	getCrossMarginAccountOrderRate
+	getMarginAccountsOpenOrdersRate
+	marginAccountsAllOrdersRate
 
 	spotOpenOrdersSpecificRate
 	spotOrderRate
@@ -306,17 +310,21 @@ func (r *RateLimit) Limit(ctx context.Context, f request.EndpointLimit) error {
 		getSubAccountSummaryOfMarginAccountRate,
 		getDetailSubAccountFuturesAccountRate,
 		getFuturesPositionRiskOfSubAccountV1Rate,
-		getFuturesSubAccountSummaryV2Rate:
+		getFuturesSubAccountSummaryV2Rate,
+		getCrossMarginAccountDetailRate,
+		getCrossMarginAccountOrderRate,
+		getMarginAccountsOpenOrdersRate:
 		limiter, tokens = r.SpotRate, 10
+	case marginAccountsAllOrdersRate:
+		limiter, tokens = r.SpotRate, 200
 	case getManagedSubAccountSnapshotRate:
 		limiter, tokens = r.SpotRate, 2400
 	case currentOrderCountUsageRate:
 		limiter, tokens = r.SpotRate, 40
 	case queryPreventedMatchsWithRate:
 		limiter, tokens = r.SpotRate, 2
-	case getAllocationsRate:
-		limiter, tokens = r.SpotRate, 20
-	case preventedMatchesByOrderIDRate:
+	case getAllocationsRate,
+		preventedMatchesByOrderIDRate:
 		limiter, tokens = r.SpotRate, 20
 	case getCommissionRate:
 		limiter, tokens = r.SpotRate, 20
