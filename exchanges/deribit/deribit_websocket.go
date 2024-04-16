@@ -15,6 +15,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/nonce"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
@@ -123,9 +124,9 @@ func (d *Deribit) wsLogin(ctx context.Context) error {
 		return err
 	}
 	d.Websocket.SetCanUseAuthenticatedEndpoints(true)
-	n := d.Requester.GetNonce(true)
+	n := d.Requester.GetNonce(nonce.UnixNano).String()
 	strTS := strconv.FormatInt(time.Now().UnixMilli(), 10)
-	str2Sign := strTS + "\n" + n.String() + "\n"
+	str2Sign := strTS + "\n" + n + "\n"
 	hmac, err := crypto.GetHMAC(crypto.HashSHA256,
 		[]byte(str2Sign),
 		[]byte(creds.Secret))
@@ -141,7 +142,7 @@ func (d *Deribit) wsLogin(ctx context.Context) error {
 			"grant_type": "client_signature",
 			"client_id":  creds.Key,
 			"timestamp":  strTS,
-			"nonce":      n.String(),
+			"nonce":      n,
 			"signature":  crypto.HexEncodeToString(hmac),
 		},
 	}

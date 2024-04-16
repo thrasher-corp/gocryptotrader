@@ -18,6 +18,7 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/nonce"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 )
@@ -2235,9 +2236,9 @@ func (d *Deribit) SendHTTPAuthRequest(ctx context.Context, ep exchange.URL, epl 
 		return err
 	}
 	reqDataStr := method + "\n" + deribitAPIVersion + "/" + common.EncodeURLValues(path, params) + "\n" + "\n"
-	n := d.Requester.GetNonce(true)
+	n := d.Requester.GetNonce(nonce.UnixNano).String()
 	strTS := strconv.FormatInt(time.Now().UnixMilli(), 10)
-	str2Sign := strTS + "\n" + n.String() + "\n" + reqDataStr
+	str2Sign := strTS + "\n" + n + "\n" + reqDataStr
 	creds, err := d.GetCredentials(ctx)
 	if err != nil {
 		return request.ErrAuthRequestFailed
@@ -2249,7 +2250,7 @@ func (d *Deribit) SendHTTPAuthRequest(ctx context.Context, ep exchange.URL, epl 
 		return err
 	}
 	headers := make(map[string]string)
-	headerString := "deri-hmac-sha256 id=" + creds.Key + ",ts=" + strTS + ",sig=" + crypto.HexEncodeToString(hmac) + ",nonce=" + n.String()
+	headerString := "deri-hmac-sha256 id=" + creds.Key + ",ts=" + strTS + ",sig=" + crypto.HexEncodeToString(hmac) + ",nonce=" + n
 	headers["Authorization"] = headerString
 	headers["Content-Type"] = "application/json"
 	var tempData struct {

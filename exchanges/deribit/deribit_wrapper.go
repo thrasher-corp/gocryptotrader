@@ -1557,6 +1557,20 @@ func (d *Deribit) GetHistoricalFundingRates(ctx context.Context, r *fundingrate.
 	if r.Pair.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
+	if d.Features.Supports.FuturesCapabilities.MaximumFundingRateHistory != 0 {
+		maxLookback := time.Now().Add(-d.Features.Supports.FuturesCapabilities.MaximumFundingRateHistory)
+		if r.StartDate.Before(maxLookback) {
+			if r.RespectHistoryLimits {
+				r.StartDate = maxLookback
+			} else {
+				return nil, fmt.Errorf("%w earliest date is %v", fundingrate.ErrFundingRateOutsideLimits, maxLookback)
+			}
+			if r.EndDate.Before(maxLookback) {
+				return nil, futures.ErrGetFundingDataRequired
+			}
+			r.StartDate = maxLookback
+		}
+	}
 	if !r.StartDate.IsZero() && !r.EndDate.IsZero() {
 		err := common.StartEndTimeCheck(r.StartDate, r.EndDate)
 		if err != nil {
