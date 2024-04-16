@@ -3566,9 +3566,8 @@ func TestGetCurrencyTradeURL(t *testing.T) {
 		if a == asset.Options {
 			assert.ErrorIs(t, err, asset.ErrNotSupported, "could not access url %s", url)
 			continue
-		} else {
-			require.NoError(t, err)
 		}
+		require.NoError(t, err)
 		err = g.SendPayload(context.Background(), request.Unset, func() (*request.Item, error) {
 			return &request.Item{
 				Method:        http.MethodGet,

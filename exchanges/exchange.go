@@ -1944,6 +1944,7 @@ func (b *Base) IsVerbose() bool {
 	return b.Verbose
 }
 
+// GetCurrencyTradeURL returns the URL to the exchange's trade page for the given asset and currency pair
 func (b *Base) GetCurrencyTradeURL(context.Context, asset.Item, currency.Pair) (string, error) {
 	return "", common.ErrFunctionNotSupported
 }

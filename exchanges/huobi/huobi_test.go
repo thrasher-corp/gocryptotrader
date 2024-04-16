@@ -3009,9 +3009,8 @@ func TestGetCurrencyTradeURL(t *testing.T) {
 		if a != asset.Spot && !pairs[0].Quote.Equal(currency.USDT) && !pairs[0].Quote.Equal(currency.USD) {
 			assert.ErrorIs(t, err, common.ErrFunctionNotSupported)
 			continue
-		} else {
-			require.NoError(t, err)
 		}
+		require.NoError(t, err)
 		err = h.SendPayload(context.Background(), request.Unset, func() (*request.Item, error) {
 			return &request.Item{
 				Method:        http.MethodGet,

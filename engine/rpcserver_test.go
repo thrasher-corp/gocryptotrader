@@ -4343,6 +4343,6 @@ func TestGetCurrencyTradeURL(t *testing.T) {
 		Quote:     "usdt",
 	}
 	resp, err := s.GetCurrencyTradeURL(context.Background(), req)
-	assert.ErrorIs(t, err, nil)
+	assert.NoError(t, err)
 	assert.NotEmpty(t, resp.Url)
 }
