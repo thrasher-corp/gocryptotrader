@@ -410,48 +410,6 @@ func TestNewPairDelimiter(t *testing.T) {
 	}
 }
 
-// TestNewPairFromIndex returns a CurrencyPair via a currency string and
-// specific index
-func TestNewPairFromIndex(t *testing.T) {
-	t.Parallel()
-	curr := defaultPair
-	index := "BTC"
-
-	pair, err := NewPairFromIndex(curr, index)
-	if err != nil {
-		t.Error("NewPairFromIndex() error", err)
-	}
-
-	pair.Delimiter = "-"
-	actual := pair.String()
-
-	expected := defaultPairWDelimiter
-	if actual != expected {
-		t.Errorf(
-			"Pair(): %s was not equal to expected value: %s",
-			actual, expected,
-		)
-	}
-
-	curr = "DOGEBTC"
-
-	pair, err = NewPairFromIndex(curr, index)
-	if err != nil {
-		t.Error("NewPairFromIndex() error", err)
-	}
-
-	pair.Delimiter = "-"
-	actual = pair.String()
-
-	expected = "DOGE-BTC"
-	if actual != expected {
-		t.Errorf(
-			"Pair(): %s was not equal to expected value: %s",
-			actual, expected,
-		)
-	}
-}
-
 func TestNewPairFromString(t *testing.T) {
 	t.Parallel()
 	pairStr := defaultPairWDelimiter
@@ -561,12 +519,12 @@ func TestContainsCurrency(t *testing.T) {
 }
 
 func TestFormatPairs(t *testing.T) {
-	_, err := FormatPairs([]string{""}, "-", "")
+	_, err := FormatPairs([]string{""}, "-")
 	if !errors.Is(err, errEmptyPairString) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, errEmptyPairString)
 	}
 
-	newP, err := FormatPairs([]string{defaultPairWDelimiter}, "-", "")
+	newP, err := FormatPairs([]string{defaultPairWDelimiter}, "-")
 	if err != nil {
 		t.Error("FormatPairs() error", err)
 	}
@@ -575,7 +533,7 @@ func TestFormatPairs(t *testing.T) {
 		t.Error("TestFormatPairs: Expected pair was not found")
 	}
 
-	newP, err = FormatPairs([]string{defaultPair}, "", "BTC")
+	newP, err = FormatPairs([]string{defaultPair}, "")
 	if err != nil {
 		t.Error("FormatPairs() error", err)
 	}
@@ -583,7 +541,7 @@ func TestFormatPairs(t *testing.T) {
 	if newP[0].String() != defaultPair {
 		t.Error("TestFormatPairs: Expected pair was not found")
 	}
-	newP, err = FormatPairs([]string{"ETHUSD"}, "", "")
+	newP, err = FormatPairs([]string{"ETHUSD"}, "")
 	if err != nil {
 		t.Error("FormatPairs() error", err)
 	}
@@ -847,7 +805,6 @@ func TestPairFormat_Format(t *testing.T) {
 		Uppercase bool
 		Delimiter string
 		Separator string
-		Index     string
 	}
 	tests := []struct {
 		name   string
@@ -892,7 +849,6 @@ func TestPairFormat_Format(t *testing.T) {
 				Uppercase: tt.fields.Uppercase,
 				Delimiter: tt.fields.Delimiter,
 				Separator: tt.fields.Separator,
-				Index:     tt.fields.Index,
 			}
 			if got := f.Format(tt.arg); got != tt.want {
 				t.Errorf("PairFormat.Format() = %v, want %v", got, tt.want)

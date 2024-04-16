@@ -5,9 +5,8 @@ import (
 	"errors"
 	"fmt"
 	"math/rand"
+	"slices"
 	"strings"
-
-	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
 var (
@@ -59,18 +58,8 @@ func (p Pairs) Join() string {
 
 // Format formats the pair list to the exchange format configuration
 func (p Pairs) Format(pairFmt PairFormat) Pairs {
-	pairs := make(Pairs, len(p))
-	copy(pairs, p)
-
-	var err error
+	pairs := slices.Clone(p)
 	for x := range pairs {
-		if pairFmt.Index != "" {
-			pairs[x], err = NewPairFromIndex(p[x].String(), pairFmt.Index)
-			if err != nil {
-				log.Errorf(log.Global, "failed to create NewPairFromIndex. Err: %s\n", err)
-				return nil
-			}
-		}
 		pairs[x].Base.UpperCase = pairFmt.Uppercase
 		pairs[x].Quote.UpperCase = pairFmt.Uppercase
 		pairs[x].Delimiter = pairFmt.Delimiter
