@@ -28,6 +28,7 @@ const (
 	krakenAPIURL                  = "https://api.kraken.com"
 	krakenFuturesURL              = "https://futures.kraken.com/derivatives"
 	krakenFuturesSupplementaryURL = "https://futures.kraken.com/api/"
+	tradeBaseURL                  = "https://pro.kraken.com/app/trade/"
 	krakenSpotVersion             = "0"
 	krakenFuturesVersion          = "3"
 )
