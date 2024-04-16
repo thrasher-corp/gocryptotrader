@@ -13,6 +13,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/nonce"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 )
 
@@ -317,7 +318,7 @@ func (e *EXMO) SendAuthenticatedHTTPRequest(ctx context.Context, epath exchange.
 	path := urlPath + fmt.Sprintf("/v%s/%s", exmoAPIVersion, endpoint)
 
 	return e.SendPayload(ctx, request.Unset, func() (*request.Item, error) {
-		n := e.Requester.GetNonce(true).String()
+		n := e.Requester.GetNonce(nonce.UnixNano).String()
 		vals.Set("nonce", n)
 
 		payload := vals.Encode()
