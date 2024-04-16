@@ -2300,6 +2300,6 @@ func TestGetCurrencyTradeURL(t *testing.T) {
 		}
 		require.NoError(t, err)
 		assert.NotEmpty(t, url)
-		// no payload check: Kraken uses cloudflare and we expect a 403, a user will be redirected
+		// no payload check: Kraken uses cloudflare, we expect a 403, a user will be redirected
 	}
 }

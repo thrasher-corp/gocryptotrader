@@ -1072,6 +1072,6 @@ func TestGetCurrencyTradeURL(t *testing.T) {
 		url, err := c.GetCurrencyTradeURL(context.Background(), a, pairs[0])
 		require.NoError(t, err)
 		assert.NotEmpty(t, url)
-		// no payload check: Coinbase uses cloudflare and we expect a 403, a user will be redirected
+		// no payload check: Coinbase uses cloudflare, we expect a 403, a user will be redirected
 	}
 }

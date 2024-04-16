@@ -2028,3 +2028,20 @@ func (ku *Kucoin) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]fu
 	}
 	return resp, nil
 }
+
+// GetCurrencyTradeURL returns the URL to the exchange's trade page for the given asset and currency pair
+func (ku Kucoin) GetCurrencyTradeURL(_ context.Context, a asset.Item, cp currency.Pair) (string, error) {
+	_, err := ku.CurrencyPairs.IsPairEnabled(cp, a)
+	if err != nil {
+		return "", err
+	}
+	cp.Delimiter = "-to-"
+	switch a {
+	case asset.Spot:
+		return tradeBaseURL + cp.Lower().String(), nil
+	case asset.Futures:
+		return tradeBaseURL + tradeFutures + cp.Lower().String(), nil
+	default:
+		return "", fmt.Errorf("%w %v", asset.ErrNotSupported, a)
+	}
+}

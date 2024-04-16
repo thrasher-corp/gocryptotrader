@@ -1135,6 +1135,6 @@ func TestGetCurrencyTradeURL(t *testing.T) {
 		url, err := b.GetCurrencyTradeURL(context.Background(), a, pairs[0])
 		require.NoError(t, err)
 		assert.NotEmpty(t, url)
-		// no payload check: BTC Markets uses cloudflare and we expect a 403, a user will be redirected
+		// no payload check: BTC Markets uses cloudflare, we expect a 403, a user will be redirected
 	}
 }

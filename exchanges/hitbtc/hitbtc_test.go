@@ -1089,12 +1089,7 @@ func TestGetCurrencyTradeURL(t *testing.T) {
 		}
 		require.NoError(t, err, "cant get pairs for %s", a)
 		url, err := h.GetCurrencyTradeURL(context.Background(), a, pairs[0])
-		if a == asset.Options {
-			assert.ErrorIs(t, err, asset.ErrNotSupported, "could not access url %s", url)
-			continue
-		} else {
-			require.NoError(t, err)
-		}
+		require.NoError(t, err)
 		err = h.SendPayload(context.Background(), otherRequests, func() (*request.Item, error) {
 			return &request.Item{
 				Method:        http.MethodGet,
