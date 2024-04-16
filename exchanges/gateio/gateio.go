@@ -28,6 +28,10 @@ const (
 	gateioFuturesTestnetTrading         = "https://fx-api-testnet.gateio.ws"
 	gateioFuturesLiveTradingAlternative = "https://fx-api.gateio.ws/" + gateioAPIVersion
 	gateioAPIVersion                    = "api/v4/"
+	tradeBaseURL                        = "https://www.gate.io/"
+	tradeSpot                           = "trade/"
+	tradeFutures                        = "futures/usdt/"
+	tradeDelivery                       = "futures-delivery/usdt/"
 
 	// SubAccount Endpoints
 	subAccounts = "sub_accounts"

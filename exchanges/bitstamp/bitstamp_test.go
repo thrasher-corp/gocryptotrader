@@ -18,6 +18,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
+	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/banking"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
@@ -1007,14 +1008,15 @@ func TestFetchWSAuth(t *testing.T) {
 
 func TestGetCurrencyTradeURL(t *testing.T) {
 	t.Parallel()
+	testexch.UpdatePairsOnce(t, b)
 	for _, a := range b.GetAssetTypes(false) {
-		pairs, err := b.CurrencyPairs.GetPairs(a, true)
+		pairs, err := b.CurrencyPairs.GetPairs(a, false)
 		if len(pairs) == 0 {
 			continue
 		}
 		require.NoError(t, err, "cant get pairs for %s", a)
 
-		url, err := b.GetCurrencyTradeURL(context.Background(), asset.Spot, pairs[0])
+		url, err := b.GetCurrencyTradeURL(context.Background(), a, pairs[0])
 		require.NoError(t, err)
 		item := &request.Item{
 			Method:        http.MethodGet,
@@ -1023,7 +1025,7 @@ func TestGetCurrencyTradeURL(t *testing.T) {
 			HTTPDebugging: b.HTTPDebugging,
 			HTTPRecording: b.HTTPRecording}
 		if mockTests {
-			// no need to store this data
+			// no need to store the result
 			continue
 		}
 		err = b.SendPayload(context.Background(), request.Unset, func() (*request.Item, error) {

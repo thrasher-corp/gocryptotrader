@@ -2496,3 +2496,33 @@ func (h *HUOBI) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]futu
 	}
 	return resp, nil
 }
+
+// GetCurrencyTradeURL returns the UR˜L to the exchange's trade page for the given asset and currency pair
+func (h *HUOBI) GetCurrencyTradeURL(ctx context.Context, a asset.Item, cp currency.Pair) (string, error) {
+	_, err := h.CurrencyPairs.IsPairEnabled(cp, a)
+	if err != nil {
+		return "", err
+	}
+	switch a {
+	case asset.Spot:
+		cp.Delimiter = currency.UnderscoreDelimiter
+		return tradeBaseURL + tradeSpot + cp.Lower().String(), nil
+	case asset.Futures:
+		if !cp.Quote.Equal(currency.USD) && !cp.Quote.Equal(currency.USDT) {
+			// todo: support long dated currencies
+			// requires parsing dates from quotes into specific contract types
+			return "", common.ErrFunctionNotSupported
+		}
+		cp.Delimiter = currency.DashDelimiter
+		return tradeBaseURL + tradeFutures + cp.Upper().String(), nil
+	case asset.CoinMarginedFutures:
+		if !cp.Quote.Equal(currency.USD) && !cp.Quote.Equal(currency.USDT) {
+			// todo: support long dated currencies
+			// requires parsing dates from quotes into specific contract types
+			return "", common.ErrFunctionNotSupported
+		}
+		return tradeBaseURL + tradeCoinMargined + cp.Base.Upper().String(), nil
+	default:
+		return "", fmt.Errorf("%w %v", asset.ErrNotSupported, a)
+	}
+}

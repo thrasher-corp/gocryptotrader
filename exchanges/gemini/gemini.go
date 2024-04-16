@@ -22,6 +22,7 @@ const (
 	geminiAPIURL        = "https://api.gemini.com"
 	geminiSandboxAPIURL = "https://api.sandbox.gemini.com"
 	geminiAPIVersion    = "1"
+	tradeBaseURL        = "https://exchange.gemini.com/trade/"
 
 	geminiSymbols            = "symbols"
 	geminiSymbolDetails      = "symbols/details"

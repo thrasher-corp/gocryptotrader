@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"log"
+	"net/http"
 	"os"
 	"strconv"
 	"sync"
@@ -23,6 +24,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
@@ -3443,7 +3445,7 @@ func TestGetOpenInterest(t *testing.T) {
 	assert.NotEmpty(t, resp, "GetOpenInterest should return some items")
 }
 
-var pairs = map[asset.Item]currency.Pair{
+var pairMap = map[asset.Item]currency.Pair{
 	asset.Spot: currency.NewPairWithDelimiter("BTC", "USDT", "_"),
 }
 
@@ -3452,14 +3454,14 @@ var pairsGuard sync.RWMutex
 func getPair(tb testing.TB, a asset.Item) currency.Pair {
 	tb.Helper()
 	pairsGuard.RLock()
-	p, ok := pairs[a]
+	p, ok := pairMap[a]
 	pairsGuard.RUnlock()
 	if ok {
 		return p
 	}
 	pairsGuard.Lock()
 	defer pairsGuard.Unlock()
-	p, ok = pairs[a] // Protect Race if we blocked on Lock and another RW populated
+	p, ok = pairMap[a] // Protect Race if we blocked on Lock and another RW populated
 	if ok {
 		return p
 	}
@@ -3471,9 +3473,9 @@ func getPair(tb testing.TB, a asset.Item) currency.Pair {
 		tb.Fatalf("No pair available for asset %s", a)
 		return currency.EMPTYPAIR
 	}
-	pairs[a] = enabledPairs[0]
+	pairMap[a] = enabledPairs[0]
 
-	return pairs[a]
+	return pairMap[a]
 }
 
 func TestGetClientOrderIDFromText(t *testing.T) {
@@ -3549,4 +3551,32 @@ func TestGetTimeInForce(t *testing.T) {
 	ret, err = getTimeInForce(&order.Submit{Type: order.Market, FillOrKill: true})
 	require.NoError(t, err)
 	assert.Equal(t, "fok", ret)
+}
+
+func TestGetCurrencyTradeURL(t *testing.T) {
+	t.Parallel()
+	testexch.UpdatePairsOnce(t, g)
+	for _, a := range g.GetAssetTypes(false) {
+		pairs, err := g.CurrencyPairs.GetPairs(a, false)
+		if len(pairs) == 0 {
+			continue
+		}
+		require.NoError(t, err, "cant get pairs for %s", a)
+		url, err := g.GetCurrencyTradeURL(context.Background(), a, pairs[0])
+		if a == asset.Options {
+			assert.ErrorIs(t, err, asset.ErrNotSupported, "could not access url %s", url)
+			continue
+		} else {
+			require.NoError(t, err)
+		}
+		err = g.SendPayload(context.Background(), request.Unset, func() (*request.Item, error) {
+			return &request.Item{
+				Method:        http.MethodGet,
+				Path:          url,
+				Verbose:       g.Verbose,
+				HTTPDebugging: g.HTTPDebugging,
+				HTTPRecording: g.HTTPRecording}, nil
+		}, request.UnauthenticatedRequest)
+		assert.NoError(t, err, "could not access url %s", url)
+	}
 }

@@ -24,6 +24,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
+	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
@@ -1814,18 +1815,25 @@ func TestGetUsersSpotAssetSnapshot(t *testing.T) {
 
 func TestGetCurrencyTradeURL(t *testing.T) {
 	t.Parallel()
-	cp, err := currency.NewPairFromString("BTCUSD")
-	require.NoError(t, err)
-	url, err := bi.GetCurrencyTradeURL(context.Background(), asset.Spot, cp)
-	require.NoError(t, err)
-	item := &request.Item{
-		Method:        http.MethodGet,
-		Path:          url,
-		Verbose:       bi.Verbose,
-		HTTPDebugging: bi.HTTPDebugging,
-		HTTPRecording: bi.HTTPRecording}
-	err = bi.SendPayload(context.Background(), spotDefaultRate, func() (*request.Item, error) {
-		return item, nil
-	}, request.UnauthenticatedRequest)
-	assert.NoError(t, err)
+	testexch.UpdatePairsOnce(t, bi)
+	for _, a := range bi.GetAssetTypes(false) {
+		pairs, err := bi.CurrencyPairs.GetPairs(a, false)
+		if len(pairs) == 0 {
+			continue
+		}
+		require.NoError(t, err, "cant get pairs for %s", a)
+
+		url, err := bi.GetCurrencyTradeURL(context.Background(), a, pairs[0])
+		require.NoError(t, err)
+		item := &request.Item{
+			Method:        http.MethodGet,
+			Path:          url,
+			Verbose:       bi.Verbose,
+			HTTPDebugging: bi.HTTPDebugging,
+			HTTPRecording: bi.HTTPRecording}
+		err = bi.SendPayload(context.Background(), request.Unset, func() (*request.Item, error) {
+			return item, nil
+		}, request.UnauthenticatedRequest)
+		assert.NoError(t, err, "could not access url %s", url)
+	}
 }

@@ -9,6 +9,8 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/core"
@@ -17,8 +19,10 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
+	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
@@ -1158,5 +1162,28 @@ func TestCancelBatchOrders(t *testing.T) {
 	})
 	if err != nil {
 		t.Error(err)
+	}
+}
+
+func TestGetCurrencyTradeURL(t *testing.T) {
+	t.Parallel()
+	testexch.UpdatePairsOnce(t, c)
+	for _, a := range c.GetAssetTypes(false) {
+		pairs, err := c.CurrencyPairs.GetPairs(a, false)
+		if len(pairs) == 0 {
+			continue
+		}
+		require.NoError(t, err, "cant get pairs for %s", a)
+		url, err := c.GetCurrencyTradeURL(context.Background(), a, pairs[0])
+		require.NoError(t, err)
+		err = c.SendPayload(context.Background(), request.Unset, func() (*request.Item, error) {
+			return &request.Item{
+				Method:        http.MethodGet,
+				Path:          url,
+				Verbose:       c.Verbose,
+				HTTPDebugging: c.HTTPDebugging,
+				HTTPRecording: c.HTTPRecording}, nil
+		}, request.UnauthenticatedRequest)
+		assert.NoError(t, err, "could not access url %s", url)
 	}
 }

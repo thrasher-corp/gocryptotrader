@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"log"
+	"net/http"
 	"os"
 	"strconv"
 	"strings"
@@ -24,9 +25,11 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
+	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
@@ -2991,4 +2994,32 @@ func TestContractOpenInterestUSDT(t *testing.T) {
 	resp, err = h.ContractOpenInterestUSDT(context.Background(), currency.EMPTYPAIR, currency.EMPTYPAIR, "", "swap")
 	assert.NoError(t, err)
 	assert.NotEmpty(t, resp)
+}
+
+func TestGetCurrencyTradeURL(t *testing.T) {
+	t.Parallel()
+	testexch.UpdatePairsOnce(t, h)
+	for _, a := range h.GetAssetTypes(false) {
+		pairs, err := h.CurrencyPairs.GetPairs(a, false)
+		if len(pairs) == 0 {
+			continue
+		}
+		require.NoError(t, err, "cant get pairs for %s", a)
+		url, err := h.GetCurrencyTradeURL(context.Background(), a, pairs[0])
+		if a != asset.Spot && !pairs[0].Quote.Equal(currency.USDT) && !pairs[0].Quote.Equal(currency.USD) {
+			assert.ErrorIs(t, err, common.ErrFunctionNotSupported)
+			continue
+		} else {
+			require.NoError(t, err)
+		}
+		err = h.SendPayload(context.Background(), request.Unset, func() (*request.Item, error) {
+			return &request.Item{
+				Method:        http.MethodGet,
+				Path:          url,
+				Verbose:       h.Verbose,
+				HTTPDebugging: h.HTTPDebugging,
+				HTTPRecording: h.HTTPRecording}, nil
+		}, request.UnauthenticatedRequest)
+		assert.NoError(t, err, "could not access url %s", url)
+	}
 }

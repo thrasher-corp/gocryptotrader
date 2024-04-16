@@ -3,20 +3,25 @@ package gemini
 import (
 	"context"
 	"errors"
+	"net/http"
 	"net/url"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/gorilla/websocket"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
+	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
@@ -1281,5 +1286,33 @@ func TestSetExchangeOrderExecutionLimits(t *testing.T) {
 		if limit == (order.MinMaxLevel{}) {
 			t.Fatal("exchange limit should be loaded")
 		}
+	}
+}
+
+func TestGetCurrencyTradeURL(t *testing.T) {
+	t.Parallel()
+	testexch.UpdatePairsOnce(t, g)
+	for _, a := range g.GetAssetTypes(false) {
+		pairs, err := g.CurrencyPairs.GetPairs(a, false)
+		if len(pairs) == 0 {
+			continue
+		}
+		require.NoError(t, err, "cant get pairs for %s", a)
+
+		url, err := g.GetCurrencyTradeURL(context.Background(), a, pairs[0])
+		require.NoError(t, err)
+		if mockTests {
+			// no need to store the result
+			continue
+		}
+		err = g.SendPayload(context.Background(), request.Unset, func() (*request.Item, error) {
+			return &request.Item{
+				Method:        http.MethodGet,
+				Path:          url,
+				Verbose:       g.Verbose,
+				HTTPDebugging: g.HTTPDebugging,
+				HTTPRecording: g.HTTPRecording}, nil
+		}, request.UnauthenticatedRequest)
+		assert.NoError(t, err, "could not access url %s", url)
 	}
 }
