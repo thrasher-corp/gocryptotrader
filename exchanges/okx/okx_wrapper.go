@@ -2292,3 +2292,55 @@ func (ok *Okx) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]futur
 	}
 	return resp, nil
 }
+
+// GetCurrencyTradeURL returns the URL to the exchange's trade page for the given asset and currency pair
+func (ok *Okx) GetCurrencyTradeURL(ctx context.Context, a asset.Item, cp currency.Pair) (string, error) {
+	_, err := ok.CurrencyPairs.IsPairEnabled(cp, a)
+	if err != nil {
+		return "", err
+	}
+	cp.Delimiter = currency.DashDelimiter
+	switch a {
+	case asset.Spot:
+		return baseURL + tradeSpot + cp.Lower().String(), nil
+	case asset.Margin:
+		return baseURL + tradeMargin + cp.Lower().String(), nil
+	case asset.PerpetualSwap:
+		return baseURL + tradePerps + cp.Lower().String(), nil
+	case asset.Options:
+		return baseURL + tradeOptions + cp.Base.Lower().String() + "-usd", nil
+	case asset.Futures:
+		cp, err = ok.FormatExchangeCurrency(cp, a)
+		if err != nil {
+			return "", err
+		}
+		insts, err := ok.GetInstruments(ctx, &InstrumentsFetchParams{
+			InstrumentType: okxInstTypeFutures,
+			InstrumentID:   cp.String(),
+		})
+		if err != nil {
+			return "", err
+		}
+		if len(insts) != 1 {
+			return "", fmt.Errorf("%w response len: %v currency expected: %v", errOnlyOneResponseExpected, len(insts), cp)
+		}
+		var ct string
+		switch insts[0].Alias {
+		case "this_week":
+			ct = "-weekly"
+		case "next_week":
+			ct = "-biweekly"
+		case "this_month":
+			ct = "-monthly"
+		case "next_month":
+			ct = "-bimonthly"
+		case "quarter":
+			ct = "-quarterly"
+		case "next_quarter":
+			ct = "-biquarterly"
+		}
+		return baseURL + tradeFutures + strings.ToLower(insts[0].Underlying) + ct, nil
+	default:
+		return "", fmt.Errorf("%w %v", asset.ErrNotSupported, a)
+	}
+}

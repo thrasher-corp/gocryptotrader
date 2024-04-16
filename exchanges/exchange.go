@@ -1944,6 +1944,6 @@ func (b *Base) IsVerbose() bool {
 	return b.Verbose
 }
 
-func (b *Base) GetCurrencyTradeURL(ctx context.Context, a asset.Item, cp currency.Pair) (string, error) {
-	return "", common.ErrNotYetImplemented
+func (b *Base) GetCurrencyTradeURL(context.Context, asset.Item, currency.Pair) (string, error) {
+	return "", common.ErrFunctionNotSupported
 }

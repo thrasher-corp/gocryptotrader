@@ -3,11 +3,14 @@ package lbank
 import (
 	"context"
 	"log"
+	"net/http"
 	"os"
 	"strconv"
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -15,7 +18,9 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
+	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 )
 
 // Please supply your own keys here for due diligence testing
@@ -610,5 +615,29 @@ func TestGetWithdrawalsHistory(t *testing.T) {
 	_, err := l.GetWithdrawalsHistory(context.Background(), currency.BTC, asset.Spot)
 	if err != nil {
 		t.Error(err)
+	}
+}
+
+func TestGetCurrencyTradeURL(t *testing.T) {
+	t.Parallel()
+	testexch.UpdatePairsOnce(t, l)
+	for _, a := range l.GetAssetTypes(false) {
+		pairs, err := l.CurrencyPairs.GetPairs(a, false)
+		if len(pairs) == 0 {
+			continue
+		}
+		require.NoError(t, err, "cant get pairs for %s", a)
+		url, err := l.GetCurrencyTradeURL(context.Background(), a, pairs[0])
+		require.NoError(t, err)
+		err = l.SendPayload(context.Background(), request.Unset, func() (*request.Item, error) {
+			return &request.Item{
+				Method:        http.MethodGet,
+				Path:          url,
+				Verbose:       l.Verbose,
+				HTTPDebugging: l.HTTPDebugging,
+				HTTPRecording: l.HTTPRecording}, nil
+		}, request.UnauthenticatedRequest)
+		t.Log(url)
+		assert.NoError(t, err, "could not access url %s", url)
 	}
 }

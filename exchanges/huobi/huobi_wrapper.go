@@ -2498,7 +2498,7 @@ func (h *HUOBI) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]futu
 }
 
 // GetCurrencyTradeURL returns the UR˜L to the exchange's trade page for the given asset and currency pair
-func (h *HUOBI) GetCurrencyTradeURL(ctx context.Context, a asset.Item, cp currency.Pair) (string, error) {
+func (h *HUOBI) GetCurrencyTradeURL(_ context.Context, a asset.Item, cp currency.Pair) (string, error) {
 	_, err := h.CurrencyPairs.IsPairEnabled(cp, a)
 	if err != nil {
 		return "", err
