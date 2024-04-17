@@ -3048,7 +3048,7 @@ func (b *Binance) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]fu
 }
 
 // GetCurrencyTradeURL returns the URL to the exchange's trade page for the given asset and currency pair
-func (b *Binance) GetCurrencyTradeURL(_ context.Context, a asset.Item, cp currency.Pair) (string, error) {
+func (b *Binance) GetCurrencyTradeURL(ctx context.Context, a asset.Item, cp currency.Pair) (string, error) {
 	_, err := b.CurrencyPairs.IsPairEnabled(cp, a)
 	if err != nil {
 		return "", err
@@ -3059,9 +3059,49 @@ func (b *Binance) GetCurrencyTradeURL(_ context.Context, a asset.Item, cp curren
 	}
 	switch a {
 	case asset.USDTMarginedFutures:
-		return tradeBaseURL + "futures/" + symbol, nil
+		var ct string
+		if !cp.Quote.Equal(currency.USDT) && !cp.Quote.Equal(currency.BUSD) {
+			ei, err := b.UExchangeInfo(ctx)
+			if err != nil {
+				return "", err
+			}
+			for i := range ei.Symbols {
+				if ei.Symbols[i].Symbol != symbol {
+					continue
+				}
+				switch ei.Symbols[i].ContractType {
+				case "CURRENT_QUARTER":
+					ct = "_QUARTER"
+				case "NEXT_QUARTER":
+					ct = "_BI-QUARTER"
+				}
+				symbol = ei.Symbols[i].Pair
+				break
+			}
+		}
+		return tradeBaseURL + "futures/" + symbol + ct, nil
 	case asset.CoinMarginedFutures:
-		return tradeBaseURL + "delivery/" + symbol, nil
+		var ct string
+		if !cp.Quote.Equal(currency.USDT) && !cp.Quote.Equal(currency.BUSD) {
+			ei, err := b.FuturesExchangeInfo(ctx)
+			if err != nil {
+				return "", err
+			}
+			for i := range ei.Symbols {
+				if ei.Symbols[i].Symbol != symbol {
+					continue
+				}
+				switch ei.Symbols[i].ContractType {
+				case "CURRENT_QUARTER":
+					ct = "_QUARTER"
+				case "NEXT_QUARTER":
+					ct = "_BI-QUARTER"
+				}
+				symbol = ei.Symbols[i].Pair
+				break
+			}
+		}
+		return tradeBaseURL + "delivery/" + symbol + ct, nil
 	case asset.Spot:
 		return tradeBaseURL + "trade/" + symbol + "?type=spot", nil
 	case asset.Margin:
