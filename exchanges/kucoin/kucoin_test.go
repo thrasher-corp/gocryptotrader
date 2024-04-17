@@ -2073,7 +2073,7 @@ func TestGenerateCandleSubscription(t *testing.T) {
 	subs, err := ku.generateSubscriptions()
 	assert.NoError(t, err, "GenerateDefaultSubscriptions with Candles should not error")
 
-	assert.Len(t, subs, 6, "Should generate the correct kumber of subs for candles")
+	assert.Len(t, subs, 6, "Should generate the correct number of subs for candles")
 	for _, c := range []string{"BTC-USDT", "ETH-USDT", "LTC-USDT", "ETH-BTC"} {
 		verifySubs(t, subs, asset.Spot, "/market/candles:", c+"_4hour")
 	}
