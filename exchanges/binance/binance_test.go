@@ -5043,10 +5043,10 @@ func TestGetMarginAccountOCO(t *testing.T) {
 	assert.NotNil(t, result)
 }
 
-func TestGetMarginAccountAllOCO(t *testing.T) {
+func TestGetPMMarginAccountAllOCO(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
-	result, err := b.GetMarginAccountAllOCO(context.Background(), time.Now().Add(-time.Hour*24), time.Now(), 0, 12)
+	result, err := b.GetPMMarginAccountAllOCO(context.Background(), time.Now().Add(-time.Hour*24), time.Now(), 0, 12)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -5368,6 +5368,52 @@ func TestGetCrossMarginTransferHistory(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	result, err := b.GetCrossMarginTransferHistory(context.Background(), currency.ETH, "ROLL_IN", "", time.Time{}, time.Time{}, 10, 30)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestNewMarginAccountOCOOrder(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	result, err := b.NewMarginAccountOCOOrder(context.Background(), &MarginOCOOrderParam{
+		Symbol:    currency.NewPair(currency.BTC, currency.USDT),
+		Side:      order.Buy.String(),
+		Quantity:  0.000001,
+		Price:     12312,
+		StopPrice: 12345,
+	})
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestCancelMarginAccountOCOOrder(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	result, err := b.CancelMarginAccountOCOOrder(context.Background(), "LTCBTC", "12345678", "", true, 0)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetMarginAccountOCOOrder(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetMarginAccountOCOOrder(context.Background(), "LTCBTC", "12345", 0, false)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetMarginAccountAllOCO(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetMarginAccountAllOCO(context.Background(), "LTCBTC", true, time.Now().Add(-time.Hour*24), time.Now(), 0, 12)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetMarginAccountsOpenOCOOrder(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetMarginAccountsOpenOCOOrder(context.Background(), true, "")
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }

@@ -3287,38 +3287,23 @@ type CrossMarginAccount struct {
 	} `json:"userAssets"`
 }
 
-// MarginAccountOCOOrder represents a margin one-cancel-other order.
-type MarginAccountOCOOrder struct {
-	OrderListID           int                  `json:"orderListId"`
-	ContingencyType       string               `json:"contingencyType"`
-	ListStatusType        string               `json:"listStatusType"`
-	ListOrderStatus       string               `json:"listOrderStatus"`
-	ListClientOrderID     string               `json:"listClientOrderId"`
-	TransactionTime       convert.ExchangeTime `json:"transactionTime"`
-	Symbol                string               `json:"symbol"`
-	MarginBuyBorrowAmount types.Number         `json:"marginBuyBorrowAmount"`
-	MarginBuyBorrowAsset  string               `json:"marginBuyBorrowAsset"`
-	IsIsolated            bool                 `json:"isIsolated"`
-	Orders                []struct {
-		Symbol        string `json:"symbol"`
-		OrderID       int64  `json:"orderId"`
-		ClientOrderID string `json:"clientOrderId"`
-	} `json:"orders"`
-	OrderReports []struct {
-		Symbol                  string               `json:"symbol"`
-		OrderID                 int64                `json:"orderId"`
-		OrderListID             int64                `json:"orderListId"`
-		ClientOrderID           string               `json:"clientOrderId"`
-		TransactTime            convert.ExchangeTime `json:"transactTime"`
-		Price                   types.Number         `json:"price"`
-		OrigQty                 types.Number         `json:"origQty"`
-		ExecutedQty             types.Number         `json:"executedQty"`
-		CummulativeQuoteQty     types.Number         `json:"cummulativeQuoteQty"`
-		Status                  string               `json:"status"`
-		TimeInForce             string               `json:"timeInForce"`
-		Type                    string               `json:"type"`
-		Side                    string               `json:"side"`
-		StopPrice               types.Number         `json:"stopPrice,omitempty"`
-		SelfTradePreventionMode string               `json:"selfTradePreventionMode"`
-	} `json:"orderReports"`
+// MarginOCOOrderParam represents an OCO order parameters.
+type MarginOCOOrderParam struct {
+	Symbol                  currency.Pair `json:"symbol"`
+	IsIsolated              bool          `json:"isIsolated,omitempty,string"`
+	ListClientOrderID       string        `json:"listClientOrderId,omitempty"`
+	Side                    string        `json:"side"`
+	Quantity                float64       `json:"quantity"`
+	LimitClientOrderID      string        `json:"limitClientOrderId,omitempty"`
+	Price                   float64       `json:"price"`
+	LimitIcebergQuantity    float64       `json:"limitIcebergQty,omitempty"`
+	StopClientOrderID       string        `json:"stopClientOrderId"`
+	StopPrice               float64       `json:"stopPrice,omitempty"`
+	StopLimitPrice          float64       `json:"stopLimitPrice,omitempty"` // If provided, stopLimitTimeInForce is required.
+	StopIcebergQuantity     float64       `json:"stopIcebergQty,omitempty"`
+	StopLimitTimeInForce    float64       `json:"stopLimitTimeInForce,omitempty"` // Valid values are GTC/FOK/IOC
+	NewOrderRespType        string        `json:"newOrderRespType,omitempty"`
+	SideEffectType          string        `json:"sideEffectType,omitempty"`
+	SelfTradePreventionMode string        `json:"selfTradePreventionMode,omitempty"`
+	AutoRepayAtCancel       string        `json:"autoRepayAtCancel,omitempty"`
 }

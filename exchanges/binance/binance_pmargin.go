@@ -624,8 +624,8 @@ func (b *Binance) GetMarginAccountOCO(ctx context.Context, orderListID int64, or
 	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestFuturesSupplementary, http.MethodGet, "/papi/v1/margin/orderList", params, pmGetMarginAccountOCORate, nil, &resp)
 }
 
-// GetMarginAccountAllOCO retrieves all OCO for a specific margin account based on provided optional parameters
-func (b *Binance) GetMarginAccountAllOCO(ctx context.Context, startTime, endTime time.Time, fromID, limit int64) ([]OCOOrder, error) {
+// GetPMMarginAccountAllOCO a portfolio margin method to retrieve all OCO for a specific margin account based on provided optional parameters
+func (b *Binance) GetPMMarginAccountAllOCO(ctx context.Context, startTime, endTime time.Time, fromID, limit int64) ([]OCOOrder, error) {
 	params := url.Values{}
 	if fromID > 0 {
 		params.Set("fromId", strconv.FormatInt(fromID, 10))

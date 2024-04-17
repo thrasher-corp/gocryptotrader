@@ -1310,10 +1310,116 @@ func (b *Binance) GetMarginAccountAllOrders(ctx context.Context, symbol string, 
 }
 
 // NewMarginAccountOCOOrder send in a new OCO for a margin account
-func (b *Binance) NewMarginAccountOCOOrder(ctx context.Context) (*MarginAccountOCOOrder, error) {
-	// TODO: incomplete
-	var resp *MarginAccountOCOOrder
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodPost, "/sapi/v1/margin/order/oco", nil, spotOrderRate, nil, &resp)
+//
+// Price Restrictions:
+// SELL: Limit Price > Last Price > Stop Price
+// BUY: Limit Price < Last Price < Stop Price
+// Quantity Restrictions:
+// Both legs must have the same quantity
+// ICEBERG quantities however do not have to be the same.
+// Order Rate Limit
+// OCO counts as 2 orders against the order rate limit.
+// autoRepayAtCancel is suggested to set as “FALSE” to keep liability unrepaid under high frequent new order/cancel order execution
+func (b *Binance) NewMarginAccountOCOOrder(ctx context.Context, arg *MarginOCOOrderParam) (*OCOOrder, error) {
+	if arg.Symbol.IsEmpty() {
+		return nil, currency.ErrCurrencyPairEmpty
+	}
+	if arg.Side == "" {
+		return nil, order.ErrSideIsInvalid
+	}
+	if arg.Quantity == 0 {
+		return nil, order.ErrAmountBelowMin
+	}
+	if arg.Price <= 0 {
+		return nil, order.ErrPriceBelowMin
+	}
+	if arg.StopPrice <= 0 {
+		return nil, fmt.Errorf("%w stopPrice is required", order.ErrPriceBelowMin)
+	}
+	var resp *OCOOrder
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodPost, "/sapi/v1/margin/order/oco", nil, ocoOrderRate, arg, &resp)
+}
+
+// CancelMarginAccountOCOOrder cancel an entire Order List for a margin account.
+func (b *Binance) CancelMarginAccountOCOOrder(ctx context.Context, symbol, listClientOrderID, newClientOrderID string, isIsolated bool, orderListID int64) (*OCOOrder, error) {
+	if symbol == "" {
+		return nil, currency.ErrSymbolStringEmpty
+	}
+	params := url.Values{}
+	params.Set("symbol", symbol)
+	if isIsolated {
+		params.Set("isIsolated", "TRUE")
+	}
+	if orderListID > 0 {
+		params.Set("orderListId", strconv.FormatInt(orderListID, 10))
+	}
+	if listClientOrderID != "" {
+		params.Set("listClientOrderId", listClientOrderID)
+	}
+	if newClientOrderID != "" {
+		params.Set("newClientOrderId", newClientOrderID)
+	}
+	var resp *OCOOrder
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodDelete, "/sapi/v1/margin/orderList", params, spotOrderRate, nil, &resp)
+}
+
+// GetMarginAccountOCOOrder retrieves a specific OCO based on provided optional parameters
+func (b *Binance) GetMarginAccountOCOOrder(ctx context.Context, symbol, origClientOrderID string, orderListID int64, isIsolated bool) (*OCOOrder, error) {
+	params := url.Values{}
+	if symbol != "" {
+		params.Set("symbol", symbol)
+	}
+	if isIsolated {
+		params.Set("isIsolated", "TRUE")
+	}
+	if origClientOrderID != "" {
+		params.Set("origClientOrderId", origClientOrderID)
+	}
+	if orderListID > 0 {
+		params.Set("orderListId", strconv.FormatInt(orderListID, 10))
+	}
+	var resp *OCOOrder
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, "/sapi/v1/margin/orderList", params, spotDefaultRate, nil, &resp)
+}
+
+// GetMarginAccountAllOCO retrieves all OCO for a specific margin account based on provided optional parameters
+func (b *Binance) GetMarginAccountAllOCO(ctx context.Context, symbol string, isIsolated bool, startTime, endTime time.Time, fromID, limit int64) ([]OCOOrder, error) {
+	params := url.Values{}
+	if symbol != "" {
+		params.Set("symbol", symbol)
+	}
+	if isIsolated {
+		params.Set("isIsolated", "TRUE")
+	}
+	if fromID > 0 {
+		params.Set("fromId", strconv.FormatInt(fromID, 10))
+	}
+	if !startTime.IsZero() && !endTime.IsZero() {
+		err := common.StartEndTimeCheck(startTime, endTime)
+		if err != nil {
+			return nil, err
+		}
+		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	var resp []OCOOrder
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, "/sapi/v1/margin/allOrderList", params, getMarginAccountAllOCORate, nil, &resp)
+}
+
+// GetMarginAccountsOpenOCOOrder retrieves margin account's open OCO order
+func (b *Binance) GetMarginAccountsOpenOCOOrder(ctx context.Context, isIsolated bool, symbol string) ([]OCOOrder, error) {
+	params := url.Values{}
+	if isIsolated {
+		params.Set("isIsolated", "TRUE")
+	}
+	if symbol != "" {
+		params.Set("symbol", symbol)
+	}
+	var resp []OCOOrder
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, "/sapi/v1/margin/openOrderList", params, marginAccountOpenOCOOrdersRate, nil, &resp)
 }
 
 // GetMarginAccount returns account information for margin accounts

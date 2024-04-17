@@ -79,6 +79,9 @@ const (
 	getCrossMarginAccountOrderRate
 	getMarginAccountsOpenOrdersRate
 	marginAccountsAllOrdersRate
+	marginAccountOpenOCOOrdersRate
+	ocoOrderRate
+	getMarginAccountAllOCORate
 
 	spotOpenOrdersSpecificRate
 	spotOrderRate
@@ -316,6 +319,12 @@ func (r *RateLimit) Limit(ctx context.Context, f request.EndpointLimit) error {
 		getMarginAccountsOpenOrdersRate:
 		limiter, tokens = r.SpotRate, 10
 	case marginAccountsAllOrdersRate:
+		limiter, tokens = r.SpotRate, 200
+	case marginAccountOpenOCOOrdersRate:
+		limiter, tokens = r.SpotRate, 10
+	case ocoOrderRate:
+		limiter, tokens = r.SpotOrdersRate, 2
+	case getMarginAccountAllOCORate:
 		limiter, tokens = r.SpotRate, 200
 	case getManagedSubAccountSnapshotRate:
 		limiter, tokens = r.SpotRate, 2400
