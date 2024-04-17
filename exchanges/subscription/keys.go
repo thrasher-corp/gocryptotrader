@@ -22,9 +22,13 @@ func (k ExactKey) GetSubscription() *Subscription {
 // Match implements MatchableKey
 // Returns true if the key fields exactly matches the subscription, including all Pairs
 func (k ExactKey) Match(eachKey MatchableKey) bool {
+	if eachKey == nil {
+		return false
+	}
 	eachSub := eachKey.GetSubscription()
 	switch {
-	case eachSub.Channel != k.Channel,
+	case eachSub == nil,
+		eachSub.Channel != k.Channel,
 		eachSub.Asset != k.Asset,
 		!eachSub.Pairs.Equal(k.Pairs),
 		eachSub.Levels != k.Levels,
@@ -49,9 +53,13 @@ func (k IgnoringPairsKey) GetSubscription() *Subscription {
 
 // Match implements MatchableKey
 func (k IgnoringPairsKey) Match(eachKey MatchableKey) bool {
+	if eachKey == nil {
+		return false
+	}
 	eachSub := eachKey.GetSubscription()
 	switch {
-	case eachSub.Channel != k.Channel,
+	case eachSub == nil,
+		eachSub.Channel != k.Channel,
 		eachSub.Asset != k.Asset,
 		eachSub.Levels != k.Levels,
 		eachSub.Interval != k.Interval:
