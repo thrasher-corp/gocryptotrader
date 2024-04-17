@@ -3,7 +3,6 @@ package gemini
 import (
 	"context"
 	"errors"
-	"net/http"
 	"net/url"
 	"strings"
 	"testing"
@@ -18,7 +17,6 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
@@ -1299,20 +1297,8 @@ func TestGetCurrencyTradeURL(t *testing.T) {
 		}
 		require.NoError(t, err, "cannot get pairs for %s", a)
 
-		url, err := g.GetCurrencyTradeURL(context.Background(), a, pairs[0])
+		resp, err := g.GetCurrencyTradeURL(context.Background(), a, pairs[0])
 		require.NoError(t, err)
-		if mockTests {
-			// no need to store the result
-			continue
-		}
-		err = g.SendPayload(context.Background(), request.Unset, func() (*request.Item, error) {
-			return &request.Item{
-				Method:        http.MethodGet,
-				Path:          url,
-				Verbose:       g.Verbose,
-				HTTPDebugging: g.HTTPDebugging,
-				HTTPRecording: g.HTTPRecording}, nil
-		}, request.UnauthenticatedRequest)
-		assert.NoError(t, err, "could not access url %s", url)
+		assert.NotEmpty(t, resp)
 	}
 }

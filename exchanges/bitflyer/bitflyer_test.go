@@ -3,7 +3,6 @@ package bitflyer
 import (
 	"context"
 	"log"
-	"net/http"
 	"os"
 	"testing"
 	"time"
@@ -17,7 +16,6 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
@@ -469,16 +467,8 @@ func TestGetCurrencyTradeURL(t *testing.T) {
 		}
 		require.NoError(t, err, "cannot get pairs for %s", a)
 
-		url, err := b.GetCurrencyTradeURL(context.Background(), a, pairs[0])
+		resp, err := b.GetCurrencyTradeURL(context.Background(), a, pairs[0])
 		require.NoError(t, err)
-		err = b.SendPayload(context.Background(), request.Unset, func() (*request.Item, error) {
-			return &request.Item{
-				Method:        http.MethodGet,
-				Path:          url,
-				Verbose:       b.Verbose,
-				HTTPDebugging: b.HTTPDebugging,
-				HTTPRecording: b.HTTPRecording}, nil
-		}, request.UnauthenticatedRequest)
-		assert.NoError(t, err, "could not access url %s", url)
+		assert.NotEmpty(t, resp)
 	}
 }

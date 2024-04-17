@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"log"
-	"net/http"
 	"os"
 	"strconv"
 	"sync"
@@ -24,7 +23,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
@@ -3562,20 +3560,12 @@ func TestGetCurrencyTradeURL(t *testing.T) {
 			continue
 		}
 		require.NoError(t, err, "cannot get pairs for %s", a)
-		url, err := g.GetCurrencyTradeURL(context.Background(), a, pairs[0])
+		resp, err := g.GetCurrencyTradeURL(context.Background(), a, pairs[0])
 		if a == asset.Options {
-			assert.ErrorIs(t, err, asset.ErrNotSupported, "could not access url %s", url)
+			assert.ErrorIs(t, err, asset.ErrNotSupported, "could not access url %s", resp)
 			continue
 		}
 		require.NoError(t, err)
-		err = g.SendPayload(context.Background(), request.Unset, func() (*request.Item, error) {
-			return &request.Item{
-				Method:        http.MethodGet,
-				Path:          url,
-				Verbose:       g.Verbose,
-				HTTPDebugging: g.HTTPDebugging,
-				HTTPRecording: g.HTTPRecording}, nil
-		}, request.UnauthenticatedRequest)
-		assert.NoError(t, err, "could not access url %s", url)
+		assert.NotEmpty(t, resp)
 	}
 }

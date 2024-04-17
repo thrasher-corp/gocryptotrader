@@ -2293,13 +2293,12 @@ func TestGetCurrencyTradeURL(t *testing.T) {
 			continue
 		}
 		require.NoError(t, err, "cannot get pairs for %s", a)
-		url, err := k.GetCurrencyTradeURL(context.Background(), a, pairs[0])
+		resp, err := k.GetCurrencyTradeURL(context.Background(), a, pairs[0])
 		if a != asset.Spot {
 			assert.ErrorIs(t, err, asset.ErrNotSupported)
 			continue
 		}
 		require.NoError(t, err)
-		assert.NotEmpty(t, url)
-		// no payload check: Kraken uses cloudflare, we expect a 403, a user will be redirected
+		assert.NotEmpty(t, resp)
 	}
 }

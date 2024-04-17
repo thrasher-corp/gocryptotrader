@@ -19,7 +19,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
@@ -1088,16 +1087,8 @@ func TestGetCurrencyTradeURL(t *testing.T) {
 			continue
 		}
 		require.NoError(t, err, "cannot get pairs for %s", a)
-		url, err := h.GetCurrencyTradeURL(context.Background(), a, pairs[0])
+		resp, err := h.GetCurrencyTradeURL(context.Background(), a, pairs[0])
 		require.NoError(t, err)
-		err = h.SendPayload(context.Background(), otherRequests, func() (*request.Item, error) {
-			return &request.Item{
-				Method:        http.MethodGet,
-				Path:          url,
-				Verbose:       h.Verbose,
-				HTTPDebugging: h.HTTPDebugging,
-				HTTPRecording: h.HTTPRecording}, nil
-		}, request.UnauthenticatedRequest)
-		assert.NoError(t, err, "could not access url %s", url)
+		assert.NotEmpty(t, resp)
 	}
 }

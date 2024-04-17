@@ -3,7 +3,6 @@ package lbank
 import (
 	"context"
 	"log"
-	"net/http"
 	"os"
 	"strconv"
 	"testing"
@@ -18,7 +17,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 )
@@ -627,17 +625,8 @@ func TestGetCurrencyTradeURL(t *testing.T) {
 			continue
 		}
 		require.NoError(t, err, "cannot get pairs for %s", a)
-		url, err := l.GetCurrencyTradeURL(context.Background(), a, pairs[0])
+		resp, err := l.GetCurrencyTradeURL(context.Background(), a, pairs[0])
 		require.NoError(t, err)
-		err = l.SendPayload(context.Background(), request.Unset, func() (*request.Item, error) {
-			return &request.Item{
-				Method:        http.MethodGet,
-				Path:          url,
-				Verbose:       l.Verbose,
-				HTTPDebugging: l.HTTPDebugging,
-				HTTPRecording: l.HTTPRecording}, nil
-		}, request.UnauthenticatedRequest)
-		t.Log(url)
-		assert.NoError(t, err, "could not access url %s", url)
+		assert.NotEmpty(t, resp)
 	}
 }

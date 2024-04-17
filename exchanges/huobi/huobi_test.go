@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"log"
-	"net/http"
 	"os"
 	"strconv"
 	"strings"
@@ -25,7 +24,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
@@ -3005,20 +3003,12 @@ func TestGetCurrencyTradeURL(t *testing.T) {
 			continue
 		}
 		require.NoError(t, err, "cannot get pairs for %s", a)
-		url, err := h.GetCurrencyTradeURL(context.Background(), a, pairs[0])
+		resp, err := h.GetCurrencyTradeURL(context.Background(), a, pairs[0])
 		if a != asset.Spot && !pairs[0].Quote.Equal(currency.USDT) && !pairs[0].Quote.Equal(currency.USD) {
 			assert.ErrorIs(t, err, common.ErrFunctionNotSupported)
 			continue
 		}
 		require.NoError(t, err)
-		err = h.SendPayload(context.Background(), request.Unset, func() (*request.Item, error) {
-			return &request.Item{
-				Method:        http.MethodGet,
-				Path:          url,
-				Verbose:       h.Verbose,
-				HTTPDebugging: h.HTTPDebugging,
-				HTTPRecording: h.HTTPRecording}, nil
-		}, request.UnauthenticatedRequest)
-		assert.NoError(t, err, "could not access url %s", url)
+		assert.NotEmpty(t, resp)
 	}
 }

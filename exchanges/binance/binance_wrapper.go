@@ -3064,6 +3064,8 @@ func (b *Binance) GetCurrencyTradeURL(_ context.Context, a asset.Item, cp curren
 		return tradeBaseURL + "en/delivery/" + symbol, nil
 	case asset.Spot:
 		return tradeBaseURL + "trade/" + symbol + "?type=spot", nil
+	case asset.Margin:
+		return tradeBaseURL + "trade/" + symbol + "?type=cross", nil
 	default:
 		return "", fmt.Errorf("%w %v", asset.ErrNotSupported, a)
 	}
