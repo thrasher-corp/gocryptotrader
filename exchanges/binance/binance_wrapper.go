@@ -3059,9 +3059,9 @@ func (b *Binance) GetCurrencyTradeURL(_ context.Context, a asset.Item, cp curren
 	}
 	switch a {
 	case asset.USDTMarginedFutures:
-		return tradeBaseURL + "en/futures/" + symbol, nil
+		return tradeBaseURL + "futures/" + symbol, nil
 	case asset.CoinMarginedFutures:
-		return tradeBaseURL + "en/delivery/" + symbol, nil
+		return tradeBaseURL + "delivery/" + symbol, nil
 	case asset.Spot:
 		return tradeBaseURL + "trade/" + symbol + "?type=spot", nil
 	case asset.Margin:
