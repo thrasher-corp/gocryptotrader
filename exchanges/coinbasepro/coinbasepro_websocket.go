@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"slices"
 	"strconv"
 	"time"
 
@@ -400,7 +399,7 @@ func (c *CoinbasePro) Subscribe(subs subscription.List) error {
 	for i, s := range subs {
 		if i == 0 {
 			r.ProductIDs = s.Pairs.Strings()
-		} else if !slices.Equal(subs[0].Pairs, s.Pairs) {
+		} else if subs[0].Pairs.Equal(s.Pairs) {
 			r.ProductIDs = nil
 			break
 		}
