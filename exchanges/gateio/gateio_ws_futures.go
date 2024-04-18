@@ -244,7 +244,7 @@ func (g *Gateio) wsHandleFuturesData(respRaw []byte, assetType asset.Item) error
 	case futuresCandlesticksChannel:
 		return g.processFuturesCandlesticks(respRaw, assetType)
 	case futuresOrdersChannel:
-		var processed interface{}
+		var processed []order.Detail
 		processed, err = g.processFuturesOrdersPushData(respRaw, assetType)
 		if err != nil {
 			return err
