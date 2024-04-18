@@ -156,7 +156,6 @@ var (
 	errTooManyOrderRequest           = errors.New("too many order creation request")
 	errInvalidTimeout                = errors.New("invalid timeout, should be in seconds At least 5 seconds, 0 means cancel the countdown")
 	errNoTickerData                  = errors.New("no ticker data available")
-	errOnlyLimitOrderType            = errors.New("only order type 'limit' is allowed")
 	errNilArgument                   = errors.New("null argument")
 	errInvalidTimezone               = errors.New("invalid timezone")
 	errMultipleOrders                = errors.New("multiple orders passed")

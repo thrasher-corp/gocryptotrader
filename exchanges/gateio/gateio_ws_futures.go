@@ -244,7 +244,13 @@ func (g *Gateio) wsHandleFuturesData(respRaw []byte, assetType asset.Item) error
 	case futuresCandlesticksChannel:
 		return g.processFuturesCandlesticks(respRaw, assetType)
 	case futuresOrdersChannel:
-		return g.processFuturesOrdersPushData(respRaw, assetType)
+		var processed interface{}
+		processed, err = g.processFuturesOrdersPushData(respRaw, assetType)
+		if err != nil {
+			return err
+		}
+		g.Websocket.DataHandler <- processed
+		return nil
 	case futuresUserTradesChannel:
 		return g.procesFuturesUserTrades(respRaw, assetType)
 	case futuresLiquidatesChannel:
@@ -642,7 +648,7 @@ func (g *Gateio) processFuturesOrderbookSnapshot(event string, incoming []byte, 
 	return nil
 }
 
-func (g *Gateio) processFuturesOrdersPushData(data []byte, assetType asset.Item) error {
+func (g *Gateio) processFuturesOrdersPushData(data []byte, assetType asset.Item) (interface{}, error) {
 	resp := struct {
 		Time    int64            `json:"time"`
 		Channel string           `json:"channel"`
@@ -651,18 +657,18 @@ func (g *Gateio) processFuturesOrdersPushData(data []byte, assetType asset.Item)
 	}{}
 	err := json.Unmarshal(data, &resp)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	orderDetails := make([]order.Detail, len(resp.Result))
 	for x := range resp.Result {
 		status, err := order.StringToOrderStatus(func() string {
 			if resp.Result[x].Status == "finished" {
-				return "cancelled"
+				return resp.Result[x].FinishAs
 			}
 			return resp.Result[x].Status
 		}())
 		if err != nil {
-			return err
+			return nil, err
 		}
 		orderDetails[x] = order.Detail{
 			Amount:         resp.Result[x].Size,
@@ -679,8 +685,7 @@ func (g *Gateio) processFuturesOrdersPushData(data []byte, assetType asset.Item)
 			CloseTime:      resp.Result[x].FinishTimeMs.Time(),
 		}
 	}
-	g.Websocket.DataHandler <- orderDetails
-	return nil
+	return orderDetails, nil
 }
 
 func (g *Gateio) procesFuturesUserTrades(data []byte, assetType asset.Item) error {
