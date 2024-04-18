@@ -651,31 +651,16 @@ func (b *Binance) GetMarginAccountsOpenOCO(ctx context.Context) ([]OCOOrder, err
 	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestFuturesSupplementary, http.MethodGet, "/papi/v1/margin/openOrderList", nil, pmGetMarginAccountsOpenOCOOrdersRate, nil, &resp)
 }
 
-// GetMarginAccountTradeList retrieves margin account trade list
-func (b *Binance) GetMarginAccountTradeList(ctx context.Context, symbol string, startTime, endTime time.Time, orderID, fromID, limit int64) ([]MarginAccountTradeItem, error) {
+// GetPMMarginAccountTradeList retrieves margin account trade list
+func (b *Binance) GetPMMarginAccountTradeList(ctx context.Context, symbol string, startTime, endTime time.Time, orderID, fromID, limit int64) ([]TradeHistory, error) {
 	if symbol == "" {
 		return nil, currency.ErrSymbolStringEmpty
 	}
-	params := url.Values{}
-	params.Set("symbol", symbol)
-	if orderID != 0 {
-		params.Set("orderId", strconv.FormatInt(orderID, 10))
+	params, err := ocoOrdersAndTradeParams(symbol, false, startTime, endTime, orderID, fromID, limit)
+	if err != nil {
+		return nil, err
 	}
-	if fromID != 0 {
-		params.Set("fromId", strconv.FormatInt(fromID, 10))
-	}
-	if !startTime.IsZero() && !endTime.IsZero() {
-		err := common.StartEndTimeCheck(startTime, endTime)
-		if err != nil {
-			return nil, err
-		}
-		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
-		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
-	}
-	if limit > 0 {
-		params.Set("limit", strconv.FormatInt(limit, 10))
-	}
-	var resp []MarginAccountTradeItem
+	var resp []TradeHistory
 	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestFuturesSupplementary, http.MethodGet, "/papi/v1/margin/myTrades", params, pmGetMarginAccountTradeListRate, nil, &resp)
 }
 
@@ -697,10 +682,15 @@ func (b *Binance) GetPortfolioMarginAccountInformation(ctx context.Context) (*Ac
 	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestFuturesSupplementary, http.MethodGet, "/papi/v1/account", nil, pmGetAccountInformationRate, nil, &resp)
 }
 
-// GetMarginMaxBorrow holds the maximum borrowable amount limited by the account level.
-func (b *Binance) GetMarginMaxBorrow(ctx context.Context) (*MaxBorrow, error) {
+// GetPMMarginMaxBorrow holds the maximum borrowable amount limited by the account level.
+func (b *Binance) GetPMMarginMaxBorrow(ctx context.Context, assetName currency.Code) (*MaxBorrow, error) {
+	if assetName.IsEmpty() {
+		return nil, currency.ErrCurrencyCodeEmpty
+	}
+	params := url.Values{}
+	params.Set("asset", assetName.String())
 	var resp *MaxBorrow
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestFuturesSupplementary, http.MethodGet, "/papi/v1/margin/maxBorrowable", nil, pmMarginMaxBorrowRate, nil, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestFuturesSupplementary, http.MethodGet, "/papi/v1/margin/maxBorrowable", params, pmMarginMaxBorrowRate, nil, &resp)
 }
 
 // GetMarginMaxWithdrawal retrieves the maximum withdrawal amount allowed for margin account.

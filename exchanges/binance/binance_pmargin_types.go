@@ -217,21 +217,6 @@ type MarginOrder struct {
 	PreventedQuantity       any                  `json:"preventedQuantity"`
 }
 
-// MarginAccountTradeItem represents a margin account trade item.
-type MarginAccountTradeItem struct {
-	ID              int64                `json:"id"`
-	Symbol          string               `json:"symbol"`
-	Commission      string               `json:"commission"`
-	CommissionAsset string               `json:"commissionAsset"`
-	IsBestMatch     bool                 `json:"isBestMatch"`
-	IsBuyer         bool                 `json:"isBuyer"`
-	IsMaker         bool                 `json:"isMaker"`
-	OrderID         int64                `json:"orderId"`
-	Price           types.Number         `json:"price"`
-	Qty             types.Number         `json:"qty"`
-	Time            convert.ExchangeTime `json:"time"`
-}
-
 // AccountBalance represents an account balance information for an asset from all margin and futures accounts.
 type AccountBalance struct {
 	Asset               string               `json:"asset"`

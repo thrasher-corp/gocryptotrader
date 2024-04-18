@@ -5061,10 +5061,10 @@ func TestGetMarginAccountsOpenOCO(t *testing.T) {
 	assert.NotNil(t, result)
 }
 
-func TestGetMarginAccountTradeList(t *testing.T) {
+func TestGetPMMarginAccountTradeList(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
-	result, err := b.GetMarginAccountTradeList(context.Background(), "BNBBTC", time.Time{}, time.Time{}, 0, 0, 0)
+	result, err := b.GetPMMarginAccountTradeList(context.Background(), "BNBBTC", time.Time{}, time.Time{}, 0, 0, 0)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -5088,7 +5088,7 @@ func TestGetPortfolioMarginAccountInformation(t *testing.T) {
 func TestGetMarginMaxBorrow(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
-	result, err := b.GetMarginMaxBorrow(context.Background())
+	result, err := b.GetPMMarginMaxBorrow(context.Background(), currency.ETH)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -5416,6 +5416,108 @@ func TestGetMarginAccountsOpenOCOOrder(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	result, err := b.GetMarginAccountsOpenOCOOrder(context.Background(), true, "")
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetMarginAccountTradeList(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetMarginAccountTradeList(context.Background(), "BNBBTC", true, time.Time{}, time.Time{}, 0, 0, 0)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetMaxBorrow(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetMaxBorrow(context.Background(), currency.ETH, "BTCETH")
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetMaxTransferOutAmount(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetMaxTransferOutAmount(context.Background(), currency.ETH, "")
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetSummaryOfMarginAccount(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetSummaryOfMarginAccount(context.Background())
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetIsolatedMarginAccountInfo(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetIsolatedMarginAccountInfo(context.Background(), []string{"BTCUSDT"})
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestDisableIsolatedMarginAccount(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.DisableIsolatedMarginAccount(context.Background(), "BTCUSDT")
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestEnableIsolatedMarginAccount(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.EnableIsolatedMarginAccount(context.Background(), "BTCUSDT")
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetEnabledIsolatedMarginAccountLimit(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetEnabledIsolatedMarginAccountLimit(context.Background())
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetAllIsolatedMarginSymbols(t *testing.T) {
+	t.Parallel()
+	result, err := b.GetAllIsolatedMarginSymbols(context.Background(), "")
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestToggleBNBBurn(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	result, err := b.ToggleBNBBurn(context.Background(), true, false)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetBNBBurnStatus(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	result, err := b.GetBNBBurnStatus(context.Background())
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetMarginInterestRateHistory(t *testing.T) {
+	t.Parallel()
+	result, err := b.GetMarginInterestRateHistory(context.Background(), currency.ETH, 0, time.Time{}, time.Time{})
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetCrossMarginFeeData(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetCrossMarginFeeData(context.Background(), 0, currency.BTC)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }

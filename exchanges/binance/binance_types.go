@@ -2262,12 +2262,13 @@ type TradeHistory struct {
 	Price           types.Number         `json:"price"`
 	Qty             types.Number         `json:"qty"`
 	QuoteQty        types.Number         `json:"quoteQty"`
-	Commission      string               `json:"commission"`
+	Commission      types.Number         `json:"commission"`
 	CommissionAsset string               `json:"commissionAsset"`
 	Time            convert.ExchangeTime `json:"time"`
 	IsBuyer         bool                 `json:"isBuyer"`
 	IsMaker         bool                 `json:"isMaker"`
 	IsBestMatch     bool                 `json:"isBestMatch"`
+	IsIsolated      bool                 `json:"isIsolated"` //added for margin accounts trade list information
 }
 
 // SelfTradePrevention represents a self-trade prevention instance.
@@ -3240,8 +3241,8 @@ type CrossMarginTransferHistory struct {
 		Timestamp     convert.ExchangeTime `json:"timestamp"`
 		TransactionID int64                `json:"txId"`
 		TransferType  string               `json:"type"`
-		TransFrom     string               `json:"transFrom,omitempty"` //SPOT,FUTURES,FIAT,DELIVERY,MINING,ISOLATED_MARGIN,FUNDING,MOTHER_SPOT,OPTION,SUB_SPOT,SUB_MARGIN,CROSS_MARGIN
-		TransTo       string               `json:"transTo,omitempty"`   //SPOT,FUTURES,FIAT,DELIVERY,MINING,ISOLATED_MARGIN,FUNDING,MOTHER_SPOT,OPTION,SUB_SPOT,SUB_MARGIN,CROSS_MARGIN
+		TransferFrom  string               `json:"transFrom,omitempty"` // SPOT,FUTURES,FIAT,DELIVERY,MINING,ISOLATED_MARGIN,FUNDING,MOTHER_SPOT,OPTION,SUB_SPOT,SUB_MARGIN,CROSS_MARGIN
+		TransferTo    string               `json:"transTo,omitempty"`   // SPOT,FUTURES,FIAT,DELIVERY,MINING,ISOLATED_MARGIN,FUNDING,MOTHER_SPOT,OPTION,SUB_SPOT,SUB_MARGIN,CROSS_MARGIN
 		FromSymbol    string               `json:"fromSymbol,omitempty"`
 		ToSymbol      string               `json:"toSymbol,omitempty"`
 	} `json:"rows"`
@@ -3306,4 +3307,95 @@ type MarginOCOOrderParam struct {
 	SideEffectType          string        `json:"sideEffectType,omitempty"`
 	SelfTradePreventionMode string        `json:"selfTradePreventionMode,omitempty"`
 	AutoRepayAtCancel       string        `json:"autoRepayAtCancel,omitempty"`
+}
+
+// MarginAccountSummary represents a margin account summary information.
+type MarginAccountSummary struct {
+	NormalBar           types.Number `json:"normalBar"`
+	MarginCallBar       types.Number `json:"marginCallBar"`
+	ForceLiquidationBar types.Number `json:"forceLiquidationBar"`
+}
+
+// IsolatedMarginAccountInfo represents isolated margin account detail.
+type IsolatedMarginAccountInfo struct {
+	Assets []struct {
+		BaseAsset         AssetInfo    `json:"baseAsset"`
+		QuoteAsset        AssetInfo    `json:"quoteAsset"`
+		Symbol            string       `json:"symbol"`
+		IsolatedCreated   bool         `json:"isolatedCreated"`
+		Enabled           bool         `json:"enabled"`
+		MarginLevel       string       `json:"marginLevel"`
+		MarginLevelStatus string       `json:"marginLevelStatus"`
+		MarginRatio       types.Number `json:"marginRatio"`
+		IndexPrice        types.Number `json:"indexPrice"`
+		LiquidatePrice    types.Number `json:"liquidatePrice"`
+		LiquidateRate     types.Number `json:"liquidateRate"`
+		TradeEnabled      bool         `json:"tradeEnabled"`
+	} `json:"assets"`
+	TotalAssetOfBTC     types.Number `json:"totalAssetOfBtc"`
+	TotalLiabilityOfBTC types.Number `json:"totalLiabilityOfBtc"`
+	TotalNetAssetOfBTC  types.Number `json:"totalNetAssetOfBtc"`
+}
+
+// AssetInfo represents an asset isolated margin asset detail information
+type AssetInfo struct {
+	Asset         string       `json:"asset"`
+	BorrowEnabled bool         `json:"borrowEnabled"`
+	Borrowed      types.Number `json:"borrowed"`
+	Free          types.Number `json:"free"`
+	Interest      types.Number `json:"interest"`
+	Locked        types.Number `json:"locked"`
+	NetAsset      types.Number `json:"netAsset"`
+	NetAssetOfBTC types.Number `json:"netAssetOfBtc"`
+	RepayEnabled  bool         `json:"repayEnabled"`
+	TotalAsset    types.Number `json:"totalAsset"`
+}
+
+// IsolatedMarginResponse represents an isolated margin account disable operation response.
+type IsolatedMarginResponse struct {
+	Success bool   `json:"success"`
+	Symbol  string `json:"symbol"`
+}
+
+// IsolatedMarginAccountLimit represents isolated margin account limit info
+type IsolatedMarginAccountLimit struct {
+	EnabledAccount float64 `json:"enabledAccount"`
+	MaxAccount     float64 `json:"maxAccount"`
+}
+
+// IsolatedMarginAccount represents an isolated margin account
+type IsolatedMarginAccount struct {
+	Base          string               `json:"base"`
+	IsBuyAllowed  bool                 `json:"isBuyAllowed"`
+	IsMarginTrade bool                 `json:"isMarginTrade"`
+	IsSellAllowed bool                 `json:"isSellAllowed"`
+	Quote         string               `json:"quote"`
+	Symbol        string               `json:"symbol"`
+	DelistTime    convert.ExchangeTime `json:"delistTime,omitempty"`
+}
+
+// BNBBurnOnSpotAndMarginInterest represents a response of spot trade and margin interest
+type BNBBurnOnSpotAndMarginInterest struct {
+	SpotBNBBurn     bool `json:"spotBNBBurn"`
+	InterestBNBBurn bool `json:"interestBNBBurn"`
+}
+
+// MarginInterestRate represents a margin interest rate item.
+type MarginInterestRate struct {
+	Asset             string               `json:"asset"`
+	DailyInterestRate string               `json:"dailyInterestRate"`
+	Timestamp         convert.ExchangeTime `json:"timestamp"`
+	VipLevel          int64                `json:"vipLevel"`
+}
+
+// CrossMarginFeeData represents a cross margin fee detail
+type CrossMarginFeeData struct {
+	VipLevel        int64        `json:"vipLevel"`
+	Coin            string       `json:"coin"`
+	TransferIn      bool         `json:"transferIn"`
+	Borrowable      bool         `json:"borrowable"`
+	DailyInterest   types.Number `json:"dailyInterest"`
+	YearlyInterest  types.Number `json:"yearlyInterest"`
+	BorrowLimit     types.Number `json:"borrowLimit"`
+	MarginablePairs []string     `json:"marginablePairs"`
 }

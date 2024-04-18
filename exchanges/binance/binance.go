@@ -1139,7 +1139,7 @@ func (b *Binance) MarginAccountCancelAllOpenOrdersOnSymbol(ctx context.Context, 
 	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodDelete, "/sapi/v1/margin/openOrders", params, spotOrderRate, nil, &resp)
 }
 
-// AdjustCrossMarginAccountOrderMaxLeverage adjusts cross-margin account max leverage
+// AdjustCrossMarginMaxLeverage adjusts cross-margin account max leverage
 // Can only adjust 3 , 5 or 10，Example:
 // maxLeverage=10 for Cross Margin Pro ，
 // maxLeverage = 5 or 3 for Cross Margin Classic
@@ -1197,7 +1197,6 @@ func fillMarginInterestAndTransferHistoryParams(assetName currency.Code, transfe
 		params.Set("size", strconv.FormatInt(size, 10))
 	}
 	return params, nil
-
 }
 
 // GetUserMarginInterestHistory returns margin interest history for the user
@@ -1382,8 +1381,7 @@ func (b *Binance) GetMarginAccountOCOOrder(ctx context.Context, symbol, origClie
 	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, "/sapi/v1/margin/orderList", params, spotDefaultRate, nil, &resp)
 }
 
-// GetMarginAccountAllOCO retrieves all OCO for a specific margin account based on provided optional parameters
-func (b *Binance) GetMarginAccountAllOCO(ctx context.Context, symbol string, isIsolated bool, startTime, endTime time.Time, fromID, limit int64) ([]OCOOrder, error) {
+func ocoOrdersAndTradeParams(symbol string, isIsolated bool, startTime, endTime time.Time, orderID, fromID, limit int64) (url.Values, error) {
 	params := url.Values{}
 	if symbol != "" {
 		params.Set("symbol", symbol)
@@ -1405,6 +1403,18 @@ func (b *Binance) GetMarginAccountAllOCO(ctx context.Context, symbol string, isI
 	if limit > 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
+	if orderID > 0 {
+		params.Set("orderId", strconv.FormatInt(orderID, 10))
+	}
+	return params, nil
+}
+
+// GetMarginAccountAllOCO retrieves all OCO for a specific margin account based on provided optional parameters
+func (b *Binance) GetMarginAccountAllOCO(ctx context.Context, symbol string, isIsolated bool, startTime, endTime time.Time, fromID, limit int64) ([]OCOOrder, error) {
+	params, err := ocoOrdersAndTradeParams(symbol, isIsolated, startTime, endTime, 0, fromID, limit)
+	if err != nil {
+		return nil, err
+	}
 	var resp []OCOOrder
 	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, "/sapi/v1/margin/allOrderList", params, getMarginAccountAllOCORate, nil, &resp)
 }
@@ -1420,6 +1430,162 @@ func (b *Binance) GetMarginAccountsOpenOCOOrder(ctx context.Context, isIsolated 
 	}
 	var resp []OCOOrder
 	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, "/sapi/v1/margin/openOrderList", params, marginAccountOpenOCOOrdersRate, nil, &resp)
+}
+
+// GetMarginAccountTradeList retrieves margin accounts trade list
+func (b *Binance) GetMarginAccountTradeList(ctx context.Context, symbol string, isIsolated bool, startTime, endTime time.Time, orderID, fromID, limit int64) ([]TradeHistory, error) {
+	if symbol == "" {
+		return nil, currency.ErrSymbolStringEmpty
+	}
+	params, err := ocoOrdersAndTradeParams(symbol, isIsolated, startTime, endTime, orderID, fromID, limit)
+	if err != nil {
+		return nil, err
+	}
+	var resp []TradeHistory
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, "/sapi/v1/margin/myTrades", params, marginAccountTradeListRate, nil, &resp)
+}
+
+// GetMaxBorrow represents a maximum borrowable amount.
+func (b *Binance) GetMaxBorrow(ctx context.Context, assetName currency.Code, isolatedSymbol string) (*MaxBorrow, error) {
+	if assetName.IsEmpty() {
+		return nil, currency.ErrCurrencyCodeEmpty
+	}
+	params := url.Values{}
+	params.Set("asset", assetName.String())
+	if isolatedSymbol != "" {
+		params.Set("isolatedSymbol", isolatedSymbol)
+	}
+	var resp *MaxBorrow
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, "/sapi/v1/margin/maxBorrowable", params, marginMaxBorrowRate, nil, &resp)
+}
+
+// GetMaxTransferOutAmount retrieves the maximum amount to transfer out of margin account.
+// If isolatedSymbol is not sent, crossed margin data will be sent.
+func (b *Binance) GetMaxTransferOutAmount(ctx context.Context, assetName currency.Code, isolatedSymbol string) (float64, error) {
+	if assetName.IsEmpty() {
+		return 0, currency.ErrCurrencyCodeEmpty
+	}
+	params := url.Values{}
+	params.Set("asset", assetName.String())
+	if isolatedSymbol != "" {
+		params.Set("isolatedSymbol", isolatedSymbol)
+	}
+	resp := &struct {
+		Amount float64 `json:"amount"`
+	}{}
+	return resp.Amount, b.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, "/sapi/v1/margin/maxTransferable", params, maxTransferOutRate, nil, &resp)
+}
+
+// GetSummaryOfMarginAccount represents a margin account summary
+func (b *Binance) GetSummaryOfMarginAccount(ctx context.Context) (*MarginAccountSummary, error) {
+	var resp *MarginAccountSummary
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, "/sapi/v1/margin/tradeCoeff", nil, marginAccountSummaryRate, nil, &resp)
+}
+
+// GetIsolatedMarginAccountInfo retrives isolated margin account info
+func (b *Binance) GetIsolatedMarginAccountInfo(ctx context.Context, symbols []string) (*IsolatedMarginAccountInfo, error) {
+	params := url.Values{}
+	if len(symbols) > 0 {
+		params.Set("symbols", strings.Join(symbols, ","))
+	}
+	var resp *IsolatedMarginAccountInfo
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, "/sapi/v1/margin/isolated/account", params, isolatedMarginAccountInfoRate, nil, &resp)
+}
+
+// DisableIsolatedMarginAccount disable isolated margin account for a specific symbol. Each trading pair can only be deactivated once every 24 hours.
+func (b *Binance) DisableIsolatedMarginAccount(ctx context.Context, symbol string) (*IsolatedMarginResponse, error) {
+	if symbol == "" {
+		return nil, currency.ErrSymbolStringEmpty
+	}
+	params := url.Values{}
+	params.Set("symbol", symbol)
+	var resp *IsolatedMarginResponse
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodDelete, "/sapi/v1/margin/isolated/account", params, spotDefaultRate, nil, &resp)
+}
+
+// EnableIsolatedMarginAccount enable isolated margin account for a specific symbol(Only supports activation of previously disabled accounts).
+func (b *Binance) EnableIsolatedMarginAccount(ctx context.Context, symbol string) (*IsolatedMarginResponse, error) {
+	if symbol == "" {
+		return nil, currency.ErrSymbolStringEmpty
+	}
+	params := url.Values{}
+	params.Set("symbol", symbol)
+	var resp *IsolatedMarginResponse
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodPost, "/sapi/v1/margin/isolated/account", params, spotDefaultRate, nil, &resp)
+}
+
+// GetEnabledIsolatedMarginAccountLimit retrieves enabled isolated margin account limit.
+func (b *Binance) GetEnabledIsolatedMarginAccountLimit(ctx context.Context) (*IsolatedMarginAccountLimit, error) {
+	var resp *IsolatedMarginAccountLimit
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, "/sapi/v1/margin/isolated/accountLimit", nil, spotDefaultRate, nil, &resp)
+}
+
+// GetAllIsolatedMarginSymbols retrieves all isolated margin symbols
+func (b *Binance) GetAllIsolatedMarginSymbols(ctx context.Context, symbol string) ([]IsolatedMarginAccount, error) {
+	params := url.Values{}
+	if symbol != "" {
+		params.Set("symbol", symbol)
+	}
+	var resp []IsolatedMarginAccount
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, "/sapi/v1/margin/isolated/allPairs", params, allIsolatedMarginSymbol, nil, &resp)
+}
+
+// ToggleBNBBurn toggles BNB burn on spot trade and margin interest
+func (b *Binance) ToggleBNBBurn(ctx context.Context, spotBNBBurn, interestBNBBurn bool) (*BNBBurnOnSpotAndMarginInterest, error) {
+	params := url.Values{}
+	if spotBNBBurn {
+		params.Set("spotBNBBurn", "true")
+	} else {
+		params.Set("spotBNBBurn", "false")
+	}
+	if interestBNBBurn {
+		params.Set("interestBNBBurn", "true")
+	} else {
+		params.Set("interestBNBBurn", "false")
+	}
+	var resp *BNBBurnOnSpotAndMarginInterest
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, "/sapi/v1/bnbBurn", params, spotDefaultRate, nil, &resp)
+}
+
+// GetBNBBurnStatus retrieves BNB Burn status
+func (b *Binance) GetBNBBurnStatus(ctx context.Context) (*BNBBurnOnSpotAndMarginInterest, error) {
+	var resp *BNBBurnOnSpotAndMarginInterest
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, "/sapi/v1/bnbBurn", nil, spotDefaultRate, nil, &resp)
+}
+
+// GetMarginInterestRateHistory retrieves margin interest rate history
+func (b *Binance) GetMarginInterestRateHistory(ctx context.Context, assetName currency.Code, vipLevel int64, startTime, endTime time.Time) ([]MarginInterestRate, error) {
+	if assetName.IsEmpty() {
+		return nil, currency.ErrCurrencyCodeEmpty
+	}
+	params := url.Values{}
+	params.Set("asset", assetName.String())
+	if vipLevel > 0 {
+		params.Set("vipLevel", strconv.FormatInt(vipLevel, 10))
+	}
+	if !startTime.IsZero() && !endTime.IsZero() {
+		err := common.StartEndTimeCheck(startTime, endTime)
+		if err != nil {
+			return nil, err
+		}
+		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
+	}
+	var resp []MarginInterestRate
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, "/sapi/v1/margin/interestRateHistory", params, spotDefaultRate, nil, &resp)
+}
+
+// GetCrossMarginFeeData get cross margin fee data collection with any vip level or user's current specific data as https://www.binance.com/en/margin-fee
+func (b *Binance) GetCrossMarginFeeData(ctx context.Context, vipLevel int64, coin currency.Code) ([]CrossMarginFeeData, error) {
+	params := url.Values{}
+	if vipLevel > 0 {
+		params.Set("vipLevel", strconv.FormatInt(vipLevel, 10))
+	}
+	if !coin.IsEmpty() {
+		params.Set("coin", coin.String())
+	}
+	var resp []CrossMarginFeeData
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, "/sapi/v1/margin/crossMarginData", params, allCrossMarginFeeDataRate, nil, &resp)
 }
 
 // GetMarginAccount returns account information for margin accounts
