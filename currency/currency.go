@@ -121,6 +121,8 @@ func FormatPairs(pairs []string, delimiter string) (Pairs, error) {
 		switch {
 		case delimiter != "":
 			result[x], err = NewPairDelimiter(pairs[x], delimiter)
+		case len(pairs[x]) < 3:
+			err = errNoDelimiter
 		default:
 			result[x], err = NewPairFromStrings(pairs[x][:3], pairs[x][3:])
 		}
