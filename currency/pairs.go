@@ -497,13 +497,29 @@ func (p Pairs) Sort() {
 	})
 }
 
+// equalKey is a small key for testing pair equality without delimiter
+type equalKey struct {
+	Base  *Item
+	Quote *Item
+}
+
 // Equal checks to see if two lists of pairs contain the only the same pairs, ignoring delimiter and case
 // Does not check for inverted/reciprocal pairs
 func (p Pairs) Equal(b Pairs) bool {
-	pFmt := PairFormat{Uppercase: true, Delimiter: ""}
-	p = p.Format(pFmt)
-	b = b.Format(pFmt)
-	p.Sort()
-	b.Sort()
-	return slices.Equal(p, b)
+	if len(p) != len(b) {
+		return false
+	}
+	if len(p) == 0 {
+		return true
+	}
+	m := map[equalKey]struct{}{}
+	for i := range p {
+		m[equalKey{Base: p[i].Base.Item, Quote: p[i].Quote.Item}] = struct{}{}
+	}
+	for i := range b {
+		if _, ok := m[equalKey{Base: b[i].Base.Item, Quote: b[i].Quote.Item}]; !ok {
+			return false
+		}
+	}
+	return true
 }
