@@ -3573,10 +3573,8 @@ func TestProcessFuturesOrdersPushData(t *testing.T) {
 			processed, err := g.processFuturesOrdersPushData([]byte(tc.incoming), asset.Futures)
 			require.NoError(t, err)
 			require.NotNil(t, processed)
-			data, ok := processed.([]order.Detail)
-			require.True(t, ok)
-			for i := range data {
-				assert.Equal(t, tc.status.String(), data[i].Status.String())
+			for i := range processed {
+				assert.Equal(t, tc.status.String(), processed[i].Status.String())
 			}
 		})
 	}
