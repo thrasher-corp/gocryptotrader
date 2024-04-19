@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -572,6 +573,41 @@ func TestFullStoreUnmarshalMarshal(t *testing.T) {
 	if !errors.Is(err, asset.ErrNotSupported) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, asset.ErrNotSupported)
 	}
+}
+
+func TestIsPairAvailable(t *testing.T) {
+	t.Parallel()
+	pm := initTest(t)
+	cp := NewPairWithDelimiter("BTC", "USD", "-")
+	ok, err := pm.IsPairAvailable(cp, asset.Spot)
+	require.NoError(t, err, "IsPairAvailable must not error")
+	assert.True(t, ok, "IsPairAvailable should return correct value for an available and enabled pair")
+
+	ok, err = pm.IsPairAvailable(NewPair(SAFE, MOONRISE), asset.Spot)
+	require.NoError(t, err, "IsPairAvailable must not error")
+	assert.False(t, ok, "IsPairAvailable should return correct value for an non-existent")
+
+	ok, err = pm.IsPairAvailable(cp, asset.Futures)
+	require.NoError(t, err, "IsPairAvailable must not error")
+	assert.False(t, ok, "IsPairAvailable should return false for a disabled asset type")
+
+	cp = NewPairWithDelimiter("XRP", "DOGE", "-")
+	ok, err = pm.IsPairAvailable(cp, asset.Spot)
+	require.NoError(t, err, "IsPairAvailable must not error")
+	assert.False(t, ok, "IsPairAvailable should return false for non-existent pair")
+
+	_, err = pm.IsPairAvailable(cp, asset.PerpetualSwap)
+	assert.ErrorIs(t, err, ErrAssetNotFound, "Should error when asset is not found")
+
+	_, err = pm.IsPairAvailable(cp, asset.Item(1337))
+	assert.ErrorIs(t, err, asset.ErrNotSupported, "Should error when asset is not supported")
+
+	pm.Pairs[asset.PerpetualSwap] = &PairStore{}
+	_, err = pm.IsPairAvailable(cp, asset.PerpetualSwap)
+	assert.ErrorIs(t, err, ErrAssetIsNil, "Should error when store AssetEnabled is nil")
+
+	_, err = pm.IsPairAvailable(EMPTYPAIR, asset.PerpetualSwap)
+	assert.ErrorIs(t, err, ErrCurrencyPairEmpty, "Should error when currency pair is empty")
 }
 
 func TestIsPairEnabled(t *testing.T) {
