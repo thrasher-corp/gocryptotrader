@@ -5521,3 +5521,105 @@ func TestGetCrossMarginFeeData(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
+
+func TestGetIsolatedMaringFeeData(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetIsolatedMaringFeeData(context.Background(), 1, "BTCUSDT")
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetIsolatedMarginTierData(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetIsolatedMarginTierData(context.Background(), "BTCUSDT", 10)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetCurrencyMarginOrderCountUsage(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetCurrencyMarginOrderCountUsage(context.Background(), true, "BTCUSDT")
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestCrossMarginCollateralRatio(t *testing.T) {
+	t.Parallel()
+	result, err := b.GetCrossMarginCollateralRatio(context.Background())
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetSmallLiabilityExchangeCoinList(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetSmallLiabilityExchangeCoinList(context.Background())
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestMarginSmallLiabilityExchange(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.MarginSmallLiabilityExchange(context.Background(), []string{"BTC", "ETH"})
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetSmallLiabilityExchangeHistory(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetSmallLiabilityExchangeHistory(context.Background(), 1, 10, time.Time{}, time.Time{})
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetFutureHourlyInterestRate(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetFutureHourlyInterestRate(context.Background(), []string{"BTC", "ETH"}, true)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetCrossOrIsolatedMarginCapitalFlow(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetCrossOrIsolatedMarginCapitalFlow(context.Background(), currency.ETH, "", "BORROW", time.Time{}, time.Time{}, 10, 20)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetTokensOrSymbolsDelistSchedule(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetTokensOrSymbolsDelistSchedule(context.Background())
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetMarginAvailableInventory(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetMarginAvailableInventory(context.Background(), "ISOLATED")
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestMarginManualLiquidiation(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	result, err := b.MarginManualLiquidiation(context.Background(), "ISOLATED", "")
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetLiabilityCoinLeverageBracketInCrossMarginProMode(t *testing.T) {
+	t.Parallel()
+	result, err := b.GetLiabilityCoinLeverageBracketInCrossMarginProMode(context.Background())
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}

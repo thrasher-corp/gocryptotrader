@@ -61,6 +61,8 @@ const (
 	spotPriceChangeAllRate
 	spotOpenOrdersAllRate
 	allCrossMarginFeeDataRate
+	allIsolatedMarginFeeDataRate
+	marginCurrentOrderCountUsageRate
 	depositAddressesRate
 	assetDividendRecordRate
 	userAssetsRate
@@ -68,6 +70,11 @@ const (
 	getUserWalletBalanceRate
 	getUserDelegationHistoryRate
 	symbolDelistScheduleForSpotRate
+	crossMarginCollateralRatioRate
+	smallLiabilityExchCoinListRate
+	marginHourlyInterestRate
+	marginCapitalFlowRate
+	marginTokensAndSymbolsDelistScheduleRate
 	getSubAccountAssetRate
 	getSubAccountStatusOnMarginOrFuturesRate
 	subAccountMarginAccountDetailRate
@@ -308,15 +315,9 @@ func (r *RateLimit) Limit(ctx context.Context, f request.EndpointLimit) error {
 		allCoinInfoRate,
 		isolatedMarginAccountInfoRate,
 		getDepositAddressListInNetworkRate,
-		allIsolatedMarginSymbol:
-		limiter, tokens = r.SpotRate, 10
-	case getUserWalletBalanceRate,
-		getUserDelegationHistoryRate,
-		getSubAccountAssetRate:
-		limiter, tokens = r.SpotRate, 60
-	case symbolDelistScheduleForSpotRate:
-		limiter, tokens = r.SpotRate, 100
-	case getSubAccountStatusOnMarginOrFuturesRate,
+		allIsolatedMarginSymbol,
+		allIsolatedMarginFeeDataRate,
+		getSubAccountStatusOnMarginOrFuturesRate,
 		subAccountMarginAccountDetailRate,
 		getSubAccountSummaryOfMarginAccountRate,
 		getDetailSubAccountFuturesAccountRate,
@@ -324,13 +325,28 @@ func (r *RateLimit) Limit(ctx context.Context, f request.EndpointLimit) error {
 		getFuturesSubAccountSummaryV2Rate,
 		getCrossMarginAccountDetailRate,
 		getCrossMarginAccountOrderRate,
-		getMarginAccountsOpenOrdersRate:
+		getMarginAccountsOpenOrdersRate,
+		marginAccountOpenOCOOrdersRate,
+		marginAccountTradeListRate,
+		borrowRepayRecordsInMarginAccountRate,
+		getPriceMarginIndexRate:
 		limiter, tokens = r.SpotRate, 10
+
+	case marginCurrentOrderCountUsageRate:
+		limiter, tokens = r.SpotRate, 20
+	case getUserWalletBalanceRate,
+		getUserDelegationHistoryRate,
+		getSubAccountAssetRate:
+		limiter, tokens = r.SpotRate, 60
+	case symbolDelistScheduleForSpotRate,
+		crossMarginCollateralRatioRate,
+		smallLiabilityExchCoinListRate,
+		marginHourlyInterestRate,
+		marginCapitalFlowRate,
+		marginTokensAndSymbolsDelistScheduleRate:
+		limiter, tokens = r.SpotRate, 100
 	case marginAccountsAllOrdersRate:
 		limiter, tokens = r.SpotRate, 200
-	case marginAccountOpenOCOOrdersRate,
-		marginAccountTradeListRate:
-		limiter, tokens = r.SpotRate, 10
 	case ocoOrderRate:
 		limiter, tokens = r.SpotOrdersRate, 2
 	case getMarginAccountAllOCORate:
@@ -344,9 +360,6 @@ func (r *RateLimit) Limit(ctx context.Context, f request.EndpointLimit) error {
 		preventedMatchesByOrderIDRate,
 		getCommissionRate:
 		limiter, tokens = r.SpotRate, 20
-	case borrowRepayRecordsInMarginAccountRate,
-		getPriceMarginIndexRate:
-		limiter, tokens = r.SpotRate, 10
 	case marginAccountNewOrderRate:
 		limiter, tokens = r.SpotOrdersRate, 6
 	case marginAccountCancelOrderRate:

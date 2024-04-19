@@ -3399,3 +3399,110 @@ type CrossMarginFeeData struct {
 	BorrowLimit     types.Number `json:"borrowLimit"`
 	MarginablePairs []string     `json:"marginablePairs"`
 }
+
+// IsolatedMarginFeeData represents an isolated margin fee data.
+type IsolatedMarginFeeData struct {
+	VipLevel int64  `json:"vipLevel"`
+	Symbol   string `json:"symbol"`
+	Leverage string `json:"leverage"`
+	Data     []struct {
+		Coin          string       `json:"coin"`
+		DailyInterest string       `json:"dailyInterest"`
+		BorrowLimit   types.Number `json:"borrowLimit"`
+	} `json:"data"`
+}
+
+// IsolatedMarginTierInfo represents isolated margin tier item.
+type IsolatedMarginTierInfo struct {
+	Symbol                  string       `json:"symbol"`
+	Tier                    int64        `json:"tier"`
+	EffectiveMultiple       types.Number `json:"effectiveMultiple"`
+	InitialRiskRatio        types.Number `json:"initialRiskRatio"`
+	LiquidationRiskRatio    types.Number `json:"liquidationRiskRatio"`
+	BaseAssetMaxBorrowable  types.Number `json:"baseAssetMaxBorrowable"`
+	QuoteAssetMaxBorrowable types.Number `json:"quoteAssetMaxBorrowable"`
+}
+
+// MarginOrderCount represents margin order count usage for an interval,
+type MarginOrderCount struct {
+	RateLimitType string `json:"rateLimitType"`
+	Interval      string `json:"interval"`
+	IntervalNum   int64  `json:"intervalNum"`
+	Limit         int64  `json:"limit"`
+	Count         int64  `json:"count"`
+}
+
+// CrossMarginCollateralRatio represents a cross-margin collateral ratio
+type CrossMarginCollateralRatio struct {
+	Collaterals []struct {
+		MinUsdValue  types.Number `json:"minUsdValue"`
+		MaxUsdValue  types.Number `json:"maxUsdValue,omitempty"`
+		DiscountRate types.Number `json:"discountRate"`
+	} `json:"collaterals"`
+	AssetNames []string `json:"assetNames"`
+}
+
+// SmallLiabilityCoin represents information of coins which can be small liability
+type SmallLiabilityCoin struct {
+	Asset          string  `json:"asset"`
+	Interest       string  `json:"interest"`
+	Principal      string  `json:"principal"`
+	LiabilityAsset string  `json:"liabilityAsset"`
+	LiabilityQty   float64 `json:"liabilityQty"`
+}
+
+// SmallLiabilityExchange represents small liability exchange history.
+type SmallLiabilityExchange struct {
+	Total int `json:"total"`
+	Rows  []struct {
+		Asset        string               `json:"asset"`
+		Amount       string               `json:"amount"`
+		TargetAsset  string               `json:"targetAsset"`
+		TargetAmount types.Number         `json:"targetAmount"`
+		BizType      string               `json:"bizType"`
+		Timestamp    convert.ExchangeTime `json:"timestamp"`
+	} `json:"rows"`
+}
+
+// HourlyInterestrate represents an asset and it's hourlt interest rate information.
+type HourlyInterestrate struct {
+	Asset                  string       `json:"asset"`
+	NextHourlyInterestRate types.Number `json:"nextHourlyInterestRate"`
+}
+
+// MarginCapitalFlow represents a cross-margin or isolated margin capital flow for an asset
+type MarginCapitalFlow struct {
+	ID            int64                `json:"id"`
+	TransactionID int64                `json:"tranId"`
+	Timestamp     convert.ExchangeTime `json:"timestamp"`
+	Asset         string               `json:"asset"`
+	Symbol        string               `json:"symbol"`
+	Type          string               `json:"type"`
+	Amount        types.Number         `json:"amount"`
+}
+
+// MarginDelistSchedule represents delist schedule for cross-margin adn isolated-margin accounts.
+type MarginDelistSchedule struct {
+	DelistTime            convert.ExchangeTime `json:"delistTime"`
+	CrossMarginAssets     []string             `json:"crossMarginAssets"`
+	IsolatedMarginSymbols []string             `json:"isolatedMarginSymbols"`
+}
+
+// MarginInventory represents margin available inventory for each asset
+type MarginInventory struct {
+	Assets     map[string]types.Number `json:"assets"`
+	UpdateTime convert.ExchangeTime    `json:"updateTime"`
+}
+
+// LiabilityCoinLeverageBracket represents liability coin leverage bracket in cross margin pro-mode
+type LiabilityCoinLeverageBracket struct {
+	AssetNames []string `json:"assetNames"`
+	Rank       int64    `json:"rank"`
+	Brackets   []struct {
+		Leverage              int64   `json:"leverage"`
+		MaxDebt               float64 `json:"maxDebt"`
+		MaintenanceMarginRate float64 `json:"maintenanceMarginRate"`
+		InitialMarginRate     float64 `json:"initialMarginRate"`
+		FastNum               int64   `json:"fastNum"`
+	} `json:"brackets"`
+}

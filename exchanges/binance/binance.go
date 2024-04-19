@@ -69,6 +69,7 @@ var (
 	errEmptySubAccountEPIKey                  = errors.New("invalid sub-account API key")
 	errInvalidFuturesType                     = errors.New("invalid futures types")
 	errInvalidAccountType                     = errors.New("invalid account type specified")
+	errMarginTypeIsRequired                   = errors.New("margin type is required, with possible valued of 'MARGIN' and 'ISOLATED'")
 )
 
 var subscriptionNames = map[string]string{
@@ -1581,11 +1582,205 @@ func (b *Binance) GetCrossMarginFeeData(ctx context.Context, vipLevel int64, coi
 	if vipLevel > 0 {
 		params.Set("vipLevel", strconv.FormatInt(vipLevel, 10))
 	}
+	endpointLimiter := allCrossMarginFeeDataRate
 	if !coin.IsEmpty() {
+		endpointLimiter = spotDefaultRate
 		params.Set("coin", coin.String())
 	}
 	var resp []CrossMarginFeeData
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, "/sapi/v1/margin/crossMarginData", params, allCrossMarginFeeDataRate, nil, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, "/sapi/v1/margin/crossMarginData", params, endpointLimiter, nil, &resp)
+}
+
+// GetIsolatedMaringFeeData represents an isolated margin fee data.
+// get isolated margin fee data collection with any vip level or user's current specific data as https://www.binance.com/en/margin-fee
+func (b *Binance) GetIsolatedMaringFeeData(ctx context.Context, vipLevel int64, symbol string) ([]IsolatedMarginFeeData, error) {
+	endpointLimiter := allIsolatedMarginFeeDataRate
+	params := url.Values{}
+	if vipLevel > 0 {
+		params.Set("vipLevel", strconv.FormatInt(vipLevel, 10))
+	}
+	if symbol != "" {
+		endpointLimiter = spotDefaultRate
+		params.Set("symbol", symbol)
+	}
+	var resp []IsolatedMarginFeeData
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, "/sapi/v1/margin/isolatedMarginData", params, endpointLimiter, nil, &resp)
+}
+
+// GetIsolatedMarginTierData get isolated margin tier data collection with any tier as https://www.binance.com/en/margin-data
+func (b *Binance) GetIsolatedMarginTierData(ctx context.Context, symbol string, tier int64) ([]IsolatedMarginTierInfo, error) {
+	if symbol == "" {
+		return nil, currency.ErrSymbolStringEmpty
+	}
+	params := url.Values{}
+	params.Set("symbol", symbol)
+	if tier > 0 {
+		params.Set("tier", strconv.FormatInt(tier, 10))
+	}
+	var resp []IsolatedMarginTierInfo
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, "/sapi/v1/margin/isolatedMarginTier", params, spotDefaultRate, nil, &resp)
+}
+
+// GetCurrencyMarginOrderCountUsage displays the user's current margin order count usage for all intervals.
+func (b *Binance) GetCurrencyMarginOrderCountUsage(ctx context.Context, isIsolated bool, symbol string) ([]MarginOrderCount, error) {
+	params := url.Values{}
+	if isIsolated {
+		params.Set("isIsolated", "TRUE")
+	}
+	if symbol != "" {
+		params.Set("symbol", symbol)
+	}
+	var resp []MarginOrderCount
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, "/sapi/v1/margin/rateLimit/order", params, marginCurrentOrderCountUsageRate, nil, &resp)
+}
+
+// GetCrossMarginCollateralRatio retrieves collaterals for list of assets.
+func (b *Binance) GetCrossMarginCollateralRatio(ctx context.Context) ([]CrossMarginCollateralRatio, error) {
+	var resp []CrossMarginCollateralRatio
+	return resp, b.SendHTTPRequest(ctx, exchange.RestSpot, "/sapi/v1/margin/crossMarginCollateralRatio", crossMarginCollateralRatioRate, &resp)
+}
+
+// GetSmallLiabilityExchangeCoinList query the coins which can be small liability exchange
+func (b *Binance) GetSmallLiabilityExchangeCoinList(ctx context.Context) ([]SmallLiabilityCoin, error) {
+	var resp []SmallLiabilityCoin
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/margin/exchange-small-liability", nil, smallLiabilityExchCoinListRate, nil, &resp)
+}
+
+// MarginSmallLiabilityExchange set cross-margin small liability exchange
+func (b *Binance) MarginSmallLiabilityExchange(ctx context.Context, assetNames []string) ([]SmallLiabilityCoin, error) {
+	if len(assetNames) == 0 {
+		return nil, errors.New("assetNames are required")
+	}
+	params := url.Values{}
+	params.Set("assetNames", strings.Join(assetNames, ","))
+	var resp []SmallLiabilityCoin
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodPost, "/sapi/v1/margin/exchange-small-liability", params, spotDefaultRate, nil, &resp)
+}
+
+// GetSmallLiabilityExchangeHistory retrieves small liability exchange history
+func (b *Binance) GetSmallLiabilityExchangeHistory(ctx context.Context, current, size int64, startTime, endTime time.Time) (*SmallLiabilityExchange, error) {
+	if current == 0 {
+		return nil, errors.New("current querying page is required")
+	}
+	if size == 0 {
+		return nil, errors.New("size of pages to query is required")
+	}
+	params := url.Values{}
+	params.Set("current", strconv.FormatInt(current, 10))
+	params.Set("size", strconv.FormatInt(size, 10))
+	if !startTime.IsZero() && !endTime.IsZero() {
+		err := common.StartEndTimeCheck(startTime, endTime)
+		if err != nil {
+			return nil, err
+		}
+		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
+	}
+	var resp *SmallLiabilityExchange
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, "/sapi/v1/margin/exchange-small-liability-history", params, spotDefaultRate, nil, &resp)
+}
+
+// GetFutureHourlyInterestRate retrieves user the next hourly estimate interest
+// isIsolated: for isolated margin or not, "TRUE", "FALSE"
+func (b *Binance) GetFutureHourlyInterestRate(ctx context.Context, assets []string, isIsolated bool) ([]HourlyInterestrate, error) {
+	params := url.Values{}
+	if len(assets) == 0 {
+		params.Set("assets", strings.Join(assets, ","))
+	}
+	if isIsolated {
+		params.Set("isIsolated", "TRUE")
+	} else {
+		params.Set("isIsolated", "FALSE")
+	}
+	var resp []HourlyInterestrate
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/margin/next-hourly-interest-rate", params, marginHourlyInterestRate, nil, &resp)
+}
+
+// GetCrossOrIsolatedMarginCapitalFlow retrieves cross or isolated margin capital flow
+//
+// type: represents a capital flow type.
+// Supported types:
+//
+//	TRANSFER("Transfer")
+//	BORROW("Borrow")
+//	REPAY("Repay")
+//	BUY_INCOME("Buy-Trading Income")
+//	BUY_EXPENSE("Buy-Trading Expense")
+//	SELL_INCOME("Sell-Trading Income")
+//	SELL_EXPENSE("Sell-Trading Expense")
+//	TRADING_COMMISSION("Trading Commission")
+//	BUY_LIQUIDATION("Buy by Liquidation")
+//	SELL_LIQUIDATION("Sell by Liquidation")
+//	REPAY_LIQUIDATION("Repay by Liquidation")
+//	OTHER_LIQUIDATION("Other Liquidation")
+//	LIQUIDATION_FEE("Liquidation Fee")
+//	SMALL_BALANCE_CONVERT("Small Balance Convert")
+//	COMMISSION_RETURN("Commission Return")
+//	SMALL_CONVERT("Small Convert")
+func (b *Binance) GetCrossOrIsolatedMarginCapitalFlow(ctx context.Context, assetName currency.Code, symbol string, flowType string, startTime, endTime time.Time, fromID, limit int64) ([]MarginCapitalFlow, error) {
+	params := url.Values{}
+	if !assetName.IsEmpty() {
+		params.Set("asset", assetName.String())
+	}
+	if symbol != "" {
+		params.Set("symbol", symbol)
+	}
+	if flowType != "" {
+		params.Set("type", flowType)
+	}
+	if !startTime.IsZero() && !endTime.IsZero() {
+		err := common.StartEndTimeCheck(startTime, endTime)
+		if err != nil {
+			return nil, err
+		}
+		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
+	}
+	if fromID > 0 {
+		params.Set("fromId", strconv.FormatInt(fromID, 10))
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	var resp []MarginCapitalFlow
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/margin/capital-flow", params, marginCapitalFlowRate, nil, &resp)
+}
+
+// GetTokensOrSymbolsDelistSchedule retrieves tokens or symbols delist schedule for cross-margin and isolated-margin accounts.
+func (b *Binance) GetTokensOrSymbolsDelistSchedule(ctx context.Context) ([]MarginDelistSchedule, error) {
+	var resp []MarginDelistSchedule
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/margin/delist-schedule", nil, marginTokensAndSymbolsDelistScheduleRate, nil, &resp)
+}
+
+// GetMarginAvailableInventory retrieves margin account available inventory
+func (b *Binance) GetMarginAvailableInventory(ctx context.Context, marginType string) ([]MarginInventory, error) {
+	if marginType == "" {
+		return nil, errMarginTypeIsRequired
+	}
+	params := url.Values{}
+	params.Set("type", marginType)
+	var resp []MarginInventory
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/margin/available-inventory", params, spotDefaultRate, nil, &resp)
+}
+
+// MarginManualLiquidiation margin manual liquidation
+func (b *Binance) MarginManualLiquidiation(ctx context.Context, marginType, symbol string) ([]SmallLiabilityCoin, error) {
+	if marginType == "" {
+		return nil, errMarginTypeIsRequired
+	}
+	params := url.Values{}
+	params.Set("type", marginType)
+	if symbol != "" {
+		params.Set("symbol", symbol)
+	}
+	var resp []SmallLiabilityCoin
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/sapi/v1/margin/manual-liquidation", params, spotDefaultRate, nil, &resp)
+}
+
+// GetLiabilityCoinLeverageBracketInCrossMarginProMode retrieve liability Coin Leverage Bracket in Cross Margin Pro Mode
+func (b *Binance) GetLiabilityCoinLeverageBracketInCrossMarginProMode(ctx context.Context) ([]LiabilityCoinLeverageBracket, error) {
+	var resp []LiabilityCoinLeverageBracket
+	return resp, b.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, "/sapi/v1/margin/leverageBracket", spotDefaultRate, &resp)
 }
 
 // GetMarginAccount returns account information for margin accounts
