@@ -1988,8 +1988,9 @@ func TestGetAuthenticatedServersInstances(t *testing.T) {
 }
 
 func TestPushData(t *testing.T) {
-	n := new(Kucoin)
-	sharedtestvalues.TestFixtureToDataHandler(t, ku, n, "testdata/wsHandleData.json", ku.wsHandleData)
+	t.Parallel()
+	ku := testInstance(t) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
+	testexch.FixtureToDataHandler(t, "testdata/wsHandleData.json", ku.wsHandleData)
 }
 
 func verifySubs(tb testing.TB, subs []subscription.Subscription, a asset.Item, prefix string, expected ...string) {
@@ -2049,14 +2050,10 @@ func TestGenerateDefaultSubscriptions(t *testing.T) {
 func TestGenerateAuthSubscriptions(t *testing.T) {
 	t.Parallel()
 
-	// Create a parallel safe Kucoin to mess with
-	nu := new(Kucoin)
-	nu.Base.Features = ku.Base.Features
-	assert.NoError(t, nu.CurrencyPairs.Load(&ku.CurrencyPairs), "Loading Pairs should not error")
-	nu.Websocket = sharedtestvalues.NewTestWebsocket()
-	nu.Websocket.SetCanUseAuthenticatedEndpoints(true)
+	ku := testInstance(t) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
+	ku.Websocket.SetCanUseAuthenticatedEndpoints(true)
 
-	subs, err := nu.GenerateDefaultSubscriptions()
+	subs, err := ku.GenerateDefaultSubscriptions()
 	assert.NoError(t, err, "GenerateDefaultSubscriptions with Auth should not error")
 	assert.Len(t, subs, 24, "Should generate the correct number of subs when logged in")
 
@@ -2086,17 +2083,12 @@ func TestGenerateAuthSubscriptions(t *testing.T) {
 func TestGenerateCandleSubscription(t *testing.T) {
 	t.Parallel()
 
-	// Create a parallel safe Kucoin to mess with
-	nu := new(Kucoin)
-	nu.Base.Features = ku.Base.Features
-	nu.Websocket = sharedtestvalues.NewTestWebsocket()
-	assert.NoError(t, nu.CurrencyPairs.Load(&ku.CurrencyPairs), "Loading Pairs should not error")
-
-	nu.Features.Subscriptions = []*subscription.Subscription{
+	ku := testInstance(t) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
+	ku.Features.Subscriptions = []*subscription.Subscription{
 		{Channel: subscription.CandlesChannel, Interval: kline.FourHour},
 	}
 
-	subs, err := nu.GenerateDefaultSubscriptions()
+	subs, err := ku.GenerateDefaultSubscriptions()
 	assert.NoError(t, err, "GenerateDefaultSubscriptions with Candles should not error")
 
 	assert.Len(t, subs, 6, "Should generate the correct number of subs for candles")
@@ -2111,17 +2103,12 @@ func TestGenerateCandleSubscription(t *testing.T) {
 func TestGenerateMarketSubscription(t *testing.T) {
 	t.Parallel()
 
-	// Create a parallel safe Kucoin to mess with
-	nu := new(Kucoin)
-	nu.Base.Features = ku.Base.Features
-	nu.Websocket = sharedtestvalues.NewTestWebsocket()
-	assert.NoError(t, nu.CurrencyPairs.Load(&ku.CurrencyPairs), "Loading Pairs should not error")
-
-	nu.Features.Subscriptions = []*subscription.Subscription{
+	ku := testInstance(t) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
+	ku.Features.Subscriptions = []*subscription.Subscription{
 		{Channel: marketSnapshotChannel},
 	}
 
-	subs, err := nu.GenerateDefaultSubscriptions()
+	subs, err := ku.GenerateDefaultSubscriptions()
 	assert.NoError(t, err, "GenerateDefaultSubscriptions with MarketSnapshot should not error")
 
 	assert.Len(t, subs, 7, "Should generate the correct number of subs for snapshot")
@@ -2490,15 +2477,15 @@ func TestProcessOrderbook(t *testing.T) {
 
 func TestProcessMarketSnapshot(t *testing.T) {
 	t.Parallel()
-	n := new(Kucoin)
-	sharedtestvalues.TestFixtureToDataHandler(t, ku, n, "testdata/wsMarketSnapshot.json", n.wsHandleData)
+	ku := testInstance(t) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
+	testexch.FixtureToDataHandler(t, "testdata/wsMarketSnapshot.json", ku.wsHandleData)
 	seen := 0
 	seenAssetTypes := map[asset.Item]int{}
 	for reading := true; reading; {
 		select {
 		default:
 			reading = false
-		case resp := <-n.GetBase().Websocket.DataHandler:
+		case resp := <-ku.GetBase().Websocket.DataHandler:
 			seen++
 			switch v := resp.(type) {
 			case *ticker.Price:
@@ -2735,16 +2722,16 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 func TestGetOpenInterest(t *testing.T) {
 	t.Parallel()
 
-	nu := new(Kucoin)
-	require.NoError(t, testexch.Setup(nu), "Test exchange Setup must not error")
-	_, err := nu.GetOpenInterest(context.Background(), key.PairAsset{
+	ku := testInstance(t) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
+
+	_, err := ku.GetOpenInterest(context.Background(), key.PairAsset{
 		Base:  currency.ETH.Item,
 		Quote: currency.USDT.Item,
 		Asset: asset.USDTMarginedFutures,
 	})
 	assert.ErrorIs(t, err, asset.ErrNotSupported)
 
-	resp, err := nu.GetOpenInterest(context.Background(), key.PairAsset{
+	resp, err := ku.GetOpenInterest(context.Background(), key.PairAsset{
 		Base:  futuresTradablePair.Base.Item,
 		Quote: futuresTradablePair.Quote.Item,
 		Asset: asset.Futures,
@@ -2753,8 +2740,8 @@ func TestGetOpenInterest(t *testing.T) {
 	assert.NotEmpty(t, resp)
 
 	cp1 := currency.NewPair(currency.ETH, currency.USDTM)
-	sharedtestvalues.SetupCurrencyPairsForExchangeAsset(t, nu, asset.Futures, cp1)
-	resp, err = nu.GetOpenInterest(context.Background(),
+	sharedtestvalues.SetupCurrencyPairsForExchangeAsset(t, ku, asset.Futures, cp1)
+	resp, err = ku.GetOpenInterest(context.Background(),
 		key.PairAsset{
 			Base:  futuresTradablePair.Base.Item,
 			Quote: futuresTradablePair.Quote.Item,
@@ -2769,7 +2756,7 @@ func TestGetOpenInterest(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotEmpty(t, resp)
 
-	resp, err = nu.GetOpenInterest(context.Background())
+	resp, err = ku.GetOpenInterest(context.Background())
 	assert.NoError(t, err)
 	assert.NotEmpty(t, resp)
 }
@@ -2785,4 +2772,16 @@ func TestGetCurrencyTradeURL(t *testing.T) {
 		require.NoError(t, err)
 		assert.NotEmpty(t, resp)
 	}
+}
+
+// testInstance returns a local Kucoin for isolated testing
+func testInstance(tb testing.TB) *Kucoin {
+	tb.Helper()
+	ku := new(Kucoin)
+	require.NoError(tb, testexch.Setup(ku), "Test instance Setup must not error")
+	ku.obm = &orderbookManager{
+		state: make(map[currency.Code]map[currency.Code]map[asset.Item]*update),
+		jobs:  make(chan job, maxWSOrderbookJobs),
+	}
+	return ku
 }

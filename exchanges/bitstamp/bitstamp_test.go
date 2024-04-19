@@ -776,14 +776,15 @@ func TestWsOrderbook2(t *testing.T) {
 func TestWsOrderUpdate(t *testing.T) {
 	t.Parallel()
 
-	n := new(Bitstamp)
-	sharedtestvalues.TestFixtureToDataHandler(t, b, n, "testdata/wsMyOrders.json", n.wsHandleData)
+	b := new(Bitstamp) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
+	require.NoError(t, testexch.Setup(b), "Test instance Setup must not error")
+	testexch.FixtureToDataHandler(t, "testdata/wsMyOrders.json", b.wsHandleData)
 	seen := 0
 	for reading := true; reading; {
 		select {
 		default:
 			reading = false
-		case resp := <-n.GetBase().Websocket.DataHandler:
+		case resp := <-b.Websocket.DataHandler:
 			seen++
 			switch v := resp.(type) {
 			case *order.Detail:

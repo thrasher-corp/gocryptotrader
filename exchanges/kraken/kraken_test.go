@@ -1827,15 +1827,16 @@ func TestWsOwnTrades(t *testing.T) {
 
 func TestWsOpenOrders(t *testing.T) {
 	t.Parallel()
-	n := new(Kraken)
+	k := new(Kraken) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
+	require.NoError(t, testexch.Setup(k), "Test instance Setup must not error")
 	testexch.UpdatePairsOnce(t, k)
-	sharedtestvalues.TestFixtureToDataHandler(t, k, n, "testdata/wsOpenTrades.json", n.wsHandleData)
+	testexch.FixtureToDataHandler(t, "testdata/wsOpenTrades.json", k.wsHandleData)
 	seen := 0
 	for reading := true; reading; {
 		select {
 		default:
 			reading = false
-		case resp := <-n.Websocket.DataHandler:
+		case resp := <-k.Websocket.DataHandler:
 			seen++
 			switch v := resp.(type) {
 			case *order.Detail:

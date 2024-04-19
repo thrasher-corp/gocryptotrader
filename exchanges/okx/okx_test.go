@@ -2534,14 +2534,15 @@ func TestBalanceAndPosition(t *testing.T) {
 
 func TestOrderPushData(t *testing.T) {
 	t.Parallel()
-	n := new(Okx)
-	sharedtestvalues.TestFixtureToDataHandler(t, ok, n, "testdata/wsOrders.json", n.WsHandleData)
+	ok := new(Okx) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
+	require.NoError(t, testexch.Setup(ok), "Test instance Setup must not error")
+	testexch.FixtureToDataHandler(t, "testdata/wsOrders.json", ok.WsHandleData)
 	seen := 0
 	for reading := true; reading; {
 		select {
 		default:
 			reading = false
-		case resp := <-n.GetBase().Websocket.DataHandler:
+		case resp := <-ok.Websocket.DataHandler:
 			seen++
 			switch v := resp.(type) {
 			case *order.Detail:

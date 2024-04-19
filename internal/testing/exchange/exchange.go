@@ -1,12 +1,14 @@
 package exchange
 
 import (
+	"bufio"
 	"context"
 	"errors"
 	"fmt"
 	"log"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -150,6 +152,25 @@ func WsMockUpgrader(tb testing.TB, w http.ResponseWriter, r *http.Request, wsHan
 		err = wsHandler(p, c)
 		assert.NoError(tb, err, "WS Mock Function should not error")
 	}
+}
+
+// FixtureToDataHandler squirts the contents of a file to a reader function (probably e.wsHandleData)
+func FixtureToDataHandler(tb testing.TB, fixturePath string, reader func([]byte) error) {
+	tb.Helper()
+
+	fixture, err := os.Open(fixturePath)
+	assert.NoError(tb, err, "Opening fixture '%s' should not error", fixturePath)
+	defer func() {
+		assert.NoError(tb, fixture.Close(), "Closing the fixture file should not error")
+	}()
+
+	s := bufio.NewScanner(fixture)
+	for s.Scan() {
+		msg := s.Bytes()
+		err := reader(msg)
+		assert.NoErrorf(tb, err, "Fixture message should not error:\n%s", msg)
+	}
+	assert.NoError(tb, s.Err(), "Fixture Scanner should not error")
 }
 
 var setupWsMutex sync.Mutex
