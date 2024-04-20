@@ -7,6 +7,7 @@ import (
 	"reflect"
 	"strconv"
 
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 )
 
@@ -22,7 +23,7 @@ func (o *Okcoin) WsPlaceOrder(arg *PlaceTradeOrderParam) (*TradeOrderResponse, e
 		return nil, err
 	}
 	if len(resp) == 0 {
-		return nil, errNoValidResponseFromServer
+		return nil, common.ErrNoResponse
 	}
 	if resp[0].SCode != "0" {
 		return nil, fmt.Errorf("code: %s msg: %s", resp[0].SCode, resp[0].SMsg)
@@ -34,7 +35,7 @@ func (o *Okcoin) WsPlaceOrder(arg *PlaceTradeOrderParam) (*TradeOrderResponse, e
 func (o *Okcoin) WsPlaceMultipleOrder(args []PlaceTradeOrderParam) ([]TradeOrderResponse, error) {
 	var err error
 	if len(args) == 0 {
-		return nil, fmt.Errorf("%w, 0 length place order requests", errNilArgument)
+		return nil, fmt.Errorf("%w, 0 length place order requests", common.ErrNilPointer)
 	}
 	for x := range args {
 		err = args[x].validateTradeOrderParameter()
@@ -49,7 +50,7 @@ func (o *Okcoin) WsPlaceMultipleOrder(args []PlaceTradeOrderParam) ([]TradeOrder
 // WsCancelTradeOrder cancels a single trade order through the websocket stream.
 func (o *Okcoin) WsCancelTradeOrder(arg *CancelTradeOrderRequest) (*TradeOrderResponse, error) {
 	if arg == nil {
-		return nil, errNilArgument
+		return nil, fmt.Errorf("%w, argument can not be null", common.ErrNilPointer)
 	}
 	if arg.InstrumentID == "" {
 		return nil, errMissingInstrumentID
@@ -63,7 +64,7 @@ func (o *Okcoin) WsCancelTradeOrder(arg *CancelTradeOrderRequest) (*TradeOrderRe
 		return nil, err
 	}
 	if len(resp) == 0 {
-		return nil, errNoValidResponseFromServer
+		return nil, common.ErrNoResponse
 	}
 	if resp[0].SCode != "0" {
 		return nil, fmt.Errorf("code: %s msg: %s", resp[0].SCode, resp[0].SMsg)
@@ -76,7 +77,7 @@ func (o *Okcoin) WsCancelTradeOrder(arg *CancelTradeOrderRequest) (*TradeOrderRe
 func (o *Okcoin) WsCancelMultipleOrders(args []CancelTradeOrderRequest) ([]TradeOrderResponse, error) {
 	var err error
 	if len(args) == 0 {
-		return nil, fmt.Errorf("%w, 0 length place order requests", errNilArgument)
+		return nil, fmt.Errorf("%w, 0 length place order requests", common.ErrNilPointer)
 	}
 	for x := range args {
 		err = args[x].validate()
@@ -103,7 +104,7 @@ func (o *Okcoin) WsAmendOrder(arg *AmendTradeOrderRequestParam) (*AmendTradeOrde
 		return nil, err
 	}
 	if len(resp) == 0 {
-		return nil, errNoValidResponseFromServer
+		return nil, common.ErrNoResponse
 	}
 	if resp[0].StatusCode != "0" {
 		return nil, fmt.Errorf("code: %s msg: %s", resp[0].StatusCode, resp[0].StatusMessage)
@@ -114,7 +115,7 @@ func (o *Okcoin) WsAmendOrder(arg *AmendTradeOrderRequestParam) (*AmendTradeOrde
 // WsAmendMultipleOrder amends multiple trade orders.
 func (o *Okcoin) WsAmendMultipleOrder(args []AmendTradeOrderRequestParam) ([]AmendTradeOrderResponse, error) {
 	if len(args) == 0 {
-		return nil, fmt.Errorf("%w, please provide at least one trade order amendment request", errNilArgument)
+		return nil, fmt.Errorf("%w, please provide at least one trade order amendment request", common.ErrNilPointer)
 	}
 	for x := range args {
 		err := args[x].validate()

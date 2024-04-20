@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"sort"
-	"strconv"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -413,25 +412,13 @@ func (o *Okcoin) UpdateOrderbook(ctx context.Context, p currency.Pair, a asset.I
 	}
 	book.Bids = make(orderbook.Items, len(orderbookList.Bids))
 	for x := range orderbookList.Bids {
-		book.Bids[x].Amount, err = strconv.ParseFloat(orderbookList.Bids[x][1], 64)
-		if err != nil {
-			return nil, err
-		}
-		book.Bids[x].Price, err = strconv.ParseFloat(orderbookList.Bids[x][0], 64)
-		if err != nil {
-			return book, err
-		}
+		book.Bids[x].Amount = orderbookList.Bids[x][1].Float64()
+		book.Bids[x].Price = orderbookList.Bids[x][0].Float64()
 	}
 	book.Asks = make(orderbook.Items, len(orderbookList.Asks))
 	for x := range orderbookList.Asks {
-		book.Asks[x].Amount, err = strconv.ParseFloat(orderbookList.Asks[x][1], 64)
-		if err != nil {
-			return nil, err
-		}
-		book.Asks[x].Price, err = strconv.ParseFloat(orderbookList.Asks[x][0], 64)
-		if err != nil {
-			return book, err
-		}
+		book.Asks[x].Amount = orderbookList.Asks[x][1].Float64()
+		book.Asks[x].Price = orderbookList.Asks[x][0].Float64()
 	}
 	err = book.Process()
 	if err != nil {
@@ -554,7 +541,7 @@ func (o *Okcoin) GetAccountFundingHistory(ctx context.Context) ([]exchange.Fundi
 		}
 		resp[len(accountDepositHistory)+i] = exchange.FundingHistory{
 			Amount:          accountWithdrawlHistory[i].Amount.Float64(),
-			Currency:        accountWithdrawlHistory[i].Ccy,
+			Currency:        accountWithdrawlHistory[i].Currency,
 			ExchangeName:    o.Name,
 			Status:          orderStatus,
 			Timestamp:       accountWithdrawlHistory[i].Timestamp.Time(),
@@ -759,7 +746,7 @@ func (o *Okcoin) WithdrawCryptocurrencyFunds(ctx context.Context, withdrawReques
 	}
 	param := &WithdrawalRequest{
 		Amount:         withdrawRequest.Amount,
-		Ccy:            withdrawRequest.Currency,
+		Currency:       withdrawRequest.Currency,
 		Chain:          withdrawRequest.Crypto.Chain,
 		ToAddress:      withdrawRequest.Crypto.Address,
 		TransactionFee: withdrawRequest.Crypto.FeeAmount,
@@ -835,7 +822,7 @@ func (o *Okcoin) GetWithdrawalsHistory(ctx context.Context, c currency.Code, _ a
 			Status:          orderStatus,
 			TransferID:      withdrawals[x].WithdrawalID,
 			Timestamp:       withdrawals[x].Timestamp.Time(),
-			Currency:        withdrawals[x].Ccy,
+			Currency:        withdrawals[x].Currency,
 			Amount:          withdrawals[x].Amount.Float64(),
 			Fee:             withdrawals[x].Fee.Float64(),
 			CryptoToAddress: withdrawals[x].ReceivingAddress,
@@ -1054,7 +1041,7 @@ func (o *Okcoin) GetHistoricCandles(ctx context.Context, pair currency.Pair, a a
 	timeSeriesData := make([]kline.Candle, len(timeSeries))
 	for x := range timeSeries {
 		timeSeriesData[x] = kline.Candle{
-			Time:   timeSeries[x].Timestamp.Time(),
+			Time:   timeSeries[x].Timestamp,
 			Open:   timeSeries[x].OpenPrice,
 			High:   timeSeries[x].HighestPrice,
 			Low:    timeSeries[x].LowestPrice,
@@ -1088,7 +1075,7 @@ func (o *Okcoin) GetHistoricCandlesExtended(ctx context.Context, pair currency.P
 			}
 			for z := range candles {
 				timeSeries = append(timeSeries, kline.Candle{
-					Time:   candles[z].Timestamp.Time(),
+					Time:   candles[z].Timestamp,
 					Open:   candles[z].OpenPrice,
 					High:   candles[z].HighestPrice,
 					Low:    candles[z].LowestPrice,
