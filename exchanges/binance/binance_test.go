@@ -5623,3 +5623,107 @@ func TestGetLiabilityCoinLeverageBracketInCrossMarginProMode(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
+
+func TestGetSimpleEarnFlexibleProductList(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetSimpleEarnFlexibleProductList(context.Background(), currency.BTC, 2, 10)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetSimpleEarnLockedProducts(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetSimpleEarnLockedProducts(context.Background(), currency.BTC, 2, 10)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestSubscribeToFlexibleProducts(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	result, err := b.SubscribeToFlexibleProducts(context.Background(), "product-id", "FUND", 1, true)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestSubscribeToLockedProducts(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	result, err := b.SubscribeToLockedProducts(context.Background(), "project-id", "SPOT", 1, false)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestRedeemFlexibleProduct(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	result, err := b.RedeemFlexibleProduct(context.Background(), "product-id", "FUND", true, 0.1234)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestRedeemLockedProduct(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	result, err := b.RedeemLockedProduct(context.Background(), 12345)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetFlexibleProductPosition(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetFlexibleProductPosition(context.Background(), currency.BTC, "", 0, 10)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetLockedProductPosition(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetLockedProductPosition(context.Background(), currency.ETH, "", "", 0, 12)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestSimpleAccount(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.SimpleAccount(context.Background())
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetFlexibleSubscriptionRecord(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetFlexibleSubscriptionRecord(context.Background(), "", "", currency.ETH, time.Now().Add(-time.Hour*48), time.Now(), 0, 12)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetLockedSubscriptionsRecords(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetLockedSubscriptionsRecords(context.Background(), "", currency.ETH, time.Now().Add(-time.Hour*480), time.Now(), 0, 12)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetFlexibleRedemptionRecord(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetFlexibleRedemptionRecord(context.Background(), "", "1234", currency.LTC, time.Now().Add(-time.Hour*48), time.Now(), 0, 12)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetLockedRedemptionRecord(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetLockedRedemptionRecord(context.Background(), "", "1234", currency.LTC, time.Now().Add(-time.Hour*48), time.Now(), 0, 12)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}

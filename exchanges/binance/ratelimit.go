@@ -97,6 +97,13 @@ const (
 	ocoOrderRate
 	getMarginAccountAllOCORate
 
+	simpleEarnProductsRate
+	getSimpleEarnProductPositionRate
+	simpleAccountRate
+	getFlexibleSubscriptionRecordRate
+	getLockedSubscriptionRecordsRate
+	getRedemptionRecordRate
+
 	spotOpenOrdersSpecificRate
 	spotOrderRate
 	spotOrderQueryRate
@@ -345,6 +352,11 @@ func (r *RateLimit) Limit(ctx context.Context, f request.EndpointLimit) error {
 		marginCapitalFlowRate,
 		marginTokensAndSymbolsDelistScheduleRate:
 		limiter, tokens = r.SpotRate, 100
+	case simpleEarnProductsRate,
+		getSimpleEarnProductPositionRate,
+		simpleAccountRate,
+		getFlexibleSubscriptionRecordRate:
+		limiter, tokens = r.SpotRate, 150
 	case marginAccountsAllOrdersRate:
 		limiter, tokens = r.SpotRate, 200
 	case ocoOrderRate:

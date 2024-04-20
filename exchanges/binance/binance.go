@@ -70,6 +70,7 @@ var (
 	errInvalidFuturesType                     = errors.New("invalid futures types")
 	errInvalidAccountType                     = errors.New("invalid account type specified")
 	errMarginTypeIsRequired                   = errors.New("margin type is required, with possible valued of 'MARGIN' and 'ISOLATED'")
+	errProductIDIsRequired                    = errors.New("product ID is required")
 )
 
 var subscriptionNames = map[string]string{
@@ -3939,4 +3940,272 @@ func (b *Binance) FlexibleCollateralAssetsData(ctx context.Context, collateralCo
 	}
 	var resp *FlexibleCollateralAssetsData
 	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, "/sapi/v1/loan/flexible/collateral/data", params, spotDefaultRate, nil, &resp)
+}
+
+// ----------------------------------  Simple Earn Endpoints -------------------------------
+// The endpoints below allow you to interact with Binance Simple Earn.
+
+// GetSimpleEarnFlexibleProductList retrieves available simple earn flexible product list.
+func (b *Binance) GetSimpleEarnFlexibleProductList(ctx context.Context, assetName currency.Code, current, size int64) (*SimpleEarnProducts, error) {
+	params := url.Values{}
+	if !assetName.IsEmpty() {
+		params.Set("asset", assetName.String())
+	}
+	if current > 0 {
+		params.Set("current", strconv.FormatInt(current, 10))
+	}
+	if size > 0 {
+		params.Set("size", strconv.FormatInt(size, 10))
+	}
+	var resp *SimpleEarnProducts
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, "/sapi/v1/simple-earn/flexible/list", params, simpleEarnProductsRate, nil, &resp)
+}
+
+// GetSimpleEarnLockedProducts retrieves available Simple Earn locked product list
+func (b *Binance) GetSimpleEarnLockedProducts(ctx context.Context, assetName currency.Code, current, size int64) (*LockedSimpleEarnProducts, error) {
+	params := url.Values{}
+	if !assetName.IsEmpty() {
+		params.Set("asset", assetName.String())
+	}
+	if current > 0 {
+		params.Set("current", strconv.FormatInt(current, 10))
+	}
+	if size > 0 {
+		params.Set("size", strconv.FormatInt(size, 10))
+	}
+	var resp *LockedSimpleEarnProducts
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, "/sapi/v1/simple-earn/locked/list", params, simpleEarnProductsRate, nil, &resp)
+}
+
+// SubscribeToFlexibleProducts subscribe to simple earn flexible product instance.
+// You need to open Enable Spot & Margin Trading permission for the API Key which requests this endpoint.
+// sourceAccount: possible values are- SPOT, FUND, ALL, default SPOT
+func (b *Binance) SubscribeToFlexibleProducts(ctx context.Context, productID, sourceAccount string, amount float64, autoSubscribe bool) (*SimpleEarnSubscriptionResponse, error) {
+	if productID == "" {
+		return nil, errProductIDIsRequired
+	}
+	return b.subscribeToFlexibleAndLockedProducts(ctx, productID, "", sourceAccount, "/sapi/v1/simple-earn/flexible/subscribe", amount, autoSubscribe)
+}
+
+// SubscribeToLockedProducts subscribes to locked products
+func (b *Binance) SubscribeToLockedProducts(ctx context.Context, projectID, sourceAccount string, amount float64, autoSubscribe bool) (*SimpleEarnSubscriptionResponse, error) {
+	if projectID == "" {
+		return nil, errors.New("project ID is required")
+	}
+	return b.subscribeToFlexibleAndLockedProducts(ctx, "", projectID, sourceAccount, "/sapi/v1/simple-earn/locked/subscribe", amount, autoSubscribe)
+}
+
+func (b *Binance) subscribeToFlexibleAndLockedProducts(ctx context.Context, productID, projectID, sourceAccount, path string, amount float64, autoSubscribe bool) (*SimpleEarnSubscriptionResponse, error) {
+	if amount <= 0 {
+		return nil, order.ErrAmountBelowMin
+	}
+	params := url.Values{}
+	if productID != "" {
+		params.Set("productId", productID)
+	}
+	if projectID != "" {
+		params.Set("projectId", projectID)
+	}
+	params.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
+	if autoSubscribe {
+		params.Set("autoSubscribe", "true")
+	}
+	if sourceAccount != "" {
+		params.Set("sourceAccount", sourceAccount)
+	}
+	var resp *SimpleEarnSubscriptionResponse
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, path, params, spotOrderRate, nil, &resp)
+}
+
+// RedeemFlexibleProduct redeems flexible products
+// destinationAccount: possible values SPOT, FUND, default SPOT
+func (b *Binance) RedeemFlexibleProduct(ctx context.Context, productID, destinationAccount string, redeemAll bool, amount float64) (*RedeemResponse, error) {
+	if productID == "" {
+		return nil, errProductIDIsRequired
+	}
+	params := url.Values{}
+	params.Set("productId", productID)
+	if destinationAccount != "" {
+		params.Set("destAccount", destinationAccount)
+	}
+	if redeemAll {
+		params.Set("redeemAll", "true")
+	}
+	if amount != 0 {
+		params.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
+	}
+	var resp *RedeemResponse
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/sapi/v1/simple-earn/flexible/redeem", params, spotDefaultRate, nil, &resp)
+}
+
+// RedeemLockedProduct posts a redeem locked product
+func (b *Binance) RedeemLockedProduct(ctx context.Context, positionID int64) (*RedeemResponse, error) {
+	if positionID != 0 {
+		return nil, errors.New("position ID is required")
+	}
+	params := url.Values{}
+	params.Set("positionId", strconv.FormatInt(positionID, 10))
+	var resp *RedeemResponse
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/sapi/v1/simple-earn/locked/redeem", params, spotDefaultRate, nil, &resp)
+}
+
+// GetFlexibleProductPosition retrieves flexible product position
+func (b *Binance) GetFlexibleProductPosition(ctx context.Context, assetName currency.Code, productID string, current, size int64) (*FlexibleProductPosition, error) {
+	params := url.Values{}
+	if !assetName.IsEmpty() {
+		params.Set("asset", assetName.String())
+	}
+	if productID != "" {
+		params.Set("productId", productID)
+	}
+	if current > 0 {
+		params.Set("current", strconv.FormatInt(current, 10))
+	}
+	if size > 0 {
+		params.Set("size", strconv.FormatInt(size, 10))
+	}
+	var resp *FlexibleProductPosition
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/simple-earn/flexible/position", params, spotDefaultRate, nil, &resp)
+}
+
+// GetLockedProductPosition retrieves locked product positions.
+func (b *Binance) GetLockedProductPosition(ctx context.Context, assetName currency.Code, positionID, projectID string, current, size int64) (*LockedProductPosition, error) {
+	params := url.Values{}
+	if !assetName.IsEmpty() {
+		params.Set("asset", assetName.String())
+	}
+	if positionID != "" {
+		params.Set("positionId", positionID)
+	}
+	if current > 0 {
+		params.Set("current", strconv.FormatInt(current, 10))
+	}
+	if size > 0 {
+		params.Set("size", strconv.FormatInt(size, 10))
+	}
+	var resp *LockedProductPosition
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/simple-earn/locked/position", params, getSimpleEarnProductPositionRate, nil, &resp)
+}
+
+// SimpleAccount retrieves simple account instance.
+func (b *Binance) SimpleAccount(ctx context.Context) (*SimpleAccount, error) {
+	var resp *SimpleAccount
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/simple-earn/account", nil, simpleAccountRate, nil, &resp)
+}
+
+// GetFlexibleSubscriptionRecord retrieves flexible subscription record.
+func (b *Binance) GetFlexibleSubscriptionRecord(ctx context.Context, productID, purchaseID string, assetName currency.Code, startTime, endTime time.Time, current, size int64) (*FlexibleSubscriptionRecord, error) {
+	params := url.Values{}
+	if productID != "" {
+		params.Set("productId", productID)
+	}
+	if purchaseID != "" {
+		params.Set("purchaseId", purchaseID)
+	}
+	if !assetName.IsEmpty() {
+		params.Set("asset", assetName.String())
+	}
+	if !startTime.IsZero() && !endTime.IsZero() {
+		err := common.StartEndTimeCheck(startTime, endTime)
+		if err != nil {
+			return nil, err
+		}
+		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
+	}
+	if current > 0 {
+		params.Set("current", strconv.FormatInt(current, 10))
+	}
+	if size > 0 {
+		params.Set("size", strconv.FormatInt(size, 10))
+	}
+	var resp *FlexibleSubscriptionRecord
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/simple-earn/flexible/history/subscriptionRecord", params, getFlexibleSubscriptionRecordRate, nil, &resp)
+}
+
+// GetLockedSubscriptionsRecords retrieves locked subscriptions records
+func (b *Binance) GetLockedSubscriptionsRecords(ctx context.Context, purchaseID string, assetName currency.Code, startTime, endTime time.Time, current, size int64) (*LockedSubscriptions, error) {
+	params := url.Values{}
+	if purchaseID != "" {
+		params.Set("purchaseId", purchaseID)
+	}
+	if !assetName.IsEmpty() {
+		params.Set("asset", assetName.String())
+	}
+	if !startTime.IsZero() && !endTime.IsZero() {
+		err := common.StartEndTimeCheck(startTime, endTime)
+		if err != nil {
+			return nil, err
+		}
+		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
+	}
+	if current > 0 {
+		params.Set("current", strconv.FormatInt(current, 10))
+	}
+	if size > 0 {
+		params.Set("size", strconv.FormatInt(size, 10))
+	}
+	var resp *LockedSubscriptions
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/simple-earn/locked/history/subscriptionRecord", params, getLockedSubscriptionRecordsRate, nil, &resp)
+}
+
+// GetFlexibleRedemptionRecord retrieves flexible redemption record
+func (b *Binance) GetFlexibleRedemptionRecord(ctx context.Context, productID, redeemID string, assetName currency.Code, startTime, endTime time.Time, current, size int64) (*RedemptionRecord, error) {
+	params := url.Values{}
+	if productID != "" {
+		params.Set("productId", productID)
+	}
+	if redeemID != "" {
+		params.Set("redeemId", redeemID)
+	}
+	if !assetName.IsEmpty() {
+		params.Set("asset", assetName.String())
+	}
+	if !startTime.IsZero() && !endTime.IsZero() {
+		err := common.StartEndTimeCheck(startTime, endTime)
+		if err != nil {
+			return nil, err
+		}
+		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
+	}
+	if current > 0 {
+		params.Set("current", strconv.FormatInt(current, 10))
+	}
+	if size > 0 {
+		params.Set("size", strconv.FormatInt(size, 10))
+	}
+	var resp *RedemptionRecord
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/simple-earn/flexible/history/redemptionRecord", params, getRedemptionRecordRate, nil, &resp)
+}
+
+// GetLockedRedemptionRecord retrieves locked redemptions record list
+func (b *Binance) GetLockedRedemptionRecord(ctx context.Context, productID, redeemID string, assetName currency.Code, startTime, endTime time.Time, current, size int64) (*LockedRedemptionRecord, error) {
+	params := url.Values{}
+	if productID != "" {
+		params.Set("productId", productID)
+	}
+	if redeemID != "" {
+		params.Set("redeemId", redeemID)
+	}
+	if !assetName.IsEmpty() {
+		params.Set("asset", assetName.String())
+	}
+	if !startTime.IsZero() && !endTime.IsZero() {
+		err := common.StartEndTimeCheck(startTime, endTime)
+		if err != nil {
+			return nil, err
+		}
+		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
+	}
+	if current > 0 {
+		params.Set("current", strconv.FormatInt(current, 10))
+	}
+	if size > 0 {
+		params.Set("size", strconv.FormatInt(size, 10))
+	}
+	var resp *LockedRedemptionRecord
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/simple-earn/locked/history/redemptionRecord", params, getRedemptionRecordRate, nil, &resp)
 }

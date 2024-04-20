@@ -3506,3 +3506,174 @@ type LiabilityCoinLeverageBracket struct {
 		FastNum               int64   `json:"fastNum"`
 	} `json:"brackets"`
 }
+
+// SimpleEarnProduct represents list of binance's simple earn product
+type SimpleEarnProducts struct {
+	Rows []struct {
+		Asset                      string               `json:"asset"`
+		LatestAnnualPercentageRate types.Number         `json:"latestAnnualPercentageRate"`
+		TierAnnualPercentageRate   map[string]float64   `json:"tierAnnualPercentageRate"`
+		AirDropPercentageRate      string               `json:"airDropPercentageRate"`
+		CanPurchase                bool                 `json:"canPurchase"`
+		CanRedeem                  bool                 `json:"canRedeem"`
+		IsSoldOut                  bool                 `json:"isSoldOut"`
+		Hot                        bool                 `json:"hot"`
+		MinPurchaseAmount          types.Number         `json:"minPurchaseAmount"`
+		ProductID                  string               `json:"productId"`
+		SubscriptionStartTime      convert.ExchangeTime `json:"subscriptionStartTime"`
+		Status                     string               `json:"status"`
+	} `json:"rows"`
+	Total int64 `json:"total"`
+}
+
+// LockedSimpleEarnProducts represents locked simple earn products.
+type LockedSimpleEarnProducts struct {
+	Rows []struct {
+		ProjectID string `json:"projectId"`
+		Detail    struct {
+			Asset                 string               `json:"asset"`
+			RewardAsset           string               `json:"rewardAsset"`
+			Duration              int64                `json:"duration"`
+			Renewable             bool                 `json:"renewable"`
+			IsSoldOut             bool                 `json:"isSoldOut"`
+			Apr                   string               `json:"apr"`
+			Status                string               `json:"status"`
+			SubscriptionStartTime convert.ExchangeTime `json:"subscriptionStartTime"`
+			ExtraRewardAsset      string               `json:"extraRewardAsset"`
+			ExtraRewardAPR        string               `json:"extraRewardAPR"`
+		} `json:"detail"`
+		Quota struct {
+			TotalPersonalQuota types.Number `json:"totalPersonalQuota"`
+			Minimum            types.Number `json:"minimum"`
+		} `json:"quota"`
+	} `json:"rows"`
+	Total int64 `json:"total"`
+}
+
+// SimpleEarnSubscriptionResponse represents a simple earn product subscription response.
+type SimpleEarnSubscriptionResponse struct {
+	PurchaseID int64 `json:"purchaseId"`
+	Success    bool  `json:"success"`
+
+	PositionID string `json:"positionId"` // Sent when subscribing to locked simple earn products.
+}
+
+// RedeemResponse represents a simple flexible or locked product redemption response.
+type RedeemResponse struct {
+	RedeemID int64 `json:"redeemId"`
+	Success  bool  `json:"success"`
+}
+
+// FlexibleProductPosition represents a flexible product position instance.
+type FlexibleProductPosition struct {
+	Rows []struct {
+		TotalAmount                    types.Number       `json:"totalAmount"`
+		TierAnnualPercentageRate       map[string]float64 `json:"tierAnnualPercentageRate"`
+		LatestAnnualPercentageRate     types.Number       `json:"latestAnnualPercentageRate"`
+		YesterdayAirdropPercentageRate types.Number       `json:"yesterdayAirdropPercentageRate"`
+		Asset                          string             `json:"asset"`
+		AirDropAsset                   string             `json:"airDropAsset"`
+		CanRedeem                      bool               `json:"canRedeem"`
+		CollateralAmount               types.Number       `json:"collateralAmount"`
+		ProductID                      string             `json:"productId"`
+		YesterdayRealTimeRewards       string             `json:"yesterdayRealTimeRewards"`
+		CumulativeBonusRewards         string             `json:"cumulativeBonusRewards"`
+		CumulativeRealTimeRewards      string             `json:"cumulativeRealTimeRewards"`
+		CumulativeTotalRewards         string             `json:"cumulativeTotalRewards"`
+		AutoSubscribe                  bool               `json:"autoSubscribe"`
+	} `json:"rows"`
+	Total int64 `json:"total"`
+}
+
+// LockedProductPosition represents locked product position instance.
+type LockedProductPosition struct {
+	Rows []struct {
+		PositionID   string               `json:"positionId"`
+		ProjectID    string               `json:"projectId"`
+		Asset        string               `json:"asset"`
+		Amount       types.Number         `json:"amount"`
+		PurchaseTime convert.ExchangeTime `json:"purchaseTime"`
+		Duration     string               `json:"duration"`
+		AccrualDays  string               `json:"accrualDays"`
+		RewardAsset  string               `json:"rewardAsset"`
+		Apy          string               `json:"APY"`
+		IsRenewable  bool                 `json:"isRenewable"`
+		IsAutoRenew  bool                 `json:"isAutoRenew"`
+		RedeemDate   string               `json:"redeemDate"`
+	} `json:"rows"`
+	Total int64 `json:"total"`
+}
+
+// SimpleAccount represents a simple account instance.
+type SimpleAccount struct {
+	TotalAmountInBTC          types.Number `json:"totalAmountInBTC"`
+	TotalAmountInUSDT         types.Number `json:"totalAmountInUSDT"`
+	TotalFlexibleAmountInBTC  types.Number `json:"totalFlexibleAmountInBTC"`
+	TotalFlexibleAmountInUSDT types.Number `json:"totalFlexibleAmountInUSDT"`
+	TotalLockedInBTC          types.Number `json:"totalLockedInBTC"`
+	TotalLockedInUSDT         types.Number `json:"totalLockedInUSDT"`
+}
+
+// FlexibleSubscriptionRecord represents list of flexible subscriptions.
+type FlexibleSubscriptionRecord struct {
+	Rows []struct {
+		Amount         types.Number         `json:"amount"`
+		Asset          string               `json:"asset"`
+		Time           convert.ExchangeTime `json:"time"`
+		PurchaseID     int64                `json:"purchaseId"`
+		Type           string               `json:"type"`
+		SourceAccount  string               `json:"sourceAccount"`
+		AmtFromSpot    string               `json:"amtFromSpot"`
+		AmtFromFunding string               `json:"amtFromFunding"`
+		Status         string               `json:"status"`
+	} `json:"rows"`
+	Total int64 `json:"total"`
+}
+
+// LockedSubscriptions represents locked subscription records instance.
+type LockedSubscriptions struct {
+	Rows []struct {
+		PositionID     string               `json:"positionId"`
+		PurchaseID     int64                `json:"purchaseId"`
+		Time           convert.ExchangeTime `json:"time"`
+		Asset          string               `json:"asset"`
+		Amount         types.Number         `json:"amount"`
+		LockPeriod     string               `json:"lockPeriod"`
+		Type           string               `json:"type"`           // NORMAL for normal subscription, AUTO for auto-subscription order, ACTIVITY for activity order, TRIAL for trial fund order, RESTAKE for restake order
+		SourceAccount  string               `json:"sourceAccount"`  // SPOT, FUNDING, SPOTANDFUNDING
+		AmtFromSpot    string               `json:"amtFromSpot"`    // Display if sourceAccount is SPOTANDFUNDING
+		AmtFromFunding string               `json:"amtFromFunding"` // Display if sourceAccount is SPOTANDFUNDING
+		Status         string               `json:"status"`         // PURCHASING/SUCCESS/FAILED
+	} `json:"rows"`
+	Total int64 `json:"total"`
+}
+
+// RedemptionRecord represents a redemption instance.
+type RedemptionRecord struct {
+	Rows []struct {
+		Amount      types.Number         `json:"amount"`
+		Asset       string               `json:"asset"`
+		Time        convert.ExchangeTime `json:"time"`
+		ProjectID   string               `json:"projectId"`
+		RedeemID    int                  `json:"redeemId"`
+		DestAccount string               `json:"destAccount"`
+		Status      string               `json:"status"`
+	} `json:"rows"`
+	Total int64 `json:"total"`
+}
+
+// LockedRedemptionRecord represents a locked redemption record.
+type LockedRedemptionRecord struct {
+	Rows []struct {
+		PositionID  string               `json:"positionId"`
+		RedeemID    int64                `json:"redeemId"`
+		Time        convert.ExchangeTime `json:"time"`
+		Asset       string               `json:"asset"`
+		LockPeriod  string               `json:"lockPeriod"`
+		Amount      types.Number         `json:"amount"`
+		Type        string               `json:"type"`
+		DeliverDate string               `json:"deliverDate"`
+		Status      string               `json:"status"`
+	} `json:"rows"`
+	Total int64 `json:"total"`
+}
