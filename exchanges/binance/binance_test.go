@@ -5847,3 +5847,96 @@ func TestChangeAutoCompoundStatus(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
+
+func TestGetTargetAssetList(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetTargetAssetList(context.Background(), currency.BTC, 10, 40)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetTargetAssetROIData(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetTargetAssetROIData(context.Background(), currency.ETH, "THREE_YEAR")
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetAllSourceAssetAndTargetAsset(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetAllSourceAssetAndTargetAsset(context.Background())
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetSourceAssetList(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetSourceAssetList(context.Background(), currency.BTC, 123, "RECURRING", "MAIN_SITE", true)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestInvestmentPlanCreation(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	result, err := b.InvestmentPlanCreation(context.Background(), &InvestmentPlanParams{})
+	require.ErrorIs(t, common.ErrNilPointer, err)
+	result, err = b.InvestmentPlanCreation(context.Background(), &InvestmentPlanParams{
+		SourceType:            "MAIN_SITE",
+		PlanType:              "SINGLE",
+		SubscriptionAmount:    4,
+		SubscriptionCycle:     "H4",
+		SubscriptionStartTime: 8,
+		SourceAsset:           currency.USDT,
+		Details: []PortfolioDetail{
+			{
+				TargetAsset: currency.ETH,
+				Percentage:  12,
+			},
+			{
+				TargetAsset: currency.ETH,
+				Percentage:  20,
+			},
+		},
+	})
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestInvestmentPlanAdjustment(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	result, err := b.InvestmentPlanAdjustment(context.Background(), &AdjustInvestmentPlan{})
+	require.ErrorIs(t, common.ErrNilPointer, err)
+	result, err = b.InvestmentPlanAdjustment(context.Background(), &AdjustInvestmentPlan{
+		PlanID:                1234232,
+		SubscriptionAmount:    4,
+		SubscriptionCycle:     "H4",
+		SubscriptionStartTime: 8,
+		SourceAsset:           currency.USDT,
+		Details: []PortfolioDetail{
+			{
+				TargetAsset: currency.ETH,
+				Percentage:  12,
+			},
+			{
+				TargetAsset: currency.ETH,
+				Percentage:  20,
+			},
+		},
+	})
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestChangePlanStatus(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	result, err := b.ChangePlanStatus(context.Background(), 12345, "PAUSED")
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}

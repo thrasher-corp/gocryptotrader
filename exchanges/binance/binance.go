@@ -71,6 +71,7 @@ var (
 	errInvalidAccountType                     = errors.New("invalid account type specified")
 	errMarginTypeIsRequired                   = errors.New("margin type is required, with possible valued of 'MARGIN' and 'ISOLATED'")
 	errProductIDIsRequired                    = errors.New("product ID is required")
+	errPlanIDRequired                         = errors.New("plan ID  is required")
 )
 
 var subscriptionNames = map[string]string{
@@ -4420,4 +4421,155 @@ func (b *Binance) ChangeAutoCompoundStatus(ctx context.Context, positionID strin
 	}
 	var resp *AutoCompoundStatus
 	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/sapi/v1/dci/product/auto_compound/edit-status", params, spotDefaultRate, nil, &resp)
+}
+
+// ------------------------------------------   Auto-Invest Endpoints  ----------------------------------------------------
+
+// GetTargetAssetList retrieves auto-invest
+func (b *Binance) GetTargetAssetList(ctx context.Context, targetAsset currency.Code, size, current int64) (*AutoInvestmentAsset, error) {
+	params := url.Values{}
+	if !targetAsset.IsEmpty() {
+		params.Set("targetAsset", targetAsset.String())
+	}
+	if size > 0 {
+		params.Set("size", strconv.FormatInt(size, 10))
+	}
+	if current > 0 {
+		params.Set("current", strconv.FormatInt(current, 10))
+	}
+	var resp *AutoInvestmentAsset
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/lending/auto-invest/target-asset/list", params, spotDefaultRate, nil, &resp)
+}
+
+// GetTargetAssetROIData retrieves return-on-investment(ROI) return list for target asset
+// FIVE_YEAR,THREE_YEAR,ONE_YEAR,SIX_MONTH,THREE_MONTH,SEVEN_DAY
+func (b *Binance) GetTargetAssetROIData(ctx context.Context, targetAsset currency.Code, hisRoiType string) ([]ROIAssetData, error) {
+	params := url.Values{}
+	if !targetAsset.IsEmpty() {
+		params.Set("targetAsset", targetAsset.String())
+	}
+	if hisRoiType != "" {
+		params.Set("hisRoiType", hisRoiType)
+	}
+	var resp []ROIAssetData
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/lending/auto-invest/target-asset/roi/list", params, spotDefaultRate, nil, &resp)
+}
+
+// GetAllSourceAssetAndTargetAsset retrieves all source assets and target assets
+func (b *Binance) GetAllSourceAssetAndTargetAsset(ctx context.Context) (*AutoInvestAssets, error) {
+	var resp *AutoInvestAssets
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/lending/auto-invest/all/asset", nil, spotDefaultRate, nil, &resp)
+}
+
+// GetSourceAssetList retrieves assets to be used for investment
+// usageType: "RECURRING", "ONE_TIME"
+func (b *Binance) GetSourceAssetList(ctx context.Context, targetAsset currency.Code, indexID int64, usageType, sourceType string, flexibleAllowedToUse bool) (*SourceAssetsList, error) {
+	if usageType == "" {
+		return nil, errors.New("usage type is required")
+	}
+	params := url.Values{}
+	params.Set("usageType", usageType)
+	if !targetAsset.IsEmpty() {
+		params.Set("targetAsset", targetAsset.String())
+	}
+	if indexID > 0 {
+		params.Set("indexId", strconv.FormatInt(indexID, 10))
+	}
+	if flexibleAllowedToUse {
+		params.Set("flexibleAllowedToUse", "true")
+	}
+	if sourceType != "" {
+		params.Set("sourceType", sourceType)
+	}
+	var resp *SourceAssetsList
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/lending/auto-invest/source-asset/list", params, spotDefaultRate, nil, &resp)
+}
+
+// InvestmentPlanCreation creates an investment plan
+func (b *Binance) InvestmentPlanCreation(ctx context.Context, arg *InvestmentPlanParams) (*InvestmentPlanResponse, error) {
+	if arg == nil {
+		return nil, common.ErrNilPointer
+	}
+	if arg.SourceType == "" {
+		return nil, errors.New("source type ")
+	}
+	if arg.PlanType == "" {
+		return nil, errors.New("plan type is required")
+	}
+	if arg.SubscriptionAmount <= 0 {
+		return nil, fmt.Errorf("%w, subscriptionAmount valud is %f", order.ErrAmountBelowMin, arg.SubscriptionAmount)
+	}
+	if arg.SubscriptionStartDay <= 0 {
+		return nil, errors.New("subscription start day has to be greater than 0")
+	}
+	if arg.SubscriptionStartTime < 0 {
+		return nil, errors.New("invalid subscription start time")
+	}
+	if arg.SourceAsset.IsEmpty() {
+		return nil, currency.ErrCurrencyCodeEmpty
+	}
+	if len(arg.Details) == 0 {
+		return nil, errors.New("portfolio detail is required")
+	}
+	for a := range arg.Details {
+		if arg.Details[a].TargetAsset.IsEmpty() {
+			return nil, fmt.Errorf("%w, targetAsset is required", currency.ErrCurrencyCodeEmpty)
+		}
+		if arg.Details[a].Percentage < 0 {
+			return nil, errors.New("invalid percentage amount")
+		}
+	}
+	var resp *InvestmentPlanResponse
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/sapi/v1/lending/auto-invest/plan/add", nil, spotDefaultRate, arg, &resp)
+}
+
+// InvestmentPlanAdjustment query Source Asset to be used for investment
+func (b *Binance) InvestmentPlanAdjustment(ctx context.Context, arg *AdjustInvestmentPlan) (*InvestmentPlanResponse, error) {
+	if arg == nil {
+		return nil, common.ErrNilPointer
+	}
+	if arg.PlanID == 0 {
+		return nil, errPlanIDRequired
+	}
+	if arg.SubscriptionAmount <= 0 {
+		return nil, fmt.Errorf("%w, subscriptionAmount valud is %f", order.ErrAmountBelowMin, arg.SubscriptionAmount)
+	}
+	if arg.SubscriptionCycle == "" {
+		return nil, errors.New("subscription cycle is required")
+	}
+	if arg.SubscriptionStartTime < 0 {
+		return nil, errors.New("invalid subscription start time")
+	}
+	if arg.SourceAsset.IsEmpty() {
+		return nil, currency.ErrCurrencyCodeEmpty
+	}
+	if len(arg.Details) == 0 {
+		return nil, errors.New("portfolio detail is required")
+	}
+	for a := range arg.Details {
+		if arg.Details[a].TargetAsset.IsEmpty() {
+			return nil, fmt.Errorf("%w, targetAsset is required", currency.ErrCurrencyCodeEmpty)
+		}
+		if arg.Details[a].Percentage < 0 {
+			return nil, errors.New("invalid percentage amount")
+		}
+	}
+	var resp *InvestmentPlanResponse
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/sapi/v1/lending/auto-invest/plan/edit", nil, spotDefaultRate, arg, &resp)
+}
+
+// ChangePlanStatus change Plan Status
+// status: “ONGOING”,”PAUSED","REMOVED"
+func (b *Binance) ChangePlanStatus(ctx context.Context, planID int64, status string) (*ChangePlanStatusResponse, error) {
+	if planID == 0 {
+		return nil, errPlanIDRequired
+	}
+	if status == "" {
+		return nil, errors.New("plan status is required")
+	}
+	params := url.Values{}
+	params.Set("planId", strconv.FormatInt(planID, 10))
+	params.Set("status", status)
+	var resp *ChangePlanStatusResponse
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/sapi/v1/lending/auto-invest/plan/edit-status", params, spotDefaultRate, nil, &resp)
 }

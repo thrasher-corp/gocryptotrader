@@ -3828,3 +3828,89 @@ type AutoCompoundStatus struct {
 	PositionID       string `json:"positionId"`
 	AutoCompoundPlan string `json:"autoCompoundPlan"`
 }
+
+// AutoInvestmentAsset represents list target asset info detail.
+type AutoInvestmentAsset struct {
+	TargetAssets        []string `json:"targetAssets"`
+	AutoInvestAssetList []struct {
+		TargetAsset             string `json:"targetAsset"`
+		RoiAndDimensionTypeList []struct {
+			SimulateRoi    string       `json:"simulateRoi"`
+			DimensionValue types.Number `json:"dimensionValue"`
+			DimensionUnit  string       `json:"dimensionUnit"`
+		} `json:"roiAndDimensionTypeList"`
+	} `json:"autoInvestAssetList"`
+}
+
+// ROIAssetData represents a ROI asset
+type ROIAssetData struct {
+	Date        string `json:"date"`        // date of the ROI accumulation
+	SimulateROI string `json:"simulateRoi"` // value of calculated ROI till the date
+}
+
+// AutoInvestAssets represents an auto-invest asset instance.
+type AutoInvestAssets struct {
+	TargetAssets []string `json:"targetAssets"`
+	SourceAssets []string `json:"sourceAssets"`
+}
+
+// SourceAssetsList represents source investment assets list/
+type SourceAssetsList struct {
+	FeeRate      types.Number `json:"feeRate"`
+	TaxRate      types.Number `json:"taxRate"`
+	SourceAssets []struct {
+		SourceAsset    string       `json:"sourceAsset"`
+		AssetMinAmount types.Number `json:"assetMinAmount"`
+		AssetMaxAmount types.Number `json:"assetMaxAmount"`
+		Scale          types.Number `json:"scale"`
+		FlexibleAmount types.Number `json:"flexibleAmount"`
+	} `json:"sourceAssets"`
+}
+
+// InvestmentPlanParams represents a parameter for investment plan creation
+type InvestmentPlanParams struct {
+	SourceType               string            `json:"sourceType,omitempty"` // "MAIN_SITE" for Binance,“TR” for Binance Turkey
+	RequestID                string            `json:"requestId,omitempty"`
+	PlanType                 string            `json:"planType,omitempty"` // “SINGLE”,”PORTFOLIO”,”INDEX”
+	IndexID                  int64             `json:"indexId,omitempty"`
+	SubscriptionAmount       float64           `json:"subscriptionAmount,omitempty"`
+	SubscriptionCycle        string            `json:"subscriptionCycle,omitempty"` // "H1", "H4", "H8","H12", "WEEKLY","DAILY","MONTHLY","BI_WEEKLY"
+	SubscriptionStartDay     int64             `json:"subscriptionStartDay,omitempty"`
+	SubscriptionStartWeekday string            `json:"subscriptionStartWeekday,omitempty"` // “MON”,”TUE”,”WED”,”THU”,”FRI”,”SAT”,”SUN”; Mandatory if “subscriptionCycleNumberUnit” = “WEEKLY” or “BI_WEEKLY”, Must be sent in form of UTC+0
+	SubscriptionStartTime    int64             `json:"subscriptionStartTime"`              // “0,1,2,3,4,5,6,7,8,..23”;Must be sent in form of UTC+0
+	SourceAsset              currency.Code     `json:"sourceAsset,omitempty"`
+	FlexibleAllowedToUse     bool              `json:"flexibleAllowedToUse"`
+	Details                  []PortfolioDetail `json:"details,omitempty"`
+}
+
+// PortfolioDetail represents a portfolio detail instance.
+type PortfolioDetail struct {
+	TargetAsset currency.Code `json:"targetAsset"`
+	Percentage  int64         `json:"percentage"`
+}
+
+// InvestmentPlanResponse represents an investment plan creation response.
+type InvestmentPlanResponse struct {
+	PlanID                int64                `json:"planId"`
+	NextExecutionDateTime convert.ExchangeTime `json:"nextExecutionDateTime"`
+}
+
+// AdjustInvestmentPlan represents parameters for investment plan adjustment.
+type AdjustInvestmentPlan struct {
+	PlanID                   int64             `json:"planId"`
+	SubscriptionAmount       float64           `json:"subscriptionAmount,omitempty"`
+	SubscriptionCycle        string            `json:"subscriptionCycle,omitempty"`
+	SubscriptionStartDay     int64             `json:"subscriptionStartDay,omitempty"`
+	SubscriptionStartWeekday string            `json:"subscriptionStartWeekday,omitempty"` // “MON”,”TUE”,”WED”,”THU”,”FRI”,”SAT”,”SUN”; Mandatory if “subscriptionCycleNumberUnit” = “WEEKLY” or “BI_WEEKLY”, Must be sent in form of UTC+0
+	SubscriptionStartTime    int64             `json:"subscriptionStartTime"`              // “0,1,2,3,4,5,6,7,8,..23”;Must be sent in form of UTC+0
+	SourceAsset              currency.Code     `json:"sourceAsset,omitempty"`
+	FlexibleAllowedToUse     bool              `json:"flexibleAllowedToUse"`
+	Details                  []PortfolioDetail `json:"details,omitempty"`
+}
+
+// ChangePlanStatusResponse represents a change plan status response.
+type ChangePlanStatusResponse struct {
+	PlanID                int64                `json:"planId"`
+	NextExecutionDateTime convert.ExchangeTime `json:"nextExecutionDateTime"`
+	Status                string               `json:"status"`
+}
