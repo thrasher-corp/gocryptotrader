@@ -4325,3 +4325,99 @@ func (b *Binance) GetSimpleEarnCollateralRecord(ctx context.Context, productID s
 	var resp *SimpleEarnCollateralRecords
 	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/simple-earn/flexible/history/collateralRecord", params, spotDefaultRate, nil, &resp)
 }
+
+// ------------------------------------------- Dual Investment Endpoints  -----------------------------------------------------
+
+// GetDualInvestmentProductList retrieves a dual investment product list
+// possible optionType values: 'CALL' and 'PUT'
+func (b *Binance) GetDualInvestmentProductList(ctx context.Context, optionType string, exerciseCoin, investCoin currency.Code, pageSize, pageIndex int64) (*DualInvestmentProduct, error) {
+	params := url.Values{}
+	if optionType == "" {
+		return nil, errors.New("optionType is required")
+	}
+	if exerciseCoin.IsEmpty() {
+		return nil, fmt.Errorf("%w, exerciseCoin is required", currency.ErrCurrencyCodeEmpty)
+	}
+	if investCoin.IsEmpty() {
+		return nil, fmt.Errorf("%w, investCoin is required", currency.ErrCurrencyCodeEmpty)
+	}
+	params.Set("optionType", optionType)
+	params.Set("exerciseCoin", exerciseCoin.String())
+	params.Set("investCoin", investCoin.String())
+	if pageSize > 0 {
+		params.Set("pageSize", strconv.FormatInt(pageSize, 10))
+	}
+	if pageIndex > 0 {
+		params.Set("pageIndex", strconv.FormatInt(pageIndex, 10))
+	}
+	var resp *DualInvestmentProduct
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/dci/product/list", params, spotDefaultRate, nil, &resp)
+}
+
+// SubscribeDualInvestmentProducts represents dual investment products
+// id: get id from /sapi/v1/dci/product/list
+// orderId: get orderId from /sapi/v1/dci/product/list
+// possible autoCompoundPlan values: NONE: switch off the plan, STANDARD:standard plan, ADVANCED:advanced plan
+// Products are not available. // this means APR changes to lower value, or orders are not unavailable.
+// Failed. This means System or network errors.
+func (b *Binance) SubscribeDualInvestmentProducts(ctx context.Context, id, orderID, autoCompoundPlan string, depositAmount float64) (*DualInvestmentProductSubscription, error) {
+	if id == "" {
+		return nil, errors.New("product id is not set")
+	}
+	if orderID == "" {
+		return nil, order.ErrOrderIDNotSet
+	}
+	if depositAmount <= 0 {
+		return nil, order.ErrAmountBelowMin
+	}
+	if autoCompoundPlan == "" {
+		return nil, errors.New("accountCompoundPlan is required")
+	}
+	params := url.Values{}
+	params.Set("id", id)
+	params.Set("orderId", orderID)
+	params.Set("depositAmount", strconv.FormatFloat(depositAmount, 'f', -1, 64))
+	params.Set("autoCompoundPlan", autoCompoundPlan)
+	var resp *DualInvestmentProductSubscription
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/sapi/v1/dci/product/subscribe", params, spotDefaultRate, nil, &resp)
+}
+
+// GetDualInvestmentPositions get Dual Investment positions (batch)
+// PENDING:Products are purchasing, will give results later;PURCHASE_SUCCESS:purchase successfully;SETTLED: Products are finish settling;PURCHASE_FAIL:fail to purchase;REFUNDING:refund ongoing;REFUND_SUCCESS:refund to spot account successfully; SETTLING:Products are settling.
+// If don't fill this field, will response all the position status.
+func (b *Binance) GetDualInvestmentPositions(ctx context.Context, status string, pageSize, pageIndex int64) (*DualInvestmentPositions, error) {
+	params := url.Values{}
+	if status != "" {
+		params.Set("status", status)
+	}
+	if pageSize > 0 {
+		params.Set("pageSize", strconv.FormatInt(pageSize, 10))
+	}
+	if pageIndex > 0 {
+		params.Set("pageIndex", strconv.FormatInt(pageIndex, 10))
+	}
+	var resp *DualInvestmentPositions
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/dci/product/position", params, spotDefaultRate, nil, &resp)
+}
+
+// CheckDualInvestmentAccounts checks dual investment accounts
+func (b *Binance) CheckDualInvestmentAccounts(ctx context.Context) (*DualInvestmentAccount, error) {
+	var resp *DualInvestmentAccount
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/dci/product/accounts", nil, spotDefaultRate, nil, &resp)
+}
+
+// ChangeAutoCompoundStatus change Auto-Compound status
+// autoCompoundPlan possible values: NONE, STANDARD,ADVANCED
+// get positionId from /sapi/v1/dci/product/positions
+func (b *Binance) ChangeAutoCompoundStatus(ctx context.Context, positionID string, autoCompoundPlan string) (*AutoCompoundStatus, error) {
+	if positionID == "" {
+		return nil, errors.New("position ID is required")
+	}
+	params := url.Values{}
+	params.Set("positionId", positionID)
+	if autoCompoundPlan != "" {
+		params.Set("autoCompoundPlan", autoCompoundPlan)
+	}
+	var resp *AutoCompoundStatus
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/sapi/v1/dci/product/auto_compound/edit-status", params, spotDefaultRate, nil, &resp)
+}

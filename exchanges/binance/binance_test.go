@@ -5807,3 +5807,43 @@ func TestGetSimpleEarnCollateralRecord(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
+
+func TestGetDualInvestmentProductList(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	result, err := b.GetDualInvestmentProductList(context.Background(), "CALL", currency.BTC, currency.ETH, 0, 0)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestSubscribeDualInvestmentProducts(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	result, err := b.SubscribeDualInvestmentProducts(context.Background(), "1234", "order-id", "STANDARD", 0.1)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetDualInvestmentPositions(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetDualInvestmentPositions(context.Background(), "PURCHASE_FAIL", 0, 10)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestCheckDualInvestmentAccounts(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.CheckDualInvestmentAccounts(context.Background())
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestChangeAutoCompoundStatus(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	result, err := b.ChangeAutoCompoundStatus(context.Background(), "123456789", "STANDARD")
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}

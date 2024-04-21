@@ -3755,3 +3755,76 @@ type SimpleEarnCollateralRecords struct {
 	} `json:"rows"`
 	Total string `json:"total"`
 }
+
+// DualInvestmentProduct represents a dual-investment product instance.
+type DualInvestmentProduct struct {
+	Total int64 `json:"total"`
+	List  []struct {
+		ID                   string               `json:"id"`
+		InvestCoin           string               `json:"investCoin"`
+		ExercisedCoin        string               `json:"exercisedCoin"`
+		StrikePrice          types.Number         `json:"strikePrice"`
+		Duration             int64                `json:"duration"`
+		SettleDate           int64                `json:"settleDate"`
+		PurchaseDecimal      float64              `json:"purchaseDecimal"`
+		PurchaseEndTime      convert.ExchangeTime `json:"purchaseEndTime"`
+		CanPurchase          bool                 `json:"canPurchase"`
+		Apr                  string               `json:"apr"`
+		OrderID              int64                `json:"orderId"`
+		MinAmount            types.Number         `json:"minAmount"`
+		MaxAmount            types.Number         `json:"maxAmount"`
+		CreateTimestamp      convert.ExchangeTime `json:"createTimestamp"`
+		OptionType           string               `json:"optionType"`
+		IsAutoCompoundEnable bool                 `json:"isAutoCompoundEnable"`
+		AutoCompoundPlanList []string             `json:"autoCompoundPlanList"`
+	} `json:"list"`
+}
+
+// DualInvestmentProductSubscription represents a dual product subscription response
+type DualInvestmentProductSubscription struct {
+	PositionID         int64                `json:"positionId"`
+	InvestCoin         string               `json:"investCoin"`
+	ExercisedCoin      string               `json:"exercisedCoin"`
+	SubscriptionAmount types.Number         `json:"subscriptionAmount"`
+	Duration           int64                `json:"duration"`
+	AutoCompoundPlan   string               `json:"autoCompoundPlan"`
+	StrikePrice        types.Number         `json:"strikePrice"`
+	SettleDate         int64                `json:"settleDate"`
+	PurchaseStatus     string               `json:"purchaseStatus"`
+	Apr                string               `json:"apr"`
+	OrderID            int64                `json:"orderId"`
+	PurchaseTime       convert.ExchangeTime `json:"purchaseTime"`
+	OptionType         string               `json:"optionType"`
+}
+
+// DualInvestmentPositions represents a dual investment positions
+type DualInvestmentPositions struct {
+	Total int `json:"total"`
+	List  []struct {
+		ID                 string               `json:"id"`
+		InvestCoin         string               `json:"investCoin"`
+		ExercisedCoin      string               `json:"exercisedCoin"`
+		SubscriptionAmount types.Number         `json:"subscriptionAmount"`
+		StrikePrice        types.Number         `json:"strikePrice"`
+		Duration           int                  `json:"duration"`
+		SettleDate         int64                `json:"settleDate"`
+		PurchaseStatus     string               `json:"purchaseStatus"`
+		Apr                string               `json:"apr"`
+		OrderID            int64                `json:"orderId"`
+		PurchaseEndTime    convert.ExchangeTime `json:"purchaseEndTime"`
+		OptionType         string               `json:"optionType"`
+		AutoCompoundPlan   string               `json:"autoCompoundPlan"`
+	} `json:"list"`
+}
+
+// DualInvestmentAccount represents a dual investment account
+type DualInvestmentAccount struct {
+	TotalAmountInBTC  types.Number `json:"totalAmountInBTC"`  // Total BTC amounts in Dual Investment
+	TotalAmountInUSDT types.Number `json:"totalAmountInUSDT"` // Total USDT equivalents in BTC in Dual Investment
+}
+
+// AutoCompoundStatus represents change auto-compound status
+type AutoCompoundStatus struct {
+	PositionID       string `json:"positionId"`
+	AutoCompoundPlan string `json:"autoCompoundPlan"`
+}
