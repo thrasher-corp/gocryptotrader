@@ -661,15 +661,21 @@ func (g *Gateio) processFuturesOrdersPushData(data []byte, assetType asset.Item)
 	}
 	orderDetails := make([]order.Detail, len(resp.Result))
 	for x := range resp.Result {
-		status, err := order.StringToOrderStatus(func() string {
-			if resp.Result[x].Status == "finished" {
-				return resp.Result[x].FinishAs
+
+		var status order.Status
+		if resp.Result[x].Status == "finished" {
+			if resp.Result[x].FinishAs == "ioc" || resp.Result[x].FinishAs == "reduce_only" {
+				status = order.Cancelled
+			} else {
+				status, err = order.StringToOrderStatus(resp.Result[x].FinishAs)
 			}
-			return resp.Result[x].Status
-		}())
+		} else {
+			status, err = order.StringToOrderStatus(resp.Result[x].Status)
+		}
 		if err != nil {
 			return nil, err
 		}
+
 		orderDetails[x] = order.Detail{
 			Amount:         resp.Result[x].Size,
 			Exchange:       g.Name,
