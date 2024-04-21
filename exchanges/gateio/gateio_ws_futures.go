@@ -661,7 +661,6 @@ func (g *Gateio) processFuturesOrdersPushData(data []byte, assetType asset.Item)
 	}
 	orderDetails := make([]order.Detail, len(resp.Result))
 	for x := range resp.Result {
-
 		var status order.Status
 		if resp.Result[x].Status == "finished" {
 			if resp.Result[x].FinishAs == "ioc" || resp.Result[x].FinishAs == "reduce_only" {
