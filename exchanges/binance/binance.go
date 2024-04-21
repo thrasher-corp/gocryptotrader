@@ -4095,29 +4095,9 @@ func (b *Binance) SimpleAccount(ctx context.Context) (*SimpleAccount, error) {
 
 // GetFlexibleSubscriptionRecord retrieves flexible subscription record.
 func (b *Binance) GetFlexibleSubscriptionRecord(ctx context.Context, productID, purchaseID string, assetName currency.Code, startTime, endTime time.Time, current, size int64) (*FlexibleSubscriptionRecord, error) {
-	params := url.Values{}
-	if productID != "" {
-		params.Set("productId", productID)
-	}
-	if purchaseID != "" {
-		params.Set("purchaseId", purchaseID)
-	}
-	if !assetName.IsEmpty() {
-		params.Set("asset", assetName.String())
-	}
-	if !startTime.IsZero() && !endTime.IsZero() {
-		err := common.StartEndTimeCheck(startTime, endTime)
-		if err != nil {
-			return nil, err
-		}
-		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
-		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
-	}
-	if current > 0 {
-		params.Set("current", strconv.FormatInt(current, 10))
-	}
-	if size > 0 {
-		params.Set("size", strconv.FormatInt(size, 10))
+	params, err := fillSubscriptionAndRedemptionRecord(productID, purchaseID, "", "", assetName, startTime, endTime, current, size)
+	if err != nil {
+		return nil, err
 	}
 	var resp *FlexibleSubscriptionRecord
 	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/simple-earn/flexible/history/subscriptionRecord", params, getFlexibleSubscriptionRecordRate, nil, &resp)
@@ -4125,26 +4105,9 @@ func (b *Binance) GetFlexibleSubscriptionRecord(ctx context.Context, productID, 
 
 // GetLockedSubscriptionsRecords retrieves locked subscriptions records
 func (b *Binance) GetLockedSubscriptionsRecords(ctx context.Context, purchaseID string, assetName currency.Code, startTime, endTime time.Time, current, size int64) (*LockedSubscriptions, error) {
-	params := url.Values{}
-	if purchaseID != "" {
-		params.Set("purchaseId", purchaseID)
-	}
-	if !assetName.IsEmpty() {
-		params.Set("asset", assetName.String())
-	}
-	if !startTime.IsZero() && !endTime.IsZero() {
-		err := common.StartEndTimeCheck(startTime, endTime)
-		if err != nil {
-			return nil, err
-		}
-		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
-		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
-	}
-	if current > 0 {
-		params.Set("current", strconv.FormatInt(current, 10))
-	}
-	if size > 0 {
-		params.Set("size", strconv.FormatInt(size, 10))
+	params, err := fillSubscriptionAndRedemptionRecord(purchaseID, "", "", "", assetName, startTime, endTime, current, size)
+	if err != nil {
+		return nil, err
 	}
 	var resp *LockedSubscriptions
 	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/simple-earn/locked/history/subscriptionRecord", params, getLockedSubscriptionRecordsRate, nil, &resp)
@@ -4152,29 +4115,9 @@ func (b *Binance) GetLockedSubscriptionsRecords(ctx context.Context, purchaseID 
 
 // GetFlexibleRedemptionRecord retrieves flexible redemption record
 func (b *Binance) GetFlexibleRedemptionRecord(ctx context.Context, productID, redeemID string, assetName currency.Code, startTime, endTime time.Time, current, size int64) (*RedemptionRecord, error) {
-	params := url.Values{}
-	if productID != "" {
-		params.Set("productId", productID)
-	}
-	if redeemID != "" {
-		params.Set("redeemId", redeemID)
-	}
-	if !assetName.IsEmpty() {
-		params.Set("asset", assetName.String())
-	}
-	if !startTime.IsZero() && !endTime.IsZero() {
-		err := common.StartEndTimeCheck(startTime, endTime)
-		if err != nil {
-			return nil, err
-		}
-		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
-		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
-	}
-	if current > 0 {
-		params.Set("current", strconv.FormatInt(current, 10))
-	}
-	if size > 0 {
-		params.Set("size", strconv.FormatInt(size, 10))
+	params, err := fillSubscriptionAndRedemptionRecord(productID, "", redeemID, "", assetName, startTime, endTime, current, size)
+	if err != nil {
+		return nil, err
 	}
 	var resp *RedemptionRecord
 	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/simple-earn/flexible/history/redemptionRecord", params, getRedemptionRecordRate, nil, &resp)
@@ -4182,9 +4125,24 @@ func (b *Binance) GetFlexibleRedemptionRecord(ctx context.Context, productID, re
 
 // GetLockedRedemptionRecord retrieves locked redemptions record list
 func (b *Binance) GetLockedRedemptionRecord(ctx context.Context, productID, redeemID string, assetName currency.Code, startTime, endTime time.Time, current, size int64) (*LockedRedemptionRecord, error) {
+	params, err := fillSubscriptionAndRedemptionRecord(productID, "", redeemID, "", currency.ETH, startTime, endTime, current, size)
+	if err != nil {
+		return nil, err
+	}
+	var resp *LockedRedemptionRecord
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/simple-earn/locked/history/redemptionRecord", params, getRedemptionRecordRate, nil, &resp)
+}
+
+func fillSubscriptionAndRedemptionRecord(productID, purchaseID, redeemID, rewardType string, assetName currency.Code, startTime, endTime time.Time, current, size int64) (url.Values, error) {
 	params := url.Values{}
 	if productID != "" {
 		params.Set("productId", productID)
+	}
+	if purchaseID != "" {
+		params.Set("purchaseId", purchaseID)
+	}
+	if rewardType != "" {
+		params.Set("rewardType", rewardType)
 	}
 	if redeemID != "" {
 		params.Set("redeemId", redeemID)
@@ -4206,6 +4164,164 @@ func (b *Binance) GetLockedRedemptionRecord(ctx context.Context, productID, rede
 	if size > 0 {
 		params.Set("size", strconv.FormatInt(size, 10))
 	}
-	var resp *LockedRedemptionRecord
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/simple-earn/locked/history/redemptionRecord", params, getRedemptionRecordRate, nil, &resp)
+	return params, nil
+}
+
+// GetFlexibleRewardHistory retrieves flexible rewards history
+func (b *Binance) GetFlexibleRewardHistory(ctx context.Context, productID, rewardType string, assetName currency.Code, startTime, endTime time.Time, current, size int64) (*FlexibleReward, error) {
+	params, err := fillSubscriptionAndRedemptionRecord(productID, "", "", rewardType, currency.ETH, startTime, endTime, current, size)
+	if err != nil {
+		return nil, err
+	}
+	var resp *FlexibleReward
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/simple-earn/flexible/history/rewardsRecord", params, getRewardHistoryRate, nil, &resp)
+}
+
+// GetLockedRewardHistory retrieves locked rewards history
+func (b *Binance) GetLockedRewardHistory(ctx context.Context, positionID string, assetName currency.Code, startTime, endTime time.Time, current, size int64) (*LockedRewards, error) {
+	params, err := fillSubscriptionAndRedemptionRecord(positionID, "", "", "", currency.BTC, startTime, endTime, current, size)
+	if err != nil {
+		return nil, err
+	}
+	var resp *LockedRewards
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/simple-earn/locked/history/rewardsRecord", params, getRewardHistoryRate, nil, &resp)
+}
+
+// SetFlexibleAutoSusbcribe sets auto subscribe on to flexible products
+func (b *Binance) SetFlexibleAutoSusbcribe(ctx context.Context, productID string, autoSubscribe bool) (bool, error) {
+	if productID == "" {
+		return false, errProductIDIsRequired
+	}
+	params := url.Values{}
+	params.Set("productId", productID)
+	if autoSubscribe {
+		params.Set("autoSubscribe", "true")
+	} else {
+		params.Set("autoSubscribe", "false")
+	}
+	resp := &struct {
+		Success bool `json:"success"`
+	}{}
+	return resp.Success, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/sapi/v1/simple-earn/flexible/setAutoSubscribe", params, setAutoSubscribeRate, nil, &resp)
+}
+
+// SetLockedAutoSubscribe sets auto subscribe to locked products
+func (b *Binance) SetLockedAutoSubscribe(ctx context.Context, positionID string, autoSubscribe bool) (bool, error) {
+	if positionID == "" {
+		return false, errors.New("position ID is required")
+	}
+	params := url.Values{}
+	params.Set("positionId", positionID)
+	if autoSubscribe {
+		params.Set("autoSubscribe", "true")
+	} else {
+		params.Set("autoSubscribe", "false")
+	}
+	resp := &struct {
+		Success bool `json:"success"`
+	}{}
+	return resp.Success, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/sapi/v1/simple-earn/locked/setAutoSubscribe", params, setAutoSubscribeRate, nil, &resp)
+}
+
+// GetFlexiblePersonalLeftQuota retrieves flexible personal left quota
+func (b *Binance) GetFlexiblePersonalLeftQuota(ctx context.Context, productID string) (*PersonalLeftQuota, error) {
+	params := url.Values{}
+	if productID != "" {
+		params.Set("productId", productID)
+	}
+	var resp *PersonalLeftQuota
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/simple-earn/flexible/personalLeftQuota", params, personalLeftQuotaRate, nil, &resp)
+}
+
+// GetLockedPersonalLeftQuota retrieves flexible personal left quota
+func (b *Binance) GetLockedPersonalLeftQuota(ctx context.Context, projectID string) (*PersonalLeftQuota, error) {
+	params := url.Values{}
+	if projectID != "" {
+		params.Set("projectId", projectID)
+	}
+	var resp *PersonalLeftQuota
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/simple-earn/locked/personalLeftQuota", params, personalLeftQuotaRate, nil, &resp)
+}
+
+// GetFlexibleSubscriptionPreview retrieves flexible subscription preview
+func (b *Binance) GetFlexibleSubscriptionPreview(ctx context.Context, productID string, amount float64) (*FlexibleSubscriptionPreview, error) {
+	if productID == "" {
+		return nil, errProductIDIsRequired
+	}
+	if amount <= 0 {
+		return nil, order.ErrAmountBelowMin
+	}
+	params := url.Values{}
+	params.Set("productId", productID)
+	params.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
+	var resp *FlexibleSubscriptionPreview
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/simple-earn/flexible/subscriptionPreview", params, subscriptionPreviewRate, nil, &resp)
+}
+
+// GetLockedSubscriptionPreview retrieves locked subscription preview.
+func (b *Binance) GetLockedSubscriptionPreview(ctx context.Context, projectID string, amount float64, autoSubscribe bool) ([]LockedSubscriptionPreview, error) {
+	if projectID != "" {
+		return nil, errors.New("project ID is required")
+	}
+	if amount <= 0 {
+		return nil, order.ErrAmountBelowMin
+	}
+	params := url.Values{}
+	params.Set("projectId", projectID)
+	params.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
+	if autoSubscribe {
+		params.Set("autoSubscribe", "true")
+	} else {
+		params.Set("autoSubscribe", "false")
+	}
+	var resp []LockedSubscriptionPreview
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/simple-earn/locked/subscriptionPreview", params, subscriptionPreviewRate, nil, &resp)
+}
+
+// GetSimpleEarnRatehistory retrieves rate history for simple-rean products
+func (b *Binance) GetSimpleEarnRatehistory(ctx context.Context, projectID string, startTime, endTime time.Time, current, size int64) (*SimpleEarnRateHistory, error) {
+	params := url.Values{}
+	if projectID != "" {
+		params.Set("projectId", projectID)
+	}
+	if !startTime.IsZero() && !endTime.IsZero() {
+		err := common.StartEndTimeCheck(startTime, endTime)
+		if err != nil {
+			return nil, err
+		}
+		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
+	}
+	if current > 0 {
+		params.Set("current", strconv.FormatInt(current, 10))
+	}
+	if size > 0 {
+		params.Set("size", strconv.FormatInt(size, 10))
+	}
+	var resp *SimpleEarnRateHistory
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/simple-earn/flexible/history/rateHistory", params, simpleEarnRateHistoryRate, nil, &resp)
+}
+
+// GetSimpleEarnCollateralRecord retrieves simple earn collateral records
+func (b *Binance) GetSimpleEarnCollateralRecord(ctx context.Context, productID string, startTime, endTime time.Time, current, size int64) (*SimpleEarnCollateralRecords, error) {
+	params := url.Values{}
+	if productID != "" {
+		params.Set("productId", productID)
+	}
+	if !startTime.IsZero() && !endTime.IsZero() {
+		err := common.StartEndTimeCheck(startTime, endTime)
+		if err != nil {
+			return nil, err
+		}
+		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
+	}
+	if current > 0 {
+		params.Set("current", strconv.FormatInt(current, 10))
+	}
+	if size > 0 {
+		params.Set("size", strconv.FormatInt(size, 10))
+	}
+	var resp *SimpleEarnCollateralRecords
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/simple-earn/flexible/history/collateralRecord", params, spotDefaultRate, nil, &resp)
 }

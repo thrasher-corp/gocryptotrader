@@ -5727,3 +5727,83 @@ func TestGetLockedRedemptionRecord(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
+
+func TestGetFlexibleRewardHistory(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetFlexibleRewardHistory(context.Background(), "product-type", "", currency.BTC, time.Now().Add(-time.Hour*48), time.Now().Add(-time.Hour*2), 1, 10)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetLockedRewardHistory(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetLockedRewardHistory(context.Background(), "12345", currency.BTC, time.Now().Add(-time.Hour*48), time.Now().Add(-time.Hour*2), 10, 40)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestSetFlexibleAutoSusbcribe(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	result, err := b.SetFlexibleAutoSusbcribe(context.Background(), "product-id", true)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestSetLockedAutoSubscribe(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	result, err := b.SetLockedAutoSubscribe(context.Background(), "position-id", true)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetFlexiblePersonalLeftQuota(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetFlexiblePersonalLeftQuota(context.Background(), "12345")
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetLockedPersonalLeftQuota(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetLockedPersonalLeftQuota(context.Background(), "12345")
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetFlexibleSubscriptionPreview(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetFlexibleSubscriptionPreview(context.Background(), "1234", 0.0001)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetLockedSubscriptionPreview(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetLockedSubscriptionPreview(context.Background(), "12345", 0.1234, false)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetSimpleEarnRatehistory(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetSimpleEarnRatehistory(context.Background(), "project-id", time.Now().Add(-time.Hour*48), time.Now().Add(-time.Hour*2), 0, 10)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetSimpleEarnCollateralRecord(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetSimpleEarnCollateralRecord(context.Background(), "project-id", time.Now().Add(-time.Hour*48), time.Now().Add(-time.Hour*2), 0, 10)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}

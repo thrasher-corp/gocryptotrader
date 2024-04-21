@@ -103,6 +103,11 @@ const (
 	getFlexibleSubscriptionRecordRate
 	getLockedSubscriptionRecordsRate
 	getRedemptionRecordRate
+	getRewardHistoryRate
+	setAutoSubscribeRate
+	personalLeftQuotaRate
+	subscriptionPreviewRate
+	simpleEarnRateHistoryRate
 
 	spotOpenOrdersSpecificRate
 	spotOrderRate
@@ -355,7 +360,14 @@ func (r *RateLimit) Limit(ctx context.Context, f request.EndpointLimit) error {
 	case simpleEarnProductsRate,
 		getSimpleEarnProductPositionRate,
 		simpleAccountRate,
-		getFlexibleSubscriptionRecordRate:
+		getFlexibleSubscriptionRecordRate,
+		getLockedSubscriptionRecordsRate,
+		getRedemptionRecordRate,
+		getRewardHistoryRate,
+		setAutoSubscribeRate,
+		personalLeftQuotaRate,
+		subscriptionPreviewRate,
+		simpleEarnRateHistoryRate:
 		limiter, tokens = r.SpotRate, 150
 	case marginAccountsAllOrdersRate:
 		limiter, tokens = r.SpotRate, 200

@@ -3677,3 +3677,81 @@ type LockedRedemptionRecord struct {
 	} `json:"rows"`
 	Total int64 `json:"total"`
 }
+
+// FlexibleReward represents a flexible reward history item.
+type FlexibleReward struct {
+	Rows []struct {
+		Asset     string               `json:"asset"`
+		Rewards   string               `json:"rewards"`
+		ProjectID string               `json:"projectId"`
+		Type      string               `json:"type"`
+		Time      convert.ExchangeTime `json:"time"`
+	} `json:"rows"`
+	Total int64 `json:"total"`
+}
+
+// LockedRewards represents locked rewards list.
+type LockedRewards struct {
+	Rows []struct {
+		PositionID string               `json:"positionId"`
+		Time       convert.ExchangeTime `json:"time"`
+		Asset      string               `json:"asset"`
+		LockPeriod string               `json:"lockPeriod"`
+		Amount     string               `json:"amount"`
+	} `json:"rows"`
+	Total int64 `json:"total"`
+}
+
+// PersonalLeftQuota represents personal quota
+type PersonalLeftQuota struct {
+	LeftPersonalQuota string `json:"leftPersonalQuota"`
+}
+
+// FlexibleSubscriptionPreview represents a subscription preview for flexible assets.
+type FlexibleSubscriptionPreview struct {
+	TotalAmount             types.Number `json:"totalAmount"`
+	RewardAsset             string       `json:"rewardAsset"`
+	AirDropAsset            string       `json:"airDropAsset"`
+	EstDailyBonusRewards    string       `json:"estDailyBonusRewards"`
+	EstDailyRealTimeRewards string       `json:"estDailyRealTimeRewards"`
+	EstDailyAirdropRewards  string       `json:"estDailyAirdropRewards"`
+}
+
+// LockedSubscriptionPreview represents a subscription preview for locked assets.
+type LockedSubscriptionPreview struct {
+	RewardAsset            string       `json:"rewardAsset"`
+	TotalRewardAmt         types.Number `json:"totalRewardAmt"`
+	ExtraRewardAsset       string       `json:"extraRewardAsset"`
+	EstTotalExtraRewardAmt types.Number `json:"estTotalExtraRewardAmt"`
+	NextPay                types.Number `json:"nextPay"`
+	NextPayDate            string       `json:"nextPayDate"`
+	ValueDate              string       `json:"valueDate"`
+	RewardsEndDate         string       `json:"rewardsEndDate"`
+	DeliverDate            string       `json:"deliverDate"`
+	NextSubscriptionDate   string       `json:"nextSubscriptionDate"`
+}
+
+// SimpleEarnRateHistory represents a simple-earn rate history
+type SimpleEarnRateHistory struct {
+	Rows []struct {
+		ProductID            string               `json:"productId"`
+		Asset                string               `json:"asset"`
+		AnnualPercentageRate types.Number         `json:"annualPercentageRate"`
+		Time                 convert.ExchangeTime `json:"time"`
+	} `json:"rows"`
+	Total string `json:"total"`
+}
+
+// SimpleEarnCollateralRecords represents a collateral records of simple-earn products
+type SimpleEarnCollateralRecords struct {
+	Rows []struct {
+		Amount      types.Number         `json:"amount"`
+		ProductID   string               `json:"productId"`
+		Asset       string               `json:"asset"`
+		CreateTime  convert.ExchangeTime `json:"createTime"`
+		Type        string               `json:"type"`
+		ProductName string               `json:"productName"`
+		OrderID     int64                `json:"orderId"`
+	} `json:"rows"`
+	Total string `json:"total"`
+}
