@@ -3,6 +3,7 @@ package currency
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -868,5 +869,62 @@ func TestGetPairsByBase(t *testing.T) {
 
 	if len(got) != 3 {
 		t.Fatalf("received: '%v' but expected '%v'", len(got), 3)
+	}
+}
+
+func TestFindMatchingPairs(t *testing.T) {
+	t.Parallel()
+
+	available := Pairs{
+		NewPair(BTC, USD),
+		NewPair(LTC, USD),
+		NewPair(USD, NZD),
+		NewPair(LTC, USDT),
+		NewPair(LTC, DAI),
+		NewPair(USDT, XRP),
+		NewPair(DAI, XRP),
+		NewPair(DAI, XRP), // duplication
+	}
+
+	testCases := []struct {
+		incoming Pairs
+		expected Pairs
+	}{
+		{incoming: Pairs{NewPair(BTC, USD)}, expected: Pairs{NewPair(BTC, USD)}},
+		{incoming: Pairs{NewPair(BTC, USD), NewPair(LTC, USD)}, expected: Pairs{NewPair(BTC, USD), NewPair(LTC, USD)}},
+		{incoming: Pairs{NewPair(BTC, USD), NewPair(LTC, USD), NewPair(USD, NZD)}, expected: Pairs{NewPair(BTC, USD), NewPair(LTC, USD), NewPair(USD, NZD)}},
+		{incoming: Pairs{NewPair(BTC, USD), NewPair(LTC, USD), NewPair(USD, NZD), NewPair(LTC, USDT)}, expected: Pairs{NewPair(BTC, USD), NewPair(LTC, USD), NewPair(USD, NZD), NewPair(LTC, USDT)}},
+		{incoming: Pairs{NewPair(BTC, USD), NewPair(LTC, USD), NewPair(USD, NZD), NewPair(LTC, USDT), NewPair(LTC, DAI)}, expected: Pairs{NewPair(BTC, USD), NewPair(LTC, USD), NewPair(USD, NZD), NewPair(LTC, USDT), NewPair(LTC, DAI)}},
+		{incoming: Pairs{NewPair(BTC, USD), NewPair(LTC, USD), NewPair(USD, NZD), NewPair(LTC, USDT), NewPair(LTC, DAI), NewPair(USDT, XRP)}, expected: Pairs{NewPair(BTC, USD), NewPair(LTC, USD), NewPair(USD, NZD), NewPair(LTC, USDT), NewPair(LTC, DAI), NewPair(USDT, XRP)}},
+		{incoming: Pairs{NewPair(BTC, USD), NewPair(LTC, USD), NewPair(USD, NZD), NewPair(LTC, USDT), NewPair(LTC, DAI), NewPair(USDT, XRP), NewPair(DAI, XRP)}, expected: Pairs{NewPair(BTC, USD), NewPair(LTC, USD), NewPair(USD, NZD), NewPair(LTC, USDT), NewPair(LTC, DAI), NewPair(USDT, XRP), NewPair(DAI, XRP)}},
+		/*test for pair not available*/ {incoming: Pairs{NewPair(BTC, USD), NewPair(LTC, USD), NewPair(USD, NZD), NewPair(LTC, USDT), NewPair(LTC, DAI), NewPair(USDT, XRP), NewPair(DAI, XRP), NewPair(WABI, MAD)}, expected: Pairs{NewPair(BTC, USD), NewPair(LTC, USD), NewPair(USD, NZD), NewPair(LTC, USDT), NewPair(LTC, DAI), NewPair(USDT, XRP), NewPair(DAI, XRP)}},
+		/*test for duplication*/ {incoming: Pairs{NewPair(BTC, USD), NewPair(BTC, USD), NewPair(LTC, USD), NewPair(USD, NZD), NewPair(LTC, USDT), NewPair(LTC, DAI), NewPair(USDT, XRP), NewPair(DAI, XRP), NewPair(WABI, MAD)}, expected: Pairs{NewPair(BTC, USD), NewPair(LTC, USD), NewPair(USD, NZD), NewPair(LTC, USDT), NewPair(LTC, DAI), NewPair(USDT, XRP), NewPair(DAI, XRP)}},
+	}
+
+	for x := range testCases {
+		tc := testCases[x]
+		t.Run(fmt.Sprintf("Test %d", x), func(t *testing.T) {
+			t.Parallel()
+			require.Equal(t, tc.expected, available.FindMatchingPairs(tc.incoming))
+		})
+	}
+}
+
+// 2482711	       438.9 ns/op	     352 B/op	       1 allocs/op
+func BenchmarkFindMatchingPairs(b *testing.B) {
+	available := Pairs{
+		NewPair(BTC, USD),
+		NewPair(LTC, USD),
+		NewPair(USD, NZD),
+		NewPair(LTC, USDT),
+		NewPair(LTC, DAI),
+		NewPair(USDT, XRP),
+		NewPair(DAI, XRP),
+	}
+
+	other := Pairs{NewPair(BTC, USD), NewPair(LTC, USD), NewPair(USD, NZD), NewPair(LTC, USDT), NewPair(LTC, DAI), NewPair(USDT, XRP), NewPair(DAI, XRP)}
+
+	for x := 0; x < b.N; x++ {
+		_ = available.FindMatchingPairs(other)
 	}
 }

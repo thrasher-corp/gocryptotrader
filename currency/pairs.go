@@ -481,3 +481,36 @@ func (p Pairs) GetPairsByBase(baseTerm Code) (Pairs, error) {
 	}
 	return pairs, nil
 }
+
+// equalKey is a small key for testing pair equality without delimiter
+type equalKey struct {
+	Base  *Item
+	Quote *Item
+}
+
+// FindMatchingPairs returns all pairs that match the incoming pairs.
+// Duplications are intentionally removed.
+func (p Pairs) FindMatchingPairs(b Pairs) Pairs {
+	if len(p) == 0 || len(b) == 0 {
+		return []Pair{}
+	}
+	m := map[equalKey]struct{}{}
+	for i := range p {
+		m[equalKey{Base: p[i].Base.Item, Quote: p[i].Quote.Item}] = struct{}{}
+	}
+	outgoing := func() Pairs {
+		if len(p) < len(b) {
+			return make(Pairs, 0, len(p))
+		} else {
+			return make(Pairs, 0, len(b))
+		}
+	}()
+	for i := range b {
+		key := equalKey{Base: b[i].Base.Item, Quote: b[i].Quote.Item}
+		if _, ok := m[key]; ok {
+			outgoing = append(outgoing, b[i])
+			delete(m, key)
+		}
+	}
+	return outgoing
+}
