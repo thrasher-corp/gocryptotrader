@@ -30,6 +30,7 @@ var (
 	ErrChannelInStateAlready    = errors.New("channel already in state")
 	ErrAlreadyDisabled          = errors.New("websocket already disabled")
 	ErrNotConnected             = errors.New("websocket is not connected")
+	ErrWebsocketAlreadyEnabled  = errors.New("websocket already enabled")
 )
 
 // Private websocket errors
@@ -40,7 +41,6 @@ var (
 	errWebsocketIsNil                       = errors.New("websocket is nil")
 	errWebsocketSetupIsNil                  = errors.New("websocket setup is nil")
 	errWebsocketAlreadyInitialised          = errors.New("websocket already initialised")
-	errWebsocketAlreadyEnabled              = errors.New("websocket already enabled")
 	errWebsocketFeaturesIsUnset             = errors.New("websocket features is unset")
 	errConfigFeaturesIsNil                  = errors.New("exchange config features is nil")
 	errDefaultURLIsEmpty                    = errors.New("default url is empty")
@@ -331,7 +331,7 @@ func (w *Websocket) Disable() error {
 // Enable enables the exchange websocket protocol
 func (w *Websocket) Enable() error {
 	if w.IsConnected() || w.IsEnabled() {
-		return fmt.Errorf("%s %w", w.exchangeName, errWebsocketAlreadyEnabled)
+		return fmt.Errorf("%s %w", w.exchangeName, ErrWebsocketAlreadyEnabled)
 	}
 
 	w.setEnabled(true)

@@ -51,6 +51,7 @@ const (
 var (
 	// ErrExchangeNameIsEmpty is returned when the exchange name is empty
 	ErrExchangeNameIsEmpty = errors.New("exchange name is empty")
+	ErrSettingProxyAddress = errors.New("setting proxy address error")
 
 	errEndpointStringNotFound            = errors.New("endpoint string not found")
 	errConfigPairFormatRequiresDelimiter = errors.New("config pair format requires delimiter")
@@ -81,8 +82,8 @@ func (b *Base) SetClientProxyAddress(addr string) error {
 	}
 	proxy, err := url.Parse(addr)
 	if err != nil {
-		return fmt.Errorf("setting proxy address error %s",
-			err)
+		return fmt.Errorf("%w %w",
+			ErrSettingProxyAddress, err)
 	}
 
 	err = b.Requester.SetProxy(proxy)

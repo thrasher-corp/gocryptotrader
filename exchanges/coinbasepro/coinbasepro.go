@@ -158,7 +158,7 @@ var (
 	errPairEmpty              = errors.New("pair cannot be empty")
 	errStringConvert          = errors.New("unable to convert into string value")
 	errFloatConvert           = errors.New("unable to convert into float64 value")
-	errConvertGen             = errors.New("unable to convert value")
+	errNoCredsUser            = errors.New("no credentials when attempting to subscribe to authenticated channel user")
 )
 
 // GetAllAccounts returns information on all trading accounts associated with the API key

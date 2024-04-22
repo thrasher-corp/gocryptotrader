@@ -15,6 +15,7 @@ import (
 	"github.com/gofrs/uuid"
 	"github.com/gorilla/websocket"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -49,6 +50,8 @@ var (
 // Constants used within tests
 const (
 	testAddress = "fake address"
+	testAmount  = 1e-08
+	testPrice   = 1e+09
 
 	skipPayMethodNotFound          = "no payment methods found, skipping"
 	skipInsufSuitableAccs          = "insufficient suitable accounts for test, skipping"
@@ -63,7 +66,7 @@ const (
 	errExpectedNonEmpty        = "expected non-empty response"
 	errIDNotSet                = "ID not set"
 	errx7f                     = "setting proxy address error parse \"\\x7f\": net/url: invalid control character in URL"
-	errPortfolioNameDuplicate  = `CoinbasePro unsuccessful HTTP status code: 500 raw response: {"error":"INTERNAL","error_details":"the requested portfolio name already exists","message":"the requested portfolio name already exists"}, authenticated request failed`
+	errPortfolioNameDuplicate  = `CoinbasePro unsuccessful HTTP status code: 409 raw response: {"error":"CONFLICT","error_details":"the requested portfolio name already exists","message":"the requested portfolio name already exists"}, authenticated request failed`
 	errPortTransferInsufFunds  = `CoinbasePro unsuccessful HTTP status code: 429 raw response: {"error":"unknown","error_details":"[PORTFOLIO_ERROR_CODE_INSUFFICIENT_FUNDS] insufficient funds in source account","message":"[PORTFOLIO_ERROR_CODE_INSUFFICIENT_FUNDS] insufficient funds in source account"}, authenticated request failed`
 	errInvalidProductID        = `CoinbasePro unsuccessful HTTP status code: 400 raw response: {"error":"INVALID_ARGUMENT","error_details":"valid product_id is required","message":"valid product_id is required"}, authenticated request failed`
 	errNoEndpointPathEdgeCase3 = "no endpoint path found for the given key: EdgeCase3URL"
@@ -71,19 +74,16 @@ const (
 	errUnrecognisedOrderType   = `'' unrecognised order type`
 
 	expectedTimestamp = "1970-01-01 00:20:34 +0000 UTC"
-
-	testAmount = 1e-08
-	testPrice  = 1e+09
 )
 
-func TestSetup(t *testing.T) {
+func TestSetup2(t *testing.T) {
 	cfg, err := c.GetStandardConfig()
 	assert.NoError(t, err)
 	cfg.API.AuthenticatedSupport = true
 	cfg.API.Credentials.Key = apiKey
 	cfg.API.Credentials.Secret = apiSecret
-	cfg.Enabled = false
-	cfg.Enabled = true
+	// cfg.Enabled = false
+	// cfg.Enabled = true
 	cfg.ProxyAddress = string(rune(0x7f))
 	err = c.Setup(cfg)
 	if err.Error() != errx7f {
@@ -101,25 +101,9 @@ func TestMain(m *testing.M) {
 			log.Fatal("failed to set sandbox endpoint", err)
 		}
 	}
-	cfg := config.GetConfig()
-	err := cfg.LoadConfig("../../testdata/configtest.json", true)
+	err := exchangeBaseHelper(c)
 	if err != nil {
-		log.Fatal("load config error", err)
-	}
-	gdxConfig, err := cfg.GetExchangeConfig("CoinbasePro")
-	if err != nil {
-		log.Fatal("init error")
-	}
-	if apiKey != "" {
-		gdxConfig.API.Credentials.Key = apiKey
-		gdxConfig.API.Credentials.Secret = apiSecret
-		gdxConfig.API.AuthenticatedSupport = true
-		gdxConfig.API.AuthenticatedWebsocketSupport = true
-	}
-	c.Websocket = sharedtestvalues.NewTestWebsocket()
-	err = c.Setup(gdxConfig)
-	if err != nil {
-		log.Fatal("CoinbasePro setup error", err)
+		log.Fatal(err)
 	}
 	if apiKey != "" {
 		c.GetBase().API.AuthenticatedSupport = true
@@ -130,6 +114,33 @@ func TestMain(m *testing.M) {
 		log.Fatal(err)
 	}
 	os.Exit(m.Run())
+}
+
+func TestSetup(t *testing.T) {
+	cfg, err := c.GetStandardConfig()
+	assert.NoError(t, err)
+	exch := &CoinbasePro{}
+	exch.SetDefaults()
+	err = exchangeBaseHelper(exch)
+	require.NoError(t, err)
+	cfg.ProxyAddress = string(rune(0x7f))
+	err = exch.Setup(cfg)
+	assert.ErrorIs(t, err, exchange.ErrSettingProxyAddress)
+}
+
+func TestWsConnect(t *testing.T) {
+	exch := &CoinbasePro{}
+	exch.Websocket = sharedtestvalues.NewTestWebsocket()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, c)
+	err := exch.Websocket.Disable()
+	assert.ErrorIs(t, err, stream.ErrAlreadyDisabled)
+	err = exch.WsConnect()
+	assert.ErrorIs(t, err, stream.ErrWebsocketNotEnabled)
+	exch.SetDefaults()
+	err = exchangeBaseHelper(exch)
+	require.NoError(t, err)
+	err = exch.Websocket.Enable()
+	assert.NoError(t, err)
 }
 
 func TestGetAllAccounts(t *testing.T) {
@@ -475,56 +486,10 @@ func TestGetFuturesPositionByID(t *testing.T) {
 	assert.NoError(t, err)
 }
 
-func TestScheduleFuturesSweep(t *testing.T) {
-	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, c, canManipulateRealOrders)
-	curSweeps, err := c.ListFuturesSweeps(context.Background())
-	assert.NoError(t, err)
-	preCancel := false
-	if len(curSweeps) > 0 {
-		for i := range curSweeps {
-			if curSweeps[i].Status == "PENDING" {
-				preCancel = true
-			}
-		}
-	}
-	if preCancel {
-		_, err = c.CancelPendingFuturesSweep(context.Background())
-		if err != nil {
-			t.Error(err)
-		}
-	}
-	_, err = c.ScheduleFuturesSweep(context.Background(), 0.001337)
-	assert.NoError(t, err)
-}
-
 func TestListFuturesSweeps(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, c)
 	_, err := c.ListFuturesSweeps(context.Background())
-	assert.NoError(t, err)
-}
-
-func TestCancelPendingFuturesSweep(t *testing.T) {
-	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, c, canManipulateRealOrders)
-	curSweeps, err := c.ListFuturesSweeps(context.Background())
-	assert.NoError(t, err)
-	partialSkip := false
-	if len(curSweeps) > 0 {
-		for i := range curSweeps {
-			if curSweeps[i].Status == "PENDING" {
-				partialSkip = true
-			}
-		}
-	}
-	if !partialSkip {
-		_, err = c.ScheduleFuturesSweep(context.Background(), 0.001337)
-		if err != nil {
-			t.Error(err)
-		}
-	}
-	_, err = c.CancelPendingFuturesSweep(context.Background())
 	assert.NoError(t, err)
 }
 
@@ -1573,9 +1538,64 @@ func TestFormatExchangeKlineInterval(t *testing.T) {
 	}
 }
 
+func TestStringToFloatPtr(t *testing.T) {
+	t.Parallel()
+	err := stringToFloatPtr(nil, "")
+	assert.ErrorIs(t, err, errPointerNil)
+	var fl float64
+	err = stringToFloatPtr(&fl, "")
+	assert.NoError(t, err)
+	err = stringToFloatPtr(&fl, "1.1")
+	assert.NoError(t, err)
+}
+
+func TestScheduleFuturesSweep(t *testing.T) {
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, c, canManipulateRealOrders)
+	curSweeps, err := c.ListFuturesSweeps(context.Background())
+	assert.NoError(t, err)
+	preCancel := false
+	if len(curSweeps) > 0 {
+		for i := range curSweeps {
+			if curSweeps[i].Status == "PENDING" {
+				preCancel = true
+			}
+		}
+	}
+	if preCancel {
+		_, err = c.CancelPendingFuturesSweep(context.Background())
+		if err != nil {
+			t.Error(err)
+		}
+	}
+	_, err = c.ScheduleFuturesSweep(context.Background(), 0.001337)
+	assert.NoError(t, err)
+}
+
+func TestCancelPendingFuturesSweep(t *testing.T) {
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, c, canManipulateRealOrders)
+	curSweeps, err := c.ListFuturesSweeps(context.Background())
+	assert.NoError(t, err)
+	partialSkip := false
+	if len(curSweeps) > 0 {
+		for i := range curSweeps {
+			if curSweeps[i].Status == "PENDING" {
+				partialSkip = true
+			}
+		}
+	}
+	if !partialSkip {
+		_, err = c.ScheduleFuturesSweep(context.Background(), 0.001337)
+		if err != nil {
+			t.Error(err)
+		}
+	}
+	_, err = c.CancelPendingFuturesSweep(context.Background())
+	assert.NoError(t, err)
+}
+
 // TestWsAuth dials websocket, sends login request.
 func TestWsAuth(t *testing.T) {
-	if !c.Websocket.IsEnabled() && !c.API.AuthenticatedWebsocketSupport || !sharedtestvalues.AreAPICredentialsSet(c) {
+	if c.Websocket.IsEnabled() && !c.API.AuthenticatedWebsocketSupport || !sharedtestvalues.AreAPICredentialsSet(c) {
 		t.Skip(stream.ErrWebsocketNotEnabled.Error())
 	}
 	var dialer websocket.Dialer
@@ -1597,7 +1617,7 @@ func TestWsAuth(t *testing.T) {
 	timer := time.NewTimer(sharedtestvalues.WebsocketResponseDefaultTimeout)
 	select {
 	case badResponse := <-c.Websocket.DataHandler:
-		t.Error(badResponse)
+		assert.IsType(t, []order.Detail{}, badResponse)
 	case <-timer.C:
 	}
 	timer.Stop()
@@ -1623,27 +1643,6 @@ func TestStatusToStandardStatus(t *testing.T) {
 			t.Errorf("Expected: %v, received: %v", testCases[i].Result, result)
 		}
 	}
-}
-
-func TestStringToFloatPtr(t *testing.T) {
-	t.Parallel()
-	err := stringToFloatPtr(nil, "")
-	assert.ErrorIs(t, err, errPointerNil)
-	var fl float64
-	err = stringToFloatPtr(&fl, "")
-	assert.NoError(t, err)
-	err = stringToFloatPtr(&fl, "1.1")
-	assert.NoError(t, err)
-}
-
-func TestWsConnect(t *testing.T) {
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, c)
-	err := c.Websocket.Disable()
-	assert.ErrorIs(t, err, stream.ErrAlreadyDisabled)
-	err = c.WsConnect()
-	assert.ErrorIs(t, err, stream.ErrWebsocketNotEnabled)
-	err = c.Websocket.Enable()
-	assert.NoError(t, err)
 }
 
 func TestWsHandleData(t *testing.T) {
@@ -1786,6 +1785,30 @@ func TestGetJWT(t *testing.T) {
 	} else {
 		assert.ErrorIs(t, err, errCantDecodePrivKey)
 	}
+}
+
+func exchangeBaseHelper(c *CoinbasePro) error {
+	cfg := config.GetConfig()
+	err := cfg.LoadConfig("../../testdata/configtest.json", true)
+	if err != nil {
+		return err
+	}
+	gdxConfig, err := cfg.GetExchangeConfig("CoinbasePro")
+	if err != nil {
+		return err
+	}
+	if apiKey != "" {
+		gdxConfig.API.Credentials.Key = apiKey
+		gdxConfig.API.Credentials.Secret = apiSecret
+		gdxConfig.API.AuthenticatedSupport = true
+		gdxConfig.API.AuthenticatedWebsocketSupport = true
+	}
+	c.Websocket = sharedtestvalues.NewTestWebsocket()
+	err = c.Setup(gdxConfig)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func skipTestIfLowOnFunds(t *testing.T) {

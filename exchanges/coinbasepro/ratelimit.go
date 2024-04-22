@@ -17,8 +17,11 @@ const (
 	coinbaseV2Interval = time.Hour
 	coinbaseV2Rate     = 10000
 
-	coinbaseWSInterval = time.Second
-	coinbaseWSRate     = 750
+	coinbaseWSAuthInterval = time.Second
+	coinbaseWSAuthRate     = 750
+
+	coinbaseWSUnauthInterval = time.Second
+	coinbaseWSUnauthRate     = 8
 
 	coinbasePublicInterval = time.Second
 	coinbasePublicRate     = 10
@@ -28,16 +31,18 @@ const (
 const (
 	V2Rate request.EndpointLimit = iota
 	V3Rate
-	WSRate
+	WSAuthRate
+	WSUnauthRate
 	PubRate
 )
 
 // RateLimit implements the request.Limiter interface
 type RateLimit struct {
-	RateLimV3  *rate.Limiter
-	RateLimV2  *rate.Limiter
-	RateLimWS  *rate.Limiter
-	RateLimPub *rate.Limiter
+	RateLimV3       *rate.Limiter
+	RateLimV2       *rate.Limiter
+	RateLimWSAuth   *rate.Limiter
+	RateLimWSUnauth *rate.Limiter
+	RateLimPub      *rate.Limiter
 }
 
 // Limit limits outbound calls
@@ -47,8 +52,10 @@ func (r *RateLimit) Limit(ctx context.Context, f request.EndpointLimit) error {
 		return r.RateLimV3.Wait(ctx)
 	case V2Rate:
 		return r.RateLimV2.Wait(ctx)
-	case WSRate:
-		return r.RateLimWS.Wait(ctx)
+	case WSAuthRate:
+		return r.RateLimWSAuth.Wait(ctx)
+	case WSUnauthRate:
+		return r.RateLimWSUnauth.Wait(ctx)
 	case PubRate:
 		return r.RateLimPub.Wait(ctx)
 	default:
@@ -59,9 +66,10 @@ func (r *RateLimit) Limit(ctx context.Context, f request.EndpointLimit) error {
 // SetRateLimit returns the rate limit for the exchange
 func SetRateLimit() *RateLimit {
 	return &RateLimit{
-		RateLimWS:  request.NewRateLimit(coinbaseWSInterval, coinbaseWSRate),
-		RateLimV3:  request.NewRateLimit(coinbaseV3Interval, coinbaseV3Rate),
-		RateLimV2:  request.NewRateLimit(coinbaseV2Interval, coinbaseV2Rate),
-		RateLimPub: request.NewRateLimit(coinbasePublicInterval, coinbasePublicRate),
+		RateLimWSAuth:   request.NewRateLimit(coinbaseWSAuthInterval, coinbaseWSAuthRate),
+		RateLimWSUnauth: request.NewRateLimit(coinbaseWSUnauthInterval, coinbaseWSUnauthRate),
+		RateLimV3:       request.NewRateLimit(coinbaseV3Interval, coinbaseV3Rate),
+		RateLimV2:       request.NewRateLimit(coinbaseV2Interval, coinbaseV2Rate),
+		RateLimPub:      request.NewRateLimit(coinbasePublicInterval, coinbasePublicRate),
 	}
 }

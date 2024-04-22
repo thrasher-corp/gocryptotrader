@@ -21,6 +21,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
@@ -221,7 +222,7 @@ func (c *CoinbasePro) wsHandleData(respRaw []byte, seqCount uint64) (string, err
 		if err != nil {
 			return warnString, err
 		}
-		sliToSend := []order.Detail{}
+		var sliToSend []order.Detail
 		for i := range wsUser {
 			for j := range wsUser[i].Orders {
 				var oType order.Type
@@ -432,31 +433,44 @@ func getTimestamp(rawData []byte) (time.Time, error) {
 
 // sendRequest is a helper function which sends a websocket message to the Coinbase server
 func (c *CoinbasePro) sendRequest(msgType, channel string, productIDs currency.Pairs) error {
+	authenticated := true
 	creds, err := c.GetCredentials(context.Background())
 	if err != nil {
-		return err
+		if errors.Is(err, exchange.ErrCredentialsAreEmpty) ||
+			errors.Is(err, exchange.ErrAuthenticationSupportNotEnabled) {
+			authenticated = false
+			if channel == "user" {
+				return errNoCredsUser
+			}
+		} else {
+			return err
+		}
 	}
 	n := strconv.FormatInt(time.Now().Unix(), 10)
-	message := n + channel + productIDs.Join()
-	hmac, err := crypto.GetHMAC(crypto.HashSHA256,
-		[]byte(message),
-		[]byte(creds.Secret))
-	if err != nil {
-		return err
-	}
-	// TODO: Implement JWT authentication once our REST implementation moves to it, or if there's
-	// an exchange-wide reform to enable multiple sets of authentication credentials
 	req := WebsocketRequest{
 		Type:       msgType,
 		ProductIDs: productIDs.Strings(),
 		Channel:    channel,
-		Signature:  hex.EncodeToString(hmac),
-		Key:        creds.Key,
 		Timestamp:  n,
 	}
-	err = c.InitiateRateLimit(context.Background(), WSRate)
+	if authenticated {
+		message := n + channel + productIDs.Join()
+		hmac, err := crypto.GetHMAC(crypto.HashSHA256,
+			[]byte(message),
+			[]byte(creds.Secret))
+		if err != nil {
+			return err
+		}
+		// TODO: Implement JWT authentication once our REST implementation moves to it, or if there's
+		// an exchange-wide reform to enable multiple sets of authentication credentials
+		req.Key = creds.Key
+		req.Signature = hex.EncodeToString(hmac)
+		err = c.InitiateRateLimit(context.Background(), WSAuthRate)
+	} else {
+		err = c.InitiateRateLimit(context.Background(), WSUnauthRate)
+	}
 	if err != nil {
-		return fmt.Errorf("failed to rate limit HTTP request: %w", err)
+		return fmt.Errorf("failed to rate limit websocket request: %w", err)
 	}
 	return c.Websocket.Conn.SendJSONMessage(req)
 }
