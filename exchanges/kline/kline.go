@@ -280,6 +280,8 @@ func durationToWord(in Interval) string {
 	switch in {
 	case HundredMilliseconds:
 		return "hundredmillisec"
+	case FiveHundredMilliseconds:
+		return "fivehundredmillisec"
 	case ThousandMilliseconds:
 		return "thousandmillisec"
 	case TenSecond:

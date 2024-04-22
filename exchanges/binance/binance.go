@@ -11,10 +11,10 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
-	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -22,14 +22,20 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
+	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
 // Binance is the overarching type across the Binance package
 type Binance struct {
 	exchange.Base
 	// Valid string list that is required by the exchange
-	validLimits []int
+	validLimits []int64
 	obm         *orderbookManager
+
+	// isAPIStreamConnected is true if the spot API stream websocket connection is established
+	isAPIStreamConnected bool
+
+	isAPIStreamConnectionLock sync.Mutex
 }
 
 const (
@@ -108,6 +114,10 @@ var (
 	errOrderIDMustBeSet                       = errors.New("orderID must be set")
 	errAmountMustBeSet                        = errors.New("amount must not be <= 0")
 	errEitherLoanOrCollateralAmountsMustBeSet = errors.New("either loan or collateral amounts must be set")
+	errNilArgument                            = errors.New("nil argument")
+	errWebsocketAPICallNotEnabled             = errors.New("websocket API connection not enabled")
+	errTimestampInfoRequired                  = errors.New("timestamp information is required")
+	errListenKeyIsRequired                    = errors.New("listen key is required")
 )
 
 var subscriptionNames = map[string]string{
@@ -141,7 +151,7 @@ func (b *Binance) GetOrderBook(ctx context.Context, obd OrderBookDataRequestPara
 		return nil, err
 	}
 	params.Set("symbol", symbol)
-	params.Set("limit", strconv.Itoa(obd.Limit))
+	params.Set("limit", strconv.FormatInt(obd.Limit, 10))
 
 	var resp OrderBookData
 	if err := b.SendHTTPRequest(ctx,
@@ -157,39 +167,17 @@ func (b *Binance) GetOrderBook(ctx context.Context, obd OrderBookDataRequestPara
 		LastUpdateID: resp.LastUpdateID,
 	}
 	for x := range resp.Bids {
-		price, err := strconv.ParseFloat(resp.Bids[x][0], 64)
-		if err != nil {
-			return nil, err
-		}
-
-		amount, err := strconv.ParseFloat(resp.Bids[x][1], 64)
-		if err != nil {
-			return nil, err
-		}
-
 		orderbook.Bids[x] = OrderbookItem{
-			Price:    price,
-			Quantity: amount,
+			Price:    resp.Bids[x][0].Float64(),
+			Quantity: resp.Bids[x][1].Float64(),
 		}
 	}
-
 	for x := range resp.Asks {
-		price, err := strconv.ParseFloat(resp.Asks[x][0], 64)
-		if err != nil {
-			return nil, err
-		}
-
-		amount, err := strconv.ParseFloat(resp.Asks[x][1], 64)
-		if err != nil {
-			return nil, err
-		}
-
 		orderbook.Asks[x] = OrderbookItem{
-			Price:    price,
-			Quantity: amount,
+			Price:    resp.Asks[x][0].Float64(),
+			Quantity: resp.Asks[x][1].Float64(),
 		}
 	}
-
 	return &orderbook, nil
 }
 
@@ -202,7 +190,7 @@ func (b *Binance) GetMostRecentTrades(ctx context.Context, rtr RecentTradeReques
 		return nil, err
 	}
 	params.Set("symbol", symbol)
-	params.Set("limit", strconv.Itoa(rtr.Limit))
+	params.Set("limit", strconv.FormatInt(rtr.Limit, 10))
 
 	path := recentTrades + "?" + params.Encode()
 
@@ -273,7 +261,7 @@ func (b *Binance) GetUserMarginInterestHistory(ctx context.Context, assetCurrenc
 // https://binance-docs.github.io/apidocs/spot/en/#compressed-aggregate-trades-list
 func (b *Binance) GetAggregatedTrades(ctx context.Context, arg *AggregatedTradeRequestParams) ([]AggregatedTrade, error) {
 	params := url.Values{}
-	params.Set("symbol", arg.Symbol.String())
+	params.Set("symbol", arg.Symbol)
 	// If the user request is directly not supported by the exchange, we might be able to fulfill it
 	// by merging results from multiple API requests
 	needBatch := true // Need to batch unless user has specified a limit
@@ -368,7 +356,7 @@ func (b *Binance) batchAggregateTrades(ctx context.Context, arg *AggregatedTrade
 		if !arg.EndTime.IsZero() {
 			// get index for truncating to end time
 			lastIndex = sort.Search(len(additionalTrades), func(i int) bool {
-				return arg.EndTime.Before(additionalTrades[i].TimeStamp)
+				return arg.EndTime.Before(additionalTrades[i].TimeStamp.Time())
 			})
 		}
 		// don't include the first as the request was inclusive from last ATradeID
@@ -404,7 +392,7 @@ func (b *Binance) GetSpotKline(ctx context.Context, arg *KlinesRequestParams) ([
 	params.Set("symbol", symbol)
 	params.Set("interval", arg.Interval)
 	if arg.Limit != 0 {
-		params.Set("limit", strconv.Itoa(arg.Limit))
+		params.Set("limit", strconv.FormatInt(arg.Limit, 10))
 	}
 	if !arg.StartTime.IsZero() {
 		params.Set("startTime", timeString(arg.StartTime))
@@ -414,8 +402,7 @@ func (b *Binance) GetSpotKline(ctx context.Context, arg *KlinesRequestParams) ([
 	}
 
 	path := candleStick + "?" + params.Encode()
-	var resp interface{}
-
+	var resp [][]types.Number
 	err = b.SendHTTPRequest(ctx,
 		exchange.RestSpotSupplementary,
 		path,
@@ -424,55 +411,24 @@ func (b *Binance) GetSpotKline(ctx context.Context, arg *KlinesRequestParams) ([
 	if err != nil {
 		return nil, err
 	}
-	responseData, ok := resp.([]interface{})
-	if !ok {
-		return nil, common.GetTypeAssertError("[]interface{}", resp)
-	}
-
-	klineData := make([]CandleStick, len(responseData))
-	for x := range responseData {
-		individualData, ok := responseData[x].([]interface{})
-		if !ok {
-			return nil, common.GetTypeAssertError("[]interface{}", responseData[x])
-		}
-		if len(individualData) != 12 {
+	klineData := make([]CandleStick, len(resp))
+	for x := range resp {
+		if len(resp[x]) != 12 {
 			return nil, errors.New("unexpected kline data length")
 		}
-		var candle CandleStick
-		if candle.OpenTime, err = convert.TimeFromUnixTimestampFloat(individualData[0]); err != nil {
-			return nil, err
+		klineData[x] = CandleStick{
+			OpenTime:                 time.UnixMilli(resp[x][0].Int64()),
+			Open:                     resp[x][1].Float64(),
+			High:                     resp[x][2].Float64(),
+			Low:                      resp[x][3].Float64(),
+			Close:                    resp[x][4].Float64(),
+			Volume:                   resp[x][5].Float64(),
+			CloseTime:                time.UnixMilli(resp[x][6].Int64()),
+			QuoteAssetVolume:         resp[x][7].Float64(),
+			TradeCount:               resp[x][8].Float64(),
+			TakerBuyAssetVolume:      resp[x][9].Float64(),
+			TakerBuyQuoteAssetVolume: resp[x][10].Float64(),
 		}
-		if candle.Open, err = convert.FloatFromString(individualData[1]); err != nil {
-			return nil, err
-		}
-		if candle.High, err = convert.FloatFromString(individualData[2]); err != nil {
-			return nil, err
-		}
-		if candle.Low, err = convert.FloatFromString(individualData[3]); err != nil {
-			return nil, err
-		}
-		if candle.Close, err = convert.FloatFromString(individualData[4]); err != nil {
-			return nil, err
-		}
-		if candle.Volume, err = convert.FloatFromString(individualData[5]); err != nil {
-			return nil, err
-		}
-		if candle.CloseTime, err = convert.TimeFromUnixTimestampFloat(individualData[6]); err != nil {
-			return nil, err
-		}
-		if candle.QuoteAssetVolume, err = convert.FloatFromString(individualData[7]); err != nil {
-			return nil, err
-		}
-		if candle.TradeCount, ok = individualData[8].(float64); !ok {
-			return nil, common.GetTypeAssertError("float64", individualData[8])
-		}
-		if candle.TakerBuyAssetVolume, err = convert.FloatFromString(individualData[9]); err != nil {
-			return nil, err
-		}
-		if candle.TakerBuyQuoteAssetVolume, err = convert.FloatFromString(individualData[10]); err != nil {
-			return nil, err
-		}
-		klineData[x] = candle
 	}
 	return klineData, nil
 }
@@ -648,8 +604,8 @@ func (b *Binance) CancelExistingOrder(ctx context.Context, symbol currency.Pair,
 // OpenOrders Current open orders. Get all open orders on a symbol.
 // Careful when accessing this with no symbol: The number of requests counted
 // against the rate limiter is significantly higher
-func (b *Binance) OpenOrders(ctx context.Context, pair currency.Pair) ([]QueryOrderData, error) {
-	var resp []QueryOrderData
+func (b *Binance) OpenOrders(ctx context.Context, pair currency.Pair) ([]TradeOrder, error) {
+	var resp []TradeOrder
 	params := url.Values{}
 	var p string
 	var err error
@@ -680,8 +636,8 @@ func (b *Binance) OpenOrders(ctx context.Context, pair currency.Pair) ([]QueryOr
 // AllOrders Get all account orders; active, canceled, or filled.
 // orderId optional param
 // limit optional param, default 500; max 500
-func (b *Binance) AllOrders(ctx context.Context, symbol currency.Pair, orderID, limit string) ([]QueryOrderData, error) {
-	var resp []QueryOrderData
+func (b *Binance) AllOrders(ctx context.Context, symbol currency.Pair, orderID, limit string) ([]TradeOrder, error) {
+	var resp []TradeOrder
 
 	params := url.Values{}
 	symbolValue, err := b.FormatSymbol(symbol, asset.Spot)
@@ -708,9 +664,8 @@ func (b *Binance) AllOrders(ctx context.Context, symbol currency.Pair, orderID, 
 }
 
 // QueryOrder returns information on a past order
-func (b *Binance) QueryOrder(ctx context.Context, symbol currency.Pair, origClientOrderID string, orderID int64) (QueryOrderData, error) {
-	var resp QueryOrderData
-
+func (b *Binance) QueryOrder(ctx context.Context, symbol currency.Pair, origClientOrderID string, orderID int64) (TradeOrder, error) {
+	var resp TradeOrder
 	params := url.Values{}
 	symbolValue, err := b.FormatSymbol(symbol, asset.Spot)
 	if err != nil {
@@ -894,7 +849,7 @@ func (b *Binance) SendAuthHTTPRequest(ctx context.Context, ePath exchange.URL, m
 }
 
 // CheckLimit checks value against a variable list
-func (b *Binance) CheckLimit(limit int) error {
+func (b *Binance) CheckLimit(limit int64) error {
 	for x := range b.validLimits {
 		if b.validLimits[x] == limit {
 			return nil
@@ -905,7 +860,7 @@ func (b *Binance) CheckLimit(limit int) error {
 
 // SetValues sets the default valid values
 func (b *Binance) SetValues() {
-	b.validLimits = []int{5, 10, 20, 50, 100, 500, 1000, 5000}
+	b.validLimits = []int64{5, 10, 20, 50, 100, 500, 1000, 5000}
 }
 
 // GetFee returns an estimate of fee based on type of transaction
