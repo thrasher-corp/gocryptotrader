@@ -3914,3 +3914,301 @@ type ChangePlanStatusResponse struct {
 	NextExecutionDateTime convert.ExchangeTime `json:"nextExecutionDateTime"`
 	Status                string               `json:"status"`
 }
+
+// InvestmentPlans represents an investment plans
+type InvestmentPlans struct {
+	PlanValueInUSD string `json:"planValueInUSD"`
+	PlanValueInBTC string `json:"planValueInBTC"`
+	PnlInUSD       string `json:"pnlInUSD"`
+	Roi            string `json:"roi"`
+	Plans          []struct {
+		PlanID                   int64                `json:"planId"`
+		PlanType                 string               `json:"planType"`
+		EditAllowed              string               `json:"editAllowed"`
+		CreationDateTime         convert.ExchangeTime `json:"creationDateTime"`
+		FirstExecutionDateTime   convert.ExchangeTime `json:"firstExecutionDateTime"`
+		NextExecutionDateTime    convert.ExchangeTime `json:"nextExecutionDateTime"`
+		Status                   string               `json:"status"`
+		LastUpdatedDateTime      convert.ExchangeTime `json:"lastUpdatedDateTime"`
+		TargetAsset              string               `json:"targetAsset"`
+		TotalTargetAmount        types.Number         `json:"totalTargetAmount"`
+		SourceAsset              string               `json:"sourceAsset"`
+		TotalInvestedInUSD       string               `json:"totalInvestedInUSD"`
+		SubscriptionAmount       types.Number         `json:"subscriptionAmount"`
+		SubscriptionCycle        string               `json:"subscriptionCycle"`
+		SubscriptionStartDay     string               `json:"subscriptionStartDay"`
+		SubscriptionStartWeekday string               `json:"subscriptionStartWeekday"`
+		SubscriptionStartTime    convert.ExchangeTime `json:"subscriptionStartTime"`
+		SourceWallet             string               `json:"sourceWallet"`
+		FlexibleAllowedToUse     string               `json:"flexibleAllowedToUse"`
+		PlanValueInUSD           string               `json:"planValueInUSD"`
+		PnlInUSD                 string               `json:"pnlInUSD"`
+		ROI                      string               `json:"roi"`
+	} `json:"plans"`
+}
+
+// InvestmentPlanHoldingDetail represents a holding detail of an investment plan.
+type InvestmentPlanHoldingDetail struct {
+	PlanID                 int64                `json:"planId"`
+	PlanType               string               `json:"planType"`
+	EditAllowed            string               `json:"editAllowed"`
+	FlexibleAllowedToUse   string               `json:"flexibleAllowedToUse"`
+	CreationDateTime       convert.ExchangeTime `json:"creationDateTime"`
+	FirstExecutionDateTime convert.ExchangeTime `json:"firstExecutionDateTime"`
+	NextExecutionDateTime  convert.ExchangeTime `json:"nextExecutionDateTime"`
+	Status                 string               `json:"status"`
+	TargetAsset            string               `json:"targetAsset"`
+	SourceAsset            string               `json:"sourceAsset"`
+	PlanValueInUSD         string               `json:"planValueInUSD"`
+	PnlInUSD               string               `json:"pnlInUSD"`
+	Roi                    string               `json:"roi"`
+	TotalInvestedInUSD     string               `json:"totalInvestedInUSD"`
+	Details                []struct {
+		TargetAsset         string       `json:"targetAsset"`
+		AveragePriceInUSD   string       `json:"averagePriceInUSD"`
+		TotalInvestedInUSD  string       `json:"totalInvestedInUSD"`
+		PurchasedAmount     types.Number `json:"purchasedAmount"`
+		PurchasedAmountUnit string       `json:"purchasedAmountUnit"`
+		PnlInUSD            string       `json:"pnlInUSD"`
+		ROI                 string       `json:"roi"`
+		Percentage          string       `json:"percentage"`
+		AssetStatus         string       `json:"assetStatus"`
+		AvailableAmount     types.Number `json:"availableAmount"`
+		AvailableAmountUnit string       `json:"availableAmountUnit"`
+		RedeemedAmout       types.Number `json:"redeemedAmout"`
+		RedeemedAmoutUnit   string       `json:"redeemedAmoutUnit"`
+		AssetValueInUSD     string       `json:"assetValueInUSD"`
+	} `json:"details"`
+}
+
+// AutoInvestSubscriptionTransactionItem represents subscription transaction item
+type AutoInvestSubscriptionTransactionItem struct {
+	ID                  int                  `json:"id"`
+	TargetAsset         string               `json:"targetAsset"`
+	ExecutionType       string               `json:"executionType"` // ONE_TIME,RECURRING
+	PlanType            string               `json:"planType"`
+	PlanName            string               `json:"planName"`
+	PlanID              int64                `json:"planId"`
+	TransactionDateTime convert.ExchangeTime `json:"transactionDateTime"`
+	TransactionStatus   string               `json:"transactionStatus"`
+	FailedType          string               `json:"failedType"`
+	SourceAsset         string               `json:"sourceAsset"`
+	SourceAssetAmount   types.Number         `json:"sourceAssetAmount"`
+	TargetAssetAmount   types.Number         `json:"targetAssetAmount"`
+	SourceWallet        string               `json:"sourceWallet"`
+	FlexibleUsed        string               `json:"flexibleUsed"` // whether simple earn wallet is used
+	TransactionFee      string               `json:"transactionFee"`
+	TransactionFeeUnit  string               `json:"transactionFeeUnit"` // denominated coin of the transaction fee
+	ExecutionPrice      types.Number         `json:"executionPrice"`     // price of the subscription price. It's amount of source asset equivilent of 1 unit of target asset
+	SubscriptionCycle   types.Number         `json:"subscriptionCycle"`
+}
+
+// AutoInvestmentIndexDetail represents an index detail information.
+type AutoInvestmentIndexDetail struct {
+	IndexID         int64  `json:"indexId"`
+	IndexName       string `json:"indexName"`
+	Status          string `json:"status"`
+	AssetAllocation []struct {
+		TargetAsset string `json:"targetAsset"`
+		Allocation  string `json:"allocation"`
+	} `json:"assetAllocation"`
+}
+
+// IndexLinkedPlanPositionDetail represents an index linked investment-plan positions detail.
+type IndexLinkedPlanPositionDetail struct {
+	IndexID              int64        `json:"indexId"`
+	TotalInvestedInUSD   types.Number `json:"totalInvestedInUSD"`
+	CurrentInvestedInUSD types.Number `json:"currentInvestedInUSD"`
+	PnlInUSD             types.Number `json:"pnlInUSD"`
+	ROI                  types.Number `json:"roi"`
+	AssetAllocation      []struct {
+		TargetAsset string `json:"targetAsset"`
+		Allocation  string `json:"allocation"`
+	} `json:"assetAllocation"`
+	Details []struct {
+		TargetAsset          string       `json:"targetAsset"`
+		AveragePriceInUSD    types.Number `json:"averagePriceInUSD"`
+		TotalInvestedInUSD   types.Number `json:"totalInvestedInUSD"`
+		CurrentInvestedInUSD types.Number `json:"currentInvestedInUSD"`
+		PurchasedAmount      types.Number `json:"purchasedAmount"`
+		PNLInUSD             types.Number `json:"pnlInUSD"`
+		ROI                  types.Number `json:"roi"`
+		Percentage           types.Number `json:"percentage"`
+		AvailableAmount      types.Number `json:"availableAmount"`
+		RedeemedAmount       types.Number `json:"redeemedAmount"`
+		AssetValueInUSD      types.Number `json:"assetValueInUSD"`
+	} `json:"details"`
+}
+
+// OneTimeTransactionParams request parameters for one-time transaction instance.
+type OneTimeTransactionParams struct {
+	SourceType           string            `json:"sourceType"`
+	RequestID            string            `json:"requestId"` // if not null, must follow sourceType + unique string, e.g: TR12354859
+	SubscriptionAmount   float64           `json:"subscriptionAmount"`
+	SourceAsset          currency.Code     `json:"sourceAsset"`
+	FlexibleAllowedToUse bool              `json:"flexibleAllowedToUse"` // true/false；true: using flexible wallet
+	PlanID               int64             `json:"planId,omitempty"`     // PORTFOLIO plan's Id
+	IndexID              int64             `json:"indexId,omitempty"`
+	Details              []PortfolioDetail `json:"details"` // sum(all node's percentage) == 100，sum(all node's percentage) == 100， When input request parameter, each entry should be like details[0].targetAsset=BTC, Example of the request parameter array:
+}
+
+// OneTimeTransactionResponse represents a response data for one-time transaction
+type OneTimeTransactionResponse struct {
+	TransactionID int64 `json:"transactionId"`
+	WaitSecond    int64 `json:"waitSecond"`
+}
+
+// PlanRedemption represents an index plan redemption transaction instance.
+type PlanRedemption struct {
+	IndexID            int64                `json:"indexId"`
+	IndexName          string               `json:"indexName"`
+	RedemptionID       int64                `json:"redemptionId"`
+	Status             string               `json:"status"`
+	Asset              string               `json:"asset"`
+	Amount             types.Number         `json:"amount"`
+	RedemptionDateTime convert.ExchangeTime `json:"redemptionDateTime"`
+	TransactionFee     types.Number         `json:"transactionFee"`
+	TransactionFeeUnit string               `json:"transactionFeeUnit"`
+}
+
+// IndexLinkedPlanRebalanceDetail represents an index plan rebalance instance detail.
+type IndexLinkedPlanRebalanceDetail struct {
+	IndexID            int64        `json:"indexId"`
+	IndexName          string       `json:"indexName"`
+	RebalanceID        int64        `json:"rebalanceId"`
+	Status             string       `json:"status"` // rebalance status  SUCCESS/INIT
+	RebalanceFee       types.Number `json:"rebalanceFee"`
+	RebalanceFeeUnit   string       `json:"rebalanceFeeUnit"`
+	TransactionDetails []struct {
+		Asset               string               `json:"asset"`               // assets to be rebalanced
+		TransactionDateTime convert.ExchangeTime `json:"transactionDateTime"` // rebalance transaction timestamp
+		RebalanceDirection  string               `json:"rebalanceDirection"`  // rebalance direction
+		RebalanceAmount     types.Number         `json:"rebalanceAmount"`     // rebalance amount for the asset
+	} `json:"transactionDetails"`
+}
+
+// StakingSubscriptionResponse represents V2 staking subscription response.
+type StakingSubscriptionResponse struct {
+	Success         bool         `json:"success"`
+	WbethAmount     types.Number `json:"wbethAmount"`
+	ConversionRatio string       `json:"conversionRatio"`
+}
+
+// StakingRedemptionResponse represents redemption response response.
+type StakingRedemptionResponse struct {
+	Success         bool                 `json:"success"`
+	ArrivalTime     convert.ExchangeTime `json:"arrivalTime"`
+	EthAmount       types.Number         `json:"ethAmount"`
+	ConversionRatio types.Number         `json:"conversionRatio"`
+}
+
+// ETHStakingHistory represents ETH staking history
+type ETHStakingHistory struct {
+	Rows []struct {
+		Time             convert.ExchangeTime `json:"time"`
+		Asset            string               `json:"asset"`
+		Amount           types.Number         `json:"amount"`
+		Status           string               `json:"status"`
+		DistributeAmount types.Number         `json:"distributeAmount"`
+		ConversionRatio  types.Number         `json:"conversionRatio"`
+	} `json:"rows"`
+	Total int64 `json:"total"`
+}
+
+// ETHRedemptionHistory represents ETH redemption history
+type ETHRedemptionHistory struct {
+	Rows []struct {
+		Time             convert.ExchangeTime `json:"time"`
+		ArrivalTime      convert.ExchangeTime `json:"arrivalTime"`
+		Asset            string               `json:"asset"`
+		Amount           types.Number         `json:"amount"`
+		Status           string               `json:"status"` // PENDING,SUCCESS,FAILED
+		DistributeAsset  string               `json:"distributeAsset"`
+		DistributeAmount types.Number         `json:"distributeAmount"`
+		ConversionRatio  types.Number         `json:"conversionRatio"`
+	} `json:"rows"`
+	Total int64 `json:"total"`
+}
+
+// BETHRewardDistribution represents a BETH reward distribution history
+type BETHRewardDistribution struct {
+	Rows []struct {
+		Time                 convert.ExchangeTime `json:"time"`
+		Asset                string               `json:"asset"`
+		Holding              string               `json:"holding"`              // BETH holding balance
+		Amount               types.Number         `json:"amount"`               // Distributed rewards
+		AnnualPercentageRate string               `json:"annualPercentageRate"` // 0.5 means 50% here
+		Status               string               `json:"status"`
+	} `json:"rows"`
+	Total int64 `json:"total"`
+}
+
+// ETHStakingQuota represents an ETH current staking quota response.
+type ETHStakingQuota struct {
+	LeftStakingPersonalQuota    types.Number `json:"leftStakingPersonalQuota"`
+	LeftRedemptionPersonalQuota types.Number `json:"leftRedemptionPersonalQuota"`
+}
+
+// WBETHRateHistory represents a WBETH rate history
+type WBETHRateHistory struct {
+	Rows []struct {
+		AnnualPercentageRate types.Number         `json:"annualPercentageRate"`
+		ExchangeRate         types.Number         `json:"exchangeRate"`
+		Time                 convert.ExchangeTime `json:"time"`
+	} `json:"rows"`
+	Total string `json:"total"`
+}
+
+// ETHStakingAccountDetail represents ETH staking account detail.
+type ETHStakingAccountDetail struct {
+	CumulativeProfitInBETH types.Number `json:"cumulativeProfitInBETH"`
+	LastDayProfitInBETH    types.Number `json:"lastDayProfitInBETH"`
+}
+
+// StakingAccountV2Response represents ETH staking account detail
+type StakingAccountV2Response struct {
+	HoldingInETH string `json:"holdingInETH"`
+	Holdings     struct {
+		WbethAmount types.Number `json:"wbethAmount"`
+		BethAmount  types.Number `json:"bethAmount"`
+	} `json:"holdings"`
+	ThirtyDaysProfitInETH string `json:"thirtyDaysProfitInETH"`
+	Profit                struct {
+		AmountFromWBETH types.Number `json:"amountFromWBETH"` // Profit accrued within WBETH
+		AmountFromBETH  types.Number `json:"amountFromBETH"`  // BETH distributed to your Spot Wallet
+	} `json:"profit"`
+}
+
+// WrapBETHResponse wrap BETH response.
+type WrapBETHResponse struct {
+	Success      bool         `json:"success"`
+	WbethAmount  types.Number `json:"wbethAmount"`
+	ExchangeRate types.Number `json:"exchangeRate"`
+}
+
+// WBETHWrapHistory represents a BETH wrap/unwrap history
+type WBETHWrapHistory struct {
+	Rows []struct {
+		Time         convert.ExchangeTime `json:"time"`
+		FromAsset    string               `json:"fromAsset"`
+		FromAmount   types.Number         `json:"fromAmount"`
+		ToAsset      string               `json:"toAsset"`
+		ToAmount     types.Number         `json:"toAmount"`
+		ExchangeRate types.Number         `json:"exchangeRate"` // BETH amount per 1 WBETH
+		Status       string               `json:"status"`       // PENDING,SUCCESS,FAILED
+	} `json:"rows"`
+	Total int64 `json:"total"`
+}
+
+// WBETHRewardHistory represents a WBETH reward history item.
+type WBETHRewardHistory struct {
+	EstRewardsInETH string `json:"estRewardsInETH"`
+	Rows            []struct {
+		Time                 convert.ExchangeTime `json:"time"`
+		AmountInETH          types.Number         `json:"amountInETH"` // Estimated rewards accrued within WBETH
+		Holding              types.Number         `json:"holding"`     // WBETH holding balance
+		HoldingInETH         types.Number         `json:"holdingInETH"`
+		AnnualPercentageRate types.Number         `json:"annualPercentageRate"`
+	} `json:"rows"`
+	Total int64 `json:"total"`
+}

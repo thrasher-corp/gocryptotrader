@@ -5940,3 +5940,199 @@ func TestChangePlanStatus(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
+
+func TestGetListOfPlans(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetListOfPlans(context.Background(), "SINGLE")
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetHoldingDetailsOfPlan(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetHoldingDetailsOfPlan(context.Background(), 1234, "")
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetSubscriptionsTransactionHistory(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetSubscriptionsTransactionHistory(context.Background(), 1232, 20, 0, time.Time{}, time.Time{}, currency.BTC, "PORTFOLIO")
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetIndexDetail(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetIndexDetail(context.Background(), 1234)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetIndexLinkedPlanPositionDetails(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetIndexLinkedPlanPositionDetails(context.Background(), 123)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestOneTimeTransaction(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	_, err := b.OneTimeTransaction(context.Background(), &OneTimeTransactionParams{})
+	require.ErrorIs(t, err, common.ErrNilPointer)
+	result, err := b.OneTimeTransaction(context.Background(), &OneTimeTransactionParams{})
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetOneTimeTransactionStatus(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetOneTimeTransactionStatus(context.Background(), 1234, "")
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestIndexLinkedPlanRedemption(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.IndexLinkedPlanRedemption(context.Background(), 12333, 30, "")
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetIndexLinkedPlanRedemption(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	result, err := b.GetIndexLinkedPlanRedemption(context.Background(), "123123", time.Now().Add(-time.Hour*48), time.Now(), currency.ETH, 0, 10)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetIndexLinkedPlanRebalanceDetails(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetIndexLinkedPlanRebalanceDetails(context.Background(), time.Time{}, time.Time{}, 0, 10)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetSubscribeETHStaking(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetSubscribeETHStaking(context.Background(), 0.001)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestSusbcribeETHStakingV2(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.SusbcribeETHStakingV2(context.Background(), 0.123)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestRedeemETH(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	result, err := b.RedeemETH(context.Background(), 0.123, currency.ETH)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetETHStakingHistory(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetETHStakingHistory(context.Background(), time.Now().Add(-time.Hour*48), time.Now(), 0, 10)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetETHRedemptionHistory(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetETHRedemptionHistory(context.Background(), time.Now().Add(-time.Hour*48), time.Now(), 0, 10)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetBETHRewardsDistributionHistory(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetBETHRewardsDistributionHistory(context.Background(), time.Now().Add(-time.Hour*48), time.Now(), 0, 10)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetCurrentETHStakingQuota(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetCurrentETHStakingQuota(context.Background())
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetWBETHRateHistory(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetWBETHRateHistory(context.Background(), time.Now().Add(-time.Hour*48), time.Now(), 0, 10)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetETHStakingAccount(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetETHStakingAccount(context.Background())
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetETHStakingAccountV2(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetETHStakingAccountV2(context.Background())
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestWrapBETH(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	_, err := b.WrapBETH(context.Background(), 0.001)
+	require.ErrorIs(t, err, order.ErrAmountBelowMin)
+	result, err := b.WrapBETH(context.Background(), 0.001)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetWBETHWrapHistory(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetWBETHWrapHistory(context.Background(), time.Now().Add(-time.Hour*48), time.Now(), 0, 10)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetWBETHUnwrapHistory(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetWBETHUnwrapHistory(context.Background(), time.Now().Add(-time.Hour*48), time.Now(), 0, 10)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetWBETHRewardHistory(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetWBETHRewardHistory(context.Background(), time.Now().Add(-time.Hour*48), time.Now(), 0, 10)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}

@@ -72,6 +72,7 @@ var (
 	errMarginTypeIsRequired                   = errors.New("margin type is required, with possible valued of 'MARGIN' and 'ISOLATED'")
 	errProductIDIsRequired                    = errors.New("product ID is required")
 	errPlanIDRequired                         = errors.New("plan ID  is required")
+	errIndexIDIsRequired                      = errors.New("index ID is required")
 )
 
 var subscriptionNames = map[string]string{
@@ -4572,4 +4573,358 @@ func (b *Binance) ChangePlanStatus(ctx context.Context, planID int64, status str
 	params.Set("status", status)
 	var resp *ChangePlanStatusResponse
 	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/sapi/v1/lending/auto-invest/plan/edit-status", params, spotDefaultRate, nil, &resp)
+}
+
+// GetListOfPlans retrieves list of plans
+func (b *Binance) GetListOfPlans(ctx context.Context, planType string) (*InvestmentPlans, error) {
+	params := url.Values{}
+	if planType == "" {
+		return nil, errors.New("planType is required")
+	}
+	var resp *InvestmentPlans
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/lending/auto-invest/plan/list", params, spotDefaultRate, nil, &resp)
+}
+
+// GetHoldingDetailsOfPlan query holding details of the plan
+func (b *Binance) GetHoldingDetailsOfPlan(ctx context.Context, planID int64, requestID string) (*InvestmentPlanHoldingDetail, error) {
+	params := url.Values{}
+	if planID > 0 {
+		params.Set("planId", strconv.FormatInt(planID, 10))
+	}
+	if requestID != "" {
+		params.Set("requestId", requestID)
+	}
+	var resp *InvestmentPlanHoldingDetail
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/lending/auto-invest/plan/id", params, spotDefaultRate, nil, &resp)
+}
+
+// GetSubscriptionsTransactionHistory query subscription transaction history of a plan
+// planType: SINGLE, PORTFOLIO, INDEX, ALL
+func (b *Binance) GetSubscriptionsTransactionHistory(ctx context.Context, planID, size, current int64, startTime, endTime time.Time, targetAsset currency.Code, planType string) ([]AutoInvestSubscriptionTransactionItem, error) {
+	params := url.Values{}
+	if planID > 0 {
+		params.Set("planId", strconv.FormatInt(planID, 10))
+	}
+	if !startTime.IsZero() && !endTime.IsZero() {
+		err := common.StartEndTimeCheck(startTime, endTime)
+		if err != nil {
+			return nil, err
+		}
+		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
+	}
+	if planType != "" {
+		params.Set("planType", planType)
+	}
+	if size > 0 {
+		params.Set("size", strconv.FormatInt(size, 10))
+	}
+	if current > 0 {
+		params.Set("current", strconv.FormatInt(current, 10))
+	}
+	if !targetAsset.IsEmpty() {
+		params.Set("targetAsset", targetAsset.String())
+	}
+	var resp []AutoInvestSubscriptionTransactionItem
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/lending/auto-invest/history/list", params, spotDefaultRate, nil, &resp)
+}
+
+// GetIndexDetail retrieves index details
+func (b *Binance) GetIndexDetail(ctx context.Context, indexID int64) (*AutoInvestmentIndexDetail, error) {
+	if indexID == 0 {
+		return nil, errIndexIDIsRequired
+	}
+	params := url.Values{}
+	params.Set("indexId", strconv.FormatInt(indexID, 10))
+	var resp *AutoInvestmentIndexDetail
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/lending/auto-invest/index/info", params, spotDefaultRate, nil, &resp)
+}
+
+// GetIndexLinkedPlanPositionDetails retrieves details on users Index-Linked plan position details
+func (b *Binance) GetIndexLinkedPlanPositionDetails(ctx context.Context, indexID int64) (*IndexLinkedPlanPositionDetail, error) {
+	if indexID == 0 {
+		return nil, errIndexIDIsRequired
+	}
+	params := url.Values{}
+	params.Set("indexId", strconv.FormatInt(indexID, 10))
+	var resp *IndexLinkedPlanPositionDetail
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/lending/auto-invest/index/user-summary", params, spotDefaultRate, nil, &resp)
+}
+
+// OneTimeTransaction posts one time transactions
+// sourceType possible values are "MAIN_SITE" for Binance,“TR” for Binance Turkey
+func (b *Binance) OneTimeTransaction(ctx context.Context, arg *OneTimeTransactionParams) (*OneTimeTransactionResponse, error) {
+	if arg == nil {
+		return nil, common.ErrNilPointer
+	}
+	if arg.SourceType == "" {
+		return nil, errors.New("sourceType is required")
+	}
+	if arg.SubscriptionAmount <= 0 {
+		return nil, order.ErrAmountBelowMin
+	}
+	if arg.SourceAsset.IsEmpty() {
+		return nil, fmt.Errorf("%w, sourceAsset is required", currency.ErrCurrencyCodeEmpty)
+	}
+	if len(arg.Details) == 0 {
+		return nil, errors.New("portfolio detail is required")
+	}
+	for a := range arg.Details {
+		if arg.Details[a].TargetAsset.IsEmpty() {
+			return nil, fmt.Errorf("%w, targetAsset is required", currency.ErrCurrencyCodeEmpty)
+		}
+		if arg.Details[a].Percentage < 0 {
+			return nil, errors.New("invalid percentage amount")
+		}
+	}
+	var resp *OneTimeTransactionResponse
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/sapi/v1/lending/auto-invest/one-off", nil, spotDefaultRate, arg, &resp)
+}
+
+// GetOneTimeTransactionStatus retrieves transaction status of one-time transaction
+//
+// transactionID: PORTFOLIO plan's Id
+// requestID: sourceType + unique, transactionId and requestId cannot be empty at the same time
+func (b *Binance) GetOneTimeTransactionStatus(ctx context.Context, transactionID int64, requestID string) (*OneTimeTransactionResponse, error) {
+	if transactionID == 0 {
+		return nil, errors.New("transaction ID is required")
+	}
+	params := url.Values{}
+	params.Set("transactionId", strconv.FormatInt(transactionID, 10))
+	if requestID != "" {
+		params.Set("requestId", requestID)
+	}
+	var resp *OneTimeTransactionResponse
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/lending/auto-invest/one-off/status", params, spotDefaultRate, nil, &resp)
+}
+
+// IndexLinkedPlanRedemption returns an identifier for this redemption after redeeming index-Linked plan holdings.
+// redemptionPercentage: user redeem percentage,10/20/100..
+func (b *Binance) IndexLinkedPlanRedemption(ctx context.Context, indexID, redemptionPercentage int64, requestID string) (int64, error) {
+	if indexID == 0 {
+		return 0, errors.New("index ID is required")
+	}
+	if redemptionPercentage <= 0 {
+		return 0, errors.New("invalid redemption percentage value")
+	}
+	params := url.Values{}
+	params.Set("indexId", strconv.FormatInt(indexID, 10))
+	params.Set("redemptionPercentage", strconv.FormatInt(redemptionPercentage, 10))
+	if requestID != "" {
+		params.Set("requestId", requestID)
+	}
+	resp := &struct {
+		RedemptionID int64 `json:"redemptionId"`
+	}{}
+	return resp.RedemptionID, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/sapi/v1/lending/auto-invest/redeem", params, spotDefaultRate, nil, &resp)
+}
+
+// GetIndexLinkedPlanRedemption get the history of Index Linked Plan Redemption transactions
+func (b *Binance) GetIndexLinkedPlanRedemption(ctx context.Context, requestID string, startTime, endTime time.Time, assetName currency.Code, current, size int64) ([]PlanRedemption, error) {
+	if requestID == "" {
+		return nil, errors.New("request ID is required")
+	}
+	params := url.Values{}
+	params.Set("requestId", requestID)
+	if !startTime.IsZero() && !endTime.IsZero() {
+		err := common.StartEndTimeCheck(startTime, endTime)
+		if err != nil {
+			return nil, err
+		}
+		// Max 30 day difference between startTime and endTime
+		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
+	}
+	if !assetName.IsEmpty() {
+		params.Set("asset", assetName.String())
+	}
+	if current > 0 {
+		params.Set("current", strconv.FormatInt(current, 10))
+	}
+	if size > 0 {
+		params.Set("size", strconv.FormatInt(size, 10))
+	}
+	var resp []PlanRedemption
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/lending/auto-invest/redeem/history", params, spotDefaultRate, nil, &resp)
+}
+
+// GetIndexLinkedPlanRebalanceDetails retrieves the history of Index Linked Plan Redemption transactions
+func (b *Binance) GetIndexLinkedPlanRebalanceDetails(ctx context.Context, startTime, endTime time.Time, current, size int64) ([]IndexLinkedPlanRebalanceDetail, error) {
+	params := url.Values{}
+	if !startTime.IsZero() && !endTime.IsZero() {
+		err := common.StartEndTimeCheck(startTime, endTime)
+		if err != nil {
+			return nil, err
+		}
+		// Max 30 day difference between startTime and endTime
+		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
+	}
+	if current > 0 {
+		params.Set("current", strconv.FormatInt(current, 10))
+	}
+	if size > 0 {
+		params.Set("size", strconv.FormatInt(size, 10))
+	}
+	var resp []IndexLinkedPlanRebalanceDetail
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/lending/auto-invest/rebalance/history", params, spotDefaultRate, nil, &resp)
+}
+
+// ---------------------------------------- Staking Endpoints  ------------------------------------------------------
+
+// GetSubscribeETHStaking subscribes to staking endpoints.
+// Amount in ETH, limit 4 decimals
+func (b *Binance) GetSubscribeETHStaking(ctx context.Context, amount float64) (bool, error) {
+	if amount <= 0 {
+		return false, order.ErrAmountBelowMin
+	}
+	params := url.Values{}
+	params.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
+	resp := &struct {
+		Success bool `json:"success"`
+	}{}
+	return resp.Success, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/sapi/v1/eth-staking/eth/stake", params, spotDefaultRate, nil, &resp)
+}
+
+// SusbcribeETHStakingV2 stake ETH to get WBETH
+func (b *Binance) SusbcribeETHStakingV2(ctx context.Context, amount float64) (*StakingSubscriptionResponse, error) {
+	if amount <= 0 {
+		return nil, order.ErrAmountBelowMin
+	}
+	params := url.Values{}
+	params.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
+	var resp *StakingSubscriptionResponse
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v2/eth-staking/eth/stake", params, spotDefaultRate, nil, &resp)
+}
+
+// RedeemETH redeem WBETH or BETH and get ETH
+func (b *Binance) RedeemETH(ctx context.Context, amount float64, assetName currency.Code) (*StakingRedemptionResponse, error) {
+	if amount <= 0 {
+		return nil, order.ErrAmountBelowMin
+	}
+	params := url.Values{}
+	params.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
+	if !assetName.IsEmpty() {
+		params.Set("asset", assetName.String())
+	}
+	var resp *StakingRedemptionResponse
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/sapi/v1/eth-staking/eth/redeem", params, etherumStakingRedemptionRate, nil, &resp)
+}
+
+// GetETHStakingHistory retrieves ETH staking history
+func (b *Binance) GetETHStakingHistory(ctx context.Context, startTime, endTime time.Time, current, size int64) (*ETHStakingHistory, error) {
+	params, err := fillHistoryRetrievalParams(startTime, endTime, current, size)
+	if err != nil {
+		return nil, err
+	}
+	var resp *ETHStakingHistory
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/eth-staking/eth/history/stakingHistory", params, ethStakingHistoryRate, nil, &resp)
+}
+
+// GetETHRedemptionHistory retrieves ETH redemption history
+func (b *Binance) GetETHRedemptionHistory(ctx context.Context, startTime, endTime time.Time, current, size int64) (*ETHRedemptionHistory, error) {
+	params, err := fillHistoryRetrievalParams(startTime, endTime, current, size)
+	if err != nil {
+		return nil, err
+	}
+	var resp *ETHRedemptionHistory
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/eth-staking/eth/history/redemptionHistory", params, ethRedemptionHistoryRate, nil, &resp)
+}
+
+// GetBETHRewardsDistributionHistory retrieves BETH reward distribution history
+func (b *Binance) GetBETHRewardsDistributionHistory(ctx context.Context, startTime, endTime time.Time, current, size int64) (*BETHRewardDistribution, error) {
+	params, err := fillHistoryRetrievalParams(startTime, endTime, current, size)
+	if err != nil {
+		return nil, err
+	}
+	var resp *BETHRewardDistribution
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/eth-staking/eth/history/rewardsHistory", params, bethRewardDistributionHistoryRate, nil, &resp)
+}
+
+// GetCurrentETHStakingQuota retrieves current ETH staking quota
+func (b *Binance) GetCurrentETHStakingQuota(ctx context.Context) (*ETHStakingQuota, error) {
+	var resp *ETHStakingQuota
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/eth-staking/eth/quota", nil, currentETHStakingQuotaRate, nil, &resp)
+}
+
+// GetWBETRateHistory retrives WBETH rate history
+func (b *Binance) GetWBETHRateHistory(ctx context.Context, startTime, endTime time.Time, current, size int64) (*WBETHRateHistory, error) {
+	params, err := fillHistoryRetrievalParams(startTime, endTime, current, size)
+	if err != nil {
+		return nil, err
+	}
+	var resp *WBETHRateHistory
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/eth-staking/eth/history/rateHistory", params, getWBETHRateHistoryRate, nil, &resp)
+}
+
+func fillHistoryRetrievalParams(startTime, endTime time.Time, current, size int64) (url.Values, error) {
+	params := url.Values{}
+	if !startTime.IsZero() && !endTime.IsZero() {
+		err := common.StartEndTimeCheck(startTime, endTime)
+		if err != nil {
+			return nil, err
+		}
+		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
+	}
+	if current > 0 {
+		params.Set("current", strconv.FormatInt(current, 10))
+	}
+	if size > 0 {
+		params.Set("size", strconv.FormatInt(size, 10))
+	}
+	return params, nil
+}
+
+// GetETHStakingAccount retrives ETH staking account detail.
+func (b *Binance) GetETHStakingAccount(ctx context.Context) (*ETHStakingAccountDetail, error) {
+	var resp *ETHStakingAccountDetail
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "sapi/v1/eth-staking/account", nil, ethStakingAccountRate, nil, &resp)
+}
+
+// GetETHStakingAccount retrives V2 ETH staking account detail.
+func (b *Binance) GetETHStakingAccountV2(ctx context.Context) (*StakingAccountV2Response, error) {
+	var resp *StakingAccountV2Response
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v2/eth-staking/account", nil, ethStakingAccountRate, nil, &resp)
+}
+
+// WrapBETH creates wrapped version of BETH
+// amount: Amount in BETH, limit 4 decimals
+func (b *Binance) WrapBETH(ctx context.Context, amount float64) (*WrapBETHResponse, error) {
+	if amount <= 0 {
+		return nil, order.ErrAmountBelowMin
+	}
+	params := url.Values{}
+	params.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
+	var resp *WrapBETHResponse
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/sapi/v1/eth-staking/wbeth/wrap", params, wrapBETHRate, nil, &resp)
+}
+
+// GetWBETHWrapHistory retrieves a wrap BETH history
+func (b *Binance) GetWBETHWrapHistory(ctx context.Context, startTime, endTime time.Time, current, size int64) (*WBETHWrapHistory, error) {
+	return b.getWBETHWrapOrUnwrapHistory(ctx, startTime, endTime, current, size, "/sapi/v1/eth-staking/wbeth/history/wrapHistory")
+}
+
+// GetWBETHUnwrapHistory retrieves a WEBTH unwrap BETH history
+func (b *Binance) GetWBETHUnwrapHistory(ctx context.Context, startTime, endTime time.Time, current, size int64) (*WBETHWrapHistory, error) {
+	return b.getWBETHWrapOrUnwrapHistory(ctx, startTime, endTime, current, size, "/sapi/v1/eth-staking/wbeth/history/unwrapHistory")
+}
+
+func (b *Binance) getWBETHWrapOrUnwrapHistory(ctx context.Context, startTime, endTime time.Time, current, size int64, path string) (*WBETHWrapHistory, error) {
+	params, err := fillHistoryRetrievalParams(startTime, endTime, current, size)
+	if err != nil {
+		return nil, err
+	}
+	var resp *WBETHWrapHistory
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, params, wbethWrapOrUnwrapHistoryRate, nil, &resp)
+}
+
+// GetWBETHRewardHistory retrieves WBETH rewards history
+func (b *Binance) GetWBETHRewardHistory(ctx context.Context, startTime, endTime time.Time, current, size int64) (*WBETHRewardHistory, error) {
+	params, err := fillHistoryRetrievalParams(startTime, endTime, current, size)
+	if err != nil {
+		return nil, err
+	}
+	var resp *WBETHRewardHistory
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/eth-staking/eth/history/wbethRewardsHistory", params, wbethRewardsHistoryRate, nil, &resp)
 }

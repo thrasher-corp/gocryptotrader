@@ -108,6 +108,16 @@ const (
 	personalLeftQuotaRate
 	subscriptionPreviewRate
 	simpleEarnRateHistoryRate
+	etherumStakingRedemptionRate
+	ethStakingHistoryRate
+	ethRedemptionHistoryRate
+	bethRewardDistributionHistoryRate
+	currentETHStakingQuotaRate
+	getWBETHRateHistoryRate
+	ethStakingAccountRate
+	wrapBETHRate
+	wbethWrapOrUnwrapHistoryRate
+	wbethRewardsHistoryRate
 
 	spotOpenOrdersSpecificRate
 	spotOrderRate
@@ -367,7 +377,17 @@ func (r *RateLimit) Limit(ctx context.Context, f request.EndpointLimit) error {
 		setAutoSubscribeRate,
 		personalLeftQuotaRate,
 		subscriptionPreviewRate,
-		simpleEarnRateHistoryRate:
+		simpleEarnRateHistoryRate,
+		etherumStakingRedemptionRate,
+		ethStakingHistoryRate,
+		ethRedemptionHistoryRate,
+		bethRewardDistributionHistoryRate,
+		currentETHStakingQuotaRate,
+		getWBETHRateHistoryRate,
+		ethStakingAccountRate,
+		wrapBETHRate,
+		wbethWrapOrUnwrapHistoryRate,
+		wbethRewardsHistoryRate:
 		limiter, tokens = r.SpotRate, 150
 	case marginAccountsAllOrdersRate:
 		limiter, tokens = r.SpotRate, 200
