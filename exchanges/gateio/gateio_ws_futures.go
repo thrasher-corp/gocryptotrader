@@ -672,7 +672,11 @@ func (g *Gateio) processFuturesOrdersPushData(data []byte, assetType asset.Item)
 			status, err = order.StringToOrderStatus(resp.Result[x].Status)
 		}
 		if err != nil {
-			return nil, err
+			g.Websocket.DataHandler <- order.ClassificationError{
+				Exchange: g.Name,
+				OrderID:  strconv.FormatInt(resp.Result[x].ID, 10),
+				Err:      err,
+			}
 		}
 
 		orderDetails[x] = order.Detail{
