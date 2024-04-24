@@ -6136,3 +6136,97 @@ func TestGetWBETHRewardHistory(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
+
+func TestAcquiringAlgorithm(t *testing.T) {
+	t.Parallel()
+	result, err := b.AcquiringAlgorithm(context.Background())
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetCoinNames(t *testing.T) {
+	t.Parallel()
+	result, err := b.GetCoinNames(context.Background())
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetDetailMinerList(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetDetailMinerList(context.Background(), "sha256", "sams", "bhdc1.16A10404B")
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetMinersList(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetMinersList(context.Background(), "sha256", "sams", true, 0, 10, 10)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetEarningList(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetEarningList(context.Background(), "sha256", "sams", currency.ETH, time.Time{}, time.Time{}, 0, 10)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetHashrateRescaleList(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetHashrateRescaleList(context.Background(), 10, 20)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetHashrateRescaleDetail(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetHashrateRescaleDetail(context.Background(), "168", "sams", 10, 20)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestHashrateRescaleRequest(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	result, err := b.HashrateRescaleRequest(context.Background(), "sams", "sha256", "S19pro", time.Time{}, time.Time{}, 10000)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func Test(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	result, err := b.CancelHashrateRescaleConfiguration(context.Background(), "189", "sams")
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestStatisticsList(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.StatisticsList(context.Background(), "sha256", "sams")
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetAccountList(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetAccountList(context.Background(), "sha256", "sams")
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetMiningAccountEarningRate(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetMiningAccountEarningRate(context.Background(), "sha256", time.Now().Add(-time.Hour*240), time.Now(), 0, 10)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}

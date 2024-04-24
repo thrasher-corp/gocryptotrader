@@ -4928,3 +4928,245 @@ func (b *Binance) GetWBETHRewardHistory(ctx context.Context, startTime, endTime 
 	var resp *WBETHRewardHistory
 	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/eth-staking/eth/history/wbethRewardsHistory", params, wbethRewardsHistoryRate, nil, &resp)
 }
+
+// -----------------------------------  Mining Endpoints  -----------------------------
+// The endpoints below allow to interact with Binance Pool.
+// For more information on this, please refer to the Binance Pool page
+
+// AcquiringAlgorithm retrieves list of algorithms
+func (b *Binance) AcquiringAlgorithm(ctx context.Context) (*AlgorithmsList, error) {
+	var resp *AlgorithmsList
+	return resp, b.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, "/sapi/v1/mining/pub/algoList", spotDefaultRate, &resp)
+}
+
+// GetCoinNames retrieves coin names
+func (b *Binance) GetCoinNames(ctx context.Context) (*CoinNames, error) {
+	var resp *CoinNames
+	return resp, b.SendHTTPRequest(ctx, exchange.RestSpot, "/sapi/v1/mining/pub/coinList", spotDefaultRate, &resp)
+}
+
+// GetDetailMinerList retrieves list of miners name and other details.
+func (b *Binance) GetDetailMinerList(ctx context.Context, algorithm, userName, workerName string) (*MinersDetailList, error) {
+	if workerName == "" {
+		return nil, errors.New("worker's name is required")
+	}
+	params, err := fillMinersRetrivalParams(algorithm, userName, workerName)
+	if err != nil {
+		return nil, err
+	}
+	var resp *MinersDetailList
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/mining/worker/detail", params, getMinersListRate, nil, &resp)
+}
+
+// GetMinersList retrieves miners info
+func (b *Binance) GetMinersList(ctx context.Context, algorithm, userName string, sortInNegativeSequence bool, pageIndex, sortColumn, workerStatus int64) (*MinerLists, error) {
+	params, err := fillMinersRetrivalParams(algorithm, userName, "")
+	if err != nil {
+		return nil, err
+	}
+	if sortInNegativeSequence {
+		params.Set("sort", "1")
+	}
+	if pageIndex > 0 {
+		params.Set("pageIndex", strconv.FormatInt(pageIndex, 10))
+	}
+	// Sort by( default 1):
+	// 	1: miner name
+	// 	2: real-time computing power
+	// 	3: daily average computing power
+	// 	4: real-time rejection rate
+	// 	5: last submission time
+	if sortColumn > 0 {
+		params.Set("sortColumn", strconv.FormatInt(sortColumn, 10))
+	}
+	if workerStatus > 0 {
+		params.Set("workerStatus", strconv.FormatInt(workerStatus, 10))
+	}
+	var resp *MinerLists
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/mining/worker/detail", params, getMinersListRate, nil, &resp)
+}
+
+func fillMinersRetrivalParams(algorithm, userName, workerName string) (url.Values, error) {
+	if algorithm == "" {
+		return nil, errors.New("algorithm name is required")
+	}
+	if userName == "" {
+		return nil, errors.New("mining account name is required")
+	}
+	params := url.Values{}
+	params.Set("algo", algorithm)
+	params.Set("userName", userName)
+	if workerName != "" {
+		params.Set("workerName", workerName)
+	}
+	return params, nil
+}
+
+// GetEarningList retrieves list of earning list
+func (b *Binance) GetEarningList(ctx context.Context, transferAlgorithm, userName string, coin currency.Code, startDate, endDate time.Time, pageIndex, pageSize int64) (*EarningList, error) {
+	if transferAlgorithm == "" {
+		return nil, errors.New("transfer algorithm is required")
+	}
+	if userName == "" {
+		return nil, errors.New("user name is required")
+	}
+	params := url.Values{}
+	params.Set("algo", transferAlgorithm)
+	params.Set("userName", userName)
+	if !coin.IsEmpty() {
+		params.Set("coin", coin.String())
+	}
+	if !startDate.IsZero() && !endDate.IsZero() {
+		err := common.StartEndTimeCheck(startDate, endDate)
+		if err != nil {
+			return nil, err
+		}
+		params.Set("startDate", strconv.FormatInt(startDate.UnixMilli(), 10))
+		params.Set("endDate", strconv.FormatInt(endDate.UnixMilli(), 10))
+	}
+	if pageIndex > 0 {
+		params.Set("pageIndex", strconv.FormatInt(pageIndex, 10))
+	}
+	if pageSize > 0 {
+		params.Set("pageSize", strconv.FormatInt(pageSize, 10))
+	}
+	var resp *EarningList
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/mining/payment/list", params, getEarningsListRate, nil, &resp)
+}
+
+// GetHashrateRescaleList represents hashrate rescale list
+func (b *Binance) GetHashrateRescaleList(ctx context.Context, pageIndex, pageSize int64) (*HashrateHashTransfers, error) {
+	params := url.Values{}
+	if pageIndex > 0 {
+		params.Set("pageIndex", strconv.FormatInt(pageIndex, 10))
+	}
+	if pageSize > 0 {
+		params.Set("pageSize", strconv.FormatInt(pageSize, 10))
+	}
+	var resp *HashrateHashTransfers
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/mining/hash-transfer/config/details/list", params, getHashrateRescaleRate, nil, &resp)
+}
+
+// GetHashrateRescaleDetail retrieves a hashrate rescale detail
+func (b *Binance) GetHashrateRescaleDetail(ctx context.Context, configID, userName string, pageIndex, pageSize int64) (*HashrateRescaleDetail, error) {
+	if configID == "" {
+		return nil, errors.New("config ID is required")
+	}
+	if userName == "" {
+		return nil, errors.New("user name is required")
+	}
+	params := url.Values{}
+	params.Set("configId", configID)
+	params.Set("userName", userName)
+	if pageIndex > 0 {
+		params.Set("pageIndex", strconv.FormatInt(pageIndex, 10))
+	}
+	if pageSize > 0 {
+		params.Set("pageSize", strconv.FormatInt(pageSize, 10))
+	}
+	var resp *HashrateRescaleDetail
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/mining/hash-transfer/profit/details", params, getHashrateRescaleDetailRate, nil, &resp)
+}
+
+// HashrateRescaleRequest retrieves a hashrate rescale request
+func (b *Binance) HashrateRescaleRequest(ctx context.Context, userName, algorithm, toPoolUser string, startTime, endTime time.Time, hashRate int64) (*HashrateRescalResponse, error) {
+	if userName == "" {
+		return nil, errors.New("userName is required")
+	}
+	if algorithm == "" {
+		return nil, errors.New("transfer algorithm is required")
+	}
+	params := url.Values{}
+	if !startTime.IsZero() && !endTime.IsZero() {
+		err := common.StartEndTimeCheck(startTime, endTime)
+		if err != nil {
+			return nil, err
+		}
+		params.Set("startDate", strconv.FormatInt(startTime.UnixMilli(), 10))
+		params.Set("endDate", strconv.FormatInt(endTime.UnixMilli(), 10))
+	} else {
+		return nil, common.ErrDateUnset
+	}
+	if toPoolUser == "" {
+		return nil, errors.New("reciever mining account is required")
+	}
+	if hashRate > 0 {
+		return nil, errors.New("hash rate is required")
+	}
+	params.Set("userName", userName)
+	params.Set("algo", algorithm)
+	params.Set("toPoolUser", toPoolUser)
+	params.Set("hashRate", strconv.FormatInt(hashRate, 10))
+	var resp *HashrateRescalResponse
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/sapi/v1/mining/hash-transfer/config", params, getHasrateRescaleRequestRate, nil, &resp)
+}
+
+// CancelHashrateRescaleConfiguration retrieves cancel hashrate rescale configuration
+func (b *Binance) CancelHashrateRescaleConfiguration(ctx context.Context, configID, userName string) (*HashrateRescalResponse, error) {
+	if configID == "" {
+		return nil, errors.New("config ID is required")
+	}
+	if userName == "" {
+		return nil, errors.New("user name is required")
+	}
+	params := url.Values{}
+	params.Set("configId", configID)
+	params.Set("userName", userName)
+	var resp *HashrateRescalResponse
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/sapi/v1/mining/hash-transfer/config/cancel", params, cancelHashrateResaleConfigurationRate, nil, &resp)
+}
+
+// StatisticsList represents a statistics list
+func (b *Binance) StatisticsList(ctx context.Context, algorithm, userName string) (*UserStatistics, error) {
+	if algorithm == "" {
+		return nil, errors.New("transfer algorithm is required")
+	}
+	if userName == "" {
+		return nil, errors.New("user name is required")
+	}
+	params := url.Values{}
+	params.Set("algo", algorithm)
+	params.Set("userName", userName)
+	var resp *UserStatistics
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/mining/statistics/user/status", params, statisticsListRate, nil, &resp)
+}
+
+// GetAccountList retrieves account list
+func (b *Binance) GetAccountList(ctx context.Context, algorithm, userName string) (*MiningAccounts, error) {
+	if algorithm == "" {
+		return nil, errors.New("transfer algorithm is required")
+	}
+	if userName == "" {
+		return nil, errors.New("user name is required")
+	}
+	params := url.Values{}
+	params.Set("algo", algorithm)
+	params.Set("userName", userName)
+	var resp *MiningAccounts
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/mining/statistics/user/list", params, miningAccountListRate, nil, &resp)
+}
+
+// GetMiningAccountEarningRate represents a mining account earning rate
+func (b *Binance) GetMiningAccountEarningRate(ctx context.Context, algorithm string, startTime, endTime time.Time, pageIndex, pageSize int64) (*MiningAccountEarnings, error) {
+	if algorithm == "" {
+		return nil, errors.New("transfer algorithm is required")
+	}
+	params := url.Values{}
+	params.Set("algo", algorithm)
+	if !startTime.IsZero() && !endTime.IsZero() {
+		err := common.StartEndTimeCheck(startTime, endTime)
+		if err != nil {
+			return nil, err
+		}
+		params.Set("startDate", strconv.FormatInt(startTime.UnixMilli(), 10))
+		params.Set("endDate", strconv.FormatInt(endTime.UnixMilli(), 10))
+	}
+	if pageIndex > 0 {
+		params.Set("pageIndex", strconv.FormatInt(pageIndex, 10))
+	}
+	if pageSize > 0 {
+		params.Set("pageSize", strconv.FormatInt(pageSize, 10))
+	}
+	var resp *MiningAccountEarnings
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/mining/payment/uid", params, miningAccountEarningRate, nil, &resp)
+}

@@ -4212,3 +4212,178 @@ type WBETHRewardHistory struct {
 	} `json:"rows"`
 	Total int64 `json:"total"`
 }
+
+// AlgorithmsList represents list of mining algorithms.
+type AlgorithmsList struct {
+	Code int64  `json:"code"`
+	Msg  string `json:"msg"`
+	Data []struct {
+		AlgoName  string `json:"algoName"`
+		AlgoID    int    `json:"algoId"`    // Algorithm ID
+		PoolIndex int    `json:"poolIndex"` // Sequence
+		Unit      string `json:"unit"`
+	} `json:"data"`
+}
+
+// CoinNames represents represents coins and corresponding algorithms used
+type CoinNames struct {
+	Code int64  `json:"code"`
+	Msg  string `json:"msg"`
+	Data []struct {
+		CoinName  string `json:"coinName"`
+		CoinID    int64  `json:"coinId"`
+		PoolIndex int64  `json:"poolIndex"`
+		AlgoID    int64  `json:"algoId"`
+		AlgoName  string `json:"algoName"`
+	} `json:"data"`
+}
+
+// MinersDetailList represents list of miners and their detail
+type MinersDetailList struct {
+	Code int    `json:"code"`
+	Msg  string `json:"msg"`
+	Data []struct {
+		WorkerName    string `json:"workerName"` // Mining Account name
+		Type          string `json:"type"`       // Type of hourly hashrate
+		HashrateDatas []struct {
+			Time     convert.ExchangeTime `json:"time"`
+			Hashrate string               `json:"hashrate"`
+			Reject   int64                `json:"reject"` // Rejection Rate
+		} `json:"hashrateDatas"`
+	} `json:"data"`
+}
+
+// MinerLists represents list of miners
+type MinerLists struct {
+	Code int64  `json:"code"`
+	Msg  string `json:"msg"`
+	Data struct {
+		WorkerDatas []struct {
+			WorkerID      string               `json:"workerId"`
+			WorkerName    string               `json:"workerName"`
+			Status        int64                `json:"status"`
+			HashRate      int64                `json:"hashRate"`
+			DayHashRate   int64                `json:"dayHashRate"`
+			RejectRate    int64                `json:"rejectRate"`
+			LastShareTime convert.ExchangeTime `json:"lastShareTime"`
+		} `json:"workerDatas"`
+		TotalNum int64 `json:"totalNum"`
+		PageSize int64 `json:"pageSize"`
+	} `json:"data"`
+}
+
+// EarningList represents list of mining payments list
+type EarningList struct {
+	Code int64  `json:"code"`
+	Msg  string `json:"msg"`
+	Data struct {
+		AccountProfits []struct {
+			Time           convert.ExchangeTime `json:"time"`
+			Type           int64                `json:"type"`
+			HashTransfer   float64              `json:"hashTransfer"`
+			TransferAmount float64              `json:"transferAmount"`
+			DayHashRate    int64                `json:"dayHashRate"`
+			ProfitAmount   float64              `json:"profitAmount"`
+			CoinName       string               `json:"coinName"`
+			Status         int                  `json:"status"`
+		} `json:"accountProfits"`
+		TotalNum int64 `json:"totalNum"`
+		PageSize int64 `json:"pageSize"`
+	} `json:"data"`
+}
+
+// HashrateHashTransfers represents a hashrate rescale list.
+type HashrateHashTransfers struct {
+	Code int64  `json:"code"`
+	Msg  string `json:"msg"`
+	Data struct {
+		ConfigDetails []struct {
+			ConfigID       int64                `json:"configId"`       // Mining ID
+			PoolUsername   string               `json:"poolUsername"`   // Transfer out of subaccount
+			ToPoolUsername string               `json:"toPoolUsername"` // Transfer into subaccount
+			AlgoName       string               `json:"algoName"`       // Transfer algorithm
+			HashRate       int64                `json:"hashRate"`       // Transferred Hashrate quantity
+			StartDay       convert.ExchangeTime `json:"startDay"`
+			EndDay         convert.ExchangeTime `json:"endDay"`
+			Status         int64                `json:"status"` // Status：0 Processing，1：Cancelled，2：Terminated
+		} `json:"configDetails"`
+		TotalNum int64 `json:"totalNum"`
+		PageSize int64 `json:"pageSize"`
+	} `json:"data"`
+}
+
+// HashrateRescaleDetail represents  a hashrate rescale detail
+type HashrateRescaleDetail struct {
+	Code int64  `json:"code"`
+	Msg  string `json:"msg"`
+	Data struct {
+		ProfitTransferDetails []struct {
+			PoolUsername   string  `json:"poolUsername"`   // Transfer out of sub-account
+			ToPoolUsername string  `json:"toPoolUsername"` // Transfer into subaccount
+			AlgoName       string  `json:"algoName"`       // Transfer algorithm
+			HashRate       int64   `json:"hashRate"`       // Transferred Hashrate quantity
+			Day            int     `json:"day"`
+			Amount         float64 `json:"amount"`
+			CoinName       string  `json:"coinName"`
+		} `json:"profitTransferDetails"`
+		TotalNum int64 `json:"totalNum"`
+		PageSize int64 `json:"pageSize"`
+	} `json:"data"`
+}
+
+// HashrateRescalResponse represents a response for hashrate rescale request
+type HashrateRescalResponse struct {
+	Code int64  `json:"code"`
+	Msg  string `json:"msg"`
+	Data int64  `json:"data"`
+}
+
+// UserStatistics represents user mining statistics
+type UserStatistics struct {
+	Code int    `json:"code"`
+	Msg  string `json:"msg"`
+	Data struct {
+		FifteenMinHashRate string                  `json:"fifteenMinHashRate"`
+		DayHashRate        string                  `json:"dayHashRate"`
+		ValidNum           int64                   `json:"validNum"`
+		InvalidNum         int64                   `json:"invalidNum"`
+		ProfitToday        map[string]types.Number `json:"profitToday"`
+		ProfitYesterday    map[string]types.Number `json:"profitYesterday"`
+		UserName           string                  `json:"userName"`
+		Unit               string                  `json:"unit"`
+		Algo               string                  `json:"algo"`
+	} `json:"data"`
+}
+
+// MiningAccounts represents a mining account list
+type MiningAccounts struct {
+	Code int64  `json:"code"`
+	Msg  string `json:"msg"`
+	Data []struct {
+		Type     string `json:"type"`     // Type of hourly hashrate. eg. H_hashrate: hourly hash rate, D_hashrate: ...
+		UserName string `json:"userName"` // Mining account
+		List     []struct {
+			Time     convert.ExchangeTime `json:"time"`
+			Hashrate types.Number         `json:"hashrate"`
+			Reject   string               `json:"reject"` // Rejection Rate
+		} `json:"list"`
+	} `json:"data"`
+}
+
+// MiningAccountEarnings represents a mining account earning details.
+type MiningAccountEarnings struct {
+	Code int64  `json:"code"`
+	Msg  string `json:"msg"`
+	Data struct {
+		AccountProfits []struct {
+			Time         convert.ExchangeTime `json:"time"`
+			CoinName     string               `json:"coinName"`
+			Type         int64                `json:"type"` // 0:Referral 1：Refund 2：Rebate
+			SubAccountID int64                `json:"puid"`
+			SubName      string               `json:"subName"` // Mining account
+			Amount       float64              `json:"amount"`
+		} `json:"accountProfits"`
+		TotalNum int64 `json:"totalNum"`
+		PageSize int64 `json:"pageSize"`
+	} `json:"data"`
+}

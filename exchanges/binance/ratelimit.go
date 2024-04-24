@@ -66,6 +66,15 @@ const (
 	depositAddressesRate
 	assetDividendRecordRate
 	userAssetsRate
+	getMinersListRate
+	getEarningsListRate
+	getHashrateRescaleRate
+	getHashrateRescaleDetailRate
+	getHasrateRescaleRequestRate
+	cancelHashrateResaleConfigurationRate
+	statisticsListRate
+	miningAccountListRate
+	miningAccountEarningRate
 	getDepositAddressListInNetworkRate
 	getUserWalletBalanceRate
 	getUserDelegationHistoryRate
@@ -291,7 +300,16 @@ func (r *RateLimit) Limit(ctx context.Context, f request.EndpointLimit) error {
 	case spotHistoricalTradesRate,
 		spotOrderbookDepth100Rate,
 		marginMaxBorrowRate,
-		userAssetsRate:
+		userAssetsRate,
+		getMinersListRate,
+		getEarningsListRate,
+		getHashrateRescaleRate,
+		getHashrateRescaleDetailRate,
+		getHasrateRescaleRequestRate,
+		cancelHashrateResaleConfigurationRate,
+		statisticsListRate,
+		miningAccountListRate,
+		miningAccountEarningRate:
 		limiter, tokens = r.SpotRate, 5
 
 	case spotOrderbookDepth500Rate,
