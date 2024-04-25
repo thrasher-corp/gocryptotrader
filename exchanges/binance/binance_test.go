@@ -6230,3 +6230,201 @@ func TestGetMiningAccountEarningRate(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
+
+func TestNewFuturesAccountTransfer(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	result, err := b.NewFuturesAccountTransfer(context.Background(), currency.ETH, 0.001, 2)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetFuturesAccountTransactionHistoryList(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	result, err := b.GetFuturesAccountTransactionHistoryList(context.Background(), currency.BTC, time.Now().Add(-time.Hour*20), time.Time{}, 10, 20)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetFutureTickLevelOrderbookHistoricalDataDownloadLink(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetFutureTickLevelOrderbookHistoricalDataDownloadLink(context.Background(), "BTCUSDT", "T_DEPTH", time.Now().Add(-time.Hour*48), time.Now().Add(-time.Hour*3))
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestVolumeParticipationNewOrder(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	_, err := b.VolumeParticipationNewOrder(context.Background(), &VolumeParticipationOrderParams{})
+	require.ErrorIs(t, err, common.ErrNilPointer)
+	result, err := b.VolumeParticipationNewOrder(context.Background(), &VolumeParticipationOrderParams{
+		Symbol:       "BTCUSDT",
+		Side:         "SELL",
+		PositionSide: "BOTH",
+		Quantity:     0.012,
+		Urgency:      "HIGH",
+	})
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestTWAPOrder(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	_, err := b.FuturesTWAPOrder(context.Background(), &TWAPOrderParams{})
+	require.ErrorIs(t, err, common.ErrNilPointer)
+	result, err := b.FuturesTWAPOrder(context.Background(), &TWAPOrderParams{
+		Symbol:       "BTCUSDT",
+		Side:         "SELL",
+		PositionSide: "BOTH",
+		Quantity:     0.012,
+		Duration:     1000,
+	})
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestCancelAlgoOrder(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	result, err := b.CancelFuturesAlgoOrder(context.Background(), 1234)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetCurrentAlgoOpenOrders(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetFuturesCurrentAlgoOpenOrders(context.Background())
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetHistoricalAlgoOrders(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetFuturesHistoricalAlgoOrders(context.Background(), "BNBUSDT", "BUY", time.Time{}, time.Time{}, 10, 100)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetSubOrders(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetFuturesSubOrders(context.Background(), 1234, 0, 40)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestTWAPNewOrder(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	_, err := b.SpotTWAPNewOrder(context.Background(), &SpotTWAPOrderParam{})
+	require.ErrorIs(t, err, common.ErrNilPointer)
+	result, err := b.SpotTWAPNewOrder(context.Background(), &SpotTWAPOrderParam{
+		Symbol:   "BTCUSDT",
+		Side:     "SELL",
+		Quantity: 0.012,
+		Duration: 86400,
+	})
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestCancelSpotAlgoOrder(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	result, err := b.CancelSpotAlgoOrder(context.Background(), 1234)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetCurrentSpotAlgoOpenOrder(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetCurrentSpotAlgoOpenOrder(context.Background())
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetSpotHistoricalAlgoOrders(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetSpotHistoricalAlgoOrders(context.Background(), "BNBUSDT", "BUY", time.Time{}, time.Time{}, 10, 100)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func GetSpotSubOrders(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetSpotSubOrders(context.Background(), 1234, 0, 40)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetClassicPortfolioMarginAccountInfo(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetClassicPortfolioMarginAccountInfo(context.Background())
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetClassicPortfolioMarginCollateralRate(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetClassicPortfolioMarginCollateralRate(context.Background())
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetClassicPortfolioMarginBankruptacyLoanAmount(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetClassicPortfolioMarginBankruptacyLoanAmount(context.Background())
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestRepayClassicPMBankruptacyLoan(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	result, err := b.RepayClassicPMBankruptacyLoan(context.Background(), "SPOT")
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetClassicPMNegativeBalanceInterestHistory(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetClassicPMNegativeBalanceInterestHistory(context.Background(), currency.ETH, time.Now().Add(-time.Hour*240), time.Now(), 10)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetPMAssetIndexPrice(t *testing.T) {
+	t.Parallel()
+	result, err := b.GetPMAssetIndexPrice(context.Background(), currency.ETH)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestClassicPMFundAutoCollection(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.ClassicPMFundAutoCollection(context.Background())
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestClassicFundCollectionByAsset(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	result, err := b.ClassicFundCollectionByAsset(context.Background(), currency.LTC)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}

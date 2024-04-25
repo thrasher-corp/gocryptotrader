@@ -4387,3 +4387,162 @@ type MiningAccountEarnings struct {
 		PageSize int64 `json:"pageSize"`
 	} `json:"data"`
 }
+
+// FundTransferResponse represents a transfer response.
+type FundTransferResponse struct {
+	TransferID int64 `json:"transId"`
+}
+
+// FutureFundTransfers represents list of fund transfers between spot and futures accounts.
+type FutureFundTransfers struct {
+	Rows []struct {
+		Asset     string               `json:"asset"`
+		TranID    int64                `json:"tranId"`
+		Amount    types.Number         `json:"amount"`
+		Type      string               `json:"type"`
+		Timestamp convert.ExchangeTime `json:"timestamp"`
+		Status    string               `json:"status"`
+	} `json:"rows"`
+	Total int64 `json:"total"`
+}
+
+// HistoricalOrderbookDownloadLink represents a download link information for historical orderbook data.
+type HistoricalOrderbookDownloadLink struct {
+	Data []struct {
+		Day string `json:"day"`
+		URL string `json:"url"`
+	} `json:"data"`
+}
+
+// VolumeParticipationOrderParams represents a volume participation new order.
+type VolumeParticipationOrderParams struct {
+	Symbol       string  `json:"symbol"`
+	Side         string  `json:"side"`                   // Trading side ( BUY or SELL )
+	PositionSide string  `json:"positionSide,omitempty"` // Default BOTH for One-way Mode ; LONG or SHORT for Hedge Mode. It must be sent in Hedge Mode.
+	Quantity     float64 `json:"quantity"`               //Quantity of base asset; The notional (quantity * mark price(base asset)) must be more than the equivalent of 1,000 USDT and less than the equivalent of 1,000,000 USDT
+	Urgency      string  `json:"urgency"`                // Represent the relative speed of the current execution; ENUM: LOW, MEDIUM, HIGH
+	ClientAlgoID string  `json:"clientAlgoId,omitempty"`
+	ReduceOnly   bool    `json:"reduceOnly,omitempty"`
+	LimitPrice   float64 `json:"limitPrice,omitempty"` // Limit price of the order; If it is not sent, will place order by market price by default
+}
+
+// TWAPOrderParams represents a time-weighted average price(TWAP) order parameters.
+type TWAPOrderParams struct {
+	Symbol       string  `json:"symbol"`
+	Side         string  `json:"side"`
+	PositionSide string  `json:"positionSide,omitempty"`
+	Quantity     float64 `json:"quantity"`
+	Duration     int64   `json:"duration"`
+	ClientAlgoID string  `json:"clientAlgoId,omitempty"`
+	ReduceOnly   bool    `json:"reduceOnly,omitempty"`
+	LimitPrice   float64 `json:"limitPrice,omitempty"`
+}
+
+// AlgoOrderResponse represents a response after placing structure of TWAP and VP, and cancelling algo order
+type AlgoOrderResponse struct {
+	ClientAlgoID string `json:"clientAlgoId"`
+	Success      bool   `json:"success"`
+	Code         int64  `json:"code"`
+	Msg          string `json:"msg"`
+
+	// AlgoID used when cancelling an algo order.
+	AlgoID int64 `json:"algoId"`
+}
+
+// AlgoOrders represents an algo order instance.
+type AlgoOrders struct {
+	Total  int64 `json:"total"`
+	Orders []struct {
+		AlgoID       int64                `json:"algoId"`
+		Symbol       string               `json:"symbol"`
+		Side         string               `json:"side"`
+		PositionSide string               `json:"positionSide"`
+		TotalQty     types.Number         `json:"totalQty"`
+		ExecutedQty  types.Number         `json:"executedQty"`
+		ExecutedAmt  types.Number         `json:"executedAmt"`
+		AvgPrice     types.Number         `json:"avgPrice"`
+		ClientAlgoID string               `json:"clientAlgoId"`
+		BookTime     convert.ExchangeTime `json:"bookTime"`
+		EndTime      convert.ExchangeTime `json:"endTime"`
+		AlgoStatus   string               `json:"algoStatus"`
+		AlgoType     string               `json:"algoType"`
+		Urgency      string               `json:"urgency"`
+	} `json:"orders"`
+}
+
+// AlgoSubOrders represents an algo sub-order
+type AlgoSubOrders struct {
+	Total       int64        `json:"total"`
+	ExecutedQty types.Number `json:"executedQty"`
+	ExecutedAmt types.Number `json:"executedAmt"`
+	SubOrders   []struct {
+		AlgoID      int64                `json:"algoId"`
+		OrderID     int64                `json:"orderId"`
+		OrderStatus string               `json:"orderStatus"`
+		ExecutedQty types.Number         `json:"executedQty"`
+		ExecutedAmt types.Number         `json:"executedAmt"`
+		FeeAmt      types.Number         `json:"feeAmt"`
+		FeeAsset    string               `json:"feeAsset"`
+		BookTime    convert.ExchangeTime `json:"bookTime"`
+		AvgPrice    types.Number         `json:"avgPrice"`
+		Side        string               `json:"side"`
+		Symbol      string               `json:"symbol"`
+		SubID       int64                `json:"subId"`
+		TimeInForce string               `json:"timeInForce"`
+		OrigQty     types.Number         `json:"origQty"`
+	} `json:"subOrders"`
+}
+
+// SpotTWAPOrderParam represents a spot time-weighted averaged price(TWAP) order params.
+type SpotTWAPOrderParam struct {
+	Symbol       string  `json:"symbol"`
+	Side         string  `json:"side"`
+	Quantity     float64 `json:"quantity"`
+	Duration     int64   `json:"duration"`
+	ClientAlgoID string  `json:"clientAlgoId,omitempty"`
+	LimitPrice   float64 `json:"limitPrice,omitempty"`
+	STPMode      string  `json:"stpMode,omitempty"`
+}
+
+// ClassicPMAccountInfo represents a classic portfolio margin account information.
+type ClassicPMAccountInfo struct {
+	UniMMR             string `json:"uniMMR"`             // Classic Portfolio margin account maintenance margin rate
+	AccountEquity      string `json:"accountEquity"`      // Account equity, unit：USD
+	ActualEquity       string `json:"actualEquity"`       // Actual equity, unit：USD
+	AccountMaintMargin string `json:"accountMaintMargin"` // Classic Portfolio margin account maintenance margin, unit：USD
+	AccountStatus      string `json:"accountStatus"`      // Classic Portfolio margin account status:"NORMAL", "MARGIN_CALL", "SUPPLY_MARGIN", "REDUCE_ONLY", "ACTIVE_LIQUIDATION", "FORCE_LIQUIDAT
+	AccountType        string `json:"accountType"`        // PM_1 for classic PM, PM_2 for PM
+}
+
+// PMCollateralRate represents a classic portfolio margin collateral rate
+type PMCollateralRate struct {
+	Asset          string       `json:"asset"`
+	CollateralRate types.Number `json:"collateralRate"`
+}
+
+// PMBankruptacyLoanAmount represents a classic portfolio margin bankruptcy loan amount
+type PMBankruptacyLoanAmount struct {
+	Asset  string       `json:"asset"`
+	Amount types.Number `json:"amount"` // portfolio margin bankruptcy loan amount in BUSD
+}
+
+// PMNegativeBalaceInterestHistory represents a portfolio margin negative balance interest history.
+type PMNegativeBalaceInterestHistory struct {
+	Asset               string               `json:"asset"`
+	Interest            types.Number         `json:"interest"` // interest amount
+	InterestAccruedTime convert.ExchangeTime `json:"interestAccruedTime"`
+	InterestRate        types.Number         `json:"interestRate"` // daily interest rate
+	Principal           string               `json:"principal"`
+}
+
+// PMIndexPrice represents PM asset index price
+type PMIndexPrice struct {
+	Asset           string               `json:"asset"`
+	AssetIndexPrice types.Number         `json:"assetIndexPrice"`
+	Time            convert.ExchangeTime `json:"time"`
+}
+
+// FundAutoCollectionResponse represents futures Account to Margin account transfer response.
+type FundAutoCollectionResponse struct {
+	Message string `json:"msg"`
+}

@@ -128,6 +128,18 @@ const (
 	wbethWrapOrUnwrapHistoryRate
 	wbethRewardsHistoryRate
 
+	futuresFundTransfersFetchRate
+	futureTickLevelOrderbookHistoricalDataDownloadLinkRate
+	pmAssetIndexPriceRate
+	fundAutoCollectionRate
+	transferBNBRate
+
+	// planceVOOrderRate
+	classicPMAccountInfoRate
+	classicPMCollateralRate
+	classicPMNegativeBalanceInterestHistory
+	fundCollectionByAssetRate
+
 	spotOpenOrdersSpecificRate
 	spotOrderRate
 	spotOrderQueryRate
@@ -309,7 +321,8 @@ func (r *RateLimit) Limit(ctx context.Context, f request.EndpointLimit) error {
 		cancelHashrateResaleConfigurationRate,
 		statisticsListRate,
 		miningAccountListRate,
-		miningAccountEarningRate:
+		miningAccountEarningRate,
+		classicPMAccountInfoRate:
 		limiter, tokens = r.SpotRate, 5
 
 	case spotOrderbookDepth500Rate,
@@ -322,7 +335,10 @@ func (r *RateLimit) Limit(ctx context.Context, f request.EndpointLimit) error {
 		limiter, tokens = r.SpotRate, 20
 	case spotOrderbookDepth1000Rate,
 		maxTransferOutRate,
-		marginAccountSummaryRate:
+		marginAccountSummaryRate,
+		classicPMCollateralRate,
+		classicPMNegativeBalanceInterestHistory,
+		pmAssetIndexPriceRate:
 		limiter, tokens = r.SpotRate, 50
 	case walletSystemStatus:
 		limiter, tokens = r.SpotRate, 1
@@ -369,14 +385,16 @@ func (r *RateLimit) Limit(ctx context.Context, f request.EndpointLimit) error {
 		marginAccountOpenOCOOrdersRate,
 		marginAccountTradeListRate,
 		borrowRepayRecordsInMarginAccountRate,
-		getPriceMarginIndexRate:
+		getPriceMarginIndexRate,
+		futuresFundTransfersFetchRate:
 		limiter, tokens = r.SpotRate, 10
 
 	case marginCurrentOrderCountUsageRate:
 		limiter, tokens = r.SpotRate, 20
 	case getUserWalletBalanceRate,
 		getUserDelegationHistoryRate,
-		getSubAccountAssetRate:
+		getSubAccountAssetRate,
+		fundCollectionByAssetRate:
 		limiter, tokens = r.SpotRate, 60
 	case symbolDelistScheduleForSpotRate,
 		crossMarginCollateralRatioRate,
@@ -407,12 +425,15 @@ func (r *RateLimit) Limit(ctx context.Context, f request.EndpointLimit) error {
 		wbethWrapOrUnwrapHistoryRate,
 		wbethRewardsHistoryRate:
 		limiter, tokens = r.SpotRate, 150
-	case marginAccountsAllOrdersRate:
+	case fundAutoCollectionRate,
+		transferBNBRate:
+		limiter, tokens = r.SpotRate, 1500
+	case marginAccountsAllOrdersRate,
+		futureTickLevelOrderbookHistoricalDataDownloadLinkRate,
+		getMarginAccountAllOCORate:
 		limiter, tokens = r.SpotRate, 200
 	case ocoOrderRate:
 		limiter, tokens = r.SpotOrdersRate, 2
-	case getMarginAccountAllOCORate:
-		limiter, tokens = r.SpotRate, 200
 	case getManagedSubAccountSnapshotRate:
 		limiter, tokens = r.SpotRate, 2400
 	case currentOrderCountUsageRate,

@@ -5085,7 +5085,7 @@ func (b *Binance) HashrateRescaleRequest(ctx context.Context, userName, algorith
 		params.Set("startDate", strconv.FormatInt(startTime.UnixMilli(), 10))
 		params.Set("endDate", strconv.FormatInt(endTime.UnixMilli(), 10))
 	} else {
-		return nil, common.ErrDateUnset
+		return nil, fmt.Errorf("%w, start time and end time are required", common.ErrDateUnset)
 	}
 	if toPoolUser == "" {
 		return nil, errors.New("reciever mining account is required")
@@ -5170,3 +5170,352 @@ func (b *Binance) GetMiningAccountEarningRate(ctx context.Context, algorithm str
 	var resp *MiningAccountEarnings
 	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/mining/payment/uid", params, miningAccountEarningRate, nil, &resp)
 }
+
+// ---------------------------------- Futures Endpoints --------------------------------
+
+// NewFuturesAccountTransfer execute transfer between spot account and futures account.
+// transferType
+// 1: transfer from spot account to USDT-Ⓜ futures account.
+// 2: transfer from USDT-Ⓜ futures account to spot account.
+// 3: transfer from spot account to COIN-Ⓜ futures account.
+// 4: transfer from COIN-Ⓜ futures account to spot account.
+func (b *Binance) NewFuturesAccountTransfer(ctx context.Context, assetName currency.Code, amount float64, transferType int64) (*FundTransferResponse, error) {
+	if assetName.IsEmpty() {
+		return nil, fmt.Errorf("%w, assetName is required", currency.ErrCurrencyCodeEmpty)
+	}
+	if amount <= 0 {
+		return nil, order.ErrAmountBelowMin
+	}
+	if transferType == 0 {
+		return nil, errors.New("transfer type is required")
+	}
+	params := url.Values{}
+	params.Set("asset", assetName.String())
+	params.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
+	var resp *FundTransferResponse
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/sapi/v1/futures/transfer", params, spotDefaultRate, nil, &resp)
+}
+
+// GetFuturesAccountTransactionHistoryList retrieves list of futures account transfer transactions.
+//
+// Support query within the last 6 months only
+func (b *Binance) GetFuturesAccountTransactionHistoryList(ctx context.Context, assetName currency.Code, startTime, endTime time.Time, current, size int64) (*FutureFundTransfers, error) {
+	if startTime.IsZero() {
+		return nil, errors.New("start time is required")
+	}
+	params, err := fillHistoryRetrievalParams(startTime, endTime, current, size)
+	if err != nil {
+		return nil, err
+	}
+	if !assetName.IsEmpty() {
+		params.Set("asset", assetName.String())
+	}
+	var resp *FutureFundTransfers
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/futures/transfer", params, futuresFundTransfersFetchRate, nil, &resp)
+}
+
+// GetFutureTickLevelOrderbookHistoricalDataDownloadLink retrieves the orderbook historical data download link.
+//
+// dataType: possible values are 'T_DEPTH' for ticklevel orderbook data, 'S_DEPTH' for orderbook snapshot data
+func (b *Binance) GetFutureTickLevelOrderbookHistoricalDataDownloadLink(ctx context.Context, symbol, dataType string, startTime, endTime time.Time) (*HistoricalOrderbookDownloadLink, error) {
+	if symbol == "" {
+		return nil, currency.ErrSymbolStringEmpty
+	}
+	if dataType == "" {
+		return nil, errors.New("dataType is required, possible values are 'T_DEPTH', and 'S_DEPTH'")
+	}
+	params := url.Values{}
+	params.Set("symbol", symbol)
+	params.Set("dataType", dataType)
+	if !startTime.IsZero() && !endTime.IsZero() {
+		err := common.StartEndTimeCheck(startTime, endTime)
+		if err != nil {
+			return nil, err
+		}
+		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
+	} else {
+		return nil, fmt.Errorf("%w, start time and end time are required", common.ErrDateUnset)
+	}
+	var resp *HistoricalOrderbookDownloadLink
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/futures/histDataLink", params, futureTickLevelOrderbookHistoricalDataDownloadLinkRate, nil, &resp)
+}
+
+// ------------------------------  Futures Algo Endpoints  ----------------------------------
+//
+// Binance Futures Execution Algorithm API solution aims to provide users ability to programmatically
+// leverage Binance in-house algorithmic trading capability to automate order execution strategy,
+// improve execution transparency and give users smart access to the available market liquidity.
+func (b *Binance) VolumeParticipationNewOrder(ctx context.Context, arg *VolumeParticipationOrderParams) (*AlgoOrderResponse, error) {
+	if arg == nil || *arg == (VolumeParticipationOrderParams{}) {
+		return nil, common.ErrNilPointer
+	}
+	if arg.Symbol == "" {
+		return nil, currency.ErrSymbolStringEmpty
+	}
+	if arg.Side == "" {
+		return nil, order.ErrSideIsInvalid
+	}
+	if arg.Quantity <= 0 {
+		return nil, order.ErrAmountBelowMin
+	}
+	if arg.Urgency == "" {
+		return nil, errors.New("urgency field is required, with possible values of 'LOW', 'MEDIUM', and 'HIGH'")
+	}
+	var resp *AlgoOrderResponse
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/sapi/v1/algo/futures/newOrderVp", nil /*planceVOOrderRate*/, spotDefaultRate, arg, &resp)
+}
+
+// FuturesTWAPOrder placed futures time-weighted average price(TWAP) order.
+func (b *Binance) FuturesTWAPOrder(ctx context.Context, arg *TWAPOrderParams) (*AlgoOrderResponse, error) {
+	if arg == nil || *arg == (TWAPOrderParams{}) {
+		return nil, common.ErrNilPointer
+	}
+	if arg.Symbol == "" {
+		return nil, currency.ErrSymbolStringEmpty
+	}
+	if arg.Side == "" {
+		return nil, order.ErrSideIsInvalid
+	}
+	if arg.Quantity <= 0 {
+		return nil, order.ErrAmountBelowMin
+	}
+	if arg.Duration == 0 {
+		return nil, errors.New("duration is required: duration for TWAP orders in seconds. [300, 86400]")
+	}
+	var resp *AlgoOrderResponse
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/sapi/v1/algo/futures/newOrderTwap", nil, spotDefaultRate, arg, &resp)
+}
+
+// CancelFuturesAlgoOrder cancels futures an active algo order.
+//
+// You need to enable Futures Trading Permission for the api key which requests this endpoint.
+// Base URL: https://api.binance.com
+func (b *Binance) CancelFuturesAlgoOrder(ctx context.Context, algoID int64) (*AlgoOrderResponse, error) {
+	return b.cancelAlgoOrder(ctx, algoID, "/sapi/v1/algo/futures/order")
+}
+
+func (b *Binance) cancelAlgoOrder(ctx context.Context, algoID int64, path string) (*AlgoOrderResponse, error) {
+	if algoID == 0 {
+		return nil, errors.New("algoID is required")
+	}
+	params := url.Values{}
+	params.Set("algoId", strconv.FormatInt(algoID, 10))
+	var resp *AlgoOrderResponse
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodDelete, path, params, spotDefaultRate, nil, &resp)
+}
+
+// GetFuturesCurrentAlgoOpenOrders retrieves futures current algo open orders
+//
+// You need to enable Futures Trading Permission for the api key which requests this endpoint.
+// Base URL: https://api.binance.com
+func (b *Binance) GetFuturesCurrentAlgoOpenOrders(ctx context.Context) (*AlgoOrders, error) {
+	var resp *AlgoOrders
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/algo/futures/openOrders", nil, spotDefaultRate, nil, &resp)
+}
+
+// GetFuturesHistoricalAlgoOrders represents a historical algo order instance.
+func (b *Binance) GetFuturesHistoricalAlgoOrders(ctx context.Context, symbol, side string, startTime, endTime time.Time, page, pageSize int64) (*AlgoOrders, error) {
+	return b.getHistoricalAlgoOrders(ctx, symbol, side, "/sapi/v1/algo/futures/historicalOrders", startTime, endTime, page, pageSize)
+}
+
+func (b *Binance) getHistoricalAlgoOrders(ctx context.Context, symbol, side, path string, startTime, endTime time.Time, page, pageSize int64) (*AlgoOrders, error) {
+	params := url.Values{}
+	if symbol != "" {
+		params.Set("symbol", symbol)
+	}
+	if side != "" {
+		params.Set("side", side)
+	}
+	if !startTime.IsZero() && !endTime.IsZero() {
+		err := common.StartEndTimeCheck(startTime, endTime)
+		if err != nil {
+			return nil, err
+		}
+		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
+	}
+	if page > 0 {
+		params.Set("page", strconv.FormatInt(page, 10))
+	}
+	if pageSize > 0 {
+		params.Set("pageSize", strconv.FormatInt(pageSize, 10))
+	}
+	var resp *AlgoOrders
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, params, spotDefaultRate, nil, &resp)
+}
+
+// GetFuturesSubOrders get respective sub orders for a specified algoId
+//
+// You need to enable Futures Trading Permission for the api key which requests this endpoint.
+// Base URL: https://api.binance.com
+func (b *Binance) GetFuturesSubOrders(ctx context.Context, algoID, page, pageSize int64) (*AlgoSubOrders, error) {
+	return b.getSubOrders(ctx, algoID, page, pageSize, "/sapi/v1/algo/futures/subOrders")
+}
+
+func (b *Binance) getSubOrders(ctx context.Context, algoID, page, pageSize int64, path string) (*AlgoSubOrders, error) {
+	if algoID == 0 {
+		return nil, errors.New("algo ID is required")
+	}
+	params := url.Values{}
+	params.Set("algoId", strconv.FormatInt(algoID, 10))
+	if page > 0 {
+		params.Set("page", strconv.FormatInt(page, 10))
+	}
+	if pageSize > 0 {
+		params.Set("pageSize", strconv.FormatInt(pageSize, 10))
+	}
+	var resp *AlgoSubOrders
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, params, spotDefaultRate, nil, &resp)
+}
+
+// -----------------------------------------  Spot Algo Endpoints  --------------------------------------------
+// Binance Spot Execution Algorithm API solution aims to provide users ability to programmatically leverage Binance in-house algorithmic trading capability to automate order execution strategy,
+// improve execution transparency and give users smart access to the available market liquidity. During the introductory period, there will be no additional fees for TWAP orders.
+// Standard trading fees apply. Order size exceeds to maximum API supported size (100,000 USDT). Please contact liquidity@binance.com for larger sizes.
+
+// SpotTWAPNewOrder puts spot Time-Weighted Average Price(TWAP) orders
+func (b *Binance) SpotTWAPNewOrder(ctx context.Context, arg *SpotTWAPOrderParam) (*AlgoOrderResponse, error) {
+	if arg == nil || *arg == (SpotTWAPOrderParam{}) {
+		return nil, common.ErrNilPointer
+	}
+	if arg.Symbol == "" {
+		return nil, currency.ErrSymbolStringEmpty
+	}
+	if arg.Side == "" {
+		return nil, order.ErrSideIsInvalid
+	}
+	if arg.Quantity <= 0 {
+		return nil, order.ErrAmountBelowMin
+	}
+	if arg.Duration == 0 {
+		return nil, errors.New("duration is required: duration for TWAP orders in seconds. [300, 86400]")
+	}
+	var resp *AlgoOrderResponse
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/algo/spot/newOrderTwap", nil, spotDefaultRate, arg, &resp)
+}
+
+// CancelSpotAlgoOrder cancels an open spot TWAP order
+func (b *Binance) CancelSpotAlgoOrder(ctx context.Context, algoID int64) (*AlgoOrderResponse, error) {
+	return b.cancelAlgoOrder(ctx, algoID, "/sapi/v1/algo/spot/order")
+}
+
+// GetCurrentSpotAlgoOpenOrder retrieves all open SPOT TWAP orders.
+func (b *Binance) GetCurrentSpotAlgoOpenOrder(ctx context.Context) (*AlgoOrders, error) {
+	var resp *AlgoOrders
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/algo/spot/openOrders", nil, spotDefaultRate, nil, &resp)
+}
+
+// GetSpotHistoricalAlgoOrders retrieves all historical SPOT TWAP Orders
+func (b *Binance) GetSpotHistoricalAlgoOrders(ctx context.Context, symbol, side string, startTime, endTime time.Time, page, pageSize int64) (*AlgoOrders, error) {
+	return b.getHistoricalAlgoOrders(ctx, symbol, side, "/sapi/v1/algo/spot/historicalOrders", startTime, endTime, page, pageSize)
+}
+
+// GetSpotSubOrders get respective sub orders for a specified algoId
+func (b *Binance) GetSpotSubOrders(ctx context.Context, algoID, page, pageSize int64) (*AlgoSubOrders, error) {
+	return b.getSubOrders(ctx, algoID, page, pageSize, "/sapi/v1/algo/spot/subOrders")
+}
+
+// -------------------------------------- Classic Portfolio Margin Endpoints -------------------------------------------
+// The Binance Classic Portfolio Margin Program is a cross-asset margin program supporting consolidated margin balance across trading products with over 200+ effective crypto collaterals.
+// It is designed for professional traders, market makers, and institutional users looking to actively trade & hedge cross-asset and optimize risk-management in a consolidated setup.
+// Only Classic Portfolio Margin Account is accessible to these endpoints.
+
+// GetClassicPortfolioMarginAccountInfo retrieves classic portfolio margin account information.
+func (b *Binance) GetClassicPortfolioMarginAccountInfo(ctx context.Context) (*ClassicPMAccountInfo, error) {
+	var resp *ClassicPMAccountInfo
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/portfolio/account", nil, classicPMAccountInfoRate, nil, &resp)
+}
+
+// GetClassicPortfolioMarginCollateralRate retrieves classic Portfolio Margin Collateral Rate
+func (b *Binance) GetClassicPortfolioMarginCollateralRate(ctx context.Context) ([]PMCollateralRate, error) {
+	var resp []PMCollateralRate
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/portfolio/collateralRate", nil, classicPMCollateralRate, nil, &resp)
+}
+
+// GetClassicPortfolioMarginBankruptacyLoanAmount query Classic Portfolio Margin Bankruptcy Loan Amount
+func (b *Binance) GetClassicPortfolioMarginBankruptacyLoanAmount(ctx context.Context) (*PMBankruptacyLoanAmount, error) {
+	var resp *PMBankruptacyLoanAmount
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/portfolio/pmLoan", nil, spotDefaultRate, nil, &resp)
+}
+
+// RepayClassicPMBankruptacyLoan repay Classic Portfolio Margin Bankruptcy Loan
+// from: SPOT or MARGIN，default SPOT
+func (b *Binance) RepayClassicPMBankruptacyLoan(ctx context.Context, from string) (*FundTransferResponse, error) {
+	params := url.Values{}
+	if from != "" {
+		params.Set("from", from)
+	}
+	var resp *FundTransferResponse
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/sapi/v1/portfolio/repay", params, spotDefaultRate, nil, &resp)
+}
+
+// GetClassicPMNegativeBalanceInterestHistory query interest history of negative balance for portfolio margin.
+func (b *Binance) GetClassicPMNegativeBalanceInterestHistory(ctx context.Context, assetName currency.Code, startTime, endTime time.Time, size int64) ([]PMNegativeBalaceInterestHistory, error) {
+	params := url.Values{}
+	if !assetName.IsEmpty() {
+		params.Set("asset", assetName.String())
+	}
+	if !startTime.IsZero() && !endTime.IsZero() {
+		err := common.StartEndTimeCheck(startTime, endTime)
+		if err != nil {
+			return nil, err
+		}
+		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
+	}
+	if size > 0 {
+		params.Set("size", strconv.FormatInt(size, 10))
+	}
+	var resp []PMNegativeBalaceInterestHistory
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/portfolio/interest-history", params, classicPMNegativeBalanceInterestHistory, nil, &resp)
+}
+
+// GetPMAssetIndexPrice query Portfolio Margin Asset Index Price
+func (b *Binance) GetPMAssetIndexPrice(ctx context.Context, assetName currency.Code) ([]PMIndexPrice, error) {
+	params := url.Values{}
+	endpointLimit := pmAssetIndexPriceRate
+	if assetName.IsEmpty() {
+		endpointLimit = spotDefaultRate
+		params.Set("asset", assetName.String())
+	}
+	var resp []PMIndexPrice
+	return resp, b.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues("/sapi/v1/portfolio/asset-index-price", params), endpointLimit, &resp)
+}
+
+// ClassicPMFundAutoCollection transfers all assets from Futures Account to Margin account
+//
+// The BNB would not be collected from UM-PM account to the Portfolio Margin account.
+// You can only use this function 500 times per hour in a rolling manner.
+func (b *Binance) ClassicPMFundAutoCollection(ctx context.Context) (*FundAutoCollectionResponse, error) {
+	var resp *FundAutoCollectionResponse
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/sapi/v1/portfolio/auto-collection", nil, fundAutoCollectionRate, nil, &resp)
+}
+
+// ClassicFundCollectionByAsset transfers specific asset from Futures Account to Margin account
+func (b *Binance) ClassicFundCollectionByAsset(ctx context.Context, assetName currency.Code) (*FundAutoCollectionResponse, error) {
+	if assetName.IsEmpty() {
+		return nil, currency.ErrCurrencyCodeEmpty
+	}
+	params := url.Values{}
+	params.Set("asset", assetName.String())
+	var resp *FundAutoCollectionResponse
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/sapi/v1/portfolio/asset-collection", params, fundCollectionByAssetRate, nil, &resp)
+}
+
+// BNBTransfer BNB transfer can be between Margin Account and USDM Account
+// transferSide: "TO_UM","FROM_UM"
+// func (b *Binance) BNBTransfer(ctx context.Context, amount float64, transferSide string) (int64, error) {
+// 	if amount <= 0 {
+// 		return 0, errors.New("amount below min")
+// 	}
+// 	if transferSide == "" {
+// 		return 0, errors.New("transfer side is required")
+// 	}
+// 	params := url.Values{}
+// 	resp := &struct {
+// 		TransferID int64 `json:"tranId"`
+// 	}{}
+// 	return resp.TransferID, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, , params, , nil, &resp)
+// 	return b.bnbTransfer(ctx, amount, transferSide, "/papi/v1/bnb-transfer", transferBNBRate)
+// }

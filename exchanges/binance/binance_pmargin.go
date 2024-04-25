@@ -1061,6 +1061,10 @@ func (b *Binance) FundCollectionByAsset(ctx context.Context, assetName currency.
 // BNBTransfer Transfer BNB assets
 // transferSize: "TO_UM","FROM_UM"
 func (b *Binance) BNBTransfer(ctx context.Context, amount float64, transferSide string) (string, error) {
+	return b.bnbTransfer(ctx, amount, transferSide, "/papi/v1/bnb-transfer", pmBNBTransferRate)
+}
+
+func (b *Binance) bnbTransfer(ctx context.Context, amount float64, transferSide, path string, endpointLimit request.EndpointLimit) (string, error) {
 	params := url.Values{}
 	if amount > 0 {
 		params.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
@@ -1071,7 +1075,7 @@ func (b *Binance) BNBTransfer(ctx context.Context, amount float64, transferSide 
 	resp := &struct {
 		TransactionID string `json:"transId"`
 	}{}
-	return resp.TransactionID, b.SendAuthHTTPRequest(ctx, exchange.RestFuturesSupplementary, http.MethodPost, "/papi/v1/bnb-transfer", params, pmBNBTransferRate, nil, &resp)
+	return resp.TransactionID, b.SendAuthHTTPRequest(ctx, exchange.RestFuturesSupplementary, http.MethodPost, path, params, endpointLimit, nil, &resp)
 }
 
 // GetUMIncomeHistory retrieves USDT margined futures income history
