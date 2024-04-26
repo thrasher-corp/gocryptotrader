@@ -8,7 +8,7 @@ DRIVER ?= psql
 RACE_FLAG := $(if $(NO_RACE_TEST),,-race)
 CONFIG_FLAG = $(if $(CONFIG),-config $(CONFIG),)
 
-.PHONY: get linter check test build install update_deps
+.PHONY: get linter check test build install update_deps lint_configs
 
 all: check build
 
@@ -61,3 +61,19 @@ endif
 target/sqlboiler.json:
 	mkdir -p $(@D)
 	go run ./cmd/gen_sqlboiler_config/main.go $(CONFIG_FLAG) -outdir $(@D)
+
+.PHONY: lint_configs
+lint_configs: check-jq
+	@$(call sort-json,config_example.json)
+	@$(call sort-json,testdata/configtest.json)
+
+define sort-json
+	@echo "Processing $(1)..."
+	@jq '.exchanges |= sort_by(.name)' --indent 1 $(1) > $(1).temp && \
+		(mv $(1).temp $(1)) || \
+		(rm $(1).temp; echo "jq processing failed on $(1)"; exit 1)
+endef
+
+check-jq:
+	@echo "Checking if jq is installed..."
+	@command -v jq >/dev/null 2>&1 || { echo >&2 "jq is not installed. Please install jq to proceed."; exit 1; }
