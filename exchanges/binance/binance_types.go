@@ -4546,3 +4546,63 @@ type PMIndexPrice struct {
 type FundAutoCollectionResponse struct {
 	Message string `json:"msg"`
 }
+
+// PMAssetLeverage represents an asset leverage
+type PMAssetLeverage struct {
+	Asset    string `json:"asset"`
+	Leverage int64  `json:"leverage"`
+}
+
+// BLVTTokenDetail represents a binance leverage token detail
+type BLVTTokenDetail struct {
+	TokenName      string `json:"tokenName"`
+	Description    string `json:"description"`
+	Underlying     string `json:"underlying"`
+	TokenIssued    string `json:"tokenIssued"`
+	Basket         string `json:"basket"`
+	CurrentBaskets []struct {
+		Symbol        string       `json:"symbol"`
+		Amount        types.Number `json:"amount"`
+		NotionalValue string       `json:"notionalValue"`
+	} `json:"currentBaskets"`
+	Nav                string               `json:"nav"`
+	RealLeverage       types.Number         `json:"realLeverage"`
+	FundingRate        types.Number         `json:"fundingRate"`
+	DailyManagementFee types.Number         `json:"dailyManagementFee"`
+	PurchaseFeePct     types.Number         `json:"purchaseFeePct"`
+	DailyPurchaseLimit types.Number         `json:"dailyPurchaseLimit"`
+	RedeemFeePct       types.Number         `json:"redeemFeePct"`
+	DailyRedeemLimit   types.Number         `json:"dailyRedeemLimit"`
+	Timestamp          convert.ExchangeTime `json:"timestamp"`
+}
+
+// BLVTSubscriptionResponse represents a subscription to BLVT token
+type BLVTSubscriptionResponse struct {
+	ID        int64                `json:"id"`
+	Status    string               `json:"status"` // S, P, and F for "success", "pending", and "failure"
+	TokenName string               `json:"tokenName"`
+	Amount    types.Number         `json:"amount"` // subscribed token amount
+	Cost      types.Number         `json:"cost"`   // subscription cost in usdt
+	Timestamp convert.ExchangeTime `json:"timestamp"`
+}
+
+// BLVTTokenSubscriptionItem represents a subscription instances for BLVT token name.
+type BLVTTokenSubscriptionItem struct {
+	ID          int64                `json:"id"`
+	TokenName   string               `json:"tokenName"`
+	Amount      types.Number         `json:"amount"`
+	Nav         string               `json:"nav"`
+	Fee         types.Number         `json:"fee"`
+	TotalCharge string               `json:"totalCharge"`
+	Timestamp   convert.ExchangeTime `json:"timestamp"`
+}
+
+// BLVTRedemption represents a BLVT redemption response.
+type BLVTRedemption struct {
+	ID           int64                `json:"id"`
+	Status       string               `json:"status"`
+	TokenName    string               `json:"tokenName"`
+	RedeemAmount types.Number         `json:"redeemAmount"`
+	Amount       types.Number         `json:"amount"`
+	Timestamp    convert.ExchangeTime `json:"timestamp"`
+}

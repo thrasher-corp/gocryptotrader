@@ -509,7 +509,7 @@ type AccountDetail struct {
 
 // AutoRepayStatus represents an auto-repay status
 type AutoRepayStatus struct {
-	AutoRepay bool `json:"autoRepay"`
+	AutoRepay bool `json:"autoRepay"` // "true" for turn on the auto-repay futures; "false" for turn off the auto-repay futures
 }
 
 // ADLQuantileEstimation represents an ADL quantile estimation instance.

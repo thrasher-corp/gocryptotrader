@@ -133,6 +133,10 @@ const (
 	pmAssetIndexPriceRate
 	fundAutoCollectionRate
 	transferBNBRate
+	changeAutoRepayFuturesStatusRate
+	getAutoRepayFuturesStatusRate
+	repayFuturesNegativeBalanceRate
+	pmAssetLeverageRate
 
 	// planceVOOrderRate
 	classicPMAccountInfoRate
@@ -333,12 +337,16 @@ func (r *RateLimit) Limit(ctx context.Context, f request.EndpointLimit) error {
 		accountTradeListRate,
 		spotExchangeInfo:
 		limiter, tokens = r.SpotRate, 20
+
+	case getAutoRepayFuturesStatusRate:
+		limiter, tokens = r.SpotRate, 30
 	case spotOrderbookDepth1000Rate,
 		maxTransferOutRate,
 		marginAccountSummaryRate,
 		classicPMCollateralRate,
 		classicPMNegativeBalanceInterestHistory,
-		pmAssetIndexPriceRate:
+		pmAssetIndexPriceRate,
+		pmAssetLeverageRate:
 		limiter, tokens = r.SpotRate, 50
 	case walletSystemStatus:
 		limiter, tokens = r.SpotRate, 1
@@ -426,7 +434,9 @@ func (r *RateLimit) Limit(ctx context.Context, f request.EndpointLimit) error {
 		wbethRewardsHistoryRate:
 		limiter, tokens = r.SpotRate, 150
 	case fundAutoCollectionRate,
-		transferBNBRate:
+		transferBNBRate,
+		changeAutoRepayFuturesStatusRate,
+		repayFuturesNegativeBalanceRate:
 		limiter, tokens = r.SpotRate, 1500
 	case marginAccountsAllOrdersRate,
 		futureTickLevelOrderbookHistoricalDataDownloadLinkRate,

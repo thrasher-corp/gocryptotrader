@@ -1060,11 +1060,11 @@ func (b *Binance) FundCollectionByAsset(ctx context.Context, assetName currency.
 
 // BNBTransfer Transfer BNB assets
 // transferSize: "TO_UM","FROM_UM"
-func (b *Binance) BNBTransfer(ctx context.Context, amount float64, transferSide string) (string, error) {
-	return b.bnbTransfer(ctx, amount, transferSide, "/papi/v1/bnb-transfer", pmBNBTransferRate)
+func (b *Binance) BNBTransfer(ctx context.Context, amount float64, transferSide string) (int64, error) {
+	return b.bnbTransfer(ctx, amount, transferSide, "/papi/v1/bnb-transfer", pmBNBTransferRate, exchange.RestFuturesSupplementary)
 }
 
-func (b *Binance) bnbTransfer(ctx context.Context, amount float64, transferSide, path string, endpointLimit request.EndpointLimit) (string, error) {
+func (b *Binance) bnbTransfer(ctx context.Context, amount float64, transferSide, path string, endpointLimit request.EndpointLimit, exchangeURL exchange.URL) (int64, error) {
 	params := url.Values{}
 	if amount > 0 {
 		params.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
@@ -1073,9 +1073,9 @@ func (b *Binance) bnbTransfer(ctx context.Context, amount float64, transferSide,
 		params.Set("transferSide", transferSide)
 	}
 	resp := &struct {
-		TransactionID string `json:"transId"`
+		TransactionID int64 `json:"transId"`
 	}{}
-	return resp.TransactionID, b.SendAuthHTTPRequest(ctx, exchange.RestFuturesSupplementary, http.MethodPost, path, params, endpointLimit, nil, &resp)
+	return resp.TransactionID, b.SendAuthHTTPRequest(ctx, exchangeURL, http.MethodPost, path, params, endpointLimit, nil, &resp)
 }
 
 // GetUMIncomeHistory retrieves USDT margined futures income history
@@ -1129,6 +1129,10 @@ func (b *Binance) getUMCMAccountDetail(ctx context.Context, path string, endpoin
 
 // ChangeAutoRepayFuturesStatus change Auto-repay-futures Status
 func (b *Binance) ChangeAutoRepayFuturesStatus(ctx context.Context, autoRepay bool) (string, error) {
+	return b.changeAutoRepayFuturesStatus(ctx, autoRepay, exchange.RestFuturesSupplementary, "/papi/v1/repay-futures-switch", pmChangeAutoRepayFuturesStatusRate)
+}
+
+func (b *Binance) changeAutoRepayFuturesStatus(ctx context.Context, autoRepay bool, exchURL exchange.URL, path string, epl request.EndpointLimit) (string, error) {
 	params := url.Values{}
 	if autoRepay {
 		params.Set("autoRepay", "true")
@@ -1138,7 +1142,7 @@ func (b *Binance) ChangeAutoRepayFuturesStatus(ctx context.Context, autoRepay bo
 	resp := &struct {
 		Msg string `json:"msg"`
 	}{}
-	return resp.Msg, b.SendAuthHTTPRequest(ctx, exchange.RestFuturesSupplementary, http.MethodPost, "/papi/v1/repay-futures-switch", params, pmChangeAutoRepayFuturesStatusRate, nil, &resp)
+	return resp.Msg, b.SendAuthHTTPRequest(ctx, exchURL, http.MethodPost, path, params, epl, nil, &resp)
 }
 
 // GetAutoRepayFuturesStatus query Auto-repay-futures Status

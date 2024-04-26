@@ -5503,19 +5503,102 @@ func (b *Binance) ClassicFundCollectionByAsset(ctx context.Context, assetName cu
 	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/sapi/v1/portfolio/asset-collection", params, fundCollectionByAssetRate, nil, &resp)
 }
 
-// BNBTransfer BNB transfer can be between Margin Account and USDM Account
+// BNBTransferClassic BNB transfer can be between Margin Account and USDM Account
 // transferSide: "TO_UM","FROM_UM"
-// func (b *Binance) BNBTransfer(ctx context.Context, amount float64, transferSide string) (int64, error) {
-// 	if amount <= 0 {
-// 		return 0, errors.New("amount below min")
-// 	}
-// 	if transferSide == "" {
-// 		return 0, errors.New("transfer side is required")
-// 	}
-// 	params := url.Values{}
-// 	resp := &struct {
-// 		TransferID int64 `json:"tranId"`
-// 	}{}
-// 	return resp.TransferID, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, , params, , nil, &resp)
-// 	return b.bnbTransfer(ctx, amount, transferSide, "/papi/v1/bnb-transfer", transferBNBRate)
-// }
+func (b *Binance) BNBTransferClassic(ctx context.Context, amount float64, transferSide string) (int64, error) {
+	return b.bnbTransfer(ctx, amount, transferSide, "/sapi/v1/portfolio/bnb-transfer", transferBNBRate, exchange.RestSpot)
+}
+
+// ChangeAutoRepayFuturesStatusClassic change Auto-repay-futures Status
+func (b *Binance) ChangeAutoRepayFuturesStatusClassic(ctx context.Context, autoRepay bool) (string, error) {
+	return b.changeAutoRepayFuturesStatus(ctx, autoRepay, exchange.RestSpot, "/sapi/v1/portfolio/repay-futures-switch", changeAutoRepayFuturesStatusRate)
+}
+
+// GetAutoRepayFuturesStatusClassic get Auto-repay-futures Status
+func (b *Binance) GetAutoRepayFuturesStatusClassic(ctx context.Context) (*AutoRepayStatus, error) {
+	var resp *AutoRepayStatus
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/portfolio/repay-futures-switch", nil, getAutoRepayFuturesStatusRate, nil, &resp)
+}
+
+// RepayFuturesNegativeBalanceClassic represents a classic repay futures negative balance
+func (b *Binance) RepayFuturesNegativeBalanceClassic(ctx context.Context) (string, error) {
+	resp := &struct {
+		Message string `json:"msg"`
+	}{}
+	return resp.Message, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/sapi/v1/portfolio/repay-futures-negative-balance", nil, repayFuturesNegativeBalanceRate, nil, &resp)
+}
+
+// GetPortfolioMarginAssetLeverage retrieves portfolio margin asset leverage classic
+func (b *Binance) GetPortfolioMarginAssetLeverage(ctx context.Context) ([]PMAssetLeverage, error) {
+	var resp []PMAssetLeverage
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/portfolio/margin-asset-leverage", nil, pmAssetLeverageRate, nil, &resp)
+}
+
+// ----------------------------------  Binance Leverate Token(BLVT) Endpoints  ------------------------------
+
+// GetBLVTInfo retrieves details of binance leverage tokens.
+func (b *Binance) GetBLVTInfo(ctx context.Context, tokenName string) ([]BLVTTokenDetail, error) {
+	params := url.Values{}
+	if tokenName != "" {
+		params.Set("tokenName", tokenName)
+	}
+	var resp []BLVTTokenDetail
+	return resp, b.SendHTTPRequest(ctx, exchange.RestSpot, "/sapi/v1/blvt/tokenInfo", spotDefaultRate, &resp)
+}
+
+// SubscribeBLVT subscribe to BLVT token
+func (b *Binance) SubscribeBLVT(ctx context.Context, tokenName string, cost float64) (*BLVTSubscriptionResponse, error) {
+	params := url.Values{}
+	if tokenName == "" {
+		return nil, errors.New("BLVT token name is required")
+	}
+	if cost <= 0 {
+		return nil, errors.New("cost must be greater than 0")
+	}
+	params.Set("tokenName", tokenName)
+	var resp *BLVTSubscriptionResponse
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/sapi/v1/blvt/subscribe", params, spotDefaultRate, nil, &resp)
+}
+
+// GetSusbcriptionRecords retrieves BLVT tokens subscriptions
+func (b *Binance) GetSusbcriptionRecords(ctx context.Context, tokenName string, startTime, endTime time.Time, id, limit int64) ([]BLVTTokenSubscriptionItem, error) {
+	params := url.Values{}
+	if tokenName != "" {
+		params.Set("tokenName", tokenName)
+	}
+	if id > 0 {
+		params.Set("id", strconv.FormatInt(id, 10))
+	}
+	if !startTime.IsZero() && !endTime.IsZero() {
+		err := common.StartEndTimeCheck(startTime, endTime)
+		if err != nil {
+			return nil, err
+		}
+		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	var resp []BLVTTokenSubscriptionItem
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/blvt/subscribe/record", params, spotDefaultRate, nil, &resp)
+}
+
+// RedeemBLVT redeems a BLVT token
+// You need to openEnable Spot&Margin Trading permission for the API Key which requests this endpoint.
+func (b *Binance) RedeemBLVT(ctx context.Context, tokenName string, amount float64) (*BLVTRedemption, error) {
+	if tokenName == "" {
+		return nil, errors.New("token name is required")
+	}
+	if amount <= 0 {
+		return nil, order.ErrAmountBelowMin
+	}
+	params := url.Values{}
+	params.Set("tokenName", tokenName)
+	params.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
+	var resp *BLVTRedemption
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/sapi/v1/blvt/redeem", params, spotDefaultRate, nil, &resp)
+}
+
+// GetRedemptionRecord 
+func (b *Binance) GetRedemptionRecord(ctx context.Context, tokenName string, startTime, endTime time.Time, id, limit int64)

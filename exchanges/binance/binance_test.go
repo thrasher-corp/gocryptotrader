@@ -5294,6 +5294,14 @@ func TestFundCollectionByAsset(t *testing.T) {
 	assert.NotNil(t, result)
 }
 
+func TestBNBTransferClassic(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	result, err := b.BNBTransferClassic(context.Background(), 0.0001, "TO_UM")
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
 func TestBNBTransfer(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
@@ -6425,6 +6433,69 @@ func TestClassicFundCollectionByAsset(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
 	result, err := b.ClassicFundCollectionByAsset(context.Background(), currency.LTC)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestChangeAutoRepayFuturesStatusClassic(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	result, err := b.ChangeAutoRepayFuturesStatusClassic(context.Background(), false)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetAutoRepayFuturesStatusClassic(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetAutoRepayFuturesStatusClassic(context.Background())
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestRepayFuturesNegativeBalanceClassic(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.RepayFuturesNegativeBalanceClassic(context.Background())
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetPortfolioMarginAssetLeverage(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetPortfolioMarginAssetLeverage(context.Background())
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetBLVTInfo(t *testing.T) {
+	t.Parallel()
+	result, err := b.GetBLVTInfo(context.Background(), "BTCDOWN")
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestSubscribeBLVT(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.SubscribeBLVT(context.Background(), "BTCUP", 0.011)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetSusbcriptionRecords(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetSusbcriptionRecords(context.Background(), "BTCDOWN", time.Time{}, time.Time{}, 10, 20)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestRedeemBLVT(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.RedeemBLVT(context.Background(), "BTCDOWN", 2)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
