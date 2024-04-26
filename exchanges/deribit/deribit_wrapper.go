@@ -807,7 +807,7 @@ func (d *Deribit) CancelAllOrders(ctx context.Context, orderCancellation *order.
 	if err := orderCancellation.Validate(); err != nil {
 		return order.CancelAllResponse{}, err
 	}
-	var cancelData *OrderCancelationResponse
+	var cancelData int64
 	pairFmt, err := d.GetPairFormat(orderCancellation.AssetType, true)
 	if err != nil {
 		return order.CancelAllResponse{}, err
@@ -831,7 +831,7 @@ func (d *Deribit) CancelAllOrders(ctx context.Context, orderCancellation *order.
 	if err != nil {
 		return order.CancelAllResponse{}, err
 	}
-	return order.CancelAllResponse{Count: int64(cancelData.CancelCount)}, nil
+	return order.CancelAllResponse{Count: int64(cancelData)}, nil
 }
 
 // GetOrderInfo returns order information based on order ID
@@ -1422,6 +1422,7 @@ func (d *Deribit) GetFuturesPositionSummary(ctx context.Context, r *futures.Posi
 	for a := range pos {
 		if pos[a].InstrumentName == fPair.String() {
 			index = a
+			break
 		}
 	}
 	if index == -1 {
@@ -1439,6 +1440,7 @@ func (d *Deribit) GetFuturesPositionSummary(ctx context.Context, r *futures.Posi
 		}
 		multiplier = contracts[i].Multiplier
 		settlementType = contracts[i].SettlementType
+		break
 	}
 
 	var baseSize float64
@@ -1480,7 +1482,7 @@ func (d *Deribit) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]fu
 			return nil, fmt.Errorf("%w %v %v", asset.ErrNotSupported, k[i].Asset, k[i].Pair())
 		}
 	}
-	result := make([]futures.OpenInterest, len(k))
+	result := make([]futures.OpenInterest, 0, len(k))
 	var err error
 	var pair currency.Pair
 	for i := range k {
@@ -1501,7 +1503,7 @@ func (d *Deribit) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]fu
 			if oi[a].InstrumentName != pair.String() {
 				continue
 			}
-			result[i] = futures.OpenInterest{
+			result = append(result, futures.OpenInterest{
 				Key: key.ExchangePairAsset{
 					Exchange: d.Name,
 					Base:     k[i].Base,
@@ -1509,7 +1511,7 @@ func (d *Deribit) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]fu
 					Asset:    k[i].Asset,
 				},
 				OpenInterest: oi[a].OpenInterest,
-			}
+			})
 			break
 		}
 	}

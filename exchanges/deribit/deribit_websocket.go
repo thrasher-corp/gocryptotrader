@@ -25,11 +25,12 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
+var deribitWebsocketAddress = "wss://www.deribit.com/ws" + deribitAPIVersion
+
 const (
-	deribitWebsocketAddress = "wss://www.deribit.com/ws" + deribitAPIVersion
-	rpcVersion              = "2.0"
-	rateLimit               = 20
-	errAuthFailed           = 1002
+	rpcVersion    = "2.0"
+	rateLimit     = 20
+	errAuthFailed = 1002
 
 	// public websocket channels
 	announcementsChannel                   = "announcements"

@@ -756,7 +756,7 @@ type TransactionLogData struct {
 	UserSeq         int64                `json:"user_seq"`
 	UserID          int64                `json:"user_id"`
 	TransactionType string               `json:"transaction_type"`
-	TradeID         int64                `json:"trade_id"`
+	TradeID         string               `json:"trade_id"`
 	Timestamp       convert.ExchangeTime `json:"timestamp"`
 	Side            string               `json:"side"`
 	Price           float64              `json:"price"`
@@ -1467,63 +1467,6 @@ type ErrInfo struct {
 		Reason string `json:"reason"`
 	} `json:"data"`
 	Code int64 `json:"code"`
-}
-
-// CancelResponse represents a detailed order cancel response.
-type CancelResponse struct {
-	Currency       string `json:"currency"`
-	Type           string `json:"type"`
-	InstrumentName string `json:"instrument_name"`
-	Result         []struct {
-		Web                 bool                 `json:"web"`
-		Triggered           bool                 `json:"triggered"`
-		TriggerPrice        float64              `json:"trigger_price"`
-		Trigger             string               `json:"trigger"`
-		TimeInForce         string               `json:"time_in_force"`
-		StopPrice           float64              `json:"stop_price"`
-		Replaced            bool                 `json:"replaced"`
-		ReduceOnly          bool                 `json:"reduce_only"`
-		PriceType           string               `json:"price"`
-		PostOnly            bool                 `json:"post_only"`
-		OrderType           string               `json:"order_type"`
-		OrderState          string               `json:"order_state"`
-		OrderID             string               `json:"order_id"`
-		MaxShow             int64                `json:"max_show"`
-		LastUpdateTimestamp convert.ExchangeTime `json:"last_update_timestamp"`
-		Label               string               `json:"label"`
-		IsRebalance         bool                 `json:"is_rebalance"`
-		IsLiquidation       bool                 `json:"is_liquidation"`
-		InstrumentName      string               `json:"instrument_name"`
-		Direction           string               `json:"direction"`
-		CreationTimestamp   convert.ExchangeTime `json:"creation_timestamp"`
-		API                 bool                 `json:"api"`
-		Amount              float64              `json:"amount"`
-	} `json:"result"`
-}
-
-// OrderCancelationResponse represents an order cancellation response
-type OrderCancelationResponse struct {
-	CancelResponse []CancelResponse
-	CancelCount    int
-}
-
-// UnmarshalJSON represents an order cancellation response
-func (a *OrderCancelationResponse) UnmarshalJSON(data []byte) error {
-	err := json.Unmarshal(data, &a.CancelCount)
-	if err != nil {
-		err = json.Unmarshal(data, &a.CancelResponse)
-		if err != nil {
-			var resp CancelResponse
-			err = json.Unmarshal(data, &resp)
-			if err != nil {
-				return err
-			}
-			a.CancelResponse = []CancelResponse{resp}
-			return nil
-		}
-		a.CancelCount = len(a.CancelResponse)
-	}
-	return nil
 }
 
 // CustodyAccount retrieves user custody accounts list.

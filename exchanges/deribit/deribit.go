@@ -1717,6 +1717,7 @@ func (d *Deribit) SubmitCancelAll(ctx context.Context) (int64, error) {
 }
 
 // SubmitCancelAllByCurrency sends a request to cancel all user orders for the specified currency
+// returns the total number of successfully cancelled orders
 func (d *Deribit) SubmitCancelAllByCurrency(ctx context.Context, ccy currency.Code, kind, orderType string) (int64, error) {
 	if ccy.IsEmpty() {
 		return 0, fmt.Errorf("%w '%s'", currency.ErrCurrencyCodeEmpty, ccy)
@@ -1736,9 +1737,10 @@ func (d *Deribit) SubmitCancelAllByCurrency(ctx context.Context, ccy currency.Co
 
 // SubmitCancelAllByKind cancels all orders in currency(currencies), optionally filtered by instrument kind and/or order type.
 // 'kind' instrument kind . Possible values: 'future', 'option', 'spot', 'future_combo', 'option_combo', 'combo', 'any'
-func (d *Deribit) SubmitCancelAllByKind(ctx context.Context, ccy currency.Code, kind, orderType string, detailed bool) (*OrderCancelationResponse, error) {
+// returns the total number of successfully cancelled orders
+func (d *Deribit) SubmitCancelAllByKind(ctx context.Context, ccy currency.Code, kind, orderType string, detailed bool) (int64, error) {
 	if ccy.IsEmpty() {
-		return nil, fmt.Errorf("%w '%s'", currency.ErrCurrencyCodeEmpty, ccy)
+		return 0, fmt.Errorf("%w '%s'", currency.ErrCurrencyCodeEmpty, ccy)
 	}
 	params := url.Values{}
 	params.Set("currency", ccy.String())
@@ -1751,15 +1753,16 @@ func (d *Deribit) SubmitCancelAllByKind(ctx context.Context, ccy currency.Code, 
 	if detailed {
 		params.Set("detailed", "true")
 	}
-	var resp *OrderCancelationResponse
+	var resp int64
 	return resp, d.SendHTTPAuthRequest(ctx, exchange.RestSpot, matchingEPL, http.MethodGet, submitCancelAllByKind, params, &resp)
 }
 
 // SubmitCancelAllByInstrument sends a request to cancel all user orders for the specified instrument
-func (d *Deribit) SubmitCancelAllByInstrument(ctx context.Context, instrument, orderType string, detailed, includeCombos bool) (*OrderCancelationResponse, error) {
+// returns the total number of successfully cancelled orders
+func (d *Deribit) SubmitCancelAllByInstrument(ctx context.Context, instrument, orderType string, detailed, includeCombos bool) (int64, error) {
 	params, err := checkInstrument(instrument)
 	if err != nil {
-		return nil, err
+		return 0, err
 	}
 	if orderType != "" {
 		params.Set("type", orderType)
@@ -1770,12 +1773,13 @@ func (d *Deribit) SubmitCancelAllByInstrument(ctx context.Context, instrument, o
 	if includeCombos {
 		params.Set("include_combos", "true")
 	}
-	var resp *OrderCancelationResponse
+	var resp int64
 	return resp, d.SendHTTPAuthRequest(ctx, exchange.RestFutures, matchingEPL, http.MethodGet,
 		submitCancelAllByInstrument, params, &resp)
 }
 
 // SubmitCancelByLabel sends a request to cancel all user orders for the specified label
+// returns the total number of successfully cancelled orders
 func (d *Deribit) SubmitCancelByLabel(ctx context.Context, label, ccy string) (int64, error) {
 	params := url.Values{}
 	params.Set("label", label)
@@ -2576,7 +2580,7 @@ func (d *Deribit) SimulateBlockTrade(ctx context.Context, role string, trades []
 	params.Set("role", role)
 	params.Set("trades", string(values))
 	var resp bool
-	return resp, d.SendHTTPAuthRequest(ctx, exchange.RestFutures, matchingEPL, http.MethodGet, simulateBlockPosition, params, resp)
+	return resp, d.SendHTTPAuthRequest(ctx, exchange.RestFutures, matchingEPL, http.MethodGet, simulateBlockPosition, params, &resp)
 }
 
 // GetLockedStatus retrieves information about locked currencies

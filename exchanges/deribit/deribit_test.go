@@ -74,6 +74,7 @@ func TestMain(m *testing.M) {
 		log.Fatal("Deribit setup error", err)
 	}
 	if useTestNet {
+		deribitWebsocketAddress = "wss://test.deribit.com/ws" + deribitAPIVersion
 		for k, v := range d.API.Endpoints.GetURLMap() {
 			v = strings.Replace(v, "www.deribit.com", "test.deribit.com", 1)
 			err = d.API.Endpoints.SetRunning(k, v)
@@ -1340,14 +1341,14 @@ func TestWSRemoveSubAccount(t *testing.T) {
 
 func TestResetAPIKey(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, d, canManipulateRealOrders)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, d, canManipulateAPIEndpoints)
 	_, err := d.ResetAPIKey(context.Background(), 1)
 	assert.NoError(t, err)
 }
 
 func TestWSResetAPIKey(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, d, canManipulateRealOrders)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, d, canManipulateAPIEndpoints)
 	err := d.WSResetAPIKey(1)
 	assert.NoError(t, err)
 }
@@ -2841,14 +2842,6 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 	require.NoErrorf(t, err, "Asset: %s Pair: %s Err: %v", asset.Spot, spotTradablePair, err)
 	require.Equalf(t, instrumentInfo[0].TickSize, limits.PriceStepIncrementSize, "Asset: %s Pair: %s Expected: %v Got: %v", asset.Spot, spotTradablePair, instrumentInfo[0].TickSize, limits.MinimumBaseAmount)
 	assert.Equalf(t, instrumentInfo[0].MinimumTradeAmount, limits.MinimumBaseAmount, "Pair: %s Expected: %v Got: %v", spotTradablePair, instrumentInfo[0].MinimumTradeAmount, limits.MinimumBaseAmount)
-}
-
-func TestUnmarshalCancelResponse(t *testing.T) {
-	t.Parallel()
-	data := `{ "currency": "BTC", "type": "trigger", "instrument_name": "ETH-PERPETUAL", "result": [{ "web": true, "triggered": false, "trigger_price": 1628.7, "trigger": "last_price", "time_in_force": "good_til_cancelled", "stop_price": 1628.7, "replaced": false, "reduce_only": false, "price": "market_price", "post_only": false, "order_type": "stop_market", "order_state": "untriggered", "order_id": "ETH-SLTS-250756", "max_show": 100, "last_update_timestamp": 1634206091071, "label": "", "is_rebalance": false, "is_liquidation": false, "instrument_name": "ETH-PERPETUAL", "direction": "sell", "creation_timestamp": 1634206000230, "api": false, "amount": 100 }] }`
-	var resp OrderCancelationResponse
-	err := json.Unmarshal([]byte(data), &resp)
-	assert.NoError(t, err)
 }
 
 func TestGetLockedStatus(t *testing.T) {

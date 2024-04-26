@@ -1509,15 +1509,15 @@ func (d *Deribit) WSSubmitCancel(orderID string) (*PrivateCancelData, error) {
 }
 
 // WSSubmitCancelAll sends a request to cancel all user orders in all currencies and instruments
-func (d *Deribit) WSSubmitCancelAll() (*OrderCancelationResponse, error) {
-	var resp *OrderCancelationResponse
+func (d *Deribit) WSSubmitCancelAll() (int64, error) {
+	var resp int64
 	return resp, d.SendWSRequest(matchingEPL, submitCancelAll, nil, &resp, true)
 }
 
 // WSSubmitCancelAllByCurrency sends a request to cancel all user orders for the specified currency through the websocket connection.
-func (d *Deribit) WSSubmitCancelAllByCurrency(symbol, kind, orderType string) (*OrderCancelationResponse, error) {
+func (d *Deribit) WSSubmitCancelAllByCurrency(symbol, kind, orderType string) (int64, error) {
 	if symbol == "" {
-		return nil, fmt.Errorf("%w \"%s\"", currency.ErrSymbolStringEmpty, symbol)
+		return 0, fmt.Errorf("%w \"%s\"", currency.ErrSymbolStringEmpty, symbol)
 	}
 	input := &struct {
 		Currency  string `json:"currency"`
@@ -1528,14 +1528,14 @@ func (d *Deribit) WSSubmitCancelAllByCurrency(symbol, kind, orderType string) (*
 		Kind:      kind,
 		OrderType: orderType,
 	}
-	var resp *OrderCancelationResponse
+	var resp int64
 	return resp, d.SendWSRequest(matchingEPL, submitCancelAllByCurrency, input, &resp, true)
 }
 
 // WSSubmitCancelAllByInstrument sends a request to cancel all user orders for the specified instrument through the websocket connection.
-func (d *Deribit) WSSubmitCancelAllByInstrument(instrument, orderType string, detailed, includeCombos bool) (*OrderCancelationResponse, error) {
+func (d *Deribit) WSSubmitCancelAllByInstrument(instrument, orderType string, detailed, includeCombos bool) (int64, error) {
 	if instrument == "" {
-		return nil, errInvalidInstrumentName
+		return 0, errInvalidInstrumentName
 	}
 	input := &struct {
 		Instrument    string `json:"instrument_name"`
@@ -1548,13 +1548,13 @@ func (d *Deribit) WSSubmitCancelAllByInstrument(instrument, orderType string, de
 		Detailed:      detailed,
 		IncludeCombos: includeCombos,
 	}
-	var resp *OrderCancelationResponse
+	var resp int64
 	return resp, d.SendWSRequest(matchingEPL, submitCancelAllByInstrument, input, &resp, true)
 }
 
 // WsSubmitCancelAllByKind cancels all orders in currency(currencies), optionally filtered by instrument kind and/or order type.
 // 'kind' Instrument kind. Possible values: 'future', 'option', 'spot', 'future_combo', 'option_combo', 'combo', 'any'
-func (d *Deribit) WsSubmitCancelAllByKind(ccy currency.Code, kind, orderType string, detailed bool) (interface{}, error) {
+func (d *Deribit) WsSubmitCancelAllByKind(ccy currency.Code, kind, orderType string, detailed bool) (int64, error) {
 	if ccy.IsEmpty() {
 		return 0, fmt.Errorf("%w '%s'", currency.ErrCurrencyCodeEmpty, ccy)
 	}
@@ -1569,12 +1569,12 @@ func (d *Deribit) WsSubmitCancelAllByKind(ccy currency.Code, kind, orderType str
 		OrderType: orderType,
 		Detailed:  detailed,
 	}
-	var resp *OrderCancelationResponse
+	var resp int64
 	return resp, d.SendWSRequest(matchingEPL, submitCancelAllByKind, input, &resp, true)
 }
 
 // WSSubmitCancelByLabel sends a request to cancel all user orders for the specified label through the websocket connection.
-func (d *Deribit) WSSubmitCancelByLabel(label, symbol string) (*OrderCancelationResponse, error) {
+func (d *Deribit) WSSubmitCancelByLabel(label, symbol string) (int64, error) {
 	input := &struct {
 		Label    string `json:"label"`
 		Currency string `json:"currency,omitempty"`
@@ -1582,7 +1582,7 @@ func (d *Deribit) WSSubmitCancelByLabel(label, symbol string) (*OrderCancelation
 		Label:    label,
 		Currency: symbol,
 	}
-	var resp *OrderCancelationResponse
+	var resp int64
 	return resp, d.SendWSRequest(matchingEPL, submitCancelByLabel, input, &resp, true)
 }
 
