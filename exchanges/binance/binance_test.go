@@ -6499,3 +6499,168 @@ func TestRedeemBLVT(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
+
+func TestGetRedemptionRecord(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetRedemptionRecord(context.Background(), "BTCDOWN", time.Time{}, time.Time{}, 0, 20)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetBLVTUserLimitInfo(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetBLVTUserLimitInfo(context.Background(), "")
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetFiatDepositAndWithdrawalHistory(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetFiatDepositAndWithdrawalHistory(context.Background(), time.Now().Add(-time.Hour*480), time.Now().Add(-time.Hour*24), 0, 10, 50)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetFiatPaymentHistory(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetFiatPaymentHistory(context.Background(), time.Now().Add(-time.Hour*480), time.Now().Add(-time.Hour*24), 0, 10, 50)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetC2CTradeHistory(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetC2CTradeHistory(context.Background(), "SELL", time.Now().Add(-time.Hour*480), time.Now().Add(-time.Hour*24), 10, 50)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetPayTradeHistory(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetPayTradeHistory(context.Background(), time.Now().Add(-time.Hour*480), time.Now().Add(-time.Hour*24), 10)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetAllConvertPairs(t *testing.T) {
+	t.Parallel()
+	result, err := b.GetAllConvertPairs(context.Background(), currency.BTC, currency.EMPTYCODE)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetOrderQuantityPrecisionPerAsset(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetOrderQuantityPrecisionPerAsset(context.Background())
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestSendQuoteRequest(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	result, err := b.SendQuoteRequest(context.Background(), currency.BTC, currency.USDT, 10, 20, "FUNDING", "1m")
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestAcceptQuote(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	result, err := b.AcceptQuote(context.Background(), "933256278426274426")
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetConvertOrderStatus(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetConvertOrderStatus(context.Background(), "933256278426274426", "")
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestPlaceLimitOrder(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	result, err := b.PlaceLimitOrder(context.Background(), &ConvertPlaceLimitOrderParam{
+		BaseAsset:   currency.BTC,
+		QuoteAsset:  currency.ETH,
+		LimitPrice:  0.0122,
+		Side:        "SELL",
+		ExpiredType: "7_D",
+	})
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestCancelLimitOrder(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	result, err := b.CancelLimitOrder(context.Background(), "123434")
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetLimitOpenOrders(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetLimitOpenOrders(context.Background())
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetConvertTradeHistory(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetConvertTradeHistory(context.Background(), time.Now().Add(-time.Hour*240), time.Now().Add(-time.Hour*120), 10)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetSpotRebateHistoryRecords(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetSpotRebateHistoryRecords(context.Background(), time.Now().Add(-time.Hour*240), time.Now().Add(-time.Hour*120), 10)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetNFTTransactionHistory(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetNFTTransactionHistory(context.Background(), 1, time.Now().Add(-time.Hour*240), time.Now().Add(-time.Hour*120), 10, 40)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetNFTDepositHistory(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetNFTDepositHistory(context.Background(), time.Now().Add(-time.Hour*240), time.Now().Add(-time.Hour*120), 10, 40)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetNFTWithdrawalHistory(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetNFTWithdrawalHistory(context.Background(), time.Now().Add(-time.Hour*240), time.Now().Add(-time.Hour*120), 10, 40)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetNFTAsset(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetNFTAsset(context.Background(), 10, 20)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}

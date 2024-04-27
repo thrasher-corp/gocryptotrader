@@ -4606,3 +4606,290 @@ type BLVTRedemption struct {
 	Amount       types.Number         `json:"amount"`
 	Timestamp    convert.ExchangeTime `json:"timestamp"`
 }
+
+// BLVTRedemptionItem represents a BLVT redemption record item.
+type BLVTRedemptionItem struct {
+	ID         int64                `json:"id"`
+	TokenName  string               `json:"tokenName"`
+	Amount     types.Number         `json:"amount"`     // Redemption amount
+	Nav        string               `json:"nav"`        // NAV of redemption
+	Fee        types.Number         `json:"fee"`        // Reemption fee
+	NetProceed string               `json:"netProceed"` // Net redemption value in usdt
+	Timestamp  convert.ExchangeTime `json:"timestamp"`
+}
+
+// BLVTUserLimitInfo represents a BLVT user limit information.
+type BLVTUserLimitInfo struct {
+	TokenName                       string       `json:"tokenName"`
+	UserDailyTotalPurchaseLimitUSDT types.Number `json:"userDailyTotalPurchaseLimit"`
+	UserDailyTotalRedeemLimitUSDT   types.Number `json:"userDailyTotalRedeemLimit"`
+}
+
+// FiatTransactionHistory represents a withdrawal and deposit history for fiat currencies.
+type FiatTransactionHistory struct {
+	Code    string `json:"code"`
+	Message string `json:"message"`
+	Data    []struct {
+		OrderNo         string               `json:"orderNo"`
+		FiatCurrency    string               `json:"fiatCurrency"`
+		IndicatedAmount types.Number         `json:"indicatedAmount"`
+		Amount          types.Number         `json:"amount"`
+		TotalFee        types.Number         `json:"totalFee"` // Trade fee
+		Method          string               `json:"method"`   // Trade method
+		Status          string               `json:"status"`   // Processing, Failed, Successful, Finished, Refunding, Refunded, Refund Failed, Order Partial credit Stopped
+		CreateTime      convert.ExchangeTime `json:"createTime"`
+		UpdateTime      convert.ExchangeTime `json:"updateTime"`
+	} `json:"data"`
+	Total   int64 `json:"total"`
+	Success bool  `json:"success"`
+}
+
+// FiatPaymentHistory represents a fiat payments history
+type FiatPaymentHistory struct {
+	Code    string `json:"code"`
+	Message string `json:"message"`
+	Data    []struct {
+		OrderNo        string               `json:"orderNo"`
+		SourceAmount   types.Number         `json:"sourceAmount"`   // Fiat trade amount
+		FiatCurrency   string               `json:"fiatCurrency"`   // Fiat token
+		ObtainAmount   types.Number         `json:"obtainAmount"`   // Crypto trade amount
+		CryptoCurrency string               `json:"cryptoCurrency"` // Crypto token
+		TotalFee       types.Number         `json:"totalFee"`       // Trade fee
+		Price          types.Number         `json:"price"`
+		Status         string               `json:"status"` // Processing, Completed, Failed, Refunded
+		PaymentMethod  string               `json:"paymentMethod"`
+		CreateTime     convert.ExchangeTime `json:"createTime"`
+		UpdateTime     convert.ExchangeTime `json:"updateTime"`
+	} `json:"data"`
+	Total   int64 `json:"total"`
+	Success bool  `json:"success"`
+}
+
+// C2CTransaction represents a C2C transaction history
+type C2CTransaction struct {
+	Code    string `json:"code"`
+	Message string `json:"message"`
+	Data    []struct {
+		OrderNumber         string               `json:"orderNumber"`
+		AdvNo               string               `json:"advNo"`
+		TradeType           string               `json:"tradeType"`
+		Asset               string               `json:"asset"`
+		Fiat                string               `json:"fiat"`
+		FiatSymbol          string               `json:"fiatSymbol"`
+		Amount              types.Number         `json:"amount"` // Quantity (in Crypto)
+		TotalPrice          types.Number         `json:"totalPrice"`
+		UnitPrice           types.Number         `json:"unitPrice"`   // Unit Price (in Fiat)
+		OrderStatus         string               `json:"orderStatus"` // PENDING, TRADING, BUYER_PAYED, DISTRIBUTING, COMPLETED, IN_APPEAL, CANCELLED, CANCELLED_BY_SYSTEM
+		CreateTime          convert.ExchangeTime `json:"createTime"`
+		Commission          string               `json:"commission"` // Transaction Fee (in Crypto)
+		CounterPartNickName string               `json:"counterPartNickName"`
+		AdvertisementRole   string               `json:"advertisementRole"`
+	} `json:"data"`
+	Total   int64 `json:"total"`
+	Success bool  `json:"success"`
+}
+
+// PayTradeHistory represents a pay transactions.
+type PayTradeHistory struct {
+	Code    string `json:"code"`
+	Message string `json:"message"`
+	Data    []struct {
+		OrderType       string               `json:"orderType"`
+		TransactionID   string               `json:"transactionId"`
+		TransactionTime convert.ExchangeTime `json:"transactionTime"`
+		Amount          types.Number         `json:"amount"`
+		Currency        string               `json:"currency"`
+		WalletType      int                  `json:"walletType"`
+		WalletTypes     []int                `json:"walletTypes"`
+		FundsDetail     []struct {
+			Currency        string              `json:"currency"`
+			Amount          types.Number        `json:"amount"`
+			WalletAssetCost []map[string]string `json:"walletAssetCost"`
+		} `json:"fundsDetail"`
+		PayerInfo struct {
+			Name      string `json:"name"`
+			Type      string `json:"type"`
+			BinanceID string `json:"binanceId"`
+			AccountID string `json:"accountId"`
+		} `json:"payerInfo"`
+		ReceiverInfo struct {
+			Name        string `json:"name"`
+			Type        string `json:"type"`
+			Email       string `json:"email"`
+			BinanceID   string `json:"binanceId"`
+			AccountID   string `json:"accountId"`
+			CountryCode string `json:"countryCode"`
+			PhoneNumber string `json:"phoneNumber"`
+			MobileCode  string `json:"mobileCode"`
+			Extend      struct {
+				InstitutionName string `json:"institutionName"`
+				CardNumber      string `json:"cardNumber"`
+				DigitalWalletID string `json:"digitalWalletId"`
+			} `json:"extend"`
+		} `json:"receiverInfo"`
+	} `json:"data"`
+	Success bool `json:"success"`
+}
+
+// ConvertPairInfo represents a convert-pair information.
+type ConvertPairInfo struct {
+	FromAsset          string       `json:"fromAsset"`
+	ToAsset            string       `json:"toAsset"`
+	FromAssetMinAmount types.Number `json:"fromAssetMinAmount"`
+	FromAssetMaxAmount types.Number `json:"fromAssetMaxAmount"`
+	ToAssetMinAmount   types.Number `json:"toAssetMinAmount"`
+	ToAssetMaxAmount   types.Number `json:"toAssetMaxAmount"`
+}
+
+// OrderQuantityPrecision represents asset’s precision information
+type OrderQuantityPrecision struct {
+	Asset    string `json:"asset"`
+	Fraction int64  `json:"fraction"`
+}
+
+// ConvertQuoteResponse represents a response quote for the requested token pairs
+type ConvertQuoteResponse struct {
+	QuoteID        string               `json:"quoteId"`
+	Ratio          string               `json:"ratio"`
+	InverseRatio   types.Number         `json:"inverseRatio"`
+	ValidTimestamp convert.ExchangeTime `json:"validTimestamp"`
+	ToAmount       types.Number         `json:"toAmount"`
+	FromAmount     types.Number         `json:"fromAmount"`
+}
+
+// QuoteOrderStatus represent a response of accepting a quote.
+type QuoteOrderStatus struct {
+	OrderID     string               `json:"orderId"`
+	CreateTime  convert.ExchangeTime `json:"createTime"`
+	OrderStatus string               `json:"orderStatus"` // PROCESS/ACCEPT_SUCCESS/SUCCESS/FAIL
+}
+
+// ConvertOrderStatus represents a convert order status.
+type ConvertOrderStatus struct {
+	OrderID      int64                `json:"orderId"`
+	OrderStatus  string               `json:"orderStatus"`
+	FromAsset    string               `json:"fromAsset"`
+	ToAsset      string               `json:"toAsset"`
+	FromAmount   types.Number         `json:"fromAmount"`
+	ToAmount     types.Number         `json:"toAmount"`
+	Ratio        types.Number         `json:"ratio"`
+	InverseRatio types.Number         `json:"inverseRatio"`
+	CreateTime   convert.ExchangeTime `json:"createTime"`
+}
+
+// ConvertPlaceLimitOrderParam represents a convert place limit order parameters.
+type ConvertPlaceLimitOrderParam struct {
+	BaseAsset   currency.Code `json:"baseAsset"` // base asset (use the response fromIsBase from GET /sapi/v1/convert/exchangeInfo api to check which one is baseAsset )
+	QuoteAsset  currency.Code `json:"quoteAsset"`
+	LimitPrice  float64       `json:"limitPrice"`
+	BaseAmount  float64       `json:"baseAmount,omitempty"`  // Base asset amount. (One of baseAmount or quoteAmount is required)
+	QuoteAmount float64       `json:"quoteAmount,omitempty"` // Quote asset amount. (One of baseAmount or quoteAmount is required)
+	Side        string        `json:"side"`                  // BUY or SELL
+	WalletType  string        `json:"walletType,omitempty"`  // SPOT or FUNDING or SPOT_FUNDING. It is to use which type of assets. Default is SPOT.
+	ExpiredType string        `json:"expiredType"`           // 1_D, 3_D, 7_D, 30_D (D means day)
+}
+
+// OrderStatusResponse represents a convert limit order response.
+type OrderStatusResponse struct {
+	OrderID int64  `json:"orderId"`
+	Status  string `json:"status"`
+}
+
+// LimitOrderHistory represents a limit order details.
+type LimitOrderHistory struct {
+	List []LimitOrderDetail `json:"list"`
+}
+
+// LimitOrderDetail represents a limit order detail information.
+type LimitOrderDetail struct {
+	QuoteID          string               `json:"quoteId"`
+	OrderID          int64                `json:"orderId"`
+	OrderStatus      string               `json:"orderStatus"`
+	FromAsset        string               `json:"fromAsset"`
+	FromAmount       types.Number         `json:"fromAmount"`
+	ToAsset          string               `json:"toAsset"`
+	ToAmount         types.Number         `json:"toAmount"`
+	Ratio            types.Number         `json:"ratio"`
+	InverseRatio     types.Number         `json:"inverseRatio"`
+	CreateTime       convert.ExchangeTime `json:"createTime"`
+	ExpiredTimestamp convert.ExchangeTime `json:"expiredTimestamp"`
+}
+
+// ConvertTradeHistory represents a response for convert trade history
+type ConvertTradeHistory struct {
+	List      []LimitOrderDetail   `json:"list"`
+	StartTime convert.ExchangeTime `json:"startTime"`
+	EndTime   convert.ExchangeTime `json:"endTime"`
+	Limit     int64                `json:"limit"`
+	MoreData  bool                 `json:"moreData"`
+}
+
+// RebateHistory represents a rebate history response
+type RebateHistory struct {
+	Status string `json:"status"`
+	Type   string `json:"type"`
+	Code   string `json:"code"`
+	Data   struct {
+		Page         int64 `json:"page"`
+		TotalRecords int64 `json:"totalRecords"`
+		TotalPageNum int64 `json:"totalPageNum"`
+		Data         []struct {
+			Asset      string               `json:"asset"`
+			Type       int64                `json:"type"`
+			Amount     types.Number         `json:"amount"`
+			UpdateTime convert.ExchangeTime `json:"updateTime"`
+		} `json:"data"`
+	} `json:"data"`
+}
+
+// NFTTransactionHistory represents an NFT transaction history
+type NFTTransactionHistory struct {
+	Total int64 `json:"total"` // total records
+	List  []struct {
+		OrderNo string `json:"orderNo"` // 0: purchase order, 1: sell order, 2: royalty income, 3: primary market order, 4: mint fee
+		Tokens  []struct {
+			Network         string `json:"network"`         // NFT Network
+			TokenID         string `json:"tokenId"`         // NFT Token ID
+			ContractAddress string `json:"contractAddress"` // NFT Contract Address
+		} `json:"tokens"`
+		TradeTime     convert.ExchangeTime `json:"tradeTime"`
+		TradeAmount   types.Number         `json:"tradeAmount"`
+		TradeCurrency string               `json:"tradeCurrency"`
+	} `json:"list"`
+}
+
+// NFTDepositHistory represents an NFT deposit history
+type NFTDepositHistory struct {
+	Total int64 `json:"total"`
+	List  []struct {
+		Network         string               `json:"network"`
+		TransactionID   any                  `json:"txID"`
+		ContractAdrress string               `json:"contractAdrress"`
+		TokenID         string               `json:"tokenId"`
+		Timestamp       convert.ExchangeTime `json:"timestamp"`
+	} `json:"list"`
+}
+
+// NFTWithdrawalHistory represents an NFT withdrawal history
+type NFTWithdrawalHistory struct {
+	Total int64 `json:"total"`
+	List  []struct {
+		Network         string               `json:"network"`
+		TransactionID   string               `json:"txID"`
+		ContractAdrress string               `json:"contractAdrress"`
+		TokenID         string               `json:"tokenId"`
+		Timestamp       convert.ExchangeTime `json:"timestamp"`
+		Fee             float64              `json:"fee"`
+		FeeAsset        string               `json:"feeAsset"`
+	} `json:"list"`
+}
+
+// NFTAssets represents NFT assets list
+type NFTAssets struct {
+	Total int64 `json:"total"`
+	List  []struct {
+		Network         string `json:"network"`
+		ContractAddress string `json:"contractAddress"`
+		TokenID         string `json:"tokenId"`
+	} `json:"list"`
+}

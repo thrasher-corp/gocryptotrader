@@ -138,6 +138,9 @@ const (
 	repayFuturesNegativeBalanceRate
 	pmAssetLeverageRate
 
+	getAllConvertPairsRate
+	getOrderQuantityPrecisionPerAssetRate
+
 	// planceVOOrderRate
 	classicPMAccountInfoRate
 	classicPMCollateralRate
@@ -335,7 +338,8 @@ func (r *RateLimit) Limit(ctx context.Context, f request.EndpointLimit) error {
 		limiter, tokens = r.SpotRate, 25
 	case spotAccountInformationRate,
 		accountTradeListRate,
-		spotExchangeInfo:
+		spotExchangeInfo,
+		getAllConvertPairsRate:
 		limiter, tokens = r.SpotRate, 20
 
 	case getAutoRepayFuturesStatusRate:
@@ -409,7 +413,8 @@ func (r *RateLimit) Limit(ctx context.Context, f request.EndpointLimit) error {
 		smallLiabilityExchCoinListRate,
 		marginHourlyInterestRate,
 		marginCapitalFlowRate,
-		marginTokensAndSymbolsDelistScheduleRate:
+		marginTokensAndSymbolsDelistScheduleRate,
+		getOrderQuantityPrecisionPerAssetRate:
 		limiter, tokens = r.SpotRate, 100
 	case simpleEarnProductsRate,
 		getSimpleEarnProductPositionRate,

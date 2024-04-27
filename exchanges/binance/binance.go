@@ -5600,5 +5600,377 @@ func (b *Binance) RedeemBLVT(ctx context.Context, tokenName string, amount float
 	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/sapi/v1/blvt/redeem", params, spotDefaultRate, nil, &resp)
 }
 
-// GetRedemptionRecord 
-func (b *Binance) GetRedemptionRecord(ctx context.Context, tokenName string, startTime, endTime time.Time, id, limit int64)
+// GetRedemptionRecord retrieves BLVT redemption records
+func (b *Binance) GetRedemptionRecord(ctx context.Context, tokenName string, startTime, endTime time.Time, id, limit int64) ([]BLVTRedemptionItem, error) {
+	params := url.Values{}
+	if tokenName != "" {
+		params.Set("tokenName", tokenName)
+	}
+	if !startTime.IsZero() && !endTime.IsZero() {
+		err := common.StartEndTimeCheck(startTime, endTime)
+		if err != nil {
+			return nil, err
+		}
+		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
+	}
+	if id > 0 {
+		params.Set("id", strconv.FormatInt(id, 10))
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	var resp []BLVTRedemptionItem
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/blvt/redeem/record", params, spotDefaultRate, nil, &resp)
+}
+
+// GetBLVTUserLimitInfo represents a BLVT user limit information.
+func (b *Binance) GetBLVTUserLimitInfo(ctx context.Context, tokenName string) ([]BLVTUserLimitInfo, error) {
+	params := url.Values{}
+	if tokenName != "" {
+		params.Set("tokenName", tokenName)
+	}
+	var resp []BLVTUserLimitInfo
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/blvt/userLimit", params, spotDefaultRate, nil, &resp)
+}
+
+// TODO: Websocket BLVT Info Streams
+// https://binance-docs.github.io/apidocs/spot/en/#get-blvt-user-limit-info-user_data
+
+// --------------------------------------------  Fiat Endpoints  ----------------------------------------------
+
+func fillFiatFetchParams(beginTime, endTime time.Time, transactionType, page, rows int64) (url.Values, error) {
+	params := url.Values{}
+	params.Set("transactionType", strconv.FormatInt(transactionType, 10))
+	if !beginTime.IsZero() && !endTime.IsZero() {
+		err := common.StartEndTimeCheck(beginTime, endTime)
+		if err != nil {
+			return nil, err
+		}
+		params.Set("beginTime", strconv.FormatInt(beginTime.UnixMilli(), 10))
+		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
+	}
+	if page > 0 {
+		params.Set("page", strconv.FormatInt(page, 10))
+	}
+	if rows > 0 {
+		params.Set("rows", strconv.FormatInt(rows, 10))
+	}
+	return params, nil
+}
+
+// GetFiatDepositAndWithdrawalHistory represents a fiat deposit and withdrawal history
+// transactionType possible values are 0 for deposit and 1 for withdrawal
+func (b *Binance) GetFiatDepositAndWithdrawalHistory(ctx context.Context, beginTime, endTime time.Time, transactionType, page, rows int64) (*FiatTransactionHistory, error) {
+	if transactionType != 0 && transactionType != 1 {
+		return nil, errors.New("invalid transactionType, possible values are 0 for 'deposit' and '1' for withdrawal")
+	}
+	params, err := fillFiatFetchParams(beginTime, endTime, transactionType, page, rows)
+	if err != nil {
+		return nil, err
+	}
+	var resp *FiatTransactionHistory
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/fiat/orders", params, spotDefaultRate, nil, &resp)
+}
+
+// GetFiatPaymentHistory represents a fiat payment history.
+//
+// paymentMethod: Only when requesting payments history for buy (transactionType=0), response contains paymentMethod representing the way of purchase. Now we have:
+// - Cash Balance
+// - Credit Card
+// - Online Banking
+// - Bank Transfer
+func (b *Binance) GetFiatPaymentHistory(ctx context.Context, beginTime, endTime time.Time, transactionType, page, rows int64) (*FiatPaymentHistory, error) {
+	if transactionType != 0 && transactionType != 1 {
+		return nil, errors.New("invalid transactionType, possible values are 0 for 'buy' and 1 for 'sell'")
+	}
+	params, err := fillFiatFetchParams(beginTime, endTime, transactionType, page, rows)
+	if err != nil {
+		return nil, err
+	}
+	var resp *FiatPaymentHistory
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/fiat/payments", params, spotDefaultRate, nil, &resp)
+}
+
+// ------------------------------------------------------  Peer-To-Peer(C2C) Endpoints  --------------------------------------------------------------
+
+// GetC2CTradeHistory represents a peer-to-peer trade history
+// To view the complete P2P order history, you can download it from https://c2c.binance.com/en/fiatOrder
+func (b *Binance) GetC2CTradeHistory(ctx context.Context, tradeType string, startTime, endTime time.Time, page, rows int64) (*C2CTransaction, error) {
+	if tradeType == "" {
+		return nil, errors.New("trandeType is required")
+	}
+	params := url.Values{}
+	params.Set("tradeType", tradeType)
+	if !startTime.IsZero() && !endTime.IsZero() {
+		err := common.StartEndTimeCheck(startTime, endTime)
+		if err != nil {
+			return nil, err
+		}
+		params.Set("startTimestamp", strconv.FormatInt(startTime.UnixMilli(), 10))
+		params.Set("endTimestamp", strconv.FormatInt(endTime.UnixMilli(), 10))
+	}
+	if page > 0 {
+		params.Set("page", strconv.FormatInt(page, 10))
+	}
+	if rows > 0 {
+		params.Set("rows", strconv.FormatInt(rows, 10))
+	}
+	var resp *C2CTransaction
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/c2c/orderMatch/listUserOrderHistory", params, spotDefaultRate, nil, &resp)
+}
+
+// ------------------------------------------  VIP Loans ------------------------------------------------
+// TODO
+
+// ------------- Crypto Loan Endpoints ---------------------------------------------------------------
+// TODO
+
+// ------------------------------------------------ Pay Endpoints ----------------------------------------------
+
+// GetPayTradeHistory retrieves pay trade history
+// Detail found here: https://binance-docs.github.io/apidocs/spot/en/#pay-endpoints
+func (b *Binance) GetPayTradeHistory(ctx context.Context, startTime, endTime time.Time, limit int64) (*PayTradeHistory, error) {
+	params := url.Values{}
+	if !startTime.IsZero() && !endTime.IsZero() {
+		err := common.StartEndTimeCheck(startTime, endTime)
+		if err != nil {
+			return nil, err
+		}
+		params.Set("startTimestamp", strconv.FormatInt(startTime.UnixMilli(), 10))
+		params.Set("endTimestamp", strconv.FormatInt(endTime.UnixMilli(), 10))
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	var resp *PayTradeHistory
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/pay/transactions", params, spotDefaultRate, nil, &resp)
+}
+
+// ---------------------------------------------------------  Convert Endpoints  -------------------------------------------------------
+
+// GetAllConvertPairs query for all convertible token pairs and the tokens’ respective upper/lower limits
+// If not defined for both fromAsset and toAsset, only partial token pairs will be returne
+func (b *Binance) GetAllConvertPairs(ctx context.Context, fromAsset, toAsset currency.Code) ([]ConvertPairInfo, error) {
+	params := url.Values{}
+	if fromAsset.IsEmpty() && toAsset.IsEmpty() {
+		return nil, errors.New("either fromAsset or toAsset is required")
+	}
+	if !fromAsset.IsEmpty() {
+		params.Set("fromAsset", fromAsset.String())
+	}
+	if !toAsset.IsEmpty() {
+		params.Set("toAsset", toAsset.String())
+	}
+	var resp []ConvertPairInfo
+	return resp, b.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues("/sapi/v1/convert/exchangeInfo", params), getAllConvertPairsRate, &resp)
+}
+
+// GetOrderQuantityPrecisionPerAsset query for supported asset’s precision information
+func (b *Binance) GetOrderQuantityPrecisionPerAsset(ctx context.Context) ([]OrderQuantityPrecision, error) {
+	var resp []OrderQuantityPrecision
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/convert/assetInfo", nil, getOrderQuantityPrecisionPerAssetRate, nil, &resp)
+}
+
+// SendQuoteRequest request a quote for the requested token pairs
+// validTime possible values: 10s, 30s, 1m, 2m, default 10s
+// quoteId will be returned only if you have enough funds to convert
+func (b *Binance) SendQuoteRequest(ctx context.Context, fromAsset, toAsset currency.Code, fromAmount, toAmount float64, walletType, validTime string) (*ConvertQuoteResponse, error) {
+	if fromAsset.IsEmpty() {
+		return nil, fmt.Errorf("%w, fromAsset is required", currency.ErrCurrencyCodeEmpty)
+	}
+	if toAsset.IsEmpty() {
+		return nil, fmt.Errorf("%w, toAsset is required", currency.ErrCurrencyCodeEmpty)
+	}
+	params := url.Values{}
+	params.Set("fromAsset", fromAsset.String())
+	params.Set("toAsset", toAsset.String())
+	if fromAmount <= 0 && toAmount <= 0 {
+		return nil, fmt.Errorf("%w, fromAmount or toAmount is required", order.ErrAmountIsInvalid)
+	}
+	if fromAmount > 0 {
+		params.Set("fromAmount", strconv.FormatFloat(fromAmount, 'f', -1, 64))
+	}
+	if toAmount > 0 {
+		params.Set("toAmount", strconv.FormatFloat(toAmount, 'f', -1, 64))
+	}
+	if walletType != "" {
+		params.Set("walletType", walletType)
+	}
+	if validTime != "" {
+		params.Set("validTime", validTime)
+	}
+	var resp *ConvertQuoteResponse
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/sapi/v1/convert/getQuote", params, spotDefaultRate, nil, &resp)
+}
+
+// AcceptQuote accept the offered quote by quote ID.
+func (b *Binance) AcceptQuote(ctx context.Context, quoteID string) (*QuoteOrderStatus, error) {
+	if quoteID == "" {
+		return nil, errors.New("quote ID is required")
+	}
+	params := url.Values{}
+	params.Set("quoteId", quoteID)
+	var resp *QuoteOrderStatus
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/sapi/v1/convert/acceptQuote", params, spotDefaultRate, nil, &resp)
+}
+
+// GetConvertOrderStatus retrieves order status by order ID.
+func (b *Binance) GetConvertOrderStatus(ctx context.Context, orderID, quoteID string) (*ConvertOrderStatus, error) {
+	params := url.Values{}
+	if orderID != "" {
+		params.Set("orderId", orderID)
+	}
+	if quoteID != "" {
+		params.Set("quoteId", quoteID)
+	}
+	var resp *ConvertOrderStatus
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/convert/orderStatus", params, spotDefaultRate, nil, &resp)
+}
+
+// PlaceLimitOrder enable users to place a limit order
+func (b *Binance) PlaceLimitOrder(ctx context.Context, arg *ConvertPlaceLimitOrderParam) (*OrderStatusResponse, error) {
+	if arg.BaseAsset.IsEmpty() {
+		return nil, fmt.Errorf("%w, baseAsset is required", currency.ErrCurrencyCodeEmpty)
+	}
+	if arg.QuoteAsset.IsEmpty() {
+		return nil, fmt.Errorf("%w, quoteAsset is required", currency.ErrCurrencyCodeEmpty)
+	}
+	if arg.LimitPrice <= 0 {
+		return nil, errors.New("limit price is required")
+	}
+	if arg.Side == "" {
+		return nil, order.ErrSideIsInvalid
+	}
+	if arg.ExpiredType == "" {
+		return nil, errors.New("expiredType is required")
+	}
+	var resp *OrderStatusResponse
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/sapi/v1/convert/limit/placeOrder", nil, spotDefaultRate, arg, &resp)
+}
+
+// CancelLimitOrder cancels a limit order
+func (b *Binance) CancelLimitOrder(ctx context.Context, orderID string) (*OrderStatusResponse, error) {
+	if orderID == "" {
+		return nil, order.ErrOrderIDNotSet
+	}
+	params := url.Values{}
+	params.Set("orderId", orderID)
+	var resp *OrderStatusResponse
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/sapi/v1/convert/limit/cancelOrder", params, spotDefaultRate, nil, &resp)
+}
+
+// GetLimitOpenOrders represents users to query for all existing limit orders
+func (b *Binance) GetLimitOpenOrders(ctx context.Context) (*LimitOrderHistory, error) {
+	var resp *LimitOrderHistory
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/convert/limit/queryOpenOrders", nil, spotDefaultRate, nil, &resp)
+}
+
+// GetConvertTradeHistory represents a convert trade history
+func (b *Binance) GetConvertTradeHistory(ctx context.Context, startTime, endTime time.Time, limit int64) (*ConvertTradeHistory, error) {
+	params := url.Values{}
+	if !startTime.IsZero() && !endTime.IsZero() {
+		err := common.StartEndTimeCheck(startTime, endTime)
+		if err != nil {
+			return nil, err
+		}
+		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	var resp *ConvertTradeHistory
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/convert/tradeFlow", params, spotDefaultRate, nil, &resp)
+}
+
+// -----------------------------------------------  Rebate Endpoints  -------------------------------------------------
+
+// GetSpotRebateHistoryRecords represents a rebate history records
+func (b *Binance) GetSpotRebateHistoryRecords(ctx context.Context, startTime, endTime time.Time, page int64) (*RebateHistory, error) {
+	params := url.Values{}
+	if !startTime.IsZero() && !endTime.IsZero() {
+		err := common.StartEndTimeCheck(startTime, endTime)
+		if err != nil {
+			return nil, err
+		}
+		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
+	}
+	if page > 0 {
+		params.Set("page", strconv.FormatInt(page, 10))
+	}
+	var resp *RebateHistory
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/rebate/taxQuery", params, spotDefaultRate, nil, &resp)
+}
+
+// -----------------------------------------  NFT Endpoints ------------------------------------------------
+
+func fillNFTFetchParams(startTime, endTime time.Time, limit, page int64) (url.Values, error) {
+	params := url.Values{}
+	if !startTime.IsZero() && !endTime.IsZero() {
+		err := common.StartEndTimeCheck(startTime, endTime)
+		if err != nil {
+			return nil, err
+		}
+		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	if page > 0 {
+		params.Set("page", strconv.FormatInt(page, 10))
+	}
+	return params, nil
+}
+
+// GetNFTTransactionHistory represents an NFT transaction history
+// orderType: 0: purchase order, 1: sell order, 2: royalty income, 3: primary market order, 4: mint fee
+func (b *Binance) GetNFTTransactionHistory(ctx context.Context, orderType int64, startTime, endTime time.Time, limit, page int64) (*NFTTransactionHistory, error) {
+	if orderType < 0 || orderType > 4 {
+		return nil, errors.New("invalid order type; 0: purchase order, 1: sell order, 2: royalty income, 3: primary market order, 4: mint fee")
+	}
+	params, err := fillNFTFetchParams(startTime, endTime, limit, page)
+	if err != nil {
+		return nil, err
+	}
+	params.Set("orderType", strconv.FormatInt(orderType, 10))
+	var resp *NFTTransactionHistory
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/nft/history/transactions", params, spotDefaultRate, nil, &resp)
+}
+
+// GetNFTDepositHistory retrieves list of deposit history
+func (b *Binance) GetNFTDepositHistory(ctx context.Context, startTime, endTime time.Time, limit, page int64) (*NFTDepositHistory, error) {
+	params, err := fillNFTFetchParams(startTime, endTime, limit, page)
+	if err != nil {
+		return nil, err
+	}
+	var resp *NFTDepositHistory
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/nft/history/deposit", params, spotDefaultRate, nil, &resp)
+}
+
+// GetNFTWithdrawalHistory retrieves list of withdrawal history
+func (b *Binance) GetNFTWithdrawalHistory(ctx context.Context, startTime, endTime time.Time, limit, page int64) (*NFTWithdrawalHistory, error) {
+	params, err := fillNFTFetchParams(startTime, endTime, limit, page)
+	if err != nil {
+		return nil, err
+	}
+	var resp *NFTWithdrawalHistory
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/nft/history/withdraw", params, spotDefaultRate, nil, &resp)
+}
+
+// GetNFTAsset retrieves an NFT assets
+func (b *Binance) GetNFTAsset(ctx context.Context, limit, page int64) (*NFTAssets, error) {
+	params := url.Values{}
+	if limit > 0 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	if page > 0 {
+		params.Set("page", strconv.FormatInt(page, 10))
+	}
+	var resp *NFTAssets
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/nft/user/getAsset", params, spotDefaultRate, nil, &resp)
+}
+
+// --------------------------------------------------- Binance Gift Card Endpoints --------------------------------------------------

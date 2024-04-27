@@ -45,8 +45,8 @@ const (
 
 // defaultEOptionsSubscriptions list of default subscription channels
 var defaultEOptionsSubscriptions = []string{
-	// cnlTicker,
-	// cnlKline,
+	cnlTicker,
+	cnlKline,
 	cnlDepth,
 }
 
