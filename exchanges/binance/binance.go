@@ -73,6 +73,7 @@ var (
 	errProductIDIsRequired                    = errors.New("product ID is required")
 	errPlanIDRequired                         = errors.New("plan ID  is required")
 	errIndexIDIsRequired                      = errors.New("index ID is required")
+	errTokenRequired                          = errors.New("token is required")
 )
 
 var subscriptionNames = map[string]string{
@@ -5721,7 +5722,104 @@ func (b *Binance) GetC2CTradeHistory(ctx context.Context, tradeType string, star
 }
 
 // ------------------------------------------  VIP Loans ------------------------------------------------
-// TODO
+
+// GetVIPLoanOngoingOrders retrieves VIP loan is available for VIP users only.
+func (b *Binance) GetVIPLoanOngoingOrders(ctx context.Context, orderID, collateralAccountID, current, limit int64, loanCoin, collateralCoin currency.Code) (*VIPLoanOngoingOrders, error) {
+	params := url.Values{}
+	if orderID != 0 {
+		params.Set("orderId", strconv.FormatInt(orderID, 10))
+	}
+	if collateralAccountID != 0 {
+		params.Set("collateralAccountId", strconv.FormatInt(collateralAccountID, 10))
+	}
+	if loanCoin.IsEmpty() {
+		params.Set("loanCoin", loanCoin.String())
+	}
+	if collateralCoin.IsEmpty() {
+		params.Set("collateralCoin", collateralCoin.String())
+	}
+	if current > 0 {
+		params.Set("current", strconv.FormatInt(current, 10))
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	var resp *VIPLoanOngoingOrders
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/loan/vip/ongoing/orders", params, vipLoanOngoingOrdersRate, nil, &resp)
+}
+
+// VIPLoanRepay VIP loan is available for VIP users only.
+func (b *Binance) VIPLoanRepay(ctx context.Context, orderID int64, amount float64) (*VIPLoanRepayResponse, error) {
+	if orderID == 0 {
+		return nil, order.ErrOrderIDNotSet
+	}
+	if amount <= 0 {
+		return nil, order.ErrAmountBelowMin
+	}
+	params := url.Values{}
+	params.Set("orderId", strconv.FormatInt(orderID, 10))
+	params.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
+	var resp *VIPLoanRepayResponse
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/sapi/v1/loan/vip/repay", params, spotDefaultRate, nil, &resp)
+}
+
+// GetVIPLoanRepaymentHistory retrieves VIP loan repayment history
+func (b *Binance) GetVIPLoanRepaymentHistory(ctx context.Context, loanCoin currency.Code, startTime, endTime time.Time, orderID, current, limit int64) (*VIPLoanRepaymentHistoryResponse, error) {
+	params := url.Values{}
+	if orderID != 0 {
+		params.Set("orderId", strconv.FormatInt(orderID, 10))
+	}
+	if !loanCoin.IsEmpty() {
+		params.Set("loanCoin", loanCoin.String())
+	}
+	if !startTime.IsZero() && !endTime.IsZero() {
+		err := common.StartEndTimeCheck(startTime, endTime)
+		if err != nil {
+			return nil, err
+		}
+		params.Set("startTimestamp", strconv.FormatInt(startTime.UnixMilli(), 10))
+		params.Set("endTimestamp", strconv.FormatInt(endTime.UnixMilli(), 10))
+	}
+	if current > 0 {
+		params.Set("current", strconv.FormatInt(current, 10))
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	var resp *VIPLoanRepaymentHistoryResponse
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/loan/vip/repay/history", params, getVIPLoanRepaymentHistoryRate, nil, &resp)
+}
+
+// VIPLoanRenew represents VIP loan is available for VIP users only.
+func (b *Binance) VIPLoanRenew(ctx context.Context, orderID, longTerm int64) (*LoanRenewResponse, error) {
+	if orderID == 0 {
+		return nil, order.ErrOrderIDNotSet
+	}
+	params := url.Values{}
+	params.Set("orderId", strconv.FormatInt(orderID, 10))
+	if longTerm != 0 {
+		params.Set("longTerm", strconv.FormatInt(longTerm, 10))
+	}
+	var resp *LoanRenewResponse
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/sapi/v1/loan/vip/renew", params, spotDefaultRate, nil, &resp)
+}
+
+// CheckLockedValueVIPCollateralAccount VIP loan is available for VIP users only.
+func (b *Binance) CheckLockedValueVIPCollateralAccount(ctx context.Context, orderID, collateralAccountID int64) (*LockedValueVIPCollateralAccount, error) {
+	if orderID == 0 {
+		return nil, order.ErrOrderIDNotSet
+	}
+	if collateralAccountID == 0 {
+		return nil, errors.New("collateral Account ID is required")
+	}
+	params := url.Values{}
+	params.Set("orderId", strconv.FormatInt(orderID, 10))
+	params.Set("collateralAccountId", strconv.FormatInt(collateralAccountID, 10))
+	var resp *LockedValueVIPCollateralAccount
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/loan/vip/collateral/account", params, checkLockedValueVIPCollateralAccountRate, nil, &resp)
+}
+
+// func (b *Binance) VIPLoanBorrow(ctx context.Context, )
 
 // ------------- Crypto Loan Endpoints ---------------------------------------------------------------
 // TODO
@@ -5974,3 +6072,96 @@ func (b *Binance) GetNFTAsset(ctx context.Context, limit, page int64) (*NFTAsset
 }
 
 // --------------------------------------------------- Binance Gift Card Endpoints --------------------------------------------------
+// Binance Gift Card allows simple crypto transfer and exchange through secured and prepaid codes.
+// Binance Gift Card API solution is to facilitate instant creation, redemption and value-checking for Binance Gift Card.
+// Binance Gift Card product feature consists of two parts: “Gift Card Number” and “Binance Gift Card Redemption Code”.
+// The Gift Card Number can be circulated in public, and it is used to verify the validity of the Binance Gift Card;
+// Binance Gift Card Redemption Code should be kept confidential, because as long as someone knows the redemption code, that person can redeem it anytime.
+
+// CreateSingleTokenGiftCard creating a Binance Gift Card.
+//
+// Daily creation volume: 2 BTC / 24H / account
+// Daily creation quantity: 200 Gift Cards / 24H / account
+func (b *Binance) CreateSingleTokenGiftCard(ctx context.Context, token string, amount float64) (*GiftCard, error) {
+	if token == "" {
+		return nil, errTokenRequired
+	}
+	if amount <= 0 {
+		return nil, order.ErrAmountBelowMin
+	}
+	params := url.Values{}
+	params.Set("token", token)
+	params.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
+	var resp *GiftCard
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/sapi/v1/giftcard/createCode", params, spotOrderRate, nil, &resp)
+}
+
+// CreateDualTokenGiftCard creating a dual-token ( stablecoin-denominated) Binance Gift Card.
+func (b *Binance) CreateDualTokenGiftCard(ctx context.Context, baseToken, faceToken string, baseTokenAmount, discount float64) (*DualTokenGiftCard, error) {
+	if baseToken == "" {
+		return nil, fmt.Errorf("%w, baseToken is empty", errTokenRequired)
+	}
+	if faceToken == "" {
+		return nil, fmt.Errorf("%w, faceToken is empty", errTokenRequired)
+	}
+	if baseTokenAmount <= 0 {
+		return nil, fmt.Errorf("%w, baseTokenAmount is %f", order.ErrAmountBelowMin, baseTokenAmount)
+	}
+	if discount <= 0 {
+		return nil, errors.New("discount must be greater than zero")
+	}
+	params := url.Values{}
+	params.Set("baseToken", baseToken)
+	params.Set("faceToken", faceToken)
+	params.Set("baseTokenAmount", strconv.FormatFloat(baseTokenAmount, 'f', -1, 64))
+	params.Set("discount", strconv.FormatFloat(discount, 'f', -1, 64))
+	var resp *DualTokenGiftCard
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/sapi/v1/giftcard/buyCode", params, spotOrderRate, nil, &resp)
+}
+
+// RedeemBinanaceGiftCard redeeming a Binance Gift Card.
+// Once redeemed, the coins will be deposited in your funding wallet.
+// Redemption code of Binance Gift Card to be redeemed, supports both Plaintext & Encrypted code.
+// Each external unique ID represents a unique user on the partner platform.
+func (b *Binance) RedeemBinanaceGiftCard(ctx context.Context, code, externalUID string) (*RedeemBinanceGiftCard, error) {
+	if code == "" {
+		return nil, errors.New("code is required")
+	}
+	params := url.Values{}
+	params.Set("code", code)
+	if externalUID != "" {
+		params.Set("expternalUid", externalUID)
+	}
+	var resp *RedeemBinanceGiftCard
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/sapi/v1/giftcard/redeemCode", params, spotDefaultRate, nil, &resp)
+}
+
+// VerifyBinanceGiftCardNumber verifying whether the Binance Gift Card is valid or not by entering Gift Card Number.
+func (b *Binance) VerifyBinanceGiftCardNumber(ctx context.Context, referenceNumber string) (*GiftCardVerificationResponse, error) {
+	if referenceNumber == "" {
+		return nil, errors.New("reference number is required")
+	}
+	params := url.Values{}
+	params.Set("referenceNo", referenceNumber)
+	var resp *GiftCardVerificationResponse
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/giftcard/verify", params, spotDefaultRate, nil, &resp)
+}
+
+// FetchRSAPublicKey this API is for fetching the RSA Public Key.
+// This RSA Public key will be used to encrypt the card code.
+func (b *Binance) FetchRSAPublicKey(ctx context.Context) (*RSAPublicKeyResponse, error) {
+	var resp *RSAPublicKeyResponse
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/giftcard/cryptography/rsa-public-key", nil, spotDefaultRate, nil, &resp)
+}
+
+// FetchTokenLimit this API is to help you verify which tokens are available for
+// you to create Stablecoin-Denominated gift cards as mentioned in section 2 and its’ limitation.
+func (b *Binance) FetchTokenLimit(ctx context.Context, baseToken string) (*TokenLimitInfo, error) {
+	if baseToken == "" {
+		return nil, fmt.Errorf("%w, baseToken is empty", errTokenRequired)
+	}
+	params := url.Values{}
+	params.Set("baseToken", baseToken)
+	var resp *TokenLimitInfo
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/giftcard/buyCode/token-limit", params, spotDefaultRate, nil, &resp)
+}

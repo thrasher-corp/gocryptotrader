@@ -6540,6 +6540,22 @@ func TestGetC2CTradeHistory(t *testing.T) {
 	assert.NotNil(t, result)
 }
 
+func TestGetVIPLoanOngoingOrders(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetVIPLoanOngoingOrders(context.Background(), 1232, 21231, 0, 10, currency.BTC, currency.ETH)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetVIPLoanRepay(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.VIPLoanRepay(context.Background(), 1234, 0.2)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
 func TestGetPayTradeHistory(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
@@ -6661,6 +6677,78 @@ func TestGetNFTAsset(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	result, err := b.GetNFTAsset(context.Background(), 10, 20)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestCreateSingleTokenGiftCard(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	result, err := b.CreateSingleTokenGiftCard(context.Background(), "BUSD", 0.1234)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestCreateDualTokenGiftCard(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	result, err := b.CreateDualTokenGiftCard(context.Background(), currency.BUSD.String(), currency.BNB.String(), 10, 10)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestRedeemBinanaceGiftCard(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	result, err := b.RedeemBinanaceGiftCard(context.Background(), "0033002328060227", "12345")
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestVerifyBinanceGiftCardNumber(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.VerifyBinanceGiftCardNumber(context.Background(), "123456")
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestFetchRSAPublicKey(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.FetchRSAPublicKey(context.Background())
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestFetchTokenLimit(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.FetchTokenLimit(context.Background(), currency.BUSD.String())
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetVIPLoanRepaymentHistory(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetVIPLoanRepaymentHistory(context.Background(), currency.ETH, time.Now().Add(-time.Hour*48), time.Now(), 1234, 0, 20)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestVIPLoanRenew(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.VIPLoanRenew(context.Background(), 1234, 60)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestCheckLockedValueVIPCollateralAccount(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.CheckLockedValueVIPCollateralAccount(context.Background(), 1223, 40)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }

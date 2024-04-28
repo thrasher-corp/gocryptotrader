@@ -138,6 +138,10 @@ const (
 	repayFuturesNegativeBalanceRate
 	pmAssetLeverageRate
 
+	vipLoanOngoingOrdersRate
+	getVIPLoanRepaymentHistoryRate
+	checkLockedValueVIPCollateralAccountRate
+
 	getAllConvertPairsRate
 	getOrderQuantityPrecisionPerAssetRate
 
@@ -454,6 +458,11 @@ func (r *RateLimit) Limit(ctx context.Context, f request.EndpointLimit) error {
 	case currentOrderCountUsageRate,
 		getTickers100Rate:
 		limiter, tokens = r.SpotRate, 40
+	case vipLoanOngoingOrdersRate,
+		getVIPLoanRepaymentHistoryRate:
+		limiter, tokens = r.SpotRate, 400
+	case checkLockedValueVIPCollateralAccountRate:
+		limiter, tokens = r.SpotRate, 6000
 	case getAllocationsRate,
 		preventedMatchesByOrderIDRate,
 		getCommissionRate:

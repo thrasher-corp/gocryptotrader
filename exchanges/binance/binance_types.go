@@ -4689,6 +4689,40 @@ type C2CTransaction struct {
 	Success bool  `json:"success"`
 }
 
+// VIPLoanOngoingOrders represents a VIP loan orders history
+type VIPLoanOngoingOrders struct {
+	Rows []struct {
+		OrderID                          int                  `json:"orderId"`
+		LoanCoin                         string               `json:"loanCoin"`
+		TotalDebt                        types.Number         `json:"totalDebt"`
+		LoanRate                         types.Number         `json:"loanRate"`
+		ResidualInterest                 string               `json:"residualInterest"`
+		CollateralAccountID              string               `json:"collateralAccountId"`
+		CollateralCoin                   string               `json:"collateralCoin"`
+		TotalCollateralValueAfterHaircut string               `json:"totalCollateralValueAfterHaircut"`
+		LockedCollateralValue            string               `json:"lockedCollateralValue"`
+		CurrentLTV                       string               `json:"currentLTV"`
+		ExpirationTime                   convert.ExchangeTime `json:"expirationTime"`
+		LoanDate                         string               `json:"loanDate"`
+		LoanTerm                         string               `json:"loanTerm"`
+		InitialLtv                       string               `json:"initialLtv"`
+		MarginCallLtv                    string               `json:"marginCallLtv"`
+		LiquidationLtv                   string               `json:"liquidationLtv"`
+	} `json:"rows"`
+	Total int64 `json:"total"`
+}
+
+// VIPLoanRepayResponse represents a response for VIP loan repayment.
+type VIPLoanRepayResponse struct {
+	LoanCoin           string       `json:"loanCoin"`
+	RepayAmount        types.Number `json:"repayAmount"`
+	RemainingPrincipal string       `json:"remainingPrincipal"`
+	RemainingInterest  string       `json:"remainingInterest"`
+	CollateralCoin     string       `json:"collateralCoin"`
+	CurrentLTV         string       `json:"currentLTV"`
+	RepayStatus        string       `json:"repayStatus"`
+}
+
 // PayTradeHistory represents a pay transactions.
 type PayTradeHistory struct {
 	Code    string `json:"code"`
@@ -4892,4 +4926,106 @@ type NFTAssets struct {
 		ContractAddress string `json:"contractAddress"`
 		TokenID         string `json:"tokenId"`
 	} `json:"list"`
+}
+
+// GiftCard represents a single-token gift card.
+type GiftCard struct {
+	Code    string `json:"code"`
+	Message string `json:"message"`
+	Data    struct {
+		ReferenceNo string               `json:"referenceNo"`
+		Code        string               `json:"code"`
+		ExpiredTime convert.ExchangeTime `json:"expiredTime"`
+	} `json:"data"`
+	Success bool `json:"success"`
+}
+
+// DualTokenGiftCard represents a response for creating a dual token gift card.
+type DualTokenGiftCard struct {
+	Code    string `json:"code"`
+	Message string `json:"message"`
+	Data    struct {
+		ReferenceNo string               `json:"referenceNo"`
+		Code        string               `json:"code"`
+		ExpiredTime convert.ExchangeTime `json:"expiredTime"`
+	} `json:"data"`
+	Success bool `json:"success"`
+}
+
+// RedeemBinanceGiftCard represents a binance gift card redemption response.
+type RedeemBinanceGiftCard struct {
+	Code    string `json:"code"`
+	Message string `json:"message"`
+	Data    struct {
+		ReferenceNo string       `json:"referenceNo"`
+		IdentityNo  string       `json:"identityNo"`
+		Token       string       `json:"token"`
+		Amount      types.Number `json:"amount"`
+	} `json:"data"`
+	Success bool `json:"success"`
+}
+
+// GiftCardVerificationResponse represents a Binance Gift Card verification response.
+type GiftCardVerificationResponse struct {
+	Code    string `json:"code"`
+	Message string `json:"message"`
+	Data    struct {
+		Valid  bool         `json:"valid"`
+		Token  string       `json:"token"`
+		Amount types.Number `json:"amount"`
+	} `json:"data"`
+	Success bool `json:"success"`
+}
+
+// RSAPublicKeyResponse represents an RSA public key response.
+type RSAPublicKeyResponse struct {
+	Code    string `json:"code"`
+	Message string `json:"message"`
+	Data    string `json:"data"`
+	Success bool   `json:"success"`
+}
+
+// TokenLimitInfo represents a token info
+type TokenLimitInfo struct {
+	Code    string `json:"code"`
+	Message string `json:"message"`
+	Data    []struct {
+		Coin    string       `json:"coin"`
+		FromMin types.Number `json:"fromMin"`
+		FromMax types.Number `json:"fromMax"`
+	} `json:"data"`
+	Success bool `json:"success"`
+}
+
+// VIPLoanRepaymentHistoryResponse represents a VIP loan repayment history response.
+type VIPLoanRepaymentHistoryResponse struct {
+	Rows []struct {
+		LoanCoin       string               `json:"loanCoin"`
+		RepayAmount    types.Number         `json:"repayAmount"`
+		CollateralCoin string               `json:"collateralCoin"`
+		RepayStatus    string               `json:"repayStatus"`
+		LoanDate       string               `json:"loanDate"`
+		RepayTime      convert.ExchangeTime `json:"repayTime"`
+		OrderID        string               `json:"orderId"`
+	} `json:"rows"`
+	Total int64 `json:"total"`
+}
+
+// LoanRenewResponse represents loan renew
+type LoanRenewResponse struct {
+	LoanAccountID       string       `json:"loanAccountId"` // loan receiving account
+	LoanCoin            string       `json:"loanCoin"`
+	LoanAmount          types.Number `json:"loanAmount"`
+	CollateralAccountID string       `json:"collateralAccountId"`
+	CollateralCoin      string       `json:"collateralCoin"`
+	LoanTerm            string       `json:"loanTerm"`
+}
+
+// LockedValueVIPCollateralAccount represents a collateral account locked response.
+type LockedValueVIPCollateralAccount struct {
+	Rows []struct {
+		CollateralAccountID string `json:"collateralAccountId"`
+		CollateralCoin      string `json:"collateralCoin"`
+	} `json:"rows"`
+	Total int64 `json:"total"`
 }
