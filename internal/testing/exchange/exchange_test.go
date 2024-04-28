@@ -11,20 +11,20 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 )
 
-// TestTestInstance exercises TestInstance
-func TestTestInstance(t *testing.T) {
+// TestSetup exercises Setup
+func TestSetup(t *testing.T) {
 	b := new(binance.Binance)
-	require.NoError(t, TestInstance(b), "TestInstance must not error")
-	assert.NotNil(t, b.Websocket, "TestInstance should set up a websocket")
+	require.NoError(t, Setup(b), "Setup must not error")
+	assert.NotNil(t, b.Websocket, "Websocket should not be nil after Setup")
 
 	e := new(sharedtestvalues.CustomEx)
-	require.ErrorIs(t, TestInstance(e), config.ErrExchangeNotFound, "TestInstance error correctly on a missing exchange")
+	assert.ErrorIs(t, Setup(e), config.ErrExchangeNotFound, "Setup should error correctly on a missing exchange")
 }
 
 // TestMockHTTPInstance exercises MockHTTPInstance
 func TestMockHTTPInstance(t *testing.T) {
 	b := new(binance.Binance)
-	require.NoError(t, TestInstance(b), "TestInstance must not error")
+	require.NoError(t, Setup(b), "Test exchange Setup must not error")
 	require.NoError(t, MockHTTPInstance(b), "MockHTTPInstance must not error")
 }
 

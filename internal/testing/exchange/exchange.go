@@ -100,7 +100,7 @@ func MockWsInstance[T any, PT interface {
 	tb.Helper()
 
 	e := PT(new(T))
-	require.NoError(tb, TestInstance(e), "TestInstance setup should not error")
+	require.NoError(tb, Setup(e), "Test exchange Setup must not error")
 
 	s := httptest.NewServer(h)
 

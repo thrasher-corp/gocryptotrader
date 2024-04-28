@@ -47,7 +47,7 @@ const (
 
 func TestMain(m *testing.M) {
 	k = new(Kraken)
-	if err := testexch.TestInstance(k); err != nil {
+	if err := testexch.Setup(k); err != nil {
 		log.Fatal(err)
 	}
 	if apiKey != "" && apiSecret != "" {
