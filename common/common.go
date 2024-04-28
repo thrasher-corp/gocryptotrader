@@ -578,6 +578,34 @@ func ExcludeError(err, excl error) error {
 	return err
 }
 
+// ErrorCollector allows collecting a stream of errors from concurrent go routines
+// Users should call e.Wg.Done and send errors to e.C
+type ErrorCollector struct {
+	C  chan error
+	Wg sync.WaitGroup
+}
+
+// CollectErrors returns an ErrorCollector with WaitGroup and Channel buffer set to n
+func CollectErrors(n int) *ErrorCollector {
+	e := &ErrorCollector{
+		C: make(chan error, n),
+	}
+	e.Wg.Add(n)
+	return e
+}
+
+// Collect runs waits for e.Wg to be Done, closes the error channel, and return a error collection
+func (e *ErrorCollector) Collect() (errs error) {
+	e.Wg.Wait()
+	close(e.C)
+	for err := range e.C {
+		if err != nil {
+			errs = AppendError(errs, err)
+		}
+	}
+	return
+}
+
 // StartEndTimeCheck provides some basic checks which occur
 // frequently in the codebase
 func StartEndTimeCheck(start, end time.Time) error {
