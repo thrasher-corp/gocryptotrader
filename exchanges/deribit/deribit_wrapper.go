@@ -828,10 +828,7 @@ func (d *Deribit) CancelAllOrders(ctx context.Context, orderCancellation *order.
 	} else {
 		cancelData, err = d.SubmitCancelAllByInstrument(ctx, pairFmt.Format(orderCancellation.Pair), orderTypeStr, true, true)
 	}
-	if err != nil {
-		return order.CancelAllResponse{}, err
-	}
-	return order.CancelAllResponse{Count: int64(cancelData)}, nil
+	return order.CancelAllResponse{Count: cancelData}, err
 }
 
 // GetOrderInfo returns order information based on order ID
@@ -1516,7 +1513,7 @@ func (d *Deribit) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]fu
 		}
 	}
 	if len(result) == 0 {
-		return nil, fmt.Errorf("%w, no data found for %v", currency.ErrPairNotFound, k)
+		return nil, fmt.Errorf("%w, no data found for %v", currency.ErrCurrencyNotFound, k)
 	}
 	return result, nil
 }

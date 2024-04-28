@@ -2977,7 +2977,7 @@ func TestGetOpenInterest(t *testing.T) {
 		Asset: asset.Options,
 	})
 	require.NoError(t, err)
-	assert.True(t, err == nil || errors.Is(err, currency.ErrPairNotFound))
+	assert.True(t, err == nil || errors.Is(err, currency.ErrCurrencyNotFound))
 }
 
 func TestIsPerpetualFutureCurrency(t *testing.T) {
