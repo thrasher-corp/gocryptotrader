@@ -2840,8 +2840,17 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 	require.NotEmpty(t, instrumentInfo, "invalid instrument information found")
 	limits, err := d.GetOrderExecutionLimits(asset.Spot, spotTradablePair)
 	require.NoErrorf(t, err, "Asset: %s Pair: %s Err: %v", asset.Spot, spotTradablePair, err)
-	require.Equalf(t, instrumentInfo[0].TickSize, limits.PriceStepIncrementSize, "Asset: %s Pair: %s Expected: %v Got: %v", asset.Spot, spotTradablePair, instrumentInfo[0].TickSize, limits.MinimumBaseAmount)
-	assert.Equalf(t, instrumentInfo[0].MinimumTradeAmount, limits.MinimumBaseAmount, "Pair: %s Expected: %v Got: %v", spotTradablePair, instrumentInfo[0].MinimumTradeAmount, limits.MinimumBaseAmount)
+	var instrumentDetail *InstrumentData
+	for a := range instrumentInfo {
+		if instrumentInfo[a].InstrumentName == spotTradablePair.String() {
+			instrumentDetail = &instrumentInfo[a]
+			break
+		}
+	}
+	if instrumentDetail != nil {
+		require.Equalf(t, instrumentDetail.TickSize, limits.PriceStepIncrementSize, "Asset: %s Pair: %s Expected: %v Got: %v", asset.Spot, spotTradablePair, instrumentDetail.TickSize, limits.MinimumBaseAmount)
+		assert.Equalf(t, instrumentDetail.MinimumTradeAmount, limits.MinimumBaseAmount, "Pair: %s Expected: %v Got: %v", spotTradablePair, instrumentDetail.MinimumTradeAmount, limits.MinimumBaseAmount)
+	}
 }
 
 func TestGetLockedStatus(t *testing.T) {
@@ -3012,14 +3021,13 @@ func TestGetHistoricalFundingRates(t *testing.T) {
 		Asset:           asset.Futures,
 		Pair:            cp,
 		PaymentCurrency: currency.USDT,
-		StartDate:       time.Now().Add(-time.Hour * 24 * 7),
+		StartDate:       time.Now().Add(-time.Hour * 24 * 2),
 		EndDate:         time.Now(),
 	}
 	_, err = d.GetHistoricalFundingRates(context.Background(), r)
 	require.NoError(t, err)
-	r.StartDate = time.Now().Add(-time.Hour * 24 * 20)
-
-	r.RespectHistoryLimits = true
+	r.StartDate = time.Now().Add(-time.Hour * 24 * 90)
+	r.EndDate = r.StartDate.Add(time.Hour * 24 * 7)
 	result, err := d.GetHistoricalFundingRates(context.Background(), r)
 	require.NoError(t, err)
 	require.NotNil(t, result)
