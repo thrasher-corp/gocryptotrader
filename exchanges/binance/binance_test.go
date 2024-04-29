@@ -5891,9 +5891,9 @@ func TestGetSourceAssetList(t *testing.T) {
 func TestInvestmentPlanCreation(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
-	result, err := b.InvestmentPlanCreation(context.Background(), &InvestmentPlanParams{})
+	_, err := b.InvestmentPlanCreation(context.Background(), &InvestmentPlanParams{})
 	require.ErrorIs(t, common.ErrNilPointer, err)
-	result, err = b.InvestmentPlanCreation(context.Background(), &InvestmentPlanParams{
+	result, err := b.InvestmentPlanCreation(context.Background(), &InvestmentPlanParams{
 		SourceType:            "MAIN_SITE",
 		PlanType:              "SINGLE",
 		SubscriptionAmount:    4,
@@ -5918,9 +5918,9 @@ func TestInvestmentPlanCreation(t *testing.T) {
 func TestInvestmentPlanAdjustment(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
-	result, err := b.InvestmentPlanAdjustment(context.Background(), &AdjustInvestmentPlan{})
+	_, err := b.InvestmentPlanAdjustment(context.Background(), &AdjustInvestmentPlan{})
 	require.ErrorIs(t, common.ErrNilPointer, err)
-	result, err = b.InvestmentPlanAdjustment(context.Background(), &AdjustInvestmentPlan{
+	result, err := b.InvestmentPlanAdjustment(context.Background(), &AdjustInvestmentPlan{
 		PlanID:                1234232,
 		SubscriptionAmount:    4,
 		SubscriptionCycle:     "H4",
@@ -6366,7 +6366,7 @@ func TestGetSpotHistoricalAlgoOrders(t *testing.T) {
 	assert.NotNil(t, result)
 }
 
-func GetSpotSubOrders(t *testing.T) {
+func TestGetSpotSubOrders(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	result, err := b.GetSpotSubOrders(context.Background(), 1234, 0, 40)
@@ -6788,7 +6788,7 @@ func TestGetVIPApplicationStatus(t *testing.T) {
 func TestGetVIPBorrowInterestrate(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
-	result, err := b.GetVIPBorrowInterestrate(context.Background(), currency.ETH)
+	result, err := b.GetVIPBorrowInterestRate(context.Background(), currency.ETH)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }

@@ -2268,7 +2268,7 @@ type TradeHistory struct {
 	IsBuyer         bool                 `json:"isBuyer"`
 	IsMaker         bool                 `json:"isMaker"`
 	IsBestMatch     bool                 `json:"isBestMatch"`
-	IsIsolated      bool                 `json:"isIsolated"` //added for margin accounts trade list information
+	IsIsolated      bool                 `json:"isIsolated"` // added for margin accounts trade list information
 }
 
 // SelfTradePrevention represents a self-trade prevention instance.
@@ -3481,7 +3481,7 @@ type MarginCapitalFlow struct {
 	Amount        types.Number         `json:"amount"`
 }
 
-// MarginDelistSchedule represents delist schedule for cross-margin adn isolated-margin accounts.
+// MarginDelistSchedule represents delist schedule for cross-margin and isolated-margin accounts.
 type MarginDelistSchedule struct {
 	DelistTime            convert.ExchangeTime `json:"delistTime"`
 	CrossMarginAssets     []string             `json:"crossMarginAssets"`
@@ -3507,7 +3507,7 @@ type LiabilityCoinLeverageBracket struct {
 	} `json:"brackets"`
 }
 
-// SimpleEarnProduct represents list of binance's simple earn product
+// SimpleEarnProducts represents list of binance's simple earn product
 type SimpleEarnProducts struct {
 	Rows []struct {
 		Asset                      string               `json:"asset"`
@@ -3999,7 +3999,7 @@ type AutoInvestSubscriptionTransactionItem struct {
 	FlexibleUsed        string               `json:"flexibleUsed"` // whether simple earn wallet is used
 	TransactionFee      string               `json:"transactionFee"`
 	TransactionFeeUnit  string               `json:"transactionFeeUnit"` // denominated coin of the transaction fee
-	ExecutionPrice      types.Number         `json:"executionPrice"`     // price of the subscription price. It's amount of source asset equivilent of 1 unit of target asset
+	ExecutionPrice      types.Number         `json:"executionPrice"`     // price of the subscription price. It's amount of source asset equivalent of 1 unit of target asset
 	SubscriptionCycle   types.Number         `json:"subscriptionCycle"`
 }
 
@@ -4225,7 +4225,7 @@ type AlgorithmsList struct {
 	} `json:"data"`
 }
 
-// CoinNames represents represents coins and corresponding algorithms used
+// CoinNames represents coins and corresponding algorithms used
 type CoinNames struct {
 	Code int64  `json:"code"`
 	Msg  string `json:"msg"`
@@ -4419,7 +4419,7 @@ type VolumeParticipationOrderParams struct {
 	Symbol       string  `json:"symbol"`
 	Side         string  `json:"side"`                   // Trading side ( BUY or SELL )
 	PositionSide string  `json:"positionSide,omitempty"` // Default BOTH for One-way Mode ; LONG or SHORT for Hedge Mode. It must be sent in Hedge Mode.
-	Quantity     float64 `json:"quantity"`               //Quantity of base asset; The notional (quantity * mark price(base asset)) must be more than the equivalent of 1,000 USDT and less than the equivalent of 1,000,000 USDT
+	Quantity     float64 `json:"quantity"`               // Quantity of base asset; The notional (quantity * mark price(base asset)) must be more than the equivalent of 1,000 USDT and less than the equivalent of 1,000,000 USDT
 	Urgency      string  `json:"urgency"`                // Represent the relative speed of the current execution; ENUM: LOW, MEDIUM, HIGH
 	ClientAlgoID string  `json:"clientAlgoId,omitempty"`
 	ReduceOnly   bool    `json:"reduceOnly,omitempty"`
@@ -5048,10 +5048,10 @@ type VIPLoanableAssetsData struct {
 		LoanCoin                   string       `json:"loanCoin"`
 		FlexibleHourlyInterestRate types.Number `json:"_flexibleHourlyInterestRate"`
 		FlexibleYearlyInterestRate types.Number `json:"_flexibleYearlyInterestRate"`
-		Three_0DDailyInterestRate  types.Number `json:"_30dDailyInterestRate"`
-		Three_0DYearlyInterestRate types.Number `json:"_30dYearlyInterestRate"`
-		Six_0DDailyInterestRate    types.Number `json:"_60dDailyInterestRate"`
-		Six_0DYearlyInterestRate   types.Number `json:"_60dYearlyInterestRate"`
+		Three0DDailyInterestRate   types.Number `json:"_30dDailyInterestRate"`
+		Three0DYearlyInterestRate  types.Number `json:"_30dYearlyInterestRate"`
+		Six0DDailyInterestRate     types.Number `json:"_60dDailyInterestRate"`
+		Six0DYearlyInterestRate    types.Number `json:"_60dYearlyInterestRate"`
 		MinLimit                   types.Number `json:"minLimit"`
 		MaxLimit                   types.Number `json:"maxLimit"`
 		VipLevel                   int64        `json:"vipLevel"`
@@ -5062,15 +5062,15 @@ type VIPLoanableAssetsData struct {
 // VIPCollateralAssetData represents a VIP collateral asset data.
 type VIPCollateralAssetData struct {
 	Rows []struct {
-		CollateralCoin          string `json:"collateralCoin"`
-		One_StCollateralRatio   string `json:"_1stCollateralRatio"`
-		One_StCollateralRange   string `json:"_1stCollateralRange"`
-		Two_NdCollateralRatio   string `json:"_2ndCollateralRatio"`
-		Two_NdCollateralRange   string `json:"_2ndCollateralRange"`
-		Three_RdCollateralRatio string `json:"_3rdCollateralRatio"`
-		Three_RdCollateralRange string `json:"_3rdCollateralRange"`
-		Four_ThCollateralRatio  string `json:"_4thCollateralRatio"`
-		Four_ThCollateralRange  string `json:"_4thCollateralRange"`
+		CollateralCoin         string `json:"collateralCoin"`
+		OneStCollateralRatio   string `json:"_1stCollateralRatio"`
+		OneStCollateralRange   string `json:"_1stCollateralRange"`
+		TwoNdCollateralRatio   string `json:"_2ndCollateralRatio"`
+		TwoNdCollateralRange   string `json:"_2ndCollateralRange"`
+		ThreeRdCollateralRatio string `json:"_3rdCollateralRatio"`
+		ThreeRdCollateralRange string `json:"_3rdCollateralRange"`
+		FourThCollateralRatio  string `json:"_4thCollateralRatio"`
+		FourThCollateralRange  string `json:"_4thCollateralRange"`
 	} `json:"rows"`
 	Total int64 `json:"total"`
 }

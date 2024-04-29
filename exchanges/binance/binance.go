@@ -1701,7 +1701,6 @@ func (b *Binance) GetFutureHourlyInterestRate(ctx context.Context, assets []stri
 }
 
 // GetCrossOrIsolatedMarginCapitalFlow retrieves cross or isolated margin capital flow
-//
 // type: represents a capital flow type.
 // Supported types:
 //
@@ -1721,7 +1720,7 @@ func (b *Binance) GetFutureHourlyInterestRate(ctx context.Context, assets []stri
 //	SMALL_BALANCE_CONVERT("Small Balance Convert")
 //	COMMISSION_RETURN("Commission Return")
 //	SMALL_CONVERT("Small Convert")
-func (b *Binance) GetCrossOrIsolatedMarginCapitalFlow(ctx context.Context, assetName currency.Code, symbol string, flowType string, startTime, endTime time.Time, fromID, limit int64) ([]MarginCapitalFlow, error) {
+func (b *Binance) GetCrossOrIsolatedMarginCapitalFlow(ctx context.Context, assetName currency.Code, symbol, flowType string, startTime, endTime time.Time, fromID, limit int64) ([]MarginCapitalFlow, error) {
 	params := url.Values{}
 	if !assetName.IsEmpty() {
 		params.Set("asset", assetName.String())
@@ -2143,19 +2142,15 @@ func (b *Binance) WithdrawHistory(ctx context.Context, c currency.Code, status s
 	if !startTime.IsZero() {
 		params.Set("startTime", strconv.FormatInt(startTime.UTC().UnixMilli(), 10))
 	}
-
 	if !endTime.IsZero() {
 		params.Set("endTime", strconv.FormatInt(endTime.UTC().UnixMilli(), 10))
 	}
-
 	if offset != 0 {
 		params.Set("offset", strconv.Itoa(offset))
 	}
-
 	if limit != 0 {
 		params.Set("limit", strconv.Itoa(limit))
 	}
-
 	var withdrawStatus []WithdrawStatusResponse
 	return withdrawStatus, b.SendAuthHTTPRequest(ctx,
 		exchange.RestSpotSupplementary, http.MethodGet,
@@ -2507,7 +2502,7 @@ func (b *Binance) GetSymbolsDelistScheduleForSpot(ctx context.Context) ([]Delist
 	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/spot/delist-schedule", nil, symbolDelistScheduleForSpotRate, nil, &resp)
 }
 
-// --------------------------------------------------    ---------------------------------------------------------------------------------
+// --------------------------------------------------  Sub-Account Endpoints  --------------------------------------------------------------
 
 // CreateVirtualSubAccount creates a virtual subaccount information.
 func (b *Binance) CreateVirtualSubAccount(ctx context.Context, subAccountString string) (*VirtualSubAccount, error) {
@@ -4080,6 +4075,9 @@ func (b *Binance) GetLockedProductPosition(ctx context.Context, assetName curren
 	if positionID != "" {
 		params.Set("positionId", positionID)
 	}
+	if projectID != "" {
+		params.Set("projectId", projectID)
+	}
 	if current > 0 {
 		params.Set("current", strconv.FormatInt(current, 10))
 	}
@@ -4128,7 +4126,7 @@ func (b *Binance) GetFlexibleRedemptionRecord(ctx context.Context, productID, re
 
 // GetLockedRedemptionRecord retrieves locked redemptions record list
 func (b *Binance) GetLockedRedemptionRecord(ctx context.Context, productID, redeemID string, assetName currency.Code, startTime, endTime time.Time, current, size int64) (*LockedRedemptionRecord, error) {
-	params, err := fillSubscriptionAndRedemptionRecord(productID, "", redeemID, "", currency.ETH, startTime, endTime, current, size)
+	params, err := fillSubscriptionAndRedemptionRecord(productID, "", redeemID, "", assetName, startTime, endTime, current, size)
 	if err != nil {
 		return nil, err
 	}
@@ -4172,7 +4170,7 @@ func fillSubscriptionAndRedemptionRecord(productID, purchaseID, redeemID, reward
 
 // GetFlexibleRewardHistory retrieves flexible rewards history
 func (b *Binance) GetFlexibleRewardHistory(ctx context.Context, productID, rewardType string, assetName currency.Code, startTime, endTime time.Time, current, size int64) (*FlexibleReward, error) {
-	params, err := fillSubscriptionAndRedemptionRecord(productID, "", "", rewardType, currency.ETH, startTime, endTime, current, size)
+	params, err := fillSubscriptionAndRedemptionRecord(productID, "", "", rewardType, assetName, startTime, endTime, current, size)
 	if err != nil {
 		return nil, err
 	}
@@ -4182,7 +4180,7 @@ func (b *Binance) GetFlexibleRewardHistory(ctx context.Context, productID, rewar
 
 // GetLockedRewardHistory retrieves locked rewards history
 func (b *Binance) GetLockedRewardHistory(ctx context.Context, positionID string, assetName currency.Code, startTime, endTime time.Time, current, size int64) (*LockedRewards, error) {
-	params, err := fillSubscriptionAndRedemptionRecord(positionID, "", "", "", currency.BTC, startTime, endTime, current, size)
+	params, err := fillSubscriptionAndRedemptionRecord(positionID, "", "", "", assetName, startTime, endTime, current, size)
 	if err != nil {
 		return nil, err
 	}
@@ -4412,7 +4410,7 @@ func (b *Binance) CheckDualInvestmentAccounts(ctx context.Context) (*DualInvestm
 // ChangeAutoCompoundStatus change Auto-Compound status
 // autoCompoundPlan possible values: NONE, STANDARD,ADVANCED
 // get positionId from /sapi/v1/dci/product/positions
-func (b *Binance) ChangeAutoCompoundStatus(ctx context.Context, positionID string, autoCompoundPlan string) (*AutoCompoundStatus, error) {
+func (b *Binance) ChangeAutoCompoundStatus(ctx context.Context, positionID, autoCompoundPlan string) (*AutoCompoundStatus, error) {
 	if positionID == "" {
 		return nil, errors.New("position ID is required")
 	}
@@ -4848,7 +4846,7 @@ func (b *Binance) GetCurrentETHStakingQuota(ctx context.Context) (*ETHStakingQuo
 	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/eth-staking/eth/quota", nil, currentETHStakingQuotaRate, nil, &resp)
 }
 
-// GetWBETRateHistory retrives WBETH rate history
+// GetWBETHRateHistory retrives WBETH rate history
 func (b *Binance) GetWBETHRateHistory(ctx context.Context, startTime, endTime time.Time, current, size int64) (*WBETHRateHistory, error) {
 	params, err := fillHistoryRetrievalParams(startTime, endTime, current, size)
 	if err != nil {
@@ -4883,7 +4881,7 @@ func (b *Binance) GetETHStakingAccount(ctx context.Context) (*ETHStakingAccountD
 	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "sapi/v1/eth-staking/account", nil, ethStakingAccountRate, nil, &resp)
 }
 
-// GetETHStakingAccount retrives V2 ETH staking account detail.
+// GetETHStakingAccountV2 retrives V2 ETH staking account detail.
 func (b *Binance) GetETHStakingAccountV2(ctx context.Context) (*StakingAccountV2Response, error) {
 	var resp *StakingAccountV2Response
 	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v2/eth-staking/account", nil, ethStakingAccountRate, nil, &resp)
@@ -5089,7 +5087,7 @@ func (b *Binance) HashrateRescaleRequest(ctx context.Context, userName, algorith
 		return nil, fmt.Errorf("%w, start time and end time are required", common.ErrDateUnset)
 	}
 	if toPoolUser == "" {
-		return nil, errors.New("reciever mining account is required")
+		return nil, errors.New("receiver mining account is required")
 	}
 	if hashRate > 0 {
 		return nil, errors.New("hash rate is required")
@@ -5247,6 +5245,11 @@ func (b *Binance) GetFutureTickLevelOrderbookHistoricalDataDownloadLink(ctx cont
 // Binance Futures Execution Algorithm API solution aims to provide users ability to programmatically
 // leverage Binance in-house algorithmic trading capability to automate order execution strategy,
 // improve execution transparency and give users smart access to the available market liquidity.
+
+// VolumeParticipationNewOrder send in a VP new order. Only support on USDⓈ-M Contracts.
+//
+// You need to enable Futures Trading Permission for the api key which requests this endpoint.
+// Base URL: https://api.binance.com
 func (b *Binance) VolumeParticipationNewOrder(ctx context.Context, arg *VolumeParticipationOrderParams) (*AlgoOrderResponse, error) {
 	if arg == nil || *arg == (VolumeParticipationOrderParams{}) {
 		return nil, common.ErrNilPointer
@@ -5891,8 +5894,8 @@ func (b *Binance) GetVIPApplicationStatus(ctx context.Context, current, limit in
 	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/loan/vip/request/data", params, spotDefaultRate, nil, &resp)
 }
 
-// GetVIPBorrowInterestrate represents an interest rates of loaned coin.
-func (b *Binance) GetVIPBorrowInterestrate(ctx context.Context, loanCoin currency.Code) ([]BorrowInterestRate, error) {
+// GetVIPBorrowInterestRate represents an interest rates of loaned coin.
+func (b *Binance) GetVIPBorrowInterestRate(ctx context.Context, loanCoin currency.Code) ([]BorrowInterestRate, error) {
 	if loanCoin.IsEmpty() {
 		return nil, fmt.Errorf("%w, loanCoin is required", currency.ErrCurrencyCodeEmpty)
 	}
@@ -5903,7 +5906,6 @@ func (b *Binance) GetVIPBorrowInterestrate(ctx context.Context, loanCoin currenc
 }
 
 // ------------- Crypto Loan Endpoints ---------------------------------------------------------------
-// TODO
 
 // ------------------------------------------------ Pay Endpoints ----------------------------------------------
 
