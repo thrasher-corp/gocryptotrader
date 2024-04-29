@@ -5029,3 +5029,73 @@ type LockedValueVIPCollateralAccount struct {
 	} `json:"rows"`
 	Total int64 `json:"total"`
 }
+
+// VIPLoanBorrow represents a VIP loan borrow detail.
+type VIPLoanBorrow struct {
+	LoanAccountID       string       `json:"loanAccountId"`
+	RequestID           string       `json:"requestId"`
+	LoanCoin            string       `json:"loanCoin"`
+	IsFlexibleRate      string       `json:"isFlexibleRate"`
+	LoanAmount          types.Number `json:"loanAmount"`
+	CollateralAccountID string       `json:"collateralAccountId"`
+	CollateralCoin      string       `json:"collateralCoin"`
+	LoanTerm            string       `json:"loanTerm,omitempty"`
+}
+
+// VIPLoanableAssetsData represents a list of loanable assets for VIP account
+type VIPLoanableAssetsData struct {
+	Rows []struct {
+		LoanCoin                   string       `json:"loanCoin"`
+		FlexibleHourlyInterestRate types.Number `json:"_flexibleHourlyInterestRate"`
+		FlexibleYearlyInterestRate types.Number `json:"_flexibleYearlyInterestRate"`
+		Three_0DDailyInterestRate  types.Number `json:"_30dDailyInterestRate"`
+		Three_0DYearlyInterestRate types.Number `json:"_30dYearlyInterestRate"`
+		Six_0DDailyInterestRate    types.Number `json:"_60dDailyInterestRate"`
+		Six_0DYearlyInterestRate   types.Number `json:"_60dYearlyInterestRate"`
+		MinLimit                   types.Number `json:"minLimit"`
+		MaxLimit                   types.Number `json:"maxLimit"`
+		VipLevel                   int64        `json:"vipLevel"`
+	} `json:"rows"`
+	Total int64 `json:"total"`
+}
+
+// VIPCollateralAssetData represents a VIP collateral asset data.
+type VIPCollateralAssetData struct {
+	Rows []struct {
+		CollateralCoin          string `json:"collateralCoin"`
+		One_StCollateralRatio   string `json:"_1stCollateralRatio"`
+		One_StCollateralRange   string `json:"_1stCollateralRange"`
+		Two_NdCollateralRatio   string `json:"_2ndCollateralRatio"`
+		Two_NdCollateralRange   string `json:"_2ndCollateralRange"`
+		Three_RdCollateralRatio string `json:"_3rdCollateralRatio"`
+		Three_RdCollateralRange string `json:"_3rdCollateralRange"`
+		Four_ThCollateralRatio  string `json:"_4thCollateralRatio"`
+		Four_ThCollateralRange  string `json:"_4thCollateralRange"`
+	} `json:"rows"`
+	Total int64 `json:"total"`
+}
+
+// LoanApplicationStatus represents a loan application status response.
+type LoanApplicationStatus struct {
+	Rows []struct {
+		LoanAccountID       string       `json:"loanAccountId"`
+		OrderID             string       `json:"orderId"`
+		RequestID           string       `json:"requestId"`
+		LoanCoin            string       `json:"loanCoin"`
+		LoanAmount          types.Number `json:"loanAmount"`
+		CollateralAccountID string       `json:"collateralAccountId"`
+		CollateralCoin      string       `json:"collateralCoin"`
+		LoanTerm            string       `json:"loanTerm"`
+		Status              string       `json:"status"`
+		LoanDate            string       `json:"loanDate"`
+	} `json:"rows"`
+	Total int64 `json:"total"`
+}
+
+// BorrowInterestRate represents a borrow interest rate response.
+type BorrowInterestRate struct {
+	Asset                      string               `json:"asset"`
+	FlexibleDailyInterestRate  types.Number         `json:"flexibleDailyInterestRate"`
+	FlexibleYearlyInterestRate types.Number         `json:"flexibleYearlyInterestRate"`
+	Time                       convert.ExchangeTime `json:"time"`
+}

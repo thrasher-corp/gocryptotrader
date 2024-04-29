@@ -5819,7 +5819,88 @@ func (b *Binance) CheckLockedValueVIPCollateralAccount(ctx context.Context, orde
 	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/loan/vip/collateral/account", params, checkLockedValueVIPCollateralAccountRate, nil, &resp)
 }
 
-// func (b *Binance) VIPLoanBorrow(ctx context.Context, )
+// VIPLoanBorrow VIP loan is available for VIP users only.
+func (b *Binance) VIPLoanBorrow(ctx context.Context, loanAccountID, loanTerm int64, loanCoin, collateralCoin currency.Code, loanAmount float64, collateralAccountID string, isFlexibleRate bool) ([]VIPLoanBorrow, error) {
+	if loanAccountID == 0 {
+		return nil, errors.New("loanAccountId is required")
+	}
+	if loanCoin.IsEmpty() {
+		return nil, fmt.Errorf("%w, loanCoin is required", currency.ErrCurrencyCodeEmpty)
+	}
+	if loanAmount <= 0 {
+		return nil, fmt.Errorf("%w, loanAmount is required", order.ErrAmountBelowMin)
+	}
+	if collateralAccountID == "" {
+		return nil, errors.New("collateralAccountID is required")
+	}
+	if collateralCoin.IsEmpty() {
+		return nil, fmt.Errorf("%w, collateralCoin is required", currency.ErrCurrencyCodeEmpty)
+	}
+	if loanTerm == 0 {
+		return nil, errors.New("loan Term is required")
+	}
+	params := url.Values{}
+	params.Set("loanTerm", strconv.FormatInt(loanTerm, 10))
+	params.Set("loanAccountId", strconv.FormatInt(loanAccountID, 10))
+	params.Set("loanCoin", loanCoin.String())
+	params.Set("loanAmount", strconv.FormatFloat(loanAmount, 'f', -1, 64))
+	params.Set("collateralAccountId", collateralAccountID)
+	params.Set("collateralCoin", collateralCoin.String())
+	if isFlexibleRate {
+		params.Set("isFlexible", "TRUE")
+	} else {
+		params.Set("isFlexible", "FALSE")
+	}
+	var resp []VIPLoanBorrow
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/sapi/v1/loan/vip/borrow", params, spotDefaultRate, nil, &resp)
+}
+
+// GetVIPLoanableAssetsData get interest rate and borrow limit of loanable assets. The borrow limit is shown in USD value.
+func (b *Binance) GetVIPLoanableAssetsData(ctx context.Context, loanCoin currency.Code, vipLevel int64) (*VIPLoanableAssetsData, error) {
+	params := url.Values{}
+	if !loanCoin.IsEmpty() {
+		params.Set("loanCoin", loanCoin.String())
+	}
+	if vipLevel > 0 {
+		params.Set("vipLevel", strconv.FormatInt(vipLevel, 10))
+	}
+	var resp *VIPLoanableAssetsData
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/loan/vip/loanable/data", params, getVIPLoanableAssetsRate, nil, &resp)
+}
+
+// GetVIPCollateralAssetData retrieves Collateral Asset Data
+func (b *Binance) GetVIPCollateralAssetData(ctx context.Context, collateralCoin currency.Code) (*VIPCollateralAssetData, error) {
+	params := url.Values{}
+	if !collateralCoin.IsEmpty() {
+		params.Set("collateralCoin", collateralCoin.String())
+	}
+	var resp *VIPCollateralAssetData
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/loan/vip/collateral/data", params, getCollateralAssetDataRate, nil, &resp)
+}
+
+// GetVIPApplicationStatus retrieves a loan application status
+func (b *Binance) GetVIPApplicationStatus(ctx context.Context, current, limit int64) (*LoanApplicationStatus, error) {
+	params := url.Values{}
+	if current > 0 {
+		params.Set("current", strconv.FormatInt(current, 10))
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	var resp *LoanApplicationStatus
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/loan/vip/request/data", params, spotDefaultRate, nil, &resp)
+}
+
+// GetVIPBorrowInterestrate represents an interest rates of loaned coin.
+func (b *Binance) GetVIPBorrowInterestrate(ctx context.Context, loanCoin currency.Code) ([]BorrowInterestRate, error) {
+	if loanCoin.IsEmpty() {
+		return nil, fmt.Errorf("%w, loanCoin is required", currency.ErrCurrencyCodeEmpty)
+	}
+	params := url.Values{}
+	params.Set("loanCoin", loanCoin.String())
+	var resp []BorrowInterestRate
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/loan/vip/request/interestRate", params, spotDefaultRate, nil, &resp)
+}
 
 // ------------- Crypto Loan Endpoints ---------------------------------------------------------------
 // TODO

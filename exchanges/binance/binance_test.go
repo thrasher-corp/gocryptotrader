@@ -6752,3 +6752,43 @@ func TestCheckLockedValueVIPCollateralAccount(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
+
+func TestVIPLoanBorrow(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	result, err := b.VIPLoanBorrow(context.Background(), 1234, 30, currency.ETH, currency.LTC, 123, "1234", false)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetVIPLoanableAssetsData(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetVIPLoanableAssetsData(context.Background(), currency.BTC, 2)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetVIPCollateralAssetData(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetVIPCollateralAssetData(context.Background(), currency.BTC)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetVIPApplicationStatus(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetVIPApplicationStatus(context.Background(), 10, 20)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetVIPBorrowInterestrate(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetVIPBorrowInterestrate(context.Background(), currency.ETH)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
