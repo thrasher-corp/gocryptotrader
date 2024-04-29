@@ -8,7 +8,7 @@ DRIVER ?= psql
 RACE_FLAG := $(if $(NO_RACE_TEST),,-race)
 CONFIG_FLAG = $(if $(CONFIG),-config $(CONFIG),)
 
-.PHONY: get linter check test build install update_deps lint_configs
+.PHONY: get linter check test build install update_deps
 
 all: check build
 
@@ -68,12 +68,13 @@ lint_configs: check-jq
 	@$(call sort-json,testdata/configtest.json)
 
 define sort-json
-	@echo "Processing $(1)..."
+	@echo -n "Processing $(1)... "
 	@jq '.exchanges |= sort_by(.name)' --indent 1 $(1) > $(1).temp && \
-		(mv $(1).temp $(1)) || \
-		(rm $(1).temp; echo "jq processing failed on $(1)"; exit 1)
+		(mv $(1).temp $(1) && echo "OK") || \
+		(rm $(1).temp; echo "FAILED"; exit 1)
 endef
 
+.PHONY: check-jq
 check-jq:
-	@echo "Checking if jq is installed..."
-	@command -v jq >/dev/null 2>&1 || { echo >&2 "jq is not installed. Please install jq to proceed."; exit 1; }
+	@echo -n "Checking if jq is installed... "
+	@command -v jq >/dev/null 2>&1 && { echo "OK"; } || { echo "Failed. Please install jq to proceed."; exit 1; }
