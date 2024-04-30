@@ -160,7 +160,6 @@ var (
 	errTooManyOrderRequest           = errors.New("too many order creation request")
 	errInvalidTimeout                = errors.New("invalid timeout, should be in seconds At least 5 seconds, 0 means cancel the countdown")
 	errNoTickerData                  = errors.New("no ticker data available")
-	errOnlyLimitOrderType            = errors.New("only order type 'limit' is allowed")
 	errNilArgument                   = errors.New("null argument")
 	errInvalidTimezone               = errors.New("invalid timezone")
 	errMultipleOrders                = errors.New("multiple orders passed")
@@ -636,9 +635,6 @@ func (g *Gateio) PlaceSpotOrder(ctx context.Context, arg *CreateOrderRequestData
 	if arg.CurrencyPair.IsInvalid() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
-	if arg.Type != "limit" {
-		return nil, errOnlyLimitOrderType
-	}
 	arg.Side = strings.ToLower(arg.Side)
 	if arg.Side != "buy" && arg.Side != "sell" {
 		return nil, errInvalidOrderSide
@@ -651,7 +647,7 @@ func (g *Gateio) PlaceSpotOrder(ctx context.Context, arg *CreateOrderRequestData
 	if arg.Amount <= 0 {
 		return nil, errInvalidAmount
 	}
-	if arg.Price <= 0 {
+	if arg.Price < 0 {
 		return nil, errInvalidPrice
 	}
 	var response *SpotOrder
