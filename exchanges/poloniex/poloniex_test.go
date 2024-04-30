@@ -20,6 +20,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
+	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
@@ -1144,12 +1145,11 @@ func TestFetchTradablePairs(t *testing.T) {
 
 func TestGetCurrencyTradeURL(t *testing.T) {
 	t.Parallel()
+	testexch.UpdatePairsOnce(t, p)
 	for _, a := range p.GetAssetTypes(false) {
 		pairs, err := p.CurrencyPairs.GetPairs(a, false)
-		if len(pairs) == 0 {
-			continue
-		}
 		require.NoError(t, err, "cannot get pairs for %s", a)
+		require.NotEmpty(t, pairs, "no pairs for %s", a)
 		resp, err := p.GetCurrencyTradeURL(context.Background(), a, pairs[0])
 		require.NoError(t, err)
 		assert.NotEmpty(t, resp)

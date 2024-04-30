@@ -2487,16 +2487,14 @@ func (h *HUOBI) GetCurrencyTradeURL(_ context.Context, a asset.Item, cp currency
 	case asset.Futures:
 		if !cp.Quote.Equal(currency.USD) && !cp.Quote.Equal(currency.USDT) {
 			// todo: support long dated currencies
-			// requires parsing dates from quotes into specific contract types
-			return "", common.ErrFunctionNotSupported
+			return "", fmt.Errorf("%w %v requires translating currency into static contracts eg 'weekly'", common.ErrNotYetImplemented, a)
 		}
 		cp.Delimiter = currency.DashDelimiter
 		return tradeBaseURL + tradeFutures + cp.Upper().String(), nil
 	case asset.CoinMarginedFutures:
 		if !cp.Quote.Equal(currency.USD) && !cp.Quote.Equal(currency.USDT) {
 			// todo: support long dated currencies
-			// requires parsing dates from quotes into specific contract types
-			return "", common.ErrFunctionNotSupported
+			return "", fmt.Errorf("%w %v requires translating currency into static contracts eg 'weekly'", common.ErrNotYetImplemented, a)
 		}
 		return tradeBaseURL + tradeCoinMargined + cp.Base.Upper().String(), nil
 	default:

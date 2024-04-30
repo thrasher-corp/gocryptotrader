@@ -3587,16 +3587,14 @@ func TestGetCurrencyTradeURL(t *testing.T) {
 	testexch.UpdatePairsOnce(t, g)
 	for _, a := range g.GetAssetTypes(false) {
 		pairs, err := g.CurrencyPairs.GetPairs(a, false)
-		if len(pairs) == 0 {
-			continue
-		}
 		require.NoError(t, err, "cannot get pairs for %s", a)
+		require.NotEmpty(t, pairs, "no pairs for %s", a)
 		resp, err := g.GetCurrencyTradeURL(context.Background(), a, pairs[0])
 		if a == asset.Options {
-			assert.ErrorIs(t, err, asset.ErrNotSupported, "could not access url %s", resp)
-			continue
+			require.ErrorIs(t, err, asset.ErrNotSupported)
+		} else {
+			require.NoError(t, err)
+			assert.NotEmpty(t, resp)
 		}
-		require.NoError(t, err)
-		assert.NotEmpty(t, resp)
 	}
 }

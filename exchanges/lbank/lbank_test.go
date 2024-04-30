@@ -621,10 +621,8 @@ func TestGetCurrencyTradeURL(t *testing.T) {
 	testexch.UpdatePairsOnce(t, l)
 	for _, a := range l.GetAssetTypes(false) {
 		pairs, err := l.CurrencyPairs.GetPairs(a, false)
-		if len(pairs) == 0 {
-			continue
-		}
 		require.NoError(t, err, "cannot get pairs for %s", a)
+		require.NotEmpty(t, pairs, "no pairs for %s", a)
 		resp, err := l.GetCurrencyTradeURL(context.Background(), a, pairs[0])
 		require.NoError(t, err)
 		assert.NotEmpty(t, resp)
