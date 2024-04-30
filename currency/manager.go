@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -65,10 +66,9 @@ func (p *PairsManager) Get(a asset.Item) (*PairStore, error) {
 	defer p.mutex.RUnlock()
 	c, ok := p.Pairs[a]
 	if !ok {
-		return nil,
-			fmt.Errorf("cannot get pair store, %v %w", a, asset.ErrNotSupported)
+		return nil, fmt.Errorf("cannot get pair store, %v %w", a, asset.ErrNotSupported)
 	}
-	return c.copy()
+	return c.clone(), nil
 }
 
 // Match returns a currency pair based on the supplied symbol and asset type
@@ -94,24 +94,16 @@ func (p *PairsManager) Store(a asset.Item, ps *PairStore) error {
 	if !a.IsValid() {
 		return fmt.Errorf("%s %w", a, asset.ErrNotSupported)
 	}
-	cpy, err := ps.copy()
-	if err != nil {
-		return err
+	if ps == nil {
+		return errPairStoreIsNil
 	}
 	p.mutex.Lock()
+	defer p.mutex.Unlock()
 	if p.Pairs == nil {
-		p.Pairs = make(map[asset.Item]*PairStore)
+		p.Pairs = FullStore{}
 	}
-	p.Pairs[a] = cpy
-	if p.matcher == nil {
-		p.matcher = make(map[key]*Pair)
-	}
-	for x := range cpy.Available {
-		p.matcher[key{
-			Symbol: cpy.Available[x].Base.Lower().String() + cpy.Available[x].Quote.Lower().String(),
-			Asset:  a}] = &cpy.Available[x]
-	}
-	p.mutex.Unlock()
+	p.Pairs[a] = ps.clone()
+	p.reindex()
 	return nil
 }
 
@@ -145,9 +137,7 @@ func (p *PairsManager) GetPairs(a asset.Item, enabled bool) (Pairs, error) {
 	}
 
 	if !enabled {
-		availPairs := make(Pairs, len(pairStore.Available))
-		copy(availPairs, pairStore.Available)
-		return availPairs, nil
+		return slices.Clone(pairStore.Available), nil
 	}
 
 	lenCheck := len(pairStore.Enabled)
@@ -157,8 +147,7 @@ func (p *PairsManager) GetPairs(a asset.Item, enabled bool) (Pairs, error) {
 
 	// NOTE: enabledPairs is declared before the next check for comparison
 	// reasons within exchange update pairs functionality.
-	enabledPairs := make(Pairs, lenCheck)
-	copy(enabledPairs, pairStore.Enabled)
+	enabledPairs := slices.Clone(pairStore.Enabled)
 
 	err := pairStore.Available.ContainsAll(pairStore.Enabled, true)
 	if err != nil {
@@ -176,8 +165,6 @@ func (p *PairsManager) StoreFormat(a asset.Item, pFmt *PairFormat, config bool) 
 		return errPairFormatIsNil
 	}
 
-	cpy := *pFmt
-
 	p.mutex.Lock()
 	defer p.mutex.Unlock()
 
@@ -192,9 +179,9 @@ func (p *PairsManager) StoreFormat(a asset.Item, pFmt *PairFormat, config bool) 
 	}
 
 	if config {
-		pairStore.ConfigFormat = &cpy
+		pairStore.ConfigFormat = pFmt.clone()
 	} else {
-		pairStore.RequestFormat = &cpy
+		pairStore.RequestFormat = pFmt.clone()
 	}
 	return nil
 }
@@ -205,11 +192,6 @@ func (p *PairsManager) StorePairs(a asset.Item, pairs Pairs, enabled bool) error
 	if !a.IsValid() {
 		return fmt.Errorf("%s %w", a, asset.ErrNotSupported)
 	}
-
-	// NOTE: Length check not needed in this scenario as it has the ability to
-	// remove the entire stored list if needed.
-	cpy := make(Pairs, len(pairs))
-	copy(cpy, pairs)
 
 	p.mutex.Lock()
 	defer p.mutex.Unlock()
@@ -225,18 +207,10 @@ func (p *PairsManager) StorePairs(a asset.Item, pairs Pairs, enabled bool) error
 	}
 
 	if enabled {
-		pairStore.Enabled = cpy
+		pairStore.Enabled = slices.Clone(pairs)
 	} else {
-		pairStore.Available = cpy
-
-		if p.matcher == nil {
-			p.matcher = make(map[key]*Pair)
-		}
-		for x := range pairStore.Available {
-			p.matcher[key{
-				Symbol: pairStore.Available[x].Base.Lower().String() + pairStore.Available[x].Quote.Lower().String(),
-				Asset:  a}] = &pairStore.Available[x]
-		}
+		pairStore.Available = slices.Clone(pairs)
+		p.reindex()
 	}
 
 	return nil
@@ -435,34 +409,31 @@ func (p *PairsManager) SetAssetEnabled(a asset.Item, enabled bool) error {
 }
 
 // Load sets the pair manager from a seed without copying mutexes
-func (p *PairsManager) Load(seed *PairsManager) error {
-	if seed == nil {
-		return fmt.Errorf("%w PairsManager", common.ErrNilPointer)
-	}
+func (p *PairsManager) Load(seed *PairsManager) {
 	p.mutex.Lock()
 	defer p.mutex.Unlock()
 	seed.mutex.RLock()
 	defer seed.mutex.RUnlock()
 
-	var pN PairsManager
-	j, err := json.Marshal(seed)
-	if err != nil {
-		return err
-	}
-	err = json.Unmarshal(j, &pN)
-	if err != nil {
-		return err
-	}
-	p.BypassConfigFormatUpgrades = pN.BypassConfigFormatUpgrades
-	if pN.UseGlobalFormat {
-		p.UseGlobalFormat = pN.UseGlobalFormat
-		p.RequestFormat = pN.RequestFormat
-		p.ConfigFormat = pN.ConfigFormat
-	}
-	p.LastUpdated = pN.LastUpdated
-	p.Pairs = pN.Pairs
+	p.BypassConfigFormatUpgrades = seed.BypassConfigFormatUpgrades
+	p.UseGlobalFormat = seed.UseGlobalFormat
+	p.LastUpdated = seed.LastUpdated
+	p.Pairs = seed.Pairs.clone()
+	p.RequestFormat = seed.RequestFormat.clone()
+	p.ConfigFormat = seed.ConfigFormat.clone()
+	p.reindex()
+}
 
-	return nil
+// reindex re-indexes the matcher for Available pairs and all assets
+// This method does not lock for concurrency
+func (p *PairsManager) reindex() {
+	p.matcher = make(map[key]*Pair)
+	for a, fs := range p.Pairs {
+		for i, pair := range fs.Available {
+			k := key{Symbol: pair.Base.Lower().String() + pair.Quote.Lower().String(), Asset: a}
+			p.matcher[k] = &fs.Available[i]
+		}
+	}
 }
 
 func (p *PairsManager) getPairStoreRequiresLock(a asset.Item) (*PairStore, error) {
@@ -539,39 +510,30 @@ func (fs FullStore) MarshalJSON() ([]byte, error) {
 	return json.Marshal(temp)
 }
 
-// copy copies and segregates pair store from internal and external calls.
-func (ps *PairStore) copy() (*PairStore, error) {
+// clone returns a deep clone of the PairStore
+func (ps *PairStore) clone() *PairStore {
 	if ps == nil {
-		return nil, errPairStoreIsNil
+		return nil
 	}
+
 	var assetEnabled *bool
 	if ps.AssetEnabled != nil {
 		assetEnabled = convert.BoolPtr(*ps.AssetEnabled)
 	}
 
-	enabled := make(Pairs, len(ps.Enabled))
-	copy(enabled, ps.Enabled)
-
-	avail := make(Pairs, len(ps.Available))
-	copy(avail, ps.Available)
-
-	var rFmt *PairFormat
-	if ps.RequestFormat != nil {
-		cpy := *ps.RequestFormat
-		rFmt = &cpy
-	}
-
-	var cFmt *PairFormat
-	if ps.ConfigFormat != nil {
-		cpy := *ps.ConfigFormat
-		cFmt = &cpy
-	}
-
 	return &PairStore{
 		AssetEnabled:  assetEnabled,
-		Enabled:       enabled,
-		Available:     avail,
-		RequestFormat: rFmt,
-		ConfigFormat:  cFmt,
-	}, nil
+		Enabled:       slices.Clone(ps.Enabled),
+		Available:     slices.Clone(ps.Available),
+		RequestFormat: ps.RequestFormat.clone(),
+		ConfigFormat:  ps.ConfigFormat.clone(),
+	}
+}
+
+func (fs FullStore) clone() FullStore {
+	c := FullStore{}
+	for a, pairStore := range fs {
+		c[a] = pairStore.clone()
+	}
+	return c
 }

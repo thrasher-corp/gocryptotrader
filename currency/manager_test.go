@@ -7,7 +7,6 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
@@ -799,15 +798,16 @@ func TestLoad(t *testing.T) {
 		},
 	}
 
-	assert.ErrorIs(t, base.Load(nil), common.ErrNilPointer, "Load nil should error")
-	if assert.NoError(t, base.Load(&seed), "Loading from seed should not error") {
-		assert.True(t, *base.Pairs[asset.Futures].AssetEnabled, "Futures AssetEnabled should be true")
-		assert.True(t, base.Pairs[asset.Futures].Available.Contains(p, true), "Futures Available Pairs should contain BTCUSDT")
-		assert.False(t, *base.Pairs[asset.Options].AssetEnabled, "Options AssetEnabled should be false")
-		assert.Equal(t, tt, base.LastUpdated, "Last Updated should be correct")
-		assert.Equal(t, fmt1.Uppercase, base.ConfigFormat.Uppercase, "ConfigFormat Uppercase should be correct")
-		assert.Equal(t, fmt2.Delimiter, base.RequestFormat.Delimiter, "RequestFormat Delimiter should be correct")
-	}
+	base.Load(&seed)
+	assert.True(t, *base.Pairs[asset.Futures].AssetEnabled, "Futures AssetEnabled should be true")
+	assert.True(t, base.Pairs[asset.Futures].Available.Contains(p, true), "Futures Available Pairs should contain BTCUSDT")
+	assert.False(t, *base.Pairs[asset.Options].AssetEnabled, "Options AssetEnabled should be false")
+	assert.Equal(t, tt, base.LastUpdated, "Last Updated should be correct")
+	assert.Equal(t, fmt1.Uppercase, base.ConfigFormat.Uppercase, "ConfigFormat Uppercase should be correct")
+	assert.Equal(t, fmt2.Delimiter, base.RequestFormat.Delimiter, "RequestFormat Delimiter should be correct")
+	found, err := base.Match("BTCUSDT", asset.Futures)
+	require.NoError(t, err, "Match must not error")
+	assert.Equal(t, p, found, "Should find the right pair")
 }
 
 func checkPairDelimiter(tb testing.TB, p *PairsManager, err error, d, msg string) {
