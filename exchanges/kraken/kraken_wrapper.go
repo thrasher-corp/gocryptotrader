@@ -34,29 +34,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
-// GetDefaultConfig returns a default exchange config
-func (k *Kraken) GetDefaultConfig(ctx context.Context) (*config.Exchange, error) {
-	k.SetDefaults()
-	exchCfg, err := k.GetStandardConfig()
-	if err != nil {
-		return nil, err
-	}
-
-	err = k.SetupDefaults(exchCfg)
-	if err != nil {
-		return nil, err
-	}
-
-	if k.Features.Supports.RESTCapabilities.AutoPairUpdates {
-		err = k.UpdateTradablePairs(ctx, true)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	return exchCfg, nil
-}
-
 // SetDefaults sets current default settings
 func (k *Kraken) SetDefaults() {
 	k.Name = "Kraken"
@@ -209,7 +186,7 @@ func (k *Kraken) SetDefaults() {
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
-	k.Websocket = stream.New()
+	k.Websocket = stream.NewWebsocket()
 	k.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	k.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
 	k.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
@@ -1718,12 +1695,10 @@ func (k *Kraken) GetLatestFundingRates(ctx context.Context, r *fundingrate.Lates
 		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, r.Asset)
 	}
 	if !r.Pair.IsEmpty() {
-		_, isEnabled, err := k.MatchSymbolCheckEnabled(r.Pair.String(), r.Asset, r.Pair.Delimiter != "")
-		if err != nil && !errors.Is(err, currency.ErrPairNotFound) {
+		if ok, err := k.CurrencyPairs.IsPairAvailable(r.Pair, r.Asset); err != nil {
 			return nil, err
-		}
-		if !isEnabled {
-			return nil, fmt.Errorf("%w %v", currency.ErrPairNotEnabled, r.Pair)
+		} else if !ok {
+			return nil, currency.ErrPairNotContainedInAvailablePairs
 		}
 	}
 
