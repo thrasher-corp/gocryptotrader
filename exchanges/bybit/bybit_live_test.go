@@ -13,6 +13,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
+	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 	gctlog "github.com/thrasher-corp/gocryptotrader/log"
 )
 
@@ -51,7 +52,7 @@ func TestMain(m *testing.M) {
 }
 
 func instantiateTradablePairs() error {
-	sharedtestvalues.UpdatePairsOnce(t, context.Background(), b)
+	testexch.UpdatePairsOnce(t, b)
 	tradables, err := b.GetEnabledPairs(asset.Spot)
 	if err != nil {
 		return err

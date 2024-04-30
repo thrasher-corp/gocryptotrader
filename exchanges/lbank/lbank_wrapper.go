@@ -105,7 +105,7 @@ func (l *Lbank) SetDefaults() {
 		log.Errorln(log.ExchangeSys, err)
 	}
 
-	l.PostSetupRequirements = func(ctx context.Context, exch *config.Exchange) error {
+	l.PostSetupRequirements = func(ctx context.Context, _ *config.Exchange) error {
 		if l.API.AuthenticatedSupport {
 			err = l.loadPrivKey(ctx)
 			if err != nil {

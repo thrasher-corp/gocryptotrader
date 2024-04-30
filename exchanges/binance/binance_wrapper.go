@@ -218,7 +218,7 @@ func (b *Binance) SetDefaults() {
 	b.Websocket = stream.NewWebsocket()
 	b.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	b.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
-	b.PostSetupRequirements = func(ctx context.Context, exch *config.Exchange) error {
+	b.PostSetupRequirements = func(_ context.Context, exch *config.Exchange) error {
 		ePoint, err := b.API.Endpoints.GetURL(exchange.WebsocketSpot)
 		if err != nil {
 			return err

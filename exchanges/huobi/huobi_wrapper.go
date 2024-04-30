@@ -184,7 +184,7 @@ func (h *HUOBI) SetDefaults() {
 	h.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
 	h.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
 
-	h.PostSetupRequirements = func(ctx context.Context, exch *config.Exchange) error {
+	h.PostSetupRequirements = func(_ context.Context, exch *config.Exchange) error {
 		wsRunningURL, err := h.API.Endpoints.GetURL(exchange.WebsocketSpot)
 		if err != nil {
 			return err
