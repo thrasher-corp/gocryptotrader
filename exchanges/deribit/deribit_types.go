@@ -552,6 +552,33 @@ type PrivateCancelData struct {
 	CreationTimestamp   convert.ExchangeTime `json:"creation_timestamp"`
 	API                 bool                 `json:"api"`
 	Amount              float64              `json:"amount"`
+	Web                 bool                 `json:"web"`
+	StopPrice           float64              `json:"stop_price"`
+	Replaced            bool                 `json:"replaced"`
+}
+
+// MultipleCancelResponse represents a response after cancelling multiple orders.
+type MultipleCancelResponse struct {
+	CancelCount   int64
+	CancelDetails []PrivateCancelData
+}
+
+// UnmarshalJSON deserializes order cancellation response into a MultipleCancelResponse instance.
+func (a *MultipleCancelResponse) UnmarshalJSON(data []byte) error {
+	var cancelCount int64
+	var cancelDetails []PrivateCancelData
+	err := json.Unmarshal(data, &cancelDetails)
+	if err != nil {
+		err = json.Unmarshal(data, &cancelCount)
+		if err != nil {
+			return err
+		}
+		a.CancelCount = cancelCount
+		return nil
+	}
+	a.CancelDetails = cancelDetails
+	a.CancelCount = int64(len(cancelDetails))
+	return nil
 }
 
 // MarginsData stores data for margin

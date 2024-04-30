@@ -808,7 +808,7 @@ func (d *Deribit) CancelAllOrders(ctx context.Context, orderCancellation *order.
 	if err := orderCancellation.Validate(); err != nil {
 		return order.CancelAllResponse{}, err
 	}
-	var cancelData int64
+	var cancelData *MultipleCancelResponse
 	pairFmt, err := d.GetPairFormat(orderCancellation.AssetType, true)
 	if err != nil {
 		return order.CancelAllResponse{}, err
@@ -829,7 +829,17 @@ func (d *Deribit) CancelAllOrders(ctx context.Context, orderCancellation *order.
 	} else {
 		cancelData, err = d.SubmitCancelAllByInstrument(ctx, pairFmt.Format(orderCancellation.Pair), orderTypeStr, true, true)
 	}
-	return order.CancelAllResponse{Count: cancelData}, err
+	if err != nil {
+		return order.CancelAllResponse{}, err
+	}
+	response := order.CancelAllResponse{Count: cancelData.CancelCount}
+	if len(cancelData.CancelDetails) > 0 {
+		response.Status = make(map[string]string)
+		for a := range cancelData.CancelDetails {
+			response.Status[cancelData.CancelDetails[a].OrderID] = cancelData.CancelDetails[a].OrderState
+		}
+	}
+	return response, nil
 }
 
 // GetOrderInfo returns order information based on order ID

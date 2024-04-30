@@ -1536,7 +1536,7 @@ func TestWSSubmitCancel(t *testing.T) {
 func TestSubmitCancelAll(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, d, canManipulateRealOrders)
-	_, err := d.SubmitCancelAll(context.Background())
+	_, err := d.SubmitCancelAll(context.Background(), false)
 	assert.NoError(t, err)
 }
 
@@ -1550,7 +1550,7 @@ func TestWSSubmitCancelAll(t *testing.T) {
 func TestSubmitCancelAllByCurrency(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, d, canManipulateRealOrders)
-	_, err := d.SubmitCancelAllByCurrency(context.Background(), currency.BTC, "option", "")
+	_, err := d.SubmitCancelAllByCurrency(context.Background(), currency.BTC, "option", "", true)
 	assert.NoError(t, err)
 }
 
@@ -3032,4 +3032,20 @@ func TestGetHistoricalFundingRates(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, result)
 	assert.True(t, result.StartDate.After(r.StartDate))
+}
+
+func TestMultipleCancelResponseUnmarshalJSON(t *testing.T) {
+	t.Parallel()
+	resp := &struct {
+		Result *MultipleCancelResponse `json:"result"`
+	}{}
+	data := `{ "jsonrpc": "2.0", "id": 8748, "result": 37 }`
+	err := json.Unmarshal([]byte(data), &resp)
+	require.NoError(t, err)
+	require.Equal(t, int64(37), resp.Result.CancelCount)
+	data = `{ "jsonrpc": "2.0", "id": 8748, "result": [{ "web": true, "triggered": false, "trigger_price": 1628.7, "trigger": "last_price", "time_in_force": "good_til_cancelled", "stop_price": 1628.7, "replaced": false, "reduce_only": false, "price": "market_price", "post_only": false, "order_type": "stop_market", "order_state": "untriggered", "order_id": "ETH-SLTS-250756", "max_show": 100, "last_update_timestamp": 1634206091071, "label": "", "is_rebalance": false, "is_liquidation": false, "instrument_name": "ETH-PERPETUAL", "direction": "sell", "creation_timestamp": 1634206000230, "api": false, "amount": 100 }]}`
+	err = json.Unmarshal([]byte(data), &resp)
+	require.NoError(t, err)
+	require.Equal(t, int64(1), resp.Result.CancelCount)
+	require.Len(t, resp.Result.CancelDetails, 1)
 }
