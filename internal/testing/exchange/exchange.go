@@ -18,6 +18,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/config"
+	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/mock"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
@@ -203,9 +204,10 @@ func SetupWs(tb testing.TB, e exchange.IBotExchange) {
 }
 
 var updatePairsMutex sync.Mutex
-var updatePairsOnce = make(map[exchange.IBotExchange]bool)
+var updatePairsOnce = make(map[string]*currency.PairsManager)
 
 // UpdatePairsOnce ensures pairs are only updated once in parallel tests
+// A clone of the cache of the updated pairs is used to populate duplicate requests
 func UpdatePairsOnce(tb testing.TB, e exchange.IBotExchange) {
 	tb.Helper()
 
@@ -220,5 +222,7 @@ func UpdatePairsOnce(tb testing.TB, e exchange.IBotExchange) {
 	err := e.UpdateTradablePairs(context.Background(), true)
 	require.NoError(tb, err, "UpdateTradablePairs must not error")
 
-	updatePairsOnce[e] = true
+	cache := new(currency.PairsManager)
+	cache.Load(&b.CurrencyPairs)
+	updatePairsOnce[e.GetName()] = cache
 }
