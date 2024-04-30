@@ -51,7 +51,10 @@ const (
 var (
 	// ErrExchangeNameIsEmpty is returned when the exchange name is empty
 	ErrExchangeNameIsEmpty = errors.New("exchange name is empty")
+	// ErrSettingProxyAddress is returned when setting a proxy address fails
 	ErrSettingProxyAddress = errors.New("setting proxy address error")
+	// ErrEndpointPathNotFound is returned when an endpoint path is not found for a particular key
+	ErrEndpointPathNotFound = errors.New("no endpoint path found for the given key")
 
 	errEndpointStringNotFound            = errors.New("endpoint string not found")
 	errConfigPairFormatRequiresDelimiter = errors.New("config pair format requires delimiter")
@@ -1350,7 +1353,7 @@ func (e *Endpoints) GetURL(key URL) (string, error) {
 	defer e.mu.RUnlock()
 	val, ok := e.defaults[key.String()]
 	if !ok {
-		return "", fmt.Errorf("no endpoint path found for the given key: %v", key)
+		return "", fmt.Errorf("%w %v", ErrEndpointPathNotFound, key)
 	}
 	return val, nil
 }

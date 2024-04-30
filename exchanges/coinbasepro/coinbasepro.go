@@ -77,6 +77,7 @@ const (
 	coinbaseStats              = "stats"
 	coinbaseTrades             = "trades"
 	coinbaseWrappedAssets      = "wrapped-assets"
+	coinbaseConversionRate     = "conversion-rate"
 
 	pageNone        = ""
 	pageBefore      = "before"
@@ -109,7 +110,7 @@ const (
 // here, the data returned by the GetTransactionsSummary endpoint are consistent with these worst
 // case scenarios. The best case scenarios are untested, and assumed to be in line with the fee pages
 const (
-	WorstCaseTakerFee           = 0.008
+	WorstCaseTakerFee           = 0.01
 	WorstCaseMakerFee           = 0.006
 	BestCaseTakerFee            = 0.0005
 	BestCaseMakerFee            = 0
@@ -159,6 +160,8 @@ var (
 	errStringConvert          = errors.New("unable to convert into string value")
 	errFloatConvert           = errors.New("unable to convert into float64 value")
 	errNoCredsUser            = errors.New("no credentials when attempting to subscribe to authenticated channel user")
+	errWrappedAssetEmpty      = errors.New("wrapped asset cannot be empty")
+	errAuthenticationNeeded   = errors.New("authentication is needed to use this endpoint")
 )
 
 // GetAllAccounts returns information on all trading accounts associated with the API key
@@ -1268,9 +1271,9 @@ func (c *CoinbasePro) GetProductBookV1(ctx context.Context, pair string, level u
 }
 
 // GetProductCandles returns historical market data for the specified currency pair.
-func (c *CoinbasePro) GetProductCandles(ctx context.Context, pair string, granularity uint32, startTime, endTime time.Time) error {
+func (c *CoinbasePro) GetProductCandles(ctx context.Context, pair string, granularity uint32, startTime, endTime time.Time) ([]Candle, error) {
 	if pair == "" {
-		return errPairEmpty
+		return nil, errPairEmpty
 	}
 	var params Params
 	params.Values = url.Values{}
@@ -1282,35 +1285,35 @@ func (c *CoinbasePro) GetProductCandles(ctx context.Context, pair string, granul
 	var resp []RawCandles
 	err := c.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, path, &resp)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	candles := make([]Candle, len(resp))
 	for i := range resp {
 		f1, ok := resp[i][0].(float64)
 		if !ok {
-			return fmt.Errorf("%w, %v", errFloatConvert, resp[i][0])
+			return nil, fmt.Errorf("%w, %v", errFloatConvert, resp[i][0])
 		}
 		ti := int64(f1)
 		t := time.Unix(ti, 0)
 		f2, ok := resp[i][1].(float64)
 		if !ok {
-			return fmt.Errorf("%w, %v", errFloatConvert, resp[i][1])
+			return nil, fmt.Errorf("%w, %v", errFloatConvert, resp[i][1])
 		}
 		f3, ok := resp[i][2].(float64)
 		if !ok {
-			return fmt.Errorf("%w, %v", errFloatConvert, resp[i][2])
+			return nil, fmt.Errorf("%w, %v", errFloatConvert, resp[i][2])
 		}
 		f4, ok := resp[i][3].(float64)
 		if !ok {
-			return fmt.Errorf("%w, %v", errFloatConvert, resp[i][3])
+			return nil, fmt.Errorf("%w, %v", errFloatConvert, resp[i][3])
 		}
 		f5, ok := resp[i][4].(float64)
 		if !ok {
-			return fmt.Errorf("%w, %v", errFloatConvert, resp[i][4])
+			return nil, fmt.Errorf("%w, %v", errFloatConvert, resp[i][4])
 		}
 		f6, ok := resp[i][5].(float64)
 		if !ok {
-			return fmt.Errorf("%w, %v", errFloatConvert, resp[i][5])
+			return nil, fmt.Errorf("%w, %v", errFloatConvert, resp[i][5])
 		}
 		candles[i] = Candle{
 			Time:   t,
@@ -1321,7 +1324,7 @@ func (c *CoinbasePro) GetProductCandles(ctx context.Context, pair string, granul
 			Volume: f6,
 		}
 	}
-	return nil
+	return candles, nil
 }
 
 // GetProductStats returns information on a specific pair's price and volume
@@ -1363,6 +1366,26 @@ func (c *CoinbasePro) GetProductTrades(ctx context.Context, pair, step, directio
 func (c *CoinbasePro) GetAllWrappedAssets(ctx context.Context) (*AllWrappedAssets, error) {
 	var resp *AllWrappedAssets
 	return resp, c.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, coinbaseWrappedAssets, &resp)
+}
+
+// GetWrappedAssetDetails returns information on a single wrapped asset
+func (c *CoinbasePro) GetWrappedAssetDetails(ctx context.Context, wrappedAsset string) (*WrappedAsset, error) {
+	if wrappedAsset == "" {
+		return nil, errWrappedAssetEmpty
+	}
+	var resp *WrappedAsset
+	path := coinbaseWrappedAssets + "/" + wrappedAsset
+	return resp, c.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, path, &resp)
+}
+
+// GetWrappedAssetConversionRate returns the conversion rate for the specified wrapped asset
+func (c *CoinbasePro) GetWrappedAssetConversionRate(ctx context.Context, wrappedAsset string) (*WrappedAssetConversionRate, error) {
+	if wrappedAsset == "" {
+		return nil, errWrappedAssetEmpty
+	}
+	var resp *WrappedAssetConversionRate
+	path := coinbaseWrappedAssets + "/" + wrappedAsset + "/" + coinbaseConversionRate
+	return resp, c.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, path, &resp)
 }
 
 // SendHTTPRequest sends an unauthenticated HTTP request

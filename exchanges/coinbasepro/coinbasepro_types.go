@@ -1340,10 +1340,10 @@ type PairData struct {
 	ID                     string       `json:"id"`
 	BaseCurrency           string       `json:"base_currency"`
 	QuoteCurrency          string       `json:"quote_currency"`
-	QuoteIncrement         string       `json:"quote_increment"`
-	BaseIncrement          string       `json:"base_increment"`
+	QuoteIncrement         float64      `json:"quote_increment,string"`
+	BaseIncrement          float64      `json:"base_increment,string"`
 	DisplayName            string       `json:"display_name"`
-	MinMarketFunds         string       `json:"min_market_funds"`
+	MinMarketFunds         float64      `json:"min_market_funds,string"`
 	MarginEnabled          bool         `json:"margin_enabled"`
 	PostOnly               bool         `json:"post_only"`
 	LimitOnly              bool         `json:"limit_only"`
@@ -1463,7 +1463,7 @@ type ProductTrades struct {
 	Time    time.Time `json:"time"`
 }
 
-// WrappedAsset holds information on a wrapped asset, used in AllWrappedAssets
+// WrappedAsset holds information on a wrapped asset, used in AllWrappedAssets and returned by GetWrappedAssetDetails
 type WrappedAsset struct {
 	ID                string       `json:"id"`
 	CirculatingSupply float64      `json:"circulating_supply,string"`
@@ -1475,4 +1475,10 @@ type WrappedAsset struct {
 // AllWrappedAssets holds information on all wrapped assets, returned by GetAllWrappedAssets
 type AllWrappedAssets struct {
 	WrappedAssets []WrappedAsset `json:"wrapped_assets"`
+}
+
+// WrappedAssetConversionRate holds information on a wrapped asset's conversion rate, returned by
+// GetWrappedAssetConversionRate
+type WrappedAssetConversionRate struct {
+	Amount float64 `json:"amount,string"`
 }
