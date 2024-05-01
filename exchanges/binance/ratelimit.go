@@ -92,7 +92,7 @@ const (
 	uFuturesSetMultiAssetMarginRate
 )
 
-// SetRateLimit returns the rate limit for the exchange
+// GetRateLimits returns the rate limit for the exchange
 func GetRateLimits() request.RateLimitDefinitions {
 	spotDefaultLimiter := request.NewRateLimit(spotInterval, spotRequestRate)
 	spotOrderLimiter := request.NewRateLimit(spotOrderInterval, spotOrderRequestRate)
