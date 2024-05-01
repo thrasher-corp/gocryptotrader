@@ -60,7 +60,7 @@ func TestAllExchangeWrappers(t *testing.T) {
 				// rather than skipping tests where execution is blocked, provide an expired
 				// context, so no executions can take place
 				var cancelFn context.CancelFunc
-				ctx, cancelFn = context.WithTimeout(ctx, 0)
+				ctx, cancelFn = context.WithCancel(ctx)
 				cancelFn()
 			}
 			exch, assetPairs := setupExchange(ctx, t, name, cfg)
