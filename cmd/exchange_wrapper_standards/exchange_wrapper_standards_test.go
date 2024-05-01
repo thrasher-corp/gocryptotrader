@@ -41,7 +41,6 @@ func TestMain(m *testing.M) {
 var singleExchangeOverride = "okx"
 
 func TestAllExchangeWrappers(t *testing.T) {
-	t.Parallel()
 	cfg := config.GetConfig()
 	err := cfg.LoadConfig("../../testdata/configtest.json", true)
 	if err != nil {
