@@ -74,7 +74,6 @@ const (
 	cFuturesOrderbook100Rate
 	cFuturesOrderbook500Rate
 	cFuturesOrderbook1000Rate
-	// cFuturesKline100Rate
 	cFuturesKline500Rate
 	cFuturesKline1000Rate
 	cFuturesKlineMaxRate
@@ -94,7 +93,7 @@ const (
 )
 
 // SetRateLimit returns the rate limit for the exchange
-func SetRateLimit() request.RateLimitDefinitions {
+func GetRateLimits() request.RateLimitDefinitions {
 	spotDefaultLimiter := request.NewRateLimit(spotInterval, spotRequestRate)
 	spotOrderLimiter := request.NewRateLimit(spotOrderInterval, spotOrderRequestRate)
 	usdMarginedFuturesLimiter := request.NewRateLimit(uFuturesInterval, uFuturesRequestRate)

@@ -71,7 +71,7 @@ const (
 // SetRateLimit returns the rate limit for the exchange
 func SetRateLimit() request.RateLimitDefinitions {
 	return request.RateLimitDefinitions{
-		defaultEPL:                               request.NewRateLimitWithWeight(time.Second*5 /*See: https://bybit-exchange.github.io/docs/v5/rate-limit*/, 120, 1),
+		defaultEPL:                               request.NewRateLimitWithWeight(time.Second*5 /* See: https://bybit-exchange.github.io/docs/v5/rate-limit */, 600, 1),
 		createOrderEPL:                           request.NewRateLimitWithWeight(time.Second, 10, 10),
 		createSpotOrderEPL:                       request.NewRateLimitWithWeight(time.Second, 20, 20),
 		amendOrderEPL:                            request.NewRateLimitWithWeight(time.Second, 10, 10),

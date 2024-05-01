@@ -27,17 +27,6 @@ const (
 	UnAuth
 )
 
-// BasicLimit denotes basic rate limit that implements the Limiter interface
-// does not need to set endpoint functionality.
-type BasicLimit struct {
-	r *RateLimiterWithWeight
-}
-
-// Limit executes a single rate limit set by NewRateLimit
-func (b *BasicLimit) Limit(context.Context, EndpointLimit) (*RateLimiterWithWeight, error) {
-	return b.r, nil
-}
-
 // EndpointLimit defines individual endpoint rate limits that are set when
 // New is called.
 type EndpointLimit uint16
