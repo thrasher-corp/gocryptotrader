@@ -184,7 +184,8 @@ func (w *Websocket) Setup(s *WebsocketSetup) error {
 	w.Wg = new(sync.WaitGroup)
 	w.SetCanUseAuthenticatedEndpoints(s.ExchangeConfig.API.AuthenticatedWebsocketSupport)
 
-	if err := w.Orderbook.Setup(s.ExchangeConfig, &s.OrderbookBufferConfig, w.DataHandler); err != nil {
+	err = w.Orderbook.Setup(s.ExchangeConfig, &s.OrderbookBufferConfig, w.DataHandler)
+	if err != nil {
 		return err
 	}
 
@@ -196,8 +197,8 @@ func (w *Websocket) Setup(s *WebsocketSetup) error {
 	}
 	w.MaxSubscriptionsPerConnection = s.MaxWebsocketSubscriptionsPerConnection
 	w.setState(disconnected)
-
-	return nil
+	w.Processor, err = NewProcessor(defaultChannelBufferSize, w.DataHandler)
+	return err
 }
 
 // SetupNewConnection sets up an auth or unauth streaming connection
