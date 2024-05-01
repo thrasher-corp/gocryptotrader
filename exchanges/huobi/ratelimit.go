@@ -32,11 +32,11 @@ const (
 // SetRateLimit returns the rate limit for the exchange
 func SetRateLimit() request.RateLimitDefinitions {
 	return request.RateLimitDefinitions{
-		request.Unset:        request.NewRateLimitWithToken(huobiSpotRateInterval, huobiSpotRequestRate, 1),
-		huobiFuturesAuth:     request.NewRateLimitWithToken(huobiFuturesRateInterval, huobiFuturesAuthRequestRate, 1),
-		huobiFuturesUnAuth:   request.NewRateLimitWithToken(huobiFuturesRateInterval, huobiFuturesUnAuthRequestRate, 1),
-		huobiSwapAuth:        request.NewRateLimitWithToken(huobiSwapRateInterval, huobiSwapAuthRequestRate, 1),
-		huobiSwapUnAuth:      request.NewRateLimitWithToken(huobiSwapRateInterval, huobiSwapUnauthRequestRate, 1),
-		huobiFuturesTransfer: request.NewRateLimitWithToken(huobiFuturesTransferRateInterval, huobiFuturesTransferReqRate, 1),
+		request.Unset:        request.NewRateLimitWithWeight(huobiSpotRateInterval, huobiSpotRequestRate, 1),
+		huobiFuturesAuth:     request.NewRateLimitWithWeight(huobiFuturesRateInterval, huobiFuturesAuthRequestRate, 1),
+		huobiFuturesUnAuth:   request.NewRateLimitWithWeight(huobiFuturesRateInterval, huobiFuturesUnAuthRequestRate, 1),
+		huobiSwapAuth:        request.NewRateLimitWithWeight(huobiSwapRateInterval, huobiSwapAuthRequestRate, 1),
+		huobiSwapUnAuth:      request.NewRateLimitWithWeight(huobiSwapRateInterval, huobiSwapUnauthRequestRate, 1),
+		huobiFuturesTransfer: request.NewRateLimitWithWeight(huobiFuturesTransferRateInterval, huobiFuturesTransferReqRate, 1),
 	}
 }

@@ -26,11 +26,11 @@ const (
 // SetRateLimit returns the rate limit for the exchange
 func SetRateLimit() request.RateLimitDefinitions {
 	return request.RateLimitDefinitions{
-		request.Auth:   request.NewRateLimitWithToken(btcmarketsRateInterval, btcmarketsAuthLimit, 1),
-		request.UnAuth: request.NewRateLimitWithToken(btcmarketsRateInterval, btcmarketsUnauthLimit, 1),
-		orderFunc:      request.NewRateLimitWithToken(btcmarketsRateInterval, btcmarketsOrderLimit, 1),
-		batchFunc:      request.NewRateLimitWithToken(btcmarketsRateInterval, btcmarketsBatchOrderLimit, 1),
-		withdrawFunc:   request.NewRateLimitWithToken(btcmarketsRateInterval, btcmarketsWithdrawLimit, 1),
-		newReportFunc:  request.NewRateLimitWithToken(btcmarketsRateInterval, btcmarketsCreateNewReportLimit, 1),
+		request.Auth:   request.NewRateLimitWithWeight(btcmarketsRateInterval, btcmarketsAuthLimit, 1),
+		request.UnAuth: request.NewRateLimitWithWeight(btcmarketsRateInterval, btcmarketsUnauthLimit, 1),
+		orderFunc:      request.NewRateLimitWithWeight(btcmarketsRateInterval, btcmarketsOrderLimit, 1),
+		batchFunc:      request.NewRateLimitWithWeight(btcmarketsRateInterval, btcmarketsBatchOrderLimit, 1),
+		withdrawFunc:   request.NewRateLimitWithWeight(btcmarketsRateInterval, btcmarketsWithdrawLimit, 1),
+		newReportFunc:  request.NewRateLimitWithWeight(btcmarketsRateInterval, btcmarketsCreateNewReportLimit, 1),
 	}
 }

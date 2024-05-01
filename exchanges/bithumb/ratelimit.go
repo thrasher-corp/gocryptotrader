@@ -16,7 +16,7 @@ const (
 // SetRateLimit returns the rate limit for the exchange
 func SetRateLimit() request.RateLimitDefinitions {
 	return request.RateLimitDefinitions{
-		request.Auth:  request.NewRateLimitWithToken(bithumbRateInterval, bithumbAuthRate, 1),
-		request.Unset: request.NewRateLimitWithToken(bithumbRateInterval, bithumbUnauthRate, 1),
+		request.Auth:  request.NewRateLimitWithWeight(bithumbRateInterval, bithumbAuthRate, 1),
+		request.Unset: request.NewRateLimitWithWeight(bithumbRateInterval, bithumbUnauthRate, 1),
 	}
 }
