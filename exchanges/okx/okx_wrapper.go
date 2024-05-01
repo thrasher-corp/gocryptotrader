@@ -154,7 +154,7 @@ func (ok *Okx) SetDefaults() {
 	}
 	ok.Requester, err = request.New(ok.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
-		request.WithLimiter(SetRateLimit(ok)))
+		request.WithLimiter(SetRateLimit()))
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}

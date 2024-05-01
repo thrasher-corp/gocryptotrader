@@ -364,7 +364,7 @@ const (
 )
 
 // SetRateLimit returns a RateLimit instance, which implements the request.Limiter interface.
-func SetRateLimit(ok *Okx) request.RateLimitDefinitions {
+func SetRateLimit() request.RateLimitDefinitions {
 	return request.RateLimitDefinitions{
 		// Trade Endpoints
 		placeOrderEPL:                  request.NewRateLimitWithToken(twoSecondsInterval, placeOrderRate, 1),
