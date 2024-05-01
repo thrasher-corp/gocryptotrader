@@ -948,7 +948,7 @@ func (p *Poloniex) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange
 		return err
 	}
 
-	return p.SendPayload(ctx, request.Unset, func() (*request.Item, error) {
+	return p.SendPayload(ctx, request.Auth, func() (*request.Item, error) {
 		headers := make(map[string]string)
 		headers["Content-Type"] = "application/x-www-form-urlencoded"
 		headers["Key"] = creds.Key
