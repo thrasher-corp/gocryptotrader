@@ -932,7 +932,7 @@ func (p *Poloniex) SendHTTPRequest(ctx context.Context, ep exchange.URL, path st
 		HTTPRecording: p.HTTPRecording,
 	}
 
-	return p.SendPayload(ctx, request.Unset, func() (*request.Item, error) {
+	return p.SendPayload(ctx, request.UnAuth, func() (*request.Item, error) {
 		return item, nil
 	}, request.UnauthenticatedRequest)
 }

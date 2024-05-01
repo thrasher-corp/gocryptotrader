@@ -373,7 +373,7 @@ func SetRateLimit(ok *Okx) request.RateLimitDefinitions {
 		cancelMultipleOrdersEPL:        request.NewRateLimitWithToken(twoSecondsInterval, cancelMultipleOrdersRate, 1),
 		amendOrderEPL:                  request.NewRateLimitWithToken(twoSecondsInterval, amendOrderRate, 1),
 		amendMultipleOrdersEPL:         request.NewRateLimitWithToken(twoSecondsInterval, amendMultipleOrdersRate, 1),
-		ok.ClosePositions:              request.NewRateLimitWithToken(twoSecondsInterval, closePositionsRate, 1),
+		closePositionEPL:               request.NewRateLimitWithToken(twoSecondsInterval, closePositionsRate, 1),
 		getOrderDetEPL:                 request.NewRateLimitWithToken(twoSecondsInterval, getOrderDetails, 1),
 		getOrderListEPL:                request.NewRateLimitWithToken(twoSecondsInterval, getOrderListRate, 1),
 		getOrderHistory7DaysEPL:        request.NewRateLimitWithToken(twoSecondsInterval, getOrderHistory7DaysRate, 1),

@@ -74,7 +74,7 @@ const (
 	cFuturesOrderbook100Rate
 	cFuturesOrderbook500Rate
 	cFuturesOrderbook1000Rate
-	cFuturesKline100Rate
+	// cFuturesKline100Rate
 	cFuturesKline500Rate
 	cFuturesKline1000Rate
 	cFuturesKlineMaxRate
