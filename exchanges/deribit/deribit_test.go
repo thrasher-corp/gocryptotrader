@@ -955,9 +955,7 @@ func TestWSRetrieveAnnouncements(t *testing.T) {
 
 func TestGetPublicPortfolioMargins(t *testing.T) {
 	info, err := d.GetInstrument(context.Background(), "BTC-PERPETUAL")
-	if err != nil {
-		t.Skip(err)
-	}
+	require.NoError(t, err)
 	_, err = d.GetPublicPortfolioMargins(context.Background(), currencyBTC, map[string]float64{"BTC-PERPETUAL": info.ContractSize * 2})
 	assert.NoError(t, err)
 }
@@ -2847,10 +2845,9 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 			break
 		}
 	}
-	if instrumentDetail != nil {
-		require.Equalf(t, instrumentDetail.TickSize, limits.PriceStepIncrementSize, "Asset: %s Pair: %s Expected: %v Got: %v", asset.Spot, spotTradablePair, instrumentDetail.TickSize, limits.MinimumBaseAmount)
-		assert.Equalf(t, instrumentDetail.MinimumTradeAmount, limits.MinimumBaseAmount, "Pair: %s Expected: %v Got: %v", spotTradablePair, instrumentDetail.MinimumTradeAmount, limits.MinimumBaseAmount)
-	}
+	require.NotNil(t, instrumentDetail, "instrument required o be found")
+	require.Equalf(t, instrumentDetail.TickSize, limits.PriceStepIncrementSize, "Asset: %s Pair: %s Expected: %v Got: %v", asset.Spot, spotTradablePair, instrumentDetail.TickSize, limits.MinimumBaseAmount)
+	assert.Equalf(t, instrumentDetail.MinimumTradeAmount, limits.MinimumBaseAmount, "Pair: %s Expected: %v Got: %v", spotTradablePair, instrumentDetail.MinimumTradeAmount, limits.MinimumBaseAmount)
 }
 
 func TestGetLockedStatus(t *testing.T) {
@@ -3000,9 +2997,7 @@ func TestIsPerpetualFutureCurrency(t *testing.T) {
 	assert.NoError(t, err)
 	assert.True(t, is)
 	pair, err := currency.NewPairFromString("ETH-FS-30DEC22_PERP")
-	if err != nil {
-		require.NoError(t, err)
-	}
+	require.NoError(t, err)
 	is, err = d.IsPerpetualFutureCurrency(asset.Futures, pair)
 	assert.NoError(t, err)
 	assert.True(t, is)
