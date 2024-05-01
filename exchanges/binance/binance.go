@@ -458,8 +458,7 @@ func (b *Binance) GetLatestSpotPrice(ctx context.Context, symbol currency.Pair, 
 		params.Set("symbols", "["+strings.Join(symbols.Strings(), "")+"]")
 	}
 	var resp *SymbolPrice
-	return resp,
-		b.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, common.EncodeURLValues("/api/v3/ticker/price", params), rateLimit, &resp)
+	return resp, b.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, common.EncodeURLValues("/api/v3/ticker/price", params), rateLimit, &resp)
 }
 
 // GetBestPrice returns the latest best price for symbol
@@ -619,11 +618,11 @@ func (b *Binance) OpenOrders(ctx context.Context, pair currency.Pair) ([]TradeOr
 // orderId optional param
 // limit optional param, default 500; max 500
 func (b *Binance) AllOrders(ctx context.Context, symbol currency.Pair, orderID, limit string) ([]TradeOrder, error) {
-	params := url.Values{}
 	symbolValue, err := b.FormatSymbol(symbol, asset.Spot)
 	if err != nil {
 		return nil, err
 	}
+	params := url.Values{}
 	params.Set("symbol", symbolValue)
 	if orderID != "" {
 		params.Set("orderId", orderID)
@@ -642,7 +641,7 @@ func (b *Binance) AllOrders(ctx context.Context, symbol currency.Pair, orderID, 
 // NewOCOOrder places a new one-cancel-other trade order.
 func (b *Binance) NewOCOOrder(ctx context.Context, arg *OCOOrderParam) (*OCOOrderResponse, error) {
 	if arg == nil || *arg == (OCOOrderParam{}) {
-		return nil, common.ErrNilPointer
+		return nil, errNilArgument
 	}
 	if arg.Symbol.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
@@ -716,11 +715,11 @@ func (b *Binance) CancelOCOOrderList(ctx context.Context, symbol, orderListID, l
 	if symbol == "" {
 		return nil, currency.ErrSymbolStringEmpty
 	}
-	params := url.Values{}
-	params.Set("symbol", symbol)
 	if orderListID == "" && listClientOrderID == "" {
 		return nil, errOrderIDMustBeSet
 	}
+	params := url.Values{}
+	params.Set("symbol", symbol)
 	if orderListID != "" {
 		params.Set("orderListId", orderListID)
 	}
@@ -792,7 +791,7 @@ func (b *Binance) NewOrderUsingSORTest(ctx context.Context, arg *SOROrderRequest
 
 func (b *Binance) newOrderUsingSOR(ctx context.Context, arg *SOROrderRequestParams, path string) (interface{}, error) {
 	if arg == nil || *arg == (SOROrderRequestParams{}) {
-		return nil, common.ErrNilPointer
+		return nil, errNilArgument
 	}
 	if arg.Symbol.IsEmpty() {
 		return nil, currency.ErrSymbolStringEmpty
@@ -1487,7 +1486,7 @@ func (b *Binance) GetSummaryOfMarginAccount(ctx context.Context) (*MarginAccount
 	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, "/sapi/v1/margin/tradeCoeff", nil, marginAccountSummaryRate, nil, &resp)
 }
 
-// GetIsolatedMarginAccountInfo retrives isolated margin account info
+// GetIsolatedMarginAccountInfo retrieves isolated margin account info
 func (b *Binance) GetIsolatedMarginAccountInfo(ctx context.Context, symbols []string) (*IsolatedMarginAccountInfo, error) {
 	params := url.Values{}
 	if len(symbols) > 0 {
@@ -3223,7 +3222,7 @@ func (b *Binance) SubAccountTransferHistoryForSubAccount(ctx context.Context, as
 // UniversalTransferForMasterAccount submits a universal transfer using the master account.
 func (b *Binance) UniversalTransferForMasterAccount(ctx context.Context, arg *UniversalTransferParams) (*UniversalTransferResponse, error) {
 	if arg == nil || *arg == (UniversalTransferParams{}) {
-		return nil, common.ErrNilPointer
+		return nil, errNilArgument
 	}
 	if arg.FromAccountType == "" {
 		return nil, fmt.Errorf("%w, fromAccountType=%s", errInvalidAccountType, arg.FromAccountType)
@@ -4488,7 +4487,7 @@ func (b *Binance) GetSourceAssetList(ctx context.Context, targetAsset currency.C
 // InvestmentPlanCreation creates an investment plan
 func (b *Binance) InvestmentPlanCreation(ctx context.Context, arg *InvestmentPlanParams) (*InvestmentPlanResponse, error) {
 	if arg == nil {
-		return nil, common.ErrNilPointer
+		return nil, errNilArgument
 	}
 	if arg.SourceType == "" {
 		return nil, errors.New("source type ")
@@ -4526,7 +4525,7 @@ func (b *Binance) InvestmentPlanCreation(ctx context.Context, arg *InvestmentPla
 // InvestmentPlanAdjustment query Source Asset to be used for investment
 func (b *Binance) InvestmentPlanAdjustment(ctx context.Context, arg *AdjustInvestmentPlan) (*InvestmentPlanResponse, error) {
 	if arg == nil {
-		return nil, common.ErrNilPointer
+		return nil, errNilArgument
 	}
 	if arg.PlanID == 0 {
 		return nil, errPlanIDRequired
@@ -4654,7 +4653,7 @@ func (b *Binance) GetIndexLinkedPlanPositionDetails(ctx context.Context, indexID
 // sourceType possible values are "MAIN_SITE" for Binance,“TR” for Binance Turkey
 func (b *Binance) OneTimeTransaction(ctx context.Context, arg *OneTimeTransactionParams) (*OneTimeTransactionResponse, error) {
 	if arg == nil {
-		return nil, common.ErrNilPointer
+		return nil, errNilArgument
 	}
 	if arg.SourceType == "" {
 		return nil, errors.New("sourceType is required")
@@ -4846,7 +4845,7 @@ func (b *Binance) GetCurrentETHStakingQuota(ctx context.Context) (*ETHStakingQuo
 	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/eth-staking/eth/quota", nil, currentETHStakingQuotaRate, nil, &resp)
 }
 
-// GetWBETHRateHistory retrives WBETH rate history
+// GetWBETHRateHistory retrieves WBETH rate history
 func (b *Binance) GetWBETHRateHistory(ctx context.Context, startTime, endTime time.Time, current, size int64) (*WBETHRateHistory, error) {
 	params, err := fillHistoryRetrievalParams(startTime, endTime, current, size)
 	if err != nil {
@@ -4875,13 +4874,13 @@ func fillHistoryRetrievalParams(startTime, endTime time.Time, current, size int6
 	return params, nil
 }
 
-// GetETHStakingAccount retrives ETH staking account detail.
+// GetETHStakingAccount retrieves ETH staking account detail.
 func (b *Binance) GetETHStakingAccount(ctx context.Context) (*ETHStakingAccountDetail, error) {
 	var resp *ETHStakingAccountDetail
 	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "sapi/v1/eth-staking/account", nil, ethStakingAccountRate, nil, &resp)
 }
 
-// GetETHStakingAccountV2 retrives V2 ETH staking account detail.
+// GetETHStakingAccountV2 retrieves V2 ETH staking account detail.
 func (b *Binance) GetETHStakingAccountV2(ctx context.Context) (*StakingAccountV2Response, error) {
 	var resp *StakingAccountV2Response
 	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v2/eth-staking/account", nil, ethStakingAccountRate, nil, &resp)
@@ -5252,7 +5251,7 @@ func (b *Binance) GetFutureTickLevelOrderbookHistoricalDataDownloadLink(ctx cont
 // Base URL: https://api.binance.com
 func (b *Binance) VolumeParticipationNewOrder(ctx context.Context, arg *VolumeParticipationOrderParams) (*AlgoOrderResponse, error) {
 	if arg == nil || *arg == (VolumeParticipationOrderParams{}) {
-		return nil, common.ErrNilPointer
+		return nil, errNilArgument
 	}
 	if arg.Symbol == "" {
 		return nil, currency.ErrSymbolStringEmpty
@@ -5273,7 +5272,7 @@ func (b *Binance) VolumeParticipationNewOrder(ctx context.Context, arg *VolumePa
 // FuturesTWAPOrder placed futures time-weighted average price(TWAP) order.
 func (b *Binance) FuturesTWAPOrder(ctx context.Context, arg *TWAPOrderParams) (*AlgoOrderResponse, error) {
 	if arg == nil || *arg == (TWAPOrderParams{}) {
-		return nil, common.ErrNilPointer
+		return nil, errNilArgument
 	}
 	if arg.Symbol == "" {
 		return nil, currency.ErrSymbolStringEmpty
@@ -5381,7 +5380,7 @@ func (b *Binance) getSubOrders(ctx context.Context, algoID, page, pageSize int64
 // SpotTWAPNewOrder puts spot Time-Weighted Average Price(TWAP) orders
 func (b *Binance) SpotTWAPNewOrder(ctx context.Context, arg *SpotTWAPOrderParam) (*AlgoOrderResponse, error) {
 	if arg == nil || *arg == (SpotTWAPOrderParam{}) {
-		return nil, common.ErrNilPointer
+		return nil, errNilArgument
 	}
 	if arg.Symbol == "" {
 		return nil, currency.ErrSymbolStringEmpty
@@ -5931,7 +5930,7 @@ func (b *Binance) GetPayTradeHistory(ctx context.Context, startTime, endTime tim
 // ---------------------------------------------------------  Convert Endpoints  -------------------------------------------------------
 
 // GetAllConvertPairs query for all convertible token pairs and the tokens’ respective upper/lower limits
-// If not defined for both fromAsset and toAsset, only partial token pairs will be returne
+// If not defined for both fromAsset and toAsset, only partial token pairs will be return
 func (b *Binance) GetAllConvertPairs(ctx context.Context, fromAsset, toAsset currency.Code) ([]ConvertPairInfo, error) {
 	params := url.Values{}
 	if fromAsset.IsEmpty() && toAsset.IsEmpty() {

@@ -2215,7 +2215,7 @@ type OSROrder struct {
 	OrderID             int64                `json:"orderId"`
 	OrderListID         int64                `json:"orderListId"`
 	ClientOrderID       string               `json:"clientOrderId"`
-	TransactTime        int64                `json:"transactTime"`
+	TransactTime        convert.ExchangeTime `json:"transactTime"`
 	Price               types.Number         `json:"price"`
 	OrigQty             types.Number         `json:"origQty"`
 	ExecutedQty         types.Number         `json:"executedQty"`
@@ -4679,7 +4679,7 @@ type C2CTransaction struct {
 		Amount              types.Number         `json:"amount"` // Quantity (in Crypto)
 		TotalPrice          types.Number         `json:"totalPrice"`
 		UnitPrice           types.Number         `json:"unitPrice"`   // Unit Price (in Fiat)
-		OrderStatus         string               `json:"orderStatus"` // PENDING, TRADING, BUYER_PAYED, DISTRIBUTING, COMPLETED, IN_APPEAL, CANCELLED, CANCELLED_BY_SYSTEM
+		OrderStatus         string               `json:"orderStatus"` // possible values are: 'PENDING', 'TRADING', 'BUYER_PAYED', 'DISTRIBUTING', 'COMPLETED', 'IN_APPEAL', 'CANCELLED', 'CANCELLED_BY_SYSTEM'
 		CreateTime          convert.ExchangeTime `json:"createTime"`
 		Commission          string               `json:"commission"` // Transaction Fee (in Crypto)
 		CounterPartNickName string               `json:"counterPartNickName"`
@@ -4692,7 +4692,7 @@ type C2CTransaction struct {
 // VIPLoanOngoingOrders represents a VIP loan orders history
 type VIPLoanOngoingOrders struct {
 	Rows []struct {
-		OrderID                          int                  `json:"orderId"`
+		OrderID                          int64                `json:"orderId"`
 		LoanCoin                         string               `json:"loanCoin"`
 		TotalDebt                        types.Number         `json:"totalDebt"`
 		LoanRate                         types.Number         `json:"loanRate"`

@@ -39,7 +39,7 @@ func (b *Binance) NewCMOrder(ctx context.Context, arg *UMOrderParam) (*UMCMOrder
 
 func (b *Binance) newUMCMOrder(ctx context.Context, arg *UMOrderParam, path string) (*UMCMOrder, error) {
 	if arg == nil || (*arg) == (UMOrderParam{}) {
-		return nil, common.ErrNilPointer
+		return nil, errNilArgument
 	}
 	if arg.Symbol == "" {
 		return nil, currency.ErrSymbolStringEmpty
@@ -76,7 +76,7 @@ func (b *Binance) newUMCMOrder(ctx context.Context, arg *UMOrderParam, path stri
 // NewMarginOrder places a new cross margin order
 func (b *Binance) NewMarginOrder(ctx context.Context, arg *MarginOrderParam) (*MarginOrderResp, error) {
 	if arg == nil || *arg == (MarginOrderParam{}) {
-		return nil, common.ErrNilPointer
+		return nil, errNilArgument
 	}
 	if arg.Symbol == "" {
 		return nil, currency.ErrSymbolStringEmpty
@@ -84,7 +84,6 @@ func (b *Binance) NewMarginOrder(ctx context.Context, arg *MarginOrderParam) (*M
 	if arg.Side == "" {
 		return nil, order.ErrSideIsInvalid
 	}
-
 	if arg.OrderType == "" {
 		return nil, order.ErrTypeIsInvalid
 	}
@@ -121,7 +120,7 @@ func (b *Binance) marginAccountBorrowRepay(ctx context.Context, ccy currency.Cod
 // MarginAccountNewOCO sends a new OCO order for a margin account.
 func (b *Binance) MarginAccountNewOCO(ctx context.Context, arg *OCOOrderParam) (*OCOOrderResponse, error) {
 	if arg == nil || *arg == (OCOOrderParam{}) {
-		return nil, common.ErrNilPointer
+		return nil, errNilArgument
 	}
 	if arg.Symbol.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
@@ -153,7 +152,7 @@ func (b *Binance) NewCMConditionalOrder(ctx context.Context, arg *ConditionalOrd
 }
 func (b *Binance) placeConditionalOrder(ctx context.Context, arg *ConditionalOrderParam, path string) (*ConditionalOrder, error) {
 	if arg == nil || *arg == (ConditionalOrderParam{}) {
-		return nil, common.ErrNilPointer
+		return nil, errNilArgument
 	}
 	if arg.Symbol == "" {
 		return nil, currency.ErrCurrencyPairEmpty
@@ -685,7 +684,7 @@ func (b *Binance) GetPortfolioMarginAccountInformation(ctx context.Context) (*Ac
 // GetPMMarginMaxBorrow holds the maximum borrowable amount limited by the account level.
 func (b *Binance) GetPMMarginMaxBorrow(ctx context.Context, assetName currency.Code) (*MaxBorrow, error) {
 	if assetName.IsEmpty() {
-		return nil, currency.ErrCurrencyCodeEmpty
+		return nil, fmt.Errorf("%w, assetName is required", currency.ErrCurrencyCodeEmpty)
 	}
 	params := url.Values{}
 	params.Set("asset", assetName.String())
@@ -696,7 +695,7 @@ func (b *Binance) GetPMMarginMaxBorrow(ctx context.Context, assetName currency.C
 // GetMarginMaxWithdrawal retrieves the maximum withdrawal amount allowed for margin account.
 func (b *Binance) GetMarginMaxWithdrawal(ctx context.Context, assetName currency.Code) (float64, error) {
 	if assetName.IsEmpty() {
-		return 0, currency.ErrCurrencyCodeEmpty
+		return 0, fmt.Errorf("%w, assetName is required", currency.ErrCurrencyCodeEmpty)
 	}
 	resp := &struct {
 		Amount float64 `json:"amount"`
@@ -1048,7 +1047,7 @@ func (b *Binance) FundAutoCollection(ctx context.Context) (string, error) {
 // The BNB transfer is not be supported
 func (b *Binance) FundCollectionByAsset(ctx context.Context, assetName currency.Code) (string, error) {
 	if assetName.IsEmpty() {
-		return "", currency.ErrCurrencyCodeEmpty
+		return "", fmt.Errorf("%w, assetName is required", currency.ErrCurrencyCodeEmpty)
 	}
 	params := url.Values{}
 	params.Set("asset", assetName.String())

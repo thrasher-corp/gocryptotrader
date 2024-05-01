@@ -372,16 +372,16 @@ func (r *RateLimit) Limit(ctx context.Context, f request.EndpointLimit) error {
 		limiter, tokens = r.SpotRate, 250
 	case spotOrderRate:
 		limiter, tokens = r.SpotOrdersRate, 1
-	case spotOrderQueryRate:
-		limiter, tokens = r.SpotOrdersRate, 4
 	case spotOpenOrdersSpecificRate:
 		limiter, tokens = r.SpotOrdersRate, 3
+	case spotOrderQueryRate:
+		limiter, tokens = r.SpotOrdersRate, 4
+	case allCrossMarginFeeDataRate:
+		limiter, tokens = r.SpotRate, 5
 	case spotAllOrdersRate:
 		limiter, tokens = r.SpotOrdersRate, 10
 	case spotOpenOrdersAllRate:
 		limiter, tokens = r.SpotOrdersRate, 40
-	case allCrossMarginFeeDataRate:
-		limiter, tokens = r.SpotRate, 5
 
 	case depositAddressesRate,
 		assetDividendRecordRate,

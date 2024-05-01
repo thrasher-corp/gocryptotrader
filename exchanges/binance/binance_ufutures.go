@@ -902,7 +902,7 @@ func (b *Binance) UPlaceBatchOrders(ctx context.Context, data []PlaceBatchOrderD
 // UModifyMultipleOrders applies a modification to a batch of usdt margined futures orders.
 func (b *Binance) UModifyMultipleOrders(ctx context.Context, args []USDTOrderUpdateParams) ([]UOrderData, error) {
 	if len(args) == 0 {
-		return nil, common.ErrNilPointer
+		return nil, errNilArgument
 	}
 	for a := range args {
 		err := b.validatePlaceOrder(&args[a])

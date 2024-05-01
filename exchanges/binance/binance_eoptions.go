@@ -191,7 +191,7 @@ func (b *Binance) GetOptionsAccountInformation(ctx context.Context) (*EOptionsAc
 // NewOptionsOrder places a new european options order instance.
 func (b *Binance) NewOptionsOrder(ctx context.Context, arg *OptionsOrderParams) (*OptionOrder, error) {
 	if arg == nil || *arg == (OptionsOrderParams{}) {
-		return nil, common.ErrNilPointer
+		return nil, errNilArgument
 	}
 	if arg.Symbol.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
@@ -242,11 +242,11 @@ func (b *Binance) NewOptionsOrder(ctx context.Context, arg *OptionsOrderParams) 
 // PlaceBatchEOptionsOrder send multiple option orders.
 func (b *Binance) PlaceBatchEOptionsOrder(ctx context.Context, args []OptionsOrderParams) ([]OptionOrder, error) {
 	if len(args) == 0 {
-		return nil, common.ErrNilPointer
+		return nil, errNilArgument
 	}
 	for a := range args {
 		if args[a] == (OptionsOrderParams{}) {
-			return nil, common.ErrNilPointer
+			return nil, errNilArgument
 		}
 		if args[a].Symbol.IsEmpty() {
 			return nil, currency.ErrCurrencyPairEmpty
