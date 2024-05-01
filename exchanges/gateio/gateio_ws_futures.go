@@ -64,7 +64,7 @@ var responseFuturesStream = make(chan stream.Response)
 // WsFuturesConnect initiates a websocket connection for futures account
 func (g *Gateio) WsFuturesConnect() error {
 	if !g.Websocket.IsEnabled() || !g.IsEnabled() {
-		return errors.New(stream.WebsocketNotEnabled)
+		return stream.ErrWebsocketNotEnabled
 	}
 	err := g.CurrencyPairs.IsAssetEnabled(asset.Futures)
 	if err != nil {
@@ -244,7 +244,13 @@ func (g *Gateio) wsHandleFuturesData(respRaw []byte, assetType asset.Item) error
 	case futuresCandlesticksChannel:
 		return g.processFuturesCandlesticks(respRaw, assetType)
 	case futuresOrdersChannel:
-		return g.processFuturesOrdersPushData(respRaw, assetType)
+		var processed []order.Detail
+		processed, err = g.processFuturesOrdersPushData(respRaw, assetType)
+		if err != nil {
+			return err
+		}
+		g.Websocket.DataHandler <- processed
+		return nil
 	case futuresUserTradesChannel:
 		return g.procesFuturesUserTrades(respRaw, assetType)
 	case futuresLiquidatesChannel:
@@ -642,7 +648,7 @@ func (g *Gateio) processFuturesOrderbookSnapshot(event string, incoming []byte, 
 	return nil
 }
 
-func (g *Gateio) processFuturesOrdersPushData(data []byte, assetType asset.Item) error {
+func (g *Gateio) processFuturesOrdersPushData(data []byte, assetType asset.Item) ([]order.Detail, error) {
 	resp := struct {
 		Time    int64            `json:"time"`
 		Channel string           `json:"channel"`
@@ -651,19 +657,28 @@ func (g *Gateio) processFuturesOrdersPushData(data []byte, assetType asset.Item)
 	}{}
 	err := json.Unmarshal(data, &resp)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	orderDetails := make([]order.Detail, len(resp.Result))
 	for x := range resp.Result {
-		status, err := order.StringToOrderStatus(func() string {
-			if resp.Result[x].Status == "finished" {
-				return "cancelled"
+		var status order.Status
+		if resp.Result[x].Status == "finished" {
+			if resp.Result[x].FinishAs == "ioc" || resp.Result[x].FinishAs == "reduce_only" {
+				status = order.Cancelled
+			} else {
+				status, err = order.StringToOrderStatus(resp.Result[x].FinishAs)
 			}
-			return resp.Result[x].Status
-		}())
-		if err != nil {
-			return err
+		} else {
+			status, err = order.StringToOrderStatus(resp.Result[x].Status)
 		}
+		if err != nil {
+			g.Websocket.DataHandler <- order.ClassificationError{
+				Exchange: g.Name,
+				OrderID:  strconv.FormatInt(resp.Result[x].ID, 10),
+				Err:      err,
+			}
+		}
+
 		orderDetails[x] = order.Detail{
 			Amount:         resp.Result[x].Size,
 			Exchange:       g.Name,
@@ -679,8 +694,7 @@ func (g *Gateio) processFuturesOrdersPushData(data []byte, assetType asset.Item)
 			CloseTime:      resp.Result[x].FinishTimeMs.Time(),
 		}
 	}
-	g.Websocket.DataHandler <- orderDetails
-	return nil
+	return orderDetails, nil
 }
 
 func (g *Gateio) procesFuturesUserTrades(data []byte, assetType asset.Item) error {

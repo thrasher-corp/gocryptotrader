@@ -33,27 +33,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
-// GetDefaultConfig returns a default exchange config
-func (by *Bybit) GetDefaultConfig(ctx context.Context) (*config.Exchange, error) {
-	by.SetDefaults()
-	exchCfg, err := by.GetStandardConfig()
-	if err != nil {
-		return nil, err
-	}
-	err = by.SetupDefaults(exchCfg)
-	if err != nil {
-		return nil, err
-	}
-
-	if by.Features.Supports.RESTCapabilities.AutoPairUpdates {
-		err := by.UpdateTradablePairs(ctx, false)
-		if err != nil {
-			return nil, err
-		}
-	}
-	return exchCfg, nil
-}
-
 // SetDefaults sets the basic defaults for Bybit
 func (by *Bybit) SetDefaults() {
 	by.Name = "Bybit"
@@ -216,7 +195,7 @@ func (by *Bybit) SetDefaults() {
 		log.Errorln(log.ExchangeSys, err)
 	}
 
-	by.Websocket = stream.New()
+	by.Websocket = stream.NewWebsocket()
 	by.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	by.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
 	by.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit

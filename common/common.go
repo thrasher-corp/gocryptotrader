@@ -463,9 +463,20 @@ func InArray(val, array interface{}) (exists bool, index int) {
 	return
 }
 
+// fmtError holds a formatted msg and the errors which formatted it
+type fmtError struct {
+	errs []error
+	msg  string
+}
+
 // multiError holds errors as a slice
 type multiError struct {
 	errs []error
+}
+
+type unwrappable interface {
+	Unwrap() []error
+	Error() string
 }
 
 // AppendError appends an error to a list of exesting errors
@@ -481,18 +492,33 @@ func AppendError(original, incoming error) error {
 	if original == nil {
 		return incoming
 	}
-	newErrs := []error{incoming}
-	if u, ok := incoming.(interface{ Unwrap() []error }); ok {
-		newErrs = u.Unwrap()
+	if u, ok := incoming.(unwrappable); ok {
+		incoming = &fmtError{
+			errs: u.Unwrap(),
+			msg:  u.Error(),
+		}
 	}
-	if u, ok := original.(interface{ Unwrap() []error }); ok {
-		return &multiError{
-			errs: append(u.Unwrap(), newErrs...),
+	switch v := original.(type) {
+	case *multiError:
+		v.errs = append(v.errs, incoming)
+		return v
+	case unwrappable:
+		original = &fmtError{
+			errs: v.Unwrap(),
+			msg:  v.Error(),
 		}
 	}
 	return &multiError{
-		errs: append([]error{original}, newErrs...),
+		errs: append([]error{original}, incoming),
 	}
+}
+
+func (e *fmtError) Error() string {
+	return e.msg
+}
+
+func (e *fmtError) Unwrap() []error {
+	return e.errs
 }
 
 // Error displays all errors comma separated
@@ -506,11 +532,16 @@ func (e *multiError) Error() string {
 
 // Unwrap returns all of the errors in the multiError
 func (e *multiError) Unwrap() []error {
-	return e.errs
-}
-
-type unwrappable interface {
-	Unwrap() []error
+	errs := make([]error, 0, len(e.errs))
+	for _, e := range e.errs {
+		switch v := e.(type) {
+		case unwrappable:
+			errs = append(errs, unwrapDeep(v)...)
+		default:
+			errs = append(errs, v)
+		}
+	}
+	return errs
 }
 
 // unwrapDeep walks down a stack of nested fmt.Errorf("%w: %w") errors
@@ -545,6 +576,34 @@ func ExcludeError(err, excl error) error {
 		return nil
 	}
 	return err
+}
+
+// ErrorCollector allows collecting a stream of errors from concurrent go routines
+// Users should call e.Wg.Done and send errors to e.C
+type ErrorCollector struct {
+	C  chan error
+	Wg sync.WaitGroup
+}
+
+// CollectErrors returns an ErrorCollector with WaitGroup and Channel buffer set to n
+func CollectErrors(n int) *ErrorCollector {
+	e := &ErrorCollector{
+		C: make(chan error, n),
+	}
+	e.Wg.Add(n)
+	return e
+}
+
+// Collect runs waits for e.Wg to be Done, closes the error channel, and return a error collection
+func (e *ErrorCollector) Collect() (errs error) {
+	e.Wg.Wait()
+	close(e.C)
+	for err := range e.C {
+		if err != nil {
+			errs = AppendError(errs, err)
+		}
+	}
+	return
 }
 
 // StartEndTimeCheck provides some basic checks which occur

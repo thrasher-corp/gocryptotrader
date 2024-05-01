@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common/file"
 )
 
@@ -703,6 +704,13 @@ func TestErrors(t *testing.T) {
 	assert.ErrorIs(t, ExcludeError(err, e5), e3, "Excluding e5 should retain e3")
 	assert.ErrorIs(t, ExcludeError(err, e5), e4, "Excluding e5 should retain the vanilla co-wrapped e4")
 	assert.NotErrorIs(t, ExcludeError(err, e5), e5, "e4 should be excluded")
+
+	// Formatting retention
+	err = AppendError(e1, fmt.Errorf("%w: Run out of `%s`: %w", e3, "sausages", e5))
+	assert.ErrorIs(t, err, e1, "Should be an e1")
+	assert.ErrorIs(t, err, e3, "Should be an e3")
+	assert.ErrorIs(t, err, e5, "Should be an e5")
+	assert.ErrorContains(t, err, "sausages", "Should know about secret sausages")
 }
 
 func TestParseStartEndDate(t *testing.T) {
@@ -828,4 +836,23 @@ func TestGenerateRandomString(t *testing.T) {
 	if sample != "" {
 		t.Error("GenerateRandomString() unexpected test validation result")
 	}
+}
+
+// TestErrorCollector exercises the error collector
+func TestErrorCollector(t *testing.T) {
+	e := CollectErrors(4)
+	for i := range 4 {
+		go func() {
+			if i%2 == 0 {
+				e.C <- errors.New("Collected error")
+			} else {
+				e.C <- nil
+			}
+			e.Wg.Done()
+		}()
+	}
+	v := e.Collect()
+	errs, ok := v.(*multiError)
+	require.True(t, ok, "Must return a multiError")
+	assert.Len(t, errs.Unwrap(), 2, "Should have 2 errors")
 }

@@ -5,9 +5,8 @@ import (
 	"errors"
 	"fmt"
 	"math/rand"
+	"slices"
 	"strings"
-
-	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
 var (
@@ -59,18 +58,8 @@ func (p Pairs) Join() string {
 
 // Format formats the pair list to the exchange format configuration
 func (p Pairs) Format(pairFmt PairFormat) Pairs {
-	pairs := make(Pairs, len(p))
-	copy(pairs, p)
-
-	var err error
+	pairs := slices.Clone(p)
 	for x := range pairs {
-		if pairFmt.Index != "" {
-			pairs[x], err = NewPairFromIndex(p[x].String(), pairFmt.Index)
-			if err != nil {
-				log.Errorf(log.Global, "failed to create NewPairFromIndex. Err: %s\n", err)
-				return nil
-			}
-		}
 		pairs[x].Base.UpperCase = pairFmt.Uppercase
 		pairs[x].Quote.UpperCase = pairFmt.Uppercase
 		pairs[x].Delimiter = pairFmt.Delimiter
@@ -457,4 +446,38 @@ func (p Pairs) GetFormatting() (PairFormat, error) {
 		return PairFormat{}, errPairFormattingInconsistent
 	}
 	return pFmt, nil
+}
+
+// GetPairsByQuote returns all pairs that have a matching quote currency
+func (p Pairs) GetPairsByQuote(quoteTerm Code) (Pairs, error) {
+	if len(p) == 0 {
+		return nil, ErrCurrencyPairsEmpty
+	}
+	if quoteTerm.IsEmpty() {
+		return nil, ErrCurrencyCodeEmpty
+	}
+	pairs := make(Pairs, 0, len(p))
+	for i := range p {
+		if p[i].Quote.Equal(quoteTerm) {
+			pairs = append(pairs, p[i])
+		}
+	}
+	return pairs, nil
+}
+
+// GetPairsByBase returns all pairs that have a matching base currency
+func (p Pairs) GetPairsByBase(baseTerm Code) (Pairs, error) {
+	if len(p) == 0 {
+		return nil, ErrCurrencyPairsEmpty
+	}
+	if baseTerm.IsEmpty() {
+		return nil, ErrCurrencyCodeEmpty
+	}
+	pairs := make(Pairs, 0, len(p))
+	for i := range p {
+		if p[i].Base.Equal(baseTerm) {
+			pairs = append(pairs, p[i])
+		}
+	}
+	return pairs, nil
 }

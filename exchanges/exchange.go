@@ -1945,6 +1945,38 @@ func (b *Base) IsVerbose() bool {
 	return b.Verbose
 }
 
+// GetDefaultConfig returns a default exchange config
+func GetDefaultConfig(ctx context.Context, exch IBotExchange) (*config.Exchange, error) {
+	if exch == nil {
+		return nil, errExchangeIsNil
+	}
+
+	if exch.GetName() == "" {
+		exch.SetDefaults()
+	}
+
+	b := exch.GetBase()
+
+	exchCfg, err := b.GetStandardConfig()
+	if err != nil {
+		return nil, err
+	}
+
+	err = b.SetupDefaults(exchCfg)
+	if err != nil {
+		return nil, err
+	}
+
+	if b.Features.Supports.RESTCapabilities.AutoPairUpdates {
+		err = exch.UpdateTradablePairs(ctx, true)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return exchCfg, nil
+}
+
 // SynchroniseFees updates the fee schedule for the exchange
 func (b *Base) SynchroniseFees(context.Context, asset.Item) error {
 	return common.ErrNotYetImplemented

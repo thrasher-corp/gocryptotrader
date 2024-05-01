@@ -34,10 +34,6 @@ func main() {
 	var wg sync.WaitGroup
 	for i := range exchange.Exchanges {
 		name := exchange.Exchanges[i]
-		if name == "ftx" {
-			log.Println("Skipping exchange FTX...")
-			continue
-		}
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
