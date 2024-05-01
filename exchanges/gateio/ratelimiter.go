@@ -37,8 +37,8 @@ const (
 	threeSecondsInterval = time.Second * 3
 )
 
-// SetRateLimit returns the rate limiter for the exchange
-func SetRateLimit() request.RateLimitDefinitions {
+// GetRateLimit returns the rate limiter for the exchange
+func GetRateLimit() request.RateLimitDefinitions {
 	return request.RateLimitDefinitions{
 		spotDefaultEPL:               request.NewRateLimitWithWeight(oneSecondInterval, spotPublicRate, 1),
 		spotPrivateEPL:               request.NewRateLimitWithWeight(oneSecondInterval, spotPrivateRate, 1),

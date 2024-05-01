@@ -363,8 +363,8 @@ const (
 	getIndexCandlestickEPL
 )
 
-// SetRateLimit returns a RateLimit instance, which implements the request.Limiter interface.
-func SetRateLimit() request.RateLimitDefinitions {
+// GetRateLimit returns a RateLimit instance, which implements the request.Limiter interface.
+func GetRateLimit() request.RateLimitDefinitions {
 	return request.RateLimitDefinitions{
 		// Trade Endpoints
 		placeOrderEPL:                  request.NewRateLimitWithWeight(twoSecondsInterval, placeOrderRate, 1),

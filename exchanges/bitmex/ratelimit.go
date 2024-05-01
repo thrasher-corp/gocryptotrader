@@ -13,8 +13,8 @@ const (
 	bitmexAuthRate     = 60
 )
 
-// SetRateLimit returns the rate limit for the exchange
-func SetRateLimit() request.RateLimitDefinitions {
+// GetRateLimit returns the rate limit for the exchange
+func GetRateLimit() request.RateLimitDefinitions {
 	return request.RateLimitDefinitions{
 		request.Auth:   request.NewRateLimitWithWeight(bitmexRateInterval, bitmexAuthRate, 1),
 		request.UnAuth: request.NewRateLimitWithWeight(bitmexRateInterval, bitmexUnauthRate, 1),

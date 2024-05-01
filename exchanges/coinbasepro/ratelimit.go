@@ -13,8 +13,8 @@ const (
 	coinbaseproUnauthRate   = 2
 )
 
-// SetRateLimit returns the rate limit for the exchange
-func SetRateLimit() request.RateLimitDefinitions {
+// GetRateLimit returns the rate limit for the exchange
+func GetRateLimit() request.RateLimitDefinitions {
 	return request.RateLimitDefinitions{
 		request.Auth:   request.NewRateLimitWithWeight(coinbaseproRateInterval, coinbaseproAuthRate, 1),
 		request.UnAuth: request.NewRateLimitWithWeight(coinbaseproRateInterval, coinbaseproUnauthRate, 1),

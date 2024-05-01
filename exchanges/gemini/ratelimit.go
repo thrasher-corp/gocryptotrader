@@ -13,8 +13,8 @@ const (
 	geminiUnauthRate   = 120
 )
 
-// SetRateLimit returns the rate limit for the exchange
-func SetRateLimit() request.RateLimitDefinitions {
+// GetRateLimit returns the rate limit for the exchange
+func GetRateLimit() request.RateLimitDefinitions {
 	return request.RateLimitDefinitions{
 		request.Auth:   request.NewRateLimitWithWeight(geminiRateInterval, geminiAuthRate, 1),
 		request.UnAuth: request.NewRateLimitWithWeight(geminiRateInterval, geminiUnauthRate, 1),

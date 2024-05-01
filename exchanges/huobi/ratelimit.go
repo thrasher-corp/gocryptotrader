@@ -29,8 +29,8 @@ const (
 	huobiSwapUnAuth
 )
 
-// SetRateLimit returns the rate limit for the exchange
-func SetRateLimit() request.RateLimitDefinitions {
+// GetRateLimit returns the rate limit for the exchange
+func GetRateLimit() request.RateLimitDefinitions {
 	return request.RateLimitDefinitions{
 		request.Unset:        request.NewRateLimitWithWeight(huobiSpotRateInterval, huobiSpotRequestRate, 1),
 		huobiFuturesAuth:     request.NewRateLimitWithWeight(huobiFuturesRateInterval, huobiFuturesAuthRequestRate, 1),

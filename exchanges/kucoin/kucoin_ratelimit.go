@@ -79,8 +79,8 @@ const (
 	defaultFuturesEPL
 )
 
-// SetRateLimit returns a RateLimit instance, which implements the request.Limiter interface.
-func SetRateLimit() request.RateLimitDefinitions {
+// GetRateLimit returns a RateLimit instance, which implements the request.Limiter interface.
+func GetRateLimit() request.RateLimitDefinitions {
 	return request.RateLimitDefinitions{
 		// spot specific rate limiters
 		retrieveAccountLedgerEPL:              request.NewRateLimitWithWeight(threeSecondsInterval, retrieveAccountLedgerRate, 1),

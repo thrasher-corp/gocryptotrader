@@ -172,8 +172,8 @@ const (
 	lends
 )
 
-// SetRateLimit returns the rate limit for the exchange
-func SetRateLimit() request.RateLimitDefinitions {
+// GetRateLimit returns the rate limit for the exchange
+func GetRateLimit() request.RateLimitDefinitions {
 	return request.RateLimitDefinitions{
 		platformStatus:       request.NewRateLimitWithWeight(requestLimitInterval, platformStatusReqRate, 1),
 		tickerBatch:          request.NewRateLimitWithWeight(requestLimitInterval, tickerBatchReqRate, 1),

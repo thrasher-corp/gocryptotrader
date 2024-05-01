@@ -68,8 +68,8 @@ const (
 	spotCrossMarginTradeSwitchEPL
 )
 
-// SetRateLimit returns the rate limit for the exchange
-func SetRateLimit() request.RateLimitDefinitions {
+// GetRateLimit returns the rate limit for the exchange
+func GetRateLimit() request.RateLimitDefinitions {
 	return request.RateLimitDefinitions{
 		defaultEPL:                               request.NewRateLimitWithWeight(time.Second*5 /* See: https://bybit-exchange.github.io/docs/v5/rate-limit */, 600, 1),
 		createOrderEPL:                           request.NewRateLimitWithWeight(time.Second, 10, 10),

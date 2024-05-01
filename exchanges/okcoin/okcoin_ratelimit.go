@@ -163,8 +163,8 @@ const (
 	getSystemStatusEPL
 )
 
-// SetRateLimit returns a new RateLimit instance which implements request.Limiter interface.
-func SetRateLimit() request.RateLimitDefinitions {
+// GetRateLimit returns a new RateLimit instance which implements request.Limiter interface.
+func GetRateLimit() request.RateLimitDefinitions {
 	return request.RateLimitDefinitions{
 		placeTradeOrderEPL:                                request.NewRateLimitWithWeight(twoSecondsInterval, placeTradeOrderRate, 1),
 		placeTradeMultipleOrdersEPL:                       request.NewRateLimitWithWeight(twoSecondsInterval, placeTradeMultipleOrdersRate, 1),
