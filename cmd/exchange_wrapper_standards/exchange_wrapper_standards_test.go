@@ -38,7 +38,7 @@ func TestMain(m *testing.M) {
 }
 
 // singleExchangeOverride enter an exchange name to only test that exchange
-var singleExchangeOverride = ""
+var singleExchangeOverride = "okx"
 
 func TestAllExchangeWrappers(t *testing.T) {
 	t.Parallel()
@@ -199,35 +199,32 @@ func handleExchangeWrapperTests(ctx context.Context, t *testing.T, actualExchang
 	t.Run(groupTestID, func(t *testing.T) {
 		t.Parallel()
 		for x := range methodNames {
+			methodName := methodNames[x]
 			method := actualExchange.MethodByName(methodNames[x])
-
 			var assetLen int
 			for y := 0; y < method.Type().NumIn(); y++ {
 				input := method.Type().In(y)
-				if input.AssignableTo(assetParam) ||
-					input.AssignableTo(orderSubmitParam) ||
-					input.AssignableTo(orderModifyParam) ||
-					input.AssignableTo(orderCancelParam) ||
-					input.AssignableTo(orderCancelsParam) ||
-					input.AssignableTo(pairKeySliceParam) ||
-					input.AssignableTo(getOrdersRequestParam) ||
-					input.AssignableTo(pairKeySliceParam) {
-					// this allows wrapper functions that support assets types
-					// to be tested with all supported assets
-					assetLen = len(assetParams) - 1
+				for _, t := range []reflect.Type{
+					assetParam, orderSubmitParam, orderModifyParam, orderCancelParam, orderCancelsParam, pairKeySliceParam, getOrdersRequestParam, latestRateRequest,
+				} {
+					if input.AssignableTo(t) {
+						// this allows wrapper functions that support assets types
+						// to be tested with all supported assets
+						assetLen = len(assetParams) - 1
+						break
+					}
 				}
 			}
 			tt := time.Now()
 			e := time.Date(tt.Year(), tt.Month(), tt.Day()-1, 0, 0, 0, 0, time.UTC)
 			s := e.Add(-time.Hour * 24 * 2)
-			if methodNames[x] == "GetHistoricTrades" {
+			if methodName == "GetHistoricTrades" {
 				// limit trade history
 				e = time.Now()
 				s = e.Add(-time.Minute * 3)
 			}
 			for y := 0; y <= assetLen; y++ {
 				inputs := make([]reflect.Value, method.Type().NumIn())
-				methodName := methodNames[x]
 				argGenerator := &MethodArgumentGenerator{
 					Exchange:    exch,
 					AssetParams: assetParams[y],
@@ -242,7 +239,6 @@ func handleExchangeWrapperTests(ctx context.Context, t *testing.T, actualExchang
 				}
 				assetY := assetParams[y].Asset.String()
 				pairY := assetParams[y].Pair.String()
-
 				t.Run(methodName+"-"+assetY+"-"+pairY, func(t *testing.T) {
 					t.Parallel()
 					CallExchangeMethod(t, method, inputs, methodName, exch)
