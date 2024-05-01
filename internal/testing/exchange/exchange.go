@@ -214,7 +214,8 @@ func UpdatePairsOnce(tb testing.TB, e exchange.IBotExchange) {
 	updatePairsMutex.Lock()
 	defer updatePairsMutex.Unlock()
 
-	if updatePairsOnce[e] {
+	b := e.GetBase()
+	if c, ok := updatePairsOnce[e.GetName()]; ok {
 		b.CurrencyPairs.Load(c)
 		return
 	}

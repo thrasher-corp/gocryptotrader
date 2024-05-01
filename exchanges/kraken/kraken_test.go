@@ -130,31 +130,28 @@ func TestUpdateTicker(t *testing.T) {
 
 func TestUpdateTickers(t *testing.T) {
 	t.Parallel()
+	k := new(Kraken) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
+	require.NoError(t, testexch.Setup(k), "Test instance Setup must not error")
 	testexch.UpdatePairsOnce(t, k)
+	err := k.UpdateTickers(context.Background(), asset.Spot)
+	require.NoError(t, err, "UpdateTickers must not error")
 	ap, err := k.GetAvailablePairs(asset.Spot)
-	require.NoError(t, err)
-	err = k.CurrencyPairs.StorePairs(asset.Spot, ap, true)
-	require.NoError(t, err)
-	err = k.UpdateTickers(context.Background(), asset.Spot)
-	assert.NoError(t, err)
+	require.NoError(t, err, "GetAvailablePairs must not error")
 	for i := range ap {
 		_, err = ticker.GetTicker(k.Name, ap[i], asset.Spot)
-		assert.NoError(t, err)
+		require.NoError(t, err, "GetTicker must not error")
 	}
-
 	ap, err = k.GetAvailablePairs(asset.Futures)
-	require.NoError(t, err)
-	err = k.CurrencyPairs.StorePairs(asset.Futures, ap, true)
-	require.NoError(t, err)
+	require.NoError(t, err, "GetAvailablePairs must not error")
 	err = k.UpdateTickers(context.Background(), asset.Futures)
-	assert.NoError(t, err)
+	require.NoError(t, err, "UpdateTickers must not error")
 	for i := range ap {
 		_, err = ticker.GetTicker(k.Name, ap[i], asset.Futures)
-		assert.NoError(t, err)
+		require.NoError(t, err, "GetTicker must not error")
 	}
 
 	err = k.UpdateTickers(context.Background(), asset.Index)
-	assert.ErrorIs(t, err, asset.ErrNotSupported)
+	assert.ErrorIs(t, err, asset.ErrNotSupported, "UpdateTickers should error correctly on Index asset")
 }
 
 func TestUpdateOrderbook(t *testing.T) {
