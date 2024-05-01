@@ -18,6 +18,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/collateral"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/fee"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
@@ -2005,4 +2006,58 @@ func (ku *Kucoin) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]fu
 		})
 	}
 	return resp, nil
+}
+
+// SynchroniseFees updates the fee schedule for the exchange
+func (ku *Kucoin) SynchroniseFees(ctx context.Context, a asset.Item) error {
+	const defaultFeeRequestWindow = 10
+
+	if !ku.SupportsAsset(a) {
+		return fmt.Errorf("%w %v", asset.ErrNotSupported, a)
+	}
+
+	if a != asset.Spot {
+		return common.ErrNotYetImplemented
+	}
+
+	enabled, err := ku.Base.GetEnabledPairs(a)
+	if err != nil {
+		return err
+	}
+
+	var fees []Fees
+	for left := 0; left < len(enabled); left += defaultFeeRequestWindow {
+		right := left + defaultFeeRequestWindow
+		if right > len(enabled) {
+			right = len(enabled)
+		}
+
+		if len(enabled[left:right]) == 0 {
+			break
+		}
+
+		var batch []Fees
+		batch, err = ku.GetTradingFee(ctx, enabled[left:right])
+		if err != nil {
+			return err
+		}
+
+		fees = append(fees, batch...)
+	}
+
+	for x := range fees {
+		var pair currency.Pair
+		pair, err = currency.NewPairFromString(fees[x].Symbol)
+		if err != nil {
+			return err
+		}
+		if !enabled.Contains(pair, true) {
+			continue
+		}
+		err = fee.Load(ku.Name, pair, a, fees[x].MakerFeeRate, fees[x].TakerFeeRate)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }

@@ -18,6 +18,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/collateral"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/fee"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
@@ -3135,4 +3136,17 @@ func (f *FakeBase) GetLatestFundingRates(context.Context, *fundingrate.LatestRat
 
 func (f *FakeBase) GetFuturesContractDetails(context.Context, asset.Item) ([]futures.Contract, error) {
 	return nil, common.ErrFunctionNotSupported
+}
+
+func TestSynchroniseFees(t *testing.T) {
+	t.Parallel()
+	if err := (&Base{}).SynchroniseFees(context.Background(), asset.Spot); !errors.Is(err, common.ErrNotYetImplemented) {
+		t.Errorf("received: %v, expected: %v", err, common.ErrNotYetImplemented)
+	}
+}
+
+func TestGetPercentageFeeRates(t *testing.T) {
+	t.Parallel()
+	_, err := (&Base{Name: "test"}).GetPercentageFeeRates(currency.NewBTCUSD(), asset.Spot)
+	assert.ErrorIs(t, err, fee.ErrFeeRateNotFound)
 }

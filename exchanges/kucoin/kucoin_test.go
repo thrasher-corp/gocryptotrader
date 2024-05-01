@@ -20,6 +20,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/fee"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
@@ -2773,4 +2774,28 @@ func TestGetOpenInterest(t *testing.T) {
 	resp, err = nu.GetOpenInterest(context.Background())
 	assert.NoError(t, err)
 	assert.NotEmpty(t, resp)
+}
+
+func TestSynchroniseFees(t *testing.T) {
+	t.Parallel()
+	err := ku.SynchroniseFees(context.Background(), asset.Binary)
+	assert.ErrorIs(t, err, asset.ErrNotSupported)
+
+	err = ku.SynchroniseFees(context.Background(), asset.Futures)
+	assert.ErrorIs(t, err, common.ErrNotYetImplemented)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, ku)
+	ku.Verbose = true
+	err = ku.SynchroniseFees(context.Background(), asset.Spot)
+	require.NoError(t, err)
+
+	enabled, err := ku.GetEnabledPairs(asset.Spot)
+	require.NoError(t, err)
+
+	for x := range enabled {
+		var rates fee.Rates
+		rates, err = ku.GetPercentageFeeRates(enabled[x], asset.Spot)
+		require.NoError(t, err)
+		assert.NotEmpty(t, rates, "fee rates should not be empty")
+	}
 }
