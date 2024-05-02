@@ -395,11 +395,13 @@ func (c *CoinbasePro) Subscribe(subs subscription.List) error {
 		Type:     "subscribe",
 		Channels: make([]any, 0, len(subs)),
 	}
-	// See if we have a consistent Pair list that we can use globally
+	// See if we have a consistent Pair list for all the substhat we can use globally
+	// If all the subs have the same pairs then we can use the top level ProductIDs field
+	// Otherwise each and every sub needs to have it's own list
 	for i, s := range subs {
 		if i == 0 {
 			r.ProductIDs = s.Pairs.Strings()
-		} else if subs[0].Pairs.Equal(s.Pairs) {
+		} else if !subs[0].Pairs.Equal(s.Pairs) {
 			r.ProductIDs = nil
 			break
 		}
@@ -416,7 +418,8 @@ func (c *CoinbasePro) Subscribe(subs subscription.List) error {
 				ProductIDs: s.Pairs.Strings(),
 			})
 		} else {
-			// We use a string because if we use a WsChannel coinbase will error on ProductIDs, even if we omit ProductIDs
+			// Coinbase does not support using [WsChannel{Name:"x"}] unless each ProductIDs field is populated
+			// Therefore we have to use Channels as an array of strings
 			r.Channels = append(r.Channels, s.Channel)
 		}
 	}
