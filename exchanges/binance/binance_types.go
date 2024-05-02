@@ -2412,6 +2412,18 @@ type DelistSchedule struct {
 	Symbols    []string             `json:"symbols"`
 }
 
+// WithdrawAddress represents a withdraw address item detail.
+type WithdrawAddress struct {
+	Address     string `json:"address"`
+	AddressTag  string `json:"addressTag"`
+	Coin        string `json:"coin"`
+	Name        string `json:"name"` // is a user-defined name
+	Network     string `json:"network"`
+	Origin      string `json:"origin"`      // if originType=='others', the address source manually filled in by the user
+	OriginType  string `json:"originType"`  // Address source type
+	WhiteStatus bool   `json:"whiteStatus"` // Is it whitelisted
+}
+
 // VirtualSubAccount represents a response information after creating the virtual account.
 type VirtualSubAccount struct {
 	Email string `json:"email"`

@@ -88,7 +88,7 @@ func (b *Binance) GetExchangeServerTime(ctx context.Context) (time.Time, error) 
 	resp := &struct {
 		ServerTime convert.ExchangeTime `json:"serverTime"`
 	}{}
-	return resp.ServerTime.Time(), b.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, "/api/v3/time", spotExchangeInfo, resp)
+	return resp.ServerTime.Time(), b.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, "/api/v3/time", spotDefaultRate, resp)
 }
 
 // GetExchangeInfo returns exchange information. Check binance_types for more
@@ -225,7 +225,7 @@ func (b *Binance) GetAggregatedTrades(ctx context.Context, arg *AggregatedTradeR
 	var resp []AggregatedTrade
 	return resp, b.SendHTTPRequest(ctx,
 		exchange.RestSpotSupplementary, common.EncodeURLValues("/api/v3/aggTrades", params),
-		spotDefaultRate, &resp)
+		aggTradesRate, &resp)
 }
 
 // batchAggregateTrades fetches trades in multiple requests
@@ -1999,7 +1999,7 @@ func getCryptocurrencyWithdrawalFee(c currency.Code) float64 {
 // "normal", "system_maintenance"
 func (b *Binance) GetSystemStatus(ctx context.Context) (*SystemStatus, error) {
 	var resp *SystemStatus
-	return resp, b.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, "/sapi/v1/system/status", walletSystemStatus, &resp)
+	return resp, b.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, "/sapi/v1/system/status", sapiDefaultRate, &resp)
 }
 
 // GetAllCoinsInfo returns details about all supported coins(available for deposit and withdraw)
@@ -2037,12 +2037,12 @@ func (b *Binance) GetDailyAccountSnapshot(ctx context.Context, tradeType string,
 // This request will disable fastwithdraw switch under your account.
 // You need to enable "trade" option for the api key which requests this endpoint.
 func (b *Binance) DisableFastWithdrawalSwitch(ctx context.Context) error {
-	return b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/sapi/v1/account/disableFastWithdrawSwitch", nil, spotDefaultRate, nil, &struct{}{})
+	return b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/sapi/v1/account/disableFastWithdrawSwitch", nil, sapiDefaultRate, nil, &struct{}{})
 }
 
 // EnableFastWithdrawalSwitch enable fastwithdraw switch under your account.
 func (b *Binance) EnableFastWithdrawalSwitch(ctx context.Context) error {
-	return b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/sapi/v1/account/enableFastWithdrawSwitch", nil, spotDefaultRate, nil, &struct{}{})
+	return b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/sapi/v1/account/enableFastWithdrawSwitch", nil, sapiDefaultRate, nil, &struct{}{})
 }
 
 // WithdrawCrypto sends cryptocurrency to the address of your choosing
@@ -2112,7 +2112,7 @@ func (b *Binance) DepositHistory(ctx context.Context, c currency.Code, status st
 	return response, b.SendAuthHTTPRequest(ctx,
 		exchange.RestSpotSupplementary, http.MethodGet,
 		"/sapi/v1/capital/deposit/hisrec",
-		params, spotDefaultRate, nil, &response)
+		params, sapiDefaultRate, nil, &response)
 }
 
 // WithdrawHistory gets the status of recent withdrawals
@@ -2175,7 +2175,7 @@ func (b *Binance) GetAssetsThatCanBeConvertedIntoBNB(ctx context.Context, accoun
 		params.Set("accountType", accountType)
 	}
 	var resp *AssetsDust
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/sapi/v1/asset/dust-btc", params, spotDefaultRate, nil, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/sapi/v1/asset/dust-btc", params, sapiDefaultRate, nil, &resp)
 }
 
 // DustTransfer convert dust assets to BNB.
@@ -2189,7 +2189,7 @@ func (b *Binance) DustTransfer(ctx context.Context, assets []string, accountType
 		params.Set("accountType", accountType)
 	}
 	var resp *Dusts
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/sapi/v1/asset/dust", params, spotDefaultRate, nil, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/sapi/v1/asset/dust", params, dustTransferRate, nil, &resp)
 }
 
 // GetAssetDevidendRecords query asset dividend record.
@@ -2221,7 +2221,7 @@ func (b *Binance) GetAssetDetail(ctx context.Context, asset currency.Code) (map[
 		params.Set("asset", asset.String())
 	}
 	var resp map[string]DividendAsset
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/asset/assetDetail", params, spotDefaultRate, nil, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/asset/assetDetail", params, sapiDefaultRate, nil, &resp)
 }
 
 // GetTradeFees fetch trade fee
@@ -2231,7 +2231,7 @@ func (b *Binance) GetTradeFees(ctx context.Context, symbol currency.Pair) ([]Tra
 		params.Set("symbol", symbol.String())
 	}
 	var resp []TradeFee
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/asset/tradeFee", params, spotDefaultRate, nil, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/asset/tradeFee", params, sapiDefaultRate, nil, &resp)
 }
 
 // UserUniversalTransfer transfers an asset
@@ -2261,7 +2261,7 @@ func (b *Binance) UserUniversalTransfer(ctx context.Context, transferType Transf
 	resp := &struct {
 		TransferID string `json:"tranId"`
 	}{}
-	return resp.TransferID, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/sapi/v1/asset/transfer", params, spotDefaultRate, nil, &resp)
+	return resp.TransferID, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/sapi/v1/asset/transfer", params, userUniversalTransferRate, nil, &resp)
 }
 
 // GetUserUniversalTransferHistory retrieves user universal transfer history
@@ -2292,7 +2292,7 @@ func (b *Binance) GetUserUniversalTransferHistory(ctx context.Context, transferT
 		params.Set("toSymbol", toSymbol)
 	}
 	var resp *UniversalTransferHistory
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/asset/transfer", params, spotDefaultRate, nil, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/asset/transfer", params, sapiDefaultRate, nil, &resp)
 }
 
 // GetFundingAssets funding wallet
@@ -2305,7 +2305,7 @@ func (b *Binance) GetFundingAssets(ctx context.Context, asset currency.Code, nee
 		params.Set("needBtcValuation", "true")
 	}
 	var resp []FundingAsset
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/sapi/v1/asset/get-funding-asset", params, spotDefaultRate, nil, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/sapi/v1/asset/get-funding-asset", params, sapiDefaultRate, nil, &resp)
 }
 
 // GetUserAssets get user assets, just for positive data.
@@ -2370,7 +2370,7 @@ func (b *Binance) BUSDConvertHistory(ctx context.Context, transactionID, clientT
 		params.Set("accountType", accountType)
 	}
 	var resp *BUSDConvertHistory
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/asset/convert-transfer/queryByPage", params, spotDefaultRate, nil, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/asset/convert-transfer/queryByPage", params, busdConvertHistoryRate, nil, &resp)
 }
 
 // GetCloudMiningPaymentAndRefundHistory retrieves cloud-mining payment and refund history
@@ -2400,19 +2400,19 @@ func (b *Binance) GetCloudMiningPaymentAndRefundHistory(ctx context.Context, tra
 		params.Set("size", strconv.FormatFloat(size, 'f', -1, 64))
 	}
 	var resp *CloudMiningPR
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/asset/ledger-transfer/cloud-mining/queryByPage", params, spotDefaultRate, nil, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/asset/ledger-transfer/cloud-mining/queryByPage", params, cloudMiningPaymentAndRefundHistoryRate, nil, &resp)
 }
 
 // GetAPIKeyPermission retrieves API key ermissions detail.
 func (b *Binance) GetAPIKeyPermission(ctx context.Context) (*APIKeyPermissions, error) {
 	var resp *APIKeyPermissions
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/account/apiRestrictions", nil, spotDefaultRate, nil, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/account/apiRestrictions", nil, sapiDefaultRate, nil, &resp)
 }
 
 // GetAutoConvertingStableCoins a user's auto-conversion settings in deposit/withdrawal
 func (b *Binance) GetAutoConvertingStableCoins(ctx context.Context) (*AutoConvertingStableCoins, error) {
 	var resp *AutoConvertingStableCoins
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/capital/contract/convertible-coins", nil, spotDefaultRate, nil, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/capital/contract/convertible-coins", nil, autoConvertingStableCoinsRate, nil, &resp)
 }
 
 // SwitchOnOffBUSDAndStableCoinsConversion user can use it to turn on or turn off the BUSD auto-conversion from/to a specific stable coin.
@@ -2423,7 +2423,7 @@ func (b *Binance) SwitchOnOffBUSDAndStableCoinsConversion(ctx context.Context, c
 	params := url.Values{}
 	params.Set("coin", coin.String())
 	params.Set("enable", strconv.FormatBool(enable))
-	return b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/sapi/v1/capital/contract/convertible-coins", params, spotDefaultRate, nil, &struct{}{})
+	return b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/sapi/v1/capital/contract/convertible-coins", params, autoConvertingStableCoinsRate, nil, &struct{}{})
 }
 
 // OneClickArrivalDepositApply apply deposit credit for expired address
@@ -2442,7 +2442,7 @@ func (b *Binance) OneClickArrivalDepositApply(ctx context.Context, transactionID
 		params.Set("subUserID", strconv.FormatInt(subUserID, 10))
 	}
 	var resp bool
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/sapi/v1/capital/deposit/credit-apply", params, spotDefaultRate, nil, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/sapi/v1/capital/deposit/credit-apply", params, sapiDefaultRate, nil, &resp)
 }
 
 // GetDepositAddressListWithNetwork fetch deposit address list with network.
@@ -2501,6 +2501,12 @@ func (b *Binance) GetSymbolsDelistScheduleForSpot(ctx context.Context) ([]Delist
 	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/spot/delist-schedule", nil, symbolDelistScheduleForSpotRate, nil, &resp)
 }
 
+// GetWithdrawAddressList retrieves withdraw address list
+func (b *Binance) GetWithdrawAddressList(ctx context.Context) ([]WithdrawAddress, error) {
+	var resp []WithdrawAddress
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/capital/withdraw/address/list", nil, withdrawAddressListRate, nil, &resp)
+}
+
 // --------------------------------------------------  Sub-Account Endpoints  --------------------------------------------------------------
 
 // CreateVirtualSubAccount creates a virtual subaccount information.
@@ -2510,7 +2516,7 @@ func (b *Binance) CreateVirtualSubAccount(ctx context.Context, subAccountString 
 		params.Set("subAccountString", subAccountString)
 	}
 	var resp *VirtualSubAccount
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/sub-account/virtualSubAccount", params, spotDefaultRate, nil, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/sapi/v1/sub-account/virtualSubAccount", params, sapiDefaultRate, nil, &resp)
 }
 
 // GetSubAccountList retrieves sub-account list for Master Account
@@ -2529,7 +2535,7 @@ func (b *Binance) GetSubAccountList(ctx context.Context, email string, isFreeze 
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	var resp *SubAccountList
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/sub-account/list", params, spotDefaultRate, nil, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/sub-account/list", params, sapiDefaultRate, nil, &resp)
 }
 
 // GetSubAccountSpotAssetTransferHistory represents sub-account spot asset transfer history for master account
@@ -2557,7 +2563,7 @@ func (b *Binance) GetSubAccountSpotAssetTransferHistory(ctx context.Context, fro
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	var resp []SubAccountSpotAsset
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/sub-account/sub/transfer/history", params, spotDefaultRate, nil, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/sub-account/sub/transfer/history", params, sapiDefaultRate, nil, &resp)
 }
 
 // GetSubAccountFuturesAssetTransferHistory Query Sub-account Futures Asset Transfer History For Master Account
@@ -2586,7 +2592,7 @@ func (b *Binance) GetSubAccountFuturesAssetTransferHistory(ctx context.Context, 
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	var resp *AssetTransferHistory
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/sub-account/futures/internalTransfer", params, spotDefaultRate, nil, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/sub-account/futures/internalTransfer", params, sapiDefaultRate, nil, &resp)
 }
 
 // SubAccountFuturesAssetTransfer sub-account futures asset transfer for master account
@@ -2615,7 +2621,7 @@ func (b *Binance) SubAccountFuturesAssetTransfer(ctx context.Context, fromEmail,
 	params.Set("asset", asset.String())
 	params.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
 	var resp *FuturesAssetTransfer
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/sapi/v1/sub-account/futures/internalTransfer", params, spotDefaultRate, nil, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/sapi/v1/sub-account/futures/internalTransfer", params, sapiDefaultRate, nil, &resp)
 }
 
 // GetSubAccountAssets sub-account assets for master account
@@ -2642,7 +2648,7 @@ func (b *Binance) GetManagedSubAccountList(ctx context.Context, email string, pa
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	var resp *ManagedSubAccountList
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/managed-subaccount/info", params, spotDefaultRate, nil, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/managed-subaccount/info", params, getManagedSubAccountListRate, nil, &resp)
 }
 
 // GetSubAccountTransactionStatistics retrieves sub-account Transaction statistics (For Master Account)(USER_DATA).
@@ -2673,7 +2679,7 @@ func (b *Binance) GetManagedSubAccountDepositAddress(ctx context.Context, coin c
 		params.Set("network", network)
 	}
 	var resp *ManagedSubAccountDepositAddres
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/managed-subaccount/deposit/address", params, spotDefaultRate, nil, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/managed-subaccount/deposit/address", params, sapiDefaultRate, nil, &resp)
 }
 
 // EnableOptionsForSubAccount enables options for sub-account(For master account)
@@ -2684,7 +2690,7 @@ func (b *Binance) EnableOptionsForSubAccount(ctx context.Context, email string) 
 	params := url.Values{}
 	params.Set("email", email)
 	var resp *OptionsEnablingResponse
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/sapi/v1/sub-account/eoptions/enable", params, spotDefaultRate, nil, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/sapi/v1/sub-account/eoptions/enable", params, sapiDefaultRate, nil, &resp)
 }
 
 // GetManagedSubAccountTransferLog retrieves managed sub account transfer Log (For Trading Team Sub Account)
@@ -2714,7 +2720,7 @@ func (b *Binance) GetManagedSubAccountTransferLog(ctx context.Context, startTime
 		params.Set("transferFunctionAccountType", transferFunctionAccountType)
 	}
 	var resp *ManagedSubAccountTransferLog
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/managed-subaccount/query-trans-log", params, spotDefaultRate, nil, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/managed-subaccount/query-trans-log", params, managedSubAccountTransferLogRate, nil, &resp)
 }
 
 // GetSubAccountSpotAssetsSummary retrieves BTC valued asset summary of subaccounts.
@@ -2730,7 +2736,7 @@ func (b *Binance) GetSubAccountSpotAssetsSummary(ctx context.Context, email stri
 		params.Set("size", strconv.FormatInt(size, 10))
 	}
 	var resp *SubAccountSpotSummary
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/sub-account/spotSummary", params, spotDefaultRate, nil, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/sub-account/spotSummary", params, sapiDefaultRate, nil, &resp)
 }
 
 // GetSubAccountDepositAddress sub-account deposit address
@@ -2749,7 +2755,7 @@ func (b *Binance) GetSubAccountDepositAddress(ctx context.Context, email, coin, 
 		params.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
 	}
 	var resp *SubAccountDepositAddress
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/capital/deposit/subAddress", params, spotDefaultRate, nil, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/capital/deposit/subAddress", params, sapiDefaultRate, nil, &resp)
 }
 
 // GetSubAccountDepositHistory retrieves sub-account deposit history
@@ -2781,7 +2787,7 @@ func (b *Binance) GetSubAccountDepositHistory(ctx context.Context, email, coin s
 		params.Set("offset", strconv.FormatInt(offset, 10))
 	}
 	var resp *SubAccountDepositHistory
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/sapi/v1/capital/deposit/subHisrec", params, spotDefaultRate, nil, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/sapi/v1/capital/deposit/subHisrec", params, sapiDefaultRate, nil, &resp)
 }
 
 // GetSubAccountStatusOnMarginFutures sub-account's status on Margin/Futures for master account
@@ -2802,7 +2808,7 @@ func (b *Binance) EnableMarginForSubAccount(ctx context.Context, email string) (
 	params := url.Values{}
 	params.Set("email", email)
 	var resp *MarginEnablingResponse
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/sapi/v1/sub-account/margin/enable", params, spotDefaultRate, nil, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/sapi/v1/sub-account/margin/enable", params, sapiDefaultRate, nil, &resp)
 }
 
 // GetDetailOnSubAccountMarginAccount retrieves Detail on Sub-account's Margin Account For Master Account
@@ -2830,7 +2836,7 @@ func (b *Binance) EnableFuturesSubAccount(ctx context.Context, email string) (*F
 	params := url.Values{}
 	params.Set("email", email)
 	var resp *FuturesEnablingResponse
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/sub-account/futures/enable", params, spotDefaultRate, nil, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/sub-account/futures/enable", params, sapiDefaultRate, nil, &resp)
 }
 
 // GetDetailSubAccountFuturesAccount retrieves detail on sub-account's futures account for master account
@@ -2847,7 +2853,7 @@ func (b *Binance) GetDetailSubAccountFuturesAccount(ctx context.Context, email s
 // GetSummaryOfSubAccountFuturesAccount retrieves summary of sub-account's futures account for master account
 func (b *Binance) GetSummaryOfSubAccountFuturesAccount(ctx context.Context) (*SubAccountsFuturesAccount, error) {
 	var resp *SubAccountsFuturesAccount
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/sub-account/futures/accountSummary", nil, spotDefaultRate, nil, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/sub-account/futures/accountSummary", nil, sapiDefaultRate, nil, &resp)
 }
 
 // GetV1FuturesPositionRiskSubAccount retrieves V1 position-risk of sub-account's futures account.
@@ -2857,7 +2863,7 @@ func (b *Binance) GetV1FuturesPositionRiskSubAccount(ctx context.Context, email 
 
 // GetV2FuturesPositionRiskSubAccount retrieves futures position-risk of sub-account for master account
 func (b *Binance) GetV2FuturesPositionRiskSubAccount(ctx context.Context, email string) (*SubAccountFuturesPositionRisk, error) {
-	return b.getFuturesPositionRiskSubAccount(ctx, email, "/sapi/v2/sub-account/futures/positionRisk", spotDefaultRate)
+	return b.getFuturesPositionRiskSubAccount(ctx, email, "/sapi/v2/sub-account/futures/positionRisk", sapiDefaultRate)
 }
 func (b *Binance) getFuturesPositionRiskSubAccount(ctx context.Context, email, path string, endpointLimit request.EndpointLimit) (*SubAccountFuturesPositionRisk, error) {
 	if !common.MatchesEmailPattern(email) {
@@ -2882,7 +2888,7 @@ func (b *Binance) EnableLeverageTokenForSubAccount(ctx context.Context, email st
 		params.Set("enableElvt", "false")
 	}
 	var resp *LeverageToken
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/sapi/v1/sub-account/blvt/enable", params, spotDefaultRate, nil, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/sapi/v1/sub-account/blvt/enable", params, sapiDefaultRate, nil, &resp)
 }
 
 // GetIPRestrictionForSubAccountAPIKeyV2 retrieves list of IP addresses restricted for the sub account API key(for master account).
@@ -2897,7 +2903,7 @@ func (b *Binance) GetIPRestrictionForSubAccountAPIKeyV2(ctx context.Context, ema
 	params.Set("email", email)
 	params.Set("subAccountApiKey", subAccountAPIKey)
 	var resp *APIRestrictions
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/sub-account/subAccountApi/ipRestriction", params, spotDefaultRate, nil, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/sub-account/subAccountApi/ipRestriction", params, ipRestrictionForSubAccountAPIKeyRate, nil, &resp)
 }
 
 // DeleteIPListForSubAccountAPIKey delete IP list for a sub-account API key (For Master Account)
@@ -2915,7 +2921,7 @@ func (b *Binance) DeleteIPListForSubAccountAPIKey(ctx context.Context, email, su
 		params.Set("ipAddress", ipAddress)
 	}
 	var resp *APIRestrictions
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodDelete, "/sapi/v1/sub-account/subAccountApi/ipRestriction/ipList", params, spotDefaultRate, nil, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodDelete, "/sapi/v1/sub-account/subAccountApi/ipRestriction/ipList", params, deleteIPListForSubAccountAPIKeyRate, nil, &resp)
 }
 
 // AddIPRestrictionForSubAccountAPIkey adds an IP address into the restricted IP addresses for the subaccount
@@ -2938,7 +2944,7 @@ func (b *Binance) AddIPRestrictionForSubAccountAPIkey(ctx context.Context, email
 		params.Set("ipAddress", ipAddress)
 	}
 	var resp *APIRestrictions
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/sapi/v1/sub-account/subAccountApi/ipRestriction/ipList", params, spotDefaultRate, nil, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/sapi/v2/sub-account/subAccountApi/ipRestriction", params, addIPRestrictionSubAccountAPIKey, nil, &resp)
 }
 
 // DepositAssetsIntoTheManagedSubAccount deposits an asset into managed sub-account (for investor master account).
@@ -2959,7 +2965,7 @@ func (b *Binance) DepositAssetsIntoTheManagedSubAccount(ctx context.Context, toE
 	resp := &struct {
 		TransactionID string `json:"tranId"`
 	}{}
-	return resp.TransactionID, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/sapi/v1/managed-subaccount/deposit", params, spotDefaultRate, nil, &resp)
+	return resp.TransactionID, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/sapi/v1/managed-subaccount/deposit", params, sapiDefaultRate, nil, &resp)
 }
 
 // GetManagedSubAccountAssetsDetails retrieves managed sub-account assets details for investor master accounts.
@@ -2970,7 +2976,7 @@ func (b *Binance) GetManagedSubAccountAssetsDetails(ctx context.Context, email s
 	params := url.Values{}
 	params.Set("email", email)
 	var resp []ManagedSubAccountAssetInfo
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/managed-subaccount/asset", params, spotDefaultRate, nil, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/managed-subaccount/asset", params, sapiDefaultRate, nil, &resp)
 }
 
 // WithdrawAssetsFromManagedSubAccount withdraws an asset from managed sub-account(for investor master account).
@@ -2994,7 +3000,7 @@ func (b *Binance) WithdrawAssetsFromManagedSubAccount(ctx context.Context, fromE
 	resp := &struct {
 		TransactionID string `json:"tranId"`
 	}{}
-	return resp.TransactionID, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/sapi/v1/managed-subaccount/withdraw", params, spotDefaultRate, nil, &resp)
+	return resp.TransactionID, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/sapi/v1/managed-subaccount/withdraw", params, sapiDefaultRate, nil, &resp)
 }
 
 // GetManagedSubAccountSnapshot retrieves managed sub-account snapshot for investor master account.
@@ -3028,7 +3034,7 @@ func (b *Binance) GetManagedSubAccountSnapshot(ctx context.Context, email, asset
 // A Managed Sub-Account is an account type for investors who value flexibility in asset allocation and account application,
 // while delegating trades to a professional trading team.
 func (b *Binance) GetManagedSubAccountTransferLogForInvestorMasterAccount(ctx context.Context, email, transfers, transferFunctionAccountType string, startTime, endTime time.Time, page, limit int64) (*SubAccountTransferLog, error) {
-	return b.getManagedSubAccountTransferLog(ctx, email, transfers, transferFunctionAccountType, "/sapi/v1/managed-subaccount/queryTransLogForInvestor", startTime, endTime, page, limit)
+	return b.getManagedSubAccountTransferLog(ctx, email, transfers, transferFunctionAccountType, "/sapi/v1/managed-subaccount/queryTransLogForInvestor", startTime, endTime, page, limit, sapiDefaultRate)
 }
 
 // GetManagedSubAccountTransferLogForTradingTeam retrieves managed sub account transfer log.
@@ -3037,10 +3043,10 @@ func (b *Binance) GetManagedSubAccountTransferLogForInvestorMasterAccount(ctx co
 // transfers: Transfer Direction (FROM/TO)
 // transferFunctionAccountType: Transfer function account type (SPOT/MARGIN/ISOLATED_MARGIN/USDT_FUTURE/COIN_FUTURE)
 func (b *Binance) GetManagedSubAccountTransferLogForTradingTeam(ctx context.Context, email, transfers, transferFunctionAccountType string, startTime, endTime time.Time, page, limit int64) (*SubAccountTransferLog, error) {
-	return b.getManagedSubAccountTransferLog(ctx, email, transfers, transferFunctionAccountType, "/sapi/v1/managed-subaccount/queryTransLogForTradeParent", startTime, endTime, page, limit)
+	return b.getManagedSubAccountTransferLog(ctx, email, transfers, transferFunctionAccountType, "/sapi/v1/managed-subaccount/queryTransLogForTradeParent", startTime, endTime, page, limit, managedSubAccountTransferLogRate)
 }
 
-func (b *Binance) getManagedSubAccountTransferLog(ctx context.Context, email, transfers, transferFunctionAccountType, path string, startTime, endTime time.Time, page, limit int64) (*SubAccountTransferLog, error) {
+func (b *Binance) getManagedSubAccountTransferLog(ctx context.Context, email, transfers, transferFunctionAccountType, path string, startTime, endTime time.Time, page, limit int64, epl request.EndpointLimit) (*SubAccountTransferLog, error) {
 	if !common.MatchesEmailPattern(email) {
 		return nil, fmt.Errorf("%w, email = %s", errValidEmailRequired, email)
 	}
@@ -3067,7 +3073,7 @@ func (b *Binance) getManagedSubAccountTransferLog(ctx context.Context, email, tr
 		params.Set("transferFunctionAccountType", transferFunctionAccountType)
 	}
 	var resp *SubAccountTransferLog
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, params, spotDefaultRate, nil, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, params, epl, nil, &resp)
 }
 
 // GetManagedSubAccountFutureesAssetDetails retrieves managed sub account futures asset details(For Investor Master Account）(USER_DATA)
@@ -3078,7 +3084,7 @@ func (b *Binance) GetManagedSubAccountFutureesAssetDetails(ctx context.Context, 
 	params := url.Values{}
 	params.Set("email", email)
 	var resp *ManagedSubAccountFuturesAssetDetail
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/managed-subaccount/fetch-future-asset", params, spotDefaultRate, nil, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/managed-subaccount/fetch-future-asset", params, managedSubAccountFuturesAssetDetailRate, nil, &resp)
 }
 
 // GetManagedSubAccountMarginAssetDetails retrieves managed sub-account margin asset details.
@@ -3089,7 +3095,7 @@ func (b *Binance) GetManagedSubAccountMarginAssetDetails(ctx context.Context, em
 	params := url.Values{}
 	params.Set("email", email)
 	var resp *SubAccountMarginAsset
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/managed-subaccount/marginAsset", params, spotDefaultRate, nil, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/managed-subaccount/marginAsset", params, sapiDefaultRate, nil, &resp)
 }
 
 // FuturesTransferSubAccount transfers futures for sub-account( from master account only)
@@ -3126,7 +3132,7 @@ func (b *Binance) transferSubAccount(ctx context.Context, email, path string, as
 	resp := struct {
 		TransactionID string `json:"txnId"`
 	}{}
-	return resp.TransactionID, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, params, spotDefaultRate, nil, &resp)
+	return resp.TransactionID, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, params, sapiDefaultRate, nil, &resp)
 }
 
 // TransferToSubAccountOfSameMaster Transfer to Sub-account of Same Master (For Sub-account)
@@ -3147,7 +3153,7 @@ func (b *Binance) TransferToSubAccountOfSameMaster(ctx context.Context, toEmail 
 	resp := &struct {
 		TransactionID string `json:"txnId"`
 	}{}
-	return resp.TransactionID, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/sub-account/transfer/subToSub", params, spotDefaultRate, nil, &resp)
+	return resp.TransactionID, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/sub-account/transfer/subToSub", params, sapiDefaultRate, nil, &resp)
 }
 
 // FromSubAccountTransferToMaster Transfer to Master (For Sub-account)
@@ -3165,7 +3171,7 @@ func (b *Binance) FromSubAccountTransferToMaster(ctx context.Context, asset curr
 	resp := &struct {
 		TransactionID string `json:"txnId"`
 	}{}
-	return resp.TransactionID, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/sub-account/transfer/subToMaster", params, spotDefaultRate, nil, &resp)
+	return resp.TransactionID, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/sub-account/transfer/subToMaster", params, sapiDefaultRate, nil, &resp)
 }
 
 // SubAccountTransferHistory retrieves Sub-account Transfer History (For Sub-account)
@@ -3189,7 +3195,7 @@ func (b *Binance) SubAccountTransferHistory(ctx context.Context, asset currency.
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	var resp *SubAccountTransferHistory
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/sub-account/transfer/subUserHistory", params, spotDefaultRate, nil, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/sub-account/transfer/subUserHistory", params, sapiDefaultRate, nil, &resp)
 }
 
 // SubAccountTransferHistoryForSubAccount represents a sub-account transfer history for sub accounts.
@@ -3254,7 +3260,7 @@ func (b *Binance) UniversalTransferForMasterAccount(ctx context.Context, arg *Un
 		params.Set("symbol", arg.Symbol)
 	}
 	var resp *UniversalTransferResponse
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/sapi/v1/sub-account/universalTransfer", params, spotDefaultRate, nil, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/sapi/v1/sub-account/universalTransfer", params, sapiDefaultRate, nil, &resp)
 }
 
 // GetUniversalTransferHistoryForMasterAccount retrieves universal transfer history for master account.
@@ -3285,7 +3291,7 @@ func (b *Binance) GetUniversalTransferHistoryForMasterAccount(ctx context.Contex
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	var resp *UniversalTransfersDetail
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/sub-account/universalTransfer", params, spotDefaultRate, nil, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/sub-account/universalTransfer", params, sapiDefaultRate, nil, &resp)
 }
 
 // GetDetailOnSubAccountsFuturesAccountV2 retrieves detail on sub-account's futures account V2 for master account
@@ -3298,7 +3304,7 @@ func (b *Binance) GetDetailOnSubAccountsFuturesAccountV2(ctx context.Context, em
 	}
 	params := url.Values{}
 	var resp *MarginedFuturesAccount
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v2/sub-account/futures/account", params, spotDefaultRate, nil, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v2/sub-account/futures/account", params, sapiDefaultRate, nil, &resp)
 }
 
 // GetSummaryOfSubAccountsFuturesAccountV2 retrieves the summary of sub-account's futures account v2 for master account
@@ -3323,13 +3329,13 @@ func (b *Binance) GetAccountStatus(ctx context.Context) (string, error) {
 	resp := &struct {
 		Data string `json:"data"`
 	}{}
-	return resp.Data, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/account/status", nil, spotDefaultRate, nil, &resp)
+	return resp.Data, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/account/status", nil, sapiDefaultRate, nil, &resp)
 }
 
 // GetAccountTradingAPIStatus fetch account api trading status detail.
 func (b *Binance) GetAccountTradingAPIStatus(ctx context.Context) (*TradingAPIAccountStatus, error) {
 	var resp *TradingAPIAccountStatus
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/account/apiTradingStatus", nil, spotDefaultRate, nil, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/account/apiTradingStatus", nil, sapiDefaultRate, nil, &resp)
 }
 
 // GetDustLog retrieves record of small or fractional amounts of assets that accumulate in a user's account
@@ -3347,7 +3353,7 @@ func (b *Binance) GetDustLog(ctx context.Context, accountType string, startTime,
 		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
 	}
 	var resp *DustLog
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/asset/dribblet", params, spotDefaultRate, nil, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/asset/dribblet", params, sapiDefaultRate, nil, &resp)
 }
 
 // GetWsAuthStreamKey will retrieve a key to use for authorised WS streaming

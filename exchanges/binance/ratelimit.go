@@ -34,7 +34,8 @@ const (
 // Binance Spot rate limits
 const (
 	spotDefaultRate request.EndpointLimit = iota
-	walletSystemStatus
+	aggTradesRate
+	sapiDefaultRate
 	allCoinInfoRate
 	dailyAccountSnapshotRate
 	fundWithdrawalRate
@@ -64,8 +65,13 @@ const (
 	allIsolatedMarginFeeDataRate
 	marginCurrentOrderCountUsageRate
 	depositAddressesRate
+	dustTransferRate
 	assetDividendRecordRate
+	userUniversalTransferRate
 	userAssetsRate
+	busdConvertHistoryRate
+	cloudMiningPaymentAndRefundHistoryRate
+	autoConvertingStableCoinsRate
 	getMinersListRate
 	getEarningsListRate
 	getHashrateRescaleRate
@@ -79,6 +85,7 @@ const (
 	getUserWalletBalanceRate
 	getUserDelegationHistoryRate
 	symbolDelistScheduleForSpotRate
+	withdrawAddressListRate
 	crossMarginCollateralRatioRate
 	smallLiabilityExchCoinListRate
 	marginHourlyInterestRate
@@ -91,7 +98,14 @@ const (
 	getDetailSubAccountFuturesAccountRate
 	getFuturesPositionRiskOfSubAccountV1Rate
 	getFuturesSubAccountSummaryV2Rate
+	ipRestrictionForSubAccountAPIKeyRate
+	deleteIPListForSubAccountAPIKeyRate
+	addIPRestrictionSubAccountAPIKey
 	getManagedSubAccountSnapshotRate
+	managedSubAccountTransferLogRate
+	managedSubAccountFuturesAssetDetailRate
+	getManagedSubAccountListRate
+	getSubAccountTransactionStatisticsRate
 	getCrossMarginAccountDetailRate
 	getCrossMarginAccountOrderRate
 	getMarginAccountsOpenOrdersRate
@@ -301,6 +315,42 @@ type RateLimit struct {
 	EOptionsRate        *rate.Limiter
 	EOptionsOrderRate   *rate.Limiter
 	PortfolioMarginRate *rate.Limiter
+
+	// SAPI default rate
+
+	SapiDefaultRate                          *rate.Limiter
+	AllCoinInfoRate                          *rate.Limiter
+	DailyAccountSnapshotRate                 *rate.Limiter
+	FundWithdrawalRate                       *rate.Limiter
+	WithdrawalHistoryRate                    *rate.Limiter
+	DepositAddressesRate                     *rate.Limiter
+	DustTransferRate                         *rate.Limiter
+	AssetDividendRecordRate                  *rate.Limiter
+	UserUniversalTransferRate                *rate.Limiter
+	UserAssetsRate                           *rate.Limiter
+	BUSDConvertHistoryRate                   *rate.Limiter
+	CloudMiningPaymentAndRefundHistoryRate   *rate.Limiter
+	AutoConvertingStableCoinsRate            *rate.Limiter
+	GetDepositAddressListInNetworkRate       *rate.Limiter
+	GetUserWalletBalanceRate                 *rate.Limiter
+	GetUserDelegationHistoryRate             *rate.Limiter
+	SymbolDelistScheduleForSpotRate          *rate.Limiter
+	WithdrawAddressListRate                  *rate.Limiter
+	GetSubAccountAssetRate                   *rate.Limiter
+	GetSubAccountStatusOnMarginOrFuturesRate *rate.Limiter
+	SubAccountMarginAccountDetailRate        *rate.Limiter
+	SubAccountSummaryOfMarginAccountRate     *rate.Limiter
+	DetailSubAccountFuturesAccountRate       *rate.Limiter
+	FuturesPositionRiskOfSubAccountV1Rate    *rate.Limiter
+	FuturesSubAccountSummaryV2Rate           *rate.Limiter
+	IPRestrictionForSubAccountAPIKeyRate     *rate.Limiter
+	DeleteIPListForSubAccountAPIKeyRate      *rate.Limiter
+	AddIPRestrictionSubAccountAPIKeyRate     *rate.Limiter
+	ManagedSubAccountSnapshotRate            *rate.Limiter
+	ManagedSubAccountTransferLogRate         *rate.Limiter
+	ManagedSubAccountFuturesAssetDetailRate  *rate.Limiter
+	ManagedSubAccountListRate                *rate.Limiter
+	SubAccountTransactionStatisticsRate      *rate.Limiter
 }
 
 // Limit executes rate limiting functionality for Binance
@@ -317,7 +367,8 @@ func (r *RateLimit) Limit(ctx context.Context, f request.EndpointLimit) error {
 		getCurrentAveragePriceRate,
 		get24HrTickerPriceChangeStatisticsRate,
 		getTickers20Rate,
-		queryPreventedMatchsWithRate:
+		queryPreventedMatchsWithRate,
+		aggTradesRate:
 		limiter, tokens = r.SpotRate, 2
 	case spotOrderbookTickerAllRate,
 		spotSymbolPriceAllRate:
@@ -325,7 +376,6 @@ func (r *RateLimit) Limit(ctx context.Context, f request.EndpointLimit) error {
 	case spotHistoricalTradesRate,
 		spotOrderbookDepth100Rate,
 		marginMaxBorrowRate,
-		userAssetsRate,
 		getMinersListRate,
 		getEarningsListRate,
 		getHashrateRescaleRate,
@@ -358,12 +408,6 @@ func (r *RateLimit) Limit(ctx context.Context, f request.EndpointLimit) error {
 		pmAssetIndexPriceRate,
 		pmAssetLeverageRate:
 		limiter, tokens = r.SpotRate, 50
-	case walletSystemStatus:
-		limiter, tokens = r.SpotRate, 1
-	case dailyAccountSnapshotRate:
-		limiter, tokens = r.SpotRate, 2400
-	case fundWithdrawalRate:
-		limiter, tokens = r.SpotRate, 600
 	case spotPriceChangeAllRate,
 		getTickersMoreThan100Rate:
 		limiter, tokens = r.SpotRate, 80
@@ -383,20 +427,9 @@ func (r *RateLimit) Limit(ctx context.Context, f request.EndpointLimit) error {
 	case spotOpenOrdersAllRate:
 		limiter, tokens = r.SpotOrdersRate, 40
 
-	case depositAddressesRate,
-		assetDividendRecordRate,
-		withdrawalHistoryRate,
-		allCoinInfoRate,
-		isolatedMarginAccountInfoRate,
-		getDepositAddressListInNetworkRate,
+	case isolatedMarginAccountInfoRate,
 		allIsolatedMarginSymbol,
 		allIsolatedMarginFeeDataRate,
-		getSubAccountStatusOnMarginOrFuturesRate,
-		subAccountMarginAccountDetailRate,
-		getSubAccountSummaryOfMarginAccountRate,
-		getDetailSubAccountFuturesAccountRate,
-		getFuturesPositionRiskOfSubAccountV1Rate,
-		getFuturesSubAccountSummaryV2Rate,
 		getCrossMarginAccountDetailRate,
 		getCrossMarginAccountOrderRate,
 		getMarginAccountsOpenOrdersRate,
@@ -409,13 +442,9 @@ func (r *RateLimit) Limit(ctx context.Context, f request.EndpointLimit) error {
 
 	case marginCurrentOrderCountUsageRate:
 		limiter, tokens = r.SpotRate, 20
-	case getUserWalletBalanceRate,
-		getUserDelegationHistoryRate,
-		getSubAccountAssetRate,
-		fundCollectionByAssetRate:
+	case fundCollectionByAssetRate:
 		limiter, tokens = r.SpotRate, 60
-	case symbolDelistScheduleForSpotRate,
-		crossMarginCollateralRatioRate,
+	case crossMarginCollateralRatioRate,
 		smallLiabilityExchCoinListRate,
 		marginHourlyInterestRate,
 		marginCapitalFlowRate,
@@ -455,8 +484,6 @@ func (r *RateLimit) Limit(ctx context.Context, f request.EndpointLimit) error {
 		limiter, tokens = r.SpotRate, 200
 	case ocoOrderRate:
 		limiter, tokens = r.SpotOrdersRate, 2
-	case getManagedSubAccountSnapshotRate:
-		limiter, tokens = r.SpotRate, 2400
 	case currentOrderCountUsageRate,
 		getTickers100Rate:
 		limiter, tokens = r.SpotRate, 40
@@ -647,6 +674,75 @@ func (r *RateLimit) Limit(ctx context.Context, f request.EndpointLimit) error {
 		pmChangeAutoRepayFuturesStatusRate,
 		pmRepayFuturesNegativeBalanceRate:
 		limiter, tokens = r.PortfolioMarginRate, 750
+
+		// /sapi/* endpoints
+
+	case sapiDefaultRate:
+		limiter, tokens = r.SapiDefaultRate, 1
+	case allCoinInfoRate:
+		return r.AllCoinInfoRate.Wait(ctx)
+	case dailyAccountSnapshotRate:
+		return r.DailyAccountSnapshotRate.Wait(ctx)
+	case fundWithdrawalRate: // uid
+		return r.FundWithdrawalRate.Wait(ctx)
+	case withdrawalHistoryRate:
+		return r.WithdrawalHistoryRate.Wait(ctx)
+	case depositAddressesRate:
+		return r.DepositAddressesRate.Wait(ctx)
+	case dustTransferRate:
+		return r.DustTransferRate.Wait(ctx)
+	case assetDividendRecordRate:
+		return r.AssetDividendRecordRate.Wait(ctx)
+	case userUniversalTransferRate:
+		return r.UserUniversalTransferRate.Wait(ctx)
+	case userAssetsRate:
+		return r.UserAssetsRate.Wait(ctx)
+	case busdConvertHistoryRate:
+		return r.BUSDConvertHistoryRate.Wait(ctx)
+	case cloudMiningPaymentAndRefundHistoryRate:
+		return r.CloudMiningPaymentAndRefundHistoryRate.Wait(ctx)
+	case autoConvertingStableCoinsRate:
+		limiter, tokens = r.AutoConvertingStableCoinsRate, 600
+	case getDepositAddressListInNetworkRate:
+		return r.GetDepositAddressListInNetworkRate.Wait(ctx)
+	case getUserWalletBalanceRate:
+		return r.GetUserWalletBalanceRate.Wait(ctx)
+	case getUserDelegationHistoryRate:
+		return r.GetUserDelegationHistoryRate.Wait(ctx)
+	case symbolDelistScheduleForSpotRate:
+		return r.SymbolDelistScheduleForSpotRate.Wait(ctx)
+	case withdrawAddressListRate:
+		return r.WithdrawAddressListRate.Wait(ctx)
+	case getSubAccountAssetRate:
+		return r.GetSubAccountAssetRate.Wait(ctx)
+	case getSubAccountStatusOnMarginOrFuturesRate:
+		return r.GetSubAccountStatusOnMarginOrFuturesRate.Wait(ctx)
+	case subAccountMarginAccountDetailRate:
+		return r.SubAccountMarginAccountDetailRate.Wait(ctx)
+	case getSubAccountSummaryOfMarginAccountRate:
+		return r.SubAccountSummaryOfMarginAccountRate.Wait(ctx)
+	case getDetailSubAccountFuturesAccountRate:
+		return r.DetailSubAccountFuturesAccountRate.Wait(ctx)
+	case getFuturesPositionRiskOfSubAccountV1Rate:
+		return r.FuturesPositionRiskOfSubAccountV1Rate.Wait(ctx)
+	case getFuturesSubAccountSummaryV2Rate:
+		return r.FuturesSubAccountSummaryV2Rate.Wait(ctx)
+	case ipRestrictionForSubAccountAPIKeyRate:
+		return r.IPRestrictionForSubAccountAPIKeyRate.Wait(ctx)
+	case deleteIPListForSubAccountAPIKeyRate:
+		return r.DeleteIPListForSubAccountAPIKeyRate.Wait(ctx)
+	case addIPRestrictionSubAccountAPIKey:
+		return r.AddIPRestrictionSubAccountAPIKeyRate.Wait(ctx)
+	case getManagedSubAccountSnapshotRate:
+		return r.ManagedSubAccountSnapshotRate.Wait(ctx)
+	case managedSubAccountTransferLogRate:
+		return r.ManagedSubAccountTransferLogRate.Wait(ctx)
+	case managedSubAccountFuturesAssetDetailRate:
+		return r.ManagedSubAccountFuturesAssetDetailRate.Wait(ctx)
+	case getManagedSubAccountListRate:
+		return r.ManagedSubAccountListRate.Wait(ctx)
+	case getSubAccountTransactionStatisticsRate:
+		return r.SubAccountTransactionStatisticsRate.Wait(ctx)
 	default:
 		limiter, tokens = r.SpotRate, 1
 	}
@@ -687,6 +783,45 @@ func SetRateLimit() *RateLimit {
 		EOptionsRate:        request.NewRateLimit(time.Minute, 400),
 		EOptionsOrderRate:   request.NewRateLimit(time.Minute, 100),
 		PortfolioMarginRate: request.NewRateLimit(portfolioMarginInterval, portfolioMarginRate),
+
+		// Sapi Endpoints
+		//
+		// Endpoints are marked according to IP or UID limit and their corresponding weight value.
+		// Each endpoint with IP limits has an independent 12000 per minute limit, or per second limit if specified explicitly
+		// Each endpoint with UID limits has an independent 180000 per minute limit, or per second limit if specified explicitly
+		SapiDefaultRate:                          request.NewRateLimit(time.Second, 1),
+		DailyAccountSnapshotRate:                 request.NewRateLimit(time.Second, 2400),
+		FundWithdrawalRate:                       request.NewRateLimit(time.Second, 600),
+		WithdrawalHistoryRate:                    request.NewRateLimit(time.Second, 18000),
+		UserUniversalTransferRate:                request.NewRateLimit(time.Second, 900),
+		UserAssetsRate:                           request.NewRateLimit(time.Second, 5),
+		BUSDConvertHistoryRate:                   request.NewRateLimit(time.Second, 5),
+		CloudMiningPaymentAndRefundHistoryRate:   request.NewRateLimit(time.Second, 600),
+		AutoConvertingStableCoinsRate:            request.NewRateLimit(time.Second, 1200),
+		SymbolDelistScheduleForSpotRate:          request.NewRateLimit(time.Second, 100),
+		AllCoinInfoRate:                          request.NewRateLimit(time.Second, 10),
+		DepositAddressesRate:                     request.NewRateLimit(time.Second, 10),
+		DustTransferRate:                         request.NewRateLimit(time.Second, 10),
+		AssetDividendRecordRate:                  request.NewRateLimit(time.Second, 10),
+		GetDepositAddressListInNetworkRate:       request.NewRateLimit(time.Second, 10),
+		WithdrawAddressListRate:                  request.NewRateLimit(time.Second, 10),
+		GetSubAccountStatusOnMarginOrFuturesRate: request.NewRateLimit(time.Second, 10),
+		SubAccountMarginAccountDetailRate:        request.NewRateLimit(time.Second, 10),
+		SubAccountSummaryOfMarginAccountRate:     request.NewRateLimit(time.Second, 10),
+		DetailSubAccountFuturesAccountRate:       request.NewRateLimit(time.Second, 10),
+		FuturesPositionRiskOfSubAccountV1Rate:    request.NewRateLimit(time.Second, 10),
+		FuturesSubAccountSummaryV2Rate:           request.NewRateLimit(time.Second, 10),
+		IPRestrictionForSubAccountAPIKeyRate:     request.NewRateLimit(time.Second, 3000),
+		DeleteIPListForSubAccountAPIKeyRate:      request.NewRateLimit(time.Second, 3000),
+		AddIPRestrictionSubAccountAPIKeyRate:     request.NewRateLimit(time.Second, 3000),
+		ManagedSubAccountSnapshotRate:            request.NewRateLimit(time.Second, 2400),
+		GetUserWalletBalanceRate:                 request.NewRateLimit(time.Second, 60),
+		GetUserDelegationHistoryRate:             request.NewRateLimit(time.Second, 60),
+		GetSubAccountAssetRate:                   request.NewRateLimit(time.Second, 60),
+		ManagedSubAccountTransferLogRate:         request.NewRateLimit(time.Second, 60),
+		ManagedSubAccountFuturesAssetDetailRate:  request.NewRateLimit(time.Second, 60),
+		ManagedSubAccountListRate:                request.NewRateLimit(time.Second, 60),
+		SubAccountTransactionStatisticsRate:      request.NewRateLimit(time.Second, 60),
 	}
 }
 
