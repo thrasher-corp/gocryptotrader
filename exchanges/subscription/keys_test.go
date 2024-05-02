@@ -3,6 +3,7 @@ package subscription
 import (
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -29,7 +30,7 @@ func (k DummyKey) Match(_ MatchableKey) bool {
 	return false
 }
 
-// TestExactKeyMatch exercises the MatchableKey interface implementation
+// TestExactKeyMatch exercises ExactKey.Match
 func TestExactKeyMatch(t *testing.T) {
 	t.Parallel()
 
@@ -67,7 +68,16 @@ func TestExactKeyMatch(t *testing.T) {
 	require.True(t, key.Match(try), "Gate 5: Match must accept a good Interval")
 }
 
-// TestIgnoringPairsKeyMatch exercises the MatchableKey interface implementation
+// TestExactKeyString exercises ExactKey.String
+func TestExactKeyString(t *testing.T) {
+	t.Parallel()
+	key := &ExactKey{}
+	assert.Equal(t, "Uninitialised ExactKey", key.String())
+	key = &ExactKey{&Subscription{Asset: asset.Spot, Channel: TickerChannel, Pairs: currency.Pairs{ethusdcPair, btcusdtPair}}}
+	assert.Equal(t, "ticker spot ETH/USDC,BTC/USDT", key.String())
+}
+
+// TestIgnoringPairsKeyMatch exercises IgnoringPairsKey.Match
 func TestIgnoringPairsKeyMatch(t *testing.T) {
 	t.Parallel()
 
@@ -90,4 +100,11 @@ func TestIgnoringPairsKeyMatch(t *testing.T) {
 	require.False(t, key.Match(try), "Gate 4: Match must reject a bad Interval")
 	try.Interval = kline.FiveMin
 	require.True(t, key.Match(try), "Gate 4: Match must accept a good Interval")
+}
+
+// TestIgnoringPairsKeyString exercises IgnoringPairsKey.String
+func TestIgnoringPairsKeyString(t *testing.T) {
+	t.Parallel()
+	key := &IgnoringPairsKey{&Subscription{Asset: asset.Spot, Channel: TickerChannel, Pairs: currency.Pairs{ethusdcPair, btcusdtPair}}}
+	assert.Equal(t, "ticker spot", key.String())
 }

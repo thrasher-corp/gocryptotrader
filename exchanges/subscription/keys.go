@@ -1,10 +1,17 @@
 package subscription
 
+import (
+	"fmt"
+
+	"github.com/thrasher-corp/gocryptotrader/currency"
+)
+
 // MatchableKey interface should be implemented by Key types which want a more complex matching than a simple key equality check
 // The Subscription method allows keys to compare against keys of other types
 type MatchableKey interface {
 	Match(MatchableKey) bool
 	GetSubscription() *Subscription
+	String() string
 }
 
 // ExactKey is key type for subscriptions where all the pairs in a Subscription must match exactly
@@ -17,6 +24,17 @@ var _ MatchableKey = ExactKey{} // Enforce ExactKey must implement MatchableKey
 // GetSubscription returns the underlying subscription
 func (k ExactKey) GetSubscription() *Subscription {
 	return k.Subscription
+}
+
+// String implements Stringer; returns the Asset, Channel and Pairs
+// Does not provide concurrency protection on the subscription it points to
+func (k ExactKey) String() string {
+	s := k.Subscription
+	if s == nil {
+		return "Uninitialised ExactKey"
+	}
+	p := s.Pairs.Format(currency.PairFormat{Uppercase: true, Delimiter: "/"})
+	return fmt.Sprintf("%s %s %s", s.Channel, s.Asset, p.Join())
 }
 
 // Match implements MatchableKey
@@ -44,6 +62,15 @@ var _ MatchableKey = IgnoringPairsKey{} // Enforce IgnoringPairsKey must impleme
 // GetSubscription returns the underlying subscription
 func (k IgnoringPairsKey) GetSubscription() *Subscription {
 	return k.Subscription
+}
+
+// String implements Stringer; returns the asset and Channel name but no pairs
+func (k IgnoringPairsKey) String() string {
+	s := k.Subscription
+	if s == nil {
+		return "Uninitialised IgnoringPairsKey"
+	}
+	return fmt.Sprintf("%s %s", s.Channel, s.Asset)
 }
 
 // Match implements MatchableKey

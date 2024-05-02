@@ -790,7 +790,7 @@ func (w *Websocket) UnsubscribeChannels(channels subscription.List) error {
 	}
 	for _, s := range channels {
 		if w.subscriptions.Get(s) == nil {
-			return fmt.Errorf("%s websocket: %w: %s", w.exchangeName, subscription.ErrNotFound, s)
+			return fmt.Errorf("%w: %s", subscription.ErrNotFound, s)
 		}
 	}
 	return w.Unsubscriber(channels)
@@ -802,7 +802,7 @@ func (w *Websocket) UnsubscribeChannels(channels subscription.List) error {
 func (w *Websocket) ResubscribeToChannel(s *subscription.Subscription) error {
 	l := subscription.List{s}
 	if err := s.SetState(subscription.ResubscribingState); err != nil {
-		return err
+		return fmt.Errorf("%w: %s", err, s)
 	}
 	if err := w.UnsubscribeChannels(l); err != nil {
 		return err
@@ -814,13 +814,13 @@ func (w *Websocket) ResubscribeToChannel(s *subscription.Subscription) error {
 // Errors are returned for duplicates or exceeding max Subscriptions
 func (w *Websocket) SubscribeToChannels(subs subscription.List) error {
 	if slices.Contains(subs, nil) {
-		return fmt.Errorf("%s websocket: %w", w.exchangeName, common.AppendError(ErrSubscriptionFailure, common.ErrNilPointer))
+		return fmt.Errorf("%w: List parameter contains an nil element", common.ErrNilPointer)
 	}
 	if err := w.checkSubscriptions(subs); err != nil {
-		return fmt.Errorf("%s websocket: %w", w.exchangeName, common.AppendError(ErrSubscriptionFailure, err))
+		return err
 	}
 	if err := w.Subscriber(subs); err != nil {
-		return fmt.Errorf("%s websocket: %w", w.exchangeName, common.AppendError(ErrSubscriptionFailure, err))
+		return fmt.Errorf("%w: %w", ErrSubscriptionFailure, err)
 	}
 	return nil
 }
@@ -838,7 +838,7 @@ func (w *Websocket) AddSubscriptions(subs ...*subscription.Subscription) error {
 	for _, s := range subs {
 		if s.State() == subscription.InactiveState {
 			if err := s.SetState(subscription.SubscribingState); err != nil {
-				errs = common.AppendError(errs, err)
+				errs = common.AppendError(errs, fmt.Errorf("%w: %s", err, s))
 			}
 		}
 		if err := w.subscriptions.Add(s); err != nil {
@@ -858,11 +858,10 @@ func (w *Websocket) AddSuccessfulSubscriptions(subs ...*subscription.Subscriptio
 	}
 	var errs error
 	for _, s := range subs {
-		err := s.SetState(subscription.SubscribedState)
-		if err == nil {
-			err = w.subscriptions.Add(s)
+		if err := s.SetState(subscription.SubscribedState); err != nil {
+			errs = common.AppendError(errs, fmt.Errorf("%w: %s", err, s))
 		}
-		if err != nil {
+		if err := w.subscriptions.Add(s); err != nil {
 			errs = common.AppendError(errs, err)
 		}
 	}
@@ -877,7 +876,7 @@ func (w *Websocket) RemoveSubscriptions(subs ...*subscription.Subscription) erro
 	var errs error
 	for _, s := range subs {
 		if err := s.SetState(subscription.UnsubscribedState); err != nil {
-			errs = common.AppendError(errs, err)
+			errs = common.AppendError(errs, fmt.Errorf("%w: %s", err, s))
 		}
 		if err := w.subscriptions.Remove(s); err != nil {
 			errs = common.AppendError(errs, err)
@@ -958,7 +957,7 @@ func (w *Websocket) checkSubscriptions(subs subscription.List) error {
 
 	for _, s := range subs {
 		if found := w.subscriptions.Get(s); found != nil {
-			return fmt.Errorf("%w for %s", subscription.ErrDuplicate, s)
+			return fmt.Errorf("%w: %s", subscription.ErrDuplicate, s)
 		}
 	}
 

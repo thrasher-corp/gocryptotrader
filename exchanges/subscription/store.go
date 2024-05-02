@@ -1,6 +1,7 @@
 package subscription
 
 import (
+	"fmt"
 	"maps"
 	"sync"
 
@@ -58,7 +59,7 @@ func (s *Store) Add(sub *Subscription) error {
 func (s *Store) add(sub *Subscription) error {
 	key := sub.EnsureKeyed()
 	if found := s.get(key); found != nil {
-		return ErrDuplicate
+		return fmt.Errorf("%w: %s", ErrDuplicate, sub)
 	}
 	s.m[key] = sub
 	return nil
