@@ -24,7 +24,6 @@ const (
 var (
 	alphaNumericRegExp = regexp.MustCompile("^[a-zA-Z0-9_]*$")
 
-	errTypeAssert                          = errors.New("type assertion failed")
 	errStartTimeCannotBeAfterEndTime       = errors.New("start timestamp cannot be after end timestamp")
 	errUnsupportedIndexName                = errors.New("unsupported index name")
 	errInvalidInstrumentID                 = errors.New("invalid instrument ID")
@@ -1077,17 +1076,6 @@ type BlockTradeMoveResponse struct {
 	InstrumentName      string  `json:"instrument_name"`
 	Direction           string  `json:"direction"`
 	Amount              float64 `json:"amount"`
-}
-
-// TFAChallenge represents response to Remove API Key.
-type TFAChallenge struct {
-	Challenge                        string `json:"challenge"`
-	RpID                             string `json:"rp_id"`
-	SecurityKeyAuthorizationRequired bool   `json:"security_key_authorization_required"`
-	SecurityKeys                     []struct {
-		Name string `json:"name"`
-		Type string `json:"type"`
-	} `json:"security_keys"`
 }
 
 // WsResponse represents generalized websocket subscription push data and immediate websocket call responses.

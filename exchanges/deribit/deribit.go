@@ -294,11 +294,11 @@ func (d *Deribit) GetHistoricalVolatility(ctx context.Context, ccy string) ([]Hi
 	for x := range data {
 		timeData, ok := data[x][0].(float64)
 		if !ok {
-			return resp, fmt.Errorf("%v GetHistoricalVolatility: %w for time", d.Name, errTypeAssert)
+			return resp, common.GetTypeAssertError("float64", data[x][0], "time data")
 		}
 		val, ok := data[x][1].(float64)
 		if !ok {
-			return resp, fmt.Errorf("%v GetHistoricalVolatility: %w for val", d.Name, errTypeAssert)
+			return resp, common.GetTypeAssertError("float64", data[x][1], "volatility value")
 		}
 		resp[x] = HistoricalVolatilityData{
 			Timestamp: timeData,
@@ -574,7 +574,7 @@ func (d *Deribit) GetOrderbookByInstrumentID(ctx context.Context, instrumentID i
 
 // GetSupportedIndexNames retrieves the identifiers of all supported Price Indexes
 // 'type' represents Type of a cryptocurrency price index. possible 'all', 'spot', 'derivative'
-func (d *Deribit) GetSupportedIndexNames(ctx context.Context, priceIndexType string) (interface{}, error) {
+func (d *Deribit) GetSupportedIndexNames(ctx context.Context, priceIndexType string) ([]string, error) {
 	params := url.Values{}
 	if priceIndexType != "" {
 		params.Set("type", priceIndexType)
@@ -658,8 +658,8 @@ func (d *Deribit) GetResolutionFromInterval(interval kline.Interval) (string, er
 		return "720", nil
 	case kline.OneDay:
 		return "1D", nil
-	case kline.Interval(0):
-		return "raw", nil
+	case kline.Raw:
+		return interval.String(), nil
 	default:
 		return "", kline.ErrUnsupportedInterval
 	}
@@ -1326,19 +1326,6 @@ func (d *Deribit) RemoveAPIKey(ctx context.Context, id int64) error {
 	if err != nil {
 		return err
 	}
-	_, ok := resp.(map[string]interface{})
-	if ok {
-		data, err := json.Marshal(resp)
-		if err != nil {
-			return err
-		}
-		var respo TFAChallenge
-		err = json.Unmarshal(data, &respo)
-		if err != nil {
-			return err
-		}
-		return nil
-	}
 	if resp != "ok" {
 		return errors.New("removal of the api key requested failed")
 	}
@@ -1407,19 +1394,6 @@ func (d *Deribit) SetEmailForSubAccount(ctx context.Context, sid int64, email st
 		setEmailForSubAccount, params, &resp)
 	if err != nil {
 		return err
-	}
-	_, ok := resp.(map[string]interface{})
-	if ok {
-		data, err := json.Marshal(resp)
-		if err != nil {
-			return err
-		}
-		var respo TFAChallenge
-		err = json.Unmarshal(data, &respo)
-		if err != nil {
-			return err
-		}
-		return nil
 	}
 	if resp != "ok" {
 		return fmt.Errorf("could not link email (%v) to subaccount %v", email, sid)
@@ -2252,7 +2226,7 @@ func (d *Deribit) SendHTTPAuthRequest(ctx context.Context, ep exchange.URL, epl 
 	str2Sign := strTS + "\n" + n + "\n" + reqDataStr
 	creds, err := d.GetCredentials(ctx)
 	if err != nil {
-		return request.ErrAuthRequestFailed
+		return fmt.Errorf("%w, %v", request.ErrAuthRequestFailed, err)
 	}
 	hmac, err := crypto.GetHMAC(crypto.HashSHA256,
 		[]byte(str2Sign),

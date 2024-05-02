@@ -169,11 +169,11 @@ func (d *Deribit) WSRetrieveHistoricalVolatility(symbol string) ([]HistoricalVol
 	for x := range data {
 		timeData, ok := data[x][0].(float64)
 		if !ok {
-			return resp, fmt.Errorf("%v WSRetrieveHistoricalVolatility: %w for time", d.Name, errTypeAssert)
+			return resp, common.GetTypeAssertError("float64", data[x][0], "time data")
 		}
 		val, ok := data[x][1].(float64)
 		if !ok {
-			return resp, fmt.Errorf("%v WSRetrieveHistoricalVolatility: %w for val", d.Name, errTypeAssert)
+			return resp, common.GetTypeAssertError("float64", data[x][1], "volatility value")
 		}
 		resp[x] = HistoricalVolatilityData{
 			Timestamp: timeData,
@@ -456,7 +456,7 @@ func (d *Deribit) WSRetrieveOrderbookByInstrumentID(instrumentID int64, depth fl
 
 // WsRetrieveSupportedIndexNames retrieves the identifiers of all supported Price Indexes
 // 'type' represents Type of a cryptocurrency price index. possible 'all', 'spot', 'derivative'
-func (d *Deribit) WsRetrieveSupportedIndexNames(priceIndexType string) (interface{}, error) {
+func (d *Deribit) WsRetrieveSupportedIndexNames(priceIndexType string) ([]string, error) {
 	input := &struct {
 		PriceIndexType string `json:"type,omitempty"`
 	}{
@@ -938,7 +938,7 @@ func (d *Deribit) WSChangeSubAccountName(sid int64, name string) error {
 }
 
 // WSCreateAPIKey creates an api key based on the provided settings through the websocket connection.
-func (d *Deribit) WSCreateAPIKey(maxScope, name string, defaultKey bool) (interface{}, error) {
+func (d *Deribit) WSCreateAPIKey(maxScope, name string, defaultKey bool) (*APIKeyData, error) {
 	input := &struct {
 		MaxScope string `json:"max_scope"`
 		Name     string `json:"name,omitempty"`
@@ -948,22 +948,9 @@ func (d *Deribit) WSCreateAPIKey(maxScope, name string, defaultKey bool) (interf
 		Name:     name,
 		Default:  defaultKey,
 	}
-	var result json.RawMessage
-	err := d.SendWSRequest(nonMatchingEPL, createAPIKey, input, &result, true)
-	if err != nil {
-		return nil, err
-	}
-	challenge := &TFAChallenge{}
-	err = json.Unmarshal(result, challenge)
-	if err == nil && challenge.SecurityKeyAuthorizationRequired {
-		return challenge, nil
-	}
-	var resp APIKeyData
-	err = json.Unmarshal(result, &resp)
-	if err != nil {
-		return nil, err
-	}
-	return resp, nil
+
+	var resp *APIKeyData
+	return resp, d.SendWSRequest(nonMatchingEPL, createAPIKey, input, &resp, true)
 }
 
 // WSCreateSubAccount creates a new subaccount through the websocket connection.
@@ -973,7 +960,7 @@ func (d *Deribit) WSCreateSubAccount() (*SubAccountData, error) {
 }
 
 // WSDisableAPIKey disables the api key linked to the provided id through the websocket connection.
-func (d *Deribit) WSDisableAPIKey(id int64) (interface{}, error) {
+func (d *Deribit) WSDisableAPIKey(id int64) (*APIKeyData, error) {
 	if id <= 0 {
 		return nil, fmt.Errorf("%w, invalid api key id", errInvalidID)
 	}
@@ -982,22 +969,8 @@ func (d *Deribit) WSDisableAPIKey(id int64) (interface{}, error) {
 	}{
 		ID: id,
 	}
-	var response json.RawMessage
-	err := d.SendWSRequest(nonMatchingEPL, disableAPIKey, input, &response, true)
-	if err != nil {
-		return nil, err
-	}
-	challenge := &TFAChallenge{}
-	err = json.Unmarshal(response, challenge)
-	if err == nil && challenge.SecurityKeyAuthorizationRequired {
-		return challenge, nil
-	}
-	var resp APIKeyData
-	err = json.Unmarshal(response, &resp)
-	if err != nil {
-		return nil, err
-	}
-	return &resp, nil
+	var resp *APIKeyData
+	return resp, d.SendWSRequest(nonMatchingEPL, disableAPIKey, input, &resp, true)
 }
 
 // WsEditAPIKey edits existing API key. At least one parameter is required.
@@ -1046,26 +1019,12 @@ func (d *Deribit) WSEnableAffiliateProgram() error {
 }
 
 // WSEnableAPIKey enables the api key linked to the provided id through the websocket connection.
-func (d *Deribit) WSEnableAPIKey(id int64) (interface{}, error) {
+func (d *Deribit) WSEnableAPIKey(id int64) (*APIKeyData, error) {
 	if id <= 0 {
 		return nil, fmt.Errorf("%w, invalid api key id", errInvalidID)
 	}
-	var response json.RawMessage
-	err := d.SendWSRequest(nonMatchingEPL, enableAPIKey, map[string]int64{"id": id}, &response, true)
-	if err != nil {
-		return nil, err
-	}
-	challenge := &TFAChallenge{}
-	err = json.Unmarshal(response, challenge)
-	if err == nil && challenge.SecurityKeyAuthorizationRequired {
-		return challenge, nil
-	}
-	var resp APIKeyData
-	err = json.Unmarshal(response, &resp)
-	if err != nil {
-		return nil, err
-	}
-	return &resp, nil
+	var resp *APIKeyData
+	return resp, d.SendWSRequest(nonMatchingEPL, enableAPIKey, map[string]int64{"id": id}, &resp, true)
 }
 
 // WSRetrieveAccessLog lists access logs for the user through the websocket connection.
@@ -1219,23 +1178,10 @@ func (d *Deribit) WSRemoveAPIKey(id int64) error {
 	if id <= 0 {
 		return fmt.Errorf("%w, invalid api key id", errInvalidID)
 	}
-	var resp interface{}
+	var resp string
 	err := d.SendWSRequest(nonMatchingEPL, removeAPIKey, map[string]int64{"id": id}, &resp, true)
 	if err != nil {
 		return err
-	}
-	_, ok := resp.(map[string]interface{})
-	if ok {
-		data, err := json.Marshal(resp)
-		if err != nil {
-			return err
-		}
-		var respo TFAChallenge
-		err = json.Unmarshal(data, &respo)
-		if err != nil {
-			return err
-		}
-		return nil
 	}
 	if resp != "ok" {
 		return errors.New("removal of the api key requested failed")
@@ -1287,23 +1233,10 @@ func (d *Deribit) WSSetEmailForSubAccount(sid int64, email string) error {
 		Email: email,
 		SID:   sid,
 	}
-	var resp interface{}
+	var resp string
 	err := d.SendWSRequest(nonMatchingEPL, setEmailForSubAccount, input, &resp, true)
 	if err != nil {
 		return err
-	}
-	_, ok := resp.(map[string]interface{})
-	if ok {
-		data, err := json.Marshal(resp)
-		if err != nil {
-			return err
-		}
-		var respo TFAChallenge
-		err = json.Unmarshal(data, &respo)
-		if err != nil {
-			return err
-		}
-		return nil
 	}
 	if resp != "ok" {
 		return fmt.Errorf("could not link email (%v) to subaccount %v", email, sid)
@@ -1346,7 +1279,7 @@ func (d *Deribit) WsSetSelfTradingConfig(mode string, extendedToSubaccounts bool
 }
 
 // WSSetPasswordForSubAccount sets a password for subaccount usage through the websocket connection.
-func (d *Deribit) WSSetPasswordForSubAccount(subAccountID int64, password string) (interface{}, error) {
+func (d *Deribit) WSSetPasswordForSubAccount(subAccountID int64, password string) (string, error) {
 	if subAccountID <= 0 {
 		return "", fmt.Errorf("%w, invalid subaccount user id", errInvalidID)
 	}
@@ -1360,26 +1293,13 @@ func (d *Deribit) WSSetPasswordForSubAccount(subAccountID int64, password string
 		Password: password,
 		SID:      subAccountID,
 	}
-	var resp interface{}
+	var resp string
 	err := d.SendWSRequest(nonMatchingEPL, "private/set_password_for_subaccount", input, &resp, true)
 	if err != nil {
 		return "", err
 	}
-	_, ok := resp.(map[string]interface{})
-	if ok {
-		data, err := json.Marshal(resp)
-		if err != nil {
-			return "", err
-		}
-		var respo TFAChallenge
-		err = json.Unmarshal(data, &respo)
-		if err != nil {
-			return nil, err
-		}
-		return respo, nil
-	}
 	if resp != "ok" {
-		return "", fmt.Errorf("could not set the provided password to subaccount %v", subAccountID)
+		return resp, fmt.Errorf("could not set the provided password to subaccount %v", subAccountID)
 	}
 	return "ok", nil
 }
