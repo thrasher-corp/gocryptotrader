@@ -60,10 +60,17 @@ type Subscription struct {
 	m             sync.RWMutex
 }
 
-// String implements the Stringer interface for Subscription, giving a human representation of the subscription
+// String implements Stringer, and aims to informatively and uniquely identify a subscription for errors and information
+// returns a string of the subscription key by delegating to MatchableKey.String() when possible
+// If the key is not a MatchableKey then both the key and an ExactKey.String() will be returned; e.g. 1137: spot MyTrades
 func (s *Subscription) String() string {
-	p := s.Pairs.Format(currency.PairFormat{Uppercase: true, Delimiter: "/"})
-	return fmt.Sprintf("%s %s %s", s.Channel, s.Asset, p.Join())
+	key := s.EnsureKeyed()
+	s.m.RLock()
+	defer s.m.RUnlock()
+	if k, ok := key.(MatchableKey); ok {
+		return k.String()
+	}
+	return fmt.Sprintf("%v: %s", key, ExactKey{s}.String())
 }
 
 // State returns the subscription state

@@ -48,6 +48,19 @@ func TestSetState(t *testing.T) {
 	assert.ErrorIs(t, s.SetState(UnsubscribedState+1), ErrInvalidState, "Setting an invalid state should error")
 }
 
+// TestString exercises the Stringer implementation
+func TestString(t *testing.T) {
+	s := &Subscription{
+		Channel: "candles",
+		Asset:   asset.Spot,
+		Pairs:   currency.Pairs{btcusdtPair},
+	}
+	_ = s.EnsureKeyed()
+	assert.Equal(t, "candles spot BTC/USDT", s.String(), "String with a MatchableKey")
+	s.Key = 42
+	assert.Equal(t, "42: candles spot BTC/USDT", s.String(), "String with a MatchableKey")
+}
+
 // TestEnsureKeyed exercises the key getter and ensures it sets a self-pointer key for non
 func TestEnsureKeyed(t *testing.T) {
 	t.Parallel()
