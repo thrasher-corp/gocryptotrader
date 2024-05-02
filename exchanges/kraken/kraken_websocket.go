@@ -1198,9 +1198,7 @@ channels:
 		}
 
 		for j := range *s {
-			for _, p := range channelsToSubscribe[i].Pairs {
-				(*s)[j].Pairs = append((*s)[j].Pairs, p.String())
-			}
+			(*s)[j].Pairs = append((*s)[j].Pairs, channelsToSubscribe[i].Pairs.Strings()...)
 			(*s)[j].Channels = append((*s)[j].Channels, channelsToSubscribe[i])
 			continue channels
 		}
