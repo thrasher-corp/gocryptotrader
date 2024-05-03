@@ -516,7 +516,7 @@ func (b *Binance) GetTickerData(ctx context.Context, symbols currency.Pairs, win
 // NewOrder sends a new order to Binance
 func (b *Binance) NewOrder(ctx context.Context, o *NewOrderRequest) (NewOrderResponse, error) {
 	var resp NewOrderResponse
-	if err := b.newOrder(ctx, "/api/v3/order", o, &resp); err != nil {
+	if err := b.newOrder(ctx, "/api/v3/order", o, &resp, false); err != nil {
 		return resp, err
 	}
 
@@ -528,12 +528,16 @@ func (b *Binance) NewOrder(ctx context.Context, o *NewOrderRequest) (NewOrderRes
 }
 
 // NewOrderTest sends a new test order to Binance
-func (b *Binance) NewOrderTest(ctx context.Context, o *NewOrderRequest) error {
+func (b *Binance) NewOrderTest(ctx context.Context, o *NewOrderRequest, computeCommisionRates bool) error {
 	var resp NewOrderResponse
-	return b.newOrder(ctx, "/api/v3/order/test", o, &resp)
+	return b.newOrder(ctx, "/api/v3/order/test", o, &resp, computeCommisionRates)
 }
 
-func (b *Binance) newOrder(ctx context.Context, api string, o *NewOrderRequest, resp *NewOrderResponse) error {
+func (b *Binance) newOrder(ctx context.Context, api string, o *NewOrderRequest, resp *NewOrderResponse, computeCommissionRate bool) error {
+	ratelimit := spotOrderRate
+	if computeCommissionRate {
+		ratelimit = testNewOrderWithCommissionRate
+	}
 	symbol, err := b.FormatSymbol(o.Symbol, asset.Spot)
 	if err != nil {
 		return err
@@ -569,7 +573,7 @@ func (b *Binance) newOrder(ctx context.Context, api string, o *NewOrderRequest, 
 	if o.NewOrderRespType != "" {
 		params.Set("newOrderRespType", o.NewOrderRespType)
 	}
-	return b.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodPost, api, params, spotOrderRate, nil, resp)
+	return b.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodPost, api, params, ratelimit, nil, resp)
 }
 
 // CancelExistingOrder sends a cancel order to Binance
@@ -614,6 +618,17 @@ func (b *Binance) OpenOrders(ctx context.Context, pair currency.Pair) ([]TradeOr
 		"/api/v3/openOrders", params, openOrdersLimit(p), nil, &resp)
 }
 
+// CancelAllOpenOrderOnSymbol cancels all active orders on a symbol.
+func (b *Binance) CancelAllOpenOrderOnSymbol(ctx context.Context, symbol string) ([]SymbolOrders, error) {
+	if symbol == "" {
+		return nil, currency.ErrSymbolStringEmpty
+	}
+	params := url.Values{}
+	params.Set("symbol", symbol)
+	var resp []SymbolOrders
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodDelete, "/api/v3/openOrders", params, spotOrderRate, nil, &resp)
+}
+
 // AllOrders Get all account orders; active, canceled, or filled.
 // orderId optional param
 // limit optional param, default 500; max 500
@@ -635,8 +650,6 @@ func (b *Binance) AllOrders(ctx context.Context, symbol currency.Pair, orderID, 
 		exchange.RestSpotSupplementary, http.MethodGet, "/api/v3/allOrders",
 		params, spotAllOrdersRate, nil, &resp)
 }
-
-// func (b *Binance) CancelAnExistingOrderAndSendNewOrder(ctx context.Context, )
 
 // NewOCOOrder places a new one-cancel-other trade order.
 func (b *Binance) NewOCOOrder(ctx context.Context, arg *OCOOrderParam) (*OCOOrderResponse, error) {
@@ -710,6 +723,38 @@ func (b *Binance) NewOCOOrder(ctx context.Context, arg *OCOOrderParam) (*OCOOrde
 	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/api/v3/order/oco", params, spotDefaultRate, nil, &resp)
 }
 
+// send in an one-cancels-the-other (OCO) pair, where activation of one order immediately cancels the other.
+// An OCO has 2 legs called the above leg and below leg.
+// One of the legs must be a LIMIT_MAKER order and the other leg must be STOP_LOSS or STOP_LOSS_LIMIT order.
+// Price restrictions:
+//
+//	If the OCO is on the SELL side: LIMIT_MAKER price > Last Traded Price > stopPrice
+//	If the OCO is on the BUY side: LIMIT_MAKER price < Last Traded Price < stopPrice
+//
+// OCO counts as 2 orders against the order rate limit.
+func (b *Binance) NewOCOOrderList(ctx context.Context, arg *OCOOrderListParams) (*OCOListOrderResponse, error) {
+	if arg == nil || *arg == (OCOOrderListParams{}) {
+		return nil, errNilArgument
+	}
+	if arg.Symbol == "" {
+		return nil, currency.ErrSymbolStringEmpty
+	}
+	if arg.Side == "" {
+		return nil, order.ErrSideIsInvalid
+	}
+	if arg.Quantity <= 0 {
+		return nil, fmt.Errorf("%w, quantity must be greater than 0", order.ErrAmountBelowMin)
+	}
+	if arg.AboveType == "" {
+		return nil, fmt.Errorf("%w, aboveType is required", order.ErrTypeIsInvalid)
+	}
+	if arg.BelowType == "" {
+		return nil, fmt.Errorf("%w, belowType is required", order.ErrTypeIsInvalid)
+	}
+	var resp *OCOListOrderResponse
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodPost, "/api/v3/orderList/oco", nil, spotOrderRate, arg, &resp)
+}
+
 // CancelOCOOrderList cancels an entire Order List.
 func (b *Binance) CancelOCOOrderList(ctx context.Context, symbol, orderListID, listClientOrderID, newClientOrderID string) (*OCOOrderResponse, error) {
 	if symbol == "" {
@@ -746,10 +791,10 @@ func (b *Binance) GetOCOOrders(ctx context.Context, orderListID, origiClientOrde
 		params.Set("origClientOrderId", origiClientOrderID)
 	}
 	var resp *OCOOrderResponse
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/api/v3/orderList", params, spotDefaultRate, nil, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/api/v3/orderList", params, getOCOListRate, nil, &resp)
 }
 
-// GetAllOCOOrders represents a list of OCO orders based on provided optional parameters.
+// GetAllOCOOrders retrieves all OCO based on provided optional parameters
 func (b *Binance) GetAllOCOOrders(ctx context.Context, fromID string, startTime, endTime time.Time, limit int64) ([]OCOOrderResponse, error) {
 	params := url.Values{}
 	if !startTime.IsZero() && !endTime.IsZero() {
@@ -767,13 +812,13 @@ func (b *Binance) GetAllOCOOrders(ctx context.Context, fromID string, startTime,
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	var resp []OCOOrderResponse
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/api/v3/allOrderList", params, spotDefaultRate, nil, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/api/v3/allOrderList", params, getAllOCOOrdersRate, nil, &resp)
 }
 
 // GetOpenOCOList retrieves an open OCO orders.
 func (b *Binance) GetOpenOCOList(ctx context.Context) ([]OCOOrderResponse, error) {
 	var resp []OCOOrderResponse
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/api/v3/openOrderList", nil, spotDefaultRate, nil, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/api/v3/openOrderList", nil, getOpenOCOListRate, nil, &resp)
 }
 
 // ----------------------------------------------------- Smart Order Routing (SOR) -----------------------------------------------------------
@@ -835,7 +880,7 @@ func (b *Binance) newOrderUsingSOR(ctx context.Context, arg *SOROrderRequestPara
 		params.Set("selfTradePreventionMode", arg.SelfTradePreventionMode)
 	}
 	var resp *SOROrderResponse
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, path, params, spotDefaultRate, nil, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, path, params, spotOrderRate, nil, &resp)
 }
 
 // QueryOrder returns information on a past order
@@ -864,6 +909,29 @@ func (b *Binance) QueryOrder(ctx context.Context, symbol currency.Pair, origClie
 		return resp, errors.New(resp.Msg)
 	}
 	return resp, nil
+}
+
+// CancelExistingOrderAndSendNewOrder cancels an existing order and places a new order on the same symbol.
+// Filters and Order Count are evaluated before the processing of the cancellation and order placement occurs.
+// A new order that was not attempted (i.e. when newOrderResult: NOT_ATTEMPTED), will still increase the order count by 1.
+func (b *Binance) CancelExistingOrderAndSendNewOrder(ctx context.Context, arg *CancelReplaceOrderParams) (*CancelAndReplaceResponse, error) {
+	if arg == nil || *arg == (CancelReplaceOrderParams{}) {
+		return nil, errNilArgument
+	}
+	if arg.Symbol == "" {
+		return nil, currency.ErrSymbolStringEmpty
+	}
+	if arg.Side == "" {
+		return nil, order.ErrSideIsInvalid
+	}
+	if arg.OrderType == "" {
+		return nil, order.ErrTypeIsInvalid
+	}
+	if arg.CancelReplaceMode == "" {
+		return nil, errors.New("cancelReplaceMode is required")
+	}
+	var resp *CancelAndReplaceResponse
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/api/v3/order/cancelReplace", nil, spotOrderRate, arg, &resp)
 }
 
 // GetAccount returns binance user accounts

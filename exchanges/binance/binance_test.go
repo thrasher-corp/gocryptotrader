@@ -1685,6 +1685,19 @@ func TestQueryOrder(t *testing.T) {
 	require.False(t, mockTests && err != nil, err)
 }
 
+func TestCancelExistingOrderAndSendNewOrder(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	result, err := b.CancelExistingOrderAndSendNewOrder(context.Background(), &CancelReplaceOrderParams{
+		Symbol:            "BTCUSDT",
+		Side:              "BUY",
+		OrderType:         "LIMIT",
+		CancelReplaceMode: "STOP_ON_FAILURE",
+	})
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
 func TestOpenOrders(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
@@ -1694,6 +1707,14 @@ func TestOpenOrders(t *testing.T) {
 	p := currency.NewPair(currency.BTC, currency.USDT)
 	_, err = b.OpenOrders(context.Background(), p)
 	assert.NoError(t, err)
+}
+
+func TestCancelAllOpenOrderOnSymbol(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
+	result, err := b.CancelAllOpenOrderOnSymbol(context.Background(), "BTCUSDT")
+	require.NoError(t, err)
+	assert.NotNil(t, result)
 }
 
 func TestAllOrders(t *testing.T) {
@@ -1913,7 +1934,7 @@ func TestNewOrderTest(t *testing.T) {
 		TimeInForce: BinanceRequestParamsTimeGTC,
 	}
 
-	err := b.NewOrderTest(context.Background(), req)
+	err := b.NewOrderTest(context.Background(), req, false)
 	require.False(t, sharedtestvalues.AreAPICredentialsSet(b) && err != nil, err)
 	require.False(t, !sharedtestvalues.AreAPICredentialsSet(b) && err == nil && !mockTests, "expecting an error when no keys are set")
 	require.False(t, mockTests && err != nil, err)
@@ -1926,7 +1947,7 @@ func TestNewOrderTest(t *testing.T) {
 		QuoteOrderQty: 10,
 	}
 
-	err = b.NewOrderTest(context.Background(), req)
+	err = b.NewOrderTest(context.Background(), req, true)
 	require.False(t, sharedtestvalues.AreAPICredentialsSet(b) && err != nil, err)
 	require.False(t, !sharedtestvalues.AreAPICredentialsSet(b) && err == nil && !mockTests, "expecting an error when no keys are set")
 	require.False(t, mockTests && err != nil, err)
@@ -4764,6 +4785,22 @@ func TestMarginAccountNewOCO(t *testing.T) {
 		LimitClientOrderID: "3423423",
 		Price:              0.001,
 		StopPrice:          1234.21,
+	})
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestNewOCOOrderList(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.NewOCOOrderList(context.Background(), &OCOOrderListParams{
+		Symbol:     "LTCBTC",
+		Side:       "SELL",
+		Quantity:   1,
+		AbovePrice: 100,
+		AboveType:  "STOP_LOSS_LIMIT",
+		BelowType:  "LIMIT_MAKER",
+		BelowPrice: 25,
 	})
 	require.NoError(t, err)
 	assert.NotNil(t, result)

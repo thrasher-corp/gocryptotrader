@@ -661,6 +661,126 @@ type TradeOrder struct {
 	IsIsolated bool `json:"isIsolated"`
 }
 
+// SymbolOrders represents a symbol and orders related to the symbol
+type SymbolOrders struct {
+	Symbol                  string               `json:"symbol"`
+	OrigClientOrderID       string               `json:"origClientOrderId,omitempty"`
+	OrderID                 int64                `json:"orderId,omitempty"`
+	OrderListID             int64                `json:"orderListId"`
+	ClientOrderID           string               `json:"clientOrderId,omitempty"`
+	TransactTime            convert.ExchangeTime `json:"transactTime,omitempty"`
+	Price                   types.Number         `json:"price,omitempty"`
+	OrigQty                 types.Number         `json:"origQty,omitempty"`
+	ExecutedQty             types.Number         `json:"executedQty,omitempty"`
+	CummulativeQuoteQty     types.Number         `json:"cummulativeQuoteQty,omitempty"`
+	Status                  string               `json:"status,omitempty"`
+	TimeInForce             string               `json:"timeInForce,omitempty"`
+	Type                    string               `json:"type,omitempty"`
+	Side                    string               `json:"side,omitempty"`
+	SelfTradePreventionMode string               `json:"selfTradePreventionMode,omitempty"`
+	ContingencyType         string               `json:"contingencyType,omitempty"`
+	ListStatusType          string               `json:"listStatusType,omitempty"`
+	ListOrderStatus         string               `json:"listOrderStatus,omitempty"`
+	ListClientOrderID       string               `json:"listClientOrderId,omitempty"`
+	TransactionTime         int64                `json:"transactionTime,omitempty"`
+	Orders                  []struct {
+		Symbol        string `json:"symbol"`
+		OrderID       int64  `json:"orderId"`
+		ClientOrderID string `json:"clientOrderId"`
+	} `json:"orders,omitempty"`
+	OrderReports []struct {
+		Symbol                  string       `json:"symbol"`
+		OrigClientOrderID       string       `json:"origClientOrderId"`
+		OrderID                 int          `json:"orderId"`
+		OrderListID             int          `json:"orderListId"`
+		ClientOrderID           string       `json:"clientOrderId"`
+		TransactTime            int64        `json:"transactTime"`
+		Price                   types.Number `json:"price"`
+		OrigQty                 types.Number `json:"origQty"`
+		ExecutedQty             types.Number `json:"executedQty"`
+		CummulativeQuoteQty     types.Number `json:"cummulativeQuoteQty"`
+		Status                  string       `json:"status"`
+		TimeInForce             string       `json:"timeInForce"`
+		Type                    string       `json:"type"`
+		Side                    string       `json:"side"`
+		StopPrice               types.Number `json:"stopPrice,omitempty"`
+		IcebergQty              types.Number `json:"icebergQty"`
+		SelfTradePreventionMode string       `json:"selfTradePreventionMode"`
+	} `json:"orderReports,omitempty"`
+}
+
+// CancelReplaceOrderParams represents a request parameter to cancel an existing order and send a new order.
+type CancelReplaceOrderParams struct {
+	Symbol    string `json:"symbol"`
+	Side      string `json:"side"`
+	OrderType string `json:"type"`
+
+	// The allowed values are:
+	// STOP_ON_FAILURE - If the cancel request fails, the new order placement will not be attempted.
+	// ALLOW_FAILURE - new order placement will be attempted even if cancel request fails.
+	CancelReplaceMode       string  `json:"cancelReplaceMode"`
+	TimeInForce             string  `json:"timeInForce,omitempty"`
+	Quantity                float64 `json:"quantity,omitempty"`
+	QuoteOrderQuantity      float64 `json:"quoteOrderQty,omitempty"`
+	Price                   float64 `json:"price,omitempty"`
+	CancelNewClientOrderID  string  `json:"cancelNewClientOrderId,omitempty"`
+	CancelOrigClientOrderID string  `json:"cancelOrigClientOrderId,omitempty"`
+	CancelOrderID           string  `json:"cancelOrderId,omitempty"`
+	NewClientOrderID        string  `json:"newClientOrderId,omitempty"`
+	StrategyID              int64   `json:"strategyId,omitempty"`
+	StrategyType            int64   `json:"strategyType,omitempty"`
+	StopPrice               float64 `json:"stopPrice,omitempty"`
+	TrailingDelta           int64   `json:"trailingDelta,omitempty"`
+	IcebergQuantity         float64 `json:"icebergQty,omitempty"`
+
+	// NewOrderRespType Allowed values: ACK, RESULT, FULL
+	// MARKET and LIMIT orders types default to FULL; all other orders default to ACK
+	NewOrderRespType        string `json:"newOrderRespType,omitempty"`
+	SelfTradePreventionMode string `json:"selfTradePreventionMode,omitempty"`
+	CancelRestrictions      string `json:"cancelRestrictions,omitempty"`
+}
+
+// CancelAndReplaceResponse represents an order cancellation and replacement response.
+type CancelAndReplaceResponse struct {
+	CancelResult   string `json:"cancelResult"`
+	NewOrderResult string `json:"newOrderResult"`
+	CancelResponse struct {
+		Symbol                  string       `json:"symbol"`
+		OrigClientOrderID       string       `json:"origClientOrderId"`
+		OrderID                 int64        `json:"orderId"`
+		OrderListID             int64        `json:"orderListId"`
+		ClientOrderID           string       `json:"clientOrderId"`
+		TransactTime            int64        `json:"transactTime"`
+		Price                   types.Number `json:"price"`
+		OrigQty                 types.Number `json:"origQty"`
+		ExecutedQty             types.Number `json:"executedQty"`
+		CummulativeQuoteQty     types.Number `json:"cummulativeQuoteQty"`
+		Status                  string       `json:"status"`
+		TimeInForce             string       `json:"timeInForce"`
+		Type                    string       `json:"type"`
+		Side                    string       `json:"side"`
+		SelfTradePreventionMode string       `json:"selfTradePreventionMode"`
+	} `json:"cancelResponse"`
+	NewOrderResponse struct {
+		Symbol                  string `json:"symbol"`
+		OrderID                 int    `json:"orderId"`
+		OrderListID             int    `json:"orderListId"`
+		ClientOrderID           string `json:"clientOrderId"`
+		TransactTime            int64  `json:"transactTime"`
+		Price                   string `json:"price"`
+		OrigQty                 string `json:"origQty"`
+		ExecutedQty             string `json:"executedQty"`
+		CummulativeQuoteQty     string `json:"cummulativeQuoteQty"`
+		Status                  string `json:"status"`
+		TimeInForce             string `json:"timeInForce"`
+		Type                    string `json:"type"`
+		Side                    string `json:"side"`
+		WorkingTime             int64  `json:"workingTime"`
+		Fills                   []any  `json:"fills"`
+		SelfTradePreventionMode string `json:"selfTradePreventionMode"`
+	} `json:"newOrderResponse"`
+}
+
 // Balance holds query order data
 type Balance struct {
 	Asset  string          `json:"asset"`
@@ -2999,6 +3119,69 @@ type OCOOrderParam struct {
 	LimitStrategyType string `json:"limitStrategyType,omitempty"`
 	StopStrategyID    int64  `json:"stopStrategyId,omitempty"`
 	StopStrategyType  int64  `json:"stopStrategyType,omitempty"`
+}
+
+// OCOOrderListParams represents an order parameter of OCO order as a list.
+type OCOOrderListParams struct {
+	Symbol                  string  `json:"symbol"`
+	ListClientOrderID       string  `json:"listClientOrderId"`
+	Side                    string  `json:"side"`
+	Quantity                float64 `json:"quantity"`
+	AboveType               string  `json:"aboveType"`
+	AboveClientOrderID      string  `json:"aboveClientOrderId"`
+	AboveIcebergQuantity    int64   `json:"aboveIcebergQty"`
+	AbovePrice              float64 `json:"abovePrice"`
+	AboveStopPrice          float64 `json:"aboveStopPrice"` // Can be used if aboveType is STOP_LOSS or STOP_LOSS_LIMIT. Either aboveStopPrice or aboveTrailingDelta or both, must be specified.
+	AboveTrailingDelta      int64   `json:"aboveTrailingDelta"`
+	AboveTimeInForce        string  `json:"aboveTimeInForce"` // Required if the aboveType is 'STOP_LOSS_LIMIT'.
+	AboveStrategyID         int64   `json:"aboveStrategyId"`
+	AboveStrategyType       int64   `json:"aboveStrategyType"`
+	BelowType               string  `json:"belowType"` // Supported values : 'STOP_LOSS_LIMIT', 'STOP_LOSS', 'LIMIT_MAKER'
+	BelowClientOrderID      string  `json:"belowClientOrderId"`
+	BelowIcebergQty         int64   `json:"belowIcebergQty"` // Note that this can only be used if belowTimeInForce is 'GTC'.
+	BelowPrice              float64 `json:"belowPrice"`
+	BelowStopPrice          float64 `json:"belowStopPrice"` // Can be used if belowType is 'STOP_LOSS' or 'STOP_LOSS_LIMIT'. Either belowStopPrice or belowTrailingDelta or both, must be specified.
+	BelowTrailingDelta      int64   `json:"belowTrailingDelta"`
+	BelowTimeInForce        string  `json:"belowTimeInForce"` // Required if the belowType is 'STOP_LOSS_LIMIT'.
+	BelowStrategyID         int64   `json:"belowStrategyId"`
+	BelowStrategyType       int64   `json:"belowStrategyType"`
+	NewOrderRespType        string  `json:"newOrderRespType"` // Select response format: 'ACK', 'RESULT', 'FULL'
+	SelfTradePreventionMode string  `json:"selfTradePreventionMode"`
+}
+
+// OCOListOrderResponse represents a response for an OCO order list
+type OCOListOrderResponse struct {
+	OrderListID       int64                `json:"orderListId"`
+	ContingencyType   string               `json:"contingencyType"`
+	ListStatusType    string               `json:"listStatusType"`
+	ListOrderStatus   string               `json:"listOrderStatus"`
+	ListClientOrderID string               `json:"listClientOrderId"`
+	TransactionTime   convert.ExchangeTime `json:"transactionTime"`
+	Symbol            string               `json:"symbol"`
+	Orders            []struct {
+		Symbol        string `json:"symbol"`
+		OrderID       int64  `json:"orderId"`
+		ClientOrderID string `json:"clientOrderId"`
+	} `json:"orders"`
+	OrderReports []struct {
+		Symbol                  string               `json:"symbol"`
+		OrderID                 int64                `json:"orderId"`
+		OrderListID             int64                `json:"orderListId"`
+		ClientOrderID           string               `json:"clientOrderId"`
+		TransactTime            convert.ExchangeTime `json:"transactTime"`
+		Price                   types.Number         `json:"price"`
+		OrigQty                 types.Number         `json:"origQty"`
+		ExecutedQty             types.Number         `json:"executedQty"`
+		CummulativeQuoteQty     types.Number         `json:"cummulativeQuoteQty"`
+		Status                  string               `json:"status"`
+		TimeInForce             string               `json:"timeInForce"`
+		Type                    string               `json:"type"`
+		Side                    string               `json:"side"`
+		StopPrice               types.Number         `json:"stopPrice,omitempty"`
+		WorkingTime             convert.ExchangeTime `json:"workingTime"`
+		IcebergQty              types.Number         `json:"icebergQty,omitempty"`
+		SelfTradePreventionMode string               `json:"selfTradePreventionMode"`
+	} `json:"orderReports"`
 }
 
 // SOROrderRequestParams represents a request parameters for SOR orders.

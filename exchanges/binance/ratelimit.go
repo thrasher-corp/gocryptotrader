@@ -119,6 +119,9 @@ const (
 	allIsolatedMarginSymbol
 	ocoOrderRate
 	getMarginAccountAllOCORate
+	getOCOListRate
+	getAllOCOOrdersRate
+	getOpenOCOListRate
 
 	simpleEarnProductsRate
 	getSimpleEarnProductPositionRate
@@ -160,6 +163,7 @@ const (
 
 	getAllConvertPairsRate
 	getOrderQuantityPrecisionPerAssetRate
+	testNewOrderWithCommissionRate
 
 	// planceVOOrderRate
 	classicPMAccountInfoRate
@@ -371,7 +375,8 @@ func (r *RateLimit) Limit(ctx context.Context, f request.EndpointLimit) error {
 		aggTradesRate:
 		limiter, tokens = r.SpotRate, 2
 	case spotOrderbookTickerAllRate,
-		spotSymbolPriceAllRate:
+		spotSymbolPriceAllRate,
+		getOCOListRate:
 		limiter, tokens = r.SpotRate, 4
 	case spotHistoricalTradesRate,
 		spotOrderbookDepth100Rate,
@@ -395,7 +400,9 @@ func (r *RateLimit) Limit(ctx context.Context, f request.EndpointLimit) error {
 	case spotAccountInformationRate,
 		accountTradeListRate,
 		spotExchangeInfo,
-		getAllConvertPairsRate:
+		getAllConvertPairsRate,
+		testNewOrderWithCommissionRate,
+		getAllOCOOrdersRate:
 		limiter, tokens = r.SpotRate, 20
 
 	case getAutoRepayFuturesStatusRate:
@@ -417,15 +424,17 @@ func (r *RateLimit) Limit(ctx context.Context, f request.EndpointLimit) error {
 	case spotOrderRate:
 		limiter, tokens = r.SpotOrdersRate, 1
 	case spotOpenOrdersSpecificRate:
-		limiter, tokens = r.SpotOrdersRate, 3
+		limiter, tokens = r.SpotOrdersRate, 6
+	case getOpenOCOListRate:
+		limiter, tokens = r.SpotRate, 6
 	case spotOrderQueryRate:
 		limiter, tokens = r.SpotOrdersRate, 4
 	case allCrossMarginFeeDataRate:
 		limiter, tokens = r.SpotRate, 5
 	case spotAllOrdersRate:
-		limiter, tokens = r.SpotOrdersRate, 10
+		limiter, tokens = r.SpotOrdersRate, 20
 	case spotOpenOrdersAllRate:
-		limiter, tokens = r.SpotOrdersRate, 40
+		limiter, tokens = r.SpotOrdersRate, 80
 
 	case isolatedMarginAccountInfoRate,
 		allIsolatedMarginSymbol,
