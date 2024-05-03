@@ -2074,7 +2074,7 @@ func (by *Bybit) GetCurrencyTradeURL(ctx context.Context, a asset.Item, cp curre
 		cp.Delimiter = currency.DashDelimiter
 		return tradeBaseURL + "trade/futures/usdc/" + cp.Upper().String(), nil
 	case asset.Options:
-		return tradeBaseURL + "trade/options/" + cp.Base.Upper().String(), nil
+		return tradeBaseURL + "trade/option/" + cp.Base.Upper().String(), nil
 	default:
 		return "", fmt.Errorf("%w %v", asset.ErrNotSupported, a)
 	}
