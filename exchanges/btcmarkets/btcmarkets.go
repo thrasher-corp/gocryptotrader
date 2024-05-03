@@ -28,6 +28,7 @@ var (
 
 const (
 	btcMarketsAPIURL     = "https://api.btcmarkets.net"
+	tradeBaseURL         = "https://app.btcmarkets.net/buy-sell?market="
 	btcMarketsAPIVersion = "/v3"
 
 	// UnAuthenticated EPs

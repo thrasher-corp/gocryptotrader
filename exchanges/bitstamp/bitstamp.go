@@ -24,6 +24,7 @@ import (
 
 const (
 	bitstampAPIURL                = "https://www.bitstamp.net/api"
+	tradeBaseURL                  = "https://www.bitstamp.net/trade/"
 	bitstampAPIVersion            = "2"
 	bitstampAPITicker             = "ticker"
 	bitstampAPITickerHourly       = "ticker_hour"

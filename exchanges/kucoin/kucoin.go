@@ -39,6 +39,10 @@ var locker sync.Mutex
 const (
 	kucoinAPIURL        = "https://api.kucoin.com/api"
 	kucoinAPIKeyVersion = "2"
+	tradeBaseURL        = "https://www.kucoin.com/"
+	tradeSpot           = "trade/"
+	tradeMargin         = "margin/"
+	tradeFutures        = "futures/"
 
 	// Public endpoints
 	kucoinGetSymbols             = "/v2/symbols"

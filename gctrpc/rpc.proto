@@ -1522,6 +1522,16 @@ message OpenInterestDataResponse {
   double open_interest = 4;
 }
 
+message GetCurrencyTradeURLRequest {
+  string exchange = 1;
+  string asset = 2;
+  CurrencyPair pair = 3;
+}
+
+message GetCurrencyTradeURLResponse {
+  string url = 1;
+}
+
 service GoCryptoTraderService {
   rpc GetInfo(GetInfoRequest) returns (GetInfoResponse) {
     option (google.api.http) = {get: "/v1/getinfo"};
@@ -2067,5 +2077,8 @@ service GoCryptoTraderService {
   }
   rpc GetOpenInterest(GetOpenInterestRequest) returns (GetOpenInterestResponse) {
     option (google.api.http) = {get: "/v1/getopeninterest"};
+  }
+  rpc GetCurrencyTradeURL(GetCurrencyTradeURLRequest) returns (GetCurrencyTradeURLResponse) {
+    option (google.api.http) = {get: "/v1/getcurrencytradeurl"};
   }
 }

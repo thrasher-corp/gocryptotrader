@@ -40,8 +40,14 @@ type Okx struct {
 }
 
 const (
-	okxAPIURL     = "https://www.okx.com/" + okxAPIPath
+	baseURL       = "https://www.okx.com/"
+	okxAPIURL     = baseURL + okxAPIPath
 	okxAPIVersion = "/v5/"
+	tradeSpot     = "trade-spot/"
+	tradeMargin   = "trade-margin/"
+	tradeFutures  = "trade-futures/"
+	tradePerps    = "trade-swap/"
+	tradeOptions  = "trade-option/"
 
 	okxAPIPath      = "api" + okxAPIVersion
 	okxWebsocketURL = "wss://ws.okx.com:8443/ws" + okxAPIVersion
