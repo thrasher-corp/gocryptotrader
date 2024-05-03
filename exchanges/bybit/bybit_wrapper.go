@@ -2034,11 +2034,11 @@ func (by *Bybit) GetCurrencyTradeURL(ctx context.Context, a asset.Item, cp curre
 	switch a {
 	case asset.Spot:
 		cp.Delimiter = currency.ForwardSlashDelimiter
-		return tradeBaseURL + "en/spot/" + cp.Upper().String(), nil
+		return tradeBaseURL + "en/trade/spot/" + cp.Upper().String(), nil
 	case asset.CoinMarginedFutures:
 		if cp.Quote.Equal(currency.USD) {
 			cp.Delimiter = ""
-			return tradeBaseURL + "inverse/" + cp.Upper().String(), nil
+			return tradeBaseURL + "trade/inverse/" + cp.Upper().String(), nil
 		}
 		var symbol string
 		symbol, err = by.FormatSymbol(cp, a)
@@ -2066,7 +2066,7 @@ func (by *Bybit) GetCurrencyTradeURL(ctx context.Context, a asset.Item, cp curre
 			cp = currency.NewPair(currency.NewCode(cp.Base.String()+currency.USD.String()), currency.NewCode("BIQ"))
 		}
 		cp.Delimiter = currency.UnderscoreDelimiter
-		return tradeBaseURL + "inverse/futures/" + cp.Upper().String(), nil
+		return tradeBaseURL + "trade/inverse/futures/" + cp.Upper().String(), nil
 	case asset.USDTMarginedFutures:
 		cp.Delimiter = ""
 		return tradeBaseURL + "trade/usdt/" + cp.Upper().String(), nil

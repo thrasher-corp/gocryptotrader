@@ -109,12 +109,19 @@ func (b *Bitflyer) FetchTradablePairs(ctx context.Context, a asset.Item) (curren
 	pairs := make([]currency.Pair, 0, len(symbols))
 	for i := range symbols {
 		var pair currency.Pair
-		if (a == asset.Spot && symbols[i].MarketType == "Spot") ||
-			(a == asset.Futures && symbols[i].MarketType == "FX") {
+		if a == asset.Spot && symbols[i].MarketType == "Spot" {
 			pair, err = currency.NewPairFromString(symbols[i].ProductCode)
 			if err != nil {
 				return nil, err
 			}
+			pairs = append(pairs, pair)
+		} else if a == asset.Futures && symbols[i].MarketType == "FX" {
+			splitter := strings.Split(symbols[i].ProductCode, currency.UnderscoreDelimiter)
+			if len(splitter) != 3 {
+				return nil, fmt.Errorf("%w %s", errUnhandledCurrency, symbols[i].ProductCode)
+			}
+			pair = currency.NewPair(currency.NewCode(splitter[0]+splitter[1]), currency.NewCode(splitter[2]))
+			pair.Delimiter = currency.UnderscoreDelimiter
 			pairs = append(pairs, pair)
 		}
 	}
