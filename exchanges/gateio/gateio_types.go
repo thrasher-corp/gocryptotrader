@@ -1748,33 +1748,42 @@ type AccountBookItem struct {
 
 // Position represents futures position
 type Position struct {
-	User            int64        `json:"user"`
-	Contract        string       `json:"contract"`
-	Size            int64        `json:"size"`
-	Leverage        types.Number `json:"leverage"`
-	RiskLimit       types.Number `json:"risk_limit"`
-	LeverageMax     types.Number `json:"leverage_max"`
-	MaintenanceRate types.Number `json:"maintenance_rate"`
-	Value           types.Number `json:"value"`
-	Margin          types.Number `json:"margin"`
-	EntryPrice      types.Number `json:"entry_price"`
-	LiqPrice        types.Number `json:"liq_price"`
-	MarkPrice       types.Number `json:"mark_price"`
-	UnrealisedPnl   types.Number `json:"unrealised_pnl"`
-	RealisedPnl     types.Number `json:"realised_pnl"`
-	HistoryPnl      types.Number `json:"history_pnl"`
-	LastClosePnl    types.Number `json:"last_close_pnl"`
-	RealisedPoint   types.Number `json:"realised_point"`
-	HistoryPoint    types.Number `json:"history_point"`
-	AdlRanking      int64        `json:"adl_ranking"`
-	PendingOrders   int64        `json:"pending_orders"`
-	CloseOrder      struct {
+	User                       int64        `json:"user"`
+	Contract                   string       `json:"contract"`
+	Size                       float64      `json:"size"` // Denotes long or short position, positive for long, negative for short
+	Leverage                   types.Number `json:"leverage"`
+	RiskLimit                  types.Number `json:"risk_limit"`
+	LeverageMax                types.Number `json:"leverage_max"`
+	MaintenanceRate            types.Number `json:"maintenance_rate"`
+	Value                      types.Number `json:"value"`
+	Margin                     types.Number `json:"margin"`
+	EntryPrice                 types.Number `json:"entry_price"`
+	LiquidationPrice           types.Number `json:"liq_price"`
+	MarkPrice                  types.Number `json:"mark_price"`
+	InitialMargin              types.Number `json:"initial_margin"`
+	MaintenanceMargin          types.Number `json:"maintenance_margin"`
+	UnrealisedPNL              types.Number `json:"unrealised_pnl"`
+	RealisedPnl                types.Number `json:"realised_pnl"`
+	RealisedPNLPosition        types.Number `json:"pnl_pnl"`
+	RealisedPNLFundingFee      types.Number `json:"pnl_fund"`
+	RealisedPNLTransactionFees types.Number `json:"pnl_fee"`
+	HistoryPNL                 types.Number `json:"history_pnl"`
+	LastClosePNL               types.Number `json:"last_close_pnl"`
+	RealisedPNLPoint           types.Number `json:"realised_point"`
+	RealisedPNLHistoryPoint    types.Number `json:"history_point"`
+	ADLRanking                 int64        `json:"adl_ranking"` // Ranking of auto deleveraging, a total of 1-5 grades, 1 is the highest, 5 is the lowest, and 6 is the special case when there is no position held or in liquidation
+	PendingOrders              int64        `json:"pending_orders"`
+	CloseOrder                 struct {
 		ID    int64        `json:"id"`
 		Price types.Number `json:"price"`
 		IsLiq bool         `json:"is_liq"`
 	} `json:"close_order"`
-	Mode               string `json:"mode"`
-	CrossLeverageLimit string `json:"cross_leverage_limit"`
+	Mode               string       `json:"mode"`
+	CrossLeverageLimit types.Number `json:"cross_leverage_limit"`
+	UpdateTime         gateioTime   `json:"update_time"`
+	OpenTime           gateioTime   `json:"open_time"`
+	UpdateID           int64        `json:"update_id"`
+	TradeMaxSize       types.Number `json:"trade_max_size"`
 }
 
 // DualModeResponse represents  dual mode enable or disable
