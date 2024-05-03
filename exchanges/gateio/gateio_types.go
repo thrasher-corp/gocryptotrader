@@ -1702,27 +1702,38 @@ type InitFlashSwapOrderPreviewResponse struct {
 
 // FuturesAccount represents futures account detail
 type FuturesAccount struct {
-	User           int64        `json:"user"`
-	Currency       string       `json:"currency"`
-	Total          types.Number `json:"total"` // total = position_margin + order_margin + available
-	UnrealisedPnl  string       `json:"unrealised_pnl"`
-	PositionMargin string       `json:"position_margin"`
-	OrderMargin    string       `json:"order_margin"` // Order margin of unfinished orders
-	Available      types.Number `json:"available"`    // The available balance for transferring or trading
-	Point          string       `json:"point"`
-	Bonus          string       `json:"bonus"`
-	InDualMode     bool         `json:"in_dual_mode"` // Whether dual mode is enabled
-	History        struct {
+	User                   int64        `json:"user"`
+	Currency               string       `json:"currency"`
+	Total                  types.Number `json:"total"` // total = position_margin + order_margin + available
+	UnrealisedPnl          types.Number `json:"unrealised_pnl"`
+	PositionMargin         types.Number `json:"position_margin"`
+	OrderMargin            types.Number `json:"order_margin"` // Order margin of unfinished orders
+	Available              types.Number `json:"available"`    // The available balance for transferring or trading
+	Point                  types.Number `json:"point"`
+	Bonus                  string       `json:"bonus"`
+	EnabledCredit          bool         `json:"enable_credit"`
+	InDualMode             bool         `json:"in_dual_mode"` // Whether dual mode is enabled
+	UpdateTime             gateioTime   `json:"update_time"`
+	UpdateID               int64        `json:"update_id"`
+	PositionInitialMargine types.Number `json:"position_initial_margin"` // applicable to the portfolio margin account model
+	MaintenanceMargin      types.Number `json:"maintenance_margin"`
+	MarginMode             int64        `json:"margin_mode"` // Margin mode: 1-cross margin, 2-isolated margin, 3-portfolio margin
+	EnabledEvolvedClassic  bool         `json:"enable_evolved_classic"`
+	CrossInitialMargin     types.Number `json:"cross_initial_margin"`
+	CrossUnrealisedPnl     types.Number `json:"cross_unrealised_pnl"`
+	IsolatedPositionMargin types.Number `json:"isolated_position_margin"`
+	History                struct {
 		DepositAndWithdrawal string       `json:"dnw"`  // total amount of deposit and withdraw
 		ProfitAndLoss        types.Number `json:"pnl"`  // total amount of trading profit and loss
-		Fee                  string       `json:"fee"`  // total amount of fee
-		Refr                 string       `json:"refr"` // total amount of referrer rebates
-		Fund                 string       `json:"fund"`
-		PointDnw             string       `json:"point_dnw"` // total amount of point deposit and withdraw
-		PointFee             string       `json:"point_fee"` // total amount of point fee
-		PointRefr            string       `json:"point_refr"`
-		BonusDnw             string       `json:"bonus_dnw"`    // total amount of perpetual contract bonus transfer
-		BonusOffset          string       `json:"bonus_offset"` // total amount of perpetual contract bonus deduction
+		Fee                  types.Number `json:"fee"`  // total amount of fee
+		Refr                 types.Number `json:"refr"` // total amount of referrer rebates
+		Fund                 types.Number `json:"fund"`
+		PointDNW             types.Number `json:"point_dnw"` // total amount of point deposit and withdraw
+		PointFee             types.Number `json:"point_fee"` // total amount of point fee
+		PointRefr            types.Number `json:"point_refr"`
+		BonusDNW             types.Number `json:"bonus_dnw"`    // total amount of perpetual contract bonus transfer
+		BonusOffset          types.Number `json:"bonus_offset"` // total amount of perpetual contract bonus deduction
+		CrossSettle          types.Number `json:"cross_settle"`
 	} `json:"history"`
 }
 
