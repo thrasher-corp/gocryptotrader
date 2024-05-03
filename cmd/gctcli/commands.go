@@ -4563,7 +4563,6 @@ func getMarginRatesHistory(c *cli.Context) error {
 	return nil
 }
 
-// getCurrencyTradeURLCommand
 var getCurrencyTradeURLCommand = &cli.Command{
 	Name:      "getcurrencytradeurl",
 	Usage:     "returns the trading url of the instrument",

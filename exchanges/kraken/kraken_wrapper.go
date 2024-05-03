@@ -1799,10 +1799,13 @@ func (k *Kraken) GetCurrencyTradeURL(_ context.Context, a asset.Item, cp currenc
 	if err != nil {
 		return "", err
 	}
-	cp.Delimiter = "-"
 	switch a {
 	case asset.Spot:
+		cp.Delimiter = currency.DashDelimiter
 		return tradeBaseURL + cp.Lower().String(), nil
+	case asset.Futures:
+		cp.Delimiter = currency.UnderscoreDelimiter
+		return tradeFuturesURL + cp.Upper().String(), nil
 	default:
 		return "", fmt.Errorf("%w %v", asset.ErrNotSupported, a)
 	}

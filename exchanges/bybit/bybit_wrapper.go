@@ -2024,3 +2024,58 @@ func (by *Bybit) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]fut
 	}
 	return resp, nil
 }
+
+// GetCurrencyTradeURL returns the URL to the exchange's trade page for the given asset and currency pair
+func (by *Bybit) GetCurrencyTradeURL(ctx context.Context, a asset.Item, cp currency.Pair) (string, error) {
+	_, err := by.CurrencyPairs.IsPairEnabled(cp, a)
+	if err != nil {
+		return "", err
+	}
+	switch a {
+	case asset.Spot:
+		cp.Delimiter = currency.ForwardSlashDelimiter
+		return tradeBaseURL + "en/spot/" + cp.Upper().String(), nil
+	case asset.CoinMarginedFutures:
+		if cp.Quote.Equal(currency.USD) {
+			cp.Delimiter = ""
+			return tradeBaseURL + "inverse/" + cp.Upper().String(), nil
+		}
+		var symbol string
+		symbol, err = by.FormatSymbol(cp, a)
+		if err != nil {
+			return "", err
+		}
+		// convert long-dated to static contracts
+		var io *InstrumentsInfo
+		io, err = by.GetInstrumentInfo(ctx, getCategoryName(a), symbol, "", "", "", 1000)
+		if err != nil {
+			return "", err
+		}
+		if len(io.List) != 1 {
+			return "", fmt.Errorf("%w %v", currency.ErrCurrencyNotFound, cp)
+		}
+		var length futures.ContractType
+		length, err = getContractLength(io.List[0].DeliveryTime.Time().Sub(io.List[0].LaunchTime.Time()))
+		if err != nil {
+			return "", err
+		}
+		// bybit inverse long-dated contracts are currently only quarterly or bi-quarterly
+		if length == futures.Quarterly {
+			cp = currency.NewPair(currency.NewCode(cp.Base.String()+currency.USD.String()), currency.NewCode("Q"))
+		} else {
+			cp = currency.NewPair(currency.NewCode(cp.Base.String()+currency.USD.String()), currency.NewCode("BIQ"))
+		}
+		cp.Delimiter = currency.UnderscoreDelimiter
+		return tradeBaseURL + "inverse/futures/" + cp.Upper().String(), nil
+	case asset.USDTMarginedFutures:
+		cp.Delimiter = ""
+		return tradeBaseURL + "trade/usdt/" + cp.Upper().String(), nil
+	case asset.USDCMarginedFutures:
+		cp.Delimiter = currency.DashDelimiter
+		return tradeBaseURL + "trade/futures/usdc/" + cp.Upper().String(), nil
+	case asset.Options:
+		return tradeBaseURL + "trade/options/" + cp.Base.Upper().String(), nil
+	default:
+		return "", fmt.Errorf("%w %v", asset.ErrNotSupported, a)
+	}
+}
