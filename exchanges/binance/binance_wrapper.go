@@ -716,7 +716,7 @@ func (b *Binance) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (
 		if b.IsAPIStreamConnected() && b.Websocket.CanUseAuthenticatedEndpoints() && b.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
 			raw, err = b.GetWsAccountInfo(0)
 		} else {
-			raw, err = b.GetAccount(ctx)
+			raw, err = b.GetAccount(ctx, false)
 		}
 		if err != nil {
 			return info, err

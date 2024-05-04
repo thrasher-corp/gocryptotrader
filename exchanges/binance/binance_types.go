@@ -3195,9 +3195,9 @@ type SOROrderRequestParams struct {
 	NewClientOrderID        string        `json:"newClientOrderId"`
 	StrategyID              int64         `json:"strategyId"`
 	StrategyType            int64         `json:"strategyType"`
-	IcebergQuantity         float64       `json:"icebergQty"`
-	NewOrderResponseType    string        `json:"newOrderRespType"` // Set the response JSON. 'ACK', 'RESULT', or 'FULL'. Default to 'FULL'
-	SelfTradePreventionMode string        `json:"selfTradePreventionMode"`
+	IcebergQuantity         float64       `json:"icebergQty"`              // Used with 'LIMIT' to create an iceberg order.
+	NewOrderResponseType    string        `json:"newOrderRespType"`        // Set the response JSON. 'ACK', 'RESULT', or 'FULL'. Default to 'FULL'
+	SelfTradePreventionMode string        `json:"selfTradePreventionMode"` // The allowed enums is dependent on what is configured on the symbol. The possible supported values are 'EXPIRE_TAKER', 'EXPIRE_MAKER', 'EXPIRE_BOTH', 'NONE'.
 }
 
 // SOROrderResponse represents smart order routing response instance.
@@ -3499,7 +3499,7 @@ type MarginOCOOrderParam struct {
 	StopIcebergQuantity     float64       `json:"stopIcebergQty,omitempty"`
 	StopLimitTimeInForce    float64       `json:"stopLimitTimeInForce,omitempty"` // Valid values are GTC/FOK/IOC
 	NewOrderRespType        string        `json:"newOrderRespType,omitempty"`
-	SideEffectType          string        `json:"sideEffectType,omitempty"`
+	SideEffectType          string        `json:"sideEffectType,omitempty"` // NO_SIDE_EFFECT, MARGIN_BUY, AUTO_REPAY,AUTO_BORROW_REPAY; default NO_SIDE_EFFECT.
 	SelfTradePreventionMode string        `json:"selfTradePreventionMode,omitempty"`
 	AutoRepayAtCancel       string        `json:"autoRepayAtCancel,omitempty"`
 }

@@ -87,10 +87,14 @@ const (
 	symbolDelistScheduleForSpotRate
 	withdrawAddressListRate
 	crossMarginCollateralRatioRate
-	smallLiabilityExchCoinListRate
+	smallLiabilityExchangeCoinListRate
+	getSmallLiabilityExchangeCoinListRate
+	getSmallLiabilityExchangeRate
 	marginHourlyInterestRate
 	marginCapitalFlowRate
 	marginTokensAndSymbolsDelistScheduleRate
+	marginAvailableInventoryRate
+	marginManualLiquidiationRate
 	getSubAccountAssetRate
 	getSubAccountStatusOnMarginOrFuturesRate
 	subAccountMarginAccountDetailRate
@@ -106,6 +110,7 @@ const (
 	managedSubAccountFuturesAssetDetailRate
 	getManagedSubAccountListRate
 	getSubAccountTransactionStatisticsRate
+	marginAccountBorrowRepayRate
 	getCrossMarginAccountDetailRate
 	getCrossMarginAccountOrderRate
 	getMarginAccountsOpenOrdersRate
@@ -115,9 +120,12 @@ const (
 	marginMaxBorrowRate
 	maxTransferOutRate
 	marginAccountSummaryRate
-	isolatedMarginAccountInfoRate
+	getIsolatedMarginAccountInfoRate
+	deleteIsolatedMarginAccountRate
+	enableIsolatedMarginAccountRate
 	allIsolatedMarginSymbol
-	ocoOrderRate
+	marginOCOOrderRate
+	getMarginAccountOCOOrderRate
 	getMarginAccountAllOCORate
 	getOCOListRate
 	getAllOCOOrdersRate
@@ -127,6 +135,15 @@ const (
 	getSimpleEarnProductPositionRate
 	simpleAccountRate
 	getFlexibleSubscriptionRecordRate
+	nftRate
+	spotRebateHistoryRate
+	convertTradeFlowHistoryRate
+	getLimitOpenOrdersRate
+	cancelLimitOrderRate
+	placeLimitOrderRate
+	orderStatusRate
+	acceptQuoteRate
+	sendQuoteRequestRate
 	getLockedSubscriptionRecordsRate
 	getRedemptionRecordRate
 	getRewardHistoryRate
@@ -147,29 +164,39 @@ const (
 
 	futuresFundTransfersFetchRate
 	futureTickLevelOrderbookHistoricalDataDownloadLinkRate
-	pmAssetIndexPriceRate
 	fundAutoCollectionRate
-	transferBNBRate
-	changeAutoRepayFuturesStatusRate
 	getAutoRepayFuturesStatusRate
-	repayFuturesNegativeBalanceRate
 	pmAssetLeverageRate
 
-	vipLoanOngoingOrdersRate
+	getVIPLoanOngoingOrdersRate
+	vipLoanRepayRate
+	vipLoanRenewRate
 	getVIPLoanRepaymentHistoryRate
 	checkLockedValueVIPCollateralAccountRate
+	vipLoanBorrowRate
 	getVIPLoanableAssetsRate
 	getCollateralAssetDataRate
+	getApplicationStatusRate
+	getVIPBorrowInterestRate
+
+	fiatDepositWithdrawHistRate
 
 	getAllConvertPairsRate
 	getOrderQuantityPrecisionPerAssetRate
 	testNewOrderWithCommissionRate
+	payTradeEndpointsRate
 
-	// planceVOOrderRate
+	// Classic Portfolio Rate
 	classicPMAccountInfoRate
 	classicPMCollateralRate
+	getClassicPMBankruptacyLoanAmountRate
+	repayClassicPMBankruptacyLoanRate
 	classicPMNegativeBalanceInterestHistory
+	pmAssetIndexPriceRate
 	fundCollectionByAssetRate
+	transferBNBRate
+	changeAutoRepayFuturesStatusRate
+	repayFuturesNegativeBalanceRate
 
 	spotOpenOrdersSpecificRate
 	spotOrderRate
@@ -186,6 +213,7 @@ const (
 	getPriceMarginIndexRate
 	marginAccountNewOrderRate
 	marginAccountCancelOrderRate
+	adjustCrossMarginMaxLeverageRate
 	uFuturesDefaultRate
 	uFuturesHistoricalTradesRate
 	uFuturesSymbolOrdersRate
@@ -306,6 +334,8 @@ const (
 	pmRepayFuturesNegativeBalanceRate
 	pmGetUMPositionADLQuantileEstimationRate
 	pmGetCMPositionADLQuantileEstimationRate
+
+	getFlexibleSimpleEarnProductPositionRate
 )
 
 // RateLimit implements the request.Limiter interface
@@ -355,6 +385,60 @@ type RateLimit struct {
 	ManagedSubAccountFuturesAssetDetailRate  *rate.Limiter
 	ManagedSubAccountListRate                *rate.Limiter
 	SubAccountTransactionStatisticsRate      *rate.Limiter
+	MarginAccountBorrowRepayRate             *rate.Limiter
+	BorrowRepayRecordsInMarginAccountRate    *rate.Limiter
+	PriceMarginIndexRate                     *rate.Limiter
+	MarginAccountNewOrderRate                *rate.Limiter
+	MarginAccountCancelOrderRate             *rate.Limiter
+	AdjustCrossMarginMaxLeverageRate         *rate.Limiter
+	CrossMarginAccountDetailRate             *rate.Limiter
+	CrossMarginAccountOrderRate              *rate.Limiter
+	MarginAccountsOpenOrdersRate             *rate.Limiter
+	MarginAccountsAllOrdersRate              *rate.Limiter
+	MarginOCOOrderRate                       *rate.Limiter
+	MarginAccountOCOOrderRate                *rate.Limiter
+	MarginAccountAllOCORate                  *rate.Limiter
+	MarginAccountOpenOCOOrdersRate           *rate.Limiter
+	MarginAccountTradeListRate               *rate.Limiter
+	MarginMaxBorrowRate                      *rate.Limiter
+	MaxTransferOutRate                       *rate.Limiter
+	MarginAccountSummaryRate                 *rate.Limiter
+	IsolatedMarginAccountInfoRate            *rate.Limiter
+	DeleteIsolatedMarginAccountRate          *rate.Limiter
+	EnableIsolatedMarginAccountRate          *rate.Limiter
+	AllIsolatedMarginSymbol                  *rate.Limiter
+	AllCrossMarginFeeDataRate                *rate.Limiter
+	AllIsolatedMarginFeeDataRate             *rate.Limiter
+	MarginCurrentOrderCountUsageRate         *rate.Limiter
+	CrossMarginCollateralRatioRate           *rate.Limiter
+	SmallLiabilityExchangeCoinListRate       *rate.Limiter
+	GetSmallLiabilityExchangeCoinListRate    *rate.Limiter
+	GetSmallLiabilityExchangeRate            *rate.Limiter
+	MarginHourlyInterestRate                 *rate.Limiter
+	MarginCapitalFlowRate                    *rate.Limiter
+	MarginTokensAndSymbolsDelistScheduleRate *rate.Limiter
+	MarginAvailableInventoryRate             *rate.Limiter
+	MarginManualLiquidiationRate             *rate.Limiter
+	SimpleEarnProductsRate                   *rate.Limiter
+	FlexibleSimpleEarnProductPositionRate    *rate.Limiter
+	GetSimpleEarnProductPositionRate         *rate.Limiter
+	SimpleAccountRate                        *rate.Limiter
+	GetFlexibleSubscriptionRecordRate        *rate.Limiter
+	NFTRate                                  *rate.Limiter
+	SpotRebateHistoryRate                    *rate.Limiter
+	ConvertTradeFlowHistoryRate              *rate.Limiter
+	LimitOpenOrdersRate                      *rate.Limiter
+	CancelLimitOrderRate                     *rate.Limiter
+	PlaceLimitOrderRate                      *rate.Limiter
+	OrderStatusRate                          *rate.Limiter
+	AcceptQuoteRate                          *rate.Limiter
+	SendQuoteRequestRate                     *rate.Limiter
+	GetOrderQuantityPrecisionPerAssetRate    *rate.Limiter
+	GetAllConvertPairsRate                   *rate.Limiter
+	PayTradeEndpointsRate                    *rate.Limiter
+	VIPLoanEndpointsRate                     *rate.Limiter
+	FiatDepositWithdrawHistRate              *rate.Limiter
+	ClassicPM                                *rate.Limiter
 }
 
 // Limit executes rate limiting functionality for Binance
@@ -380,7 +464,6 @@ func (r *RateLimit) Limit(ctx context.Context, f request.EndpointLimit) error {
 		limiter, tokens = r.SpotRate, 4
 	case spotHistoricalTradesRate,
 		spotOrderbookDepth100Rate,
-		marginMaxBorrowRate,
 		getMinersListRate,
 		getEarningsListRate,
 		getHashrateRescaleRate,
@@ -389,8 +472,7 @@ func (r *RateLimit) Limit(ctx context.Context, f request.EndpointLimit) error {
 		cancelHashrateResaleConfigurationRate,
 		statisticsListRate,
 		miningAccountListRate,
-		miningAccountEarningRate,
-		classicPMAccountInfoRate:
+		miningAccountEarningRate:
 		limiter, tokens = r.SpotRate, 5
 
 	case spotOrderbookDepth500Rate,
@@ -400,7 +482,6 @@ func (r *RateLimit) Limit(ctx context.Context, f request.EndpointLimit) error {
 	case spotAccountInformationRate,
 		accountTradeListRate,
 		spotExchangeInfo,
-		getAllConvertPairsRate,
 		testNewOrderWithCommissionRate,
 		getAllOCOOrdersRate:
 		limiter, tokens = r.SpotRate, 20
@@ -408,11 +489,6 @@ func (r *RateLimit) Limit(ctx context.Context, f request.EndpointLimit) error {
 	case getAutoRepayFuturesStatusRate:
 		limiter, tokens = r.SpotRate, 30
 	case spotOrderbookDepth1000Rate,
-		maxTransferOutRate,
-		marginAccountSummaryRate,
-		classicPMCollateralRate,
-		classicPMNegativeBalanceInterestHistory,
-		pmAssetIndexPriceRate,
 		pmAssetLeverageRate:
 		limiter, tokens = r.SpotRate, 50
 	case spotPriceChangeAllRate,
@@ -429,42 +505,15 @@ func (r *RateLimit) Limit(ctx context.Context, f request.EndpointLimit) error {
 		limiter, tokens = r.SpotRate, 6
 	case spotOrderQueryRate:
 		limiter, tokens = r.SpotOrdersRate, 4
-	case allCrossMarginFeeDataRate:
-		limiter, tokens = r.SpotRate, 5
 	case spotAllOrdersRate:
 		limiter, tokens = r.SpotOrdersRate, 20
 	case spotOpenOrdersAllRate:
 		limiter, tokens = r.SpotOrdersRate, 80
 
-	case isolatedMarginAccountInfoRate,
-		allIsolatedMarginSymbol,
-		allIsolatedMarginFeeDataRate,
-		getCrossMarginAccountDetailRate,
-		getCrossMarginAccountOrderRate,
-		getMarginAccountsOpenOrdersRate,
-		marginAccountOpenOCOOrdersRate,
-		marginAccountTradeListRate,
-		borrowRepayRecordsInMarginAccountRate,
-		getPriceMarginIndexRate,
-		futuresFundTransfersFetchRate:
+	case futuresFundTransfersFetchRate:
 		limiter, tokens = r.SpotRate, 10
 
-	case marginCurrentOrderCountUsageRate:
-		limiter, tokens = r.SpotRate, 20
-	case fundCollectionByAssetRate:
-		limiter, tokens = r.SpotRate, 60
-	case crossMarginCollateralRatioRate,
-		smallLiabilityExchCoinListRate,
-		marginHourlyInterestRate,
-		marginCapitalFlowRate,
-		marginTokensAndSymbolsDelistScheduleRate,
-		getOrderQuantityPrecisionPerAssetRate:
-		limiter, tokens = r.SpotRate, 100
-	case simpleEarnProductsRate,
-		getSimpleEarnProductPositionRate,
-		simpleAccountRate,
-		getFlexibleSubscriptionRecordRate,
-		getLockedSubscriptionRecordsRate,
+	case getLockedSubscriptionRecordsRate,
 		getRedemptionRecordRate,
 		getRewardHistoryRate,
 		setAutoSubscribeRate,
@@ -482,35 +531,15 @@ func (r *RateLimit) Limit(ctx context.Context, f request.EndpointLimit) error {
 		wbethWrapOrUnwrapHistoryRate,
 		wbethRewardsHistoryRate:
 		limiter, tokens = r.SpotRate, 150
-	case fundAutoCollectionRate,
-		transferBNBRate,
-		changeAutoRepayFuturesStatusRate,
-		repayFuturesNegativeBalanceRate:
-		limiter, tokens = r.SpotRate, 1500
-	case marginAccountsAllOrdersRate,
-		futureTickLevelOrderbookHistoricalDataDownloadLinkRate,
-		getMarginAccountAllOCORate:
+	case futureTickLevelOrderbookHistoricalDataDownloadLinkRate:
 		limiter, tokens = r.SpotRate, 200
-	case ocoOrderRate:
-		limiter, tokens = r.SpotOrdersRate, 2
 	case currentOrderCountUsageRate,
 		getTickers100Rate:
 		limiter, tokens = r.SpotRate, 40
-	case vipLoanOngoingOrdersRate,
-		getVIPLoanRepaymentHistoryRate,
-		getVIPLoanableAssetsRate,
-		getCollateralAssetDataRate:
-		limiter, tokens = r.SpotRate, 400
-	case checkLockedValueVIPCollateralAccountRate:
-		limiter, tokens = r.SpotRate, 6000
 	case getAllocationsRate,
 		preventedMatchesByOrderIDRate,
 		getCommissionRate:
 		limiter, tokens = r.SpotRate, 20
-	case marginAccountNewOrderRate:
-		limiter, tokens = r.SpotOrdersRate, 6
-	case marginAccountCancelOrderRate:
-		limiter, tokens = r.SpotOrdersRate, 10
 	case uFuturesDefaultRate,
 		uFuturesKline100Rate:
 		limiter, tokens = r.UFuturesRate, 1
@@ -752,6 +781,145 @@ func (r *RateLimit) Limit(ctx context.Context, f request.EndpointLimit) error {
 		return r.ManagedSubAccountListRate.Wait(ctx)
 	case getSubAccountTransactionStatisticsRate:
 		return r.SubAccountTransactionStatisticsRate.Wait(ctx)
+	case marginAccountBorrowRepayRate:
+		return r.MarginAccountBorrowRepayRate.Wait(ctx)
+	case borrowRepayRecordsInMarginAccountRate:
+		return r.BorrowRepayRecordsInMarginAccountRate.Wait(ctx)
+	case getPriceMarginIndexRate:
+		return r.PriceMarginIndexRate.Wait(ctx)
+	case marginAccountNewOrderRate:
+		return r.MarginAccountNewOrderRate.Wait(ctx)
+	case marginAccountCancelOrderRate:
+		return r.MarginAccountCancelOrderRate.Wait(ctx)
+	case adjustCrossMarginMaxLeverageRate:
+		return r.AdjustCrossMarginMaxLeverageRate.Wait(ctx)
+	case getCrossMarginAccountDetailRate:
+		return r.CrossMarginAccountDetailRate.Wait(ctx)
+	case getCrossMarginAccountOrderRate:
+		return r.CrossMarginAccountOrderRate.Wait(ctx)
+	case getMarginAccountsOpenOrdersRate:
+		return r.MarginAccountsOpenOrdersRate.Wait(ctx)
+	case marginAccountsAllOrdersRate:
+		return r.MarginAccountsAllOrdersRate.Wait(ctx)
+	case marginOCOOrderRate:
+		return r.MarginOCOOrderRate.Wait(ctx)
+	case getMarginAccountOCOOrderRate:
+		return r.MarginAccountOCOOrderRate.Wait(ctx)
+	case getMarginAccountAllOCORate:
+		return r.MarginAccountAllOCORate.Wait(ctx)
+	case marginAccountOpenOCOOrdersRate:
+		return r.MarginAccountOpenOCOOrdersRate.Wait(ctx)
+	case marginAccountTradeListRate:
+		return r.MarginAccountTradeListRate.Wait(ctx)
+	case marginMaxBorrowRate:
+		return r.MarginMaxBorrowRate.Wait(ctx)
+	case maxTransferOutRate:
+		return r.MaxTransferOutRate.Wait(ctx)
+	case marginAccountSummaryRate:
+		return r.MarginAccountSummaryRate.Wait(ctx)
+	case getIsolatedMarginAccountInfoRate:
+		return r.IsolatedMarginAccountInfoRate.Wait(ctx)
+	case deleteIsolatedMarginAccountRate:
+		return r.DeleteIsolatedMarginAccountRate.Wait(ctx)
+	case enableIsolatedMarginAccountRate:
+		return r.EnableIsolatedMarginAccountRate.Wait(ctx)
+	case allIsolatedMarginSymbol:
+		return r.AllIsolatedMarginSymbol.Wait(ctx)
+	case allCrossMarginFeeDataRate:
+		return r.AllCrossMarginFeeDataRate.Wait(ctx)
+	case allIsolatedMarginFeeDataRate:
+		return r.AllIsolatedMarginFeeDataRate.Wait(ctx)
+	case marginCurrentOrderCountUsageRate:
+		return r.MarginCurrentOrderCountUsageRate.Wait(ctx)
+	case crossMarginCollateralRatioRate:
+		return r.CrossMarginCollateralRatioRate.Wait(ctx)
+	case smallLiabilityExchangeCoinListRate:
+		return r.SmallLiabilityExchangeCoinListRate.Wait(ctx)
+	case getSmallLiabilityExchangeCoinListRate:
+		return r.GetSmallLiabilityExchangeCoinListRate.Wait(ctx)
+	case getSmallLiabilityExchangeRate:
+		return r.GetSmallLiabilityExchangeRate.Wait(ctx)
+	case marginHourlyInterestRate:
+		return r.MarginHourlyInterestRate.Wait(ctx)
+	case marginCapitalFlowRate:
+		return r.MarginCapitalFlowRate.Wait(ctx)
+	case marginTokensAndSymbolsDelistScheduleRate:
+		return r.MarginTokensAndSymbolsDelistScheduleRate.Wait(ctx)
+	case marginAvailableInventoryRate:
+		return r.MarginAvailableInventoryRate.Wait(ctx)
+	case marginManualLiquidiationRate:
+		return r.MarginManualLiquidiationRate.Wait(ctx)
+	case simpleEarnProductsRate:
+		return r.SimpleEarnProductsRate.Wait(ctx)
+	case getFlexibleSimpleEarnProductPositionRate:
+		return r.FlexibleSimpleEarnProductPositionRate.Wait(ctx)
+	case getSimpleEarnProductPositionRate:
+		return r.GetSimpleEarnProductPositionRate.Wait(ctx)
+	case simpleAccountRate:
+		return r.SimpleAccountRate.Wait(ctx)
+	case getFlexibleSubscriptionRecordRate:
+		return r.GetFlexibleSubscriptionRecordRate.Wait(ctx)
+	case nftRate:
+		limiter, tokens = r.NFTRate, 3000
+	case spotRebateHistoryRate:
+		return r.SpotRebateHistoryRate.Wait(ctx)
+	case convertTradeFlowHistoryRate:
+		return r.ConvertTradeFlowHistoryRate.Wait(ctx)
+	case getLimitOpenOrdersRate:
+		return r.LimitOpenOrdersRate.Wait(ctx)
+	case cancelLimitOrderRate:
+		return r.CancelLimitOrderRate.Wait(ctx)
+	case placeLimitOrderRate:
+		return r.PlaceLimitOrderRate.Wait(ctx)
+	case orderStatusRate:
+		return r.OrderStatusRate.Wait(ctx)
+	case acceptQuoteRate:
+		return r.AcceptQuoteRate.Wait(ctx)
+	case sendQuoteRequestRate:
+		return r.SendQuoteRequestRate.Wait(ctx)
+	case getOrderQuantityPrecisionPerAssetRate:
+		return r.GetOrderQuantityPrecisionPerAssetRate.Wait(ctx)
+	case getAllConvertPairsRate:
+		return r.GetAllConvertPairsRate.Wait(ctx)
+	case payTradeEndpointsRate:
+		return r.PayTradeEndpointsRate.Wait(ctx)
+
+	case fiatDepositWithdrawHistRate:
+		return r.FiatDepositWithdrawHistRate.Wait(ctx)
+
+		// VIP
+	case getVIPLoanOngoingOrdersRate,
+		getVIPLoanRepaymentHistoryRate,
+		getVIPLoanableAssetsRate,
+		getCollateralAssetDataRate,
+		getApplicationStatusRate,
+		getVIPBorrowInterestRate:
+		limiter, tokens = r.VIPLoanEndpointsRate, 400
+	case vipLoanRepayRate,
+		vipLoanRenewRate,
+		checkLockedValueVIPCollateralAccountRate,
+		vipLoanBorrowRate:
+		limiter, tokens = r.VIPLoanEndpointsRate, 6000
+
+	case classicPMAccountInfoRate:
+		limiter, tokens = r.ClassicPM, 5
+	case changeAutoRepayFuturesStatusRate:
+		limiter, tokens = r.ClassicPM, 30
+	case classicPMCollateralRate,
+		classicPMNegativeBalanceInterestHistory,
+		pmAssetIndexPriceRate:
+		limiter, tokens = r.ClassicPM, 50
+	case fundCollectionByAssetRate:
+		limiter, tokens = r.ClassicPM, 60
+	case getClassicPMBankruptacyLoanAmountRate:
+		limiter, tokens = r.ClassicPM, 500
+	case fundAutoCollectionRate,
+		transferBNBRate,
+		repayFuturesNegativeBalanceRate:
+		limiter, tokens = r.ClassicPM, 1500
+	case repayClassicPMBankruptacyLoanRate:
+		limiter, tokens = r.ClassicPM, 3000
+
 	default:
 		limiter, tokens = r.SpotRate, 1
 	}
@@ -831,6 +999,60 @@ func SetRateLimit() *RateLimit {
 		ManagedSubAccountFuturesAssetDetailRate:  request.NewRateLimit(time.Second, 60),
 		ManagedSubAccountListRate:                request.NewRateLimit(time.Second, 60),
 		SubAccountTransactionStatisticsRate:      request.NewRateLimit(time.Second, 60),
+		MarginAccountBorrowRepayRate:             request.NewRateLimit(time.Second, 3000),
+		BorrowRepayRecordsInMarginAccountRate:    request.NewRateLimit(time.Second, 10),
+		PriceMarginIndexRate:                     request.NewRateLimit(time.Second, 10),
+		MarginAccountNewOrderRate:                request.NewRateLimit(time.Second, 6),
+		MarginAccountCancelOrderRate:             request.NewRateLimit(time.Second, 10),
+		AdjustCrossMarginMaxLeverageRate:         request.NewRateLimit(time.Second, 3000),
+		CrossMarginAccountDetailRate:             request.NewRateLimit(time.Second, 10),
+		CrossMarginAccountOrderRate:              request.NewRateLimit(time.Second, 10),
+		MarginAccountsOpenOrdersRate:             request.NewRateLimit(time.Second, 10),
+		MarginAccountsAllOrdersRate:              request.NewRateLimit(time.Second, 200),
+		MarginOCOOrderRate:                       request.NewRateLimit(time.Second, 6),
+		MarginAccountOCOOrderRate:                request.NewRateLimit(time.Second, 10),
+		MarginAccountAllOCORate:                  request.NewRateLimit(time.Second, 200),
+		MarginAccountOpenOCOOrdersRate:           request.NewRateLimit(time.Second, 10),
+		MarginAccountTradeListRate:               request.NewRateLimit(time.Second, 10),
+		MarginMaxBorrowRate:                      request.NewRateLimit(time.Second, 50),
+		MaxTransferOutRate:                       request.NewRateLimit(time.Second, 50),
+		MarginAccountSummaryRate:                 request.NewRateLimit(time.Second, 10),
+		IsolatedMarginAccountInfoRate:            request.NewRateLimit(time.Second, 10),
+		DeleteIsolatedMarginAccountRate:          request.NewRateLimit(time.Second, 300),
+		EnableIsolatedMarginAccountRate:          request.NewRateLimit(time.Second, 300),
+		AllIsolatedMarginSymbol:                  request.NewRateLimit(time.Second, 10),
+		AllCrossMarginFeeDataRate:                request.NewRateLimit(time.Second, 5),
+		AllIsolatedMarginFeeDataRate:             request.NewRateLimit(time.Second, 10),
+		MarginCurrentOrderCountUsageRate:         request.NewRateLimit(time.Second, 20),
+		CrossMarginCollateralRatioRate:           request.NewRateLimit(time.Second, 100),
+		SmallLiabilityExchangeCoinListRate:       request.NewRateLimit(time.Second, 3000),
+		GetSmallLiabilityExchangeCoinListRate:    request.NewRateLimit(time.Second, 100),
+		GetSmallLiabilityExchangeRate:            request.NewRateLimit(time.Second, 100),
+		MarginHourlyInterestRate:                 request.NewRateLimit(time.Second, 100),
+		MarginCapitalFlowRate:                    request.NewRateLimit(time.Second, 100),
+		MarginTokensAndSymbolsDelistScheduleRate: request.NewRateLimit(time.Second, 100),
+		MarginAvailableInventoryRate:             request.NewRateLimit(time.Second, 50),
+		MarginManualLiquidiationRate:             request.NewRateLimit(time.Second, 3000),
+		SimpleEarnProductsRate:                   request.NewRateLimit(time.Second, 150),
+		FlexibleSimpleEarnProductPositionRate:    request.NewRateLimit(time.Second, 150),
+		GetSimpleEarnProductPositionRate:         request.NewRateLimit(time.Second, 150),
+		SimpleAccountRate:                        request.NewRateLimit(time.Second, 150),
+		GetFlexibleSubscriptionRecordRate:        request.NewRateLimit(time.Second, 150),
+		NFTRate:                                  request.NewRateLimit(time.Second, 12000),
+		SpotRebateHistoryRate:                    request.NewRateLimit(time.Second, 12000),
+		ConvertTradeFlowHistoryRate:              request.NewRateLimit(time.Second, 3000),
+		LimitOpenOrdersRate:                      request.NewRateLimit(time.Second, 3000),
+		CancelLimitOrderRate:                     request.NewRateLimit(time.Second, 200),
+		PlaceLimitOrderRate:                      request.NewRateLimit(time.Second, 500),
+		OrderStatusRate:                          request.NewRateLimit(time.Second, 100),
+		AcceptQuoteRate:                          request.NewRateLimit(time.Second, 500),
+		SendQuoteRequestRate:                     request.NewRateLimit(time.Second, 200),
+		GetOrderQuantityPrecisionPerAssetRate:    request.NewRateLimit(time.Second, 100),
+		GetAllConvertPairsRate:                   request.NewRateLimit(time.Second, 20),
+		PayTradeEndpointsRate:                    request.NewRateLimit(time.Second, 3000),
+		VIPLoanEndpointsRate:                     request.NewRateLimit(time.Second, 26600),
+		FiatDepositWithdrawHistRate:              request.NewRateLimit(time.Second, 90000),
+		ClassicPM:                                request.NewRateLimit(time.Second, 500), // TODO:
 	}
 }
 

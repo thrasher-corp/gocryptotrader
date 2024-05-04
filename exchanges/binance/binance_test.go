@@ -4279,7 +4279,7 @@ func TestCheckServerTime(t *testing.T) {
 func TestGetAccount(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
-	result, err := b.GetAccount(context.Background())
+	result, err := b.GetAccount(context.Background(), true)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -4318,7 +4318,8 @@ func TestGetAllocations(t *testing.T) {
 
 func TestGetCommissionRate(t *testing.T) {
 	t.Parallel()
-	result, err := b.GetCommissionRate(context.Background(), "BTCUSDT")
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.GetCommissionRates(context.Background(), "BTCUSDT")
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }

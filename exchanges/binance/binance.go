@@ -935,23 +935,25 @@ func (b *Binance) CancelExistingOrderAndSendNewOrder(ctx context.Context, arg *C
 }
 
 // GetAccount returns binance user accounts
-func (b *Binance) GetAccount(ctx context.Context) (*Account, error) {
+func (b *Binance) GetAccount(ctx context.Context, omitZeroBalances bool) (*Account, error) {
 	type response struct {
 		Response
 		Account
 	}
-
+	params := url.Values{}
+	if omitZeroBalances {
+		params.Set("omitZeroBalances", "true")
+	}
 	var resp response
 	if err := b.SendAuthHTTPRequest(ctx,
 		exchange.RestSpotSupplementary,
 		http.MethodGet, "/api/v3/account",
-		nil, spotAccountInformationRate,
+		params, spotAccountInformationRate,
 		nil, &resp); err != nil {
 		return &resp.Account, err
 	}
-
 	if resp.Code != 0 {
-		return &resp.Account, errors.New(resp.Msg)
+		return nil, errors.New(resp.Msg)
 	}
 	return &resp.Account, nil
 }
@@ -1000,12 +1002,12 @@ func (b *Binance) GetPreventedMatches(ctx context.Context, symbol string, preven
 	}
 	params := url.Values{}
 	params.Set("symbol", symbol)
-	rateLimit := preventedMatchesByOrderIDRate
+	rateLimit := queryPreventedMatchsWithRate
 	if preventedMatchID != 0 {
-		rateLimit = queryPreventedMatchsWithRate
 		params.Set("preventedMatchId", strconv.FormatInt(preventedMatchID, 10))
 	}
 	if orderID != 0 {
+		rateLimit = preventedMatchesByOrderIDRate
 		params.Set("orderId", strconv.FormatInt(orderID, 10))
 	}
 	if fromPreventedMatchID != 0 {
@@ -1046,15 +1048,15 @@ func (b *Binance) GetAllocations(ctx context.Context, symbol string, startTime, 
 	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/api/v3/myAllocations", params, getAllocationsRate, nil, &resp)
 }
 
-// GetCommissionRate retrieves current account commission rates.
-func (b *Binance) GetCommissionRate(ctx context.Context, symbol string) (*AccountCommissionRate, error) {
+// GetCommissionRates retrieves current account commission rates.
+func (b *Binance) GetCommissionRates(ctx context.Context, symbol string) (*AccountCommissionRate, error) {
 	if symbol == "" {
 		return nil, currency.ErrSymbolStringEmpty
 	}
 	params := url.Values{}
 	params.Set("symbol", symbol)
 	var resp *AccountCommissionRate
-	return resp, b.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues("/api/v3/account/commission", params), getCommissionRate, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/api/v3/account/commission", params, getCommissionRate, nil, &resp)
 }
 
 // MarginAccountBorrowRepay represents a margin account borrow/repay
@@ -1079,13 +1081,12 @@ func (b *Binance) MarginAccountBorrowRepay(ctx context.Context, assetName curren
 	params.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
 	if isIsolated {
 		params.Set("isIsolated", "TRUE")
-	} else {
-		params.Set("isIsolated", "FALSE")
+		// Default is FALSE for Cross Margin
 	}
 	resp := &struct {
 		TransactionID string `json:"tranId"`
 	}{}
-	return resp.TransactionID, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/sapi/v1/margin/borrow-repay", params, spotDefaultRate, nil, &resp)
+	return resp.TransactionID, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/sapi/v1/margin/borrow-repay", params, marginAccountBorrowRepayRate, nil, &resp)
 }
 
 // GetBorrowOrRepayRecordsInMarginAccount retrieves borrow/repay records in Margin account.
@@ -1129,7 +1130,7 @@ func (b *Binance) GetAllMarginAssets(ctx context.Context, assetName currency.Cod
 		params.Set("asset", assetName.String())
 	}
 	var resp []MarginAsset
-	return resp, b.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues("/sapi/v1/margin/allAssets", params), spotDefaultRate, &resp)
+	return resp, b.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues("/sapi/v1/margin/allAssets", params), sapiDefaultRate, &resp)
 }
 
 // GetAllCrossMarginPairs retrieves all cross-margin pairs
@@ -1139,7 +1140,7 @@ func (b *Binance) GetAllCrossMarginPairs(ctx context.Context, symbol string) ([]
 		params.Set("symbol", symbol)
 	}
 	var resp []CrossMarginPairInfo
-	return resp, b.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues("/sapi/v1/margin/allPairs", params), spotDefaultRate, &resp)
+	return resp, b.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues("/sapi/v1/margin/allPairs", params), sapiDefaultRate, &resp)
 }
 
 // GetMarginPriceIndex retrieves margin price index
@@ -1208,7 +1209,7 @@ func (b *Binance) MarginAccountCancelAllOpenOrdersOnSymbol(ctx context.Context, 
 		params.Set("isIsolated", "TRUE")
 	}
 	var resp []MarginAccountOrderDetail
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodDelete, "/sapi/v1/margin/openOrders", params, spotOrderRate, nil, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodDelete, "/sapi/v1/margin/openOrders", params, sapiDefaultRate, nil, &resp)
 }
 
 // AdjustCrossMarginMaxLeverage adjusts cross-margin account max leverage
@@ -1218,15 +1219,15 @@ func (b *Binance) MarginAccountCancelAllOpenOrdersOnSymbol(ctx context.Context, 
 // The margin level need higher than the initial risk ratio of adjusted leverage, the initial risk ratio of 3x is 1.5 ,
 // the initial risk ratio of 5x is 1.25, the initial risk ratio of 10x is 2.5.
 func (b *Binance) AdjustCrossMarginMaxLeverage(ctx context.Context, maxLeverage int64) (bool, error) {
-	resp := &struct {
-		Success bool `json:"success"`
-	}{}
-	if maxLeverage < 0 {
+	if maxLeverage <= 0 {
 		return false, errors.New("leverage value must be only adjust 3 , 5 or 10")
 	}
 	params := url.Values{}
 	params.Set("maxLeverage", strconv.FormatInt(maxLeverage, 10))
-	return resp.Success, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/sapi/v1/margin/max-leverage", params, spotDefaultRate, nil, &resp)
+	resp := &struct {
+		Success bool `json:"success"`
+	}{}
+	return resp.Success, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/sapi/v1/margin/max-leverage", params, adjustCrossMarginMaxLeverageRate, nil, &resp)
 }
 
 // GetCrossMarginTransferHistory retrieves cross-margin transfer history in a descending order.
@@ -1240,7 +1241,7 @@ func (b *Binance) GetCrossMarginTransferHistory(ctx context.Context, assetName c
 		return nil, err
 	}
 	var resp *CrossMarginTransferHistory
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/margin/transfer", params, spotDefaultRate, nil, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/margin/transfer", params, sapiDefaultRate, nil, &resp)
 }
 
 func fillMarginInterestAndTransferHistoryParams(assetName currency.Code, transferType, isolatedSymbol string, startTime, endTime time.Time, current, size int64) (url.Values, error) {
@@ -1278,7 +1279,7 @@ func (b *Binance) GetUserMarginInterestHistory(ctx context.Context, assetName cu
 		return nil, err
 	}
 	var resp *UserMarginInterestHistoryResponse
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, "/sapi/v1/margin/interestHistory", params, spotDefaultRate, nil, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, "/sapi/v1/margin/interestHistory", params, sapiDefaultRate, nil, &resp)
 }
 
 // GetForceLiquidiationRecord retrieves force liquidiation records
@@ -1370,11 +1371,11 @@ func (b *Binance) GetMarginAccountAllOrders(ctx context.Context, symbol string, 
 		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
 		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
 	}
-	if limit > 0 {
-		params.Set("limit", strconv.FormatInt(limit, 10))
-	}
 	if orderID > 0 {
 		params.Set("orderId", strconv.FormatInt(orderID, 10))
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	var resp []TradeOrder
 	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, "/sapi/v1/margin/allOrders", nil, marginAccountsAllOrdersRate, nil, &resp)
@@ -1398,7 +1399,7 @@ func (b *Binance) NewMarginAccountOCOOrder(ctx context.Context, arg *MarginOCOOr
 	if arg.Side == "" {
 		return nil, order.ErrSideIsInvalid
 	}
-	if arg.Quantity == 0 {
+	if arg.Quantity <= 0 {
 		return nil, order.ErrAmountBelowMin
 	}
 	if arg.Price <= 0 {
@@ -1408,7 +1409,7 @@ func (b *Binance) NewMarginAccountOCOOrder(ctx context.Context, arg *MarginOCOOr
 		return nil, fmt.Errorf("%w stopPrice is required", order.ErrPriceBelowMin)
 	}
 	var resp *OCOOrder
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodPost, "/sapi/v1/margin/order/oco", nil, ocoOrderRate, arg, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodPost, "/sapi/v1/margin/order/oco", nil, marginOCOOrderRate, arg, &resp)
 }
 
 // CancelMarginAccountOCOOrder cancel an entire Order List for a margin account.
@@ -1431,7 +1432,7 @@ func (b *Binance) CancelMarginAccountOCOOrder(ctx context.Context, symbol, listC
 		params.Set("newClientOrderId", newClientOrderID)
 	}
 	var resp *OCOOrder
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodDelete, "/sapi/v1/margin/orderList", params, spotOrderRate, nil, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodDelete, "/sapi/v1/margin/orderList", params, sapiDefaultRate, nil, &resp)
 }
 
 // GetMarginAccountOCOOrder retrieves a specific OCO based on provided optional parameters
@@ -1450,7 +1451,7 @@ func (b *Binance) GetMarginAccountOCOOrder(ctx context.Context, symbol, origClie
 		params.Set("orderListId", strconv.FormatInt(orderListID, 10))
 	}
 	var resp *OCOOrder
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, "/sapi/v1/margin/orderList", params, spotDefaultRate, nil, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, "/sapi/v1/margin/orderList", params, getMarginAccountOCOOrderRate, nil, &resp)
 }
 
 func ocoOrdersAndTradeParams(symbol string, isIsolated bool, startTime, endTime time.Time, orderID, fromID, limit int64) (url.Values, error) {
@@ -1548,7 +1549,7 @@ func (b *Binance) GetMaxTransferOutAmount(ctx context.Context, assetName currenc
 	return resp.Amount, b.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, "/sapi/v1/margin/maxTransferable", params, maxTransferOutRate, nil, &resp)
 }
 
-// GetSummaryOfMarginAccount represents a margin account summary
+// GetSummaryOfMarginAccount retrieves a margin account summary
 func (b *Binance) GetSummaryOfMarginAccount(ctx context.Context) (*MarginAccountSummary, error) {
 	var resp *MarginAccountSummary
 	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, "/sapi/v1/margin/tradeCoeff", nil, marginAccountSummaryRate, nil, &resp)
@@ -1561,7 +1562,7 @@ func (b *Binance) GetIsolatedMarginAccountInfo(ctx context.Context, symbols []st
 		params.Set("symbols", strings.Join(symbols, ","))
 	}
 	var resp *IsolatedMarginAccountInfo
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, "/sapi/v1/margin/isolated/account", params, isolatedMarginAccountInfoRate, nil, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, "/sapi/v1/margin/isolated/account", params, getIsolatedMarginAccountInfoRate, nil, &resp)
 }
 
 // DisableIsolatedMarginAccount disable isolated margin account for a specific symbol. Each trading pair can only be deactivated once every 24 hours.
@@ -1572,7 +1573,7 @@ func (b *Binance) DisableIsolatedMarginAccount(ctx context.Context, symbol strin
 	params := url.Values{}
 	params.Set("symbol", symbol)
 	var resp *IsolatedMarginResponse
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodDelete, "/sapi/v1/margin/isolated/account", params, spotDefaultRate, nil, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodDelete, "/sapi/v1/margin/isolated/account", params, deleteIsolatedMarginAccountRate, nil, &resp)
 }
 
 // EnableIsolatedMarginAccount enable isolated margin account for a specific symbol(Only supports activation of previously disabled accounts).
@@ -1583,13 +1584,13 @@ func (b *Binance) EnableIsolatedMarginAccount(ctx context.Context, symbol string
 	params := url.Values{}
 	params.Set("symbol", symbol)
 	var resp *IsolatedMarginResponse
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodPost, "/sapi/v1/margin/isolated/account", params, spotDefaultRate, nil, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodPost, "/sapi/v1/margin/isolated/account", params, enableIsolatedMarginAccountRate, nil, &resp)
 }
 
 // GetEnabledIsolatedMarginAccountLimit retrieves enabled isolated margin account limit.
 func (b *Binance) GetEnabledIsolatedMarginAccountLimit(ctx context.Context) (*IsolatedMarginAccountLimit, error) {
 	var resp *IsolatedMarginAccountLimit
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, "/sapi/v1/margin/isolated/accountLimit", nil, spotDefaultRate, nil, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, "/sapi/v1/margin/isolated/accountLimit", nil, sapiDefaultRate, nil, &resp)
 }
 
 // GetAllIsolatedMarginSymbols retrieves all isolated margin symbols
@@ -1616,13 +1617,13 @@ func (b *Binance) ToggleBNBBurn(ctx context.Context, spotBNBBurn, interestBNBBur
 		params.Set("interestBNBBurn", "false")
 	}
 	var resp *BNBBurnOnSpotAndMarginInterest
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, "/sapi/v1/bnbBurn", params, spotDefaultRate, nil, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodPost, "/sapi/v1/bnbBurn", params, sapiDefaultRate, nil, &resp)
 }
 
 // GetBNBBurnStatus retrieves BNB Burn status
 func (b *Binance) GetBNBBurnStatus(ctx context.Context) (*BNBBurnOnSpotAndMarginInterest, error) {
 	var resp *BNBBurnOnSpotAndMarginInterest
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, "/sapi/v1/bnbBurn", nil, spotDefaultRate, nil, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, "/sapi/v1/bnbBurn", nil, sapiDefaultRate, nil, &resp)
 }
 
 // GetMarginInterestRateHistory retrieves margin interest rate history
@@ -1644,7 +1645,7 @@ func (b *Binance) GetMarginInterestRateHistory(ctx context.Context, assetName cu
 		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
 	}
 	var resp []MarginInterestRate
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, "/sapi/v1/margin/interestRateHistory", params, spotDefaultRate, nil, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, "/sapi/v1/margin/interestRateHistory", params, sapiDefaultRate, nil, &resp)
 }
 
 // GetCrossMarginFeeData get cross margin fee data collection with any vip level or user's current specific data as https://www.binance.com/en/margin-fee
@@ -1655,7 +1656,7 @@ func (b *Binance) GetCrossMarginFeeData(ctx context.Context, vipLevel int64, coi
 	}
 	endpointLimiter := allCrossMarginFeeDataRate
 	if !coin.IsEmpty() {
-		endpointLimiter = spotDefaultRate
+		endpointLimiter = sapiDefaultRate
 		params.Set("coin", coin.String())
 	}
 	var resp []CrossMarginFeeData
@@ -1671,7 +1672,7 @@ func (b *Binance) GetIsolatedMaringFeeData(ctx context.Context, vipLevel int64, 
 		params.Set("vipLevel", strconv.FormatInt(vipLevel, 10))
 	}
 	if symbol != "" {
-		endpointLimiter = spotDefaultRate
+		endpointLimiter = sapiDefaultRate
 		params.Set("symbol", symbol)
 	}
 	var resp []IsolatedMarginFeeData
@@ -1689,7 +1690,7 @@ func (b *Binance) GetIsolatedMarginTierData(ctx context.Context, symbol string, 
 		params.Set("tier", strconv.FormatInt(tier, 10))
 	}
 	var resp []IsolatedMarginTierInfo
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, "/sapi/v1/margin/isolatedMarginTier", params, spotDefaultRate, nil, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, "/sapi/v1/margin/isolatedMarginTier", params, sapiDefaultRate, nil, &resp)
 }
 
 // GetCurrencyMarginOrderCountUsage displays the user's current margin order count usage for all intervals.
@@ -1714,7 +1715,7 @@ func (b *Binance) GetCrossMarginCollateralRatio(ctx context.Context) ([]CrossMar
 // GetSmallLiabilityExchangeCoinList query the coins which can be small liability exchange
 func (b *Binance) GetSmallLiabilityExchangeCoinList(ctx context.Context) ([]SmallLiabilityCoin, error) {
 	var resp []SmallLiabilityCoin
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/margin/exchange-small-liability", nil, smallLiabilityExchCoinListRate, nil, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/margin/exchange-small-liability", nil, getSmallLiabilityExchangeCoinListRate, nil, &resp)
 }
 
 // MarginSmallLiabilityExchange set cross-margin small liability exchange
@@ -1725,7 +1726,7 @@ func (b *Binance) MarginSmallLiabilityExchange(ctx context.Context, assetNames [
 	params := url.Values{}
 	params.Set("assetNames", strings.Join(assetNames, ","))
 	var resp []SmallLiabilityCoin
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodPost, "/sapi/v1/margin/exchange-small-liability", params, spotDefaultRate, nil, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodPost, "/sapi/v1/margin/exchange-small-liability", params, smallLiabilityExchangeCoinListRate, nil, &resp)
 }
 
 // GetSmallLiabilityExchangeHistory retrieves small liability exchange history
@@ -1748,7 +1749,7 @@ func (b *Binance) GetSmallLiabilityExchangeHistory(ctx context.Context, current,
 		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
 	}
 	var resp *SmallLiabilityExchange
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, "/sapi/v1/margin/exchange-small-liability-history", params, spotDefaultRate, nil, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, "/sapi/v1/margin/exchange-small-liability-history", params, getSmallLiabilityExchangeRate, nil, &resp)
 }
 
 // GetFutureHourlyInterestRate retrieves user the next hourly estimate interest
@@ -1830,10 +1831,11 @@ func (b *Binance) GetMarginAvailableInventory(ctx context.Context, marginType st
 	params := url.Values{}
 	params.Set("type", marginType)
 	var resp []MarginInventory
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/margin/available-inventory", params, spotDefaultRate, nil, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/margin/available-inventory", params, marginAvailableInventoryRate, nil, &resp)
 }
 
 // MarginManualLiquidiation margin manual liquidation
+// marginType possible values are 'MARGIN','ISOLATED'
 func (b *Binance) MarginManualLiquidiation(ctx context.Context, marginType, symbol string) ([]SmallLiabilityCoin, error) {
 	if marginType == "" {
 		return nil, errMarginTypeIsRequired
@@ -1844,13 +1846,13 @@ func (b *Binance) MarginManualLiquidiation(ctx context.Context, marginType, symb
 		params.Set("symbol", symbol)
 	}
 	var resp []SmallLiabilityCoin
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/sapi/v1/margin/manual-liquidation", params, spotDefaultRate, nil, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/sapi/v1/margin/manual-liquidation", params, marginManualLiquidiationRate, nil, &resp)
 }
 
 // GetLiabilityCoinLeverageBracketInCrossMarginProMode retrieve liability Coin Leverage Bracket in Cross Margin Pro Mode
 func (b *Binance) GetLiabilityCoinLeverageBracketInCrossMarginProMode(ctx context.Context) ([]LiabilityCoinLeverageBracket, error) {
 	var resp []LiabilityCoinLeverageBracket
-	return resp, b.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, "/sapi/v1/margin/leverageBracket", spotDefaultRate, &resp)
+	return resp, b.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, "/sapi/v1/margin/leverageBracket", sapiDefaultRate, &resp)
 }
 
 // GetMarginAccount returns account information for margin accounts
@@ -2040,7 +2042,7 @@ func getOfflineTradeFee(price, amount float64) float64 {
 // getMultiplier retrieves account based taker/maker fees
 func (b *Binance) getMultiplier(ctx context.Context, isMaker bool) (float64, error) {
 	var multiplier float64
-	account, err := b.GetAccount(ctx)
+	account, err := b.GetAccount(ctx, false)
 	if err != nil {
 		return 0, err
 	}
@@ -4085,7 +4087,7 @@ func (b *Binance) subscribeToFlexibleAndLockedProducts(ctx context.Context, prod
 		params.Set("sourceAccount", sourceAccount)
 	}
 	var resp *SimpleEarnSubscriptionResponse
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, path, params, spotOrderRate, nil, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, path, params, sapiDefaultRate, nil, &resp)
 }
 
 // RedeemFlexibleProduct redeems flexible products
@@ -4106,7 +4108,7 @@ func (b *Binance) RedeemFlexibleProduct(ctx context.Context, productID, destinat
 		params.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
 	}
 	var resp *RedeemResponse
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/sapi/v1/simple-earn/flexible/redeem", params, spotDefaultRate, nil, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/sapi/v1/simple-earn/flexible/redeem", params, sapiDefaultRate, nil, &resp)
 }
 
 // RedeemLockedProduct posts a redeem locked product
@@ -4117,7 +4119,7 @@ func (b *Binance) RedeemLockedProduct(ctx context.Context, positionID int64) (*R
 	params := url.Values{}
 	params.Set("positionId", strconv.FormatInt(positionID, 10))
 	var resp *RedeemResponse
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/sapi/v1/simple-earn/locked/redeem", params, spotDefaultRate, nil, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/sapi/v1/simple-earn/locked/redeem", params, sapiDefaultRate, nil, &resp)
 }
 
 // GetFlexibleProductPosition retrieves flexible product position
@@ -4136,7 +4138,7 @@ func (b *Binance) GetFlexibleProductPosition(ctx context.Context, assetName curr
 		params.Set("size", strconv.FormatInt(size, 10))
 	}
 	var resp *FlexibleProductPosition
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/simple-earn/flexible/position", params, spotDefaultRate, nil, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/simple-earn/flexible/position", params, getFlexibleSimpleEarnProductPositionRate, nil, &resp)
 }
 
 // GetLockedProductPosition retrieves locked product positions.
@@ -5513,7 +5515,7 @@ func (b *Binance) GetClassicPortfolioMarginCollateralRate(ctx context.Context) (
 // GetClassicPortfolioMarginBankruptacyLoanAmount query Classic Portfolio Margin Bankruptcy Loan Amount
 func (b *Binance) GetClassicPortfolioMarginBankruptacyLoanAmount(ctx context.Context) (*PMBankruptacyLoanAmount, error) {
 	var resp *PMBankruptacyLoanAmount
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/portfolio/pmLoan", nil, spotDefaultRate, nil, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/portfolio/pmLoan", nil, getClassicPMBankruptacyLoanAmountRate, nil, &resp)
 }
 
 // RepayClassicPMBankruptacyLoan repay Classic Portfolio Margin Bankruptcy Loan
@@ -5524,7 +5526,7 @@ func (b *Binance) RepayClassicPMBankruptacyLoan(ctx context.Context, from string
 		params.Set("from", from)
 	}
 	var resp *FundTransferResponse
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/sapi/v1/portfolio/repay", params, spotDefaultRate, nil, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/sapi/v1/portfolio/repay", params, repayClassicPMBankruptacyLoanRate, nil, &resp)
 }
 
 // GetClassicPMNegativeBalanceInterestHistory query interest history of negative balance for portfolio margin.
@@ -5552,8 +5554,8 @@ func (b *Binance) GetClassicPMNegativeBalanceInterestHistory(ctx context.Context
 func (b *Binance) GetPMAssetIndexPrice(ctx context.Context, assetName currency.Code) ([]PMIndexPrice, error) {
 	params := url.Values{}
 	endpointLimit := pmAssetIndexPriceRate
-	if assetName.IsEmpty() {
-		endpointLimit = spotDefaultRate
+	if !assetName.IsEmpty() {
+		endpointLimit = sapiDefaultRate
 		params.Set("asset", assetName.String())
 	}
 	var resp []PMIndexPrice
@@ -5620,7 +5622,7 @@ func (b *Binance) GetBLVTInfo(ctx context.Context, tokenName string) ([]BLVTToke
 		params.Set("tokenName", tokenName)
 	}
 	var resp []BLVTTokenDetail
-	return resp, b.SendHTTPRequest(ctx, exchange.RestSpot, "/sapi/v1/blvt/tokenInfo", spotDefaultRate, &resp)
+	return resp, b.SendHTTPRequest(ctx, exchange.RestSpot, "/sapi/v1/blvt/tokenInfo", sapiDefaultRate, &resp)
 }
 
 // SubscribeBLVT subscribe to BLVT token
@@ -5634,7 +5636,7 @@ func (b *Binance) SubscribeBLVT(ctx context.Context, tokenName string, cost floa
 	}
 	params.Set("tokenName", tokenName)
 	var resp *BLVTSubscriptionResponse
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/sapi/v1/blvt/subscribe", params, spotDefaultRate, nil, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/sapi/v1/blvt/subscribe", params, sapiDefaultRate, nil, &resp)
 }
 
 // GetSusbcriptionRecords retrieves BLVT tokens subscriptions
@@ -5658,7 +5660,7 @@ func (b *Binance) GetSusbcriptionRecords(ctx context.Context, tokenName string, 
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	var resp []BLVTTokenSubscriptionItem
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/blvt/subscribe/record", params, spotDefaultRate, nil, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/blvt/subscribe/record", params, sapiDefaultRate, nil, &resp)
 }
 
 // RedeemBLVT redeems a BLVT token
@@ -5674,7 +5676,7 @@ func (b *Binance) RedeemBLVT(ctx context.Context, tokenName string, amount float
 	params.Set("tokenName", tokenName)
 	params.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
 	var resp *BLVTRedemption
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/sapi/v1/blvt/redeem", params, spotDefaultRate, nil, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/sapi/v1/blvt/redeem", params, sapiDefaultRate, nil, &resp)
 }
 
 // GetRedemptionRecord retrieves BLVT redemption records
@@ -5698,7 +5700,7 @@ func (b *Binance) GetRedemptionRecord(ctx context.Context, tokenName string, sta
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	var resp []BLVTRedemptionItem
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/blvt/redeem/record", params, spotDefaultRate, nil, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/blvt/redeem/record", params, sapiDefaultRate, nil, &resp)
 }
 
 // GetBLVTUserLimitInfo represents a BLVT user limit information.
@@ -5708,7 +5710,7 @@ func (b *Binance) GetBLVTUserLimitInfo(ctx context.Context, tokenName string) ([
 		params.Set("tokenName", tokenName)
 	}
 	var resp []BLVTUserLimitInfo
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/blvt/userLimit", params, spotDefaultRate, nil, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/blvt/userLimit", params, sapiDefaultRate, nil, &resp)
 }
 
 // TODO: Websocket BLVT Info Streams
@@ -5747,7 +5749,7 @@ func (b *Binance) GetFiatDepositAndWithdrawalHistory(ctx context.Context, beginT
 		return nil, err
 	}
 	var resp *FiatTransactionHistory
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/fiat/orders", params, spotDefaultRate, nil, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/fiat/orders", params, fiatDepositWithdrawHistRate, nil, &resp)
 }
 
 // GetFiatPaymentHistory represents a fiat payment history.
@@ -5794,7 +5796,7 @@ func (b *Binance) GetC2CTradeHistory(ctx context.Context, tradeType string, star
 		params.Set("rows", strconv.FormatInt(rows, 10))
 	}
 	var resp *C2CTransaction
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/c2c/orderMatch/listUserOrderHistory", params, spotDefaultRate, nil, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/c2c/orderMatch/listUserOrderHistory", params, sapiDefaultRate, nil, &resp)
 }
 
 // ------------------------------------------  VIP Loans ------------------------------------------------
@@ -5821,7 +5823,7 @@ func (b *Binance) GetVIPLoanOngoingOrders(ctx context.Context, orderID, collater
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	var resp *VIPLoanOngoingOrders
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/loan/vip/ongoing/orders", params, vipLoanOngoingOrdersRate, nil, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/loan/vip/ongoing/orders", params, getVIPLoanOngoingOrdersRate, nil, &resp)
 }
 
 // VIPLoanRepay VIP loan is available for VIP users only.
@@ -5836,7 +5838,7 @@ func (b *Binance) VIPLoanRepay(ctx context.Context, orderID int64, amount float6
 	params.Set("orderId", strconv.FormatInt(orderID, 10))
 	params.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
 	var resp *VIPLoanRepayResponse
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/sapi/v1/loan/vip/repay", params, spotDefaultRate, nil, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/sapi/v1/loan/vip/repay", params, vipLoanRepayRate, nil, &resp)
 }
 
 // GetVIPLoanRepaymentHistory retrieves VIP loan repayment history
@@ -5877,7 +5879,7 @@ func (b *Binance) VIPLoanRenew(ctx context.Context, orderID, longTerm int64) (*L
 		params.Set("longTerm", strconv.FormatInt(longTerm, 10))
 	}
 	var resp *LoanRenewResponse
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/sapi/v1/loan/vip/renew", params, spotDefaultRate, nil, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/sapi/v1/loan/vip/renew", params, vipLoanRenewRate, nil, &resp)
 }
 
 // CheckLockedValueVIPCollateralAccount VIP loan is available for VIP users only.
@@ -5928,7 +5930,7 @@ func (b *Binance) VIPLoanBorrow(ctx context.Context, loanAccountID, loanTerm int
 		params.Set("isFlexible", "FALSE")
 	}
 	var resp []VIPLoanBorrow
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/sapi/v1/loan/vip/borrow", params, spotDefaultRate, nil, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/sapi/v1/loan/vip/borrow", params, vipLoanBorrowRate, nil, &resp)
 }
 
 // GetVIPLoanableAssetsData get interest rate and borrow limit of loanable assets. The borrow limit is shown in USD value.
@@ -5964,7 +5966,7 @@ func (b *Binance) GetVIPApplicationStatus(ctx context.Context, current, limit in
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	var resp *LoanApplicationStatus
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/loan/vip/request/data", params, spotDefaultRate, nil, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/loan/vip/request/data", params, getApplicationStatusRate, nil, &resp)
 }
 
 // GetVIPBorrowInterestRate represents an interest rates of loaned coin.
@@ -5975,7 +5977,7 @@ func (b *Binance) GetVIPBorrowInterestRate(ctx context.Context, loanCoin currenc
 	params := url.Values{}
 	params.Set("loanCoin", loanCoin.String())
 	var resp []BorrowInterestRate
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/loan/vip/request/interestRate", params, spotDefaultRate, nil, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/loan/vip/request/interestRate", params, getVIPBorrowInterestRate, nil, &resp)
 }
 
 // ------------- Crypto Loan Endpoints ---------------------------------------------------------------
@@ -5998,7 +6000,7 @@ func (b *Binance) GetPayTradeHistory(ctx context.Context, startTime, endTime tim
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	var resp *PayTradeHistory
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/pay/transactions", params, spotDefaultRate, nil, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/pay/transactions", params, payTradeEndpointsRate, nil, &resp)
 }
 
 // ---------------------------------------------------------  Convert Endpoints  -------------------------------------------------------
@@ -6055,7 +6057,7 @@ func (b *Binance) SendQuoteRequest(ctx context.Context, fromAsset, toAsset curre
 		params.Set("validTime", validTime)
 	}
 	var resp *ConvertQuoteResponse
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/sapi/v1/convert/getQuote", params, spotDefaultRate, nil, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/sapi/v1/convert/getQuote", params, sendQuoteRequestRate, nil, &resp)
 }
 
 // AcceptQuote accept the offered quote by quote ID.
@@ -6066,7 +6068,7 @@ func (b *Binance) AcceptQuote(ctx context.Context, quoteID string) (*QuoteOrderS
 	params := url.Values{}
 	params.Set("quoteId", quoteID)
 	var resp *QuoteOrderStatus
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/sapi/v1/convert/acceptQuote", params, spotDefaultRate, nil, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/sapi/v1/convert/acceptQuote", params, acceptQuoteRate, nil, &resp)
 }
 
 // GetConvertOrderStatus retrieves order status by order ID.
@@ -6079,7 +6081,7 @@ func (b *Binance) GetConvertOrderStatus(ctx context.Context, orderID, quoteID st
 		params.Set("quoteId", quoteID)
 	}
 	var resp *ConvertOrderStatus
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/convert/orderStatus", params, spotDefaultRate, nil, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/convert/orderStatus", params, orderStatusRate, nil, &resp)
 }
 
 // PlaceLimitOrder enable users to place a limit order
@@ -6100,7 +6102,7 @@ func (b *Binance) PlaceLimitOrder(ctx context.Context, arg *ConvertPlaceLimitOrd
 		return nil, errors.New("expiredType is required")
 	}
 	var resp *OrderStatusResponse
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/sapi/v1/convert/limit/placeOrder", nil, spotDefaultRate, arg, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/sapi/v1/convert/limit/placeOrder", nil, placeLimitOrderRate, arg, &resp)
 }
 
 // CancelLimitOrder cancels a limit order
@@ -6111,13 +6113,13 @@ func (b *Binance) CancelLimitOrder(ctx context.Context, orderID string) (*OrderS
 	params := url.Values{}
 	params.Set("orderId", orderID)
 	var resp *OrderStatusResponse
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/sapi/v1/convert/limit/cancelOrder", params, spotDefaultRate, nil, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/sapi/v1/convert/limit/cancelOrder", params, cancelLimitOrderRate, nil, &resp)
 }
 
 // GetLimitOpenOrders represents users to query for all existing limit orders
 func (b *Binance) GetLimitOpenOrders(ctx context.Context) (*LimitOrderHistory, error) {
 	var resp *LimitOrderHistory
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/convert/limit/queryOpenOrders", nil, spotDefaultRate, nil, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/convert/limit/queryOpenOrders", nil, getLimitOpenOrdersRate, nil, &resp)
 }
 
 // GetConvertTradeHistory represents a convert trade history
@@ -6135,7 +6137,7 @@ func (b *Binance) GetConvertTradeHistory(ctx context.Context, startTime, endTime
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	var resp *ConvertTradeHistory
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/convert/tradeFlow", params, spotDefaultRate, nil, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/convert/tradeFlow", params, convertTradeFlowHistoryRate, nil, &resp)
 }
 
 // -----------------------------------------------  Rebate Endpoints  -------------------------------------------------
@@ -6155,7 +6157,7 @@ func (b *Binance) GetSpotRebateHistoryRecords(ctx context.Context, startTime, en
 		params.Set("page", strconv.FormatInt(page, 10))
 	}
 	var resp *RebateHistory
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/rebate/taxQuery", params, spotDefaultRate, nil, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/rebate/taxQuery", params, spotRebateHistoryRate, nil, &resp)
 }
 
 // -----------------------------------------  NFT Endpoints ------------------------------------------------
@@ -6191,7 +6193,7 @@ func (b *Binance) GetNFTTransactionHistory(ctx context.Context, orderType int64,
 	}
 	params.Set("orderType", strconv.FormatInt(orderType, 10))
 	var resp *NFTTransactionHistory
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/nft/history/transactions", params, spotDefaultRate, nil, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/nft/history/transactions", params, nftRate, nil, &resp)
 }
 
 // GetNFTDepositHistory retrieves list of deposit history
@@ -6201,7 +6203,7 @@ func (b *Binance) GetNFTDepositHistory(ctx context.Context, startTime, endTime t
 		return nil, err
 	}
 	var resp *NFTDepositHistory
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/nft/history/deposit", params, spotDefaultRate, nil, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/nft/history/deposit", params, nftRate, nil, &resp)
 }
 
 // GetNFTWithdrawalHistory retrieves list of withdrawal history
@@ -6211,7 +6213,7 @@ func (b *Binance) GetNFTWithdrawalHistory(ctx context.Context, startTime, endTim
 		return nil, err
 	}
 	var resp *NFTWithdrawalHistory
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/nft/history/withdraw", params, spotDefaultRate, nil, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/nft/history/withdraw", params, nftRate, nil, &resp)
 }
 
 // GetNFTAsset retrieves an NFT assets
@@ -6224,7 +6226,7 @@ func (b *Binance) GetNFTAsset(ctx context.Context, limit, page int64) (*NFTAsset
 		params.Set("page", strconv.FormatInt(page, 10))
 	}
 	var resp *NFTAssets
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/nft/user/getAsset", params, spotDefaultRate, nil, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/nft/user/getAsset", params, nftRate, nil, &resp)
 }
 
 // --------------------------------------------------- Binance Gift Card Endpoints --------------------------------------------------
@@ -6249,7 +6251,7 @@ func (b *Binance) CreateSingleTokenGiftCard(ctx context.Context, token string, a
 	params.Set("token", token)
 	params.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
 	var resp *GiftCard
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/sapi/v1/giftcard/createCode", params, spotOrderRate, nil, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/sapi/v1/giftcard/createCode", params, sapiDefaultRate, nil, &resp)
 }
 
 // CreateDualTokenGiftCard creating a dual-token ( stablecoin-denominated) Binance Gift Card.
@@ -6272,7 +6274,7 @@ func (b *Binance) CreateDualTokenGiftCard(ctx context.Context, baseToken, faceTo
 	params.Set("baseTokenAmount", strconv.FormatFloat(baseTokenAmount, 'f', -1, 64))
 	params.Set("discount", strconv.FormatFloat(discount, 'f', -1, 64))
 	var resp *DualTokenGiftCard
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/sapi/v1/giftcard/buyCode", params, spotOrderRate, nil, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/sapi/v1/giftcard/buyCode", params, sapiDefaultRate, nil, &resp)
 }
 
 // RedeemBinanaceGiftCard redeeming a Binance Gift Card.
@@ -6289,7 +6291,7 @@ func (b *Binance) RedeemBinanaceGiftCard(ctx context.Context, code, externalUID 
 		params.Set("expternalUid", externalUID)
 	}
 	var resp *RedeemBinanceGiftCard
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/sapi/v1/giftcard/redeemCode", params, spotDefaultRate, nil, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/sapi/v1/giftcard/redeemCode", params, sapiDefaultRate, nil, &resp)
 }
 
 // VerifyBinanceGiftCardNumber verifying whether the Binance Gift Card is valid or not by entering Gift Card Number.
@@ -6300,14 +6302,14 @@ func (b *Binance) VerifyBinanceGiftCardNumber(ctx context.Context, referenceNumb
 	params := url.Values{}
 	params.Set("referenceNo", referenceNumber)
 	var resp *GiftCardVerificationResponse
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/giftcard/verify", params, spotDefaultRate, nil, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/giftcard/verify", params, sapiDefaultRate, nil, &resp)
 }
 
 // FetchRSAPublicKey this API is for fetching the RSA Public Key.
 // This RSA Public key will be used to encrypt the card code.
 func (b *Binance) FetchRSAPublicKey(ctx context.Context) (*RSAPublicKeyResponse, error) {
 	var resp *RSAPublicKeyResponse
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/giftcard/cryptography/rsa-public-key", nil, spotDefaultRate, nil, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/giftcard/cryptography/rsa-public-key", nil, sapiDefaultRate, nil, &resp)
 }
 
 // FetchTokenLimit this API is to help you verify which tokens are available for
@@ -6319,5 +6321,5 @@ func (b *Binance) FetchTokenLimit(ctx context.Context, baseToken string) (*Token
 	params := url.Values{}
 	params.Set("baseToken", baseToken)
 	var resp *TokenLimitInfo
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/giftcard/buyCode/token-limit", params, spotDefaultRate, nil, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/giftcard/buyCode/token-limit", params, sapiDefaultRate, nil, &resp)
 }
