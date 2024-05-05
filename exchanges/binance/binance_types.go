@@ -4487,6 +4487,23 @@ type EarningList struct {
 	} `json:"data"`
 }
 
+// ExtraBonus represents an extra bonus list information.
+type ExtraBonus struct {
+	Code int64  `json:"code"`
+	Msg  string `json:"msg"`
+	Data struct {
+		OtherProfits []struct {
+			Time         convert.ExchangeTime `json:"time"`
+			CoinName     string               `json:"coinName"`
+			Type         int64                `json:"type"`
+			ProfitAmount float64              `json:"profitAmount"`
+			Status       int64                `json:"status"`
+		} `json:"otherProfits"`
+		TotalNum int64 `json:"totalNum"`
+		PageSize int64 `json:"pageSize"`
+	} `json:"data"`
+}
+
 // HashrateHashTransfers represents a hashrate rescale list.
 type HashrateHashTransfers struct {
 	Code int64  `json:"code"`
@@ -5293,4 +5310,9 @@ type BorrowInterestRate struct {
 	FlexibleDailyInterestRate  types.Number         `json:"flexibleDailyInterestRate"`
 	FlexibleYearlyInterestRate types.Number         `json:"flexibleYearlyInterestRate"`
 	Time                       convert.ExchangeTime `json:"time"`
+}
+
+// ListenKeyResponse represents a listen-key response instance.
+type ListenKeyResponse struct {
+	ListenKey string `json:"listenKey"`
 }

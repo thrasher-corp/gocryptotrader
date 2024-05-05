@@ -6221,6 +6221,14 @@ func TestGetEarningList(t *testing.T) {
 	assert.NotNil(t, result)
 }
 
+func TestExtraBonousList(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.ExtraBonousList(context.Background(), "sha256", "sams", currency.ETH, time.Time{}, time.Time{}, 0, 10)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
 func TestGetHashrateRescaleList(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
@@ -6829,4 +6837,72 @@ func TestGetVIPBorrowInterestrate(t *testing.T) {
 	result, err := b.GetVIPBorrowInterestRate(context.Background(), currency.ETH)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
+}
+
+func TestCreateSpotListenKey(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.CreateSpotListenKey(context.Background())
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestKeepListenKeyAlive(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	err := b.KeepSpotListenKeyAlive(context.Background(), "T3ee22BIYuWqmvne0HNq2A2WsFlEtLhvWCtItw6ffhhdmjifQ2tRbuKkTHhr")
+	require.NoError(t, err)
+}
+
+func TestCloseListenKey(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	err := b.CloseSpotListenKey(context.Background(), "T3ee22BIYuWqmvne0HNq2A2WsFlEtLhvWCtItw6ffhhdmjifQ2tRbuKkTHhr")
+	require.NoError(t, err)
+}
+
+func TestCreateMarginListenKey(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	result, err := b.CreateMarginListenKey(context.Background())
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestKeepMarginListenKeyAlive(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	err := b.KeepMarginListenKeyAlive(context.Background(), "T3ee22BIYuWqmvne0HNq2A2WsFlEtLhvWCtItw6ffhhdmjifQ2tRbuKkTHhr")
+	require.NoError(t, err)
+}
+
+func TestCloseMarginListenKey(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	err := b.CloseMarginListenKey(context.Background(), "T3ee22BIYuWqmvne0HNq2A2WsFlEtLhvWCtItw6ffhhdmjifQ2tRbuKkTHhr")
+	require.NoError(t, err)
+}
+
+func TestCreateCrossMarginListenKey(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	_, err := b.CreateCrossMarginListenKey(context.Background(), "")
+	require.ErrorIs(t, err, currency.ErrSymbolStringEmpty)
+	result, err := b.CreateCrossMarginListenKey(context.Background(), "BTCUSDT")
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestKeepCrossMarginListenKeyAlive(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	err := b.KeepCrossMarginListenKeyAlive(context.Background(), "BTCUSDT", "T3ee22BIYuWqmvne0HNq2A2WsFlEtLhvWCtItw6ffhhdmjifQ2tRbuKkTHhr")
+	require.NoError(t, err)
+}
+
+func TestCloseCrossMarginListenKey(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	err := b.CloseCrossMarginListenKey(context.Background(), "BTCUSDT", "T3ee22BIYuWqmvne0HNq2A2WsFlEtLhvWCtItw6ffhhdmjifQ2tRbuKkTHhr")
+	require.NoError(t, err)
 }
