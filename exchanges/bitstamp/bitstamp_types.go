@@ -134,9 +134,9 @@ type OrderStatus struct {
 	Type            int     `json:"type"`
 	ID              string  `json:"id"`
 	DateTime        string  `json:"datetime"`
-	Status          string
-	ClientOrderID   string `json:"client_order_id"`
-	Market          string `json:"market"`
+	Status          string  `json:"status"`
+	ClientOrderID   string  `json:"client_order_id"`
+	Market          string  `json:"market"`
 	Transactions    []struct {
 		TradeID      int64   `json:"tid"`
 		FromCurrency float64 `json:"{from_currency},string"`
