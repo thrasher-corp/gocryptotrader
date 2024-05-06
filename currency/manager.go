@@ -398,6 +398,15 @@ func (p *PairsManager) IsAssetEnabled(a asset.Item) error {
 	return nil
 }
 
+// IsAssetSupported returns if the asset is supported by an exchange
+// Does not imply that the Asset is enabled
+func (p *PairsManager) IsAssetSupported(a asset.Item) bool {
+	p.mutex.RLock()
+	defer p.mutex.RUnlock()
+	_, ok := p.Pairs[a]
+	return ok
+}
+
 // SetAssetEnabled sets if an asset is enabled or disabled for first run
 func (p *PairsManager) SetAssetEnabled(a asset.Item, enabled bool) error {
 	if !a.IsValid() {

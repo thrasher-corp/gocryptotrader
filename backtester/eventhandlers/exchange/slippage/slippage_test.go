@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/shopspring/decimal"
+	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/bitstamp"
@@ -24,9 +25,8 @@ func TestCalculateSlippageByOrderbook(t *testing.T) {
 	b := bitstamp.Bitstamp{}
 	b.SetDefaults()
 	err := b.CurrencyPairs.SetAssetEnabled(asset.Spot, true)
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err, "SetAssetEnabled must not error")
+
 	cp := currency.NewPair(currency.BTC, currency.USD)
 	ob, err := b.FetchOrderbook(context.Background(), cp, asset.Spot)
 	if err != nil {

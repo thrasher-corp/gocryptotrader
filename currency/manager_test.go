@@ -914,3 +914,17 @@ func TestGetFormat(t *testing.T) {
 	_, err = m.GetFormat(asset.Spot, false)
 	assert.ErrorIs(t, err, ErrPairFormatIsNil, "Per Asset GetFormat Should error correctly on nil config format")
 }
+
+// TestIsAssetSupported exercises IsAssetSupported
+func TestIsAssetSupported(t *testing.T) {
+	t.Parallel()
+	p := PairsManager{
+		Pairs: FullStore{
+			asset.Spot: {
+				AssetEnabled: convert.BoolPtr(false),
+			},
+		},
+	}
+	assert.True(t, p.IsAssetSupported(asset.Spot), "Spot should be supported")
+	assert.False(t, p.IsAssetSupported(asset.Index), "Index should not be supported")
+}

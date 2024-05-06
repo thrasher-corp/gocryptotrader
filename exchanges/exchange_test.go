@@ -1285,14 +1285,12 @@ func TestSupportsAsset(t *testing.T) {
 	t.Parallel()
 	var b Base
 	b.CurrencyPairs.Pairs = map[asset.Item]*currency.PairStore{
-		asset.Spot: {},
+		asset.Spot: {
+			AssetEnabled: convert.BoolPtr(true),
+		},
 	}
-	if !b.SupportsAsset(asset.Spot) {
-		t.Error("spot should be supported")
-	}
-	if b.SupportsAsset(asset.Index) {
-		t.Error("index shouldn't be supported")
-	}
+	assert.True(t, b.SupportsAsset(asset.Spot), "Spot should be supported")
+	assert.False(t, b.SupportsAsset(asset.Index), "Index should not be supported")
 }
 
 func TestPrintEnabledPairs(t *testing.T) {
