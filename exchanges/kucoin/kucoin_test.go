@@ -2774,3 +2774,16 @@ func TestGetOpenInterest(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotEmpty(t, resp)
 }
+
+func TestGetCurrencyTradeURL(t *testing.T) {
+	t.Parallel()
+	testexch.UpdatePairsOnce(t, ku)
+	for _, a := range ku.GetAssetTypes(false) {
+		pairs, err := ku.CurrencyPairs.GetPairs(a, false)
+		require.NoError(t, err, "cannot get pairs for %s", a)
+		require.NotEmpty(t, pairs, "no pairs for %s", a)
+		resp, err := ku.GetCurrencyTradeURL(context.Background(), a, pairs[0])
+		require.NoError(t, err)
+		assert.NotEmpty(t, resp)
+	}
+}

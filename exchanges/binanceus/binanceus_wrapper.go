@@ -944,3 +944,16 @@ func (bi *Binanceus) GetLatestFundingRates(context.Context, *fundingrate.LatestR
 func (bi *Binanceus) UpdateOrderExecutionLimits(_ context.Context, _ asset.Item) error {
 	return common.ErrNotYetImplemented
 }
+
+// GetCurrencyTradeURL returns the URL to the exchange's trade page for the given asset and currency pair
+func (bi *Binanceus) GetCurrencyTradeURL(_ context.Context, a asset.Item, cp currency.Pair) (string, error) {
+	_, err := bi.CurrencyPairs.IsPairEnabled(cp, a)
+	if err != nil {
+		return "", err
+	}
+	symbol, err := bi.FormatSymbol(cp, a)
+	if err != nil {
+		return "", err
+	}
+	return tradeBaseURL + symbol, nil
+}

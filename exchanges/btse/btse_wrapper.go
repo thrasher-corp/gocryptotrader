@@ -1314,3 +1314,20 @@ func (b *BTSE) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]futur
 	}
 	return resp, nil
 }
+
+// GetCurrencyTradeURL returns the URL to the exchange's trade page for the given asset and currency pair
+func (b *BTSE) GetCurrencyTradeURL(_ context.Context, a asset.Item, cp currency.Pair) (string, error) {
+	_, err := b.CurrencyPairs.IsPairEnabled(cp, a)
+	if err != nil {
+		return "", err
+	}
+	cp.Delimiter = currency.DashDelimiter
+	switch a {
+	case asset.Spot:
+		return tradeBaseURL + tradeSpot + cp.Upper().String(), nil
+	case asset.Futures:
+		return tradeBaseURL + tradeFutures + cp.Upper().String(), nil
+	default:
+		return "", fmt.Errorf("%w %v", asset.ErrNotSupported, a)
+	}
+}

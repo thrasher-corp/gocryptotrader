@@ -31,6 +31,7 @@ type Binanceus struct {
 }
 
 const (
+	tradeBaseURL = "https://www.binance.us/spot-trade/"
 	// General Data Endpoints
 	serverTime   = "/api/v3/time"
 	systemStatus = "/sapi/v1/system/status"
