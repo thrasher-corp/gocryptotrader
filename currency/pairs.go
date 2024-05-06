@@ -501,9 +501,8 @@ func (p Pairs) FindMatchingPairs(b Pairs) Pairs {
 	outgoing := func() Pairs {
 		if len(p) < len(b) {
 			return make(Pairs, 0, len(p))
-		} else {
-			return make(Pairs, 0, len(b))
 		}
+		return make(Pairs, 0, len(b))
 	}()
 	for i := range b {
 		key := equalKey{Base: b[i].Base.Item, Quote: b[i].Quote.Item}
