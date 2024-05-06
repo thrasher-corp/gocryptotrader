@@ -280,8 +280,8 @@ func (w *Websocket) Connect() error {
 	w.subscriptions = subscriptionMap{}
 	w.subscriptionMutex.Unlock()
 
-	w.dataMonitor()
-	w.trafficMonitor()
+	go w.dataMonitor()
+	go w.trafficMonitor()
 	w.setState(connecting)
 
 	err := w.connector()
