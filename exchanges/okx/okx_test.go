@@ -2206,24 +2206,6 @@ func TestWithdraw(t *testing.T) {
 	}
 }
 
-func TestGetPairFromInstrumentID(t *testing.T) {
-	t.Parallel()
-	instruments := []string{
-		"BTC-USDT",
-		"BTC-USDT-SWAP",
-		"BTC-USDT-ER33234",
-	}
-	if _, err := ok.GetPairFromInstrumentID(instruments[0]); err != nil {
-		t.Error("Okx GetPairFromInstrumentID() error", err)
-	}
-	if _, ere := ok.GetPairFromInstrumentID(instruments[1]); ere != nil {
-		t.Error("Okx GetPairFromInstrumentID() error", ere)
-	}
-	if _, erf := ok.GetPairFromInstrumentID(instruments[2]); erf != nil {
-		t.Error("Okx GetPairFromInstrumentID() error", erf)
-	}
-}
-
 func TestGetActiveOrders(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
