@@ -13,6 +13,9 @@ import (
 
 var validCategory = []string{"spot", "linear", "inverse", "option"}
 
+// supportedOptionsTypes Bybit does not offer a way to retrieve option denominations via its API
+var supportedOptionsTypes = []string{"BTC", "ETH", "SOL"}
+
 type orderbookResponse struct {
 	Symbol    string               `json:"s"`
 	Asks      [][2]string          `json:"a"`
