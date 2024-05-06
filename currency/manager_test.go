@@ -271,8 +271,8 @@ func TestStoreFormat(t *testing.T) {
 	}
 
 	err = p.StoreFormat(asset.Spot, nil, true)
-	if !errors.Is(err, errPairFormatIsNil) {
-		t.Fatalf("received: %v but expected: %v", err, errPairFormatIsNil)
+	if !errors.Is(err, ErrPairFormatIsNil) {
+		t.Fatalf("received: %v but expected: %v", err, ErrPairFormatIsNil)
 	}
 
 	err = p.StoreFormat(asset.Spot, &PairFormat{Delimiter: "~"}, true)
@@ -856,4 +856,61 @@ func TestPairManagerSetDelimitersFromConfig(t *testing.T) {
 		err := p.SetDelimitersFromConfig()
 		assert.ErrorContains(t, err, "spot.enabled.BTC-USDT: delimiter: [_] not found in currencypair string", "SetDelimitersFromConfig should error correctly")
 	}
+}
+
+// TestGetFormat exercises PairsManager GetFormat
+func TestGetFormat(t *testing.T) {
+	t.Parallel()
+
+	m := PairsManager{
+		UseGlobalFormat: true,
+		ConfigFormat: &PairFormat{
+			Uppercase: true,
+			Delimiter: "🦄",
+		},
+		RequestFormat: &PairFormat{
+			Delimiter: "~",
+		},
+	}
+
+	pFmt, err := m.GetFormat(asset.Spot, true)
+	require.NoError(t, err)
+	assert.Equal(t, "~", pFmt.Delimiter, "Global Format Delimiter should be correct")
+	assert.False(t, pFmt.Uppercase, "Global Format Uppercase should be correct")
+
+	pFmt, err = m.GetFormat(asset.Spot, false)
+	require.NoError(t, err)
+	assert.Equal(t, "🦄", pFmt.Delimiter, "Global Format Delimiter should be special")
+	assert.True(t, pFmt.Uppercase, "Global Format Uppercase should be correct")
+
+	m.ConfigFormat = nil
+	m.RequestFormat = nil
+	_, err = m.GetFormat(asset.Spot, true)
+	assert.ErrorIs(t, err, ErrPairFormatIsNil, "Global GetFormat Should error correctly on nil request format")
+	_, err = m.GetFormat(asset.Spot, false)
+	assert.ErrorIs(t, err, ErrPairFormatIsNil, "Global GetFormat Should error correctly on nil config format")
+
+	m.UseGlobalFormat = false
+	err = m.Store(asset.Spot, &PairStore{
+		ConfigFormat:  &pFmt,
+		RequestFormat: &PairFormat{Delimiter: "/", Uppercase: true},
+	})
+	require.NoError(t, err, "Store must not error")
+
+	pFmt, err = m.GetFormat(asset.Spot, false)
+	require.NoError(t, err)
+	assert.Equal(t, "🦄", pFmt.Delimiter, "Per Asset Format Delimiter should be correct")
+	assert.True(t, pFmt.Uppercase, "Per Asset Format Uppercase should be correct")
+
+	pFmt, err = m.GetFormat(asset.Spot, true)
+	require.NoError(t, err)
+	assert.Equal(t, "/", pFmt.Delimiter, "Per Asset Format Delimiter should be correct")
+	assert.True(t, pFmt.Uppercase, "Per Asset Format Uppercase should be correct")
+
+	err = m.Store(asset.Spot, &PairStore{})
+	require.NoError(t, err, "Store must not error")
+	_, err = m.GetFormat(asset.Spot, true)
+	assert.ErrorIs(t, err, ErrPairFormatIsNil, "Per Asset GetFormat Should error correctly on nil request format")
+	_, err = m.GetFormat(asset.Spot, false)
+	assert.ErrorIs(t, err, ErrPairFormatIsNil, "Per Asset GetFormat Should error correctly on nil config format")
 }

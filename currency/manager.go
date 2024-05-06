@@ -12,32 +12,22 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
 
+// Public errors
 var (
-	// ErrAssetAlreadyEnabled defines an error for the pairs management system
-	// that declares the asset is already enabled.
-	ErrAssetAlreadyEnabled = errors.New("asset already enabled")
-	// ErrPairAlreadyEnabled returns when enabling a pair that is already enabled
-	ErrPairAlreadyEnabled = errors.New("pair already enabled")
-	// ErrPairNotEnabled returns when looking for a pair that is not enabled
-	ErrPairNotEnabled = errors.New("pair not enabled")
-	// ErrPairNotFound is returned when a currency pair is not found
-	ErrPairNotFound = errors.New("pair not found")
-	// ErrAssetIsNil is an error when the asset has not been populated by the
-	// configuration
-	ErrAssetIsNil = errors.New("asset is nil")
-	// ErrPairNotContainedInAvailablePairs defines an error when a pair is not
-	// contained in the available pairs list and is not supported by the
-	// exchange for that asset type.
+	ErrAssetAlreadyEnabled              = errors.New("asset already enabled")
+	ErrAssetIsNil                       = errors.New("asset is nil")
+	ErrAssetNotFound                    = errors.New("asset type not found in pair store")
+	ErrPairAlreadyEnabled               = errors.New("pair already enabled")
+	ErrPairFormatIsNil                  = errors.New("pair format is nil")
+	ErrPairManagerNotInitialised        = errors.New("pair manager not initialised")
 	ErrPairNotContainedInAvailablePairs = errors.New("pair not contained in available pairs")
-	// ErrPairManagerNotInitialised is returned when a pairs manager is requested, but has not been setup
-	ErrPairManagerNotInitialised = errors.New("pair manager not initialised")
-	// ErrAssetNotFound is returned when an asset does not exist in the pairstore
-	ErrAssetNotFound = errors.New("asset type not found in pair store")
-	// ErrSymbolStringEmpty is an error when a symbol string is empty
-	ErrSymbolStringEmpty = errors.New("symbol string is empty")
+	ErrPairNotEnabled                   = errors.New("pair not enabled")
+	ErrPairNotFound                     = errors.New("pair not found")
+	ErrSymbolStringEmpty                = errors.New("symbol string is empty")
+)
 
+var (
 	errPairStoreIsNil      = errors.New("pair store is nil")
-	errPairFormatIsNil     = errors.New("pair format is nil")
 	errPairMatcherIsNil    = errors.New("pair matcher is nil")
 	errPairConfigFormatNil = errors.New("pair config format is nil")
 )
@@ -162,7 +152,7 @@ func (p *PairsManager) StoreFormat(a asset.Item, pFmt *PairFormat, config bool) 
 		return fmt.Errorf("%s %w", a, asset.ErrNotSupported)
 	}
 	if pFmt == nil {
-		return errPairFormatIsNil
+		return ErrPairFormatIsNil
 	}
 
 	p.mutex.Lock()
@@ -184,6 +174,35 @@ func (p *PairsManager) StoreFormat(a asset.Item, pFmt *PairFormat, config bool) 
 		pairStore.RequestFormat = pFmt.clone()
 	}
 	return nil
+}
+
+// GetFormat returns the pair format in a concurrent safe manner
+func (p *PairsManager) GetFormat(a asset.Item, request bool) (PairFormat, error) {
+	p.mutex.RLock()
+	defer p.mutex.RUnlock()
+
+	var pFmt *PairFormat
+	if p.UseGlobalFormat {
+		if request {
+			pFmt = p.RequestFormat
+		} else {
+			pFmt = p.ConfigFormat
+		}
+	} else {
+		ps, err := p.Get(a)
+		if err != nil {
+			return EMPTYFORMAT, err
+		}
+		if request {
+			pFmt = ps.RequestFormat
+		} else {
+			pFmt = ps.ConfigFormat
+		}
+	}
+	if pFmt == nil {
+		return EMPTYFORMAT, ErrPairFormatIsNil
+	}
+	return *pFmt, nil
 }
 
 // StorePairs stores a list of pairs based on the asset type and whether

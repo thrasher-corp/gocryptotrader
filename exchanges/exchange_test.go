@@ -696,56 +696,12 @@ func TestGetFeatures(t *testing.T) {
 	}
 }
 
+// TestGetPairFormat ensures that GetPairFormat delegates to PairsManager.GetFormat
 func TestGetPairFormat(t *testing.T) {
 	t.Parallel()
 
-	// Test global formatting
-	var b Base
-	b.CurrencyPairs.UseGlobalFormat = true
-	b.CurrencyPairs.ConfigFormat = &currency.PairFormat{
-		Uppercase: true,
-	}
-	b.CurrencyPairs.RequestFormat = &currency.PairFormat{
-		Delimiter: "~",
-	}
-	pFmt, err := b.GetPairFormat(asset.Spot, true)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if pFmt.Delimiter != "~" && !pFmt.Uppercase {
-		t.Error("incorrect pair format values")
-	}
-	pFmt, err = b.GetPairFormat(asset.Spot, false)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if pFmt.Delimiter != "" && pFmt.Uppercase {
-		t.Error("incorrect pair format values")
-	}
-
-	// Test individual asset pair store formatting
-	b.CurrencyPairs.UseGlobalFormat = false
-	err = b.CurrencyPairs.Store(asset.Spot, &currency.PairStore{
-		ConfigFormat:  &pFmt,
-		RequestFormat: &currency.PairFormat{Delimiter: "/", Uppercase: true},
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-	pFmt, err = b.GetPairFormat(asset.Spot, false)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if pFmt.Delimiter != "" && pFmt.Uppercase {
-		t.Error("incorrect pair format values")
-	}
-	pFmt, err = b.GetPairFormat(asset.Spot, true)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if pFmt.Delimiter != "~" && !pFmt.Uppercase {
-		t.Error("incorrect pair format values")
-	}
+	_, err := new(Base).GetPairFormat(asset.Spot, true)
+	require.ErrorIs(t, err, asset.ErrNotSupported, "Must delegate to GetFormat and error")
 }
 
 func TestGetPairs(t *testing.T) {
@@ -778,6 +734,7 @@ func TestGetPairs(t *testing.T) {
 	}
 }
 
+// TestFormatExchangeCurrencies exercises FormatExchangeCurrencies
 func TestFormatExchangeCurrencies(t *testing.T) {
 	t.Parallel()
 
@@ -797,32 +754,18 @@ func TestFormatExchangeCurrencies(t *testing.T) {
 			},
 		},
 	}
-	p1, err := currency.NewPairDelimiter("BTC_USD", "_")
-	if err != nil {
-		t.Fatal(err)
-	}
-	p2, err := currency.NewPairDelimiter("LTC_BTC", "_")
-	if err != nil {
-		t.Fatal(err)
-	}
+
 	var pairs = []currency.Pair{
-		p1,
-		p2,
+		currency.NewPairWithDelimiter("BTC", "USD", "_"),
+		currency.NewPairWithDelimiter("LTC", "BTC", "_"),
 	}
 
-	actual, err := e.FormatExchangeCurrencies(pairs, asset.Spot)
-	if err != nil {
-		t.Errorf("Exchange TestFormatExchangeCurrencies error %s", err)
-	}
-	if expected := "btc~usd^ltc~btc"; actual != expected {
-		t.Errorf("Exchange TestFormatExchangeCurrencies %s != %s",
-			actual, expected)
-	}
+	got, err := e.FormatExchangeCurrencies(pairs, asset.Spot)
+	require.NoError(t, err)
+	assert.Equal(t, "btc~usd^ltc~btc", got)
 
 	_, err = e.FormatExchangeCurrencies(nil, asset.Spot)
-	if err == nil {
-		t.Error("nil pairs should return an error")
-	}
+	assert.ErrorContains(t, err, "returned empty string", err, "FormatExchangeCurrencies should error correctly")
 }
 
 func TestFormatExchangeCurrency(t *testing.T) {
@@ -2366,9 +2309,7 @@ func TestGetKlineRequest(t *testing.T) {
 	b.Features.Enabled.Kline.Intervals = kline.DeployExchangeIntervals(kline.IntervalCapacity{Interval: kline.OneMin})
 	b.Features.Enabled.Kline.GlobalResultLimit = 1439
 	_, err = b.GetKlineRequest(pair, asset.Spot, kline.OneHour, time.Time{}, time.Time{}, false)
-	if !errors.Is(err, errAssetRequestFormatIsNil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errAssetRequestFormatIsNil)
-	}
+	assert.ErrorIs(t, err, currency.ErrPairFormatIsNil, "GetKlineRequest should return Format is Nil")
 
 	err = b.CurrencyPairs.Store(asset.Spot, &currency.PairStore{
 		AssetEnabled:  convert.BoolPtr(true),
@@ -2533,9 +2474,7 @@ func TestGetKlineExtendedRequest(t *testing.T) {
 	}
 
 	_, err = b.GetKlineExtendedRequest(pair, asset.Spot, kline.OneHour, start, end)
-	if !errors.Is(err, errAssetRequestFormatIsNil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errAssetRequestFormatIsNil)
-	}
+	assert.ErrorIs(t, err, currency.ErrPairFormatIsNil, "GetKlineExtendedRequest should error correctly")
 
 	err = b.CurrencyPairs.Store(asset.Spot, &currency.PairStore{
 		AssetEnabled:  convert.BoolPtr(true),
