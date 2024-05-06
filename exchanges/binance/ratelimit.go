@@ -349,6 +349,27 @@ const (
 	pmGetCMPositionADLQuantileEstimationRate
 
 	getFlexibleSimpleEarnProductPositionRate
+
+	cryptoLoansIncomeHistory
+	getLoanBorrowHistoryRate
+	getBorrowOngoingOrdersRate
+	cryptoRepayLoanRate
+	repaymentHistoryRate
+	adjustLTVRate
+	getLoanLTVAdjustmentHistoryRate
+	getLoanableAssetsDataRate
+	collateralAssetsDataRate
+	checkCollateralRepayRate
+	cryptoLoanCustomizeMarginRate
+	borrowFlexibleRate
+	getFlexibleLoanOngoingOrdersRate
+	flexibleBorrowHistoryRate
+	repayFlexibleLoanHistoryRate
+	flexibleLoanRepaymentHistoryRate
+	adjustFlexibleLoanRate
+	flexibleLoanAdjustLTVRate
+	flexibleLoanAssetDataRate
+	flexibleLoanCollateralAssetRate
 )
 
 // RateLimit implements the request.Limiter interface
@@ -365,63 +386,27 @@ type RateLimit struct {
 
 	// SAPI default rate
 
-	SapiDefaultRate                          *rate.Limiter
-	MarginAccountTradeRate                   *rate.Limiter
-	AllCoinInfoRate                          *rate.Limiter
-	DailyAccountSnapshotRate                 *rate.Limiter
-	FundWithdrawalRate                       *rate.Limiter
-	WithdrawalHistoryRate                    *rate.Limiter
-	DepositAddressesRate                     *rate.Limiter
-	DustTransferRate                         *rate.Limiter
-	AssetDividendRecordRate                  *rate.Limiter
-	UserUniversalTransferRate                *rate.Limiter
-	UserAssetsRate                           *rate.Limiter
-	BUSDConvertHistoryRate                   *rate.Limiter
-	CloudMiningPaymentAndRefundHistoryRate   *rate.Limiter
-	AutoConvertingStableCoinsRate            *rate.Limiter
-	GetDepositAddressListInNetworkRate       *rate.Limiter
-	GetUserWalletBalanceRate                 *rate.Limiter
-	GetUserDelegationHistoryRate             *rate.Limiter
-	SymbolDelistScheduleForSpotRate          *rate.Limiter
-	WithdrawAddressListRate                  *rate.Limiter
-	GetSubAccountAssetRate                   *rate.Limiter
-	GetSubAccountStatusOnMarginOrFuturesRate *rate.Limiter
-	SubAccountMarginAccountDetailRate        *rate.Limiter
-	SubAccountSummaryOfMarginAccountRate     *rate.Limiter
-	DetailSubAccountFuturesAccountRate       *rate.Limiter
-	FuturesPositionRiskOfSubAccountV1Rate    *rate.Limiter
-	FuturesSubAccountSummaryV2Rate           *rate.Limiter
-	IPRestrictionForSubAccountAPIKeyRate     *rate.Limiter
-	DeleteIPListForSubAccountAPIKeyRate      *rate.Limiter
-	AddIPRestrictionSubAccountAPIKeyRate     *rate.Limiter
-	ManagedSubAccountSnapshotRate            *rate.Limiter
-	ManagedSubAccountTransferLogRate         *rate.Limiter
-	ManagedSubAccountFuturesAssetDetailRate  *rate.Limiter
-	ManagedSubAccountListRate                *rate.Limiter
-	SubAccountTransactionStatisticsRate      *rate.Limiter
-	BorrowRepayRecordsInMarginAccountRate    *rate.Limiter
-	MarginAccountCancelOrderRate             *rate.Limiter
-	SimpleEarnRate                           *rate.Limiter
-	NFTRate                                  *rate.Limiter
-	SpotRebateHistoryRate                    *rate.Limiter
-	ConvertTradeFlowHistoryRate              *rate.Limiter
-	LimitOpenOrdersRate                      *rate.Limiter
-	CancelLimitOrderRate                     *rate.Limiter
-	PlaceLimitOrderRate                      *rate.Limiter
-	OrderStatusRate                          *rate.Limiter
-	AcceptQuoteRate                          *rate.Limiter
-	SendQuoteRequestRate                     *rate.Limiter
-	GetOrderQuantityPrecisionPerAssetRate    *rate.Limiter
-	GetAllConvertPairsRate                   *rate.Limiter
-	PayTradeEndpointsRate                    *rate.Limiter
-	VIPLoanEndpointsRate                     *rate.Limiter
-	FiatDepositWithdrawHistRate              *rate.Limiter
-	ClassicPM                                *rate.Limiter
-	SpotTwapOrderRate                        *rate.Limiter
-	PlaceVPOrderRate                         *rate.Limiter
-	MiningRate                               *rate.Limiter
-	FuturesFundTransfersFetchRate            *rate.Limiter
-	StakingRate                              *rate.Limiter
+	SapiDefaultRate        *rate.Limiter
+	MarginAccountTradeRate *rate.Limiter
+	CryptoLoanRate         *rate.Limiter
+
+	WalletRate     *rate.Limiter
+	SubAccountRate *rate.Limiter
+	ConvertRate    *rate.Limiter
+
+	SimpleEarnRate              *rate.Limiter
+	NFTRate                     *rate.Limiter
+	SpotRebateHistoryRate       *rate.Limiter
+	PayTradeEndpointsRate       *rate.Limiter
+	VIPLoanEndpointsRate        *rate.Limiter
+	FiatDepositWithdrawHistRate *rate.Limiter
+
+	ClassicPM                     *rate.Limiter
+	SpotAlgoRate                  *rate.Limiter
+	PlaceVPOrderRate              *rate.Limiter
+	MiningRate                    *rate.Limiter
+	FuturesFundTransfersFetchRate *rate.Limiter
+	StakingRate                   *rate.Limiter
 }
 
 // Limit executes rate limiting functionality for Binance
@@ -669,105 +654,88 @@ func (r *RateLimit) Limit(ctx context.Context, f request.EndpointLimit) error {
 
 	case sapiDefaultRate:
 		limiter, tokens = r.SapiDefaultRate, 1
-	case allCoinInfoRate:
-		return r.AllCoinInfoRate.Wait(ctx)
-	case dailyAccountSnapshotRate:
-		return r.DailyAccountSnapshotRate.Wait(ctx)
-	case fundWithdrawalRate: // uid
-		return r.FundWithdrawalRate.Wait(ctx)
-	case withdrawalHistoryRate:
-		return r.WithdrawalHistoryRate.Wait(ctx)
-	case depositAddressesRate:
-		return r.DepositAddressesRate.Wait(ctx)
-	case dustTransferRate:
-		return r.DustTransferRate.Wait(ctx)
-	case assetDividendRecordRate:
-		return r.AssetDividendRecordRate.Wait(ctx)
-	case userUniversalTransferRate:
-		return r.UserUniversalTransferRate.Wait(ctx)
-	case userAssetsRate:
-		return r.UserAssetsRate.Wait(ctx)
-	case busdConvertHistoryRate,
-		busdConvertRate:
-		limiter, tokens = r.BUSDConvertHistoryRate, 5
-	case cloudMiningPaymentAndRefundHistoryRate:
-		return r.CloudMiningPaymentAndRefundHistoryRate.Wait(ctx)
-	case autoConvertingStableCoinsRate:
-		limiter, tokens = r.AutoConvertingStableCoinsRate, 600
-	case getDepositAddressListInNetworkRate:
-		return r.GetDepositAddressListInNetworkRate.Wait(ctx)
-	case getUserWalletBalanceRate:
-		return r.GetUserWalletBalanceRate.Wait(ctx)
-	case getUserDelegationHistoryRate:
-		return r.GetUserDelegationHistoryRate.Wait(ctx)
-	case symbolDelistScheduleForSpotRate:
-		return r.SymbolDelistScheduleForSpotRate.Wait(ctx)
-	case withdrawAddressListRate:
-		return r.WithdrawAddressListRate.Wait(ctx)
-	case getSubAccountAssetRate:
-		return r.GetSubAccountAssetRate.Wait(ctx)
-	case getSubAccountStatusOnMarginOrFuturesRate:
-		return r.GetSubAccountStatusOnMarginOrFuturesRate.Wait(ctx)
-	case subAccountMarginAccountDetailRate:
-		return r.SubAccountMarginAccountDetailRate.Wait(ctx)
-	case getSubAccountSummaryOfMarginAccountRate:
-		return r.SubAccountSummaryOfMarginAccountRate.Wait(ctx)
-	case getDetailSubAccountFuturesAccountRate:
-		return r.DetailSubAccountFuturesAccountRate.Wait(ctx)
-	case getFuturesPositionRiskOfSubAccountV1Rate:
-		return r.FuturesPositionRiskOfSubAccountV1Rate.Wait(ctx)
-	case getFuturesSubAccountSummaryV2Rate:
-		return r.FuturesSubAccountSummaryV2Rate.Wait(ctx)
-	case ipRestrictionForSubAccountAPIKeyRate:
-		return r.IPRestrictionForSubAccountAPIKeyRate.Wait(ctx)
-	case deleteIPListForSubAccountAPIKeyRate:
-		return r.DeleteIPListForSubAccountAPIKeyRate.Wait(ctx)
-	case addIPRestrictionSubAccountAPIKey:
-		return r.AddIPRestrictionSubAccountAPIKeyRate.Wait(ctx)
-	case getManagedSubAccountSnapshotRate:
-		return r.ManagedSubAccountSnapshotRate.Wait(ctx)
-	case managedSubAccountTransferLogRate:
-		return r.ManagedSubAccountTransferLogRate.Wait(ctx)
-	case managedSubAccountFuturesAssetDetailRate:
-		return r.ManagedSubAccountFuturesAssetDetailRate.Wait(ctx)
-	case getManagedSubAccountListRate:
-		return r.ManagedSubAccountListRate.Wait(ctx)
-	case getSubAccountTransactionStatisticsRate:
-		return r.SubAccountTransactionStatisticsRate.Wait(ctx)
-	case borrowRepayRecordsInMarginAccountRate:
-		return r.BorrowRepayRecordsInMarginAccountRate.Wait(ctx)
-	case marginAccountCancelOrderRate:
-		return r.MarginAccountCancelOrderRate.Wait(ctx)
 
+		// Wallet Endpoints
+	case userAssetsRate,
+		busdConvertHistoryRate,
+		busdConvertRate:
+		limiter, tokens = r.WalletRate, 5
+	case allCoinInfoRate,
+		depositAddressesRate,
+		dustTransferRate,
+		assetDividendRecordRate,
+		getDepositAddressListInNetworkRate,
+		withdrawAddressListRate:
+		limiter, tokens = r.WalletRate, 10
+	case getUserWalletBalanceRate,
+		getUserDelegationHistoryRate:
+		limiter, tokens = r.WalletRate, 60
+	case symbolDelistScheduleForSpotRate:
+		limiter, tokens = r.WalletRate, 100
+	case fundWithdrawalRate,
+		cloudMiningPaymentAndRefundHistoryRate,
+		autoConvertingStableCoinsRate:
+		limiter, tokens = r.WalletRate, 600
+	case userUniversalTransferRate:
+		limiter, tokens = r.WalletRate, 900
+	case dailyAccountSnapshotRate:
+		limiter, tokens = r.WalletRate, 2400
+	case withdrawalHistoryRate:
+		limiter, tokens = r.WalletRate, 18000
+
+		// Sub-Account Rate
+	case getSubAccountStatusOnMarginOrFuturesRate,
+		subAccountMarginAccountDetailRate,
+		getSubAccountSummaryOfMarginAccountRate,
+		getDetailSubAccountFuturesAccountRate,
+		getFuturesPositionRiskOfSubAccountV1Rate,
+		getFuturesSubAccountSummaryV2Rate: // 60
+		limiter, tokens = r.SubAccountRate, 10
+	case getSubAccountAssetRate,
+		managedSubAccountTransferLogRate,
+		managedSubAccountFuturesAssetDetailRate,
+		getManagedSubAccountListRate,
+		getSubAccountTransactionStatisticsRate: // 360
+		limiter, tokens = r.SubAccountRate, 60
+	case getManagedSubAccountSnapshotRate: // 2400
+		limiter, tokens = r.SubAccountRate, 2400
+	case ipRestrictionForSubAccountAPIKeyRate,
+		deleteIPListForSubAccountAPIKeyRate,
+		addIPRestrictionSubAccountAPIKey:
+		limiter, tokens = r.SubAccountRate, 3000
+
+		// NFT Endpoints
 	case nftRate:
 		limiter, tokens = r.NFTRate, 3000
+
+		// Spot Rebate History
 	case spotRebateHistoryRate:
 		return r.SpotRebateHistoryRate.Wait(ctx)
-	case convertTradeFlowHistoryRate:
-		return r.ConvertTradeFlowHistoryRate.Wait(ctx)
-	case getLimitOpenOrdersRate:
-		return r.LimitOpenOrdersRate.Wait(ctx)
-	case cancelLimitOrderRate:
-		return r.CancelLimitOrderRate.Wait(ctx)
-	case placeLimitOrderRate:
-		return r.PlaceLimitOrderRate.Wait(ctx)
-	case orderStatusRate:
-		return r.OrderStatusRate.Wait(ctx)
-	case acceptQuoteRate:
-		return r.AcceptQuoteRate.Wait(ctx)
-	case sendQuoteRequestRate:
-		return r.SendQuoteRequestRate.Wait(ctx)
-	case getOrderQuantityPrecisionPerAssetRate:
-		return r.GetOrderQuantityPrecisionPerAssetRate.Wait(ctx)
+
+		// Convert Rate
 	case getAllConvertPairsRate:
-		return r.GetAllConvertPairsRate.Wait(ctx)
+		limiter, tokens = r.ConvertRate, 20
+	case getOrderQuantityPrecisionPerAssetRate,
+		orderStatusRate:
+		limiter, tokens = r.ConvertRate, 100
+	case sendQuoteRequestRate,
+		cancelLimitOrderRate:
+		limiter, tokens = r.ConvertRate, 200
+	case acceptQuoteRate,
+		placeLimitOrderRate:
+		limiter, tokens = r.ConvertRate, 500
+	case getLimitOpenOrdersRate,
+		convertTradeFlowHistoryRate:
+		limiter, tokens = r.ConvertRate, 3000
+
+		// Pay Endpoints
 	case payTradeEndpointsRate:
 		return r.PayTradeEndpointsRate.Wait(ctx)
 
 	case fiatDepositWithdrawHistRate:
 		return r.FiatDepositWithdrawHistRate.Wait(ctx)
 
-	// VIP
+	// VIP Endpoints
 	case getVIPLoanOngoingOrdersRate,
 		getVIPLoanRepaymentHistoryRate,
 		getVIPLoanableAssetsRate,
@@ -781,6 +749,7 @@ func (r *RateLimit) Limit(ctx context.Context, f request.EndpointLimit) error {
 		vipLoanBorrowRate:
 		limiter, tokens = r.VIPLoanEndpointsRate, 6000
 
+		// Classic Portfolio Margin
 	case classicPMAccountInfoRate:
 		limiter, tokens = r.ClassicPM, 5
 	case changeAutoRepayFuturesStatusRate:
@@ -800,9 +769,11 @@ func (r *RateLimit) Limit(ctx context.Context, f request.EndpointLimit) error {
 	case repayClassicPMBankruptacyLoanRate:
 		limiter, tokens = r.ClassicPM, 3000
 
+		// Spot-Algo Endpoints
 	case spotTwapNewOrderRate:
-		return r.SpotTwapOrderRate.Wait(ctx)
+		return r.SpotAlgoRate.Wait(ctx)
 
+		// Futures-Algo Endpoints
 	case placeVPOrderRate,
 		placeTWAveragePriceNewOrderRate:
 		limiter, tokens = r.PlaceVPOrderRate, 3000
@@ -860,7 +831,9 @@ func (r *RateLimit) Limit(ctx context.Context, f request.EndpointLimit) error {
 	case marginAccountNewOrderRate,
 		marginOCOOrderRate:
 		limiter, tokens = r.MarginAccountTradeRate, 6
-	case getCrossMarginAccountDetailRate,
+	case borrowRepayRecordsInMarginAccountRate,
+		marginAccountCancelOrderRate,
+		getCrossMarginAccountDetailRate,
 		getPriceMarginIndexRate,
 		getCrossMarginAccountOrderRate,
 		getMarginAccountsOpenOrdersRate,
@@ -896,6 +869,32 @@ func (r *RateLimit) Limit(ctx context.Context, f request.EndpointLimit) error {
 		smallLiabilityExchangeCoinListRate,
 		marginManualLiquidiationRate:
 		limiter, tokens = r.MarginAccountTradeRate, 3000
+
+		// Crypto-Loan Endpoints.
+
+	case cryptoLoansIncomeHistory,
+		cryptoRepayLoanRate,
+		adjustLTVRate,
+		checkCollateralRepayRate,
+		cryptoLoanCustomizeMarginRate,
+		borrowFlexibleRate,
+		repayFlexibleLoanHistoryRate,
+		adjustFlexibleLoanRate:
+		limiter, tokens = r.CryptoLoanRate, 6000
+	case getLoanBorrowHistoryRate,
+		repaymentHistoryRate,
+		getLoanLTVAdjustmentHistoryRate,
+		getLoanableAssetsDataRate,
+		collateralAssetsDataRate,
+		flexibleBorrowHistoryRate,
+		flexibleLoanRepaymentHistoryRate,
+		flexibleLoanAdjustLTVRate,
+		flexibleLoanAssetDataRate,
+		flexibleLoanCollateralAssetRate:
+		limiter, tokens = r.CryptoLoanRate, 400
+	case getBorrowOngoingOrdersRate,
+		getFlexibleLoanOngoingOrdersRate:
+		limiter, tokens = r.CryptoLoanRate, 300
 
 	default:
 		limiter, tokens = r.SpotRate, 1
@@ -943,65 +942,27 @@ func SetRateLimit() *RateLimit {
 		// Endpoints are marked according to IP or UID limit and their corresponding weight value.
 		// Each endpoint with IP limits has an independent 12000 per minute limit, or per second limit if specified explicitly
 		// Each endpoint with UID limits has an independent 180000 per minute limit, or per second limit if specified explicitly
-		SapiDefaultRate:          request.NewRateLimit(time.Second, 131),
-		DailyAccountSnapshotRate: request.NewRateLimit(time.Second, 2400),
-		MarginAccountTradeRate:   request.NewRateLimit(time.Second, 1000), // TODO:
+		SapiDefaultRate:        request.NewRateLimit(time.Second, 110),
+		MarginAccountTradeRate: request.NewRateLimit(time.Second, 16917),
 
-		FundWithdrawalRate:                       request.NewRateLimit(time.Second, 600),
-		WithdrawalHistoryRate:                    request.NewRateLimit(time.Second, 18000),
-		UserUniversalTransferRate:                request.NewRateLimit(time.Second, 900),
-		UserAssetsRate:                           request.NewRateLimit(time.Second, 5),
-		BUSDConvertHistoryRate:                   request.NewRateLimit(time.Second, 10),
-		CloudMiningPaymentAndRefundHistoryRate:   request.NewRateLimit(time.Second, 600),
-		AutoConvertingStableCoinsRate:            request.NewRateLimit(time.Second, 1200),
-		SymbolDelistScheduleForSpotRate:          request.NewRateLimit(time.Second, 100),
-		AllCoinInfoRate:                          request.NewRateLimit(time.Second, 10),
-		DepositAddressesRate:                     request.NewRateLimit(time.Second, 10),
-		DustTransferRate:                         request.NewRateLimit(time.Second, 10),
-		AssetDividendRecordRate:                  request.NewRateLimit(time.Second, 10),
-		GetDepositAddressListInNetworkRate:       request.NewRateLimit(time.Second, 10),
-		WithdrawAddressListRate:                  request.NewRateLimit(time.Second, 10),
-		GetSubAccountStatusOnMarginOrFuturesRate: request.NewRateLimit(time.Second, 10),
-		SubAccountMarginAccountDetailRate:        request.NewRateLimit(time.Second, 10),
-		SubAccountSummaryOfMarginAccountRate:     request.NewRateLimit(time.Second, 10),
-		DetailSubAccountFuturesAccountRate:       request.NewRateLimit(time.Second, 10),
-		FuturesPositionRiskOfSubAccountV1Rate:    request.NewRateLimit(time.Second, 10),
-		FuturesSubAccountSummaryV2Rate:           request.NewRateLimit(time.Second, 10),
-		IPRestrictionForSubAccountAPIKeyRate:     request.NewRateLimit(time.Second, 3000),
-		DeleteIPListForSubAccountAPIKeyRate:      request.NewRateLimit(time.Second, 3000),
-		AddIPRestrictionSubAccountAPIKeyRate:     request.NewRateLimit(time.Second, 3000),
-		ManagedSubAccountSnapshotRate:            request.NewRateLimit(time.Second, 2400),
-		GetUserWalletBalanceRate:                 request.NewRateLimit(time.Second, 60),
-		GetUserDelegationHistoryRate:             request.NewRateLimit(time.Second, 60),
-		GetSubAccountAssetRate:                   request.NewRateLimit(time.Second, 60),
-		ManagedSubAccountTransferLogRate:         request.NewRateLimit(time.Second, 60),
-		ManagedSubAccountFuturesAssetDetailRate:  request.NewRateLimit(time.Second, 60),
-		ManagedSubAccountListRate:                request.NewRateLimit(time.Second, 60),
-		SubAccountTransactionStatisticsRate:      request.NewRateLimit(time.Second, 60),
-		BorrowRepayRecordsInMarginAccountRate:    request.NewRateLimit(time.Second, 10),
-		MarginAccountCancelOrderRate:             request.NewRateLimit(time.Second, 10),
-		SimpleEarnRate:                           request.NewRateLimit(time.Second, 2700),
-		NFTRate:                                  request.NewRateLimit(time.Second, 12000),
-		SpotRebateHistoryRate:                    request.NewRateLimit(time.Second, 12000),
-		ConvertTradeFlowHistoryRate:              request.NewRateLimit(time.Second, 3000),
-		LimitOpenOrdersRate:                      request.NewRateLimit(time.Second, 3000),
-		CancelLimitOrderRate:                     request.NewRateLimit(time.Second, 200),
-		PlaceLimitOrderRate:                      request.NewRateLimit(time.Second, 500),
-		OrderStatusRate:                          request.NewRateLimit(time.Second, 100),
-		AcceptQuoteRate:                          request.NewRateLimit(time.Second, 500),
-		SendQuoteRequestRate:                     request.NewRateLimit(time.Second, 200),
-		GetOrderQuantityPrecisionPerAssetRate:    request.NewRateLimit(time.Second, 100),
-		GetAllConvertPairsRate:                   request.NewRateLimit(time.Second, 20),
-		PayTradeEndpointsRate:                    request.NewRateLimit(time.Second, 3000),
-		VIPLoanEndpointsRate:                     request.NewRateLimit(time.Second, 26600),
-		FiatDepositWithdrawHistRate:              request.NewRateLimit(time.Second, 90000),
+		WalletRate:     request.NewRateLimit(time.Second, 23995),
+		SubAccountRate: request.NewRateLimit(time.Second, 11820),
+		ConvertRate:    request.NewRateLimit(time.Second, 7620),
 
-		ClassicPM:                     request.NewRateLimit(time.Second, 500), // TODO:
-		SpotTwapOrderRate:             request.NewRateLimit(time.Second, 3000),
+		SimpleEarnRate:              request.NewRateLimit(time.Second, 2700),
+		NFTRate:                     request.NewRateLimit(time.Second, 12000),
+		SpotRebateHistoryRate:       request.NewRateLimit(time.Second, 12000),
+		PayTradeEndpointsRate:       request.NewRateLimit(time.Second, 3000),
+		VIPLoanEndpointsRate:        request.NewRateLimit(time.Second, 26600),
+		FiatDepositWithdrawHistRate: request.NewRateLimit(time.Second, 90000),
+
+		ClassicPM:                     request.NewRateLimit(time.Second, 5145),
+		SpotAlgoRate:                  request.NewRateLimit(time.Second, 3000),
 		PlaceVPOrderRate:              request.NewRateLimit(time.Second, 6000),
 		FuturesFundTransfersFetchRate: request.NewRateLimit(time.Second, 210),
 		MiningRate:                    request.NewRateLimit(time.Second, 55),
 		StakingRate:                   request.NewRateLimit(time.Second, 1500),
+		CryptoLoanRate:                request.NewRateLimit(time.Second, 52900),
 	}
 }
 

@@ -2731,7 +2731,7 @@ func (b *Binance) GetSubAccountTransactionStatistics(ctx context.Context, email 
 	params := url.Values{}
 	params.Set("email", email)
 	var resp []SubAccountTransactionStatistics
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/sub-account/transaction-statistics", params, sapiDefaultRate, nil, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/sub-account/transaction-statistics", params, getSubAccountTransactionStatisticsRate, nil, &resp)
 }
 
 // GetManagedSubAccountDepositAddress retrieves investor's managed sub-account deposit address.
@@ -3581,7 +3581,7 @@ func (b *Binance) CryptoLoanIncomeHistory(ctx context.Context, curr currency.Cod
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	var resp []CryptoLoansIncomeHistory
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, "/sapi/v1/loan/income", params, sapiDefaultRate, nil, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, "/sapi/v1/loan/income", params, cryptoLoansIncomeHistory, nil, &resp)
 }
 
 // CryptoLoanBorrow borrows crypto
@@ -3639,7 +3639,7 @@ func (b *Binance) CryptoLoanBorrowHistory(ctx context.Context, orderID int64, lo
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	var resp *LoanBorrowHistory
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, "/sapi/v1/loan/borrow/history", params, sapiDefaultRate, nil, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, "/sapi/v1/loan/borrow/history", params, getLoanBorrowHistoryRate, nil, &resp)
 }
 
 // CryptoLoanOngoingOrders obtains ongoing loan orders
@@ -3661,7 +3661,7 @@ func (b *Binance) CryptoLoanOngoingOrders(ctx context.Context, orderID int64, lo
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	var resp *CryptoLoanOngoingOrder
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, "/sapi/v1/loan/ongoing/orders", params, sapiDefaultRate, nil, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, "/sapi/v1/loan/ongoing/orders", params, getBorrowOngoingOrdersRate, nil, &resp)
 }
 
 // CryptoLoanRepay repays a crypto loan
@@ -3680,7 +3680,7 @@ func (b *Binance) CryptoLoanRepay(ctx context.Context, orderID int64, amount flo
 	}
 	params.Set("collateralReturn", strconv.FormatBool(collateralReturn))
 	var resp []CryptoLoanRepay
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodPost, "/sapi/v1/loan/repay", params, sapiDefaultRate, nil, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodPost, "/sapi/v1/loan/repay", params, cryptoRepayLoanRate, nil, &resp)
 }
 
 // CryptoLoanRepaymentHistory gets the crypto loan repayment history
@@ -3710,7 +3710,7 @@ func (b *Binance) CryptoLoanRepaymentHistory(ctx context.Context, orderID int64,
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	var resp *CryptoLoanRepayHistory
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, "/sapi/v1/loan/repay/history", params, sapiDefaultRate, nil, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, "/sapi/v1/loan/repay/history", params, repaymentHistoryRate, nil, &resp)
 }
 
 // CryptoLoanAdjustLTV adjusts the LTV of a crypto loan
@@ -3730,7 +3730,7 @@ func (b *Binance) CryptoLoanAdjustLTV(ctx context.Context, orderID int64, reduce
 	}
 	params.Set("direction", direction)
 	var resp *CryptoLoanAdjustLTV
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodPost, "/sapi/v1/loan/adjust/ltv", params, sapiDefaultRate, nil, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodPost, "/sapi/v1/loan/adjust/ltv", params, adjustLTVRate, nil, &resp)
 }
 
 // CryptoLoanLTVAdjustmentHistory gets the crypto loan LTV adjustment history
@@ -3760,7 +3760,7 @@ func (b *Binance) CryptoLoanLTVAdjustmentHistory(ctx context.Context, orderID in
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	var resp *CryptoLoanLTVAdjustmentHistory
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, "/sapi/v1/loan/ltv/adjustment/history", params, sapiDefaultRate, nil, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, "/sapi/v1/loan/ltv/adjustment/history", params, getLoanLTVAdjustmentHistoryRate, nil, &resp)
 }
 
 // CryptoLoanAssetsData gets the loanable assets data
@@ -3773,7 +3773,7 @@ func (b *Binance) CryptoLoanAssetsData(ctx context.Context, loanCoin currency.Co
 		params.Set("vipLevel", strconv.FormatInt(vipLevel, 10))
 	}
 	var resp *LoanableAssetsData
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, "/sapi/v1/loan/loanable/data", params, sapiDefaultRate, nil, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, "/sapi/v1/loan/loanable/data", params, getLoanableAssetsDataRate, nil, &resp)
 }
 
 // CryptoLoanCollateralAssetsData gets the collateral assets data
@@ -3786,7 +3786,7 @@ func (b *Binance) CryptoLoanCollateralAssetsData(ctx context.Context, collateral
 		params.Set("vipLevel", strconv.FormatInt(vipLevel, 10))
 	}
 	var resp *CollateralAssetData
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, "/sapi/v1/loan/collateral/data", params, sapiDefaultRate, nil, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, "/sapi/v1/loan/collateral/data", params, collateralAssetsDataRate, nil, &resp)
 }
 
 // CryptoLoanCheckCollateralRepayRate checks the collateral repay rate
@@ -3805,7 +3805,7 @@ func (b *Binance) CryptoLoanCheckCollateralRepayRate(ctx context.Context, loanCo
 	params.Set("collateralCoin", collateralCoin.String())
 	params.Set("repayAmount", strconv.FormatFloat(amount, 'f', -1, 64))
 	var resp *CollateralRepayRate
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, "/sapi/v1/loan/repay/collateral/rate", params, sapiDefaultRate, nil, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, "/sapi/v1/loan/repay/collateral/rate", params, checkCollateralRepayRate, nil, &resp)
 }
 
 // CryptoLoanCustomiseMarginCall customises a loan's margin call
@@ -3822,7 +3822,7 @@ func (b *Binance) CryptoLoanCustomiseMarginCall(ctx context.Context, orderID int
 	}
 	params.Set("marginCall", strconv.FormatFloat(marginCallValue, 'f', -1, 64))
 	var resp *CustomiseMarginCall
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodPost, "/sapi/v1/loan/customize/margin_call", params, sapiDefaultRate, nil, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodPost, "/sapi/v1/loan/customize/margin_call", params, cryptoLoanCustomizeMarginRate, nil, &resp)
 }
 
 // FlexibleLoanBorrow creates a flexible loan
@@ -3846,7 +3846,7 @@ func (b *Binance) FlexibleLoanBorrow(ctx context.Context, loanCoin, collateralCo
 		params.Set("collateralAmount", strconv.FormatFloat(collateralAmount, 'f', -1, 64))
 	}
 	var resp *FlexibleLoanBorrow
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodPost, "/sapi/v1/loan/flexible/borrow", params, sapiDefaultRate, nil, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodPost, "/sapi/v2/loan/flexible/borrow", params, borrowFlexibleRate, nil, &resp)
 }
 
 // FlexibleLoanOngoingOrders gets the flexible loan ongoing orders
@@ -3865,7 +3865,7 @@ func (b *Binance) FlexibleLoanOngoingOrders(ctx context.Context, loanCoin, colla
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	var resp *FlexibleLoanOngoingOrder
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, "/sapi/v1/loan/flexible/ongoing/orders", params, sapiDefaultRate, nil, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, "/sapi/v2/loan/flexible/ongoing/orders", params, getFlexibleLoanOngoingOrdersRate, nil, &resp)
 }
 
 // FlexibleLoanBorrowHistory gets the flexible loan borrow history
@@ -3892,7 +3892,7 @@ func (b *Binance) FlexibleLoanBorrowHistory(ctx context.Context, loanCoin, colla
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	var resp *FlexibleLoanBorrowHistory
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, "/sapi/v1/loan/flexible/borrow/history", params, sapiDefaultRate, nil, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, "/sapi/v2/loan/flexible/borrow/history", params, flexibleBorrowHistoryRate, nil, &resp)
 }
 
 // FlexibleLoanRepay repays a flexible loan
@@ -3915,7 +3915,7 @@ func (b *Binance) FlexibleLoanRepay(ctx context.Context, loanCoin, collateralCoi
 		params.Set("fullRepayment", "true")
 	}
 	var resp *FlexibleLoanRepay
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodPost, "/sapi/v1/loan/flexible/repay", params, sapiDefaultRate, nil, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodPost, "/sapi/v2/loan/flexible/repay", params, repayFlexibleLoanHistoryRate, nil, &resp)
 }
 
 // FlexibleLoanRepayHistory gets the flexible loan repayment history
@@ -3942,7 +3942,7 @@ func (b *Binance) FlexibleLoanRepayHistory(ctx context.Context, loanCoin, collat
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	var resp *FlexibleLoanRepayHistory
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, "/sapi/v1/loan/flexible/repay/history", params, sapiDefaultRate, nil, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, "/sapi/v2/loan/flexible/repay/history", params, flexibleLoanRepaymentHistoryRate, nil, &resp)
 }
 
 // FlexibleLoanAdjustLTV adjusts the LTV of a flexible loan
@@ -3967,7 +3967,7 @@ func (b *Binance) FlexibleLoanAdjustLTV(ctx context.Context, loanCoin, collatera
 	params.Set("adjustmentAmount", strconv.FormatFloat(amount, 'f', -1, 64))
 	params.Set("direction", direction)
 	var resp *FlexibleLoanAdjustLTV
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodPost, "/sapi/v1/loan/flexible/adjust/ltv", params, sapiDefaultRate, nil, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodPost, "/sapi/v2/loan/flexible/adjust/ltv", params, adjustFlexibleLoanRate, nil, &resp)
 }
 
 // FlexibleLoanLTVAdjustmentHistory gets the flexible loan LTV adjustment history
@@ -3994,7 +3994,7 @@ func (b *Binance) FlexibleLoanLTVAdjustmentHistory(ctx context.Context, loanCoin
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	var resp *FlexibleLoanLTVAdjustmentHistory
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, "/sapi/v1/loan/flexible/ltv/adjustment/history", params, sapiDefaultRate, nil, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, "/sapi/v2/loan/flexible/ltv/adjustment/history", params, flexibleLoanAdjustLTVRate, nil, &resp)
 }
 
 // FlexibleLoanAssetsData gets the flexible loan assets data
@@ -4004,7 +4004,7 @@ func (b *Binance) FlexibleLoanAssetsData(ctx context.Context, loanCoin currency.
 		params.Set("loanCoin", loanCoin.String())
 	}
 	var resp *FlexibleLoanAssetsData
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, "/sapi/v1/loan/flexible/loanable/data", params, sapiDefaultRate, nil, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, "/sapi/v2/loan/flexible/loanable/data", params, flexibleLoanAssetDataRate, nil, &resp)
 }
 
 // FlexibleCollateralAssetsData gets the flexible loan collateral assets data
@@ -4014,7 +4014,7 @@ func (b *Binance) FlexibleCollateralAssetsData(ctx context.Context, collateralCo
 		params.Set("collateralCoin", collateralCoin.String())
 	}
 	var resp *FlexibleCollateralAssetsData
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, "/sapi/v1/loan/flexible/collateral/data", params, sapiDefaultRate, nil, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, "/sapi/v2/loan/flexible/collateral/data", params, flexibleLoanCollateralAssetRate, nil, &resp)
 }
 
 // ----------------------------------  Simple Earn Endpoints -------------------------------
