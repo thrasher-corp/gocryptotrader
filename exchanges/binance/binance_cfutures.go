@@ -24,7 +24,6 @@ import (
 const (
 
 	// Auth
-
 	cfuturesLimit              = "LIMIT"
 	cfuturesMarket             = "MARKET"
 	cfuturesStop               = "STOP"
@@ -37,7 +36,7 @@ const (
 // FuturesExchangeInfo stores CoinMarginedFutures, data
 func (b *Binance) FuturesExchangeInfo(ctx context.Context) (*CExchangeInfo, error) {
 	var resp *CExchangeInfo
-	return resp, b.SendHTTPRequest(ctx, exchange.RestCoinMargined, "/dapi/v1/exchangeInfo?", cFuturesDefaultRate, &resp)
+	return resp, b.SendHTTPRequest(ctx, exchange.RestCoinMargined, "/dapi/v1/exchangeInfo", cFuturesDefaultRate, &resp)
 }
 
 // GetFuturesOrderbook gets orderbook data for CoinMarginedFutures,
@@ -65,11 +64,10 @@ func (b *Binance) GetFuturesOrderbook(ctx context.Context, symbol currency.Pair,
 		rateBudget = cFuturesOrderbook1000Rate
 	}
 	var data OrderbookData
-	err = b.SendHTTPRequest(ctx, exchange.RestCoinMargined, "/dapi/v1/depth?"+params.Encode(), rateBudget, &data)
+	err = b.SendHTTPRequest(ctx, exchange.RestCoinMargined, common.EncodeURLValues("/dapi/v1/depth", params), rateBudget, &data)
 	if err != nil {
 		return nil, err
 	}
-
 	resp := &OrderBook{
 		Symbol: symbol.String(),
 		Asks:   make([]OrderbookItem, len(data.Asks)),
@@ -103,7 +101,7 @@ func (b *Binance) GetFuturesPublicTrades(ctx context.Context, symbol currency.Pa
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	var resp []FuturesPublicTradesData
-	return resp, b.SendHTTPRequest(ctx, exchange.RestCoinMargined, "/dapi/v1/trades?"+params.Encode(), cFuturesDefaultRate, &resp)
+	return resp, b.SendHTTPRequest(ctx, exchange.RestCoinMargined, common.EncodeURLValues("/dapi/v1/trades", params), cFuturesDefaultRate, &resp)
 }
 
 // GetFuturesHistoricalTrades gets historical public trades for CoinMarginedFutures,
@@ -139,7 +137,7 @@ func (b *Binance) GetPastPublicTrades(ctx context.Context, symbol currency.Pair,
 		params.Set("fromID", strconv.FormatInt(fromID, 10))
 	}
 	var resp []FuturesPublicTradesData
-	return resp, b.SendHTTPRequest(ctx, exchange.RestCoinMargined, "/dapi/v1/trades?"+params.Encode(), cFuturesDefaultRate, &resp)
+	return resp, b.SendHTTPRequest(ctx, exchange.RestCoinMargined, common.EncodeURLValues("/dapi/v1/trades", params), cFuturesDefaultRate, &resp)
 }
 
 // GetFuturesAggregatedTradesList gets aggregated trades list for CoinMarginedFutures,
@@ -164,7 +162,7 @@ func (b *Binance) GetFuturesAggregatedTradesList(ctx context.Context, symbol cur
 		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
 	}
 	var resp []AggregatedTrade
-	return resp, b.SendHTTPRequest(ctx, exchange.RestCoinMargined, "/dapi/v1/aggTrades?"+params.Encode(), cFuturesHistoricalTradesRate, &resp)
+	return resp, b.SendHTTPRequest(ctx, exchange.RestCoinMargined, common.EncodeURLValues("/dapi/v1/aggTrades", params), cFuturesHistoricalTradesRate, &resp)
 }
 
 // GetIndexAndMarkPrice gets index and mark prices  for CoinMarginedFutures,
@@ -177,7 +175,7 @@ func (b *Binance) GetIndexAndMarkPrice(ctx context.Context, symbol, pair string)
 		params.Set("pair", pair)
 	}
 	var resp []IndexMarkPrice
-	return resp, b.SendHTTPRequest(ctx, exchange.RestCoinMargined, "/dapi/v1/premiumIndex?"+params.Encode(), cFuturesIndexMarkPriceRate, &resp)
+	return resp, b.SendHTTPRequest(ctx, exchange.RestCoinMargined, common.EncodeURLValues("/dapi/v1/premiumIndex", params), cFuturesIndexMarkPriceRate, &resp)
 }
 
 // GetFundingRateInfo returns extra details about funding rates
@@ -213,7 +211,7 @@ func (b *Binance) GetFuturesKlineData(ctx context.Context, symbol currency.Pair,
 
 	var data [][12]types.Number
 	rateBudget := getKlineRateBudget(limit)
-	err := b.SendHTTPRequest(ctx, exchange.RestCoinMargined, "/dapi/v1/klines?"+params.Encode(), rateBudget, &data)
+	err := b.SendHTTPRequest(ctx, exchange.RestCoinMargined, common.EncodeURLValues("/dapi/v1/klines", params), rateBudget, &data)
 	if err != nil {
 		return nil, err
 	}
@@ -264,7 +262,7 @@ func (b *Binance) GetContinuousKlineData(ctx context.Context, pair, contractType
 	params.Set("interval", interval)
 	rateBudget := getKlineRateBudget(limit)
 	var data [][12]types.Number
-	err := b.SendHTTPRequest(ctx, exchange.RestCoinMargined, "/dapi/v1/continuousKlines?"+params.Encode(), rateBudget, &data)
+	err := b.SendHTTPRequest(ctx, exchange.RestCoinMargined, common.EncodeURLValues("/dapi/v1/continuousKlines", params), rateBudget, &data)
 	if err != nil {
 		return nil, err
 	}
@@ -307,7 +305,7 @@ func (b *Binance) GetIndexPriceKlines(ctx context.Context, pair, interval string
 	}
 	rateBudget := getKlineRateBudget(limit)
 	var data [][12]types.Number
-	err := b.SendHTTPRequest(ctx, exchange.RestCoinMargined, "/dapi/v1/indexPriceKlines?"+params.Encode(), rateBudget, &data)
+	err := b.SendHTTPRequest(ctx, exchange.RestCoinMargined, common.EncodeURLValues("/dapi/v1/indexPriceKlines", params), rateBudget, &data)
 	if err != nil {
 		return nil, err
 	}
@@ -408,7 +406,7 @@ func (b *Binance) GetFuturesSwapTickerChangeStats(ctx context.Context, symbol cu
 		params.Set("pair", pair)
 	}
 	var resp []PriceChangeStats
-	return resp, b.SendHTTPRequest(ctx, exchange.RestCoinMargined, "/dapi/v1/ticker/24hr?"+params.Encode(), rateLimit, &resp)
+	return resp, b.SendHTTPRequest(ctx, exchange.RestCoinMargined, common.EncodeURLValues("/dapi/v1/ticker/24hr", params), rateLimit, &resp)
 }
 
 // FuturesGetFundingHistory gets funding history for CoinMarginedFutures,
@@ -432,7 +430,7 @@ func (b *Binance) FuturesGetFundingHistory(ctx context.Context, symbol currency.
 		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
 	}
 	var resp []FundingRateHistory
-	return resp, b.SendHTTPRequest(ctx, exchange.RestCoinMargined, "/dapi/v1/fundingRate?"+params.Encode(), cFuturesDefaultRate, &resp)
+	return resp, b.SendHTTPRequest(ctx, exchange.RestCoinMargined, common.EncodeURLValues("/dapi/v1/fundingRate", params), cFuturesDefaultRate, &resp)
 }
 
 // GetFuturesSymbolPriceTicker gets price ticker for symbol
@@ -451,7 +449,7 @@ func (b *Binance) GetFuturesSymbolPriceTicker(ctx context.Context, symbol curren
 		params.Set("pair", pair)
 	}
 	var resp []SymbolPriceTicker
-	return resp, b.SendHTTPRequest(ctx, exchange.RestCoinMargined, "/dapi/v1/ticker/price?"+params.Encode(), rateLimit, &resp)
+	return resp, b.SendHTTPRequest(ctx, exchange.RestCoinMargined, common.EncodeURLValues("/dapi/v1/ticker/price", params), rateLimit, &resp)
 }
 
 // GetFuturesOrderbookTicker gets orderbook ticker for symbol
@@ -470,7 +468,7 @@ func (b *Binance) GetFuturesOrderbookTicker(ctx context.Context, symbol currency
 		params.Set("pair", pair)
 	}
 	var resp []SymbolOrderBookTicker
-	return resp, b.SendHTTPRequest(ctx, exchange.RestCoinMargined, "/dapi/v1/ticker/bookTicker?"+params.Encode(), rateLimit, &resp)
+	return resp, b.SendHTTPRequest(ctx, exchange.RestCoinMargined, common.EncodeURLValues("/dapi/v1/ticker/bookTicker", params), rateLimit, &resp)
 }
 
 // GetCFuturesIndexPriceConstituents retrieved index price constituents detail
@@ -528,7 +526,7 @@ func (b *Binance) GetOpenInterestStats(ctx context.Context, pair, contractType, 
 		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
 	}
 	var resp []OpenInterestStats
-	return resp, b.SendHTTPRequest(ctx, exchange.RestCoinMargined, "/futures/data/openInterestHist?"+params.Encode(), cFuturesDefaultRate, &resp)
+	return resp, b.SendHTTPRequest(ctx, exchange.RestCoinMargined, common.EncodeURLValues("/futures/data/openInterestHist", params), cFuturesDefaultRate, &resp)
 }
 
 // GetTraderFuturesAccountRatio gets a traders futures account long/short ratio
@@ -553,7 +551,7 @@ func (b *Binance) GetTraderFuturesAccountRatio(ctx context.Context, pair currenc
 		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
 	}
 	var resp []TopTraderAccountRatio
-	return resp, b.SendHTTPRequest(ctx, exchange.RestCoinMargined, "/futures/data/topLongShortAccountRatio?"+params.Encode(), cFuturesDefaultRate, &resp)
+	return resp, b.SendHTTPRequest(ctx, exchange.RestCoinMargined, common.EncodeURLValues("/futures/data/topLongShortAccountRatio", params), cFuturesDefaultRate, &resp)
 }
 
 // GetTraderFuturesPositionsRatio gets a traders futures positions' long/short ratio
@@ -578,7 +576,7 @@ func (b *Binance) GetTraderFuturesPositionsRatio(ctx context.Context, pair curre
 		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
 	}
 	var resp []TopTraderPositionRatio
-	return resp, b.SendHTTPRequest(ctx, exchange.RestCoinMargined, "/futures/data/topLongShortPositionRatio?"+params.Encode(), cFuturesDefaultRate, &resp)
+	return resp, b.SendHTTPRequest(ctx, exchange.RestCoinMargined, common.EncodeURLValues("/futures/data/topLongShortPositionRatio", params), cFuturesDefaultRate, &resp)
 }
 
 // GetMarketRatio gets global long/short ratio
@@ -603,7 +601,7 @@ func (b *Binance) GetMarketRatio(ctx context.Context, pair currency.Pair, period
 		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
 	}
 	var resp []TopTraderPositionRatio
-	return resp, b.SendHTTPRequest(ctx, exchange.RestCoinMargined, "/futures/data/globalLongShortAccountRatio?"+params.Encode(), cFuturesDefaultRate, &resp)
+	return resp, b.SendHTTPRequest(ctx, exchange.RestCoinMargined, common.EncodeURLValues("/futures/data/globalLongShortAccountRatio", params), cFuturesDefaultRate, &resp)
 }
 
 // GetFuturesTakerVolume gets futures taker buy/sell volumes
@@ -632,7 +630,7 @@ func (b *Binance) GetFuturesTakerVolume(ctx context.Context, pair currency.Pair,
 		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
 	}
 	var resp []TakerBuySellVolume
-	return resp, b.SendHTTPRequest(ctx, exchange.RestCoinMargined, "/futures/data/takerBuySellVol?"+params.Encode(), cFuturesDefaultRate, &resp)
+	return resp, b.SendHTTPRequest(ctx, exchange.RestCoinMargined, common.EncodeURLValues("/futures/data/takerBuySellVol", params), cFuturesDefaultRate, &resp)
 }
 
 // GetFuturesBasisData gets futures basis data
@@ -661,7 +659,7 @@ func (b *Binance) GetFuturesBasisData(ctx context.Context, pair currency.Pair, c
 		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
 	}
 	var resp []FuturesBasisData
-	return resp, b.SendHTTPRequest(ctx, exchange.RestCoinMargined, "/futures/data/basis?"+params.Encode(), cFuturesDefaultRate, &resp)
+	return resp, b.SendHTTPRequest(ctx, exchange.RestCoinMargined, common.EncodeURLValues("/futures/data/basis", params), cFuturesDefaultRate, &resp)
 }
 
 // FuturesNewOrder sends a new futures order to the exchange

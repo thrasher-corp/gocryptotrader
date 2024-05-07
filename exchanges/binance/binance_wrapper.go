@@ -225,13 +225,12 @@ func (b *Binance) SetDefaults() {
 	}
 	b.API.Endpoints = b.NewEndpoints()
 	err = b.API.Endpoints.SetDefaultEndpoints(map[exchange.URL]string{
-		exchange.RestSpot:                 spotAPIURL,
+		exchange.RestSpot:                 apiURL,
 		exchange.RestOptions:              eOptionAPIURL,
-		exchange.RestSpotSupplementary:    apiURL,
 		exchange.RestUSDTMargined:         ufuturesAPIURL,
 		exchange.RestCoinMargined:         cfuturesAPIURL,
 		exchange.RestFuturesSupplementary: pMarginAPIURL,
-		exchange.EdgeCase1:                "https://www.binance.com",
+		exchange.EdgeCase1:                "https://api.binance.com",
 		exchange.WebsocketSpot:            binanceDefaultWebsocketURL,
 	})
 	if err != nil {
@@ -416,10 +415,7 @@ func (b *Binance) UpdateTickers(ctx context.Context, a asset.Item) error {
 		pairs = pairs.Format(format)
 		var tick []PriceChangeStats
 		if b.IsAPIStreamConnected() {
-			tick, err = b.GetWsTradingDayTickers(&PriceChangeRequestParam{
-				Symbols:    pairs,
-				TickerType: "FULL",
-			})
+			tick, err = b.GetWsTradingDayTickers(&PriceChangeRequestParam{Symbols: pairs, TickerType: "FULL"})
 		} else {
 			tick, err = b.GetPriceChangeStats(ctx, currency.EMPTYPAIR, pairs)
 		}
@@ -511,6 +507,8 @@ func (b *Binance) UpdateTickers(ctx context.Context, a asset.Item) error {
 				return err
 			}
 		}
+	case asset.Options:
+
 	default:
 		return fmt.Errorf("%w %v", asset.ErrNotSupported, a)
 	}
@@ -938,46 +936,93 @@ func (b *Binance) GetHistoricTrades(ctx context.Context, p currency.Pair, a asse
 	if err := b.CurrencyPairs.IsAssetEnabled(a); err != nil {
 		return nil, err
 	}
-	if a != asset.Spot {
-		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, a)
-	}
+	// if a != asset.Spot {
+	// 	return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, a)
+	// }
 	rFmt, err := b.GetPairFormat(a, true)
 	if err != nil {
 		return nil, err
 	}
 	pFmt := p.Format(rFmt)
-	var trades []AggregatedTrade
-	if b.IsAPIStreamConnected() {
-		trades, err = b.GetWsAggregatedTrades(&WsAggregateTradeRequestParams{
-			Symbol:    pFmt.String(),
-			StartTime: from.UnixMilli(),
-			EndTime:   to.UnixMilli(),
-		})
-	} else {
-		req := AggregatedTradeRequestParams{
-			Symbol:    pFmt.String(),
-			StartTime: from,
-			EndTime:   to,
+	switch a {
+	case asset.Spot, asset.Margin, asset.CrossMargin:
+		var trades []AggregatedTrade
+		if b.IsAPIStreamConnected() {
+			trades, err = b.GetWsAggregatedTrades(&WsAggregateTradeRequestParams{
+				Symbol:    pFmt.String(),
+				StartTime: from.UnixMilli(),
+				EndTime:   to.UnixMilli(),
+			})
+		} else {
+			trades, err = b.GetAggregatedTrades(ctx, &AggregatedTradeRequestParams{
+				Symbol:    pFmt.String(),
+				StartTime: from,
+				EndTime:   to,
+			})
 		}
-		trades, err = b.GetAggregatedTrades(ctx, &req)
-	}
-	if err != nil {
-		return nil, fmt.Errorf("%w %v", err, pFmt)
-	}
-	result := make([]trade.Data, len(trades))
-	for i := range trades {
-		result[i] = trade.Data{
-			CurrencyPair: p,
-			TID:          strconv.FormatInt(trades[i].ATradeID, 10),
-			Amount:       trades[i].Quantity,
-			Exchange:     b.Name,
-			Price:        trades[i].Price,
-			Timestamp:    trades[i].TimeStamp.Time(),
-			AssetType:    a,
-			Side:         order.AnySide,
+		if err != nil {
+			return nil, fmt.Errorf("%w %v", err, pFmt)
 		}
+		result := make([]trade.Data, len(trades))
+		for i := range trades {
+			result[i] = trade.Data{
+				CurrencyPair: p,
+				TID:          strconv.FormatInt(trades[i].ATradeID, 10),
+				Amount:       trades[i].Quantity,
+				Exchange:     b.Name,
+				Price:        trades[i].Price,
+				Timestamp:    trades[i].TimeStamp.Time(),
+				AssetType:    a,
+				Side:         order.AnySide,
+			}
+		}
+		return result, nil
+	case asset.USDTMarginedFutures, asset.CoinMarginedFutures:
+		var trades []UPublicTradesData
+		if a == asset.USDTMarginedFutures {
+			trades, err = b.UFuturesHistoricalTrades(ctx, pFmt, "", 0)
+		} else {
+			trades, err = b.GetFuturesHistoricalTrades(ctx, pFmt, "", 0)
+		}
+		if err != nil {
+			return nil, err
+		}
+		result := make([]trade.Data, len(trades))
+		for i := range trades {
+			result[i] = trade.Data{
+				CurrencyPair: p,
+				TID:          strconv.FormatInt(trades[i].ID, 10),
+				Amount:       trades[i].Qty,
+				Exchange:     b.Name,
+				Price:        trades[i].Price,
+				Timestamp:    trades[i].Time.Time(),
+				AssetType:    a,
+				Side:         order.AnySide,
+			}
+		}
+		return result, nil
+	case asset.Options:
+		trades, err := b.GetEOptionsTradeHistory(ctx, pFmt.String(), 0, 0)
+		if err != nil {
+			return nil, err
+		}
+		result := make([]trade.Data, len(trades))
+		for i := range trades {
+			result[i] = trade.Data{
+				CurrencyPair: p,
+				TID:          trades[i].ID,
+				Amount:       trades[i].Quantity.Float64(),
+				Exchange:     b.Name,
+				Price:        trades[i].Price.Float64(),
+				Timestamp:    trades[i].Time.Time(),
+				AssetType:    a,
+				Side:         order.AnySide,
+			}
+		}
+		return result, nil
+	default:
+		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, a)
 	}
-	return result, nil
 }
 
 // SubmitOrder submits a new order
@@ -2140,7 +2185,7 @@ func (b *Binance) GetServerTime(ctx context.Context, ai asset.Item) (time.Time, 
 	switch ai {
 	case asset.USDTMarginedFutures:
 		return b.UServerTime(ctx)
-	case asset.Spot:
+	case asset.Spot, asset.Margin:
 		info, err := b.GetExchangeInfo(ctx)
 		if err != nil {
 			return time.Time{}, err
@@ -2151,7 +2196,13 @@ func (b *Binance) GetServerTime(ctx context.Context, ai asset.Item) (time.Time, 
 		if err != nil {
 			return time.Time{}, err
 		}
-		return time.UnixMilli(info.ServerTime), nil
+		return info.ServerTime.Time(), nil
+	case asset.Options:
+		info, err := b.CheckEOptionsServerTime(context.Background())
+		if err != nil {
+			return time.Time{}, err
+		}
+		return info.Time(), nil
 	}
 	return time.Time{}, fmt.Errorf("%s %w", ai, asset.ErrNotSupported)
 }
@@ -2176,6 +2227,7 @@ func (b *Binance) GetLatestFundingRates(ctx context.Context, r *fundingrate.Late
 	}
 
 	switch r.Asset {
+	case asset.Spot:
 	case asset.USDTMarginedFutures:
 		var mp []UMarkPrice
 		var fri []FundingRateInfoResponse

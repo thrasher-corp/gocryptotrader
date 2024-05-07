@@ -40,9 +40,9 @@ type EOptionExchangeInfo struct {
 		Side                 string       `json:"side"`
 		StrikePrice          types.Number `json:"strikePrice"`
 		Underlying           string       `json:"underlying"`
-		Unit                 int          `json:"unit"`
-		MakerFeeRate         string       `json:"makerFeeRate"`
-		TakerFeeRate         string       `json:"takerFeeRate"`
+		Unit                 int64        `json:"unit"`
+		MakerFeeRate         types.Number `json:"makerFeeRate"`
+		TakerFeeRate         types.Number `json:"takerFeeRate"`
 		MinQty               string       `json:"minQty"`
 		MaxQty               string       `json:"maxQty"`
 		InitialMargin        string       `json:"initialMargin"`
@@ -482,9 +482,9 @@ type WsOptionsKlineData struct {
 
 // WsOptionIncomingResp used by wsHandleEOptionsData
 type WsOptionIncomingResp struct {
+	ID        int64           `json:"id"`
 	EventType string          `json:"e"`
 	Result    json.RawMessage `json:"result"`
-	ID        int64           `json:"id"`
 	Stream    string          `json:"stream"`
 	Data      json.RawMessage `json:"data"`
 }
@@ -519,7 +519,7 @@ type WsOptionsNewPair struct {
 	Unit                      int64                `json:"unit"` // Conversion ratio, the quantity of the underlying asset represented by a single contract
 	MinimumTradeVolume        string               `json:"mq"`   // Minimum trade volume of the underlying asset
 	OptionType                string               `json:"d"`
-	StrikePrice               string               `json:"sp"`
+	StrikePrice               types.Number         `json:"sp"`
 	ExpirationTime            convert.ExchangeTime `json:"ed"`
 }
 

@@ -17,7 +17,6 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 )
 
 const (
@@ -118,7 +117,7 @@ func (b *Binance) GetEOptionsCandlesticks(ctx context.Context, symbol string, in
 // GetOptionMarkPrice option mark price and greek info.
 func (b *Binance) GetOptionMarkPrice(ctx context.Context, symbol string) ([]OptionMarkPrice, error) {
 	params := url.Values{}
-	if symbol == "" {
+	if symbol != "" {
 		params.Set("symbol", symbol)
 	}
 	var resp []OptionMarkPrice
@@ -128,7 +127,7 @@ func (b *Binance) GetOptionMarkPrice(ctx context.Context, symbol string) ([]Opti
 // GetEOptions24hrTickerPriceChangeStatistics 24 hour rolling window price change statistics.
 func (b *Binance) GetEOptions24hrTickerPriceChangeStatistics(ctx context.Context, symbol string) ([]EOptionTicker, error) {
 	params := url.Values{}
-	if symbol == "" {
+	if symbol != "" {
 		params.Set("symbol", symbol)
 	}
 	var resp []EOptionTicker
@@ -152,10 +151,12 @@ func (b *Binance) GetEOptionsHistoricalExerciseRecords(ctx context.Context, unde
 	if underlying != "" {
 		params.Set("underlying", underlying)
 	}
-	if !startTime.IsZero() {
+	if !startTime.IsZero() && !endTime.IsZero() {
+		err := common.StartEndTimeCheck(startTime, endTime)
+		if err != nil {
+			return nil, err
+		}
 		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
-	}
-	if !endTime.IsZero() {
 		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
 	}
 	if limit > 0 {
@@ -342,7 +343,7 @@ func (b *Binance) CancelBatchOptionsOrders(ctx context.Context, symbol string, o
 // CancelAllOptionOrdersOnSpecificSymbol cancels all active order on a symbol
 func (b *Binance) CancelAllOptionOrdersOnSpecificSymbol(ctx context.Context, symbol string) error {
 	params := url.Values{}
-	if symbol == "" {
+	if symbol != "" {
 		params.Set("symbol", symbol)
 	}
 	return b.SendAuthHTTPRequest(ctx, exchange.RestOptions, http.MethodDelete, "/eapi/v1/allOpenOrders", params, optionsDefaultOrderRate, nil, nil)
@@ -370,21 +371,21 @@ func (b *Binance) GetOptionsOrdersHistory(ctx context.Context, symbol string, st
 }
 
 func (b *Binance) getOptionsOrders(ctx context.Context, path, symbol string, startTime, endTime time.Time, orderID, limit int64) ([]OptionOrder, error) {
-	var ratelimit request.EndpointLimit
+	ratelimit := optionsAllQueryOpenOrdersRate
 	if path == "/eapi/v1/historyOrders" {
 		ratelimit = optionsGetOrderHistory
-	} else {
-		ratelimit = optionsAllQueryOpenOrdersRate
 	}
 	params := url.Values{}
 	if symbol != "" {
 		ratelimit = optionsDefaultOrderRate
 		params.Set("symbol", symbol)
 	}
-	if !startTime.IsZero() {
+	if !startTime.IsZero() && !endTime.IsZero() {
+		err := common.StartEndTimeCheck(startTime, endTime)
+		if err != nil {
+			return nil, err
+		}
 		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
-	}
-	if !endTime.IsZero() {
 		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
 	}
 	if orderID != 0 {
@@ -416,10 +417,12 @@ func (b *Binance) GetEOptionsAccountTradeList(ctx context.Context, symbol string
 	if fromID > 0 {
 		params.Set("fromId", strconv.FormatInt(fromID, 10))
 	}
-	if !startTime.IsZero() {
+	if !startTime.IsZero() && !endTime.IsZero() {
+		err := common.StartEndTimeCheck(startTime, endTime)
+		if err != nil {
+			return nil, err
+		}
 		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
-	}
-	if !endTime.IsZero() {
 		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
 	}
 	if limit > 0 {
@@ -435,10 +438,12 @@ func (b *Binance) GetUserOptionsExerciseRecord(ctx context.Context, symbol strin
 	if symbol != "" {
 		params.Set("symbol", symbol)
 	}
-	if !startTime.IsZero() {
+	if !startTime.IsZero() && !endTime.IsZero() {
+		err := common.StartEndTimeCheck(startTime, endTime)
+		if err != nil {
+			return nil, err
+		}
 		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
-	}
-	if !endTime.IsZero() {
 		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
 	}
 	if limit > 0 {
@@ -454,15 +459,17 @@ func (b *Binance) GetAccountFundingFlow(ctx context.Context, ccy currency.Code, 
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
 	params := url.Values{}
+	if !startTime.IsZero() && !endTime.IsZero() {
+		err := common.StartEndTimeCheck(startTime, endTime)
+		if err != nil {
+			return nil, err
+		}
+		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
+	}
 	params.Set("currency", ccy.String())
 	if recordID != 0 {
 		params.Set("recordId", strconv.FormatInt(recordID, 10))
-	}
-	if !startTime.IsZero() {
-		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
-	}
-	if !endTime.IsZero() {
-		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
 	}
 	if limit > 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))

@@ -632,7 +632,7 @@ type CExchangeInfo struct {
 		Limit         int64  `json:"limit"`
 		RateLimitType string `json:"rateLimitType"`
 	} `json:"rateLimits"`
-	ServerTime int64 `json:"serverTime"`
+	ServerTime convert.ExchangeTime `json:"serverTime"`
 	Symbols    []struct {
 		Filters []struct {
 			FilterType        string  `json:"filterType"`
@@ -675,8 +675,8 @@ type CFutureAggregateTrade struct {
 	EventTime        int64                `json:"E"`
 	AggregateTradeID int64                `json:"a"`
 	Symbol           string               `json:"s"`
-	Price            string               `json:"p"`
-	Quantity         string               `json:"q"`
+	Price            types.Number         `json:"p"`
+	Quantity         types.Number         `json:"q"`
 	FirstTradeID     int64                `json:"f"`
 	LastTradeID      int64                `json:"l"`
 	TradeTime        convert.ExchangeTime `json:"T"`
