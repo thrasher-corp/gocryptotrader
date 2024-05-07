@@ -105,9 +105,9 @@ func setupExchange(ctx context.Context, t *testing.T, name string, cfg *config.C
 	b.API.SetSubAccount(creds.Subaccount)
 	// Lbank usually runs this during setup, but if keys aren't set then, it will fail, so we have to manually
 	// recreate that here
-	switch theExch := exch.(type) {
-	case *lbank.Lbank:
-		err = theExch.LoadPrivKey(ctx)
+	lbankExch, ok := exch.(*lbank.Lbank)
+	if ok {
+		err = lbankExch.LoadPrivKey(ctx)
 		if err != nil {
 			t.Fatalf("Cannot setup %v LoadPrivKey %v", name, err)
 		}

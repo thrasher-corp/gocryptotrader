@@ -141,7 +141,6 @@ var (
 	errInvalidOrderType       = errors.New("order type must be market, limit, or stop")
 	errNoMatchingWallets      = errors.New("no matching wallets returned")
 	errOrderModFailNoRet      = errors.New("order modification failed but no error returned")
-	errNoMatchingOrders       = errors.New("no matching orders returned")
 	errPointerNil             = errors.New("relevant pointer is nil")
 	errNameEmpty              = errors.New("name cannot be empty")
 	errPortfolioIDEmpty       = errors.New("portfolio id cannot be empty")
@@ -1270,13 +1269,16 @@ func (c *CoinbasePro) GetProductCandles(ctx context.Context, pair string, granul
 	}
 	var params Params
 	params.Values = url.Values{}
-	params.prepareDateString(startTime, endTime, "start", "end")
+	err := params.prepareDateString(startTime, endTime, "start", "end")
+	if err != nil {
+		return nil, err
+	}
 	if granularity != 0 {
 		params.Values.Set("granularity", strconv.FormatUint(uint64(granularity), 10))
 	}
 	path := common.EncodeURLValues(coinbaseProducts+"/"+pair+"/"+coinbaseCandles, params.Values)
 	var resp []RawCandles
-	err := c.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, path, &resp)
+	err = c.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, path, &resp)
 	if err != nil {
 		return nil, err
 	}

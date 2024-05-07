@@ -1972,7 +1972,8 @@ func GetDefaultConfig(ctx context.Context, exch IBotExchange) (*config.Exchange,
 	}
 
 	if b.Features.Supports.RESTCapabilities.AutoPairUpdates {
-		if err = exch.UpdateTradablePairs(ctx, true); err != nil {
+		err = exch.UpdateTradablePairs(ctx, true)
+		if err != nil {
 			return nil, err
 		}
 	}

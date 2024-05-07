@@ -402,7 +402,8 @@ func (c *CoinbasePro) UpdateOrderbook(ctx context.Context, p currency.Pair, asse
 		if assetType != asset.Spot {
 			return nil, fmt.Errorf("%w for %v", errAuthenticationNeeded, assetType)
 		}
-		obN, err := c.GetProductBookV1(ctx, fPair.String(), 2)
+		var obN *OrderBook
+		obN, err = c.GetProductBookV1(ctx, fPair.String(), 2)
 		if err != nil {
 			return book, err
 		}
@@ -421,7 +422,8 @@ func (c *CoinbasePro) UpdateOrderbook(ctx context.Context, p currency.Pair, asse
 			}
 		}
 	} else {
-		orderbookNew, err := c.GetProductBookV3(ctx, fPair.String(), 1000)
+		var orderbookNew *ProductBook
+		orderbookNew, err = c.GetProductBookV3(ctx, fPair.String(), 1000)
 		if err != nil {
 			return book, err
 		}
@@ -654,7 +656,7 @@ func (c *CoinbasePro) CancelBatchOrders(ctx context.Context, o []order.Cancel) (
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
-func (c *CoinbasePro) CancelAllOrders(ctx context.Context, can *order.Cancel) (order.CancelAllResponse, error) {
+func (c *CoinbasePro) CancelAllOrders(_ context.Context, _ *order.Cancel) (order.CancelAllResponse, error) {
 	return order.CancelAllResponse{}, common.ErrFunctionNotSupported
 }
 
@@ -1428,7 +1430,8 @@ func (c *CoinbasePro) tickerHelper(ctx context.Context, name string, assetType a
 		AssetType:    assetType,
 	}
 	if unverified {
-		tick, err := c.GetProductTicker(ctx, name)
+		var tick *ProductTicker
+		tick, err = c.GetProductTicker(ctx, name)
 		if err != nil {
 			return err
 		}
@@ -1437,7 +1440,8 @@ func (c *CoinbasePro) tickerHelper(ctx context.Context, name string, assetType a
 		newTick.Bid = tick.Bid
 		newTick.Ask = tick.Ask
 	} else {
-		ticks, err := c.GetTicker(ctx, name, 1, time.Time{}, time.Time{})
+		var ticks *Ticker
+		ticks, err = c.GetTicker(ctx, name, 1, time.Time{}, time.Time{})
 		if err != nil {
 			return err
 		}
@@ -1454,20 +1458,6 @@ func (c *CoinbasePro) tickerHelper(ctx context.Context, name string, assetType a
 		return err
 	}
 	return nil
-}
-
-// This will only be valuable once it would be used four times; it's currently sitting at two.
-// VerifyAssetCheck checks whether the user can access authenticated endpoints, and whether one is necessary,
-// providing errors accordingly
-func (c *CoinbasePro) verifyAssetCheck(ctx context.Context, assetType asset.Item) (bool, error) {
-	unverified, err := c.verificationCheck(ctx)
-	if err != nil {
-		return unverified, err
-	}
-	if unverified && assetType != asset.Spot {
-		return unverified, fmt.Errorf("%w for %v", errAuthenticationNeeded, assetType)
-	}
-	return unverified, nil
 }
 
 // CandleHelper handles calling the correct candle function, and doing preliminary work on the data
