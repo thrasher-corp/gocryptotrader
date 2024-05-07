@@ -47,7 +47,7 @@ const (
 
 func TestMain(m *testing.M) {
 	k = new(Kraken)
-	if err := testexch.TestInstance(k); err != nil {
+	if err := testexch.Setup(k); err != nil {
 		log.Fatal(err)
 	}
 	if apiKey != "" && apiSecret != "" {
@@ -2307,5 +2307,24 @@ func curryWsMockUpgrader(tb testing.TB, h testexch.WsMockFunc) http.HandlerFunc 
 			return
 		}
 		testexch.WsMockUpgrader(tb, w, r, h)
+	}
+}
+
+func TestGetCurrencyTradeURL(t *testing.T) {
+	t.Parallel()
+	testexch.UpdatePairsOnce(t, k)
+	for _, a := range k.GetAssetTypes(false) {
+		pairs, err := k.CurrencyPairs.GetPairs(a, false)
+		if len(pairs) == 0 {
+			continue
+		}
+		require.NoError(t, err, "cannot get pairs for %s", a)
+		resp, err := k.GetCurrencyTradeURL(context.Background(), a, pairs[0])
+		if a != asset.Spot && a != asset.Futures {
+			assert.ErrorIs(t, err, asset.ErrNotSupported)
+			continue
+		}
+		require.NoError(t, err)
+		assert.NotEmpty(t, resp)
 	}
 }

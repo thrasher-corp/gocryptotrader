@@ -567,20 +567,23 @@ func (b *Bitstamp) GetOrderInfo(ctx context.Context, orderID string, _ currency.
 			TID:    strconv.FormatInt(o.Transactions[i].TradeID, 10),
 			Price:  o.Transactions[i].Price,
 			Fee:    o.Transactions[i].Fee,
-			Amount: o.Transactions[i].BTC,
+			Amount: o.Transactions[i].ToCurrency,
 		}
 	}
 	orderDate, err := time.Parse(time.DateTime, o.DateTime)
 	if err != nil {
 		return nil, err
 	}
-
+	status, err := order.StringToOrderStatus(o.Status)
+	if err != nil {
+		return nil, err
+	}
 	return &order.Detail{
-		Amount:  o.Amount,
-		Price:   o.Price,
-		OrderID: o.ID,
-		Date:    orderDate,
-		Trades:  th,
+		RemainingAmount: o.AmountRemaining,
+		OrderID:         o.ID,
+		Date:            orderDate,
+		Trades:          th,
+		Status:          status,
 	}, nil
 }
 
@@ -924,4 +927,14 @@ func (b *Bitstamp) GetFuturesContractDetails(context.Context, asset.Item) ([]fut
 // GetLatestFundingRates returns the latest funding rates data
 func (b *Bitstamp) GetLatestFundingRates(context.Context, *fundingrate.LatestRateRequest) ([]fundingrate.LatestRateResponse, error) {
 	return nil, common.ErrFunctionNotSupported
+}
+
+// GetCurrencyTradeURL returns the URL to the exchange's trade page for the given asset and currency pair
+func (b *Bitstamp) GetCurrencyTradeURL(_ context.Context, a asset.Item, cp currency.Pair) (string, error) {
+	_, err := b.CurrencyPairs.IsPairEnabled(cp, a)
+	if err != nil {
+		return "", err
+	}
+	cp.Delimiter = ""
+	return tradeBaseURL + cp.Lower().String() + "/", nil
 }

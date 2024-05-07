@@ -3443,7 +3443,7 @@ func TestGetOpenInterest(t *testing.T) {
 	assert.NotEmpty(t, resp, "GetOpenInterest should return some items")
 }
 
-var pairs = map[asset.Item]currency.Pair{
+var pairMap = map[asset.Item]currency.Pair{
 	asset.Spot: currency.NewPairWithDelimiter("BTC", "USDT", "_"),
 }
 
@@ -3452,14 +3452,14 @@ var pairsGuard sync.RWMutex
 func getPair(tb testing.TB, a asset.Item) currency.Pair {
 	tb.Helper()
 	pairsGuard.RLock()
-	p, ok := pairs[a]
+	p, ok := pairMap[a]
 	pairsGuard.RUnlock()
 	if ok {
 		return p
 	}
 	pairsGuard.Lock()
 	defer pairsGuard.Unlock()
-	p, ok = pairs[a] // Protect Race if we blocked on Lock and another RW populated
+	p, ok = pairMap[a] // Protect Race if we blocked on Lock and another RW populated
 	if ok {
 		return p
 	}
@@ -3471,9 +3471,9 @@ func getPair(tb testing.TB, a asset.Item) currency.Pair {
 		tb.Fatalf("No pair available for asset %s", a)
 		return currency.EMPTYPAIR
 	}
-	pairs[a] = enabledPairs[0]
+	pairMap[a] = enabledPairs[0]
 
-	return pairs[a]
+	return pairMap[a]
 }
 
 func TestGetClientOrderIDFromText(t *testing.T) {
@@ -3579,5 +3579,22 @@ func TestProcessFuturesOrdersPushData(t *testing.T) {
 				assert.Equal(t, tc.status.String(), processed[i].Status.String())
 			}
 		})
+	}
+}
+
+func TestGetCurrencyTradeURL(t *testing.T) {
+	t.Parallel()
+	testexch.UpdatePairsOnce(t, g)
+	for _, a := range g.GetAssetTypes(false) {
+		pairs, err := g.CurrencyPairs.GetPairs(a, false)
+		require.NoError(t, err, "cannot get pairs for %s", a)
+		require.NotEmpty(t, pairs, "no pairs for %s", a)
+		resp, err := g.GetCurrencyTradeURL(context.Background(), a, pairs[0])
+		if a == asset.Options {
+			require.ErrorIs(t, err, asset.ErrNotSupported)
+		} else {
+			require.NoError(t, err)
+			assert.NotEmpty(t, resp)
+		}
 	}
 }

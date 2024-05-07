@@ -38,6 +38,8 @@ var (
 	ErrRequestSystemIsNil = errors.New("request system is nil")
 	// ErrAuthRequestFailed is a wrapping error to denote that it's an auth request that failed
 	ErrAuthRequestFailed = errors.New("authenticated request failed")
+	// ErrBadStatus is a wrapping error to denote that the HTTP status code was unsuccessful
+	ErrBadStatus = errors.New("unsuccessful HTTP status code")
 
 	errRequestFunctionIsNil   = errors.New("request function is nil")
 	errRequestItemNil         = errors.New("request item is nil")
@@ -260,8 +262,9 @@ func (r *Requester) doRequest(ctx context.Context, endpoint EndpointLimit, newRe
 
 		if resp.StatusCode < http.StatusOK ||
 			resp.StatusCode > http.StatusNoContent {
-			return fmt.Errorf("%s unsuccessful HTTP status code: %d raw response: %s",
+			return fmt.Errorf("%s %w: %d raw response: %s",
 				r.name,
+				ErrBadStatus,
 				resp.StatusCode,
 				string(contents))
 		}
