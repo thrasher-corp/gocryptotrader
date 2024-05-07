@@ -98,7 +98,6 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	// c.Verbose = true
 	os.Exit(m.Run())
 }
 
@@ -1060,11 +1059,11 @@ func TestFetchTradablePairs(t *testing.T) {
 func TestUpdateTradablePairs(t *testing.T) {
 	t.Parallel()
 	err := c.UpdateTradablePairs(context.Background(), false)
-	if sharedtestvalues.AreAPICredentialsSet(c) {
-		assert.NoError(t, err)
-	} else {
-		assert.ErrorIs(t, err, errAuthenticationNeeded)
-	}
+	// if sharedtestvalues.AreAPICredentialsSet(c) {
+	assert.NoError(t, err)
+	// } else {
+	// 	assert.ErrorIs(t, err, errAuthenticationNeeded)
+	// }
 }
 
 func TestUpdateAccountInfo(t *testing.T) {

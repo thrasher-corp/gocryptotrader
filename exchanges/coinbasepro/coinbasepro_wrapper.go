@@ -228,6 +228,10 @@ func (c *CoinbasePro) UpdateTradablePairs(ctx context.Context, forceUpdate bool)
 	for i := range assets {
 		pairs, err := c.FetchTradablePairs(ctx, assets[i])
 		if err != nil {
+			if errors.Is(err, errAuthenticationNeeded) && assets[i] == asset.Futures {
+				log.Warnf(log.ExchangeSys, "%v", err)
+				continue
+			}
 			return err
 		}
 		err = c.UpdatePairs(pairs, assets[i], false, forceUpdate)

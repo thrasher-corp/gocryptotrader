@@ -606,7 +606,7 @@ var blockedCIExchanges = []string{
 
 // blockedExchanges are exchanges that are not able to be tested in general
 var blockedExchanges = []string{
-	"coinbasepro", // coinbasepro API requires authentication for almost every endpoint
+	// "coinbasepro", // coinbasepro API requires authentication for almost every endpoint
 }
 
 // unsupportedAssets contains assets that cannot handle
@@ -716,6 +716,18 @@ func isFiat(t *testing.T, c string) bool {
 	}
 	return false
 }
+
+// func getTestableAssets(t *testing.T, exch exchange.IBotExchange) []asset.Item {
+// 	t.Helper()
+// 	var assets []asset.Item
+// 	if exchange == coinbrasepro && asset.Ifutures {
+// 		continue
+// 	}
+// 	for x := range exch.GetBase().CurrencyPairs.GetAssetTypes(false) {
+// 		assets = append(assets, exch.GetBase().CurrencyPairs.GetAssetTypes(false)[x])
+// 	}
+// 	return assets
+// }
 
 // disruptFormatting adds in an unused delimiter and strange casing features to
 // ensure format currency pair is used throughout the code base.
