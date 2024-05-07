@@ -37,7 +37,7 @@ const (
 	canManipulateRealOrders   = false
 	canManipulateAPIEndpoints = false
 	btcPerpInstrument         = "BTC-PERPETUAL"
-	useTestNet                = false
+	useTestNet                = true
 )
 
 var (
@@ -75,6 +75,10 @@ func TestMain(m *testing.M) {
 	}
 	if useTestNet {
 		deribitWebsocketAddress = "wss://test.deribit.com/ws" + deribitAPIVersion
+		err = d.Websocket.SetWebsocketURL(deribitWebsocketAddress, false, true)
+		if err != nil {
+			log.Fatal(err)
+		}
 		for k, v := range d.API.Endpoints.GetURLMap() {
 			v = strings.Replace(v, "www.deribit.com", "test.deribit.com", 1)
 			err = d.API.Endpoints.SetRunning(k, v)
@@ -1541,7 +1545,7 @@ func TestSubmitCancelAll(t *testing.T) {
 func TestWSSubmitCancelAll(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, d, canManipulateRealOrders)
-	_, err := d.WSSubmitCancelAll()
+	_, err := d.WSSubmitCancelAll(true)
 	assert.NoError(t, err)
 }
 
@@ -1555,7 +1559,7 @@ func TestSubmitCancelAllByCurrency(t *testing.T) {
 func TestWSSubmitCancelAllByCurrency(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, d, canManipulateRealOrders)
-	_, err := d.WSSubmitCancelAllByCurrency(currencyBTC, "option", "")
+	_, err := d.WSSubmitCancelAllByCurrency(currencyBTC, "option", "", true)
 	assert.NoError(t, err)
 }
 
@@ -1599,6 +1603,22 @@ func TestWSSubmitCancelByLabel(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, d, canManipulateRealOrders)
 	_, err := d.WSSubmitCancelByLabel("incorrectOrderLabel", "")
 	assert.NoError(t, err)
+}
+
+func TestSubmitCancelQuotes(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, d, canManipulateRealOrders)
+	result, err := d.SubmitCancelQuotes(context.Background(), currency.BTC, 0, 0, "all", "", futuresTradablePair.String(), "future", true)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestWSSubmitCancelQuotes(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, d, canManipulateRealOrders)
+	result, err := d.WSSubmitCancelQuotes(currency.BTC, 0, 0, "all", "", futuresTradablePair.String(), "future", true)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
 }
 
 func TestSubmitClosePosition(t *testing.T) {
@@ -2845,7 +2865,7 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 			break
 		}
 	}
-	require.NotNil(t, instrumentDetail, "instrument required o be found")
+	require.NotNil(t, instrumentDetail, "instrument required to be found")
 	require.Equalf(t, instrumentDetail.TickSize, limits.PriceStepIncrementSize, "Asset: %s Pair: %s Expected: %v Got: %v", asset.Spot, spotTradablePair, instrumentDetail.TickSize, limits.MinimumBaseAmount)
 	assert.Equalf(t, instrumentDetail.MinimumTradeAmount, limits.MinimumBaseAmount, "Pair: %s Expected: %v Got: %v", spotTradablePair, instrumentDetail.MinimumTradeAmount, limits.MinimumBaseAmount)
 }

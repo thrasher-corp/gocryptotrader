@@ -564,7 +564,7 @@ func (d *Deribit) GetWithdrawalsHistory(ctx context.Context, c currency.Code, _ 
 // GetRecentTrades returns the most recent trades for a currency and asset
 func (d *Deribit) GetRecentTrades(ctx context.Context, p currency.Pair, assetType asset.Item) ([]trade.Data, error) {
 	if !d.SupportsAsset(assetType) {
-		return nil, fmt.Errorf("%s: %w - %s", d.Name, asset.ErrNotSupported, d.Name)
+		return nil, fmt.Errorf("%s: %w - %s", d.Name, asset.ErrNotSupported, assetType)
 	}
 	p, err := d.FormatExchangeCurrency(p, assetType)
 	if err != nil {
@@ -778,22 +778,20 @@ func (d *Deribit) ModifyOrder(ctx context.Context, action *order.Modify) (*order
 
 // CancelOrder cancels an order by its corresponding ID number
 func (d *Deribit) CancelOrder(ctx context.Context, ord *order.Cancel) error {
+	if !d.SupportsAsset(ord.AssetType) {
+		return fmt.Errorf("%s: %w - %s", d.Name, asset.ErrNotSupported, ord.AssetType)
+	}
 	err := ord.Validate(ord.StandardCancel())
 	if err != nil {
 		return err
 	}
-	switch ord.AssetType {
-	case asset.Futures, asset.Options, asset.OptionCombo, asset.FutureCombo:
-		if d.Websocket.IsConnected() && d.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
-			_, err = d.WSSubmitCancel(ord.OrderID)
-		} else {
-			_, err = d.SubmitCancel(ctx, ord.OrderID)
-		}
-		if err != nil {
-			return err
-		}
-	default:
-		return fmt.Errorf("%s: %w - %v", d.Name, asset.ErrNotSupported, ord.AssetType)
+	if d.Websocket.IsConnected() && d.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
+		_, err = d.WSSubmitCancel(ord.OrderID)
+	} else {
+		_, err = d.SubmitCancel(ctx, ord.OrderID)
+	}
+	if err != nil {
+		return err
 	}
 	return nil
 }

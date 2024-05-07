@@ -89,6 +89,7 @@ const (
 	submitCancelAllByKind            = "private/cancel_all_by_kind_or_type"
 	submitCancelAllByInstrument      = "private/cancel_all_by_instrument"
 	submitCancelByLabel              = "private/cancel_by_label"
+	submitCancelQuotes               = "private/cancel_quotes"
 	submitClosePosition              = "private/close_position"
 	getMargins                       = "private/get_margins"
 	getMMPConfig                     = "private/get_mmp_config"
@@ -1761,15 +1762,55 @@ func (d *Deribit) SubmitCancelAllByInstrument(ctx context.Context, instrument, o
 
 // SubmitCancelByLabel sends a request to cancel all user orders for the specified label
 // returns the total number of successfully cancelled orders
-func (d *Deribit) SubmitCancelByLabel(ctx context.Context, label, ccy string) (*MultipleCancelResponse, error) {
+func (d *Deribit) SubmitCancelByLabel(ctx context.Context, label, ccy string) (int64, error) {
 	params := url.Values{}
 	params.Set("label", label)
 	if ccy != "" {
 		params.Set("currency", ccy)
 	}
-	var resp *MultipleCancelResponse
+	var resp int64
 	return resp, d.SendHTTPAuthRequest(ctx, exchange.RestFutures, matchingEPL, http.MethodGet,
 		submitCancelByLabel, params, &resp)
+}
+
+// SubmitCancelQuotes cancels quotes based on the provided type.
+// Delta cancels quotes within a Delta range defined by MinDelta and MaxDelta.
+// quote_set_id cancels quotes by a specific Quote Set identifier.
+// instrument cancels all quotes associated with a particular instrument. kind cancels all quotes for a certain kind.
+// currency cancels all quotes in a specified currency. "all" cancels all quotes.
+//
+// possible cancel_type values are delta, 'quote_set_id', 'instrument', 'instrument_kind', 'currency', and 'all'
+// possible kind values are future 'option', 'spot', 'future_combo', 'option_combo', 'combo', and 'any'
+func (d *Deribit) SubmitCancelQuotes(ctx context.Context, ccy currency.Code, minDelta, maxDelta float64, cancelType, quoteSetID, instrumentName, kind string, detailed bool) (*MultipleCancelResponse, error) {
+	if cancelType == "" {
+		return nil, errors.New("cancel type is required")
+	}
+	if ccy.IsEmpty() {
+		return nil, currency.ErrCurrencyCodeEmpty
+	}
+	params := url.Values{}
+	params.Set("cancel_type", cancelType)
+	params.Set("currency", ccy.String())
+	if detailed {
+		params.Set("detailed", "true")
+	}
+	if minDelta > 0 {
+		params.Set("min_delta", strconv.FormatFloat(minDelta, 'f', -1, 64))
+	}
+	if maxDelta > 0 {
+		params.Set("max_delta", strconv.FormatFloat(maxDelta, 'f', -1, 64))
+	}
+	if quoteSetID != "" {
+		params.Set("quote_set_id", quoteSetID)
+	}
+	if instrumentName != "" {
+		params.Set("instrument_name", instrumentName)
+	}
+	if kind != "" {
+		params.Set("kind", kind)
+	}
+	var resp *MultipleCancelResponse
+	return resp, d.SendHTTPAuthRequest(ctx, exchange.RestFutures, matchingEPL, http.MethodGet, submitCancelQuotes, params, &resp)
 }
 
 // SubmitClosePosition sends a request to cancel all user orders for the specified label

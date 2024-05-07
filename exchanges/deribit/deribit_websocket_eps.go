@@ -1429,13 +1429,13 @@ func (d *Deribit) WSSubmitCancel(orderID string) (*PrivateCancelData, error) {
 }
 
 // WSSubmitCancelAll sends a request to cancel all user orders in all currencies and instruments
-func (d *Deribit) WSSubmitCancelAll() (*MultipleCancelResponse, error) {
+func (d *Deribit) WSSubmitCancelAll(detailed bool) (*MultipleCancelResponse, error) {
 	var resp *MultipleCancelResponse
-	return resp, d.SendWSRequest(matchingEPL, submitCancelAll, nil, &resp, true)
+	return resp, d.SendWSRequest(matchingEPL, submitCancelAll, map[string]bool{"detailed": detailed}, &resp, true)
 }
 
 // WSSubmitCancelAllByCurrency sends a request to cancel all user orders for the specified currency through the websocket connection.
-func (d *Deribit) WSSubmitCancelAllByCurrency(symbol, kind, orderType string) (*MultipleCancelResponse, error) {
+func (d *Deribit) WSSubmitCancelAllByCurrency(symbol, kind, orderType string, detailed bool) (*MultipleCancelResponse, error) {
 	if symbol == "" {
 		return nil, fmt.Errorf("%w \"%s\"", currency.ErrSymbolStringEmpty, symbol)
 	}
@@ -1443,10 +1443,12 @@ func (d *Deribit) WSSubmitCancelAllByCurrency(symbol, kind, orderType string) (*
 		Currency  string `json:"currency"`
 		Kind      string `json:"kind,omitempty"`
 		OrderType string `json:"order_type,omitempty"`
+		Detailed  bool   `json:"detailed"`
 	}{
 		Currency:  symbol,
 		Kind:      kind,
 		OrderType: orderType,
+		Detailed:  detailed,
 	}
 	var resp *MultipleCancelResponse
 	return resp, d.SendWSRequest(matchingEPL, submitCancelAllByCurrency, input, &resp, true)
@@ -1494,7 +1496,7 @@ func (d *Deribit) WsSubmitCancelAllByKind(ccy currency.Code, kind, orderType str
 }
 
 // WSSubmitCancelByLabel sends a request to cancel all user orders for the specified label through the websocket connection.
-func (d *Deribit) WSSubmitCancelByLabel(label, symbol string) (*MultipleCancelResponse, error) {
+func (d *Deribit) WSSubmitCancelByLabel(label, symbol string) (int64, error) {
 	input := &struct {
 		Label    string `json:"label"`
 		Currency string `json:"currency,omitempty"`
@@ -1502,8 +1504,42 @@ func (d *Deribit) WSSubmitCancelByLabel(label, symbol string) (*MultipleCancelRe
 		Label:    label,
 		Currency: symbol,
 	}
-	var resp *MultipleCancelResponse
+	var resp int64
 	return resp, d.SendWSRequest(matchingEPL, submitCancelByLabel, input, &resp, true)
+}
+
+// WSSubmitCancelQuotes cancels quotes based on the provided type.
+//
+// possible cancel_type values are delta, 'quote_set_id', 'instrument', 'instrument_kind', 'currency', and 'all'
+// possible kind values are future 'option', 'spot', 'future_combo', 'option_combo', 'combo', and 'any'
+func (d *Deribit) WSSubmitCancelQuotes(ccy currency.Code, minDelta, maxDelta float64, cancelType, quoteSetID, instrumentName, kind string, detailed bool) (*MultipleCancelResponse, error) {
+	if cancelType == "" {
+		return nil, errors.New("cancel type is required")
+	}
+	if ccy.IsEmpty() {
+		return nil, currency.ErrCurrencyCodeEmpty
+	}
+	input := &struct {
+		CancelType     string  `json:"cancel_type"`
+		Currency       string  `json:"currency"`
+		Detailed       bool    `json:"detailed,omitempty"`
+		MinDelta       float64 `json:"min_delta,omitempty"`
+		MaxDelta       float64 `json:"max_delta,omitempty"`
+		InstrumentName string  `json:"instrument_name,omitempty"`
+		QuoteSetID     string  `json:"quote_set_id,omitempty"`
+		Kind           string  `json:"kind,omitempty"`
+	}{
+		CancelType:     cancelType,
+		Currency:       ccy.String(),
+		Detailed:       detailed,
+		MinDelta:       minDelta,
+		MaxDelta:       maxDelta,
+		InstrumentName: instrumentName,
+		Kind:           kind,
+		QuoteSetID:     quoteSetID,
+	}
+	var resp *MultipleCancelResponse
+	return resp, d.SendWSRequest(matchingEPL, submitCancelQuotes, input, &resp, true)
 }
 
 // WSSubmitClosePosition sends a request to cancel all user orders for the specified label through the websocket connection.
