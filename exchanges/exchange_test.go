@@ -1435,58 +1435,36 @@ func TestStoreAssetPairFormat(t *testing.T) {
 }
 
 func TestSetGlobalPairsManager(t *testing.T) {
-	b := Base{
-		Config: &config.Exchange{Name: "kitties"},
-	}
+	b := Base{Config: &config.Exchange{Name: "kitties"}}
 
 	err := b.SetGlobalPairsManager(nil, nil, asset.Empty)
-	if err == nil {
-		t.Error("error cannot be nil")
-	}
+	assert.ErrorContains(t, err, "cannot set pairs manager, request pair format not provided")
 
 	err = b.SetGlobalPairsManager(&currency.PairFormat{Uppercase: true}, nil, asset.Empty)
-	if err == nil {
-		t.Error("error cannot be nil")
-	}
+	assert.ErrorContains(t, err, "cannot set pairs manager, config pair format not provided")
 
-	err = b.SetGlobalPairsManager(&currency.PairFormat{Uppercase: true},
-		&currency.PairFormat{Uppercase: true})
-	if err == nil {
-		t.Error("error cannot be nil")
-	}
+	err = b.SetGlobalPairsManager(&currency.PairFormat{Uppercase: true}, &currency.PairFormat{Uppercase: true})
+	assert.ErrorContains(t, err, " cannot set pairs manager, no assets provided")
 
-	err = b.SetGlobalPairsManager(&currency.PairFormat{Uppercase: true},
-		&currency.PairFormat{Uppercase: true}, asset.Empty)
-	if err == nil {
-		t.Error("error cannot be nil")
-	}
+	err = b.SetGlobalPairsManager(&currency.PairFormat{Uppercase: true}, &currency.PairFormat{Uppercase: true}, asset.Empty)
+	assert.ErrorContains(t, err, " cannot set global pairs manager config pair format requires delimiter for assets")
 
 	err = b.SetGlobalPairsManager(&currency.PairFormat{Uppercase: true},
 		&currency.PairFormat{Uppercase: true},
 		asset.Spot,
 		asset.Binary)
-	if !errors.Is(err, errConfigPairFormatRequiresDelimiter) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errConfigPairFormatRequiresDelimiter)
-	}
+	assert.ErrorIs(t, err, errConfigPairFormatRequiresDelimiter)
 
-	err = b.SetGlobalPairsManager(&currency.PairFormat{Uppercase: true},
-		&currency.PairFormat{Uppercase: true, Delimiter: currency.DashDelimiter},
-		asset.Spot,
-		asset.Binary)
-	if err != nil {
-		t.Error(err)
-	}
+	err = b.SetGlobalPairsManager(&currency.PairFormat{Uppercase: true}, &currency.PairFormat{Uppercase: true, Delimiter: currency.DashDelimiter}, asset.Spot, asset.Binary)
+	require.NoError(t, err, "SetGlobalPairsManager must not error")
 
-	if !b.SupportsAsset(asset.Binary) || !b.SupportsAsset(asset.Spot) {
-		t.Fatal("global pairs manager not set correctly")
-	}
+	assert.True(t, b.SupportsAsset(asset.Binary), "Pairs Manager must support Binary")
+	assert.True(t, b.SupportsAsset(asset.Spot), "Pairs Manager must support Spot")
 
-	err = b.SetGlobalPairsManager(&currency.PairFormat{Uppercase: true},
-		&currency.PairFormat{Uppercase: true}, asset.Spot, asset.Binary)
-	if err == nil {
-		t.Error("error cannot be nil")
-	}
+	err = b.SetGlobalPairsManager(&currency.PairFormat{Uppercase: true}, &currency.PairFormat{Uppercase: true}, asset.Spot, asset.Binary)
+	assert.ErrorIs(t, err, errConfigPairFormatRequiresDelimiter, "SetGlobalPairsManager should error correctly")
 }
+
 func Test_FormatExchangeKlineInterval(t *testing.T) {
 	testCases := []struct {
 		name     string

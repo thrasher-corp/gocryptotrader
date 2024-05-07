@@ -1046,12 +1046,10 @@ func (b *Base) StoreAssetPairFormat(a asset.Item, f currency.PairStore) error {
 	return nil
 }
 
-// SetGlobalPairsManager sets defined asset and pairs management system with
-// global formatting
+// SetGlobalPairsManager sets defined asset and pairs management system with global formatting
 func (b *Base) SetGlobalPairsManager(request, config *currency.PairFormat, assets ...asset.Item) error {
 	if request == nil {
-		return fmt.Errorf("%s cannot set pairs manager, request pair format not provided",
-			b.Name)
+		return fmt.Errorf("%s cannot set pairs manager, request pair format not provided", b.Name)
 	}
 
 	if config == nil {
@@ -1083,10 +1081,10 @@ func (b *Base) SetGlobalPairsManager(request, config *currency.PairFormat, asset
 	for i := range assets {
 		if assets[i].String() == "" {
 			b.CurrencyPairs.Pairs = nil
-			return fmt.Errorf("%s cannot set pairs manager, asset is empty string",
-				b.Name)
+			return fmt.Errorf("%s cannot set pairs manager, asset is empty string", b.Name)
 		}
 		b.CurrencyPairs.Pairs[assets[i]] = new(currency.PairStore)
+		b.CurrencyPairs.Pairs[assets[i]].AssetEnabled = convert.BoolPtr(true)
 		b.CurrencyPairs.Pairs[assets[i]].ConfigFormat = config
 		b.CurrencyPairs.Pairs[assets[i]].RequestFormat = request
 	}
