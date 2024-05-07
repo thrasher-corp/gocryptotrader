@@ -37,7 +37,7 @@ const (
 	canManipulateRealOrders   = false
 	canManipulateAPIEndpoints = false
 	btcPerpInstrument         = "BTC-PERPETUAL"
-	useTestNet                = true
+	useTestNet                = false
 )
 
 var (
