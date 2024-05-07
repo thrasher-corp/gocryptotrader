@@ -122,7 +122,7 @@ func (l *Lbank) Setup(exch *config.Exchange) error {
 	}
 
 	if l.API.AuthenticatedSupport {
-		err = l.loadPrivKey(context.TODO())
+		err = l.LoadPrivKey(context.TODO())
 		if err != nil {
 			l.API.AuthenticatedSupport = false
 			log.Errorf(log.ExchangeSys, "%s couldn't load private key, setting authenticated support to false", l.Name)
@@ -982,4 +982,14 @@ func (l *Lbank) GetLatestFundingRates(context.Context, *fundingrate.LatestRateRe
 // UpdateOrderExecutionLimits updates order execution limits
 func (l *Lbank) UpdateOrderExecutionLimits(_ context.Context, _ asset.Item) error {
 	return common.ErrNotYetImplemented
+}
+
+// GetCurrencyTradeURL returns the URL to the exchange's trade page for the given asset and currency pair
+func (l *Lbank) GetCurrencyTradeURL(_ context.Context, a asset.Item, cp currency.Pair) (string, error) {
+	_, err := l.CurrencyPairs.IsPairEnabled(cp, a)
+	if err != nil {
+		return "", err
+	}
+	cp.Delimiter = currency.UnderscoreDelimiter
+	return tradeBaseURL + cp.Lower().String(), nil
 }

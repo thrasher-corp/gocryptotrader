@@ -924,15 +924,6 @@ type UserResponse struct {
 	} `json:"data"`
 }
 
-// AuthResponse holds authentication information, returned by GetAuthInfo
-type AuthResponse struct {
-	Data struct {
-		Method    string   `json:"method"`
-		Scopes    []string `json:"scopes"`
-		OAuthMeta interface{}
-	} `json:"data"`
-}
-
 // WalletData is a sub-struct holding wallet information, used in GenWalletResponse and GetAllWalletsResponse
 type WalletData struct {
 	ID       string `json:"id"`

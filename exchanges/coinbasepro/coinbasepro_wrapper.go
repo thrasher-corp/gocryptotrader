@@ -655,34 +655,7 @@ func (c *CoinbasePro) CancelBatchOrders(ctx context.Context, o []order.Cancel) (
 
 // CancelAllOrders cancels all orders associated with a currency pair
 func (c *CoinbasePro) CancelAllOrders(ctx context.Context, can *order.Cancel) (order.CancelAllResponse, error) {
-	var resp order.CancelAllResponse
-	if can == nil {
-		return resp, common.ErrNilPointer
-	}
-	err := can.Validate(can.PairAssetRequired())
-	if err != nil {
-		return resp, err
-	}
-	ordStatus := []string{"OPEN"}
-	ordIDs, err := c.iterativeGetAllOrders(ctx, can.Pair.String(), "", "", "", ordStatus, 1000,
-		time.Time{}, time.Time{})
-	if err != nil {
-		return resp, err
-	}
-	if len(ordStatus) == 0 {
-		return resp, errNoMatchingOrders
-	}
-	orders := make([]order.Cancel, len(ordIDs))
-	for i := range ordIDs {
-		orders[i] = order.Cancel{OrderID: ordIDs[i].OrderID}
-	}
-	batchResp, count, err := c.cancelOrdersReturnMapAndCount(ctx, orders)
-	if err != nil {
-		return resp, err
-	}
-	resp.Status = batchResp
-	resp.Count = count
-	return resp, nil
+	return order.CancelAllResponse{}, common.ErrFunctionNotSupported
 }
 
 // GetOrderInfo returns order information based on order ID
@@ -1136,8 +1109,8 @@ func (c *CoinbasePro) fetchFutures(ctx context.Context) (*AllProducts, error) {
 	return products, nil
 }
 
-// cancelOrdersReturnMapAndCount is a helper function for CancelBatchOrders and CancelAllOrders,
-// calling the appropriate Coinbase endpoint, and returning information useful to both
+// cancelOrdersReturnMapAndCount is a helper function for CancelBatchOrders, calling the appropriate Coinbase
+// endpoint, and returning useful information
 func (c *CoinbasePro) cancelOrdersReturnMapAndCount(ctx context.Context, o []order.Cancel) (status map[string]string, count int64, err error) {
 	ordToCancel := len(o)
 	if ordToCancel == 0 {
@@ -1216,7 +1189,7 @@ func (c *CoinbasePro) processFundingData(accHistory []DeposWithdrData, cryptoHis
 	return fundingData
 }
 
-// iterativeGetAllOrders is a helper function used in CancelAllOrders, GetActiveOrders, and GetOrderHistory
+// iterativeGetAllOrders is a helper function used in GetActiveOrders and GetOrderHistory
 // to repeatedly call GetAllOrders until all orders have been retrieved
 func (c *CoinbasePro) iterativeGetAllOrders(ctx context.Context, productID, orderType, orderSide, productType string, orderStatus []string, limit int32, startDate, endDate time.Time) ([]GetOrderResponse, error) {
 	var hasNext bool
@@ -1434,7 +1407,8 @@ func stringToFloatPtr(outgoing *float64, incoming string) error {
 func (c *CoinbasePro) verificationCheck(ctx context.Context) (bool, error) {
 	_, err := c.GetCredentials(ctx)
 	if err != nil {
-		if errors.Is(err, exchange.ErrAuthenticationSupportNotEnabled) {
+		if errors.Is(err, exchange.ErrAuthenticationSupportNotEnabled) ||
+			errors.Is(err, exchange.ErrCredentialsAreEmpty) {
 			return true, nil
 		}
 		return false, err
@@ -1533,4 +1507,14 @@ func (c *CoinbasePro) candleHelper(ctx context.Context, pair string, granularity
 		}
 	}
 	return timeSeries, nil
+}
+
+// GetCurrencyTradeURL returns the URL to the exchange's trade page for the given asset and currency pair
+func (c *CoinbasePro) GetCurrencyTradeURL(_ context.Context, a asset.Item, cp currency.Pair) (string, error) {
+	_, err := c.CurrencyPairs.IsPairEnabled(cp, a)
+	if err != nil {
+		return "", err
+	}
+	cp.Delimiter = currency.DashDelimiter
+	return tradeBaseURL + cp.Upper().String(), nil
 }

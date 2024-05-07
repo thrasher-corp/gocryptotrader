@@ -336,6 +336,7 @@ const (
 	Pending
 	Cancelling
 	Liquidated
+	STP
 )
 
 // Type enforces a standard for order types across the code base

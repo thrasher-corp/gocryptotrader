@@ -28,6 +28,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
+	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 	gctlog "github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
@@ -67,7 +68,7 @@ const (
 	errExpectMismatch         = "received: '%v' but expected: '%v'"
 	errExpectMismatch2        = "received: '%v' but expected: '%v' or '%v'"
 	errExpectedNonEmpty       = "expected non-empty response"
-	errPortfolioNameDuplicate = `CoinbasePro unsuccessful HTTP status code: 409 raw response: {"error":"CONFLICT","error_details":"the requested portfolio name already exists","message":"the requested portfolio name already exists"}, authenticated request failed`
+	errPortfolioNameDuplicate = `CoinbasePro unsuccessful HTTP status code: 409 raw response: {"error":"CONFLICT","error_details":"A portfolio with this name already exists.","message":"A portfolio with this name already exists."}, authenticated request failed`
 	errPortTransferInsufFunds = `CoinbasePro unsuccessful HTTP status code: 429 raw response: {"error":"unknown","error_details":"[PORTFOLIO_ERROR_CODE_INSUFFICIENT_FUNDS] insufficient funds in source account","message":"[PORTFOLIO_ERROR_CODE_INSUFFICIENT_FUNDS] insufficient funds in source account"}, authenticated request failed`
 	errInvalidProductID       = `CoinbasePro unsuccessful HTTP status code: 400 raw response: {"error":"INVALID_ARGUMENT","error_details":"valid product_id is required","message":"valid product_id is required"}, authenticated request failed`
 	errValidProductIDRequired = `CoinbasePro unsuccessful HTTP status code: 404 raw response: {"message":"NotFound"}`
@@ -590,12 +591,6 @@ func TestGetCurrentUser(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, c)
 	testGetNoArgs(t, c.GetCurrentUser)
-}
-
-func TestGetAuthInfo(t *testing.T) {
-	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, c)
-	testGetNoArgs(t, c.GetAuthInfo)
 }
 
 func TestGetAllWallets(t *testing.T) {
@@ -1227,21 +1222,6 @@ func TestCancelBatchOrders(t *testing.T) {
 	assert.NotEmpty(t, resp2, errExpectedNonEmpty)
 }
 
-func TestCancelAllOrders(t *testing.T) {
-	t.Parallel()
-	_, err := c.CancelAllOrders(context.Background(), nil)
-	assert.ErrorIs(t, err, common.ErrNilPointer)
-	var can order.Cancel
-	_, err = c.CancelAllOrders(context.Background(), &can)
-	assert.ErrorIs(t, err, order.ErrPairIsEmpty)
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, c, canManipulateRealOrders)
-	can.Pair = testPair
-	can.AssetType = asset.Spot
-	resp, err := c.CancelAllOrders(context.Background(), &can)
-	assert.NoError(t, err)
-	assert.NotEmpty(t, resp, errExpectedNonEmpty)
-}
-
 func TestGetOrderInfo(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, c, canManipulateRealOrders)
@@ -1508,6 +1488,19 @@ func TestStringToFloatPtr(t *testing.T) {
 	assert.NoError(t, err)
 	err = stringToFloatPtr(&fl, "1.1")
 	assert.NoError(t, err)
+}
+
+func TestGetCurrencyTradeURL(t *testing.T) {
+	t.Parallel()
+	testexch.UpdatePairsOnce(t, c)
+	for _, a := range c.GetAssetTypes(false) {
+		pairs, err := c.CurrencyPairs.GetPairs(a, false)
+		require.NoError(t, err, "cannot get pairs for %s", a)
+		require.NotEmpty(t, pairs, "no pairs for %s", a)
+		resp, err := c.GetCurrencyTradeURL(context.Background(), a, pairs[0])
+		require.NoError(t, err)
+		assert.NotEmpty(t, resp)
+	}
 }
 
 func TestScheduleFuturesSweep(t *testing.T) {
@@ -1930,8 +1923,8 @@ func withdrawFiatFundsHelper(t *testing.T, fn withdrawFiatFunc) {
 }
 
 type getNoArgsResp interface {
-	*ServerTimeV3 | *GetAllPaymentMethodsResp | *UserResponse | *AuthResponse | []FiatData |
-		[]CryptoData | *ServerTimeV2 | []CurrencyData | []PairVolumeData | *AllWrappedAssets
+	*ServerTimeV3 | *GetAllPaymentMethodsResp | *UserResponse | []FiatData | []CryptoData | *ServerTimeV2 |
+		[]CurrencyData | []PairVolumeData | *AllWrappedAssets
 }
 
 type getNoArgsAssertNotEmpty[G getNoArgsResp] func(context.Context) (G, error)

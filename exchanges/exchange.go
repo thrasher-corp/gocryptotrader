@@ -754,6 +754,7 @@ func (b *Base) UpdatePairs(incoming currency.Pairs, a asset.Item, enabled, force
 					diff.Remove)
 			}
 		}
+		// TODO: Add check for nil config etc.
 		err = b.Config.CurrencyPairs.StorePairs(a, incoming, enabled)
 		if err != nil {
 			return err
@@ -1977,4 +1978,9 @@ func GetDefaultConfig(ctx context.Context, exch IBotExchange) (*config.Exchange,
 	}
 
 	return exchCfg, nil
+}
+
+// GetCurrencyTradeURL returns the URL to the exchange's trade page for the given asset and currency pair
+func (b *Base) GetCurrencyTradeURL(context.Context, asset.Item, currency.Pair) (string, error) {
+	return "", common.ErrFunctionNotSupported
 }

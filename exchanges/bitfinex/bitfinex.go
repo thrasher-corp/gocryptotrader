@@ -27,6 +27,7 @@ import (
 
 const (
 	bitfinexAPIURLBase = "https://api.bitfinex.com"
+	tradeBaseURL       = "https://trading.bitfinex.com"
 	// Version 1 API endpoints
 	bitfinexAPIVersion         = "/v1/"
 	bitfinexStats              = "stats/"

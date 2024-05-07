@@ -4,6 +4,9 @@ import (
 	"encoding/json"
 	"errors"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestPairsUpper(t *testing.T) {
@@ -91,40 +94,9 @@ func TestPairsJoin(t *testing.T) {
 func TestPairsFormat(t *testing.T) {
 	t.Parallel()
 	pairs, err := NewPairsFromStrings([]string{"btc_usd", "btc_aud", "btc_ltc"})
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	expected := "BTC-USD,BTC-AUD,BTC-LTC"
-	formatting := PairFormat{Delimiter: "-", Index: "", Uppercase: true}
-	if pairs.Format(formatting).Join() != expected {
-		t.Errorf("Pairs Join() error expected %s but received %s",
-			expected, pairs.Format(formatting).Join())
-	}
-
-	expected = "btc:usd,btc:aud,btc:ltc"
-	formatting = PairFormat{Delimiter: ":", Index: "", Uppercase: false}
-	if pairs.Format(formatting).Join() != expected {
-		t.Errorf("Pairs Join() error expected %s but received %s",
-			expected, pairs.Format(formatting).Join())
-	}
-
-	formatting = PairFormat{Delimiter: ":", Index: "KRW", Uppercase: false}
-	if pairs.Format(formatting).Join() != "" {
-		t.Errorf("Pairs Join() error expected %s but received %s",
-			expected, pairs.Format(formatting).Join())
-	}
-
-	pairs, err = NewPairsFromStrings([]string{"DASHKRW", "BTCKRW"})
-	if err != nil {
-		t.Fatal(err)
-	}
-	expected = "dash-krw,btc-krw"
-	formatting = PairFormat{Delimiter: "-", Index: "KRW", Uppercase: false}
-	if pairs.Format(formatting).Join() != expected {
-		t.Errorf("Pairs Join() error expected %s but received %s",
-			expected, pairs.Format(formatting).Join())
-	}
+	require.NoError(t, err, "NewPairsFromStrings must not error")
+	assert.Equal(t, "BTC-USD,BTC-AUD,BTC-LTC", pairs.Format(PairFormat{Delimiter: "-", Uppercase: true}).Join(), "Format should return the correct value")
+	assert.Equal(t, "btc:usd,btc:aud,btc:ltc", pairs.Format(PairFormat{Delimiter: ":", Uppercase: false}).Join(), "Format should return the correct value")
 }
 
 func TestPairsUnmarshalJSON(t *testing.T) {
@@ -613,7 +585,7 @@ func BenchmarkPairsFormat(b *testing.B) {
 		NewPair(DAI, XRP),
 	}
 
-	formatting := PairFormat{Delimiter: "/", Index: "", Uppercase: false}
+	formatting := PairFormat{Delimiter: "/", Uppercase: false}
 
 	for x := 0; x < b.N; x++ {
 		_ = pairs.Format(formatting)

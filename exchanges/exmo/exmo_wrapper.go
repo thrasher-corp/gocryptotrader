@@ -792,3 +792,13 @@ func (e *EXMO) GetLatestFundingRates(context.Context, *fundingrate.LatestRateReq
 func (e *EXMO) UpdateOrderExecutionLimits(_ context.Context, _ asset.Item) error {
 	return common.ErrNotYetImplemented
 }
+
+// GetCurrencyTradeURL returns the URL to the exchange's trade page for the given asset and currency pair
+func (e *EXMO) GetCurrencyTradeURL(_ context.Context, a asset.Item, cp currency.Pair) (string, error) {
+	_, err := e.CurrencyPairs.IsPairEnabled(cp, a)
+	if err != nil {
+		return "", err
+	}
+	cp.Delimiter = currency.UnderscoreDelimiter
+	return tradeBaseURL + cp.Upper().String() + "/", nil
+}

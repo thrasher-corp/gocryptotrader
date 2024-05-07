@@ -36,6 +36,7 @@ const (
 	lbankAPIVersion1 = "1"
 	lbankAPIVersion2 = "2"
 	lbankFeeNotFound = 0.0
+	tradeBaseURL     = "https://www.lbank.com/trade/"
 
 	// Public endpoints
 	lbankTicker         = "ticker.do"
@@ -494,7 +495,7 @@ func (l *Lbank) SendHTTPRequest(ctx context.Context, ep exchange.URL, path strin
 	}, request.UnauthenticatedRequest)
 }
 
-func (l *Lbank) loadPrivKey(ctx context.Context) error {
+func (l *Lbank) LoadPrivKey(ctx context.Context) error {
 	creds, err := l.GetCredentials(ctx)
 	if err != nil {
 		return err

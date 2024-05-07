@@ -8,6 +8,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -16,6 +18,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
+	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 )
 
 // Please supply your own keys here for due diligence testing
@@ -285,14 +288,14 @@ func TestLoadPrivKey(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, l)
 
-	err := l.loadPrivKey(context.Background())
+	err := l.LoadPrivKey(context.Background())
 	if err != nil {
 		t.Error(err)
 	}
 
 	ctx := account.DeployCredentialsToContext(context.Background(),
 		&account.Credentials{Secret: "errortest"})
-	err = l.loadPrivKey(ctx)
+	err = l.LoadPrivKey(ctx)
 	if err == nil {
 		t.Errorf("Expected error due to pemblock nil")
 	}
@@ -302,7 +305,7 @@ func TestSign(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, l)
 
-	err := l.loadPrivKey(context.Background())
+	err := l.LoadPrivKey(context.Background())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -610,5 +613,18 @@ func TestGetWithdrawalsHistory(t *testing.T) {
 	_, err := l.GetWithdrawalsHistory(context.Background(), currency.BTC, asset.Spot)
 	if err != nil {
 		t.Error(err)
+	}
+}
+
+func TestGetCurrencyTradeURL(t *testing.T) {
+	t.Parallel()
+	testexch.UpdatePairsOnce(t, l)
+	for _, a := range l.GetAssetTypes(false) {
+		pairs, err := l.CurrencyPairs.GetPairs(a, false)
+		require.NoError(t, err, "cannot get pairs for %s", a)
+		require.NotEmpty(t, pairs, "no pairs for %s", a)
+		resp, err := l.GetCurrencyTradeURL(context.Background(), a, pairs[0])
+		require.NoError(t, err)
+		assert.NotEmpty(t, resp)
 	}
 }

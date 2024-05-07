@@ -816,6 +816,10 @@ func (s Status) String() string {
 		return "PENDING"
 	case Cancelling:
 		return "CANCELLING"
+	case Liquidated:
+		return "LIQUIDATED"
+	case STP:
+		return "SELF_TRADE_PREVENTION"
 	default:
 		return "UNKNOWN"
 	}
@@ -1142,7 +1146,7 @@ func StringToOrderStatus(status string) (Status, error) {
 		return PartiallyFilledCancelled, nil
 	case Open.String():
 		return Open, nil
-	case Closed.String():
+	case Closed.String(), "POSITION_CLOSED":
 		return Closed, nil
 	case Cancelled.String(), "CANCELED", "ORDER_CANCELLED":
 		return Cancelled, nil
@@ -1162,6 +1166,12 @@ func StringToOrderStatus(status string) (Status, error) {
 		return MarketUnavailable, nil
 	case Cancelling.String():
 		return Cancelling, nil
+	case Liquidated.String():
+		return Liquidated, nil
+	case AutoDeleverage.String(), "AUTO_DELEVERAGED":
+		return AutoDeleverage, nil
+	case STP.String(), "STP":
+		return STP, nil
 	default:
 		return UnknownStatus, fmt.Errorf("'%s' %w", status, errUnrecognisedOrderStatus)
 	}

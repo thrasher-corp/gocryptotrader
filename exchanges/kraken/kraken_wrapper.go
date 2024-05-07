@@ -1695,12 +1695,10 @@ func (k *Kraken) GetLatestFundingRates(ctx context.Context, r *fundingrate.Lates
 		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, r.Asset)
 	}
 	if !r.Pair.IsEmpty() {
-		_, isEnabled, err := k.MatchSymbolCheckEnabled(r.Pair.String(), r.Asset, r.Pair.Delimiter != "")
-		if err != nil && !errors.Is(err, currency.ErrPairNotFound) {
+		if ok, err := k.CurrencyPairs.IsPairAvailable(r.Pair, r.Asset); err != nil {
 			return nil, err
-		}
-		if !isEnabled {
-			return nil, fmt.Errorf("%w %v", currency.ErrPairNotEnabled, r.Pair)
+		} else if !ok {
+			return nil, currency.ErrPairNotContainedInAvailablePairs
 		}
 	}
 
@@ -1793,4 +1791,22 @@ func (k *Kraken) GetOpenInterest(ctx context.Context, keys ...key.PairAsset) ([]
 		})
 	}
 	return resp, nil
+}
+
+// GetCurrencyTradeURL returns the URL to the exchange's trade page for the given asset and currency pair
+func (k *Kraken) GetCurrencyTradeURL(_ context.Context, a asset.Item, cp currency.Pair) (string, error) {
+	_, err := k.CurrencyPairs.IsPairEnabled(cp, a)
+	if err != nil {
+		return "", err
+	}
+	switch a {
+	case asset.Spot:
+		cp.Delimiter = currency.DashDelimiter
+		return tradeBaseURL + cp.Lower().String(), nil
+	case asset.Futures:
+		cp.Delimiter = currency.UnderscoreDelimiter
+		return tradeFuturesURL + cp.Upper().String(), nil
+	default:
+		return "", fmt.Errorf("%w %v", asset.ErrNotSupported, a)
+	}
 }

@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/common/file"
@@ -695,7 +696,6 @@ func TestCheckPairConfigFormats(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	// Test having a pair index and delimiter set at the same time throws an error
 	c.Exchanges[0].CurrencyPairs.Pairs = map[asset.Item]*currency.PairStore{
 		asset.Spot: {
 			RequestFormat: &currency.PairFormat{
@@ -705,7 +705,6 @@ func TestCheckPairConfigFormats(t *testing.T) {
 			ConfigFormat: &currency.PairFormat{
 				Uppercase: true,
 				Delimiter: "~",
-				Index:     "USD",
 			},
 			Available: currency.Pairs{
 				avail,
@@ -716,32 +715,7 @@ func TestCheckPairConfigFormats(t *testing.T) {
 		},
 	}
 
-	if err := c.CheckPairConfigFormats(testFakeExchangeName); err == nil {
-		t.Error("invalid pair delimiter and index should throw an error")
-	}
-
-	// Test wrong pair delimiter throws an error
-	c.Exchanges[0].CurrencyPairs.Pairs[asset.Spot].ConfigFormat.Index = ""
-	if err := c.CheckPairConfigFormats(testFakeExchangeName); err == nil {
-		t.Error("invalid pair delimiter should throw an error")
-	}
-
-	// Test wrong pair index in the enabled pairs throw an error
-	c.Exchanges[0].CurrencyPairs.Pairs[asset.Spot] = &currency.PairStore{
-		ConfigFormat: &currency.PairFormat{
-			Index: currency.AUD.String(),
-		},
-	}
-	c.Exchanges[0].CurrencyPairs.Pairs[asset.Spot].Available = currency.Pairs{
-		currency.NewPair(currency.BTC, currency.AUD),
-	}
-	c.Exchanges[0].CurrencyPairs.Pairs[asset.Spot].Enabled = currency.Pairs{
-		currency.NewPair(currency.BTC, currency.KRW),
-	}
-
-	if err := c.CheckPairConfigFormats(testFakeExchangeName); err == nil {
-		t.Error("invalid pair index should throw an error")
-	}
+	assert.ErrorContains(t, c.CheckPairConfigFormats(testFakeExchangeName), "does not contain delimiter", "Invalid pair delimiter should throw an error")
 }
 
 func TestCheckPairConsistency(t *testing.T) {

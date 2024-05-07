@@ -27,6 +27,7 @@ const (
 	coinbaseAPIURL             = "https://api.coinbase.com"
 	coinbaseV1APIURL           = "https://api.exchange.coinbase.com/"
 	coinbaseproSandboxAPIURL   = "https://api-public.sandbox.exchange.coinbase.com/"
+	tradeBaseURL               = "https://www.coinbase.com/advanced-trade/spot/"
 	coinbaseV3                 = "/api/v3/brokerage/"
 	coinbaseAccounts           = "accounts"
 	coinbaseBestBidAsk         = "best_bid_ask"
@@ -833,14 +834,6 @@ func (c *CoinbasePro) GetCurrentUser(ctx context.Context) (*UserResponse, error)
 	var resp *UserResponse
 	return resp, c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet,
 		coinbaseV2+coinbaseUser, nil, nil, false, &resp, nil)
-}
-
-// GetAuthInfo returns information about the scopes granted to the API key
-func (c *CoinbasePro) GetAuthInfo(ctx context.Context) (*AuthResponse, error) {
-	var resp *AuthResponse
-	path := coinbaseV2 + coinbaseUser + "/" + coinbaseAuth
-	return resp, c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet,
-		path, nil, nil, false, &resp, nil)
 }
 
 // GetAllWallets lists all accounts associated with the API key
