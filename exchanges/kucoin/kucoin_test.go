@@ -2736,8 +2736,7 @@ func TestGetOpenInterest(t *testing.T) {
 	t.Parallel()
 
 	nu := new(Kucoin)
-	require.NoError(t, testexch.TestInstance(nu), "TestInstance setup should not error")
-
+	require.NoError(t, testexch.Setup(nu), "Test exchange Setup must not error")
 	_, err := nu.GetOpenInterest(context.Background(), key.PairAsset{
 		Base:  currency.ETH.Item,
 		Quote: currency.USDT.Item,
