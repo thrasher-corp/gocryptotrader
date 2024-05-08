@@ -667,12 +667,14 @@
     },
     "useGlobalFormat": true,
     "lastUpdated": 1566798411,
-    "assetTypes": [
-     "spot",
-     "futures"
-    ],
     "pairs": {
+     "futures": {
+      "assetEnabled": true,
+      "enabled": "",
+      "available": ""
+     },
      "spot": {
+      "assetEnabled": true,
       "enabled": "BTC_JPY,ETH_BTC,BCH_BTC",
       "available": "BTC_JPY,FXBTC_JPY,ETH_BTC,BCH_BTC"
      }
