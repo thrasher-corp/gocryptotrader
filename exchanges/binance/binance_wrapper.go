@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -377,7 +378,6 @@ func (b *Binance) FetchTradablePairs(ctx context.Context, a asset.Item) (currenc
 				return nil, err
 			}
 		}
-		return pairs, nil
 	}
 	return pairs, nil
 }
@@ -508,7 +508,29 @@ func (b *Binance) UpdateTickers(ctx context.Context, a asset.Item) error {
 			}
 		}
 	case asset.Options:
-
+		tick, err := b.GetEOptions24hrTickerPriceChangeStatistics(ctx, "")
+		if err != nil {
+			return err
+		}
+		for a := range tick {
+			cp, err := currency.NewPairFromString(tick[a].Symbol)
+			if err != nil {
+				return err
+			}
+			err = ticker.ProcessTicker(&ticker.Price{
+				Last:         tick[a].LastPrice.Float64(),
+				High:         tick[a].High.Float64(),
+				Low:          tick[a].Low.Float64(),
+				Volume:       tick[a].Volume.Float64(),
+				Open:         tick[a].Open.Float64(),
+				Pair:         cp,
+				ExchangeName: b.Name,
+				AssetType:    asset.Options,
+			})
+			if err != nil {
+				return err
+			}
+		}
 	default:
 		return fmt.Errorf("%w %v", asset.ErrNotSupported, a)
 	}
@@ -604,7 +626,33 @@ func (b *Binance) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Ite
 		if err != nil {
 			return nil, err
 		}
-
+	case asset.Options:
+		tick, err := b.GetEOptions24hrTickerPriceChangeStatistics(ctx, p.String())
+		if err != nil {
+			return nil, err
+		}
+		if len(tick) == 0 {
+			return nil, fmt.Errorf("%w, pair: %v", ticker.ErrNoTickerFound, p)
+		}
+		for a := range tick {
+			cp, err := currency.NewPairFromString(tick[a].Symbol)
+			if err != nil {
+				return nil, err
+			}
+			err = ticker.ProcessTicker(&ticker.Price{
+				Last:         tick[a].LastPrice.Float64(),
+				High:         tick[a].High.Float64(),
+				Low:          tick[a].Low.Float64(),
+				Volume:       tick[a].Volume.Float64(),
+				Open:         tick[a].Open.Float64(),
+				Pair:         cp,
+				ExchangeName: b.Name,
+				AssetType:    asset.Options,
+			})
+			if err != nil {
+				return nil, err
+			}
+		}
 	default:
 		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, a)
 	}
@@ -652,7 +700,7 @@ func (b *Binance) UpdateOrderbook(ctx context.Context, p currency.Pair, assetTyp
 	}
 	var orderbookNew *OrderBook
 	var err error
-
+	var orderbookPopulated bool
 	switch assetType {
 	case asset.Spot, asset.Margin:
 		if b.IsAPIStreamConnected() {
@@ -671,25 +719,46 @@ func (b *Binance) UpdateOrderbook(ctx context.Context, p currency.Pair, assetTyp
 		orderbookNew, err = b.UFuturesOrderbook(ctx, p, 1000)
 	case asset.CoinMarginedFutures:
 		orderbookNew, err = b.GetFuturesOrderbook(ctx, p, 1000)
+	case asset.Options:
+		resp, err := b.GetEOptionsOrderbook(ctx, p.String(), 1000)
+		if err != nil {
+			return nil, err
+		}
+		book.Bids = make(orderbook.Items, len(resp.Bids))
+		for x := range resp.Bids {
+			book.Bids[x] = orderbook.Item{
+				Price:  resp.Bids[x][0].Float64(),
+				Amount: resp.Bids[x][1].Float64(),
+			}
+		}
+		book.Asks = make(orderbook.Items, len(resp.Asks))
+		for x := range resp.Asks {
+			book.Asks[x] = orderbook.Item{
+				Price:  resp.Asks[x][0].Float64(),
+				Amount: resp.Asks[x][1].Float64(),
+			}
+		}
+		orderbookPopulated = true
 	default:
 		return nil, fmt.Errorf("[%s] %w", assetType, asset.ErrNotSupported)
 	}
 	if err != nil {
 		return book, err
 	}
-
-	book.Bids = make(orderbook.Items, len(orderbookNew.Bids))
-	for x := range orderbookNew.Bids {
-		book.Bids[x] = orderbook.Item{
-			Amount: orderbookNew.Bids[x].Quantity,
-			Price:  orderbookNew.Bids[x].Price,
+	if !orderbookPopulated {
+		book.Bids = make(orderbook.Items, len(orderbookNew.Bids))
+		for x := range orderbookNew.Bids {
+			book.Bids[x] = orderbook.Item{
+				Amount: orderbookNew.Bids[x].Quantity,
+				Price:  orderbookNew.Bids[x].Price,
+			}
 		}
-	}
-	book.Asks = make(orderbook.Items, len(orderbookNew.Asks))
-	for x := range orderbookNew.Asks {
-		book.Asks[x] = orderbook.Item{
-			Amount: orderbookNew.Asks[x].Quantity,
-			Price:  orderbookNew.Asks[x].Price,
+		book.Asks = make(orderbook.Items, len(orderbookNew.Asks))
+		for x := range orderbookNew.Asks {
+			book.Asks[x] = orderbook.Item{
+				Amount: orderbookNew.Asks[x].Quantity,
+				Price:  orderbookNew.Asks[x].Price,
+			}
 		}
 	}
 
@@ -778,20 +847,33 @@ func (b *Binance) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (
 		if err != nil {
 			return info, err
 		}
-		var currencyDetails []account.Balance
+		currencyDetails := make([]account.Balance, len(accData.UserAssets))
 		for i := range accData.UserAssets {
-			currencyDetails = append(currencyDetails, account.Balance{
+			currencyDetails[i] = account.Balance{
 				Currency:               currency.NewCode(accData.UserAssets[i].Asset),
 				Total:                  accData.UserAssets[i].Free + accData.UserAssets[i].Locked,
 				Hold:                   accData.UserAssets[i].Locked,
 				Free:                   accData.UserAssets[i].Free,
 				AvailableWithoutBorrow: accData.UserAssets[i].Free - accData.UserAssets[i].Borrowed,
 				Borrowed:               accData.UserAssets[i].Borrowed,
-			})
+			}
 		}
-
 		acc.Currencies = currencyDetails
-
+	case asset.Options:
+		accData, err := b.GetOptionsAccountInformation(ctx)
+		if err != nil {
+			return info, err
+		}
+		currencyDetails := make([]account.Balance, len(accData.Asset))
+		for i := range accData.Asset {
+			currencyDetails[i] = account.Balance{
+				Currency: currency.NewCode(accData.Asset[i].AssetType),
+				Total:    accData.Asset[i].MarginBalance.Float64(),
+				Hold:     accData.Asset[i].Locked.Float64(),
+				Free:     accData.Asset[i].AvailableFunds.Float64(),
+			}
+		}
+		acc.Currencies = currencyDetails
 	default:
 		return info, fmt.Errorf("%w %v", asset.ErrNotSupported, assetType)
 	}
@@ -847,7 +929,6 @@ func (b *Binance) GetWithdrawalsHistory(ctx context.Context, c currency.Code, _ 
 			Timestamp:       withdrawals[i].ApplyTime.Time(),
 		}
 	}
-
 	return resp, nil
 }
 
@@ -861,7 +942,7 @@ func (b *Binance) GetRecentTrades(ctx context.Context, p currency.Pair, a asset.
 	pFmt := p.Format(rFmt)
 	resp := make([]trade.Data, 0, limit)
 	switch a {
-	case asset.Spot:
+	case asset.Spot, asset.Margin:
 		var tradeData []RecentTrade
 		if b.IsAPIStreamConnected() {
 			tradeData, err = b.GetWsMostRecentTrades(&RecentTradeRequestParams{Symbol: pFmt, Limit: limit})
@@ -917,6 +998,22 @@ func (b *Binance) GetRecentTrades(ctx context.Context, p currency.Pair, a asset.
 				Timestamp:    tradeData[i].Time.Time(),
 			})
 		}
+	case asset.Options:
+		tradeData, err := b.GetEOptionsRecentTrades(ctx, p.String(), limit)
+		if err != nil {
+			return nil, err
+		}
+		for i := range tradeData {
+			resp = append(resp, trade.Data{
+				TID:          tradeData[i].ID,
+				Exchange:     b.Name,
+				CurrencyPair: p,
+				AssetType:    a,
+				Price:        tradeData[i].Price.Float64(),
+				Amount:       tradeData[i].Quantity.Float64(),
+				Timestamp:    tradeData[i].Time.Time(),
+			})
+		}
 	}
 
 	if b.IsSaveTradeDataEnabled() {
@@ -935,9 +1032,6 @@ func (b *Binance) GetHistoricTrades(ctx context.Context, p currency.Pair, a asse
 	if err := b.CurrencyPairs.IsAssetEnabled(a); err != nil {
 		return nil, err
 	}
-	// if a != asset.Spot {
-	// 	return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, a)
-	// }
 	rFmt, err := b.GetPairFormat(a, true)
 	if err != nil {
 		return nil, err
@@ -1140,19 +1234,16 @@ func (b *Binance) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Subm
 		}
 
 		var o *FuturesOrderPlaceData
-		o, err = b.FuturesNewOrder(
-			ctx,
-			&FuturesNewOrderRequest{
-				Symbol:           s.Pair,
-				Side:             reqSide,
-				OrderType:        oType,
-				TimeInForce:      timeInForce,
-				NewClientOrderID: s.ClientOrderID,
-				Quantity:         s.Amount,
-				Price:            s.Price,
-				ReduceOnly:       s.ReduceOnly,
-			},
-		)
+		o, err = b.FuturesNewOrder(ctx, &FuturesNewOrderRequest{
+			Symbol:           s.Pair,
+			Side:             reqSide,
+			OrderType:        oType,
+			TimeInForce:      timeInForce,
+			NewClientOrderID: s.ClientOrderID,
+			Quantity:         s.Amount,
+			Price:            s.Price,
+			ReduceOnly:       s.ReduceOnly,
+		})
 		if err != nil {
 			return nil, err
 		}
@@ -1187,22 +1278,36 @@ func (b *Binance) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Subm
 			return nil, errors.New("invalid type, check api docs for updates")
 		}
 		var o *UOrderData
-		o, err = b.UFuturesNewOrder(ctx,
-			&UFuturesNewOrderRequest{
-				Symbol:           s.Pair,
-				Side:             reqSide,
-				OrderType:        oType,
-				TimeInForce:      "GTC",
-				NewClientOrderID: s.ClientOrderID,
-				Quantity:         s.Amount,
-				Price:            s.Price,
-				ReduceOnly:       s.ReduceOnly,
-			},
-		)
+		o, err = b.UFuturesNewOrder(ctx, &UFuturesNewOrderRequest{
+			Symbol:           s.Pair,
+			Side:             reqSide,
+			OrderType:        oType,
+			TimeInForce:      "GTC",
+			NewClientOrderID: s.ClientOrderID,
+			Quantity:         s.Amount,
+			Price:            s.Price,
+			ReduceOnly:       s.ReduceOnly,
+		})
 		if err != nil {
 			return nil, err
 		}
 		orderID = strconv.FormatInt(o.OrderID, 10)
+	case asset.Options:
+		result, err := b.NewOptionsOrder(ctx, &OptionsOrderParams{
+			Symbol:               s.Pair,
+			Side:                 s.Side.String(),
+			OrderType:            strings.ToUpper(s.Type.String()),
+			Amount:               s.Amount,
+			Price:                s.Price,
+			ReduceOnly:           s.ReduceOnly,
+			PostOnly:             s.PostOnly,
+			NewOrderResponseType: "RESULT",
+			ClientOrderID:        s.ClientOrderID,
+		})
+		if err != nil {
+			return nil, err
+		}
+		orderID = strconv.FormatInt(result.OrderID, 10)
 	default:
 		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, s.AssetType)
 	}
@@ -1264,6 +1369,22 @@ func (b *Binance) CancelOrder(ctx context.Context, o *order.Cancel) error {
 		if err != nil {
 			return err
 		}
+	case asset.Options:
+		reg, err := regexp.Compile("^[0-9]+$")
+		if err != nil {
+			return err
+		}
+		if !reg.MatchString(o.OrderID) {
+			return fmt.Errorf("%w, invalid orderID", errOrderIDMustBeSet)
+		}
+		orderIDInt, err := strconv.ParseInt(o.OrderID, 10, 64)
+		if err != nil {
+			return err
+		}
+		_, err = b.CancelOptionsOrder(ctx, o.Pair.String(), o.ClientOrderID, orderIDInt)
+		if err != nil {
+			return err
+		}
 	}
 	return nil
 }
@@ -1275,7 +1396,8 @@ func (b *Binance) CancelBatchOrders(_ context.Context, _ []order.Cancel) (*order
 
 // CancelAllOrders cancels all orders associated with a currency pair
 func (b *Binance) CancelAllOrders(ctx context.Context, req *order.Cancel) (order.CancelAllResponse, error) {
-	if err := req.Validate(); err != nil {
+	var err error
+	if err = req.Validate(); err != nil {
 		return order.CancelAllResponse{}, err
 	}
 	var cancelAllOrdersResponse order.CancelAllResponse
@@ -1343,6 +1465,15 @@ func (b *Binance) CancelAllOrders(ctx context.Context, req *order.Cancel) (order
 			if err != nil {
 				return cancelAllOrdersResponse, err
 			}
+		}
+	case asset.Options:
+		if req.Pair.IsEmpty() {
+			err = b.CancelAllOptionOrdersOnSpecificSymbol(ctx, "")
+		} else {
+			err = b.CancelAllOptionOrdersOnSpecificSymbol(ctx, req.Pair.String())
+		}
+		if err != nil {
+			return cancelAllOrdersResponse, err
 		}
 	default:
 		return cancelAllOrdersResponse, fmt.Errorf("%w %v", asset.ErrNotSupported, req.AssetType)

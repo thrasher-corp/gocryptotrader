@@ -133,16 +133,20 @@ func TestUpdateTickers(t *testing.T) { //TODO: runtime: goroutine stack exceeds 
 func TestUpdateOrderbook(t *testing.T) {
 	t.Parallel()
 	cp, err := currency.NewPairFromString("BTCUSDT")
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	_, err = b.UpdateOrderbook(context.Background(), cp, asset.Spot)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	_, err = b.UpdateOrderbook(context.Background(), cp, asset.Margin)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	_, err = b.UpdateOrderbook(context.Background(), cp, asset.USDTMarginedFutures)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	cp2, err := currency.NewPairFromString("BTCUSD_PERP")
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	_, err = b.UpdateOrderbook(context.Background(), cp2, asset.CoinMarginedFutures)
+	require.NoError(t, err)
+	cp3, err := currency.NewPairFromString("ETH-240927-3800-P")
+	require.NoError(t, err)
+	_, err = b.UpdateOrderbook(context.Background(), cp3, asset.Options)
 	assert.NoError(t, err)
 }
 
@@ -2202,6 +2206,17 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 	require.False(t, sharedtestvalues.AreAPICredentialsSet(b) && err != nil, err)
 	require.False(t, !sharedtestvalues.AreAPICredentialsSet(b) && err == nil && !mockTests, "expecting an error when no keys are set")
 	assert.False(t, mockTests && err != nil, err)
+
+	cp, err := currency.NewPairFromString("ETH-240927-3800-P")
+	require.NoError(t, err)
+	_, err = b.CancelAllOrders(context.Background(), &order.Cancel{
+		OrderID:       "1",
+		WalletAddress: core.BitcoinDonationAddress,
+		AccountID:     "1",
+		Pair:          cp,
+		AssetType:     asset.Options,
+	})
+	require.NoError(t, err)
 }
 
 func TestGetAccountInfo(t *testing.T) {
@@ -2297,6 +2312,12 @@ func TestCancelOrder(t *testing.T) {
 	assert.NoError(t, err)
 	err = b.CancelOrder(context.Background(), &order.Cancel{
 		AssetType: asset.USDTMarginedFutures,
+		Pair:      fpair2,
+		OrderID:   "1234",
+	})
+	require.NoError(t, err)
+	err = b.CancelOrder(context.Background(), &order.Cancel{
+		AssetType: asset.Options,
 		Pair:      fpair2,
 		OrderID:   "1234",
 	})

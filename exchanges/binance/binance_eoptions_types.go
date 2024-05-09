@@ -183,7 +183,7 @@ type EOptionsAccountInformation struct {
 		AssetType      string       `json:"asset"`
 		MarginBalance  types.Number `json:"marginBalance"`
 		AccountEquity  types.Number `json:"equity"`
-		AvailableFunds string       `json:"available"`
+		AvailableFunds types.Number `json:"available"`
 		Locked         types.Number `json:"locked"`        // locked balance for order and position
 		UnrealizedPNL  types.Number `json:"unrealizedPNL"` // Unrealized profit/loss
 	} `json:"asset"`
