@@ -48,5 +48,6 @@ func TestMain(m *testing.M) {
 		log.Fatal("Binance setup error", err)
 	}
 	// b.HTTPRecording = true
+	b.Verbose = true
 	os.Exit(m.Run())
 }

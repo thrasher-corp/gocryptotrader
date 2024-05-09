@@ -866,8 +866,7 @@ func (b *Binance) GetRecentTrades(ctx context.Context, p currency.Pair, a asset.
 		if b.IsAPIStreamConnected() {
 			tradeData, err = b.GetWsMostRecentTrades(&RecentTradeRequestParams{Symbol: pFmt, Limit: limit})
 		} else {
-			tradeData, err = b.GetMostRecentTrades(ctx,
-				RecentTradeRequestParams{Symbol: pFmt, Limit: limit})
+			tradeData, err = b.GetMostRecentTrades(ctx, &RecentTradeRequestParams{Symbol: pFmt, Limit: limit})
 		}
 		if err != nil {
 			return nil, err

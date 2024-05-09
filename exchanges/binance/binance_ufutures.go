@@ -1210,16 +1210,17 @@ func (b *Binance) UPositionsInfoV2(ctx context.Context, symbol currency.Pair) ([
 }
 
 // UGetCommissionRates returns the commission rates for USDTMarginedFutures
-func (b *Binance) UGetCommissionRates(ctx context.Context, symbol currency.Pair) ([]UPositionInformationV2, error) {
-	params := url.Values{}
-	if !symbol.IsEmpty() {
-		symbolValue, err := b.FormatSymbol(symbol, asset.USDTMarginedFutures)
-		if err != nil {
-			return nil, err
-		}
-		params.Set("symbol", symbolValue)
+func (b *Binance) UGetCommissionRates(ctx context.Context, symbol currency.Pair) (*UPositionInformationV2, error) {
+	if symbol.IsEmpty() {
+		return nil, fmt.Errorf("%w, symbol is required", currency.ErrCurrencyPairEmpty)
 	}
-	var resp []UPositionInformationV2
+	params := url.Values{}
+	symbolValue, err := b.FormatSymbol(symbol, asset.USDTMarginedFutures)
+	if err != nil {
+		return nil, err
+	}
+	params.Set("symbol", symbolValue)
+	var resp *UPositionInformationV2
 	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodGet, ufuturesCommissionRate, params, uFuturesDefaultRate, nil, &resp)
 }
 

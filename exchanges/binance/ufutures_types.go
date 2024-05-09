@@ -592,4 +592,5 @@ type UTransactionHistoryDownloadLink struct {
 	Notified            bool   `json:"notified"`
 	ExpirationTimestamp int64  `json:"expirationTimestamp"`
 	IsExpired           any    `json:"isExpired"`
+	S3Link              any    `json:"s3Link"`
 }

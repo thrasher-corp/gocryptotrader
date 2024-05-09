@@ -146,7 +146,10 @@ func (b *Binance) GetOrderBook(ctx context.Context, obd OrderBookDataRequestPara
 
 // GetMostRecentTrades returns recent trade activity
 // limit: Up to 500 results returned
-func (b *Binance) GetMostRecentTrades(ctx context.Context, rtr RecentTradeRequestParams) ([]RecentTrade, error) {
+func (b *Binance) GetMostRecentTrades(ctx context.Context, rtr *RecentTradeRequestParams) ([]RecentTrade, error) {
+	if rtr == nil || *rtr == (RecentTradeRequestParams{}) {
+		return nil, errNilArgument
+	}
 	symbol, err := b.FormatSymbol(rtr.Symbol, asset.Spot)
 	if err != nil {
 		return nil, err
@@ -177,7 +180,7 @@ func (b *Binance) GetHistoricalTrades(ctx context.Context, symbol string, limit 
 	}
 	var resp []HistoricalTrade
 	return resp,
-		b.SendAPIKeyHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, common.EncodeURLValues("/api/v3/historicalTrades", params), getOldTradeLookupRate, &resp)
+		b.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues("/api/v3/historicalTrades", params), getOldTradeLookupRate, &resp)
 }
 
 // GetAggregatedTrades returns aggregated trade activity.
@@ -2339,8 +2342,12 @@ func (b *Binance) GetUserUniversalTransferHistory(ctx context.Context, transferT
 	if transferType == 0 {
 		return nil, errors.New("transfer type is required")
 	}
+	if size <= 0 {
+		return nil, fmt.Errorf("%w, 'size' is required", order.ErrAmountBelowMin)
+	}
 	params := url.Values{}
 	params.Set("type", transferType.String())
+	params.Set("size", strconv.FormatFloat(size, 'f', -1, 64))
 	if !startTime.IsZero() && !endTime.IsZero() {
 		err := common.StartEndTimeCheck(startTime, endTime)
 		if err != nil {
@@ -2351,9 +2358,6 @@ func (b *Binance) GetUserUniversalTransferHistory(ctx context.Context, transferT
 	}
 	if current != 0 {
 		params.Set("current", strconv.FormatInt(current, 10))
-	}
-	if size > 0 {
-		params.Set("size", strconv.FormatFloat(size, 'f', -1, 64))
 	}
 	if fromSymbol != "" {
 		params.Set("fromSymbol", fromSymbol)
@@ -2419,8 +2423,14 @@ func (b *Binance) ConvertBUSD(ctx context.Context, clientTransactionID, accountT
 }
 
 // BUSDConvertHistory convert transfer, convert between BUSD and stablecoins.
-func (b *Binance) BUSDConvertHistory(ctx context.Context, transactionID, clientTransactionID, accountType string, assetCcy, targetAsset currency.Code, amount float64) (*BUSDConvertHistory, error) {
+func (b *Binance) BUSDConvertHistory(ctx context.Context, transactionID, clientTransactionID, accountType string, assetCcy currency.Code, startTime, endTime time.Time, current, size int64) (*BUSDConvertHistory, error) {
 	params := url.Values{}
+	err := common.StartEndTimeCheck(startTime, endTime)
+	if err != nil {
+		return nil, err
+	}
+	params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+	params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
 	if transactionID != "" {
 		params.Set("tranid", transactionID)
 	}
@@ -2430,27 +2440,30 @@ func (b *Binance) BUSDConvertHistory(ctx context.Context, transactionID, clientT
 	if !assetCcy.IsEmpty() {
 		params.Set("asset", assetCcy.String())
 	}
-	if amount != 0 {
-		params.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
-	}
-	if !targetAsset.IsEmpty() {
-		params.Set("targetAsset", targetAsset.String())
-	}
 	if accountType != "" {
 		params.Set("accountType", accountType)
+	}
+	if current > 0 {
+		params.Set("current", strconv.FormatInt(current, 10))
+	}
+	if size > 0 {
+		params.Set("size", strconv.FormatInt(size, 10))
 	}
 	var resp *BUSDConvertHistory
 	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/asset/convert-transfer/queryByPage", params, busdConvertHistoryRate, nil, &resp)
 }
 
 // GetCloudMiningPaymentAndRefundHistory retrieves cloud-mining payment and refund history
-func (b *Binance) GetCloudMiningPaymentAndRefundHistory(ctx context.Context, transactionID, current int64, clientTransactionID string, assetCcy currency.Code, startTime, endTime time.Time, size float64) (*CloudMiningPR, error) {
+func (b *Binance) GetCloudMiningPaymentAndRefundHistory(ctx context.Context, clientTransactionID string, assetCcy currency.Code, startTime, endTime time.Time, transactionID, size, current int64) (*CloudMiningPR, error) {
+	err := common.StartEndTimeCheck(startTime, endTime)
+	if err != nil {
+		return nil, err
+	}
 	params := url.Values{}
+	params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+	params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
 	if transactionID != 0 {
 		params.Set("tranId", strconv.FormatInt(transactionID, 10))
-	}
-	if current != 0 {
-		params.Set("current", strconv.FormatInt(current, 10))
 	}
 	if clientTransactionID != "" {
 		params.Set("clientTranId", clientTransactionID)
@@ -2458,16 +2471,11 @@ func (b *Binance) GetCloudMiningPaymentAndRefundHistory(ctx context.Context, tra
 	if !assetCcy.IsEmpty() {
 		params.Set("asset", assetCcy.String())
 	}
-	if !startTime.IsZero() && !endTime.IsZero() {
-		err := common.StartEndTimeCheck(startTime, endTime)
-		if err != nil {
-			return nil, err
-		}
-		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
-		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
+	if current > 0 {
+		params.Set("current", strconv.FormatInt(current, 10))
 	}
-	if size != 0 {
-		params.Set("size", strconv.FormatFloat(size, 'f', -1, 64))
+	if size > 0 {
+		params.Set("size", strconv.FormatInt(size, 10))
 	}
 	var resp *CloudMiningPR
 	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/asset/ledger-transfer/cloud-mining/queryByPage", params, cloudMiningPaymentAndRefundHistoryRate, nil, &resp)
@@ -2818,6 +2826,8 @@ func (b *Binance) GetSubAccountDepositAddress(ctx context.Context, email, coin, 
 		return nil, fmt.Errorf("%w, coin=%s", currency.ErrCurrencyCodeEmpty, coin)
 	}
 	params := url.Values{}
+	params.Set("email", email)
+	params.Set("coin", coin)
 	if network != "" {
 		params.Set("network", network)
 	}
@@ -2857,7 +2867,7 @@ func (b *Binance) GetSubAccountDepositHistory(ctx context.Context, email, coin s
 		params.Set("offset", strconv.FormatInt(offset, 10))
 	}
 	var resp *SubAccountDepositHistory
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/sapi/v1/capital/deposit/subHisrec", params, sapiDefaultRate, nil, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/capital/deposit/subHisrec", params, sapiDefaultRate, nil, &resp)
 }
 
 // GetSubAccountStatusOnMarginFutures sub-account's status on Margin/Futures for master account
@@ -2928,16 +2938,19 @@ func (b *Binance) GetSummaryOfSubAccountFuturesAccount(ctx context.Context) (*Su
 
 // GetV1FuturesPositionRiskSubAccount retrieves V1 position-risk of sub-account's futures account.
 func (b *Binance) GetV1FuturesPositionRiskSubAccount(ctx context.Context, email string) (*SubAccountFuturesPositionRisk, error) {
-	return b.getFuturesPositionRiskSubAccount(ctx, email, "/sapi/v1/sub-account/futures/positionRisk", getFuturesPositionRiskOfSubAccountV1Rate)
+	return b.getFuturesPositionRiskSubAccount(ctx, email, "/sapi/v1/sub-account/futures/positionRisk", -1, getFuturesPositionRiskOfSubAccountV1Rate)
 }
 
 // GetV2FuturesPositionRiskSubAccount retrieves futures position-risk of sub-account for master account
-func (b *Binance) GetV2FuturesPositionRiskSubAccount(ctx context.Context, email string) (*SubAccountFuturesPositionRisk, error) {
-	return b.getFuturesPositionRiskSubAccount(ctx, email, "/sapi/v2/sub-account/futures/positionRisk", sapiDefaultRate)
+func (b *Binance) GetV2FuturesPositionRiskSubAccount(ctx context.Context, email string, futuresType int64) (*SubAccountFuturesPositionRisk, error) {
+	return b.getFuturesPositionRiskSubAccount(ctx, email, "/sapi/v2/sub-account/futures/positionRisk", futuresType, sapiDefaultRate)
 }
-func (b *Binance) getFuturesPositionRiskSubAccount(ctx context.Context, email, path string, endpointLimit request.EndpointLimit) (*SubAccountFuturesPositionRisk, error) {
+func (b *Binance) getFuturesPositionRiskSubAccount(ctx context.Context, email, path string, futuresType int64, endpointLimit request.EndpointLimit) (*SubAccountFuturesPositionRisk, error) {
 	if !common.MatchesEmailPattern(email) {
 		return nil, errValidEmailRequired
+	}
+	if futuresType < 0 {
+		return nil, errInvalidFuturesType
 	}
 	params := url.Values{}
 	params.Set("email", email)
@@ -3369,7 +3382,7 @@ func (b *Binance) GetDetailOnSubAccountsFuturesAccountV2(ctx context.Context, em
 	if !common.MatchesEmailPattern(email) {
 		return nil, errValidEmailRequired
 	}
-	if futuresType != 0 {
+	if futuresType == 0 {
 		return nil, errInvalidFuturesType
 	}
 	params := url.Values{}
@@ -3381,7 +3394,7 @@ func (b *Binance) GetDetailOnSubAccountsFuturesAccountV2(ctx context.Context, em
 
 // GetSummaryOfSubAccountsFuturesAccountV2 retrieves the summary of sub-account's futures account v2 for master account
 func (b *Binance) GetSummaryOfSubAccountsFuturesAccountV2(ctx context.Context, futuresType, page, limit int64) (*AccountSummary, error) {
-	if futuresType != 0 {
+	if futuresType == 0 {
 		return nil, errInvalidFuturesType
 	}
 	params := url.Values{}
@@ -5579,7 +5592,7 @@ func (b *Binance) GetPMAssetIndexPrice(ctx context.Context, assetName currency.C
 		params.Set("asset", assetName.String())
 	}
 	var resp []PMIndexPrice
-	return resp, b.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues("/sapi/v1/portfolio/asset-index-price", params), endpointLimit, &resp)
+	return resp, b.SendAPIKeyHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, common.EncodeURLValues("/sapi/v1/portfolio/asset-index-price", params), endpointLimit, &resp)
 }
 
 // ClassicPMFundAutoCollection transfers all assets from Futures Account to Margin account
@@ -5642,7 +5655,7 @@ func (b *Binance) GetBLVTInfo(ctx context.Context, tokenName string) ([]BLVTToke
 		params.Set("tokenName", tokenName)
 	}
 	var resp []BLVTTokenDetail
-	return resp, b.SendHTTPRequest(ctx, exchange.RestSpot, "/sapi/v1/blvt/tokenInfo", sapiDefaultRate, &resp)
+	return resp, b.SendAPIKeyHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, common.EncodeURLValues("/sapi/v1/blvt/tokenInfo", params), sapiDefaultRate, &resp)
 }
 
 // SubscribeBLVT subscribe to BLVT token
@@ -5795,6 +5808,7 @@ func (b *Binance) GetFiatPaymentHistory(ctx context.Context, beginTime, endTime 
 
 // GetC2CTradeHistory represents a peer-to-peer trade history
 // To view the complete P2P order history, you can download it from https://c2c.binance.com/en/fiatOrder
+// possible trade type values: SELL or BUY
 func (b *Binance) GetC2CTradeHistory(ctx context.Context, tradeType string, startTime, endTime time.Time, page, rows int64) (*C2CTransaction, error) {
 	if tradeType == "" {
 		return nil, errors.New("trandeType is required")

@@ -1,6 +1,7 @@
 package binance
 
 import (
+	"encoding/json"
 	"sync"
 	"time"
 
@@ -4935,6 +4936,25 @@ type VIPLoanRepayResponse struct {
 	RepayStatus        string       `json:"repayStatus"`
 }
 
+// WalletAssetCosts represents a wallet asset cost list.
+type WalletAssetCosts []map[string]types.Number
+
+// UnmarshalJSON deserializes a wallet asset cost object or list of objects into slice of map.
+func (a *WalletAssetCosts) UnmarshalJSON(data []byte) error {
+	var resp []map[string]types.Number
+	err := json.Unmarshal(data, &resp)
+	if err != nil {
+		var singleObj map[string]types.Number
+		err = json.Unmarshal(data, &singleObj)
+		if err != nil {
+			return nil
+		}
+		resp = append(resp, singleObj)
+	}
+	*a = resp
+	return nil
+}
+
 // PayTradeHistory represents a pay transactions.
 type PayTradeHistory struct {
 	Code    string `json:"code"`
@@ -4945,25 +4965,25 @@ type PayTradeHistory struct {
 		TransactionTime convert.ExchangeTime `json:"transactionTime"`
 		Amount          types.Number         `json:"amount"`
 		Currency        string               `json:"currency"`
-		WalletType      int                  `json:"walletType"`
-		WalletTypes     []int                `json:"walletTypes"`
+		WalletType      int64                `json:"walletType"`
+		WalletTypes     []string             `json:"walletTypes"`
 		FundsDetail     []struct {
-			Currency        string              `json:"currency"`
-			Amount          types.Number        `json:"amount"`
-			WalletAssetCost []map[string]string `json:"walletAssetCost"`
+			Currency        string           `json:"currency"`
+			Amount          types.Number     `json:"amount"`
+			WalletAssetCost WalletAssetCosts `json:"walletAssetCost"`
 		} `json:"fundsDetail"`
 		PayerInfo struct {
 			Name      string `json:"name"`
 			Type      string `json:"type"`
-			BinanceID string `json:"binanceId"`
-			AccountID string `json:"accountId"`
+			BinanceID int64  `json:"binanceId"`
+			AccountID int64  `json:"accountId"`
 		} `json:"payerInfo"`
 		ReceiverInfo struct {
 			Name        string `json:"name"`
 			Type        string `json:"type"`
 			Email       string `json:"email"`
-			BinanceID   string `json:"binanceId"`
-			AccountID   string `json:"accountId"`
+			BinanceID   int64  `json:"binanceId"`
+			AccountID   int64  `json:"accountId"`
 			CountryCode string `json:"countryCode"`
 			PhoneNumber string `json:"phoneNumber"`
 			MobileCode  string `json:"mobileCode"`
