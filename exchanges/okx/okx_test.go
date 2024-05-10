@@ -2519,66 +2519,60 @@ func TestOrderPushData(t *testing.T) {
 	ok := new(Okx) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
 	require.NoError(t, testexch.Setup(ok), "Test instance Setup must not error")
 	testexch.FixtureToDataHandler(t, "testdata/wsOrders.json", ok.WsHandleData)
-	seen := 0
-	for reading := true; reading; {
-		select {
-		default:
-			reading = false
-		case resp := <-ok.Websocket.DataHandler:
-			seen++
-			switch v := resp.(type) {
-			case *order.Detail:
-				switch seen {
-				case 1:
-					assert.Equal(t, "452197707845865472", v.OrderID, "OrderID")
-					assert.Equal(t, "HamsterParty14", v.ClientOrderID, "ClientOrderID")
-					assert.Equal(t, asset.Spot, v.AssetType, "AssetType")
-					assert.Equal(t, order.Sell, v.Side, "Side")
-					assert.Equal(t, order.Filled, v.Status, "Status")
-					assert.Equal(t, order.Limit, v.Type, "Type")
-					assert.Equal(t, currency.NewPairWithDelimiter("BTC", "USDT", "-"), v.Pair, "Pair")
-					assert.Equal(t, 31527.1, v.AverageExecutedPrice, "AverageExecutedPrice")
-					assert.Equal(t, time.UnixMilli(1654084334977), v.Date, "Date")
-					assert.Equal(t, time.UnixMilli(1654084353263), v.CloseTime, "CloseTime")
-					assert.Equal(t, 0.001, v.Amount, "Amount")
-					assert.Equal(t, 0.001, v.ExecutedAmount, "ExecutedAmount")
-					assert.Equal(t, 0.000, v.RemainingAmount, "RemainingAmount")
-					assert.Equal(t, 31527.1, v.Price, "Price")
-					assert.Equal(t, 0.02522168, v.Fee, "Fee")
-					assert.Equal(t, currency.USDT, v.FeeAsset, "FeeAsset")
-				case 2:
-					assert.Equal(t, "620258920632008725", v.OrderID, "OrderID")
-					assert.Equal(t, asset.Spot, v.AssetType, "AssetType")
-					assert.Equal(t, order.Market, v.Type, "Type")
-					assert.Equal(t, order.Sell, v.Side, "Side")
-					assert.Equal(t, order.Active, v.Status, "Status")
-					assert.Equal(t, 0.0, v.Amount, "Amount should be 0 for a market sell")
-					assert.Equal(t, 10.0, v.QuoteAmount, "QuoteAmount")
-				case 3:
-					assert.Equal(t, "620258920632008725", v.OrderID, "OrderID")
-					assert.Equal(t, 10.0, v.QuoteAmount, "QuoteAmount")
-					assert.Equal(t, 0.00038127046945832905, v.Amount, "Amount")
-					assert.Equal(t, 0.010000249968, v.Fee, "Fee")
-					assert.Equal(t, 0.0, v.RemainingAmount, "RemainingAmount")
-					assert.Equal(t, 0.00038128, v.ExecutedAmount, "ExecutedAmount")
-					assert.Equal(t, order.PartiallyFilled, v.Status, "Status")
-				case 4:
-					assert.Equal(t, "620258920632008725", v.OrderID, "OrderID")
-					assert.Equal(t, 10.0, v.QuoteAmount, "QuoteAmount")
-					assert.Equal(t, 0.010000249968, v.Fee, "Fee")
-					assert.Equal(t, 0.0, v.RemainingAmount, "RemainingAmount")
-					assert.Equal(t, 0.00038128, v.ExecutedAmount, "ExecutedAmount")
-					assert.Equal(t, 0.00038128, v.Amount, "Amount should be derived because order filled")
-					assert.Equal(t, order.Filled, v.Status, "Status")
-				}
-			case error:
-				t.Error(v)
-			default:
-				t.Errorf("Got unexpected data: %T %v", v, v)
+	close(ok.Websocket.DataHandler)
+	assert.Len(t, ok.Websocket.DataHandler, 4, "Should see 4 orders")
+	for resp := range ok.Websocket.DataHandler {
+		switch v := resp.(type) {
+		case *order.Detail:
+			switch len(ok.Websocket.DataHandler) {
+			case 3:
+				assert.Equal(t, "452197707845865472", v.OrderID, "OrderID")
+				assert.Equal(t, "HamsterParty14", v.ClientOrderID, "ClientOrderID")
+				assert.Equal(t, asset.Spot, v.AssetType, "AssetType")
+				assert.Equal(t, order.Sell, v.Side, "Side")
+				assert.Equal(t, order.Filled, v.Status, "Status")
+				assert.Equal(t, order.Limit, v.Type, "Type")
+				assert.Equal(t, currency.NewPairWithDelimiter("BTC", "USDT", "-"), v.Pair, "Pair")
+				assert.Equal(t, 31527.1, v.AverageExecutedPrice, "AverageExecutedPrice")
+				assert.Equal(t, time.UnixMilli(1654084334977), v.Date, "Date")
+				assert.Equal(t, time.UnixMilli(1654084353263), v.CloseTime, "CloseTime")
+				assert.Equal(t, 0.001, v.Amount, "Amount")
+				assert.Equal(t, 0.001, v.ExecutedAmount, "ExecutedAmount")
+				assert.Equal(t, 0.000, v.RemainingAmount, "RemainingAmount")
+				assert.Equal(t, 31527.1, v.Price, "Price")
+				assert.Equal(t, 0.02522168, v.Fee, "Fee")
+				assert.Equal(t, currency.USDT, v.FeeAsset, "FeeAsset")
+			case 2:
+				assert.Equal(t, "620258920632008725", v.OrderID, "OrderID")
+				assert.Equal(t, asset.Spot, v.AssetType, "AssetType")
+				assert.Equal(t, order.Market, v.Type, "Type")
+				assert.Equal(t, order.Sell, v.Side, "Side")
+				assert.Equal(t, order.Active, v.Status, "Status")
+				assert.Equal(t, 0.0, v.Amount, "Amount should be 0 for a market sell")
+				assert.Equal(t, 10.0, v.QuoteAmount, "QuoteAmount")
+			case 1:
+				assert.Equal(t, "620258920632008725", v.OrderID, "OrderID")
+				assert.Equal(t, 10.0, v.QuoteAmount, "QuoteAmount")
+				assert.Equal(t, 0.00038127046945832905, v.Amount, "Amount")
+				assert.Equal(t, 0.010000249968, v.Fee, "Fee")
+				assert.Equal(t, 0.0, v.RemainingAmount, "RemainingAmount")
+				assert.Equal(t, 0.00038128, v.ExecutedAmount, "ExecutedAmount")
+				assert.Equal(t, order.PartiallyFilled, v.Status, "Status")
+			case 0:
+				assert.Equal(t, "620258920632008725", v.OrderID, "OrderID")
+				assert.Equal(t, 10.0, v.QuoteAmount, "QuoteAmount")
+				assert.Equal(t, 0.010000249968, v.Fee, "Fee")
+				assert.Equal(t, 0.0, v.RemainingAmount, "RemainingAmount")
+				assert.Equal(t, 0.00038128, v.ExecutedAmount, "ExecutedAmount")
+				assert.Equal(t, 0.00038128, v.Amount, "Amount should be derived because order filled")
+				assert.Equal(t, order.Filled, v.Status, "Status")
 			}
+		case error:
+			t.Error(v)
+		default:
+			t.Errorf("Got unexpected data: %T %v", v, v)
 		}
 	}
-	assert.Equal(t, 4, seen, "Saw 4 records")
 }
 
 const algoOrdersPushDataJSON = `{"arg": {"channel": "orders-algo","uid": "77982378738415879","instType": "FUTURES","instId": "BTC-USD-200329"},"data": [{"instType": "FUTURES","instId": "BTC-USD-200329","ordId": "312269865356374016","ccy": "BTC","algoId": "1234","px": "999","sz": "3","tdMode": "cross","tgtCcy": "","notionalUsd": "","ordType": "trigger","side": "buy","posSide": "long","state": "live","lever": "20","tpTriggerPx": "","tpTriggerPxType": "","tpOrdPx": "","slTriggerPx": "","slTriggerPxType": "","triggerPx": "99","triggerPxType": "last","ordPx": "12","actualSz": "","actualPx": "","tag": "adadadadad","actualSide": "","triggerTime": "1597026383085","cTime": "1597026383000"}]}`
