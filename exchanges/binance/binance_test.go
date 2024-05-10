@@ -37,8 +37,8 @@ import (
 
 // Please supply your own keys here for due diligence testing
 const (
-	apiKey                  = "rxD2KucTdQ53wkF6RjPFazobfRbFQXWJL5g7CL9COdA8o9wBIr4A9N1ixAniDEmu"
-	apiSecret               = "mr2vYDnRxkqOpM4sQOWpdxjja9Wr0imPm3s2XzmEkT1GqdRP9sSd0ZBOEXYU9VRn"
+	apiKey                  = ""
+	apiSecret               = ""
 	canManipulateRealOrders = false
 	useTestNet              = false
 
@@ -778,16 +778,19 @@ func TestGetFuturesHistoricalTrades(t *testing.T) {
 
 func TestGetFuturesSymbolPriceTicker(t *testing.T) {
 	t.Parallel()
-	_, err := b.GetFuturesSymbolPriceTicker(context.Background(), currency.NewPairWithDelimiter("BTCUSD", "PERP", "_"), "")
-	assert.NoError(t, err)
+	result, err := b.GetFuturesSymbolPriceTicker(context.Background(), currency.NewPairWithDelimiter("BTCUSD", "PERP", "_"), "")
+	require.NoError(t, err)
+	assert.NotNil(t, result)
 }
 
 func TestGetFuturesOrderbookTicker(t *testing.T) {
 	t.Parallel()
-	_, err := b.GetFuturesOrderbookTicker(context.Background(), currency.EMPTYPAIR, "")
-	assert.NoError(t, err)
-	_, err = b.GetFuturesOrderbookTicker(context.Background(), currency.NewPairWithDelimiter("BTCUSD", "PERP", "_"), "")
-	assert.NoError(t, err)
+	result, err := b.GetFuturesOrderbookTicker(context.Background(), currency.EMPTYPAIR, "")
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+	result, err = b.GetFuturesOrderbookTicker(context.Background(), currency.NewPairWithDelimiter("BTCUSD", "PERP", "_"), "")
+	require.NoError(t, err)
+	assert.NotNil(t, result)
 }
 
 func TestGetCFuturesIndexPriceConstituents(t *testing.T) {
