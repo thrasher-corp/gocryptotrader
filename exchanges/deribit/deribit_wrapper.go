@@ -834,7 +834,9 @@ func (d *Deribit) CancelAllOrders(ctx context.Context, orderCancellation *order.
 	if len(cancelData.CancelDetails) > 0 {
 		response.Status = make(map[string]string)
 		for a := range cancelData.CancelDetails {
-			response.Status[cancelData.CancelDetails[a].OrderID] = cancelData.CancelDetails[a].OrderState
+			for b := range cancelData.CancelDetails[a].Result {
+				response.Status[cancelData.CancelDetails[a].Result[b].OrderID] = cancelData.CancelDetails[a].Result[b].OrderState
+			}
 		}
 	}
 	return response, nil

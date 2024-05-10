@@ -1496,15 +1496,17 @@ func (d *Deribit) WsSubmitCancelAllByKind(ccy currency.Code, kind, orderType str
 }
 
 // WSSubmitCancelByLabel sends a request to cancel all user orders for the specified label through the websocket connection.
-func (d *Deribit) WSSubmitCancelByLabel(label, symbol string) (int64, error) {
+func (d *Deribit) WSSubmitCancelByLabel(label, symbol string, detailed bool) (*MultipleCancelResponse, error) {
 	input := &struct {
 		Label    string `json:"label"`
 		Currency string `json:"currency,omitempty"`
+		Detailed bool   `json:"detailed,omitempty"`
 	}{
 		Label:    label,
 		Currency: symbol,
+		Detailed: detailed,
 	}
-	var resp int64
+	var resp *MultipleCancelResponse
 	return resp, d.SendWSRequest(matchingEPL, submitCancelByLabel, input, &resp, true)
 }
 

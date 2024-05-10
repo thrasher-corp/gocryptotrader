@@ -1762,11 +1762,14 @@ func (d *Deribit) SubmitCancelAllByInstrument(ctx context.Context, instrument, o
 
 // SubmitCancelByLabel sends a request to cancel all user orders for the specified label
 // returns the total number of successfully cancelled orders
-func (d *Deribit) SubmitCancelByLabel(ctx context.Context, label, ccy string) (int64, error) {
+func (d *Deribit) SubmitCancelByLabel(ctx context.Context, label, ccy string, detailed bool) (int64, error) {
 	params := url.Values{}
 	params.Set("label", label)
 	if ccy != "" {
 		params.Set("currency", ccy)
+	}
+	if detailed {
+		params.Set("detailed", "true")
 	}
 	var resp int64
 	return resp, d.SendHTTPAuthRequest(ctx, exchange.RestFutures, matchingEPL, http.MethodGet,
@@ -1888,8 +1891,7 @@ func (d *Deribit) GetOpenOrdersByLabel(ctx context.Context, ccy currency.Code, l
 		params.Set("label", label)
 	}
 	var resp []OrderData
-	return resp, d.SendHTTPAuthRequest(ctx, exchange.RestFutures, nonMatchingEPL, http.MethodGet,
-		getOpenOrdersByLabel, params, &resp)
+	return resp, d.SendHTTPAuthRequest(ctx, exchange.RestFutures, nonMatchingEPL, http.MethodGet, getOpenOrdersByLabel, params, &resp)
 }
 
 // GetOpenOrdersByInstrument sends a request to fetch open orders data sorted by requested params

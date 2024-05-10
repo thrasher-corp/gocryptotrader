@@ -1594,14 +1594,14 @@ func TestWSSubmitCancelAllByInstrument(t *testing.T) {
 func TestSubmitCancelByLabel(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, d, canManipulateRealOrders)
-	_, err := d.SubmitCancelByLabel(context.Background(), "incorrectOrderLabel", "")
+	_, err := d.SubmitCancelByLabel(context.Background(), "incorrectOrderLabel", "", true)
 	assert.NoError(t, err)
 }
 
 func TestWSSubmitCancelByLabel(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, d, canManipulateRealOrders)
-	_, err := d.WSSubmitCancelByLabel("incorrectOrderLabel", "")
+	_, err := d.WSSubmitCancelByLabel("incorrectOrderLabel", "", true)
 	assert.NoError(t, err)
 }
 
@@ -3058,9 +3058,10 @@ func TestMultipleCancelResponseUnmarshalJSON(t *testing.T) {
 	err := json.Unmarshal([]byte(data), &resp)
 	require.NoError(t, err)
 	require.Equal(t, int64(37), resp.Result.CancelCount)
-	data = `{ "jsonrpc": "2.0", "id": 8748, "result": [{ "web": true, "triggered": false, "trigger_price": 1628.7, "trigger": "last_price", "time_in_force": "good_til_cancelled", "stop_price": 1628.7, "replaced": false, "reduce_only": false, "price": "market_price", "post_only": false, "order_type": "stop_market", "order_state": "untriggered", "order_id": "ETH-SLTS-250756", "max_show": 100, "last_update_timestamp": 1634206091071, "label": "", "is_rebalance": false, "is_liquidation": false, "instrument_name": "ETH-PERPETUAL", "direction": "sell", "creation_timestamp": 1634206000230, "api": false, "amount": 100 }]}`
+	data = `{"jsonrpc":"2.0","id":1599612810505,"result":[{"instrument_name":"BTC_USDC","currency":"BTC_USDC","result":[{"is_rebalance":false,"risk_reducing":false,"order_type":"limit","creation_timestamp":1715302998260,"order_state":"cancelled","contracts":300000.0,"average_price":0.0,"post_only":false,"last_update_timestamp":1715303041949,"filled_amount":0.0,"replaced":false,"web":false,"api":true,"mmp":false,"cancel_reason":"user_request","instrument_name":"BTC_USDC","order_id":"BTC_USDC-13133482","max_show":30.0,"time_in_force":"good_til_cancelled","direction":"buy","amount":30.0,"price":30.0,"label":"test"}],"type":"limit"}],"usIn":1715303041946338,"usOut":1715303041950029,"usDiff":3691,"testnet":true}`
 	err = json.Unmarshal([]byte(data), &resp)
 	require.NoError(t, err)
 	require.Equal(t, int64(1), resp.Result.CancelCount)
+	require.Len(t, resp.Result.CancelDetails, 1)
 	require.Len(t, resp.Result.CancelDetails, 1)
 }

@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
+	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
 const (
@@ -529,6 +530,45 @@ type PrivateTradeData struct {
 	Order  OrderData   `json:"order"`
 }
 
+// CancelResp represents the detail of canceled order.
+type CancelResp struct {
+	InstrumentName string `json:"instrument_name"`
+	Currency       string `json:"currency"`
+	Result         []struct {
+		IsRebalance         bool         `json:"is_rebalance"`
+		RiskReducing        bool         `json:"risk_reducing"`
+		OrderType           string       `json:"order_type"`
+		CreationTimestamp   int64        `json:"creation_timestamp"`
+		OrderState          string       `json:"order_state"`
+		Contracts           float64      `json:"contracts"`
+		AveragePrice        float64      `json:"average_price"`
+		PostOnly            bool         `json:"post_only"`
+		LastUpdateTimestamp int64        `json:"last_update_timestamp"`
+		FilledAmount        float64      `json:"filled_amount"`
+		Replaced            bool         `json:"replaced"`
+		Web                 bool         `json:"web"`
+		API                 bool         `json:"api"`
+		Mmp                 bool         `json:"mmp"`
+		CancelReason        string       `json:"cancel_reason"`
+		InstrumentName      string       `json:"instrument_name"`
+		OrderID             string       `json:"order_id"`
+		MaxShow             float64      `json:"max_show"`
+		TimeInForce         string       `json:"time_in_force"`
+		Direction           string       `json:"direction"`
+		Amount              types.Number `json:"amount"`
+		Price               types.Number `json:"price"`
+		Label               string       `json:"label"`
+
+		Triggered     bool         `json:"triggered"`
+		TriggerPrice  types.Number `json:"trigger_price"`
+		Trigger       string       `json:"trigger"`
+		StopPrice     types.Number `json:"stop_price"`
+		ReduceOnly    bool         `json:"reduce_only"`
+		IsLiquidation bool         `json:"is_liquidation"`
+	} `json:"result"`
+	Type string `json:"type"`
+}
+
 // PrivateCancelData stores data of a private cancel
 type PrivateCancelData struct {
 	Triggered           bool                 `json:"triggered"`
@@ -554,20 +594,28 @@ type PrivateCancelData struct {
 	Web                 bool                 `json:"web"`
 	StopPrice           float64              `json:"stop_price"`
 	Replaced            bool                 `json:"replaced"`
+	IsRebalance         bool                 `json:"is_rebalance"`
+	RiskReducing        bool                 `json:"risk_reducing"`
+	Contracts           float64              `json:"contracts"`
+	AveragePrice        float64              `json:"average_price"`
+	FilledAmount        float64              `json:"filled_amount"`
+	Mmp                 bool                 `json:"mmp"`
+	CancelReason        string               `json:"cancel_reason"`
 }
 
 // MultipleCancelResponse represents a response after cancelling multiple orders.
 type MultipleCancelResponse struct {
 	CancelCount   int64
-	CancelDetails []PrivateCancelData
+	CancelDetails []CancelResp
 }
 
 // UnmarshalJSON deserializes order cancellation response into a MultipleCancelResponse instance.
 func (a *MultipleCancelResponse) UnmarshalJSON(data []byte) error {
 	var cancelCount int64
-	var cancelDetails []PrivateCancelData
+	var cancelDetails []CancelResp
 	err := json.Unmarshal(data, &cancelDetails)
 	if err != nil {
+		println("ERROR: ", err.Error())
 		err = json.Unmarshal(data, &cancelCount)
 		if err != nil {
 			return err
@@ -576,7 +624,10 @@ func (a *MultipleCancelResponse) UnmarshalJSON(data []byte) error {
 		return nil
 	}
 	a.CancelDetails = cancelDetails
-	a.CancelCount = int64(len(cancelDetails))
+	for a := range cancelDetails {
+		cancelCount += int64(len(cancelDetails[a].Result))
+	}
+	a.CancelCount = cancelCount
 	return nil
 }
 
@@ -787,7 +838,7 @@ type TransactionLogData struct {
 	Side            string               `json:"side"`
 	Price           float64              `json:"price"`
 	Position        float64              `json:"position"`
-	OrderID         int64                `json:"order_id"`
+	OrderID         string               `json:"order_id"`
 	InterestPL      float64              `json:"interest_pl"`
 	InstrumentName  string               `json:"instrument_name"`
 	Info            struct {
