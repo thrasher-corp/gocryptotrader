@@ -2209,7 +2209,7 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 
 	cp, err := currency.NewPairFromString("ETH-240927-3800-P")
 	require.NoError(t, err)
-	_, err = b.CancelAllOrders(context.Background(), &order.Cancel{
+	result, err := b.CancelAllOrders(context.Background(), &order.Cancel{
 		OrderID:       "1",
 		WalletAddress: core.BitcoinDonationAddress,
 		AccountID:     "1",
@@ -2217,6 +2217,7 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 		AssetType:     asset.Options,
 	})
 	require.NoError(t, err)
+	assert.NotNil(t, result)
 }
 
 func TestGetAccountInfo(t *testing.T) {
