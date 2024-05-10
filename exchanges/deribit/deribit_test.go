@@ -3058,7 +3058,7 @@ func TestMultipleCancelResponseUnmarshalJSON(t *testing.T) {
 	err := json.Unmarshal([]byte(data), &resp)
 	require.NoError(t, err)
 	require.Equal(t, int64(37), resp.Result.CancelCount)
-	data = `{"jsonrpc":"2.0","id":1599612810505,"result":[{"instrument_name":"BTC_USDC","currency":"BTC_USDC","result":[{"is_rebalance":false,"risk_reducing":false,"order_type":"limit","creation_timestamp":1715302998260,"order_state":"cancelled","contracts":300000.0,"average_price":0.0,"post_only":false,"last_update_timestamp":1715303041949,"filled_amount":0.0,"replaced":false,"web":false,"api":true,"mmp":false,"cancel_reason":"user_request","instrument_name":"BTC_USDC","order_id":"BTC_USDC-13133482","max_show":30.0,"time_in_force":"good_til_cancelled","direction":"buy","amount":30.0,"price":30.0,"label":"test"}],"type":"limit"}],"usIn":1715303041946338,"usOut":1715303041950029,"usDiff":3691,"testnet":true}`
+	data = `{"jsonrpc":"2.0","id":1599612810505,"result":[{"instrument_name":"BTC_USDC","currency":"BTC_USDC","result":[{"is_rebalance":false,"risk_reducing":false,"order_type":"limit","creation_timestamp":1715302998260,"order_state":"cancelled","contracts":300000.0,"average_price":0.0,"post_only":false,"last_update_timestamp":1715303041949,"filled_amount":0.0,"replaced":false,"web":false,"api":true,"mmp":false,"cancel_reason":"user_request","instrument_name":"BTC_USDC","order_id":"BTC_USDC-13133482","max_show":30.0,"time_in_force":"good_til_cancelled","direction":"buy","amount":30.0,"price":30.0,"label":"test"}],"type":"limit"}]}`
 	err = json.Unmarshal([]byte(data), &resp)
 	require.NoError(t, err)
 	require.Equal(t, int64(1), resp.Result.CancelCount)

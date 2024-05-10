@@ -1762,7 +1762,7 @@ func (d *Deribit) SubmitCancelAllByInstrument(ctx context.Context, instrument, o
 
 // SubmitCancelByLabel sends a request to cancel all user orders for the specified label
 // returns the total number of successfully cancelled orders
-func (d *Deribit) SubmitCancelByLabel(ctx context.Context, label, ccy string, detailed bool) (int64, error) {
+func (d *Deribit) SubmitCancelByLabel(ctx context.Context, label, ccy string, detailed bool) (*MultipleCancelResponse, error) {
 	params := url.Values{}
 	params.Set("label", label)
 	if ccy != "" {
@@ -1771,7 +1771,7 @@ func (d *Deribit) SubmitCancelByLabel(ctx context.Context, label, ccy string, de
 	if detailed {
 		params.Set("detailed", "true")
 	}
-	var resp int64
+	var resp *MultipleCancelResponse
 	return resp, d.SendHTTPAuthRequest(ctx, exchange.RestFutures, matchingEPL, http.MethodGet,
 		submitCancelByLabel, params, &resp)
 }
