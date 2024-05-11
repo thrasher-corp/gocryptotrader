@@ -5,7 +5,6 @@
 package binance
 
 import (
-	"context"
 	"log"
 	"os"
 	"testing"
@@ -44,10 +43,10 @@ func TestMain(m *testing.M) {
 	b.setupOrderbookManager()
 	b.Websocket.DataHandler = sharedtestvalues.GetWebsocketInterfaceChannelOverride()
 	log.Printf(sharedtestvalues.LiveTesting, b.Name)
-	if err := b.UpdateTradablePairs(context.Background(), true); err != nil {
-		log.Fatal("Binance setup error", err)
+	if err := b.populateTradablePairs(); err != nil {
+		log.Fatal(err)
 	}
-	// b.HTTPRecording = true
+	b.HTTPRecording = true
 	b.Verbose = true
 	os.Exit(m.Run())
 }

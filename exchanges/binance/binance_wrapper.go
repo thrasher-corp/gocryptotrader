@@ -385,7 +385,7 @@ func (b *Binance) FetchTradablePairs(ctx context.Context, a asset.Item) (currenc
 // UpdateTradablePairs updates the exchanges available pairs and stores
 // them in the exchanges config
 func (b *Binance) UpdateTradablePairs(ctx context.Context, forceUpdate bool) error {
-	assetTypes := b.GetAssetTypes(false)
+	assetTypes := b.GetAssetTypes(true)
 	for i := range assetTypes {
 		pairs, err := b.FetchTradablePairs(ctx, assetTypes[i])
 		if err != nil {
@@ -720,7 +720,8 @@ func (b *Binance) UpdateOrderbook(ctx context.Context, p currency.Pair, assetTyp
 	case asset.CoinMarginedFutures:
 		orderbookNew, err = b.GetFuturesOrderbook(ctx, p, 1000)
 	case asset.Options:
-		resp, err := b.GetEOptionsOrderbook(ctx, p.String(), 1000)
+		var resp *EOptionsOrderbook
+		resp, err = b.GetEOptionsOrderbook(ctx, p.String(), 1000)
 		if err != nil {
 			return nil, err
 		}
@@ -1005,7 +1006,7 @@ func (b *Binance) GetRecentTrades(ctx context.Context, p currency.Pair, a asset.
 		}
 		for i := range tradeData {
 			resp = append(resp, trade.Data{
-				TID:          tradeData[i].ID,
+				TID:          strconv.FormatInt(tradeData[i].ID, 10),
 				Exchange:     b.Name,
 				CurrencyPair: p,
 				AssetType:    a,
@@ -1103,7 +1104,7 @@ func (b *Binance) GetHistoricTrades(ctx context.Context, p currency.Pair, a asse
 		for i := range trades {
 			result[i] = trade.Data{
 				CurrencyPair: p,
-				TID:          trades[i].ID,
+				TID:          strconv.FormatInt(trades[i].ID, 10),
 				Amount:       trades[i].Quantity.Float64(),
 				Exchange:     b.Name,
 				Price:        trades[i].Price.Float64(),
@@ -1293,7 +1294,8 @@ func (b *Binance) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Subm
 		}
 		orderID = strconv.FormatInt(o.OrderID, 10)
 	case asset.Options:
-		result, err := b.NewOptionsOrder(ctx, &OptionsOrderParams{
+		var result *OptionOrder
+		result, err = b.NewOptionsOrder(ctx, &OptionsOrderParams{
 			Symbol:               s.Pair,
 			Side:                 s.Side.String(),
 			OrderType:            strings.ToUpper(s.Type.String()),
@@ -1370,10 +1372,7 @@ func (b *Binance) CancelOrder(ctx context.Context, o *order.Cancel) error {
 			return err
 		}
 	case asset.Options:
-		reg, err := regexp.Compile("^[0-9]+$")
-		if err != nil {
-			return err
-		}
+		reg := regexp.MustCompile("^[0-9]+$")
 		if !reg.MatchString(o.OrderID) {
 			return fmt.Errorf("%w, invalid orderID", errOrderIDMustBeSet)
 		}
@@ -1397,15 +1396,17 @@ func (b *Binance) CancelBatchOrders(_ context.Context, _ []order.Cancel) (*order
 // CancelAllOrders cancels all orders associated with a currency pair
 func (b *Binance) CancelAllOrders(ctx context.Context, req *order.Cancel) (order.CancelAllResponse, error) {
 	var err error
-	if err = req.Validate(); err != nil {
+	err = req.Validate()
+	if err != nil {
 		return order.CancelAllResponse{}, err
 	}
 	var cancelAllOrdersResponse order.CancelAllResponse
 	cancelAllOrdersResponse.Status = make(map[string]string)
 	switch req.AssetType {
 	case asset.Spot, asset.Margin:
+		var openOrders []TradeOrder
 		if b.IsAPIStreamConnected() && b.Websocket.CanUseAuthenticatedEndpoints() && b.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
-			openOrders, err := b.WsCurrentOpenOrders(req.Pair, 0)
+			openOrders, err = b.WsCurrentOpenOrders(req.Pair, 0)
 			if err != nil {
 				return cancelAllOrdersResponse, err
 			}
@@ -1416,7 +1417,7 @@ func (b *Binance) CancelAllOrders(ctx context.Context, req *order.Cancel) (order
 				}
 			}
 		} else {
-			openOrders, err := b.OpenOrders(ctx, req.Pair)
+			openOrders, err = b.OpenOrders(ctx, req.Pair)
 			if err != nil {
 				return cancelAllOrdersResponse, err
 			}
@@ -1432,7 +1433,8 @@ func (b *Binance) CancelAllOrders(ctx context.Context, req *order.Cancel) (order
 		}
 	case asset.CoinMarginedFutures:
 		if req.Pair.IsEmpty() {
-			enabledPairs, err := b.GetEnabledPairs(asset.CoinMarginedFutures)
+			var enabledPairs currency.Pairs
+			enabledPairs, err = b.GetEnabledPairs(req.AssetType)
 			if err != nil {
 				return cancelAllOrdersResponse, err
 			}
@@ -1449,8 +1451,9 @@ func (b *Binance) CancelAllOrders(ctx context.Context, req *order.Cancel) (order
 			}
 		}
 	case asset.USDTMarginedFutures:
+		var enabledPairs currency.Pairs
 		if req.Pair.IsEmpty() {
-			enabledPairs, err := b.GetEnabledPairs(asset.USDTMarginedFutures)
+			enabledPairs, err = b.GetEnabledPairs(asset.USDTMarginedFutures)
 			if err != nil {
 				return cancelAllOrdersResponse, err
 			}

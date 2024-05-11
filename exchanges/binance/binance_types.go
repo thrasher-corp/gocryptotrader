@@ -4947,7 +4947,7 @@ func (a *WalletAssetCosts) UnmarshalJSON(data []byte) error {
 		var singleObj map[string]types.Number
 		err = json.Unmarshal(data, &singleObj)
 		if err != nil {
-			return nil
+			return err
 		}
 		resp = append(resp, singleObj)
 	}

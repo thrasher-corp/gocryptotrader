@@ -726,7 +726,7 @@ func (b *Binance) NewOCOOrder(ctx context.Context, arg *OCOOrderParam) (*OCOOrde
 	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/api/v3/order/oco", params, spotDefaultRate, nil, &resp)
 }
 
-// send in an one-cancels-the-other (OCO) pair, where activation of one order immediately cancels the other.
+// NewOCOOrderList send in an one-cancels-the-other (OCO) pair, where activation of one order immediately cancels the other.
 // An OCO has 2 legs called the above leg and below leg.
 // One of the legs must be a LIMIT_MAKER order and the other leg must be STOP_LOSS or STOP_LOSS_LIMIT order.
 // Price restrictions:
@@ -6403,6 +6403,7 @@ func (b *Binance) CloseSpotListenKey(ctx context.Context, listenKey string) erro
 	return b.SendAPIKeyHTTPRequest(ctx, exchange.RestSpot, http.MethodDelete, common.EncodeURLValues("/api/v3/userDataStream", params), listenKeyRate, &struct{}{})
 }
 
+// CloseMarginListenKey closes a margin account listen key
 func (b *Binance) CloseMarginListenKey(ctx context.Context, listenKey string) error {
 	if listenKey == "" {
 		return errListenKeyIsRequired

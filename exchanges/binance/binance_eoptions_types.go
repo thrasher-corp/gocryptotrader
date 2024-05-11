@@ -71,7 +71,7 @@ type EOptionsOrderbook struct {
 
 // EOptionsTradeItem represents a recent trade information
 type EOptionsTradeItem struct {
-	ID       string               `json:"id"`
+	ID       int64                `json:"id"`
 	Symbol   string               `json:"symbol"`
 	Price    types.Number         `json:"price"`
 	Quantity types.Number         `json:"qty"`

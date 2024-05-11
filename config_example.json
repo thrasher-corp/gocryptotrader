@@ -478,6 +478,9 @@
     "useGlobalFormat": true,
     "assetTypes": [
      "spot",
+     "margin",
+     "usdtmarginedfutures",
+     "coinmarginedfutures",
      "options"
     ],
     "pairs": {
