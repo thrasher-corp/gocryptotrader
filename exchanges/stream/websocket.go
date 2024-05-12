@@ -280,6 +280,7 @@ func (w *Websocket) Connect() error {
 	w.subscriptions = subscriptionMap{}
 	w.subscriptionMutex.Unlock()
 
+	w.Wg.Add(2)
 	go w.dataMonitor()
 	go w.trafficMonitor()
 	w.setState(connecting)
@@ -335,7 +336,6 @@ func (w *Websocket) Enable() error {
 
 // dataMonitor monitors job throughput and logs if there is a back log of data
 func (w *Websocket) dataMonitor() {
-	w.Wg.Add(1)
 	defer w.Wg.Done()
 	dropped := 0
 	for {
@@ -362,8 +362,7 @@ func (w *Websocket) dataMonitor() {
 
 // connectionMonitor ensures that the WS keeps connecting
 func (w *Websocket) connectionMonitor() {
-	delay := w.connectionMonitorDelay
-	timer := time.NewTimer(delay)
+	timer := time.NewTimer(w.connectionMonitorDelay)
 	for {
 		if w.verbose {
 			log.Debugf(log.WebsocketMgr, "%v websocket: running connection monitor cycle", w.exchangeName)
@@ -402,7 +401,7 @@ func (w *Websocket) connectionMonitor() {
 					log.Errorln(log.WebsocketMgr, err)
 				}
 			}
-			timer.Reset(delay)
+			timer.Reset(w.connectionMonitorDelay)
 		}
 	}
 }
@@ -517,7 +516,6 @@ func (w *Websocket) FlushChannels() error {
 // 1 slot buffer means that connection will only write to trafficAlert once per trafficCheckInterval to avoid read/write flood in high traffic
 // Otherwise we Shutdown the connection after trafficTimeout, unless it's connecting. connectionMonitor is responsible for Connecting again
 func (w *Websocket) trafficMonitor() {
-	w.Wg.Add(1)
 	t := time.NewTimer(w.trafficTimeout)
 	for {
 		select {
@@ -528,6 +526,7 @@ func (w *Websocket) trafficMonitor() {
 			t.Stop()
 			w.Wg.Done()
 			return
+		// this case ensures the timer is reset as close to when the traffic is received
 		case <-time.After(trafficCheckInterval):
 			select {
 			case <-w.TrafficAlert:

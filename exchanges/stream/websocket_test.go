@@ -197,7 +197,8 @@ func TestTrafficMonitorTrafficAlerts(t *testing.T) {
 	ws.state.Store(connected)
 
 	thenish := time.Now()
-	ws.trafficMonitor()
+	ws.Wg.Add(1)
+	go ws.trafficMonitor()
 	require.Equal(t, connected, ws.state.Load(), "websocket must be connected")
 
 	for i := 0; i < 6; i++ { // Timeout will happen at 200ms so we want 6 * 50ms checks to pass
@@ -238,7 +239,8 @@ func TestTrafficMonitorConnecting(t *testing.T) {
 	ws.ShutdownC = make(chan struct{})
 	ws.state.Store(connecting)
 	ws.trafficTimeout = 50 * time.Millisecond
-	ws.trafficMonitor()
+	ws.Wg.Add(1)
+	go ws.trafficMonitor()
 	require.Equal(t, connecting, ws.state.Load(), "websocket must be connecting")
 	<-time.After(4 * ws.trafficTimeout)
 	require.Equal(t, connecting, ws.state.Load(), "websocket must still be connecting after several checks")
@@ -258,7 +260,8 @@ func TestTrafficMonitorShutdown(t *testing.T) {
 	ws.ShutdownC = make(chan struct{})
 	ws.state.Store(connected)
 	ws.trafficTimeout = time.Minute
-	ws.trafficMonitor()
+	ws.Wg.Add(1)
+	go ws.trafficMonitor()
 
 	wgReady := make(chan bool)
 	go func() {
