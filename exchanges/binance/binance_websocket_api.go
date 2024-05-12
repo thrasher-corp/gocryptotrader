@@ -675,8 +675,7 @@ func (b *Binance) WsQueryOCOOrder(origClientOrderID string, orderListID, recvWin
 // WsCancelOCOOrder cancel an active OCO order.
 func (b *Binance) WsCancelOCOOrder(symbol currency.Pair, orderListID,
 	listClientOrderID,
-	newClientOrderID string,
-	recvWindow int64) (*OCOOrder, error) {
+	newClientOrderID string) (*OCOOrder, error) {
 	if symbol.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
@@ -691,9 +690,6 @@ func (b *Binance) WsCancelOCOOrder(symbol currency.Pair, orderListID,
 		params["newClientOrderId"] = newClientOrderID
 	}
 	params["orderListId"] = orderListID
-	if recvWindow != 0 {
-		params["recvWindow"] = recvWindow
-	}
 	params["timestamp"] = time.Now().UnixMilli()
 	apiKey, signature, err := b.SignRequest(params)
 	if err != nil {

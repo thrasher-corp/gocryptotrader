@@ -655,7 +655,7 @@ func (b *Binance) AllOrders(ctx context.Context, symbol currency.Pair, orderID, 
 }
 
 // NewOCOOrder places a new one-cancel-other trade order.
-func (b *Binance) NewOCOOrder(ctx context.Context, arg *OCOOrderParam) (*OCOOrderResponse, error) {
+func (b *Binance) NewOCOOrder(ctx context.Context, arg *OCOOrderParam) (*OCOOrder, error) {
 	if arg == nil || *arg == (OCOOrderParam{}) {
 		return nil, errNilArgument
 	}
@@ -675,55 +675,11 @@ func (b *Binance) NewOCOOrder(ctx context.Context, arg *OCOOrderParam) (*OCOOrde
 		return nil, fmt.Errorf("%w stop price is required", order.ErrPriceBelowMin)
 	}
 	params := url.Values{}
-	params.Set("symbol", arg.Symbol.String())
-	params.Set("side", arg.Side)
-	params.Set("amount", strconv.FormatFloat(arg.Amount, 'f', -1, 64))
+	params.Set("quantity", strconv.FormatFloat(arg.Amount, 'f', -1, 64))
 	params.Set("price", strconv.FormatFloat(arg.Price, 'f', -1, 64))
 	params.Set("stopPrice", strconv.FormatFloat(arg.StopPrice, 'f', -1, 64))
-	if arg.ListClientOrderID != "" {
-		params.Set("listClientOrderId", arg.ListClientOrderID)
-	}
-	if arg.LimitClientOrderID != "" {
-		params.Set("limitClientOrderId", arg.LimitClientOrderID)
-	}
-	if arg.LimitStrategyID != "" {
-		params.Set("limitStrategyId", arg.LimitStrategyID)
-	}
-	if arg.LimitStrategyType != "" {
-		params.Set("limitStrategyType", arg.LimitStrategyType)
-	}
-	if arg.LimitIcebergQuantity > 0 {
-		params.Set("limitIcebergQty", strconv.FormatFloat(arg.LimitIcebergQuantity, 'f', -1, 64))
-	}
-	if arg.TrailingDelta > 0 {
-		params.Set("trailingDelta", strconv.FormatInt(arg.TrailingDelta, 10))
-	}
-	if arg.StopClientOrderID != "" {
-		params.Set("stopClientOrderId", arg.StopClientOrderID)
-	}
-	if arg.StopStrategyID > 0 {
-		params.Set("stopStrategyId", strconv.FormatInt(arg.StopStrategyID, 10))
-	}
-	if arg.StopStrategyType > 0 {
-		params.Set("stopStrategyType", strconv.FormatInt(arg.StopStrategyType, 10))
-	}
-	if arg.StopLimitPrice > 0 {
-		params.Set("stopLimitPrice", strconv.FormatFloat(arg.StopLimitPrice, 'f', -1, 64))
-	}
-	if arg.StopIcebergQuantity > 0 {
-		params.Set("stopIcebergQty", strconv.FormatFloat(arg.StopIcebergQuantity, 'f', -1, 64))
-	}
-	if arg.StopLimitTimeInForce != "" {
-		params.Set("stopLimitTimeInForce", arg.StopLimitTimeInForce)
-	}
-	if arg.NewOrderRespType != "" {
-		params.Set("newOrderRespType", arg.NewOrderRespType)
-	}
-	if arg.SelfTradePreventionMode != "" {
-		params.Set("selfTradePreventionMode", arg.SelfTradePreventionMode)
-	}
-	var resp *OCOOrderResponse
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/api/v3/order/oco", params, spotDefaultRate, nil, &resp)
+	var resp *OCOOrder
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/api/v3/order/oco", params, spotDefaultRate, arg, &resp)
 }
 
 // NewOCOOrderList send in an one-cancels-the-other (OCO) pair, where activation of one order immediately cancels the other.
@@ -758,8 +714,8 @@ func (b *Binance) NewOCOOrderList(ctx context.Context, arg *OCOOrderListParams) 
 	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/api/v3/orderList/oco", nil, spotOrderRate, arg, &resp)
 }
 
-// CancelOCOOrderList cancels an entire Order List.
-func (b *Binance) CancelOCOOrderList(ctx context.Context, symbol, orderListID, listClientOrderID, newClientOrderID string) (*OCOOrderResponse, error) {
+// CancelOCOOrder cancels an entire Order List.
+func (b *Binance) CancelOCOOrder(ctx context.Context, symbol, orderListID, listClientOrderID, newClientOrderID string) (*OCOOrder, error) {
 	if symbol == "" {
 		return nil, currency.ErrSymbolStringEmpty
 	}
@@ -777,12 +733,12 @@ func (b *Binance) CancelOCOOrderList(ctx context.Context, symbol, orderListID, l
 	if newClientOrderID != "" {
 		params.Set("newClientOrderId", newClientOrderID)
 	}
-	var resp *OCOOrderResponse
+	var resp *OCOOrder
 	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodDelete, "/api/v3/orderList", params, spotDefaultRate, nil, &resp)
 }
 
 // GetOCOOrders retrieves a specific OCO based on provided optional parameters
-func (b *Binance) GetOCOOrders(ctx context.Context, orderListID, origiClientOrderID string) (*OCOOrderResponse, error) {
+func (b *Binance) GetOCOOrders(ctx context.Context, orderListID, origiClientOrderID string) (*OCOOrder, error) {
 	if orderListID == "" && origiClientOrderID == "" {
 		return nil, errOrderIDMustBeSet
 	}
@@ -793,12 +749,12 @@ func (b *Binance) GetOCOOrders(ctx context.Context, orderListID, origiClientOrde
 	if origiClientOrderID != "" {
 		params.Set("origClientOrderId", origiClientOrderID)
 	}
-	var resp *OCOOrderResponse
+	var resp *OCOOrder
 	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/api/v3/orderList", params, getOCOListRate, nil, &resp)
 }
 
 // GetAllOCOOrders retrieves all OCO based on provided optional parameters
-func (b *Binance) GetAllOCOOrders(ctx context.Context, fromID string, startTime, endTime time.Time, limit int64) ([]OCOOrderResponse, error) {
+func (b *Binance) GetAllOCOOrders(ctx context.Context, fromID string, startTime, endTime time.Time, limit int64) ([]OCOOrder, error) {
 	params := url.Values{}
 	if !startTime.IsZero() && !endTime.IsZero() {
 		err := common.StartEndTimeCheck(startTime, endTime)
@@ -814,30 +770,30 @@ func (b *Binance) GetAllOCOOrders(ctx context.Context, fromID string, startTime,
 	if limit > 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
-	var resp []OCOOrderResponse
+	var resp []OCOOrder
 	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/api/v3/allOrderList", params, getAllOCOOrdersRate, nil, &resp)
 }
 
 // GetOpenOCOList retrieves an open OCO orders.
-func (b *Binance) GetOpenOCOList(ctx context.Context) ([]OCOOrderResponse, error) {
-	var resp []OCOOrderResponse
+func (b *Binance) GetOpenOCOList(ctx context.Context) ([]OCOOrder, error) {
+	var resp []OCOOrder
 	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/api/v3/openOrderList", nil, getOpenOCOListRate, nil, &resp)
 }
 
 // ----------------------------------------------------- Smart Order Routing (SOR) -----------------------------------------------------------
 
 // NewOrderUsingSOR places an order using smart order routing (SOR).
-func (b *Binance) NewOrderUsingSOR(ctx context.Context, arg *SOROrderRequestParams) (interface{}, error) {
+func (b *Binance) NewOrderUsingSOR(ctx context.Context, arg *SOROrderRequestParams) (*SOROrderResponse, error) {
 	return b.newOrderUsingSOR(ctx, arg, "/api/v3/sor/order")
 }
 
-// NewOrderUsingSORTest est new order creation and signature/recvWindow using smart order routing (SOR).
+// NewOrderUsingSORTest test new order creation and signature/recvWindow using smart order routing (SOR).
 // Creates and validates a new order but does not send it into the matching engine.
-func (b *Binance) NewOrderUsingSORTest(ctx context.Context, arg *SOROrderRequestParams) (interface{}, error) {
+func (b *Binance) NewOrderUsingSORTest(ctx context.Context, arg *SOROrderRequestParams) (*SOROrderResponse, error) {
 	return b.newOrderUsingSOR(ctx, arg, "/api/v3/sor/order/test")
 }
 
-func (b *Binance) newOrderUsingSOR(ctx context.Context, arg *SOROrderRequestParams, path string) (interface{}, error) {
+func (b *Binance) newOrderUsingSOR(ctx context.Context, arg *SOROrderRequestParams, path string) (*SOROrderResponse, error) {
 	if arg == nil || *arg == (SOROrderRequestParams{}) {
 		return nil, errNilArgument
 	}
@@ -858,32 +814,14 @@ func (b *Binance) newOrderUsingSOR(ctx context.Context, arg *SOROrderRequestPara
 	params.Set("side", arg.Side)
 	params.Set("type", arg.OrderType)
 	params.Set("quantity", strconv.FormatFloat(arg.Quantity, 'f', -1, 64))
-	if arg.TimeInForce != "" {
-		params.Set("timeInForce", arg.TimeInForce)
-	}
 	if arg.Price <= 0 {
 		params.Set("price", strconv.FormatFloat(arg.Price, 'f', -1, 64))
-	}
-	if arg.NewClientOrderID != "" {
-		params.Set("newClientOrderId", arg.NewClientOrderID)
-	}
-	if arg.StrategyID != 0 {
-		params.Set("strategyId", strconv.FormatInt(arg.StrategyID, 10))
-	}
-	if arg.StrategyType != 0 {
-		params.Set("strategyType", strconv.FormatInt(arg.StrategyType, 10))
 	}
 	if arg.IcebergQuantity != 0 {
 		params.Set("icebergQty", strconv.FormatFloat(arg.IcebergQuantity, 'f', -1, 64))
 	}
-	if arg.NewOrderResponseType != "" {
-		params.Set("newOrderRespType", arg.NewOrderResponseType)
-	}
-	if arg.SelfTradePreventionMode != "" {
-		params.Set("selfTradePreventionMode", arg.SelfTradePreventionMode)
-	}
 	var resp *SOROrderResponse
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, path, params, spotOrderRate, nil, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, path, params, spotOrderRate, arg, &resp)
 }
 
 // QueryOrder returns information on a past order
@@ -1133,7 +1071,7 @@ func (b *Binance) GetAllMarginAssets(ctx context.Context, assetName currency.Cod
 		params.Set("asset", assetName.String())
 	}
 	var resp []MarginAsset
-	return resp, b.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues("/sapi/v1/margin/allAssets", params), sapiDefaultRate, &resp)
+	return resp, b.SendAPIKeyHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, common.EncodeURLValues("/sapi/v1/margin/allAssets", params), sapiDefaultRate, &resp)
 }
 
 // GetAllCrossMarginPairs retrieves all cross-margin pairs
@@ -1143,7 +1081,7 @@ func (b *Binance) GetAllCrossMarginPairs(ctx context.Context, symbol string) ([]
 		params.Set("symbol", symbol)
 	}
 	var resp []CrossMarginPairInfo
-	return resp, b.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues("/sapi/v1/margin/allPairs", params), sapiDefaultRate, &resp)
+	return resp, b.SendAPIKeyHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, common.EncodeURLValues("/sapi/v1/margin/allPairs", params), sapiDefaultRate, &resp)
 }
 
 // GetMarginPriceIndex retrieves margin price index
@@ -1154,7 +1092,7 @@ func (b *Binance) GetMarginPriceIndex(ctx context.Context, symbol string) (*Marg
 	params := url.Values{}
 	params.Set("symbol", symbol)
 	var resp *MarginPriceIndex
-	return resp, b.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues("/sapi/v1/margin/priceIndex", params), getPriceMarginIndexRate, &resp)
+	return resp, b.SendAPIKeyHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, common.EncodeURLValues("/sapi/v1/margin/priceIndex", params), getPriceMarginIndexRate, &resp)
 }
 
 // PostMarginAccountOrder post a new order for margin account.
@@ -1501,9 +1439,10 @@ func (b *Binance) GetMarginAccountsOpenOCOOrder(ctx context.Context, isIsolated 
 	if isIsolated {
 		params.Set("isIsolated", "TRUE")
 	}
-	if symbol != "" {
-		params.Set("symbol", symbol)
+	if symbol == "" {
+		return nil, currency.ErrSymbolStringEmpty
 	}
+	params.Set("symbol", symbol)
 	var resp []OCOOrder
 	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/margin/openOrderList", params, marginAccountOpenOCOOrdersRate, nil, &resp)
 }
@@ -1944,10 +1883,16 @@ func (b *Binance) SendAuthHTTPRequest(ctx context.Context, ePath exchange.URL, m
 
 	if params == nil {
 		params = url.Values{}
-		if arg != nil && method == http.MethodPost {
-			params, err = interfaceToParams(arg)
-			if err != nil {
-				return err
+	}
+	if arg != nil && method == http.MethodPost {
+		var newParams url.Values
+		newParams, err = interfaceToParams(arg)
+		if err != nil {
+			return err
+		}
+		for k := range newParams {
+			if !params.Has(k) {
+				params.Set(k, newParams.Get(k))
 			}
 		}
 	}
@@ -4689,7 +4634,7 @@ func (b *Binance) GetHoldingDetailsOfPlan(ctx context.Context, planID int64, req
 
 // GetSubscriptionsTransactionHistory query subscription transaction history of a plan
 // planType: SINGLE, PORTFOLIO, INDEX, ALL
-func (b *Binance) GetSubscriptionsTransactionHistory(ctx context.Context, planID, size, current int64, startTime, endTime time.Time, targetAsset currency.Code, planType string) ([]AutoInvestSubscriptionTransactionItem, error) {
+func (b *Binance) GetSubscriptionsTransactionHistory(ctx context.Context, planID, size, current int64, startTime, endTime time.Time, targetAsset currency.Code, planType string) (*AutoInvestSubscriptionTransactionResponse, error) {
 	params := url.Values{}
 	if planID > 0 {
 		params.Set("planId", strconv.FormatInt(planID, 10))
@@ -4714,7 +4659,7 @@ func (b *Binance) GetSubscriptionsTransactionHistory(ctx context.Context, planID
 	if !targetAsset.IsEmpty() {
 		params.Set("targetAsset", targetAsset.String())
 	}
-	var resp []AutoInvestSubscriptionTransactionItem
+	var resp *AutoInvestSubscriptionTransactionResponse
 	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/lending/auto-invest/history/list", params, sapiDefaultRate, nil, &resp)
 }
 

@@ -2269,7 +2269,12 @@ type OCOOrder struct {
 		StopPrice               types.Number         `json:"stopPrice,omitempty"`
 		WorkingTime             convert.ExchangeTime `json:"workingTime"`
 		SelfTradePreventionMode string               `json:"selfTradePreventionMode"`
+
+		OrigClientOrderID string `json:"origClientOrderId"`
 	} `json:"orderReports"`
+
+	MarginBuyBorrowAmount types.Number `json:"marginBuyBorrowAmount"`
+	MarginBuyBorrowAsset  string       `json:"marginBuyBorrowAsset"`
 }
 
 // OCOOrderInfo represents OCO order information.
@@ -3058,44 +3063,6 @@ type ManagedSubAccountTransferLog struct {
 	Count int64 `json:"count"`
 }
 
-// OCOOrderResponse represents an OCO order response.
-type OCOOrderResponse struct {
-	OrderListID       int64                `json:"orderListId"`
-	ContingencyType   string               `json:"contingencyType"`
-	ListStatusType    string               `json:"listStatusType"`
-	ListOrderStatus   string               `json:"listOrderStatus"`
-	ListClientOrderID string               `json:"listClientOrderId"`
-	TransactionTime   convert.ExchangeTime `json:"transactionTime"`
-	Symbol            string               `json:"symbol"`
-	Orders            []struct {
-		Symbol        string `json:"symbol"`
-		OrderID       int64  `json:"orderId"`
-		ClientOrderID string `json:"clientOrderId"`
-	} `json:"orders"`
-	OrderReports []struct {
-		Symbol                  string               `json:"symbol"`
-		OrderID                 int64                `json:"orderId"`
-		OrderListID             int64                `json:"orderListId"`
-		ClientOrderID           string               `json:"clientOrderId"`
-		TransactTime            convert.ExchangeTime `json:"transactTime"`
-		Price                   types.Number         `json:"price"`
-		OrigQty                 types.Number         `json:"origQty"`
-		ExecutedQty             types.Number         `json:"executedQty"`
-		CummulativeQuoteQty     types.Number         `json:"cummulativeQuoteQty"`
-		Status                  string               `json:"status"`
-		TimeInForce             string               `json:"timeInForce"`
-		Type                    string               `json:"type"`
-		Side                    string               `json:"side"`
-		StopPrice               types.Number         `json:"stopPrice,omitempty"`
-		WorkingTime             convert.ExchangeTime `json:"workingTime"`
-		SelfTradePreventionMode string               `json:"selfTradePreventionMode"`
-
-		OrigClientOrderID string `json:"origClientOrderId"`
-	} `json:"orderReports"`
-	MarginBuyBorrowAmount types.Number `json:"marginBuyBorrowAmount"`
-	MarginBuyBorrowAsset  string       `json:"marginBuyBorrowAsset"`
-}
-
 // OCOOrderParam request parameter to place an OCO order.
 type OCOOrderParam struct {
 	Symbol                  currency.Pair `json:"symbol"`
@@ -3188,17 +3155,17 @@ type OCOListOrderResponse struct {
 // SOROrderRequestParams represents a request parameters for SOR orders.
 type SOROrderRequestParams struct {
 	Symbol                  currency.Pair `json:"symbol"`
-	Side                    string        `json:"side"`
-	OrderType               string        `json:"type"`
-	TimeInForce             string        `json:"timeInForce"`
+	Side                    string        `json:"side,omitempty"`
+	OrderType               string        `json:"type,omitempty"`
+	TimeInForce             string        `json:"timeInForce,omitempty"`
 	Quantity                float64       `json:"quantity"`
 	Price                   float64       `json:"price"`
-	NewClientOrderID        string        `json:"newClientOrderId"`
-	StrategyID              int64         `json:"strategyId"`
-	StrategyType            int64         `json:"strategyType"`
-	IcebergQuantity         float64       `json:"icebergQty"`              // Used with 'LIMIT' to create an iceberg order.
-	NewOrderResponseType    string        `json:"newOrderRespType"`        // Set the response JSON. 'ACK', 'RESULT', or 'FULL'. Default to 'FULL'
-	SelfTradePreventionMode string        `json:"selfTradePreventionMode"` // The allowed enums is dependent on what is configured on the symbol. The possible supported values are 'EXPIRE_TAKER', 'EXPIRE_MAKER', 'EXPIRE_BOTH', 'NONE'.
+	NewClientOrderID        string        `json:"newClientOrderId,omitempty"`
+	StrategyID              int64         `json:"strategyId,omitempty"`
+	StrategyType            int64         `json:"strategyType,omitempty"`
+	IcebergQuantity         float64       `json:"icebergQty,omitempty"`              // Used with 'LIMIT' to create an iceberg order.
+	NewOrderResponseType    string        `json:"newOrderRespType,omitempty"`        // Set the response JSON. 'ACK', 'RESULT', or 'FULL'. Default to 'FULL'
+	SelfTradePreventionMode string        `json:"selfTradePreventionMode,omitempty"` // The allowed enums is dependent on what is configured on the symbol. The possible supported values are 'EXPIRE_TAKER', 'EXPIRE_MAKER', 'EXPIRE_BOTH', 'NONE'.
 }
 
 // SOROrderResponse represents smart order routing response instance.
@@ -4197,6 +4164,12 @@ type AutoInvestSubscriptionTransactionItem struct {
 	TransactionFeeUnit  string               `json:"transactionFeeUnit"` // denominated coin of the transaction fee
 	ExecutionPrice      types.Number         `json:"executionPrice"`     // price of the subscription price. It's amount of source asset equivalent of 1 unit of target asset
 	SubscriptionCycle   types.Number         `json:"subscriptionCycle"`
+}
+
+// AutoInvestSubscriptionTransactionResponse represents a detail of auto-investment subscription transaction.
+type AutoInvestSubscriptionTransactionResponse struct {
+	Total int64                                   `json:"total"`
+	List  []AutoInvestSubscriptionTransactionItem `json:"list"`
 }
 
 // AutoInvestmentIndexDetail represents an index detail information.

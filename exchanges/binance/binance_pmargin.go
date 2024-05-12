@@ -118,7 +118,7 @@ func (b *Binance) marginAccountBorrowRepay(ctx context.Context, ccy currency.Cod
 }
 
 // MarginAccountNewOCO sends a new OCO order for a margin account.
-func (b *Binance) MarginAccountNewOCO(ctx context.Context, arg *OCOOrderParam) (*OCOOrderResponse, error) {
+func (b *Binance) MarginAccountNewOCO(ctx context.Context, arg *OCOOrderParam) (*OCOOrder, error) {
 	if arg == nil || *arg == (OCOOrderParam{}) {
 		return nil, errNilArgument
 	}
@@ -137,7 +137,7 @@ func (b *Binance) MarginAccountNewOCO(ctx context.Context, arg *OCOOrderParam) (
 	if arg.StopPrice <= 0 {
 		return nil, fmt.Errorf("%w, stopPrice is required", order.ErrPriceBelowMin)
 	}
-	var resp *OCOOrderResponse
+	var resp *OCOOrder
 	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestFuturesSupplementary, http.MethodPost, "/papi/v1/margin/order/oco", nil, pmDefaultRate, arg, &resp)
 }
 
@@ -250,7 +250,7 @@ func (b *Binance) CancelAllMarginOpenOrdersBySymbol(ctx context.Context, symbol 
 }
 
 // CancelMarginAccountOCOOrders cancels margin account OCO orders.
-func (b *Binance) CancelMarginAccountOCOOrders(ctx context.Context, symbol, listClientOrderID, newClientOrderID string, orderListID int64) (*OCOOrderResponse, error) {
+func (b *Binance) CancelMarginAccountOCOOrders(ctx context.Context, symbol, listClientOrderID, newClientOrderID string, orderListID int64) (*OCOOrder, error) {
 	if symbol == "" {
 		return nil, currency.ErrSymbolStringEmpty
 	}
@@ -265,7 +265,7 @@ func (b *Binance) CancelMarginAccountOCOOrders(ctx context.Context, symbol, list
 	if orderListID > 0 {
 		params.Set("orderListId", strconv.FormatInt(orderListID, 10))
 	}
-	var resp *OCOOrderResponse
+	var resp *OCOOrder
 	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestFuturesSupplementary, http.MethodDelete, "/papi/v1/margin/orderList", params, pmCancelMarginAccountOCORate, nil, &resp)
 }
 
@@ -611,7 +611,7 @@ func (b *Binance) GetAllMarginAccountOrders(ctx context.Context, symbol string, 
 }
 
 // GetMarginAccountOCO retrieves a specific OCO based on provided optional parameters.
-func (b *Binance) GetMarginAccountOCO(ctx context.Context, orderListID int64, origClientOrderID string) (*OCOOrderResponse, error) {
+func (b *Binance) GetMarginAccountOCO(ctx context.Context, orderListID int64, origClientOrderID string) (*OCOOrder, error) {
 	params := url.Values{}
 	if orderListID > 0 {
 		params.Set("orderListId", strconv.FormatInt(orderListID, 10))
@@ -619,7 +619,7 @@ func (b *Binance) GetMarginAccountOCO(ctx context.Context, orderListID int64, or
 	if origClientOrderID != "" {
 		params.Set("origClientOrderId", origClientOrderID)
 	}
-	var resp *OCOOrderResponse
+	var resp *OCOOrder
 	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestFuturesSupplementary, http.MethodGet, "/papi/v1/margin/orderList", params, pmGetMarginAccountOCORate, nil, &resp)
 }
 
