@@ -11,13 +11,15 @@ import (
 
 // Bitget rate limit constants
 const (
-	bitgetRateInterval = time.Second
-	bitgetRate20       = 20
-	bitgetRate10       = 10
-	bitgetRate5        = 5
-	bitgetRate3        = 3
-	bitgetRate2        = 2
-	bitgetRate1        = 1
+	bitgetRateInterval   = time.Second
+	bitgetGlobalInterval = time.Minute
+	globalRateLimit      = 6000
+	bitgetRate20         = 20
+	bitgetRate10         = 10
+	bitgetRate5          = 5
+	bitgetRate3          = 3
+	bitgetRate2          = 2
+	bitgetRate1          = 1
 )
 
 // Bitget rate limits
@@ -32,6 +34,7 @@ const (
 
 // RateLimit implements the request.Limiter interface
 type RateLimit struct {
+	Global    *rate.Limiter
 	RateLim20 *rate.Limiter
 	RateLim10 *rate.Limiter
 	RateLim5  *rate.Limiter
@@ -42,6 +45,10 @@ type RateLimit struct {
 
 // Limit limits outbound calls
 func (r *RateLimit) Limit(ctx context.Context, f request.EndpointLimit) error {
+	err := r.Global.Wait(ctx)
+	if err != nil {
+		return err
+	}
 	switch f {
 	case Rate20:
 		return r.RateLim20.Wait(ctx)
@@ -63,6 +70,7 @@ func (r *RateLimit) Limit(ctx context.Context, f request.EndpointLimit) error {
 // SetRateLimit returns the rate limit for the exchange
 func SetRateLimit() *RateLimit {
 	return &RateLimit{
+		Global:    request.NewRateLimit(bitgetGlobalInterval, globalRateLimit),
 		RateLim20: request.NewRateLimit(bitgetRateInterval, bitgetRate20),
 		RateLim10: request.NewRateLimit(bitgetRateInterval, bitgetRate10),
 		RateLim5:  request.NewRateLimit(bitgetRateInterval, bitgetRate5),

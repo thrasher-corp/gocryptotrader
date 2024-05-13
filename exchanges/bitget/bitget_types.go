@@ -559,7 +559,7 @@ type MarketFillsResp struct {
 // OrderResp contains information on an order
 type OrderResp struct {
 	Data struct {
-		OrderID       EmptyInt `json:"orderId,string"`
+		OrderID       EmptyInt `json:"orderId"`
 		ClientOrderID string   `json:"clientOid"`
 	} `json:"data"`
 }
@@ -1244,7 +1244,7 @@ type FuturesOrderDetailResp struct {
 	Side                   string        `json:"side"`
 	Force                  string        `json:"force"`
 	TotalProfits           float64       `json:"totalProfits,string"`
-	PositionSide           string        `json:"positionSide"`
+	PositionSide           string        `json:"posSide"`
 	MarginCoin             string        `json:"marginCoin"`
 	PresetStopSurplusPrice float64       `json:"presetStopSurplusPrice,string"`
 	PresetStopLossPrice    float64       `json:"presetStopLossPrice,string"`
@@ -1280,6 +1280,41 @@ type FuturesFillsResp struct {
 			TradeScope       string              `json:"tradeScope"`
 			CreationTime     UnixTimestamp       `json:"cTime"`
 		} `json:"fillList"`
+		EndID EmptyInt `json:"endId"`
+	} `json:"data"`
+}
+
+// FuturesPendResp contains information on pending futures orders
+type FuturesPendResp struct {
+	Data struct {
+		EntrustedList []struct {
+			Symbol                 string        `json:"symbol"`
+			Size                   float64       `json:"size,string"`
+			OrderID                int64         `json:"orderId,string"`
+			ClientOrderID          string        `json:"clientOid"`
+			BaseVolume             float64       `json:"baseVolume,string"`
+			Fee                    types.Number  `json:"fee"`
+			Price                  float64       `json:"price,string"`
+			PriceAverage           types.Number  `json:"priceAvg"`
+			Status                 string        `json:"status"`
+			Side                   string        `json:"side"`
+			Force                  string        `json:"force"`
+			TotalProfits           float64       `json:"totalProfits,string"`
+			PositionSide           string        `json:"posSide"`
+			MarginCoin             string        `json:"marginCoin"`
+			QuoteVolume            float64       `json:"quoteVolume,string"`
+			Leverage               float64       `json:"leverage,string"`
+			MarginMode             string        `json:"marginMode"`
+			EnterPointSource       string        `json:"enterPointSource"`
+			TradeSide              string        `json:"tradeSide"`
+			PositionMode           string        `json:"posMode"`
+			OrderType              string        `json:"orderType"`
+			OrderSource            string        `json:"orderSource"`
+			CreationTime           UnixTimestamp `json:"cTime"`
+			UpdateTime             UnixTimestamp `json:"uTime"`
+			PresetStopSurplusPrice types.Number  `json:"presetStopSurplusPrice"`
+			PresetStopLossPrice    types.Number  `json:"presetStopLossPrice"`
+		} `json:"entrustedList"`
 		EndID EmptyInt `json:"endId"`
 	} `json:"data"`
 }

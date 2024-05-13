@@ -135,6 +135,7 @@ const (
 	bitgetBatchCancelOrders        = "/batch-cancel-orders"
 	bitgetClosePositions           = "/close-positions"
 	bitgetDetail                   = "/detail"
+	bitgetOrdersPending            = "/orders-pending"
 
 	// Errors
 	errUnknownEndpointLimit = "unknown endpoint limit %v"
@@ -461,7 +462,7 @@ func (bi *Bitget) GetVirtualSubaccounts(ctx context.Context, limit, pagination i
 	vals.Set("status", status)
 	path := bitgetUser + bitgetVirtualSubaccount + "-" + bitgetList
 	var resp *GetVirSubResp
-	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodGet, path, vals,
+	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate2, http.MethodGet, path, vals,
 		nil, &resp)
 }
 
@@ -2105,6 +2106,7 @@ func (bi *Bitget) PlaceReversal(ctx context.Context, pair, marginCoin, productTy
 		"side":        side,
 		"tradeSide":   tradeSide,
 		"size":        strconv.FormatFloat(amount, 'f', -1, 64),
+		// "orderType":   "market",
 	}
 	if clientOID != "" {
 		req["clientOid"] = clientOID
@@ -2172,15 +2174,23 @@ func (bi *Bitget) ModifyFuturesOrder(ctx context.Context, orderID int64, clientO
 		return nil, errNewClientOrderIDEmpty
 	}
 	req := map[string]interface{}{
-		"orderId":                   orderID,
-		"clientOid":                 clientOrderID,
 		"symbol":                    pair,
 		"productType":               productType,
 		"newClientOid":              newClientOrderID,
-		"newSize":                   strconv.FormatFloat(newAmount, 'f', -1, 64),
-		"newPrice":                  strconv.FormatFloat(newPrice, 'f', -1, 64),
 		"newPresetStopSurplusPrice": strconv.FormatFloat(newTakeProfit, 'f', -1, 64),
 		"newPresetStopLossPrice":    strconv.FormatFloat(newStopLoss, 'f', -1, 64),
+	}
+	if orderID != 0 {
+		req["orderId"] = orderID
+	}
+	if clientOrderID != "" {
+		req["clientOid"] = clientOrderID
+	}
+	if newAmount != 0 {
+		req["newSize"] = strconv.FormatFloat(newAmount, 'f', -1, 64)
+	}
+	if newPrice != 0 {
+		req["newPrice"] = strconv.FormatFloat(newPrice, 'f', -1, 64)
 	}
 	path := bitgetMix + bitgetOrder + bitgetModifyOrder
 	var resp *OrderResp
@@ -2189,22 +2199,28 @@ func (bi *Bitget) ModifyFuturesOrder(ctx context.Context, orderID int64, clientO
 }
 
 // CancelFuturesOrder cancels an order on the exchange
-func (bi *Bitget) CancelFuturesOrder(ctx context.Context, pair, productType, marginCoin, clientOrderId string, orderID int64) (*OrderResp, error) {
+func (bi *Bitget) CancelFuturesOrder(ctx context.Context, pair, productType, marginCoin, clientOrderID string, orderID int64) (*OrderResp, error) {
 	if pair == "" {
 		return nil, errPairEmpty
 	}
 	if productType == "" {
 		return nil, errProductTypeEmpty
 	}
-	if clientOrderId == "" && orderID == 0 {
+	if clientOrderID == "" && orderID == 0 {
 		return nil, errOrderClientEmpty
 	}
 	req := map[string]interface{}{
 		"symbol":      pair,
 		"productType": productType,
-		"marginCoin":  marginCoin,
-		"clientOid":   clientOrderId,
-		"orderId":     orderID,
+	}
+	if clientOrderID != "" {
+		req["clientOid"] = clientOrderID
+	}
+	if orderID != 0 {
+		req["orderId"] = orderID
+	}
+	if marginCoin != "" {
+		req["marginCoin"] = marginCoin
 	}
 	path := bitgetMix + bitgetOrder + bitgetCancelOrder
 	var resp *OrderResp
@@ -2281,9 +2297,7 @@ func (bi *Bitget) GetFuturesFills(ctx context.Context, orderID, pagination, limi
 		return nil, err
 	}
 	params.Values.Set("productType", productType)
-	// if orderID != 0 {
 	params.Values.Set("orderId", strconv.FormatInt(orderID, 10))
-	// }
 	if pagination != 0 {
 		params.Values.Set("idLessThan", strconv.FormatInt(pagination, 10))
 	}
@@ -2316,6 +2330,35 @@ func (bi *Bitget) GetFuturesOrderFillHistory(ctx context.Context, pair, productT
 	}
 	path := bitgetMix + bitgetOrder + bitgetFillsHistory
 	var resp *FuturesFillsResp
+	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodGet, path, params.Values,
+		nil, &resp)
+}
+
+// GetPendingFuturesOrders returns detailed information on pending futures orders
+func (bi *Bitget) GetPendingFuturesOrders(ctx context.Context, orderID, pagination, limit int64, clientOrderID, pair, productType, status string, startTime, endTime time.Time) (*FuturesPendResp, error) {
+	if productType == "" {
+		return nil, errProductTypeEmpty
+	}
+	var params Params
+	params.Values = make(url.Values)
+	err := params.prepareDateString(startTime, endTime, true)
+	if err != nil {
+		return nil, err
+	}
+	params.Values.Set("productType", productType)
+	if orderID != 0 {
+		params.Values.Set("orderId", strconv.FormatInt(orderID, 10))
+	}
+	params.Values.Set("clientOid", clientOrderID)
+	params.Values.Set("status", status)
+	if pagination != 0 {
+		params.Values.Set("idLessThan", strconv.FormatInt(pagination, 10))
+	}
+	if limit != 0 {
+		params.Values.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	path := bitgetMix + bitgetOrder + bitgetOrdersPending
+	var resp *FuturesPendResp
 	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodGet, path, params.Values,
 		nil, &resp)
 }
