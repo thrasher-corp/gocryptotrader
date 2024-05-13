@@ -34,29 +34,6 @@ import (
 
 var errFailedToConvertToCandle = errors.New("cannot convert time series data to kline.Candle, insufficient data")
 
-// GetDefaultConfig returns a default exchange config
-func (b *BTCMarkets) GetDefaultConfig(ctx context.Context) (*config.Exchange, error) {
-	b.SetDefaults()
-	exchCfg, err := b.GetStandardConfig()
-	if err != nil {
-		return nil, err
-	}
-
-	err = b.SetupDefaults(exchCfg)
-	if err != nil {
-		return nil, err
-	}
-
-	if b.Features.Supports.RESTCapabilities.AutoPairUpdates {
-		err = b.UpdateTradablePairs(ctx, true)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	return exchCfg, nil
-}
-
 // SetDefaults sets basic defaults
 func (b *BTCMarkets) SetDefaults() {
 	b.Name = "BTC Markets"
@@ -1139,4 +1116,14 @@ func (b *BTCMarkets) GetFuturesContractDetails(context.Context, asset.Item) ([]f
 // GetLatestFundingRates returns the latest funding rates data
 func (b *BTCMarkets) GetLatestFundingRates(context.Context, *fundingrate.LatestRateRequest) ([]fundingrate.LatestRateResponse, error) {
 	return nil, common.ErrFunctionNotSupported
+}
+
+// GetCurrencyTradeURL returns the URL to the exchange's trade page for the given asset and currency pair
+func (b *BTCMarkets) GetCurrencyTradeURL(_ context.Context, a asset.Item, cp currency.Pair) (string, error) {
+	_, err := b.CurrencyPairs.IsPairEnabled(cp, a)
+	if err != nil {
+		return "", err
+	}
+	cp.Delimiter = currency.DashDelimiter
+	return tradeBaseURL + cp.Base.Upper().String(), nil
 }

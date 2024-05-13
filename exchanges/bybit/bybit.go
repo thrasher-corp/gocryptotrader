@@ -35,6 +35,7 @@ type Bybit struct {
 const (
 	bybitAPIURL     = "https://api.bybit.com"
 	bybitAPIVersion = "/v5/"
+	tradeBaseURL    = "https://www.bybit.com/"
 
 	defaultRecvWindow = "5000" // 5000 milli second
 

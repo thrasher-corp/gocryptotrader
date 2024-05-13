@@ -29,29 +29,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
-// GetDefaultConfig returns a default exchange config
-func (e *EXMO) GetDefaultConfig(ctx context.Context) (*config.Exchange, error) {
-	e.SetDefaults()
-	exchCfg, err := e.GetStandardConfig()
-	if err != nil {
-		return nil, err
-	}
-
-	err = e.SetupDefaults(exchCfg)
-	if err != nil {
-		return nil, err
-	}
-
-	if e.Features.Supports.RESTCapabilities.AutoPairUpdates {
-		err = e.UpdateTradablePairs(ctx, true)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	return exchCfg, nil
-}
-
 // SetDefaults sets the basic defaults for exmo
 func (e *EXMO) SetDefaults() {
 	e.Name = "EXMO"
@@ -814,4 +791,14 @@ func (e *EXMO) GetLatestFundingRates(context.Context, *fundingrate.LatestRateReq
 // UpdateOrderExecutionLimits updates order execution limits
 func (e *EXMO) UpdateOrderExecutionLimits(_ context.Context, _ asset.Item) error {
 	return common.ErrNotYetImplemented
+}
+
+// GetCurrencyTradeURL returns the URL to the exchange's trade page for the given asset and currency pair
+func (e *EXMO) GetCurrencyTradeURL(_ context.Context, a asset.Item, cp currency.Pair) (string, error) {
+	_, err := e.CurrencyPairs.IsPairEnabled(cp, a)
+	if err != nil {
+		return "", err
+	}
+	cp.Delimiter = currency.UnderscoreDelimiter
+	return tradeBaseURL + cp.Upper().String() + "/", nil
 }

@@ -1987,7 +1987,7 @@ func TestSubscribe(t *testing.T) {
 		{Channel: "btcusdt@trade"},
 	}
 	if mockTests {
-		b = testexch.MockWSInstance[Binance](t, func(msg []byte, w *websocket.Conn) error {
+		mock := func(msg []byte, w *websocket.Conn) error {
 			var req WsPayload
 			err := json.Unmarshal(msg, &req)
 			require.NoError(t, err, "Unmarshal should not error")
@@ -1995,7 +1995,8 @@ func TestSubscribe(t *testing.T) {
 			assert.Equal(t, req.Params[0], channels[0].Channel, "Channel name should be correct")
 			assert.Equal(t, req.Params[1], channels[1].Channel, "Channel name should be correct")
 			return w.WriteMessage(websocket.TextMessage, []byte(fmt.Sprintf(`{"result":null,"id":%d}`, req.ID)))
-		})
+		}
+		b = testexch.MockWsInstance[Binance](t, testexch.CurryWsMockUpgrader(t, mock))
 	} else {
 		testexch.SetupWs(t, b)
 	}
@@ -2010,12 +2011,13 @@ func TestSubscribeBadResp(t *testing.T) {
 	channels := []subscription.Subscription{
 		{Channel: "moons@ticker"},
 	}
-	b := testexch.MockWSInstance[Binance](t, func(msg []byte, w *websocket.Conn) error { //nolint:govet // shadow
+	mock := func(msg []byte, w *websocket.Conn) error {
 		var req WsPayload
 		err := json.Unmarshal(msg, &req)
 		require.NoError(t, err, "Unmarshal should not error")
 		return w.WriteMessage(websocket.TextMessage, []byte(fmt.Sprintf(`{"result":{"error":"carrots"},"id":%d}`, req.ID)))
-	})
+	}
+	b := testexch.MockWsInstance[Binance](t, testexch.CurryWsMockUpgrader(t, mock)) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
 	err := b.Subscribe(channels)
 	assert.ErrorIs(t, err, stream.ErrSubscriptionFailure, "Subscribe should error ErrSubscriptionFailure")
 	assert.ErrorIs(t, err, errUnknownError, "Subscribe should error errUnknownError")
@@ -3486,4 +3488,17 @@ func TestGetOpenInterest(t *testing.T) {
 		Asset: asset.Spot,
 	})
 	assert.ErrorIs(t, err, asset.ErrNotSupported)
+}
+
+func TestGetCurrencyTradeURL(t *testing.T) {
+	t.Parallel()
+	testexch.UpdatePairsOnce(t, b)
+	for _, a := range b.GetAssetTypes(false) {
+		pairs, err := b.CurrencyPairs.GetPairs(a, false)
+		require.NoError(t, err, "cannot get pairs for %s", a)
+		require.NotEmpty(t, pairs, "no pairs for %s", a)
+		resp, err := b.GetCurrencyTradeURL(context.Background(), a, pairs[0])
+		require.NoError(t, err)
+		assert.NotEmpty(t, resp)
+	}
 }

@@ -16,6 +16,7 @@ const (
 	// Bitflyer chain analysis endpoints
 	// APIURL
 	chainAnalysis = "https://chainflyer.bitflyer.jp/v1/"
+	tradeBaseURL  = "https://lightning.bitflyer.com/trade/"
 
 	// Public endpoints for chain analysis
 	latestBlock        = "block/latest"

@@ -39,28 +39,6 @@ import (
 // this error.
 const unfundedFuturesAccount = `please transfer funds first to create futures account`
 
-// GetDefaultConfig returns a default exchange config
-func (g *Gateio) GetDefaultConfig(ctx context.Context) (*config.Exchange, error) {
-	g.SetDefaults()
-	exchCfg, err := g.GetStandardConfig()
-	if err != nil {
-		return nil, err
-	}
-
-	err = g.SetupDefaults(exchCfg)
-	if err != nil {
-		return nil, err
-	}
-
-	if g.Features.Supports.RESTCapabilities.AutoPairUpdates {
-		err = g.UpdateTradablePairs(ctx, true)
-		if err != nil {
-			return nil, err
-		}
-	}
-	return exchCfg, nil
-}
-
 // SetDefaults sets default values for the exchange
 func (g *Gateio) SetDefaults() {
 	g.Name = "GateIO"
@@ -1018,9 +996,6 @@ func (g *Gateio) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Submi
 	s.Pair = s.Pair.Upper()
 	switch s.AssetType {
 	case asset.Spot, asset.Margin, asset.CrossMargin:
-		if s.Type != order.Limit {
-			return nil, errOnlyLimitOrderType
-		}
 		switch {
 		case s.Side.IsLong():
 			s.Side = order.Buy
@@ -1028,6 +1003,10 @@ func (g *Gateio) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Submi
 			s.Side = order.Sell
 		default:
 			return nil, errInvalidOrderSide
+		}
+		timeInForce, err := getTimeInForce(s)
+		if err != nil {
+			return nil, err
 		}
 		sOrder, err := g.PlaceSpotOrder(ctx, &CreateOrderRequestData{
 			Side:         s.Side.Lower(),
@@ -1037,6 +1016,7 @@ func (g *Gateio) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Submi
 			Price:        types.Number(s.Price),
 			CurrencyPair: s.Pair,
 			Text:         s.ClientOrderID,
+			TimeInForce:  timeInForce,
 		})
 		if err != nil {
 			return nil, err
@@ -2574,4 +2554,23 @@ func getTimeInForce(s *order.Submit) (string, error) {
 		timeInForce = "fok" // market order entire fill or kill
 	}
 	return timeInForce, nil
+}
+
+// GetCurrencyTradeURL returns the URL to the exchange's trade page for the given asset and currency pair
+func (g *Gateio) GetCurrencyTradeURL(_ context.Context, a asset.Item, cp currency.Pair) (string, error) {
+	_, err := g.CurrencyPairs.IsPairEnabled(cp, a)
+	if err != nil {
+		return "", err
+	}
+	cp.Delimiter = currency.UnderscoreDelimiter
+	switch a {
+	case asset.Spot, asset.CrossMargin, asset.Margin:
+		return tradeBaseURL + tradeSpot + cp.Upper().String(), nil
+	case asset.Futures:
+		return tradeBaseURL + tradeFutures + cp.Upper().String(), nil
+	case asset.DeliveryFutures:
+		return tradeBaseURL + tradeDelivery + cp.Upper().String(), nil
+	default:
+		return "", fmt.Errorf("%w %v", asset.ErrNotSupported, a)
+	}
 }

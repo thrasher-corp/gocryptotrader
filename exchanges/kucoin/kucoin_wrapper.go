@@ -35,28 +35,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
-// GetDefaultConfig returns a default exchange config
-func (ku *Kucoin) GetDefaultConfig(ctx context.Context) (*config.Exchange, error) {
-	ku.SetDefaults()
-	exchCfg, err := ku.GetStandardConfig()
-	if err != nil {
-		return nil, err
-	}
-
-	err = ku.SetupDefaults(exchCfg)
-	if err != nil {
-		return nil, err
-	}
-
-	if ku.Features.Supports.RESTCapabilities.AutoPairUpdates {
-		err := ku.UpdateTradablePairs(ctx, true)
-		if err != nil {
-			return nil, err
-		}
-	}
-	return exchCfg, nil
-}
-
 // SetDefaults sets the basic defaults for Kucoin
 func (ku *Kucoin) SetDefaults() {
 	ku.Name = "Kucoin"
@@ -2027,4 +2005,24 @@ func (ku *Kucoin) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]fu
 		})
 	}
 	return resp, nil
+}
+
+// GetCurrencyTradeURL returns the URL to the exchange's trade page for the given asset and currency pair
+func (ku *Kucoin) GetCurrencyTradeURL(_ context.Context, a asset.Item, cp currency.Pair) (string, error) {
+	_, err := ku.CurrencyPairs.IsPairEnabled(cp, a)
+	if err != nil {
+		return "", err
+	}
+	cp.Delimiter = currency.DashDelimiter
+	switch a {
+	case asset.Spot:
+		return tradeBaseURL + tradeSpot + cp.Upper().String(), nil
+	case asset.Margin:
+		return tradeBaseURL + tradeSpot + tradeMargin + cp.Upper().String(), nil
+	case asset.Futures, asset.CoinMarginedFutures:
+		cp.Delimiter = ""
+		return tradeBaseURL + tradeFutures + tradeSpot + cp.Upper().String(), nil
+	default:
+		return "", fmt.Errorf("%w %v", asset.ErrNotSupported, a)
+	}
 }
