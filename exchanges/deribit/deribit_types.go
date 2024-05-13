@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
+	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
 const (
@@ -545,7 +546,7 @@ type PrivateCancelData struct {
 	TriggerPrice        float64              `json:"trigger_price"`
 	ReduceOnly          bool                 `json:"reduce_only"`
 	ProfitLoss          float64              `json:"profit_loss"`
-	Price               string               `json:"price"`
+	Price               types.Number         `json:"price"`
 	PostOnly            bool                 `json:"post_only"`
 	OrderType           string               `json:"order_type"`
 	OrderState          string               `json:"order_state"`
@@ -583,7 +584,6 @@ func (a *MultipleCancelResponse) UnmarshalJSON(data []byte) error {
 	var cancelDetails []CancelResp
 	err := json.Unmarshal(data, &cancelDetails)
 	if err != nil {
-		println("ERROR: ", err.Error())
 		err = json.Unmarshal(data, &cancelCount)
 		if err != nil {
 			return err
