@@ -22,6 +22,7 @@ import (
 
 const (
 	coinutAPIURL          = "https://api.coinut.com"
+	tradeBaseURL          = "https://coinut.com/spot/"
 	coinutAPIVersion      = "1"
 	coinutInstruments     = "inst_list"
 	coinutTicker          = "inst_tick"

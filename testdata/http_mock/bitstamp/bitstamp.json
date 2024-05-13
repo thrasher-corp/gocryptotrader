@@ -106,7 +106,8 @@
                 "type": 0
                 }
         ],
-        "amount": "200.00"
+        "amount_remaining": "200.00",
+        "client_order_id": "0.50000000"
      },
      "queryString": "",
      "bodyParams": "id=1458532827766784&key=FUId9Nby1VbZrGgZHfzGbswd4CDcp6Ar&nonce=1700374285822027000&signature=0B7C759A57B10EC315CE3A53480EDC720BE9BCD2CCEA86313808914484483386",
