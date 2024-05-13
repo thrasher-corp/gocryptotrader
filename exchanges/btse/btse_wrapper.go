@@ -18,6 +18,7 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/currencystate"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
@@ -189,11 +190,6 @@ func (b *BTSE) Setup(exch *config.Exchange) error {
 		GenerateSubscriptions: b.GenerateDefaultSubscriptions,
 		Features:              &b.Features.Supports.WebsocketCapabilities,
 	})
-	if err != nil {
-		return err
-	}
-
-	err = b.seedOrderSizeLimits(context.TODO())
 	if err != nil {
 		return err
 	}
@@ -542,6 +538,16 @@ func (b *BTSE) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitR
 	fPair, err := b.FormatExchangeCurrency(s.Pair, s.AssetType)
 	if err != nil {
 		return nil, err
+	}
+	err = b.CheckOrderExecutionLimits(s.AssetType,
+		newOrder.Pair,
+		newOrder.Price,
+		newOrder.Amount,
+		newOrder.Type)
+	if err != nil && errors.Is(err, currencystate.ErrCurrencyStateNotFound) {
+		return nil, fmt.Errorf("order manager: exchange %s unable to place order: %w",
+			newOrder.Exchange,
+			err)
 	}
 	err = b.withinLimits(fPair, s.Amount)
 	if err != nil {
@@ -1077,45 +1083,6 @@ func (b *BTSE) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pai
 	return req.ProcessResponse(timeSeries)
 }
 
-func (b *BTSE) seedOrderSizeLimits(ctx context.Context) error {
-	pairs, err := b.GetMarketSummary(ctx, "", true)
-	if err != nil {
-		return err
-	}
-	for x := range pairs {
-		tempValues := OrderSizeLimit{
-			MinOrderSize:     pairs[x].MinOrderSize,
-			MaxOrderSize:     pairs[x].MaxOrderSize,
-			MinSizeIncrement: pairs[x].MinSizeIncrement,
-		}
-		orderSizeLimitMap.Store(pairs[x].Symbol, tempValues)
-	}
-
-	pairs, err = b.GetMarketSummary(ctx, "", false)
-	if err != nil {
-		return err
-	}
-	for x := range pairs {
-		tempValues := OrderSizeLimit{
-			MinOrderSize:     pairs[x].MinOrderSize,
-			MaxOrderSize:     pairs[x].MaxOrderSize,
-			MinSizeIncrement: pairs[x].MinSizeIncrement,
-		}
-		orderSizeLimitMap.Store(pairs[x].Symbol, tempValues)
-	}
-	return nil
-}
-
-// OrderSizeLimits looks up currency pair in orderSizeLimitMap and returns OrderSizeLimit
-func OrderSizeLimits(pair string) (limits OrderSizeLimit, found bool) {
-	resp, ok := orderSizeLimitMap.Load(pair)
-	if !ok {
-		return
-	}
-	val, ok := resp.(OrderSizeLimit)
-	return val, ok
-}
-
 // GetServerTime returns the current exchange server time.
 func (b *BTSE) GetServerTime(ctx context.Context, _ asset.Item) (time.Time, error) {
 	st, err := b.GetCurrentServerTime(ctx)
@@ -1265,8 +1232,21 @@ func (b *BTSE) IsPerpetualFutureCurrency(a asset.Item, p currency.Pair) (bool, e
 }
 
 // UpdateOrderExecutionLimits updates order execution limits
-func (b *BTSE) UpdateOrderExecutionLimits(_ context.Context, _ asset.Item) error {
-	return common.ErrNotYetImplemented
+func (b *BTSE) UpdateOrderExecutionLimits(_ context.Context, a asset.Item) error {
+	pairs, err := b.GetMarketSummary(ctx, "", a == asset.Spot)
+	if err != nil {
+		return err
+	}
+	for _, p := range pairs {
+		limits := order.MinMaxLevel{
+			Pair:                    p,
+			Asset:                   a,
+			MinimumBaseAmount:       p.MinOrderSize,
+			MaximumBaseAmount:       p.MaxOrderSize,
+			AmountStepIncrementSize: p.MinSizeIncrement,
+		}
+	}
+	return errs
 }
 
 // GetOpenInterest returns the open interest rate for a given asset pair

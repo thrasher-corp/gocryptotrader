@@ -12,6 +12,7 @@ import (
 
 // Public errors for order limits
 var (
+	ErrLoadLimitsFailed            = errors.New("failed to load exchange limits")
 	ErrExchangeLimitNotLoaded      = errors.New("exchange limits not loaded")
 	ErrPriceBelowMin               = errors.New("price below minimum limit")
 	ErrPriceExceedsMax             = errors.New("price exceeds maximum limit")

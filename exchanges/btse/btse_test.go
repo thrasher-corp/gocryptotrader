@@ -144,6 +144,10 @@ func TestFormatExchangeKlineInterval(t *testing.T) {
 
 func TestGetHistoricCandles(t *testing.T) {
 	t.Parallel()
+	r := b.Requester
+	b := new(BTSE) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
+	require.NoError(t, testexch.Setup(b), "Test exchange Setup must not error")
+	b.Requester = r
 	start := time.Now().AddDate(0, 0, -3)
 	_, err := b.GetHistoricCandles(context.Background(), spotPair, asset.Spot, kline.OneHour, start, time.Now())
 	assert.NoError(t, err, "GetHistoricCandles should not error")
@@ -154,6 +158,10 @@ func TestGetHistoricCandles(t *testing.T) {
 
 func TestGetHistoricCandlesExtended(t *testing.T) {
 	t.Parallel()
+	r := b.Requester
+	b := new(BTSE) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
+	require.NoError(t, testexch.Setup(b), "Test exchange Setup must not error")
+	b.Requester = r
 	err := b.CurrencyPairs.StorePairs(asset.Futures, currency.Pairs{futuresPair}, true)
 	assert.NoError(t, err, "StorePairs should not error")
 
@@ -718,7 +726,11 @@ func TestIsPerpetualFutureCurrency(t *testing.T) {
 
 func TestGetOpenInterest(t *testing.T) {
 	t.Parallel()
+	r := b.Requester
+	b := new(BTSE) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
+	require.NoError(t, testexch.Setup(b), "Test exchange Setup must not error")
 	testexch.UpdatePairsOnce(t, b)
+	b.Requester = r
 	cp1 := currency.NewPair(currency.BTC, currency.PFC)
 	cp2 := currency.NewPair(currency.ETH, currency.PFC)
 	sharedtestvalues.SetupCurrencyPairsForExchangeAsset(t, b, asset.Futures, futuresPair, cp1, cp2)
