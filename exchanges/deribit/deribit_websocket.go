@@ -92,6 +92,10 @@ var (
 			"interval": 15,
 		},
 	}
+
+	// loadedOBPairMap to keep track of instruments with their orderbook snapshot loaded
+	// we use this to check whether we need to load a snapshot or update if snapshot is already loaded
+	loadedOBPairMap = map[string]bool{}
 )
 
 // WsConnect starts a new connection with the websocket API
@@ -698,51 +702,59 @@ func (d *Deribit) processOrderbook(respRaw []byte, channels []string) error {
 	}
 	var assetType asset.Item
 	if len(channels) == 3 {
-		cp, err := currency.NewPairFromString(channels[1])
+		cp, err := currency.NewPairFromString(orderbookData.InstrumentName)
 		if err != nil {
 			return err
 		}
-		asks := make(orderbook.Items, len(orderbookData.Asks))
-		for x := range asks {
+		asks := make(orderbook.Items, 0, len(orderbookData.Asks))
+		for x := range orderbookData.Asks {
 			if len(orderbookData.Asks[x]) != 3 {
 				return errMalformedData
 			}
 			price, okay := orderbookData.Asks[x][1].(float64)
 			if !okay {
 				return fmt.Errorf("%w, invalid orderbook price", errMalformedData)
+			} else if price == 0 {
+				continue
 			}
 			amount, okay := orderbookData.Asks[x][2].(float64)
 			if !okay {
 				return fmt.Errorf("%w, invalid amount", errMalformedData)
 			}
-			asks[x] = orderbook.Item{
+			asks = append(asks, orderbook.Item{
 				Price:  price,
 				Amount: amount,
-			}
+			})
 		}
-		bids := make([]orderbook.Item, len(orderbookData.Bids))
-		for x := range bids {
+		bids := make([]orderbook.Item, 0, len(orderbookData.Bids))
+		for x := range orderbookData.Bids {
 			if len(orderbookData.Bids[x]) != 3 {
 				return errMalformedData
 			}
 			price, okay := orderbookData.Bids[x][1].(float64)
 			if !okay {
 				return fmt.Errorf("%w, invalid orderbook price", errMalformedData)
+			} else if price == 0.0 {
+				continue
 			}
 			amount, okay := orderbookData.Bids[x][2].(float64)
 			if !okay {
 				return fmt.Errorf("%w, invalid amount", errMalformedData)
 			}
-			bids[x] = orderbook.Item{
+			bids = append(bids, orderbook.Item{
 				Price:  price,
 				Amount: amount,
-			}
+			})
+		}
+		if len(asks) == 0 && len(bids) == 0 {
+			return nil
 		}
 		assetType, err = guessAssetTypeFromInstrument(cp)
 		if err != nil {
 			return err
 		}
-		if orderbookData.Type == "snapshot" {
+		if orderbookData.Type == "snapshot" || !loadedOBPairMap[orderbookData.InstrumentName] {
+			loadedOBPairMap[orderbookData.InstrumentName] = true
 			return d.Websocket.Orderbook.LoadSnapshot(&orderbook.Base{
 				Exchange:        d.Name,
 				VerifyOrderbook: d.CanVerifyOrderbook,
@@ -764,7 +776,7 @@ func (d *Deribit) processOrderbook(respRaw []byte, channels []string) error {
 			})
 		}
 	} else if len(channels) == 5 {
-		cp, err := currency.NewPairFromString(channels[1])
+		cp, err := currency.NewPairFromString(orderbookData.InstrumentName)
 		if err != nil {
 			return err
 		}
@@ -772,7 +784,7 @@ func (d *Deribit) processOrderbook(respRaw []byte, channels []string) error {
 		if err != nil {
 			return err
 		}
-		asks := make(orderbook.Items, len(orderbookData.Asks))
+		asks := make(orderbook.Items, 0, len(orderbookData.Asks))
 		for x := range asks {
 			if len(orderbookData.Asks[x]) != 2 {
 				return errMalformedData
@@ -780,17 +792,19 @@ func (d *Deribit) processOrderbook(respRaw []byte, channels []string) error {
 			price, okay := orderbookData.Asks[x][0].(float64)
 			if !okay {
 				return fmt.Errorf("%w, invalid orderbook price", errMalformedData)
+			} else if price == 0 {
+				continue
 			}
 			amount, okay := orderbookData.Asks[x][1].(float64)
 			if !okay {
 				return fmt.Errorf("%w, invalid amount", errMalformedData)
 			}
-			asks[x] = orderbook.Item{
+			asks = append(asks, orderbook.Item{
 				Price:  price,
 				Amount: amount,
-			}
+			})
 		}
-		bids := make([]orderbook.Item, len(orderbookData.Bids))
+		bids := make([]orderbook.Item, 0, len(orderbookData.Bids))
 		for x := range bids {
 			if len(orderbookData.Bids[x]) != 2 {
 				return errMalformedData
@@ -798,16 +812,22 @@ func (d *Deribit) processOrderbook(respRaw []byte, channels []string) error {
 			price, okay := orderbookData.Bids[x][0].(float64)
 			if !okay {
 				return fmt.Errorf("%w, invalid orderbook price", errMalformedData)
+			} else if price == 0 {
+				continue
 			}
 			amount, okay := orderbookData.Bids[x][1].(float64)
 			if !okay {
 				return fmt.Errorf("%w, invalid amount", errMalformedData)
 			}
-			bids[x] = orderbook.Item{
+			bids = append(bids, orderbook.Item{
 				Price:  price,
 				Amount: amount,
-			}
+			})
 		}
+		if len(asks) == 0 && len(bids) == 0 {
+			return nil
+		}
+		loadedOBPairMap[orderbookData.InstrumentName] = true
 		return d.Websocket.Orderbook.LoadSnapshot(&orderbook.Base{
 			Asks:         asks,
 			Bids:         bids,
