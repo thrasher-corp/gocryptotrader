@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
-	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
 const (
@@ -532,41 +531,10 @@ type PrivateTradeData struct {
 
 // CancelResp represents the detail of canceled order.
 type CancelResp struct {
-	InstrumentName string `json:"instrument_name"`
-	Currency       string `json:"currency"`
-	Result         []struct {
-		IsRebalance         bool         `json:"is_rebalance"`
-		RiskReducing        bool         `json:"risk_reducing"`
-		OrderType           string       `json:"order_type"`
-		CreationTimestamp   int64        `json:"creation_timestamp"`
-		OrderState          string       `json:"order_state"`
-		Contracts           float64      `json:"contracts"`
-		AveragePrice        float64      `json:"average_price"`
-		PostOnly            bool         `json:"post_only"`
-		LastUpdateTimestamp int64        `json:"last_update_timestamp"`
-		FilledAmount        float64      `json:"filled_amount"`
-		Replaced            bool         `json:"replaced"`
-		Web                 bool         `json:"web"`
-		API                 bool         `json:"api"`
-		Mmp                 bool         `json:"mmp"`
-		CancelReason        string       `json:"cancel_reason"`
-		InstrumentName      string       `json:"instrument_name"`
-		OrderID             string       `json:"order_id"`
-		MaxShow             float64      `json:"max_show"`
-		TimeInForce         string       `json:"time_in_force"`
-		Direction           string       `json:"direction"`
-		Amount              types.Number `json:"amount"`
-		Price               types.Number `json:"price"`
-		Label               string       `json:"label"`
-
-		Triggered     bool         `json:"triggered"`
-		TriggerPrice  types.Number `json:"trigger_price"`
-		Trigger       string       `json:"trigger"`
-		StopPrice     types.Number `json:"stop_price"`
-		ReduceOnly    bool         `json:"reduce_only"`
-		IsLiquidation bool         `json:"is_liquidation"`
-	} `json:"result"`
-	Type string `json:"type"`
+	InstrumentName string              `json:"instrument_name"`
+	Currency       string              `json:"currency"`
+	Result         []PrivateCancelData `json:"result"`
+	Type           string              `json:"type"`
 }
 
 // PrivateCancelData stores data of a private cancel
