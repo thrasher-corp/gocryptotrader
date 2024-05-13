@@ -8,6 +8,7 @@ import (
 	"time"
 )
 
+// GateioTime represents a time.Time object that can be unmarshalled from a float64 or string.
 type GateioTime time.Time
 
 // UnmarshalJSON deserializes json, and timestamp information.
