@@ -15,6 +15,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
@@ -610,4 +611,43 @@ func (b *Binance) GetOptionsAutoCancelAllOpenOrdersHeartbeat(ctx context.Context
 		Underlyings []string `json:"underlyings"`
 	}{}
 	return resp.Underlyings, b.SendAuthHTTPRequest(ctx, exchange.RestOptions, http.MethodPost, "/eapi/v1/countdownCancelAllHeartBeat", params, optionsDefaultRate, nil, &resp)
+}
+
+// FetchOptionsExchangeLimits fetches options order execution limits
+func (b *Binance) FetchOptionsExchangeLimits(ctx context.Context) ([]order.MinMaxLevel, error) {
+	resp, err := b.GetOptionsExchangeInformation(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	limits := make([]order.MinMaxLevel, 0, len(resp.OptionSymbols))
+	for i := range resp.OptionSymbols {
+		var cp currency.Pair
+		cp, err = currency.NewPairFromString(resp.OptionSymbols[i].Symbol)
+		if err != nil {
+			return nil, err
+		}
+
+		l := order.MinMaxLevel{
+			Pair:  cp,
+			Asset: asset.Options,
+		}
+
+		for _, f := range resp.OptionSymbols[i].Filters {
+			switch f.FilterType {
+			case "PRICE_FILTER":
+				l.MinPrice = f.MinPrice.Float64()
+				l.MaxPrice = f.MaxPrice.Float64()
+				l.PriceStepIncrementSize = f.TickSize.Float64()
+			case "LOT_SIZE":
+				l.MaximumBaseAmount = f.MaxQty.Float64()
+				l.MinimumBaseAmount = f.MinQty.Float64()
+				l.AmountStepIncrementSize = f.StepSize.Float64()
+			default:
+				return nil, fmt.Errorf("filter type %s not supported", f.FilterType)
+			}
+		}
+		limits = append(limits, l)
+	}
+	return limits, nil
 }

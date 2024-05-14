@@ -1119,8 +1119,31 @@ func (b *Binance) GetHistoricTrades(ctx context.Context, p currency.Pair, a asse
 	}
 }
 
+func (b *Binance) orderTypeToString(orderType order.Type) (string, error) {
+	switch orderType {
+	case order.Limit:
+		return cfuturesLimit, nil
+	case order.Market:
+		return cfuturesMarket, nil
+	case order.Stop:
+		return cfuturesStop, nil
+	case order.StopMarket:
+		return cfuturesStopMarket, nil
+	case order.TakeProfit:
+		return cfuturesTakeProfit, nil
+	case order.TakeProfitMarket:
+		return cfuturesTakeProfitMarket, nil
+	case order.TrailingStop:
+		return cfuturesTrailingStopMarket, nil
+	case order.OCO, order.SOR:
+		return orderType.String(), nil
+	}
+	return "", fmt.Errorf("%w, order type %v", order.ErrTypeIsInvalid, orderType)
+}
+
 // SubmitOrder submits a new order
 func (b *Binance) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitResponse, error) {
+	// s.TriggerPriceType
 	err := s.Validate()
 	if err != nil {
 		return nil, err
@@ -1269,7 +1292,8 @@ func (b *Binance) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Subm
 				}
 			}
 		}
-	case asset.CoinMarginedFutures:
+	case asset.CoinMarginedFutures,
+		asset.USDTMarginedFutures:
 		var reqSide string
 		switch s.Side {
 		case order.Buy:
@@ -1284,86 +1308,46 @@ func (b *Binance) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Subm
 			oType       string
 			timeInForce RequestParamsTimeForceType
 		)
-
-		switch s.Type {
-		case order.Limit:
-			oType = cfuturesLimit
+		oType, err = b.orderTypeToString(s.Type)
+		if err != nil {
+			return nil, err
+		}
+		if s.Type == order.Limit {
 			timeInForce = BinanceRequestParamsTimeGTC
-		case order.Market:
-			oType = cfuturesMarket
-		case order.Stop:
-			oType = cfuturesStop
-		case order.TakeProfit:
-			oType = cfuturesTakeProfit
-		case order.StopMarket:
-			oType = cfuturesStopMarket
-		case order.TakeProfitMarket:
-			oType = cfuturesTakeProfitMarket
-		case order.TrailingStop:
-			oType = cfuturesTrailingStopMarket
-		default:
-			return nil, fmt.Errorf("%w, check api docs for updates", order.ErrTypeIsInvalid)
 		}
-
-		var o *FuturesOrderPlaceData
-		o, err = b.FuturesNewOrder(ctx, &FuturesNewOrderRequest{
-			Symbol:           s.Pair,
-			Side:             reqSide,
-			OrderType:        oType,
-			TimeInForce:      timeInForce,
-			NewClientOrderID: s.ClientOrderID,
-			Quantity:         s.Amount,
-			Price:            s.Price,
-			ReduceOnly:       s.ReduceOnly,
-		})
-		if err != nil {
-			return nil, err
+		if s.AssetType == asset.CoinMarginedFutures {
+			var o *FuturesOrderPlaceData
+			o, err = b.FuturesNewOrder(ctx, &FuturesNewOrderRequest{
+				Symbol:           s.Pair,
+				Side:             reqSide,
+				OrderType:        oType,
+				TimeInForce:      timeInForce,
+				NewClientOrderID: s.ClientOrderID,
+				Quantity:         s.Amount,
+				Price:            s.Price,
+				ReduceOnly:       s.ReduceOnly,
+			})
+			if err != nil {
+				return nil, err
+			}
+			orderID = strconv.FormatInt(o.OrderID, 10)
+		} else {
+			var o *UOrderData
+			o, err = b.UFuturesNewOrder(ctx, &UFuturesNewOrderRequest{
+				Symbol:           s.Pair,
+				Side:             reqSide,
+				OrderType:        oType,
+				TimeInForce:      string(timeInForce),
+				NewClientOrderID: s.ClientOrderID,
+				Quantity:         s.Amount,
+				Price:            s.Price,
+				ReduceOnly:       s.ReduceOnly,
+			})
+			if err != nil {
+				return nil, err
+			}
+			orderID = strconv.FormatInt(o.OrderID, 10)
 		}
-		orderID = strconv.FormatInt(o.OrderID, 10)
-	case asset.USDTMarginedFutures:
-		var reqSide string
-		switch s.Side {
-		case order.Buy:
-			reqSide = "BUY"
-		case order.Sell:
-			reqSide = "SELL"
-		default:
-			return nil, fmt.Errorf("%w, side = %s", order.ErrSideIsInvalid, s.Side.String())
-		}
-		var oType string
-		switch s.Type {
-		case order.Limit:
-			oType = "LIMIT"
-		case order.Market:
-			oType = "MARKET"
-		case order.Stop:
-			oType = "STOP"
-		case order.TakeProfit:
-			oType = "TAKE_PROFIT"
-		case order.StopMarket:
-			oType = "STOP_MARKET"
-		case order.TakeProfitMarket:
-			oType = "TAKE_PROFIT_MARKET"
-		case order.TrailingStop:
-			oType = "TRAILING_STOP_MARKET"
-		default:
-			return nil, errors.New("invalid type, check api docs for updates")
-		}
-		var o *UOrderData
-		o, err = b.UFuturesNewOrder(ctx, &UFuturesNewOrderRequest{
-			Symbol:           s.Pair,
-			Side:             reqSide,
-			OrderType:        oType,
-			TimeInForce:      "GTC",
-			NewClientOrderID: s.ClientOrderID,
-			Quantity:         s.Amount,
-			Price:            s.Price,
-			ReduceOnly:       s.ReduceOnly,
-		})
-		if err != nil {
-			return nil, err
-		}
-		orderID = strconv.FormatInt(o.OrderID, 10)
 	case asset.Options:
 		var result *OptionOrder
 		result, err = b.NewOptionsOrder(ctx, &OptionsOrderParams{
@@ -1734,6 +1718,7 @@ func (b *Binance) GetDepositAddress(ctx context.Context, cryptocurrency currency
 	}
 
 	return &deposit.Address{
+		Chain:   chain,
 		Address: addr.Address,
 		Tag:     addr.Tag,
 	}, nil
@@ -2542,12 +2527,15 @@ func (b *Binance) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) 
 		limits, err = b.FetchCoinMarginExchangeLimits(ctx)
 	case asset.Margin:
 		limits, err = b.FetchExchangeLimits(ctx, asset.Margin)
+	case asset.Options:
+		limits, err = b.FetchOptionsExchangeLimits(ctx)
 	default:
 		err = fmt.Errorf("%w %v", asset.ErrNotSupported, a)
 	}
 	if err != nil {
 		return fmt.Errorf("cannot update exchange execution limits: %w", err)
 	}
+	println("Length: ", len(limits))
 	return b.LoadLimits(limits)
 }
 
@@ -3770,7 +3758,19 @@ func (b *Binance) GetCurrencyTradeURL(ctx context.Context, a asset.Item, cp curr
 	case asset.Margin:
 		return tradeBaseURL + "trade/" + symbol + "?type=cross", nil
 	case asset.Options:
-		return tradeBaseURL, nil // TODO:
+		var underlying string
+		ei, err := b.GetOptionsExchangeInformation(ctx)
+		if err != nil {
+			return "", err
+		}
+		for i := range ei.OptionSymbols {
+			if ei.OptionSymbols[i].Symbol != symbol {
+				continue
+			}
+			underlying = ei.OptionSymbols[i].Underlying
+			break
+		}
+		return tradeBaseURL + "eoptions/" + underlying + "/" + symbol, nil
 	default:
 		return "", fmt.Errorf("%w %v", asset.ErrNotSupported, a)
 	}

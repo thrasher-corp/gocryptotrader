@@ -27,7 +27,7 @@ type EOptionExchangeInfo struct {
 		ContractID int64                `json:"contractId"`
 		ExpiryDate convert.ExchangeTime `json:"expiryDate"`
 		Filters    []struct {
-			FilterType string       `json:"filterType"`
+			FilterType string       `json:"filterType"` // possible values are: PRICE_FILTER, LOT_SIZE
 			MinPrice   types.Number `json:"minPrice,omitempty"`
 			MaxPrice   types.Number `json:"maxPrice,omitempty"`
 			TickSize   types.Number `json:"tickSize,omitempty"`
