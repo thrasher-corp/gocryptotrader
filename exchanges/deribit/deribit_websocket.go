@@ -92,10 +92,6 @@ var (
 			"interval": 15,
 		},
 	}
-
-	// loadedOBPairMap to keep track of instruments with their orderbook snapshot loaded
-	// we use this to check whether we need to load a snapshot or update if snapshot is already loaded
-	loadedOBPairMap = map[string]bool{}
 )
 
 // WsConnect starts a new connection with the websocket API
@@ -714,8 +710,6 @@ func (d *Deribit) processOrderbook(respRaw []byte, channels []string) error {
 			price, okay := orderbookData.Asks[x][1].(float64)
 			if !okay {
 				return fmt.Errorf("%w, invalid orderbook price", errMalformedData)
-			} else if price == 0 {
-				continue
 			}
 			amount, okay := orderbookData.Asks[x][2].(float64)
 			if !okay {
@@ -753,8 +747,7 @@ func (d *Deribit) processOrderbook(respRaw []byte, channels []string) error {
 		if err != nil {
 			return err
 		}
-		if orderbookData.Type == "snapshot" || !loadedOBPairMap[orderbookData.InstrumentName] {
-			loadedOBPairMap[orderbookData.InstrumentName] = true
+		if orderbookData.Type == "snapshot" {
 			return d.Websocket.Orderbook.LoadSnapshot(&orderbook.Base{
 				Exchange:        d.Name,
 				VerifyOrderbook: d.CanVerifyOrderbook,
@@ -827,7 +820,6 @@ func (d *Deribit) processOrderbook(respRaw []byte, channels []string) error {
 		if len(asks) == 0 && len(bids) == 0 {
 			return nil
 		}
-		loadedOBPairMap[orderbookData.InstrumentName] = true
 		return d.Websocket.Orderbook.LoadSnapshot(&orderbook.Base{
 			Asks:         asks,
 			Bids:         bids,
@@ -923,6 +915,10 @@ func (d *Deribit) GenerateDefaultSubscriptions() ([]subscription.Subscription, e
 							// if needed, group and depth of orderbook can be passed as follow "group":    "250", "depth":    "20",
 							Interval: kline.HundredMilliseconds,
 							Asset:    a,
+							Params: map[string]interface{}{
+								"group": "none",
+								"depth": "20",
+							},
 						},
 					)
 					if d.Websocket.CanUseAuthenticatedEndpoints() {
@@ -931,6 +927,10 @@ func (d *Deribit) GenerateDefaultSubscriptions() ([]subscription.Subscription, e
 							Pair:     assetPairs[a][z],
 							Asset:    a,
 							Interval: kline.Interval(0),
+							Params: map[string]interface{}{
+								"group": "none",
+								"depth": "20",
+							},
 						})
 					}
 				}
