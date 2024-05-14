@@ -281,17 +281,17 @@ func ({{.Variable}} *{{.CapitalName}}) UpdateOrderbook(ctx context.Context, pair
 		return book, err
 	}
 
-	book.Bids = make([]orderbook.Item, len(orderbookNew.Bids))
+	book.Bids = make([]orderbook.Tranche, len(orderbookNew.Bids))
 	for x := range orderbookNew.Bids {
-		book.Bids[x] = orderbook.Item{
+		book.Bids[x] = orderbook.Tranche{
 			Amount: orderbookNew.Bids[x].Quantity, 
 			Price: orderbookNew.Bids[x].Price,
 		}
 	}
 
-	book.Asks = make([]orderbook.Item, len(orderbookNew.Asks))
+	book.Asks = make([]orderbook.Tranche, len(orderbookNew.Asks))
 	for x := range orderbookNew.Asks {
-		book.Asks[x] = orderbook.Item{
+		book.Asks[x] = orderbook.Tranche{
 			Amount: orderBookNew.Asks[x].Quantity,
 			Price: orderBookNew.Asks[x].Price,
 		}
