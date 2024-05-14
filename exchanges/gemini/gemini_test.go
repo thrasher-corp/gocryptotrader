@@ -9,6 +9,8 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -17,6 +19,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
+	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
@@ -1281,5 +1284,18 @@ func TestSetExchangeOrderExecutionLimits(t *testing.T) {
 		if limit == (order.MinMaxLevel{}) {
 			t.Fatal("exchange limit should be loaded")
 		}
+	}
+}
+
+func TestGetCurrencyTradeURL(t *testing.T) {
+	t.Parallel()
+	testexch.UpdatePairsOnce(t, g)
+	for _, a := range g.GetAssetTypes(false) {
+		pairs, err := g.CurrencyPairs.GetPairs(a, false)
+		require.NoError(t, err, "cannot get pairs for %s", a)
+		require.NotEmpty(t, pairs, "no pairs for %s", a)
+		resp, err := g.GetCurrencyTradeURL(context.Background(), a, pairs[0])
+		require.NoError(t, err)
+		assert.NotEmpty(t, resp)
 	}
 }

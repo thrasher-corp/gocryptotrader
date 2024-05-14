@@ -9,6 +9,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -17,6 +19,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
+	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 )
 
 var b = &BTCMarkets{}
@@ -1117,5 +1120,18 @@ func TestCancelBatchOrders(t *testing.T) {
 	})
 	if err != nil {
 		t.Error(err)
+	}
+}
+
+func TestGetCurrencyTradeURL(t *testing.T) {
+	t.Parallel()
+	testexch.UpdatePairsOnce(t, b)
+	for _, a := range b.GetAssetTypes(false) {
+		pairs, err := b.CurrencyPairs.GetPairs(a, false)
+		require.NoError(t, err, "cannot get pairs for %s", a)
+		require.NotEmpty(t, pairs, "no pairs for %s", a)
+		resp, err := b.GetCurrencyTradeURL(context.Background(), a, pairs[0])
+		require.NoError(t, err)
+		assert.NotEmpty(t, resp)
 	}
 }

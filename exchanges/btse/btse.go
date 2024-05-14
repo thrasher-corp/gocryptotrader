@@ -31,6 +31,9 @@ const (
 	btseSPOTAPIPath    = "/api/v3.2/"
 	btseFuturesPath    = "/futures"
 	btseFuturesAPIPath = "/api/v2.1/"
+	tradeBaseURL       = "https://www.btse.com/en/"
+	tradeSpot          = "trading/"
+	tradeFutures       = "futures/"
 
 	// Public endpoints
 	btseMarketOverview = "market_summary"

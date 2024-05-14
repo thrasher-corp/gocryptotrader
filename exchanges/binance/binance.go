@@ -45,6 +45,7 @@ const (
 	ufuturesAPIURL = "https://fapi.binance.com"
 	eOptionAPIURL  = "https://eapi.binance.com"
 	pMarginAPIURL  = "https://papi.binance.com"
+	tradeBaseURL   = "https://www.binance.com/en/"
 
 	testnetSpotURL = "https://testnet.binance.vision/api"
 	testnetFutures = "https://testnet.binancefuture.com"
