@@ -207,7 +207,7 @@ func (y *Yobit) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType 
 
 	for i := range orderbookNew.Bids {
 		book.Bids = append(book.Bids,
-			orderbook.Item{
+			orderbook.Tranche{
 				Price:  orderbookNew.Bids[i][0],
 				Amount: orderbookNew.Bids[i][1],
 			})
@@ -215,7 +215,7 @@ func (y *Yobit) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType 
 
 	for i := range orderbookNew.Asks {
 		book.Asks = append(book.Asks,
-			orderbook.Item{
+			orderbook.Tranche{
 				Price:  orderbookNew.Asks[i][0],
 				Amount: orderbookNew.Asks[i][1],
 			})
@@ -693,4 +693,14 @@ func (y *Yobit) GetLatestFundingRates(context.Context, *fundingrate.LatestRateRe
 // UpdateOrderExecutionLimits updates order execution limits
 func (y *Yobit) UpdateOrderExecutionLimits(_ context.Context, _ asset.Item) error {
 	return common.ErrNotYetImplemented
+}
+
+// GetCurrencyTradeURL returns the URL to the exchange's trade page for the given asset and currency pair
+func (y *Yobit) GetCurrencyTradeURL(_ context.Context, a asset.Item, cp currency.Pair) (string, error) {
+	_, err := y.CurrencyPairs.IsPairEnabled(cp, a)
+	if err != nil {
+		return "", err
+	}
+	cp.Delimiter = currency.ForwardSlashDelimiter
+	return tradeBaseURL + cp.Upper().String(), nil
 }

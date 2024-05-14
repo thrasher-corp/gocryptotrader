@@ -3161,3 +3161,10 @@ func (f *FakeBase) GetLatestFundingRates(context.Context, *fundingrate.LatestRat
 func (f *FakeBase) GetFuturesContractDetails(context.Context, asset.Item) ([]futures.Contract, error) {
 	return nil, common.ErrFunctionNotSupported
 }
+
+func TestGetCurrencyTradeURL(t *testing.T) {
+	t.Parallel()
+	b := Base{}
+	_, err := b.GetCurrencyTradeURL(context.Background(), asset.Spot, currency.NewPair(currency.BTC, currency.USDT))
+	require.ErrorIs(t, err, common.ErrFunctionNotSupported)
+}
