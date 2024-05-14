@@ -592,16 +592,16 @@ func (b *Binance) UpdateOrderbook(ctx context.Context, p currency.Pair, assetTyp
 		return book, err
 	}
 
-	book.Bids = make(orderbook.Items, len(orderbookNew.Bids))
+	book.Bids = make(orderbook.Tranches, len(orderbookNew.Bids))
 	for x := range orderbookNew.Bids {
-		book.Bids[x] = orderbook.Item{
+		book.Bids[x] = orderbook.Tranche{
 			Amount: orderbookNew.Bids[x].Quantity,
 			Price:  orderbookNew.Bids[x].Price,
 		}
 	}
-	book.Asks = make(orderbook.Items, len(orderbookNew.Asks))
+	book.Asks = make(orderbook.Tranches, len(orderbookNew.Asks))
 	for x := range orderbookNew.Asks {
-		book.Asks[x] = orderbook.Item{
+		book.Asks[x] = orderbook.Tranche{
 			Amount: orderbookNew.Asks[x].Quantity,
 			Price:  orderbookNew.Asks[x].Price,
 		}
@@ -3045,4 +3045,68 @@ func (b *Binance) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]fu
 		}
 	}
 	return result, nil
+}
+
+// GetCurrencyTradeURL returns the URL to the exchange's trade page for the given asset and currency pair
+func (b *Binance) GetCurrencyTradeURL(ctx context.Context, a asset.Item, cp currency.Pair) (string, error) {
+	_, err := b.CurrencyPairs.IsPairEnabled(cp, a)
+	if err != nil {
+		return "", err
+	}
+	symbol, err := b.FormatSymbol(cp, a)
+	if err != nil {
+		return "", err
+	}
+	switch a {
+	case asset.USDTMarginedFutures:
+		var ct string
+		if !cp.Quote.Equal(currency.USDT) && !cp.Quote.Equal(currency.BUSD) {
+			ei, err := b.UExchangeInfo(ctx)
+			if err != nil {
+				return "", err
+			}
+			for i := range ei.Symbols {
+				if ei.Symbols[i].Symbol != symbol {
+					continue
+				}
+				switch ei.Symbols[i].ContractType {
+				case "CURRENT_QUARTER":
+					ct = "_QUARTER"
+				case "NEXT_QUARTER":
+					ct = "_BI-QUARTER"
+				}
+				symbol = ei.Symbols[i].Pair
+				break
+			}
+		}
+		return tradeBaseURL + "futures/" + symbol + ct, nil
+	case asset.CoinMarginedFutures:
+		var ct string
+		if !cp.Quote.Equal(currency.USDT) && !cp.Quote.Equal(currency.BUSD) {
+			ei, err := b.FuturesExchangeInfo(ctx)
+			if err != nil {
+				return "", err
+			}
+			for i := range ei.Symbols {
+				if ei.Symbols[i].Symbol != symbol {
+					continue
+				}
+				switch ei.Symbols[i].ContractType {
+				case "CURRENT_QUARTER":
+					ct = "_QUARTER"
+				case "NEXT_QUARTER":
+					ct = "_BI-QUARTER"
+				}
+				symbol = ei.Symbols[i].Pair
+				break
+			}
+		}
+		return tradeBaseURL + "delivery/" + symbol + ct, nil
+	case asset.Spot:
+		return tradeBaseURL + "trade/" + symbol + "?type=spot", nil
+	case asset.Margin:
+		return tradeBaseURL + "trade/" + symbol + "?type=cross", nil
+	default:
+		return "", fmt.Errorf("%w %v", asset.ErrNotSupported, a)
+	}
 }

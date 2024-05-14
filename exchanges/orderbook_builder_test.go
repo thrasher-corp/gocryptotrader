@@ -76,8 +76,8 @@ func TestNewOrderbookBuilder(t *testing.T) {
 		err = builder.Process(context.Background(), &orderbook.Update{
 			Pair:       btcusd,
 			Asset:      asset.Spot,
-			Bids:       []orderbook.Item{{Price: 6969, Amount: float64(x)}},
-			Asks:       []orderbook.Item{{Price: 69420, Amount: float64(x)}},
+			Bids:       []orderbook.Tranche{{Price: 6969, Amount: float64(x)}},
+			Asks:       []orderbook.Tranche{{Price: 69420, Amount: float64(x)}},
 			UpdateTime: time.Now(),
 		})
 		require.NoError(t, err)

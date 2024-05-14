@@ -244,7 +244,13 @@ func (g *Gateio) wsHandleFuturesData(respRaw []byte, assetType asset.Item) error
 	case futuresCandlesticksChannel:
 		return g.processFuturesCandlesticks(respRaw, assetType)
 	case futuresOrdersChannel:
-		return g.processFuturesOrdersPushData(respRaw, assetType)
+		var processed []order.Detail
+		processed, err = g.processFuturesOrdersPushData(respRaw, assetType)
+		if err != nil {
+			return err
+		}
+		g.Websocket.DataHandler <- processed
+		return nil
 	case futuresUserTradesChannel:
 		return g.procesFuturesUserTrades(respRaw, assetType)
 	case futuresLiquidatesChannel:
@@ -550,12 +556,12 @@ func (g *Gateio) processFuturesAndOptionsOrderbookUpdate(incoming []byte, assetT
 		Pair:       data.ContractName,
 		Asset:      assetType,
 	}
-	updates.Asks = make([]orderbook.Item, len(data.Asks))
+	updates.Asks = make([]orderbook.Tranche, len(data.Asks))
 	for x := range data.Asks {
 		updates.Asks[x].Amount = data.Asks[x].Size
 		updates.Asks[x].Price = data.Asks[x].Price.Float64()
 	}
-	updates.Bids = make([]orderbook.Item, len(data.Bids))
+	updates.Bids = make([]orderbook.Tranche, len(data.Bids))
 	for x := range data.Bids {
 		updates.Bids[x].Amount = data.Bids[x].Size
 		updates.Bids[x].Price = data.Bids[x].Price.Float64()
@@ -580,12 +586,12 @@ func (g *Gateio) processFuturesOrderbookSnapshot(event string, incoming []byte, 
 			LastUpdated:     data.TimestampInMs.Time(),
 			VerifyOrderbook: g.CanVerifyOrderbook,
 		}
-		base.Asks = make([]orderbook.Item, len(data.Asks))
+		base.Asks = make([]orderbook.Tranche, len(data.Asks))
 		for x := range data.Asks {
 			base.Asks[x].Amount = data.Asks[x].Size
 			base.Asks[x].Price = data.Asks[x].Price.Float64()
 		}
-		base.Bids = make([]orderbook.Item, len(data.Bids))
+		base.Bids = make([]orderbook.Tranche, len(data.Bids))
 		for x := range data.Bids {
 			base.Bids[x].Amount = data.Bids[x].Size
 			base.Bids[x].Price = data.Bids[x].Price.Float64()
@@ -597,19 +603,19 @@ func (g *Gateio) processFuturesOrderbookSnapshot(event string, incoming []byte, 
 	if err != nil {
 		return err
 	}
-	dataMap := map[string][2][]orderbook.Item{}
+	dataMap := map[string][2][]orderbook.Tranche{}
 	for x := range data {
 		ab, ok := dataMap[data[x].CurrencyPair]
 		if !ok {
-			ab = [2][]orderbook.Item{}
+			ab = [2][]orderbook.Tranche{}
 		}
 		if data[x].Amount > 0 {
-			ab[1] = append(ab[1], orderbook.Item{
+			ab[1] = append(ab[1], orderbook.Tranche{
 				Price:  data[x].Price.Float64(),
 				Amount: data[x].Amount,
 			})
 		} else {
-			ab[0] = append(ab[0], orderbook.Item{
+			ab[0] = append(ab[0], orderbook.Tranche{
 				Price:  data[x].Price.Float64(),
 				Amount: -data[x].Amount,
 			})
@@ -642,7 +648,7 @@ func (g *Gateio) processFuturesOrderbookSnapshot(event string, incoming []byte, 
 	return nil
 }
 
-func (g *Gateio) processFuturesOrdersPushData(data []byte, assetType asset.Item) error {
+func (g *Gateio) processFuturesOrdersPushData(data []byte, assetType asset.Item) ([]order.Detail, error) {
 	resp := struct {
 		Time    int64            `json:"time"`
 		Channel string           `json:"channel"`
@@ -651,19 +657,28 @@ func (g *Gateio) processFuturesOrdersPushData(data []byte, assetType asset.Item)
 	}{}
 	err := json.Unmarshal(data, &resp)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	orderDetails := make([]order.Detail, len(resp.Result))
 	for x := range resp.Result {
-		status, err := order.StringToOrderStatus(func() string {
-			if resp.Result[x].Status == "finished" {
-				return "cancelled"
+		var status order.Status
+		if resp.Result[x].Status == "finished" {
+			if resp.Result[x].FinishAs == "ioc" || resp.Result[x].FinishAs == "reduce_only" {
+				status = order.Cancelled
+			} else {
+				status, err = order.StringToOrderStatus(resp.Result[x].FinishAs)
 			}
-			return resp.Result[x].Status
-		}())
-		if err != nil {
-			return err
+		} else {
+			status, err = order.StringToOrderStatus(resp.Result[x].Status)
 		}
+		if err != nil {
+			g.Websocket.DataHandler <- order.ClassificationError{
+				Exchange: g.Name,
+				OrderID:  strconv.FormatInt(resp.Result[x].ID, 10),
+				Err:      err,
+			}
+		}
+
 		orderDetails[x] = order.Detail{
 			Amount:         resp.Result[x].Size,
 			Exchange:       g.Name,
@@ -679,8 +694,7 @@ func (g *Gateio) processFuturesOrdersPushData(data []byte, assetType asset.Item)
 			CloseTime:      resp.Result[x].FinishTimeMs.Time(),
 		}
 	}
-	g.Websocket.DataHandler <- orderDetails
-	return nil
+	return orderDetails, nil
 }
 
 func (g *Gateio) procesFuturesUserTrades(data []byte, assetType asset.Item) error {

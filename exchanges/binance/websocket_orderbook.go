@@ -21,16 +21,16 @@ func (b *Binance) ProcessUpdate(ctx context.Context, ws *WebsocketDepthStream) e
 	if !enabled {
 		return nil
 	}
-	updateBid := make([]orderbook.Item, len(ws.UpdateBids))
+	updateBid := make([]orderbook.Tranche, len(ws.UpdateBids))
 	for i := range ws.UpdateBids {
-		updateBid[i] = orderbook.Item{
+		updateBid[i] = orderbook.Tranche{
 			Price:  ws.UpdateBids[i][0].Float64(),
 			Amount: ws.UpdateBids[i][1].Float64(),
 		}
 	}
-	updateAsk := make([]orderbook.Item, len(ws.UpdateAsks))
+	updateAsk := make([]orderbook.Tranche, len(ws.UpdateAsks))
 	for i := range ws.UpdateAsks {
-		updateAsk[i] = orderbook.Item{
+		updateAsk[i] = orderbook.Tranche{
 			Price:  ws.UpdateAsks[i][0].Float64(),
 			Amount: ws.UpdateAsks[i][1].Float64(),
 		}
@@ -53,12 +53,12 @@ func (b *Binance) GetBuildableBook(ctx context.Context, p currency.Pair, a asset
 	if err != nil {
 		return nil, err
 	}
-	bids := make([]orderbook.Item, len(ob.Bids))
+	bids := make([]orderbook.Tranche, len(ob.Bids))
 	for i := range ob.Bids {
 		bids[i].Amount = ob.Bids[i].Quantity
 		bids[i].Price = ob.Bids[i].Price
 	}
-	asks := make([]orderbook.Item, len(ob.Asks))
+	asks := make([]orderbook.Tranche, len(ob.Asks))
 	for i := range ob.Asks {
 		asks[i].Amount = ob.Asks[i].Quantity
 		asks[i].Price = ob.Asks[i].Price

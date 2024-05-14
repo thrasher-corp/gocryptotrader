@@ -20,6 +20,7 @@ import (
 const (
 	exmoAPIURL     = "https://api.exmo.com"
 	exmoAPIVersion = "1"
+	tradeBaseURL   = "https://exmo.com/trade/pro/"
 
 	exmoTrades       = "trades"
 	exmoOrderbook    = "order_book"

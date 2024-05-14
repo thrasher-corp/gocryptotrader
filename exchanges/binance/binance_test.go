@@ -1988,7 +1988,7 @@ func TestSubscribe(t *testing.T) {
 		{Channel: "btcusdt@trade"},
 	}
 	if mockTests {
-		b = testexch.MockWSInstance[Binance](t, func(msg []byte, w *websocket.Conn) error {
+		mock := func(msg []byte, w *websocket.Conn) error {
 			var req WsPayload
 			err := json.Unmarshal(msg, &req)
 			require.NoError(t, err, "Unmarshal should not error")
@@ -1996,7 +1996,8 @@ func TestSubscribe(t *testing.T) {
 			assert.Equal(t, req.Params[0], channels[0].Channel, "Channel name should be correct")
 			assert.Equal(t, req.Params[1], channels[1].Channel, "Channel name should be correct")
 			return w.WriteMessage(websocket.TextMessage, []byte(fmt.Sprintf(`{"result":null,"id":%d}`, req.ID)))
-		})
+		}
+		b = testexch.MockWsInstance[Binance](t, testexch.CurryWsMockUpgrader(t, mock))
 	} else {
 		testexch.SetupWs(t, b)
 	}
@@ -2011,12 +2012,13 @@ func TestSubscribeBadResp(t *testing.T) {
 	channels := []subscription.Subscription{
 		{Channel: "moons@ticker"},
 	}
-	b := testexch.MockWSInstance[Binance](t, func(msg []byte, w *websocket.Conn) error { //nolint:govet // shadow
+	mock := func(msg []byte, w *websocket.Conn) error {
 		var req WsPayload
 		err := json.Unmarshal(msg, &req)
 		require.NoError(t, err, "Unmarshal should not error")
 		return w.WriteMessage(websocket.TextMessage, []byte(fmt.Sprintf(`{"result":{"error":"carrots"},"id":%d}`, req.ID)))
-	})
+	}
+	b := testexch.MockWsInstance[Binance](t, testexch.CurryWsMockUpgrader(t, mock)) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
 	err := b.Subscribe(channels)
 	assert.ErrorIs(t, err, stream.ErrSubscriptionFailure, "Subscribe should error ErrSubscriptionFailure")
 	assert.ErrorIs(t, err, errUnknownError, "Subscribe should error errUnknownError")
@@ -3336,6 +3338,19 @@ func TestGetOpenInterest(t *testing.T) {
 	assert.ErrorIs(t, err, asset.ErrNotSupported)
 }
 
+func TestGetCurrencyTradeURL(t *testing.T) {
+	t.Parallel()
+	testexch.UpdatePairsOnce(t, b)
+	for _, a := range b.GetAssetTypes(false) {
+		pairs, err := b.CurrencyPairs.GetPairs(a, false)
+		require.NoError(t, err, "cannot get pairs for %s", a)
+		require.NotEmpty(t, pairs, "no pairs for %s", a)
+		resp, err := b.GetCurrencyTradeURL(context.Background(), a, pairs[0])
+		require.NoError(t, err)
+		assert.NotEmpty(t, resp)
+	}
+}
+
 func TestGetBuildableBook(t *testing.T) {
 	t.Parallel()
 	ob, err := b.GetBuildableBook(context.Background(), currency.NewPair(currency.BTC, currency.USDT), asset.Spot)
@@ -3357,7 +3372,7 @@ func TestWsDepthUpdate(t *testing.T) {
 			Pair:        pair,
 			Asset:       a,
 			LastUpdated: time.Now(),
-			Asks: []orderbook.Item{
+			Asks: []orderbook.Tranche{
 				{Price: 6621.80000000, Amount: 0.00198100},
 				{Price: 6622.14000000, Amount: 4.00000000},
 				{Price: 6622.46000000, Amount: 2.30000000},
@@ -3369,7 +3384,7 @@ func TestWsDepthUpdate(t *testing.T) {
 				{Price: 6622.82000000, Amount: 0.01500000},
 				{Price: 6623.17000000, Amount: 0.16831300},
 			},
-			Bids: []orderbook.Item{
+			Bids: []orderbook.Tranche{
 				{Price: 6621.55000000, Amount: 0.16356700},
 				{Price: 6621.45000000, Amount: 0.16352600},
 				{Price: 6621.41000000, Amount: 0.86091200},

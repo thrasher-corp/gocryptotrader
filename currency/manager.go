@@ -335,6 +335,29 @@ func (p *PairsManager) EnablePair(a asset.Item, pair Pair) error {
 	return nil
 }
 
+// IsPairAvailable checks if a pair is available for a given asset type
+func (p *PairsManager) IsPairAvailable(pair Pair, a asset.Item) (bool, error) {
+	if !a.IsValid() {
+		return false, fmt.Errorf("%s %w", a, asset.ErrNotSupported)
+	}
+
+	if pair.IsEmpty() {
+		return false, ErrCurrencyPairEmpty
+	}
+
+	p.mutex.RLock()
+	defer p.mutex.RUnlock()
+
+	pairStore, err := p.getPairStoreRequiresLock(a)
+	if err != nil {
+		return false, err
+	}
+	if pairStore.AssetEnabled == nil {
+		return false, fmt.Errorf("%s %w", a, ErrAssetIsNil)
+	}
+	return *pairStore.AssetEnabled && pairStore.Available.Contains(pair, true), nil
+}
+
 // IsPairEnabled checks if a pair is enabled for an enabled asset type
 func (p *PairsManager) IsPairEnabled(pair Pair, a asset.Item) (bool, error) {
 	if !a.IsValid() {

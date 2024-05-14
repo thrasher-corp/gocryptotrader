@@ -852,10 +852,10 @@ func (ku *Kucoin) CancelFuturesTransferOut(ctx context.Context, applyID string) 
 	return ku.SendAuthHTTPRequest(ctx, exchange.RestFutures, defaultFuturesEPL, http.MethodDelete, common.EncodeURLValues(kucoinFuturesCancelTransferOut, params), nil, &resp)
 }
 
-func processFuturesOB(ob [][2]float64) []orderbook.Item {
-	o := make([]orderbook.Item, len(ob))
+func processFuturesOB(ob [][2]float64) []orderbook.Tranche {
+	o := make([]orderbook.Tranche, len(ob))
 	for x := range ob {
-		o[x] = orderbook.Item{
+		o[x] = orderbook.Tranche{
 			Price:  ob[x][0],
 			Amount: ob[x][1],
 		}
