@@ -69,6 +69,7 @@ func TestExactKeyMatch(t *testing.T) {
 
 // TestExactKeyString exercises ExactKey.String
 func TestExactKeyString(t *testing.T) {
+	t.Parallel()
 	key := &ExactKey{&Subscription{Asset: asset.Spot, Channel: TickerChannel, Pairs: currency.Pairs{ethusdcPair, btcusdtPair}}}
 	assert.Equal(t, "ticker spot ETH/USDC,BTC/USDT", key.String())
 }
@@ -99,6 +100,7 @@ func TestIgnoringPairsKeyMatch(t *testing.T) {
 
 // TestIgnoringPairsKeyString exercises IgnoringPairsKey.String
 func TestIgnoringPairsKeyString(t *testing.T) {
+	t.Parallel()
 	key := &IgnoringPairsKey{&Subscription{Asset: asset.Spot, Channel: TickerChannel, Pairs: currency.Pairs{ethusdcPair, btcusdtPair}}}
 	assert.Equal(t, "ticker spot", key.String())
 }
