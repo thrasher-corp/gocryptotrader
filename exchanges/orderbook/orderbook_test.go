@@ -16,9 +16,6 @@ import (
 )
 
 func TestMain(m *testing.M) {
-	// Sets up lower values for test environment
-	defaultInterval = time.Millisecond * 250
-	defaultAllowance = time.Millisecond * 100
 	err := dispatch.Start(dispatch.DefaultMaxWorkers, dispatch.DefaultJobsLimit*10)
 	if err != nil {
 		log.Fatal(err)
@@ -38,7 +35,7 @@ func TestSubscribeToExchangeOrderbooks(t *testing.T) {
 		Pair:     p,
 		Asset:    asset.Spot,
 		Exchange: "SubscribeToExchangeOrderbooks",
-		Bids:     []Item{{Price: 100, Amount: 1}, {Price: 99, Amount: 1}},
+		Bids:     []Tranche{{Price: 100, Amount: 1}, {Price: 99, Amount: 1}},
 	}
 
 	err = b.Process()
@@ -66,19 +63,19 @@ func TestVerify(t *testing.T) {
 		t.Fatalf("expecting %v error but received %v", nil, err)
 	}
 
-	b.Asks = []Item{{ID: 1337, Price: 99, Amount: 1}, {ID: 1337, Price: 100, Amount: 1}}
+	b.Asks = []Tranche{{ID: 1337, Price: 99, Amount: 1}, {ID: 1337, Price: 100, Amount: 1}}
 	err = b.Verify()
 	if !errors.Is(err, errIDDuplication) {
 		t.Fatalf("expecting %s error but received %v", errIDDuplication, err)
 	}
 
-	b.Asks = []Item{{Price: 100, Amount: 1}, {Price: 100, Amount: 1}}
+	b.Asks = []Tranche{{Price: 100, Amount: 1}, {Price: 100, Amount: 1}}
 	err = b.Verify()
 	if !errors.Is(err, errDuplication) {
 		t.Fatalf("expecting %s error but received %v", errDuplication, err)
 	}
 
-	b.Asks = []Item{{Price: 100, Amount: 1}, {Price: 99, Amount: 1}}
+	b.Asks = []Tranche{{Price: 100, Amount: 1}, {Price: 99, Amount: 1}}
 	b.IsFundingRate = true
 	err = b.Verify()
 	if !errors.Is(err, errPeriodUnset) {
@@ -91,31 +88,31 @@ func TestVerify(t *testing.T) {
 		t.Fatalf("expecting %s error but received %v", errPriceOutOfOrder, err)
 	}
 
-	b.Asks = []Item{{Price: 100, Amount: 1}, {Price: 100, Amount: 0}}
+	b.Asks = []Tranche{{Price: 100, Amount: 1}, {Price: 100, Amount: 0}}
 	err = b.Verify()
 	if !errors.Is(err, errAmountInvalid) {
 		t.Fatalf("expecting %s error but received %v", errAmountInvalid, err)
 	}
 
-	b.Asks = []Item{{Price: 100, Amount: 1}, {Price: 0, Amount: 100}}
+	b.Asks = []Tranche{{Price: 100, Amount: 1}, {Price: 0, Amount: 100}}
 	err = b.Verify()
 	if !errors.Is(err, errPriceNotSet) {
 		t.Fatalf("expecting %s error but received %v", errPriceNotSet, err)
 	}
 
-	b.Bids = []Item{{ID: 1337, Price: 100, Amount: 1}, {ID: 1337, Price: 99, Amount: 1}}
+	b.Bids = []Tranche{{ID: 1337, Price: 100, Amount: 1}, {ID: 1337, Price: 99, Amount: 1}}
 	err = b.Verify()
 	if !errors.Is(err, errIDDuplication) {
 		t.Fatalf("expecting %s error but received %v", errIDDuplication, err)
 	}
 
-	b.Bids = []Item{{Price: 100, Amount: 1}, {Price: 100, Amount: 1}}
+	b.Bids = []Tranche{{Price: 100, Amount: 1}, {Price: 100, Amount: 1}}
 	err = b.Verify()
 	if !errors.Is(err, errDuplication) {
 		t.Fatalf("expecting %s error but received %v", errDuplication, err)
 	}
 
-	b.Bids = []Item{{Price: 99, Amount: 1}, {Price: 100, Amount: 1}}
+	b.Bids = []Tranche{{Price: 99, Amount: 1}, {Price: 100, Amount: 1}}
 	b.IsFundingRate = true
 	err = b.Verify()
 	if !errors.Is(err, errPeriodUnset) {
@@ -128,13 +125,13 @@ func TestVerify(t *testing.T) {
 		t.Fatalf("expecting %s error but received %v", errPriceOutOfOrder, err)
 	}
 
-	b.Bids = []Item{{Price: 100, Amount: 1}, {Price: 100, Amount: 0}}
+	b.Bids = []Tranche{{Price: 100, Amount: 1}, {Price: 100, Amount: 0}}
 	err = b.Verify()
 	if !errors.Is(err, errAmountInvalid) {
 		t.Fatalf("expecting %s error but received %v", errAmountInvalid, err)
 	}
 
-	b.Bids = []Item{{Price: 100, Amount: 1}, {Price: 0, Amount: 100}}
+	b.Bids = []Tranche{{Price: 100, Amount: 1}, {Price: 0, Amount: 100}}
 	err = b.Verify()
 	if !errors.Is(err, errPriceNotSet) {
 		t.Fatalf("expecting %s error but received %v", errPriceNotSet, err)
@@ -149,7 +146,7 @@ func TestCalculateTotalBids(t *testing.T) {
 	}
 	base := Base{
 		Pair:        curr,
-		Bids:        []Item{{Price: 100, Amount: 10}},
+		Bids:        []Tranche{{Price: 100, Amount: 10}},
 		LastUpdated: time.Now(),
 	}
 
@@ -167,7 +164,7 @@ func TestCalculateTotalAsks(t *testing.T) {
 	}
 	base := Base{
 		Pair: curr,
-		Asks: []Item{{Price: 100, Amount: 10}},
+		Asks: []Tranche{{Price: 100, Amount: 10}},
 	}
 
 	a, b := base.TotalAsksAmount()
@@ -183,8 +180,8 @@ func TestGetOrderbook(t *testing.T) {
 	}
 	base := &Base{
 		Pair:     c,
-		Asks:     []Item{{Price: 100, Amount: 10}},
-		Bids:     []Item{{Price: 200, Amount: 10}},
+		Asks:     []Tranche{{Price: 100, Amount: 10}},
+		Bids:     []Tranche{{Price: 200, Amount: 10}},
 		Exchange: "Exchange",
 		Asset:    asset.Spot,
 	}
@@ -242,8 +239,8 @@ func TestGetDepth(t *testing.T) {
 	}
 	base := &Base{
 		Pair:     c,
-		Asks:     []Item{{Price: 100, Amount: 10}},
-		Bids:     []Item{{Price: 200, Amount: 10}},
+		Asks:     []Tranche{{Price: 100, Amount: 10}},
+		Bids:     []Tranche{{Price: 200, Amount: 10}},
 		Exchange: "Exchange",
 		Asset:    asset.Spot,
 	}
@@ -301,8 +298,8 @@ func TestBaseGetDepth(t *testing.T) {
 	}
 	base := &Base{
 		Pair:     c,
-		Asks:     []Item{{Price: 100, Amount: 10}},
-		Bids:     []Item{{Price: 200, Amount: 10}},
+		Asks:     []Tranche{{Price: 100, Amount: 10}},
+		Bids:     []Tranche{{Price: 200, Amount: 10}},
 		Exchange: "Exchange",
 		Asset:    asset.Spot,
 	}
@@ -355,8 +352,8 @@ func TestCreateNewOrderbook(t *testing.T) {
 	}
 	base := &Base{
 		Pair:     c,
-		Asks:     []Item{{Price: 100, Amount: 10}},
-		Bids:     []Item{{Price: 200, Amount: 10}},
+		Asks:     []Tranche{{Price: 100, Amount: 10}},
+		Bids:     []Tranche{{Price: 200, Amount: 10}},
 		Exchange: "testCreateNewOrderbook",
 		Asset:    asset.Spot,
 	}
@@ -392,8 +389,8 @@ func TestProcessOrderbook(t *testing.T) {
 		t.Fatal(err)
 	}
 	base := Base{
-		Asks:     []Item{{Price: 100, Amount: 10}},
-		Bids:     []Item{{Price: 200, Amount: 10}},
+		Asks:     []Tranche{{Price: 100, Amount: 10}},
+		Bids:     []Tranche{{Price: 200, Amount: 10}},
 		Exchange: "ProcessOrderbook",
 	}
 
@@ -461,7 +458,7 @@ func TestProcessOrderbook(t *testing.T) {
 		t.Fatal("TestProcessOrderbook result pair is incorrect")
 	}
 
-	base.Asks = []Item{{Price: 200, Amount: 200}}
+	base.Asks = []Tranche{{Price: 200, Amount: 200}}
 	base.Asset = asset.Spot
 	err = base.Process()
 	if err != nil {
@@ -478,7 +475,7 @@ func TestProcessOrderbook(t *testing.T) {
 		t.Fatal("TestProcessOrderbook CalculateTotalsAsks incorrect values")
 	}
 
-	base.Bids = []Item{{Price: 420, Amount: 200}}
+	base.Bids = []Tranche{{Price: 420, Amount: 200}}
 	base.Exchange = "Blah"
 	base.Asset = asset.CoinMarginedFutures
 	err = base.Process()
@@ -498,8 +495,8 @@ func TestProcessOrderbook(t *testing.T) {
 	type quick struct {
 		Name string
 		P    currency.Pair
-		Bids []Item
-		Asks []Item
+		Bids []Tranche
+		Asks []Tranche
 	}
 
 	var testArray []quick
@@ -524,8 +521,8 @@ func TestProcessOrderbook(t *testing.T) {
 			newPairs := currency.NewPair(currency.NewCode("BTC"+strconv.FormatInt(rand.Int63(), 10)),
 				currency.NewCode("USD"+strconv.FormatInt(rand.Int63(), 10))) //nolint:gosec // no need to import crypo/rand for testing
 
-			asks := []Item{{Price: rand.Float64(), Amount: rand.Float64()}} //nolint:gosec // no need to import crypo/rand for testing
-			bids := []Item{{Price: rand.Float64(), Amount: rand.Float64()}} //nolint:gosec // no need to import crypo/rand for testing
+			asks := []Tranche{{Price: rand.Float64(), Amount: rand.Float64()}} //nolint:gosec // no need to import crypo/rand for testing
+			bids := []Tranche{{Price: rand.Float64(), Amount: rand.Float64()}} //nolint:gosec // no need to import crypo/rand for testing
 			base := &Base{
 				Pair:     newPairs,
 				Asks:     asks,
@@ -582,12 +579,12 @@ func TestProcessOrderbook(t *testing.T) {
 	wg.Wait()
 }
 
-func deployUnorderedSlice() Items {
-	var items []Item
+func deployUnorderedSlice() Tranches {
+	var ts []Tranche
 	for i := 0; i < 1000; i++ {
-		items = append(items, Item{Amount: 1, Price: rand.Float64(), ID: rand.Int63()}) //nolint:gosec // Not needed in tests
+		ts = append(ts, Tranche{Amount: 1, Price: rand.Float64(), ID: rand.Int63()}) //nolint:gosec // Not needed in tests
 	}
-	return items
+	return ts
 }
 
 func TestSorting(t *testing.T) {
@@ -619,12 +616,12 @@ func TestSorting(t *testing.T) {
 	}
 }
 
-func deploySliceOrdered() Items {
-	var items []Item
+func deploySliceOrdered() Tranches {
+	var ts []Tranche
 	for i := 0; i < 1000; i++ {
-		items = append(items, Item{Amount: 1, Price: float64(i + 1), ID: rand.Int63()}) //nolint:gosec // Not needed in tests
+		ts = append(ts, Tranche{Amount: 1, Price: float64(i + 1), ID: rand.Int63()}) //nolint:gosec // Not needed in tests
 	}
-	return items
+	return ts
 }
 
 func TestReverse(t *testing.T) {
@@ -671,94 +668,77 @@ func BenchmarkReverse(b *testing.B) {
 	}
 }
 
-// 20209	     56385 ns/op	   49189 B/op	       2 allocs/op
+// 361266	      3556 ns/op	      24 B/op	       1 allocs/op (old)
+// 385783	      3000 ns/op	     152 B/op	       3 allocs/op (new)
 func BenchmarkSortAsksDecending(b *testing.B) {
 	s := deploySliceOrdered()
+	bucket := make(Tranches, len(s))
 	for i := 0; i < b.N; i++ {
-		//nolint: gocritic
-		ts := append(s[:0:0], s...)
-		ts.SortAsks()
+		copy(bucket, s)
+		bucket.SortAsks()
 	}
 }
 
-// 14924	     79199 ns/op	   49206 B/op	       3 allocs/op
+// 266998	      4292 ns/op	      40 B/op	       2 allocs/op (old)
+// 372396	      3001 ns/op	     152 B/op	       3 allocs/op (new)
 func BenchmarkSortBidsAscending(b *testing.B) {
 	s := deploySliceOrdered()
 	s.Reverse()
+	bucket := make(Tranches, len(s))
 	for i := 0; i < b.N; i++ {
-		//nolint: gocritic
-		ts := append(s[:0:0], s...)
-		ts.SortBids()
+		copy(bucket, s)
+		bucket.SortBids()
 	}
 }
 
-// 9842	    133761 ns/op	   49194 B/op	       2 allocs/op
+// 22119	     46532 ns/op	      35 B/op	       1 allocs/op (old)
+// 16233	     76951 ns/op	     167 B/op	       3 allocs/op (new)
 func BenchmarkSortAsksStandard(b *testing.B) {
 	s := deployUnorderedSlice()
+	bucket := make(Tranches, len(s))
 	for i := 0; i < b.N; i++ {
-		//nolint: gocritic
-		ts := append(s[:0:0], s...)
-		ts.SortAsks()
+		copy(bucket, s)
+		bucket.SortAsks()
 	}
 }
 
-// 7058	    155057 ns/op	   49214 B/op	       3 allocs/op
+// 19504	     62518 ns/op	      53 B/op	       2 allocs/op (old)
+// 15698	     72859 ns/op	     168 B/op	       3 allocs/op (new)
 func BenchmarkSortBidsStandard(b *testing.B) {
 	s := deployUnorderedSlice()
+	bucket := make(Tranches, len(s))
 	for i := 0; i < b.N; i++ {
-		//nolint: gocritic
-		ts := append(s[:0:0], s...)
-		ts.SortBids()
+		copy(bucket, s)
+		bucket.SortBids()
 	}
 }
 
-// 20565	     57001 ns/op	   49188 B/op	       2 allocs/op
+// 376708	      3559 ns/op	      24 B/op 		   1 allocs/op (old)
+// 377113	      3020 ns/op	     152 B/op	       3 allocs/op (new)
 func BenchmarkSortAsksAscending(b *testing.B) {
 	s := deploySliceOrdered()
+	bucket := make(Tranches, len(s))
 	for i := 0; i < b.N; i++ {
-		//nolint: gocritic
-		ts := append(s[:0:0], s...)
-		ts.SortAsks()
+		copy(bucket, s)
+		bucket.SortAsks()
 	}
 }
 
-// 12565	     97257 ns/op	   49208 B/op	       3 allocs/op
+// 262874	      4364 ns/op	      40 B/op	       2 allocs/op (old)
+// 401788	      3348 ns/op	     152 B/op	       3 allocs/op (new)
 func BenchmarkSortBidsDescending(b *testing.B) {
 	s := deploySliceOrdered()
 	s.Reverse()
+	bucket := make(Tranches, len(s))
 	for i := 0; i < b.N; i++ {
-		//nolint: gocritic
-		ts := append(s[:0:0], s...)
-		ts.SortBids()
-	}
-}
-
-// 124867	      8480 ns/op	   49152 B/op	       1 allocs/op
-func BenchmarkDuplicatingSlice(b *testing.B) {
-	s := deploySliceOrdered()
-	for i := 0; i < b.N; i++ {
-		_ = append(s[:0:0], s...)
-	}
-}
-
-// 122998	      8441 ns/op	   49152 B/op	       1 allocs/op
-func BenchmarkCopySlice(b *testing.B) {
-	s := deploySliceOrdered()
-	for i := 0; i < b.N; i++ {
-		cpy := make([]Item, len(s))
-		copy(cpy, s)
+		copy(bucket, s)
+		bucket.SortBids()
 	}
 }
 
 func TestCheckAlignment(t *testing.T) {
 	t.Parallel()
-	itemWithFunding := Items{
-		{
-			Amount: 1337,
-			Price:  0,
-			Period: 1337,
-		},
-	}
+	itemWithFunding := Tranches{{Amount: 1337, Price: 0, Period: 1337}}
 	err := checkAlignment(itemWithFunding, true, true, false, false, dsc, "Bitfinex")
 	if err != nil {
 		t.Error(err)

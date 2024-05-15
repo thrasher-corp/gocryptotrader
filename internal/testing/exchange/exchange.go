@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/http"
 	"net/http/httptest"
+	"path/filepath"
 	"strings"
 	"sync"
 	"testing"
@@ -19,12 +20,19 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/mock"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
+	testutils "github.com/thrasher-corp/gocryptotrader/internal/testing/utils"
 )
 
-// TestInstance takes an empty exchange instance and loads config for it from testdata/configtest and connects a NewTestWebsocket
-func TestInstance(e exchange.IBotExchange) error {
+// Setup takes an empty exchange instance and loads config for it from testdata/configtest and connects a NewTestWebsocket
+func Setup(e exchange.IBotExchange) error {
 	cfg := &config.Config{}
-	err := cfg.LoadConfig("../../testdata/configtest.json", true)
+
+	root, err := testutils.RootPathFromCWD()
+	if err != nil {
+		return err
+	}
+
+	err = cfg.LoadConfig(filepath.Join(root, "testdata", "configtest.json"), true)
 	if err != nil {
 		return fmt.Errorf("LoadConfig() error: %w", err)
 	}
@@ -92,7 +100,7 @@ func MockWsInstance[T any, PT interface {
 	tb.Helper()
 
 	e := PT(new(T))
-	require.NoError(tb, TestInstance(e), "TestInstance setup should not error")
+	require.NoError(tb, Setup(e), "Test exchange Setup must not error")
 
 	s := httptest.NewServer(h)
 

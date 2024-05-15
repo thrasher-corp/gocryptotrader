@@ -1978,6 +1978,11 @@ func GetDefaultConfig(ctx context.Context, exch IBotExchange) (*config.Exchange,
 	return exchCfg, nil
 }
 
+// GetCurrencyTradeURL returns the URL to the exchange's trade page for the given asset and currency pair
+func (b *Base) GetCurrencyTradeURL(context.Context, asset.Item, currency.Pair) (string, error) {
+	return "", common.ErrFunctionNotSupported
+}
+
 // FetchTicker returns the ticker for a currency pair and asset type
 // associated with the exchange.
 // NOTE: UpdateTicker (or if supported UpdateTickers) method must be

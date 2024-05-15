@@ -47,7 +47,7 @@ const (
 
 func TestMain(m *testing.M) {
 	k = new(Kraken)
-	if err := testexch.TestInstance(k); err != nil {
+	if err := testexch.Setup(k); err != nil {
 		log.Fatal(err)
 	}
 	if apiKey != "" && apiSecret != "" {
@@ -2037,7 +2037,7 @@ func TestGetHistoricTrades(t *testing.T) {
 }
 
 var testOb = orderbook.Base{
-	Asks: []orderbook.Item{
+	Asks: []orderbook.Tranche{
 		// NOTE: 0.00000500 float64 == 0.000005
 		{Price: 0.05005, StrPrice: "0.05005", Amount: 0.00000500, StrAmount: "0.00000500"},
 		{Price: 0.05010, StrPrice: "0.05010", Amount: 0.00000500, StrAmount: "0.00000500"},
@@ -2050,7 +2050,7 @@ var testOb = orderbook.Base{
 		{Price: 0.05045, StrPrice: "0.05045", Amount: 0.00000500, StrAmount: "0.00000500"},
 		{Price: 0.05050, StrPrice: "0.05050", Amount: 0.00000500, StrAmount: "0.00000500"},
 	},
-	Bids: []orderbook.Item{
+	Bids: []orderbook.Tranche{
 		{Price: 0.05000, StrPrice: "0.05000", Amount: 0.00000500, StrAmount: "0.00000500"},
 		{Price: 0.04995, StrPrice: "0.04995", Amount: 0.00000500, StrAmount: "0.00000500"},
 		{Price: 0.04990, StrPrice: "0.04990", Amount: 0.00000500, StrAmount: "0.00000500"},
@@ -2165,7 +2165,7 @@ func TestWsOrderbookMax10Depth(t *testing.T) {
 		err := k.wsHandleData([]byte(websocketLUNAEUROrderbookUpdates[x]))
 		// TODO: Known issue with LUNA pairs and big number float precision
 		// storage and checksum calc. Might need to store raw strings as fields
-		// in the orderbook.Item struct.
+		// in the orderbook.Tranche struct.
 		// Required checksum: 7465000014735432016076747100005084881400000007476000097005027047670474990000293338023886300750000004333333333333375020000152914844934167507000014652990542161752500007370728572000475400000670061645671407546000098022663603417745900007102987806720745800001593557686404000745200003375861179634000743500003156650585902777434000030172726079999999743200006461149653837000743100001042285966000000074300000403660461058200074200000369021657320475740500001674242117790510
 		if err != nil && x != len(websocketLUNAEUROrderbookUpdates)-1 {
 			t.Fatal(err)
@@ -2307,5 +2307,24 @@ func curryWsMockUpgrader(tb testing.TB, h testexch.WsMockFunc) http.HandlerFunc 
 			return
 		}
 		testexch.WsMockUpgrader(tb, w, r, h)
+	}
+}
+
+func TestGetCurrencyTradeURL(t *testing.T) {
+	t.Parallel()
+	testexch.UpdatePairsOnce(t, k)
+	for _, a := range k.GetAssetTypes(false) {
+		pairs, err := k.CurrencyPairs.GetPairs(a, false)
+		if len(pairs) == 0 {
+			continue
+		}
+		require.NoError(t, err, "cannot get pairs for %s", a)
+		resp, err := k.GetCurrencyTradeURL(context.Background(), a, pairs[0])
+		if a != asset.Spot && a != asset.Futures {
+			assert.ErrorIs(t, err, asset.ErrNotSupported)
+			continue
+		}
+		require.NoError(t, err)
+		assert.NotEmpty(t, resp)
 	}
 }
