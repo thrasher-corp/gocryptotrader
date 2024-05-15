@@ -823,7 +823,7 @@ func (by *Bybit) wsProcessOrderbook(assetType asset.Item, resp *WebsocketRespons
 	if err != nil {
 		return err
 	}
-	asks := make([]orderbook.Item, len(result.Asks))
+	asks := make([]orderbook.Tranche, len(result.Asks))
 	for i := range result.Asks {
 		asks[i].Price, err = strconv.ParseFloat(result.Asks[i][0], 64)
 		if err != nil {
@@ -834,7 +834,7 @@ func (by *Bybit) wsProcessOrderbook(assetType asset.Item, resp *WebsocketRespons
 			return err
 		}
 	}
-	bids := make([]orderbook.Item, len(result.Bids))
+	bids := make([]orderbook.Tranche, len(result.Bids))
 	for i := range result.Bids {
 		bids[i].Price, err = strconv.ParseFloat(result.Bids[i][0], 64)
 		if err != nil {
