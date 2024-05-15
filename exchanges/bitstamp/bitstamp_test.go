@@ -954,7 +954,8 @@ func TestOrderbookZeroBidPrice(t *testing.T) {
 		Asset:    asset.Spot,
 	}
 	filterOrderbookZeroBidPrice(ob)
-	ob.Bids = orderbook.Items{
+
+	ob.Bids = orderbook.Tranches{
 		{Price: 69, Amount: 1337},
 		{Price: 0, Amount: 69},
 	}
@@ -962,7 +963,8 @@ func TestOrderbookZeroBidPrice(t *testing.T) {
 	if ob.Bids[0].Price != 69 || ob.Bids[0].Amount != 1337 || len(ob.Bids) != 1 {
 		t.Error("invalid orderbook bid values")
 	}
-	ob.Bids = orderbook.Items{
+
+	ob.Bids = orderbook.Tranches{
 		{Price: 59, Amount: 1337},
 		{Price: 42, Amount: 8595},
 	}

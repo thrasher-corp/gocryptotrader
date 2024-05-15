@@ -411,7 +411,7 @@ func (o *Okcoin) UpdateOrderbook(ctx context.Context, p currency.Pair, a asset.I
 	if err != nil {
 		return nil, err
 	}
-	book.Bids = make(orderbook.Items, len(orderbookList.Bids))
+	book.Bids = make(orderbook.Tranches, len(orderbookList.Bids))
 	for x := range orderbookList.Bids {
 		book.Bids[x].Amount, err = strconv.ParseFloat(orderbookList.Bids[x][1], 64)
 		if err != nil {
@@ -422,7 +422,7 @@ func (o *Okcoin) UpdateOrderbook(ctx context.Context, p currency.Pair, a asset.I
 			return book, err
 		}
 	}
-	book.Asks = make(orderbook.Items, len(orderbookList.Asks))
+	book.Asks = make(orderbook.Tranches, len(orderbookList.Asks))
 	for x := range orderbookList.Asks {
 		book.Asks[x].Amount, err = strconv.ParseFloat(orderbookList.Asks[x][1], 64)
 		if err != nil {

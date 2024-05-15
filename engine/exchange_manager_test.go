@@ -48,8 +48,8 @@ func TestExchangeManagerAdd(t *testing.T) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
 	}
 	err = m.Add(b)
-	if !errors.Is(err, errExchangeAlreadyLoaded) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errExchangeAlreadyLoaded)
+	if !errors.Is(err, ErrExchangeAlreadyLoaded) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, ErrExchangeAlreadyLoaded)
 	}
 	exchanges, err := m.GetExchanges()
 	if err != nil {

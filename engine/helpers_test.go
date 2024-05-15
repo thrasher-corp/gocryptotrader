@@ -759,7 +759,7 @@ func TestGetSpecificOrderbook(t *testing.T) {
 
 	base := orderbook.Base{
 		Pair:     currency.NewPair(currency.BTC, currency.USD),
-		Bids:     []orderbook.Item{{Price: 1000, Amount: 1}},
+		Bids:     []orderbook.Tranche{{Price: 1000, Amount: 1}},
 		Exchange: "Bitstamp",
 		Asset:    asset.Spot,
 	}

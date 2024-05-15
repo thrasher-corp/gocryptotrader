@@ -1085,8 +1085,8 @@ func TestGetExchangeInfo(t *testing.T) {
 	info, err := b.GetExchangeInfo(context.Background())
 	require.NoError(t, err, "GetExchangeInfo must not error")
 	if mockTests {
-		exp := time.Date(2022, 2, 25, 3, 50, 40, int(601*time.Millisecond), time.UTC)
-		assert.True(t, info.ServerTime.Equal(exp), "ServerTime should be correct")
+		exp := time.Date(2024, 5, 10, 6, 8, 1, int(707*time.Millisecond), time.UTC)
+		assert.True(t, info.ServerTime.Equal(exp), "expected %v received %v", exp.UTC(), info.ServerTime.UTC())
 	} else {
 		assert.WithinRange(t, info.ServerTime, time.Now().Add(-24*time.Hour), time.Now().Add(24*time.Hour), "ServerTime should be within a day of now")
 	}
