@@ -843,7 +843,7 @@ func (bt *BackTest) loadData(cfg *config.Config, exch gctexchange.IBotExchange, 
 				cfg.DataSettings.Interval)
 		}
 		err = bt.exchangeManager.Add(exch)
-		if err != nil {
+		if err != nil && !errors.Is(err, engine.ErrExchangeAlreadyLoaded) {
 			return nil, err
 		}
 		err = bt.LiveDataHandler.AppendDataSource(&liveDataSourceSetup{
@@ -955,7 +955,8 @@ func setExchangeCredentials(cfg *config.Config, base *gctexchange.Base) error {
 			cfg.DataSettings.LiveData.ExchangeCredentials[i].Keys.IsEmpty() {
 			return fmt.Errorf("%v %w, please review your live, real order config", base.GetName(), gctexchange.ErrCredentialsAreEmpty)
 		}
-
+		base.API.AuthenticatedSupport = true
+		base.API.AuthenticatedWebsocketSupport = true
 		base.SetCredentials(
 			cfg.DataSettings.LiveData.ExchangeCredentials[i].Keys.Key,
 			cfg.DataSettings.LiveData.ExchangeCredentials[i].Keys.Secret,
@@ -964,10 +965,9 @@ func setExchangeCredentials(cfg *config.Config, base *gctexchange.Base) error {
 			cfg.DataSettings.LiveData.ExchangeCredentials[i].Keys.PEMKey,
 			cfg.DataSettings.LiveData.ExchangeCredentials[i].Keys.OneTimePassword,
 		)
-		validated := base.AreCredentialsValid(context.TODO())
-		base.API.AuthenticatedSupport = validated
-		if !validated {
-			return fmt.Errorf("%v %w", base.GetName(), errInvalidCredentials)
+		_, err := base.GetCredentials(context.TODO())
+		if err != nil {
+			return err
 		}
 	}
 

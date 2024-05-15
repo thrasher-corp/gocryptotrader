@@ -23,6 +23,7 @@ import (
 const (
 	coinbaseproAPIURL                  = "https://api.pro.coinbase.com/"
 	coinbaseproSandboxAPIURL           = "https://api-public.sandbox.pro.coinbase.com/"
+	tradeBaseURL                       = "https://www.coinbase.com/advanced-trade/spot/"
 	coinbaseproAPIVersion              = "0"
 	coinbaseproProducts                = "products"
 	coinbaseproOrderbook               = "book"

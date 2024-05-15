@@ -23,6 +23,8 @@ import (
 
 const (
 	poloniexAPIURL               = "https://poloniex.com"
+	tradeSpot                    = "/trade/"
+	tradeFutures                 = "/futures" + tradeSpot
 	poloniexAltAPIUrl            = "https://api.poloniex.com"
 	poloniexAPITradingEndpoint   = "tradingApi"
 	poloniexAPIVersion           = "1"

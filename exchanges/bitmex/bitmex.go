@@ -26,6 +26,7 @@ const (
 	bitmexAPIVersion    = "v1"
 	bitmexAPIURL        = "https://www.bitmex.com/api/v1"
 	bitmexAPItestnetURL = "https://testnet.bitmex.com/api/v1"
+	tradeBaseURL        = "https://www.bitmex.com/app/trade/"
 
 	// Public endpoints
 	bitmexEndpointAnnouncement              = "/announcement"
