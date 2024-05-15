@@ -25,10 +25,10 @@ import (
 const (
 	// WebsocketResponseDefaultTimeout used in websocket testing
 	// Defines wait time for receiving websocket response before cancelling
-	WebsocketResponseDefaultTimeout = (3 * time.Second)
+	WebsocketResponseDefaultTimeout = 3 * time.Second
 	// WebsocketResponseExtendedTimeout used in websocket testing
 	// Defines wait time for receiving websocket response before cancelling
-	WebsocketResponseExtendedTimeout = (15 * time.Second)
+	WebsocketResponseExtendedTimeout = 15 * time.Second
 	// WebsocketChannelOverrideCapacity used in websocket testing
 	// Defines channel capacity as defaults size can block tests
 	WebsocketChannelOverrideCapacity = 500
