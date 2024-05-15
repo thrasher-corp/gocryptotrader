@@ -1233,46 +1233,46 @@ func (b *Binance) FetchExchangeLimits(ctx context.Context, a asset.Item) ([]orde
 			return nil, err
 		}
 
-		if !slices.Contains(s.Permissions, aUpper) {
-			continue
-		}
-
-		l := order.MinMaxLevel{
-			Pair:  cp,
-			Asset: a,
-		}
-
-		for _, f := range s.Filters {
-			// TODO: Unhandled filters:
-			// maxPosition, trailingDelta, percentPriceBySide, maxNumAlgoOrders
-			switch f.FilterType {
-			case priceFilter:
-				l.MinPrice = f.MinPrice
-				l.MaxPrice = f.MaxPrice
-				l.PriceStepIncrementSize = f.TickSize
-			case percentPriceFilter:
-				l.MultiplierUp = f.MultiplierUp
-				l.MultiplierDown = f.MultiplierDown
-				l.AveragePriceMinutes = f.AvgPriceMinutes
-			case lotSizeFilter:
-				l.MaximumBaseAmount = f.MaxQty
-				l.MinimumBaseAmount = f.MinQty
-				l.AmountStepIncrementSize = f.StepSize
-			case notionalFilter:
-				l.MinNotional = f.MinNotional
-			case icebergPartsFilter:
-				l.MaxIcebergParts = f.Limit
-			case marketLotSizeFilter:
-				l.MarketMinQty = f.MinQty
-				l.MarketMaxQty = f.MaxQty
-				l.MarketStepIncrementSize = f.StepSize
-			case maxNumOrdersFilter:
-				l.MaxTotalOrders = f.MaxNumOrders
-				l.MaxAlgoOrders = f.MaxNumAlgoOrders
+		for i := range s.PermissionSets {
+			if !slices.Contains(s.PermissionSets[i], aUpper) {
+				continue
 			}
+			l := order.MinMaxLevel{
+				Pair:  cp,
+				Asset: a,
+			}
+			for _, f := range s.Filters {
+				// TODO: Unhandled filters:
+				// maxPosition, trailingDelta, percentPriceBySide, maxNumAlgoOrders
+				switch f.FilterType {
+				case priceFilter:
+					l.MinPrice = f.MinPrice
+					l.MaxPrice = f.MaxPrice
+					l.PriceStepIncrementSize = f.TickSize
+				case percentPriceFilter:
+					l.MultiplierUp = f.MultiplierUp
+					l.MultiplierDown = f.MultiplierDown
+					l.AveragePriceMinutes = f.AvgPriceMinutes
+				case lotSizeFilter:
+					l.MaximumBaseAmount = f.MaxQty
+					l.MinimumBaseAmount = f.MinQty
+					l.AmountStepIncrementSize = f.StepSize
+				case notionalFilter:
+					l.MinNotional = f.MinNotional
+				case icebergPartsFilter:
+					l.MaxIcebergParts = f.Limit
+				case marketLotSizeFilter:
+					l.MarketMinQty = f.MinQty
+					l.MarketMaxQty = f.MaxQty
+					l.MarketStepIncrementSize = f.StepSize
+				case maxNumOrdersFilter:
+					l.MaxTotalOrders = f.MaxNumOrders
+					l.MaxAlgoOrders = f.MaxNumAlgoOrders
+				}
+			}
+			limits = append(limits, l)
+			break
 		}
-
-		limits = append(limits, l)
 	}
 	return limits, nil
 }
