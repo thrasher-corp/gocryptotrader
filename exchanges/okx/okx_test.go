@@ -2321,7 +2321,7 @@ const wsInstrumentPushData = `{"arg": {"channel": "instruments","instType": "FUT
 
 func TestWSInstruments(t *testing.T) {
 	t.Parallel()
-	if err := ok.WsHandleData([]byte(wsInstrumentPushData)); err != nil {
+	if err := ok.WsHandleData(context.Background(), []byte(wsInstrumentPushData)); err != nil {
 		t.Errorf("%s Websocket Instruments Push Data error %v", ok.Name, err)
 	}
 }
@@ -2331,7 +2331,7 @@ var tickerChannelPushData = `{"arg": {"channel": "tickers","instId": "%v"},"data
 func TestTickerChannel(t *testing.T) {
 	t.Parallel()
 	curr := ok.CurrencyPairs.Pairs[asset.PerpetualSwap].Enabled[0]
-	if err := ok.WsHandleData([]byte(fmt.Sprintf(tickerChannelPushData, curr, curr))); err != nil {
+	if err := ok.WsHandleData(context.Background(), []byte(fmt.Sprintf(tickerChannelPushData, curr, curr))); err != nil {
 		t.Error("Okx TickerChannel push data error", err)
 	}
 }
@@ -2340,7 +2340,7 @@ const openInterestChannelPushData = `{"arg": {"channel": "open-interest","instId
 
 func TestOpenInterestPushData(t *testing.T) {
 	t.Parallel()
-	if err := ok.WsHandleData([]byte(openInterestChannelPushData)); err != nil {
+	if err := ok.WsHandleData(context.Background(), []byte(openInterestChannelPushData)); err != nil {
 		t.Error("Okx Open Interest Push Data error", err)
 	}
 }
@@ -2349,7 +2349,7 @@ var candlesticksPushData = `{"arg": {"channel": "candle1D","instId": "%v"},"data
 
 func TestCandlestickPushData(t *testing.T) {
 	t.Parallel()
-	if err := ok.WsHandleData([]byte(fmt.Sprintf(candlesticksPushData, ok.CurrencyPairs.Pairs[asset.Futures].Enabled[0]))); err != nil {
+	if err := ok.WsHandleData(context.Background(), []byte(fmt.Sprintf(candlesticksPushData, ok.CurrencyPairs.Pairs[asset.Futures].Enabled[0]))); err != nil {
 		t.Error("Okx Candlestick Push Data error", err)
 	}
 }
@@ -2358,7 +2358,7 @@ const tradePushDataJSON = `{"arg": {"channel": "trades","instId": "BTC-USDT"},"d
 
 func TestTradePushData(t *testing.T) {
 	t.Parallel()
-	if err := ok.WsHandleData([]byte(tradePushDataJSON)); err != nil {
+	if err := ok.WsHandleData(context.Background(), []byte(tradePushDataJSON)); err != nil {
 		t.Error("Okx Trade Push Data error", err)
 	}
 }
@@ -2367,7 +2367,7 @@ const estimatedDeliveryAndExercisePricePushDataJSON = `{"arg": {"args": "estimat
 
 func TestEstimatedDeliveryAndExercisePricePushData(t *testing.T) {
 	t.Parallel()
-	if err := ok.WsHandleData([]byte(estimatedDeliveryAndExercisePricePushDataJSON)); err != nil {
+	if err := ok.WsHandleData(context.Background(), []byte(estimatedDeliveryAndExercisePricePushDataJSON)); err != nil {
 		t.Error("Okx Estimated Delivery and Exercise Price Push Data error", err)
 	}
 }
@@ -2376,7 +2376,7 @@ const markPricePushData = `{"arg": {"channel": "mark-price","instId": "LTC-USD-1
 
 func TestMarkPricePushData(t *testing.T) {
 	t.Parallel()
-	if err := ok.WsHandleData([]byte(markPricePushData)); err != nil {
+	if err := ok.WsHandleData(context.Background(), []byte(markPricePushData)); err != nil {
 		t.Error("Okx Mark Price Push Data error", err)
 	}
 }
@@ -2385,7 +2385,7 @@ const markPriceCandlestickPushData = `{"arg": {"channel": "mark-price-candle1D",
 
 func TestMarkPriceCandlestickPushData(t *testing.T) {
 	t.Parallel()
-	if err := ok.WsHandleData([]byte(markPriceCandlestickPushData)); err != nil {
+	if err := ok.WsHandleData(context.Background(), []byte(markPriceCandlestickPushData)); err != nil {
 		t.Error("Okx Mark Price Candlestick Push Data error", err)
 	}
 }
@@ -2394,7 +2394,7 @@ const priceLimitPushDataJSON = `{    "arg": {        "channel": "price-limit",  
 
 func TestPriceLimitPushData(t *testing.T) {
 	t.Parallel()
-	if err := ok.WsHandleData([]byte(priceLimitPushDataJSON)); err != nil {
+	if err := ok.WsHandleData(context.Background(), []byte(priceLimitPushDataJSON)); err != nil {
 		t.Error("Okx Price Limit Push Data error", err)
 	}
 }
@@ -2404,10 +2404,10 @@ const updateOrderBookPushDataJSON = `{"arg":{"channel":"books","instId":"BTC-USD
 
 func TestSnapshotAndUpdateOrderBookPushData(t *testing.T) {
 	t.Parallel()
-	if err := ok.WsHandleData([]byte(testSnapshotOrderbookPushData)); err != nil {
+	if err := ok.WsHandleData(context.Background(), []byte(testSnapshotOrderbookPushData)); err != nil {
 		t.Error("Okx Snapshot order book push data error", err)
 	}
-	if err := ok.WsHandleData([]byte(updateOrderBookPushDataJSON)); err != nil {
+	if err := ok.WsHandleData(context.Background(), []byte(updateOrderBookPushDataJSON)); err != nil {
 		t.Error("Okx Update Order Book Push Data error", err)
 	}
 }
@@ -2416,7 +2416,7 @@ var snapshotOrderBookPushData = `{"arg":{"channel":"books","instId":"%v"},"actio
 
 func TestSnapshotPushData(t *testing.T) {
 	t.Parallel()
-	err := ok.WsHandleData([]byte(fmt.Sprintf(snapshotOrderBookPushData, ok.CurrencyPairs.Pairs[asset.Futures].Enabled[0])))
+	err := ok.WsHandleData(context.Background(), []byte(fmt.Sprintf(snapshotOrderBookPushData, ok.CurrencyPairs.Pairs[asset.Futures].Enabled[0])))
 	if err != nil {
 		t.Error("Okx Snapshot order book push data error", err)
 	}
@@ -2442,7 +2442,7 @@ const optionSummaryPushDataJSON = `{"arg": {"channel": "opt-summary","uly": "BTC
 
 func TestOptionSummaryPushData(t *testing.T) {
 	t.Parallel()
-	if err := ok.WsHandleData([]byte(optionSummaryPushDataJSON)); err != nil {
+	if err := ok.WsHandleData(context.Background(), []byte(optionSummaryPushDataJSON)); err != nil {
 		t.Error("Okx Option Summary Push Data error", err)
 	}
 }
@@ -2451,7 +2451,7 @@ const fundingRatePushDataJSON = `{"arg": {"channel": "funding-rate","instId": "B
 
 func TestFundingRatePushData(t *testing.T) {
 	t.Parallel()
-	if err := ok.WsHandleData([]byte(fundingRatePushDataJSON)); err != nil {
+	if err := ok.WsHandleData(context.Background(), []byte(fundingRatePushDataJSON)); err != nil {
 		t.Error("Okx Funding Rate Push Data error", err)
 	}
 }
@@ -2460,7 +2460,7 @@ var indexCandlestickPushDataJSON = `{"arg": {"channel": "index-candle30m","instI
 
 func TestIndexCandlestickPushData(t *testing.T) {
 	t.Parallel()
-	if err := ok.WsHandleData([]byte(indexCandlestickPushDataJSON)); err != nil {
+	if err := ok.WsHandleData(context.Background(), []byte(indexCandlestickPushDataJSON)); err != nil {
 		t.Error("Okx Index Candlestick Push Data error", err)
 	}
 }
@@ -2469,7 +2469,7 @@ const indexTickerPushDataJSON = `{"arg": {"channel": "index-tickers","instId": "
 
 func TestIndexTickersPushData(t *testing.T) {
 	t.Parallel()
-	if err := ok.WsHandleData([]byte(indexTickerPushDataJSON)); err != nil {
+	if err := ok.WsHandleData(context.Background(), []byte(indexTickerPushDataJSON)); err != nil {
 		t.Error("Okx Index Ticker Push Data error", err)
 	}
 }
@@ -2478,7 +2478,7 @@ const statusPushDataJSON = `{"arg": {"channel": "status"},"data": [{"title": "Sp
 
 func TestStatusPushData(t *testing.T) {
 	t.Parallel()
-	if err := ok.WsHandleData([]byte(statusPushDataJSON)); err != nil {
+	if err := ok.WsHandleData(context.Background(), []byte(statusPushDataJSON)); err != nil {
 		t.Error("Okx Status Push Data error", err)
 	}
 }
@@ -2487,7 +2487,7 @@ const publicStructBlockTradesPushDataJSON = `{"arg":{"channel":"public-struc-blo
 
 func TestPublicStructBlockTrades(t *testing.T) {
 	t.Parallel()
-	if err := ok.WsHandleData([]byte(publicStructBlockTradesPushDataJSON)); err != nil {
+	if err := ok.WsHandleData(context.Background(), []byte(publicStructBlockTradesPushDataJSON)); err != nil {
 		t.Error("Okx Public Struct Block Trades error", err)
 	}
 }
@@ -2496,7 +2496,7 @@ const blockTickerPushDataJSON = `{"arg": {"channel": "block-tickers"},"data": [{
 
 func TestBlockTickerPushData(t *testing.T) {
 	t.Parallel()
-	if err := ok.WsHandleData([]byte(blockTickerPushDataJSON)); err != nil {
+	if err := ok.WsHandleData(context.Background(), []byte(blockTickerPushDataJSON)); err != nil {
 		t.Error("Okx Block Tickers push data error", err)
 	}
 }
@@ -2505,7 +2505,7 @@ const accountPushDataJSON = `{"arg": {"channel": "block-tickers"},"data": [{"ins
 
 func TestAccountPushData(t *testing.T) {
 	t.Parallel()
-	if err := ok.WsHandleData([]byte(accountPushDataJSON)); err != nil {
+	if err := ok.WsHandleData(context.Background(), []byte(accountPushDataJSON)); err != nil {
 		t.Error("Okx Account Push Data error", err)
 	}
 }
@@ -2515,10 +2515,10 @@ const positionPushDataWithUnderlyingJSON = `{"arg": {"channel": "positions","uid
 
 func TestPositionPushData(t *testing.T) {
 	t.Parallel()
-	if err := ok.WsHandleData([]byte(positionPushDataJSON)); err != nil {
+	if err := ok.WsHandleData(context.Background(), []byte(positionPushDataJSON)); err != nil {
 		t.Error("Okx Account Push Data error", err)
 	}
-	if err := ok.WsHandleData([]byte(positionPushDataWithUnderlyingJSON)); err != nil {
+	if err := ok.WsHandleData(context.Background(), []byte(positionPushDataWithUnderlyingJSON)); err != nil {
 		t.Error("Okx Account Push Data error", err)
 	}
 }
@@ -2527,7 +2527,7 @@ const balanceAndPositionJSON = `{"arg": {"channel": "balance_and_position","uid"
 
 func TestBalanceAndPosition(t *testing.T) {
 	t.Parallel()
-	if err := ok.WsHandleData([]byte(balanceAndPositionJSON)); err != nil {
+	if err := ok.WsHandleData(context.Background(), []byte(balanceAndPositionJSON)); err != nil {
 		t.Error("Okx Balance And Position error", err)
 	}
 }
@@ -2602,7 +2602,7 @@ const algoOrdersPushDataJSON = `{"arg": {"channel": "orders-algo","uid": "779823
 
 func TestAlgoOrderPushData(t *testing.T) {
 	t.Parallel()
-	if err := ok.WsHandleData([]byte(algoOrdersPushDataJSON)); err != nil {
+	if err := ok.WsHandleData(context.Background(), []byte(algoOrdersPushDataJSON)); err != nil {
 		t.Error("Okx Algo Order Push Data error", err)
 	}
 }
@@ -2611,7 +2611,7 @@ const advancedAlgoOrderPushDataJSON = `{"arg":{"channel":"algo-advance","uid": "
 
 func TestAdvancedAlgoOrderPushData(t *testing.T) {
 	t.Parallel()
-	if err := ok.WsHandleData([]byte(advancedAlgoOrderPushDataJSON)); err != nil {
+	if err := ok.WsHandleData(context.Background(), []byte(advancedAlgoOrderPushDataJSON)); err != nil {
 		t.Error("Okx Advanced Algo Orders Push Data error", err)
 	}
 }
@@ -2620,7 +2620,7 @@ const positionRiskPushDataJSON = `{"arg": {"channel": "liquidation-warning","uid
 
 func TestPositionRiskPushDataJSON(t *testing.T) {
 	t.Parallel()
-	if err := ok.WsHandleData([]byte(positionRiskPushDataJSON)); err != nil {
+	if err := ok.WsHandleData(context.Background(), []byte(positionRiskPushDataJSON)); err != nil {
 		t.Error("Okx Position Risk Push Data error", err)
 	}
 }
@@ -2629,7 +2629,7 @@ const accountGreeksPushData = `{"arg": {"channel": "account-greeks","ccy": "BTC"
 
 func TestAccountGreeksPushData(t *testing.T) {
 	t.Parallel()
-	if err := ok.WsHandleData([]byte(accountGreeksPushData)); err != nil {
+	if err := ok.WsHandleData(context.Background(), []byte(accountGreeksPushData)); err != nil {
 		t.Error("Okx Account Greeks Push Data error", err)
 	}
 }
@@ -2638,7 +2638,7 @@ const rfqsPushDataJSON = `{"arg": {"channel": "account-greeks","ccy": "BTC"},"da
 
 func TestRfqs(t *testing.T) {
 	t.Parallel()
-	if err := ok.WsHandleData([]byte(rfqsPushDataJSON)); err != nil {
+	if err := ok.WsHandleData(context.Background(), []byte(rfqsPushDataJSON)); err != nil {
 		t.Error("Okx Rfqs Push Data error", err)
 	}
 }
@@ -2647,7 +2647,7 @@ const accountsPushDataJSON = `{	"arg": {	  "channel": "account",	  "ccy": "BTC",
 
 func TestAccounts(t *testing.T) {
 	t.Parallel()
-	if err := ok.WsHandleData([]byte(accountsPushDataJSON)); err != nil {
+	if err := ok.WsHandleData(context.Background(), []byte(accountsPushDataJSON)); err != nil {
 		t.Errorf("%s Accounts push data error %v", ok.Name, err)
 	}
 }
@@ -2656,7 +2656,7 @@ const quotesPushDataJSON = `{"arg":{"channel":"quotes"},"data":[{"validUntil":"1
 
 func TestQuotesPushData(t *testing.T) {
 	t.Parallel()
-	if err := ok.WsHandleData([]byte(quotesPushDataJSON)); err != nil {
+	if err := ok.WsHandleData(context.Background(), []byte(quotesPushDataJSON)); err != nil {
 		t.Error("Okx Quotes Push Data error", err)
 	}
 }
@@ -2665,7 +2665,7 @@ const structureBlockTradesPushDataJSON = `{"arg":{"channel":"struc-block-trades"
 
 func TestStructureBlockTradesPushData(t *testing.T) {
 	t.Parallel()
-	if err := ok.WsHandleData([]byte(structureBlockTradesPushDataJSON)); err != nil {
+	if err := ok.WsHandleData(context.Background(), []byte(structureBlockTradesPushDataJSON)); err != nil {
 		t.Error("Okx Structure Block Trades error", err)
 	}
 }
@@ -2674,7 +2674,7 @@ const spotGridAlgoOrdersPushDataJSON = `{"arg": {"channel": "grid-orders-spot","
 
 func TestSpotGridAlgoOrdersPushData(t *testing.T) {
 	t.Parallel()
-	if err := ok.WsHandleData([]byte(spotGridAlgoOrdersPushDataJSON)); err != nil {
+	if err := ok.WsHandleData(context.Background(), []byte(spotGridAlgoOrdersPushDataJSON)); err != nil {
 		t.Error("Okx Spot Grid Algo Orders Push Data error", err)
 	}
 }
@@ -2683,7 +2683,7 @@ const contractGridAlgoOrdersPushDataJSON = `{"arg": {"channel": "grid-orders-con
 
 func TestContractGridAlgoOrdersPushData(t *testing.T) {
 	t.Parallel()
-	if err := ok.WsHandleData([]byte(contractGridAlgoOrdersPushDataJSON)); err != nil {
+	if err := ok.WsHandleData(context.Background(), []byte(contractGridAlgoOrdersPushDataJSON)); err != nil {
 		t.Error("Okx Contract Grid Algo Order Push Data error", err)
 	}
 }
@@ -2692,7 +2692,7 @@ const gridPositionsPushDataJSON = `{"arg": {"channel": "grid-positions","uid": "
 
 func TestGridPositionsPushData(t *testing.T) {
 	t.Parallel()
-	if err := ok.WsHandleData([]byte(gridPositionsPushDataJSON)); err != nil {
+	if err := ok.WsHandleData(context.Background(), []byte(gridPositionsPushDataJSON)); err != nil {
 		t.Error("Okx Grid Positions Push Data error", err)
 	}
 }
@@ -2701,7 +2701,7 @@ const gridSubOrdersPushDataJSON = `{"arg": {"channel": "grid-sub-orders","uid": 
 
 func TestGridSubOrdersPushData(t *testing.T) {
 	t.Parallel()
-	if err := ok.WsHandleData([]byte(gridSubOrdersPushDataJSON)); err != nil {
+	if err := ok.WsHandleData(context.Background(), []byte(gridSubOrdersPushDataJSON)); err != nil {
 		t.Error("Okx Grid Sub orders Push Data error", err)
 	}
 }
@@ -2720,7 +2720,7 @@ func setupWS() {
 	if !sharedtestvalues.AreAPICredentialsSet(ok) {
 		ok.Websocket.SetCanUseAuthenticatedEndpoints(false)
 	}
-	err := ok.WsConnect()
+	err := ok.WsConnect(context.Background())
 	if err != nil {
 		log.Fatal(err)
 	}

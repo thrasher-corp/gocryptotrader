@@ -1,6 +1,7 @@
 package bithumb
 
 import (
+	"context"
 	"errors"
 	"sync"
 	"testing"
@@ -52,7 +53,7 @@ func TestWsHandleData(t *testing.T) {
 		},
 	}
 
-	dummy.setupOrderbookManager()
+	dummy.setupOrderbookManager(context.Background())
 	dummy.API.Endpoints = b.NewEndpoints()
 
 	welcomeMsg := []byte(`{"status":"0000","resmsg":"Connected Successfully"}`)

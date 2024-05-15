@@ -72,7 +72,7 @@ func isAuthenticatedChannel(channel string) bool {
 }
 
 // WsConnect initiates a websocket connection
-func (o *Okcoin) WsConnect() error {
+func (o *Okcoin) WsConnect(ctx context.Context) error {
 	if !o.Websocket.IsEnabled() || !o.IsEnabled() {
 		return stream.ErrWebsocketNotEnabled
 	}
@@ -94,10 +94,10 @@ func (o *Okcoin) WsConnect() error {
 	})
 
 	o.Websocket.Wg.Add(1)
-	go o.WsReadData(o.Websocket.Conn)
+	go o.WsReadData(ctx, o.Websocket.Conn)
 
 	if o.IsWebsocketAuthenticationSupported() {
-		err = o.WsLogin(context.TODO(), &dialer)
+		err = o.WsLogin(ctx, &dialer)
 		if err != nil {
 			log.Errorf(log.ExchangeSys,
 				"%v - authentication failed: %v\n",
@@ -120,7 +120,7 @@ func (o *Okcoin) WsLogin(ctx context.Context, dialer *websocket.Dialer) error {
 		return err
 	}
 	o.Websocket.Wg.Add(1)
-	go o.WsReadData(o.Websocket.AuthConn)
+	go o.WsReadData(ctx, o.Websocket.AuthConn)
 	o.Websocket.AuthConn.SetupPingHandler(stream.PingHandler{
 		Delay:       time.Second * 25,
 		Message:     []byte("ping"),
@@ -156,14 +156,14 @@ func (o *Okcoin) WsLogin(ctx context.Context, dialer *websocket.Dialer) error {
 }
 
 // WsReadData receives and passes on websocket messages for processing
-func (o *Okcoin) WsReadData(conn stream.Connection) {
+func (o *Okcoin) WsReadData(ctx context.Context, conn stream.Connection) {
 	defer o.Websocket.Wg.Done()
 	for {
 		resp := conn.ReadMessage()
 		if resp.Raw == nil {
 			return
 		}
-		err := o.WsHandleData(resp.Raw)
+		err := o.WsHandleData(ctx, resp.Raw)
 		if err != nil {
 			o.Websocket.DataHandler <- err
 		}
@@ -171,7 +171,7 @@ func (o *Okcoin) WsReadData(conn stream.Connection) {
 }
 
 // WsHandleData will read websocket raw data and pass to appropriate handler
-func (o *Okcoin) WsHandleData(respRaw []byte) error {
+func (o *Okcoin) WsHandleData(ctx context.Context, respRaw []byte) error {
 	if bytes.Equal(respRaw, []byte(pongBytes)) {
 		return nil
 	}
@@ -204,7 +204,7 @@ func (o *Okcoin) WsHandleData(respRaw []byte) error {
 			wsOrderbookL1,
 			wsOrderbookTickByTickL400,
 			wsOrderbookTickByTickL50:
-			return o.wsProcessOrderbook(respRaw, dataResponse.Arguments.Channel)
+			return o.wsProcessOrderbook(ctx, respRaw, dataResponse.Arguments.Channel)
 		case wsStatus:
 			var resp WebsocketStatus
 			err = json.Unmarshal(respRaw, &resp)
@@ -473,7 +473,7 @@ func (o *Okcoin) wsProcessAccount(respRaw []byte) error {
 	return nil
 }
 
-func (o *Okcoin) wsProcessOrderbook(respRaw []byte, obChannel string) error {
+func (o *Okcoin) wsProcessOrderbook(ctx context.Context, respRaw []byte, obChannel string) error {
 	var resp WebsocketOrderbookResponse
 	err := json.Unmarshal(respRaw, &resp)
 	if err != nil {
@@ -531,7 +531,7 @@ func (o *Okcoin) wsProcessOrderbook(respRaw []byte, obChannel string) error {
 		err = o.Websocket.Orderbook.LoadSnapshot(&base)
 		if err != nil {
 			if errors.Is(err, orderbook.ErrOrderbookInvalid) {
-				err2 := o.ReSubscribeSpecificOrderbook(obChannel, base.Pair)
+				err2 := o.ReSubscribeSpecificOrderbook(ctx, obChannel, base.Pair)
 				if err2 != nil {
 					return err2
 				}
@@ -561,7 +561,7 @@ func (o *Okcoin) wsProcessOrderbook(respRaw []byte, obChannel string) error {
 	err = o.Websocket.Orderbook.Update(&update)
 	if err != nil {
 		if errors.Is(err, orderbook.ErrOrderbookInvalid) {
-			err2 := o.ReSubscribeSpecificOrderbook(obChannel, update.Pair)
+			err2 := o.ReSubscribeSpecificOrderbook(ctx, obChannel, update.Pair)
 			if err2 != nil {
 				return err2
 			}
@@ -581,15 +581,15 @@ func (o *Okcoin) wsProcessOrderbook(respRaw []byte, obChannel string) error {
 
 // ReSubscribeSpecificOrderbook removes the subscription and the subscribes
 // again to fetch a new snapshot in the event of a de-sync event.
-func (o *Okcoin) ReSubscribeSpecificOrderbook(obChannel string, p currency.Pair) error {
+func (o *Okcoin) ReSubscribeSpecificOrderbook(ctx context.Context, obChannel string, p currency.Pair) error {
 	subscription := []subscription.Subscription{{
 		Channel: obChannel,
 		Pair:    p,
 	}}
-	if err := o.Unsubscribe(subscription); err != nil {
+	if err := o.Unsubscribe(ctx, subscription); err != nil {
 		return err
 	}
-	return o.Subscribe(subscription)
+	return o.Subscribe(ctx, subscription)
 }
 
 // wsProcessInstruments converts instrument data and sends it to the datahandler
@@ -848,12 +848,12 @@ func (o *Okcoin) GenerateDefaultSubscriptions() ([]subscription.Subscription, er
 }
 
 // Subscribe sends a websocket message to receive data from the channel
-func (o *Okcoin) Subscribe(channelsToSubscribe []subscription.Subscription) error {
+func (o *Okcoin) Subscribe(_ context.Context, channelsToSubscribe []subscription.Subscription) error {
 	return o.handleSubscriptions("subscribe", channelsToSubscribe)
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
-func (o *Okcoin) Unsubscribe(channelsToUnsubscribe []subscription.Subscription) error {
+func (o *Okcoin) Unsubscribe(_ context.Context, channelsToUnsubscribe []subscription.Subscription) error {
 	return o.handleSubscriptions("unsubscribe", channelsToUnsubscribe)
 }
 

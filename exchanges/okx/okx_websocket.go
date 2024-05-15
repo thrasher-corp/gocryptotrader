@@ -214,7 +214,7 @@ const (
 )
 
 // WsConnect initiates a websocket connection
-func (ok *Okx) WsConnect() error {
+func (ok *Okx) WsConnect(ctx context.Context) error {
 	if !ok.Websocket.IsEnabled() || !ok.IsEnabled() {
 		return stream.ErrWebsocketNotEnabled
 	}
@@ -227,7 +227,7 @@ func (ok *Okx) WsConnect() error {
 		return err
 	}
 	ok.Websocket.Wg.Add(1)
-	go ok.wsReadData(ok.Websocket.Conn)
+	go ok.wsReadData(ctx, ok.Websocket.Conn)
 	if ok.Verbose {
 		log.Debugf(log.ExchangeSys, "Successful connection to %v\n",
 			ok.Websocket.GetWebsocketURL())
@@ -241,7 +241,7 @@ func (ok *Okx) WsConnect() error {
 		var authDialer websocket.Dialer
 		authDialer.ReadBufferSize = 8192
 		authDialer.WriteBufferSize = 8192
-		err = ok.WsAuth(context.TODO(), &authDialer)
+		err = ok.WsAuth(ctx, &authDialer)
 		if err != nil {
 			log.Errorf(log.ExchangeSys, "Error connecting auth socket: %s\n", err.Error())
 			ok.Websocket.SetCanUseAuthenticatedEndpoints(false)
@@ -260,7 +260,7 @@ func (ok *Okx) WsAuth(ctx context.Context, dialer *websocket.Dialer) error {
 		return fmt.Errorf("%v Websocket connection %v error. Error %v", ok.Name, okxAPIWebsocketPrivateURL, err)
 	}
 	ok.Websocket.Wg.Add(1)
-	go ok.wsReadData(ok.Websocket.AuthConn)
+	go ok.wsReadData(ctx, ok.Websocket.AuthConn)
 	ok.Websocket.AuthConn.SetupPingHandler(stream.PingHandler{
 		MessageType: websocket.TextMessage,
 		Message:     pingMsg,
@@ -334,26 +334,26 @@ func (ok *Okx) WsAuth(ctx context.Context, dialer *websocket.Dialer) error {
 }
 
 // wsReadData sends msgs from public and auth websockets to data handler
-func (ok *Okx) wsReadData(ws stream.Connection) {
+func (ok *Okx) wsReadData(ctx context.Context, ws stream.Connection) {
 	defer ok.Websocket.Wg.Done()
 	for {
 		resp := ws.ReadMessage()
 		if resp.Raw == nil {
 			return
 		}
-		if err := ok.WsHandleData(resp.Raw); err != nil {
+		if err := ok.WsHandleData(ctx, resp.Raw); err != nil {
 			ok.Websocket.DataHandler <- err
 		}
 	}
 }
 
 // Subscribe sends a websocket subscription request to several channels to receive data.
-func (ok *Okx) Subscribe(channelsToSubscribe []subscription.Subscription) error {
+func (ok *Okx) Subscribe(_ context.Context, channelsToSubscribe []subscription.Subscription) error {
 	return ok.handleSubscription(operationSubscribe, channelsToSubscribe)
 }
 
 // Unsubscribe sends a websocket unsubscription request to several channels to receive data.
-func (ok *Okx) Unsubscribe(channelsToUnsubscribe []subscription.Subscription) error {
+func (ok *Okx) Unsubscribe(_ context.Context, channelsToUnsubscribe []subscription.Subscription) error {
 	return ok.handleSubscription(operationUnsubscribe, channelsToUnsubscribe)
 }
 
@@ -539,7 +539,7 @@ func (ok *Okx) handleSubscription(operation string, subscriptions []subscription
 }
 
 // WsHandleData will read websocket raw data and pass to appropriate handler
-func (ok *Okx) WsHandleData(respRaw []byte) error {
+func (ok *Okx) WsHandleData(ctx context.Context, respRaw []byte) error {
 	var resp wsIncomingData
 	err := json.Unmarshal(respRaw, &resp)
 	if err != nil {
@@ -650,7 +650,7 @@ func (ok *Okx) WsHandleData(respRaw []byte) error {
 		okxChannelOrderBooks50TBT,
 		okxChannelBBOTBT,
 		okxChannelOrderBooksTBT:
-		return ok.wsProcessOrderBooks(respRaw)
+		return ok.wsProcessOrderBooks(ctx, respRaw)
 	case okxChannelOptSummary:
 		var response WsOptionSummary
 		return ok.wsProcessPushData(respRaw, &response)
@@ -798,7 +798,7 @@ func (ok *Okx) wsProcessOrderbook5(data []byte) error {
 }
 
 // wsProcessOrderBooks processes "snapshot" and "update" order book
-func (ok *Okx) wsProcessOrderBooks(data []byte) error {
+func (ok *Okx) wsProcessOrderBooks(ctx context.Context, data []byte) error {
 	var response WsOrderBook
 	err := json.Unmarshal(data, &response)
 	if err != nil {
@@ -834,7 +834,7 @@ func (ok *Okx) wsProcessOrderBooks(data []byte) error {
 		}
 		if err != nil {
 			if errors.Is(err, errInvalidChecksum) {
-				err = ok.Subscribe([]subscription.Subscription{
+				err = ok.Subscribe(ctx, []subscription.Subscription{
 					{
 						Channel: response.Argument.Channel,
 						Asset:   assets[0],

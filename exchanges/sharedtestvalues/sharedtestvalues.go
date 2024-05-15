@@ -3,6 +3,7 @@ package sharedtestvalues
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -156,7 +157,7 @@ func ForceFileStandard(t *testing.T, pattern string) error {
 
 // TestFixtureToDataHandler takes a new empty exchange and configures a new websocket handler for it, and squirts the json path contents to it
 // It accepts a reader function, which is probably e.wsHandleData but could be anything
-func TestFixtureToDataHandler(t *testing.T, seed, e exchange.IBotExchange, fixturePath string, reader func([]byte) error) {
+func TestFixtureToDataHandler(t *testing.T, seed, e exchange.IBotExchange, fixturePath string, reader func(context.Context, []byte) error) {
 	t.Helper()
 	b := e.GetBase()
 	seedBase := seed.GetBase()
@@ -180,7 +181,7 @@ func TestFixtureToDataHandler(t *testing.T, seed, e exchange.IBotExchange, fixtu
 	s := bufio.NewScanner(fixture)
 	for s.Scan() {
 		msg := s.Bytes()
-		err := reader(msg)
+		err := reader(context.TODO(), msg)
 		assert.NoErrorf(t, err, "Fixture message should not error:\n%s", msg)
 	}
 	assert.NoError(t, s.Err(), "Fixture Scanner should not error")

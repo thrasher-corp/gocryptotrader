@@ -16,6 +16,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
@@ -1535,7 +1536,7 @@ func setupWS() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	err = websocket.Connect()
+	err = websocket.Connect(context.Background(), stream.AutoSubscribe)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -1889,43 +1890,43 @@ const (
 
 func TestSubscriptionPushData(t *testing.T) {
 	t.Parallel()
-	err := o.WsHandleData([]byte(orderPushData))
+	err := o.WsHandleData(context.Background(), []byte(orderPushData))
 	if err != nil {
 		t.Error(err)
 	}
-	err = o.WsHandleData([]byte(accountChannelPushData))
+	err = o.WsHandleData(context.Background(), []byte(accountChannelPushData))
 	if err != nil {
 		t.Error(err)
 	}
-	err = o.WsHandleData([]byte(algoOrdersChannelPushData))
+	err = o.WsHandleData(context.Background(), []byte(algoOrdersChannelPushData))
 	if err != nil {
 		t.Error(err)
 	}
-	err = o.WsHandleData([]byte(advancedAlgoOrderChannelPushData))
+	err = o.WsHandleData(context.Background(), []byte(advancedAlgoOrderChannelPushData))
 	if err != nil {
 		t.Error(err)
 	}
-	err = o.WsHandleData([]byte(instrumentsChannelPushData))
+	err = o.WsHandleData(context.Background(), []byte(instrumentsChannelPushData))
 	if err != nil {
 		t.Error(err)
 	}
-	err = o.WsHandleData([]byte(instrumentsDataChannelPushData))
+	err = o.WsHandleData(context.Background(), []byte(instrumentsDataChannelPushData))
 	if err != nil {
 		t.Error(err)
 	}
-	err = o.WsHandleData([]byte(tickersChannelPushData))
+	err = o.WsHandleData(context.Background(), []byte(tickersChannelPushData))
 	if err != nil {
 		t.Error(err)
 	}
-	err = o.WsHandleData([]byte(candlestickChannelPushData))
+	err = o.WsHandleData(context.Background(), []byte(candlestickChannelPushData))
 	if err != nil {
 		t.Error(err)
 	}
-	err = o.WsHandleData([]byte(tradesPushData))
+	err = o.WsHandleData(context.Background(), []byte(tradesPushData))
 	if err != nil {
 		t.Error(err)
 	}
-	err = o.WsHandleData([]byte(statusChannelPushData))
+	err = o.WsHandleData(context.Background(), []byte(statusChannelPushData))
 	if err != nil {
 		t.Error(err)
 	}
@@ -1938,11 +1939,11 @@ var (
 
 func TestEvaluateChecksumCalculation(t *testing.T) {
 	t.Parallel()
-	err := o.WsHandleData(orderbookSnapshot4000)
+	err := o.WsHandleData(context.Background(), orderbookSnapshot4000)
 	if err != nil {
 		t.Error(err)
 	}
-	err = o.WsHandleData(orderbookUpdate4000)
+	err = o.WsHandleData(context.Background(), orderbookUpdate4000)
 	if err != nil {
 		t.Error(err)
 	}
@@ -1981,7 +1982,7 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 
 func TestReSubscribeSpecificOrderbook(t *testing.T) {
 	t.Parallel()
-	err := o.ReSubscribeSpecificOrderbook(wsOrderbooks, spotTradablePair)
+	err := o.ReSubscribeSpecificOrderbook(context.Background(), wsOrderbooks, spotTradablePair)
 	if err != nil {
 		t.Error(err)
 	}

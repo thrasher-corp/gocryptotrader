@@ -37,7 +37,7 @@ const (
 var comms = make(chan stream.Response)
 
 // WsConnect initiates a websocket connection
-func (g *Gemini) WsConnect() error {
+func (g *Gemini) WsConnect(ctx context.Context) error {
 	if !g.Websocket.IsEnabled() || !g.IsEnabled() {
 		return stream.ErrWebsocketNotEnabled
 	}
@@ -53,7 +53,7 @@ func (g *Gemini) WsConnect() error {
 	go g.wsFunnelConnectionData(g.Websocket.Conn)
 
 	if g.Websocket.CanUseAuthenticatedEndpoints() {
-		err := g.WsAuth(context.TODO(), &dialer)
+		err := g.WsAuth(ctx, &dialer)
 		if err != nil {
 			log.Errorf(log.ExchangeSys, "%v - websocket authentication failed: %v\n", g.Name, err)
 			g.Websocket.SetCanUseAuthenticatedEndpoints(false)
@@ -89,7 +89,7 @@ func (g *Gemini) GenerateDefaultSubscriptions() ([]subscription.Subscription, er
 }
 
 // Subscribe sends a websocket message to receive data from the channel
-func (g *Gemini) Subscribe(channelsToSubscribe []subscription.Subscription) error {
+func (g *Gemini) Subscribe(_ context.Context, channelsToSubscribe []subscription.Subscription) error {
 	channels := make([]string, 0, len(channelsToSubscribe))
 	for x := range channelsToSubscribe {
 		if common.StringDataCompareInsensitive(channels, channelsToSubscribe[x].Channel) {
@@ -133,7 +133,7 @@ func (g *Gemini) Subscribe(channelsToSubscribe []subscription.Subscription) erro
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
-func (g *Gemini) Unsubscribe(channelsToUnsubscribe []subscription.Subscription) error {
+func (g *Gemini) Unsubscribe(_ context.Context, channelsToUnsubscribe []subscription.Subscription) error {
 	channels := make([]string, 0, len(channelsToUnsubscribe))
 	for x := range channelsToUnsubscribe {
 		if common.StringDataCompareInsensitive(channels, channelsToUnsubscribe[x].Channel) {

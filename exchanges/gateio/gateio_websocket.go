@@ -58,7 +58,7 @@ var defaultSubscriptions = []string{
 var fetchedCurrencyPairSnapshotOrderbook = make(map[string]bool)
 
 // WsConnect initiates a websocket connection
-func (g *Gateio) WsConnect() error {
+func (g *Gateio) WsConnect(context.Context) error {
 	if !g.Websocket.IsEnabled() || !g.IsEnabled() {
 		return stream.ErrWebsocketNotEnabled
 	}
@@ -690,8 +690,8 @@ func (g *Gateio) GenerateDefaultSubscriptions() ([]subscription.Subscription, er
 }
 
 // handleSubscription sends a websocket message to receive data from the channel
-func (g *Gateio) handleSubscription(event string, channelsToSubscribe []subscription.Subscription) error {
-	payloads, err := g.generatePayload(event, channelsToSubscribe)
+func (g *Gateio) handleSubscription(ctx context.Context, event string, channelsToSubscribe []subscription.Subscription) error {
+	payloads, err := g.generatePayload(ctx, event, channelsToSubscribe)
 	if err != nil {
 		return err
 	}
@@ -720,14 +720,14 @@ func (g *Gateio) handleSubscription(event string, channelsToSubscribe []subscrip
 	return errs
 }
 
-func (g *Gateio) generatePayload(event string, channelsToSubscribe []subscription.Subscription) ([]WsInput, error) {
+func (g *Gateio) generatePayload(ctx context.Context, event string, channelsToSubscribe []subscription.Subscription) ([]WsInput, error) {
 	if len(channelsToSubscribe) == 0 {
 		return nil, errors.New("cannot generate payload, no channels supplied")
 	}
 	var creds *account.Credentials
 	var err error
 	if g.Websocket.CanUseAuthenticatedEndpoints() {
-		creds, err = g.GetCredentials(context.TODO())
+		creds, err = g.GetCredentials(ctx)
 		if err != nil {
 			return nil, err
 		}
@@ -837,13 +837,13 @@ func (g *Gateio) generatePayload(event string, channelsToSubscribe []subscriptio
 }
 
 // Subscribe sends a websocket message to stop receiving data from the channel
-func (g *Gateio) Subscribe(channelsToUnsubscribe []subscription.Subscription) error {
-	return g.handleSubscription("subscribe", channelsToUnsubscribe)
+func (g *Gateio) Subscribe(ctx context.Context, channelsToUnsubscribe []subscription.Subscription) error {
+	return g.handleSubscription(ctx, "subscribe", channelsToUnsubscribe)
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
-func (g *Gateio) Unsubscribe(channelsToUnsubscribe []subscription.Subscription) error {
-	return g.handleSubscription("unsubscribe", channelsToUnsubscribe)
+func (g *Gateio) Unsubscribe(ctx context.Context, channelsToUnsubscribe []subscription.Subscription) error {
+	return g.handleSubscription(ctx, "unsubscribe", channelsToUnsubscribe)
 }
 
 func (g *Gateio) listOfAssetsCurrencyPairEnabledFor(cp currency.Pair) map[asset.Item]bool {

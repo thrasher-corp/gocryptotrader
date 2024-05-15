@@ -691,9 +691,9 @@ func TestWsAuth(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	go c.wsReadData()
+	go c.wsReadData(context.Background())
 
-	err = c.Subscribe([]subscription.Subscription{
+	err = c.Subscribe(context.Background(), []subscription.Subscription{
 		{
 			Channel: "user",
 			Pair:    testPair,
@@ -739,7 +739,7 @@ func TestWsSubscribe(t *testing.T) {
 			}
 		]
 	}`)
-	err := c.wsHandleData(pressXToJSON)
+	err := c.wsHandleData(context.Background(), pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
@@ -753,7 +753,7 @@ func TestWsHeartbeat(t *testing.T) {
 		"product_id": "BTC-USD",
 		"time": "2014-11-07T08:19:28.464459Z"
 	}`)
-	err := c.wsHandleData(pressXToJSON)
+	err := c.wsHandleData(context.Background(), pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
@@ -811,7 +811,7 @@ func TestWsStatus(t *testing.T) {
         }
     ]
 }`)
-	err := c.wsHandleData(pressXToJSON)
+	err := c.wsHandleData(context.Background(), pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
@@ -830,7 +830,7 @@ func TestWsTicker(t *testing.T) {
     "best_bid": "4388",
     "best_ask": "4388.01"
 }`)
-	err := c.wsHandleData(pressXToJSON)
+	err := c.wsHandleData(context.Background(), pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
@@ -844,7 +844,7 @@ func TestWsOrderbook(t *testing.T) {
     "asks": [["10102.55", "0.57753524"]],
 	"time":"2023-08-15T06:46:55.376250Z"
 }`)
-	err := c.wsHandleData(pressXToJSON)
+	err := c.wsHandleData(context.Background(), pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
@@ -861,7 +861,7 @@ func TestWsOrderbook(t *testing.T) {
     ]
   ]
 }`)
-	err = c.wsHandleData(pressXToJSON)
+	err = c.wsHandleData(context.Background(), pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
@@ -879,7 +879,7 @@ func TestWsOrders(t *testing.T) {
     "side": "buy",
     "order_type": "limit"
 }`)
-	err := c.wsHandleData(pressXToJSON)
+	err := c.wsHandleData(context.Background(), pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
@@ -894,7 +894,7 @@ func TestWsOrders(t *testing.T) {
     "side": "buy",
     "order_type": "market"
 }`)
-	err = c.wsHandleData(pressXToJSON)
+	err = c.wsHandleData(context.Background(), pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
@@ -909,7 +909,7 @@ func TestWsOrders(t *testing.T) {
     "remaining_size": "1.00",
     "side": "sell"
 }`)
-	err = c.wsHandleData(pressXToJSON)
+	err = c.wsHandleData(context.Background(), pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
@@ -925,7 +925,7 @@ func TestWsOrders(t *testing.T) {
     "side": "sell",
     "remaining_size": "0"
 }`)
-	err = c.wsHandleData(pressXToJSON)
+	err = c.wsHandleData(context.Background(), pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
@@ -942,7 +942,7 @@ func TestWsOrders(t *testing.T) {
     "price": "400.23",
     "side": "sell"
 }`)
-	err = c.wsHandleData(pressXToJSON)
+	err = c.wsHandleData(context.Background(), pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
@@ -958,7 +958,7 @@ func TestWsOrders(t *testing.T) {
     "price": "400.23",
     "side": "sell"
 }`)
-	err = c.wsHandleData(pressXToJSON)
+	err = c.wsHandleData(context.Background(), pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
@@ -973,7 +973,7 @@ func TestWsOrders(t *testing.T) {
     "price": "400.23",
     "side": "sell"
 }`)
-	err = c.wsHandleData(pressXToJSON)
+	err = c.wsHandleData(context.Background(), pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
@@ -992,7 +992,7 @@ func TestWsOrders(t *testing.T) {
   "taker_fee_rate": "0.0025",
   "private": true
 }`)
-	err = c.wsHandleData(pressXToJSON)
+	err = c.wsHandleData(context.Background(), pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}

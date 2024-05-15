@@ -42,7 +42,7 @@ func TestMain(m *testing.M) {
 		}
 	}
 
-	b.setupOrderbookManager()
+	b.setupOrderbookManager(context.Background())
 	b.Websocket.DataHandler = sharedtestvalues.GetWebsocketInterfaceChannelOverride()
 	log.Printf(sharedtestvalues.LiveTesting, b.Name)
 	if err := b.UpdateTradablePairs(context.Background(), true); err != nil {

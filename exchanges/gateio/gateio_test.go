@@ -2983,7 +2983,7 @@ func TestGenerateFuturesDefaultSubscriptions(t *testing.T) {
 }
 func TestGenerateOptionsDefaultSubscriptions(t *testing.T) {
 	t.Parallel()
-	if _, err := g.GenerateOptionsDefaultSubscriptions(); err != nil {
+	if _, err := g.GenerateOptionsDefaultSubscriptions(context.Background()); err != nil {
 		t.Error(err)
 	}
 }

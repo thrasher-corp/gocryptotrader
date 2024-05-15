@@ -807,7 +807,7 @@ type WsSub struct {
 
 ```go
 // Subscribe sends a websocket message to receive data from the channel
-func (f *FTX) Subscribe(channelsToSubscribe []subscription.Subscription) error {
+func (f *FTX) Subscribe(_ context.Context, channelsToSubscribe []subscription.Subscription) error {
 	// For subscriptions we try to batch as much as possible to limit the amount
 	// of connection usage but sometimes this is not supported on the exchange 
 	// API.
@@ -1061,7 +1061,7 @@ func (f *FTX) WsAuth(ctx context.Context) error {
 
 ```go
 // Unsubscribe sends a websocket message to stop receiving data from the channel
-func (f *FTX) Unsubscribe(channelsToUnsubscribe []subscription.Subscription) error {
+func (f *FTX) Unsubscribe(_ context.Context, channelsToUnsubscribe []subscription.Subscription) error {
 	// As with subscribing we want to batch as much as possible, but sometimes this cannot be achieved due to API shortfalls. 
 	var errs common.Errors
 channels:

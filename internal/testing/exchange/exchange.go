@@ -19,6 +19,7 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/mock"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	testutils "github.com/thrasher-corp/gocryptotrader/internal/testing/utils"
 )
@@ -119,7 +120,7 @@ func MockWsInstance[T any, PT interface {
 	// Exchanges which don't support subscription conf; Can be removed when all exchanges support sub conf
 	b.Websocket.GenerateSubs = func() ([]subscription.Subscription, error) { return []subscription.Subscription{}, nil }
 
-	err = b.Websocket.Connect()
+	err = b.Websocket.Connect(context.Background(), stream.AutoSubscribe)
 	require.NoError(tb, err, "Connect should not error")
 
 	return e
@@ -175,7 +176,7 @@ func SetupWs(tb testing.TB, e exchange.IBotExchange) {
 	if b.Websocket.IsConnected() {
 		return
 	}
-	err := b.Websocket.Connect()
+	err := b.Websocket.Connect(context.Background(), stream.AutoSubscribe)
 	require.NoError(tb, err, "WsConnect should not error")
 
 	setupWsOnce[e] = true

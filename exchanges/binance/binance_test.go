@@ -2000,9 +2000,9 @@ func TestSubscribe(t *testing.T) {
 	} else {
 		testexch.SetupWs(t, b)
 	}
-	err := b.Subscribe(channels)
+	err := b.Subscribe(context.Background(), channels)
 	require.NoError(t, err, "Subscribe should not error")
-	err = b.Unsubscribe(channels)
+	err = b.Unsubscribe(context.Background(), channels)
 	require.NoError(t, err, "Unsubscribe should not error")
 }
 
@@ -2018,7 +2018,7 @@ func TestSubscribeBadResp(t *testing.T) {
 		return w.WriteMessage(websocket.TextMessage, []byte(fmt.Sprintf(`{"result":{"error":"carrots"},"id":%d}`, req.ID)))
 	}
 	b := testexch.MockWsInstance[Binance](t, testexch.CurryWsMockUpgrader(t, mock)) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
-	err := b.Subscribe(channels)
+	err := b.Subscribe(context.Background(), channels)
 	assert.ErrorIs(t, err, stream.ErrSubscriptionFailure, "Subscribe should error ErrSubscriptionFailure")
 	assert.ErrorIs(t, err, errUnknownError, "Subscribe should error errUnknownError")
 	assert.ErrorContains(t, err, "carrots", "Subscribe should error containing the carrots")
@@ -2090,7 +2090,7 @@ func TestWsTradeUpdate(t *testing.T) {
 func TestWsDepthUpdate(t *testing.T) {
 	binanceOrderBookLock.Lock()
 	defer binanceOrderBookLock.Unlock()
-	b.setupOrderbookManager()
+	b.setupOrderbookManager(context.Background())
 	seedLastUpdateID := int64(161)
 	book := OrderBook{
 		Asks: []OrderbookItem{

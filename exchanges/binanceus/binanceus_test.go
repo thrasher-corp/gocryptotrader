@@ -62,7 +62,7 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		log.Fatal("Binanceus TestMain()", err)
 	}
-	bi.setupOrderbookManager()
+	bi.setupOrderbookManager(context.Background())
 	os.Exit(m.Run())
 }
 
@@ -1398,7 +1398,7 @@ func TestWebsocketStreamTradeUpdate(t *testing.T) {
 func TestWebsocketOrderBookDepthDiffStream(t *testing.T) {
 	binanceusOrderBookLock.Lock()
 	defer binanceusOrderBookLock.Unlock()
-	bi.setupOrderbookManager()
+	bi.setupOrderbookManager(context.Background())
 	seedLastUpdateID := int64(161)
 	book := OrderBook{
 		Asks: []OrderbookItem{

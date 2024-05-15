@@ -62,18 +62,17 @@ type IBotExchange interface {
 	WithdrawFiatFundsToInternationalBank(ctx context.Context, withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error)
 	SetHTTPClientUserAgent(ua string) error
 	GetHTTPClientUserAgent() (string, error)
-	SetClientProxyAddress(addr string) error
-	GetBase() *Base
+	SetClientProxyAddress(ctx context.Context, addr string, allowAutoSubscribe stream.SubscriptionAllowed) error
 	GetHistoricCandles(ctx context.Context, pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error)
 	GetHistoricCandlesExtended(ctx context.Context, pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error)
 	DisableRateLimiter() error
 	EnableRateLimiter() error
 	GetServerTime(ctx context.Context, ai asset.Item) (time.Time, error)
 	GetWebsocket() (*stream.Websocket, error)
-	SubscribeToWebsocketChannels(channels []subscription.Subscription) error
-	UnsubscribeToWebsocketChannels(channels []subscription.Subscription) error
+	SubscribeToWebsocketChannels(ctx context.Context, channels []subscription.Subscription) error
+	UnsubscribeToWebsocketChannels(ctx context.Context, channels []subscription.Subscription) error
 	GetSubscriptions() ([]subscription.Subscription, error)
-	FlushWebsocketChannels() error
+	FlushWebsocketChannels(ctx context.Context) error
 	AuthenticateWebsocket(ctx context.Context) error
 	GetOrderExecutionLimits(a asset.Item, cp currency.Pair) (order.MinMaxLevel, error)
 	CheckOrderExecutionLimits(a asset.Item, cp currency.Pair, price, amount float64, orderType order.Type) error
@@ -82,6 +81,7 @@ type IBotExchange interface {
 	EnsureOnePairEnabled() error
 	PrintEnabledPairs()
 	IsVerbose() bool
+	GetBase() *Base
 	GetCurrencyTradeURL(ctx context.Context, a asset.Item, cp currency.Pair) (string, error)
 
 	// ValidateAPICredentials function validates the API keys by sending an
