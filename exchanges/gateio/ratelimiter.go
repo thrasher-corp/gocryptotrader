@@ -37,18 +37,18 @@ const (
 	threeSecondsInterval = time.Second * 3
 )
 
-// SetRateLimit returns the rate limiter for the exchange
-func SetRateLimit() request.RateLimitDefinitions {
+// GetRateLimit returns the rate limiter for the exchange
+func GetRateLimit() request.RateLimitDefinitions {
 	return request.RateLimitDefinitions{
-		spotDefaultEPL:               request.NewRateLimitWithToken(oneSecondInterval, spotPublicRate, 1),
-		spotPrivateEPL:               request.NewRateLimitWithToken(oneSecondInterval, spotPrivateRate, 1),
-		spotPlaceOrdersEPL:           request.NewRateLimitWithToken(oneSecondInterval, spotPlaceOrdersRate, 1),
-		spotCancelOrdersEPL:          request.NewRateLimitWithToken(oneSecondInterval, spotCancelOrdersRate, 1),
-		perpetualSwapDefaultEPL:      request.NewRateLimitWithToken(oneSecondInterval, perpetualSwapPublicRate, 1),
-		perpetualSwapPlaceOrdersEPL:  request.NewRateLimitWithToken(oneSecondInterval, perpetualSwapPlaceOrdersRate, 1),
-		perpetualSwapPrivateEPL:      request.NewRateLimitWithToken(oneSecondInterval, perpetualSwapPrivateRate, 1),
-		perpetualSwapCancelOrdersEPL: request.NewRateLimitWithToken(oneSecondInterval, perpetualSwapCancelOrdersRate, 1),
-		walletEPL:                    request.NewRateLimitWithToken(oneSecondInterval, walletRate, 1),
-		withdrawalEPL:                request.NewRateLimitWithToken(threeSecondsInterval, withdrawalRate, 1),
+		spotDefaultEPL:               request.NewRateLimitWithWeight(oneSecondInterval, spotPublicRate, 1),
+		spotPrivateEPL:               request.NewRateLimitWithWeight(oneSecondInterval, spotPrivateRate, 1),
+		spotPlaceOrdersEPL:           request.NewRateLimitWithWeight(oneSecondInterval, spotPlaceOrdersRate, 1),
+		spotCancelOrdersEPL:          request.NewRateLimitWithWeight(oneSecondInterval, spotCancelOrdersRate, 1),
+		perpetualSwapDefaultEPL:      request.NewRateLimitWithWeight(oneSecondInterval, perpetualSwapPublicRate, 1),
+		perpetualSwapPlaceOrdersEPL:  request.NewRateLimitWithWeight(oneSecondInterval, perpetualSwapPlaceOrdersRate, 1),
+		perpetualSwapPrivateEPL:      request.NewRateLimitWithWeight(oneSecondInterval, perpetualSwapPrivateRate, 1),
+		perpetualSwapCancelOrdersEPL: request.NewRateLimitWithWeight(oneSecondInterval, perpetualSwapCancelOrdersRate, 1),
+		walletEPL:                    request.NewRateLimitWithWeight(oneSecondInterval, walletRate, 1),
+		withdrawalEPL:                request.NewRateLimitWithWeight(threeSecondsInterval, withdrawalRate, 1),
 	}
 }

@@ -32,7 +32,7 @@ func TestRateLimit_Limit(t *testing.T) {
 		"Exceeds deadline":     {Expected: spotOrderbookDepth5000Rate, Limit: orderbookLimit(5000), Deadline: time.Now().Add(time.Nanosecond)},
 	}
 
-	rl, err := request.New("rateLimitTest", http.DefaultClient, request.WithLimiter(SetRateLimit()))
+	rl, err := request.New("rateLimitTest", &http.Client{}, request.WithLimiter(GetRateLimits()))
 	require.NoError(t, err)
 
 	for name, tt := range testTable {
@@ -68,7 +68,7 @@ func TestRateLimit_LimitStatic(t *testing.T) {
 		"All Orders":        spotAllOrdersRate,
 	}
 
-	rl, err := request.New("rateLimitTest2", http.DefaultClient, request.WithLimiter(SetRateLimit()))
+	rl, err := request.New("rateLimitTest2", http.DefaultClient, request.WithLimiter(GetRateLimits()))
 	require.NoError(t, err)
 
 	for name, tt := range testTable {

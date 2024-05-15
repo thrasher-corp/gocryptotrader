@@ -813,7 +813,7 @@ func (b *BTCMarkets) SendHTTPRequest(ctx context.Context, path string, result in
 		HTTPDebugging: b.HTTPDebugging,
 		HTTPRecording: b.HTTPRecording,
 	}
-	return b.SendPayload(ctx, request.Unset, func() (*request.Item, error) {
+	return b.SendPayload(ctx, request.UnAuth, func() (*request.Item, error) {
 		return item, nil
 	}, request.UnauthenticatedRequest)
 }

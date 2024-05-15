@@ -15,10 +15,10 @@ const (
 	orderFunc
 )
 
-// SetRateLimit returns the rate limit for the exchange
-func SetRateLimit() request.RateLimitDefinitions {
+// GetRateLimit returns the rate limit for the exchange
+func GetRateLimit() request.RateLimitDefinitions {
 	return request.RateLimitDefinitions{
-		orderFunc: request.NewRateLimitWithToken(btseRateInterval, btseOrdersLimit, 1),
-		queryFunc: request.NewRateLimitWithToken(btseRateInterval, btseQueryLimit, 1),
+		orderFunc: request.NewRateLimitWithWeight(btseRateInterval, btseOrdersLimit, 1),
+		queryFunc: request.NewRateLimitWithWeight(btseRateInterval, btseQueryLimit, 1),
 	}
 }

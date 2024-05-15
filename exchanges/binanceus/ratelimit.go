@@ -38,30 +38,30 @@ const (
 	spotAccountInformationRate
 )
 
-// SetRateLimit returns the rate limit for the exchange
-func SetRateLimit() request.RateLimitDefinitions {
+// GetRateLimit returns the rate limit for the exchange
+func GetRateLimit() request.RateLimitDefinitions {
 	spotRate := request.NewRateLimit(spotInterval, spotRequestRate)
 	spotOrdersRate := request.NewRateLimit(spotOrderInterval, spotOrderRequestRate)
 	return request.RateLimitDefinitions{
-		spotDefaultRate:            request.GetRateLimiterWithToken(spotRate, 1),
-		spotOrderbookTickerAllRate: request.GetRateLimiterWithToken(spotRate, 2),
-		spotSymbolPriceAllRate:     request.GetRateLimiterWithToken(spotRate, 2),
-		spotHistoricalTradesRate:   request.GetRateLimiterWithToken(spotRate, 5),
-		spotOrderbookDepth500Rate:  request.GetRateLimiterWithToken(spotRate, 5),
-		spotOrderbookDepth1000Rate: request.GetRateLimiterWithToken(spotRate, 10),
-		spotAccountInformationRate: request.GetRateLimiterWithToken(spotRate, 10),
-		spotExchangeInfo:           request.GetRateLimiterWithToken(spotRate, 10),
-		spotTradesQueryRate:        request.GetRateLimiterWithToken(spotRate, 10),
-		spotPriceChangeAllRate:     request.GetRateLimiterWithToken(spotRate, 40),
-		spotOrderbookDepth5000Rate: request.GetRateLimiterWithToken(spotRate, 50),
-		spotOrderRate:              request.GetRateLimiterWithToken(spotOrdersRate, 1),
-		spotOrderQueryRate:         request.GetRateLimiterWithToken(spotOrdersRate, 2),
-		spotSingleOCOOrderRate:     request.GetRateLimiterWithToken(spotOrdersRate, 2),
-		spotOpenOrdersSpecificRate: request.GetRateLimiterWithToken(spotOrdersRate, 3),
-		spotAllOrdersRate:          request.GetRateLimiterWithToken(spotOrdersRate, 10),
-		spotAllOCOOrdersRate:       request.GetRateLimiterWithToken(spotOrdersRate, 10),
-		spotOrderRateLimitRate:     request.GetRateLimiterWithToken(spotOrdersRate, 20),
-		spotOpenOrdersAllRate:      request.GetRateLimiterWithToken(spotOrdersRate, 40),
+		spotDefaultRate:            request.GetRateLimiterWithWeight(spotRate, 1),
+		spotOrderbookTickerAllRate: request.GetRateLimiterWithWeight(spotRate, 2),
+		spotSymbolPriceAllRate:     request.GetRateLimiterWithWeight(spotRate, 2),
+		spotHistoricalTradesRate:   request.GetRateLimiterWithWeight(spotRate, 5),
+		spotOrderbookDepth500Rate:  request.GetRateLimiterWithWeight(spotRate, 5),
+		spotOrderbookDepth1000Rate: request.GetRateLimiterWithWeight(spotRate, 10),
+		spotAccountInformationRate: request.GetRateLimiterWithWeight(spotRate, 10),
+		spotExchangeInfo:           request.GetRateLimiterWithWeight(spotRate, 10),
+		spotTradesQueryRate:        request.GetRateLimiterWithWeight(spotRate, 10),
+		spotPriceChangeAllRate:     request.GetRateLimiterWithWeight(spotRate, 40),
+		spotOrderbookDepth5000Rate: request.GetRateLimiterWithWeight(spotRate, 50),
+		spotOrderRate:              request.GetRateLimiterWithWeight(spotOrdersRate, 1),
+		spotOrderQueryRate:         request.GetRateLimiterWithWeight(spotOrdersRate, 2),
+		spotSingleOCOOrderRate:     request.GetRateLimiterWithWeight(spotOrdersRate, 2),
+		spotOpenOrdersSpecificRate: request.GetRateLimiterWithWeight(spotOrdersRate, 3),
+		spotAllOrdersRate:          request.GetRateLimiterWithWeight(spotOrdersRate, 10),
+		spotAllOCOOrdersRate:       request.GetRateLimiterWithWeight(spotOrdersRate, 10),
+		spotOrderRateLimitRate:     request.GetRateLimiterWithWeight(spotOrdersRate, 20),
+		spotOpenOrdersAllRate:      request.GetRateLimiterWithWeight(spotOrdersRate, 40),
 	}
 }
 

@@ -16,7 +16,7 @@ var (
 	ErrRateLimiterAlreadyEnabled  = errors.New("rate limiter already enabled")
 
 	errLimiterSystemIsNil       = errors.New("limiter system is nil")
-	errInvalidTokenCount        = errors.New("invalid token count must equal or greater than 1")
+	errInvalidWeightCount       = errors.New("invalid weight count must equal or greater than 1")
 	errSpecificRateLimiterIsNil = errors.New("specific rate limiter is nil")
 )
 
@@ -27,35 +27,24 @@ const (
 	UnAuth
 )
 
-// BasicLimit denotes basic rate limit that implements the Limiter interface
-// does not need to set endpoint functionality.
-type BasicLimit struct {
-	r *RateLimiterWithToken
-}
-
-// Limit executes a single rate limit set by NewRateLimit
-func (b *BasicLimit) Limit(context.Context, EndpointLimit) (*RateLimiterWithToken, error) {
-	return b.r, nil
-}
-
 // EndpointLimit defines individual endpoint rate limits that are set when
 // New is called.
 type EndpointLimit uint16
 
-// Tokens defines the number of tokens to be consumed. This is a generalised
-// weight for rate limiting. e.g. n token = n request. i.e. 50 tokens = 50
+// Weight defines the number of reservations to be used. This is a generalised
+// weight for rate limiting. e.g. n weight = n request. i.e. 50 Weight = 50
 // requests.
-type Tokens uint8
+type Weight uint8
 
 // RateLimitDefinitions is a map of endpoint limits to rate limiters
-type RateLimitDefinitions map[interface{}]*RateLimiterWithToken
+type RateLimitDefinitions map[interface{}]*RateLimiterWithWeight
 
-// RateLimiterWithToken is a rate limiter coupled with a token count which
+// RateLimiterWithWeight is a rate limiter coupled with a weight count which
 // refers to the number or weighting of the request. This is used to define
 // the rate limit for a specific endpoint.
-type RateLimiterWithToken struct {
+type RateLimiterWithWeight struct {
 	*rate.Limiter
-	Tokens
+	Weight
 }
 
 // Reservations is a slice of rate reservations
@@ -83,24 +72,24 @@ func NewRateLimit(interval time.Duration, actions int) *rate.Limiter {
 	return rate.NewLimiter(rate.Limit(rps), 1)
 }
 
-// NewRateLimitWithToken creates a new RateLimit based of time interval and how
-// many actions allowed. This also has a token count which refers to the number
+// NewRateLimitWithWeight creates a new RateLimit based of time interval and how
+// many actions allowed. This also has a weight count which refers to the number
 // or weighting of the request. This is used to define the rate limit for a
 // specific endpoint.
-func NewRateLimitWithToken(interval time.Duration, actions int, tokens Tokens) *RateLimiterWithToken {
-	return GetRateLimiterWithToken(NewRateLimit(interval, actions), tokens)
+func NewRateLimitWithWeight(interval time.Duration, actions int, weight Weight) *RateLimiterWithWeight {
+	return GetRateLimiterWithWeight(NewRateLimit(interval, actions), weight)
 }
 
-// GetRateLimiterWithToken couples a rate limiter with a token count into an
-// accepted defined rate limiter with token struct
-func GetRateLimiterWithToken(l *rate.Limiter, t Tokens) *RateLimiterWithToken {
-	return &RateLimiterWithToken{l, t}
+// GetRateLimiterWithWeight couples a rate limiter with a weight count into an
+// accepted defined rate limiter with weight struct
+func GetRateLimiterWithWeight(l *rate.Limiter, weight Weight) *RateLimiterWithWeight {
+	return &RateLimiterWithWeight{l, weight}
 }
 
 // NewBasicRateLimit returns an object that implements the limiter interface
 // for basic rate limit
-func NewBasicRateLimit(interval time.Duration, actions int, tokens Tokens) RateLimitDefinitions {
-	rl := NewRateLimitWithToken(interval, actions, tokens)
+func NewBasicRateLimit(interval time.Duration, actions int, weight Weight) RateLimitDefinitions {
+	rl := NewRateLimitWithWeight(interval, actions, weight)
 	return RateLimitDefinitions{Unset: rl, Auth: rl, UnAuth: rl}
 }
 
@@ -122,14 +111,14 @@ func (r *Requester) InitiateRateLimit(ctx context.Context, e EndpointLimit) erro
 		return fmt.Errorf("cannot rate limit request %w for endpoint %d", errSpecificRateLimiterIsNil, e)
 	}
 
-	if rateLimiter.Tokens <= 0 {
-		return fmt.Errorf("cannot rate limit request %w for endpoint %d", errInvalidTokenCount, e)
+	if rateLimiter.Weight <= 0 {
+		return fmt.Errorf("cannot rate limit request %w for endpoint %d", errInvalidWeightCount, e)
 	}
 
 	var finalDelay time.Duration
-	var reservations = make(Reservations, rateLimiter.Tokens)
-	for i := Tokens(0); i < rateLimiter.Tokens; i++ {
-		// Consume tokens 1 at a time as this avoids needing burst capacity in the limiter,
+	var reservations = make(Reservations, rateLimiter.Weight)
+	for i := Weight(0); i < rateLimiter.Weight; i++ {
+		// Consume 1 weight at a time as this avoids needing burst capacity in the limiter,
 		// which would otherwise allow the rate limit to be exceeded over short periods
 		reservations[i] = rateLimiter.Reserve()
 		finalDelay = reservations[i].Delay()
