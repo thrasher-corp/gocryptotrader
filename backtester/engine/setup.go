@@ -965,11 +965,7 @@ func setExchangeCredentials(cfg *config.Config, base *gctexchange.Base) error {
 			cfg.DataSettings.LiveData.ExchangeCredentials[i].Keys.PEMKey,
 			cfg.DataSettings.LiveData.ExchangeCredentials[i].Keys.OneTimePassword,
 		)
-		creds, err := base.GetCredentials(context.TODO())
-		if err != nil {
-			return err
-		}
-		err = base.VerifyAPICredentials(creds)
+		_, err := base.GetCredentials(context.TODO())
 		if err != nil {
 			return err
 		}
