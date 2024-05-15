@@ -778,7 +778,7 @@ func (d *Deribit) processOrderbook(respRaw []byte, channels []string) error {
 			return err
 		}
 		asks := make(orderbook.Tranches, 0, len(orderbookData.Asks))
-		for x := range asks {
+		for x := range orderbookData.Asks {
 			if len(orderbookData.Asks[x]) != 2 {
 				return errMalformedData
 			}
@@ -798,7 +798,7 @@ func (d *Deribit) processOrderbook(respRaw []byte, channels []string) error {
 			})
 		}
 		bids := make([]orderbook.Tranche, 0, len(orderbookData.Bids))
-		for x := range bids {
+		for x := range orderbookData.Bids {
 			if len(orderbookData.Bids[x]) != 2 {
 				return errMalformedData
 			}
@@ -917,7 +917,7 @@ func (d *Deribit) GenerateDefaultSubscriptions() ([]subscription.Subscription, e
 							Asset:    a,
 							Params: map[string]interface{}{
 								"group": "none",
-								"depth": "20",
+								"depth": "10",
 							},
 						},
 					)
@@ -929,7 +929,7 @@ func (d *Deribit) GenerateDefaultSubscriptions() ([]subscription.Subscription, e
 							Interval: kline.Interval(0),
 							Params: map[string]interface{}{
 								"group": "none",
-								"depth": "20",
+								"depth": "10",
 							},
 						})
 					}
