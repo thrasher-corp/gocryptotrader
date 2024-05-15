@@ -358,8 +358,8 @@ const (
 	wsUnsubscribeOp wsOp = "unsubscribe"
 )
 
-// WsCommand defines the request params after a websocket connection has been established
-type WsCommand struct {
+// wsCommand defines the request params after a websocket connection has been established
+type wsCommand struct {
 	Command wsOp        `json:"command"`
 	Channel interface{} `json:"channel"`
 	APIKey  string      `json:"key,omitempty"`
@@ -473,8 +473,8 @@ type WsTradeNotificationResponse struct {
 	Date          time.Time
 }
 
-// WsAuthorisationRequest Authenticated Ws Account data request
-type WsAuthorisationRequest struct {
+// wsAuthorisationRequest Authenticated Ws Account data request
+type wsAuthorisationRequest struct {
 	Command wsOp   `json:"command"`
 	Channel int64  `json:"channel"`
 	Sign    string `json:"sign"`

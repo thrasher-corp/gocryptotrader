@@ -595,7 +595,7 @@ func (p *Poloniex) manageSubs(subs subscription.List, op wsOp) error {
 		if creds != nil && strings.EqualFold(strconv.FormatInt(wsAccountNotificationID, 10), s.Channel) {
 			err = p.wsSendAuthorisedCommand(creds.Secret, creds.Key, op)
 		} else {
-			req := WsCommand{Command: op}
+			req := wsCommand{Command: op}
 			if strings.EqualFold(strconv.FormatInt(wsTickerDataID, 10), s.Channel) {
 				req.Channel = wsTickerDataID
 			} else {
@@ -628,7 +628,7 @@ func (p *Poloniex) wsSendAuthorisedCommand(secret, key string, op wsOp) error {
 	if err != nil {
 		return err
 	}
-	request := WsAuthorisationRequest{
+	request := wsAuthorisationRequest{
 		Command: op,
 		Channel: 1000,
 		Sign:    crypto.HexEncodeToString(hmac),
