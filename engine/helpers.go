@@ -50,10 +50,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/lbank"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/okcoin"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/okx"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/poloniex"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stats"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/yobit"
 	"github.com/thrasher-corp/gocryptotrader/gctscript/vm"
 	"github.com/thrasher-corp/gocryptotrader/log"
@@ -572,26 +570,6 @@ func GetRelatableCurrencies(p currency.Pair, incOrig, incUSDT bool) currency.Pai
 	}
 
 	return pairs
-}
-
-// GetSpecificOrderbook returns a specific orderbook given the currency,
-// exchangeName and assetType
-func (bot *Engine) GetSpecificOrderbook(ctx context.Context, p currency.Pair, exchangeName string, assetType asset.Item) (*orderbook.Base, error) {
-	exch, err := bot.GetExchangeByName(exchangeName)
-	if err != nil {
-		return nil, err
-	}
-	return exch.FetchOrderbook(ctx, p, assetType)
-}
-
-// GetSpecificTicker returns a specific ticker given the currency,
-// exchangeName and assetType
-func (bot *Engine) GetSpecificTicker(ctx context.Context, p currency.Pair, exchangeName string, assetType asset.Item) (*ticker.Price, error) {
-	exch, err := bot.GetExchangeByName(exchangeName)
-	if err != nil {
-		return nil, err
-	}
-	return exch.FetchTicker(ctx, p, assetType)
 }
 
 // GetCollatedExchangeAccountInfoByCoin collates individual exchange account
