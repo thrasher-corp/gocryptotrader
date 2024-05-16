@@ -3269,19 +3269,21 @@ func TestSetSubscriptionsFromConfig(t *testing.T) {
 	}
 	subs := subscription.List{
 		{Channel: subscription.CandlesChannel, Interval: kline.OneDay, Enabled: true},
+		{Channel: subscription.OrderbookChannel, Enabled: false},
 	}
 	b.Features.Subscriptions = subs
 	b.SetSubscriptionsFromConfig()
 	assert.ElementsMatch(t, subs, b.Config.Features.Subscriptions, "Config Subscriptions should be updated")
-	assert.ElementsMatch(t, subs, b.Features.Subscriptions, "Subscriptions should be the same")
+	assert.ElementsMatch(t, subscription.List{subs[0]}, b.Features.Subscriptions, "Actual Subscriptions should only contain Enabled")
 
 	subs = subscription.List{
-		{Channel: subscription.OrderbookChannel, Interval: kline.OneDay, Enabled: true},
+		{Channel: subscription.OrderbookChannel, Enabled: true},
+		{Channel: subscription.CandlesChannel, Interval: kline.OneDay, Enabled: false},
 	}
 	b.Config.Features.Subscriptions = subs
 	b.SetSubscriptionsFromConfig()
-	assert.ElementsMatch(t, subs, b.Features.Subscriptions, "Subscriptions should be updated from Config")
 	assert.ElementsMatch(t, subs, b.Config.Features.Subscriptions, "Config Subscriptions should be the same")
+	assert.ElementsMatch(t, subscription.List{subs[0]}, b.Features.Subscriptions, "Subscriptions should only contain Enabled from Config")
 }
 
 // TestParallelChanOp unit tests the helper func ParallelChanOp
