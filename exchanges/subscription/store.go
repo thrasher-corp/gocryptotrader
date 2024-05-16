@@ -116,8 +116,8 @@ func (s *Store) List() List {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	subs := make(List, 0, len(s.m))
-	for _, s := range s.m {
-		subs = append(subs, s)
+	for _, sub := range s.m {
+		subs = append(subs, sub)
 	}
 	return subs
 }
