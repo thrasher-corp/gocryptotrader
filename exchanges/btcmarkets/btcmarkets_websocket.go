@@ -355,22 +355,18 @@ func (b *BTCMarkets) Subscribe(subs subscription.List) error {
 	baseReq := &WsSubscribe{
 		MessageType: subscribe,
 	}
-	if len(b.Websocket.GetSubscriptions()) != 0 {
-		baseReq.MessageType = addSubscription
-		baseReq.ClientType = clientType
-	}
 
 	var errs error
-	for i, s := range subs {
+	for _, s := range subs {
 		if baseReq.Key == "" && common.StringDataContains(authChannels, s.Channel) {
 			if err := b.authWsSubscibeReq(baseReq); err != nil {
 				return err
 			}
 		}
 
-		if i == 1 {
-			baseReq.MessageType = addSubscription
-			baseReq.ClientType = clientType
+		if baseReq.MessageType == subscribe && len(b.Websocket.GetSubscriptions()) != 0 {
+			baseReq.MessageType = addSubscription // After first *successful* subscription API requires addSubscription
+			baseReq.ClientType = clientType       // Note: Only addSubscription requires/accepts clientType
 		}
 
 		r := baseReq
