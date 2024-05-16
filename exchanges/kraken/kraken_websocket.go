@@ -1252,10 +1252,8 @@ channels:
 	for x := range channelsToUnsubscribe {
 		for y := range unsubs {
 			if unsubs[y].Subscription.Name == channelsToUnsubscribe[x].Channel {
-				unsubs[y].Pairs = append(unsubs[y].Pairs,
-					channelsToUnsubscribe[x].Pairs[0].String())
-				unsubs[y].Channels = append(unsubs[y].Channels,
-					channelsToUnsubscribe[x])
+				unsubs[y].Pairs = append(unsubs[y].Pairs, channelsToUnsubscribe[x].Pairs.Strings()...)
+				unsubs[y].Channels = append(unsubs[y].Channels, channelsToUnsubscribe[x])
 				continue channels
 			}
 		}
