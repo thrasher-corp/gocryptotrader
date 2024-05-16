@@ -3753,8 +3753,12 @@ func (g *Gateio) IsValidPairString(currencyPair string) bool {
 	if len(currencyPair) < 3 {
 		return false
 	}
-	if strings.Contains(currencyPair, g.CurrencyPairs.RequestFormat.Delimiter) {
-		result := strings.Split(currencyPair, g.CurrencyPairs.RequestFormat.Delimiter)
+	pf, err := g.CurrencyPairs.GetFormat(asset.Spot, true)
+	if err != nil {
+		return false
+	}
+	if strings.Contains(currencyPair, pf.Delimiter) {
+		result := strings.Split(currencyPair, pf.Delimiter)
 		return len(result) >= 2
 	}
 	return false

@@ -547,6 +547,8 @@ func TestUpdateTicker(t *testing.T) {
 func TestUpdateTickers(t *testing.T) {
 	t.Parallel()
 
+	b := new(Bitfinex) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
+	require.NoError(t, testexch.Setup(b), "Test instance Setup must not error")
 	testexch.UpdatePairsOnce(t, b)
 
 	assets := b.GetAssetTypes(false)
