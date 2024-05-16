@@ -304,7 +304,7 @@ func (b *Binance) FetchTradablePairs(ctx context.Context, a asset.Item) (currenc
 		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, a)
 	}
 	tradingStatus := "TRADING"
-	var pairs []currency.Pair
+	var pairs currency.Pairs
 	switch a {
 	case asset.Spot, asset.Margin:
 		info, err := b.GetExchangeInfo(ctx)
@@ -379,7 +379,11 @@ func (b *Binance) FetchTradablePairs(ctx context.Context, a asset.Item) (currenc
 			}
 		}
 	}
-	return pairs, nil
+	format, err := b.GetPairFormat(a, false)
+	if err != nil {
+		return nil, err
+	}
+	return pairs.Format(format), nil
 }
 
 // UpdateTradablePairs updates the exchanges available pairs and stores
