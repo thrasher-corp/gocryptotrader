@@ -168,8 +168,8 @@ func (b *Base) SetSubscriptionsFromConfig() {
 	b.settingsMutex.Lock()
 	defer b.settingsMutex.Unlock()
 	if len(b.Config.Features.Subscriptions) == 0 {
+		// Set config from the defaults, including any disabled subscriptions
 		b.Config.Features.Subscriptions = b.Features.Subscriptions
-		return
 	}
 	b.Features.Subscriptions = subscription.List{}
 	for _, s := range b.Config.Features.Subscriptions {
