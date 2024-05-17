@@ -510,7 +510,7 @@ func (b *Base) FormatExchangeCurrency(p currency.Pair, assetType asset.Item) (cu
 	}
 	pairFmt, err := b.GetPairFormat(assetType, true)
 	if err != nil {
-		return currency.EMPTYPAIR, err
+		return currency.EMPTYPAIR, common.AppendError(err, asset.ErrNotSupported)
 	}
 	return p.Format(pairFmt), nil
 }
