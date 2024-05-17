@@ -206,7 +206,7 @@ Yes means supported, No means not yet implemented and NA means protocol unsuppor
 | BTSE | Yes | Yes | NA |
 | Bybit | Yes | Yes | NA |
 | COINUT | Yes | Yes | NA |
-| Deribit : Yes | Yes | NA |
+| Deribit | Yes | Yes | NA |
 | Exmo | Yes | NA | NA |
 | FTX | Yes | Yes | No | // <-------- new exchange
 | CoinbasePro | Yes | Yes | No|

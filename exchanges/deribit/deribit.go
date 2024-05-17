@@ -173,12 +173,12 @@ const (
 )
 
 // GetBookSummaryByCurrency gets book summary data for currency requested
-func (d *Deribit) GetBookSummaryByCurrency(ctx context.Context, ccy, kind string) ([]BookSummaryData, error) {
-	if ccy == "" {
-		return nil, fmt.Errorf("%w '%s'", errInvalidCurrency, ccy)
+func (d *Deribit) GetBookSummaryByCurrency(ctx context.Context, ccy currency.Code, kind string) ([]BookSummaryData, error) {
+	if ccy.IsEmpty() {
+		return nil, fmt.Errorf("%w '%s'", currency.ErrCurrencyCodeEmpty, ccy.String())
 	}
 	params := url.Values{}
-	params.Set("currency", ccy)
+	params.Set("currency", ccy.String())
 	if kind != "" {
 		params.Set("kind", kind)
 	}
@@ -279,12 +279,12 @@ func (d *Deribit) GetFundingRateValue(ctx context.Context, instrument string, st
 }
 
 // GetHistoricalVolatility gets historical volatility data
-func (d *Deribit) GetHistoricalVolatility(ctx context.Context, ccy string) ([]HistoricalVolatilityData, error) {
-	if ccy == "" {
-		return nil, fmt.Errorf("%w '%s'", errInvalidCurrency, ccy)
+func (d *Deribit) GetHistoricalVolatility(ctx context.Context, ccy currency.Code) ([]HistoricalVolatilityData, error) {
+	if ccy.IsEmpty() {
+		return nil, fmt.Errorf("%w '%s'", currency.ErrCurrencyCodeEmpty, ccy.String())
 	}
 	params := url.Values{}
-	params.Set("currency", ccy)
+	params.Set("currency", ccy.String())
 	var data [][2]interface{}
 	err := d.SendHTTPRequest(ctx, exchange.RestFutures, nonMatchingEPL,
 		common.EncodeURLValues(getHistoricalVolatility, params), &data)
@@ -310,12 +310,12 @@ func (d *Deribit) GetHistoricalVolatility(ctx context.Context, ccy string) ([]Hi
 }
 
 // GetCurrencyIndexPrice retrieves the current index price for the instruments, for the selected currency.
-func (d *Deribit) GetCurrencyIndexPrice(ctx context.Context, ccy string) (*IndexPrice, error) {
-	if ccy == "" {
-		return nil, fmt.Errorf("%w '%s'", errInvalidCurrency, strings.ToUpper(ccy))
+func (d *Deribit) GetCurrencyIndexPrice(ctx context.Context, ccy currency.Code) (*IndexPrice, error) {
+	if ccy.IsEmpty() {
+		return nil, fmt.Errorf("%w '%s'", currency.ErrCurrencyCodeEmpty, strings.ToUpper(ccy.String()))
 	}
 	params := url.Values{}
-	params.Set("currency", ccy)
+	params.Set("currency", ccy.String())
 	var resp *IndexPrice
 	return resp, d.SendHTTPRequest(ctx, exchange.RestFutures, nonMatchingEPL, common.EncodeURLValues(getCurrencyIndexPrice, params), &resp)
 }
@@ -350,12 +350,12 @@ func (d *Deribit) GetInstrument(ctx context.Context, instrument string) (*Instru
 }
 
 // GetInstruments gets data for all available instruments
-func (d *Deribit) GetInstruments(ctx context.Context, ccy, kind string, expired bool) ([]InstrumentData, error) {
-	if ccy == "" {
-		return nil, fmt.Errorf("%w '%s'", errInvalidCurrency, strings.ToUpper(ccy))
+func (d *Deribit) GetInstruments(ctx context.Context, ccy currency.Code, kind string, expired bool) ([]InstrumentData, error) {
+	if ccy.IsEmpty() {
+		return nil, fmt.Errorf("%w '%s'", currency.ErrCurrencyCodeEmpty, ccy)
 	}
 	params := url.Values{}
-	params.Set("currency", ccy)
+	params.Set("currency", ccy.String())
 	if kind != "" {
 		params.Set("kind", kind)
 	}
@@ -368,12 +368,12 @@ func (d *Deribit) GetInstruments(ctx context.Context, ccy, kind string, expired 
 }
 
 // GetLastSettlementsByCurrency gets last settlement data by currency
-func (d *Deribit) GetLastSettlementsByCurrency(ctx context.Context, ccy, settlementType, continuation string, count int64, searchStartTime time.Time) (*SettlementsData, error) {
-	if ccy == "" {
-		return nil, fmt.Errorf("%w '%s'", errInvalidCurrency, strings.ToUpper(ccy))
+func (d *Deribit) GetLastSettlementsByCurrency(ctx context.Context, ccy currency.Code, settlementType, continuation string, count int64, searchStartTime time.Time) (*SettlementsData, error) {
+	if ccy.IsEmpty() {
+		return nil, fmt.Errorf("%w '%s'", currency.ErrCurrencyCodeEmpty, ccy)
 	}
 	params := url.Values{}
-	params.Set("currency", ccy)
+	params.Set("currency", ccy.String())
 	if settlementType != "" {
 		params.Set("type", settlementType)
 	}
@@ -415,12 +415,12 @@ func (d *Deribit) GetLastSettlementsByInstrument(ctx context.Context, instrument
 }
 
 // GetLastTradesByCurrency gets last trades for requested currency
-func (d *Deribit) GetLastTradesByCurrency(ctx context.Context, ccy, kind, startID, endID, sorting string, count int64, includeOld bool) (*PublicTradesData, error) {
-	if ccy == "" {
-		return nil, fmt.Errorf("%w '%s'", errInvalidCurrency, strings.ToUpper(ccy))
+func (d *Deribit) GetLastTradesByCurrency(ctx context.Context, ccy currency.Code, kind, startID, endID, sorting string, count int64, includeOld bool) (*PublicTradesData, error) {
+	if ccy.IsEmpty() {
+		return nil, fmt.Errorf("%w '%s'", currency.ErrCurrencyCodeEmpty, ccy)
 	}
 	params := url.Values{}
-	params.Set("currency", ccy)
+	params.Set("currency", ccy.String())
 	if kind != "" {
 		params.Set("kind", kind)
 	}
@@ -445,12 +445,12 @@ func (d *Deribit) GetLastTradesByCurrency(ctx context.Context, ccy, kind, startI
 }
 
 // GetLastTradesByCurrencyAndTime gets last trades for requested currency and time intervals
-func (d *Deribit) GetLastTradesByCurrencyAndTime(ctx context.Context, ccy, kind, sorting string, count int64, startTime, endTime time.Time) (*PublicTradesData, error) {
-	if ccy == "" {
-		return nil, fmt.Errorf("%w '%s'", errInvalidCurrency, ccy)
+func (d *Deribit) GetLastTradesByCurrencyAndTime(ctx context.Context, ccy currency.Code, kind, sorting string, count int64, startTime, endTime time.Time) (*PublicTradesData, error) {
+	if ccy.IsEmpty() {
+		return nil, fmt.Errorf("%w '%s'", currency.ErrCurrencyCodeEmpty, ccy.String())
 	}
 	params := url.Values{}
-	params.Set("currency", ccy)
+	params.Set("currency", ccy.String())
 	if kind != "" {
 		params.Set("kind", kind)
 	}
@@ -538,7 +538,7 @@ func (d *Deribit) GetMarkPriceHistory(ctx context.Context, instrument string, st
 
 func checkInstrument(instrumentName string) (url.Values, error) {
 	if instrumentName == "" {
-		return nil, fmt.Errorf("%w, instrument_name is missing", currency.ErrCurrencyPairEmpty)
+		return nil, fmt.Errorf("%w, instrument_name is missing", errInvalidInstrumentName)
 	}
 	params := url.Values{}
 	params.Set("instrument_name", instrumentName)
@@ -585,12 +585,12 @@ func (d *Deribit) GetSupportedIndexNames(ctx context.Context, priceIndexType str
 }
 
 // GetRequestForQuote retrieves RFQ information.
-func (d *Deribit) GetRequestForQuote(ctx context.Context, ccy, kind string) ([]RequestForQuote, error) {
-	if ccy == "" {
-		return nil, fmt.Errorf("%w '%s'", errInvalidCurrency, ccy)
+func (d *Deribit) GetRequestForQuote(ctx context.Context, ccy currency.Code, kind string) ([]RequestForQuote, error) {
+	if ccy.IsEmpty() {
+		return nil, fmt.Errorf("%w '%s'", currency.ErrCurrencyCodeEmpty, ccy.String())
 	}
 	params := url.Values{}
-	params.Set("currency", ccy)
+	params.Set("currency", ccy.String())
 	if kind != "" {
 		params.Set("kind", kind)
 	}
@@ -667,9 +667,9 @@ func (d *Deribit) GetResolutionFromInterval(interval kline.Interval) (string, er
 }
 
 // GetVolatilityIndex gets volatility index for the requested currency
-func (d *Deribit) GetVolatilityIndex(ctx context.Context, ccy, resolution string, startTime, endTime time.Time) ([]VolatilityIndexData, error) {
-	if ccy == "" {
-		return nil, fmt.Errorf("%w '%s'", errInvalidCurrency, ccy)
+func (d *Deribit) GetVolatilityIndex(ctx context.Context, ccy currency.Code, resolution string, startTime, endTime time.Time) ([]VolatilityIndexData, error) {
+	if ccy.IsEmpty() {
+		return nil, fmt.Errorf("%w '%s'", currency.ErrCurrencyCodeEmpty, ccy.String())
 	}
 	err := common.StartEndTimeCheck(startTime, endTime)
 	if err != nil {
@@ -679,7 +679,7 @@ func (d *Deribit) GetVolatilityIndex(ctx context.Context, ccy, resolution string
 		return nil, errResolutionNotSet
 	}
 	params := url.Values{}
-	params.Set("currency", ccy)
+	params.Set("currency", ccy.String())
 	params.Set("start_timestamp", strconv.FormatInt(startTime.UnixMilli(), 10))
 	params.Set("end_timestamp", strconv.FormatInt(endTime.UnixMilli(), 10))
 	params.Set("resolution", resolution)
@@ -738,12 +738,12 @@ func (d *Deribit) SendHTTPRequest(ctx context.Context, ep exchange.URL, epl requ
 }
 
 // GetAccountSummary gets account summary data for the requested instrument
-func (d *Deribit) GetAccountSummary(ctx context.Context, ccy string, extended bool) (*AccountSummaryData, error) {
-	if ccy == "" {
-		return nil, fmt.Errorf("%w '%s'", errInvalidCurrency, ccy)
+func (d *Deribit) GetAccountSummary(ctx context.Context, ccy currency.Code, extended bool) (*AccountSummaryData, error) {
+	if ccy.IsEmpty() {
+		return nil, fmt.Errorf("%w '%s'", currency.ErrCurrencyCodeEmpty, ccy.String())
 	}
 	params := url.Values{}
-	params.Set("currency", ccy)
+	params.Set("currency", ccy.String())
 	if extended {
 		params.Set("extended", "true")
 	}
@@ -752,15 +752,15 @@ func (d *Deribit) GetAccountSummary(ctx context.Context, ccy string, extended bo
 }
 
 // CancelWithdrawal cancels withdrawal request for a given currency by its id
-func (d *Deribit) CancelWithdrawal(ctx context.Context, ccy string, id int64) (*CancelWithdrawalData, error) {
-	if ccy == "" {
-		return nil, fmt.Errorf("%w '%s'", errInvalidCurrency, ccy)
+func (d *Deribit) CancelWithdrawal(ctx context.Context, ccy currency.Code, id int64) (*CancelWithdrawalData, error) {
+	if ccy.IsEmpty() {
+		return nil, fmt.Errorf("%w '%s'", currency.ErrCurrencyCodeEmpty, ccy.String())
 	}
 	if id <= 0 {
 		return nil, fmt.Errorf("%w, withdrawal id has to be positive integer", errInvalidID)
 	}
 	params := url.Values{}
-	params.Set("currency", ccy)
+	params.Set("currency", ccy.String())
 	params.Set("id", strconv.FormatInt(id, 10))
 	var resp *CancelWithdrawalData
 	return resp, d.SendHTTPAuthRequest(ctx, exchange.RestFutures, nonMatchingEPL, http.MethodGet,
@@ -768,15 +768,15 @@ func (d *Deribit) CancelWithdrawal(ctx context.Context, ccy string, id int64) (*
 }
 
 // CancelTransferByID cancels transfer by ID through the websocket connection.
-func (d *Deribit) CancelTransferByID(ctx context.Context, ccy, tfa string, id int64) (*AccountSummaryData, error) {
-	if ccy == "" {
-		return nil, fmt.Errorf("%w '%s'", errInvalidCurrency, ccy)
+func (d *Deribit) CancelTransferByID(ctx context.Context, ccy currency.Code, tfa string, id int64) (*AccountSummaryData, error) {
+	if ccy.IsEmpty() {
+		return nil, fmt.Errorf("%w '%s'", currency.ErrCurrencyCodeEmpty, ccy.String())
 	}
 	if id <= 0 {
 		return nil, fmt.Errorf("%w, transfer id has to be positive integer", errInvalidID)
 	}
 	params := url.Values{}
-	params.Set("currency", ccy)
+	params.Set("currency", ccy.String())
 	if tfa != "" {
 		params.Set("tfa", tfa)
 	}
@@ -786,24 +786,24 @@ func (d *Deribit) CancelTransferByID(ctx context.Context, ccy, tfa string, id in
 }
 
 // CreateDepositAddress creates a deposit address for the currency requested
-func (d *Deribit) CreateDepositAddress(ctx context.Context, ccy string) (*DepositAddressData, error) {
-	if ccy == "" {
-		return nil, fmt.Errorf("%w '%s'", errInvalidCurrency, ccy)
+func (d *Deribit) CreateDepositAddress(ctx context.Context, ccy currency.Code) (*DepositAddressData, error) {
+	if ccy.IsEmpty() {
+		return nil, fmt.Errorf("%w '%s'", currency.ErrCurrencyCodeEmpty, ccy.String())
 	}
 	params := url.Values{}
-	params.Set("currency", ccy)
+	params.Set("currency", ccy.String())
 	var resp *DepositAddressData
 	return resp, d.SendHTTPAuthRequest(ctx, exchange.RestFutures, nonMatchingEPL, http.MethodGet,
 		createDepositAddress, params, &resp)
 }
 
 // GetCurrentDepositAddress gets the current deposit address for the requested currency
-func (d *Deribit) GetCurrentDepositAddress(ctx context.Context, ccy string) (*DepositAddressData, error) {
-	if ccy == "" {
-		return nil, fmt.Errorf("%w '%s'", errInvalidCurrency, ccy)
+func (d *Deribit) GetCurrentDepositAddress(ctx context.Context, ccy currency.Code) (*DepositAddressData, error) {
+	if ccy.IsEmpty() {
+		return nil, fmt.Errorf("%w '%s'", currency.ErrCurrencyCodeEmpty, ccy.String())
 	}
 	params := url.Values{}
-	params.Set("currency", ccy)
+	params.Set("currency", ccy.String())
 	var resp *DepositAddressData
 	err := d.SendHTTPAuthRequest(ctx, exchange.RestFutures, nonMatchingEPL, http.MethodGet, getCurrentDepositAddress, params, &resp)
 	if err != nil {
@@ -815,12 +815,12 @@ func (d *Deribit) GetCurrentDepositAddress(ctx context.Context, ccy string) (*De
 }
 
 // GetDeposits gets the deposits of a given currency
-func (d *Deribit) GetDeposits(ctx context.Context, ccy string, count, offset int64) (*DepositsData, error) {
-	if ccy == "" {
-		return nil, fmt.Errorf("%w '%s'", errInvalidCurrency, ccy)
+func (d *Deribit) GetDeposits(ctx context.Context, ccy currency.Code, count, offset int64) (*DepositsData, error) {
+	if ccy.IsEmpty() {
+		return nil, fmt.Errorf("%w '%s'", currency.ErrCurrencyCodeEmpty, ccy.String())
 	}
 	params := url.Values{}
-	params.Set("currency", ccy)
+	params.Set("currency", ccy.String())
 	if count != 0 {
 		params.Set("count", strconv.FormatInt(count, 10))
 	}
@@ -832,12 +832,12 @@ func (d *Deribit) GetDeposits(ctx context.Context, ccy string, count, offset int
 }
 
 // GetTransfers gets transfers data for the requested currency
-func (d *Deribit) GetTransfers(ctx context.Context, ccy string, count, offset int64) (*TransfersData, error) {
-	if ccy == "" {
-		return nil, fmt.Errorf("%w '%s'", errInvalidCurrency, ccy)
+func (d *Deribit) GetTransfers(ctx context.Context, ccy currency.Code, count, offset int64) (*TransfersData, error) {
+	if ccy.IsEmpty() {
+		return nil, fmt.Errorf("%w '%s'", currency.ErrCurrencyCodeEmpty, ccy.String())
 	}
 	params := url.Values{}
-	params.Set("currency", ccy)
+	params.Set("currency", ccy.String())
 	if count != 0 {
 		params.Set("count", strconv.FormatInt(count, 10))
 	}
@@ -850,12 +850,12 @@ func (d *Deribit) GetTransfers(ctx context.Context, ccy string, count, offset in
 }
 
 // GetWithdrawals gets withdrawals data for a requested currency
-func (d *Deribit) GetWithdrawals(ctx context.Context, ccy string, count, offset int64) (*WithdrawalsData, error) {
-	if ccy == "" {
-		return nil, fmt.Errorf("%w '%s'", errInvalidCurrency, ccy)
+func (d *Deribit) GetWithdrawals(ctx context.Context, ccy currency.Code, count, offset int64) (*WithdrawalsData, error) {
+	if ccy.IsEmpty() {
+		return nil, fmt.Errorf("%w '%s'", currency.ErrCurrencyCodeEmpty, ccy.String())
 	}
 	params := url.Values{}
-	params.Set("currency", ccy)
+	params.Set("currency", ccy.String())
 	if count != 0 {
 		params.Set("count", strconv.FormatInt(count, 10))
 	}
@@ -872,7 +872,7 @@ func (d *Deribit) GetWithdrawals(ctx context.Context, ccy string, count, offset 
 // However, if a different "source" is specified, the user must possess the mainaccount scope, and only other subaccounts can be designated as the source.
 func (d *Deribit) SubmitTransferBetweenSubAccounts(ctx context.Context, ccy currency.Code, amount float64, destinationID int64, source string) (*TransferData, error) {
 	if ccy.IsEmpty() {
-		return nil, fmt.Errorf("%w '%s'", errInvalidCurrency, ccy)
+		return nil, fmt.Errorf("%w '%s'", currency.ErrCurrencyCodeEmpty, ccy.String())
 	}
 	if amount <= 0 {
 		return nil, errInvalidAmount
@@ -892,9 +892,9 @@ func (d *Deribit) SubmitTransferBetweenSubAccounts(ctx context.Context, ccy curr
 }
 
 // SubmitTransferToSubAccount submits a request to transfer a currency to a subaccount
-func (d *Deribit) SubmitTransferToSubAccount(ctx context.Context, ccy string, amount float64, destinationID int64) (*TransferData, error) {
-	if ccy == "" {
-		return nil, fmt.Errorf("%w '%s'", errInvalidCurrency, ccy)
+func (d *Deribit) SubmitTransferToSubAccount(ctx context.Context, ccy currency.Code, amount float64, destinationID int64) (*TransferData, error) {
+	if ccy.IsEmpty() {
+		return nil, fmt.Errorf("%w '%s'", currency.ErrCurrencyCodeEmpty, ccy.String())
 	}
 	if amount <= 0 {
 		return nil, errInvalidAmount
@@ -903,7 +903,7 @@ func (d *Deribit) SubmitTransferToSubAccount(ctx context.Context, ccy string, am
 		return nil, errInvalidDestinationID
 	}
 	params := url.Values{}
-	params.Set("currency", ccy)
+	params.Set("currency", ccy.String())
 	params.Set("destination", strconv.FormatInt(destinationID, 10))
 	params.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
 	var resp *TransferData
@@ -912,21 +912,21 @@ func (d *Deribit) SubmitTransferToSubAccount(ctx context.Context, ccy string, am
 }
 
 // SubmitTransferToUser submits a request to transfer a currency to another user
-func (d *Deribit) SubmitTransferToUser(ctx context.Context, ccy, tfa, destinationAddress string, amount float64) (*TransferData, error) {
-	if ccy == "" {
-		return nil, fmt.Errorf("%w '%s'", errInvalidCurrency, ccy)
+func (d *Deribit) SubmitTransferToUser(ctx context.Context, ccy currency.Code, tfa, destinationAddress string, amount float64) (*TransferData, error) {
+	if ccy.IsEmpty() {
+		return nil, fmt.Errorf("%w '%s'", currency.ErrCurrencyCodeEmpty, ccy.String())
 	}
 	if amount <= 0 {
 		return nil, errInvalidAmount
 	}
 	if destinationAddress == "" {
-		return nil, errInvalidDestinationID
+		return nil, errInvalidCryptoAddress
 	}
 	params := url.Values{}
 	if tfa != "" {
 		params.Set("tfa", tfa)
 	}
-	params.Set("currency", ccy)
+	params.Set("currency", ccy.String())
 	params.Set("destination", destinationAddress)
 	params.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
 	var resp *TransferData
@@ -934,9 +934,9 @@ func (d *Deribit) SubmitTransferToUser(ctx context.Context, ccy, tfa, destinatio
 }
 
 // SubmitWithdraw submits a withdrawal request to the exchange for the requested currency
-func (d *Deribit) SubmitWithdraw(ctx context.Context, ccy, address, priority string, amount float64) (*WithdrawData, error) {
-	if ccy == "" {
-		return nil, fmt.Errorf("%w '%s'", errInvalidCurrency, ccy)
+func (d *Deribit) SubmitWithdraw(ctx context.Context, ccy currency.Code, address, priority string, amount float64) (*WithdrawData, error) {
+	if ccy.IsEmpty() {
+		return nil, fmt.Errorf("%w '%s'", currency.ErrCurrencyCodeEmpty, ccy.String())
 	}
 	if amount <= 0 {
 		return nil, errInvalidAmount
@@ -945,7 +945,7 @@ func (d *Deribit) SubmitWithdraw(ctx context.Context, ccy, address, priority str
 		return nil, errInvalidCryptoAddress
 	}
 	params := url.Values{}
-	params.Set("currency", ccy)
+	params.Set("currency", ccy.String())
 	params.Set("address", address)
 	if priority != "" {
 		params.Set("priority", priority)
@@ -970,12 +970,12 @@ func (d *Deribit) GetAnnouncements(ctx context.Context, startTime time.Time, cou
 }
 
 // GetPublicPortfolioMargins public version of the method calculates portfolio margin info for simulated position. For concrete user position, the private version of the method must be used. The public version of the request has special restricted rate limit (not more than once per a second for the IP).
-func (d *Deribit) GetPublicPortfolioMargins(ctx context.Context, ccy string, simulatedPositions map[string]float64) (*PortfolioMargin, error) {
-	if ccy == "" {
-		return nil, fmt.Errorf("%w '%s'", errInvalidCurrency, ccy)
+func (d *Deribit) GetPublicPortfolioMargins(ctx context.Context, ccy currency.Code, simulatedPositions map[string]float64) (*PortfolioMargin, error) {
+	if ccy.IsEmpty() {
+		return nil, fmt.Errorf("%w '%s'", currency.ErrCurrencyCodeEmpty, ccy.String())
 	}
 	params := url.Values{}
-	params.Set("currency", ccy)
+	params.Set("currency", ccy.String())
 	if len(simulatedPositions) != 0 {
 		values, err := json.Marshal(simulatedPositions)
 		if err != nil {
@@ -1008,7 +1008,7 @@ func (d *Deribit) ChangeAPIKeyName(ctx context.Context, id int64, name string) (
 // 'dry_run': If true request returns the result without switching the margining model. Default: false
 func (d *Deribit) ChangeMarginModel(ctx context.Context, userID int64, marginModel string, dryRun bool) ([]TogglePortfolioMarginResponse, error) {
 	if marginModel == "" {
-		return nil, errors.New("missing margin model")
+		return nil, errInvalidMarginModel
 	}
 	params := url.Values{}
 	params.Set("margin_model", marginModel)
@@ -1041,7 +1041,7 @@ func (d *Deribit) ChangeSubAccountName(ctx context.Context, sid int64, name stri
 		return fmt.Errorf("%w, invalid subaccount user id", errInvalidID)
 	}
 	if name == "" {
-		return errInvalidusername
+		return errInvalidUsername
 	}
 	params := url.Values{}
 	params.Set("sid", strconv.FormatInt(sid, 10))
@@ -1100,10 +1100,10 @@ func (d *Deribit) DisableAPIKey(ctx context.Context, id int64) (*APIKeyData, err
 // block_trade:[read, read_write, none].
 func (d *Deribit) EditAPIKey(ctx context.Context, id int64, maxScope, name string, enabled bool, enabledFeatures, ipWhitelist []string) (*APIKeyData, error) {
 	if id == 0 {
-		return nil, errors.New("invalid api key id")
+		return nil, errInvalidAPIKeyID
 	}
 	if maxScope == "" {
-		return nil, errors.New("max scope is required")
+		return nil, errMaxScopeIsRequired
 	}
 	params := url.Values{}
 	if name != "" {
@@ -1190,12 +1190,12 @@ func (d *Deribit) GetNewAnnouncements(ctx context.Context) ([]Announcement, erro
 }
 
 // GetPrivatePortfolioMargins calculates portfolio margin info for simulated position or current position of the user. This request has special restricted rate limit (not more than once per a second).
-func (d *Deribit) GetPrivatePortfolioMargins(ctx context.Context, ccy string, accPositions bool, simulatedPositions map[string]float64) (*PortfolioMargin, error) {
-	if ccy == "" {
-		return nil, fmt.Errorf("%w '%s'", errInvalidCurrency, ccy)
+func (d *Deribit) GetPrivatePortfolioMargins(ctx context.Context, ccy currency.Code, accPositions bool, simulatedPositions map[string]float64) (*PortfolioMargin, error) {
+	if ccy.IsEmpty() {
+		return nil, fmt.Errorf("%w '%s'", currency.ErrCurrencyCodeEmpty, ccy.String())
 	}
 	params := url.Values{}
-	params.Set("currency", ccy)
+	params.Set("currency", ccy.String())
 	if accPositions {
 		params.Set("acc_positions", "true")
 	}
@@ -1233,12 +1233,12 @@ func (d *Deribit) GetSubAccounts(ctx context.Context, withPortfolio bool) ([]Sub
 }
 
 // GetSubAccountDetails retrieves sub accounts detail information.
-func (d *Deribit) GetSubAccountDetails(ctx context.Context, ccy string, withOpenOrders bool) ([]SubAccountDetail, error) {
-	if ccy == "" {
-		return nil, fmt.Errorf("%w '%s'", errInvalidCurrency, ccy)
+func (d *Deribit) GetSubAccountDetails(ctx context.Context, ccy currency.Code, withOpenOrders bool) ([]SubAccountDetail, error) {
+	if ccy.IsEmpty() {
+		return nil, fmt.Errorf("%w '%s'", currency.ErrCurrencyCodeEmpty, ccy.String())
 	}
 	params := url.Values{}
-	params.Set("currency", ccy)
+	params.Set("currency", ccy.String())
 	if withOpenOrders {
 		params.Set("with_open_orders", "true")
 	}
@@ -1247,12 +1247,12 @@ func (d *Deribit) GetSubAccountDetails(ctx context.Context, ccy string, withOpen
 }
 
 // GetPositions gets positions data of the user account
-func (d *Deribit) GetPositions(ctx context.Context, ccy, kind string) ([]PositionData, error) {
-	if ccy == "" {
-		return nil, fmt.Errorf("%w '%s'", errInvalidCurrency, ccy)
+func (d *Deribit) GetPositions(ctx context.Context, ccy currency.Code, kind string) ([]PositionData, error) {
+	if ccy.IsEmpty() {
+		return nil, fmt.Errorf("%w '%s'", currency.ErrCurrencyCodeEmpty, ccy.String())
 	}
 	params := url.Values{}
-	params.Set("currency", ccy)
+	params.Set("currency", ccy.String())
 	if kind != "" {
 		params.Set("kind", kind)
 	}
@@ -1262,12 +1262,12 @@ func (d *Deribit) GetPositions(ctx context.Context, ccy, kind string) ([]Positio
 }
 
 // GetTransactionLog gets transaction logs' data
-func (d *Deribit) GetTransactionLog(ctx context.Context, ccy, query string, startTime, endTime time.Time, count, continuation int64) (*TransactionsData, error) {
-	if ccy == "" {
-		return nil, fmt.Errorf("%w '%s'", errInvalidCurrency, ccy)
+func (d *Deribit) GetTransactionLog(ctx context.Context, ccy currency.Code, query string, startTime, endTime time.Time, count, continuation int64) (*TransactionsData, error) {
+	if ccy.IsEmpty() {
+		return nil, fmt.Errorf("%w '%s'", currency.ErrCurrencyCodeEmpty, ccy.String())
 	}
 	params := url.Values{}
-	params.Set("currency", ccy)
+	params.Set("currency", ccy.String())
 	if query != "" {
 		params.Set("query", query)
 	}
@@ -1425,7 +1425,7 @@ func (d *Deribit) SetEmailLanguage(ctx context.Context, language string) error {
 // extended_to_subaccounts: If value is true trading is prevented between subaccounts of given account
 func (d *Deribit) SetSelfTradingConfig(ctx context.Context, mode string, extendedToSubaccounts bool) (string, error) {
 	if mode == "" {
-		return "", errors.New("self trading mode is required")
+		return "", errTradeModeIsRequired
 	}
 	params := url.Values{}
 	params.Set("mode", mode)
@@ -1494,7 +1494,7 @@ func (d *Deribit) ToggleSubAccountLogin(ctx context.Context, subAccountUserID in
 
 // SubmitBuy submits a private buy request through the websocket connection.
 func (d *Deribit) SubmitBuy(ctx context.Context, arg *OrderBuyAndSellParams) (*PrivateTradeData, error) {
-	if arg == nil {
+	if arg == nil || *arg == (OrderBuyAndSellParams{}) {
 		return nil, fmt.Errorf("%w parameter is required", common.ErrNilPointer)
 	}
 	params, err := checkInstrument(arg.Instrument)
@@ -1545,8 +1545,8 @@ func (d *Deribit) SubmitBuy(ctx context.Context, arg *OrderBuyAndSellParams) (*P
 
 // SubmitSell submits a sell request with the parameters provided
 func (d *Deribit) SubmitSell(ctx context.Context, arg *OrderBuyAndSellParams) (*PrivateTradeData, error) {
-	if arg == nil {
-		return nil, fmt.Errorf("%s argument is required", common.ErrNilPointer)
+	if arg == nil || *arg == (OrderBuyAndSellParams{}) {
+		return nil, fmt.Errorf("%w argument is required", common.ErrNilPointer)
 	}
 	params, err := checkInstrument(arg.Instrument)
 	if err != nil {
@@ -1596,7 +1596,7 @@ func (d *Deribit) SubmitSell(ctx context.Context, arg *OrderBuyAndSellParams) (*
 
 // SubmitEdit submits an edit order request
 func (d *Deribit) SubmitEdit(ctx context.Context, arg *OrderBuyAndSellParams) (*PrivateTradeData, error) {
-	if arg == nil {
+	if arg == nil || *arg == (OrderBuyAndSellParams{}) {
 		return nil, fmt.Errorf("%w parameter is required", common.ErrNilPointer)
 	}
 	if arg.OrderID == "" {
@@ -1635,7 +1635,7 @@ func (d *Deribit) SubmitEdit(ctx context.Context, arg *OrderBuyAndSellParams) (*
 
 // EditOrderByLabel submits an edit order request sorted via label
 func (d *Deribit) EditOrderByLabel(ctx context.Context, arg *OrderBuyAndSellParams) (*PrivateTradeData, error) {
-	if arg == nil {
+	if arg == nil || *arg == (OrderBuyAndSellParams{}) {
 		return nil, fmt.Errorf("%w parameter is required", common.ErrNilPointer)
 	}
 	params, err := checkInstrument(arg.Instrument)
@@ -1699,7 +1699,7 @@ func (d *Deribit) SubmitCancelAll(ctx context.Context, detailed bool) (*Multiple
 // returns the total number of successfully cancelled orders
 func (d *Deribit) SubmitCancelAllByCurrency(ctx context.Context, ccy currency.Code, kind, orderType string, detailed bool) (*MultipleCancelResponse, error) {
 	if ccy.IsEmpty() {
-		return nil, fmt.Errorf("%w '%s'", currency.ErrCurrencyCodeEmpty, ccy)
+		return nil, fmt.Errorf("%w '%s'", currency.ErrCurrencyCodeEmpty, ccy.String())
 	}
 	params := url.Values{}
 	params.Set("currency", ccy.String())
@@ -1722,7 +1722,7 @@ func (d *Deribit) SubmitCancelAllByCurrency(ctx context.Context, ccy currency.Co
 // returns the total number of successfully cancelled orders
 func (d *Deribit) SubmitCancelAllByKind(ctx context.Context, ccy currency.Code, kind, orderType string, detailed bool) (*MultipleCancelResponse, error) {
 	if ccy.IsEmpty() {
-		return nil, fmt.Errorf("%w '%s'", currency.ErrCurrencyCodeEmpty, ccy)
+		return nil, fmt.Errorf("%w '%s'", currency.ErrCurrencyCodeEmpty, ccy.String())
 	}
 	params := url.Values{}
 	params.Set("currency", ccy.String())
@@ -1762,11 +1762,11 @@ func (d *Deribit) SubmitCancelAllByInstrument(ctx context.Context, instrument, o
 
 // SubmitCancelByLabel sends a request to cancel all user orders for the specified label
 // returns the total number of successfully cancelled orders
-func (d *Deribit) SubmitCancelByLabel(ctx context.Context, label, ccy string, detailed bool) (*MultipleCancelResponse, error) {
+func (d *Deribit) SubmitCancelByLabel(ctx context.Context, label string, ccy currency.Code, detailed bool) (*MultipleCancelResponse, error) {
 	params := url.Values{}
 	params.Set("label", label)
-	if ccy != "" {
-		params.Set("currency", ccy)
+	if !ccy.IsEmpty() {
+		params.Set("currency", ccy.String())
 	}
 	if detailed {
 		params.Set("detailed", "true")
@@ -1833,15 +1833,15 @@ func (d *Deribit) SubmitClosePosition(ctx context.Context, instrument, orderType
 
 // GetMargins sends a request to fetch account margins data
 func (d *Deribit) GetMargins(ctx context.Context, instrument string, amount, price float64) (*MarginsData, error) {
+	params, err := checkInstrument(instrument)
+	if err != nil {
+		return nil, err
+	}
 	if amount <= 0 {
 		return nil, errInvalidAmount
 	}
 	if price <= 0 {
 		return nil, errInvalidPrice
-	}
-	params, err := checkInstrument(instrument)
-	if err != nil {
-		return nil, err
 	}
 	params.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
 	params.Set("price", strconv.FormatFloat(price, 'f', -1, 64))
@@ -1851,24 +1851,24 @@ func (d *Deribit) GetMargins(ctx context.Context, instrument string, amount, pri
 }
 
 // GetMMPConfig sends a request to fetch the config for MMP of the requested currency
-func (d *Deribit) GetMMPConfig(ctx context.Context, ccy string) (*MMPConfigData, error) {
-	if ccy == "" {
-		return nil, fmt.Errorf("%w '%s'", errInvalidCurrency, ccy)
+func (d *Deribit) GetMMPConfig(ctx context.Context, ccy currency.Code) (*MMPConfigData, error) {
+	if ccy.IsEmpty() {
+		return nil, fmt.Errorf("%w '%s'", currency.ErrCurrencyCodeEmpty, ccy.String())
 	}
 	params := url.Values{}
-	params.Set("currency", ccy)
+	params.Set("currency", ccy.String())
 	var resp *MMPConfigData
 	return resp, d.SendHTTPAuthRequest(ctx, exchange.RestFutures, nonMatchingEPL, http.MethodGet,
 		getMMPConfig, params, &resp)
 }
 
 // GetOpenOrdersByCurrency retrieves open orders data sorted by requested params
-func (d *Deribit) GetOpenOrdersByCurrency(ctx context.Context, ccy, kind, orderType string) ([]OrderData, error) {
-	if ccy == "" {
-		return nil, fmt.Errorf("%w '%s'", errInvalidCurrency, ccy)
+func (d *Deribit) GetOpenOrdersByCurrency(ctx context.Context, ccy currency.Code, kind, orderType string) ([]OrderData, error) {
+	if ccy.IsEmpty() {
+		return nil, fmt.Errorf("%w '%s'", currency.ErrCurrencyCodeEmpty, ccy.String())
 	}
 	params := url.Values{}
-	params.Set("currency", ccy)
+	params.Set("currency", ccy.String())
 	if kind != "" {
 		params.Set("kind", kind)
 	}
@@ -1908,12 +1908,12 @@ func (d *Deribit) GetOpenOrdersByInstrument(ctx context.Context, instrument, ord
 }
 
 // GetOrderHistoryByCurrency sends a request to fetch order history according to given params and currency
-func (d *Deribit) GetOrderHistoryByCurrency(ctx context.Context, ccy, kind string, count, offset int64, includeOld, includeUnfilled bool) ([]OrderData, error) {
-	if ccy == "" {
-		return nil, fmt.Errorf("%w '%s'", errInvalidCurrency, ccy)
+func (d *Deribit) GetOrderHistoryByCurrency(ctx context.Context, ccy currency.Code, kind string, count, offset int64, includeOld, includeUnfilled bool) ([]OrderData, error) {
+	if ccy.IsEmpty() {
+		return nil, fmt.Errorf("%w '%s'", currency.ErrCurrencyCodeEmpty, ccy.String())
 	}
 	params := url.Values{}
-	params.Set("currency", ccy)
+	params.Set("currency", ccy.String())
 	if kind != "" {
 		params.Set("kind", kind)
 	}
@@ -1998,12 +1998,12 @@ func (d *Deribit) GetOrderStateByLabel(ctx context.Context, ccy currency.Code, l
 }
 
 // GetTriggerOrderHistory sends a request to fetch order state of the order id provided
-func (d *Deribit) GetTriggerOrderHistory(ctx context.Context, ccy, instrumentName, continuation string, count int64) (*OrderData, error) {
-	if ccy == "" {
-		return nil, fmt.Errorf("%w '%s'", errInvalidCurrency, ccy)
+func (d *Deribit) GetTriggerOrderHistory(ctx context.Context, ccy currency.Code, instrumentName, continuation string, count int64) (*OrderData, error) {
+	if ccy.IsEmpty() {
+		return nil, fmt.Errorf("%w '%s'", currency.ErrCurrencyCodeEmpty, ccy.String())
 	}
 	params := url.Values{}
-	params.Set("currency", ccy)
+	params.Set("currency", ccy.String())
 	if instrumentName != "" {
 		params.Set("instrument_name", instrumentName)
 	}
@@ -2019,12 +2019,12 @@ func (d *Deribit) GetTriggerOrderHistory(ctx context.Context, ccy, instrumentNam
 }
 
 // GetUserTradesByCurrency sends a request to fetch user trades sorted by currency
-func (d *Deribit) GetUserTradesByCurrency(ctx context.Context, ccy, kind, startID, endID, sorting string, count int64, includeOld bool) (*UserTradesData, error) {
-	if ccy == "" {
-		return nil, fmt.Errorf("%w '%s'", errInvalidCurrency, ccy)
+func (d *Deribit) GetUserTradesByCurrency(ctx context.Context, ccy currency.Code, kind, startID, endID, sorting string, count int64, includeOld bool) (*UserTradesData, error) {
+	if ccy.IsEmpty() {
+		return nil, fmt.Errorf("%w '%s'", currency.ErrCurrencyCodeEmpty, ccy.String())
 	}
 	params := url.Values{}
-	params.Set("currency", ccy)
+	params.Set("currency", ccy.String())
 	if kind != "" {
 		params.Set("kind", kind)
 	}
@@ -2049,12 +2049,12 @@ func (d *Deribit) GetUserTradesByCurrency(ctx context.Context, ccy, kind, startI
 }
 
 // GetUserTradesByCurrencyAndTime sends a request to fetch user trades sorted by currency and time
-func (d *Deribit) GetUserTradesByCurrencyAndTime(ctx context.Context, ccy, kind, sorting string, count int64, startTime, endTime time.Time) (*UserTradesData, error) {
-	if ccy == "" {
-		return nil, fmt.Errorf("%w '%s'", errInvalidCurrency, ccy)
+func (d *Deribit) GetUserTradesByCurrencyAndTime(ctx context.Context, ccy currency.Code, kind, sorting string, count int64, startTime, endTime time.Time) (*UserTradesData, error) {
+	if ccy.IsEmpty() {
+		return nil, fmt.Errorf("%w '%s'", currency.ErrCurrencyCodeEmpty, ccy.String())
 	}
 	params := url.Values{}
-	params.Set("currency", ccy)
+	params.Set("currency", ccy.String())
 	if kind != "" {
 		params.Set("kind", kind)
 	}
@@ -2139,19 +2139,19 @@ func (d *Deribit) GetUserTradesByOrder(ctx context.Context, orderID, sorting str
 }
 
 // ResetMMP sends a request to reset MMP for a currency provided
-func (d *Deribit) ResetMMP(ctx context.Context, ccy string) error {
-	if ccy == "" {
-		return fmt.Errorf("%w '%s'", errInvalidCurrency, ccy)
+func (d *Deribit) ResetMMP(ctx context.Context, ccy currency.Code) error {
+	if ccy.IsEmpty() {
+		return fmt.Errorf("%w '%s'", currency.ErrCurrencyCodeEmpty, ccy.String())
 	}
 	params := url.Values{}
-	params.Set("currency", ccy)
+	params.Set("currency", ccy.String())
 	var resp string
 	err := d.SendHTTPAuthRequest(ctx, exchange.RestFutures, nonMatchingEPL, http.MethodGet, resetMMP, params, &resp)
 	if err != nil {
 		return err
 	}
 	if resp != "ok" {
-		return fmt.Errorf("mmp could not be reset for %v", ccy)
+		return fmt.Errorf("mmp could not be reset for %v", ccy.String())
 	}
 	return nil
 }
@@ -2180,12 +2180,12 @@ func (d *Deribit) SendRequestForQuote(ctx context.Context, instrumentName string
 }
 
 // SetMMPConfig sends a request to set the given parameter values to the mmp config for the provided currency
-func (d *Deribit) SetMMPConfig(ctx context.Context, ccy string, interval kline.Interval, frozenTime int64, quantityLimit, deltaLimit float64) error {
-	if ccy == "" {
-		return fmt.Errorf("%w '%s'", errInvalidCurrency, ccy)
+func (d *Deribit) SetMMPConfig(ctx context.Context, ccy currency.Code, interval kline.Interval, frozenTime int64, quantityLimit, deltaLimit float64) error {
+	if ccy.IsEmpty() {
+		return fmt.Errorf("%w '%s'", currency.ErrCurrencyCodeEmpty, ccy.String())
 	}
 	params := url.Values{}
-	params.Set("currency", ccy)
+	params.Set("currency", ccy.String())
 	intervalString, err := d.GetResolutionFromInterval(interval)
 	if err != nil {
 		return err
@@ -2205,7 +2205,7 @@ func (d *Deribit) SetMMPConfig(ctx context.Context, ccy string, interval kline.I
 		return err
 	}
 	if resp != "ok" {
-		return fmt.Errorf("mmp data could not be set for %v", ccy)
+		return fmt.Errorf("mmp data could not be set for %v", ccy.String())
 	}
 	return nil
 }
@@ -2234,12 +2234,12 @@ func (d *Deribit) GetSettlementHistoryByInstrument(ctx context.Context, instrume
 }
 
 // GetSettlementHistoryByCurency sends a request to fetch settlement history data sorted by currency
-func (d *Deribit) GetSettlementHistoryByCurency(ctx context.Context, ccy, settlementType, continuation string, count int64, searchStartTimeStamp time.Time) (*PrivateSettlementsHistoryData, error) {
-	if ccy == "" {
-		return nil, fmt.Errorf("%w '%s'", errInvalidCurrency, ccy)
+func (d *Deribit) GetSettlementHistoryByCurency(ctx context.Context, ccy currency.Code, settlementType, continuation string, count int64, searchStartTimeStamp time.Time) (*PrivateSettlementsHistoryData, error) {
+	if ccy.IsEmpty() {
+		return nil, fmt.Errorf("%w '%s'", currency.ErrCurrencyCodeEmpty, ccy.String())
 	}
 	params := url.Values{}
-	params.Set("currency", ccy)
+	params.Set("currency", ccy.String())
 	if settlementType != "" {
 		params.Set("settlement_type", settlementType)
 	}
@@ -2315,12 +2315,12 @@ func (d *Deribit) SendHTTPAuthRequest(ctx context.Context, ep exchange.URL, epl 
 
 // GetComboIDs Retrieves available combos.
 // This method can be used to get the list of all combos, or only the list of combos in the given state.
-func (d *Deribit) GetComboIDs(ctx context.Context, ccy, state string) ([]string, error) {
-	if ccy == "" {
-		return nil, fmt.Errorf("%w '%s'", errInvalidCurrency, ccy)
+func (d *Deribit) GetComboIDs(ctx context.Context, ccy currency.Code, state string) ([]string, error) {
+	if ccy.IsEmpty() {
+		return nil, fmt.Errorf("%w '%s'", currency.ErrCurrencyCodeEmpty, ccy.String())
 	}
 	params := url.Values{}
-	params.Set("currency", ccy)
+	params.Set("currency", ccy.String())
 	if state != "" {
 		params.Set("state", state)
 	}
@@ -2340,12 +2340,12 @@ func (d *Deribit) GetComboDetails(ctx context.Context, comboID string) (*ComboDe
 }
 
 // GetCombos retrieves information about active combos
-func (d *Deribit) GetCombos(ctx context.Context, ccy string) ([]ComboDetail, error) {
-	if ccy == "" {
-		return nil, fmt.Errorf("%w '%s'", errInvalidCurrency, ccy)
+func (d *Deribit) GetCombos(ctx context.Context, ccy currency.Code) ([]ComboDetail, error) {
+	if ccy.IsEmpty() {
+		return nil, fmt.Errorf("%w '%s'", currency.ErrCurrencyCodeEmpty, ccy.String())
 	}
 	params := url.Values{}
-	params.Set("currency", ccy)
+	params.Set("currency", ccy.String())
 	var resp []ComboDetail
 	return resp, d.SendHTTPRequest(ctx, exchange.RestFutures, nonMatchingEPL, common.EncodeURLValues(getCombos, params), &resp)
 }
@@ -2383,7 +2383,7 @@ func (d *Deribit) CreateCombo(ctx context.Context, args []ComboParam) (*ComboDet
 // ExecuteBlockTrade executes a block trade request
 // The whole request have to be exact the same as in private/verify_block_trade, only role field should be set appropriately - it basically means that both sides have to agree on the same timestamp, nonce, trades fields and server will assure that role field is different between sides (each party accepted own role).
 // Using the same timestamp and nonce by both sides in private/verify_block_trade assures that even if unintentionally both sides execute given block trade with valid counterparty_signature, the given block trade will be executed only once
-func (d *Deribit) ExecuteBlockTrade(ctx context.Context, timestampMS time.Time, nonce, role, ccy string, trades []BlockTradeParam) ([]BlockTradeResponse, error) {
+func (d *Deribit) ExecuteBlockTrade(ctx context.Context, timestampMS time.Time, nonce, role string, ccy currency.Code, trades []BlockTradeParam) ([]BlockTradeResponse, error) {
 	if nonce == "" {
 		return nil, errMissingNonce
 	}
@@ -2420,8 +2420,8 @@ func (d *Deribit) ExecuteBlockTrade(ctx context.Context, timestampMS time.Time, 
 		return nil, errZeroTimestamp
 	}
 	params := url.Values{}
-	if ccy != "" {
-		params.Set("currency", ccy)
+	if !ccy.IsEmpty() {
+		params.Set("currency", ccy.String())
 	}
 	params.Set("trades", string(values))
 	params.Set("nonce", nonce)
@@ -2433,7 +2433,7 @@ func (d *Deribit) ExecuteBlockTrade(ctx context.Context, timestampMS time.Time, 
 }
 
 // VerifyBlockTrade verifies and creates block trade signature
-func (d *Deribit) VerifyBlockTrade(ctx context.Context, timestampMS time.Time, nonce, role, ccy string, trades []BlockTradeParam) (string, error) {
+func (d *Deribit) VerifyBlockTrade(ctx context.Context, timestampMS time.Time, nonce, role string, ccy currency.Code, trades []BlockTradeParam) (string, error) {
 	if nonce == "" {
 		return "", errMissingNonce
 	}
@@ -2467,8 +2467,8 @@ func (d *Deribit) VerifyBlockTrade(ctx context.Context, timestampMS time.Time, n
 	}
 	params := url.Values{}
 	params.Set("timestamp", strconv.FormatInt(timestampMS.UnixMilli(), 10))
-	if ccy != "" {
-		params.Set("currency", ccy)
+	if !ccy.IsEmpty() {
+		params.Set("currency", ccy.String())
 	}
 	params.Set("nonce", nonce)
 	params.Set("role", role)
@@ -2519,12 +2519,12 @@ func (d *Deribit) GetTime(ctx context.Context) (time.Time, error) {
 }
 
 // GetLastBlockTradesByCurrency returns list of last users block trades
-func (d *Deribit) GetLastBlockTradesByCurrency(ctx context.Context, ccy, startID, endID string, count int64) ([]BlockTradeData, error) {
-	if ccy == "" {
-		return nil, fmt.Errorf("%w '%s'", errInvalidCurrency, strings.ToUpper(ccy))
+func (d *Deribit) GetLastBlockTradesByCurrency(ctx context.Context, ccy currency.Code, startID, endID string, count int64) ([]BlockTradeData, error) {
+	if ccy.IsEmpty() {
+		return nil, fmt.Errorf("%w '%s'", currency.ErrCurrencyCodeEmpty, strings.ToUpper(ccy.String()))
 	}
 	params := url.Values{}
-	params.Set("currency", ccy)
+	params.Set("currency", ccy.String())
 	if startID != "" {
 		params.Set("start_id", startID)
 	}
@@ -2539,9 +2539,9 @@ func (d *Deribit) GetLastBlockTradesByCurrency(ctx context.Context, ccy, startID
 }
 
 // MovePositions moves positions from source subaccount to target subaccount
-func (d *Deribit) MovePositions(ctx context.Context, ccy string, sourceSubAccountUID, targetSubAccountUID int64, trades []BlockTradeParam) ([]BlockTradeMoveResponse, error) {
-	if ccy == "" {
-		return nil, fmt.Errorf("%w '%s'", errInvalidCurrency, strings.ToUpper(ccy))
+func (d *Deribit) MovePositions(ctx context.Context, ccy currency.Code, sourceSubAccountUID, targetSubAccountUID int64, trades []BlockTradeParam) ([]BlockTradeMoveResponse, error) {
+	if ccy.IsEmpty() {
+		return nil, fmt.Errorf("%w '%s'", currency.ErrCurrencyCodeEmpty, strings.ToUpper(ccy.String()))
 	}
 	if sourceSubAccountUID == 0 {
 		return nil, fmt.Errorf("%w source sub-account id", errMissingSubAccountID)
@@ -2565,7 +2565,7 @@ func (d *Deribit) MovePositions(ctx context.Context, ccy string, sourceSubAccoun
 		return nil, err
 	}
 	params := url.Values{}
-	params.Set("currency", ccy)
+	params.Set("currency", ccy.String())
 	params.Set("source_uid", strconv.FormatInt(sourceSubAccountUID, 10))
 	params.Set("target_uid", strconv.FormatInt(targetSubAccountUID, 10))
 	params.Set("trades", string(values))
@@ -2630,7 +2630,7 @@ func (d *Deribit) ExchangeToken(ctx context.Context, refreshToken string, subjec
 		return nil, errRefreshTokenRequired
 	}
 	if subjectID == 0 {
-		return nil, errors.New("subject id is required")
+		return nil, errSubjectIDRequired
 	}
 	params := url.Values{}
 	params.Set("refresh_token", refreshToken)

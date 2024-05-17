@@ -18,15 +18,15 @@ import (
 )
 
 // WSRetrieveBookBySummary retrieves book summary data for currency requested through websocket connection.
-func (d *Deribit) WSRetrieveBookBySummary(symbol, kind string) ([]BookSummaryData, error) {
-	if symbol == "" {
-		return nil, fmt.Errorf("%w \"%s\"", errInvalidCurrency, symbol)
+func (d *Deribit) WSRetrieveBookBySummary(ccy currency.Code, kind string) ([]BookSummaryData, error) {
+	if ccy.IsEmpty() {
+		return nil, fmt.Errorf("%w \"%s\"", currency.ErrCurrencyCodeEmpty, ccy)
 	}
 	input := &struct {
-		Currency string `json:"currency"`
-		Kind     string `json:"kind,omitempty"`
+		Currency currency.Code `json:"currency"`
+		Kind     string        `json:"kind,omitempty"`
 	}{
-		Currency: symbol,
+		Currency: ccy,
 	}
 	if kind != "" {
 		input.Kind = kind
@@ -151,14 +151,14 @@ func (d *Deribit) WSRetrieveFundingRateValue(instrument string, startTime, endTi
 }
 
 // WSRetrieveHistoricalVolatility retrieves historical volatility data
-func (d *Deribit) WSRetrieveHistoricalVolatility(symbol string) ([]HistoricalVolatilityData, error) {
-	if symbol == "" {
-		return nil, fmt.Errorf("%w \"%s\"", errInvalidCurrency, symbol)
+func (d *Deribit) WSRetrieveHistoricalVolatility(ccy currency.Code) ([]HistoricalVolatilityData, error) {
+	if ccy.IsEmpty() {
+		return nil, fmt.Errorf("%w \"%s\"", currency.ErrCurrencyCodeEmpty, ccy)
 	}
 	input := &struct {
-		Currency string `json:"currency"`
+		Currency currency.Code `json:"currency"`
 	}{
-		Currency: symbol,
+		Currency: ccy,
 	}
 	var data [][2]interface{}
 	err := d.SendWSRequest(nonMatchingEPL, getHistoricalVolatility, input, &data, false)
@@ -184,14 +184,14 @@ func (d *Deribit) WSRetrieveHistoricalVolatility(symbol string) ([]HistoricalVol
 }
 
 // WSRetrieveCurrencyIndexPrice the current index price for the instruments, for the selected currency through the websocket connection.
-func (d *Deribit) WSRetrieveCurrencyIndexPrice(symbol string) (map[string]float64, error) {
-	if symbol == "" {
-		return nil, fmt.Errorf("%w \"%s\"", errInvalidCurrency, symbol)
+func (d *Deribit) WSRetrieveCurrencyIndexPrice(ccy currency.Code) (map[string]float64, error) {
+	if ccy.IsEmpty() {
+		return nil, fmt.Errorf("%w \"%s\"", currency.ErrCurrencyCodeEmpty, ccy)
 	}
 	input := &struct {
-		Currency string `json:"currency"`
+		Currency currency.Code `json:"currency"`
 	}{
-		Currency: symbol,
+		Currency: ccy,
 	}
 	var resp map[string]float64
 	return resp, d.SendWSRequest(nonMatchingEPL, getCurrencyIndexPrice, input, &resp, false)
@@ -232,16 +232,16 @@ func (d *Deribit) WSRetrieveInstrumentData(instrument string) (*InstrumentData, 
 }
 
 // WSRetrieveInstrumentsData gets data for all available instruments
-func (d *Deribit) WSRetrieveInstrumentsData(symbol, kind string, expired bool) ([]InstrumentData, error) {
-	if symbol == "" {
-		return nil, fmt.Errorf("%w \"%s\"", errInvalidCurrency, symbol)
+func (d *Deribit) WSRetrieveInstrumentsData(ccy currency.Code, kind string, expired bool) ([]InstrumentData, error) {
+	if ccy.IsEmpty() {
+		return nil, fmt.Errorf("%w \"%s\"", currency.ErrCurrencyCodeEmpty, ccy)
 	}
 	input := &struct {
-		Currency string `json:"currency"`
-		Expired  bool   `json:"expired"`
-		Kind     string `json:"kind,omitempty"`
+		Currency currency.Code `json:"currency"`
+		Expired  bool          `json:"expired"`
+		Kind     string        `json:"kind,omitempty"`
 	}{
-		Currency: symbol,
+		Currency: ccy,
 		Expired:  expired,
 		Kind:     kind,
 	}
@@ -250,9 +250,9 @@ func (d *Deribit) WSRetrieveInstrumentsData(symbol, kind string, expired bool) (
 }
 
 // WSRetrieveLastSettlementsByCurrency retrieves last settlement data by currency through the websocket connection.
-func (d *Deribit) WSRetrieveLastSettlementsByCurrency(symbol, settlementType, continuation string, count int64, startTime time.Time) (*SettlementsData, error) {
-	if symbol == "" {
-		return nil, fmt.Errorf("%w \"%s\"", errInvalidCurrency, symbol)
+func (d *Deribit) WSRetrieveLastSettlementsByCurrency(ccy currency.Code, settlementType, continuation string, count int64, startTime time.Time) (*SettlementsData, error) {
+	if ccy.IsEmpty() {
+		return nil, fmt.Errorf("%w \"%s\"", currency.ErrCurrencyCodeEmpty, ccy)
 	}
 	input := &struct {
 		Currency             string `json:"currency,omitempty"`
@@ -261,7 +261,7 @@ func (d *Deribit) WSRetrieveLastSettlementsByCurrency(symbol, settlementType, co
 		Count                int64  `json:"count,omitempty"`
 		SearchStartTimestamp int64  `json:"search_start_timestamp,omitempty"`
 	}{
-		Currency:             symbol,
+		Currency:             ccy.String(),
 		Type:                 settlementType,
 		Continuation:         continuation,
 		Count:                count,
@@ -296,20 +296,20 @@ func (d *Deribit) WSRetrieveLastSettlementsByInstrument(instrument, settlementTy
 }
 
 // WSRetrieveLastTradesByCurrency retrieves last trades for requested currency through the websocket connection.
-func (d *Deribit) WSRetrieveLastTradesByCurrency(symbol, kind, startID, endID, sorting string, count int64, includeOld bool) (*PublicTradesData, error) {
-	if symbol == "" {
-		return nil, fmt.Errorf("%w \"%s\"", errInvalidCurrency, symbol)
+func (d *Deribit) WSRetrieveLastTradesByCurrency(ccy currency.Code, kind, startID, endID, sorting string, count int64, includeOld bool) (*PublicTradesData, error) {
+	if ccy.IsEmpty() {
+		return nil, fmt.Errorf("%w \"%s\"", currency.ErrCurrencyCodeEmpty, ccy)
 	}
 	input := &struct {
-		Currency   string `json:"currency"`
-		Kind       string `json:"kind,omitempty"`
-		StartID    string `json:"start_id,omitempty"`
-		EndID      string `json:"end_id,omitempty"`
-		Count      int64  `json:"count,omitempty"`
-		IncludeOld bool   `json:"include_old,omitempty"`
-		Sorting    string `json:"sorting,omitempty"`
+		Currency   currency.Code `json:"currency"`
+		Kind       string        `json:"kind,omitempty"`
+		StartID    string        `json:"start_id,omitempty"`
+		EndID      string        `json:"end_id,omitempty"`
+		Count      int64         `json:"count,omitempty"`
+		IncludeOld bool          `json:"include_old,omitempty"`
+		Sorting    string        `json:"sorting,omitempty"`
 	}{
-		Currency:   symbol,
+		Currency:   ccy,
 		Kind:       kind,
 		StartID:    startID,
 		EndID:      endID,
@@ -322,23 +322,23 @@ func (d *Deribit) WSRetrieveLastTradesByCurrency(symbol, kind, startID, endID, s
 }
 
 // WSRetrieveLastTradesByCurrencyAndTime retrieves last trades for requested currency and time intervals through the websocket connection.
-func (d *Deribit) WSRetrieveLastTradesByCurrencyAndTime(symbol, kind, sorting string, count int64, includeOld bool, startTime, endTime time.Time) (*PublicTradesData, error) {
-	if symbol == "" {
-		return nil, fmt.Errorf("%w \"%s\"", errInvalidCurrency, symbol)
+func (d *Deribit) WSRetrieveLastTradesByCurrencyAndTime(ccy currency.Code, kind, sorting string, count int64, includeOld bool, startTime, endTime time.Time) (*PublicTradesData, error) {
+	if ccy.IsEmpty() {
+		return nil, fmt.Errorf("%w \"%s\"", currency.ErrCurrencyCodeEmpty, ccy)
 	}
 	if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
 		return nil, err
 	}
 	input := &struct {
-		Currency       string `json:"currency"`
-		Kind           string `json:"kind,omitempty"`
-		Sorting        string `json:"sorting,omitempty"`
-		Count          int64  `json:"count,omitempty"`
-		StartTimestamp int64  `json:"start_timestamp,omitempty"`
-		EndTimestamp   int64  `json:"end_timestamp,omitempty"`
-		IncludeOld     bool   `json:"include_old,omitempty"`
+		Currency       currency.Code `json:"currency"`
+		Kind           string        `json:"kind,omitempty"`
+		Sorting        string        `json:"sorting,omitempty"`
+		Count          int64         `json:"count,omitempty"`
+		StartTimestamp int64         `json:"start_timestamp,omitempty"`
+		EndTimestamp   int64         `json:"end_timestamp,omitempty"`
+		IncludeOld     bool          `json:"include_old,omitempty"`
 	}{
-		Currency:       symbol,
+		Currency:       ccy,
 		Kind:           kind,
 		Count:          count,
 		StartTimestamp: startTime.UnixMilli(),
@@ -467,15 +467,15 @@ func (d *Deribit) WsRetrieveSupportedIndexNames(priceIndexType string) ([]string
 }
 
 // WSRetrieveRequestForQuote retrieves RFQ information.
-func (d *Deribit) WSRetrieveRequestForQuote(symbol, kind string) ([]RequestForQuote, error) {
-	if symbol == "" {
-		return nil, fmt.Errorf("%w \"%s\"", errInvalidCurrency, symbol)
+func (d *Deribit) WSRetrieveRequestForQuote(ccy currency.Code, kind string) ([]RequestForQuote, error) {
+	if ccy.IsEmpty() {
+		return nil, fmt.Errorf("%w \"%s\"", currency.ErrCurrencyCodeEmpty, ccy)
 	}
 	input := &struct {
-		Currency string `json:"currency"`
-		Kind     string `json:"kind,omitempty"`
+		Currency currency.Code `json:"currency"`
+		Kind     string        `json:"kind,omitempty"`
 	}{
-		Currency: symbol,
+		Currency: ccy,
 		Kind:     kind,
 	}
 	var resp []RequestForQuote
@@ -520,16 +520,16 @@ func (d *Deribit) WSRetrievesTradingViewChartData(instrument, resolution string,
 }
 
 // WSRetrieveVolatilityIndexData retrieves volatility index data for the requested currency through the websocket connection.
-func (d *Deribit) WSRetrieveVolatilityIndexData(symbol, resolution string, startTime, endTime time.Time) ([]VolatilityIndexData, error) {
-	if symbol == "" {
-		return nil, fmt.Errorf("%w \"%s\"", errInvalidCurrency, symbol)
+func (d *Deribit) WSRetrieveVolatilityIndexData(ccy currency.Code, resolution string, startTime, endTime time.Time) ([]VolatilityIndexData, error) {
+	if ccy.IsEmpty() {
+		return nil, fmt.Errorf("%w \"%s\"", currency.ErrCurrencyCodeEmpty, ccy)
+	}
+	if resolution == "" {
+		return nil, errResolutionNotSet
 	}
 	err := common.StartEndTimeCheck(startTime, endTime)
 	if err != nil {
 		return nil, err
-	}
-	if resolution == "" {
-		return nil, errResolutionNotSet
 	}
 	input := &struct {
 		Currency       string `json:"currency,omitempty"`
@@ -537,7 +537,7 @@ func (d *Deribit) WSRetrieveVolatilityIndexData(symbol, resolution string, start
 		EndTimestamp   int64  `json:"end_timestamp,omitempty"`
 		Resolution     string `json:"resolution,omitempty"`
 	}{
-		Currency:       symbol,
+		Currency:       ccy.String(),
 		Resolution:     resolution,
 		StartTimestamp: startTime.UnixMilli(),
 		EndTimestamp:   endTime.UnixMilli(),
@@ -575,15 +575,15 @@ func (d *Deribit) WSRetrievePublicTicker(instrument string) (*TickerData, error)
 }
 
 // WSRetrieveAccountSummary retrieves account summary data for the requested instrument through the websocket connection.
-func (d *Deribit) WSRetrieveAccountSummary(symbol string, extended bool) (*AccountSummaryData, error) {
-	if symbol == "" {
-		return nil, fmt.Errorf("%w \"%s\"", errInvalidCurrency, symbol)
+func (d *Deribit) WSRetrieveAccountSummary(ccy currency.Code, extended bool) (*AccountSummaryData, error) {
+	if ccy.IsEmpty() {
+		return nil, fmt.Errorf("%w \"%s\"", currency.ErrCurrencyCodeEmpty, ccy)
 	}
 	input := &struct {
-		Currency string `json:"currency"`
-		Extended bool   `json:"extended"`
+		Currency currency.Code `json:"currency"`
+		Extended bool          `json:"extended"`
 	}{
-		Currency: symbol,
+		Currency: ccy,
 		Extended: extended,
 	}
 	var resp *AccountSummaryData
@@ -591,18 +591,18 @@ func (d *Deribit) WSRetrieveAccountSummary(symbol string, extended bool) (*Accou
 }
 
 // WSCancelWithdrawal cancels withdrawal request for a given currency by its id through the websocket connection.
-func (d *Deribit) WSCancelWithdrawal(symbol string, id int64) (*CancelWithdrawalData, error) {
-	if symbol == "" {
-		return nil, fmt.Errorf("%w \"%s\"", errInvalidCurrency, symbol)
+func (d *Deribit) WSCancelWithdrawal(ccy currency.Code, id int64) (*CancelWithdrawalData, error) {
+	if ccy.IsEmpty() {
+		return nil, fmt.Errorf("%w \"%s\"", currency.ErrCurrencyCodeEmpty, ccy)
 	}
 	if id <= 0 {
 		return nil, fmt.Errorf("%w, withdrawal id has to be positive integer", errInvalidID)
 	}
 	input := &struct {
-		Currency string `json:"currency"`
-		ID       int64  `json:"id"`
+		Currency currency.Code `json:"currency"`
+		ID       int64         `json:"id"`
 	}{
-		Currency: symbol,
+		Currency: ccy,
 		ID:       id,
 	}
 	var resp *CancelWithdrawalData
@@ -610,9 +610,9 @@ func (d *Deribit) WSCancelWithdrawal(symbol string, id int64) (*CancelWithdrawal
 }
 
 // WSCancelTransferByID cancels transfer by ID through the websocket connection.
-func (d *Deribit) WSCancelTransferByID(symbol, tfa string, id int64) (*AccountSummaryData, error) {
-	if symbol == "" {
-		return nil, fmt.Errorf("%w \"%s\"", errInvalidCurrency, symbol)
+func (d *Deribit) WSCancelTransferByID(ccy currency.Code, tfa string, id int64) (*AccountSummaryData, error) {
+	if ccy.IsEmpty() {
+		return nil, fmt.Errorf("%w \"%s\"", currency.ErrCurrencyCodeEmpty, ccy)
 	}
 	if id <= 0 {
 		return nil, fmt.Errorf("%w, transfer id has to be positive integer", errInvalidID)
@@ -622,7 +622,7 @@ func (d *Deribit) WSCancelTransferByID(symbol, tfa string, id int64) (*AccountSu
 		TwoFactorAuthenticationCode string `json:"tfa,omitempty"`
 		ID                          int64  `json:"id"`
 	}{
-		Currency:                    symbol,
+		Currency:                    ccy.String(),
 		ID:                          id,
 		TwoFactorAuthenticationCode: tfa,
 	}
@@ -631,30 +631,30 @@ func (d *Deribit) WSCancelTransferByID(symbol, tfa string, id int64) (*AccountSu
 }
 
 // WSCreateDepositAddress creates a deposit address for the currency requested through the websocket connection.
-func (d *Deribit) WSCreateDepositAddress(symbol string) (*DepositAddressData, error) {
-	if symbol == "" {
-		return nil, fmt.Errorf("%w \"%s\"", errInvalidCurrency, symbol)
+func (d *Deribit) WSCreateDepositAddress(ccy currency.Code) (*DepositAddressData, error) {
+	if ccy.IsEmpty() {
+		return nil, fmt.Errorf("%w \"%s\"", currency.ErrCurrencyCodeEmpty, ccy)
 	}
 	input := &struct {
-		Currency string `json:"currency"`
+		Currency currency.Code `json:"currency"`
 	}{
-		Currency: symbol,
+		Currency: ccy,
 	}
 	var resp *DepositAddressData
 	return resp, d.SendWSRequest(nonMatchingEPL, createDepositAddress, input, &resp, true)
 }
 
 // WSRetrieveDeposits retrieves the deposits of a given currency through the websocket connection.
-func (d *Deribit) WSRetrieveDeposits(symbol string, count, offset int64) (*DepositsData, error) {
-	if symbol == "" {
-		return nil, fmt.Errorf("%w \"%s\"", errInvalidCurrency, symbol)
+func (d *Deribit) WSRetrieveDeposits(ccy currency.Code, count, offset int64) (*DepositsData, error) {
+	if ccy.IsEmpty() {
+		return nil, fmt.Errorf("%w \"%s\"", currency.ErrCurrencyCodeEmpty, ccy)
 	}
 	input := &struct {
-		Currency string `json:"currency"`
-		Count    int64  `json:"count,omitempty"`
-		Offset   int64  `json:"offset,omitempty"`
+		Currency currency.Code `json:"currency"`
+		Count    int64         `json:"count,omitempty"`
+		Offset   int64         `json:"offset,omitempty"`
 	}{
-		Currency: symbol,
+		Currency: ccy,
 		Count:    count,
 		Offset:   offset,
 	}
@@ -663,16 +663,16 @@ func (d *Deribit) WSRetrieveDeposits(symbol string, count, offset int64) (*Depos
 }
 
 // WSRetrieveTransfers retrieves data for the requested currency through the websocket connection.
-func (d *Deribit) WSRetrieveTransfers(symbol string, count, offset int64) (*TransfersData, error) {
-	if symbol == "" {
-		return nil, fmt.Errorf("%w \"%s\"", errInvalidCurrency, symbol)
+func (d *Deribit) WSRetrieveTransfers(ccy currency.Code, count, offset int64) (*TransfersData, error) {
+	if ccy.IsEmpty() {
+		return nil, fmt.Errorf("%w \"%s\"", currency.ErrCurrencyCodeEmpty, ccy)
 	}
 	input := &struct {
 		Currency string `json:"currency,omitempty"`
 		Count    int64  `json:"count,omitempty"`
 		Offset   int64  `json:"offset,omitempty"`
 	}{
-		Currency: symbol,
+		Currency: ccy.String(),
 		Count:    count,
 		Offset:   offset,
 	}
@@ -681,14 +681,14 @@ func (d *Deribit) WSRetrieveTransfers(symbol string, count, offset int64) (*Tran
 }
 
 // WSRetrieveCurrentDepositAddress retrieves the current deposit address for the requested currency through the websocket connection.
-func (d *Deribit) WSRetrieveCurrentDepositAddress(symbol string) (*DepositAddressData, error) {
-	if symbol == "" {
-		return nil, fmt.Errorf("%w \"%s\"", errInvalidCurrency, symbol)
+func (d *Deribit) WSRetrieveCurrentDepositAddress(ccy currency.Code) (*DepositAddressData, error) {
+	if ccy.IsEmpty() {
+		return nil, fmt.Errorf("%w \"%s\"", currency.ErrCurrencyCodeEmpty, ccy)
 	}
 	input := &struct {
-		Currency string `json:"currency"`
+		Currency currency.Code `json:"currency"`
 	}{
-		Currency: symbol,
+		Currency: ccy,
 	}
 	var resp *DepositAddressData
 	err := d.SendWSRequest(nonMatchingEPL, getCurrentDepositAddress, input, &resp, true)
@@ -701,16 +701,16 @@ func (d *Deribit) WSRetrieveCurrentDepositAddress(symbol string) (*DepositAddres
 }
 
 // WSRetrieveWithdrawals retrieves withdrawals data for a requested currency through the websocket connection.
-func (d *Deribit) WSRetrieveWithdrawals(symbol string, count, offset int64) (*WithdrawalsData, error) {
-	if symbol == "" {
-		return nil, fmt.Errorf("%w \"%s\"", errInvalidCurrency, symbol)
+func (d *Deribit) WSRetrieveWithdrawals(ccy currency.Code, count, offset int64) (*WithdrawalsData, error) {
+	if ccy.IsEmpty() {
+		return nil, fmt.Errorf("%w \"%s\"", currency.ErrCurrencyCodeEmpty, ccy)
 	}
 	input := &struct {
-		Currency string `json:"currency,omitempty"`
-		Count    int64  `json:"count,omitempty"`
-		Offset   int64  `json:"offset,omitempty"`
+		Currency currency.Code `json:"currency"`
+		Count    int64         `json:"count,omitempty"`
+		Offset   int64         `json:"offset,omitempty"`
 	}{
-		Currency: symbol,
+		Currency: ccy,
 		Count:    count,
 		Offset:   offset,
 	}
@@ -723,10 +723,10 @@ func (d *Deribit) WsSubmitTransferBetweenSubAccounts(ccy currency.Code, amount f
 	if ccy.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
-	if amount < 0 {
-		return nil, fmt.Errorf("%w, amount : %f", order.ErrAmountBelowMin, amount)
+	if amount <= 0 {
+		return nil, fmt.Errorf("%w, amount : %f", errInvalidAmount, amount)
 	}
-	if destinationID == 0 {
+	if destinationID <= 0 {
 		return nil, errInvalidDestinationID
 	}
 	input := &struct {
@@ -745,9 +745,9 @@ func (d *Deribit) WsSubmitTransferBetweenSubAccounts(ccy currency.Code, amount f
 }
 
 // WSSubmitTransferToSubAccount submits a request to transfer a currency to a subaccount
-func (d *Deribit) WSSubmitTransferToSubAccount(symbol string, amount float64, destinationID int64) (*TransferData, error) {
-	if symbol == "" {
-		return nil, fmt.Errorf("%w \"%s\"", errInvalidCurrency, symbol)
+func (d *Deribit) WSSubmitTransferToSubAccount(ccy currency.Code, amount float64, destinationID int64) (*TransferData, error) {
+	if ccy.IsEmpty() {
+		return nil, fmt.Errorf("%w \"%s\"", currency.ErrCurrencyCodeEmpty, ccy)
 	}
 	if amount <= 0 {
 		return nil, errInvalidAmount
@@ -760,7 +760,7 @@ func (d *Deribit) WSSubmitTransferToSubAccount(symbol string, amount float64, de
 		Destination int64   `json:"destination"`
 		Amount      float64 `json:"amount"`
 	}{
-		Currency:    symbol,
+		Currency:    ccy.String(),
 		Destination: destinationID,
 		Amount:      amount,
 	}
@@ -769,15 +769,15 @@ func (d *Deribit) WSSubmitTransferToSubAccount(symbol string, amount float64, de
 }
 
 // WSSubmitTransferToUser submits a request to transfer a currency to another user through the websocket connection.
-func (d *Deribit) WSSubmitTransferToUser(symbol, tfa, destinationAddress string, amount float64) (*TransferData, error) {
-	if symbol == "" {
-		return nil, fmt.Errorf("%w \"%s\"", errInvalidCurrency, symbol)
+func (d *Deribit) WSSubmitTransferToUser(ccy currency.Code, tfa, destinationAddress string, amount float64) (*TransferData, error) {
+	if ccy.IsEmpty() {
+		return nil, fmt.Errorf("%w \"%s\"", currency.ErrCurrencyCodeEmpty, ccy)
 	}
 	if amount <= 0 {
 		return nil, errInvalidAmount
 	}
 	if destinationAddress == "" {
-		return nil, errInvalidDestinationID
+		return nil, errInvalidCryptoAddress
 	}
 	input := &struct {
 		Currency                    string  `json:"currency"`
@@ -785,7 +785,7 @@ func (d *Deribit) WSSubmitTransferToUser(symbol, tfa, destinationAddress string,
 		DestinationID               string  `json:"destination"`
 		Amount                      float64 `json:"amount"`
 	}{
-		Currency:                    symbol,
+		Currency:                    ccy.String(),
 		TwoFactorAuthenticationCode: tfa,
 		DestinationID:               destinationAddress,
 		Amount:                      amount,
@@ -797,9 +797,9 @@ func (d *Deribit) WSSubmitTransferToUser(symbol, tfa, destinationAddress string,
 // ----------------------------------------------------------------------------
 
 // WSSubmitWithdraw submits a withdrawal request to the exchange for the requested currency through the websocket connection.
-func (d *Deribit) WSSubmitWithdraw(symbol, address, priority string, amount float64) (*WithdrawData, error) {
-	if symbol == "" {
-		return nil, fmt.Errorf("%w \"%s\"", errInvalidCurrency, symbol)
+func (d *Deribit) WSSubmitWithdraw(ccy currency.Code, address, priority string, amount float64) (*WithdrawData, error) {
+	if ccy.IsEmpty() {
+		return nil, fmt.Errorf("%w \"%s\"", currency.ErrCurrencyCodeEmpty, ccy)
 	}
 	if amount <= 0 {
 		return nil, errInvalidAmount
@@ -813,7 +813,7 @@ func (d *Deribit) WSSubmitWithdraw(symbol, address, priority string, amount floa
 		Priority string  `json:"priority,omitempty"`
 		Amount   float64 `json:"amount"`
 	}{
-		Currency: symbol,
+		Currency: ccy.String(),
 		Address:  address,
 		Priority: priority,
 		Amount:   amount,
@@ -839,15 +839,15 @@ func (d *Deribit) WSRetrieveAnnouncements(startTime time.Time, count int64) ([]A
 }
 
 // WSRetrievePublicPortfolioMargins public version of the method calculates portfolio margin info for simulated position. For concrete user position, the private version of the method must be used. The public version of the request has special restricted rate limit (not more than once per a second for the IP).
-func (d *Deribit) WSRetrievePublicPortfolioMargins(symbol string, simulatedPositions map[string]float64) (*PortfolioMargin, error) {
-	if symbol == "" {
-		return nil, fmt.Errorf("%w '%s'", errInvalidCurrency, symbol)
+func (d *Deribit) WSRetrievePublicPortfolioMargins(ccy currency.Code, simulatedPositions map[string]float64) (*PortfolioMargin, error) {
+	if ccy.IsEmpty() {
+		return nil, fmt.Errorf("%w '%s'", currency.ErrCurrencyCodeEmpty, ccy)
 	}
 	input := &struct {
-		Currency           string             `json:"currency"`
+		Currency           currency.Code      `json:"currency"`
 		SimulatedPositions map[string]float64 `json:"simulated_positions"`
 	}{
-		Currency: symbol,
+		Currency: ccy,
 	}
 	if len(simulatedPositions) != 0 {
 		input.SimulatedPositions = simulatedPositions
@@ -880,7 +880,7 @@ func (d *Deribit) WSChangeAPIKeyName(id int64, name string) (*APIKeyData, error)
 // 'dry_run': If true request returns the result without switching the margining model. Default: false
 func (d *Deribit) WsChangeMarginModel(userID int64, marginModel string, dryRun bool) ([]TogglePortfolioMarginResponse, error) {
 	if marginModel == "" {
-		return nil, errors.New("missing margin model")
+		return nil, errInvalidMarginModel
 	}
 	input := &struct {
 		MarginModel string `json:"margin_model"`
@@ -917,7 +917,7 @@ func (d *Deribit) WSChangeSubAccountName(sid int64, name string) error {
 		return fmt.Errorf("%w, invalid subaccount user id", errInvalidID)
 	}
 	if name == "" {
-		return errInvalidusername
+		return errInvalidUsername
 	}
 	input := &struct {
 		SID  int64  `json:"sid"`
@@ -981,10 +981,10 @@ func (d *Deribit) WSDisableAPIKey(id int64) (*APIKeyData, error) {
 // block_trade:[read, read_write, none].
 func (d *Deribit) WsEditAPIKey(id int64, maxScope, name string, enabled bool, enabledFeatures, ipWhitelist []string) (*APIKeyData, error) {
 	if id == 0 {
-		return nil, errors.New("invalid api key id")
+		return nil, errInvalidAPIKeyID
 	}
 	if maxScope == "" {
-		return nil, errors.New("max scope is required")
+		return nil, errMaxScopeIsRequired
 	}
 	input := &struct {
 		ID              int64    `json:"id"`
@@ -1059,16 +1059,16 @@ func (d *Deribit) WSRetrieveNewAnnouncements() ([]Announcement, error) {
 }
 
 // WSRetrievePrivatePortfolioMargins alculates portfolio margin info for simulated position or current position of the user through the websocket connection. This request has special restricted rate limit (not more than once per a second).
-func (d *Deribit) WSRetrievePrivatePortfolioMargins(symbol string, accPositions bool, simulatedPositions map[string]float64) (*PortfolioMargin, error) {
-	if symbol == "" {
-		return nil, fmt.Errorf("%w \"%s\"", errInvalidCurrency, symbol)
+func (d *Deribit) WSRetrievePrivatePortfolioMargins(ccy currency.Code, accPositions bool, simulatedPositions map[string]float64) (*PortfolioMargin, error) {
+	if ccy.IsEmpty() {
+		return nil, fmt.Errorf("%w \"%s\"", currency.ErrCurrencyCodeEmpty, ccy)
 	}
 	input := &struct {
-		Currency           string             `json:"currency"`
+		Currency           currency.Code      `json:"currency"`
 		AccountPositions   bool               `json:"acc_positions,omitempty"`
 		SimulatedPositions map[string]float64 `json:"simulated_positions,omitempty"`
 	}{
-		Currency:         symbol,
+		Currency:         ccy,
 		AccountPositions: accPositions,
 	}
 	if len(simulatedPositions) != 0 {
@@ -1094,15 +1094,15 @@ func (d *Deribit) WSRetrieveSubAccounts(withPortfolio bool) ([]SubAccountData, e
 }
 
 // WSRetrieveSubAccountDetails retrieves sub-account detail information through the websocket connection.
-func (d *Deribit) WSRetrieveSubAccountDetails(symbol string, withOpenOrders bool) ([]SubAccountDetail, error) {
-	if symbol == "" {
-		return nil, fmt.Errorf("%w \"%s\"", errInvalidCurrency, symbol)
+func (d *Deribit) WSRetrieveSubAccountDetails(ccy currency.Code, withOpenOrders bool) ([]SubAccountDetail, error) {
+	if ccy.IsEmpty() {
+		return nil, fmt.Errorf("%w \"%s\"", currency.ErrCurrencyCodeEmpty, ccy)
 	}
 	input := &struct {
-		Currency       string `json:"currency"`
-		WithOpenOrders bool   `json:"with_open_orders,omitempty"`
+		Currency       currency.Code `json:"currency"`
+		WithOpenOrders bool          `json:"with_open_orders,omitempty"`
 	}{
-		Currency:       symbol,
+		Currency:       ccy,
 		WithOpenOrders: withOpenOrders,
 	}
 	var resp []SubAccountDetail
@@ -1110,15 +1110,15 @@ func (d *Deribit) WSRetrieveSubAccountDetails(symbol string, withOpenOrders bool
 }
 
 // WSRetrievePositions retrieves positions data of the user account through the websocket connection.
-func (d *Deribit) WSRetrievePositions(symbol, kind string) ([]PositionData, error) {
-	if symbol == "" {
-		return nil, fmt.Errorf("%w \"%s\"", errInvalidCurrency, symbol)
+func (d *Deribit) WSRetrievePositions(ccy currency.Code, kind string) ([]PositionData, error) {
+	if ccy.IsEmpty() {
+		return nil, fmt.Errorf("%w \"%s\"", currency.ErrCurrencyCodeEmpty, ccy)
 	}
 	input := &struct {
-		Currency string `json:"currency"`
-		Kind     string `json:"kind,omitempty"`
+		Currency currency.Code `json:"currency"`
+		Kind     string        `json:"kind,omitempty"`
 	}{
-		Currency: symbol,
+		Currency: ccy,
 		Kind:     kind,
 	}
 	var resp []PositionData
@@ -1126,22 +1126,22 @@ func (d *Deribit) WSRetrievePositions(symbol, kind string) ([]PositionData, erro
 }
 
 // WSRetrieveTransactionLog retrieves transaction logs data through the websocket connection.
-func (d *Deribit) WSRetrieveTransactionLog(symbol, query string, startTime, endTime time.Time, count, continuation int64) (*TransactionsData, error) {
-	if symbol == "" {
-		return nil, fmt.Errorf("%w \"%s\"", errInvalidCurrency, symbol)
+func (d *Deribit) WSRetrieveTransactionLog(ccy currency.Code, query string, startTime, endTime time.Time, count, continuation int64) (*TransactionsData, error) {
+	if ccy.IsEmpty() {
+		return nil, fmt.Errorf("%w \"%s\"", currency.ErrCurrencyCodeEmpty, ccy)
 	}
 	if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
 		return nil, err
 	}
 	input := &struct {
-		Currency       string `json:"currency"`
-		Query          string `json:"query,omitempty"`
-		StartTimestamp int64  `json:"start_timestamp,omitempty"`
-		EndTimestamp   int64  `json:"end_timestamp,omitempty"`
-		Count          int64  `json:"count,omitempty"`
-		Continuation   int64  `json:"continuation,omitempty"`
+		Currency       currency.Code `json:"currency"`
+		Query          string        `json:"query,omitempty"`
+		StartTimestamp int64         `json:"start_timestamp,omitempty"`
+		EndTimestamp   int64         `json:"end_timestamp,omitempty"`
+		Count          int64         `json:"count,omitempty"`
+		Continuation   int64         `json:"continuation,omitempty"`
 	}{
-		Currency:       symbol,
+		Currency:       ccy,
 		Query:          query,
 		StartTimestamp: startTime.UnixMilli(),
 		EndTimestamp:   endTime.UnixMilli(),
@@ -1265,7 +1265,7 @@ func (d *Deribit) WSSetEmailLanguage(language string) error {
 // extended_to_subaccounts: If value is true trading is prevented between subaccounts of given account
 func (d *Deribit) WsSetSelfTradingConfig(mode string, extendedToSubaccounts bool) (string, error) {
 	if mode == "" {
-		return "", errors.New("self trading mode is required")
+		return "", errTradeModeIsRequired
 	}
 	input := &struct {
 		Mode                  string `json:"mode"`
@@ -1370,8 +1370,8 @@ func (d *Deribit) WSToggleSubAccountLogin(sid int64, state bool) error {
 
 // WSSubmitBuy submits a private buy request through the websocket connection.
 func (d *Deribit) WSSubmitBuy(arg *OrderBuyAndSellParams) (*PrivateTradeData, error) {
-	if arg == nil {
-		return nil, fmt.Errorf("%s parameter is required", common.ErrNilPointer)
+	if arg == nil || *arg == (OrderBuyAndSellParams{}) {
+		return nil, fmt.Errorf("%w parameter is required", common.ErrNilPointer)
 	}
 	if arg.Instrument == "" {
 		return nil, fmt.Errorf("%w, instrument_name is missing", errInvalidInstrumentName)
@@ -1382,8 +1382,8 @@ func (d *Deribit) WSSubmitBuy(arg *OrderBuyAndSellParams) (*PrivateTradeData, er
 
 // WSSubmitSell submits a sell request with the parameters provided through the websocket connection.
 func (d *Deribit) WSSubmitSell(arg *OrderBuyAndSellParams) (*PrivateTradeData, error) {
-	if arg == nil {
-		return nil, fmt.Errorf("%s parameter is required", common.ErrNilPointer)
+	if arg == nil || *arg == (OrderBuyAndSellParams{}) {
+		return nil, fmt.Errorf("%w parameter is required", common.ErrNilPointer)
 	}
 	if arg.Instrument == "" {
 		return nil, fmt.Errorf("%w, instrument_name is missing", errInvalidInstrumentName)
@@ -1394,6 +1394,9 @@ func (d *Deribit) WSSubmitSell(arg *OrderBuyAndSellParams) (*PrivateTradeData, e
 
 // WSSubmitEdit submits an edit order request through the websocket connection.
 func (d *Deribit) WSSubmitEdit(arg *OrderBuyAndSellParams) (*PrivateTradeData, error) {
+	if arg == nil || *arg == (OrderBuyAndSellParams{}) {
+		return nil, common.ErrNilPointer
+	}
 	if arg.OrderID == "" {
 		return nil, fmt.Errorf("%w, order id is required", errInvalidID)
 	}
@@ -1406,7 +1409,7 @@ func (d *Deribit) WSSubmitEdit(arg *OrderBuyAndSellParams) (*PrivateTradeData, e
 
 // WSEditOrderByLabel submits an edit order request sorted via label through the websocket connection.
 func (d *Deribit) WSEditOrderByLabel(arg *OrderBuyAndSellParams) (*PrivateTradeData, error) {
-	if arg == nil {
+	if arg == nil || *arg == (OrderBuyAndSellParams{}) {
 		return nil, fmt.Errorf("%w argument cannot be null", common.ErrNilPointer)
 	}
 	if arg.Instrument == "" {
@@ -1435,17 +1438,17 @@ func (d *Deribit) WSSubmitCancelAll(detailed bool) (*MultipleCancelResponse, err
 }
 
 // WSSubmitCancelAllByCurrency sends a request to cancel all user orders for the specified currency through the websocket connection.
-func (d *Deribit) WSSubmitCancelAllByCurrency(symbol, kind, orderType string, detailed bool) (*MultipleCancelResponse, error) {
-	if symbol == "" {
-		return nil, fmt.Errorf("%w \"%s\"", currency.ErrSymbolStringEmpty, symbol)
+func (d *Deribit) WSSubmitCancelAllByCurrency(ccy currency.Code, kind, orderType string, detailed bool) (*MultipleCancelResponse, error) {
+	if ccy.IsEmpty() {
+		return nil, fmt.Errorf("%w \"%s\"", currency.ErrCurrencyCodeEmpty, ccy)
 	}
 	input := &struct {
-		Currency  string `json:"currency"`
-		Kind      string `json:"kind,omitempty"`
-		OrderType string `json:"order_type,omitempty"`
-		Detailed  bool   `json:"detailed"`
+		Currency  currency.Code `json:"currency"`
+		Kind      string        `json:"kind,omitempty"`
+		OrderType string        `json:"order_type,omitempty"`
+		Detailed  bool          `json:"detailed"`
 	}{
-		Currency:  symbol,
+		Currency:  ccy,
 		Kind:      kind,
 		OrderType: orderType,
 		Detailed:  detailed,
@@ -1496,14 +1499,14 @@ func (d *Deribit) WsSubmitCancelAllByKind(ccy currency.Code, kind, orderType str
 }
 
 // WSSubmitCancelByLabel sends a request to cancel all user orders for the specified label through the websocket connection.
-func (d *Deribit) WSSubmitCancelByLabel(label, symbol string, detailed bool) (*MultipleCancelResponse, error) {
+func (d *Deribit) WSSubmitCancelByLabel(label string, ccy currency.Code, detailed bool) (*MultipleCancelResponse, error) {
 	input := &struct {
 		Label    string `json:"label"`
 		Currency string `json:"currency,omitempty"`
 		Detailed bool   `json:"detailed,omitempty"`
 	}{
 		Label:    label,
-		Currency: symbol,
+		Currency: ccy.String(),
 		Detailed: detailed,
 	}
 	var resp *MultipleCancelResponse
@@ -1515,11 +1518,11 @@ func (d *Deribit) WSSubmitCancelByLabel(label, symbol string, detailed bool) (*M
 // possible cancel_type values are delta, 'quote_set_id', 'instrument', 'instrument_kind', 'currency', and 'all'
 // possible kind values are future 'option', 'spot', 'future_combo', 'option_combo', 'combo', and 'any'
 func (d *Deribit) WSSubmitCancelQuotes(ccy currency.Code, minDelta, maxDelta float64, cancelType, quoteSetID, instrumentName, kind string, detailed bool) (*MultipleCancelResponse, error) {
-	if cancelType == "" {
-		return nil, errors.New("cancel type is required")
-	}
 	if ccy.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
+	}
+	if cancelType == "" {
+		return nil, errors.New("cancel type is required")
 	}
 	input := &struct {
 		CancelType     string  `json:"cancel_type"`
@@ -1587,25 +1590,25 @@ func (d *Deribit) WSRetrieveMargins(instrument string, amount, price float64) (*
 }
 
 // WSRetrieveMMPConfig sends a request to fetch the config for MMP of the requested currency through the websocket connection.
-func (d *Deribit) WSRetrieveMMPConfig(symbol string) (*MMPConfigData, error) {
-	if symbol == "" {
-		return nil, fmt.Errorf("%w \"%s\"", errInvalidCurrency, symbol)
+func (d *Deribit) WSRetrieveMMPConfig(ccy currency.Code) (*MMPConfigData, error) {
+	if ccy.IsEmpty() {
+		return nil, fmt.Errorf("%w \"%s\"", currency.ErrCurrencyCodeEmpty, ccy)
 	}
 	var resp *MMPConfigData
-	return resp, d.SendWSRequest(nonMatchingEPL, getMMPConfig, map[string]string{"currency": symbol}, &resp, true)
+	return resp, d.SendWSRequest(nonMatchingEPL, getMMPConfig, map[string]currency.Code{"currency": ccy}, &resp, true)
 }
 
 // WSRetrieveOpenOrdersByCurrency retrieves open order by symbol and kind
-func (d *Deribit) WSRetrieveOpenOrdersByCurrency(symbol, kind, orderType string) ([]OrderData, error) {
-	if symbol == "" {
-		return nil, fmt.Errorf("%w \"%s\"", errInvalidCurrency, symbol)
+func (d *Deribit) WSRetrieveOpenOrdersByCurrency(ccy currency.Code, kind, orderType string) ([]OrderData, error) {
+	if ccy.IsEmpty() {
+		return nil, fmt.Errorf("%w \"%s\"", currency.ErrCurrencyCodeEmpty, ccy)
 	}
 	input := &struct {
-		Currency  string `json:"currency"`
-		Kind      string `json:"kind,omitempty"`
-		OrderType string `json:"type,omitempty"`
+		Currency  currency.Code `json:"currency"`
+		Kind      string        `json:"kind,omitempty"`
+		OrderType string        `json:"type,omitempty"`
 	}{
-		Currency:  symbol,
+		Currency:  ccy,
 		Kind:      kind,
 		OrderType: orderType,
 	}
@@ -1619,10 +1622,10 @@ func (d *Deribit) WSRetrieveOpenOrdersByLabel(ccy currency.Code, label string) (
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
 	input := &struct {
-		Currency string `json:"currency"`
-		Label    string `json:"label"`
+		Currency currency.Code `json:"currency"`
+		Label    string        `json:"label"`
 	}{
-		Currency: ccy.String(),
+		Currency: ccy,
 		Label:    label,
 	}
 	var resp []OrderData
@@ -1646,19 +1649,19 @@ func (d *Deribit) WSRetrieveOpenOrdersByInstrument(instrument, orderType string)
 }
 
 // WSRetrieveOrderHistoryByCurrency sends a request to fetch order history according to given params and currency through the websocket connection.
-func (d *Deribit) WSRetrieveOrderHistoryByCurrency(symbol, kind string, count, offset int64, includeOld, includeUnfilled bool) ([]OrderData, error) {
-	if symbol == "" {
-		return nil, fmt.Errorf("%w \"%s\"", errInvalidCurrency, symbol)
+func (d *Deribit) WSRetrieveOrderHistoryByCurrency(ccy currency.Code, kind string, count, offset int64, includeOld, includeUnfilled bool) ([]OrderData, error) {
+	if ccy.IsEmpty() {
+		return nil, fmt.Errorf("%w \"%s\"", currency.ErrCurrencyCodeEmpty, ccy)
 	}
 	input := &struct {
-		Currency        string `json:"currency"`
-		Kind            string `json:"kind,omitempty"`
-		Count           int64  `json:"count,omitempty"`
-		Offset          int64  `json:"offset,omitempty"`
-		IncludeOld      bool   `json:"include_old,omitempty"`
-		IncludeUnfilled bool   `json:"include_unfilled,omitempty"`
+		Currency        currency.Code `json:"currency"`
+		Kind            string        `json:"kind,omitempty"`
+		Count           int64         `json:"count,omitempty"`
+		Offset          int64         `json:"offset,omitempty"`
+		IncludeOld      bool          `json:"include_old,omitempty"`
+		IncludeUnfilled bool          `json:"include_unfilled,omitempty"`
 	}{
-		Currency:        symbol,
+		Currency:        ccy,
 		Kind:            kind,
 		Count:           count,
 		Offset:          offset,
@@ -1715,10 +1718,10 @@ func (d *Deribit) WsRetrieveOrderStateByLabel(ccy currency.Code, label string) (
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
 	input := &struct {
-		Currency string `json:"currency"`
-		Label    string `json:"label"`
+		Currency currency.Code `json:"currency"`
+		Label    string        `json:"label"`
 	}{
-		Currency: ccy.String(),
+		Currency: ccy,
 		Label:    label,
 	}
 	var resp *OrderData
@@ -1726,9 +1729,9 @@ func (d *Deribit) WsRetrieveOrderStateByLabel(ccy currency.Code, label string) (
 }
 
 // WSRetrieveTriggerOrderHistory sends a request to fetch order state of the order id provided through the websocket connection.
-func (d *Deribit) WSRetrieveTriggerOrderHistory(symbol, instrumentName, continuation string, count int64) (*OrderData, error) {
-	if symbol == "" {
-		return nil, fmt.Errorf("%w \"%s\"", errInvalidCurrency, symbol)
+func (d *Deribit) WSRetrieveTriggerOrderHistory(ccy currency.Code, instrumentName, continuation string, count int64) (*OrderData, error) {
+	if ccy.IsEmpty() {
+		return nil, fmt.Errorf("%w \"%s\"", currency.ErrCurrencyCodeEmpty, ccy)
 	}
 	input := &struct {
 		Currency     string `json:"currency,omitempty"`
@@ -1736,7 +1739,7 @@ func (d *Deribit) WSRetrieveTriggerOrderHistory(symbol, instrumentName, continua
 		Continuation string `json:"continuation,omitempty"`
 		Count        int64  `json:"count,omitempty"`
 	}{
-		Currency:     symbol,
+		Currency:     ccy.String(),
 		Instrument:   instrumentName,
 		Continuation: continuation,
 		Count:        count,
@@ -1746,20 +1749,20 @@ func (d *Deribit) WSRetrieveTriggerOrderHistory(symbol, instrumentName, continua
 }
 
 // WSRetrieveUserTradesByCurrency sends a request to fetch user trades sorted by currency through the websocket connection.
-func (d *Deribit) WSRetrieveUserTradesByCurrency(symbol, kind, startID, endID, sorting string, count int64, includeOld bool) (*UserTradesData, error) {
-	if symbol == "" {
-		return nil, fmt.Errorf("%w \"%s\"", errInvalidCurrency, symbol)
+func (d *Deribit) WSRetrieveUserTradesByCurrency(ccy currency.Code, kind, startID, endID, sorting string, count int64, includeOld bool) (*UserTradesData, error) {
+	if ccy.IsEmpty() {
+		return nil, fmt.Errorf("%w \"%s\"", currency.ErrCurrencyCodeEmpty, ccy)
 	}
 	input := &struct {
-		Currency   string `json:"currency"`
-		Kind       string `json:"kind"`
-		StartID    string `json:"start_id,omitempty"`
-		EndID      string `json:"end_id,omitempty"`
-		Sorting    string `json:"sorting,omitempty"`
-		Count      int64  `json:"count,omitempty"`
-		IncludeOld bool   `json:"include_old,omitempty"`
+		Currency   currency.Code `json:"currency"`
+		Kind       string        `json:"kind"`
+		StartID    string        `json:"start_id,omitempty"`
+		EndID      string        `json:"end_id,omitempty"`
+		Sorting    string        `json:"sorting,omitempty"`
+		Count      int64         `json:"count,omitempty"`
+		IncludeOld bool          `json:"include_old,omitempty"`
 	}{
-		Currency:   symbol,
+		Currency:   ccy,
 		Kind:       kind,
 		StartID:    startID,
 		EndID:      endID,
@@ -1772,19 +1775,19 @@ func (d *Deribit) WSRetrieveUserTradesByCurrency(symbol, kind, startID, endID, s
 }
 
 // WSRetrieveUserTradesByCurrencyAndTime retrieves user trades sorted by currency and time through the websocket connection.
-func (d *Deribit) WSRetrieveUserTradesByCurrencyAndTime(symbol, kind, sorting string, count int64, startTime, endTime time.Time) (*UserTradesData, error) {
-	if symbol == "" {
-		return nil, fmt.Errorf("%w \"%s\"", errInvalidCurrency, symbol)
+func (d *Deribit) WSRetrieveUserTradesByCurrencyAndTime(ccy currency.Code, kind, sorting string, count int64, startTime, endTime time.Time) (*UserTradesData, error) {
+	if ccy.IsEmpty() {
+		return nil, fmt.Errorf("%w \"%s\"", currency.ErrCurrencyCodeEmpty, ccy)
 	}
 	input := &struct {
-		Currency  string `json:"currency"`
-		Kind      string `json:"kind,omitempty"`
-		StartTime int64  `json:"start_time,omitempty"`
-		EndTime   int64  `json:"end_time,omitempty"`
-		Sorting   string `json:"sorting,omitempty"`
-		Count     int64  `json:"count,omitempty"`
+		Currency  currency.Code `json:"currency"`
+		Kind      string        `json:"kind,omitempty"`
+		StartTime int64         `json:"start_time,omitempty"`
+		EndTime   int64         `json:"end_time,omitempty"`
+		Sorting   string        `json:"sorting,omitempty"`
+		Count     int64         `json:"count,omitempty"`
 	}{
-		Currency: symbol,
+		Currency: ccy,
 		Kind:     kind,
 		Sorting:  sorting,
 		Count:    count,
@@ -1867,17 +1870,17 @@ func (d *Deribit) WSRetrieveUserTradesByOrder(orderID, sorting string) (*UserTra
 }
 
 // WSResetMMP sends a request to reset MMP for a currency provided through the websocket connection.
-func (d *Deribit) WSResetMMP(symbol string) error {
-	if symbol == "" {
-		return fmt.Errorf("%w \"%s\"", errInvalidCurrency, symbol)
+func (d *Deribit) WSResetMMP(ccy currency.Code) error {
+	if ccy.IsEmpty() {
+		return fmt.Errorf("%w \"%s\"", currency.ErrCurrencyCodeEmpty, ccy)
 	}
 	var resp string
-	err := d.SendWSRequest(nonMatchingEPL, resetMMP, map[string]string{"currency": symbol}, &resp, true)
+	err := d.SendWSRequest(nonMatchingEPL, resetMMP, map[string]currency.Code{"currency": ccy}, &resp, true)
 	if err != nil {
 		return err
 	}
 	if resp != "ok" {
-		return fmt.Errorf("mmp could not be reset for %v", symbol)
+		return fmt.Errorf("mmp could not be reset for %v", ccy.String())
 	}
 	return nil
 }
@@ -1908,12 +1911,12 @@ func (d *Deribit) WSSendRequestForQuote(instrumentName string, amount float64, s
 }
 
 // WSSetMMPConfig sends a request to set the given parameter values to the mmp config for the provided currency through the websocket connection.
-func (d *Deribit) WSSetMMPConfig(symbol string, interval kline.Interval, frozenTime int64, quantityLimit, deltaLimit float64) error {
-	if symbol == "" {
-		return fmt.Errorf("%w \"%s\"", errInvalidCurrency, symbol)
+func (d *Deribit) WSSetMMPConfig(ccy currency.Code, interval kline.Interval, frozenTime int64, quantityLimit, deltaLimit float64) error {
+	if ccy.IsEmpty() {
+		return fmt.Errorf("%w \"%s\"", currency.ErrCurrencyCodeEmpty, ccy)
 	}
 	params := make(map[string]interface{})
-	params["currency"] = symbol
+	params["currency"] = ccy
 	intervalString, err := d.GetResolutionFromInterval(interval)
 	if err != nil {
 		return err
@@ -1932,7 +1935,7 @@ func (d *Deribit) WSSetMMPConfig(symbol string, interval kline.Interval, frozenT
 		return err
 	}
 	if resp != "ok" {
-		return fmt.Errorf("mmp data could not be set for %v", symbol)
+		return fmt.Errorf("mmp data could not be set for %v", ccy.String())
 	}
 	return nil
 }
@@ -1962,18 +1965,18 @@ func (d *Deribit) WSRetrieveSettlementHistoryByInstrument(instrument, settlement
 }
 
 // WSRetrieveSettlementHistoryByCurency sends a request to fetch settlement history data sorted by currency through the websocket connection.
-func (d *Deribit) WSRetrieveSettlementHistoryByCurency(symbol, settlementType, continuation string, count int64, searchStartTimeStamp time.Time) (*PrivateSettlementsHistoryData, error) {
-	if symbol == "" {
-		return nil, fmt.Errorf("%w \"%s\"", errInvalidCurrency, symbol)
+func (d *Deribit) WSRetrieveSettlementHistoryByCurency(ccy currency.Code, settlementType, continuation string, count int64, searchStartTimeStamp time.Time) (*PrivateSettlementsHistoryData, error) {
+	if ccy.IsEmpty() {
+		return nil, fmt.Errorf("%w \"%s\"", currency.ErrCurrencyCodeEmpty, ccy)
 	}
 	input := &struct {
-		Currency             string `json:"currency"`
-		SettlementType       string `json:"settlement_type,omitempty"`
-		Continuation         string `json:"continuation,omitempty"`
-		Count                int64  `json:"count,omitempty"`
-		SearchStartTimestamp int64  `json:"search_start_timestamp,omitempty"`
+		Currency             currency.Code `json:"currency"`
+		SettlementType       string        `json:"settlement_type,omitempty"`
+		Continuation         string        `json:"continuation,omitempty"`
+		Count                int64         `json:"count,omitempty"`
+		SearchStartTimestamp int64         `json:"search_start_timestamp,omitempty"`
 	}{
-		Currency:       symbol,
+		Currency:       ccy,
 		SettlementType: settlementType,
 		Continuation:   continuation,
 		Count:          count,
@@ -1987,15 +1990,15 @@ func (d *Deribit) WSRetrieveSettlementHistoryByCurency(symbol, settlementType, c
 
 // WSRetrieveComboIDs Retrieves available combos.
 // This method can be used to get the list of all combos, or only the list of combos in the given state.
-func (d *Deribit) WSRetrieveComboIDs(symbol, state string) ([]string, error) {
-	if symbol == "" {
-		return nil, fmt.Errorf("%w \"%s\"", errInvalidCurrency, symbol)
+func (d *Deribit) WSRetrieveComboIDs(ccy currency.Code, state string) ([]string, error) {
+	if ccy.IsEmpty() {
+		return nil, fmt.Errorf("%w \"%s\"", currency.ErrCurrencyCodeEmpty, ccy)
 	}
 	input := &struct {
-		Currency string `json:"currency"`
-		State    string `json:"state,omitempty"`
+		Currency currency.Code `json:"currency"`
+		State    string        `json:"state,omitempty"`
 	}{
-		Currency: symbol,
+		Currency: ccy,
 		State:    state,
 	}
 	var resp []string
@@ -2012,12 +2015,12 @@ func (d *Deribit) WSRetrieveComboDetails(comboID string) (*ComboDetail, error) {
 }
 
 // WSRetrieveCombos retrieves information about active combos through the websocket connection.
-func (d *Deribit) WSRetrieveCombos(symbol string) ([]ComboDetail, error) {
-	if symbol == "" {
-		return nil, fmt.Errorf("%w \"%s\"", errInvalidCurrency, symbol)
+func (d *Deribit) WSRetrieveCombos(ccy currency.Code) ([]ComboDetail, error) {
+	if ccy.IsEmpty() {
+		return nil, fmt.Errorf("%w \"%s\"", currency.ErrCurrencyCodeEmpty, ccy)
 	}
 	var resp []ComboDetail
-	return resp, d.SendWSRequest(nonMatchingEPL, getCombos, map[string]string{"currency": symbol}, &resp, false)
+	return resp, d.SendWSRequest(nonMatchingEPL, getCombos, map[string]currency.Code{"currency": ccy}, &resp, false)
 }
 
 // WSCreateCombo verifies and creates a combo book or returns an existing combo matching given trades through the websocket connection.
@@ -2109,7 +2112,7 @@ func (d *Deribit) WsRetrieveCancelOnDisconnect(scope string) (*CancelOnDisconnec
 // WsExchangeToken generates a token for a new subject id. This method can be used to switch between subaccounts.
 func (d *Deribit) WsExchangeToken(refreshToken string, subjectID int64) (*RefreshTokenInfo, error) {
 	if refreshToken == "" {
-		return nil, errors.New("refresh token is required")
+		return nil, errRefreshTokenRequired
 	}
 	if subjectID == 0 {
 		return nil, errors.New("subject id is required")
@@ -2289,17 +2292,17 @@ func (d *Deribit) WSRetrieveUserBlockTrade(id string) ([]BlockTradeData, error) 
 }
 
 // WSRetrieveLastBlockTradesByCurrency returns list of last users block trades through the websocket connection.
-func (d *Deribit) WSRetrieveLastBlockTradesByCurrency(symbol, startID, endID string, count int64) ([]BlockTradeData, error) {
-	if symbol == "" {
-		return nil, fmt.Errorf("%w \"%s\"", errInvalidCurrency, symbol)
+func (d *Deribit) WSRetrieveLastBlockTradesByCurrency(ccy currency.Code, startID, endID string, count int64) ([]BlockTradeData, error) {
+	if ccy.IsEmpty() {
+		return nil, fmt.Errorf("%w \"%s\"", currency.ErrCurrencyCodeEmpty, ccy)
 	}
 	input := &struct {
-		Currency string `json:"currency"`
-		StartID  string `json:"start_id,omitempty"`
-		EndID    string `json:"end_id,omitempty"`
-		Count    int64  `json:"count,omitempty"`
+		Currency currency.Code `json:"currency"`
+		StartID  string        `json:"start_id,omitempty"`
+		EndID    string        `json:"end_id,omitempty"`
+		Count    int64         `json:"count,omitempty"`
 	}{
-		Currency: symbol,
+		Currency: ccy,
 		StartID:  startID,
 		EndID:    endID,
 		Count:    count,
@@ -2309,9 +2312,9 @@ func (d *Deribit) WSRetrieveLastBlockTradesByCurrency(symbol, startID, endID str
 }
 
 // WSMovePositions moves positions from source subaccount to target subaccount through the websocket connection.
-func (d *Deribit) WSMovePositions(symbol string, sourceSubAccountUID, targetSubAccountUID int64, trades []BlockTradeParam) ([]BlockTradeMoveResponse, error) {
-	if symbol == "" {
-		return nil, fmt.Errorf("%w \"%s\"", errInvalidCurrency, symbol)
+func (d *Deribit) WSMovePositions(ccy currency.Code, sourceSubAccountUID, targetSubAccountUID int64, trades []BlockTradeParam) ([]BlockTradeMoveResponse, error) {
+	if ccy.IsEmpty() {
+		return nil, fmt.Errorf("%w \"%s\"", currency.ErrCurrencyCodeEmpty, ccy)
 	}
 	if sourceSubAccountUID == 0 {
 		return nil, fmt.Errorf("%w source sub-account id", errMissingSubAccountID)
@@ -2331,12 +2334,12 @@ func (d *Deribit) WSMovePositions(symbol string, sourceSubAccountUID, targetSubA
 		}
 	}
 	input := &struct {
-		Currency  string            `json:"currency"`
+		Currency  currency.Code     `json:"currency"`
 		Trades    []BlockTradeParam `json:"trades"`
 		TargetUID int64             `json:"target_uid"`
 		SourceUID int64             `json:"source_uid"`
 	}{
-		Currency:  symbol,
+		Currency:  ccy,
 		Trades:    trades,
 		TargetUID: targetSubAccountUID,
 		SourceUID: sourceSubAccountUID,
