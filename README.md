@@ -142,20 +142,20 @@ Binaries will be published once the codebase reaches a stable condition.
 
 |User|Contribution Amount|
 |--|--|
-| [thrasher-](https://github.com/thrasher-) | 686 |
-| [shazbert](https://github.com/shazbert) | 316 |
-| [dependabot[bot]](https://github.com/apps/dependabot) | 248 |
-| [gloriousCode](https://github.com/gloriousCode) | 228 |
+| [thrasher-](https://github.com/thrasher-) | 690 |
+| [shazbert](https://github.com/shazbert) | 326 |
+| [dependabot[bot]](https://github.com/apps/dependabot) | 276 |
+| [gloriousCode](https://github.com/gloriousCode) | 233 |
 | [dependabot-preview[bot]](https://github.com/apps/dependabot-preview) | 88 |
-| [gbjk](https://github.com/gbjk) | 56 |
+| [gbjk](https://github.com/gbjk) | 72 |
 | [xtda](https://github.com/xtda) | 47 |
 | [lrascao](https://github.com/lrascao) | 27 |
-| [ydm](https://github.com/ydm) | 15 |
-| [vazha](https://github.com/vazha) | 15 |
+| [Beadko](https://github.com/Beadko) | 17 |
 | [Rots](https://github.com/Rots) | 15 |
+| [vazha](https://github.com/vazha) | 15 |
+| [ydm](https://github.com/ydm) | 15 |
 | [ermalguni](https://github.com/ermalguni) | 14 |
 | [MadCozBadd](https://github.com/MadCozBadd) | 13 |
-| [Beadko](https://github.com/Beadko) | 13 |
 | [vadimzhukck](https://github.com/vadimzhukck) | 10 |
 | [geseq](https://github.com/geseq) | 8 |
 | [samuael](https://github.com/samuael) | 8 |
@@ -172,6 +172,10 @@ Binaries will be published once the codebase reaches a stable condition.
 | [herenow](https://github.com/herenow) | 2 |
 | [tk42](https://github.com/tk42) | 2 |
 | [soxipy](https://github.com/soxipy) | 2 |
+| [andreygrehov](https://github.com/andreygrehov) | 2 |
+| [azhang](https://github.com/azhang) | 2 |
+| [bretep](https://github.com/bretep) | 2 |
+| [Christian-Achilli](https://github.com/Christian-Achilli) | 2 |
 | [cornelk](https://github.com/cornelk) | 2 |
 | [gam-phon](https://github.com/gam-phon) | 2 |
 | [herenow](https://github.com/herenow) | 2 |

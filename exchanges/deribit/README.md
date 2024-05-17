@@ -84,7 +84,7 @@ if err != nil {
 // Public calls
 
 // Fetches current ticker information
-ticker, err := d.GetTicker()
+tick, err := d.GetTicker()
 if err != nil {
 	// Handle error
 }
