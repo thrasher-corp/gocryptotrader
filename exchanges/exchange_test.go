@@ -700,7 +700,13 @@ func TestGetFeatures(t *testing.T) {
 func TestGetPairFormat(t *testing.T) {
 	t.Parallel()
 
-	_, err := new(Base).GetPairFormat(asset.Spot, true)
+	b := new(Base)
+	_, err := b.GetPairFormat(asset.Spot, true)
+	require.ErrorIs(t, err, currency.ErrPairManagerNotInitialised)
+	b.CurrencyPairs = currency.PairsManager{
+		Pairs: make(currency.FullStore),
+	}
+	_, err = b.GetPairFormat(asset.Spot, true)
 	require.ErrorIs(t, err, asset.ErrNotSupported, "Must delegate to GetFormat and error")
 }
 
