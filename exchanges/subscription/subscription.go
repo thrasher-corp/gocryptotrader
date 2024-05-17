@@ -22,7 +22,7 @@ const (
 	UnsubscribedState
 )
 
-// Ticker constants
+// Channel constants
 const (
 	TickerChannel    = "ticker"
 	OrderbookChannel = "orderbook"
