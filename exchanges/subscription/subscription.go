@@ -65,6 +65,8 @@ type Subscription struct {
 // If the key is not a MatchableKey then both the key and an ExactKey.String() will be returned; e.g. 1137: spot MyTrades
 func (s *Subscription) String() string {
 	key := s.EnsureKeyed()
+	s.m.RLock()
+	defer s.m.RUnlock()
 	if k, ok := key.(MatchableKey); ok {
 		return k.String()
 	}

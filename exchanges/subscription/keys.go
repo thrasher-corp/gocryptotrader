@@ -27,6 +27,7 @@ func (k ExactKey) GetSubscription() *Subscription {
 }
 
 // String implements Stringer; returns the Asset, Channel and Pairs
+// Does not provide concurrency protection on the subscription it points to
 func (k ExactKey) String() string {
 	s := k.Subscription
 	p := s.Pairs.Format(currency.PairFormat{Uppercase: true, Delimiter: "/"})
