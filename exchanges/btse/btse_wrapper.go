@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"math"
 	"sort"
 	"strconv"
 	"strings"
@@ -18,7 +17,6 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/currencystate"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
@@ -454,23 +452,6 @@ func (b *BTSE) GetAccountFundingHistory(_ context.Context) ([]exchange.FundingHi
 	return nil, common.ErrFunctionNotSupported
 }
 
-func (b *BTSE) withinLimits(pair currency.Pair, amount float64) error {
-	val, found := OrderSizeLimits(pair.String())
-	if !found {
-		return fmt.Errorf("%w for pair %v", order.ErrExchangeLimitNotLoaded, pair)
-	}
-	if math.Mod(amount, val.MinSizeIncrement) < 0 {
-		return fmt.Errorf("%w %v %v %v", order.ErrAmountBelowMin, pair, amount, val.MinSizeIncrement)
-	}
-	if amount < val.MinOrderSize {
-		return fmt.Errorf("%w %v %v %v", order.ErrAmountBelowMin, pair, amount, val.MinOrderSize)
-	}
-	if amount > val.MaxOrderSize {
-		return fmt.Errorf("%w %v %v %v", order.ErrAmountExceedsMax, pair, amount, val.MinSizeIncrement)
-	}
-	return nil
-}
-
 // GetWithdrawalsHistory returns previous withdrawals data
 func (b *BTSE) GetWithdrawalsHistory(_ context.Context, _ currency.Code, _ asset.Item) ([]exchange.WithdrawalHistory, error) {
 	return nil, common.ErrFunctionNotSupported
@@ -536,20 +517,6 @@ func (b *BTSE) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitR
 	}
 
 	fPair, err := b.FormatExchangeCurrency(s.Pair, s.AssetType)
-	if err != nil {
-		return nil, err
-	}
-	err = b.CheckOrderExecutionLimits(s.AssetType,
-		newOrder.Pair,
-		newOrder.Price,
-		newOrder.Amount,
-		newOrder.Type)
-	if err != nil && errors.Is(err, currencystate.ErrCurrencyStateNotFound) {
-		return nil, fmt.Errorf("order manager: exchange %s unable to place order: %w",
-			newOrder.Exchange,
-			err)
-	}
-	err = b.withinLimits(fPair, s.Amount)
 	if err != nil {
 		return nil, err
 	}
@@ -1232,19 +1199,31 @@ func (b *BTSE) IsPerpetualFutureCurrency(a asset.Item, p currency.Pair) (bool, e
 }
 
 // UpdateOrderExecutionLimits updates order execution limits
-func (b *BTSE) UpdateOrderExecutionLimits(_ context.Context, a asset.Item) error {
-	pairs, err := b.GetMarketSummary(ctx, "", a == asset.Spot)
+func (b *BTSE) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) error {
+	summary, err := b.GetMarketSummary(ctx, "", a == asset.Spot)
 	if err != nil {
 		return err
 	}
-	for _, p := range pairs {
-		limits := order.MinMaxLevel{
+	var errs error
+	limits := make([]order.MinMaxLevel, 0, len(summary))
+	for _, marketInfo := range summary {
+		p, err := b.MatchSymbolWithAvailablePairs(marketInfo.Symbol, a, false)
+		if err != nil {
+			errs = common.AppendError(err, fmt.Errorf("%s: %w", p, err))
+			continue
+		}
+		limits = append(limits, order.MinMaxLevel{
 			Pair:                    p,
 			Asset:                   a,
-			MinimumBaseAmount:       p.MinOrderSize,
-			MaximumBaseAmount:       p.MaxOrderSize,
-			AmountStepIncrementSize: p.MinSizeIncrement,
-		}
+			MinimumBaseAmount:       marketInfo.MinOrderSize,
+			MaximumBaseAmount:       marketInfo.MaxOrderSize,
+			AmountStepIncrementSize: marketInfo.MinSizeIncrement,
+			MinPrice:                marketInfo.MinValidPrice,
+			PriceStepIncrementSize:  marketInfo.MinPriceIncrement,
+		})
+	}
+	if err = b.LoadLimits(limits); err != nil {
+		errs = common.AppendError(errs, err)
 	}
 	return errs
 }
