@@ -189,7 +189,7 @@ func (p *PairsManager) GetFormat(a asset.Item, request bool) (PairFormat, error)
 			pFmt = p.ConfigFormat
 		}
 	} else {
-		ps, err := p.Get(a)
+		ps, err := p.getPairStoreRequiresLock(a)
 		if err != nil {
 			return EMPTYFORMAT, err
 		}
@@ -471,7 +471,7 @@ func (p *PairsManager) getPairStoreRequiresLock(a asset.Item) (*PairStore, error
 
 	pairStore, ok := p.Pairs[a]
 	if !ok {
-		return nil, fmt.Errorf("%w %v", ErrAssetNotFound, a)
+		return nil, fmt.Errorf("%w %w %v", ErrAssetNotFound, asset.ErrNotSupported, a)
 	}
 
 	if pairStore == nil {
