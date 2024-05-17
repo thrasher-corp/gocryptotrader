@@ -189,7 +189,7 @@ func (p *PairsManager) GetFormat(a asset.Item, request bool) (PairFormat, error)
 			pFmt = p.ConfigFormat
 		}
 	} else {
-		ps, err := p.Get(a)
+		ps, err := p.getPairStoreRequiresLock(a)
 		if err != nil {
 			return EMPTYFORMAT, err
 		}
