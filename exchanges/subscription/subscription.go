@@ -103,7 +103,16 @@ func (s *Subscription) SetKey(key any) {
 // EnsureKeyed returns the subscription key
 // If no key exists then ExactKey will be used
 func (s *Subscription) EnsureKeyed() any {
-	if s.Key == nil {
+	// Juggle RLock/WLock to minimize concurrent bottleneck for hottest path
+	s.m.RLock()
+	if s.Key != nil {
+		defer s.m.RUnlock()
+		return s.Key
+	}
+	s.m.RUnlock()
+	s.m.Lock()
+	defer s.m.Unlock()
+	if s.Key == nil { // Ensure race hasn't updated Key whilst we swapped locks
 		s.Key = &ExactKey{s}
 	}
 	return s.Key
