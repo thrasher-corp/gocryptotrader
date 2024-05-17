@@ -1,12 +1,14 @@
 package exchange
 
 import (
+	"bufio"
 	"context"
 	"errors"
 	"fmt"
 	"log"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -16,6 +18,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/config"
+	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/mock"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
@@ -152,6 +155,25 @@ func WsMockUpgrader(tb testing.TB, w http.ResponseWriter, r *http.Request, wsHan
 	}
 }
 
+// FixtureToDataHandler squirts the contents of a file to a reader function (probably e.wsHandleData)
+func FixtureToDataHandler(tb testing.TB, fixturePath string, reader func([]byte) error) {
+	tb.Helper()
+
+	fixture, err := os.Open(fixturePath)
+	assert.NoError(tb, err, "Opening fixture '%s' should not error", fixturePath)
+	defer func() {
+		assert.NoError(tb, fixture.Close(), "Closing the fixture file should not error")
+	}()
+
+	s := bufio.NewScanner(fixture)
+	for s.Scan() {
+		msg := s.Bytes()
+		err := reader(msg)
+		assert.NoErrorf(tb, err, "Fixture message should not error:\n%s", msg)
+	}
+	assert.NoError(tb, s.Err(), "Fixture Scanner should not error")
+}
+
 var setupWsMutex sync.Mutex
 var setupWsOnce = make(map[exchange.IBotExchange]bool)
 
@@ -182,21 +204,26 @@ func SetupWs(tb testing.TB, e exchange.IBotExchange) {
 }
 
 var updatePairsMutex sync.Mutex
-var updatePairsOnce = make(map[exchange.IBotExchange]bool)
+var updatePairsOnce = make(map[string]*currency.PairsManager)
 
 // UpdatePairsOnce ensures pairs are only updated once in parallel tests
+// A clone of the cache of the updated pairs is used to populate duplicate requests
 func UpdatePairsOnce(tb testing.TB, e exchange.IBotExchange) {
 	tb.Helper()
 
 	updatePairsMutex.Lock()
 	defer updatePairsMutex.Unlock()
 
-	if updatePairsOnce[e] {
+	b := e.GetBase()
+	if c, ok := updatePairsOnce[e.GetName()]; ok {
+		b.CurrencyPairs.Load(c)
 		return
 	}
 
 	err := e.UpdateTradablePairs(context.Background(), true)
 	require.NoError(tb, err, "UpdateTradablePairs must not error")
 
-	updatePairsOnce[e] = true
+	cache := new(currency.PairsManager)
+	cache.Load(&b.CurrencyPairs)
+	updatePairsOnce[e.GetName()] = cache
 }
