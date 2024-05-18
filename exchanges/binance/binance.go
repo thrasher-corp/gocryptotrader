@@ -76,6 +76,7 @@ var (
 	errTokenRequired                          = errors.New("token is required")
 	errTransferAlgorithmRequired              = errors.New("transfer algorithm is required")
 	errUsernameRequired                       = errors.New("user name is required")
+	errTransferTypeRequired                   = errors.New("transfer type is required")
 )
 
 var subscriptionNames = map[string]string{
@@ -1008,7 +1009,7 @@ func (b *Binance) MarginAccountBorrowRepay(ctx context.Context, assetName curren
 	if symbol == "" {
 		return "", currency.ErrSymbolStringEmpty
 	}
-	if !assetName.IsEmpty() {
+	if assetName.IsEmpty() {
 		return "", currency.ErrCurrencyCodeEmpty
 	}
 	if lendingType == "" {
@@ -1795,7 +1796,7 @@ func (b *Binance) MarginManualLiquidiation(ctx context.Context, marginType, symb
 // GetLiabilityCoinLeverageBracketInCrossMarginProMode retrieve liability Coin Leverage Bracket in Cross Margin Pro Mode
 func (b *Binance) GetLiabilityCoinLeverageBracketInCrossMarginProMode(ctx context.Context) ([]LiabilityCoinLeverageBracket, error) {
 	var resp []LiabilityCoinLeverageBracket
-	return resp, b.SendHTTPRequest(ctx, exchange.RestSpot, "/sapi/v1/margin/leverageBracket", sapiDefaultRate, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/margin/leverageBracket", nil, sapiDefaultRate, nil, &resp)
 }
 
 // GetMarginAccount returns account information for margin accounts
@@ -2049,7 +2050,7 @@ func (b *Binance) GetDailyAccountSnapshot(ctx context.Context, tradeType string,
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	var resp *DailyAccountSnapshot
-	return resp, b.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues("/sapi/v1/accountSnapshot", params), dailyAccountSnapshotRate, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/accountSnapshot", params, dailyAccountSnapshotRate, nil, &resp)
 }
 
 // DisableFastWithdrawalSwitch disables fast withdrawal switch
@@ -2259,7 +2260,7 @@ func (b *Binance) GetTradeFees(ctx context.Context, symbol currency.Pair) ([]Tra
 // toSymbol must be sent when type are MARGIN_ISOLATEDMARGIN and ISOLATEDMARGIN_ISOLATEDMARGIN
 func (b *Binance) UserUniversalTransfer(ctx context.Context, transferType TransferTypes, amount float64, asset currency.Code, fromSymbol, toSymbol string) (string, error) {
 	if transferType == 0 {
-		return "", errors.New("transfer type is required")
+		return "", errTransferTypeRequired
 	}
 	if asset.IsEmpty() {
 		return "", fmt.Errorf("asset %w", currency.ErrCurrencyCodeEmpty)
@@ -2284,16 +2285,16 @@ func (b *Binance) UserUniversalTransfer(ctx context.Context, transferType Transf
 }
 
 // GetUserUniversalTransferHistory retrieves user universal transfer history
-func (b *Binance) GetUserUniversalTransferHistory(ctx context.Context, transferType TransferTypes, startTime, endTime time.Time, current int64, size float64, fromSymbol, toSymbol string) (*UniversalTransferHistory, error) {
+func (b *Binance) GetUserUniversalTransferHistory(ctx context.Context, transferType TransferTypes, startTime, endTime time.Time, current, size int64, fromSymbol, toSymbol string) (*UniversalTransferHistory, error) {
 	if transferType == 0 {
-		return nil, errors.New("transfer type is required")
+		return nil, errTransferTypeRequired
 	}
 	if size <= 0 {
 		return nil, fmt.Errorf("%w, 'size' is required", order.ErrAmountBelowMin)
 	}
 	params := url.Values{}
 	params.Set("type", transferType.String())
-	params.Set("size", strconv.FormatFloat(size, 'f', -1, 64))
+	params.Set("size", strconv.FormatInt(size, 10))
 	if !startTime.IsZero() && !endTime.IsZero() {
 		err := common.StartEndTimeCheck(startTime, endTime)
 		if err != nil {
@@ -3151,7 +3152,7 @@ func (b *Binance) transferSubAccount(ctx context.Context, email, path string, as
 		return "", order.ErrAmountBelowMin
 	}
 	if transferType != 1 && transferType != 2 && transferType != 3 && transferType != 4 {
-		return "", errors.New("transfer type is required")
+		return "", errTransferTypeRequired
 	}
 	params := url.Values{}
 	params.Set("email", email)
@@ -3161,7 +3162,7 @@ func (b *Binance) transferSubAccount(ctx context.Context, email, path string, as
 	resp := struct {
 		TransactionID string `json:"txnId"`
 	}{}
-	return resp.TransactionID, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, params, sapiDefaultRate, nil, &resp)
+	return resp.TransactionID, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, path, params, sapiDefaultRate, nil, &resp)
 }
 
 // TransferToSubAccountOfSameMaster Transfer to Sub-account of Same Master (For Sub-account)
@@ -3182,7 +3183,7 @@ func (b *Binance) TransferToSubAccountOfSameMaster(ctx context.Context, toEmail 
 	resp := &struct {
 		TransactionID string `json:"txnId"`
 	}{}
-	return resp.TransactionID, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/sub-account/transfer/subToSub", params, sapiDefaultRate, nil, &resp)
+	return resp.TransactionID, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/sapi/v1/sub-account/transfer/subToSub", params, sapiDefaultRate, nil, &resp)
 }
 
 // FromSubAccountTransferToMaster Transfer to Master (For Sub-account)
@@ -4547,6 +4548,7 @@ func (b *Binance) InvestmentPlanCreation(ctx context.Context, arg *InvestmentPla
 	if len(arg.Details) == 0 {
 		return nil, errors.New("portfolio detail is required")
 	}
+	params := url.Values{}
 	for a := range arg.Details {
 		if arg.Details[a].TargetAsset.IsEmpty() {
 			return nil, fmt.Errorf("%w, targetAsset is required", currency.ErrCurrencyCodeEmpty)
@@ -4554,9 +4556,11 @@ func (b *Binance) InvestmentPlanCreation(ctx context.Context, arg *InvestmentPla
 		if arg.Details[a].Percentage < 0 {
 			return nil, errors.New("invalid percentage amount")
 		}
+		params.Add("targetAsset", arg.Details[a].TargetAsset.String())
+		params.Add("percentage", strconv.FormatInt(arg.Details[a].Percentage, 10))
 	}
 	var resp *InvestmentPlanResponse
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/sapi/v1/lending/auto-invest/plan/add", nil, sapiDefaultRate, arg, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/sapi/v1/lending/auto-invest/plan/add", params, sapiDefaultRate, arg, &resp)
 }
 
 // InvestmentPlanAdjustment query Source Asset to be used for investment
@@ -4582,6 +4586,7 @@ func (b *Binance) InvestmentPlanAdjustment(ctx context.Context, arg *AdjustInves
 	if len(arg.Details) == 0 {
 		return nil, errors.New("portfolio detail is required")
 	}
+	params := url.Values{}
 	for a := range arg.Details {
 		if arg.Details[a].TargetAsset.IsEmpty() {
 			return nil, fmt.Errorf("%w, targetAsset is required", currency.ErrCurrencyCodeEmpty)
@@ -4589,9 +4594,11 @@ func (b *Binance) InvestmentPlanAdjustment(ctx context.Context, arg *AdjustInves
 		if arg.Details[a].Percentage < 0 {
 			return nil, errors.New("invalid percentage amount")
 		}
+		params.Add("targetAsset", arg.Details[a].TargetAsset.String())
+		params.Add("percentage", strconv.FormatInt(arg.Details[a].Percentage, 10))
 	}
 	var resp *InvestmentPlanResponse
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/sapi/v1/lending/auto-invest/plan/edit", nil, sapiDefaultRate, arg, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/sapi/v1/lending/auto-invest/plan/edit", params, sapiDefaultRate, arg, &resp)
 }
 
 // ChangePlanStatus change Plan Status
@@ -4704,6 +4711,7 @@ func (b *Binance) OneTimeTransaction(ctx context.Context, arg *OneTimeTransactio
 	if len(arg.Details) == 0 {
 		return nil, errors.New("portfolio detail is required")
 	}
+	params := url.Values{}
 	for a := range arg.Details {
 		if arg.Details[a].TargetAsset.IsEmpty() {
 			return nil, fmt.Errorf("%w, targetAsset is required", currency.ErrCurrencyCodeEmpty)
@@ -4711,9 +4719,11 @@ func (b *Binance) OneTimeTransaction(ctx context.Context, arg *OneTimeTransactio
 		if arg.Details[a].Percentage < 0 {
 			return nil, errors.New("invalid percentage amount")
 		}
+		params.Add("targetAsset", arg.Details[a].TargetAsset.String())
+		params.Add("percentage", strconv.FormatInt(arg.Details[a].Percentage, 10))
 	}
 	var resp *OneTimeTransactionResponse
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/sapi/v1/lending/auto-invest/one-off", nil, sapiDefaultRate, arg, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/sapi/v1/lending/auto-invest/one-off", params, sapiDefaultRate, arg, &resp)
 }
 
 // GetOneTimeTransactionStatus retrieves transaction status of one-time transaction
@@ -4971,13 +4981,13 @@ func (b *Binance) GetWBETHRewardHistory(ctx context.Context, startTime, endTime 
 // AcquiringAlgorithm retrieves list of algorithms
 func (b *Binance) AcquiringAlgorithm(ctx context.Context) (*AlgorithmsList, error) {
 	var resp *AlgorithmsList
-	return resp, b.SendHTTPRequest(ctx, exchange.RestSpot, "/sapi/v1/mining/pub/algoList", sapiDefaultRate, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/mining/pub/algoList", nil, sapiDefaultRate, nil, &resp)
 }
 
 // GetCoinNames retrieves coin names
 func (b *Binance) GetCoinNames(ctx context.Context) (*CoinNames, error) {
 	var resp *CoinNames
-	return resp, b.SendHTTPRequest(ctx, exchange.RestSpot, "/sapi/v1/mining/pub/coinList", sapiDefaultRate, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/mining/pub/coinList", nil, sapiDefaultRate, nil, &resp)
 }
 
 // GetDetailMinerList retrieves list of miners name and other details.
@@ -5240,7 +5250,7 @@ func (b *Binance) NewFuturesAccountTransfer(ctx context.Context, assetName curre
 		return nil, order.ErrAmountBelowMin
 	}
 	if transferType == 0 {
-		return nil, errors.New("transfer type is required")
+		return nil, errTransferTypeRequired
 	}
 	params := url.Values{}
 	params.Set("asset", assetName.String())

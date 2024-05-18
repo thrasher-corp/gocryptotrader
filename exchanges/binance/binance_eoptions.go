@@ -177,7 +177,7 @@ func (b *Binance) GetEOptionsOpenInterests(ctx context.Context, underlyingAsset 
 	}
 	params := url.Values{}
 	params.Set("underlyingAsset", underlyingAsset)
-	params.Set("expiration", fmt.Sprintf("%d%s%d", expiration.Day(), expiration.Month(), (expiration.Year()%2000)))
+	params.Set("expiration", expiration.Format("020106"))
 	var resp []OpenInterest
 	return resp, b.SendHTTPRequest(ctx, exchange.RestOptions, common.EncodeURLValues("/eapi/v1/openInterest", params), optionsDefaultRate, &resp)
 }

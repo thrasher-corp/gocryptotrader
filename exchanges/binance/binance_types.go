@@ -57,7 +57,7 @@ const (
 type TransferTypes uint8
 
 const (
-	ttMainUMFuture TransferTypes = iota
+	ttMainUMFuture TransferTypes = iota + 1
 	ttMainCMFuture
 	ttMainMargin
 	ttUMFutureMain
@@ -1145,10 +1145,10 @@ type AssetDividendRecord struct {
 
 // DividendAsset represents details of assets
 type DividendAsset struct {
-	MinWithdrawAmount string  `json:"minWithdrawAmount"`
-	DepositStatus     bool    `json:"depositStatus"`
-	WithdrawFee       float64 `json:"withdrawFee"`
-	WithdrawStatus    bool    `json:"withdrawStatus"`
+	MinWithdrawAmount types.Number `json:"minWithdrawAmount"`
+	DepositStatus     bool         `json:"depositStatus"`
+	WithdrawFee       types.Number `json:"withdrawFee"`
+	WithdrawStatus    bool         `json:"withdrawStatus"`
 }
 
 // TradeFee represents a trading fee for an asset.
@@ -3662,11 +3662,11 @@ type LiabilityCoinLeverageBracket struct {
 	AssetNames []string `json:"assetNames"`
 	Rank       int64    `json:"rank"`
 	Brackets   []struct {
-		Leverage              int64   `json:"leverage"`
-		MaxDebt               float64 `json:"maxDebt"`
-		MaintenanceMarginRate float64 `json:"maintenanceMarginRate"`
-		InitialMarginRate     float64 `json:"initialMarginRate"`
-		FastNum               int64   `json:"fastNum"`
+		Leverage              int64        `json:"leverage"`
+		MaxDebt               types.Number `json:"maxDebt"`
+		MaintenanceMarginRate types.Number `json:"maintenanceMarginRate"`
+		InitialMarginRate     types.Number `json:"initialMarginRate"`
+		FastNum               types.Number `json:"fastNum"`
 	} `json:"brackets"`
 }
 
@@ -4068,7 +4068,7 @@ type AdjustInvestmentPlan struct {
 	SubscriptionStartTime    int64             `json:"subscriptionStartTime"`              // “0,1,2,3,4,5,6,7,8,..23”;Must be sent in form of UTC+0
 	SourceAsset              currency.Code     `json:"sourceAsset,omitempty"`
 	FlexibleAllowedToUse     bool              `json:"flexibleAllowedToUse"`
-	Details                  []PortfolioDetail `json:"details,omitempty"`
+	Details                  []PortfolioDetail `json:"-"`
 }
 
 // ChangePlanStatusResponse represents a change plan status response.
@@ -4211,14 +4211,14 @@ type IndexLinkedPlanPositionDetail struct {
 
 // OneTimeTransactionParams request parameters for one-time transaction instance.
 type OneTimeTransactionParams struct {
-	SourceType           string            `json:"sourceType"`
-	RequestID            string            `json:"requestId"` // if not null, must follow sourceType + unique string, e.g: TR12354859
+	SourceType           string            `json:"sourceType"` // "MAIN_SITE" for Binance,“TR” for Binance Turkey
+	RequestID            string            `json:"requestId"`  // if not null, must follow sourceType + unique string, e.g: TR12354859
 	SubscriptionAmount   float64           `json:"subscriptionAmount"`
 	SourceAsset          currency.Code     `json:"sourceAsset"`
 	FlexibleAllowedToUse bool              `json:"flexibleAllowedToUse"` // true/false；true: using flexible wallet
 	PlanID               int64             `json:"planId,omitempty"`     // PORTFOLIO plan's Id
 	IndexID              int64             `json:"indexId,omitempty"`
-	Details              []PortfolioDetail `json:"details"` // sum(all node's percentage) == 100，sum(all node's percentage) == 100， When input request parameter, each entry should be like details[0].targetAsset=BTC, Example of the request parameter array:
+	Details              []PortfolioDetail `json:"-"` // sum(all node's percentage) == 100，sum(all node's percentage) == 100， When input request parameter, each entry should be like details[0].targetAsset=BTC, Example of the request parameter array:
 }
 
 // OneTimeTransactionResponse represents a response data for one-time transaction
