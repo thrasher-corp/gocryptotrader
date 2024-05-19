@@ -879,13 +879,13 @@ func (ku *Kucoin) processOrderbook(respData []byte, symbol, topic string) error 
 		return err
 	}
 
-	asks := make([]orderbook.Item, len(response.Asks))
+	asks := make([]orderbook.Tranche, len(response.Asks))
 	for x := range response.Asks {
 		asks[x].Price = response.Asks[x][0].Float64()
 		asks[x].Amount = response.Asks[x][1].Float64()
 	}
 
-	bids := make([]orderbook.Item, len(response.Bids))
+	bids := make([]orderbook.Tranche, len(response.Bids))
 	for x := range response.Bids {
 		bids[x].Price = response.Bids[x][0].Float64()
 		bids[x].Amount = response.Bids[x][1].Float64()
@@ -1255,7 +1255,7 @@ func (ku *Kucoin) setupOrderbookManager() {
 
 // ProcessUpdate processes the websocket orderbook update
 func (ku *Kucoin) ProcessUpdate(cp currency.Pair, a asset.Item, ws *WsOrderbook) error {
-	updateBid := make([]orderbook.Item, len(ws.Changes.Bids))
+	updateBid := make([]orderbook.Tranche, len(ws.Changes.Bids))
 	for i := range ws.Changes.Bids {
 		p, err := strconv.ParseFloat(ws.Changes.Bids[i][0], 64)
 		if err != nil {
@@ -1272,10 +1272,10 @@ func (ku *Kucoin) ProcessUpdate(cp currency.Pair, a asset.Item, ws *WsOrderbook)
 				return err
 			}
 		}
-		updateBid[i] = orderbook.Item{Price: p, Amount: a, ID: sequence}
+		updateBid[i] = orderbook.Tranche{Price: p, Amount: a, ID: sequence}
 	}
 
-	updateAsk := make([]orderbook.Item, len(ws.Changes.Asks))
+	updateAsk := make([]orderbook.Tranche, len(ws.Changes.Asks))
 	for i := range ws.Changes.Asks {
 		p, err := strconv.ParseFloat(ws.Changes.Asks[i][0], 64)
 		if err != nil {
@@ -1292,7 +1292,7 @@ func (ku *Kucoin) ProcessUpdate(cp currency.Pair, a asset.Item, ws *WsOrderbook)
 				return err
 			}
 		}
-		updateAsk[i] = orderbook.Item{Price: p, Amount: a, ID: sequence}
+		updateAsk[i] = orderbook.Tranche{Price: p, Amount: a, ID: sequence}
 	}
 
 	return ku.Websocket.Orderbook.Update(&orderbook.Update{
@@ -1414,17 +1414,17 @@ func (ku *Kucoin) SeedLocalCacheWithBook(p currency.Pair, orderbookNew *Orderboo
 		LastUpdated:     time.Now(),
 		LastUpdateID:    orderbookNew.Sequence,
 		VerifyOrderbook: ku.CanVerifyOrderbook,
-		Bids:            make(orderbook.Items, len(orderbookNew.Bids)),
-		Asks:            make(orderbook.Items, len(orderbookNew.Asks)),
+		Bids:            make(orderbook.Tranches, len(orderbookNew.Bids)),
+		Asks:            make(orderbook.Tranches, len(orderbookNew.Asks)),
 	}
 	for i := range orderbookNew.Bids {
-		newOrderBook.Bids[i] = orderbook.Item{
+		newOrderBook.Bids[i] = orderbook.Tranche{
 			Amount: orderbookNew.Bids[i].Amount,
 			Price:  orderbookNew.Bids[i].Price,
 		}
 	}
 	for i := range orderbookNew.Asks {
-		newOrderBook.Asks[i] = orderbook.Item{
+		newOrderBook.Asks[i] = orderbook.Tranche{
 			Amount: orderbookNew.Asks[i].Amount,
 			Price:  orderbookNew.Asks[i].Price,
 		}

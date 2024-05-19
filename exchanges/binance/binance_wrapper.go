@@ -732,16 +732,16 @@ func (b *Binance) UpdateOrderbook(ctx context.Context, p currency.Pair, assetTyp
 		if err != nil {
 			return nil, err
 		}
-		book.Bids = make(orderbook.Items, len(resp.Bids))
+		book.Bids = make(orderbook.Tranches, len(resp.Bids))
 		for x := range resp.Bids {
-			book.Bids[x] = orderbook.Item{
+			book.Bids[x] = orderbook.Tranche{
 				Price:  resp.Bids[x][0].Float64(),
 				Amount: resp.Bids[x][1].Float64(),
 			}
 		}
-		book.Asks = make(orderbook.Items, len(resp.Asks))
+		book.Asks = make(orderbook.Tranches, len(resp.Asks))
 		for x := range resp.Asks {
-			book.Asks[x] = orderbook.Item{
+			book.Asks[x] = orderbook.Tranche{
 				Price:  resp.Asks[x][0].Float64(),
 				Amount: resp.Asks[x][1].Float64(),
 			}
@@ -754,16 +754,16 @@ func (b *Binance) UpdateOrderbook(ctx context.Context, p currency.Pair, assetTyp
 		return book, err
 	}
 	if !orderbookPopulated {
-		book.Bids = make(orderbook.Items, len(orderbookNew.Bids))
+		book.Bids = make(orderbook.Tranches, len(orderbookNew.Bids))
 		for x := range orderbookNew.Bids {
-			book.Bids[x] = orderbook.Item{
+			book.Bids[x] = orderbook.Tranche{
 				Amount: orderbookNew.Bids[x].Quantity,
 				Price:  orderbookNew.Bids[x].Price,
 			}
 		}
-		book.Asks = make(orderbook.Items, len(orderbookNew.Asks))
+		book.Asks = make(orderbook.Tranches, len(orderbookNew.Asks))
 		for x := range orderbookNew.Asks {
-			book.Asks[x] = orderbook.Item{
+			book.Asks[x] = orderbook.Tranche{
 				Amount: orderbookNew.Asks[x].Quantity,
 				Price:  orderbookNew.Asks[x].Price,
 			}

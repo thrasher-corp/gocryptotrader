@@ -259,9 +259,13 @@ func (ok *Okx) FetchTradablePairs(ctx context.Context, a asset.Item) (currency.P
 	if err != nil {
 		return nil, err
 	}
+	pf, err := ok.CurrencyPairs.GetFormat(a, false)
+	if err != nil {
+		return nil, err
+	}
 	pairs := make([]currency.Pair, len(insts))
 	for x := range insts {
-		pairs[x], err = currency.NewPairDelimiter(insts[x].InstrumentID, ok.CurrencyPairs.ConfigFormat.Delimiter)
+		pairs[x], err = currency.NewPairDelimiter(insts[x].InstrumentID, pf.Delimiter)
 		if err != nil {
 			return nil, err
 		}
@@ -378,7 +382,7 @@ func (ok *Okx) UpdateTickers(ctx context.Context, assetType asset.Item) error {
 	}
 
 	for y := range ticks {
-		pair, err := ok.GetPairFromInstrumentID(ticks[y].InstrumentID)
+		pair, err := currency.NewPairFromString(ticks[y].InstrumentID)
 		if err != nil {
 			return err
 		}
@@ -473,16 +477,16 @@ func (ok *Okx) UpdateOrderbook(ctx context.Context, pair currency.Pair, assetTyp
 	if err != nil {
 		return nil, err
 	}
-	book.Bids = make(orderbook.Items, len(orderBookD.Bids))
+	book.Bids = make(orderbook.Tranches, len(orderBookD.Bids))
 	for x := range orderBookD.Bids {
-		book.Bids[x] = orderbook.Item{
+		book.Bids[x] = orderbook.Tranche{
 			Amount: orderBookD.Bids[x].BaseCurrencies,
 			Price:  orderBookD.Bids[x].DepthPrice,
 		}
 	}
-	book.Asks = make(orderbook.Items, len(orderBookD.Asks))
+	book.Asks = make(orderbook.Tranches, len(orderBookD.Asks))
 	for x := range orderBookD.Asks {
-		book.Asks[x] = orderbook.Item{
+		book.Asks[x] = orderbook.Tranche{
 			Amount: orderBookD.Asks[x].NumberOfContracts,
 			Price:  orderBookD.Asks[x].DepthPrice,
 		}
@@ -1192,8 +1196,7 @@ allOrders:
 				break allOrders
 			}
 			orderSide := orderList[i].Side
-			var pair currency.Pair
-			pair, err = ok.GetPairFromInstrumentID(orderList[i].InstrumentID)
+			pair, err := currency.NewPairFromString(orderList[i].InstrumentID)
 			if err != nil {
 				return nil, err
 			}
@@ -1286,8 +1289,7 @@ allOrders:
 				// reached end of orders to crawl
 				break allOrders
 			}
-			var pair currency.Pair
-			pair, err = ok.GetPairFromInstrumentID(orderList[i].InstrumentID)
+			pair, err := currency.NewPairFromString(orderList[i].InstrumentID)
 			if err != nil {
 				return nil, err
 			}

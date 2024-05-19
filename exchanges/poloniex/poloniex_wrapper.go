@@ -333,17 +333,17 @@ func (p *Poloniex) UpdateOrderbook(ctx context.Context, pair currency.Pair, asse
 			VerifyOrderbook: p.CanVerifyOrderbook,
 		}
 
-		book.Bids = make(orderbook.Items, len(data.Bids))
+		book.Bids = make(orderbook.Tranches, len(data.Bids))
 		for y := range data.Bids {
-			book.Bids[y] = orderbook.Item{
+			book.Bids[y] = orderbook.Tranche{
 				Amount: data.Bids[y].Amount,
 				Price:  data.Bids[y].Price,
 			}
 		}
 
-		book.Asks = make(orderbook.Items, len(data.Asks))
+		book.Asks = make(orderbook.Tranches, len(data.Asks))
 		for y := range data.Asks {
-			book.Asks[y] = orderbook.Item{
+			book.Asks[y] = orderbook.Tranche{
 				Amount: data.Asks[y].Amount,
 				Price:  data.Asks[y].Price,
 			}

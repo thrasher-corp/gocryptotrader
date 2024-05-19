@@ -346,12 +346,12 @@ func (b *Binance) processOptionsOrderbook(data []byte) error {
 	if err != nil {
 		return err
 	}
-	asks := make([]orderbook.Item, len(resp.Asks))
+	asks := make([]orderbook.Tranche, len(resp.Asks))
 	for a := range resp.Asks {
 		asks[a].Price = resp.Asks[a][0].Float64()
 		asks[a].Amount = resp.Asks[a][1].Float64()
 	}
-	bids := make([]orderbook.Item, len(resp.Bids))
+	bids := make([]orderbook.Tranche, len(resp.Bids))
 	for b := range resp.Bids {
 		bids[b].Price = resp.Bids[b][0].Float64()
 		bids[b].Amount = resp.Bids[b][1].Float64()

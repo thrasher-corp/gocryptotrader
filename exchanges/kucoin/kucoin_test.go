@@ -1988,8 +1988,9 @@ func TestGetAuthenticatedServersInstances(t *testing.T) {
 }
 
 func TestPushData(t *testing.T) {
-	n := new(Kucoin)
-	sharedtestvalues.TestFixtureToDataHandler(t, ku, n, "testdata/wsHandleData.json", ku.wsHandleData)
+	t.Parallel()
+	ku := testInstance(t) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
+	testexch.FixtureToDataHandler(t, "testdata/wsHandleData.json", ku.wsHandleData)
 }
 
 func verifySubs(tb testing.TB, subs []subscription.Subscription, a asset.Item, prefix string, expected ...string) {
@@ -2049,14 +2050,10 @@ func TestGenerateDefaultSubscriptions(t *testing.T) {
 func TestGenerateAuthSubscriptions(t *testing.T) {
 	t.Parallel()
 
-	// Create a parallel safe Kucoin to mess with
-	nu := new(Kucoin)
-	nu.Base.Features = ku.Base.Features
-	assert.NoError(t, nu.CurrencyPairs.Load(&ku.CurrencyPairs), "Loading Pairs should not error")
-	nu.Websocket = sharedtestvalues.NewTestWebsocket()
-	nu.Websocket.SetCanUseAuthenticatedEndpoints(true)
+	ku := testInstance(t) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
+	ku.Websocket.SetCanUseAuthenticatedEndpoints(true)
 
-	subs, err := nu.GenerateDefaultSubscriptions()
+	subs, err := ku.GenerateDefaultSubscriptions()
 	assert.NoError(t, err, "GenerateDefaultSubscriptions with Auth should not error")
 	assert.Len(t, subs, 24, "Should generate the correct number of subs when logged in")
 
@@ -2086,17 +2083,12 @@ func TestGenerateAuthSubscriptions(t *testing.T) {
 func TestGenerateCandleSubscription(t *testing.T) {
 	t.Parallel()
 
-	// Create a parallel safe Kucoin to mess with
-	nu := new(Kucoin)
-	nu.Base.Features = ku.Base.Features
-	nu.Websocket = sharedtestvalues.NewTestWebsocket()
-	assert.NoError(t, nu.CurrencyPairs.Load(&ku.CurrencyPairs), "Loading Pairs should not error")
-
-	nu.Features.Subscriptions = []*subscription.Subscription{
+	ku := testInstance(t) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
+	ku.Features.Subscriptions = []*subscription.Subscription{
 		{Channel: subscription.CandlesChannel, Interval: kline.FourHour},
 	}
 
-	subs, err := nu.GenerateDefaultSubscriptions()
+	subs, err := ku.GenerateDefaultSubscriptions()
 	assert.NoError(t, err, "GenerateDefaultSubscriptions with Candles should not error")
 
 	assert.Len(t, subs, 6, "Should generate the correct number of subs for candles")
@@ -2111,17 +2103,12 @@ func TestGenerateCandleSubscription(t *testing.T) {
 func TestGenerateMarketSubscription(t *testing.T) {
 	t.Parallel()
 
-	// Create a parallel safe Kucoin to mess with
-	nu := new(Kucoin)
-	nu.Base.Features = ku.Base.Features
-	nu.Websocket = sharedtestvalues.NewTestWebsocket()
-	assert.NoError(t, nu.CurrencyPairs.Load(&ku.CurrencyPairs), "Loading Pairs should not error")
-
-	nu.Features.Subscriptions = []*subscription.Subscription{
+	ku := testInstance(t) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
+	ku.Features.Subscriptions = []*subscription.Subscription{
 		{Channel: marketSnapshotChannel},
 	}
 
-	subs, err := nu.GenerateDefaultSubscriptions()
+	subs, err := ku.GenerateDefaultSubscriptions()
 	assert.NoError(t, err, "GenerateDefaultSubscriptions with MarketSnapshot should not error")
 
 	assert.Len(t, subs, 7, "Should generate the correct number of subs for snapshot")
@@ -2490,59 +2477,51 @@ func TestProcessOrderbook(t *testing.T) {
 
 func TestProcessMarketSnapshot(t *testing.T) {
 	t.Parallel()
-	n := new(Kucoin)
-	sharedtestvalues.TestFixtureToDataHandler(t, ku, n, "testdata/wsMarketSnapshot.json", n.wsHandleData)
-	seen := 0
+	ku := testInstance(t) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
+	testexch.FixtureToDataHandler(t, "testdata/wsMarketSnapshot.json", ku.wsHandleData)
+	close(ku.Websocket.DataHandler)
+	assert.Len(t, ku.Websocket.DataHandler, 4, "Should see 4 tickers")
 	seenAssetTypes := map[asset.Item]int{}
-	for reading := true; reading; {
-		select {
-		default:
-			reading = false
-		case resp := <-n.GetBase().Websocket.DataHandler:
-			seen++
-			switch v := resp.(type) {
-			case *ticker.Price:
-				switch seen {
-				case 1:
-					assert.Equal(t, asset.Margin, v.AssetType, "AssetType")
-					assert.Equal(t, time.UnixMilli(1700555342007), v.LastUpdated, "datetime")
-					assert.Equal(t, 0.004445, v.High, "high")
-					assert.Equal(t, 0.004415, v.Last, "lastTradedPrice")
-					assert.Equal(t, 0.004191, v.Low, "low")
-					assert.Equal(t, currency.NewPairWithDelimiter("TRX", "BTC", "-"), v.Pair, "symbol")
-					assert.Equal(t, 13097.3357, v.Volume, "volume")
-					assert.Equal(t, 57.44552981, v.QuoteVolume, "volValue")
-				case 2, 3:
-					assert.Equal(t, time.UnixMilli(1700555340197), v.LastUpdated, "datetime")
-					assert.Contains(t, []asset.Item{asset.Spot, asset.Margin}, v.AssetType, "AssetType is Spot or Margin")
-					seenAssetTypes[v.AssetType]++
-					assert.Equal(t, 1, seenAssetTypes[v.AssetType], "Each Asset Type is sent only once per unique snapshot")
-					assert.Equal(t, 0.054846, v.High, "high")
-					assert.Equal(t, 0.053778, v.Last, "lastTradedPrice")
-					assert.Equal(t, 0.05364, v.Low, "low")
-					assert.Equal(t, currency.NewPairWithDelimiter("ETH", "BTC", "-"), v.Pair, "symbol")
-					assert.Equal(t, 2958.3139116, v.Volume, "volume")
-					assert.Equal(t, 160.7847672784213, v.QuoteVolume, "volValue")
-				case 4:
-					assert.Equal(t, asset.Spot, v.AssetType, "AssetType")
-					assert.Equal(t, time.UnixMilli(1700555342151), v.LastUpdated, "datetime")
-					assert.Equal(t, 37750.0, v.High, "high")
-					assert.Equal(t, 37366.8, v.Last, "lastTradedPrice")
-					assert.Equal(t, 36700.0, v.Low, "low")
-					assert.Equal(t, currency.NewPairWithDelimiter("BTC", "USDT", "-"), v.Pair, "symbol")
-					assert.Equal(t, 2900.37846402, v.Volume, "volume")
-					assert.Equal(t, 108210331.34015164, v.QuoteVolume, "volValue")
-				default:
-					t.Errorf("Got an unexpected *ticker.Price: %v", v)
-				}
-			case error:
-				t.Error(v)
-			default:
-				t.Errorf("Got unexpected data: %T %v", v, v)
+	for resp := range ku.Websocket.DataHandler {
+		switch v := resp.(type) {
+		case *ticker.Price:
+			switch len(ku.Websocket.DataHandler) {
+			case 3:
+				assert.Equal(t, asset.Margin, v.AssetType, "AssetType")
+				assert.Equal(t, time.UnixMilli(1700555342007), v.LastUpdated, "datetime")
+				assert.Equal(t, 0.004445, v.High, "high")
+				assert.Equal(t, 0.004415, v.Last, "lastTradedPrice")
+				assert.Equal(t, 0.004191, v.Low, "low")
+				assert.Equal(t, currency.NewPairWithDelimiter("TRX", "BTC", "-"), v.Pair, "symbol")
+				assert.Equal(t, 13097.3357, v.Volume, "volume")
+				assert.Equal(t, 57.44552981, v.QuoteVolume, "volValue")
+			case 2, 1:
+				assert.Equal(t, time.UnixMilli(1700555340197), v.LastUpdated, "datetime")
+				assert.Contains(t, []asset.Item{asset.Spot, asset.Margin}, v.AssetType, "AssetType is Spot or Margin")
+				seenAssetTypes[v.AssetType]++
+				assert.Equal(t, 1, seenAssetTypes[v.AssetType], "Each Asset Type is sent only once per unique snapshot")
+				assert.Equal(t, 0.054846, v.High, "high")
+				assert.Equal(t, 0.053778, v.Last, "lastTradedPrice")
+				assert.Equal(t, 0.05364, v.Low, "low")
+				assert.Equal(t, currency.NewPairWithDelimiter("ETH", "BTC", "-"), v.Pair, "symbol")
+				assert.Equal(t, 2958.3139116, v.Volume, "volume")
+				assert.Equal(t, 160.7847672784213, v.QuoteVolume, "volValue")
+			case 0:
+				assert.Equal(t, asset.Spot, v.AssetType, "AssetType")
+				assert.Equal(t, time.UnixMilli(1700555342151), v.LastUpdated, "datetime")
+				assert.Equal(t, 37750.0, v.High, "high")
+				assert.Equal(t, 37366.8, v.Last, "lastTradedPrice")
+				assert.Equal(t, 36700.0, v.Low, "low")
+				assert.Equal(t, currency.NewPairWithDelimiter("BTC", "USDT", "-"), v.Pair, "symbol")
+				assert.Equal(t, 2900.37846402, v.Volume, "volume")
+				assert.Equal(t, 108210331.34015164, v.QuoteVolume, "volValue")
 			}
+		case error:
+			t.Error(v)
+		default:
+			t.Errorf("Got unexpected data: %T %v", v, v)
 		}
 	}
-	assert.Equal(t, 4, seen, "Number of messages")
 }
 
 func TestSubscribeMarketSnapshot(t *testing.T) {
@@ -2735,16 +2714,16 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 func TestGetOpenInterest(t *testing.T) {
 	t.Parallel()
 
-	nu := new(Kucoin)
-	require.NoError(t, testexch.Setup(nu), "Test exchange Setup must not error")
-	_, err := nu.GetOpenInterest(context.Background(), key.PairAsset{
+	ku := testInstance(t) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
+
+	_, err := ku.GetOpenInterest(context.Background(), key.PairAsset{
 		Base:  currency.ETH.Item,
 		Quote: currency.USDT.Item,
 		Asset: asset.USDTMarginedFutures,
 	})
 	assert.ErrorIs(t, err, asset.ErrNotSupported)
 
-	resp, err := nu.GetOpenInterest(context.Background(), key.PairAsset{
+	resp, err := ku.GetOpenInterest(context.Background(), key.PairAsset{
 		Base:  futuresTradablePair.Base.Item,
 		Quote: futuresTradablePair.Quote.Item,
 		Asset: asset.Futures,
@@ -2753,8 +2732,8 @@ func TestGetOpenInterest(t *testing.T) {
 	assert.NotEmpty(t, resp)
 
 	cp1 := currency.NewPair(currency.ETH, currency.USDTM)
-	sharedtestvalues.SetupCurrencyPairsForExchangeAsset(t, nu, asset.Futures, cp1)
-	resp, err = nu.GetOpenInterest(context.Background(),
+	sharedtestvalues.SetupCurrencyPairsForExchangeAsset(t, ku, asset.Futures, cp1)
+	resp, err = ku.GetOpenInterest(context.Background(),
 		key.PairAsset{
 			Base:  futuresTradablePair.Base.Item,
 			Quote: futuresTradablePair.Quote.Item,
@@ -2769,7 +2748,7 @@ func TestGetOpenInterest(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotEmpty(t, resp)
 
-	resp, err = nu.GetOpenInterest(context.Background())
+	resp, err = ku.GetOpenInterest(context.Background())
 	assert.NoError(t, err)
 	assert.NotEmpty(t, resp)
 }
@@ -2785,4 +2764,16 @@ func TestGetCurrencyTradeURL(t *testing.T) {
 		require.NoError(t, err)
 		assert.NotEmpty(t, resp)
 	}
+}
+
+// testInstance returns a local Kucoin for isolated testing
+func testInstance(tb testing.TB) *Kucoin {
+	tb.Helper()
+	ku := new(Kucoin)
+	require.NoError(tb, testexch.Setup(ku), "Test instance Setup must not error")
+	ku.obm = &orderbookManager{
+		state: make(map[currency.Code]map[currency.Code]map[asset.Item]*update),
+		jobs:  make(chan job, maxWSOrderbookJobs),
+	}
+	return ku
 }

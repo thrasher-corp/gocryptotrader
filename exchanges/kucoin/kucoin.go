@@ -193,8 +193,8 @@ func (ku *Kucoin) GetMarketList(ctx context.Context) ([]string, error) {
 	return resp, ku.SendHTTPRequest(ctx, exchange.RestSpot, defaultSpotEPL, kucoinGetMarketList, &resp)
 }
 
-func processOB(ob [][2]string) ([]orderbook.Item, error) {
-	o := make([]orderbook.Item, len(ob))
+func processOB(ob [][2]string) ([]orderbook.Tranche, error) {
+	o := make([]orderbook.Tranche, len(ob))
 	for x := range ob {
 		amount, err := strconv.ParseFloat(ob[x][1], 64)
 		if err != nil {
@@ -204,7 +204,7 @@ func processOB(ob [][2]string) ([]orderbook.Item, error) {
 		if err != nil {
 			return nil, err
 		}
-		o[x] = orderbook.Item{
+		o[x] = orderbook.Tranche{
 			Price:  price,
 			Amount: amount,
 		}

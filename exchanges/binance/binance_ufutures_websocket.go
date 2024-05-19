@@ -219,8 +219,8 @@ func (b *Binance) processOrderbookDepthUpdate(respRaw []byte, assetType asset.It
 	if err != nil {
 		return err
 	}
-	asks := make(orderbook.Items, len(resp.Asks))
-	bids := make(orderbook.Items, len(resp.Bids))
+	asks := make(orderbook.Tranches, len(resp.Asks))
+	bids := make(orderbook.Tranches, len(resp.Bids))
 	for a := range resp.Asks {
 		asks[a].Price, err = strconv.ParseFloat(resp.Asks[a][0], 64)
 		if err != nil {
@@ -447,11 +447,11 @@ func (b *Binance) processBookTicker(respRaw []byte, assetType asset.Item) error 
 	if _, okay := bookTickerSymbolsMap[resp.Symbol]; !okay {
 		bookTickerSymbolsMap[strings.ToUpper(resp.Symbol)] = struct{}{}
 		return b.Websocket.Orderbook.LoadSnapshot(&orderbook.Base{
-			Bids: orderbook.Items{{
+			Bids: orderbook.Tranches{{
 				Amount: resp.BestBidQty.Float64(),
 				Price:  resp.BestBidPrice.Float64(),
 			}},
-			Asks: []orderbook.Item{{
+			Asks: []orderbook.Tranche{{
 				Amount: resp.BestAskQty.Float64(),
 				Price:  resp.BestAskPrice.Float64(),
 			}},
@@ -467,11 +467,11 @@ func (b *Binance) processBookTicker(respRaw []byte, assetType asset.Item) error 
 		UpdateTime: resp.TransactionTime.Time(),
 		Asset:      assetType,
 		Action:     orderbook.Amend,
-		Bids: []orderbook.Item{{
+		Bids: []orderbook.Tranche{{
 			Amount: resp.BestBidQty.Float64(),
 			Price:  resp.BestBidPrice.Float64(),
 		}},
-		Asks: []orderbook.Item{{
+		Asks: []orderbook.Tranche{{
 			Amount: resp.BestAskQty.Float64(),
 			Price:  resp.BestAskPrice.Float64(),
 		}},
@@ -602,8 +602,8 @@ func (b *Binance) processDepthUpdate(respRaw []byte) error {
 		UpdateTime: resp.Data.TransactionTime.Time(),
 		Asset:      asset.USDTMarginedFutures,
 		Action:     orderbook.Amend,
-		Bids:       make([]orderbook.Item, len(resp.Data.Bids)),
-		Asks:       make([]orderbook.Item, len(resp.Data.Asks)),
+		Bids:       make([]orderbook.Tranche, len(resp.Data.Bids)),
+		Asks:       make([]orderbook.Tranche, len(resp.Data.Asks)),
 		Pair:       cp,
 	}
 	for a := range resp.Data.Asks {
