@@ -43,8 +43,8 @@ type EOptionExchangeInfo struct {
 		Unit                 int64        `json:"unit"`
 		MakerFeeRate         types.Number `json:"makerFeeRate"`
 		TakerFeeRate         types.Number `json:"takerFeeRate"`
-		MinQty               string       `json:"minQty"`
-		MaxQty               string       `json:"maxQty"`
+		MaxQty               types.Number `json:"maxQty"`
+		MinQty               types.Number `json:"minQty"`
 		InitialMargin        string       `json:"initialMargin"`
 		MaintenanceMargin    string       `json:"maintenanceMargin"`
 		MinInitialMargin     string       `json:"minInitialMargin"`

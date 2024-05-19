@@ -47,9 +47,6 @@ const (
 	pMarginAPIURL  = "https://papi.binance.com"
 	tradeBaseURL   = "https://www.binance.com/en/"
 
-	testnetSpotURL = "https://testnet.binance.vision/api"
-	testnetFutures = "https://testnet.binancefuture.com"
-
 	defaultRecvWindow = 5 * time.Second
 )
 
@@ -1653,7 +1650,7 @@ func (b *Binance) GetCurrencyMarginOrderCountUsage(ctx context.Context, isIsolat
 // GetCrossMarginCollateralRatio retrieves collaterals for list of assets.
 func (b *Binance) GetCrossMarginCollateralRatio(ctx context.Context) ([]CrossMarginCollateralRatio, error) {
 	var resp []CrossMarginCollateralRatio
-	return resp, b.SendHTTPRequest(ctx, exchange.RestSpot, "/sapi/v1/margin/crossMarginCollateralRatio", crossMarginCollateralRatioRate, &resp)
+	return resp, b.SendAPIKeyHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/margin/crossMarginCollateralRatio", crossMarginCollateralRatioRate, &resp)
 }
 
 // GetSmallLiabilityExchangeCoinList query the coins which can be small liability exchange
@@ -3475,8 +3472,14 @@ func (b *Binance) FetchExchangeLimits(ctx context.Context, a asset.Item) ([]orde
 		if err != nil {
 			return nil, err
 		}
-
-		if !slices.Contains(s.Permissions, aUpper) {
+		var hasPermission bool
+		for _, permissionSet := range s.PermissionSets {
+			if slices.Contains(permissionSet, aUpper) {
+				hasPermission = true
+				break
+			}
+		}
+		if !hasPermission {
 			continue
 		}
 
@@ -5998,10 +6001,10 @@ func (b *Binance) GetPayTradeHistory(ctx context.Context, startTime, endTime tim
 // GetAllConvertPairs query for all convertible token pairs and the tokens’ respective upper/lower limits
 // If not defined for both fromAsset and toAsset, only partial token pairs will be return
 func (b *Binance) GetAllConvertPairs(ctx context.Context, fromAsset, toAsset currency.Code) ([]ConvertPairInfo, error) {
-	params := url.Values{}
 	if fromAsset.IsEmpty() && toAsset.IsEmpty() {
 		return nil, errors.New("either fromAsset or toAsset is required")
 	}
+	params := url.Values{}
 	if !fromAsset.IsEmpty() {
 		params.Set("fromAsset", fromAsset.String())
 	}

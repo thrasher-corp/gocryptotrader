@@ -9,6 +9,7 @@ import (
 	"os"
 	"testing"
 
+	"github.com/thrasher-corp/gocryptotrader/currency"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 )
 
@@ -31,6 +32,10 @@ func TestMain(m *testing.M) {
 	b.setupOrderbookManager()
 	if err := b.populateTradablePairs(); err != nil {
 		log.Fatal(err)
+	}
+	if mockTests {
+		optionsTradablePair = currency.Pair{Base: currency.NewCode("ETH"), Quote: currency.NewCode("240927-3800-P"), Delimiter: currency.DashDelimiter}
+		usdtmTradablePair = currency.NewPair(currency.NewCode("BTC"), currency.NewCode("USDT"))
 	}
 	setupWs()
 	os.Exit(m.Run())

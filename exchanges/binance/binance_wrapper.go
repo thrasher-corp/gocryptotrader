@@ -417,27 +417,29 @@ func (b *Binance) UpdateTickers(ctx context.Context, a asset.Item) error {
 			return err
 		}
 		pairs = pairs.Format(format)
+		batchNo := len(pairs)/2 + (len(pairs)%2 - 1)
 		var tick []PriceChangeStats
-		if b.IsAPIStreamConnected() {
-			tick, err = b.GetWsTradingDayTickers(&PriceChangeRequestParam{Symbols: pairs, TickerType: "FULL"})
-		} else {
-			tick, err = b.GetPriceChangeStats(ctx, currency.EMPTYPAIR, pairs)
-		}
-		if err != nil {
-			return err
-		}
+		for batch := 0; batch <= batchNo; batch++ {
+			var selectedPairs currency.Pairs
+			if batch*2+2 >= len(pairs) {
+				selectedPairs = pairs[batch*2:]
+			} else {
+				selectedPairs = pairs[batch*2 : batch*2+2]
+			}
+			if b.IsAPIStreamConnected() {
+				tick, err = b.GetWsTradingDayTickers(&PriceChangeRequestParam{Symbols: selectedPairs, TickerType: "FULL"})
+			} else {
+				tick, err = b.GetPriceChangeStats(ctx, currency.EMPTYPAIR, selectedPairs)
+			}
+			if err != nil {
+				return err
+			}
 
-		for i := range pairs {
 			for y := range tick {
-				pairFmt, err := b.FormatExchangeCurrency(pairs[i], a)
+				pair, err := currency.NewPairFromString(tick[y].Symbol)
 				if err != nil {
 					return err
 				}
-
-				if tick[y].Symbol != pairFmt.String() {
-					continue
-				}
-
 				err = ticker.ProcessTicker(&ticker.Price{
 					Last:         tick[y].LastPrice.Float64(),
 					High:         tick[y].HighPrice.Float64(),
@@ -448,7 +450,7 @@ func (b *Binance) UpdateTickers(ctx context.Context, a asset.Item) error {
 					QuoteVolume:  tick[y].QuoteVolume.Float64(),
 					Open:         tick[y].OpenPrice.Float64(),
 					Close:        tick[y].PrevClosePrice.Float64(),
-					Pair:         pairFmt,
+					Pair:         pair.Format(format),
 					ExchangeName: b.Name,
 					AssetType:    a,
 				})
@@ -681,8 +683,6 @@ func (b *Binance) FetchTicker(ctx context.Context, p currency.Pair, assetType as
 func (b *Binance) FetchOrderbook(ctx context.Context, p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
 	ob, err := orderbook.Get(b.Name, p, assetType)
 	if err != nil {
-		// TODO: Disconnect update orderbook functionality from fetch orderbook
-		// functionality across all wrappers as this mutes potential errors.
 		return b.UpdateOrderbook(ctx, p, assetType)
 	}
 	return ob, nil
@@ -690,12 +690,16 @@ func (b *Binance) FetchOrderbook(ctx context.Context, p currency.Pair, assetType
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (b *Binance) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
-	if p.IsEmpty() {
-		return nil, currency.ErrCurrencyPairEmpty
-	}
-	if err := b.CurrencyPairs.IsAssetEnabled(assetType); err != nil {
+	err := b.CurrencyPairs.IsAssetEnabled(assetType)
+	if err != nil {
 		return nil, err
 	}
+	p = p.Upper()
+	isEnabled, err := b.CurrencyPairs.IsPairEnabled(p, assetType)
+	if !isEnabled || err != nil {
+		return nil, fmt.Errorf("%w pair: %v", currency.ErrPairNotEnabled, p)
+	}
+
 	book := &orderbook.Base{
 		Exchange:        b.Name,
 		Pair:            p,
@@ -703,7 +707,6 @@ func (b *Binance) UpdateOrderbook(ctx context.Context, p currency.Pair, assetTyp
 		VerifyOrderbook: b.CanVerifyOrderbook,
 	}
 	var orderbookNew *OrderBook
-	var err error
 	var orderbookPopulated bool
 	switch assetType {
 	case asset.Spot, asset.Margin:
@@ -2523,14 +2526,13 @@ func (b *Binance) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) 
 	var limits []order.MinMaxLevel
 	var err error
 	switch a {
-	case asset.Spot:
-		limits, err = b.FetchExchangeLimits(ctx, asset.Spot)
+	case asset.Spot,
+		asset.Margin:
+		limits, err = b.FetchExchangeLimits(ctx, a)
 	case asset.USDTMarginedFutures:
 		limits, err = b.FetchUSDTMarginExchangeLimits(ctx)
 	case asset.CoinMarginedFutures:
 		limits, err = b.FetchCoinMarginExchangeLimits(ctx)
-	case asset.Margin:
-		limits, err = b.FetchExchangeLimits(ctx, asset.Margin)
 	case asset.Options:
 		limits, err = b.FetchOptionsExchangeLimits(ctx)
 	default:
@@ -2539,7 +2541,6 @@ func (b *Binance) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) 
 	if err != nil {
 		return fmt.Errorf("cannot update exchange execution limits: %w", err)
 	}
-	println("Length: ", len(limits))
 	return b.LoadLimits(limits)
 }
 

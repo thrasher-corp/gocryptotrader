@@ -619,6 +619,12 @@ func (b *Binance) FetchOptionsExchangeLimits(ctx context.Context) ([]order.MinMa
 	if err != nil {
 		return nil, err
 	}
+	var maxOrderLimit int64
+	for a := range resp.RateLimits {
+		if resp.RateLimits[a].RateLimitType == "ORDERS" {
+			maxOrderLimit = resp.RateLimits[a].Limit
+		}
+	}
 
 	limits := make([]order.MinMaxLevel, 0, len(resp.OptionSymbols))
 	for i := range resp.OptionSymbols {
@@ -647,6 +653,9 @@ func (b *Binance) FetchOptionsExchangeLimits(ctx context.Context) ([]order.MinMa
 				return nil, fmt.Errorf("filter type %s not supported", f.FilterType)
 			}
 		}
+		l.MarketMaxQty = resp.OptionSymbols[i].MaxQty.Float64()
+		l.MarketMinQty = resp.OptionSymbols[i].MinQty.Float64()
+		l.MaxTotalOrders = maxOrderLimit
 		limits = append(limits, l)
 	}
 	return limits, nil
