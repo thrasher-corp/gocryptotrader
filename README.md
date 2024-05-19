@@ -141,26 +141,25 @@ Binaries will be published once the codebase reaches a stable condition.
 
 |User|Contribution Amount|
 |--|--|
-| [thrasher-](https://github.com/thrasher-) | 684 |
-| [shazbert](https://github.com/shazbert) | 315 |
-| [dependabot[bot]](https://github.com/apps/dependabot) | 228 |
-| [gloriousCode](https://github.com/gloriousCode) | 224 |
+| [thrasher-](https://github.com/thrasher-) | 690 |
+| [shazbert](https://github.com/shazbert) | 326 |
+| [dependabot[bot]](https://github.com/apps/dependabot) | 276 |
+| [gloriousCode](https://github.com/gloriousCode) | 233 |
 | [dependabot-preview[bot]](https://github.com/apps/dependabot-preview) | 88 |
-| [gbjk](https://github.com/gbjk) | 51 |
+| [gbjk](https://github.com/gbjk) | 72 |
 | [xtda](https://github.com/xtda) | 47 |
-| [gbjk](https://github.com/gbjk) | 42 |
 | [lrascao](https://github.com/lrascao) | 27 |
-| [ydm](https://github.com/ydm) | 15 |
-| [vazha](https://github.com/vazha) | 15 |
+| [Beadko](https://github.com/Beadko) | 17 |
 | [Rots](https://github.com/Rots) | 15 |
+| [vazha](https://github.com/vazha) | 15 |
+| [ydm](https://github.com/ydm) | 15 |
 | [ermalguni](https://github.com/ermalguni) | 14 |
 | [MadCozBadd](https://github.com/MadCozBadd) | 13 |
-| [Beadko](https://github.com/Beadko) | 11 |
 | [vadimzhukck](https://github.com/vadimzhukck) | 10 |
 | [geseq](https://github.com/geseq) | 8 |
+| [samuael](https://github.com/samuael) | 8 |
 | [marcofranssen](https://github.com/marcofranssen) | 8 |
 | [140am](https://github.com/140am) | 8 |
-| [samuael](https://github.com/samuael) | 7 |
 | [TaltaM](https://github.com/TaltaM) | 6 |
 | [dackroyd](https://github.com/dackroyd) | 5 |
 | [cranktakular](https://github.com/cranktakular) | 5 |
