@@ -53,7 +53,7 @@ const (
 	markPriceKlineCFuturesChan  = "@markPriceKline"
 )
 
-// TransferTypes represents asset transfer typess
+// TransferTypes represents asset transfer types
 type TransferTypes uint8
 
 const (

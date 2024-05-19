@@ -4537,7 +4537,7 @@ func (b *Binance) InvestmentPlanCreation(ctx context.Context, arg *InvestmentPla
 		return nil, errors.New("plan type is required")
 	}
 	if arg.SubscriptionAmount <= 0 {
-		return nil, fmt.Errorf("%w, subscriptionAmount valud is %f", order.ErrAmountBelowMin, arg.SubscriptionAmount)
+		return nil, fmt.Errorf("%w, subscriptionAmount valid is %f", order.ErrAmountBelowMin, arg.SubscriptionAmount)
 	}
 	if arg.SubscriptionStartDay <= 0 {
 		return nil, errors.New("subscription start day has to be greater than 0")
@@ -4575,7 +4575,7 @@ func (b *Binance) InvestmentPlanAdjustment(ctx context.Context, arg *AdjustInves
 		return nil, errPlanIDRequired
 	}
 	if arg.SubscriptionAmount <= 0 {
-		return nil, fmt.Errorf("%w, subscriptionAmount valud is %f", order.ErrAmountBelowMin, arg.SubscriptionAmount)
+		return nil, fmt.Errorf("%w, subscriptionAmount valid is %f", order.ErrAmountBelowMin, arg.SubscriptionAmount)
 	}
 	if arg.SubscriptionCycle == "" {
 		return nil, errors.New("subscription cycle is required")

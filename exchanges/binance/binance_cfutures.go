@@ -178,7 +178,7 @@ func (b *Binance) GetIndexAndMarkPrice(ctx context.Context, symbol, pair string)
 	return resp, b.SendHTTPRequest(ctx, exchange.RestCoinMargined, common.EncodeURLValues("/dapi/v1/premiumIndex", params), cFuturesIndexMarkPriceRate, &resp)
 }
 
-// GetFundingRateInfo uery funding rate info for symbols that had FundingRateCap/ FundingRateFloor / fundingIntervalHours adjustment
+// GetFundingRateInfo retrieves funding rate info for symbols that had FundingRateCap/ FundingRateFloor / fundingIntervalHours adjustment
 func (b *Binance) GetFundingRateInfo(ctx context.Context) ([]FundingRateInfoResponse, error) {
 	var resp []FundingRateInfoResponse
 	return resp, b.SendHTTPRequest(ctx, exchange.RestCoinMargined, "/dapi/v1/fundingInfo", uFuturesDefaultRate, &resp)
