@@ -205,17 +205,7 @@ func (b *BTSE) FetchTradablePairs(ctx context.Context, a asset.Item) (currency.P
 		return nil, err
 	}
 	pairs := make(currency.Pairs, 0, len(m))
-	mPairs := m.MillionPairs()
 	for _, l := range m {
-		if !l.Active || !l.HasLiquidity() ||
-			(a == asset.Spot && !l.IsMarketOpenToSpot) { // Skip OTC assets only tradable on web UI
-			continue
-		}
-		if mPairs[l.Symbol] {
-			// BTSE lists M_ symbols for very small pairs, in millions. For those listings, we want to take the M_ listing in preference
-			// to the native listing, since they're often going to appear as locked markets due to size (bid == ask, e.g. 0.0000000003)
-			continue
-		}
 		baseCurr := l.Base
 		var quoteCurr string
 		if a == asset.Futures {
@@ -1057,6 +1047,69 @@ func (b *BTSE) GetServerTime(ctx context.Context, _ asset.Item) (time.Time, erro
 		return time.Time{}, err
 	}
 	return st.ISO, nil
+}
+
+// ExponentPairs returns a map of symbol names which have a Exponent equivalent
+// e.g. PIT-USD will be returned if M_PIT-USD exists, and SATS-USD if K_SATS-USD exists
+func (m *MarketSummary) ExponentPairs() (map[string]bool, error) {
+	pairs := map[string]bool{}
+	var errs error
+	for _, s := range *m {
+		if s.Active && s.HasLiquidity() {
+			if symbol, err := s.StripExponent(); err != nil {
+				errs = common.AppendError(errs, err)
+			} else if symbol != "" {
+				pairs[symbol] = true
+			}
+		}
+	}
+	return pairs, errs
+}
+
+// StripExponent returns the symbol without a exponent prefix; e.g. B_, M_, K_
+// Returns an empty string if no exponent prefix is found
+// Errors if there's too many underscores, or if the exponent is not recognised
+func (m *MarketPair) StripExponent() (string, error) {
+	parts := strings.Split(m.Symbol, "_")
+	switch len(parts) {
+	case 1:
+		return "", nil
+	case 2:
+		switch parts[0] {
+		case "B", "M", "K":
+			return parts[1], nil
+		}
+	}
+	return "", errInvalidPairSymbol
+}
+
+// GetMarketSummary returns filtered market pair details; Specifically:
+//   - Pairs which aren't active are removed
+//   - Pairs which don't have liquidity are removed
+//   - OTC pairs only traded on web UI are removed
+//   - Pairs with an exponent counterpart pair are removed
+//     BTSE lists M_ symbols for very small pairs, in millions. For those listings, we want to take the M_ listing in preference
+//     to the native listing, since they're often going to appear as locked markets due to size (bid == ask, e.g. 0.0000000003)
+func (b *BTSE) GetMarketSummary(ctx context.Context, symbol string, spot bool) (MarketSummary, error) {
+	m, err := b.GetRawMarketSummary(ctx, symbol, spot)
+	if err != nil {
+		return m, err
+	}
+	ePairs, err := m.ExponentPairs()
+	if err != nil {
+		return m, err
+	}
+	filtered := make(MarketSummary, 0, len(m))
+	for _, l := range m {
+		if !l.Active || !l.HasLiquidity() || (spot && !l.IsMarketOpenToSpot) { // Skip OTC assets only tradable on web UI
+			continue
+		}
+		if ePairs[l.Symbol] { // Skip pair with an exponent sibling
+			continue
+		}
+		filtered = append(filtered, l)
+	}
+	return filtered, nil
 }
 
 // GetFuturesContractDetails returns details about futures contracts

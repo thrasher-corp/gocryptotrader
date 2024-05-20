@@ -729,3 +729,23 @@ func TestGetCurrencyTradeURL(t *testing.T) {
 		assert.NotEmpty(t, resp)
 	}
 }
+
+// TestStripExponent exercises StripExponent
+func TestStripExponent(t *testing.T) {
+	t.Parallel()
+	s, err := (&MarketPair{Symbol: "BTC-ETH"}).StripExponent()
+	assert.NoError(t, err, "Should not error on a symbol without exponent")
+	assert.Empty(t, s, "Should return an empty symbol without exponent")
+
+	for _, p := range []string{"B", "M", "K"} {
+		s, err = (&MarketPair{Symbol: p + "_BTC-ETH"}).StripExponent()
+		assert.NoError(t, err, "Should not error on a symbol with exponent")
+		assert.Equal(t, "BTC-ETH", s, "Should return the symbol without the exponent")
+	}
+
+	_, err = (&MarketPair{Symbol: "Z_BTC-ETH"}).StripExponent()
+	assert.ErrorIs(t, err, errInvalidPairSymbol, "Should error on a symbol with unknown exponent")
+
+	_, err = (&MarketPair{Symbol: "M_BTC_ETH"}).StripExponent()
+	assert.ErrorIs(t, err, errInvalidPairSymbol, "Should error on a symbol with too many underscores")
+}
