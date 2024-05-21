@@ -1107,6 +1107,11 @@ func (b *BTSE) GetMarketSummary(ctx context.Context, symbol string, spot bool) (
 		if ePairs[l.Symbol] { // Skip pair with an exponent sibling
 			continue
 		}
+		if !spot {
+			// BTSE API for futures does not return futures field at all, and the docs show it coming back as false
+			// Much easier for our data flow if we can trust this field
+			l.Futures = true
+		}
 		filtered = append(filtered, l)
 	}
 	return filtered, nil
