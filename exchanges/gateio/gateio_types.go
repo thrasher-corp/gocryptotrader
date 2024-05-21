@@ -1328,16 +1328,19 @@ type WalletSavedAddress struct {
 
 // PersonalTradingFee represents personal trading fee for specific currency pair
 type PersonalTradingFee struct {
-	UserID          int64        `json:"user_id"`
-	TakerFee        types.Number `json:"taker_fee"`
-	MakerFee        types.Number `json:"maker_fee"`
-	GtDiscount      bool         `json:"gt_discount"`
-	GtTakerFee      types.Number `json:"gt_taker_fee"`
-	GtMakerFee      types.Number `json:"gt_maker_fee"`
-	LoanFee         types.Number `json:"loan_fee"`
-	PointType       string       `json:"point_type"`
-	FuturesTakerFee types.Number `json:"futures_taker_fee"`
-	FuturesMakerFee types.Number `json:"futures_maker_fee"`
+	UserID           int64        `json:"user_id"`
+	TakerFee         types.Number `json:"taker_fee"`
+	MakerFee         types.Number `json:"maker_fee"`
+	GtDiscount       bool         `json:"gt_discount"`
+	GtTakerFee       types.Number `json:"gt_taker_fee"`
+	GtMakerFee       types.Number `json:"gt_maker_fee"`
+	LoanFee          types.Number `json:"loan_fee"`
+	PointType        string       `json:"point_type"`
+	FuturesTakerFee  types.Number `json:"futures_taker_fee"`
+	FuturesMakerFee  types.Number `json:"futures_maker_fee"`
+	DeliveryTakerFee types.Number `json:"delivery_taker_fee"`
+	DeliveryMakerFee types.Number `json:"delivery_maker_fee"`
+	DebitFee         float64      `json:"debit_fee"`
 }
 
 // UsersAllAccountBalance represents user all account balances.
