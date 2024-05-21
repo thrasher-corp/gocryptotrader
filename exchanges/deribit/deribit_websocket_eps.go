@@ -932,7 +932,7 @@ func (d *Deribit) WSChangeSubAccountName(sid int64, name string) error {
 		return err
 	}
 	if resp != "ok" {
-		return errors.New("subaccount name change failed")
+		return errSubAccountNameChangeFailed
 	}
 	return nil
 }
@@ -2164,7 +2164,7 @@ func (d *Deribit) UnsubscribeAllPrivateChannels() (string, error) {
 // WSExecuteBlockTrade executes a block trade request
 // The whole request have to be exact the same as in private/verify_block_trade, only role field should be set appropriately - it basically means that both sides have to agree on the same timestamp, nonce, trades fields and server will assure that role field is different between sides (each party accepted own role).
 // Using the same timestamp and nonce by both sides in private/verify_block_trade assures that even if unintentionally both sides execute given block trade with valid counterparty_signature, the given block trade will be executed only once
-func (d *Deribit) WSExecuteBlockTrade(timestampMS time.Time, nonce, role, symbol string, trades []BlockTradeParam) ([]BlockTradeResponse, error) {
+func (d *Deribit) WSExecuteBlockTrade(timestampMS time.Time, nonce, role string, ccy currency.Code, trades []BlockTradeParam) ([]BlockTradeResponse, error) {
 	if nonce == "" {
 		return nil, errMissingNonce
 	}
@@ -2192,7 +2192,7 @@ func (d *Deribit) WSExecuteBlockTrade(timestampMS time.Time, nonce, role, symbol
 	if timestampMS.IsZero() {
 		return nil, errZeroTimestamp
 	}
-	signature, err := d.WSVerifyBlockTrade(timestampMS, nonce, role, symbol, trades)
+	signature, err := d.WSVerifyBlockTrade(timestampMS, nonce, role, ccy, trades)
 	if err != nil {
 		return nil, err
 	}
@@ -2209,14 +2209,14 @@ func (d *Deribit) WSExecuteBlockTrade(timestampMS time.Time, nonce, role, symbol
 		CounterpartySignature: signature,
 		Trades:                trades,
 		Timestamp:             timestampMS.UnixMilli(),
-		Currency:              symbol,
+		Currency:              ccy.String(),
 	}
 	var resp []BlockTradeResponse
 	return resp, d.SendWSRequest(matchingEPL, executeBlockTrades, input, &resp, true)
 }
 
 // WSVerifyBlockTrade verifies and creates block trade signature through the websocket connection.
-func (d *Deribit) WSVerifyBlockTrade(timestampMS time.Time, nonce, role, symbol string, trades []BlockTradeParam) (string, error) {
+func (d *Deribit) WSVerifyBlockTrade(timestampMS time.Time, nonce, role string, ccy currency.Code, trades []BlockTradeParam) (string, error) {
 	if nonce == "" {
 		return "", errMissingNonce
 	}
@@ -2256,7 +2256,7 @@ func (d *Deribit) WSVerifyBlockTrade(timestampMS time.Time, nonce, role, symbol 
 		Role:      role,
 		Trades:    trades,
 		Timestamp: timestampMS.UnixMilli(),
-		Currency:  symbol,
+		Currency:  ccy.String(),
 	}
 	resp := &struct {
 		Signature string `json:"signature"`
@@ -2267,7 +2267,7 @@ func (d *Deribit) WSVerifyBlockTrade(timestampMS time.Time, nonce, role, symbol 
 // WsInvalidateBlockTradeSignature user at any time (before the private/execute_block_trade is called) can invalidate its own signature effectively cancelling block trade through the websocket connection.
 func (d *Deribit) WsInvalidateBlockTradeSignature(signature string) error {
 	if signature == "" {
-		return errors.New("missing signature")
+		return errMissingSignature
 	}
 	params := url.Values{}
 	params.Set("signature", signature)

@@ -230,7 +230,7 @@ func TestIsOptions(t *testing.T) {
 		t.Run(testScenario.item.String(), func(t *testing.T) {
 			t.Parallel()
 			if testScenario.item.IsOptions() != testScenario.isOptions {
-				t.Errorf("expected %v isFutures to be %v", testScenario.item, testScenario.isOptions)
+				t.Errorf("expected %v isOptions to be %v", testScenario.item, testScenario.isOptions)
 			}
 		})
 	}

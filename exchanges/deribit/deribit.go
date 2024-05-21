@@ -660,7 +660,7 @@ func (d *Deribit) GetResolutionFromInterval(interval kline.Interval) (string, er
 	case kline.OneDay:
 		return "1D", nil
 	case kline.Raw:
-		return interval.String(), nil
+		return interval.Word(), nil
 	default:
 		return "", kline.ErrUnsupportedInterval
 	}
@@ -1053,7 +1053,7 @@ func (d *Deribit) ChangeSubAccountName(ctx context.Context, sid int64, name stri
 		return err
 	}
 	if resp != "ok" {
-		return errors.New("subaccount name change failed")
+		return errSubAccountNameChangeFailed
 	}
 	return nil
 }
@@ -2393,6 +2393,9 @@ func (d *Deribit) ExecuteBlockTrade(ctx context.Context, timestampMS time.Time, 
 	if len(trades) == 0 {
 		return nil, errNoArgumentPassed
 	}
+	if timestampMS.IsZero() {
+		return nil, errZeroTimestamp
+	}
 	for x := range trades {
 		if trades[x].InstrumentName == "" {
 			return nil, fmt.Errorf("%w, empty string", errInvalidInstrumentName)
@@ -2415,9 +2418,6 @@ func (d *Deribit) ExecuteBlockTrade(ctx context.Context, timestampMS time.Time, 
 	values, err := json.Marshal(trades)
 	if err != nil {
 		return nil, err
-	}
-	if timestampMS.IsZero() {
-		return nil, errZeroTimestamp
 	}
 	params := url.Values{}
 	if !ccy.IsEmpty() {
@@ -2443,6 +2443,9 @@ func (d *Deribit) VerifyBlockTrade(ctx context.Context, timestampMS time.Time, n
 	if len(trades) == 0 {
 		return "", errNoArgumentPassed
 	}
+	if timestampMS.IsZero() {
+		return "", errZeroTimestamp
+	}
 	for x := range trades {
 		if trades[x].InstrumentName == "" {
 			return "", fmt.Errorf("%w, empty string", errInvalidInstrumentName)
@@ -2462,9 +2465,6 @@ func (d *Deribit) VerifyBlockTrade(ctx context.Context, timestampMS time.Time, n
 	if err != nil {
 		return "", err
 	}
-	if timestampMS.IsZero() {
-		return "", errZeroTimestamp
-	}
 	params := url.Values{}
 	params.Set("timestamp", strconv.FormatInt(timestampMS.UnixMilli(), 10))
 	if !ccy.IsEmpty() {
@@ -2482,7 +2482,7 @@ func (d *Deribit) VerifyBlockTrade(ctx context.Context, timestampMS time.Time, n
 // InvalidateBlockTradeSignature user at any time (before the private/execute_block_trade is called) can invalidate its own signature effectively cancelling block trade
 func (d *Deribit) InvalidateBlockTradeSignature(ctx context.Context, signature string) error {
 	if signature == "" {
-		return errors.New("missing signature")
+		return errMissingSignature
 	}
 	params := url.Values{}
 	params.Set("signature", signature)

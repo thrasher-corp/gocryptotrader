@@ -46,6 +46,7 @@ var (
 	errUnsupportedChannel                  = errors.New("channels not supported")
 	errUnacceptableAPIKey                  = errors.New("unacceptable api key name")
 	errInvalidUsername                     = errors.New("new username has to be specified")
+	errSubAccountNameChangeFailed          = errors.New("subaccount name change failed")
 	errLanguageIsRequired                  = errors.New("language is required")
 	errInvalidAPIKeyID                     = errors.New("invalid api key id")
 	errMaxScopeIsRequired                  = errors.New("max scope is required")
@@ -62,6 +63,7 @@ var (
 	errSessionNameRequired                 = errors.New("session_name is required")
 	errRefreshTokenRequired                = errors.New("refresh token is required")
 	errSubjectIDRequired                   = errors.New("subject id is required")
+	errMissingSignature                    = errors.New("missing signature")
 
 	websocketRequestTimeout = time.Second * 30
 )
