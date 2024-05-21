@@ -40,7 +40,7 @@ const (
 	// Test values used with demo functionality, with the goal of lining up with the relatively strict currency
 	// limits present there
 	testAmount2 = 0.003
-	testPrice2  = 0.1
+	testPrice2  = 1667
 	testAddress = "fake test address"
 )
 
@@ -578,12 +578,12 @@ func TestGetUnfilledOrders(t *testing.T) {
 	assert.NoError(t, err)
 }
 
-func TestGetHistoricalOrders(t *testing.T) {
+func TestGetHistoricalSpotOrders(t *testing.T) {
 	t.Parallel()
-	_, err := bi.GetHistoricalOrders(context.Background(), "", time.Now(), time.Now().Add(-time.Second), 0, 0, 0)
+	_, err := bi.GetHistoricalSpotOrders(context.Background(), "", time.Now(), time.Now().Add(-time.Second), 0, 0, 0)
 	assert.ErrorIs(t, err, common.ErrStartAfterEnd)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
-	_, err = bi.GetHistoricalOrders(context.Background(), "", time.Time{}, time.Time{}, 5, 1<<62, 0)
+	_, err = bi.GetHistoricalSpotOrders(context.Background(), "", time.Time{}, time.Time{}, 5, 1<<62, 0)
 	assert.NoError(t, err)
 }
 
@@ -598,111 +598,111 @@ func TestGetSpotFills(t *testing.T) {
 	assert.NoError(t, err)
 }
 
-func TestPlacePlanOrder(t *testing.T) {
+func TestPlacePlanSpotOrder(t *testing.T) {
 	t.Parallel()
-	_, err := bi.PlacePlanOrder(context.Background(), "", "", "", "", "", "", "", 0, 0, 0)
+	_, err := bi.PlacePlanSpotOrder(context.Background(), "", "", "", "", "", "", "", 0, 0, 0)
 	assert.ErrorIs(t, err, errPairEmpty)
-	_, err = bi.PlacePlanOrder(context.Background(), "meow", "", "", "", "", "", "", 0, 0, 0)
+	_, err = bi.PlacePlanSpotOrder(context.Background(), "meow", "", "", "", "", "", "", 0, 0, 0)
 	assert.ErrorIs(t, err, errSideEmpty)
-	_, err = bi.PlacePlanOrder(context.Background(), "meow", "woof", "", "", "", "", "", 0, 0, 0)
+	_, err = bi.PlacePlanSpotOrder(context.Background(), "meow", "woof", "", "", "", "", "", 0, 0, 0)
 	assert.ErrorIs(t, err, errTriggerPriceEmpty)
-	_, err = bi.PlacePlanOrder(context.Background(), "meow", "woof", "", "", "", "", "", 1, 0, 0)
+	_, err = bi.PlacePlanSpotOrder(context.Background(), "meow", "woof", "", "", "", "", "", 1, 0, 0)
 	assert.ErrorIs(t, err, errOrderTypeEmpty)
-	_, err = bi.PlacePlanOrder(context.Background(), "meow", "woof", "limit", "", "", "", "", 1, 0, 0)
+	_, err = bi.PlacePlanSpotOrder(context.Background(), "meow", "woof", "limit", "", "", "", "", 1, 0, 0)
 	assert.ErrorIs(t, err, errLimitPriceEmpty)
-	_, err = bi.PlacePlanOrder(context.Background(), "meow", "woof", "neigh", "", "", "", "", 1, 0, 0)
+	_, err = bi.PlacePlanSpotOrder(context.Background(), "meow", "woof", "neigh", "", "", "", "", 1, 0, 0)
 	assert.ErrorIs(t, err, errAmountEmpty)
-	_, err = bi.PlacePlanOrder(context.Background(), "meow", "woof", "neigh", "", "", "", "", 1, 0, 1)
+	_, err = bi.PlacePlanSpotOrder(context.Background(), "meow", "woof", "neigh", "", "", "", "", 1, 0, 1)
 	assert.ErrorIs(t, err, errTriggerTypeEmpty)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi, canManipulateRealOrders)
 	cID := clientIDGenerator()
-	resp, err := bi.PlacePlanOrder(context.Background(), testPair.String(), "sell", "limit", "", "fill_price", cID,
+	resp, err := bi.PlacePlanSpotOrder(context.Background(), testPair.String(), "sell", "limit", "", "fill_price", cID,
 		"ioc", testPrice, testPrice, testAmount)
 	assert.NoError(t, err)
 	assert.NotEmpty(t, resp.Data)
 }
 
-func TestModifyPlanOrder(t *testing.T) {
+func TestModifyPlanSpotOrder(t *testing.T) {
 	t.Parallel()
-	_, err := bi.ModifyPlanOrder(context.Background(), 0, "", "", 0, 0, 0)
+	_, err := bi.ModifyPlanSpotOrder(context.Background(), 0, "", "", 0, 0, 0)
 	assert.ErrorIs(t, err, errOrderClientEmpty)
-	_, err = bi.ModifyPlanOrder(context.Background(), 0, "meow", "", 0, 0, 0)
+	_, err = bi.ModifyPlanSpotOrder(context.Background(), 0, "meow", "", 0, 0, 0)
 	assert.ErrorIs(t, err, errOrderTypeEmpty)
-	_, err = bi.ModifyPlanOrder(context.Background(), 0, "meow", "woof", 0, 0, 0)
+	_, err = bi.ModifyPlanSpotOrder(context.Background(), 0, "meow", "woof", 0, 0, 0)
 	assert.ErrorIs(t, err, errTriggerPriceEmpty)
-	_, err = bi.ModifyPlanOrder(context.Background(), 0, "meow", "limit", 1, 0, 0)
+	_, err = bi.ModifyPlanSpotOrder(context.Background(), 0, "meow", "limit", 1, 0, 0)
 	assert.ErrorIs(t, err, errLimitPriceEmpty)
-	_, err = bi.ModifyPlanOrder(context.Background(), 0, "meow", "woof", 1, 0, 0)
+	_, err = bi.ModifyPlanSpotOrder(context.Background(), 0, "meow", "woof", 1, 0, 0)
 	assert.ErrorIs(t, err, errAmountEmpty)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi, canManipulateRealOrders)
-	ordID, err := bi.GetCurrentPlanOrders(context.Background(), testPair.String(), time.Time{}, time.Time{}, 5, 1<<62)
+	ordID, err := bi.GetCurrentSpotPlanOrders(context.Background(), testPair.String(), time.Time{}, time.Time{}, 5, 1<<62)
 	assert.NoError(t, err)
 	if len(ordID.Data.OrderList) == 0 {
 		t.Skip(skipInsufficientOrders)
 	}
-	resp, err := bi.ModifyPlanOrder(context.Background(), ordID.Data.OrderList[0].OrderID,
+	resp, err := bi.ModifyPlanSpotOrder(context.Background(), ordID.Data.OrderList[0].OrderID,
 		ordID.Data.OrderList[0].ClientOrderID, "limit", testPrice, testPrice, testAmount)
 	assert.NoError(t, err)
 	assert.NotEmpty(t, resp.Data)
 }
 
-func TestCancelPlanOrder(t *testing.T) {
+func TestCancelPlanSpotOrder(t *testing.T) {
 	t.Parallel()
-	_, err := bi.CancelPlanOrder(context.Background(), 0, "")
+	_, err := bi.CancelPlanSpotOrder(context.Background(), 0, "")
 	assert.ErrorIs(t, err, errOrderClientEmpty)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi, canManipulateRealOrders)
-	ordID, err := bi.GetCurrentPlanOrders(context.Background(), testPair.String(), time.Time{}, time.Time{}, 5, 1<<62)
+	ordID, err := bi.GetCurrentSpotPlanOrders(context.Background(), testPair.String(), time.Time{}, time.Time{}, 5, 1<<62)
 	assert.NoError(t, err)
 	if len(ordID.Data.OrderList) == 0 {
 		t.Skip(skipInsufficientOrders)
 	}
-	resp, err := bi.CancelPlanOrder(context.Background(), ordID.Data.OrderList[0].OrderID,
+	resp, err := bi.CancelPlanSpotOrder(context.Background(), ordID.Data.OrderList[0].OrderID,
 		ordID.Data.OrderList[0].ClientOrderID)
 	assert.NoError(t, err)
 	assert.NotEmpty(t, resp.Data)
 }
 
-func TestGetCurrentPlanOrders(t *testing.T) {
+func TestGetCurrentSpotPlanOrders(t *testing.T) {
 	t.Parallel()
-	_, err := bi.GetCurrentPlanOrders(context.Background(), "", time.Time{}, time.Time{}, 0, 0)
+	_, err := bi.GetCurrentSpotPlanOrders(context.Background(), "", time.Time{}, time.Time{}, 0, 0)
 	assert.ErrorIs(t, err, errPairEmpty)
-	_, err = bi.GetCurrentPlanOrders(context.Background(), "meow", time.Now(), time.Now().Add(-time.Second), 0, 0)
+	_, err = bi.GetCurrentSpotPlanOrders(context.Background(), "meow", time.Now(), time.Now().Add(-time.Second), 0, 0)
 	assert.ErrorIs(t, err, common.ErrStartAfterEnd)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
-	resp, err := bi.GetCurrentPlanOrders(context.Background(), testPair.String(), time.Time{}, time.Time{}, 5, 1<<62)
+	resp, err := bi.GetCurrentSpotPlanOrders(context.Background(), testPair.String(), time.Time{}, time.Time{}, 5, 1<<62)
 	assert.NoError(t, err)
 	assert.NotEmpty(t, resp.Data)
 }
 
-func TestGetPlanSubOrder(t *testing.T) {
+func TestSpotGetPlanSubOrder(t *testing.T) {
 	t.Parallel()
-	_, err := bi.GetPlanSubOrder(context.Background(), "")
+	_, err := bi.GetSpotPlanSubOrder(context.Background(), "")
 	assert.ErrorIs(t, err, errOrderIDEmpty)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
 	ordIDs := getPlanOrdIDHelper(t, true)
-	resp, err := bi.GetPlanSubOrder(context.Background(), strconv.FormatInt(ordIDs.OrderID, 10))
+	resp, err := bi.GetSpotPlanSubOrder(context.Background(), strconv.FormatInt(ordIDs.OrderID, 10))
 	// This gets the error "the current plan order does not exist or has not been triggered" even when using
 	// a plan order that definitely exists and has definitely been triggered
 	assert.NoError(t, err)
 	assert.NotEmpty(t, resp.Data)
 }
 
-func TestGetPlanOrderHistory(t *testing.T) {
+func TestGetSpotPlanOrderHistory(t *testing.T) {
 	t.Parallel()
-	_, err := bi.GetPlanOrderHistory(context.Background(), "", time.Time{}, time.Time{}, 0)
+	_, err := bi.GetSpotPlanOrderHistory(context.Background(), "", time.Time{}, time.Time{}, 0)
 	assert.ErrorIs(t, err, errPairEmpty)
-	_, err = bi.GetPlanOrderHistory(context.Background(), "meow", time.Time{}, time.Time{}, 0)
+	_, err = bi.GetSpotPlanOrderHistory(context.Background(), "meow", time.Time{}, time.Time{}, 0)
 	assert.ErrorIs(t, err, common.ErrDateUnset)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
-	_, err = bi.GetPlanOrderHistory(context.Background(), testPair.String(), time.Now().Add(-time.Hour*24*90),
+	_, err = bi.GetSpotPlanOrderHistory(context.Background(), testPair.String(), time.Now().Add(-time.Hour*24*90),
 		time.Now().Add(-time.Minute), 1<<30)
 	assert.NoError(t, err)
 }
 
-func TestBatchCancelPlanOrders(t *testing.T) {
+func TestBatchCancelSpotPlanOrders(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi, canManipulateRealOrders)
-	_, err := bi.BatchCancelPlanOrders(context.Background(), []string{testPair.String()})
+	_, err := bi.BatchCancelSpotPlanOrders(context.Background(), []string{testPair.String()})
 	assert.NoError(t, err)
 }
 
@@ -1201,7 +1201,14 @@ func TestPlaceFuturesOrder(t *testing.T) {
 	_, err = bi.PlaceFuturesOrder(context.Background(), "meow", "woof", "neigh", "oink", "quack", "", "limit", "",
 		"", "", "", 1, 0, false, false)
 	assert.ErrorIs(t, err, errLimitPriceEmpty)
-	resp := placeFuturesOrderHelper(t)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi, canManipulateRealOrders)
+	cID := clientIDGenerator()
+	resp, err := bi.PlaceFuturesOrder(context.Background(), testPair2.String(), testFiat2.String()+"-FUTURES",
+		"isolated", testFiat2.String(), "buy", "open", "limit", "GTC", cID, "", "", testAmount2, testPrice2, true,
+		true)
+	if err != nil {
+		t.Error(err)
+	}
 	assert.NotEmpty(t, resp.Data)
 }
 
@@ -1217,10 +1224,8 @@ func TestPlaceReversal(t *testing.T) {
 	assert.ErrorIs(t, err, errAmountEmpty)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi, canManipulateRealOrders)
 	cID := clientIDGenerator()
-	// Once you can get all the pending futures orders, check those for any that can be reversed. If none are
-	// found, place one to be reversed. If that placement fails due to insufficient balance, skip.
 	_, err = bi.PlaceReversal(context.Background(), testPair2.String(), testFiat2.String(),
-		testFiat2.String()+"-FUTURES", "close_long", "Buy", cID, testAmount, true)
+		testFiat2.String()+"-FUTURES", "Buy", "Open", cID, testAmount, true)
 	assert.NoError(t, err)
 }
 
@@ -1261,7 +1266,7 @@ func TestGetFuturesOrderDetails(t *testing.T) {
 	_, err = bi.GetFuturesOrderDetails(context.Background(), "meow", "woof", "", 0)
 	assert.ErrorIs(t, err, errOrderClientEmpty)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
-	oID := getFuturesOrdIDHelper(t)
+	oID := getFuturesOrdIDHelper(t, false)
 	_, err = bi.GetFuturesOrderDetails(context.Background(), testPair2.String(), testFiat2.String()+"-FUTURES", "",
 		oID.OrderID)
 	assert.NoError(t, err)
@@ -1279,6 +1284,20 @@ func TestGetFuturesFills(t *testing.T) {
 	assert.NoError(t, err)
 }
 
+func TestGetFuturesOrderFillHistory(t *testing.T) {
+	t.Parallel()
+	_, err := bi.GetFuturesOrderFillHistory(context.Background(), "", "", 0, 0, 0, time.Time{}, time.Time{})
+	assert.ErrorIs(t, err, errProductTypeEmpty)
+	_, err = bi.GetFuturesOrderFillHistory(context.Background(), "", "meow", 0, 0, 0, time.Now(),
+		time.Now().Add(-time.Minute))
+	assert.ErrorIs(t, err, common.ErrStartAfterEnd)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
+	// Keeps getting "Parameter verification failed" error and I can't figure out why
+	_, err = bi.GetFuturesOrderFillHistory(context.Background(), "", testFiat2.String()+"-FUTURES", 0, 0<<62, 0,
+		time.Time{}, time.Time{})
+	assert.NoError(t, err)
+}
+
 func TestGetPendingFuturesOrders(t *testing.T) {
 	t.Parallel()
 	_, err := bi.GetPendingFuturesOrders(context.Background(), 0, 0, 0, "", "", "", "", time.Time{}, time.Time{})
@@ -1287,8 +1306,194 @@ func TestGetPendingFuturesOrders(t *testing.T) {
 		time.Now().Add(-time.Minute))
 	assert.ErrorIs(t, err, common.ErrStartAfterEnd)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
-	_, err = bi.GetPendingFuturesOrders(context.Background(), 0, 1<<62, 5, "", "SBTCSUSDT",
+	_, err = bi.GetPendingFuturesOrders(context.Background(), 0, 1<<62, 5, "", testPair2.String(),
 		testFiat2.String()+"-FUTURES", "", time.Now().Add(-time.Hour*24*90), time.Now())
+	assert.NoError(t, err)
+}
+
+func TestGetHistoricalFuturesOrders(t *testing.T) {
+	t.Parallel()
+	_, err := bi.GetHistoricalFuturesOrders(context.Background(), 0, 0, 0, "", "", "", time.Time{}, time.Time{})
+	assert.ErrorIs(t, err, errProductTypeEmpty)
+	_, err = bi.GetHistoricalFuturesOrders(context.Background(), 0, 0, 0, "", "", "meow", time.Now(),
+		time.Now().Add(-time.Minute))
+	assert.ErrorIs(t, err, common.ErrStartAfterEnd)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
+	_, err = bi.GetHistoricalFuturesOrders(context.Background(), 0, 1<<62, 5, "", testPair2.String(),
+		testFiat2.String()+"-FUTURES", time.Time{}, time.Time{})
+	assert.NoError(t, err)
+}
+
+func TestGetFuturesTriggerOrderByID(t *testing.T) {
+	t.Parallel()
+	_, err := bi.GetFuturesTriggerOrderByID(context.Background(), "", "", "")
+	assert.ErrorIs(t, err, errPlanTypeEmpty)
+	_, err = bi.GetFuturesTriggerOrderByID(context.Background(), "meow", "", "")
+	assert.ErrorIs(t, err, errPlanOrderIDEmpty)
+	_, err = bi.GetFuturesTriggerOrderByID(context.Background(), "meow", "woof", "")
+	assert.ErrorIs(t, err, errProductTypeEmpty)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
+	t.Skip("TODO: Finish once TestPlaceTPSLFuturesOrder has had an order be fulfilled")
+}
+
+func TestPlaceTPSLFuturesOrder(t *testing.T) {
+	t.Parallel()
+	_, err := bi.PlaceTPSLFuturesOrder(context.Background(), "", "", "", "", "", "", "", "", 0, 0, 0)
+	assert.ErrorIs(t, err, errMarginCoinEmpty)
+	_, err = bi.PlaceTPSLFuturesOrder(context.Background(), "meow", "", "", "", "", "", "", "", 0, 0, 0)
+	assert.ErrorIs(t, err, errProductTypeEmpty)
+	_, err = bi.PlaceTPSLFuturesOrder(context.Background(), "meow", "woof", "", "", "", "", "", "", 0, 0, 0)
+	assert.ErrorIs(t, err, errPairEmpty)
+	_, err = bi.PlaceTPSLFuturesOrder(context.Background(), "meow", "woof", "neigh", "", "", "", "", "", 0, 0, 0)
+	assert.ErrorIs(t, err, errPlanTypeEmpty)
+	_, err = bi.PlaceTPSLFuturesOrder(context.Background(), "meow", "woof", "neigh", "oink", "", "", "", "", 0, 0, 0)
+	assert.ErrorIs(t, err, errTriggerTypeEmpty)
+	_, err = bi.PlaceTPSLFuturesOrder(context.Background(), "meow", "woof", "neigh", "oink", "quack", "", "", "", 0,
+		0, 0)
+	assert.ErrorIs(t, err, errHoldSideEmpty)
+	_, err = bi.PlaceTPSLFuturesOrder(context.Background(), "meow", "woof", "neigh", "oink", "quack", "meow", "", "",
+		0, 0, 0)
+	assert.ErrorIs(t, err, errTriggerPriceEmpty)
+	_, err = bi.PlaceTPSLFuturesOrder(context.Background(), "meow", "woof", "neigh", "oink", "quack", "meow", "", "",
+		1, 0, 0)
+	assert.ErrorIs(t, err, errExecutePriceEmpty)
+	_, err = bi.PlaceTPSLFuturesOrder(context.Background(), "meow", "woof", "neigh", "oink", "quack", "meow", "", "",
+		1, 1, 0)
+	assert.ErrorIs(t, err, errAmountEmpty)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi, canManipulateRealOrders)
+	resp, err := bi.PlaceTPSLFuturesOrder(context.Background(), testFiat2.String(), testFiat2.String()+"-FUTURES",
+		testPair2.String(), "profit_plan", "mark_price", "short", "", "", testPrice2+2, testPrice2+1, testAmount2)
+	assert.NoError(t, err)
+	assert.NotEmpty(t, resp.Data)
+}
+
+func TestPlaceTriggerFuturesOrder(t *testing.T) {
+	t.Parallel()
+	_, err := bi.PlaceTriggerFuturesOrder(context.Background(), "", "", "", "", "", "", "", "", "", "", "", "", 0, 0,
+		0, 0, 0, 0, 0, 0, false)
+	assert.ErrorIs(t, err, errPlanTypeEmpty)
+	_, err = bi.PlaceTriggerFuturesOrder(context.Background(), "meow", "", "", "", "", "", "", "", "", "", "", "", 0,
+		0, 0, 0, 0, 0, 0, 0, false)
+	assert.ErrorIs(t, err, errPairEmpty)
+	_, err = bi.PlaceTriggerFuturesOrder(context.Background(), "meow", "woof", "", "", "", "", "", "", "", "", "", "",
+		0, 0, 0, 0, 0, 0, 0, 0, false)
+	assert.ErrorIs(t, err, errProductTypeEmpty)
+	_, err = bi.PlaceTriggerFuturesOrder(context.Background(), "meow", "woof", "neigh", "", "", "", "", "", "", "",
+		"", "", 0, 0, 0, 0, 0, 0, 0, 0, false)
+	assert.ErrorIs(t, err, errMarginModeEmpty)
+	_, err = bi.PlaceTriggerFuturesOrder(context.Background(), "meow", "woof", "neigh", "oink", "", "", "", "", "",
+		"", "", "", 0, 0, 0, 0, 0, 0, 0, 0, false)
+	assert.ErrorIs(t, err, errMarginCoinEmpty)
+	_, err = bi.PlaceTriggerFuturesOrder(context.Background(), "meow", "woof", "neigh", "oink", "quack", "", "", "",
+		"", "", "", "", 0, 0, 0, 0, 0, 0, 0, 0, false)
+	assert.ErrorIs(t, err, errTriggerTypeEmpty)
+	_, err = bi.PlaceTriggerFuturesOrder(context.Background(), "meow", "woof", "neigh", "oink", "quack", "baa", "",
+		"", "", "", "", "", 0, 0, 0, 0, 0, 0, 0, 0, false)
+	assert.ErrorIs(t, err, errSideEmpty)
+	_, err = bi.PlaceTriggerFuturesOrder(context.Background(), "meow", "woof", "neigh", "oink", "quack", "baa",
+		"moo", "", "", "", "", "", 0, 0, 0, 0, 0, 0, 0, 0, false)
+	assert.ErrorIs(t, err, errOrderTypeEmpty)
+	_, err = bi.PlaceTriggerFuturesOrder(context.Background(), "meow", "woof", "neigh", "oink", "quack", "baa",
+		"moo", "", "cluck", "", "", "", 0, 0, 0, 0, 0, 0, 0, 0, false)
+	assert.ErrorIs(t, err, errAmountEmpty)
+	_, err = bi.PlaceTriggerFuturesOrder(context.Background(), "meow", "woof", "neigh", "oink", "quack", "baa",
+		"moo", "", "cluck", "", "", "", 1, 0, 0, 0, 0, 0, 0, 0, false)
+	assert.ErrorIs(t, err, errExecutePriceEmpty)
+	_, err = bi.PlaceTriggerFuturesOrder(context.Background(), "meow", "woof", "neigh", "oink", "quack", "baa",
+		"moo", "", "cluck", "", "", "", 1, 1, 0, 0, 0, 0, 0, 0, false)
+	assert.ErrorIs(t, err, errTriggerPriceEmpty)
+	_, err = bi.PlaceTriggerFuturesOrder(context.Background(), "meow", "woof", "neigh", "oink", "quack", "baa",
+		"moo", "", "cluck", "", "", "", 1, 1, 0, 1, 1, 0, 0, 0, false)
+	assert.ErrorIs(t, err, errTakeProfitParamsInconsistency)
+	_, err = bi.PlaceTriggerFuturesOrder(context.Background(), "meow", "woof", "neigh", "oink", "quack", "baa",
+		"moo", "", "cluck", "", "", "", 1, 1, 0, 1, 0, 0, 1, 0, false)
+	assert.ErrorIs(t, err, errStopLossParamsInconsistency)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi, canManipulateRealOrders)
+	cID := clientIDGenerator()
+	// This returns the error "The parameter does not meet the specification d delegateType is error". The
+	// documentation doesn't mention that parameter anywhere, nothing seems similar to it, and attempts to send
+	// that parameter with various values, or to tweak other parameters, yielded no difference
+	resp, err := bi.PlaceTriggerFuturesOrder(context.Background(), "normal_plan", testPair2.String(),
+		testFiat2.String()+"-FUTURES", "isolated", testFiat2.String(), "mark_price", "Sell", "", "limit", cID, "", "",
+		testAmount2*1000, testPrice2+2, 0, testPrice2+1, 0, 0, 0, 0, false)
+	assert.NoError(t, err)
+	assert.NotEmpty(t, resp.Data)
+}
+
+func TestModifyTPSLFuturesOrder(t *testing.T) {
+	t.Parallel()
+	_, err := bi.ModifyTPSLFuturesOrder(context.Background(), 0, "", "", "", "", "", 0, 0, 0, 0)
+	assert.ErrorIs(t, err, errOrderClientEmpty)
+	_, err = bi.ModifyTPSLFuturesOrder(context.Background(), 1, "", "", "", "", "", 0, 0, 0, 0)
+	assert.ErrorIs(t, err, errMarginCoinEmpty)
+	_, err = bi.ModifyTPSLFuturesOrder(context.Background(), 1, "", "meow", "", "", "", 0, 0, 0, 0)
+	assert.ErrorIs(t, err, errProductTypeEmpty)
+	_, err = bi.ModifyTPSLFuturesOrder(context.Background(), 1, "", "meow", "woof", "", "", 0, 0, 0, 0)
+	assert.ErrorIs(t, err, errPairEmpty)
+	_, err = bi.ModifyTPSLFuturesOrder(context.Background(), 1, "", "meow", "woof", "neigh", "", 0, 0, 0, 0)
+	assert.ErrorIs(t, err, errTriggerPriceEmpty)
+	_, err = bi.ModifyTPSLFuturesOrder(context.Background(), 1, "", "meow", "woof", "neigh", "", 1, 0, 0, 0)
+	assert.ErrorIs(t, err, errAmountEmpty)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi, canManipulateRealOrders)
+	ID := getTrigOrdIDHelper(t, []string{"profit_loss"})
+	resp, err := bi.ModifyTPSLFuturesOrder(context.Background(), ID.OrderID, ID.ClientOrderID, testFiat2.String(),
+		testFiat2.String()+"-FUTURES", testPair2.String(), "", testPrice2-1, testPrice2+2, testAmount2, 0.1)
+	assert.NoError(t, err)
+	assert.NotEmpty(t, resp.Data)
+}
+
+func TestModifyTriggerFuturesOrder(t *testing.T) {
+	t.Parallel()
+	_, err := bi.ModifyTriggerFuturesOrder(context.Background(), 0, "", "", "", "", "", 0, 0, 0, 0, 0, 0, 0, 0)
+	assert.ErrorIs(t, err, errOrderClientEmpty)
+	_, err = bi.ModifyTriggerFuturesOrder(context.Background(), 1, "", "", "", "", "", 0, 0, 0, 0, 0, 0, 0, 0)
+	assert.ErrorIs(t, err, errProductTypeEmpty)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi, canManipulateRealOrders)
+	_ = getTrigOrdIDHelper(t, []string{"normal_plan", "track_plan"})
+	t.Skip("TODO: Finish once PlaceTriggerFuturesOrder is fixed")
+}
+
+func TestGetPendingTriggerFuturesOrders(t *testing.T) {
+	t.Parallel()
+	_, err := bi.GetPendingTriggerFuturesOrders(context.Background(), 0, 0, 0, "", "", "", "", time.Time{}, time.Time{})
+	assert.ErrorIs(t, err, errPlanTypeEmpty)
+	_, err = bi.GetPendingTriggerFuturesOrders(context.Background(), 0, 0, 0, "", "", "meow", "", time.Time{},
+		time.Time{})
+	assert.ErrorIs(t, err, errProductTypeEmpty)
+	_, err = bi.GetPendingTriggerFuturesOrders(context.Background(), 0, 0, 0, "", "", "meow", "woof", time.Now(),
+		time.Now().Add(-time.Minute))
+	assert.ErrorIs(t, err, common.ErrStartAfterEnd)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
+	_, err = bi.GetPendingTriggerFuturesOrders(context.Background(), 0, 1<<62, 5, "", testPair2.String(),
+		"profit_loss", testFiat2.String()+"-FUTURES", time.Time{}, time.Time{})
+	assert.NoError(t, err)
+}
+
+func TestGetHistoricalTriggerFuturesOrders(t *testing.T) {
+	t.Parallel()
+	_, err := bi.GetHistoricalTriggerFuturesOrders(context.Background(), 0, 0, 0, "", "", "", "", "", time.Time{},
+		time.Time{})
+	assert.ErrorIs(t, err, errPlanTypeEmpty)
+	_, err = bi.GetHistoricalTriggerFuturesOrders(context.Background(), 0, 0, 0, "", "meow", "", "", "", time.Time{},
+		time.Time{})
+	assert.ErrorIs(t, err, errProductTypeEmpty)
+	_, err = bi.GetHistoricalTriggerFuturesOrders(context.Background(), 0, 0, 0, "", "meow", "", "", "woof",
+		time.Now(), time.Now().Add(-time.Minute))
+	assert.ErrorIs(t, err, common.ErrStartAfterEnd)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
+	_, err = bi.GetHistoricalTriggerFuturesOrders(context.Background(), 0, 1<<62, 5, "", "normal_plan", "",
+		testPair2.String(), testFiat2.String()+"-FUTURES", time.Time{}, time.Time{})
+	assert.NoError(t, err)
+}
+
+func TestGetSupportedCurrencies(t *testing.T) {
+	t.Parallel()
+	testGetNoArgs(t, bi.GetSupportedCurrencies)
+}
+
+func TestGetCrossBorrowHistory(t *testing.T) {
+	t.Parallel()
+	_, err := bi.GetCrossBorrowHistory(context.Background(), 0, 0, 0, "", time.Time{}, time.Time{})
 	assert.NoError(t, err)
 }
 
@@ -1310,7 +1515,7 @@ func TestCommitConversion(t *testing.T) {
 	assert.NoError(t, err)
 }
 
-// The following 4 tests aren't parallel due to collisions with each other, and some other futures-related tests
+// The following 5 tests aren't parallel due to collisions with each other, and some other futures-related tests
 func TestModifyFuturesOrder(t *testing.T) {
 	_, err := bi.ModifyFuturesOrder(context.Background(), 0, "", "", "", "", 0, 0, 0, 0)
 	assert.ErrorIs(t, err, errOrderClientEmpty)
@@ -1321,7 +1526,7 @@ func TestModifyFuturesOrder(t *testing.T) {
 	_, err = bi.ModifyFuturesOrder(context.Background(), 1, "", "meow", "woof", "", 0, 0, 0, 0)
 	assert.ErrorIs(t, err, errNewClientOrderIDEmpty)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi, canManipulateRealOrders)
-	oID := getFuturesOrdIDHelper(t)
+	oID := getFuturesOrdIDHelper(t, true)
 	cID := clientIDGenerator()
 	_, err = bi.ModifyFuturesOrder(context.Background(), oID.OrderID, oID.ClientOrderID, testPair2.String(),
 		testFiat2.String()+"-FUTURES", cID, 0, 0, testAmount2+1, testPrice2)
@@ -1336,7 +1541,7 @@ func TestCancelFuturesOrder(t *testing.T) {
 	_, err = bi.CancelFuturesOrder(context.Background(), "meow", "woof", "", "", 0)
 	assert.ErrorIs(t, err, errOrderClientEmpty)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi, canManipulateRealOrders)
-	oID := getFuturesOrdIDHelper(t)
+	oID := getFuturesOrdIDHelper(t, true)
 	_, err = bi.CancelFuturesOrder(context.Background(), testPair2.String(), testFiat2.String()+"-FUTURES", "",
 		"", oID.OrderID)
 	assert.NoError(t, err)
@@ -1346,7 +1551,7 @@ func TestBatchCancelFuturesOrders(t *testing.T) {
 	_, err := bi.BatchCancelFuturesOrders(context.Background(), nil, "", "", "")
 	assert.ErrorIs(t, err, errProductTypeEmpty)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi, canManipulateRealOrders)
-	oID := getFuturesOrdIDHelper(t)
+	oID := getFuturesOrdIDHelper(t, true)
 	orders := []OrderIDStruct{
 		{
 			OrderID: oID.OrderID,
@@ -1360,13 +1565,35 @@ func TestBatchCancelFuturesOrders(t *testing.T) {
 func TestFlashClosePosition(t *testing.T) {
 	_, err := bi.FlashClosePosition(context.Background(), "", "", "")
 	assert.ErrorIs(t, err, errProductTypeEmpty)
-	_ = placeFuturesOrderHelper(t)
 	_, err = bi.FlashClosePosition(context.Background(), testPair2.String(), "", testFiat2.String()+"-FUTURES")
 	assert.NoError(t, err)
 }
 
+func TestCancelAllFuturesOrders(t *testing.T) {
+	_, err := bi.CancelAllFuturesOrders(context.Background(), "", "", "", 0)
+	assert.ErrorIs(t, err, errProductTypeEmpty)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi, canManipulateRealOrders)
+	_, err = bi.CancelAllFuturesOrders(context.Background(), "", testFiat2.String()+"-FUTURES", testFiat2.String(),
+		time.Second*60)
+	assert.NoError(t, err)
+}
+
+func TestCancelTriggerFuturesOrders(t *testing.T) {
+	// Not parallel due to collisions with TestModifyTPSLFuturesOrder and TestModifyTriggerFuturesOrder
+	var ordList []OrderIDStruct
+	_, err := bi.CancelTriggerFuturesOrders(context.Background(), ordList, "", "", "", "")
+	assert.ErrorIs(t, err, errProductTypeEmpty)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi, canManipulateRealOrders)
+	oID := getTrigOrdIDHelper(t, []string{"profit_loss", "normal_plan", "track_plan"})
+	ordList = append(ordList, *oID)
+	resp, err := bi.CancelTriggerFuturesOrders(context.Background(), ordList, testPair2.String(),
+		testFiat2.String()+"-FUTURES", "", "")
+	assert.NoError(t, err)
+	assert.NotEmpty(t, resp.Data)
+}
+
 type getNoArgsResp interface {
-	*TimeResp | *P2PMerInfoResp | *ConvertCoinsResp | *BGBConvertCoinsResp | *VIPFeeRateResp
+	*TimeResp | *P2PMerInfoResp | *ConvertCoinsResp | *BGBConvertCoinsResp | *VIPFeeRateResp | *SupCurrencyResp
 }
 
 type getNoArgsAssertNotEmpty[G getNoArgsResp] func(context.Context) (G, error)
@@ -1420,7 +1647,7 @@ func subAccTestHelper(t *testing.T, compString, ignoreString string) string {
 func getPlanOrdIDHelper(t *testing.T, mustBeTriggered bool) OrderIDStruct {
 	t.Helper()
 	var ordIDs OrderIDStruct
-	resp, err := bi.GetCurrentPlanOrders(context.Background(), testPair.String(), time.Time{}, time.Time{}, 100,
+	resp, err := bi.GetCurrentSpotPlanOrders(context.Background(), testPair.String(), time.Time{}, time.Time{}, 100,
 		1<<62)
 	if err == nil && len(resp.Data.OrderList) != 0 {
 		for i := range resp.Data.OrderList {
@@ -1437,24 +1664,9 @@ func getPlanOrdIDHelper(t *testing.T, mustBeTriggered bool) OrderIDStruct {
 	return ordIDs
 }
 
-func placeFuturesOrderHelper(t *testing.T) *OrderResp {
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi, canManipulateRealOrders)
-	cID := clientIDGenerator()
-	resp, err := bi.PlaceFuturesOrder(context.Background(), testPair2.String(), testFiat2.String()+"-FUTURES",
-		"isolated", testFiat2.String(), "buy", "open", "market", "GTC", cID, "", "", testAmount2, testPrice2, true,
-		true)
-	if err != nil {
-		if strings.Contains(err.Error(), errAmountExceedsBalancePartial) {
-			t.Skip(skipInsufficientBalance)
-		} else {
-			t.Error(err)
-		}
-	}
-	return resp
-}
-
-func getFuturesOrdIDHelper(t *testing.T) *OrderIDStruct {
-	resp, err := bi.GetPendingFuturesOrders(context.Background(), 0, 1<<62, 5, "", "SBTCSUSDT",
+func getFuturesOrdIDHelper(t *testing.T, live bool) *OrderIDStruct {
+	t.Helper()
+	resp, err := bi.GetPendingFuturesOrders(context.Background(), 0, 1<<62, 5, "", testPair2.String(),
 		testFiat2.String()+"-FUTURES", "", time.Now().Add(-time.Hour*24*90), time.Now())
 	if err != nil {
 		t.Error(err)
@@ -1467,10 +1679,25 @@ func getFuturesOrdIDHelper(t *testing.T) *OrderIDStruct {
 			}
 		}
 	}
-	IDs := placeFuturesOrderHelper(t)
+	if !live {
+		resp, err := bi.GetHistoricalFuturesOrders(context.Background(), 0, 1<<62, 5, "", testPair2.String(),
+			testFiat2.String()+"-FUTURES", time.Time{}, time.Time{})
+		if err != nil {
+			t.Error(err)
+		}
+		if resp != nil {
+			if len(resp.Data.EntrustedList) != 0 {
+				return &OrderIDStruct{
+					OrderID:       resp.Data.EntrustedList[0].OrderID,
+					ClientOrderID: resp.Data.EntrustedList[0].ClientOrderID,
+				}
+			}
+		}
+	}
+	t.Skip(skipInsufficientOrders)
 	return &OrderIDStruct{
-		OrderID:       int64(IDs.Data.OrderID),
-		ClientOrderID: IDs.Data.ClientOrderID,
+		OrderID:       0,
+		ClientOrderID: "Orders Not Found",
 	}
 }
 
@@ -1481,6 +1708,30 @@ func clientIDGenerator() string {
 		cID = cID[:50]
 	}
 	return cID
+}
+
+func getTrigOrdIDHelper(t *testing.T, planTypes []string) *OrderIDStruct {
+	t.Helper()
+	for i := range planTypes {
+		resp, err := bi.GetPendingTriggerFuturesOrders(context.Background(), 0, 1<<62, 5, "", testPair2.String(),
+			planTypes[i], testFiat2.String()+"-FUTURES", time.Time{}, time.Time{})
+		if err != nil {
+			t.Error(err)
+		}
+		if resp != nil {
+			if len(resp.Data.EntrustedList) != 0 {
+				return &OrderIDStruct{
+					OrderID:       resp.Data.EntrustedList[0].OrderID,
+					ClientOrderID: resp.Data.EntrustedList[0].ClientOrderID,
+				}
+			}
+		}
+	}
+	t.Skip(skipInsufficientOrders)
+	return &OrderIDStruct{
+		OrderID:       0,
+		ClientOrderID: "Orders Not Found",
+	}
 }
 
 func aBenchmarkHelper(a, pag int64) {

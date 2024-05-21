@@ -51,8 +51,9 @@ const (
 	bitgetQueryPositionLever  = "query-position-lever"
 
 	// Mixed endpoints
-	bitgetSpot = "spot/"
-	bitgetMix  = "mix/"
+	bitgetSpot   = "spot/"
+	bitgetMix    = "mix/"
+	bitgetMargin = "margin/"
 
 	// Authenticated endpoints
 	bitgetCommon                   = "common/"
@@ -136,62 +137,79 @@ const (
 	bitgetClosePositions           = "/close-positions"
 	bitgetDetail                   = "/detail"
 	bitgetOrdersPending            = "/orders-pending"
+	bitgetFillHistory              = "/fill-history"
+	bitgetOrdersHistory            = "/orders-history"
+	bitgetCancelAllOrders          = "/cancel-all-orders"
+	bitgetPlaceTPSLOrder           = "/place-tpsl-order"
+	bitgetModifyTPSLOrder          = "/modify-tpsl-order"
+	bitgetOrdersPlanPending        = "/orders-plan-pending"
+	bitgetOrdersPlanHistory        = "/orders-plan-history"
+	bitgetCrossed                  = "crossed/"
+	bitgetBorrowHistory            = "borrow-history"
 
 	// Errors
 	errUnknownEndpointLimit = "unknown endpoint limit %v"
 )
 
 var (
-	errBusinessTypeEmpty     = errors.New("businessType cannot be empty")
-	errPairEmpty             = errors.New("currency pair cannot be empty")
-	errCurrencyEmpty         = errors.New("currency cannot be empty")
-	errProductTypeEmpty      = errors.New("productType cannot be empty")
-	errSubaccountEmpty       = errors.New("subaccounts cannot be empty")
-	errNewStatusEmpty        = errors.New("newStatus cannot be empty")
-	errNewPermsEmpty         = errors.New("newPerms cannot be empty")
-	errPassphraseEmpty       = errors.New("passphrase cannot be empty")
-	errLabelEmpty            = errors.New("label cannot be empty")
-	errAPIKeyEmpty           = errors.New("apiKey cannot be empty")
-	errFromToMutex           = errors.New("exactly one of fromAmount and toAmount must be set")
-	errTraceIDEmpty          = errors.New("traceID cannot be empty")
-	errAmountEmpty           = errors.New("amount cannot be empty")
-	errPriceEmpty            = errors.New("price cannot be empty")
-	errTypeAssertTimestamp   = errors.New("unable to type assert timestamp")
-	errTypeAssertOpenPrice   = errors.New("unable to type assert opening price")
-	errTypeAssertHighPrice   = errors.New("unable to type assert high price")
-	errTypeAssertLowPrice    = errors.New("unable to type assert low price")
-	errTypeAssertClosePrice  = errors.New("unable to type assert close price")
-	errTypeAssertBaseVolume  = errors.New("unable to type assert base volume")
-	errTypeAssertQuoteVolume = errors.New("unable to type assert quote volume")
-	errTypeAssertUSDTVolume  = errors.New("unable to type assert USDT volume")
-	errGranEmpty             = errors.New("granularity cannot be empty")
-	errEndTimeEmpty          = errors.New("endTime cannot be empty")
-	errSideEmpty             = errors.New("side cannot be empty")
-	errOrderTypeEmpty        = errors.New("orderType cannot be empty")
-	errStrategyEmpty         = errors.New("strategy cannot be empty")
-	errLimitPriceEmpty       = errors.New("price cannot be empty for limit orders")
-	errOrderClientEmpty      = errors.New("at least one of orderID and clientOrderID must not be empty")
-	errOrderIDEmpty          = errors.New("orderID cannot be empty")
-	errOrdersEmpty           = errors.New("orders cannot be empty")
-	errTriggerPriceEmpty     = errors.New("triggerPrice cannot be empty")
-	errTriggerTypeEmpty      = errors.New("triggerType cannot be empty")
-	errNonsenseRequest       = errors.New("nonsense request expected error")
-	errAccountTypeEmpty      = errors.New("accountType cannot be empty")
-	errFromTypeEmpty         = errors.New("fromType cannot be empty")
-	errToTypeEmpty           = errors.New("toType cannot be empty")
-	errCurrencyAndPairEmpty  = errors.New("currency and pair cannot both be empty")
-	errFromIDEmpty           = errors.New("fromID cannot be empty")
-	errToIDEmpty             = errors.New("toID cannot be empty")
-	errTransferTypeEmpty     = errors.New("transferType cannot be empty")
-	errAddressEmpty          = errors.New("address cannot be empty")
-	errNoCandleData          = errors.New("no candle data")
-	errMarginCoinEmpty       = errors.New("marginCoin cannot be empty")
-	errOpenAmountEmpty       = errors.New("openAmount cannot be empty")
-	errOpenPriceEmpty        = errors.New("openPrice cannot be empty")
-	errLeverageEmpty         = errors.New("leverage cannot be empty")
-	errMarginModeEmpty       = errors.New("marginMode cannot be empty")
-	errPositionModeEmpty     = errors.New("positionMode cannot be empty")
-	errNewClientOrderIDEmpty = errors.New("newClientOrderID cannot be empty")
+	errBusinessTypeEmpty             = errors.New("businessType cannot be empty")
+	errPairEmpty                     = errors.New("currency pair cannot be empty")
+	errCurrencyEmpty                 = errors.New("currency cannot be empty")
+	errProductTypeEmpty              = errors.New("productType cannot be empty")
+	errSubaccountEmpty               = errors.New("subaccounts cannot be empty")
+	errNewStatusEmpty                = errors.New("newStatus cannot be empty")
+	errNewPermsEmpty                 = errors.New("newPerms cannot be empty")
+	errPassphraseEmpty               = errors.New("passphrase cannot be empty")
+	errLabelEmpty                    = errors.New("label cannot be empty")
+	errAPIKeyEmpty                   = errors.New("apiKey cannot be empty")
+	errFromToMutex                   = errors.New("exactly one of fromAmount and toAmount must be set")
+	errTraceIDEmpty                  = errors.New("traceID cannot be empty")
+	errAmountEmpty                   = errors.New("amount cannot be empty")
+	errPriceEmpty                    = errors.New("price cannot be empty")
+	errTypeAssertTimestamp           = errors.New("unable to type assert timestamp")
+	errTypeAssertOpenPrice           = errors.New("unable to type assert opening price")
+	errTypeAssertHighPrice           = errors.New("unable to type assert high price")
+	errTypeAssertLowPrice            = errors.New("unable to type assert low price")
+	errTypeAssertClosePrice          = errors.New("unable to type assert close price")
+	errTypeAssertBaseVolume          = errors.New("unable to type assert base volume")
+	errTypeAssertQuoteVolume         = errors.New("unable to type assert quote volume")
+	errTypeAssertUSDTVolume          = errors.New("unable to type assert USDT volume")
+	errGranEmpty                     = errors.New("granularity cannot be empty")
+	errEndTimeEmpty                  = errors.New("endTime cannot be empty")
+	errSideEmpty                     = errors.New("side cannot be empty")
+	errOrderTypeEmpty                = errors.New("orderType cannot be empty")
+	errStrategyEmpty                 = errors.New("strategy cannot be empty")
+	errLimitPriceEmpty               = errors.New("price cannot be empty for limit orders")
+	errOrderClientEmpty              = errors.New("at least one of orderID and clientOrderID must not be empty")
+	errOrderIDEmpty                  = errors.New("orderID cannot be empty")
+	errOrdersEmpty                   = errors.New("orders cannot be empty")
+	errTriggerPriceEmpty             = errors.New("triggerPrice cannot be empty")
+	errTriggerTypeEmpty              = errors.New("triggerType cannot be empty")
+	errNonsenseRequest               = errors.New("nonsense request expected error")
+	errAccountTypeEmpty              = errors.New("accountType cannot be empty")
+	errFromTypeEmpty                 = errors.New("fromType cannot be empty")
+	errToTypeEmpty                   = errors.New("toType cannot be empty")
+	errCurrencyAndPairEmpty          = errors.New("currency and pair cannot both be empty")
+	errFromIDEmpty                   = errors.New("fromID cannot be empty")
+	errToIDEmpty                     = errors.New("toID cannot be empty")
+	errTransferTypeEmpty             = errors.New("transferType cannot be empty")
+	errAddressEmpty                  = errors.New("address cannot be empty")
+	errNoCandleData                  = errors.New("no candle data")
+	errMarginCoinEmpty               = errors.New("marginCoin cannot be empty")
+	errOpenAmountEmpty               = errors.New("openAmount cannot be empty")
+	errOpenPriceEmpty                = errors.New("openPrice cannot be empty")
+	errLeverageEmpty                 = errors.New("leverage cannot be empty")
+	errMarginModeEmpty               = errors.New("marginMode cannot be empty")
+	errPositionModeEmpty             = errors.New("positionMode cannot be empty")
+	errNewClientOrderIDEmpty         = errors.New("newClientOrderID cannot be empty")
+	errPlanTypeEmpty                 = errors.New("planType cannot be empty")
+	errPlanOrderIDEmpty              = errors.New("planOrderID cannot be empty")
+	errHoldSideEmpty                 = errors.New("holdSide cannot be empty")
+	errExecutePriceEmpty             = errors.New("executePrice cannot be empty")
+	errTakeProfitParamsInconsistency = errors.New("takeProfitTriggerPrice, takeProfitExecutePrice, and takeProfitTriggerType must either all be set or all be empty")
+	errStopLossParamsInconsistency   = errors.New("stopLossTriggerPrice, stopLossExecutePrice, and stopLossTriggerType must either all be set or all be empty")
+	errSubaccountIDEmpty             = errors.New("subaccountID cannot be empty")
+	errEmailEmpty                    = errors.New("email cannot be empty")
 )
 
 // QueryAnnouncement returns announcements from the exchange, filtered by type and time
@@ -930,8 +948,8 @@ func (bi *Bitget) GetUnfilledOrders(ctx context.Context, pair string, startTime,
 		nil, &resp)
 }
 
-// GetHistoricalOrders returns the user's order history
-func (bi *Bitget) GetHistoricalOrders(ctx context.Context, pair string, startTime, endTime time.Time, limit, pagination, orderID int64) (*SpotOrderDetailResp, error) {
+// GetHistoricalSpotOrders returns the user's spot order history
+func (bi *Bitget) GetHistoricalSpotOrders(ctx context.Context, pair string, startTime, endTime time.Time, limit, pagination, orderID int64) (*SpotOrderDetailResp, error) {
 	var params Params
 	params.Values = make(url.Values)
 	err := params.prepareDateString(startTime, endTime, true)
@@ -975,8 +993,8 @@ func (bi *Bitget) GetSpotFills(ctx context.Context, pair string, startTime, endT
 		nil, &resp)
 }
 
-// PlacePlanOrder sets up an order to be placed after certain conditions are met
-func (bi *Bitget) PlacePlanOrder(ctx context.Context, pair, side, orderType, planType, triggerType, clientOrderID, strategy string, triggerPrice, executePrice, amount float64) (*OrderIDResp, error) {
+// PlacePlanSpotOrder sets up an order to be placed after certain conditions are met
+func (bi *Bitget) PlacePlanSpotOrder(ctx context.Context, pair, side, orderType, planType, triggerType, clientOrderID, strategy string, triggerPrice, executePrice, amount float64) (*OrderIDResp, error) {
 	if pair == "" {
 		return nil, errPairEmpty
 	}
@@ -1018,8 +1036,8 @@ func (bi *Bitget) PlacePlanOrder(ctx context.Context, pair, side, orderType, pla
 		&resp)
 }
 
-// ModifyPlanOrder alters the price, trigger price, amount, or order type of a plan order
-func (bi *Bitget) ModifyPlanOrder(ctx context.Context, orderID int64, clientOrderID, orderType string, triggerPrice, executePrice, amount float64) (*OrderIDResp, error) {
+// ModifyPlanSpotOrder alters the price, trigger price, amount, or order type of a plan order
+func (bi *Bitget) ModifyPlanSpotOrder(ctx context.Context, orderID int64, clientOrderID, orderType string, triggerPrice, executePrice, amount float64) (*OrderIDResp, error) {
 	if orderID == 0 && clientOrderID == "" {
 		return nil, errOrderClientEmpty
 	}
@@ -1053,8 +1071,8 @@ func (bi *Bitget) ModifyPlanOrder(ctx context.Context, orderID int64, clientOrde
 		&resp)
 }
 
-// CancelPlanOrder cancels a plan order
-func (bi *Bitget) CancelPlanOrder(ctx context.Context, orderID int64, clientOrderID string) (*SuccessBoolResp, error) {
+// CancelPlanSpotOrder cancels a plan order
+func (bi *Bitget) CancelPlanSpotOrder(ctx context.Context, orderID int64, clientOrderID string) (*SuccessBoolResp, error) {
 	if orderID == 0 && clientOrderID == "" {
 		return nil, errOrderClientEmpty
 	}
@@ -1071,8 +1089,8 @@ func (bi *Bitget) CancelPlanOrder(ctx context.Context, orderID int64, clientOrde
 		&resp)
 }
 
-// GetCurrentPlanOrders returns the user's current plan orders
-func (bi *Bitget) GetCurrentPlanOrders(ctx context.Context, pair string, startTime, endTime time.Time, limit, pagination int64) (*PlanOrderResp, error) {
+// GetCurrentSpotPlanOrders returns the user's current plan orders
+func (bi *Bitget) GetCurrentSpotPlanOrders(ctx context.Context, pair string, startTime, endTime time.Time, limit, pagination int64) (*PlanSpotOrderResp, error) {
 	if pair == "" {
 		return nil, errPairEmpty
 	}
@@ -1090,13 +1108,13 @@ func (bi *Bitget) GetCurrentPlanOrders(ctx context.Context, pair string, startTi
 		params.Values.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	path := bitgetSpot + bitgetTrade + bitgetCurrentPlanOrder
-	var resp *PlanOrderResp
+	var resp *PlanSpotOrderResp
 	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate20, http.MethodGet, path, params.Values,
 		nil, &resp)
 }
 
-// GetPlanSubOrder returns the sub-orders of a triggered plan order
-func (bi *Bitget) GetPlanSubOrder(ctx context.Context, orderID string) (*SubOrderResp, error) {
+// GetSpotPlanSubOrder returns the sub-orders of a triggered plan order
+func (bi *Bitget) GetSpotPlanSubOrder(ctx context.Context, orderID string) (*SubOrderResp, error) {
 	if orderID == "" {
 		return nil, errOrderIDEmpty
 	}
@@ -1108,8 +1126,8 @@ func (bi *Bitget) GetPlanSubOrder(ctx context.Context, orderID string) (*SubOrde
 		&resp)
 }
 
-// GetPlanOrderHistory returns the user's plan order history
-func (bi *Bitget) GetPlanOrderHistory(ctx context.Context, pair string, startTime, endTime time.Time, limit int32) (*PlanOrderResp, error) {
+// GetSpotPlanOrderHistory returns the user's plan order history
+func (bi *Bitget) GetSpotPlanOrderHistory(ctx context.Context, pair string, startTime, endTime time.Time, limit int32) (*PlanSpotOrderResp, error) {
 	if pair == "" {
 		return nil, errPairEmpty
 	}
@@ -1124,13 +1142,13 @@ func (bi *Bitget) GetPlanOrderHistory(ctx context.Context, pair string, startTim
 		params.Values.Set("limit", strconv.FormatInt(int64(limit), 10))
 	}
 	path := bitgetSpot + bitgetTrade + bitgetPlanOrderHistory
-	var resp *PlanOrderResp
+	var resp *PlanSpotOrderResp
 	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate20, http.MethodGet, path, params.Values,
 		nil, &resp)
 }
 
-// BatchCancelPlanOrders cancels all plan orders, with the option to restrict to only those for particular pairs
-func (bi *Bitget) BatchCancelPlanOrders(ctx context.Context, pairs []string) (*BatchOrderResp, error) {
+// BatchCancelSpotPlanOrders cancels all plan orders, with the option to restrict to only those for particular pairs
+func (bi *Bitget) BatchCancelSpotPlanOrders(ctx context.Context, pairs []string) (*BatchOrderResp, error) {
 	req := make(map[string]interface{})
 	if len(pairs) > 0 {
 		req["symbolList"] = pairs
@@ -2106,7 +2124,7 @@ func (bi *Bitget) PlaceReversal(ctx context.Context, pair, marginCoin, productTy
 		"side":        side,
 		"tradeSide":   tradeSide,
 		"size":        strconv.FormatFloat(amount, 'f', -1, 64),
-		// "orderType":   "market",
+		"orderType":   "market",
 	}
 	if clientOID != "" {
 		req["clientOid"] = clientOID
@@ -2311,7 +2329,7 @@ func (bi *Bitget) GetFuturesFills(ctx context.Context, orderID, pagination, limi
 }
 
 // GetFuturesOrderFillHistory returns historical fill details
-func (bi *Bitget) GetFuturesOrderFillHistory(ctx context.Context, pair, productType string, pagination, limit int64, startTime, endTime time.Time) (*FuturesFillsResp, error) {
+func (bi *Bitget) GetFuturesOrderFillHistory(ctx context.Context, pair, productType string, orderID, pagination, limit int64, startTime, endTime time.Time) (*FuturesFillsResp, error) {
 	if productType == "" {
 		return nil, errProductTypeEmpty
 	}
@@ -2321,21 +2339,25 @@ func (bi *Bitget) GetFuturesOrderFillHistory(ctx context.Context, pair, productT
 	if err != nil {
 		return nil, err
 	}
+	params.Values.Set("symbol", pair)
 	params.Values.Set("productType", productType)
+	if orderID != 0 {
+		params.Values.Set("orderId", strconv.FormatInt(orderID, 10))
+	}
 	if pagination != 0 {
 		params.Values.Set("idLessThan", strconv.FormatInt(pagination, 10))
 	}
 	if limit != 0 {
 		params.Values.Set("limit", strconv.FormatInt(limit, 10))
 	}
-	path := bitgetMix + bitgetOrder + bitgetFillsHistory
+	path := bitgetMix + bitgetOrder + bitgetFillHistory
 	var resp *FuturesFillsResp
 	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodGet, path, params.Values,
 		nil, &resp)
 }
 
 // GetPendingFuturesOrders returns detailed information on pending futures orders
-func (bi *Bitget) GetPendingFuturesOrders(ctx context.Context, orderID, pagination, limit int64, clientOrderID, pair, productType, status string, startTime, endTime time.Time) (*FuturesPendResp, error) {
+func (bi *Bitget) GetPendingFuturesOrders(ctx context.Context, orderID, pagination, limit int64, clientOrderID, pair, productType, status string, startTime, endTime time.Time) (*FuturesOrdResp, error) {
 	if productType == "" {
 		return nil, errProductTypeEmpty
 	}
@@ -2358,7 +2380,403 @@ func (bi *Bitget) GetPendingFuturesOrders(ctx context.Context, orderID, paginati
 		params.Values.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	path := bitgetMix + bitgetOrder + bitgetOrdersPending
-	var resp *FuturesPendResp
+	var resp *FuturesOrdResp
+	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodGet, path, params.Values,
+		nil, &resp)
+}
+
+// GetHistoricalFuturesOrders returns information on futures orders that are no longer pending
+func (bi *Bitget) GetHistoricalFuturesOrders(ctx context.Context, orderID, pagination, limit int64, clientOrderID, pair, productType string, startTime, endTime time.Time) (*FuturesOrdResp, error) {
+	if productType == "" {
+		return nil, errProductTypeEmpty
+	}
+	var params Params
+	params.Values = make(url.Values)
+	err := params.prepareDateString(startTime, endTime, true)
+	if err != nil {
+		return nil, err
+	}
+	params.Values.Set("symbol", pair)
+	params.Values.Set("productType", productType)
+	if orderID != 0 {
+		params.Values.Set("orderId", strconv.FormatInt(orderID, 10))
+	}
+	params.Values.Set("clientOid", clientOrderID)
+	if pagination != 0 {
+		params.Values.Set("idLessThan", strconv.FormatInt(pagination, 10))
+	}
+	if limit != 0 {
+		params.Values.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	path := bitgetMix + bitgetOrder + bitgetOrdersHistory
+	var resp *FuturesOrdResp
+	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodGet, path, params.Values,
+		nil, &resp)
+}
+
+// CancelAllFuturesOrders cancels all pending orders
+func (bi *Bitget) CancelAllFuturesOrders(ctx context.Context, pair, productType, marginCoin string, acceptableDelay time.Duration) (*BatchOrderResp, error) {
+	if productType == "" {
+		return nil, errProductTypeEmpty
+	}
+	req := map[string]interface{}{
+		"productType":   productType,
+		"symbol":        pair,
+		"requestTime":   time.Now().UnixMilli(),
+		"receiveWindow": time.Unix(0, 0).Add(acceptableDelay).UnixMilli(),
+	}
+	if marginCoin != "" {
+		req["marginCoin"] = marginCoin
+	}
+	path := bitgetMix + bitgetOrder + bitgetCancelAllOrders
+	var resp *BatchOrderResp
+	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodPost, path, nil,
+		req, &resp)
+}
+
+// GetFuturesTriggerOrderByID returns information on a particular trigger order
+func (bi *Bitget) GetFuturesTriggerOrderByID(ctx context.Context, planType, planOrderID, productType string) (*SubOrderResp, error) {
+	if planType == "" {
+		return nil, errPlanTypeEmpty
+	}
+	if planOrderID == "" {
+		return nil, errPlanOrderIDEmpty
+	}
+	if productType == "" {
+		return nil, errProductTypeEmpty
+	}
+	vals := url.Values{}
+	vals.Set("planType", planType)
+	vals.Set("planOrderId", planOrderID)
+	vals.Set("productType", productType)
+	path := bitgetMix + bitgetOrder + bitgetPlanSubOrder
+	var resp *SubOrderResp
+	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodGet, path, vals, nil,
+		&resp)
+}
+
+// PlaceTPSLFuturesOrder places a take-profit or stop-loss futures order
+func (bi *Bitget) PlaceTPSLFuturesOrder(ctx context.Context, marginCoin, productType, pair, planType, triggerType, holdSide, rangeRate, clientOrderID string, triggerPrice, executePrice, amount float64) (*OrderResp, error) {
+	if marginCoin == "" {
+		return nil, errMarginCoinEmpty
+	}
+	if productType == "" {
+		return nil, errProductTypeEmpty
+	}
+	if pair == "" {
+		return nil, errPairEmpty
+	}
+	if planType == "" {
+		return nil, errPlanTypeEmpty
+	}
+	if triggerType == "" {
+		return nil, errTriggerTypeEmpty
+	}
+	if holdSide == "" {
+		return nil, errHoldSideEmpty
+	}
+	if triggerPrice == 0 {
+		return nil, errTriggerPriceEmpty
+	}
+	if executePrice == 0 {
+		return nil, errExecutePriceEmpty
+	}
+	if amount == 0 {
+		return nil, errAmountEmpty
+	}
+	req := map[string]interface{}{
+		"marginCoin":   marginCoin,
+		"productType":  productType,
+		"symbol":       pair,
+		"planType":     planType,
+		"triggerType":  triggerType,
+		"holdSide":     holdSide,
+		"rangeRate":    rangeRate,
+		"clientOid":    clientOrderID,
+		"triggerPrice": strconv.FormatFloat(triggerPrice, 'f', -1, 64),
+		"executePrice": strconv.FormatFloat(executePrice, 'f', -1, 64),
+		"size":         strconv.FormatFloat(amount, 'f', -1, 64),
+	}
+	path := bitgetMix + bitgetOrder + bitgetPlaceTPSLOrder
+	var resp *OrderResp
+	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodPost, path, nil, req,
+		&resp)
+}
+
+// PlaceTriggerFuturesOrder places a trigger futures order
+func (bi *Bitget) PlaceTriggerFuturesOrder(ctx context.Context, planType, pair, productType, marginMode, marginCoin, triggerType, side, tradeSide, orderType, clientOrderID, takeProfitTriggerType, stopLossTriggerType string, amount, executePrice, callbackRatio, triggerPrice, takeProfitTriggerPrice, takeProfitExecutePrice, stopLossTriggerPrice, stopLossExecutePrice float64, reduceOnly bool) (*OrderResp, error) {
+	if planType == "" {
+		return nil, errPlanTypeEmpty
+	}
+	if pair == "" {
+		return nil, errPairEmpty
+	}
+	if productType == "" {
+		return nil, errProductTypeEmpty
+	}
+	if marginMode == "" {
+		return nil, errMarginModeEmpty
+	}
+	if marginCoin == "" {
+		return nil, errMarginCoinEmpty
+	}
+	if triggerType == "" {
+		return nil, errTriggerTypeEmpty
+	}
+	if side == "" {
+		return nil, errSideEmpty
+	}
+	if orderType == "" {
+		return nil, errOrderTypeEmpty
+	}
+	if amount == 0 {
+		return nil, errAmountEmpty
+	}
+	if executePrice == 0 {
+		return nil, errExecutePriceEmpty
+	}
+	if triggerPrice == 0 {
+		return nil, errTriggerPriceEmpty
+	}
+	if (takeProfitTriggerType != "" || takeProfitTriggerPrice != 0 || takeProfitExecutePrice != 0) &&
+		(takeProfitTriggerType == "" || takeProfitTriggerPrice == 0 || takeProfitExecutePrice == 0) {
+		return nil, errTakeProfitParamsInconsistency
+	}
+	if (stopLossTriggerType != "" || stopLossTriggerPrice != 0 || stopLossExecutePrice != 0) &&
+		(stopLossTriggerType == "" || stopLossTriggerPrice == 0 || stopLossExecutePrice == 0) {
+		return nil, errStopLossParamsInconsistency
+	}
+	req := map[string]interface{}{
+		"planType":      planType,
+		"symbol":        pair,
+		"productType":   productType,
+		"marginMode":    marginMode,
+		"marginCoin":    marginCoin,
+		"triggerType":   triggerType,
+		"side":          side,
+		"tradeSide":     tradeSide,
+		"orderType":     orderType,
+		"size":          strconv.FormatFloat(amount, 'f', -1, 64),
+		"price":         strconv.FormatFloat(executePrice, 'f', -1, 64),
+		"triggerPrice":  strconv.FormatFloat(triggerPrice, 'f', -1, 64),
+		"callbackRatio": strconv.FormatFloat(callbackRatio, 'f', -1, 64),
+	}
+	if reduceOnly {
+		req["reduceOnly"] = "YES"
+	}
+	if clientOrderID != "" {
+		req["clientOid"] = clientOrderID
+	}
+	if takeProfitTriggerPrice != 0 || takeProfitExecutePrice != 0 || takeProfitTriggerType != "" {
+		req["stopSurplusTriggerPrice"] = strconv.FormatFloat(takeProfitTriggerPrice, 'f', -1, 64)
+		req["stopSurplusExecutePrice"] = strconv.FormatFloat(takeProfitExecutePrice, 'f', -1, 64)
+		req["stopSurplusTriggerType"] = takeProfitTriggerType
+	}
+	if stopLossTriggerPrice != 0 || stopLossExecutePrice != 0 || stopLossTriggerType != "" {
+		req["stopLossTriggerPrice"] = strconv.FormatFloat(stopLossTriggerPrice, 'f', -1, 64)
+		req["stopLossExecutePrice"] = strconv.FormatFloat(stopLossExecutePrice, 'f', -1, 64)
+		req["stopLossTriggerType"] = stopLossTriggerType
+	}
+	path := bitgetMix + bitgetOrder + bitgetPlacePlanOrder
+	var resp *OrderResp
+	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodPost, path, nil, req,
+		&resp)
+}
+
+// ModifyTPSLFuturesOrder modifies a take-profit or stop-loss futures order
+func (bi *Bitget) ModifyTPSLFuturesOrder(ctx context.Context, orderID int64, clientOrderID, marginCoin, productType, pair, triggerType string, triggerPrice, executePrice, amount, rangeRate float64) (*OrderResp, error) {
+	if orderID == 0 && clientOrderID == "" {
+		return nil, errOrderClientEmpty
+	}
+	if marginCoin == "" {
+		return nil, errMarginCoinEmpty
+	}
+	if productType == "" {
+		return nil, errProductTypeEmpty
+	}
+	if pair == "" {
+		return nil, errPairEmpty
+	}
+	if triggerPrice == 0 {
+		return nil, errTriggerPriceEmpty
+	}
+	if amount == 0 {
+		return nil, errAmountEmpty
+	}
+	req := map[string]interface{}{
+		"orderId":      orderID,
+		"clientOid":    clientOrderID,
+		"marginCoin":   marginCoin,
+		"productType":  productType,
+		"symbol":       pair,
+		"triggerType":  triggerType,
+		"triggerPrice": strconv.FormatFloat(triggerPrice, 'f', -1, 64),
+		"executePrice": strconv.FormatFloat(executePrice, 'f', -1, 64),
+		"size":         strconv.FormatFloat(amount, 'f', -1, 64),
+	}
+	if rangeRate != 0 {
+		req["rangeRate"] = strconv.FormatFloat(rangeRate, 'f', -1, 64)
+	}
+	path := bitgetMix + bitgetOrder + bitgetModifyTPSLOrder
+	var resp *OrderResp
+	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodPost, path, nil, req,
+		&resp)
+}
+
+// CancelTriggerFuturesOrders cancels trigger futures orders
+func (bi *Bitget) CancelTriggerFuturesOrders(ctx context.Context, orderIDList []OrderIDStruct, pair, productType, marginCoin, planType string) (*BatchOrderResp, error) {
+	if productType == "" {
+		return nil, errProductTypeEmpty
+	}
+	req := map[string]interface{}{
+		"productType": productType,
+		"planType":    planType,
+		"symbol":      pair,
+		"orderIdList": orderIDList,
+		"marginCoin":  marginCoin,
+	}
+	path := bitgetMix + bitgetOrder + bitgetCancelPlanOrder
+	var resp *BatchOrderResp
+	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodPost, path, nil, req,
+		&resp)
+}
+
+// ModifyTriggerFuturesOrder modifies a trigger futures order
+func (bi *Bitget) ModifyTriggerFuturesOrder(ctx context.Context, orderID int64, clientOrderID, productType, triggerType, takeProfitTriggerType, stopLossTriggerType string, amount, executePrice, callbackRatio, triggerPrice, takeProfitTriggerPrice, takeProfitExecutePrice, stopLossTriggerPrice, stopLossExecutePrice float64) (*OrderResp, error) {
+	if orderID == 0 && clientOrderID == "" {
+		return nil, errOrderClientEmpty
+	}
+	if productType == "" {
+		return nil, errProductTypeEmpty
+	}
+	req := map[string]interface{}{
+		// See whether planType is accepted
+		// See whether symbol is accepted
+		"orderId":                   orderID,
+		"clientOid":                 clientOrderID,
+		"productType":               productType,
+		"newTriggerType":            triggerType,
+		"newSize":                   strconv.FormatFloat(amount, 'f', -1, 64),
+		"newPrice":                  strconv.FormatFloat(executePrice, 'f', -1, 64),
+		"newCallbackRatio":          strconv.FormatFloat(callbackRatio, 'f', -1, 64),
+		"newTriggerPrice":           strconv.FormatFloat(triggerPrice, 'f', -1, 64),
+		"newStopSurplusTriggerType": takeProfitTriggerType,
+		"newStopLossTriggerType":    stopLossTriggerType,
+	}
+	if takeProfitTriggerPrice >= 0 {
+		req["newStopSurplusTriggerPrice"] = strconv.FormatFloat(takeProfitTriggerPrice, 'f', -1, 64)
+	}
+	if takeProfitExecutePrice >= 0 {
+		req["newStopSurplusExecutePrice"] = strconv.FormatFloat(takeProfitExecutePrice, 'f', -1, 64)
+	}
+	if stopLossTriggerPrice >= 0 {
+		req["newStopLossTriggerPrice"] = strconv.FormatFloat(stopLossTriggerPrice, 'f', -1, 64)
+	}
+	if stopLossExecutePrice >= 0 {
+		req["newStopLossExecutePrice"] = strconv.FormatFloat(stopLossExecutePrice, 'f', -1, 64)
+	}
+	path := bitgetMix + bitgetOrder + bitgetModifyPlanOrder
+	var resp *OrderResp
+	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodPost, path, nil, req,
+		&resp)
+}
+
+// GetPendingTriggerFuturesOrders returns information on pending trigger orders
+func (bi *Bitget) GetPendingTriggerFuturesOrders(ctx context.Context, orderID, pagination, limit int64, clientOrderID, pair, planType, productType string, startTime, endTime time.Time) (*PlanFuturesOrdResp, error) {
+	if planType == "" {
+		return nil, errPlanTypeEmpty
+	}
+	if productType == "" {
+		return nil, errProductTypeEmpty
+	}
+	var params Params
+	params.Values = make(url.Values)
+	err := params.prepareDateString(startTime, endTime, true)
+	if err != nil {
+		return nil, err
+	}
+	params.Values.Set("symbol", pair)
+	params.Values.Set("planType", planType)
+	params.Values.Set("productType", productType)
+	if orderID != 0 {
+		params.Values.Set("orderId", strconv.FormatInt(orderID, 10))
+	}
+	params.Values.Set("clientOid", clientOrderID)
+	if pagination != 0 {
+		params.Values.Set("idLessThan", strconv.FormatInt(pagination, 10))
+	}
+	if limit != 0 {
+		params.Values.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	path := bitgetMix + bitgetOrder + bitgetOrdersPlanPending
+	var resp *PlanFuturesOrdResp
+	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodGet, path, params.Values,
+		nil, &resp)
+}
+
+// GetHistoricalTriggerFuturesOrders returns information on historical trigger orders
+func (bi *Bitget) GetHistoricalTriggerFuturesOrders(ctx context.Context, orderID, pagination, limit int64, clientOrderID, planType, planStatus, pair, productType string, startTime, endTime time.Time) (*HistTriggerFuturesOrdResp, error) {
+	if planType == "" {
+		return nil, errPlanTypeEmpty
+	}
+	if productType == "" {
+		return nil, errProductTypeEmpty
+	}
+	var params Params
+	params.Values = make(url.Values)
+	err := params.prepareDateString(startTime, endTime, true)
+	if err != nil {
+		return nil, err
+	}
+	params.Values.Set("symbol", pair)
+	params.Values.Set("planType", planType)
+	params.Values.Set("productType", productType)
+	// params.Values.Set("planStatus", planStatus)
+	if orderID != 0 {
+		params.Values.Set("orderId", strconv.FormatInt(orderID, 10))
+	}
+	// params.Values.Set("clientOid", clientOrderID)
+	if pagination != 0 {
+		params.Values.Set("idLessThan", strconv.FormatInt(pagination, 10))
+	}
+	if limit != 0 {
+		params.Values.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	path := bitgetMix + bitgetOrder + bitgetOrdersPlanHistory
+	var resp *HistTriggerFuturesOrdResp
+	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodGet, path, params.Values,
+		nil, &resp)
+}
+
+// GetSupportedCurrencies returns information on the currencies supported by the exchange
+func (bi *Bitget) GetSupportedCurrencies(ctx context.Context) (*SupCurrencyResp, error) {
+	path := bitgetMargin + bitgetCurrencies
+	var resp *SupCurrencyResp
+	return resp, bi.SendHTTPRequest(ctx, exchange.RestSpot, Rate10, path, nil, &resp)
+}
+
+// GetCrossBorrowHistory returns the borrowing history for cross margin
+func (bi *Bitget) GetCrossBorrowHistory(ctx context.Context, loanID, limit, pagination int64, currency string, startTime, endTime time.Time) (*BorrowHistResp, error) {
+	var params Params
+	params.Values = make(url.Values)
+	err := params.prepareDateString(startTime, endTime, false)
+	if err != nil {
+		return nil, err
+	}
+	// if loanID != 0 {
+	params.Values.Set("loanId", strconv.FormatInt(loanID, 10))
+	// }
+	if limit != 0 {
+		params.Values.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	if pagination != 0 {
+		params.Values.Set("idLessThan", strconv.FormatInt(pagination, 10))
+	}
+	// if currency != "" {
+	params.Values.Set("currency", currency)
+	// }
+	path := bitgetMargin + bitgetCrossed + bitgetBorrowHistory
+	var resp *BorrowHistResp
 	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodGet, path, params.Values,
 		nil, &resp)
 }
@@ -2445,6 +2863,24 @@ func (p *Params) prepareDateString(startDate, endDate time.Time, ignoreUnset boo
 	p.Values.Set("endTime", strconv.FormatInt(endDate.UnixMilli(), 10))
 	return nil
 }
+
+// func (p *Params) pds2(startDate, endDate time.Time, ignoreUnsetStart, ignoreUnsetEnd bool) error {
+// 	if startDate.IsZero() || startDate.Equal(common.ZeroValueUnix) {
+// 		return fmt.Errorf("start %w", ErrDateUnset)
+// 	}
+// 	if end.IsZero() || end.Equal(zeroValueUnix) {
+// 		return fmt.Errorf("end %w", ErrDateUnset)
+// 	}
+// 	if start.After(end) {
+// 		return ErrStartAfterEnd
+// 	}
+// 	if start.Equal(end) {
+// 		return ErrStartEqualsEnd
+// 	}
+// 	if start.After(time.Now()) {
+// 		return ErrStartAfterTimeNow
+// 	}
+// }
 
 // UnmarshalJSON unmarshals the JSON input into a UnixTimestamp type
 func (t *UnixTimestamp) UnmarshalJSON(b []byte) error {

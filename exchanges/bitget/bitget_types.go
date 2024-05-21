@@ -724,8 +724,8 @@ type OrderIDResp struct {
 	Data OrderIDStruct `json:"data"`
 }
 
-// PlanOrderResp contains information on plan orders
-type PlanOrderResp struct {
+// PlanSpotOrderResp contains information on plan orders
+type PlanSpotOrderResp struct {
 	Data struct {
 		NextFlag   bool     `json:"nextFlag"`
 		IDLessThan EmptyInt `json:"idLessThan"`
@@ -1284,8 +1284,8 @@ type FuturesFillsResp struct {
 	} `json:"data"`
 }
 
-// FuturesPendResp contains information on pending futures orders
-type FuturesPendResp struct {
+// FuturesOrdResp contains information on futures orders
+type FuturesOrdResp struct {
 	Data struct {
 		EntrustedList []struct {
 			Symbol                 string        `json:"symbol"`
@@ -1294,7 +1294,7 @@ type FuturesPendResp struct {
 			ClientOrderID          string        `json:"clientOid"`
 			BaseVolume             float64       `json:"baseVolume,string"`
 			Fee                    types.Number  `json:"fee"`
-			Price                  float64       `json:"price,string"`
+			Price                  types.Number  `json:"price"`
 			PriceAverage           types.Number  `json:"priceAvg"`
 			Status                 string        `json:"status"`
 			Side                   string        `json:"side"`
@@ -1316,5 +1316,121 @@ type FuturesPendResp struct {
 			PresetStopLossPrice    types.Number  `json:"presetStopLossPrice"`
 		} `json:"entrustedList"`
 		EndID EmptyInt `json:"endId"`
+	} `json:"data"`
+}
+
+// PlanFuturesOrdResp contains information on planned futures orders
+type PlanFuturesOrdResp struct {
+	Data struct {
+		EntrustedList []struct {
+			PlanType               string        `json:"planType"`
+			Symbol                 string        `json:"symbol"`
+			Size                   float64       `json:"size,string"`
+			OrderID                int64         `json:"orderId,string"`
+			ClientOrderID          string        `json:"clientOid"`
+			Price                  float64       `json:"price,string"`
+			CallbackRatio          types.Number  `json:"callbackRatio"`
+			TriggerPrice           float64       `json:"triggerPrice,string"`
+			TriggerType            string        `json:"triggerType"`
+			PlanStatus             string        `json:"planStatus"`
+			Side                   string        `json:"side"`
+			PositionSide           string        `json:"posSide"`
+			MarginCoin             string        `json:"marginCoin"`
+			MarginMode             string        `json:"marginMode"`
+			EnterPointSource       string        `json:"enterPointSource"`
+			TradeSide              string        `json:"tradeSide"`
+			PositionMode           string        `json:"posMode"`
+			OrderType              string        `json:"orderType"`
+			OrderSource            string        `json:"orderSource"`
+			CreationTime           UnixTimestamp `json:"cTime"`
+			UpdateTime             UnixTimestamp `json:"uTime"`
+			PresetTakeProfitPrice  types.Number  `json:"presetStopSurplusPrice"`
+			TakeprofitTriggerPrice types.Number  `json:"stopSurplusTriggerPrice"`
+			TakeProfitTriggerType  string        `json:"stopSurplusTriggerType"`
+			PresetStopLossPrice    types.Number  `json:"presetStopLossPrice"`
+			StopLossTriggerPrice   types.Number  `json:"stopLossTriggerPrice"`
+			StopLossTriggerType    string        `json:"stopLossTriggerType"`
+		} `json:"entrustedList"`
+		EndID EmptyInt `json:"endId"`
+	} `json:"data"`
+}
+
+// HistTriggerFuturesOrdResp contains information on historical trigger futures orders
+type HistTriggerFuturesOrdResp struct {
+	Data struct {
+		EntrustedList []struct {
+			PlanType               string        `json:"planType"`
+			Symbol                 string        `json:"symbol"`
+			Size                   float64       `json:"size,string"`
+			OrderID                int64         `json:"orderId,string"`
+			ExecuteOrderID         int64         `json:"executeOrderId,string"`
+			ClientOrderID          string        `json:"clientOid"`
+			PlanStatus             string        `json:"planStatus"`
+			Price                  float64       `json:"price,string"`
+			PriceAverage           float64       `json:"priceAvg,string"`
+			BaseVolume             float64       `json:"baseVolume,string"`
+			CallbackRatio          types.Number  `json:"callbackRatio"`
+			TriggerPrice           float64       `json:"triggerPrice,string"`
+			TriggerType            string        `json:"triggerType"`
+			Side                   string        `json:"side"`
+			PositionSide           string        `json:"posSide"`
+			MarginCoin             string        `json:"marginCoin"`
+			MarginMode             string        `json:"marginMode"`
+			EnterPointSource       string        `json:"enterPointSource"`
+			TradeSide              string        `json:"tradeSide"`
+			PositionMode           string        `json:"posMode"`
+			OrderType              string        `json:"orderType"`
+			CreationTime           UnixTimestamp `json:"cTime"`
+			UpdateTime             UnixTimestamp `json:"uTime"`
+			PresetTakeProfitPrice  types.Number  `json:"presetStopSurplusPrice"`
+			TakeprofitTriggerPrice types.Number  `json:"stopSurplusTriggerPrice"`
+			TakeProfitTriggerType  string        `json:"stopSurplusTriggerType"`
+			PresetStopLossPrice    types.Number  `json:"presetStopLossPrice"`
+			StopLossTriggerPrice   types.Number  `json:"stopLossTriggerPrice"`
+			StopLossTriggerType    string        `json:"stopLossTriggerType"`
+		} `json:"entrustedList"`
+		EndID EmptyInt `json:"endId"`
+	} `json:"data"`
+}
+
+// SupCurrencyResp contains information on supported currencies
+type SupCurrencyResp struct {
+	Data []struct {
+		Symbol                    string  `json:"symbol"`
+		BaseCoin                  string  `json:"baseCoin"`
+		QuoteCoin                 string  `json:"quoteCoin"`
+		MaxCrossedLeverage        float64 `json:"maxCrossedLeverage,string"`
+		MaxIsolatedLeverage       float64 `json:"maxIsolatedLeverage,string"`
+		WarningRiskRatio          float64 `json:"warningRiskRatio,string"`
+		LiquidationRiskRatio      float64 `json:"liquidationRiskRatio,string"`
+		MinTradeAmount            float64 `json:"minTradeAmount,string"`
+		MaxTradeAmount            float64 `json:"maxTradeAmount,string"`
+		TakerFeeRate              float64 `json:"takerFeeRate,string"`
+		MakerFeeRate              float64 `json:"makerFeeRate,string"`
+		PricePrecision            uint8   `json:"pricePrecision,string"`
+		QuantityPrecision         uint8   `json:"quantityPrecision,string"`
+		MinTradeUSDT              float64 `json:"minTradeUSDT,string"`
+		IsBorrowable              bool    `json:"isBorrowable"`
+		UserMinBorrow             float64 `json:"userMinBorrow,string"`
+		Status                    string  `json:"status"`
+		IsIsolatedBaseBorrowable  bool    `json:"isIsolatedBaseBorrowable"`
+		IsIsolatedQuoteBorrowable bool    `json:"isIsolatedQuoteBorrowable"`
+		IsCrossBorrowable         bool    `json:"isCrossBorrowable"`
+	} `json:"data"`
+}
+
+// BorrowHistResp contains information on borrowing history
+type BorrowHistResp struct {
+	Data struct {
+		ResultList []struct {
+			LoanID       int64         `json:"loanId,string"`
+			Coin         string        `json:"coin"`
+			BorrowAmount float64       `json:"borrowAmount,string"`
+			BorrowType   string        `json:"borrowType"`
+			CreationTime UnixTimestamp `json:"cTime"`
+			UpdateTime   UnixTimestamp `json:"uTime"`
+		} `json:"resultList"`
+		MaxID EmptyInt `json:"maxId"`
+		MinID EmptyInt `json:"minId"`
 	} `json:"data"`
 }

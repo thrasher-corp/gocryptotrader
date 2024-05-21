@@ -78,7 +78,8 @@ var (
 	errUserAgentInvalid        = errors.New("cannot set invalid user agent")
 	errHTTPClientInvalid       = errors.New("custom http client cannot be nil")
 
-	zeroValueUnix = time.Unix(0, 0)
+	// ZeroValueUnix is a zero value time.Time
+	ZeroValueUnix = time.Unix(0, 0)
 	// ErrTypeAssertFailure defines an error when type assertion fails
 	ErrTypeAssertFailure = errors.New("type assert failure")
 )
@@ -581,10 +582,10 @@ func ExcludeError(err, excl error) error {
 // StartEndTimeCheck provides some basic checks which occur
 // frequently in the codebase
 func StartEndTimeCheck(start, end time.Time) error {
-	if start.IsZero() || start.Equal(zeroValueUnix) {
+	if start.IsZero() || start.Equal(ZeroValueUnix) {
 		return fmt.Errorf("start %w", ErrDateUnset)
 	}
-	if end.IsZero() || end.Equal(zeroValueUnix) {
+	if end.IsZero() || end.Equal(ZeroValueUnix) {
 		return fmt.Errorf("end %w", ErrDateUnset)
 	}
 	if start.After(end) {
