@@ -32,6 +32,11 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
+// Private Errors
+var (
+	errInvalidPairSymbol = errors.New("invalid currency pair symbol")
+)
+
 // SetDefaults sets the basic defaults for BTSE
 func (b *BTSE) SetDefaults() {
 	b.Name = "BTSE"
@@ -204,31 +209,16 @@ func (b *BTSE) FetchTradablePairs(ctx context.Context, a asset.Item) (currency.P
 	if err != nil {
 		return nil, err
 	}
+	var errs error
 	pairs := make(currency.Pairs, 0, len(m))
-	for _, l := range m {
-		baseCurr := l.Base
-		var quoteCurr string
-		if a == asset.Futures {
-			s := strings.Split(l.Symbol, l.Base) // e.g. RUNEPFC for RUNE-USD futures pair
-			if len(s) <= 1 {
-				continue
-			}
-			quoteCurr = s[1]
+	for _, marketInfo := range m {
+		if pair, err := marketInfo.Pair(); err != nil {
+			errs = common.AppendError(errs, fmt.Errorf("%s: %w", marketInfo.Symbol, err))
 		} else {
-			s := strings.Split(l.Symbol, currency.DashDelimiter)
-			if len(s) != 2 {
-				continue
-			}
-			baseCurr = s[0]
-			quoteCurr = s[1]
+			pairs = append(pairs, pair)
 		}
-		pair, err := currency.NewPairFromStrings(baseCurr, quoteCurr)
-		if err != nil {
-			return nil, err
-		}
-		pairs = append(pairs, pair)
 	}
-	return pairs, nil
+	return pairs, errs
 }
 
 // UpdateTradablePairs updates the exchanges available pairs and stores
@@ -1083,6 +1073,27 @@ func (m *MarketPair) StripExponent() (string, error) {
 	return "", errInvalidPairSymbol
 }
 
+// Pair returns the currency Pair for a MarketPair
+func (m *MarketPair) Pair() (currency.Pair, error) {
+	baseCurr := m.Base
+	var quoteCurr string
+	if m.Futures {
+		s := strings.Split(m.Symbol, m.Base) // e.g. RUNEPFC for RUNE-USD futures pair
+		if len(s) <= 1 {
+			return currency.EMPTYPAIR, errInvalidPairSymbol
+		}
+		quoteCurr = s[1]
+	} else {
+		s := strings.Split(m.Symbol, currency.DashDelimiter)
+		if len(s) != 2 {
+			return currency.EMPTYPAIR, errInvalidPairSymbol
+		}
+		baseCurr = s[0]
+		quoteCurr = s[1]
+	}
+	return currency.NewPairFromStrings(baseCurr, quoteCurr)
+}
+
 // GetMarketSummary returns filtered market pair details; Specifically:
 //   - Pairs which aren't active are removed
 //   - Pairs which don't have liquidity are removed
@@ -1265,7 +1276,7 @@ func (b *BTSE) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) err
 	var errs error
 	limits := make([]order.MinMaxLevel, 0, len(summary))
 	for _, marketInfo := range summary {
-		p, err := b.MatchSymbolWithAvailablePairs(marketInfo.Symbol, a, false)
+		p, err := marketInfo.Pair() //nolint:govet // Deliberately shadow err
 		if err != nil {
 			errs = common.AppendError(err, fmt.Errorf("%s: %w", p, err))
 			continue
