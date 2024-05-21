@@ -871,7 +871,8 @@ func (ok *Okx) wsProcessIndexCandles(respRaw []byte) error {
 	if len(response.Data) == 0 {
 		return errNoCandlestickDataFound
 	}
-	pair, err := ok.GetPairFromInstrumentID(response.Argument.InstrumentID)
+
+	pair, err := currency.NewPairFromString(response.Argument.InstrumentID)
 	if err != nil {
 		return err
 	}
@@ -1012,18 +1013,18 @@ func (ok *Okx) wsProcessOrderbook5(data []byte) error {
 		return err
 	}
 
-	pair, err := ok.GetPairFromInstrumentID(resp.Argument.InstrumentID)
+	pair, err := currency.NewPairFromString(resp.Argument.InstrumentID)
 	if err != nil {
 		return err
 	}
 
-	asks := make([]orderbook.Item, len(resp.Data[0].Asks))
+	asks := make([]orderbook.Tranche, len(resp.Data[0].Asks))
 	for x := range resp.Data[0].Asks {
 		asks[x].Price = resp.Data[0].Asks[x][0].Float64()
 		asks[x].Amount = resp.Data[0].Asks[x][1].Float64()
 	}
 
-	bids := make([]orderbook.Item, len(resp.Data[0].Bids))
+	bids := make([]orderbook.Tranche, len(resp.Data[0].Bids))
 	for x := range resp.Data[0].Bids {
 		bids[x].Price = resp.Data[0].Bids[x][0].Float64()
 		bids[x].Amount = resp.Data[0].Bids[x][1].Float64()
@@ -1089,13 +1090,11 @@ func (ok *Okx) wsProcessOrderBooks(data []byte) error {
 		response.Action != wsOrderbookSnapshot {
 		return errors.New("invalid order book action")
 	}
-	var pair currency.Pair
-	var assets []asset.Item
-	assets, err = ok.GetAssetsFromInstrumentTypeOrID(response.Argument.InstrumentType, response.Argument.InstrumentID)
+	assets, err := ok.GetAssetsFromInstrumentTypeOrID(response.Argument.InstrumentType, response.Argument.InstrumentID)
 	if err != nil {
 		return err
 	}
-	pair, err = ok.GetPairFromInstrumentID(response.Argument.InstrumentID)
+	pair, err := currency.NewPairFromString(response.Argument.InstrumentID)
 	if err != nil {
 		return err
 	}
@@ -1209,10 +1208,10 @@ func (ok *Okx) WsProcessUpdateOrderbook(data *WsOrderBookData, pair currency.Pai
 }
 
 // AppendWsOrderbookItems adds websocket orderbook data bid/asks into an orderbook item array
-func (ok *Okx) AppendWsOrderbookItems(entries [][4]types.Number) ([]orderbook.Item, error) {
-	items := make([]orderbook.Item, len(entries))
+func (ok *Okx) AppendWsOrderbookItems(entries [][4]types.Number) (orderbook.Tranches, error) {
+	items := make(orderbook.Tranches, len(entries))
 	for j := range entries {
-		items[j] = orderbook.Item{Amount: entries[j][1].Float64(), Price: entries[j][0].Float64()}
+		items[j] = orderbook.Tranche{Amount: entries[j][1].Float64(), Price: entries[j][0].Float64()}
 	}
 	return items, nil
 }
@@ -1306,8 +1305,7 @@ func (ok *Okx) wsProcessTrades(data []byte) error {
 	}
 	trades := make([]trade.Data, 0, len(response.Data)*len(assets))
 	for i := range response.Data {
-		var pair currency.Pair
-		pair, err = ok.GetPairFromInstrumentID(response.Data[i].InstrumentID)
+		pair, err := currency.NewPairFromString(response.Data[i].InstrumentID)
 		if err != nil {
 			return err
 		}
@@ -1330,7 +1328,6 @@ func (ok *Okx) wsProcessTrades(data []byte) error {
 // wsProcessOrders handles websocket order push data responses.
 func (ok *Okx) wsProcessOrders(respRaw []byte) error {
 	var response WsOrderResponse
-	var pair currency.Pair
 	err := json.Unmarshal(respRaw, &response)
 	if err != nil {
 		return err
@@ -1353,7 +1350,7 @@ func (ok *Okx) wsProcessOrders(respRaw []byte) error {
 				Err:      err,
 			}
 		}
-		pair, err = ok.GetPairFromInstrumentID(response.Data[x].InstrumentID)
+		pair, err := currency.NewPairFromString(response.Data[x].InstrumentID)
 		if err != nil {
 			return err
 		}
@@ -1433,7 +1430,7 @@ func (ok *Okx) wsProcessCandles(respRaw []byte) error {
 	if len(response.Data) == 0 {
 		return errNoCandlestickDataFound
 	}
-	pair, err := ok.GetPairFromInstrumentID(response.Argument.InstrumentID)
+	pair, err := currency.NewPairFromString(response.Argument.InstrumentID)
 	if err != nil {
 		return err
 	}
@@ -1475,8 +1472,7 @@ func (ok *Okx) wsProcessTickers(data []byte) error {
 		if err != nil {
 			return err
 		}
-		var c currency.Pair
-		c, err = ok.GetPairFromInstrumentID(response.Data[i].InstrumentID)
+		c, err := currency.NewPairFromString(response.Data[i].InstrumentID)
 		if err != nil {
 			return err
 		}

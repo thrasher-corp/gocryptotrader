@@ -65,6 +65,7 @@ type ExchangeInfo struct {
 		IsMarginTradingAllowed     bool          `json:"isMarginTradingAllowed"`
 		Filters                    []*filterData `json:"filters"`
 		Permissions                []string      `json:"permissions"`
+		PermissionSets             [][]string    `json:"permissionSets"`
 	} `json:"symbols"`
 }
 

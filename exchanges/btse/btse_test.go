@@ -4,11 +4,11 @@ import (
 	"context"
 	"log"
 	"os"
-	"sync"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/config"
@@ -23,6 +23,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
+	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 )
 
 // Please supply your own keys here to do better tests
@@ -60,7 +61,7 @@ func TestMain(m *testing.M) {
 
 func TestUpdateTradablePairs(t *testing.T) {
 	t.Parallel()
-	updatePairsOnce(t)
+	testexch.UpdatePairsOnce(t, b)
 	expected := map[asset.Item][]string{
 		asset.Spot:    {"BTCUSD", "BTCUSDT", "ETHBTC"},
 		asset.Futures: {"BTCPFC", "ETHPFC"},
@@ -600,6 +601,7 @@ func seedOrderSizeLimitMap() {
 
 func TestWithinLimits(t *testing.T) {
 	t.Parallel()
+	testexch.UpdatePairsOnce(t, b)
 	seedOrderSizeLimitMap()
 	p, _ := currency.NewPairDelimiter("XRP-USD", "-")
 	assert.NoError(t, b.withinLimits(p, 1.0), "withinLimits should not error")
@@ -714,18 +716,9 @@ func TestIsPerpetualFutureCurrency(t *testing.T) {
 	assert.False(t, isPerp, "IsPerpetualFutureCurrency should return false for a spot pair")
 }
 
-var updatePairsGuard sync.Once
-
-func updatePairsOnce(tb testing.TB) {
-	tb.Helper()
-	updatePairsGuard.Do(func() {
-		err := b.UpdateTradablePairs(context.Background(), true)
-		assert.NoError(tb, err, "UpdateTradablePairs should not error")
-	})
-}
-
 func TestGetOpenInterest(t *testing.T) {
 	t.Parallel()
+	testexch.UpdatePairsOnce(t, b)
 	cp1 := currency.NewPair(currency.BTC, currency.PFC)
 	cp2 := currency.NewPair(currency.ETH, currency.PFC)
 	sharedtestvalues.SetupCurrencyPairsForExchangeAsset(t, b, asset.Futures, futuresPair, cp1, cp2)
@@ -762,4 +755,17 @@ func TestGetOpenInterest(t *testing.T) {
 		Asset: asset.Spot,
 	})
 	assert.ErrorIs(t, err, asset.ErrNotSupported)
+}
+
+func TestGetCurrencyTradeURL(t *testing.T) {
+	t.Parallel()
+	testexch.UpdatePairsOnce(t, b)
+	for _, a := range b.GetAssetTypes(false) {
+		pairs, err := b.CurrencyPairs.GetPairs(a, false)
+		require.NoError(t, err, "cannot get pairs for %s", a)
+		require.NotEmpty(t, pairs, "no pairs for %s", a)
+		resp, err := b.GetCurrencyTradeURL(context.Background(), a, pairs[0])
+		require.NoError(t, err)
+		assert.NotEmpty(t, resp)
+	}
 }

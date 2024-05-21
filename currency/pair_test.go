@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 const (
@@ -410,48 +411,6 @@ func TestNewPairDelimiter(t *testing.T) {
 	}
 }
 
-// TestNewPairFromIndex returns a CurrencyPair via a currency string and
-// specific index
-func TestNewPairFromIndex(t *testing.T) {
-	t.Parallel()
-	curr := defaultPair
-	index := "BTC"
-
-	pair, err := NewPairFromIndex(curr, index)
-	if err != nil {
-		t.Error("NewPairFromIndex() error", err)
-	}
-
-	pair.Delimiter = "-"
-	actual := pair.String()
-
-	expected := defaultPairWDelimiter
-	if actual != expected {
-		t.Errorf(
-			"Pair(): %s was not equal to expected value: %s",
-			actual, expected,
-		)
-	}
-
-	curr = "DOGEBTC"
-
-	pair, err = NewPairFromIndex(curr, index)
-	if err != nil {
-		t.Error("NewPairFromIndex() error", err)
-	}
-
-	pair.Delimiter = "-"
-	actual = pair.String()
-
-	expected = "DOGE-BTC"
-	if actual != expected {
-		t.Errorf(
-			"Pair(): %s was not equal to expected value: %s",
-			actual, expected,
-		)
-	}
-}
-
 func TestNewPairFromString(t *testing.T) {
 	t.Parallel()
 	pairStr := defaultPairWDelimiter
@@ -561,36 +520,26 @@ func TestContainsCurrency(t *testing.T) {
 }
 
 func TestFormatPairs(t *testing.T) {
-	_, err := FormatPairs([]string{""}, "-", "")
-	if !errors.Is(err, errEmptyPairString) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errEmptyPairString)
-	}
+	_, err := FormatPairs([]string{""}, "-")
+	assert.ErrorIs(t, err, errEmptyPairString, "Should error on empty string")
 
-	newP, err := FormatPairs([]string{defaultPairWDelimiter}, "-", "")
-	if err != nil {
-		t.Error("FormatPairs() error", err)
-	}
+	_, err = FormatPairs([]string{"NO"}, "")
+	assert.ErrorIs(t, err, errNoDelimiter, "Should error on a small string with no delimiter")
 
-	if newP[0].String() != defaultPairWDelimiter {
-		t.Error("TestFormatPairs: Expected pair was not found")
-	}
+	newP, err := FormatPairs([]string{defaultPairWDelimiter}, "-")
+	assert.NoError(t, err)
+	require.NotEmpty(t, newP)
+	assert.Equal(t, defaultPairWDelimiter, newP[0].String(), "Pair should format correctly")
 
-	newP, err = FormatPairs([]string{defaultPair}, "", "BTC")
-	if err != nil {
-		t.Error("FormatPairs() error", err)
-	}
+	newP, err = FormatPairs([]string{defaultPair}, "")
+	assert.NoError(t, err)
+	require.NotEmpty(t, newP)
+	assert.Equal(t, defaultPair, newP[0].String(), "Pair should format correctly")
 
-	if newP[0].String() != defaultPair {
-		t.Error("TestFormatPairs: Expected pair was not found")
-	}
-	newP, err = FormatPairs([]string{"ETHUSD"}, "", "")
-	if err != nil {
-		t.Error("FormatPairs() error", err)
-	}
-
-	if newP[0].String() != "ETHUSD" {
-		t.Error("TestFormatPairs: Expected pair was not found")
-	}
+	newP, err = FormatPairs([]string{"ETHUSD"}, "")
+	assert.NoError(t, err)
+	require.NotEmpty(t, newP)
+	assert.Equal(t, "ETHUSD", newP[0].String(), "Pair should format correctly")
 }
 
 func TestCopyPairFormat(t *testing.T) {
@@ -847,7 +796,6 @@ func TestPairFormat_Format(t *testing.T) {
 		Uppercase bool
 		Delimiter string
 		Separator string
-		Index     string
 	}
 	tests := []struct {
 		name   string
@@ -892,7 +840,6 @@ func TestPairFormat_Format(t *testing.T) {
 				Uppercase: tt.fields.Uppercase,
 				Delimiter: tt.fields.Delimiter,
 				Separator: tt.fields.Separator,
-				Index:     tt.fields.Index,
 			}
 			if got := f.Format(tt.arg); got != tt.want {
 				t.Errorf("PairFormat.Format() = %v, want %v", got, tt.want)

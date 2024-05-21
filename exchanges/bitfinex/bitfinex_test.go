@@ -7,7 +7,6 @@ import (
 	"log"
 	"os"
 	"strconv"
-	"sync"
 	"testing"
 	"time"
 
@@ -27,6 +26,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
+	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
@@ -152,17 +152,7 @@ func TestGetPairs(t *testing.T) {
 
 func TestUpdateTradablePairs(t *testing.T) {
 	t.Parallel()
-	updatePairsOnce(t)
-}
-
-var updatePairsGuard sync.Once
-
-func updatePairsOnce(tb testing.TB) {
-	tb.Helper()
-	updatePairsGuard.Do(func() {
-		err := b.UpdateTradablePairs(context.Background(), true)
-		assert.NoError(tb, err, "UpdateTradablePairs should not error")
-	})
+	testexch.UpdatePairsOnce(t, b)
 }
 
 func TestUpdateOrderExecutionLimits(t *testing.T) {
@@ -557,7 +547,9 @@ func TestUpdateTicker(t *testing.T) {
 func TestUpdateTickers(t *testing.T) {
 	t.Parallel()
 
-	updatePairsOnce(t)
+	b := new(Bitfinex) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
+	require.NoError(t, testexch.Setup(b), "Test instance Setup must not error")
+	testexch.UpdatePairsOnce(t, b)
 
 	assets := b.GetAssetTypes(false)
 	for _, a := range assets {
@@ -1759,7 +1751,7 @@ func TestGetHistoricTrades(t *testing.T) {
 }
 
 var testOb = orderbook.Base{
-	Asks: []orderbook.Item{
+	Asks: []orderbook.Tranche{
 		{Price: 0.05005, Amount: 0.00000500},
 		{Price: 0.05010, Amount: 0.00000500},
 		{Price: 0.05015, Amount: 0.00000500},
@@ -1771,7 +1763,7 @@ var testOb = orderbook.Base{
 		{Price: 0.05045, Amount: 0.00000500},
 		{Price: 0.05050, Amount: 0.00000500},
 	},
-	Bids: []orderbook.Item{
+	Bids: []orderbook.Tranche{
 		{Price: 0.05000, Amount: 0.00000500},
 		{Price: 0.04995, Amount: 0.00000500},
 		{Price: 0.04990, Amount: 0.00000500},
@@ -1793,7 +1785,7 @@ func TestChecksum(t *testing.T) {
 }
 
 func TestReOrderbyID(t *testing.T) {
-	asks := []orderbook.Item{
+	asks := []orderbook.Tranche{
 		{ID: 4, Price: 100, Amount: 0.00000500},
 		{ID: 3, Price: 100, Amount: 0.00000500},
 		{ID: 2, Price: 100, Amount: 0.00000500},
@@ -1813,7 +1805,7 @@ func TestReOrderbyID(t *testing.T) {
 		}
 	}
 
-	bids := []orderbook.Item{
+	bids := []orderbook.Tranche{
 		{ID: 4, Price: 100, Amount: 0.00000500},
 		{ID: 3, Price: 100, Amount: 0.00000500},
 		{ID: 2, Price: 100, Amount: 0.00000500},
@@ -2018,4 +2010,17 @@ func setupWs(tb testing.TB) {
 	}
 
 	wsConnected = true
+}
+
+func TestGetCurrencyTradeURL(t *testing.T) {
+	t.Parallel()
+	testexch.UpdatePairsOnce(t, b)
+	for _, a := range b.GetAssetTypes(false) {
+		pairs, err := b.CurrencyPairs.GetPairs(a, false)
+		require.NoError(t, err, "cannot get pairs for %s", a)
+		require.NotEmpty(t, pairs, "no pairs for %s", a)
+		resp, err := b.GetCurrencyTradeURL(context.Background(), a, pairs[0])
+		require.NoError(t, err)
+		assert.NotEmpty(t, resp)
+	}
 }

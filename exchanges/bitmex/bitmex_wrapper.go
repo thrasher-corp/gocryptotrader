@@ -34,29 +34,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
-// GetDefaultConfig returns a default exchange config
-func (b *Bitmex) GetDefaultConfig(ctx context.Context) (*config.Exchange, error) {
-	b.SetDefaults()
-	exchCfg, err := b.GetStandardConfig()
-	if err != nil {
-		return nil, err
-	}
-
-	err = b.SetupDefaults(exchCfg)
-	if err != nil {
-		return nil, err
-	}
-
-	if b.Features.Supports.RESTCapabilities.AutoPairUpdates {
-		err = b.UpdateTradablePairs(ctx, true)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	return exchCfg, nil
-}
-
 // SetDefaults sets the basic defaults for Bitmex
 func (b *Bitmex) SetDefaults() {
 	b.Name = "Bitmex"
@@ -481,17 +458,17 @@ func (b *Bitmex) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType
 		return book, err
 	}
 
-	book.Asks = make(orderbook.Items, 0, len(orderbookNew))
-	book.Bids = make(orderbook.Items, 0, len(orderbookNew))
+	book.Asks = make(orderbook.Tranches, 0, len(orderbookNew))
+	book.Bids = make(orderbook.Tranches, 0, len(orderbookNew))
 	for i := range orderbookNew {
 		switch {
 		case strings.EqualFold(orderbookNew[i].Side, order.Sell.String()):
-			book.Asks = append(book.Asks, orderbook.Item{
+			book.Asks = append(book.Asks, orderbook.Tranche{
 				Amount: float64(orderbookNew[i].Size),
 				Price:  orderbookNew[i].Price,
 			})
 		case strings.EqualFold(orderbookNew[i].Side, order.Buy.String()):
-			book.Bids = append(book.Bids, orderbook.Item{
+			book.Bids = append(book.Bids, orderbook.Tranche{
 				Amount: float64(orderbookNew[i].Size),
 				Price:  orderbookNew[i].Price,
 			})
@@ -1383,4 +1360,14 @@ func (b *Bitmex) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]fut
 		OpenInterest: instrument[0].OpenInterest,
 	}
 	return resp, nil
+}
+
+// GetCurrencyTradeURL returns the URL to the exchange's trade page for the given asset and currency pair
+func (b *Bitmex) GetCurrencyTradeURL(_ context.Context, a asset.Item, cp currency.Pair) (string, error) {
+	_, err := b.CurrencyPairs.IsPairEnabled(cp, a)
+	if err != nil {
+		return "", err
+	}
+	cp.Delimiter = currency.DashDelimiter
+	return tradeBaseURL + cp.Upper().String(), nil
 }

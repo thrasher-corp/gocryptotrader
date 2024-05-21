@@ -29,29 +29,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
-// GetDefaultConfig returns a default exchange config
-func (c *CoinbasePro) GetDefaultConfig(ctx context.Context) (*config.Exchange, error) {
-	c.SetDefaults()
-	exchCfg, err := c.GetStandardConfig()
-	if err != nil {
-		return nil, err
-	}
-
-	err = c.SetupDefaults(exchCfg)
-	if err != nil {
-		return nil, err
-	}
-
-	if c.Features.Supports.RESTCapabilities.AutoPairUpdates {
-		err = c.UpdateTradablePairs(ctx, true)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	return exchCfg, nil
-}
-
 // SetDefaults sets default values for the exchange
 func (c *CoinbasePro) SetDefaults() {
 	c.Name = "CoinbasePro"
@@ -373,17 +350,17 @@ func (c *CoinbasePro) UpdateOrderbook(ctx context.Context, p currency.Pair, asse
 		return book, common.GetTypeAssertError("OrderbookL1L2", orderbookNew)
 	}
 
-	book.Bids = make(orderbook.Items, len(obNew.Bids))
+	book.Bids = make(orderbook.Tranches, len(obNew.Bids))
 	for x := range obNew.Bids {
-		book.Bids[x] = orderbook.Item{
+		book.Bids[x] = orderbook.Tranche{
 			Amount: obNew.Bids[x].Amount,
 			Price:  obNew.Bids[x].Price,
 		}
 	}
 
-	book.Asks = make(orderbook.Items, len(obNew.Asks))
+	book.Asks = make(orderbook.Tranches, len(obNew.Asks))
 	for x := range obNew.Asks {
-		book.Asks[x] = orderbook.Item{
+		book.Asks[x] = orderbook.Tranche{
 			Amount: obNew.Asks[x].Amount,
 			Price:  obNew.Asks[x].Price,
 		}
@@ -906,4 +883,14 @@ func (c *CoinbasePro) GetFuturesContractDetails(context.Context, asset.Item) ([]
 // UpdateOrderExecutionLimits updates order execution limits
 func (c *CoinbasePro) UpdateOrderExecutionLimits(_ context.Context, _ asset.Item) error {
 	return common.ErrNotYetImplemented
+}
+
+// GetCurrencyTradeURL returns the URL to the exchange's trade page for the given asset and currency pair
+func (c *CoinbasePro) GetCurrencyTradeURL(_ context.Context, a asset.Item, cp currency.Pair) (string, error) {
+	_, err := c.CurrencyPairs.IsPairEnabled(cp, a)
+	if err != nil {
+		return "", err
+	}
+	cp.Delimiter = currency.DashDelimiter
+	return tradeBaseURL + cp.Upper().String(), nil
 }

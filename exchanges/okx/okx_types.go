@@ -162,7 +162,7 @@ func GetItems(data [][4]types.Number) ([]OrderbookItemDetail, error) {
 	for x := range data {
 		items[x] = OrderbookItemDetail{
 			DepthPrice:        data[x][0].Float64(),
-			Amount:            data[x][1].Float64(),
+			Amount:            data[x][1].Float64(), // The quantity at the price (number of contracts for derivatives, quantity in base currency for Spot and Spot Margin)
 			LiquidationOrders: data[x][2].Int64(),
 			NumberOfOrders:    data[x][3].Int64(),
 		}
@@ -2477,16 +2477,16 @@ type BlockTicker struct {
 
 // BlockTrade represents a block trade.
 type BlockTrade struct {
-	FillVolume   types.Number         `json:"fillVol"`
-	ForwardPrice types.Number         `json:"fwdPx"`
-	InedexPrice  types.Number         `json:"idxPx"`
-	MarkPrice    types.Number         `json:"markPx"`
-	Side         string               `json:"side"`
-	InstrumentID string               `json:"instId"`
-	TradeID      string               `json:"tradeId"`
-	Price        types.Number         `json:"px"`
-	Size         types.Number         `json:"sz"`
-	Timestamp    convert.ExchangeTime `json:"ts"`
+	InstrumentID   string               `json:"instId"`
+	TradeID        string               `json:"tradeId"`
+	Price          types.Number         `json:"px"`
+	Size           types.Number         `json:"sz"`
+	Side           order.Side           `json:"side"`
+	FillVolatility types.Number         `json:"fillVol"`
+	ForwardPrice   types.Number         `json:"fwdPx"`
+	IndexPrice     types.Number         `json:"idxPx"`
+	MarkPrice      types.Number         `json:"markPx"`
+	Timestamp      convert.ExchangeTime `json:"ts"`
 }
 
 // SpreadOrderParam holds parameters for spread orders.
@@ -4017,8 +4017,8 @@ func (a *WsSpreadOrderbook) ExtractSpreadOrder() (*WsSpreadOrderbookData, error)
 	}
 	for x := range a.Data {
 		resp.Data[x].Timestamp = a.Data[x].Timestamp.Time()
-		resp.Data[x].Asks = make([]orderbook.Item, len(a.Data[x].Asks))
-		resp.Data[x].Bids = make([]orderbook.Item, len(a.Data[x].Bids))
+		resp.Data[x].Asks = make([]orderbook.Tranche, len(a.Data[x].Asks))
+		resp.Data[x].Bids = make([]orderbook.Tranche, len(a.Data[x].Bids))
 
 		for as := range a.Data[x].Asks {
 			resp.Data[x].Asks[as].Price = a.Data[x].Asks[as][0].Float64()
@@ -4036,8 +4036,8 @@ func (a *WsSpreadOrderbook) ExtractSpreadOrder() (*WsSpreadOrderbookData, error)
 
 // WsSpreadOrderbookItem represents an orderbook asks and bids details.
 type WsSpreadOrderbookItem struct {
-	Asks      []orderbook.Item
-	Bids      []orderbook.Item
+	Asks      []orderbook.Tranche
+	Bids      []orderbook.Tranche
 	Timestamp time.Time
 }
 

@@ -170,7 +170,7 @@ func (ku *Kucoin) GetFuturesOrderbook(ctx context.Context, symbol string) (*Orde
 	if err != nil {
 		return nil, err
 	}
-	return constructFuturesOrderbook(&o)
+	return constructFuturesOrderbook(&o), nil
 }
 
 // GetFuturesPartOrderbook20 gets orderbook for a specified symbol with depth 20
@@ -185,7 +185,7 @@ func (ku *Kucoin) GetFuturesPartOrderbook20(ctx context.Context, symbol string) 
 	if err != nil {
 		return nil, err
 	}
-	return constructFuturesOrderbook(&o)
+	return constructFuturesOrderbook(&o), nil
 }
 
 // GetFuturesPartOrderbook100 gets orderbook for a specified symbol with depth 100
@@ -200,7 +200,7 @@ func (ku *Kucoin) GetFuturesPartOrderbook100(ctx context.Context, symbol string)
 	if err != nil {
 		return nil, err
 	}
-	return constructFuturesOrderbook(&o)
+	return constructFuturesOrderbook(&o), nil
 }
 
 // GetFuturesTradeHistory get last 100 trades for symbol
@@ -852,10 +852,10 @@ func (ku *Kucoin) CancelFuturesTransferOut(ctx context.Context, applyID string) 
 	return ku.SendAuthHTTPRequest(ctx, exchange.RestFutures, defaultFuturesEPL, http.MethodDelete, common.EncodeURLValues(kucoinFuturesCancelTransferOut, params), nil, &resp)
 }
 
-func processFuturesOB(ob [][2]float64) []orderbook.Item {
-	o := make([]orderbook.Item, len(ob))
+func processFuturesOB(ob [][2]float64) []orderbook.Tranche {
+	o := make([]orderbook.Tranche, len(ob))
 	for x := range ob {
-		o[x] = orderbook.Item{
+		o[x] = orderbook.Tranche{
 			Price:  ob[x][0],
 			Amount: ob[x][1],
 		}
@@ -863,20 +863,11 @@ func processFuturesOB(ob [][2]float64) []orderbook.Item {
 	return o
 }
 
-func constructFuturesOrderbook(o *futuresOrderbookResponse) (*Orderbook, error) {
-	var (
-		s   Orderbook
-		err error
-	)
-	s.Bids = processFuturesOB(o.Bids)
-	if err != nil {
-		return nil, err
+func constructFuturesOrderbook(o *futuresOrderbookResponse) *Orderbook {
+	return &Orderbook{
+		Bids:     processFuturesOB(o.Bids),
+		Asks:     processFuturesOB(o.Asks),
+		Sequence: o.Sequence,
+		Time:     o.Time.Time(),
 	}
-	s.Asks = processFuturesOB(o.Asks)
-	if err != nil {
-		return nil, err
-	}
-	s.Sequence = o.Sequence
-	s.Time = o.Time.Time()
-	return &s, err
 }

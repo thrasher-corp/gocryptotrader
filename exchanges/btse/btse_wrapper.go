@@ -33,29 +33,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
-// GetDefaultConfig returns a default exchange config
-func (b *BTSE) GetDefaultConfig(ctx context.Context) (*config.Exchange, error) {
-	b.SetDefaults()
-	exchCfg, err := b.GetStandardConfig()
-	if err != nil {
-		return nil, err
-	}
-
-	err = b.SetupDefaults(exchCfg)
-	if err != nil {
-		return nil, err
-	}
-
-	if b.Features.Supports.RESTCapabilities.AutoPairUpdates {
-		err = b.UpdateTradablePairs(ctx, true)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	return exchCfg, nil
-}
-
 // SetDefaults sets the basic defaults for BTSE
 func (b *BTSE) SetDefaults() {
 	b.Name = "BTSE"
@@ -392,22 +369,22 @@ func (b *BTSE) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType a
 		return book, err
 	}
 
-	book.Bids = make(orderbook.Items, 0, len(a.BuyQuote))
+	book.Bids = make(orderbook.Tranches, 0, len(a.BuyQuote))
 	for x := range a.BuyQuote {
 		if b.orderbookFilter(a.BuyQuote[x].Price, a.BuyQuote[x].Size) {
 			continue
 		}
-		book.Bids = append(book.Bids, orderbook.Item{
+		book.Bids = append(book.Bids, orderbook.Tranche{
 			Price:  a.BuyQuote[x].Price,
 			Amount: a.BuyQuote[x].Size,
 		})
 	}
-	book.Asks = make(orderbook.Items, 0, len(a.SellQuote))
+	book.Asks = make(orderbook.Tranches, 0, len(a.SellQuote))
 	for x := range a.SellQuote {
 		if b.orderbookFilter(a.SellQuote[x].Price, a.SellQuote[x].Size) {
 			continue
 		}
-		book.Asks = append(book.Asks, orderbook.Item{
+		book.Asks = append(book.Asks, orderbook.Tranche{
 			Price:  a.SellQuote[x].Price,
 			Amount: a.SellQuote[x].Size,
 		})
@@ -1336,4 +1313,21 @@ func (b *BTSE) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]futur
 		})
 	}
 	return resp, nil
+}
+
+// GetCurrencyTradeURL returns the URL to the exchange's trade page for the given asset and currency pair
+func (b *BTSE) GetCurrencyTradeURL(_ context.Context, a asset.Item, cp currency.Pair) (string, error) {
+	_, err := b.CurrencyPairs.IsPairEnabled(cp, a)
+	if err != nil {
+		return "", err
+	}
+	cp.Delimiter = currency.DashDelimiter
+	switch a {
+	case asset.Spot:
+		return tradeBaseURL + tradeSpot + cp.Upper().String(), nil
+	case asset.Futures:
+		return tradeBaseURL + tradeFutures + cp.Upper().String(), nil
+	default:
+		return "", fmt.Errorf("%w %v", asset.ErrNotSupported, a)
+	}
 }

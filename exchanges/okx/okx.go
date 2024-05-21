@@ -41,8 +41,14 @@ type Okx struct {
 }
 
 const (
-	okxAPIURL     = "https://www.okx.com/" + okxAPIPath
+	baseURL       = "https://www.okx.com/"
+	okxAPIURL     = baseURL + okxAPIPath
 	okxAPIVersion = "/v5/"
+	tradeSpot     = "trade-spot/"
+	tradeMargin   = "trade-margin/"
+	tradeFutures  = "trade-futures/"
+	tradePerps    = "trade-swap/"
+	tradeOptions  = "trade-option/"
 
 	okxAPIPath      = "api" + okxAPIVersion
 	okxWebsocketURL = "wss://ws.okx.com:8443/ws" + okxAPIVersion
@@ -1182,8 +1188,8 @@ func (ok *Okx) GetRfqTrades(ctx context.Context, arg *RfqTradesRequestParams) ([
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getTradesEPL, http.MethodGet, common.EncodeURLValues("rfq/trades", params), nil, &resp, true)
 }
 
-// GetPublicTrades retrieves the recent executed block trades.
-func (ok *Okx) GetPublicTrades(ctx context.Context, beginID, endID string, limit int64) ([]PublicTradesResponse, error) {
+// GetPublicRFQTrades retrieves the recent executed block trades.
+func (ok *Okx) GetPublicRFQTrades(ctx context.Context, beginID, endID string, limit int64) ([]PublicTradesResponse, error) {
 	params := url.Values{}
 	if beginID != "" {
 		params.Set("beginId", beginID)
@@ -5416,11 +5422,15 @@ func (ok *Okx) GetAssetsFromInstrumentTypeOrID(instType, instrumentID string) ([
 	if instrumentID == "" {
 		return nil, fmt.Errorf("%w instrumentID", errEmptyArgument)
 	}
-	splitSymbol := strings.Split(instrumentID, currency.DashDelimiter)
+	pf, err := ok.CurrencyPairs.GetFormat(asset.Spot, true)
+	if err != nil {
+		return nil, err
+	}
+	splitSymbol := strings.Split(instrumentID, pf.Delimiter)
 	if len(splitSymbol) <= 1 {
 		return nil, fmt.Errorf("%w %v", currency.ErrCurrencyNotSupported, instrumentID)
 	}
-	pair, err := currency.NewPairDelimiter(instrumentID, currency.DashDelimiter)
+	pair, err := currency.NewPairDelimiter(instrumentID, pf.Delimiter)
 	if err != nil {
 		return nil, err
 	}
