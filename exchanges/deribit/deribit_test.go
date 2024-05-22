@@ -2136,7 +2136,6 @@ func TestGetOrderStateByLabel(t *testing.T) {
 
 func TestWsRetrieveOrderStateByLabel(t *testing.T) {
 	t.Parallel()
-	d.Verbose = true
 	_, err := d.WsRetrieveOrderStateByLabel(currency.EMPTYCODE, "the-label")
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, d)
@@ -2478,7 +2477,7 @@ func TestCreateCombo(t *testing.T) {
 func TestWSCreateCombo(t *testing.T) {
 	t.Parallel()
 	_, err := d.WSCreateCombo([]ComboParam{})
-	assert.Falsef(t, err != nil && !errors.Is(errNoArgumentPassed, err), "expecting %v, but found %v", errNoArgumentPassed, err)
+	require.Falsef(t, err != nil && !errors.Is(errNoArgumentPassed, err), "expecting %v, but found %v", errNoArgumentPassed, err)
 	instruments, err := d.GetEnabledPairs(asset.Futures)
 	require.NoError(t, err)
 	if len(instruments) < 2 {
@@ -3140,8 +3139,8 @@ func TestGuessAssetTypeFromInstrument(t *testing.T) {
 	for id, cp := range availablePairs {
 		t.Run(strconv.Itoa(id), func(t *testing.T) {
 			assetType, err = guessAssetTypeFromInstrument(cp)
-			assert.Equalf(t, asset.Futures, assetType, "expected %v, but found %v", asset.Futures, assetType)
-			assert.NoError(t, err)
+			require.Equalf(t, asset.Futures, assetType, "expected %v, but found %v", asset.Futures, assetType)
+			require.NoError(t, err)
 		})
 	}
 	availablePairs, err = d.GetEnabledPairs(asset.Options)
@@ -3149,8 +3148,8 @@ func TestGuessAssetTypeFromInstrument(t *testing.T) {
 	for id, cp := range availablePairs {
 		t.Run(strconv.Itoa(id), func(t *testing.T) {
 			assetType, err = guessAssetTypeFromInstrument(cp)
-			assert.Equalf(t, asset.Options, assetType, "expected %v, but found %v", asset.Options, assetType)
-			assert.NoError(t, err)
+			require.Equalf(t, asset.Options, assetType, "expected %v, but found %v", asset.Options, assetType)
+			require.NoError(t, err)
 		})
 	}
 	availablePairs, err = d.GetEnabledPairs(asset.OptionCombo)
@@ -3158,8 +3157,8 @@ func TestGuessAssetTypeFromInstrument(t *testing.T) {
 	for id, cp := range availablePairs {
 		t.Run(strconv.Itoa(id), func(t *testing.T) {
 			assetType, err = guessAssetTypeFromInstrument(cp)
-			assert.Equalf(t, asset.OptionCombo, assetType, "expected %v, but found %v", asset.OptionCombo, assetType)
-			assert.NoError(t, err)
+			require.Equalf(t, asset.OptionCombo, assetType, "expected %v, but found %v", asset.OptionCombo, assetType)
+			require.NoError(t, err)
 		})
 	}
 	availablePairs, err = d.GetEnabledPairs(asset.FutureCombo)
@@ -3167,8 +3166,8 @@ func TestGuessAssetTypeFromInstrument(t *testing.T) {
 	for id, cp := range availablePairs {
 		t.Run(strconv.Itoa(id), func(t *testing.T) {
 			assetType, err = guessAssetTypeFromInstrument(cp)
-			assert.Equalf(t, asset.FutureCombo, assetType, "expected %v, but found %v", asset.FutureCombo, assetType)
-			assert.NoError(t, err)
+			require.Equalf(t, asset.FutureCombo, assetType, "expected %v, but found %v", asset.FutureCombo, assetType)
+			require.NoError(t, err)
 		})
 	}
 	cp, err := currency.NewPairFromString("some_thing_else")
