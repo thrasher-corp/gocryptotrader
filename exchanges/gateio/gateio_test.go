@@ -2952,9 +2952,9 @@ func TestFuturesCandlestickPushData(t *testing.T) {
 	}
 }
 
-func TestGenerateDefaultSubscriptions(t *testing.T) {
+func TestgenerateSubscriptions(t *testing.T) {
 	t.Parallel()
-	if _, err := g.GenerateDefaultSubscriptions(); err != nil {
+	if _, err := g.generateSubscriptions(); err != nil {
 		t.Error(err)
 	}
 }
