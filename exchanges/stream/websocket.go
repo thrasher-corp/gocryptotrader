@@ -526,7 +526,7 @@ func (w *Websocket) trafficMonitor() {
 			t.Stop()
 			w.Wg.Done()
 			return
-		// this case ensures the timer is reset as close to when the traffic is received
+		// This case ensures the timer is reset as close to when the traffic is received as possible
 		case <-time.After(trafficCheckInterval):
 			select {
 			case <-w.TrafficAlert:
