@@ -859,9 +859,6 @@ func (d *Deribit) GenerateDefaultSubscriptions() ([]subscription.Subscription, e
 			assetPairs[a] = assetPairs[a][:5]
 		}
 	}
-	if err != nil {
-		return nil, err
-	}
 	for x := range subscriptionChannels {
 		switch subscriptionChannels[x] {
 		case chartTradesChannel:
@@ -1078,7 +1075,7 @@ func (d *Deribit) GenerateDefaultSubscriptions() ([]subscription.Subscription, e
 func (d *Deribit) generatePayloadFromSubscriptionInfos(operation string, subscs []subscription.Subscription) ([]WsSubscriptionInput, error) {
 	subscriptionPayloads := make([]WsSubscriptionInput, len(subscs))
 	for x := range subscs {
-		subscription := WsSubscriptionInput{
+		sub := WsSubscriptionInput{
 			JSONRPCVersion: rpcVersion,
 			ID:             d.Websocket.Conn.GenerateMessageID(false),
 			Method:         "public/" + operation,
@@ -1090,7 +1087,7 @@ func (d *Deribit) generatePayloadFromSubscriptionInfos(operation string, subscs 
 			if !d.Websocket.CanUseAuthenticatedEndpoints() {
 				continue
 			}
-			subscription.Method = "private/" + operation
+			sub.Method = "private/" + operation
 		}
 		var instrumentID string
 		if !subscs[x].Pair.IsEmpty() {
@@ -1111,7 +1108,7 @@ func (d *Deribit) generatePayloadFromSubscriptionInfos(operation string, subscs 
 			platformStateChannel,
 			platformStatePublicMethodsStateChannel,
 			userLockChannel:
-			subscription.Params["channels"] = []string{subscs[x].Channel}
+			sub.Params["channels"] = []string{subscs[x].Channel}
 		case orderbookChannel:
 			if subscs[x].Pair.IsEmpty() {
 				return nil, currency.ErrCurrencyPairEmpty
@@ -1122,15 +1119,15 @@ func (d *Deribit) generatePayloadFromSubscriptionInfos(operation string, subscs 
 			}
 			group, okay := subscs[x].Params["group"].(string)
 			if !okay {
-				subscription.Params["channels"] = []string{orderbookChannel + "." + instrumentID + "." + intervalString}
+				sub.Params["channels"] = []string{orderbookChannel + "." + instrumentID + "." + intervalString}
 				break
 			}
 			depth, okay := subscs[x].Params["depth"].(string)
 			if !okay {
-				subscription.Params["channels"] = []string{orderbookChannel + "." + instrumentID + "." + intervalString}
+				sub.Params["channels"] = []string{orderbookChannel + "." + instrumentID + "." + intervalString}
 				break
 			}
-			subscription.Params["channels"] = []string{orderbookChannel + "." + instrumentID + "." + group + "." + depth + "." + intervalString}
+			sub.Params["channels"] = []string{orderbookChannel + "." + instrumentID + "." + group + "." + depth + "." + intervalString}
 		case chartTradesChannel:
 			if subscs[x].Pair.IsEmpty() {
 				return nil, currency.ErrCurrencyPairEmpty
@@ -1139,7 +1136,7 @@ func (d *Deribit) generatePayloadFromSubscriptionInfos(operation string, subscs 
 			if !okay {
 				resolution = "1D"
 			}
-			subscription.Params["channels"] = []string{chartTradesChannel + "." + d.formatFuturesTradablePair(subscs[x].Pair) + "." + resolution}
+			sub.Params["channels"] = []string{chartTradesChannel + "." + d.formatFuturesTradablePair(subscs[x].Pair) + "." + resolution}
 		case priceIndexChannel,
 			priceRankingChannel,
 			priceStatisticsChannel,
@@ -1150,32 +1147,32 @@ func (d *Deribit) generatePayloadFromSubscriptionInfos(operation string, subscs 
 			if !okay {
 				return nil, errUnsupportedIndexName
 			}
-			subscription.Params["channels"] = []string{subscs[x].Channel + "." + indexName}
+			sub.Params["channels"] = []string{subscs[x].Channel + "." + indexName}
 		case instrumentStateChannel:
 			kind := d.GetAssetKind(subscs[x].Asset)
 			currencyCode := subscs[x].Pair.Base.Upper().String()
 			if currencyCode != currencyBTC && currencyCode != currencyETH && currencyCode != currencySOL && currencyCode != currencyUSDC {
 				currencyCode = "any"
 			}
-			subscription.Params["channels"] = []string{"instrument.state." + kind + "." + currencyCode}
+			sub.Params["channels"] = []string{"instrument.state." + kind + "." + currencyCode}
 		case rawUsersOrdersKindCurrencyChannel:
 			kind := d.GetAssetKind(subscs[x].Asset)
 			currencyCode := subscs[x].Pair.Base.Upper().String()
 			if currencyCode != currencyBTC && currencyCode != currencyETH && currencyCode != currencySOL && currencyCode != currencyUSDC {
 				currencyCode = "any"
 			}
-			subscription.Params["channels"] = []string{"user.orders." + kind + "." + currencyCode + ".raw"}
+			sub.Params["channels"] = []string{"user.orders." + kind + "." + currencyCode + ".raw"}
 		case quoteChannel,
 			incrementalTickerChannel:
 			if subscs[x].Pair.IsEmpty() {
 				return nil, currency.ErrCurrencyPairEmpty
 			}
-			subscription.Params["channels"] = []string{subscs[x].Channel + "." + instrumentID}
+			sub.Params["channels"] = []string{subscs[x].Channel + "." + instrumentID}
 		case rawUserOrdersChannel:
 			if subscs[x].Pair.IsEmpty() {
 				return nil, currency.ErrCurrencyPairEmpty
 			}
-			subscription.Params["channels"] = []string{"user.orders." + instrumentID + ".raw"}
+			sub.Params["channels"] = []string{"user.orders." + instrumentID + ".raw"}
 		case requestForQuoteChannel,
 			userMMPTriggerChannel,
 			userPortfolioChannel:
@@ -1183,7 +1180,7 @@ func (d *Deribit) generatePayloadFromSubscriptionInfos(operation string, subscs 
 			if currencyCode != currencyBTC && currencyCode != currencyETH && currencyCode != currencySOL && currencyCode != currencyUSDC {
 				currencyCode = "any"
 			}
-			subscription.Params["channels"] = []string{subscs[x].Channel + "." + currencyCode}
+			sub.Params["channels"] = []string{subscs[x].Channel + "." + currencyCode}
 		case tradesChannel,
 			userChangesInstrumentsChannel,
 			userOrdersWithIntervalChannel,
@@ -1194,14 +1191,14 @@ func (d *Deribit) generatePayloadFromSubscriptionInfos(operation string, subscs 
 				return nil, currency.ErrCurrencyPairEmpty
 			}
 			if subscs[x].Interval.Duration() == 0 {
-				subscription.Params["channels"] = []string{subscs[x].Channel + instrumentID}
+				sub.Params["channels"] = []string{subscs[x].Channel + instrumentID}
 				continue
 			}
 			intervalString, err := d.GetResolutionFromInterval(subscs[x].Interval)
 			if err != nil {
 				return nil, err
 			}
-			subscription.Params["channels"] = []string{subscs[x].Channel + instrumentID + "." + intervalString}
+			sub.Params["channels"] = []string{subscs[x].Channel + instrumentID + "." + intervalString}
 		case userChangesCurrencyChannel,
 			tradesWithKindChannel,
 			rawUsersOrdersWithKindCurrencyAndIntervalChannel,
@@ -1212,18 +1209,18 @@ func (d *Deribit) generatePayloadFromSubscriptionInfos(operation string, subscs 
 				currencyCode = "any"
 			}
 			if subscs[x].Interval.Duration() == 0 {
-				subscription.Params["channels"] = []string{subscs[x].Channel + "." + kind + "." + currencyCode}
+				sub.Params["channels"] = []string{subscs[x].Channel + "." + kind + "." + currencyCode}
 				continue
 			}
 			intervalString, err := d.GetResolutionFromInterval(subscs[x].Interval)
 			if err != nil {
 				return nil, err
 			}
-			subscription.Params["channels"] = []string{subscs[x].Channel + "." + kind + "." + currencyCode + "." + intervalString}
+			sub.Params["channels"] = []string{subscs[x].Channel + "." + kind + "." + currencyCode + "." + intervalString}
 		default:
 			return nil, errUnsupportedChannel
 		}
-		subscriptionPayloads[x] = subscription
+		subscriptionPayloads[x] = sub
 	}
 	return filterSubscriptionPayloads(subscriptionPayloads), nil
 }
@@ -1240,17 +1237,17 @@ func (d *Deribit) Unsubscribe(channelsToUnsubscribe []subscription.Subscription)
 
 func filterSubscriptionPayloads(subscription []WsSubscriptionInput) []WsSubscriptionInput {
 	newSubscriptionsMap := map[string]bool{}
-	newSubscriptions := make([]WsSubscriptionInput, 0, len(subscription))
+	newSubscs := make([]WsSubscriptionInput, 0, len(subscription))
 	for x := range subscription {
 		if len(subscription[x].Params["channels"]) == 0 {
 			continue
 		}
 		if !newSubscriptionsMap[subscription[x].Params["channels"][0]] {
 			newSubscriptionsMap[subscription[x].Params["channels"][0]] = true
-			newSubscriptions = append(newSubscriptions, subscription[x])
+			newSubscs = append(newSubscs, subscription[x])
 		}
 	}
-	return newSubscriptions
+	return newSubscs
 }
 
 func (d *Deribit) handleSubscription(operation string, channels []subscription.Subscription) error {

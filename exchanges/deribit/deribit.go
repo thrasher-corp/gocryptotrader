@@ -2393,9 +2393,6 @@ func (d *Deribit) ExecuteBlockTrade(ctx context.Context, timestampMS time.Time, 
 	if len(trades) == 0 {
 		return nil, errNoArgumentPassed
 	}
-	if timestampMS.IsZero() {
-		return nil, errZeroTimestamp
-	}
 	for x := range trades {
 		if trades[x].InstrumentName == "" {
 			return nil, fmt.Errorf("%w, empty string", errInvalidInstrumentName)

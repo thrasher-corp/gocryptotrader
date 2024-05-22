@@ -2136,6 +2136,7 @@ func TestGetOrderStateByLabel(t *testing.T) {
 
 func TestWsRetrieveOrderStateByLabel(t *testing.T) {
 	t.Parallel()
+	d.Verbose = true
 	_, err := d.WsRetrieveOrderStateByLabel(currency.EMPTYCODE, "the-label")
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, d)
@@ -3367,17 +3368,6 @@ func TestWSRetrieveCombos(t *testing.T) {
 	assert.NoError(t, err)
 }
 
-func TestWSSetPasswordForSubAccount(t *testing.T) {
-	t.Parallel()
-	_, err := d.WSSetPasswordForSubAccount(0, "")
-	require.ErrorIs(t, err, errInvalidID)
-	_, err = d.WSSetPasswordForSubAccount(123, "")
-	require.ErrorIs(t, err, errInvalidSubaccountPassword)
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, d, canManipulateRealOrders)
-	_, err = d.WSSetPasswordForSubAccount(123, "PassMe123@#")
-	assert.NoError(t, err)
-}
-
 func instantiateTradablePairs() {
 	d.Websocket.Wg.Add(1)
 	go func(tpfChan chan struct{}) {
@@ -3712,26 +3702,21 @@ func TestGetResolutionFromInterval(t *testing.T) {
 		IntervalString string
 		Error          error
 	}{
-		{
-			Interval:       kline.ThreeMin,
-			IntervalString: "3",
-			Error:          nil,
-		},
-		{
-			Interval:       kline.FiveMin,
-			IntervalString: "5",
-			Error:          nil,
-		},
-		{
-			Interval:       kline.Raw,
-			IntervalString: "raw",
-			Error:          nil,
-		},
-		{
-			Interval:       kline.FourHour,
-			IntervalString: "",
-			Error:          kline.ErrUnsupportedInterval,
-		},
+		{Interval: kline.HundredMilliseconds, IntervalString: "100ms"},
+		{Interval: kline.OneMin, IntervalString: "1"},
+		{Interval: kline.ThreeMin, IntervalString: "3"},
+		{Interval: kline.FiveMin, IntervalString: "5"},
+		{Interval: kline.TenMin, IntervalString: "10"},
+		{Interval: kline.FifteenMin, IntervalString: "15"},
+		{Interval: kline.ThirtyMin, IntervalString: "30"},
+		{Interval: kline.OneHour, IntervalString: "60"},
+		{Interval: kline.TwoHour, IntervalString: "120"},
+		{Interval: kline.ThreeHour, IntervalString: "180"},
+		{Interval: kline.SixHour, IntervalString: "360"},
+		{Interval: kline.TwelveHour, IntervalString: "720"},
+		{Interval: kline.OneDay, IntervalString: "1D"},
+		{Interval: kline.Raw, IntervalString: "raw"},
+		{Interval: kline.FourHour, Error: kline.ErrUnsupportedInterval},
 	}
 	for x := range intervalStringMap {
 		result, err := d.GetResolutionFromInterval(intervalStringMap[x].Interval)

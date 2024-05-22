@@ -1278,32 +1278,6 @@ func (d *Deribit) WsSetSelfTradingConfig(mode string, extendedToSubaccounts bool
 	return resp, d.SendWSRequest(nonMatchingEPL, setSelfTradingConfig, input, &resp, true)
 }
 
-// WSSetPasswordForSubAccount sets a password for subaccount usage through the websocket connection.
-func (d *Deribit) WSSetPasswordForSubAccount(subAccountID int64, password string) (string, error) {
-	if subAccountID <= 0 {
-		return "", fmt.Errorf("%w, invalid subaccount user id", errInvalidID)
-	}
-	if password == "" {
-		return "", errInvalidSubaccountPassword
-	}
-	input := &struct {
-		Password string `json:"password"`
-		SID      int64  `json:"sid"`
-	}{
-		Password: password,
-		SID:      subAccountID,
-	}
-	var resp string
-	err := d.SendWSRequest(nonMatchingEPL, "private/set_password_for_subaccount", input, &resp, true)
-	if err != nil {
-		return "", err
-	}
-	if resp != "ok" {
-		return resp, fmt.Errorf("could not set the provided password to subaccount %v", subAccountID)
-	}
-	return "ok", nil
-}
-
 // WSToggleNotificationsFromSubAccount toggles the notifications from a subaccount specified through the websocket connection.
 func (d *Deribit) WSToggleNotificationsFromSubAccount(sid int64, state bool) error {
 	if sid <= 0 {
@@ -1713,7 +1687,7 @@ func (d *Deribit) WSRetrievesOrderState(orderID string) (*OrderData, error) {
 }
 
 // WsRetrieveOrderStateByLabel retrieves an order state by label and currency
-func (d *Deribit) WsRetrieveOrderStateByLabel(ccy currency.Code, label string) (*OrderData, error) {
+func (d *Deribit) WsRetrieveOrderStateByLabel(ccy currency.Code, label string) ([]OrderData, error) {
 	if ccy.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
@@ -1724,7 +1698,7 @@ func (d *Deribit) WsRetrieveOrderStateByLabel(ccy currency.Code, label string) (
 		Currency: ccy,
 		Label:    label,
 	}
-	var resp *OrderData
+	var resp []OrderData
 	return resp, d.SendWSRequest(nonMatchingEPL, getOrderStateByLabel, input, &resp, true)
 }
 
@@ -2188,9 +2162,6 @@ func (d *Deribit) WSExecuteBlockTrade(timestampMS time.Time, nonce, role string,
 		if trades[x].Price < 0 {
 			return nil, fmt.Errorf("%w, trade price can't be negative", errInvalidPrice)
 		}
-	}
-	if timestampMS.IsZero() {
-		return nil, errZeroTimestamp
 	}
 	signature, err := d.WSVerifyBlockTrade(timestampMS, nonce, role, ccy, trades)
 	if err != nil {
