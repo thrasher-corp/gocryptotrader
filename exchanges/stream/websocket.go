@@ -291,7 +291,8 @@ func (w *Websocket) Connect() error {
 		return fmt.Errorf("%v Error connecting %w", w.exchangeName, err)
 	}
 	w.setState(connected)
-	if !w.connectionMonitorRunning.CompareAndSwap(false, true) {
+
+	if w.connectionMonitorRunning.CompareAndSwap(false, true) {
 		go w.connectionMonitor()
 	}
 
