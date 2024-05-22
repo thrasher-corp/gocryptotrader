@@ -47,6 +47,9 @@ const (
 	pMarginAPIURL  = "https://papi.binance.com"
 	tradeBaseURL   = "https://www.binance.com/en/"
 
+	testnetSpotURL = "https://testnet.binance.vision/api"
+	testnetFutures = "https://testnet.binancefuture.com"
+
 	defaultRecvWindow = 5 * time.Second
 )
 
@@ -1808,16 +1811,14 @@ func (b *Binance) SendHTTPRequest(ctx context.Context, ePath exchange.URL, path 
 	if err != nil {
 		return err
 	}
-	item := &request.Item{
-		Method:        http.MethodGet,
-		Path:          endpointPath + path,
-		Result:        result,
-		Verbose:       b.Verbose,
-		HTTPDebugging: b.HTTPDebugging,
-		HTTPRecording: b.HTTPRecording}
-
 	return b.SendPayload(ctx, f, func() (*request.Item, error) {
-		return item, nil
+		return &request.Item{
+			Method:        http.MethodGet,
+			Path:          endpointPath + path,
+			Result:        result,
+			Verbose:       b.Verbose,
+			HTTPDebugging: b.HTTPDebugging,
+			HTTPRecording: b.HTTPRecording}, nil
 	}, request.UnauthenticatedRequest)
 }
 

@@ -20,12 +20,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
-const (
-	// Without subscriptions
-	binanceEOptionWebsocketURL       = "wss://nbstream.binance.com/eoptions/ws"
-	binanceEOptionWebsocketURLStream = "wss://nbstream.binance.com/eoptions/stream"
-)
-
 var (
 	errUnderlyingIsRequired = errors.New("underlying is required")
 )

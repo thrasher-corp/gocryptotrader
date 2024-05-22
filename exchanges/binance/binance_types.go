@@ -5309,3 +5309,9 @@ type BorrowInterestRate struct {
 type ListenKeyResponse struct {
 	ListenKey string `json:"listenKey"`
 }
+
+// ErrResponse holds error response information.
+type ErrResponse struct {
+	Code    types.Number `json:"code"`
+	Message string       `json:"msg"`
+}

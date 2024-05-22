@@ -699,6 +699,7 @@ func (b *Binance) UpdateOrderbook(ctx context.Context, p currency.Pair, assetTyp
 	if !isEnabled || err != nil {
 		return nil, fmt.Errorf("%w pair: %v", currency.ErrPairNotEnabled, p)
 	}
+	println("Pair is Enabled.")
 
 	book := &orderbook.Base{
 		Exchange:        b.Name,
