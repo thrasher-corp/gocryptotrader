@@ -628,8 +628,8 @@ func (g *Gateio) processCrossMarginLoans(data []byte) error {
 	return nil
 }
 
-// GenerateDefaultSubscriptions returns default subscriptions
-func (g *Gateio) GenerateDefaultSubscriptions() (subscription.List, error) {
+// generateSubscriptions returns default subscriptions
+func (g *Gateio) generateSubscriptions() (subscription.List, error) {
 	channelsToSubscribe := defaultSubscriptions
 	if g.Websocket.CanUseAuthenticatedEndpoints() {
 		channelsToSubscribe = append(channelsToSubscribe, []string{

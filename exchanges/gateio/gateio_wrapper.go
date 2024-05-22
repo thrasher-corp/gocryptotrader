@@ -217,7 +217,7 @@ func (g *Gateio) Setup(exch *config.Exchange) error {
 		Connector:             g.WsConnect,
 		Subscriber:            g.Subscribe,
 		Unsubscriber:          g.Unsubscribe,
-		GenerateSubscriptions: g.GenerateDefaultSubscriptions,
+		GenerateSubscriptions: g.generateSubscriptions,
 		Features:              &g.Features.Supports.WebsocketCapabilities,
 		FillsFeed:             g.Features.Enabled.FillsFeed,
 		TradeFeed:             g.Features.Enabled.TradeFeed,
