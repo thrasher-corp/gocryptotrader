@@ -15,7 +15,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/key"
-	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -36,30 +35,20 @@ const (
 	canManipulateRealOrders = false
 )
 
-var g = &Gateio{}
+var g *Gateio
 
 func TestMain(m *testing.M) {
-	g.SetDefaults()
-	cfg := config.GetConfig()
-	err := cfg.LoadConfig("../../testdata/configtest.json", true)
-	if err != nil {
-		log.Fatal("GateIO load config error", err)
+	g = new(Gateio)
+	if err := testexch.TestInstance(g); err != nil {
+		log.Fatal(err)
 	}
-	gConf, err := cfg.GetExchangeConfig("GateIO")
-	if err != nil {
-		log.Fatal("GateIO Setup() init error")
+
+	if apiKey != "" && apiSecret != "" {
+		g.API.AuthenticatedSupport = true
+		g.API.AuthenticatedWebsocketSupport = true
+		g.SetCredentials(apiKey, apiSecret, "", "", "", "")
 	}
-	gConf.API.AuthenticatedSupport = true
-	gConf.API.AuthenticatedWebsocketSupport = true
-	gConf.API.Credentials.Key = apiKey
-	gConf.API.Credentials.Secret = apiSecret
-	g.Websocket = sharedtestvalues.NewTestWebsocket()
-	gConf.Features.Enabled.FillsFeed = true
-	gConf.Features.Enabled.TradeFeed = true
-	err = g.Setup(gConf)
-	if err != nil {
-		log.Fatal("GateIO setup error", err)
-	}
+
 	os.Exit(m.Run())
 }
 
