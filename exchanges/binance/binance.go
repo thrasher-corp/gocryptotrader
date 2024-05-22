@@ -1811,15 +1811,35 @@ func (b *Binance) SendHTTPRequest(ctx context.Context, ePath exchange.URL, path 
 	if err != nil {
 		return err
 	}
-	return b.SendPayload(ctx, f, func() (*request.Item, error) {
+	var responseJSON json.RawMessage
+	err = b.SendPayload(ctx, f, func() (*request.Item, error) {
 		return &request.Item{
 			Method:        http.MethodGet,
 			Path:          endpointPath + path,
-			Result:        result,
+			Result:        &responseJSON,
 			Verbose:       b.Verbose,
 			HTTPDebugging: b.HTTPDebugging,
 			HTTPRecording: b.HTTPRecording}, nil
 	}, request.UnauthenticatedRequest)
+	if err != nil {
+		var errorResponse *ErrResponse
+		err = json.Unmarshal(responseJSON, &errorResponse)
+		if err == nil && errorResponse.Code.Int64() != 0 {
+			errorMsg, okay := errorCodeToErrorMap[errorResponse.Code.Int64()]
+			if okay {
+				return fmt.Errorf("err %w code: %d msg: %s", errorMsg, errorResponse.Code.Int64(), errorResponse.Message)
+			}
+			return fmt.Errorf("err code: %d msg: %s", errorResponse.Code.Int64(), errorResponse.Message)
+		}
+		return err
+	}
+	return json.Unmarshal(responseJSON, result)
+}
+
+// errorCodeToErrorMap represents common error messages.
+var errorCodeToErrorMap = map[int64]error{
+	-1121: currency.ErrSymbolStringEmpty,
+	-1002: request.ErrAuthRequestFailed,
 }
 
 // SendAPIKeyHTTPRequest is a special API request where the api key is

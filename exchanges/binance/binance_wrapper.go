@@ -548,6 +548,9 @@ func (b *Binance) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Ite
 	if p.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
+	if enabled, err := b.IsPairEnabled(p, a); !enabled {
+		return nil, err
+	}
 	var err error
 	switch a {
 	case asset.Spot, asset.Margin:
