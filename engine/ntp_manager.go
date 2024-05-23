@@ -136,13 +136,13 @@ func (m *ntpManager) processTime() error {
 	if err != nil {
 		return err
 	}
-	currentTime := time.Now()
+	currentTime := time.Now().UTC()
 	diff := NTPTime.Sub(currentTime)
 	configNTPTime := m.allowedDifference
 	negDiff := m.allowedNegativeDifference
 	configNTPNegativeTime := -negDiff
 	if diff > configNTPTime || diff < configNTPNegativeTime {
-		log.Warnf(log.TimeMgr, "NTP manager: Time out of sync (NTP): %v | (time.Now()): %v | (Difference): %v | (Allowed): +%v / %v\n",
+		log.Warnf(log.TimeMgr, "NTP manager: Time out of sync (NTP): %v | (Local): %v | (Difference): %v | (Allowed): +%v / %v\n",
 			NTPTime,
 			currentTime,
 			diff,

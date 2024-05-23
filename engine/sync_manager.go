@@ -202,7 +202,7 @@ func (m *SyncManager) Start() error {
 				"Exchange CurrencyPairSyncer initial sync started. %d items to process.",
 				createdCounter)
 		}
-		m.initSyncStartTime = time.Now()
+		m.initSyncStartTime = time.Now().UTC()
 	}
 
 	go func() {
@@ -261,7 +261,7 @@ func newCurrencyPairSyncAgent(k key.ExchangePairAsset) *currencyPairSyncAgent {
 	return &currencyPairSyncAgent{
 		Key:      k,
 		Pair:     currency.NewPair(k.Base.Currency(), k.Quote.Currency()),
-		Created:  time.Now(),
+		Created:  time.Now().UTC(),
 		locks:    make([]sync.Mutex, SyncItemTrade+1),
 		trackers: make([]*syncBase, SyncItemTrade+1),
 	}
@@ -423,7 +423,7 @@ func (m *SyncManager) update(c *currencyPairSyncAgent, syncType syncItemType, er
 	s := c.trackers[syncType]
 
 	origHadData := s.HaveData
-	s.LastUpdated = time.Now()
+	s.LastUpdated = time.Now().UTC()
 	if err != nil {
 		s.NumErrors++
 	}
@@ -596,7 +596,7 @@ func (m *SyncManager) syncTicker(c *currencyPairSyncAgent, e exchange.IBotExchan
 				m.tickerBatchLastRequested[key.ExchangeAsset{
 					Exchange: c.Key.Exchange,
 					Asset:    c.Key.Asset,
-				}] = time.Now()
+				}] = time.Now().UTC()
 				m.mux.Unlock()
 			} else {
 				if m.config.Verbose {

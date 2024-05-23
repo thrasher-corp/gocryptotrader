@@ -354,9 +354,8 @@ func (d *dataChecker) FetchLatestData() (bool, error) {
 	var err error
 
 	results := make([]bool, len(d.sourcesToCheck))
-	// timeToRetrieve ensures consistent data retrieval
-	// in the event of a candle rollover mid-loop
-	timeToRetrieve := time.Now()
+	// timeToRetrieve ensures consistent data retrieval in the event of a candle rollover mid-loop
+	timeToRetrieve := time.Now().UTC()
 	for i := range d.sourcesToCheck {
 		if d.verboseDataCheck {
 			log.Infof(common.LiveStrategy, "%v %v %v checking for new data", d.sourcesToCheck[i].exchangeName, d.sourcesToCheck[i].asset, d.sourcesToCheck[i].pair)

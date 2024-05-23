@@ -145,7 +145,7 @@ func (bt *BackTest) ExecuteStrategy(waitForOfflineCompletion bool) error {
 		return fmt.Errorf("%w cannot wait for a live task to finish", errCannotHandleRequest)
 	}
 
-	bt.MetaData.DateStarted = time.Now()
+	bt.MetaData.DateStarted = time.Now().UTC()
 	liveTesting := bt.MetaData.LiveTesting
 	bt.m.Unlock()
 
@@ -615,7 +615,7 @@ func (bt *BackTest) Stop() error {
 	}
 	close(bt.shutdown)
 	bt.MetaData.Closed = true
-	bt.MetaData.DateEnded = time.Now()
+	bt.MetaData.DateEnded = time.Now().UTC()
 	if bt.MetaData.ClosePositionsOnStop {
 		err := bt.CloseAllPositions()
 		if err != nil {
@@ -791,7 +791,7 @@ func (bt *BackTest) SetupMetaData() error {
 		return err
 	}
 	bt.MetaData.ID = id
-	bt.MetaData.DateLoaded = time.Now()
+	bt.MetaData.DateLoaded = time.Now().UTC()
 	return nil
 }
 

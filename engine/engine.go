@@ -344,7 +344,7 @@ func (bot *Engine) Start() error {
 		}
 	}
 
-	bot.uptime = time.Now()
+	bot.uptime = time.Now().UTC()
 	gctlog.Debugf(gctlog.Global, "Bot '%s' started.\n", bot.Config.Name)
 	gctlog.Debugf(gctlog.Global, "Using data dir: %s\n", bot.Settings.DataDir)
 	if *bot.Config.Logging.Enabled && strings.Contains(bot.Config.Logging.Output, "file") {
