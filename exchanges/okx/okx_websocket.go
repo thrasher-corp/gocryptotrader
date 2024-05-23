@@ -274,7 +274,7 @@ func (ok *Okx) WsAuth(ctx context.Context, dialer *websocket.Dialer) error {
 	timeUnix := time.Now()
 	signPath := "/users/self/verify"
 	hmac, err := crypto.GetHMAC(crypto.HashSHA256,
-		[]byte(strconv.FormatInt(timeUnix.UTC().Unix(), 10)+http.MethodGet+signPath),
+		[]byte(strconv.FormatInt(timeUnix.Unix(), 10)+http.MethodGet+signPath),
 		[]byte(creds.Secret),
 	)
 	if err != nil {
