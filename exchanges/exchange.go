@@ -1942,3 +1942,11 @@ func GetDefaultConfig(ctx context.Context, exch IBotExchange) (*config.Exchange,
 func (b *Base) GetCurrencyTradeURL(context.Context, asset.Item, currency.Pair) (string, error) {
 	return "", common.ErrFunctionNotSupported
 }
+
+// ProtocolFeaturesREST returns the exchange's REST protocol features
+func (b *Base) ProtocolFeaturesREST() (*protocol.Features, error) {
+	if b == nil {
+		return nil, errExchangeIsNil
+	}
+	return &b.Features.Supports.RESTCapabilities, nil
+}

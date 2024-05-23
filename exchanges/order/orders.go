@@ -14,6 +14,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/validate"
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"golang.org/x/text/cases"
@@ -36,9 +37,10 @@ var (
 	ErrUnableToPlaceOrder = errors.New("order not placed")
 	// ErrOrderNotFound is returned when no order is found
 	ErrOrderNotFound = errors.New("order not found")
-
 	// ErrUnknownPriceType returned when price type is unknown
 	ErrUnknownPriceType = errors.New("unknown price type")
+	// ErrAmountMustBeSet is returned when an amount is not set
+	ErrAmountMustBeSet = errors.New("amount must be set")
 
 	errTimeInForceConflict      = errors.New("multiple time in force options applied")
 	errUnrecognisedOrderType    = errors.New("unrecognised order type")
@@ -55,8 +57,14 @@ func IsValidOrderSubmissionSide(s Side) bool {
 	return s != UnknownSide && orderSubmissionValidSides&s == s
 }
 
+// ProtocolFeatureSet is an interface that allows for the retrieval of exchange
+// specific protocol features.
+type ProtocolFeatureSet interface {
+	ProtocolFeaturesREST() (*protocol.Features, error)
+}
+
 // Validate checks the supplied data and returns whether it's valid
-func (s *Submit) Validate(opt ...validate.Checker) error {
+func (s *Submit) Validate(exch ProtocolFeatureSet, opt ...validate.Checker) error {
 	if s == nil {
 		return ErrSubmissionIsNil
 	}
@@ -103,6 +111,25 @@ func (s *Submit) Validate(opt ...validate.Checker) error {
 
 	if s.Type == Limit && s.Price <= 0 {
 		return ErrPriceMustBeSetIfLimitOrder
+	}
+
+	if s.Type == Market && s.AssetType == asset.Spot && s.Side.IsLong() {
+		features, err := exch.ProtocolFeaturesREST()
+		if err != nil {
+			return err
+		}
+		switch {
+		case features.SpotMarketOrderSubmissionAmounts == protocol.BaseAmount:
+			if s.Amount == 0 {
+				return fmt.Errorf("submit validation error %w, base amount must be set to 'Amount' field to satisfy submission requirements", ErrAmountMustBeSet)
+			}
+		case features.SpotMarketOrderSubmissionAmounts == protocol.QuotationAmount:
+			if s.QuoteAmount == 0 {
+				return fmt.Errorf("submit validation error %w, quote amount must be set to 'QuoteAmount' field to satisfy submission requirements", ErrAmountMustBeSet)
+			}
+		case features.SpotMarketOrderSubmissionAmounts == protocol.Any:
+		case features.SpotMarketOrderSubmissionAmounts == protocol.Unset:
+		}
 	}
 
 	for _, o := range opt {

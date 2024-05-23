@@ -18,6 +18,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
@@ -113,6 +114,8 @@ type IBotExchange interface {
 	MatchSymbolCheckEnabled(symbol string, a asset.Item, hasDelimiter bool) (pair currency.Pair, enabled bool, err error)
 	// IsPairEnabled checks if a pair is enabled for an enabled asset type
 	IsPairEnabled(pair currency.Pair, a asset.Item) (bool, error)
+
+	ProtocolFeaturesREST() (*protocol.Features, error)
 }
 
 // OrderManagement defines functionality for order management

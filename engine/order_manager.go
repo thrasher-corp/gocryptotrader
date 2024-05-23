@@ -352,7 +352,7 @@ func (m *OrderManager) GetOrderInfo(ctx context.Context, exchangeName, orderID s
 }
 
 // validate ensures a submitted order is valid before adding to the manager
-func (m *OrderManager) validate(newOrder *order.Submit) error {
+func (m *OrderManager) validate(exch order.ProtocolFeatureSet, newOrder *order.Submit) error {
 	if newOrder == nil {
 		return errNilOrder
 	}
@@ -361,7 +361,7 @@ func (m *OrderManager) validate(newOrder *order.Submit) error {
 		return ErrExchangeNameIsEmpty
 	}
 
-	if err := newOrder.Validate(); err != nil {
+	if err := newOrder.Validate(exch); err != nil {
 		return fmt.Errorf("order manager: %w", err)
 	}
 
@@ -466,12 +466,11 @@ func (m *OrderManager) Submit(ctx context.Context, newOrder *order.Submit) (*Ord
 	if atomic.LoadInt32(&m.started) == 0 {
 		return nil, fmt.Errorf("order manager %w", ErrSubSystemNotStarted)
 	}
-
-	err := m.validate(newOrder)
+	exch, err := m.orderStore.exchangeManager.GetExchangeByName(newOrder.Exchange)
 	if err != nil {
 		return nil, err
 	}
-	exch, err := m.orderStore.exchangeManager.GetExchangeByName(newOrder.Exchange)
+	err = m.validate(exch, newOrder)
 	if err != nil {
 		return nil, err
 	}
@@ -515,16 +514,14 @@ func (m *OrderManager) SubmitFakeOrder(newOrder *order.Submit, resultingOrder *o
 	if atomic.LoadInt32(&m.started) == 0 {
 		return nil, fmt.Errorf("order manager %w", ErrSubSystemNotStarted)
 	}
-
-	err := m.validate(newOrder)
-	if err != nil {
-		return nil, err
-	}
 	exch, err := m.orderStore.exchangeManager.GetExchangeByName(newOrder.Exchange)
 	if err != nil {
 		return nil, err
 	}
-
+	err = m.validate(exch, newOrder)
+	if err != nil {
+		return nil, err
+	}
 	if checkExchangeLimits {
 		// Checks for exchange min max limits for order amounts before order
 		// execution can occur

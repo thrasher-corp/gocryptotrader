@@ -59,27 +59,28 @@ func (g *Gateio) SetDefaults() {
 			REST:      true,
 			Websocket: true,
 			RESTCapabilities: protocol.Features{
-				TickerBatching:        true,
-				TickerFetching:        true,
-				KlineFetching:         true,
-				TradeFetching:         true,
-				OrderbookFetching:     true,
-				AutoPairUpdates:       true,
-				AccountInfo:           true,
-				GetOrder:              true,
-				GetOrders:             true,
-				CancelOrders:          true,
-				CancelOrder:           true,
-				SubmitOrder:           true,
-				UserTradeHistory:      true,
-				CryptoDeposit:         true,
-				CryptoWithdrawal:      true,
-				TradeFee:              true,
-				CryptoWithdrawalFee:   true,
-				MultiChainDeposits:    true,
-				MultiChainWithdrawals: true,
-				PredictedFundingRate:  true,
-				FundingRateFetching:   true,
+				TickerBatching:                   true,
+				TickerFetching:                   true,
+				KlineFetching:                    true,
+				TradeFetching:                    true,
+				OrderbookFetching:                true,
+				AutoPairUpdates:                  true,
+				AccountInfo:                      true,
+				GetOrder:                         true,
+				GetOrders:                        true,
+				CancelOrders:                     true,
+				CancelOrder:                      true,
+				SubmitOrder:                      true,
+				UserTradeHistory:                 true,
+				CryptoDeposit:                    true,
+				CryptoWithdrawal:                 true,
+				TradeFee:                         true,
+				CryptoWithdrawalFee:              true,
+				MultiChainDeposits:               true,
+				MultiChainWithdrawals:            true,
+				PredictedFundingRate:             true,
+				FundingRateFetching:              true,
+				SpotMarketOrderSubmissionAmounts: protocol.QuotationAmount,
 			},
 			WebsocketCapabilities: protocol.Features{
 				TickerFetching:         true,
@@ -984,7 +985,7 @@ func (g *Gateio) GetHistoricTrades(_ context.Context, _ currency.Pair, _ asset.I
 // SubmitOrder submits a new order
 // TODO: support multiple order types (IOC)
 func (g *Gateio) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitResponse, error) {
-	err := s.Validate()
+	err := s.Validate(g)
 	if err != nil {
 		return nil, err
 	}

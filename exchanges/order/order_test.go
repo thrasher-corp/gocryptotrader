@@ -15,10 +15,17 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/validate"
 )
 
 var errValidationCheckFailed = errors.New("validation check failed")
+
+type dummy struct{}
+
+func (d *dummy) ProtocolFeaturesREST() (*protocol.Features, error) {
+	return &protocol.Features{}, nil
+}
 
 func TestSubmit_Validate(t *testing.T) {
 	t.Parallel()
@@ -181,7 +188,7 @@ func TestSubmit_Validate(t *testing.T) {
 	}
 
 	for x := range tester {
-		err := tester[x].Submit.Validate(tester[x].ValidOpts)
+		err := tester[x].Submit.Validate(&dummy{}, tester[x].ValidOpts)
 		if !errors.Is(err, tester[x].ExpectedErr) {
 			t.Fatalf("Unexpected result. %d Got: %v, want: %v", x+1, err, tester[x].ExpectedErr)
 		}
