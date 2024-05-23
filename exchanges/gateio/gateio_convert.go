@@ -35,7 +35,7 @@ func (a *Time) UnmarshalJSON(data []byte) error {
 			return err
 		}
 		if math.Trunc(parsedValue) != parsedValue {
-			*a = Time(time.UnixMicro(int64(parsedValue * 1e3))) // Account for "1691122380942.173000" microseconds
+			*a = Time(time.UnixMicro(int64(parsedValue * 1e3)).UTC()) // Account for "1691122380942.173000" microseconds
 			return nil
 		}
 		standard = int64(parsedValue)
@@ -43,9 +43,9 @@ func (a *Time) UnmarshalJSON(data []byte) error {
 		return fmt.Errorf("cannot unmarshal %T into Time", val)
 	}
 	if standard > 9999999999 {
-		*a = Time(time.UnixMilli(standard))
+		*a = Time(time.UnixMilli(standard).UTC())
 	} else {
-		*a = Time(time.Unix(standard, 0))
+		*a = Time(time.Unix(standard, 0).UTC())
 	}
 	return nil
 }
