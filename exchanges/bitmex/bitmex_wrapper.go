@@ -1281,7 +1281,7 @@ func (b *Bitmex) GetLatestFundingRates(ctx context.Context, r *fundingrate.Lates
 				Rate: decimal.NewFromFloat(rates[i].FundingRate),
 			},
 			TimeOfNextRate: rates[i].Timestamp.Add(time.Duration(nr.Hour()) * time.Hour),
-			TimeChecked:    time.Now(),
+			TimeChecked:    time.Now().UTC(),
 		})
 	}
 	return resp, nil

@@ -1588,7 +1588,7 @@ func (ku *Kucoin) GetLatestFundingRates(ctx context.Context, r *fundingrate.Late
 		if r.IncludePredictedRate {
 			log.Warnf(log.ExchangeSys, "%s predicted rate for all currencies requires an additional %v requests", ku.Name, len(contracts))
 		}
-		timeChecked := time.Now()
+		timeChecked := time.Now().UTC()
 		resp := make([]fundingrate.LatestRateResponse, 0, len(contracts))
 		for i := range contracts {
 			timeOfNextFundingRate := time.Now().Add(time.Duration(contracts[i].NextFundingRateTime) * time.Millisecond).Truncate(time.Hour).UTC()
@@ -1658,7 +1658,7 @@ func (ku *Kucoin) GetLatestFundingRates(ctx context.Context, r *fundingrate.Late
 			Rate: decimal.NewFromFloat(fr.Value),
 		},
 		TimeOfNextRate: fr.TimePoint.Time().Add(fri).Truncate(time.Hour).UTC(),
-		TimeChecked:    time.Now(),
+		TimeChecked:    time.Now().UTC(),
 	}
 	if r.IncludePredictedRate {
 		rate.PredictedUpcomingRate = fundingrate.Rate{

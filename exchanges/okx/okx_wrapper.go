@@ -1520,7 +1520,7 @@ func (ok *Okx) GetLatestFundingRates(ctx context.Context, r *fundingrate.LatestR
 	}
 	fPair := r.Pair.Format(format)
 	pairRate := fundingrate.LatestRateResponse{
-		TimeChecked: time.Now(),
+		TimeChecked: time.Now().UTC(),
 		Exchange:    ok.Name,
 		Asset:       r.Asset,
 		Pair:        fPair,

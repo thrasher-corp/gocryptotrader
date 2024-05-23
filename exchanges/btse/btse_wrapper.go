@@ -1260,7 +1260,7 @@ func (b *BTSE) GetLatestFundingRates(ctx context.Context, r *fundingrate.LatestR
 				Rate: decimal.NewFromFloat(rates[i].FundingRate),
 			},
 			TimeOfNextRate: tt.Add(time.Hour),
-			TimeChecked:    time.Now(),
+			TimeChecked:    time.Now().UTC(),
 		})
 	}
 	return resp, nil

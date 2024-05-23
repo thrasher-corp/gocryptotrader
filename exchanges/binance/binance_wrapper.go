@@ -2038,7 +2038,7 @@ func (b *Binance) GetLatestFundingRates(ctx context.Context, r *fundingrate.Late
 			}
 			nft := time.UnixMilli(mp[i].NextFundingTime)
 			rate := fundingrate.LatestRateResponse{
-				TimeChecked: time.Now(),
+				TimeChecked: time.Now().UTC(),
 				Exchange:    b.Name,
 				Asset:       r.Asset,
 				Pair:        cp,
@@ -2093,7 +2093,7 @@ func (b *Binance) GetLatestFundingRates(ctx context.Context, r *fundingrate.Late
 			}
 			nft := time.UnixMilli(mp[i].NextFundingTime)
 			rate := fundingrate.LatestRateResponse{
-				TimeChecked: time.Now(),
+				TimeChecked: time.Now().UTC(),
 				Exchange:    b.Name,
 				Asset:       r.Asset,
 				Pair:        cp,

@@ -2295,7 +2295,7 @@ func (h *HUOBI) GetLatestFundingRates(ctx context.Context, r *fundingrate.Latest
 				Rate: decimal.NewFromFloat(rates[i].FundingRate),
 			},
 			TimeOfNextRate: nft,
-			TimeChecked:    time.Now(),
+			TimeChecked:    time.Now().UTC(),
 		}
 		if r.IncludePredictedRate {
 			rate.PredictedUpcomingRate = fundingrate.Rate{
