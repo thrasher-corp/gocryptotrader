@@ -152,8 +152,8 @@ func (m *ntpManager) processTime() error {
 	return nil
 }
 
-// checkTimeInPools returns local based on ntp servers provided timestamp
-// if no server can be reached will return local time in UTC()
+// checkTimeInPools returns the first available time from a pool of ntp servers
+// If no server can be reached will return local server time
 func (m *ntpManager) checkTimeInPools() time.Time {
 	for i := range m.pools {
 		con, err := net.DialTimeout("udp", m.pools[i], 5*time.Second)
@@ -191,6 +191,7 @@ func (m *ntpManager) checkTimeInPools() time.Time {
 			continue
 		}
 
+		// Convert NTP epoch (1900) to Unix epoch (1970); 220898880 seconds between them
 		secs := float64(rsp.TxTimeSec) - 2208988800
 		nanos := (int64(rsp.TxTimeFrac) * 1e9) >> 32
 
@@ -198,7 +199,7 @@ func (m *ntpManager) checkTimeInPools() time.Time {
 		if err != nil {
 			log.Errorln(log.TimeMgr, err)
 		}
-		return time.Unix(int64(secs), nanos)
+		return time.Unix(int64(secs), nanos).UTC()
 	}
 	log.Warnln(log.TimeMgr, "No valid NTP servers found, using current system time")
 	return time.Now().UTC()
