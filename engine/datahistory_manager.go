@@ -383,7 +383,7 @@ ranges:
 						IntervalStartDate: job.rangeHolder.Ranges[i].Start.Time,
 						IntervalEndDate:   job.rangeHolder.Ranges[i].End.Time,
 						Status:            dataHistoryStatusComplete,
-						Date:              time.Now(),
+						Date:              time.Now().UTC(),
 					},
 				}
 			}
@@ -512,7 +512,7 @@ func (m *DataHistoryManager) runValidationJob(job *DataHistoryJob, exch exchange
 	nextIntervalToProcess := job.StartDate
 timesToFetch:
 	for t, results := range job.Results {
-		tt := time.Unix(t, 0)
+		tt := time.Unix(t, 0).UTC()
 		if len(results) < int(job.MaxRetryAttempts) {
 			for x := range results {
 				if results[x].Status == dataHistoryStatusComplete {
@@ -708,7 +708,7 @@ func (m *DataHistoryManager) processCandleData(job *DataHistoryJob, exch exchang
 		IntervalStartDate: startRange,
 		IntervalEndDate:   endRange,
 		Status:            dataHistoryStatusComplete,
-		Date:              time.Now(),
+		Date:              time.Now().UTC(),
 	}
 	candles, err := exch.GetHistoricCandlesExtended(context.TODO(),
 		job.Pair,
@@ -761,7 +761,7 @@ func (m *DataHistoryManager) processTradeData(job *DataHistoryJob, exch exchange
 		IntervalStartDate: startRange,
 		IntervalEndDate:   endRange,
 		Status:            dataHistoryStatusComplete,
-		Date:              time.Now(),
+		Date:              time.Now().UTC(),
 	}
 	trades, err := exch.GetHistoricTrades(context.TODO(),
 		job.Pair,
@@ -835,7 +835,7 @@ func (m *DataHistoryManager) convertTradesToCandles(job *DataHistoryJob, startRa
 		IntervalStartDate: startRange,
 		IntervalEndDate:   endRange,
 		Status:            dataHistoryStatusComplete,
-		Date:              time.Now(),
+		Date:              time.Now().UTC(),
 	}
 	trades, err := m.tradeLoader(job.Exchange, job.Asset.String(), job.Pair.Base.String(), job.Pair.Quote.String(), startRange, endRange)
 	if err != nil {
@@ -874,7 +874,7 @@ func (m *DataHistoryManager) convertCandleData(job *DataHistoryJob, startRange, 
 		IntervalStartDate: startRange,
 		IntervalEndDate:   endRange,
 		Status:            dataHistoryStatusComplete,
-		Date:              time.Now(),
+		Date:              time.Now().UTC(),
 	}
 	candles, err := m.candleLoader(job.Exchange, job.Pair, job.Asset, job.Interval, startRange, endRange)
 	if err != nil {
@@ -916,7 +916,7 @@ func (m *DataHistoryManager) validateCandles(job *DataHistoryJob, exch exchange.
 		IntervalStartDate: startRange,
 		IntervalEndDate:   endRange,
 		Status:            dataHistoryStatusComplete,
-		Date:              time.Now(),
+		Date:              time.Now().UTC(),
 	}
 
 	apiCandles, err := exch.GetHistoricCandlesExtended(context.TODO(),
