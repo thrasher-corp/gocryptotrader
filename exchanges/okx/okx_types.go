@@ -4303,8 +4303,8 @@ type SetLeveragesParam struct {
 	InstrumentID string `json:"instId,omitempty"` // Instrument ID. If there are multiple instruments, separate them with commas. Maximum of 200 instruments can be selected
 }
 
-// LeadTrader represents a lead trader information
-type LeadTrader struct {
+// CopyTradingLeadTrader represents a lead trader information
+type CopyTradingLeadTrader struct {
 	BeginCopyTime           convert.ExchangeTime `json:"beginCopyTime"`
 	Currency                string               `json:"ccy"`
 	CopyTotalAmount         types.Number         `json:"copyTotalAmt"`

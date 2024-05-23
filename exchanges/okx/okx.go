@@ -3512,17 +3512,17 @@ func (ok *Okx) SetMultipleLeverages(ctx context.Context, arg *SetLeveragesParam)
 }
 
 // GetMyLeadTraders retrieve my lead traders.
-func (ok *Okx) GetMyLeadTraders(ctx context.Context, instrumentType string) ([]LeadTrader, error) {
+func (ok *Okx) GetMyLeadTraders(ctx context.Context, instrumentType string) ([]CopyTradingLeadTrader, error) {
 	params := url.Values{}
 	if instrumentType != "" {
 		params.Set("instType", instrumentType)
 	}
-	var resp []LeadTrader
+	var resp []CopyTradingLeadTrader
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getMyLeadTradersEPL, http.MethodGet, common.EncodeURLValues("copytrading/current-lead-traders", params), nil, &resp, true)
 }
 
 // GetHistoryLeadTraders retrieve my history lead traders.
-func (ok *Okx) GetHistoryLeadTraders(ctx context.Context, instrumentType, after, before string, limit int64) ([]LeadTrader, error) {
+func (ok *Okx) GetHistoryLeadTraders(ctx context.Context, instrumentType, after, before string, limit int64) ([]CopyTradingLeadTrader, error) {
 	params := url.Values{}
 	if instrumentType != "" {
 		params.Set("instType", instrumentType)
@@ -3536,7 +3536,7 @@ func (ok *Okx) GetHistoryLeadTraders(ctx context.Context, instrumentType, after,
 	if limit > 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
-	var resp []LeadTrader
+	var resp []CopyTradingLeadTrader
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getMyLeadTradersEPL, http.MethodGet, common.EncodeURLValues("copytrading/lead-traders-history", params), nil, &resp, true)
 }
 
