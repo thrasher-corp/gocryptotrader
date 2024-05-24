@@ -352,7 +352,7 @@ func (m *OrderManager) GetOrderInfo(ctx context.Context, exchangeName, orderID s
 }
 
 // validate ensures a submitted order is valid before adding to the manager
-func (m *OrderManager) validate(exch order.ProtocolFeatureSet, newOrder *order.Submit) error {
+func (m *OrderManager) validate(exch exchange.IBotExchange, newOrder *order.Submit) error {
 	if newOrder == nil {
 		return errNilOrder
 	}
