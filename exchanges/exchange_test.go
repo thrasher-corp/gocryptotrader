@@ -3070,6 +3070,6 @@ func TestGetTradingRequirements(t *testing.T) {
 	_, err := (*Base)(nil).GetTradingRequirements()
 	require.ErrorIs(t, err, errExchangeIsNil)
 	got, err := (&Base{Features: Features{TradingRequirements: protocol.TradingRequirements{ClientOrderID: true}}}).GetTradingRequirements()
-	require.ErrorIs(t, err, nil)
+	require.NoError(t, err)
 	require.NotEmpty(t, got)
 }
