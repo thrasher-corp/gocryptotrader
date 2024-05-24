@@ -517,6 +517,9 @@ func (m *OrderManager) SubmitFakeOrder(newOrder *order.Submit, resultingOrder *o
 	if atomic.LoadInt32(&m.started) == 0 {
 		return nil, fmt.Errorf("order manager %w", ErrSubSystemNotStarted)
 	}
+	if newOrder == nil {
+		return nil, errNilOrder
+	}
 	exch, err := m.orderStore.exchangeManager.GetExchangeByName(newOrder.Exchange)
 	if err != nil {
 		return nil, err
