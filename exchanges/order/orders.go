@@ -57,7 +57,7 @@ func IsValidOrderSubmissionSide(s Side) bool {
 	return s != UnknownSide && orderSubmissionValidSides&s == s
 }
 
-// GetTradingRequirements is an interface that allows for the retrieval of
+// ProtocolTradingRequirements is an interface that allows for the retrieval of
 // exchange specific trading requirements.
 type ProtocolTradingRequirements interface {
 	GetTradingRequirements() (protocol.TradingRequirements, error)

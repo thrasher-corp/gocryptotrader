@@ -1943,7 +1943,7 @@ func (b *Base) GetCurrencyTradeURL(context.Context, asset.Item, currency.Pair) (
 	return "", common.ErrFunctionNotSupported
 }
 
-// ProtocolFeaturesREST returns the exchange's REST protocol features
+// GetTradingRequirements returns the exchange's trading requirements.
 func (b *Base) GetTradingRequirements() (protocol.TradingRequirements, error) {
 	if b == nil {
 		return protocol.TradingRequirements{}, errExchangeIsNil
