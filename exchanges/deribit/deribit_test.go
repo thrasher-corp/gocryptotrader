@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log"
 	"os"
 	"strconv"
@@ -16,7 +17,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/key"
-	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -26,6 +26,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
+	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
@@ -49,29 +50,18 @@ var (
 )
 
 func TestMain(m *testing.M) {
-	d.SetDefaults()
-	cfg := config.GetConfig()
-	err := cfg.LoadConfig("../../testdata/configtest.json", true)
+	d = new(Deribit)
+	err := testexch.Setup(d)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	exchCfg, err := cfg.GetExchangeConfig("Deribit")
-	if err != nil {
-		log.Fatal(err)
-	}
-	d.Config = exchCfg
-	exchCfg.API.AuthenticatedSupport = true
-	exchCfg.API.AuthenticatedWebsocketSupport = true
+	d.Config.API.AuthenticatedSupport = true
+	d.Config.API.AuthenticatedWebsocketSupport = true
 	if apiKey != "" && apiSecret != "" {
-		exchCfg.API.Credentials.Key = apiKey
-		exchCfg.API.Credentials.Secret = apiSecret
+		d.Config.API.Credentials.Key = apiKey
+		d.Config.API.Credentials.Secret = apiSecret
 		d.Websocket.SetCanUseAuthenticatedEndpoints(true)
-	}
-	d.Websocket = sharedtestvalues.NewTestWebsocket()
-	err = d.Setup(exchCfg)
-	if err != nil {
-		log.Fatal("Deribit setup error", err)
 	}
 	if useTestNet {
 		deribitWebsocketAddress = "wss://test.deribit.com/ws" + deribitAPIVersion
@@ -89,6 +79,10 @@ func TestMain(m *testing.M) {
 	}
 	d.Websocket.DataHandler = sharedtestvalues.GetWebsocketInterfaceChannelOverride()
 	d.Websocket.TrafficAlert = sharedtestvalues.GetWebsocketStructChannelOverride()
+
+	spotTradablePair = currency.NewPairWithDelimiter("BTC", "USDC", "_")
+	futuresTradablePair = currency.NewPairWithDelimiter("BTC", "PERPETUAL", "-")
+
 	fetchTradablePairChan = make(chan struct{})
 	instantiateTradablePairs()
 	setupWs()
@@ -3024,21 +3018,25 @@ func TestCancelAllOrders(t *testing.T) {
 		Pair:          futuresTradablePair,
 		AssetType:     asset.Futures,
 	}
-	_, err := d.CancelAllOrders(context.Background(), orderCancellation)
-	require.False(t, err != nil && !errors.Is(err, errNoOrderDeleted), err)
+	result, err := d.CancelAllOrders(context.Background(), orderCancellation)
+	require.NoError(t, err)
+	require.NotNil(t, result)
 	orderCancellation.AssetType = asset.FutureCombo
 	orderCancellation.Pair = futureComboTradablePair
-	_, err = d.CancelAllOrders(context.Background(), orderCancellation)
-	require.False(t, err != nil && !errors.Is(err, errNoOrderDeleted), err)
+	result, err = d.CancelAllOrders(context.Background(), orderCancellation)
+	require.NoError(t, err)
+	require.NotNil(t, result)
 	sleepUntilTradablePairsUpdated()
 	orderCancellation.AssetType = asset.Options
 	orderCancellation.Pair = optionsTradablePair
-	_, err = d.CancelAllOrders(context.Background(), orderCancellation)
-	require.False(t, err != nil && !errors.Is(err, errNoOrderDeleted), err)
+	result, err = d.CancelAllOrders(context.Background(), orderCancellation)
+	require.NoError(t, err)
+	require.NotNil(t, result)
 	orderCancellation.AssetType = asset.OptionCombo
 	orderCancellation.Pair = optionComboTradablePair
-	_, err = d.CancelAllOrders(context.Background(), orderCancellation)
-	assert.False(t, err != nil && !errors.Is(err, errNoOrderDeleted), err)
+	result, err = d.CancelAllOrders(context.Background(), orderCancellation)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
 }
 
 func TestGetOrderInfo(t *testing.T) {
@@ -3371,71 +3369,45 @@ func instantiateTradablePairs() {
 	d.Websocket.Wg.Add(1)
 	go func(tpfChan chan struct{}) {
 		defer d.Websocket.Wg.Done()
-		var err error
-		futuresTradablePair, err = currency.NewPairFromString(btcPerpInstrument)
-		if err != nil {
-			close(tpfChan)
-			log.Fatal(err)
+
+		handleError := func(err error, msg string) {
+			if err != nil {
+				close(tpfChan)
+				log.Fatalf("%s: %v", msg, err)
+			}
 		}
 
-		spotTradablePair, err = currency.NewPairFromString("BTC_USDC")
-		if err != nil {
-			close(tpfChan)
-			log.Fatal(err)
+		assets := []asset.Item{asset.Options, asset.OptionCombo, asset.FutureCombo}
+		for _, assetType := range assets {
+			pairs, err := d.FetchTradablePairs(context.Background(), assetType)
+			handleError(err, fmt.Sprintf("Error fetching tradable pairs for asset type %v", assetType))
+
+			err = d.UpdatePairs(pairs, assetType, false, true)
+			handleError(err, fmt.Sprintf("Error updating tradable pairs for asset type %v", assetType))
 		}
-		assets := []asset.Item{asset.Futures, asset.Options, asset.OptionCombo, asset.FutureCombo}
-		for x := range assets {
-			// This loop only fetches tradable pairs of selected assets.
-			var pairs currency.Pairs
-			pairs, err = d.FetchTradablePairs(context.Background(), assets[x])
-			if err != nil {
-				close(tpfChan)
-				log.Fatalf("%v, while fetching tradable pairs of asset type %v", err, assets[x])
-			}
-			err = d.UpdatePairs(pairs, assets[x], false, true)
-			if err != nil {
-				close(tpfChan)
-				log.Fatalf("%v, while updating tradable pairs of asset type %v", err, assets[x])
-			}
-		}
-		var tradablePair currency.Pairs
-		if d.CurrencyPairs.IsAssetEnabled(asset.Options) == nil {
-			tradablePair, err = d.GetEnabledPairs(asset.Options)
-			if err != nil {
-				close(tpfChan)
-				log.Fatalf("failed to update tradable pairs. Err: %v", err)
-			} else if len(tradablePair) == 0 {
-				close(tpfChan)
-				log.Fatalf("enabled %v for asset type %v", currency.ErrCurrencyPairsEmpty, asset.Options)
-			}
-			optionsTradablePair, err = d.FormatExchangeCurrency(tradablePair[0], asset.Options)
-			if err != nil {
-				close(tpfChan)
-				log.Fatal("failed to format exchange currency for options pair")
+
+		updateTradablePair := func(assetType asset.Item, tradablePair *currency.Pair) {
+			if d.CurrencyPairs.IsAssetEnabled(assetType) == nil {
+				pairs, err := d.GetEnabledPairs(assetType)
+				handleError(err, fmt.Sprintf("Failed to get enabled pairs for asset type %v", assetType))
+
+				if len(pairs) == 0 {
+					handleError(currency.ErrCurrencyPairsEmpty, fmt.Sprintf("No enabled pairs for asset type %v", assetType))
+				}
+
+				if assetType == asset.Options {
+					*tradablePair, err = d.FormatExchangeCurrency(pairs[0], assetType)
+					handleError(err, "Failed to format exchange currency for options pair")
+				} else {
+					*tradablePair = pairs[0]
+				}
 			}
 		}
-		if d.CurrencyPairs.IsAssetEnabled(asset.OptionCombo) == nil {
-			tradablePair, err = d.GetEnabledPairs(asset.OptionCombo)
-			if err != nil {
-				close(tpfChan)
-				log.Fatalf("failed to update tradable pairs. Err: %v", err)
-			} else if len(tradablePair) == 0 {
-				close(tpfChan)
-				log.Fatalf("enabled %v for asset type %v", currency.ErrCurrencyPairsEmpty, asset.OptionCombo)
-			}
-			optionComboTradablePair = tradablePair[0]
-		}
-		if d.CurrencyPairs.IsAssetEnabled(asset.FutureCombo) == nil {
-			tradablePair, err = d.GetEnabledPairs(asset.FutureCombo)
-			if err != nil {
-				close(tpfChan)
-				log.Fatalf("failed to update tradable pairs. Err: %v", err)
-			} else if len(tradablePair) == 0 {
-				close(tpfChan)
-				log.Fatalf("enabled %v for asset type %v", currency.ErrCurrencyPairsEmpty, asset.FutureCombo)
-			}
-			futureComboTradablePair = tradablePair[0]
-		}
+
+		updateTradablePair(asset.Options, &optionsTradablePair)
+		updateTradablePair(asset.OptionCombo, &optionComboTradablePair)
+		updateTradablePair(asset.FutureCombo, &futureComboTradablePair)
+
 		tradablePairsFetchedStatusLock.Lock()
 		tradablePairsFetched = true
 		tradablePairsFetchedStatusLock.Unlock()

@@ -70,17 +70,10 @@ func (d *Deribit) SetDefaults() {
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
-	if err = d.StoreAssetPairFormat(asset.Futures, currency.PairStore{RequestFormat: requestFmt, ConfigFormat: configFmt}); err != nil {
-		log.Errorln(log.ExchangeSys, err)
-	}
-	if err = d.StoreAssetPairFormat(asset.Options, currency.PairStore{RequestFormat: requestFmt, ConfigFormat: configFmt}); err != nil {
-		log.Errorln(log.ExchangeSys, err)
-	}
-	if err = d.StoreAssetPairFormat(asset.OptionCombo, currency.PairStore{RequestFormat: requestFmt, ConfigFormat: configFmt}); err != nil {
-		log.Errorln(log.ExchangeSys, err)
-	}
-	if err = d.StoreAssetPairFormat(asset.FutureCombo, currency.PairStore{RequestFormat: requestFmt, ConfigFormat: configFmt}); err != nil {
-		log.Errorln(log.ExchangeSys, err)
+	for _, assetType := range []asset.Item{asset.Futures, asset.Options, asset.OptionCombo, asset.FutureCombo} {
+		if err = d.StoreAssetPairFormat(assetType, currency.PairStore{RequestFormat: requestFmt, ConfigFormat: configFmt}); err != nil {
+			log.Errorln(log.ExchangeSys, err)
+		}
 	}
 
 	// Fill out the capabilities/features that the exchange supports
@@ -164,17 +157,10 @@ func (d *Deribit) SetDefaults() {
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
-	err = d.DisableAssetWebsocketSupport(asset.Options)
-	if err != nil {
-		log.Errorln(log.ExchangeSys, err)
-	}
-	err = d.DisableAssetWebsocketSupport(asset.OptionCombo)
-	if err != nil {
-		log.Errorln(log.ExchangeSys, err)
-	}
-	err = d.DisableAssetWebsocketSupport(asset.FutureCombo)
-	if err != nil {
-		log.Errorln(log.ExchangeSys, err)
+	for _, assetType := range []asset.Item{asset.Options, asset.OptionCombo, asset.FutureCombo} {
+		if err = d.DisableAssetWebsocketSupport(assetType); err != nil {
+			log.Errorln(log.ExchangeSys, err)
+		}
 	}
 	d.API.Endpoints = d.NewEndpoints()
 	err = d.API.Endpoints.SetDefaultEndpoints(map[exchange.URL]string{
