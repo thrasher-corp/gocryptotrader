@@ -1944,9 +1944,9 @@ func (b *Base) GetCurrencyTradeURL(context.Context, asset.Item, currency.Pair) (
 }
 
 // ProtocolFeaturesREST returns the exchange's REST protocol features
-func (b *Base) ProtocolFeaturesREST() (*protocol.Features, error) {
+func (b *Base) GetTradingRequirements() (protocol.TradingRequirements, error) {
 	if b == nil {
-		return nil, errExchangeIsNil
+		return protocol.TradingRequirements{}, errExchangeIsNil
 	}
-	return &b.Features.Supports.RESTCapabilities, nil
+	return b.Features.TradingRequirements, nil
 }

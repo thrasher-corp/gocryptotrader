@@ -49,42 +49,21 @@ type Features struct {
 	// HasAssetTypeAccountSegregation is when the assets are divided into asset
 	// types instead of just being denoted as spot holdings.
 	HasAssetTypeAccountSegregation bool `json:"hasAssetTypeAccountSegregation,omitempty"`
-
-	// Nuanced trading parameters
-	SpotMarketOrderSubmissionAmounts TradingAmountRequirements `json:"spotMarketOrderSubmissionAmounts,omitempty"`
-	TradingRequiresClientOrderID     bool                      `json:"tradingRequiresClientOrderID,omitempty"`
 }
 
-// TradingAmountRequirements defines the requirements for trading amounts.
-type TradingAmountRequirements uint8
-
-// Constants representing different trading amount requirements.
-const (
-	// Any allows the amount to be in either the base or quotation currency.
-	Any TradingAmountRequirements = iota
-
-	// QuotationAmount requires the amount to be in the quote currency.
-	// For example, in BTC-USD, the quotation amount is USD.
+// TradingRequirements defines the requirements for trading on the exchange.
+type TradingRequirements struct {
+	// SpotMarketOrderSubmissionAmountQuotationOnly requires the amount to be in
+	// quote currency or what is to be sold. For example, in BTC-USD, the
+	// quotation amount is USD.
 	// NOTE: Due to an exchange's matching engine process, the base amount
 	// acquired may vary from what is intended due to price fluctuations and
 	// liquidity on the books. Care must be taken when implementing a market
 	// neutral strategy.
-	QuotationAmount
-
-	// BaseAmount requires the amount to be in the base currency.
-	BaseAmount
-)
-
-// String returns the string representation of the TradingAmountRequirements.
-func (t TradingAmountRequirements) String() string {
-	switch t {
-	case QuotationAmount:
-		return "QuotationAmount"
-	case BaseAmount:
-		return "BaseAmount"
-	case Any:
-		return "Any"
-	default:
-		return "Unknown"
-	}
+	SpotMarketOrderSubmissionAmountQuotationOnly bool
+	// SpotMarketOrderSubmissionAmountBaseOnly requires the amount to be in the
+	// base currency or what is intended to be purchased. For example, in
+	// BTC-USD, the base amount is BTC.
+	SpotMarketOrderSubmissionAmountBaseOnly bool
+	ClientOrderID                           bool
 }

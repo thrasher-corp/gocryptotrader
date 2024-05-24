@@ -57,14 +57,14 @@ func IsValidOrderSubmissionSide(s Side) bool {
 	return s != UnknownSide && orderSubmissionValidSides&s == s
 }
 
-// ProtocolFeatureSet is an interface that allows for the retrieval of exchange
-// specific protocol features.
-type ProtocolFeatureSet interface {
-	ProtocolFeaturesREST() (*protocol.Features, error)
+// GetTradingRequirements is an interface that allows for the retrieval of
+// exchange specific trading requirements.
+type ProtocolTradingRequirements interface {
+	GetTradingRequirements() (protocol.TradingRequirements, error)
 }
 
 // Validate checks the supplied data and returns whether it's valid
-func (s *Submit) Validate(exch ProtocolFeatureSet, opt ...validate.Checker) error {
+func (s *Submit) Validate(exch ProtocolTradingRequirements, opt ...validate.Checker) error {
 	if s == nil {
 		return ErrSubmissionIsNil
 	}
@@ -113,29 +113,20 @@ func (s *Submit) Validate(exch ProtocolFeatureSet, opt ...validate.Checker) erro
 		return ErrPriceMustBeSetIfLimitOrder
 	}
 
-	features, err := exch.ProtocolFeaturesREST()
+	requirements, err := exch.GetTradingRequirements()
 	if err != nil {
 		return err
 	}
 
-	if features.TradingRequiresClientOrderID && s.ClientOrderID == "" {
+	if requirements.ClientOrderID && s.ClientOrderID == "" {
 		return fmt.Errorf("submit validation error %w, client order ID must be set to satisfy submission requirements", ErrClientOrderIDMustBeSet)
 	}
 
 	if s.Type == Market && s.AssetType == asset.Spot && s.Side.IsLong() {
-
-		switch {
-		case features.SpotMarketOrderSubmissionAmounts == protocol.BaseAmount:
-			if s.Amount == 0 {
-				return fmt.Errorf("submit validation error %w, base amount must be set to 'Amount' field to satisfy submission requirements", ErrAmountMustBeSet)
-			}
-		case features.SpotMarketOrderSubmissionAmounts == protocol.QuotationAmount:
-			if s.QuoteAmount == 0 {
-				return fmt.Errorf("submit validation error %w, quote amount must be set to 'QuoteAmount' field to satisfy submission requirements", ErrAmountMustBeSet)
-			}
-		case features.SpotMarketOrderSubmissionAmounts == protocol.Any:
-		default:
-			return fmt.Errorf("submit validation error %w for spot market order", ErrUnknownSubmissionAmountType)
+		if requirements.SpotMarketOrderSubmissionAmountBaseOnly && s.Amount == 0 {
+			return fmt.Errorf("submit validation error %w, base amount must be set to 'Amount' field to satisfy submission requirements", ErrAmountMustBeSet)
+		} else if requirements.SpotMarketOrderSubmissionAmountQuotationOnly && s.QuoteAmount == 0 {
+			return fmt.Errorf("submit validation error %w, quote amount must be set to 'QuoteAmount' field to satisfy submission requirements", ErrAmountMustBeSet)
 		}
 	}
 
