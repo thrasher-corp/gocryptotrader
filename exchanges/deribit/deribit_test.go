@@ -9,7 +9,6 @@ import (
 	"os"
 	"strconv"
 	"strings"
-	"sync"
 	"testing"
 	"time"
 
@@ -42,15 +41,13 @@ const (
 )
 
 var (
-	d                                                                                                            = &Deribit{}
-	futuresTradablePair, optionsTradablePair, optionComboTradablePair, futureComboTradablePair, spotTradablePair currency.Pair
-	fetchTradablePairChan                                                                                        chan struct{}
-	tradablePairsFetchedStatusLock                                                                               = sync.Mutex{}
-	tradablePairsFetched                                                                                         bool
+	d                                                                     = &Deribit{}
+	optionsTradablePair, optionComboTradablePair, futureComboTradablePair currency.Pair
+	spotTradablePair                                                      = currency.NewPairWithDelimiter("BTC", "USDC", "_")
+	futuresTradablePair                                                   = currency.NewPairWithDelimiter("BTC", "PERPETUAL", "-")
 )
 
 func TestMain(m *testing.M) {
-	d = new(Deribit)
 	err := testexch.Setup(d)
 	if err != nil {
 		log.Fatal(err)
@@ -77,13 +74,7 @@ func TestMain(m *testing.M) {
 			}
 		}
 	}
-	d.Websocket.DataHandler = sharedtestvalues.GetWebsocketInterfaceChannelOverride()
-	d.Websocket.TrafficAlert = sharedtestvalues.GetWebsocketStructChannelOverride()
 
-	spotTradablePair = currency.NewPairWithDelimiter("BTC", "USDC", "_")
-	futuresTradablePair = currency.NewPairWithDelimiter("BTC", "PERPETUAL", "-")
-
-	fetchTradablePairChan = make(chan struct{})
 	instantiateTradablePairs()
 	setupWs()
 	os.Exit(m.Run())
@@ -95,7 +86,7 @@ func TestUpdateTicker(t *testing.T) {
 	require.NoError(t, err)
 	_, err = d.UpdateTicker(context.Background(), futuresTradablePair, asset.Futures)
 	require.NoError(t, err)
-	sleepUntilTradablePairsUpdated()
+
 	_, err = d.UpdateTicker(context.Background(), optionsTradablePair, asset.Options)
 	require.NoError(t, err)
 	_, err = d.UpdateTicker(context.Background(), optionComboTradablePair, asset.OptionCombo)
@@ -112,7 +103,7 @@ func TestUpdateOrderbook(t *testing.T) {
 	require.NoError(t, err)
 	_, err = d.UpdateOrderbook(context.Background(), futuresTradablePair, asset.Futures)
 	require.NoError(t, err)
-	sleepUntilTradablePairsUpdated()
+
 	_, err = d.UpdateOrderbook(context.Background(), optionsTradablePair, asset.Options)
 	require.NoError(t, err)
 	_, err = d.UpdateOrderbook(context.Background(), futureComboTradablePair, asset.FutureCombo)
@@ -135,7 +126,7 @@ func TestFetchRecentTrades(t *testing.T) {
 	require.NoError(t, err)
 	_, err = d.GetRecentTrades(context.Background(), spotTradablePair, asset.Spot)
 	require.NoError(t, err)
-	sleepUntilTradablePairsUpdated()
+
 	_, err = d.GetRecentTrades(context.Background(), optionsTradablePair, asset.Options)
 	require.NoError(t, err)
 	_, err = d.GetRecentTrades(context.Background(), optionComboTradablePair, asset.OptionCombo)
@@ -154,7 +145,7 @@ func TestGetHistoricCandles(t *testing.T) {
 	resp, err = d.GetHistoricCandles(context.Background(), spotTradablePair, asset.Spot, kline.FifteenMin, start, end)
 	require.NoError(t, err)
 	require.NotEmpty(t, resp)
-	sleepUntilTradablePairsUpdated()
+
 	_, err = d.GetHistoricCandles(context.Background(), optionsTradablePair, asset.Options, kline.FifteenMin, start, end)
 	require.ErrorIs(t, err, asset.ErrNotSupported)
 	_, err = d.GetHistoricCandles(context.Background(), futureComboTradablePair, asset.FutureCombo, kline.FifteenMin, start, end)
@@ -173,7 +164,7 @@ func TestGetHistoricCandlesExtended(t *testing.T) {
 	resp, err = d.GetHistoricCandlesExtended(context.Background(), spotTradablePair, asset.Spot, kline.OneDay, start, end)
 	require.NoError(t, err)
 	require.NotEmpty(t, resp)
-	sleepUntilTradablePairsUpdated()
+
 	_, err = d.GetHistoricCandlesExtended(context.Background(), optionsTradablePair, asset.Options, kline.OneDay, start, end)
 	require.ErrorIs(t, err, asset.ErrNotSupported)
 	_, err = d.GetHistoricCandlesExtended(context.Background(), futureComboTradablePair, asset.FutureCombo, kline.OneDay, start, end)
@@ -200,7 +191,7 @@ func TestSubmitOrder(t *testing.T) {
 		},
 	)
 	require.NoError(t, err)
-	sleepUntilTradablePairsUpdated()
+
 	info, err = d.GetInstrument(context.Background(), d.optionPairToString(optionsTradablePair))
 	require.NoError(t, err)
 	_, err = d.SubmitOrder(
@@ -257,7 +248,7 @@ func TestGetMarkPriceHistory(t *testing.T) {
 	require.ErrorIs(t, err, errInvalidInstrumentName)
 	_, err = d.GetMarkPriceHistory(context.Background(), btcPerpInstrument, time.Now().Add(-5*time.Minute), time.Now())
 	require.NoError(t, err)
-	sleepUntilTradablePairsUpdated()
+
 	_, err = d.GetMarkPriceHistory(context.Background(), d.optionPairToString(optionsTradablePair), time.Now().Add(-5*time.Minute), time.Now())
 	require.NoError(t, err)
 	_, err = d.GetMarkPriceHistory(context.Background(), spotTradablePair.String(), time.Now().Add(-5*time.Minute), time.Now())
@@ -276,7 +267,7 @@ func TestWSRetrieveMarkPriceHistory(t *testing.T) {
 	require.NoError(t, err)
 	_, err = d.WSRetrieveMarkPriceHistory(spotTradablePair.String(), time.Now().Add(-4*time.Hour), time.Now())
 	require.NoError(t, err)
-	sleepUntilTradablePairsUpdated()
+
 	_, err = d.WSRetrieveMarkPriceHistory(d.optionPairToString(optionsTradablePair), time.Now().Add(-4*time.Hour), time.Now())
 	require.NoError(t, err)
 	_, err = d.WSRetrieveMarkPriceHistory(futureComboTradablePair.String(), time.Now().Add(-4*time.Hour), time.Now())
@@ -316,7 +307,7 @@ func TestGetBookSummaryByInstrument(t *testing.T) {
 	require.NoError(t, err)
 	_, err = d.GetBookSummaryByInstrument(context.Background(), spotTradablePair.String())
 	require.NoError(t, err)
-	sleepUntilTradablePairsUpdated()
+
 	_, err = d.GetBookSummaryByInstrument(context.Background(), d.optionPairToString(optionsTradablePair))
 	require.NoError(t, err)
 	_, err = d.GetBookSummaryByInstrument(context.Background(), d.optionPairToString(optionsTradablePair))
@@ -331,7 +322,7 @@ func TestWSRetrieveBookSummaryByInstrument(t *testing.T) {
 	require.NoError(t, err)
 	_, err = d.WSRetrieveBookSummaryByInstrument(spotTradablePair.String())
 	require.NoError(t, err)
-	sleepUntilTradablePairsUpdated()
+
 	_, err = d.WSRetrieveBookSummaryByInstrument(d.optionPairToString(optionsTradablePair))
 	require.NoError(t, err)
 	_, err = d.WSRetrieveBookSummaryByInstrument(d.optionPairToString(optionsTradablePair))
@@ -501,7 +492,7 @@ func TestGetInstrumentData(t *testing.T) {
 	require.NoError(t, err)
 	_, err = d.GetInstrument(context.Background(), spotTradablePair.String())
 	require.NoError(t, err)
-	sleepUntilTradablePairsUpdated()
+
 	_, err = d.GetInstrument(context.Background(), d.optionPairToString(optionsTradablePair))
 	require.NoError(t, err)
 	_, err = d.GetInstrument(context.Background(), d.optionPairToString(optionsTradablePair))
@@ -518,7 +509,7 @@ func TestWSRetrieveInstrumentData(t *testing.T) {
 	require.NoError(t, err)
 	_, err = d.WSRetrieveInstrumentData(spotTradablePair.String())
 	require.NoError(t, err)
-	sleepUntilTradablePairsUpdated()
+
 	_, err = d.WSRetrieveInstrumentData(d.optionPairToString(optionsTradablePair))
 	require.NoError(t, err)
 	_, err = d.WSRetrieveInstrumentData(d.optionPairToString(optionsTradablePair))
@@ -582,7 +573,7 @@ func TestGetLastSettlementsByInstrument(t *testing.T) {
 func TestGetLastTradesByCurrency(t *testing.T) {
 	t.Parallel()
 	_, err := d.GetLastTradesByCurrency(context.Background(), currency.EMPTYCODE, "option", "36798", "36799", "asc", 0, true)
-	assert.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
+	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
 	_, err = d.GetLastTradesByCurrency(context.Background(), currency.BTC, "option", "36798", "36799", "asc", 0, true)
 	assert.NoError(t, err)
 }
@@ -622,7 +613,7 @@ func TestGetLastTradesByInstrument(t *testing.T) {
 	require.ErrorIs(t, err, errInvalidInstrumentName)
 	_, err = d.GetLastTradesByInstrument(context.Background(), btcPerpInstrument, "30500", "31500", "desc", 0, true)
 	require.NoError(t, err)
-	sleepUntilTradablePairsUpdated()
+
 	_, err = d.GetLastTradesByInstrument(context.Background(), d.optionPairToString(optionsTradablePair), "30500", "31500", "desc", 0, true)
 	require.NoError(t, err)
 	_, err = d.GetLastTradesByInstrument(context.Background(), futureComboTradablePair.String(), "30500", "31500", "desc", 0, true)
@@ -635,7 +626,7 @@ func TestWSRetrieveLastTradesByInstrument(t *testing.T) {
 	require.ErrorIs(t, err, errInvalidInstrumentName)
 	_, err = d.WSRetrieveLastTradesByInstrument(btcPerpInstrument, "30500", "31500", "desc", 0, true)
 	require.NoError(t, err)
-	sleepUntilTradablePairsUpdated()
+
 	_, err = d.WSRetrieveLastTradesByInstrument(d.optionPairToString(optionsTradablePair), "", "", "", 0, false)
 	require.NoError(t, err)
 	_, err = d.WSRetrieveLastTradesByInstrument(futureComboTradablePair.String(), "", "", "", 0, false)
@@ -650,7 +641,7 @@ func TestGetLastTradesByInstrumentAndTime(t *testing.T) {
 	require.NoError(t, err)
 	_, err = d.GetLastTradesByInstrumentAndTime(context.Background(), spotTradablePair.String(), "", 0, time.Now().Add(-8*time.Hour), time.Now())
 	require.NoError(t, err)
-	sleepUntilTradablePairsUpdated()
+
 	_, err = d.GetLastTradesByInstrumentAndTime(context.Background(), d.optionPairToString(optionsTradablePair), "", 0, time.Now().Add(-8*time.Hour), time.Now())
 	require.NoError(t, err)
 	_, err = d.GetLastTradesByInstrumentAndTime(context.Background(), futureComboTradablePair.String(), "", 0, time.Now().Add(-8*time.Hour), time.Now())
@@ -663,7 +654,7 @@ func TestWSRetrieveLastTradesByInstrumentAndTime(t *testing.T) {
 	require.ErrorIs(t, err, errInvalidInstrumentName)
 	_, err = d.WSRetrieveLastTradesByInstrumentAndTime(btcPerpInstrument, "asc", 0, false, time.Now().Add(-8*time.Hour), time.Now())
 	require.NoError(t, err)
-	sleepUntilTradablePairsUpdated()
+
 	_, err = d.WSRetrieveLastTradesByInstrumentAndTime(d.optionPairToString(optionsTradablePair), "asc", 0, false, time.Now().Add(-8*time.Hour), time.Now())
 	require.NoError(t, err)
 	_, err = d.WSRetrieveLastTradesByInstrumentAndTime(futureComboTradablePair.String(), "asc", 0, false, time.Now().Add(-8*time.Hour), time.Now())
@@ -680,7 +671,7 @@ func TestGetOrderbookData(t *testing.T) {
 	require.NoError(t, err)
 	_, err = d.GetOrderbook(context.Background(), spotTradablePair.String(), 0)
 	require.NoError(t, err)
-	sleepUntilTradablePairsUpdated()
+
 	_, err = d.GetOrderbook(context.Background(), futureComboTradablePair.String(), 0)
 	require.NoError(t, err)
 	_, err = d.GetOrderbook(context.Background(), d.optionPairToString(optionsTradablePair), 0)
@@ -2382,7 +2373,7 @@ func TestWSRetrieveComboIDS(t *testing.T) {
 }
 func TestGetComboDetails(t *testing.T) {
 	t.Parallel()
-	sleepUntilTradablePairsUpdated()
+
 	_, err := d.GetComboDetails(context.Background(), "")
 	require.ErrorIs(t, err, errInvalidComboID)
 	_, err = d.GetComboDetails(context.Background(), futureComboTradablePair.String())
@@ -2391,7 +2382,7 @@ func TestGetComboDetails(t *testing.T) {
 
 func TestWSRetrieveComboDetails(t *testing.T) {
 	t.Parallel()
-	sleepUntilTradablePairsUpdated()
+
 	_, err := d.WSRetrieveComboDetails("")
 	require.ErrorIs(t, err, errInvalidComboID)
 	_, err = d.WSRetrieveComboDetails(futureComboTradablePair.String())
@@ -2439,7 +2430,7 @@ func TestCreateCombo(t *testing.T) {
 	})
 	require.ErrorIs(t, err, errInvalidOrderSideOrDirection)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, d, canManipulateRealOrders)
-	sleepUntilTradablePairsUpdated()
+
 	_, err = d.CreateCombo(context.Background(), []ComboParam{
 		{
 			InstrumentName: instruments[0].String(),
@@ -2932,7 +2923,7 @@ func TestFetchTicker(t *testing.T) {
 	require.NoError(t, err)
 	_, err = d.FetchTicker(context.Background(), spotTradablePair, asset.Spot)
 	require.NoError(t, err)
-	sleepUntilTradablePairsUpdated()
+
 	_, err = d.FetchTicker(context.Background(), optionsTradablePair, asset.Options)
 	require.NoError(t, err)
 	_, err = d.FetchTicker(context.Background(), optionComboTradablePair, asset.OptionCombo)
@@ -2947,7 +2938,7 @@ func TestFetchOrderbook(t *testing.T) {
 	require.NoError(t, err)
 	_, err = d.FetchOrderbook(context.Background(), spotTradablePair, asset.Spot)
 	require.NoError(t, err)
-	sleepUntilTradablePairsUpdated()
+
 	_, err = d.FetchOrderbook(context.Background(), futureComboTradablePair, asset.FutureCombo)
 	require.NoError(t, err)
 	_, err = d.FetchOrderbook(context.Background(), optionComboTradablePair, asset.OptionCombo)
@@ -3026,7 +3017,7 @@ func TestCancelAllOrders(t *testing.T) {
 	result, err = d.CancelAllOrders(context.Background(), orderCancellation)
 	require.NoError(t, err)
 	require.NotNil(t, result)
-	sleepUntilTradablePairsUpdated()
+
 	orderCancellation.AssetType = asset.Options
 	orderCancellation.Pair = optionsTradablePair
 	result, err = d.CancelAllOrders(context.Background(), orderCancellation)
@@ -3046,7 +3037,7 @@ func TestGetOrderInfo(t *testing.T) {
 	require.NoError(t, err)
 	_, err = d.GetOrderInfo(context.Background(), "1234", futuresTradablePair, asset.Futures)
 	require.NoError(t, err)
-	sleepUntilTradablePairsUpdated()
+
 	_, err = d.GetOrderInfo(context.Background(), "1234", futureComboTradablePair, asset.FutureCombo)
 	require.NoError(t, err)
 	_, err = d.GetOrderInfo(context.Background(), "1234", optionsTradablePair, asset.Options)
@@ -3085,7 +3076,7 @@ func TestGetActiveOrders(t *testing.T) {
 		Type: order.AnyType, AssetType: asset.Futures,
 		Side: order.AnySide, Pairs: currency.Pairs{futuresTradablePair},
 	}
-	sleepUntilTradablePairsUpdated()
+
 	_, err := d.GetActiveOrders(context.Background(), &getOrdersRequest)
 	require.NoError(t, err)
 	getOrdersRequest.AssetType = asset.Options
@@ -3115,7 +3106,7 @@ func TestGetOrderHistory(t *testing.T) {
 		Side: order.AnySide, Pairs: []currency.Pair{spotTradablePair},
 	})
 	require.NoError(t, err)
-	sleepUntilTradablePairsUpdated()
+
 	_, err = d.GetOrderHistory(context.Background(), &order.MultiOrderRequest{
 		Type: order.AnyType, AssetType: asset.Options,
 		Side: order.AnySide, Pairs: []currency.Pair{optionsTradablePair},
@@ -3271,7 +3262,7 @@ func TestModifyOrder(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, d, canManipulateRealOrders)
 	_, err = d.ModifyOrder(context.Background(), &order.Modify{AssetType: asset.Futures, OrderID: "1234", Pair: futuresTradablePair, Amount: 2})
 	require.NoError(t, err)
-	sleepUntilTradablePairsUpdated()
+
 	_, err = d.ModifyOrder(context.Background(), &order.Modify{AssetType: asset.Options, OrderID: "1234", Pair: optionsTradablePair, Amount: 2})
 	assert.NoError(t, err)
 }
@@ -3288,7 +3279,7 @@ func TestCancelOrder(t *testing.T) {
 	}
 	err := d.CancelOrder(context.Background(), orderCancellation)
 	require.NoError(t, err)
-	sleepUntilTradablePairsUpdated()
+
 	orderCancellation.AssetType = asset.Options
 	orderCancellation.Pair = optionsTradablePair
 	err = d.CancelOrder(context.Background(), orderCancellation)
@@ -3358,7 +3349,7 @@ func TestFormatFuturesTradablePair(t *testing.T) {
 
 func TestWSRetrieveCombos(t *testing.T) {
 	t.Parallel()
-	sleepUntilTradablePairsUpdated()
+
 	_, err := d.WSRetrieveCombos(currency.EMPTYCODE)
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
 	_, err = d.WSRetrieveCombos(futureComboTradablePair.Base)
@@ -3366,63 +3357,37 @@ func TestWSRetrieveCombos(t *testing.T) {
 }
 
 func instantiateTradablePairs() {
-	d.Websocket.Wg.Add(1)
-	go func(tpfChan chan struct{}) {
-		defer d.Websocket.Wg.Done()
-
-		handleError := func(err error, msg string) {
-			if err != nil {
-				close(tpfChan)
-				log.Fatalf("%s: %v", msg, err)
-			}
-		}
-
-		assets := []asset.Item{asset.Options, asset.OptionCombo, asset.FutureCombo}
-		for _, assetType := range assets {
-			pairs, err := d.FetchTradablePairs(context.Background(), assetType)
-			handleError(err, fmt.Sprintf("Error fetching tradable pairs for asset type %v", assetType))
-
-			err = d.UpdatePairs(pairs, assetType, false, true)
-			handleError(err, fmt.Sprintf("Error updating tradable pairs for asset type %v", assetType))
-		}
-
-		updateTradablePair := func(assetType asset.Item, tradablePair *currency.Pair) {
-			if d.CurrencyPairs.IsAssetEnabled(assetType) == nil {
-				pairs, err := d.GetEnabledPairs(assetType)
-				handleError(err, fmt.Sprintf("Failed to get enabled pairs for asset type %v", assetType))
-
-				if len(pairs) == 0 {
-					handleError(currency.ErrCurrencyPairsEmpty, fmt.Sprintf("No enabled pairs for asset type %v", assetType))
-				}
-
-				if assetType == asset.Options {
-					*tradablePair, err = d.FormatExchangeCurrency(pairs[0], assetType)
-					handleError(err, "Failed to format exchange currency for options pair")
-				} else {
-					*tradablePair = pairs[0]
-				}
-			}
-		}
-
-		updateTradablePair(asset.Options, &optionsTradablePair)
-		updateTradablePair(asset.OptionCombo, &optionComboTradablePair)
-		updateTradablePair(asset.FutureCombo, &futureComboTradablePair)
-
-		tradablePairsFetchedStatusLock.Lock()
-		tradablePairsFetched = true
-		tradablePairsFetchedStatusLock.Unlock()
-		close(tpfChan)
-	}(fetchTradablePairChan)
-}
-
-func sleepUntilTradablePairsUpdated() {
-	tradablePairsFetchedStatusLock.Lock()
-	if tradablePairsFetched {
-		tradablePairsFetchedStatusLock.Unlock()
-		return
+	if err := d.UpdateTradablePairs(context.Background(), true); err != nil {
+		log.Fatalf("Failed to update tradable pairs. Error: %v", err)
 	}
-	tradablePairsFetchedStatusLock.Unlock()
-	<-fetchTradablePairChan
+
+	handleError := func(err error, msg string) {
+		if err != nil {
+			log.Fatalf("%s. Error: %v", msg, err)
+		}
+	}
+
+	updateTradablePair := func(assetType asset.Item, tradablePair *currency.Pair) {
+		if d.CurrencyPairs.IsAssetEnabled(assetType) == nil {
+			pairs, err := d.GetEnabledPairs(assetType)
+			handleError(err, fmt.Sprintf("Failed to get enabled pairs for asset type %v", assetType))
+
+			if len(pairs) == 0 {
+				handleError(currency.ErrCurrencyPairsEmpty, fmt.Sprintf("No enabled pairs for asset type %v", assetType))
+			}
+
+			if assetType == asset.Options {
+				*tradablePair, err = d.FormatExchangeCurrency(pairs[0], assetType)
+				handleError(err, "Failed to format exchange currency for options pair")
+			} else {
+				*tradablePair = pairs[0]
+			}
+		}
+	}
+
+	updateTradablePair(asset.Options, &optionsTradablePair)
+	updateTradablePair(asset.OptionCombo, &optionComboTradablePair)
+	updateTradablePair(asset.FutureCombo, &futureComboTradablePair)
 }
 
 func TestGetLatestFundingRates(t *testing.T) {
@@ -3588,7 +3553,7 @@ func TestGetOpenInterest(t *testing.T) {
 		Asset: asset.Spot,
 	})
 	require.ErrorIs(t, err, asset.ErrNotSupported)
-	sleepUntilTradablePairsUpdated()
+
 	resp, err = d.GetOpenInterest(context.Background(), key.PairAsset{
 		Base:  futureComboTradablePair.Base.Item,
 		Quote: futureComboTradablePair.Quote.Item,
