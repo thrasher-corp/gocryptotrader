@@ -11,6 +11,7 @@ import (
 	"github.com/gofrs/uuid"
 	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/config"
@@ -562,9 +563,7 @@ func TestCancelAllOrders(t *testing.T) {
 func TestSubmit(t *testing.T) {
 	m := OrdersSetup(t)
 	_, err := m.Submit(context.Background(), nil)
-	if err == nil {
-		t.Error("Expected error from nil order")
-	}
+	require.ErrorIs(t, err, errNilOrder)
 
 	o := &order.Submit{Type: order.Market}
 	_, err = m.Submit(context.Background(), o)
