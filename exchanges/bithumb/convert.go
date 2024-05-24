@@ -21,7 +21,7 @@ func (t *bithumbTime) UnmarshalJSON(data []byte) error {
 		return err
 	}
 
-	*t = bithumbTime(time.Unix(0, i*int64(time.Microsecond)))
+	*t = bithumbTime(time.Unix(0, i*int64(time.Microsecond)).UTC())
 	return nil
 }
 

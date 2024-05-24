@@ -263,7 +263,7 @@ func (b *Bitstamp) UpdateTicker(ctx context.Context, p currency.Pair, a asset.It
 		Volume:       tick.Volume,
 		Open:         tick.Open,
 		Pair:         fPair,
-		LastUpdated:  time.Unix(tick.Timestamp, 0),
+		LastUpdated:  time.Unix(tick.Timestamp, 0).UTC(),
 		ExchangeName: b.Name,
 		AssetType:    a})
 	if err != nil {
@@ -471,7 +471,7 @@ func (b *Bitstamp) GetRecentTrades(ctx context.Context, p currency.Pair, assetTy
 			Side:         s,
 			Price:        tradeData[i].Price,
 			Amount:       tradeData[i].Amount,
-			Timestamp:    time.Unix(tradeData[i].Date, 0),
+			Timestamp:    time.Unix(tradeData[i].Date, 0).UTC(),
 		}
 	}
 
@@ -858,7 +858,7 @@ func (b *Bitstamp) GetHistoricCandles(ctx context.Context, pair currency.Pair, a
 
 	timeSeries := make([]kline.Candle, 0, len(candles.Data.OHLCV))
 	for x := range candles.Data.OHLCV {
-		timestamp := time.Unix(candles.Data.OHLCV[x].Timestamp, 0)
+		timestamp := time.Unix(candles.Data.OHLCV[x].Timestamp, 0).UTC()
 		if timestamp.Before(req.Start) || timestamp.After(req.End) {
 			continue
 		}
@@ -896,13 +896,13 @@ func (b *Bitstamp) GetHistoricCandlesExtended(ctx context.Context, pair currency
 		}
 
 		for i := range candles.Data.OHLCV {
-			timestamp := time.Unix(candles.Data.OHLCV[i].Timestamp, 0)
+			timestamp := time.Unix(candles.Data.OHLCV[i].Timestamp, 0).UTC()
 			if timestamp.Before(req.RangeHolder.Ranges[x].Start.Time) ||
 				timestamp.After(req.RangeHolder.Ranges[x].End.Time) {
 				continue
 			}
 			timeSeries = append(timeSeries, kline.Candle{
-				Time:   time.Unix(candles.Data.OHLCV[i].Timestamp, 0),
+				Time:   timestamp,
 				Open:   candles.Data.OHLCV[i].Open,
 				High:   candles.Data.OHLCV[i].High,
 				Low:    candles.Data.OHLCV[i].Low,

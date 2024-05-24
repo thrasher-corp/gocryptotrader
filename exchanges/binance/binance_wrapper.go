@@ -1972,7 +1972,7 @@ func (b *Binance) GetServerTime(ctx context.Context, ai asset.Item) (time.Time, 
 		if err != nil {
 			return time.Time{}, err
 		}
-		return time.UnixMilli(info.ServerTime), nil
+		return time.UnixMilli(info.ServerTime).UTC(), nil
 	}
 	return time.Time{}, fmt.Errorf("%s %w", ai, asset.ErrNotSupported)
 }
@@ -2036,14 +2036,14 @@ func (b *Binance) GetLatestFundingRates(ctx context.Context, r *fundingrate.Late
 				fundingRateFrequency = fri[x].FundingIntervalHours
 				break
 			}
-			nft := time.UnixMilli(mp[i].NextFundingTime)
+			nft := time.UnixMilli(mp[i].NextFundingTime).UTC()
 			rate := fundingrate.LatestRateResponse{
 				TimeChecked: time.Now().UTC(),
 				Exchange:    b.Name,
 				Asset:       r.Asset,
 				Pair:        cp,
 				LatestRate: fundingrate.Rate{
-					Time: time.UnixMilli(mp[i].Time).Truncate(time.Hour * time.Duration(fundingRateFrequency)),
+					Time: time.UnixMilli(mp[i].Time).UTC().Truncate(time.Hour * time.Duration(fundingRateFrequency)),
 					Rate: decimal.NewFromFloat(mp[i].LastFundingRate),
 				},
 			}
@@ -2091,14 +2091,14 @@ func (b *Binance) GetLatestFundingRates(ctx context.Context, r *fundingrate.Late
 				fundingRateFrequency = fri[x].FundingIntervalHours
 				break
 			}
-			nft := time.UnixMilli(mp[i].NextFundingTime)
+			nft := time.UnixMilli(mp[i].NextFundingTime).UTC()
 			rate := fundingrate.LatestRateResponse{
 				TimeChecked: time.Now().UTC(),
 				Exchange:    b.Name,
 				Asset:       r.Asset,
 				Pair:        cp,
 				LatestRate: fundingrate.Rate{
-					Time: time.UnixMilli(mp[i].Time).Truncate(time.Duration(fundingRateFrequency) * time.Hour),
+					Time: time.UnixMilli(mp[i].Time).UTC().Truncate(time.Duration(fundingRateFrequency) * time.Hour),
 					Rate: mp[i].LastFundingRate.Decimal(),
 				},
 			}
@@ -2167,14 +2167,14 @@ func (b *Binance) GetHistoricalFundingRates(ctx context.Context, r *fundingrate.
 			}
 			for j := range frh {
 				pairRate.FundingRates = append(pairRate.FundingRates, fundingrate.Rate{
-					Time: time.UnixMilli(frh[j].FundingTime),
+					Time: time.UnixMilli(frh[j].FundingTime).UTC(),
 					Rate: decimal.NewFromFloat(frh[j].FundingRate),
 				})
 			}
 			if len(frh) < requestLimit {
 				break
 			}
-			sd = time.UnixMilli(frh[len(frh)-1].FundingTime)
+			sd = time.UnixMilli(frh[len(frh)-1].FundingTime).UTC()
 		}
 		var mp []UMarkPrice
 		mp, err = b.UGetMarkPrice(ctx, fPair)
@@ -2182,10 +2182,10 @@ func (b *Binance) GetHistoricalFundingRates(ctx context.Context, r *fundingrate.
 			return nil, err
 		}
 		pairRate.LatestRate = fundingrate.Rate{
-			Time: time.UnixMilli(mp[len(mp)-1].Time).Truncate(time.Duration(fundingRateFrequency) * time.Hour),
+			Time: time.UnixMilli(mp[len(mp)-1].Time).UTC().Truncate(time.Duration(fundingRateFrequency) * time.Hour),
 			Rate: decimal.NewFromFloat(mp[len(mp)-1].LastFundingRate),
 		}
-		pairRate.TimeOfNextRate = time.UnixMilli(mp[len(mp)-1].NextFundingTime)
+		pairRate.TimeOfNextRate = time.UnixMilli(mp[len(mp)-1].NextFundingTime).UTC()
 		if r.IncludePayments {
 			var income []UAccountIncomeHistory
 			income, err = b.UAccountIncomeHistory(ctx, fPair, "FUNDING_FEE", int64(requestLimit), r.StartDate, r.EndDate)
@@ -2194,7 +2194,7 @@ func (b *Binance) GetHistoricalFundingRates(ctx context.Context, r *fundingrate.
 			}
 			for j := range income {
 				for x := range pairRate.FundingRates {
-					tt := time.UnixMilli(income[j].Time)
+					tt := time.UnixMilli(income[j].Time).UTC()
 					tt = tt.Truncate(time.Duration(fundingRateFrequency) * time.Hour)
 					if !tt.Equal(pairRate.FundingRates[x].Time) {
 						continue
@@ -2233,14 +2233,14 @@ func (b *Binance) GetHistoricalFundingRates(ctx context.Context, r *fundingrate.
 			}
 			for j := range frh {
 				pairRate.FundingRates = append(pairRate.FundingRates, fundingrate.Rate{
-					Time: time.UnixMilli(frh[j].FundingTime),
+					Time: time.UnixMilli(frh[j].FundingTime).UTC(),
 					Rate: decimal.NewFromFloat(frh[j].FundingRate),
 				})
 			}
 			if len(frh) < requestLimit {
 				break
 			}
-			sd = time.UnixMilli(frh[len(frh)-1].FundingTime)
+			sd = time.UnixMilli(frh[len(frh)-1].FundingTime).UTC()
 		}
 		var mp []IndexMarkPrice
 		mp, err = b.GetIndexAndMarkPrice(ctx, fPair.String(), "")
@@ -2248,10 +2248,10 @@ func (b *Binance) GetHistoricalFundingRates(ctx context.Context, r *fundingrate.
 			return nil, err
 		}
 		pairRate.LatestRate = fundingrate.Rate{
-			Time: time.UnixMilli(mp[len(mp)-1].Time).Truncate(time.Duration(fundingRateFrequency) * time.Hour),
+			Time: time.UnixMilli(mp[len(mp)-1].Time).UTC().Truncate(time.Duration(fundingRateFrequency) * time.Hour),
 			Rate: mp[len(mp)-1].LastFundingRate.Decimal(),
 		}
-		pairRate.TimeOfNextRate = time.UnixMilli(mp[len(mp)-1].NextFundingTime)
+		pairRate.TimeOfNextRate = time.UnixMilli(mp[len(mp)-1].NextFundingTime).UTC()
 		if r.IncludePayments {
 			var income []FuturesIncomeHistoryData
 			income, err = b.FuturesIncomeHistory(ctx, fPair, "FUNDING_FEE", r.StartDate, r.EndDate, int64(requestLimit))
@@ -2260,7 +2260,7 @@ func (b *Binance) GetHistoricalFundingRates(ctx context.Context, r *fundingrate.
 			}
 			for j := range income {
 				for x := range pairRate.FundingRates {
-					tt := time.UnixMilli(income[j].Timestamp)
+					tt := time.UnixMilli(income[j].Timestamp).UTC()
 					tt = tt.Truncate(time.Duration(fundingRateFrequency) * time.Hour)
 					if !tt.Equal(pairRate.FundingRates[x].Time) {
 						continue
@@ -2685,13 +2685,13 @@ func (b *Binance) GetFuturesPositionOrders(ctx context.Context, req *futures.Pos
 	}
 	if time.Since(req.StartDate) > b.Features.Supports.MaximumOrderHistory+time.Hour {
 		if req.RespectOrderHistoryLimits {
-			req.StartDate = time.Now().Add(-b.Features.Supports.MaximumOrderHistory)
+			req.StartDate = time.Now().UTC().Add(-b.Features.Supports.MaximumOrderHistory)
 		} else {
-			return nil, fmt.Errorf("%w max lookup %v", futures.ErrOrderHistoryTooLarge, time.Now().Add(-b.Features.Supports.MaximumOrderHistory))
+			return nil, fmt.Errorf("%w max lookup %v", futures.ErrOrderHistoryTooLarge, time.Now().UTC().Add(-b.Features.Supports.MaximumOrderHistory))
 		}
 	}
 	if req.EndDate.IsZero() {
-		req.EndDate = time.Now()
+		req.EndDate = time.Now().UTC()
 	}
 
 	var resp []futures.PositionResponse

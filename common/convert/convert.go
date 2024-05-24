@@ -226,11 +226,11 @@ func (k *ExchangeTime) UnmarshalJSON(data []byte) error {
 	case standard == 0:
 		*k = ExchangeTime(time.Time{})
 	case standard >= 1e13:
-		*k = ExchangeTime(time.Unix(standard/1e9, standard%1e9))
+		*k = ExchangeTime(time.Unix(standard/1e9, standard%1e9).UTC())
 	case standard > 9999999999:
-		*k = ExchangeTime(time.UnixMilli(standard))
+		*k = ExchangeTime(time.UnixMilli(standard).UTC())
 	default:
-		*k = ExchangeTime(time.Unix(standard, 0))
+		*k = ExchangeTime(time.Unix(standard, 0).UTC())
 	}
 	return nil
 }

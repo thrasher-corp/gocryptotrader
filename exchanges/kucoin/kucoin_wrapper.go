@@ -1830,9 +1830,9 @@ func (ku *Kucoin) GetFuturesPositionOrders(ctx context.Context, r *futures.Posit
 	}
 	if !r.EndDate.IsZero() && r.EndDate.Sub(r.StartDate) > ku.Features.Supports.MaximumOrderHistory {
 		if r.RespectOrderHistoryLimits {
-			r.StartDate = time.Now().Add(-ku.Features.Supports.MaximumOrderHistory)
+			r.StartDate = time.Now().UTC().Add(-ku.Features.Supports.MaximumOrderHistory)
 		} else {
-			return nil, fmt.Errorf("%w max lookup %v", futures.ErrOrderHistoryTooLarge, time.Now().Add(-ku.Features.Supports.MaximumOrderHistory))
+			return nil, fmt.Errorf("%w max lookup %v", futures.ErrOrderHistoryTooLarge, time.Now().UTC().Add(-ku.Features.Supports.MaximumOrderHistory))
 		}
 	}
 	contracts, err := ku.GetFuturesContractDetails(ctx, r.Asset)

@@ -276,7 +276,7 @@ func (g *Gemini) wsHandleData(respRaw []byte) error {
 				Side:            oSide,
 				Status:          oStatus,
 				AssetType:       asset.Spot,
-				Date:            time.UnixMilli(result[i].Timestampms),
+				Date:            time.UnixMilli(result[i].Timestampms).UTC(),
 				Pair:            pair,
 			}
 		}
@@ -331,7 +331,7 @@ func (g *Gemini) wsHandleData(respRaw []byte) error {
 			}
 
 			tradeEvent := trade.Data{
-				Timestamp:    time.UnixMilli(result.Timestamp),
+				Timestamp:    time.UnixMilli(result.Timestamp).UTC(),
 				CurrencyPair: pair,
 				AssetType:    asset.Spot,
 				Exchange:     g.Name,
@@ -394,7 +394,7 @@ func (g *Gemini) wsHandleData(respRaw []byte) error {
 					return errors.New("unable to type assert interval")
 				}
 				g.Websocket.DataHandler <- stream.KlineData{
-					Timestamp:  time.UnixMilli(int64(candle.Changes[i][0])),
+					Timestamp:  time.UnixMilli(int64(candle.Changes[i][0])).UTC(),
 					Pair:       pair,
 					AssetType:  asset.Spot,
 					Exchange:   g.Name,
@@ -508,7 +508,7 @@ func (g *Gemini) wsProcessUpdate(result *wsL2MarketData) error {
 		newOrderBook.Pair = pair
 		newOrderBook.Exchange = g.Name
 		newOrderBook.VerifyOrderbook = g.CanVerifyOrderbook
-		newOrderBook.LastUpdated = time.Now() // No time is sent
+		newOrderBook.LastUpdated = time.Now().UTC() // No time is sent
 		err := g.Websocket.Orderbook.LoadSnapshot(&newOrderBook)
 		if err != nil {
 			return err
@@ -522,7 +522,7 @@ func (g *Gemini) wsProcessUpdate(result *wsL2MarketData) error {
 			Bids:       bids,
 			Pair:       pair,
 			Asset:      asset.Spot,
-			UpdateTime: time.Now(), // No time is sent
+			UpdateTime: time.Now().UTC(), // No time is sent
 		})
 		if err != nil {
 			return err
@@ -547,7 +547,7 @@ func (g *Gemini) wsProcessUpdate(result *wsL2MarketData) error {
 			}
 		}
 		trades[x] = trade.Data{
-			Timestamp:    time.UnixMilli(result.Trades[x].Timestamp),
+			Timestamp:    time.UnixMilli(result.Trades[x].Timestamp).UTC(),
 			CurrencyPair: pair,
 			AssetType:    asset.Spot,
 			Exchange:     g.Name,

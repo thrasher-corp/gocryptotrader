@@ -269,7 +269,7 @@ func (d *Detail) UpdateOrderFromDetail(m *Detail) error {
 	}
 	if updated {
 		if d.LastUpdated.Equal(m.LastUpdated) {
-			d.LastUpdated = time.Now()
+			d.LastUpdated = time.Now().UTC()
 		} else {
 			d.LastUpdated = m.LastUpdated
 		}
@@ -342,7 +342,7 @@ func (d *Detail) UpdateOrderFromModifyResponse(m *ModifyResponse) {
 	}
 	if updated {
 		if d.LastUpdated.Equal(m.LastUpdated) {
-			d.LastUpdated = time.Now()
+			d.LastUpdated = time.Now().UTC()
 		} else {
 			d.LastUpdated = m.LastUpdated
 		}
@@ -483,8 +483,8 @@ func (s *Submit) DeriveSubmitResponse(orderID string) (*SubmitResponse, error) {
 		ClientOrderID:     s.ClientOrderID,
 		MarginType:        s.MarginType,
 
-		LastUpdated: time.Now(),
-		Date:        time.Now(),
+		LastUpdated: time.Now().UTC(),
+		Date:        time.Now().UTC(),
 		Status:      status,
 		OrderID:     orderID,
 	}, nil

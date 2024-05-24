@@ -463,7 +463,6 @@ func (b *BTSE) GetRecentTrades(ctx context.Context, p currency.Pair, assetType a
 
 	resp := make([]trade.Data, len(tradeData))
 	for i := range tradeData {
-		tradeTimestamp := time.UnixMilli(tradeData[i].Time)
 		var side order.Side
 		side, err = order.StringToOrderSide(tradeData[i].Side)
 		if err != nil {
@@ -477,7 +476,7 @@ func (b *BTSE) GetRecentTrades(ctx context.Context, p currency.Pair, assetType a
 			Side:         side,
 			Price:        tradeData[i].Price,
 			Amount:       tradeData[i].Amount,
-			Timestamp:    tradeTimestamp,
+			Timestamp:    time.UnixMilli(tradeData[i].Time).UTC(),
 		}
 	}
 	err = b.AddTradesToBuffer(resp...)
@@ -635,7 +634,7 @@ func (b *BTSE) GetOrderInfo(ctx context.Context, orderID string, _ currency.Pair
 		od.Exchange = b.Name
 		od.Amount = o[i].Size
 		od.OrderID = o[i].OrderID
-		od.Date = time.Unix(o[i].Timestamp, 0)
+		od.Date = time.Unix(o[i].Timestamp, 0).UTC()
 		od.Side = side
 
 		od.Type = orderIntToType(o[i].OrderType)
@@ -803,7 +802,7 @@ func (b *BTSE) GetActiveOrders(ctx context.Context, req *order.MultiOrderRequest
 				ExecutedAmount:  resp[i].FilledSize,
 				RemainingAmount: resp[i].Size - resp[i].FilledSize,
 				OrderID:         resp[i].OrderID,
-				Date:            time.Unix(resp[i].Timestamp, 0),
+				Date:            time.Unix(resp[i].Timestamp, 0).UTC(),
 				Side:            side,
 				Price:           resp[i].Price,
 				Status:          status,
@@ -904,7 +903,6 @@ func (b *BTSE) GetOrderHistory(ctx context.Context, getOrdersRequest *order.Mult
 			if err != nil {
 				return nil, err
 			}
-			orderTime := time.UnixMilli(currentOrder[y].Timestamp)
 			tempOrder := order.Detail{
 				OrderID:              currentOrder[y].OrderID,
 				ClientID:             currentOrder[y].ClOrderID,
@@ -914,7 +912,7 @@ func (b *BTSE) GetOrderHistory(ctx context.Context, getOrdersRequest *order.Mult
 				Amount:               currentOrder[y].Size,
 				ExecutedAmount:       currentOrder[y].FilledSize,
 				RemainingAmount:      currentOrder[y].Size - currentOrder[y].FilledSize,
-				Date:                 orderTime,
+				Date:                 time.UnixMilli(currentOrder[y].Timestamp).UTC(),
 				Side:                 orderSide,
 				Status:               orderStatus,
 				Pair:                 orderDeref.Pairs[x],
@@ -980,7 +978,7 @@ func (b *BTSE) GetHistoricCandles(ctx context.Context, pair currency.Pair, a ass
 	timeSeries := make([]kline.Candle, len(candles))
 	for x := range candles {
 		timeSeries[x] = kline.Candle{
-			Time:   time.Unix(int64(candles[x][0]), 0),
+			Time:   time.Unix(int64(candles[x][0]), 0).UTC(),
 			Open:   candles[x][1],
 			High:   candles[x][2],
 			Low:    candles[x][3],
@@ -1021,7 +1019,7 @@ func (b *BTSE) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pai
 		}
 		for x := range candles {
 			timeSeries[x] = kline.Candle{
-				Time:   time.Unix(int64(candles[x][0]), 0),
+				Time:   time.Unix(int64(candles[x][0]), 0).UTC(),
 				Open:   candles[x][1],
 				High:   candles[x][2],
 				Low:    candles[x][3],
@@ -1155,10 +1153,10 @@ func (b *BTSE) GetFuturesContractDetails(ctx context.Context, item asset.Item) (
 		var s, e time.Time
 		var ct futures.ContractType
 		if marketSummary[i].OpenTime > 0 {
-			s = time.UnixMilli(marketSummary[i].OpenTime)
+			s = time.UnixMilli(marketSummary[i].OpenTime).UTC()
 		}
 		if marketSummary[i].CloseTime > 0 {
-			e = time.UnixMilli(marketSummary[i].CloseTime)
+			e = time.UnixMilli(marketSummary[i].CloseTime).UTC()
 		}
 		if marketSummary[i].TimeBasedContract {
 			if e.Sub(s) > kline.OneMonth.Duration() {
@@ -1200,7 +1198,7 @@ func (b *BTSE) GetFuturesContractDetails(ctx context.Context, item asset.Item) (
 		if marketSummary[i].FundingRate > 0 {
 			c.LatestRate = fundingrate.Rate{
 				Rate: decimal.NewFromFloat(marketSummary[i].FundingRate),
-				Time: time.Now().Truncate(time.Hour),
+				Time: time.Now().UTC().Truncate(time.Hour),
 			}
 		}
 
@@ -1250,13 +1248,13 @@ func (b *BTSE) GetLatestFundingRates(ctx context.Context, r *fundingrate.LatestR
 		if !isPerp {
 			continue
 		}
-		tt := time.Now().Truncate(time.Hour)
+		tt := time.Now().UTC().Truncate(time.Hour)
 		resp = append(resp, fundingrate.LatestRateResponse{
 			Exchange: b.Name,
 			Asset:    r.Asset,
 			Pair:     cp,
 			LatestRate: fundingrate.Rate{
-				Time: time.Now().Truncate(time.Hour),
+				Time: time.Now().UTC().Truncate(time.Hour),
 				Rate: decimal.NewFromFloat(rates[i].FundingRate),
 			},
 			TimeOfNextRate: tt.Add(time.Hour),

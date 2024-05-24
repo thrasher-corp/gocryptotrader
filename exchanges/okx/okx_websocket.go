@@ -271,7 +271,7 @@ func (ok *Okx) WsAuth(ctx context.Context, dialer *websocket.Dialer) error {
 		return err
 	}
 	ok.Websocket.SetCanUseAuthenticatedEndpoints(true)
-	timeUnix := time.Now()
+	timeUnix := time.Now().UTC()
 	signPath := "/users/self/verify"
 	hmac, err := crypto.GetHMAC(crypto.HashSHA256,
 		[]byte(strconv.FormatInt(timeUnix.Unix(), 10)+http.MethodGet+signPath),
@@ -713,7 +713,7 @@ func (ok *Okx) wsProcessIndexCandles(respRaw []byte) error {
 		myCandle := stream.KlineData{
 			Pair:      pair,
 			Exchange:  ok.Name,
-			Timestamp: time.UnixMilli(timestamp),
+			Timestamp: time.UnixMilli(timestamp).UTC(),
 			Interval:  candleInterval,
 		}
 		myCandle.OpenPrice, err = strconv.ParseFloat(candlesData[1], 64)
@@ -793,7 +793,7 @@ func (ok *Okx) wsProcessOrderbook5(data []byte) error {
 			Asset:           assets[x],
 			Asks:            asks,
 			Bids:            bids,
-			LastUpdated:     time.UnixMilli(resp.Data[0].TimestampMilli),
+			LastUpdated:     time.UnixMilli(resp.Data[0].TimestampMilli).UTC(),
 			Pair:            pair,
 			Exchange:        ok.Name,
 			VerifyOrderbook: ok.CanVerifyOrderbook})
@@ -1014,7 +1014,6 @@ func (ok *Okx) wsHandleMarkPriceCandles(data []byte) error {
 		return err
 	}
 	var tsInt int64
-	var ts time.Time
 	var op float64
 	var hp float64
 	var lp float64
@@ -1025,7 +1024,6 @@ func (ok *Okx) wsHandleMarkPriceCandles(data []byte) error {
 		if err != nil {
 			return err
 		}
-		ts = time.UnixMilli(tsInt)
 		op, err = strconv.ParseFloat(tempo.Data[x][1], 64)
 		if err != nil {
 			return err
@@ -1043,7 +1041,7 @@ func (ok *Okx) wsHandleMarkPriceCandles(data []byte) error {
 			return err
 		}
 		candles[x] = CandlestickMarkPrice{
-			Timestamp:    ts,
+			Timestamp:    time.UnixMilli(tsInt).UTC(),
 			OpenPrice:    op,
 			HighestPrice: hp,
 			LowestPrice:  lp,
@@ -1204,13 +1202,11 @@ func (ok *Okx) wsProcessCandles(respRaw []byte) error {
 	candleInterval := strings.TrimPrefix(response.Argument.Channel, candle)
 	for i := range response.Data {
 		var ticks int64
-		var timestamp time.Time
 		var o, h, l, c, v float64
 		ticks, err = strconv.ParseInt(response.Data[i][0], 10, 64)
 		if err != nil {
 			return err
 		}
-		timestamp = time.UnixMilli(ticks)
 		o, err = strconv.ParseFloat(response.Data[i][1], 64)
 		if err != nil {
 			return err
@@ -1234,7 +1230,7 @@ func (ok *Okx) wsProcessCandles(respRaw []byte) error {
 
 		for j := range assets {
 			ok.Websocket.DataHandler <- stream.KlineData{
-				Timestamp:  timestamp,
+				Timestamp:  time.UnixMilli(ticks).UTC(),
 				Pair:       pair,
 				AssetType:  assets[j],
 				Exchange:   ok.Name,

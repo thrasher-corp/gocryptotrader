@@ -614,7 +614,7 @@ func (b *Bitmex) GetServerTime(_ context.Context, _ asset.Item) (time.Time, erro
 
 // GetRecentTrades returns the most recent trades for a currency and asset
 func (b *Bitmex) GetRecentTrades(ctx context.Context, p currency.Pair, assetType asset.Item) ([]trade.Data, error) {
-	return b.GetHistoricTrades(ctx, p, assetType, time.Now().Add(-time.Minute*15), time.Now())
+	return b.GetHistoricTrades(ctx, p, assetType, time.Now().UTC().Add(-time.Minute*15), time.Now().UTC())
 }
 
 // GetHistoricTrades returns historic trade data within the timeframe provided

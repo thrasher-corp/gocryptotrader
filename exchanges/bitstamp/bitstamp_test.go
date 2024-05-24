@@ -787,7 +787,7 @@ func TestWsOrderUpdate(t *testing.T) {
 			switch len(b.Websocket.DataHandler) {
 			case 7:
 				assert.Equal(t, "1658864794234880", v.OrderID, "OrderID")
-				assert.Equal(t, time.UnixMicro(1693831262313000), v.Date, "Date")
+				assert.Equal(t, time.UnixMicro(1693831262313000).UTC(), v.Date, "Date")
 				assert.Equal(t, "test_market_buy", v.ClientOrderID, "ClientOrderID")
 				assert.Equal(t, order.New, v.Status, "Status")
 				assert.Equal(t, order.Buy, v.Side, "Side")

@@ -906,7 +906,7 @@ func (a *WsCandlestickData) getCandlestickData() (*WsCandlestick, error) {
 	if err != nil {
 		return nil, err
 	}
-	cand.Candles.StartTime = time.UnixMilli(timeStamp)
+	cand.Candles.StartTime = time.UnixMilli(timeStamp).UTC()
 	cand.Candles.OpenPrice, err = strconv.ParseFloat(a.Candles[1], 64)
 	if err != nil {
 		return nil, err

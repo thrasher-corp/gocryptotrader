@@ -390,7 +390,7 @@ func (b *Bithumb) GetWithdrawalsHistory(ctx context.Context, c currency.Code, _ 
 	resp := make([]exchange.WithdrawalHistory, len(transactions.Data))
 	for i := range transactions.Data {
 		resp[i] = exchange.WithdrawalHistory{
-			Timestamp: time.UnixMilli(transactions.Data[i].TransferDate),
+			Timestamp: time.UnixMilli(transactions.Data[i].TransferDate).UTC(),
 			Currency:  transactions.Data[i].OrderCurrency.String(),
 			Amount:    transactions.Data[i].Amount,
 			Fee:       transactions.Data[i].Fee,

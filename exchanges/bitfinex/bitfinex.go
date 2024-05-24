@@ -1041,7 +1041,7 @@ func (b *Bitfinex) GetCandles(ctx context.Context, symbol, timeFrame string, sta
 			if !ok {
 				return nil, errors.New("unable to type assert timestamp")
 			}
-			c.Timestamp = time.UnixMilli(int64(timestamp))
+			c.Timestamp = time.UnixMilli(int64(timestamp)).UTC()
 			if c.Open, ok = response[i][1].(float64); !ok {
 				return nil, errors.New("unable to type assert open")
 			}
@@ -1080,7 +1080,7 @@ func (b *Bitfinex) GetCandles(ctx context.Context, symbol, timeFrame string, sta
 	if !ok {
 		return nil, errors.New("unable to type assert timestamp")
 	}
-	c.Timestamp = time.UnixMilli(int64(timestamp))
+	c.Timestamp = time.UnixMilli(int64(timestamp)).UTC()
 	if c.Open, ok = response[1].(float64); !ok {
 		return nil, errors.New("unable to type assert open")
 	}
@@ -1199,7 +1199,7 @@ func (b *Bitfinex) GetLeaderboard(ctx context.Context, key, timeframe, symbol st
 			return nil, errors.New("unable to type assert value")
 		}
 		result[x] = LeaderboardEntry{
-			Timestamp:     time.UnixMilli(int64(tm)),
+			Timestamp:     time.UnixMilli(int64(tm)).UTC(),
 			Username:      username,
 			Ranking:       int(ranking),
 			Value:         value,
@@ -1621,13 +1621,13 @@ func (b *Bitfinex) CancelMultipleOrdersV2(ctx context.Context, orderID, clientOr
 					if !ok {
 						return nil, common.GetTypeAssertError("float64", cancelledOrderFields[z], "CancelOrders.MTSOfCreation")
 					}
-					cancelledOrder.CreatedTime = time.UnixMilli(int64(f))
+					cancelledOrder.CreatedTime = time.UnixMilli(int64(f)).UTC()
 				case 5:
 					f, ok := cancelledOrderFields[z].(float64)
 					if !ok {
 						return nil, common.GetTypeAssertError("float64", cancelledOrderFields[z], "CancelOrders.MTSOfLastUpdate")
 					}
-					cancelledOrder.UpdatedTime = time.UnixMilli(int64(f))
+					cancelledOrder.UpdatedTime = time.UnixMilli(int64(f)).UTC()
 				case 6:
 					f, ok := cancelledOrderFields[z].(float64)
 					if !ok {

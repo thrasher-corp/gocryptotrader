@@ -402,7 +402,7 @@ func (a *Alphapoint) GetActiveOrders(ctx context.Context, req *order.MultiOrderR
 			}
 
 			orderDetail.Side = orderSideMap[resp[x].OpenOrders[y].Side]
-			orderDetail.Date = time.Unix(resp[x].OpenOrders[y].ReceiveTime, 0)
+			orderDetail.Date = time.Unix(resp[x].OpenOrders[y].ReceiveTime, 0).UTC()
 			orderDetail.Type = orderTypeMap[resp[x].OpenOrders[y].OrderType]
 			orders = append(orders, orderDetail)
 		}
@@ -442,7 +442,7 @@ func (a *Alphapoint) GetOrderHistory(ctx context.Context, req *order.MultiOrderR
 			}
 
 			orderDetail.Side = orderSideMap[resp[x].OpenOrders[y].Side]
-			orderDetail.Date = time.Unix(resp[x].OpenOrders[y].ReceiveTime, 0)
+			orderDetail.Date = time.Unix(resp[x].OpenOrders[y].ReceiveTime, 0).UTC()
 			orderDetail.Type = orderTypeMap[resp[x].OpenOrders[y].OrderType]
 			orders = append(orders, orderDetail)
 		}

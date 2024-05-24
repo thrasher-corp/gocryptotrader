@@ -176,7 +176,7 @@ func (l *Lbank) UpdateTickers(ctx context.Context, a asset.Item) error {
 				Low:          tickerInfo[j].Ticker.Low,
 				Volume:       tickerInfo[j].Ticker.Volume,
 				Pair:         tickerInfo[j].Symbol,
-				LastUpdated:  time.Unix(0, tickerInfo[j].Timestamp),
+				LastUpdated:  time.Unix(0, tickerInfo[j].Timestamp).UTC(),
 				ExchangeName: l.Name,
 				AssetType:    a})
 			if err != nil {
@@ -358,7 +358,7 @@ func (l *Lbank) GetWithdrawalsHistory(ctx context.Context, c currency.Code, a as
 		resp[i] = exchange.WithdrawalHistory{
 			Status:          withdrawalRecords.List[i].Status,
 			TransferID:      id,
-			Timestamp:       time.Unix(withdrawalRecords.List[i].Time, 0),
+			Timestamp:       time.Unix(withdrawalRecords.List[i].Time, 0).UTC(),
 			Currency:        withdrawalRecords.List[i].AssetCode,
 			Amount:          withdrawalRecords.List[i].Amount,
 			Fee:             withdrawalRecords.List[i].Fee,
@@ -372,7 +372,7 @@ func (l *Lbank) GetWithdrawalsHistory(ctx context.Context, c currency.Code, a as
 
 // GetRecentTrades returns the most recent trades for a currency and asset
 func (l *Lbank) GetRecentTrades(ctx context.Context, p currency.Pair, assetType asset.Item) ([]trade.Data, error) {
-	return l.GetHistoricTrades(ctx, p, assetType, time.Now().Add(-time.Minute*15), time.Now())
+	return l.GetHistoricTrades(ctx, p, assetType, time.Now().UTC().Add(-time.Minute*15), time.Now().UTC())
 }
 
 // GetHistoricTrades returns historic trade data within the timeframe provided
@@ -399,7 +399,7 @@ allTrades:
 			return nil, err
 		}
 		for i := range tradeData {
-			tradeTime := time.UnixMilli(tradeData[i].DateMS)
+			tradeTime := time.UnixMilli(tradeData[i].DateMS).UTC()
 			if tradeTime.Before(timestampStart) || tradeTime.After(timestampEnd) {
 				break allTrades
 			}
@@ -675,7 +675,7 @@ func (l *Lbank) GetActiveOrders(ctx context.Context, getOrdersRequest *order.Mul
 			resp.Status = l.GetStatus(tempResp.Orders[0].Status)
 			resp.Price = tempResp.Orders[0].Price
 			resp.Amount = tempResp.Orders[0].Amount
-			resp.Date = time.Unix(tempResp.Orders[0].CreateTime, 0)
+			resp.Date = time.Unix(tempResp.Orders[0].CreateTime, 0).UTC()
 			resp.ExecutedAmount = tempResp.Orders[0].DealAmount
 			resp.RemainingAmount = tempResp.Orders[0].Amount - tempResp.Orders[0].DealAmount
 			resp.Fee, err = l.GetFeeByType(ctx,
@@ -758,7 +758,7 @@ func (l *Lbank) GetOrderHistory(ctx context.Context, getOrdersRequest *order.Mul
 				resp.Price = tempResp.Orders[x].Price
 				resp.AverageExecutedPrice = tempResp.Orders[x].AvgPrice
 				resp.Amount = tempResp.Orders[x].Amount
-				resp.Date = time.Unix(tempResp.Orders[x].CreateTime, 0)
+				resp.Date = time.Unix(tempResp.Orders[x].CreateTime, 0).UTC()
 				resp.ExecutedAmount = tempResp.Orders[x].DealAmount
 				resp.RemainingAmount = tempResp.Orders[x].Amount - tempResp.Orders[x].DealAmount
 				resp.Fee, err = l.GetFeeByType(ctx,

@@ -31,7 +31,7 @@ func (a *okxUnixMilliTime) UnmarshalJSON(data []byte) error {
 
 // Time returns the time instance from unix value of integer.
 func (a *okxUnixMilliTime) Time() time.Time {
-	return time.UnixMilli(int64(*a))
+	return time.UnixMilli(int64(*a)).UTC()
 }
 
 type okxTime struct {
@@ -52,7 +52,7 @@ func (t *okxTime) UnmarshalJSON(data []byte) error {
 	if err != nil {
 		return err
 	}
-	t.Time = time.UnixMilli(value)
+	t.Time = time.UnixMilli(value).UTC()
 	return nil
 }
 
@@ -103,8 +103,8 @@ func (a *OrderDetail) UnmarshalJSON(data []byte) error {
 		return err
 	}
 	var err error
-	a.UpdateTime = time.UnixMilli(chil.UpdateTime)
-	a.CreationTime = time.UnixMilli(chil.CreationTime)
+	a.UpdateTime = time.UnixMilli(chil.UpdateTime).UTC()
+	a.CreationTime = time.UnixMilli(chil.CreationTime).UTC()
 	if chil.FillTime == "" {
 		a.FillTime = time.Time{}
 	} else {
@@ -113,7 +113,7 @@ func (a *OrderDetail) UnmarshalJSON(data []byte) error {
 		if err != nil {
 			return err
 		}
-		a.FillTime = time.UnixMilli(value)
+		a.FillTime = time.UnixMilli(value).UTC()
 	}
 	if err != nil {
 		return err
@@ -133,7 +133,7 @@ func (a *RfqTradeResponse) UnmarshalJSON(data []byte) error {
 	if err := json.Unmarshal(data, chil); err != nil {
 		return err
 	}
-	a.CreationTime = time.UnixMilli(chil.CreationTime)
+	a.CreationTime = time.UnixMilli(chil.CreationTime).UTC()
 	return nil
 }
 
@@ -232,7 +232,7 @@ func (a *WebsocketLoginData) UnmarshalJSON(data []byte) error {
 	if err := json.Unmarshal(data, chil); err != nil {
 		return err
 	}
-	a.Timestamp = time.UnixMilli(chil.Timestamp)
+	a.Timestamp = time.UnixMilli(chil.Timestamp).UTC()
 	return nil
 }
 
@@ -251,6 +251,6 @@ func (a *CurrencyOneClickRepay) UnmarshalJSON(data []byte) error {
 	if err != nil {
 		return err
 	}
-	a.UpdateTime = time.Unix(chil.UpdateTime, 0)
+	a.UpdateTime = time.Unix(chil.UpdateTime, 0).UTC()
 	return nil
 }

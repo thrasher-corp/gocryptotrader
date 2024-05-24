@@ -369,7 +369,7 @@ func (h *HUOBI) GetCurrentServerTime(ctx context.Context) (time.Time, error) {
 	if result.ErrorMessage != "" {
 		return time.Time{}, errors.New(result.ErrorMessage)
 	}
-	return time.UnixMilli(result.Timestamp), err
+	return time.UnixMilli(result.Timestamp).UTC(), err
 }
 
 // GetAccounts returns the Huobi user accounts

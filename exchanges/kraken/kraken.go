@@ -487,7 +487,7 @@ func (k *Kraken) GetSpread(ctx context.Context, symbol currency.Pair) ([]Spread,
 		if !ok {
 			return nil, common.GetTypeAssertError("float64", subData[0], "timeData")
 		}
-		s.Time = time.Unix(int64(timeData), 0)
+		s.Time = time.Unix(int64(timeData), 0).UTC()
 
 		if s.Bid, err = convert.FloatFromString(subData[1]); err != nil {
 			return nil, err

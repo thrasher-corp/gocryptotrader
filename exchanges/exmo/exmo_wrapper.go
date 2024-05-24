@@ -182,7 +182,7 @@ func (e *EXMO) UpdateTickers(ctx context.Context, a asset.Item) error {
 			Bid:          tick.Buy,
 			Low:          tick.Low,
 			Volume:       tick.Volume,
-			LastUpdated:  time.Unix(tick.Updated, 0),
+			LastUpdated:  time.Unix(tick.Updated, 0).UTC(),
 			ExchangeName: e.Name,
 			AssetType:    a})
 		if err != nil {
@@ -391,7 +391,7 @@ func (e *EXMO) GetAccountFundingHistory(ctx context.Context) ([]exchange.Funding
 		resp = append(resp, exchange.FundingHistory{
 			Status:     hist.History[i].Status,
 			TransferID: hist.History[i].TXID,
-			Timestamp:  time.Unix(hist.History[i].Timestamp, 0),
+			Timestamp:  time.Unix(hist.History[i].Timestamp, 0).UTC(),
 			Currency:   hist.History[i].Currency,
 			Amount:     hist.History[i].Amount,
 			BankFrom:   hist.History[i].Provider,
@@ -414,7 +414,7 @@ func (e *EXMO) GetWithdrawalsHistory(ctx context.Context, _ currency.Code, _ ass
 		resp = append(resp, exchange.WithdrawalHistory{
 			Status:     hist.History[i].Status,
 			TransferID: hist.History[i].TXID,
-			Timestamp:  time.Unix(hist.History[i].Timestamp, 0),
+			Timestamp:  time.Unix(hist.History[i].Timestamp, 0).UTC(),
 			Currency:   hist.History[i].Currency,
 			Amount:     hist.History[i].Amount,
 			CryptoTxID: hist.History[i].TXID,
@@ -452,7 +452,7 @@ func (e *EXMO) GetRecentTrades(ctx context.Context, p currency.Pair, assetType a
 			Side:         side,
 			Price:        mapData[i].Price,
 			Amount:       mapData[i].Quantity,
-			Timestamp:    time.Unix(mapData[i].Date, 0),
+			Timestamp:    time.Unix(mapData[i].Date, 0).UTC(),
 		}
 	}
 
@@ -657,7 +657,6 @@ func (e *EXMO) GetActiveOrders(ctx context.Context, req *order.MultiOrderRequest
 		if err != nil {
 			return nil, err
 		}
-		orderDate := time.Unix(resp[i].Created, 0)
 		var side order.Side
 		side, err = order.StringToOrderSide(resp[i].Type)
 		if err != nil {
@@ -666,7 +665,7 @@ func (e *EXMO) GetActiveOrders(ctx context.Context, req *order.MultiOrderRequest
 		orders = append(orders, order.Detail{
 			OrderID:  strconv.FormatInt(resp[i].OrderID, 10),
 			Amount:   resp[i].Quantity,
-			Date:     orderDate,
+			Date:     time.Unix(resp[i].Created, 0).UTC(),
 			Price:    resp[i].Price,
 			Side:     side,
 			Exchange: e.Name,
@@ -710,7 +709,6 @@ func (e *EXMO) GetOrderHistory(ctx context.Context, req *order.MultiOrderRequest
 		if err != nil {
 			return nil, err
 		}
-		orderDate := time.Unix(allTrades[i].Date, 0)
 		var side order.Side
 		side, err = order.StringToOrderSide(allTrades[i].Type)
 		if err != nil {
@@ -722,7 +720,7 @@ func (e *EXMO) GetOrderHistory(ctx context.Context, req *order.MultiOrderRequest
 			ExecutedAmount: allTrades[i].Quantity,
 			Cost:           allTrades[i].Amount,
 			CostAsset:      pair.Quote,
-			Date:           orderDate,
+			Date:           time.Unix(allTrades[i].Date, 0).UTC(),
 			Price:          allTrades[i].Price,
 			Side:           side,
 			Exchange:       e.Name,

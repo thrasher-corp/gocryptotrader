@@ -517,7 +517,7 @@ func (g *Gateio) GetCandlesticks(ctx context.Context, currencyPair currency.Pair
 			return nil, err
 		}
 		candlesticks[x] = Candlestick{
-			Timestamp:      time.Unix(timestamp, 0),
+			Timestamp:      time.Unix(timestamp, 0).UTC(),
 			QuoteCcyVolume: quoteTradingVolume,
 			ClosePrice:     closePrice,
 			HighestPrice:   highestPrice,
@@ -811,7 +811,7 @@ func (g *Gateio) GetServerTime(ctx context.Context, _ asset.Item) (time.Time, er
 	if err != nil {
 		return time.Time{}, err
 	}
-	return time.Unix(resp.ServerTime, 0), nil
+	return time.Unix(resp.ServerTime, 0).UTC(), nil
 }
 
 // CountdownCancelorders Countdown cancel orders
@@ -3284,7 +3284,7 @@ func (g *Gateio) GetExpirationTime(ctx context.Context, underlying string) (time
 	if len(timestamp) == 0 {
 		return time.Time{}, errNoValidResponseFromServer
 	}
-	return time.Unix(int64(timestamp[0]), 0), nil
+	return time.Unix(int64(timestamp[0]), 0).UTC(), nil
 }
 
 // GetAllContractOfUnderlyingWithinExpiryDate retrieves list of contracts of the specified underlying and expiry time.

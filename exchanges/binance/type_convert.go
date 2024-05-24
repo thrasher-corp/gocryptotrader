@@ -22,9 +22,9 @@ func (t *binanceTime) UnmarshalJSON(data []byte) error {
 		if err != nil {
 			return err
 		}
-		*t = binanceTime(time.UnixMilli(timestamp))
+		*t = binanceTime(time.UnixMilli(timestamp).UTC())
 	case float64:
-		*t = binanceTime(time.UnixMilli(int64(v)))
+		*t = binanceTime(time.UnixMilli(int64(v)).UTC())
 	default:
 		return errors.New("invalid time format received")
 	}

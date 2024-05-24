@@ -312,7 +312,7 @@ func (b *Base) Process() error {
 	}
 
 	if b.LastUpdated.IsZero() {
-		b.LastUpdated = time.Now()
+		b.LastUpdated = time.Now().UTC()
 	}
 
 	if err := b.Verify(); err != nil {

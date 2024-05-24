@@ -350,7 +350,7 @@ func (h *HUOBI) UpdateTickers(ctx context.Context, a asset.Item) error {
 				Pair:         cp,
 				ExchangeName: h.Name,
 				AssetType:    a,
-				LastUpdated:  time.Now(),
+				LastUpdated:  time.Now().UTC(),
 			})
 			if err != nil {
 				return err
@@ -370,7 +370,6 @@ func (h *HUOBI) UpdateTickers(ctx context.Context, a asset.Item) error {
 				}
 				return err
 			}
-			tt := time.UnixMilli(ticks[i].Timestamp)
 			err = ticker.ProcessTicker(&ticker.Price{
 				High:         ticks[i].High.Float64(),
 				Low:          ticks[i].Low.Float64(),
@@ -385,7 +384,7 @@ func (h *HUOBI) UpdateTickers(ctx context.Context, a asset.Item) error {
 				Pair:         cp,
 				ExchangeName: h.Name,
 				AssetType:    a,
-				LastUpdated:  tt,
+				LastUpdated:  time.UnixMilli(ticks[i].Timestamp).UTC(),
 			})
 			if err != nil {
 				return err
@@ -430,7 +429,6 @@ func (h *HUOBI) UpdateTickers(ctx context.Context, a asset.Item) error {
 					return err
 				}
 			}
-			tt := time.UnixMilli(allTicks[i].Timestamp)
 			err = ticker.ProcessTicker(&ticker.Price{
 				High:         allTicks[i].High.Float64(),
 				Low:          allTicks[i].Low.Float64(),
@@ -445,7 +443,7 @@ func (h *HUOBI) UpdateTickers(ctx context.Context, a asset.Item) error {
 				Pair:         cp,
 				ExchangeName: h.Name,
 				AssetType:    a,
-				LastUpdated:  tt,
+				LastUpdated:  time.UnixMilli(allTicks[i].Timestamp).UTC(),
 			})
 			if err != nil {
 				return err
@@ -875,7 +873,7 @@ func (h *HUOBI) GetWithdrawalsHistory(ctx context.Context, c currency.Code, a as
 		resp[i] = exchange.WithdrawalHistory{
 			Status:          withdrawals.Data[i].State,
 			TransferID:      withdrawals.Data[i].TransactionHash,
-			Timestamp:       time.UnixMilli(withdrawals.Data[i].CreatedAt),
+			Timestamp:       time.UnixMilli(withdrawals.Data[i].CreatedAt).UTC(),
 			Currency:        withdrawals.Data[i].Currency.String(),
 			Amount:          withdrawals.Data[i].Amount,
 			Fee:             withdrawals.Data[i].Fee,
@@ -919,7 +917,7 @@ func (h *HUOBI) GetRecentTrades(ctx context.Context, p currency.Pair, a asset.It
 					Side:         side,
 					Price:        sTrades[i].Trades[j].Price,
 					Amount:       sTrades[i].Trades[j].Amount,
-					Timestamp:    time.UnixMilli(sTrades[i].Timestamp),
+					Timestamp:    time.UnixMilli(sTrades[i].Timestamp).UTC(),
 				})
 			}
 		}
@@ -946,7 +944,7 @@ func (h *HUOBI) GetRecentTrades(ctx context.Context, p currency.Pair, a asset.It
 					Side:         side,
 					Price:        fTrades.Data[i].Data[j].Price,
 					Amount:       fTrades.Data[i].Data[j].Amount,
-					Timestamp:    time.UnixMilli(fTrades.Data[i].Data[j].Timestamp),
+					Timestamp:    time.UnixMilli(fTrades.Data[i].Data[j].Timestamp).UTC(),
 				})
 			}
 		}
@@ -972,7 +970,7 @@ func (h *HUOBI) GetRecentTrades(ctx context.Context, p currency.Pair, a asset.It
 				Side:         side,
 				Price:        cTrades.Data[i].Price,
 				Amount:       cTrades.Data[i].Amount,
-				Timestamp:    time.UnixMilli(cTrades.Data[i].Timestamp),
+				Timestamp:    time.UnixMilli(cTrades.Data[i].Timestamp).UTC(),
 			})
 		}
 	}
@@ -1369,7 +1367,7 @@ func (h *HUOBI) GetOrderInfo(ctx context.Context, orderID string, pair currency.
 			Pair:           p,
 			Type:           orderType,
 			Side:           orderSide,
-			Date:           time.UnixMilli(respData.CreatedAt),
+			Date:           time.UnixMilli(respData.CreatedAt).UTC(),
 			Status:         orderStatus,
 			Price:          respData.Price,
 			Amount:         respData.Amount,
@@ -1561,7 +1559,7 @@ func (h *HUOBI) GetActiveOrders(ctx context.Context, req *order.MultiOrderReques
 						Pair:            req.Pairs[i],
 						Type:            orderType,
 						Side:            orderSide,
-						Date:            time.UnixMilli(resp.Data[j].CreatedAt),
+						Date:            time.UnixMilli(resp.Data[j].CreatedAt).UTC(),
 						Status:          orderStatus,
 						Price:           resp.Data[j].Price,
 						Amount:          resp.Data[j].OrderAmount,
@@ -1594,7 +1592,7 @@ func (h *HUOBI) GetActiveOrders(ctx context.Context, req *order.MultiOrderReques
 						RemainingAmount: resp[x].Amount - resp[x].FilledAmount,
 						Pair:            req.Pairs[i],
 						Exchange:        h.Name,
-						Date:            time.UnixMilli(resp[x].CreatedAt),
+						Date:            time.UnixMilli(resp[x].CreatedAt).UTC(),
 						AccountID:       strconv.FormatInt(resp[x].AccountID, 10),
 						Fee:             resp[x].FilledFees,
 					}
@@ -1730,8 +1728,8 @@ func (h *HUOBI) GetOrderHistory(ctx context.Context, req *order.MultiOrderReques
 					CostAsset:       req.Pairs[i].Quote,
 					Pair:            req.Pairs[i],
 					Exchange:        h.Name,
-					Date:            time.UnixMilli(resp[x].CreatedAt),
-					CloseTime:       time.UnixMilli(resp[x].FinishedAt),
+					Date:            time.UnixMilli(resp[x].CreatedAt).UTC(),
+					CloseTime:       time.UnixMilli(resp[x].FinishedAt).UTC(),
 					AccountID:       strconv.FormatInt(resp[x].AccountID, 10),
 					Fee:             resp[x].FilledFees,
 				}
@@ -1820,7 +1818,6 @@ func (h *HUOBI) GetOrderHistory(ctx context.Context, req *order.MultiOrderReques
 					if req.Type != orderVars.OrderType {
 						continue
 					}
-					orderCreateTime := time.Unix(openOrders.Data.Orders[x].CreateDate, 0)
 
 					p, err := currency.NewPairFromString(openOrders.Data.Orders[x].ContractCode)
 					if err != nil {
@@ -1841,7 +1838,7 @@ func (h *HUOBI) GetOrderHistory(ctx context.Context, req *order.MultiOrderReques
 						Type:            orderVars.OrderType,
 						Status:          orderVars.Status,
 						Pair:            p,
-						Date:            orderCreateTime,
+						Date:            time.Unix(openOrders.Data.Orders[x].CreateDate, 0).UTC(),
 					})
 				}
 				currentPage++
@@ -1927,7 +1924,7 @@ func (h *HUOBI) GetHistoricCandles(ctx context.Context, pair currency.Pair, a as
 		}
 
 		for x := range candles {
-			timestamp := time.Unix(candles[x].IDTimestamp, 0)
+			timestamp := time.Unix(candles[x].IDTimestamp, 0).UTC()
 			if timestamp.Before(req.Start) || timestamp.After(req.End) {
 				continue
 			}
@@ -1948,7 +1945,7 @@ func (h *HUOBI) GetHistoricCandles(ctx context.Context, pair currency.Pair, a as
 			return nil, err
 		}
 		for x := range candles.Data {
-			timestamp := time.Unix(candles.Data[x].IDTimestamp, 0)
+			timestamp := time.Unix(candles.Data[x].IDTimestamp, 0).UTC()
 			if timestamp.Before(req.Start) || timestamp.After(req.End) {
 				continue
 			}
@@ -1969,7 +1966,7 @@ func (h *HUOBI) GetHistoricCandles(ctx context.Context, pair currency.Pair, a as
 			return nil, err
 		}
 		for x := range candles.Data {
-			timestamp := time.Unix(candles.Data[x].IDTimestamp, 0)
+			timestamp := time.Unix(candles.Data[x].IDTimestamp, 0).UTC()
 			if timestamp.Before(req.Start) || timestamp.After(req.End) {
 				continue
 			}
@@ -2034,7 +2031,7 @@ func (h *HUOBI) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pa
 			}
 			for x := range candles.Data {
 				// align response data
-				timestamp := time.Unix(candles.Data[x].IDTimestamp, 0)
+				timestamp := time.Unix(candles.Data[x].IDTimestamp, 0).UTC()
 				if timestamp.Before(req.Start) || timestamp.After(req.End) {
 					continue
 				}
@@ -2187,9 +2184,9 @@ func (h *HUOBI) GetFuturesContractDetails(ctx context.Context, item asset.Item) 
 				return nil, err
 			}
 			if result.Data[x].DeliveryTime > 0 {
-				e = time.UnixMilli(result.Data[x].DeliveryTime)
+				e = time.UnixMilli(result.Data[x].DeliveryTime).UTC()
 			} else {
-				e = time.UnixMilli(result.Data[x].SettlementTime)
+				e = time.UnixMilli(result.Data[x].SettlementTime).UTC()
 			}
 			contractLength := e.Sub(s)
 			var ct futures.ContractType
@@ -2270,8 +2267,8 @@ func (h *HUOBI) GetLatestFundingRates(ctx context.Context, r *fundingrate.Latest
 			continue
 		}
 		var ft, nft time.Time
-		nft = time.UnixMilli(rates[i].NextFundingTime)
-		ft = time.UnixMilli(rates[i].FundingTime)
+		nft = time.UnixMilli(rates[i].NextFundingTime).UTC()
+		ft = time.UnixMilli(rates[i].FundingTime).UTC()
 		var fri time.Duration
 		if len(h.Features.Supports.FuturesCapabilities.SupportedFundingRateFrequencies) == 1 {
 			// can infer funding rate interval from the only funding rate frequency defined

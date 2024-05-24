@@ -356,7 +356,7 @@ func (ku *Kucoin) GetFuturesKline(ctx context.Context, granularity int64, symbol
 	kline := make([]FuturesKline, len(resp))
 	for i := range resp {
 		kline[i] = FuturesKline{
-			StartTime: time.UnixMilli(int64(resp[i][0])),
+			StartTime: time.UnixMilli(int64(resp[i][0])).UTC(),
 			Open:      resp[i][1],
 			High:      resp[i][2],
 			Low:       resp[i][3],

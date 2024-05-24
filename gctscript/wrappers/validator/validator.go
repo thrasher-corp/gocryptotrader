@@ -89,7 +89,7 @@ func (w Wrapper) Ticker(_ context.Context, exch string, pair currency.Pair, item
 		Pair:         pair,
 		ExchangeName: exch,
 		AssetType:    item,
-		LastUpdated:  time.Now(),
+		LastUpdated:  time.Now().UTC(),
 	}, nil
 }
 
@@ -126,7 +126,7 @@ func (w Wrapper) QueryOrder(_ context.Context, exch, _ string, _ currency.Pair, 
 		Pair:            pair,
 		Side:            order.Ask,
 		Type:            order.Limit,
-		Date:            time.Now(),
+		Date:            time.Now().UTC(),
 		Status:          order.Cancelled,
 		Price:           1,
 		Amount:          2,

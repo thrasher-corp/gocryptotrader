@@ -2454,7 +2454,7 @@ func TestProcessMarketSnapshot(t *testing.T) {
 			switch len(ku.Websocket.DataHandler) {
 			case 3:
 				assert.Equal(t, asset.Margin, v.AssetType, "AssetType")
-				assert.Equal(t, time.UnixMilli(1700555342007), v.LastUpdated, "datetime")
+				assert.Equal(t, time.UnixMilli(1700555342007).UTC(), v.LastUpdated, "datetime")
 				assert.Equal(t, 0.004445, v.High, "high")
 				assert.Equal(t, 0.004415, v.Last, "lastTradedPrice")
 				assert.Equal(t, 0.004191, v.Low, "low")
@@ -2462,7 +2462,7 @@ func TestProcessMarketSnapshot(t *testing.T) {
 				assert.Equal(t, 13097.3357, v.Volume, "volume")
 				assert.Equal(t, 57.44552981, v.QuoteVolume, "volValue")
 			case 2, 1:
-				assert.Equal(t, time.UnixMilli(1700555340197), v.LastUpdated, "datetime")
+				assert.Equal(t, time.UnixMilli(1700555340197).UTC(), v.LastUpdated, "datetime")
 				assert.Contains(t, []asset.Item{asset.Spot, asset.Margin}, v.AssetType, "AssetType is Spot or Margin")
 				seenAssetTypes[v.AssetType]++
 				assert.Equal(t, 1, seenAssetTypes[v.AssetType], "Each Asset Type is sent only once per unique snapshot")
@@ -2474,7 +2474,7 @@ func TestProcessMarketSnapshot(t *testing.T) {
 				assert.Equal(t, 160.7847672784213, v.QuoteVolume, "volValue")
 			case 0:
 				assert.Equal(t, asset.Spot, v.AssetType, "AssetType")
-				assert.Equal(t, time.UnixMilli(1700555342151), v.LastUpdated, "datetime")
+				assert.Equal(t, time.UnixMilli(1700555342151).UTC(), v.LastUpdated, "datetime")
 				assert.Equal(t, 37750.0, v.High, "high")
 				assert.Equal(t, 37366.8, v.Last, "lastTradedPrice")
 				assert.Equal(t, 36700.0, v.Low, "low")

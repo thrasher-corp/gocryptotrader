@@ -3190,7 +3190,7 @@ func (ok *Okx) GetCandlestickData(ctx context.Context, instrumentID string, inte
 		if err != nil {
 			return nil, err
 		}
-		candleData.OpenTime = time.UnixMilli(timestamp)
+		candleData.OpenTime = time.UnixMilli(timestamp).UTC()
 		if candleData.OpenPrice, err = convert.FloatFromString(resp[x][1]); err != nil {
 			return nil, err
 		}
@@ -3763,7 +3763,7 @@ func (ok *Okx) GetTakerVolume(ctx context.Context, currency, instrumentType stri
 			return nil, err
 		}
 		takerVolume := TakerVolume{
-			Timestamp:  time.UnixMilli(timestamp),
+			Timestamp:  time.UnixMilli(timestamp).UTC(),
 			SellVolume: sellVolume,
 			BuyVolume:  buyVolume,
 		}
@@ -3804,7 +3804,7 @@ func (ok *Okx) GetMarginLendingRatio(ctx context.Context, currency string, begin
 			return nil, err
 		}
 		lendRatio := MarginLendRatioItem{
-			Timestamp:       time.UnixMilli(timestamp),
+			Timestamp:       time.UnixMilli(timestamp).UTC(),
 			MarginLendRatio: ratio,
 		}
 		lendingRatios = append(lendingRatios, lendRatio)
@@ -3846,7 +3846,7 @@ func (ok *Okx) GetLongShortRatio(ctx context.Context, currency string, begin, en
 			return nil, err
 		}
 		dratio := LongShortRatio{
-			Timestamp:       time.UnixMilli(timestamp),
+			Timestamp:       time.UnixMilli(timestamp).UTC(),
 			MarginLendRatio: ratio,
 		}
 		ratios = append(ratios, dratio)
@@ -3894,7 +3894,7 @@ func (ok *Okx) GetContractsOpenInterestAndVolume(ctx context.Context, currency s
 			return nil, err
 		}
 		openInterestVolume := OpenInterestVolume{
-			Timestamp:    time.UnixMilli(int64(timestamp)),
+			Timestamp:    time.UnixMilli(int64(timestamp)).UTC(),
 			Volume:       volume,
 			OpenInterest: openInterest,
 		}
@@ -3937,7 +3937,7 @@ func (ok *Okx) GetOptionsOpenInterestAndVolume(ctx context.Context, currency str
 			return nil, err
 		}
 		openInterestVolume := OpenInterestVolume{
-			Timestamp:    time.UnixMilli(timestamp),
+			Timestamp:    time.UnixMilli(timestamp).UTC(),
 			Volume:       volume,
 			OpenInterest: openInterest,
 		}
@@ -3977,7 +3977,7 @@ func (ok *Okx) GetPutCallRatio(ctx context.Context, currency string,
 			return nil, err
 		}
 		openInterestVolume := OpenInterestVolumeRatio{
-			Timestamp:         time.UnixMilli(timestamp),
+			Timestamp:         time.UnixMilli(timestamp).UTC(),
 			VolumeRatio:       volume,
 			OpenInterestRatio: openInterest,
 		}
@@ -4057,7 +4057,7 @@ func (ok *Okx) GetOpenInterestAndVolumeExpiry(ctx context.Context, currency stri
 			return nil, err
 		}
 		volume := ExpiryOpenInterestAndVolume{
-			Timestamp:        time.UnixMilli(timestamp),
+			Timestamp:        time.UnixMilli(timestamp).UTC(),
 			ExpiryTime:       expiryTime,
 			CallOpenInterest: callOpenInterest,
 			PutOpenInterest:  putOpenInterest,
@@ -4117,7 +4117,7 @@ func (ok *Okx) GetOpenInterestAndVolumeStrike(ctx context.Context, currency stri
 			return nil, err
 		}
 		volume := StrikeOpenInterestAndVolume{
-			Timestamp:        time.UnixMilli(timestamp),
+			Timestamp:        time.UnixMilli(timestamp).UTC(),
 			Strike:           strike,
 			CallOpenInterest: calloi,
 			PutOpenInterest:  putoi,
@@ -4174,7 +4174,7 @@ func (ok *Okx) GetTakerFlow(ctx context.Context, currency string, period kline.I
 		return nil, err
 	}
 	return &CurrencyTakerFlow{
-		Timestamp:       time.UnixMilli(timestamp),
+		Timestamp:       time.UnixMilli(timestamp).UTC(),
 		CallBuyVolume:   callbuyvol,
 		CallSellVolume:  callselvol,
 		PutBuyVolume:    putbutvol,

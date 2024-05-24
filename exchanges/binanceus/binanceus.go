@@ -488,7 +488,7 @@ func (bi *Binanceus) GetSpotKline(ctx context.Context, arg *KlinesRequestParams)
 		if !ok {
 			return nil, errUnixMilliSecTypeAssertion
 		}
-		candle.OpenTime = time.UnixMilli(int64(val))
+		candle.OpenTime = time.UnixMilli(int64(val)).UTC()
 		if candle.Open, err = convert.FloatFromString(individualData[1]); err != nil {
 			return nil, err
 		}
@@ -508,7 +508,7 @@ func (bi *Binanceus) GetSpotKline(ctx context.Context, arg *KlinesRequestParams)
 		if !ok {
 			return nil, errUnixMilliSecTypeAssertion
 		}
-		candle.CloseTime = time.UnixMilli(int64(val))
+		candle.CloseTime = time.UnixMilli(int64(val)).UTC()
 		if candle.QuoteAssetVolume, err = convert.FloatFromString(individualData[7]); err != nil {
 			return nil, err
 		}

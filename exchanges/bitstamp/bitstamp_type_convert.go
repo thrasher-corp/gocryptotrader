@@ -49,7 +49,7 @@ func (t *microTimestamp) UnmarshalJSON(data []byte) error {
 		if err != nil {
 			return err
 		}
-		*t = microTimestamp(time.UnixMicro(i))
+		*t = microTimestamp(time.UnixMicro(i).UTC())
 		return nil
 	}
 
@@ -59,7 +59,7 @@ func (t *microTimestamp) UnmarshalJSON(data []byte) error {
 		return err
 	}
 
-	*t = microTimestamp(time.UnixMicro(int64(i)))
+	*t = microTimestamp(time.UnixMicro(int64(i)).UTC())
 	return nil
 }
 

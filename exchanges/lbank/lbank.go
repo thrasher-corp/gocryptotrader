@@ -81,7 +81,7 @@ func (l *Lbank) GetTimestamp(ctx context.Context) (time.Time, error) {
 	if err != nil {
 		return time.Time{}, err
 	}
-	return time.UnixMilli(resp.Timestamp), nil
+	return time.UnixMilli(resp.Timestamp).UTC(), nil
 }
 
 // GetTickers returns all tickers

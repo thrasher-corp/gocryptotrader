@@ -244,7 +244,7 @@ func (c *CoinbasePro) GetHistoricRates(ctx context.Context, currencyPair, start,
 	history := make([]History, len(resp))
 	for x := range resp {
 		history[x] = History{
-			Time:   time.Unix(int64(resp[x][0]), 0),
+			Time:   time.Unix(int64(resp[x][0]), 0).UTC(),
 			Low:    resp[x][1],
 			High:   resp[x][2],
 			Open:   resp[x][3],

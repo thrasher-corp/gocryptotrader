@@ -1553,7 +1553,7 @@ func (b *Base) GetKlineRequest(pair currency.Pair, a asset.Item, interval kline.
 	// theoretically retrieved.
 	if fixedAPICandleLength {
 		origCount := kline.TotalCandlesPerInterval(req.Start, req.End, interval)
-		modifiedCount := kline.TotalCandlesPerInterval(req.Start, time.Now(), exchangeInterval)
+		modifiedCount := kline.TotalCandlesPerInterval(req.Start, time.Now().UTC(), exchangeInterval)
 		if modifiedCount > limit {
 			errMsg := fmt.Sprintf("for %v %v candles between %v-%v. ",
 				origCount,
@@ -1565,7 +1565,7 @@ func (b *Base) GetKlineRequest(pair currency.Pair, a asset.Item, interval kline.
 					modifiedCount,
 					exchangeInterval)
 			}
-			boundary := time.Now().Add(-exchangeInterval.Duration() * time.Duration(limit))
+			boundary := time.Now().UTC().Add(-exchangeInterval.Duration() * time.Duration(limit))
 			return nil, fmt.Errorf("%w %v, exceeding the limit of %v %v candles up to %v. Please reduce timeframe or use GetHistoricCandlesExtended",
 				kline.ErrRequestExceedsExchangeLimits,
 				errMsg,

@@ -336,7 +336,6 @@ func (y *Yobit) GetRecentTrades(ctx context.Context, p currency.Pair, assetType 
 
 	resp := make([]trade.Data, len(tradeData))
 	for i := range tradeData {
-		tradeTS := time.Unix(tradeData[i].Timestamp, 0)
 		side := order.Buy
 		if tradeData[i].Type == "ask" {
 			side = order.Sell
@@ -349,7 +348,7 @@ func (y *Yobit) GetRecentTrades(ctx context.Context, p currency.Pair, assetType 
 			Side:         side,
 			Price:        tradeData[i].Price,
 			Amount:       tradeData[i].Amount,
-			Timestamp:    tradeTS,
+			Timestamp:    time.Unix(tradeData[i].Timestamp, 0).UTC(),
 		}
 	}
 
@@ -496,7 +495,7 @@ func (y *Yobit) GetOrderInfo(ctx context.Context, orderID string, _ currency.Pai
 			Amount:   orderInfo.Amount,
 			Price:    orderInfo.Rate,
 			Side:     side,
-			Date:     time.Unix(int64(orderInfo.TimestampCreated), 0),
+			Date:     time.Unix(int64(orderInfo.TimestampCreated), 0).UTC(),
 			Pair:     symbol,
 			Exchange: y.Name,
 		}, nil
@@ -603,7 +602,7 @@ func (y *Yobit) GetActiveOrders(ctx context.Context, req *order.MultiOrderReques
 				Amount:   resp[id].Amount,
 				Price:    resp[id].Rate,
 				Side:     side,
-				Date:     time.Unix(int64(resp[id].TimestampCreated), 0),
+				Date:     time.Unix(int64(resp[id].TimestampCreated), 0).UTC(),
 				Pair:     symbol,
 				Exchange: y.Name,
 			})
@@ -657,7 +656,6 @@ func (y *Yobit) GetOrderHistory(ctx context.Context, req *order.MultiOrderReques
 		if err != nil {
 			return nil, err
 		}
-		orderDate := time.Unix(int64(allOrders[i].Timestamp), 0)
 		var side order.Side
 		side, err = order.StringToOrderSide(allOrders[i].Type)
 		if err != nil {
@@ -671,7 +669,7 @@ func (y *Yobit) GetOrderHistory(ctx context.Context, req *order.MultiOrderReques
 			AverageExecutedPrice: allOrders[i].Rate,
 			Side:                 side,
 			Status:               order.Filled,
-			Date:                 orderDate,
+			Date:                 time.Unix(int64(allOrders[i].Timestamp), 0).UTC(),
 			Pair:                 pair,
 			Exchange:             y.Name,
 		}
@@ -704,7 +702,7 @@ func (y *Yobit) GetServerTime(ctx context.Context, _ asset.Item) (time.Time, err
 	if err != nil {
 		return time.Time{}, err
 	}
-	return time.Unix(info.ServerTime, 0), nil
+	return time.Unix(info.ServerTime, 0).UTC(), nil
 }
 
 // GetFuturesContractDetails returns all contracts from the exchange by asset type

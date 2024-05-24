@@ -631,7 +631,7 @@ func (k *Kraken) GetWithdrawalsHistory(ctx context.Context, c currency.Code, _ a
 		resp[i] = exchange.WithdrawalHistory{
 			Status:          withdrawals[i].Status,
 			TransferID:      withdrawals[i].Refid,
-			Timestamp:       time.Unix(int64(withdrawals[i].Time), 0),
+			Timestamp:       time.Unix(int64(withdrawals[i].Time), 0).UTC(),
 			Amount:          withdrawals[i].Amount,
 			Fee:             withdrawals[i].Fee,
 			CryptoToAddress: withdrawals[i].Info,
@@ -693,7 +693,7 @@ func (k *Kraken) GetRecentTrades(ctx context.Context, p currency.Pair, assetType
 				Side:         side,
 				Price:        tradeData.Elements[i].ExecutionEvent.OuterExecutionHolder.Execution.MakerOrder.LimitPrice,
 				Amount:       tradeData.Elements[i].ExecutionEvent.OuterExecutionHolder.Execution.MakerOrder.Quantity,
-				Timestamp:    time.UnixMilli(tradeData.Elements[i].ExecutionEvent.OuterExecutionHolder.Execution.MakerOrder.Timestamp),
+				Timestamp:    time.UnixMilli(tradeData.Elements[i].ExecutionEvent.OuterExecutionHolder.Execution.MakerOrder.Timestamp).UTC(),
 			})
 		}
 	default:

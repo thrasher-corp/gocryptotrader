@@ -393,7 +393,7 @@ func (b *Bitfinex) wsHandleData(respRaw []byte) error {
 				if !ok {
 					return errors.New("unable to type assert funding trade created")
 				}
-				wsFundingTrade.MTSCreated = time.UnixMilli(int64(created))
+				wsFundingTrade.MTSCreated = time.UnixMilli(int64(created)).UTC()
 				offerID, ok := data[3].(float64)
 				if !ok {
 					return errors.New("unable to type assert funding trade offer ID")
@@ -972,7 +972,7 @@ func (b *Bitfinex) handleWSTradesUpdate(c *subscription.Subscription, eventType 
 		trades[i] = trade.Data{
 			TID:          strconv.FormatInt(tradeHolder[i].ID, 10),
 			CurrencyPair: c.Pairs[0],
-			Timestamp:    time.UnixMilli(tradeHolder[i].Timestamp),
+			Timestamp:    time.UnixMilli(tradeHolder[i].Timestamp).UTC(),
 			Price:        price,
 			Amount:       newAmount,
 			Exchange:     b.Name,
@@ -1229,14 +1229,14 @@ func wsHandleFundingOffer(data []interface{}, includeRateReal bool) (*WsFundingO
 		if created, ok = data[2].(float64); !ok {
 			return nil, errors.New("unable to type assert funding offer created")
 		}
-		offer.Created = time.UnixMilli(int64(created))
+		offer.Created = time.UnixMilli(int64(created)).UTC()
 	}
 	if data[3] != nil {
 		var updated float64
 		if updated, ok = data[3].(float64); !ok {
 			return nil, errors.New("unable to type assert funding offer updated")
 		}
-		offer.Updated = time.UnixMilli(int64(updated))
+		offer.Updated = time.UnixMilli(int64(updated)).UTC()
 	}
 	if data[4] != nil {
 		if offer.Amount, ok = data[4].(float64); !ok {
@@ -1331,14 +1331,14 @@ func wsHandleFundingCreditLoanData(data []interface{}, includePositionPair bool)
 		if created, ok = data[3].(float64); !ok {
 			return nil, errors.New("unable to type assert funding credit created")
 		}
-		credit.Created = time.UnixMilli(int64(created))
+		credit.Created = time.UnixMilli(int64(created)).UTC()
 	}
 	if data[4] != nil {
 		var updated float64
 		if updated, ok = data[4].(float64); !ok {
 			return nil, errors.New("unable to type assert funding credit updated")
 		}
-		credit.Updated = time.UnixMilli(int64(updated))
+		credit.Updated = time.UnixMilli(int64(updated)).UTC()
 	}
 	if data[5] != nil {
 		if credit.Amount, ok = data[5].(float64); !ok {
@@ -1370,14 +1370,14 @@ func wsHandleFundingCreditLoanData(data []interface{}, includePositionPair bool)
 		if opened, ok = data[13].(float64); !ok {
 			return nil, errors.New("unable to type assert funding credit opened")
 		}
-		credit.Opened = time.UnixMilli(int64(opened))
+		credit.Opened = time.UnixMilli(int64(opened)).UTC()
 	}
 	if data[14] != nil {
 		var lastPayout float64
 		if lastPayout, ok = data[14].(float64); !ok {
 			return nil, errors.New("unable to type assert last funding credit payout")
 		}
-		credit.LastPayout = time.UnixMilli(int64(lastPayout))
+		credit.LastPayout = time.UnixMilli(int64(lastPayout)).UTC()
 	}
 	if data[15] != nil {
 		var notify float64
@@ -1453,12 +1453,12 @@ func (b *Bitfinex) wsHandleOrder(data []interface{}) {
 	}
 	if data[4] != nil {
 		if date, ok := data[4].(float64); ok {
-			od.Date = time.Unix(int64(date)*1000, 0)
+			od.Date = time.Unix(int64(date)*1000, 0).UTC()
 		}
 	}
 	if data[5] != nil {
 		if lastUpdated, ok := data[5].(float64); ok {
-			od.LastUpdated = time.Unix(int64(lastUpdated)*1000, 0)
+			od.LastUpdated = time.Unix(int64(lastUpdated)*1000, 0).UTC()
 		}
 	}
 	if data[2] != nil {
@@ -1538,7 +1538,7 @@ func (b *Bitfinex) WsInsertSnapshot(p currency.Pair, assetType asset.Item, books
 	book.PriceDuplication = true
 	book.IsFundingRate = fundingRate
 	book.VerifyOrderbook = b.CanVerifyOrderbook
-	book.LastUpdated = time.Now() // Not included in snapshot
+	book.LastUpdated = time.Now().UTC() // Not included in snapshot
 	return b.Websocket.Orderbook.LoadSnapshot(&book)
 }
 
@@ -1556,7 +1556,7 @@ func (b *Bitfinex) WsUpdateOrderbook(c *subscription.Subscription, p currency.Pa
 		Pair:       p,
 		Bids:       make([]orderbook.Tranche, 0, len(book)),
 		Asks:       make([]orderbook.Tranche, 0, len(book)),
-		UpdateTime: time.Now(), // Not included in update
+		UpdateTime: time.Now().UTC(), // Not included in update
 	}
 
 	for i := range book {
