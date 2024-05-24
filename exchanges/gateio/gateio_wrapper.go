@@ -56,7 +56,8 @@ func (g *Gateio) SetDefaults() {
 
 	g.Features = exchange.Features{
 		TradingRequirements: protocol.TradingRequirements{
-			SpotMarketOrderSubmissionAmountQuotationOnly: true,
+			SpotMarketOrderAmountPurchaseQuotationOnly: true,
+			SpotMarketOrderAmountSellBaseOnly:          true,
 		},
 		Supports: exchange.FeaturesSupported{
 			REST:      true,

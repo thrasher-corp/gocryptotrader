@@ -123,10 +123,14 @@ func (s *Submit) Validate(exch ProtocolTradingRequirements, opt ...validate.Chec
 	}
 
 	if s.Type == Market && s.AssetType == asset.Spot && s.Side.IsLong() {
-		if requirements.SpotMarketOrderSubmissionAmountBaseOnly && s.Amount == 0 {
-			return fmt.Errorf("submit validation error %w, base amount must be set to 'Amount' field to satisfy submission requirements", ErrAmountMustBeSet)
-		} else if requirements.SpotMarketOrderSubmissionAmountQuotationOnly && s.QuoteAmount == 0 {
-			return fmt.Errorf("submit validation error %w, quote amount must be set to 'QuoteAmount' field to satisfy submission requirements", ErrAmountMustBeSet)
+		if requirements.SpotMarketOrderAmountPurchaseQuotationOnly && s.QuoteAmount == 0 {
+			return fmt.Errorf("submit validation error %w, quote amount to be sold must be set to 'QuoteAmount' field to satisfy trading requirements", ErrAmountMustBeSet)
+		}
+	}
+
+	if s.Type == Market && s.AssetType == asset.Spot && s.Side.IsShort() {
+		if requirements.SpotMarketOrderAmountSellBaseOnly && s.Amount == 0 {
+			return fmt.Errorf("submit validation error %w, base amount being sold must be set to 'Amount' field to satisfy trading requirements", ErrAmountMustBeSet)
 		}
 	}
 

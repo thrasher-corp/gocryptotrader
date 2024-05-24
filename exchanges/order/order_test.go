@@ -22,16 +22,16 @@ import (
 var errValidationCheckFailed = errors.New("validation check failed")
 
 type dummy struct {
-	QuoteAmount bool
-	BaseAmount  bool
-	RequiresID  bool
+	HasToPurchaseWithQuoteAmountSet bool
+	HasToSellWithBaseAmountSet      bool
+	RequiresID                      bool
 }
 
 func (d *dummy) GetTradingRequirements() (protocol.TradingRequirements, error) {
 	return protocol.TradingRequirements{
-		SpotMarketOrderSubmissionAmountQuotationOnly: d.QuoteAmount,
-		SpotMarketOrderSubmissionAmountBaseOnly:      d.BaseAmount,
-		ClientOrderID:                                d.RequiresID,
+		SpotMarketOrderAmountPurchaseQuotationOnly: d.HasToPurchaseWithQuoteAmountSet,
+		SpotMarketOrderAmountSellBaseOnly:          d.HasToSellWithBaseAmountSet,
+		ClientOrderID:                              d.RequiresID,
 	}, nil
 }
 
@@ -39,12 +39,12 @@ func TestSubmit_Validate(t *testing.T) {
 	t.Parallel()
 	testPair := currency.NewPair(currency.BTC, currency.LTC)
 	tester := []struct {
-		ExpectedErr error
-		Submit      *Submit
-		ValidOpts   validate.Checker
-		QuoteAmount bool
-		BaseAmount  bool
-		RequiresID  bool
+		ExpectedErr                     error
+		Submit                          *Submit
+		ValidOpts                       validate.Checker
+		HasToPurchaseWithQuoteAmountSet bool
+		HasToSellWithBaseAmountSet      bool
+		RequiresID                      bool
 	}{
 		{
 			ExpectedErr: ErrSubmissionIsNil,
@@ -199,19 +199,6 @@ func TestSubmit_Validate(t *testing.T) {
 		{
 			ExpectedErr: ErrAmountMustBeSet,
 			Submit: &Submit{
-				Exchange:    "test",
-				Pair:        testPair,
-				Side:        Buy,
-				Type:        Market,
-				QuoteAmount: 1,
-				AssetType:   asset.Spot,
-			},
-			BaseAmount: true,
-			ValidOpts:  validate.Check(func() error { return nil }),
-		},
-		{
-			ExpectedErr: ErrAmountMustBeSet,
-			Submit: &Submit{
 				Exchange:  "test",
 				Pair:      testPair,
 				Side:      Buy,
@@ -219,8 +206,21 @@ func TestSubmit_Validate(t *testing.T) {
 				Amount:    1,
 				AssetType: asset.Spot,
 			},
-			QuoteAmount: true,
-			ValidOpts:   validate.Check(func() error { return nil }),
+			HasToPurchaseWithQuoteAmountSet: true,
+			ValidOpts:                       validate.Check(func() error { return nil }),
+		},
+		{
+			ExpectedErr: ErrAmountMustBeSet,
+			Submit: &Submit{
+				Exchange:    "test",
+				Pair:        testPair,
+				Side:        Sell,
+				Type:        Market,
+				QuoteAmount: 1,
+				AssetType:   asset.Spot,
+			},
+			HasToSellWithBaseAmountSet: true,
+			ValidOpts:                  validate.Check(func() error { return nil }),
 		},
 		{
 			ExpectedErr: ErrClientOrderIDMustBeSet,
@@ -252,7 +252,10 @@ func TestSubmit_Validate(t *testing.T) {
 	}
 
 	for x := range tester {
-		err := tester[x].Submit.Validate(&dummy{QuoteAmount: tester[x].QuoteAmount, BaseAmount: tester[x].BaseAmount, RequiresID: tester[x].RequiresID}, tester[x].ValidOpts)
+		err := tester[x].Submit.Validate(&dummy{
+			HasToPurchaseWithQuoteAmountSet: tester[x].HasToPurchaseWithQuoteAmountSet,
+			HasToSellWithBaseAmountSet:      tester[x].HasToSellWithBaseAmountSet,
+			RequiresID:                      tester[x].RequiresID}, tester[x].ValidOpts)
 		if !errors.Is(err, tester[x].ExpectedErr) {
 			t.Fatalf("Unexpected result. %d Got: %v, want: %v", x+1, err, tester[x].ExpectedErr)
 		}
