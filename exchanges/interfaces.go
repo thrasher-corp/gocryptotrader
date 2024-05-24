@@ -115,6 +115,7 @@ type IBotExchange interface {
 	// IsPairEnabled checks if a pair is enabled for an enabled asset type
 	IsPairEnabled(pair currency.Pair, a asset.Item) (bool, error)
 
+	// ProtocolFeaturesREST returns the protocol features for the REST API.
 	ProtocolFeaturesREST() (*protocol.Features, error)
 }
 

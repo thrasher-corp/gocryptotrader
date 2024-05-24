@@ -31,17 +31,17 @@ const (
 	notPlaced        = InsufficientBalance | MarketUnavailable | Rejected
 )
 
+// Public error vars for order package
 var (
-	// ErrUnableToPlaceOrder defines an error when an order submission has
-	// failed.
-	ErrUnableToPlaceOrder = errors.New("order not placed")
-	// ErrOrderNotFound is returned when no order is found
-	ErrOrderNotFound = errors.New("order not found")
-	// ErrUnknownPriceType returned when price type is unknown
-	ErrUnknownPriceType = errors.New("unknown price type")
-	// ErrAmountMustBeSet is returned when an amount is not set
-	ErrAmountMustBeSet = errors.New("amount must be set")
+	ErrUnableToPlaceOrder          = errors.New("order not placed")
+	ErrOrderNotFound               = errors.New("order not found")
+	ErrUnknownPriceType            = errors.New("unknown price type")
+	ErrAmountMustBeSet             = errors.New("amount must be set")
+	ErrClientOrderIDMustBeSet      = errors.New("client order ID must be set")
+	ErrUnknownSubmissionAmountType = errors.New("unknown submission amount type")
+)
 
+var (
 	errTimeInForceConflict      = errors.New("multiple time in force options applied")
 	errUnrecognisedOrderType    = errors.New("unrecognised order type")
 	errUnrecognisedOrderStatus  = errors.New("unrecognised order status")
@@ -113,11 +113,17 @@ func (s *Submit) Validate(exch ProtocolFeatureSet, opt ...validate.Checker) erro
 		return ErrPriceMustBeSetIfLimitOrder
 	}
 
+	features, err := exch.ProtocolFeaturesREST()
+	if err != nil {
+		return err
+	}
+
+	if features.TradingRequiresClientOrderID && s.ClientOrderID == "" {
+		return fmt.Errorf("submit validation error %w, client order ID must be set to satisfy submission requirements", ErrClientOrderIDMustBeSet)
+	}
+
 	if s.Type == Market && s.AssetType == asset.Spot && s.Side.IsLong() {
-		features, err := exch.ProtocolFeaturesREST()
-		if err != nil {
-			return err
-		}
+
 		switch {
 		case features.SpotMarketOrderSubmissionAmounts == protocol.BaseAmount:
 			if s.Amount == 0 {
@@ -128,7 +134,8 @@ func (s *Submit) Validate(exch ProtocolFeatureSet, opt ...validate.Checker) erro
 				return fmt.Errorf("submit validation error %w, quote amount must be set to 'QuoteAmount' field to satisfy submission requirements", ErrAmountMustBeSet)
 			}
 		case features.SpotMarketOrderSubmissionAmounts == protocol.Any:
-		case features.SpotMarketOrderSubmissionAmounts == protocol.Unset:
+		default:
+			return fmt.Errorf("submit validation error %w for spot market order", ErrUnknownSubmissionAmountType)
 		}
 	}
 

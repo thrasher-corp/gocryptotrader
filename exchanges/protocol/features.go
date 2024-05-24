@@ -52,6 +52,7 @@ type Features struct {
 
 	// Nuanced trading parameters
 	SpotMarketOrderSubmissionAmounts TradingAmountRequirements `json:"spotMarketOrderSubmissionAmounts,omitempty"`
+	TradingRequiresClientOrderID     bool                      `json:"tradingRequiresClientOrderID,omitempty"`
 }
 
 // TradingAmountRequirements defines the requirements for trading amounts.
@@ -59,10 +60,8 @@ type TradingAmountRequirements uint8
 
 // Constants representing different trading amount requirements.
 const (
-	// Unset defines an unset trading amount requirement.
-	// TODO: Remove once all exchanges have been updated to use the new
-	// TradingAmountRequirements.
-	Unset TradingAmountRequirements = iota
+	// Any allows the amount to be in either the base or quotation currency.
+	Any TradingAmountRequirements = iota
 
 	// QuotationAmount requires the amount to be in the quote currency.
 	// For example, in BTC-USD, the quotation amount is USD.
@@ -74,9 +73,6 @@ const (
 
 	// BaseAmount requires the amount to be in the base currency.
 	BaseAmount
-
-	// Any allows the amount to be in either the base or quotation currency.
-	Any
 )
 
 // String returns the string representation of the TradingAmountRequirements.

@@ -21,10 +21,16 @@ import (
 
 var errValidationCheckFailed = errors.New("validation check failed")
 
-type dummy struct{}
+type dummy struct {
+	Trading    protocol.TradingAmountRequirements
+	RequiresID bool
+}
 
 func (d *dummy) ProtocolFeaturesREST() (*protocol.Features, error) {
-	return &protocol.Features{}, nil
+	return &protocol.Features{
+		TradingRequiresClientOrderID:     d.RequiresID,
+		SpotMarketOrderSubmissionAmounts: d.Trading,
+	}, nil
 }
 
 func TestSubmit_Validate(t *testing.T) {
@@ -34,6 +40,8 @@ func TestSubmit_Validate(t *testing.T) {
 		ExpectedErr error
 		Submit      *Submit
 		ValidOpts   validate.Checker
+		Trading     protocol.TradingAmountRequirements
+		RequiresID  bool
 	}{
 		{
 			ExpectedErr: ErrSubmissionIsNil,
@@ -185,10 +193,76 @@ func TestSubmit_Validate(t *testing.T) {
 			},
 			ValidOpts: validate.Check(func() error { return nil }),
 		}, // valid order!
+		{
+			ExpectedErr: ErrAmountMustBeSet,
+			Submit: &Submit{
+				Exchange:    "test",
+				Pair:        testPair,
+				Side:        Buy,
+				Type:        Market,
+				QuoteAmount: 1,
+				AssetType:   asset.Spot,
+			},
+			Trading:   protocol.BaseAmount,
+			ValidOpts: validate.Check(func() error { return nil }),
+		},
+		{
+			ExpectedErr: ErrAmountMustBeSet,
+			Submit: &Submit{
+				Exchange:  "test",
+				Pair:      testPair,
+				Side:      Buy,
+				Type:      Market,
+				Amount:    1,
+				AssetType: asset.Spot,
+			},
+			Trading:   protocol.QuotationAmount,
+			ValidOpts: validate.Check(func() error { return nil }),
+		},
+		{
+			ExpectedErr: ErrUnknownSubmissionAmountType,
+			Submit: &Submit{
+				Exchange:  "test",
+				Pair:      testPair,
+				Side:      Buy,
+				Type:      Market,
+				Amount:    1,
+				AssetType: asset.Spot,
+			},
+			Trading:   69,
+			ValidOpts: validate.Check(func() error { return nil }),
+		},
+		{
+			ExpectedErr: ErrClientOrderIDMustBeSet,
+			Submit: &Submit{
+				Exchange:  "test",
+				Pair:      testPair,
+				Side:      Buy,
+				Type:      Market,
+				Amount:    1,
+				AssetType: asset.Spot,
+			},
+			RequiresID: true,
+			ValidOpts:  validate.Check(func() error { return nil }),
+		},
+		{
+			ExpectedErr: nil,
+			Submit: &Submit{
+				Exchange:      "test",
+				Pair:          testPair,
+				Side:          Buy,
+				Type:          Market,
+				Amount:        1,
+				AssetType:     asset.Spot,
+				ClientOrderID: "69420",
+			},
+			RequiresID: true,
+			ValidOpts:  validate.Check(func() error { return nil }),
+		},
 	}
 
 	for x := range tester {
-		err := tester[x].Submit.Validate(&dummy{}, tester[x].ValidOpts)
+		err := tester[x].Submit.Validate(&dummy{Trading: tester[x].Trading, RequiresID: tester[x].RequiresID}, tester[x].ValidOpts)
 		if !errors.Is(err, tester[x].ExpectedErr) {
 			t.Fatalf("Unexpected result. %d Got: %v, want: %v", x+1, err, tester[x].ExpectedErr)
 		}
