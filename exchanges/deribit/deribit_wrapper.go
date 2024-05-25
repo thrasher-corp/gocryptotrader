@@ -286,15 +286,7 @@ func (d *Deribit) UpdateTicker(ctx context.Context, p currency.Pair, assetType a
 	if err != nil {
 		return nil, err
 	}
-	var instrumentID string
-	switch assetType {
-	case asset.Futures:
-		instrumentID = d.formatFuturesTradablePair(p)
-	case asset.Options:
-		instrumentID = d.optionPairToString(p)
-	default:
-		instrumentID = p.String()
-	}
+	instrumentID := d.formatPairString(assetType, p)
 	var tickerData *TickerData
 	if d.Websocket.IsConnected() {
 		tickerData, err = d.WSRetrievePublicTicker(instrumentID)
@@ -352,15 +344,7 @@ func (d *Deribit) UpdateOrderbook(ctx context.Context, p currency.Pair, assetTyp
 	if err != nil {
 		return nil, err
 	}
-	var instrumentID string
-	switch assetType {
-	case asset.Futures:
-		instrumentID = d.formatFuturesTradablePair(p)
-	case asset.Options:
-		instrumentID = d.optionPairToString(p)
-	default:
-		instrumentID = p.String()
-	}
+	instrumentID := d.formatPairString(assetType, p)
 	var obData *Orderbook
 	if d.Websocket.IsConnected() {
 		obData, err = d.WSRetrieveOrderbookData(instrumentID, 50)
@@ -556,15 +540,7 @@ func (d *Deribit) GetRecentTrades(ctx context.Context, p currency.Pair, assetTyp
 	if err != nil {
 		return nil, err
 	}
-	var instrumentID string
-	switch assetType {
-	case asset.Futures:
-		instrumentID = d.formatFuturesTradablePair(p)
-	case asset.Options:
-		instrumentID = d.optionPairToString(p)
-	default:
-		instrumentID = p.String()
-	}
+	instrumentID := d.formatPairString(assetType, p)
 	resp := []trade.Data{}
 	var trades *PublicTradesData
 	if d.Websocket.IsConnected() {
@@ -610,12 +586,8 @@ func (d *Deribit) GetHistoricTrades(ctx context.Context, p currency.Pair, assetT
 	}
 	var instrumentID string
 	switch assetType {
-	case asset.Futures:
-		instrumentID = d.formatFuturesTradablePair(p)
-	case asset.Options:
-		instrumentID = d.optionPairToString(p)
-	case asset.Spot:
-		instrumentID = p.String()
+	case asset.Futures, asset.Options, asset.Spot:
+		instrumentID = d.formatPairString(assetType, p)
 	default:
 		return nil, fmt.Errorf("%w asset type %v", asset.ErrNotSupported, assetType)
 	}
@@ -1518,13 +1490,10 @@ func (d *Deribit) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]fu
 // IsPerpetualFutureCurrency ensures a given asset and currency is a perpetual future
 // differs by exchange
 func (d *Deribit) IsPerpetualFutureCurrency(assetType asset.Item, pair currency.Pair) (bool, error) {
-	if assetType == asset.Spot {
-		return false, nil
+	if !assetType.IsFutures() {
+		return false, futures.ErrNotPerpetualFuture
 	} else if strings.EqualFold(pair.Quote.String(), "PERPETUAL") || strings.HasSuffix(pair.String(), "PERP") {
 		return true, nil
-	}
-	if !assetType.IsFutures() {
-		return false, nil
 	}
 	pair, err := d.FormatExchangeCurrency(pair, assetType)
 	if err != nil {
@@ -1619,4 +1588,14 @@ func (d *Deribit) GetHistoricalFundingRates(ctx context.Context, r *fundingrate.
 		LatestRate:      fundingRates[len(fundingRates)-1],
 		PaymentCurrency: r.PaymentCurrency,
 	}, nil
+}
+
+func (d *Deribit) formatPairString(assetType asset.Item, pair currency.Pair) string {
+	switch assetType {
+	case asset.Futures:
+		return d.formatFuturesTradablePair(pair)
+	case asset.Options:
+		return d.optionPairToString(pair)
+	}
+	return pair.String()
 }
