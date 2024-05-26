@@ -2,6 +2,9 @@ package subscription
 
 import (
 	"slices"
+
+	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
 
 // List is a container of subscription pointers
@@ -35,4 +38,49 @@ func (l List) GroupPairs() (n List) {
 		})
 	}
 	return
+}
+
+type assetPairs map[asset.Item]currency.Pairs
+type iExchange interface {
+	GetAssetTypes(enabled bool) asset.Items
+	GetEnabledPairs(asset.Item) (currency.Pairs, error)
+	GetPairFormat(asset.Item, bool) (currency.PairFormat, error)
+}
+
+func fillAssetPairs(ap assetPairs, a asset.Item, e iExchange) error {
+	p, err := e.GetEnabledPairs(a)
+	if err != nil {
+		return err
+	}
+	f, err := e.GetPairFormat(a, true)
+	if err != nil {
+		return err
+	}
+	ap[a] = p.Format(f)
+	return nil
+}
+
+// AssetPairs returns a map of enabled pairs for the subscriptions in the list, formatted for the asset
+func (l List) AssetPairs(e iExchange) (assetPairs, error) { //nolint:revive // unexported-return is acceptable since it's a undecorated primitive
+	at := e.GetAssetTypes(true)
+	ap := assetPairs{}
+	for _, s := range l {
+		switch s.Asset {
+		case asset.Empty:
+			// Nothing to do
+		case asset.All:
+			for _, a := range at {
+				if err := fillAssetPairs(ap, a, e); err != nil {
+					return nil, err
+				}
+			}
+		default:
+			if slices.Contains(at, s.Asset) {
+				if err := fillAssetPairs(ap, s.Asset, e); err != nil {
+					return nil, err
+				}
+			}
+		}
+	}
+	return ap, nil
 }
