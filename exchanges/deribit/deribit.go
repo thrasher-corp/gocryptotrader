@@ -2705,15 +2705,16 @@ func guessAssetTypeFromInstrument(currencyPair currency.Pair) (asset.Item, error
 			}
 		}
 	}
-	if len(vals) == 4 {
+	length := len(vals)
+	if strings.EqualFold(vals[length-1], "C") || strings.EqualFold(vals[length-1], "P") {
+		return asset.Options, nil
+	}
+	if length == 4 {
 		if added {
 			return asset.FutureCombo, nil
 		}
-		if strings.EqualFold(vals[3], "C") || strings.EqualFold(vals[3], "P") {
-			return asset.Options, nil
-		}
 		return asset.OptionCombo, nil
-	} else if len(vals) >= 5 {
+	} else if length >= 5 {
 		return asset.OptionCombo, nil
 	}
 	return asset.Empty, fmt.Errorf("%w currency pair: %v", errUnsupportedInstrumentFormat, currencyPair)

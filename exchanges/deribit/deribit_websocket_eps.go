@@ -1756,8 +1756,8 @@ func (d *Deribit) WSRetrieveUserTradesByCurrencyAndTime(ccy currency.Code, kind,
 	input := &struct {
 		Currency  currency.Code `json:"currency"`
 		Kind      string        `json:"kind,omitempty"`
-		StartTime int64         `json:"start_time,omitempty"`
-		EndTime   int64         `json:"end_time,omitempty"`
+		StartTime int64         `json:"start_timestamp,omitempty"`
+		EndTime   int64         `json:"end_timestamp,omitempty"`
 		Sorting   string        `json:"sorting,omitempty"`
 		Count     int64         `json:"count,omitempty"`
 	}{

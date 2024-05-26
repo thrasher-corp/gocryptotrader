@@ -57,11 +57,10 @@ func TestMain(m *testing.M) {
 		log.Fatal(err)
 	}
 
-	d.Config.API.AuthenticatedSupport = true
-	d.Config.API.AuthenticatedWebsocketSupport = true
 	if apiKey != "" && apiSecret != "" {
-		d.Config.API.Credentials.Key = apiKey
-		d.Config.API.Credentials.Secret = apiSecret
+		d.API.AuthenticatedSupport = true
+		d.API.AuthenticatedWebsocketSupport = true
+		d.SetCredentials(apiKey, apiSecret, "", "", "", "")
 		d.Websocket.SetCanUseAuthenticatedEndpoints(true)
 	}
 	if useTestNet {
@@ -98,8 +97,8 @@ func TestUpdateTicker(t *testing.T) {
 
 	for assetType, cp := range assetTypeToPairsMap {
 		result, err := d.UpdateTicker(context.Background(), cp, assetType)
-		require.NoError(t, err)
-		require.NotNil(t, result)
+		require.NoErrorf(t, err, "expected nil, got %v for asset type %s pair %s", err, assetType.String(), cp.String())
+		require.NotNilf(t, result, "Expected result not to be nil for asset type %s pair %s", assetType.String(), cp.String())
 	}
 }
 
@@ -128,8 +127,8 @@ func TestFetchRecentTrades(t *testing.T) {
 	t.Parallel()
 	for assetType, cp := range assetTypeToPairsMap {
 		result, err := d.GetRecentTrades(context.Background(), cp, assetType)
-		require.NoError(t, err)
-		require.NotNil(t, result)
+		require.NoErrorf(t, err, "expected nil, got %v for asset type %s pair %s", err, assetType.String(), cp.String())
+		require.NotNilf(t, result, "Expected result not to be nil for asset type %s pair %s", assetType.String(), cp.String())
 	}
 }
 
@@ -192,8 +191,8 @@ func TestSubmitOrder(t *testing.T) {
 	var info *InstrumentData
 	for assetType, cp := range assetToPairStringMap {
 		info, err = d.GetInstrument(context.Background(), d.formatPairString(assetType, cp))
-		require.NoError(t, err)
-		require.NotNil(t, info)
+		require.NoErrorf(t, err, "expected nil, got %v for asset type %s pair %s", err, assetType.String(), cp.String())
+		require.NotNilf(t, result, "Expected result not to be nil for asset type %s pair %s", assetType.String(), cp.String())
 
 		result, err = d.SubmitOrder(
 			context.Background(),
@@ -207,8 +206,8 @@ func TestSubmitOrder(t *testing.T) {
 				Pair:      cp,
 			},
 		)
-		require.NoError(t, err)
-		require.NotNil(t, result)
+		require.NoErrorf(t, err, "expected nil, got %v for asset type %s pair %s", err, assetType.String(), cp.String())
+		require.NotNilf(t, result, "Expected result not to be nil for asset type %s pair %s", assetType.String(), cp.String())
 	}
 }
 
@@ -228,8 +227,8 @@ func TestGetMarkPriceHistory(t *testing.T) {
 		futureComboTradablePair.String(),
 	} {
 		result, err = d.GetMarkPriceHistory(context.Background(), ps, time.Now().Add(-5*time.Minute), time.Now())
-		require.NoError(t, err)
-		require.NotNil(t, result)
+		require.NoErrorf(t, err, "expected nil, got %v for pair %s", err, ps)
+		require.NotNilf(t, result, "Expected result not to be nil for pair %s", ps)
 	}
 }
 
@@ -264,7 +263,7 @@ func TestGetBookSummaryByCurrency(t *testing.T) {
 
 	result, err := d.GetBookSummaryByCurrency(context.Background(), currency.BTC, "option")
 	require.NoError(t, err)
-	require.NotNil(t, result)
+	assert.NotNil(t, result)
 }
 
 func TestWSRetrieveBookBySummary(t *testing.T) {
@@ -290,8 +289,8 @@ func TestGetBookSummaryByInstrument(t *testing.T) {
 		optionComboTradablePair.String(),
 	} {
 		result, err = d.GetBookSummaryByInstrument(context.Background(), ps)
-		require.NoError(t, err)
-		require.NotNil(t, result)
+		require.NoErrorf(t, err, "expected nil, got %v for pair %s", err, ps)
+		require.NotNilf(t, result, "Expected result not to be nil for pair %s", ps)
 	}
 }
 
@@ -308,8 +307,8 @@ func TestWSRetrieveBookSummaryByInstrument(t *testing.T) {
 		optionComboTradablePair.String(),
 	} {
 		result, err = d.WSRetrieveBookSummaryByInstrument(ps)
-		require.NoError(t, err)
-		require.NotNil(t, result)
+		require.NoErrorf(t, err, "expected nil, got %v for pair %s", err, ps)
+		require.NotNilf(t, result, "Expected result not to be nil for pair %s", ps)
 	}
 }
 
@@ -504,8 +503,8 @@ func TestGetInstrumentData(t *testing.T) {
 	var result *InstrumentData
 	for assetType, cp := range assetTypeToPairsMap {
 		result, err = d.GetInstrument(context.Background(), d.formatPairString(assetType, cp))
-		require.NoErrorf(t, err, "expected nil, got %v for asset type %v pair %s", assetType, cp.String())
-		require.NotNilf(t, result, "Expected result not to be nil for asset type %v pair %s", assetType, cp.String())
+		require.NoErrorf(t, err, "expected nil, got %v for asset type %s pair %s", err, assetType.String(), cp.String())
+		require.NotNilf(t, result, "Expected result not to be nil for asset type %s pair %s", assetType.String(), cp.String())
 	}
 }
 
@@ -517,8 +516,8 @@ func TestWSRetrieveInstrumentData(t *testing.T) {
 	var result *InstrumentData
 	for assetType, cp := range assetTypeToPairsMap {
 		result, err = d.WSRetrieveInstrumentData(d.formatPairString(assetType, cp))
-		require.NoErrorf(t, err, "expected nil, got %v for asset type %v pair %s", assetType, cp.String())
-		require.NotNilf(t, result, "Expected result not to be nil for asset type %v pair %s", assetType, cp.String())
+		require.NoErrorf(t, err, "expected nil, got %v for asset type %s pair %s", err, assetType.String(), cp.String())
+		require.NotNilf(t, result, "Expected result not to be nil for asset type %s pair %s", assetType.String(), cp.String())
 	}
 }
 
@@ -720,6 +719,8 @@ func TestGetOrderbookByInstrumentID(t *testing.T) {
 
 	comboD, err := d.GetComboDetails(context.Background(), combos[0])
 	require.NoError(t, err)
+	require.NotNil(t, comboD)
+
 	result, err := d.GetOrderbookByInstrumentID(context.Background(), comboD.InstrumentID, 50)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
@@ -737,6 +738,7 @@ func TestWSRetrieveOrderbookByInstrumentID(t *testing.T) {
 	comboD, err := d.WSRetrieveComboDetails(combos[0])
 	require.NoError(t, err)
 	require.NotNil(t, comboD)
+
 	result, err := d.WSRetrieveOrderbookByInstrumentID(comboD.InstrumentID, 50)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
@@ -901,8 +903,8 @@ func TestWSCancelTransferByID(t *testing.T) {
 	_, err := d.WSCancelTransferByID(currency.EMPTYCODE, "", 23487)
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
 	_, err = d.WSCancelTransferByID(currency.BTC, "", 0)
-
 	require.ErrorIs(t, err, errInvalidID)
+
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, d, canManipulateRealOrders)
 	result, err := d.WSCancelTransferByID(currency.BTC, "", 23487)
 	require.NoError(t, err)
@@ -1047,6 +1049,7 @@ func TestGetWithdrawals(t *testing.T) {
 	require.NoError(t, err)
 	_, err = d.GetWithdrawals(context.Background(), currency.EMPTYCODE, 25, 0)
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
+
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, d)
 	result, err := d.GetWithdrawals(context.Background(), currency.BTC, 25, 0)
 	require.NoError(t, err)
@@ -1076,7 +1079,7 @@ func TestSubmitTransferBetweenSubAccounts(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, d, canManipulateRealOrders)
 	result, err := d.SubmitTransferBetweenSubAccounts(context.Background(), currency.EURR, 12345, 4, "")
 	require.NoError(t, err)
-	require.NotNil(t, result)
+	assert.NotNil(t, result)
 }
 
 func TestWsSubmitTransferBetweenSubAccounts(t *testing.T) {
@@ -1305,7 +1308,7 @@ func TestChangeSubAccountName(t *testing.T) {
 	err = d.ChangeSubAccountName(context.Background(), 312313, "")
 	require.ErrorIs(t, err, errInvalidUsername)
 
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, d)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, d, canManipulateRealOrders)
 	err = d.ChangeSubAccountName(context.Background(), 1, "new_sub")
 	assert.NoError(t, err)
 }
@@ -1314,7 +1317,10 @@ func TestWSChangeSubAccountName(t *testing.T) {
 	t.Parallel()
 	err := d.WSChangeSubAccountName(0, "new_sub")
 	require.ErrorIs(t, err, errInvalidID)
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, d)
+	err = d.WSChangeSubAccountName(312313, "")
+	require.ErrorIs(t, err, errInvalidUsername)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, d, canManipulateRealOrders)
 	err = d.WSChangeSubAccountName(1, "new_sub")
 	assert.NoError(t, err)
 }
@@ -1399,14 +1405,14 @@ func TestWsEditAPIKey(t *testing.T) {
 
 func TestEnableAffiliateProgram(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, d)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, d, canManipulateRealOrders)
 	err := d.EnableAffiliateProgram(context.Background())
 	assert.NoError(t, err)
 }
 
 func TestWSEnableAffiliateProgram(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, d)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, d, canManipulateRealOrders)
 	err := d.WSEnableAffiliateProgram()
 	assert.NoError(t, err)
 }
@@ -1719,7 +1725,7 @@ func TestSetAnnouncementAsRead(t *testing.T) {
 	t.Parallel()
 	err := d.SetAnnouncementAsRead(context.Background(), 0)
 	require.ErrorIs(t, err, errInvalidID)
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, d)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, d, canManipulateRealOrders)
 	err = d.SetAnnouncementAsRead(context.Background(), 1)
 	assert.NoError(t, err)
 }
@@ -1752,7 +1758,7 @@ func TestSetEmailLanguage(t *testing.T) {
 	err := d.SetEmailLanguage(context.Background(), "")
 	require.ErrorIs(t, err, errLanguageIsRequired)
 
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, d)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, d, canManipulateRealOrders)
 	err = d.SetEmailLanguage(context.Background(), "en")
 	assert.NoError(t, err)
 }
@@ -1761,7 +1767,8 @@ func TestWSSetEmailLanguage(t *testing.T) {
 	t.Parallel()
 	err := d.WSSetEmailLanguage("")
 	require.ErrorIs(t, err, errLanguageIsRequired)
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, d)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, d, canManipulateRealOrders)
 	err = d.WSSetEmailLanguage("en")
 	assert.NoError(t, err)
 }
@@ -1780,6 +1787,7 @@ func TestWsSetSelfTradingConfig(t *testing.T) {
 	t.Parallel()
 	_, err := d.WsSetSelfTradingConfig("", false)
 	require.ErrorIs(t, err, errTradeModeIsRequired)
+
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, d, canManipulateRealOrders)
 	result, err := d.WsSetSelfTradingConfig("reject_taker", false)
 	require.NoError(t, err)
@@ -1791,7 +1799,7 @@ func TestToggleNotificationsFromSubAccount(t *testing.T) {
 	err := d.ToggleNotificationsFromSubAccount(context.Background(), 0, false)
 	require.ErrorIs(t, err, errInvalidID)
 
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, d)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, d, canManipulateRealOrders)
 	err = d.ToggleNotificationsFromSubAccount(context.Background(), 1, false)
 	assert.NoError(t, err)
 }
@@ -1801,7 +1809,7 @@ func TestWSToggleNotificationsFromSubAccount(t *testing.T) {
 	err := d.WSToggleNotificationsFromSubAccount(0, false)
 	require.ErrorIs(t, err, errInvalidID)
 
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, d)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, d, canManipulateRealOrders)
 	err = d.WSToggleNotificationsFromSubAccount(1, false)
 	assert.NoError(t, err)
 }
@@ -1811,7 +1819,7 @@ func TestTogglePortfolioMargining(t *testing.T) {
 	_, err := d.TogglePortfolioMargining(context.Background(), 0, false, false)
 	require.ErrorIs(t, err, errUserIDRequired)
 
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, d)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, d, canManipulateRealOrders)
 	result, err := d.TogglePortfolioMargining(context.Background(), 1234, false, false)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
@@ -1822,7 +1830,7 @@ func TestWSTogglePortfolioMargining(t *testing.T) {
 	_, err := d.WSTogglePortfolioMargining(0, false, false)
 	require.ErrorIs(t, err, errUserIDRequired)
 
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, d)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, d, canManipulateRealOrders)
 	result, err := d.WSTogglePortfolioMargining(1234, false, false)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
@@ -1833,7 +1841,7 @@ func TestToggleSubAccountLogin(t *testing.T) {
 	err := d.ToggleSubAccountLogin(context.Background(), -1, false)
 	require.ErrorIs(t, err, errInvalidID)
 
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, d)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, d, canManipulateRealOrders)
 	err = d.ToggleSubAccountLogin(context.Background(), 1, false)
 	assert.NoError(t, err)
 }
@@ -1843,7 +1851,7 @@ func TestWSToggleSubAccountLogin(t *testing.T) {
 	err := d.WSToggleSubAccountLogin(-1, false)
 	require.ErrorIs(t, err, errInvalidID)
 
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, d)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, d, canManipulateRealOrders)
 	err = d.WSToggleSubAccountLogin(1, false)
 	assert.NoError(t, err)
 }
@@ -1861,6 +1869,7 @@ func TestSubmitBuy(t *testing.T) {
 		Amount: 30, Price: 500000,
 		MaxShow: 0, TriggerPrice: 0})
 	require.ErrorIs(t, err, errInvalidInstrumentName)
+
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, d, canManipulateRealOrders)
 	result, err := d.SubmitBuy(context.Background(), &OrderBuyAndSellParams{
 		Instrument: pairs[0].String(), OrderType: "limit",
@@ -1885,6 +1894,7 @@ func TestWSSubmitBuy(t *testing.T) {
 		Amount: 30, Price: 500000,
 		MaxShow: 0, TriggerPrice: 0})
 	require.ErrorIs(t, err, errInvalidInstrumentName)
+
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, d, canManipulateRealOrders)
 	result, err := d.WSSubmitBuy(&OrderBuyAndSellParams{
 		Instrument: btcPerpInstrument, OrderType: "limit",
@@ -1947,6 +1957,7 @@ func TestEditOrderByLabel(t *testing.T) {
 	_, err = d.EditOrderByLabel(context.Background(), &OrderBuyAndSellParams{Label: "incorrectUserLabel", Instrument: btcPerpInstrument,
 		Advanced: "", Amount: 0, Price: 30000, TriggerPrice: 0, PostOnly: false, ReduceOnly: false, RejectPostOnly: false, MMP: false})
 	require.ErrorIs(t, err, errInvalidAmount)
+
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, d, canManipulateRealOrders)
 	result, err := d.EditOrderByLabel(context.Background(), &OrderBuyAndSellParams{Label: "incorrectUserLabel", Instrument: btcPerpInstrument,
 		Advanced: "", Amount: 1, Price: 30000, TriggerPrice: 0, PostOnly: false, ReduceOnly: false, RejectPostOnly: false, MMP: false})
@@ -1990,9 +2001,10 @@ func TestSubmitCancel(t *testing.T) {
 
 func TestWSSubmitCancel(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, d, canManipulateRealOrders)
 	_, err := d.WSSubmitCancel("")
 	require.ErrorIs(t, err, errInvalidID)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, d, canManipulateRealOrders)
 	result, err := d.WSSubmitCancel("incorrectID")
 	require.NoError(t, err)
 	assert.NotNil(t, result)
@@ -2528,8 +2540,8 @@ func TestWSSendRequestForQuote(t *testing.T) {
 	t.Parallel()
 	err := d.WSSendRequestForQuote("", 1000, order.Buy)
 	require.ErrorIs(t, err, errInvalidInstrumentName)
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, d)
 
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, d)
 	err = d.WSSendRequestForQuote(d.formatFuturesTradablePair(futuresTradablePair), 1000, order.Buy)
 	assert.NoError(t, err)
 }
@@ -2616,6 +2628,7 @@ func TestWSSubmitEdit(t *testing.T) {
 	t.Parallel()
 	_, err := d.WSSubmitEdit(&OrderBuyAndSellParams{})
 	require.ErrorIs(t, err, common.ErrNilPointer)
+
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, d, canManipulateRealOrders)
 	result, err := d.WSSubmitEdit(&OrderBuyAndSellParams{
 		OrderID:      "incorrectID",
@@ -2634,6 +2647,7 @@ func TestGetComboIDS(t *testing.T) {
 	t.Parallel()
 	_, err := d.GetComboIDs(context.Background(), currency.EMPTYCODE, "")
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
+
 	result, err := d.GetComboIDs(context.Background(), currency.BTC, "")
 	require.NoError(t, err)
 	assert.NotNil(t, result)
@@ -2643,6 +2657,7 @@ func TestWSRetrieveComboIDS(t *testing.T) {
 	t.Parallel()
 	_, err := d.WSRetrieveComboIDs(currency.EMPTYCODE, "")
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
+
 	combos, err := d.WSRetrieveComboIDs(currency.BTC, "")
 	require.NoError(t, err)
 	assert.NotEmpty(t, combos)
@@ -2651,6 +2666,7 @@ func TestGetComboDetails(t *testing.T) {
 	t.Parallel()
 	_, err := d.GetComboDetails(context.Background(), "")
 	require.ErrorIs(t, err, errInvalidComboID)
+
 	result, err := d.GetComboDetails(context.Background(), futureComboTradablePair.String())
 	require.NoError(t, err)
 	assert.NotNil(t, result)
@@ -2658,9 +2674,9 @@ func TestGetComboDetails(t *testing.T) {
 
 func TestWSRetrieveComboDetails(t *testing.T) {
 	t.Parallel()
-
 	_, err := d.WSRetrieveComboDetails("")
 	require.ErrorIs(t, err, errInvalidComboID)
+
 	result, err := d.WSRetrieveComboDetails(futureComboTradablePair.String())
 	require.NoError(t, err)
 	assert.NotNil(t, result)
@@ -2669,6 +2685,7 @@ func TestGetCombos(t *testing.T) {
 	t.Parallel()
 	_, err := d.GetCombos(context.Background(), currency.EMPTYCODE)
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
+
 	result, err := d.GetCombos(context.Background(), currency.BTC)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
@@ -2678,7 +2695,6 @@ func TestCreateCombo(t *testing.T) {
 	t.Parallel()
 	_, err := d.CreateCombo(context.Background(), []ComboParam{})
 	require.ErrorIs(t, err, errNoArgumentPassed)
-
 	instruments, err := d.GetEnabledPairs(asset.Futures)
 	require.NoError(t, err)
 	if len(instruments) < 2 {
@@ -2696,7 +2712,6 @@ func TestCreateCombo(t *testing.T) {
 		},
 	})
 	require.ErrorIs(t, err, errInvalidAmount)
-
 	_, err = d.CreateCombo(context.Background(), []ComboParam{
 		{
 			InstrumentName: instruments[0].String(),
@@ -2709,8 +2724,6 @@ func TestCreateCombo(t *testing.T) {
 		},
 	})
 	require.ErrorIs(t, err, errInvalidOrderSideOrDirection)
-
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, d, canManipulateRealOrders)
 	_, err = d.CreateCombo(context.Background(), []ComboParam{
 		{
 			InstrumentName: instruments[0].String(),
@@ -2724,6 +2737,8 @@ func TestCreateCombo(t *testing.T) {
 		},
 	})
 	require.ErrorIs(t, err, errDifferentInstruments)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, d, canManipulateRealOrders)
 	result, err := d.CreateCombo(context.Background(), []ComboParam{
 		{
 			InstrumentName: instruments[0].String(),
@@ -2751,8 +2766,6 @@ func TestWSCreateCombo(t *testing.T) {
 	}
 	_, err = d.WSCreateCombo([]ComboParam{})
 	require.ErrorIs(t, err, errNoArgumentPassed)
-
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, d, canManipulateRealOrders)
 	_, err = d.WSCreateCombo([]ComboParam{
 		{
 			InstrumentName: instruments[0].String(),
@@ -2777,6 +2790,8 @@ func TestWSCreateCombo(t *testing.T) {
 		},
 	})
 	require.ErrorIs(t, err, errInvalidOrderSideOrDirection)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, d, canManipulateRealOrders)
 	result, err := d.WSCreateCombo([]ComboParam{
 		{
 			InstrumentName: instruments[0].String(),
@@ -2802,6 +2817,7 @@ func TestVerifyBlockTrade(t *testing.T) {
 	require.ErrorIs(t, err, errNoArgumentPassed)
 	info, err := d.GetInstrument(context.Background(), btcPerpInstrument)
 	require.NoError(t, err)
+	require.NotNil(t, info)
 	_, err = d.VerifyBlockTrade(context.Background(), time.Time{}, "nonce-string", "maker", currency.EMPTYCODE, []BlockTradeParam{
 		{
 			Price:          0.777 * 25000,
@@ -2835,6 +2851,7 @@ func TestWSVerifyBlockTrade(t *testing.T) {
 	require.ErrorIs(t, err, errNoArgumentPassed)
 	info, err := d.GetInstrument(context.Background(), btcPerpInstrument)
 	require.NoError(t, err)
+	require.NotNil(t, info)
 	_, err = d.WSVerifyBlockTrade(time.Time{}, "nonce-string", "maker", currency.EMPTYCODE, []BlockTradeParam{
 		{
 			Price:          0.777 * 25000,
@@ -2885,6 +2902,7 @@ func TestExecuteBlockTrade(t *testing.T) {
 	require.ErrorIs(t, err, errNoArgumentPassed)
 	info, err := d.GetInstrument(context.Background(), btcPerpInstrument)
 	require.NoError(t, err)
+	require.NotNil(t, info)
 	_, err = d.ExecuteBlockTrade(context.Background(), time.Time{}, "nonce-string", "maker", currency.EMPTYCODE, []BlockTradeParam{
 		{
 			Price:          0.777 * 25000,
@@ -2918,6 +2936,7 @@ func TestWSExecuteBlockTrade(t *testing.T) {
 	require.ErrorIs(t, err, errNoArgumentPassed)
 	info, err := d.GetInstrument(context.Background(), btcPerpInstrument)
 	require.NoError(t, err)
+	require.NotNil(t, info)
 	_, err = d.WSExecuteBlockTrade(time.Time{}, "nonce-string", "maker", currency.EMPTYCODE, []BlockTradeParam{{
 		Price:          0.777 * 22000,
 		InstrumentName: btcPerpInstrument,
@@ -3074,6 +3093,8 @@ func TestWSMovePositions(t *testing.T) {
 	require.ErrorIs(t, err, errInvalidPrice)
 	info, err := d.GetInstrument(context.Background(), "BTC-PERPETUAL")
 	require.NoError(t, err)
+	require.NotNil(t, info)
+
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, d, canManipulateRealOrders)
 	result, err := d.WSMovePositions(currency.BTC, 123, 345, []BlockTradeParam{
 		{
@@ -3228,8 +3249,8 @@ func TestFetchTicker(t *testing.T) {
 	var err error
 	for assetType, cp := range assetTypeToPairsMap {
 		result, err = d.FetchTicker(context.Background(), cp, assetType)
-		require.NoErrorf(t, err, "expected nil, got %v for asset type %v pair %s", assetType, cp.String())
-		require.NotNilf(t, result, "Expected result not to be nil for asset type %v pair %s", assetType, cp.String())
+		require.NoErrorf(t, err, "expected nil, got %v for asset type %s pair %s", err, assetType.String(), cp.String())
+		require.NotNilf(t, result, "Expected result not to be nil for asset type %s pair %s", assetType.String(), cp.String())
 	}
 }
 
@@ -3239,8 +3260,8 @@ func TestFetchOrderbook(t *testing.T) {
 	var err error
 	for assetType, cp := range assetTypeToPairsMap {
 		result, err = d.FetchOrderbook(context.Background(), cp, assetType)
-		require.NoErrorf(t, err, "expected nil, got %v for asset type %v", assetType)
-		require.NotNilf(t, result, "Expected result not to be nil for asset type %v", assetType)
+		require.NoErrorf(t, err, "expected nil, got %v for asset type %s", err, assetType.String())
+		require.NotNilf(t, result, "Expected result not to be nil for asset type %s", assetType.String())
 	}
 }
 
@@ -3258,8 +3279,8 @@ func TestFetchAccountInfo(t *testing.T) {
 	assetTypes := d.GetAssetTypes(true)
 	for _, assetType := range assetTypes {
 		result, err := d.FetchAccountInfo(context.Background(), assetType)
-		require.NoErrorf(t, err, "expected nil, got %v for asset type %v", assetType)
-		require.NotNilf(t, result, "Expected result not to be nil for asset type %v", assetType)
+		require.NoErrorf(t, err, "expected nil, got %v for asset type %s", err, assetType.String())
+		require.NotNilf(t, result, "Expected result not to be nil for asset type %s", assetType.String())
 	}
 }
 
@@ -3285,8 +3306,8 @@ func TestGetRecentTrades(t *testing.T) {
 	var err error
 	for assetType, cp := range assetTypeToPairsMap {
 		result, err = d.GetRecentTrades(context.Background(), cp, assetType)
-		require.NoErrorf(t, err, "expected nil, got %v for asset type %v pair %s", assetType, cp.String())
-		require.NotNilf(t, result, "Expected result not to be nil for asset type %v pair %s", assetType, cp.String())
+		require.NoErrorf(t, err, "expected nil, got %v for asset type %s pair %s", err, assetType.String(), cp.String())
+		require.NotNilf(t, result, "Expected result not to be nil for asset type %s pair %s", assetType.String(), cp.String())
 	}
 }
 
@@ -3294,6 +3315,7 @@ func TestWSRetrievePublicPortfolioMargins(t *testing.T) {
 	t.Parallel()
 	info, err := d.GetInstrument(context.Background(), btcPerpInstrument)
 	require.NoError(t, err)
+	require.NotNil(t, info)
 	result, err := d.WSRetrievePublicPortfolioMargins(currency.BTC, map[string]float64{btcPerpInstrument: info.ContractSize * 2})
 	require.NoError(t, err)
 	assert.NotNil(t, result)
@@ -3315,8 +3337,8 @@ func TestCancelAllOrders(t *testing.T) {
 		orderCancellation.AssetType = assetType
 		orderCancellation.Pair = cp
 		result, err = d.CancelAllOrders(context.Background(), orderCancellation)
-		require.NoErrorf(t, err, "expected nil, got %v for asset type %v pair %s", assetType, cp.String())
-		require.NotNilf(t, result, "Expected result not to be nil for asset type %v pair %s", assetType, cp.String())
+		require.NoErrorf(t, err, "expected nil, got %v for asset type %s pair %s", err, assetType.String(), cp.String())
+		require.NotNilf(t, result, "Expected result not to be nil for asset type %s pair %s", assetType.String(), cp.String())
 	}
 }
 
@@ -3325,8 +3347,8 @@ func TestGetOrderInfo(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, d)
 	for assetType, cp := range assetTypeToPairsMap {
 		result, err := d.GetOrderInfo(context.Background(), "1234", cp, assetType)
-		require.NoErrorf(t, err, "expected nil, got %v for asset type %v pair %s", assetType, cp.String())
-		require.NotNilf(t, result, "Expected result not to be nil for asset type %v pair %s", assetType, cp.String())
+		require.NoErrorf(t, err, "expected nil, got %v for asset type %s pair %s", err, assetType.String(), cp.String())
+		require.NotNilf(t, result, "Expected result not to be nil for asset type %s pair %s", assetType.String(), cp.String())
 	}
 }
 
@@ -3367,8 +3389,8 @@ func TestGetActiveOrders(t *testing.T) {
 		getOrdersRequest.Pairs = []currency.Pair{cp}
 		getOrdersRequest.AssetType = assetType
 		result, err := d.GetActiveOrders(context.Background(), &getOrdersRequest)
-		require.NoErrorf(t, err, "expected nil, got %v for asset type %v pair %s", assetType, cp.String())
-		require.NotNilf(t, result, "Expected result not to be nil for asset type %v pair %s", assetType, cp.String())
+		require.NoErrorf(t, err, "expected nil, got %v for asset type %s pair %s", err, assetType.String(), cp.String())
+		require.NotNilf(t, result, "Expected result not to be nil for asset type %s pair %s", assetType.String(), cp.String())
 	}
 }
 
@@ -3380,8 +3402,8 @@ func TestGetOrderHistory(t *testing.T) {
 			Type: order.AnyType, AssetType: assetType,
 			Side: order.AnySide, Pairs: []currency.Pair{cp},
 		})
-		require.NoErrorf(t, err, "expected nil, got %v for asset type %v pair %s", assetType, cp.String())
-		require.NotNilf(t, result, "Expected result not to be nil for asset type %v pair %s", assetType, cp.String())
+		require.NoErrorf(t, err, "expected nil, got %v for asset type %s pair %s", err, assetType.String(), cp.String())
+		require.NotNilf(t, result, "Expected result not to be nil for asset type %s pair %s", assetType.String(), cp.String())
 	}
 }
 
@@ -3389,12 +3411,16 @@ func TestGuessAssetTypeFromInstrument(t *testing.T) {
 	var assetTypeNew asset.Item
 	for _, assetType := range []asset.Item{asset.Spot, asset.Futures, asset.Options, asset.OptionCombo, asset.FutureCombo} {
 		availablePairs, err := d.GetEnabledPairs(assetType)
+		require.NoErrorf(t, err, "expected nil, got %v for asset type %s", err, assetType.String())
+		require.NotNilf(t, availablePairs, "Expected result not to be nil for asset type %s", assetType.String())
+
+		format, err := d.GetPairFormat(assetType, true)
 		require.NoError(t, err)
 
 		for id, cp := range availablePairs {
 			t.Run(strconv.Itoa(id), func(t *testing.T) {
-				assetTypeNew, err = guessAssetTypeFromInstrument(cp)
-				require.Equalf(t, assetType, assetTypeNew, "expected %v, but found %v", assetType, assetTypeNew)
+				assetTypeNew, err = guessAssetTypeFromInstrument(cp.Format(format))
+				require.Equalf(t, assetType, assetTypeNew, "expected %s, but found %s for pair string %s", assetType.String(), assetTypeNew.String(), cp.Format(format))
 			})
 		}
 	}
@@ -3415,10 +3441,11 @@ func TestGetFeeByTypeOfflineTradeFee(t *testing.T) {
 		FiatCurrency:        currency.USD,
 		BankTransactionType: exchange.WireTransfer,
 	}
-	_, err := d.GetFeeByType(context.Background(), feeBuilder)
+	result, err := d.GetFeeByType(context.Background(), feeBuilder)
 	require.NoError(t, err)
+	require.NotNil(t, result)
 	if !sharedtestvalues.AreAPICredentialsSet(d) {
-		assert.Equalf(t, exchange.OfflineTradeFee, feeBuilder.FeeType, "Expected %v, received %v", exchange.OfflineTradeFee, feeBuilder.FeeType)
+		assert.Equalf(t, exchange.OfflineTradeFee, feeBuilder.FeeType, "Expected %f, received %f", exchange.OfflineTradeFee, feeBuilder.FeeType)
 	} else {
 		assert.Equalf(t, exchange.CryptocurrencyTradeFee, feeBuilder.FeeType, "Expected %v, received %v", exchange.CryptocurrencyTradeFee, feeBuilder.FeeType)
 	}
@@ -3436,12 +3463,14 @@ func TestCalculateTradingFee(t *testing.T) {
 	var result float64
 	result, err := calculateTradingFee(feeBuilder)
 	require.NoError(t, err)
+	require.NotNil(t, result)
 	require.Equalf(t, 1e-1, result, "expected result %f, got %f", 1e-1, result)
 	// futures
 	feeBuilder.Pair, err = currency.NewPairFromString("BTC-21OCT22")
 	require.NoError(t, err)
 	result, err = calculateTradingFee(feeBuilder)
 	require.NoError(t, err)
+	require.NotNil(t, result)
 	require.Equalf(t, 0.1, result, "expected 0.1 but found %f", result)
 	// options
 	feeBuilder.Pair, err = currency.NewPairFromString("SOL-21OCT22-20-C")
@@ -3449,6 +3478,7 @@ func TestCalculateTradingFee(t *testing.T) {
 	feeBuilder.IsMaker = false
 	result, err = calculateTradingFee(feeBuilder)
 	require.NoError(t, err)
+	require.NotNil(t, result)
 	require.Equalf(t, 0.3, result, "expected 0.3 but found %f", result)
 	// options
 	feeBuilder.Pair, err = currency.NewPairFromString("SOL-21OCT22-20-C,SOL-21OCT22-20-P")
@@ -3456,23 +3486,27 @@ func TestCalculateTradingFee(t *testing.T) {
 	feeBuilder.IsMaker = true
 	_, err = calculateTradingFee(feeBuilder)
 	require.NoError(t, err)
+	require.NotNil(t, result)
 	require.Equalf(t, 0.3, result, "expected 0.3 but found %f", result)
 	// option_combo
 	feeBuilder.Pair, err = currency.NewPairFromString("BTC-STRG-21OCT22-19000_21000")
 	require.NoError(t, err)
 	feeBuilder.IsMaker = false
-	_, err = calculateTradingFee(feeBuilder)
+	result, err = calculateTradingFee(feeBuilder)
 	require.NoError(t, err)
+	require.NotNil(t, result)
 	// future_combo
 	feeBuilder.Pair, err = currency.NewPairFromString("SOL-FS-30DEC22_28OCT22")
 	require.NoError(t, err)
 	feeBuilder.IsMaker = false
-	_, err = calculateTradingFee(feeBuilder)
+	result, err = calculateTradingFee(feeBuilder)
 	require.NoError(t, err)
+	require.NotNil(t, result)
 	feeBuilder.Pair, err = currency.NewPairFromString("some_instrument_builder")
 	require.NoError(t, err)
+	require.NotNil(t, result)
 	_, err = calculateTradingFee(feeBuilder)
-	assert.ErrorIs(t, err, errUnsupportedInstrumentFormat, err)
+	assert.ErrorIs(t, err, errUnsupportedInstrumentFormat)
 }
 
 func TestGetTime(t *testing.T) {
@@ -3562,7 +3596,7 @@ func TestProcessPushData(t *testing.T) {
 	t.Parallel()
 	for x := range websocketPushData {
 		err := d.wsHandleData([]byte(websocketPushData[x]))
-		require.NoError(t, err)
+		require.NoErrorf(t, err, "%s: Received unexpected error for", x)
 	}
 }
 
@@ -3646,7 +3680,7 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 	require.NoErrorf(t, err, "Error fetching %s pairs for test: %v", asset.Spot, err)
 	instrumentInfo, err := d.GetInstruments(context.Background(), currency.BTC, d.GetAssetKind(asset.Spot), false)
 	require.NoError(t, err)
-	require.NotEmpty(t, instrumentInfo, "invalid instrument information found")
+	require.NotEmpty(t, instrumentInfo, "instrument information must not be empty")
 	limits, err := d.GetOrderExecutionLimits(asset.Spot, spotTradablePair)
 	require.NoErrorf(t, err, "Asset: %s Pair: %s Err: %v", asset.Spot, spotTradablePair, err)
 	var instrumentDetail *InstrumentData
@@ -3657,8 +3691,8 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 		}
 	}
 	require.NotNil(t, instrumentDetail, "instrument required to be found")
-	require.Equalf(t, instrumentDetail.TickSize, limits.PriceStepIncrementSize, "Asset: %s Pair: %s Expected: %v Got: %v", asset.Spot, spotTradablePair, instrumentDetail.TickSize, limits.MinimumBaseAmount)
-	assert.Equalf(t, instrumentDetail.MinimumTradeAmount, limits.MinimumBaseAmount, "Pair: %s Expected: %v Got: %v", spotTradablePair, instrumentDetail.MinimumTradeAmount, limits.MinimumBaseAmount)
+	require.Equalf(t, instrumentDetail.TickSize, limits.PriceStepIncrementSize, "Asset: %s Pair: %s Expected: %f Got: %f", asset.Spot, spotTradablePair, instrumentDetail.TickSize, limits.MinimumBaseAmount)
+	assert.Equalf(t, instrumentDetail.MinimumTradeAmount, limits.MinimumBaseAmount, "Pair: %s Expected: %f Got: %f", spotTradablePair, instrumentDetail.MinimumTradeAmount, limits.MinimumBaseAmount)
 }
 
 func TestGetLockedStatus(t *testing.T) {
@@ -3761,6 +3795,7 @@ func TestGetFuturesContractDetails(t *testing.T) {
 	t.Parallel()
 	_, err := d.GetFuturesContractDetails(context.Background(), asset.Binary)
 	require.ErrorIs(t, err, futures.ErrNotFuturesAsset)
+
 	result, err := d.GetFuturesContractDetails(context.Background(), asset.Futures)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
@@ -3813,14 +3848,13 @@ func TestGetOpenInterest(t *testing.T) {
 			Quote: cp.Quote.Item,
 			Asset: assetType,
 		})
-		require.NoErrorf(t, err, "expected nil, got %v for asset type %v pair %s", assetType, cp.String())
-		require.NotNilf(t, result, "Expected result not to be nil for asset type %v pair %s", assetType, cp.String())
+		require.NoErrorf(t, err, "expected nil, got %s for asset type %s pair %s", assetType.String(), cp.String())
+		require.NotNilf(t, result, "Expected result not to be nil for asset type %s pair %s", assetType.String(), cp.String())
 	}
 }
 
 func TestIsPerpetualFutureCurrency(t *testing.T) {
 	t.Parallel()
-	d.Verbose = true
 	assetPairToErrorMap := map[asset.Item][]struct {
 		Pair     currency.Pair
 		Error    error
@@ -3845,8 +3879,8 @@ func TestIsPerpetualFutureCurrency(t *testing.T) {
 	for assetType, instances := range assetPairToErrorMap {
 		for i := range instances {
 			is, err := d.IsPerpetualFutureCurrency(assetType, instances[i].Pair)
-			require.ErrorIsf(t, err, instances[i].Error, "expected %v, got %v for asset: %v pair: %v", instances[i].Error, err, assetType, instances[i].Pair)
-			require.Equalf(t, is, instances[i].Response, "expected %v, got %v for asset: %v pair: %v", instances[i].Response, is, assetType, instances[i].Pair)
+			require.ErrorIsf(t, err, instances[i].Error, "expected %v, got %v for asset: %s pair: %s", instances[i].Error, err, assetType.String(), instances[i].Pair.String())
+			require.Equalf(t, is, instances[i].Response, "expected %v, got %v for asset: %s pair: %s", instances[i].Response, is, assetType.String(), instances[i].Pair.String())
 		}
 	}
 }
