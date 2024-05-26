@@ -34,8 +34,8 @@ import (
 
 // Please supply your own keys here to do authenticated endpoint testing
 const (
-	apiKey    = "WcdblNOi"
-	apiSecret = "vhmFWntGw12M6FLekOX8uxzVK1Kz9aT31MiwjXAJ3MY"
+	apiKey    = ""
+	apiSecret = ""
 
 	canManipulateRealOrders   = false
 	canManipulateAPIEndpoints = false
