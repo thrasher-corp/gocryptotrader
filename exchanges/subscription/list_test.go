@@ -10,6 +10,7 @@ import (
 
 // TestListStrings exercises List.Strings()
 func TestListStrings(t *testing.T) {
+	t.Parallel()
 	l := List{
 		&Subscription{
 			Channel: TickerChannel,
@@ -27,6 +28,7 @@ func TestListStrings(t *testing.T) {
 
 // TestListGroupPairs exercises List.GroupPairs()
 func TestListGroupPairs(t *testing.T) {
+	t.Parallel()
 	l := List{}
 	for _, c := range []string{TickerChannel, OrderbookChannel} {
 		for _, p := range []currency.Pair{ethusdcPair, btcusdtPair} {
