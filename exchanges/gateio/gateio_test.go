@@ -2952,12 +2952,14 @@ func TestFuturesCandlestickPushData(t *testing.T) {
 	}
 }
 
-func TestgenerateSubscriptions(t *testing.T) {
+// TestGenerateSubscriptions exercises generateSubscriptions
+func TestGenerateSubscriptions(t *testing.T) {
 	t.Parallel()
-	if _, err := g.generateSubscriptions(); err != nil {
-		t.Error(err)
-	}
+	subs, err := g.generateSubscriptions()
+	require.NoError(t, err, "generateSubscriptions must not error")
+	assert.NotEmpty(t, subs, "generateSubscriptions must return some subs")
 }
+
 func TestGenerateDeliveryFuturesDefaultSubscriptions(t *testing.T) {
 	t.Parallel()
 	if _, err := g.GenerateDeliveryFuturesDefaultSubscriptions(); err != nil {

@@ -27,6 +27,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
@@ -138,6 +139,15 @@ func (g *Gateio) SetDefaults() {
 				),
 				GlobalResultLimit: 1000,
 			},
+		},
+		Subscriptions: subscription.List{
+			{Enabled: true, Channel: subscription.TickerChannel, Asset: asset.Spot},
+			{Enabled: true, Channel: subscription.CandlesChannel, Asset: asset.Spot, Interval: kline.FiveMin},
+			{Enabled: true, Channel: subscription.OrderbookChannel, Asset: asset.Spot, Interval: kline.HundredMilliseconds},
+			{Enabled: true, Channel: spotBalancesChannel, Asset: asset.Spot, Authenticated: true},
+			{Enabled: true, Channel: crossMarginBalanceChannel, Asset: asset.CrossMargin, Authenticated: true},
+			{Enabled: true, Channel: marginBalancesChannel, Asset: asset.Margin, Authenticated: true},
+			{Enabled: false, Channel: subscription.AllTradesChannel, Asset: asset.Spot},
 		},
 	}
 	g.Requester, err = request.New(g.Name,
