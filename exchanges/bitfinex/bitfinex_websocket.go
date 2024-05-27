@@ -1668,8 +1668,8 @@ func (b *Bitfinex) resubOrderbook(c *subscription.Subscription) error {
 	return nil
 }
 
-// GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
-func (b *Bitfinex) GenerateDefaultSubscriptions() (subscription.List, error) {
+// generateSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
+func (b *Bitfinex) generateSubscriptions() (subscription.List, error) {
 	var channels = []string{wsBook, wsTrades, wsTicker, wsCandles}
 
 	var subscriptions subscription.List
