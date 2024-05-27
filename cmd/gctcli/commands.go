@@ -4035,13 +4035,13 @@ var getHistoricCandlesExtendedCommand = &cli.Command{
 		},
 		&cli.StringFlag{
 			Name:        "start",
-			Usage:       "the date to begin retrieveing candles. Any candles before this date will be filtered",
+			Usage:       "the date to begin retrieving candles. Any candles before this date will be filtered",
 			Value:       time.Now().AddDate(0, -1, 0).Format(time.DateTime),
 			Destination: &startTime,
 		},
 		&cli.StringFlag{
 			Name:        "end",
-			Usage:       "the date to end retrieveing candles. Any candles after this date will be filtered",
+			Usage:       "the date to end retrieving candles. Any candles after this date will be filtered",
 			Value:       time.Now().Format(time.DateTime),
 			Destination: &endTime,
 		},
