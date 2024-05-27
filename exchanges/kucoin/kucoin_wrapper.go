@@ -201,7 +201,6 @@ func (ku *Kucoin) Setup(exch *config.Exchange) error {
 	err = ku.Websocket.Setup(
 		&stream.WebsocketSetup{
 			ExchangeConfig:        exch,
-			DefaultURL:            kucoinWebsocketURL,
 			RunningURL:            wsRunningEndpoint,
 			Connector:             ku.WsConnect,
 			Subscriber:            ku.Subscribe,
@@ -218,7 +217,7 @@ func (ku *Kucoin) Setup(exch *config.Exchange) error {
 	if err != nil {
 		return err
 	}
-	return ku.Websocket.SetupNewConnection(stream.ConnectionSetup{
+	return ku.Websocket.SetupNewConnection(&stream.ConnectionSetup{
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
 		RateLimit:            500,

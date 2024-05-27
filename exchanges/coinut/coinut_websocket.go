@@ -620,12 +620,12 @@ func (c *COINUT) Subscribe(channelsToSubscribe []subscription.Subscription) erro
 			errs = common.AppendError(errs, err)
 			continue
 		}
-		c.Websocket.AddSuccessfulSubscriptions(channelsToSubscribe[i])
+		err = c.Websocket.AddSuccessfulSubscriptions(channelsToSubscribe[i])
+		if err != nil {
+			errs = common.AppendError(errs, err)
+		}
 	}
-	if errs != nil {
-		return errs
-	}
-	return nil
+	return errs
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
@@ -666,7 +666,10 @@ func (c *COINUT) Unsubscribe(channelToUnsubscribe []subscription.Subscription) e
 				channelToUnsubscribe[i].Channel))
 			continue
 		}
-		c.Websocket.RemoveSubscriptions(channelToUnsubscribe[i])
+		err = c.Websocket.RemoveSubscriptions(channelToUnsubscribe[i])
+		if err != nil {
+			errs = common.AppendError(errs, err)
+		}
 	}
 	return errs
 }
