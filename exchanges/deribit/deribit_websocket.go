@@ -1150,17 +1150,11 @@ func (d *Deribit) generatePayloadFromSubscriptionInfos(operation string, subscs 
 			sub.Params["channels"] = []string{subscs[x].Channel + "." + indexName}
 		case instrumentStateChannel:
 			kind := d.GetAssetKind(subscs[x].Asset)
-			currencyCode := subscs[x].Pair.Base.Upper().String()
-			if currencyCode != currencyBTC && currencyCode != currencyETH && currencyCode != currencySOL && currencyCode != currencyUSDC {
-				currencyCode = "any"
-			}
+			currencyCode := getValidatedCurrencyCode(subscs[x].Pair)
 			sub.Params["channels"] = []string{"instrument.state." + kind + "." + currencyCode}
 		case rawUsersOrdersKindCurrencyChannel:
 			kind := d.GetAssetKind(subscs[x].Asset)
-			currencyCode := subscs[x].Pair.Base.Upper().String()
-			if currencyCode != currencyBTC && currencyCode != currencyETH && currencyCode != currencySOL && currencyCode != currencyUSDC {
-				currencyCode = "any"
-			}
+			currencyCode := getValidatedCurrencyCode(subscs[x].Pair)
 			sub.Params["channels"] = []string{"user.orders." + kind + "." + currencyCode + ".raw"}
 		case quoteChannel,
 			incrementalTickerChannel:
@@ -1176,10 +1170,7 @@ func (d *Deribit) generatePayloadFromSubscriptionInfos(operation string, subscs 
 		case requestForQuoteChannel,
 			userMMPTriggerChannel,
 			userPortfolioChannel:
-			currencyCode := subscs[x].Pair.Base.Upper().String()
-			if currencyCode != currencyBTC && currencyCode != currencyETH && currencyCode != currencySOL && currencyCode != currencyUSDC {
-				currencyCode = "any"
-			}
+			currencyCode := getValidatedCurrencyCode(subscs[x].Pair)
 			sub.Params["channels"] = []string{subscs[x].Channel + "." + currencyCode}
 		case tradesChannel,
 			userChangesInstrumentsChannel,
@@ -1204,10 +1195,7 @@ func (d *Deribit) generatePayloadFromSubscriptionInfos(operation string, subscs 
 			rawUsersOrdersWithKindCurrencyAndIntervalChannel,
 			userTradesByKindCurrencyAndIntervalChannel:
 			kind := d.GetAssetKind(subscs[x].Asset)
-			currencyCode := subscs[x].Pair.Base.Upper().String()
-			if currencyCode != currencyBTC && currencyCode != currencyETH && currencyCode != currencySOL && currencyCode != currencyUSDC {
-				currencyCode = "any"
-			}
+			currencyCode := getValidatedCurrencyCode(subscs[x].Pair)
 			if subscs[x].Interval.Duration() == 0 {
 				sub.Params["channels"] = []string{subscs[x].Channel + "." + kind + "." + currencyCode}
 				continue
@@ -1270,4 +1258,14 @@ func (d *Deribit) handleSubscription(operation string, channels []subscription.S
 		}
 	}
 	return nil
+}
+
+func getValidatedCurrencyCode(pair currency.Pair) string {
+	currencyCode := pair.Base.Upper().String()
+	switch currencyCode {
+	case currencyBTC, currencyETH, currencySOL, currencyUSDC:
+		return currencyCode
+	default:
+		return "any"
+	}
 }
