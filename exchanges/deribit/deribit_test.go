@@ -3961,3 +3961,22 @@ func getAssetToPairMap(items asset.Item) map[asset.Item]currency.Pair {
 	}
 	return newMap
 }
+
+func TestGetValidatedCurrencyCode(t *testing.T) {
+	t.Parallel()
+	pairs := map[currency.Pair]string{
+		currency.NewPairWithDelimiter("SOL", "21OCT22-20-C", "-"):    currencySOL,
+		currency.NewPairWithDelimiter("BTC", "PERPETUAL", "-"):       currencyBTC,
+		currency.NewPairWithDelimiter("ETH", "PERPETUAL", "-"):       currencyETH,
+		currency.NewPairWithDelimiter("SOL", "PERPETUAL", "-"):       currencySOL,
+		currency.NewPairWithDelimiter("AVAX_USDC", "PERPETUAL", "-"): currencyUSDC,
+		currency.NewPairWithDelimiter("BTC", "USDC", "_"):            currencyBTC,
+		currency.NewPairWithDelimiter("ETH", "USDC", "_"):            currencyETH,
+		currency.NewPairWithDelimiter("DOT", "USDC-PERPETUAL", "_"):  currencyUSDC,
+		currency.EMPTYPAIR: "any",
+	}
+	for x := range pairs {
+		result := getValidatedCurrencyCode(x)
+		require.Equal(t, pairs[x], result, "expected: %s actual  : %s for currency pair: %v", x, result, pairs[x])
+	}
+}

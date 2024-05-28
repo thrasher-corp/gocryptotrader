@@ -1266,6 +1266,9 @@ func getValidatedCurrencyCode(pair currency.Pair) string {
 	case currencyBTC, currencyETH, currencySOL, currencyUSDC:
 		return currencyCode
 	default:
+		if strings.Contains(pair.String(), currencyUSDC) {
+			return currencyUSDC
+		}
 		return "any"
 	}
 }
