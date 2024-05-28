@@ -395,7 +395,7 @@ func (c *CoinbasePro) Subscribe(subs subscription.List) error {
 		Type:     "subscribe",
 		Channels: make([]any, 0, len(subs)),
 	}
-	// See if we have a consistent Pair list for all the substhat we can use globally
+	// See if we have a consistent Pair list for all the subs that we can use globally
 	// If all the subs have the same pairs then we can use the top level ProductIDs field
 	// Otherwise each and every sub needs to have it's own list
 	for i, s := range subs {
