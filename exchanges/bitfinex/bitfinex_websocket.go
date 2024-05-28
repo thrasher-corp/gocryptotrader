@@ -2143,7 +2143,7 @@ func validateCRC32(book *orderbook.Base, token int) error {
 	reOrderByID(book.Bids)
 	reOrderByID(book.Asks)
 
-	// RO precision calculation is based on order ID's and amount values
+	// R0 precision calculation is based on order ID's and amount values
 	var bids, asks []orderbook.Tranche
 	for i := range 25 {
 		if i < len(book.Bids) {
