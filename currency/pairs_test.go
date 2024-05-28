@@ -873,6 +873,7 @@ func TestGetPairsByBase(t *testing.T) {
 
 // TestPairsSort exercises Pairs.Sort
 func TestPairsSort(t *testing.T) {
+	t.Parallel()
 	p := Pairs{NewPair(USDT, BTC), NewPair(DAI, XRP), NewPair(DAI, BTC)}
 	p.Sort()
 	assert.Equal(t, []string{"DAIBTC", "DAIXRP", "USDTBTC"}, p.Strings(), "Pairs should be sorted")
@@ -880,6 +881,7 @@ func TestPairsSort(t *testing.T) {
 
 // TestPairsEqual exercises Pairs.Equal
 func TestPairsEqual(t *testing.T) {
+	t.Parallel()
 	orig := Pairs{NewPairWithDelimiter("USDT", "BTC", "-"), NewPair(DAI, XRP), NewPair(DAI, BTC)}
 	assert.True(t, orig.Equal(Pairs{NewPair(DAI, XRP), NewPair(DAI, BTC), NewPair(USDT, BTC)}), "Equal Pairs should return true")
 	assert.Equal(t, "USDT-BTC", orig[0].String(), "Equal Pairs should not effect original order or format")

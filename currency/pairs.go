@@ -492,7 +492,7 @@ type equalKey struct {
 	Quote *Item
 }
 
-// Equal checks to see if two lists of pairs contain the only the same pairs, ignoring delimiter and case
+// Equal checks to see if two lists of pairs contain only the same pairs, ignoring delimiter and case
 // Does not check for inverted/reciprocal pairs
 func (p Pairs) Equal(b Pairs) bool {
 	if len(p) != len(b) {
