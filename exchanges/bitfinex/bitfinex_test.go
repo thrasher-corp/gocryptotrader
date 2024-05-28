@@ -47,6 +47,7 @@ func TestMain(m *testing.M) {
 	}
 
 	if apiKey != "" {
+		b.Websocket.SetCanUseAuthenticatedEndpoints(true)
 		b.SetCredentials(apiKey, apiSecret, "", "", "", "")
 	}
 
@@ -1117,12 +1118,12 @@ func TestWsAuth(t *testing.T) {
 		t.Skip("Authentecated API support not enabled")
 	}
 	testexch.SetupWs(t, b)
-	assert.True(t, b.Websocket.CanUseAuthenticatedEndpoints(), "CanUseAuthenticatedEndpoints should be turned on")
+	require.True(t, b.Websocket.CanUseAuthenticatedEndpoints(), "CanUseAuthenticatedEndpoints should be turned on")
 
 	var resp map[string]interface{}
 	catcher := func() (ok bool) {
 		select {
-		case v := <-b.Websocket.DataHandler:
+		case v := <-b.Websocket.ToRoutine:
 			resp, ok = v.(map[string]interface{})
 		default:
 		}
