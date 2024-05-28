@@ -221,7 +221,7 @@ func (d *Deribit) FetchTradablePairs(ctx context.Context, assetType asset.Item) 
 		return nil, fmt.Errorf("%s: %w - %v", d.Name, asset.ErrNotSupported, assetType)
 	}
 	var resp currency.Pairs
-	for _, x := range []string{"BTC", "ETH", "USDC", "USDT", "EURR"} {
+	for _, x := range baseCurrencies {
 		var instrumentsData []InstrumentData
 		var err error
 		if d.Websocket.IsConnected() {
@@ -1210,7 +1210,7 @@ func (d *Deribit) GetFuturesContractDetails(ctx context.Context, item asset.Item
 		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, item)
 	}
 	resp := []futures.Contract{}
-	for _, ccy := range []string{"BTC", "ETH", "USDC", "USDT", "EURR"} {
+	for _, ccy := range baseCurrencies {
 		var marketSummary []InstrumentData
 		var err error
 		if d.Websocket.IsConnected() {
@@ -1324,7 +1324,7 @@ func (d *Deribit) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) 
 	if !d.SupportsAsset(a) {
 		return fmt.Errorf("%s: %w - %v", d.Name, asset.ErrNotSupported, a)
 	}
-	for _, x := range []string{"BTC", "ETH", "USDC", "USDT"} {
+	for _, x := range baseCurrencies {
 		var instrumentsData []InstrumentData
 		var err error
 		if d.Websocket.IsConnected() {

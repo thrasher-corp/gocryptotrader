@@ -2733,8 +2733,8 @@ func calculateTradingFee(feeBuilder *exchange.FeeBuilder) (float64, error) {
 				return 0, nil
 			}
 			return feeBuilder.Amount * feeBuilder.PurchasePrice * 0.0005, nil
-		case strings.HasPrefix(feeBuilder.Pair.String(), "BTC"),
-			strings.HasPrefix(feeBuilder.Pair.String(), "ETH"):
+		case strings.HasPrefix(feeBuilder.Pair.String(), currencyBTC),
+			strings.HasPrefix(feeBuilder.Pair.String(), currencyETH):
 			if strings.HasSuffix(feeBuilder.Pair.String(), "PERPETUAL") {
 				if feeBuilder.IsMaker {
 					return 0, nil
@@ -2754,8 +2754,8 @@ func calculateTradingFee(feeBuilder *exchange.FeeBuilder) (float64, error) {
 		}
 	case asset.Options, asset.OptionCombo:
 		switch {
-		case strings.HasPrefix(feeBuilder.Pair.String(), "BTC"),
-			strings.HasPrefix(feeBuilder.Pair.String(), "ETH"):
+		case strings.HasPrefix(feeBuilder.Pair.String(), currencyBTC),
+			strings.HasPrefix(feeBuilder.Pair.String(), currencyETH):
 			return feeBuilder.Amount * feeBuilder.PurchasePrice * 0.0003, nil
 		case strings.HasPrefix(feeBuilder.Pair.String(), "SOL"):
 			if feeBuilder.IsMaker {

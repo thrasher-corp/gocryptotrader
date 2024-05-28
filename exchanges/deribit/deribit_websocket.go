@@ -1263,11 +1263,16 @@ func (d *Deribit) handleSubscription(operation string, channels []subscription.S
 func getValidatedCurrencyCode(pair currency.Pair) string {
 	currencyCode := pair.Base.Upper().String()
 	switch currencyCode {
-	case currencyBTC, currencyETH, currencySOL, currencyUSDC:
+	case currencyBTC, currencyETH,
+		currencySOL, currencyUSDT,
+		currencyUSDC, currencyEURR:
 		return currencyCode
 	default:
-		if strings.Contains(pair.String(), currencyUSDC) {
+		switch {
+		case strings.Contains(pair.String(), currencyUSDC):
 			return currencyUSDC
+		case strings.Contains(pair.String(), currencyUSDT):
+			return currencyUSDT
 		}
 		return "any"
 	}

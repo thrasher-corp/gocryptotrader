@@ -20,6 +20,8 @@ const (
 	currencyETH  = "ETH"
 	currencySOL  = "SOL"
 	currencyUSDC = "USDC"
+	currencyUSDT = "USDT"
+	currencyEURR = "EURR"
 )
 
 var (
@@ -64,6 +66,15 @@ var (
 	errMissingSignature                    = errors.New("missing signature")
 
 	websocketRequestTimeout = time.Second * 30
+
+	baseCurrencies = []string{
+		currencyBTC,
+		currencyETH,
+		currencySOL,
+		currencyUSDC,
+		currencyUSDT,
+		currencyEURR,
+	}
 )
 
 // UnmarshalError is the struct which is used for unmarshalling errors

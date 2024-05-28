@@ -46,8 +46,8 @@ const (
 var (
 	d                                                                     = &Deribit{}
 	optionsTradablePair, optionComboTradablePair, futureComboTradablePair currency.Pair
-	spotTradablePair                                                      = currency.NewPairWithDelimiter("BTC", "USDC", "_")
-	futuresTradablePair                                                   = currency.NewPairWithDelimiter("BTC", "PERPETUAL", "-")
+	spotTradablePair                                                      = currency.NewPairWithDelimiter(currencyBTC, "USDC", "_")
+	futuresTradablePair                                                   = currency.NewPairWithDelimiter(currencyBTC, "PERPETUAL", "-")
 	assetTypeToPairsMap                                                   map[asset.Item]currency.Pair
 )
 
@@ -3872,7 +3872,7 @@ func TestIsPerpetualFutureCurrency(t *testing.T) {
 			{Pair: currency.NewPair(currency.NewCode("SOL"), currency.NewCode("FS-30DEC22_28OCT22"))},
 		},
 		asset.OptionCombo: {
-			{Pair: currency.NewPair(currency.NewCode("BTC"), currency.NewCode("STRG-21OCT22")), Error: futures.ErrNotPerpetualFuture},
+			{Pair: currency.NewPair(currency.NewCode(currencyBTC), currency.NewCode("STRG-21OCT22")), Error: futures.ErrNotPerpetualFuture},
 			{Pair: currency.EMPTYPAIR, Error: futures.ErrNotPerpetualFuture},
 		},
 	}
@@ -3965,14 +3965,15 @@ func getAssetToPairMap(items asset.Item) map[asset.Item]currency.Pair {
 func TestGetValidatedCurrencyCode(t *testing.T) {
 	t.Parallel()
 	pairs := map[currency.Pair]string{
-		currency.NewPairWithDelimiter("SOL", "21OCT22-20-C", "-"):    currencySOL,
-		currency.NewPairWithDelimiter("BTC", "PERPETUAL", "-"):       currencyBTC,
-		currency.NewPairWithDelimiter("ETH", "PERPETUAL", "-"):       currencyETH,
-		currency.NewPairWithDelimiter("SOL", "PERPETUAL", "-"):       currencySOL,
-		currency.NewPairWithDelimiter("AVAX_USDC", "PERPETUAL", "-"): currencyUSDC,
-		currency.NewPairWithDelimiter("BTC", "USDC", "_"):            currencyBTC,
-		currency.NewPairWithDelimiter("ETH", "USDC", "_"):            currencyETH,
-		currency.NewPairWithDelimiter("DOT", "USDC-PERPETUAL", "_"):  currencyUSDC,
+		currency.NewPairWithDelimiter(currencySOL, "21OCT22-20-C", "-"): currencySOL,
+		currency.NewPairWithDelimiter(currencyBTC, "PERPETUAL", "-"):    currencyBTC,
+		currency.NewPairWithDelimiter(currencyETH, "PERPETUAL", "-"):    currencyETH,
+		currency.NewPairWithDelimiter(currencySOL, "PERPETUAL", "-"):    currencySOL,
+		currency.NewPairWithDelimiter("AVAX_USDC", "PERPETUAL", "-"):    currencyUSDC,
+		currency.NewPairWithDelimiter(currencyBTC, "USDC", "_"):         currencyBTC,
+		currency.NewPairWithDelimiter(currencyETH, "USDC", "_"):         currencyETH,
+		currency.NewPairWithDelimiter("DOT", "USDC-PERPETUAL", "_"):     currencyUSDC,
+		currency.NewPairWithDelimiter("DOT", "USDT-PERPETUAL", "_"):     currencyUSDT,
 		currency.EMPTYPAIR: "any",
 	}
 	for x := range pairs {
