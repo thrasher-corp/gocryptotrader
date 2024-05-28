@@ -660,7 +660,7 @@ func (c *COINUT) Unsubscribe(channelToUnsubscribe subscription.List) error {
 			switch {
 			case !ok:
 				err = common.GetTypeAssertError("[]any", response["status"])
-			case val[0] != "OK":
+			case len(val) == 0, val[0] != "OK":
 				err = common.AppendError(errs, fmt.Errorf("%v unsubscribe failed for channel %v", c.Name, s.Channel))
 			default:
 				err = c.Websocket.RemoveSubscriptions(s)
