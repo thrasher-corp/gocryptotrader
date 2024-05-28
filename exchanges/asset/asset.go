@@ -154,7 +154,7 @@ func (a Item) IsValid() bool {
 	return a != Empty && supportedFlag&a == a
 }
 
-// UnmarshalJSON comforms type to the umarshaler interface
+// UnmarshalJSON conforms type to the umarshaler interface
 func (a *Item) UnmarshalJSON(d []byte) error {
 	var assetString string
 	err := json.Unmarshal(d, &assetString)
@@ -175,7 +175,7 @@ func (a *Item) UnmarshalJSON(d []byte) error {
 	return nil
 }
 
-// MarshalJSON comforms type to the marshaller interface
+// MarshalJSON conforms type to the marshaller interface
 func (a Item) MarshalJSON() ([]byte, error) {
 	return json.Marshal(a.String())
 }
