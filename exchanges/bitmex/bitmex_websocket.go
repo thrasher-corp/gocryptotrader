@@ -566,6 +566,7 @@ func (b *Bitmex) generateSubscriptions() (subscription.List, error) {
 		}
 
 		if baseSub.Asset == asset.Empty {
+			// Skip pair handling for subs which don't have an asset
 			subs = append(subs, baseSub.Clone())
 			continue
 		}
