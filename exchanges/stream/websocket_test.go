@@ -310,7 +310,8 @@ func TestConnectionMessageErrors(t *testing.T) {
 
 	wsWrong.setState(disconnectedState)
 	err = wsWrong.Connect()
-	assert.ErrorIs(t, err, common.ErrNilPointer, "Connect should get a nil pointer error, presumably on subs")
+	assert.ErrorIs(t, err, common.ErrNilPointer, "Connect should get a nil pointer error")
+	assert.ErrorContains(t, err, "subscriptions", "Connect should get a nil pointer error about subscriptions")
 
 	wsWrong.subscriptions = subscription.NewStore()
 	wsWrong.setState(disconnectedState)

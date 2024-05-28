@@ -274,7 +274,7 @@ func (w *Websocket) Connect() error {
 	}
 
 	if w.subscriptions == nil {
-		return common.ErrNilPointer
+		return fmt.Errorf("%w: subscriptions", common.ErrNilPointer)
 	}
 	w.subscriptions.Clear()
 
