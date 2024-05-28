@@ -66,6 +66,12 @@ func (ku *Kucoin) SetDefaults() {
 		log.Errorln(log.ExchangeSys, err)
 	}
 	ku.Features = exchange.Features{
+		Translation: currency.NewTranslations(map[currency.Code]currency.Code{
+			currency.XBT:   currency.BTC,
+			currency.USDTM: currency.USDT,
+			currency.USDM:  currency.USD,
+			currency.USDCM: currency.USDC,
+		}),
 		Supports: exchange.FeaturesSupported{
 			REST:      true,
 			Websocket: true,
