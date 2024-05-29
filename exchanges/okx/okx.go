@@ -1201,7 +1201,7 @@ func (ok *Okx) GetPublicRFQTrades(ctx context.Context, beginID, endID string, li
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	var resp []PublicTradesResponse
-	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getPublicTradesEPL, http.MethodGet, common.EncodeURLValues("rfq/public-trades", params), nil, &resp, true)
+	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getPublicTradesEPL, http.MethodGet, common.EncodeURLValues("rfq/public-trades", params), nil, &resp, false)
 }
 
 /*************************************** Funding Tradings ********************************/
@@ -2115,7 +2115,7 @@ func (ok *Okx) ManualBorrowAndRepayInQuickMarginMode(ctx context.Context, arg *B
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, manualBorrowAndRepayEPL, http.MethodPost, "account/quick-margin-borrow-repay", arg, &resp, true)
 }
 
-// GetBorrowAndRepayHistoryInQuickMarginMode retrieves borrow and repay history in quick mergin mode.
+// GetBorrowAndRepayHistoryInQuickMarginMode retrieves borrow and repay history in quick margin mode.
 func (ok *Okx) GetBorrowAndRepayHistoryInQuickMarginMode(ctx context.Context, instrumentID currency.Pair, ccy currency.Code, side, afterPaginationID, beforePaginationID string, beginTime, endTime time.Time, limit int64) ([]BorrowRepayHistoryItem, error) {
 	params := url.Values{}
 	if !instrumentID.IsEmpty() {
@@ -3583,7 +3583,7 @@ func (ok *Okx) GetLeadTradersRanks(ctx context.Context, instrumentType, sortType
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	var resp []LeadTradersRank
-	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getLeadTraderRanksEPL, http.MethodGet, common.EncodeURLValues("copytrading/public-lead-traders", params), nil, &resp, true)
+	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getLeadTraderRanksEPL, http.MethodGet, common.EncodeURLValues("copytrading/public-lead-traders", params), nil, &resp, false)
 }
 
 // GetWeeklyTraderProfitAndLoss retrieve lead trader weekly pnl. Results are returned in counter chronological order.
@@ -3967,17 +3967,6 @@ func (ok *Okx) GetOrderBookDepth(ctx context.Context, instrumentID string, depth
 	}
 	var resp *OrderBookResponse
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getOrderBookEPL, http.MethodGet, common.EncodeURLValues("market/books", params), nil, &resp, false)
-}
-
-// GetOrderBooksLite returns the recent order asks and bids before specified timestamp.
-func (ok *Okx) GetOrderBooksLite(ctx context.Context, instrumentID string) (*OrderBookResponse, error) {
-	if instrumentID == "" {
-		return nil, errNilArgument
-	}
-	params := url.Values{}
-	params.Set("instId", instrumentID)
-	var resp *OrderBookResponse
-	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getOrderBookLiteEPL, http.MethodGet, common.EncodeURLValues("market/books-lite", params), nil, &resp, false)
 }
 
 // GetIntervalEnum allowed interval params by Okx Exchange

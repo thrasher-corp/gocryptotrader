@@ -2680,6 +2680,8 @@ func (ok *Okx) GetCurrencyTradeURL(ctx context.Context, a asset.Item, cp currenc
 		return baseURL + tradePerps + cp.Lower().String(), nil
 	case asset.Options:
 		return baseURL + tradeOptions + cp.Base.Lower().String() + "-usd", nil
+	case asset.Spread:
+		return baseURL, nil
 	case asset.Futures:
 		cp, err = ok.FormatExchangeCurrency(cp, a)
 		if err != nil {

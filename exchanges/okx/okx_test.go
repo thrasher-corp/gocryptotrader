@@ -7,6 +7,7 @@ import (
 	"log"
 	"os"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -41,7 +42,12 @@ const (
 	useTestNet              = false
 )
 
-var ok = &Okx{}
+var (
+	ok = &Okx{}
+
+	leadTraderUniqueID string
+	loadLeadTraderOnce sync.Once
+)
 
 func TestMain(m *testing.M) {
 	cfg := config.GetConfig()
@@ -77,7 +83,24 @@ func TestMain(m *testing.M) {
 		ok.Websocket.TrafficAlert = sharedtestvalues.GetWebsocketStructChannelOverride()
 		setupWS()
 	}
+	syncLeadTraderUniqueID()
 	os.Exit(m.Run())
+}
+
+func syncLeadTraderUniqueID() {
+	loadLeadTraderOnce.Do(func() {
+		result, err := ok.GetLeadTradersRanks(context.Background(), "SWAP", "pnl_ratio", "1", "", "", "", "", "", "", "", 10)
+		if err != nil {
+			log.Fatal(err)
+		}
+		if len(result) == 0 {
+			log.Fatal("No lead trader found")
+		}
+		if len(result[0].Ranks) == 0 {
+			log.Fatal("could not load lead traders ranks")
+		}
+		leadTraderUniqueID = result[0].Ranks[0].UniqueCode
+	})
 }
 
 // contextGenerate sends an optional value to allow test requests
@@ -114,13 +137,6 @@ func TestGetTicker(t *testing.T) {
 func TestGetOrderBookDepth(t *testing.T) {
 	t.Parallel()
 	result, err := ok.GetOrderBookDepth(contextGenerate(), "BTC-USDT", 400)
-	require.NoError(t, err)
-	assert.NotNil(t, result)
-}
-
-func TestGetOrderBooksLite(t *testing.T) {
-	t.Parallel()
-	result, err := ok.GetOrderBooksLite(contextGenerate(), "BTC-USDT")
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -2206,7 +2222,6 @@ func TestGetOrderInfo(t *testing.T) {
 	result, err := ok.GetOrderInfo(contextGenerate(), "123", enabled[0], asset.Futures)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
-
 }
 
 func TestGetDepositAddress(t *testing.T) {
@@ -2978,7 +2993,7 @@ func TestGetHistoricalFundingRates(t *testing.T) {
 		Asset:                asset.PerpetualSwap,
 		Pair:                 cp,
 		PaymentCurrency:      currency.USDT,
-		StartDate:            time.Now().Add(-time.Hour * 24 * 7),
+		StartDate:            time.Now().Add(-time.Hour * 24 * 2),
 		EndDate:              time.Now(),
 		IncludePredictedRate: true,
 	}
@@ -2990,7 +3005,7 @@ func TestGetHistoricalFundingRates(t *testing.T) {
 	if sharedtestvalues.AreAPICredentialsSet(ok) {
 		r.IncludePayments = true
 	}
-
+	r.StartDate = time.Now().Add(-time.Hour * 24 * 12)
 	result, err := ok.GetHistoricalFundingRates(contextGenerate(), r)
 	require.NoError(t, err)
 	require.NotNil(t, result)
@@ -3740,56 +3755,48 @@ func TestGetHistoryLeadTraders(t *testing.T) {
 	assert.NotNil(t, result)
 }
 
-func TestGetLeadTradersRanks(t *testing.T) {
-	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
-	result, err := ok.GetLeadTradersRanks(context.Background(), "SWAP", "pnl_ratio", "1", "", "", "", "", "", "", "", 10)
-	require.NoError(t, err)
-	assert.NotNil(t, result)
-}
-
 func TestGetWeeklyTraderProfitAndLoss(t *testing.T) {
 	t.Parallel()
-	result, err := ok.GetWeeklyTraderProfitAndLoss(context.Background(), "", "213E8C92DC61EFAC")
+	mainResult, err := ok.GetWeeklyTraderProfitAndLoss(context.Background(), "", leadTraderUniqueID)
 	require.NoError(t, err)
-	assert.NotNil(t, result)
+	assert.NotNil(t, mainResult)
 }
 
 func TestGetDailyLeadTraderPNL(t *testing.T) {
 	t.Parallel()
-	result, err := ok.GetDailyLeadTraderPNL(context.Background(), "SWAP", "213E8C92DC61EFAC", "2")
+	mainResult, err := ok.GetDailyLeadTraderPNL(context.Background(), "SWAP", leadTraderUniqueID, "2")
 	require.NoError(t, err)
-	assert.NotNil(t, result)
+	assert.NotNil(t, mainResult)
 }
 
 func TestGetLeadTraderStats(t *testing.T) {
 	t.Parallel()
-	result, err := ok.GetLeadTraderStats(context.Background(), "SWAP", "213E8C92DC61EFAC", "2")
+	result, err := ok.GetLeadTraderStats(context.Background(), "SWAP", leadTraderUniqueID, "2")
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
 
 func TestGetLeadTraderCurrencyPreferences(t *testing.T) {
 	t.Parallel()
-	result, err := ok.GetLeadTraderCurrencyPreferences(context.Background(), "SWAP", "213E8C92DC61EFAC", "2")
+	result, err := ok.GetLeadTraderCurrencyPreferences(context.Background(), "SWAP", leadTraderUniqueID, "2")
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
 
 func TestGetLeadTraderCurrentLeadPositions(t *testing.T) {
 	t.Parallel()
-	_, err := ok.GetLeadTraderCurrentLeadPositions(context.Background(), "SPOT", "213E8C92DC61EFAC", "", "", 10)
+	_, err := ok.GetLeadTraderCurrentLeadPositions(context.Background(), "SPOT", leadTraderUniqueID, "", "", 10)
 	require.ErrorIs(t, err, asset.ErrNotSupported)
-	result, err := ok.GetLeadTraderCurrentLeadPositions(context.Background(), "SWAP", "213E8C92DC61EFAC", "", "", 10)
+	result, err := ok.GetLeadTraderCurrentLeadPositions(context.Background(), "SWAP", leadTraderUniqueID, "", "", 10)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
 
 func TestGetLeadTraderLeadPositionHistory(t *testing.T) {
 	t.Parallel()
-	_, err := ok.GetLeadTraderLeadPositionHistory(context.Background(), "SPOT", "213E8C92DC61EFAC", "", "", 10)
+	_, err := ok.GetLeadTraderLeadPositionHistory(context.Background(), "SPOT", leadTraderUniqueID, "", "", 10)
 	require.ErrorIs(t, err, asset.ErrNotSupported)
-	result, err := ok.GetLeadTraderLeadPositionHistory(context.Background(), "SWAP", "213E8C92DC61EFAC", "", "", 10)
+	result, err := ok.GetLeadTraderLeadPositionHistory(context.Background(), "SWAP", leadTraderUniqueID, "", "", 10)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -4057,7 +4064,7 @@ func TestGetCurrencyTradeURL(t *testing.T) {
 		require.NoError(t, err, "cannot get pairs for %s", a)
 		require.NotEmpty(t, pairs, "no pairs for %s", a)
 		resp, err := ok.GetCurrencyTradeURL(context.Background(), a, pairs[0])
-		require.NoError(t, err)
-		require.NotEmpty(t, resp)
+		require.NoErrorf(t, err, "unexpected response %w for asset type: %s", a)
+		require.NotEmptyf(t, resp, "Expected not to be null for asset type: %s", a)
 	}
 }
