@@ -590,7 +590,7 @@ func (d *Deribit) processCandleChart(respRaw []byte, channels []string) error {
 		return err
 	}
 	d.Websocket.DataHandler <- stream.KlineData{
-		Timestamp:  time.UnixMilli(candleData.Tick),
+		Timestamp:  time.UnixMilli(candleData.Tick).UTC(),
 		Pair:       cp,
 		AssetType:  a,
 		Exchange:   d.Name,

@@ -1501,7 +1501,8 @@ func (d *Deribit) GetLatestFundingRates(ctx context.Context, r *fundingrate.Late
 	cp := r.Pair.Format(pFmt)
 	p := d.formatPairString(r.Asset, cp)
 	var fri []FundingRateHistory
-	fri, err = d.GetFundingRateHistory(ctx, p, time.Now().Add(-time.Hour*16), time.Now())
+	now := time.Now().UTC()
+	fri, err = d.GetFundingRateHistory(ctx, p, now.Add(-time.Hour*16), now)
 	if err != nil {
 		return nil, err
 	}
@@ -1513,7 +1514,7 @@ func (d *Deribit) GetLatestFundingRates(ctx context.Context, r *fundingrate.Late
 			continue
 		}
 		resp[0] = fundingrate.LatestRateResponse{
-			TimeChecked: time.Now(),
+			TimeChecked: now,
 			Exchange:    d.Name,
 			Asset:       r.Asset,
 			Pair:        r.Pair,

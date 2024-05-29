@@ -550,7 +550,7 @@ func (d *Deribit) WSRetrieveVolatilityIndexData(ccy currency.Code, resolution st
 	response := make([]VolatilityIndexData, len(resp.Data))
 	for x := range resp.Data {
 		response[x] = VolatilityIndexData{
-			TimestampMS: time.UnixMilli(int64(resp.Data[x][0])),
+			TimestampMS: time.UnixMilli(int64(resp.Data[x][0])).UTC(),
 			Open:        resp.Data[x][1],
 			High:        resp.Data[x][2],
 			Low:         resp.Data[x][3],
