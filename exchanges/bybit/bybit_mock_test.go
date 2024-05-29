@@ -40,7 +40,7 @@ func TestMain(m *testing.M) {
 	bybitConfig.API.AuthenticatedSupport = true
 	bybitConfig.API.AuthenticatedWebsocketSupport = true
 	b.Websocket = sharedtestvalues.NewTestWebsocket()
-	err = b.Setup(bybitConfig)
+	err = b.Setup(context.Background(), bybitConfig)
 	if err != nil {
 		log.Fatal("Bybit setup error", err)
 	}
@@ -60,7 +60,7 @@ func TestMain(m *testing.M) {
 			log.Fatal(err)
 		}
 	}
-	err = b.UpdateTradablePairs(context.Background(), true)
+	err = b.UpdateTradablePairs(context.Background(), b)
 	if err != nil {
 		log.Fatal("Bybit setup error", err)
 	}

@@ -157,51 +157,36 @@ func (b *BTSE) SetDefaults() {
 	b.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	b.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
 	b.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
-}
+	b.PostSetupRequirements = func(ctx context.Context, exch *config.Exchange) error {
+		wsRunningURL, err := b.API.Endpoints.GetURL(exchange.WebsocketSpot)
+		if err != nil {
+			return err
+		}
 
-// Setup takes in the supplied exchange configuration details and sets params
-func (b *BTSE) Setup(exch *config.Exchange) error {
-	err := exch.Validate()
-	if err != nil {
-		return err
-	}
-	if !exch.Enabled {
-		b.SetEnabled(false)
-		return nil
-	}
-	err = b.SetupDefaults(exch)
-	if err != nil {
-		return err
-	}
+		err = b.Websocket.Setup(&stream.WebsocketSetup{
+			ExchangeConfig:        exch,
+			DefaultURL:            btseWebsocket,
+			RunningURL:            wsRunningURL,
+			Connector:             b.WsConnect,
+			Subscriber:            b.Subscribe,
+			Unsubscriber:          b.Unsubscribe,
+			GenerateSubscriptions: b.GenerateDefaultSubscriptions,
+			Features:              &b.Features.Supports.WebsocketCapabilities,
+		})
+		if err != nil {
+			return err
+		}
 
-	wsRunningURL, err := b.API.Endpoints.GetURL(exchange.WebsocketSpot)
-	if err != nil {
-		return err
-	}
+		err = b.seedOrderSizeLimits(ctx)
+		if err != nil {
+			return err
+		}
 
-	err = b.Websocket.Setup(&stream.WebsocketSetup{
-		ExchangeConfig:        exch,
-		DefaultURL:            btseWebsocket,
-		RunningURL:            wsRunningURL,
-		Connector:             b.WsConnect,
-		Subscriber:            b.Subscribe,
-		Unsubscriber:          b.Unsubscribe,
-		GenerateSubscriptions: b.GenerateDefaultSubscriptions,
-		Features:              &b.Features.Supports.WebsocketCapabilities,
-	})
-	if err != nil {
-		return err
+		return b.Websocket.SetupNewConnection(stream.ConnectionSetup{
+			ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
+			ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
+		})
 	}
-
-	err = b.seedOrderSizeLimits(context.TODO())
-	if err != nil {
-		return err
-	}
-
-	return b.Websocket.SetupNewConnection(stream.ConnectionSetup{
-		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
-		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
-	})
 }
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs
@@ -245,23 +230,6 @@ func (b *BTSE) FetchTradablePairs(ctx context.Context, a asset.Item) (currency.P
 		pairs = append(pairs, pair)
 	}
 	return pairs, nil
-}
-
-// UpdateTradablePairs updates the exchanges available pairs and stores
-// them in the exchanges config
-func (b *BTSE) UpdateTradablePairs(ctx context.Context, forceUpdate bool) error {
-	a := b.GetAssetTypes(false)
-	for i := range a {
-		pairs, err := b.FetchTradablePairs(ctx, a[i])
-		if err != nil {
-			return err
-		}
-		err = b.UpdatePairs(pairs, a[i], false, forceUpdate)
-		if err != nil {
-			return err
-		}
-	}
-	return b.EnsureOnePairEnabled()
 }
 
 // UpdateTickers updates the ticker for all currency pairs of a given asset type

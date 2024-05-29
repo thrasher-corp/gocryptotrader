@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
-	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
@@ -103,18 +102,6 @@ func (e *EXMO) SetDefaults() {
 	}
 }
 
-// Setup takes in the supplied exchange configuration details and sets params
-func (e *EXMO) Setup(exch *config.Exchange) error {
-	if err := exch.Validate(); err != nil {
-		return err
-	}
-	if !exch.Enabled {
-		e.SetEnabled(false)
-		return nil
-	}
-	return e.SetupDefaults(exch)
-}
-
 // FetchTradablePairs returns a list of the exchanges tradable pairs
 func (e *EXMO) FetchTradablePairs(ctx context.Context, a asset.Item) (currency.Pairs, error) {
 	if !e.SupportsAsset(a) {
@@ -136,20 +123,6 @@ func (e *EXMO) FetchTradablePairs(ctx context.Context, a asset.Item) (currency.P
 		pairs = append(pairs, pair)
 	}
 	return pairs, nil
-}
-
-// UpdateTradablePairs updates the exchanges available pairs and stores
-// them in the exchanges config
-func (e *EXMO) UpdateTradablePairs(ctx context.Context, forceUpdate bool) error {
-	pairs, err := e.FetchTradablePairs(ctx, asset.Spot)
-	if err != nil {
-		return err
-	}
-	err = e.UpdatePairs(pairs, asset.Spot, false, forceUpdate)
-	if err != nil {
-		return err
-	}
-	return e.EnsureOnePairEnabled()
 }
 
 // UpdateTickers updates the ticker for all currency pairs of a given asset type

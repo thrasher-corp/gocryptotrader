@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
-	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
@@ -88,18 +87,6 @@ func (b *Bitflyer) SetDefaults() {
 	}
 }
 
-// Setup takes in the supplied exchange configuration details and sets params
-func (b *Bitflyer) Setup(exch *config.Exchange) error {
-	if err := exch.Validate(); err != nil {
-		return err
-	}
-	if !exch.Enabled {
-		b.SetEnabled(false)
-		return nil
-	}
-	return b.SetupDefaults(exch)
-}
-
 // FetchTradablePairs returns a list of the exchanges tradable pairs
 func (b *Bitflyer) FetchTradablePairs(ctx context.Context, a asset.Item) (currency.Pairs, error) {
 	symbols, err := b.GetMarkets(ctx)
@@ -126,23 +113,6 @@ func (b *Bitflyer) FetchTradablePairs(ctx context.Context, a asset.Item) (curren
 		}
 	}
 	return pairs, nil
-}
-
-// UpdateTradablePairs updates the exchanges available pairs and stores
-// them in the exchanges config
-func (b *Bitflyer) UpdateTradablePairs(ctx context.Context, forceUpdate bool) error {
-	assets := b.CurrencyPairs.GetAssetTypes(false)
-	for _, a := range assets {
-		pairs, err := b.FetchTradablePairs(ctx, a)
-		if err != nil {
-			return err
-		}
-		err = b.UpdatePairs(pairs, a, false, forceUpdate)
-		if err != nil {
-			return err
-		}
-	}
-	return b.EnsureOnePairEnabled()
 }
 
 // UpdateTickers updates the ticker for all currency pairs of a given asset type

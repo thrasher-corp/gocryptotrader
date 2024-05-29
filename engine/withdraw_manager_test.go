@@ -28,7 +28,7 @@ func withdrawManagerTestHelper(t *testing.T) (*ExchangeManager, *portfolioManage
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = b.Setup(cfg)
+	err = b.Setup(context.Background(), cfg)
 	if err != nil {
 		t.Fatal(err)
 	}

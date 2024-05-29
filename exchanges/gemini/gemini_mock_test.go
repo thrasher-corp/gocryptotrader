@@ -5,6 +5,7 @@
 package gemini
 
 import (
+	"context"
 	"log"
 	"os"
 	"testing"
@@ -34,7 +35,7 @@ func TestMain(m *testing.M) {
 	geminiConfig.API.Credentials.Secret = apiSecret
 	g.SetDefaults()
 	g.Websocket = sharedtestvalues.NewTestWebsocket()
-	err = g.Setup(geminiConfig)
+	err = g.Setup(context.Background(), geminiConfig)
 	if err != nil {
 		log.Fatal("Gemini setup error", err)
 	}

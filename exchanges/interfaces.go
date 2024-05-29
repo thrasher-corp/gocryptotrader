@@ -28,7 +28,7 @@ import (
 // IBotExchange enforces standard functions for all exchanges supported in
 // GoCryptoTrader
 type IBotExchange interface {
-	Setup(exch *config.Exchange) error
+	Setup(ctx context.Context, exch *config.Exchange) error
 	Bootstrap(context.Context) (continueBootstrap bool, err error)
 	SetDefaults()
 	Shutdown() error
@@ -42,7 +42,7 @@ type IBotExchange interface {
 	FetchOrderbook(ctx context.Context, p currency.Pair, a asset.Item) (*orderbook.Base, error)
 	UpdateOrderbook(ctx context.Context, p currency.Pair, a asset.Item) (*orderbook.Base, error)
 	FetchTradablePairs(ctx context.Context, a asset.Item) (currency.Pairs, error)
-	UpdateTradablePairs(ctx context.Context, forceUpdate bool) error
+	UpdateTradablePairs(context.Context, IBotExchange) error
 	GetEnabledPairs(a asset.Item) (currency.Pairs, error)
 	GetAvailablePairs(a asset.Item) (currency.Pairs, error)
 	SetPairs(pairs currency.Pairs, a asset.Item, enabled bool) error
@@ -187,4 +187,12 @@ type MarginManagement interface {
 	GetMarginRatesHistory(context.Context, *margin.RateHistoryRequest) (*margin.RateHistoryResponse, error)
 	futures.PNLCalculation
 	GetFuturesContractDetails(ctx context.Context, item asset.Item) ([]futures.Contract, error)
+}
+
+// LimitedScope defines a subset of the exchange interface
+type LimitedScope interface {
+	GetBase() *Base
+	GetName() string
+	SetDefaults()
+	FetchTradablePairs(context.Context, asset.Item) (currency.Pairs, error)
 }

@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
-	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
@@ -26,11 +25,6 @@ import (
 // CustomEx creates a mock custom exchange
 type CustomEx struct {
 	exchange.Base
-}
-
-// Setup is a mock method for CustomEx
-func (c *CustomEx) Setup(_ *config.Exchange) error {
-	return nil
 }
 
 // SetDefaults is a mock method for CustomEx
@@ -84,11 +78,6 @@ func (c *CustomEx) UpdateOrderbook(_ context.Context, _ currency.Pair, _ asset.I
 // FetchTradablePairs is a mock method for CustomEx
 func (c *CustomEx) FetchTradablePairs(_ context.Context, _ asset.Item) (currency.Pairs, error) {
 	return nil, nil
-}
-
-// UpdateTradablePairs is a mock method for CustomEx
-func (c *CustomEx) UpdateTradablePairs(_ context.Context, _ bool) error {
-	return nil
 }
 
 // GetEnabledPairs is a mock method for CustomEx

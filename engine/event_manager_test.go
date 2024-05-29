@@ -286,7 +286,7 @@ func TestCheckEventCondition(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	err = exch.Setup(conf)
+	err = exch.Setup(context.Background(), conf)
 	if err != nil {
 		t.Error(err)
 	}

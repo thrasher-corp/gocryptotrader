@@ -410,7 +410,7 @@ func TestGetDefaultConfigurations(t *testing.T) {
 			}
 
 			// Makes sure the config is valid and can be used to setup the exchange
-			if err := exch.Setup(defaultCfg); err != nil {
+			if err := exch.Setup(context.Background(), defaultCfg); err != nil {
 				t.Fatal(err)
 			}
 		})

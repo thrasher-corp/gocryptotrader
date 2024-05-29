@@ -156,49 +156,34 @@ func (b *Bitmex) SetDefaults() {
 	b.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	b.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
 	b.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
-}
+	b.PostSetupRequirements = func(_ context.Context, exch *config.Exchange) error {
+		wsEndpoint, err := b.API.Endpoints.GetURL(exchange.WebsocketSpot)
+		if err != nil {
+			return err
+		}
 
-// Setup takes in the supplied exchange configuration details and sets params
-func (b *Bitmex) Setup(exch *config.Exchange) error {
-	err := exch.Validate()
-	if err != nil {
-		return err
+		err = b.Websocket.Setup(&stream.WebsocketSetup{
+			ExchangeConfig:        exch,
+			DefaultURL:            bitmexWSURL,
+			RunningURL:            wsEndpoint,
+			Connector:             b.WsConnect,
+			Subscriber:            b.Subscribe,
+			Unsubscriber:          b.Unsubscribe,
+			GenerateSubscriptions: b.GenerateDefaultSubscriptions,
+			Features:              &b.Features.Supports.WebsocketCapabilities,
+			OrderbookBufferConfig: buffer.Config{
+				UpdateEntriesByID: true,
+			},
+		})
+		if err != nil {
+			return err
+		}
+		return b.Websocket.SetupNewConnection(stream.ConnectionSetup{
+			ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
+			ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
+			URL:                  bitmexWSURL,
+		})
 	}
-	if !exch.Enabled {
-		b.SetEnabled(false)
-		return nil
-	}
-	err = b.SetupDefaults(exch)
-	if err != nil {
-		return err
-	}
-
-	wsEndpoint, err := b.API.Endpoints.GetURL(exchange.WebsocketSpot)
-	if err != nil {
-		return err
-	}
-
-	err = b.Websocket.Setup(&stream.WebsocketSetup{
-		ExchangeConfig:        exch,
-		DefaultURL:            bitmexWSURL,
-		RunningURL:            wsEndpoint,
-		Connector:             b.WsConnect,
-		Subscriber:            b.Subscribe,
-		Unsubscriber:          b.Unsubscribe,
-		GenerateSubscriptions: b.GenerateDefaultSubscriptions,
-		Features:              &b.Features.Supports.WebsocketCapabilities,
-		OrderbookBufferConfig: buffer.Config{
-			UpdateEntriesByID: true,
-		},
-	})
-	if err != nil {
-		return err
-	}
-	return b.Websocket.SetupNewConnection(stream.ConnectionSetup{
-		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
-		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
-		URL:                  bitmexWSURL,
-	})
 }
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs
@@ -288,24 +273,6 @@ func (b *Bitmex) FetchTradablePairs(ctx context.Context, a asset.Item) (currency
 		}
 	}
 	return pairs, nil
-}
-
-// UpdateTradablePairs updates the exchanges available pairs and stores
-// them in the exchanges config
-func (b *Bitmex) UpdateTradablePairs(ctx context.Context, _ bool) error {
-	assets := b.GetAssetTypes(false)
-	for x := range assets {
-		pairs, err := b.FetchTradablePairs(ctx, assets[x])
-		if err != nil {
-			return err
-		}
-
-		err = b.UpdatePairs(pairs, assets[x], false, false)
-		if err != nil {
-			return err
-		}
-	}
-	return b.EnsureOnePairEnabled()
 }
 
 // UpdateTickers updates the ticker for all currency pairs of a given asset type

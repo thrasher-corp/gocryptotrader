@@ -58,6 +58,7 @@ var (
 	errSetDefaultsNotCalled              = errors.New("set defaults not called")
 	errExchangeIsNil                     = errors.New("exchange is nil")
 	errBatchSizeZero                     = errors.New("batch size cannot be 0")
+	errSetupNotCalled                    = errors.New("setup not called")
 )
 
 // SetRequester sets the instance of the requester
@@ -663,7 +664,11 @@ func (b *Base) EnsureOnePairEnabled() error {
 
 // UpdatePairs updates the exchange currency pairs for either enabledPairs or
 // availablePairs
-func (b *Base) UpdatePairs(incoming currency.Pairs, a asset.Item, enabled, force bool) error {
+func (b *Base) UpdatePairs(incoming currency.Pairs, a asset.Item, enabled bool) error {
+	if b.Config == nil || b.Config.CurrencyPairs == nil {
+		return fmt.Errorf("cannot update pairs %w", errSetupNotCalled)
+	}
+
 	pFmt, err := b.GetPairFormat(a, false)
 	if err != nil {
 		return err
@@ -684,7 +689,7 @@ func (b *Base) UpdatePairs(incoming currency.Pairs, a asset.Item, enabled, force
 		return err
 	}
 
-	if force || len(diff.New) != 0 || len(diff.Remove) != 0 || diff.FormatDifference {
+	if len(diff.New) != 0 || len(diff.Remove) != 0 || diff.FormatDifference {
 		var updateType string
 		if enabled {
 			updateType = "enabled"
@@ -692,30 +697,27 @@ func (b *Base) UpdatePairs(incoming currency.Pairs, a asset.Item, enabled, force
 			updateType = "available"
 		}
 
-		if force {
-			log.Debugf(log.ExchangeSys,
-				"%s forced update of %s [%v] pairs.",
+		if diff.FormatDifference {
+			log.Debugf(log.ExchangeSys, "%s Updating %s pairs [%v] - Format difference detected.\n",
 				b.Name,
 				updateType,
 				strings.ToUpper(a.String()))
-		} else {
-			if len(diff.New) > 0 {
-				log.Debugf(log.ExchangeSys,
-					"%s Updating %s pairs [%v] - Added: %s.\n",
-					b.Name,
-					updateType,
-					strings.ToUpper(a.String()),
-					diff.New)
-			}
-			if len(diff.Remove) > 0 {
-				log.Debugf(log.ExchangeSys,
-					"%s Updating %s pairs [%v] - Removed: %s.\n",
-					b.Name,
-					updateType,
-					strings.ToUpper(a.String()),
-					diff.Remove)
-			}
 		}
+		if len(diff.New) > 0 {
+			log.Debugf(log.ExchangeSys, "%s Updating %s pairs [%v] - Added: %s.\n",
+				b.Name,
+				updateType,
+				strings.ToUpper(a.String()),
+				diff.New)
+		}
+		if len(diff.Remove) > 0 {
+			log.Debugf(log.ExchangeSys, "%s Updating %s pairs [%v] - Removed: %s.\n",
+				b.Name,
+				updateType,
+				strings.ToUpper(a.String()),
+				diff.Remove)
+		}
+
 		err = b.Config.CurrencyPairs.StorePairs(a, incoming, enabled)
 		if err != nil {
 			return err
@@ -1864,7 +1866,7 @@ func Bootstrap(ctx context.Context, b IBotExchange) error {
 	}
 
 	if b.GetEnabledFeatures().AutoPairUpdates {
-		if err := b.UpdateTradablePairs(ctx, false); err != nil {
+		if err := b.UpdateTradablePairs(ctx, b); err != nil {
 			return fmt.Errorf("failed to update tradable pairs: %w", err)
 		}
 	}
@@ -1929,7 +1931,7 @@ func GetDefaultConfig(ctx context.Context, exch IBotExchange) (*config.Exchange,
 	}
 
 	if b.Features.Supports.RESTCapabilities.AutoPairUpdates {
-		err = exch.UpdateTradablePairs(ctx, true)
+		err = exch.UpdateTradablePairs(ctx, exch)
 		if err != nil {
 			return nil, err
 		}
@@ -1941,4 +1943,47 @@ func GetDefaultConfig(ctx context.Context, exch IBotExchange) (*config.Exchange,
 // GetCurrencyTradeURL returns the URL to the exchange's trade page for the given asset and currency pair
 func (b *Base) GetCurrencyTradeURL(context.Context, asset.Item, currency.Pair) (string, error) {
 	return "", common.ErrFunctionNotSupported
+}
+
+// UpdateTradablePairs updates the exchanges available pairs and stores them in
+// the exchanges config.
+func (b *Base) UpdateTradablePairs(ctx context.Context, exch IBotExchange) error {
+	assets := b.GetAssetTypes(false)
+	if len(assets) == 0 {
+		return fmt.Errorf("%s %w: no specific asset types are set", b.GetName(), errSetDefaultsNotCalled)
+	}
+	for x := range assets {
+		pairs, err := exch.FetchTradablePairs(ctx, assets[x])
+		if err != nil {
+			return err
+		}
+		err = b.UpdatePairs(pairs, assets[x], false)
+		if err != nil {
+			return err
+		}
+	}
+	return b.EnsureOnePairEnabled()
+}
+
+// Setup takes in an exchange configuration and sets all parameters
+func (b *Base) Setup(ctx context.Context, exch *config.Exchange) error {
+	err := exch.Validate()
+	if err != nil {
+		return err
+	}
+	if !exch.Enabled {
+		b.SetEnabled(false)
+		return nil
+	}
+	err = b.SetupDefaults(exch)
+	if err != nil {
+		return err
+	}
+	if b.PostSetupRequirements != nil {
+		err = b.PostSetupRequirements(ctx, exch)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }

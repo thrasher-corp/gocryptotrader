@@ -190,64 +190,49 @@ func (k *Kraken) SetDefaults() {
 	k.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	k.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
 	k.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
-}
+	k.PostSetupRequirements = func(ctx context.Context, exch *config.Exchange) error {
+		err = k.SeedAssets(ctx)
+		if err != nil {
+			return err
+		}
 
-// Setup sets current exchange configuration
-func (k *Kraken) Setup(exch *config.Exchange) error {
-	err := exch.Validate()
-	if err != nil {
-		return err
-	}
-	if !exch.Enabled {
-		k.SetEnabled(false)
-		return nil
-	}
-	err = k.SetupDefaults(exch)
-	if err != nil {
-		return err
-	}
+		wsRunningURL, err := k.API.Endpoints.GetURL(exchange.WebsocketSpot)
+		if err != nil {
+			return err
+		}
+		err = k.Websocket.Setup(&stream.WebsocketSetup{
+			ExchangeConfig:        exch,
+			DefaultURL:            krakenWSURL,
+			RunningURL:            wsRunningURL,
+			Connector:             k.WsConnect,
+			Subscriber:            k.Subscribe,
+			Unsubscriber:          k.Unsubscribe,
+			GenerateSubscriptions: k.GenerateDefaultSubscriptions,
+			Features:              &k.Features.Supports.WebsocketCapabilities,
+			OrderbookBufferConfig: buffer.Config{SortBuffer: true},
+		})
+		if err != nil {
+			return err
+		}
 
-	err = k.SeedAssets(context.TODO())
-	if err != nil {
-		return err
-	}
+		err = k.Websocket.SetupNewConnection(stream.ConnectionSetup{
+			RateLimit:            krakenWsRateLimit,
+			ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
+			ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
+			URL:                  krakenWSURL,
+		})
+		if err != nil {
+			return err
+		}
 
-	wsRunningURL, err := k.API.Endpoints.GetURL(exchange.WebsocketSpot)
-	if err != nil {
-		return err
+		return k.Websocket.SetupNewConnection(stream.ConnectionSetup{
+			RateLimit:            krakenWsRateLimit,
+			ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
+			ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
+			URL:                  krakenAuthWSURL,
+			Authenticated:        true,
+		})
 	}
-	err = k.Websocket.Setup(&stream.WebsocketSetup{
-		ExchangeConfig:        exch,
-		DefaultURL:            krakenWSURL,
-		RunningURL:            wsRunningURL,
-		Connector:             k.WsConnect,
-		Subscriber:            k.Subscribe,
-		Unsubscriber:          k.Unsubscribe,
-		GenerateSubscriptions: k.GenerateDefaultSubscriptions,
-		Features:              &k.Features.Supports.WebsocketCapabilities,
-		OrderbookBufferConfig: buffer.Config{SortBuffer: true},
-	})
-	if err != nil {
-		return err
-	}
-
-	err = k.Websocket.SetupNewConnection(stream.ConnectionSetup{
-		RateLimit:            krakenWsRateLimit,
-		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
-		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
-		URL:                  krakenWSURL,
-	})
-	if err != nil {
-		return err
-	}
-
-	return k.Websocket.SetupNewConnection(stream.ConnectionSetup{
-		RateLimit:            krakenWsRateLimit,
-		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
-		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
-		URL:                  krakenAuthWSURL,
-		Authenticated:        true,
-	})
 }
 
 // UpdateOrderExecutionLimits sets exchange execution order limits for an asset type
@@ -353,22 +338,6 @@ func (k *Kraken) FetchTradablePairs(ctx context.Context, a asset.Item) (currency
 		}
 	}
 	return pairs, nil
-}
-
-// UpdateTradablePairs updates the exchanges available pairs and stores them in the exchanges config
-func (k *Kraken) UpdateTradablePairs(ctx context.Context, forceUpdate bool) error {
-	assets := k.GetAssetTypes(false)
-	for x := range assets {
-		pairs, err := k.FetchTradablePairs(ctx, assets[x])
-		if err != nil {
-			return err
-		}
-		err = k.UpdatePairs(pairs, assets[x], false, forceUpdate)
-		if err != nil {
-			return err
-		}
-	}
-	return k.EnsureOnePairEnabled()
 }
 
 // UpdateTickers updates the ticker for all currency pairs of a given asset type

@@ -104,31 +104,17 @@ func (l *Lbank) SetDefaults() {
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
-}
 
-// Setup sets exchange configuration profile
-func (l *Lbank) Setup(exch *config.Exchange) error {
-	err := exch.Validate()
-	if err != nil {
-		return err
-	}
-	if !exch.Enabled {
-		l.SetEnabled(false)
+	l.PostSetupRequirements = func(ctx context.Context, _ *config.Exchange) error {
+		if l.API.AuthenticatedSupport {
+			err = l.loadPrivKey(ctx)
+			if err != nil {
+				l.API.AuthenticatedSupport = false
+				log.Errorf(log.ExchangeSys, "%s couldn't load private key, setting authenticated support to false", l.Name)
+			}
+		}
 		return nil
 	}
-	err = l.SetupDefaults(exch)
-	if err != nil {
-		return err
-	}
-
-	if l.API.AuthenticatedSupport {
-		err = l.loadPrivKey(context.TODO())
-		if err != nil {
-			l.API.AuthenticatedSupport = false
-			log.Errorf(log.ExchangeSys, "%s couldn't load private key, setting authenticated support to false", l.Name)
-		}
-	}
-	return nil
 }
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs
@@ -138,20 +124,6 @@ func (l *Lbank) FetchTradablePairs(ctx context.Context, _ asset.Item) (currency.
 		return nil, err
 	}
 	return currency.NewPairsFromStrings(currencies)
-}
-
-// UpdateTradablePairs updates the exchanges available pairs and stores
-// them in the exchanges config
-func (l *Lbank) UpdateTradablePairs(ctx context.Context, forceUpdate bool) error {
-	pairs, err := l.FetchTradablePairs(ctx, asset.Spot)
-	if err != nil {
-		return err
-	}
-	err = l.UpdatePairs(pairs, asset.Spot, false, forceUpdate)
-	if err != nil {
-		return err
-	}
-	return l.EnsureOnePairEnabled()
 }
 
 // UpdateTickers updates the ticker for all currency pairs of a given asset type

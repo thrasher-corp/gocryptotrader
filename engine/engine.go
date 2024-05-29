@@ -809,7 +809,7 @@ func (bot *Engine) LoadExchange(name string) error {
 	exchCfg.Name = exch.GetName()
 
 	exchCfg.Enabled = true
-	err = exch.Setup(exchCfg)
+	err = exch.Setup(context.TODO(), exchCfg)
 	if err != nil {
 		exchCfg.Enabled = false
 		return err

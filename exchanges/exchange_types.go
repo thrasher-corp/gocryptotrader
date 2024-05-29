@@ -1,6 +1,7 @@
 package exchange
 
 import (
+	"context"
 	"sync"
 	"time"
 
@@ -256,6 +257,11 @@ type Base struct {
 
 	AssetWebsocketSupport
 	*currencystate.States
+
+	// PostSetupRequirements is a function that is called after the exchange has
+	// been configured and setup. This is useful for exchanges that require
+	// additional setup steps after the initial configuration has been completed.
+	PostSetupRequirements func(ctx context.Context, exch *config.Exchange) error
 }
 
 // url lookup consts

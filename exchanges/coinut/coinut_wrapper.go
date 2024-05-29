@@ -108,51 +108,37 @@ func (c *COINUT) SetDefaults() {
 	c.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	c.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
 	c.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
-}
 
-// Setup sets the current exchange configuration
-func (c *COINUT) Setup(exch *config.Exchange) error {
-	err := exch.Validate()
-	if err != nil {
-		return err
-	}
-	if !exch.Enabled {
-		c.SetEnabled(false)
-		return nil
-	}
-	err = c.SetupDefaults(exch)
-	if err != nil {
-		return err
-	}
+	c.PostSetupRequirements = func(_ context.Context, exch *config.Exchange) error {
+		wsRunningURL, err := c.API.Endpoints.GetURL(exchange.WebsocketSpot)
+		if err != nil {
+			return err
+		}
 
-	wsRunningURL, err := c.API.Endpoints.GetURL(exchange.WebsocketSpot)
-	if err != nil {
-		return err
-	}
+		err = c.Websocket.Setup(&stream.WebsocketSetup{
+			ExchangeConfig:        exch,
+			DefaultURL:            coinutWebsocketURL,
+			RunningURL:            wsRunningURL,
+			Connector:             c.WsConnect,
+			Subscriber:            c.Subscribe,
+			Unsubscriber:          c.Unsubscribe,
+			GenerateSubscriptions: c.GenerateDefaultSubscriptions,
+			Features:              &c.Features.Supports.WebsocketCapabilities,
+			OrderbookBufferConfig: buffer.Config{
+				SortBuffer:            true,
+				SortBufferByUpdateIDs: true,
+			},
+		})
+		if err != nil {
+			return err
+		}
 
-	err = c.Websocket.Setup(&stream.WebsocketSetup{
-		ExchangeConfig:        exch,
-		DefaultURL:            coinutWebsocketURL,
-		RunningURL:            wsRunningURL,
-		Connector:             c.WsConnect,
-		Subscriber:            c.Subscribe,
-		Unsubscriber:          c.Unsubscribe,
-		GenerateSubscriptions: c.GenerateDefaultSubscriptions,
-		Features:              &c.Features.Supports.WebsocketCapabilities,
-		OrderbookBufferConfig: buffer.Config{
-			SortBuffer:            true,
-			SortBufferByUpdateIDs: true,
-		},
-	})
-	if err != nil {
-		return err
+		return c.Websocket.SetupNewConnection(stream.ConnectionSetup{
+			ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
+			ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
+			RateLimit:            wsRateLimitInMilliseconds,
+		})
 	}
-
-	return c.Websocket.SetupNewConnection(stream.ConnectionSetup{
-		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
-		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
-		RateLimit:            wsRateLimitInMilliseconds,
-	})
 }
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs
@@ -182,20 +168,6 @@ func (c *COINUT) FetchTradablePairs(ctx context.Context, _ asset.Item) (currency
 		pairs = append(pairs, pair)
 	}
 	return pairs, nil
-}
-
-// UpdateTradablePairs updates the exchanges available pairs and stores
-// them in the exchanges config
-func (c *COINUT) UpdateTradablePairs(ctx context.Context, forceUpdate bool) error {
-	pairs, err := c.FetchTradablePairs(ctx, asset.Spot)
-	if err != nil {
-		return err
-	}
-	err = c.UpdatePairs(pairs, asset.Spot, false, forceUpdate)
-	if err != nil {
-		return err
-	}
-	return c.EnsureOnePairEnabled()
 }
 
 // UpdateAccountInfo retrieves balances for all enabled currencies for the

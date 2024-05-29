@@ -155,11 +155,11 @@ func (bt *BackTest) SetupFromConfig(cfg *config.Config, templatePath, output str
 				exchBase := exch.GetBase()
 				exchBase.Verbose = cfg.DataSettings.VerboseExchangeRequests
 
-				err = exch.Setup(dc)
+				err = exch.Setup(context.TODO(), dc)
 				if err != nil {
 					return err
 				}
-				err = exch.UpdateTradablePairs(context.TODO(), true)
+				err = exch.UpdateTradablePairs(context.TODO(), exch)
 				if err != nil {
 					return err
 				}

@@ -51,7 +51,7 @@ func TestMain(m *testing.M) {
 	okcoinConfig.API.Credentials.Secret = apiSecret
 	okcoinConfig.API.Credentials.ClientID = passphrase
 	o.Websocket = sharedtestvalues.NewTestWebsocket()
-	err = o.Setup(okcoinConfig)
+	err = o.Setup(context.Background(), okcoinConfig)
 	if err != nil {
 		log.Fatal("Okcoin setup error", err)
 	}
@@ -1253,14 +1253,6 @@ func TestFetchTradablePairs(t *testing.T) {
 	}
 }
 
-func TestUpdateTradablePairs(t *testing.T) {
-	t.Parallel()
-	err := o.UpdateTradablePairs(context.Background(), true)
-	if err != nil {
-		t.Error(err)
-	}
-}
-
 func TestUpdateTickers(t *testing.T) {
 	t.Parallel()
 	err := o.UpdateTickers(context.Background(), asset.Spot)
@@ -1736,7 +1728,7 @@ func TestGetServerTime(t *testing.T) {
 }
 
 func (o *Okcoin) populateTradablePairs(ctx context.Context) error {
-	err := o.UpdateTradablePairs(ctx, true)
+	err := o.UpdateTradablePairs(ctx, o)
 	if err != nil {
 		return err
 	}

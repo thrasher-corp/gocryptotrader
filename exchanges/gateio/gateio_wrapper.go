@@ -181,49 +181,35 @@ func (g *Gateio) SetDefaults() {
 	g.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	g.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
 	g.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
-}
 
-// Setup sets user configuration
-func (g *Gateio) Setup(exch *config.Exchange) error {
-	err := exch.Validate()
-	if err != nil {
-		return err
-	}
-	if !exch.Enabled {
-		g.SetEnabled(false)
-		return nil
-	}
-	err = g.SetupDefaults(exch)
-	if err != nil {
-		return err
-	}
+	g.PostSetupRequirements = func(_ context.Context, exch *config.Exchange) error {
+		wsRunningURL, err := g.API.Endpoints.GetURL(exchange.WebsocketSpot)
+		if err != nil {
+			return err
+		}
 
-	wsRunningURL, err := g.API.Endpoints.GetURL(exchange.WebsocketSpot)
-	if err != nil {
-		return err
+		err = g.Websocket.Setup(&stream.WebsocketSetup{
+			ExchangeConfig:        exch,
+			DefaultURL:            gateioWebsocketEndpoint,
+			RunningURL:            wsRunningURL,
+			Connector:             g.WsConnect,
+			Subscriber:            g.Subscribe,
+			Unsubscriber:          g.Unsubscribe,
+			GenerateSubscriptions: g.GenerateDefaultSubscriptions,
+			Features:              &g.Features.Supports.WebsocketCapabilities,
+			FillsFeed:             g.Features.Enabled.FillsFeed,
+			TradeFeed:             g.Features.Enabled.TradeFeed,
+		})
+		if err != nil {
+			return err
+		}
+		return g.Websocket.SetupNewConnection(stream.ConnectionSetup{
+			URL:                  gateioWebsocketEndpoint,
+			RateLimit:            gateioWebsocketRateLimit,
+			ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
+			ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
+		})
 	}
-
-	err = g.Websocket.Setup(&stream.WebsocketSetup{
-		ExchangeConfig:        exch,
-		DefaultURL:            gateioWebsocketEndpoint,
-		RunningURL:            wsRunningURL,
-		Connector:             g.WsConnect,
-		Subscriber:            g.Subscribe,
-		Unsubscriber:          g.Unsubscribe,
-		GenerateSubscriptions: g.GenerateDefaultSubscriptions,
-		Features:              &g.Features.Supports.WebsocketCapabilities,
-		FillsFeed:             g.Features.Enabled.FillsFeed,
-		TradeFeed:             g.Features.Enabled.TradeFeed,
-	})
-	if err != nil {
-		return err
-	}
-	return g.Websocket.SetupNewConnection(stream.ConnectionSetup{
-		URL:                  gateioWebsocketEndpoint,
-		RateLimit:            gateioWebsocketRateLimit,
-		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
-		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
-	})
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair
@@ -506,26 +492,6 @@ func (g *Gateio) FetchTradablePairs(ctx context.Context, a asset.Item) (currency
 	default:
 		return nil, fmt.Errorf("%w asset type: %v", asset.ErrNotSupported, a)
 	}
-}
-
-// UpdateTradablePairs updates the exchanges available pairs and stores
-// them in the exchanges config
-func (g *Gateio) UpdateTradablePairs(ctx context.Context, forceUpdate bool) error {
-	assets := g.GetAssetTypes(false)
-	for x := range assets {
-		pairs, err := g.FetchTradablePairs(ctx, assets[x])
-		if err != nil {
-			return err
-		}
-		if len(pairs) == 0 {
-			return errors.New("no tradable pairs found")
-		}
-		err = g.UpdatePairs(pairs, assets[x], false, forceUpdate)
-		if err != nil {
-			return err
-		}
-	}
-	return g.EnsureOnePairEnabled()
 }
 
 // UpdateTickers updates the ticker for all currency pairs of a given asset type

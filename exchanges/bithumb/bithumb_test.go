@@ -53,17 +53,16 @@ func TestMain(m *testing.M) {
 		bitConfig.API.Credentials.Secret = apiSecret
 	}
 
-	err = b.Setup(bitConfig)
+	err = b.Setup(context.Background(), bitConfig)
 	if err != nil {
 		log.Fatal("Bithumb setup error", err)
 	}
-
-	err = b.UpdateTradablePairs(context.Background(), false)
-	if err != nil {
-		log.Fatal("Bithumb Setup() init error", err)
-	}
-
 	os.Exit(m.Run())
+}
+
+func TestUpdateTradablePairs(t *testing.T) {
+	t.Parallel()
+	testexch.UpdatePairsOnce(t, b)
 }
 
 func TestGetTradablePairs(t *testing.T) {

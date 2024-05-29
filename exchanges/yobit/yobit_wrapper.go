@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
-	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
@@ -91,18 +90,6 @@ func (y *Yobit) SetDefaults() {
 	}
 }
 
-// Setup sets exchange configuration parameters for Yobit
-func (y *Yobit) Setup(exch *config.Exchange) error {
-	if err := exch.Validate(); err != nil {
-		return err
-	}
-	if !exch.Enabled {
-		y.SetEnabled(false)
-		return nil
-	}
-	return y.SetupDefaults(exch)
-}
-
 // FetchTradablePairs returns a list of the exchanges tradable pairs
 func (y *Yobit) FetchTradablePairs(ctx context.Context, _ asset.Item) (currency.Pairs, error) {
 	info, err := y.GetInfo(ctx)
@@ -122,20 +109,6 @@ func (y *Yobit) FetchTradablePairs(ctx context.Context, _ asset.Item) (currency.
 		target++
 	}
 	return pairs, nil
-}
-
-// UpdateTradablePairs updates the exchanges available pairs and stores
-// them in the exchanges config
-func (y *Yobit) UpdateTradablePairs(ctx context.Context, forceUpdate bool) error {
-	pairs, err := y.FetchTradablePairs(ctx, asset.Spot)
-	if err != nil {
-		return err
-	}
-	err = y.UpdatePairs(pairs, asset.Spot, false, forceUpdate)
-	if err != nil {
-		return err
-	}
-	return y.EnsureOnePairEnabled()
 }
 
 // UpdateTickers updates the ticker for all currency pairs of a given asset type

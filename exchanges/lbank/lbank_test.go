@@ -45,11 +45,11 @@ func TestMain(m *testing.M) {
 	lbankConfig.API.AuthenticatedSupport = true
 	lbankConfig.API.Credentials.Key = testAPIKey
 	lbankConfig.API.Credentials.Secret = testAPISecret
-	err = l.Setup(lbankConfig)
+	err = l.Setup(context.Background(), lbankConfig)
 	if err != nil {
 		log.Fatal(err)
 	}
-	err = l.UpdateTradablePairs(context.Background(), true)
+	err = l.UpdateTradablePairs(context.Background(), l)
 	if err != nil {
 		log.Fatal(err)
 	}

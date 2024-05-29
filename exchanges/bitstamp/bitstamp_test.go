@@ -233,8 +233,7 @@ func TestFetchTradablePairs(t *testing.T) {
 
 func TestUpdateTradablePairs(t *testing.T) {
 	t.Parallel()
-	err := b.UpdateTradablePairs(context.Background(), true)
-	require.NoError(t, err, "UpdateTradablePairs must not error")
+	testexch.UpdatePairsOnce(t, b)
 }
 
 func TestUpdateOrderExecutionLimits(t *testing.T) {

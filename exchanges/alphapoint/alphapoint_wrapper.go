@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
-	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
@@ -79,11 +78,6 @@ func (a *Alphapoint) SetDefaults() {
 	}
 }
 
-// Setup takes in the supplied exchange configuration details and sets params
-func (a *Alphapoint) Setup(_ *config.Exchange) error {
-	return common.ErrFunctionNotSupported
-}
-
 // FetchTradablePairs returns a list of the exchanges tradable pairs
 func (a *Alphapoint) FetchTradablePairs(_ context.Context, _ asset.Item) (currency.Pairs, error) {
 	return nil, common.ErrFunctionNotSupported
@@ -92,12 +86,6 @@ func (a *Alphapoint) FetchTradablePairs(_ context.Context, _ asset.Item) (curren
 // GetServerTime returns the current exchange server time.
 func (a *Alphapoint) GetServerTime(_ context.Context, _ asset.Item) (time.Time, error) {
 	return time.Time{}, common.ErrFunctionNotSupported
-}
-
-// UpdateTradablePairs updates the exchanges available pairs and stores
-// them in the exchanges config
-func (a *Alphapoint) UpdateTradablePairs(_ context.Context, _ bool) error {
-	return common.ErrFunctionNotSupported
 }
 
 // UpdateAccountInfo retrieves balances for all enabled currencies on the

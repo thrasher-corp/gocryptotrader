@@ -273,13 +273,11 @@ func OrdersSetup(t *testing.T) *OrderManager {
 		t.Fatal(err)
 	}
 
-	err = exch.Setup(cfg)
+	err = exch.Setup(context.Background(), cfg)
 	if err != nil {
 		t.Fatal(err)
 	}
-	fakeExchange := omfExchange{
-		IBotExchange: exch,
-	}
+	fakeExchange := omfExchange{IBotExchange: exch}
 	err = em.Add(fakeExchange)
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: '%v' but expected: '%v'", err, nil)

@@ -110,23 +110,7 @@ func ({{.Variable}} *{{.CapitalName}}) SetDefaults() {
 	{{.Variable}}.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	{{.Variable}}.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
 	{{.Variable}}.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
-}
-
-// Setup takes in the supplied exchange configuration details and sets params
-func ({{.Variable}} *{{.CapitalName}}) Setup(exch *config.Exchange) error {
-	err := exch.Validate()
-	if err != nil {
-		return err
-	}
-	if !exch.Enabled {
-		{{.Variable}}.SetEnabled(false)
-		return nil
-	}
-	err = {{.Variable}}.SetupDefaults(exch)
-	if err != nil {
-		return err
-	}
-
+	{{.Variable}}.PostSetupRequirements = func(ctx context.Context, exch *config.Exchange) error {
 	/*
 	wsRunningEndpoint, err := {{.Variable}}.API.Endpoints.GetURL(exchange.WebsocketSpot)
 	if err != nil {
@@ -159,6 +143,7 @@ func ({{.Variable}} *{{.CapitalName}}) Setup(exch *config.Exchange) error {
 	}
 	*/
 	return nil
+	}
 }
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs
@@ -166,25 +151,6 @@ func ({{.Variable}} *{{.CapitalName}}) FetchTradablePairs(ctx context.Context, a
 	// Implement fetching the exchange available pairs if supported
 	return nil, nil
 }
-
-// UpdateTradablePairs updates the exchanges available pairs and stores
-// them in the exchanges config
-func ({{.Variable}} *{{.CapitalName}}) UpdateTradablePairs(ctx context.Context, forceUpdate bool) error {
-	assetTypes := {{.Variable}}.GetAssetTypes(false)
-	for x := range assetTypes {
-		pairs, err := {{.Variable}}.FetchTradablePairs(ctx, assetTypes[x])
-		if err != nil {
-			return err
-		}
-
-		err = {{.Variable}}.UpdatePairs(pairs, assetTypes[x], false, forceUpdate)
-		if err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
 
 // UpdateTicker updates and returns the ticker for a currency pair
 func ({{.Variable}} *{{.CapitalName}}) UpdateTicker(ctx context.Context, p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
