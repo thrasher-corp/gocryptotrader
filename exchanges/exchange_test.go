@@ -696,56 +696,18 @@ func TestGetFeatures(t *testing.T) {
 	}
 }
 
+// TestGetPairFormat ensures that GetPairFormat delegates to PairsManager.GetFormat
 func TestGetPairFormat(t *testing.T) {
 	t.Parallel()
 
-	// Test global formatting
-	var b Base
-	b.CurrencyPairs.UseGlobalFormat = true
-	b.CurrencyPairs.ConfigFormat = &currency.PairFormat{
-		Uppercase: true,
+	b := new(Base)
+	_, err := b.GetPairFormat(asset.Spot, true)
+	require.ErrorIs(t, err, currency.ErrPairManagerNotInitialised)
+	b.CurrencyPairs = currency.PairsManager{
+		Pairs: make(currency.FullStore),
 	}
-	b.CurrencyPairs.RequestFormat = &currency.PairFormat{
-		Delimiter: "~",
-	}
-	pFmt, err := b.GetPairFormat(asset.Spot, true)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if pFmt.Delimiter != "~" && !pFmt.Uppercase {
-		t.Error("incorrect pair format values")
-	}
-	pFmt, err = b.GetPairFormat(asset.Spot, false)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if pFmt.Delimiter != "" && pFmt.Uppercase {
-		t.Error("incorrect pair format values")
-	}
-
-	// Test individual asset pair store formatting
-	b.CurrencyPairs.UseGlobalFormat = false
-	err = b.CurrencyPairs.Store(asset.Spot, &currency.PairStore{
-		ConfigFormat:  &pFmt,
-		RequestFormat: &currency.PairFormat{Delimiter: "/", Uppercase: true},
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-	pFmt, err = b.GetPairFormat(asset.Spot, false)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if pFmt.Delimiter != "" && pFmt.Uppercase {
-		t.Error("incorrect pair format values")
-	}
-	pFmt, err = b.GetPairFormat(asset.Spot, true)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if pFmt.Delimiter != "~" && !pFmt.Uppercase {
-		t.Error("incorrect pair format values")
-	}
+	_, err = b.GetPairFormat(asset.Spot, true)
+	require.ErrorIs(t, err, asset.ErrNotSupported, "Must delegate to GetFormat and error")
 }
 
 func TestGetPairs(t *testing.T) {
@@ -778,6 +740,7 @@ func TestGetPairs(t *testing.T) {
 	}
 }
 
+// TestFormatExchangeCurrencies exercises FormatExchangeCurrencies
 func TestFormatExchangeCurrencies(t *testing.T) {
 	t.Parallel()
 
@@ -797,32 +760,18 @@ func TestFormatExchangeCurrencies(t *testing.T) {
 			},
 		},
 	}
-	p1, err := currency.NewPairDelimiter("BTC_USD", "_")
-	if err != nil {
-		t.Fatal(err)
-	}
-	p2, err := currency.NewPairDelimiter("LTC_BTC", "_")
-	if err != nil {
-		t.Fatal(err)
-	}
+
 	var pairs = []currency.Pair{
-		p1,
-		p2,
+		currency.NewPairWithDelimiter("BTC", "USD", "_"),
+		currency.NewPairWithDelimiter("LTC", "BTC", "_"),
 	}
 
-	actual, err := e.FormatExchangeCurrencies(pairs, asset.Spot)
-	if err != nil {
-		t.Errorf("Exchange TestFormatExchangeCurrencies error %s", err)
-	}
-	if expected := "btc~usd^ltc~btc"; actual != expected {
-		t.Errorf("Exchange TestFormatExchangeCurrencies %s != %s",
-			actual, expected)
-	}
+	got, err := e.FormatExchangeCurrencies(pairs, asset.Spot)
+	require.NoError(t, err)
+	assert.Equal(t, "btc~usd^ltc~btc", got)
 
 	_, err = e.FormatExchangeCurrencies(nil, asset.Spot)
-	if err == nil {
-		t.Error("nil pairs should return an error")
-	}
+	assert.ErrorContains(t, err, "returned empty string", err, "FormatExchangeCurrencies should error correctly")
 }
 
 func TestFormatExchangeCurrency(t *testing.T) {
@@ -1342,14 +1291,12 @@ func TestSupportsAsset(t *testing.T) {
 	t.Parallel()
 	var b Base
 	b.CurrencyPairs.Pairs = map[asset.Item]*currency.PairStore{
-		asset.Spot: {},
+		asset.Spot: {
+			AssetEnabled: convert.BoolPtr(true),
+		},
 	}
-	if !b.SupportsAsset(asset.Spot) {
-		t.Error("spot should be supported")
-	}
-	if b.SupportsAsset(asset.Index) {
-		t.Error("index shouldn't be supported")
-	}
+	assert.True(t, b.SupportsAsset(asset.Spot), "Spot should be supported")
+	assert.False(t, b.SupportsAsset(asset.Index), "Index should not be supported")
 }
 
 func TestPrintEnabledPairs(t *testing.T) {
@@ -1494,58 +1441,36 @@ func TestStoreAssetPairFormat(t *testing.T) {
 }
 
 func TestSetGlobalPairsManager(t *testing.T) {
-	b := Base{
-		Config: &config.Exchange{Name: "kitties"},
-	}
+	b := Base{Config: &config.Exchange{Name: "kitties"}}
 
 	err := b.SetGlobalPairsManager(nil, nil, asset.Empty)
-	if err == nil {
-		t.Error("error cannot be nil")
-	}
+	assert.ErrorContains(t, err, "cannot set pairs manager, request pair format not provided")
 
 	err = b.SetGlobalPairsManager(&currency.PairFormat{Uppercase: true}, nil, asset.Empty)
-	if err == nil {
-		t.Error("error cannot be nil")
-	}
+	assert.ErrorContains(t, err, "cannot set pairs manager, config pair format not provided")
 
-	err = b.SetGlobalPairsManager(&currency.PairFormat{Uppercase: true},
-		&currency.PairFormat{Uppercase: true})
-	if err == nil {
-		t.Error("error cannot be nil")
-	}
+	err = b.SetGlobalPairsManager(&currency.PairFormat{Uppercase: true}, &currency.PairFormat{Uppercase: true})
+	assert.ErrorContains(t, err, " cannot set pairs manager, no assets provided")
 
-	err = b.SetGlobalPairsManager(&currency.PairFormat{Uppercase: true},
-		&currency.PairFormat{Uppercase: true}, asset.Empty)
-	if err == nil {
-		t.Error("error cannot be nil")
-	}
+	err = b.SetGlobalPairsManager(&currency.PairFormat{Uppercase: true}, &currency.PairFormat{Uppercase: true}, asset.Empty)
+	assert.ErrorContains(t, err, " cannot set global pairs manager config pair format requires delimiter for assets")
 
 	err = b.SetGlobalPairsManager(&currency.PairFormat{Uppercase: true},
 		&currency.PairFormat{Uppercase: true},
 		asset.Spot,
 		asset.Binary)
-	if !errors.Is(err, errConfigPairFormatRequiresDelimiter) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errConfigPairFormatRequiresDelimiter)
-	}
+	assert.ErrorIs(t, err, errConfigPairFormatRequiresDelimiter)
 
-	err = b.SetGlobalPairsManager(&currency.PairFormat{Uppercase: true},
-		&currency.PairFormat{Uppercase: true, Delimiter: currency.DashDelimiter},
-		asset.Spot,
-		asset.Binary)
-	if err != nil {
-		t.Error(err)
-	}
+	err = b.SetGlobalPairsManager(&currency.PairFormat{Uppercase: true}, &currency.PairFormat{Uppercase: true, Delimiter: currency.DashDelimiter}, asset.Spot, asset.Binary)
+	require.NoError(t, err, "SetGlobalPairsManager must not error")
 
-	if !b.SupportsAsset(asset.Binary) || !b.SupportsAsset(asset.Spot) {
-		t.Fatal("global pairs manager not set correctly")
-	}
+	assert.True(t, b.SupportsAsset(asset.Binary), "Pairs Manager must support Binary")
+	assert.True(t, b.SupportsAsset(asset.Spot), "Pairs Manager must support Spot")
 
-	err = b.SetGlobalPairsManager(&currency.PairFormat{Uppercase: true},
-		&currency.PairFormat{Uppercase: true}, asset.Spot, asset.Binary)
-	if err == nil {
-		t.Error("error cannot be nil")
-	}
+	err = b.SetGlobalPairsManager(&currency.PairFormat{Uppercase: true}, &currency.PairFormat{Uppercase: true}, asset.Spot, asset.Binary)
+	assert.ErrorIs(t, err, errConfigPairFormatRequiresDelimiter, "SetGlobalPairsManager should error correctly")
 }
+
 func Test_FormatExchangeKlineInterval(t *testing.T) {
 	testCases := []struct {
 		name     string
@@ -2366,9 +2291,7 @@ func TestGetKlineRequest(t *testing.T) {
 	b.Features.Enabled.Kline.Intervals = kline.DeployExchangeIntervals(kline.IntervalCapacity{Interval: kline.OneMin})
 	b.Features.Enabled.Kline.GlobalResultLimit = 1439
 	_, err = b.GetKlineRequest(pair, asset.Spot, kline.OneHour, time.Time{}, time.Time{}, false)
-	if !errors.Is(err, errAssetRequestFormatIsNil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errAssetRequestFormatIsNil)
-	}
+	assert.ErrorIs(t, err, currency.ErrPairFormatIsNil, "GetKlineRequest should return Format is Nil")
 
 	err = b.CurrencyPairs.Store(asset.Spot, &currency.PairStore{
 		AssetEnabled:  convert.BoolPtr(true),
@@ -2533,9 +2456,7 @@ func TestGetKlineExtendedRequest(t *testing.T) {
 	}
 
 	_, err = b.GetKlineExtendedRequest(pair, asset.Spot, kline.OneHour, start, end)
-	if !errors.Is(err, errAssetRequestFormatIsNil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errAssetRequestFormatIsNil)
-	}
+	assert.ErrorIs(t, err, currency.ErrPairFormatIsNil, "GetKlineExtendedRequest should error correctly")
 
 	err = b.CurrencyPairs.Store(asset.Spot, &currency.PairStore{
 		AssetEnabled:  convert.BoolPtr(true),

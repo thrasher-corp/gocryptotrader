@@ -3065,15 +3065,6 @@ func (ok *Okx) GetUnderlying(pair currency.Pair, a asset.Item) (string, error) {
 	return pair.Base.String() + format.Delimiter + pair.Quote.String(), nil
 }
 
-// GetPairFromInstrumentID returns a currency pair give an instrument ID and asset Item, which represents the instrument type.
-func (ok *Okx) GetPairFromInstrumentID(instrumentID string) (currency.Pair, error) {
-	codes := strings.Split(instrumentID, ok.CurrencyPairs.RequestFormat.Delimiter)
-	if len(codes) >= 2 {
-		instrumentID = codes[0] + ok.CurrencyPairs.RequestFormat.Delimiter + strings.Join(codes[1:], ok.CurrencyPairs.RequestFormat.Delimiter)
-	}
-	return currency.NewPairFromString(instrumentID)
-}
-
 // GetOrderBookDepth returns the recent order asks and bids before specified timestamp.
 func (ok *Okx) GetOrderBookDepth(ctx context.Context, instrumentID string, depth int64) (*OrderBookResponse, error) {
 	params := url.Values{}
@@ -4320,11 +4311,15 @@ func (ok *Okx) GetAssetsFromInstrumentTypeOrID(instType, instrumentID string) ([
 	if instrumentID == "" {
 		return nil, fmt.Errorf("%w instrumentID", errEmptyArgument)
 	}
-	splitSymbol := strings.Split(instrumentID, ok.CurrencyPairs.RequestFormat.Delimiter)
+	pf, err := ok.CurrencyPairs.GetFormat(asset.Spot, true)
+	if err != nil {
+		return nil, err
+	}
+	splitSymbol := strings.Split(instrumentID, pf.Delimiter)
 	if len(splitSymbol) <= 1 {
 		return nil, fmt.Errorf("%w %v", currency.ErrCurrencyNotSupported, instrumentID)
 	}
-	pair, err := currency.NewPairDelimiter(instrumentID, ok.CurrencyPairs.RequestFormat.Delimiter)
+	pair, err := currency.NewPairDelimiter(instrumentID, pf.Delimiter)
 	if err != nil {
 		return nil, err
 	}

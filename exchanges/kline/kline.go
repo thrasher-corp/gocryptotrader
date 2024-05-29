@@ -278,6 +278,8 @@ func (k *Item) FormatDates() {
 // durationToWord returns english version of interval
 func durationToWord(in Interval) string {
 	switch in {
+	case Raw:
+		return "raw"
 	case HundredMilliseconds:
 		return "hundredmillisec"
 	case ThousandMilliseconds:
