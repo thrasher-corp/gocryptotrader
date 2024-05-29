@@ -708,14 +708,8 @@ func (b *Bithumb) FetchExchangeLimits(ctx context.Context) ([]order.MinMaxLevel,
 
 	limits := make([]order.MinMaxLevel, 0, len(ticks))
 	for code, data := range ticks {
-		c := currency.NewCode(code)
-		cp := currency.NewPair(c, currency.KRW)
-		if err != nil {
-			return nil, err
-		}
-
 		limits = append(limits, order.MinMaxLevel{
-			Pair:              cp,
+			Pair:              currency.NewPair(currency.NewCode(code), currency.KRW),
 			Asset:             asset.Spot,
 			MinimumBaseAmount: getAmountMinimum(data.ClosingPrice),
 		})

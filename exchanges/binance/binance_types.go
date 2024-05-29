@@ -753,11 +753,6 @@ type UserAccountStream struct {
 	ListenKey string `json:"listenKey"`
 }
 
-type wsAccountInfo struct {
-	Stream string            `json:"stream"`
-	Data   WsAccountInfoData `json:"data"`
-}
-
 // WsAccountInfoData defines websocket account info data
 type WsAccountInfoData struct {
 	CanDeposit       bool      `json:"D"`
