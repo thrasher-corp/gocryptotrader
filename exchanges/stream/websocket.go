@@ -12,6 +12,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/buffer"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
@@ -86,6 +87,7 @@ func NewWebsocket() *Websocket {
 		Match:             NewMatch(),
 		subscriptions:     subscription.NewStore(),
 		features:          &protocol.Features{},
+		Orderbook:         buffer.Orderbook{},
 	}
 }
 
