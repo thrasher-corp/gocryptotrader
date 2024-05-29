@@ -52,7 +52,7 @@ func (c Currencies) Join() string {
 	return strings.Join(c.Strings(), ",")
 }
 
-// UnmarshalJSON comforms type to the umarshaler interface
+// UnmarshalJSON conforms type to the umarshaler interface
 func (c *Currencies) UnmarshalJSON(d []byte) error {
 	var configCurrencies string
 	err := json.Unmarshal(d, &configCurrencies)
