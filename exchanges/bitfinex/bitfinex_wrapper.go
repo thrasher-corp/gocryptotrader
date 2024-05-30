@@ -27,6 +27,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/buffer"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
@@ -159,6 +160,13 @@ func (b *Bitfinex) SetDefaults() {
 				GlobalResultLimit: 10000,
 			},
 		},
+		Subscriptions: []*subscription.Subscription{
+			{Enabled: true, Channel: subscription.TickerChannel, Asset: asset.All},
+			{Enabled: true, Channel: subscription.AllTradesChannel, Asset: asset.All},
+			{Enabled: true, Channel: subscription.CandlesChannel, Asset: asset.Spot, Interval: kline.OneMin},
+			{Enabled: true, Channel: subscription.CandlesChannel, Asset: asset.MarginFunding, Interval: kline.OneMin, Params: map[string]any{CandlesPeriodKey: "p30"}},
+			{Enabled: true, Channel: subscription.OrderbookChannel, Asset: asset.All, Levels: 100, Params: map[string]any{"prec": "R0"}},
+		},
 	}
 
 	b.Requester, err = request.New(b.Name,
@@ -208,7 +216,7 @@ func (b *Bitfinex) Setup(exch *config.Exchange) error {
 		Connector:             b.WsConnect,
 		Subscriber:            b.Subscribe,
 		Unsubscriber:          b.Unsubscribe,
-		GenerateSubscriptions: b.GenerateDefaultSubscriptions,
+		GenerateSubscriptions: b.generateSubscriptions,
 		Features:              &b.Features.Supports.WebsocketCapabilities,
 		OrderbookBufferConfig: buffer.Config{
 			UpdateEntriesByID: true,
@@ -620,8 +628,8 @@ func (b *Bitfinex) SubmitOrder(ctx context.Context, o *order.Submit) (*order.Sub
 	var orderID string
 	status := order.New
 	if b.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
-		symbolStr, err := b.fixCasing(fPair, o.AssetType) //nolint:govet // intentional shadow of err
-		if err != nil {
+		var symbolStr string
+		if symbolStr, err = b.fixCasing(fPair, o.AssetType); err != nil {
 			return nil, err
 		}
 		orderType := strings.ToUpper(o.Type.String())

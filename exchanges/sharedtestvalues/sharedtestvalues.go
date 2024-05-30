@@ -15,8 +15,6 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/buffer"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 )
 
 // This package is only to be referenced in test files
@@ -54,16 +52,10 @@ func GetWebsocketStructChannelOverride() chan struct{} {
 
 // NewTestWebsocket returns a test websocket object
 func NewTestWebsocket() *stream.Websocket {
-	return &stream.Websocket{
-		DataHandler:       make(chan interface{}, WebsocketChannelOverrideCapacity),
-		ToRoutine:         make(chan interface{}, 1000),
-		TrafficAlert:      make(chan struct{}),
-		ReadMessageErrors: make(chan error),
-		Subscribe:         make(chan []subscription.Subscription, 10),
-		Unsubscribe:       make(chan []subscription.Subscription, 10),
-		Match:             stream.NewMatch(),
-		Orderbook:         buffer.Orderbook{},
-	}
+	w := stream.NewWebsocket()
+	w.DataHandler = make(chan interface{}, WebsocketChannelOverrideCapacity)
+	w.ToRoutine = make(chan interface{}, 1000)
+	return w
 }
 
 // SkipTestIfCredentialsUnset is a test helper function checking if the
