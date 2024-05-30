@@ -296,7 +296,10 @@ func (d *Deribit) wsHandleData(respRaw []byte) error {
 
 func (d *Deribit) processUserOrders(respRaw []byte, channels []string) error {
 	var response WsResponse
-	orderData := []WsOrder{}
+	if len(channels) != 4 && len(channels) != 5 {
+		return fmt.Errorf("%w, expected format 'user.orders.{instrument_name}.raw, user.orders.{instrument_name}.{interval}, user.orders.{kind}.{currency}.raw, or user.orders.{kind}.{currency}.{interval}', but found %s", errMalformedData, strings.Join(channels, "."))
+	}
+	var orderData []WsOrder
 	response.Params.Data = orderData
 	err := json.Unmarshal(respRaw, &response)
 	if err != nil {
@@ -341,6 +344,9 @@ func (d *Deribit) processUserOrders(respRaw []byte, channels []string) error {
 }
 
 func (d *Deribit) processUserOrderChanges(respRaw []byte, channels []string) error {
+	if len(channels) != 4 && len(channels) != 5 {
+		return fmt.Errorf("%w, expected format 'trades.{instrument_name}.{interval} or trades.{kind}.{currency}.{interval}', but found %s", errMalformedData, strings.Join(channels, "."))
+	}
 	var response WsResponse
 	changeData := &wsChanges{}
 	response.Params.Data = changeData
@@ -355,7 +361,9 @@ func (d *Deribit) processUserOrderChanges(respRaw []byte, channels []string) err
 		if err != nil {
 			return err
 		}
-		cp, a, err := d.getAssetPairByInstrument(changeData.Trades[x].InstrumentName)
+		var cp currency.Pair
+		var a asset.Item
+		cp, a, err = d.getAssetPairByInstrument(changeData.Trades[x].InstrumentName)
 		if err != nil {
 			return err
 		}
@@ -440,6 +448,9 @@ func (d *Deribit) processQuoteTicker(respRaw []byte, channels []string) error {
 }
 
 func (d *Deribit) processTrades(respRaw []byte, channels []string) error {
+	if len(channels) != 3 && len(channels) != 4 {
+		return fmt.Errorf("%w, expected format 'trades.{instrument_name}.{interval} or trades.{kind}.{currency}.{interval}', but found %s", errMalformedData, strings.Join(channels, "."))
+	}
 	var response WsResponse
 	var tradeList []wsTrade
 	response.Params.Data = &tradeList
@@ -452,7 +463,9 @@ func (d *Deribit) processTrades(respRaw []byte, channels []string) error {
 	}
 	tradeDatas := make([]trade.Data, len(tradeList))
 	for x := range tradeDatas {
-		cp, a, err := d.getAssetPairByInstrument(tradeList[x].InstrumentName)
+		var cp currency.Pair
+		var a asset.Item
+		cp, a, err = d.getAssetPairByInstrument(tradeList[x].InstrumentName)
 		if err != nil {
 			return err
 		}

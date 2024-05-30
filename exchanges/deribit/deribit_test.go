@@ -202,14 +202,11 @@ func TestGetHistoricCandlesExtended(t *testing.T) {
 		asset.OptionCombo: {Pair: optionComboTradablePair, Error: asset.ErrNotSupported},
 	}
 	for assetType, instance := range assetsToPairsMap {
-		t.Run(fmt.Sprintf("assetType: %s", assetType), func(t *testing.T) {
-			t.Parallel()
-			resp, err := d.GetHistoricCandlesExtended(context.Background(), instance.Pair, assetType, kline.OneDay, start, end)
-			require.ErrorIs(t, err, instance.Error)
-			if instance.Error == nil {
-				require.NotEmpty(t, resp)
-			}
-		})
+		resp, err := d.GetHistoricCandlesExtended(context.Background(), instance.Pair, assetType, kline.OneDay, start, end)
+		require.ErrorIs(t, err, instance.Error)
+		if instance.Error == nil {
+			require.NotEmpty(t, resp)
+		}
 	}
 }
 
@@ -3486,7 +3483,6 @@ func TestGetAssetPairByInstrument(t *testing.T) {
 		t.Parallel()
 		_, _, err := d.getAssetPairByInstrument("")
 		assert.ErrorIs(t, err, errInvalidInstrumentName)
-
 	})
 	t.Run("this_is_a_fake_currency_pair", func(t *testing.T) {
 		t.Parallel()
@@ -3909,6 +3905,7 @@ func TestGetOpenInterest(t *testing.T) {
 		Quote: currency.NewCode("USDC-PERPETUAL").Item,
 		Asset: asset.Futures,
 	})
+	require.NoError(t, err)
 
 	_, err = d.GetOpenInterest(context.Background(), key.PairAsset{
 		Base:  futureComboTradablePair.Base.Item,
@@ -3916,7 +3913,6 @@ func TestGetOpenInterest(t *testing.T) {
 		Asset: asset.FutureCombo,
 	})
 	require.NoError(t, err)
-
 }
 
 func TestIsPerpetualFutureCurrency(t *testing.T) {
@@ -4051,8 +4047,10 @@ func TestGetValidatedCurrencyCode(t *testing.T) {
 
 func TestFetchTradablePairs(t *testing.T) {
 	t.Parallel()
-	_, err := d.FetchTradablePairs(context.Background(), asset.Futures)
-	require.NoError(t, err)
+	for _, a := range d.GetAssetTypes(false) {
+		_, err := d.FetchTradablePairs(context.Background(), a)
+		require.NoError(t, err)
+	}
 }
 
 func TestGetCurrencyTradeURL(t *testing.T) {
@@ -4061,10 +4059,12 @@ func TestGetCurrencyTradeURL(t *testing.T) {
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 
 	for _, a := range d.GetAssetTypes(false) {
-		pairs, err := d.CurrencyPairs.GetPairs(a, false)
+		var pairs currency.Pairs
+		pairs, err = d.CurrencyPairs.GetPairs(a, false)
 		require.NoError(t, err, "cannot get pairs for %s", a)
 		require.NotEmpty(t, pairs, "no pairs for %s", a)
-		resp, err := d.GetCurrencyTradeURL(context.Background(), a, pairs[0])
+		var resp string
+		resp, err = d.GetCurrencyTradeURL(context.Background(), a, pairs[0])
 		require.NoError(t, err)
 		assert.NotEmpty(t, resp)
 	}
@@ -4073,7 +4073,7 @@ func TestGetCurrencyTradeURL(t *testing.T) {
 	resp, err := d.GetCurrencyTradeURL(context.Background(), asset.Futures, cp)
 	require.NoError(t, err)
 	assert.NotEmpty(t, resp)
-	// specific test to ensure options work
+	// specific test to ensure options with dates work
 	cp = currency.NewPair(currency.BTC, currency.NewCode("14JUN24-62000-C"))
 	resp, err = d.GetCurrencyTradeURL(context.Background(), asset.Options, cp)
 	require.NoError(t, err)

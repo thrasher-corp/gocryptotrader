@@ -1267,52 +1267,6 @@ func (d *Deribit) GetFuturesContractDetails(ctx context.Context, item asset.Item
 	return resp, nil
 }
 
-// GetLatestFundingRates returns the latest funding rates data
-func (d *Deribit) GetLatestFundingRates(ctx context.Context, r *fundingrate.LatestRateRequest) ([]fundingrate.LatestRateResponse, error) {
-	if r == nil {
-		return nil, fmt.Errorf("%w LatestRateRequest", common.ErrNilPointer)
-	}
-	if !d.SupportsAsset(r.Asset) {
-		return nil, fmt.Errorf("%s %w", r.Asset, asset.ErrNotSupported)
-	}
-	isPerpetual, err := d.IsPerpetualFutureCurrency(r.Asset, r.Pair)
-	if !isPerpetual || err != nil {
-		return nil, futures.ErrNotPerpetualFuture
-	}
-	r.Pair, err = d.FormatExchangeCurrency(r.Pair, r.Asset)
-	if err != nil {
-		return nil, err
-	}
-	var fri []FundingRateHistory
-	fri, err = d.GetFundingRateHistory(ctx, r.Pair.String(), time.Now().Add(-time.Hour*16), time.Now())
-	if err != nil {
-		return nil, err
-	}
-
-	resp := make([]fundingrate.LatestRateResponse, 1)
-	latestTime := fri[0].Timestamp.Time()
-	for i := range fri {
-		if fri[i].Timestamp.Time().Before(latestTime) {
-			continue
-		}
-		resp[0] = fundingrate.LatestRateResponse{
-			TimeChecked: time.Now(),
-			Exchange:    d.Name,
-			Asset:       r.Asset,
-			Pair:        r.Pair,
-			LatestRate: fundingrate.Rate{
-				Time: fri[i].Timestamp.Time(),
-				Rate: decimal.NewFromFloat(fri[i].Interest8H),
-			},
-		}
-		latestTime = fri[i].Timestamp.Time()
-	}
-	if len(resp) == 0 {
-		return nil, fmt.Errorf("%w %v %v", futures.ErrNotPerpetualFuture, r.Asset, r.Pair)
-	}
-	return resp, nil
-}
-
 // UpdateOrderExecutionLimits sets exchange execution order limits for an asset type
 func (d *Deribit) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) error {
 	if !d.SupportsAsset(a) {
@@ -1478,6 +1432,7 @@ func (d *Deribit) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]fu
 	return result, nil
 }
 
+// GetCurrencyTradeURL returns the URL to the exchange's trade page for the given asset and currency pair
 func (d *Deribit) GetCurrencyTradeURL(_ context.Context, a asset.Item, cp currency.Pair) (string, error) {
 	if cp.IsEmpty() {
 		return "", currency.ErrCurrencyPairEmpty
@@ -1527,6 +1482,54 @@ func (d *Deribit) IsPerpetualFutureCurrency(assetType asset.Item, pair currency.
 	return pqs[len(pqs)-1] == perpString, nil
 }
 
+// GetLatestFundingRates returns the latest funding rates data
+func (d *Deribit) GetLatestFundingRates(ctx context.Context, r *fundingrate.LatestRateRequest) ([]fundingrate.LatestRateResponse, error) {
+	if r == nil {
+		return nil, fmt.Errorf("%w LatestRateRequest", common.ErrNilPointer)
+	}
+	if !d.SupportsAsset(r.Asset) {
+		return nil, fmt.Errorf("%s %w", r.Asset, asset.ErrNotSupported)
+	}
+	isPerpetual, err := d.IsPerpetualFutureCurrency(r.Asset, r.Pair)
+	if !isPerpetual || err != nil {
+		return nil, futures.ErrNotPerpetualFuture
+	}
+	pFmt, err := d.CurrencyPairs.GetFormat(r.Asset, true)
+	if err != nil {
+		return nil, err
+	}
+	cp := r.Pair.Format(pFmt)
+	p := d.formatPairString(r.Asset, cp)
+	var fri []FundingRateHistory
+	fri, err = d.GetFundingRateHistory(ctx, p, time.Now().Add(-time.Hour*16), time.Now())
+	if err != nil {
+		return nil, err
+	}
+
+	resp := make([]fundingrate.LatestRateResponse, 1)
+	latestTime := fri[0].Timestamp.Time()
+	for i := range fri {
+		if fri[i].Timestamp.Time().Before(latestTime) {
+			continue
+		}
+		resp[0] = fundingrate.LatestRateResponse{
+			TimeChecked: time.Now(),
+			Exchange:    d.Name,
+			Asset:       r.Asset,
+			Pair:        r.Pair,
+			LatestRate: fundingrate.Rate{
+				Time: fri[i].Timestamp.Time(),
+				Rate: decimal.NewFromFloat(fri[i].Interest8H),
+			},
+		}
+		latestTime = fri[i].Timestamp.Time()
+	}
+	if len(resp) == 0 {
+		return nil, fmt.Errorf("%w %v %v", futures.ErrNotPerpetualFuture, r.Asset, r.Pair)
+	}
+	return resp, nil
+}
+
 // GetHistoricalFundingRates returns historical funding rates for a future
 func (d *Deribit) GetHistoricalFundingRates(ctx context.Context, r *fundingrate.HistoricalRatesRequest) (*fundingrate.HistoricalRates, error) {
 	if r == nil {
@@ -1548,10 +1551,12 @@ func (d *Deribit) GetHistoricalFundingRates(ctx context.Context, r *fundingrate.
 	if r.IncludePayments {
 		return nil, fmt.Errorf("include payments %w", common.ErrNotYetImplemented)
 	}
-	fPair, err := d.FormatExchangeCurrency(r.Pair, r.Asset)
+	pFmt, err := d.CurrencyPairs.GetFormat(r.Asset, true)
 	if err != nil {
 		return nil, err
 	}
+	cp := r.Pair.Format(pFmt)
+	p := d.formatPairString(r.Asset, cp)
 	ed := r.EndDate
 
 	var fundingRates []fundingrate.Rate
@@ -1562,9 +1567,9 @@ func (d *Deribit) GetHistoricalFundingRates(ctx context.Context, r *fundingrate.
 		}
 		var records []FundingRateHistory
 		if d.Websocket.IsConnected() {
-			records, err = d.WSRetrieveFundingRateHistory(fPair.String(), r.StartDate, ed)
+			records, err = d.WSRetrieveFundingRateHistory(p, r.StartDate, ed)
 		} else {
-			records, err = d.GetFundingRateHistory(ctx, fPair.String(), r.StartDate, ed)
+			records, err = d.GetFundingRateHistory(ctx, p, r.StartDate, ed)
 		}
 		if err != nil {
 			return nil, err
