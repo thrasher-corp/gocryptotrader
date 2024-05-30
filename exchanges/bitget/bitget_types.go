@@ -1328,7 +1328,7 @@ type PlanFuturesOrdResp struct {
 			Size                   float64       `json:"size,string"`
 			OrderID                int64         `json:"orderId,string"`
 			ClientOrderID          string        `json:"clientOid"`
-			Price                  float64       `json:"price,string"`
+			Price                  types.Number  `json:"price"`
 			CallbackRatio          types.Number  `json:"callbackRatio"`
 			TriggerPrice           float64       `json:"triggerPrice,string"`
 			TriggerType            string        `json:"triggerType"`
@@ -1419,8 +1419,8 @@ type SupCurrencyResp struct {
 	} `json:"data"`
 }
 
-// BorrowHistResp contains information on borrowing history
-type BorrowHistResp struct {
+// BorrowHistCross contains information on borrowing history for cross margin
+type BorrowHistCross struct {
 	Data struct {
 		ResultList []struct {
 			LoanID       int64         `json:"loanId,string"`
@@ -1432,5 +1432,478 @@ type BorrowHistResp struct {
 		} `json:"resultList"`
 		MaxID EmptyInt `json:"maxId"`
 		MinID EmptyInt `json:"minId"`
+	} `json:"data"`
+}
+
+// RepayHistResp contains information on repayment history
+type RepayHistResp struct {
+	Data struct {
+		ResultList []struct {
+			RepayID        int64         `json:"repayId,string"`
+			Coin           string        `json:"coin"`
+			RepayAmount    float64       `json:"repayAmount,string"`
+			RepayType      string        `json:"repayType"`
+			RepayInterest  float64       `json:"repayInterest,string"`
+			RepayPrincipal float64       `json:"repayPrincipal,string"`
+			CreationTime   UnixTimestamp `json:"cTime"`
+			UpdateTime     UnixTimestamp `json:"uTime"`
+		} `json:"resultList"`
+		MaxID EmptyInt `json:"maxId"`
+		MinID EmptyInt `json:"minId"`
+	} `json:"data"`
+}
+
+// InterHistCross contains information on interest history for cross margin
+type InterHistCross struct {
+	Data struct {
+		MinID      EmptyInt `json:"minId"`
+		MaxID      EmptyInt `json:"maxId"`
+		ResultList []struct {
+			InterestID        int64         `json:"interestId,string"`
+			LoanCoin          string        `json:"loanCoin"`
+			InterestCoin      string        `json:"interestCoin"`
+			DailyInterestRate float64       `json:"dailyInterestRate,string"`
+			InterestAmount    float64       `json:"interestAmount,string"`
+			InterestType      string        `json:"interstType"` // sic
+			CreationTime      UnixTimestamp `json:"cTime"`
+			UpdateTime        UnixTimestamp `json:"uTime"`
+		} `json:"resultList"`
+	} `json:"data"`
+}
+
+// LiquidHistCross contains information on liquidation history for cross margin
+type LiquidHistCross struct {
+	Data struct {
+		MinID      EmptyInt `json:"minId"`
+		MaxID      EmptyInt `json:"maxId"`
+		ResultList []struct {
+			LiquidationID        int64         `json:"liqId,string"`
+			LiquidationStartTime UnixTimestamp `json:"liqStartTime"`
+			LiquidationEndTime   UnixTimestamp `json:"liqEndTime"`
+			LiquidationRiskRatio float64       `json:"liqRiskRatio,string"`
+			TotalAssets          float64       `json:"totalAssets,string"`
+			TotalDebt            float64       `json:"totalDebt,string"`
+			LiquidationFee       float64       `json:"liqFee,string"`
+			UpdateTime           UnixTimestamp `json:"uTime"`
+			CreationTime         UnixTimestamp `json:"cTime"`
+		} `json:"resultList"`
+	} `json:"data"`
+}
+
+// FinHistCross contains information on financial history for cross margin
+type FinHistCross struct {
+	Data struct {
+		MinID      EmptyInt `json:"minId"`
+		MaxID      EmptyInt `json:"maxId"`
+		ResultList []struct {
+			MarginID     int64         `json:"marginId,string"`
+			Amount       float64       `json:"amount,string"`
+			Coin         string        `json:"coin"`
+			Balance      float64       `json:"balance,string"`
+			Fee          float64       `json:"fee,string"`
+			MarginType   string        `json:"marginType"`
+			UpdateTime   UnixTimestamp `json:"uTime"`
+			CreationTime UnixTimestamp `json:"cTime"`
+		} `json:"resultList"`
+	} `json:"data"`
+}
+
+// CrossAssetResp contains information on assets being utilised in cross margin
+type CrossAssetResp struct {
+	Data []struct {
+		Coin         string        `json:"coin"`
+		TotalAmount  float64       `json:"totalAmount,string"`
+		Available    float64       `json:"available,string"`
+		Frozen       float64       `json:"frozen,string"`
+		Borrow       float64       `json:"borrow,string"`
+		Interest     float64       `json:"interest,string"`
+		Net          float64       `json:"net,string"`
+		CreationTime UnixTimestamp `json:"cTime"`
+		UpdateTime   UnixTimestamp `json:"uTime"`
+		Coupon       float64       `json:"coupon,string"`
+	} `json:"data"`
+}
+
+// BorrowCross contains information on borrowing for cross margin
+type BorrowCross struct {
+	Data struct {
+		LoanID       int64   `json:"loanId,string"`
+		Coin         string  `json:"coin"`
+		BorrowAmount float64 `json:"borrowAmount,string"`
+	} `json:"data"`
+}
+
+// RepayCross contains information on repayment for cross margin
+type RepayCross struct {
+	Data struct {
+		Coin                string  `json:"coin"`
+		RepayID             int64   `json:"repayId,string"`
+		RemainingDebtAmount float64 `json:"remainDebtAmount,string"`
+		RepayAmount         float64 `json:"repayAmount,string"`
+	} `json:"data"`
+}
+
+// RiskRateCross contains information on the risk rate for cross margin
+type RiskRateCross struct {
+	Data struct {
+		RiskRateRatio float64 `json:"riskRateRatio,string"`
+	} `json:"data"`
+}
+
+// MaxBorrowCross contains information on the maximum amount that can be borrowed for cross margin
+type MaxBorrowCross struct {
+	Data struct {
+		Coin                string  `json:"coin"`
+		MaxBorrowableAmount float64 `json:"maxBorrowableAmount,string"`
+	} `json:"data"`
+}
+
+// MaxTransferResp contains information on the maximum amount that can be transferred
+type MaxTransferResp struct {
+	Data struct {
+		Coin                 string  `json:"coin"`
+		MaxTransferOutAmount float64 `json:"maxTransferOutAmount,string"`
+	} `json:"data"`
+}
+
+// IntRateMaxBorrowCross contains information on the interest rate and the maximum amount that can be borrowed for
+// cross margin
+type IntRateMaxBorrowCross struct {
+	Data []struct {
+		Transferable        bool    `json:"transferable"`
+		Leverage            float64 `json:"leverage,string"`
+		Coin                string  `json:"coin"`
+		Borrowable          bool    `json:"borrowable"`
+		DailyInterestRate   float64 `json:"dailyInterestRate,string"`
+		AnnualInterestRate  float64 `json:"annualInterestRate,string"`
+		MaxBorrowableAmount float64 `json:"maxBorrowableAmount,string"`
+		VIPList             []struct {
+			Level              int64   `json:"level,string"`
+			Limit              float64 `json:"limit,string"`
+			DailyInterestRate  float64 `json:"dailyInterestRate,string"`
+			AnnualInterestRate float64 `json:"annualInterestRate,string"`
+			DiscountRate       float64 `json:"discountRate,string"`
+		} `json:"vipList"`
+	} `json:"data"`
+}
+
+// TierConfigCross contains information on tier configurations for cross margin
+type TierConfigCross struct {
+	Data []struct {
+		Tier                int64   `json:"tier,string"`
+		Leverage            float64 `json:"leverage,string"`
+		Coin                string  `json:"coin"`
+		MaxBorrowableAmount float64 `json:"maxBorrowableAmount,string"`
+		MaintainMarginRate  float64 `json:"maintainMarginRate,string"`
+	} `json:"data"`
+}
+
+// FlashRepayResp contains information on a flash repayment
+type FlashRepayResp struct {
+	Data struct {
+		RepayID int64  `json:"repayId,string"`
+		Coin    string `json:"coin"`
+	} `json:"data"`
+}
+
+// FlashReplayResult contains information on the result of a flash repayment
+type FlashReplayResult struct {
+	Data []struct {
+		RepayID int64  `json:"repayId,string"`
+		Status  string `json:"status"`
+	} `json:"data"`
+}
+
+// CrossOrderData contains information on a cross order
+type CrossOrderData struct {
+	Side          string  `json:"side"`
+	OrderType     string  `json:"orderType"`
+	Price         float64 `json:"price,string"`
+	Strategy      string  `json:"force"`
+	BaseAmount    float64 `json:"baseSize,string"`
+	QuoteAmount   float64 `json:"quoteSize,string"`
+	LoanType      string  `json:"loanType"`
+	ClientOrderID string  `json:"clientOid"`
+}
+
+// CrossOpenOrds contains information on open cross orders
+type CrossOpenOrds struct {
+	Data struct {
+		OrderList []struct {
+			OrderID          int64         `json:"orderId,string"`
+			Symbol           string        `json:"symbol"`
+			OrderType        string        `json:"orderType"`
+			EnterPointSource string        `json:"enterPointSource"`
+			ClientOrderID    string        `json:"clientOid"`
+			LoanType         string        `json:"loanType"`
+			Price            float64       `json:"price,string"`
+			Side             string        `json:"side"`
+			Status           string        `json:"status"`
+			BaseSize         float64       `json:"baseSize,string"`
+			QuoteSize        float64       `json:"quoteSize,string"`
+			Size             float64       `json:"size,string"`
+			Amount           float64       `json:"amount,string"`
+			Force            string        `json:"force"`
+			CreationTime     UnixTimestamp `json:"cTime"`
+			UpdateTime       UnixTimestamp `json:"uTime"`
+		} `json:"orderList"`
+		MaxID EmptyInt `json:"maxId"`
+		MinID EmptyInt `json:"minId"`
+	} `json:"data"`
+}
+
+// CrossHistOrds contains information on historical cross orders
+type CrossHistOrds struct {
+	Data struct {
+		OrderList []struct {
+			OrderID          int64         `json:"orderId,string"`
+			Symbol           string        `json:"symbol"`
+			OrderType        string        `json:"orderType"`
+			EnterPointSource string        `json:"enterPointSource"`
+			ClientOrderID    string        `json:"clientOid"`
+			LoanType         string        `json:"loanType"`
+			Price            float64       `json:"price,string"`
+			Side             string        `json:"side"`
+			Status           string        `json:"status"`
+			BaseSize         float64       `json:"baseSize,string"`
+			QuoteSize        float64       `json:"quoteSize,string"`
+			PriceAverage     float64       `json:"priceAvg,string"`
+			Size             float64       `json:"size,string"`
+			Amount           float64       `json:"amount,string"`
+			Force            string        `json:"force"`
+			CreationTime     UnixTimestamp `json:"cTime"`
+			UpdateTime       UnixTimestamp `json:"uTime"`
+		} `json:"orderList"`
+		MaxID EmptyInt `json:"maxId"`
+		MinID EmptyInt `json:"minId"`
+	} `json:"data"`
+}
+
+// CrossOrderFills contains information on fulfilled cross orders
+type CrossOrderFills struct {
+	Data struct {
+		Fills []struct {
+			OrderID      int64         `json:"orderId,string"`
+			TradeID      int64         `json:"tradeId,string"`
+			OrderType    string        `json:"orderType"`
+			Side         string        `json:"side"`
+			PriceAverage float64       `json:"priceAvg,string"`
+			Size         float64       `json:"size,string"`
+			Amount       float64       `json:"amount,string"`
+			TradeScope   string        `json:"tradeScope"`
+			CreationTime UnixTimestamp `json:"cTime"`
+			UpdateTime   UnixTimestamp `json:"uTime"`
+			FeeDetail    struct {
+				Deduction         YesNoBool `json:"deduction"`
+				FeeCoin           string    `json:"feeCoin"`
+				TotalDeductionFee float64   `json:"totalDeductionFee,string"`
+				TotalFee          float64   `json:"totalFee,string"`
+			} `json:"feeDetail"`
+		} `json:"fills"`
+		MaxID EmptyInt `json:"maxId"`
+		MinID EmptyInt `json:"minId"`
+	} `json:"data"`
+}
+
+// LiquidationResp contains information on liquidation orders
+type LiquidationResp struct {
+	Data struct {
+		ResultList []struct {
+			Symbol       string        `json:"symbol"`
+			OrderType    string        `json:"orderType"`
+			Side         string        `json:"side"`
+			PriceAverage float64       `json:"priceAvg,string"`
+			Price        float64       `json:"price,string"`
+			FillSize     float64       `json:"fillSize,string"`
+			Size         float64       `json:"size,string"`
+			Amount       float64       `json:"amount,string"`
+			OrderID      int64         `json:"orderId,string"`
+			FromCoin     string        `json:"fromCoin"`
+			ToCoin       string        `json:"toCoin"`
+			FromSize     types.Number  `json:"fromSize"`
+			ToSize       types.Number  `json:"toSize"`
+			CreationTime UnixTimestamp `json:"cTime"`
+			UpdateTime   UnixTimestamp `json:"uTime"`
+		} `json:"resultList"`
+		IDLessThan EmptyInt `json:"idLessThan"`
+	} `json:"data"`
+}
+
+// BorrowHistIso contains information on borrowing history for isolated margin
+type BorrowHistIso struct {
+	Data struct {
+		ResultList []struct {
+			LoanID       int64         `json:"loanId,string"`
+			Coin         string        `json:"coin"`
+			BorrowAmount float64       `json:"borrowAmount,string"`
+			BorrowType   string        `json:"borrowType"`
+			Symbol       string        `json:"symbol"`
+			CreationTime UnixTimestamp `json:"cTime"`
+			UpdateTime   UnixTimestamp `json:"uTime"`
+		} `json:"resultList"`
+		MaxID EmptyInt `json:"maxId"`
+		MinID EmptyInt `json:"minId"`
+	} `json:"data"`
+}
+
+// InterHistIso contains information on interest history for isolated margin
+type InterHistIso struct {
+	Data struct {
+		MinID      EmptyInt `json:"minId"`
+		MaxID      EmptyInt `json:"maxId"`
+		ResultList []struct {
+			InterestID        int64         `json:"interestId,string"`
+			LoanCoin          string        `json:"loanCoin"`
+			InterestCoin      string        `json:"interestCoin"`
+			DailyInterestRate float64       `json:"dailyInterestRate,string"`
+			InterestAmount    float64       `json:"interestAmount,string"`
+			InterestType      string        `json:"interstType"` // sic
+			Symbol            string        `json:"symbol"`
+			CreationTime      UnixTimestamp `json:"cTime"`
+			UpdateTime        UnixTimestamp `json:"uTime"`
+		} `json:"resultList"`
+	} `json:"data"`
+}
+
+// LiquidHistIso contains information on liquidation history for isolated margin
+type LiquidHistIso struct {
+	Data struct {
+		MinID      EmptyInt `json:"minId"`
+		MaxID      EmptyInt `json:"maxId"`
+		ResultList []struct {
+			LiquidationID        int64         `json:"liqId,string"`
+			Symbol               string        `json:"symbol"`
+			LiquidationStartTime UnixTimestamp `json:"liqStartTime"`
+			LiquidationEndTime   UnixTimestamp `json:"liqEndTime"`
+			LiquidationRiskRatio float64       `json:"liqRiskRatio,string"`
+			TotalAssets          float64       `json:"totalAssets,string"`
+			TotalDebt            float64       `json:"totalDebt,string"`
+			LiquidationFee       float64       `json:"liqFee,string"`
+			UpdateTime           UnixTimestamp `json:"uTime"`
+			CreationTime         UnixTimestamp `json:"cTime"`
+		} `json:"resultList"`
+	} `json:"data"`
+}
+
+// FinHistIso contains information on financial history for isolated margin
+type FinHistIso struct {
+	Data struct {
+		MinID      EmptyInt `json:"minId"`
+		MaxID      EmptyInt `json:"maxId"`
+		ResultList []struct {
+			MarginID     int64         `json:"marginId,string"`
+			Amount       float64       `json:"amount,string"`
+			Coin         string        `json:"coin"`
+			Symbol       string        `json:"symbol"`
+			Balance      float64       `json:"balance,string"`
+			Fee          float64       `json:"fee,string"`
+			MarginType   string        `json:"marginType"`
+			UpdateTime   UnixTimestamp `json:"uTime"`
+			CreationTime UnixTimestamp `json:"cTime"`
+		} `json:"resultList"`
+	} `json:"data"`
+}
+
+// IsoAssetResp contains information on assets being utilised in isolated margin
+type IsoAssetResp struct {
+	Data []struct {
+		Symbol       string        `json:"symbol"`
+		Coin         string        `json:"coin"`
+		TotalAmount  float64       `json:"totalAmount,string"`
+		Available    float64       `json:"available,string"`
+		Frozen       float64       `json:"frozen,string"`
+		Borrow       float64       `json:"borrow,string"`
+		Interest     float64       `json:"interest,string"`
+		Net          float64       `json:"net,string"`
+		CreationTime UnixTimestamp `json:"cTime"`
+		UpdateTime   UnixTimestamp `json:"uTime"`
+		Coupon       float64       `json:"coupon,string"`
+	} `json:"data"`
+}
+
+// BorrowIso contains information on borrowing for isolated margin
+type BorrowIso struct {
+	Data struct {
+		LoanID       int64   `json:"loanId,string"`
+		Symbol       string  `json:"symbol"`
+		Coin         string  `json:"coin"`
+		BorrowAmount float64 `json:"borrowAmount,string"`
+	} `json:"data"`
+}
+
+// RepayIso contains information on repayment for isolated margin
+type RepayIso struct {
+	Data struct {
+		Coin                string  `json:"coin"`
+		Symbol              string  `json:"symbol"`
+		RepayID             int64   `json:"repayId,string"`
+		RemainingDebtAmount float64 `json:"remainDebtAmount,string"`
+		RepayAmount         float64 `json:"repayAmount,string"`
+	} `json:"data"`
+}
+
+// RiskRateIso contains information on the risk rate for isolated margin
+type RiskRateIso struct {
+	Data []struct {
+		Symbol        string  `json:"symbol"`
+		RiskRateRatio float64 `json:"riskRateRatio,string"`
+	} `json:"data"`
+}
+
+// IsoVIPList contains information on VIP lists for isolated margin
+type IsoVIPList struct {
+	Level              int64   `json:"level,string"`
+	Limit              float64 `json:"limit,string"`
+	DailyInterestRate  float64 `json:"dailyInterestRate,string"`
+	AnnualInterestRate float64 `json:"annuallyInterestRate,string"`
+	DiscountRate       float64 `json:"discountRate,string"`
+}
+
+// IntRateMaxBorrowIso contains information on the interest rate and the maximum amount that can be borrowed for
+// isolated margin
+type IntRateMaxBorrowIso struct {
+	Data []struct {
+		Symbol                   string       `json:"symbol"`
+		Leverage                 float64      `json:"leverage,string"`
+		BaseCoin                 string       `json:"baseCoin"`
+		BaseTransferable         bool         `json:"baseTransferable"`
+		BaseBorrowable           bool         `json:"baseBorrowable"`
+		BaseDailyInterestRate    float64      `json:"baseDailyInterestRate,string"`
+		BaseAnnualInterestRate   float64      `json:"baseAnnuallyInterestRate,string"` // sic
+		BaseMaxBorrowableAmount  float64      `json:"baseMaxBorrowableAmount,string"`
+		BaseVIPList              []IsoVIPList `json:"baseVipList"`
+		QuoteCoin                string       `json:"quoteCoin"`
+		QuoteTransferable        bool         `json:"quoteTransferable"`
+		QuoteBorrowable          bool         `json:"quoteBorrowable"`
+		QuoteDailyInterestRate   float64      `json:"quoteDailyInterestRate,string"`
+		QuoteAnnualInterestRate  float64      `json:"quoteAnnuallyInterestRate,string"` // sic
+		QuoteMaxBorrowableAmount float64      `json:"quoteMaxBorrowableAmount,string"`
+		QuoteVIPList             []IsoVIPList `json:"quoteList"`
+	} `json:"data"`
+}
+
+// TierConfigIso contains information on tier configurations for isolated margin
+type TierConfigIso struct {
+	Data []struct {
+		Tier                     int64   `json:"tier,string"`
+		Symbol                   string  `json:"symbol"`
+		Leverage                 float64 `json:"leverage,string"`
+		BaseCoin                 string  `json:"baseCoin"`
+		QuoteCoin                string  `json:"quoteCoin"`
+		BaseMaxBorrowableAmount  float64 `json:"baseMaxBorrowableAmount,string"`
+		QuoteMaxBorrowableAmount float64 `json:"quoteMaxBorrowableAmount,string"`
+		MaintainMarginRate       float64 `json:"maintainMarginRate,string"`
+		InitRate                 float64 `json:"initRate,string"`
+	} `json:"data"`
+}
+
+// MaxBorrowIso contains information on the maximum amount that can be borrowed for isolated margin
+type MaxBorrowIso struct {
+	Data struct {
+		Symbol                       string  `json:"symbol"`
+		BaseCoin                     string  `json:"baseCoin"`
+		BaseCoinMaxBorrowableAmount  float64 `json:"baseCoinmaxBorrowAmount,string"`
+		QuoteCoin                    string  `json:"quoteCoin"`
+		QuoteCoinMaxBorrowableAmount float64 `json:"quoteCoinmaxBorrowAmount,string"`
 	} `json:"data"`
 }

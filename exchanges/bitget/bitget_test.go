@@ -2,6 +2,7 @@ package bitget
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"net/url"
 	"os"
@@ -57,6 +58,8 @@ var (
 
 // Developer-defined constants to aid testing
 const (
+	ordersNotFound = "Orders not found"
+
 	skipTestSubAccNotFound       = "appropriate sub-account (equals %v, not equals %v) not found, skipping"
 	skipInsufficientAPIKeysFound = "insufficient API keys found, skipping"
 	skipInsufficientBalance      = "insufficient balance to place order, skipping"
@@ -112,7 +115,7 @@ func TestQueryAnnouncements(t *testing.T) {
 	_, err := bi.QueryAnnouncements(context.Background(), "", time.Now().Add(time.Hour), time.Now())
 	assert.ErrorIs(t, err, common.ErrStartAfterEnd)
 	resp, err := bi.QueryAnnouncements(context.Background(), "latest_news", time.Time{}, time.Time{})
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NotEmpty(t, resp.Data)
 }
 
@@ -129,7 +132,7 @@ func TestGetTradeRate(t *testing.T) {
 	assert.ErrorIs(t, err, errBusinessTypeEmpty)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
 	resp, err := bi.GetTradeRate(context.Background(), "BTCUSDT", "spot")
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NotEmpty(t, resp.Data)
 }
 
@@ -217,7 +220,7 @@ func TestCreateVirtualSubaccounts(t *testing.T) {
 	assert.ErrorIs(t, err, errSubaccountEmpty)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
 	resp, err := bi.CreateVirtualSubaccounts(context.Background(), []string{testSubaccountName})
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NotEmpty(t, resp.Data)
 }
 
@@ -234,7 +237,7 @@ func TestModifyVirtualSubaccount(t *testing.T) {
 	tarID := subAccTestHelper(t, strings.ToLower(string(testSubaccountName[:3]))+"****@virtual-bitget.com", "")
 	perms = append(perms, "read")
 	resp, err := bi.ModifyVirtualSubaccount(context.Background(), tarID, "normal", perms)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NotEmpty(t, resp.Data)
 }
 
@@ -316,7 +319,7 @@ func TestGetAPIKeys(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
 	tarID := subAccTestHelper(t, strings.ToLower(string(testSubaccountName[:3]))+"****@virtual-bitget.com", "")
 	resp, err := bi.GetAPIKeys(context.Background(), tarID)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NotEmpty(t, resp.Data)
 }
 
@@ -335,9 +338,8 @@ func TestGetQuotedPrice(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
 	resp, err := bi.GetQuotedPrice(context.Background(), testCrypto.String(), testFiat.String(), 0, 1)
 	assert.NoError(t, err)
-	assert.NotEmpty(t, resp.Data)
 	resp, err = bi.GetQuotedPrice(context.Background(), testCrypto.String(), testFiat.String(), 0.1, 0)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NotEmpty(t, resp.Data)
 }
 
@@ -381,14 +383,14 @@ func TestGetBGBConvertHistory(t *testing.T) {
 func TestGetCoinInfo(t *testing.T) {
 	t.Parallel()
 	resp, err := bi.GetCoinInfo(context.Background(), "")
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NotEmpty(t, resp.Data)
 }
 
 func TestGetSymbolInfo(t *testing.T) {
 	t.Parallel()
 	resp, err := bi.GetSymbolInfo(context.Background(), "")
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NotEmpty(t, resp.Data)
 }
 
@@ -400,7 +402,7 @@ func TestGetSpotVIPFeeRate(t *testing.T) {
 func TestGetSpotTickerInformation(t *testing.T) {
 	t.Parallel()
 	resp, err := bi.GetSpotTickerInformation(context.Background(), testPair.String())
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NotEmpty(t, resp.Data)
 }
 
@@ -409,14 +411,14 @@ func TestGetSpotMergeDepth(t *testing.T) {
 	_, err := bi.GetSpotMergeDepth(context.Background(), "", "", "")
 	assert.ErrorIs(t, err, errPairEmpty)
 	resp, err := bi.GetSpotMergeDepth(context.Background(), testPair.String(), "scale3", "5")
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NotEmpty(t, resp.Data)
 }
 
 func TestGetOrderbookDepth(t *testing.T) {
 	t.Parallel()
 	resp, err := bi.GetOrderbookDepth(context.Background(), testPair.String(), "", 5)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NotEmpty(t, resp.Data)
 }
 
@@ -434,10 +436,9 @@ func TestGetSpotCandlestickData(t *testing.T) {
 	resp, err := bi.GetSpotCandlestickData(context.Background(), testPair.String(), "1min", time.Time{}, time.Time{},
 		5, false)
 	assert.NoError(t, err)
-	assert.NotEmpty(t, resp.SpotCandles)
 	resp, err = bi.GetSpotCandlestickData(context.Background(), testPair.String(), "1min", time.Time{}, time.Now(), 5,
 		true)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NotEmpty(t, resp.SpotCandles)
 }
 
@@ -446,7 +447,7 @@ func TestGetRecentSpotFills(t *testing.T) {
 	_, err := bi.GetRecentSpotFills(context.Background(), "", 0)
 	assert.ErrorIs(t, err, errPairEmpty)
 	resp, err := bi.GetRecentSpotFills(context.Background(), testPair.String(), 5)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NotEmpty(t, resp.Data)
 }
 
@@ -457,7 +458,7 @@ func TestGetSpotMarketTrades(t *testing.T) {
 	_, err = bi.GetSpotMarketTrades(context.Background(), "meow", time.Now(), time.Now().Add(-time.Second), 0, 0)
 	assert.ErrorIs(t, err, common.ErrStartAfterEnd)
 	resp, err := bi.GetSpotMarketTrades(context.Background(), testPair.String(), time.Time{}, time.Time{}, 5, 1<<62)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NotEmpty(t, resp.Data)
 }
 
@@ -519,7 +520,7 @@ func TestBatchPlaceSpotOrders(t *testing.T) {
 		Size:      testAmount,
 	})
 	resp, err := bi.BatchPlaceSpotOrders(context.Background(), testPair.String(), req, true)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NotEmpty(t, resp.Data)
 }
 
@@ -555,7 +556,7 @@ func TestCancelOrderBySymbol(t *testing.T) {
 	assert.ErrorIs(t, err, errPairEmpty)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi, canManipulateRealOrders)
 	resp, err := bi.CancelOrderBySymbol(context.Background(), testPair.String())
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NotEmpty(t, resp.Data)
 }
 
@@ -615,10 +616,9 @@ func TestPlacePlanSpotOrder(t *testing.T) {
 	_, err = bi.PlacePlanSpotOrder(context.Background(), "meow", "woof", "neigh", "", "", "", "", 1, 0, 1)
 	assert.ErrorIs(t, err, errTriggerTypeEmpty)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi, canManipulateRealOrders)
-	cID := clientIDGenerator()
-	resp, err := bi.PlacePlanSpotOrder(context.Background(), testPair.String(), "sell", "limit", "", "fill_price", cID,
-		"ioc", testPrice, testPrice, testAmount)
-	assert.NoError(t, err)
+	resp, err := bi.PlacePlanSpotOrder(context.Background(), testPair.String(), "sell", "limit", "", "fill_price",
+		clientIDGenerator(), "ioc", testPrice, testPrice, testAmount)
+	require.NoError(t, err)
 	assert.NotEmpty(t, resp.Data)
 }
 
@@ -642,7 +642,7 @@ func TestModifyPlanSpotOrder(t *testing.T) {
 	}
 	resp, err := bi.ModifyPlanSpotOrder(context.Background(), ordID.Data.OrderList[0].OrderID,
 		ordID.Data.OrderList[0].ClientOrderID, "limit", testPrice, testPrice, testAmount)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NotEmpty(t, resp.Data)
 }
 
@@ -653,12 +653,13 @@ func TestCancelPlanSpotOrder(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi, canManipulateRealOrders)
 	ordID, err := bi.GetCurrentSpotPlanOrders(context.Background(), testPair.String(), time.Time{}, time.Time{}, 5, 1<<62)
 	assert.NoError(t, err)
+	require.NotNil(t, ordID)
 	if len(ordID.Data.OrderList) == 0 {
 		t.Skip(skipInsufficientOrders)
 	}
 	resp, err := bi.CancelPlanSpotOrder(context.Background(), ordID.Data.OrderList[0].OrderID,
 		ordID.Data.OrderList[0].ClientOrderID)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NotEmpty(t, resp.Data)
 }
 
@@ -670,7 +671,7 @@ func TestGetCurrentSpotPlanOrders(t *testing.T) {
 	assert.ErrorIs(t, err, common.ErrStartAfterEnd)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
 	resp, err := bi.GetCurrentSpotPlanOrders(context.Background(), testPair.String(), time.Time{}, time.Time{}, 5, 1<<62)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NotEmpty(t, resp.Data)
 }
 
@@ -683,7 +684,7 @@ func TestSpotGetPlanSubOrder(t *testing.T) {
 	resp, err := bi.GetSpotPlanSubOrder(context.Background(), strconv.FormatInt(ordIDs.OrderID, 10))
 	// This gets the error "the current plan order does not exist or has not been triggered" even when using
 	// a plan order that definitely exists and has definitely been triggered
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NotEmpty(t, resp.Data)
 }
 
@@ -710,7 +711,7 @@ func TestGetAccountInfo(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
 	resp, err := bi.GetAccountInfo(context.Background())
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NotEmpty(t, resp.Data)
 }
 
@@ -760,9 +761,8 @@ func TestTransferAsset(t *testing.T) {
 	_, err = bi.TransferAsset(context.Background(), "meow", "woof", "neigh", "", "", 0)
 	assert.ErrorIs(t, err, errAmountEmpty)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi, canManipulateRealOrders)
-	cID := clientIDGenerator()
-	_, err = bi.TransferAsset(context.Background(), "spot", "p2p", testCrypto.String(), testPair.String(), cID,
-		testAmount)
+	_, err = bi.TransferAsset(context.Background(), "spot", "p2p", testCrypto.String(), testPair.String(),
+		clientIDGenerator(), testAmount)
 	assert.NoError(t, err)
 }
 
@@ -774,7 +774,7 @@ func TestGetTransferableCoinList(t *testing.T) {
 	assert.ErrorIs(t, err, errToTypeEmpty)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
 	resp, err := bi.GetTransferableCoinList(context.Background(), "spot", "p2p")
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NotEmpty(t, resp.Data)
 }
 
@@ -795,9 +795,8 @@ func TestSubaccountTransfer(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi, canManipulateRealOrders)
 	fromID := subAccTestHelper(t, "", strings.ToLower(string(testSubaccountName[:3]))+"****@virtual-bitget.com")
 	toID := subAccTestHelper(t, strings.ToLower(string(testSubaccountName[:3]))+"****@virtual-bitget.com", "")
-	cID := clientIDGenerator()
-	_, err = bi.SubaccountTransfer(context.Background(), "spot", "p2p", testCrypto.String(), testPair.String(), cID,
-		fromID, toID, testAmount)
+	_, err = bi.SubaccountTransfer(context.Background(), "spot", "p2p", testCrypto.String(), testPair.String(),
+		clientIDGenerator(), fromID, toID, testAmount)
 	assert.NoError(t, err)
 }
 
@@ -812,9 +811,8 @@ func TestWithdrawFunds(t *testing.T) {
 	_, err = bi.WithdrawFunds(context.Background(), "meow", "woof", "neigh", "", "", "", "", "", "", 0)
 	assert.ErrorIs(t, err, errAmountEmpty)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi, canManipulateRealOrders)
-	cID := clientIDGenerator()
 	_, err = bi.WithdrawFunds(context.Background(), testCrypto.String(), "on_chain", testAddress, "", "", "", "",
-		"", cID, testAmount)
+		"", clientIDGenerator(), testAmount)
 	assert.NoError(t, err)
 }
 
@@ -848,7 +846,7 @@ func TestGetDepositAddressForCurrency(t *testing.T) {
 	assert.ErrorIs(t, err, errCurrencyEmpty)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
 	resp, err := bi.GetDepositAddressForCurrency(context.Background(), testCrypto.String(), "")
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NotEmpty(t, resp.Data)
 }
 
@@ -862,7 +860,7 @@ func TestGetSubaccountDepositAddress(t *testing.T) {
 	resp, err := bi.GetSubaccountDepositAddress(context.Background(), deposSubaccID, testCrypto.String(), "")
 	// Getting the error "The business of this account has been restricted", don't think this was happening
 	// last week.
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NotEmpty(t, resp.Data)
 }
 
@@ -896,7 +894,7 @@ func TestGetFuturesMergeDepth(t *testing.T) {
 	_, err = bi.GetFuturesMergeDepth(context.Background(), "meow", "", "", "")
 	assert.ErrorIs(t, err, errProductTypeEmpty)
 	resp, err := bi.GetFuturesMergeDepth(context.Background(), testPair.String(), "USDT-FUTURES", "scale3", "5")
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NotEmpty(t, resp.Data)
 }
 
@@ -915,7 +913,7 @@ func TestGetAllFuturesTickers(t *testing.T) {
 	_, err := bi.GetAllFuturesTickers(context.Background(), "")
 	assert.ErrorIs(t, err, errProductTypeEmpty)
 	resp, err := bi.GetAllFuturesTickers(context.Background(), "COIN-FUTURES")
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NotEmpty(t, resp.Data)
 }
 
@@ -926,7 +924,7 @@ func TestGetRecentFuturesFills(t *testing.T) {
 	_, err = bi.GetRecentFuturesFills(context.Background(), "meow", "", 0)
 	assert.ErrorIs(t, err, errProductTypeEmpty)
 	resp, err := bi.GetRecentFuturesFills(context.Background(), testPair.String(), "USDT-FUTURES", 5)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NotEmpty(t, resp.Data)
 }
 
@@ -981,7 +979,7 @@ func TestGetFundingHistorical(t *testing.T) {
 	_, err = bi.GetFundingHistorical(context.Background(), "meow", "", 0, 0)
 	assert.ErrorIs(t, err, errProductTypeEmpty)
 	resp, err := bi.GetFundingHistorical(context.Background(), testPair.String(), "USDT-FUTURES", 5, 1)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NotEmpty(t, resp.Data)
 }
 
@@ -1005,7 +1003,7 @@ func TestGetOneFuturesAccount(t *testing.T) {
 	assert.ErrorIs(t, err, errMarginCoinEmpty)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
 	resp, err := bi.GetOneFuturesAccount(context.Background(), testPair.String(), "USDT-FUTURES", "USDT")
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NotEmpty(t, resp.Data)
 }
 
@@ -1015,7 +1013,7 @@ func TestGetAllFuturesAccounts(t *testing.T) {
 	assert.ErrorIs(t, err, errProductTypeEmpty)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
 	resp, err := bi.GetAllFuturesAccounts(context.Background(), "COIN-FUTURES")
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NotEmpty(t, resp.Data)
 }
 
@@ -1025,7 +1023,7 @@ func TestGetFuturesSubaccountAssets(t *testing.T) {
 	assert.ErrorIs(t, err, errProductTypeEmpty)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
 	resp, err := bi.GetFuturesSubaccountAssets(context.Background(), "USDT-FUTURES")
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NotEmpty(t, resp.Data)
 }
 
@@ -1044,7 +1042,7 @@ func TestGetEstimatedOpenCount(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
 	resp, err := bi.GetEstimatedOpenCount(context.Background(), testPair.String(), "USDT-FUTURES", "USDT",
 		testPrice, testAmount, 20)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NotEmpty(t, resp.Data)
 }
 
@@ -1060,7 +1058,7 @@ func TestChangeLeverage(t *testing.T) {
 	assert.ErrorIs(t, err, errLeverageEmpty)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi, canManipulateRealOrders)
 	resp, err := bi.ChangeLeverage(context.Background(), testPair.String(), "USDT-FUTURES", "USDT", "", 20)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NotEmpty(t, resp.Data)
 }
 
@@ -1112,7 +1110,7 @@ func TestChangePositionMode(t *testing.T) {
 	assert.ErrorIs(t, err, errPositionModeEmpty)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi, canManipulateRealOrders)
 	resp, err := bi.ChangePositionMode(context.Background(), testFiat2.String()+"-FUTURES", "hedge_mode")
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NotEmpty(t, resp.Data)
 }
 
@@ -1136,7 +1134,7 @@ func TestGetPositionTier(t *testing.T) {
 	_, err = bi.GetPositionTier(context.Background(), "meow", "")
 	assert.ErrorIs(t, err, errPairEmpty)
 	resp, err := bi.GetPositionTier(context.Background(), testFiat2.String()+"-FUTURES", testPair2.String())
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NotEmpty(t, resp.Data)
 }
 
@@ -1202,10 +1200,9 @@ func TestPlaceFuturesOrder(t *testing.T) {
 		"", "", "", 1, 0, false, false)
 	assert.ErrorIs(t, err, errLimitPriceEmpty)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi, canManipulateRealOrders)
-	cID := clientIDGenerator()
 	resp, err := bi.PlaceFuturesOrder(context.Background(), testPair2.String(), testFiat2.String()+"-FUTURES",
-		"isolated", testFiat2.String(), "buy", "open", "limit", "GTC", cID, "", "", testAmount2, testPrice2, true,
-		true)
+		"isolated", testFiat2.String(), "buy", "open", "limit", "GTC", clientIDGenerator(), "", "", testAmount2,
+		testPrice2, true, true)
 	if err != nil {
 		t.Error(err)
 	}
@@ -1223,9 +1220,8 @@ func TestPlaceReversal(t *testing.T) {
 	_, err = bi.PlaceReversal(context.Background(), "meow", "woof", "neigh", "", "", "", 0, false)
 	assert.ErrorIs(t, err, errAmountEmpty)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi, canManipulateRealOrders)
-	cID := clientIDGenerator()
 	_, err = bi.PlaceReversal(context.Background(), testPair2.String(), testFiat2.String(),
-		testFiat2.String()+"-FUTURES", "Buy", "Open", cID, testAmount, true)
+		testFiat2.String()+"-FUTURES", "Buy", "Open", clientIDGenerator(), testAmount, true)
 	assert.NoError(t, err)
 }
 
@@ -1267,8 +1263,8 @@ func TestGetFuturesOrderDetails(t *testing.T) {
 	assert.ErrorIs(t, err, errOrderClientEmpty)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
 	oID := getFuturesOrdIDHelper(t, false)
-	_, err = bi.GetFuturesOrderDetails(context.Background(), testPair2.String(), testFiat2.String()+"-FUTURES", "",
-		oID.OrderID)
+	_, err = bi.GetFuturesOrderDetails(context.Background(), testPair2.String(), testFiat2.String()+"-FUTURES",
+		oID.ClientOrderID, oID.OrderID)
 	assert.NoError(t, err)
 }
 
@@ -1293,8 +1289,14 @@ func TestGetFuturesOrderFillHistory(t *testing.T) {
 	assert.ErrorIs(t, err, common.ErrStartAfterEnd)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
 	// Keeps getting "Parameter verification failed" error and I can't figure out why
-	_, err = bi.GetFuturesOrderFillHistory(context.Background(), "", testFiat2.String()+"-FUTURES", 0, 0<<62, 0,
+	resp, err := bi.GetFuturesOrderFillHistory(context.Background(), "", testFiat2.String()+"-FUTURES", 0, 1<<62, 5,
 		time.Time{}, time.Time{})
+	require.NoError(t, err)
+	if len(resp.Data.FillList) == 0 {
+		t.Skip(skipInsufficientOrders)
+	}
+	_, err = bi.GetFuturesOrderFillHistory(context.Background(), "", testFiat2.String()+"-FUTURES",
+		resp.Data.FillList[0].OrderID, 1<<62, 5, time.Time{}, time.Time{})
 	assert.NoError(t, err)
 }
 
@@ -1306,8 +1308,14 @@ func TestGetPendingFuturesOrders(t *testing.T) {
 		time.Now().Add(-time.Minute))
 	assert.ErrorIs(t, err, common.ErrStartAfterEnd)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
-	_, err = bi.GetPendingFuturesOrders(context.Background(), 0, 1<<62, 5, "", testPair2.String(),
+	resp, err := bi.GetPendingFuturesOrders(context.Background(), 0, 1<<62, 5, "", testPair2.String(),
 		testFiat2.String()+"-FUTURES", "", time.Now().Add(-time.Hour*24*90), time.Now())
+	require.NoError(t, err)
+	if len(resp.Data.EntrustedList) == 0 {
+		t.Skip(skipInsufficientOrders)
+	}
+	_, err = bi.GetPendingFuturesOrders(context.Background(), resp.Data.EntrustedList[0].OrderID, 1<<62, 5, "",
+		testPair2.String(), testFiat2.String()+"-FUTURES", "", time.Time{}, time.Time{})
 	assert.NoError(t, err)
 }
 
@@ -1319,8 +1327,14 @@ func TestGetHistoricalFuturesOrders(t *testing.T) {
 		time.Now().Add(-time.Minute))
 	assert.ErrorIs(t, err, common.ErrStartAfterEnd)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
-	_, err = bi.GetHistoricalFuturesOrders(context.Background(), 0, 1<<62, 5, "", testPair2.String(),
+	resp, err := bi.GetHistoricalFuturesOrders(context.Background(), 0, 1<<62, 5, "", testPair2.String(),
 		testFiat2.String()+"-FUTURES", time.Time{}, time.Time{})
+	require.NoError(t, err)
+	if len(resp.Data.EntrustedList) == 0 {
+		t.Skip(skipInsufficientOrders)
+	}
+	_, err = bi.GetHistoricalFuturesOrders(context.Background(), resp.Data.EntrustedList[0].OrderID, 1<<62, 5, "",
+		testPair2.String(), testFiat2.String()+"-FUTURES", time.Time{}, time.Time{})
 	assert.NoError(t, err)
 }
 
@@ -1346,24 +1360,19 @@ func TestPlaceTPSLFuturesOrder(t *testing.T) {
 	assert.ErrorIs(t, err, errPairEmpty)
 	_, err = bi.PlaceTPSLFuturesOrder(context.Background(), "meow", "woof", "neigh", "", "", "", "", "", 0, 0, 0)
 	assert.ErrorIs(t, err, errPlanTypeEmpty)
-	_, err = bi.PlaceTPSLFuturesOrder(context.Background(), "meow", "woof", "neigh", "oink", "", "", "", "", 0, 0, 0)
-	assert.ErrorIs(t, err, errTriggerTypeEmpty)
-	_, err = bi.PlaceTPSLFuturesOrder(context.Background(), "meow", "woof", "neigh", "oink", "quack", "", "", "", 0,
+	_, err = bi.PlaceTPSLFuturesOrder(context.Background(), "meow", "woof", "neigh", "oink", "", "", "", "", 0,
 		0, 0)
 	assert.ErrorIs(t, err, errHoldSideEmpty)
-	_, err = bi.PlaceTPSLFuturesOrder(context.Background(), "meow", "woof", "neigh", "oink", "quack", "meow", "", "",
+	_, err = bi.PlaceTPSLFuturesOrder(context.Background(), "meow", "woof", "neigh", "oink", "", "quack", "", "",
 		0, 0, 0)
 	assert.ErrorIs(t, err, errTriggerPriceEmpty)
-	_, err = bi.PlaceTPSLFuturesOrder(context.Background(), "meow", "woof", "neigh", "oink", "quack", "meow", "", "",
+	_, err = bi.PlaceTPSLFuturesOrder(context.Background(), "meow", "woof", "neigh", "oink", "", "quack", "", "",
 		1, 0, 0)
-	assert.ErrorIs(t, err, errExecutePriceEmpty)
-	_, err = bi.PlaceTPSLFuturesOrder(context.Background(), "meow", "woof", "neigh", "oink", "quack", "meow", "", "",
-		1, 1, 0)
 	assert.ErrorIs(t, err, errAmountEmpty)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi, canManipulateRealOrders)
 	resp, err := bi.PlaceTPSLFuturesOrder(context.Background(), testFiat2.String(), testFiat2.String()+"-FUTURES",
-		testPair2.String(), "profit_plan", "mark_price", "short", "", "", testPrice2+2, testPrice2+1, testAmount2)
-	assert.NoError(t, err)
+		testPair2.String(), "profit_plan", "", "short", "", "", testPrice2+2, 0, testAmount2)
+	require.NoError(t, err)
 	assert.NotEmpty(t, resp.Data)
 }
 
@@ -1409,14 +1418,13 @@ func TestPlaceTriggerFuturesOrder(t *testing.T) {
 		"moo", "", "cluck", "", "", "", 1, 1, 0, 1, 0, 0, 1, 0, false)
 	assert.ErrorIs(t, err, errStopLossParamsInconsistency)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi, canManipulateRealOrders)
-	cID := clientIDGenerator()
 	// This returns the error "The parameter does not meet the specification d delegateType is error". The
 	// documentation doesn't mention that parameter anywhere, nothing seems similar to it, and attempts to send
 	// that parameter with various values, or to tweak other parameters, yielded no difference
 	resp, err := bi.PlaceTriggerFuturesOrder(context.Background(), "normal_plan", testPair2.String(),
-		testFiat2.String()+"-FUTURES", "isolated", testFiat2.String(), "mark_price", "Sell", "", "limit", cID, "", "",
-		testAmount2*1000, testPrice2+2, 0, testPrice2+1, 0, 0, 0, 0, false)
-	assert.NoError(t, err)
+		testFiat2.String()+"-FUTURES", "isolated", testFiat2.String(), "mark_price", "Sell", "", "limit",
+		clientIDGenerator(), "", "", testAmount2*1000, testPrice2+2, 0, testPrice2+1, 0, 0, 0, 0, false)
+	require.NoError(t, err)
 	assert.NotEmpty(t, resp.Data)
 }
 
@@ -1438,7 +1446,7 @@ func TestModifyTPSLFuturesOrder(t *testing.T) {
 	ID := getTrigOrdIDHelper(t, []string{"profit_loss"})
 	resp, err := bi.ModifyTPSLFuturesOrder(context.Background(), ID.OrderID, ID.ClientOrderID, testFiat2.String(),
 		testFiat2.String()+"-FUTURES", testPair2.String(), "", testPrice2-1, testPrice2+2, testAmount2, 0.1)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NotEmpty(t, resp.Data)
 }
 
@@ -1464,8 +1472,14 @@ func TestGetPendingTriggerFuturesOrders(t *testing.T) {
 		time.Now().Add(-time.Minute))
 	assert.ErrorIs(t, err, common.ErrStartAfterEnd)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
-	_, err = bi.GetPendingTriggerFuturesOrders(context.Background(), 0, 1<<62, 5, "", testPair2.String(),
+	resp, err := bi.GetPendingTriggerFuturesOrders(context.Background(), 0, 1<<62, 5, "", testPair2.String(),
 		"profit_loss", testFiat2.String()+"-FUTURES", time.Time{}, time.Time{})
+	require.NoError(t, err)
+	if len(resp.Data.EntrustedList) == 0 {
+		t.Skip(skipInsufficientOrders)
+	}
+	_, err = bi.GetPendingTriggerFuturesOrders(context.Background(), resp.Data.EntrustedList[0].OrderID, 1<<62, 5, "",
+		testPair2.String(), "profit_loss", testFiat2.String()+"-FUTURES", time.Time{}, time.Time{})
 	assert.NoError(t, err)
 }
 
@@ -1481,8 +1495,14 @@ func TestGetHistoricalTriggerFuturesOrders(t *testing.T) {
 		time.Now(), time.Now().Add(-time.Minute))
 	assert.ErrorIs(t, err, common.ErrStartAfterEnd)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
-	_, err = bi.GetHistoricalTriggerFuturesOrders(context.Background(), 0, 1<<62, 5, "", "normal_plan", "",
+	resp, err := bi.GetHistoricalTriggerFuturesOrders(context.Background(), 0, 1<<62, 5, "", "normal_plan", "",
 		testPair2.String(), testFiat2.String()+"-FUTURES", time.Time{}, time.Time{})
+	assert.NoError(t, err)
+	if len(resp.Data.EntrustedList) == 0 {
+		t.Skip(skipInsufficientOrders)
+	}
+	_, err = bi.GetHistoricalTriggerFuturesOrders(context.Background(), resp.Data.EntrustedList[0].OrderID, 1<<62, 5,
+		"", "normal_plan", "", testPair2.String(), testFiat2.String()+"-FUTURES", time.Time{}, time.Time{})
 	assert.NoError(t, err)
 }
 
@@ -1494,6 +1514,350 @@ func TestGetSupportedCurrencies(t *testing.T) {
 func TestGetCrossBorrowHistory(t *testing.T) {
 	t.Parallel()
 	_, err := bi.GetCrossBorrowHistory(context.Background(), 0, 0, 0, "", time.Time{}, time.Time{})
+	assert.ErrorIs(t, err, common.ErrDateUnset)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
+	_, err = bi.GetCrossBorrowHistory(context.Background(), 1, 2, 1<<62, "", time.Now().Add(-time.Hour*24*85),
+		time.Time{})
+	assert.NoError(t, err)
+}
+
+func TestGetCrossRepayHistory(t *testing.T) {
+	t.Parallel()
+	_, err := bi.GetCrossRepayHistory(context.Background(), 0, 0, 0, "", time.Time{}, time.Time{})
+	assert.ErrorIs(t, err, common.ErrDateUnset)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
+	_, err = bi.GetCrossRepayHistory(context.Background(), 1, 2, 1<<62, "", time.Now().Add(-time.Hour*24*85),
+		time.Time{})
+	assert.NoError(t, err)
+}
+
+func TestGetCrossInterestHistory(t *testing.T) {
+	t.Parallel()
+	_, err := bi.GetCrossInterestHistory(context.Background(), "", time.Time{}, time.Time{}, 0, 0)
+	assert.ErrorIs(t, err, common.ErrDateUnset)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
+	_, err = bi.GetCrossInterestHistory(context.Background(), "", time.Now().Add(-time.Hour*24*85), time.Time{}, 2,
+		1<<62)
+	assert.NoError(t, err)
+}
+
+func TestGetCrossLiquidationHistory(t *testing.T) {
+	t.Parallel()
+	_, err := bi.GetCrossLiquidationHistory(context.Background(), time.Time{}, time.Time{}, 0, 0)
+	assert.ErrorIs(t, err, common.ErrDateUnset)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
+	_, err = bi.GetCrossLiquidationHistory(context.Background(), time.Now().Add(-time.Hour*24*85), time.Time{}, 2,
+		1<<62)
+	assert.NoError(t, err)
+}
+
+func TestGetCrossFinancialHistory(t *testing.T) {
+	t.Parallel()
+	_, err := bi.GetCrossFinancialHistory(context.Background(), "", "", time.Time{}, time.Time{}, 0, 0)
+	assert.ErrorIs(t, err, common.ErrDateUnset)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
+	_, err = bi.GetCrossFinancialHistory(context.Background(), "", "", time.Now().Add(-time.Hour*24*85), time.Time{},
+		2, 1<<62)
+	assert.NoError(t, err)
+}
+
+func TestGetCrossAccountAssets(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
+	_, err := bi.GetCrossAccountAssets(context.Background(), "")
+	assert.NoError(t, err)
+}
+
+func TestCrossBorrow(t *testing.T) {
+	t.Parallel()
+	_, err := bi.CrossBorrow(context.Background(), "", "", 0)
+	assert.ErrorIs(t, err, errCurrencyEmpty)
+	_, err = bi.CrossBorrow(context.Background(), "meow", "", 0)
+	assert.ErrorIs(t, err, errAmountEmpty)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi, canManipulateRealOrders)
+	_, err = bi.CrossBorrow(context.Background(), testFiat.String(), clientIDGenerator(), testAmount)
+	assert.NoError(t, err)
+}
+
+func TestCrossRepay(t *testing.T) {
+	t.Parallel()
+	_, err := bi.CrossRepay(context.Background(), "", 0)
+	assert.ErrorIs(t, err, errCurrencyEmpty)
+	_, err = bi.CrossRepay(context.Background(), "meow", 0)
+	assert.ErrorIs(t, err, errAmountEmpty)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi, canManipulateRealOrders)
+	_, err = bi.CrossRepay(context.Background(), testFiat.String(), testAmount)
+	assert.NoError(t, err)
+}
+
+func TestGetCrossRiskRate(t *testing.T) {
+	t.Parallel()
+	testGetNoArgs(t, bi.GetCrossRiskRate)
+}
+
+func TestGetCrossMaxBorrowable(t *testing.T) {
+	t.Parallel()
+	_, err := bi.GetCrossMaxBorrowable(context.Background(), "")
+	assert.ErrorIs(t, err, errCurrencyEmpty)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
+	_, err = bi.GetCrossMaxBorrowable(context.Background(), testFiat.String())
+	assert.NoError(t, err)
+}
+
+func TestGetCrossMaxTransferable(t *testing.T) {
+	t.Parallel()
+	_, err := bi.GetCrossMaxTransferable(context.Background(), "")
+	assert.ErrorIs(t, err, errCurrencyEmpty)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
+	_, err = bi.GetCrossMaxTransferable(context.Background(), testFiat.String())
+	assert.NoError(t, err)
+}
+
+func TestGetCrossInterestRateAndMaxBorrowable(t *testing.T) {
+	t.Parallel()
+	_, err := bi.GetCrossInterestRateAndMaxBorrowable(context.Background(), "")
+	assert.ErrorIs(t, err, errCurrencyEmpty)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
+	_, err = bi.GetCrossInterestRateAndMaxBorrowable(context.Background(), testFiat.String())
+	assert.NoError(t, err)
+}
+
+func TestGetCrossTierConfiguration(t *testing.T) {
+	t.Parallel()
+	_, err := bi.GetCrossTierConfiguration(context.Background(), "")
+	assert.ErrorIs(t, err, errCurrencyEmpty)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
+	_, err = bi.GetCrossTierConfiguration(context.Background(), testFiat.String())
+	assert.NoError(t, err)
+}
+
+func TestCrossFlashRepay(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi, canManipulateRealOrders)
+	_, err := bi.CrossFlashRepay(context.Background(), testFiat.String())
+	assert.NoError(t, err)
+}
+
+func TestGetCrossFlashRepayResult(t *testing.T) {
+	t.Parallel()
+	_, err := bi.GetCrossFlashRepayResult(context.Background(), nil)
+	assert.ErrorIs(t, err, errIDListEmpty)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
+	resp, err := bi.CrossFlashRepay(context.Background(), testFiat.String())
+	require.NoError(t, err)
+	require.NotEmpty(t, resp.Data)
+	_, err = bi.GetCrossFlashRepayResult(context.Background(), []int64{resp.Data.RepayID})
+	assert.NoError(t, err)
+}
+
+func TestPlaceCrossOrder(t *testing.T) {
+	t.Parallel()
+	_, err := bi.PlaceCrossOrder(context.Background(), "", "", "", "", "", "", 0, 0, 0)
+	assert.ErrorIs(t, err, errPairEmpty)
+	_, err = bi.PlaceCrossOrder(context.Background(), "meow", "", "", "", "", "", 0, 0, 0)
+	assert.ErrorIs(t, err, errOrderTypeEmpty)
+	_, err = bi.PlaceCrossOrder(context.Background(), "meow", "woof", "", "", "", "", 0, 0, 0)
+	assert.ErrorIs(t, err, errLoanTypeEmpty)
+	_, err = bi.PlaceCrossOrder(context.Background(), "meow", "woof", "neigh", "", "", "", 0, 0, 0)
+	assert.ErrorIs(t, err, errStrategyEmpty)
+	_, err = bi.PlaceCrossOrder(context.Background(), "meow", "woof", "neigh", "oink", "", "", 0, 0, 0)
+	assert.ErrorIs(t, err, errSideEmpty)
+	_, err = bi.PlaceCrossOrder(context.Background(), "meow", "woof", "neigh", "oink", "", "quack", 0, 0, 0)
+	assert.ErrorIs(t, err, errAmountEmpty)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi, canManipulateRealOrders)
+	_, err = bi.PlaceCrossOrder(context.Background(), testPair.String(), "limit", "normal", "GTC", "", "Buy",
+		testPrice2, testAmount2, 0)
+	assert.NoError(t, err)
+}
+
+func TestBatchPlaceCrossOrders(t *testing.T) {
+	t.Parallel()
+	_, err := bi.BatchPlaceCrossOrders(context.Background(), "", nil)
+	assert.ErrorIs(t, err, errPairEmpty)
+	_, err = bi.BatchPlaceCrossOrders(context.Background(), "meow", nil)
+	assert.ErrorIs(t, err, errOrdersEmpty)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi, canManipulateRealOrders)
+	orders := []CrossOrderData{
+		{
+			BaseAmount: testAmount2,
+			Price:      testPrice2,
+			OrderType:  "limit",
+			Strategy:   "GTC",
+			LoanType:   "normal",
+			Side:       "Buy",
+		},
+	}
+	_, err = bi.BatchPlaceCrossOrders(context.Background(), testPair.String(), orders)
+	assert.NoError(t, err)
+}
+
+func TestGetCrossOpenOrders(t *testing.T) {
+	t.Parallel()
+	_, err := bi.GetCrossOpenOrders(context.Background(), "", "", 0, 0, 0, time.Time{}, time.Time{})
+	assert.ErrorIs(t, err, errPairEmpty)
+	_, err = bi.GetCrossOpenOrders(context.Background(), "meow", "", 0, 0, 0, time.Time{}, time.Time{})
+	assert.ErrorIs(t, err, common.ErrDateUnset)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
+	resp := getCrossOrdIDHelper(t)
+	_, err = bi.GetCrossOpenOrders(context.Background(), testPair.String(), "", resp.OrderID,
+		5, 1<<62, time.Now().Add(-time.Hour*24*85), time.Time{})
+	assert.NoError(t, err)
+}
+
+func TestGetCrossHistoricalorders(t *testing.T) {
+	t.Parallel()
+	_, err := bi.GetCrossHistoricalOrders(context.Background(), "", "", "", 0, 0, 0, time.Time{}, time.Time{})
+	assert.ErrorIs(t, err, errPairEmpty)
+	_, err = bi.GetCrossHistoricalOrders(context.Background(), "meow", "", "", 0, 0, 0, time.Time{}, time.Time{})
+	assert.ErrorIs(t, err, common.ErrDateUnset)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
+	resp, err := bi.GetCrossHistoricalOrders(context.Background(), testPair.String(), "", "", 0, 5, 1<<62,
+		time.Now().Add(-time.Hour*24*85), time.Time{})
+	require.NoError(t, err)
+	if len(resp.Data.OrderList) == 0 {
+		t.Skip(skipInsufficientOrders)
+	}
+	_, err = bi.GetCrossHistoricalOrders(context.Background(), testPair.String(), "", "",
+		resp.Data.OrderList[0].OrderID, 5, 1<<62, time.Now().Add(-time.Hour*24*85), time.Time{})
+	assert.NoError(t, err)
+}
+
+func TestGetCrossOrderFills(t *testing.T) {
+	t.Parallel()
+	_, err := bi.GetCrossOrderFills(context.Background(), "", 0, 0, 0, time.Time{}, time.Time{})
+	assert.ErrorIs(t, err, errPairEmpty)
+	_, err = bi.GetCrossOrderFills(context.Background(), "meow", 0, 0, 0, time.Time{}, time.Time{})
+	assert.ErrorIs(t, err, common.ErrDateUnset)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
+	resp, err := bi.GetCrossOrderFills(context.Background(), testPair.String(), 0, 1<<62, 5,
+		time.Now().Add(-time.Hour*24*85), time.Time{})
+	require.NoError(t, err)
+	if len(resp.Data.Fills) == 0 {
+		t.Skip(skipInsufficientOrders)
+	}
+	_, err = bi.GetCrossOrderFills(context.Background(), testPair.String(), resp.Data.Fills[0].OrderID, 1<<62, 5,
+		time.Now().Add(-time.Hour*24*85), time.Time{})
+	assert.NoError(t, err)
+}
+
+func TestGetCrossLiquidationOrders(t *testing.T) {
+	t.Parallel()
+	_, err := bi.GetCrossLiquidationOrders(context.Background(), "", "", "", "", time.Now(),
+		time.Now().Add(-time.Minute), 5, 1<<62)
+	assert.ErrorIs(t, err, common.ErrStartAfterEnd)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
+	_, err = bi.GetCrossLiquidationOrders(context.Background(), "", "", "", "", time.Time{}, time.Time{}, 5, 1<<62)
+	assert.NoError(t, err)
+}
+
+func TestGetIsolatedRepayHistory(t *testing.T) {
+	t.Parallel()
+	_, err := bi.GetIsolatedRepayHistory(context.Background(), "", "", 0, 0, 0, time.Time{}, time.Time{})
+	assert.ErrorIs(t, err, errPairEmpty)
+	_, err = bi.GetIsolatedRepayHistory(context.Background(), "meow", "", 0, 0, 0, time.Time{}, time.Time{})
+	assert.ErrorIs(t, err, common.ErrDateUnset)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
+	resp, err := bi.GetIsolatedRepayHistory(context.Background(), testPair.String(), "", 0, 5, 1<<62,
+		time.Now().Add(-time.Hour*24*85), time.Time{})
+	require.NoError(t, err)
+	if len(resp.Data.ResultList) == 0 {
+		t.Skip(skipInsufficientOrders)
+	}
+	_, err = bi.GetIsolatedRepayHistory(context.Background(), testPair.String(), "", resp.Data.ResultList[0].RepayID,
+		5, 1<<62, time.Now().Add(-time.Hour*24*85), time.Time{})
+	assert.NoError(t, err)
+}
+
+func TestGetIsolatedInterestHistory(t *testing.T) {
+	t.Parallel()
+	_, err := bi.GetIsolatedInterestHistory(context.Background(), "", "", time.Time{}, time.Time{}, 0, 0)
+	assert.ErrorIs(t, err, errPairEmpty)
+	_, err = bi.GetIsolatedInterestHistory(context.Background(), "meow", "", time.Time{}, time.Time{}, 0, 0)
+	assert.ErrorIs(t, err, common.ErrDateUnset)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
+	_, err = bi.GetIsolatedInterestHistory(context.Background(), testPair.String(), "",
+		time.Now().Add(-time.Hour*24*85), time.Time{}, 2, 1<<62)
+	assert.NoError(t, err)
+}
+
+func TestGetIsolatedLiquidationHistory(t *testing.T) {
+	t.Parallel()
+	_, err := bi.GetIsolatedLiquidationHistory(context.Background(), "", time.Time{}, time.Time{}, 0, 0)
+	assert.ErrorIs(t, err, errPairEmpty)
+	_, err = bi.GetIsolatedLiquidationHistory(context.Background(), "meow", time.Time{}, time.Time{}, 0, 0)
+	assert.ErrorIs(t, err, common.ErrDateUnset)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
+	_, err = bi.GetIsolatedLiquidationHistory(context.Background(), testPair.String(),
+		time.Now().Add(-time.Hour*24*85), time.Time{}, 2, 1<<62)
+	assert.NoError(t, err)
+}
+
+func TestGetIsolatedFinancialHistory(t *testing.T) {
+	t.Parallel()
+	_, err := bi.GetIsolatedFinancialHistory(context.Background(), "", "", "", time.Time{}, time.Time{}, 0, 0)
+	assert.ErrorIs(t, err, errPairEmpty)
+	_, err = bi.GetIsolatedFinancialHistory(context.Background(), "meow", "", "", time.Time{}, time.Time{}, 0, 0)
+	assert.ErrorIs(t, err, common.ErrDateUnset)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
+	_, err = bi.GetIsolatedFinancialHistory(context.Background(), testPair.String(), "", "",
+		time.Now().Add(-time.Hour*24*85), time.Time{}, 2, 1<<62)
+	assert.NoError(t, err)
+}
+
+func TestGetIsolatedAccoutnAssets(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
+	_, err := bi.GetIsolatedAccountAssets(context.Background(), "")
+	assert.NoError(t, err)
+}
+
+func TestIsolatedBorrow(t *testing.T) {
+	t.Parallel()
+	_, err := bi.IsolatedBorrow(context.Background(), "", "", "", 0)
+	assert.ErrorIs(t, err, errPairEmpty)
+	_, err = bi.IsolatedBorrow(context.Background(), "meow", "", "", 0)
+	assert.ErrorIs(t, err, errCurrencyEmpty)
+	_, err = bi.IsolatedBorrow(context.Background(), "meow", "woof", "", 0)
+	assert.ErrorIs(t, err, errAmountEmpty)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi, canManipulateRealOrders)
+	_, err = bi.IsolatedBorrow(context.Background(), testPair.String(), testFiat.String(), "", testAmount)
+	assert.NoError(t, err)
+}
+
+func TestIsolatedRepay(t *testing.T) {
+	t.Parallel()
+	_, err := bi.IsolatedRepay(context.Background(), 0, "", "", "")
+	assert.ErrorIs(t, err, errAmountEmpty)
+	_, err = bi.IsolatedRepay(context.Background(), 1, "", "", "")
+	assert.ErrorIs(t, err, errCurrencyEmpty)
+	_, err = bi.IsolatedRepay(context.Background(), 1, "meow", "", "")
+	assert.ErrorIs(t, err, errPairEmpty)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi, canManipulateRealOrders)
+	_, err = bi.IsolatedRepay(context.Background(), testAmount, testFiat.String(), testPair.String(), "")
+	assert.NoError(t, err)
+}
+
+func TestIsolatedRiskRate(t *testing.T) {
+	t.Parallel()
+	_, err := bi.GetIsolatedRiskRate(context.Background(), "", 1, 5)
+	assert.NoError(t, err)
+}
+
+func TestGetIsolatedInterestRateAndMaxBorrowable(t *testing.T) {
+	t.Parallel()
+	_, err := bi.GetIsolatedInterestRateAndMaxBorrowable(context.Background(), "")
+	assert.ErrorIs(t, err, errPairEmpty)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
+	_, err = bi.GetIsolatedInterestRateAndMaxBorrowable(context.Background(), testPair.String())
+	assert.NoError(t, err)
+}
+
+func TestGetIsolatedMaxborrowable(t *testing.T) {
+	t.Parallel()
+	_, err := bi.GetIsolatedMaxBorrowable(context.Background(), "")
+	assert.ErrorIs(t, err, errPairEmpty)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
+	_, err = bi.GetIsolatedMaxBorrowable(context.Background(), testPair.String())
 	assert.NoError(t, err)
 }
 
@@ -1527,9 +1891,8 @@ func TestModifyFuturesOrder(t *testing.T) {
 	assert.ErrorIs(t, err, errNewClientOrderIDEmpty)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi, canManipulateRealOrders)
 	oID := getFuturesOrdIDHelper(t, true)
-	cID := clientIDGenerator()
 	_, err = bi.ModifyFuturesOrder(context.Background(), oID.OrderID, oID.ClientOrderID, testPair2.String(),
-		testFiat2.String()+"-FUTURES", cID, 0, 0, testAmount2+1, testPrice2)
+		testFiat2.String()+"-FUTURES", clientIDGenerator(), 0, 0, testAmount2+1, testPrice2)
 	assert.NoError(t, err)
 }
 
@@ -1588,12 +1951,36 @@ func TestCancelTriggerFuturesOrders(t *testing.T) {
 	ordList = append(ordList, *oID)
 	resp, err := bi.CancelTriggerFuturesOrders(context.Background(), ordList, testPair2.String(),
 		testFiat2.String()+"-FUTURES", "", "")
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NotEmpty(t, resp.Data)
 }
 
+// The following 2 tests aren't parallel due to collisions with each other, and some other cross-related tests
+func TestCancelCrossOrder(t *testing.T) {
+	_, err := bi.CancelCrossOrder(context.Background(), "", "", 0)
+	assert.ErrorIs(t, err, errPairEmpty)
+	_, err = bi.CancelCrossOrder(context.Background(), "meow", "", 0)
+	assert.ErrorIs(t, err, errOrderClientEmpty)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi, canManipulateRealOrders)
+	oID := getCrossOrdIDHelper(t)
+	_, err = bi.CancelCrossOrder(context.Background(), testPair.String(), oID.ClientOrderID, oID.OrderID)
+	assert.NoError(t, err)
+}
+
+func TestBatchCancelCrossOrders(t *testing.T) {
+	_, err := bi.BatchCancelCrossOrders(context.Background(), "", nil)
+	assert.ErrorIs(t, err, errPairEmpty)
+	_, err = bi.BatchCancelCrossOrders(context.Background(), "meow", nil)
+	assert.ErrorIs(t, err, errOrdersEmpty)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi, canManipulateRealOrders)
+	oID := getCrossOrdIDHelper(t)
+	_, err = bi.BatchCancelCrossOrders(context.Background(), testPair.String(), []OrderIDStruct{*oID})
+	assert.NoError(t, err)
+}
+
 type getNoArgsResp interface {
-	*TimeResp | *P2PMerInfoResp | *ConvertCoinsResp | *BGBConvertCoinsResp | *VIPFeeRateResp | *SupCurrencyResp
+	*TimeResp | *P2PMerInfoResp | *ConvertCoinsResp | *BGBConvertCoinsResp | *VIPFeeRateResp | *SupCurrencyResp |
+		*RiskRateCross
 }
 
 type getNoArgsAssertNotEmpty[G getNoArgsResp] func(context.Context) (G, error)
@@ -1673,6 +2060,7 @@ func getFuturesOrdIDHelper(t *testing.T, live bool) *OrderIDStruct {
 	}
 	if resp != nil {
 		if len(resp.Data.EntrustedList) != 0 {
+			fmt.Printf("Did they land here and encounter this? %v\n", resp.Data.EntrustedList[0])
 			return &OrderIDStruct{
 				OrderID:       resp.Data.EntrustedList[0].OrderID,
 				ClientOrderID: resp.Data.EntrustedList[0].ClientOrderID,
@@ -1687,6 +2075,7 @@ func getFuturesOrdIDHelper(t *testing.T, live bool) *OrderIDStruct {
 		}
 		if resp != nil {
 			if len(resp.Data.EntrustedList) != 0 {
+				fmt.Printf("Or did they land here and encounter this? %v\n", resp.Data.EntrustedList[0])
 				return &OrderIDStruct{
 					OrderID:       resp.Data.EntrustedList[0].OrderID,
 					ClientOrderID: resp.Data.EntrustedList[0].ClientOrderID,
@@ -1695,9 +2084,10 @@ func getFuturesOrdIDHelper(t *testing.T, live bool) *OrderIDStruct {
 		}
 	}
 	t.Skip(skipInsufficientOrders)
+	fmt.Print("Or did they simply skip?")
 	return &OrderIDStruct{
 		OrderID:       0,
-		ClientOrderID: "Orders Not Found",
+		ClientOrderID: ordersNotFound,
 	}
 }
 
@@ -1730,7 +2120,25 @@ func getTrigOrdIDHelper(t *testing.T, planTypes []string) *OrderIDStruct {
 	t.Skip(skipInsufficientOrders)
 	return &OrderIDStruct{
 		OrderID:       0,
-		ClientOrderID: "Orders Not Found",
+		ClientOrderID: ordersNotFound,
+	}
+}
+
+func getCrossOrdIDHelper(t *testing.T) *OrderIDStruct {
+	t.Helper()
+	resp, err := bi.GetCrossOpenOrders(context.Background(), testPair.String(), "", 0, 5, 1<<62,
+		time.Now().Add(-time.Hour*24*85), time.Time{})
+	require.NoError(t, err)
+	if len(resp.Data.OrderList) != 0 {
+		return &OrderIDStruct{
+			OrderID:       resp.Data.OrderList[0].OrderID,
+			ClientOrderID: resp.Data.OrderList[0].ClientOrderID,
+		}
+	}
+	t.Skip(skipInsufficientOrders)
+	return &OrderIDStruct{
+		OrderID:       0,
+		ClientOrderID: ordersNotFound,
 	}
 }
 
