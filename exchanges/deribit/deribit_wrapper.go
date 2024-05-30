@@ -7,6 +7,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/shopspring/decimal"
@@ -259,17 +260,26 @@ func (d *Deribit) FetchTradablePairs(ctx context.Context, assetType asset.Item) 
 // them in the exchanges config
 func (d *Deribit) UpdateTradablePairs(ctx context.Context, forceUpdate bool) error {
 	assets := d.GetAssetTypes(false)
+	var wg sync.WaitGroup
+	wg.Add(len(assets))
+	var errs error
 	for x := range assets {
-		pairs, err := d.FetchTradablePairs(ctx, assets[x])
-		if err != nil {
-			return err
-		}
-		err = d.UpdatePairs(pairs, assets[x], false, forceUpdate)
-		if err != nil {
-			return err
-		}
+		go func(x int) {
+			defer wg.Done()
+			pairs, err := d.FetchTradablePairs(ctx, assets[x])
+			if err != nil {
+				errs = common.AppendError(errs, err)
+				return
+			}
+			err = d.UpdatePairs(pairs, assets[x], false, forceUpdate)
+			if err != nil {
+				errs = common.AppendError(errs, err)
+				return
+			}
+		}(x)
 	}
-	return nil
+	wg.Wait()
+	return errs
 }
 
 // UpdateTickers updates the ticker for all currency pairs of a given asset type
@@ -1490,6 +1500,9 @@ func (d *Deribit) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]fu
 // IsPerpetualFutureCurrency ensures a given asset and currency is a perpetual future
 // differs by exchange
 func (d *Deribit) IsPerpetualFutureCurrency(assetType asset.Item, pair currency.Pair) (bool, error) {
+	if pair.IsEmpty() {
+		return false, currency.ErrCurrencyPairEmpty
+	}
 	if !assetType.IsFutures() {
 		return false, futures.ErrNotPerpetualFuture
 	} else if strings.EqualFold(pair.Quote.String(), "PERPETUAL") || strings.HasSuffix(pair.String(), "PERP") {

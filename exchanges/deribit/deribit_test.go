@@ -3840,6 +3840,20 @@ func TestGetOpenInterest(t *testing.T) {
 	})
 	require.True(t, err == nil || errors.Is(err, currency.ErrCurrencyNotFound))
 
+	_, err = d.GetOpenInterest(context.Background(), key.PairAsset{
+		Base:  currency.BTC.Item,
+		Quote: currency.NewCode("PERPETUAL").Item,
+		Asset: asset.Futures,
+	})
+	require.NoError(t, err)
+
+	_, err = d.GetOpenInterest(context.Background(), key.PairAsset{
+		Base:  currency.XRP.Item,
+		Quote: currency.NewCode("USDC-PERPETUAL").Item,
+		Asset: asset.Futures,
+	})
+	require.NoError(t, err)
+
 	var result []futures.OpenInterest
 	assetTypeToPairs := getAssetToPairMap(asset.Futures & asset.FutureCombo)
 	for assetType, cp := range assetTypeToPairs {
@@ -3861,26 +3875,27 @@ func TestIsPerpetualFutureCurrency(t *testing.T) {
 		Response bool
 	}{
 		asset.Spot: {
-			{Pair: currency.EMPTYPAIR, Error: futures.ErrNotPerpetualFuture},
+			{Pair: currency.EMPTYPAIR, Error: currency.ErrCurrencyPairEmpty, Response: false},
+			{Pair: spotTradablePair, Error: nil, Response: false},
 		},
 		asset.Futures: {
-			{Pair: currency.EMPTYPAIR, Error: currency.ErrCurrencyPairEmpty},
 			{Pair: currency.NewPair(currency.BTC, currency.NewCode("PERPETUAL")), Response: true},
-			{Pair: currency.NewPair(currency.NewCode("ETH"), currency.NewCode("FS-30DEC22_PERP")), Response: true},
 		},
 		asset.FutureCombo: {
-			{Pair: currency.NewPair(currency.NewCode("SOL"), currency.NewCode("FS-30DEC22_28OCT22"))},
+			{Pair: currency.NewPair(currency.NewCode("BTC"), currency.NewCode("FS-27SEP24_PERP")), Response: false},
 		},
 		asset.OptionCombo: {
-			{Pair: currency.NewPair(currency.NewCode(currencyBTC), currency.NewCode("STRG-21OCT22")), Error: futures.ErrNotPerpetualFuture},
-			{Pair: currency.EMPTYPAIR, Error: futures.ErrNotPerpetualFuture},
+			{Pair: currency.NewPair(currency.NewCode(currencyBTC), currency.NewCode("STRG-21OCT22")), Error: nil, Response: false},
 		},
 	}
 	for assetType, instances := range assetPairToErrorMap {
 		for i := range instances {
-			is, err := d.IsPerpetualFutureCurrency(assetType, instances[i].Pair)
-			require.ErrorIsf(t, err, instances[i].Error, "expected %v, got %v for asset: %s pair: %s", instances[i].Error, err, assetType.String(), instances[i].Pair.String())
-			require.Equalf(t, is, instances[i].Response, "expected %v, got %v for asset: %s pair: %s", instances[i].Response, is, assetType.String(), instances[i].Pair.String())
+			t.Run(fmt.Sprintf("Asset: %s Pair: %s", assetType.String(), instances[i].Pair.String()), func(t *testing.T) {
+				t.Parallel()
+				is, err := d.IsPerpetualFutureCurrency(assetType, instances[i].Pair)
+				require.ErrorIsf(t, err, instances[i].Error, "expected %v, got %v for asset: %s pair: %s", instances[i].Error, err, assetType.String(), instances[i].Pair.String())
+				require.Equalf(t, is, instances[i].Response, "expected %v, got %v for asset: %s pair: %s", instances[i].Response, is, assetType.String(), instances[i].Pair.String())
+			})
 		}
 	}
 }

@@ -216,7 +216,7 @@ func (b *Base) Verify() error {
 	// level books. In the event that there is a massive liquidity change where
 	// a book dries up, this will still update so we do not traverse potential
 	// incorrect old data.
-	if len(b.Asks) == 0 || len(b.Bids) == 0 {
+	if (len(b.Asks) == 0 || len(b.Bids) == 0) && !b.Asset.IsOptions() {
 		log.Warnf(log.OrderBook,
 			bookLengthIssue,
 			b.Exchange,
