@@ -740,8 +740,8 @@ func (d *Deribit) processOrderbook(respRaw []byte, channels []string) error {
 	return nil
 }
 
-// GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
-func (d *Deribit) GenerateDefaultSubscriptions() (subscription.List, error) {
+// generateSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
+func (d *Deribit) generateSubscriptions() (subscription.List, error) {
 	var subscriptions subscription.List
 	assets := d.GetAssetTypes(true)
 	subscriptionChannels := defaultSubscriptions
