@@ -197,7 +197,7 @@ func (d *Deribit) Setup(exch *config.Exchange) error {
 		Connector:             d.WsConnect,
 		Subscriber:            d.Subscribe,
 		Unsubscriber:          d.Unsubscribe,
-		GenerateSubscriptions: d.GenerateDefaultSubscriptions,
+		GenerateSubscriptions: d.generateSubscriptions,
 		Features:              &d.Features.Supports.WebsocketCapabilities,
 		OrderbookBufferConfig: buffer.Config{
 			SortBuffer:            true,

@@ -3266,9 +3266,9 @@ func setupWs() {
 	}
 }
 
-func TestGenerateDefaultSubscriptions(t *testing.T) {
+func TestGenerateSubscriptions(t *testing.T) {
 	t.Parallel()
-	result, err := d.GenerateDefaultSubscriptions()
+	result, err := d.generateSubscriptions()
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
