@@ -59,10 +59,6 @@ var (
 	errEndpointStringNotFound            = errors.New("endpoint string not found")
 	errConfigPairFormatRequiresDelimiter = errors.New("config pair format requires delimiter")
 	errSymbolCannotBeMatched             = errors.New("symbol cannot be matched")
-	errGlobalRequestFormatIsNil          = errors.New("global request format is nil")
-	errGlobalConfigFormatIsNil           = errors.New("global config format is nil")
-	errAssetRequestFormatIsNil           = errors.New("asset type request format is nil")
-	errAssetConfigFormatIsNil            = errors.New("asset type config format is nil")
 	errSetDefaultsNotCalled              = errors.New("set defaults not called")
 	errExchangeIsNil                     = errors.New("exchange is nil")
 	errBatchSizeZero                     = errors.New("batch size cannot be 0")
@@ -401,39 +397,9 @@ func (b *Base) GetSupportedFeatures() FeaturesSupported {
 	return b.Features.Supports
 }
 
-// GetPairFormat returns the pair format based on the exchange and
-// asset type
-func (b *Base) GetPairFormat(assetType asset.Item, requestFormat bool) (currency.PairFormat, error) {
-	if b.CurrencyPairs.UseGlobalFormat {
-		if requestFormat {
-			if b.CurrencyPairs.RequestFormat == nil {
-				return currency.EMPTYFORMAT, errGlobalRequestFormatIsNil
-			}
-			return *b.CurrencyPairs.RequestFormat, nil
-		}
-
-		if b.CurrencyPairs.ConfigFormat == nil {
-			return currency.EMPTYFORMAT, errGlobalConfigFormatIsNil
-		}
-		return *b.CurrencyPairs.ConfigFormat, nil
-	}
-
-	ps, err := b.CurrencyPairs.Get(assetType)
-	if err != nil {
-		return currency.EMPTYFORMAT, err
-	}
-
-	if requestFormat {
-		if ps.RequestFormat == nil {
-			return currency.EMPTYFORMAT, errAssetRequestFormatIsNil
-		}
-		return *ps.RequestFormat, nil
-	}
-
-	if ps.ConfigFormat == nil {
-		return currency.EMPTYFORMAT, errAssetConfigFormatIsNil
-	}
-	return *ps.ConfigFormat, nil
+// GetPairFormat returns the pair format based on the exchange and asset type
+func (b *Base) GetPairFormat(a asset.Item, r bool) (currency.PairFormat, error) {
+	return b.CurrencyPairs.GetFormat(a, r)
 }
 
 // GetEnabledPairs is a method that returns the enabled currency pairs of
@@ -1012,11 +978,9 @@ func (b *Base) FormatWithdrawPermissions() string {
 	return NoAPIWithdrawalMethodsText
 }
 
-// SupportsAsset whether or not the supplied asset is supported
-// by the exchange
+// SupportsAsset whether or not the supplied asset is supported by the exchange
 func (b *Base) SupportsAsset(a asset.Item) bool {
-	_, ok := b.CurrencyPairs.Pairs[a]
-	return ok
+	return b.CurrencyPairs.IsAssetSupported(a)
 }
 
 // PrintEnabledPairs prints the exchanges enabled asset pairs
@@ -1087,12 +1051,10 @@ func (b *Base) StoreAssetPairFormat(a asset.Item, f currency.PairStore) error {
 	return nil
 }
 
-// SetGlobalPairsManager sets defined asset and pairs management system with
-// global formatting
+// SetGlobalPairsManager sets defined asset and pairs management system with global formatting
 func (b *Base) SetGlobalPairsManager(request, config *currency.PairFormat, assets ...asset.Item) error {
 	if request == nil {
-		return fmt.Errorf("%s cannot set pairs manager, request pair format not provided",
-			b.Name)
+		return fmt.Errorf("%s cannot set pairs manager, request pair format not provided", b.Name)
 	}
 
 	if config == nil {
@@ -1124,10 +1086,10 @@ func (b *Base) SetGlobalPairsManager(request, config *currency.PairFormat, asset
 	for i := range assets {
 		if assets[i].String() == "" {
 			b.CurrencyPairs.Pairs = nil
-			return fmt.Errorf("%s cannot set pairs manager, asset is empty string",
-				b.Name)
+			return fmt.Errorf("%s cannot set pairs manager, asset is empty string", b.Name)
 		}
 		b.CurrencyPairs.Pairs[assets[i]] = new(currency.PairStore)
+		b.CurrencyPairs.Pairs[assets[i]].AssetEnabled = convert.BoolPtr(true)
 		b.CurrencyPairs.Pairs[assets[i]].ConfigFormat = config
 		b.CurrencyPairs.Pairs[assets[i]].RequestFormat = request
 	}

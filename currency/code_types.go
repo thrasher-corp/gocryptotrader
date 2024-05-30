@@ -3073,6 +3073,7 @@ var (
 	WIF              = NewCode("WIF")
 	AIDOGE           = NewCode("AIDOGE")
 	PEPE             = NewCode("PEPE")
+	EURR             = NewCode("EURR")
 
 	stables = Currencies{
 		USDT,

@@ -407,16 +407,16 @@ func (c *CoinbasePro) UpdateOrderbook(ctx context.Context, p currency.Pair, asse
 		if err != nil {
 			return book, err
 		}
-		book.Bids = make(orderbook.Items, len(obN.Bids))
+		book.Bids = make(orderbook.Tranches, len(obN.Bids))
 		for x := range obN.Bids {
-			book.Bids[x] = orderbook.Item{
+			book.Bids[x] = orderbook.Tranche{
 				Amount: obN.Bids[x].Size,
 				Price:  obN.Bids[x].Price,
 			}
 		}
-		book.Asks = make(orderbook.Items, len(obN.Asks))
+		book.Asks = make(orderbook.Tranches, len(obN.Asks))
 		for x := range obN.Asks {
-			book.Asks[x] = orderbook.Item{
+			book.Asks[x] = orderbook.Tranche{
 				Amount: obN.Asks[x].Size,
 				Price:  obN.Asks[x].Price,
 			}
@@ -427,16 +427,16 @@ func (c *CoinbasePro) UpdateOrderbook(ctx context.Context, p currency.Pair, asse
 		if err != nil {
 			return book, err
 		}
-		book.Bids = make(orderbook.Items, len(orderbookNew.Bids))
+		book.Bids = make(orderbook.Tranches, len(orderbookNew.Bids))
 		for x := range orderbookNew.Bids {
-			book.Bids[x] = orderbook.Item{
+			book.Bids[x] = orderbook.Tranche{
 				Amount: orderbookNew.Bids[x].Size,
 				Price:  orderbookNew.Bids[x].Price,
 			}
 		}
-		book.Asks = make(orderbook.Items, len(orderbookNew.Asks))
+		book.Asks = make(orderbook.Tranches, len(orderbookNew.Asks))
 		for x := range orderbookNew.Asks {
-			book.Asks[x] = orderbook.Item{
+			book.Asks[x] = orderbook.Tranche{
 				Amount: orderbookNew.Asks[x].Size,
 				Price:  orderbookNew.Asks[x].Price,
 			}

@@ -41,12 +41,15 @@ const (
 	USDTMarginedFutures
 	USDCMarginedFutures
 	Options
+	OptionCombo
+	FutureCombo
 
 	// Added to represent a USDT and USDC based linear derivatives(futures/perpetual) assets in Bybit V5.
 	LinearContract
 
-	futuresFlag   = PerpetualContract | PerpetualSwap | Futures | DeliveryFutures | UpsideProfitContract | DownsideProfitContract | CoinMarginedFutures | USDTMarginedFutures | USDCMarginedFutures | LinearContract
-	supportedFlag = Spot | Margin | CrossMargin | MarginFunding | Index | Binary | PerpetualContract | PerpetualSwap | Futures | DeliveryFutures | UpsideProfitContract | DownsideProfitContract | CoinMarginedFutures | USDTMarginedFutures | USDCMarginedFutures | Options | LinearContract
+	optionsFlag   = OptionCombo | Options
+	futuresFlag   = PerpetualContract | PerpetualSwap | Futures | DeliveryFutures | UpsideProfitContract | DownsideProfitContract | CoinMarginedFutures | USDTMarginedFutures | USDCMarginedFutures | LinearContract | FutureCombo
+	supportedFlag = Spot | Margin | CrossMargin | MarginFunding | Index | Binary | PerpetualContract | PerpetualSwap | Futures | DeliveryFutures | UpsideProfitContract | DownsideProfitContract | CoinMarginedFutures | USDTMarginedFutures | USDCMarginedFutures | Options | LinearContract | OptionCombo | FutureCombo
 
 	spot                   = "spot"
 	margin                 = "margin"
@@ -65,10 +68,12 @@ const (
 	usdtMarginedFutures    = "usdtmarginedfutures"
 	usdcMarginedFutures    = "usdcmarginedfutures"
 	options                = "options"
+	optionCombo            = "option_combo"
+	futureCombo            = "future_combo"
 )
 
 var (
-	supportedList = Items{Spot, Margin, CrossMargin, MarginFunding, Index, Binary, PerpetualContract, PerpetualSwap, Futures, DeliveryFutures, UpsideProfitContract, DownsideProfitContract, CoinMarginedFutures, USDTMarginedFutures, USDCMarginedFutures, Options, LinearContract}
+	supportedList = Items{Spot, Margin, CrossMargin, MarginFunding, Index, Binary, PerpetualContract, PerpetualSwap, Futures, DeliveryFutures, UpsideProfitContract, DownsideProfitContract, CoinMarginedFutures, USDTMarginedFutures, USDCMarginedFutures, Options, LinearContract, OptionCombo, FutureCombo}
 )
 
 // Supported returns a list of supported asset types
@@ -111,6 +116,10 @@ func (a Item) String() string {
 		return usdcMarginedFutures
 	case Options:
 		return options
+	case OptionCombo:
+		return optionCombo
+	case FutureCombo:
+		return futureCombo
 	default:
 		return ""
 	}
@@ -155,7 +164,7 @@ func (a Item) IsValid() bool {
 	return a != Empty && supportedFlag&a == a
 }
 
-// UnmarshalJSON comforms type to the umarshaler interface
+// UnmarshalJSON conforms type to the umarshaler interface
 func (a *Item) UnmarshalJSON(d []byte) error {
 	var assetString string
 	err := json.Unmarshal(d, &assetString)
@@ -176,7 +185,7 @@ func (a *Item) UnmarshalJSON(d []byte) error {
 	return nil
 }
 
-// MarshalJSON comforms type to the marshaller interface
+// MarshalJSON conforms type to the marshaller interface
 func (a Item) MarshalJSON() ([]byte, error) {
 	return json.Marshal(a.String())
 }
@@ -217,6 +226,10 @@ func New(input string) (Item, error) {
 		return USDCMarginedFutures, nil
 	case options, "option":
 		return Options, nil
+	case optionCombo:
+		return OptionCombo, nil
+	case futureCombo:
+		return FutureCombo, nil
 	default:
 		return 0, fmt.Errorf("%w '%v', only supports %s",
 			ErrNotSupported,
@@ -233,4 +246,9 @@ func UseDefault() Item {
 // IsFutures checks if the asset type is a futures contract based asset
 func (a Item) IsFutures() bool {
 	return a != Empty && futuresFlag&a == a
+}
+
+// IsOptions checks if the asset type is options contract based asset
+func (a Item) IsOptions() bool {
+	return a != Empty && optionsFlag&a == a
 }

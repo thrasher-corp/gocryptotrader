@@ -67,7 +67,7 @@ func (p Pairs) Format(pairFmt PairFormat) Pairs {
 	return pairs
 }
 
-// UnmarshalJSON comforms type to the umarshaler interface
+// UnmarshalJSON conforms type to the umarshaler interface
 func (p *Pairs) UnmarshalJSON(d []byte) error {
 	var pairs string
 	err := json.Unmarshal(d, &pairs)
