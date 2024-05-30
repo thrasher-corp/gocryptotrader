@@ -30,9 +30,16 @@ type Deribit struct {
 
 const (
 	deribitAPIVersion = "/api/v2"
+	tradeBaseURL      = "https://www.deribit.com/"
+	tradeSpot         = "spot/"
+	tradeFutures      = "futures/"
+	tradeOptions      = "options/"
+	tradeFuturesCombo = "futures-spreads/"
+	tradeOptionsCombo = "combos/"
+
+	perpString = "PERPETUAL"
 
 	// Public endpoints
-
 	// Market Data
 	getBookByCurrency                = "public/get_book_summary_by_currency"
 	getBookByInstrument              = "public/get_book_summary_by_instrument"
@@ -2682,10 +2689,51 @@ func (d *Deribit) StringToAssetKind(assetType string) (asset.Item, error) {
 	}
 }
 
-func guessAssetTypeFromInstrument(currencyPair currency.Pair) (asset.Item, error) {
+// getAssetPairByInstrument is able to determine the asset type and currency pair
+// based on the received instrument ID
+func (d *Deribit) getAssetPairByInstrument(instrument string) (currency.Pair, asset.Item, error) {
+	if instrument == "" {
+		return currency.EMPTYPAIR, asset.Empty, errInvalidInstrumentName
+	}
+	var item asset.Item
+	delimiter := currency.DashDelimiter
+	vals := strings.Split(instrument, currency.DashDelimiter)
+	valsLen := len(vals)
+	switch {
+	case valsLen == 1:
+		spotVals := strings.Split(instrument, currency.UnderscoreDelimiter)
+		if len(spotVals) != 2 {
+			// valsLen defaults to 1, and without 1 underscore, the instrument is invalid
+			return currency.EMPTYPAIR, asset.Empty, errUnsupportedInstrumentFormat
+		}
+		delimiter = currency.UnderscoreDelimiter
+		item = asset.Spot
+	case valsLen == 2, strings.HasSuffix(instrument, perpString):
+		instrument = strings.Replace(instrument, currency.UnderscoreDelimiter, currency.DashDelimiter, -1)
+		item = asset.Futures
+	case vals[valsLen-1] == "C", vals[valsLen-1] == "P":
+		item = asset.Options
+	case valsLen >= 3:
+		switch vals[1] {
+		case "USDC":
+			item = asset.Futures
+		case "FS":
+			item = asset.FutureCombo
+		default:
+			item = asset.OptionCombo
+		}
+	}
+	cp, err := currency.NewPairDelimiter(instrument, delimiter)
+	if err != nil {
+		return currency.EMPTYPAIR, asset.Empty, err
+	}
+	return cp, item, nil
+}
+
+func getAssetFromPair(currencyPair currency.Pair) (asset.Item, error) {
 	currencyPairString := currencyPair.String()
 	vals := strings.Split(currencyPairString, currency.DashDelimiter)
-	if strings.HasSuffix(currencyPairString, "PERPETUAL") || len(vals) == 2 {
+	if strings.HasSuffix(currencyPairString, perpString) || len(vals) == 2 {
 		return asset.Futures, nil
 	} else if len(vals) == 1 {
 		if vals = strings.Split(vals[0], currency.UnderscoreDelimiter); len(vals) == 2 {
@@ -2721,7 +2769,7 @@ func guessAssetTypeFromInstrument(currencyPair currency.Pair) (asset.Item, error
 }
 
 func calculateTradingFee(feeBuilder *exchange.FeeBuilder) (float64, error) {
-	assetType, err := guessAssetTypeFromInstrument(feeBuilder.Pair)
+	assetType, err := getAssetFromPair(feeBuilder.Pair)
 	if err != nil {
 		return 0, err
 	}
@@ -2735,7 +2783,7 @@ func calculateTradingFee(feeBuilder *exchange.FeeBuilder) (float64, error) {
 			return feeBuilder.Amount * feeBuilder.PurchasePrice * 0.0005, nil
 		case strings.HasPrefix(feeBuilder.Pair.String(), currencyBTC),
 			strings.HasPrefix(feeBuilder.Pair.String(), currencyETH):
-			if strings.HasSuffix(feeBuilder.Pair.String(), "PERPETUAL") {
+			if strings.HasSuffix(feeBuilder.Pair.String(), perpString) {
 				if feeBuilder.IsMaker {
 					return 0, nil
 				}
@@ -2790,6 +2838,9 @@ func (d *Deribit) optionPairToString(pair currency.Pair) string {
 		if match, err := regexp.MatchString(`^[a-zA-Z0-9_]*$`, subCodes[1]); match && err == nil {
 			subCodes[1] = strings.ToLower(subCodes[1])
 		}
+	}
+	if subCodes[0] == "USDC" {
+		return pair.Base.String() + currency.UnderscoreDelimiter + strings.Join(subCodes, currency.DashDelimiter)
 	}
 	return pair.Base.String() + currency.DashDelimiter + strings.Join(subCodes, currency.DashDelimiter)
 }

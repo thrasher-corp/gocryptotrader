@@ -3,7 +3,6 @@ package deribit
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"log"
 	"os"
@@ -47,7 +46,7 @@ var (
 	d                                                                     = &Deribit{}
 	optionsTradablePair, optionComboTradablePair, futureComboTradablePair currency.Pair
 	spotTradablePair                                                      = currency.NewPairWithDelimiter(currencyBTC, "USDC", "_")
-	futuresTradablePair                                                   = currency.NewPairWithDelimiter(currencyBTC, "PERPETUAL", "-")
+	futuresTradablePair                                                   = currency.NewPairWithDelimiter(currencyBTC, perpString, "-")
 	assetTypeToPairsMap                                                   map[asset.Item]currency.Pair
 )
 
@@ -88,6 +87,39 @@ func TestMain(m *testing.M) {
 	}
 	setupWs()
 	os.Exit(m.Run())
+}
+
+func instantiateTradablePairs() {
+	if err := d.UpdateTradablePairs(context.Background(), true); err != nil {
+		log.Fatalf("Failed to update tradable pairs. Error: %v", err)
+	}
+
+	handleError := func(err error, msg string) {
+		if err != nil {
+			log.Fatalf("%s. Error: %v", msg, err)
+		}
+	}
+
+	updateTradablePair := func(assetType asset.Item, tradablePair *currency.Pair) {
+		if d.CurrencyPairs.IsAssetEnabled(assetType) == nil {
+			pairs, err := d.GetEnabledPairs(assetType)
+			handleError(err, fmt.Sprintf("Failed to get enabled pairs for asset type %v", assetType))
+
+			if len(pairs) == 0 {
+				handleError(currency.ErrCurrencyPairsEmpty, fmt.Sprintf("No enabled pairs for asset type %v", assetType))
+			}
+
+			if assetType == asset.Options {
+				*tradablePair, err = d.FormatExchangeCurrency(pairs[0], assetType)
+				handleError(err, "Failed to format exchange currency for options pair")
+			} else {
+				*tradablePair = pairs[0]
+			}
+		}
+	}
+	updateTradablePair(asset.Options, &optionsTradablePair)
+	updateTradablePair(asset.OptionCombo, &optionComboTradablePair)
+	updateTradablePair(asset.FutureCombo, &futureComboTradablePair)
 }
 
 func TestUpdateTicker(t *testing.T) {
@@ -170,11 +202,14 @@ func TestGetHistoricCandlesExtended(t *testing.T) {
 		asset.OptionCombo: {Pair: optionComboTradablePair, Error: asset.ErrNotSupported},
 	}
 	for assetType, instance := range assetsToPairsMap {
-		resp, err := d.GetHistoricCandlesExtended(context.Background(), instance.Pair, assetType, kline.OneDay, start, end)
-		require.ErrorIs(t, err, instance.Error)
-		if instance.Error == nil {
-			require.NotEmpty(t, resp)
-		}
+		t.Run(fmt.Sprintf("assetType: %s", assetType), func(t *testing.T) {
+			t.Parallel()
+			resp, err := d.GetHistoricCandlesExtended(context.Background(), instance.Pair, assetType, kline.OneDay, start, end)
+			require.ErrorIs(t, err, instance.Error)
+			if instance.Error == nil {
+				require.NotEmpty(t, resp)
+			}
+		})
 	}
 }
 
@@ -3407,7 +3442,7 @@ func TestGetOrderHistory(t *testing.T) {
 	}
 }
 
-func TestGuessAssetTypeFromInstrument(t *testing.T) {
+func TestGetAssetFromPair(t *testing.T) {
 	var assetTypeNew asset.Item
 	for _, assetType := range []asset.Item{asset.Spot, asset.Futures, asset.Options, asset.OptionCombo, asset.FutureCombo} {
 		availablePairs, err := d.GetEnabledPairs(assetType)
@@ -3419,7 +3454,7 @@ func TestGuessAssetTypeFromInstrument(t *testing.T) {
 
 		for id, cp := range availablePairs {
 			t.Run(strconv.Itoa(id), func(t *testing.T) {
-				assetTypeNew, err = guessAssetTypeFromInstrument(cp.Format(format))
+				assetTypeNew, err = getAssetFromPair(cp.Format(format))
 				require.Equalf(t, assetType, assetTypeNew, "expected %s, but found %s for pair string %s", assetType.String(), assetTypeNew.String(), cp.Format(format))
 			})
 		}
@@ -3427,8 +3462,37 @@ func TestGuessAssetTypeFromInstrument(t *testing.T) {
 
 	cp, err := currency.NewPairFromString("some_thing_else")
 	require.NoError(t, err)
-	_, err = guessAssetTypeFromInstrument(cp)
+	_, err = getAssetFromPair(cp)
 	assert.ErrorIs(t, err, errUnsupportedInstrumentFormat)
+}
+
+func TestGetAssetPairByInstrument(t *testing.T) {
+	t.Parallel()
+	for _, assetType := range []asset.Item{asset.Spot, asset.Futures, asset.Options, asset.OptionCombo, asset.FutureCombo} {
+		availablePairs, err := d.GetAvailablePairs(assetType)
+		require.NoErrorf(t, err, "expected nil, got %v for asset type %s", err, assetType.String())
+		require.NotNilf(t, availablePairs, "Expected result not to be nil for asset type %s", assetType.String())
+		for _, cp := range availablePairs {
+			t.Run(fmt.Sprintf("%s %s", assetType, cp), func(t *testing.T) {
+				t.Parallel()
+				extractedPair, extractedAsset, err := d.getAssetPairByInstrument(cp.String())
+				assert.NoError(t, err)
+				assert.Equal(t, cp.String(), extractedPair.String())
+				assert.Equal(t, assetType.String(), extractedAsset.String())
+			})
+		}
+	}
+	t.Run("empty asset, empty pair", func(t *testing.T) {
+		t.Parallel()
+		_, _, err := d.getAssetPairByInstrument("")
+		assert.ErrorIs(t, err, errInvalidInstrumentName)
+
+	})
+	t.Run("this_is_a_fake_currency_pair", func(t *testing.T) {
+		t.Parallel()
+		_, _, err := d.getAssetPairByInstrument("this_is_a_fake_currency_pair")
+		assert.ErrorIs(t, err, errUnsupportedInstrumentFormat)
+	})
 }
 
 func TestGetFeeByTypeOfflineTradeFee(t *testing.T) {
@@ -3594,24 +3658,47 @@ var websocketPushData = map[string]string{
 
 func TestProcessPushData(t *testing.T) {
 	t.Parallel()
-	for x := range websocketPushData {
-		err := d.wsHandleData([]byte(websocketPushData[x]))
-		require.NoErrorf(t, err, "%s: Received unexpected error for", x)
+	for k, v := range websocketPushData {
+		t.Run(k, func(t *testing.T) {
+			t.Parallel()
+			err := d.wsHandleData([]byte(v))
+			require.NoErrorf(t, err, "%s: Received unexpected error for", k)
+		})
 	}
 }
 
 func TestFormatFuturesTradablePair(t *testing.T) {
 	t.Parallel()
 	futuresInstrumentsOutputList := map[currency.Pair]string{
-		{Delimiter: currency.DashDelimiter, Base: currency.BTC, Quote: currency.NewCode("PERPETUAL")}:                   "BTC-PERPETUAL",
+		{Delimiter: currency.DashDelimiter, Base: currency.BTC, Quote: currency.NewCode(perpString)}:                    "BTC-PERPETUAL",
 		{Delimiter: currency.DashDelimiter, Base: currency.AVAX, Quote: currency.NewCode("USDC-PERPETUAL")}:             "AVAX_USDC-PERPETUAL",
 		{Delimiter: currency.DashDelimiter, Base: currency.ETH, Quote: currency.NewCode("30DEC22")}:                     "ETH-30DEC22",
 		{Delimiter: currency.DashDelimiter, Base: currency.SOL, Quote: currency.NewCode("30DEC22")}:                     "SOL-30DEC22",
 		{Delimiter: currency.DashDelimiter, Base: currency.NewCode("BTCDVOL"), Quote: currency.NewCode("USDC-28JUN23")}: "BTCDVOL_USDC-28JUN23",
 	}
 	for pair, instrumentID := range futuresInstrumentsOutputList {
-		instrument := d.formatFuturesTradablePair(pair)
-		require.Equal(t, instrumentID, instrument)
+		t.Run(instrumentID, func(t *testing.T) {
+			t.Parallel()
+			instrument := d.formatFuturesTradablePair(pair)
+			require.Equal(t, instrumentID, instrument)
+		})
+	}
+}
+
+func TestOptionPairToString(t *testing.T) {
+	t.Parallel()
+	optionsList := map[currency.Pair]string{
+		{Delimiter: currency.DashDelimiter, Base: currency.BTC, Quote: currency.NewCode("30MAY24-61000-C")}:    "BTC-30MAY24-61000-C",
+		{Delimiter: currency.DashDelimiter, Base: currency.ETH, Quote: currency.NewCode("1JUN24-3200-P")}:      "ETH-1JUN24-3200-P",
+		{Delimiter: currency.DashDelimiter, Base: currency.SOL, Quote: currency.NewCode("USDC-31MAY24-162-P")}: "SOL_USDC-31MAY24-162-P",
+		{Delimiter: currency.DashDelimiter, Base: currency.XRP, Quote: currency.NewCode("USDC-28JUN24-0D9-P")}: "XRP_USDC-28JUN24-0D9-P",
+	}
+	for pair, instrumentID := range optionsList {
+		t.Run(instrumentID, func(t *testing.T) {
+			t.Parallel()
+			instrument := d.optionPairToString(pair)
+			require.Equal(t, instrumentID, instrument)
+		})
 	}
 }
 
@@ -3623,39 +3710,6 @@ func TestWSRetrieveCombos(t *testing.T) {
 	result, err := d.WSRetrieveCombos(futureComboTradablePair.Base)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
-}
-
-func instantiateTradablePairs() {
-	if err := d.UpdateTradablePairs(context.Background(), true); err != nil {
-		log.Fatalf("Failed to update tradable pairs. Error: %v", err)
-	}
-
-	handleError := func(err error, msg string) {
-		if err != nil {
-			log.Fatalf("%s. Error: %v", msg, err)
-		}
-	}
-
-	updateTradablePair := func(assetType asset.Item, tradablePair *currency.Pair) {
-		if d.CurrencyPairs.IsAssetEnabled(assetType) == nil {
-			pairs, err := d.GetEnabledPairs(assetType)
-			handleError(err, fmt.Sprintf("Failed to get enabled pairs for asset type %v", assetType))
-
-			if len(pairs) == 0 {
-				handleError(currency.ErrCurrencyPairsEmpty, fmt.Sprintf("No enabled pairs for asset type %v", assetType))
-			}
-
-			if assetType == asset.Options {
-				*tradablePair, err = d.FormatExchangeCurrency(pairs[0], assetType)
-				handleError(err, "Failed to format exchange currency for options pair")
-			} else {
-				*tradablePair = pairs[0]
-			}
-		}
-	}
-	updateTradablePair(asset.Options, &optionsTradablePair)
-	updateTradablePair(asset.OptionCombo, &optionComboTradablePair)
-	updateTradablePair(asset.FutureCombo, &futureComboTradablePair)
 }
 
 func TestGetLatestFundingRates(t *testing.T) {
@@ -3799,6 +3853,9 @@ func TestGetFuturesContractDetails(t *testing.T) {
 	result, err := d.GetFuturesContractDetails(context.Background(), asset.Futures)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
+
+	_, err = d.GetFuturesContractDetails(context.Background(), asset.FutureCombo)
+	require.ErrorIs(t, err, asset.ErrNotSupported)
 }
 
 func TestGetFuturesPositionSummary(t *testing.T) {
@@ -3817,7 +3874,7 @@ func TestGetFuturesPositionSummary(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, d)
 	req := &futures.PositionSummaryRequest{
 		Asset: asset.Futures,
-		Pair:  currency.NewPair(currency.BTC, currency.NewCode("PERPETUAL")),
+		Pair:  currency.NewPair(currency.BTC, currency.NewCode(perpString)),
 	}
 	result, err := d.GetFuturesPositionSummary(context.Background(), req)
 	require.NoError(t, err)
@@ -3834,37 +3891,32 @@ func TestGetOpenInterest(t *testing.T) {
 	require.ErrorIs(t, err, asset.ErrNotSupported)
 
 	_, err = d.GetOpenInterest(context.Background(), key.PairAsset{
-		Base:  currency.BTC.Item,
+		Base:  optionsTradablePair.Base.Item,
 		Quote: optionsTradablePair.Quote.Item,
 		Asset: asset.Options,
 	})
-	require.True(t, err == nil || errors.Is(err, currency.ErrCurrencyNotFound))
+	require.NoError(t, err)
 
 	_, err = d.GetOpenInterest(context.Background(), key.PairAsset{
 		Base:  currency.BTC.Item,
-		Quote: currency.NewCode("PERPETUAL").Item,
+		Quote: currency.NewCode(perpString).Item,
 		Asset: asset.Futures,
 	})
 	require.NoError(t, err)
 
 	_, err = d.GetOpenInterest(context.Background(), key.PairAsset{
-		Base:  currency.XRP.Item,
+		Base:  currency.NewCode("XRP").Item,
 		Quote: currency.NewCode("USDC-PERPETUAL").Item,
 		Asset: asset.Futures,
 	})
+
+	_, err = d.GetOpenInterest(context.Background(), key.PairAsset{
+		Base:  futureComboTradablePair.Base.Item,
+		Quote: futureComboTradablePair.Quote.Item,
+		Asset: asset.FutureCombo,
+	})
 	require.NoError(t, err)
 
-	var result []futures.OpenInterest
-	assetTypeToPairs := getAssetToPairMap(asset.Futures & asset.FutureCombo)
-	for assetType, cp := range assetTypeToPairs {
-		result, err = d.GetOpenInterest(context.Background(), key.PairAsset{
-			Base:  cp.Base.Item,
-			Quote: cp.Quote.Item,
-			Asset: assetType,
-		})
-		require.NoErrorf(t, err, "expected nil, got %s for asset type %s pair %s", assetType.String(), cp.String())
-		require.NotNilf(t, result, "Expected result not to be nil for asset type %s pair %s", assetType.String(), cp.String())
-	}
 }
 
 func TestIsPerpetualFutureCurrency(t *testing.T) {
@@ -3879,7 +3931,7 @@ func TestIsPerpetualFutureCurrency(t *testing.T) {
 			{Pair: spotTradablePair, Error: nil, Response: false},
 		},
 		asset.Futures: {
-			{Pair: currency.NewPair(currency.BTC, currency.NewCode("PERPETUAL")), Response: true},
+			{Pair: currency.NewPair(currency.BTC, currency.NewCode(perpString)), Response: true},
 		},
 		asset.FutureCombo: {
 			{Pair: currency.NewPair(currency.NewCode("BTC"), currency.NewCode("FS-27SEP24_PERP")), Response: false},
@@ -3981,10 +4033,10 @@ func TestGetValidatedCurrencyCode(t *testing.T) {
 	t.Parallel()
 	pairs := map[currency.Pair]string{
 		currency.NewPairWithDelimiter(currencySOL, "21OCT22-20-C", "-"): currencySOL,
-		currency.NewPairWithDelimiter(currencyBTC, "PERPETUAL", "-"):    currencyBTC,
-		currency.NewPairWithDelimiter(currencyETH, "PERPETUAL", "-"):    currencyETH,
-		currency.NewPairWithDelimiter(currencySOL, "PERPETUAL", "-"):    currencySOL,
-		currency.NewPairWithDelimiter("AVAX_USDC", "PERPETUAL", "-"):    currencyUSDC,
+		currency.NewPairWithDelimiter(currencyBTC, perpString, "-"):     currencyBTC,
+		currency.NewPairWithDelimiter(currencyETH, perpString, "-"):     currencyETH,
+		currency.NewPairWithDelimiter(currencySOL, perpString, "-"):     currencySOL,
+		currency.NewPairWithDelimiter("AVAX_USDC", perpString, "-"):     currencyUSDC,
 		currency.NewPairWithDelimiter(currencyBTC, "USDC", "_"):         currencyBTC,
 		currency.NewPairWithDelimiter(currencyETH, "USDC", "_"):         currencyETH,
 		currency.NewPairWithDelimiter("DOT", "USDC-PERPETUAL", "_"):     currencyUSDC,
@@ -3995,4 +4047,35 @@ func TestGetValidatedCurrencyCode(t *testing.T) {
 		result := getValidatedCurrencyCode(x)
 		require.Equal(t, pairs[x], result, "expected: %s actual  : %s for currency pair: %v", x, result, pairs[x])
 	}
+}
+
+func TestFetchTradablePairs(t *testing.T) {
+	t.Parallel()
+	_, err := d.FetchTradablePairs(context.Background(), asset.Futures)
+	require.NoError(t, err)
+}
+
+func TestGetCurrencyTradeURL(t *testing.T) {
+	t.Parallel()
+	_, err := d.GetCurrencyTradeURL(context.Background(), asset.Spot, currency.EMPTYPAIR)
+	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
+
+	for _, a := range d.GetAssetTypes(false) {
+		pairs, err := d.CurrencyPairs.GetPairs(a, false)
+		require.NoError(t, err, "cannot get pairs for %s", a)
+		require.NotEmpty(t, pairs, "no pairs for %s", a)
+		resp, err := d.GetCurrencyTradeURL(context.Background(), a, pairs[0])
+		require.NoError(t, err)
+		assert.NotEmpty(t, resp)
+	}
+	// specific test to ensure perps work
+	cp := currency.NewPair(currency.BTC, currency.NewCode("USDC-PERPETUAL"))
+	resp, err := d.GetCurrencyTradeURL(context.Background(), asset.Futures, cp)
+	require.NoError(t, err)
+	assert.NotEmpty(t, resp)
+	// specific test to ensure options work
+	cp = currency.NewPair(currency.BTC, currency.NewCode("14JUN24-62000-C"))
+	resp, err = d.GetCurrencyTradeURL(context.Background(), asset.Options, cp)
+	require.NoError(t, err)
+	assert.NotEmpty(t, resp)
 }
