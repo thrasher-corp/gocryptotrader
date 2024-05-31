@@ -2695,38 +2695,40 @@ func (d *Deribit) getAssetPairByInstrument(instrument string) (currency.Pair, as
 	if instrument == "" {
 		return currency.EMPTYPAIR, asset.Empty, errInvalidInstrumentName
 	}
+
 	var item asset.Item
 	delimiter := currency.DashDelimiter
-	vals := strings.Split(instrument, currency.DashDelimiter)
-	valsLen := len(vals)
+	// Find the first occurrence of the delimiter and split the instrument string accordingly
+	parts := strings.SplitN(instrument, delimiter, -1)
 	switch {
-	case valsLen == 1:
-		spotVals := strings.Split(instrument, currency.UnderscoreDelimiter)
-		if len(spotVals) != 2 {
-			// valsLen defaults to 1, and without 1 underscore, the instrument is invalid
-			return currency.EMPTYPAIR, asset.Empty, errUnsupportedInstrumentFormat
+	case len(parts) == 1:
+		if i := strings.IndexAny(instrument, currency.UnderscoreDelimiter); i == -1 {
+			return currency.EMPTYPAIR, asset.Empty, fmt.Errorf("%w %s", errUnsupportedInstrumentFormat, instrument)
 		}
-		delimiter = currency.UnderscoreDelimiter
 		item = asset.Spot
-	case valsLen == 2, strings.HasSuffix(instrument, perpString):
-		instrument = strings.Replace(instrument, currency.UnderscoreDelimiter, currency.DashDelimiter, -1)
+		delimiter = currency.UnderscoreDelimiter
+	case len(parts) == 2:
 		item = asset.Futures
-	case vals[valsLen-1] == "C", vals[valsLen-1] == "P":
+	case parts[len(parts)-1] == "C" || parts[len(parts)-1] == "P":
 		item = asset.Options
-	case valsLen >= 3:
-		switch vals[1] {
-		case "USDC":
+	case len(parts) >= 3:
+		// Check for options or other types
+		switch parts[1] {
+		case "USDC", "USDT":
 			item = asset.Futures
 		case "FS":
 			item = asset.FutureCombo
 		default:
 			item = asset.OptionCombo
 		}
+	default:
+		return currency.EMPTYPAIR, asset.Empty, fmt.Errorf("%w %s", errUnsupportedInstrumentFormat, instrument)
 	}
 	cp, err := currency.NewPairDelimiter(instrument, delimiter)
 	if err != nil {
 		return currency.EMPTYPAIR, asset.Empty, err
 	}
+
 	return cp, item, nil
 }
 

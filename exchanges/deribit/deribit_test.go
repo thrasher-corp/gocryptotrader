@@ -3484,9 +3484,9 @@ func TestGetAssetPairByInstrument(t *testing.T) {
 		_, _, err := d.getAssetPairByInstrument("")
 		assert.ErrorIs(t, err, errInvalidInstrumentName)
 	})
-	t.Run("this_is_a_fake_currency_pair", func(t *testing.T) {
+	t.Run("thisIsAFakeCurrency", func(t *testing.T) {
 		t.Parallel()
-		_, _, err := d.getAssetPairByInstrument("this_is_a_fake_currency_pair")
+		_, _, err := d.getAssetPairByInstrument("thisIsAFakeCurrency")
 		assert.ErrorIs(t, err, errUnsupportedInstrumentFormat)
 	})
 }
