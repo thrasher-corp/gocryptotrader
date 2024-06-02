@@ -127,6 +127,7 @@ func (d *Deribit) SetDefaults() {
 				GlobalResultLimit: 500,
 			},
 		},
+		Subscriptions: defaultSubscriptions.Clone(),
 	}
 	d.Requester, err = request.New(d.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
