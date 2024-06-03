@@ -1558,8 +1558,8 @@ type MaxBorrowCross struct {
 	} `json:"data"`
 }
 
-// MaxTransferResp contains information on the maximum amount that can be transferred
-type MaxTransferResp struct {
+// MaxTransferCross contains information on the maximum amount that can be transferred out of cross margin
+type MaxTransferCross struct {
 	Data struct {
 		Coin                 string  `json:"coin"`
 		MaxTransferOutAmount float64 `json:"maxTransferOutAmount,string"`
@@ -1598,24 +1598,24 @@ type TierConfigCross struct {
 	} `json:"data"`
 }
 
-// FlashRepayResp contains information on a flash repayment
-type FlashRepayResp struct {
+// FlashRepayCross contains information on a flash repayment for cross margin
+type FlashRepayCross struct {
 	Data struct {
 		RepayID int64  `json:"repayId,string"`
 		Coin    string `json:"coin"`
 	} `json:"data"`
 }
 
-// FlashReplayResult contains information on the result of a flash repayment
-type FlashReplayResult struct {
+// FlashRepayResult contains information on the result of a flash repayment
+type FlashRepayResult struct {
 	Data []struct {
 		RepayID int64  `json:"repayId,string"`
 		Status  string `json:"status"`
 	} `json:"data"`
 }
 
-// CrossOrderData contains information on a cross order
-type CrossOrderData struct {
+// MarginOrderData contains information on a margin order
+type MarginOrderData struct {
 	Side          string  `json:"side"`
 	OrderType     string  `json:"orderType"`
 	Price         float64 `json:"price,string"`
@@ -1626,8 +1626,8 @@ type CrossOrderData struct {
 	ClientOrderID string  `json:"clientOid"`
 }
 
-// CrossOpenOrds contains information on open cross orders
-type CrossOpenOrds struct {
+// MarginOpenOrds contains information on open margin orders
+type MarginOpenOrds struct {
 	Data struct {
 		OrderList []struct {
 			OrderID          int64         `json:"orderId,string"`
@@ -1652,8 +1652,8 @@ type CrossOpenOrds struct {
 	} `json:"data"`
 }
 
-// CrossHistOrds contains information on historical cross orders
-type CrossHistOrds struct {
+// MarginHistOrds contains information on historical margin orders
+type MarginHistOrds struct {
 	Data struct {
 		OrderList []struct {
 			OrderID          int64         `json:"orderId,string"`
@@ -1679,8 +1679,8 @@ type CrossHistOrds struct {
 	} `json:"data"`
 }
 
-// CrossOrderFills contains information on fulfilled cross orders
-type CrossOrderFills struct {
+// MarginOrderFills contains information on fulfilled margin orders
+type MarginOrderFills struct {
 	Data struct {
 		Fills []struct {
 			OrderID      int64         `json:"orderId,string"`
@@ -1905,5 +1905,306 @@ type MaxBorrowIso struct {
 		BaseCoinMaxBorrowableAmount  float64 `json:"baseCoinmaxBorrowAmount,string"`
 		QuoteCoin                    string  `json:"quoteCoin"`
 		QuoteCoinMaxBorrowableAmount float64 `json:"quoteCoinmaxBorrowAmount,string"`
+	} `json:"data"`
+}
+
+// MaxTransferIso contains information on the maximum amount that can be transferred out of isolated margin
+type MaxTransferIso struct {
+	Data struct {
+		BaseCoin                      string  `json:"baseCoin"`
+		Symbol                        string  `json:"symbol"`
+		BaseCoinMaxTransferOutAmount  float64 `json:"baseCoinMaxTransferOutAmount,string"`
+		QuoteCoin                     string  `json:"quoteCoin"`
+		QuoteCoinMaxTransferOutAmount float64 `json:"quoteCoinMaxTransferOutAmount,string"`
+	} `json:"data"`
+}
+
+// FlashRepayIso contains information on a flash repayment for isolated margin
+type FlashRepayIso struct {
+	Data []struct {
+		RepayID int64       `json:"repayId,string"`
+		Symbol  string      `json:"symbol"`
+		Result  SuccessBool `json:"result"`
+	} `json:"data"`
+}
+
+type APY struct {
+	RateLevel    int64   `json:"rateLevel,string"`
+	MinStepValue float64 `json:"minStepVal,string"`
+	MaxStepValue float64 `json:"maxStepVal,string"`
+	CurrentAPY   float64 `json:"currentAPY,string"`
+}
+
+// SavingsProductList contains information on savings products
+type SavingsProductList struct {
+	Data []struct {
+		ProductID     int64     `json:"productId,string"`
+		Coin          string    `json:"coin"`
+		PeriodType    string    `json:"periodType"`
+		Period        EmptyInt  `json:"period"`
+		APYType       string    `json:"apyType"`
+		AdvanceRedeem YesNoBool `json:"advanceRedeem"`
+		SettleMethod  string    `json:"settleMethod"`
+		APYList       []APY     `json:"apyList"`
+		Status        string    `json:"status"`
+		ProductLevel  string    `json:"productLevel"`
+	} `json:"data"`
+}
+
+// SavingsBalance contains information on savings balances
+type SavingsBalance struct {
+	Data struct {
+		BTCAmount          float64 `json:"btcAmount,string"`
+		USDTAmount         float64 `json:"usdtAmount,string"`
+		BTC24HourEarnings  float64 `json:"btc24HourEarning,string"`
+		USDT24HourEarnings float64 `json:"usdt24HourEarning,string"`
+		BTCTotalEarnings   float64 `json:"btcTotalEarning,string"`
+		USDTTotalEarnings  float64 `json:"usdtTotalEarning,string"`
+	} `json:"data"`
+}
+
+// SavingsAssets contains information on savings assets
+type SavingsAssets struct {
+	Data struct {
+		ResultList []struct {
+			ProductID       int64     `json:"productId,string"`
+			OrderID         int64     `json:"orderId,string"` // Docs are inconsistent, check whether this exists
+			ProductCoin     string    `json:"productCoin"`
+			InterestCoin    string    `json:"interestCoin"`
+			PeriodType      string    `json:"periodType"`
+			Period          EmptyInt  `json:"period"`
+			HoldAmount      float64   `json:"holdAmount,string"`
+			LastProfit      float64   `json:"lastProfit,string"`
+			TotalProfit     float64   `json:"totalProfit,string"`
+			HoldDays        EmptyInt  `json:"holdDays"`
+			Status          string    `json:"status"`
+			AllowRedemption YesNoBool `json:"allowRedemption"` // Docs are inconsistent, check whether this exists
+			ProductLevel    string    `json:"productLevel"`
+			APY             []APY     `json:"apy"`
+		} `json:"resultList"`
+		EndID EmptyInt `json:"endId"`
+	} `json:"data"`
+}
+
+// SavingsRecords contains information on previous transactions
+type SavingsRecords struct {
+	Data struct {
+		ResultList []struct {
+			OrderID        int64         `json:"orderId,string"`
+			CoinName       string        `json:"coinName"`
+			SettleCoinName string        `json:"settleCoinName"`
+			ProductType    string        `json:"productType"`
+			Period         EmptyInt      `json:"period"`
+			ProductLevel   string        `json:"productLevel"`
+			Amount         float64       `json:"amount,string"`
+			Timestamp      UnixTimestamp `json:"ts"`
+			OrderType      string        `json:"orderType"`
+		} `json:"resultList"`
+		EndID EmptyInt `json:"endId"`
+	} `json:"data"`
+}
+
+// SavingsSubDetail contains information about a potential subscription
+type SavingsSubDetail struct {
+	Data struct {
+		SingleMinAmount    float64       `json:"singleMinAmount,string"`
+		SingleMaxAmount    float64       `json:"singleMaxAmount,string"`
+		RemainingAmount    float64       `json:"remainingAmount,string"`
+		SubscribePrecision uint8         `json:"subscribePrecision,string"`
+		ProfitPrecision    uint8         `json:"profitPrecision,string"`
+		SubscribeTime      UnixTimestamp `json:"subscribeTime"`
+		InterestTime       UnixTimestamp `json:"interestTime"`
+		SettleTime         UnixTimestamp `json:"settleTime"`
+		ExpireTime         UnixTimestamp `json:"expireTime"`
+		RedeemTime         UnixTimestamp `json:"redeemTime"`
+		SettleMethod       string        `json:"settleMethod"`
+		APYList            []APY         `json:"apyList"`
+		RedeemDelay        string        `json:"redeemDelay"`
+	} `json:"data"`
+}
+
+// SubResp contains information on a transaction involving a savings product
+type SaveResp struct {
+	Data struct {
+		OrderID int64  `json:"orderId,string"`
+		Status  string `json:"status"` // Double-check, might be a float64
+	} `json:"data"`
+}
+
+// SubResult contains information on the result of a transaction involving a savings product
+type SaveResult struct {
+	Data struct {
+		Result  SuccessBool `json:"result"`
+		Message string      `json:"msg"`
+	} `json:"data"`
+}
+
+// EarnAssets contains information on assets in the earn account
+type EarnAssets struct {
+	Data []struct {
+		Coin   string  `json:"coin"`
+		Amount float64 `json:"amount,string"`
+	} `json:"data"`
+}
+
+// SharkFinProducts contains information on shark fin products
+type SharkFinProducts struct {
+	Data struct {
+		ResultList []struct {
+			ProductID         int64         `json:"productId,string"`
+			ProductName       string        `json:"productName"`
+			ProductCoin       string        `json:"productCoin"`
+			SubscribeCoin     string        `json:"subscribeCoin"`
+			FarmingStartTime  UnixTimestamp `json:"farmingStartTime"`
+			FarmingEndTime    UnixTimestamp `json:"farmingEndTime"`
+			LowerRate         float64       `json:"lowerRate,string"`
+			DefaultRate       float64       `json:"defaultRate,string"`
+			UpperRate         float64       `json:"upperRate,string"`
+			Period            EmptyInt      `json:"period"`
+			InterestStartTime UnixTimestamp `json:"interestStartTime"`
+			Status            string        `json:"status"`
+			MinAmount         float64       `json:"minAmount,string"`
+			LimitAmount       float64       `json:"limitAmount,string"`
+			SoldAmount        float64       `json:"soldAmount,string"`
+			EndTime           UnixTimestamp `json:"endTime"`
+			StartTime         UnixTimestamp `json:"startTime"`
+		} `json:"resultList"`
+		EndID EmptyInt `json:"endId"`
+	} `json:"data"`
+}
+
+// SharkFinBalance contains information on one's shark fin balance and amount earned
+type SharkFinBalance struct {
+	Data struct {
+		BTCSubscribeAmount   float64 `json:"btcSubscribeAmount,string"`
+		USDTSubscribeAmount  float64 `json:"usdtSubscribeAmount,string"`
+		BTCHistoricalAmount  float64 `json:"btcHistoricalAmount,string"`
+		USDTHistoricalAmount float64 `json:"usdtHistoricalAmount,string"`
+		BTCTotalEarning      float64 `json:"btcTotalEarning,string"`
+		USDTTotalEarning     float64 `json:"usdtTotalEarning,string"`
+	} `json:"data"`
+}
+
+// SharkFinAssets contains information on one's shark fin assets
+type SharkFinAssets struct {
+	Data struct {
+		ResultList []struct {
+			ProductID         int64         `json:"productId,string"`
+			InterestStartTime UnixTimestamp `json:"interestStartTime"`
+			InterestEndTime   UnixTimestamp `json:"interestEndTime"`
+			ProductCoin       string        `json:"productCoin"`
+			SubscribeCoin     string        `json:"subscribeCoin"`
+			Trend             string        `json:"trend"`
+			SettleTime        UnixTimestamp `json:"settleTime"`
+			InterestAmount    types.Number  `json:"interestAmount"`
+			ProductStatus     string        `json:"productStatus"`
+		} `json:"resultList"`
+		EndID EmptyInt `json:"endId"`
+	} `json:"data"`
+}
+
+// SharkFinRecords contains information on one's shark fin records
+type SharkFinRecords struct {
+	Data struct {
+		ResultList []struct {
+			OrderID   int64         `json:"orderId,string"`
+			Product   string        `json:"product"`
+			Period    EmptyInt      `json:"period"`
+			Amount    float64       `json:"amount,string"`
+			Timestamp UnixTimestamp `json:"ts"`
+			Type      string        `json:"type"`
+		} `json:"resultList"`
+	} `json:"data"`
+}
+
+// SharkFinSubDetail contains information useful when subscribing to a shark fin product
+type SharkFinSubDetail struct {
+	Data struct {
+		ProductCoin        string        `json:"productCoin"`
+		SubscribeCoin      string        `json:"subscribeCoin"`
+		InterestTime       UnixTimestamp `json:"interestTime"`
+		ExpirationTime     UnixTimestamp `json:"expirationTime"`
+		MinPrice           float64       `json:"minPrice,string"`
+		CurrentPrice       float64       `json:"currentPrice,string"`
+		MaxPrice           float64       `json:"maxPrice,string"`
+		MinRate            float64       `json:"minRate,string"`
+		DefaultRate        float64       `json:"defaultRate,string"`
+		MaxRate            float64       `json:"maxRate,string"`
+		Period             EmptyInt      `json:"period"`
+		ProductMinAmount   float64       `json:"productMinAmount,string"`
+		AvailableBalance   float64       `json:"availableBalance,string"`
+		UserAmount         float64       `json:"userAmount,string"`
+		RemainingAmount    float64       `json:"remainingAmount,string"`
+		ProfitPrecision    uint8         `json:"profitPrecision,string"`
+		SubscribePrecision uint8         `json:"subscribePrecision,string"`
+	} `json:"data"`
+}
+
+// LoanCurList contains information on currencies which can be loaned
+type LoanCurList struct {
+	Data struct {
+		LoanInfos []struct {
+			Coin          string  `json:"coin"`
+			HourRate7Day  float64 `json:"hourRate7D,string"`
+			Rate7Day      float64 `json:"rate7D,string"`
+			HourRate30Day float64 `json:"hourRate30D,string"`
+			Rate30Day     float64 `json:"rate30D,string"`
+			MinUSDT       float64 `json:"minUsdt,string"`
+			MaxUSDT       float64 `json:"maxUsdt,string"`
+			Min           float64 `json:"min,string"`
+			Max           float64 `json:"max,string"`
+		} `json:"loanInfos"`
+		PledgeInfos []struct {
+			Coin              string  `json:"coin"`
+			InitialRate       float64 `json:"initRate,string"`
+			SupplementaryRate float64 `json:"supRate,string"`
+			ForceRate         float64 `json:"forceRate,string"`
+			MinUSDT           float64 `json:"minUsdt,string"`
+			MaxUSDT           float64 `json:"maxUsdt,string"`
+		} `json:"pledgeInfos"`
+	} `json:"data"`
+}
+
+// EstimateInterest contains information on estimated interest payments and borrowable amounts
+type EstimateInterest struct {
+	Data struct {
+		HourInterest float64 `json:"hourInterest,string"`
+		LoanAmount   float64 `json:"loanAmount,string"`
+	} `json:"data"`
+}
+
+// BorrowResp contains information on a loan
+type BorrowResp struct {
+	Data struct {
+		OrderID int64 `json:"orderId,string"`
+	} `json:"data"`
+}
+
+// OngoingLoans contains information on ongoing loans
+type OngoingLoans struct {
+	Data []struct {
+		OrderID           int64         `json:"orderId,string"`
+		LoanCoin          string        `json:"loanCoin"`
+		LoanAmount        float64       `json:"loanAmount,string"`
+		InterestAmount    float64       `json:"interestAmount,string"`
+		HourInterestRate  float64       `json:"hourInterestRate,string"`
+		PledgeCoin        string        `json:"pledgeCoin"`
+		PledgeAmount      float64       `json:"pledgeAmount,string"`
+		SupplementaryRate float64       `json:"supRate,string"`
+		ForceRate         float64       `json:"forceRate,string"`
+		BorrowTime        UnixTimestamp `json:"borrowTime"`
+		ExpireTime        UnixTimestamp `json:"expireTime"`
+	} `json:"data"`
+}
+
+// RepayResp contains information on a repayment
+type RepayResp struct {
+	Data struct {
+		LoanCoin          string  `json:"loanCoin"`
+		PledgeCoin        string  `json:"pledgeCoin"`
+		RepayAmount       float64 `json:"repayAmount,string"`
+		PayInterest       float64 `json:"payInterest,string"`
+		RepayLoanAmount   float64 `json:"repayLoanAmount,string"`
+		RepayUnlockAmount float64 `json:"repayUnlockAmount,string"`
 	} `json:"data"`
 }
