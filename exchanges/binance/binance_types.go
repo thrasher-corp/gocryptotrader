@@ -1809,7 +1809,7 @@ type FuturesContractInfo struct {
 	Pair             string               `json:"ps"`
 	ContractType     string               `json:"ct"`
 	DeliveryDateTime convert.ExchangeTime `json:"dt"`
-	OnboardDateTime  convert.ExchangeTime `json:"ot"` //nolint:codespell // "ot" represents an Onboard date time
+	OnboardDateTime  convert.ExchangeTime `json:"ot"`
 	ContractStatus   string               `json:"cs"`
 	Brackets         []struct {
 		NationalBracket      float64 `json:"bs"`
@@ -3404,8 +3404,8 @@ type CrossMarginTransferHistory struct {
 		Timestamp     convert.ExchangeTime `json:"timestamp"`
 		TransactionID int64                `json:"txId"`
 		TransferType  string               `json:"type"`
-		TransferFrom  string               `json:"transFrom,omitempty"` //nolint:codespell // the json tag 'transFrom' represents the transaction source address or transfer-from
-		TransferTo    string               `json:"transTo,omitempty"`   // SPOT,FUTURES,FIAT,DELIVERY,MINING,ISOLATED_MARGIN,FUNDING,MOTHER_SPOT,OPTION,SUB_SPOT,SUB_MARGIN,CROSS_MARGIN
+		TransferFrom  string               `json:"transFrom,omitempty"`
+		TransferTo    string               `json:"transTo,omitempty"` // SPOT,FUTURES,FIAT,DELIVERY,MINING,ISOLATED_MARGIN,FUNDING,MOTHER_SPOT,OPTION,SUB_SPOT,SUB_MARGIN,CROSS_MARGIN
 		FromSymbol    string               `json:"fromSymbol,omitempty"`
 		ToSymbol      string               `json:"toSymbol,omitempty"`
 	} `json:"rows"`

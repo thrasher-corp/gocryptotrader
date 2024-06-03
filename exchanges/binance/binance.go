@@ -1802,7 +1802,7 @@ func (b *Binance) GetLiabilityCoinLeverageBracketInCrossMarginProMode(ctx contex
 // GetMarginAccount returns account information for margin accounts
 func (b *Binance) GetMarginAccount(ctx context.Context) (*MarginAccount, error) {
 	var resp *MarginAccount
-	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/margin/account", nil, spotAccountInformationRate, nil, &resp)
+	return resp, b.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/margin/account", nil, marginAccountInformationRate, nil, &resp)
 }
 
 // SendHTTPRequest sends an unauthenticated request
