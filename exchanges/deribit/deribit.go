@@ -2836,13 +2836,16 @@ func (d *Deribit) formatFuturesTradablePair(pair currency.Pair) string {
 // it has both uppercase or lowercase characters, which we can not achieve with the Upper=true or Upper=false
 func (d *Deribit) optionPairToString(pair currency.Pair) string {
 	subCodes := strings.Split(pair.Quote.String(), currency.DashDelimiter)
-	if len(subCodes) == 3 {
-		if match, err := regexp.MatchString(`^[a-zA-Z0-9_]*$`, subCodes[1]); match && err == nil {
-			subCodes[1] = strings.ToLower(subCodes[1])
+	initialDelimiter := currency.DashDelimiter
+	if subCodes[0] == "USDC" {
+		initialDelimiter = currency.UnderscoreDelimiter
+	}
+	for i := range subCodes {
+		if match, err := regexp.MatchString(`[0-9]{1,}(D)[0-9]{1,}`, subCodes[i]); match && err == nil {
+			subCodes[i] = strings.ToLower(subCodes[i])
+			break
 		}
 	}
-	if subCodes[0] == "USDC" {
-		return pair.Base.String() + currency.UnderscoreDelimiter + strings.Join(subCodes, currency.DashDelimiter)
-	}
-	return pair.Base.String() + currency.DashDelimiter + strings.Join(subCodes, currency.DashDelimiter)
+
+	return pair.Base.String() + initialDelimiter + strings.Join(subCodes, currency.DashDelimiter)
 }
