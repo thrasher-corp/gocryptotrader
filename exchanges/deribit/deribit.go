@@ -28,6 +28,12 @@ type Deribit struct {
 	exchange.Base
 }
 
+var (
+	// optionRegex compiles optionDecimalRegex at startup and is used to help set
+	// option currency lower-case d eg MATIC-USDC-3JUN24-0d64-P
+	optionRegex *regexp.Regexp
+)
+
 const (
 	deribitAPIVersion = "/api/v2"
 	tradeBaseURL      = "https://www.deribit.com/"
@@ -37,7 +43,8 @@ const (
 	tradeFuturesCombo = "futures-spreads/"
 	tradeOptionsCombo = "combos/"
 
-	perpString = "PERPETUAL"
+	perpString         = "PERPETUAL"
+	optionDecimalRegex = `\d+(D)\d+`
 
 	// Public endpoints
 	// Market Data
@@ -2833,13 +2840,14 @@ func (d *Deribit) formatFuturesTradablePair(pair currency.Pair) string {
 // optionPairToString to format and return an Options currency pairs with the following format: MATIC_USDC-6APR24-0d98-P
 // it has both uppercase or lowercase characters, which we can not achieve with the Upper=true or Upper=false
 func (d *Deribit) optionPairToString(pair currency.Pair) string {
+	// err excluded as this is valid regex
 	subCodes := strings.Split(pair.Quote.String(), currency.DashDelimiter)
 	initialDelimiter := currency.DashDelimiter
 	if subCodes[0] == "USDC" {
 		initialDelimiter = currency.UnderscoreDelimiter
 	}
 	for i := range subCodes {
-		if match, err := regexp.MatchString(`[0-9]{1,}(D)[0-9]{1,}`, subCodes[i]); match && err == nil {
+		if match := optionRegex.MatchString(subCodes[i]); match {
 			subCodes[i] = strings.ToLower(subCodes[i])
 			break
 		}
