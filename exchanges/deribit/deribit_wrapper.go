@@ -1097,7 +1097,7 @@ func (d *Deribit) GetHistoricCandles(ctx context.Context, pair currency.Pair, a 
 	if err != nil {
 		return nil, err
 	}
-	intervalString, err := d.GetResolutionFromInterval(interval)
+	intervalString, err := d.GetResolutionFromInterval(req.ExchangeInterval)
 	if err != nil {
 		return nil, err
 	}
