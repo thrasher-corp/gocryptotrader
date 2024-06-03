@@ -2840,7 +2840,6 @@ func (d *Deribit) formatFuturesTradablePair(pair currency.Pair) string {
 // optionPairToString to format and return an Options currency pairs with the following format: MATIC_USDC-6APR24-0d98-P
 // it has both uppercase or lowercase characters, which we can not achieve with the Upper=true or Upper=false
 func (d *Deribit) optionPairToString(pair currency.Pair) string {
-	// err excluded as this is valid regex
 	subCodes := strings.Split(pair.Quote.String(), currency.DashDelimiter)
 	initialDelimiter := currency.DashDelimiter
 	if subCodes[0] == "USDC" {
