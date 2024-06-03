@@ -27,7 +27,7 @@ var (
 // Requester struct for the request client
 type Requester struct {
 	_HTTPClient        *client
-	limiter            Limiter
+	limiter            RateLimitDefinitions
 	reporter           Reporter
 	name               string
 	userAgent          string

@@ -174,6 +174,26 @@ func main() {
 		// Github API missing contributors
 		contributors = append(contributors, []Contributor{
 			{
+				Login:         "andreygrehov",
+				URL:           "https://github.com/andreygrehov",
+				Contributions: 2,
+			},
+			{
+				Login:         "azhang",
+				URL:           "https://github.com/azhang",
+				Contributions: 2,
+			},
+			{
+				Login:         "bretep",
+				URL:           "https://github.com/bretep",
+				Contributions: 2,
+			},
+			{
+				Login:         "Christian-Achilli",
+				URL:           "https://github.com/Christian-Achilli",
+				Contributions: 2,
+			},
+			{
 				Login:         "cornelk",
 				URL:           "https://github.com/cornelk",
 				Contributions: 2,

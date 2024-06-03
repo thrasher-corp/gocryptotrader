@@ -11,6 +11,7 @@ import (
 
 // Consts here define basic time intervals
 const (
+	Raw                     = Interval(-1)
 	HundredMilliseconds     = Interval(100 * time.Millisecond)
 	FiveHundredMilliseconds = 5 * HundredMilliseconds
 	ThousandMilliseconds    = 10 * HundredMilliseconds

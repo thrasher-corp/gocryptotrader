@@ -1,12 +1,9 @@
 package binanceus
 
 import (
-	"context"
-	"fmt"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
-	"golang.org/x/time/rate"
 )
 
 const (
@@ -41,78 +38,30 @@ const (
 	spotAccountInformationRate
 )
 
-// RateLimit implements the request.Limiter interface
-type RateLimit struct {
-	SpotRate       *rate.Limiter
-	SpotOrdersRate *rate.Limiter
-}
-
-// Limit executes rate limiting functionality for Binance
-func (r *RateLimit) Limit(ctx context.Context, f request.EndpointLimit) error {
-	var limiter *rate.Limiter
-	var tokens int
-	switch f {
-	case spotDefaultRate:
-		limiter, tokens = r.SpotRate, 1
-	case spotOrderbookTickerAllRate,
-		spotSymbolPriceAllRate:
-		limiter, tokens = r.SpotRate, 2
-	case spotHistoricalTradesRate,
-		spotOrderbookDepth500Rate:
-		limiter, tokens = r.SpotRate, 5
-	case spotOrderbookDepth1000Rate,
-		spotAccountInformationRate,
-		spotExchangeInfo,
-		spotTradesQueryRate:
-		limiter, tokens = r.SpotRate, 10
-	case spotPriceChangeAllRate:
-		limiter, tokens = r.SpotRate, 40
-	case spotOrderbookDepth5000Rate:
-		limiter, tokens = r.SpotRate, 50
-	case spotOrderRate:
-		limiter, tokens = r.SpotOrdersRate, 1
-	case spotOrderQueryRate,
-		spotSingleOCOOrderRate:
-		limiter, tokens = r.SpotOrdersRate, 2
-	case spotOpenOrdersSpecificRate:
-		limiter, tokens = r.SpotOrdersRate, 3
-	case spotAllOrdersRate,
-		spotAllOCOOrdersRate:
-		limiter, tokens = r.SpotOrdersRate, 10
-	case spotOrderRateLimitRate:
-		limiter, tokens = r.SpotOrdersRate, 20
-	case spotOpenOrdersAllRate:
-		limiter, tokens = r.SpotOrdersRate, 40
-	default:
-		limiter, tokens = r.SpotRate, 1
-	}
-	var finalDelay time.Duration
-	var reserves = make([]*rate.Reservation, tokens)
-	for i := 0; i < tokens; i++ {
-		// Consume tokens 1 at a time as this avoids needing burst capacity in the limiter,
-		// which would otherwise allow the rate limit to be exceeded over short periods
-		reserves[i] = limiter.Reserve()
-		finalDelay = reserves[i].Delay()
-	}
-	if dl, ok := ctx.Deadline(); ok && dl.Before(time.Now().Add(finalDelay)) {
-		// Cancel all potential reservations to free up rate limiter if deadline
-		// is exceeded.
-		for x := range reserves {
-			reserves[x].Cancel()
-		}
-		return fmt.Errorf("rate limit delay of %s will exceed deadline: %w",
-			finalDelay,
-			context.DeadlineExceeded)
-	}
-	time.Sleep(finalDelay)
-	return nil
-}
-
-// SetRateLimit returns the rate limit for the exchange
-func SetRateLimit() *RateLimit {
-	return &RateLimit{
-		SpotRate:       request.NewRateLimit(spotInterval, spotRequestRate),
-		SpotOrdersRate: request.NewRateLimit(spotOrderInterval, spotOrderRequestRate),
+// GetRateLimit returns the rate limit for the exchange
+func GetRateLimit() request.RateLimitDefinitions {
+	spotRate := request.NewRateLimit(spotInterval, spotRequestRate)
+	spotOrdersRate := request.NewRateLimit(spotOrderInterval, spotOrderRequestRate)
+	return request.RateLimitDefinitions{
+		spotDefaultRate:            request.GetRateLimiterWithWeight(spotRate, 1),
+		spotOrderbookTickerAllRate: request.GetRateLimiterWithWeight(spotRate, 2),
+		spotSymbolPriceAllRate:     request.GetRateLimiterWithWeight(spotRate, 2),
+		spotHistoricalTradesRate:   request.GetRateLimiterWithWeight(spotRate, 5),
+		spotOrderbookDepth500Rate:  request.GetRateLimiterWithWeight(spotRate, 5),
+		spotOrderbookDepth1000Rate: request.GetRateLimiterWithWeight(spotRate, 10),
+		spotAccountInformationRate: request.GetRateLimiterWithWeight(spotRate, 10),
+		spotExchangeInfo:           request.GetRateLimiterWithWeight(spotRate, 10),
+		spotTradesQueryRate:        request.GetRateLimiterWithWeight(spotRate, 10),
+		spotPriceChangeAllRate:     request.GetRateLimiterWithWeight(spotRate, 40),
+		spotOrderbookDepth5000Rate: request.GetRateLimiterWithWeight(spotRate, 50),
+		spotOrderRate:              request.GetRateLimiterWithWeight(spotOrdersRate, 1),
+		spotOrderQueryRate:         request.GetRateLimiterWithWeight(spotOrdersRate, 2),
+		spotSingleOCOOrderRate:     request.GetRateLimiterWithWeight(spotOrdersRate, 2),
+		spotOpenOrdersSpecificRate: request.GetRateLimiterWithWeight(spotOrdersRate, 3),
+		spotAllOrdersRate:          request.GetRateLimiterWithWeight(spotOrdersRate, 10),
+		spotAllOCOOrdersRate:       request.GetRateLimiterWithWeight(spotOrdersRate, 10),
+		spotOrderRateLimitRate:     request.GetRateLimiterWithWeight(spotOrdersRate, 20),
+		spotOpenOrdersAllRate:      request.GetRateLimiterWithWeight(spotOrdersRate, 40),
 	}
 }
 
