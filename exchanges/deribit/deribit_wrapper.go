@@ -152,7 +152,7 @@ func (d *Deribit) SetDefaults() {
 	}
 	d.Requester, err = request.New(d.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
-		request.WithLimiter(SetRateLimit()),
+		request.WithLimiter(GetRateLimits()),
 	)
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
