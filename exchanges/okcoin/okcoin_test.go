@@ -16,6 +16,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
@@ -1535,7 +1536,7 @@ func setupWS() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	err = websocket.Connect()
+	err = websocket.Connect(stream.AutoSubscribe)
 	if err != nil {
 		log.Fatal(err)
 	}

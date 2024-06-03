@@ -43,6 +43,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/gctrpc"
@@ -1758,7 +1759,7 @@ func (s *RPCServer) WithdrawCryptocurrencyFunds(ctx context.Context, r *gctrpc.W
 
 	if exchCfg.API.Credentials.PIN != "" {
 		pinCode, errPin := strconv.ParseInt(exchCfg.API.Credentials.PIN, 10, 64)
-		if err != nil {
+		if errPin != nil {
 			return nil, errPin
 		}
 		req.PIN = pinCode
@@ -1815,12 +1816,12 @@ func (s *RPCServer) WithdrawFiatFunds(ctx context.Context, r *gctrpc.WithdrawFia
 
 	if exchCfg.API.Credentials.OTPSecret != "" {
 		code, errOTP := totp.GenerateCode(exchCfg.API.Credentials.OTPSecret, time.Now())
-		if err != nil {
+		if errOTP != nil {
 			return nil, errOTP
 		}
 
 		codeNum, errOTP := strconv.ParseInt(code, 10, 64)
-		if err != nil {
+		if errOTP != nil {
 			return nil, errOTP
 		}
 		req.OneTimePassword = codeNum
@@ -1828,7 +1829,7 @@ func (s *RPCServer) WithdrawFiatFunds(ctx context.Context, r *gctrpc.WithdrawFia
 
 	if exchCfg.API.Credentials.PIN != "" {
 		pinCode, errPIN := strconv.ParseInt(exchCfg.API.Credentials.PIN, 10, 64)
-		if err != nil {
+		if errPIN != nil {
 			return nil, errPIN
 		}
 		req.PIN = pinCode
@@ -2120,7 +2121,7 @@ func (s *RPCServer) SetExchangePair(_ context.Context, r *gctrpc.SetExchangePair
 	}
 
 	if exch.IsWebsocketEnabled() && pass && base.Websocket.IsConnected() {
-		err = exch.FlushWebsocketChannels()
+		err = exch.FlushWebsocketChannels(stream.AutoSubscribe)
 		if err != nil {
 			newErrors = common.AppendError(newErrors, err)
 		}
@@ -2987,7 +2988,7 @@ func (s *RPCServer) SetAllExchangePairs(_ context.Context, r *gctrpc.SetExchange
 	}
 
 	if exch.IsWebsocketEnabled() && base.Websocket.IsConnected() {
-		err = exch.FlushWebsocketChannels()
+		err = exch.FlushWebsocketChannels(stream.AutoSubscribe)
 		if err != nil {
 			return nil, err
 		}
@@ -3021,7 +3022,7 @@ func (s *RPCServer) UpdateExchangeSupportedPairs(ctx context.Context, r *gctrpc.
 	}
 
 	if exch.IsWebsocketEnabled() {
-		err = exch.FlushWebsocketChannels()
+		err = exch.FlushWebsocketChannels(stream.AutoSubscribe)
 		if err != nil {
 			return nil, err
 		}
@@ -3081,7 +3082,7 @@ func (s *RPCServer) WebsocketSetEnabled(_ context.Context, r *gctrpc.WebsocketSe
 	}
 
 	if r.Enable {
-		err = w.Enable()
+		err = w.Enable(stream.AutoSubscribe)
 		if err != nil {
 			return nil, err
 		}
@@ -3141,7 +3142,7 @@ func (s *RPCServer) WebsocketSetProxy(_ context.Context, r *gctrpc.WebsocketSetP
 		return nil, fmt.Errorf("websocket not supported for exchange %s", r.Exchange)
 	}
 
-	err = w.SetProxyAddress(r.Proxy)
+	err = w.SetProxyAddress(r.Proxy, stream.AutoSubscribe)
 	if err != nil {
 		return nil, err
 	}
