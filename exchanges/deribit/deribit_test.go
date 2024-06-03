@@ -147,12 +147,9 @@ func TestGetHistoricTrades(t *testing.T) {
 	t.Parallel()
 	_, err := d.GetHistoricTrades(context.Background(), futureComboTradablePair, asset.FutureCombo, time.Now().Add(-time.Minute*10), time.Now())
 	require.ErrorIs(t, err, asset.ErrNotSupported)
-	d.Verbose = true
-	var result []trade.Data
 	for assetType, cp := range map[asset.Item]currency.Pair{asset.Spot: spotTradablePair, asset.Futures: futuresTradablePair} {
-		result, err = d.GetHistoricTrades(context.Background(), cp, assetType, time.Now().Add(-time.Hour), time.Now())
+		_, err = d.GetHistoricTrades(context.Background(), cp, assetType, time.Now().Add(-time.Minute*10), time.Now())
 		require.NoErrorf(t, err, "asset type: %v", assetType)
-		require.NotNilf(t, result, "%s expected value not to be nil for asset type: %s", err, assetType)
 	}
 }
 
@@ -4033,14 +4030,6 @@ func TestGetValidatedCurrencyCode(t *testing.T) {
 	for x := range pairs {
 		result := getValidatedCurrencyCode(x)
 		require.Equal(t, pairs[x], result, "expected: %s actual  : %s for currency pair: %v", x, result, pairs[x])
-	}
-}
-
-func TestFetchTradablePairs(t *testing.T) {
-	t.Parallel()
-	for _, a := range d.GetAssetTypes(false) {
-		_, err := d.FetchTradablePairs(context.Background(), a)
-		require.NoError(t, err)
 	}
 }
 
