@@ -397,7 +397,7 @@ func (d *Deribit) processUserOrderChanges(respRaw []byte, channels []string) err
 		if err != nil {
 			return err
 		}
-		cp, a, err := d.getAssetPairByInstrument(changeData.Trades[x].InstrumentName)
+		cp, a, err := d.getAssetPairByInstrument(changeData.Orders[x].InstrumentName)
 		if err != nil {
 			return err
 		}

@@ -2697,16 +2697,14 @@ func (d *Deribit) getAssetPairByInstrument(instrument string) (currency.Pair, as
 	}
 
 	var item asset.Item
-	delimiter := currency.DashDelimiter
 	// Find the first occurrence of the delimiter and split the instrument string accordingly
-	parts := strings.SplitN(instrument, delimiter, -1)
+	parts := strings.SplitN(instrument, currency.DashDelimiter, -1)
 	switch {
 	case len(parts) == 1:
 		if i := strings.IndexAny(instrument, currency.UnderscoreDelimiter); i == -1 {
 			return currency.EMPTYPAIR, asset.Empty, fmt.Errorf("%w %s", errUnsupportedInstrumentFormat, instrument)
 		}
 		item = asset.Spot
-		delimiter = currency.UnderscoreDelimiter
 	case len(parts) == 2:
 		item = asset.Futures
 	case parts[len(parts)-1] == "C" || parts[len(parts)-1] == "P":
@@ -2724,7 +2722,7 @@ func (d *Deribit) getAssetPairByInstrument(instrument string) (currency.Pair, as
 	default:
 		return currency.EMPTYPAIR, asset.Empty, fmt.Errorf("%w %s", errUnsupportedInstrumentFormat, instrument)
 	}
-	cp, err := currency.NewPairDelimiter(instrument, delimiter)
+	cp, err := currency.NewPairFromString(instrument)
 	if err != nil {
 		return currency.EMPTYPAIR, asset.Empty, err
 	}

@@ -1150,7 +1150,7 @@ func (d *Deribit) GetHistoricCandlesExtended(ctx context.Context, pair currency.
 	switch a {
 	case asset.Futures, asset.Spot:
 		for x := range req.RangeHolder.Ranges {
-			intervalString, err := d.GetResolutionFromInterval(interval)
+			intervalString, err := d.GetResolutionFromInterval(req.ExchangeInterval)
 			if err != nil {
 				return nil, err
 			}
