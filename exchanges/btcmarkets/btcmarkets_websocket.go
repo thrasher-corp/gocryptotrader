@@ -147,13 +147,13 @@ func (b *BTCMarkets) wsHandleData(respRaw []byte) error {
 			})
 		} else {
 			err = b.Websocket.Orderbook.Update(&orderbook.Update{
-				UpdateTime: ob.Timestamp,
-				UpdateID:   ob.SnapshotID,
-				Asset:      asset.Spot,
-				Bids:       orderbook.Tranches(ob.Bids),
-				Asks:       orderbook.Tranches(ob.Asks),
-				Pair:       ob.Currency,
-				Checksum:   ob.Checksum,
+				UpdateTime:   ob.Timestamp,
+				LastUpdateID: ob.SnapshotID,
+				Asset:        asset.Spot,
+				Bids:         orderbook.Tranches(ob.Bids),
+				Asks:         orderbook.Tranches(ob.Asks),
+				Pair:         ob.Currency,
+				Checksum:     ob.Checksum,
 			})
 		}
 		if err != nil {
