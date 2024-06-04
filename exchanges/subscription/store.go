@@ -26,7 +26,7 @@ func NewStoreFromList(l List) (*Store, error) {
 	s := NewStore()
 	for _, sub := range l {
 		if sub == nil {
-			return nil, common.ErrNilPointer
+			return nil, fmt.Errorf("%w: List parameter contains an nil element", common.ErrNilPointer)
 		}
 		if err := s.add(sub); err != nil {
 			return nil, err
@@ -109,8 +109,14 @@ func (s *Store) get(key any) *Subscription {
 // If the key passed in is a Subscription then its Key will be used; which may be a pointer to itself.
 // If key implements MatchableKey then key.Match will be used; Note that *Subscription implements MatchableKey
 func (s *Store) Remove(key any) error {
-	if s == nil || s.m == nil || key == nil {
-		return common.ErrNilPointer
+	if s == nil {
+		return fmt.Errorf("%w: Remove called on nil Store", common.ErrNilPointer)
+	}
+	if s.m == nil {
+		return fmt.Errorf("%w: Remove called on an Uninitialised Store", common.ErrNilPointer)
+	}
+	if key == nil {
+		return fmt.Errorf("%w: key param", common.ErrNilPointer)
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
