@@ -116,7 +116,7 @@ func (o *Okcoin) SetDefaults() {
 	}
 	o.Requester, err = request.New(o.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
-		request.WithLimiter(SetRateLimit()),
+		request.WithLimiter(GetRateLimit()),
 	)
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)

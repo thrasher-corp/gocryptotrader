@@ -77,7 +77,7 @@ func (y *Yobit) SetDefaults() {
 	y.Requester, err = request.New(y.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
 		// Server responses are cached every 2 seconds.
-		request.WithLimiter(request.NewBasicRateLimit(time.Second, 1)))
+		request.WithLimiter(request.NewBasicRateLimit(time.Second, 1, 1)))
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}

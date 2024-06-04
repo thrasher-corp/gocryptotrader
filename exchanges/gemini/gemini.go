@@ -402,7 +402,7 @@ func (g *Gemini) SendHTTPRequest(ctx context.Context, ep exchange.URL, path stri
 		HTTPRecording: g.HTTPRecording,
 	}
 
-	return g.SendPayload(ctx, request.Unset, func() (*request.Item, error) {
+	return g.SendPayload(ctx, request.UnAuth, func() (*request.Item, error) {
 		return item, nil
 	}, request.UnauthenticatedRequest)
 }

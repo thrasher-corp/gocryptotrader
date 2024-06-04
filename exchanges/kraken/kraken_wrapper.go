@@ -172,7 +172,7 @@ func (k *Kraken) SetDefaults() {
 
 	k.Requester, err = request.New(k.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
-		request.WithLimiter(request.NewBasicRateLimit(krakenRateInterval, krakenRequestRate)))
+		request.WithLimiter(request.NewBasicRateLimit(krakenRateInterval, krakenRequestRate, 1)))
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}

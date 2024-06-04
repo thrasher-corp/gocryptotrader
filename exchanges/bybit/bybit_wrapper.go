@@ -178,7 +178,7 @@ func (by *Bybit) SetDefaults() {
 
 	by.Requester, err = request.New(by.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
-		request.WithLimiter(SetRateLimit()))
+		request.WithLimiter(GetRateLimit()))
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}

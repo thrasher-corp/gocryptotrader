@@ -165,7 +165,7 @@ func (h *HUOBI) SetDefaults() {
 
 	h.Requester, err = request.New(h.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
-		request.WithLimiter(SetRateLimit()))
+		request.WithLimiter(GetRateLimit()))
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}

@@ -989,7 +989,7 @@ func TestCancelAllQuotes(t *testing.T) {
 	switch {
 	case err != nil:
 		t.Error("Okx CancelAllQuotes() error", err)
-	case err == nil && time.IsZero():
+	case time.IsZero():
 		t.Error("Okx CancelAllQuotes() zero timestamp message ")
 	}
 }
@@ -2237,7 +2237,7 @@ func TestGetOrderHistory(t *testing.T) {
 	_, err := ok.GetOrderHistory(contextGenerate(), &getOrdersRequest)
 	if err == nil {
 		t.Errorf("Okx GetOrderHistory() Expected: %v. received nil", err)
-	} else if err != nil && !errors.Is(err, errMissingAtLeast1CurrencyPair) {
+	} else if !errors.Is(err, errMissingAtLeast1CurrencyPair) {
 		t.Errorf("Okx GetOrderHistory() Expected: %v, but found %v", errMissingAtLeast1CurrencyPair, err)
 	}
 	getOrdersRequest.Pairs = []currency.Pair{

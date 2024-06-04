@@ -3140,7 +3140,7 @@ func (ok *Okx) GetIntervalEnum(interval kline.Interval, appendUTC bool) string {
 
 // GetCandlesticks Retrieve the candlestick charts. This endpoint can retrieve the latest 1,440 data entries. Charts are returned in groups based on the requested bar.
 func (ok *Okx) GetCandlesticks(ctx context.Context, instrumentID string, interval kline.Interval, before, after time.Time, limit int64) ([]CandleStick, error) {
-	return ok.GetCandlestickData(ctx, instrumentID, interval, before, after, limit, marketCandles, getCandlesticksEPL)
+	return ok.GetCandlestickData(ctx, instrumentID, interval, before, after, limit, marketCandles, getCandlestickEPL)
 }
 
 // GetCandlesticksHistory Retrieve history candlestick charts from recent years.
@@ -3151,7 +3151,7 @@ func (ok *Okx) GetCandlesticksHistory(ctx context.Context, instrumentID string, 
 // GetIndexCandlesticks Retrieve the candlestick charts of the index. This endpoint can retrieve the latest 1,440 data entries. Charts are returned in groups based on the requested bar.
 // the response is a list of Candlestick data.
 func (ok *Okx) GetIndexCandlesticks(ctx context.Context, instrumentID string, interval kline.Interval, before, after time.Time, limit int64) ([]CandleStick, error) {
-	return ok.GetCandlestickData(ctx, instrumentID, interval, before, after, limit, marketCandlesIndex, getIndexCandlesticksEPL)
+	return ok.GetCandlestickData(ctx, instrumentID, interval, before, after, limit, marketCandlesIndex, getIndexCandlestickEPL)
 }
 
 // GetMarkPriceCandlesticks Retrieve the candlestick charts of mark price. This endpoint can retrieve the latest 1,440 data entries. Charts are returned in groups based on the requested bar.
@@ -3488,7 +3488,7 @@ func (ok *Okx) GetEstimatedDeliveryPrice(ctx context.Context, instrumentID strin
 		return nil, errMissingRequiredParamInstID
 	}
 	params.Set("instId", instrumentID)
-	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getEstimatedDeliveryPriceEPL, http.MethodGet, common.EncodeURLValues(publicEstimatedPrice, params), nil, &resp, false)
+	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getEstimatedDeliveryExercisePriceEPL, http.MethodGet, common.EncodeURLValues(publicEstimatedPrice, params), nil, &resp, false)
 }
 
 // GetDiscountRateAndInterestFreeQuota retrieves discount rate level and interest-free quota.
