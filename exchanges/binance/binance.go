@@ -4548,7 +4548,7 @@ func (b *Binance) GetSourceAssetList(ctx context.Context, targetAsset currency.C
 
 // InvestmentPlanCreation creates an investment plan
 func (b *Binance) InvestmentPlanCreation(ctx context.Context, arg *InvestmentPlanParams) (*InvestmentPlanResponse, error) {
-	if arg == nil {
+	if arg == nil || len(arg.Details) == 0 {
 		return nil, errNilArgument
 	}
 	if arg.SourceType == "" {

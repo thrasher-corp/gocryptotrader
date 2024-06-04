@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 )
 
@@ -36,6 +37,13 @@ func TestMain(m *testing.M) {
 	if mockTests {
 		optionsTradablePair = currency.Pair{Base: currency.NewCode("ETH"), Quote: currency.NewCode("240927-3800-P"), Delimiter: currency.DashDelimiter}
 		usdtmTradablePair = currency.NewPair(currency.NewCode("BTC"), currency.NewCode("USDT"))
+	}
+	assetToTradablePairMap = map[asset.Item]currency.Pair{
+		asset.Spot:                spotTradablePair,
+		asset.Options:             optionsTradablePair,
+		asset.USDTMarginedFutures: usdtmTradablePair,
+		asset.CoinMarginedFutures: coinmTradablePair,
+		asset.Margin:              spotTradablePair,
 	}
 	setupWs()
 	os.Exit(m.Run())

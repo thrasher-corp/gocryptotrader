@@ -9,7 +9,9 @@ import (
 	"os"
 	"testing"
 
+	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 )
@@ -45,7 +47,12 @@ func TestMain(m *testing.M) {
 	if err := b.populateTradablePairs(); err != nil {
 		log.Fatal(err)
 	}
-	b.HTTPRecording = true
-	b.Verbose = true
+	assetToTradablePairMap = map[asset.Item]currency.Pair{
+		asset.Spot:                spotTradablePair,
+		asset.Options:             optionsTradablePair,
+		asset.USDTMarginedFutures: usdtmTradablePair,
+		asset.CoinMarginedFutures: coinmTradablePair,
+		asset.Margin:              spotTradablePair,
+	}
 	os.Exit(m.Run())
 }

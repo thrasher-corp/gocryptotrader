@@ -702,8 +702,6 @@ func (b *Binance) UpdateOrderbook(ctx context.Context, p currency.Pair, assetTyp
 	if !isEnabled || err != nil {
 		return nil, fmt.Errorf("%w pair: %v", currency.ErrPairNotEnabled, p)
 	}
-	println("Pair is Enabled.")
-
 	book := &orderbook.Base{
 		Exchange:        b.Name,
 		Pair:            p,
@@ -1989,7 +1987,7 @@ func (b *Binance) GetOrderHistory(ctx context.Context, req *order.MultiOrderRequ
 		return nil, err
 	}
 	if len(req.Pairs) == 0 {
-		return nil, errors.New("at least one currency is required to fetch order history")
+		return nil, fmt.Errorf("%w at least one currency is required", currency.ErrCurrencyPairsEmpty)
 	}
 	var orders []order.Detail
 	switch req.AssetType {
