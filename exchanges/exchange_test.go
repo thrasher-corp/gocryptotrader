@@ -1645,15 +1645,11 @@ func TestSubscribeToWebsocketChannels(t *testing.T) {
 func TestUnsubscribeToWebsocketChannels(t *testing.T) {
 	b := Base{}
 	err := b.UnsubscribeToWebsocketChannels(nil)
-	if err == nil {
-		t.Fatal(err)
-	}
+	assert.ErrorIs(t, err, common.ErrFunctionNotSupported, "UnsubscribeToWebsocketChannels should error correctly with a nil Websocket")
 
 	b.Websocket = &stream.Websocket{}
 	err = b.UnsubscribeToWebsocketChannels(nil)
-	if err == nil {
-		t.Fatal(err)
-	}
+	assert.NoError(t, err, "UnsubscribeToWebsocketChannels from an empty/nil list should not error")
 }
 
 func TestGetSubscriptions(t *testing.T) {
