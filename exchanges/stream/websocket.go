@@ -869,8 +869,11 @@ func (w *Websocket) AddSuccessfulSubscriptions(subs ...*subscription.Subscriptio
 
 // RemoveSubscriptions removes subscriptions from the subscription list and sets the status to Unsubscribed
 func (w *Websocket) RemoveSubscriptions(subs ...*subscription.Subscription) error {
-	if w == nil || w.subscriptions == nil {
-		return common.ErrNilPointer
+	if w == nil {
+		return fmt.Errorf("%w: RemoveSubscriptions called on nil Websocket", common.ErrNilPointer)
+	}
+	if w.subscriptions == nil {
+		return fmt.Errorf("%w: RemoveSubscriptions called on uninitialised Websocket", common.ErrNilPointer)
 	}
 	var errs error
 	for _, s := range subs {
