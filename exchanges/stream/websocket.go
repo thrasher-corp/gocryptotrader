@@ -56,7 +56,6 @@ var (
 	errClosedConnection                     = errors.New("use of closed network connection")
 	errSubscriptionsExceedsLimit            = errors.New("subscriptions exceeds limit")
 	errInvalidMaxSubscriptions              = errors.New("max subscriptions cannot be less than 0")
-	errNoSubscriptionsSupplied              = errors.New("no subscriptions supplied")
 	errSameProxyAddress                     = errors.New("cannot set proxy address to the same address")
 	errNoConnectFunc                        = errors.New("websocket connect func not set")
 	errAlreadyConnected                     = errors.New("websocket already connected")
@@ -939,11 +938,8 @@ func checkWebsocketURL(s string) error {
 // checkSubscriptions checks subscriptions against the max subscription limit and if the subscription already exists
 // The subscription state is not considered when counting existing subscriptions
 func (w *Websocket) checkSubscriptions(subs subscription.List) error {
-	if len(subs) == 0 {
-		return errNoSubscriptionsSupplied
-	}
 	if w.subscriptions == nil {
-		return common.ErrNilPointer
+		return fmt.Errorf("%w: Websocket.subscriptions", common.ErrNilPointer)
 	}
 
 	existing := w.subscriptions.Len()

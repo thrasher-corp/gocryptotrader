@@ -471,8 +471,8 @@ func TestSubscribeUnsubscribe(t *testing.T) {
 
 	subs, err := ws.GenerateSubs()
 	require.NoError(t, err, "Generating test subscriptions should not error")
-	assert.ErrorIs(t, new(Websocket).UnsubscribeChannels(subs), common.ErrNilPointer, "Should error correctly when no subscriptions exist")
-	assert.ErrorIs(t, ws.UnsubscribeChannels(nil), errNoSubscriptionsSupplied, "Unsubscribing from nil should error")
+	assert.NoError(t, new(Websocket).UnsubscribeChannels(subs), "Should not error when w.subscriptions is nil")
+	assert.NoError(t, ws.UnsubscribeChannels(nil), "Unsubscribing from nil should not error")
 	assert.ErrorIs(t, ws.UnsubscribeChannels(subs), subscription.ErrNotFound, "Unsubscribing should error when not subscribed")
 	assert.Nil(t, ws.GetSubscription(42), "GetSubscription on empty internal map should return")
 	assert.NoError(t, ws.SubscribeToChannels(subs), "Basic Subscribing should not error")
@@ -494,7 +494,7 @@ func TestSubscribeUnsubscribe(t *testing.T) {
 	assert.Nil(t, ws.GetSubscription(nil), "GetSubscription by nil should return nil")
 	assert.Nil(t, ws.GetSubscription(45), "GetSubscription by invalid key should return nil")
 	assert.ErrorIs(t, ws.SubscribeToChannels(subs), subscription.ErrDuplicate, "Subscribe should error when already subscribed")
-	assert.ErrorIs(t, ws.SubscribeToChannels(nil), errNoSubscriptionsSupplied, "Subscribe to nil should error")
+	assert.NoError(t, ws.SubscribeToChannels(nil), "Subscribe to an nil List should not error")
 	assert.NoError(t, ws.UnsubscribeChannels(subs), "Unsubscribing should not error")
 
 	ws.Subscriber = func(subscription.List) error { return errDastardlyReason }
@@ -1200,12 +1200,17 @@ func TestCheckSubscriptions(t *testing.T) {
 	t.Parallel()
 	ws := Websocket{}
 	err := ws.checkSubscriptions(nil)
-	assert.ErrorIs(t, err, errNoSubscriptionsSupplied, "checkSubscriptions should error correctly")
+	assert.ErrorIs(t, err, common.ErrNilPointer, "checkSubscriptions should error correctly on nil w.subscriptions")
+	assert.ErrorContains(t, err, "Websocket.subscriptions", "checkSubscriptions should error giving context correctly on nil w.subscriptions")
+
+	ws.subscriptions = subscription.NewStore()
+	err = ws.checkSubscriptions(nil)
+	assert.NoError(t, err, "checkSubscriptions should not error on a nil list")
 
 	ws.MaxSubscriptionsPerConnection = 1
 
-	err = ws.checkSubscriptions(subscription.List{{}, {}})
-	assert.ErrorIs(t, err, common.ErrNilPointer, "checkSubscriptions should error correctly when subscriptions is empty")
+	err = ws.checkSubscriptions(subscription.List{{}})
+	assert.NoError(t, err, "checkSubscriptions should not error when subscriptions is empty")
 
 	ws.subscriptions = subscription.NewStore()
 	err = ws.checkSubscriptions(subscription.List{{}, {}})
