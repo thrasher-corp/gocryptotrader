@@ -21,20 +21,6 @@ import (
 
 var errValidationCheckFailed = errors.New("validation check failed")
 
-type dummy struct {
-	HasToPurchaseWithQuoteAmountSet bool
-	HasToSellWithBaseAmountSet      bool
-	RequiresID                      bool
-}
-
-func (d *dummy) GetTradingRequirements() (protocol.TradingRequirements, error) {
-	return protocol.TradingRequirements{
-		SpotMarketOrderAmountPurchaseQuotationOnly: d.HasToPurchaseWithQuoteAmountSet,
-		SpotMarketOrderAmountSellBaseOnly:          d.HasToSellWithBaseAmountSet,
-		ClientOrderID:                              d.RequiresID,
-	}, nil
-}
-
 func TestSubmit_Validate(t *testing.T) {
 	t.Parallel()
 	testPair := currency.NewPair(currency.BTC, currency.LTC)
