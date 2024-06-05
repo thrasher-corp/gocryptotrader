@@ -57,14 +57,8 @@ func IsValidOrderSubmissionSide(s Side) bool {
 	return s != UnknownSide && orderSubmissionValidSides&s == s
 }
 
-// ProtocolTradingRequirements is an interface that allows for the retrieval of
-// exchange specific trading requirements.
-type ProtocolTradingRequirements interface {
-	GetTradingRequirements() (protocol.TradingRequirements, error)
-}
-
 // Validate checks the supplied data and returns whether it's valid
-func (s *Submit) Validate(exch ProtocolTradingRequirements, opt ...validate.Checker) error {
+func (s *Submit) Validate(requirements protocol.TradingRequirements, opt ...validate.Checker) error {
 	if s == nil {
 		return ErrSubmissionIsNil
 	}
@@ -113,25 +107,16 @@ func (s *Submit) Validate(exch ProtocolTradingRequirements, opt ...validate.Chec
 		return ErrPriceMustBeSetIfLimitOrder
 	}
 
-	requirements, err := exch.GetTradingRequirements()
-	if err != nil {
-		return err
-	}
-
 	if requirements.ClientOrderID && s.ClientOrderID == "" {
 		return fmt.Errorf("submit validation error %w, client order ID must be set to satisfy submission requirements", ErrClientOrderIDMustBeSet)
 	}
 
-	if s.Type == Market && s.AssetType == asset.Spot && s.Side.IsLong() {
-		if requirements.SpotMarketOrderAmountPurchaseQuotationOnly && s.QuoteAmount == 0 {
-			return fmt.Errorf("submit validation error %w, quote amount to be sold must be set to 'QuoteAmount' field to satisfy trading requirements", ErrAmountMustBeSet)
-		}
+	if requirements.SpotMarketOrderAmountPurchaseQuotationOnly && s.QuoteAmount == 0 && s.Type == Market && s.AssetType == asset.Spot && s.Side.IsLong() {
+		return fmt.Errorf("submit validation error %w, quote amount to be sold must be set to 'QuoteAmount' field to satisfy trading requirements", ErrAmountMustBeSet)
 	}
 
-	if s.Type == Market && s.AssetType == asset.Spot && s.Side.IsShort() {
-		if requirements.SpotMarketOrderAmountSellBaseOnly && s.Amount == 0 {
-			return fmt.Errorf("submit validation error %w, base amount being sold must be set to 'Amount' field to satisfy trading requirements", ErrAmountMustBeSet)
-		}
+	if requirements.SpotMarketOrderAmountSellBaseOnly && s.Amount == 0 && s.Type == Market && s.AssetType == asset.Spot && s.Side.IsShort() {
+		return fmt.Errorf("submit validation error %w, base amount being sold must be set to 'Amount' field to satisfy trading requirements", ErrAmountMustBeSet)
 	}
 
 	for _, o := range opt {

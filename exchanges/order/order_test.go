@@ -252,13 +252,18 @@ func TestSubmit_Validate(t *testing.T) {
 	}
 
 	for x := range tester {
-		err := tester[x].Submit.Validate(&dummy{
-			HasToPurchaseWithQuoteAmountSet: tester[x].HasToPurchaseWithQuoteAmountSet,
-			HasToSellWithBaseAmountSet:      tester[x].HasToSellWithBaseAmountSet,
-			RequiresID:                      tester[x].RequiresID}, tester[x].ValidOpts)
-		if !errors.Is(err, tester[x].ExpectedErr) {
-			t.Fatalf("Unexpected result. %d Got: %v, want: %v", x+1, err, tester[x].ExpectedErr)
-		}
+		tc := tester[x]
+		x := x
+		t.Run(strconv.Itoa(x), func(t *testing.T) {
+			t.Parallel()
+			requirements := protocol.TradingRequirements{
+				SpotMarketOrderAmountPurchaseQuotationOnly: tc.HasToPurchaseWithQuoteAmountSet,
+				SpotMarketOrderAmountSellBaseOnly:          tc.HasToSellWithBaseAmountSet,
+				ClientOrderID:                              tc.RequiresID,
+			}
+			err := tc.Submit.Validate(requirements, tc.ValidOpts)
+			assert.ErrorIs(t, err, tc.ExpectedErr)
+		})
 	}
 }
 

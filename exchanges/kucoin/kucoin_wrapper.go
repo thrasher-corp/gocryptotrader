@@ -676,7 +676,7 @@ func (ku *Kucoin) GetHistoricTrades(_ context.Context, _ currency.Pair, _ asset.
 
 // SubmitOrder submits a new order
 func (ku *Kucoin) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitResponse, error) {
-	err := s.Validate(ku)
+	err := s.Validate(ku.GetTradingRequirements())
 	if err != nil {
 		return nil, err
 	}

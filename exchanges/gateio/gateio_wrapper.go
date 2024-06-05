@@ -988,7 +988,7 @@ func (g *Gateio) GetHistoricTrades(_ context.Context, _ currency.Pair, _ asset.I
 // SubmitOrder submits a new order
 // TODO: support multiple order types (IOC)
 func (g *Gateio) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitResponse, error) {
-	err := s.Validate(g)
+	err := s.Validate(g.GetTradingRequirements())
 	if err != nil {
 		return nil, err
 	}

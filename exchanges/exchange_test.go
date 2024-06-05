@@ -3067,9 +3067,8 @@ func TestGetCurrencyTradeURL(t *testing.T) {
 
 func TestGetTradingRequirements(t *testing.T) {
 	t.Parallel()
-	_, err := (*Base)(nil).GetTradingRequirements()
-	require.ErrorIs(t, err, errExchangeIsNil)
-	got, err := (&Base{Features: Features{TradingRequirements: protocol.TradingRequirements{ClientOrderID: true}}}).GetTradingRequirements()
-	require.NoError(t, err)
-	require.NotEmpty(t, got)
+	requirements := (*Base)(nil).GetTradingRequirements()
+	require.Empty(t, requirements)
+	requirements = (&Base{Features: Features{TradingRequirements: protocol.TradingRequirements{ClientOrderID: true}}}).GetTradingRequirements()
+	require.NotEmpty(t, requirements)
 }

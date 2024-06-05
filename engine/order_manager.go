@@ -361,7 +361,7 @@ func (m *OrderManager) validate(exch exchange.IBotExchange, newOrder *order.Subm
 		return ErrExchangeNameIsEmpty
 	}
 
-	if err := newOrder.Validate(exch); err != nil {
+	if err := newOrder.Validate(exch.GetTradingRequirements()); err != nil {
 		return fmt.Errorf("order manager: %w", err)
 	}
 

@@ -54,9 +54,8 @@ type Features struct {
 // TradingRequirements defines the requirements for trading on the exchange.
 type TradingRequirements struct {
 	// SpotMarketOrderAmountPurchaseQuotationOnly requires the amount to be in
-	// quote currency or what is to be sold for when you are burchase base
-	// currency. For example, long BTC-USD, the quotation amount is USD.
-	//
+	// quote currency or what is to be sold for when you pruchase base currency.
+	// For example, long BTC-USD, the quotation amount is USD.
 	// NOTE: Due to an exchange's matching engine process, the base amount
 	// acquired may vary from what is intended due to price fluctuations and
 	// liquidity on the books. Care must be taken when implementing a market

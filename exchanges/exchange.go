@@ -1944,9 +1944,9 @@ func (b *Base) GetCurrencyTradeURL(context.Context, asset.Item, currency.Pair) (
 }
 
 // GetTradingRequirements returns the exchange's trading requirements.
-func (b *Base) GetTradingRequirements() (protocol.TradingRequirements, error) {
+func (b *Base) GetTradingRequirements() protocol.TradingRequirements {
 	if b == nil {
-		return protocol.TradingRequirements{}, errExchangeIsNil
+		return protocol.TradingRequirements{}
 	}
-	return b.Features.TradingRequirements, nil
+	return b.Features.TradingRequirements
 }

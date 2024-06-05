@@ -35,8 +35,12 @@ type IBotExchange interface {
 	Shutdown() error
 	GetName() string
 	SetEnabled(bool)
+
 	GetEnabledFeatures() FeaturesEnabled
 	GetSupportedFeatures() FeaturesSupported
+	// GetTradingRequirements returns trading requirements for the exchange
+	GetTradingRequirements() protocol.TradingRequirements
+
 	FetchTicker(ctx context.Context, p currency.Pair, a asset.Item) (*ticker.Price, error)
 	UpdateTicker(ctx context.Context, p currency.Pair, a asset.Item) (*ticker.Price, error)
 	UpdateTickers(ctx context.Context, a asset.Item) error
@@ -114,9 +118,6 @@ type IBotExchange interface {
 	MatchSymbolCheckEnabled(symbol string, a asset.Item, hasDelimiter bool) (pair currency.Pair, enabled bool, err error)
 	// IsPairEnabled checks if a pair is enabled for an enabled asset type
 	IsPairEnabled(pair currency.Pair, a asset.Item) (bool, error)
-
-	// GetTradingRequirements returns trading requirements for the exchange
-	GetTradingRequirements() (protocol.TradingRequirements, error)
 }
 
 // OrderManagement defines functionality for order management
