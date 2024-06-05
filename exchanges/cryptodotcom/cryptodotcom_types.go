@@ -8,10 +8,11 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
 var (
-	errSymbolIsRequired              = errors.New("symbol is required")
+	errEmptyInstrumentName           = errors.New("instrument name is required")
 	errInvalidOrderCancellationScope = errors.New("invalid order cancellation scope, only ACCOUNT or CONNECTION is supported")
 	errInvalidCurrency               = errors.New("invalid currency")
 	errInvalidAmount                 = errors.New("amount has to be greater than zero")
@@ -77,6 +78,15 @@ type WsCandlestickItem struct {
 // TickersResponse represents a list of tickers.
 type TickersResponse struct {
 	Data []TickerItem `json:"data"`
+}
+
+// InstrumentValuation represents a particular instrument valuation.
+type InstrumentValuation struct {
+	Data []struct {
+		Value     types.Number         `json:"v"`
+		Timestamp convert.ExchangeTime `json:"t"`
+	} `json:"data"`
+	InstrumentName string `json:"instrument_name"`
 }
 
 // TickerItem represents a ticker item.
@@ -192,6 +202,13 @@ type DepositAddresses struct {
 	DepositAddressList []DepositAddress `json:"deposit_address_list"`
 }
 
+// ExportRequestResponse represents a response after creating an instrument export request.
+type ExportRequestResponse struct {
+	ID              int64  `json:"id"`
+	Status          string `json:"status"`
+	ClientRequestID string `json:"client_request_id"`
+}
+
 // DepositAddress represents a single deposit address item.
 type DepositAddress struct {
 	Currency   string               `json:"currency"`
@@ -301,7 +318,7 @@ func (arg *CreateOrderParam) getCreateParamMap() (map[string]interface{}, error)
 		return nil, fmt.Errorf("%w, CreateOrderParam can not be nil", common.ErrNilPointer)
 	}
 	if arg.InstrumentName == "" {
-		return nil, errSymbolIsRequired
+		return nil, errEmptyInstrumentName
 	}
 	if arg.Side != order.Sell && arg.Side != order.Buy {
 		return nil, fmt.Errorf("%w, side: %s", order.ErrSideIsInvalid, arg.Side)

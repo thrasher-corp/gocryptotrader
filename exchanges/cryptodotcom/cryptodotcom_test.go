@@ -105,13 +105,13 @@ func TestGetCandlestickDetail(t *testing.T) {
 	assert.NotNil(t, result)
 }
 
-func TestGetTicker(t *testing.T) {
+func TestGetTickers(t *testing.T) {
 	t.Parallel()
-	result, err := cr.GetTicker(context.Background(), "BTC_USDT")
+	result, err := cr.GetTickers(context.Background(), "BTC_USDT")
 	require.NoError(t, err)
 	require.NotNil(t, result)
 
-	result, err = cr.GetTicker(context.Background(), "")
+	result, err = cr.GetTickers(context.Background(), "")
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -176,6 +176,14 @@ func TestGetPersonalDepositAddress(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, cr)
 	result, err := cr.GetPersonalDepositAddress(context.Background(), currency.BTC)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestCreateExportRequest(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, cr)
+	result, err := cr.CreateExportRequest(context.Background(), "BTC_CRO", "", time.Now().Add(-time.Hour*240), time.Now(), []string{"SPOT_ORDER", "SPOT_TRADE"})
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -715,7 +723,7 @@ func TestGetCreateParamMap(t *testing.T) {
 	t.Parallel()
 	arg := &CreateOrderParam{InstrumentName: "", OrderType: orderTypeToString(order.Limit), Price: 123, Quantity: 12}
 	_, err := arg.getCreateParamMap()
-	require.ErrorIs(t, err, errSymbolIsRequired)
+	require.ErrorIs(t, err, errEmptyInstrumentName)
 	var newone *CreateOrderParam
 	_, err = newone.getCreateParamMap()
 	require.ErrorIs(t, err, common.ErrNilPointer)

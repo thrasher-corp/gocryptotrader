@@ -20,7 +20,7 @@ func (cr *Cryptodotcom) WsGetInstruments() (*InstrumentList, error) {
 // WsRetriveTrades fetches the public trades for a particular instrument through the websocket stream.
 func (cr *Cryptodotcom) WsRetriveTrades(instrumentName string) (*TradesResponse, error) {
 	if instrumentName == "" {
-		return nil, errSymbolIsRequired
+		return nil, errEmptyInstrumentName
 	}
 	params := make(map[string]interface{})
 	params["instrument_name"] = instrumentName
@@ -95,7 +95,7 @@ func (cr *Cryptodotcom) WsPlaceOrder(arg *CreateOrderParam) (*CreateOrderRespons
 func (cr *Cryptodotcom) WsCancelExistingOrder(instrumentName, orderID string) error {
 	params := make(map[string]interface{})
 	if instrumentName == "" {
-		return errSymbolIsRequired
+		return errEmptyInstrumentName
 	}
 	if orderID == "" {
 		return order.ErrOrderIDNotSet
@@ -156,7 +156,7 @@ func (cr *Cryptodotcom) WsCancelOrderList(args []CancelOrderParam) (*CancelOrder
 // This call is asynchronous, so the response is simply a confirmation of the request.
 func (cr *Cryptodotcom) WsCancelAllPersonalOrders(instrumentName string) error {
 	if instrumentName == "" {
-		return errSymbolIsRequired
+		return errEmptyInstrumentName
 	}
 	params := make(map[string]interface{})
 	params["instrument_name"] = instrumentName

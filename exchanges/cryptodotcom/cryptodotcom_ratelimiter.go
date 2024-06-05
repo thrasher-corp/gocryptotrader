@@ -24,6 +24,7 @@ const (
 	publicOrderbookRate
 	publicCandlestickRate
 	publicTickerRate
+	publicValuationRate
 	publicTradesRate
 	publicGetValuationsRate
 	publicGetExpiredSettlementPriceRate
@@ -61,6 +62,7 @@ const (
 	privateGetWithdrawalHistoryRate
 	privateGetDepositHistoryRate
 	privateGetAccountSummaryRate
+	createExportRequest
 )
 
 // GetRateLimit returns the rate limit for the exchange
@@ -71,6 +73,7 @@ func GetRateLimit() request.RateLimitDefinitions {
 		publicOrderbookRate:                 request.NewRateLimitWithWeight(oneSecondInterval, hundredPerInterval, hundredPerInterval),
 		publicCandlestickRate:               request.NewRateLimitWithWeight(oneSecondInterval, hundredPerInterval, hundredPerInterval),
 		publicTickerRate:                    request.NewRateLimitWithWeight(oneSecondInterval, hundredPerInterval, hundredPerInterval),
+		publicValuationRate:                 request.NewRateLimitWithWeight(oneSecondInterval, hundredPerInterval, hundredPerInterval),
 		publicTradesRate:                    request.NewRateLimitWithWeight(oneSecondInterval, hundredPerInterval, hundredPerInterval),
 		publicGetValuationsRate:             request.NewRateLimitWithWeight(oneSecondInterval, hundredPerInterval, hundredPerInterval),
 		publicGetExpiredSettlementPriceRate: request.NewRateLimitWithWeight(oneSecondInterval, hundredPerInterval, hundredPerInterval),
@@ -106,5 +109,6 @@ func GetRateLimit() request.RateLimitDefinitions {
 		privateGetWithdrawalHistoryRate:     request.NewRateLimitWithWeight(hundredMilliSecondsInterval, threePerInterval, threePerInterval),
 		privateGetDepositHistoryRate:        request.NewRateLimitWithWeight(hundredMilliSecondsInterval, threePerInterval, threePerInterval),
 		privateGetAccountSummaryRate:        request.NewRateLimitWithWeight(hundredMilliSecondsInterval, threePerInterval, threePerInterval),
+		createExportRequest:                 request.NewRateLimitWithWeight(hundredMilliSecondsInterval, threePerInterval, threePerInterval),
 	}
 }

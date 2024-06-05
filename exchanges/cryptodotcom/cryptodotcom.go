@@ -29,7 +29,7 @@ type Cryptodotcom struct {
 
 const (
 	// cryptodotcom API endpoints.
-	cryptodotcomAPIURL = "https://api.crypto.com"
+	cryptodotcomAPIURL = "https://api.crypto.com/exchange/v1/"
 
 	// cryptodotcom websocket endpoints.
 	cryptodotcomWebsocketUserAPI   = "wss://stream.crypto.com/v2/user"
@@ -42,7 +42,7 @@ const (
 	publicInstruments = "public/get-instruments"
 	publicOrderbook   = "public/get-book"
 	publicCandlestick = "public/get-candlestick"
-	publicTicker      = "public/get-ticker"
+	publicTickers     = "public/get-ticker"
 	publicTrades      = "public/get-trades"
 
 	// Authenticated endpoints
@@ -112,7 +112,7 @@ func (cr *Cryptodotcom) GetOrderbook(ctx context.Context, instrumentName string,
 
 func checkInstrumentName(instrumentName string) (url.Values, error) {
 	if instrumentName == "" {
-		return nil, errSymbolIsRequired
+		return nil, errEmptyInstrumentName
 	}
 	params := url.Values{}
 	params.Set("instrument_name", instrumentName)
@@ -132,14 +132,14 @@ func (cr *Cryptodotcom) GetCandlestickDetail(ctx context.Context, instrumentName
 	return resp, cr.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues(publicCandlestick, params), publicCandlestickRate, &resp)
 }
 
-// GetTicker fetches the public tickers for an instrument.
-func (cr *Cryptodotcom) GetTicker(ctx context.Context, instrumentName string) (*TickersResponse, error) {
+// GetTickers fetches the public tickers for an instrument.
+func (cr *Cryptodotcom) GetTickers(ctx context.Context, instrumentName string) (*TickersResponse, error) {
 	params := url.Values{}
 	if instrumentName != "" {
 		params.Set("instrument_name", instrumentName)
 	}
 	var resp *TickersResponse
-	return resp, cr.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues(publicTicker, params), publicTickerRate, &resp)
+	return resp, cr.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues(publicTickers, params), publicTickerRate, &resp)
 }
 
 // GetTrades fetches the public trades for a particular instrument.
@@ -234,6 +234,30 @@ func (cr *Cryptodotcom) GetPersonalDepositAddress(ctx context.Context, ccy curre
 	return resp, cr.SendAuthHTTPRequest(ctx, exchange.RestSpot, privategetDepositAddressRate, privateGetDepositAddress, params, &resp)
 }
 
+// CreateExportRequest creates a new export
+// requested_data possible values: SPOT_ORDER, SPOT_TRADE, MARGIN_ORDER, MARGIN_TRADE , OEX_ORDER, OEX_TRADE
+func (cr *Cryptodotcom) CreateExportRequest(ctx context.Context, instrumentName, clientRequestID string, startTime, endTime time.Time, requestedData []string) (*ExportRequestResponse, error) {
+	params := make(map[string]interface{})
+	if instrumentName != "" {
+		params["instrument_name"] = instrumentName
+	}
+	err := common.StartEndTimeCheck(startTime, endTime)
+	if err != nil {
+		return nil, err
+	}
+	if len(requestedData) == 0 {
+		return nil, errors.New("requested data is required")
+	}
+	params["start_ts"] = startTime.UnixMilli()
+	params["end_ts"] = endTime.UnixMilli()
+	params["requested_data"] = requestedData
+	if clientRequestID != "" {
+		params["client_request_id"] = clientRequestID
+	}
+	var resp *ExportRequestResponse
+	return resp, cr.SendAuthHTTPRequest(ctx, exchange.RestSpot, createExportRequest, "private/export/create-export-request", params, &resp)
+}
+
 // SPOT Trading API endpoints.
 
 // GetAccountSummary returns the account balance of a user for a particular token.
@@ -259,7 +283,7 @@ func (cr *Cryptodotcom) CreateOrder(ctx context.Context, arg *CreateOrderParam) 
 // CancelExistingOrder cancels and existing open order.
 func (cr *Cryptodotcom) CancelExistingOrder(ctx context.Context, instrumentName, orderID string) error {
 	if instrumentName == "" {
-		return errSymbolIsRequired
+		return errEmptyInstrumentName
 	}
 	if orderID == "" {
 		return order.ErrOrderIDNotSet
@@ -321,7 +345,7 @@ func (cr *Cryptodotcom) CancelOrderList(ctx context.Context, args []CancelOrderP
 // This call is asynchronous, so the response is simply a confirmation of the request.
 func (cr *Cryptodotcom) CancelAllPersonalOrders(ctx context.Context, instrumentName string) error {
 	if instrumentName == "" {
-		return errSymbolIsRequired
+		return errEmptyInstrumentName
 	}
 	params := make(map[string]interface{})
 	params["instrument_name"] = instrumentName
@@ -368,7 +392,7 @@ func (cr *Cryptodotcom) CreateSubAccountTransfer(ctx context.Context, from, to s
 		return fmt.Errorf("%w Currency: %v", currency.ErrCurrencyCodeEmpty, ccy)
 	}
 	if amount <= 0 {
-		return errors.New("'amount' must be greater than 0")
+		return errInvalidAmount
 	}
 	params := make(map[string]interface{})
 	params["from"] = from
@@ -481,6 +505,7 @@ func (cr *Cryptodotcom) RequestOTCQuote(ctx context.Context, currencyPair curren
 		return nil, errors.New("invalid order direction; must be BUY, SELL, or TWO-WAY")
 	}
 	params := make(map[string]interface{})
+	params["direction"] = direction
 	params["base_currency"] = currencyPair.Base.String()
 	params["quote_currency"] = currencyPair.Quote.String()
 	if baseCurrencySize != 0 {
@@ -489,7 +514,6 @@ func (cr *Cryptodotcom) RequestOTCQuote(ctx context.Context, currencyPair curren
 	if quoteCurrencySize != 0 {
 		params["quote_currency_size"] = strconv.FormatFloat(quoteCurrencySize, 'f', -1, 64)
 	}
-	params["direction"] = direction
 	var resp *OTCQuoteResponse
 	return resp, cr.SendAuthHTTPRequest(ctx, exchange.RestSpot, privateOTCRequestQuoteRate, privateOTCRequestQuote, params, &resp)
 }
@@ -562,18 +586,7 @@ func (cr *Cryptodotcom) GetOTCTradeHistory(ctx context.Context, currencyPair cur
 // intervalToString returns a string representation of interval.
 func intervalToString(interval kline.Interval) (string, error) {
 	intervalMap := map[kline.Interval]string{
-		kline.OneMin:     "1m",
-		kline.FiveMin:    "5m",
-		kline.FifteenMin: "15m",
-		kline.ThirtyMin:  "30m",
-		kline.OneHour:    "1h",
-		kline.FourHour:   "4h",
-		kline.SixHour:    "6h",
-		kline.TwelveHour: "12h",
-		kline.OneDay:     "1D",
-		kline.SevenDay:   "7D",
-		kline.TwoWeek:    "14D",
-		kline.OneMonth:   "1M"}
+		kline.OneMin: "1m", kline.FiveMin: "5m", kline.FifteenMin: "15m", kline.ThirtyMin: "30m", kline.OneHour: "1h", kline.FourHour: "4h", kline.SixHour: "6h", kline.TwelveHour: "12h", kline.OneDay: "1D", kline.SevenDay: "7D", kline.TwoWeek: "14D", kline.OneMonth: "1M"}
 	intervalString, okay := intervalMap[interval]
 	if !okay {
 		return "", fmt.Errorf("%v interval:%v", kline.ErrUnsupportedInterval, interval)
@@ -584,18 +597,7 @@ func intervalToString(interval kline.Interval) (string, error) {
 // stringToInterval converts a string representation to kline.Interval instance.
 func stringToInterval(interval string) (kline.Interval, error) {
 	intervalMap := map[string]kline.Interval{
-		"1m":  kline.OneMin,
-		"5m":  kline.FiveMin,
-		"15m": kline.FifteenMin,
-		"30m": kline.ThirtyMin,
-		"1h":  kline.OneHour,
-		"4h":  kline.FourHour,
-		"6h":  kline.SixHour,
-		"12h": kline.TwelveHour,
-		"1D":  kline.OneDay,
-		"7D":  kline.SevenDay,
-		"14D": kline.TwoWeek,
-		"1M":  kline.OneMonth}
+		"1m": kline.OneMin, "5m": kline.FiveMin, "15m": kline.FifteenMin, "30m": kline.ThirtyMin, "1h": kline.OneHour, "4h": kline.FourHour, "6h": kline.SixHour, "12h": kline.TwelveHour, "1D": kline.OneDay, "7D": kline.SevenDay, "14D": kline.TwoWeek, "1M": kline.OneMonth}
 	klineInterval, okay := intervalMap[interval]
 	if !okay {
 		return 0, fmt.Errorf("%w %s", kline.ErrInvalidInterval, interval)

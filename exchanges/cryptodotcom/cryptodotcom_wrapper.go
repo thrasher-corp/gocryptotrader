@@ -278,7 +278,7 @@ func (cr *Cryptodotcom) UpdateTicker(ctx context.Context, p currency.Pair, asset
 	if err != nil {
 		return nil, err
 	}
-	tick, err := cr.GetTicker(ctx, p.String())
+	tick, err := cr.GetTickers(ctx, p.String())
 	if err != nil {
 		return nil, err
 	}
@@ -309,7 +309,7 @@ func (cr *Cryptodotcom) UpdateTickers(ctx context.Context, assetType asset.Item)
 	if !cr.SupportsAsset(assetType) {
 		return fmt.Errorf("%w asset type: %v", asset.ErrNotSupported, assetType)
 	}
-	tick, err := cr.GetTicker(ctx, "")
+	tick, err := cr.GetTickers(ctx, "")
 	if err != nil {
 		return err
 	}
