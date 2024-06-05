@@ -134,7 +134,7 @@ func (cr *Cryptodotcom) SetDefaults() {
 	}
 	cr.Requester, err = request.New(cr.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
-		request.WithLimiter(SetRateLimit()),
+		request.WithLimiter(GetRateLimit()),
 	)
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
@@ -383,7 +383,7 @@ func (cr *Cryptodotcom) UpdateOrderbook(ctx context.Context, pair currency.Pair,
 	if len(orderbookNew.Data) == 0 {
 		return nil, fmt.Errorf("%w, missing orderbook data", orderbook.ErrOrderbookInvalid)
 	}
-	book.Bids = make([]orderbook.Item, len(orderbookNew.Data[0].Bids))
+	book.Bids = make([]orderbook.Tranche, len(orderbookNew.Data[0].Bids))
 	for x := range orderbookNew.Data[0].Bids {
 		var price float64
 		var amount float64
@@ -395,12 +395,12 @@ func (cr *Cryptodotcom) UpdateOrderbook(ctx context.Context, pair currency.Pair,
 		if err != nil {
 			return nil, err
 		}
-		book.Bids[x] = orderbook.Item{
+		book.Bids[x] = orderbook.Tranche{
 			Amount: amount,
 			Price:  price,
 		}
 	}
-	book.Asks = make([]orderbook.Item, len(orderbookNew.Data[0].Asks))
+	book.Asks = make([]orderbook.Tranche, len(orderbookNew.Data[0].Asks))
 	for x := range orderbookNew.Data[0].Asks {
 		var price float64
 		var amount float64
@@ -412,7 +412,7 @@ func (cr *Cryptodotcom) UpdateOrderbook(ctx context.Context, pair currency.Pair,
 		if err != nil {
 			return nil, err
 		}
-		book.Asks[x] = orderbook.Item{
+		book.Asks[x] = orderbook.Tranche{
 			Amount: amount,
 			Price:  price,
 		}

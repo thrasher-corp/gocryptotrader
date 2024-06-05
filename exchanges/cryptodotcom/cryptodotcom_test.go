@@ -718,26 +718,26 @@ func TestGetCreateParamMap(t *testing.T) {
 	require.ErrorIs(t, err, errSymbolIsRequired)
 	var newone *CreateOrderParam
 	_, err = newone.getCreateParamMap()
-	assert.ErrorIs(t, err, common.ErrNilPointer)
+	require.ErrorIs(t, err, common.ErrNilPointer)
 	arg.InstrumentName = "BTC_USDT"
 	_, err = arg.getCreateParamMap()
-	assert.ErrorIs(t, err, order.ErrSideIsInvalid)
+	require.ErrorIs(t, err, order.ErrSideIsInvalid)
 	arg.Side = order.Buy
 	_, err = arg.getCreateParamMap()
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	arg.OrderType = orderTypeToString(order.Market)
 	_, err = arg.getCreateParamMap()
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	arg.OrderType = orderTypeToString(order.TakeProfit)
 	arg.Notional = 12
 	_, err = arg.getCreateParamMap()
-	assert.ErrorIs(t, err, errTriggerPriceRequired)
+	require.ErrorIs(t, err, errTriggerPriceRequired)
 	arg.OrderType = orderTypeToString(order.UnknownType)
 	_, err = arg.getCreateParamMap()
-	assert.ErrorIs(t, err, order.ErrTypeIsInvalid)
+	require.ErrorIs(t, err, order.ErrTypeIsInvalid)
 	arg.OrderType = orderTypeToString(order.StopLimit)
 	_, err = arg.getCreateParamMap()
-	assert.ErrorIs(t, err, errTriggerPriceRequired)
+	require.ErrorIs(t, err, errTriggerPriceRequired)
 
 	arg.TriggerPrice = .432423
 	result, err := arg.getCreateParamMap()

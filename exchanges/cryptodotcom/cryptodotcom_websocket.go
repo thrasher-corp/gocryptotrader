@@ -477,7 +477,7 @@ func (cr *Cryptodotcom) processOrderbook(resp *WsResult) error {
 			LastUpdateID:    data[x].UpdateSequence,
 			VerifyOrderbook: cr.CanVerifyOrderbook,
 		}
-		book.Asks = make([]orderbook.Item, len(data[x].Asks))
+		book.Asks = make([]orderbook.Tranche, len(data[x].Asks))
 		for i := range data[x].Asks {
 			book.Asks[i].Price, err = strconv.ParseFloat(data[x].Asks[i][0], 64)
 			if err != nil {
@@ -488,7 +488,7 @@ func (cr *Cryptodotcom) processOrderbook(resp *WsResult) error {
 				return err
 			}
 		}
-		book.Bids = make([]orderbook.Item, len(data[x].Bids))
+		book.Bids = make([]orderbook.Tranche, len(data[x].Bids))
 		for i := range data[x].Bids {
 			book.Bids[i].Price, err = strconv.ParseFloat(data[x].Bids[i][0], 64)
 			if err != nil {
