@@ -264,12 +264,22 @@ func (l *fields) stage(header string, deferFunc deferral) {
 	logFieldsPool.Put(l)
 }
 
-// stageln stages a log event
-func (l *fields) stageln(header string, a ...interface{}) {
+// stageln logs a message with the given header and arguments. It uses the
+// custom log hook if set, otherwise falls back to the library's internal log
+// system.
+func (l *fields) stageln(header string, a ...any) {
+	if customLogHook != nil && customLogHook(header, l.name, a...) {
+		return
+	}
 	l.stage(header, func() string { return fmt.Sprint(a...) })
 }
 
-// stagef stages a log event
-func (l *fields) stagef(header, format string, a ...interface{}) {
+// stagef logs a formatted message with the given header and arguments. It uses
+// the custom log hook if set, otherwise falls back to the library's internal
+// log system.
+func (l *fields) stagef(header, format string, a ...any) {
+	if customLogHook != nil && customLogHook(header, l.name, fmt.Sprintf(format, a...)) {
+		return
+	}
 	l.stage(header, func() string { return fmt.Sprintf(format, a...) })
 }
