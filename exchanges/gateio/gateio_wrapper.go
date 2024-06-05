@@ -1017,7 +1017,7 @@ func (g *Gateio) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Submi
 		// quote currency amount is used. When selling the base currency the
 		// base currency amount is used.
 		tradingAmount := s.Amount
-		if tradingAmount == 0 {
+		if tradingAmount == 0 && s.Type == order.Market {
 			tradingAmount = s.QuoteAmount
 		}
 
