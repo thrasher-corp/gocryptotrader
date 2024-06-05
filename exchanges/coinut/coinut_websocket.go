@@ -499,17 +499,17 @@ func (c *COINUT) WsGetInstruments() (Instruments, error) {
 
 // WsProcessOrderbookSnapshot processes the orderbook snapshot
 func (c *COINUT) WsProcessOrderbookSnapshot(ob *WsOrderbookSnapshot) error {
-	bids := make([]orderbook.Item, len(ob.Buy))
+	bids := make([]orderbook.Tranche, len(ob.Buy))
 	for i := range ob.Buy {
-		bids[i] = orderbook.Item{
+		bids[i] = orderbook.Tranche{
 			Amount: ob.Buy[i].Volume,
 			Price:  ob.Buy[i].Price,
 		}
 	}
 
-	asks := make([]orderbook.Item, len(ob.Sell))
+	asks := make([]orderbook.Tranche, len(ob.Sell))
 	for i := range ob.Sell {
-		asks[i] = orderbook.Item{
+		asks[i] = orderbook.Tranche{
 			Amount: ob.Sell[i].Volume,
 			Price:  ob.Sell[i].Price,
 		}
@@ -572,9 +572,9 @@ func (c *COINUT) WsProcessOrderbookUpdate(update *WsOrderbookUpdate) error {
 		UpdateTime: time.Now(), // No time sent
 	}
 	if strings.EqualFold(update.Side, order.Buy.Lower()) {
-		bufferUpdate.Bids = []orderbook.Item{{Price: update.Price, Amount: update.Volume}}
+		bufferUpdate.Bids = []orderbook.Tranche{{Price: update.Price, Amount: update.Volume}}
 	} else {
-		bufferUpdate.Asks = []orderbook.Item{{Price: update.Price, Amount: update.Volume}}
+		bufferUpdate.Asks = []orderbook.Tranche{{Price: update.Price, Amount: update.Volume}}
 	}
 	return c.Websocket.Orderbook.Update(bufferUpdate)
 }

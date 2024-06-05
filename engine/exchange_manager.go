@@ -19,8 +19,7 @@ var (
 	ErrExchangeFailedToLoad  = errors.New("exchange failed to load")
 	ErrExchangeNameIsEmpty   = errors.New("exchange name is empty")
 
-	errExchangeIsNil         = errors.New("exchange is nil")
-	errExchangeAlreadyLoaded = errors.New("exchange already loaded")
+	errExchangeIsNil = errors.New("exchange is nil")
 )
 
 // CustomExchangeBuilder interface allows external applications to create
@@ -55,7 +54,7 @@ func (m *ExchangeManager) Add(exch exchange.IBotExchange) error {
 	defer m.mtx.Unlock()
 	_, ok := m.exchanges[strings.ToLower(exch.GetName())]
 	if ok {
-		return fmt.Errorf("exchange manager: %s %w", exch.GetName(), errExchangeAlreadyLoaded)
+		return fmt.Errorf("exchange manager: %s %w", exch.GetName(), ErrExchangeAlreadyLoaded)
 	}
 	m.exchanges[strings.ToLower(exch.GetName())] = exch
 	return nil

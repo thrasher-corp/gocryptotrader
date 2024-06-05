@@ -28,27 +28,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
-// GetDefaultConfig returns a default exchange config
-func (o *Okcoin) GetDefaultConfig(ctx context.Context) (*config.Exchange, error) {
-	o.SetDefaults()
-	exchCfg, err := o.GetStandardConfig()
-	if err != nil {
-		return nil, err
-	}
-
-	err = o.SetupDefaults(exchCfg)
-	if err != nil {
-		return nil, err
-	}
-	if o.Features.Supports.RESTCapabilities.AutoPairUpdates {
-		err = o.UpdateTradablePairs(ctx, true)
-		if err != nil {
-			return nil, err
-		}
-	}
-	return exchCfg, nil
-}
-
 // SetDefaults method assigns the default values for Okcoin
 func (o *Okcoin) SetDefaults() {
 	o.SetErrorDefaults()
@@ -137,7 +116,7 @@ func (o *Okcoin) SetDefaults() {
 	}
 	o.Requester, err = request.New(o.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
-		request.WithLimiter(SetRateLimit()),
+		request.WithLimiter(GetRateLimit()),
 	)
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
@@ -432,7 +411,7 @@ func (o *Okcoin) UpdateOrderbook(ctx context.Context, p currency.Pair, a asset.I
 	if err != nil {
 		return nil, err
 	}
-	book.Bids = make(orderbook.Items, len(orderbookList.Bids))
+	book.Bids = make(orderbook.Tranches, len(orderbookList.Bids))
 	for x := range orderbookList.Bids {
 		book.Bids[x].Amount, err = strconv.ParseFloat(orderbookList.Bids[x][1], 64)
 		if err != nil {
@@ -443,7 +422,7 @@ func (o *Okcoin) UpdateOrderbook(ctx context.Context, p currency.Pair, a asset.I
 			return book, err
 		}
 	}
-	book.Asks = make(orderbook.Items, len(orderbookList.Asks))
+	book.Asks = make(orderbook.Tranches, len(orderbookList.Asks))
 	for x := range orderbookList.Asks {
 		book.Asks[x].Amount, err = strconv.ParseFloat(orderbookList.Asks[x][1], 64)
 		if err != nil {

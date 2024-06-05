@@ -67,7 +67,7 @@ func setupClient(c *cli.Context) (*grpc.ClientConn, context.CancelFunc, error) {
 	if verbose {
 		c.Context = metadata.AppendToOutgoingContext(c.Context, "verbose", "true")
 	}
-	conn, err := grpc.DialContext(c.Context, host, opts...)
+	conn, err := grpc.NewClient(host, opts...)
 	return conn, cancel, err
 }
 
@@ -218,6 +218,7 @@ func main() {
 		technicalAnalysisCommand,
 		getMarginRatesHistoryCommand,
 		orderbookCommand,
+		getCurrencyTradeURLCommand,
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
