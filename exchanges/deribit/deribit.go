@@ -2705,7 +2705,7 @@ func (d *Deribit) getAssetPairByInstrument(instrument string) (currency.Pair, as
 
 	var item asset.Item
 	// Find the first occurrence of the delimiter and split the instrument string accordingly
-	parts := strings.SplitN(instrument, currency.DashDelimiter, -1)
+	parts := strings.Split(instrument, currency.DashDelimiter)
 	switch {
 	case len(parts) == 1:
 		if i := strings.IndexAny(instrument, currency.UnderscoreDelimiter); i == -1 {

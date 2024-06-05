@@ -258,23 +258,28 @@ func (d *Deribit) UpdateTradablePairs(ctx context.Context, forceUpdate bool) err
 	assets := d.GetAssetTypes(false)
 	var wg sync.WaitGroup
 	wg.Add(len(assets))
-	var errs error
+	errC := make(chan error, len(assets))
 	for x := range assets {
 		go func(x int) {
 			defer wg.Done()
 			pairs, err := d.FetchTradablePairs(ctx, assets[x])
 			if err != nil {
-				errs = common.AppendError(errs, err)
+				errC <- err
 				return
 			}
 			err = d.UpdatePairs(pairs, assets[x], false, forceUpdate)
 			if err != nil {
-				errs = common.AppendError(errs, err)
+				errC <- err
 				return
 			}
 		}(x)
 	}
 	wg.Wait()
+	close(errC)
+	var errs error
+	for err := range errC {
+		errs = common.AppendError(errs, err)
+	}
 	return errs
 }
 
@@ -1496,8 +1501,11 @@ func (d *Deribit) GetLatestFundingRates(ctx context.Context, r *fundingrate.Late
 		return nil, fmt.Errorf("%s %w", r.Asset, asset.ErrNotSupported)
 	}
 	isPerpetual, err := d.IsPerpetualFutureCurrency(r.Asset, r.Pair)
-	if !isPerpetual || err != nil {
-		return nil, futures.ErrNotPerpetualFuture
+	if err != nil {
+		return nil, err
+	}
+	if !isPerpetual {
+		return nil, fmt.Errorf("%w '%s'", futures.ErrNotPerpetualFuture, r.Pair)
 	}
 	pFmt, err := d.CurrencyPairs.GetFormat(r.Asset, true)
 	if err != nil {
