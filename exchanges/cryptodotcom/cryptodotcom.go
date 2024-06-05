@@ -561,66 +561,46 @@ func (cr *Cryptodotcom) GetOTCTradeHistory(ctx context.Context, currencyPair cur
 
 // intervalToString returns a string representation of interval.
 func intervalToString(interval kline.Interval) (string, error) {
-	switch interval {
-	case kline.OneMin:
-		return "1m", nil
-	case kline.FiveMin:
-		return "5m", nil
-	case kline.FifteenMin:
-		return "15m", nil
-	case kline.ThirtyMin:
-		return "30m", nil
-	case kline.OneHour:
-		return "1h", nil
-	case kline.FourHour:
-		return "4h", nil
-	case kline.SixHour:
-		return "6h", nil
-	case kline.TwelveHour:
-		return "12h", nil
-	case kline.OneDay:
-		return "1D", nil
-	case kline.SevenDay:
-		return "7D", nil
-	case kline.TwoWeek:
-		return "14D", nil
-	case kline.OneMonth:
-		return "1M", nil
-	default:
+	intervalMap := map[kline.Interval]string{
+		kline.OneMin:     "1m",
+		kline.FiveMin:    "5m",
+		kline.FifteenMin: "15m",
+		kline.ThirtyMin:  "30m",
+		kline.OneHour:    "1h",
+		kline.FourHour:   "4h",
+		kline.SixHour:    "6h",
+		kline.TwelveHour: "12h",
+		kline.OneDay:     "1D",
+		kline.SevenDay:   "7D",
+		kline.TwoWeek:    "14D",
+		kline.OneMonth:   "1M"}
+	intervalString, okay := intervalMap[interval]
+	if !okay {
 		return "", fmt.Errorf("%v interval:%v", kline.ErrUnsupportedInterval, interval)
 	}
+	return intervalString, nil
 }
 
 // stringToInterval converts a string representation to kline.Interval instance.
 func stringToInterval(interval string) (kline.Interval, error) {
-	switch interval {
-	case "1m":
-		return kline.OneMin, nil
-	case "5m":
-		return kline.FiveMin, nil
-	case "15m":
-		return kline.FifteenMin, nil
-	case "30m":
-		return kline.ThirtyMin, nil
-	case "1h":
-		return kline.OneHour, nil
-	case "4h":
-		return kline.FourHour, nil
-	case "6h":
-		return kline.SixHour, nil
-	case "12h":
-		return kline.TwelveHour, nil
-	case "1D":
-		return kline.OneDay, nil
-	case "7D":
-		return kline.SevenDay, nil
-	case "14D":
-		return kline.TwoWeek, nil
-	case "1M":
-		return kline.OneMonth, nil
-	default:
-		return 0, fmt.Errorf("invalid interval string: %s", interval)
+	intervalMap := map[string]kline.Interval{
+		"1m":  kline.OneMin,
+		"5m":  kline.FiveMin,
+		"15m": kline.FifteenMin,
+		"30m": kline.ThirtyMin,
+		"1h":  kline.OneHour,
+		"4h":  kline.FourHour,
+		"6h":  kline.SixHour,
+		"12h": kline.TwelveHour,
+		"1D":  kline.OneDay,
+		"7D":  kline.SevenDay,
+		"14D": kline.TwoWeek,
+		"1M":  kline.OneMonth}
+	klineInterval, okay := intervalMap[interval]
+	if !okay {
+		return 0, fmt.Errorf("%w %s", kline.ErrInvalidInterval, interval)
 	}
+	return klineInterval, nil
 }
 
 // SendHTTPRequest send requests for un-authenticated market endpoints.
