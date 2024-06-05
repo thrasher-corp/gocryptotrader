@@ -1289,8 +1289,8 @@
    ]
   },
   {
-    "name": "Cryptodotcom",
-    "enabled": true,
+   "name": "Cryptodotcom",
+   "enabled": true,
    "verbose": false,
    "httpTimeout": 15000000000,
    "websocketResponseCheckTimeout": 30000000,
@@ -1300,7 +1300,7 @@
    "currencyPairs": {
     "bypassConfigFormatUpgrades": false,
     "assetTypes": [
-        "spot"
+     "spot"
     ],
     "pairs": {
      "spot": {
