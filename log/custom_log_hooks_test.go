@@ -4,7 +4,7 @@ import "testing"
 
 func TestSetCustomLoghook(t *testing.T) {
 	t.Parallel()
-	logHook := func(header, subLoggerName string, a ...interface{}) (bypassLibraryLogSystem bool) {
+	logHook := func(_ string, _ string, _ ...interface{}) (bypassLibraryLogSystem bool) {
 		return false
 	}
 	SetCustomLogHook(logHook)
