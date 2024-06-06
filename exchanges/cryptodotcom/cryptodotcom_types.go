@@ -20,6 +20,7 @@ var (
 	errInvalidResponseFromServer     = errors.New("invalid response from server")
 	errInvalidQuantity               = errors.New("quantity must be non-zero positive decimal value for order")
 	errTriggerPriceRequired          = errors.New("trigger price is required")
+	errSubAccountAddressRequired     = errors.New("sub-account address is required")
 )
 
 // Instrument represents an details.
@@ -73,6 +74,12 @@ type WsCandlestickItem struct {
 	CandlestickItem
 	// Added for websocket push data
 	UpdateTime convert.ExchangeTime `json:"ut"` // this represents Update Time for websocket push data.
+}
+
+// OTCBook represents an orderbook data for OTC instrument.
+type OTCBook struct {
+	Asks [][5]types.Number `json:"asks"` // Price, Total Size, Number of Orders in the level, Expiry Time, Unique ID
+	Bids [][5]types.Number `json:"bids"` // Price, Total Size, Number of Orders in the level, Expiry Time, Unique ID
 }
 
 // TickersResponse represents a list of tickers.
@@ -189,8 +196,8 @@ type DepositResponse struct {
 type DepositItem struct {
 	Currency   string               `json:"currency"`
 	Fee        float64              `json:"fee"`
-	CreateTime convert.ExchangeTime `json:"create_time"`
 	ID         string               `json:"id"`
+	CreateTime convert.ExchangeTime `json:"create_time"`
 	UpdateTime convert.ExchangeTime `json:"update_time"`
 	Amount     float64              `json:"amount"`
 	Address    string               `json:"address"`
@@ -207,6 +214,19 @@ type ExportRequestResponse struct {
 	ID              int64  `json:"id"`
 	Status          string `json:"status"`
 	ClientRequestID string `json:"client_request_id"`
+}
+
+// ExportRequests represents a list of export requests
+type ExportRequests struct {
+	UserBatchList []struct {
+		ID              string               `json:"id"`
+		StartTime       convert.ExchangeTime `json:"start_ts"`
+		EndTime         convert.ExchangeTime `json:"end_ts"`
+		InstrumentNames []string             `json:"instrument_names"`
+		RequestedData   []string             `json:"requested_data"`
+		ClientRequestID string               `json:"client_request_id"`
+		Status          string               `json:"status"`
+	} `json:"user_batch_list"`
 }
 
 // DepositAddress represents a single deposit address item.
@@ -572,6 +592,20 @@ type OTCTradeHistoryResponse struct {
 	TradeList []OTCTradeItem `json:"trade_list"`
 }
 
+// OTCOrderResponse represents an OTC order response.
+type OTCOrderResponse struct {
+	ClientOid       string               `json:"client_oid"`
+	OrderID         string               `json:"order_id"`
+	Status          string               `json:"status"` // FILLED, REJECTED, UNSETTLED, PENDING
+	InstrumentName  string               `json:"instrument_name"`
+	Side            string               `json:"side"`
+	Price           types.Number         `json:"price"`
+	Quantity        types.Number         `json:"quantity"`
+	Value           string               `json:"value"`
+	CreateTime      convert.ExchangeTime `json:"create_time"`
+	RejectionReason string               `json:"reject_reason"`
+}
+
 // OTCTradeItem represents an OTC trade item detail.
 type OTCTradeItem struct {
 	QuoteID           string               `json:"quote_id"`
@@ -625,12 +659,13 @@ type SubscriptionRawData struct {
 
 // WsResult represents a subscriptions response result
 type WsResult struct {
-	Channel        string          `json:"channel,omitempty"`
-	Subscription   string          `json:"subscription,omitempty"`
-	Data           json.RawMessage `json:"data,omitempty"`
-	InstrumentName string          `json:"instrument_name,omitempty"`
-	Depth          int64           `json:"depth,omitempty"`    // for orderbooks
-	Interval       string          `json:"interval,omitempty"` // for candlestick data.
+	Channel        string               `json:"channel,omitempty"`
+	Subscription   string               `json:"subscription,omitempty"`
+	Data           json.RawMessage      `json:"data,omitempty"`
+	InstrumentName string               `json:"instrument_name,omitempty"`
+	Depth          int64                `json:"depth,omitempty"`    // for orderbooks
+	Interval       string               `json:"interval,omitempty"` // for candlestick data.
+	Timestamp      convert.ExchangeTime `json:"t"`                  // Timestamp of book publish (milliseconds since the Unix epoch)
 }
 
 // UserOrder represents a user orderbook object.

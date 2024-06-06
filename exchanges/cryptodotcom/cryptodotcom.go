@@ -29,13 +29,12 @@ type Cryptodotcom struct {
 
 const (
 	// cryptodotcom API endpoints.
-	cryptodotcomAPIURL = "https://api.crypto.com/exchange/v1/"
+	cryptodotcomAPIURLV1 = "https://api.crypto.com/exchange/v1/"
+	cryptodotcomAPIURLV2 = "https://api.crypto.com/v2/"
 
 	// cryptodotcom websocket endpoints.
 	cryptodotcomWebsocketUserAPI   = "wss://stream.crypto.com/v2/user"
 	cryptodotcomWebsocketMarketAPI = "wss://stream.crypto.com/v2/market"
-
-	cryptodotcomAPIVersion = "/v2/"
 
 	// Public endpoints
 	publicAuth        = "public/auth"
@@ -68,6 +67,7 @@ const (
 	privateGetCurrencyNetworks = "private/get-currency-networks"
 	privateGetDepositAddress   = "private/get-deposit-address"
 	privateGetAccounts         = "private/get-accounts"
+	privateCreateSubAccount    = "private/create-subaccount-transfer"
 
 	// OTC Trading API
 	privateGetOTCUser         = "private/otc/get-otc-user"
@@ -76,6 +76,8 @@ const (
 	privateOTCAcceptQuote     = "private/otc/accept-quote"
 	privateGetOTCQuoteHistory = "private/otc/get-quote-history"
 	privateGetOTCTradeHistory = "private/otc/get-trade-history"
+
+	privateCreateOTCOrder = "private/otc/create-order"
 
 	privateGetWithdrawalHistory = "private/get-withdrawal-history"
 	privateGetDepositHistory    = "private/get-deposit-history"
@@ -239,7 +241,7 @@ func (cr *Cryptodotcom) GetPersonalDepositAddress(ctx context.Context, ccy curre
 func (cr *Cryptodotcom) CreateExportRequest(ctx context.Context, instrumentName, clientRequestID string, startTime, endTime time.Time, requestedData []string) (*ExportRequestResponse, error) {
 	params := make(map[string]interface{})
 	if instrumentName != "" {
-		params["instrument_name"] = instrumentName
+		params["instrument_names"] = instrumentName
 	}
 	err := common.StartEndTimeCheck(startTime, endTime)
 	if err != nil {
@@ -255,7 +257,34 @@ func (cr *Cryptodotcom) CreateExportRequest(ctx context.Context, instrumentName,
 		params["client_request_id"] = clientRequestID
 	}
 	var resp *ExportRequestResponse
-	return resp, cr.SendAuthHTTPRequest(ctx, exchange.RestSpot, createExportRequest, "private/export/create-export-request", params, &resp)
+	return resp, cr.SendAuthHTTPRequest(ctx, exchange.RestSpot, createExportRequestRate, "private/export/create-export-request", params, &resp)
+}
+
+// GetExportRequests retrieves an export requests
+func (cr *Cryptodotcom) GetExportRequests(ctx context.Context, instrumentName string, startTime, endTime time.Time, requestedData []string, pageSize, page int64) (*ExportRequests, error) {
+	params := make(map[string]interface{})
+	if instrumentName != "" {
+		params["instrument_names"] = instrumentName
+	}
+	if !startTime.IsZero() && !endTime.IsZero() {
+		err := common.StartEndTimeCheck(startTime, endTime)
+		if err != nil {
+			return nil, err
+		}
+		params["start_ts"] = startTime.UnixMilli()
+		params["end_ts"] = endTime.UnixMilli()
+	}
+	if len(requestedData) == 0 {
+		params["requested_data"] = requestedData
+	}
+	if pageSize > 0 {
+		params["page_size"] = pageSize
+	}
+	if page > 0 {
+		params["page"] = page
+	}
+	var resp *ExportRequests
+	return resp, cr.SendAuthHTTPRequest(ctx, exchange.RestSpot, getExportRequestRate, "private/export/get-export-requests", params, &resp)
 }
 
 // SPOT Trading API endpoints.
@@ -355,7 +384,30 @@ func (cr *Cryptodotcom) CancelAllPersonalOrders(ctx context.Context, instrumentN
 // GetAccounts retrieves Account and its Sub Accounts
 func (cr *Cryptodotcom) GetAccounts(ctx context.Context) (*AccountResponse, error) {
 	var resp *AccountResponse
-	return resp, cr.SendAuthHTTPRequest(ctx, exchange.RestSpot, privateGetAccountsRate, privateGetAccounts, nil, &resp)
+	return resp, cr.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, privateGetAccountsRate, privateGetAccounts, nil, &resp)
+}
+
+// SubAccountTransfer transfer between subaccounts (and master account).
+// Possible value for 'from' and 'to' : the master account UUID, or a sub-account UUID.
+func (cr *Cryptodotcom) SubAccountTransfer(ctx context.Context, from, to string, ccy currency.Code, amount float64) error {
+	if from == "" {
+		return fmt.Errorf("%w source address, 'from', is required", errSubAccountAddressRequired)
+	}
+	if to == "" {
+		return fmt.Errorf("%w destination address, 'to', is required", errSubAccountAddressRequired)
+	}
+	if ccy.IsEmpty() {
+		return currency.ErrCurrencyCodeEmpty
+	}
+	if amount <= 0 {
+		return errInvalidAmount
+	}
+	params := make(map[string]interface{})
+	params["from"] = from
+	params["to"] = to
+	params["currency"] = ccy.String()
+	params["amount"] = amount
+	return cr.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, privateCreateSubAccountRate, privateCreateSubAccount, params, nil)
 }
 
 // GetTransactions fetches recent transactions
@@ -377,7 +429,7 @@ func (cr *Cryptodotcom) GetTransactions(ctx context.Context, instrumentName, jou
 		params["limit"] = limit
 	}
 	var resp *TransactionResponse
-	return resp, cr.SendAuthHTTPRequest(ctx, exchange.RestSpot, privateGetTransactionsRate, privateGetTransactions, params, &resp)
+	return resp, cr.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, privateGetTransactionsRate, privateGetTransactions, params, &resp)
 }
 
 // CreateSubAccountTransfer transfer between subaccounts (and master account).
@@ -583,6 +635,38 @@ func (cr *Cryptodotcom) GetOTCTradeHistory(ctx context.Context, currencyPair cur
 	return resp, cr.SendAuthHTTPRequest(ctx, exchange.RestSpot, privateGetOTCTradeHistoryRate, privateGetOTCTradeHistory, params, &resp)
 }
 
+// CreateOTCOrder creates a new BUY or SELL OTC order.
+//
+// Subscribe to otc_book.{instrument_name}
+// Receive otc_book.{instrument_name} response
+// Send private/otc/create-order with price obtained from step 2.
+// If receive PENDING status, keep sending private/otc/get-trade-history till status FILLED or REJECTED
+func (cr *Cryptodotcom) CreateOTCOrder(ctx context.Context, instrumentName, side, clientOrderID string, quantity, price float64, settleLater bool) (*OTCOrderResponse, error) {
+	if instrumentName == "" {
+		return nil, errEmptyInstrumentName
+	}
+	if quantity <= 0 {
+		return nil, fmt.Errorf("%w, 'quantity' is %f", order.ErrAmountBelowMin, quantity)
+	}
+	if price <= 0 {
+		return nil, order.ErrPriceBelowMin
+	}
+	if side != "BUY" && side != "SELL" {
+		return nil, fmt.Errorf("%w, side=%s", order.ErrSideIsInvalid, side)
+	}
+	params := make(map[string]interface{})
+	params["instrument_name"] = instrumentName
+	params["quantity"] = quantity
+	params["price"] = price
+	params["side"] = side
+	if clientOrderID != "" {
+		params["client_oid"] = clientOrderID
+	}
+	params["settle_later"] = settleLater
+	var resp *OTCOrderResponse
+	return resp, cr.SendAuthHTTPRequest(ctx, exchange.RestSpot, privateCreateOTCOrderRate, privateCreateOTCOrder, params, &resp)
+}
+
 // intervalToString returns a string representation of interval.
 func intervalToString(interval kline.Interval) (string, error) {
 	intervalMap := map[kline.Interval]string{
@@ -617,7 +701,7 @@ func (cr *Cryptodotcom) SendHTTPRequest(ctx context.Context, ePath exchange.URL,
 	err = cr.SendPayload(ctx, f, func() (*request.Item, error) {
 		return &request.Item{
 			Method:        http.MethodGet,
-			Path:          endpointPath + cryptodotcomAPIVersion + path,
+			Path:          endpointPath + path,
 			Result:        response,
 			Verbose:       cr.Verbose,
 			HTTPDebugging: cr.HTTPDebugging,
@@ -688,7 +772,7 @@ func (cr *Cryptodotcom) SendAuthHTTPRequest(ctx context.Context, ePath exchange.
 		body := bytes.NewBuffer(payload)
 		return &request.Item{
 			Method:        http.MethodPost,
-			Path:          endpoint + cryptodotcomAPIVersion + path,
+			Path:          endpoint + path,
 			Headers:       headers,
 			Body:          body,
 			Result:        response,

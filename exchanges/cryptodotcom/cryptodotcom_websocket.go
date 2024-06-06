@@ -44,6 +44,7 @@ const (
 	tickerCnl              = "ticker"      // ticker.{instrument_name}
 	tradeCnl               = "trade"       // trade.{instrument_name}
 	candlestickCnl         = "candlestick" // candlestick.{time_frame}.{instrument_name}
+	otcBooksCnl            = "otc_book"    // otc_book.{instrument_name}
 )
 
 var defaultSubscriptions = []string{
@@ -225,6 +226,7 @@ func (cr *Cryptodotcom) GenerateDefaultSubscriptions() ([]subscription.Subscript
 			userBalanceCnl,
 			userOrderCnl,
 			userTradeCnl,
+			otcBooksCnl,
 		)
 	}
 	for x := range channels {
@@ -244,7 +246,8 @@ func (cr *Cryptodotcom) GenerateDefaultSubscriptions() ([]subscription.Subscript
 				tickerCnl,
 				userOrderCnl,
 				userTradeCnl,
-				tradeCnl:
+				tradeCnl,
+				otcBooksCnl:
 				subscriptions = append(subscriptions, subscription.Subscription{
 					Channel: channels[x],
 					Pair:    enabledPairs[p],
@@ -297,7 +300,8 @@ func (cr *Cryptodotcom) generatePayload(operation string, subscription []subscri
 			userTradeCnl,
 			instrumentOrderbookCnl,
 			tickerCnl,
-			tradeCnl:
+			tradeCnl,
+			otcBooksCnl:
 			subscriptionPayloads[x].Params = map[string][]string{"channels": {subscription[x].Channel + "." + subscription[x].Pair.String()}}
 		case candlestickCnl:
 			interval, okay := subscription[x].Params["interval"].(string)
@@ -351,6 +355,8 @@ func (cr *Cryptodotcom) WsHandleData(respRaw []byte, authConnection bool) error 
 			return cr.processTrades(resp.Result)
 		case strings.HasPrefix(resp.Result.Channel, candlestickCnl):
 			return cr.processCandlestick(resp.Result)
+		case resp.Result.Channel == otcBooksCnl:
+			return cr.processOTCOrderbook(resp.Result)
 		default:
 			if resp.Code == 0 {
 				return nil
@@ -359,6 +365,44 @@ func (cr *Cryptodotcom) WsHandleData(respRaw []byte, authConnection bool) error 
 	}
 	if !cr.Websocket.Match.IncomingWithData(resp.ID, respRaw) {
 		return fmt.Errorf("could not match incoming message with signature: %d, and data: %s", resp.ID, string(respRaw))
+	}
+	return nil
+}
+
+func (cr *Cryptodotcom) processOTCOrderbook(resp *WsResult) error {
+	var data []OTCBook
+	err := json.Unmarshal(resp.Data, &data)
+	if err != nil {
+		return err
+	}
+	cp, err := currency.NewPairFromString(resp.InstrumentName)
+	if err != nil {
+		return err
+	}
+	for x := range data {
+		book := orderbook.Base{
+			Exchange:        cr.Name,
+			Pair:            cp,
+			Asset:           asset.OTC,
+			VerifyOrderbook: cr.CanVerifyOrderbook,
+			LastUpdated:     resp.Timestamp.Time(),
+		}
+		book.Asks = make([]orderbook.Tranche, len(data[x].Asks))
+		for i := range data[x].Asks {
+			book.Asks[i].Price = data[x].Asks[i][0].Float64()
+			book.Asks[i].Amount = data[x].Asks[i][1].Float64()
+		}
+		book.Bids = make([]orderbook.Tranche, len(data[x].Bids))
+		for i := range data[x].Bids {
+			book.Bids[i].Price = data[x].Bids[i][0].Float64()
+			book.Bids[i].Amount = data[x].Bids[i][1].Float64()
+		}
+		book.Asks.SortAsks()
+		book.Bids.SortBids()
+		err = cr.Websocket.Orderbook.LoadSnapshot(&book)
+		if err != nil {
+			return err
+		}
 	}
 	return nil
 }

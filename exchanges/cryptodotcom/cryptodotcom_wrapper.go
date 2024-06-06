@@ -59,7 +59,7 @@ func (cr *Cryptodotcom) SetDefaults() {
 
 	requestFmt := &currency.PairFormat{Uppercase: true, Delimiter: currency.UnderscoreDelimiter}
 	configFmt := &currency.PairFormat{Uppercase: true, Delimiter: currency.UnderscoreDelimiter}
-	err := cr.SetGlobalPairsManager(requestFmt, configFmt, asset.Spot)
+	err := cr.SetGlobalPairsManager(requestFmt, configFmt, asset.Spot, asset.OTC, asset.Margin)
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
@@ -141,7 +141,8 @@ func (cr *Cryptodotcom) SetDefaults() {
 	}
 	cr.API.Endpoints = cr.NewEndpoints()
 	err = cr.API.Endpoints.SetDefaultEndpoints(map[exchange.URL]string{
-		exchange.RestSpot:                   cryptodotcomAPIURL,
+		exchange.RestSpot:                   cryptodotcomAPIURLV2,
+		exchange.RestSpotSupplementary:      cryptodotcomAPIURLV1,
 		exchange.WebsocketSpot:              cryptodotcomWebsocketMarketAPI,
 		exchange.WebsocketSpotSupplementary: cryptodotcomWebsocketUserAPI,
 	})
@@ -245,28 +246,59 @@ func (cr *Cryptodotcom) FetchTradablePairs(ctx context.Context, a asset.Item) (c
 	if !cr.SupportsAsset(a) {
 		return nil, fmt.Errorf("asset type of %s is not supported by %s", a, cr.Name)
 	}
-	instruments, err := cr.GetInstruments(ctx)
-	if err != nil {
-		return nil, err
-	}
-	pairs := make(currency.Pairs, len(instruments.Instruments))
-	for x := range instruments.Instruments {
-		pairs[x], err = currency.NewPairFromString(instruments.Instruments[x].InstrumentName)
+	switch a {
+	case asset.Spot:
+		instruments, err := cr.GetInstruments(ctx)
 		if err != nil {
 			return nil, err
 		}
+		pairs := make(currency.Pairs, len(instruments.Instruments))
+		for x := range instruments.Instruments {
+			pairs[x], err = currency.NewPairFromString(instruments.Instruments[x].InstrumentName)
+			if err != nil {
+				return nil, err
+			}
+		}
+		return pairs, nil
+	case asset.OTC:
+		// This endpoint call requires authentication.
+		instruments, err := cr.GetOTCInstruments(ctx)
+		if err != nil {
+			return nil, err
+		}
+		var pair currency.Pair
+		pairs := make(currency.Pairs, 0, len(instruments.InstrumentList))
+		for x := range instruments.InstrumentList {
+			if !instruments.InstrumentList[x].Tradable {
+				continue
+			}
+			pair, err = currency.NewPairFromString(instruments.InstrumentList[x].InstrumentName)
+			if err != nil {
+				return nil, err
+			}
+			pairs = append(pairs, pair)
+		}
+		return pairs, nil
+	default:
+		return nil, fmt.Errorf("%w asset type: %s", asset.ErrNotSupported, a.String())
 	}
-	return pairs, nil
 }
 
 // UpdateTradablePairs updates the exchanges available pairs and stores
 // them in the exchanges config
 func (cr *Cryptodotcom) UpdateTradablePairs(ctx context.Context, forceUpdate bool) error {
-	pairs, err := cr.FetchTradablePairs(ctx, asset.Spot)
-	if err != nil {
-		return err
+	assetTypes := cr.GetAssetTypes(true)
+	for _, assetType := range assetTypes {
+		pairs, err := cr.FetchTradablePairs(ctx, assetType)
+		if err != nil {
+			return err
+		}
+		if assetType == asset.OTC && !cr.IsRESTAuthenticationSupported() {
+			continue
+		}
+		return cr.UpdatePairs(pairs, assetType, false, forceUpdate)
 	}
-	return cr.UpdatePairs(pairs, asset.Spot, false, forceUpdate)
+	return nil
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair
@@ -1152,6 +1184,5 @@ func (cr *Cryptodotcom) UpdateOrderExecutionLimits(ctx context.Context, a asset.
 			MaxPrice:                instrumentsResponse.Instruments[x].MaxPrice.Float64(),
 		})
 	}
-	println("limits: ", len(limits))
 	return cr.LoadLimits(limits)
 }

@@ -1327,7 +1327,7 @@
      "requiresSecret": true
     },
     "urlEndpoints": {
-     "RestSpotURL": "https://api.crypto.com",
+     "RestSpotURL": "https://api.crypto.com/v2/",
      "WebsocketSpotURL": "wss://stream.crypto.com/v2/market"
     }
    },

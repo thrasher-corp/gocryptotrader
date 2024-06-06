@@ -29,8 +29,6 @@ const (
 	publicGetValuationsRate
 	publicGetExpiredSettlementPriceRate
 	publicGetInsuranceRate
-	privateSetCancelOnDisconnectRate
-	privateGetCancelOnDisconnectRate
 	privateUserBalanceRate
 	privateUserBalanceHistoryRate
 	privateCreateSubAccountTransferRate
@@ -53,16 +51,19 @@ const (
 	privateGetCurrencyNetworksRate
 	privategetDepositAddressRate
 	privateGetAccountsRate
+	privateCreateSubAccountRate
 	privateGetOTCUserRate
 	privateGetOTCInstrumentsRate
 	privateOTCRequestQuoteRate
 	privateOTCAcceptQuoteRate
 	privateGetOTCQuoteHistoryRate
 	privateGetOTCTradeHistoryRate
+	privateCreateOTCOrderRate
 	privateGetWithdrawalHistoryRate
 	privateGetDepositHistoryRate
 	privateGetAccountSummaryRate
-	createExportRequest
+	createExportRequestRate
+	getExportRequestRate
 )
 
 // GetRateLimit returns the rate limit for the exchange
@@ -100,15 +101,18 @@ func GetRateLimit() request.RateLimitDefinitions {
 		privateGetCurrencyNetworksRate:      request.NewRateLimitWithWeight(hundredMilliSecondsInterval, threePerInterval, threePerInterval),
 		privategetDepositAddressRate:        request.NewRateLimitWithWeight(hundredMilliSecondsInterval, threePerInterval, threePerInterval),
 		privateGetAccountsRate:              request.NewRateLimitWithWeight(hundredMilliSecondsInterval, threePerInterval, threePerInterval),
+		privateCreateSubAccountRate:         request.NewRateLimitWithWeight(hundredMilliSecondsInterval, threePerInterval, threePerInterval),
 		privateGetOTCUserRate:               request.NewRateLimitWithWeight(hundredMilliSecondsInterval, threePerInterval, threePerInterval),
 		privateGetOTCInstrumentsRate:        request.NewRateLimitWithWeight(hundredMilliSecondsInterval, threePerInterval, threePerInterval),
 		privateOTCRequestQuoteRate:          request.NewRateLimitWithWeight(hundredMilliSecondsInterval, threePerInterval, threePerInterval),
 		privateOTCAcceptQuoteRate:           request.NewRateLimitWithWeight(hundredMilliSecondsInterval, threePerInterval, threePerInterval),
 		privateGetOTCQuoteHistoryRate:       request.NewRateLimitWithWeight(hundredMilliSecondsInterval, threePerInterval, threePerInterval),
 		privateGetOTCTradeHistoryRate:       request.NewRateLimitWithWeight(hundredMilliSecondsInterval, threePerInterval, threePerInterval),
+		privateCreateOTCOrderRate:           request.NewRateLimitWithWeight(hundredMilliSecondsInterval, threePerInterval, threePerInterval),
 		privateGetWithdrawalHistoryRate:     request.NewRateLimitWithWeight(hundredMilliSecondsInterval, threePerInterval, threePerInterval),
 		privateGetDepositHistoryRate:        request.NewRateLimitWithWeight(hundredMilliSecondsInterval, threePerInterval, threePerInterval),
 		privateGetAccountSummaryRate:        request.NewRateLimitWithWeight(hundredMilliSecondsInterval, threePerInterval, threePerInterval),
-		createExportRequest:                 request.NewRateLimitWithWeight(hundredMilliSecondsInterval, threePerInterval, threePerInterval),
+		createExportRequestRate:             request.NewRateLimitWithWeight(hundredMilliSecondsInterval, threePerInterval, threePerInterval),
+		getExportRequestRate:                request.NewRateLimitWithWeight(hundredMilliSecondsInterval, threePerInterval, threePerInterval),
 	}
 }

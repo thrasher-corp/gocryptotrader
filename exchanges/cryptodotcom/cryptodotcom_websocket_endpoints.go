@@ -93,13 +93,13 @@ func (cr *Cryptodotcom) WsPlaceOrder(arg *CreateOrderParam) (*CreateOrderRespons
 
 // WsCancelExistingOrder cancels and existing open order through the websocket connection
 func (cr *Cryptodotcom) WsCancelExistingOrder(instrumentName, orderID string) error {
-	params := make(map[string]interface{})
 	if instrumentName == "" {
 		return errEmptyInstrumentName
 	}
 	if orderID == "" {
 		return order.ErrOrderIDNotSet
 	}
+	params := make(map[string]interface{})
 	params["instrument_name"] = instrumentName
 	params["order_id"] = orderID
 	return cr.SendWebsocketRequest(privateCancelOrder, params, nil, true)
@@ -109,7 +109,6 @@ func (cr *Cryptodotcom) WsCancelExistingOrder(instrumentName, orderID string) er
 // contingency_type must be LIST, for list of orders creation.
 // This call is asynchronous, so the response is simply a confirmation of the request.
 func (cr *Cryptodotcom) WsCreateOrderList(contingencyType string, arg []CreateOrderParam) (*OrderCreationResponse, error) {
-	params := make(map[string]interface{})
 	orderParams := make([]map[string]interface{}, len(arg))
 	for x := range arg {
 		p, err := arg[x].getCreateParamMap()
@@ -121,6 +120,7 @@ func (cr *Cryptodotcom) WsCreateOrderList(contingencyType string, arg []CreateOr
 	if contingencyType == "" {
 		contingencyType = "LIST"
 	}
+	params := make(map[string]interface{})
 	params["order_list"] = orderParams
 	params["contingency_type"] = contingencyType
 	var resp *OrderCreationResponse
@@ -132,7 +132,6 @@ func (cr *Cryptodotcom) WsCancelOrderList(args []CancelOrderParam) (*CancelOrder
 	if len(args) == 0 {
 		return nil, errNoArgumentPassed
 	}
-	params := make(map[string]interface{})
 	cancelOrderList := []map[string]interface{}{}
 	for x := range args {
 		if args[x].InstrumentName == "" && args[x].OrderID == "" {
@@ -147,6 +146,7 @@ func (cr *Cryptodotcom) WsCancelOrderList(args []CancelOrderParam) (*CancelOrder
 		}
 		cancelOrderList = append(cancelOrderList, result)
 	}
+	params := make(map[string]interface{})
 	params["order_list"] = cancelOrderList
 	var resp *CancelOrdersResponse
 	return resp, cr.SendWebsocketRequest(privateCancelOrderList, params, &resp, true)
@@ -203,12 +203,12 @@ func (cr *Cryptodotcom) WsRetrivePersonalOpenOrders(instrumentName string, pageS
 
 // WsRetriveOrderDetail retrieves details on a particular order ID through the websocket connection
 func (cr *Cryptodotcom) WsRetriveOrderDetail(orderID string) (*OrderDetail, error) {
-	var resp *OrderDetail
 	if orderID == "" {
 		return nil, order.ErrOrderIDNotSet
 	}
 	params := make(map[string]interface{})
 	params["order_id"] = orderID
+	var resp *OrderDetail
 	return resp, cr.SendWebsocketRequest(privateGetOrderDetail, params, &resp, true)
 }
 
