@@ -255,7 +255,7 @@ func (d *Deribit) wsHandleData(respRaw []byte) error {
 			accessLog := &wsAccessLog{}
 			return d.processData(respRaw, accessLog)
 		case "changes":
-			return d.processChanges(respRaw, channels)
+			return d.processUserOrderChanges(respRaw, channels)
 		case "lock":
 			userLock := &WsUserLock{}
 			return d.processData(respRaw, userLock)
@@ -265,7 +265,7 @@ func (d *Deribit) wsHandleData(respRaw []byte) error {
 			}
 			return d.processData(respRaw, data)
 		case "orders":
-			return d.processOrders(respRaw, channels)
+			return d.processUserOrders(respRaw, channels)
 		case "portfolio":
 			portfolio := &wsUserPortfolio{}
 			return d.processData(respRaw, portfolio)
@@ -294,33 +294,23 @@ func (d *Deribit) wsHandleData(respRaw []byte) error {
 	return nil
 }
 
-func (d *Deribit) processOrders(respRaw []byte, channels []string) error {
-	var currencyPair currency.Pair
-	var err error
-	var a asset.Item
-	switch len(channels) {
-	case 4:
-		currencyPair, err = currency.NewPairFromString(channels[2])
-		if err != nil {
-			return err
-		}
-	case 5:
-		a, err = d.StringToAssetKind(channels[2])
-		if err != nil {
-			return err
-		}
-	default:
+func (d *Deribit) processUserOrders(respRaw []byte, channels []string) error {
+	if len(channels) != 4 && len(channels) != 5 {
 		return fmt.Errorf("%w, expected format 'user.orders.{instrument_name}.raw, user.orders.{instrument_name}.{interval}, user.orders.{kind}.{currency}.raw, or user.orders.{kind}.{currency}.{interval}', but found %s", errMalformedData, strings.Join(channels, "."))
 	}
 	var response WsResponse
 	orderData := []WsOrder{}
 	response.Params.Data = orderData
-	err = json.Unmarshal(respRaw, &response)
+	err := json.Unmarshal(respRaw, &response)
 	if err != nil {
 		return err
 	}
 	orderDetails := make([]order.Detail, len(orderData))
 	for x := range orderData {
+		cp, a, err := d.getAssetPairByInstrument(orderData[x].InstrumentName)
+		if err != nil {
+			return err
+		}
 		oType, err := order.StringToOrderType(orderData[x].OrderType)
 		if err != nil {
 			return err
@@ -330,16 +320,6 @@ func (d *Deribit) processOrders(respRaw []byte, channels []string) error {
 			return err
 		}
 		status, err := order.StringToOrderStatus(orderData[x].OrderState)
-		if err != nil {
-			return err
-		}
-		if a != asset.Empty {
-			currencyPair, err = currency.NewPairFromString(orderData[x].InstrumentName)
-			if err != nil {
-				return err
-			}
-		}
-		a, err = guessAssetTypeFromInstrument(currencyPair)
 		if err != nil {
 			return err
 		}
@@ -356,14 +336,17 @@ func (d *Deribit) processOrders(respRaw []byte, channels []string) error {
 			AssetType:       a,
 			Date:            orderData[x].CreationTimestamp.Time(),
 			LastUpdated:     orderData[x].LastUpdateTimestamp.Time(),
-			Pair:            currencyPair,
+			Pair:            cp,
 		}
 	}
 	d.Websocket.DataHandler <- orderDetails
 	return nil
 }
 
-func (d *Deribit) processChanges(respRaw []byte, channels []string) error {
+func (d *Deribit) processUserOrderChanges(respRaw []byte, channels []string) error {
+	if len(channels) < 4 || len(channels) > 5 {
+		return fmt.Errorf("%w, expected format 'trades.{instrument_name}.{interval} or trades.{kind}.{currency}.{interval}', but found %s", errMalformedData, strings.Join(channels, "."))
+	}
 	var response WsResponse
 	changeData := &wsChanges{}
 	response.Params.Data = changeData
@@ -371,43 +354,22 @@ func (d *Deribit) processChanges(respRaw []byte, channels []string) error {
 	if err != nil {
 		return err
 	}
-	var currencyPair currency.Pair
-	var a asset.Item
-	switch len(channels) {
-	case 4:
-		currencyPair, err = currency.NewPairFromString(channels[2])
-		if err != nil {
-			return err
-		}
-	case 5:
-		a, err = d.StringToAssetKind(channels[2])
-		if err != nil {
-			return err
-		}
-	default:
-		return fmt.Errorf("%w, expected format 'trades.{instrument_name}.{interval} or trades.{kind}.{currency}.{interval}', but found %s", errMalformedData, strings.Join(channels, "."))
-	}
-	tradeDatas := make([]trade.Data, len(changeData.Trades))
+	td := make([]trade.Data, len(changeData.Trades))
 	for x := range changeData.Trades {
 		var side order.Side
 		side, err = order.StringToOrderSide(changeData.Trades[x].Direction)
 		if err != nil {
 			return err
 		}
-		if currencyPair.IsEmpty() {
-			currencyPair, err = currency.NewPairFromString(changeData.Trades[x].InstrumentName)
-			if err != nil {
-				return err
-			}
+		var cp currency.Pair
+		var a asset.Item
+		cp, a, err = d.getAssetPairByInstrument(changeData.Trades[x].InstrumentName)
+		if err != nil {
+			return err
 		}
-		if a == asset.Empty {
-			a, err = guessAssetTypeFromInstrument(currencyPair)
-			if err != nil {
-				return err
-			}
-		}
-		tradeDatas[x] = trade.Data{
-			CurrencyPair: currencyPair,
+
+		td[x] = trade.Data{
+			CurrencyPair: cp,
 			Exchange:     d.Name,
 			Timestamp:    changeData.Trades[x].Timestamp.Time(),
 			Price:        changeData.Trades[x].Price,
@@ -417,7 +379,7 @@ func (d *Deribit) processChanges(respRaw []byte, channels []string) error {
 			AssetType:    a,
 		}
 	}
-	err = trade.AddTradesToBuffer(d.Name, tradeDatas...)
+	err = trade.AddTradesToBuffer(d.Name, td...)
 	if err != nil {
 		return err
 	}
@@ -435,16 +397,9 @@ func (d *Deribit) processChanges(respRaw []byte, channels []string) error {
 		if err != nil {
 			return err
 		}
-		if a != asset.Empty {
-			currencyPair, err = currency.NewPairFromString(changeData.Orders[x].InstrumentName)
-			if err != nil {
-				return err
-			}
-		} else {
-			a, err = guessAssetTypeFromInstrument(currencyPair)
-			if err != nil {
-				return err
-			}
+		cp, a, err := d.getAssetPairByInstrument(changeData.Orders[x].InstrumentName)
+		if err != nil {
+			return err
 		}
 		orders[x] = order.Detail{
 			Price:           changeData.Orders[x].Price,
@@ -459,7 +414,7 @@ func (d *Deribit) processChanges(respRaw []byte, channels []string) error {
 			AssetType:       a,
 			Date:            changeData.Orders[x].CreationTimestamp.Time(),
 			LastUpdated:     changeData.Orders[x].LastUpdateTimestamp.Time(),
-			Pair:            currencyPair,
+			Pair:            cp,
 		}
 	}
 	d.Websocket.DataHandler <- orders
@@ -468,7 +423,7 @@ func (d *Deribit) processChanges(respRaw []byte, channels []string) error {
 }
 
 func (d *Deribit) processQuoteTicker(respRaw []byte, channels []string) error {
-	cp, err := currency.NewPairFromString(channels[1])
+	cp, a, err := d.getAssetPairByInstrument(channels[1])
 	if err != nil {
 		return err
 	}
@@ -476,10 +431,6 @@ func (d *Deribit) processQuoteTicker(respRaw []byte, channels []string) error {
 	quoteTicker := &wsQuoteTickerInformation{}
 	response.Params.Data = quoteTicker
 	err = json.Unmarshal(respRaw, &response)
-	if err != nil {
-		return err
-	}
-	a, err := guessAssetTypeFromInstrument(cp)
 	if err != nil {
 		return err
 	}
@@ -497,55 +448,33 @@ func (d *Deribit) processQuoteTicker(respRaw []byte, channels []string) error {
 }
 
 func (d *Deribit) processTrades(respRaw []byte, channels []string) error {
-	var err error
-	var currencyPair currency.Pair
-	var a asset.Item
-	switch {
-	case (len(channels) == 3 && channels[0] == "trades") || (len(channels) == 4 && channels[0] == "user"):
-		currencyPair, err = currency.NewPairFromString(channels[len(channels)-2])
-		if err != nil {
-			return err
-		}
-	case (len(channels) == 4 && channels[0] == "trades") || (len(channels) == 5 && channels[0] == "user"):
-		a, err = d.StringToAssetKind(channels[len(channels)-3])
-		if err != nil {
-			return err
-		}
-	default:
+	if len(channels) < 3 || len(channels) > 5 {
 		return fmt.Errorf("%w, expected format 'trades.{instrument_name}.{interval} or trades.{kind}.{currency}.{interval}', but found %s", errMalformedData, strings.Join(channels, "."))
 	}
 	var response WsResponse
-	tradeList := []wsTrade{}
+	var tradeList []wsTrade
 	response.Params.Data = &tradeList
-	err = json.Unmarshal(respRaw, &response)
+	err := json.Unmarshal(respRaw, &response)
 	if err != nil {
 		return err
 	}
 	if len(tradeList) == 0 {
 		return fmt.Errorf("%v, empty list of trades found", common.ErrNoResponse)
 	}
-	if a == asset.Empty && currencyPair.IsEmpty() {
-		currencyPair, err = currency.NewPairFromString(tradeList[0].InstrumentName)
-		if err != nil {
-			return err
-		}
-		a, err = guessAssetTypeFromInstrument(currencyPair)
-		if err != nil {
-			return err
-		}
-	}
 	tradeDatas := make([]trade.Data, len(tradeList))
 	for x := range tradeDatas {
+		var cp currency.Pair
+		var a asset.Item
+		cp, a, err = d.getAssetPairByInstrument(tradeList[x].InstrumentName)
+		if err != nil {
+			return err
+		}
 		side, err := order.StringToOrderSide(tradeList[x].Direction)
 		if err != nil {
 			return err
 		}
-		currencyPair, err = currency.NewPairFromString(tradeList[x].InstrumentName)
-		if err != nil {
-			return err
-		}
 		tradeDatas[x] = trade.Data{
-			CurrencyPair: currencyPair,
+			CurrencyPair: cp,
 			Exchange:     d.Name,
 			Timestamp:    tradeList[x].Timestamp.Time(),
 			Price:        tradeList[x].Price,
@@ -562,7 +491,7 @@ func (d *Deribit) processIncrementalTicker(respRaw []byte, channels []string) er
 	if len(channels) != 2 {
 		return fmt.Errorf("%w, expected format 'incremental_ticker.{instrument_name}', but found %s", errMalformedData, strings.Join(channels, "."))
 	}
-	cp, err := currency.NewPairFromString(channels[1])
+	cp, a, err := d.getAssetPairByInstrument(channels[1])
 	if err != nil {
 		return err
 	}
@@ -573,14 +502,10 @@ func (d *Deribit) processIncrementalTicker(respRaw []byte, channels []string) er
 	if err != nil {
 		return err
 	}
-	assetType, err := guessAssetTypeFromInstrument(cp)
-	if err != nil {
-		return err
-	}
 	d.Websocket.DataHandler <- &ticker.Price{
 		ExchangeName: d.Name,
 		Pair:         cp,
-		AssetType:    assetType,
+		AssetType:    a,
 		LastUpdated:  incrementalTicker.Timestamp.Time(),
 		BidSize:      incrementalTicker.BestBidAmount,
 		AskSize:      incrementalTicker.BestAskAmount,
@@ -602,19 +527,14 @@ func (d *Deribit) processInstrumentTicker(respRaw []byte, channels []string) err
 }
 
 func (d *Deribit) processTicker(respRaw []byte, channels []string) error {
-	cp, err := currency.NewPairFromString(channels[1])
+	cp, a, err := d.getAssetPairByInstrument(channels[1])
 	if err != nil {
 		return err
 	}
-	var a asset.Item
 	var response WsResponse
 	tickerPriceResponse := &wsTicker{}
 	response.Params.Data = tickerPriceResponse
 	err = json.Unmarshal(respRaw, &response)
-	if err != nil {
-		return err
-	}
-	a, err = guessAssetTypeFromInstrument(cp)
 	if err != nil {
 		return err
 	}
@@ -658,19 +578,14 @@ func (d *Deribit) processCandleChart(respRaw []byte, channels []string) error {
 	if len(channels) != 4 {
 		return fmt.Errorf("%w, expected format 'chart.trades.{instrument_name}.{resolution}', but found %s", errMalformedData, strings.Join(channels, "."))
 	}
-	cp, err := currency.NewPairFromString(channels[2])
+	cp, a, err := d.getAssetPairByInstrument(channels[2])
 	if err != nil {
 		return err
 	}
 	var response WsResponse
-	var a asset.Item
 	candleData := &wsCandlestickData{}
 	response.Params.Data = candleData
 	err = json.Unmarshal(respRaw, &response)
-	if err != nil {
-		return err
-	}
-	a, err = guessAssetTypeFromInstrument(cp)
 	if err != nil {
 		return err
 	}
@@ -696,9 +611,8 @@ func (d *Deribit) processOrderbook(respRaw []byte, channels []string) error {
 	if err != nil {
 		return err
 	}
-	var assetType asset.Item
 	if len(channels) == 3 {
-		cp, err := currency.NewPairFromString(orderbookData.InstrumentName)
+		cp, a, err := d.getAssetPairByInstrument(orderbookData.InstrumentName)
 		if err != nil {
 			return err
 		}
@@ -743,10 +657,6 @@ func (d *Deribit) processOrderbook(respRaw []byte, channels []string) error {
 		if len(asks) == 0 && len(bids) == 0 {
 			return nil
 		}
-		assetType, err = guessAssetTypeFromInstrument(cp)
-		if err != nil {
-			return err
-		}
 		if orderbookData.Type == "snapshot" {
 			return d.Websocket.Orderbook.LoadSnapshot(&orderbook.Base{
 				Exchange:        d.Name,
@@ -755,7 +665,7 @@ func (d *Deribit) processOrderbook(respRaw []byte, channels []string) error {
 				Pair:            cp,
 				Asks:            asks,
 				Bids:            bids,
-				Asset:           assetType,
+				Asset:           a,
 				LastUpdateID:    orderbookData.ChangeID,
 			})
 		} else if orderbookData.Type == "change" {
@@ -763,17 +673,13 @@ func (d *Deribit) processOrderbook(respRaw []byte, channels []string) error {
 				Asks:       asks,
 				Bids:       bids,
 				Pair:       cp,
-				Asset:      assetType,
+				Asset:      a,
 				UpdateID:   orderbookData.ChangeID,
 				UpdateTime: orderbookData.Timestamp.Time(),
 			})
 		}
 	} else if len(channels) == 5 {
-		cp, err := currency.NewPairFromString(orderbookData.InstrumentName)
-		if err != nil {
-			return err
-		}
-		assetType, err = guessAssetTypeFromInstrument(cp)
+		cp, a, err := d.getAssetPairByInstrument(orderbookData.InstrumentName)
 		if err != nil {
 			return err
 		}
@@ -824,7 +730,7 @@ func (d *Deribit) processOrderbook(respRaw []byte, channels []string) error {
 			Asks:         asks,
 			Bids:         bids,
 			Pair:         cp,
-			Asset:        assetType,
+			Asset:        a,
 			Exchange:     d.Name,
 			LastUpdateID: orderbookData.ChangeID,
 			LastUpdated:  orderbookData.Timestamp.Time(),
@@ -864,8 +770,8 @@ func (d *Deribit) GenerateDefaultSubscriptions() (subscription.List, error) {
 		case chartTradesChannel:
 			for _, a := range assets {
 				for z := range assetPairs[a] {
-					if ((assetPairs[a][z].Quote.Upper().String() == "PERPETUAL" ||
-						!strings.Contains(assetPairs[a][z].Quote.Upper().String(), "PERPETUAL")) &&
+					if ((assetPairs[a][z].Quote.Upper().String() == perpString ||
+						!strings.Contains(assetPairs[a][z].Quote.Upper().String(), perpString)) &&
 						a == asset.Futures) || (a != asset.Spot && a != asset.Futures) {
 						continue
 					}
@@ -885,8 +791,8 @@ func (d *Deribit) GenerateDefaultSubscriptions() (subscription.List, error) {
 			rawUserOrdersChannel:
 			for _, a := range assets {
 				for z := range assetPairs[a] {
-					if ((assetPairs[a][z].Quote.Upper().String() == "PERPETUAL" ||
-						!strings.Contains(assetPairs[a][z].Quote.Upper().String(), "PERPETUAL")) &&
+					if ((assetPairs[a][z].Quote.Upper().String() == perpString ||
+						!strings.Contains(assetPairs[a][z].Quote.Upper().String(), perpString)) &&
 						a == asset.Futures) || (a != asset.Spot && a != asset.Futures) {
 						continue
 					}
@@ -900,8 +806,8 @@ func (d *Deribit) GenerateDefaultSubscriptions() (subscription.List, error) {
 		case orderbookChannel:
 			for _, a := range assets {
 				for z := range assetPairs[a] {
-					if ((assetPairs[a][z].Quote.Upper().String() == "PERPETUAL" ||
-						!strings.Contains(assetPairs[a][z].Quote.Upper().String(), "PERPETUAL")) &&
+					if ((assetPairs[a][z].Quote.Upper().String() == perpString ||
+						!strings.Contains(assetPairs[a][z].Quote.Upper().String(), perpString)) &&
 						a == asset.Futures) || (a != asset.Spot && a != asset.Futures) {
 						continue
 					}
@@ -936,8 +842,8 @@ func (d *Deribit) GenerateDefaultSubscriptions() (subscription.List, error) {
 			tradesChannel:
 			for _, a := range assets {
 				for z := range assetPairs[a] {
-					if ((assetPairs[a][z].Quote.Upper().String() != "PERPETUAL" &&
-						!strings.Contains(assetPairs[a][z].Quote.Upper().String(), "PERPETUAL")) &&
+					if ((assetPairs[a][z].Quote.Upper().String() != perpString &&
+						!strings.Contains(assetPairs[a][z].Quote.Upper().String(), perpString)) &&
 						a == asset.Futures) || (a != asset.Spot && a != asset.Futures) {
 						continue
 					}
@@ -955,7 +861,7 @@ func (d *Deribit) GenerateDefaultSubscriptions() (subscription.List, error) {
 			userTradesChannelByInstrument:
 			for _, a := range assets {
 				for z := range assetPairs[a] {
-					if subscriptionChannels[x] == perpetualChannel && !strings.Contains(assetPairs[a][z].Quote.Upper().String(), "PERPETUAL") {
+					if subscriptionChannels[x] == perpetualChannel && !strings.Contains(assetPairs[a][z].Quote.Upper().String(), perpString) {
 						continue
 					}
 					subscriptions = append(subscriptions,

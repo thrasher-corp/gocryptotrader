@@ -198,8 +198,9 @@ func (k *Item) addPadding(start, exclusiveEnd time.Time, purgeOnPartial bool) er
 			padded[x].Time = start
 		case !k.Candles[target].Time.Equal(start):
 			if k.Candles[target].Time.Before(start) {
-				return fmt.Errorf("%w when it should be %s truncated at a %s interval",
+				return fmt.Errorf("%w '%s' should be '%s' at '%s' interval",
 					errCandleOpenTimeIsNotUTCAligned,
+					k.Candles[target].Time,
 					start.Add(k.Interval.Duration()),
 					k.Interval)
 			}
