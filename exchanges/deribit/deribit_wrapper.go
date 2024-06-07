@@ -264,11 +264,7 @@ func (d *Deribit) UpdateTradablePairs(ctx context.Context, forceUpdate bool) err
 				errs.C <- err
 				return
 			}
-			err = d.UpdatePairs(pairs, assets[x], false, forceUpdate)
-			if err != nil {
-				errs.C <- err
-				return
-			}
+			errs.C <- d.UpdatePairs(pairs, assets[x], false, forceUpdate)
 		}(x)
 	}
 	return errs.Collect()
