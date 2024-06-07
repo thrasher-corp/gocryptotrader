@@ -8,7 +8,6 @@ import (
 	"sort"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/shopspring/decimal"
@@ -256,31 +255,23 @@ func (d *Deribit) FetchTradablePairs(ctx context.Context, assetType asset.Item) 
 // them in the exchanges config
 func (d *Deribit) UpdateTradablePairs(ctx context.Context, forceUpdate bool) error {
 	assets := d.GetAssetTypes(false)
-	var wg sync.WaitGroup
-	wg.Add(len(assets))
-	errC := make(chan error, len(assets))
+	errs := common.CollectErrors(len(assets))
 	for x := range assets {
 		go func(x int) {
-			defer wg.Done()
+			defer errs.Wg.Done()
 			pairs, err := d.FetchTradablePairs(ctx, assets[x])
 			if err != nil {
-				errC <- err
+				errs.C <- err
 				return
 			}
 			err = d.UpdatePairs(pairs, assets[x], false, forceUpdate)
 			if err != nil {
-				errC <- err
+				errs.C <- err
 				return
 			}
 		}(x)
 	}
-	wg.Wait()
-	close(errC)
-	var errs error
-	for err := range errC {
-		errs = common.AppendError(errs, err)
-	}
-	return errs
+	return errs.Collect()
 }
 
 // UpdateTickers updates the ticker for all currency pairs of a given asset type
