@@ -4035,13 +4035,13 @@ var getHistoricCandlesExtendedCommand = &cli.Command{
 		},
 		&cli.StringFlag{
 			Name:        "start",
-			Usage:       "the date to begin retrieveing candles. Any candles before this date will be filtered",
+			Usage:       "the date to begin retrieving candles. Any candles before this date will be filtered",
 			Value:       time.Now().AddDate(0, -1, 0).Format(time.DateTime),
 			Destination: &startTime,
 		},
 		&cli.StringFlag{
 			Name:        "end",
-			Usage:       "the date to end retrieveing candles. Any candles after this date will be filtered",
+			Usage:       "the date to end retrieving candles. Any candles after this date will be filtered",
 			Value:       time.Now().Format(time.DateTime),
 			Destination: &endTime,
 		},
@@ -4554,6 +4554,93 @@ func getMarginRatesHistory(c *cli.Context) error {
 			GetBorrowRates:     getBorrowRates,
 			GetBorrowCosts:     getBorrowCosts,
 			IncludeAllRates:    includeAllRates,
+		})
+	if err != nil {
+		return err
+	}
+
+	jsonOutput(result)
+	return nil
+}
+
+var getCurrencyTradeURLCommand = &cli.Command{
+	Name:      "getcurrencytradeurl",
+	Usage:     "returns the trading url of the instrument",
+	ArgsUsage: "<exchange> <asset> <pair>",
+	Action:    getCurrencyTradeURL,
+	Flags: []cli.Flag{
+		&cli.StringFlag{
+			Name:    "exchange",
+			Aliases: []string{"e"},
+			Usage:   "the exchange to retrieve margin rates from",
+		},
+		&cli.StringFlag{
+			Name:    "asset",
+			Aliases: []string{"a"},
+			Usage:   "the asset type of the currency pair",
+		},
+		&cli.StringFlag{
+			Name:    "pair",
+			Aliases: []string{"p"},
+			Usage:   "the currency pair",
+		},
+	},
+}
+
+func getCurrencyTradeURL(c *cli.Context) error {
+	if c.NArg() == 0 && c.NumFlags() == 0 {
+		return cli.ShowSubcommandHelp(c)
+	}
+
+	var exchangeName string
+	if c.IsSet("exchange") {
+		exchangeName = c.String("exchange")
+	} else {
+		exchangeName = c.Args().First()
+	}
+
+	var assetType string
+	if c.IsSet("asset") {
+		assetType = c.String("asset")
+	} else {
+		assetType = c.Args().Get(1)
+	}
+
+	if !validAsset(assetType) {
+		return errInvalidAsset
+	}
+
+	var cp string
+	if c.IsSet("pair") {
+		cp = c.String("pair")
+	} else {
+		cp = c.Args().Get(2)
+	}
+
+	if !validPair(cp) {
+		return errInvalidPair
+	}
+	p, err := currency.NewPairDelimiter(cp, pairDelimiter)
+	if err != nil {
+		return err
+	}
+
+	conn, cancel, err := setupClient(c)
+	if err != nil {
+		return err
+	}
+	defer closeConn(conn, cancel)
+
+	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
+	result, err := client.GetCurrencyTradeURL(c.Context,
+		&gctrpc.GetCurrencyTradeURLRequest{
+			Exchange: exchangeName,
+			Asset:    assetType,
+			Pair: &gctrpc.CurrencyPair{
+				Delimiter: p.Delimiter,
+				Base:      p.Base.String(),
+				Quote:     p.Quote.String(),
+			},
 		})
 	if err != nil {
 		return err

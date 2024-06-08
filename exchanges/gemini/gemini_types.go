@@ -336,8 +336,15 @@ type wsSubscriptions struct {
 	Symbols []string `json:"symbols"`
 }
 
+type wsSubOp string
+
+const (
+	wsSubscribeOp   wsSubOp = "subscribe"
+	wsUnsubscribeOp wsSubOp = "unsubscribe"
+)
+
 type wsSubscribeRequest struct {
-	Type          string            `json:"type"`
+	Type          wsSubOp           `json:"type"`
 	Subscriptions []wsSubscriptions `json:"subscriptions"`
 }
 

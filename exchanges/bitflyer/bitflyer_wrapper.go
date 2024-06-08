@@ -28,29 +28,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
-// GetDefaultConfig returns a default exchange config
-func (b *Bitflyer) GetDefaultConfig(ctx context.Context) (*config.Exchange, error) {
-	b.SetDefaults()
-	exchCfg, err := b.GetStandardConfig()
-	if err != nil {
-		return nil, err
-	}
-
-	err = b.SetupDefaults(exchCfg)
-	if err != nil {
-		return nil, err
-	}
-
-	if b.Features.Supports.RESTCapabilities.AutoPairUpdates {
-		err = b.UpdateTradablePairs(ctx, true)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	return exchCfg, nil
-}
-
 // SetDefaults sets the basic defaults for Bitflyer
 func (b *Bitflyer) SetDefaults() {
 	b.Name = "Bitflyer"
@@ -97,7 +74,7 @@ func (b *Bitflyer) SetDefaults() {
 
 	b.Requester, err = request.New(b.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
-		request.WithLimiter(SetRateLimit()))
+		request.WithLimiter(GetRateLimit()))
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
@@ -129,26 +106,22 @@ func (b *Bitflyer) FetchTradablePairs(ctx context.Context, a asset.Item) (curren
 	if err != nil {
 		return nil, err
 	}
-	format, err := b.GetPairFormat(a, false)
-	if err != nil {
-		return nil, err
-	}
 	pairs := make([]currency.Pair, 0, len(symbols))
 	for i := range symbols {
 		var pair currency.Pair
-		if symbols[i].Alias != "" && a == asset.Futures {
-			pair, err = currency.NewPairFromString(symbols[i].Alias)
-			if err != nil {
-				return nil, err
-			}
-			pairs = append(pairs, pair)
-		} else if symbols[i].Alias == "" &&
-			a == asset.Spot &&
-			strings.Contains(symbols[i].ProductCode, format.Delimiter) {
+		if a == asset.Spot && symbols[i].MarketType == "Spot" {
 			pair, err = currency.NewPairFromString(symbols[i].ProductCode)
 			if err != nil {
 				return nil, err
 			}
+			pairs = append(pairs, pair)
+		} else if a == asset.Futures && symbols[i].MarketType == "FX" {
+			splitter := strings.Split(symbols[i].ProductCode, currency.UnderscoreDelimiter)
+			if len(splitter) != 3 {
+				return nil, fmt.Errorf("%w %s", errUnhandledCurrency, symbols[i].ProductCode)
+			}
+			pair = currency.NewPair(currency.NewCode(splitter[0]+splitter[1]), currency.NewCode(splitter[2]))
+			pair.Delimiter = currency.UnderscoreDelimiter
 			pairs = append(pairs, pair)
 		}
 	}
@@ -159,13 +132,12 @@ func (b *Bitflyer) FetchTradablePairs(ctx context.Context, a asset.Item) (curren
 // them in the exchanges config
 func (b *Bitflyer) UpdateTradablePairs(ctx context.Context, forceUpdate bool) error {
 	assets := b.CurrencyPairs.GetAssetTypes(false)
-	for x := range assets {
-		pairs, err := b.FetchTradablePairs(ctx, assets[x])
+	for _, a := range assets {
+		pairs, err := b.FetchTradablePairs(ctx, a)
 		if err != nil {
 			return err
 		}
-
-		err = b.UpdatePairs(pairs, assets[x], false, forceUpdate)
+		err = b.UpdatePairs(pairs, a, false, forceUpdate)
 		if err != nil {
 			return err
 		}
@@ -272,17 +244,17 @@ func (b *Bitflyer) UpdateOrderbook(ctx context.Context, p currency.Pair, assetTy
 		return book, err
 	}
 
-	book.Asks = make(orderbook.Items, len(orderbookNew.Asks))
+	book.Asks = make(orderbook.Tranches, len(orderbookNew.Asks))
 	for x := range orderbookNew.Asks {
-		book.Asks[x] = orderbook.Item{
+		book.Asks[x] = orderbook.Tranche{
 			Price:  orderbookNew.Asks[x].Price,
 			Amount: orderbookNew.Asks[x].Size,
 		}
 	}
 
-	book.Bids = make(orderbook.Items, len(orderbookNew.Bids))
+	book.Bids = make(orderbook.Tranches, len(orderbookNew.Bids))
 	for x := range orderbookNew.Bids {
-		book.Bids[x] = orderbook.Item{
+		book.Bids[x] = orderbook.Tranche{
 			Price:  orderbookNew.Bids[x].Price,
 			Amount: orderbookNew.Bids[x].Size,
 		}
@@ -484,4 +456,14 @@ func (b *Bitflyer) GetLatestFundingRates(context.Context, *fundingrate.LatestRat
 // UpdateOrderExecutionLimits updates order execution limits
 func (b *Bitflyer) UpdateOrderExecutionLimits(_ context.Context, _ asset.Item) error {
 	return common.ErrNotYetImplemented
+}
+
+// GetCurrencyTradeURL returns the URL to the exchange's trade page for the given asset and currency pair
+func (b *Bitflyer) GetCurrencyTradeURL(_ context.Context, a asset.Item, cp currency.Pair) (string, error) {
+	_, err := b.CurrencyPairs.IsPairEnabled(cp, a)
+	if err != nil {
+		return "", err
+	}
+	cp.Delimiter = ""
+	return tradeBaseURL + cp.Lower().String(), nil
 }

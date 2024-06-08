@@ -24,7 +24,8 @@ import (
 )
 
 const (
-	apiURL = "https://api.bithumb.com"
+	apiURL       = "https://api.bithumb.com"
+	tradeBaseURL = "https://www.bithumb.com/react/trade/order/"
 
 	noError = "0000"
 

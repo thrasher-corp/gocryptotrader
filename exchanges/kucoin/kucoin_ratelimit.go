@@ -1,9 +1,6 @@
 package kucoin
 
 import (
-	"context"
-	"errors"
-	"fmt"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
@@ -200,397 +197,189 @@ const (
 	futuresTransferOutListEPL
 )
 
-// Limit executes rate limiting functionality for Kucoin
-func (r *RateLimit) Limit(ctx context.Context, epl request.EndpointLimit) error {
-	var limiter *rate.Limiter
-	var tokens int
-	switch epl {
-	case accountSummaryInfoEPL:
-		limiter, tokens = r.ManagementRate, 20
-	case allAccountEPL:
-		limiter, tokens = r.ManagementRate, 5
-	case accountDetailEPL:
-		limiter, tokens = r.ManagementRate, 5
-	case accountLedgersEPL:
-		limiter, tokens = r.ManagementRate, 2
-	case hfAccountLedgersEPL:
-		limiter, tokens = r.SpotRate, 2
-	case hfAccountLedgersMarginEPL:
-		limiter, tokens = r.SpotRate, 2
-	case futuresAccountLedgersEPL:
-		limiter, tokens = r.SpotRate, 2
-	case subAccountInfoV1EPL:
-		limiter, tokens = r.ManagementRate, 20
-	case allSubAccountsInfoV2EPL:
-		limiter, tokens = r.ManagementRate, 20
-	case createSubUserEPL:
-		limiter, tokens = r.ManagementRate, 20
-	case subAccountsEPL:
-		limiter, tokens = r.ManagementRate, 15
-	case subAccountBalancesEPL:
-		limiter, tokens = r.ManagementRate, 20
-	case allSubAccountBalancesV2EPL:
-		limiter, tokens = r.ManagementRate, 20
-	case subAccountSpotAPIListEPL:
-		limiter, tokens = r.ManagementRate, 20
-	case createSpotAPIForSubAccountEPL:
-		limiter, tokens = r.ManagementRate, 20
-	case modifySubAccountSpotAPIEPL:
-		limiter, tokens = r.ManagementRate, 30
-	case deleteSubAccountSpotAPIEPL:
-		limiter, tokens = r.ManagementRate, 30
-	case marginAccountDetailEPL:
-		limiter, tokens = r.SpotRate, 40
-	case crossMarginAccountsDetailEPL:
-		limiter, tokens = r.SpotRate, 15
-	case isolatedMarginAccountDetailEPL:
-		limiter, tokens = r.SpotRate, 15
-	case futuresAccountsDetailEPL:
-		limiter, tokens = r.FuturesRate, 5
-	case allFuturesSubAccountBalancesEPL:
-		limiter, tokens = r.FuturesRate, 6
-	case createDepositAddressEPL:
-		limiter, tokens = r.ManagementRate, 20
-	case depositAddressesV2EPL:
-		limiter, tokens = r.ManagementRate, 5
-	case depositAddressesV1EPL:
-		limiter, tokens = r.ManagementRate, 5
-	case depositListEPL:
-		limiter, tokens = r.ManagementRate, 5
-	case historicDepositListEPL:
-		limiter, tokens = r.ManagementRate, 5
-	case withdrawalListEPL:
-		limiter, tokens = r.ManagementRate, 20
-	case retrieveV1HistoricalWithdrawalListEPL:
-		limiter, tokens = r.ManagementRate, 20
-	case withdrawalQuotaEPL:
-		limiter, tokens = r.ManagementRate, 20
-	case applyWithdrawalEPL:
-		limiter, tokens = r.ManagementRate, 5
-	case cancelWithdrawalsEPL:
-		limiter, tokens = r.ManagementRate, 20
-	case getTransferablesEPL:
-		limiter, tokens = r.ManagementRate, 20
-	case flexiTransferEPL:
-		limiter, tokens = r.ManagementRate, 4
-	case masterSubUserTransferEPL:
-		limiter, tokens = r.ManagementRate, 30
-	case innerTransferEPL:
-		limiter, tokens = r.ManagementRate, 10
-	case toMainOrTradeAccountEPL:
-		limiter, tokens = r.ManagementRate, 20
-	case toFuturesAccountEPL:
-		limiter, tokens = r.ManagementRate, 20
-	case futuresTransferOutRequestRecordsEPL:
-		limiter, tokens = r.ManagementRate, 20
-	case basicFeesEPL:
-		limiter, tokens = r.SpotRate, 3
-	case tradeFeesEPL:
-		limiter, tokens = r.SpotRate, 3
-	case spotCurrenciesV3EPL:
-		limiter, tokens = r.PublicRate, 3
-	case spotCurrencyDetailEPL:
-		limiter, tokens = r.PublicRate, 3
-	case symbolsEPL:
-		limiter, tokens = r.PublicRate, 4
-	case tickersEPL:
-		limiter, tokens = r.PublicRate, 2
-	case allTickersEPL:
-		limiter, tokens = r.PublicRate, 15
-	case statistics24HrEPL:
-		limiter, tokens = r.PublicRate, 15
-	case marketListEPL:
-		limiter, tokens = r.PublicRate, 3
-	case partOrderbook20EPL:
-		limiter, tokens = r.PublicRate, 2
-	case partOrderbook100EPL:
-		limiter, tokens = r.PublicRate, 4
-	case fullOrderbookEPL:
-		limiter, tokens = r.SpotRate, 3
-	case tradeHistoryEPL:
-		limiter, tokens = r.PublicRate, 3
-	case klinesEPL:
-		limiter, tokens = r.PublicRate, 3
-	case fiatPriceEPL:
-		limiter, tokens = r.PublicRate, 3
-	case currentServerTimeEPL:
-		limiter, tokens = r.PublicRate, 3
-	case serviceStatusEPL:
-		limiter, tokens = r.PublicRate, 3
-	case hfPlaceOrderEPL:
-		limiter, tokens = r.SpotRate, 1
-	case hfSyncPlaceOrderEPL:
-		limiter, tokens = r.SpotRate, 1
-	case hfMultipleOrdersEPL:
-		limiter, tokens = r.SpotRate, 1
-	case hfSyncPlaceMultipleHFOrdersEPL:
-		limiter, tokens = r.SpotRate, 1
-	case hfModifyOrderEPL:
-		limiter, tokens = r.SpotRate, 3
-	case cancelHFOrderEPL:
-		limiter, tokens = r.SpotRate, 1
-	case hfSyncCancelOrderEPL:
-		limiter, tokens = r.SpotRate, 1
-	case hfCancelOrderByClientOrderIDEPL:
-		limiter, tokens = r.SpotRate, 1
-	case cancelSpecifiedNumberHFOrdersByOrderIDEPL:
-		limiter, tokens = r.SpotRate, 2
-	case hfCancelAllOrdersBySymbolEPL:
-		limiter, tokens = r.SpotRate, 2
-	case hfCancelAllOrdersEPL:
-		limiter, tokens = r.SpotRate, 30
-	case hfGetAllActiveOrdersEPL:
-		limiter, tokens = r.SpotRate, 2
-	case hfSymbolsWithActiveOrdersEPL:
-		limiter, tokens = r.SpotRate, 2
-	case hfCompletedOrderListEPL:
-		limiter, tokens = r.SpotRate, 2
-	case hfOrderDetailByOrderIDEPL:
-		limiter, tokens = r.SpotRate, 2
-	case autoCancelHFOrderSettingEPL:
-		limiter, tokens = r.SpotRate, 2
-	case autoCancelHFOrderSettingQueryEPL:
-		limiter, tokens = r.SpotRate, 2
-	case hfFilledListEPL:
-		limiter, tokens = r.SpotRate, 2
-	case placeOrderEPL:
-		limiter, tokens = r.SpotRate, 2
-	case placeBulkOrdersEPL:
-		limiter, tokens = r.SpotRate, 3
-	case cancelOrderEPL:
-		limiter, tokens = r.SpotRate, 3
-	case cancelOrderByClientOrderIDEPL:
-		limiter, tokens = r.SpotRate, 5
-	case cancelAllOrdersEPL:
-		limiter, tokens = r.SpotRate, 20
-	case listOrdersEPL:
-		limiter, tokens = r.SpotRate, 2
-	case recentOrdersEPL:
-		limiter, tokens = r.SpotRate, 3
-	case orderDetailByIDEPL:
-		limiter, tokens = r.SpotRate, 2
-	case getOrderByClientSuppliedOrderIDEPL:
-		limiter, tokens = r.SpotRate, 3
-	case listFillsEPL:
-		limiter, tokens = r.SpotRate, 10
-	case getRecentFillsEPL:
-		limiter, tokens = r.SpotRate, 20
-	case placeStopOrderEPL:
-		limiter, tokens = r.SpotRate, 2
-	case cancelStopOrderEPL:
-		limiter, tokens = r.SpotRate, 3
-	case cancelStopOrderByClientIDEPL:
-		limiter, tokens = r.SpotRate, 5
-	case cancelStopOrdersEPL:
-		limiter, tokens = r.SpotRate, 3
-	case listStopOrdersEPL:
-		limiter, tokens = r.SpotRate, 8
-	case getStopOrderDetailEPL:
-		limiter, tokens = r.SpotRate, 3
-	case getStopOrderByClientIDEPL:
-		limiter, tokens = r.SpotRate, 3
-	case placeOCOOrderEPL:
-		limiter, tokens = r.SpotRate, 2
-	case cancelOCOOrderByIDEPL:
-		limiter, tokens = r.SpotRate, 3
-	case cancelMultipleOCOOrdersEPL:
-		limiter, tokens = r.SpotRate, 3
-	case getOCOOrderByIDEPL:
-		limiter, tokens = r.SpotRate, 2
-	case getOCOOrderDetailsByOrderIDEPL:
-		limiter, tokens = r.SpotRate, 2
-	case getOCOOrdersEPL:
-		limiter, tokens = r.SpotRate, 2
-	case placeMarginOrderEPL:
-		limiter, tokens = r.SpotRate, 5
-	case cancelMarginHFOrderByIDEPL:
-		limiter, tokens = r.SpotRate, 5
-	case getMarginHFOrderDetailByID:
-		limiter, tokens = r.SpotRate, 5
-	case cancelAllMarginHFOrdersBySymbolEPL:
-		limiter, tokens = r.SpotRate, 10
-	case getActiveMarginHFOrdersEPL:
-		limiter, tokens = r.SpotRate, 4
-	case getFilledHFMarginOrdersEPL:
-		limiter, tokens = r.SpotRate, 10
-	case getMarginHFOrderDetailByOrderIDEPL:
-		limiter, tokens = r.SpotRate, 4
-	case getMarginHFTradeFillsEPL:
-		limiter, tokens = r.SpotRate, 5
-	case placeMarginOrdersEPL:
-		limiter, tokens = r.SpotRate, 5
-	case leveragedTokenInfoEPL:
-		limiter, tokens = r.SpotRate, 25
-	case getMarkPriceEPL:
-		limiter, tokens = r.PublicRate, 2
-	case getMarginConfigurationEPL:
-		limiter, tokens = r.SpotRate, 25
-	case crossIsolatedMarginRiskLimitCurrencyConfigEPL:
-		limiter, tokens = r.SpotRate, 20
-	case isolatedMarginPairConfigEPL:
-		limiter, tokens = r.SpotRate, 20
-	case isolatedMarginAccountInfoEPL:
-		limiter, tokens = r.SpotRate, 50
-	case singleIsolatedMarginAccountInfoEPL:
-		limiter, tokens = r.SpotRate, 50
-	case postMarginBorrowOrderEPL:
-		limiter, tokens = r.SpotRate, 15
-	case postMarginRepaymentEPL:
-		limiter, tokens = r.SpotRate, 10
-	case marginBorrowingHistoryEPL:
-		limiter, tokens = r.SpotRate, 15
-	case marginRepaymentHistoryEPL:
-		limiter, tokens = r.SpotRate, 15
-	case lendingCurrencyInfoEPL:
-		limiter, tokens = r.SpotRate, 10
-	case interestRateEPL:
-		limiter, tokens = r.PublicRate, 5
-	case marginLendingSubscriptionEPL:
-		limiter, tokens = r.SpotRate, 15
-	case redemptionEPL:
-		limiter, tokens = r.SpotRate, 15
-	case modifySubscriptionEPL:
-		limiter, tokens = r.SpotRate, 10
-	case getRedemptionOrdersEPL:
-		limiter, tokens = r.SpotRate, 10
-	case getSubscriptionOrdersEPL:
-		limiter, tokens = r.SpotRate, 10
-	case futuresOpenContractsEPL:
-		limiter, tokens = r.PublicRate, 3
-	case futuresContractEPL:
-		limiter, tokens = r.PublicRate, 3
-	case futuresTickerEPL:
-		limiter, tokens = r.PublicRate, 2
-	case futuresOrderbookEPL:
-		limiter, tokens = r.PublicRate, 3
-	case futuresPartOrderbookDepth20EPL:
-		limiter, tokens = r.PublicRate, 5
-	case futuresPartOrderbookDepth100EPL:
-		limiter, tokens = r.PublicRate, 10
-	case futuresTransactionHistoryEPL:
-		limiter, tokens = r.PublicRate, 5
-	case futuresKlineEPL:
-		limiter, tokens = r.PublicRate, 3
-	case futuresInterestRateEPL:
-		limiter, tokens = r.PublicRate, 5
-	case futuresIndexListEPL:
-		limiter, tokens = r.PublicRate, 2
-	case futuresCurrentMarkPriceEPL:
-		limiter, tokens = r.PublicRate, 3
-	case futuresPremiumIndexEPL:
-		limiter, tokens = r.PublicRate, 3
-	case futuresTransactionVolumeEPL:
-		limiter, tokens = r.FuturesRate, 3
-	case futuresServerTimeEPL:
-		limiter, tokens = r.PublicRate, 2
-	case futuresServiceStatusEPL:
-		limiter, tokens = r.PublicRate, 4
-	case multipleFuturesOrdersEPL:
-		limiter, tokens = r.FuturesRate, 20
-	case futuresCancelAnOrderEPL:
-		limiter, tokens = r.FuturesRate, 1
-	case futuresPlaceOrderEPL:
-		limiter, tokens = r.FuturesRate, 2
-	case futuresLimitOrderMassCancelationEPL:
-		limiter, tokens = r.FuturesRate, 30
-	case cancelUntriggeredFuturesStopOrdersEPL:
-		limiter, tokens = r.FuturesRate, 15
-	case futuresCancelMultipleLimitOrdersEPL:
-		limiter, tokens = r.FuturesRate, 30
-	case futuresRetrieveOrderListEPL:
-		limiter, tokens = r.FuturesRate, 2
-	case futuresRecentCompletedOrdersEPL:
-		limiter, tokens = r.FuturesRate, 5
-	case futuresOrdersByIDEPL:
-		limiter, tokens = r.FuturesRate, 5
-	case futuresRetrieveFillsEPL:
-		limiter, tokens = r.FuturesRate, 5
-	case futuresRecentFillsEPL:
-		limiter, tokens = r.FuturesRate, 3
-	case futuresOpenOrderStatsEPL:
-		limiter, tokens = r.FuturesRate, 10
-	case futuresPositionEPL:
-		limiter, tokens = r.FuturesRate, 2
-	case futuresPositionListEPL:
-		limiter, tokens = r.FuturesRate, 2
-	case setAutoDepositMarginEPL:
-		limiter, tokens = r.FuturesRate, 4
-	case maxWithdrawMarginEPL:
-		limiter, tokens = r.FuturesRate, 10
-	case removeMarginManuallyEPL:
-		limiter, tokens = r.FuturesRate, 10
-	case futuresAddMarginManuallyEPL:
-		limiter, tokens = r.FuturesRate, 4
-	case futuresRiskLimitLevelEPL:
-		limiter, tokens = r.FuturesRate, 5
-	case futuresUpdateRiskLmitLevelEPL:
-		limiter, tokens = r.FuturesRate, 4
-	case futuresCurrentFundingRateEPL:
-		limiter, tokens = r.PublicRate, 2
-	case futuresPublicFundingRateEPL:
-		limiter, tokens = r.PublicRate, 5
-	case futuresFundingHistoryEPL:
-		limiter, tokens = r.FuturesRate, 5
-	case spotAuthenticationEPL:
-		limiter, tokens = r.SpotRate, 10
-	case futuresAuthenticationEPL:
-		limiter, tokens = r.FuturesRate, 10
-	case futuresOrderDetailsByClientOrderIDEPL:
-		limiter, tokens = r.FuturesRate, 5
+// GetRateLimit returns a RateLimit instance, which implements the request.Limiter interface.
+func GetRateLimit() request.RateLimitDefinitions {
 
-	case modifySubAccountAPIEPL:
-		limiter, tokens = r.ManagementRate, 30
-	case allSubAccountsBalanceEPL:
-		limiter, tokens = r.ManagementRate, 20
-	case allUserSubAccountsV2EPL:
-		limiter, tokens = r.ManagementRate, 20
-	case futuresRetrieveTransactionHistoryEPL:
-		limiter, tokens = r.ManagementRate, 2
-	case futuresAccountOverviewEPL:
-		limiter, tokens = r.FuturesRate, 5
-	case createSubAccountAPIKeyEPL:
-		limiter, tokens = r.ManagementRate, 20
-	case transferOutToMainEPL:
-		limiter, tokens = r.ManagementRate, 20
-	case transferFundToFuturesAccountEPL:
-		limiter, tokens = r.ManagementRate, 20
-	case futuresTransferOutListEPL:
-		limiter, tokens = r.ManagementRate, 20
-
-	default:
-		return errors.New("endpoint rate limit functionality not found")
-	}
-	var finalDelay time.Duration
-	var reserves = make([]*rate.Reservation, tokens)
-	for i := 0; i < tokens; i++ {
-		// Consume tokens 1 at a time as this avoids needing burst capacity in the limiter,
-		// which would otherwise allow the rate limit to be exceeded over short periods
-		reserves[i] = limiter.Reserve()
-		finalDelay = reserves[i].Delay()
-	}
-
-	if dl, ok := ctx.Deadline(); ok && dl.Before(time.Now().Add(finalDelay)) {
-		// Cancel all potential reservations to free up rate limiter if deadline
-		// is exceeded.
-		for x := range reserves {
-			reserves[x].Cancel()
-		}
-		return fmt.Errorf("rate limit delay of %s will exceed deadline: %w",
-			finalDelay,
-			context.DeadlineExceeded)
-	}
-
-	time.Sleep(finalDelay)
-	return nil
-}
-
-// SetRateLimit returns a RateLimit instance, which implements the request.Limiter interface.
-func SetRateLimit() *RateLimit {
-	return &RateLimit{
-		// default spot and futures rates
-		SpotRate:       request.NewRateLimit(thirtySecondsInterval, 3000),
-		FuturesRate:    request.NewRateLimit(thirtySecondsInterval, 2000),
-		ManagementRate: request.NewRateLimit(thirtySecondsInterval, 2000),
-		PublicRate:     request.NewRateLimit(thirtySecondsInterval, 2000),
+	spotRate := request.NewRateLimit(thirtySecondsInterval, 3000)
+	futuresRate := request.NewRateLimit(thirtySecondsInterval, 2000)
+	managementRate := request.NewRateLimit(thirtySecondsInterval, 2000)
+	publicRate := request.NewRateLimit(thirtySecondsInterval, 2000)
+	return request.RateLimitDefinitions{
+		// spot specific rate limiters
+		accountSummaryInfoEPL:                         request.GetRateLimiterWithWeight(managementRate, 20),
+		allAccountEPL:                                 request.GetRateLimiterWithWeight(managementRate, 5),
+		accountDetailEPL:                              request.GetRateLimiterWithWeight(managementRate, 5),
+		accountLedgersEPL:                             request.GetRateLimiterWithWeight(managementRate, 2),
+		hfAccountLedgersEPL:                           request.GetRateLimiterWithWeight(spotRate, 2),
+		hfAccountLedgersMarginEPL:                     request.GetRateLimiterWithWeight(spotRate, 2),
+		futuresAccountLedgersEPL:                      request.GetRateLimiterWithWeight(spotRate, 2),
+		subAccountInfoV1EPL:                           request.GetRateLimiterWithWeight(managementRate, 20),
+		allSubAccountsInfoV2EPL:                       request.GetRateLimiterWithWeight(managementRate, 20),
+		createSubUserEPL:                              request.GetRateLimiterWithWeight(managementRate, 20),
+		subAccountsEPL:                                request.GetRateLimiterWithWeight(managementRate, 15),
+		subAccountBalancesEPL:                         request.GetRateLimiterWithWeight(managementRate, 20),
+		allSubAccountBalancesV2EPL:                    request.GetRateLimiterWithWeight(managementRate, 20),
+		subAccountSpotAPIListEPL:                      request.GetRateLimiterWithWeight(managementRate, 20),
+		createSpotAPIForSubAccountEPL:                 request.GetRateLimiterWithWeight(managementRate, 20),
+		modifySubAccountSpotAPIEPL:                    request.GetRateLimiterWithWeight(managementRate, 30),
+		deleteSubAccountSpotAPIEPL:                    request.GetRateLimiterWithWeight(managementRate, 30),
+		marginAccountDetailEPL:                        request.GetRateLimiterWithWeight(spotRate, 40),
+		crossMarginAccountsDetailEPL:                  request.GetRateLimiterWithWeight(spotRate, 15),
+		isolatedMarginAccountDetailEPL:                request.GetRateLimiterWithWeight(spotRate, 15),
+		futuresAccountsDetailEPL:                      request.GetRateLimiterWithWeight(futuresRate, 5),
+		allFuturesSubAccountBalancesEPL:               request.GetRateLimiterWithWeight(futuresRate, 6),
+		createDepositAddressEPL:                       request.GetRateLimiterWithWeight(managementRate, 20),
+		depositAddressesV2EPL:                         request.GetRateLimiterWithWeight(managementRate, 5),
+		depositAddressesV1EPL:                         request.GetRateLimiterWithWeight(managementRate, 5),
+		depositListEPL:                                request.GetRateLimiterWithWeight(managementRate, 5),
+		historicDepositListEPL:                        request.GetRateLimiterWithWeight(managementRate, 5),
+		withdrawalListEPL:                             request.GetRateLimiterWithWeight(managementRate, 20),
+		retrieveV1HistoricalWithdrawalListEPL:         request.GetRateLimiterWithWeight(managementRate, 20),
+		withdrawalQuotaEPL:                            request.GetRateLimiterWithWeight(managementRate, 20),
+		applyWithdrawalEPL:                            request.GetRateLimiterWithWeight(managementRate, 5),
+		cancelWithdrawalsEPL:                          request.GetRateLimiterWithWeight(managementRate, 20),
+		getTransferablesEPL:                           request.GetRateLimiterWithWeight(managementRate, 20),
+		flexiTransferEPL:                              request.GetRateLimiterWithWeight(managementRate, 4),
+		masterSubUserTransferEPL:                      request.GetRateLimiterWithWeight(managementRate, 30),
+		innerTransferEPL:                              request.GetRateLimiterWithWeight(managementRate, 10),
+		toMainOrTradeAccountEPL:                       request.GetRateLimiterWithWeight(managementRate, 20),
+		toFuturesAccountEPL:                           request.GetRateLimiterWithWeight(managementRate, 20),
+		futuresTransferOutRequestRecordsEPL:           request.GetRateLimiterWithWeight(managementRate, 20),
+		basicFeesEPL:                                  request.GetRateLimiterWithWeight(spotRate, 3),
+		tradeFeesEPL:                                  request.GetRateLimiterWithWeight(spotRate, 3),
+		spotCurrenciesV3EPL:                           request.GetRateLimiterWithWeight(publicRate, 3),
+		spotCurrencyDetailEPL:                         request.GetRateLimiterWithWeight(publicRate, 3),
+		symbolsEPL:                                    request.GetRateLimiterWithWeight(publicRate, 4),
+		tickersEPL:                                    request.GetRateLimiterWithWeight(publicRate, 2),
+		allTickersEPL:                                 request.GetRateLimiterWithWeight(publicRate, 15),
+		statistics24HrEPL:                             request.GetRateLimiterWithWeight(publicRate, 15),
+		marketListEPL:                                 request.GetRateLimiterWithWeight(publicRate, 3),
+		partOrderbook20EPL:                            request.GetRateLimiterWithWeight(publicRate, 2),
+		partOrderbook100EPL:                           request.GetRateLimiterWithWeight(publicRate, 4),
+		fullOrderbookEPL:                              request.GetRateLimiterWithWeight(spotRate, 3),
+		tradeHistoryEPL:                               request.GetRateLimiterWithWeight(publicRate, 3),
+		klinesEPL:                                     request.GetRateLimiterWithWeight(publicRate, 3),
+		fiatPriceEPL:                                  request.GetRateLimiterWithWeight(publicRate, 3),
+		currentServerTimeEPL:                          request.GetRateLimiterWithWeight(publicRate, 3),
+		serviceStatusEPL:                              request.GetRateLimiterWithWeight(publicRate, 3),
+		hfPlaceOrderEPL:                               request.GetRateLimiterWithWeight(spotRate, 1),
+		hfSyncPlaceOrderEPL:                           request.GetRateLimiterWithWeight(spotRate, 1),
+		hfMultipleOrdersEPL:                           request.GetRateLimiterWithWeight(spotRate, 1),
+		hfSyncPlaceMultipleHFOrdersEPL:                request.GetRateLimiterWithWeight(spotRate, 1),
+		hfModifyOrderEPL:                              request.GetRateLimiterWithWeight(spotRate, 3),
+		cancelHFOrderEPL:                              request.GetRateLimiterWithWeight(spotRate, 1),
+		hfSyncCancelOrderEPL:                          request.GetRateLimiterWithWeight(spotRate, 1),
+		hfCancelOrderByClientOrderIDEPL:               request.GetRateLimiterWithWeight(spotRate, 1),
+		cancelSpecifiedNumberHFOrdersByOrderIDEPL:     request.GetRateLimiterWithWeight(spotRate, 2),
+		hfCancelAllOrdersBySymbolEPL:                  request.GetRateLimiterWithWeight(spotRate, 2),
+		hfCancelAllOrdersEPL:                          request.GetRateLimiterWithWeight(spotRate, 30),
+		hfGetAllActiveOrdersEPL:                       request.GetRateLimiterWithWeight(spotRate, 2),
+		hfSymbolsWithActiveOrdersEPL:                  request.GetRateLimiterWithWeight(spotRate, 2),
+		hfCompletedOrderListEPL:                       request.GetRateLimiterWithWeight(spotRate, 2),
+		hfOrderDetailByOrderIDEPL:                     request.GetRateLimiterWithWeight(spotRate, 2),
+		autoCancelHFOrderSettingEPL:                   request.GetRateLimiterWithWeight(spotRate, 2),
+		autoCancelHFOrderSettingQueryEPL:              request.GetRateLimiterWithWeight(spotRate, 2),
+		hfFilledListEPL:                               request.GetRateLimiterWithWeight(spotRate, 2),
+		placeOrderEPL:                                 request.GetRateLimiterWithWeight(spotRate, 2),
+		placeBulkOrdersEPL:                            request.GetRateLimiterWithWeight(spotRate, 3),
+		cancelOrderEPL:                                request.GetRateLimiterWithWeight(spotRate, 3),
+		cancelOrderByClientOrderIDEPL:                 request.GetRateLimiterWithWeight(spotRate, 5),
+		cancelAllOrdersEPL:                            request.GetRateLimiterWithWeight(spotRate, 20),
+		listOrdersEPL:                                 request.GetRateLimiterWithWeight(spotRate, 2),
+		recentOrdersEPL:                               request.GetRateLimiterWithWeight(spotRate, 3),
+		orderDetailByIDEPL:                            request.GetRateLimiterWithWeight(spotRate, 2),
+		getOrderByClientSuppliedOrderIDEPL:            request.GetRateLimiterWithWeight(spotRate, 3),
+		listFillsEPL:                                  request.GetRateLimiterWithWeight(spotRate, 10),
+		getRecentFillsEPL:                             request.GetRateLimiterWithWeight(spotRate, 20),
+		placeStopOrderEPL:                             request.GetRateLimiterWithWeight(spotRate, 2),
+		cancelStopOrderEPL:                            request.GetRateLimiterWithWeight(spotRate, 3),
+		cancelStopOrderByClientIDEPL:                  request.GetRateLimiterWithWeight(spotRate, 5),
+		cancelStopOrdersEPL:                           request.GetRateLimiterWithWeight(spotRate, 3),
+		listStopOrdersEPL:                             request.GetRateLimiterWithWeight(spotRate, 8),
+		getStopOrderDetailEPL:                         request.GetRateLimiterWithWeight(spotRate, 3),
+		getStopOrderByClientIDEPL:                     request.GetRateLimiterWithWeight(spotRate, 3),
+		placeOCOOrderEPL:                              request.GetRateLimiterWithWeight(spotRate, 2),
+		cancelOCOOrderByIDEPL:                         request.GetRateLimiterWithWeight(spotRate, 3),
+		cancelMultipleOCOOrdersEPL:                    request.GetRateLimiterWithWeight(spotRate, 3),
+		getOCOOrderByIDEPL:                            request.GetRateLimiterWithWeight(spotRate, 2),
+		getOCOOrderDetailsByOrderIDEPL:                request.GetRateLimiterWithWeight(spotRate, 2),
+		getOCOOrdersEPL:                               request.GetRateLimiterWithWeight(spotRate, 2),
+		placeMarginOrderEPL:                           request.GetRateLimiterWithWeight(spotRate, 5),
+		cancelMarginHFOrderByIDEPL:                    request.GetRateLimiterWithWeight(spotRate, 5),
+		getMarginHFOrderDetailByID:                    request.GetRateLimiterWithWeight(spotRate, 5),
+		cancelAllMarginHFOrdersBySymbolEPL:            request.GetRateLimiterWithWeight(spotRate, 10),
+		getActiveMarginHFOrdersEPL:                    request.GetRateLimiterWithWeight(spotRate, 4),
+		getFilledHFMarginOrdersEPL:                    request.GetRateLimiterWithWeight(spotRate, 10),
+		getMarginHFOrderDetailByOrderIDEPL:            request.GetRateLimiterWithWeight(spotRate, 4),
+		getMarginHFTradeFillsEPL:                      request.GetRateLimiterWithWeight(spotRate, 5),
+		placeMarginOrdersEPL:                          request.GetRateLimiterWithWeight(spotRate, 5),
+		leveragedTokenInfoEPL:                         request.GetRateLimiterWithWeight(spotRate, 25),
+		getMarkPriceEPL:                               request.GetRateLimiterWithWeight(publicRate, 2),
+		getMarginConfigurationEPL:                     request.GetRateLimiterWithWeight(spotRate, 25),
+		crossIsolatedMarginRiskLimitCurrencyConfigEPL: request.GetRateLimiterWithWeight(spotRate, 20),
+		isolatedMarginPairConfigEPL:                   request.GetRateLimiterWithWeight(spotRate, 20),
+		isolatedMarginAccountInfoEPL:                  request.GetRateLimiterWithWeight(spotRate, 50),
+		singleIsolatedMarginAccountInfoEPL:            request.GetRateLimiterWithWeight(spotRate, 50),
+		postMarginBorrowOrderEPL:                      request.GetRateLimiterWithWeight(spotRate, 15),
+		postMarginRepaymentEPL:                        request.GetRateLimiterWithWeight(spotRate, 10),
+		marginBorrowingHistoryEPL:                     request.GetRateLimiterWithWeight(spotRate, 15),
+		marginRepaymentHistoryEPL:                     request.GetRateLimiterWithWeight(spotRate, 15),
+		lendingCurrencyInfoEPL:                        request.GetRateLimiterWithWeight(spotRate, 10),
+		interestRateEPL:                               request.GetRateLimiterWithWeight(publicRate, 5),
+		marginLendingSubscriptionEPL:                  request.GetRateLimiterWithWeight(spotRate, 15),
+		redemptionEPL:                                 request.GetRateLimiterWithWeight(spotRate, 15),
+		modifySubscriptionEPL:                         request.GetRateLimiterWithWeight(spotRate, 10),
+		getRedemptionOrdersEPL:                        request.GetRateLimiterWithWeight(spotRate, 10),
+		getSubscriptionOrdersEPL:                      request.GetRateLimiterWithWeight(spotRate, 10),
+		futuresOpenContractsEPL:                       request.GetRateLimiterWithWeight(publicRate, 3),
+		futuresContractEPL:                            request.GetRateLimiterWithWeight(publicRate, 3),
+		futuresTickerEPL:                              request.GetRateLimiterWithWeight(publicRate, 2),
+		futuresOrderbookEPL:                           request.GetRateLimiterWithWeight(publicRate, 3),
+		futuresPartOrderbookDepth20EPL:                request.GetRateLimiterWithWeight(publicRate, 5),
+		futuresPartOrderbookDepth100EPL:               request.GetRateLimiterWithWeight(publicRate, 10),
+		futuresTransactionHistoryEPL:                  request.GetRateLimiterWithWeight(publicRate, 5),
+		futuresKlineEPL:                               request.GetRateLimiterWithWeight(publicRate, 3),
+		futuresInterestRateEPL:                        request.GetRateLimiterWithWeight(publicRate, 5),
+		futuresIndexListEPL:                           request.GetRateLimiterWithWeight(publicRate, 2),
+		futuresCurrentMarkPriceEPL:                    request.GetRateLimiterWithWeight(publicRate, 3),
+		futuresPremiumIndexEPL:                        request.GetRateLimiterWithWeight(publicRate, 3),
+		futuresTransactionVolumeEPL:                   request.GetRateLimiterWithWeight(futuresRate, 3),
+		futuresServerTimeEPL:                          request.GetRateLimiterWithWeight(publicRate, 2),
+		futuresServiceStatusEPL:                       request.GetRateLimiterWithWeight(publicRate, 4),
+		multipleFuturesOrdersEPL:                      request.GetRateLimiterWithWeight(futuresRate, 20),
+		futuresCancelAnOrderEPL:                       request.GetRateLimiterWithWeight(futuresRate, 1),
+		futuresPlaceOrderEPL:                          request.GetRateLimiterWithWeight(futuresRate, 2),
+		futuresLimitOrderMassCancelationEPL:           request.GetRateLimiterWithWeight(futuresRate, 30),
+		cancelUntriggeredFuturesStopOrdersEPL:         request.GetRateLimiterWithWeight(futuresRate, 15),
+		futuresCancelMultipleLimitOrdersEPL:           request.GetRateLimiterWithWeight(futuresRate, 30),
+		futuresRetrieveOrderListEPL:                   request.GetRateLimiterWithWeight(futuresRate, 2),
+		futuresRecentCompletedOrdersEPL:               request.GetRateLimiterWithWeight(futuresRate, 5),
+		futuresOrdersByIDEPL:                          request.GetRateLimiterWithWeight(futuresRate, 5),
+		futuresRetrieveFillsEPL:                       request.GetRateLimiterWithWeight(futuresRate, 5),
+		futuresRecentFillsEPL:                         request.GetRateLimiterWithWeight(futuresRate, 3),
+		futuresOpenOrderStatsEPL:                      request.GetRateLimiterWithWeight(futuresRate, 10),
+		futuresPositionEPL:                            request.GetRateLimiterWithWeight(futuresRate, 2),
+		futuresPositionListEPL:                        request.GetRateLimiterWithWeight(futuresRate, 2),
+		setAutoDepositMarginEPL:                       request.GetRateLimiterWithWeight(futuresRate, 4),
+		maxWithdrawMarginEPL:                          request.GetRateLimiterWithWeight(futuresRate, 10),
+		removeMarginManuallyEPL:                       request.GetRateLimiterWithWeight(futuresRate, 10),
+		futuresAddMarginManuallyEPL:                   request.GetRateLimiterWithWeight(futuresRate, 4),
+		futuresRiskLimitLevelEPL:                      request.GetRateLimiterWithWeight(futuresRate, 5),
+		futuresUpdateRiskLmitLevelEPL:                 request.GetRateLimiterWithWeight(futuresRate, 4),
+		futuresCurrentFundingRateEPL:                  request.GetRateLimiterWithWeight(publicRate, 2),
+		futuresPublicFundingRateEPL:                   request.GetRateLimiterWithWeight(publicRate, 5),
+		futuresFundingHistoryEPL:                      request.GetRateLimiterWithWeight(futuresRate, 5),
+		spotAuthenticationEPL:                         request.GetRateLimiterWithWeight(spotRate, 10),
+		futuresAuthenticationEPL:                      request.GetRateLimiterWithWeight(futuresRate, 10),
+		futuresOrderDetailsByClientOrderIDEPL:         request.GetRateLimiterWithWeight(futuresRate, 5),
+		modifySubAccountAPIEPL:                        request.GetRateLimiterWithWeight(managementRate, 30),
+		allSubAccountsBalanceEPL:                      request.GetRateLimiterWithWeight(managementRate, 20),
+		allUserSubAccountsV2EPL:                       request.GetRateLimiterWithWeight(managementRate, 20),
+		futuresRetrieveTransactionHistoryEPL:          request.GetRateLimiterWithWeight(managementRate, 2),
+		futuresAccountOverviewEPL:                     request.GetRateLimiterWithWeight(futuresRate, 5),
+		createSubAccountAPIKeyEPL:                     request.GetRateLimiterWithWeight(managementRate, 20),
+		transferOutToMainEPL:                          request.GetRateLimiterWithWeight(managementRate, 20),
+		transferFundToFuturesAccountEPL:               request.GetRateLimiterWithWeight(managementRate, 20),
+		futuresTransferOutListEPL:                     request.GetRateLimiterWithWeight(managementRate, 20),
 	}
 }

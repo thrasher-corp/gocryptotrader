@@ -45,6 +45,10 @@ var locker sync.Mutex
 const (
 	kucoinAPIURL        = "https://api.kucoin.com/api"
 	kucoinAPIKeyVersion = "2"
+	tradeBaseURL        = "https://www.kucoin.com/"
+	tradeSpot           = "trade/"
+	tradeMargin         = "margin/"
+	tradeFutures        = "futures/"
 
 	symbolQuery = "?symbol="
 )
@@ -101,8 +105,8 @@ func (ku *Kucoin) GetMarketList(ctx context.Context) ([]string, error) {
 	return resp, ku.SendHTTPRequest(ctx, exchange.RestSpot, marketListEPL, "/v1/markets", &resp)
 }
 
-func processOB(ob [][2]types.Number) []orderbook.Item {
-	o := make([]orderbook.Item, len(ob))
+func processOB(ob [][2]types.Number) []orderbook.Tranche {
+	o := make([]orderbook.Tranche, len(ob))
 	for x := range ob {
 		o[x].Amount = ob[x][1].Float64()
 		o[x].Price = ob[x][0].Float64()

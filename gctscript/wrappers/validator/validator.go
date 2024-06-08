@@ -55,13 +55,13 @@ func (w Wrapper) Orderbook(_ context.Context, exch string, pair currency.Pair, i
 		Exchange: exch,
 		Asset:    item,
 		Pair:     pair,
-		Bids: []orderbook.Item{
+		Bids: []orderbook.Tranche{
 			{
 				Amount: 1,
 				Price:  1,
 			},
 		},
-		Asks: []orderbook.Item{
+		Asks: []orderbook.Tranche{
 			{
 				Amount: 1,
 				Price:  1,

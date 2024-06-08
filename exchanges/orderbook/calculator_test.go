@@ -13,11 +13,11 @@ func testSetup() Base {
 	return Base{
 		Exchange: "a",
 		Pair:     currency.NewPair(currency.BTC, currency.USD),
-		Asks: []Item{
+		Asks: []Tranche{
 			{Price: 7000, Amount: 1},
 			{Price: 7001, Amount: 2},
 		},
-		Bids: []Item{
+		Bids: []Tranche{
 			{Price: 6999, Amount: 1},
 			{Price: 6998, Amount: 2},
 		},
@@ -507,14 +507,14 @@ func TestGetAveragePrice(t *testing.T) {
 		t.Error(err)
 	}
 	b.Pair = cp
-	b.Bids = []Item{}
+	b.Bids = []Tranche{}
 	_, err = b.GetAveragePrice(false, 5)
 	if errors.Is(errNotEnoughLiquidity, err) {
 		t.Error("expected: %w, received %w", errNotEnoughLiquidity, err)
 	}
 	b = Base{}
 	b.Pair = cp
-	b.Asks = []Item{
+	b.Asks = []Tranche{
 		{Amount: 5, Price: 1},
 		{Amount: 5, Price: 2},
 		{Amount: 5, Price: 3},
@@ -545,7 +545,7 @@ func TestGetAveragePrice(t *testing.T) {
 }
 
 func TestFindNominalAmount(t *testing.T) {
-	b := Items{
+	b := Tranches{
 		{Amount: 5, Price: 1},
 		{Amount: 5, Price: 2},
 		{Amount: 5, Price: 3},
@@ -555,7 +555,7 @@ func TestFindNominalAmount(t *testing.T) {
 	if nomAmt != 30 && remainingAmt != 0 {
 		t.Errorf("invalid return")
 	}
-	b = Items{}
+	b = Tranches{}
 	nomAmt, remainingAmt = b.FindNominalAmount(15)
 	if nomAmt != 0 && remainingAmt != 30 {
 		t.Errorf("invalid return")

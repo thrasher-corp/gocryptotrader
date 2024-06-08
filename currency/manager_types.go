@@ -36,7 +36,6 @@ type PairFormat struct {
 	Uppercase bool   `json:"uppercase"`
 	Delimiter string `json:"delimiter,omitempty"`
 	Separator string `json:"separator,omitempty"`
-	Index     string `json:"index,omitempty"`
 }
 
 // key is used to store the asset type and symbol in a map
