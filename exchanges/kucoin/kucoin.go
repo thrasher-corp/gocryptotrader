@@ -1468,7 +1468,7 @@ func (ku *Kucoin) getMarginHFOrderDetailByID(ctx context.Context, orderID, symbo
 // GetMarginHFTradeFills to obtain a list of the latest margin HF transaction details. The returned results are paginated. The data is sorted in descending order according to time.
 func (ku *Kucoin) GetMarginHFTradeFills(ctx context.Context, orderID, symbol, tradeType, side, orderType string, startAt, endAt time.Time, lastID, limit int64) (*HFMarginOrderTransaction, error) {
 	if tradeType == "" {
-		return nil, errTransferTypeMissing
+		return nil, errTradeTypeMissing
 	}
 	params := url.Values{}
 	params.Set("tradeType", tradeType)

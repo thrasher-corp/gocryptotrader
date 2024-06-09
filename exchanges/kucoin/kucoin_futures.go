@@ -356,7 +356,7 @@ func (ku *Kucoin) futuresPostOrderArgumentFilter(arg *FuturesOrderParam) error {
 	if arg == nil || *arg == (FuturesOrderParam{}) {
 		return common.ErrNilPointer
 	}
-	if arg.Leverage < 0 {
+	if arg.Leverage <= 0 {
 		return errInvalidLeverage
 	}
 	if arg.ClientOrderID == "" {
@@ -609,10 +609,10 @@ func (ku *Kucoin) GetFuturesPositionList(ctx context.Context) ([]FuturesPosition
 
 // SetAutoDepositMargin enable/disable of auto-deposit margin
 func (ku *Kucoin) SetAutoDepositMargin(ctx context.Context, symbol string, status bool) (bool, error) {
-	params := make(map[string]interface{})
 	if symbol == "" {
 		return false, currency.ErrSymbolStringEmpty
 	}
+	params := make(map[string]interface{})
 	params["symbol"] = symbol
 	params["status"] = status
 	var resp bool
@@ -645,10 +645,10 @@ func (ku *Kucoin) RemoveMarginManually(ctx context.Context, arg *WithdrawMarginR
 
 // AddMargin is used to add margin manually
 func (ku *Kucoin) AddMargin(ctx context.Context, symbol, uniqueID string, margin float64) (*FuturesPosition, error) {
-	params := make(map[string]interface{})
 	if symbol == "" {
 		return nil, currency.ErrSymbolStringEmpty
 	}
+	params := make(map[string]interface{})
 	params["symbol"] = symbol
 	if uniqueID == "" {
 		return nil, errors.New("uniqueID can't be empty")
@@ -680,7 +680,7 @@ func (ku *Kucoin) FuturesUpdateRiskLmitLevel(ctx context.Context, symbol string,
 	params["symbol"] = symbol
 	params["level"] = strconv.FormatInt(level, 10)
 	var resp bool
-	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestFutures, futuresUpdateRiskLmitLevelEPL, http.MethodPost, "/v1/position/risk-limit-level/change", params, &resp)
+	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestFutures, futuresUpdateRiskLimitLevelEPL, http.MethodPost, "/v1/position/risk-limit-level/change", params, &resp)
 }
 
 // GetFuturesFundingHistory gets information about funding history
@@ -709,12 +709,12 @@ func (ku *Kucoin) GetFuturesFundingHistory(ctx context.Context, symbol string, o
 }
 
 // GetFuturesAccountOverview gets future account overview
-func (ku *Kucoin) GetFuturesAccountOverview(ctx context.Context, ccy string) (FuturesAccount, error) {
+func (ku *Kucoin) GetFuturesAccountOverview(ctx context.Context, ccy string) (*FuturesAccount, error) {
 	params := url.Values{}
 	if ccy != "" {
 		params.Set("currency", ccy)
 	}
-	resp := FuturesAccount{}
+	var resp *FuturesAccount
 	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestFutures, futuresAccountOverviewEPL, http.MethodGet, common.EncodeURLValues("/v1/account-overview", params), nil, &resp)
 }
 

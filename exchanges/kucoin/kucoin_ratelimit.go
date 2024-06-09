@@ -4,20 +4,11 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
-	"golang.org/x/time/rate"
 )
 
 const (
 	thirtySecondsInterval = time.Second * 30
 )
-
-// RateLimit implements the request.Limiter interface
-type RateLimit struct {
-	SpotRate       *rate.Limiter
-	FuturesRate    *rate.Limiter
-	ManagementRate *rate.Limiter
-	PublicRate     *rate.Limiter
-}
 
 const (
 	accountSummaryInfoEPL request.EndpointLimit = iota
@@ -179,7 +170,7 @@ const (
 	removeMarginManuallyEPL
 	futuresAddMarginManuallyEPL
 	futuresRiskLimitLevelEPL
-	futuresUpdateRiskLmitLevelEPL
+	futuresUpdateRiskLimitLevelEPL
 	futuresCurrentFundingRateEPL
 	futuresPublicFundingRateEPL
 	futuresFundingHistoryEPL
@@ -199,11 +190,11 @@ const (
 
 // GetRateLimit returns a RateLimit instance, which implements the request.Limiter interface.
 func GetRateLimit() request.RateLimitDefinitions {
-
 	spotRate := request.NewRateLimit(thirtySecondsInterval, 3000)
 	futuresRate := request.NewRateLimit(thirtySecondsInterval, 2000)
 	managementRate := request.NewRateLimit(thirtySecondsInterval, 2000)
 	publicRate := request.NewRateLimit(thirtySecondsInterval, 2000)
+
 	return request.RateLimitDefinitions{
 		// spot specific rate limiters
 		accountSummaryInfoEPL:                         request.GetRateLimiterWithWeight(managementRate, 20),
@@ -365,7 +356,7 @@ func GetRateLimit() request.RateLimitDefinitions {
 		removeMarginManuallyEPL:                       request.GetRateLimiterWithWeight(futuresRate, 10),
 		futuresAddMarginManuallyEPL:                   request.GetRateLimiterWithWeight(futuresRate, 4),
 		futuresRiskLimitLevelEPL:                      request.GetRateLimiterWithWeight(futuresRate, 5),
-		futuresUpdateRiskLmitLevelEPL:                 request.GetRateLimiterWithWeight(futuresRate, 4),
+		futuresUpdateRiskLimitLevelEPL:                request.GetRateLimiterWithWeight(futuresRate, 4),
 		futuresCurrentFundingRateEPL:                  request.GetRateLimiterWithWeight(publicRate, 2),
 		futuresPublicFundingRateEPL:                   request.GetRateLimiterWithWeight(publicRate, 5),
 		futuresFundingHistoryEPL:                      request.GetRateLimiterWithWeight(futuresRate, 5),
