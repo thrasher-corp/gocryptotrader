@@ -11,6 +11,7 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
+	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
@@ -173,7 +174,7 @@ func (ok *Okx) GenerateDefaultBusinessSubscriptions() ([]subscription.Subscripti
 				subscriptions = append(subscriptions, subscription.Subscription{
 					Channel: subs[c],
 					Asset:   asset.Spread,
-					Pair:    pairs[p],
+					Pairs:   []currency.Pair{pairs[p]},
 				})
 			}
 		case okxChannelPublicBlockTrades,
@@ -186,7 +187,7 @@ func (ok *Okx) GenerateDefaultBusinessSubscriptions() ([]subscription.Subscripti
 				subscriptions = append(subscriptions, subscription.Subscription{
 					Channel: subs[c],
 					Asset:   asset.PerpetualSwap,
-					Pair:    pairs[p],
+					Pairs:   []currency.Pair{pairs[p]},
 				})
 			}
 		default:
@@ -199,23 +200,23 @@ func (ok *Okx) GenerateDefaultBusinessSubscriptions() ([]subscription.Subscripti
 }
 
 // BusinessSubscribe sends a websocket subscription request to several channels to receive data.
-func (ok *Okx) BusinessSubscribe(channelsToSubscribe []subscription.Subscription) error {
+func (ok *Okx) BusinessSubscribe(channelsToSubscribe subscription.List) error {
 	return ok.handleBusinessSubscription(operationSubscribe, channelsToSubscribe)
 }
 
 // BusinessUnsubscribe sends a websocket unsubscription request to several channels to receive data.
-func (ok *Okx) BusinessUnsubscribe(channelsToUnsubscribe []subscription.Subscription) error {
+func (ok *Okx) BusinessUnsubscribe(channelsToUnsubscribe subscription.List) error {
 	return ok.handleBusinessSubscription(operationUnsubscribe, channelsToUnsubscribe)
 }
 
 // handleBusinessSubscription sends a subscription and unsubscription information thought the business websocket endpoint.
 // as of the okx, exchange this endpoint sends subscription and unsubscription messages but with a list of json objects.
-func (ok *Okx) handleBusinessSubscription(operation string, subscriptions []subscription.Subscription) error {
+func (ok *Okx) handleBusinessSubscription(operation string, subscriptions subscription.List) error {
 	request := WSSubscriptionInformationList{Operation: operation}
 	ok.WsRequestSemaphore <- 1
 	defer func() { <-ok.WsRequestSemaphore }()
-	var channels []subscription.Subscription
-	var authChannels []subscription.Subscription
+	var channels subscription.List
+	var authChannels subscription.List
 	var err error
 	for i := 0; i < len(subscriptions); i++ {
 		arg := SubscriptionInfo{
@@ -229,10 +230,10 @@ func (ok *Okx) handleBusinessSubscription(operation string, subscriptions []subs
 			okxSpreadOrderbook,
 			okxSpreadPublicTrades,
 			okxSpreadPublicTicker:
-			spreadID = subscriptions[i].Pair.String()
+			spreadID = subscriptions[i].Pairs[0].String()
 		case okxChannelPublicBlockTrades,
 			okxChannelBlockTickers:
-			instrumentID = subscriptions[i].Pair.String()
+			instrumentID = subscriptions[i].Pairs[0].String()
 		}
 		instrumentFamilyInterface, okay := subscriptions[i].Params["instFamily"]
 		if okay {
@@ -257,11 +258,14 @@ func (ok *Okx) handleBusinessSubscription(operation string, subscriptions []subs
 				return err
 			}
 			if operation == operationUnsubscribe {
-				ok.Websocket.RemoveSubscriptions(channels...)
+				err = ok.Websocket.RemoveSubscriptions(channels...)
 			} else {
-				ok.Websocket.AddSuccessfulSubscriptions(channels...)
+				err = ok.Websocket.AddSuccessfulSubscriptions(channels...)
 			}
-			channels = []subscription.Subscription{}
+			if err != nil {
+				return err
+			}
+			channels = subscription.List{}
 			request.Arguments = []SubscriptionInfo{}
 			continue
 		}
@@ -273,10 +277,10 @@ func (ok *Okx) handleBusinessSubscription(operation string, subscriptions []subs
 
 	if operation == operationUnsubscribe {
 		channels = append(channels, authChannels...)
-		ok.Websocket.RemoveSubscriptions(channels...)
+		err = ok.Websocket.RemoveSubscriptions(channels...)
 	} else {
 		channels = append(channels, authChannels...)
-		ok.Websocket.AddSuccessfulSubscriptions(channels...)
+		err = ok.Websocket.AddSuccessfulSubscriptions(channels...)
 	}
-	return nil
+	return err
 }

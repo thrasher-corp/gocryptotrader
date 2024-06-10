@@ -1216,10 +1216,10 @@ func setupWsTests(t *testing.T) {
 // TestWebsocketSubscribe tests returning a message with an id
 func TestWebsocketSubscribe(t *testing.T) {
 	setupWsTests(t)
-	err := k.Subscribe([]subscription.Subscription{
+	err := k.Subscribe(subscription.List{
 		{
 			Channel: defaultSubscribedChannels[0],
-			Pair:    currency.NewPairWithDelimiter("XBT", "USD", "/"),
+			Pairs:   currency.Pairs{currency.NewPairWithDelimiter("XBT", "USD", "/")},
 		},
 	})
 	if err != nil {

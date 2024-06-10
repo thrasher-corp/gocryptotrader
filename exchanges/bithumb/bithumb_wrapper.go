@@ -114,7 +114,7 @@ func (b *Bithumb) SetDefaults() {
 	}
 	b.Requester, err = request.New(b.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
-		request.WithLimiter(SetRateLimit()))
+		request.WithLimiter(GetRateLimit()))
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
@@ -162,7 +162,7 @@ func (b *Bithumb) Setup(exch *config.Exchange) error {
 		RunningURL:            ePoint,
 		Connector:             b.WsConnect,
 		Subscriber:            b.Subscribe,
-		GenerateSubscriptions: b.GenerateSubscriptions,
+		GenerateSubscriptions: b.generateSubscriptions,
 		Features:              &b.Features.Supports.WebsocketCapabilities,
 	})
 	if err != nil {

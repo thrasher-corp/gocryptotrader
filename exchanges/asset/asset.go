@@ -44,9 +44,8 @@ const (
 	Spread
 	OptionCombo
 	FutureCombo
-
-	// Added to represent a USDT and USDC based linear derivatives(futures/perpetual) assets in Bybit V5.
-	LinearContract
+	LinearContract // Added to represent a USDT and USDC based linear derivatives(futures/perpetual) assets in Bybit V5
+	All
 
 	optionsFlag   = OptionCombo | Options
 	futuresFlag   = PerpetualContract | PerpetualSwap | Futures | DeliveryFutures | UpsideProfitContract | DownsideProfitContract | CoinMarginedFutures | USDTMarginedFutures | USDCMarginedFutures | LinearContract | FutureCombo
@@ -72,6 +71,7 @@ const (
 	optionCombo            = "option_combo"
 	futureCombo            = "future_combo"
 	spread                 = "spread"
+	all                    = "all"
 )
 
 var (
@@ -124,6 +124,8 @@ func (a Item) String() string {
 		return optionCombo
 	case FutureCombo:
 		return futureCombo
+	case All:
+		return all
 	default:
 		return ""
 	}
@@ -231,11 +233,10 @@ func New(input string) (Item, error) {
 		return OptionCombo, nil
 	case futureCombo:
 		return FutureCombo, nil
+	case all:
+		return All, nil
 	default:
-		return 0, fmt.Errorf("%w '%v', only supports %s",
-			ErrNotSupported,
-			input,
-			supportedList)
+		return 0, fmt.Errorf("%w '%v', only supports %s", ErrNotSupported, input, supportedList)
 	}
 }
 

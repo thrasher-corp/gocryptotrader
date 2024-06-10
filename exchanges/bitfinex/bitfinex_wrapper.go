@@ -163,7 +163,7 @@ func (b *Bitfinex) SetDefaults() {
 
 	b.Requester, err = request.New(b.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
-		request.WithLimiter(SetRateLimit()))
+		request.WithLimiter(GetRateLimit()))
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
@@ -620,8 +620,8 @@ func (b *Bitfinex) SubmitOrder(ctx context.Context, o *order.Submit) (*order.Sub
 	var orderID string
 	status := order.New
 	if b.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
-		symbolStr, err := b.fixCasing(fPair, o.AssetType) //nolint:govet // intentional shadow of err
-		if err != nil {
+		var symbolStr string
+		if symbolStr, err = b.fixCasing(fPair, o.AssetType); err != nil {
 			return nil, err
 		}
 		orderType := strings.ToUpper(o.Type.String())
