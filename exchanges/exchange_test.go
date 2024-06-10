@@ -2818,11 +2818,7 @@ func TestGetCachedOpenInterest(t *testing.T) {
 // TestSetSubscriptionsFromConfig tests the setting and loading of subscriptions from config and exchange defaults
 func TestSetSubscriptionsFromConfig(t *testing.T) {
 	t.Parallel()
-	b := Base{
-		Config: &config.Exchange{
-			Features: &config.FeaturesConfig{},
-		},
-	}
+	b := Base{Config: &config.Exchange{Features: &config.FeaturesConfig{}}}
 	subs := subscription.List{
 		{Channel: subscription.CandlesChannel, Interval: kline.OneDay, Enabled: true},
 		{Channel: subscription.OrderbookChannel, Enabled: false},
@@ -2840,6 +2836,18 @@ func TestSetSubscriptionsFromConfig(t *testing.T) {
 	b.SetSubscriptionsFromConfig()
 	assert.ElementsMatch(t, subs, b.Config.Features.Subscriptions, "Config Subscriptions should be the same")
 	assert.ElementsMatch(t, subscription.List{subs[0]}, b.Features.Subscriptions, "Subscriptions should only contain Enabled from Config")
+
+	b.Features.Subscriptions = subscription.List{{Channel: subscription.OrderbookChannel, Enabled: true, Template: "default template"}}
+	b.Config.Features.Subscriptions = subscription.List{{Channel: subscription.OrderbookChannel, Enabled: true}}
+	b.SetSubscriptionsFromConfig()
+	require.Len(t, b.Features.Subscriptions, 1, "Must get correct number of subscriptions")
+	assert.Equal(t, "default template", b.Features.Subscriptions[0].Template, "Template should be overloaded if empty")
+
+	b.Features.Subscriptions = subscription.List{{Channel: subscription.OrderbookChannel, Enabled: true, Template: "default template"}}
+	b.Config.Features.Subscriptions = subscription.List{{Channel: subscription.OrderbookChannel, Enabled: true, Template: "user template"}}
+	b.SetSubscriptionsFromConfig()
+	require.Len(t, b.Features.Subscriptions, 1, "Must get correct number of subscriptions")
+	assert.Equal(t, "user template", b.Features.Subscriptions[0].Template, "Template should not be overloaded if populated")
 }
 
 // TestParallelChanOp unit tests the helper func ParallelChanOp
@@ -2898,6 +2906,17 @@ func TestGetDefaultConfig(t *testing.T) {
 
 	assert.Equal(t, "test", c.Name)
 	assert.Equal(t, cpy, exch.Requester)
+}
+
+// TestCanUseAuthenticatedWebsocketEndpoints exercises CanUseAuthenticatedWebsocketEndpoints
+func TestCanUseAuthenticatedWebsocketEndpoints(t *testing.T) {
+	t.Parallel()
+	e := &FakeBase{}
+	assert.False(t, e.CanUseAuthenticatedWebsocketEndpoints(), "CanUseAuthenticatedWebsocketEndpoints should return false with nil websocket")
+	e.Websocket = stream.NewWebsocket()
+	assert.False(t, e.CanUseAuthenticatedWebsocketEndpoints())
+	e.Websocket.SetCanUseAuthenticatedEndpoints(true)
+	assert.True(t, e.CanUseAuthenticatedWebsocketEndpoints())
 }
 
 // FakeBase is used to override functions

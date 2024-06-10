@@ -1,11 +1,16 @@
 package subscription
 
 import (
+	"maps"
+	"strings"
 	"testing"
+	"text/template"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 )
 
 // TestListStrings exercises List.Strings()
@@ -46,4 +51,141 @@ func TestListGroupPairs(t *testing.T) {
 	assert.Len(t, n, 2, "New list should be grouped")
 	exp := []string{"ticker spot ETH/USDC,BTC/USDT", "orderbook spot ETH/USDC,BTC/USDT"}
 	assert.ElementsMatch(t, exp, n.Strings(), "String must return correct sorted list")
+}
+
+// TestExpandTemplates exercises ExpandTemplates
+func TestExpandTemplates(t *testing.T) {
+	t.Parallel()
+	l := &List{
+		{Channel: CandlesChannel,
+			Template: "ohlc.{{$asset}}.{{$s.Interval.Short}}",
+			Asset:    asset.All,
+			Pairs:    currency.Pairs{btcusdtPair, ethusdcPair},
+			Interval: kline.FifteenMin},
+		{Channel: OrderbookChannel,
+			Template: "book-{{$pair}}@{{$s.Levels}}",
+			Asset:    asset.Spot,
+			Pairs:    currency.Pairs{btcusdtPair, ethusdcPair},
+			Levels:   100},
+		{Channel: CandlesChannel,
+			Template: "candles.{{assetName $asset}}.{{$pair.Swap.String}}.{{if eq $pair.String `BTCUSDT`}}{{$s.Params.color}}{{else}}red{{end}}.{{$s.Interval.Short}}",
+			Asset:    asset.All,
+			Pairs:    currency.Pairs{btcusdtPair, ethusdcPair},
+			Params: map[string]any{
+				"color": "green",
+			},
+			Interval: kline.FifteenMin},
+		{Channel: MyTradesChannel,
+			Template:      "trades.{{assetName $asset}}",
+			Asset:         asset.All,
+			Pairs:         currency.Pairs{btcusdtPair, ethusdcPair},
+			Authenticated: true,
+		},
+	}
+	got, err := l.ExpandTemplates(&mockEx{false})
+	require.NoError(t, err, "ExpandTemplates must not error")
+	exp := List{
+		{Channel: CandlesChannel, QualifiedChannel: "ohlc.spot.15m", Asset: asset.Spot, Pairs: currency.Pairs{btcusdtPair, ethusdcPair}, Interval: kline.FifteenMin},
+		{Channel: CandlesChannel, QualifiedChannel: "ohlc.futures.15m", Asset: asset.Futures, Pairs: currency.Pairs{btcusdtPair, ethusdcPair}, Interval: kline.FifteenMin},
+		{Channel: OrderbookChannel, QualifiedChannel: "book-BTCUSDT@100", Asset: asset.Spot, Pairs: currency.Pairs{btcusdtPair}, Levels: 100},
+		{Channel: OrderbookChannel, QualifiedChannel: "book-ETHUSDC@100", Asset: asset.Spot, Pairs: currency.Pairs{ethusdcPair}, Levels: 100},
+		{Channel: CandlesChannel, QualifiedChannel: "candles.spot.USDTBTC.green.15m", Asset: asset.Spot, Pairs: currency.Pairs{btcusdtPair}, Interval: kline.FifteenMin,
+			Params: map[string]any{"color": "green"}},
+		{Channel: CandlesChannel, QualifiedChannel: "candles.spot.USDCETH.red.15m", Asset: asset.Spot, Pairs: currency.Pairs{ethusdcPair}, Interval: kline.FifteenMin,
+			Params: map[string]any{"color": "green"}},
+		{Channel: CandlesChannel, QualifiedChannel: "candles.future.USDTBTC.green.15m", Asset: asset.Futures, Pairs: currency.Pairs{btcusdtPair}, Interval: kline.FifteenMin,
+			Params: map[string]any{"color": "green"}},
+		{Channel: CandlesChannel, QualifiedChannel: "candles.future.USDCETH.red.15m", Asset: asset.Futures, Pairs: currency.Pairs{ethusdcPair}, Interval: kline.FifteenMin,
+			Params: map[string]any{"color": "green"}},
+	}
+
+	if !equalLists(t, exp, got) {
+		t.FailNow() // If the first list isn't equal testing it again will duplicate test failures
+	}
+
+	got, err = l.ExpandTemplates(&mockEx{true})
+	require.NoError(t, err, "ExpandTemplates must not error")
+	exp = append(exp,
+		&Subscription{Channel: MyTradesChannel, QualifiedChannel: "trades.spot", Asset: asset.Spot, Pairs: currency.Pairs{btcusdtPair, ethusdcPair}},
+		&Subscription{Channel: MyTradesChannel, QualifiedChannel: "trades.future", Asset: asset.Futures, Pairs: currency.Pairs{btcusdtPair, ethusdcPair}},
+	)
+	equalLists(t, exp, got)
+}
+
+type mockEx struct {
+	auth bool
+}
+
+func (m *mockEx) GetEnabledPairs(_ asset.Item) (currency.Pairs, error) {
+	return currency.Pairs{btcusdtPair, ethusdcPair}, nil
+}
+
+func (m *mockEx) GetPairFormat(_ asset.Item, _ bool) (currency.PairFormat, error) {
+	return currency.PairFormat{Uppercase: true}, nil
+}
+
+func (m *mockEx) GetSubscriptionTemplateFuncs() template.FuncMap {
+	return template.FuncMap{
+		"assetName": func(a asset.Item) string {
+			if a == asset.Futures {
+				return "future"
+			}
+			return a.String()
+		},
+	}
+}
+
+func (m *mockEx) GetAssetTypes(_ bool) asset.Items            { return asset.Items{asset.Spot, asset.Futures} }
+func (m *mockEx) CanUseAuthenticatedWebsocketEndpoints() bool { return m.auth }
+
+// equalLists is a utility function to compare subscription lists and show a pretty failure message
+// It overcomes the verbose depth of assert.ElementsMatch spewConfig
+func equalLists(tb testing.TB, a, b List) bool {
+	tb.Helper()
+	for _, sub := range append(a, b...) {
+		sub.Key = &StrictKey{&ExactKey{sub}}
+	}
+	s, err := NewStoreFromList(a)
+	require.NoError(tb, err, "NewStoreFromList must not error")
+	added, missing := s.Diff(b)
+	if len(added) > 0 || len(missing) > 0 {
+		fail := "Differences:"
+		if len(added) > 0 {
+			fail = fail + "\n + " + strings.Join(added.Strings(), "\n + ")
+		}
+		if len(missing) > 0 {
+			fail = fail + "\n - " + strings.Join(missing.Strings(), "\n - ")
+		}
+		assert.Fail(tb, fail, "Subscriptions should be equal")
+		return false
+	}
+	return true
+}
+
+// StrictKey is key type for subscriptions where all the pairs, QualifiedChannel and Params in a Subscription must match exactly
+type StrictKey struct {
+	*ExactKey
+}
+
+var _ MatchableKey = StrictKey{} // Enforce StrictKey must implement MatchableKey
+
+// Match implements MatchableKey
+// Returns true if the key fields exactly matches the subscription, including all Pairs, QualifiedChannel and Params
+func (k StrictKey) Match(eachKey MatchableKey) bool {
+	if !k.ExactKey.Match(eachKey) {
+		return false
+	}
+	eachSub := eachKey.GetSubscription()
+	return eachSub.QualifiedChannel == k.QualifiedChannel &&
+		maps.Equal(eachSub.Params, k.Params)
+}
+
+// String implements Stringer; returns the Asset, Channel and Pairs
+// Does not provide concurrency protection on the subscription it points to
+func (k StrictKey) String() string {
+	s := k.Subscription
+	if s == nil {
+		return "Uninitialised StrictKey"
+	}
+	return s.QualifiedChannel + " " + ExactKey{s}.String()
 }
