@@ -15,6 +15,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"regexp"
+	"runtime"
 	"strconv"
 	"strings"
 	"sync"
@@ -661,4 +662,27 @@ func GetTypeAssertError(required string, received interface{}, fieldDescription 
 		description = " for: " + strings.Join(fieldDescription, ", ")
 	}
 	return fmt.Errorf("%w from %T to %s%s", ErrTypeAssertFailure, received, required, description)
+}
+
+var runtimeCaller = runtime.Caller
+var runtimeFuncForPC = runtime.FuncForPC
+
+// ErrorWithContext adds contextual information to an error, including the
+// function name and line number.
+func ErrorWithContext(err error) error {
+	if err == nil {
+		return nil
+	}
+
+	pc, file, line, ok := runtimeCaller(1)
+	if !ok {
+		return err // Unable to get caller information
+	}
+
+	fn := runtimeFuncForPC(pc)
+	if fn == nil {
+		return fmt.Errorf("%s: %d: %w", file, line, err)
+	}
+
+	return fmt.Errorf("%s: %d %s: %w", file, line, fn.Name(), err)
 }

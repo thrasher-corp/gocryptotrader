@@ -856,3 +856,33 @@ func TestErrorCollector(t *testing.T) {
 	require.True(t, ok, "Must return a multiError")
 	assert.Len(t, errs.Unwrap(), 2, "Should have 2 errors")
 }
+
+func TestErrorWithContext(t *testing.T) {
+	t.Parallel()
+	require.ErrorIs(t, ErrorWithContext(nil), nil)
+	err := errors.New("internal test error")
+
+	require.ErrorIs(t, ErrorWithContext(err), err)
+
+	got := ErrorWithContext(err)
+	exp := []string{"common_test.go", "867", "common.TestErrorWithContext", "internal test error"}
+	for _, e := range exp {
+		require.Contains(t, got.Error(), e)
+	}
+
+	runtimeCaller = func(int) (pc uintptr, file string, line int, ok bool) {
+		return 0, "", 0, false
+	}
+
+	require.ErrorIs(t, ErrorWithContext(err), err)
+	runtimeCaller = runtime.Caller
+	runtimeFuncForPC = func(uintptr) *runtime.Func {
+		return nil
+	}
+
+	got = ErrorWithContext(err)
+	exp = []string{"common_test.go", "883", "internal test error"}
+	for _, e := range exp {
+		require.Contains(t, got.Error(), e)
+	}
+}
