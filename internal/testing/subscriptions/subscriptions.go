@@ -11,6 +11,7 @@ import (
 
 // Equal is a utility function to compare subscription lists and show a pretty failure message
 // It overcomes the verbose depth of assert.ElementsMatch spewConfig
+// Duplicate of exchange/subscription/subscription:equalList
 func Equal(tb testing.TB, a, b subscription.List) {
 	tb.Helper()
 	s, err := subscription.NewStoreFromList(a)

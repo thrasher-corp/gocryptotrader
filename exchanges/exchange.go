@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"text/template"
 	"time"
 	"unicode"
 
@@ -171,9 +172,18 @@ func (b *Base) SetSubscriptionsFromConfig() {
 		// Set config from the defaults, including any disabled subscriptions
 		b.Config.Features.Subscriptions = b.Features.Subscriptions
 	}
+	defaults, err := subscription.NewStoreFromList(b.Features.Subscriptions)
+	if err != nil {
+		log.Errorf(log.ExchangeSys, "%s: %s loading default subscriptions", b.Name, err)
+	}
 	b.Features.Subscriptions = subscription.List{}
 	for _, s := range b.Config.Features.Subscriptions {
 		if s.Enabled {
+			if s.Template == "" {
+				if d := defaults.Get(s); d != nil {
+					s.Template = d.Template // Overload the default template if the config doesn't have one
+				}
+			}
 			b.Features.Subscriptions = append(b.Features.Subscriptions, s)
 		}
 	}
@@ -1150,9 +1160,20 @@ func (b *Base) GetSubscriptions() (subscription.List, error) {
 	return b.Websocket.GetSubscriptions(), nil
 }
 
+// GetSubscriptionTemplateFuncs returns a list of functions available to customise the subscription channel formatting
+func (b *Base) GetSubscriptionTemplateFuncs() template.FuncMap {
+	return nil
+}
+
 // AuthenticateWebsocket sends an authentication message to the websocket
 func (b *Base) AuthenticateWebsocket(_ context.Context) error {
 	return common.ErrFunctionNotSupported
+}
+
+// CanUseAuthenticatedWebsocketEndpoints calls b.Websocket.CanUseAuthenticatedEndpoints
+// Used to avoid import cycles on stream.websocket
+func (b *Base) CanUseAuthenticatedWebsocketEndpoints() bool {
+	return b.Websocket != nil && b.Websocket.CanUseAuthenticatedEndpoints()
 }
 
 // KlineIntervalEnabled returns if requested interval is enabled on exchange
