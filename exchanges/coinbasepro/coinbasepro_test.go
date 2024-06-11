@@ -1675,7 +1675,7 @@ func TestProcessSnapshotUpdate(t *testing.T) {
 }
 
 func TestGenerateDefaultSubscriptions(t *testing.T) {
-	comparison := []subscription.Subscription{{Channel: "heartbeats"}, {Channel: "status"}, {Channel: "ticker"},
+	comparison := subscription.List{{Channel: "heartbeats"}, {Channel: "status"}, {Channel: "ticker"},
 		{Channel: "ticker_batch"}, {Channel: "candles"}, {Channel: "market_trades"}, {Channel: "level2"},
 		{Channel: "user"}}
 	for i := range comparison {

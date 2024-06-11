@@ -151,7 +151,6 @@ var (
 	errNoWalletForCurrency    = errors.New("no wallet found for currency, address creation impossible")
 	errChannelNameUnknown     = errors.New("unknown channel name")
 	errNoWalletsReturned      = errors.New("no wallets returned")
-	errUnknownEndpointLimit   = errors.New("unknown endpoint limit")
 	errPayMethodNotFound      = errors.New("payment method not found")
 	errUnknownL2DataType      = errors.New("unknown l2update data type")
 	errUnknownSide            = errors.New("unknown side")
