@@ -211,11 +211,13 @@ func (p Pairs) Remove(pair Pair) (Pairs, error) {
 }
 
 // Add adds a specified pair to the list of pairs if it doesn't exist
-func (p Pairs) Add(pair Pair) Pairs {
-	if p.Contains(pair, true) {
-		return p
+func (p Pairs) Add(pairs ...Pair) Pairs {
+	for x := range pairs {
+		if p.Contains(pairs[x], true) {
+			continue
+		}
+		p = append(p, pairs[x])
 	}
-	p = append(p, pair)
 	return p
 }
 
