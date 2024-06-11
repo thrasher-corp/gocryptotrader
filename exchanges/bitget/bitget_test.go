@@ -2294,6 +2294,35 @@ func TestGetOngoingLoans(t *testing.T) {
 	if len(resp.Data) == 0 {
 		t.Skip(skipInsufficientOrders)
 	}
+	_, err = bi.GetOngoingLoans(context.Background(), resp.Data[0].OrderID, "", "")
+	assert.NoError(t, err)
+}
+
+func TestRepayLoan(t *testing.T) {
+	t.Parallel()
+	_, err := bi.RepayLoan(context.Background(), 0, 0, false, false)
+	assert.ErrorIs(t, err, errOrderIDEmpty)
+	_, err = bi.RepayLoan(context.Background(), 1, 0, false, false)
+	assert.ErrorIs(t, err, errAmountEmpty)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi, canManipulateRealOrders)
+	resp, err := bi.GetOngoingLoans(context.Background(), 0, "", "")
+	require.NoError(t, err)
+	if len(resp.Data) == 0 {
+		t.Skip(skipInsufficientOrders)
+	}
+	_, err = bi.RepayLoan(context.Background(), resp.Data[0].OrderID, testAmount, false, false)
+	assert.NoError(t, err)
+	_, err = bi.RepayLoan(context.Background(), resp.Data[0].OrderID, 0, true, true)
+	assert.NoError(t, err)
+}
+
+func TestGetLoanRepayHistory(t *testing.T) {
+	t.Parallel()
+	_, err := bi.GetLoanRepayHistory(context.Background(), 0, 0, 0, "", "", time.Time{}, time.Time{})
+	assert.ErrorIs(t, err, common.ErrDateUnset)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
+	_, err = bi.GetLoanRepayHistory(context.Background(), 0, 1, 5, "", "", time.Now().Add(-time.Hour*24*85), time.Now())
+	assert.NoError(t, err)
 }
 
 func TestCommitConversion(t *testing.T) {

@@ -2208,3 +2208,26 @@ type RepayResp struct {
 		RepayUnlockAmount float64 `json:"repayUnlockAmount,string"`
 	} `json:"data"`
 }
+
+// RepayRecords contains information on repayment records
+type RepayRecords struct {
+	Data []struct {
+		OrderID           int64         `json:"orderId,string"`
+		LoanCoin          string        `json:"loanCoin"`
+		PledgeCoin        string        `json:"pledgeCoin"`
+		RepayAmount       float64       `json:"repayAmount,string"`
+		PayInterest       float64       `json:"payInterest,string"`
+		RepayLoanAmount   float64       `json:"repayLoanAmount,string"`
+		RepayUnlockAmount float64       `json:"repayUnlockAmount,string"`
+		RepayTime         UnixTimestamp `json:"repayTime"`
+	} `json:"data"`
+}
+
+// ModPledgeResp contains information on a pledge modification
+type ModPledgeResp struct {
+	Data struct {
+		LoanCoin        string  `json:"loanCoin"`
+		PledgeCoin      string  `json:"pledgeCoin"`
+		AfterPledgeRate float64 `json:"afterPledgeRate,string"`
+	} `json:"data"`
+}

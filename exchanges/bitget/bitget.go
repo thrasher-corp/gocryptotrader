@@ -178,6 +178,7 @@ const (
 	bitgetRedeemResult             = "/redeem-result"
 	bitgetSharkFin                 = "sharkfin"
 	bitgetOngoingOrders            = "/ongoing-orders"
+	bitgetRevisePledge             = "/revise-pledge"
 
 	// Errors
 	errUnknownEndpointLimit = "unknown endpoint limit %v"
@@ -249,6 +250,7 @@ var (
 	errTermEmpty                     = errors.New("term cannot be empty")
 	errCollateralAmountEmpty         = errors.New("collateralAmount cannot be empty")
 	errCollateralLoanMutex           = errors.New("exactly one of collateralAmount and loanAmount must be set")
+	errReviseTypeEmpty               = errors.New("reviseType cannot be empty")
 )
 
 // QueryAnnouncement returns announcements from the exchange, filtered by type and time
@@ -4113,6 +4115,55 @@ func (bi *Bitget) RepayLoan(ctx context.Context, orderID int64, amount float64, 
 	}
 	path := bitgetEarn + bitgetLoan + bitgetRepay
 	var resp *RepayResp
+	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodPost, path, nil, req,
+		&resp)
+}
+
+// GetLoanRepayHistory returns the repayment records for a loan
+func (bi *Bitget) GetLoanRepayHistory(ctx context.Context, orderID, pagination, limit int64, loanCoin, pledgeCoin string, startTime, endTime time.Time) (*RepayRecords, error) {
+	var params Params
+	params.Values = make(url.Values)
+	err := params.prepareDateString(startTime, endTime, false, false)
+	if err != nil {
+		return nil, err
+	}
+	params.Values.Set("orderId", strconv.FormatInt(orderID, 10))
+	params.Values.Set("loanCoin", loanCoin)
+	params.Values.Set("pledgeCoin", pledgeCoin)
+	if pagination != 0 {
+		params.Values.Set("idLessThan", strconv.FormatInt(pagination, 10))
+	}
+	if limit != 0 {
+		params.Values.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	path := bitgetEarn + bitgetLoan + bitgetRepayHistory
+	var resp *RepayRecords
+	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodGet, path, params.Values,
+		nil, &resp)
+}
+
+// ModifyPledgeRate modifies the amount of collateral pledged for a loan
+func (bi *Bitget) ModifyPledgeRate(ctx context.Context, orderID int64, amoutn float64, pledgeCoin, reviseType string) (*ModPledgeResp, error) {
+	if orderID == 0 {
+		return nil, errOrderIDEmpty
+	}
+	if amoutn == 0 {
+		return nil, errAmountEmpty
+	}
+	if pledgeCoin == "" {
+		return nil, errCollateralCoinEmpty
+	}
+	if reviseType == "" {
+		return nil, errReviseTypeEmpty
+	}
+	req := map[string]interface{}{
+		"orderId":    orderID,
+		"amount":     strconv.FormatFloat(amoutn, 'f', -1, 64),
+		"pledgeCoin": pledgeCoin,
+		"reviseType": reviseType,
+	}
+	path := bitgetEarn + bitgetLoan + bitgetRevisePledge
+	var resp *ModPledgeResp
 	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodPost, path, nil, req,
 		&resp)
 }
