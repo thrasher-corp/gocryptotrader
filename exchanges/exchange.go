@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net"
 	"net/url"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -172,18 +173,16 @@ func (b *Base) SetSubscriptionsFromConfig() {
 		// Set config from the defaults, including any disabled subscriptions
 		b.Config.Features.Subscriptions = b.Features.Subscriptions
 	}
-	defaults, err := subscription.NewStoreFromList(b.Features.Subscriptions)
-	if err != nil {
-		log.Errorf(log.ExchangeSys, "%s: %s loading default subscriptions", b.Name, err)
+	if slices.ContainsFunc(b.Features.Subscriptions, func(s *subscription.Subscription) bool { return s.Template != "" }) {
+		if slices.ContainsFunc(b.Config.Features.Subscriptions, func(s *subscription.Subscription) bool { return s.Template == "" }) {
+			// Defaults use templating, but user config does not
+			log.Warnf(log.ExchangeSys, "%s: user subscription config missing templates; Replacing with defaults. Previously: %s", b.Name, b.Config.Features.Subscriptions.Strings())
+			b.Config.Features.Subscriptions = b.Features.Subscriptions
+		}
 	}
 	b.Features.Subscriptions = subscription.List{}
 	for _, s := range b.Config.Features.Subscriptions {
 		if s.Enabled {
-			if s.Template == "" {
-				if d := defaults.Get(s); d != nil {
-					s.Template = d.Template // Overload the default template if the config doesn't have one
-				}
-			}
 			b.Features.Subscriptions = append(b.Features.Subscriptions, s)
 		}
 	}
