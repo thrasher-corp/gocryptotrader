@@ -497,6 +497,7 @@ func GetRateLimit() request.RateLimitDefinitions {
 		getOrderBookEPL:                    request.NewRateLimitWithWeight(twoSecondsInterval, 40, 1),
 		getOrderBookLiteEPL:                request.NewRateLimitWithWeight(twoSecondsInterval, 6, 1),
 		getCandlesticksEPL:                 request.NewRateLimitWithWeight(twoSecondsInterval, 40, 1),
+		getCandlestickHistoryEPL:           request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
 		getIndexCandlesticksEPL:            request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
 		getIndexCandlesticksHistoryEPL:     request.NewRateLimitWithWeight(twoSecondsInterval, 10, 1),
 		getMarkPriceCandlesticksHistoryEPL: request.NewRateLimitWithWeight(twoSecondsInterval, 10, 1),
@@ -526,7 +527,6 @@ func GetRateLimit() request.RateLimitDefinitions {
 		getSpreadPublicTradesEPL: request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
 
 		// Public Data Endpoints
-
 		getInstrumentsEPL:                         request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
 		getDeliveryExerciseHistoryEPL:             request.NewRateLimitWithWeight(twoSecondsInterval, 40, 1),
 		getOpenInterestEPL:                        request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),

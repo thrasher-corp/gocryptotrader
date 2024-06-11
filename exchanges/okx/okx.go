@@ -91,7 +91,6 @@ var (
 	errMissingSizeLimit                       = errors.New("missing required parameter 'szLimit'")
 	errMissingEitherAlgoIDOrState             = errors.New("either algo id or order state is required")
 	errUnacceptableAmount                     = errors.New("amount must be greater than 0")
-	errInvalidCurrencyValue                   = errors.New("invalid currency value")
 	errInvalidDepositAmount                   = errors.New("invalid deposit amount")
 	errMissingResponseBody                    = errors.New("error missing response body")
 	errMissingValidWithdrawalID               = errors.New("missing valid withdrawal id")
@@ -1319,12 +1318,12 @@ func (ok *Okx) GetAssetBillsDetails(ctx context.Context, currency, clientID stri
 
 // GetLightningDeposits users can create up to 10 thousand different invoices within 24 hours.
 // this method fetches list of lightning deposits filtered by a currency and amount.
-func (ok *Okx) GetLightningDeposits(ctx context.Context, currency string, amount float64, to int64) ([]LightningDepositItem, error) {
-	if currency == "" {
-		return nil, errInvalidCurrencyValue
+func (ok *Okx) GetLightningDeposits(ctx context.Context, ccy currency.Code, amount float64, to int64) ([]LightningDepositItem, error) {
+	if ccy.IsEmpty() {
+		return nil, currency.ErrCurrencyCodeEmpty
 	}
 	params := url.Values{}
-	params.Set("ccy", currency)
+	params.Set("ccy", ccy.String())
 	if amount <= 0 {
 		return nil, errInvalidDepositAmount
 	}
@@ -1337,12 +1336,12 @@ func (ok *Okx) GetLightningDeposits(ctx context.Context, currency string, amount
 }
 
 // GetCurrencyDepositAddress returns the deposit address and related information for the provided currency information.
-func (ok *Okx) GetCurrencyDepositAddress(ctx context.Context, currency string) ([]CurrencyDepositResponseItem, error) {
-	if currency == "" {
-		return nil, errInvalidCurrencyValue
+func (ok *Okx) GetCurrencyDepositAddress(ctx context.Context, ccy currency.Code) ([]CurrencyDepositResponseItem, error) {
+	if ccy.IsEmpty() {
+		return nil, currency.ErrCurrencyCodeEmpty
 	}
 	params := url.Values{}
-	params.Set("ccy", currency)
+	params.Set("ccy", ccy.String())
 	var resp []CurrencyDepositResponseItem
 	return resp, ok.SendHTTPRequest(ctx, exchange.RestSpot, getDepositAddressEPL, http.MethodGet, common.EncodeURLValues("asset/deposit-address", params), nil, &resp, true)
 }
@@ -1380,7 +1379,7 @@ func (ok *Okx) Withdrawal(ctx context.Context, input *WithdrawalInput) (*Withdra
 	}
 	switch {
 	case input.Currency == "":
-		return nil, errInvalidCurrencyValue
+		return nil, currency.ErrCurrencyCodeEmpty
 	case input.Amount <= 0:
 		return nil, errors.New("invalid withdrawal amount")
 	case input.WithdrawalDestination == "":
@@ -1398,8 +1397,8 @@ func (ok *Okx) Withdrawal(ctx context.Context, input *WithdrawalInput) (*Withdra
 
 // LightningWithdrawal to withdraw a currency from an invoice.
 func (ok *Okx) LightningWithdrawal(ctx context.Context, arg LightningWithdrawalRequestInput) (*LightningWithdrawalResponse, error) {
-	if arg.Currency == "" {
-		return nil, errInvalidCurrencyValue
+	if arg.Currency.IsEmpty() {
+		return nil, currency.ErrCurrencyCodeEmpty
 	} else if arg.Invoice == "" {
 		return nil, errors.New("missing invoice text")
 	}
@@ -1516,8 +1515,8 @@ func (ok *Okx) SavingsPurchaseOrRedemption(ctx context.Context, arg *SavingsPurc
 	}
 	arg.ActionType = strings.ToLower(arg.ActionType)
 	switch {
-	case arg.Currency == "":
-		return nil, errInvalidCurrencyValue
+	case arg.Currency.IsEmpty():
+		return nil, currency.ErrCurrencyCodeEmpty
 	case arg.Amount <= 0:
 		return nil, errUnacceptableAmount
 	case arg.ActionType != "purchase" && arg.ActionType != "redempt":
@@ -1550,8 +1549,8 @@ func (ok *Okx) GetLendingHistory(ctx context.Context, currency string, before, a
 
 // SetLendingRate sets an assets lending rate
 func (ok *Okx) SetLendingRate(ctx context.Context, arg LendingRate) (*LendingRate, error) {
-	if arg.Currency == "" {
-		return nil, errInvalidCurrencyValue
+	if arg.Currency.IsEmpty() {
+		return nil, currency.ErrCurrencyCodeEmpty
 	} else if arg.Rate < 0.01 || arg.Rate > 3.65 {
 		return nil, errors.New("invalid lending rate value. the rate value range is between 1% (0.01) and 365% (3.65)")
 	}
@@ -2165,8 +2164,8 @@ func (ok *Okx) GetAccountRiskState(ctx context.Context) ([]AccountRiskState, err
 
 // VIPLoansBorrowAndRepay creates VIP borrow or repay for a currency.
 func (ok *Okx) VIPLoansBorrowAndRepay(ctx context.Context, arg LoanBorrowAndReplayInput) (*LoanBorrowAndReplay, error) {
-	if arg.Currency == "" {
-		return nil, errInvalidCurrencyValue
+	if arg.Currency.IsEmpty() {
+		return nil, currency.ErrCurrencyCodeEmpty
 	}
 	if arg.Side == "" {
 		return nil, errInvalidOrderSide
@@ -2568,8 +2567,8 @@ func (ok *Okx) GetHistoryOfManagedSubAccountTransfer(ctx context.Context, ccy, t
 
 // MasterAccountsManageTransfersBetweenSubaccounts master accounts manage the transfers between sub-accounts applies to master accounts only
 func (ok *Okx) MasterAccountsManageTransfersBetweenSubaccounts(ctx context.Context, arg *SubAccountAssetTransferParams) ([]TransferIDInfo, error) {
-	if arg.Currency == "" {
-		return nil, errInvalidCurrencyValue
+	if arg.Currency.IsEmpty() {
+		return nil, currency.ErrCurrencyCodeEmpty
 	}
 	if arg.Amount <= 0 {
 		return nil, errInvalidTransferAmount
@@ -3004,7 +3003,7 @@ func (ok *Okx) ComputeMinInvestment(ctx context.Context, arg *ComputeInvestmentD
 		if arg.InvestmentData[x].Amount <= 0 {
 			return nil, fmt.Errorf("%w, investment amt = %f", errInvalidAmount, arg.InvestmentData[x].Amount)
 		}
-		if arg.InvestmentData[x].Currency == "" {
+		if arg.InvestmentData[x].Currency.IsEmpty() {
 			return nil, currency.ErrCurrencyCodeEmpty
 		}
 	}
@@ -3733,7 +3732,7 @@ func (ok *Okx) Purchase(ctx context.Context, arg PurchaseRequestParam) (*OrderID
 		return nil, fmt.Errorf("%w, missing product id", errMissingRequiredParameter)
 	}
 	for x := range arg.InvestData {
-		if arg.InvestData[x].Currency == "" {
+		if arg.InvestData[x].Currency.IsEmpty() {
 			return nil, fmt.Errorf("%w, currency information for investment is required", errMissingRequiredParameter)
 		}
 		if arg.InvestData[x].Amount <= 0 {
@@ -3911,13 +3910,13 @@ func (ok *Okx) GetTicker(ctx context.Context, instrumentID string) (*TickerRespo
 }
 
 // GetIndexTickers Retrieves index tickers.
-func (ok *Okx) GetIndexTickers(ctx context.Context, quoteCurrency, instID string) ([]IndexTicker, error) {
-	if instID == "" && quoteCurrency == "" {
+func (ok *Okx) GetIndexTickers(ctx context.Context, quoteCurrency currency.Code, instID string) ([]IndexTicker, error) {
+	if instID == "" && quoteCurrency.IsEmpty() {
 		return nil, errors.New("missing required variable! param quoteCcy or instId has to be set")
 	}
 	params := url.Values{}
-	if quoteCurrency != "" {
-		params.Set("quoteCcy", quoteCurrency)
+	if !quoteCurrency.IsEmpty() {
+		params.Set("quoteCcy", quoteCurrency.String())
 	} else if instID != "" {
 		params.Set("instId", instID)
 	}

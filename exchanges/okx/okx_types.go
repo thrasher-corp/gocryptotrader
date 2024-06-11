@@ -1179,9 +1179,9 @@ type WithdrawalResponse struct {
 
 // LightningWithdrawalRequestInput to request Lightning Withdrawal requests.
 type LightningWithdrawalRequestInput struct {
-	Currency string `json:"ccy"`     // REQUIRED Token symbol. Currently only BTC is supported.
-	Invoice  string `json:"invoice"` // REQUIRED Invoice text
-	Memo     string `json:"memo"`    // Lightning withdrawal memo
+	Currency currency.Code `json:"ccy"`     // REQUIRED Token symbol. Currently only BTC is supported.
+	Invoice  string        `json:"invoice"` // REQUIRED Invoice text
+	Memo     string        `json:"memo"`    // Lightning withdrawal memo
 }
 
 // LightningWithdrawalResponse response item for holding lightning withdrawal requests.
@@ -1245,10 +1245,10 @@ type SavingBalanceResponse struct {
 
 // SavingsPurchaseRedemptionInput input json to SavingPurchase Post merthod.
 type SavingsPurchaseRedemptionInput struct {
-	Currency   string  `json:"ccy"`         // REQUIRED:
-	Amount     float64 `json:"amt,string"`  // REQUIRED: purchase or redemption amount
-	ActionType string  `json:"side"`        // REQUIRED: action type \"purchase\" or \"redemption\"
-	Rate       float64 `json:"rate,string"` // REQUIRED:
+	Currency   currency.Code `json:"ccy"`         // REQUIRED:
+	Amount     float64       `json:"amt,string"`  // REQUIRED: purchase or redemption amount
+	ActionType string        `json:"side"`        // REQUIRED: action type \"purchase\" or \"redemption\"
+	Rate       float64       `json:"rate,string"` // REQUIRED:
 }
 
 // SavingsPurchaseRedemptionResponse response json to SavingPurchase or SavingRedemption Post method.
@@ -1261,8 +1261,8 @@ type SavingsPurchaseRedemptionResponse struct {
 
 // LendingRate represents lending rate response
 type LendingRate struct {
-	Currency string       `json:"ccy"`
-	Rate     types.Number `json:"rate"`
+	Currency currency.Code `json:"ccy"`
+	Rate     types.Number  `json:"rate"`
 }
 
 // LendingHistory holds lending history responses
@@ -1778,9 +1778,9 @@ type AccountRiskState struct {
 
 // LoanBorrowAndReplayInput represents currency VIP borrow or repay request params.
 type LoanBorrowAndReplayInput struct {
-	Currency string  `json:"ccy"`
-	Side     string  `json:"side,omitempty"`
-	Amount   float64 `json:"amt,string,omitempty"`
+	Currency currency.Code `json:"ccy"`
+	Side     string        `json:"side,omitempty"`
+	Amount   float64       `json:"amt,string,omitempty"`
 }
 
 // LoanBorrowAndReplay loans borrow and repay
@@ -2225,14 +2225,14 @@ type SubAccountTransfer struct {
 
 // SubAccountAssetTransferParams represents subaccount asset transfer request parameters.
 type SubAccountAssetTransferParams struct {
-	Currency         string  `json:"ccy"`            // {REQUIRED}
-	Amount           float64 `json:"amt,string"`     // {REQUIRED}
-	From             int64   `json:"from,string"`    // {REQUIRED} 6:Funding Account 18:Trading account
-	To               int64   `json:"to,string"`      // {REQUIRED} 6:Funding Account 18:Trading account
-	FromSubAccount   string  `json:"fromSubAccount"` // {REQUIRED} subaccount name.
-	ToSubAccount     string  `json:"toSubAccount"`   // {REQUIRED} destination sub-account
-	LoanTransfer     bool    `json:"loanTrans,omitempty"`
-	OmitPositionRisk bool    `json:"omitPosRisk,omitempty"`
+	Currency         currency.Code `json:"ccy"`            // {REQUIRED}
+	Amount           float64       `json:"amt,string"`     // {REQUIRED}
+	From             int64         `json:"from,string"`    // {REQUIRED} 6:Funding Account 18:Trading account
+	To               int64         `json:"to,string"`      // {REQUIRED} 6:Funding Account 18:Trading account
+	FromSubAccount   string        `json:"fromSubAccount"` // {REQUIRED} subaccount name.
+	ToSubAccount     string        `json:"toSubAccount"`   // {REQUIRED} destination sub-account
+	LoanTransfer     bool          `json:"loanTrans,omitempty"`
+	OmitPositionRisk bool          `json:"omitPosRisk,omitempty"`
 }
 
 // TransferIDInfo represents master account transfer between subaccount.
@@ -3454,8 +3454,8 @@ type GridAIParameterResponse struct {
 
 // InvestmentData holds investment data parameter
 type InvestmentData struct {
-	Amount   float64 `json:"amt,string"`
-	Currency string  `json:"ccy"`
+	Amount   float64       `json:"amt,string"`
+	Currency currency.Code `json:"ccy"`
 }
 
 // ComputeInvestmentDataParam holds parameter values for computing investment data
@@ -3802,8 +3802,8 @@ type PurchaseRequestParam struct {
 
 // PurchaseInvestDataItem represents purchase invest data information having the currency and amount information
 type PurchaseInvestDataItem struct {
-	Currency string  `json:"ccy"`
-	Amount   float64 `json:"amt,string"`
+	Currency currency.Code `json:"ccy"`
+	Amount   float64       `json:"amt,string"`
 }
 
 // OrderIDResponse represents purchase order ID
