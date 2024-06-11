@@ -212,15 +212,12 @@ func (c *CoinbasePro) GetProductBookV3(ctx context.Context, productID string, li
 		vals.Set("limit", strconv.FormatInt(int64(limit), 10))
 	}
 	var resp ProductBookResponse
-	var err error
 	if authenticated {
-		err = c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, coinbaseV3+coinbaseProductBook,
+		return &resp.Pricebook, c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, coinbaseV3+coinbaseProductBook,
 			vals, nil, true, &resp, nil)
-	} else {
-		path := coinbaseV3 + coinbaseMarket + "/" + coinbaseProductBook
-		err = c.SendHTTPRequest(ctx, exchange.RestSpot, path, vals, &resp)
 	}
-	return &resp.Pricebook, err
+	path := coinbaseV3 + coinbaseMarket + "/" + coinbaseProductBook
+	return &resp.Pricebook, c.SendHTTPRequest(ctx, exchange.RestSpot, path, vals, &resp)
 }
 
 // GetAllProducts returns information on all currency pairs that are available for trading
@@ -244,16 +241,13 @@ func (c *CoinbasePro) GetAllProducts(ctx context.Context, limit, offset int32, p
 	for x := range productIDs {
 		vals.Add("product_ids", productIDs[x])
 	}
-	var products AllProducts
-	var err error
+	var resp AllProducts
 	if authenticated {
-		err = c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, coinbaseV3+coinbaseProducts,
-			vals, nil, true, &products, nil)
-	} else {
-		path := coinbaseV3 + coinbaseMarket + "/" + coinbaseProducts
-		err = c.SendHTTPRequest(ctx, exchange.RestSpot, path, vals, &products)
+		return &resp, c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, coinbaseV3+coinbaseProducts,
+			vals, nil, true, &resp, nil)
 	}
-	return &products, err
+	path := coinbaseV3 + coinbaseMarket + "/" + coinbaseProducts
+	return &resp, c.SendHTTPRequest(ctx, exchange.RestSpot, path, vals, &resp)
 }
 
 // GetProductByID returns information on a single specified currency pair
@@ -262,16 +256,13 @@ func (c *CoinbasePro) GetProductByID(ctx context.Context, productID string, auth
 		return nil, errProductIDEmpty
 	}
 	var resp Product
-	var err error
 	if authenticated {
 		path := coinbaseV3 + coinbaseProducts + "/" + productID
-		err = c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, nil, true, &resp,
+		return &resp, c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, nil, nil, true, &resp,
 			nil)
-	} else {
-		path := coinbaseV3 + coinbaseMarket + "/" + coinbaseProducts + "/" + productID
-		err = c.SendHTTPRequest(ctx, exchange.RestSpot, path, nil, &resp)
 	}
-	return &resp, err
+	path := coinbaseV3 + coinbaseMarket + "/" + coinbaseProducts + "/" + productID
+	return &resp, c.SendHTTPRequest(ctx, exchange.RestSpot, path, nil, &resp)
 }
 
 // GetHistoricRates returns historic rates for a product. Rates are returned in
@@ -293,16 +284,13 @@ func (c *CoinbasePro) GetHistoricRates(ctx context.Context, productID, granulari
 	vals.Set("start", strconv.FormatInt(startDate.Unix(), 10))
 	vals.Set("end", strconv.FormatInt(endDate.Unix(), 10))
 	vals.Set("granularity", granularity)
-	var err error
 	if authenticated {
 		path := coinbaseV3 + coinbaseProducts + "/" + productID + "/" + coinbaseCandles
-		err = c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet,
+		return resp.Candles, c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet,
 			path, vals, nil, true, &resp, nil)
-	} else {
-		path := coinbaseV3 + coinbaseMarket + "/" + coinbaseProducts + "/" + productID + "/" + coinbaseCandles
-		err = c.SendHTTPRequest(ctx, exchange.RestSpot, path, vals, &resp)
 	}
-	return resp.Candles, err
+	path := coinbaseV3 + coinbaseMarket + "/" + coinbaseProducts + "/" + productID + "/" + coinbaseCandles
+	return resp.Candles, c.SendHTTPRequest(ctx, exchange.RestSpot, path, vals, &resp)
 }
 
 // GetTicker returns snapshot information about the last trades (ticks) and best bid/ask.
@@ -320,16 +308,13 @@ func (c *CoinbasePro) GetTicker(ctx context.Context, productID string, limit uin
 		vals.Set("end", strconv.FormatInt(endDate.Unix(), 10))
 	}
 	var resp Ticker
-	var err error
 	if authenticated {
 		path := coinbaseV3 + coinbaseProducts + "/" + productID + "/" + coinbaseTicker
-		err = c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, vals, nil, true, &resp,
+		return &resp, c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, vals, nil, true, &resp,
 			nil)
-	} else {
-		path := coinbaseV3 + coinbaseMarket + "/" + coinbaseProducts + "/" + productID + "/" + coinbaseTicker
-		err = c.SendHTTPRequest(ctx, exchange.RestSpot, path, vals, &resp)
 	}
-	return &resp, err
+	path := coinbaseV3 + coinbaseMarket + "/" + coinbaseProducts + "/" + productID + "/" + coinbaseTicker
+	return &resp, c.SendHTTPRequest(ctx, exchange.RestSpot, path, vals, &resp)
 }
 
 // PlaceOrder places either a limit, market, or stop order
