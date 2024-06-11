@@ -55,7 +55,6 @@ func TestMain(m *testing.M) {
 			log.Fatal(err)
 		}
 	}
-	log.Printf(sharedtestvalues.MockTesting, p.Name)
 	err = p.Websocket.Enable()
 	if err != nil {
 		log.Fatal(err)
