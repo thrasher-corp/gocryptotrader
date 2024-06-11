@@ -189,10 +189,12 @@ func (b *Binance) SetDefaults() {
 			},
 		},
 		Subscriptions: subscription.List{
-			{Enabled: true, Channel: subscription.TickerChannel},
-			{Enabled: true, Channel: subscription.AllTradesChannel},
-			{Enabled: true, Channel: subscription.CandlesChannel, Interval: kline.OneMin},
-			{Enabled: true, Channel: subscription.OrderbookChannel, Interval: kline.HundredMilliseconds},
+			{Enabled: true, Asset: asset.Spot, Channel: subscription.TickerChannel, Template: "{{fmt $pair}}@ticker"},
+			{Enabled: true, Asset: asset.Spot, Channel: subscription.AllTradesChannel, Template: "{{fmt $pair}}@trade"},
+			{Enabled: true, Asset: asset.Spot, Channel: subscription.CandlesChannel, Interval: kline.OneMin,
+				Template: "{{fmt $pair}}@kline{{interval $s}}"},
+			{Enabled: true, Asset: asset.Spot, Channel: subscription.OrderbookChannel, Interval: kline.HundredMilliseconds,
+				Template: "{{fmt $pair}}@depth{{levels $s}}{{interval $s}}"},
 		},
 	}
 
