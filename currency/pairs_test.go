@@ -267,17 +267,19 @@ func TestAdd(t *testing.T) {
 		NewPair(LTC, USD),
 		NewPair(LTC, USDT),
 	}
-
 	// Test adding a new pair to the list of pairs
 	p := NewPair(BTC, USDT)
 	pairs = pairs.Add(p)
 	if !pairs.Contains(p, true) || len(pairs) != 4 {
 		t.Error("TestAdd unexpected result")
 	}
-
 	// Now test adding a pair which already exists
 	pairs = pairs.Add(p)
 	if len(pairs) != 4 {
+		t.Error("TestAdd unexpected result")
+	}
+	pairs = pairs.Add(NewPair(BTC, LTC), NewPair(ETH, USD))
+	if len(pairs) != 6 {
 		t.Error("TestAdd unexpected result")
 	}
 }
