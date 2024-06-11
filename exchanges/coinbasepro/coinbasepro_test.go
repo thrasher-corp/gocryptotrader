@@ -1528,13 +1528,18 @@ func TestWsAuth(t *testing.T) {
 	require.NoError(t, err)
 	go c.wsReadData()
 
-	err = c.Subscribe([]subscription.Subscription{
+	err = c.Subscribe(subscription.List{
 		{
 			Channel: "user",
-			Pair:    testPair,
+			Pairs:   currency.Pairs{testPair},
 		},
 	})
 	assert.NoError(t, err)
+	// require.NoError(t, err, "Dial must not error")
+	// go c.wsReadData()
+
+	// err = c.Subscribe(subscription.List{{Channel: "user", Pairs: currency.Pairs{testPair}}})
+	// require.NoError(t, err, "Subscribe must not error")
 	timer := time.NewTimer(sharedtestvalues.WebsocketResponseDefaultTimeout)
 	select {
 	case badResponse := <-c.Websocket.DataHandler:
@@ -1674,18 +1679,19 @@ func TestGenerateDefaultSubscriptions(t *testing.T) {
 		{Channel: "ticker_batch"}, {Channel: "candles"}, {Channel: "market_trades"}, {Channel: "level2"},
 		{Channel: "user"}}
 	for i := range comparison {
-		comparison[i].Pair = currency.NewPairWithDelimiter(testCrypto.String(), testFiat.String(), "-")
+		comparison[i].Pairs = currency.Pairs{
+			currency.NewPairWithDelimiter(testCrypto.String(), testFiat.String(), "-")}
 		comparison[i].Asset = asset.Spot
 	}
-	resp, err := c.GenerateDefaultSubscriptions()
+	resp, err := c.generateSubscriptions()
 	require.NoError(t, err)
 	assert.ElementsMatch(t, comparison, resp)
 }
 
 func TestSubscribeUnsubscribe(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, c)
-	req := []subscription.Subscription{{Channel: "heartbeats", Asset: asset.Spot,
-		Pair: currency.NewPairWithDelimiter(testCrypto.String(), testFiat.String(), "-")}}
+	req := subscription.List{{Channel: "heartbeats", Asset: asset.Spot,
+		Pairs: currency.Pairs{currency.NewPairWithDelimiter(testCrypto.String(), testFiat.String(), "-")}}}
 	err := c.Subscribe(req)
 	assert.NoError(t, err)
 	err = c.Unsubscribe(req)

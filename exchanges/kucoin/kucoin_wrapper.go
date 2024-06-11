@@ -141,7 +141,7 @@ func (ku *Kucoin) SetDefaults() {
 				GlobalResultLimit: 1500,
 			},
 		},
-		Subscriptions: []*subscription.Subscription{
+		Subscriptions: subscription.List{
 			// Where we can we use generic names
 			{Enabled: true, Channel: subscription.TickerChannel},                                         // marketTickerChannel
 			{Enabled: true, Channel: subscription.AllTradesChannel},                                      // marketMatchChannel
@@ -159,7 +159,7 @@ func (ku *Kucoin) SetDefaults() {
 	}
 	ku.Requester, err = request.New(ku.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
-		request.WithLimiter(SetRateLimit()))
+		request.WithLimiter(GetRateLimit()))
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
@@ -206,7 +206,7 @@ func (ku *Kucoin) Setup(exch *config.Exchange) error {
 			Connector:             ku.WsConnect,
 			Subscriber:            ku.Subscribe,
 			Unsubscriber:          ku.Unsubscribe,
-			GenerateSubscriptions: ku.GenerateDefaultSubscriptions,
+			GenerateSubscriptions: ku.generateSubscriptions,
 			Features:              &ku.Features.Supports.WebsocketCapabilities,
 			OrderbookBufferConfig: buffer.Config{
 				SortBuffer:            true,

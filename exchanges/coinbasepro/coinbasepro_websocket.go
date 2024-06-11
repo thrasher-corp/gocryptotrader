@@ -299,7 +299,7 @@ func (c *CoinbasePro) ProcessUpdate(update *WebsocketOrderbookDataHolder, timest
 }
 
 // GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
-func (c *CoinbasePro) GenerateDefaultSubscriptions() ([]subscription.Subscription, error) {
+func (c *CoinbasePro) generateSubscriptions() (subscription.List, error) {
 	var channels = []string{
 		"heartbeats",
 		"status",
@@ -314,30 +314,49 @@ func (c *CoinbasePro) GenerateDefaultSubscriptions() ([]subscription.Subscriptio
 	if err != nil {
 		return nil, err
 	}
-	var subscriptions []subscription.Subscription
+	var subscriptions subscription.List
 	for i := range channels {
-		for j := range enabledPairs {
-			fPair, err := c.FormatExchangeCurrency(enabledPairs[j],
-				asset.Spot)
-			if err != nil {
-				return nil, err
-			}
-			subscriptions = append(subscriptions, subscription.Subscription{
-				Channel: channels[i],
-				Pair:    fPair,
-				Asset:   asset.Spot,
-			})
-		}
+		subscriptions = append(subscriptions, &subscription.Subscription{
+			Channel: channels[i],
+			Pairs:   enabledPairs,
+			Asset:   asset.Spot,
+		})
+
 	}
 	return subscriptions, nil
 }
 
+// // generateSubscriptions returns a list of subscriptions from the configured subscriptions feature
+// func (c *CoinbasePro) generateSubscriptions() (subscription.List, error) {
+// 	pairs, err := c.GetEnabledPairs(asset.Spot)
+// 	if err != nil {
+// 		return nil, err
+// 	}
+// 	pairFmt, err := c.GetPairFormat(asset.Spot, true)
+// 	if err != nil {
+// 		return nil, err
+// 	}
+// 	pairs = pairs.Format(pairFmt)
+// 	authed := c.IsWebsocketAuthenticationSupported()
+// 	subs := make(subscription.List, 0, len(c.Features.Subscriptions))
+// 	for _, baseSub := range c.Features.Subscriptions {
+// 		if !authed && baseSub.Authenticated {
+// 			continue
+// 		}
+
+// 		s := baseSub.Clone()
+// 		s.Asset = asset.Spot
+// 		s.Pairs = pairs
+// 		subs = append(subs, s)
+// 	}
+// }
+
 // Subscribe sends a websocket message to receive data from the channel
-func (c *CoinbasePro) Subscribe(channelsToSubscribe []subscription.Subscription) error {
+func (c *CoinbasePro) Subscribe(channelsToSubscribe subscription.List) error {
 	chanKeys := make(map[string]currency.Pairs)
 	for i := range channelsToSubscribe {
 		chanKeys[channelsToSubscribe[i].Channel] =
-			chanKeys[channelsToSubscribe[i].Channel].Add(channelsToSubscribe[i].Pair)
+			chanKeys[channelsToSubscribe[i].Channel].Add(channelsToSubscribe[i].Pairs...)
 	}
 	for s := range chanKeys {
 		err := c.sendRequest("subscribe", s, chanKeys[s])
@@ -346,16 +365,72 @@ func (c *CoinbasePro) Subscribe(channelsToSubscribe []subscription.Subscription)
 		}
 		time.Sleep(time.Millisecond * 10)
 	}
-	c.Websocket.AddSuccessfulSubscriptions(channelsToSubscribe...)
 	return nil
 }
 
+// func (c *CoinbasePro) Subscribe(subs subscription.List) error {
+// 	r := &WebsocketSubscribe{
+// 		Type:     "subscribe",
+// 		Channels: make([]any, 0, len(subs)),
+// 	}
+// 	// See if we have a consistent Pair list for all the subs that we can use globally
+// 	// If all the subs have the same pairs then we can use the top level ProductIDs field
+// 	// Otherwise each and every sub needs to have it's own list
+// 	for i, s := range subs {
+// 		if i == 0 {
+// 			r.ProductIDs = s.Pairs.Strings()
+// 		} else if !subs[0].Pairs.Equal(s.Pairs) {
+// 			r.ProductIDs = nil
+// 			break
+// 		}
+// 	}
+// 	for _, s := range subs {
+// 		if s.Authenticated && r.Key == "" && c.IsWebsocketAuthenticationSupported() {
+// 			if err := c.authWsSubscibeReq(r); err != nil {
+// 				return err
+// 			}
+// 		}
+// 		if len(r.ProductIDs) == 0 {
+// 			r.Channels = append(r.Channels, WsChannel{
+// 				Name:       s.Channel,
+// 				ProductIDs: s.Pairs.Strings(),
+// 			})
+// 		} else {
+// 			// Coinbase does not support using [WsChannel{Name:"x"}] unless each ProductIDs field is populated
+// 			// Therefore we have to use Channels as an array of strings
+// 			r.Channels = append(r.Channels, s.Channel)
+// 		}
+// 	}
+// 	err := c.Websocket.Conn.SendJSONMessage(r)
+// 	if err == nil {
+// 		err = c.Websocket.AddSuccessfulSubscriptions(subs...)
+// 	}
+// 	return err
+// }
+
+// func (c *CoinbasePro) authWsSubscibeReq(r *WebsocketSubscribe) error {
+// 	creds, err := c.GetCredentials(context.TODO())
+// 	if err != nil {
+// 		return err
+// 	}
+// 	r.Timestamp = strconv.FormatInt(time.Now().Unix(), 10)
+// 	message := r.Timestamp + http.MethodGet + "/users/self/verify"
+// 	hmac, err := crypto.GetHMAC(crypto.HashSHA256, []byte(message), []byte(creds.Secret))
+// 	if err != nil {
+// 		return err
+// 	}
+// 	r.Signature = crypto.Base64Encode(hmac)
+// 	r.Key = creds.Key
+// 	r.Passphrase = creds.ClientID
+// 	return nil
+// }
+
 // Unsubscribe sends a websocket message to stop receiving data from the channel
-func (c *CoinbasePro) Unsubscribe(channelsToUnsubscribe []subscription.Subscription) error {
+func (c *CoinbasePro) Unsubscribe(channelsToUnsubscribe subscription.List) error {
 	chanKeys := make(map[string]currency.Pairs)
 	for i := range channelsToUnsubscribe {
 		chanKeys[channelsToUnsubscribe[i].Channel] =
-			chanKeys[channelsToUnsubscribe[i].Channel].Add(channelsToUnsubscribe[i].Pair)
+			chanKeys[channelsToUnsubscribe[i].Channel].Add(channelsToUnsubscribe[i].Pairs...)
 	}
 	for s := range chanKeys {
 		err := c.sendRequest("unsubscribe", s, chanKeys[s])
@@ -364,9 +439,26 @@ func (c *CoinbasePro) Unsubscribe(channelsToUnsubscribe []subscription.Subscript
 		}
 		time.Sleep(time.Millisecond * 10)
 	}
-	c.Websocket.RemoveSubscriptions(channelsToUnsubscribe...)
 	return nil
 }
+
+// func (c *CoinbasePro) Unsubscribe(subs subscription.List) error {
+// 	r := &WebsocketSubscribe{
+// 		Type:     "unsubscribe",
+// 		Channels: make([]any, 0, len(subs)),
+// 	}
+// 	for _, s := range subs {
+// 		r.Channels = append(r.Channels, WsChannel{
+// 			Name:       s.Channel,
+// 			ProductIDs: s.Pairs.Strings(),
+// 		})
+// 	}
+// 	err := c.Websocket.Conn.SendJSONMessage(r)
+// 	if err == nil {
+// 		err = c.Websocket.RemoveSubscriptions(subs...)
+// 	}
+// 	return err
+// }
 
 // GetJWT checks if the current JWT is valid, returns it if it is, generates a new one if it isn't
 // Also suitable for use in REST requests, by checking for the presence of a URI, and always generating
