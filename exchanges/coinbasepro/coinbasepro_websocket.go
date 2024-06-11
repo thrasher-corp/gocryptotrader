@@ -321,7 +321,6 @@ func (c *CoinbasePro) generateSubscriptions() (subscription.List, error) {
 			Pairs:   enabledPairs,
 			Asset:   asset.Spot,
 		})
-
 	}
 	return subscriptions, nil
 }

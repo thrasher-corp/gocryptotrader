@@ -214,9 +214,8 @@ func (p Pairs) Remove(pair Pair) (Pairs, error) {
 func (p Pairs) Add(pairs ...Pair) Pairs {
 	for x := range pairs {
 		if p.Contains(pairs[x], true) {
-			continue
+			p = append(p, pairs[x])
 		}
-		p = append(p, pairs[x])
 	}
 	return p
 }

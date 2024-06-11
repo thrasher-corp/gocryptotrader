@@ -1535,11 +1535,6 @@ func TestWsAuth(t *testing.T) {
 		},
 	})
 	assert.NoError(t, err)
-	// require.NoError(t, err, "Dial must not error")
-	// go c.wsReadData()
-
-	// err = c.Subscribe(subscription.List{{Channel: "user", Pairs: currency.Pairs{testPair}}})
-	// require.NoError(t, err, "Subscribe must not error")
 	timer := time.NewTimer(sharedtestvalues.WebsocketResponseDefaultTimeout)
 	select {
 	case badResponse := <-c.Websocket.DataHandler:

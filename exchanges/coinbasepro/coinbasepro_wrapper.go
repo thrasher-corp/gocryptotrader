@@ -200,7 +200,7 @@ func (c *CoinbasePro) FetchTradablePairs(ctx context.Context, a asset.Item) (cur
 			return nil, err
 		}
 	}
-	var pairs []currency.Pair
+	pairs := make([]currency.Pair, len(products.Products))
 	for x := range products.Products {
 		if products.Products[x].TradingDisabled {
 			continue
@@ -209,7 +209,7 @@ func (c *CoinbasePro) FetchTradablePairs(ctx context.Context, a asset.Item) (cur
 		if err != nil {
 			return nil, err
 		}
-		pairs = append(pairs, pair)
+		pairs[x] = pair
 	}
 	return pairs, nil
 }
