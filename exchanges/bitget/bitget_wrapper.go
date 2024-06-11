@@ -159,8 +159,38 @@ func (bi *Bitget) Setup(exch *config.Exchange) error {
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs
 func (bi *Bitget) FetchTradablePairs(ctx context.Context, a asset.Item) (currency.Pairs, error) {
-	// Implement fetching the exchange available pairs if supported
-	return nil, nil
+	// This doesn't work; those endpoints only return currencies, not pairs
+	// switch a {
+	// case asset.Spot:
+	// 	resp, err := bi.GetCoinInfo(ctx, "")
+	// 	if err != nil {
+	// 		return nil, err
+	// 	}
+	// 	pairs := make(currency.Pairs, len(resp.Data))
+	// 	for x := range resp.Data {
+	// 		pair, err := currency.NewPairFromString(resp.Data[x].Coin)
+	// 		if err != nil {
+	// 			return nil, err
+	// 		}
+	// 		pairs[x] = pair
+	// 	}
+	// 	return pairs, nil
+	// case asset.Margin, asset.Futures:
+	// 	resp, err := bi.GetSupportedCurrencies(ctx)
+	// 	if err != nil {
+	// 		return nil, err
+	// 	}
+	// 	pairs := make(currency.Pairs, len(resp.Data))
+	// 	for x := range resp.Data {
+	// 		pair, err := currency.NewPairFromString(resp.Data[x].Symbol)
+	// 		if err != nil {
+	// 			return nil, err
+	// 		}
+	// 		pairs[x] = pair
+	// 	}
+	// 	return pairs, nil
+	// }
+	return nil, asset.ErrNotSupported
 }
 
 // UpdateTradablePairs updates the exchanges available pairs and stores

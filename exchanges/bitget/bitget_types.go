@@ -2144,15 +2144,15 @@ type SharkFinSubDetail struct {
 type LoanCurList struct {
 	Data struct {
 		LoanInfos []struct {
-			Coin          string  `json:"coin"`
-			HourRate7Day  float64 `json:"hourRate7D,string"`
-			Rate7Day      float64 `json:"rate7D,string"`
-			HourRate30Day float64 `json:"hourRate30D,string"`
-			Rate30Day     float64 `json:"rate30D,string"`
-			MinUSDT       float64 `json:"minUsdt,string"`
-			MaxUSDT       float64 `json:"maxUsdt,string"`
-			Min           float64 `json:"min,string"`
-			Max           float64 `json:"max,string"`
+			Coin            string  `json:"coin"`
+			HourlyRate7Day  float64 `json:"hourRate7D,string"`
+			Rate7Day        float64 `json:"rate7D,string"`
+			HourlyRate30Day float64 `json:"hourRate30D,string"`
+			Rate30Day       float64 `json:"rate30D,string"`
+			MinUSDT         float64 `json:"minUsdt,string"`
+			MaxUSDT         float64 `json:"maxUsdt,string"`
+			Min             float64 `json:"min,string"`
+			Max             float64 `json:"max,string"`
 		} `json:"loanInfos"`
 		PledgeInfos []struct {
 			Coin              string  `json:"coin"`
@@ -2229,5 +2229,67 @@ type ModPledgeResp struct {
 		LoanCoin        string  `json:"loanCoin"`
 		PledgeCoin      string  `json:"pledgeCoin"`
 		AfterPledgeRate float64 `json:"afterPledgeRate,string"`
+	} `json:"data"`
+}
+
+// PledgeRateHist contains information on historical pledge rates
+type PledgeRateHist struct {
+	Data []struct {
+		LoanCoin         string        `json:"loanCoin"`
+		PledgeCoin       string        `json:"pledgeCoin"`
+		OrderID          int64         `json:"orderId,string"`
+		ReviseTime       UnixTimestamp `json:"reviseTime"`
+		ReviseSide       string        `json:"reviseSide"`
+		ReviseAmount     float64       `json:"reviseAmount,string"`
+		AfterPledgeRate  float64       `json:"afterPledgeRate,string"`
+		BeforePledgeRate float64       `json:"beforePledgeRate,string"`
+	} `json:"data"`
+}
+
+// LoanHistory contains information on loans
+type LoanHistory struct {
+	Data []struct {
+		OrderID             int64         `json:"orderId,string"`
+		LoanCoin            string        `json:"loanCoin"`
+		PledgeCoin          string        `json:"pledgeCoin"`
+		InitialPledgeAmount float64       `json:"initPledgeAmount,string"`
+		InitialLoanAmount   float64       `json:"initLoanAmount,string"`
+		HourlyRate          float64       `json:"hourRate,string"`
+		Daily               float64       `json:"daily,string"`
+		BorrowTime          UnixTimestamp `json:"borrowTime"`
+		Status              string        `json:"status"`
+	} `json:"data"`
+}
+
+// CoinAm includes fields for coins, amounts, and amount-equivalents in USDT
+type CoinAm struct {
+	Coin       string  `json:"coin"`
+	Amount     float64 `json:"amount,string"`
+	AmountUSDT float64 `json:"amountUsdt,string"`
+}
+
+// DebtsResp contains information on debts
+type DebtsResp struct {
+	Data struct {
+		PledgeInfos []CoinAm `json:"pledgeInfos"`
+		LoanInfos   []CoinAm `json:"loanInfos"`
+	} `json:"data"`
+}
+
+// LiquidRecs contains information on liquidation records
+type LiquidRecs struct {
+	Data []struct {
+		OrderID         int64         `json:"orderId,string"`
+		LoanCoin        string        `json:"loanCoin"`
+		PledgeCoin      string        `json:"pledgeCoin"`
+		ReduceTime      UnixTimestamp `json:"reduceTime"`
+		PledgeRate      float64       `json:"pledgeRate,string"`
+		PledgePrice     float64       `json:"pledgePrice,string"`
+		Status          string        `json:"status"`
+		PledgeAmount    float64       `json:"pledgeAmount,string"`
+		ReduceFee       string        `json:"reduceFee"`
+		ResidueAmount   float64       `json:"residueAmount,string"`
+		RunlockAmount   float64       `json:"runlockAmount,string"`
+		RepayLoanAmount float64       `json:"repayLoanAmount,string"`
 	} `json:"data"`
 }

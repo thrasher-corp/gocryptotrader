@@ -17,6 +17,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 )
 
@@ -2298,30 +2299,77 @@ func TestGetOngoingLoans(t *testing.T) {
 	assert.NoError(t, err)
 }
 
-func TestRepayLoan(t *testing.T) {
-	t.Parallel()
-	_, err := bi.RepayLoan(context.Background(), 0, 0, false, false)
-	assert.ErrorIs(t, err, errOrderIDEmpty)
-	_, err = bi.RepayLoan(context.Background(), 1, 0, false, false)
-	assert.ErrorIs(t, err, errAmountEmpty)
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi, canManipulateRealOrders)
-	resp, err := bi.GetOngoingLoans(context.Background(), 0, "", "")
-	require.NoError(t, err)
-	if len(resp.Data) == 0 {
-		t.Skip(skipInsufficientOrders)
-	}
-	_, err = bi.RepayLoan(context.Background(), resp.Data[0].OrderID, testAmount, false, false)
-	assert.NoError(t, err)
-	_, err = bi.RepayLoan(context.Background(), resp.Data[0].OrderID, 0, true, true)
-	assert.NoError(t, err)
-}
-
 func TestGetLoanRepayHistory(t *testing.T) {
 	t.Parallel()
 	_, err := bi.GetLoanRepayHistory(context.Background(), 0, 0, 0, "", "", time.Time{}, time.Time{})
 	assert.ErrorIs(t, err, common.ErrDateUnset)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
 	_, err = bi.GetLoanRepayHistory(context.Background(), 0, 1, 5, "", "", time.Now().Add(-time.Hour*24*85), time.Now())
+	assert.NoError(t, err)
+}
+
+func TestModifyPledgeRate(t *testing.T) {
+	t.Parallel()
+	_, err := bi.ModifyPledgeRate(context.Background(), 0, 0, "", "")
+	assert.ErrorIs(t, err, errOrderIDEmpty)
+	_, err = bi.ModifyPledgeRate(context.Background(), 1, 0, "", "")
+	assert.ErrorIs(t, err, errAmountEmpty)
+	_, err = bi.ModifyPledgeRate(context.Background(), 1, 1, "", "")
+	assert.ErrorIs(t, err, errCollateralCoinEmpty)
+	_, err = bi.ModifyPledgeRate(context.Background(), 1, 1, "meow", "")
+	assert.ErrorIs(t, err, errReviseTypeEmpty)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi, canManipulateRealOrders)
+	resp, err := bi.GetOngoingLoans(context.Background(), 0, "", "")
+	require.NoError(t, err)
+	if len(resp.Data) == 0 {
+		t.Skip(skipInsufficientOrders)
+	}
+	_, err = bi.ModifyPledgeRate(context.Background(), resp.Data[0].OrderID, testAmount, testFiat.String(), "IN")
+	assert.NoError(t, err)
+}
+
+func TestGetPledgeRateHistory(t *testing.T) {
+	t.Parallel()
+	_, err := bi.GetPledgeRateHistory(context.Background(), 0, 0, 0, "", "", time.Time{}, time.Time{})
+	assert.ErrorIs(t, err, common.ErrDateUnset)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
+	_, err = bi.GetPledgeRateHistory(context.Background(), 0, 1, 5, "", "", time.Now().Add(-time.Hour*24*85),
+		time.Now())
+	assert.NoError(t, err)
+}
+
+func TestGetLoanHistory(t *testing.T) {
+	t.Parallel()
+	_, err := bi.GetLoanHistory(context.Background(), 0, 0, 0, "", "", "", time.Time{}, time.Time{})
+	assert.ErrorIs(t, err, common.ErrDateUnset)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
+	_, err = bi.GetLoanHistory(context.Background(), 0, 1, 5, "", "", "", time.Now().Add(-time.Hour*24*85), time.Now())
+	assert.NoError(t, err)
+}
+
+func TestGetDebts(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
+	// If there aren't any debts to return information on, this will return the error "The data fetched by {user ID}
+	// is empty"
+	testGetNoArgs(t, bi.GetDebts)
+}
+
+func TestGetLiquidationRecords(t *testing.T) {
+	t.Parallel()
+	_, err := bi.GetLiquidationRecords(context.Background(), 0, 0, 0, "", "", "", time.Time{}, time.Time{})
+	assert.ErrorIs(t, err, common.ErrDateUnset)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
+	_, err = bi.GetLiquidationRecords(context.Background(), 0, 1, 5, "", "", "", time.Now().Add(-time.Hour*24*85),
+		time.Now())
+	assert.NoError(t, err)
+}
+
+func TestFetchTradablePairs(t *testing.T) {
+	t.Parallel()
+	_, err := bi.FetchTradablePairs(context.Background(), asset.Spot)
+	assert.NoError(t, err)
+	_, err = bi.FetchTradablePairs(context.Background(), asset.Margin)
 	assert.NoError(t, err)
 }
 
@@ -2465,9 +2513,27 @@ func TestBatchCancelIsolatedOrders(t *testing.T) {
 	assert.NoError(t, err)
 }
 
+func TestRepayLoan(t *testing.T) {
+	// Not parallel due to a collision with ModifyPledgeRate
+	_, err := bi.RepayLoan(context.Background(), 0, 0, false, false)
+	assert.ErrorIs(t, err, errOrderIDEmpty)
+	_, err = bi.RepayLoan(context.Background(), 1, 0, false, false)
+	assert.ErrorIs(t, err, errAmountEmpty)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi, canManipulateRealOrders)
+	resp, err := bi.GetOngoingLoans(context.Background(), 0, "", "")
+	require.NoError(t, err)
+	if len(resp.Data) == 0 {
+		t.Skip(skipInsufficientOrders)
+	}
+	_, err = bi.RepayLoan(context.Background(), resp.Data[0].OrderID, testAmount, false, false)
+	assert.NoError(t, err)
+	_, err = bi.RepayLoan(context.Background(), resp.Data[0].OrderID, 0, true, true)
+	assert.NoError(t, err)
+}
+
 type getNoArgsResp interface {
 	*TimeResp | *P2PMerInfoResp | *ConvertCoinsResp | *BGBConvertCoinsResp | *VIPFeeRateResp | *SupCurrencyResp |
-		*RiskRateCross | *SavingsBalance | *SharkFinBalance
+		*RiskRateCross | *SavingsBalance | *SharkFinBalance | *DebtsResp
 }
 
 type getNoArgsAssertNotEmpty[G getNoArgsResp] func(context.Context) (G, error)

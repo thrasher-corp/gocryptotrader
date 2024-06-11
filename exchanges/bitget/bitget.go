@@ -179,6 +179,9 @@ const (
 	bitgetSharkFin                 = "sharkfin"
 	bitgetOngoingOrders            = "/ongoing-orders"
 	bitgetRevisePledge             = "/revise-pledge"
+	bitgetReviseHistory            = "/revise-history"
+	bitgetDebts                    = "/debts"
+	bitgetReduces                  = "/reduces"
 
 	// Errors
 	errUnknownEndpointLimit = "unknown endpoint limit %v"
@@ -589,6 +592,8 @@ func (bi *Bitget) GetAPIKeys(ctx context.Context, subaccountID string) (*GetAPIK
 	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodGet, path, vals,
 		nil, &resp)
 }
+
+// GetFundingAssets returns the user's assets
 
 // GetConvertCoins returns a list of supported currencies, your balance in those currencies, and the maximum and
 // minimum tradable amounts of those currencies
@@ -4143,11 +4148,11 @@ func (bi *Bitget) GetLoanRepayHistory(ctx context.Context, orderID, pagination, 
 }
 
 // ModifyPledgeRate modifies the amount of collateral pledged for a loan
-func (bi *Bitget) ModifyPledgeRate(ctx context.Context, orderID int64, amoutn float64, pledgeCoin, reviseType string) (*ModPledgeResp, error) {
+func (bi *Bitget) ModifyPledgeRate(ctx context.Context, orderID int64, amount float64, pledgeCoin, reviseType string) (*ModPledgeResp, error) {
 	if orderID == 0 {
 		return nil, errOrderIDEmpty
 	}
-	if amoutn == 0 {
+	if amount == 0 {
 		return nil, errAmountEmpty
 	}
 	if pledgeCoin == "" {
@@ -4158,7 +4163,7 @@ func (bi *Bitget) ModifyPledgeRate(ctx context.Context, orderID int64, amoutn fl
 	}
 	req := map[string]interface{}{
 		"orderId":    orderID,
-		"amount":     strconv.FormatFloat(amoutn, 'f', -1, 64),
+		"amount":     strconv.FormatFloat(amount, 'f', -1, 64),
 		"pledgeCoin": pledgeCoin,
 		"reviseType": reviseType,
 	}
@@ -4166,6 +4171,85 @@ func (bi *Bitget) ModifyPledgeRate(ctx context.Context, orderID int64, amoutn fl
 	var resp *ModPledgeResp
 	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodPost, path, nil, req,
 		&resp)
+}
+
+// GetPledgeRateHistory returns the history of pledged rates for loans
+func (bi *Bitget) GetPledgeRateHistory(ctx context.Context, orderID, pagination, limit int64, reviseSide, pledgeCoin string, startTime, endTime time.Time) (*PledgeRateHist, error) {
+	var params Params
+	params.Values = make(url.Values)
+	err := params.prepareDateString(startTime, endTime, false, false)
+	if err != nil {
+		return nil, err
+	}
+	params.Values.Set("orderId", strconv.FormatInt(orderID, 10))
+	params.Values.Set("reviseSide", reviseSide)
+	params.Values.Set("pledgeCoin", pledgeCoin)
+	if pagination != 0 {
+		params.Values.Set("idLessThan", strconv.FormatInt(pagination, 10))
+	}
+	if limit != 0 {
+		params.Values.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	path := bitgetEarn + bitgetLoan + bitgetReviseHistory
+	var resp *PledgeRateHist
+	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodGet, path, params.Values,
+		nil, &resp)
+}
+
+// GetLoanHistory returns the loan history
+func (bi *Bitget) GetLoanHistory(ctx context.Context, orderID, pagination, limit int64, loanCoin, pledgeCoin, status string, startTime, endTime time.Time) (*LoanHistory, error) {
+	var params Params
+	params.Values = make(url.Values)
+	err := params.prepareDateString(startTime, endTime, false, false)
+	if err != nil {
+		return nil, err
+	}
+	params.Values.Set("orderId", strconv.FormatInt(orderID, 10))
+	params.Values.Set("loanCoin", loanCoin)
+	params.Values.Set("pledgeCoin", pledgeCoin)
+	params.Values.Set("status", status)
+	if pagination != 0 {
+		params.Values.Set("idLessThan", strconv.FormatInt(pagination, 10))
+	}
+	if limit != 0 {
+		params.Values.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	path := bitgetEarn + bitgetLoan + bitgetBorrowHistory
+	var resp *LoanHistory
+	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodGet, path, params.Values,
+		nil, &resp)
+}
+
+// GetDebts returns information on current outstanding pledges and loans
+func (bi *Bitget) GetDebts(ctx context.Context) (*DebtsResp, error) {
+	path := bitgetEarn + bitgetLoan + bitgetDebts
+	var resp *DebtsResp
+	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodGet, path, nil, nil,
+		&resp)
+}
+
+// GetLiquidationRecords returns the liquidation records
+func (bi *Bitget) GetLiquidationRecords(ctx context.Context, orderID, pagination, limit int64, loanCoin, pledgeCoin, status string, startTime, endTime time.Time) (*LiquidRecs, error) {
+	var params Params
+	params.Values = make(url.Values)
+	err := params.prepareDateString(startTime, endTime, false, false)
+	if err != nil {
+		return nil, err
+	}
+	params.Values.Set("orderId", strconv.FormatInt(orderID, 10))
+	params.Values.Set("loanCoin", loanCoin)
+	params.Values.Set("pledgeCoin", pledgeCoin)
+	params.Values.Set("status", status)
+	if pagination != 0 {
+		params.Values.Set("idLessThan", strconv.FormatInt(pagination, 10))
+	}
+	if limit != 0 {
+		params.Values.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	path := bitgetEarn + bitgetLoan + bitgetReduces
+	var resp *LiquidRecs
+	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodGet, path, params.Values,
+		nil, &resp)
 }
 
 // SendAuthenticatedHTTPRequest sends an authenticated HTTP request
