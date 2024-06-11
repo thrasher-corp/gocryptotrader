@@ -171,52 +171,37 @@ func (c *CoinbasePro) Setup(exch *config.Exchange) error {
 // FetchTradablePairs returns a list of the exchanges tradable pairs
 func (c *CoinbasePro) FetchTradablePairs(ctx context.Context, a asset.Item) (currency.Pairs, error) {
 	var products *AllProducts
-	var pairData []PairData
-	unverified, err := c.verificationCheck(ctx)
+	verified, err := c.verificationCheck(ctx)
 	if err != nil {
 		return nil, err
 	}
-	switch a {
-	case asset.Spot:
-		if unverified {
-			pairData, err = c.GetAllTradingPairs(ctx, "")
-		} else {
-			products, err = c.GetAllProducts(ctx, 2<<30-1, 0, asset.Spot.Upper(), "", "", nil)
-		}
-	case asset.Futures:
-		if unverified {
-			return nil, fmt.Errorf("%w for %v", errAuthenticationNeeded, asset.Futures)
-		}
-		products, err = c.fetchFutures(ctx)
-	default:
-		err = asset.ErrNotSupported
+	aString := a.Upper()
+	if len(aString) == 7 {
+		aString = aString[:6]
 	}
-	if err != nil {
-		return nil, err
+	if verified {
+		products, err = c.GetAllProducts(ctx, 2<<30-1, 0, aString, "", "", nil, verified)
+		if err != nil {
+			log.Warnf(log.ExchangeSys, warnAuth, err)
+			verified = false
+		}
+	}
+	if !verified {
+		products, err = c.GetAllProducts(ctx, 2<<30-1, 0, aString, "", "", nil, verified)
+		if err != nil {
+			return nil, err
+		}
 	}
 	var pairs []currency.Pair
-	if unverified {
-		for i := range pairData {
-			if pairData[i].TradingDisabled {
-				continue
-			}
-			pair, err := currency.NewPairDelimiter(pairData[i].ID, currency.DashDelimiter)
-			if err != nil {
-				return nil, err
-			}
-			pairs = append(pairs, pair)
+	for x := range products.Products {
+		if products.Products[x].TradingDisabled {
+			continue
 		}
-	} else {
-		for x := range products.Products {
-			if products.Products[x].TradingDisabled {
-				continue
-			}
-			pair, err := currency.NewPairDelimiter(products.Products[x].ID, currency.DashDelimiter)
-			if err != nil {
-				return nil, err
-			}
-			pairs = append(pairs, pair)
+		pair, err := currency.NewPairDelimiter(products.Products[x].ID, currency.DashDelimiter)
+		if err != nil {
+			return nil, err
 		}
+		pairs = append(pairs, pair)
 	}
 	return pairs, nil
 }
@@ -228,10 +213,6 @@ func (c *CoinbasePro) UpdateTradablePairs(ctx context.Context, forceUpdate bool)
 	for i := range assets {
 		pairs, err := c.FetchTradablePairs(ctx, assets[i])
 		if err != nil {
-			if errors.Is(err, errAuthenticationNeeded) && assets[i] == asset.Futures {
-				log.Warnf(log.ExchangeSys, "%v", err)
-				continue
-			}
 			return err
 		}
 		err = c.UpdatePairs(pairs, assets[i], false, forceUpdate)
@@ -305,19 +286,16 @@ func (c *CoinbasePro) FetchAccountInfo(ctx context.Context, assetType asset.Item
 
 // UpdateTickers updates all currency pairs of a given asset type
 func (c *CoinbasePro) UpdateTickers(ctx context.Context, assetType asset.Item) error {
-	unverified, err := c.verificationCheck(ctx)
+	verified, err := c.verificationCheck(ctx)
 	if err != nil {
 		return err
-	}
-	if unverified && assetType != asset.Spot {
-		return fmt.Errorf("%w for %v", errAuthenticationNeeded, assetType)
 	}
 	products, err := c.GetEnabledPairs(assetType)
 	if err != nil {
 		return err
 	}
 	for x := range products {
-		err = c.tickerHelper(ctx, products[x].String(), assetType, unverified)
+		err = c.tickerHelper(ctx, products[x].String(), assetType, verified)
 		if err != nil {
 			return err
 		}
@@ -327,18 +305,15 @@ func (c *CoinbasePro) UpdateTickers(ctx context.Context, assetType asset.Item) e
 
 // UpdateTicker updates and returns the ticker for a currency pair
 func (c *CoinbasePro) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Item) (*ticker.Price, error) {
-	unverified, err := c.verificationCheck(ctx)
+	verified, err := c.verificationCheck(ctx)
 	if err != nil {
 		return nil, err
-	}
-	if unverified && a != asset.Spot {
-		return nil, fmt.Errorf("%w for %v", errAuthenticationNeeded, a)
 	}
 	fPair, err := c.FormatExchangeCurrency(p, a)
 	if err != nil {
 		return nil, err
 	}
-	err = c.tickerHelper(ctx, fPair.String(), a, unverified)
+	err = c.tickerHelper(ctx, fPair.String(), a, verified)
 	if err != nil {
 		return nil, err
 	}
@@ -373,16 +348,13 @@ func (c *CoinbasePro) FetchOrderbook(ctx context.Context, p currency.Pair, asset
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (c *CoinbasePro) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType asset.Item) (*orderbook.Base, error) {
-	unverified, err := c.verificationCheck(ctx)
+	verified, err := c.verificationCheck(ctx)
 	if err != nil {
 		return nil, err
 	}
 	p, err = c.FormatExchangeCurrency(p, assetType)
 	if err != nil {
 		return nil, err
-	}
-	if p.IsEmpty() {
-		return nil, currency.ErrCurrencyPairEmpty
 	}
 	err = c.CurrencyPairs.IsAssetEnabled(assetType)
 	if err != nil {
@@ -398,48 +370,32 @@ func (c *CoinbasePro) UpdateOrderbook(ctx context.Context, p currency.Pair, asse
 		Asset:           assetType,
 		VerifyOrderbook: c.CanVerifyOrderbook,
 	}
-	if unverified {
-		if assetType != asset.Spot {
-			return nil, fmt.Errorf("%w for %v", errAuthenticationNeeded, assetType)
+	var orderbookNew *ProductBook
+	if verified {
+		orderbookNew, err = c.GetProductBookV3(ctx, fPair.String(), 1000, true)
+		if err != nil {
+			log.Warnf(log.ExchangeSys, warnAuth, err)
+			verified = false
 		}
-		var obN *OrderBook
-		obN, err = c.GetProductBookV1(ctx, fPair.String(), 2)
+	}
+	if !verified {
+		orderbookNew, err = c.GetProductBookV3(ctx, fPair.String(), 1000, false)
 		if err != nil {
 			return book, err
 		}
-		book.Bids = make(orderbook.Tranches, len(obN.Bids))
-		for x := range obN.Bids {
-			book.Bids[x] = orderbook.Tranche{
-				Amount: obN.Bids[x].Size,
-				Price:  obN.Bids[x].Price,
-			}
+	}
+	book.Bids = make(orderbook.Tranches, len(orderbookNew.Bids))
+	for x := range orderbookNew.Bids {
+		book.Bids[x] = orderbook.Tranche{
+			Amount: orderbookNew.Bids[x].Size,
+			Price:  orderbookNew.Bids[x].Price,
 		}
-		book.Asks = make(orderbook.Tranches, len(obN.Asks))
-		for x := range obN.Asks {
-			book.Asks[x] = orderbook.Tranche{
-				Amount: obN.Asks[x].Size,
-				Price:  obN.Asks[x].Price,
-			}
-		}
-	} else {
-		var orderbookNew *ProductBook
-		orderbookNew, err = c.GetProductBookV3(ctx, fPair.String(), 1000)
-		if err != nil {
-			return book, err
-		}
-		book.Bids = make(orderbook.Tranches, len(orderbookNew.Bids))
-		for x := range orderbookNew.Bids {
-			book.Bids[x] = orderbook.Tranche{
-				Amount: orderbookNew.Bids[x].Size,
-				Price:  orderbookNew.Bids[x].Price,
-			}
-		}
-		book.Asks = make(orderbook.Tranches, len(orderbookNew.Asks))
-		for x := range orderbookNew.Asks {
-			book.Asks[x] = orderbook.Tranche{
-				Amount: orderbookNew.Asks[x].Size,
-				Price:  orderbookNew.Asks[x].Price,
-			}
+	}
+	book.Asks = make(orderbook.Tranches, len(orderbookNew.Asks))
+	for x := range orderbookNew.Asks {
+		book.Asks[x] = orderbook.Tranche{
+			Amount: orderbookNew.Asks[x].Size,
+			Price:  orderbookNew.Asks[x].Price,
 		}
 	}
 	err = book.Process()
@@ -901,14 +857,11 @@ func (c *CoinbasePro) GetHistoricCandles(ctx context.Context, pair currency.Pair
 	if err != nil {
 		return nil, err
 	}
-	unverified, err := c.verificationCheck(ctx)
+	verified, err := c.verificationCheck(ctx)
 	if err != nil {
 		return nil, err
 	}
-	if unverified && a != asset.Spot {
-		return nil, fmt.Errorf("%w for %v", errAuthenticationNeeded, a)
-	}
-	timeSeries, err := c.candleHelper(ctx, req.RequestFormatted.String(), interval, start, end, unverified)
+	timeSeries, err := c.candleHelper(ctx, req.RequestFormatted.String(), interval, start, end, verified)
 	if err != nil {
 		return nil, err
 	}
@@ -921,18 +874,15 @@ func (c *CoinbasePro) GetHistoricCandlesExtended(ctx context.Context, pair curre
 	if err != nil {
 		return nil, err
 	}
-	unverified, err := c.verificationCheck(ctx)
+	verified, err := c.verificationCheck(ctx)
 	if err != nil {
 		return nil, err
-	}
-	if unverified && a != asset.Spot {
-		return nil, fmt.Errorf("%w for %v", errAuthenticationNeeded, a)
 	}
 	var timeSeries []kline.Candle
 	for x := range req.RangeHolder.Ranges {
 		hist, err := c.candleHelper(ctx, req.RequestFormatted.String(), interval,
 			req.RangeHolder.Ranges[x].Start.Time.Add(-time.Nanosecond),
-			req.RangeHolder.Ranges[x].End.Time.Add(-time.Nanosecond), unverified)
+			req.RangeHolder.Ranges[x].End.Time.Add(-time.Nanosecond), verified)
 		if err != nil {
 			return nil, err
 		}
@@ -965,7 +915,11 @@ func (c *CoinbasePro) GetLatestFundingRates(ctx context.Context, r *fundingrate.
 	if !c.SupportsAsset(r.Asset) {
 		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, r.Asset)
 	}
-	products, err := c.fetchFutures(ctx)
+	verified, err := c.verificationCheck(ctx)
+	if err != nil {
+		return nil, err
+	}
+	products, err := c.fetchFutures(ctx, verified)
 	if err != nil {
 		return nil, err
 	}
@@ -997,7 +951,11 @@ func (c *CoinbasePro) GetFuturesContractDetails(ctx context.Context, item asset.
 	if !c.SupportsAsset(item) {
 		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, item)
 	}
-	products, err := c.fetchFutures(ctx)
+	verified, err := c.verificationCheck(ctx)
+	if err != nil {
+		return nil, err
+	}
+	products, err := c.fetchFutures(ctx, verified)
 	if err != nil {
 		return nil, err
 	}
@@ -1029,67 +987,46 @@ func (c *CoinbasePro) GetFuturesContractDetails(ctx context.Context, item asset.
 // UpdateOrderExecutionLimits updates order execution limits
 func (c *CoinbasePro) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) error {
 	var data *AllProducts
-	var pairData []PairData
-	unverified, err := c.verificationCheck(ctx)
+	verified, err := c.verificationCheck(ctx)
 	if err != nil {
 		return err
 	}
-	switch a {
-	case asset.Spot:
-		if unverified {
-			pairData, err = c.GetAllTradingPairs(ctx, "")
-		} else {
-			data, err = c.GetAllProducts(ctx, 2<<30-1, 0, asset.Spot.Upper(), "", "", nil)
-		}
-	case asset.Futures:
-		if unverified {
-			return fmt.Errorf("%w for %v", errAuthenticationNeeded, asset.Futures)
-		}
-		data, err = c.fetchFutures(ctx)
-	default:
-		err = fmt.Errorf("%w %s", asset.ErrNotSupported, a)
+	aString := a.Upper()
+	if len(aString) == 7 {
+		aString = aString[:6]
 	}
-	if err != nil {
-		return err
-	}
-	var limits []order.MinMaxLevel
-	if unverified {
-		limits = make([]order.MinMaxLevel, len(pairData))
-		for i := range pairData {
-			pair, err := currency.NewPairFromString(pairData[i].ID)
-			if err != nil {
-				return err
-			}
-			limits[i] = order.MinMaxLevel{
-				Pair:                    pair,
-				Asset:                   a,
-				PriceStepIncrementSize:  pairData[i].QuoteIncrement,
-				AmountStepIncrementSize: pairData[i].BaseIncrement,
-				QuoteStepIncrementSize:  pairData[i].QuoteIncrement,
-				MaxTotalOrders:          1000,
-			}
+	if verified {
+		data, err = c.GetAllProducts(ctx, 2<<30-1, 0, aString, "", "", nil, true)
+		if err != nil {
+			log.Warnf(log.ExchangeSys, warnAuth, err)
+			verified = false
 		}
-	} else {
-		limits = make([]order.MinMaxLevel, len(data.Products))
-		for i := range data.Products {
-			pair, err := currency.NewPairFromString(data.Products[i].ID)
-			if err != nil {
-				return err
-			}
-			limits[i] = order.MinMaxLevel{
-				Pair:                    pair,
-				Asset:                   a,
-				MinPrice:                data.Products[i].QuoteMinSize.Float64(),
-				MaxPrice:                data.Products[i].QuoteMaxSize.Float64(),
-				PriceStepIncrementSize:  data.Products[i].PriceIncrement.Float64(),
-				MinimumBaseAmount:       data.Products[i].BaseMinSize.Float64(),
-				MaximumBaseAmount:       data.Products[i].BaseMaxSize.Float64(),
-				MinimumQuoteAmount:      data.Products[i].QuoteMinSize.Float64(),
-				MaximumQuoteAmount:      data.Products[i].QuoteMaxSize.Float64(),
-				AmountStepIncrementSize: data.Products[i].BaseIncrement.Float64(),
-				QuoteStepIncrementSize:  data.Products[i].QuoteIncrement.Float64(),
-				MaxTotalOrders:          1000,
-			}
+	}
+	if !verified {
+		data, err = c.GetAllProducts(ctx, 2<<30-1, 0, aString, "", "", nil, false)
+		if err != nil {
+			return err
+		}
+	}
+	limits := make([]order.MinMaxLevel, len(data.Products))
+	for i := range data.Products {
+		pair, err := currency.NewPairFromString(data.Products[i].ID)
+		if err != nil {
+			return err
+		}
+		limits[i] = order.MinMaxLevel{
+			Pair:                    pair,
+			Asset:                   a,
+			MinPrice:                data.Products[i].QuoteMinSize.Float64(),
+			MaxPrice:                data.Products[i].QuoteMaxSize.Float64(),
+			PriceStepIncrementSize:  data.Products[i].PriceIncrement.Float64(),
+			MinimumBaseAmount:       data.Products[i].BaseMinSize.Float64(),
+			MaximumBaseAmount:       data.Products[i].BaseMaxSize.Float64(),
+			MinimumQuoteAmount:      data.Products[i].QuoteMinSize.Float64(),
+			MaximumQuoteAmount:      data.Products[i].QuoteMaxSize.Float64(),
+			AmountStepIncrementSize: data.Products[i].BaseIncrement.Float64(),
+			QuoteStepIncrementSize:  data.Products[i].QuoteIncrement.Float64(),
+			MaxTotalOrders:          1000,
 		}
 	}
 	return c.LoadLimits(limits)
@@ -1098,13 +1035,19 @@ func (c *CoinbasePro) UpdateOrderExecutionLimits(ctx context.Context, a asset.It
 // fetchFutures is a helper function for FetchTradablePairs, GetLatestFundingRates, GetFuturesContractDetails,
 // and UpdateOrderExecutionLimits that calls the List Products endpoint twice, to get both
 // expiring futures and perpetual futures
-func (c *CoinbasePro) fetchFutures(ctx context.Context) (*AllProducts, error) {
-	products, err := c.GetAllProducts(ctx, 2<<30-1, 0, "FUTURE", "", "", nil)
+func (c *CoinbasePro) fetchFutures(ctx context.Context, verified bool) (*AllProducts, error) {
+	products, err := c.GetAllProducts(ctx, 2<<30-1, 0, "FUTURE", "", "", nil, verified)
 	if err != nil {
+		if verified {
+			return c.fetchFutures(ctx, false)
+		}
 		return nil, err
 	}
-	products2, err := c.GetAllProducts(ctx, 2<<30-1, 0, "FUTURE", "PERPETUAL", "", nil)
+	products2, err := c.GetAllProducts(ctx, 2<<30-1, 0, "FUTURE", "PERPETUAL", "", nil, verified)
 	if err != nil {
+		if verified {
+			return c.fetchFutures(ctx, false)
+		}
 		return nil, err
 	}
 	products.Products = append(products.Products, products2.Products...)
@@ -1232,26 +1175,6 @@ func formatExchangeKlineIntervalV3(interval kline.Interval) string {
 		return granOneDay
 	}
 	return errIntervalNotSupported
-}
-
-// formatExchangeKlineIntervalV1 is a helper function used in GetHistoricCandles and GetHistoricCandlesExtended
-// to convert kline.Interval to the uint format used by V1 of Coinbase's API
-func formatExchangeKlineIntervalV1(interval kline.Interval) uint32 {
-	switch interval {
-	case kline.OneMin:
-		return 60
-	case kline.FiveMin:
-		return 300
-	case kline.FifteenMin:
-		return 900
-	case kline.OneHour:
-		return 3600
-	case kline.SixHour:
-		return 21600
-	case kline.OneDay:
-		return 86400
-	}
-	return 1<<32 - 1
 }
 
 // getOrderRespToOrderDetail is a helper function used in GetOrderInfo, GetActiveOrders, and GetOrderHistory
@@ -1411,15 +1334,15 @@ func (c *CoinbasePro) verificationCheck(ctx context.Context) (bool, error) {
 	if err != nil {
 		if errors.Is(err, exchange.ErrAuthenticationSupportNotEnabled) ||
 			errors.Is(err, exchange.ErrCredentialsAreEmpty) {
-			return true, nil
+			return false, nil
 		}
 		return false, err
 	}
-	return false, nil
+	return true, nil
 }
 
 // TickerHelper fetches the ticker for a given currency pair, used by UpdateTickers and UpdateTicker
-func (c *CoinbasePro) tickerHelper(ctx context.Context, name string, assetType asset.Item, unverified bool) error {
+func (c *CoinbasePro) tickerHelper(ctx context.Context, name string, assetType asset.Item, verified bool) error {
 	pair, err := currency.NewPairDelimiter(name, currency.DashDelimiter)
 	if err != nil {
 		return err
@@ -1429,30 +1352,21 @@ func (c *CoinbasePro) tickerHelper(ctx context.Context, name string, assetType a
 		ExchangeName: c.Name,
 		AssetType:    assetType,
 	}
-	if unverified {
-		var tick *ProductTicker
-		tick, err = c.GetProductTicker(ctx, name)
-		if err != nil {
-			return err
+	var ticks *Ticker
+	ticks, err = c.GetTicker(ctx, name, 1, time.Time{}, time.Time{}, verified)
+	if err != nil {
+		if verified {
+			return c.tickerHelper(ctx, name, assetType, false)
 		}
-		newTick.Last = tick.Price
-		newTick.Volume = tick.Volume
-		newTick.Bid = tick.Bid
-		newTick.Ask = tick.Ask
-	} else {
-		var ticks *Ticker
-		ticks, err = c.GetTicker(ctx, name, 1, time.Time{}, time.Time{})
-		if err != nil {
-			return err
-		}
-		var last float64
-		if len(ticks.Trades) != 0 {
-			last = ticks.Trades[0].Price
-		}
-		newTick.Last = last
-		newTick.Bid = ticks.BestBid.Float64()
-		newTick.Ask = ticks.BestAsk.Float64()
+		return err
 	}
+	var last float64
+	if len(ticks.Trades) != 0 {
+		last = ticks.Trades[0].Price
+	}
+	newTick.Last = last
+	newTick.Bid = ticks.BestBid.Float64()
+	newTick.Ask = ticks.BestAsk.Float64()
 	err = ticker.ProcessTicker(newTick)
 	if err != nil {
 		return err
@@ -1460,40 +1374,25 @@ func (c *CoinbasePro) tickerHelper(ctx context.Context, name string, assetType a
 	return nil
 }
 
-// CandleHelper handles calling the correct candle function, and doing preliminary work on the data
-func (c *CoinbasePro) candleHelper(ctx context.Context, pair string, granularity kline.Interval, start, end time.Time, unverified bool) ([]kline.Candle, error) {
+// CandleHelper handles calling the candle function, and doing preliminary work on the data
+func (c *CoinbasePro) candleHelper(ctx context.Context, pair string, granularity kline.Interval, start, end time.Time, verified bool) ([]kline.Candle, error) {
 	var timeSeries []kline.Candle
-	if unverified {
-		hist, err := c.GetProductCandles(ctx, pair, formatExchangeKlineIntervalV1(granularity), start, end)
-		if err != nil {
-			return nil, err
+	history, err := c.GetHistoricRates(ctx, pair, formatExchangeKlineIntervalV3(granularity), start, end, verified)
+	if err != nil {
+		if verified {
+			return c.candleHelper(ctx, pair, granularity, start, end, false)
 		}
-		timeSeries = make([]kline.Candle, len(hist))
-		for x := range hist {
-			timeSeries[x] = kline.Candle{
-				Time:   hist[x].Time,
-				Low:    hist[x].Low,
-				High:   hist[x].High,
-				Open:   hist[x].Open,
-				Close:  hist[x].Close,
-				Volume: hist[x].Volume,
-			}
-		}
-	} else {
-		history, err := c.GetHistoricRates(ctx, pair, formatExchangeKlineIntervalV3(granularity), start, end)
-		if err != nil {
-			return nil, err
-		}
-		timeSeries = make([]kline.Candle, len(history))
-		for x := range history {
-			timeSeries[x] = kline.Candle{
-				Time:   history[x].Start.Time(),
-				Low:    history[x].Low,
-				High:   history[x].High,
-				Open:   history[x].Open,
-				Close:  history[x].Close,
-				Volume: history[x].Volume,
-			}
+		return nil, err
+	}
+	timeSeries = make([]kline.Candle, len(history))
+	for x := range history {
+		timeSeries[x] = kline.Candle{
+			Time:   history[x].Start.Time(),
+			Low:    history[x].Low,
+			High:   history[x].High,
+			Open:   history[x].Open,
+			Close:  history[x].Close,
+			Volume: history[x].Volume,
 		}
 	}
 	return timeSeries, nil

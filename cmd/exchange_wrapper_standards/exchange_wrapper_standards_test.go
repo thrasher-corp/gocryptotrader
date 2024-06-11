@@ -94,15 +94,12 @@ func setupExchange(ctx context.Context, t *testing.T, name string, cfg *config.C
 		t.Fatalf("Cannot setup %v UpdateTradablePairs %v", name, err)
 	}
 	b := exch.GetBase()
-	// Strange ordering since Setup must be run before UpdateTradablePairs, but Coinbase will fail if invalid
-	// credentials have been set, so we must set them after UpdateTradablePairs
+	// Idiosyncratic execution flow since Setup must be run before UpdateTradablePairs, but Coinbase will fail if
+	// invalid credentials have been set, so we must set them after UpdateTradablePairs
 	creds := getExchangeCredentials(name)
+	b.SetCredentials(creds.Key, creds.Secret, creds.ClientID, creds.Subaccount, creds.Subaccount,
+		creds.OTPSecret)
 	b.API.AuthenticatedSupport = true
-	b.API.SetClientID(creds.ClientID)
-	b.API.SetKey(creds.Key)
-	b.API.SetSecret(creds.Secret)
-	b.API.SetPEMKey(creds.PEMKey)
-	b.API.SetSubAccount(creds.Subaccount)
 	// Lbank usually runs this during setup, but if keys aren't set then, it will fail, so we have to manually
 	// recreate that here
 	lbankExch, ok := exch.(*lbank.Lbank)
@@ -716,18 +713,6 @@ func isFiat(t *testing.T, c string) bool {
 	}
 	return false
 }
-
-// func getTestableAssets(t *testing.T, exch exchange.IBotExchange) []asset.Item {
-// 	t.Helper()
-// 	var assets []asset.Item
-// 	if exchange == coinbrasepro && asset.Ifutures {
-// 		continue
-// 	}
-// 	for x := range exch.GetBase().CurrencyPairs.GetAssetTypes(false) {
-// 		assets = append(assets, exch.GetBase().CurrencyPairs.GetAssetTypes(false)[x])
-// 	}
-// 	return assets
-// }
 
 // disruptFormatting adds in an unused delimiter and strange casing features to
 // ensure format currency pair is used throughout the code base.

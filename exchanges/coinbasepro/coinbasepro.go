@@ -79,6 +79,7 @@ const (
 	coinbaseTrades             = "trades"
 	coinbaseWrappedAssets      = "wrapped-assets"
 	coinbaseConversionRate     = "conversion-rate"
+	coinbaseMarket             = "market"
 
 	pageNone        = ""
 	pageBefore      = "before"
@@ -98,6 +99,7 @@ const (
 
 	errIntervalNotSupported = "interval not supported"
 	warnSequenceIssue       = "Out of order sequence number. Received %v, expected %v"
+	warnAuth                = "%v authenticated request failed, attempting unauthenticated"
 )
 
 // Constants defining whether a transfer is a deposit or withdrawal, used to simplify
@@ -107,11 +109,11 @@ const (
 	FiatWithdrawal FiatTransferType = true
 )
 
-// While the exchange's fee pages say the worst taker/maker fees are 0.002 lower than the ones listed
+// While the exchange's fee pages say the worst taker/maker fees are lower than the ones listed
 // here, the data returned by the GetTransactionsSummary endpoint are consistent with these worst
 // case scenarios. The best case scenarios are untested, and assumed to be in line with the fee pages
 const (
-	WorstCaseTakerFee           = 0.01
+	WorstCaseTakerFee           = 0.012
 	WorstCaseMakerFee           = 0.006
 	BestCaseTakerFee            = 0.0005
 	BestCaseMakerFee            = 0
@@ -161,7 +163,6 @@ var (
 	errFloatConvert           = errors.New("unable to convert into float64 value")
 	errNoCredsUser            = errors.New("no credentials when attempting to subscribe to authenticated channel user")
 	errWrappedAssetEmpty      = errors.New("wrapped asset cannot be empty")
-	errAuthenticationNeeded   = errors.New("authentication is needed to use this endpoint")
 )
 
 // GetAllAccounts returns information on all trading accounts associated with the API key
@@ -202,7 +203,7 @@ func (c *CoinbasePro) GetBestBidAsk(ctx context.Context, products []string) ([]P
 }
 
 // GetProductBookV3 returns a list of bids/asks for a single product
-func (c *CoinbasePro) GetProductBookV3(ctx context.Context, productID string, limit uint16) (*ProductBook, error) {
+func (c *CoinbasePro) GetProductBookV3(ctx context.Context, productID string, limit uint16, authenticated bool) (*ProductBook, error) {
 	if productID == "" {
 		return nil, errProductIDEmpty
 	}
@@ -212,12 +213,17 @@ func (c *CoinbasePro) GetProductBookV3(ctx context.Context, productID string, li
 		vals.Set("limit", strconv.FormatInt(int64(limit), 10))
 	}
 	var resp ProductBookResponse
-	return &resp.Pricebook, c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet,
-		coinbaseV3+coinbaseProductBook, vals, nil, true, &resp, nil)
+	if authenticated {
+		return &resp.Pricebook, c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet,
+			coinbaseV3+coinbaseProductBook, vals, nil, true, &resp, nil)
+	} else {
+		path := coinbaseV3 + coinbaseMarket + "/" + coinbaseProductBook
+		return &resp.Pricebook, c.SendHTTPRequest(ctx, exchange.RestSpot, path, vals, &resp)
+	}
 }
 
 // GetAllProducts returns information on all currency pairs that are available for trading
-func (c *CoinbasePro) GetAllProducts(ctx context.Context, limit, offset int32, productType, contractExpiryType, expiringContractStatus string, productIDs []string) (*AllProducts, error) {
+func (c *CoinbasePro) GetAllProducts(ctx context.Context, limit, offset int32, productType, contractExpiryType, expiringContractStatus string, productIDs []string, authenticated bool) (*AllProducts, error) {
 	vals := url.Values{}
 	if limit != 0 {
 		vals.Set("limit", strconv.FormatInt(int64(limit), 10))
@@ -238,25 +244,35 @@ func (c *CoinbasePro) GetAllProducts(ctx context.Context, limit, offset int32, p
 		vals.Add("product_ids", productIDs[x])
 	}
 	var products AllProducts
-	return &products, c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet,
-		coinbaseV3+coinbaseProducts, vals, nil, true, &products, nil)
+	if authenticated {
+		return &products, c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet,
+			coinbaseV3+coinbaseProducts, vals, nil, true, &products, nil)
+	} else {
+		path := coinbaseV3 + coinbaseMarket + "/" + coinbaseProducts
+		return &products, c.SendHTTPRequest(ctx, exchange.RestSpot, path, vals, &products)
+	}
 }
 
 // GetProductByID returns information on a single specified currency pair
-func (c *CoinbasePro) GetProductByID(ctx context.Context, productID string) (*Product, error) {
+func (c *CoinbasePro) GetProductByID(ctx context.Context, productID string, authenticated bool) (*Product, error) {
 	if productID == "" {
 		return nil, errProductIDEmpty
 	}
-	path := coinbaseV3 + coinbaseProducts + "/" + productID
-	resp := Product{}
-	return &resp, c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet,
-		path, nil, nil, true, &resp, nil)
+	var resp Product
+	if authenticated {
+		path := coinbaseV3 + coinbaseProducts + "/" + productID
+		return &resp, c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet,
+			path, nil, nil, true, &resp, nil)
+	} else {
+		path := coinbaseV3 + coinbaseMarket + "/" + coinbaseProducts + "/" + productID
+		return &resp, c.SendHTTPRequest(ctx, exchange.RestSpot, path, nil, &resp)
+	}
 }
 
 // GetHistoricRates returns historic rates for a product. Rates are returned in
 // grouped buckets based on requested granularity. Requests that return more than
 // 300 data points are rejected
-func (c *CoinbasePro) GetHistoricRates(ctx context.Context, productID, granularity string, startDate, endDate time.Time) ([]CandleStruct, error) {
+func (c *CoinbasePro) GetHistoricRates(ctx context.Context, productID, granularity string, startDate, endDate time.Time, authenticated bool) ([]CandleStruct, error) {
 	var resp History
 	if productID == "" {
 		return nil, errProductIDEmpty
@@ -272,19 +288,24 @@ func (c *CoinbasePro) GetHistoricRates(ctx context.Context, productID, granulari
 	vals.Set("start", strconv.FormatInt(startDate.Unix(), 10))
 	vals.Set("end", strconv.FormatInt(endDate.Unix(), 10))
 	vals.Set("granularity", granularity)
-	path := coinbaseV3 + coinbaseProducts + "/" + productID + "/" + coinbaseCandles
-	err := c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet,
-		path, vals, nil, true, &resp, nil)
+	var err error
+	if authenticated {
+		path := coinbaseV3 + coinbaseProducts + "/" + productID + "/" + coinbaseCandles
+		err = c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet,
+			path, vals, nil, true, &resp, nil)
+	} else {
+		path := coinbaseV3 + coinbaseMarket + "/" + coinbaseProducts + "/" + productID + "/" + coinbaseCandles
+		err = c.SendHTTPRequest(ctx, exchange.RestSpot, path, vals, &resp)
+	}
 	return resp.Candles, err
 }
 
 // GetTicker returns snapshot information about the last trades (ticks) and best bid/ask.
 // Contrary to documentation, this does not tell you the 24h volume
-func (c *CoinbasePro) GetTicker(ctx context.Context, productID string, limit uint16, startDate, endDate time.Time) (*Ticker, error) {
+func (c *CoinbasePro) GetTicker(ctx context.Context, productID string, limit uint16, startDate, endDate time.Time, authenticated bool) (*Ticker, error) {
 	if productID == "" {
 		return nil, errProductIDEmpty
 	}
-	path := coinbaseV3 + coinbaseProducts + "/" + productID + "/" + coinbaseTicker
 	vals := url.Values{}
 	vals.Set("limit", strconv.FormatInt(int64(limit), 10))
 	if !startDate.IsZero() && !startDate.Equal(time.Time{}) {
@@ -294,8 +315,14 @@ func (c *CoinbasePro) GetTicker(ctx context.Context, productID string, limit uin
 		vals.Set("end", strconv.FormatInt(endDate.Unix(), 10))
 	}
 	var resp Ticker
-	return &resp, c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet,
-		path, vals, nil, true, &resp, nil)
+	if authenticated {
+		path := coinbaseV3 + coinbaseProducts + "/" + productID + "/" + coinbaseTicker
+		return &resp, c.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet,
+			path, vals, nil, true, &resp, nil)
+	} else {
+		path := coinbaseV3 + coinbaseMarket + "/" + coinbaseProducts + "/" + productID + "/" + coinbaseTicker
+		return &resp, c.SendHTTPRequest(ctx, exchange.RestSpot, path, vals, &resp)
+	}
 }
 
 // PlaceOrder places either a limit, market, or stop order
@@ -794,7 +821,7 @@ func (c *CoinbasePro) GetConvertTradeByID(ctx context.Context, tradeID, from, to
 // GetV3Time returns the current server time, calling V3 of the API
 func (c *CoinbasePro) GetV3Time(ctx context.Context) (*ServerTimeV3, error) {
 	var resp *ServerTimeV3
-	return resp, c.SendHTTPRequest(ctx, exchange.RestSpot, coinbaseV3+coinbaseTime, &resp)
+	return resp, c.SendHTTPRequest(ctx, exchange.RestSpot, coinbaseV3+coinbaseTime, nil, &resp)
 }
 
 // GetAllPaymentMethods returns a list of all payment methods associated with the user's account
@@ -1094,14 +1121,14 @@ func (c *CoinbasePro) GetFiatTransferByID(ctx context.Context, walletID, deposit
 // GetFiatCurrencies lists currencies that Coinbase knows about
 func (c *CoinbasePro) GetFiatCurrencies(ctx context.Context) ([]FiatData, error) {
 	var resp GetFiatCurrenciesResp
-	return resp.Data, c.SendHTTPRequest(ctx, exchange.RestSpot, coinbaseV2+coinbaseCurrencies, &resp)
+	return resp.Data, c.SendHTTPRequest(ctx, exchange.RestSpot, coinbaseV2+coinbaseCurrencies, nil, &resp)
 }
 
 // GetCryptocurrencies lists cryptocurrencies that Coinbase knows about
 func (c *CoinbasePro) GetCryptocurrencies(ctx context.Context) ([]CryptoData, error) {
 	var resp GetCryptocurrenciesResp
 	path := coinbaseV2 + coinbaseCurrencies + "/" + coinbaseCrypto
-	return resp.Data, c.SendHTTPRequest(ctx, exchange.RestSpot, path, &resp)
+	return resp.Data, c.SendHTTPRequest(ctx, exchange.RestSpot, path, nil, &resp)
 }
 
 // GetExchangeRates returns exchange rates for the specified currency. If none is specified,
@@ -1110,8 +1137,7 @@ func (c *CoinbasePro) GetExchangeRates(ctx context.Context, currency string) (*G
 	var resp *GetExchangeRatesResp
 	vals := url.Values{}
 	vals.Set("currency", currency)
-	path := common.EncodeURLValues(coinbaseV2+coinbaseExchangeRates, vals)
-	return resp, c.SendHTTPRequest(ctx, exchange.RestSpot, path, &resp)
+	return resp, c.SendHTTPRequest(ctx, exchange.RestSpot, coinbaseV2+coinbaseExchangeRates, vals, &resp)
 }
 
 // GetPrice returns the price the spot/buy/sell price for the specified currency pair,
@@ -1125,19 +1151,19 @@ func (c *CoinbasePro) GetPrice(ctx context.Context, currencyPair, priceType stri
 		return nil, errInvalidPriceType
 	}
 	var resp *GetPriceResp
-	return resp, c.SendHTTPRequest(ctx, exchange.RestSpot, path, &resp)
+	return resp, c.SendHTTPRequest(ctx, exchange.RestSpot, path, nil, &resp)
 }
 
 // GetV2Time returns the current server time, calling V2 of the API
 func (c *CoinbasePro) GetV2Time(ctx context.Context) (*ServerTimeV2, error) {
 	var resp *ServerTimeV2
-	return resp, c.SendHTTPRequest(ctx, exchange.RestSpot, coinbaseV2+coinbaseTime, &resp)
+	return resp, c.SendHTTPRequest(ctx, exchange.RestSpot, coinbaseV2+coinbaseTime, nil, &resp)
 }
 
 // GetAllCurrencies returns a list of all currencies that Coinbase knows about. These aren't necessarily tradable
 func (c *CoinbasePro) GetAllCurrencies(ctx context.Context) ([]CurrencyData, error) {
 	var resp []CurrencyData
-	return resp, c.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, coinbaseCurrencies, &resp)
+	return resp, c.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, coinbaseCurrencies, nil, &resp)
 }
 
 // GetACurrency returns information on a single currency specified by the user
@@ -1147,7 +1173,7 @@ func (c *CoinbasePro) GetACurrency(ctx context.Context, currency string) (*Curre
 	}
 	var resp *CurrencyData
 	path := coinbaseCurrencies + "/" + currency
-	return resp, c.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, path, &resp)
+	return resp, c.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, path, nil, &resp)
 }
 
 // GetAllTradingPairs returns a list of currency pairs which are available for trading
@@ -1157,15 +1183,14 @@ func (c *CoinbasePro) GetAllTradingPairs(ctx context.Context, pairType string) (
 	if pairType != "" {
 		vals.Set("type", pairType)
 	}
-	path := common.EncodeURLValues(coinbaseProducts, vals)
-	return resp, c.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, path, &resp)
+	return resp, c.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, coinbaseProducts, vals, &resp)
 }
 
 // GetAllPairVolumes returns a list of currency pairs and their associated volumes
 func (c *CoinbasePro) GetAllPairVolumes(ctx context.Context) ([]PairVolumeData, error) {
 	var resp []PairVolumeData
 	path := coinbaseProducts + "/" + coinbaseVolumeSummary
-	return resp, c.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, path, &resp)
+	return resp, c.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, path, nil, &resp)
 }
 
 // GetPairDetails returns information on a single currency pair
@@ -1175,7 +1200,7 @@ func (c *CoinbasePro) GetPairDetails(ctx context.Context, pair string) (*PairDat
 	}
 	var resp *PairData
 	path := coinbaseProducts + "/" + pair
-	return resp, c.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, path, &resp)
+	return resp, c.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, path, nil, &resp)
 }
 
 // GetProductBookV1 returns the order book for the specified currency pair. Level 1 only returns the best bids and asks,
@@ -1188,8 +1213,8 @@ func (c *CoinbasePro) GetProductBookV1(ctx context.Context, pair string, level u
 	var resp OrderBookResp
 	vals := url.Values{}
 	vals.Set("level", strconv.FormatUint(uint64(level), 10))
-	path := common.EncodeURLValues(coinbaseProducts+"/"+pair+"/"+coinbaseBook, vals)
-	err := c.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, path, &resp)
+	path := coinbaseProducts + "/" + pair + "/" + coinbaseBook
+	err := c.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, path, vals, &resp)
 	if err != nil {
 		return nil, err
 	}
@@ -1276,9 +1301,9 @@ func (c *CoinbasePro) GetProductCandles(ctx context.Context, pair string, granul
 	if granularity != 0 {
 		params.Values.Set("granularity", strconv.FormatUint(uint64(granularity), 10))
 	}
-	path := common.EncodeURLValues(coinbaseProducts+"/"+pair+"/"+coinbaseCandles, params.Values)
+	path := coinbaseProducts + "/" + pair + "/" + coinbaseCandles
 	var resp []RawCandles
-	err = c.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, path, &resp)
+	err = c.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, path, params.Values, &resp)
 	if err != nil {
 		return nil, err
 	}
@@ -1329,7 +1354,7 @@ func (c *CoinbasePro) GetProductStats(ctx context.Context, pair string) (*Produc
 	}
 	path := coinbaseProducts + "/" + pair + "/" + coinbaseStats
 	var resp *ProductStats
-	return resp, c.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, path, &resp)
+	return resp, c.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, path, nil, &resp)
 }
 
 // GetProductTicker returns the ticker for the specified currency pair
@@ -1339,7 +1364,7 @@ func (c *CoinbasePro) GetProductTicker(ctx context.Context, pair string) (*Produ
 	}
 	path := coinbaseProducts + "/" + pair + "/" + coinbaseTicker
 	var resp *ProductTicker
-	return resp, c.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, path, &resp)
+	return resp, c.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, path, nil, &resp)
 }
 
 // GetProductTrades returns a list of the latest traides for a pair
@@ -1352,15 +1377,15 @@ func (c *CoinbasePro) GetProductTrades(ctx context.Context, pair, step, directio
 		vals.Set(direction, step)
 	}
 	vals.Set("limit", strconv.FormatInt(limit, 10))
-	path := common.EncodeURLValues(coinbaseProducts+"/"+pair+"/"+coinbaseTrades, vals)
+	path := coinbaseProducts + "/" + pair + "/" + coinbaseTrades
 	var resp []ProductTrades
-	return resp, c.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, path, &resp)
+	return resp, c.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, path, vals, &resp)
 }
 
 // GetAllWrappedAssets returns a list of supported wrapped assets
 func (c *CoinbasePro) GetAllWrappedAssets(ctx context.Context) (*AllWrappedAssets, error) {
 	var resp *AllWrappedAssets
-	return resp, c.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, coinbaseWrappedAssets, &resp)
+	return resp, c.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, coinbaseWrappedAssets, nil, &resp)
 }
 
 // GetWrappedAssetDetails returns information on a single wrapped asset
@@ -1370,7 +1395,7 @@ func (c *CoinbasePro) GetWrappedAssetDetails(ctx context.Context, wrappedAsset s
 	}
 	var resp *WrappedAsset
 	path := coinbaseWrappedAssets + "/" + wrappedAsset
-	return resp, c.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, path, &resp)
+	return resp, c.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, path, nil, &resp)
 }
 
 // GetWrappedAssetConversionRate returns the conversion rate for the specified wrapped asset
@@ -1380,15 +1405,16 @@ func (c *CoinbasePro) GetWrappedAssetConversionRate(ctx context.Context, wrapped
 	}
 	var resp *WrappedAssetConversionRate
 	path := coinbaseWrappedAssets + "/" + wrappedAsset + "/" + coinbaseConversionRate
-	return resp, c.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, path, &resp)
+	return resp, c.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, path, nil, &resp)
 }
 
 // SendHTTPRequest sends an unauthenticated HTTP request
-func (c *CoinbasePro) SendHTTPRequest(ctx context.Context, ep exchange.URL, path string, result interface{}) error {
+func (c *CoinbasePro) SendHTTPRequest(ctx context.Context, ep exchange.URL, path string, vals url.Values, result interface{}) error {
 	endpoint, err := c.API.Endpoints.GetURL(ep)
 	if err != nil {
 		return err
 	}
+	path = common.EncodeURLValues(path, vals)
 	item := &request.Item{
 		Method:        http.MethodGet,
 		Path:          endpoint + path,
