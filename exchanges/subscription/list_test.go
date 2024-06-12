@@ -31,6 +31,21 @@ func TestListStrings(t *testing.T) {
 	assert.ElementsMatch(t, exp, l.Strings(), "String must return correct sorted list")
 }
 
+// TestQualifiedChannels exercises List.QualifiedChannels()
+func TestQualifiedChannels(t *testing.T) {
+	t.Parallel()
+	l := List{
+		&Subscription{
+			QualifiedChannel: "ticker-btc",
+		},
+		&Subscription{
+			QualifiedChannel: "candles-btc",
+		},
+	}
+	exp := []string{"ticker-btc", "candles-btc"}
+	assert.ElementsMatch(t, exp, l.QualifiedChannels(), "QualifiedChannels should return correct sorted list")
+}
+
 // TestListGroupPairs exercises List.GroupPairs()
 func TestListGroupPairs(t *testing.T) {
 	t.Parallel()
