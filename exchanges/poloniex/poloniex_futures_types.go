@@ -96,7 +96,7 @@ type TickerDetail struct {
 	Data TickerInfo `json:"data"`
 }
 
-// Orderbook iten detail for a single symbol
+// Orderbook item detail for a single symbol
 type Orderbook struct {
 	Code string `json:"code"`
 	Data struct {
@@ -205,8 +205,8 @@ type ServerTimeResponse struct {
 type ServiceStatus struct {
 	Code string `json:"code"`
 	Data struct {
-		Status  string `json:"status"` //open, close, cancelonly
-		Message string `json:"msg"`    //remark for operation
+		Status  string `json:"status"` // possible values: open, close, cancelonly
+		Message string `json:"msg"`    // possible values: remark for operation
 	} `json:"data"`
 }
 
@@ -232,7 +232,7 @@ func (a *KlineChartResponse) ExtractKlineChart() []KlineChartData {
 	return chart
 }
 
-// KLineChartData represents K chart.
+// KlineChartData represents K chart.
 type KlineChartData struct {
 	Timestamp     time.Time
 	EntryPrice    float64

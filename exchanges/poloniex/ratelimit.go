@@ -26,7 +26,6 @@ const (
 // you may be eligible for an API rate limit increase.
 // Please email poloniex@circle.com.
 // As per https://docs.poloniex.com/#http-api
-
 func GetRateLimit() request.RateLimitDefinitions {
 	return request.RateLimitDefinitions{
 		authNonResourceIntensiveEPL: request.NewRateLimitWithWeight(rateInterval, authNonResourceIntensiveRate, 1),

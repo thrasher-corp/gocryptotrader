@@ -41,6 +41,6 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	setupWS()
+	// setupWS()
 	os.Exit(m.Run())
 }

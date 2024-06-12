@@ -45,19 +45,13 @@ func setFeeBuilder() *exchange.FeeBuilder {
 // TestGetFeeByTypeOfflineTradeFee logic test
 func TestGetFeeByTypeOfflineTradeFee(t *testing.T) {
 	t.Parallel()
-
 	var feeBuilder = setFeeBuilder()
 	result, err := p.GetFeeByType(context.Background(), feeBuilder)
 	require.NoError(t, err)
 	if !sharedtestvalues.AreAPICredentialsSet(p) {
-		require.Falsef(t, feeBuilder.FeeType != exchange.OfflineTradeFee, "Expected %v, received %v",
-			exchange.OfflineTradeFee,
-			feeBuilder.FeeType)
+		require.Equal(t, exchange.OfflineTradeFee, feeBuilder.FeeType)
 	} else {
-		require.Falsef(t, feeBuilder.FeeType != exchange.CryptocurrencyTradeFee,
-			"Expected %v, received %v",
-			exchange.CryptocurrencyTradeFee,
-			feeBuilder.FeeType)
+		require.Equal(t, exchange.CryptocurrencyTradeFee, feeBuilder.FeeType)
 		require.NotNil(t, result)
 	}
 }
@@ -1075,7 +1069,7 @@ func TestCancelMultipleOrdersByIDs(t *testing.T) {
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, p, canManipulateRealOrders)
 	}
-	result, err := p.CancelMultipleOrdersByIDs(context.Background(), &OrderCancellationParams{OrderIds: []string{"1234"}, ClientOrderIds: []string{"5678"}})
+	result, err := p.CancelMultipleOrdersByIDs(context.Background(), &OrderCancellationParams{OrderIDs: []string{"1234"}, ClientOrderIDs: []string{"5678"}})
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -1186,7 +1180,7 @@ func TestCancelMultipleSmartOrders(t *testing.T) {
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, p, canManipulateRealOrders)
 	}
-	result, err := p.CancelMultipleSmartOrders(context.Background(), &OrderCancellationParams{OrderIds: []string{"1234"}, ClientOrderIds: []string{"5678"}})
+	result, err := p.CancelMultipleSmartOrders(context.Background(), &OrderCancellationParams{OrderIDs: []string{"1234"}, ClientOrderIDs: []string{"5678"}})
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -1325,7 +1319,7 @@ func TestWsCancelMultipleOrdersByIDs(t *testing.T) {
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, p, canManipulateRealOrders)
 	}
-	result, err := p.WsCancelMultipleOrdersByIDs(&OrderCancellationParams{OrderIds: []string{"1234"}, ClientOrderIds: []string{"5678"}})
+	result, err := p.WsCancelMultipleOrdersByIDs(&OrderCancellationParams{OrderIDs: []string{"1234"}, ClientOrderIDs: []string{"5678"}})
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -1351,9 +1345,9 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 	require.NoError(t, err)
 	limits, err := p.GetOrderExecutionLimits(asset.Spot, cp)
 	require.NoErrorf(t, err, "Asset: %s Pair: %s Err: %v", asset.Spot, cp, err)
-	require.Falsef(t, limits.PriceStepIncrementSize != instruments[0].SymbolTradeLimit.PriceScale, "PriceStepIncrementSize; Asset: %s Pair: %s Expected: %v Got: %v", asset.Spot, cp, instruments[0].SymbolTradeLimit.PriceScale, limits.PriceStepIncrementSize)
-	require.Falsef(t, limits.MinimumBaseAmount != instruments[0].SymbolTradeLimit.MinQuantity.Float64(), "MinimumBaseAmount; Pair: %s Expected: %v Got: %v", cp, instruments[0].SymbolTradeLimit.MinQuantity.Float64(), limits.MinimumBaseAmount)
-	assert.Falsef(t, limits.MinimumQuoteAmount != instruments[0].SymbolTradeLimit.MinAmount.Float64(), "Pair: %s Expected: %v Got: %v", cp, instruments[0].SymbolTradeLimit.MinAmount.Float64(), limits.MinimumQuoteAmount)
+	require.Equal(t, limits.PriceStepIncrementSize, instruments[0].SymbolTradeLimit.PriceScale)
+	require.Equal(t, limits.MinimumBaseAmount, instruments[0].SymbolTradeLimit.MinQuantity.Float64())
+	assert.Equal(t, limits.MinimumQuoteAmount, instruments[0].SymbolTradeLimit.MinAmount.Float64())
 }
 
 // ---- Futures endpoints ---
@@ -1483,6 +1477,22 @@ func TestGetKlineDataOfContract(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
+
+func TestGetPublicFuturesWebsocketServerInstances(t *testing.T) {
+	t.Parallel()
+	result, err := p.GetPublicFuturesWebsocketServerInstances(context.Background())
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetPrivateFuturesWebsocketServerInstances(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, p)
+	result, err := p.GetPrivateFuturesWebsocketServerInstances(context.Background())
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
 func TestGetCurrencyTradeURL(t *testing.T) {
 	t.Parallel()
 	testexch.UpdatePairsOnce(t, p)

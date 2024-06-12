@@ -709,8 +709,8 @@ type WsCancelOrderResponse struct {
 
 // OrderCancellationParams represents an order cancellation parameters.
 type OrderCancellationParams struct {
-	OrderIds       []string `json:"orderIds"`
-	ClientOrderIds []string `json:"clientOrderIds"`
+	OrderIDs       []string `json:"orderIds"`
+	ClientOrderIDs []string `json:"clientOrderIds"`
 }
 
 // KillSwitchStatus represents a kill switch response
@@ -1032,4 +1032,39 @@ type WsTradeBalance []struct {
 type WebsocketResponse struct {
 	ID   string      `json:"id"`
 	Data interface{} `json:"data"`
+}
+
+// FuturesWebsocketServerInstances represents websocket server instances detailed information.
+type FuturesWebsocketServerInstances struct {
+	Code string `json:"code"`
+	Msg  string `json:"msg"`
+	Data struct {
+		Code            int    `json:"code"`
+		Token           string `json:"token"`
+		InstanceServers []struct {
+			Endpoint     string `json:"endpoint"`
+			Encrypt      bool   `json:"encrypt"`
+			Protocol     string `json:"protocol"`
+			PingInterval string `json:"pingInterval"`
+			PingTimeout  string `json:"pingTimeout"`
+		} `json:"instanceServers"`
+	} `json:"data"`
+}
+
+// FuturesSubscriptionInput represents a subscription input through the futures stream.
+type FuturesSubscriptionInput struct {
+	ID             int64  `json:"id"`
+	Type           string `json:"type"`
+	Topic          string `json:"topic"`
+	PrivateChannel bool   `json:"privateChannel"`
+	Response       bool   `json:"response"`
+}
+
+// FuturesSubscriptionResp represents a subscription response item.
+type FuturesSubscriptionResp struct {
+	ID   string `json:"id"`
+	Type string `json:"type"`
+
+	Subject string `json:"subject"`
+	Topic   string `json:"topic"`
 }

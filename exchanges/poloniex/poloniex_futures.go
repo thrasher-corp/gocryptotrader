@@ -3,6 +3,7 @@ package poloniex
 import (
 	"context"
 	"errors"
+	"net/http"
 	"net/url"
 	"strconv"
 	"time"
@@ -226,4 +227,16 @@ func (p *Poloniex) GetKlineDataOfContract(ctx context.Context, symbol string, gr
 		return nil, err
 	}
 	return resp.ExtractKlineChart(), nil
+}
+
+// GetPublicFuturesWebsocketServerInstances retrieves the server list and temporary public token.
+func (p *Poloniex) GetPublicFuturesWebsocketServerInstances(ctx context.Context) (*FuturesWebsocketServerInstances, error) {
+	var resp *FuturesWebsocketServerInstances
+	return resp, p.SendHTTPRequest(ctx, exchange.RestFutures, unauthEPL, "/v1/bullet-public", &resp)
+}
+
+// GetPrivateFuturesWebsocketServerInstances retrieves authenticated list of servers and temporary token.
+func (p *Poloniex) GetPrivateFuturesWebsocketServerInstances(ctx context.Context) (*FuturesWebsocketServerInstances, error) {
+	var resp *FuturesWebsocketServerInstances
+	return resp, p.SendAuthenticatedHTTPRequest(ctx, exchange.RestFutures, unauthEPL, http.MethodPost, "/v1/bullet-private", nil, nil, &resp)
 }

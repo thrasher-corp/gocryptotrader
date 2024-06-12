@@ -89,7 +89,6 @@ func (p *Poloniex) WsConnect() error {
 	onceOrderbook = make(map[string]struct{})
 	p.Websocket.Wg.Add(1)
 	go p.wsReadData(p.Websocket.Conn)
-
 	return nil
 }
 
@@ -593,6 +592,9 @@ func (p *Poloniex) Subscribe(subs subscription.List) error {
 		return err
 	}
 	for i := range payloads {
+		val, _ := json.Marshal(payloads[i])
+		println(string(val))
+
 		switch payloads[i].Channel[0] {
 		case cnlBalances, cnlOrders:
 			if canUseAuthenticate {
@@ -602,18 +604,13 @@ func (p *Poloniex) Subscribe(subs subscription.List) error {
 				}
 			}
 		default:
-
-			val, _ := json.Marshal(payloads[i])
-			println(string(val))
-
 			err = p.Websocket.Conn.SendJSONMessage(payloads[i])
 			if err != nil {
 				return err
 			}
 		}
 	}
-	p.Websocket.AddSuccessfulSubscriptions(subs...)
-	return nil
+	return p.Websocket.AddSuccessfulSubscriptions(subs...)
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
@@ -642,6 +639,5 @@ func (p *Poloniex) Unsubscribe(unsub subscription.List) error {
 			}
 		}
 	}
-	p.Websocket.RemoveSubscriptions(unsub...)
-	return nil
+	return p.Websocket.RemoveSubscriptions(unsub...)
 }

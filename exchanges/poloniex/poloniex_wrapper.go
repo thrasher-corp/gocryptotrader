@@ -666,7 +666,7 @@ func (p *Poloniex) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*or
 		Status: make(map[string]string),
 	}
 	if p.Websocket.IsConnected() && p.Websocket.CanUseAuthenticatedEndpoints() && p.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
-		wsCancelledOrders, err := p.WsCancelMultipleOrdersByIDs(&OrderCancellationParams{OrderIds: orderIDs, ClientOrderIds: clientOrderIDs})
+		wsCancelledOrders, err := p.WsCancelMultipleOrdersByIDs(&OrderCancellationParams{OrderIDs: orderIDs, ClientOrderIDs: clientOrderIDs})
 		if err != nil {
 			return nil, err
 		}
@@ -679,7 +679,7 @@ func (p *Poloniex) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*or
 			resp.Status[orderID] = wsCancelledOrders[i].State + " " + wsCancelledOrders[i].Message
 		}
 	} else {
-		cancelledOrders, err := p.CancelMultipleOrdersByIDs(ctx, &OrderCancellationParams{OrderIds: orderIDs, ClientOrderIds: clientOrderIDs})
+		cancelledOrders, err := p.CancelMultipleOrdersByIDs(ctx, &OrderCancellationParams{OrderIDs: orderIDs, ClientOrderIDs: clientOrderIDs})
 		if err != nil {
 			return nil, err
 		}
