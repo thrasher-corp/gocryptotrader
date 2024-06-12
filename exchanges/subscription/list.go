@@ -8,6 +8,7 @@ import (
 	"strings"
 	"text/template"
 
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
@@ -58,6 +59,17 @@ func (l List) GroupPairs() (n List) {
 		}
 	}
 	return s.List()
+}
+
+// SetStates sets the state for all the subs in a list
+// Errors are collected for any subscriptions already in the state
+// On error all changes are reverted
+func (l List) SetStates(state State) error {
+	var err error
+	for _, sub := range l {
+		err = common.AppendError(err, sub.SetState(state))
+	}
+	return err
 }
 
 func fillAssetPairs(ap assetPairs, a asset.Item, e iExchange) error {
